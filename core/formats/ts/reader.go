@@ -93,15 +93,45 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 	decoder.AutoClose = xml.HTMLAutoClose
 	decoder.Entity = xml.HTMLEntity
 
-	// Skeleton tracking: collect source/translation content positions
+	// numerusFormRange records the raw byte offsets of one
+	// `<numerusform …>…</numerusform>` element so the writer can
+	// preserve the source's exact inter-form whitespace.
+	type numerusFormRange struct {
+		openStart int // offset of the `<` in `<numerusform`
+		openEnd   int // offset just after the `>` of the opening tag
+		closeEnd  int // offset just after the `>` of the closing `</numerusform>`
+	}
+
+	// Skeleton tracking: collect source/translation content positions.
+	// `prefix` / `suffix` carry the markup the writer must inject around
+	// the ref content (used for synthesized translation sections — when
+	// the source has `<source>` but no `<translation>`, okapi's
+	// `addTargetSection` injects `\n<translation type="unfinished" variants="no">…</translation>`
+	// after the last `validBefore` element). For real source/translation
+	// elements, prefix/suffix are empty and the surrounding tags come
+	// from the verbatim source bytes between elemPositions entries.
 	type elemPos struct {
-		startOffset int    // byte offset after opening tag
-		endOffset   int    // byte offset before closing tag
+		startOffset int    // byte offset after opening tag (or insertion point for synthesized)
+		endOffset   int    // byte offset before closing tag (== startOffset for synthesized)
 		blockIdx    int    // 0-based block index
-		elemType    string // "source" or "translation"
+		elemType    string // "source" / "translation" / "numerus_translation" / "synthesized_translation"
+		prefix      string // markup to emit before the ref content
+		suffix      string // markup to emit after the ref content
 	}
 	var elemPositions []elemPos
 	var elemStartOff int64
+	// validBeforeNames mirrors okapi TsFilter's `validBefore` constant —
+	// the set of element names after which a synthesized `<translation>`
+	// section may be inserted when the message has a `<source>` but no
+	// `<translation>` of its own.
+	validBeforeNames := map[string]bool{
+		"source":            true,
+		"oldsource":         true,
+		"comment":           true,
+		"oldcomment":        true,
+		"extracomment":      true,
+		"translatorcomment": true,
+	}
 
 	var (
 		tsVersion           string
@@ -128,13 +158,29 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		extraCommentBuilder strings.Builder
 		transCommentBuilder strings.Builder
 		contextNameBuilder  strings.Builder
-		numerusForms        []string
-		sourceRuns          []model.Run
+		numerusForms             []string
+		numerusFormAttrs         []string     // per-form attribute strings (e.g. ` variants="no"`)
+		numerusFormAttrsCurrent  string       // attribute string of the currently-open <numerusform>
+		numerusFormRuns          [][]model.Run // per-form Run slices (text + byte placeholders)
+		numerusFormRunsCurrent   []model.Run  // Runs of the currently-open <numerusform>
+		numerusByteElemCount     int          // running byte element counter for inline-code IDs across forms in this message
+		// Per-numerusform raw byte offsets so the writer can preserve
+		// the source's leading whitespace/indentation between forms
+		// instead of substituting a single hard-coded line break.
+		numerusFormOpenStartOff  int   // byte offset of the `<` of the currently-open <numerusform>
+		numerusFormOpenEndOff    int   // byte offset just after the `>` of the currently-open <numerusform>
+		numerusFormRanges        []numerusFormRange
+		numerusFormTrailingWS    string // raw text between last `</numerusform>` and `</translation>`
+		sourceRuns               []model.Run
 		sourceByteElems     []byteElem
 		transByteElems      []byteElem
 		buildingSource      bool
 		buildingTrans       bool
 		transRuns           []model.Run
+		// Per-message tracking for synthesized translation sections.
+		hasSource              bool  // current message had a `<source>` element
+		hasTranslation         bool  // current message had a `<translation>` element
+		lastValidBeforeEndOff  int64 // byte offset right after the closing `>` of the last validBefore element seen in the current message (0 if none)
 	)
 
 	layer := &model.Layer{
@@ -220,12 +266,24 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 				extraCommentBuilder.Reset()
 				transCommentBuilder.Reset()
 				numerusForms = nil
+				numerusFormAttrs = nil
+				numerusFormAttrsCurrent = ""
+				numerusFormRuns = nil
+				numerusFormRunsCurrent = nil
+				numerusByteElemCount = 0
+				numerusFormOpenStartOff = 0
+				numerusFormOpenEndOff = 0
+				numerusFormRanges = nil
+				numerusFormTrailingWS = ""
 				sourceRuns = nil
 				transRuns = nil
 				sourceByteElems = nil
 				transByteElems = nil
 				buildingSource = false
 				buildingTrans = false
+				hasSource = false
+				hasTranslation = false
+				lastValidBeforeEndOff = 0
 				for _, attr := range t.Attr {
 					switch attr.Name.Local {
 					case "id":
@@ -238,6 +296,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 			case "source":
 				if inMessage {
 					inSource = true
+					hasSource = true
 					sourceBuilder.Reset()
 					sourceRuns = nil
 					sourceByteElems = nil
@@ -248,6 +307,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 			case "translation":
 				if inMessage {
 					inTranslation = true
+					hasTranslation = true
 					transBuilder.Reset()
 					transRuns = nil
 					transByteElems = nil
@@ -264,6 +324,35 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 				if inTranslation && messageNumerus {
 					inNumerusForm = true
 					transBuilder.Reset()
+					numerusFormRunsCurrent = nil
+					// Capture this `<numerusform …>` start tag's
+					// attribute string so the writer can preserve
+					// `<numerusform variants="no">` style markers.
+					// We rebuild from the parsed attributes (rather than
+					// slicing rawText) so non-canonical source quoting
+					// still produces canonical output — okapi's
+					// addStartElemToSkel always emits `attr="value"` pairs.
+					var sb strings.Builder
+					for _, attr := range t.Attr {
+						sb.WriteByte(' ')
+						sb.WriteString(attr.Name.Local)
+						sb.WriteString(`="`)
+						sb.WriteString(attr.Value)
+						sb.WriteByte('"')
+					}
+					numerusFormAttrsCurrent = sb.String()
+					// Record byte offsets so the writer can later replay
+					// the source's exact inter-form whitespace. openEnd
+					// = decoder.InputOffset() (right after the `>`).
+					// openStart is found by scanning backward to the
+					// `<numerusform` token start.
+					openEnd := int(decoder.InputOffset())
+					openStart := strings.LastIndex(rawText[:openEnd], "<numerusform")
+					if openStart < 0 {
+						openStart = openEnd
+					}
+					numerusFormOpenStartOff = openStart
+					numerusFormOpenEndOff = openEnd
 				}
 
 			case "comment":
@@ -300,6 +389,19 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 							Type: "byte",
 							Data: fmt.Sprintf(`<byte value="%s"/>`, byteVal),
 						}})
+					} else if buildingTrans && inTranslation && inNumerusForm {
+						// `<byte value="…"/>` inside a numerusform survives
+						// as an inline placeholder so the writer can
+						// re-emit it alongside the surrounding text after
+						// pseudo-translation. Without this the byte
+						// element is dropped on round-trip and the form's
+						// content shifts.
+						numerusByteElemCount++
+						numerusFormRunsCurrent = append(numerusFormRunsCurrent, model.Run{Ph: &model.PlaceholderRun{
+							ID:   fmt.Sprintf("b%d", numerusByteElemCount),
+							Type: "byte",
+							Data: fmt.Sprintf(`<byte value="%s"/>`, byteVal),
+						}})
 					} else if buildingTrans && inTranslation && !inNumerusForm {
 						transByteElems = append(transByteElems, be)
 						transRuns = append(transRuns, model.Run{Ph: &model.PlaceholderRun{
@@ -312,6 +414,17 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 			}
 
 		case xml.EndElement:
+			// Track the end offset of the last validBefore element seen
+			// inside the current message so we can synthesize a
+			// `<translation>` section after it when the message has a
+			// `<source>` but no explicit `<translation>`. This mirrors
+			// okapi TsFilter's `elemBeforeTrg` + `addTargetSection`
+			// behaviour. decoder.InputOffset() returns the byte offset
+			// just after the closing `>` of this end element — exactly
+			// where okapi inserts the synthesized section.
+			if inMessage && validBeforeNames[t.Name.Local] {
+				lastValidBeforeEndOff = decoder.InputOffset()
+			}
 			switch t.Name.Local {
 			case "name":
 				if inContextName {
@@ -377,6 +490,17 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 							// numerusforms instead of emitting the source
 							// bytes verbatim.
 							elemType = "numerus_translation"
+							// Stash the trailing-whitespace span between
+							// the last `</numerusform>` and this
+							// `</translation>` so the writer can emit
+							// the same indentation before the closing
+							// tag (e.g. `\n        </translation>`).
+							if len(numerusFormRanges) > 0 {
+								last := numerusFormRanges[len(numerusFormRanges)-1].closeEnd
+								if last < endPos {
+									numerusFormTrailingWS = rawText[last:endPos]
+								}
+							}
 						}
 						elemPositions = append(elemPositions, elemPos{
 							startOffset: int(elemStartOff),
@@ -393,6 +517,16 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 				if inNumerusForm {
 					inNumerusForm = false
 					numerusForms = append(numerusForms, transBuilder.String())
+					numerusFormAttrs = append(numerusFormAttrs, numerusFormAttrsCurrent)
+					numerusFormRuns = append(numerusFormRuns, numerusFormRunsCurrent)
+					closeEnd := int(decoder.InputOffset())
+					numerusFormRanges = append(numerusFormRanges, numerusFormRange{
+						openStart: numerusFormOpenStartOff,
+						openEnd:   numerusFormOpenEndOff,
+						closeEnd:  closeEnd,
+					})
+					numerusFormAttrsCurrent = ""
+					numerusFormRunsCurrent = nil
 					transBuilder.Reset()
 				}
 
@@ -414,12 +548,52 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 			case "message":
 				if inMessage {
 					inMessage = false
+					// Detect synthesized translation section: source
+					// present and non-empty, no translation, not
+					// obsolete. Capture before blockCount is incremented
+					// so the elemPos blockIdx matches the upcoming block.
+					// Mirrors okapi TsFilter's `needTargetSection()`:
+					// `!noSource() && !targetExists`, where `noSource()`
+					// is true when the message has no `<source>` *or*
+					// when the source has no content (no non-whitespace
+					// CHARACTERS *and* no inline `<byte>` element). So
+					// `<source></source>` does not trigger synthesis but
+					// `<source><byte value="79"/></source>` does.
+					sourceHasContent := strings.TrimSpace(sourceBuilder.String()) != "" || len(sourceByteElems) > 0
+					synthesize := r.skeletonStore != nil &&
+						hasSource && !hasTranslation &&
+						transType != "obsolete" &&
+						lastValidBeforeEndOff > 0 &&
+						sourceHasContent
 					blockCount++
 
 					// Determine block ID
 					blockID := messageID
 					if blockID == "" {
 						blockID = fmt.Sprintf("tu%d", blockCount)
+					}
+					if synthesize {
+						// Append a synthesized elemPos. Skeleton text up
+						// to lastValidBeforeEndOff is replayed verbatim;
+						// then prefix + ref + suffix injects okapi's
+						// `\n<translation type="unfinished" variants="no">…</translation>`
+						// section. endOffset == startOffset so the next
+						// skeleton chunk continues from the same point in
+						// the source. The newline matches the source's
+						// prevailing line-break style — okapi's TsFilter
+						// captures lineBreak from the input and reuses it
+						// in addTargetSection, so CRLF-encoded files
+						// synthesize `\r\n<translation …>`.
+						pos := int(lastValidBeforeEndOff)
+						lb := detectLineBreak(rawText)
+						elemPositions = append(elemPositions, elemPos{
+							startOffset: pos,
+							endOffset:   pos,
+							blockIdx:    blockCount - 1,
+							elemType:    "synthesized_translation",
+							prefix:      lb + "<translation type=\"unfinished\" variants=\"no\">",
+							suffix:      "</translation>",
+						})
 					}
 
 					// Build source text
@@ -473,18 +647,54 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 						targetLocale = r.Doc.SourceLocale
 					}
 
+					// Track which numerusforms were originally empty. Empty
+					// forms are bilingual content the okapi pipeline
+					// preserves verbatim — `generateNumerusFormTu`
+					// extracts each `<numerusform></numerusform>` as a
+					// separate TextUnit whose target placeholder is
+					// never primed (no addContentPlaceholder fires
+					// without character data), so TextModificationStep
+					// has nothing to pseudo-translate. The writer reads
+					// this property to fall back to the original empty
+					// shape rather than the pseudo-of-source content
+					// that would otherwise appear.
+					var emptyFormFlags strings.Builder
+					if messageNumerus {
+						for i, form := range numerusForms {
+							if i > 0 {
+								emptyFormFlags.WriteByte(',')
+							}
+							hasText := strings.TrimSpace(form) != ""
+							hasInline := i < len(numerusFormRuns) && hasInlineCodes(numerusFormRuns[i])
+							if hasText || hasInline {
+								emptyFormFlags.WriteByte('1')
+							} else {
+								emptyFormFlags.WriteByte('0')
+							}
+						}
+					}
 					// Set target text
 					if messageNumerus && len(numerusForms) > 0 {
 						// Store each plural form as its own segment so the
 						// pseudo / TextModificationStep pipeline reaches all
 						// forms, not just the first. The writer iterates the
 						// segments to emit one <numerusform>…</numerusform>
-						// each.
+						// each. Prefer the per-form Run sequence (which
+						// preserves inline `<byte value="…"/>` placeholders)
+						// when available; fall back to the flat text from
+						// transBuilder for forms that contain only character
+						// data.
 						segs := make([]*model.Segment, len(numerusForms))
 						for i, form := range numerusForms {
+							var runs []model.Run
+							if i < len(numerusFormRuns) && len(numerusFormRuns[i]) > 0 {
+								runs = numerusFormRuns[i]
+							} else {
+								runs = []model.Run{{Text: &model.TextRun{Text: form}}}
+							}
 							segs[i] = &model.Segment{
 								ID:   fmt.Sprintf("n%d", i),
-								Runs: []model.Run{{Text: &model.TextRun{Text: form}}},
+								Runs: runs,
 							}
 						}
 						if block.Targets == nil {
@@ -497,6 +707,52 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 						// APPROVED-property → "unfinished" flip on
 						// content change).
 						block.Properties["_orig_target_text"] = strings.Join(numerusForms, "\x1f")
+						// Stash per-form attribute strings (e.g.
+						// ` variants="no"`) so the writer can preserve
+						// `<numerusform variants="no">` markers — okapi's
+						// addStartElemToSkel re-emits every original
+						// attribute. Joined with \x1f as a private
+						// separator that won't appear in attribute values.
+						if joinedAttrs := strings.Join(numerusFormAttrs, "\x1f"); joinedAttrs != "" {
+							block.Properties["_numerusform_attrs"] = joinedAttrs
+						}
+						// Stash the source's prevailing line-break style
+						// so the writer can re-emit `\r\n<numerusform …>`
+						// pairs separated and surrounded by the same line
+						// terminator the source used between adjacent
+						// numerusforms.
+						block.Properties["_line_break"] = detectLineBreak(rawText)
+						// Per-form non-empty flags ('1' = had content,
+						// '0' = was empty). Joined with commas to keep
+						// the value parseable when the writer reaches it.
+						if emptyFormFlags.Len() > 0 {
+							block.Properties["_numerusform_nonempty"] = emptyFormFlags.String()
+						}
+						// Pre-form raw whitespace strings: the bytes
+						// between the previous element close (or
+						// `<translation>` `>`) and the current
+						// `<numerusform`. Joined with \x1f. The writer
+						// replays each prefix to reproduce the source's
+						// indentation rather than synthesising one.
+						// `_numerusform_trailing_ws` carries the bytes
+						// between the last `</numerusform>` and the
+						// upcoming `</translation>`.
+						if len(numerusFormRanges) > 0 {
+							var prefixes []string
+							prev := int(elemStartOff)
+							for _, rng := range numerusFormRanges {
+								if rng.openStart >= prev {
+									prefixes = append(prefixes, rawText[prev:rng.openStart])
+								} else {
+									prefixes = append(prefixes, "")
+								}
+								prev = rng.closeEnd
+							}
+							block.Properties["_numerusform_prefixes"] = strings.Join(prefixes, "\x1f")
+						}
+						if numerusFormTrailingWS != "" {
+							block.Properties["_numerusform_trailing_ws"] = numerusFormTrailingWS
+						}
 					} else {
 						targetText := transBuilder.String()
 						if targetText != "" || transType == "unfinished" {
@@ -551,6 +807,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 				contextNameBuilder.WriteString(text)
 			} else if inNumerusForm {
 				transBuilder.WriteString(text)
+				numerusFormRunsCurrent = appendTSTextRun(numerusFormRunsCurrent, text)
 			} else if inSource {
 				sourceBuilder.WriteString(text)
 				if buildingSource {
@@ -577,18 +834,35 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 	if r.skeletonStore != nil && len(elemPositions) > 0 {
 		skelPos := 0
 		for _, ep := range elemPositions {
-			// Write skeleton text from skelPos to element content start
+			// Write skeleton text from skelPos to element content start.
+			// CDATA sections in the skeleton are unwrapped to their inner
+			// payload — okapi TsFilter's procCDATA writes the raw inner
+			// characters into the skeleton without the surrounding
+			// `<![CDATA[…]]>` markers. Then rewriteSkelCharData
+			// re-encodes character data with okapi's quoteMode=0
+			// settings (collapses `&quot;`/`&apos;` into raw `"`/`'`).
 			if ep.startOffset > skelPos {
-				r.skelText(rawText[skelPos:ep.startOffset])
+				r.skelText(rewriteSkelCharData(stripCDATA(rawText[skelPos:ep.startOffset])))
+			}
+			// For synthesized translation sections, append the
+			// `\n<translation type="unfinished" variants="no">` opener
+			// (and later the matching `</translation>` closer) so the
+			// writer's translation-ref handling can drop the target text
+			// inside without needing to know the wrapping markup.
+			if ep.prefix != "" {
+				r.skelText(ep.prefix)
 			}
 			// Write skeleton ref: "blockIdx:elemType"
 			refID := fmt.Sprintf("%d:%s", ep.blockIdx, ep.elemType)
 			r.skelRef(refID)
+			if ep.suffix != "" {
+				r.skelText(ep.suffix)
+			}
 			skelPos = ep.endOffset
 		}
 		// Write remaining skeleton text
 		if skelPos < len(rawText) {
-			r.skelText(rawText[skelPos:])
+			r.skelText(rewriteSkelCharData(stripCDATA(rawText[skelPos:])))
 		}
 		r.skelFlush()
 	}
@@ -634,6 +908,149 @@ func (r *Reader) emit(ctx context.Context, ch chan<- model.PartResult, part *mod
 	case <-ctx.Done():
 		return false
 	}
+}
+
+// rewriteSkelCharData mirrors okapi TsFilter's procCharacters
+// re-encoding pass on skeleton text: in CHARACTER DATA regions
+// (everything outside `<…>` markup, comments, processing
+// instructions, and CDATA sections), the input is decoded via the
+// XML parser and re-emitted with `quoteMode=0` semantics — `&quot;`
+// and `&apos;` collapse to literal `"` / `'` while `&lt;`, `&gt;`,
+// `&amp;` are preserved. Numeric character references decode in the
+// usual way. Markup regions pass through verbatim so attribute
+// values keep their original `&quot;` quoting.
+//
+// Implementation is a minimal hand-rolled scanner — Go's xml.Decoder
+// would re-tokenise and lose offset stability, and the skeleton may
+// contain partial markup the decoder rejects (the prologue, leading
+// whitespace, etc.).
+func rewriteSkelCharData(s string) string {
+	if !strings.ContainsAny(s, "&") {
+		return s
+	}
+	var b strings.Builder
+	b.Grow(len(s))
+	i := 0
+	for i < len(s) {
+		c := s[i]
+		switch c {
+		case '<':
+			// Find the matching `>` and emit the markup verbatim.
+			// Comments (`<!--…-->`), processing instructions
+			// (`<?…?>`), and DOCTYPE/CDATA (`<!…>`) all terminate at
+			// the next `>`. CDATA sections are already stripped by
+			// stripCDATA before this runs.
+			end := strings.IndexByte(s[i:], '>')
+			if end < 0 {
+				b.WriteString(s[i:])
+				return b.String()
+			}
+			b.WriteString(s[i : i+end+1])
+			i += end + 1
+		case '&':
+			// Decode the entity reference. Recognise the named
+			// entities `&quot;`, `&apos;`, `&lt;`, `&gt;`, `&amp;`
+			// and numeric `&#…;` references. Anything else
+			// passes through verbatim — okapi's procCharacters
+			// goes through the StAX decoder which would have
+			// already resolved any named entity defined in the
+			// DTD, but the skeleton text only ever contains the
+			// canonical XML predefined set.
+			semi := strings.IndexByte(s[i:], ';')
+			if semi < 0 || semi > 16 {
+				b.WriteByte(c)
+				i++
+				continue
+			}
+			ent := s[i : i+semi+1]
+			switch ent {
+			case "&quot;":
+				b.WriteByte('"')
+			case "&apos;":
+				b.WriteByte('\'')
+			case "&lt;":
+				b.WriteString("&lt;")
+			case "&gt;":
+				b.WriteString("&gt;")
+			case "&amp;":
+				b.WriteString("&amp;")
+			default:
+				if strings.HasPrefix(ent, "&#") {
+					// Numeric reference. Decode and re-encode
+					// with the same okapi rules — the resulting
+					// rune is emitted raw unless it would also
+					// need re-escaping (none of the
+					// okapi-relevant ones do, so emit raw).
+					body := ent[2 : len(ent)-1]
+					var r rune
+					var err error
+					if strings.HasPrefix(body, "x") || strings.HasPrefix(body, "X") {
+						_, err = fmt.Sscanf(body[1:], "%x", &r)
+					} else {
+						_, err = fmt.Sscanf(body, "%d", &r)
+					}
+					if err == nil && r > 0 {
+						b.WriteRune(r)
+					} else {
+						b.WriteString(ent)
+					}
+				} else {
+					b.WriteString(ent)
+				}
+			}
+			i += semi + 1
+		default:
+			b.WriteByte(c)
+			i++
+		}
+	}
+	return b.String()
+}
+
+// stripCDATA replaces every `<![CDATA[…]]>` section in s with its
+// inner payload, mirroring okapi TsFilter's procCDATA which appends
+// the raw character data into the skeleton without the wrapping
+// markers. Other content (markup, comments, character data) passes
+// through unchanged. Unterminated CDATA sections are left as-is.
+func stripCDATA(s string) string {
+	const open = "<![CDATA["
+	const close = "]]>"
+	if !strings.Contains(s, open) {
+		return s
+	}
+	var b strings.Builder
+	b.Grow(len(s))
+	for {
+		i := strings.Index(s, open)
+		if i < 0 {
+			b.WriteString(s)
+			return b.String()
+		}
+		b.WriteString(s[:i])
+		rest := s[i+len(open):]
+		j := strings.Index(rest, close)
+		if j < 0 {
+			// No terminator — preserve the original text and stop.
+			b.WriteString(s[i:])
+			return b.String()
+		}
+		b.WriteString(rest[:j])
+		s = rest[j+len(close):]
+	}
+}
+
+// detectLineBreak reports the prevailing line-break style of a Qt TS
+// source — `"\r\n"` when the first newline in the document is preceded
+// by a CR, `"\n"` otherwise (including for documents with no newline
+// at all). Mirrors okapi TsFilter's `lineBreak` capture from the
+// XMLEventReader, which is reused by addTargetSection / procDTD /
+// procCharacters when re-emitting markup.
+func detectLineBreak(raw string) string {
+	idx := strings.IndexByte(raw, '\n')
+	if idx > 0 && raw[idx-1] == '\r' {
+		return "\r\n"
+	}
+	return "\n"
 }
 
 // extractTSPrologue returns (prologue, tsTag) from a Qt TS source

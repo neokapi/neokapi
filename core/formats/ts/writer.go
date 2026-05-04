@@ -201,6 +201,11 @@ func (w *Writer) writeFromSkeleton() error {
 			// the rendered text against `_orig_target_text` so an
 			// untouched round-trip stays byte-exact while a modified
 			// one (pseudo / MT / manual edit) gets the unfinished flag.
+			// synthesized_translation already carries the canonical
+			// `type="unfinished"` opener in its prefix text, so skip the
+			// rewrite. For real translation/numerus refs the pendingText
+			// holds the source's `<translation …>` tag and we may need to
+			// flip its type when downstream content was modified.
 			if (elemType == "translation" || elemType == "numerus_translation") &&
 				shouldEmitUnfinished(block) {
 				pendingText = forceTranslationUnfinished(pendingText)
@@ -215,7 +220,15 @@ func (w *Writer) writeFromSkeleton() error {
 				if seg := block.FirstSegment(); seg != nil && len(seg.Runs) > 0 {
 					text = w.runsToXML(seg.Runs)
 				}
-			case "translation":
+			case "translation", "synthesized_translation":
+				// `synthesized_translation` is the placeholder the reader
+				// inserts when okapi's `addTargetSection` would synthesize
+				// a `<translation type="unfinished" variants="no">…</translation>`
+				// after the last validBefore element. The wrapping markup
+				// is already in the surrounding skeleton text — here we
+				// just emit the target body, defaulting to the
+				// pseudo-translated source when no explicit target was
+				// produced (matches okapi's text-modification fill).
 				if block.HasTarget(targetLocale) {
 					targetSegs := block.Targets[targetLocale]
 					if len(targetSegs) > 0 && len(targetSegs[0].Runs) > 0 {
@@ -233,11 +246,26 @@ func (w *Writer) writeFromSkeleton() error {
 						}
 					}
 				}
+				if text == "" && elemType == "synthesized_translation" {
+					// No target produced for this block — emit the source
+					// verbatim as the translation body. This mirrors
+					// `tikal -m` on a fresh extract where
+					// TextModificationStep is disabled: the empty target
+					// gets filled with the source string before the writer
+					// runs.
+					if seg := block.FirstSegment(); seg != nil && len(seg.Runs) > 0 {
+						text = w.runsToXML(seg.Runs)
+					}
+				}
 			case "numerus_translation":
 				// One <numerusform>…</numerusform> per segment in the
 				// target locale; mirrors okapi's TextModificationStep
 				// path which pseudo-translates every plural form, not
-				// just the first.
+				// just the first. Each form is preceded by a line break
+				// and emitted with its original attribute string (e.g.
+				// ` variants="no"`) so the round-trip preserves the
+				// `<translation>\n<numerusform variants="no">…</numerusform>\n</translation>`
+				// shape okapi's pipeline produces.
 				segs := block.Targets[targetLocale]
 				if len(segs) == 0 {
 					// File declared a non-matching target locale; pick
@@ -249,14 +277,81 @@ func (w *Writer) writeFromSkeleton() error {
 						}
 					}
 				}
+				var attrs []string
+				if joined := block.Properties["_numerusform_attrs"]; joined != "" {
+					attrs = strings.Split(joined, "\x1f")
+				}
+				// `_numerusform_nonempty` carries the originally-empty
+				// per-form flags so we can preserve `<numerusform></numerusform>`
+				// rather than replace it with a pseudo-translated source
+				// copy. Without this an `applyPseudoToBlock` upstream
+				// fills the block's target with pseudo(source) and we'd
+				// emit that for every form — okapi's per-form TextUnit
+				// flow has nothing to modify when both source and target
+				// are empty.
+				var nonemptyFlags []string
+				if raw := block.Properties["_numerusform_nonempty"]; raw != "" {
+					nonemptyFlags = strings.Split(raw, ",")
+				}
+				// `_numerusform_prefixes` are the source's verbatim
+				// inter-form character data (typically newline +
+				// indentation) so we re-emit `\n            <numerusform>`
+				// pairs that match the original layout. Falls back to
+				// the document's prevailing line break when prefixes
+				// are absent (e.g. for blocks built outside the reader).
+				var prefixes []string
+				if raw := block.Properties["_numerusform_prefixes"]; raw != "" {
+					prefixes = strings.Split(raw, "\x1f")
+				}
+				trailingWS := block.Properties["_numerusform_trailing_ws"]
+				lineBreak := block.Properties["_line_break"]
+				if lineBreak == "" {
+					lineBreak = "\n"
+				}
+				// The number of forms to emit comes from the original
+				// source's numerusform count (carried as the prefix
+				// list length or the nonempty-flag length), NOT from
+				// `len(segs)`. applyPseudoToBlock can collapse the
+				// segment count when it falls back to source-as-base
+				// (one source segment → one pseudo'd target segment),
+				// which would otherwise drop the empty forms.
+				formCount := len(segs)
+				if n := len(prefixes); n > formCount {
+					formCount = n
+				}
+				if n := len(nonemptyFlags); n > formCount {
+					formCount = n
+				}
+				if n := len(attrs); n > formCount {
+					formCount = n
+				}
 				var b strings.Builder
-				for _, seg := range segs {
-					if seg == nil {
-						continue
+				for i := 0; i < formCount; i++ {
+					if i < len(prefixes) {
+						b.WriteString(prefixes[i])
+					} else {
+						b.WriteString(lineBreak)
 					}
-					b.WriteString("<numerusform>")
-					b.WriteString(w.runsToXML(seg.Runs))
+					b.WriteString("<numerusform")
+					if i < len(attrs) {
+						b.WriteString(attrs[i])
+					}
+					b.WriteByte('>')
+					if i < len(nonemptyFlags) && nonemptyFlags[i] == "0" {
+						// Original form was empty — preserve the empty
+						// shape instead of substituting in a
+						// pseudo-translated source clone.
+					} else if i < len(segs) && segs[i] != nil {
+						b.WriteString(w.runsToXMLEscapeApos(segs[i].Runs))
+					}
 					b.WriteString("</numerusform>")
+				}
+				if formCount > 0 {
+					if trailingWS != "" {
+						b.WriteString(trailingWS)
+					} else {
+						b.WriteString(lineBreak)
+					}
 				}
 				text = b.String()
 			}
@@ -363,10 +458,15 @@ func forceTranslationUnfinished(buf []byte) []byte {
 		return out
 	}
 
-	// No type attribute — insert ` type="unfinished"` right after
-	// `<translation`.
-	newTag := append([]byte("<translation"), ` type="unfinished"`...)
-	newTag = append(newTag, body...)
+	// No type attribute — append ` type="unfinished"` AFTER any
+	// existing attributes (variants=…, etc.). Okapi's APPROVED-property
+	// placeholder is wired into addTargetSection between the existing
+	// attributes and the closing `>`, so on a `<translation
+	// variants="no">` source the rewritten tag becomes
+	// `<translation variants="no" type="unfinished">` rather than
+	// `<translation type="unfinished" variants="no">`.
+	newTag := append([]byte("<translation"), body...)
+	newTag = append(newTag, ` type="unfinished"`...)
 	newTag = append(newTag, '>')
 	out := append([]byte{}, buf[:open]...)
 	out = append(out, newTag...)
@@ -583,16 +683,29 @@ func (w *Writer) writeMessage(block *model.Block, targetLocale model.LocaleID) e
 // verbatim).
 func (w *Writer) runsToXML(runs []model.Run) string {
 	var buf strings.Builder
-	writeTSRunsXML(&buf, runs)
+	writeTSRunsXML(&buf, runs, false)
 	return buf.String()
 }
 
-func writeTSRunsXML(buf *strings.Builder, runs []model.Run) {
+// runsToXMLEscapeApos is runsToXML for `<numerusform>` content:
+// `'` is encoded as `&apos;` rather than passed through raw, matching
+// the okapi reference's per-form encoding.
+func (w *Writer) runsToXMLEscapeApos(runs []model.Run) string {
+	var buf strings.Builder
+	writeTSRunsXML(&buf, runs, true)
+	return buf.String()
+}
+
+func writeTSRunsXML(buf *strings.Builder, runs []model.Run, escapeApos bool) {
 	for _, r := range runs {
 		switch {
 		case r.Text != nil:
 			for _, rr := range r.Text.Text {
-				buf.WriteString(xmlEscapeRune(rr))
+				if escapeApos {
+					buf.WriteString(xmlEscapeRuneEntity(rr))
+				} else {
+					buf.WriteString(xmlEscapeRune(rr))
+				}
 			}
 		case r.Ph != nil:
 			buf.WriteString(r.Ph.Data)
@@ -604,11 +717,11 @@ func writeTSRunsXML(buf *strings.Builder, runs []model.Run) {
 			buf.WriteString(r.Sub.Ref)
 		case r.Plural != nil:
 			if form, ok := r.Plural.Forms[model.PluralOther]; ok {
-				writeTSRunsXML(buf, form)
+				writeTSRunsXML(buf, form, escapeApos)
 			}
 		case r.Select != nil:
 			if form, ok := r.Select.Cases["other"]; ok {
-				writeTSRunsXML(buf, form)
+				writeTSRunsXML(buf, form, escapeApos)
 			}
 		}
 	}
@@ -707,7 +820,13 @@ func xmlEscape(s string) string {
 	return buf.String()
 }
 
-// xmlEscapeRune escapes a single rune for XML.
+// xmlEscapeRune escapes a single rune for XML inside Block content.
+// Empirically matches okapi's writer output for `<source>` content:
+// `&`, `<`, `>`, `"` escape; `'` is preserved raw. (The TSEncoder/
+// XMLEncoder default `quoteMode=ALL` would normally escape `'` to
+// `&apos;`, but the bridge's pseudo pipeline emits raw apostrophes
+// in `<source>` text on the round-trip — see the per-form override
+// below for `<numerusform>` which DOES escape.)
 func xmlEscapeRune(r rune) string {
 	switch r {
 	case '&':
@@ -721,4 +840,14 @@ func xmlEscapeRune(r rune) string {
 	default:
 		return string(r)
 	}
+}
+
+// xmlEscapeRuneEntity is the variant used for `<numerusform>` runs:
+// it additionally encodes `'` → `&apos;`, matching the okapi
+// reference's per-form encoding (vs source which keeps raw apos).
+func xmlEscapeRuneEntity(r rune) string {
+	if r == '\'' {
+		return "&apos;"
+	}
+	return xmlEscapeRune(r)
 }
