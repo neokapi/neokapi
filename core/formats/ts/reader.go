@@ -180,6 +180,15 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 					"language":       tsLanguage,
 					"sourcelanguage": tsSrcLanguage,
 				}
+				// Capture the source prologue (everything up to and
+				// including `<TS …>`) so the writer can reproduce the
+				// original XML declaration (encoding, standalone) and
+				// DOCTYPE (including any internal subset `[]`) — the
+				// streaming xml.Decoder discards both.
+				if pre, ts := extractTSPrologue(rawText); pre != "" {
+					dataProps["xml-prologue"] = pre
+					dataProps["ts-tag"] = ts
+				}
 				if !r.emit(ctx, ch, &model.Part{Type: model.PartData, Resource: &model.Data{
 					ID:         "d1",
 					Name:       "ts-header",
@@ -589,6 +598,38 @@ func (r *Reader) emit(ctx context.Context, ch chan<- model.PartResult, part *mod
 	case <-ctx.Done():
 		return false
 	}
+}
+
+// extractTSPrologue returns (prologue, tsTag) from a Qt TS source
+// document.
+//
+// `prologue` is everything from the start of the file up to (but
+// excluding) the `<TS …>` element — typically `<?xml …?>`, `<!DOCTYPE
+// TS …>` and any leading comments / whitespace. `tsTag` is the entire
+// `<TS …>` opening tag including its angle brackets and any internal
+// whitespace.
+//
+// Returns ("", "") when the document does not contain a recognisable
+// `<TS` opening, in which case the writer falls back to its
+// hard-coded prologue (xml.Header + bare `<!DOCTYPE TS>`).
+func extractTSPrologue(raw string) (string, string) {
+	idx := strings.Index(raw, "<TS")
+	if idx < 0 {
+		return "", ""
+	}
+	// Verify `<TS` is followed by whitespace or `>` (not e.g. `<TStuff`).
+	after := idx + len("<TS")
+	if after < len(raw) {
+		c := raw[after]
+		if c != ' ' && c != '\t' && c != '\n' && c != '\r' && c != '>' {
+			return "", ""
+		}
+	}
+	end := strings.IndexByte(raw[idx:], '>')
+	if end < 0 {
+		return "", ""
+	}
+	return raw[:idx], raw[idx : idx+end+1]
 }
 
 // Close releases resources.

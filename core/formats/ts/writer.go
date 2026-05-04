@@ -201,26 +201,42 @@ func (w *Writer) flush() error {
 		targetLocale = w.Locale
 	}
 
-	// Write XML header
-	if _, err := io.WriteString(w.Output, xml.Header); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(w.Output, "<!DOCTYPE TS>\n"); err != nil {
-		return err
-	}
-
-	// Build TS opening tag
-	var tsTag strings.Builder
-	fmt.Fprintf(&tsTag, `<TS version="%s"`, xmlEscape(version))
-	if language != "" {
-		fmt.Fprintf(&tsTag, ` language="%s"`, xmlEscape(language))
-	}
-	if srcLanguage != "" {
-		fmt.Fprintf(&tsTag, ` sourcelanguage="%s"`, xmlEscape(srcLanguage))
-	}
-	tsTag.WriteString(">\n")
-	if _, err := io.WriteString(w.Output, tsTag.String()); err != nil {
-		return err
+	// Write the XML prologue. When the reader captured the source
+	// prologue + `<TS …>` tag (XML declaration with original encoding /
+	// standalone, DOCTYPE with internal subset, leading comments),
+	// re-emit those verbatim so round-trip preserves them. Otherwise
+	// fall back to the hard-coded defaults.
+	if prologue, ok := w.headerProps["xml-prologue"]; ok && prologue != "" {
+		if _, err := io.WriteString(w.Output, prologue); err != nil {
+			return err
+		}
+		if tsTag, ok := w.headerProps["ts-tag"]; ok && tsTag != "" {
+			if _, err := io.WriteString(w.Output, tsTag); err != nil {
+				return err
+			}
+			if _, err := io.WriteString(w.Output, "\n"); err != nil {
+				return err
+			}
+		}
+	} else {
+		if _, err := io.WriteString(w.Output, xml.Header); err != nil {
+			return err
+		}
+		if _, err := io.WriteString(w.Output, "<!DOCTYPE TS>\n"); err != nil {
+			return err
+		}
+		var tsTag strings.Builder
+		fmt.Fprintf(&tsTag, `<TS version="%s"`, xmlEscape(version))
+		if language != "" {
+			fmt.Fprintf(&tsTag, ` language="%s"`, xmlEscape(language))
+		}
+		if srcLanguage != "" {
+			fmt.Fprintf(&tsTag, ` sourcelanguage="%s"`, xmlEscape(srcLanguage))
+		}
+		tsTag.WriteString(">\n")
+		if _, err := io.WriteString(w.Output, tsTag.String()); err != nil {
+			return err
+		}
 	}
 
 	for _, grp := range w.groups {
