@@ -665,6 +665,14 @@ func (r *Reader) buildLineLayout(cb *commentBlock, groups [][]translatableLine) 
 
 	// Walk rawLines and emit either a T entry (when this raw line
 	// produced a translatable text) or an S entry (passthrough).
+	//
+	// T entries encode the FULL line prefix including indent, comment
+	// marker, and any stripped Doxygen command marker — the writer
+	// just emits `<body><translated text>`. Embedding the indent
+	// preserves source formatting when other lines in the same comment
+	// group force the layout path (e.g. an embedded `\code…\endcode`
+	// block). Without this the writer would fall back to a marker-only
+	// "/// " prefix and silently strip indentation.
 	textCursor := 0 // running index into cb.textLines as we walk rawLines
 	var entries []string
 	hasS := false
@@ -697,7 +705,15 @@ func (r *Reader) buildLineLayout(cb *commentBlock, groups [][]translatableLine) 
 		// contribute to textLines. Look up whether the current
 		// textCursor entry is translatable.
 		if tl, isTrans := textIdxToTL[textCursor]; isTrans {
-			entries = append(entries, "T:"+tl.prefix)
+			// Reconstruct the full per-line prefix: original indent +
+			// comment marker (`/// ` or `//! `) + the stripped Doxygen
+			// command marker (e.g. `\param a `).
+			indent := raw[:len(raw)-len(strings.TrimLeft(raw, " \t"))]
+			marker := "/// "
+			if isExcl {
+				marker = "//! "
+			}
+			entries = append(entries, "T:"+indent+marker+tl.prefix)
 		} else {
 			// Non-translatable command line (e.g. \file, \author,
 			// \code, \endcode) — pass through verbatim.

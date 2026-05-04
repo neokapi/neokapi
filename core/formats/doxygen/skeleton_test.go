@@ -71,9 +71,16 @@ func TestSkeletonStore_ByteExact_CodeOnly(t *testing.T) {
 }
 
 func TestSkeletonStore_ByteExact_NoTrailingNewline(t *testing.T) {
+	// Mirrors okapi's DoxygenFilter behaviour: the upstream filter
+	// reads the source line-by-line and unconditionally appends
+	// `linebreak` to every line, so the merged output always
+	// terminates with a newline even when the source did not. Native
+	// matches that for parity (closes qt-style.h byte-equal against
+	// the okapi reference); without it the writer would emit fewer
+	// bytes than okapi does.
 	input := "/// Hello world"
 	output := snippetRoundtripWithSkeleton(t, input)
-	assert.Equal(t, input, output, "no trailing newline should be preserved")
+	assert.Equal(t, input+"\n", output, "writer adds trailing newline to mirror okapi DoxygenFilter")
 }
 
 func TestSkeletonStore_ByteExact_EmptyInput(t *testing.T) {

@@ -16,6 +16,7 @@ import (
 type Writer struct {
 	format.BaseFormatWriter
 	skeletonStore *format.SkeletonStore
+	tracker       *trailingNewlineTracker
 }
 
 // Ensure Writer implements SkeletonStoreConsumer.
@@ -33,6 +34,68 @@ func NewWriter() *Writer {
 // SetSkeletonStore sets the skeleton store for byte-exact output.
 func (w *Writer) SetSkeletonStore(store *format.SkeletonStore) {
 	w.skeletonStore = store
+}
+
+// trailingNewlineTracker wraps an io.Writer and records the last byte
+// written so the doxygen writer can mirror okapi's "always emit a
+// terminating linebreak" behaviour without buffering the full output.
+// Okapi's DoxygenFilter reads the source line-by-line and unconditionally
+// appends `linebreak` to every line, so the upstream reference always
+// terminates with a newline regardless of whether the source did.
+type trailingNewlineTracker struct {
+	w        io.Writer
+	lastByte byte
+	hasBytes bool
+}
+
+func (t *trailingNewlineTracker) Write(p []byte) (int, error) {
+	n, err := t.w.Write(p)
+	if n > 0 {
+		t.lastByte = p[n-1]
+		t.hasBytes = true
+	}
+	return n, err
+}
+
+// SetOutputWriter overrides the base implementation to wrap the output
+// in a trailingNewlineTracker. Required so finalize() can append a
+// linebreak only when the writer hasn't already emitted one.
+func (w *Writer) SetOutputWriter(out io.Writer) error {
+	w.tracker = &trailingNewlineTracker{w: out}
+	return w.BaseFormatWriter.SetOutputWriter(w.tracker)
+}
+
+// SetOutput overrides the base implementation for the same reason as
+// SetOutputWriter. The base implementation creates a *os.File and
+// assigns it to Output; we replay that assignment through the tracker.
+func (w *Writer) SetOutput(path string) error {
+	if err := w.BaseFormatWriter.SetOutput(path); err != nil {
+		return err
+	}
+	w.tracker = &trailingNewlineTracker{w: w.Output}
+	w.Output = w.tracker
+	return nil
+}
+
+// finalize appends a trailing newline if the writer's output stream
+// hasn't ended with one yet. Called after the part stream is drained
+// (skeleton-driven and no-skeleton paths both invoke it). Mirrors
+// okapi's DoxygenFilter behaviour — its line-buffered reader
+// concatenates `line + linebreak` for every line, so the merged output
+// always carries a terminating linebreak even when the source did
+// not.
+func (w *Writer) finalize() error {
+	if w.tracker == nil {
+		return nil
+	}
+	if !w.tracker.hasBytes {
+		return nil
+	}
+	if w.tracker.lastByte == '\n' {
+		return nil
+	}
+	_, err := w.tracker.Write([]byte{'\n'})
+	return err
 }
 
 // Write consumes Parts from a channel and writes reconstructed source.
@@ -94,7 +157,7 @@ func (w *Writer) writeCollected(collected []*model.Part, blocksByID map[string]*
 			return err
 		}
 	}
-	return nil
+	return w.finalize()
 }
 
 // writeBlockGrouped writes a single Block, joining sibling blocks of
@@ -188,7 +251,7 @@ func (w *Writer) writeFromSkeleton(blocks map[string]*model.Block) error {
 			}
 		}
 	}
-	return nil
+	return w.finalize()
 }
 
 // writeCommentStyled reconstructs a comment using the given style.
@@ -245,19 +308,21 @@ func (w *Writer) writeCommentStyled(text, style, raw string, linePrefixes []stri
 // writeFromLayout emits a comment group using the per-line layout
 // descriptor. Tags:
 //
-//	T:<prefix>   consume next text line, emit `<marker><prefix><text>`
-//	             — used for /// and //! comment groups where every
-//	             text line gets the same comment marker prepended.
+//	T:<prefix>   consume next text line, emit `<prefix><text>` — used
+//	             for /// and //! comment groups. The prefix carries
+//	             the original indent + comment marker + any stripped
+//	             Doxygen command marker, so the writer doesn't add a
+//	             marker of its own.
 //	B:<prefix>   consume next text line, emit `<prefix><text>` — used
 //	             for /** … */ and /*! … */ block comments where each
 //	             raw line embeds its own delimiter / `*` line marker
 //	             in the prefix.
 //	S:<raw>      emit `<raw>` verbatim.
 //
-// marker is the per-line comment marker for line-comment styles (e.g.
-// "/// " for triple-slash). Block styles pass an empty marker since
-// the prefix already includes the delimiter.
-func (w *Writer) writeFromLayout(text, layout, marker string) error {
+// marker is preserved as a no-op argument for backward compatibility
+// with callers; T entries no longer consult it (the layout encodes
+// the full line prefix).
+func (w *Writer) writeFromLayout(text, layout, _ string) error {
 	textLines := strings.Split(text, "\n")
 	textCursor := 0
 	entries := strings.Split(layout, "\x01")
@@ -273,16 +338,7 @@ func (w *Writer) writeFromLayout(text, layout, marker string) error {
 		tag := entry[0]
 		body := entry[2:]
 		switch tag {
-		case 'T':
-			line := ""
-			if textCursor < len(textLines) {
-				line = textLines[textCursor]
-			}
-			textCursor++
-			if _, err := fmt.Fprintf(w.Output, "%s%s%s", marker, body, line); err != nil {
-				return err
-			}
-		case 'B':
+		case 'T', 'B':
 			line := ""
 			if textCursor < len(textLines) {
 				line = textLines[textCursor]
