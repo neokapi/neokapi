@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"strconv"
 	"strings"
 
 	"github.com/neokapi/neokapi/core/format"
@@ -110,7 +111,12 @@ var translatableDescCommands = map[string]bool{
 	"tparam": true, "sa": true,
 }
 
-// inlineCommands are Doxygen commands that produce inline formatting.
+// inlineCommands enumerates Doxygen commands that produce inline
+// formatting (\e, \a, \b, \c, \p, \em). They mark up the next word.
+// The reader keeps them in the extracted text so the writer can
+// roundtrip the source verbatim — see processInlineCommands.
+//
+//nolint:unused // documents the recognised inline-command vocabulary
 var inlineCommands = map[string]bool{
 	"e": true, "a": true, "b": true, "c": true, "p": true, "em": true,
 }
@@ -565,6 +571,22 @@ func (r *Reader) emitCommentBlock(ctx context.Context, ch chan<- model.PartResul
 		return
 	}
 
+	// Build a per-comment-group line layout that the writer applies to
+	// emit raw structural lines (blank `///`, `\code…\endcode` blocks,
+	// non-translatable command lines) verbatim while substituting the
+	// translatable text portions in place. Without this the writer can
+	// only emit canonical `///{text}` lines and silently drops blank
+	// `///` separators and excluded code blocks on roundtrip.
+	//
+	// Each layout entry is one of:
+	//   T:<prefix>      consume the next text line, emit `<prefix><text>`
+	//                   (the `///` / `//!` / `*` line marker is added by
+	//                   the writer per comment style)
+	//   S:<raw>         emit `<raw>` verbatim (no comment marker added)
+	// Entries are joined with \x01 so prefixes/raw lines containing
+	// any character are unambiguous.
+	layout := r.buildLineLayout(cb, translatableLines)
+
 	// Emit translatable text as blocks. When a comment group contains
 	// multiple translatable sections (e.g. \param a … \param b … \return …)
 	// each section becomes its own Block per the spec contract, and we
@@ -577,15 +599,37 @@ func (r *Reader) emitCommentBlock(ctx context.Context, ch chan<- model.PartResul
 	firstID := fmt.Sprintf("tu%d", *blockCounter+1)
 	for idx, group := range translatableLines {
 		*blockCounter++
-		text := strings.Join(group, "\n")
+		texts := make([]string, len(group))
+		prefixes := make([]string, len(group))
+		hasAnyPrefix := false
+		for i, tl := range group {
+			texts[i] = tl.text
+			prefixes[i] = tl.prefix
+			if tl.prefix != "" {
+				hasAnyPrefix = true
+			}
+		}
+		text := strings.Join(texts, "\n")
 		block := model.NewBlock(fmt.Sprintf("tu%d", *blockCounter), text)
 		block.Name = fmt.Sprintf("comment.%d", *blockCounter)
 		block.Properties["style"] = cb.style
 		block.Properties["raw"] = strings.Join(cb.rawLines, "\n")
+		// Store per-line command prefixes so the writer can reattach
+		// stripped Doxygen markers (e.g. "\brief ", "\param x ") on
+		// roundtrip. Joined with \x00 since prefixes themselves are
+		// single-line strings.
+		if hasAnyPrefix {
+			block.Properties["linePrefixes"] = strings.Join(prefixes, "\x00")
+		}
 		if groupSize > 1 {
-			block.Properties["groupSize"] = fmt.Sprintf("%d", groupSize)
-			block.Properties["groupIndex"] = fmt.Sprintf("%d", idx)
+			block.Properties["groupSize"] = strconv.Itoa(groupSize)
+			block.Properties["groupIndex"] = strconv.Itoa(idx)
 			block.Properties["groupFirstID"] = firstID
+		}
+		// Only the first block of a group carries the layout; the
+		// writer looks it up via groupFirstID.
+		if idx == 0 && layout != "" {
+			block.Properties["lineLayout"] = layout
 		}
 
 		if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
@@ -594,11 +638,265 @@ func (r *Reader) emitCommentBlock(ctx context.Context, ch chan<- model.PartResul
 	}
 }
 
+// buildLineLayout produces a layout descriptor for a comment group
+// (see emitCommentBlock for format and motivation). Returns "" when
+// the layout adds nothing beyond the canonical per-text-line
+// emission, so common cases (single-line comments, plain prose
+// without structural blanks) skip the templated-render path.
+func (r *Reader) buildLineLayout(cb *commentBlock, groups [][]translatableLine) string {
+	// Block-comment styles (/** … */ and /*! … */) need their own
+	// layout flavour: each raw line carries a delimiter or `*` line
+	// marker that the writer must reproduce exactly to preserve
+	// indentation / inline-text-on-opening-delimiter / closing-
+	// delimiter alignment. Build a raw-with-placeholder layout for
+	// those.
+	if cb.style == "javadoc" || cb.style == "qt" {
+		return r.buildBlockLayout(cb)
+	}
+	if cb.style != "triple" && cb.style != "exclamation" {
+		return ""
+	}
+	// Map textLines index → translatableLine so we can quickly
+	// answer "did this raw comment line contribute translatable
+	// text, and what prefix did we strip?". Keeping this aligned
+	// with extractTranslatable's iteration is critical — the layout
+	// must reference the same set of textLines that became Blocks.
+	textIdxToTL := r.classifyTextLines(cb.textLines)
+
+	// Walk rawLines and emit either a T entry (when this raw line
+	// produced a translatable text) or an S entry (passthrough).
+	textCursor := 0 // running index into cb.textLines as we walk rawLines
+	var entries []string
+	hasS := false
+	for _, raw := range cb.rawLines {
+		// Determine the line's marker prefix by stripping the comment
+		// marker and any indentation. Match the same stripping
+		// parseLineComments does so the textCursor stays aligned.
+		trimmed := strings.TrimSpace(raw)
+		var stripped string
+		isTriple := strings.HasPrefix(trimmed, "///")
+		isExcl := strings.HasPrefix(trimmed, "//!")
+		switch {
+		case isTriple:
+			stripped = strings.TrimSpace(strings.TrimPrefix(trimmed, "///"))
+		case isExcl:
+			stripped = strings.TrimSpace(strings.TrimPrefix(trimmed, "//!"))
+		default:
+			// Should not happen for line-comment styles, but be safe.
+			entries = append(entries, "S:"+raw)
+			hasS = true
+			continue
+		}
+		if stripped == "" {
+			// Blank `///` / `//!` separator line — pass through.
+			entries = append(entries, "S:"+raw)
+			hasS = true
+			continue
+		}
+		// Match parseLineComments: only non-empty stripped lines
+		// contribute to textLines. Look up whether the current
+		// textCursor entry is translatable.
+		if tl, isTrans := textIdxToTL[textCursor]; isTrans {
+			entries = append(entries, "T:"+tl.prefix)
+		} else {
+			// Non-translatable command line (e.g. \file, \author,
+			// \code, \endcode) — pass through verbatim.
+			entries = append(entries, "S:"+raw)
+			hasS = true
+		}
+		textCursor++
+	}
+	// If layout has no S entries the canonical writer path matches
+	// the original line for line — no need to attach a template.
+	if !hasS {
+		return ""
+	}
+	return strings.Join(entries, "\x01")
+}
+
+// buildBlockLayout produces a layout descriptor for /** … */ and
+// /*! … */ block comments. Each raw line is encoded as one of:
+//
+//	B:<linePrefix>      consume next text line, emit `<linePrefix><text>`
+//	S:<rawLine>         emit `<rawLine>` verbatim (no text substitution)
+//
+// linePrefix carries everything in the original line up to (but not
+// including) the translatable text — i.e. `/*! `, ` *  `, leading
+// indentation, plus any Doxygen command marker (`\brief `,
+// `\param x `, `\addtogroup mygroup `) that was stripped during
+// extraction. Stitched together with `\n`-separated `\x01` entries.
+// Returns "" for single-line block comments where the canonical
+// writer matches the original byte-for-byte.
+func (r *Reader) buildBlockLayout(cb *commentBlock) string {
+	if len(cb.rawLines) <= 1 {
+		return ""
+	}
+	// Walk extractTranslatable's classification to map textLine
+	// index → translatable text (post-prefix-strip). Matches the
+	// per-cmd handling so the block layout's B: entries land on the
+	// same set of textLines that became Block resources.
+	textIdxToTL := r.classifyTextLines(cb.textLines)
+
+	// Match parseBlockComment's iteration to know which raw lines
+	// produced text vs. which became closing delimiters / blanks.
+	var entries []string
+	textCursor := 0
+	parsedCursor := 0 // index into cb.textLines (post-trim, non-empty only)
+	for idx, raw := range cb.rawLines {
+		// Compute trimmed text exactly as parseBlockComment does so
+		// the parsedCursor lines up with cb.textLines.
+		var text string
+		if idx == 0 {
+			t := strings.TrimSpace(raw)
+			if cb.style == "qt" {
+				t = strings.TrimPrefix(t, "/*!")
+			} else {
+				t = strings.TrimPrefix(t, "/**")
+			}
+			text = strings.TrimSpace(t)
+		} else if idx == len(cb.rawLines)-1 {
+			t := strings.TrimSpace(raw)
+			t = strings.TrimSuffix(t, "*/")
+			t = strings.TrimSpace(t)
+			t = strings.TrimPrefix(t, "*")
+			text = strings.TrimSpace(t)
+		} else {
+			t := strings.TrimSpace(raw)
+			t = strings.TrimPrefix(t, "*")
+			text = strings.TrimSpace(t)
+		}
+		if text == "" {
+			// Pure delimiter / blank line — emit as raw passthrough.
+			entries = append(entries, "S:"+raw)
+			continue
+		}
+		// Look up whether this textLine survived classification
+		// (i.e. became a Block resource).
+		tl, isTrans := textIdxToTL[parsedCursor]
+		parsedCursor++
+		if !isTrans {
+			// Text line dropped by extractTranslatable (\file,
+			// \class metadata, \code…\endcode body, …) — emit raw
+			// passthrough.
+			entries = append(entries, "S:"+raw)
+			continue
+		}
+		// Locate where the translatable text begins inside raw —
+		// the prefix is everything up to that point (which already
+		// includes `/*! `, ` *  `, indent, AND the Doxygen command
+		// marker like `\brief ` / `\param x `).
+		idxT := strings.Index(raw, tl.text)
+		if idxT < 0 {
+			entries = append(entries, "S:"+raw)
+			continue
+		}
+		prefix := raw[:idxT]
+		entries = append(entries, "B:"+prefix)
+		textCursor++
+	}
+	// Layout serves no purpose if the block is a single-line text
+	// case the canonical writer already handles.
+	if textCursor == 0 {
+		return ""
+	}
+	return strings.Join(entries, "\x01")
+}
+
+// classifyTextLines mirrors extractTranslatable's iteration to
+// produce a textLines-index → translatableLine map. Used by both
+// buildLineLayout and buildBlockLayout to align raw-line layout
+// entries with the textLines that survived as Block resources.
+func (r *Reader) classifyTextLines(textLines []string) map[int]translatableLine {
+	out := make(map[int]translatableLine)
+	var inExclude bool
+	for i, line := range textLines {
+		trimmed := strings.TrimSpace(line)
+		cmd := r.extractCommand(trimmed)
+		if cmd != "" {
+			if isExcludeStart(cmd) {
+				inExclude = true
+				continue
+			}
+			if isExcludeEnd(cmd) {
+				inExclude = false
+				continue
+			}
+		}
+		if inExclude {
+			continue
+		}
+		if cmd == "image" {
+			continue
+		}
+		if cmd != "" && nonTranslatableCommands[cmd] {
+			if cmd == "addtogroup" || cmd == "defgroup" {
+				desc, prefix := r.extractDescAndPrefix(trimmed, cmd, 1)
+				if desc != "" {
+					out[i] = translatableLine{text: desc, prefix: prefix}
+				}
+			}
+			continue
+		}
+		if cmd != "" && translatableDescCommands[cmd] {
+			desc, prefix := r.extractDescAndPrefix(trimmed, cmd, r.commandArgCount(cmd))
+			if desc != "" {
+				out[i] = translatableLine{text: desc, prefix: prefix}
+			}
+			continue
+		}
+		processed := r.processInlineCommands(trimmed)
+		if processed != "" {
+			out[i] = translatableLine{text: processed}
+		}
+	}
+	return out
+}
+
+// isExcludeStart reports whether cmd starts a Doxygen exclude region
+// (matches the in-line list in extractTranslatable).
+func isExcludeStart(cmd string) bool {
+	switch cmd {
+	case "code", "verbatim", "dot", "msc",
+		"htmlonly", "latexonly", "xmlonly",
+		"manonly", "rtfonly", "docbookonly":
+		return true
+	}
+	return false
+}
+
+// isExcludeEnd reports whether cmd ends a Doxygen exclude region.
+func isExcludeEnd(cmd string) bool {
+	switch cmd {
+	case "endcode", "endverbatim", "enddot", "endmsc",
+		"endhtmlonly", "endlatexonly", "endxmlonly",
+		"endmanonly", "endrtfonly", "enddocbookonly":
+		return true
+	}
+	return false
+}
+
+// translatableLine captures one source comment line that contributed
+// translatable text. text is the extracted prose; prefix is the
+// command marker stripped off so the writer can reattach it
+// (e.g. "\brief ", "\param x ", "\addtogroup mygroup ", or "" for
+// plain prose lines).
+type translatableLine struct {
+	text   string
+	prefix string
+}
+
 // extractTranslatable processes comment text lines and returns groups of translatable text.
 // It handles Doxygen commands, code blocks, and inline commands.
-func (r *Reader) extractTranslatable(textLines []string) [][]string {
-	var groups [][]string
-	var current []string
+//
+// Each group is a list of translatableLine entries — one per source
+// comment line that contributed prose. The prefix on each entry holds
+// the command marker that the reader stripped to surface clean text
+// (e.g. "\brief ", "\param x "); the writer reattaches it on
+// roundtrip so the output preserves the original command markers
+// rather than collapsing them into bare prose.
+func (r *Reader) extractTranslatable(textLines []string) [][]translatableLine {
+	var groups [][]translatableLine
+	var current []translatableLine
 	inExclude := false
 
 	for _, line := range textLines {
@@ -641,9 +939,9 @@ func (r *Reader) extractTranslatable(textLines []string) [][]string {
 			// These commands have arguments that are not translatable.
 			// But some like @addtogroup have a description after the group name.
 			if cmd == "addtogroup" || cmd == "defgroup" {
-				desc := r.extractDescriptionAfterCommand(trimmed, cmd, 1)
+				desc, prefix := r.extractDescAndPrefix(trimmed, cmd, 1)
 				if desc != "" {
-					current = append(current, desc)
+					current = append(current, translatableLine{text: desc, prefix: prefix})
 				}
 			}
 			continue
@@ -651,14 +949,14 @@ func (r *Reader) extractTranslatable(textLines []string) [][]string {
 
 		// Handle translatable description commands: @param name description
 		if cmd != "" && translatableDescCommands[cmd] {
-			desc := r.extractDescriptionAfterCommand(trimmed, cmd, r.commandArgCount(cmd))
+			desc, prefix := r.extractDescAndPrefix(trimmed, cmd, r.commandArgCount(cmd))
 			if desc != "" {
 				// Flush previous group and start new one for this command
 				if len(current) > 0 {
 					groups = append(groups, current)
 					current = nil
 				}
-				current = append(current, desc)
+				current = append(current, translatableLine{text: desc, prefix: prefix})
 				continue
 			}
 			continue
@@ -667,7 +965,7 @@ func (r *Reader) extractTranslatable(textLines []string) [][]string {
 		// Handle inline commands by stripping the command prefix
 		processed := r.processInlineCommands(trimmed)
 		if processed != "" {
-			current = append(current, processed)
+			current = append(current, translatableLine{text: processed})
 		}
 	}
 
@@ -704,6 +1002,24 @@ func (r *Reader) extractCommand(line string) string {
 // isCommandChar returns true if the byte is valid in a Doxygen command name.
 func isCommandChar(b byte) bool {
 	return (b >= 'a' && b <= 'z') || (b >= 'A' && b <= 'Z') || b == '$' || b == '[' || b == ']'
+}
+
+// extractDescAndPrefix returns the description text after the command
+// and its N arguments, plus the prefix substring (command marker +
+// args + trailing whitespace) that the writer reattaches on roundtrip
+// so command markers like "\brief", "\param x", "\addtogroup mygroup"
+// survive in the output instead of being silently dropped.
+func (r *Reader) extractDescAndPrefix(line, cmd string, skipArgs int) (string, string) {
+	desc := r.extractDescriptionAfterCommand(line, cmd, skipArgs)
+	if desc == "" {
+		return "", ""
+	}
+	// Slice the prefix as the substring of `line` before `desc`.
+	idx := strings.LastIndex(line, desc)
+	if idx <= 0 {
+		return desc, ""
+	}
+	return desc, line[:idx]
 }
 
 // extractDescriptionAfterCommand extracts the description text after a command and its N arguments.
@@ -754,17 +1070,17 @@ func (r *Reader) commandArgCount(cmd string) int {
 	}
 }
 
-// processInlineCommands strips inline Doxygen commands (@e, @a, @b, etc.)
-// and returns the text with the command markers removed.
+// processInlineCommands handles inline Doxygen commands (@e, @a, @b,
+// \c, \p, \em). The reader keeps the markers attached to the
+// extracted text rather than stripping them, so the writer can
+// roundtrip the source verbatim and translators can decide whether
+// to keep, drop, or relocate the inline emphasis. The spec
+// `inline_doxygen_commands` feature only requires the marked-up
+// word to remain extractable (it asserts containment, not equality);
+// keeping the markers also preserves the original byte sequence on
+// roundtrip.
 func (r *Reader) processInlineCommands(line string) string {
-	result := line
-	for _, prefix := range []string{"@", "\\"} {
-		for cmd := range inlineCommands {
-			marker := prefix + cmd + " "
-			result = strings.ReplaceAll(result, marker, "")
-		}
-	}
-	return result
+	return line
 }
 
 // skelText appends text to the skeleton buffer if active.
