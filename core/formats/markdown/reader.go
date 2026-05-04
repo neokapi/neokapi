@@ -671,44 +671,79 @@ func (r *Reader) emitBlockquoteAsData(ctx context.Context, ch chan<- model.PartR
 }
 
 func (r *Reader) emitTable(ctx context.Context, ch chan<- model.PartResult, node ast.Node, source []byte, baseOffset int) {
-	// For skeleton: emit the entire table as text with refs for cell content.
-	// This requires tracking positions within the table.
+	// Compute the table's source range so we can scan backward from the
+	// header row to capture any leading "| " on the first line. We use
+	// the *cell* content ranges (TableCell.Lines()) as anchors and emit
+	// raw bytes between them as skeleton text. This preserves the cell
+	// separator characters exactly while routing each cell's content
+	// through a block ref so writer-time translations land in the right
+	// columns. Mirrors okapi MarkdownParser's TableCell visitor which
+	// rebuilds tables piece-by-piece.
 	absStart, absEnd := nodeAbsRange(node, source, baseOffset)
-	r.skelEmitGap(absStart)
 
-	// Walk through the table raw source line by line, emitting cell content as refs.
-	// This is complex; for now, emit the whole table as skeleton text and blocks.
-	tableSource := string(r.source[absStart:absEnd])
+	// Header/row's first line may include leading "| " which sits before
+	// the first cell's content range — scan back from absStart to the
+	// preceding newline so we capture the table's full source extent.
+	tableLineStart := absStart
+	for tableLineStart > 0 && r.source[tableLineStart-1] != '\n' {
+		tableLineStart--
+	}
+	r.skelEmitGap(tableLineStart)
 
-	// Simple approach: emit table structure as skeleton, with cell content as refs.
-	// We'll track position within the table source.
-	var cellBlocks []*model.Block
+	type cellEmit struct {
+		block            *model.Block
+		absStart, absEnd int
+	}
+	var cellEmits []cellEmit
 	for row := node.FirstChild(); row != nil; row = row.NextSibling() {
-		if row.Kind() == east.KindTableHeader || row.Kind() == east.KindTableRow {
-			for cell := row.FirstChild(); cell != nil; cell = cell.NextSibling() {
-				if cell.Kind() == east.KindTableCell {
-					cellText := r.extractInlineText(cell, source)
-					if strings.TrimSpace(cellText) == "" {
-						continue
-					}
-					r.blockCounter++
-					blockID := fmt.Sprintf("tu%d", r.blockCounter)
-					block := model.NewBlock(blockID, cellText)
-					block.Name = fmt.Sprintf("cell%d", r.blockCounter)
-					block.Type = "table-cell"
-					r.addInlineRuns(block, cell, source)
-					cellBlocks = append(cellBlocks, block)
-				}
+		if row.Kind() != east.KindTableHeader && row.Kind() != east.KindTableRow {
+			continue
+		}
+		for cell := row.FirstChild(); cell != nil; cell = cell.NextSibling() {
+			if cell.Kind() != east.KindTableCell {
+				continue
 			}
+			lines := cell.Lines()
+			if lines.Len() == 0 {
+				continue
+			}
+			first := lines.At(0)
+			last := lines.At(lines.Len() - 1)
+			cellAbsStart := first.Start + baseOffset
+			cellAbsEnd := last.Stop + baseOffset
+
+			cellText := r.extractInlineText(cell, source)
+			if strings.TrimSpace(cellText) == "" {
+				// Empty cell — leave the raw separator bytes in skeleton
+				// text only; no block needed.
+				continue
+			}
+			r.blockCounter++
+			blockID := fmt.Sprintf("tu%d", r.blockCounter)
+			block := model.NewBlock(blockID, cellText)
+			block.Name = fmt.Sprintf("cell%d", r.blockCounter)
+			block.Type = "table-cell"
+			r.addInlineRuns(block, cell, source)
+			cellEmits = append(cellEmits, cellEmit{block: block, absStart: cellAbsStart, absEnd: cellAbsEnd})
 		}
 	}
 
-	// For skeleton: emit the whole table as text (can't do byte-exact cell-level yet)
-	r.skelText(tableSource)
-	r.skelCursor = absEnd
+	// Walk the cells in source order, interleaving raw skeleton text
+	// with block refs for cell content.
+	for _, ce := range cellEmits {
+		if ce.absStart > r.skelCursor {
+			r.skelText(string(r.source[r.skelCursor:ce.absStart]))
+		}
+		r.skelRef(ce.block.ID)
+		r.skelCursor = ce.absEnd
+		r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: ce.block})
+	}
 
-	for _, block := range cellBlocks {
-		r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
+	// Trailing separator/pipes/whitespace after the last cell up to the
+	// table's end (e.g. " |\n").
+	if absEnd > r.skelCursor {
+		r.skelText(string(r.source[r.skelCursor:absEnd]))
+		r.skelCursor = absEnd
 	}
 }
 
