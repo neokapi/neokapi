@@ -513,6 +513,12 @@ func (s *xmlParseState) flushBlock(frame *elementFrame, path string, endTagOffse
 
 // emitTranslatableAttrs emits translatable attributes as blocks and tracks skeleton ranges.
 func (s *xmlParseState) emitTranslatableAttrs(elem xml.StartElement, tokOffset, contentStart int) {
+	// Build the ITS context once for this element so attribute-targeted
+	// rules (`<its:translateRule selector="//@alt"/>`) can be evaluated.
+	thisName := its.NameMatch{NamespaceURI: elem.Name.Space, Local: elem.Name.Local}
+	itsAttrs := buildITSAttributes(elem.Attr)
+	itsCtx := s.itsContext(thisName, itsAttrs)
+
 	for _, attr := range elem.Attr {
 		attrName := attr.Name.Local
 		if attr.Name.Space == "xml" {
@@ -520,28 +526,98 @@ func (s *xmlParseState) emitTranslatableAttrs(elem xml.StartElement, tokOffset, 
 		} else if attr.Name.Space != "" {
 			attrName = attr.Name.Space + ":" + attr.Name.Local
 		}
-		if s.reader.cfg.isTranslatableAttribute(elem.Name.Local, attrName, s.stack[len(s.stack)-1].attrs) {
-			s.blockCounter++
-			blockID := "tu" + strconv.Itoa(s.blockCounter)
-			block := model.NewBlock(blockID, attr.Value)
-			block.Name = s.elemPath() + "@" + attrName
-			block.Type = "attribute"
-			block.IsReferent = true
-			s.reader.emit(s.ctx, s.ch, &model.Part{Type: model.PartBlock, Resource: block})
+		// ITS attribute rules win over cfg defaults (translate="yes"
+		// promotes a non-translatable attribute; translate="no"
+		// suppresses one cfg would have emitted). Attributes in the
+		// ITS namespace itself never become content blocks — they are
+		// metadata.
+		if attr.Name.Space == its.NamespaceURI {
+			continue
+		}
+		translate := s.itsAttrTranslate(itsCtx, attr)
+		var include bool
+		switch translate {
+		case its.Yes:
+			include = true
+		case its.No:
+			include = false
+		default:
+			include = s.reader.cfg.isTranslatableAttribute(elem.Name.Local, attrName, s.stack[len(s.stack)-1].attrs)
+		}
+		if !include {
+			continue
+		}
+		s.blockCounter++
+		blockID := "tu" + strconv.Itoa(s.blockCounter)
+		block := model.NewBlock(blockID, attr.Value)
+		block.Name = s.elemPath() + "@" + attrName
+		block.Type = "attribute"
+		block.IsReferent = true
+		s.reader.emit(s.ctx, s.ch, &model.Part{Type: model.PartBlock, Resource: block})
 
-			// Track attribute range for skeleton
-			if s.attrRanges != nil {
-				attrStart, attrEnd := findAttrValueByteRange(s.content, tokOffset, contentStart, attrName, attr.Value)
-				if attrStart >= 0 {
-					*s.attrRanges = append(*s.attrRanges, skelAttrRange{
-						blockID: blockID,
-						start:   attrStart,
-						end:     attrEnd,
-					})
-				}
+		// Track attribute range for skeleton
+		if s.attrRanges != nil {
+			// Skip skeleton attr ranges when this element will be
+			// rendered as an inline placeholder inside a parent block.
+			// The parent's content range already covers the attribute's
+			// bytes, and the writer would emit overlapping refs
+			// otherwise. We still emit the block so future writers can
+			// surface it (e.g. for human review), but it won't round-
+			// trip into the inline tag yet — that requires the writer
+			// to expand inline placeholders against referent blocks,
+			// which lives outside the scope of this change.
+			if s.elementWillRenderInline(elem) {
+				continue
+			}
+			attrStart, attrEnd := findAttrValueByteRange(s.content, tokOffset, contentStart, attrName, attr.Value)
+			if attrStart >= 0 {
+				*s.attrRanges = append(*s.attrRanges, skelAttrRange{
+					blockID: blockID,
+					start:   attrStart,
+					end:     attrEnd,
+				})
 			}
 		}
 	}
+}
+
+// elementWillRenderInline reports whether the element being processed
+// will end up as inline content of a parent text-bearing frame. Used
+// by emitTranslatableAttrs to suppress overlapping skeleton ranges
+// for attributes that the parent block's content range already covers.
+func (s *xmlParseState) elementWillRenderInline(elem xml.StartElement) bool {
+	// The frame for this element is already pushed (handleStartElement
+	// pushes before calling emitTranslatableAttrs). The frame is inline
+	// iff its isInline flag is true AND a non-inline ancestor exists
+	// further up the stack to absorb the inline content.
+	if len(s.stack) == 0 {
+		return false
+	}
+	top := s.stack[len(s.stack)-1]
+	if !top.isInline {
+		return false
+	}
+	for i := len(s.stack) - 2; i >= 0; i-- {
+		if !s.stack[i].isInline {
+			return s.stack[i].hasRuns
+		}
+	}
+	return false
+}
+
+// itsAttrTranslate returns the ITS translate decision for one
+// attribute on the element described by ctx, or its.Unset when the
+// resolver has no opinion (no matching rule and no local override).
+func (s *xmlParseState) itsAttrTranslate(ctx *its.ElementContext, attr xml.Attr) its.Tristate {
+	if s.itsResolver == nil {
+		return its.Unset
+	}
+	resolved := s.itsResolver.ResolveAttribute(
+		ctx,
+		its.NameMatch{NamespaceURI: attr.Name.Space, Local: attr.Name.Local},
+		nil,
+	)
+	return resolved.Translate
 }
 
 // itsNamespaceURI is the W3C ITS 2.0 namespace, used to recognize
