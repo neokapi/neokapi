@@ -179,10 +179,67 @@ func encodeDoubleQuoted(s string) string {
 }
 
 // encodeSingleQuoted encodes a string as a YAML single-quoted scalar.
+// Single-line bodies are wrapped with `'...'` and any embedded `'`
+// doubled per YAML 1.2 §7.3.2. Multi-line bodies must round-trip
+// through YAML's single-quoted line-folding rules: a parsed value
+// containing N consecutive line breaks comes from N+1 source line
+// breaks (a single break folds to a space; N>=2 breaks preserve
+// N-1 literal breaks).
+//
+// Okapi's snakeyaml writer encodes paragraph breaks as
+// `<trailing-space>` + (N+1) source newlines between the surrounding
+// content, with continuation paragraphs flush to column 0. The
+// trailing space is purely cosmetic — it is stripped during folding —
+// but matching it here is the only way to land byte-equal with the
+// okapi reference on multi-line single-quoted fixtures like
+// `en (2).yml` and `en (5).yml`.
 func encodeSingleQuoted(s string) string {
+	escaped := strings.ReplaceAll(s, "'", "''")
+	if !strings.Contains(escaped, "\n") {
+		var b strings.Builder
+		b.WriteByte('\'')
+		b.WriteString(escaped)
+		b.WriteByte('\'')
+		return b.String()
+	}
 	var b strings.Builder
 	b.WriteByte('\'')
-	b.WriteString(strings.ReplaceAll(s, "'", "''"))
+	// Walk the value, splitting on runs of `\n`. Between two non-empty
+	// content paragraphs separated by N value newlines, emit one
+	// trailing space + (N+1) source newlines so the round-trip recovers
+	// N value newlines after fold (snakeyaml-style output).
+	i := 0
+	for i < len(escaped) {
+		// Collect a content run (non-newline bytes).
+		j := i
+		for j < len(escaped) && escaped[j] != '\n' {
+			j++
+		}
+		if j > i {
+			b.WriteString(escaped[i:j])
+		}
+		i = j
+		if i >= len(escaped) {
+			break
+		}
+		// Count consecutive newlines.
+		nlStart := i
+		for i < len(escaped) && escaped[i] == '\n' {
+			i++
+		}
+		n := i - nlStart // number of value newlines in this run
+		// Trailing space on the preceding content line, then N+1
+		// source newlines so the run folds back to N value newlines.
+		// Skip the trailing space when the preceding content already
+		// ended with one or when there is no preceding content (run at
+		// the very start of the value).
+		if nlStart > 0 && escaped[nlStart-1] != ' ' && escaped[nlStart-1] != '\t' {
+			b.WriteByte(' ')
+		}
+		for k := 0; k < n+1; k++ {
+			b.WriteByte('\n')
+		}
+	}
 	b.WriteByte('\'')
 	return b.String()
 }
