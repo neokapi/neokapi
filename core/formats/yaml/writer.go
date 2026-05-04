@@ -274,8 +274,21 @@ func (w *Writer) flush() error {
 }
 
 func (w *Writer) blockText(block *model.Block) string {
+	// RenderRunsWithData splices inline-code Data back into the text
+	// stream — required when the reader's codeFinder split the value
+	// into TextRun + Ph runs. plain SourceText/TargetText drops Ph
+	// runs so the placeholders would vanish on round-trip.
 	if !w.Locale.IsEmpty() && block.HasTarget(w.Locale) {
-		return block.TargetText(w.Locale)
+		segs := block.Targets[w.Locale]
+		var b strings.Builder
+		for _, seg := range segs {
+			b.WriteString(model.RenderRunsWithData(seg.Runs))
+		}
+		return b.String()
 	}
-	return block.SourceText()
+	var b strings.Builder
+	for _, seg := range block.Source {
+		b.WriteString(model.RenderRunsWithData(seg.Runs))
+	}
+	return b.String()
 }

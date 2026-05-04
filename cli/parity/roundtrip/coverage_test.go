@@ -451,8 +451,21 @@ func coverageScans() []formatScan {
 			// `true` as a boolean while okapi pseudo-translates it to
 			// `ţŕũē`, producing a real-looking divergence on every
 			// fixture that has booleans/numbers.
+			//
+			// The codeFinder rule mirrors okapi's TextModificationStep
+			// behaviour for yaml: `{{var}}` Mustache placeholders are
+			// preserved untranslated. Other patterns (`%{var}`, `%d`
+			// printf) are NOT recognised by okapi for yaml — adding
+			// them would cause native to over-preserve relative to
+			// the reference. Without this rule, native would
+			// pseudo-translate the placeholder text (`{{year}}` →
+			// `{{ŷēàŕ}}`) while okapi's pseudo preserves it.
 			nativeConfig: map[string]any{
 				"extractNonStrings": true,
+				"useCodeFinder":     true,
+				"codeFinderRules": []any{
+					`\{\{[^{}]*\}\}`,
+				},
 			},
 			// YAML normalizer reaches canonical-equal when fixtures
 			// differ only in indentation, quote style, or block-vs-flow
