@@ -410,6 +410,7 @@ func coverageScans() []formatScan {
 				roundtrip.LFLineEndings{},
 				roundtrip.IgnoreTrailingNewline{},
 				roundtrip.POCharsetCase{},
+				roundtrip.POJoinContinuations{},
 			}},
 		},
 		{

@@ -750,3 +750,38 @@ func (POCharsetCase) Normalize(in []byte) ([]byte, error) {
 		return bytes.ToUpper(m)
 	}), nil
 }
+
+// POJoinContinuations folds PO multi-line string continuations into
+// single-line strings. PO allows splitting one msgid/msgstr value
+// across multiple `"..."` chunks separated by newlines:
+//
+//	msgstr ""
+//	"Project-Id-Version: Foo\n"
+//	"Last-Translator: Bar\n"
+//
+// is semantically equivalent to:
+//
+//	msgstr "Project-Id-Version: Foo\nLast-Translator: Bar\n"
+//
+// Both engines emit valid PO but disagree on where to split — okapi
+// rewraps at its own boundaries, native preserves source splits. This
+// normalizer joins all `"\n"` (close-quote, newline, optional indent,
+// open-quote) sequences into nothing, collapsing both forms to a
+// single canonical join. Compatible with multi-line msgstr/msgid only;
+// regular comment / instruction lines aren't touched because they
+// don't carry the inter-line `"` `"` join pattern.
+type POJoinContinuations struct{}
+
+// Name implements Normalizer.
+func (POJoinContinuations) Name() string { return "po-join-continuations" }
+
+// poJoinRE matches a closing quote, line terminator (LF or CRLF),
+// optional leading whitespace, and an opening quote — the `"` `"`
+// continuation join. Replaces the whole match with nothing so the
+// two `"..."` chunks are stitched together.
+var poJoinRE = regexp.MustCompile(`"\r?\n[ \t]*"`)
+
+// Normalize implements Normalizer.
+func (POJoinContinuations) Normalize(in []byte) ([]byte, error) {
+	return poJoinRE.ReplaceAll(in, nil), nil
+}
