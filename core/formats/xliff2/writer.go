@@ -478,8 +478,12 @@ func patchUnit(unitEl *etree.Element, block *model.Block, targetLang model.Local
 
 		// xliff2 segment ids are optional in source, but okapi
 		// XLIFF2Filter materializes them on round-trip ("s1", "s2", …
-		// for unkeyed <segment>; ignorables stay unindexed). Mirror
-		// that here so re-emitted segments match okapi byte-for-byte.
+		// for unkeyed <segment>). Mirror that here so re-emitted
+		// segments match okapi byte-for-byte. Ignorable id synthesis is
+		// deferred to a second pass below so it only fires when the
+		// unit was already going to be patched anyway — otherwise the
+		// byte-equal-on-untouched contract breaks for fixtures with
+		// unkeyed ignorables that the model didn't modify.
 		if segEl.Tag == "segment" {
 			segIDCounter++
 			if segID == "" {
@@ -522,7 +526,72 @@ func patchUnit(unitEl *etree.Element, block *model.Block, targetLang model.Local
 			}
 		}
 	}
+
+	// Second pass — synthesise ids on unkeyed <ignorable> elements only
+	// when the unit is already going to be re-serialised (patched is
+	// true). This mirrors okapi's Store.suggestId(false): increment a
+	// counter starting from 1, retrying when the candidate collides
+	// with an in-use id elsewhere in the unit (segment/ignorable ids,
+	// inline element ids, originalData ids). Skipping when nothing else
+	// changed preserves the v2 byte-equal-on-untouched contract for
+	// fixtures whose source has unkeyed ignorables that the model
+	// didn't touch.
+	if patched {
+		usedIDs := collectUsedUnitIDs(unitEl)
+		ignorableIDCounter := 0
+		for _, segEl := range unitEl.ChildElements() {
+			if segEl.Tag != "ignorable" {
+				continue
+			}
+			if attrValue(segEl, "id") != "" {
+				continue
+			}
+			ignorableIDCounter++
+			for usedIDs[fmt.Sprintf("%d", ignorableIDCounter)] {
+				ignorableIDCounter++
+			}
+			newID := fmt.Sprintf("%d", ignorableIDCounter)
+			segEl.CreateAttr("id", newID)
+			usedIDs[newID] = true
+		}
+	}
+
 	return patched
+}
+
+// collectUsedUnitIDs returns the set of every id string already in use
+// **inside** the unit element (segment/ignorable ids plus inline
+// element ids — pc/sc/ec/ph/mrk/sm/em — anywhere within source/target,
+// plus data ids in originalData). The unit element's own id is a
+// different scope (units are unique within file, parts are unique
+// within unit) and is NOT included. Used by patchUnit when synthesising
+// ids for unkeyed <ignorable> elements so the new id avoids collisions,
+// mirroring okapi's Store.suggestId(false) retry-on-collision
+// behaviour.
+func collectUsedUnitIDs(unitEl *etree.Element) map[string]bool {
+	used := map[string]bool{}
+	for _, child := range unitEl.ChildElements() {
+		walkXliff2El(child, func(el *etree.Element) {
+			if id := attrValue(el, "id"); id != "" {
+				used[id] = true
+			}
+		})
+	}
+	return used
+}
+
+// walkXliff2El invokes f on el and every descendant element. Recursive
+// DFS — xliff2 trees are shallow (typically <unit>/<segment>/<source>/
+// <pc>/<mrk> — at most a half-dozen nested levels) so the stack usage
+// is bounded.
+func walkXliff2El(el *etree.Element, f func(*etree.Element)) {
+	if el == nil {
+		return
+	}
+	f(el)
+	for _, child := range el.ChildElements() {
+		walkXliff2El(child, f)
+	}
 }
 
 // segmentMatchesDOM reports whether the model.Segment's content

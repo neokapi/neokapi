@@ -9,6 +9,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -209,6 +210,20 @@ func (e *NativeEngine) RoundTrip(t *testing.T, in Input, spec PseudoSpec) []byte
 						layer.Properties = map[string]string{}
 					}
 					layer.Properties["target-language"] = string(tgt)
+					// Okapi's xliff2 pipeline collapses the file's `srcLang`
+					// to the requested --src-lang only when the requested
+					// value is the primary subtag of the file's value (e.g.
+					// requested "en" + file "en-US" → emits "en"). When the
+					// primaries differ (file "es-ES", requested "en"), okapi
+					// preserves the file's srcLang verbatim. Mirror that
+					// narrow rule here so fixtures like Project Playground,
+					// code_id_mismatch, and test02 close while notes.xlf
+					// (srcLang="es-ES") stays canon-equal.
+					existing := string(layer.Locale)
+					requested := spec.SrcLocale()
+					if requested != "" && existing != requested && strings.HasPrefix(existing, requested+"-") {
+						layer.Locale = model.LocaleID(requested)
+					}
 				}
 			}
 		}

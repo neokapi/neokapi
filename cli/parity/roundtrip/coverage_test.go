@@ -763,7 +763,12 @@ func coverageScans() []formatScan {
 			filterClass: "okf_xliff2",
 			sources:     []string{"integration-tests/okapi/src/test/resources/xliff2"},
 			extensions:  []string{".xlf", ".xlf2"},
-			normalizer:  roundtrip.XMLCanonical{SortAttrs: true},
+			// Same XMLCanonical config as okf_xliff: sort attributes (okapi
+			// reorders), strip namespace declarations (encoding/xml mangles
+			// xmlns:foo into _xmlns:foo when the prefix is also used as a
+			// namespace, which produces asymmetric noise between native and
+			// reference even when the underlying structure agrees).
+			normalizer: roundtrip.XMLCanonical{SortAttrs: true, StripNamespaceDecls: true},
 			// XLIFF 2 toolkit unconditionally overwrites the on-disk
 			// trgLang and pseudo-translates source rather than the
 			// authored target. Mirror that for both engines so the
