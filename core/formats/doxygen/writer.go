@@ -126,6 +126,8 @@ func (w *Writer) writeCommentStyled(text, style, raw string) error {
 		return w.writeTrailing(text, raw)
 	case "trailing_qt":
 		return w.writeTrailingQt(text, raw)
+	case "trailing_javadoc":
+		return w.writeTrailingJavadoc(text, raw)
 	default:
 		return w.writeTripleSlash(text, raw)
 	}
@@ -207,6 +209,8 @@ func (w *Writer) writeBlock(part *model.Part, first *bool) error {
 		return w.writeTrailing(text, raw)
 	case "trailing_qt":
 		return w.writeTrailingQt(text, raw)
+	case "trailing_javadoc":
+		return w.writeTrailingJavadoc(text, raw)
 	default:
 		// Fallback: write as triple-slash
 		return w.writeTripleSlash(text, raw)
@@ -306,6 +310,12 @@ func (w *Writer) writeTrailing(text, _ string) error {
 // writeTrailingQt writes text as a trailing /*!< ... */ comment.
 func (w *Writer) writeTrailingQt(text, _ string) error {
 	_, err := fmt.Fprintf(w.Output, "/*!< %s */", text)
+	return err
+}
+
+// writeTrailingJavadoc writes text as a trailing /**< ... */ comment.
+func (w *Writer) writeTrailingJavadoc(text, _ string) error {
+	_, err := fmt.Fprintf(w.Output, "/**< %s */", text)
 	return err
 }
 

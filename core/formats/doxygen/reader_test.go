@@ -346,6 +346,18 @@ func TestOutput_JavadocMultipleLines(t *testing.T) {
 		"roundtrip should preserve Javadoc second line")
 }
 
+// TestOutput_TrailingJavadocComment verifies the /**< text */ trailing
+// Javadoc form survives round-trip with the same delimiter, mirroring
+// the existing /*!< */ handling.
+func TestOutput_TrailingJavadocComment(t *testing.T) {
+	input := "TVal1, /**< enum value TVal1. */"
+	output := roundtrip(t, input)
+	assert.Contains(t, output, "/**<",
+		"roundtrip should preserve /**< delimiter, got %q", output)
+	assert.Contains(t, output, "enum value TVal1.",
+		"roundtrip should preserve trailing comment text, got %q", output)
+}
+
 // ---------------------------------------------------------------------------
 // DoxygenFilterTest — double extraction tests (full files)
 // ---------------------------------------------------------------------------
@@ -661,6 +673,21 @@ func TestExtract_TrailingQtComment(t *testing.T) {
 	texts := blockTexts(blocks)
 	assert.True(t, blockTextsContain(texts, "Trailing Qt comment"),
 		"should contain 'Trailing Qt comment', got %v", texts)
+}
+
+// TestExtract_TrailingJavadocComment covers the /**< text */ form, which
+// Doxygen treats the same as /*!< text */ — a documentation comment
+// attached to the preceding declaration. The reader was previously
+// emitting these lines as untranslatable Data, so the comment text
+// remained in the source language on round-trip.
+func TestExtract_TrailingJavadocComment(t *testing.T) {
+	input := "TVal1, /**< enum value TVal1. */\n"
+	parts := readDoxygen(t, input)
+	blocks := collectBlocks(parts)
+	require.NotEmpty(t, blocks, "should extract trailing /**<...*/ comment")
+	texts := blockTexts(blocks)
+	assert.True(t, blockTextsContain(texts, "enum value TVal1."),
+		"should contain 'enum value TVal1.', got %v", texts)
 }
 
 // ---------------------------------------------------------------------------

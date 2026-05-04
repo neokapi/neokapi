@@ -346,14 +346,35 @@ func (r *Reader) isTrailingComment(line string) bool {
 	return false
 }
 
-// isTrailingBlockComment checks if a line has code followed by /*!< text */.
+// isTrailingBlockComment checks if a line has code followed by /*!< text */
+// or /**< text */. Both Qt-style (/*!<) and Javadoc-style (/**<) trailing
+// block markers are recognised.
 func (r *Reader) isTrailingBlockComment(trimmed string) bool {
-	idx := strings.Index(trimmed, "/*!<")
+	marker, idx := findTrailingBlockMarker(trimmed)
 	if idx < 0 {
 		return false
 	}
 	before := strings.TrimSpace(trimmed[:idx])
-	return before != "" && strings.Contains(trimmed[idx:], "*/")
+	return before != "" && strings.Contains(trimmed[idx+len(marker):], "*/")
+}
+
+// findTrailingBlockMarker returns ("/**<" or "/*!<", index) for the first
+// trailing block marker present in s, or ("", -1) if none.
+func findTrailingBlockMarker(s string) (string, int) {
+	idxQt := strings.Index(s, "/*!<")
+	idxJd := strings.Index(s, "/**<")
+	switch {
+	case idxQt < 0 && idxJd < 0:
+		return "", -1
+	case idxQt < 0:
+		return "/**<", idxJd
+	case idxJd < 0:
+		return "/*!<", idxQt
+	case idxQt < idxJd:
+		return "/*!<", idxQt
+	default:
+		return "/**<", idxJd
+	}
 }
 
 // parseBlockComment parses a /** ... */ or /*! ... */ block comment starting at line index i.
@@ -483,15 +504,22 @@ func (r *Reader) parseTrailingLineComment(line string) *commentBlock {
 	return cb
 }
 
-// parseTrailingBlockComment parses a single line with trailing /*!< text */.
+// parseTrailingBlockComment parses a single line with trailing /*!< text */
+// or /**< text */. The recognised marker selects the comment style so the
+// writer can reproduce the original delimiter on round-trip.
 func (r *Reader) parseTrailingBlockComment(line string) *commentBlock {
-	cb := &commentBlock{style: "trailing_qt"}
+	marker, idx := findTrailingBlockMarker(line)
+	cb := &commentBlock{}
+	if marker == "/**<" {
+		cb.style = "trailing_javadoc"
+	} else {
+		cb.style = "trailing_qt"
+	}
 	cb.rawLines = []string{line}
 
-	idx := strings.Index(line, "/*!<")
 	if idx >= 0 {
 		cb.prefix = line[:idx]
-		rest := line[idx+4:]
+		rest := line[idx+len(marker):]
 		endIdx := strings.Index(rest, "*/")
 		if endIdx >= 0 {
 			rest = rest[:endIdx]
