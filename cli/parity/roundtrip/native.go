@@ -221,8 +221,15 @@ func (e *NativeEngine) RoundTrip(t *testing.T, in Input, spec PseudoSpec) []byte
 				// Skip pseudo so native matches. xliff2 is the
 				// exception — okapi pseudo-translates unconditionally
 				// there, see the comment above.
+				//
+				// For xliff2, the source is the pseudo base only when
+				// the file's existing trgLang differs from the
+				// requested target (the existing target is in the
+				// "wrong" language and gets discarded). When trgLang
+				// matches, the existing target is the right base.
 				if forcePseudoIgnoreFileTarget || fileTargetLang.IsEmpty() || fileTargetLang == tgt {
-					applyPseudoToBlock(b, spec)
+					forceSrc := forcePseudoIgnoreFileTarget && !fileTargetLang.IsEmpty() && fileTargetLang != tgt
+					applyPseudoToBlockOpts(b, spec, forceSrc)
 				}
 			}
 		}

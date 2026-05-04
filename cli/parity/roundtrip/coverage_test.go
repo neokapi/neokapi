@@ -57,6 +57,12 @@ type formatScan struct {
 	nativeConfig map[string]any
 	bridgeParams map[string]string
 
+	// bridgeForcePseudoSourceBase mirrors NativeEngine's xliff2 special
+	// case: okapi unconditionally pseudo-translates source rather than
+	// existing target. Set true for filters whose okapi reference
+	// behavior overwrites the on-disk target verbatim.
+	bridgeForcePseudoSourceBase bool
+
 	// writerOverlay is a curated map applied to the native writer's
 	// WriterConfig at parity time, used solely to align native output
 	// with okapi's defaults. These are NOT format defaults — they live
@@ -198,8 +204,9 @@ func runOneFixture(t *testing.T, scan formatScan, abs string) {
 	var bridge *roundtrip.BridgeEngine
 	if scan.filterClass != "" {
 		bridge = &roundtrip.BridgeEngine{
-			FilterClass:  scan.filterClass,
-			FilterParams: scan.bridgeParams,
+			FilterClass:           scan.filterClass,
+			FilterParams:          scan.bridgeParams,
+			ForcePseudoSourceBase: scan.bridgeForcePseudoSourceBase,
 		}
 	}
 	okapi := &roundtrip.OkapiEngine{
@@ -756,6 +763,11 @@ func coverageScans() []formatScan {
 			sources:     []string{"integration-tests/okapi/src/test/resources/xliff2"},
 			extensions:  []string{".xlf", ".xlf2"},
 			normalizer:  roundtrip.XMLCanonical{SortAttrs: true},
+			// XLIFF 2 toolkit unconditionally overwrites the on-disk
+			// trgLang and pseudo-translates source rather than the
+			// authored target. Mirror that for both engines so the
+			// pseudo input matches the okapi reference.
+			bridgeForcePseudoSourceBase: true,
 			minTier: map[string]roundtrip.Tier{
 				"native": roundtrip.TierDivergent,
 				"bridge": roundtrip.TierDivergent,

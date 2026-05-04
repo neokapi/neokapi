@@ -30,6 +30,12 @@ type BridgeEngine struct {
 	// translated to Okapi key names if the format has a
 	// BridgeConfig translator in cli/parity/formats/).
 	FilterParams map[string]string
+
+	// ForcePseudoSourceBase mirrors the xliff2 case where okapi's
+	// pipeline unconditionally pseudo-translates the source rather
+	// than the existing target. Set to true for filters whose okapi
+	// reference behavior overwrites the on-disk target verbatim.
+	ForcePseudoSourceBase bool
 }
 
 // Name returns "bridge".
@@ -63,7 +69,19 @@ func (e *BridgeEngine) RoundTrip(t *testing.T, in Input, spec PseudoSpec) []byte
 		MimeType:     e.MimeType,
 		FilterParams: e.FilterParams,
 		Transform: func(b *model.Block) {
-			applyPseudoToBlock(b, spec)
+			// For ForcePseudoSourceBase formats (xliff2), source is
+			// the pseudo base only when the block has no existing
+			// target for the requested locale. When a target for the
+			// locale already exists (file's trgLang matches our
+			// target), pseudo it in place — that's what okapi does.
+			tgt := model.LocaleID(spec.TgtLocale())
+			forceSrc := e.ForcePseudoSourceBase
+			if forceSrc {
+				if existing, ok := b.Targets[tgt]; ok && segmentsHaveText(existing) {
+					forceSrc = false
+				}
+			}
+			applyPseudoToBlockOpts(b, spec, forceSrc)
 		},
 	}
 	if len(in.Companions) > 0 {

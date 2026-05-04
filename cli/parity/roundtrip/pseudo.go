@@ -2,7 +2,10 @@
 
 package roundtrip
 
-import "github.com/neokapi/neokapi/core/model"
+import (
+	"github.com/neokapi/neokapi/core/formats/xliff2"
+	"github.com/neokapi/neokapi/core/model"
+)
 
 // extLatinOldChars / extLatinNewChars mirror Okapi's
 // TextModificationStep with TYPE_EXTREPLACE + SCRIPT_EXT_LATIN
@@ -67,11 +70,24 @@ func pseudoText(s string) string {
 // echoed back over gRPC for the bridge writer (BridgeEngine), so the
 // same target shape drives both engines.
 func applyPseudoToBlock(b *model.Block, spec PseudoSpec) {
+	applyPseudoToBlockOpts(b, spec, false)
+}
+
+// applyPseudoToBlockOpts is applyPseudoToBlock with a forceSourceBase
+// flag. When true, the pseudo always operates on the source segments
+// even if a target already exists — used for formats (xliff2) where
+// okapi unconditionally overwrites the existing target.
+func applyPseudoToBlockOpts(b *model.Block, spec PseudoSpec, forceSourceBase bool) {
 	if !b.Translatable {
 		return
 	}
 	tgt := model.LocaleID(spec.TgtLocale())
-	base := pickPseudoBase(b, tgt)
+	var base []*model.Segment
+	if forceSourceBase && len(b.Source) > 0 {
+		base = b.Source
+	} else {
+		base = pickPseudoBase(b, tgt)
+	}
 	if base == nil {
 		return
 	}
@@ -88,7 +104,29 @@ func applyPseudoToBlock(b *model.Block, spec PseudoSpec) {
 				newRuns = append(newRuns, r)
 			}
 		}
-		targetSegs = append(targetSegs, &model.Segment{ID: srcSeg.ID, Runs: newRuns, Properties: srcSeg.Properties})
+		newSeg := &model.Segment{ID: srcSeg.ID, Runs: newRuns, Properties: srcSeg.Properties}
+		// xliff2 carries inline-code fidelity (<ph> attributes,
+		// <pc>/<sc>/<ec> structure, <data> refs) on a side-channel
+		// SegmentInlineAnnotation. The writer's freshness check
+		// requires the annotation's flat text to equal the segment's
+		// Runs' flat text — so when we pseudo source as the new
+		// target, clone the IR and pseudo-translate its Text nodes
+		// in place. Without this the writer falls back to
+		// RenderRunsWithData and emits target text without inline
+		// codes, e.g. "Ĥōŵ ĩś ŷōũŕ ďàŷ?" instead of
+		// "Ĥōŵ ĩś <ph .../>ŷōũŕ<ph .../> ďàŷ?".
+		if ann, ok := srcSeg.Annotations[(&xliff2.SegmentInlineAnnotation{}).AnnotationType()]; ok {
+			if sia, ok := ann.(*xliff2.SegmentInlineAnnotation); ok && sia != nil && sia.Content != nil {
+				cloned := clonePseudoInlines(sia.Content.Inlines)
+				if newSeg.Annotations == nil {
+					newSeg.Annotations = make(map[string]model.Annotation)
+				}
+				newSeg.Annotations[(&xliff2.SegmentInlineAnnotation{}).AnnotationType()] = &xliff2.SegmentInlineAnnotation{
+					Content: &xliff2.Content{Inlines: cloned},
+				}
+			}
+		}
+		targetSegs = append(targetSegs, newSeg)
 	}
 	if b.Targets == nil {
 		b.Targets = make(map[model.LocaleID][]*model.Segment)
@@ -125,6 +163,44 @@ func pickPseudoBase(b *model.Block, tgt model.LocaleID) []*model.Segment {
 		return b.Source
 	}
 	return nil
+}
+
+// clonePseudoInlines deep-clones an xliff2 Inline tree and pseudo-
+// translates every Text node's Content via pseudoText. Inline-code
+// nodes (Ph/Sc/Ec/Pc/Mrk/Sm/Em) and their attributes are preserved
+// verbatim — pseudo affects only translatable text.
+func clonePseudoInlines(inls []xliff2.Inline) []xliff2.Inline {
+	out := make([]xliff2.Inline, len(inls))
+	for i, in := range inls {
+		switch {
+		case in.Text != nil:
+			out[i] = xliff2.Inline{Text: &xliff2.Text{Content: pseudoText(in.Text.Content)}}
+		case in.Pc != nil:
+			pc := *in.Pc
+			pc.Children = clonePseudoInlines(in.Pc.Children)
+			out[i] = xliff2.Inline{Pc: &pc}
+		case in.Mrk != nil:
+			mrk := *in.Mrk
+			mrk.Children = clonePseudoInlines(in.Mrk.Children)
+			out[i] = xliff2.Inline{Mrk: &mrk}
+		case in.Ph != nil:
+			ph := *in.Ph
+			out[i] = xliff2.Inline{Ph: &ph}
+		case in.Sc != nil:
+			sc := *in.Sc
+			out[i] = xliff2.Inline{Sc: &sc}
+		case in.Ec != nil:
+			ec := *in.Ec
+			out[i] = xliff2.Inline{Ec: &ec}
+		case in.Sm != nil:
+			sm := *in.Sm
+			out[i] = xliff2.Inline{Sm: &sm}
+		case in.Em != nil:
+			em := *in.Em
+			out[i] = xliff2.Inline{Em: &em}
+		}
+	}
+	return out
 }
 
 func segmentsHaveText(segs []*model.Segment) bool {

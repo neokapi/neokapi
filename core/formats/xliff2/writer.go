@@ -460,6 +460,7 @@ func patchUnit(unitEl *etree.Element, block *model.Block, targetLang model.Local
 	// positional fallback recovers the correspondence the DOM lacks.
 	patched := false
 	domSegIdx := 0
+	segIDCounter := 0
 	for _, segEl := range unitEl.ChildElements() {
 		if segEl.Tag != "segment" && segEl.Tag != "ignorable" {
 			continue
@@ -474,6 +475,18 @@ func patchUnit(unitEl *etree.Element, block *model.Block, targetLang model.Local
 			}
 		}
 		domSegIdx++
+
+		// xliff2 segment ids are optional in source, but okapi
+		// XLIFF2Filter materializes them on round-trip ("s1", "s2", …
+		// for unkeyed <segment>; ignorables stay unindexed). Mirror
+		// that here so re-emitted segments match okapi byte-for-byte.
+		if segEl.Tag == "segment" {
+			segIDCounter++
+			if segID == "" {
+				segEl.CreateAttr("id", fmt.Sprintf("s%d", segIDCounter))
+				patched = true
+			}
+		}
 
 		if srcEl := segEl.SelectElement("source"); srcEl != nil && modelSrc != nil {
 			if !segmentMatchesDOM(srcEl, modelSrc) {
@@ -497,6 +510,15 @@ func patchUnit(unitEl *etree.Element, block *model.Block, targetLang model.Local
 			} else if !segmentMatchesDOM(tgtEl, modelTgt) {
 				replaceInlineChildren(tgtEl, modelTgt)
 				patched = true
+			}
+			// xml:space="preserve" is significant for XLIFF white-
+			// space handling; okapi propagates it from <source> to
+			// <target> on round-trip when the target lacks one.
+			if srcEl := segEl.SelectElement("source"); srcEl != nil {
+				if srcSpace := attrValue(srcEl, "space"); srcSpace == "preserve" && attrValue(tgtEl, "space") == "" {
+					tgtEl.CreateAttr("xml:space", "preserve")
+					patched = true
+				}
 			}
 		}
 	}
