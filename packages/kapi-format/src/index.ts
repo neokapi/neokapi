@@ -4,5 +4,6 @@ export * from "./preview.ts";
 export * from "./annotation.ts";
 export * from "./klf.ts";
 export * from "./runs.ts";
+export * from "./runs-validate.ts";
 export * from "./target-plural.ts";
 export * from "./icu-parse.ts";

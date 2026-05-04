@@ -369,6 +369,79 @@ PlaceholderText(): "Click <x id=\"1\"/>here<x id=\"/1\"/> for info"
 The semantic-type-to-HTML mapping is defined by a small `SemanticHTMLMap`.
 Unknown types fall back to `<span data-type="…">`.
 
+### Run sequences as canonical inline content
+
+`Block.Source` and `Block.Targets` are sequences of `Segment`, and each
+`Segment.Runs` is a flat `[]Run` — a discriminated union that is the
+**canonical representation of inline content** in neokapi:
+
+```go
+type Run struct {
+    Text   *TextRun        // plain text chunk
+    Ph     *PlaceholderRun // self-closing: variable, icon, <br>, redaction
+    PcOpen *PcOpenRun      // opening half of a paired code (<a>, <b>, …)
+    PcClose *PcCloseRun    // closing half of a paired code (</a>, </b>, …)
+    Sub    *SubRun         // reference to a nested Block (subfilter output)
+    Plural *PluralRun      // ICU plural with per-form Runs
+    Select *SelectRun      // ICU select with per-case Runs
+}
+```
+
+Every `PcOpenRun` carries an `id` and is paired with a matching
+`PcCloseRun` of the same `id` later in the same Run sequence. Pairs nest
+LIFO; runs may appear inside plural / select forms with their own scope.
+
+`Run[]` is isomorphic to `Fragment{CodedText, Spans}` — `RunsToFragment` and
+the inverse `MarshalRuns` / `UnmarshalRuns` (`core/model/coded_text.go`)
+bridge the two whenever code paths still consume the `CodedText` form for
+persistence or XLIFF round-trip. Going forward `Run[]` is the canonical
+form; `Fragment` is the persistence/bridge view.
+
+### Boundaries: structural canonical, projections at consumers
+
+The neokapi inline-code model is **structural-canonical**. `Run[]` is the
+single source of truth for inline content inside a Segment. Every other
+representation that crosses a boundary — to a translator, an LLM, an MT
+provider, a CAT tool, a runtime, a TM index — is a **projection** computed
+from `Run[]` on demand.
+
+This separation is deliberate:
+
+- **Structural inside.** Every internal pipeline component (filters, tools,
+  store, editor, runtime resolvers) reads and writes `Run[]`. Type-rich,
+  format-agnostic, lossless.
+- **Textual at boundaries.** Each external consumer gets a textual form
+  purpose-built for it. Several projections coexist; each is tuned to the
+  consumer's expectations and quality characteristics.
+
+The framework provides:
+
+| Projection                                      | Surface                                | Consumer                                                                  |
+| ----------------------------------------------- | -------------------------------------- | ------------------------------------------------------------------------- |
+| `Run[]` (no projection)                         | `Segment.Runs`, KLF JSON wire          | Pipeline tools, store, format readers/writers                             |
+| `RenderRunsWithData(runs)`                      | native source markup                   | Format writers (HTML, Markdown, XLIFF fallback) — replays `Data` verbatim |
+| `RunsStructuralText(runs)`                      | `Click {1}here{/1} for info`           | TM matching (structural tier) — cross-format leverage                     |
+| `RunsGeneralizedText(runs)`                     | structural + entity placeholders       | TM matching (generalized tier)                                            |
+| `RunsPlaceholderText(runs)`                     | `<x id="1"/>here<x id="/1"/>`          | LLM prompts where tag preservation is critical                            |
+| `RunsSemanticHTML(runs, reg)`                   | `<a href="…">here</a>`                 | Commercial MT (DeepL, Google) and HTML-style LLM prompts                  |
+| `flattenRuns(runs)` (TS)                        | `Click {=m0}here{/=m0}`                | ICU runtime, kapi-react `__tx` re-attach                                  |
+| `runsToCoded(runs)` (TS)                        | PUA-marker text + `SpanInfo[]`         | Visual editor (chips, formatting, semantic spans rendered as styled text) |
+| `Fragment.CodedText` + `Spans`                  | PUA-marker text + `Span[]`             | Persistence bridge, XLIFF round-trip via `Span.Data`                      |
+
+Two consequences fall out of the convention:
+
+1. **No single "translator format."** A user editing in the framework's
+   visual editor sees nested chips with semantic formatting (`<b>` rendered
+   bold); the same Block in an external CAT tool comes through as XLIFF
+   `<pc>`; the same Block sent to an LLM goes as `RunsPlaceholderText` or
+   `RunsSemanticHTML`. The structural Block is identical; each consumer
+   renders it differently.
+2. **Format extensions follow the same rule.** A new format reader, a new
+   extractor (e.g., kapi-react), a new translator surface — each emits
+   `Run[]` and lets the framework's existing projections handle every
+   consumer. New textual conventions are only introduced when an existing
+   projection is genuinely insufficient.
+
 ### Reader and writer contracts
 
 **Readers** populate all six span layers when producing Fragments:

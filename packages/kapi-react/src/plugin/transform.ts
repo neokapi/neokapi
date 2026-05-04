@@ -674,7 +674,6 @@ function walkChildrenForTemplate(
     const childStart = s(child.span.start);
     const childEnd = s(child.span.end);
     const implicitName = `=m${state.elementIndex++}`;
-    text += `{${implicitName}}`;
     state.paramList.push({
       name: implicitName,
       exprStart: childStart,
@@ -682,6 +681,19 @@ function walkChildrenForTemplate(
       fullStart: childStart,
       fullEnd: childEnd,
     });
+    const innerChildren = child.children ?? [];
+    if (innerChildren.length === 0) {
+      // Zero children → standalone marker. Runtime substitutes the
+      // element directly when no matching `{/=mN}` close exists.
+      text += `{${implicitName}}`;
+      continue;
+    }
+    // Has children → paired markers around the recursively-walked
+    // inner content. Runtime cloneElements the wrapping element with
+    // the rendered inner content as its children.
+    text += `{${implicitName}}`;
+    text += walkChildrenForTemplate(innerChildren, state, s);
+    text += `{/${implicitName}}`;
   }
   return text;
 }
