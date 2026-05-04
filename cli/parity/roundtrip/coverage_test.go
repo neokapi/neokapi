@@ -443,7 +443,12 @@ func coverageScans() []formatScan {
 				"useCodeFinder": true,
 				"codeFinderRules": []any{
 					`<[^>]+>`,
+					`\{\d+(?:,[^}]+)?\}`,
 				},
+				// Decode `\:` `\=` `\#` `\!` so values match okapi's
+				// Java-spec parsing; the writer re-escapes leading `:`
+				// and `=` to keep the value parseable.
+				"useJavaEscapes": true,
 			},
 			normalizer: roundtrip.Chain{Steps: []roundtrip.Normalizer{
 				roundtrip.LFLineEndings{},

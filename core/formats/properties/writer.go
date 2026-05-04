@@ -207,9 +207,11 @@ func (w *Writer) writeLine() {
 
 // encodePropertyValue encodes special characters in a property value:
 // non-ASCII -> \uXXXX, newline -> \n, tab -> \t, CR -> \r, backslash -> \\.
+// Leading `:` / `=` are escaped because the Java properties parser would
+// otherwise treat them as a second separator marker (okapi mirrors this).
 func encodePropertyValue(s string) string {
 	var buf strings.Builder
-	for _, r := range s {
+	for i, r := range s {
 		switch {
 		case r == '\\':
 			buf.WriteString("\\\\")
@@ -221,6 +223,9 @@ func encodePropertyValue(s string) string {
 			buf.WriteString("\\r")
 		case r > 127:
 			buf.WriteString(fmt.Sprintf("\\u%04x", r))
+		case (r == ':' || r == '=') && i == 0:
+			buf.WriteByte('\\')
+			buf.WriteRune(r)
 		default:
 			buf.WriteRune(r)
 		}
