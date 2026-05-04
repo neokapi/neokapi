@@ -252,33 +252,83 @@ func encodeFoldedBlockWithIndicator(s, indicator string) string {
 // encodeFoldedBlockWithIndicatorIndent extends
 // encodeFoldedBlockWithIndicator with an explicit content indent
 // (decimal string). Empty indent falls back to "  " (2 spaces).
+//
+// Folded scalars (`>`) collapse single line breaks between content
+// lines into spaces and preserve blank-line gaps as single `\n`s in
+// the parsed value. Re-emitting therefore can NOT simply mirror value
+// lines back as source lines: a value of `"para1\npara2"` must come
+// out as two source lines separated by a blank line, otherwise it
+// re-folds to `"para1 para2"` — which is the divergence the
+// folded_indented and folded_literal_examples parity fixtures hit.
+//
+// Encoding rule (per YAML 1.2 §8.1.3 folding semantics):
+//   - For each `\n` in the value between two non-empty value lines,
+//     source needs one blank line. We have already terminated the
+//     previous source line with `\n`, so for N `\n`s in value we add
+//     N more `\n`s before the next content line.
+//   - More-indented value lines (lines starting with whitespace, which
+//     yaml.v3 returns at the relative indent past the block's content
+//     indent) absorb one `\n` via the indentation itself — the
+//     leading newline before a more-indented run is preserved without
+//     a blank line. So we add (N - 1) blank `\n`s instead.
+//   - Clip-chomp `>` (and the bare `>` default) preserves a single
+//     trailing newline if and only if the source body ended with one.
+//     If the parsed value lacks a trailing `\n`, suppress the
+//     terminator after the last content line so the chomp shape
+//     round-trips.
 func encodeFoldedBlockWithIndicatorIndent(s, indicator, indent string) string {
 	if indicator == "" {
 		indicator = ">"
 	}
 	pad := indentPad(indent)
+	endsWithNewline := strings.HasSuffix(s, "\n")
 	if !strings.Contains(s, "\n") {
+		// Single-line bodies always need a final terminator so the
+		// next sibling key (or EOF) lands on its own line.
 		return indicator + "\n" + pad + s + "\n"
 	}
 	var b strings.Builder
 	b.WriteString(indicator)
 	b.WriteByte('\n')
 	lines := strings.Split(s, "\n")
+	// Drop a trailing empty entry from a value ending in `\n` — that
+	// trailing newline is encoded by the final content line's
+	// terminator, not by an additional blank source line.
+	if len(lines) > 0 && lines[len(lines)-1] == "" {
+		lines = lines[:len(lines)-1]
+	}
+	// Find the index of the last non-empty entry so we can suppress the
+	// trailing `\n` after it when the value didn't end with one.
+	lastNonEmptyIdx := -1
 	for i, line := range lines {
-		if i == len(lines)-1 && line == "" {
+		if line != "" {
+			lastNonEmptyIdx = i
+		}
+	}
+	prevNonEmptyIdx := -1
+	for i, line := range lines {
+		if line == "" {
 			continue
 		}
-		// Blank lines stay blank — emitting `pad + "\n"` would leave
-		// trailing whitespace, which okapi's writer (and a strict YAML
-		// linter) avoid. The block-scalar indent still applies to
-		// content lines but is omitted on truly empty lines.
-		if line == "" {
-			b.WriteByte('\n')
-			continue
+		isMoreIndented := strings.HasPrefix(line, " ") || strings.HasPrefix(line, "\t")
+		if prevNonEmptyIdx >= 0 {
+			n := i - prevNonEmptyIdx // # of \n's in value between previous non-empty and this one
+			gap := n
+			if isMoreIndented {
+				gap--
+			}
+			for j := 0; j < gap; j++ {
+				b.WriteByte('\n')
+			}
 		}
 		b.WriteString(pad)
 		b.WriteString(line)
-		b.WriteByte('\n')
+		// Suppress the final terminator when the value didn't end with
+		// a newline, so re-parsing yields the same chomp shape.
+		if i != lastNonEmptyIdx || endsWithNewline {
+			b.WriteByte('\n')
+		}
+		prevNonEmptyIdx = i
 	}
 	return b.String()
 }
