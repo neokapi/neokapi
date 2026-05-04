@@ -418,6 +418,7 @@ func (w *Writer) flushRoundTrip(targetLang model.LocaleID) error {
 	// short-circuit, so the v2 byte-equal-on-untouched contract still
 	// holds for unmodified inputs.
 	stripOkapiDefaults(root)
+	propagateXmlSpaceToFragments(root, "")
 
 	if err := writeDocCREscape(w.Output, w.sourceDoc); err != nil {
 		return fmt.Errorf("xliff2 writer: round-trip write: %w", err)
@@ -502,12 +503,14 @@ func walkUnitsRoundTrip(parent *etree.Element, blocksByID map[string]*model.Bloc
 			}
 			if patchUnit(child, block, targetLang) {
 				patched = true
-				// Once a unit is being re-serialised, also normalize
-				// its <originalData>/<data> ids to the dense d1, d2,
-				// … form okapi emits. We only do this on patched
-				// units so the byte-equal-on-untouched contract still
-				// holds for unmodified inputs.
+				// Once a unit is being re-serialised, normalize its
+				// originalData ids to d1, d2, … and synthesize empty
+				// targets for ignorables that lack them (mirroring
+				// okapi's X2ToOkpConverter pass). We only do these on
+				// patched units so the byte-equal-on-untouched contract
+				// still holds for unmodified inputs.
 				renumberDataIDsInUnit(child)
+				synthesizeIgnorableTargets(child)
 			}
 		}
 	}
@@ -657,6 +660,86 @@ func collectUsedUnitIDs(unitEl *etree.Element) map[string]bool {
 	return used
 }
 
+// propagateXmlSpaceToFragments stamps `xml:space="preserve"` on every
+// <source> / <target> whose inherited xml:space is "preserve" but where
+// the attribute isn't already present on the element itself. This
+// mirrors okapi's writeFragment behaviour: when the parent unit's
+// preserveWS is true (inherited from <file xml:space="preserve">) the
+// writer always emits the attribute, even though the attribute would
+// inherit through XML 1.0's xml:space rules anyway. Without the explicit
+// stamp, encoding/xml's canonical normalizer (which doesn't propagate
+// xml:space) sees the attribute on okapi's output but not on ours.
+//
+// Walks top-down so nested overrides win: a <segment xml:space="default">
+// child of a <file xml:space="preserve"> uses "default" for its
+// source/target.
+func propagateXmlSpaceToFragments(el *etree.Element, inheritedSpace string) {
+	if el == nil {
+		return
+	}
+	curSpace := inheritedSpace
+	if v := attrValue(el, "space"); v != "" {
+		curSpace = v
+	}
+	switch el.Tag {
+	case "source", "target":
+		if curSpace == "preserve" && attrValue(el, "space") == "" {
+			el.CreateAttr("xml:space", "preserve")
+		}
+		// Don't recurse into source/target — inline-content elements
+		// (<pc>, <mrk>, <sc>, <ec>, …) have their own xml:space rules
+		// that we don't want to disturb here.
+		return
+	}
+	for _, child := range el.ChildElements() {
+		propagateXmlSpaceToFragments(child, curSpace)
+	}
+}
+
+// synthesizeIgnorableTargets adds an empty <target> sibling to every
+// <ignorable> element under unitEl that lacks one, when at least one
+// of the unit's <segment> siblings already has a <target>. This mirrors
+// okapi's X2ToOkpConverter behaviour at line 200 ("apply the source
+// ignorable content to target unless there exists target ignorable
+// content, but only if we had a target segment"): okapi materializes a
+// target on every ignorable so source/target part counts match,
+// preventing downstream tools from getting offset segments. The XLIFF
+// 2 round-trip then re-emits the empty target.
+//
+// The synthesized target inherits xml:space from the source (the
+// propagateXmlSpaceToFragments pass picks up the new attribute later).
+func synthesizeIgnorableTargets(unitEl *etree.Element) {
+	hasAnyTarget := false
+	for _, child := range unitEl.ChildElements() {
+		if child.Tag != "segment" {
+			continue
+		}
+		if child.SelectElement("target") != nil {
+			hasAnyTarget = true
+			break
+		}
+	}
+	if !hasAnyTarget {
+		return
+	}
+	for _, child := range unitEl.ChildElements() {
+		if child.Tag != "ignorable" {
+			continue
+		}
+		if child.SelectElement("target") != nil {
+			continue
+		}
+		srcEl := child.SelectElement("source")
+		if srcEl == nil {
+			continue
+		}
+		tgtEl := etree.NewElement("target")
+		// Place the new target right after <source>.
+		srcIdx := childIndex(child, srcEl)
+		child.InsertChildAt(srcIdx+1, tgtEl)
+	}
+}
+
 // renumberDataIDsInUnit rewrites a unit's <originalData>/<data> ids to
 // the sequential `d1, d2, …` form okapi's XLIFFWriter emits, and patches
 // every inline `dataRef` / `dataRefStart` / `dataRefEnd` reference to
@@ -726,6 +809,10 @@ func renumberDataIDsInUnit(unitEl *etree.Element) {
 //   - <pc canOverlap="no"> — pc default is "no" (per XLIFF 2.2 §3.3)
 //   - <sc canOverlap="yes">, <ec canOverlap="yes"> — sc/ec default is
 //     "yes"
+//   - <unit canResegment="…" translate="…"> when the value matches the
+//     parent file/group's effective value (XLIFFWriter.writeInheritedAttributes,
+//     line 931 — "if data.getCanResegment() != parentData.getCanResegment()")
+//   - same for <segment canResegment="…">
 //
 // canCopy/canDelete/canReorder defaults ("yes") are NOT stripped here:
 // fixtures in the wild rarely emit those defaults explicitly, and when
@@ -734,6 +821,7 @@ func stripOkapiDefaults(root *etree.Element) {
 	if root == nil {
 		return
 	}
+	stripInheritedAttrs(root, "yes", "yes")
 	walkXliff2El(root, func(el *etree.Element) {
 		switch el.Tag {
 		case "note":
@@ -750,6 +838,45 @@ func stripOkapiDefaults(root *etree.Element) {
 			}
 		}
 	})
+}
+
+// stripInheritedAttrs walks the file/group/unit/segment hierarchy and
+// strips canResegment / translate attributes when their value matches
+// the inherited (parent) value. Top-down recursion tracks the effective
+// inherited values; the spec defaults at the root <xliff> level are
+// "yes"/"yes" for both attributes.
+func stripInheritedAttrs(el *etree.Element, inheritedCanReseg, inheritedTranslate string) {
+	if el == nil {
+		return
+	}
+	curCanReseg := inheritedCanReseg
+	curTranslate := inheritedTranslate
+	switch el.Tag {
+	case "file", "group", "unit":
+		if v := attrValue(el, "canResegment"); v != "" {
+			if v == inheritedCanReseg {
+				el.RemoveAttr("canResegment")
+			} else {
+				curCanReseg = v
+			}
+		}
+		if v := attrValue(el, "translate"); v != "" {
+			if v == inheritedTranslate {
+				el.RemoveAttr("translate")
+			} else {
+				curTranslate = v
+			}
+		}
+	case "segment":
+		if v := attrValue(el, "canResegment"); v != "" && v == inheritedCanReseg {
+			el.RemoveAttr("canResegment")
+		}
+		// translate is not a segment-level attribute in XLIFF 2.
+		return
+	}
+	for _, child := range el.ChildElements() {
+		stripInheritedAttrs(child, curCanReseg, curTranslate)
+	}
 }
 
 // walkXliff2El invokes f on el and every descendant element. Recursive
