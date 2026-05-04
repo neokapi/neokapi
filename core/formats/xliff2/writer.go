@@ -407,6 +407,18 @@ func (w *Writer) flushRoundTrip(targetLang model.LocaleID) error {
 		return nil
 	}
 
+	// Once we're committed to re-serialising the DOM, normalize spec-
+	// default attributes the way okapi's XLIFFWriter does. okapi's
+	// writer emits inline-code and note attributes only when they
+	// differ from the spec defaults (e.g. `priority="1"` on <note>,
+	// `canOverlap="no"` on <pc>); the source DOM may carry the explicit
+	// defaults verbatim. Stripping here lets fixtures with default-
+	// valued attributes reach canonical-equal vs the okapi reference.
+	// We only strip defaults on the patch path, never on the byte-equal
+	// short-circuit, so the v2 byte-equal-on-untouched contract still
+	// holds for unmodified inputs.
+	stripOkapiDefaults(root)
+
 	if err := writeDocCREscape(w.Output, w.sourceDoc); err != nil {
 		return fmt.Errorf("xliff2 writer: round-trip write: %w", err)
 	}
@@ -490,6 +502,12 @@ func walkUnitsRoundTrip(parent *etree.Element, blocksByID map[string]*model.Bloc
 			}
 			if patchUnit(child, block, targetLang) {
 				patched = true
+				// Once a unit is being re-serialised, also normalize
+				// its <originalData>/<data> ids to the dense d1, d2,
+				// … form okapi emits. We only do this on patched
+				// units so the byte-equal-on-untouched contract still
+				// holds for unmodified inputs.
+				renumberDataIDsInUnit(child)
 			}
 		}
 	}
@@ -637,6 +655,101 @@ func collectUsedUnitIDs(unitEl *etree.Element) map[string]bool {
 		})
 	}
 	return used
+}
+
+// renumberDataIDsInUnit rewrites a unit's <originalData>/<data> ids to
+// the sequential `d1, d2, …` form okapi's XLIFFWriter emits, and patches
+// every inline `dataRef` / `dataRefStart` / `dataRefEnd` reference to
+// match. This closes the parity gap on fixtures like code_id_mismatch.xlf
+// where the source uses sparse ids (`d1, d7`) and okapi's output collapses
+// them (`d1, d2`).
+//
+// We renumber based on the document order of <data> entries inside
+// <originalData>. Okapi's actual algorithm is content-keyed (see
+// Store.calculateDataToIdsMap), but the document-order pass produces the
+// same result for typical fixtures because <data> entries are emitted in
+// first-use order. If a fixture ever surfaces where the two orders
+// disagree, we can promote this to the content-keyed variant.
+func renumberDataIDsInUnit(unitEl *etree.Element) {
+	odEl := unitEl.SelectElement("originalData")
+	if odEl == nil {
+		return
+	}
+	dataEls := odEl.SelectElements("data")
+	if len(dataEls) == 0 {
+		return
+	}
+	// Build oldID → newID map; only renumber entries whose current id
+	// doesn't already match the canonical "d<n>" form for its slot.
+	rename := make(map[string]string, len(dataEls))
+	for i, dataEl := range dataEls {
+		oldID := attrValue(dataEl, "id")
+		newID := fmt.Sprintf("d%d", i+1)
+		if oldID == newID {
+			continue
+		}
+		rename[oldID] = newID
+		dataEl.CreateAttr("id", newID)
+	}
+	if len(rename) == 0 {
+		return
+	}
+	// Walk the unit's source/target/inline subtree and patch every
+	// referencing attribute. data references appear on <ph>, <sc>,
+	// <ec>, <pc> via dataRef / dataRefStart / dataRefEnd.
+	for _, child := range unitEl.ChildElements() {
+		if child.Tag != "segment" && child.Tag != "ignorable" {
+			continue
+		}
+		walkXliff2El(child, func(el *etree.Element) {
+			for _, attrName := range [...]string{"dataRef", "dataRefStart", "dataRefEnd"} {
+				v := attrValue(el, attrName)
+				if v == "" {
+					continue
+				}
+				if newV, ok := rename[v]; ok {
+					el.CreateAttr(attrName, newV)
+				}
+			}
+		})
+	}
+}
+
+// stripOkapiDefaults walks the entire DOM and removes attributes whose
+// values match the spec default that okapi's XLIFFWriter omits on
+// output. This narrows the gap between our DOM round-trip (which
+// preserves source attributes verbatim) and okapi's read-then-rewrite
+// (which drops defaults). The list mirrors the explicit emission gates
+// in okapi.lib.xliff2.writer.XLIFFWriter:
+//
+//   - <note priority="1"> — Note.priority defaults to 1 (XLIFFWriter line 760)
+//   - <pc canOverlap="no"> — pc default is "no" (per XLIFF 2.2 §3.3)
+//   - <sc canOverlap="yes">, <ec canOverlap="yes"> — sc/ec default is
+//     "yes"
+//
+// canCopy/canDelete/canReorder defaults ("yes") are NOT stripped here:
+// fixtures in the wild rarely emit those defaults explicitly, and when
+// they do okapi preserves them. We only strip what okapi actively drops.
+func stripOkapiDefaults(root *etree.Element) {
+	if root == nil {
+		return
+	}
+	walkXliff2El(root, func(el *etree.Element) {
+		switch el.Tag {
+		case "note":
+			if attrValue(el, "priority") == "1" {
+				el.RemoveAttr("priority")
+			}
+		case "pc":
+			if attrValue(el, "canOverlap") == "no" {
+				el.RemoveAttr("canOverlap")
+			}
+		case "sc", "ec":
+			if attrValue(el, "canOverlap") == "yes" {
+				el.RemoveAttr("canOverlap")
+			}
+		}
+	})
 }
 
 // walkXliff2El invokes f on el and every descendant element. Recursive
