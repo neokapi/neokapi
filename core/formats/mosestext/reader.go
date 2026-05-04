@@ -126,6 +126,7 @@ func (r *Reader) readLinesNormal(ctx context.Context, ch chan<- model.PartResult
 		block := model.NewBlock(fmt.Sprintf("tu%d", blockCounter), line)
 		block.Name = fmt.Sprintf("line%d", blockCounter)
 		block.PreserveWhitespace = true
+		r.applyCodeFinder(block)
 		if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
 			return
 		}
@@ -177,6 +178,7 @@ func (r *Reader) readLinesSkeleton(ctx context.Context, ch chan<- model.PartResu
 			block := model.NewBlock(blockIDStr, content)
 			block.Name = fmt.Sprintf("line%d", blockCounter)
 			block.PreserveWhitespace = true
+			r.applyCodeFinder(block)
 			if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
 				return
 			}
@@ -185,6 +187,62 @@ func (r *Reader) readLinesSkeleton(ctx context.Context, ch chan<- model.PartResu
 		if err == io.EOF {
 			break
 		}
+	}
+}
+
+// applyCodeFinder rewrites a block's source segment so that any region
+// matching the configured code-finder regexes becomes a placeholder run
+// (Ph) instead of a translatable text run. Mirrors the yaml reader's
+// applyCodeFinder; see core/formats/yaml/reader.go for the canonical
+// implementation. The Data captured on each Ph is the original matched
+// text — the writer replays it verbatim via model.RenderRunsWithData.
+func (r *Reader) applyCodeFinder(block *model.Block) {
+	patterns := r.cfg.GetCodeFinderPatterns()
+	if len(patterns) == 0 {
+		return
+	}
+	for _, seg := range block.Source {
+		if len(seg.Runs) == 0 {
+			continue
+		}
+		text := seg.Text()
+		type matchRange struct{ start, end int }
+		var matches []matchRange
+		for _, re := range patterns {
+			for _, loc := range re.FindAllStringIndex(text, -1) {
+				matches = append(matches, matchRange{loc[0], loc[1]})
+			}
+		}
+		if len(matches) == 0 {
+			continue
+		}
+		for i := 1; i < len(matches); i++ {
+			for j := i; j > 0 && matches[j].start < matches[j-1].start; j-- {
+				matches[j], matches[j-1] = matches[j-1], matches[j]
+			}
+		}
+		var runs []model.Run
+		lastEnd := 0
+		spanID := 1
+		for _, m := range matches {
+			if m.start < lastEnd {
+				continue // skip overlapping match
+			}
+			if m.start > lastEnd {
+				runs = append(runs, model.Run{Text: &model.TextRun{Text: text[lastEnd:m.start]}})
+			}
+			runs = append(runs, model.Run{Ph: &model.PlaceholderRun{
+				ID:   fmt.Sprintf("c%d", spanID),
+				Type: "code",
+				Data: text[m.start:m.end],
+			}})
+			lastEnd = m.end
+			spanID++
+		}
+		if lastEnd < len(text) {
+			runs = append(runs, model.Run{Text: &model.TextRun{Text: text[lastEnd:]}})
+		}
+		seg.SetRuns(runs)
 	}
 }
 

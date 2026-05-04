@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"strings"
 
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
@@ -74,11 +75,9 @@ func (w *Writer) writeBlock(part *model.Part) error {
 		return errors.New("mosestext writer: expected Block resource")
 	}
 
-	// Use target text if available, otherwise source text
-	text := block.SourceText()
-	if !w.Locale.IsEmpty() && block.HasTarget(w.Locale) {
-		text = block.TargetText(w.Locale)
-	}
+	// Use target text if available, otherwise source text. Goes
+	// through blockText so inline-code Ph runs get spliced back in.
+	text := w.blockText(block)
 
 	if !w.firstBlock {
 		if _, err := fmt.Fprint(w.Output, "\n"); err != nil {
@@ -156,8 +155,20 @@ func (w *Writer) writeFromSkeleton(blocks map[string]*model.Block) error {
 }
 
 func (w *Writer) blockText(block *model.Block) string {
+	// RenderRunsWithData splices Ph-run Data back into the text
+	// stream — required when the reader's codeFinder split the line
+	// into TextRun + Ph runs. Plain SourceText/TargetText drops Ph
+	// runs so the inline codes would vanish on round-trip.
 	if !w.Locale.IsEmpty() && block.HasTarget(w.Locale) {
-		return block.TargetText(w.Locale)
+		var b strings.Builder
+		for _, seg := range block.Targets[w.Locale] {
+			b.WriteString(model.RenderRunsWithData(seg.Runs))
+		}
+		return b.String()
 	}
-	return block.SourceText()
+	var b strings.Builder
+	for _, seg := range block.Source {
+		b.WriteString(model.RenderRunsWithData(seg.Runs))
+	}
+	return b.String()
 }

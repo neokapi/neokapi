@@ -337,10 +337,26 @@ func coverageScans() []formatScan {
 		{
 			// Mosestext: upstream ships Test01/Test02 and an XLIFF
 			// backref pair; we round-trip the .txt source files.
+			//
+			// useCodeFinder + the rules below carve XML-style inline
+			// markup (`<mrk mtype="seg">`, `<lb/>`, `</mrk>`) and named
+			// entity references (`&lt;`, `&amp;`) out of the source as
+			// placeholder runs so they round-trip as literal codes
+			// instead of being pseudo-translated character by character.
+			// okapi's mosestext filter recognises the same constructs as
+			// inline codes by default; this is the parity-equivalent
+			// config on the native side.
 			formatID:          "mosestext",
 			filterClass:       "okf_mosestext",
 			sources:           []string{"okapi/filters/mosestext/src/test/resources"},
 			extensions:        []string{".txt"},
+			nativeConfig: map[string]any{
+				"useCodeFinder": true,
+				"codeFinderRules": []any{
+					`<[^>]+>`,
+					`&[a-zA-Z][a-zA-Z0-9]*;`,
+				},
+			},
 		},
 
 		// ── HTML / markup ─────────────────────────────────────────
