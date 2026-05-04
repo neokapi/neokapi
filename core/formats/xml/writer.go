@@ -219,19 +219,26 @@ func (w *Writer) renderBlockXML(block *model.Block) string {
 		segs = block.Targets[w.Locale]
 	}
 	var buf strings.Builder
+	escape := xmlEscapeString
+	if block.Type == "attribute" {
+		// Attribute values only need to escape `&`, `<`, and the
+		// delimiter quote (we use `"`); leaving `>` and `'` literal
+		// matches okapi's reference writer.
+		escape = xmlEscapeAttrValue
+	}
 	for _, seg := range segs {
-		writeRunsXML(&buf, seg.Runs)
+		writeRunsXML(&buf, seg.Runs, escape)
 	}
 	return buf.String()
 }
 
-// writeRunsXML walks a Run sequence, XML-escaping TextRun content
-// while writing inline-code Data verbatim (already valid XML).
-func writeRunsXML(buf *strings.Builder, runs []model.Run) {
+// writeRunsXML walks a Run sequence, applying `escape` to TextRun
+// content and writing inline-code Data verbatim (already valid XML).
+func writeRunsXML(buf *strings.Builder, runs []model.Run, escape func(string) string) {
 	for _, r := range runs {
 		switch {
 		case r.Text != nil:
-			buf.WriteString(xmlEscapeString(r.Text.Text))
+			buf.WriteString(escape(r.Text.Text))
 		case r.Ph != nil:
 			buf.WriteString(r.Ph.Data)
 		case r.PcOpen != nil:
@@ -242,18 +249,24 @@ func writeRunsXML(buf *strings.Builder, runs []model.Run) {
 			buf.WriteString(r.Sub.Ref)
 		case r.Plural != nil:
 			if form, ok := r.Plural.Forms[model.PluralOther]; ok {
-				writeRunsXML(buf, form)
+				writeRunsXML(buf, form, escape)
 			}
 		case r.Select != nil:
 			if form, ok := r.Select.Cases["other"]; ok {
-				writeRunsXML(buf, form)
+				writeRunsXML(buf, form, escape)
 			}
 		}
 	}
 }
 
-// xmlEscapeString escapes the five mandatory XML special characters (&, <, >, ", ')
-// but preserves whitespace (newlines, tabs) for byte-exact skeleton roundtrip.
+// xmlEscapeString escapes the four XML special characters (&, <, >, ")
+// that may appear in element-text content. The double quote isn't
+// strictly required by XML 1.0 inside element text, but okapi's
+// reference writer emits it as the &quot; entity when it appears in
+// extracted content — escaping here keeps round-trip parity. The
+// apostrophe stays unescaped because okapi leaves it literal even
+// when the source used &apos;. Whitespace (newlines, tabs) is preserved
+// for byte-exact skeleton roundtrip.
 func xmlEscapeString(s string) string {
 	var b strings.Builder
 	b.Grow(len(s))
@@ -265,6 +278,30 @@ func xmlEscapeString(s string) string {
 			b.WriteString("&lt;")
 		case '>':
 			b.WriteString("&gt;")
+		case '"':
+			b.WriteString("&quot;")
+		default:
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
+}
+
+// xmlEscapeAttrValue escapes the characters required inside a
+// double-quoted XML attribute value: `&`, `<`, and `"`. `>` and `'`
+// stay literal — XML doesn't require their escaping there, and okapi
+// emits them un-escaped to match.
+func xmlEscapeAttrValue(s string) string {
+	var b strings.Builder
+	b.Grow(len(s))
+	for _, r := range s {
+		switch r {
+		case '&':
+			b.WriteString("&amp;")
+		case '<':
+			b.WriteString("&lt;")
+		case '"':
+			b.WriteString("&quot;")
 		default:
 			b.WriteRune(r)
 		}
