@@ -113,15 +113,29 @@ func (w *Writer) writeFromSkeleton(blocks map[string]*model.Block) error {
 // blockValue returns the appropriate value text for skeleton output.
 // If the block has a target translation, it encodes it. Otherwise it
 // uses the raw value stored during reading for byte-exact roundtrip.
+//
+// Inline-code Ph runs (created by the reader's codeFinder for HTML tags
+// and Java escapes) are spliced back into the text via
+// RenderRunsWithData; plain TargetText/SourceText would drop them.
 func (w *Writer) blockValue(block *model.Block) string {
 	if !w.Locale.IsEmpty() && block.HasTarget(w.Locale) {
-		return encodePropertyValue(block.TargetText(w.Locale))
+		return encodePropertyValue(renderRunsText(block.Targets[w.Locale]))
 	}
-	// Use raw value for byte-exact roundtrip when no translation
 	if raw, ok := block.Properties["rawValue"]; ok {
 		return raw
 	}
-	return encodePropertyValue(block.SourceText())
+	return encodePropertyValue(renderRunsText(block.Source))
+}
+
+func renderRunsText(segs []*model.Segment) string {
+	var b strings.Builder
+	for _, seg := range segs {
+		if seg == nil {
+			continue
+		}
+		b.WriteString(model.RenderRunsWithData(seg.Runs))
+	}
+	return b.String()
 }
 
 func (w *Writer) writePart(part *model.Part) error {
@@ -141,10 +155,14 @@ func (w *Writer) writeBlock(part *model.Part) error {
 		return errors.New("properties writer: expected Block resource")
 	}
 
-	// Use target text if available, otherwise source text
-	text := block.SourceText()
+	// Use target text if available, otherwise source text. Render with
+	// inline-code Ph data spliced back in so codeFinder-extracted HTML
+	// markup survives the round-trip.
+	var text string
 	if !w.Locale.IsEmpty() && block.HasTarget(w.Locale) {
-		text = block.TargetText(w.Locale)
+		text = renderRunsText(block.Targets[w.Locale])
+	} else {
+		text = renderRunsText(block.Source)
 	}
 
 	// Encode unicode escapes for non-ASCII characters

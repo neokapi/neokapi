@@ -115,6 +115,19 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 	dataID := 0
 	var pendingNote string // accumulated comment text for commentsAreNotes
 
+	// Localization-directive state machine. The stack tracks nested
+	// `#_btext` / `#_bskip` blocks (true = extract, false = skip);
+	// nextOverride is set by the single-line `#_text` / `#_skip`
+	// directives and consumed by the very next key=value entry.
+	directiveStack := []bool{}
+	var nextOverride *bool
+	currentExtract := func() bool {
+		if len(directiveStack) == 0 {
+			return true
+		}
+		return directiveStack[len(directiveStack)-1]
+	}
+
 	for _, line := range lines {
 		if line.isBlank {
 			// Skeleton: write the blank line's raw text + line ending
@@ -146,6 +159,30 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 			if !r.emit(ctx, ch, &model.Part{Type: model.PartData, Resource: data}) {
 				return
 			}
+			// Localization directives — okapi-compatible. Recognised
+			// before the comments-as-notes accumulation so directive
+			// markers don't leak into translator notes.
+			switch directiveKind(line.content) {
+			case dirBText:
+				directiveStack = append(directiveStack, true)
+				continue
+			case dirBSkip:
+				directiveStack = append(directiveStack, false)
+				continue
+			case dirEText, dirESkip:
+				if len(directiveStack) > 0 {
+					directiveStack = directiveStack[:len(directiveStack)-1]
+				}
+				continue
+			case dirText:
+				v := true
+				nextOverride = &v
+				continue
+			case dirSkip:
+				v := false
+				nextOverride = &v
+				continue
+			}
 			// Accumulate comment text for notes if enabled
 			if r.cfg.CommentsAreNotes {
 				// Extract comment text (strip leading # or ! and whitespace)
@@ -166,8 +203,19 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 			value = decodeJavaEscapes(value)
 		}
 
-		// Apply key condition filtering
-		if !r.cfg.shouldExtractKey(key) {
+		// Determine extraction. Single-line `#_text`/`#_skip`
+		// directives override the surrounding block state for exactly
+		// one entry; otherwise fall back to the current block state and
+		// then the legacy KeyCondition pattern.
+		extract := currentExtract()
+		if nextOverride != nil {
+			extract = *nextOverride
+			nextOverride = nil
+		}
+		if extract && !r.cfg.shouldExtractKey(key) {
+			extract = false
+		}
+		if !extract {
 			// Not extracted: emit as skeleton
 			r.skelText(r.rawLineText(line))
 			dataID++
@@ -684,6 +732,51 @@ func (r *Reader) emit(ctx context.Context, ch chan<- model.PartResult, part *mod
 }
 
 // extractCommentText strips the comment marker and leading whitespace from a comment line.
+// directiveKind classifies an okapi-compatible localization directive
+// embedded in a comment line. Returns dirNone when the comment is not a
+// directive. Recognised forms (case-sensitive): `#_text`, `#_skip`,
+// `#_btext`, `#_etext`, `#_bskip`, `#_eskip`. Whitespace before/after
+// the marker is allowed.
+type directiveType int
+
+const (
+	dirNone directiveType = iota
+	dirText
+	dirSkip
+	dirBText
+	dirEText
+	dirBSkip
+	dirESkip
+)
+
+func directiveKind(content string) directiveType {
+	trimmed := strings.TrimSpace(content)
+	if len(trimmed) == 0 {
+		return dirNone
+	}
+	// Strip the comment marker (# or ! ; not extending to ExtraComments —
+	// okapi only recognises directives on `#` lines).
+	if trimmed[0] != '#' {
+		return dirNone
+	}
+	body := strings.TrimSpace(trimmed[1:])
+	switch body {
+	case "_text":
+		return dirText
+	case "_skip":
+		return dirSkip
+	case "_btext":
+		return dirBText
+	case "_etext":
+		return dirEText
+	case "_bskip":
+		return dirBSkip
+	case "_eskip":
+		return dirESkip
+	}
+	return dirNone
+}
+
 func extractCommentText(content string) string {
 	trimmed := strings.TrimLeft(content, " \t")
 	if len(trimmed) == 0 {

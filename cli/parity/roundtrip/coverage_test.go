@@ -434,11 +434,17 @@ func coverageScans() []formatScan {
 			filterClass: "okf_properties",
 			sources:     []string{"integration-tests/okapi/src/test/resources/property"},
 			extensions:  []string{".properties"},
-			// Skip lifted into observation mode: native runs and the
-			// report shows actual achievement, but we don't fail the
-			// test until a writer fix or normalizer brings native into
-			// canonical-equal. Today the gap is wider than just style
-			// (line endings + hex case + extra extracted entries).
+			// okapi's PropertiesFilter defaults to useCodeFinder=true
+			// with HTML-tag and Java-escape rules. Native defaults to
+			// off, so without configuring it here HTML markup inside
+			// translatable values gets pseudo-translated character by
+			// character (`<b>` → `<ƀ>`).
+			nativeConfig: map[string]any{
+				"useCodeFinder": true,
+				"codeFinderRules": []any{
+					`<[^>]+>`,
+				},
+			},
 			normalizer: roundtrip.Chain{Steps: []roundtrip.Normalizer{
 				roundtrip.LFLineEndings{},
 				roundtrip.LowerHexUnicodeEscape{},
