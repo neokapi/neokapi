@@ -217,6 +217,13 @@ func (r *Reader) parseStory(ctx context.Context, ch chan<- model.PartResult,
 	var contentDepth int // >0 when inside a <Content> element
 	var noteDepth int    // >0 when inside a Note/Footnote/Endnote element
 	var textBuf strings.Builder
+	// rootOpened tracks whether the root element start tag has been
+	// emitted. Whitespace between the `<?xml ?>` declaration and the
+	// root element (CharData tokens fired by the decoder for the
+	// inter-prologue newlines/tabs) is suppressed because okapi strips
+	// it on round-trip and our Story_*.xml diffs were dominated by
+	// that single difference.
+	var rootOpened bool
 
 	// Style tracking uses a stack so nested ParagraphStyleRange/CharacterStyleRange
 	// (e.g. inside footnotes, tables) are handled correctly.
@@ -226,6 +233,39 @@ func (r *Reader) parseStory(ctx context.Context, ch chan<- model.PartResult,
 	}
 	var styleStack []styleState
 	currentStyle := styleState{}
+
+	// Empty-element self-close tracking: when a start tag is followed
+	// immediately by its matching end tag (no text, no nested element,
+	// no skel ref), okapi emits `<X/>` rather than `<X></X>`. We
+	// achieve byte-equal parity by buffering the trailing `>` offset
+	// of the most recent start tag; on a matching EndElement we
+	// truncate that `>` to `/>`. Any other skel write commits the
+	// pending start tag (clears it).
+	var pending struct {
+		name   xml.Name
+		offset int
+		active bool
+	}
+	commitPending := func() { pending.active = false }
+	emitStart := func(t xml.StartElement) {
+		commitPending()
+		if r.skeletonStore == nil {
+			return
+		}
+		r.skelWriteStartElement(&skelBuf, t)
+		pending.name = t.Name
+		pending.offset = skelBuf.Len() - 1
+		pending.active = true
+	}
+	emitEnd := func(t xml.EndElement) {
+		if pending.active && pending.name == t.Name {
+			skelBuf.Truncate(pending.offset)
+			skelBuf.WriteString("/>")
+			pending.active = false
+			return
+		}
+		r.skelWriteEndElement(&skelBuf, t)
+	}
 
 	for {
 		tok, err := d.Token()
@@ -238,34 +278,45 @@ func (r *Reader) parseStory(ctx context.Context, ch chan<- model.PartResult,
 
 		switch t := tok.(type) {
 		case xml.StartElement:
+			rootOpened = true
 			switch t.Name.Local {
 			case "ParagraphStyleRange":
 				styleStack = append(styleStack, currentStyle)
 				currentStyle.paragraphStyle = attrVal(t.Attr, "AppliedParagraphStyle")
-				r.skelWriteStartElement(&skelBuf, t)
+				emitStart(t)
 
 			case "CharacterStyleRange":
 				styleStack = append(styleStack, currentStyle)
 				currentStyle.charStyle = attrVal(t.Attr, "AppliedCharacterStyle")
-				r.skelWriteStartElement(&skelBuf, t)
+				emitStart(t)
 
 			case "Content":
 				// IDML <Content> elements are always leaf text nodes (no
 				// nesting), but we use a depth counter rather than a
 				// boolean so a malformed input can't silently lose state.
+				//
+				// Okapi's IDML round-trip rewrites every <Content> start
+				// tag as `<Content xml:space="preserve">` regardless of
+				// whether the source had the xml:space attribute. Match
+				// that so the placeholder ref slots into the same
+				// surrounding bytes.
+				commitPending()
+				if r.skeletonStore != nil {
+					skelBuf.WriteString(`<Content xml:space="preserve">`)
+				}
 				contentDepth++
 				textBuf.Reset()
 
 			case "Br":
 				// Line break — skeleton only
-				r.skelWriteStartElement(&skelBuf, t)
+				emitStart(t)
 
 			case "Note", "Footnote", "Endnote":
 				noteDepth++
-				r.skelWriteStartElement(&skelBuf, t)
+				emitStart(t)
 
 			default:
-				r.skelWriteStartElement(&skelBuf, t)
+				emitStart(t)
 			}
 
 		case xml.EndElement:
@@ -282,12 +333,14 @@ func (r *Reader) parseStory(ctx context.Context, ch chan<- model.PartResult,
 
 					if trimmed == "" || (inNote && !r.cfg.ExtractNotes) {
 						// Non-translatable: write to skeleton as text
+						commitPending()
 						r.skelText(&skelBuf, xmlEscape(text))
 					} else {
 						// Translatable content: emit block
 						*blockCounter++
 						blockID := fmt.Sprintf("tu%d", *blockCounter)
 
+						commitPending()
 						r.skelRef(&skelBuf, blockID)
 
 						block := &model.Block{
@@ -307,19 +360,23 @@ func (r *Reader) parseStory(ctx context.Context, ch chan<- model.PartResult,
 						}
 					}
 
+					if r.skeletonStore != nil {
+						skelBuf.WriteString(`</Content>`)
+					}
+
 					contentDepth--
 					textBuf.Reset()
 				}
 
 			case "ParagraphStyleRange":
-				r.skelWriteEndElement(&skelBuf, t)
+				emitEnd(t)
 				if len(styleStack) > 0 {
 					currentStyle = styleStack[len(styleStack)-1]
 					styleStack = styleStack[:len(styleStack)-1]
 				}
 
 			case "CharacterStyleRange":
-				r.skelWriteEndElement(&skelBuf, t)
+				emitEnd(t)
 				if len(styleStack) > 0 {
 					currentStyle = styleStack[len(styleStack)-1]
 					styleStack = styleStack[:len(styleStack)-1]
@@ -327,25 +384,48 @@ func (r *Reader) parseStory(ctx context.Context, ch chan<- model.PartResult,
 
 			case "Note", "Footnote", "Endnote":
 				noteDepth--
-				r.skelWriteEndElement(&skelBuf, t)
+				emitEnd(t)
 
 			default:
-				r.skelWriteEndElement(&skelBuf, t)
+				emitEnd(t)
 			}
 
 		case xml.CharData:
 			if contentDepth > 0 {
 				textBuf.Write(t)
-			} else {
-				r.skelText(&skelBuf, xmlEscape(string(t)))
+			} else if rootOpened {
+				// Inter-element whitespace inside the Story document is
+				// dropped to match okapi's XML round-trip — okapi
+				// re-serializes structure without preserving the
+				// pretty-printed indentation/newlines, and our skel
+				// would otherwise leak `\n\t` runs between every
+				// sibling element.
+				if !isWhitespaceOnly(t) {
+					commitPending()
+					r.skelText(&skelBuf, xmlEscape(string(t)))
+				}
 			}
+			// Pre-root char data (whitespace between <?xml ?> and the
+			// root element) is dropped — see rootOpened comment above.
 
 		case xml.ProcInst:
-			r.skelText(&skelBuf, "<?"+t.Target+" "+string(t.Inst)+"?>")
+			inst := string(t.Inst)
+			// Okapi's IDML round-trip rewrites the XML declaration's
+			// pseudo-attributes from double to single quotes
+			// (`version='1.0' encoding='UTF-8'`). The XML 1.0 spec
+			// treats either form as equivalent, but byte-equal parity
+			// requires us to follow the same convention for the
+			// `<?xml ?>` PI specifically.
+			if t.Target == "xml" {
+				inst = strings.ReplaceAll(inst, `"`, `'`)
+			}
+			commitPending()
+			r.skelText(&skelBuf, "<?"+t.Target+" "+inst+"?>")
 		}
 	}
 
 	// Flush remaining skeleton data
+	commitPending()
 	r.skelFlush(&skelBuf)
 
 	return nil
@@ -463,10 +543,40 @@ func attrVal(attrs []xml.Attr, name string) string {
 	return ""
 }
 
+// xmlEscape escapes the three required XML text-content characters
+// (`&`, `<`, `>`). It deliberately does NOT escape whitespace
+// characters: Go's xml.EscapeText converts `\n`/`\t`/`\r` into the
+// `&#xA;`/`&#x9;`/`&#xD;` numeric entities, which is legal but breaks
+// byte-for-byte parity with okapi (whose Story_*.xml output keeps
+// literal newlines after the `<?xml ?>` declaration).
 func xmlEscape(s string) string {
-	var buf strings.Builder
-	_ = xml.EscapeText(&buf, []byte(s))
-	return buf.String()
+	var b strings.Builder
+	b.Grow(len(s))
+	for _, r := range s {
+		switch r {
+		case '&':
+			b.WriteString("&amp;")
+		case '<':
+			b.WriteString("&lt;")
+		case '>':
+			b.WriteString("&gt;")
+		default:
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
+}
+
+func isWhitespaceOnly(b []byte) bool {
+	for _, c := range b {
+		switch c {
+		case ' ', '\t', '\r', '\n':
+			continue
+		default:
+			return false
+		}
+	}
+	return true
 }
 
 func xmlEscapeAttr(s string) string {
@@ -489,6 +599,16 @@ func writeElementName(buf *bytes.Buffer, name xml.Name) {
 }
 
 func writeAttrName(buf *bytes.Buffer, name xml.Name) {
+	// `xmlns:foo="..."` namespace declarations come through Go's XML
+	// decoder as Attr{Name{Space:"xmlns", Local:"foo"}}. Without this
+	// case, the writer would emit just `foo="..."` and break the XML's
+	// namespace bindings — exactly the symptom okapi flagged on idml
+	// Story_*.xml round-trip ("idPkg=" instead of "xmlns:idPkg=").
+	if name.Space == "xmlns" {
+		buf.WriteString("xmlns:")
+		buf.WriteString(name.Local)
+		return
+	}
 	if name.Space != "" {
 		prefix := nsPrefix(name.Space)
 		if prefix != "" {

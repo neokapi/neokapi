@@ -479,23 +479,22 @@ func TestFootnotes(t *testing.T) {
 </idPkg:Story>`,
 	})
 
-	// Default: extract notes
+	// Default: notes are NOT extracted (matches okapi's IDML filter).
 	parts := readIDMLBytes(t, data)
 	blocks := testutil.FilterBlocks(parts)
-	require.Len(t, blocks, 2)
+	require.Len(t, blocks, 1)
+	assert.Equal(t, "Main text", blocks[0].SourceText())
 
-	texts := testutil.BlockTexts(blocks)
-	assert.Contains(t, texts, "Main text")
-	assert.Contains(t, texts, "Footnote text")
-
-	// With extractNotes=false
+	// With extractNotes=true: footnote text becomes a translatable block too.
 	cfg := &Config{}
 	cfg.Reset()
-	cfg.ExtractNotes = false
+	cfg.ExtractNotes = true
 	parts2 := readIDMLBytesWithConfig(t, data, cfg)
 	blocks2 := testutil.FilterBlocks(parts2)
-	require.Len(t, blocks2, 1)
-	assert.Equal(t, "Main text", blocks2[0].SourceText())
+	require.Len(t, blocks2, 2)
+	texts := testutil.BlockTexts(blocks2)
+	assert.Contains(t, texts, "Main text")
+	assert.Contains(t, texts, "Footnote text")
 }
 
 func TestSpecialCharacters(t *testing.T) {
@@ -789,18 +788,18 @@ func TestConfig(t *testing.T) {
 	cfg.Reset()
 
 	assert.Equal(t, "idml", cfg.FormatName())
-	assert.True(t, cfg.ExtractNotes)
+	assert.False(t, cfg.ExtractNotes)
 	assert.True(t, cfg.SkipDiscretionaryHyphens)
 	assert.False(t, cfg.ExtractMasterSpreads)
 	require.NoError(t, cfg.Validate())
 
 	err := cfg.ApplyMap(map[string]any{
-		"extractNotes":             false,
+		"extractNotes":             true,
 		"skipDiscretionaryHyphens": false,
 		"extractMasterSpreads":     true,
 	})
 	require.NoError(t, err)
-	assert.False(t, cfg.ExtractNotes)
+	assert.True(t, cfg.ExtractNotes)
 	assert.False(t, cfg.SkipDiscretionaryHyphens)
 	assert.True(t, cfg.ExtractMasterSpreads)
 

@@ -942,10 +942,17 @@ mergeCaptions.b=false
 			skip:              idmlBridgeSkips(),
 			// IDML is a zip of XML. okapi emits XML decls with
 			// single-quoted attrs ('1.0' encoding='UTF-8'); native
-			// emits double-quoted ("1.0" encoding="UTF-8"). Both are
-			// valid XML. Strip the XML decl from each zip entry — the
-			// rest of each entry's content stays byte-identical.
-			normalizer: roundtrip.ZipEntryNormalizer{Inner: roundtrip.StripXMLDeclaration{}},
+			// emits double-quoted ("1.0" encoding="UTF-8"). Beyond the
+			// decl, okapi rewrites every IDML zip entry through its
+			// own XML reader/writer cycle which strips
+			// non-significant inter-element whitespace and reorders
+			// attributes — pure byte parity is unrealistic, so we
+			// chain XMLCanonical with attr sorting to capture the
+			// structural equivalence.
+			normalizer: roundtrip.ZipEntryNormalizer{Inner: roundtrip.Chain{Steps: []roundtrip.Normalizer{
+				roundtrip.StripXMLDeclaration{},
+				roundtrip.XMLCanonical{SortAttrs: true},
+			}}},
 		},
 		{
 			// 5 fixtures crash upstream Okapi's icml merge; 7 more

@@ -18,9 +18,15 @@ type Config struct {
 func (c *Config) FormatName() string { return "idml" }
 
 // Reset restores default configuration values.
+//
+// Defaults track okapi's IDML filter defaults so out-of-the-box
+// extraction matches the reference engine. ExtractNotes=false in
+// particular avoids surfacing reviewer notes (Note/Footnote/Endnote)
+// as translatable units — okapi's filter excludes them unless the
+// caller opts in.
 func (c *Config) Reset() {
 	c.ExtractMasterSpreads = false
-	c.ExtractNotes = true
+	c.ExtractNotes = false
 	c.SkipDiscretionaryHyphens = true
 }
 
