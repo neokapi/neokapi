@@ -378,35 +378,48 @@ func (w *Writer) writePluralGroup() error {
 	return nil
 }
 
-// writeMultilineField writes a PO field, using multiline format if the value
-// contains newlines (other than a trailing one).
+// writeMultilineField writes a PO field. Okapi uses the multi-line
+// `msgstr ""` + continuation lines form only when (a) every embedded
+// `\n` falls at the end of a continuation segment (i.e. the raw value
+// genuinely spans multiple physical lines), or (b) the caller forces
+// multi-line via writeMultilineFieldForced. A single embedded newline
+// in an otherwise short value (e.g. `Cannot find file '%s'\n.`) stays
+// on one line as the `\n` escape.
 func (w *Writer) writeMultilineField(field, value string) error {
+	if value == "" || !strings.Contains(value, "\n") {
+		nl := w.nl()
+		_, err := fmt.Fprintf(w.Output, "%s %s%s", field, quotePO(value), nl)
+		return err
+	}
+	// Heuristic: only emit multi-line when the value ends with `\n`
+	// (the canonical "this is a multi-line value" marker okapi uses).
+	if !strings.HasSuffix(value, "\n") {
+		nl := w.nl()
+		_, err := fmt.Fprintf(w.Output, "%s %s%s", field, quotePO(value), nl)
+		return err
+	}
+	return w.writeMultilineFieldForced(field, value)
+}
+
+func (w *Writer) writeMultilineFieldForced(field, value string) error {
 	nl := w.nl()
-	// Check if value needs multiline: contains embedded newlines
-	if strings.Contains(value, "\n") && value != "" {
-		// Multiline: start with empty string, then continuation lines
-		if _, err := fmt.Fprintf(w.Output, "%s \"\"%s", field, nl); err != nil {
+	if _, err := fmt.Fprintf(w.Output, "%s \"\"%s", field, nl); err != nil {
+		return err
+	}
+	lines := strings.Split(value, "\n")
+	for i, line := range lines {
+		if i == len(lines)-1 && line == "" {
+			continue
+		}
+		suffix := ""
+		if i < len(lines)-1 {
+			suffix = "\\n"
+		}
+		if _, err := fmt.Fprintf(w.Output, "\"%s%s\"%s", escapePO(line), suffix, nl); err != nil {
 			return err
 		}
-		lines := strings.Split(value, "\n")
-		for i, line := range lines {
-			if i == len(lines)-1 && line == "" {
-				// Last empty element from trailing newline - skip
-				continue
-			}
-			suffix := ""
-			if i < len(lines)-1 {
-				suffix = "\\n"
-			}
-			if _, err := fmt.Fprintf(w.Output, "\"%s%s\"%s", escapePO(line), suffix, nl); err != nil {
-				return err
-			}
-		}
-		return nil
 	}
-
-	_, err := fmt.Fprintf(w.Output, "%s %s%s", field, quotePO(value), nl)
-	return err
+	return nil
 }
 
 func (w *Writer) writeEntryGap() {
