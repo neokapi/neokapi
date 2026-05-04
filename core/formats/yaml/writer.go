@@ -223,6 +223,14 @@ func encodeLiteralBlockWithIndicatorIndent(s, indicator, indent string) string {
 		if i == len(lines)-1 && line == "" {
 			continue
 		}
+		// Blank lines stay blank — emitting `pad + "\n"` would leave
+		// trailing whitespace, which okapi's writer (and a strict YAML
+		// linter) avoid. The block-scalar indent still applies to
+		// content lines but is omitted on truly empty lines.
+		if line == "" {
+			b.WriteByte('\n')
+			continue
+		}
 		b.WriteString(pad)
 		b.WriteString(line)
 		b.WriteByte('\n')
@@ -258,6 +266,14 @@ func encodeFoldedBlockWithIndicatorIndent(s, indicator, indent string) string {
 	lines := strings.Split(s, "\n")
 	for i, line := range lines {
 		if i == len(lines)-1 && line == "" {
+			continue
+		}
+		// Blank lines stay blank — emitting `pad + "\n"` would leave
+		// trailing whitespace, which okapi's writer (and a strict YAML
+		// linter) avoid. The block-scalar indent still applies to
+		// content lines but is omitted on truly empty lines.
+		if line == "" {
+			b.WriteByte('\n')
 			continue
 		}
 		b.WriteString(pad)
