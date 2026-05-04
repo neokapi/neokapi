@@ -219,8 +219,16 @@ func (p *parser) parse(ctx context.Context, ch chan<- model.PartResult, r *Reade
 	textStartPos := -1         // source position where text accumulation started
 
 	flushText := func() {
-		text := strings.TrimSpace(textBuf.String())
+		raw := textBuf.String()
+		text := strings.TrimSpace(raw)
 		if text != "" {
+			// Trailing whitespace eaten by TrimSpace lives in the
+			// inter-block skeleton: the writer renders only the trimmed
+			// translated text, so without this side-channel the bytes
+			// that separated the text from the next data part vanish.
+			// Leading whitespace stays with the block's rawSource and
+			// is re-applied via extractLeadingWhitespace in the writer.
+			trailingWS := raw[len(strings.TrimRight(raw, " \t\n\r")):]
 			p.blockCounter++
 			blockID := fmt.Sprintf("tu%d", p.blockCounter)
 			block := model.NewBlock(blockID, text)
@@ -241,11 +249,31 @@ func (p *parser) parse(ctx context.Context, ch chan<- model.PartResult, r *Reade
 				if skelEnd > p.lastSkelPos {
 					r.skelText(p.source[p.lastSkelPos:skelEnd])
 				}
-				block.Properties["tex.rawSource"] = p.source[skelEnd:p.pos]
+				// Block's rawSource excludes any trailing whitespace —
+				// that whitespace is emitted right after the ref so it
+				// survives translation byte-for-byte.
+				rawEnd := p.pos - len(trailingWS)
+				if rawEnd < skelEnd {
+					rawEnd = skelEnd
+				}
+				block.Properties["tex.rawSource"] = p.source[skelEnd:rawEnd]
 				r.skelRef(blockID)
+				if trailingWS != "" {
+					r.skelText(trailingWS)
+				}
 				p.lastSkelPos = p.pos
 			}
 			r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
+		} else if raw != "" && r.skeletonStore != nil {
+			// Whitespace-only text that didn't form a block still
+			// occupies real source bytes — flush them to skeleton so
+			// the writer reproduces them verbatim. Without this, e.g.
+			// a stray "\n" between two unknown-command data parts
+			// vanishes on round-trip.
+			if p.pos > p.lastSkelPos {
+				r.skelText(p.source[p.lastSkelPos:p.pos])
+				p.lastSkelPos = p.pos
+			}
 		}
 		textBuf.Reset()
 		rawBuf.Reset()
@@ -370,10 +398,15 @@ func (p *parser) parse(ctx context.Context, ch chan<- model.PartResult, r *Reade
 						flushText()
 						cmdStartPos := p.pos
 						p.pos = cmdEnd
-						arg := p.readBraceArgText()
+						runs := p.readBraceArgRuns()
+						if len(runs) == 0 {
+							// No brace argument — drop the command;
+							// nothing translatable to emit.
+							continue
+						}
 						p.blockCounter++
 						blockID := fmt.Sprintf("tu%d", p.blockCounter)
-						block := model.NewBlock(blockID, arg)
+						block := model.NewRunsBlock(blockID, runs)
 						block.Name = cmd
 						block.Type = cmd
 						if r.skeletonStore != nil {
@@ -392,8 +425,39 @@ func (p *parser) parse(ctx context.Context, ch chan<- model.PartResult, r *Reade
 					// bytes round-trip through the skeleton. Previously
 					// these were appended to a never-emitted local buffer
 					// and silently lost.
-					raw := p.readCommandRaw()
-					flushData(raw)
+					cmdStart := p.pos
+					p.pos = cmdEnd
+					nextIsSpace := p.pos < len(p.source) && p.source[p.pos] == ' '
+					p.skipOptionalArg()
+					hasBraceArg := false
+					for p.pos < len(p.source) && p.source[p.pos] == '{' {
+						p.readBraceArgRaw()
+						hasBraceArg = true
+					}
+					if !hasBraceArg && nextIsSpace {
+						// Append synthetic separator space so the command
+						// stays visually separated from following text
+						// after translation. Mirrors Okapi TEXFilter
+						// "addDocumentPart(token + ' ')" — see body-mode
+						// branch below for full rationale.
+						rawCmd := p.source[cmdStart:p.pos]
+						if r.skeletonStore != nil {
+							r.skelText(rawCmd)
+							r.skelText(" ")
+							p.lastSkelPos = p.pos
+						}
+						p.dataCounter++
+						d := &model.Data{
+							ID:   fmt.Sprintf("d%d", p.dataCounter),
+							Name: "tex-structure",
+							Properties: map[string]string{
+								"content": rawCmd + " ",
+							},
+						}
+						r.emit(ctx, ch, &model.Part{Type: model.PartData, Resource: d})
+						continue
+					}
+					flushData(p.source[cmdStart:p.pos])
 					continue
 				}
 
@@ -404,15 +468,15 @@ func (p *parser) parse(ctx context.Context, ch chan<- model.PartResult, r *Reade
 					p.pos = cmdEnd
 					// Skip optional argument [...]
 					p.skipOptionalArg()
-					arg := p.readBraceArgText()
-					if arg == "" {
+					runs := p.readBraceArgRuns()
+					if len(runs) == 0 {
 						// No brace argument — emit command as data
 						flushData("\\" + cmd)
 						continue
 					}
 					p.blockCounter++
 					blockID := fmt.Sprintf("tu%d", p.blockCounter)
-					block := model.NewBlock(blockID, arg)
+					block := model.NewRunsBlock(blockID, runs)
 					block.Name = cmd
 					block.Type = cmd
 					if r.skeletonStore != nil {
@@ -456,17 +520,41 @@ func (p *parser) parse(ctx context.Context, ch chan<- model.PartResult, r *Reade
 				flushText()
 				cmdStart := p.pos
 				p.pos = cmdEnd
-				// Read any optional [arg] then any number of brace args.
+				// Detect whether the next non-command byte is a space —
+				// must do this BEFORE skipOptionalArg, which silently
+				// consumes leading spaces while looking for `[`. Okapi
+				// TEXFilter peeks at the next token's content for a
+				// leading space and, if present, appends a single space
+				// to the command's data part WITHOUT consuming the
+				// source byte (so the original spaces remain in the
+				// next skeleton segment).
+				nextIsSpace := p.pos < len(p.source) && p.source[p.pos] == ' '
 				p.skipOptionalArg()
+				hasBraceArg := false
 				for p.pos < len(p.source) && p.source[p.pos] == '{' {
 					p.readBraceArgRaw()
+					hasBraceArg = true
 				}
-				// Preserve a trailing space when no brace argument
-				// followed, mirroring the Okapi behavior of keeping
-				// the separator between a bare command and the
-				// following text.
-				if p.pos < len(p.source) && p.source[p.pos] == ' ' && p.pos == cmdEnd {
-					p.pos++
+				if !hasBraceArg && nextIsSpace {
+					// Flush any preceding raw bytes (the command itself)
+					// to skeleton so the synthetic space lands at the
+					// right offset.
+					rawCmd := p.source[cmdStart:p.pos]
+					if r.skeletonStore != nil {
+						r.skelText(rawCmd)
+						r.skelText(" ")
+						p.lastSkelPos = p.pos
+					}
+					p.dataCounter++
+					d := &model.Data{
+						ID:   fmt.Sprintf("d%d", p.dataCounter),
+						Name: "tex-structure",
+						Properties: map[string]string{
+							"content": rawCmd + " ",
+						},
+					}
+					r.emit(ctx, ch, &model.Part{Type: model.PartData, Resource: d})
+					continue
 				}
 				flushData(p.source[cmdStart:p.pos])
 				continue
@@ -605,6 +693,102 @@ func (p *parser) peekBraceArg(pos int) string {
 		return ""
 	}
 	return p.source[start:i]
+}
+
+// readBraceArgRuns reads a {…} argument starting at p.pos and returns
+// it as a sequence of Runs. Plain text becomes TextRun runs; unknown
+// `\cmd[…]{…}…` commands embedded in the argument become PlaceholderRun
+// runs whose Data field carries the verbatim TeX source so the writer
+// can splice them back in unchanged.
+//
+// Inline-text commands (\textbf, \emph, …) flatten into the surrounding
+// text — same behaviour as readBraceArgText. We don't model them as
+// paired codes yet because Okapi's TEXFilter doesn't either: it copies
+// `{` `\command` and the closing `}` into the start/end skeleton
+// markers and treats the inner content as part of the parent text.
+//
+// Advances p.pos past the closing brace.
+func (p *parser) readBraceArgRuns() []model.Run {
+	p.skipSpaces()
+	if p.pos >= len(p.source) || p.source[p.pos] != '{' {
+		return nil
+	}
+	p.pos++ // skip {
+	depth := 1
+	var runs []model.Run
+	var textBuf strings.Builder
+	flushText := func() {
+		if textBuf.Len() > 0 {
+			runs = append(runs, model.Run{Text: &model.TextRun{Text: textBuf.String()}})
+			textBuf.Reset()
+		}
+	}
+	phCounter := 0
+	for p.pos < len(p.source) && depth > 0 {
+		ch := p.source[p.pos]
+		// Embedded \command — peek to classify.
+		if ch == '\\' {
+			cmd, cmdEnd := p.peekCommand()
+			if cmd == "" {
+				// Bare backslash; treat as text.
+				textBuf.WriteByte('\\')
+				p.pos++
+				continue
+			}
+			// Inline-text commands flatten their argument back into the
+			// surrounding text — Okapi's TEXFilter promotes them to
+			// document-part skeleton, but for the brace arg of a
+			// \title or \section we follow the same flatten rule the
+			// readBraceArgText path used.
+			if inlineTextCommands[cmd] {
+				p.pos = cmdEnd
+				p.readBraceArgContent(&textBuf, cmd)
+				continue
+			}
+			// Unknown / no-text command — capture verbatim as a Ph run.
+			cmdStart := p.pos
+			p.pos = cmdEnd
+			p.skipOptionalArg()
+			for p.pos < len(p.source) && p.source[p.pos] == '{' {
+				p.readBraceArgRaw()
+			}
+			flushText()
+			phCounter++
+			runs = append(runs, model.Run{Ph: &model.PlaceholderRun{
+				ID:    fmt.Sprintf("c%d", phCounter),
+				Type:  "tex:cmd",
+				Data:  p.source[cmdStart:p.pos],
+				Equiv: cmd,
+			}})
+			continue
+		}
+		switch ch {
+		case '{':
+			if p.pos == 0 || p.source[p.pos-1] != '\\' {
+				depth++
+			}
+			if depth > 1 {
+				textBuf.WriteByte(ch)
+			}
+			p.pos++
+		case '}':
+			if p.pos == 0 || p.source[p.pos-1] != '\\' {
+				depth--
+			}
+			if depth > 0 {
+				textBuf.WriteByte(ch)
+				p.pos++
+			} else {
+				// Closing brace — consume and exit.
+				p.pos++
+			}
+		default:
+			textBuf.WriteByte(ch)
+			p.pos++
+		}
+	}
+	flushText()
+	return runs
 }
 
 // readBraceArgText reads a {text} argument and returns the text inside.

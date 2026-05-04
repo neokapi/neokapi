@@ -196,7 +196,11 @@ func (w *Writer) blockTextForSkeleton(block *model.Block) string {
 		return block.SourceText()
 	}
 
-	text := block.TargetText(w.Locale)
+	// Render via RenderRunsWithData so embedded inline-code Ph runs
+	// (e.g. \LaTeX inside \title{Installing \LaTeX}) emit their captured
+	// raw TeX bytes verbatim instead of being lost via the plain-text
+	// flatten path.
+	text := model.RenderRunsWithData(block.TargetRuns(w.Locale))
 
 	// For typed blocks (section, title, etc.), reconstruct the TeX command.
 	// Preserve any leading whitespace from the raw source.
