@@ -142,7 +142,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 				ch <- model.PartResult{Error: fmt.Errorf("yaml: parsing: %w", err)}
 				return
 			}
-			r.collectScalarRanges(ctx, ch, &node, nil, &blockCounter, content, lineOffsets, &ranges, nil)
+			r.collectScalarRanges(ctx, ch, &node, nil, &blockCounter, content, lineOffsets, &ranges, nil, false)
 		}
 
 		// Build skeleton from raw bytes and collected ranges.
@@ -204,12 +204,12 @@ func lineColToOffset(lineOffsets []int, line, col int) int {
 func (r *Reader) collectScalarRanges(ctx context.Context, ch chan<- model.PartResult,
 	node *yamlv3.Node, path []string, blockCounter *int,
 	content []byte, lineOffsets []int, ranges *[]scalarRange,
-	visiting map[*yamlv3.Node]bool) {
+	visiting map[*yamlv3.Node]bool, insideAlias bool) {
 
 	switch node.Kind {
 	case yamlv3.DocumentNode:
 		for _, child := range node.Content {
-			r.collectScalarRanges(ctx, ch, child, path, blockCounter, content, lineOffsets, ranges, visiting)
+			r.collectScalarRanges(ctx, ch, child, path, blockCounter, content, lineOffsets, ranges, visiting, insideAlias)
 		}
 
 	case yamlv3.MappingNode:
@@ -218,17 +218,23 @@ func (r *Reader) collectScalarRanges(ctx context.Context, ch chan<- model.PartRe
 			valNode := node.Content[i+1]
 			key := keyNode.Value
 			newPath := append(append([]string{}, path...), key)
-			r.collectScalarRanges(ctx, ch, valNode, newPath, blockCounter, content, lineOffsets, ranges, visiting)
+			r.collectScalarRanges(ctx, ch, valNode, newPath, blockCounter, content, lineOffsets, ranges, visiting, insideAlias)
 		}
 
 	case yamlv3.SequenceNode:
 		for i, child := range node.Content {
 			indexPath := append(append([]string{}, path...), fmt.Sprintf("[%d]", i))
-			r.collectScalarRanges(ctx, ch, child, indexPath, blockCounter, content, lineOffsets, ranges, visiting)
+			r.collectScalarRanges(ctx, ch, child, indexPath, blockCounter, content, lineOffsets, ranges, visiting, insideAlias)
 		}
 
 	case yamlv3.ScalarNode:
-		r.collectScalarRange(ctx, ch, node, path, blockCounter, content, lineOffsets, ranges)
+		// Scalars reached via alias resolution share their source bytes
+		// with the original anchor target — we must NOT record a second
+		// scalarRange for them, or buildSkeleton would emit the anchor's
+		// surrounding skeleton text twice (duplicate keys/values inline)
+		// while the alias position (`*id`) stays untouched. Emit the
+		// model.Block so callers see the value, but skip the range.
+		r.collectScalarRange(ctx, ch, node, path, blockCounter, content, lineOffsets, ranges, insideAlias)
 
 	case yamlv3.AliasNode:
 		if node.Alias == nil || visiting[node.Alias] {
@@ -238,16 +244,19 @@ func (r *Reader) collectScalarRanges(ctx context.Context, ch chan<- model.PartRe
 			visiting = map[*yamlv3.Node]bool{}
 		}
 		visiting[node.Alias] = true
-		r.collectScalarRanges(ctx, ch, node.Alias, path, blockCounter, content, lineOffsets, ranges, visiting)
+		r.collectScalarRanges(ctx, ch, node.Alias, path, blockCounter, content, lineOffsets, ranges, visiting, true)
 		delete(visiting, node.Alias)
 	}
 }
 
 // collectScalarRange checks if a scalar should be extracted and records
-// its byte range.
+// its byte range. When `insideAlias` is true, emits the Block but does
+// not append a scalarRange (the alias's source bytes are at the alias
+// position, not the original anchor position).
 func (r *Reader) collectScalarRange(ctx context.Context, ch chan<- model.PartResult,
 	node *yamlv3.Node, path []string, blockCounter *int,
-	content []byte, lineOffsets []int, ranges *[]scalarRange) {
+	content []byte, lineOffsets []int, ranges *[]scalarRange,
+	insideAlias bool) {
 
 	isString := node.Tag == "!!str" || node.Tag == ""
 	if !isString && !r.cfg.ExtractNonStrings {
@@ -305,6 +314,12 @@ func (r *Reader) collectScalarRange(ctx context.Context, ch chan<- model.PartRes
 	// line (`|`, `|-`, `|+`, `|2`, `>-`, …) so the writer can preserve
 	// the chomp / explicit-indent indicator on round-trip. Default in
 	// the writer is plain `|`/`>` which loses any modifier.
+	//
+	// Also capture the content's leading-space indent so the writer can
+	// re-emit the body at the same column. Without this, the writer
+	// hardcodes 2-space indent and a `street: |\n            123…\n…`
+	// fixture round-trips to `street: |\n  123…\n…`, diverging from the
+	// upstream byte-exact output.
 	if node.Style == yamlv3.LiteralStyle || node.Style == yamlv3.FoldedStyle {
 		if start < len(content) && (content[start] == '|' || content[start] == '>') {
 			j := start
@@ -312,6 +327,19 @@ func (r *Reader) collectScalarRange(ctx context.Context, ch chan<- model.PartRes
 				j++
 			}
 			block.Properties["yaml.indicator"] = string(content[start:j])
+			// j is at '\n' (or end). Walk past newline to the first
+			// content line and count its leading spaces.
+			if j < len(content) && content[j] == '\n' {
+				k := j + 1
+				indent := 0
+				for k < len(content) && content[k] == ' ' {
+					indent++
+					k++
+				}
+				if k < len(content) && content[k] != '\n' && indent > 0 {
+					block.Properties["yaml.indent"] = fmt.Sprintf("%d", indent)
+				}
+			}
 		}
 	}
 
@@ -319,12 +347,14 @@ func (r *Reader) collectScalarRange(ctx context.Context, ch chan<- model.PartRes
 		r.applyCodeFinder(block)
 	}
 
-	*ranges = append(*ranges, scalarRange{
-		start:   start,
-		end:     end,
-		blockID: blockID,
-		style:   node.Style,
-	})
+	if !insideAlias {
+		*ranges = append(*ranges, scalarRange{
+			start:   start,
+			end:     end,
+			blockID: blockID,
+			style:   node.Style,
+		})
+	}
 
 	r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
 }

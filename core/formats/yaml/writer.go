@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"strconv"
 	"strings"
 
 	"github.com/neokapi/neokapi/core/format"
@@ -102,7 +103,8 @@ func (w *Writer) writeFromSkeleton(store *format.SkeletonStore, blocks map[strin
 				} else {
 					style := block.Properties["yaml.style"]
 					indicator := block.Properties["yaml.indicator"]
-					encoded := encodeYAMLScalarWithIndicator(text, style, indicator)
+					indent := block.Properties["yaml.indent"]
+					encoded := encodeYAMLScalarWithIndicatorIndent(text, style, indicator, indent)
 					if _, err := io.WriteString(w.Output, encoded); err != nil {
 						return err
 					}
@@ -124,15 +126,23 @@ func encodeYAMLScalar(text, style string) string {
 // through on round-trip. Empty indicator falls back to the bare `|` /
 // `>` defaults.
 func encodeYAMLScalarWithIndicator(text, style, indicator string) string {
+	return encodeYAMLScalarWithIndicatorIndent(text, style, indicator, "")
+}
+
+// encodeYAMLScalarWithIndicatorIndent extends encodeYAMLScalarWithIndicator
+// with the original block-scalar content indent (decimal string, e.g. "12")
+// captured by the reader as `yaml.indent`. Empty indent falls back to a
+// compact 2-space default suitable for fresh emission.
+func encodeYAMLScalarWithIndicatorIndent(text, style, indicator, indent string) string {
 	switch style {
 	case "double-quoted":
 		return encodeDoubleQuoted(text)
 	case "single-quoted":
 		return encodeSingleQuoted(text)
 	case "literal":
-		return encodeLiteralBlockWithIndicator(text, indicator)
+		return encodeLiteralBlockWithIndicatorIndent(text, indicator, indent)
 	case "folded":
-		return encodeFoldedBlockWithIndicator(text, indicator)
+		return encodeFoldedBlockWithIndicatorIndent(text, indicator, indent)
 	default:
 		// Plain scalar — if the text contains special characters, fall back
 		// to the original style (plain).
@@ -191,11 +201,19 @@ func encodeLiteralBlock(s string) string {
 // encodeLiteralBlockWithIndicator emits a literal block scalar using
 // the given indicator line. Empty indicator falls back to bare `|`.
 func encodeLiteralBlockWithIndicator(s, indicator string) string {
+	return encodeLiteralBlockWithIndicatorIndent(s, indicator, "")
+}
+
+// encodeLiteralBlockWithIndicatorIndent extends
+// encodeLiteralBlockWithIndicator with an explicit content indent
+// (decimal string). Empty indent falls back to "  " (2 spaces).
+func encodeLiteralBlockWithIndicatorIndent(s, indicator, indent string) string {
 	if indicator == "" {
 		indicator = "|"
 	}
+	pad := indentPad(indent)
 	if !strings.Contains(s, "\n") {
-		return indicator + "\n  " + s + "\n"
+		return indicator + "\n" + pad + s + "\n"
 	}
 	var b strings.Builder
 	b.WriteString(indicator)
@@ -205,7 +223,7 @@ func encodeLiteralBlockWithIndicator(s, indicator string) string {
 		if i == len(lines)-1 && line == "" {
 			continue
 		}
-		b.WriteString("  ")
+		b.WriteString(pad)
 		b.WriteString(line)
 		b.WriteByte('\n')
 	}
@@ -220,11 +238,19 @@ func encodeFoldedBlock(s string) string {
 // encodeFoldedBlockWithIndicator emits a folded block scalar using the
 // given indicator. Empty indicator falls back to bare `>`.
 func encodeFoldedBlockWithIndicator(s, indicator string) string {
+	return encodeFoldedBlockWithIndicatorIndent(s, indicator, "")
+}
+
+// encodeFoldedBlockWithIndicatorIndent extends
+// encodeFoldedBlockWithIndicator with an explicit content indent
+// (decimal string). Empty indent falls back to "  " (2 spaces).
+func encodeFoldedBlockWithIndicatorIndent(s, indicator, indent string) string {
 	if indicator == "" {
 		indicator = ">"
 	}
+	pad := indentPad(indent)
 	if !strings.Contains(s, "\n") {
-		return indicator + "\n  " + s + "\n"
+		return indicator + "\n" + pad + s + "\n"
 	}
 	var b strings.Builder
 	b.WriteString(indicator)
@@ -234,11 +260,24 @@ func encodeFoldedBlockWithIndicator(s, indicator string) string {
 		if i == len(lines)-1 && line == "" {
 			continue
 		}
-		b.WriteString("  ")
+		b.WriteString(pad)
 		b.WriteString(line)
 		b.WriteByte('\n')
 	}
 	return b.String()
+}
+
+// indentPad converts a decimal indent string (e.g. "12") to a space
+// string. Empty / unparseable returns the legacy 2-space default.
+func indentPad(indent string) string {
+	if indent == "" {
+		return "  "
+	}
+	n, err := strconv.Atoi(indent)
+	if err != nil || n <= 0 {
+		return "  "
+	}
+	return strings.Repeat(" ", n)
 }
 
 func (w *Writer) flush() error {
