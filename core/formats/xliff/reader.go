@@ -727,7 +727,12 @@ func (r *Reader) parseTransUnit(decoder *xml.Decoder, start xml.StartElement, fi
 	// nothing else follows), preserving any inter-element whitespace
 	// as the target's leading indent. Mirror that placement so the
 	// surrounding skeleton bytes match byte-for-byte.
-	if r.skeletonStore != nil && !hasTarget && sourceAfterClose >= 0 {
+	//
+	// Skip injection when the trans-unit has a <seg-source>: in
+	// segmented mode the (already-present or alt-trans-embedded)
+	// target is part of the segmentation envelope, and okapi's writer
+	// does not synthesize an extra plain <target> alongside it.
+	if r.skeletonStore != nil && !hasTarget && sourceAfterClose >= 0 && len(tu.segSource) == 0 {
 		injectAt := nextSiblingStart
 		if injectAt < 0 {
 			injectAt = transUnitCloseOff
