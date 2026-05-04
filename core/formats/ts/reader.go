@@ -363,18 +363,26 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 
 			case "translation":
 				if inTranslation {
-					if r.skeletonStore != nil && !messageNumerus {
+					if r.skeletonStore != nil {
 						endOff := decoder.InputOffset()
 						closeTag := "</translation>"
 						endPos := int(endOff) - len(closeTag)
 						if endPos < 0 {
 							endPos = 0
 						}
+						elemType := "translation"
+						if messageNumerus {
+							// Numerus messages need their own ref so the
+							// writer can swap in pseudo-translated
+							// numerusforms instead of emitting the source
+							// bytes verbatim.
+							elemType = "numerus_translation"
+						}
 						elemPositions = append(elemPositions, elemPos{
 							startOffset: int(elemStartOff),
 							endOffset:   endPos,
 							blockIdx:    blockCount,
-							elemType:    "translation",
+							elemType:    elemType,
 						})
 					}
 					inTranslation = false
@@ -417,13 +425,22 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 					// Build source text
 					sourceText := sourceBuilder.String()
 
-					// Build block
+					// Build block. Empty source marks the message as
+					// non-translatable so the pseudo / TextModificationStep
+					// pipeline leaves the existing translation alone —
+					// matches okapi's behavior on the conventional PO-header
+					// entry (`<source></source><translation>Project-Id-
+					// Version: …</translation>`) at the top of Qt .ts files
+					// imported from gettext catalogs. Without this the
+					// pseudo overwrites the literal PO header text and the
+					// round-trip diverges from the bridge's output.
+					translatable := transType != "obsolete" && sourceText != ""
 					var block *model.Block
 					if hasInlineCodes(sourceRuns) {
 						block = &model.Block{
 							ID:           blockID,
 							Name:         contextName,
-							Translatable: transType != "obsolete",
+							Translatable: translatable,
 							Source:       []*model.Segment{model.NewRunsSegment("s1", sourceRuns)},
 							Targets:      make(map[model.LocaleID][]*model.Segment),
 							Properties:   make(map[string]string),
@@ -432,9 +449,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 					} else {
 						block = model.NewBlock(blockID, sourceText)
 						block.Name = contextName
-						if transType == "obsolete" {
-							block.Translatable = false
-						}
+						block.Translatable = translatable
 					}
 
 					// Store translation type
@@ -460,12 +475,22 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 
 					// Set target text
 					if messageNumerus && len(numerusForms) > 0 {
-						// Store plural forms as properties
+						// Store each plural form as its own segment so the
+						// pseudo / TextModificationStep pipeline reaches all
+						// forms, not just the first. The writer iterates the
+						// segments to emit one <numerusform>…</numerusform>
+						// each.
+						segs := make([]*model.Segment, len(numerusForms))
 						for i, form := range numerusForms {
-							block.Properties[fmt.Sprintf("numerusform:%d", i)] = form
+							segs[i] = &model.Segment{
+								ID:   fmt.Sprintf("n%d", i),
+								Runs: []model.Run{{Text: &model.TextRun{Text: form}}},
+							}
 						}
-						// Set first form as target text
-						block.SetTargetText(targetLocale, numerusForms[0])
+						if block.Targets == nil {
+							block.Targets = make(map[model.LocaleID][]*model.Segment)
+						}
+						block.Targets[targetLocale] = segs
 					} else {
 						targetText := transBuilder.String()
 						if targetText != "" || transType == "unfinished" {

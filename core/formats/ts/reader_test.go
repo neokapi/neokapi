@@ -891,10 +891,14 @@ func TestSnippet_NumerusForms(t *testing.T) {
 	for _, b := range blocks {
 		if strings.Contains(b.SourceText(), "item") {
 			found = true
-			// Verify numerus properties
+			// Verify numerus marker + each form lands as its own
+			// translation segment so the pseudo / TextModificationStep
+			// pipeline reaches both forms (not just the first).
 			assert.Equal(t, "yes", b.Properties["numerus"])
-			assert.Equal(t, "%n article", b.Properties["numerusform:0"])
-			assert.Equal(t, "%n articles", b.Properties["numerusform:1"])
+			segs := b.Targets["fr"]
+			require.Len(t, segs, 2, "expected one segment per <numerusform>")
+			assert.Equal(t, "%n article", segs[0].Text())
+			assert.Equal(t, "%n articles", segs[1].Text())
 			break
 		}
 	}

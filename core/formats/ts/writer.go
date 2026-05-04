@@ -173,6 +173,32 @@ func (w *Writer) writeFromSkeleton() error {
 						}
 					}
 				}
+			case "numerus_translation":
+				// One <numerusform>…</numerusform> per segment in the
+				// target locale; mirrors okapi's TextModificationStep
+				// path which pseudo-translates every plural form, not
+				// just the first.
+				segs := block.Targets[targetLocale]
+				if len(segs) == 0 {
+					// File declared a non-matching target locale; pick
+					// any present target so existing forms pass through.
+					for _, s := range block.Targets {
+						if len(s) > 0 {
+							segs = s
+							break
+						}
+					}
+				}
+				var b strings.Builder
+				for _, seg := range segs {
+					if seg == nil {
+						continue
+					}
+					b.WriteString("<numerusform>")
+					b.WriteString(w.runsToXML(seg.Runs))
+					b.WriteString("</numerusform>")
+				}
+				text = b.String()
 			}
 
 			if _, err := io.WriteString(w.Output, text); err != nil {
@@ -324,15 +350,33 @@ func (w *Writer) writeMessage(block *model.Block, targetLocale model.LocaleID) e
 			return err
 		}
 
-		// Collect numerus forms from properties
-		for i := 0; ; i++ {
-			key := fmt.Sprintf("numerusform:%d", i)
-			form, ok := block.Properties[key]
-			if !ok {
-				break
+		// Each plural form is its own segment under
+		// block.Targets[targetLocale]; the reader builds one segment per
+		// <numerusform> so the pseudo / TextModificationStep pipeline
+		// reaches every form. Fall back to the legacy
+		// `numerusform:<i>` properties for blocks built outside the
+		// reader (tests, programmatic construction).
+		segs := block.Targets[targetLocale]
+		if len(segs) > 0 {
+			for _, seg := range segs {
+				if seg == nil {
+					continue
+				}
+				form := w.runsToXML(seg.Runs)
+				if _, err := fmt.Fprintf(w.Output, "            <numerusform>%s</numerusform>\n", form); err != nil {
+					return err
+				}
 			}
-			if _, err := fmt.Fprintf(w.Output, "            <numerusform>%s</numerusform>\n", xmlEscape(form)); err != nil {
-				return err
+		} else {
+			for i := 0; ; i++ {
+				key := fmt.Sprintf("numerusform:%d", i)
+				form, ok := block.Properties[key]
+				if !ok {
+					break
+				}
+				if _, err := fmt.Fprintf(w.Output, "            <numerusform>%s</numerusform>\n", xmlEscape(form)); err != nil {
+					return err
+				}
 			}
 		}
 
