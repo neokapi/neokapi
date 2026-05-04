@@ -159,11 +159,12 @@ features:
       Three consecutive non-blank lines belong to one paragraph and
       yield a single Block. Per the DokuWiki contract — and the upstream
       WikiFilter#testMultipleLines fixture — the bridge collapses the
-      embedded line breaks into a single space inside the Block source.
-      The native reader currently joins paragraph lines with literal
-      `\n` rather than collapsing whitespace; it preserves the line
-      breaks verbatim instead of normalizing them. Tracked as a native
-      whitespace-handling divergence below.
+      embedded line breaks (and any surrounding whitespace runs) into a
+      single space inside the Block source. The native reader mirrors
+      this behaviour by joining paragraph lines with `\n` and then
+      running the same whitespace-collapse pass okapi's
+      WhitespaceAdjustingEventBuilder applies; opt out via
+      `preserve_whitespace: true`.
     spec_refs:
       - "Okapi WikiFilter — Paragraph extraction (https://okapiframework.org/wiki/index.php/Wiki_Filter)"
       - "DokuWiki syntax reference §Basic Text Formatting — paragraphs span multiple non-blank lines"
@@ -171,18 +172,8 @@ features:
       - name: three_lines_one_paragraph
         origin: "okapi-fixture: WikiFilterTest#testMultipleLines (`This is \\na \\ntest.`)"
         input_xml: "This is \na \ntest."
-        # Bridge collapses to "This is a test." — one paragraph Block
-        # with a single space joining the runs. Native preserves the
-        # literal `\n` between lines, yielding "This is \na \ntest." in
-        # the source text. Both produce one Block.
-        expected_fail: |
-          native bug — wiki reader joins paragraph lines with literal
-          `\n` (preserves newlines verbatim) instead of collapsing them
-          to a single space per the DokuWiki paragraph contract that
-          the upstream WikiFilter#testMultipleLines exercises. Both
-          implementations emit one Block, but the source text differs:
-          bridge `"This is a test."`, native `"This is \na \ntest."`.
-          Tracked as a native whitespace-handling bug under #522.
+        # Both engines emit one paragraph Block and collapse the soft
+        # line breaks (plus any flanking whitespace) into a single space.
         block_count: 1
         first_block_text: "This is a test."
     okapi_refs:

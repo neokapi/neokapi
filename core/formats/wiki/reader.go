@@ -132,7 +132,19 @@ func (ps *parseState) flushParagraph(ctx context.Context, r *Reader, ch chan<- m
 	if len(ps.paraLines) == 0 {
 		return true
 	}
+	// Per the DokuWiki paragraph contract — and the upstream WikiFilter
+	// behaviour — adjacent non-blank lines belong to one paragraph and
+	// the embedded soft line breaks collapse to a single space. Okapi
+	// joins lines with the source's line ending and then runs
+	// WhitespaceAdjustingEventBuilder to collapse interior runs of
+	// whitespace (between non-whitespace runs) to a single space. We
+	// mirror the observable outcome directly: join with `\n`, then
+	// collapse interior whitespace runs — unless the caller has opted
+	// into PreserveWhitespace. Tracked under #522.
 	text := strings.Join(ps.paraLines, "\n")
+	if !r.cfg.PreserveWhitespace {
+		text = collapseInteriorWhitespace(text)
+	}
 	paraIdxes := ps.paraLineIdxes
 	ps.paraLines = nil
 	ps.paraLineIdxes = nil
@@ -676,6 +688,65 @@ func (r *Reader) extractDokuWikiTableCells(ctx context.Context, ch chan<- model.
 
 func splitTableCells(content, separator string) []string {
 	return strings.Split(content, separator)
+}
+
+// collapseInteriorWhitespace mirrors the okapi WhitespaceAdjustingEventBuilder
+// behaviour applied to wiki text units: runs of whitespace flanked by
+// non-whitespace runs collapse to a single space. Whitespace at the
+// start or end of the input is preserved (the upstream filter peels
+// surrounding whitespace into the skeleton — we leave it in the text
+// rather than splitting because the wiki Block model already trims for
+// extraction). Equivalent to Java's `(?<=\S)\s+(?=\S)` → " " replacement.
+func collapseInteriorWhitespace(s string) string {
+	if s == "" {
+		return s
+	}
+	var b strings.Builder
+	b.Grow(len(s))
+	runes := []rune(s)
+	i := 0
+	// Pass 1: copy any leading whitespace verbatim.
+	for i < len(runes) && isWikiSpace(runes[i]) {
+		b.WriteRune(runes[i])
+		i++
+	}
+	// Pass 2: walk the body, collapsing interior whitespace runs.
+	for i < len(runes) {
+		r := runes[i]
+		if !isWikiSpace(r) {
+			b.WriteRune(r)
+			i++
+			continue
+		}
+		// Start of a whitespace run inside the body. Look ahead.
+		j := i
+		for j < len(runes) && isWikiSpace(runes[j]) {
+			j++
+		}
+		if j == len(runes) {
+			// Trailing whitespace — preserve verbatim.
+			for k := i; k < j; k++ {
+				b.WriteRune(runes[k])
+			}
+		} else {
+			// Interior whitespace run between non-whitespace — collapse
+			// to a single space.
+			b.WriteByte(' ')
+		}
+		i = j
+	}
+	return b.String()
+}
+
+// isWikiSpace mirrors Java's \s for ASCII (space, tab, CR, LF, FF, VT).
+// Wiki documents are typically ASCII for whitespace so we don't extend
+// this to Unicode whitespace classes.
+func isWikiSpace(r rune) bool {
+	switch r {
+	case ' ', '\t', '\n', '\r', '\f', '\v':
+		return true
+	}
+	return false
 }
 
 // skelText appends text to the skeleton buffer if active.
