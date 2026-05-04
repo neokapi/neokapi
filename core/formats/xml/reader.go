@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	"github.com/neokapi/neokapi/core/format"
+	"github.com/neokapi/neokapi/core/its"
 	"github.com/neokapi/neokapi/core/model"
 )
 
@@ -97,6 +98,13 @@ func (r *Reader) Read(ctx context.Context) <-chan model.PartResult {
 // elementFrame tracks the state for each nested element during parsing.
 type elementFrame struct {
 	name       string
+	// localName / nsURI capture the element's name decomposition so
+	// the ITS resolver can match against namespace-qualified names.
+	// `name` keeps the legacy local-name-only form used by every
+	// existing predicate to avoid touching the (substantial) call
+	// sites in this file.
+	localName  string
+	nsURI      string
 	attrs      map[string]string
 	isInline   bool
 	isExcluded bool
@@ -157,10 +165,23 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		return
 	}
 
+	// Pre-scan for embedded ITS rules so element processing can
+	// honor translateRule, withinTextRule, locNoteRule, etc. Rules
+	// embedded later in the document override earlier ones (ITS 2.0
+	// §5.4 last-rule-wins). External (xlink:href) rule documents are
+	// not loaded yet — we surface the references and consume them
+	// once a future change adds the resolver.
+	itsRules, _, err := its.ExtractRules(content)
+	if err != nil {
+		ch <- model.PartResult{Error: fmt.Errorf("xml: parsing ITS rules: %w", err)}
+		return
+	}
+	resolver := its.NewResolver(itsRules)
+
 	if r.skeletonStore != nil {
-		r.readContentSkeleton(ctx, ch, content, layer)
+		r.readContentSkeleton(ctx, ch, content, layer, resolver)
 	} else {
-		r.readContentSimple(ctx, ch, content, layer)
+		r.readContentSimple(ctx, ch, content, layer, resolver)
 	}
 
 	r.emit(ctx, ch, &model.Part{Type: model.PartLayerEnd, Resource: layer})
@@ -180,11 +201,11 @@ type skelAttrRange struct {
 	end     int // byte offset after attribute value
 }
 
-func (r *Reader) readContentSimple(ctx context.Context, ch chan<- model.PartResult, content []byte, layer *model.Layer) {
-	r.readContentCore(ctx, ch, content, layer, nil, nil)
+func (r *Reader) readContentSimple(ctx context.Context, ch chan<- model.PartResult, content []byte, layer *model.Layer, resolver *its.Resolver) {
+	r.readContentCore(ctx, ch, content, layer, nil, nil, resolver)
 }
 
-func (r *Reader) readContentSkeleton(ctx context.Context, ch chan<- model.PartResult, content []byte, layer *model.Layer) {
+func (r *Reader) readContentSkeleton(ctx context.Context, ch chan<- model.PartResult, content []byte, layer *model.Layer, resolver *its.Resolver) {
 	// For skeleton mode, we do the normal parse but also track byte positions.
 	// After parsing, we write skeleton entries using the collected ranges.
 	// The key: only leaf block elements get skeleton refs. Parent containers
@@ -193,7 +214,7 @@ func (r *Reader) readContentSkeleton(ctx context.Context, ch chan<- model.PartRe
 
 	var contentRanges []skelContentRange
 	var attrRanges []skelAttrRange
-	r.readContentCore(ctx, ch, content, layer, &contentRanges, &attrRanges)
+	r.readContentCore(ctx, ch, content, layer, &contentRanges, &attrRanges, resolver)
 
 	// Write skeleton entries from the collected ranges.
 	r.writeSkeletonEntries(content, contentRanges, attrRanges)
@@ -214,6 +235,26 @@ type xmlParseState struct {
 	spanCounter   int
 	stack         []*elementFrame
 	wsStack       []bool
+
+	// itsResolver, when non-nil, evaluates ITS rules (translateRule,
+	// withinTextRule, locNoteRule, …) against each element. Built
+	// from the document's <its:rules> blocks during the pre-pass.
+	itsResolver *its.Resolver
+}
+
+// itsContext builds an ElementContext from the current parse stack
+// for the ITS resolver. Reuses the existing path-stack rather than
+// maintaining a parallel structure.
+func (s *xmlParseState) itsContext(thisName its.NameMatch, thisAttrs []its.Attribute) *its.ElementContext {
+	path := make([]its.NameMatch, 0, len(s.stack)+1)
+	for _, f := range s.stack {
+		path = append(path, its.NameMatch{
+			NamespaceURI: f.nsURI,
+			Local:        f.localName,
+		})
+	}
+	path = append(path, thisName)
+	return &its.ElementContext{Path: path, Attributes: thisAttrs}
 }
 
 // findTextFrame returns the nearest non-inline ancestor frame.
@@ -436,9 +477,26 @@ func (s *xmlParseState) emitTranslatableAttrs(elem xml.StartElement, tokOffset, 
 	}
 }
 
-// itsNamespaceURI is the W3C ITS 2.0 namespace, used to recognize the
-// local `translate` attribute regardless of its declared prefix.
-const itsNamespaceURI = "http://www.w3.org/2005/11/its"
+// itsNamespaceURI is the W3C ITS 2.0 namespace, used to recognize
+// the local `translate` attribute regardless of its declared prefix.
+// Re-exported from core/its for the legacy attribute-key suffix
+// `<ns>:<local>` lookups in this file (those predate the resolver).
+const itsNamespaceURI = its.NamespaceURI
+
+// buildITSAttributes converts an xml.StartElement attribute slice
+// into the ITS resolver's Attribute slice for predicate evaluation.
+// Namespace-qualified attributes carry their URI; unqualified
+// attributes pass through with empty NamespaceURI.
+func buildITSAttributes(attrs []xml.Attr) []its.Attribute {
+	out := make([]its.Attribute, 0, len(attrs))
+	for _, a := range attrs {
+		out = append(out, its.Attribute{
+			Name:  its.NameMatch{NamespaceURI: a.Name.Space, Local: a.Name.Local},
+			Value: a.Value,
+		})
+	}
+	return out
+}
 
 // handleStartElement processes an xml.StartElement token.
 func (s *xmlParseState) handleStartElement(t xml.StartElement, tokOffset int) {
@@ -477,27 +535,32 @@ func (s *xmlParseState) handleStartElement(t xml.StartElement, tokOffset int) {
 		isExcluded = false
 	}
 
-	// ITS local translate attribute (W3C Internationalization Tag Set
-	// rec): `its:translate="no"` marks the subtree as non-translatable;
-	// `its:translate="yes"` re-enables translation inside an excluded
-	// ancestor. The "no" case sets strongExclude so descendants drop
-	// their text even when their own frames look unmarked — without
-	// this LocNote-1.xml emits `<its:locNote>` text as orphan Block
-	// parts that the writer can't place back, dropping the entire
-	// `<its:rules>` subtree on merge.
+	// ITS resolution combines global rules (translateRule,
+	// withinTextRule, locNoteRule, …) with the element's own local
+	// attributes per ITS 2.0 §5.4 precedence (locals win, last rule
+	// wins among rules). Inheritance for translate / preserveSpace
+	// is handled by the parent stack (we read parent.strongExclude
+	// below); rules that match the element override inheritance.
 	strongExclude := false
 	if len(s.stack) > 0 && s.stack[len(s.stack)-1].strongExclude {
 		strongExclude = true
 	}
-	if v, ok := attrs[itsNamespaceURI+":translate"]; ok {
-		switch v {
-		case "no":
-			strongExclude = true
-			isExcluded = true
-		case "yes":
-			strongExclude = false
-			isExcluded = false
-		}
+	itsAttrs := buildITSAttributes(t.Attr)
+	thisName := its.NameMatch{NamespaceURI: t.Name.Space, Local: t.Name.Local}
+	itsCtx := s.itsContext(thisName, itsAttrs)
+	localITS := its.LocalAttributesFrom(attrs)
+	resolved := s.itsResolver.ResolveElement(itsCtx, &localITS)
+	if resolved.Translate == its.No {
+		strongExclude = true
+		isExcluded = true
+	} else if resolved.Translate == its.Yes {
+		strongExclude = false
+		isExcluded = false
+	}
+	if resolved.WithinText == its.Yes {
+		isInline = true
+	} else if resolved.WithinText == its.No {
+		isInline = false
 	}
 
 	// Check xml:space
@@ -519,6 +582,8 @@ func (s *xmlParseState) handleStartElement(t xml.StartElement, tokOffset int) {
 
 	frame := &elementFrame{
 		name:             t.Name.Local,
+		localName:        t.Name.Local,
+		nsURI:            t.Name.Space,
 		attrs:            attrs,
 		isInline:         isInline,
 		isExcluded:       isExcluded || inlineExcluded,
@@ -714,7 +779,7 @@ func (s *xmlParseState) handleComment(t xml.Comment) {
 }
 
 func (r *Reader) readContentCore(ctx context.Context, ch chan<- model.PartResult, content []byte, layer *model.Layer,
-	contentRanges *[]skelContentRange, attrRanges *[]skelAttrRange) {
+	contentRanges *[]skelContentRange, attrRanges *[]skelAttrRange, resolver *its.Resolver) {
 
 	s := &xmlParseState{
 		reader:        r,
@@ -725,6 +790,7 @@ func (r *Reader) readContentCore(ctx context.Context, ch chan<- model.PartResult
 		contentRanges: contentRanges,
 		attrRanges:    attrRanges,
 		decoder:       xml.NewDecoder(strings.NewReader(string(content))),
+		itsResolver:   resolver,
 	}
 
 	for {
