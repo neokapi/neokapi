@@ -91,14 +91,69 @@ func parseRulesElement(dec *xml.Decoder, parent xml.StartElement, parentNS map[s
 					return err
 				}
 				if rule != nil {
+					// locNoteRule may carry literal note text
+					// inside a child <its:locNote> element. The
+					// rule attributes alone don't suffice, so
+					// consume the rule body looking for that
+					// child before moving on.
+					if rule.Category == CatLocalizationNote && rule.LocNotePointer == "" && rule.LocNoteText == "" {
+						if note, err := readLocNoteChild(dec, t); err != nil {
+							return err
+						} else if note != "" {
+							rule.LocNoteText = note
+						}
+					} else if err := dec.Skip(); err != nil {
+						return fmt.Errorf("its: skipping element body: %w", err)
+					}
 					*priority++
 					rs.Rules = append(rs.Rules, *rule)
+					continue
 				}
 			}
-			// Skip the element body — none of the rule elements
-			// have nested rules in our scope.
+			// Skip the element body — none of the unrecognised
+			// rule elements have nested content we care about.
 			if err := dec.Skip(); err != nil {
 				return fmt.Errorf("its: skipping element body: %w", err)
+			}
+		}
+	}
+}
+
+// readLocNoteChild consumes the body of a <its:locNoteRule> element
+// looking for an embedded <its:locNote> child. Returns the
+// concatenated text content of that child if present, or "" when
+// the rule has no embedded literal note. Other element children
+// are skipped.
+func readLocNoteChild(dec *xml.Decoder, ruleStart xml.StartElement) (string, error) {
+	var note strings.Builder
+	inNote := false
+	for {
+		tok, err := dec.Token()
+		if err == io.EOF {
+			return "", fmt.Errorf("its: unexpected EOF inside %s", ruleStart.Name.Local)
+		}
+		if err != nil {
+			return "", fmt.Errorf("its: reading %s body: %w", ruleStart.Name.Local, err)
+		}
+		switch t := tok.(type) {
+		case xml.EndElement:
+			if t.Name == ruleStart.Name {
+				return note.String(), nil
+			}
+			if inNote && t.Name.Space == NamespaceURI && t.Name.Local == "locNote" {
+				inNote = false
+			}
+		case xml.StartElement:
+			if t.Name.Space == NamespaceURI && t.Name.Local == "locNote" {
+				inNote = true
+			} else if !inNote {
+				if err := dec.Skip(); err != nil {
+					return "", fmt.Errorf("its: skipping non-locNote child: %w", err)
+				}
+			}
+		case xml.CharData:
+			if inNote {
+				note.Write(t)
 			}
 		}
 	}

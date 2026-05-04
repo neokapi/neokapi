@@ -123,6 +123,13 @@ type elementFrame struct {
 	spanID           int
 	hasContent       bool // true if inline element had any child content
 	contentByteStart int  // byte offset where element content begins (after '>'), for skeleton
+	// ITS locNote (literal text + type + ref) attached to this element,
+	// resolved from local its:locNote* attributes and/or matching
+	// its:locNoteRule. Surfaced on emitted blocks so writers / tools
+	// can carry the note through to translation tooling.
+	itsLocNote     string
+	itsLocNoteType string
+	itsLocNoteRef  string
 }
 
 // initRuns marks the frame as a text accumulator. Subsequent addText /
@@ -202,7 +209,7 @@ type skelAttrRange struct {
 }
 
 func (r *Reader) readContentSimple(ctx context.Context, ch chan<- model.PartResult, content []byte, layer *model.Layer, resolver *its.Resolver) {
-	r.readContentCore(ctx, ch, content, layer, nil, nil, resolver)
+	_ = r.readContentCore(ctx, ch, content, layer, nil, nil, resolver)
 }
 
 func (r *Reader) readContentSkeleton(ctx context.Context, ch chan<- model.PartResult, content []byte, layer *model.Layer, resolver *its.Resolver) {
@@ -214,10 +221,41 @@ func (r *Reader) readContentSkeleton(ctx context.Context, ch chan<- model.PartRe
 
 	var contentRanges []skelContentRange
 	var attrRanges []skelAttrRange
-	r.readContentCore(ctx, ch, content, layer, &contentRanges, &attrRanges, resolver)
+	itsRanges := r.readContentCore(ctx, ch, content, layer, &contentRanges, &attrRanges, resolver)
+
+	// Drop any block content range that would overwrite an
+	// `<its:rules>` element — those bytes must round-trip verbatim
+	// per ITS 2.0 §5. The parent block (typically a <head>) has no
+	// translatable text once the rules are stripped, and we want the
+	// skeleton text to preserve it untouched.
+	if len(itsRanges) > 0 {
+		contentRanges = filterContentRangesContainingITSRules(contentRanges, itsRanges)
+	}
 
 	// Write skeleton entries from the collected ranges.
 	r.writeSkeletonEntries(content, contentRanges, attrRanges)
+}
+
+// filterContentRangesContainingITSRules drops content ranges that
+// fully contain any `<its:rules>` byte range. ITS rules elements are
+// document metadata and must round-trip verbatim; if we let a parent
+// block range cover them, the writer would substitute the rendered
+// block text and lose the rules.
+func filterContentRangesContainingITSRules(ranges []skelContentRange, itsRanges []skelByteRange) []skelContentRange {
+	out := ranges[:0]
+	for _, cr := range ranges {
+		drop := false
+		for _, ir := range itsRanges {
+			if cr.start <= ir.start && ir.end <= cr.end {
+				drop = true
+				break
+			}
+		}
+		if !drop {
+			out = append(out, cr)
+		}
+	}
+	return out
 }
 
 // xmlParseState holds the mutable state for streaming XML parsing in readContentCore.
@@ -240,6 +278,22 @@ type xmlParseState struct {
 	// withinTextRule, locNoteRule, …) against each element. Built
 	// from the document's <its:rules> blocks during the pre-pass.
 	itsResolver *its.Resolver
+
+	// itsRulesRanges tracks the byte ranges of `<its:rules>` elements
+	// encountered during streaming. The pre-pass already extracted the
+	// rules; we skip them in the streaming reader so they don't pollute
+	// the parent element's text accumulator. Their bytes still belong
+	// in the output (per ITS 2.0 — rules are document-level metadata
+	// that round-trip). After parsing, writeSkeletonEntries drops any
+	// content range that fully contains an itsRulesRange so the
+	// surrounding skeleton text preserves the rules verbatim.
+	itsRulesRanges []skelByteRange
+}
+
+// skelByteRange is a half-open [start, end) byte range in the source.
+type skelByteRange struct {
+	start int
+	end   int
 }
 
 // itsContext builds an ElementContext from the current parse stack
@@ -426,6 +480,19 @@ func (s *xmlParseState) flushBlock(frame *elementFrame, path string, endTagOffse
 		block.Properties[k] = v
 	}
 
+	// Attach ITS-resolved metadata that was captured at element-start
+	// (locNote text, term flag, …). The frame carries the resolved
+	// values so flushBlock doesn't need to re-evaluate.
+	if frame.itsLocNote != "" {
+		block.Properties["locNote"] = frame.itsLocNote
+		if frame.itsLocNoteType != "" {
+			block.Properties["locNoteType"] = frame.itsLocNoteType
+		}
+	}
+	if frame.itsLocNoteRef != "" {
+		block.Properties["locNoteRef"] = frame.itsLocNoteRef
+	}
+
 	s.reader.emit(s.ctx, s.ch, &model.Part{Type: model.PartBlock, Resource: block})
 
 	// Track content range for skeleton
@@ -500,6 +567,24 @@ func buildITSAttributes(attrs []xml.Attr) []its.Attribute {
 
 // handleStartElement processes an xml.StartElement token.
 func (s *xmlParseState) handleStartElement(t xml.StartElement, tokOffset int) {
+	// `<its:rules>` is document-level metadata (per W3C ITS 2.0 §5).
+	// The pre-pass already extracted every rule it carries, so we skip
+	// the element entirely here — pushing a frame would pollute the
+	// parent's text accumulator (whitespace + comments around the
+	// rules block would land in the parent's runs). Recording the
+	// byte range lets writeSkeletonEntries preserve the rules verbatim
+	// in skeleton text by suppressing any content range that would
+	// otherwise overwrite it.
+	if t.Name.Space == its.NamespaceURI && t.Name.Local == "rules" {
+		if err := s.decoder.Skip(); err != nil {
+			s.ch <- model.PartResult{Error: fmt.Errorf("xml: skipping its:rules: %w", err)}
+			return
+		}
+		end := int(s.decoder.InputOffset())
+		s.itsRulesRanges = append(s.itsRulesRanges, skelByteRange{start: tokOffset, end: end})
+		return
+	}
+
 	attrs := make(map[string]string)
 	for _, attr := range t.Attr {
 		key := attr.Name.Local
@@ -590,6 +675,9 @@ func (s *xmlParseState) handleStartElement(t xml.StartElement, tokOffset int) {
 		strongExclude:    strongExclude,
 		preserveWS:       preserveWS,
 		contentByteStart: contentStart,
+		itsLocNote:       resolved.LocNoteText,
+		itsLocNoteType:   string(resolved.LocNoteType),
+		itsLocNoteRef:    resolved.LocNoteRef,
 	}
 
 	if isInline {
@@ -645,13 +733,18 @@ func (s *xmlParseState) handleEndElement(t xml.EndElement) {
 		if parent != nil && parent.hasRuns && !parent.isExcluded {
 			if !frame.hasContent {
 				// Self-closing / empty inline: replace the opening run with a Ph.
+				// Rewrite the captured start-tag (`<tag attrs>`) into the
+				// self-closing form (`<tag attrs/>`) so the writer emits
+				// the same shape the source had — preserving the empty
+				// element shape okapi readers expect from `<img/>`-style
+				// inline placeholders.
 				spanID := strconv.Itoa(frame.spanID)
 				for i, r := range parent.runs {
 					if r.PcOpen != nil && r.PcOpen.ID == spanID {
 						parent.runs[i] = model.Run{Ph: &model.PlaceholderRun{
 							ID:   spanID,
 							Type: r.PcOpen.Type,
-							Data: r.PcOpen.Data,
+							Data: selfCloseStartTag(r.PcOpen.Data),
 						}}
 						break
 					}
@@ -779,7 +872,7 @@ func (s *xmlParseState) handleComment(t xml.Comment) {
 }
 
 func (r *Reader) readContentCore(ctx context.Context, ch chan<- model.PartResult, content []byte, layer *model.Layer,
-	contentRanges *[]skelContentRange, attrRanges *[]skelAttrRange, resolver *its.Resolver) {
+	contentRanges *[]skelContentRange, attrRanges *[]skelAttrRange, resolver *its.Resolver) []skelByteRange {
 
 	s := &xmlParseState{
 		reader:        r,
@@ -801,7 +894,7 @@ func (r *Reader) readContentCore(ctx context.Context, ch chan<- model.PartResult
 		}
 		if err != nil {
 			ch <- model.PartResult{Error: fmt.Errorf("xml: parsing: %w", err)}
-			return
+			return nil
 		}
 
 		switch t := tok.(type) {
@@ -817,6 +910,7 @@ func (r *Reader) readContentCore(ctx context.Context, ch chan<- model.PartResult
 			s.handleComment(t)
 		}
 	}
+	return s.itsRulesRanges
 }
 
 // writeSkeletonEntries writes skeleton text and ref entries from the collected ranges.
@@ -988,6 +1082,17 @@ func (r *Reader) isInlineExcluded(name string, attrs map[string]string) bool {
 		}
 	}
 	return false
+}
+
+// selfCloseStartTag rewrites an open-form start tag (`<tag attrs>`)
+// into the self-closing form (`<tag attrs/>`). Used when an inline
+// element turns out to have no content so the captured open-tag bytes
+// can stand in for the original `<tag attrs/>` source.
+func selfCloseStartTag(s string) string {
+	if !strings.HasSuffix(s, ">") || strings.HasSuffix(s, "/>") {
+		return s
+	}
+	return s[:len(s)-1] + "/>"
 }
 
 // buildStartTag reconstructs the start tag XML string from a StartElement.

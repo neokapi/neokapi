@@ -32,6 +32,7 @@ type Resolved struct {
 	WithinText  Tristate
 	LocNoteText string
 	LocNoteType LocNoteType
+	LocNoteRef  string
 	Term        Tristate
 	Domain      string // resolved value when DomainPointer fires; "" otherwise
 	PreserveSpace Tristate
@@ -120,6 +121,9 @@ func applyRuleToResolved(rule *Rule, out *Resolved) {
 				out.LocNoteType = LocNoteDescription
 			}
 		}
+		if rule.LocNoteRef != "" {
+			out.LocNoteRef = rule.LocNoteRef
+		}
 	case CatTerminology:
 		if rule.Term != Unset {
 			out.Term = rule.Term
@@ -145,6 +149,9 @@ func applyLocalAttrs(la *LocalAttributes, out *Resolved) {
 		} else {
 			out.LocNoteType = LocNoteDescription
 		}
+	}
+	if la.LocNoteRef != "" {
+		out.LocNoteRef = la.LocNoteRef
 	}
 	if la.Term != Unset {
 		out.Term = la.Term
