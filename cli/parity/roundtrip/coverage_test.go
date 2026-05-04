@@ -905,9 +905,18 @@ mergeCaptions.b=false
 				},
 			},
 			// okapi strips blank lines between declarations on round-
-			// trip; our skeleton-driven writer preserves them. Collapse
-			// for canonical-equality.
+			// trip; our skeleton-driven writer preserves them. okapi
+			// also re-parses every declaration through `com.wutka.dtd
+			// .DTDParser` and re-serialises through `DTDOutput`, which
+			// inlines parameter-entity refs (`%name;` → its value),
+			// folds quote style to `"`, normalises spacing inside
+			// content-model parens (`(a, b)` ↔ `(a,b)` ↔ `( a | b)`),
+			// and strips per-line leading whitespace. Run the source-
+			// preserving native bytes and the okapi reference through
+			// a shared canonicaliser so all those stylistic choices
+			// collapse to one form before comparison.
 			normalizer: roundtrip.Chain{Steps: []roundtrip.Normalizer{
+				roundtrip.DTDCanonical{},
 				roundtrip.IgnoreTrailingNewline{},
 				roundtrip.CollapseBlankLines{},
 			}},

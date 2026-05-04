@@ -865,3 +865,302 @@ func (VTTCueFlattenWS) Normalize(in []byte) ([]byte, error) {
 	}
 	return []byte(strings.Join(out, "\n")), nil
 }
+
+// DTDCanonical re-emits a DTD through a tiny tokeniser that yields one
+// declaration (comment / `<!ENTITY ...>` / `<!ELEMENT ...>` / `<!ATTLIST
+// ...>` / etc.) per line, with whitespace inside each declaration
+// canonicalised. Used to bridge the byte gap between the native
+// skeleton-driven writer (which preserves source bytes verbatim) and
+// okapi's DTDFilter, which re-parses through `com.wutka.dtd.DTDParser`
+// and re-serialises through `DTDOutput` — that round-trip rewrites
+// quote style, spacing inside parens, comma/pipe spacing, leading
+// per-line whitespace, and inlines parameter-entity references.
+//
+// Normalisations applied per declaration body:
+//   - quotes around literal values folded to `"` (okapi always emits
+//     double quotes; source may use single).
+//   - runs of internal whitespace collapsed to a single space, then
+//     space adjacent to `,` `(` `)` `|` removed (so `(a, b)` and
+//     `(a,b)` and `( a | b )` all canonicalise to the same shape).
+//   - parameter-entity references (`%name;`) substituted with the
+//     value of the matching `<!ENTITY % name "value">` declaration
+//     seen earlier in the same document. okapi's DTDOutput inlines
+//     these on serialisation; native preserves the reference. Both
+//     forms collapse to the substituted text.
+//   - trailing whitespace before the closing `>` stripped.
+//   - leading per-line whitespace stripped (outside comments — comments
+//     keep their internal indentation since their text is content,
+//     not declaration syntax).
+//
+// Comments are emitted verbatim. Blank lines between declarations are
+// collapsed (run a `CollapseBlankLines` after this if needed).
+type DTDCanonical struct{}
+
+// Name implements Normalizer.
+func (DTDCanonical) Name() string { return "dtd-canonical" }
+
+// Normalize implements Normalizer.
+func (DTDCanonical) Normalize(in []byte) ([]byte, error) {
+	s := string(in)
+	pos := 0
+	var out bytes.Buffer
+	paramEntities := map[string]string{}
+
+	emitDecl := func(decl string) {
+		// `decl` includes the leading `<!` and trailing `>`. Body is
+		// everything in between, which we canonicalise.
+		if !strings.HasPrefix(decl, "<!") || !strings.HasSuffix(decl, ">") {
+			out.WriteString(decl)
+			out.WriteByte('\n')
+			return
+		}
+		body := decl[2 : len(decl)-1]
+		// Identify the keyword.
+		i := 0
+		for i < len(body) && (body[i] == ' ' || body[i] == '\t' || body[i] == '\r' || body[i] == '\n') {
+			i++
+		}
+		kwStart := i
+		for i < len(body) && body[i] != ' ' && body[i] != '\t' && body[i] != '\r' && body[i] != '\n' {
+			i++
+		}
+		keyword := body[kwStart:i]
+		rest := body[i:]
+		canonRest := canonicalizeDTDBody(rest, paramEntities)
+
+		// Capture parameter-entity declarations for later substitution.
+		// Form: `% name "value"` or `% name 'value'`.
+		if keyword == "ENTITY" {
+			pe := strings.TrimSpace(rest)
+			if strings.HasPrefix(pe, "%") {
+				pe = strings.TrimSpace(pe[1:])
+				// name = first token
+				j := 0
+				for j < len(pe) && pe[j] != ' ' && pe[j] != '\t' && pe[j] != '"' && pe[j] != '\'' {
+					j++
+				}
+				name := pe[:j]
+				peRest := strings.TrimSpace(pe[j:])
+				if len(peRest) > 0 && (peRest[0] == '"' || peRest[0] == '\'') {
+					q := peRest[0]
+					end := strings.IndexByte(peRest[1:], q)
+					if end >= 0 {
+						val := peRest[1 : 1+end]
+						// Canonicalise the value the same way as a body.
+						paramEntities[name] = canonicalizeDTDBody(val, paramEntities)
+					}
+				}
+			}
+		}
+		out.WriteString("<!")
+		out.WriteString(keyword)
+		out.WriteString(canonRest)
+		out.WriteString(">\n")
+	}
+
+	for pos < len(s) {
+		// Skip whitespace between declarations.
+		for pos < len(s) && (s[pos] == ' ' || s[pos] == '\t' || s[pos] == '\n' || s[pos] == '\r') {
+			pos++
+		}
+		if pos >= len(s) {
+			break
+		}
+		if strings.HasPrefix(s[pos:], "<!--") {
+			end := strings.Index(s[pos:], "-->")
+			if end == -1 {
+				out.WriteString(s[pos:])
+				out.WriteByte('\n')
+				break
+			}
+			out.WriteString(s[pos : pos+end+3])
+			out.WriteByte('\n')
+			pos += end + 3
+			continue
+		}
+		if strings.HasPrefix(s[pos:], "<!") {
+			end := indexCloseAngleQuotedDTDNorm(s[pos:])
+			if end == -1 {
+				out.WriteString(s[pos:])
+				out.WriteByte('\n')
+				break
+			}
+			emitDecl(s[pos : pos+end+1])
+			pos += end + 1
+			continue
+		}
+		if strings.HasPrefix(s[pos:], "<?") {
+			end := strings.Index(s[pos:], "?>")
+			if end == -1 {
+				out.WriteString(s[pos:])
+				out.WriteByte('\n')
+				break
+			}
+			out.WriteString(s[pos : pos+end+2])
+			out.WriteByte('\n')
+			pos += end + 2
+			continue
+		}
+		// Unrecognised — emit a byte and move on (keeps comparison
+		// meaningful for malformed corners).
+		out.WriteByte(s[pos])
+		pos++
+	}
+	return out.Bytes(), nil
+}
+
+// canonicalizeDTDBody collapses whitespace inside a declaration body,
+// folds quote style to `"`, removes whitespace adjacent to `,()|`, and
+// substitutes parameter-entity refs (`%name;`) with the matching
+// declaration's value from `entities`.
+func canonicalizeDTDBody(body string, entities map[string]string) string {
+	// First, expand parameter-entity references using known entities.
+	// Repeat to a small fixed-point in case entities reference each
+	// other (rare in practice; bound to 8 passes to avoid infinite
+	// loops on cycles).
+	if len(entities) > 0 {
+		for pass := 0; pass < 8; pass++ {
+			expanded := paramEntitySubst(body, entities)
+			if expanded == body {
+				break
+			}
+			body = expanded
+		}
+	}
+	// Fold quote style: any single-quoted literal becomes double-
+	// quoted. Be careful: only flip the outermost quote chars, and
+	// only when the inner content has no `"` (otherwise we'd produce
+	// invalid markup). For canonical comparison, escaped `"` inside is
+	// rare in DTDs, so the simple path covers Test02 + Test01.
+	body = foldDTDQuotes(body)
+	// Collapse whitespace runs to single space.
+	var b strings.Builder
+	prevWS := false
+	for i := 0; i < len(body); i++ {
+		c := body[i]
+		if c == ' ' || c == '\t' || c == '\r' || c == '\n' {
+			if !prevWS {
+				b.WriteByte(' ')
+				prevWS = true
+			}
+			continue
+		}
+		b.WriteByte(c)
+		prevWS = false
+	}
+	collapsed := b.String()
+	// Strip whitespace adjacent to `,` `(` `)` `|`.
+	collapsed = stripDTDDelimWS(collapsed)
+	// Trim leading + trailing whitespace.
+	return strings.TrimSpace(" " + collapsed + " ")
+}
+
+// paramEntitySubst replaces `%name;` references in s with the value of
+// `entities[name]` when the name is known. Unknown names pass through
+// unchanged so the output stays a valid declaration.
+func paramEntitySubst(s string, entities map[string]string) string {
+	var b strings.Builder
+	i := 0
+	for i < len(s) {
+		c := s[i]
+		if c == '%' {
+			end := strings.IndexByte(s[i:], ';')
+			if end > 1 {
+				name := s[i+1 : i+end]
+				if val, ok := entities[name]; ok {
+					b.WriteString(val)
+					i += end + 1
+					continue
+				}
+			}
+		}
+		b.WriteByte(c)
+		i++
+	}
+	return b.String()
+}
+
+// foldDTDQuotes converts single-quoted string literals to double-
+// quoted form. Used by DTDCanonical to bridge the source-uses-`'` /
+// okapi-emits-`"` divergence.
+func foldDTDQuotes(s string) string {
+	var b strings.Builder
+	i := 0
+	for i < len(s) {
+		c := s[i]
+		if c == '\'' {
+			end := strings.IndexByte(s[i+1:], '\'')
+			if end >= 0 {
+				inner := s[i+1 : i+1+end]
+				if !strings.ContainsRune(inner, '"') {
+					b.WriteByte('"')
+					b.WriteString(inner)
+					b.WriteByte('"')
+					i += end + 2
+					continue
+				}
+			}
+		}
+		b.WriteByte(c)
+		i++
+	}
+	return b.String()
+}
+
+// stripDTDDelimWS removes whitespace adjacent to `,()|` characters in
+// the input. So `(a, b)` → `(a,b)`, `( a | b )` → `(a|b)`. Used by
+// DTDCanonical to normalise content-model spacing.
+func stripDTDDelimWS(s string) string {
+	var b strings.Builder
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		if c == ' ' {
+			// Drop if adjacent to a delim.
+			prev := byte(0)
+			if i > 0 {
+				prev = s[i-1]
+			}
+			next := byte(0)
+			if i+1 < len(s) {
+				next = s[i+1]
+			}
+			if isDTDDelim(prev) || isDTDDelim(next) {
+				continue
+			}
+		}
+		b.WriteByte(c)
+	}
+	return b.String()
+}
+
+func isDTDDelim(c byte) bool {
+	switch c {
+	case ',', '(', ')', '|':
+		return true
+	}
+	return false
+}
+
+// indexCloseAngleQuotedDTDNorm is a quote-aware `>` finder used by
+// DTDCanonical's tokeniser. Mirrors core/formats/dtd's helper of the
+// same shape; duplicated here so the parity package has no dependency
+// on the format internals.
+func indexCloseAngleQuotedDTDNorm(s string) int {
+	var inQuote byte
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		if inQuote != 0 {
+			if c == inQuote {
+				inQuote = 0
+			}
+			continue
+		}
+		switch c {
+		case '"', '\'':
+			inQuote = c
+		case '>':
+			return i
+		}
+	}
+	return -1
+}
