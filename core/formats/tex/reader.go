@@ -791,53 +791,6 @@ func (p *parser) readBraceArgRuns() []model.Run {
 	return runs
 }
 
-// readBraceArgText reads a {text} argument and returns the text inside.
-// Advances p.pos past the closing brace.
-func (p *parser) readBraceArgText() string {
-	p.skipSpaces()
-	if p.pos >= len(p.source) || p.source[p.pos] != '{' {
-		return ""
-	}
-	p.pos++ // skip {
-	depth := 1
-	var buf strings.Builder
-	for p.pos < len(p.source) && depth > 0 {
-		ch := p.source[p.pos]
-		switch ch {
-		case '{':
-			if p.pos == 0 || p.source[p.pos-1] != '\\' {
-				depth++
-			}
-			if depth > 1 {
-				buf.WriteByte(ch)
-			}
-		case '}':
-			if p.pos == 0 || p.source[p.pos-1] != '\\' {
-				depth--
-			}
-			if depth > 0 {
-				buf.WriteByte(ch)
-			}
-		case '\\':
-			// Check for inline text commands within brace args
-			cmd, cmdEnd := p.peekCommand()
-			if cmd != "" && inlineTextCommands[cmd] {
-				oldPos := p.pos
-				p.pos = cmdEnd
-				inner := p.readBraceArgText()
-				buf.WriteString(inner)
-				_ = oldPos
-				continue
-			}
-			buf.WriteByte(ch)
-		default:
-			buf.WriteByte(ch)
-		}
-		p.pos++
-	}
-	return buf.String()
-}
-
 // readBraceArgContent reads a brace argument and appends text to the builder,
 // handling inline-text commands with span markup.
 func (p *parser) readBraceArgContent(buf *strings.Builder, cmd string) string {

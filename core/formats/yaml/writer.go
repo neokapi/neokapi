@@ -226,7 +226,7 @@ func encodeSingleQuoted(s string) string {
 		if nlStart > 0 && escaped[nlStart-1] != ' ' && escaped[nlStart-1] != '\t' {
 			b.WriteByte(' ')
 		}
-		for k := 0; k < n+1; k++ {
+		for range n + 1 {
 			b.WriteByte('\n')
 		}
 	}

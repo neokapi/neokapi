@@ -326,7 +326,7 @@ func (w *Writer) writeFromSkeleton() error {
 					formCount = n
 				}
 				var b strings.Builder
-				for i := 0; i < formCount; i++ {
+				for i := range formCount {
 					if i < len(prefixes) {
 						b.WriteString(prefixes[i])
 					} else {
