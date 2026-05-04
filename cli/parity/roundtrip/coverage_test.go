@@ -508,9 +508,16 @@ func coverageScans() []formatScan {
 			nativeConfig: map[string]any{
 				"extractNonStrings": true,
 				"useCodeFinder":     true,
+				// okapi YAMLFilter default rules, copied verbatim from
+				// net/sf/okapi/filters/yaml/Parameters.reset(). The
+				// printf letter set is wider than POFilter's because
+				// it also accepts strftime-style specifiers
+				// (Y/y/B/b/H/h/S/M/m/A/Z) — matches the okapi sample
+				// `%s, %d, {1}, \\n, \\r, \\t, {{var}} etc.`
 				"codeFinderRules": []any{
-					`\{\{[^{}]*\}\}`,
-					`%[a-zA-Z]`,
+					`%(([-0+#]?)[-0+#]?)((\d\$)?)(([\d\*]*)(\.[\d\*]*)?)[dioxXucsfeEgGpnYyBbHhSMmAZ]`,
+					`(\\r\\n)|\\a|\\b|\\f|\\n|\\r|\\t|\\v`,
+					`\{\{\w.*?\}\}`,
 				},
 			},
 			// YAML normalizer reaches canonical-equal when fixtures
