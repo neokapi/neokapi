@@ -22,12 +22,11 @@
 #     package for convenience and is exercised through native unit
 #     tests (TestExtract_Table, TestExtract_ImageCaption with
 #     `[[File:`-style markup, TestRoundTrip_WikiFiles, ...).
-#   - Per-feature divergences that remain after the default flip are
-#     surfaced as targeted `expected_fail:` blocks: paragraph
-#     soft-break collapse (#496 follow-up), DokuWiki
-#     `{{image|caption}}` recognition, and `<file>` / `<code>` block
-#     tag handling. Each lists its own follow-up issue rather than
-#     #496 (which is closed by the default flip itself).
+#   - Per-feature divergences are surfaced as targeted `expected_fail:`
+#     blocks. Currently only `<file>` / `<code>` block-tag handling
+#     (#523) remains divergent — paragraph soft-break collapse (#522)
+#     and DokuWiki `{{image|caption}}` recognition (#521) are now
+#     aligned with the upstream WikiFilter contract.
 #   - okapi_refs target the four upstream test classes the wiki module
 #     exposes (WikiFilterTest, WikiWriterTest, plus RoundTripWikiIT
 #     where it surfaces). Drift detection asserts each ref still exists
@@ -187,9 +186,13 @@ features:
     description: |
       DokuWiki image syntax `{{image.ext|caption text}}` emits the
       caption as its own translatable Block. Surrounding paragraph
-      text on the same line is extracted as a separate Block. An image
-      reference without a caption (`{{image.ext}}`) emits no caption
-      Block but does not break extraction of surrounding text.
+      text on the same line is extracted as a separate Block whose
+      source carries the image as an inline placeholder (so the
+      `{{…}}` markup does not appear in the translatable text). An
+      image reference without a caption (`{{image.ext}}`) on a line of
+      its own emits no Block; the same construct embedded in
+      surrounding text becomes an inline placeholder inside that
+      paragraph's Block.
     spec_refs:
       - "Okapi WikiFilter — Image caption extraction (https://okapiframework.org/wiki/index.php/Wiki_Filter)"
       - "DokuWiki syntax reference §Images and Other Files (https://www.dokuwiki.org/wiki:syntax)"
@@ -197,18 +200,11 @@ features:
       - name: image_with_caption_in_sentence
         origin: "okapi-fixture: WikiFilterTest#testImageCaption (`This is a test. {{image.jpg|This is a caption.}}`)"
         input_xml: "This is a test. {{image.jpg|This is a caption.}}"
-        # Bridge extracts both the surrounding text and the caption as
-        # separate Blocks. Native yields a single Block containing the
-        # raw `{{image.jpg|...}}` markup as plain text — its parser
-        # has no DokuWiki image-syntax recognition. Tracked as a
-        # native bug below.
-        expected_fail: |
-          native bug — wiki reader does not recognise the DokuWiki
-          `{{image|caption}}` image syntax and emits the entire input
-          as a single Block whose source still contains the raw
-          `{{image.jpg|This is a caption.}}` markup. Bridge correctly
-          extracts the caption as a separate Block. Tracked under
-          native bug #521.
+        # Both engines emit two Blocks: the caption (`This is a
+        # caption.`) and the surrounding paragraph text (`This is a
+        # test. ` — the trailing space is preserved). The image
+        # construct is an inline placeholder inside the paragraph
+        # Block; its raw bytes do not appear in the source text.
         block_count: 2
         has_block_with_text:
           - "This is a caption."
@@ -216,14 +212,9 @@ features:
       - name: image_no_caption_with_following_text
         origin: "okapi-fixture: WikiFilterTest#testComplexSeparatingWhitespace (`{{image.jpg}}\\n \\nThis is text.`)"
         input_xml: "{{image.jpg}}\n \nThis is text."
-        # Bridge: 1 Block ("This is text."). Native: 2 Blocks because
-        # it surfaces the literal `{{image.jpg}}` line as a Block of
-        # its own. Tracked as the same native image-syntax bug.
-        expected_fail: |
-          native bug — wiki reader emits `{{image.jpg}}` as a literal
-          paragraph Block instead of recognising it as a non-translatable
-          image reference. Bridge produces only the text Block. Same
-          underlying bug as image_with_caption_in_sentence (#521).
+        # The bare `{{image.jpg}}` paragraph emits no Block (image is
+        # a non-translatable placeholder, no surrounding text). The
+        # following paragraph yields one Block.
         block_count: 1
         first_block_text: "This is text."
         no_block_with_text:

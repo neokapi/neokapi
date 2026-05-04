@@ -33,6 +33,13 @@ var dokuWikiTableRe = regexp.MustCompile(`^[|^].*[|^]\s*$`)
 // MediaWiki image/file link: [[File:...|...|caption]] or [[Image:...|...|caption]]
 var mediaWikiImageRe = regexp.MustCompile(`\[\[(?:File|Image):([^]|]+)((?:\|[^]|]*)*)?\]\]`)
 
+// DokuWiki image/template syntax: {{name}} or {{name|caption}}.
+// Per okapi WikiPatterns.IMAGE_START, the construct is greedy up to the
+// first `}}`. The bridge treats the entire `{{...}}` as a non-translatable
+// inline placeholder; if the construct contains `|caption`, the caption
+// becomes its own translatable Block via PropertyTextUnitPlaceholder.
+var dokuWikiImageRe = regexp.MustCompile(`\{\{[^}]+\}\}`)
+
 // Reader implements DataFormatReader for Wiki files.
 type Reader struct {
 	format.BaseFormatReader
@@ -151,27 +158,138 @@ func (ps *parseState) flushParagraph(ctx context.Context, r *Reader, ch chan<- m
 	if strings.TrimSpace(text) == "" {
 		return true
 	}
-	ps.blockID++
-	blockID := fmt.Sprintf("tu%d", ps.blockID)
 
-	// Skeleton: ref for the paragraph block, but include inter-line endings
-	if r.skeletonStore != nil && len(rLines) > 0 {
-		// Write the inter-line endings from raw lines. The block text has \n
-		// between lines; the skeleton ref covers the paragraph text.
-		// We need to emit: for each paragraph line except the last, add the raw line ending.
-		// But since block text already joins with \n, we just emit a single ref
-		// and the last line's ending as skeleton text.
-		r.skelRef(blockID)
-		if len(paraIdxes) > 0 {
-			lastIdx := paraIdxes[len(paraIdxes)-1]
-			if lastIdx < len(rLines) {
-				r.skelText(rLines[lastIdx].lineEnding)
+	// Skeleton ref strategy: emit a single ref for the paragraph and
+	// trail the last source line ending as skeleton text. We compute
+	// it once up front so the early-return paths below can reuse it.
+	emitSkeletonRef := func(blockID string) {
+		if r.skeletonStore != nil && len(rLines) > 0 {
+			r.skelRef(blockID)
+			if len(paraIdxes) > 0 {
+				lastIdx := paraIdxes[len(paraIdxes)-1]
+				if lastIdx < len(rLines) {
+					r.skelText(rLines[lastIdx].lineEnding)
+				}
 			}
 		}
 	}
 
+	// DokuWiki image syntax recognition (#521). Only apply for the
+	// DokuWiki variant — the upstream WikiFilter is DokuWiki-only and
+	// the `{{…}}` construct does not exist as inline syntax in
+	// MediaWiki (which uses `[[File:…]]`, handled by the dedicated
+	// MediaWiki image path).
+	if r.cfg.Variant == VariantDokuWiki && dokuWikiImageRe.MatchString(text) {
+		return ps.emitDokuWikiParagraphWithImages(ctx, r, ch, text, emitSkeletonRef)
+	}
+
+	ps.blockID++
+	blockID := fmt.Sprintf("tu%d", ps.blockID)
+	emitSkeletonRef(blockID)
 	block := model.NewBlock(blockID, text)
 	return r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
+}
+
+// emitDokuWikiParagraphWithImages emits any image captions as their own
+// translatable Blocks (in document order) followed by the surrounding
+// paragraph as a single Block whose source carries the images as inline
+// PlaceholderRuns. When the trimmed paragraph is exactly one bare image
+// (`{{img.png}}` with no caption and no surrounding text), no Block is
+// emitted at all — the image is non-translatable and there is no
+// surrounding text to carry it as inline content.
+//
+// Mirrors okapi WikiFilter's IMAGE handling: the `{{…}}` construct is
+// pulled out by TEMP_EXTRACT before block / text-unit splitting and
+// reinjected as an inline code, with `IMAGE_CAPTION_PATTERN` extracting
+// the caption text as a translatable PropertyTextUnitPlaceholder.
+func (ps *parseState) emitDokuWikiParagraphWithImages(
+	ctx context.Context, r *Reader, ch chan<- model.PartResult,
+	text string, emitSkeletonRef func(string),
+) bool {
+	// Find every image construct and its position.
+	matches := dokuWikiImageRe.FindAllStringIndex(text, -1)
+
+	// Special case: trimmed paragraph is exactly one bare image
+	// (no caption, no surrounding text) → emit no translatable Block.
+	if len(matches) == 1 {
+		startMatch := matches[0][0]
+		endMatch := matches[0][1]
+		// Check if everything outside the match is whitespace.
+		if strings.TrimSpace(text[:startMatch]) == "" && strings.TrimSpace(text[endMatch:]) == "" {
+			imgRaw := text[startMatch:endMatch]
+			// Only suppress when the image has no caption — otherwise
+			// the caption is translatable and must surface.
+			if _, caption := splitDokuWikiImage(imgRaw); caption == "" {
+				// Attribute the bare image bytes to the skeleton when
+				// active so byte-exact roundtrips still reconstruct
+				// the document.
+				if r.skeletonStore != nil {
+					r.skelText(text)
+				}
+				return true
+			}
+		}
+	}
+
+	// Pass 1: emit a Block for each image's caption, in document order.
+	// The okapi WikiFilter emits the caption TextUnit before the
+	// surrounding paragraph TextUnit; mirror that ordering so block
+	// indexes line up across implementations.
+	for _, m := range matches {
+		imgRaw := text[m[0]:m[1]]
+		_, caption := splitDokuWikiImage(imgRaw)
+		caption = strings.TrimSpace(caption)
+		if caption == "" {
+			continue
+		}
+		ps.blockID++
+		captionBlock := model.NewBlock(fmt.Sprintf("tu%d", ps.blockID), caption)
+		captionBlock.Name = "image-caption"
+		if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: captionBlock}) {
+			return false
+		}
+	}
+
+	// Pass 2: build the surrounding paragraph as Runs, replacing each
+	// image with an inline PlaceholderRun so SourceText() returns only
+	// the translatable text spans.
+	ps.blockID++
+	blockID := fmt.Sprintf("tu%d", ps.blockID)
+	emitSkeletonRef(blockID)
+
+	runs := make([]model.Run, 0, len(matches)*2+1)
+	cursor := 0
+	for i, m := range matches {
+		if m[0] > cursor {
+			runs = append(runs, model.Run{Text: &model.TextRun{Text: text[cursor:m[0]]}})
+		}
+		imgRaw := text[m[0]:m[1]]
+		runs = append(runs, model.Run{Ph: &model.PlaceholderRun{
+			ID:    fmt.Sprintf("ph%d", i+1),
+			Type:  "image",
+			Data:  imgRaw,
+			Equiv: imgRaw,
+		}})
+		cursor = m[1]
+	}
+	if cursor < len(text) {
+		runs = append(runs, model.Run{Text: &model.TextRun{Text: text[cursor:]}})
+	}
+
+	block := model.NewRunsBlock(blockID, runs)
+	return r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
+}
+
+// splitDokuWikiImage splits a `{{name|caption}}` construct into its
+// name and caption components. Returns the caption as the empty string
+// when the construct has no `|`.
+func splitDokuWikiImage(raw string) (name, caption string) {
+	// Strip the `{{` prefix and `}}` suffix.
+	inner := strings.TrimSuffix(strings.TrimPrefix(raw, "{{"), "}}")
+	if pipe := strings.Index(inner, "|"); pipe >= 0 {
+		return inner[:pipe], inner[pipe+1:]
+	}
+	return inner, ""
 }
 
 func (ps *parseState) emitData(ctx context.Context, r *Reader, ch chan<- model.PartResult) bool {
