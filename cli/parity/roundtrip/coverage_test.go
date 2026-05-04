@@ -461,6 +461,11 @@ func coverageScans() []formatScan {
 			skip: map[string]fileSkip{
 				"no-children-1-pretty.yaml": {Engines: []string{"okapi"}, Reason: "Okapi YAML parser rejects !!timestamp tag"},
 				"Test03.yml":                {Engines: []string{"okapi"}, Reason: "Okapi YAML parser rejects !!timestamp tag"},
+				// okapi emits the 4-byte UTF-8 emoji (U+1F60E 😎) as a
+				// lone low surrogate `\ude0e` (missing the high surrogate
+				// `\ud83d`) — invalid UTF-16. yaml-canonical fails to
+				// parse the okapi reference. Skip on okapi.
+				"emoji1.yaml": {Engines: []string{"okapi"}, Reason: "okapi YAML writer emits lone low surrogate for 4-byte emoji; invalid UTF-16"},
 			},
 		},
 		{
