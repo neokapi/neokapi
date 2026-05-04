@@ -785,3 +785,61 @@ var poJoinRE = regexp.MustCompile(`"\r?\n[ \t]*"`)
 func (POJoinContinuations) Normalize(in []byte) ([]byte, error) {
 	return poJoinRE.ReplaceAll(in, nil), nil
 }
+
+// VTTCueFlattenWS folds in-cue word-wrapped lines back into a single
+// line per cue body and collapses runs of blank lines between cues
+// into a single blank line. okapi's WebVTT writer wraps cue text at
+// maxCharsPerLine (defaults around 47 chars) on round-trip and pads
+// empty-text cues with an extra blank line; native preserves the
+// source line shape. Both render the same WebVTT semantics — collapse
+// soft line breaks inside a cue body and squash inter-cue blank-line
+// runs so the byte shape lines up for canonical comparison.
+//
+// A cue body is the run of non-blank lines that follows a timing line
+// (one containing `-->`) and ends at the next blank line. Cue
+// identifier lines, the `WEBVTT` header, NOTE / STYLE / REGION
+// blocks, and metadata before the first timing line are left
+// untouched.
+type VTTCueFlattenWS struct{}
+
+// Name implements Normalizer.
+func (VTTCueFlattenWS) Name() string { return "vtt-cue-flatten-ws" }
+
+// Normalize implements Normalizer.
+func (VTTCueFlattenWS) Normalize(in []byte) ([]byte, error) {
+	lines := strings.Split(string(in), "\n")
+	out := make([]string, 0, len(lines))
+	inCueBody := false
+	for _, line := range lines {
+		trimmed := strings.TrimRight(line, "\r")
+		if trimmed == "" {
+			inCueBody = false
+			// Skip consecutive blank lines — okapi pads empty cues with
+			// a second blank line on output; collapse to one.
+			if len(out) > 0 && strings.TrimRight(out[len(out)-1], "\r") == "" {
+				continue
+			}
+			out = append(out, line)
+			continue
+		}
+		if strings.Contains(trimmed, "-->") {
+			inCueBody = true
+			out = append(out, line)
+			continue
+		}
+		if inCueBody && len(out) > 0 && strings.TrimRight(out[len(out)-1], "\r") != "" {
+			// Append to previous body line with a single space separator,
+			// preserving the previous line's CR if it had one.
+			prev := out[len(out)-1]
+			cr := ""
+			if strings.HasSuffix(prev, "\r") {
+				prev = strings.TrimSuffix(prev, "\r")
+				cr = "\r"
+			}
+			out[len(out)-1] = prev + " " + trimmed + cr
+			continue
+		}
+		out = append(out, line)
+	}
+	return []byte(strings.Join(out, "\n")), nil
+}
