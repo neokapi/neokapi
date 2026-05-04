@@ -301,6 +301,19 @@ func (r *Reader) collectScalarRange(ctx context.Context, ch chan<- model.PartRes
 	if start >= 0 && end <= len(content) && start < end {
 		block.Properties["yaml.raw"] = string(content[start:end])
 	}
+	// For block scalars (literal `|`, folded `>`), capture the indicator
+	// line (`|`, `|-`, `|+`, `|2`, `>-`, …) so the writer can preserve
+	// the chomp / explicit-indent indicator on round-trip. Default in
+	// the writer is plain `|`/`>` which loses any modifier.
+	if node.Style == yamlv3.LiteralStyle || node.Style == yamlv3.FoldedStyle {
+		if start < len(content) && (content[start] == '|' || content[start] == '>') {
+			j := start
+			for j < len(content) && content[j] != '\n' {
+				j++
+			}
+			block.Properties["yaml.indicator"] = string(content[start:j])
+		}
+	}
 
 	if r.cfg.UseCodeFinder {
 		r.applyCodeFinder(block)

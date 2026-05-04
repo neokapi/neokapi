@@ -101,7 +101,8 @@ func (w *Writer) writeFromSkeleton(store *format.SkeletonStore, blocks map[strin
 					}
 				} else {
 					style := block.Properties["yaml.style"]
-					encoded := encodeYAMLScalar(text, style)
+					indicator := block.Properties["yaml.indicator"]
+					encoded := encodeYAMLScalarWithIndicator(text, style, indicator)
 					if _, err := io.WriteString(w.Output, encoded); err != nil {
 						return err
 					}
@@ -114,18 +115,24 @@ func (w *Writer) writeFromSkeleton(store *format.SkeletonStore, blocks map[strin
 
 // encodeYAMLScalar encodes a string value using the specified YAML scalar style.
 func encodeYAMLScalar(text, style string) string {
+	return encodeYAMLScalarWithIndicator(text, style, "")
+}
+
+// encodeYAMLScalarWithIndicator is like encodeYAMLScalar but lets the
+// caller pass the original block-scalar indicator (`|`, `|-`, `|+`,
+// `|2`, `>-`, …) so the chomp / explicit-indent modifier carries
+// through on round-trip. Empty indicator falls back to the bare `|` /
+// `>` defaults.
+func encodeYAMLScalarWithIndicator(text, style, indicator string) string {
 	switch style {
 	case "double-quoted":
 		return encodeDoubleQuoted(text)
 	case "single-quoted":
 		return encodeSingleQuoted(text)
 	case "literal":
-		// For literal block scalars, we can't re-encode inline since the
-		// skeleton already contains the indicator and structure. Just return
-		// the text as-is since the skeleton handles the surrounding structure.
-		return encodeLiteralBlock(text)
+		return encodeLiteralBlockWithIndicator(text, indicator)
 	case "folded":
-		return encodeFoldedBlock(text)
+		return encodeFoldedBlockWithIndicator(text, indicator)
 	default:
 		// Plain scalar — if the text contains special characters, fall back
 		// to the original style (plain).
@@ -175,28 +182,27 @@ func encodePlain(s string) string {
 	return s
 }
 
-// encodeLiteralBlock encodes text as a literal block scalar (| style).
-// The indicator line and indent are part of the skeleton text, so we only
-// return the content lines with proper indentation.
+// encodeLiteralBlock encodes text as a literal block scalar (| style)
+// with the bare `|` indicator (clip chomp).
 func encodeLiteralBlock(s string) string {
-	// For block scalars, the skeleton ref replaces the entire scalar
-	// representation including the indicator. So we need to produce the
-	// full block scalar representation.
-	return encodeLiteralBlockFull(s)
+	return encodeLiteralBlockWithIndicator(s, "|")
 }
 
-// encodeLiteralBlockFull produces a full literal block scalar representation.
-func encodeLiteralBlockFull(s string) string {
+// encodeLiteralBlockWithIndicator emits a literal block scalar using
+// the given indicator line. Empty indicator falls back to bare `|`.
+func encodeLiteralBlockWithIndicator(s, indicator string) string {
+	if indicator == "" {
+		indicator = "|"
+	}
 	if !strings.Contains(s, "\n") {
-		// Single line — use literal style with clip chomp
-		return "|\n  " + s + "\n"
+		return indicator + "\n  " + s + "\n"
 	}
 	var b strings.Builder
-	b.WriteString("|\n")
+	b.WriteString(indicator)
+	b.WriteByte('\n')
 	lines := strings.Split(s, "\n")
 	for i, line := range lines {
 		if i == len(lines)-1 && line == "" {
-			// Trailing newline in value produces empty last split element
 			continue
 		}
 		b.WriteString("  ")
@@ -206,13 +212,23 @@ func encodeLiteralBlockFull(s string) string {
 	return b.String()
 }
 
-// encodeFoldedBlock produces a full folded block scalar representation.
+// encodeFoldedBlock encodes text as a folded block scalar (> style).
 func encodeFoldedBlock(s string) string {
+	return encodeFoldedBlockWithIndicator(s, ">")
+}
+
+// encodeFoldedBlockWithIndicator emits a folded block scalar using the
+// given indicator. Empty indicator falls back to bare `>`.
+func encodeFoldedBlockWithIndicator(s, indicator string) string {
+	if indicator == "" {
+		indicator = ">"
+	}
 	if !strings.Contains(s, "\n") {
-		return ">\n  " + s + "\n"
+		return indicator + "\n  " + s + "\n"
 	}
 	var b strings.Builder
-	b.WriteString(">\n")
+	b.WriteString(indicator)
+	b.WriteByte('\n')
 	lines := strings.Split(s, "\n")
 	for i, line := range lines {
 		if i == len(lines)-1 && line == "" {
