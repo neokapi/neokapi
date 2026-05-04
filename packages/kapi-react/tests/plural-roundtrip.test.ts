@@ -100,12 +100,13 @@ describe("plural round-trip", () => {
 
     // 5. Assert the compiled entry is valid ICU that the runtime's
     //    resolveICU can dispatch: `{pivot, plural, zero {…} one {…}
-    //    other {…}}` with the `{=mN}` token for the inline element.
+    //    other {…}}` with paired `{=mN}` … `{/=mN}` markers around the
+    //    inline element's inner content.
     const entry = qps[block.hash];
     expect(entry).toBeTruthy();
     expect(entry).toContain("{items.length, plural,");
     expect(entry).toContain("zero {[Your cart is empty]}");
     expect(entry).toContain("one {[1 item in your cart]}");
-    expect(entry).toMatch(/other \{\{=m\d+\} items in your cart\}/);
+    expect(entry).toMatch(/other \{\{=m\d+\}\{items\.length\}\{\/=m\d+\} items in your cart\}/);
   });
 });

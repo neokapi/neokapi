@@ -80,6 +80,74 @@ describe("__tx() — hash-based JSX lookup", () => {
     expect(isValidElement(result)).toBe(true);
     expect((result as { type: unknown }).type).toBe(Fragment);
   });
+
+  it("clones a paired element with the inner translated content as its children", () => {
+    // The bound element is the original `<a href="/docs">here</a>`;
+    // the translation moves the inner word but keeps the wrapping.
+    // cloneElement replaces the children with the translated inner.
+    setTranslations("de", { hash1: "Klicken Sie {=m0}hier{/=m0}, um fortzufahren." });
+    const link = createElement("a", { href: "/docs" }, "here");
+    const result = __tx("hash1", "Click {=m0}here{/=m0} to continue.", { "=m0": link });
+    expect(isValidElement(result)).toBe(true);
+    // The Fragment's children include the cloned <a> with "hier" inside.
+    const children = (result as { props: { children: unknown[] } }).props.children;
+    const cloned = children.find(
+      (c) => isValidElement(c) && (c as { type: unknown }).type === "a",
+    ) as { props: { href: string; children: unknown } } | undefined;
+    expect(cloned).toBeTruthy();
+    expect(cloned?.props.href).toBe("/docs");
+    expect(cloned?.props.children).toBe("hier");
+  });
+
+  it("substitutes a variable inside a paired pair", () => {
+    setTranslations("de", { hash1: "Klicken Sie {=m0}{userName}{/=m0}, danke." });
+    const link = createElement("a", { href: "/u" }, "USER");
+    const result = __tx(
+      "hash1",
+      "Click {=m0}{userName}{/=m0} thanks.",
+      { "=m0": link },
+      { userName: "Alice" },
+    );
+    const children = (result as { props: { children: unknown[] } }).props.children;
+    const cloned = children.find(
+      (c) => isValidElement(c) && (c as { type: unknown }).type === "a",
+    ) as { props: { children: unknown } } | undefined;
+    expect(cloned?.props.children).toBe("Alice");
+  });
+
+  it("renders nested paired pairs (LIFO well-formed)", () => {
+    setTranslations("de", { hash1: "{=m0}lies {=m1}das{/=m1} doc{/=m0}" });
+    const link = createElement("a", { href: "/d" }, "_");
+    const strong = createElement("strong", null, "_");
+    const result = __tx("hash1", "{=m0}read {=m1}the{/=m1} doc{/=m0}", {
+      "=m0": link,
+      "=m1": strong,
+    });
+    const rawChildren = (result as { props: { children: unknown } }).props.children;
+    const children = Array.isArray(rawChildren) ? rawChildren : [rawChildren];
+    const outerLink = children.find(
+      (c) => isValidElement(c) && (c as { type: unknown }).type === "a",
+    ) as { props: { children: unknown } } | undefined;
+    expect(outerLink).toBeTruthy();
+    const innerRaw = outerLink?.props.children;
+    const innerArr = Array.isArray(innerRaw) ? innerRaw : [innerRaw];
+    const inner = innerArr.find(
+      (c) => isValidElement(c) && (c as { type: unknown }).type === "strong",
+    ) as { props: { children: unknown } } | undefined;
+    expect(inner).toBeTruthy();
+    expect(inner?.props.children).toBe("das");
+  });
+
+  it("treats {=mN} as standalone when no matching {/=mN} exists in the same scope", () => {
+    setTranslations("de", { hash1: "Klick {=m0} jetzt." });
+    const icon = createElement("svg", { key: "icon" });
+    const result = __tx("hash1", "Click {=m0} now.", { "=m0": icon });
+    const children = (result as { props: { children: unknown[] } }).props.children;
+    const found = children.find(
+      (c) => isValidElement(c) && (c as { type: unknown }).type === "svg",
+    );
+    expect(found).toBeTruthy();
+  });
 });
 
 describe("t() — user-facing escape hatch (dev-mode fallback)", () => {

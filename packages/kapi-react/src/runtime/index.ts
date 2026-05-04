@@ -281,32 +281,92 @@ export function __tx(
     }
   }
 
-  // Split on element tokens {=m0}, {=m1}, etc. and interleave with elements
-  const parts: ReactNode[] = [];
-  const tokenRegex = /\{(=[^}]+)\}/g;
-  let lastIndex = 0;
-  let match;
-  let hasElements = false;
+  // Element tokens come in two shapes:
+  //   `{=mN}`   — open of a paired pair (when a matching `{/=mN}`
+  //               appears later in the same scope) OR a standalone
+  //               token (when no matching close exists).
+  //   `{/=mN}`  — close of a paired pair.
+  //
+  // The parser scans tokens once, matches opens with closes via LIFO
+  // stack semantics, then renders the text recursively — paired
+  // ranges clone the wrapping element with the inner content as
+  // children, standalone tokens substitute the bound element directly.
+  type Tok = { start: number; end: number; key: string; kind: "open" | "close" };
+  const tokens: Tok[] = collectTokens(text);
 
-  while ((match = tokenRegex.exec(text)) !== null) {
-    if (match.index > lastIndex) {
-      parts.push(text.slice(lastIndex, match.index));
+  // For each open token, the index of its matching close (if any).
+  // LIFO match: a close pops the topmost open with the same key.
+  const closeOf = new Map<number, number>();
+  const openStack: number[] = [];
+  for (let i = 0; i < tokens.length; i++) {
+    const tok = tokens[i];
+    if (tok.kind === "open") {
+      openStack.push(i);
+      continue;
     }
-    const tokenName = match[1];
-    if (elements[tokenName] !== undefined) {
-      parts.push(elements[tokenName]);
-      hasElements = true;
-    } else {
-      parts.push(match[0]);
+    for (let j = openStack.length - 1; j >= 0; j--) {
+      if (tokens[openStack[j]].key === tok.key) {
+        closeOf.set(openStack[j], i);
+        openStack.splice(j, 1);
+        break;
+      }
     }
-    lastIndex = match.index + match[0].length;
   }
 
-  if (lastIndex < text.length) {
-    parts.push(text.slice(lastIndex));
+  let sawElement = false;
+
+  function render(charStart: number, charEnd: number, tokFrom: number, tokTo: number): ReactNode[] {
+    const out: ReactNode[] = [];
+    let cursor = charStart;
+    let i = tokFrom;
+    while (i <= tokTo && i < tokens.length) {
+      const tok = tokens[i];
+      if (tok.start >= charEnd) break;
+      if (tok.start > cursor) out.push(text.slice(cursor, tok.start));
+
+      if (tok.kind === "open") {
+        const closeIdx = closeOf.get(i);
+        if (closeIdx !== undefined && closeIdx <= tokTo) {
+          const close = tokens[closeIdx];
+          const inner = render(tok.end, close.start, i + 1, closeIdx - 1);
+          const bound = elements[tok.key];
+          if (bound !== undefined && isValidElement(bound)) {
+            out.push(cloneElement(bound, undefined, ...inner));
+            sawElement = true;
+          } else if (bound !== undefined) {
+            out.push(bound);
+            sawElement = true;
+          } else {
+            // Element not bound — fall back to inner content alone.
+            for (const node of inner) out.push(node);
+          }
+          cursor = close.end;
+          i = closeIdx + 1;
+          continue;
+        }
+        const bound = elements[tok.key];
+        if (bound !== undefined) {
+          out.push(bound);
+          sawElement = true;
+        } else {
+          out.push(text.slice(tok.start, tok.end));
+        }
+        cursor = tok.end;
+      } else {
+        // Unmatched close — render literally so it surfaces in
+        // dev rather than disappearing silently.
+        out.push(text.slice(tok.start, tok.end));
+        cursor = tok.end;
+      }
+      i++;
+    }
+    if (cursor < charEnd) out.push(text.slice(cursor, charEnd));
+    return out;
   }
 
-  if (!hasElements) {
+  const parts = render(0, text.length, 0, tokens.length - 1);
+
+  if (!sawElement) {
     return parts.join("");
   }
 
@@ -330,6 +390,28 @@ export function __tx(
           : createElement(Fragment, { key: i }, part),
     ),
   );
+}
+
+/**
+ * Scan `text` for element marker tokens `{=mN}` (open / standalone)
+ * and `{/=mN}` (close), returning a positional list. Used by `__tx`
+ * to build the open/close pair table before rendering.
+ */
+function collectTokens(
+  text: string,
+): Array<{ start: number; end: number; key: string; kind: "open" | "close" }> {
+  const tokens: Array<{ start: number; end: number; key: string; kind: "open" | "close" }> = [];
+  const re = /\{(\/?)(=[^}]+)\}/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(text)) !== null) {
+    tokens.push({
+      start: m.index,
+      end: m.index + m[0].length,
+      key: m[2],
+      kind: m[1] === "/" ? "close" : "open",
+    });
+  }
+  return tokens;
 }
 
 // ─── React hook ──────────────────────────────────────────────

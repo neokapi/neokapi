@@ -2,24 +2,27 @@
  * Converts a JSX element's children into a `Run[]` sequence plus the
  * flat text template the transform plugin's `hashKey` input expects.
  *
- * Every child maps to exactly one run type:
+ * Every child maps onto one of the kapi-format Run kinds:
  *
  *   JSXText                                   → TextRun
  *   JSXExpressionContainer (plain)            → PlaceholderRun ("jsx:var")
  *   JSXExpressionContainer with JSX inside    → PlaceholderRun ("jsx:node", optional)
- *   JSXElement (inline, any children)         → PlaceholderRun ("jsx:element")
+ *   JSXElement, no children                   → PlaceholderRun ("jsx:element")
+ *   JSXElement, has children                  → PcOpenRun + inner runs + PcCloseRun ("jsx:element")
  *
- * Inline elements with children collapse to one `ph` placeholder so
- * the flat template matches what `plugin/transform.ts` feeds to
- * `hashKey` — otherwise extract- and transform-side hashes would
- * drift and the runtime dict would stop resolving. The children of
- * an inline element become their own translatable Block through the
- * walker's normal descent, not nested runs under this one.
+ * The paired form keeps inline elements like `<a>here</a>` and
+ * `<strong>{count}</strong>` inside their parent's translatable
+ * sentence; the runtime cloneElements the wrapping element with the
+ * inner runs as its children at render time. The flat template is
+ * symmetric: paired open is `{=mN}`, close is `{/=mN}`, standalone
+ * is `{=mN}` with no matching close in the same scope. Both extract
+ * and `plugin/transform.ts` share the same `=mN` numbering so hash
+ * inputs line up.
  *
- * Whitespace handling follows the legacy extractor: raw JSX text is
- * collapsed to single spaces, the final run sequence is trimmed at
- * the edges, and purely-whitespace text between structural runs is
- * preserved so the translator sees `"Save {=m0}"` with its padding.
+ * Whitespace handling: raw JSX text collapses to single spaces, the
+ * outer run sequence trims at the edges, and purely-whitespace text
+ * between structural runs is preserved so the translator sees
+ * `"Save {=m0}"` with its padding.
  *
  * The builder also records a `Placeholder` entry per unique name
  * (`equiv`) so the Block carries the metadata validators and CAT
@@ -29,6 +32,8 @@
 import type { Expression, JSXElement, JSXElementChild, JSXExpressionContainer } from "@swc/core";
 
 import type {
+  PcCloseRun,
+  PcOpenRun,
   Placeholder,
   PlaceholderRun,
   PluralRunWrapper,
@@ -208,25 +213,77 @@ function appendJsxElement(state: BuilderState, el: JSXElement): void {
 
   const resolved = resolveHTMLElement(tag, state.componentMap);
   const subType = resolved ?? tag;
+  const children = el.children ?? [];
 
-  const src = state.sourceSlice(el.span.start, el.span.end);
-  const id = nextId(state);
-  const equiv = dedupName(`=m${state.idSeq - 1}`, state.usedNames);
+  // Zero children → standalone PlaceholderRun (icons, <br/>, empty
+  // self-closing components). The runtime resolves these by looking
+  // up `elements["=m<N>"]` and substituting directly — no inner
+  // content to wrap.
+  if (children.length === 0) {
+    const src = state.sourceSlice(el.span.start, el.span.end);
+    const id = nextId(state);
+    const equiv = dedupName(`=m${state.idSeq - 1}`, state.usedNames);
+    state.runs.push({
+      ph: {
+        id,
+        type: "jsx:element",
+        subType,
+        data: src,
+        equiv,
+      },
+    } satisfies PlaceholderRun);
+    state.flatText += `{${equiv}}`;
+    recordPlaceholder(state, {
+      name: equiv,
+      kind: "element",
+      jsType: "ReactNode",
+      sourceExpr: src,
+    });
+    return;
+  }
+
+  // Has children → PcOpenRun + descend inner runs + PcCloseRun. The
+  // wrapping element stays in `elements["=m<N>"]`; the runtime clones
+  // it with the inner content as children at render time. Inner
+  // markup may contain nested paired pairs, expression placeholders,
+  // and text runs — all produced by recursing through walkChildren.
+  const wholeSrc = state.sourceSlice(el.span.start, el.span.end);
+  const openSrc = state.sourceSlice(el.opening.span.start, el.opening.span.end);
+  const closeSrc = el.closing ? state.sourceSlice(el.closing.span.start, el.closing.span.end) : "";
+  nextId(state);
+  const ord = state.idSeq - 1;
+  const equiv = dedupName(`=m${ord}`, state.usedNames);
+  const idDigit = String(ord);
+
   state.runs.push({
-    ph: {
-      id,
+    pcOpen: {
+      id: idDigit,
       type: "jsx:element",
       subType,
-      data: src,
+      data: openSrc,
       equiv,
     },
-  } satisfies PlaceholderRun);
+  } satisfies PcOpenRun);
   state.flatText += `{${equiv}}`;
+
+  walkChildren(children, state);
+
+  state.runs.push({
+    pcClose: {
+      id: idDigit,
+      type: "jsx:element",
+      subType,
+      data: closeSrc,
+      equiv,
+    },
+  } satisfies PcCloseRun);
+  state.flatText += `{/${equiv}}`;
+
   recordPlaceholder(state, {
     name: equiv,
     kind: "element",
     jsType: "ReactNode",
-    sourceExpr: src,
+    sourceExpr: wholeSrc,
   });
 }
 

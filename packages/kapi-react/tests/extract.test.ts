@@ -11,6 +11,8 @@ import { describe, expect, it } from "vitest";
 import type {
   Block,
   Document,
+  PcCloseRun,
+  PcOpenRun,
   PlaceholderRun,
   PluralRunWrapper,
   SelectRunWrapper,
@@ -45,6 +47,20 @@ function phRun(run: unknown): PlaceholderRun {
   return run as PlaceholderRun;
 }
 
+function pcOpenRun(run: unknown): PcOpenRun {
+  if (!run || typeof run !== "object" || !("pcOpen" in run)) {
+    throw new Error(`expected PcOpenRun, got ${JSON.stringify(run)}`);
+  }
+  return run as PcOpenRun;
+}
+
+function pcCloseRun(run: unknown): PcCloseRun {
+  if (!run || typeof run !== "object" || !("pcClose" in run)) {
+    throw new Error(`expected PcCloseRun, got ${JSON.stringify(run)}`);
+  }
+  return run as PcCloseRun;
+}
+
 describe("extractDocument — element blocks", () => {
   it("emits one block with a single TextRun for `<h1>Hello World</h1>`", () => {
     const block = onlyBlock(extract("<h1>Hello World</h1>"));
@@ -68,22 +84,32 @@ describe("extractDocument — element blocks", () => {
     expect(block.hash).toBe(hashKey("Hello, {name}!", "h1"));
   });
 
-  it("flattens inline elements to a single jsx:element placeholder, consuming their content", () => {
+  it("emits paired pcOpen/pcClose around inner runs for inline elements with children", () => {
     const doc = extract("<h2>Files <span>{count} matched</span></h2>");
-    // Parent block carries `"Files {=m0}"` with the span as a ph.
-    // The span's content is opaque at runtime (tx() splices the
-    // whole React element back in), so we do NOT emit a separate
-    // block for it — that would be a translator ghost entry the
-    // runtime never looks up.
+    // Parent block carries `"Files {=m0}{count} matched{/=m0}"` —
+    // the span wraps its inner `{count}` variable and trailing text
+    // as a paired pair, and the runtime cloneElements `<span>` with
+    // the rendered inner content as children. No separate block for
+    // the span: its inner content is part of the parent's sentence.
     expect(doc.blocks).toHaveLength(1);
     const parent = doc.blocks[0];
     expect(parent.properties.jsxPath).toBe("h2");
-    expect(parent.source).toHaveLength(2);
+    expect(parent.source).toHaveLength(5);
     expect(textRun(parent.source[0]).text).toBe("Files ");
-    const outerPh = phRun(parent.source[1]).ph;
-    expect(outerPh.type).toBe("jsx:element");
-    expect(outerPh.subType).toBe("span");
-    expect(parent.hash).toBe(hashKey("Files {=m0}", "h2"));
+    const open = pcOpenRun(parent.source[1]).pcOpen;
+    expect(open.type).toBe("jsx:element");
+    expect(open.subType).toBe("span");
+    expect(open.equiv).toBe("=m0");
+    const innerVar = phRun(parent.source[2]).ph;
+    expect(innerVar.type).toBe("jsx:var");
+    expect(innerVar.equiv).toBe("count");
+    expect(textRun(parent.source[3]).text).toBe(" matched");
+    const close = pcCloseRun(parent.source[4]).pcClose;
+    expect(close.type).toBe("jsx:element");
+    expect(close.subType).toBe("span");
+    expect(close.equiv).toBe("=m0");
+    expect(open.id).toBe(close.id);
+    expect(parent.hash).toBe(hashKey("Files {=m0}{count} matched{/=m0}", "h2"));
   });
 
   it("emits jsx:element placeholder for `<Icon/>`", () => {
@@ -306,7 +332,7 @@ describe("extractDocument — <Plural>", () => {
     expect("ph" in (otherFirst as object)).toBe(true);
   });
 
-  it("preserves inline JSX inside a form as a typed placeholder", () => {
+  it("preserves inline JSX inside a form as paired pcOpen/pcClose runs", () => {
     const { plural } = extractPlural(
       `<p><Plural count={n}>
         <One>1 item</One>
@@ -314,11 +340,19 @@ describe("extractDocument — <Plural>", () => {
       </Plural></p>`,
     );
     const otherRuns = plural.forms.other ?? [];
-    expect(otherRuns).toHaveLength(2);
-    const ph = phRun(otherRuns[0]).ph;
-    expect(ph.type).toBe("jsx:element");
-    expect(ph.subType).toBe("strong");
-    expect(textRun(otherRuns[1]).text).toBe(" items");
+    // <strong>{n}</strong> → pcOpen + ph(n) + pcClose, plus a
+    // trailing text " items" run.
+    expect(otherRuns).toHaveLength(4);
+    const open = pcOpenRun(otherRuns[0]).pcOpen;
+    expect(open.type).toBe("jsx:element");
+    expect(open.subType).toBe("strong");
+    const innerVar = phRun(otherRuns[1]).ph;
+    expect(innerVar.type).toBe("jsx:var");
+    expect(innerVar.equiv).toBe("n");
+    const close = pcCloseRun(otherRuns[2]).pcClose;
+    expect(close.subType).toBe("strong");
+    expect(close.id).toBe(open.id);
+    expect(textRun(otherRuns[3]).text).toBe(" items");
   });
 
   it("marks the pivot placeholder with kind `icu-pivot`", () => {

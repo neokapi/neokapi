@@ -12,8 +12,8 @@ Almost everything you already write is translatable. This page walks through the
 - **JSX text inside a translatable element** → extracted.
 - **Direct text inside a container (`<div>`, `<section>`, …)** → extracted (auto-promotion, silent).
 - **Direct text inside an unmapped React component** → extracted, with a warning and a suggestion to add a `componentMap` entry.
-- **Inline elements** (`<strong>`, `<a>`, `<em>`, `<span>`, …) **mixed with text** → captured as one translatable block; children replaced with position tokens the translator can reorder.
-- **Zero-children unmapped components** (`<Icon/>`, `<Spinner/>`, `<Badge/>`) **alongside text** → treated as opaque inline; the surrounding text still extracts.
+- **Inline elements with children** (`<strong>foo</strong>`, `<a href="…">here</a>`, `<em>{name}</em>`) → captured as one translatable block; the inline element becomes a **paired marker** wrapping its inner content, so the translator sees the inner words and can move the wrapping around.
+- **Zero-children inline elements** (`<br/>`, `<Icon/>`, `<Spinner/>`, `<Badge/>`) → become **standalone markers** (`{=mN}` with no matching close) in the surrounding text.
 - **A set of attributes** — `title`, `subtitle`, `description`, `label`, `placeholder`, `alt`, `helpText`, `tooltip`, `aria-*` — on any element → extracted.
 - **Translatable attributes with string-literal ternaries** (`title={cond ? "A" : "B"}`) → each branch extracted as its own block.
 - **Non-translatable elements** (`<code>`, `<pre>`, `<kbd>`, `<var>`, `<script>`, `<style>`, `<textarea>`) → skipped.
@@ -34,9 +34,9 @@ Headings, paragraphs, buttons, labels, options, `<span>`, `<strong>`, `<em>`, `<
 <option value="fr">French</option>      // ✓ extracted
 ```
 
-### Inline children — one block, not many
+### Inline children — one block, paired markers
 
-When an element mixes text with inline children, the whole thing becomes one translatable block. Inline children collapse to position tokens so translators can reorder them:
+When an element mixes text with inline children, the whole thing becomes one translatable block. Each inline element with children becomes a **paired marker** in the parent's text — the translator sees the inner words and can move the wrapping around:
 
 ```tsx
 <p>
@@ -44,13 +44,27 @@ When an element mixes text with inline children, the whole thing becomes one tra
 </p>
 ```
 
-The extractor stores this as `"Click {=m0} to read the docs."` with `{=m0}` bound to the `<a>` element. A German translator can write `"Klicken Sie {=m0}, um die Dokumentation zu lesen."` and the link moves with the token.
+The extractor stores this as `"Click {=m0}here{/=m0} to read the docs."`. A German translation reads `"Klicken Sie {=m0}hier{/=m0}, um die Dokumentation zu lesen."` — the link wraps the right word, and a French translator can move it elsewhere in the sentence entirely.
 
-Inline elements include `<span>`, `<strong>`, `<em>`, `<b>`, `<i>`, `<a>`, `<code>`, `<kbd>`, `<small>`, `<sub>`, `<sup>`, `<time>`, `<u>`, `<var>`, `<wbr>`, `<del>`, `<ins>`.
+Inline elements that produce paired markers: `<span>`, `<strong>`, `<em>`, `<b>`, `<i>`, `<a>`, `<small>`, `<sub>`, `<sup>`, `<time>`, `<u>`, `<wbr>`, `<del>`, `<ins>`. (`<code>`, `<kbd>`, `<var>`, `<samp>` render code-as-code and are non-translatable — see below.)
 
-### Icon-tolerant inline check
+The rule is uniform: **any inline element with at least one child → paired pair**, regardless of whether the inner content is text, an expression, an icon, or further nested elements. Empty inline elements become **standalone markers** instead. A few examples:
 
-Lots of real React UI looks like `<Button><Icon />Open File...</Button>` — a component body that's an unmapped icon component followed by text. Without any componentMap configuration, kapi-react recognises this idiom and treats **zero-children unmapped components** (self-closing JSX or empty elements) as opaque inline. The surrounding text still extracts; the icon becomes a `jsx:element` placeholder.
+| Source                                | Extracted form                              |
+| ------------------------------------- | ------------------------------------------- |
+| `<a>here</a>`                         | `"{=m0}here{/=m0}"`                         |
+| `<a><Icon/></a>`                      | `"{=m0}{=m1}{/=m0}"`                        |
+| `<a>{userName}</a>`                   | `"{=m0}{userName}{/=m0}"`                   |
+| `<strong>{count}</strong>`            | `"{=m0}{count}{/=m0}"`                      |
+| `<a>read <em>the</em> docs</a>`       | `"{=m0}read {=m1}the{/=m1} docs{/=m0}"`     |
+| `<Icon/>` (no children)               | `"{=m0}"` (no matching `{/=m0}` close)      |
+| `<br/>` (no children)                 | `"{=m0}"` (no matching `{/=m0}` close)      |
+
+JSX-element tokens always read `{=m<N>}`; the runtime tells standalone from paired by looking for a matching `{/=m<N>}` close in the same scope. Variable tokens (`{userName}`, `{count}`) carry the JS identifier directly.
+
+### Empty inline elements as standalone markers
+
+Lots of real React UI looks like `<Button><Icon />Open File...</Button>` — an icon component followed by text. Empty inline elements (zero children) become a single standalone marker, leaving the surrounding text to extract normally:
 
 ```tsx
 <Button>
@@ -59,9 +73,9 @@ Lots of real React UI looks like `<Button><Icon />Open File...</Button>` — a c
 </Button>
 ```
 
-Extracts as `"{=m0} Open File..."` with `{=m0}` bound to the `<FolderOpen />` element. Works the same for Radix icons, lucide-react, Heroicons, custom `<Spinner />` components — anything with no children.
+Extracts as `"{=m0} Open File..."` with `{=m0}` bound to the `<FolderOpen />` element (standalone — no matching `{/=m0}` close). Works the same for Radix icons, lucide-react, Heroicons, custom `<Spinner />` components — anything with no children.
 
-The heuristic is intentionally narrow: unmapped components *with* children are still treated as block-level and skipped. That prevents false positives on custom block-level components (`<Panel><Heading>…</Heading></Panel>`).
+Unmapped React components with children are still treated as block-level by default (warning suggests a `componentMap` entry — see "Unknown components" below). The narrow rule for *zero-children* unmapped components prevents false positives on custom block-level components like `<Panel><Heading>…</Heading></Panel>`.
 
 ### Auto-promoted containers
 
@@ -332,12 +346,12 @@ rules: [
 |---|---|---|
 | `<h1>Hello</h1>` | ✓ | standard translatable element |
 | `<div>Hello</div>` | ✓ | auto-promoted silently |
-| `<Button><Icon/>Save</Button>` | ✓ | icon-tolerant inline — "Save" extracts with `{=m0}` for the icon |
+| `<Button><Icon/>Save</Button>` | ✓ | "Save" extracts with `{=m0}` standalone for the icon |
 | `<TabsTrigger>Hello</TabsTrigger>` | ✓ | warning suggests `componentMap` |
 | `<PageHeader title="Hi" />` | ✓ | `title` in the translatable-attributes set |
 | `<PageHeader title={cond ? "A" : "B"} />` | ✓ | both branches — one block each |
 | `<MyComp description="Hi" />` | ✓ | `description` too |
-| `<p>Click <a>here</a></p>` | ✓ | one block with `{=m0}` token |
+| `<p>Click <a>here</a></p>` | ✓ | one block, `<a>` becomes paired `{=m0}…{/=m0}` |
 | `<code>foo</code>` | ✗ | non-translatable element |
 | `<h1 translate="no">X</h1>` | ✗ | explicit opt-out (suppresses lint too) |
 | `<button>{label}</button>` | ✗ | bare expression — use `t()` on the source |
