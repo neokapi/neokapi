@@ -534,32 +534,36 @@ func (b *segContentBuilder) endInline(elemType string) {
 	}
 
 	data := inline.data.String()
+	// SubType encodes the original TMX element name so the writer can
+	// reconstruct the inline as <ph>, <bpt>, <ept>, <it pos=...>, or
+	// <hi>. Without this the runs collapse to PcOpen/PcClose/Ph and the
+	// element identity is lost on round-trip.
 	switch inline.elemType {
 	case "bpt":
 		b.runs = append(b.runs, model.Run{PcOpen: &model.PcOpenRun{
-			ID: spanID, Type: inline.spanType, Data: data,
+			ID: spanID, SubType: "tmx-bpt", Type: inline.spanType, Data: data,
 		}})
 	case "ept":
 		b.runs = append(b.runs, model.Run{PcClose: &model.PcCloseRun{
-			ID: spanID, Data: data,
+			ID: spanID, SubType: "tmx-ept", Data: data,
 		}})
 	case "ph":
 		b.runs = append(b.runs, model.Run{Ph: &model.PlaceholderRun{
-			ID: spanID, Type: inline.spanType, Data: data,
+			ID: spanID, SubType: "tmx-ph", Type: inline.spanType, Data: data,
 		}})
 	case "it":
 		switch inline.pos {
 		case "begin":
 			b.runs = append(b.runs, model.Run{PcOpen: &model.PcOpenRun{
-				ID: spanID, Type: inline.spanType, Data: data,
+				ID: spanID, SubType: "tmx-it-begin", Type: inline.spanType, Data: data,
 			}})
 		case "end":
 			b.runs = append(b.runs, model.Run{PcClose: &model.PcCloseRun{
-				ID: spanID, Type: inline.spanType, Data: data,
+				ID: spanID, SubType: "tmx-it-end", Type: inline.spanType, Data: data,
 			}})
 		default:
 			b.runs = append(b.runs, model.Run{Ph: &model.PlaceholderRun{
-				ID: spanID, Type: inline.spanType, Data: data,
+				ID: spanID, SubType: "tmx-it", Type: inline.spanType, Data: data,
 			}})
 		}
 	case "hi":
@@ -567,13 +571,13 @@ func (b *segContentBuilder) endInline(elemType string) {
 		// <hi> as inline data, so we emit an opening run, a text
 		// run for the captured body, and a closing run.
 		b.runs = append(b.runs, model.Run{PcOpen: &model.PcOpenRun{
-			ID: spanID, Type: inline.spanType,
+			ID: spanID, SubType: "tmx-hi", Type: inline.spanType,
 		}})
 		if data != "" {
 			b.runs = append(b.runs, model.Run{Text: &model.TextRun{Text: data}})
 		}
 		b.runs = append(b.runs, model.Run{PcClose: &model.PcCloseRun{
-			ID: spanID,
+			ID: spanID, SubType: "tmx-hi",
 		}})
 	}
 }

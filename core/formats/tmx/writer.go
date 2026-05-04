@@ -111,28 +111,153 @@ func (w *Writer) writeFromSkeleton() error {
 			block := w.blocks[tuIdx]
 			lang := refSuffix
 
-			// Determine the text for this TUV
-			var text string
+			// Determine the segment runs for this TUV. renderTMXSeg
+			// preserves inline codes (<ph>, <bpt>, <ept>, <it>, <hi>)
+			// that block.SourceText / TargetText would silently drop.
+			var segs []*model.Segment
 			langLower := strings.ToLower(lang)
 			if langMatches(langLower, srcLang) {
-				// Source language TUV
-				text = block.SourceText()
+				segs = block.Source
 			} else {
-				// Target language TUV
 				localeID := model.LocaleID(lang)
 				if block.HasTarget(localeID) {
-					text = block.TargetText(localeID)
+					segs = block.Targets[localeID]
 				} else {
-					text = block.SourceText()
+					segs = block.Source
 				}
 			}
 
-			if _, err := io.WriteString(w.Output, xmlEscapeString(text)); err != nil {
+			if _, err := io.WriteString(w.Output, renderTMXSeg(segs)); err != nil {
 				return err
 			}
 		}
 	}
 	return nil
+}
+
+// renderTMXSeg walks a segment slice and produces the inner XML for a
+// <seg> element. TextRun content is XML-escaped; Ph / PcOpen / PcClose
+// runs are emitted as <ph>, <bpt>, <ept>, <it>, or <hi> based on the
+// SubType set by the reader. Inline element Data is also XML-escaped.
+//
+// <hi> is special-cased — the reader emits PcOpen{hi}+Text+PcClose{hi}
+// so the inner text remains translatable, but on output we collapse
+// back to a single `<hi ...>text</hi>` element instead of emitting a
+// self-closed open and a separate close.
+//
+// Attribute order follows okapi's writer to maximise byte-level
+// agreement: i (paired-code id), pos (it only), type, x.
+func renderTMXSeg(segs []*model.Segment) string {
+	var b strings.Builder
+	xCounter := 0
+	for _, seg := range segs {
+		if seg == nil {
+			continue
+		}
+		for _, run := range seg.Runs {
+			switch {
+			case run.Text != nil:
+				b.WriteString(xmlEscapeString(run.Text.Text))
+			case run.Ph != nil:
+				xCounter++
+				writeTMXInline(&b, "ph", run.Ph.SubType, run.Ph.ID, run.Ph.Type, "", xCounter, run.Ph.Data)
+			case run.PcOpen != nil:
+				if run.PcOpen.SubType == "tmx-hi" {
+					xCounter++
+					writeTMXHiOpen(&b, run.PcOpen.Type, xCounter)
+					continue
+				}
+				xCounter++
+				writeTMXInline(&b, "bpt", run.PcOpen.SubType, run.PcOpen.ID, run.PcOpen.Type, "begin", xCounter, run.PcOpen.Data)
+			case run.PcClose != nil:
+				if run.PcClose.SubType == "tmx-hi" {
+					b.WriteString("</hi>")
+					continue
+				}
+				xCounter++
+				writeTMXInline(&b, "ept", run.PcClose.SubType, run.PcClose.ID, run.PcClose.Type, "end", xCounter, run.PcClose.Data)
+			}
+		}
+	}
+	return b.String()
+}
+
+// writeTMXHiOpen emits an opening `<hi ...>` tag without auto-closing,
+// since `<hi>` wraps translatable inner text and the matching close tag
+// arrives later as a PcClose run.
+func writeTMXHiOpen(b *strings.Builder, spanType string, x int) {
+	b.WriteString("<hi")
+	if spanType != "" {
+		b.WriteString(` type="`)
+		b.WriteString(xmlEscapeAttr(spanType))
+		b.WriteByte('"')
+	}
+	b.WriteString(` x="`)
+	b.WriteString(strconv.Itoa(x))
+	b.WriteString(`">`)
+}
+
+// writeTMXInline emits one self-closing TMX inline element (<ph>,
+// <bpt>, <ept>, <it>): opening tag with attributes, escaped Data,
+// closing tag. Use writeTMXHiOpen / </hi> for paired <hi> elements.
+func writeTMXInline(b *strings.Builder, defaultElem, subType, id, spanType, defaultPos string, x int, data string) {
+	elem := defaultElem
+	pos := ""
+	switch subType {
+	case "tmx-bpt":
+		elem = "bpt"
+	case "tmx-ept":
+		elem = "ept"
+	case "tmx-ph":
+		elem = "ph"
+	case "tmx-it":
+		elem = "it"
+	case "tmx-it-begin":
+		elem = "it"
+		pos = "begin"
+	case "tmx-it-end":
+		elem = "it"
+		pos = "end"
+	}
+
+	b.WriteByte('<')
+	b.WriteString(elem)
+	if pos != "" {
+		b.WriteString(` pos="`)
+		b.WriteString(xmlEscapeAttr(pos))
+		b.WriteByte('"')
+	} else if defaultPos != "" && elem == "it" {
+		b.WriteString(` pos="`)
+		b.WriteString(xmlEscapeAttr(defaultPos))
+		b.WriteByte('"')
+	}
+	if elem == "bpt" || elem == "ept" {
+		if id != "" {
+			b.WriteString(` i="`)
+			b.WriteString(xmlEscapeAttr(id))
+			b.WriteByte('"')
+		}
+	}
+	if spanType != "" {
+		b.WriteString(` type="`)
+		b.WriteString(xmlEscapeAttr(spanType))
+		b.WriteByte('"')
+	}
+	b.WriteString(` x="`)
+	b.WriteString(strconv.Itoa(x))
+	b.WriteByte('"')
+	b.WriteByte('>')
+	b.WriteString(xmlEscapeString(data))
+	b.WriteString("</")
+	b.WriteString(elem)
+	b.WriteByte('>')
+}
+
+// xmlEscapeAttr escapes for attribute-value context (adds quote
+// escaping on top of xmlEscapeString).
+func xmlEscapeAttr(s string) string {
+	s = xmlEscapeString(s)
+	return strings.ReplaceAll(s, `"`, "&quot;")
 }
 
 // xmlEscapeString escapes special XML characters in text content.
@@ -182,7 +307,15 @@ type xmlTU struct {
 
 type xmlTUV struct {
 	Lang string `xml:"xml:lang,attr"`
-	Seg  string `xml:"seg"`
+	Seg  xmlSeg `xml:"seg"`
+}
+
+// xmlSeg renders the <seg> body via innerxml so we can splice inline
+// codes (<ph>, <bpt>, <ept>, <it>, <hi>) generated by renderTMXSeg
+// without xml.Encoder escaping them. The TextRun portions are
+// XML-escaped inside renderTMXSeg before being concatenated.
+type xmlSeg struct {
+	Inner string `xml:",innerxml"`
 }
 
 func (w *Writer) flush() error {
@@ -221,7 +354,7 @@ func (w *Writer) flush() error {
 		// Add source TUV
 		tu.TUVs = append(tu.TUVs, xmlTUV{
 			Lang: srcLang,
-			Seg:  block.SourceText(),
+			Seg:  xmlSeg{Inner: renderTMXSeg(block.Source)},
 		})
 
 		// Add target TUVs
@@ -229,10 +362,9 @@ func (w *Writer) flush() error {
 			if len(segs) == 0 {
 				continue
 			}
-			text := block.TargetText(locale)
 			tu.TUVs = append(tu.TUVs, xmlTUV{
 				Lang: string(locale),
-				Seg:  text,
+				Seg:  xmlSeg{Inner: renderTMXSeg(segs)},
 			})
 		}
 
