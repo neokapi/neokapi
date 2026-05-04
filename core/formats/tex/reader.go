@@ -217,10 +217,23 @@ func (p *parser) parse(ctx context.Context, ch chan<- model.PartResult, r *Reade
 			blockID := fmt.Sprintf("tu%d", p.blockCounter)
 			block := model.NewBlock(blockID, text)
 			block.Name = fmt.Sprintf("para%d", p.blockCounter)
-			// For skeleton: the ref covers from lastSkelPos to p.pos.
-			// Store raw source in properties so the writer can reconstruct.
+			// For skeleton: the bytes between lastSkelPos and the
+			// position where translatable text actually started belong
+			// to skeleton (preceding whitespace, skipped commands,
+			// etc.); only the bytes from textStartPos to p.pos are
+			// the block's raw source. Splitting these correctly is
+			// what lets the writer round-trip the preamble verbatim
+			// when one of the body paragraphs is the first translatable
+			// unit.
 			if r.skeletonStore != nil {
-				block.Properties["tex.rawSource"] = p.source[p.lastSkelPos:p.pos]
+				skelEnd := textStartPos
+				if skelEnd < p.lastSkelPos || skelEnd < 0 {
+					skelEnd = p.lastSkelPos
+				}
+				if skelEnd > p.lastSkelPos {
+					r.skelText(p.source[p.lastSkelPos:skelEnd])
+				}
+				block.Properties["tex.rawSource"] = p.source[skelEnd:p.pos]
 				r.skelRef(blockID)
 				p.lastSkelPos = p.pos
 			}
@@ -234,6 +247,15 @@ func (p *parser) parse(ctx context.Context, ch chan<- model.PartResult, r *Reade
 	flushData := func(content string) {
 		if content == "" {
 			return
+		}
+		// In skeleton mode, route the raw source bytes to the
+		// skeleton store so the writer reproduces them verbatim. The
+		// Data part is still emitted for non-skeleton writers (and
+		// for downstream tools that observe Data events), but the
+		// skeleton path uses the byte-exact original.
+		if r.skeletonStore != nil && p.pos > p.lastSkelPos {
+			r.skelText(p.source[p.lastSkelPos:p.pos])
+			p.lastSkelPos = p.pos
 		}
 		p.dataCounter++
 		data := &model.Data{
@@ -358,9 +380,12 @@ func (p *parser) parse(ctx context.Context, ch chan<- model.PartResult, r *Reade
 						r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
 						continue
 					}
-					// Non-text header command — emit as data
+					// Non-text header command — emit as data so its raw
+					// bytes round-trip through the skeleton. Previously
+					// these were appended to a never-emitted local buffer
+					// and silently lost.
 					raw := p.readCommandRaw()
-					rawBuf.WriteString(raw)
+					flushData(raw)
 					continue
 				}
 
