@@ -1,6 +1,7 @@
 package xliff2
 
 import (
+	"bytes"
 	"context"
 	"encoding/xml"
 	"errors"
@@ -316,7 +317,7 @@ func (w *Writer) flush() error {
 	indentXliff(doc.Root(), 0)
 
 	doc.WriteSettings = etree.WriteSettings{}
-	if _, err := doc.WriteTo(w.Output); err != nil {
+	if err := writeDocCREscape(w.Output, doc); err != nil {
 		return fmt.Errorf("xliff2 writer: write: %w", err)
 	}
 	return nil
@@ -406,8 +407,66 @@ func (w *Writer) flushRoundTrip(targetLang model.LocaleID) error {
 		return nil
 	}
 
-	if _, err := w.sourceDoc.WriteTo(w.Output); err != nil {
+	if err := writeDocCREscape(w.Output, w.sourceDoc); err != nil {
 		return fmt.Errorf("xliff2 writer: round-trip write: %w", err)
+	}
+	return nil
+}
+
+// writeDocCREscape serializes doc to w, escaping any literal carriage
+// return bytes as numeric character references (`&#13;`). etree's
+// serializer leaves `\r` raw in both attribute values and CharData;
+// XML 1.0 §2.11 line-end normalization would silently rewrite those to
+// `\n` on the next read, losing the round-trip distinction between an
+// authored newline and an authored CR. okapi's XLIFF Toolkit always
+// emits the entity form (e.g. fixtures with `&#x000D;` in inline
+// markers like `IBM Globalization&#xD;Pipeline`), so mirroring that
+// here closes the parity gap on translated.xlf, translated_with_mrk.xlf,
+// and original_en.xlf — and is the right thing to do regardless: any
+// downstream tool that parses our output now sees the same character
+// sequence it would for okapi's.
+//
+// We post-process the rendered byte stream rather than walking the DOM
+// because etree does not expose an "emit text with custom escaping"
+// hook; replacing in raw bytes is safe because etree never emits a
+// literal `\r` inside tag/attribute syntax (those are pure ASCII), so
+// every `\r` in the buffer originates from user-supplied text.
+func writeDocCREscape(w io.Writer, doc *etree.Document) error {
+	var buf bytes.Buffer
+	if _, err := doc.WriteTo(&buf); err != nil {
+		return err
+	}
+	return writeBytesCREscape(w, buf.Bytes())
+}
+
+// writeBytesCREscape writes data to w, replacing each 0x0D (CR) with
+// the literal entity bytes "&#13;". Single-pass, allocation-free for
+// the common no-CR case.
+func writeBytesCREscape(w io.Writer, data []byte) error {
+	if !bytes.ContainsRune(data, '\r') {
+		_, err := w.Write(data)
+		return err
+	}
+	const repl = "&#13;"
+	start := 0
+	for i, b := range data {
+		if b != '\r' {
+			continue
+		}
+		if i > start {
+			if _, err := w.Write(data[start:i]); err != nil {
+				return err
+			}
+		}
+		if _, err := io.WriteString(w, repl); err != nil {
+			return err
+		}
+		start = i + 1
+	}
+	if start < len(data) {
+		if _, err := w.Write(data[start:]); err != nil {
+			return err
+		}
 	}
 	return nil
 }

@@ -131,14 +131,16 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		return
 	}
 
-	// Normalize literal CR (0x0D) to LF (0x0A) in every CharData token.
-	// XML 1.0 §2.11 mandates this on parse; etree (via encoding/xml) does
-	// honor it during decode for chars that arrived as literal bytes,
-	// but numeric character references (&#xD;) decode to literal CR
-	// and bypass the normalization. For round-trip idempotency the DOM
-	// must contain only LF (the canonical form the next reader will
-	// see) — otherwise pass-N writes CR and pass-N+1 reads it as LF.
-	normalizeCRInDOM(doc.Root())
+	// We DON'T normalize literal CR (0x0D) → LF here. CRs that originate
+	// from numeric character references (&#xD;) survive XML 1.0 §2.11
+	// line-end normalization on parse precisely because they were
+	// authored as escape sequences; the writer round-trips the DOM by
+	// re-escaping every literal CR back to `&#13;` (see
+	// writeBytesCREscape), so idempotency holds without us flattening
+	// the data here. Flattening here would also lose the entity form
+	// that okapi's XLIFFWriter uses for fixtures with explicit CRs in
+	// inline markers (e.g. translated.xlf's "IBM Globalization&#xD;
+	// Pipeline").
 
 	root := doc.SelectElement("xliff")
 	if root == nil {
@@ -411,13 +413,15 @@ func parseInlines(parent *etree.Element) []Inline {
 }
 
 // appendText merges adjacent Text nodes so <cp> resolution doesn't
-// create text fragmentation. Normalizes CR (0x0D) to LF per XML 1.0
-// §2.11 — etree preserves CR literally on read but the writer emits
-// it raw, which the next reader would normalize to LF, breaking
-// idempotency. We do the spec-mandated normalization up front.
+// create text fragmentation. CR characters (0x0D) are preserved as-is:
+// they only reach the IR via numeric character references (`&#xD;` /
+// `&#x000D;`) on the input side — bare CR bytes were already normalized
+// to LF by encoding/xml on parse per XML 1.0 §2.11. The writer's CR
+// escape (writeBytesCREscape) round-trips literal `\r` back to `&#13;`,
+// so preserving the entity-decoded `\r` in the IR keeps the
+// pseudo-translation pipeline transparent: a tool that walks runs and
+// rewrites letters won't touch `\r`, and the writer re-emits it.
 func appendText(out []Inline, s string) []Inline {
-	s = strings.ReplaceAll(s, "\r\n", "\n")
-	s = strings.ReplaceAll(s, "\r", "\n")
 	if n := len(out); n > 0 && out[n-1].Text != nil {
 		out[n-1].Text.Content += s
 		return out
@@ -655,26 +659,6 @@ func setFileNotePropertiesFromEtree(layer *model.Layer, notesEl *etree.Element) 
 			continue
 		}
 		layer.Properties[FileNotePropertyPrefix+category+":"+id] = content
-	}
-}
-
-// normalizeCRInDOM walks the etree subtree rooted at el and replaces
-// literal CR characters in every CharData token with LF. See the call
-// site comment for why — this is the v2 round-trip's idempotency hinge.
-func normalizeCRInDOM(el *etree.Element) {
-	if el == nil {
-		return
-	}
-	for _, c := range el.Child {
-		switch t := c.(type) {
-		case *etree.CharData:
-			if strings.IndexByte(t.Data, '\r') >= 0 {
-				t.Data = strings.ReplaceAll(t.Data, "\r\n", "\n")
-				t.Data = strings.ReplaceAll(t.Data, "\r", "\n")
-			}
-		case *etree.Element:
-			normalizeCRInDOM(t)
-		}
 	}
 }
 
