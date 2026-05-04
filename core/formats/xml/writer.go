@@ -213,9 +213,17 @@ func splitLeadingBOM(data []byte) (bom, rest []byte) {
 
 // renderBlockXML renders a block's text for XML output. Text parts are XML-escaped
 // while inline span markup (from span Data) is written as-is since it's already valid XML.
+//
+// When a target translation is being rendered (not the source) and the
+// block isn't marked PreserveWhitespace, runs are passed through
+// collapseRunsWhitespace first. Skeleton-mode reading keeps source runs
+// verbatim so byte-equal round-trip works when nothing is translated;
+// once a target replaces the source, we need to mirror okapi's
+// whitespace collapsing inside translatable text containers.
 func (w *Writer) renderBlockXML(block *model.Block) string {
 	segs := block.Source
-	if !w.Locale.IsEmpty() && block.HasTarget(w.Locale) {
+	useTarget := !w.Locale.IsEmpty() && block.HasTarget(w.Locale)
+	if useTarget {
 		segs = block.Targets[w.Locale]
 	}
 	var buf strings.Builder
@@ -227,7 +235,11 @@ func (w *Writer) renderBlockXML(block *model.Block) string {
 		escape = xmlEscapeAttrValue
 	}
 	for _, seg := range segs {
-		writeRunsXML(&buf, seg.Runs, escape)
+		runs := seg.Runs
+		if useTarget && !block.PreserveWhitespace && block.Type != "attribute" {
+			runs = collapseRenderWhitespace(runs)
+		}
+		writeRunsXML(&buf, runs, escape)
 	}
 	return buf.String()
 }
@@ -285,6 +297,69 @@ func xmlEscapeString(s string) string {
 		}
 	}
 	return b.String()
+}
+
+// collapseRenderWhitespace returns a run slice whose TextRun contents
+// have ASCII whitespace runs collapsed to a single space, matching
+// okapi's serialization for translatable text inside non-preserve-space
+// containers. Inline-code runs (Ph/PcOpen/PcClose/Sub) pass through
+// unchanged. The collapse spans run boundaries: a TextRun ending in
+// whitespace, followed by an inline code, followed by a TextRun
+// starting with whitespace, becomes single-space + code + content with
+// the leading whitespace dropped.
+func collapseRenderWhitespace(runs []model.Run) []model.Run {
+	if len(runs) == 0 {
+		return runs
+	}
+	out := make([]model.Run, 0, len(runs))
+	pendingSpace := false
+	started := false
+	for _, r := range runs {
+		if r.Text == nil {
+			if pendingSpace && started {
+				out = appendSpaceTo(out)
+				pendingSpace = false
+			}
+			out = append(out, r)
+			started = true
+			continue
+		}
+		s := r.Text.Text
+		var b strings.Builder
+		b.Grow(len(s))
+		for _, ch := range s {
+			if ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r' {
+				pendingSpace = true
+				continue
+			}
+			if pendingSpace && started {
+				b.WriteByte(' ')
+			}
+			pendingSpace = false
+			b.WriteRune(ch)
+			started = true
+		}
+		if b.Len() > 0 {
+			out = append(out, model.Run{Text: &model.TextRun{Text: b.String()}})
+		}
+	}
+	if pendingSpace && started {
+		// Trailing whitespace inside the block becomes a single space
+		// only if okapi would emit it. Since we don't know without
+		// peeking outside the block, leave it off — okapi typically
+		// trims trailing whitespace on translatable text containers.
+	}
+	return out
+}
+
+// appendSpaceTo appends a single-space TextRun, coalescing with the
+// previous TextRun if present.
+func appendSpaceTo(runs []model.Run) []model.Run {
+	if n := len(runs); n > 0 && runs[n-1].Text != nil {
+		runs[n-1].Text.Text += " "
+		return runs
+	}
+	return append(runs, model.Run{Text: &model.TextRun{Text: " "}})
 }
 
 // xmlEscapeAttrValue escapes the characters required inside a
