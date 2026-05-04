@@ -836,6 +836,16 @@ func stripOkapiDefaults(root *etree.Element) {
 			if attrValue(el, "canOverlap") == "yes" {
 				el.RemoveAttr("canOverlap")
 			}
+		case "target":
+			// okapi's X2ToOkpConverter / OkpToX2Converter do not preserve
+			// <target order=…>, so the round-tripped output never carries
+			// the attribute even when the source has it (see fixtures
+			// test01.xlf and test04.xlf, which use `order="3"` /
+			// `order="1"` on segments to declare a different logical
+			// emission sequence). Mirror that here.
+			if attrValue(el, "order") != "" {
+				el.RemoveAttr("order")
+			}
 		}
 	})
 }
