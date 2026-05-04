@@ -506,6 +506,10 @@ More text.
 }
 
 func TestDateInHeader(t *testing.T) {
+	// \date in the preamble is non-translatable (matches Okapi
+	// TEXFilter — date strings are usually programmatically
+	// formatted and not meaningful translation targets). \title
+	// remains translatable.
 	blocks := readBlocks(t, `\documentclass{article}
 \title{Test}
 \date{January 2024}
@@ -513,7 +517,11 @@ func TestDateInHeader(t *testing.T) {
 \end{document}`)
 
 	texts := blockTexts(blocks)
-	assert.Contains(t, texts, "January 2024")
+	for _, text := range texts {
+		assert.NotContains(t, text, "January 2024",
+			"\\date in preamble should not be translatable")
+	}
+	assert.Contains(t, texts, "Test")
 }
 
 func TestSectionWithOptionalArg(t *testing.T) {

@@ -53,7 +53,12 @@ var inlineTextCommands = map[string]bool{
 	"footnotetext": true,
 }
 
-// paragraphTextCommands produce separate text units for their arguments.
+// paragraphTextCommands produce separate text units for their arguments
+// when encountered in the body. Mirrors Okapi TEXFilter's oneArgParText
+// list — \date is intentionally excluded because Okapi treats it as an
+// unknown command in body mode (resulting in a non-translatable
+// document part). \date in the preamble is still translatable via
+// headerTextCommands.
 var paragraphTextCommands = map[string]bool{
 	"section":       true,
 	"subsection":    true,
@@ -64,7 +69,6 @@ var paragraphTextCommands = map[string]bool{
 	"subparagraph":  true,
 	"title":         true,
 	"author":        true,
-	"date":          true,
 	"caption":       true,
 }
 
@@ -86,11 +90,15 @@ var nonTranslatableEnvironments = map[string]bool{
 	"displaymath": true,
 }
 
-// headerTextCommands are commands in the preamble whose arguments ARE translatable.
+// headerTextCommands are commands in the preamble whose arguments ARE
+// translatable. Mirrors Okapi TEXFilter's oneArgParText for the
+// header (\title, \author). \date is intentionally excluded because
+// Okapi treats it as a non-translatable document part — date strings
+// are usually programmatically formatted ("January 21, 1994") and not
+// meaningful translation targets.
 var headerTextCommands = map[string]bool{
 	"title":  true,
 	"author": true,
-	"date":   true,
 }
 
 // Reader implements DataFormatReader for TeX/LaTeX files.
@@ -438,23 +446,29 @@ func (p *parser) parse(ctx context.Context, ch chan<- model.PartResult, r *Reade
 					continue
 				}
 
-				// Unknown command — include in text flow
-				if textStartPos < 0 {
-					textStartPos = p.pos
-				}
+				// Unknown command — Okapi TEXFilter classifies as
+				// OneArgNoText: the command and its (optional) brace
+				// argument become a non-translatable document part.
+				// Keeping unknown commands out of the translatable
+				// text flow prevents user-visible commands like
+				// \tableofcontents, \maketitle, \LaTeX from being
+				// pseudo-translated as if they were words.
+				flushText()
+				cmdStart := p.pos
 				p.pos = cmdEnd
-				// If it has a brace argument, include that too
-				if p.pos < len(p.source) && p.source[p.pos] == '{' {
-					raw := "\\" + cmd + p.readBraceArgRaw()
-					textBuf.WriteString(raw)
-				} else {
-					textBuf.WriteString("\\" + cmd)
-					// Add trailing space if original had one
-					if p.pos < len(p.source) && p.source[p.pos] == ' ' {
-						textBuf.WriteByte(' ')
-						p.pos++
-					}
+				// Read any optional [arg] then any number of brace args.
+				p.skipOptionalArg()
+				for p.pos < len(p.source) && p.source[p.pos] == '{' {
+					p.readBraceArgRaw()
 				}
+				// Preserve a trailing space when no brace argument
+				// followed, mirroring the Okapi behavior of keeping
+				// the separator between a bare command and the
+				// following text.
+				if p.pos < len(p.source) && p.source[p.pos] == ' ' && p.pos == cmdEnd {
+					p.pos++
+				}
+				flushData(p.source[cmdStart:p.pos])
 				continue
 			}
 

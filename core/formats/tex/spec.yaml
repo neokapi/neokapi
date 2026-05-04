@@ -285,36 +285,32 @@ features:
       - tex.TestSectionVariants
       - tex.TestSectionWithOptionalArg
 
-  # ── Header text commands (\title, \author, \date) ─────────────────
+  # ── Header text commands (\title, \author) ────────────────────────
   - id: header_text_commands
-    name: \title, \author, \date in preamble are translatable
+    name: \title and \author in preamble are translatable
     description: |
       Between `\documentclass{...}` and `\begin{document}` (the
       preamble), most commands are non-translatable configuration
       (\usepackage, \setlength, \newcommand, …). The visible-text
-      commands `\title`, `\author`, and `\date` are the exception:
-      their argument is human copy that ships with the document and
-      is extracted as one translatable Block per occurrence. The
-      Block's `Name` carries the command name (`title`, `author`,
-      `date`).
+      commands `\title` and `\author` are the exception: their
+      argument is human copy that ships with the document and is
+      extracted as one translatable Block per occurrence. The Block's
+      `Name` carries the command name (`title`, `author`). \date is
+      treated as a non-translatable document part — date strings are
+      typically programmatically formatted ("January 21, 1994") and
+      not meaningful translation targets, matching Okapi TEXFilter's
+      default behavior.
     spec_refs:
       - "LaTeX2e Reference §6.20 \\maketitle (the title-page commands \\title, \\author, \\date) (https://latexref.xyz/)"
     examples:
       - name: title_author_date
         origin: "authored: preamble with \\title + \\author + \\date, empty body"
         input_xml: "\\documentclass{article}\n\\title{My Title}\n\\author{John Doe}\n\\date{January 2024}\n\\begin{document}\n\\end{document}"
-        expected_fail: |
-          bridge feature difference — Okapi TEXFilter's default
-          configuration extracts \title and \author from the preamble
-          but omits \date from the header text command list, so the
-          bridge yields 2 Blocks ("My Title", "John Doe") while
-          native yields 3 (adds "January 2024"). Spec asserts native
-          (date is shippable copy alongside title and author)
-          behavior.
-        block_count: 3
+        block_count: 2
         block_texts:
           - "My Title"
           - "John Doe"
+        no_block_with_text:
           - "January 2024"
       - name: usepackage_preamble_skipped
         origin: "authored: \\usepackage in preamble is non-translatable; body paragraph extracts cleanly"
