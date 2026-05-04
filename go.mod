@@ -3,6 +3,7 @@ module github.com/neokapi/neokapi
 go 1.26.0
 
 require (
+	github.com/beevik/etree v1.6.0
 	github.com/bmatcuk/doublestar/v4 v4.10.0
 	github.com/dop251/goja v0.0.0-20260311135729-065cd970411c
 	github.com/leonelquinteros/gotext v1.7.2
@@ -19,7 +20,6 @@ require (
 
 require (
 	github.com/Masterminds/semver/v3 v3.4.0 // indirect
-	github.com/beevik/etree v1.6.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/dlclark/regexp2 v1.12.0 // indirect
 	github.com/go-sourcemap/sourcemap v2.1.4+incompatible // indirect
