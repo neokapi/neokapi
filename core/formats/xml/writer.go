@@ -307,10 +307,23 @@ func xmlEscapeString(s string) string {
 // whitespace, followed by an inline code, followed by a TextRun
 // starting with whitespace, becomes single-space + code + content with
 // the leading whitespace dropped.
+//
+// Leading whitespace at the very start of the runs collapses to a
+// single space (preserved, not dropped) when the source had any
+// leading whitespace. Trailing whitespace likewise collapses to a
+// single space. This matches okapi's serialization for elements like
+// `<string>   Be aware ...   </string>` where okapi outputs
+// ` Be aware ... ` (one leading + one trailing space).
 func collapseRenderWhitespace(runs []model.Run) []model.Run {
 	if len(runs) == 0 {
 		return runs
 	}
+	// Detect leading and trailing whitespace before collapsing —
+	// okapi preserves a single space at each end when the source
+	// had any whitespace there.
+	leadingWS := runsStartWithWhitespace(runs)
+	trailingWS := runsEndWithWhitespace(runs)
+
 	out := make([]model.Run, 0, len(runs))
 	pendingSpace := false
 	started := false
@@ -343,13 +356,60 @@ func collapseRenderWhitespace(runs []model.Run) []model.Run {
 			out = append(out, model.Run{Text: &model.TextRun{Text: b.String()}})
 		}
 	}
-	if pendingSpace && started {
-		// Trailing whitespace inside the block becomes a single space
-		// only if okapi would emit it. Since we don't know without
-		// peeking outside the block, leave it off — okapi typically
-		// trims trailing whitespace on translatable text containers.
+
+	// Re-attach a single leading/trailing space when the source had
+	// whitespace there. Without this, `<string>   Be aware   </string>`
+	// becomes `<string>Be aware</string>` (no spaces) — okapi keeps
+	// `<string> Be aware </string>` (one space at each end).
+	if leadingWS && len(out) > 0 {
+		if first := out[0]; first.Text != nil {
+			out[0] = model.Run{Text: &model.TextRun{Text: " " + first.Text.Text}}
+		} else {
+			out = append([]model.Run{{Text: &model.TextRun{Text: " "}}}, out...)
+		}
+	}
+	if trailingWS && len(out) > 0 {
+		out = appendSpaceTo(out)
 	}
 	return out
+}
+
+// runsStartWithWhitespace reports whether the first textual character
+// in the run sequence is ASCII whitespace. Inline-code runs without
+// any text in front are skipped — okapi's behavior depends on whether
+// the content text starts with whitespace, not on whether the very
+// first run is a code.
+func runsStartWithWhitespace(runs []model.Run) bool {
+	for _, r := range runs {
+		if r.Text == nil {
+			continue
+		}
+		if len(r.Text.Text) == 0 {
+			continue
+		}
+		c := r.Text.Text[0]
+		return c == ' ' || c == '\t' || c == '\n' || c == '\r'
+	}
+	return false
+}
+
+// runsEndWithWhitespace reports whether the last textual character in
+// the run sequence is ASCII whitespace. Mirrors runsStartWithWhitespace
+// for the trailing edge.
+func runsEndWithWhitespace(runs []model.Run) bool {
+	for i := len(runs) - 1; i >= 0; i-- {
+		r := runs[i]
+		if r.Text == nil {
+			continue
+		}
+		s := r.Text.Text
+		if len(s) == 0 {
+			continue
+		}
+		c := s[len(s)-1]
+		return c == ' ' || c == '\t' || c == '\n' || c == '\r'
+	}
+	return false
 }
 
 // appendSpaceTo appends a single-space TextRun, coalescing with the
