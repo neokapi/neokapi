@@ -866,16 +866,14 @@ func TestRead_UnicodeContent(t *testing.T) {
 
 // okapi: PlainTextFilterTest#testFiles (CR line ending variant)
 func TestRead_CRLineEndings(t *testing.T) {
-	// The native reader uses bufio.Scanner which splits on \n (not bare \r).
-	// CR-only content is treated as a single line with embedded \r characters.
-	// This differs from the bridge which handles bare \r as line endings.
+	// The reader now recognises bare \r as a line terminator (Mac classic
+	// + UTF-16-derived fixtures), matching okapi.
 	parts := readString(t, plaintext.NewReader(), "Line 1\rLine 2\rLine 3")
 	blocks := testutil.FilterBlocks(parts)
-	require.NotEmpty(t, blocks)
-	// Verify content is extracted (as one block since \r is not a line separator).
-	text := blocks[0].SourceText()
-	assert.Contains(t, text, "Line 1")
-	assert.Contains(t, text, "Line 3")
+	require.Len(t, blocks, 3)
+	assert.Equal(t, "Line 1", blocks[0].SourceText())
+	assert.Equal(t, "Line 2", blocks[1].SourceText())
+	assert.Equal(t, "Line 3", blocks[2].SourceText())
 }
 
 // ---- RegexPlainTextFilterTest — Java-specific filter variant ----

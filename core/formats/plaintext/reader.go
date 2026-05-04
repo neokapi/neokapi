@@ -1,7 +1,6 @@
 package plaintext
 
 import (
-	"bufio"
 	"bytes"
 	"context"
 	"errors"
@@ -9,6 +8,7 @@ import (
 	"io"
 	"strings"
 
+	coreenc "github.com/neokapi/neokapi/core/encoding"
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
 )
@@ -90,10 +90,24 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		return
 	}
 
+	// Buffer + transcode upfront so UTF-16-with-BOM fixtures (e.g.
+	// BOM_MacUTF16withBOM2.txt) get split on '\n' as UTF-8 instead of
+	// snagging the high byte of each UTF-16 codepoint.
+	raw, err := io.ReadAll(r.Doc.Reader)
+	if err != nil {
+		ch <- model.PartResult{Error: fmt.Errorf("plaintext: reading: %w", err)}
+		return
+	}
+	utf8Bytes, _, err := coreenc.ToUTF8(raw)
+	if err != nil {
+		ch <- model.PartResult{Error: fmt.Errorf("plaintext: transcoding to UTF-8: %w", err)}
+		return
+	}
+
 	if r.cfg.SegmentByLine {
-		r.readByLine(ctx, ch)
+		r.readByLine(ctx, ch, string(utf8Bytes))
 	} else {
-		r.readByParagraph(ctx, ch)
+		r.readByParagraph(ctx, ch, string(utf8Bytes))
 	}
 
 	r.skelFlush()
@@ -102,36 +116,18 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 	r.emit(ctx, ch, &model.Part{Type: model.PartLayerEnd, Resource: layer})
 }
 
-func (r *Reader) readByLine(ctx context.Context, ch chan<- model.PartResult) {
-	br := bufio.NewReader(r.Doc.Reader)
+func (r *Reader) readByLine(ctx context.Context, ch chan<- model.PartResult, text string) {
 	blockID := 0
 	lineNum := 0
+	remaining := text
 
-	for {
-		rawLine, err := br.ReadString('\n')
-		if rawLine == "" && err != nil {
-			if err != io.EOF {
-				ch <- model.PartResult{Error: fmt.Errorf("plaintext: reading: %w", err)}
-			}
-			break
-		}
-
+	for len(remaining) > 0 {
 		lineNum++
 
-		// Split into content and line ending.
-		// ReadString('\n') includes the delimiter; trim it to get content.
-		content := rawLine
-		lineEnding := ""
-		if strings.HasSuffix(content, "\r\n") {
-			content = content[:len(content)-2]
-			lineEnding = "\r\n"
-		} else if strings.HasSuffix(content, "\n") {
-			content = content[:len(content)-1]
-			lineEnding = "\n"
-		}
+		content, lineEnding, rest := nextPlainLine(remaining)
+		remaining = rest
 
 		if content == "" {
-			// Empty line is non-translatable data
 			r.skelText(lineEnding)
 			data := &model.Data{
 				ID:   fmt.Sprintf("d%d", lineNum),
@@ -140,33 +136,42 @@ func (r *Reader) readByLine(ctx context.Context, ch chan<- model.PartResult) {
 			if !r.emit(ctx, ch, &model.Part{Type: model.PartData, Resource: data}) {
 				return
 			}
-		} else {
-			blockID++
-			blockIDStr := fmt.Sprintf("tu%d", blockID)
-			r.skelRef(blockIDStr)
-			r.skelText(lineEnding)
-			block := model.NewBlock(blockIDStr, content)
-			block.Name = fmt.Sprintf("line%d", lineNum)
-			if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
-				return
-			}
+			continue
 		}
 
-		if err == io.EOF {
-			break
+		blockID++
+		blockIDStr := fmt.Sprintf("tu%d", blockID)
+		r.skelRef(blockIDStr)
+		r.skelText(lineEnding)
+		block := model.NewBlock(blockIDStr, content)
+		block.Name = fmt.Sprintf("line%d", lineNum)
+		if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
+			return
 		}
 	}
 }
 
-func (r *Reader) readByParagraph(ctx context.Context, ch chan<- model.PartResult) {
-	content, err := io.ReadAll(r.Doc.Reader)
-	if err != nil {
-		ch <- model.PartResult{Error: fmt.Errorf("plaintext: reading: %w", err)}
-		return
+// nextPlainLine peels one line off the front of text, returning the
+// content, the line-ending bytes (\n, \r\n, \r, or "" at EOF), and the
+// remaining unread text. Recognises bare \r as a line terminator so
+// Mac-classic / UTF-16-derived fixtures don't get mashed into one
+// gigantic block.
+func nextPlainLine(text string) (content, ending, rest string) {
+	for i := 0; i < len(text); i++ {
+		switch text[i] {
+		case '\n':
+			return text[:i], "\n", text[i+1:]
+		case '\r':
+			if i+1 < len(text) && text[i+1] == '\n' {
+				return text[:i], "\r\n", text[i+2:]
+			}
+			return text[:i], "\r", text[i+1:]
+		}
 	}
+	return text, "", ""
+}
 
-	text := string(content)
-
+func (r *Reader) readByParagraph(ctx context.Context, ch chan<- model.PartResult, text string) {
 	if r.skeletonStore != nil {
 		r.readByParagraphSkeleton(ctx, ch, text)
 		return
