@@ -121,6 +121,9 @@ done:
 // bytes don't already contain an `<?xml ?>` prologue, one is injected
 // at the start of output. Source documents that already begin with a
 // declaration pass through unchanged.
+//
+// `blocks` is also used to expand inline-attribute reference markers
+// (see writeRunsXML / expandInlineAttrRefs).
 func (w *Writer) writeFromSkeleton(blocks map[string]*model.Block) error {
 	first := true
 	for {
@@ -163,7 +166,7 @@ func (w *Writer) writeFromSkeleton(blocks map[string]*model.Block) error {
 		case format.SkeletonRef:
 			first = false
 			if block, ok := blocks[string(entry.Data)]; ok {
-				text := w.renderBlockXML(block)
+				text := w.renderBlockXML(block, blocks)
 				if _, err := io.WriteString(w.Output, text); err != nil {
 					return err
 				}
@@ -220,7 +223,12 @@ func splitLeadingBOM(data []byte) (bom, rest []byte) {
 // verbatim so byte-equal round-trip works when nothing is translated;
 // once a target replaces the source, we need to mirror okapi's
 // whitespace collapsing inside translatable text containers.
-func (w *Writer) renderBlockXML(block *model.Block) string {
+//
+// blocks is the project-wide block map used to resolve inline-attribute
+// reference markers embedded by the reader in inline placeholder data
+// (see reader.go's injectInlineAttrRefs). Pass nil to disable
+// substitution; markers will then be stripped to keep output well-formed.
+func (w *Writer) renderBlockXML(block *model.Block, blocks map[string]*model.Block) string {
 	segs := block.Source
 	useTarget := !w.Locale.IsEmpty() && block.HasTarget(w.Locale)
 	if useTarget {
@@ -239,36 +247,83 @@ func (w *Writer) renderBlockXML(block *model.Block) string {
 		if useTarget && !block.PreserveWhitespace && block.Type != "attribute" {
 			runs = collapseRenderWhitespace(runs)
 		}
-		writeRunsXML(&buf, runs, escape)
+		writeRunsXML(&buf, runs, escape, blocks, w)
 	}
 	return buf.String()
 }
 
 // writeRunsXML walks a Run sequence, applying `escape` to TextRun
 // content and writing inline-code Data verbatim (already valid XML).
-func writeRunsXML(buf *strings.Builder, runs []model.Run, escape func(string) string) {
+//
+// Inline-code Data may contain inline-attribute reference markers
+// `\x01REF:<id>\x02` injected by the reader. expandInlineAttrRefs
+// replaces them with the referenced block's translated attribute value
+// (rendered via the same writer for consistent escaping / locale
+// selection).
+func writeRunsXML(buf *strings.Builder, runs []model.Run, escape func(string) string, blocks map[string]*model.Block, w *Writer) {
 	for _, r := range runs {
 		switch {
 		case r.Text != nil:
 			buf.WriteString(escape(r.Text.Text))
 		case r.Ph != nil:
-			buf.WriteString(r.Ph.Data)
+			buf.WriteString(expandInlineAttrRefs(r.Ph.Data, blocks, w))
 		case r.PcOpen != nil:
-			buf.WriteString(r.PcOpen.Data)
+			buf.WriteString(expandInlineAttrRefs(r.PcOpen.Data, blocks, w))
 		case r.PcClose != nil:
 			buf.WriteString(r.PcClose.Data)
 		case r.Sub != nil:
 			buf.WriteString(r.Sub.Ref)
 		case r.Plural != nil:
 			if form, ok := r.Plural.Forms[model.PluralOther]; ok {
-				writeRunsXML(buf, form, escape)
+				writeRunsXML(buf, form, escape, blocks, w)
 			}
 		case r.Select != nil:
 			if form, ok := r.Select.Cases["other"]; ok {
-				writeRunsXML(buf, form, escape)
+				writeRunsXML(buf, form, escape, blocks, w)
 			}
 		}
 	}
+}
+
+// expandInlineAttrRefs walks data looking for inline-attribute
+// reference markers (`\x01REF:<id>\x02`). For each marker, the
+// referenced attribute block is rendered through renderBlockXML — this
+// gives the translated value with proper attribute-value escaping
+// applied. Markers whose target block isn't present in the map are
+// stripped (silently dropped) so the resulting XML stays well-formed.
+func expandInlineAttrRefs(data string, blocks map[string]*model.Block, w *Writer) string {
+	if !strings.ContainsRune(data, '\x01') {
+		return data
+	}
+	var b strings.Builder
+	b.Grow(len(data))
+	i := 0
+	for i < len(data) {
+		start := strings.IndexByte(data[i:], '\x01')
+		if start < 0 {
+			b.WriteString(data[i:])
+			break
+		}
+		start += i
+		end := strings.IndexByte(data[start+1:], '\x02')
+		if end < 0 {
+			// Malformed marker (shouldn't happen): emit verbatim.
+			b.WriteString(data[i:])
+			break
+		}
+		end += start + 1
+		// Marker payload: between `\x01` and `\x02`. Format: `REF:<id>`.
+		payload := data[start+1 : end]
+		b.WriteString(data[i:start])
+		if strings.HasPrefix(payload, "REF:") && blocks != nil {
+			id := payload[len("REF:"):]
+			if ref, ok := blocks[id]; ok {
+				b.WriteString(w.renderBlockXML(ref, blocks))
+			}
+		}
+		i = end + 1
+	}
+	return b.String()
 }
 
 // xmlEscapeString escapes the four XML special characters (&, <, >, ")

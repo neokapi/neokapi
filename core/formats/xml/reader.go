@@ -97,7 +97,7 @@ func (r *Reader) Read(ctx context.Context) <-chan model.PartResult {
 
 // elementFrame tracks the state for each nested element during parsing.
 type elementFrame struct {
-	name       string
+	name string
 	// qname is the element's prefix:localname form as it appears in
 	// the source (`z:汇集`, `its:rules`, or just `myDoc` when
 	// unprefixed). Used by skeleton-tracking code to find the matching
@@ -105,7 +105,7 @@ type elementFrame struct {
 	// alone misses prefixed elements like `</z:汇集>` and the closing
 	// search returns -1 (no skeleton range, content stays untranslated
 	// in the round-trip).
-	qname      string
+	qname string
 	// localName / nsURI capture the element's name decomposition so
 	// the ITS resolver can match against namespace-qualified names.
 	// `name` keeps the legacy local-name-only form used by every
@@ -528,13 +528,30 @@ func (s *xmlParseState) flushBlock(frame *elementFrame, path string, endTagOffse
 	frame.resetRuns()
 }
 
+// inlineAttrRef pairs a translatable attribute name with the block ID
+// holding its value. Used to splice reference markers into an inline
+// element's captured start-tag bytes so the writer can substitute the
+// translated value back at emit time.
+type inlineAttrRef struct {
+	attrName string
+	blockID  string
+}
+
 // emitTranslatableAttrs emits translatable attributes as blocks and tracks skeleton ranges.
-func (s *xmlParseState) emitTranslatableAttrs(elem xml.StartElement, tokOffset, contentStart int) {
+//
+// When the element will be rendered as an inline placeholder, the
+// returned slice maps each translatable attribute to its block ID; the
+// caller uses it to rewrite the captured start-tag bytes with reference
+// markers. Returns nil for non-inline elements.
+func (s *xmlParseState) emitTranslatableAttrs(elem xml.StartElement, tokOffset, contentStart int) []inlineAttrRef {
 	// Build the ITS context once for this element so attribute-targeted
 	// rules (`<its:translateRule selector="//@alt"/>`) can be evaluated.
 	thisName := its.NameMatch{NamespaceURI: elem.Name.Space, Local: elem.Name.Local}
 	itsAttrs := buildITSAttributes(elem.Attr)
 	itsCtx := s.itsContext(thisName, itsAttrs)
+
+	willRenderInline := s.elementWillRenderInline(elem)
+	var inlineRefs []inlineAttrRef
 
 	for _, attr := range elem.Attr {
 		attrName := attr.Name.Local
@@ -577,13 +594,13 @@ func (s *xmlParseState) emitTranslatableAttrs(elem xml.StartElement, tokOffset, 
 			// Skip skeleton attr ranges when this element will be
 			// rendered as an inline placeholder inside a parent block.
 			// The parent's content range already covers the attribute's
-			// bytes, and the writer would emit overlapping refs
-			// otherwise. We still emit the block so future writers can
-			// surface it (e.g. for human review), but it won't round-
-			// trip into the inline tag yet — that requires the writer
-			// to expand inline placeholders against referent blocks,
-			// which lives outside the scope of this change.
-			if s.elementWillRenderInline(elem) {
+			// bytes, so the writer would double-emit otherwise. The
+			// caller rewrites the inline placeholder's captured start-
+			// tag bytes with reference markers (see
+			// inlineRefs return value below) so the writer can
+			// substitute the translated attribute value at emit time.
+			if willRenderInline {
+				inlineRefs = append(inlineRefs, inlineAttrRef{attrName: attrName, blockID: blockID})
 				continue
 			}
 			attrStart, attrEnd := findAttrValueByteRange(s.content, tokOffset, contentStart, attrName, attr.Value)
@@ -594,8 +611,14 @@ func (s *xmlParseState) emitTranslatableAttrs(elem xml.StartElement, tokOffset, 
 					end:     attrEnd,
 				})
 			}
+		} else if willRenderInline {
+			// Even without skeleton tracking, inline elements still need
+			// the (attrName, blockID) mapping so the writer can splice
+			// translated values into the captured start-tag bytes.
+			inlineRefs = append(inlineRefs, inlineAttrRef{attrName: attrName, blockID: blockID})
 		}
 	}
+	return inlineRefs
 }
 
 // elementWillRenderInline reports whether the element being processed
@@ -882,8 +905,23 @@ func (s *xmlParseState) handleStartElement(t xml.StartElement, tokOffset int) {
 
 	s.stack = append(s.stack, frame)
 
-	// Emit translatable attributes as blocks
-	s.emitTranslatableAttrs(t, tokOffset, contentStart)
+	// Emit translatable attributes as blocks. For inline elements the
+	// returned slice maps each translatable attribute to its block ID;
+	// rewrite the freshly-pushed PcOpen.Data with reference markers so
+	// the writer can substitute translated values back at emit time.
+	inlineRefs := s.emitTranslatableAttrs(t, tokOffset, contentStart)
+	if isInline && len(inlineRefs) > 0 {
+		parent := s.findTextFrame()
+		if parent != nil && parent.hasRuns && !parent.isExcluded {
+			spanID := strconv.Itoa(frame.spanID)
+			for i := len(parent.runs) - 1; i >= 0; i-- {
+				if parent.runs[i].PcOpen != nil && parent.runs[i].PcOpen.ID == spanID {
+					parent.runs[i].PcOpen.Data = injectInlineAttrRefs(parent.runs[i].PcOpen.Data, inlineRefs)
+					break
+				}
+			}
+		}
+	}
 }
 
 // handleEndElement processes an xml.EndElement token.
@@ -1271,6 +1309,97 @@ func findAttrValueByteRange(content []byte, tagStart, tagEnd int, attrName, attr
 		valueEnd += valueStart
 
 		return tagStart + valueStart, tagStart + valueEnd
+	}
+}
+
+// inlineAttrRefMarker wraps a block ID with C0 control characters
+// (`\x01` and `\x02`) that are forbidden in well-formed XML 1.0
+// character data — making the marker impossible to confuse with real
+// content. The xml writer scans for this marker inside captured inline-
+// element start-tag bytes (Ph.Data / PcOpen.Data) and substitutes the
+// translated attribute value from the referenced block.
+func inlineAttrRefMarker(blockID string) string {
+	return "\x01REF:" + blockID + "\x02"
+}
+
+// injectInlineAttrRefs rewrites a captured start-tag byte slice so each
+// listed attribute's value is replaced by inlineAttrRefMarker(blockID).
+// The replacement walks the raw bytes (looking for `attrName="..."` or
+// `attrName='...'`) so namespace prefixes and entity-escaped values
+// pass through untouched. Attributes not found in the bytes are skipped
+// silently — the writer falls back to the literal source value when no
+// marker is present.
+func injectInlineAttrRefs(rawTag string, refs []inlineAttrRef) string {
+	if len(refs) == 0 || rawTag == "" {
+		return rawTag
+	}
+	data := []byte(rawTag)
+	for _, ref := range refs {
+		valStart, valEnd := findInlineAttrValueRange(data, ref.attrName)
+		if valStart < 0 || valEnd < valStart {
+			continue
+		}
+		marker := []byte(inlineAttrRefMarker(ref.blockID))
+		newData := make([]byte, 0, len(data)-(valEnd-valStart)+len(marker))
+		newData = append(newData, data[:valStart]...)
+		newData = append(newData, marker...)
+		newData = append(newData, data[valEnd:]...)
+		data = newData
+	}
+	return string(data)
+}
+
+// findInlineAttrValueRange locates the value byte range of attrName
+// within rawTag, requiring a left boundary (start of tag, whitespace,
+// or `:` for a namespaced name) so a search for `alt` doesn't latch
+// onto `salt` or `default`. Returns (-1, -1) when the attribute is
+// absent. The returned range excludes the surrounding quotes.
+func findInlineAttrValueRange(rawTag []byte, attrName string) (int, int) {
+	needle := []byte(attrName)
+	idx := 0
+	for {
+		pos := bytes.Index(rawTag[idx:], needle)
+		if pos < 0 {
+			return -1, -1
+		}
+		pos += idx
+		// Require a left boundary so `alt` doesn't match `salt`.
+		// Boundary chars: `<` (start of tag), ` `, `\t`, `\n`, `\r`,
+		// `:` (namespace prefix already matched the prefix part).
+		if pos > 0 {
+			prev := rawTag[pos-1]
+			if prev != '<' && prev != ' ' && prev != '\t' && prev != '\n' && prev != '\r' && prev != ':' {
+				idx = pos + 1
+				continue
+			}
+		}
+		afterName := pos + len(needle)
+		// Skip optional whitespace, then require `=`.
+		for afterName < len(rawTag) && (rawTag[afterName] == ' ' || rawTag[afterName] == '\t' || rawTag[afterName] == '\n' || rawTag[afterName] == '\r') {
+			afterName++
+		}
+		if afterName >= len(rawTag) || rawTag[afterName] != '=' {
+			idx = pos + 1
+			continue
+		}
+		afterName++ // skip '='
+		for afterName < len(rawTag) && (rawTag[afterName] == ' ' || rawTag[afterName] == '\t' || rawTag[afterName] == '\n' || rawTag[afterName] == '\r') {
+			afterName++
+		}
+		if afterName >= len(rawTag) {
+			return -1, -1
+		}
+		quote := rawTag[afterName]
+		if quote != '"' && quote != '\'' {
+			idx = pos + 1
+			continue
+		}
+		valueStart := afterName + 1
+		closeRel := bytes.IndexByte(rawTag[valueStart:], quote)
+		if closeRel < 0 {
+			return -1, -1
+		}
+		return valueStart, valueStart + closeRel
 	}
 }
 
