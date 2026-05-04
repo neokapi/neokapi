@@ -586,6 +586,27 @@ func patchUnit(unitEl *etree.Element, block *model.Block, targetLang model.Local
 
 		tgtEl := segEl.SelectElement("target")
 		if modelTgt != nil {
+			// Mirror OkpToX2Converter (line 191): emit <target> only when
+			// the segment has a non-"initial" state OR the target has
+			// non-empty content. An "empty target on a state-less segment"
+			// is dropped on round-trip — okapi treats the missing state
+			// as the default "initial", and unmodified empty targets carry
+			// no information worth re-emitting. Only applies to <segment>;
+			// <ignorable> follows separate rules and always keeps its
+			// target when one was authored.
+			segState := attrValue(segEl, "state")
+			suppressTarget := segEl.Tag == "segment" &&
+				segmentTargetIsEmpty(modelTgt) &&
+				(segState == "" || segState == "initial")
+			if suppressTarget {
+				if tgtEl != nil {
+					segEl.RemoveChild(tgtEl)
+					patched = true
+				}
+				// Skip the rest of target patching — there's no <target>
+				// element to maintain.
+				continue
+			}
 			if tgtEl == nil {
 				tgtEl = etree.NewElement("target")
 				if srcEl := segEl.SelectElement("source"); srcEl != nil {
@@ -915,6 +936,41 @@ func walkXliff2El(el *etree.Element, f func(*etree.Element)) {
 // comparison via seg.Runs. Self-detecting freshness removes the
 // caller-contract footgun where a tool modifies seg.Runs but leaves a
 // stale annotation behind — we'd otherwise silently skip patching.
+// segmentTargetIsEmpty reports whether seg has no meaningful target
+// content — no inline IR with non-text/text content and no plain Runs
+// with any text. Used by patchUnit to decide whether to drop the
+// `<target>` element on a state-less <segment>, mirroring okapi's
+// OkpToX2Converter rule (only emit target when state != "initial" or
+// content is non-empty).
+func segmentTargetIsEmpty(seg *model.Segment) bool {
+	if seg == nil {
+		return true
+	}
+	if ir := freshInlineIR(seg); ir != nil {
+		for _, in := range ir.Inlines {
+			switch {
+			case in.Text != nil:
+				if in.Text.Content != "" {
+					return false
+				}
+			default:
+				// Any inline-code child counts as content.
+				return false
+			}
+		}
+		return true
+	}
+	for _, r := range seg.Runs {
+		if r.Text == nil {
+			return false
+		}
+		if r.Text.Text != "" {
+			return false
+		}
+	}
+	return true
+}
+
 func segmentMatchesDOM(domEl *etree.Element, seg *model.Segment) bool {
 	if seg == nil {
 		return true

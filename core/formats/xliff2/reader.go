@@ -206,13 +206,19 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 			return
 		}
 
+		// XLIFF 2 spec: `translate` is inheritable from <xliff>/<file>/
+		// <group> down to <unit>. Default at the document level is "yes".
+		// Compute this file's effective translate state and pass it to
+		// children so units that don't override it inherit it.
+		fileTranslate := inheritedTranslate(true, file)
+
 		// Walk file children in order, emitting groups/units.
 		for _, child := range file.ChildElements() {
 			switch child.Tag {
 			case "group":
-				r.emitGroup(ctx, ch, child, model.LocaleID(trgLang))
+				r.emitGroup(ctx, ch, child, model.LocaleID(trgLang), fileTranslate)
 			case "unit":
-				r.emitUnit(ctx, ch, child, model.LocaleID(trgLang))
+				r.emitUnit(ctx, ch, child, model.LocaleID(trgLang), fileTranslate)
 			}
 		}
 
@@ -221,8 +227,11 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 }
 
 // emitGroup emits PartGroupStart/PartGroupEnd around the group's
-// contents, recursing into nested groups and units.
-func (r *Reader) emitGroup(ctx context.Context, ch chan<- model.PartResult, group *etree.Element, trgLang model.LocaleID) {
+// contents, recursing into nested groups and units. parentTranslate is
+// the inheritable translate flag from the enclosing <file>/<group>;
+// this group's own translate attribute, if present, overrides it before
+// being passed to children.
+func (r *Reader) emitGroup(ctx context.Context, ch chan<- model.PartResult, group *etree.Element, trgLang model.LocaleID, parentTranslate bool) {
 	gs := &model.GroupStart{
 		ID:   attrValue(group, "id"),
 		Name: attrValue(group, "name"),
@@ -231,23 +240,24 @@ func (r *Reader) emitGroup(ctx context.Context, ch chan<- model.PartResult, grou
 	if !r.emit(ctx, ch, &model.Part{Type: model.PartGroupStart, Resource: gs}) {
 		return
 	}
+	groupTranslate := inheritedTranslate(parentTranslate, group)
 	for _, child := range group.ChildElements() {
 		switch child.Tag {
 		case "group":
-			r.emitGroup(ctx, ch, child, trgLang)
+			r.emitGroup(ctx, ch, child, trgLang, groupTranslate)
 		case "unit":
-			r.emitUnit(ctx, ch, child, trgLang)
+			r.emitUnit(ctx, ch, child, trgLang, groupTranslate)
 		}
 	}
 	r.emit(ctx, ch, &model.Part{Type: model.PartGroupEnd, Resource: &model.GroupEnd{ID: gs.ID}})
 }
 
 // emitUnit builds a Block from a <unit> element and emits it.
-func (r *Reader) emitUnit(ctx context.Context, ch chan<- model.PartResult, unit *etree.Element, trgLang model.LocaleID) {
-	translatable := true
-	if strings.EqualFold(attrValue(unit, "translate"), "no") {
-		translatable = false
-	}
+// parentTranslate is the inheritable translate flag from the enclosing
+// <file>/<group>; the unit's own translate attribute (if present)
+// overrides it. Default at the document level is "yes".
+func (r *Reader) emitUnit(ctx context.Context, ch chan<- model.PartResult, unit *etree.Element, trgLang model.LocaleID, parentTranslate bool) {
+	translatable := inheritedTranslate(parentTranslate, unit)
 
 	block := &model.Block{
 		ID:           attrValue(unit, "id"),
@@ -568,6 +578,19 @@ func attrValue(el *etree.Element, local string) string {
 	return ""
 }
 
+// inheritedTranslate returns the effective `translate` flag for an
+// XLIFF 2 element (file, group, or unit). XLIFF 2 §3.4.1 makes
+// `translate` an inheritable attribute: an element's own `translate`
+// attribute (if present) wins, otherwise the parent's effective value
+// is inherited. The document default is "yes".
+func inheritedTranslate(parent bool, el *etree.Element) bool {
+	v := attrValue(el, "translate")
+	if v == "" {
+		return parent
+	}
+	return !strings.EqualFold(v, "no")
+}
+
 // extraAttrPropKeyPrefix prefixes Layer.Properties keys that carry XLIFF
 // root attributes the reader captured but didn't interpret.
 const extraAttrPropKeyPrefix = "xliff-xattr-"
@@ -762,6 +785,11 @@ type xliff2StreamState struct {
 	unitID        string
 	unitName      string
 	unitTranslate string
+	// translateStack is the inheritable XLIFF 2 `translate` flag stack:
+	// one entry per open <file>/<group> from outer to inner. Top of
+	// stack is the effective parent value for the current element.
+	// Document default is "yes" (true).
+	translateStack []bool
 	segID         string
 	blockCount    int
 	elemPositions []elemPos
@@ -779,6 +807,16 @@ type xliff2StreamState struct {
 	targets    map[model.LocaleID][]*model.Segment
 	notes      []string
 	states     []string
+}
+
+// parentTranslate returns the effective `translate` flag inherited
+// from the closest enclosing <file>/<group> on the stack. Document
+// default ("yes") is returned when the stack is empty.
+func (s *xliff2StreamState) parentTranslate() bool {
+	if n := len(s.translateStack); n > 0 {
+		return s.translateStack[n-1]
+	}
+	return true
 }
 
 // readContentStreaming uses streaming XML parsing for skeleton byte-offset tracking.
@@ -843,11 +881,16 @@ func (s *xliff2StreamState) handleStartElement(t xml.StartElement) {
 	case "file":
 		s.inFile = true
 		s.fileID = ""
+		fileTranslate := true
 		for _, a := range t.Attr {
 			if a.Name.Local == "id" {
 				s.fileID = a.Value
 			}
+			if a.Name.Local == "translate" && strings.EqualFold(a.Value, "no") {
+				fileTranslate = false
+			}
 		}
+		s.translateStack = append(s.translateStack, fileTranslate)
 		layer := &model.Layer{
 			ID:             "file-" + s.fileID,
 			Name:           s.fileID,
@@ -868,6 +911,11 @@ func (s *xliff2StreamState) handleStartElement(t xml.StartElement) {
 	case "group":
 		gs := &model.GroupStart{ID: attrValueXML(t, "id"), Name: attrValueXML(t, "name")}
 		s.reader.emit(s.ctx, s.ch, &model.Part{Type: model.PartGroupStart, Resource: gs})
+		groupTranslate := s.parentTranslate()
+		if v := attrValueXML(t, "translate"); v != "" {
+			groupTranslate = !strings.EqualFold(v, "no")
+		}
+		s.translateStack = append(s.translateStack, groupTranslate)
 	case "unit":
 		s.inUnit = true
 		s.unitID = ""
@@ -976,8 +1024,14 @@ func (s *xliff2StreamState) handleEndElement(t xml.EndElement) {
 			s.reader.emit(s.ctx, s.ch, &model.Part{Type: model.PartLayerEnd, Resource: layer})
 			s.inFile = false
 		}
+		if n := len(s.translateStack); n > 0 {
+			s.translateStack = s.translateStack[:n-1]
+		}
 	case "group":
 		s.reader.emit(s.ctx, s.ch, &model.Part{Type: model.PartGroupEnd, Resource: &model.GroupEnd{}})
+		if n := len(s.translateStack); n > 0 {
+			s.translateStack = s.translateStack[:n-1]
+		}
 	case "unit":
 		if s.inUnit {
 			s.emitUnit()
@@ -1015,9 +1069,11 @@ func (s *xliff2StreamState) handleEndElement(t xml.EndElement) {
 }
 
 func (s *xliff2StreamState) emitUnit() {
-	translatable := true
-	if strings.EqualFold(s.unitTranslate, "no") {
-		translatable = false
+	// Inherit translate from the enclosing <file>/<group> stack;
+	// the unit's own attribute (if present) overrides.
+	translatable := s.parentTranslate()
+	if s.unitTranslate != "" {
+		translatable = !strings.EqualFold(s.unitTranslate, "no")
 	}
 	block := &model.Block{
 		ID:           s.unitID,
