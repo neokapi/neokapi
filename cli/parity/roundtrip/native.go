@@ -271,6 +271,20 @@ func (e *NativeEngine) RoundTrip(t *testing.T, in Input, spec PseudoSpec) []byte
 				// matches, the existing target is the right base.
 				if forcePseudoIgnoreFileTarget || fileTargetLang.IsEmpty() || sameLanguageAs(fileTargetLang, tgt) {
 					forceSrc := forcePseudoIgnoreFileTarget && !fileTargetLang.IsEmpty() && !sameLanguageAs(fileTargetLang, tgt)
+					// xliff2: okapi's X2ToOkpConverter copies source
+					// to target for any ignorable lacking one, when
+					// at least one sibling segment has a target (line
+					// 200: "apply the source ignorable content to
+					// target unless there exists target ignorable
+					// content, but only if we had a target segment").
+					// Without this pre-pseudo seeding, pickPseudoBase
+					// returns just the existing-target subset and our
+					// ignorables come out with empty targets while
+					// okapi's are pseudo-translated. Do this BEFORE
+					// pseudo so the new targets get translated too.
+					if forcePseudoIgnoreFileTarget {
+						seedIgnorableTargetsFromSource(b, tgt)
+					}
 					applyPseudoToBlockOpts(b, spec, forceSrc)
 				}
 			}
@@ -311,6 +325,71 @@ func (e *NativeEngine) RoundTrip(t *testing.T, in Input, spec PseudoSpec) []byte
 	out := outBuf.Bytes()
 	if len(out) == 0 {
 		t.Fatalf("NativeEngine: writer produced empty output")
+	}
+	return out
+}
+
+// seedIgnorableTargetsFromSource ensures every source segment in b has
+// a matching target for tgt, by cloning the source segment into the
+// targets map (id-keyed) when no target exists for that id. Used by
+// the xliff2 native engine to mirror okapi's X2ToOkpConverter line
+// 200 source-to-target copy for ignorables that lack a target — the
+// reader doesn't synthesize these (a faithful parse keeps the source
+// asymmetry), but pseudo only operates on existing targets, so without
+// the seed our ignorables end up with empty targets while okapi's are
+// pseudo-translated.
+//
+// Only seeds when at least one source segment ALREADY has a target —
+// for unit-only-source blocks (translate="no"-style flows) we leave
+// the model untouched.
+func seedIgnorableTargetsFromSource(b *model.Block, tgt model.LocaleID) {
+	if b == nil || len(b.Source) == 0 {
+		return
+	}
+	existingTargets := b.Targets[tgt]
+	if len(existingTargets) == 0 {
+		return
+	}
+	have := make(map[string]bool, len(existingTargets))
+	for _, t := range existingTargets {
+		if t != nil {
+			have[t.ID] = true
+		}
+	}
+	if b.Targets == nil {
+		b.Targets = make(map[model.LocaleID][]*model.Segment)
+	}
+	for _, src := range b.Source {
+		if src == nil || have[src.ID] {
+			continue
+		}
+		// Only seed for ignorables (mirrors X2ToOkpConverter's check
+		// `!part.isSegment()` at line 200). Plain <segment> elements
+		// without a target stay target-less in okapi's output too.
+		if src.Properties == nil || src.Properties["xliff2:ignorable"] != "yes" {
+			continue
+		}
+		clone := &model.Segment{
+			ID:          src.ID,
+			Runs:        cloneRuns(src.Runs),
+			Annotations: map[string]model.Annotation{},
+			Properties:  src.Properties,
+		}
+		b.Targets[tgt] = append(b.Targets[tgt], clone)
+		have[src.ID] = true
+	}
+}
+
+// cloneRuns returns a deep copy of the given run slice.
+func cloneRuns(runs []model.Run) []model.Run {
+	out := make([]model.Run, 0, len(runs))
+	for _, r := range runs {
+		nr := r
+		if r.Text != nil {
+			t := *r.Text
+			nr.Text = &t
+		}
+		out = append(out, nr)
 	}
 	return out
 }

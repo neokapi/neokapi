@@ -334,6 +334,16 @@ func (r *Reader) emitUnit(ctx context.Context, ch chan<- model.PartResult, unit 
 			Annotations: map[string]model.Annotation{},
 		}
 		srcSeg.Annotations["xliff2:segment-inline"] = &SegmentInlineAnnotation{Content: &Content{Inlines: srcInlines}}
+		// Preserve <ignorable> vs <segment> distinction for downstream
+		// pipelines that need it (e.g. parity native engine seeds
+		// targets for ignorables only, mirroring okapi's
+		// X2ToOkpConverter line 200).
+		if child.Tag == "ignorable" {
+			if srcSeg.Properties == nil {
+				srcSeg.Properties = map[string]string{}
+			}
+			srcSeg.Properties["xliff2:ignorable"] = "yes"
+		}
 		srcSegs = append(srcSegs, srcSeg)
 
 		if tgtEl := child.SelectElement("target"); tgtEl != nil {

@@ -564,12 +564,17 @@ func patchUnit(unitEl *etree.Element, block *model.Block, targetLang model.Local
 		// unit was already going to be patched anyway — otherwise the
 		// byte-equal-on-untouched contract breaks for fixtures with
 		// unkeyed ignorables that the model didn't modify.
-		if segEl.Tag == "segment" {
+		//
+		// The counter increments only on UNKEYED segments — segments
+		// with an explicit id (e.g. "1239bca", "abc") don't consume a
+		// slot, mirroring okapi's Store.suggestId(false) which only
+		// numbers segments that need a synthesized id. Without this,
+		// the second unkeyed segment after an explicit-id one would
+		// land on "s2" while okapi emits "s1".
+		if segEl.Tag == "segment" && segID == "" {
 			segIDCounter++
-			if segID == "" {
-				segEl.CreateAttr("id", fmt.Sprintf("s%d", segIDCounter))
-				patched = true
-			}
+			segEl.CreateAttr("id", fmt.Sprintf("s%d", segIDCounter))
+			patched = true
 		}
 
 		if srcEl := segEl.SelectElement("source"); srcEl != nil && modelSrc != nil {
