@@ -405,6 +405,29 @@ func (r *Reader) readContentSkeleton(ctx context.Context, ch chan<- model.PartRe
 			continue
 		}
 
+		// Obsolete entries (`#~ msgid` / `#~ msgstr`): pass through as
+		// raw lines so the writer emits them verbatim. They aren't
+		// translated and don't drive parts emission, but they need to
+		// survive the round-trip to match okapi behaviour.
+		if strings.HasPrefix(line, "#~") {
+			if current == nil {
+				current = newEntry()
+			}
+			addLine(line, false, -1)
+			continue
+		}
+
+		// `domain` directive: a non-translatable directive that names
+		// the message domain. Pass it through as raw skeleton text; it
+		// has no msgid/msgstr to extract.
+		if strings.HasPrefix(line, "domain ") {
+			if current == nil {
+				current = newEntry()
+			}
+			addLine(line, false, -1)
+			continue
+		}
+
 		if strings.HasPrefix(line, "msgctxt ") {
 			if current == nil {
 				current = newEntry()

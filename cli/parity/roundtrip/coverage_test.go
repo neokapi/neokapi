@@ -412,7 +412,13 @@ func coverageScans() []formatScan {
 			nativeConfig: map[string]any{
 				"useCodeFinder": true,
 				"codeFinderRules": []any{
-					`%(([-0+#]?)[-0+#]?)((\d\$)?)(\d*)(\.\d+)?[bBhHsScCdoxXeEfgGaAtTn%]`,
+					// Match okapi's POFilter codeFinder rule
+					// (Parameters.java). The conversion-letter set
+					// includes lowercase `p` (pointer) and excludes
+					// capital `T` (which okapi treats as translatable).
+					// Width/precision allow `*` so patterns like
+					// `%*.*f` (Test03) round-trip as a single code.
+					`%(\d+\$)?[-+0 #]*(\d+|\*)?(\.(\d+|\*))?[bcdeEfgGhHsnopstxX]`,
 					`(\\r\\n)|\\a|\\b|\\f|\\n|\\r|\\t|\\v`,
 					`\{\d.*?\}`,
 				},
