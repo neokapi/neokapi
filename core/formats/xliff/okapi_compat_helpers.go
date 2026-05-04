@@ -350,30 +350,35 @@ func findAltTransEnd(b []byte, start int) int {
 
 // unwrapSingleSegMrkWhenSourceDiffers drops <seg-source>…</seg-source>
 // and unwraps a single `<mrk mid mtype="seg">…</mrk>` wrapper from
-// `<target>` content WHEN the source content differs from the
-// seg-source content (text-only comparison).
+// `<target>` content WHEN the reader flagged this trans-unit's
+// seg-source as divergent from its source.
 //
-// This mirrors okapi's XLIFFFilter.java:2278 logic: when the
+// Mirrors okapi's XLIFFFilter.java:2278 logic: when the
 // `<seg-source>` content disagrees with the `<source>` content
-// (CODE_DATA_ONLY compare), okapi falls back to the un-segmented
-// source — the segmentation markers are effectively discarded.
+// (CODE_DATA_ONLY compare with the `unwrap()` whitespace pre-pass
+// that respects xml:space), okapi falls back to the un-segmented
+// source — the segmentation markers are effectively discarded. The
+// reader applies the same comparison (with the per-unit xml:space
+// context this writer post-pass lacks) and stores the decision as a
+// `xliff:divergent-segsource` annotation on each affected Block; the
+// `divergent` bitmask here is indexed in document order matching
+// w.blocks.
 //
 // Only applied when OkapiCompatConfig.UnwrapSingleSegMrk is enabled.
-// Implementation walks each <trans-unit> and rewrites its body when
-// the divergence is detected.
-func unwrapSingleSegMrkWhenSourceDiffers(b []byte) []byte {
-	return rewriteTransUnitSpans(b, unwrapSingleSegMrkInTransUnit)
+func unwrapSingleSegMrkWhenSourceDiffers(b []byte, divergent []bool) []byte {
+	idx := 0
+	return rewriteTransUnitSpans(b, func(tu []byte) []byte {
+		i := idx
+		idx++
+		if i >= len(divergent) || !divergent[i] {
+			return tu
+		}
+		return unwrapSingleSegMrkInTransUnit(tu)
+	})
 }
 
 func unwrapSingleSegMrkInTransUnit(tu []byte) []byte {
-	srcText := extractElementText(tu, "source")
-	segSrcText := extractElementText(tu, "seg-source")
-	if segSrcText == "" {
-		return tu
-	}
-	// Compare normalized text (whitespace-insensitive). When source !=
-	// seg-source, okapi drops the segmentation.
-	if normalizeForCompare(srcText) == normalizeForCompare(segSrcText) {
+	if extractElementText(tu, "seg-source") == "" {
 		return tu
 	}
 	// Carve <alt-trans> spans out before regex passes — okapi's
@@ -469,10 +474,21 @@ var tagStripRE = regexp.MustCompile(`<[^>]+>`)
 //     identical semantic content; decoding cancels the asymmetry.
 //  2. Trim leading/trailing whitespace (CharData around the element's
 //     direct children — non-significant for content).
-//  3. NO internal whitespace collapsing: differences like
-//     `"About the  Agent"` (two spaces) vs `"About the Agent"` (one
-//     space) are real semantic differences that okapi flags as
-//     mismatches.
+//  3. NO internal whitespace collapsing here: okapi's TextContainer
+//     .unwrap is gated on xml:space ≠ "preserve"
+//     (XLIFFFilter.java:2309-2311 — `if (!preserveSpaces.peek()) {
+//     tc.unwrap(true, false); }`). about_the.htm.xlf declares
+//     `<xliff xml:space="preserve">`; one trans-unit's source has
+//     "About the  Agent" (two spaces) vs a seg-source with
+//     "About the Agent" (one space) — okapi correctly treats these
+//     as divergent and drops the seg-source segmentation. Collapsing
+//     whitespace here would mask that divergence and cause native to
+//     keep a seg-source okapi discarded.
+//
+// The whitespace-aware comparison for non-preserve trans-units happens
+// at read time (`segSourceMatchesSource` in reader.go), which has
+// access to the per-unit xml:space context this writer post-pass does
+// not.
 //
 // Inter-mrk whitespace in seg-source is naturally dropped by the
 // caller's tag-strip pre-pass (only mrk start/end tags are stripped;

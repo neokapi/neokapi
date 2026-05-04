@@ -99,6 +99,26 @@ func (w *Writer) transUnitsWithoutSourceTarget() []bool {
 	return out
 }
 
+// transUnitsWithDivergentSegSource returns a position-indexed bitmask:
+// out[i] is true when the i-th trans-unit (in document order, matching
+// w.blocks order) carries the `xliff:divergent-segsource` annotation
+// the reader sets when it dropped a `<seg-source>` whose content
+// disagreed with `<source>`. Used by the seg-source unwrap post-process
+// to drop the literal seg-source bytes that still come through from the
+// skeleton.
+func (w *Writer) transUnitsWithDivergentSegSource() []bool {
+	out := make([]bool, 0, len(w.blocks))
+	for _, block := range w.blocks {
+		if block == nil {
+			out = append(out, false)
+			continue
+		}
+		_, ok := block.Annotations["xliff:divergent-segsource"]
+		out = append(out, ok)
+	}
+	return out
+}
+
 // encoderForOkapiCompat returns the `golang.org/x/text` Encoder the
 // writer should use to drive okapi-compat encoding-conditional entity
 // escaping, or nil to disable escaping. Returns non-nil when both the
@@ -207,7 +227,7 @@ func (w *Writer) writeFromSkeleton() error {
 			w.Output = finalOut
 			rewritten := postBuf.Bytes()
 			if compat.UnwrapSingleSegMrk {
-				rewritten = unwrapSingleSegMrkWhenSourceDiffers(rewritten)
+				rewritten = unwrapSingleSegMrkWhenSourceDiffers(rewritten, w.transUnitsWithDivergentSegSource())
 			}
 			if compat.StripAltTransSegSource {
 				rewritten = stripAltTransSegSource(rewritten)

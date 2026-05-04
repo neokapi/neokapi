@@ -676,11 +676,16 @@ func coverageScans() []formatScan {
 			normalizer: roundtrip.XMLCanonical{SortAttrs: true, CollapseTextWhitespace: true, StripNamespaceDecls: true},
 			// Reader-side okapi-compat: simulate okapi's broken
 			// windows-1252 handling so SF-12-Test03's transcoded chars
-			// match okapi's lossy U+FFFD output. See
+			// match okapi's lossy U+FFFD output, plus mirror okapi's
+			// XLIFFFilter.java:2278 "drop divergent seg-source" rule
+			// at read time so RB-12-Test02.xlf's id="11withWarning"
+			// builds source segments from the un-segmented <source>
+			// rather than the inconsistent seg-source. See
 			// docs/internals/research/xliff-okapi-compat-quirks.md.
 			nativeConfig: map[string]any{
 				"okapiCompat": map[string]any{
 					"simulateBrokenWindows1252Read": true,
+					"unwrapSingleSegMrk":            true,
 				},
 			},
 			// Writer-side okapi-compat: enable every flag so neokapi's

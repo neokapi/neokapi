@@ -357,6 +357,14 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 			local := t.Name.Local
 
 			switch local {
+			case "xliff":
+				// Track xml:space at the document root so the
+				// preserveWSStack inherits when <file>, <group>, or
+				// <trans-unit> don't redeclare it. about_the.htm.xlf
+				// declares `<xliff xml:space="preserve">` and relies on
+				// inheritance for every nested element.
+				ws := xmlSpaceAttr(t.Attr)
+				preserveWSStack = append(preserveWSStack, ws == "preserve")
 			case "file":
 				fi := &fileInfo{}
 				for _, a := range t.Attr {
@@ -478,6 +486,10 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		case xml.EndElement:
 			local := t.Name.Local
 			switch local {
+			case "xliff":
+				if len(preserveWSStack) > 0 {
+					preserveWSStack = preserveWSStack[:len(preserveWSStack)-1]
+				}
 			case "file":
 				if currentFile != nil {
 					if len(preserveWSStack) > 0 {
@@ -534,6 +546,91 @@ func xmlSpaceAttr(attrs []xml.Attr) string {
 	return ""
 }
 
+// segSourceMatchesSource reports whether the text projection of a
+// `<seg-source>` body matches the corresponding `<source>` body.
+// Mirrors okapi XLIFFFilter.java:2278's CODE_DATA_ONLY compare on the
+// joined-segments form: both bodies are stripped of element tags so
+// only the character-data content (including any &lt;/&gt; entity
+// escapes that survived) and any inter-mrk text remain, then the
+// result is compared.
+//
+// The preserveWS flag corresponds to okapi's `preserveSpaces.peek()`
+// gate at XLIFFFilter.java:2309: when xml:space="preserve", okapi
+// skips the `unwrap()` pre-pass and treats every inner space as
+// significant; otherwise it collapses runs of ASCII whitespace into
+// single spaces. Working from the raw seg-source bytes (segSourceRaw)
+// rather than the parsed segment list preserves the inter-mrk text
+// that participates in okapi's joinAll comparison — important for
+// fixtures whose mrks have no inter-mrk whitespace and whose source
+// has no joining whitespace either (e.g. about_the.htm.xlf id=3,
+// where the parsed segments alone would falsely match).
+//
+// Used to gate the reader's "fall back to un-segmented source"
+// behavior under okapi-compat (matches okapi's "log error and use
+// source" decision when seg-source is inconsistent with source).
+func segSourceMatchesSource(segSourceRaw, source string, preserveWS bool) bool {
+	left := decodeBasicXMLEntities(stripInlineTags(segSourceRaw))
+	right := decodeBasicXMLEntities(stripInlineTags(source))
+	if preserveWS {
+		// xml:space="preserve" — every inner space is significant.
+		return strings.TrimSpace(left) == strings.TrimSpace(right)
+	}
+	return collapseWS(left) == collapseWS(right)
+}
+
+// stripInlineTags removes all element tags (start, end, self-closing)
+// from a fragment of XML, preserving text content. Used for text-only
+// comparison of source vs seg-source bodies.
+var inlineTagStripRE = regexp.MustCompile(`<[^>]+>`)
+
+func stripInlineTags(s string) string {
+	if !strings.Contains(s, "<") {
+		return s
+	}
+	return inlineTagStripRE.ReplaceAllString(s, "")
+}
+
+// collapseWS replaces every run of ASCII whitespace (space, tab, CR,
+// LF) with a single space and trims the result. Mirrors okapi's
+// TextContainer.unwrap whitespace collapse.
+func collapseWS(s string) string {
+	if s == "" {
+		return s
+	}
+	var b strings.Builder
+	b.Grow(len(s))
+	wasWS := false
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		if c == ' ' || c == '\t' || c == '\r' || c == '\n' {
+			if !wasWS {
+				b.WriteByte(' ')
+				wasWS = true
+			}
+			continue
+		}
+		wasWS = false
+		b.WriteByte(c)
+	}
+	return strings.TrimSpace(b.String())
+}
+
+// decodeBasicXMLEntities expands the five XML predefined entities so
+// the comparison ignores byte-level differences in how source vs
+// seg-source happened to encode `>` etc. Matches the helper in
+// okapi_compat_helpers.go used by the writer post-process pass.
+func decodeBasicXMLEntities(s string) string {
+	if !strings.Contains(s, "&") {
+		return s
+	}
+	out := strings.ReplaceAll(s, "&gt;", ">")
+	out = strings.ReplaceAll(out, "&lt;", "<")
+	out = strings.ReplaceAll(out, "&quot;", "\"")
+	out = strings.ReplaceAll(out, "&apos;", "'")
+	out = strings.ReplaceAll(out, "&amp;", "&")
+	return out
+}
+
 // parsedTransUnit holds parsed trans-unit data.
 type parsedTransUnit struct {
 	id           string
@@ -544,12 +641,13 @@ type parsedTransUnit struct {
 	maxWidth     string
 	sizeUnit     string
 
-	source     string     // raw inner XML of <source>
-	target     string     // raw inner XML of <target>
-	targetLang string     // xml:lang attribute on <target> (when <file> has no target-language)
-	hasTarget  bool       // true when the source had a <target> element (even empty/self-closing)
-	targetAttrs []xml.Attr // <target>'s own attributes (state, xml:lang, etc.) for round-trip
-	segSource  []segment  // parsed <seg-source> segments
+	source       string     // raw inner XML of <source>
+	target       string     // raw inner XML of <target>
+	targetLang   string     // xml:lang attribute on <target> (when <file> has no target-language)
+	hasTarget    bool       // true when the source had a <target> element (even empty/self-closing)
+	targetAttrs  []xml.Attr // <target>'s own attributes (state, xml:lang, etc.) for round-trip
+	segSource    []segment  // parsed <seg-source> segments
+	segSourceRaw string     // raw inner XML of <seg-source> (with mrk wrappers and inter-mrk text)
 
 	notes    []parsedNote
 	altTrans []parsedAltTrans
@@ -695,7 +793,24 @@ func (r *Reader) parseTransUnit(decoder *xml.Decoder, start xml.StartElement, fi
 					})
 				}
 			case "seg-source":
+				segSrcStart := int(decoder.InputOffset())
 				tu.segSource = parseSegSource(decoder)
+				segSrcEnd := int(decoder.InputOffset())
+				// Capture the raw inner-XML bytes so the okapi-compat
+				// "drop divergent seg-source" rule can compare source
+				// vs seg-source body-by-body — the parsed segment list
+				// loses inter-mrk whitespace that participates in
+				// okapi's joined-content compare. The slice runs from
+				// the byte just past the opening `>` of <seg-source> to
+				// the start of the closing `</seg-source>`.
+				if content != nil && segSrcStart >= 0 && segSrcEnd > segSrcStart && segSrcEnd <= len(content) {
+					// segSrcEnd is just past `</seg-source>`; trim the
+					// closing tag back off the slice.
+					closeTag := []byte("</seg-source>")
+					if end := bytes.Index(content[segSrcStart:segSrcEnd], closeTag); end >= 0 {
+						tu.segSourceRaw = string(content[segSrcStart : segSrcStart+end])
+					}
+				}
 				depth--
 				// When the trans-unit ends up needing a synthesized
 				// target (no <target> at trans-unit depth), okapi
@@ -1075,7 +1190,35 @@ func (r *Reader) buildBlock(tu *parsedTransUnit, sourceLang, targetLang model.Lo
 	}
 
 	// Build source segments
-	if len(tu.segSource) > 0 {
+	useSegSource := len(tu.segSource) > 0
+	segSourceDivergent := false
+	if useSegSource && r.cfg != nil && r.cfg.OkapiCompat.UnwrapSingleSegMrk {
+		// Mirror okapi XLIFFFilter.java:2278 — when seg-source content
+		// disagrees with <source> content (CODE_DATA_ONLY compare with
+		// the same `unwrap()` pre-pass okapi runs on both containers),
+		// okapi LOGS an error and falls back to the un-segmented
+		// <source>. The seg-source segmentation is treated as
+		// inconsistent and dropped. The downstream writer post-pass
+		// (unwrapSingleSegMrkWhenSourceDiffers) drops the seg-source
+		// bytes; mirroring the same decision at read-time means the
+		// source segments and any synthesized target match the
+		// un-segmented source rather than the divergent segmentation.
+		// Without this, RB-12-Test02.xlf's id="11withWarning" emits a
+		// concatenation of the divergent seg-source segments instead
+		// of the single-segment source. The preserveWS flag mirrors
+		// XLIFFFilter.java:2309 — okapi only collapses whitespace via
+		// unwrap when xml:space ≠ "preserve"; in preserve mode every
+		// inner space is significant, so a fixture like
+		// about_the.htm.xlf (declares xml:space="preserve") that has
+		// "About the  Agent" (two spaces) in source vs
+		// "About the Agent" (one space) in seg-source is correctly
+		// flagged as divergent.
+		if !segSourceMatchesSource(tu.segSourceRaw, tu.source, preserveWS) {
+			useSegSource = false
+			segSourceDivergent = true
+		}
+	}
+	if useSegSource {
 		// Use seg-source segments
 		block.Source = make([]*model.Segment, len(tu.segSource))
 		for i, seg := range tu.segSource {
@@ -1094,6 +1237,22 @@ func (r *Reader) buildBlock(tu *parsedTransUnit, sourceLang, targetLang model.Lo
 		block.Annotations["xliff:source-body"] = &SourceBodyNativeAnnotation{
 			Content: parseNativeContent(tu.source),
 		}
+		// When we dropped the seg-source segments, also clear the
+		// downstream segmentation hints so the writer doesn't try to
+		// re-emit a `target-inject-seg` (segmented target wrapper) for
+		// what is now a single-segment trans-unit.
+		if len(tu.segSource) > 0 {
+			tu.segSource = nil
+		}
+	}
+	// Mark the block when the reader dropped seg-source under okapi-
+	// compat so the writer post-process knows to strip the seg-source
+	// bytes (which still come through from the literal skeleton).
+	// When the reader kept seg-source, no marker is set — the writer
+	// preserves it untouched, matching okapi's "use the segmented
+	// content" branch (XLIFFFilter.java:2281-2291).
+	if segSourceDivergent {
+		block.Annotations["xliff:divergent-segsource"] = &DivergentSegSourceAnnotation{}
 	}
 
 	// Build target segments. Prefer the file's target-language; fall

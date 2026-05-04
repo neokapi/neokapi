@@ -62,6 +62,17 @@ type TargetAttrsAnnotation struct {
 // AnnotationType identifies the annotation key.
 func (a *TargetAttrsAnnotation) AnnotationType() string { return "xliff:target-attrs" }
 
+// DivergentSegSourceAnnotation marks a Block whose `<seg-source>` content
+// disagreed with `<source>` content at read time and was discarded under
+// okapi-compat (XLIFFFilter.java:2278). The writer post-process consults
+// this marker to drop the literal seg-source bytes that come through from
+// the skeleton, matching okapi's "log error and use un-segmented source"
+// branch. No payload — presence is the signal.
+type DivergentSegSourceAnnotation struct{}
+
+// AnnotationType identifies the annotation key.
+func (a *DivergentSegSourceAnnotation) AnnotationType() string { return "xliff:divergent-segsource" }
+
 func init() {
 	model.RegisterAnnotation("xliff:native", func() model.Annotation {
 		return &SegmentNativeAnnotation{Content: &NativeContent{}}
@@ -74,6 +85,9 @@ func init() {
 	})
 	model.RegisterAnnotation("xliff:target-attrs", func() model.Annotation {
 		return &TargetAttrsAnnotation{}
+	})
+	model.RegisterAnnotation("xliff:divergent-segsource", func() model.Annotation {
+		return &DivergentSegSourceAnnotation{}
 	})
 }
 

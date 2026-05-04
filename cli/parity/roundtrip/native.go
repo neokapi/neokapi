@@ -20,6 +20,30 @@ import (
 	"github.com/neokapi/neokapi/core/registry"
 )
 
+// sameLanguageAs mirrors okapi's LocaleId.sameLanguageAs: two locales
+// match when their primary language subtag is identical, regardless of
+// region/script (e.g. "fr" sameLanguageAs "fr-FR"). The pseudo gate
+// uses this rather than strict equality because okapi's XLIFFFilter
+// keeps trgLang at the request locale ("fr") whenever it's
+// sameLanguageAs the file's target-language ("fr-FR"); the existing
+// target then participates in TextModificationStep instead of being
+// preserved verbatim. Without this, native skips pseudo on bilingual
+// fixtures whose <file target-language="fr-FR"> mismatches our test
+// target "fr" — see ImplementationPlan.docx.xlf and RB-12-Test02.xlf.
+func sameLanguageAs(a, b model.LocaleID) bool {
+	return primaryLang(a) == primaryLang(b)
+}
+
+// primaryLang returns the primary language subtag, lowercased — the
+// part before the first "-" or "_". Empty input returns empty.
+func primaryLang(l model.LocaleID) string {
+	s := strings.ToLower(string(l))
+	if i := strings.IndexAny(s, "-_"); i >= 0 {
+		s = s[:i]
+	}
+	return s
+}
+
 // NativeEngine drives a neokapi format reader → PseudoTranslate tool
 // → writer pipeline in-process. The format ID is the registered
 // neokapi name (e.g. "plaintext", "html", "po") rather than the
@@ -229,21 +253,24 @@ func (e *NativeEngine) RoundTrip(t *testing.T, in Input, spec PseudoSpec) []byte
 		}
 		if res.Part.Type == model.PartBlock {
 			if b, ok := res.Part.Resource.(*model.Block); ok {
-				// When the file declares a target-language different
-				// from the test target, okapi preserves the existing
-				// target verbatim rather than transforming it
-				// (TextModificationStep gates on language match).
-				// Skip pseudo so native matches. xliff2 is the
-				// exception — okapi pseudo-translates unconditionally
-				// there, see the comment above.
+				// okapi's TextModificationStep applies whenever the
+				// request locale is sameLanguageAs the file's
+				// target-language: XLIFFFilter keeps trgLang at the
+				// request locale in that case, so the existing target
+				// participates and gets pseudo-translated. Only when
+				// the languages truly differ (e.g. file=es, request=fr)
+				// does okapi preserve the existing target verbatim and
+				// skip transformation. xliff2 is the exception — okapi
+				// pseudo-translates unconditionally there, see the
+				// comment above.
 				//
 				// For xliff2, the source is the pseudo base only when
 				// the file's existing trgLang differs from the
 				// requested target (the existing target is in the
 				// "wrong" language and gets discarded). When trgLang
 				// matches, the existing target is the right base.
-				if forcePseudoIgnoreFileTarget || fileTargetLang.IsEmpty() || fileTargetLang == tgt {
-					forceSrc := forcePseudoIgnoreFileTarget && !fileTargetLang.IsEmpty() && fileTargetLang != tgt
+				if forcePseudoIgnoreFileTarget || fileTargetLang.IsEmpty() || sameLanguageAs(fileTargetLang, tgt) {
+					forceSrc := forcePseudoIgnoreFileTarget && !fileTargetLang.IsEmpty() && !sameLanguageAs(fileTargetLang, tgt)
 					applyPseudoToBlockOpts(b, spec, forceSrc)
 				}
 			}
