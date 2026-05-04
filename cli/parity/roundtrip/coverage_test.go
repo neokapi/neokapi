@@ -516,7 +516,15 @@ func coverageScans() []formatScan {
 			filterClass: "okf_commaseparatedvalues",
 			sources:     []string{"integration-tests/okapi/src/test/resources/table"},
 			extensions:  []string{".csv"},
-			skip:        csvBridgeSkips(),
+			skip: map[string]fileSkip{
+				// Source contains Windows-1252 byte 0x96 (en-dash) with
+				// no explicit charset marker. Native preserves the raw
+				// byte; okapi treats it as invalid UTF-8 and replaces
+				// with U+FFFD. Both diverge from the fixture's true
+				// content (en-dash) — neither is "right" for parity
+				// without an explicit encoding annotation.
+				"computer_science_article.csv": {Engines: []string{"okapi"}, Reason: "fixture has Windows-1252 0x96 with no charset marker; engines disagree on invalid-byte handling"},
+			},
 			// okf_commaseparatedvalues defaults to "translate column 1
 			// across all rows including the first" (no header). Native
 			// csv defaults to "translate every cell of every data row,
