@@ -295,6 +295,27 @@ func (w *Writer) writeFromSkeleton() error {
 					return err
 				}
 				continue
+			case "target-inject-seg":
+				// Same as target-inject but the trans-unit had a
+				// <seg-source> with no sibling <target>; okapi
+				// synthesizes a *segmented* target wrapping each
+				// segment in <mrk mtype="seg" mid="…"> matching the
+				// seg-source mids (XLIFFFilter.java emits this when
+				// alignSeg/segmentation produces target=null).
+				if w.Locale.IsEmpty() {
+					continue
+				}
+				segs, _ := w.pickTargetSegments(block, targetLang)
+				if len(segs) == 0 {
+					continue
+				}
+				inj := wrapSegmentsAsMrk(segs, block.Source)
+				text = fmt.Sprintf("<target xml:lang=\"%s\">%s</target>\n",
+					xmlEscapeAttr(string(injectLang)), inj)
+				if _, err := io.WriteString(out, text); err != nil {
+					return err
+				}
+				continue
 			}
 
 			// renderXliffRuns already escapes TextRun content and emits

@@ -697,6 +697,14 @@ func (r *Reader) parseTransUnit(decoder *xml.Decoder, start xml.StartElement, fi
 			case "seg-source":
 				tu.segSource = parseSegSource(decoder)
 				depth--
+				// When the trans-unit ends up needing a synthesized
+				// target (no <target> at trans-unit depth), okapi
+				// inserts it right after </seg-source> rather than
+				// right after </source>. Reset the next-sibling probe
+				// so nextSiblingStart picks up the first element AFTER
+				// seg-source instead of seg-source itself.
+				nextSiblingStart = -1
+				awaitingNextSibling = true
 			case "note":
 				n := parseNote(decoder, t)
 				tu.notes = append(tu.notes, n)
@@ -728,11 +736,13 @@ func (r *Reader) parseTransUnit(decoder *xml.Decoder, start xml.StartElement, fi
 	// as the target's leading indent. Mirror that placement so the
 	// surrounding skeleton bytes match byte-for-byte.
 	//
-	// Skip injection when the trans-unit has a <seg-source>: in
-	// segmented mode the (already-present or alt-trans-embedded)
-	// target is part of the segmentation envelope, and okapi's writer
-	// does not synthesize an extra plain <target> alongside it.
-	if r.skeletonStore != nil && !hasTarget && sourceAfterClose >= 0 && len(tu.segSource) == 0 {
+	// Two flavors based on segmentation state:
+	//   - target-inject:        unsegmented body (the typical case).
+	//   - target-inject-seg:    seg-source is present, so the body
+	//     wraps each segment in <mrk mtype="seg" mid="…"> matching
+	//     the source segmentation (what okapi emits in segmented
+	//     trans-units that still need a synthesized target).
+	if r.skeletonStore != nil && !hasTarget && sourceAfterClose >= 0 {
 		injectAt := nextSiblingStart
 		if injectAt < 0 {
 			injectAt = transUnitCloseOff
@@ -740,11 +750,15 @@ func (r *Reader) parseTransUnit(decoder *xml.Decoder, start xml.StartElement, fi
 		if injectAt < 0 {
 			injectAt = sourceAfterClose
 		}
+		elemType := "target-inject"
+		if len(tu.segSource) > 0 {
+			elemType = "target-inject-seg"
+		}
 		positions = append(positions, elemPos{
 			startOffset: injectAt,
 			endOffset:   injectAt,
 			blockIdx:    blockIdx,
-			elemType:    "target-inject",
+			elemType:    elemType,
 		})
 	}
 
