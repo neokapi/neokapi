@@ -265,6 +265,9 @@ func (r *Reader) collectScalarRange(ctx context.Context, ch chan<- model.PartRes
 	}
 
 	text := node.Value
+	if node.Style == yamlv3.FoldedStyle {
+		text = foldMoreIndentedRuns(text)
+	}
 	if strings.TrimSpace(text) == "" {
 		return
 	}
@@ -799,6 +802,9 @@ func (r *Reader) emitScalar(ctx context.Context, ch chan<- model.PartResult, nod
 	}
 
 	text := node.Value
+	if node.Style == yamlv3.FoldedStyle {
+		text = foldMoreIndentedRuns(text)
+	}
 	if strings.TrimSpace(text) == "" {
 		return
 	}
@@ -928,6 +934,103 @@ func (r *Reader) applyCodeFinder(block *model.Block) {
 		}
 		seg.SetRuns(runs)
 	}
+}
+
+// foldMoreIndentedRuns mirrors snakeyaml's (Okapi reference parser)
+// behavior of folding consecutive more-indented lines in a `>` (folded)
+// scalar with single spaces, instead of preserving their newlines per
+// YAML 1.2 §8.1.3. yaml.v3 implements the spec correctly and yields a
+// value where more-indented lines keep their `\n` separators (e.g.
+// `"    L3\n    L4"`); snakeyaml flattens them to `"    L3 L4"`.
+//
+// The okapi YAML filter feeds its parser through a custom javacc
+// grammar (net.sf.okapi.filters.yaml.parser.IndentedBlock) that always
+// folds adjacent content lines with a space — including more-indented
+// runs — and only inserts a newline when a "skeleton" (blank) line
+// comes between them. The okapi tokenizer also strips the leading
+// indentation of each tokenized line (the parent indent stays in
+// skeleton), so when okapi joins two more-indented lines the second
+// line contributes only its non-whitespace content. To round-trip
+// byte-equal with okapi's writer, we pre-fold the value here so the
+// writer's encoder sees the same shape snakeyaml would have produced
+// and emits it back identically.
+//
+// Rule: between any two non-empty value lines separated by EXACTLY one
+// `\n`, where BOTH lines start with whitespace (more-indented),
+// replace the `\n` plus the second line's leading whitespace with a
+// single space. The first line's leading whitespace is preserved so
+// the writer can re-emit the more-indented content at the right
+// column. Runs of `\n\n` or longer (paragraph boundaries) are
+// preserved as-is — those represent source blank lines, which
+// snakeyaml emits as separate text spans linked by `lb` codes.
+func foldMoreIndentedRuns(s string) string {
+	if !strings.Contains(s, "\n") {
+		return s
+	}
+	var b strings.Builder
+	b.Grow(len(s))
+	i := 0
+	n := len(s)
+	for i < n {
+		// Walk to the next `\n`.
+		j := i
+		for j < n && s[j] != '\n' {
+			j++
+		}
+		b.WriteString(s[i:j])
+		if j >= n {
+			return b.String()
+		}
+		// Count consecutive `\n` starting at j.
+		k := j
+		for k < n && s[k] == '\n' {
+			k++
+		}
+		runLen := k - j
+		if runLen == 1 {
+			prev := s[i:j]
+			// Find the next line's text bounds and its leading
+			// whitespace length.
+			lineStart := k
+			ws := 0
+			for lineStart+ws < n && (s[lineStart+ws] == ' ' || s[lineStart+ws] == '\t') {
+				ws++
+			}
+			textStart := lineStart + ws
+			textEnd := textStart
+			for textEnd < n && s[textEnd] != '\n' {
+				textEnd++
+			}
+			nextHasContent := textEnd > textStart
+			if len(prev) > 0 && nextHasContent && isMoreIndentedLine(prev) && ws > 0 {
+				// Fold: replace the single `\n` + leading whitespace
+				// with one space, then continue scanning from the
+				// non-whitespace start of the second line. The first
+				// line's existing indent is preserved so the writer
+				// re-emits the more-indented column unchanged.
+				b.WriteByte(' ')
+				i = textStart
+				continue
+			}
+		}
+		// Preserve the `\n` run as-is.
+		b.WriteString(s[j:k])
+		i = k
+	}
+	return b.String()
+}
+
+// isMoreIndentedLine reports whether a value line starts with
+// whitespace (space or tab), marking it as a "more-indented" line in
+// folded-scalar terms. yaml.v3 strips the block-scalar content indent
+// before returning the value; whatever leading whitespace remains is
+// "more than the content indent" and counts as more-indented.
+func isMoreIndentedLine(line string) bool {
+	if line == "" {
+		return false
+	}
+	c := line[0]
+	return c == ' ' || c == '\t'
 }
 
 // Close releases resources.
