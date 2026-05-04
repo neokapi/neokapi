@@ -491,6 +491,12 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 							block.Targets = make(map[model.LocaleID][]*model.Segment)
 						}
 						block.Targets[targetLocale] = segs
+						// Snapshot the original numerusforms verbatim so
+						// the writer can decide whether downstream steps
+						// modified any plural form (mirrors okapi's
+						// APPROVED-property → "unfinished" flip on
+						// content change).
+						block.Properties["_orig_target_text"] = strings.Join(numerusForms, "\x1f")
 					} else {
 						targetText := transBuilder.String()
 						if targetText != "" || transType == "unfinished" {
@@ -500,6 +506,11 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 								block.SetTargetText(targetLocale, targetText)
 							}
 						}
+						// Snapshot the original target text (even when
+						// empty) so the writer can detect downstream
+						// modification and flip the `type="unfinished"`
+						// flag the way okapi's APPROVED placeholder does.
+						block.Properties["_orig_target_text"] = targetText
 					}
 
 					// Store comments as annotations

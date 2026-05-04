@@ -1,6 +1,7 @@
 package ts
 
 import (
+	"bytes"
 	"context"
 	"encoding/xml"
 	"errors"
@@ -122,6 +123,26 @@ func (w *Writer) writeFromSkeleton() error {
 		targetLocale = w.Locale
 	}
 
+	firstText := true
+	// pendingText buffers the most recent SkeletonText chunk so we can
+	// rewrite the trailing `<translation …>` opening tag right before
+	// the matching translation ref reaches the output. Okapi's
+	// TsFilter renders the `type` attribute via an APPROVED-property
+	// placeholder that flips to "unfinished" whenever the translation
+	// content has been modified by a downstream step (TextModificationStep,
+	// pseudo, MT, …). The native pipeline always rewrites the target
+	// content via the ref, so we always need to force the `type` flip.
+	var pendingText []byte
+	flushPending := func() error {
+		if len(pendingText) > 0 {
+			if _, err := w.Output.Write(pendingText); err != nil {
+				return err
+			}
+			pendingText = pendingText[:0]
+		}
+		return nil
+	}
+
 	for {
 		entry, err := w.skeletonStore.Next()
 		if errors.Is(err, io.EOF) {
@@ -132,9 +153,29 @@ func (w *Writer) writeFromSkeleton() error {
 		}
 		switch entry.Type {
 		case format.SkeletonText:
-			if _, err := w.Output.Write(entry.Data); err != nil {
+			if err := flushPending(); err != nil {
 				return err
 			}
+			data := entry.Data
+			if firstText {
+				// The first skeleton text chunk contains the document
+				// prologue (XML declaration + DOCTYPE + the `<TS …>`
+				// element opening). Okapi's TsFilter rewrites this
+				// prologue when it serializes back: it force-emits
+				// `<?xml version="1.0" encoding="UTF-8"?>` (Woodstox
+				// normalises the encoding token to its canonical
+				// uppercase form, drops the `standalone` attribute) and
+				// emits the DOCTYPE via Woodstox's
+				// `dtd.getDocumentTypeDeclaration()` which always
+				// renders the internal-subset brackets even when the
+				// source had `<!DOCTYPE TS>` with no subset. Mirror
+				// both rewrites so the parity round-trip matches the
+				// reference engine instead of preserving the source's
+				// original prologue verbatim.
+				data = normalizeTSPrologue(data)
+				firstText = false
+			}
+			pendingText = append(pendingText[:0], data...)
 		case format.SkeletonRef:
 			// Ref ID is "blockIdx:elemType" where blockIdx is 0-based
 			refID := string(entry.Data)
@@ -148,6 +189,25 @@ func (w *Writer) writeFromSkeleton() error {
 			}
 			block := w.allBlocks[blockIdx]
 			elemType := refSuffix
+
+			// For translation refs, rewrite the trailing
+			// `<translation …>` opening tag in the buffered skeleton
+			// text so it carries `type="unfinished"` whenever the
+			// new target text differs from the snapshot the reader
+			// captured. Okapi's TsFilter renders the type attribute
+			// via an APPROVED-property placeholder that flips to
+			// "unfinished" the moment a downstream step modifies the
+			// translation content. The native equivalent is comparing
+			// the rendered text against `_orig_target_text` so an
+			// untouched round-trip stays byte-exact while a modified
+			// one (pseudo / MT / manual edit) gets the unfinished flag.
+			if (elemType == "translation" || elemType == "numerus_translation") &&
+				shouldEmitUnfinished(block) {
+				pendingText = forceTranslationUnfinished(pendingText)
+			}
+			if err := flushPending(); err != nil {
+				return err
+			}
 
 			var text string
 			switch elemType {
@@ -206,7 +266,111 @@ func (w *Writer) writeFromSkeleton() error {
 			}
 		}
 	}
+	if err := flushPending(); err != nil {
+		return err
+	}
 	return nil
+}
+
+// shouldEmitUnfinished reports whether the writer must rewrite the
+// `<translation …>` opening tag to carry `type="unfinished"`. The
+// rule mirrors okapi's TsFilter:
+//
+//   - Source already declared `type="unfinished"` → keep flag.
+//   - Source had no `type` but the original target content was empty
+//     (or whitespace-only) → flip to `type="unfinished"`. This is the
+//     `targetIsEmpty()` branch in TsFilter.generate(): an empty
+//     `<translation></translation>` becomes `<translation
+//     type="unfinished">…</translation>` with the synthesized
+//     content (typically the source text or a pseudo-translation
+//     of it).
+//   - Source had `type` but it was non-empty (approved translation
+//     with content) → no flag, even if a downstream step modified
+//     the content. Okapi preserves approved=yes through pseudo /
+//     TextModificationStep — the only mutation is the empty-target
+//     branch above.
+//   - Source had `type="obsolete"` → caller doesn't reach this
+//     function (obsolete blocks are non-translatable).
+func shouldEmitUnfinished(block *model.Block) bool {
+	if block.Properties["type"] == "unfinished" {
+		return true
+	}
+	orig, ok := block.Properties["_orig_target_text"]
+	if !ok {
+		// No snapshot — covers blocks constructed programmatically.
+		// Default to unfinished (safer than emitting an approved
+		// translation with un-vetted content).
+		return true
+	}
+	return strings.TrimSpace(orig) == ""
+}
+
+// forceTranslationUnfinished rewrites the LAST `<translation …>`
+// opening tag in buf to carry `type="unfinished"`. If the tag already
+// has a `type` attribute (any value other than "obsolete"), replace
+// it with `unfinished`. If the tag has `type="obsolete"`, leave it
+// alone — obsolete entries pass through verbatim. If the tag has no
+// `type` attribute at all, insert `type="unfinished"` immediately
+// after `<translation`.
+//
+// Returns the (possibly rewritten) buffer. If buf doesn't end in a
+// `<translation …>` opening tag, returns buf unchanged.
+func forceTranslationUnfinished(buf []byte) []byte {
+	// Find the last `<translation` in buf followed eventually by `>`.
+	// Limit the search to a reasonable suffix so we don't wander into
+	// previous messages.
+	open := bytes.LastIndex(buf, []byte("<translation"))
+	if open < 0 {
+		return buf
+	}
+	// Locate the closing `>` of the opening tag.
+	closeIdx := bytes.IndexByte(buf[open:], '>')
+	if closeIdx < 0 {
+		return buf
+	}
+	closeIdx += open
+	tag := buf[open : closeIdx+1] // includes < and >
+	body := tag[len("<translation"):]
+	body = body[:len(body)-1] // strip trailing `>`
+
+	// Already has type="…"? Find existing type attribute.
+	if i := bytes.Index(body, []byte(" type=")); i >= 0 {
+		quoteStart := i + len(" type=")
+		if quoteStart >= len(body) {
+			return buf
+		}
+		quote := body[quoteStart]
+		if quote != '"' && quote != '\'' {
+			return buf
+		}
+		valEnd := bytes.IndexByte(body[quoteStart+1:], quote)
+		if valEnd < 0 {
+			return buf
+		}
+		valEnd += quoteStart + 1
+		existing := string(body[quoteStart+1 : valEnd])
+		if existing == "obsolete" {
+			return buf
+		}
+		// Replace the existing value with `unfinished`.
+		newBody := append([]byte{}, body[:quoteStart+1]...)
+		newBody = append(newBody, "unfinished"...)
+		newBody = append(newBody, body[valEnd:]...)
+		newTag := append([]byte("<translation"), newBody...)
+		newTag = append(newTag, '>')
+		out := append([]byte{}, buf[:open]...)
+		out = append(out, newTag...)
+		return out
+	}
+
+	// No type attribute — insert ` type="unfinished"` right after
+	// `<translation`.
+	newTag := append([]byte("<translation"), ` type="unfinished"`...)
+	newTag = append(newTag, body...)
+	newTag = append(newTag, '>')
+	out := append([]byte{}, buf[:open]...)
+	out = append(out, newTag...)
+	return out
 }
 
 func (w *Writer) flush() error {
@@ -448,6 +612,90 @@ func writeTSRunsXML(buf *strings.Builder, runs []model.Run) {
 			}
 		}
 	}
+}
+
+// normalizeTSPrologue rewrites the document prologue at the start of
+// the first skeleton-text chunk to match what okapi's TsFilter
+// produces on output:
+//
+//   - The XML declaration is force-emitted as
+//     `<?xml version="1.0" encoding="UTF-8"?>` regardless of what the
+//     source declared. Woodstox normalises the encoding token to its
+//     canonical (UTF-8) form and the filter discards the `standalone`
+//     attribute.
+//   - The DOCTYPE renders the internal-subset brackets — Woodstox's
+//     `dtd.getDocumentTypeDeclaration()` always returns
+//     `<!DOCTYPE TS []>` even when the source had `<!DOCTYPE TS>`
+//     with no subset. Existing internal subsets pass through.
+//   - Source line endings (CRLF / LF) and any leading BOM are
+//     preserved.
+//
+// When the source had no XML declaration at all (Qt's lupdate emits
+// some files that way), insert one. When the source had no DOCTYPE,
+// don't add one — Woodstox only fires a DTD event when the source
+// actually contained one.
+func normalizeTSPrologue(data []byte) []byte {
+	// Preserve a leading UTF-8 BOM if present.
+	var bom []byte
+	body := data
+	if len(body) >= 3 && body[0] == 0xEF && body[1] == 0xBB && body[2] == 0xBF {
+		bom = body[:3]
+		body = body[3:]
+	}
+
+	// Skip leading whitespace before any markup so we recognise the
+	// XML declaration even when the source had a stray newline first.
+	leadStart := 0
+	for leadStart < len(body) {
+		c := body[leadStart]
+		if c != ' ' && c != '\t' && c != '\n' && c != '\r' {
+			break
+		}
+		leadStart++
+	}
+	leading := body[:leadStart]
+	body = body[leadStart:]
+
+	// Rewrite or insert the XML declaration.
+	canonicalDecl := []byte(`<?xml version="1.0" encoding="UTF-8"?>`)
+	if bytes.HasPrefix(body, []byte("<?xml")) {
+		if end := bytes.Index(body, []byte("?>")); end >= 0 {
+			tail := append([]byte{}, body[end+2:]...)
+			body = append(append([]byte{}, canonicalDecl...), tail...)
+		}
+	} else {
+		// Source had no XML declaration. Okapi prepends one with no
+		// trailing line break (TsFilter.open: `skel.append("\"?>");`),
+		// so whatever followed the missing declaration in the source
+		// (DOCTYPE, root element, leading whitespace) appears
+		// immediately after.
+		tail := append([]byte{}, body...)
+		body = append(append([]byte{}, canonicalDecl...), tail...)
+	}
+
+	// Force `[]` into a bracket-less DOCTYPE TS declaration. Skip if
+	// the source already has an internal subset (the `[` appears
+	// before the closing `>`).
+	if idx := bytes.Index(body, []byte("<!DOCTYPE TS")); idx >= 0 {
+		afterTag := idx + len("<!DOCTYPE TS")
+		if closeIdx := bytes.IndexByte(body[afterTag:], '>'); closeIdx >= 0 {
+			closeIdx += afterTag
+			between := body[afterTag:closeIdx]
+			if !bytes.ContainsRune(between, '[') {
+				rebuilt := make([]byte, 0, len(body)+3)
+				rebuilt = append(rebuilt, body[:idx]...)
+				rebuilt = append(rebuilt, "<!DOCTYPE TS []"...)
+				rebuilt = append(rebuilt, body[closeIdx:]...)
+				body = rebuilt
+			}
+		}
+	}
+
+	out := make([]byte, 0, len(bom)+len(leading)+len(body))
+	out = append(out, bom...)
+	out = append(out, leading...)
+	out = append(out, body...)
+	return out
 }
 
 // xmlEscape escapes special XML characters.

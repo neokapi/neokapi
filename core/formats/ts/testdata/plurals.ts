@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE TS>
+<!DOCTYPE TS []>
 <TS version="2.1" language="ro_RO" sourcelanguage="en">
 <context>
     <name>FileDialog</name>

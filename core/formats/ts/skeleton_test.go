@@ -44,7 +44,7 @@ func snippetRoundtripWithSkeleton(t *testing.T, input string) string {
 func TestSkeletonStore_ByteExact_SimpleTS(t *testing.T) {
 	t.Parallel()
 	input := `<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE TS>
+<!DOCTYPE TS []>
 <TS version="2.1" language="fr" sourcelanguage="en">
 <context>
     <name>MainWindow</name>
@@ -84,7 +84,7 @@ func TestSkeletonStore_ByteExact_BilingualFile(t *testing.T) {
 func TestSkeletonStore_ByteExact_MultipleContexts(t *testing.T) {
 	t.Parallel()
 	input := `<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE TS>
+<!DOCTYPE TS []>
 <TS version="2.1" language="de" sourcelanguage="en">
 <context>
     <name>FileDialog</name>
@@ -109,7 +109,7 @@ func TestSkeletonStore_ByteExact_MultipleContexts(t *testing.T) {
 func TestSkeletonStore_ByteExact_WithComments(t *testing.T) {
 	t.Parallel()
 	input := `<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE TS>
+<!DOCTYPE TS []>
 <TS version="2.1" language="fr" sourcelanguage="en">
 <context>
     <name>MainWindow</name>
@@ -128,7 +128,7 @@ func TestSkeletonStore_ByteExact_WithComments(t *testing.T) {
 func TestSkeletonStore_ByteExact_EmptyTranslation(t *testing.T) {
 	t.Parallel()
 	input := `<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE TS>
+<!DOCTYPE TS []>
 <TS version="2.1" language="fr" sourcelanguage="en">
 <context>
     <name>Test</name>
@@ -146,7 +146,7 @@ func TestSkeletonStore_ByteExact_EmptyTranslation(t *testing.T) {
 func TestSkeletonStore_WithTranslation(t *testing.T) {
 	t.Parallel()
 	input := `<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE TS>
+<!DOCTYPE TS []>
 <TS version="2.1" language="fr" sourcelanguage="en">
 <context>
     <name>MainWindow</name>
@@ -193,7 +193,7 @@ func TestSkeletonStore_WithTranslation(t *testing.T) {
 	writer.Close()
 
 	expected := `<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE TS>
+<!DOCTYPE TS []>
 <TS version="2.1" language="fr" sourcelanguage="en">
 <context>
     <name>MainWindow</name>
@@ -210,7 +210,7 @@ func TestSkeletonStore_WithTranslation(t *testing.T) {
 func TestSkeletonStore_WithTranslation_Escaping(t *testing.T) {
 	t.Parallel()
 	input := `<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE TS>
+<!DOCTYPE TS []>
 <TS version="2.1" language="fr" sourcelanguage="en">
 <context>
     <name>Test</name>
@@ -254,13 +254,17 @@ func TestSkeletonStore_WithTranslation_Escaping(t *testing.T) {
 	require.NoError(t, writer.Write(ctx, ch))
 	writer.Close()
 
-	assert.Contains(t, buf.String(), "<translation>A &amp; B &lt; C</translation>")
+	// The original translation was empty and we now write "A & B < C",
+	// so the writer flips the opening tag to `type="unfinished"` to
+	// mirror okapi's APPROVED-property → unfinished behavior on
+	// content change.
+	assert.Contains(t, buf.String(), `<translation type="unfinished">A &amp; B &lt; C</translation>`)
 }
 
 func TestSkeletonStore_ByteExact_Unicode(t *testing.T) {
 	t.Parallel()
 	input := `<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE TS>
+<!DOCTYPE TS []>
 <TS version="2.1" language="ja" sourcelanguage="en">
 <context>
     <name>Test</name>
