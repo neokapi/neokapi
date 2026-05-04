@@ -601,26 +601,49 @@ func scanPlainScalarEnd(content []byte, start int, value string) int {
 	return i
 }
 
-// scalarStartColumn returns the 0-based column of the FIRST
-// non-whitespace character on the line containing `start`. For plain
-// scalars this is the column of the mapping key (or list-item dash)
-// that introduces the value, not the column of the value itself.
+// scalarStartColumn returns the 0-based indent threshold a follow-on
+// line must exceed to count as a plain-scalar continuation.
 //
-// YAML plain-scalar continuation rule: subsequent lines are part of
-// the same scalar when their indent is strictly greater than the
-// column of the key/dash that introduces the scalar — so this is the
-// correct threshold for deciding whether a follow-on line continues
+// For a mapping-value scalar (`key: value` or `- key: value`) the
+// threshold is the column of `key` — sibling keys at that column close
 // the scalar.
+//
+// For a list-item-value scalar (`- value`) the threshold is the column
+// of `-` — sibling list items at that column close the scalar.
+//
+// Without the mapping-vs-list distinction a `- key: value\n  sibkey: …`
+// pattern (mapping inside a sequence) would mis-classify the sibling
+// `sibkey` line as a continuation of the first value, swallowing it
+// from the skeleton and producing concatenated output on round-trip.
 func scalarStartColumn(content []byte, start int) int {
 	// Walk back to the start of the line.
 	lineStart := start
 	for lineStart > 0 && content[lineStart-1] != '\n' {
 		lineStart--
 	}
-	// Skip leading whitespace to find the key's column.
+	// Skip leading whitespace.
 	col := 0
 	for lineStart+col < len(content) && (content[lineStart+col] == ' ' || content[lineStart+col] == '\t') {
 		col++
+	}
+	// If the line is a list item (`- ` after the indent), and a `:` lives
+	// between the dash and the scalar value, the scalar is a mapping
+	// value embedded in a sequence — the threshold is the key's column
+	// (right after `- `), not the dash's column.
+	if lineStart+col+1 < len(content) && content[lineStart+col] == '-' && content[lineStart+col+1] == ' ' {
+		keyCol := col + 2
+		// Look for `:` between key and scalar start (which is at `start`,
+		// already past tag prefix). Presence of `:` => mapping value.
+		hasColon := false
+		for i := lineStart + keyCol; i < start && i < len(content) && content[i] != '\n'; i++ {
+			if content[i] == ':' {
+				hasColon = true
+				break
+			}
+		}
+		if hasColon {
+			return keyCol
+		}
 	}
 	return col
 }
