@@ -1,6 +1,7 @@
 package po
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -19,6 +20,18 @@ type Writer struct {
 	inPlural      bool
 	pluralGroup   []*model.Block
 	pendingBlock  bool // true if we've written metadata (comment/ref/flags) for the next block
+	lineEnd       string
+}
+
+// nl returns the writer's line separator. CRLF when the skeleton's
+// first text entry contained \r\n (Windows / okapi-emitted .po), else
+// LF. msgstr value lines use the same separator so the round-trip
+// stays byte-stable.
+func (w *Writer) nl() string {
+	if w.lineEnd == "" {
+		return "\n"
+	}
+	return w.lineEnd
 }
 
 // Ensure Writer implements SkeletonStoreConsumer.
@@ -98,6 +111,9 @@ func (w *Writer) writeFromSkeleton(blocks map[string]*model.Block) error {
 		}
 		switch entry.Type {
 		case format.SkeletonText:
+			if w.lineEnd == "" && bytes.Contains(entry.Data, []byte("\r\n")) {
+				w.lineEnd = "\r\n"
+			}
 			if _, err := w.Output.Write(entry.Data); err != nil {
 				return err
 			}
@@ -130,7 +146,7 @@ func (w *Writer) writeBlockAsMsgstr(blocks map[string]*model.Block, refID string
 	block, ok := blocks[refID]
 	if !ok {
 		// Block not found — write empty msgstr field
-		_, err := fmt.Fprintf(w.Output, "%s \"\"\n", fieldName)
+		_, err := fmt.Fprintf(w.Output, "%s \"\"%s", fieldName, w.nl())
 		return err
 	}
 
@@ -365,10 +381,11 @@ func (w *Writer) writePluralGroup() error {
 // writeMultilineField writes a PO field, using multiline format if the value
 // contains newlines (other than a trailing one).
 func (w *Writer) writeMultilineField(field, value string) error {
+	nl := w.nl()
 	// Check if value needs multiline: contains embedded newlines
 	if strings.Contains(value, "\n") && value != "" {
 		// Multiline: start with empty string, then continuation lines
-		if _, err := fmt.Fprintf(w.Output, "%s \"\"\n", field); err != nil {
+		if _, err := fmt.Fprintf(w.Output, "%s \"\"%s", field, nl); err != nil {
 			return err
 		}
 		lines := strings.Split(value, "\n")
@@ -381,14 +398,14 @@ func (w *Writer) writeMultilineField(field, value string) error {
 			if i < len(lines)-1 {
 				suffix = "\\n"
 			}
-			if _, err := fmt.Fprintf(w.Output, "\"%s%s\"\n", escapePO(line), suffix); err != nil {
+			if _, err := fmt.Fprintf(w.Output, "\"%s%s\"%s", escapePO(line), suffix, nl); err != nil {
 				return err
 			}
 		}
 		return nil
 	}
 
-	_, err := fmt.Fprintf(w.Output, "%s %s\n", field, quotePO(value))
+	_, err := fmt.Fprintf(w.Output, "%s %s%s", field, quotePO(value), nl)
 	return err
 }
 

@@ -18,10 +18,21 @@ import (
 // Reader implements DataFormatReader for PO (gettext) files.
 type Reader struct {
 	format.BaseFormatReader
-	cfg           *Config
-	skeletonStore *format.SkeletonStore
-	skelBuf       bytes.Buffer // coalesces skeleton text between refs
+	cfg             *Config
+	skeletonStore   *format.SkeletonStore
+	skelBuf         bytes.Buffer // coalesces skeleton text between refs
+	hadUTF8BOM      bool         // input started with EF BB BF
+	crlfLineEndings bool         // input used \r\n (Windows / okapi-emitted) line endings
 }
+
+// HadUTF8BOM reports whether the input started with a UTF-8 BOM. The
+// writer uses this to re-emit the BOM when its OriginalContent comes
+// from this reader.
+func (r *Reader) HadUTF8BOM() bool { return r.hadUTF8BOM }
+
+// CRLFLineEndings reports whether the input used \r\n line endings.
+// Used by the writer to re-emit CRLF on round-trip.
+func (r *Reader) CRLFLineEndings() bool { return r.crlfLineEndings }
 
 // Ensure Reader implements SkeletonStoreEmitter.
 var _ format.SkeletonStoreEmitter = (*Reader)(nil)
@@ -72,10 +83,14 @@ func (r *Reader) Open(ctx context.Context, doc *model.RawDocument) error {
 	if err != nil {
 		return fmt.Errorf("po: reading: %w", err)
 	}
+	r.hadUTF8BOM = len(raw) >= 3 && raw[0] == 0xEF && raw[1] == 0xBB && raw[2] == 0xBF
 	utf8Bytes, _, err := coreenc.ToUTF8(raw)
 	if err != nil {
 		return fmt.Errorf("po: transcoding to UTF-8: %w", err)
 	}
+	// Detect CRLF line endings before normalising. Most parsers want LF
+	// only; the writer re-emits CRLF when the source had it.
+	r.crlfLineEndings = bytes.Contains(utf8Bytes, []byte("\r\n"))
 	doc.Reader = io.NopCloser(bytes.NewReader(utf8Bytes))
 	r.Doc = doc
 	return nil
@@ -291,6 +306,13 @@ func (r *Reader) readContentNormal(ctx context.Context, ch chan<- model.PartResu
 // the ref.
 func (r *Reader) readContentSkeleton(ctx context.Context, ch chan<- model.PartResult, targetLocale model.LocaleID) {
 	scanner := bufio.NewScanner(r.Doc.Reader)
+
+	// Re-emit the original UTF-8 BOM so the writer's output matches
+	// BOM-prefixed source fixtures byte-for-byte. Direct skel buffer
+	// write so the CRLF rewrite in skelText doesn't mangle the BOM.
+	if r.hadUTF8BOM {
+		r.skelBuf.WriteString("\ufeff")
+	}
 
 	type fieldType int
 	const (
@@ -849,11 +871,18 @@ func unquotePO(s string) string {
 	return buf.String()
 }
 
-// skelText appends text to the skeleton buffer if active.
+// skelText appends text to the skeleton buffer if active. When the
+// source used CRLF line endings, every \n in the appended text is
+// rewritten to \r\n so the writer's output matches Windows-authored or
+// okapi-emitted .po files byte-for-byte.
 func (r *Reader) skelText(s string) {
-	if r.skeletonStore != nil && s != "" {
-		r.skelBuf.WriteString(s)
+	if r.skeletonStore == nil || s == "" {
+		return
 	}
+	if r.crlfLineEndings {
+		s = strings.ReplaceAll(s, "\n", "\r\n")
+	}
+	r.skelBuf.WriteString(s)
 }
 
 // skelRef flushes buffered text and writes a block reference to the skeleton store.
