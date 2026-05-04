@@ -99,6 +99,10 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		ch <- model.PartResult{Error: fmt.Errorf("tmx: reading: %w", err)}
 		return
 	}
+	// Capture a UTF-8 BOM presence flag before ToUTF8 strips it so the
+	// writer can re-emit it via the skeleton; without this, BOM-prefixed
+	// fixtures (e.g. ImportTest2C.tmx) lose their BOM on round-trip.
+	hadUTF8BOM := len(content) >= 3 && content[0] == 0xEF && content[1] == 0xBB && content[2] == 0xBF
 	// Real-world TMX (Trados, Windows-native editors) is often UTF-16
 	// LE/BE with a BOM. Transcode upfront so the XML parser and
 	// skeleton offsets all see UTF-8 bytes.
@@ -248,25 +252,33 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 
 			case "bpt":
 				if inSeg && segBuilder != nil {
-					id, spanType := extractInlineAttrs(t.Attr)
+					id, spanType, sourceX := extractInlineAttrs(t.Attr)
 					segBuilder.startInline("bpt", id, spanType)
+					segBuilder.currentInline.sourceX = sourceX
 				}
 
 			case "ept":
 				if inSeg && segBuilder != nil {
-					id, _ := extractInlineAttrs(t.Attr)
+					id, _, sourceX := extractInlineAttrs(t.Attr)
 					segBuilder.startInline("ept", id, "")
+					segBuilder.currentInline.sourceX = sourceX
 				}
 
 			case "ph":
 				if inSeg && segBuilder != nil {
-					id, spanType := extractInlineAttrs(t.Attr)
+					id, spanType, sourceX := extractInlineAttrs(t.Attr)
 					segBuilder.startInline("ph", id, spanType)
+					segBuilder.currentInline.sourceX = sourceX
+					for _, attr := range t.Attr {
+						if attr.Name.Local == "assoc" {
+							segBuilder.currentInline.assoc = attr.Value
+						}
+					}
 				}
 
 			case "it":
 				if inSeg && segBuilder != nil {
-					id, spanType := extractInlineAttrs(t.Attr)
+					id, spanType, sourceX := extractInlineAttrs(t.Attr)
 					pos := ""
 					for _, attr := range t.Attr {
 						if attr.Name.Local == "pos" {
@@ -275,12 +287,14 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 					}
 					segBuilder.startInline("it", id, spanType)
 					segBuilder.currentInline.pos = pos
+					segBuilder.currentInline.sourceX = sourceX
 				}
 
 			case "hi":
 				if inSeg && segBuilder != nil {
-					id, spanType := extractInlineAttrs(t.Attr)
+					id, spanType, sourceX := extractInlineAttrs(t.Attr)
 					segBuilder.startInline("hi", id, spanType)
+					segBuilder.currentInline.sourceX = sourceX
 				}
 
 			case "sub":
@@ -419,6 +433,11 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 
 	// Build skeleton from collected seg positions
 	if r.skeletonStore != nil && len(segPositions) > 0 {
+		// Re-emit the original UTF-8 BOM so the writer's output
+		// matches BOM-prefixed source fixtures byte-for-byte.
+		if hadUTF8BOM {
+			r.skelText("\ufeff")
+		}
 		skelPos := 0
 		for _, sp := range segPositions {
 			// Write skeleton text from skelPos to seg content start
@@ -479,6 +498,8 @@ type inlineState struct {
 	id       string
 	spanType string
 	pos      string // for <it>: begin/end
+	assoc    string // for <ph>: assoc attribute (e.g. "p")
+	sourceX  string // raw `x=` attribute as it appeared in source TMX
 	data     strings.Builder
 }
 
@@ -538,32 +559,40 @@ func (b *segContentBuilder) endInline(elemType string) {
 	// reconstruct the inline as <ph>, <bpt>, <ept>, <it pos=...>, or
 	// <hi>. Without this the runs collapse to PcOpen/PcClose/Ph and the
 	// element identity is lost on round-trip.
+	// Equiv preserves the original `x=` attribute when present in the
+	// source TMX. Without this, the writer falls back to a per-seg counter
+	// or uses the (paired) `i` value, both of which lose source-x identity
+	// when authors set explicit, non-sequential x values (e.g.
+	// <bpt x="2" i="1">).
 	switch inline.elemType {
 	case "bpt":
 		b.runs = append(b.runs, model.Run{PcOpen: &model.PcOpenRun{
-			ID: spanID, SubType: "tmx-bpt", Type: inline.spanType, Data: data,
+			ID: spanID, SubType: "tmx-bpt", Type: inline.spanType, Data: data, Equiv: inline.sourceX,
 		}})
 	case "ept":
 		b.runs = append(b.runs, model.Run{PcClose: &model.PcCloseRun{
-			ID: spanID, SubType: "tmx-ept", Data: data,
+			ID: spanID, SubType: "tmx-ept", Data: data, Equiv: inline.sourceX,
 		}})
 	case "ph":
+		// Disp carries the optional `assoc` attribute (TMX-specific —
+		// "p"=preceding, "f"=following, "b"=both) so the writer can
+		// re-emit it; PlaceholderRun has no dedicated property bag.
 		b.runs = append(b.runs, model.Run{Ph: &model.PlaceholderRun{
-			ID: spanID, SubType: "tmx-ph", Type: inline.spanType, Data: data,
+			ID: spanID, SubType: "tmx-ph", Type: inline.spanType, Data: data, Disp: inline.assoc, Equiv: inline.sourceX,
 		}})
 	case "it":
 		switch inline.pos {
 		case "begin":
 			b.runs = append(b.runs, model.Run{PcOpen: &model.PcOpenRun{
-				ID: spanID, SubType: "tmx-it-begin", Type: inline.spanType, Data: data,
+				ID: spanID, SubType: "tmx-it-begin", Type: inline.spanType, Data: data, Equiv: inline.sourceX,
 			}})
 		case "end":
 			b.runs = append(b.runs, model.Run{PcClose: &model.PcCloseRun{
-				ID: spanID, SubType: "tmx-it-end", Type: inline.spanType, Data: data,
+				ID: spanID, SubType: "tmx-it-end", Type: inline.spanType, Data: data, Equiv: inline.sourceX,
 			}})
 		default:
 			b.runs = append(b.runs, model.Run{Ph: &model.PlaceholderRun{
-				ID: spanID, SubType: "tmx-it", Type: inline.spanType, Data: data,
+				ID: spanID, SubType: "tmx-it", Type: inline.spanType, Data: data, Equiv: inline.sourceX,
 			}})
 		}
 	case "hi":
@@ -571,7 +600,7 @@ func (b *segContentBuilder) endInline(elemType string) {
 		// <hi> as inline data, so we emit an opening run, a text
 		// run for the captured body, and a closing run.
 		b.runs = append(b.runs, model.Run{PcOpen: &model.PcOpenRun{
-			ID: spanID, SubType: "tmx-hi", Type: inline.spanType,
+			ID: spanID, SubType: "tmx-hi", Type: inline.spanType, Equiv: inline.sourceX,
 		}})
 		if data != "" {
 			b.runs = append(b.runs, model.Run{Text: &model.TextRun{Text: data}})
@@ -582,12 +611,28 @@ func (b *segContentBuilder) endInline(elemType string) {
 	}
 }
 
+// subOpenSentinel and subCloseSentinel mark the boundaries of a TMX
+// `<sub>` element captured inside an inline element's data. The writer
+// scans for these markers and emits the wrapped substring as raw XML
+// (`<sub>` / `</sub>`) instead of escaping it. \x01 / \x02 are XML 1.0
+// control characters that cannot legally appear in user content.
+const (
+	subOpenSentinel  = "\x01<sub>\x02"
+	subCloseSentinel = "\x01</sub>\x02"
+)
+
 func (b *segContentBuilder) startSub() {
 	b.inSub = true
+	if b.currentInline != nil {
+		b.currentInline.data.WriteString(subOpenSentinel)
+	}
 }
 
 func (b *segContentBuilder) endSub() {
 	b.inSub = false
+	if b.currentInline != nil {
+		b.currentInline.data.WriteString(subCloseSentinel)
+	}
 }
 
 func (b *segContentBuilder) build() *segContent {
@@ -615,19 +660,27 @@ func extractLang(attrs []xml.Attr) string {
 }
 
 // extractInlineAttrs extracts common inline element attributes.
-func extractInlineAttrs(attrs []xml.Attr) (string, string) {
-	var id, spanType string
+func extractInlineAttrs(attrs []xml.Attr) (id string, spanType string, sourceX string) {
+	var idI string
 	for _, attr := range attrs {
 		switch attr.Name.Local {
-		case "i", "x":
-			if id == "" {
-				id = attr.Value
-			}
+		case "i":
+			idI = attr.Value
+		case "x":
+			sourceX = attr.Value
 		case "type":
 			spanType = attr.Value
 		}
 	}
-	return id, spanType
+	// Prefer `i` (the paired-code id, shared by bpt/ept) over `x` (the
+	// per-tuv sequence) so PcOpen/PcClose pair up by their TMX i value
+	// when both attributes are present.
+	if idI != "" {
+		id = idI
+		return
+	}
+	id = sourceX
+	return
 }
 
 // buildBlock constructs a model.Block from parsed TU data.

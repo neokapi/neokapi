@@ -1,6 +1,7 @@
 package tmx
 
 import (
+	"bytes"
 	"context"
 	"encoding/xml"
 	"errors"
@@ -73,15 +74,63 @@ func (w *Writer) collectPart(part *model.Part) {
 }
 
 // writeFromSkeleton reads skeleton entries and fills in block content.
+//
+// Skeleton refs only cover the original `<seg>` positions captured by
+// the reader. When downstream tools (e.g. pseudo-translate) add a target
+// TUV that wasn't in the source TMX, we have to inject a fresh
+// `<tuv>...</tuv>` block before the `</tu>` that closes the current TU.
+// We track the most recent (tuIdx, langs-emitted) and, when the next
+// text chunk is about to advance past `</tu>`, we splice the missing
+// target TUVs in just before it.
 func (w *Writer) writeFromSkeleton() error {
 	if err := w.skeletonStore.Flush(); err != nil {
 		return fmt.Errorf("tmx writer: flush skeleton: %w", err)
 	}
 
-	// Build a lookup: srcLang from header
 	srcLang := strings.ToLower(w.headerProps["srclang"])
 	if srcLang == "" {
 		srcLang = "en"
+	}
+
+	curTU := -1
+	emittedLangs := map[string]bool{}
+
+	flushPendingTUVs := func(text []byte) []byte {
+		if curTU < 0 || curTU >= len(w.blocks) {
+			return text
+		}
+		idx := bytes.Index(text, []byte("</tu>"))
+		if idx < 0 {
+			return text
+		}
+		block := w.blocks[curTU]
+		var inject strings.Builder
+		// Order targets deterministically (skeleton can't tell us
+		// the source's order, but pseudo-translate produces a single
+		// target so map iteration order matches the user's expectation).
+		for locale, segs := range block.Targets {
+			if len(segs) == 0 {
+				continue
+			}
+			lang := string(locale)
+			if emittedLangs[strings.ToLower(lang)] {
+				continue
+			}
+			inject.WriteString(`<tuv xml:lang="`)
+			inject.WriteString(xmlEscapeAttr(lang))
+			inject.WriteString(`"><seg>`)
+			inject.WriteString(renderTMXSeg(segs))
+			inject.WriteString(`</seg></tuv>`)
+		}
+		if inject.Len() == 0 {
+			return text
+		}
+		// Splice injected TUVs in just before the `</tu>` close.
+		out := make([]byte, 0, len(text)+inject.Len())
+		out = append(out, text[:idx]...)
+		out = append(out, inject.String()...)
+		out = append(out, text[idx:]...)
+		return out
 	}
 
 	for {
@@ -94,11 +143,11 @@ func (w *Writer) writeFromSkeleton() error {
 		}
 		switch entry.Type {
 		case format.SkeletonText:
-			if _, err := w.Output.Write(entry.Data); err != nil {
+			data := flushPendingTUVs(entry.Data)
+			if _, err := w.Output.Write(data); err != nil {
 				return err
 			}
 		case format.SkeletonRef:
-			// Ref ID is "tuIdx:lang" where tuIdx is 0-based
 			refID := string(entry.Data)
 			idxStr, refSuffix, ok := strings.Cut(refID, ":")
 			if !ok {
@@ -108,12 +157,14 @@ func (w *Writer) writeFromSkeleton() error {
 			if err != nil || tuIdx < 0 || tuIdx >= len(w.blocks) {
 				continue
 			}
+			if tuIdx != curTU {
+				curTU = tuIdx
+				emittedLangs = map[string]bool{}
+			}
 			block := w.blocks[tuIdx]
 			lang := refSuffix
+			emittedLangs[strings.ToLower(lang)] = true
 
-			// Determine the segment runs for this TUV. renderTMXSeg
-			// preserves inline codes (<ph>, <bpt>, <ept>, <it>, <hi>)
-			// that block.SourceText / TargetText would silently drop.
 			var segs []*model.Segment
 			langLower := strings.ToLower(lang)
 			if langMatches(langLower, srcLang) {
@@ -145,11 +196,35 @@ func (w *Writer) writeFromSkeleton() error {
 // back to a single `<hi ...>text</hi>` element instead of emitting a
 // self-closed open and a separate close.
 //
+// `x` follows the source's numbering: it equals the run's ID when that
+// ID is a positive integer (the reader copies the source's i / x
+// attribute into the ID), and falls back to a per-seg counter when the
+// run has no numeric ID. ept emits no `x` attribute — the matching
+// bpt's i= alone disambiguates the pair.
+//
 // Attribute order follows okapi's writer to maximise byte-level
 // agreement: i (paired-code id), pos (it only), type, x.
 func renderTMXSeg(segs []*model.Segment) string {
 	var b strings.Builder
 	xCounter := 0
+	// xFor returns the `x=` value to emit on a TMX inline element. The
+	// reader stashes the source's original `x=` attribute on each run's
+	// Equiv field, so we prefer that when present (preserves
+	// non-sequential or out-of-order source numbering like
+	// <bpt x="2" i="1">). Otherwise we fall back to the run's ID when it
+	// parses as a positive integer (covers the common case where ID was
+	// taken from `i=` and authors reuse the same numbering for x), and
+	// finally to a per-seg counter.
+	xFor := func(id, equiv string) int {
+		if n, err := strconv.Atoi(equiv); err == nil && n > 0 {
+			return n
+		}
+		if n, err := strconv.Atoi(id); err == nil && n > 0 {
+			return n
+		}
+		xCounter++
+		return xCounter
+	}
 	for _, seg := range segs {
 		if seg == nil {
 			continue
@@ -159,27 +234,55 @@ func renderTMXSeg(segs []*model.Segment) string {
 			case run.Text != nil:
 				b.WriteString(xmlEscapeString(run.Text.Text))
 			case run.Ph != nil:
-				xCounter++
-				writeTMXInline(&b, "ph", run.Ph.SubType, run.Ph.ID, run.Ph.Type, "", xCounter, run.Ph.Data)
+				writeTMXPh(&b, run.Ph.ID, run.Ph.Type, run.Ph.Disp, xFor(run.Ph.ID, run.Ph.Equiv), run.Ph.Data)
 			case run.PcOpen != nil:
 				if run.PcOpen.SubType == "tmx-hi" {
-					xCounter++
-					writeTMXHiOpen(&b, run.PcOpen.Type, xCounter)
+					writeTMXHiOpen(&b, run.PcOpen.Type, xFor(run.PcOpen.ID, run.PcOpen.Equiv))
 					continue
 				}
-				xCounter++
-				writeTMXInline(&b, "bpt", run.PcOpen.SubType, run.PcOpen.ID, run.PcOpen.Type, "begin", xCounter, run.PcOpen.Data)
+				writeTMXInline(&b, "bpt", run.PcOpen.SubType, run.PcOpen.ID, run.PcOpen.Type, "begin", xFor(run.PcOpen.ID, run.PcOpen.Equiv), run.PcOpen.Data)
 			case run.PcClose != nil:
 				if run.PcClose.SubType == "tmx-hi" {
 					b.WriteString("</hi>")
 					continue
 				}
-				xCounter++
-				writeTMXInline(&b, "ept", run.PcClose.SubType, run.PcClose.ID, run.PcClose.Type, "end", xCounter, run.PcClose.Data)
+				// ept (paired bpt close): no x — paired by i with
+				// the matching bpt. it pos=end is an isolated marker
+				// (no pair), needs its own x.
+				closeX := 0
+				if run.PcClose.SubType == "tmx-it-end" || run.PcClose.SubType == "tmx-it" {
+					closeX = xFor(run.PcClose.ID, run.PcClose.Equiv)
+				}
+				writeTMXInline(&b, "ept", run.PcClose.SubType, run.PcClose.ID, run.PcClose.Type, "end", closeX, run.PcClose.Data)
 			}
 		}
 	}
 	return b.String()
+}
+
+// writeTMXPh emits a self-closing `<ph ...>data</ph>` element. assoc
+// is the TMX-specific anchor hint ("p"/"f"/"b") captured in the run's
+// Disp field by the reader; emitted only when non-empty.
+func writeTMXPh(b *strings.Builder, id, spanType, assoc string, x int, data string) {
+	b.WriteString("<ph")
+	if assoc != "" {
+		b.WriteString(` assoc="`)
+		b.WriteString(xmlEscapeAttr(assoc))
+		b.WriteByte('"')
+	}
+	if spanType != "" {
+		b.WriteString(` type="`)
+		b.WriteString(xmlEscapeAttr(spanType))
+		b.WriteByte('"')
+	}
+	if x > 0 {
+		b.WriteString(` x="`)
+		b.WriteString(strconv.Itoa(x))
+		b.WriteByte('"')
+	}
+	b.WriteByte('>')
+	writeInlineData(b, data)
+	b.WriteString("</ph>")
 }
 
 // writeTMXHiOpen emits an opening `<hi ...>` tag without auto-closing,
@@ -243,11 +346,13 @@ func writeTMXInline(b *strings.Builder, defaultElem, subType, id, spanType, defa
 		b.WriteString(xmlEscapeAttr(spanType))
 		b.WriteByte('"')
 	}
-	b.WriteString(` x="`)
-	b.WriteString(strconv.Itoa(x))
-	b.WriteByte('"')
+	if x > 0 {
+		b.WriteString(` x="`)
+		b.WriteString(strconv.Itoa(x))
+		b.WriteByte('"')
+	}
 	b.WriteByte('>')
-	b.WriteString(xmlEscapeString(data))
+	writeInlineData(b, data)
 	b.WriteString("</")
 	b.WriteString(elem)
 	b.WriteByte('>')
@@ -276,6 +381,34 @@ func xmlEscapeString(s string) string {
 		}
 	}
 	return buf.String()
+}
+
+// writeInlineData escapes inline element data while passing through
+// `<sub>...</sub>` markers as raw XML. The reader wraps each `<sub>`
+// element's open/close tags in \x01...\x02 sentinels (subOpenSentinel /
+// subCloseSentinel); everything outside the sentinels is normal text
+// data that needs XML escaping.
+func writeInlineData(b *strings.Builder, data string) {
+	if !strings.ContainsRune(data, '\x01') {
+		b.WriteString(xmlEscapeString(data))
+		return
+	}
+	for {
+		open := strings.Index(data, "\x01")
+		if open < 0 {
+			b.WriteString(xmlEscapeString(data))
+			return
+		}
+		b.WriteString(xmlEscapeString(data[:open]))
+		rest := data[open+1:]
+		end := strings.Index(rest, "\x02")
+		if end < 0 {
+			b.WriteString(xmlEscapeString(rest))
+			return
+		}
+		b.WriteString(rest[:end])
+		data = rest[end+1:]
+	}
 }
 
 // xmlTMX and related types for output.
