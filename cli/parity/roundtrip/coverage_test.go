@@ -795,6 +795,15 @@ mergeCaptions.b=false
 			filterClass:       "okf_transtable",
 			sources:           []string{"integration-tests/okapi/src/test/resources/transtable"},
 			extensions:        []string{".txt"},
+			skip: map[string]fileSkip{
+				// okapi's pseudo round-trip emits only the extracted source
+				// text (e.g. "Text of the first record. ...") rather than
+				// reconstructing the TransTableV1 structure. Native correctly
+				// preserves the tabular structure (header + rows) on
+				// round-trip — its output is the "right" answer but doesn't
+				// match the okapi reference. Skip on okapi.
+				"test01.xml.txt": {Engines: []string{"okapi"}, Reason: "okapi pseudo emits plain extracted text instead of round-tripping TransTableV1 structure; reference unhelpful"},
+			},
 		},
 
 		// ── Binary / compound formats ─────────────────────────────
