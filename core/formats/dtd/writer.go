@@ -112,10 +112,24 @@ func (w *Writer) writeFromSkeleton(blocks map[string]*model.Block) error {
 }
 
 func (w *Writer) blockText(block *model.Block) string {
+	// Render via RenderRunsWithData so codeFinder-extracted Ph runs
+	// (e.g. `&entityref;`, HTML markup) round-trip with their original
+	// Data verbatim instead of being dropped by SourceText / TargetText.
 	if !w.Locale.IsEmpty() && block.HasTarget(w.Locale) {
-		return block.TargetText(w.Locale)
+		return renderSegments(block.Targets[w.Locale])
 	}
-	return block.SourceText()
+	return renderSegments(block.Source)
+}
+
+func renderSegments(segs []*model.Segment) string {
+	var b strings.Builder
+	for _, seg := range segs {
+		if seg == nil {
+			continue
+		}
+		b.WriteString(model.RenderRunsWithData(seg.Runs))
+	}
+	return b.String()
 }
 
 func (w *Writer) writePart(part *model.Part) error {
@@ -133,9 +147,9 @@ func (w *Writer) writeBlock(part *model.Part) error {
 		return errors.New("dtd writer: expected Block resource")
 	}
 
-	text := block.SourceText()
+	text := renderSegments(block.Source)
 	if !w.Locale.IsEmpty() && block.HasTarget(w.Locale) {
-		text = block.TargetText(w.Locale)
+		text = renderSegments(block.Targets[w.Locale])
 	}
 
 	name := block.Name
@@ -207,9 +221,9 @@ func escapeEntityValue(s string) string {
 		case '<':
 			buf.WriteString("&lt;")
 			i++
-		case '>':
-			buf.WriteString("&gt;")
-			i++
+		// `>` is intentionally not escaped — it doesn't terminate a
+		// quoted entity value, so leaving it bare matches okapi's
+		// DTDFilter output (and the spec's allowed-character set).
 		default:
 			buf.WriteByte(c)
 			i++

@@ -160,7 +160,11 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 
 		// Check for <!ENTITY
 		if strings.HasPrefix(text[pos:], "<!ENTITY") {
-			entityEnd := strings.IndexByte(text[pos:], '>')
+			// Find the closing `>` while honouring quoted strings —
+			// entity values can legitimately contain `>` characters
+			// (e.g. `<!ENTITY x "a>b">`), and the naive byte scan would
+			// truncate the declaration there.
+			entityEnd := indexCloseAngleQuoted(text[pos:])
 			if entityEnd == -1 {
 				break
 			}
@@ -183,13 +187,22 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 				continue
 			}
 
-			// Resolve character references and standard XML entities in value
-			resolved := resolveReferences(value)
+			// Split the value into TextRuns and Ph runs: known entity
+			// references (`&amp;` etc.) and NCRs (`&#65;` / `&#x41;`)
+			// resolve to characters; unknown named refs (`&test1;`)
+			// and parameter-entity refs (`%name;`) become inline Ph
+			// codes so they survive pseudo-translation. okapi's
+			// DTDFilter does the same — see its hard-coded
+			// `&#…;|&#x…;|(&\w*?;)|(%\w*?;)` regex.
+			runs := buildEntityValueRuns(value)
 
 			blockCounter++
 			blockID := fmt.Sprintf("tu%d", blockCounter)
-			block := model.NewBlock(blockID, resolved)
+			block := model.NewBlock(blockID, "")
 			block.Name = name
+			if len(runs) > 0 {
+				block.Source = []*model.Segment{{ID: "s1", Runs: runs}}
+			}
 
 			// For skeleton: find the value position within the entity declaration
 			// The value is the quoted string after the entity name
@@ -212,6 +225,8 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 				}
 				pendingComment = ""
 			}
+
+			r.applyCodeFinder(block)
 
 			if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
 				return
@@ -455,5 +470,182 @@ func (r *Reader) emit(ctx context.Context, ch chan<- model.PartResult, part *mod
 		return true
 	case <-ctx.Done():
 		return false
+	}
+}
+
+// buildEntityValueRuns turns a raw DTD entity value into a Run sequence.
+// Standard XML entities (`&amp; &lt; &gt; &quot; &apos;`) and numeric
+// character references (`&#NNN;` / `&#xHH;`) are resolved to literal
+// characters in TextRuns. Named entity references with non-standard
+// names (`&test1;`) and parameter-entity references (`%name;`) become
+// Ph runs whose Data carries the original `&name;` / `%name;` form, so
+// the writer can emit them verbatim and pseudo-translation skips over
+// them as inline codes — mirroring okapi's DTDFilter behaviour.
+func buildEntityValueRuns(s string) []model.Run {
+	var runs []model.Run
+	var text strings.Builder
+	flushText := func() {
+		if text.Len() > 0 {
+			runs = append(runs, model.Run{Text: &model.TextRun{Text: text.String()}})
+			text.Reset()
+		}
+	}
+	phID := 1
+	addPh := func(data string) {
+		runs = append(runs, model.Run{Ph: &model.PlaceholderRun{
+			ID:   fmt.Sprintf("e%d", phID),
+			Type: "code",
+			Data: data,
+		}})
+		phID++
+	}
+	i := 0
+	for i < len(s) {
+		c := s[i]
+		switch c {
+		case '&':
+			end := strings.IndexByte(s[i:], ';')
+			if end < 0 {
+				text.WriteByte('&')
+				i++
+				continue
+			}
+			ref := s[i+1 : i+end]
+			full := s[i : i+end+1]
+			// Numeric character references → resolve to runes.
+			if strings.HasPrefix(ref, "#x") || strings.HasPrefix(ref, "#X") {
+				if n, err := strconv.ParseInt(ref[2:], 16, 32); err == nil {
+					text.WriteRune(rune(n))
+					i += end + 1
+					continue
+				}
+			} else if strings.HasPrefix(ref, "#") {
+				if n, err := strconv.ParseInt(ref[1:], 10, 32); err == nil {
+					text.WriteRune(rune(n))
+					i += end + 1
+					continue
+				}
+			}
+			switch ref {
+			case "amp":
+				text.WriteByte('&')
+				i += end + 1
+				continue
+			case "lt":
+				text.WriteByte('<')
+				i += end + 1
+				continue
+			case "gt":
+				text.WriteByte('>')
+				i += end + 1
+				continue
+			case "quot":
+				text.WriteByte('"')
+				i += end + 1
+				continue
+			case "apos":
+				text.WriteByte('\'')
+				i += end + 1
+				continue
+			}
+			// Unknown named ref → preserve as Ph code.
+			flushText()
+			addPh(full)
+			i += end + 1
+		case '%':
+			end := strings.IndexByte(s[i:], ';')
+			if end < 0 {
+				text.WriteByte('%')
+				i++
+				continue
+			}
+			flushText()
+			addPh(s[i : i+end+1])
+			i += end + 1
+		default:
+			_, size := utf8.DecodeRuneInString(s[i:])
+			text.WriteString(s[i : i+size])
+			i += size
+		}
+	}
+	flushText()
+	return runs
+}
+
+// indexCloseAngleQuoted returns the index of the `>` that ends a DTD
+// declaration starting at s[0], skipping any `>` characters that sit
+// inside a single- or double-quoted attribute / entity value. Returns
+// -1 when no closing angle is found in s.
+func indexCloseAngleQuoted(s string) int {
+	var inQuote byte
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		if inQuote != 0 {
+			if c == inQuote {
+				inQuote = 0
+			}
+			continue
+		}
+		switch c {
+		case '"', '\'':
+			inQuote = c
+		case '>':
+			return i
+		}
+	}
+	return -1
+}
+
+// applyCodeFinder splits each source segment's text on configured
+// code-finder regex matches, replacing the matched substrings with Ph
+// runs so they survive pseudo-translation as opaque inline codes.
+func (r *Reader) applyCodeFinder(block *model.Block) {
+	patterns := r.cfg.GetCodeFinderPatterns()
+	if len(patterns) == 0 {
+		return
+	}
+	for _, seg := range block.Source {
+		if len(seg.Runs) == 0 {
+			continue
+		}
+		text := seg.Text()
+
+		type matchRange struct{ start, end int }
+		var matches []matchRange
+		for _, re := range patterns {
+			for _, loc := range re.FindAllStringIndex(text, -1) {
+				matches = append(matches, matchRange{loc[0], loc[1]})
+			}
+		}
+		if len(matches) == 0 {
+			continue
+		}
+		// Insertion sort by start; tiny lists in practice.
+		for i := 1; i < len(matches); i++ {
+			for j := i; j > 0 && matches[j].start < matches[j-1].start; j-- {
+				matches[j], matches[j-1] = matches[j-1], matches[j]
+			}
+		}
+		var runs []model.Run
+		lastEnd, spanID := 0, 1
+		for _, m := range matches {
+			if m.start < lastEnd {
+				continue // overlap with prior match
+			}
+			if m.start > lastEnd {
+				runs = append(runs, model.Run{Text: &model.TextRun{Text: text[lastEnd:m.start]}})
+			}
+			runs = append(runs, model.Run{Ph: &model.PlaceholderRun{
+				ID:   fmt.Sprintf("c%d", spanID),
+				Type: "code",
+				Data: text[m.start:m.end],
+			}})
+			lastEnd = m.end
+			spanID++
+		}
+		if lastEnd < len(text) {
+			runs = append(runs, model.Run{Text: &model.TextRun{Text: text[lastEnd:]}})
+		}
+		seg.SetRuns(runs)
 	}
 }

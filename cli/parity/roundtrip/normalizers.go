@@ -107,6 +107,28 @@ func (IgnoreTrailingNewline) Normalize(in []byte) ([]byte, error) {
 	return out, nil
 }
 
+// CollapseBlankLines removes runs of blank lines, leaving line content
+// adjacent. Useful when okapi normalises away source whitespace runs
+// (e.g. dtd files where blank lines between declarations are dropped
+// on round-trip but our skeleton-driven writer preserves them).
+type CollapseBlankLines struct{}
+
+// Name implements Normalizer.
+func (CollapseBlankLines) Name() string { return "collapse-blank-lines" }
+
+// Normalize implements Normalizer.
+func (CollapseBlankLines) Normalize(in []byte) ([]byte, error) {
+	lines := bytes.Split(in, []byte("\n"))
+	out := make([][]byte, 0, len(lines))
+	for _, line := range lines {
+		if len(bytes.TrimSpace(line)) == 0 {
+			continue
+		}
+		out = append(out, line)
+	}
+	return bytes.Join(out, []byte("\n")), nil
+}
+
 // XMLCanonical re-serializes XML through encoding/xml.Decoder +
 // encoding/xml.Encoder so two semantically-equivalent documents that
 // differ only in attribute ordering, namespace prefix style, or

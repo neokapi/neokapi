@@ -860,10 +860,27 @@ mergeCaptions.b=false
 		{
 			// /dtd/ exists in integration-tests but is empty; fall
 			// back to the unit-test resources where Test01/Test02 live.
-			formatID:          "dtd",
-			filterClass:       "okf_dtd",
-			sources:           []string{"okapi/filters/dtd/src/test/resources"},
-			extensions:        []string{".dtd"},
+			formatID:    "dtd",
+			filterClass: "okf_dtd",
+			sources:     []string{"okapi/filters/dtd/src/test/resources"},
+			extensions:  []string{".dtd"},
+			// okapi DTDFilter defaults useCodeFinder=true with one rule —
+			// HTML tag detection — and nothing else. Native default is off,
+			// so HTML markup inside entity values gets pseudo-translated
+			// character by character (`<i>HTML</i>` → `<ĩ>ĤŢMĹ</ĩ>`).
+			nativeConfig: map[string]any{
+				"useCodeFinder": true,
+				"codeFinderRules": []any{
+					`</?([A-Z0-9a-z]*)\b[^>]*>`,
+				},
+			},
+			// okapi strips blank lines between declarations on round-
+			// trip; our skeleton-driven writer preserves them. Collapse
+			// for canonical-equality.
+			normalizer: roundtrip.Chain{Steps: []roundtrip.Normalizer{
+				roundtrip.IgnoreTrailingNewline{},
+				roundtrip.CollapseBlankLines{},
+			}},
 		},
 		{
 			formatID:          "tex",
