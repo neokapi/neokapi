@@ -2,6 +2,7 @@ package its
 
 import (
 	"encoding/xml"
+	"errors"
 	"fmt"
 	"io"
 	"strings"
@@ -38,7 +39,7 @@ func parseRulesStream(dec *xml.Decoder) (*RuleSet, []ExternalRef, error) {
 	priority := 0
 	for {
 		tok, err := dec.Token()
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			break
 		}
 		if err != nil {
@@ -69,8 +70,8 @@ func parseRulesStream(dec *xml.Decoder) (*RuleSet, []ExternalRef, error) {
 func parseRulesElement(dec *xml.Decoder, parent xml.StartElement, parentNS map[string]string, rs *RuleSet, priority *int) error {
 	for {
 		tok, err := dec.Token()
-		if err == io.EOF {
-			return fmt.Errorf("its: unexpected EOF inside <its:rules>")
+		if errors.Is(err, io.EOF) {
+			return errors.New("its: unexpected EOF inside <its:rules>")
 		}
 		if err != nil {
 			return fmt.Errorf("its: parsing <its:rules>: %w", err)
@@ -129,7 +130,7 @@ func readLocNoteChild(dec *xml.Decoder, ruleStart xml.StartElement) (string, err
 	inNote := false
 	for {
 		tok, err := dec.Token()
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			return "", fmt.Errorf("its: unexpected EOF inside %s", ruleStart.Name.Local)
 		}
 		if err != nil {

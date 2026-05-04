@@ -157,7 +157,7 @@ func (r *Reader) readByLine(ctx context.Context, ch chan<- model.PartResult, tex
 // Mac-classic / UTF-16-derived fixtures don't get mashed into one
 // gigantic block.
 func nextPlainLine(text string) (content, ending, rest string) {
-	for i := 0; i < len(text); i++ {
+	for i := range len(text) {
 		switch text[i] {
 		case '\n':
 			return text[:i], "\n", text[i+1:]

@@ -115,24 +115,14 @@ func (w *Writer) writeFromSkeleton(store *format.SkeletonStore, blocks map[strin
 	return nil
 }
 
-// encodeYAMLScalar encodes a string value using the specified YAML scalar style.
-func encodeYAMLScalar(text, style string) string {
-	return encodeYAMLScalarWithIndicator(text, style, "")
-}
-
-// encodeYAMLScalarWithIndicator is like encodeYAMLScalar but lets the
-// caller pass the original block-scalar indicator (`|`, `|-`, `|+`,
-// `|2`, `>-`, …) so the chomp / explicit-indent modifier carries
-// through on round-trip. Empty indicator falls back to the bare `|` /
-// `>` defaults.
-func encodeYAMLScalarWithIndicator(text, style, indicator string) string {
-	return encodeYAMLScalarWithIndicatorIndent(text, style, indicator, "")
-}
-
-// encodeYAMLScalarWithIndicatorIndent extends encodeYAMLScalarWithIndicator
-// with the original block-scalar content indent (decimal string, e.g. "12")
-// captured by the reader as `yaml.indent`. Empty indent falls back to a
-// compact 2-space default suitable for fresh emission.
+// encodeYAMLScalarWithIndicatorIndent encodes a string value using the
+// specified YAML scalar style. The caller passes the original block-scalar
+// indicator (`|`, `|-`, `|+`, `|2`, `>-`, …) so the chomp / explicit-indent
+// modifier carries through on round-trip; empty indicator falls back to the
+// bare `|` / `>` defaults. The original block-scalar content indent
+// (decimal string, e.g. "12") captured by the reader as `yaml.indent` is
+// also threaded through; empty indent falls back to a compact 2-space
+// default suitable for fresh emission.
 func encodeYAMLScalarWithIndicatorIndent(text, style, indicator, indent string) string {
 	switch style {
 	case "double-quoted":
@@ -249,21 +239,10 @@ func encodePlain(s string) string {
 	return s
 }
 
-// encodeLiteralBlock encodes text as a literal block scalar (| style)
-// with the bare `|` indicator (clip chomp).
-func encodeLiteralBlock(s string) string {
-	return encodeLiteralBlockWithIndicator(s, "|")
-}
-
-// encodeLiteralBlockWithIndicator emits a literal block scalar using
-// the given indicator line. Empty indicator falls back to bare `|`.
-func encodeLiteralBlockWithIndicator(s, indicator string) string {
-	return encodeLiteralBlockWithIndicatorIndent(s, indicator, "")
-}
-
-// encodeLiteralBlockWithIndicatorIndent extends
-// encodeLiteralBlockWithIndicator with an explicit content indent
-// (decimal string). Empty indent falls back to "  " (2 spaces).
+// encodeLiteralBlockWithIndicatorIndent emits a literal block scalar
+// (| style) using the given indicator line and explicit content indent
+// (decimal string). Empty indicator falls back to bare `|`; empty indent
+// falls back to "  " (2 spaces).
 func encodeLiteralBlockWithIndicatorIndent(s, indicator, indent string) string {
 	if indicator == "" {
 		indicator = "|"
@@ -295,20 +274,10 @@ func encodeLiteralBlockWithIndicatorIndent(s, indicator, indent string) string {
 	return b.String()
 }
 
-// encodeFoldedBlock encodes text as a folded block scalar (> style).
-func encodeFoldedBlock(s string) string {
-	return encodeFoldedBlockWithIndicator(s, ">")
-}
-
-// encodeFoldedBlockWithIndicator emits a folded block scalar using the
-// given indicator. Empty indicator falls back to bare `>`.
-func encodeFoldedBlockWithIndicator(s, indicator string) string {
-	return encodeFoldedBlockWithIndicatorIndent(s, indicator, "")
-}
-
-// encodeFoldedBlockWithIndicatorIndent extends
-// encodeFoldedBlockWithIndicator with an explicit content indent
-// (decimal string). Empty indent falls back to "  " (2 spaces).
+// encodeFoldedBlockWithIndicatorIndent emits a folded block scalar
+// (> style) using the given indicator and explicit content indent
+// (decimal string). Empty indicator falls back to bare `>`; empty indent
+// falls back to "  " (2 spaces).
 //
 // Folded scalars (`>`) collapse single line breaks between content
 // lines into spaces and preserve blank-line gaps as single `\n`s in
@@ -374,7 +343,7 @@ func encodeFoldedBlockWithIndicatorIndent(s, indicator, indent string) string {
 			if isMoreIndented {
 				gap--
 			}
-			for j := 0; j < gap; j++ {
+			for range gap {
 				b.WriteByte('\n')
 			}
 		}

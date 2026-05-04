@@ -1,6 +1,7 @@
 package its
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"unicode"
@@ -17,7 +18,7 @@ import (
 // can surface authoring mistakes instead of silently mis-matching.
 func ParseSelector(s string, nsMap map[string]string) (*Selector, error) {
 	if strings.TrimSpace(s) == "" {
-		return nil, fmt.Errorf("its: empty selector")
+		return nil, errors.New("its: empty selector")
 	}
 	parser := &selectorParser{src: s, nsMap: nsMap}
 	return parser.parse()

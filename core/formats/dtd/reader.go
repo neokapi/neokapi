@@ -578,7 +578,7 @@ func buildEntityValueRuns(s string) []model.Run {
 // -1 when no closing angle is found in s.
 func indexCloseAngleQuoted(s string) int {
 	var inQuote byte
-	for i := 0; i < len(s); i++ {
+	for i := range len(s) {
 		c := s[i]
 		if inQuote != 0 {
 			if c == inQuote {

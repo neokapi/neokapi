@@ -88,7 +88,6 @@ func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
 					if _, err := io.WriteString(w.Output, "</translatable>\n"); err != nil {
 						return err
 					}
-					translatableOpen = false
 				}
 				if headerWritten {
 					if _, err := io.WriteString(w.Output, "</txml>\n"); err != nil {

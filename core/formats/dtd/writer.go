@@ -238,7 +238,7 @@ func indexByteUpTo(s string, c byte, n int) int {
 	if n > len(s) {
 		n = len(s)
 	}
-	for i := 0; i < n; i++ {
+	for i := range n {
 		if s[i] == c {
 			return i
 		}

@@ -547,10 +547,10 @@ func patchUnit(unitEl *etree.Element, block *model.Block, targetLang model.Local
 				continue
 			}
 			ignorableIDCounter++
-			for usedIDs[fmt.Sprintf("%d", ignorableIDCounter)] {
+			for usedIDs[strconv.Itoa(ignorableIDCounter)] {
 				ignorableIDCounter++
 			}
-			newID := fmt.Sprintf("%d", ignorableIDCounter)
+			newID := strconv.Itoa(ignorableIDCounter)
 			segEl.CreateAttr("id", newID)
 			usedIDs[newID] = true
 		}
@@ -959,13 +959,13 @@ func appendCharData(parent *etree.Element, s string) {
 	case *etree.Element:
 		// etree models inter-sibling text as a CharData token, NOT as
 		// a Tail field. Insert a CharData token after the element.
-		cd := etree.NewCharData(s)
+		cd := etree.NewText(s)
 		parent.InsertChildAt(len(parent.Child), cd)
 		_ = t
 	case *etree.CharData:
 		t.Data += s
 	default:
-		cd := etree.NewCharData(s)
+		cd := etree.NewText(s)
 		parent.InsertChildAt(len(parent.Child), cd)
 	}
 }
@@ -1025,10 +1025,8 @@ func writeCodeAttrs(el *etree.Element, a CodeAttrs, flavor codeAttrFlavor) {
 		if a.DataRefEnd != "" {
 			el.CreateAttr("dataRefEnd", a.DataRefEnd)
 		}
-	} else {
-		if a.DataRef != "" {
-			el.CreateAttr("dataRef", a.DataRef)
-		}
+	} else if a.DataRef != "" {
+		el.CreateAttr("dataRef", a.DataRef)
 	}
 	if (flavor == codeAttrSc || flavor == codeAttrEc || flavor == codeAttrPc) && a.Dir != "" {
 		el.CreateAttr("dir", a.Dir)
@@ -1115,7 +1113,7 @@ func indentXliff(el *etree.Element, depth int) {
 	}
 	// Trailing whitespace before the closing tag.
 	parent := el
-	parent.InsertChildAt(len(parent.Child), etree.NewCharData(closePrefix))
+	parent.InsertChildAt(len(parent.Child), etree.NewText(closePrefix))
 }
 
 // isMixedContentElement reports whether the named element is one whose
@@ -1151,7 +1149,7 @@ func stripWhitespaceCharData(el *etree.Element) {
 func insertCharDataBefore(parent *etree.Element, target *etree.Element, s string) {
 	for i, c := range parent.Child {
 		if c == target {
-			cd := etree.NewCharData(s)
+			cd := etree.NewText(s)
 			parent.InsertChildAt(i, cd)
 			return
 		}

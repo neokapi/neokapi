@@ -1,6 +1,7 @@
 package xml
 
 import (
+	"errors"
 	"fmt"
 )
 
@@ -53,10 +54,10 @@ func (c *WriterCfg) Reset() {
 func (c *WriterCfg) Validate() error {
 	if c.EmitDeclaration {
 		if c.DeclarationVersion == "" {
-			return fmt.Errorf("xml writer: DeclarationVersion required when EmitDeclaration=true")
+			return errors.New("xml writer: DeclarationVersion required when EmitDeclaration=true")
 		}
 		if c.DeclarationEncoding == "" {
-			return fmt.Errorf("xml writer: DeclarationEncoding required when EmitDeclaration=true")
+			return errors.New("xml writer: DeclarationEncoding required when EmitDeclaration=true")
 		}
 	}
 	return nil

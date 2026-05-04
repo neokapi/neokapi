@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"strconv"
 	"strings"
 
 	"github.com/neokapi/neokapi/core/format"
@@ -337,7 +338,7 @@ func (r *Reader) collectScalarRange(ctx context.Context, ch chan<- model.PartRes
 					k++
 				}
 				if k < len(content) && content[k] != '\n' && indent > 0 {
-					block.Properties["yaml.indent"] = fmt.Sprintf("%d", indent)
+					block.Properties["yaml.indent"] = strconv.Itoa(indent)
 				}
 			}
 		}

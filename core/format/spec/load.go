@@ -1,6 +1,7 @@
 package spec
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -36,7 +37,7 @@ func Load(path string) (*Spec, error) {
 // variants, examples with no input, etc.
 func (s *Spec) Validate() error {
 	if s.Format == "" {
-		return fmt.Errorf("format is required")
+		return errors.New("format is required")
 	}
 	switch s.Kind {
 	case "", KindTopLevel, KindSubfilter:
@@ -44,12 +45,12 @@ func (s *Spec) Validate() error {
 		return fmt.Errorf("kind %q: must be %q or %q", s.Kind, KindTopLevel, KindSubfilter)
 	}
 	if len(s.Features) == 0 {
-		return fmt.Errorf("at least one feature is required")
+		return errors.New("at least one feature is required")
 	}
 	variants := map[string]bool{}
 	for _, v := range s.Variants {
 		if v.ID == "" {
-			return fmt.Errorf("variant has empty id")
+			return errors.New("variant has empty id")
 		}
 		if variants[v.ID] {
 			return fmt.Errorf("variant %q declared twice", v.ID)
@@ -67,7 +68,7 @@ func (s *Spec) Validate() error {
 	cfgKeys := map[string]bool{}
 	for _, c := range s.Config {
 		if c.Key == "" {
-			return fmt.Errorf("config key has empty name")
+			return errors.New("config key has empty name")
 		}
 		if cfgKeys[c.Key] {
 			return fmt.Errorf("config key %q declared twice", c.Key)
@@ -80,7 +81,7 @@ func (s *Spec) Validate() error {
 	featureIDs := map[string]bool{}
 	for _, f := range s.Features {
 		if f.ID == "" {
-			return fmt.Errorf("feature has empty id")
+			return errors.New("feature has empty id")
 		}
 		if featureIDs[f.ID] {
 			return fmt.Errorf("feature %q declared twice", f.ID)

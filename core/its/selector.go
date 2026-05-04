@@ -267,7 +267,7 @@ func matchPredicate(p *Predicate, ctx *ElementContext) bool {
 		if len(ctx.Path) <= 1 {
 			return false
 		}
-		for i := 0; i < len(ctx.Path)-1; i++ {
+		for i := range len(ctx.Path) - 1 {
 			if nameMatch(p.AncestorName, ctx.Path[i]) {
 				return true
 			}

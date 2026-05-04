@@ -241,7 +241,7 @@ func (w *Writer) writeFromSkeleton() error {
 			if compat.StripApprovedWhenNoSourceTarget {
 				rewritten = stripApprovedFromTransUnits(rewritten, w.transUnitsWithoutSourceTarget())
 			}
-			finalOut.Write(rewritten)
+			_, _ = finalOut.Write(rewritten)
 		}()
 	}
 
@@ -385,7 +385,7 @@ func (f *fileTagInjector) Write(p []byte) (int, error) {
 		return f.out.Write(p)
 	}
 	written := 0
-	for i := 0; i < len(p); i++ {
+	for i := range p {
 		b := p[i]
 		if f.inTag {
 			f.buf = append(f.buf, b)

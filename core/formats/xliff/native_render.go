@@ -89,10 +89,6 @@ func collectTexts(out *[]string, runs []model.Run) {
 	}
 }
 
-func emitInlines(b *strings.Builder, inls []Inline, texts []string, idx *int) {
-	emitInlinesOpts(b, inls, texts, idx, true, renderOpts{})
-}
-
 // emitInlinesOpts walks an inline tree and emits XML, with a
 // `translatable` flag governing whether bare text nodes consume from
 // the runs slice (true) or fall back to the native IR's verbatim text

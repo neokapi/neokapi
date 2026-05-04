@@ -3,6 +3,7 @@ package spec
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -31,7 +32,7 @@ func ResolveInput(s *Spec, ex Example) ([]byte, error) {
 	case len(ex.InputBytes) > 0:
 		return ex.InputBytes, nil
 	}
-	return nil, fmt.Errorf("example has no input")
+	return nil, errors.New("example has no input")
 }
 
 // ResolveFilePath turns a spec-relative input_file value into an

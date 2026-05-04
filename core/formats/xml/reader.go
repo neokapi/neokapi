@@ -345,7 +345,7 @@ func (s *xmlParseState) isInExcludedScope() bool {
 // excluded children — those bytes belong in skeleton, not in a block
 // content range.
 func isWhitespaceOnly(s string) bool {
-	for i := 0; i < len(s); i++ {
+	for i := range len(s) {
 		switch s[i] {
 		case ' ', '\t', '\r', '\n':
 			continue
@@ -636,12 +636,6 @@ func (s *xmlParseState) itsAttrTranslate(ctx *its.ElementContext, attr xml.Attr)
 	)
 	return resolved.Translate
 }
-
-// itsNamespaceURI is the W3C ITS 2.0 namespace, used to recognize
-// the local `translate` attribute regardless of its declared prefix.
-// Re-exported from core/its for the legacy attribute-key suffix
-// `<ns>:<local>` lookups in this file (those predate the resolver).
-const itsNamespaceURI = its.NamespaceURI
 
 // buildITSAttributes converts an xml.StartElement attribute slice
 // into the ITS resolver's Attribute slice for predicate evaluation.

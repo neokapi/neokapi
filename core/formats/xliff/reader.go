@@ -59,7 +59,7 @@ func transcodeToUTF8(raw []byte) (string, string, error) {
 		// pick it up downstream.
 		enc, _ := ianaindex.IANA.Encoding("windows-1252")
 		if enc == nil {
-			return string(raw), decl, fmt.Errorf("xliff: file lacks XML declaration and bytes are not valid UTF-8")
+			return string(raw), decl, errors.New("xliff: file lacks XML declaration and bytes are not valid UTF-8")
 		}
 		decoded, err := io.ReadAll(enc.NewDecoder().Reader(bytes.NewReader(raw)))
 		if err != nil {
@@ -125,7 +125,7 @@ var c0NumericRefRE = regexp.MustCompile(`&#(?:x[0-9A-Fa-f]+|[0-9]+);`)
 // shouldn't let any through, but stay defensive).
 func parseNumericRef(ref string) (int, error) {
 	if !strings.HasPrefix(ref, "&#") || !strings.HasSuffix(ref, ";") {
-		return 0, fmt.Errorf("not a numeric ref")
+		return 0, errors.New("not a numeric ref")
 	}
 	body := ref[2 : len(ref)-1]
 	base := 10
@@ -600,7 +600,7 @@ func collapseWS(s string) string {
 	var b strings.Builder
 	b.Grow(len(s))
 	wasWS := false
-	for i := 0; i < len(s); i++ {
+	for i := range len(s) {
 		c := s[i]
 		if c == ' ' || c == '\t' || c == '\r' || c == '\n' {
 			if !wasWS {

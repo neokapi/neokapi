@@ -308,7 +308,7 @@ func findRepoRoot(t *testing.T) string {
 	if err != nil {
 		return ""
 	}
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		if _, err := os.Stat(filepath.Join(dir, "okapi-testdata")); err == nil {
 			return dir
 		}
@@ -329,7 +329,7 @@ func firstByteDiff(a, b []byte) int {
 	if len(b) < n {
 		n = len(b)
 	}
-	for i := 0; i < n; i++ {
+	for i := range n {
 		if a[i] != b[i] {
 			return i
 		}

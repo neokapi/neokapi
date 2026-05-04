@@ -133,7 +133,7 @@ func simulateBrokenWindows1252(s string) string {
 		return s
 	}
 	hasNonASCII := false
-	for i := 0; i < len(s); i++ {
+	for i := range len(s) {
 		if s[i] >= 0x80 {
 			hasNonASCII = true
 			break
@@ -459,61 +459,6 @@ func extractElementText(b []byte, localName string) string {
 
 var tagStripRE = regexp.MustCompile(`<[^>]+>`)
 
-// normalizeForCompare prepares a source/seg-source text string for
-// byte comparison. Mirrors okapi's CODE_DATA_ONLY compare on the
-// joined-segments form: each segment's text is character-exact, and
-// the inter-segment whitespace is dropped (because it lives between
-// `<mrk>` siblings, not inside any segment).
-//
-// Steps:
-//  1. Decode the XML predefined entities (&gt; &lt; &amp; &quot;
-//     &apos;). The native writer's two text-emission paths emit `>`
-//     differently: xmlEscapeText only escapes `]]>` per XML 1.0 §2.4
-//     while the inline encoder escapes every `>`. Source and
-//     seg-source can therefore disagree on byte form despite
-//     identical semantic content; decoding cancels the asymmetry.
-//  2. Trim leading/trailing whitespace (CharData around the element's
-//     direct children — non-significant for content).
-//  3. NO internal whitespace collapsing here: okapi's TextContainer
-//     .unwrap is gated on xml:space ≠ "preserve"
-//     (XLIFFFilter.java:2309-2311 — `if (!preserveSpaces.peek()) {
-//     tc.unwrap(true, false); }`). about_the.htm.xlf declares
-//     `<xliff xml:space="preserve">`; one trans-unit's source has
-//     "About the  Agent" (two spaces) vs a seg-source with
-//     "About the Agent" (one space) — okapi correctly treats these
-//     as divergent and drops the seg-source segmentation. Collapsing
-//     whitespace here would mask that divergence and cause native to
-//     keep a seg-source okapi discarded.
-//
-// The whitespace-aware comparison for non-preserve trans-units happens
-// at read time (`segSourceMatchesSource` in reader.go), which has
-// access to the per-unit xml:space context this writer post-pass does
-// not.
-//
-// Inter-mrk whitespace in seg-source is naturally dropped by the
-// caller's tag-strip pre-pass (only mrk start/end tags are stripped;
-// the whitespace between adjacent mrks lives between siblings and
-// becomes inter-segment text — which we want to compare against
-// source's same-position text).
-func normalizeForCompare(s string) string {
-	return strings.TrimSpace(decodeBasicEntities(s))
-}
-
-// decodeBasicEntities replaces the five XML predefined entities with
-// their character equivalents. Ignores numeric character references
-// (those rarely differ between source and seg-source in practice).
-func decodeBasicEntities(s string) string {
-	if !strings.Contains(s, "&") {
-		return s
-	}
-	out := strings.ReplaceAll(s, "&gt;", ">")
-	out = strings.ReplaceAll(out, "&lt;", "<")
-	out = strings.ReplaceAll(out, "&quot;", "\"")
-	out = strings.ReplaceAll(out, "&apos;", "'")
-	out = strings.ReplaceAll(out, "&amp;", "&")
-	return out
-}
-
 // rewriteTransUnitSpans applies fn to each <trans-unit>…</trans-unit>
 // span in b and returns the rewritten buffer. Walks element boundaries
 // while tracking depth so nested elements (e.g. <source>/<target>
@@ -783,13 +728,6 @@ var (
 	// Allows optional namespace prefix.
 	toolElemRE = regexp.MustCompile(`(?s)<(?:[A-Za-z_][\w.-]*:)?tool(?:\s[^>]*?)?(/>|>.*?</(?:[A-Za-z_][\w.-]*:)?tool>)`)
 )
-
-// bytesLastIndexString returns the last index of s in b, or -1.
-// strings.LastIndex would require a string conversion; this is
-// equivalent for our regex post-processing context.
-func bytesLastIndexString(b []byte, s string) int {
-	return strings.LastIndex(string(b), s)
-}
 
 // stripApprovedFromTransUnits removes the `approved="…"` attribute from
 // each `<trans-unit>` start tag whose document-order index is true in

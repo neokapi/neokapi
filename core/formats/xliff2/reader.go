@@ -868,11 +868,11 @@ func (s *xliff2StreamState) handleStartElement(t xml.StartElement) {
 			layer.Properties["xliff-version"] = s.version
 		}
 		for i, a := range s.extraAttrs {
-			layer.Properties[extraAttrPropKey(i)] = encodeXmlAttr(a)
+			layer.Properties[extraAttrPropKey(i)] = encodeXMLAttr(a)
 		}
 		s.reader.emit(s.ctx, s.ch, &model.Part{Type: model.PartLayerStart, Resource: layer})
 	case "group":
-		gs := &model.GroupStart{ID: attrValueXml(t, "id"), Name: attrValueXml(t, "name")}
+		gs := &model.GroupStart{ID: attrValueXML(t, "id"), Name: attrValueXML(t, "name")}
 		s.reader.emit(s.ctx, s.ch, &model.Part{Type: model.PartGroupStart, Resource: gs})
 	case "unit":
 		s.inUnit = true
@@ -1151,7 +1151,7 @@ func isXliffExtraAttrLegacy(a xml.Attr) bool {
 	return true
 }
 
-func attrValueXml(t xml.StartElement, local string) string {
+func attrValueXML(t xml.StartElement, local string) string {
 	for _, a := range t.Attr {
 		if a.Name.Local == local {
 			return a.Value
@@ -1160,6 +1160,6 @@ func attrValueXml(t xml.StartElement, local string) string {
 	return ""
 }
 
-func encodeXmlAttr(a xml.Attr) string {
+func encodeXMLAttr(a xml.Attr) string {
 	return a.Name.Space + "|" + a.Name.Local + "=" + a.Value
 }

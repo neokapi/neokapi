@@ -1271,7 +1271,7 @@ name: leaf
 	var blocks []*model.Block
 	go func() {
 		defer close(done)
-		blocks = readYAML(t, input)
+		blocks = readYAML(t, input) //nolint:testifylint // require inside goroutine is acceptable: parent goroutine waits via done channel
 	}()
 	select {
 	case <-done:
