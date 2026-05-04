@@ -121,6 +121,24 @@ type OkapiCompatConfig struct {
 	// <markup-seg> CDATA-style escaped HTML).
 	StripCDataCREntities bool
 
+	// StripAltTransSegSource removes any `<seg-source>…</seg-source>`
+	// wrapper inside an `<alt-trans>` element on round-trip. okapi's
+	// XLIFFFilter treats alt-trans as a translation-memory match — a
+	// flat (source, target) pair with no segmentation envelope — so
+	// when the source happened to authoring-time include a seg-source
+	// inside alt-trans (legal per the schema, rare in practice), the
+	// writer drops it. The accompanying alt-trans `<target>` is also
+	// re-emitted in unwrapped form by okapi; this flag intentionally
+	// does NOT touch the target so existing target shapes round-trip.
+	//
+	// Spec basis: XLIFF 1.2 §2.5 allows seg-source inside alt-trans;
+	// dropping it is **spec-divergent** but matches okapi.
+	//
+	// Fixture: segmentation2.xlf trans-unit id=3 alt-trans contains a
+	// seg-source — okapi strips it on write while preserving the
+	// surrounding source/target.
+	StripAltTransSegSource bool
+
 	// HoistAltTransNotes pulls <note> elements out of <alt-trans> and
 	// emits them at the trans-unit level alongside any trans-unit-level
 	// notes. okapi's reader collects notes into a single trans-unit

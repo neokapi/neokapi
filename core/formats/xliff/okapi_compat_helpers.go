@@ -280,6 +280,74 @@ func hoistNotesInTransUnit(tu []byte) []byte {
 // should be inserted.
 var altTransStartTagRE = regexp.MustCompile(`<(?:[A-Za-z_][\w.-]*:)?alt-trans[\s>]`)
 
+// stripAltTransSegSource removes any `<seg-source>…</seg-source>`
+// element nested inside an `<alt-trans>` body. okapi's XLIFFFilter
+// treats alt-trans as a flat (source, target) translation-memory
+// match and never round-trips an inner seg-source. Trans-units
+// without alt-trans are unaffected.
+//
+// Implementation walks each <alt-trans> span (depth-tracked, to
+// safely skip the alt-trans's own nested <source>/<target>) and
+// strips a single seg-source element if present. Surrounding
+// whitespace is preserved as-is.
+func stripAltTransSegSource(b []byte) []byte {
+	return rewriteAltTransSpans(b, func(at []byte) []byte {
+		return altTransSegSourceRE.ReplaceAll(at, nil)
+	})
+}
+
+// altTransSegSourceRE matches a `<seg-source …>…</seg-source>` element
+// (single line or multi-line) along with the line-break that follows
+// it, so removing it doesn't leave a stray blank line behind.
+var altTransSegSourceRE = regexp.MustCompile(`(?s)<(?:[A-Za-z_][\w.-]*:)?seg-source\b[^>]*>.*?</(?:[A-Za-z_][\w.-]*:)?seg-source>\s*\n?`)
+
+// altTransEndTagRE matches the CLOSING tag of <alt-trans>.
+var altTransEndTagRE = regexp.MustCompile(`</(?:[A-Za-z_][\w.-]*:)?alt-trans>`)
+
+// rewriteAltTransSpans applies fn to each <alt-trans>…</alt-trans>
+// span. Mirrors rewriteTransUnitSpans but for alt-trans. Depth
+// tracking is needed because alt-trans can contain its own
+// <source>/<target>/<seg-source>.
+func rewriteAltTransSpans(b []byte, fn func([]byte) []byte) []byte {
+	var out []byte
+	cursor := 0
+	for cursor < len(b) {
+		startLoc := altTransStartTagRE.FindIndex(b[cursor:])
+		if startLoc == nil {
+			out = append(out, b[cursor:]...)
+			break
+		}
+		startAbs := cursor + startLoc[0]
+		out = append(out, b[cursor:startAbs]...)
+		endAbs := findAltTransEnd(b, startAbs)
+		if endAbs < 0 {
+			out = append(out, b[startAbs:]...)
+			break
+		}
+		span := b[startAbs:endAbs]
+		out = append(out, fn(span)...)
+		cursor = endAbs
+	}
+	return out
+}
+
+// findAltTransEnd returns the absolute byte offset just past
+// `</alt-trans>` for the element starting at `start`, or -1 on
+// malformed input. alt-trans can contain its own nested elements but
+// not nested alt-trans, so a simple depth-1 close scan suffices.
+func findAltTransEnd(b []byte, start int) int {
+	openEnd := bytes.IndexByte(b[start:], '>')
+	if openEnd < 0 {
+		return -1
+	}
+	cursor := start + openEnd + 1
+	loc := altTransEndTagRE.FindIndex(b[cursor:])
+	if loc == nil {
+		return -1
+	}
+	return cursor + loc[1]
+}
+
 // unwrapSingleSegMrkWhenSourceDiffers drops <seg-source>…</seg-source>
 // and unwraps a single `<mrk mid mtype="seg">…</mrk>` wrapper from
 // `<target>` content WHEN the source content differs from the
@@ -308,9 +376,39 @@ func unwrapSingleSegMrkInTransUnit(tu []byte) []byte {
 	if normalizeForCompare(srcText) == normalizeForCompare(segSrcText) {
 		return tu
 	}
-	// Drop <seg-source>…</seg-source>.
-	out := segSourceElemRE.ReplaceAll(tu, nil)
-	// Unwrap <mrk mid="…" mtype="seg">…</mrk> in <target>.
+	// Carve <alt-trans> spans out before regex passes — okapi's
+	// segmentation drop fires per trans-unit and never touches
+	// alt-trans alternatives, which carry their own (source, target)
+	// pair and are allowed to keep their mrk segmentation. Process
+	// only the non-alt-trans portions, then re-stitch the alt-trans
+	// spans back verbatim so their inner targets stay intact.
+	var processed []byte
+	cursor := 0
+	for cursor < len(tu) {
+		startLoc := altTransStartTagRE.FindIndex(tu[cursor:])
+		if startLoc == nil {
+			processed = append(processed, applyUnwrap(tu[cursor:])...)
+			break
+		}
+		startAbs := cursor + startLoc[0]
+		processed = append(processed, applyUnwrap(tu[cursor:startAbs])...)
+		endAbs := findAltTransEnd(tu, startAbs)
+		if endAbs < 0 {
+			processed = append(processed, tu[startAbs:]...)
+			break
+		}
+		processed = append(processed, tu[startAbs:endAbs]...)
+		cursor = endAbs
+	}
+	return processed
+}
+
+// applyUnwrap performs the source!=seg-source segmentation drop on a
+// chunk that is guaranteed not to contain any <alt-trans> span: drop
+// any <seg-source>…</seg-source>, unwrap single mrk-seg wrappers in
+// <target>.
+func applyUnwrap(b []byte) []byte {
+	out := segSourceElemRE.ReplaceAll(b, nil)
 	out = targetMrkUnwrapRE.ReplaceAllFunc(out, func(targetMatch []byte) []byte {
 		return mrkSegUnwrapRE.ReplaceAll(targetMatch, []byte("$1"))
 	})

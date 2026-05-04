@@ -196,7 +196,8 @@ func (w *Writer) writeFromSkeleton() error {
 	needsPostProcess := compat.HoistAltTransNotes ||
 		compat.ReorderHeaderToolToEnd ||
 		compat.UnwrapSingleSegMrk ||
-		compat.StripApprovedWhenNoSourceTarget
+		compat.StripApprovedWhenNoSourceTarget ||
+		compat.StripAltTransSegSource
 	finalOut := w.Output
 	var postBuf *bytes.Buffer
 	if needsPostProcess {
@@ -207,6 +208,9 @@ func (w *Writer) writeFromSkeleton() error {
 			rewritten := postBuf.Bytes()
 			if compat.UnwrapSingleSegMrk {
 				rewritten = unwrapSingleSegMrkWhenSourceDiffers(rewritten)
+			}
+			if compat.StripAltTransSegSource {
+				rewritten = stripAltTransSegSource(rewritten)
 			}
 			if compat.HoistAltTransNotes {
 				rewritten = hoistAltTransNotes(rewritten)

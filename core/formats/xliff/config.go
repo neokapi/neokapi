@@ -251,6 +251,8 @@ func applyOkapiCompatMap(o *OkapiCompatConfig, m map[string]any) error {
 			o.StripCDataCREntities = b
 		case "hoistAltTransNotes":
 			o.HoistAltTransNotes = b
+		case "stripAltTransSegSource":
+			o.StripAltTransSegSource = b
 		case "escapeBeyondLatin1AsEntities":
 			o.EscapeBeyondLatin1AsEntities = b
 		case "simulateBrokenWindows1252Read":

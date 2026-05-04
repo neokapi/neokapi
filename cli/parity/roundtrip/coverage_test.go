@@ -698,6 +698,7 @@ func coverageScans() []formatScan {
 					"stripPhaseDateAttr":  true,
 					"stripCDataCREntities": true,
 					"hoistAltTransNotes":  true,
+					"stripAltTransSegSource": true,
 					"reorderHeaderToolToEnd": true,
 					"simulateBrokenWindows1252Read": true,
 					// Disabled: blanket strip is more aggressive than
