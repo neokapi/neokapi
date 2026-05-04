@@ -438,6 +438,16 @@ func coverageScans() []formatScan {
 			// differ only in whitespace (e.g. `"k" : "v"` vs `"k": "v"`)
 			// or string escape choices that encoding/json normalizes.
 			normalizer: roundtrip.JSONCanonical{},
+			skip: map[string]fileSkip{
+				// Intentionally-malformed JSON5 fixture with bare keys
+				// and single-quoted strings. Both engines accept it
+				// leniently and emit slightly different whitespace
+				// around the `:` separator. The canonical normalizer
+				// fails to parse either output (single-quoted strings
+				// aren't standard JSON), so there's no useful tier
+				// comparison to make.
+				"invalid_by_most_processors.json": {Engines: []string{"okapi"}, Reason: "JSON5 fixture; both engines emit lenient output, json-canonical can't parse either side"},
+			},
 		},
 		{
 			formatID:          "yaml",
