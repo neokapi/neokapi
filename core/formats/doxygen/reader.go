@@ -565,14 +565,28 @@ func (r *Reader) emitCommentBlock(ctx context.Context, ch chan<- model.PartResul
 		return
 	}
 
-	// Emit translatable text as blocks
-	for _, group := range translatableLines {
+	// Emit translatable text as blocks. When a comment group contains
+	// multiple translatable sections (e.g. \param a … \param b … \return …)
+	// each section becomes its own Block per the spec contract, and we
+	// tag every block in the group with groupSize / groupIndex /
+	// groupFirstID so the writer can stitch them back into one comment
+	// template instead of emitting one comment-per-Block (which would
+	// multiply delimiters and silently drop blocks beyond the first
+	// skeleton ref).
+	groupSize := len(translatableLines)
+	firstID := fmt.Sprintf("tu%d", *blockCounter+1)
+	for idx, group := range translatableLines {
 		*blockCounter++
 		text := strings.Join(group, "\n")
 		block := model.NewBlock(fmt.Sprintf("tu%d", *blockCounter), text)
 		block.Name = fmt.Sprintf("comment.%d", *blockCounter)
 		block.Properties["style"] = cb.style
 		block.Properties["raw"] = strings.Join(cb.rawLines, "\n")
+		if groupSize > 1 {
+			block.Properties["groupSize"] = fmt.Sprintf("%d", groupSize)
+			block.Properties["groupIndex"] = fmt.Sprintf("%d", idx)
+			block.Properties["groupFirstID"] = firstID
+		}
 
 		if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
 			return

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"strconv"
 	"strings"
 
 	"github.com/neokapi/neokapi/core/format"
@@ -35,25 +36,82 @@ func (w *Writer) SetSkeletonStore(store *format.SkeletonStore) {
 }
 
 // Write consumes Parts from a channel and writes reconstructed source.
+//
+// For multi-section comment groups (a single /*! ... */ comment whose
+// reader emitted several Blocks — one per \param/\return/\sa
+// section — to honour the spec contract that section commands extract
+// as separate Blocks), the writer must emit the whole group's text
+// under one comment template, not one comment per Block. Both the
+// skeleton-driven and skeleton-less paths therefore buffer the full
+// part stream up front and resolve sibling lookups via blocksByID.
 func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
 	if w.skeletonStore != nil {
 		return w.writeWithSkeleton(ctx, parts)
 	}
 
-	first := true
+	var collected []*model.Part
+	blocksByID := make(map[string]*model.Block)
 	for {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
 		case part, ok := <-parts:
 			if !ok {
-				return nil
+				return w.writeCollected(collected, blocksByID)
 			}
-			if err := w.writePart(part, &first); err != nil {
-				return err
+			collected = append(collected, part)
+			if part.Type == model.PartBlock {
+				if block, ok := part.Resource.(*model.Block); ok {
+					blocksByID[block.ID] = block
+				}
 			}
 		}
 	}
+}
+
+// writeCollected drains the buffered Parts in order, skipping
+// non-first blocks of a comment group (they fold into the first
+// block's output via writeBlockGrouped → joinedGroupText).
+func (w *Writer) writeCollected(collected []*model.Part, blocksByID map[string]*model.Block) error {
+	first := true
+	for _, part := range collected {
+		if part.Type == model.PartBlock {
+			block, ok := part.Resource.(*model.Block)
+			if !ok {
+				return errors.New("doxygen writer: expected Block resource")
+			}
+			// Subsequent blocks of a multi-section group are folded
+			// into the first block's comment-template output.
+			if firstID := block.Properties["groupFirstID"]; firstID != "" && firstID != block.ID {
+				continue
+			}
+			if err := w.writeBlockGrouped(block, &first, blocksByID); err != nil {
+				return err
+			}
+			continue
+		}
+		if err := w.writePart(part, &first); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// writeBlockGrouped writes a single Block, joining sibling blocks of
+// the same comment group when present.
+func (w *Writer) writeBlockGrouped(block *model.Block, first *bool, blocks map[string]*model.Block) error {
+	text := w.joinedGroupText(block, blocks)
+	style := block.Properties["style"]
+	raw := block.Properties["raw"]
+
+	if !*first {
+		if _, err := fmt.Fprint(w.Output, "\n"); err != nil {
+			return err
+		}
+	}
+	*first = false
+
+	return w.writeCommentStyled(text, style, raw)
 }
 
 // writeWithSkeleton collects all blocks, then reconstructs output from skeleton entries.
@@ -99,7 +157,7 @@ func (w *Writer) writeFromSkeleton(blocks map[string]*model.Block) error {
 			}
 		case format.SkeletonRef:
 			if block, ok := blocks[string(entry.Data)]; ok {
-				text := w.blockText(block)
+				text := w.joinedGroupText(block, blocks)
 				style := block.Properties["style"]
 				raw := block.Properties["raw"]
 				if err := w.writeCommentStyled(text, style, raw); err != nil {
@@ -139,6 +197,43 @@ func (w *Writer) blockText(block *model.Block) string {
 		return block.TargetText(w.Locale)
 	}
 	return block.SourceText()
+}
+
+// joinedGroupText returns the text for a single comment template,
+// gathering sibling Blocks that belong to the same comment-group when
+// the reader split a multi-section comment (e.g. \param a … \param b …
+// \return … inside one /*! … */) into multiple Blocks. Each section's
+// text is joined with a newline so the comment-style writers (writeQt,
+// writeJavadoc, …) emit one line per section under the comment's
+// shared delimiters. For ungrouped Blocks this returns blockText
+// unchanged.
+func (w *Writer) joinedGroupText(block *model.Block, blocks map[string]*model.Block) string {
+	sizeStr := block.Properties["groupSize"]
+	if sizeStr == "" {
+		return w.blockText(block)
+	}
+	size, err := strconv.Atoi(sizeStr)
+	if err != nil || size <= 1 {
+		return w.blockText(block)
+	}
+	firstID := block.Properties["groupFirstID"]
+	if firstID == "" || !strings.HasPrefix(firstID, "tu") {
+		return w.blockText(block)
+	}
+	startNum, err := strconv.Atoi(firstID[2:])
+	if err != nil {
+		return w.blockText(block)
+	}
+	parts := make([]string, 0, size)
+	for i := range size {
+		id := fmt.Sprintf("tu%d", startNum+i)
+		sib, ok := blocks[id]
+		if !ok {
+			continue
+		}
+		parts = append(parts, w.blockText(sib))
+	}
+	return strings.Join(parts, "\n")
 }
 
 func (w *Writer) writePart(part *model.Part, first *bool) error {

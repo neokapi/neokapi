@@ -358,6 +358,22 @@ func TestOutput_TrailingJavadocComment(t *testing.T) {
 		"roundtrip should preserve trailing comment text, got %q", output)
 }
 
+// TestOutput_MultiSectionCommentGroup verifies that a single /*! ... */
+// comment containing multiple translatable sections (\param a … \param b
+// … \return …) round-trips with all sections preserved. Before the
+// group-aware writer landed, the writer wrote only the first section
+// per skeleton ref and silently dropped the rest.
+func TestOutput_MultiSectionCommentGroup(t *testing.T) {
+	input := "/*!\n  \\param a first arg description.\n  \\param b second arg description.\n  \\return the computed result\n*/\n"
+	output := roundtrip(t, input)
+	assert.Contains(t, output, "first arg description.",
+		"roundtrip should preserve first \\param description, got %q", output)
+	assert.Contains(t, output, "second arg description.",
+		"roundtrip should preserve second \\param description, got %q", output)
+	assert.Contains(t, output, "the computed result",
+		"roundtrip should preserve \\return description, got %q", output)
+}
+
 // ---------------------------------------------------------------------------
 // DoxygenFilterTest — double extraction tests (full files)
 // ---------------------------------------------------------------------------
