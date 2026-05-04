@@ -98,6 +98,14 @@ func (r *Reader) Read(ctx context.Context) <-chan model.PartResult {
 // elementFrame tracks the state for each nested element during parsing.
 type elementFrame struct {
 	name       string
+	// qname is the element's prefix:localname form as it appears in
+	// the source (`z:汇集`, `its:rules`, or just `myDoc` when
+	// unprefixed). Used by skeleton-tracking code to find the matching
+	// closing tag in the source bytes — searching for `</localname`
+	// alone misses prefixed elements like `</z:汇集>` and the closing
+	// search returns -1 (no skeleton range, content stays untranslated
+	// in the round-trip).
+	qname      string
 	// localName / nsURI capture the element's name decomposition so
 	// the ITS resolver can match against namespace-qualified names.
 	// `name` keeps the legacy local-name-only form used by every
@@ -497,8 +505,17 @@ func (s *xmlParseState) flushBlock(frame *elementFrame, path string, endTagOffse
 
 	// Track content range for skeleton
 	if s.contentRanges != nil && frame.contentByteStart > 0 && endTagOffset > 0 {
-		// Find the start of the end tag by searching backwards from endTagOffset
-		closeStart := findCloseTagStart(s.content, frame.contentByteStart, endTagOffset, frame.name)
+		// Find the start of the end tag by searching backwards from
+		// endTagOffset. Use the source qname (`z:汇集`) when available
+		// — searching for the local name alone (`汇集`) misses the
+		// `z:` prefix in `</z:汇集>` and the search returns -1, so
+		// the block's content range is dropped from skeleton and the
+		// translation never gets substituted into the output.
+		closeName := frame.qname
+		if closeName == "" {
+			closeName = frame.name
+		}
+		closeStart := findCloseTagStart(s.content, frame.contentByteStart, endTagOffset, closeName)
 		if closeStart >= 0 {
 			*s.contentRanges = append(*s.contentRanges, skelContentRange{
 				blockID: blockID,
@@ -743,6 +760,7 @@ func (s *xmlParseState) handleStartElement(t xml.StartElement, tokOffset int) {
 
 	frame := &elementFrame{
 		name:             t.Name.Local,
+		qname:            extractElementQName(s.content, tokOffset, t.Name.Local),
 		localName:        t.Name.Local,
 		nsURI:            t.Name.Space,
 		attrs:            attrs,
@@ -757,6 +775,53 @@ func (s *xmlParseState) handleStartElement(t xml.StartElement, tokOffset int) {
 	}
 
 	if isInline {
+		// When the inline element is excluded by an ITS translate="no"
+		// rule, capture the entire subtree (including children, text,
+		// markup) as a single opaque Ph using the source bytes. The
+		// text inside isn't translatable; the structure inside should
+		// round-trip verbatim. Without this, descendant text gets
+		// dropped (hasStrongExcludeAncestor) and inline child markup
+		// gets emitted into the parent's runs without the surrounding
+		// excluded text — producing `<del><img/></del>` instead of
+		// `<del> the icon <img/></del>`.
+		if strongExclude {
+			parent := s.findTextFrame()
+			// Skip the entire subtree on the decoder. Decoder.Skip
+			// consumes through the matching end element.
+			if err := s.decoder.Skip(); err != nil {
+				s.ch <- model.PartResult{Error: fmt.Errorf("xml: skipping excluded inline %s: %w", t.Name.Local, err)}
+				return
+			}
+			endOffset := int(s.decoder.InputOffset())
+			// Capture verbatim source bytes for `<tag ...>...</tag>`
+			// (or `<tag .../>` for self-closing).
+			subtree := ""
+			if tokOffset >= 0 && endOffset > tokOffset && endOffset <= len(s.content) {
+				subtree = string(s.content[tokOffset:endOffset])
+			}
+			if parent != nil && parent.hasRuns && !parent.isExcluded {
+				// Mark parent inline ancestors as having content.
+				for i := len(s.stack) - 1; i >= 0; i-- {
+					if s.stack[i].isInline {
+						s.stack[i].hasContent = true
+					} else {
+						break
+					}
+				}
+				s.spanCounter++
+				parent.runs = append(parent.runs, model.Run{Ph: &model.PlaceholderRun{
+					ID:   strconv.Itoa(s.spanCounter),
+					Type: "fmt:" + t.Name.Local,
+					Data: subtree,
+				}})
+			}
+			// Pop the wsStack push from above (no end-element will
+			// fire for this skipped element).
+			if len(s.wsStack) > 0 {
+				s.wsStack = s.wsStack[:len(s.wsStack)-1]
+			}
+			return
+		}
 		// Mark parent inline elements as having content
 		for i := len(s.stack) - 1; i >= 0; i-- {
 			if s.stack[i].isInline {
@@ -765,7 +830,13 @@ func (s *xmlParseState) handleStartElement(t xml.StartElement, tokOffset int) {
 				break
 			}
 		}
-		// For inline elements, add opening span to parent's fragment
+		// For inline elements, add opening span to parent's fragment.
+		// Use the original source bytes for the start tag rather than
+		// reconstructing from xml.StartElement: Go's encoding/xml
+		// decoder unescapes attribute entities and replaces namespace
+		// prefixes with URIs. Reconstructing produces invalid XML
+		// (`<b http://www.w3.org/2005/11/its:translate="no">`) and
+		// loses entity escaping (`<img attr1="&=amp"/>`).
 		parent := s.findTextFrame()
 		if parent != nil && parent.hasRuns && !parent.isExcluded {
 			s.spanCounter++
@@ -773,11 +844,44 @@ func (s *xmlParseState) handleStartElement(t xml.StartElement, tokOffset int) {
 			parent.runs = append(parent.runs, model.Run{PcOpen: &model.PcOpenRun{
 				ID:   id,
 				Type: "fmt:" + t.Name.Local,
-				Data: buildStartTag(t),
+				Data: s.startTagBytes(t, tokOffset, contentStart),
 			}})
 			frame.spanID = s.spanCounter
 		}
 	} else {
+		// Non-inline element. When marked translate="no" inside a
+		// text-bearing parent block, treat it the same way as an
+		// inline+excluded element: capture the entire subtree as a
+		// single Ph in the parent's runs using verbatim source bytes.
+		// Without this, the child's content range never tracks
+		// (excluded frames don't flush blocks), the parent's content
+		// range covers the child's bytes but parent's translation
+		// has no placeholder for them, and the child element is
+		// dropped from output entirely.
+		if strongExclude {
+			parent := s.findTextFrame()
+			if parent != nil && parent.hasRuns && !parent.isExcluded {
+				if err := s.decoder.Skip(); err != nil {
+					s.ch <- model.PartResult{Error: fmt.Errorf("xml: skipping excluded %s: %w", t.Name.Local, err)}
+					return
+				}
+				endOffset := int(s.decoder.InputOffset())
+				subtree := ""
+				if tokOffset >= 0 && endOffset > tokOffset && endOffset <= len(s.content) {
+					subtree = string(s.content[tokOffset:endOffset])
+				}
+				s.spanCounter++
+				parent.runs = append(parent.runs, model.Run{Ph: &model.PlaceholderRun{
+					ID:   strconv.Itoa(s.spanCounter),
+					Type: "fmt:" + t.Name.Local,
+					Data: subtree,
+				}})
+				if len(s.wsStack) > 0 {
+					s.wsStack = s.wsStack[:len(s.wsStack)-1]
+				}
+				return
+			}
+		}
 		// Start a new text accumulator for this block element.
 		frame.initRuns()
 	}
@@ -1070,6 +1174,35 @@ func removeOverlappingParents(refs []skelRefEntry) []skelRefEntry {
 	return result
 }
 
+// extractElementQName returns the prefix:localname form of the element
+// whose start tag begins at tokOffset. Falls back to localName when the
+// source bytes are unavailable or unparseable. Used to find matching
+// close tags in source bytes — `</prefix:localname>` won't be found if
+// we search for just `</localname>`.
+func extractElementQName(content []byte, tokOffset int, localName string) string {
+	if tokOffset < 0 || tokOffset >= len(content) {
+		return localName
+	}
+	// Source must begin with '<' followed by the qname. Walk forward
+	// until whitespace or '>' or '/'.
+	if content[tokOffset] != '<' {
+		return localName
+	}
+	end := tokOffset + 1
+	for end < len(content) {
+		c := content[end]
+		if c == ' ' || c == '\t' || c == '\r' || c == '\n' || c == '>' || c == '/' {
+			break
+		}
+		end++
+	}
+	qname := string(content[tokOffset+1 : end])
+	if qname == "" {
+		return localName
+	}
+	return qname
+}
+
 // findCloseTagStart finds the byte offset where the closing tag starts (the '<' of '</tag>')
 // by searching backwards from endOffset. endOffset is after the '>' of the end tag.
 func findCloseTagStart(data []byte, searchStart, endOffset int, tagName string) int {
@@ -1172,6 +1305,19 @@ func selfCloseStartTag(s string) string {
 }
 
 // buildStartTag reconstructs the start tag XML string from a StartElement.
+//
+// This is a fallback used only when source bytes are unavailable (e.g.
+// programmatically-constructed events). The reconstruction loses two
+// pieces of information the parser strips:
+//
+//   - Namespace prefixes are replaced with the resolved URI in
+//     attr.Name.Space (e.g. `its:translate` becomes `http://www.w3.org/...:translate`),
+//     producing invalid XML.
+//   - Attribute values come back entity-decoded (`&amp;` → `&`,
+//     `&quot;` → `"`), so re-emitting them verbatim breaks XML.
+//
+// Inline-element start tags use s.startTagBytes instead, which copies
+// the original source bytes and preserves both prefixes and entities.
 func buildStartTag(se xml.StartElement) string {
 	var buf strings.Builder
 	buf.WriteByte('<')
@@ -1189,6 +1335,42 @@ func buildStartTag(se xml.StartElement) string {
 	}
 	buf.WriteByte('>')
 	return buf.String()
+}
+
+// startTagBytes returns the original source bytes for an element's
+// start tag in open form (`<tag attrs>`). This preserves namespace
+// prefixes (the parser replaces them with URIs in attr.Name.Space)
+// and entity-escaped attribute values (the parser unescapes them).
+//
+// When source bytes are unavailable or the byte range is invalid,
+// falls back to buildStartTag with its known limitations.
+//
+// Self-closing source (`<tag attrs/>`) is normalized to open form
+// (`<tag attrs>`) so the writer's selfCloseStartTag transform works
+// uniformly on the captured bytes.
+func (s *xmlParseState) startTagBytes(t xml.StartElement, tokOffset, contentStart int) string {
+	if tokOffset < 0 || contentStart <= tokOffset || contentStart > len(s.content) {
+		return buildStartTag(t)
+	}
+	raw := s.content[tokOffset:contentStart]
+	// Normalize self-closing form (`<tag/>` or `<tag />`) to open form
+	// (`<tag>`) so the writer's open/close inline-code shape is
+	// consistent. The writer rewrites empty inlines back to self-close
+	// via selfCloseStartTag — that path expects an open-form tag.
+	if n := len(raw); n >= 2 && raw[n-1] == '>' {
+		j := n - 2
+		// Skip optional whitespace between attributes and `/>`
+		for j > 0 && (raw[j] == ' ' || raw[j] == '\t' || raw[j] == '\r' || raw[j] == '\n') {
+			j--
+		}
+		if raw[j] == '/' {
+			open := make([]byte, 0, n-1)
+			open = append(open, raw[:j]...)
+			open = append(open, '>')
+			return string(open)
+		}
+	}
+	return string(raw)
 }
 
 // appendTextRun appends plain text to a run slice, coalescing with
