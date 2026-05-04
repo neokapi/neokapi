@@ -609,6 +609,22 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 					// pseudo overwrites the literal PO header text and the
 					// round-trip diverges from the bridge's output.
 					translatable := transType != "obsolete" && sourceText != ""
+					// Run okapi's TS-default InlineCodeFinder over the
+					// source/target text so printf placeholders (`%s`,
+					// `%d`, …), C-style escapes (`\n`, `\t`, …) and
+					// MessageFormat positional markers (`{0}`, …) are
+					// represented as Ph runs the pseudo step skips
+					// instead of plain TextRuns it pseudoes through.
+					// Without this `Skakel na %s` round-trips as
+					// `Śķàķēĺ ńà %ś` — the printf code's `s` letter
+					// gets pseudo'd. Also apply to per-numerusform runs
+					// so plural forms with placeholders survive pseudo
+					// unmodified.
+					sourceRuns = applyCodeFinder(sourceRuns)
+					transRuns = applyCodeFinder(transRuns)
+					for i := range numerusFormRuns {
+						numerusFormRuns[i] = applyCodeFinder(numerusFormRuns[i])
+					}
 					var block *model.Block
 					if hasInlineCodes(sourceRuns) {
 						block = &model.Block{

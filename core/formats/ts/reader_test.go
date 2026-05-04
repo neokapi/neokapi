@@ -893,12 +893,18 @@ func TestSnippet_NumerusForms(t *testing.T) {
 			found = true
 			// Verify numerus marker + each form lands as its own
 			// translation segment so the pseudo / TextModificationStep
-			// pipeline reaches both forms (not just the first).
+			// pipeline reaches both forms (not just the first). The
+			// codeFinder pass splits `%n` out as a Ph run so pseudo
+			// leaves printf placeholders intact — Segment.Text()
+			// returns only TextRun content, so the comparison is on
+			// the post-Ph remainder (` article` / ` articles`). The
+			// `%n` placeholder is preserved verbatim in the run's Ph
+			// Data and re-emitted by the writer.
 			assert.Equal(t, "yes", b.Properties["numerus"])
 			segs := b.Targets["fr"]
 			require.Len(t, segs, 2, "expected one segment per <numerusform>")
-			assert.Equal(t, "%n article", segs[0].Text())
-			assert.Equal(t, "%n articles", segs[1].Text())
+			assert.Equal(t, " article", segs[0].Text())
+			assert.Equal(t, " articles", segs[1].Text())
 			break
 		}
 	}
