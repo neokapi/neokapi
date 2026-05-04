@@ -278,6 +278,14 @@ func (r *Reader) collectScalarRange(ctx context.Context, ch chan<- model.PartRes
 		return
 	}
 
+	// yaml.v3 reports node.Line/Column at the tag indicator (`!`) when
+	// the scalar carries an explicit tag (e.g. `! 'value'`, `!!str x`).
+	// scanScalarEnd's quoted-string scanners require start to land on
+	// the actual scalar character (`'`, `"`, `|`, `>`), so advance past
+	// any leading tag handle plus the separating whitespace.
+	tagPrefix := scanTagPrefix(content, start)
+	start += tagPrefix
+
 	end := scanScalarEnd(content, start, node.Style, node.Value)
 
 	*blockCounter++
@@ -330,6 +338,43 @@ func scanScalarEnd(content []byte, start int, style yamlv3.Style, value string) 
 		// multi-line plain scalar with continuation lines.
 		return scanPlainScalarEnd(content, start, value)
 	}
+}
+
+// scanTagPrefix returns the byte length of a YAML tag prefix at start
+// (`!handle ` or `!`+`<verbatim>`+` `), including any trailing
+// whitespace separating the tag from the value. Returns 0 when content
+// at start does not begin with `!`.
+//
+// Examples (ret = bytes consumed):
+//   "! 'value'"        → 2 ("! ")
+//   "!str 'value'"     → 5 ("!str ")
+//   "!!str 'value'"    → 6 ("!!str ")
+//   "!<verbatim> v"    → 12 ("!<verbatim> ")
+func scanTagPrefix(content []byte, start int) int {
+	if start >= len(content) || content[start] != '!' {
+		return 0
+	}
+	i := start + 1
+	// `!<verbatim>` form.
+	if i < len(content) && content[i] == '<' {
+		for i < len(content) && content[i] != '>' {
+			i++
+		}
+		if i < len(content) {
+			i++ // past `>`
+		}
+	} else {
+		// `!`, `!handle`, or `!!handle` — read up to whitespace or EOL.
+		for i < len(content) && content[i] != ' ' && content[i] != '\t' &&
+			content[i] != '\n' && content[i] != '\r' {
+			i++
+		}
+	}
+	// Consume separating whitespace (but not the line terminator).
+	for i < len(content) && (content[i] == ' ' || content[i] == '\t') {
+		i++
+	}
+	return i - start
 }
 
 // scanQuotedEnd finds the end of a quoted string (handling escapes).
