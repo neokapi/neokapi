@@ -291,6 +291,14 @@ func (w *Writer) writeCommentStyled(text, style, raw string, linePrefixes []stri
 			return w.writeFromLayout(text, layout, "")
 		}
 		return w.writeQt(text, raw, linePrefixes)
+	case "qt_member":
+		// /*!< … */ as a stand-alone comment block (the leading
+		// member marker `<` was stripped at extraction time so the
+		// translatable text doesn't begin with `<`).
+		return w.writeQtMember(text, raw, linePrefixes)
+	case "javadoc_member":
+		// /**< … */ as a stand-alone comment block.
+		return w.writeJavadocMember(text, raw, linePrefixes)
 	case "trailing":
 		return w.writeTrailing(text, raw)
 	case "trailing_qt":
@@ -423,12 +431,46 @@ func (w *Writer) joinedGroupPrefixes(block *model.Block, blocks map[string]*mode
 	return all
 }
 
-// blockText returns target or source text for a block.
+// blockText returns target or source text for a block. Inline-code
+// runs (PlaceholderRun) emit their original Data verbatim so protected
+// Doxygen commands (\a x, \param y, \n …) and HTML tags round-trip
+// byte-for-byte even after pseudo-translation has run against the
+// surrounding TextRuns.
 func (w *Writer) blockText(block *model.Block) string {
 	if !w.Locale.IsEmpty() && block.HasTarget(w.Locale) {
+		segs, ok := block.Targets[w.Locale]
+		if ok {
+			return runsTextWithCodes(segs)
+		}
 		return block.TargetText(w.Locale)
 	}
-	return block.SourceText()
+	return runsTextWithCodes(block.Source)
+}
+
+// runsTextWithCodes flattens a segment sequence to the literal text
+// the doxygen writer should emit: TextRuns contribute their Text
+// verbatim, PlaceholderRuns contribute their Data (the original
+// Doxygen command / HTML tag substring captured at extraction time).
+// Other run kinds fall back to their plain-text projection.
+func runsTextWithCodes(segs []*model.Segment) string {
+	var sb strings.Builder
+	for _, seg := range segs {
+		if seg == nil {
+			continue
+		}
+		for _, run := range seg.Runs {
+			switch {
+			case run.Text != nil:
+				sb.WriteString(run.Text.Text)
+			case run.Ph != nil:
+				sb.WriteString(run.Ph.Data)
+			default:
+				// Conservative fallback for unsupported run kinds.
+				sb.WriteString(seg.Text())
+			}
+		}
+	}
+	return sb.String()
 }
 
 // joinedGroupText returns the text for a single comment template,
@@ -507,10 +549,7 @@ func (w *Writer) writeBlock(part *model.Part, first *bool) error {
 		return errors.New("doxygen writer: expected Block resource")
 	}
 
-	text := block.SourceText()
-	if !w.Locale.IsEmpty() && block.HasTarget(w.Locale) {
-		text = block.TargetText(w.Locale)
-	}
+	text := w.blockText(block)
 
 	style := block.Properties["style"]
 	raw := block.Properties["raw"]
@@ -623,6 +662,55 @@ func (w *Writer) writeQt(text, raw string, prefixes []string) error {
 		}
 	}
 	_, err := fmt.Fprintf(w.Output, "\n%s*/", indent)
+	return err
+}
+
+// writeQtMember writes text as a stand-alone /*!< ... */ block
+// comment (Doxygen's "after" / member documentation marker placed at
+// the start of the comment rather than after preceding code).
+func (w *Writer) writeQtMember(text, raw string, prefixes []string) error {
+	indent := extractIndent(raw)
+	rawLines := strings.Split(raw, "\n")
+	if len(rawLines) == 1 {
+		px := linePrefixAt(prefixes, 0)
+		_, err := fmt.Fprintf(w.Output, "%s/*!< %s%s */", indent, px, text)
+		return err
+	}
+	lines := strings.Split(text, "\n")
+	if _, err := fmt.Fprintf(w.Output, "%s/*!<", indent); err != nil {
+		return err
+	}
+	for i, line := range lines {
+		px := linePrefixAt(prefixes, i)
+		if _, err := fmt.Fprintf(w.Output, "\n%s  %s%s", indent, px, line); err != nil {
+			return err
+		}
+	}
+	_, err := fmt.Fprintf(w.Output, "\n%s*/", indent)
+	return err
+}
+
+// writeJavadocMember writes text as a stand-alone /**< ... */ block
+// comment.
+func (w *Writer) writeJavadocMember(text, raw string, prefixes []string) error {
+	indent := extractIndent(raw)
+	rawLines := strings.Split(raw, "\n")
+	if len(rawLines) == 1 {
+		px := linePrefixAt(prefixes, 0)
+		_, err := fmt.Fprintf(w.Output, "%s/**< %s%s */", indent, px, text)
+		return err
+	}
+	lines := strings.Split(text, "\n")
+	if _, err := fmt.Fprintf(w.Output, "%s/**<", indent); err != nil {
+		return err
+	}
+	for i, line := range lines {
+		px := linePrefixAt(prefixes, i)
+		if _, err := fmt.Fprintf(w.Output, "\n%s * %s%s", indent, px, line); err != nil {
+			return err
+		}
+	}
+	_, err := fmt.Fprintf(w.Output, "\n%s */", indent)
 	return err
 }
 

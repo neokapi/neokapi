@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -384,26 +385,40 @@ func findTrailingBlockMarker(s string) (string, int) {
 }
 
 // parseBlockComment parses a /** ... */ or /*! ... */ block comment starting at line index i.
+//
+// Doxygen also accepts the "after" / "member" marker variants /**< … */
+// and /*!< … */ at the start of a block comment (in addition to their
+// trailing usage on lines that have code before them, handled by
+// parseTrailingBlockComment). When the comment opens with `/**<` or
+// `/*!<` and there is no code in front, the entire comment still
+// extracts as a normal block comment, but the writer must reproduce
+// the `<` so the output stays byte-equal — the cb.style ("qt_member"
+// / "javadoc_member") records that.
 func (r *Reader) parseBlockComment(lines []string, start int) *commentBlock {
 	cb := &commentBlock{}
 	trimmedFirst := strings.TrimSpace(lines[start])
 
-	if strings.HasPrefix(trimmedFirst, "/*!") {
+	var openMarker string
+	switch {
+	case strings.HasPrefix(trimmedFirst, "/*!<"):
+		cb.style = "qt_member"
+		openMarker = "/*!<"
+	case strings.HasPrefix(trimmedFirst, "/**<"):
+		cb.style = "javadoc_member"
+		openMarker = "/**<"
+	case strings.HasPrefix(trimmedFirst, "/*!"):
 		cb.style = "qt"
-	} else {
+		openMarker = "/*!"
+	default:
 		cb.style = "javadoc"
+		openMarker = "/**"
 	}
 
 	// Check if it's a single-line block comment like "/** text */"
 	if strings.Contains(trimmedFirst, "*/") {
 		cb.rawLines = []string{lines[start]}
 		text := trimmedFirst
-		// Remove opening delimiter
-		if cb.style == "qt" {
-			text = strings.TrimPrefix(text, "/*!")
-		} else {
-			text = strings.TrimPrefix(text, "/**")
-		}
+		text = strings.TrimPrefix(text, openMarker)
 		// Remove closing delimiter
 		text = strings.TrimSuffix(text, "*/")
 		text = strings.TrimSpace(text)
@@ -421,26 +436,30 @@ func (r *Reader) parseBlockComment(lines []string, start int) *commentBlock {
 		}
 	}
 
-	// Extract text from each line
+	// Extract text from each line. Middle lines (interior body) are
+	// kept even when blank — the empty entry signals a paragraph break
+	// to extractTranslatable / joinProseLines, mirroring okapi's
+	// BLANK_LINES paragraph splitter so the writer can preserve
+	// paragraph boundaries when joining consecutive prose lines.
 	for idx, raw := range cb.rawLines {
 		text := raw
-		if idx == 0 {
-			// First line: remove opening delimiter
+		isFirst := idx == 0
+		isLast := idx == len(cb.rawLines)-1
+		switch {
+		case isFirst:
+			// First line: remove opening delimiter (including the
+			// optional `<` member marker, captured in openMarker).
 			trimmed := strings.TrimSpace(text)
-			if cb.style == "qt" {
-				trimmed = strings.TrimPrefix(trimmed, "/*!")
-			} else {
-				trimmed = strings.TrimPrefix(trimmed, "/**")
-			}
+			trimmed = strings.TrimPrefix(trimmed, openMarker)
 			text = strings.TrimSpace(trimmed)
-		} else if idx == len(cb.rawLines)-1 {
+		case isLast:
 			// Last line: remove closing delimiter
 			text = strings.TrimSpace(text)
 			text = strings.TrimSuffix(text, "*/")
 			text = strings.TrimSpace(text)
 			text = strings.TrimPrefix(text, "*")
 			text = strings.TrimSpace(text)
-		} else {
+		default:
 			// Middle lines: remove leading " * "
 			text = strings.TrimSpace(text)
 			text = strings.TrimPrefix(text, "*")
@@ -448,6 +467,12 @@ func (r *Reader) parseBlockComment(lines []string, start int) *commentBlock {
 		}
 		if text != "" {
 			cb.textLines = append(cb.textLines, text)
+		} else if !isFirst && !isLast {
+			// Preserve blank middle lines as empty textLine entries
+			// (paragraph break markers). Skipping the first (delimiter
+			// line with no body, e.g. `/**`) and last (closing `*/`)
+			// keeps the textLines aligned with the body region only.
+			cb.textLines = append(cb.textLines, "")
 		}
 	}
 
@@ -609,8 +634,26 @@ func (r *Reader) emitCommentBlock(ctx context.Context, ch chan<- model.PartResul
 				hasAnyPrefix = true
 			}
 		}
-		text := strings.Join(texts, "\n")
-		block := model.NewBlock(fmt.Sprintf("tu%d", *blockCounter), text)
+		// For block-comment styles (/** … */ and /*! … */), okapi
+		// joins consecutive plain-prose lines within a paragraph into a
+		// single line separated by spaces, then preserves the original
+		// line count by emitting blank ` * ` lines after. This matches
+		// okapi's BLANK_LINES paragraph splitter — only an explicit
+		// blank line breaks the join. Mirror that here so the joined
+		// text + padding matches the upstream byte sequence.
+		if cb.style == "javadoc" || cb.style == "qt" ||
+			cb.style == "javadoc_member" || cb.style == "qt_member" {
+			texts, prefixes = joinProseLines(texts, prefixes)
+		}
+		// Build the block's source as a Run sequence rather than a
+		// single text string. tokenizedRunsForLines tokenizes inline
+		// Doxygen commands (\a x, \param y, \n …) and HTML tags into
+		// PlaceholderRuns so they survive pseudo-translation byte-for-
+		// byte. Pure-prose lines collapse to a single TextRun, matching
+		// the previous behaviour for fixtures with no inline commands.
+		runs := tokenizedRunsForLines(texts)
+		block := model.NewBlock(fmt.Sprintf("tu%d", *blockCounter), "")
+		block.SetSourceRuns(runs)
 		block.Name = fmt.Sprintf("comment.%d", *blockCounter)
 		block.Properties["style"] = cb.style
 		block.Properties["raw"] = strings.Join(cb.rawLines, "\n")
@@ -650,7 +693,8 @@ func (r *Reader) buildLineLayout(cb *commentBlock, groups [][]translatableLine) 
 	// indentation / inline-text-on-opening-delimiter / closing-
 	// delimiter alignment. Build a raw-with-placeholder layout for
 	// those.
-	if cb.style == "javadoc" || cb.style == "qt" {
+	if cb.style == "javadoc" || cb.style == "qt" ||
+		cb.style == "javadoc_member" || cb.style == "qt_member" {
 		return r.buildBlockLayout(cb)
 	}
 	if cb.style != "triple" && cb.style != "exclamation" {
@@ -764,9 +808,14 @@ func (r *Reader) buildBlockLayout(cb *commentBlock) string {
 		var text string
 		if idx == 0 {
 			t := strings.TrimSpace(raw)
-			if cb.style == "qt" {
+			switch cb.style {
+			case "qt_member":
+				t = strings.TrimPrefix(t, "/*!<")
+			case "javadoc_member":
+				t = strings.TrimPrefix(t, "/**<")
+			case "qt":
 				t = strings.TrimPrefix(t, "/*!")
-			} else {
+			default:
 				t = strings.TrimPrefix(t, "/**")
 			}
 			text = strings.TrimSpace(t)
@@ -783,6 +832,15 @@ func (r *Reader) buildBlockLayout(cb *commentBlock) string {
 		}
 		if text == "" {
 			// Pure delimiter / blank line — emit as raw passthrough.
+			// Advance parsedCursor on body-blank lines (interior
+			// `*` decoration) so it stays aligned with cb.textLines,
+			// which now preserves blank entries as paragraph-break
+			// markers. The first delimiter line (idx == 0, e.g.
+			// `/**`) and last (`*/`) are NOT recorded in textLines,
+			// so they don't bump parsedCursor.
+			if idx > 0 && idx < len(cb.rawLines)-1 {
+				parsedCursor++
+			}
 			entries = append(entries, "S:"+raw)
 			continue
 		}
@@ -827,6 +885,11 @@ func (r *Reader) classifyTextLines(textLines []string) map[int]translatableLine 
 	var inExclude bool
 	for i, line := range textLines {
 		trimmed := strings.TrimSpace(line)
+		// Blank textLine is a paragraph-break marker (preserved by
+		// parseBlockComment) — has no translatable content.
+		if trimmed == "" {
+			continue
+		}
 		cmd := r.extractCommand(trimmed)
 		if cmd != "" {
 			if isExcludeStart(cmd) {
@@ -917,6 +980,18 @@ func (r *Reader) extractTranslatable(textLines []string) [][]translatableLine {
 
 	for _, line := range textLines {
 		trimmed := strings.TrimSpace(line)
+
+		// Blank line in the comment body — mirror okapi's
+		// BLANK_LINES paragraph splitter and flush the current group
+		// so subsequent prose joining (joinProseLines) doesn't bleed
+		// across paragraphs.
+		if trimmed == "" {
+			if len(current) > 0 {
+				groups = append(groups, current)
+				current = nil
+			}
+			continue
+		}
 
 		// Check for block exclude commands (e.g. @code, \code)
 		cmd := r.extractCommand(trimmed)
@@ -1097,6 +1172,158 @@ func (r *Reader) commandArgCount(cmd string) int {
 // roundtrip.
 func (r *Reader) processInlineCommands(line string) string {
 	return line
+}
+
+// argTakingCommandsPattern lists the Doxygen commands whose first
+// argument is the parameter NAME (a code identifier, never translated).
+// Matched first so the regex engine eats `\param x` / `\throws E` /
+// `\retval RC` etc. as one inline-code chunk — okapi appends the
+// argument to the placeholder Code (see DoxygenFilter.parseParameters
+// → code.append(extractor.parameter())) and pseudo-translation must
+// not touch the identifier.
+const argTakingCommandsPattern = `[\\@](?:param|tparam|throws?|exception|retval)\s+\w+`
+
+// inlineCodePattern matches Doxygen special commands (\cmd, @cmd) and
+// HTML-like tags (<tag>, </tag>) that appear inline within translatable
+// text. Mirrors okapi DoxygenPatterns.DOXYGEN_COMMAND so the same
+// substrings get protected as inline codes during pseudo-translation.
+//
+//	[\\@](?:param|...)\s+\w+            — \param x, \throws E (eat arg)
+//	[\\@]\w+(?:[\[\(\{].*?[\]\)\}])?   — \cmd, @cmd, \cmd[arg], @cmd{x}
+//	</?[a-zA-Z][^>]*>                   — <tag>, </tag>, <tag attr="...">
+//	@[{}]                               — @{ , @} (group toggles)
+//
+// The pattern is applied to translatable lines; matches become
+// PlaceholderRuns whose Data carries the original substring verbatim,
+// while non-matching segments stay as TextRuns. Pseudo-translation only
+// substitutes TextRun characters, so the protected commands round-trip
+// byte-for-byte.
+var inlineCodePattern = regexp.MustCompile(
+	argTakingCommandsPattern +
+		`|[\\@]\w+(?:[\[\(\{][^\]\)\}]*[\]\)\}])?` +
+		`|</?[a-zA-Z][^>]*>` +
+		`|@[{}]`)
+
+// tokenizeInlineCodes splits a translatable text line into a sequence
+// of Runs: TextRuns for prose, PlaceholderRuns for inline Doxygen
+// commands (\cmd / @cmd) and HTML tags. The returned runs flatten back
+// to the input via concatenating each run's text/Data, so the writer
+// can reconstruct the original byte sequence.
+//
+// idStart is the next placeholder ID to allocate; the function returns
+// the next free ID alongside the runs so callers can keep IDs unique
+// across an entire Block's text.
+func tokenizeInlineCodes(line string, idStart int) ([]model.Run, int) {
+	if line == "" {
+		return nil, idStart
+	}
+	matches := inlineCodePattern.FindAllStringIndex(line, -1)
+	if len(matches) == 0 {
+		return []model.Run{{Text: &model.TextRun{Text: line}}}, idStart
+	}
+	out := make([]model.Run, 0, 2*len(matches)+1)
+	cursor := 0
+	id := idStart
+	for _, m := range matches {
+		if m[0] > cursor {
+			out = append(out, model.Run{Text: &model.TextRun{Text: line[cursor:m[0]]}})
+		}
+		match := line[m[0]:m[1]]
+		out = append(out, model.Run{Ph: &model.PlaceholderRun{
+			ID:   strconv.Itoa(id),
+			Type: "doxygen:cmd",
+			Data: match,
+		}})
+		id++
+		cursor = m[1]
+	}
+	if cursor < len(line) {
+		out = append(out, model.Run{Text: &model.TextRun{Text: line[cursor:]}})
+	}
+	return out, id
+}
+
+// listItemPattern matches okapi's LIST_ITEM_PREFIX (`- `, `-# `,
+// `+ `, `*# `, `1. `, etc.). When a translatable line starts with one
+// of these markers it counts as a list item, and okapi never joins it
+// with surrounding prose — the line stays on its own row.
+var listItemPattern = regexp.MustCompile(`^(?:[-+*]#?|\d+\.)\s+`)
+
+// isListItem reports whether a translatable text line opens with a
+// Doxygen list-item marker.
+func isListItem(s string) bool {
+	return listItemPattern.MatchString(s)
+}
+
+// joinProseLines mirrors okapi's "join consecutive plain-prose lines
+// in a paragraph with a single space, padding to preserve the original
+// line count" behaviour (DoxygenFilter.parsePlainText splits on
+// BLANK_LINES_PATTERN, then collapses the remaining whitespace inside
+// each paragraph). Plain-prose lines are translatableLines whose
+// prefix is empty (no Doxygen command marker like `\brief ` or
+// `\param x ` was stripped). When two or more such lines appear in a
+// row, the function joins them into the first slot with " " separators
+// and replaces the trailing slots with empty strings — the writer
+// later emits a blank ` * ` raw line for each empty slot. Lines with
+// non-empty prefixes are left untouched, so command-marker lines and
+// command-arg lines preserve their own formatting.
+//
+// Lines whose body opens with a list-item marker (`- `, `-# `,
+// `1. `, …) are treated as their own rows — okapi's tokenizer
+// (LIST_ITEM_PREFIX_PATTERN) chunks list items independently from the
+// surrounding paragraph, so joining would erase the list structure.
+func joinProseLines(texts, prefixes []string) ([]string, []string) {
+	if len(texts) <= 1 {
+		return texts, prefixes
+	}
+	if len(texts) != len(prefixes) {
+		// Defensive: prefix slice always tracks texts 1:1 in
+		// emitCommentBlock; bail out if invariant violated.
+		return texts, prefixes
+	}
+	out := make([]string, len(texts))
+	outPx := make([]string, len(prefixes))
+	copy(out, texts)
+	copy(outPx, prefixes)
+	i := 0
+	for i < len(out) {
+		// Only merge into a plain-prose anchor (list items are valid
+		// anchors — okapi extends a list item with its continuation
+		// prose lines).
+		if outPx[i] != "" {
+			i++
+			continue
+		}
+		j := i + 1
+		// Continue absorbing trailing plain-prose lines until we hit
+		// a non-prose marker, a blank, or another list item (which
+		// starts its own row).
+		for j < len(out) && outPx[j] == "" && out[j] != "" && !isListItem(out[j]) {
+			out[i] = out[i] + " " + out[j]
+			out[j] = ""
+			j++
+		}
+		i = j
+	}
+	return out, outPx
+}
+
+// tokenizedRunsForLines builds the Run sequence for a group's text by
+// tokenizing each line with tokenizeInlineCodes and joining adjacent
+// lines with a literal "\n" TextRun. This is the inline-code-aware
+// counterpart of strings.Join(texts, "\n") used previously.
+func tokenizedRunsForLines(lines []string) []model.Run {
+	var runs []model.Run
+	id := 1
+	for i, line := range lines {
+		if i > 0 {
+			runs = append(runs, model.Run{Text: &model.TextRun{Text: "\n"}})
+		}
+		lineRuns, next := tokenizeInlineCodes(line, id)
+		runs = append(runs, lineRuns...)
+		id = next
+	}
+	return runs
 }
 
 // skelText appends text to the skeleton buffer if active.
