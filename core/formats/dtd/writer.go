@@ -176,22 +176,98 @@ func (w *Writer) writeBlock(part *model.Part) error {
 	return nil
 }
 
-// escapeEntityValue escapes characters that need encoding in DTD entity values.
+// escapeEntityValue escapes characters that need encoding in DTD entity
+// values. Pre-existing entity references (named, numeric/hex, parameter)
+// pass through unchanged — their `&` (or `%`) is part of a syntactic
+// reference, not a literal that needs escaping. Bare `&` not followed by
+// a valid reference still gets escaped to `&amp;`.
 func escapeEntityValue(s string) string {
 	var buf strings.Builder
-	for _, r := range s {
-		switch r {
+	i := 0
+	for i < len(s) {
+		c := s[i]
+		switch c {
 		case '&':
+			// Look ahead for a closing `;` within reasonable distance.
+			// Accept if the chars between form a valid entity-name or
+			// numeric/hex reference. Otherwise escape the `&` itself.
+			if end := indexByteUpTo(s[i+1:], ';', 64); end >= 0 {
+				ref := s[i+1 : i+1+end]
+				if isValidEntityRef(ref) {
+					buf.WriteString(s[i : i+1+end+1])
+					i += 1 + end + 1
+					continue
+				}
+			}
 			buf.WriteString("&amp;")
+			i++
 		case '"':
 			buf.WriteString("&quot;")
+			i++
 		case '<':
 			buf.WriteString("&lt;")
+			i++
 		case '>':
 			buf.WriteString("&gt;")
+			i++
 		default:
-			buf.WriteRune(r)
+			buf.WriteByte(c)
+			i++
 		}
 	}
 	return buf.String()
+}
+
+// indexByteUpTo returns the index of c in s within the first n bytes,
+// or -1 if not found.
+func indexByteUpTo(s string, c byte, n int) int {
+	if n > len(s) {
+		n = len(s)
+	}
+	for i := 0; i < n; i++ {
+		if s[i] == c {
+			return i
+		}
+	}
+	return -1
+}
+
+// isValidEntityRef reports whether s (the content between `&` and `;`)
+// is a syntactically valid entity reference: a Name (per XML 1.0 §2.3),
+// a decimal NCR (`#NNN`), or a hex NCR (`#xHH`).
+func isValidEntityRef(s string) bool {
+	if s == "" {
+		return false
+	}
+	if s[0] == '#' {
+		// Numeric character reference.
+		if len(s) > 2 && (s[1] == 'x' || s[1] == 'X') {
+			for _, c := range s[2:] {
+				if !(c >= '0' && c <= '9' || c >= 'a' && c <= 'f' || c >= 'A' && c <= 'F') {
+					return false
+				}
+			}
+			return len(s) > 2
+		}
+		for _, c := range s[1:] {
+			if c < '0' || c > '9' {
+				return false
+			}
+		}
+		return len(s) > 1
+	}
+	// Named reference: NameStartChar followed by NameChar*. Use the
+	// ASCII-safe subset (covers all common entity names).
+	c := s[0]
+	if !(c == '_' || c == ':' || (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z')) {
+		return false
+	}
+	for i := 1; i < len(s); i++ {
+		c := s[i]
+		if !(c == '_' || c == ':' || c == '-' || c == '.' ||
+			(c >= '0' && c <= '9') || (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z')) {
+			return false
+		}
+	}
+	return true
 }
