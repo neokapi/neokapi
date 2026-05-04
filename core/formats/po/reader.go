@@ -88,6 +88,17 @@ func (r *Reader) Open(ctx context.Context, doc *model.RawDocument) error {
 	if err != nil {
 		return fmt.Errorf("po: transcoding to UTF-8: %w", err)
 	}
+	// If there was no BOM, peek at the header's `Content-Type:
+	// charset=...` declaration and transcode if it isn't UTF-8.
+	// The charset line uses ASCII bytes only, so it decodes the
+	// same in UTF-8 / windows-1252 / ISO-8859-X.
+	if charset := detectHeaderCharset(raw); charset != "" && !isUTF8Charset(charset) {
+		em := coreenc.NewEncoderManager()
+		decoded, derr := em.Decode(raw, charset)
+		if derr == nil {
+			utf8Bytes = []byte(decoded)
+		}
+	}
 	// Detect CRLF line endings before normalising. Most parsers want LF
 	// only; the writer re-emits CRLF when the source had it.
 	r.crlfLineEndings = bytes.Contains(utf8Bytes, []byte("\r\n"))
@@ -548,7 +559,13 @@ func (r *Reader) readContentSkeleton(ctx context.Context, ch chan<- model.PartRe
 				r.skelText(line + "\n")
 			}
 			r.skelText("msgstr \"\"\n")
-			for _, hdrLine := range strings.Split(strings.TrimRight(entry.msgstr, "\n"), "\n") {
+			// okapi rewrites `Content-Type: text/plain; charset=...` to
+			// `charset=UTF-8` because the reader transcodes input to
+			// UTF-8 unconditionally. Mirror that so windows-1252 / etc.
+			// fixtures round-trip with the declared charset matching
+			// the actual byte encoding.
+			headerContent := rewriteHeaderCharset(entry.msgstr)
+			for _, hdrLine := range strings.Split(strings.TrimRight(headerContent, "\n"), "\n") {
 				escaped := strings.ReplaceAll(hdrLine, `\`, `\\`)
 				escaped = strings.ReplaceAll(escaped, `"`, `\"`)
 				r.skelText("\"" + escaped + "\\n\"\n")
@@ -882,6 +899,48 @@ func (r *Reader) parseEntries() []*poEntry {
 	return entries
 }
 
+// charsetHeaderRE matches the Content-Type charset declaration in a PO header.
+var charsetHeaderRE = regexp.MustCompile(`(?i)(charset=)[^\s\\]+`)
+
+// charsetValueRE captures only the charset value (no `charset=` prefix).
+var charsetValueRE = regexp.MustCompile(`(?i)charset=([A-Za-z0-9_\-:.]+)`)
+
+// detectHeaderCharset peeks at raw PO bytes for a `Content-Type:
+// charset=<name>` declaration and returns the charset value, or an
+// empty string when none is found. The charset declaration is ASCII,
+// so it can be safely scanned before transcoding the rest of the file.
+func detectHeaderCharset(raw []byte) string {
+	// Limit the scan to the first ~4 KiB — the header always sits at
+	// the top of the file and we don't want a charset-shaped substring
+	// in a translation to influence decoding.
+	limit := len(raw)
+	if limit > 4096 {
+		limit = 4096
+	}
+	m := charsetValueRE.FindSubmatch(raw[:limit])
+	if m == nil {
+		return ""
+	}
+	return string(m[1])
+}
+
+// isUTF8Charset reports whether a charset name maps to UTF-8 (the
+// default we already produce). Compares case-insensitively and
+// tolerates the common aliases (utf8, utf-8, UTF_8).
+func isUTF8Charset(name string) bool {
+	n := strings.ToLower(strings.NewReplacer("_", "", "-", "").Replace(name))
+	return n == "utf8"
+}
+
+// rewriteHeaderCharset rewrites the Content-Type charset declaration in a
+// PO header to UTF-8. The reader transcodes all input to UTF-8 via
+// coreenc.ToUTF8, so the on-disk byte encoding no longer matches whatever
+// the source declared (e.g. windows-1252, ISO-8859-1). okapi makes the
+// same rewrite when its filter normalises encodings on read.
+func rewriteHeaderCharset(s string) string {
+	return charsetHeaderRE.ReplaceAllString(s, "${1}UTF-8")
+}
+
 // unquotePO strips surrounding quotes and processes escape sequences.
 func unquotePO(s string) string {
 	s = strings.TrimSpace(s)
@@ -899,6 +958,16 @@ func unquotePO(s string) string {
 				buf.WriteByte('\n')
 			case 't':
 				buf.WriteByte('\t')
+			case 'r':
+				buf.WriteByte('\r')
+			case 'a':
+				buf.WriteByte('\a')
+			case 'b':
+				buf.WriteByte('\b')
+			case 'f':
+				buf.WriteByte('\f')
+			case 'v':
+				buf.WriteByte('\v')
 			case '\\':
 				buf.WriteByte('\\')
 			case '"':

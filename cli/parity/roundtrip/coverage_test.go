@@ -412,15 +412,16 @@ func coverageScans() []formatScan {
 			nativeConfig: map[string]any{
 				"useCodeFinder": true,
 				"codeFinderRules": []any{
-					// Match okapi's POFilter codeFinder rule
-					// (Parameters.java). The conversion-letter set
-					// includes lowercase `p` (pointer) and excludes
-					// capital `T` (which okapi treats as translatable).
-					// Width/precision allow `*` so patterns like
-					// `%*.*f` (Test03) round-trip as a single code.
-					`%(\d+\$)?[-+0 #]*(\d+|\*)?(\.(\d+|\*))?[bcdeEfgGhHsnopstxX]`,
-					`(\\r\\n)|\\a|\\b|\\f|\\n|\\r|\\t|\\v`,
-					`\{\d.*?\}`,
+					// okapi POFilter default rules, copied verbatim from
+					// net/sf/okapi/filters/po/Parameters.reset(). The
+					// conversion-letter set is exactly
+					// [dioxXucsfeEgGpn] — letters like b, t, h, H, S are
+					// translatable text in okapi's view, so matching them
+					// here would break canonical-equality on fixtures
+					// like Test_nautilus.af.po (`%b`) and
+					// Test_DrupalRussianCP1251.po (`%t`, `%u`).
+					`%(([-0+#]?)[-0+#]?)((\d\$)?)(([\d\*]*)(\.[\d\*]*)?)[dioxXucsfeEgGpn]`,
+					`\{\d[^\\]*?\}`,
 				},
 			},
 			// PO chain: many fixtures differ only in BOM presence and

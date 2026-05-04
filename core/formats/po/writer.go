@@ -475,6 +475,11 @@ func escapePOPlain(s string) string {
 	s = strings.ReplaceAll(s, "\"", "\\\"")
 	s = strings.ReplaceAll(s, "\n", "\\n")
 	s = strings.ReplaceAll(s, "\t", "\\t")
+	s = strings.ReplaceAll(s, "\r", "\\r")
+	s = strings.ReplaceAll(s, "\a", "\\a")
+	s = strings.ReplaceAll(s, "\b", "\\b")
+	s = strings.ReplaceAll(s, "\f", "\\f")
+	s = strings.ReplaceAll(s, "\v", "\\v")
 	return s
 }
 
