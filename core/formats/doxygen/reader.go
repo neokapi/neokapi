@@ -99,13 +99,15 @@ var nonTranslatableCommands = map[string]bool{
 	"namespace": true, "package": true, "defgroup": true, "ingroup": true,
 	"addtogroup": true, "name": true, "typedef": true, "enum": true,
 	"struct": true, "union": true, "fn": true, "var": true,
-	"def": true, "headerfile": true, "page": true, "mainpage": true,
-	"subpage": true, "section": true, "subsection": true, "subsubsection": true,
-	"paragraph": true, "anchor": true, "ref": true, "copydoc": true,
+	"def": true, "headerfile": true, "mainpage": true,
+	"anchor": true, "copydoc": true,
 	"include": true, "dontinclude": true, "line": true, "skip": true,
 	"skipline": true, "until": true, "example": true, "dir": true,
 	"relates": true, "relatesalso": true, "memberof": true,
 	"property": true, "implements": true, "extends": true,
+	"snippet": true, "verbinclude": true, "htmlinclude": true,
+	"latexinclude": true, "docbookinclude": true, "maninclude": true,
+	"rtfinclude": true, "xmlinclude": true, "includelineno": true,
 	// Group markers — `@{` opens a member group, `@}` closes one. Their
 	// presence on a line means "structural marker", not "translatable
 	// prose"; mirrors okapi's PLACEHOLDER classification for them.
@@ -115,6 +117,54 @@ var nonTranslatableCommands = map[string]bool{
 	// listing it here the declaration text gets pseudo-translated
 	// (special_commands.h `\overload void Test::drawRect(...)`).
 	"overload": true,
+}
+
+// sectionHeaderCommands map command names to the number of WORD-typed
+// non-translatable arguments before the translatable title/text/heading.
+// Per okapi's doxygenConfiguration.yml, these PLACEHOLDER commands take
+// a leading non-translatable identifier (section name, page id, anchor
+// key, ...) followed by translatable display text. Native must keep the
+// identifier portion intact while extracting the trailing prose so
+// pseudo-translation hits the title without mangling the ID. Without
+// this, `\section intro_sec Introduction` either skips translation
+// entirely (when the cmd lives in nonTranslatableCommands) or
+// pseudo-translates the ID (when treated as inline prose), neither of
+// which matches okapi's split.
+var sectionHeaderCommands = map[string]int{
+	"section":       1,
+	"subsection":    1,
+	"subsubsection": 1,
+	"paragraph":     1,
+	"page":          1,
+	"subpage":       1,
+	"xrefitem":      1, // key non-translatable; heading + list-title translate
+	"image":         2, // format + file non-translatable; caption translatable
+	// `\par` carries an optional LINE-length title that translates per
+	// okapi's doxygenConfiguration.yml — but the (commented-out)
+	// PARAGRAPH body parameter is NOT extracted. Treat `\par TITLE` as
+	// a section header so the title becomes its own paragraph and the
+	// following prose isn't absorbed (special_commands.h `\par User
+	// defined paragraph:` followed by `Contents of the paragraph.`
+	// stays on two lines like okapi emits).
+	"par": 0,
+}
+
+// paragraphBreakCommands enumerates Doxygen commands whose line-start
+// occurrence opens a new conditional / language block / list item:
+// `\if`, `\else`, `\elseif`, `\ifnot`, `\cond`, `\arg`, `\li`. okapi
+// treats these as paragraph-opening structural markers — the prose on
+// the line stays its own paragraph and the previous paragraph never
+// absorbs across it. `\endif` / `\endcond` are NOT in this set: okapi
+// merges them into whichever prose precedes them on the same line via
+// WhitespaceCollapse (e.g. `Only included if Cond1 is set. \endif`).
+var paragraphBreakCommands = map[string]bool{
+	"if": true, "ifnot": true, "else": true, "elseif": true,
+	"cond": true,
+	// `\arg` and `\li` are list-item markers — each entry is its own
+	// paragraph and adjacent items never join via WhitespaceCollapse
+	// (special_commands.h `\arg \c AlignLeft …` lines stay separate
+	// instead of being collapsed into one mega-line).
+	"arg": true, "li": true,
 }
 
 // translatableDescCommands are Doxygen commands whose description text IS translatable.
@@ -958,6 +1008,21 @@ func (r *Reader) buildBlockLayout(cb *commentBlock) string {
 			continue
 		}
 		prefix := raw[:idxT]
+		// Mirror okapi's WHITESPACE_COLLAPSE on the gap between a
+		// command marker and its description: ` *  \brief     `
+		// (5-space gap from a padded `\brief     Pretty` source) is
+		// normalised to ` *  \brief ` so the roundtrip reproduces
+		// okapi's collapsed `\brief Pretty` instead of preserving the
+		// source's incidental padding. The leading ` *  ` indent stays
+		// intact — only collapse the trailing-whitespace run inside
+		// the prefix when it follows a Doxygen command marker (so
+		// pure-indent prefixes ` *  ` for plain prose lines aren't
+		// touched).
+		if trimmed := strings.TrimRight(prefix, " \t"); trimmed != prefix && trimmed != "" {
+			if strings.ContainsAny(trimmed, "\\@") {
+				prefix = trimmed + " "
+			}
+		}
 		entries = append(entries, "B:"+prefix)
 		textCursor++
 	}
@@ -997,15 +1062,19 @@ func (r *Reader) classifyTextLines(textLines []string) map[int]translatableLine 
 		if inExclude {
 			continue
 		}
-		if cmd == "image" {
-			continue
-		}
 		if cmd != "" && nonTranslatableCommands[cmd] {
 			if cmd == "addtogroup" || cmd == "defgroup" {
 				desc, prefix := r.extractDescAndPrefix(trimmed, cmd, 1)
 				if desc != "" {
 					out[i] = translatableLine{text: desc, prefix: prefix}
 				}
+			}
+			continue
+		}
+		if skipArgs, ok := sectionHeaderCommands[cmd]; cmd != "" && ok {
+			desc, prefix := r.extractDescAndPrefix(trimmed, cmd, skipArgs)
+			if desc != "" {
+				out[i] = translatableLine{text: desc, prefix: prefix}
 			}
 			continue
 		}
@@ -1112,12 +1181,6 @@ func (r *Reader) extractTranslatable(textLines []string) [][]translatableLine {
 			continue
 		}
 
-		// Handle image command: @image format file [caption]
-		if cmd == "image" {
-			// The image command itself is not translatable
-			continue
-		}
-
 		// Handle non-translatable commands: entire line is metadata
 		if cmd != "" && nonTranslatableCommands[cmd] {
 			// These commands have arguments that are not translatable.
@@ -1128,7 +1191,39 @@ func (r *Reader) extractTranslatable(textLines []string) [][]translatableLine {
 					current = append(current, translatableLine{text: desc, prefix: prefix})
 				}
 			}
+			// Non-translatable command lines act as structural barriers
+			// — okapi never absorbs surrounding prose across them. Flush
+			// the current paragraph so joinProseLines doesn't bleed
+			// adjacent prose lines together. Examples: `\skip`, `\until`,
+			// `\skipline`, `\line`, `\dontinclude` between prose lines in
+			// the example block of special_commands.h.
+			if len(current) > 0 {
+				groups = append(groups, current)
+				current = nil
+			}
 			continue
+		}
+
+		// Handle section-header commands: `\section ID Title`,
+		// `\page ID Title`, `\subpage ID Text`, `\ref ID Text`,
+		// `\xrefitem KEY Heading "List Title"`. Per okapi's
+		// doxygenConfiguration.yml the leading WORD args (ID/KEY) are
+		// non-translatable; the trailing text/title IS translatable.
+		// Each header is its own paragraph — flush before AND after
+		// so joinProseLines doesn't absorb surrounding prose into the
+		// section header line.
+		if cmd != "" {
+			if skipArgs, ok := sectionHeaderCommands[cmd]; ok {
+				desc, prefix := r.extractDescAndPrefix(trimmed, cmd, skipArgs)
+				if len(current) > 0 {
+					groups = append(groups, current)
+					current = nil
+				}
+				if desc != "" {
+					groups = append(groups, []translatableLine{{text: desc, prefix: prefix}})
+				}
+				continue
+			}
 		}
 
 		// Handle translatable description commands: @param name description
@@ -1142,6 +1237,43 @@ func (r *Reader) extractTranslatable(textLines []string) [][]translatableLine {
 				}
 				current = append(current, translatableLine{text: desc, prefix: prefix})
 				continue
+			}
+			continue
+		}
+
+		// Handle paragraph-break commands (\if, \else, \elseif, \ifnot,
+		// \cond): the line opens a new conditional / language block.
+		// Flush the current paragraph before AND after so the marker
+		// stands as its own paragraph and adjacent prose lines don't
+		// absorb across it.
+		if cmd != "" && paragraphBreakCommands[cmd] {
+			if len(current) > 0 {
+				groups = append(groups, current)
+				current = nil
+			}
+			processed := r.processInlineCommands(trimmed)
+			if processed != "" {
+				groups = append(groups, []translatableLine{{text: processed}})
+			}
+			continue
+		}
+
+		// Handle paragraph-close commands (\endif, \endcond) at line
+		// start: okapi merges the marker into the preceding prose line
+		// (e.g. ` * \endif` after ` *    Only included if Cond1 is set.`
+		// becomes one ` * Only included if Cond1 is set. \endif`), then
+		// closes the paragraph so the next line starts fresh. Treat
+		// the marker as continuation prose for joinProseLines (empty
+		// prefix, falls into prev) AND flush so the next line opens
+		// a new group.
+		if cmd != "" && (cmd == "endif" || cmd == "endcond") {
+			processed := r.processInlineCommands(trimmed)
+			if processed != "" {
+				current = append(current, translatableLine{text: processed})
+			}
+			if len(current) > 0 {
+				groups = append(groups, current)
+				current = nil
 			}
 			continue
 		}
@@ -1194,8 +1326,12 @@ func (r *Reader) extractCommand(line string) string {
 }
 
 // isCommandChar returns true if the byte is valid in a Doxygen command name.
+// `[` / `]` are NOT included: a `@param[in]` / `@param[out]` qualifier is a
+// SEPARATE option block from the command name (`param`), not part of it.
+// Including them would fold the qualifier into the command name and bypass
+// translatableDescCommands' per-command handling.
 func isCommandChar(b byte) bool {
-	return (b >= 'a' && b <= 'z') || (b >= 'A' && b <= 'Z') || b == '$' || b == '[' || b == ']'
+	return (b >= 'a' && b <= 'z') || (b >= 'A' && b <= 'Z') || b == '$'
 }
 
 // extractDescAndPrefix returns the description text after the command
@@ -1262,6 +1398,18 @@ func (r *Reader) extractDescriptionAfterCommand(line, cmd string, skipArgs int) 
 		return ""
 	}
 	rest := line[idx+1+len(cmd):]
+	// Doxygen accepts an `[option]` qualifier directly after the
+	// command name (no whitespace in between), e.g. `@param[in]`,
+	// `@param[out]`, `@param[in,out]`. The qualifier is part of the
+	// command marker — not an argument — so skip it before counting
+	// args. Without this, `@param[out] dest` skips `[out]` as the
+	// "param name" arg and leaves `dest <description>` as the desc,
+	// which then folds the parameter name into the translatable text.
+	if len(rest) > 0 && rest[0] == '[' {
+		if endBracket := strings.IndexByte(rest, ']'); endBracket >= 0 {
+			rest = rest[endBracket+1:]
+		}
+	}
 	rest = strings.TrimSpace(rest)
 
 	// Skip the specified number of arguments
@@ -1326,7 +1474,18 @@ func (r *Reader) processInlineCommands(line string) string {
 // (`TEST`, `DEV`, `Cond1`, …) get pseudo-translated alongside the
 // surrounding prose — visible in special_commands.h's `@cond TEST`
 // blocks.
-const argTakingCommandsPattern = `[\\@](?:param|tparam|throws?|exception|retval|cond|if|ifnot|elseif)\s+\w+`
+//
+// `\ref` is treated as an inline placeholder with one mandatory WORD
+// (anchor name) followed by an optional quoted text. Match `\ref name`
+// here so the anchor name is protected from pseudo-translation; any
+// trailing `"display text"` stays as TextRun and translates normally.
+//
+// `\subpage` follows the same shape and frequently appears inside list
+// items (`- \subpage intro`) where the line-leading character is `-`,
+// not the command marker — extractCommand can't detect it as a section
+// header in that position, so the inline pattern is the right place to
+// protect the anchor name.
+const argTakingCommandsPattern = `[\\@](?:param|tparam|throws?|exception|retval|cond|if|ifnot|elseif|ref|subpage|page|section|subsection|subsubsection|paragraph)\s+\w+`
 
 // inlineCodePattern matches Doxygen special commands (\cmd, @cmd) and
 // HTML-like tags (<tag>, </tag>) that appear inline within translatable
