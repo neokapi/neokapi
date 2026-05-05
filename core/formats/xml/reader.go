@@ -1058,11 +1058,19 @@ func (s *xmlParseState) handleEndElement(t xml.EndElement) {
 					}
 				}
 			} else {
-				// Add closing run to parent's accumulator.
+				// Add closing run to parent's accumulator. Use the source
+				// qname (`its:span`) when available — `t.Name.Local` alone
+				// drops the namespace prefix, producing invalid XML like
+				// `<its:span ...>...</span>` that fails to round-trip
+				// through any namespace-aware parser.
+				closeQName := frame.qname
+				if closeQName == "" {
+					closeQName = t.Name.Local
+				}
 				parent.runs = append(parent.runs, model.Run{PcClose: &model.PcCloseRun{
 					ID:   strconv.Itoa(frame.spanID),
 					Type: "fmt:" + t.Name.Local,
-					Data: "</" + t.Name.Local + ">",
+					Data: "</" + closeQName + ">",
 				}})
 			}
 		}
