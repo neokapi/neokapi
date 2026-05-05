@@ -193,6 +193,20 @@ type XMLCanonical struct {
 	// IDML's normalizer turns it on.
 	MergeAdjacentCSRs bool
 
+	// MergeDefaultCSRs treats a "default-style" CharacterStyleRange
+	// (only attribute is `AppliedCharacterStyle="CharacterStyle/$ID/
+	// [No character style]"`) as merge-transparent against any
+	// neighboring CSR sibling, and concatenates adjacent <Content>
+	// children inside each merged CSR. okapi's
+	// StoryChildElementsParser:132-136 makes a bare <Content> inherit
+	// the previous CSR's character style, then StoryChildElementsWriter
+	// re-emits one CSR per *distinct effective* style, and
+	// StoryChildElementsMerger:138-143 fuses adjacent same-style
+	// Contents into one. Native (since 84dfba0c) wraps bare Contents
+	// in a synthetic default CSR, so this flag cancels the asymmetry
+	// on the canonicalised tree. Requires MergeAdjacentCSRs=true.
+	MergeDefaultCSRs bool
+
 	// StripRevisionIDs drops attributes whose local name is one of
 	// `paraId`, `textId`, `rsidR`, `rsidRDefault`, `rsidP`, `rsidRPr`,
 	// or `rsidTr` (regardless of namespace prefix). These are OOXML
@@ -234,6 +248,9 @@ func (n XMLCanonical) Name() string {
 	}
 	if n.MergeAdjacentCSRs {
 		parts = append(parts, "merge-csrs")
+	}
+	if n.MergeDefaultCSRs {
+		parts = append(parts, "merge-default-csrs")
 	}
 	if n.StripRevisionIDs {
 		parts = append(parts, "strip-revision-ids")
@@ -278,7 +295,7 @@ func (n XMLCanonical) Normalize(in []byte) ([]byte, error) {
 		// (and/or merge adjacent same-attr CSR siblings) without
 		// disturbing the relative position of non-element nodes
 		// (CharData, Comments, ProcInsts).
-		tokens = transformXMLTree(tokens, n.SortChildElements, n.MergeAdjacentCSRs)
+		tokens = transformXMLTree(tokens, n.SortChildElements, n.MergeAdjacentCSRs, n.MergeDefaultCSRs)
 	}
 	var buf bytes.Buffer
 	enc := xml.NewEncoder(&buf)
@@ -436,7 +453,7 @@ func (n XMLCanonical) collectTokens(dec *xml.Decoder) ([]xml.Token, error) {
 // (CharData, Comments, ProcInsts) preserve their relative position in
 // each parent's child sequence so text content never drifts across
 // element siblings.
-func transformXMLTree(tokens []xml.Token, sortChildren, mergeCSRs bool) []xml.Token {
+func transformXMLTree(tokens []xml.Token, sortChildren, mergeCSRs, mergeDefaultCSRs bool) []xml.Token {
 	// Build a synthetic root containing the top-level token stream and
 	// recurse. The root's "children" then re-emit in the original
 	// top-level order (no sorting at the root, which has no enclosing
@@ -444,7 +461,7 @@ func transformXMLTree(tokens []xml.Token, sortChildren, mergeCSRs bool) []xml.To
 	var idx int
 	root := buildXMLNode(tokens, &idx, true /*topLevel*/)
 	if mergeCSRs {
-		mergeAdjacentCSRsInTree(root)
+		mergeAdjacentCSRsInTree(root, mergeDefaultCSRs)
 	}
 	var out []xml.Token
 	emitXMLNode(root, &out, true /*topLevel*/, sortChildren)
@@ -543,7 +560,7 @@ func emitXMLNode(node *xmlNode, out *[]xml.Token, topLevel, sortChildren bool) {
 // per *style*, not one per source range; native preserves the source
 // shape. After this merge pass both forms canonicalise to the same
 // "one CSR per distinct style" tree.
-func mergeAdjacentCSRsInTree(node *xmlNode) {
+func mergeAdjacentCSRsInTree(node *xmlNode, mergeDefaultCSRs bool) {
 	if node == nil || len(node.children) == 0 {
 		return
 	}
@@ -557,18 +574,35 @@ func mergeAdjacentCSRsInTree(node *xmlNode) {
 			continue
 		}
 		// Start of a potential CSR run. Walk forward while the next
-		// sibling is also a CSR with identical attrs.
+		// sibling is also a CSR whose attrs are equal to the run's
+		// current effective attrs (or, when mergeDefaultCSRs is set,
+		// either side is a default-only CSR — see isDefaultOnlyCSR).
 		runStart := i
 		runEnd := i + 1 // exclusive
+		runAttrs := c.sub.start.Attr
 		for runEnd < len(node.children) {
 			next := node.children[runEnd]
 			if next.sub == nil || !isCSR(next.sub) {
 				break
 			}
-			if !sameXMLAttrs(c.sub.start.Attr, next.sub.start.Attr) {
-				break
+			if sameXMLAttrs(runAttrs, next.sub.start.Attr) {
+				runEnd++
+				continue
 			}
-			runEnd++
+			// Default-only CSR is merge-transparent (okapi's
+			// StoryChildElementsParser:132-136 makes bare contents
+			// inherit the previous CSR's style). Surviving attrs come
+			// from the non-default neighbor.
+			if mergeDefaultCSRs && isDefaultOnlyCSRAttrs(runAttrs) {
+				runAttrs = next.sub.start.Attr
+				runEnd++
+				continue
+			}
+			if mergeDefaultCSRs && isDefaultOnlyCSRAttrs(next.sub.start.Attr) {
+				runEnd++
+				continue
+			}
+			break
 		}
 		if runEnd-runStart == 1 {
 			// Singleton run — nothing to merge. Recurse into the lone
@@ -578,14 +612,21 @@ func mergeAdjacentCSRsInTree(node *xmlNode) {
 			continue
 		}
 		// Merge: keep the first CSR's start/end; concatenate all
-		// children. Recursion happens on the merged result below.
+		// children. head.start.Attr becomes runAttrs (the surviving
+		// non-default attribute set, or the original).
 		head := node.children[runStart].sub
+		head.start.Attr = runAttrs
 		var combined []xmlChild
 		combined = append(combined, head.children...)
 		for k := runStart + 1; k < runEnd; k++ {
 			combined = append(combined, node.children[k].sub.children...)
 		}
 		head.children = combined
+		if mergeDefaultCSRs {
+			// Same-style adjacent Contents are fused into one by okapi's
+			// StoryChildElementsMerger:138-143; mirror that here.
+			head.children = mergeAdjacentContentsInCSR(head.children)
+		}
 		merged = append(merged, xmlChild{sub: head})
 		i = runEnd
 	}
@@ -595,9 +636,73 @@ func mergeAdjacentCSRsInTree(node *xmlNode) {
 	// their own nested CSR runs that now line up).
 	for _, c := range node.children {
 		if c.sub != nil {
-			mergeAdjacentCSRsInTree(c.sub)
+			mergeAdjacentCSRsInTree(c.sub, mergeDefaultCSRs)
 		}
 	}
+}
+
+// idmlDefaultCharacterStyle matches okapi's StyleRange.java:44
+// `CHARACTER_STYLE_DEFAULT_VALUE` — the placeholder for "no character
+// style applied". A CSR with only this attribute carries no styling.
+const idmlDefaultCharacterStyle = "CharacterStyle/$ID/[No character style]"
+
+// isDefaultOnlyCSRAttrs reports whether attrs is exactly the single
+// `AppliedCharacterStyle="CharacterStyle/$ID/[No character style]"`
+// attribute and nothing else.
+func isDefaultOnlyCSRAttrs(attrs []xml.Attr) bool {
+	if len(attrs) != 1 {
+		return false
+	}
+	a := attrs[0]
+	return a.Name.Local == "AppliedCharacterStyle" && a.Value == idmlDefaultCharacterStyle
+}
+
+// mergeAdjacentContentsInCSR collapses runs of consecutive `<Content>`
+// element siblings into a single `<Content>` whose CharData is the
+// concatenation of the merged Contents' text. Non-Content children act
+// as barriers. Mirrors StoryChildElementsMerger.java:138-143.
+func mergeAdjacentContentsInCSR(children []xmlChild) []xmlChild {
+	if len(children) < 2 {
+		return children
+	}
+	out := make([]xmlChild, 0, len(children))
+	i := 0
+	for i < len(children) {
+		c := children[i]
+		if c.sub == nil || c.sub.start.Name.Local != "Content" {
+			out = append(out, c)
+			i++
+			continue
+		}
+		runEnd := i + 1
+		for runEnd < len(children) {
+			n := children[runEnd]
+			if n.sub == nil || n.sub.start.Name.Local != "Content" {
+				break
+			}
+			runEnd++
+		}
+		if runEnd-i == 1 {
+			out = append(out, c)
+			i++
+			continue
+		}
+		head := c.sub
+		var combinedText []byte
+		for k := i; k < runEnd; k++ {
+			for _, gc := range children[k].sub.children {
+				if gc.sub == nil {
+					if cd, ok := gc.raw.(xml.CharData); ok {
+						combinedText = append(combinedText, cd...)
+					}
+				}
+			}
+		}
+		head.children = []xmlChild{{raw: xml.CharData(combinedText)}}
+		out = append(out, xmlChild{sub: head})
+		i = runEnd
+	}
+	return out
 }
 
 // isCSR reports whether the given node is a <CharacterStyleRange>

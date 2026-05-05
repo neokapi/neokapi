@@ -995,7 +995,7 @@ mergeCaptions.b=false
 			// capture the structural equivalence.
 			normalizer: roundtrip.ZipEntryNormalizer{Inner: roundtrip.Chain{Steps: []roundtrip.Normalizer{
 				roundtrip.StripXMLDeclaration{},
-				roundtrip.XMLCanonical{SortAttrs: true, SortChildElements: true, MergeAdjacentCSRs: true},
+				roundtrip.XMLCanonical{SortAttrs: true, SortChildElements: true, MergeAdjacentCSRs: true, MergeDefaultCSRs: true},
 			}}},
 		},
 		{
