@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"path/filepath"
 	"slices"
 	"strconv"
@@ -183,14 +184,18 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 	// Pre-scan for embedded ITS rules so element processing can
 	// honor translateRule, withinTextRule, locNoteRule, etc. Rules
 	// embedded later in the document override earlier ones (ITS 2.0
-	// §5.4 last-rule-wins). External (xlink:href) rule documents are
-	// not loaded yet — we surface the references and consume them
-	// once a future change adds the resolver.
-	itsRules, _, err := its.ExtractRules(content)
+	// §5.4 last-rule-wins).
+	embedded, externals, err := its.ExtractRules(content)
 	if err != nil {
 		ch <- model.PartResult{Error: fmt.Errorf("xml: parsing ITS rules: %w", err)}
 		return
 	}
+	// Resolve any <its:rules xlink:href="..."> references against the
+	// document's directory. Per ITS 2.0 §5.4, externally-linked rules
+	// are processed first and embedded rules win on conflict — so we
+	// build the combined set as (externals ++ embedded).
+	itsRules := r.loadExternalITSRules(externals)
+	itsRules.Append(embedded)
 	resolver := its.NewResolver(itsRules)
 
 	if r.skeletonStore != nil {
@@ -200,6 +205,59 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 	}
 
 	r.emit(ctx, ch, &model.Part{Type: model.PartLayerEnd, Resource: layer})
+}
+
+// loadExternalITSRules walks the supplied list of `<its:rules
+// xlink:href="...">` references and returns the combined RuleSet of
+// every rule successfully read. Each href is resolved relative to the
+// document's URI directory; references with absolute paths or URIs
+// (http://…, file:///…) are skipped because the parity contract scopes
+// linked ITS rules to sibling files in the project tree. Recursive
+// xlink:href chains are followed; cycles are short-circuited via a
+// visited map. Read failures and parse errors are silently skipped —
+// missing rule files leave the round-trip behaving as if no external
+// rules were declared, matching okapi-bridge's lenient behavior on
+// unresolvable references.
+func (r *Reader) loadExternalITSRules(refs []its.ExternalRef) *its.RuleSet {
+	combined := &its.RuleSet{}
+	if len(refs) == 0 || r.Doc == nil || r.Doc.URI == "" {
+		return combined
+	}
+	baseDir := filepath.Dir(r.Doc.URI)
+	visited := map[string]bool{}
+	var walk func(href string)
+	walk = func(href string) {
+		if href == "" || strings.Contains(href, "://") || filepath.IsAbs(href) {
+			// Skip URIs (http://, file:///) and absolute paths — okapi
+			// resolves these via its catalog/EntityResolver mechanism
+			// which we don't reproduce here.
+			return
+		}
+		path := filepath.Join(baseDir, href)
+		if visited[path] {
+			return
+		}
+		visited[path] = true
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return
+		}
+		rs, nested, err := its.ExtractRules(data)
+		if err != nil {
+			return
+		}
+		// Externally-linked rule documents themselves may chain to more
+		// external documents; follow them depth-first so the combined
+		// set keeps the document order okapi produces.
+		for _, n := range nested {
+			walk(n.Href)
+		}
+		combined.Append(rs)
+	}
+	for _, ref := range refs {
+		walk(ref.Href)
+	}
+	return combined
 }
 
 // skelContentRange records a byte range in the source that corresponds to a block's text content.
