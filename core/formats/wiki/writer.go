@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"regexp"
+	"strings"
 
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
@@ -142,12 +143,26 @@ func (w *Writer) writeHeaderFromRaw(text, raw string) error {
 
 var mediaWikiHeaderReWriter = regexp.MustCompile(`^(={2,6})\s*(.+?)\s*(={2,6})\s*$`)
 
-// blockText returns target or source text for a block.
+// blockText returns target or source text for a block, splicing inline
+// PlaceholderRun / PcOpen / PcClose data back into the stream so
+// `[[link]]`, `[[link|alt]]`, and `{{image}}` constructs round-trip
+// verbatim. Plain SourceText/TargetText drops the inline-code Data
+// payloads, which would erase the markup the reader carved out under
+// tokenizeDokuWikiInlineCodes.
 func (w *Writer) blockText(block *model.Block) string {
 	if !w.Locale.IsEmpty() && block.HasTarget(w.Locale) {
-		return block.TargetText(w.Locale)
+		segs := block.Targets[w.Locale]
+		var b strings.Builder
+		for _, seg := range segs {
+			b.WriteString(model.RenderRunsWithData(seg.Runs))
+		}
+		return b.String()
 	}
-	return block.SourceText()
+	var b strings.Builder
+	for _, seg := range block.Source {
+		b.WriteString(model.RenderRunsWithData(seg.Runs))
+	}
+	return b.String()
 }
 
 func (w *Writer) writePart(part *model.Part) error {
@@ -168,11 +183,11 @@ func (w *Writer) writeBlock(part *model.Part) error {
 		return errors.New("wiki writer: expected Block resource")
 	}
 
-	// Use target text if available, otherwise source text
-	text := block.SourceText()
-	if !w.Locale.IsEmpty() && block.HasTarget(w.Locale) {
-		text = block.TargetText(w.Locale)
-	}
+	// Use the markup-preserving renderer so inline `[[link]]`,
+	// `[[link|alt]]`, and `{{image}}` placeholder runs survive the
+	// no-skeleton write path too (e.g. when the writer is fed parts
+	// directly by a tool, not driven by skeleton replay).
+	text := w.blockText(block)
 
 	if !w.firstBlock {
 		if _, err := fmt.Fprintln(w.Output); err != nil {

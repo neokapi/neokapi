@@ -212,9 +212,12 @@ features:
       - name: image_no_caption_with_following_text
         origin: "okapi-fixture: WikiFilterTest#testComplexSeparatingWhitespace (`{{image.jpg}}\\n \\nThis is text.`)"
         input_xml: "{{image.jpg}}\n \nThis is text."
-        # The bare `{{image.jpg}}` paragraph emits no Block (image is
-        # a non-translatable placeholder, no surrounding text). The
-        # following paragraph yields one Block.
+        # Both bridge and native now emit a single translatable Block
+        # ("This is text."). The native reader tokenises `{{image.jpg}}`
+        # as an inline placeholder run (wiki:image), so its containing
+        # Block has no translatable text and BlockTexts skips it — same
+        # observable surface as the bridge's "image is its own
+        # non-translatable event" model.
         block_count: 1
         first_block_text: "This is text."
         no_block_with_text:

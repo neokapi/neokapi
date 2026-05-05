@@ -906,3 +906,122 @@ func TestExtract_UpstreamDokuWikiFixture(t *testing.T) {
 		assert.True(t, found, "upstream dokuwiki.txt should surface %q in some Block", want)
 	}
 }
+
+// TestExtract_DokuWikiInlineCodes asserts the reader tokenises DokuWiki
+// inline link / image / formatting markup as inline-code runs (Ph,
+// PcOpen, PcClose) rather than translatable text. Without this the
+// pseudo round-trip mangles `[[doku>DokuWiki]]` into
+// `[[ďōķũ>ĎōķũŴĩķĩ]]`, driving the wiki parity harness away from byte
+// parity with the okapi reference (#522 follow-up).
+func TestExtract_DokuWikiInlineCodes(t *testing.T) {
+	type kindCheck struct {
+		kind string // "text", "ph", "pcopen", "pcclose"
+		text string // for text runs: substring; for codes: opaque Data substring
+	}
+	tests := []struct {
+		name  string
+		input string
+		want  []kindCheck
+	}{
+		{
+			name:  "bare_link_is_placeholder",
+			input: "[[doku>DokuWiki]] supports markup.",
+			want: []kindCheck{
+				{kind: "ph", text: "[[doku>DokuWiki]]"},
+				{kind: "text", text: " supports markup."},
+			},
+		},
+		{
+			name:  "named_link_emits_paired_code",
+			input: "see [[playground:playground|playground]] page.",
+			want: []kindCheck{
+				{kind: "text", text: "see "},
+				{kind: "pcopen", text: "[[playground:playground|"},
+				{kind: "text", text: "playground"},
+				{kind: "pcclose", text: "]]"},
+				{kind: "text", text: " page."},
+			},
+		},
+		{
+			name:  "image_is_placeholder",
+			input: "Real size: {{wiki:dokuwiki-128.png}} ok.",
+			want: []kindCheck{
+				{kind: "text", text: "Real size: "},
+				{kind: "ph", text: "{{wiki:dokuwiki-128.png}}"},
+				{kind: "text", text: " ok."},
+			},
+		},
+		{
+			name:  "bold_marker_is_paired_code",
+			input: "DokuWiki supports **bold** texts.",
+			want: []kindCheck{
+				{kind: "text", text: "DokuWiki supports "},
+				{kind: "pcopen", text: "**"},
+				{kind: "text", text: "bold"},
+				{kind: "pcclose", text: "**"},
+				{kind: "text", text: " texts."},
+			},
+		},
+		{
+			// Verifies the italic guard: `http://` does NOT open an
+			// italic run (`(?<!:)//` lookbehind in WikiPatterns) and
+			// `//really// ` opens at the space-flanked second `//` then
+			// closes at `// ` (the closing `//` must be followed by
+			// whitespace or end-of-string per `//(?=\s|$)`).
+			name:  "italic_skips_url_colon",
+			input: "see http://www.google.com or //really// stop.",
+			want: []kindCheck{
+				{kind: "text", text: "see http://www.google.com or "},
+				{kind: "pcopen", text: "//"},
+				{kind: "text", text: "really"},
+				{kind: "pcclose", text: "//"},
+				{kind: "text", text: " stop."},
+			},
+		},
+		{
+			name:  "html_sub_tag_is_paired_code",
+			input: "use <sub>subscript</sub> here.",
+			want: []kindCheck{
+				{kind: "text", text: "use "},
+				{kind: "pcopen", text: "<sub>"},
+				{kind: "text", text: "subscript"},
+				{kind: "pcclose", text: "</sub>"},
+				{kind: "text", text: " here."},
+			},
+		},
+		{
+			name:  "unmatched_opener_stays_text",
+			input: "this text has {{ unmatched braces.",
+			want: []kindCheck{
+				{kind: "text", text: "this text has {{ unmatched braces."},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			parts := readDefault(t, tt.input)
+			blocks := testutil.FilterBlocks(parts)
+			require.NotEmpty(t, blocks, "expected at least one block")
+			runs := blocks[0].Source[0].Runs
+			require.Len(t, runs, len(tt.want), "run count mismatch: got %d runs, want %d (runs=%+v)", len(runs), len(tt.want), runs)
+			for i, w := range tt.want {
+				switch w.kind {
+				case "text":
+					require.NotNil(t, runs[i].Text, "run %d: expected TextRun", i)
+					assert.Equal(t, w.text, runs[i].Text.Text, "run %d text", i)
+				case "ph":
+					require.NotNil(t, runs[i].Ph, "run %d: expected Ph", i)
+					assert.Equal(t, w.text, runs[i].Ph.Data, "run %d Ph data", i)
+				case "pcopen":
+					require.NotNil(t, runs[i].PcOpen, "run %d: expected PcOpen", i)
+					assert.Equal(t, w.text, runs[i].PcOpen.Data, "run %d PcOpen data", i)
+				case "pcclose":
+					require.NotNil(t, runs[i].PcClose, "run %d: expected PcClose", i)
+					assert.Equal(t, w.text, runs[i].PcClose.Data, "run %d PcClose data", i)
+				default:
+					t.Fatalf("unknown kind: %s", w.kind)
+				}
+			}
+		})
+	}
+}
