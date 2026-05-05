@@ -30,6 +30,18 @@ type tokenReaderState struct {
 	// <head> in that case so the output declares its UTF-8 encoding
 	// in transport headers.
 	needsCharsetMeta bool
+	// leafBlockTag is the tag name of the leaf block currently being
+	// processed by processLeafBlock (e.g. "body", "p"). Empty when no
+	// leaf block is active. Used by collectInlineTokens to recognise
+	// an end-tag that closes the enclosing leaf block — e.g. an
+	// unmatched `<sub>` should not swallow `</body>`. When seen, the
+	// raw bytes are stashed in deferredLeafEndTagRaw and the recursion
+	// unwinds.
+	leafBlockTag string
+	// deferredLeafEndTagRaw carries the raw bytes of a leaf block's
+	// end-tag that was encountered inside a still-open inline span.
+	// processLeafBlock consumes it on its next loop iteration.
+	deferredLeafEndTagRaw []byte
 }
 
 func newTokenReaderState(r *Reader, store *format.SkeletonStore) *tokenReaderState {
@@ -412,6 +424,13 @@ func (s *tokenReaderState) processLeafBlock(tokenizer *html.Tokenizer, tag strin
 	// so that trimmed leading/trailing whitespace can be written to the
 	// skeleton (preserving byte-exact roundtrip).
 
+	// Track the active leaf tag so collectInlineTokens can bail out when
+	// it sees an end-tag matching us (e.g. an unmatched `<sub>` should
+	// not swallow `</body>`).
+	prevLeafTag := s.leafBlockTag
+	s.leafBlockTag = tag
+	defer func() { s.leafBlockTag = prevLeafTag }()
+
 	// Collect tokens until matching close tag.
 	b := newRunBuilder()
 	idCounter := 0
@@ -420,6 +439,16 @@ func (s *tokenReaderState) processLeafBlock(tokenizer *html.Tokenizer, tag strin
 	var closeTagRaw []byte
 
 	for depth > 0 {
+		// If a recursive collectInlineTokens already consumed the leaf
+		// block's end-tag (e.g. an unmatched inline like
+		// `<sub>fox</pub>` swallowing past `</body>`), it leaves the
+		// raw bytes here for us.
+		if s.deferredLeafEndTagRaw != nil {
+			closeTagRaw = s.deferredLeafEndTagRaw
+			s.deferredLeafEndTagRaw = nil
+			depth = 0
+			break
+		}
 		tt := tokenizer.Next()
 		if tt == html.ErrorToken {
 			break
@@ -756,6 +785,12 @@ func (s *tokenReaderState) collectInlineTokens(tokenizer *html.Tokenizer, parent
 						},
 					)
 					s.collectInlineTokens(tokenizer, childTag, b, idCounter, info, ctx, ch)
+					// If the inner recursion bailed because it saw the
+					// leaf block's end-tag, propagate the unwind so we
+					// don't keep swallowing post-block skeleton.
+					if s.deferredLeafEndTagRaw != nil {
+						return
+					}
 				}
 			}
 
@@ -774,6 +809,17 @@ func (s *tokenReaderState) collectInlineTokens(tokenizer *html.Tokenizer, parent
 					string(tokenRaw),
 					parentInfo.Equiv,
 				)
+				return
+			}
+			// End-tag for the enclosing leaf block (e.g. `</body>` while
+			// still inside an unmatched `<sub>fox</pub>`). Stash the raw
+			// close-tag bytes so processLeafBlock picks them up, and
+			// unwind without consuming the close in the inline span.
+			// Mirrors okapi's HtmlFilter: a missing inline close auto-
+			// closes at the leaf-block boundary rather than swallowing
+			// trailing skeleton.
+			if s.leafBlockTag != "" && endTag == s.leafBlockTag {
+				s.deferredLeafEndTagRaw = tokenRaw
 				return
 			}
 			// Stray end-tag inside an inline run — same treatment as
