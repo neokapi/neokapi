@@ -153,6 +153,7 @@ func (w *Writer) writeFromSkeleton(store *format.SkeletonStore, blocks map[strin
 		case format.SkeletonRef:
 			if block, ok := blocks[string(entry.Data)]; ok {
 				text := w.getBlockText(block)
+				text = w.substituteBlockRefs(text, blocks)
 				if _, err := io.WriteString(w.Output, text); err != nil {
 					return err
 				}
@@ -160,6 +161,41 @@ func (w *Writer) writeFromSkeleton(store *format.SkeletonStore, blocks map[strin
 		}
 	}
 	return nil
+}
+
+// substituteBlockRefs replaces every `\x00BLOCK:tuN\x00` sentinel in s
+// with the named block's translated text. Reader-side
+// rewriteInlineTagWithRefs embeds these sentinels into inline-element
+// placeholder data so attribute values get substituted with translations
+// at write time. Sentinels survive pseudo-translation because tools treat
+// placeholder Data as opaque.
+func (w *Writer) substituteBlockRefs(s string, blocks map[string]*model.Block) string {
+	const sentinel = "\x00BLOCK:"
+	if !strings.Contains(s, sentinel) {
+		return s
+	}
+	var b strings.Builder
+	b.Grow(len(s))
+	for {
+		i := strings.Index(s, sentinel)
+		if i < 0 {
+			b.WriteString(s)
+			return b.String()
+		}
+		b.WriteString(s[:i])
+		rest := s[i+len(sentinel):]
+		j := strings.IndexByte(rest, 0)
+		if j < 0 {
+			// Malformed: keep the rest as-is.
+			b.WriteString(s[i:])
+			return b.String()
+		}
+		blockID := rest[:j]
+		if blk, ok := blocks[blockID]; ok {
+			b.WriteString(w.getBlockText(blk))
+		}
+		s = rest[j+1:]
+	}
 }
 
 // writeReparse re-parses the original HTML, patches translations, and renders.

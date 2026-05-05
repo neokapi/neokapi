@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"cmp"
 	"context"
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -131,16 +132,34 @@ func (s *tokenReaderState) processTokenStream(tokenizer *html.Tokenizer, ctx con
 
 		case html.TextToken:
 			text := string(raw)
+			preserveWS := false
+			if len(stack) > 0 {
+				preserveWS = stack[len(stack)-1].preserveWS
+			}
 			if !translateNo && hasNonWhitespace(text) {
 				// Bare text node outside a block context — emit as text block.
-				// In skeleton mode, preserve raw text for byte-exact roundtrip.
-				// The block's PreserveWhitespace flag tells downstream tools
-				// whether to normalize for translation.
-				blockID := s.nextBlockID()
-				_ = s.store.WriteRef(blockID)
-
-				block := model.NewBlock(blockID, text)
-				s.reader.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
+				// Trim leading/trailing whitespace from edges that look like
+				// source formatting (whitespace runs containing a newline),
+				// dropping them from the skeleton entirely; this mirrors
+				// okapi's HtmlFilter behavior of joining text directly with
+				// adjacent block-level tags. Single-space edges (no newline)
+				// are preserved as significant inter-word whitespace inside
+				// inline boundaries (e.g. text inside <b>...</b>). When the
+				// parent is a preserve-whitespace element (pre/textarea),
+				// keep the raw text intact.
+				if preserveWS {
+					blockID := s.nextBlockID()
+					_ = s.store.WriteRef(blockID)
+					block := model.NewBlock(blockID, text)
+					block.PreserveWhitespace = true
+					s.reader.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
+				} else {
+					mid := trimNewlineEdges(text)
+					blockID := s.nextBlockID()
+					_ = s.store.WriteRef(blockID)
+					block := model.NewBlock(blockID, mid)
+					s.reader.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
+				}
 			} else {
 				_ = s.store.WriteText(raw)
 			}
@@ -339,7 +358,7 @@ func (s *tokenReaderState) processLeafBlock(tokenizer *html.Tokenizer, tag strin
 
 		switch tt {
 		case html.TextToken:
-			b.AddText(string(tokenRaw))
+			addTextWithEntities(b, string(tokenRaw), &idCounter)
 
 		case html.CommentToken:
 			idCounter++
@@ -361,7 +380,7 @@ func (s *tokenReaderState) processLeafBlock(tokenizer *html.Tokenizer, tag strin
 			}
 
 			// Extract translatable attributes on inline children.
-			s.extractTokenAttrsNoSkeleton(childTag, childAtom, childAttrs, ctx, ch)
+			childTransAttrs := s.extractTokenAttrsNoSkeleton(childTag, childAtom, childAttrs, ctx, ch)
 
 			if nonTranslatableElements[childAtom] {
 				idCounter++
@@ -407,7 +426,7 @@ func (s *tokenReaderState) processLeafBlock(tokenizer *html.Tokenizer, tag strin
 						strconv.Itoa(idCounter),
 						semType,
 						subType,
-						string(tokenRaw),
+						string(rewriteInlineTagWithRefs(tokenRaw, childTransAttrs)),
 						info.Display.Placeholder,
 						info.Equiv,
 						model.RunConstraints{
@@ -424,7 +443,7 @@ func (s *tokenReaderState) processLeafBlock(tokenizer *html.Tokenizer, tag strin
 						spanID,
 						semType,
 						subType,
-						string(tokenRaw),
+						string(rewriteInlineTagWithRefs(tokenRaw, childTransAttrs)),
 						info.Display.Open,
 						info.Equiv,
 						model.RunConstraints{
@@ -434,7 +453,7 @@ func (s *tokenReaderState) processLeafBlock(tokenizer *html.Tokenizer, tag strin
 						},
 					)
 					// Recursively collect inline content.
-					s.collectInlineTokens(tokenizer, childTag, b, &idCounter, info)
+					s.collectInlineTokens(tokenizer, childTag, b, &idCounter, info, ctx, ch)
 				}
 			} else {
 				// Nested block element inside a "leaf" — shouldn't happen
@@ -461,7 +480,7 @@ func (s *tokenReaderState) processLeafBlock(tokenizer *html.Tokenizer, tag strin
 				childAttrs = collectTokenAttrs(tokenizer)
 			}
 
-			s.extractTokenAttrsNoSkeleton(childTag, childAtom, childAttrs, ctx, ch)
+			childTransAttrs := s.extractTokenAttrsNoSkeleton(childTag, childAtom, childAttrs, ctx, ch)
 
 			semType := htmlSemanticType(childTag)
 			subType := "html:" + childTag
@@ -471,7 +490,7 @@ func (s *tokenReaderState) processLeafBlock(tokenizer *html.Tokenizer, tag strin
 				strconv.Itoa(idCounter),
 				semType,
 				subType,
-				string(tokenRaw),
+				string(rewriteInlineTagWithRefs(tokenRaw, childTransAttrs)),
 				info.Display.Placeholder,
 				info.Equiv,
 				model.RunConstraints{
@@ -491,6 +510,25 @@ func (s *tokenReaderState) processLeafBlock(tokenizer *html.Tokenizer, tag strin
 	//
 	// NOTE: collapseWhitespaceRuns / trimWhitespaceRuns are applied in
 	// the DOM-based reader path (reader.go) which does not use skeleton.
+	//
+	// Exception 1: peel leading/trailing whitespace runs that look like
+	// source formatting (containing a newline) off the very first and
+	// last text runs. Mirrors okapi's HtmlFilter behavior — text inside
+	// a leaf block has its inter-element edge whitespace dropped on
+	// extraction, and the writer joins translated text directly with the
+	// element's tags (e.g. <body>\nText...</body> → <body>Pseudo(Text)...</body>).
+	//
+	// Exception 2: collapse internal whitespace runs that contain a
+	// newline (i.e. source line breaks within translatable text) to a
+	// single space. Mirrors okapi's HtmlFilter behavior — multi-line
+	// source paragraphs come out single-line. Pure space/tab whitespace
+	// runs without a newline are preserved (okapi keeps multi-space
+	// formatting inside `<title>` and similar; matching that exactly
+	// is too strict for a normalizer-friendly fix).
+	if !preserveWS {
+		s.peelEdgeNewlinesFromRuns(b)
+		s.collapseInternalNewlineRuns(b)
+	}
 
 	_ = s.store.WriteRef(blockID)
 
@@ -519,7 +557,7 @@ func (s *tokenReaderState) processLeafBlock(tokenizer *html.Tokenizer, tag strin
 
 // collectInlineTokens recursively collects inline content into a runBuilder
 // until the matching close tag for parentTag is found.
-func (s *tokenReaderState) collectInlineTokens(tokenizer *html.Tokenizer, parentTag string, b *runBuilder, idCounter *int, parentInfo *model.SpanTypeInfo) {
+func (s *tokenReaderState) collectInlineTokens(tokenizer *html.Tokenizer, parentTag string, b *runBuilder, idCounter *int, parentInfo *model.SpanTypeInfo, ctx context.Context, ch chan<- model.PartResult) {
 	for {
 		tt := tokenizer.Next()
 		if tt == html.ErrorToken {
@@ -529,7 +567,7 @@ func (s *tokenReaderState) collectInlineTokens(tokenizer *html.Tokenizer, parent
 
 		switch tt {
 		case html.TextToken:
-			b.AddText(string(tokenRaw))
+			addTextWithEntities(b, string(tokenRaw), idCounter)
 
 		case html.CommentToken:
 			*idCounter++
@@ -577,6 +615,11 @@ func (s *tokenReaderState) collectInlineTokens(tokenizer *html.Tokenizer, parent
 				continue
 			}
 
+			// Extract translatable attributes on inline children so the
+			// writer can substitute translated values into the placeholder
+			// data via the BLOCK sentinel.
+			childTransAttrs := s.extractTokenAttrsNoSkeleton(childTag, childAtom, childAttrs, ctx, ch)
+
 			if isInlineAtom(childAtom) {
 				semType := htmlSemanticType(childTag)
 				subType := "html:" + childTag
@@ -588,7 +631,7 @@ func (s *tokenReaderState) collectInlineTokens(tokenizer *html.Tokenizer, parent
 						strconv.Itoa(*idCounter),
 						semType,
 						subType,
-						string(tokenRaw),
+						string(rewriteInlineTagWithRefs(tokenRaw, childTransAttrs)),
 						info.Display.Placeholder,
 						info.Equiv,
 						model.RunConstraints{
@@ -605,7 +648,7 @@ func (s *tokenReaderState) collectInlineTokens(tokenizer *html.Tokenizer, parent
 						spanID,
 						semType,
 						subType,
-						string(tokenRaw),
+						string(rewriteInlineTagWithRefs(tokenRaw, childTransAttrs)),
 						info.Display.Open,
 						info.Equiv,
 						model.RunConstraints{
@@ -614,7 +657,7 @@ func (s *tokenReaderState) collectInlineTokens(tokenizer *html.Tokenizer, parent
 							Reorderable: info.Constraints.Reorderable,
 						},
 					)
-					s.collectInlineTokens(tokenizer, childTag, b, idCounter, info)
+					s.collectInlineTokens(tokenizer, childTag, b, idCounter, info, ctx, ch)
 				}
 			}
 
@@ -639,9 +682,13 @@ func (s *tokenReaderState) collectInlineTokens(tokenizer *html.Tokenizer, parent
 		case html.SelfClosingTagToken:
 			childTagName, hasAttr := tokenizer.TagName()
 			childTag := string(childTagName)
+			childAtom := atom.Lookup(childTagName)
+			var childAttrs []html.Attribute
 			if hasAttr {
-				collectTokenAttrs(tokenizer) // consume attrs
+				childAttrs = collectTokenAttrs(tokenizer)
 			}
+
+			childTransAttrs := s.extractTokenAttrsNoSkeleton(childTag, childAtom, childAttrs, ctx, ch)
 
 			semType := htmlSemanticType(childTag)
 			subType := "html:" + childTag
@@ -651,7 +698,7 @@ func (s *tokenReaderState) collectInlineTokens(tokenizer *html.Tokenizer, parent
 				strconv.Itoa(*idCounter),
 				semType,
 				subType,
-				string(tokenRaw),
+				string(rewriteInlineTagWithRefs(tokenRaw, childTransAttrs)),
 				info.Display.Placeholder,
 				info.Equiv,
 				model.RunConstraints{
@@ -951,31 +998,94 @@ func (s *tokenReaderState) extractTokenAttrs(raw []byte, tag string, a atom.Atom
 }
 
 // extractTokenAttrsNoSkeleton extracts translatable attributes without writing skeleton.
-// Used for inline elements inside leaf blocks.
-func (s *tokenReaderState) extractTokenAttrsNoSkeleton(tag string, a atom.Atom, attrs []html.Attribute, ctx context.Context, ch chan<- model.PartResult) {
+// Used for inline elements inside leaf blocks. Returns the list of (key, value, blockID)
+// tuples emitted, so the caller can rewrite the inline tag's raw bytes to embed
+// block-id markers in place of the attribute values; the writer then substitutes
+// those markers with translated text. Without this rewrite the inline tag would
+// emit its source attribute values verbatim.
+func (s *tokenReaderState) extractTokenAttrsNoSkeleton(tag string, a atom.Atom, attrs []html.Attribute, ctx context.Context, ch chan<- model.PartResult) []transAttrEntry {
+	var out []transAttrEntry
 	if title := getTokenAttr(attrs, "title"); title != "" {
-		s.emitAttrBlock(s.nextBlockID(), "title", title, ctx, ch)
+		id := s.nextBlockID()
+		s.emitAttrBlock(id, "title", title, ctx, ch)
+		out = append(out, transAttrEntry{"title", title, id})
 	}
 	if alt := getTokenAttr(attrs, "alt"); alt != "" {
 		if a == atom.Img || a == atom.Input || a == atom.Area {
-			s.emitAttrBlock(s.nextBlockID(), "alt", alt, ctx, ch)
+			id := s.nextBlockID()
+			s.emitAttrBlock(id, "alt", alt, ctx, ch)
+			out = append(out, transAttrEntry{"alt", alt, id})
 		}
 	}
 	if label := getTokenAttr(attrs, "label"); label != "" && a == atom.Option {
-		s.emitAttrBlock(s.nextBlockID(), "label", label, ctx, ch)
+		id := s.nextBlockID()
+		s.emitAttrBlock(id, "label", label, ctx, ch)
+		out = append(out, transAttrEntry{"label", label, id})
 	}
 	if ph := getTokenAttr(attrs, "placeholder"); ph != "" {
 		if a == atom.Input || a == atom.Textarea {
-			s.emitAttrBlock(s.nextBlockID(), "placeholder", ph, ctx, ch)
+			id := s.nextBlockID()
+			s.emitAttrBlock(id, "placeholder", ph, ctx, ch)
+			out = append(out, transAttrEntry{"placeholder", ph, id})
 		}
 	}
 	if val := getTokenAttr(attrs, "value"); val != "" && a == atom.Input {
 		inputType := strings.ToLower(getTokenAttr(attrs, "type"))
 		if isTranslatableInputValue(inputType) {
-			s.emitAttrBlock(s.nextBlockID(), "value", val, ctx, ch)
+			id := s.nextBlockID()
+			s.emitAttrBlock(id, "value", val, ctx, ch)
+			out = append(out, transAttrEntry{"value", val, id})
 		}
 	}
+	return out
 }
+
+// rewriteInlineTagWithRefs rewrites raw inline-tag bytes to replace each
+// translatable attribute value with a `\x00BLOCK:tuN\x00` sentinel. The
+// html writer detects these sentinels in placeholder data and substitutes
+// each with the corresponding block's translated text. NUL bytes don't
+// appear in well-formed HTML, so they're a safe in-band signal.
+func rewriteInlineTagWithRefs(raw []byte, transAttrs []transAttrEntry) []byte {
+	if len(transAttrs) == 0 {
+		return raw
+	}
+	type replacement struct {
+		offset  int
+		length  int
+		blockID string
+	}
+	repls := make([]replacement, 0, len(transAttrs))
+	for _, a := range transAttrs {
+		offset := findAttrValueOffset(raw, a.key)
+		if offset >= 0 {
+			repls = append(repls, replacement{offset, len(a.value), a.blockID})
+		}
+	}
+	if len(repls) == 0 {
+		return raw
+	}
+	slices.SortFunc(repls, func(a, b replacement) int {
+		return cmp.Compare(a.offset, b.offset)
+	})
+	var buf bytes.Buffer
+	pos := 0
+	for _, r := range repls {
+		buf.Write(raw[pos:r.offset])
+		buf.WriteString(blockRefSentinelStart)
+		buf.WriteString(r.blockID)
+		buf.WriteString(blockRefSentinelEnd)
+		pos = r.offset + r.length
+	}
+	buf.Write(raw[pos:])
+	return buf.Bytes()
+}
+
+// blockRefSentinelStart marks the start of a `\x00BLOCK:tuN\x00`-style
+// ID embedded in placeholder data; the writer substitutes each with the
+// named block's translated text before emitting bytes. The terminator
+// is a single NUL byte so we can distinguish ID end from start.
+const blockRefSentinelStart = "\x00BLOCK:"
+const blockRefSentinelEnd = "\x00"
 
 func (s *tokenReaderState) emitAttrBlock(blockID, attrKey, value string, ctx context.Context, ch chan<- model.PartResult) {
 	block := &model.Block{
@@ -1178,6 +1288,204 @@ func hasNonWhitespace(s string) bool {
 		}
 	}
 	return false
+}
+
+// splitEdgeWhitespace splits s into (leading, mid, trailing) where leading
+// is the run of HTML whitespace at the start, trailing the run at the end,
+// and mid the substring between (which is guaranteed to start and end with
+// non-whitespace). Used to peel inter-element whitespace off bare text
+// nodes before emitting them as block content, mirroring okapi's
+// HtmlFilter behavior.
+func splitEdgeWhitespace(s string) (leading, mid, trailing string) {
+	i := 0
+	for i < len(s) && isHTMLWhitespaceByte(s[i]) {
+		i++
+	}
+	if i == len(s) {
+		return s, "", ""
+	}
+	j := len(s)
+	for j > i && isHTMLWhitespaceByte(s[j-1]) {
+		j--
+	}
+	return s[:i], s[i:j], s[j:]
+}
+
+// htmlEntityRE matches a single HTML entity reference: a named entity
+// (`&amp;`), a numeric entity (`&#160;`), or a hex entity (`&#xA0;`).
+// Used by addTextWithEntities to peel entities out of bare text into
+// inline placeholder runs so they survive pseudo-translation as
+// opaque codes (rather than getting their letters substituted to
+// `&ĺţ;` etc.).
+var htmlEntityRE = regexp.MustCompile(`&(?:[A-Za-z][A-Za-z0-9]*|#[0-9]+|#[xX][0-9A-Fa-f]+);`)
+
+// addTextWithEntities adds raw HTML text to a runBuilder, splitting
+// out HTML entity references as inline placeholders so they don't get
+// pseudo-translated character by character. The entity's source bytes
+// (`&amp;`, `&#160;`) become the placeholder Data and are written
+// back verbatim, mirroring okapi's HtmlFilter behavior of treating
+// entities as opaque inline codes.
+func addTextWithEntities(b *runBuilder, text string, idCounter *int) {
+	if text == "" {
+		return
+	}
+	matches := htmlEntityRE.FindAllStringIndex(text, -1)
+	if len(matches) == 0 {
+		b.AddText(text)
+		return
+	}
+	pos := 0
+	for _, m := range matches {
+		start, end := m[0], m[1]
+		if start > pos {
+			b.AddText(text[pos:start])
+		}
+		*idCounter++
+		b.AddPh(
+			strconv.Itoa(*idCounter),
+			"code:entity",
+			"html:entity",
+			text[start:end],
+			"", "", model.RunConstraints{},
+		)
+		pos = end
+	}
+	if pos < len(text) {
+		b.AddText(text[pos:])
+	}
+}
+
+// containsNewline reports whether s contains any \r or \n character.
+func containsNewline(s string) bool {
+	for i := 0; i < len(s); i++ {
+		if s[i] == '\n' || s[i] == '\r' {
+			return true
+		}
+	}
+	return false
+}
+
+// collapseInternalNewlineRuns collapses any whitespace run inside a
+// TextRun that contains a newline character to a single space. Mirrors
+// okapi's HtmlFilter behavior of joining multi-line source paragraphs
+// onto a single line of translatable text.
+func (s *tokenReaderState) collapseInternalNewlineRuns(b *runBuilder) {
+	for i := range b.runs {
+		if b.runs[i].Text == nil {
+			continue
+		}
+		t := b.runs[i].Text.Text
+		if !containsNewline(t) {
+			continue
+		}
+		b.runs[i].Text.Text = collapseWhitespaceRunsContainingNewline(t)
+	}
+}
+
+// collapseWhitespaceRunsContainingNewline scans s and replaces every
+// maximal run of HTML whitespace that contains at least one newline
+// with a single space. Pure-space runs (no newline) pass through.
+func collapseWhitespaceRunsContainingNewline(s string) string {
+	var b strings.Builder
+	b.Grow(len(s))
+	i := 0
+	for i < len(s) {
+		if !isHTMLWhitespaceByte(s[i]) {
+			b.WriteByte(s[i])
+			i++
+			continue
+		}
+		j := i
+		hasNL := false
+		for j < len(s) && isHTMLWhitespaceByte(s[j]) {
+			if s[j] == '\n' || s[j] == '\r' {
+				hasNL = true
+			}
+			j++
+		}
+		if hasNL {
+			b.WriteByte(' ')
+		} else {
+			b.WriteString(s[i:j])
+		}
+		i = j
+	}
+	return b.String()
+}
+
+// peelEdgeNewlinesFromRuns trims leading whitespace from the first text
+// run and trailing whitespace from the last text run if those runs
+// contain at least one newline. Mirrors okapi's HtmlFilter "drop
+// non-significant edge whitespace inside translatable units" behavior.
+// Runs that consist entirely of newline-bearing whitespace are dropped
+// in their entirety. Edge runs preceded/followed by an inline-code run
+// are not eligible for trimming since the whitespace is significant
+// inter-word formatting.
+func (s *tokenReaderState) peelEdgeNewlinesFromRuns(b *runBuilder) {
+	if len(b.runs) == 0 {
+		return
+	}
+	// Leading: walk forward; while runs[start] is a TextRun whose run
+	// contains a newline, peel newline-bearing leading whitespace.
+	for len(b.runs) > 0 && b.runs[0].Text != nil {
+		t := b.runs[0].Text.Text
+		if !containsNewline(t) {
+			break
+		}
+		i := 0
+		for i < len(t) && isHTMLWhitespaceByte(t[i]) {
+			i++
+		}
+		if i == len(t) {
+			b.runs = b.runs[1:]
+			continue
+		}
+		b.runs[0].Text.Text = t[i:]
+		break
+	}
+	// Trailing: symmetric.
+	for len(b.runs) > 0 && b.runs[len(b.runs)-1].Text != nil {
+		idx := len(b.runs) - 1
+		t := b.runs[idx].Text.Text
+		if !containsNewline(t) {
+			break
+		}
+		j := len(t)
+		for j > 0 && isHTMLWhitespaceByte(t[j-1]) {
+			j--
+		}
+		if j == 0 {
+			b.runs = b.runs[:idx]
+			continue
+		}
+		b.runs[idx].Text.Text = t[:j]
+		break
+	}
+}
+
+// trimNewlineEdges trims leading and trailing whitespace runs from s only
+// if those runs contain at least one newline. Single-space edges (no
+// newline) are preserved as significant inter-word whitespace adjacent to
+// inline element boundaries. When the entire string is whitespace, returns
+// s unchanged.
+func trimNewlineEdges(s string) string {
+	leading, mid, trailing := splitEdgeWhitespace(s)
+	if mid == "" {
+		return s
+	}
+	leadingHasNL := strings.ContainsAny(leading, "\r\n")
+	trailingHasNL := strings.ContainsAny(trailing, "\r\n")
+	if !leadingHasNL {
+		mid = leading + mid
+	}
+	if !trailingHasNL {
+		mid = mid + trailing
+	}
+	return mid
+}
+
+func isHTMLWhitespaceByte(b byte) bool {
+	return b == ' ' || b == '\t' || b == '\n' || b == '\r' || b == '\f'
 }
 
 func blockTypeFromTag(tag string) string {

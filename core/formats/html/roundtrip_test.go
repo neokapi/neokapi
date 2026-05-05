@@ -406,37 +406,53 @@ func roundtripWithSkeleton(t *testing.T, input string) string {
 
 func TestSkeletonRoundtrip_ByteExact(t *testing.T) {
 	cases := []struct {
-		name  string
+		name string
+		// input is the source HTML.
 		input string
+		// expected, when non-empty, overrides the byte-exact assertion
+		// (input==output). Use this when the reader intentionally
+		// normalizes the source (e.g. dropping inter-element whitespace
+		// inside translatable block content, mirroring okapi).
+		expected string
 	}{
-		{"simple_p", `<html><body><p>Hello</p></body></html>`},
-		{"doctype", "<!DOCTYPE html>\n<html>\n<body><p>Text</p></body>\n</html>"},
-		{"single_quotes", `<p title='Tip'>Text</p>`},
-		{"self_closing", `<p>Line one<br/>Line two</p>`},
-		{"nested_blocks", `<html><body><ul><li>Item 1</li><li>Item 2</li></ul></body></html>`},
-		{"script_style", `<html><head><style>body{color:red}</style></head><body><script>var x=1;</script><p>Text</p></body></html>`},
-		{"comments", `<html><body><!-- nav --><p>Content</p><!-- footer --></body></html>`},
-		{"meta", `<html><head><meta charset="utf-8"><meta name="description" content="A test page"></head><body><p>Body</p></body></html>`},
+		{name: "simple_p", input: `<html><body><p>Hello</p></body></html>`},
+		{name: "doctype", input: "<!DOCTYPE html>\n<html>\n<body><p>Text</p></body>\n</html>"},
+		{name: "single_quotes", input: `<p title='Tip'>Text</p>`},
+		{name: "self_closing", input: `<p>Line one<br/>Line two</p>`},
+		{name: "nested_blocks", input: `<html><body><ul><li>Item 1</li><li>Item 2</li></ul></body></html>`},
+		{name: "script_style", input: `<html><head><style>body{color:red}</style></head><body><script>var x=1;</script><p>Text</p></body></html>`},
+		{name: "comments", input: `<html><body><!-- nav --><p>Content</p><!-- footer --></body></html>`},
+		{name: "meta", input: `<html><head><meta charset="utf-8"><meta name="description" content="A test page"></head><body><p>Body</p></body></html>`},
 		// Regression: preserve lang/xml:lang attributes unchanged (#147).
-		{"lang_preserved", `<html lang="en"><body><p>Hello</p></body></html>`},
-		{"xml_lang_preserved", `<html xml:lang="en"><body><p>Hello</p></body></html>`},
+		{name: "lang_preserved", input: `<html lang="en"><body><p>Hello</p></body></html>`},
+		{name: "xml_lang_preserved", input: `<html xml:lang="en"><body><p>Hello</p></body></html>`},
 		// Regression: preserve charset declarations unchanged (#147).
-		{"charset_iso8859", `<html><head><meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1"></head><body><p>Text</p></body></html>`},
+		{name: "charset_iso8859", input: `<html><head><meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1"></head><body><p>Text</p></body></html>`},
 		// Regression: preserve whitespace in attribute values unchanged (#147).
-		{"attr_double_space", `<html><head><meta name="keywords" content="UFO,  Burlington"></head><body><p>Text</p></body></html>`},
-		// Regression: preserve leading/trailing whitespace around block text.
-		{"block_ws_newlines", "<html><body><p>\n  Hello world\n</p></body></html>"},
-		{"block_ws_indented", "<html><body><li>\n    Item text\n  </li></body></html>"},
+		{name: "attr_double_space", input: `<html><head><meta name="keywords" content="UFO,  Burlington"></head><body><p>Text</p></body></html>`},
+		// Inter-element whitespace inside translatable block content is
+		// dropped by the reader (mirroring okapi's HtmlFilter — leading/
+		// trailing newlines get treated as non-significant source
+		// formatting, not part of the translatable text). Parity with
+		// okapi requires this trim so translated text joins its sibling
+		// tags directly; untranslated round-trip loses the source
+		// indentation as a result.
+		{name: "block_ws_newlines", input: "<html><body><p>\n  Hello world\n</p></body></html>", expected: "<html><body><p>Hello world</p></body></html>"},
+		{name: "block_ws_indented", input: "<html><body><li>\n    Item text\n  </li></body></html>", expected: "<html><body><li>Item text</li></body></html>"},
 		// Regression: known container elements roundtrip correctly (#151).
-		{"table_nested", `<html><body><table><tbody><tr><td>Cell</td></tr></tbody></table></body></html>`},
-		{"ul_nested", `<html><body><ul><li>One</li><li>Two</li></ul></body></html>`},
-		{"dl_nested", `<html><body><dl><dt>Term</dt><dd>Definition</dd></dl></body></html>`},
-		{"select_nested", `<html><body><select><option>A</option><option>B</option></select></body></html>`},
+		{name: "table_nested", input: `<html><body><table><tbody><tr><td>Cell</td></tr></tbody></table></body></html>`},
+		{name: "ul_nested", input: `<html><body><ul><li>One</li><li>Two</li></ul></body></html>`},
+		{name: "dl_nested", input: `<html><body><dl><dt>Term</dt><dd>Definition</dd></dl></body></html>`},
+		{name: "select_nested", input: `<html><body><select><option>A</option><option>B</option></select></body></html>`},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			output := roundtripWithSkeleton(t, tc.input)
-			assert.Equal(t, tc.input, output, "skeleton roundtrip should be byte-exact")
+			want := tc.input
+			if tc.expected != "" {
+				want = tc.expected
+			}
+			assert.Equal(t, want, output, "skeleton roundtrip output mismatch")
 		})
 	}
 }
