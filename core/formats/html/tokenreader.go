@@ -1057,7 +1057,7 @@ func (s *tokenReaderState) handleMetaToken(raw []byte, attrs []html.Attribute, c
 		if isTranslatable {
 			// Translatable meta: write skeleton with ref for content attribute.
 			blockID := s.nextBlockID()
-			s.writeAttrRefSkeleton(raw, "content", content, blockID)
+			s.writeAttrRefSkeleton(raw, "content", blockID)
 
 			block := &model.Block{
 				ID:           blockID,
@@ -1220,9 +1220,9 @@ func rewriteInlineTagWithRefs(raw []byte, transAttrs []transAttrEntry) []byte {
 	}
 	repls := make([]replacement, 0, len(transAttrs))
 	for _, a := range transAttrs {
-		offset := findAttrValueOffset(raw, a.key)
+		offset, length := findAttrValueRange(raw, a.key)
 		if offset >= 0 {
-			repls = append(repls, replacement{offset, len(a.value), a.blockID})
+			repls = append(repls, replacement{offset, length, a.blockID})
 		}
 	}
 	if len(repls) == 0 {
@@ -1266,9 +1266,12 @@ func (s *tokenReaderState) emitAttrBlock(blockID, attrKey, value string, ctx con
 }
 
 // writeAttrRefSkeleton writes a tag's raw bytes to skeleton, replacing one
-// attribute value with a block reference.
-func (s *tokenReaderState) writeAttrRefSkeleton(raw []byte, attrKey, attrValue, blockID string) {
-	offset := findAttrValueOffset(raw, attrKey)
+// attribute value with a block reference. The raw byte range of the value is
+// looked up afresh — using the decoded value's len here would be wrong for
+// entity-bearing values whose decoded length differs from their raw byte
+// length, and would corrupt the skeleton tail.
+func (s *tokenReaderState) writeAttrRefSkeleton(raw []byte, attrKey, blockID string) {
+	offset, length := findAttrValueRange(raw, attrKey)
 	if offset < 0 {
 		// Fallback: write whole tag then ref.
 		_ = s.store.WriteText(raw)
@@ -1279,7 +1282,7 @@ func (s *tokenReaderState) writeAttrRefSkeleton(raw []byte, attrKey, attrValue, 
 	_ = s.store.WriteText(raw[:offset])
 	_ = s.store.WriteRef(blockID)
 	// Write after the attribute value.
-	_ = s.store.WriteText(raw[offset+len(attrValue):])
+	_ = s.store.WriteText(raw[offset+length:])
 }
 
 // writeMultiAttrRefSkeleton writes a tag's raw bytes to skeleton, replacing
@@ -1293,9 +1296,9 @@ func (s *tokenReaderState) writeMultiAttrRefSkeleton(raw []byte, attrs []transAt
 
 	repls := make([]replacement, 0, len(attrs))
 	for _, a := range attrs {
-		offset := findAttrValueOffset(raw, a.key)
+		offset, length := findAttrValueRange(raw, a.key)
 		if offset >= 0 {
-			repls = append(repls, replacement{offset, len(a.value), a.blockID})
+			repls = append(repls, replacement{offset, length, a.blockID})
 		}
 	}
 
@@ -1318,16 +1321,23 @@ func (s *tokenReaderState) writeMultiAttrRefSkeleton(raw []byte, attrs []transAt
 	_ = s.store.WriteText(raw[pos:])
 }
 
-// findAttrValueOffset finds the byte offset of an attribute's value in raw tag bytes.
-// Returns -1 if not found.
-func findAttrValueOffset(raw []byte, attrKey string) int {
+// findAttrValueRange returns the byte offset and length of an attribute's value
+// in raw tag bytes (i.e., the slice raw[off:off+length] is the original
+// undecoded attribute-value text between the surrounding quotes, or the bare
+// unquoted token). Returns -1, 0 if the attribute can't be located.
+//
+// Skeleton writers must use this length (not the decoded attribute string's
+// len) when stitching skeleton text around the value — otherwise entity-bearing
+// values like `&#x20000;` (1 decoded rune, 9 raw bytes) yield mismatched
+// before/after slices that duplicate or drop trailing raw bytes.
+func findAttrValueRange(raw []byte, attrKey string) (int, int) {
 	keyBytes := []byte(strings.ToLower(attrKey))
 
 	idx := 0
 	for {
 		pos := indexBytesInsensitive(raw[idx:], keyBytes)
 		if pos < 0 {
-			return -1
+			return -1, 0
 		}
 		pos += idx
 
@@ -1353,16 +1363,30 @@ func findAttrValueOffset(raw []byte, attrKey string) int {
 			eqPos++
 		}
 		if eqPos >= len(raw) {
-			return -1
+			return -1, 0
 		}
 
 		// Check for quote.
 		quote := raw[eqPos]
 		if quote == '"' || quote == '\'' {
-			return eqPos + 1 // value starts after the quote
+			start := eqPos + 1
+			end := start
+			for end < len(raw) && raw[end] != quote {
+				end++
+			}
+			return start, end - start
 		}
-		// Unquoted attribute value.
-		return eqPos
+		// Unquoted attribute value: terminate at whitespace, '>', or '/'.
+		start := eqPos
+		end := start
+		for end < len(raw) {
+			c := raw[end]
+			if c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '>' || c == '/' {
+				break
+			}
+			end++
+		}
+		return start, end - start
 	}
 }
 
