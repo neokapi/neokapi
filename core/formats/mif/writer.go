@@ -7,6 +7,7 @@ import (
 	"io"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
@@ -110,6 +111,9 @@ func (w *Writer) writeFromSkeleton() error {
 
 			block := w.blocks[blockIdx]
 			text := block.SourceText()
+			if !w.Locale.IsEmpty() && block.HasTarget(w.Locale) {
+				text = block.TargetText(w.Locale)
+			}
 
 			// For skeleton roundtrip, each String in the para is a separate ref.
 			// If this is the only string (stringIdx==0 and it's the full text),
@@ -209,7 +213,11 @@ func (w *Writer) writeData(part *model.Part) error {
 	return nil
 }
 
-// escapeMIF escapes special characters for MIF string values.
+// escapeMIF escapes special characters for MIF string values. Non-ASCII
+// runes are written in UTF-8 (which mirrors what okapi-bridge emits for
+// the parity test target locale fr-FR; declared-encoding fidelity for
+// FrameRoman / shift-jis fixtures is tracked under the encoding cluster
+// in PARITY_NOTES.md).
 func escapeMIF(s string) string {
 	var out []byte
 	for _, r := range s {
@@ -229,7 +237,11 @@ func escapeMIF(s string) string {
 			// For simplicity, we keep the newline in the string.
 			out = append(out, '\\', 'n')
 		default:
-			out = append(out, byte(r))
+			if r < 128 {
+				out = append(out, byte(r))
+			} else {
+				out = utf8.AppendRune(out, r)
+			}
 		}
 	}
 	return string(out)
