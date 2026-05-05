@@ -107,7 +107,21 @@ func (c *Config) Reset() {
 		ExtractHardReturnsAsText:   true,
 		UseCodeFinder:              true,
 		CodeFinderRules: []string{
-			`^[A-Z]{1}:`,
+			// Note: okapi's MIF Parameters.java adds `^[A-Z]{1}:` to its
+			// codeFinder rule list, but okapi also removes leading and
+			// trailing codes back into the skeleton via
+			// TextUnitSimplification + CodeSimplifier.simplifyAll(tf, true,
+			// true). Empirically the bridge-side TextUnit handed to Go for
+			// fixtures like Test01.mif's `<String P:Body>` cell content
+			// arrives as a single text run carrying the full literal
+			// "P:Body"; the rule has no observable effect on the
+			// translatable content okapi exposes. Including it on the
+			// native side splits a leading `P:` into a placeholder, which
+			// then survives the pseudo-translate transform unchanged
+			// (yielding `P:Body` -> `P:_pseudo(Body)_`) while okapi's
+			// reference round-trip pseudo-translates the whole literal
+			// (`P:Body` -> `_pseudo(P:Body)_`). Dropping the rule keeps
+			// the two engines byte-aligned for the leading-letter case.
 			`\u2022`,
 			`\\t`,
 			`<[naArR ]{1}[+]*>`,
