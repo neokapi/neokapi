@@ -26,19 +26,45 @@ import (
 // XML parts is the dominant openxml writer parity gap.
 var wmlStrippableElementRE = regexp.MustCompile(`<w:(?:lang|bidiVisual)\b[^>]*/>`)
 
-// stripWMLSkippableElements removes <w:lang/> and <w:bidiVisual/> from an
-// XML part to mirror okapi's BlockProperties/RunProperties stripping.
-// Returns the original slice if no element was matched (cheap fast path).
+// wmlMoveRangeStrippableElementRE matches the cross-structure
+// revision-tracking range markers that okapi unconditionally drops
+// during round-trip when bPreferenceAutomaticallyAcceptRevisions=true
+// (the default). Each marker is overwhelmingly emitted in self-closing
+// form (`<w:moveToRangeStart .../>`) but the schema permits an empty
+// open/close pair; both forms are matched. Element list:
+//   - <w:moveToRangeStart>   / <w:moveToRangeEnd>
+//   - <w:moveFromRangeStart> / <w:moveFromRangeEnd>
+//
+// See SkippableElement.RevisionCrossStructure (lines 143-173 of
+// okapi/filters/openxml/src/main/java/net/sf/okapi/filters/openxml/SkippableElement.java)
+// and the wiring in SkippableElements.RevisionCrossStructure /
+// MoveFromRevisionCrossStructure (lines 336-410 of
+// okapi/filters/openxml/src/main/java/net/sf/okapi/filters/openxml/SkippableElements.java),
+// BlockSkippableElements (lines 64-78 of BlockSkippableElements.java),
+// and StyledTextPart (lines 212-225 of StyledTextPart.java).
+var wmlMoveRangeStrippableElementRE = regexp.MustCompile(
+	`<w:(?:moveToRangeStart|moveToRangeEnd|moveFromRangeStart|moveFromRangeEnd)\b[^>]*/>` +
+		`|<w:(?:moveToRangeStart|moveToRangeEnd|moveFromRangeStart|moveFromRangeEnd)\b[^>]*>\s*</w:(?:moveToRangeStart|moveToRangeEnd|moveFromRangeStart|moveFromRangeEnd)>`,
+)
+
+// stripWMLSkippableElements removes WordprocessingML elements from an
+// XML part to mirror okapi's BlockProperties/RunProperties and
+// RevisionCrossStructure stripping. Returns the original slice if no
+// element was matched (cheap fast path).
 func stripWMLSkippableElements(data []byte) []byte {
-	if !bytes.Contains(data, []byte("<w:lang")) && !bytes.Contains(data, []byte("<w:bidiVisual")) {
-		return data
+	if bytes.Contains(data, []byte("<w:lang")) || bytes.Contains(data, []byte("<w:bidiVisual")) {
+		data = wmlStrippableElementRE.ReplaceAll(data, nil)
 	}
-	return wmlStrippableElementRE.ReplaceAll(data, nil)
+	if bytes.Contains(data, []byte("<w:moveToRange")) || bytes.Contains(data, []byte("<w:moveFromRange")) {
+		data = wmlMoveRangeStrippableElementRE.ReplaceAll(data, nil)
+	}
+	return data
 }
 
 // shouldStripWMLLang reports whether the given ZIP entry path is a
-// WordprocessingML XML part where okapi's lang/bidiVisual stripping
-// applies. Other parts (drawings, themes, settings.xml) are untouched.
+// WordprocessingML XML part where okapi's lang/bidiVisual and
+// RevisionCrossStructure (moveTo/moveFrom range) stripping applies.
+// Other parts (drawings, themes, settings.xml) are untouched.
 func shouldStripWMLLang(name string) bool {
 	if !strings.HasPrefix(name, "word/") || !strings.HasSuffix(name, ".xml") {
 		return false
