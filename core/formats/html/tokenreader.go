@@ -125,7 +125,13 @@ func scanNeedsCharsetMeta(content []byte) bool {
 // classified as containers unconditionally, without forward scanning, to
 // avoid misclassification when the tokenizer buffer has been exhausted by
 // a preceding large element (#151).
+//
+// `head` is included so empty `<head></head>` doesn't get classified as
+// a leaf block — leaf-block processing trims leading-newline whitespace
+// from the runs, which would drop the source's `<head>\n</head>` newline
+// and emit `<head><meta>...</head>` instead of okapi's `<head><meta>...\n</head>`.
 var knownContainerElements = map[atom.Atom]bool{
+	atom.Head:  true,
 	atom.Table: true, atom.Tbody: true, atom.Thead: true,
 	atom.Tfoot: true, atom.Tr: true, atom.Colgroup: true,
 	atom.Ul: true, atom.Ol: true, atom.Dl: true,
@@ -500,7 +506,11 @@ func (s *tokenReaderState) processLeafBlock(tokenizer *html.Tokenizer, tag strin
 				childTranslateNo = true
 			}
 
-			if isInlineAtom(childAtom) {
+			if isInlineAtom(childAtom) || childAtom == 0 {
+				// Unknown elements (atom == 0, e.g. `<exclude>`) are
+				// treated as inline placeholders so their tags
+				// survive verbatim. Mirrors okapi's HtmlFilter, which
+				// captures unrecognised markup as inline `<code>` pairs.
 				if childTranslateNo {
 					// Whole inline is non-translatable: consume as placeholder.
 					idCounter++
@@ -756,7 +766,12 @@ func (s *tokenReaderState) collectInlineTokens(tokenizer *html.Tokenizer, parent
 			// data via the BLOCK sentinel.
 			childTransAttrs := s.extractTokenAttrsNoSkeleton(childTag, childAtom, childAttrs, ctx, ch)
 
-			if isInlineAtom(childAtom) {
+			if isInlineAtom(childAtom) || childAtom == 0 {
+				// Unknown elements (atom == 0, e.g. `<exclude>`) are
+				// treated as inline placeholders so their start/end
+				// tags survive the round-trip verbatim. Mirrors okapi's
+				// HtmlFilter, which preserves any unrecognised markup
+				// inside translatable text as inline `<code>` pairs.
 				semType := htmlSemanticType(childTag)
 				subType := "html:" + childTag
 
