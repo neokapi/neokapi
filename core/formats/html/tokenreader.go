@@ -539,7 +539,35 @@ func (s *tokenReaderState) processLeafBlock(tokenizer *html.Tokenizer, tag strin
 				if depth == 0 {
 					closeTagRaw = tokenRaw
 				}
+				continue
 			}
+			// Stray end-tag inside a leaf block — preserve the original
+			// bytes as an inline-code placeholder so they round-trip
+			// verbatim. Mirrors okapi's HtmlFilter, which captures any
+			// markup that doesn't match a translatable text path as an
+			// inline `<code>` (e.g. `</br></br>` is preserved literally
+			// in merged_codes.html). Per the HTML5 parsing algorithm an
+			// end-tag for a void element like `</br>` is reinterpreted
+			// as `<br>`, but our extraction keeps the original close-tag
+			// bytes so the merge step writes them back exactly as the
+			// source had them.
+			endSemType := htmlSemanticType(endTag)
+			endSubType := "html:" + endTag
+			idCounter++
+			endInfo := s.vocab.LookupOrFallback(endSemType)
+			b.AddPh(
+				strconv.Itoa(idCounter),
+				endSemType,
+				endSubType,
+				string(tokenRaw),
+				endInfo.Display.Placeholder,
+				endInfo.Equiv,
+				model.RunConstraints{
+					Deletable:   endInfo.Constraints.Deletable,
+					Cloneable:   endInfo.Constraints.Cloneable,
+					Reorderable: endInfo.Constraints.Reorderable,
+				},
+			)
 
 		case html.SelfClosingTagToken:
 			childTagName, hasAttr := tokenizer.TagName()
@@ -748,6 +776,26 @@ func (s *tokenReaderState) collectInlineTokens(tokenizer *html.Tokenizer, parent
 				)
 				return
 			}
+			// Stray end-tag inside an inline run — same treatment as
+			// processLeafBlock: preserve the original close-tag bytes
+			// as a Ph so they survive the round-trip verbatim.
+			endSemType := htmlSemanticType(endTag)
+			endSubType := "html:" + endTag
+			*idCounter++
+			endInfo := s.vocab.LookupOrFallback(endSemType)
+			b.AddPh(
+				strconv.Itoa(*idCounter),
+				endSemType,
+				endSubType,
+				string(tokenRaw),
+				endInfo.Display.Placeholder,
+				endInfo.Equiv,
+				model.RunConstraints{
+					Deletable:   endInfo.Constraints.Deletable,
+					Cloneable:   endInfo.Constraints.Cloneable,
+					Reorderable: endInfo.Constraints.Reorderable,
+				},
+			)
 
 		case html.SelfClosingTagToken:
 			childTagName, hasAttr := tokenizer.TagName()
