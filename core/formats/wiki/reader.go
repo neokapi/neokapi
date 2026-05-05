@@ -45,6 +45,12 @@ var (
 	// `{{...}}` — image / template placeholder. Single-line only,
 	// matching Okapi's IMAGE_START.
 	dokuWikiImageRe = regexp.MustCompile(`\{\{[^}\r\n]+\}\}`)
+	// `~~NOTOC~~` / `~~NOCACHE~~` / `~~INFO:<word>~~` — DokuWiki
+	// macro placeholders. Mirrors okapi WikiPatterns
+	// MACRO_START_PATTERN (`~~(?:NOTOC|NOCACHE|INFO:\w*)~~`); the
+	// entire token is opaque inline markup that must round-trip
+	// verbatim instead of being pseudo-translated as plain text.
+	dokuWikiMacroRe = regexp.MustCompile(`~~(?:NOTOC|NOCACHE|INFO:\w*)~~`)
 
 	// HTML-style paired inline tags recognised by Okapi WikiPatterns
 	// (SUB, SUP, DEL, NOWIKI_TAG). Each opener is `<tag>` (case-insensitive
@@ -79,6 +85,11 @@ var dokuWikiPaired = []struct {
 	{marker: "__", codeID: "wiki:underline"},
 	{marker: "''", codeID: "wiki:monospace"},
 	{marker: "//", codeID: "wiki:italic"},
+	// `%%` is the DokuWiki NOWIKI shorthand. Treated as paired
+	// markers like the others; emitPaired's `wiki:nowiki` carve-out
+	// suppresses recursive tokenisation of the inner text so embedded
+	// markers (`~~NOTOC~~`, URLs, …) stay translatable plain text.
+	{marker: "%%", codeID: "wiki:nowiki"},
 }
 
 // MediaWiki table patterns
@@ -109,6 +120,58 @@ var dokuWikiOpenTableRowRe = regexp.MustCompile(`^[|^].`)
 // honouring this, indented sample code in dokuwiki.wiki gets
 // pseudo-translated and diverges from the okapi reference.
 var dokuWikiCodeStartRe = regexp.MustCompile(`^ {2,}[^\s*-]`)
+
+// DokuWiki list item: line starts with two-or-more spaces followed by a
+// `*` (unordered) or `-` (ordered) marker plus a single space. Mirrors
+// Okapi WikiPatterns LIST_ITEM_START_PATTERN (`^ {2,}[\*-] |^>+ `).
+// We honour the indented `* ` / `- ` form here; the `>+ ` quote-block
+// form has no fixture coverage so we leave it for follow-up. Each
+// matching line becomes one Block whose source text is everything after
+// the leading delimiter. Without this, `  * a\n  * b\n  * c\n` collapses
+// into one paragraph as `* a * b * c` after whitespace collapse, while
+// okapi's WikiFilter splits each item into its own LIST_ITEM block.
+var dokuWikiListItemRe = regexp.MustCompile(`^( {2,}[\*-] )(.+)$`)
+
+// DokuWiki untranslatable block tags. Each entry's `start` matches a
+// line that opens with an `<code lang="php">` / `<file>` / `<html>` /
+// `<php>` tag; the matching `end` closes it at the next `</tag>`.
+// While the parser is between these markers, every line — including
+// blank lines — flows verbatim through the skeleton and contributes
+// nothing to translatable text. Mirrors okapi's WikiPatterns CODE_TAG
+// / FILE / HTML / PHP block delimiters (all annotated `@Untranslatable`
+// upstream).
+//
+// We anchor each opener with `^\s*` so quoted / escaped occurrences
+// inside paragraph prose (e.g. `''%%<code>%%'' or ''%%<file>%%''`)
+// don't mis-trigger the block. Okapi sidesteps this by running
+// TEMP_EXTRACT first — which pulls `%%...%%`, `<nowiki>...</nowiki>`,
+// and other non-interpreted spans out of the stream before block
+// tokenisation; we approximate the observable outcome by requiring the
+// tag at the start of the line.
+var dokuWikiUntranslatableBlocks = []struct {
+	tag     string
+	startRe *regexp.Regexp
+	endRe   *regexp.Regexp
+}{
+	{tag: "code", startRe: regexp.MustCompile(`(?i)^\s*<code\b[^>]*>`), endRe: regexp.MustCompile(`(?i)</code>`)},
+	{tag: "file", startRe: regexp.MustCompile(`(?i)^\s*<file\b[^>]*>`), endRe: regexp.MustCompile(`(?i)</file>`)},
+	{tag: "html", startRe: regexp.MustCompile(`(?i)^\s*<html\b[^>]*>`), endRe: regexp.MustCompile(`(?i)</html>`)},
+	{tag: "php", startRe: regexp.MustCompile(`(?i)^\s*<php\b[^>]*>`), endRe: regexp.MustCompile(`(?i)</php>`)},
+}
+
+// matchDokuWikiUntranslatableOpener reports whether `line` opens an
+// untranslatable block tag (`<code>` / `<file>` / `<html>` / `<php>`).
+// The returned end-pattern is used by the line-based parser to detect
+// the matching closer on a later line. Returns nil when no block
+// opener is present.
+func matchDokuWikiUntranslatableOpener(line string) (closeRe *regexp.Regexp, tag string) {
+	for _, b := range dokuWikiUntranslatableBlocks {
+		if loc := b.startRe.FindStringIndex(line); loc != nil {
+			return b.endRe, b.tag
+		}
+	}
+	return nil, ""
+}
 
 // MediaWiki image/file link: [[File:...|...|caption]] or [[Image:...|...|caption]]
 var mediaWikiImageRe = regexp.MustCompile(`\[\[(?:File|Image):([^]|]+)((?:\|[^]|]*)*)?\]\]`)
@@ -246,6 +309,22 @@ func (ps *parseState) flushParagraph(ctx context.Context, r *Reader, ch chan<- m
 			}
 		}
 	}
+	// trailingLineEnding returns the line ending of the paragraph's
+	// last source line, or "" when no skeleton tracking is active /
+	// the paragraph has no recorded indices. Used by early-return
+	// paths that route bare paragraph bytes to skeleton without
+	// emitting a ref — they still need to terminate the line so the
+	// next blank-line `\r\n` lands on a fresh line in the writer.
+	trailingLineEnding := func() string {
+		if r.skeletonStore == nil || len(rLines) == 0 || len(paraIdxes) == 0 {
+			return ""
+		}
+		lastIdx := paraIdxes[len(paraIdxes)-1]
+		if lastIdx >= len(rLines) {
+			return ""
+		}
+		return rLines[lastIdx].lineEnding
+	}
 
 	// DokuWiki image syntax recognition (#521). Only apply for the
 	// DokuWiki variant — the upstream WikiFilter is DokuWiki-only and
@@ -253,7 +332,7 @@ func (ps *parseState) flushParagraph(ctx context.Context, r *Reader, ch chan<- m
 	// MediaWiki (which uses `[[File:…]]`, handled by the dedicated
 	// MediaWiki image path).
 	if r.cfg.Variant == VariantDokuWiki && dokuWikiImageRe.MatchString(text) {
-		return ps.emitDokuWikiParagraphWithImages(ctx, r, ch, text, emitSkeletonRef)
+		return ps.emitDokuWikiParagraphWithImages(ctx, r, ch, text, emitSkeletonRef, trailingLineEnding())
 	}
 
 	ps.blockID++
@@ -278,7 +357,7 @@ func (ps *parseState) flushParagraph(ctx context.Context, r *Reader, ch chan<- m
 // the caption text as a translatable PropertyTextUnitPlaceholder.
 func (ps *parseState) emitDokuWikiParagraphWithImages(
 	ctx context.Context, r *Reader, ch chan<- model.PartResult,
-	text string, emitSkeletonRef func(string),
+	text string, emitSkeletonRef func(string), trailingLineEnding string,
 ) bool {
 	// Find every image construct and its position.
 	matches := dokuWikiImageRe.FindAllStringIndex(text, -1)
@@ -296,9 +375,14 @@ func (ps *parseState) emitDokuWikiParagraphWithImages(
 			if _, caption := splitDokuWikiImage(imgRaw); caption == "" {
 				// Attribute the bare image bytes to the skeleton when
 				// active so byte-exact roundtrips still reconstruct
-				// the document.
+				// the document. Append the source line ending too so
+				// the bare image line still terminates before the
+				// blank-line skeleton chunk that the caller emits next.
 				if r.skeletonStore != nil {
 					r.skelText(text)
+					if trailingLineEnding != "" {
+						r.skelText(trailingLineEnding)
+					}
 				}
 				return true
 			}
@@ -326,32 +410,96 @@ func (ps *parseState) emitDokuWikiParagraphWithImages(
 
 	// Pass 2: build the surrounding paragraph as Runs, replacing each
 	// image with an inline PlaceholderRun so SourceText() returns only
-	// the translatable text spans.
+	// the translatable text spans. Tokenise the whole paragraph first
+	// — that way a wrapping NAMED_LINK (`[[url|…]]` whose alt text is
+	// the image) splits cleanly into PcOpen / inner / PcClose, with
+	// the URL preserved in PcOpen.Data instead of pseudo-translating
+	// as plain text. The image substitution then walks the run list
+	// and rewrites any TextRun whose contents include a `{{…}}`
+	// match into a TextRun + Ph + … sequence, so the placeholder for
+	// the image still carries its untranslated bytes.
 	ps.blockID++
 	blockID := fmt.Sprintf("tu%d", ps.blockID)
 	emitSkeletonRef(blockID)
 
-	runs := make([]model.Run, 0, len(matches)*2+1)
-	cursor := 0
-	for i, m := range matches {
-		if m[0] > cursor {
-			runs = append(runs, model.Run{Text: &model.TextRun{Text: text[cursor:m[0]]}})
-		}
-		imgRaw := text[m[0]:m[1]]
-		runs = append(runs, model.Run{Ph: &model.PlaceholderRun{
-			ID:    fmt.Sprintf("ph%d", i+1),
-			Type:  "image",
-			Data:  imgRaw,
-			Equiv: imgRaw,
-		}})
-		cursor = m[1]
+	runs, changed := splitDokuWikiInlineRuns(text)
+	if !changed {
+		runs = []model.Run{{Text: &model.TextRun{Text: text}}}
 	}
-	if cursor < len(text) {
-		runs = append(runs, model.Run{Text: &model.TextRun{Text: text[cursor:]}})
-	}
+	runs = replaceDokuWikiImagesInRuns(runs)
 
 	block := model.NewRunsBlock(blockID, runs)
 	return r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
+}
+
+// replaceDokuWikiImagesInRuns walks `runs` and rewrites each TextRun
+// whose contents contain one or more `{{…}}` image matches into a
+// sequence of TextRun + PlaceholderRun (or PcOpen / TextRun(caption)
+// / PcClose for captioned images) runs. Non-text runs pass through
+// unchanged so PcOpen / PcClose markers (e.g. NAMED_LINK wrappers
+// around an image) keep their captured Data — the writer renders
+// them via RenderRunsWithData and the round-trip stays byte stable.
+// Mirrors the okapi WikiPatterns IMAGE_START / IMAGE_END inline-code
+// emission, including the IMAGE_CAPTION_PATTERN property hook that
+// surfaces the caption as translatable text embedded inside the
+// inline code.
+func replaceDokuWikiImagesInRuns(runs []model.Run) []model.Run {
+	out := make([]model.Run, 0, len(runs))
+	idCounter := 0
+	for _, run := range runs {
+		if run.Text == nil {
+			out = append(out, run)
+			continue
+		}
+		text := run.Text.Text
+		matches := dokuWikiImageRe.FindAllStringIndex(text, -1)
+		if len(matches) == 0 {
+			out = append(out, run)
+			continue
+		}
+		cursor := 0
+		for _, m := range matches {
+			if m[0] > cursor {
+				out = append(out, model.Run{Text: &model.TextRun{Text: text[cursor:m[0]]}})
+			}
+			imgRaw := text[m[0]:m[1]]
+			if _, caption := splitDokuWikiImage(imgRaw); strings.TrimSpace(caption) != "" {
+				inner := strings.TrimSuffix(strings.TrimPrefix(imgRaw, "{{"), "}}")
+				pipe := strings.Index(inner, "|")
+				openerEnd := m[0] + 2 + pipe + 1
+				closerStart := m[1] - 2
+				idCounter++
+				openID := fmt.Sprintf("phimg%d", idCounter)
+				out = append(out, model.Run{PcOpen: &model.PcOpenRun{
+					ID:   openID,
+					Type: "wiki:image",
+					Data: text[m[0]:openerEnd],
+				}})
+				captionText := text[openerEnd:closerStart]
+				if captionText != "" {
+					out = append(out, model.Run{Text: &model.TextRun{Text: captionText}})
+				}
+				out = append(out, model.Run{PcClose: &model.PcCloseRun{
+					ID:   openID,
+					Type: "wiki:image",
+					Data: text[closerStart:m[1]],
+				}})
+			} else {
+				idCounter++
+				out = append(out, model.Run{Ph: &model.PlaceholderRun{
+					ID:    fmt.Sprintf("phimg%d", idCounter),
+					Type:  "image",
+					Data:  imgRaw,
+					Equiv: imgRaw,
+				}})
+			}
+			cursor = m[1]
+		}
+		if cursor < len(text) {
+			out = append(out, model.Run{Text: &model.TextRun{Text: text[cursor:]}})
+		}
+	}
+	return out
 }
 
 // splitDokuWikiImage splits a `{{name|caption}}` construct into its
@@ -396,7 +544,7 @@ func tokenizeDokuWikiInlineCodes(b *model.Block) {
 		// none of the inline opener characters our tokeniser knows
 		// about (`[`, `{`, `<`, plus the symmetric markers `*`, `_`,
 		// `'`, `/`).
-		if !strings.ContainsAny(text, "[{<*_'/") {
+		if !strings.ContainsAny(text, "[{<*_'/~%") {
 			continue
 		}
 		runs, changed := splitDokuWikiInlineRuns(text)
@@ -443,13 +591,23 @@ func splitDokuWikiInlineRuns(text string) ([]model.Run, bool) {
 			Data: opener,
 		}})
 		if altText != "" {
-			// Recurse so nested inline constructs (e.g. `**__bold+
-			// underline__**`) get tokenised too.
-			inner, innerChanged := splitDokuWikiInlineRuns(altText)
-			if innerChanged {
-				runs = append(runs, inner...)
-			} else {
+			// `<nowiki>` (and the `%%…%%` shorthand) suppresses
+			// inline-code recognition for its contents — okapi's
+			// parseInlineCodes flips its `enabled` flag off when it
+			// enters a noWiki span. Mirror that by emitting the raw
+			// text run as plain text, with no recursive tokenisation,
+			// so embedded markers like `~~NOTOC~~` stay translatable.
+			if codeType == "wiki:nowiki" {
 				runs = append(runs, model.Run{Text: &model.TextRun{Text: altText}})
+			} else {
+				// Recurse so nested inline constructs (e.g. `**__bold+
+				// underline__**`) get tokenised too.
+				inner, innerChanged := splitDokuWikiInlineRuns(altText)
+				if innerChanged {
+					runs = append(runs, inner...)
+				} else {
+					runs = append(runs, model.Run{Text: &model.TextRun{Text: altText}})
+				}
 			}
 		}
 		runs = append(runs, model.Run{PcClose: &model.PcCloseRun{
@@ -471,9 +629,12 @@ func splitDokuWikiInlineRuns(text string) ([]model.Run, bool) {
 		// (`<sub>`, `<sup>`, `<del>`, `<nowiki>`); the tag-name regex
 		// validates the match, so plain `<file>` / `<files>` / `<` in
 		// translatable text fall through to the default text run.
+		// `~~` opens DokuWiki macro placeholders such as
+		// `~~NOTOC~~` / `~~NOCACHE~~` / `~~INFO:<word>~~` — the
+		// dokuWikiMacroRe match validates the full token.
 		bestStart := -1
 		var bestKind string
-		for _, m := range []string{"[[", "{{", "**", "__", "''", "//", "<"} {
+		for _, m := range []string{"[[", "{{", "**", "__", "''", "//", "<", "~~", "%%"} {
 			if idx := strings.Index(text[scan:], m); idx >= 0 {
 				if bestStart < 0 || idx < bestStart {
 					bestStart = idx
@@ -511,19 +672,49 @@ func splitDokuWikiInlineRuns(text string) ([]model.Run, bool) {
 		}
 
 		// Try image `{{...}}` first when that's the leading token.
+		// Bare images (no caption) emit a single Ph; images with a
+		// caption split into PcOpen / TextRun(caption) / PcClose so
+		// the caption text gets pseudo-translated like other inline
+		// strings while the image filename stays in the opener Data.
+		// Mirrors okapi WikiPatterns IMAGE_START with the
+		// IMAGE_CAPTION_PATTERN property: the caption surfaces as a
+		// PropertyTextUnitPlaceholder, i.e. translatable text
+		// embedded in an opaque inline code.
 		if bestKind == "{{" {
 			if loc := dokuWikiImageRe.FindStringIndex(text[absStart:]); loc != nil && loc[0] == 0 {
-				flushTextUpTo(absStart)
-				idCounter++
-				runs = append(runs, model.Run{Ph: &model.PlaceholderRun{
-					ID:   fmt.Sprintf("ph%d", idCounter),
-					Type: "wiki:image",
-					Data: text[absStart : absStart+loc[1]],
-				}})
-				lastEmit = absStart + loc[1]
-				scan = lastEmit
-				changed = true
-				matched = true
+				imgRaw := text[absStart : absStart+loc[1]]
+				if name, caption := splitDokuWikiImage(imgRaw); strings.TrimSpace(caption) != "" {
+					// Reconstruct the opener (`{{` + leading whitespace
+					// + name + `|`) so the writer round-trips spacing.
+					inner := strings.TrimSuffix(strings.TrimPrefix(imgRaw, "{{"), "}}")
+					pipe := strings.Index(inner, "|")
+					_ = name // kept for documentation; opener slice is
+					//        // computed from `pipe` to preserve spacing.
+					openerEnd := absStart + 2 + pipe + 1
+					closerStart := absStart + loc[1] - 2
+					emitPaired(
+						absStart,
+						openerEnd,
+						closerStart,
+						absStart+loc[1],
+						"wiki:image",
+						text[absStart:openerEnd],
+						text[closerStart:absStart+loc[1]],
+					)
+					matched = true
+				} else {
+					flushTextUpTo(absStart)
+					idCounter++
+					runs = append(runs, model.Run{Ph: &model.PlaceholderRun{
+						ID:   fmt.Sprintf("ph%d", idCounter),
+						Type: "wiki:image",
+						Data: imgRaw,
+					}})
+					lastEmit = absStart + loc[1]
+					scan = lastEmit
+					changed = true
+					matched = true
+				}
 			}
 		}
 
@@ -559,6 +750,24 @@ func splitDokuWikiInlineRuns(text string) ([]model.Run, bool) {
 					changed = true
 					matched = true
 				}
+			}
+		}
+
+		// DokuWiki macro (`~~NOTOC~~` / `~~NOCACHE~~` /
+		// `~~INFO:<word>~~`). Single placeholder run.
+		if !matched && bestKind == "~~" {
+			if loc := dokuWikiMacroRe.FindStringIndex(text[absStart:]); loc != nil && loc[0] == 0 {
+				flushTextUpTo(absStart)
+				idCounter++
+				runs = append(runs, model.Run{Ph: &model.PlaceholderRun{
+					ID:   fmt.Sprintf("ph%d", idCounter),
+					Type: "wiki:macro",
+					Data: text[absStart : absStart+loc[1]],
+				}})
+				lastEmit = absStart + loc[1]
+				scan = lastEmit
+				changed = true
+				matched = true
 			}
 		}
 
@@ -942,8 +1151,46 @@ func (r *Reader) readMediaWikiLines(ctx context.Context, ch chan<- model.PartRes
 func (r *Reader) readDokuWiki(ctx context.Context, ch chan<- model.PartResult,
 	scanner *bufio.Scanner, ps *parseState) {
 
+	// untranslatableEnd tracks an open `<code>` / `<file>` / `<html>` /
+	// `<php>` block. While non-nil, every line bypasses the regular
+	// classifiers and is consumed verbatim until a line containing the
+	// matching closer (e.g. `</code>`) is seen.
+	var untranslatableEnd *regexp.Regexp
+
 	for scanner.Scan() {
 		line := scanner.Text()
+
+		// Inside an untranslatable block: emit a Data part per line so
+		// the no-skeleton path still surfaces structural separators,
+		// and watch for the matching closer to leave the block.
+		if untranslatableEnd != nil {
+			if !ps.emitData(ctx, r, ch) {
+				return
+			}
+			if untranslatableEnd.MatchString(line) {
+				untranslatableEnd = nil
+			}
+			continue
+		}
+
+		// Open an untranslatable block when the line introduces one.
+		// The opener line itself is treated as Data; subsequent lines
+		// route through the branch above until the closer is seen.
+		if endRe, _ := matchDokuWikiUntranslatableOpener(line); endRe != nil {
+			if !ps.flushParagraph(ctx, r, ch, nil) {
+				return
+			}
+			if !ps.emitData(ctx, r, ch) {
+				return
+			}
+			// Same line may also contain the closer (e.g.
+			// `<code>foo</code>`); bail out of the block immediately
+			// in that case.
+			if !endRe.MatchString(line) {
+				untranslatableEnd = endRe
+			}
+			continue
+		}
 
 		// Check for header
 		if m := dokuWikiHeaderRe.FindStringSubmatch(line); m != nil {
@@ -1010,6 +1257,36 @@ func (r *Reader) readDokuWiki(ctx context.Context, ch chan<- model.PartResult,
 			continue
 		}
 
+		// DokuWiki list item — each `  * <text>` / `  - <text>` line
+		// becomes its own Block. Mirrors okapi's
+		// LIST_ITEM_START_PATTERN behaviour (each item is a separate
+		// translatable text unit). Without this, consecutive items get
+		// folded into one paragraph and whitespace-collapsed to
+		// `* a * b * c`.
+		if m := dokuWikiListItemRe.FindStringSubmatch(line); m != nil {
+			if !ps.flushParagraph(ctx, r, ch, nil) {
+				return
+			}
+			itemText := strings.TrimSpace(m[2])
+			if !r.cfg.PreserveWhitespace {
+				itemText = collapseInteriorWhitespace(itemText)
+			}
+			if itemText == "" {
+				if !ps.emitData(ctx, r, ch) {
+					return
+				}
+				continue
+			}
+			ps.blockID++
+			block := model.NewBlock(fmt.Sprintf("tu%d", ps.blockID), itemText)
+			block.Name = "list-item"
+			tokenizeDokuWikiInlineCodes(block)
+			if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
+				return
+			}
+			continue
+		}
+
 		// Blank line separates paragraphs
 		if strings.TrimSpace(line) == "" {
 			if !ps.flushParagraph(ctx, r, ch, nil) {
@@ -1032,8 +1309,39 @@ func (r *Reader) readDokuWiki(ctx context.Context, ch chan<- model.PartResult,
 func (r *Reader) readDokuWikiLines(ctx context.Context, ch chan<- model.PartResult,
 	rLines []rawLine, ps *parseState) {
 
+	// untranslatableEnd: see readDokuWiki for rationale. Skeleton-mode
+	// equivalent — each verbatim line goes straight to the skeleton
+	// buffer so the round-trip writer reproduces the block bytes
+	// exactly.
+	var untranslatableEnd *regexp.Regexp
+
 	for i, rl := range rLines {
 		line := rl.content
+
+		if untranslatableEnd != nil {
+			r.skelText(rl.content + rl.lineEnding)
+			if !ps.emitData(ctx, r, ch) {
+				return
+			}
+			if untranslatableEnd.MatchString(line) {
+				untranslatableEnd = nil
+			}
+			continue
+		}
+
+		if endRe, _ := matchDokuWikiUntranslatableOpener(line); endRe != nil {
+			if !ps.flushParagraph(ctx, r, ch, rLines) {
+				return
+			}
+			r.skelText(rl.content + rl.lineEnding)
+			if !ps.emitData(ctx, r, ch) {
+				return
+			}
+			if !endRe.MatchString(line) {
+				untranslatableEnd = endRe
+			}
+			continue
+		}
 
 		// Check for header
 		if m := dokuWikiHeaderRe.FindStringSubmatch(line); m != nil {
@@ -1053,13 +1361,18 @@ func (r *Reader) readDokuWikiLines(ctx context.Context, ch chan<- model.PartResu
 			continue
 		}
 
-		// DokuWiki table row (well-formed)
+		// DokuWiki table row (well-formed). Interleave skeleton chunks
+		// and cell refs so pseudo'd cell content gets spliced back into
+		// the row at write time. The leading and trailing `|` / `^`
+		// delimiters, plus the inter-cell whitespace, all live in the
+		// skeleton; only the trimmed cell body becomes a ref. Empty
+		// cells (`||` / `|^` with nothing between) flush as raw
+		// skeleton text so the row's column count still matches.
 		if dokuWikiTableRe.MatchString(line) {
 			if !ps.flushParagraph(ctx, r, ch, rLines) {
 				return
 			}
-			r.skelText(rl.content + rl.lineEnding)
-			r.extractDokuWikiTableCells(ctx, ch, line, ps)
+			r.emitDokuWikiTableRowSkeleton(ctx, ch, line, rl.lineEnding, ps)
 			continue
 		}
 
@@ -1115,6 +1428,45 @@ func (r *Reader) readDokuWikiLines(ctx context.Context, ch chan<- model.PartResu
 			}
 			r.skelText(rl.content + rl.lineEnding)
 			if !ps.emitData(ctx, r, ch) {
+				return
+			}
+			continue
+		}
+
+		// DokuWiki list item — see readDokuWiki for rationale. Skeleton
+		// shape: leading `  * ` / `  - ` delimiter → skeleton text,
+		// translatable item body → ref, trailing whitespace + line
+		// ending → skeleton text. Round-trip writer reconstructs
+		// `  * <pseudo'd text>\r\n` verbatim with the cell content
+		// slotted in.
+		if m := dokuWikiListItemRe.FindStringSubmatch(line); m != nil {
+			if !ps.flushParagraph(ctx, r, ch, rLines) {
+				return
+			}
+			leadSkel := m[1]
+			body := m[2]
+			trailLen := len(body) - len(strings.TrimRight(body, " \t"))
+			trailSkel := body[len(body)-trailLen:] + rl.lineEnding
+			itemText := strings.TrimSpace(body)
+			if !r.cfg.PreserveWhitespace {
+				itemText = collapseInteriorWhitespace(itemText)
+			}
+			if itemText == "" {
+				r.skelText(rl.content + rl.lineEnding)
+				if !ps.emitData(ctx, r, ch) {
+					return
+				}
+				continue
+			}
+			r.skelText(leadSkel)
+			ps.blockID++
+			blockID := fmt.Sprintf("tu%d", ps.blockID)
+			r.skelRef(blockID)
+			r.skelText(trailSkel)
+			block := model.NewBlock(blockID, itemText)
+			block.Name = "list-item"
+			tokenizeDokuWikiInlineCodes(block)
+			if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
 				return
 			}
 			continue
@@ -1245,6 +1597,97 @@ func (r *Reader) extractDokuWikiTableCells(ctx context.Context, ch chan<- model.
 	}
 }
 
+// emitDokuWikiTableRowSkeleton walks `line` (a well-formed dokuwiki
+// table row matching `^[|^].*[|^]\s*$`) and emits an interleaved
+// skeleton sequence: cell-delimiter bytes go straight to skeleton text,
+// each non-empty trimmed cell body becomes one Block+skelRef so the
+// pseudo-translated text gets spliced back into the row at write time.
+//
+// Without this routing the entire raw line is committed to skeleton
+// up-front and the per-cell Blocks float free in the TM but never
+// reach the writer — the round-trip output keeps the original English
+// cells while the okapi reference shows pseudo'd ones.
+func (r *Reader) emitDokuWikiTableRowSkeleton(ctx context.Context, ch chan<- model.PartResult,
+	line, lineEnding string, ps *parseState) {
+
+	i := 0
+	n := len(line)
+	for i < n {
+		// Cell delimiter (`|` or `^`).
+		if line[i] != '|' && line[i] != '^' {
+			// Defensive: should never happen for a row matched by
+			// dokuWikiTableRe. Push remainder to skeleton and bail.
+			r.skelText(line[i:])
+			break
+		}
+		// Emit the delimiter, then look ahead for the next delimiter
+		// to determine the cell span. Skip over `[[…]]` and `{{…}}`
+		// constructs whose interior `|` characters are inline-code
+		// arguments (named-link target separators, image captions),
+		// not cell separators. Mirrors okapi's TEMP_EXTRACT pre-pass
+		// which pulls these spans out before TABLE_CELL_PATTERN
+		// (`[\^|]`) splitting runs.
+		j := i + 1
+		for j < n {
+			c := line[j]
+			if c == '|' || c == '^' {
+				break
+			}
+			if c == '[' && j+1 < n && line[j+1] == '[' {
+				if k := strings.Index(line[j:], "]]"); k >= 0 {
+					j += k + 2
+					continue
+				}
+			}
+			if c == '{' && j+1 < n && line[j+1] == '{' {
+				if k := strings.Index(line[j:], "}}"); k >= 0 {
+					j += k + 2
+					continue
+				}
+			}
+			j++
+		}
+		// `cellSpan` is the bytes between this delimiter and the next
+		// (or EOL when no more delimiters appear). The leading
+		// delimiter char goes to skeleton; the cell body is the
+		// remainder, with leading and trailing whitespace also routed
+		// to skeleton so the pseudo'd cell content slots back into
+		// the original column width.
+		r.skelText(line[i : i+1])
+		cellSpan := line[i+1 : j]
+		// All-whitespace (or empty) cell: no translatable body, just
+		// route the run to skeleton. Avoids leadLen+trailLen overlap
+		// when TrimLeft and TrimRight both consume the entire span.
+		if strings.TrimSpace(cellSpan) == "" {
+			r.skelText(cellSpan)
+			i = j
+			continue
+		}
+		leadLen := len(cellSpan) - len(strings.TrimLeft(cellSpan, " \t"))
+		trailLen := len(cellSpan) - len(strings.TrimRight(cellSpan, " \t"))
+		body := cellSpan[leadLen : len(cellSpan)-trailLen]
+		if leadLen > 0 {
+			r.skelText(cellSpan[:leadLen])
+		}
+		if body != "" {
+			ps.blockID++
+			blockID := fmt.Sprintf("tu%d", ps.blockID)
+			r.skelRef(blockID)
+			block := model.NewBlock(blockID, body)
+			block.Name = "table-cell"
+			tokenizeDokuWikiInlineCodes(block)
+			if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
+				return
+			}
+		}
+		if trailLen > 0 {
+			r.skelText(cellSpan[len(cellSpan)-trailLen:])
+		}
+		i = j
+	}
+	r.skelText(lineEnding)
+}
+
 func splitTableCells(content, separator string) []string {
 	return strings.Split(content, separator)
 }
@@ -1256,6 +1699,21 @@ func splitTableCells(content, separator string) []string {
 // surrounding whitespace into the skeleton — we leave it in the text
 // rather than splitting because the wiki Block model already trims for
 // extraction). Equivalent to Java's `(?<=\S)\s+(?=\S)` → " " replacement.
+//
+// One DokuWiki-specific exception: an interior whitespace run that
+// starts immediately after a `\\` (LINEBREAK marker) and contains a
+// `\n` collapses to a single `\n` rather than a single space. Okapi's
+// WikiPatterns LINEBREAK_START_PATTERN (`\\{2,}(?:\s+|$)`) extracts
+// `\\` plus its following whitespace as an inline placeholder before
+// WhitespaceAdjustingEventBuilder runs, so the marker's bytes — and
+// any embedded line break — round-trip verbatim. Without this carve-out
+// the dokuwiki paragraph
+//
+//	... line\\
+//	or followed by\\ a whitespace ...
+//
+// would join into one line as `... line\\ or followed by\\ a whitespace
+// ...`, dropping the linebreak that the `\\\n` marker should preserve.
 func collapseInteriorWhitespace(s string) string {
 	if s == "" {
 		return s
@@ -1287,6 +1745,12 @@ func collapseInteriorWhitespace(s string) string {
 			for k := i; k < j; k++ {
 				b.WriteRune(runes[k])
 			}
+		} else if isDokuWikiLineBreakRun(runes, i, j) {
+			// `\\<whitespace>` LINEBREAK marker: preserve a single `\n`
+			// when the run contains one (mirrors okapi's inline-marker
+			// extraction described in the function comment). Falls through
+			// to single-space collapse otherwise so `\\ ` round-trips.
+			b.WriteByte('\n')
 		} else {
 			// Interior whitespace run between non-whitespace — collapse
 			// to a single space.
@@ -1295,6 +1759,23 @@ func collapseInteriorWhitespace(s string) string {
 		i = j
 	}
 	return b.String()
+}
+
+// isDokuWikiLineBreakRun reports whether the whitespace run runes[i:j]
+// is the trailing whitespace of a `\\\s+` DokuWiki LINEBREAK marker AND
+// contains at least one `\n`. The caller uses the answer to decide
+// whether to collapse the run to ` ` or to `\n`.
+func isDokuWikiLineBreakRun(runes []rune, i, j int) bool {
+	// Need at least two preceding `\` runes to form `\\`.
+	if i < 2 || runes[i-1] != '\\' || runes[i-2] != '\\' {
+		return false
+	}
+	for k := i; k < j; k++ {
+		if runes[k] == '\n' {
+			return true
+		}
+	}
+	return false
 }
 
 // isWikiSpace mirrors Java's \s for ASCII (space, tab, CR, LF, FF, VT).

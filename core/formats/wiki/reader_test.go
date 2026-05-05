@@ -919,9 +919,10 @@ func TestExtract_DokuWikiInlineCodes(t *testing.T) {
 		text string // for text runs: substring; for codes: opaque Data substring
 	}
 	tests := []struct {
-		name  string
-		input string
-		want  []kindCheck
+		name           string
+		input          string
+		blockSelectIdx int // which Block index to inspect (defaults to 0).
+		want           []kindCheck
 	}{
 		{
 			name:  "bare_link_is_placeholder",
@@ -996,13 +997,60 @@ func TestExtract_DokuWikiInlineCodes(t *testing.T) {
 				{kind: "text", text: "this text has {{ unmatched braces."},
 			},
 		},
+		{
+			// emitDokuWikiParagraphWithImages routes paragraphs that
+			// contain `{{…}}` images through a path that emits a
+			// dedicated caption Block (Pass 1) before the surrounding
+			// paragraph Block (Pass 2). Skip the caption Block here
+			// and check the paragraph Block, which is where the
+			// image's captioned tokenisation lives.
+			name:           "captioned_image_splits_around_caption",
+			input:          "see {{ wiki:dokuwiki-128.png |This is the caption}} below.",
+			blockSelectIdx: 1,
+			want: []kindCheck{
+				{kind: "text", text: "see "},
+				{kind: "pcopen", text: "{{ wiki:dokuwiki-128.png |"},
+				{kind: "text", text: "This is the caption"},
+				{kind: "pcclose", text: "}}"},
+				{kind: "text", text: " below."},
+			},
+		},
+		{
+			name:  "macro_is_placeholder",
+			input: "use ~~NOTOC~~ to disable.",
+			want: []kindCheck{
+				{kind: "text", text: "use "},
+				{kind: "ph", text: "~~NOTOC~~"},
+				{kind: "text", text: " to disable."},
+			},
+		},
+		{
+			name:  "info_macro_with_word_is_placeholder",
+			input: "see ~~INFO:syntaxplugins~~ for plugins.",
+			want: []kindCheck{
+				{kind: "text", text: "see "},
+				{kind: "ph", text: "~~INFO:syntaxplugins~~"},
+				{kind: "text", text: " for plugins."},
+			},
+		},
+		{
+			name:  "nowiki_percent_suppresses_inner_tokenization",
+			input: "raw %%~~NOTOC~~%% kept.",
+			want: []kindCheck{
+				{kind: "text", text: "raw "},
+				{kind: "pcopen", text: "%%"},
+				{kind: "text", text: "~~NOTOC~~"},
+				{kind: "pcclose", text: "%%"},
+				{kind: "text", text: " kept."},
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			parts := readDefault(t, tt.input)
 			blocks := testutil.FilterBlocks(parts)
-			require.NotEmpty(t, blocks, "expected at least one block")
-			runs := blocks[0].Source[0].Runs
+			require.Greater(t, len(blocks), tt.blockSelectIdx, "expected at least %d block(s)", tt.blockSelectIdx+1)
+			runs := blocks[tt.blockSelectIdx].Source[0].Runs
 			require.Len(t, runs, len(tt.want), "run count mismatch: got %d runs, want %d (runs=%+v)", len(runs), len(tt.want), runs)
 			for i, w := range tt.want {
 				switch w.kind {
