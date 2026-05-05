@@ -99,6 +99,28 @@ var mediaWikiTableRowRe = regexp.MustCompile(`^\|-`)
 var mediaWikiTableCellRe = regexp.MustCompile(`^\|(.+)`)
 var mediaWikiTableHeaderRe = regexp.MustCompile(`^!(.+)`)
 
+// mediaWikiOkapiTableEndRe mirrors okapi WikiPatterns.TABLE_END
+// (`[\^|]\s*\n`) — a `|` or `^` followed by inline whitespace and a
+// newline. When this pattern never matches anywhere in the file but a
+// `^|`/`^\^` line is present (TABLE_START match — see
+// mediaWikiOkapiFirstTableStartLine), the table block runs all the way
+// to EOF and its cells are split on every `|`/`^` character
+// (TABLE_CELL_PATTERN). MediaWiki Infobox templates
+// (`{{Infobox\n|key=value\n...\n}}` followed by paragraphs) hit this
+// branch because the infobox lines end in a value (not `|`/`^`), so blank
+// lines and HTML comments inside the infobox get folded into the previous
+// cell's value via WhitespaceAdjustingEventBuilder.
+var mediaWikiOkapiTableEndRe = regexp.MustCompile(`[\^|][ \t]*\r?\n`)
+
+// mediaWikiTempExtractRe mirrors okapi's TEMP_EXTRACT pattern that pulls
+// `%%...%%`, `<nowiki>...</nowiki>`, `[[...]]`, and `{{...}}` constructs
+// out of the stream BEFORE table-cell tokenisation so that `|` characters
+// inside `[[link|alt]]` or `{{Template|param}}` don't get treated as cell
+// boundaries. The pattern is reluctant (`.*?`) and single-line — exactly
+// matching `%%.*?%%|<nowiki>.*?</nowiki>|\[\[.*?\]\]|\{\{.*?\}\}` from
+// WikiPatterns.TEMP_EXTRACT.
+var mediaWikiTempExtractRe = regexp.MustCompile(`%%.*?%%|<nowiki>.*?</nowiki>|\[\[.*?\]\]|\{\{.*?\}\}`)
+
 // DokuWiki table row: ^ Header ^ or | Cell |. Both leading and
 // trailing delimiter must be present.
 var dokuWikiTableRe = regexp.MustCompile(`^[|^].*[|^]\s*$`)
@@ -878,7 +900,27 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		}
 		rLines = splitRawLines(data)
 		ps := &parseState{}
-		if r.cfg.Variant == VariantDokuWiki {
+		// Okapi WikiFilter shape detection (variant-agnostic in upstream):
+		// when the file has at least one `^|`/`^\^` line (TABLE_START
+		// match) but TABLE_END (`[\^|]\s*\n`) never matches anywhere, the
+		// entire body from the first table-start line through EOF is one
+		// giant table block whose cells are split on every `|`/`^`
+		// character. Mirrors WikiFilter.parseBlocks taking the
+		// `t.toString()` of the unbalanced TABLE_START token (which
+		// extends to EOS when no suffix is found, per
+		// PrefixSuffixTokenizer / Token). Without this branch, MediaWiki
+		// Infobox templates round-trip through the line-based paragraph
+		// path and preserve interior blank lines / HTML comments
+		// verbatim — the okapi reference folds them into the previous
+		// cell via WhitespaceAdjustingEventBuilder. Detection runs for
+		// both variants because okapi's WikiFilter applies the same
+		// TABLE_START/TABLE_END logic regardless of dialect; the
+		// dokuwiki.wiki fixture sidesteps this branch because every
+		// `^ Header ^` row matches TABLE_END.
+		if firstTableLine := mediaWikiOkapiFirstTableStartLine(rLines); firstTableLine >= 0 &&
+			!mediaWikiOkapiHasTableEnd(rLines) {
+			r.readMediaWikiInfobox(ctx, ch, rLines, ps, firstTableLine)
+		} else if r.cfg.Variant == VariantDokuWiki {
 			r.readDokuWikiLines(ctx, ch, rLines, ps)
 		} else {
 			r.readMediaWikiLines(ctx, ch, rLines, ps)
@@ -1145,6 +1187,308 @@ func (r *Reader) readMediaWikiLines(ctx context.Context, ch chan<- model.PartRes
 	}
 
 	// Flush remaining paragraph
+	ps.flushParagraph(ctx, r, ch, rLines)
+}
+
+// mediaWikiOkapiFirstTableStartLine returns the index of the first line
+// matching okapi WikiPatterns TABLE_START (`^\|` or `^\^` not followed by
+// `_^`). Returns -1 when no line matches.
+func mediaWikiOkapiFirstTableStartLine(rLines []rawLine) int {
+	for i, rl := range rLines {
+		s := rl.content
+		if len(s) == 0 {
+			continue
+		}
+		if s[0] == '|' {
+			return i
+		}
+		if s[0] == '^' {
+			// Reject `^_^` start to mirror `^\^(?!_\^)`.
+			if !(len(s) >= 3 && s[1] == '_' && s[2] == '^') {
+				return i
+			}
+		}
+	}
+	return -1
+}
+
+// mediaWikiOkapiHasTableEnd reports whether the rLines content contains
+// any okapi-style TABLE_END match (`[\^|][ \t]*\r?\n` — a `|`/`^` followed
+// by inline whitespace and a newline). Joined view is checked rather than
+// each line individually so we mirror the multi-line regex semantics of
+// `[\^|]\s*\n` against the whole document body.
+func mediaWikiOkapiHasTableEnd(rLines []rawLine) bool {
+	var sb strings.Builder
+	for _, rl := range rLines {
+		sb.WriteString(rl.content)
+		sb.WriteString(rl.lineEnding)
+	}
+	return mediaWikiOkapiTableEndRe.MatchString(sb.String())
+}
+
+// readMediaWikiInfobox handles the okapi WikiFilter "unbalanced
+// TABLE_START → EOF" shape: prefix lines (before the first `|`/`^` line)
+// route through the regular line-based MediaWiki parser; the rest of the
+// file is treated as one giant table whose cells are split on every
+// `|`/`^` character (after extracting `[[...]]` / `{{...}}` /
+// `<nowiki>...</nowiki>` / `%%...%%` regions so their interior `|`s don't
+// split a link or template). Each non-blank cell becomes one Block whose
+// source text mirrors WhitespaceAdjustingEventBuilder: leading/trailing
+// whitespace runs flow to the skeleton, interior whitespace runs collapse
+// to a single space.
+func (r *Reader) readMediaWikiInfobox(ctx context.Context, ch chan<- model.PartResult,
+	rLines []rawLine, ps *parseState, firstTableLine int) {
+
+	// Drive prefix lines through the variant's per-line parser so
+	// headers / bare paragraphs / blank-line separators behave identically.
+	// We slice rLines and route to the same line-based helper a top-level
+	// call would have used (minus the Infobox detection branch, which by
+	// construction can't re-fire on the prefix slice — the firstTableLine
+	// row is excluded).
+	if firstTableLine > 0 {
+		if r.cfg.Variant == VariantDokuWiki {
+			r.readDokuWikiLines(ctx, ch, rLines[:firstTableLine], ps)
+		} else {
+			r.readMediaWikiLinesNoInfobox(ctx, ch, rLines[:firstTableLine], ps)
+		}
+	}
+
+	// Re-assemble the giant table body verbatim (content + line ending
+	// per row). The trailing rLines entry has an empty lineEnding when the
+	// file lacks a final newline, so the assembled string preserves the
+	// source byte stream exactly.
+	var bodyB strings.Builder
+	for i := firstTableLine; i < len(rLines); i++ {
+		bodyB.WriteString(rLines[i].content)
+		bodyB.WriteString(rLines[i].lineEnding)
+	}
+	body := bodyB.String()
+
+	// TEMP_EXTRACT: pull out `%%...%%` / `<nowiki>...</nowiki>` / `[[...]]`
+	// / `{{...}}` regions (single-line, reluctant) and replace each with a
+	// placeholder rune so cell-splitting on `|`/`^` doesn't slice through
+	// the middle of a link target or template parameter list.
+	const placeholder = '￼'
+	var extracted []string
+	post := mediaWikiTempExtractRe.ReplaceAllStringFunc(body, func(m string) string {
+		extracted = append(extracted, m)
+		return string(placeholder)
+	})
+
+	// Restore extracted spans in segment text — each placeholder rune
+	// consumes the next saved capture in document order. extractedIdx is
+	// closed-over so successive emitCell invocations advance through the
+	// shared list, mirroring okapi's `extracted.pop()` in
+	// WikiFilter.replaceExtracted.
+	extractedIdx := 0
+	restoreExtracted := func(s string) string {
+		if extractedIdx >= len(extracted) || !strings.ContainsRune(s, placeholder) {
+			return s
+		}
+		var b strings.Builder
+		b.Grow(len(s))
+		for _, ch := range s {
+			if ch == placeholder && extractedIdx < len(extracted) {
+				b.WriteString(extracted[extractedIdx])
+				extractedIdx++
+				continue
+			}
+			b.WriteRune(ch)
+		}
+		return b.String()
+	}
+
+	// Walk the post-extract string, splitting on every `|`/`^` character.
+	// Each `|`/`^` is a cell delimiter (skeleton); the run between two
+	// delimiters (or between end of last delimiter and EOF) is a cell.
+	// Mirrors okapi DelimiterTokenizer(TABLE_CELL_PATTERN, body) behaviour
+	// where the first segment is the prefix before the first delimiter.
+	emitCell := func(seg string) bool {
+		// Apply WhitespaceAdjustingEventBuilder: split off leading and
+		// trailing whitespace runs (skeleton), collapse interior whitespace
+		// runs (between non-WS chars) to single spaces (cell text). Empty
+		// or whitespace-only cells degenerate into pure skeleton.
+		seg = restoreExtracted(seg)
+		if seg == "" {
+			return true
+		}
+		// Front whitespace run
+		front := 0
+		for front < len(seg) && isWikiSpace(rune(seg[front])) {
+			front++
+		}
+		if front == len(seg) {
+			// All whitespace → skeleton.
+			r.skelText(seg)
+			return true
+		}
+		// Back whitespace run
+		back := len(seg)
+		for back > front && isWikiSpace(rune(seg[back-1])) {
+			back--
+		}
+		body := seg[front:back]
+		// Collapse interior whitespace runs (between non-WS chars) to a
+		// single space. Mirrors WHITESPACE_COLLAPSE = `(?<=\S)\s+(?=\S)`.
+		collapsed := collapseInteriorWhitespace(body)
+		if seg[:front] != "" {
+			r.skelText(seg[:front])
+		}
+		ps.blockID++
+		blockID := fmt.Sprintf("tu%d", ps.blockID)
+		r.skelRef(blockID)
+		block := model.NewBlock(blockID, collapsed)
+		block.Name = "infobox-cell"
+		// Run inline-code tokenisation so embedded `[[link|alt]]` /
+		// `{{template|param}}` survive pseudo-translation as opaque
+		// codes rather than being mangled character-by-character.
+		tokenizeDokuWikiInlineCodes(block)
+		if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
+			return false
+		}
+		if seg[back:] != "" {
+			r.skelText(seg[back:])
+		}
+		return true
+	}
+
+	// Iterate post-extract string. The character set is ASCII for the
+	// delimiters (`|`/`^`) and the placeholder is U+FFFC (multi-byte UTF-8),
+	// so byte-level scanning is safe — we only key off the two ASCII bytes.
+	start := 0
+	for i := range len(post) {
+		c := post[i]
+		if c != '|' && c != '^' {
+			continue
+		}
+		// Emit segment [start, i) as a cell, then `c` as skeleton.
+		if !emitCell(post[start:i]) {
+			return
+		}
+		r.skelText(string(c))
+		start = i + 1
+	}
+	// Trailing segment after last delimiter (or whole body if no
+	// delimiter — but the caller guarantees at least one `|`/`^` in the
+	// firstTableLine row, so the loop fires).
+	if start < len(post) {
+		if !emitCell(post[start:]) {
+			return
+		}
+	}
+}
+
+// readMediaWikiLinesNoInfobox runs the line-based MediaWiki parser
+// without the Infobox (unbalanced TABLE_START → EOF) detection — used to
+// process the prefix portion of an Infobox file (everything before the
+// first `^|`/`^\^` line). Mirrors readMediaWikiLines exactly minus the
+// detection branch at the top, so prefix headers / paragraphs / blank
+// lines round-trip identically.
+func (r *Reader) readMediaWikiLinesNoInfobox(ctx context.Context, ch chan<- model.PartResult,
+	rLines []rawLine, ps *parseState) {
+	inTable := false
+	for i, rl := range rLines {
+		line := rl.content
+
+		if m := mediaWikiHeaderRe.FindStringSubmatch(line); m != nil {
+			if !ps.flushParagraph(ctx, r, ch, rLines) {
+				return
+			}
+			ps.blockID++
+			blockID := fmt.Sprintf("tu%d", ps.blockID)
+			r.skelRef(blockID)
+			r.skelText(rl.lineEnding)
+			block := model.NewBlock(blockID, strings.TrimSpace(m[2]))
+			block.Name = "header"
+			block.Properties["raw"] = line
+			if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
+				return
+			}
+			continue
+		}
+		if mediaWikiTableStartRe.MatchString(line) {
+			if !ps.flushParagraph(ctx, r, ch, rLines) {
+				return
+			}
+			inTable = true
+			r.skelText(rl.content + rl.lineEnding)
+			if !ps.emitData(ctx, r, ch) {
+				return
+			}
+			continue
+		}
+		if mediaWikiTableEndRe.MatchString(line) {
+			inTable = false
+			r.skelText(rl.content + rl.lineEnding)
+			if !ps.emitData(ctx, r, ch) {
+				return
+			}
+			continue
+		}
+		if inTable && mediaWikiTableRowRe.MatchString(line) {
+			r.skelText(rl.content + rl.lineEnding)
+			if !ps.emitData(ctx, r, ch) {
+				return
+			}
+			continue
+		}
+		if inTable && mediaWikiTableHeaderRe.MatchString(line) {
+			r.skelText(rl.content + rl.lineEnding)
+			m := mediaWikiTableHeaderRe.FindStringSubmatch(line)
+			cells := splitTableCells(m[1], "!!")
+			for _, cell := range cells {
+				cell = strings.TrimSpace(cell)
+				if cell == "" {
+					continue
+				}
+				ps.blockID++
+				block := model.NewBlock(fmt.Sprintf("tu%d", ps.blockID), cell)
+				block.Name = "table-header"
+				if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
+					return
+				}
+			}
+			continue
+		}
+		if inTable && mediaWikiTableCellRe.MatchString(line) {
+			r.skelText(rl.content + rl.lineEnding)
+			m := mediaWikiTableCellRe.FindStringSubmatch(line)
+			cells := splitTableCells(m[1], "||")
+			for _, cell := range cells {
+				cell = strings.TrimSpace(cell)
+				if cell == "" {
+					continue
+				}
+				ps.blockID++
+				block := model.NewBlock(fmt.Sprintf("tu%d", ps.blockID), cell)
+				block.Name = "table-cell"
+				if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
+					return
+				}
+			}
+			continue
+		}
+		if mediaWikiImageRe.MatchString(line) {
+			if !ps.flushParagraph(ctx, r, ch, rLines) {
+				return
+			}
+			r.skelText(rl.content + rl.lineEnding)
+			r.extractImageCaptions(ctx, ch, line, ps)
+			continue
+		}
+		if strings.TrimSpace(line) == "" {
+			if !ps.flushParagraph(ctx, r, ch, rLines) {
+				return
+			}
+			r.skelText(rl.content + rl.lineEnding)
+			if !ps.emitData(ctx, r, ch) {
+				return
+			}
+			continue
+		}
+		ps.paraLines = append(ps.paraLines, line)
+		ps.paraLineIdxes = append(ps.paraLineIdxes, i)
+	}
 	ps.flushParagraph(ctx, r, ch, rLines)
 }
 
