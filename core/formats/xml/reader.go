@@ -827,11 +827,49 @@ func (s *xmlParseState) handleStartElement(t xml.StartElement, tokOffset int) {
 	}
 	s.wsStack = append(s.wsStack, preserveWS)
 
+	// Content starts right after the '>' of the start tag.
+	contentStart := int(s.decoder.InputOffset())
+
+	// Auto-promote to inline when a non-inline child element opens
+	// inside a translatable parent that has already accumulated
+	// non-whitespace text and the new element's own content begins
+	// with character data rather than another element. Mirrors okapi's
+	// ITSFilter behaviour on mixed-content XML: in
+	//   <para>This text is <b>bold</b>.</para>
+	// <b> is automatically treated as inline so <para> stays a single
+	// text unit with <b> as an inline code, instead of being split
+	// into three half-translated blocks.
+	//
+	// The promotion is gated on:
+	//   - no explicit decision was made by config or ITS rules (both
+	//     leave isInline at the auto-detected default of false),
+	//   - the nearest non-inline ancestor (the prospective text frame)
+	//     already has non-WS text or an open inline span — i.e. the
+	//     new element is inside mixed content rather than between
+	//     sibling elements separated only by indentation,
+	//   - that ancestor is itself translatable and not excluded,
+	//   - the new element isn't excluded itself,
+	//   - the new element's own content begins with character data
+	//     before any nested element. This last gate distinguishes
+	//     <p>Text before list:<ul><li>…</li></ul>…</p> (where <ul>'s
+	//     first child is an element, so <ul> stays structural and its
+	//     <li> children remain their own translatable blocks) from
+	//     <para>This is <b>bold</b>.</para> (where <b>'s content
+	//     begins with text, so <b> is inlined and folds into the
+	//     parent block). Empty / self-closing inline-friendly elements
+	//     pass the gate as well so <para>here is <icon/> some text</para>
+	//     keeps <icon> as an inline placeholder rather than splitting
+	//     the parent.
+	if !isInline && !isExcluded && resolved.WithinText == its.Unset && !s.reader.cfg.isInlineElement(t.Name.Local) {
+		if parent := s.findTextFrame(); parent != nil && parent.hasRuns && !parent.isExcluded && s.isTranslatable(parent) {
+			if runsHaveNonWhitespaceText(parent.runs) && elementContentStartsWithText(s.content, contentStart) {
+				isInline = true
+			}
+		}
+	}
+
 	// Check if inline+excluded (content suppressed but element still inline)
 	inlineExcluded := isInline && s.reader.isInlineExcluded(t.Name.Local, attrs)
-
-	// Content starts right after the '>' of the start tag
-	contentStart := int(s.decoder.InputOffset())
 
 	frame := &elementFrame{
 		name:             t.Name.Local,
@@ -1577,6 +1615,80 @@ func runsHaveInlineCodes(runs []model.Run) bool {
 		}
 	}
 	return false
+}
+
+// runsHaveNonWhitespaceText returns true when the run slice contains
+// any TextRun whose content has at least one non-whitespace character,
+// or any open inline span (PcOpen). Used by the inline auto-promotion
+// heuristic in handleStartElement: a text-bearing parent that already
+// contains non-whitespace text or an open inline span before a child
+// element opens means the child is part of mixed content and should
+// be treated as inline. Pure indentation between sibling elements
+// (e.g. <list>\n  <item>...</item>\n</list>) does not trigger
+// promotion — those siblings remain separate translatable blocks.
+//
+// Standalone Ph runs (XML comments, processing instructions, the
+// captured bytes of self-closed inline placeholders that already
+// flushed) do not by themselves trigger promotion: the canonical
+// Android-style fixture
+//   <resources>
+//     <!-- note -->
+//     <string>...</string>
+//   </resources>
+// must keep <string> as its own block. Only PcOpen counts as a
+// "we are inside translatable mixed content" marker.
+func runsHaveNonWhitespaceText(runs []model.Run) bool {
+	for _, r := range runs {
+		if r.Text != nil {
+			if !isWhitespaceOnly(r.Text.Text) {
+				return true
+			}
+			continue
+		}
+		if r.PcOpen != nil {
+			return true
+		}
+	}
+	return false
+}
+
+// elementContentStartsWithText reports whether the bytes immediately
+// following an element's start tag (at contentStart) begin with
+// character data — meaning the element has the shape <e>text...</e>
+// rather than <e><child>...</child>...</e>. Used by the inline
+// auto-promotion heuristic to distinguish leaf-text-bearing elements
+// (which should be inlined into a mixed-content parent) from
+// structural container elements (which should remain block-level
+// even when nested inside a parent that has text).
+//
+// "Starts with text" includes:
+//   - any non-tag character (including whitespace) followed by a
+//     non-whitespace character before the next `<`,
+//   - empty content (e.g. self-closing tag handled before reaching
+//     here, or <e></e>) — empty inline elements are always safe to
+//     promote because they contribute no text frame.
+//
+// "Starts with element" means the first non-whitespace byte in the
+// element's content is `<` introducing a child element (start tag,
+// CDATA, comment, or PI all start with `<`). Comments and PIs do
+// not promote because they're treated as bytestream metadata, not
+// translatable content.
+func elementContentStartsWithText(content []byte, contentStart int) bool {
+	if contentStart < 0 || contentStart >= len(content) {
+		return true
+	}
+	// Walk forward looking for the first non-whitespace byte.
+	for i := contentStart; i < len(content); i++ {
+		c := content[i]
+		if c == ' ' || c == '\t' || c == '\r' || c == '\n' {
+			continue
+		}
+		// First non-whitespace byte: text if not a tag opener.
+		return c != '<'
+	}
+	// Reached EOF without finding any non-whitespace byte — treat as
+	// empty content, which is safe to inline.
+	return true
 }
 
 // collapseRunsWhitespace applies whitespace collapsing to a run
