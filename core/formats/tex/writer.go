@@ -210,9 +210,16 @@ func (w *Writer) blockTextForSkeleton(block *model.Block) string {
 		prefix := extractLeadingWhitespace(raw)
 		return prefix + fmt.Sprintf("\\%s{%s}", block.Type, text)
 	default:
-		// For regular paragraph blocks, preserve leading whitespace from raw source
+		// For regular paragraph blocks, preserve leading AND trailing
+		// whitespace from raw source. Okapi's TEXFilter keeps whitespace
+		// between a paragraph's last text and the following structural
+		// command (e.g. the `\n` between `документа.` and
+		// `\end{abstract}`); without restoring the trailing whitespace
+		// here, the writer collapses the gap and the output drifts by 1
+		// byte per paragraph that ends adjacent to a TeX command.
 		prefix := extractLeadingWhitespace(raw)
-		return prefix + text
+		suffix := extractTrailingWhitespace(raw)
+		return prefix + text + suffix
 	}
 }
 
@@ -220,4 +227,10 @@ func (w *Writer) blockTextForSkeleton(block *model.Block) string {
 func extractLeadingWhitespace(s string) string {
 	trimmed := strings.TrimLeft(s, " \t\n\r")
 	return s[:len(s)-len(trimmed)]
+}
+
+// extractTrailingWhitespace returns the trailing whitespace from a string.
+func extractTrailingWhitespace(s string) string {
+	trimmed := strings.TrimRight(s, " \t\n\r")
+	return s[len(trimmed):]
 }
