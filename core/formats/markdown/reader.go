@@ -564,12 +564,33 @@ func (r *Reader) emitIndentedCodeBlock(ctx context.Context, ch chan<- model.Part
 	if r.cfg.TranslateCodeBlocks {
 		r.blockCounter++
 		blockID := fmt.Sprintf("tu%d", r.blockCounter)
-		block := model.NewBlock(blockID, content)
+		// Use the literal source slice from the first line content
+		// (after the 4-space indent already emitted as skeleton) to the
+		// last line's end. This preserves per-line indentation on
+		// continuation lines (goldmark's Lines().Value() strips the
+		// 4-space prefix uniformly, so a "    code\n         deeper"
+		// indented block would lose the 5-space relative indent on
+		// "deeper"). The source slice carries those bytes verbatim,
+		// including any blank lines between content lines.
+		blockContent := string(r.source[lineStart:lineEnd])
+		// okapi MarkdownFilterWriter re-indents blank lines within an
+		// indented code block to the same prefix as content lines. The
+		// CommonMark source typically writes blank lines unindented
+		// ("...\n\n    next line"), but okapi's text-unit content
+		// carries the prefix on every line — including the blanks — so
+		// the round-tripped output has a "    \n    next line"
+		// rectangle. Mirror that here so the block's text round-trips
+		// byte-equal with okapi.
+		prefix := string(r.source[absStart:lineStart])
+		if prefix != "" && strings.Contains(blockContent, "\n\n") {
+			blockContent = strings.ReplaceAll(blockContent, "\n\n", "\n"+prefix+"\n")
+		}
+		block := model.NewBlock(blockID, blockContent)
 		block.Name = fmt.Sprintf("code%d", r.blockCounter)
 		block.Type = "code-block"
 
 		r.skelEmitGap(absStart)
-		r.skelText(string(r.source[absStart:lineStart]))
+		r.skelText(prefix)
 		r.skelRef(blockID)
 		r.skelCursor = lineEnd
 

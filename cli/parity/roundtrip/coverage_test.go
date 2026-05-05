@@ -388,11 +388,29 @@ func coverageScans() []formatScan {
 		{
 			// Bridge passes ~14 of 46 fixtures; the rest are
 			// flagged per-file via markdownBridgeSkips().
-			formatID:          "markdown",
-			filterClass:       "okf_markdown",
-			sources:           []string{"integration-tests/okapi/src/test/resources/markdown"},
-			extensions:        []string{".md"},
-			skip:              markdownBridgeSkips(),
+			formatID:    "markdown",
+			filterClass: "okf_markdown",
+			sources:     []string{"integration-tests/okapi/src/test/resources/markdown"},
+			extensions:  []string{".md"},
+			skip:        markdownBridgeSkips(),
+			// okf_markdown's Java reset() defaults translateCodeBlocks=true
+			// and translateIndentedCodeBlocks=true (single neokapi flag
+			// covers both). Native default keeps both off — code is
+			// usually verbatim in localisation contracts. Mirror okapi here
+			// so the parity contract "same semantic config → same bytes"
+			// holds without changing the native default.
+			//
+			// translateHTMLBlocks is intentionally NOT set: okapi runs
+			// HTML blocks through an HTML subfilter that extracts only
+			// inline translatable text (<summary>Loadbot log</summary>
+			// → just "Loadbot log"). Native's TranslateHTMLBlocks=true
+			// path treats the whole block as one Block, which would
+			// over-translate tag text. HTML-block-content extraction is
+			// tracked as a separate divergence (DirectShape.md,
+			// test-html-block-newline.md) requiring HTML subfilter work.
+			nativeConfig: map[string]any{
+				"translateCodeBlocks": true,
+			},
 		},
 		{
 			formatID:          "wiki",
