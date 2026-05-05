@@ -878,6 +878,76 @@ func (p *parser) parse(ctx context.Context, ch chan<- model.PartResult, r *Reade
 				}
 			}
 
+			// Default-cmd path: `\<defaultchar>` (e.g. `\,`, `\`this'`)
+			// — okapi's tokenizer treats these as opaque commands that
+			// extend through following alphanums/defaults until a
+			// whitespace or special. Capture the matched bytes as a Ph
+			// run so they round-trip verbatim and never reach the
+			// pseudo translator (sample1.tex line 60: `\,\`this' `).
+			if dEnd := p.extractDefaultCmd(p.pos); dEnd > p.pos+1 {
+				if textStartPos < 0 {
+					textStartPos = p.pos
+				}
+				cmdBytes := p.source[p.pos:dEnd]
+				flushBodyText()
+				pcCounter++
+				bodyRuns = append(bodyRuns, model.Run{Ph: &model.PlaceholderRun{
+					ID:    fmt.Sprintf("c%d", pcCounter),
+					Type:  "tex:cmd",
+					Data:  cmdBytes,
+					Equiv: cmdBytes,
+				}})
+				p.pos = dEnd
+				continue
+			}
+
+			// Backslash-space (`\ ` — TeX inter-word space command):
+			// okapi's TEXParser tokenizes this as a 2-char cmd `\ `
+			// (consuming one whitespace), and the unknown-command path
+			// in TEXFilter appends a synthetic space ONLY when the next
+			// text token also starts with whitespace. Emit it as a Data
+			// part (mirroring the unknown alpha-cmd body path) so the
+			// synthetic separator survives the writer's empty-paragraph
+			// fold (where surrounding-only-whitespace blocks discard
+			// any accumulated bodyRuns). Without this, sample1.tex
+			// line 83 (`\ldots\               % comment`) loses one
+			// space vs okapi.
+			if p.pos+1 < len(p.source) && (p.source[p.pos+1] == ' ' || p.source[p.pos+1] == '\t') {
+				flushText()
+				cmdStart := p.pos
+				p.pos += 2 // consume `\` + one whitespace byte
+				addSynthetic := false
+				if p.pos < len(p.source) {
+					nb := p.source[p.pos]
+					if nb == ' ' || nb == '\t' {
+						addSynthetic = true
+					}
+				}
+				rawCmd := p.source[cmdStart:p.pos]
+				if addSynthetic {
+					if r.skeletonStore != nil {
+						if cmdStart > p.lastSkelPos {
+							r.skelText(p.source[p.lastSkelPos:cmdStart])
+						}
+						r.skelText(rawCmd)
+						r.skelText(" ")
+						p.lastSkelPos = p.pos
+					}
+					p.dataCounter++
+					d := &model.Data{
+						ID:   fmt.Sprintf("d%d", p.dataCounter),
+						Name: "tex-structure",
+						Properties: map[string]string{
+							"content": rawCmd + " ",
+						},
+					}
+					r.emit(ctx, ch, &model.Part{Type: model.PartData, Resource: d})
+				} else {
+					flushData(rawCmd)
+				}
+				continue
+			}
+
 			// Unrecognized backslash sequence
 			if textStartPos < 0 {
 				textStartPos = p.pos
@@ -897,12 +967,23 @@ func (p *parser) parse(ctx context.Context, ch chan<- model.PartResult, r *Reade
 			continue
 		}
 
-		// Tilde — non-breaking space (in TeX, ~ is a non-breaking space)
+		// Tilde — TeX's non-breaking inter-word space. okapi's TEXFilter
+		// emits the literal `~` byte as a DocumentPart (TEXTokenType.TILDE
+		// → addDocumentPartToEventBuilder), so the source byte round-trips
+		// verbatim. Modeling it as a Ph keeps it inline with the
+		// surrounding text run while preventing pseudo from touching it.
 		if ch0 == '~' {
 			if textStartPos < 0 {
 				textStartPos = p.pos
 			}
-			textBuf.WriteByte(' ')
+			flushBodyText()
+			pcCounter++
+			bodyRuns = append(bodyRuns, model.Run{Ph: &model.PlaceholderRun{
+				ID:    fmt.Sprintf("c%d", pcCounter),
+				Type:  "tex:tilde",
+				Data:  "~",
+				Equiv: "~",
+			}})
 			p.pos++
 			continue
 		}
@@ -1002,6 +1083,85 @@ func (p *parser) extendCmdRun(end int) int {
 	}
 	if end < len(p.source) && (p.source[end] == ' ' || p.source[end] == '\t') {
 		end++
+	}
+	return end
+}
+
+// extractDefaultCmd attempts to tokenize an okapi-style "default
+// command" starting at p.pos (where p.source[p.pos] == '\\'), in the
+// case where the byte after `\` is a DEFAULT character (per
+// Okapi TEXParser.getCharType — punctuation like `,`, `;`, `` ` ``,
+// `'`, `.`, `=`, `-` …) that is NOT one of our handled escape
+// specials (`&`, `%`, `$`, `#`, `_`, `{`, `}`, `\`, `~`).
+//
+// Mirrors Okapi TEXParser.parse's cmd-loop after the first DEFAULT
+// char is appended (so cmd.length() > 1): continue absorbing ALPHANUM
+// and DEFAULT chars, append one trailing WHITESPACE if present, then
+// stop. So `\,\`this' ` (sample1.tex line 60) tokenizes as one big
+// command — okapi treats it as an AccentedChar + glued text and
+// emits the bytes verbatim through the skeleton, so the inner `this`
+// never reaches the pseudo translator.
+//
+// Returns end > start+1 when matched (caller emits p.source[start:end]
+// as opaque). Returns start when no extending cmd applies (caller
+// falls back to writing `\` as a stray byte).
+func (p *parser) extractDefaultCmd(start int) int {
+	if start+1 >= len(p.source) || p.source[start] != '\\' {
+		return start
+	}
+	first := p.source[start+1]
+	// Skip the escape-special bytes (handled by the dedicated escape
+	// switch in the body parser) and alpha (handled by peekCommand).
+	switch first {
+	case '\\', '&', '%', '$', '#', '_', '{', '}', '~',
+		'\n', '\r', ' ', '\t':
+		return start
+	}
+	if isAlpha(first) {
+		return start
+	}
+	// `[` would be an optional-argument bracket. Okapi's tokenizer
+	// absorbs `[…]` into the command, but the rest of our reader uses
+	// skipOptionalArg to handle `[…]`. Don't extend here — fall
+	// through to the existing fallback.
+	if first == '[' {
+		return start
+	}
+	// `\(` and `\)` open and close inline-math regions in LaTeX.
+	// Treating them as opaque commands here would absorb the space
+	// after `\(` into the Ph and break paragraph segmentation around
+	// the math (sample1.tex line 130 splits across 3 lines because
+	// `\( \ip{A}{B} = \sum_{i} ... \)` no longer parses as one body
+	// run). Defer those to the existing fallback (write `\` as text)
+	// until a dedicated `\(...\)` math reader lands.
+	if first == '(' || first == ')' {
+		return start
+	}
+	end := start + 2 // consumed `\` + first DEFAULT char
+	// Continue absorbing ALPHANUM and DEFAULT chars until we hit a
+	// terminator (WHITESPACE — append one and stop, EOL, special, `[`).
+	for end < len(p.source) {
+		b := p.source[end]
+		if b == '[' {
+			break
+		}
+		// ALPHANUM
+		if (b >= 'a' && b <= 'z') || (b >= 'A' && b <= 'Z') || (b >= '0' && b <= '9') {
+			end++
+			continue
+		}
+		// DEFAULT (per isOkapiTexDefault)
+		if isOkapiTexDefault(b) {
+			end++
+			continue
+		}
+		// WHITESPACE: append one and stop
+		if b == ' ' || b == '\t' {
+			end++
+			break
+		}
+		// Anything else (newline, escape, group, math, etc.) → stop
+		break
 	}
 	return end
 }

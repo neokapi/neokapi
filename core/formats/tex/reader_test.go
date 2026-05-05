@@ -491,10 +491,21 @@ func TestTildeNonBreakingSpace(t *testing.T) {
 Word~one is here.
 \end{document}`)
 
-	// The tilde should be converted to a space in text
+	// The tilde should be modeled as an inline placeholder so it
+	// round-trips verbatim and survives pseudo-translation. okapi's
+	// TEXFilter routes TILDE tokens to addDocumentPart, preserving the
+	// literal `~` byte. The translatable text stream excludes the
+	// tilde, so Block.SourceText (TextRun-only) is "Wordone is here.".
 	require.NotEmpty(t, blocks)
-	text := blocks[0].SourceText()
-	assert.Contains(t, text, "Word one")
+	runs := blocks[0].SourceRuns()
+	var hasTilde bool
+	for _, r := range runs {
+		if r.Ph != nil && r.Ph.Data == "~" {
+			hasTilde = true
+			break
+		}
+	}
+	assert.True(t, hasTilde, "expected an inline ~ placeholder, got runs=%+v", runs)
 }
 
 func TestMultipleComments(t *testing.T) {
