@@ -78,6 +78,209 @@ function formatOffset(raw: number, norm?: number, normalizer?: string): string {
   return `@${raw}`;
 }
 
+interface ParsedDiff {
+  normalizer?: string;
+  zipEntry?: string;
+  context?: string;
+  offset?: number;
+  got?: string;
+  ref?: string;
+}
+
+// findQuotedSubstring locates the matched closing `"` for a Go-style %q
+// quoted string starting at pos (where text[pos] === '"'). Returns the
+// substring contents (escapes preserved) and the position right after
+// the closing quote, or null on parse failure.
+function findQuotedSubstring(text: string, pos: number): [string, number] | null {
+  if (text[pos] !== '"') return null;
+  let i = pos + 1;
+  while (i < text.length) {
+    const c = text[i];
+    if (c === '"') return [text.slice(pos + 1, i), i + 1];
+    if (c === "\\" && i + 1 < text.length) {
+      i += 2;
+    } else {
+      i++;
+    }
+  }
+  return null;
+}
+
+// parseDiffReason extracts structured pieces from a parityRecord.Reason
+// string. Handles four shapes produced by compare.go:
+//   - byte length differs: got N, reference M (first diff at offset O: got "X" vs "Y")
+//   - byte content differs at offset O: got "X" vs "Y"
+//   - zip entry "ENTRY" differs at offset O: got "X" vs "Y"
+//   - [after NORM] <any of the above>
+// Anything it can't parse falls back to {raw: reason} via caller.
+function parseDiffReason(reason: string): ParsedDiff {
+  const out: ParsedDiff = {};
+  let s = reason;
+
+  // Optional [after ...] prefix carrying the normalizer chain.
+  if (s.startsWith("[after ")) {
+    let depth = 1;
+    let i = "[after ".length;
+    for (; i < s.length && depth > 0; i++) {
+      if (s[i] === "[") depth++;
+      else if (s[i] === "]") depth--;
+    }
+    if (depth === 0) {
+      out.normalizer = s.slice("[after ".length, i - 1);
+      s = s.slice(i).replace(/^\s+/, "");
+    }
+  }
+
+  // Optional zip entry: zip entry "ENTRY" differs at offset N
+  const zipPrefix = 'zip entry "';
+  if (s.startsWith(zipPrefix)) {
+    const q = findQuotedSubstring(s, zipPrefix.length - 1);
+    if (q) {
+      out.zipEntry = q[0];
+      s = s.slice(q[1]).replace(/^\s+/, "");
+    }
+  }
+
+  // First-diff offset.
+  const offMatch = s.match(/(?:first diff )?at offset (\d+)/);
+  if (offMatch) {
+    out.offset = parseInt(offMatch[1], 10);
+  }
+
+  // Context like "byte length differs: got N, reference M (...)".
+  const ctxMatch = s.match(/^([^:]+?)(?:: got \d+|differs|$)/);
+  if (ctxMatch) {
+    out.context = ctxMatch[1].replace(/[:.]\s*$/, "").trim();
+  }
+
+  // got "X" vs "Y" — find the LAST occurrence of `got "` (the snippet,
+  // not the byte-count "got 238048").
+  const gotIdx = s.lastIndexOf('got "');
+  if (gotIdx >= 0) {
+    const gq = findQuotedSubstring(s, gotIdx + "got ".length);
+    if (gq) {
+      out.got = gq[0];
+      const after = s.slice(gq[1]).replace(/^\s+/, "");
+      const vsIdx = after.indexOf('vs "');
+      if (vsIdx >= 0) {
+        const rq = findQuotedSubstring(after, vsIdx + "vs ".length);
+        if (rq) out.ref = rq[0];
+      }
+    }
+  }
+
+  return out;
+}
+
+type DiffSeg = { type: "common" | "del" | "ins"; text: string };
+
+// diffChars returns the character-level diff between a (got) and b (ref)
+// as a list of segments using a standard LCS DP backtrace. Segments are
+// coalesced so a run of common (or all-del or all-ins) chars renders as
+// one span. Bounded to ~256 chars per side — beyond that the snippets
+// themselves are too long to be useful.
+function diffChars(a: string, b: string): DiffSeg[] {
+  const m = a.length;
+  const n = b.length;
+  const limit = 256;
+  if (m > limit || n > limit) {
+    // Fall back to whole-replacement view to keep the page snappy.
+    const out: DiffSeg[] = [];
+    if (a) out.push({ type: "del", text: a });
+    if (b) out.push({ type: "ins", text: b });
+    return out;
+  }
+  const dp: number[][] = Array.from({ length: m + 1 }, () => new Array(n + 1).fill(0));
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      if (a[i - 1] === b[j - 1]) {
+        dp[i][j] = dp[i - 1][j - 1] + 1;
+      } else {
+        dp[i][j] = Math.max(dp[i - 1][j], dp[i][j - 1]);
+      }
+    }
+  }
+  const segs: DiffSeg[] = [];
+  let i = m;
+  let j = n;
+  while (i > 0 || j > 0) {
+    if (i > 0 && j > 0 && a[i - 1] === b[j - 1]) {
+      segs.push({ type: "common", text: a[i - 1] });
+      i--;
+      j--;
+    } else if (j > 0 && (i === 0 || dp[i][j - 1] >= dp[i - 1][j])) {
+      segs.push({ type: "ins", text: b[j - 1] });
+      j--;
+    } else {
+      segs.push({ type: "del", text: a[i - 1] });
+      i--;
+    }
+  }
+  segs.reverse();
+  const out: DiffSeg[] = [];
+  for (const s of segs) {
+    const prev = out[out.length - 1];
+    if (prev && prev.type === s.type) prev.text += s.text;
+    else out.push({ type: s.type, text: s.text });
+  }
+  return out;
+}
+
+interface DiffViewProps {
+  reason: string;
+}
+
+function DiffView({ reason }: DiffViewProps) {
+  const parsed = parseDiffReason(reason);
+  const hasSnippet = parsed.got !== undefined && parsed.ref !== undefined;
+  if (!hasSnippet) {
+    return <span className={styles.diffFallback}>{reason}</span>;
+  }
+  const got = parsed.got ?? "";
+  const ref = parsed.ref ?? "";
+  return (
+    <div className={styles.diffBox}>
+      {(parsed.zipEntry || parsed.context || parsed.normalizer || parsed.offset !== undefined) && (
+        <div className={styles.diffMeta}>
+          {parsed.offset !== undefined && (
+            <span className={styles.diffOffset}>@{parsed.offset.toLocaleString()}</span>
+          )}
+          {parsed.context && <span className={styles.diffContext}>{parsed.context}</span>}
+          {parsed.zipEntry && (
+            <span className={styles.diffEntryChip}>zip:{parsed.zipEntry}</span>
+          )}
+          {parsed.normalizer && (
+            <span className={styles.diffNormChip} title={parsed.normalizer}>
+              norm:{parsed.normalizer.length > 60
+                ? parsed.normalizer.slice(0, 57) + "…"
+                : parsed.normalizer}
+            </span>
+          )}
+        </div>
+      )}
+      <div className={styles.diffRow}>
+        <span className={styles.diffLabelDiff}>diff</span>
+        <span className={styles.diffLine}>
+          {diffChars(got, ref).map((seg, i) => {
+            const cls =
+              seg.type === "common"
+                ? styles.diffCommon
+                : seg.type === "del"
+                  ? styles.diffDelGot
+                  : styles.diffDelRef;
+            return (
+              <span key={i} className={cls}>
+                {seg.text}
+              </span>
+            );
+          })}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+
 export default function ParityFixturesDashboard() {
   const [search, setSearch] = useState("");
   const [activeEngine, setActiveEngine] = useState<string | null>("native");
@@ -293,7 +496,9 @@ export default function ParityFixturesDashboard() {
                         <td className={styles.offsetCell}>
                           {formatOffset(d.raw_diff_offset, d.norm_diff_offset, d.normalizer)}
                         </td>
-                        <td className={styles.reasonCell}>{d.reason}</td>
+                        <td className={styles.reasonCell}>
+                          <DiffView reason={d.reason} />
+                        </td>
                       </tr>
                     ))}
                   </tbody>

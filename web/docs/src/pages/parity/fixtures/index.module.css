@@ -195,11 +195,147 @@
 }
 
 .reasonCell {
-  font-family: var(--ifm-font-family-monospace);
   font-size: 0.78rem;
   color: var(--ifm-color-emphasis-700);
+  max-width: 42rem;
+}
+
+.diffFallback {
+  font-family: var(--ifm-font-family-monospace);
   word-break: break-word;
-  max-width: 36rem;
+}
+
+.diffBox {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.diffMeta {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.7rem;
+  color: var(--ifm-color-emphasis-600);
+  margin-bottom: 0.15rem;
+  flex-wrap: wrap;
+}
+
+.diffContext {
+  font-style: italic;
+}
+
+.diffOffset {
+  font-family: var(--ifm-font-family-monospace);
+  font-weight: 700;
+  color: var(--ifm-color-emphasis-800);
+  background: var(--ifm-color-emphasis-100);
+  padding: 0.05rem 0.35rem;
+  border-radius: 0.25rem;
+  font-size: 0.7rem;
+}
+
+.diffEntryChip,
+.diffNormChip {
+  display: inline-block;
+  padding: 0.05rem 0.35rem;
+  border-radius: 0.25rem;
+  font-family: var(--ifm-font-family-monospace);
+  font-size: 0.68rem;
+  background: var(--ifm-color-emphasis-100);
+  border: 1px solid var(--ifm-color-emphasis-200);
+  color: var(--ifm-color-emphasis-700);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 38rem;
+}
+
+.diffNormChip {
+  font-size: 0.62rem;
+}
+
+.diffRow {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  font-family: var(--ifm-font-family-monospace);
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+
+.diffLabelGot,
+.diffLabelRef,
+.diffLabelDiff {
+  display: inline-block;
+  padding: 0 0.3rem;
+  border-radius: 0.2rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: lowercase;
+  flex: 0 0 2.2rem;
+  text-align: center;
+  letter-spacing: 0.02em;
+}
+
+.diffLabelGot {
+  background: rgba(229, 83, 75, 0.18);
+  color: #b3261e;
+}
+
+.diffLabelRef {
+  background: rgba(46, 160, 67, 0.18);
+  color: #1f7a37;
+}
+
+.diffLabelDiff {
+  background: var(--ifm-color-emphasis-200);
+  color: var(--ifm-color-emphasis-800);
+}
+
+.diffLine {
+  flex: 1 1 auto;
+  overflow-x: auto;
+  overflow-y: hidden;
+  white-space: pre;
+  display: inline-block;
+}
+
+.diffCommon {
+  color: var(--ifm-color-emphasis-500);
+}
+
+.diffDelGot {
+  background: rgba(229, 83, 75, 0.28);
+  color: #802018;
+  text-decoration: line-through;
+  text-decoration-thickness: 1px;
+  border-radius: 0.15rem;
+  padding: 0 0.12rem;
+}
+
+.diffDelRef {
+  background: rgba(46, 160, 67, 0.28);
+  color: #156429;
+  border-radius: 0.15rem;
+  padding: 0 0.12rem;
+  font-weight: 600;
+}
+
+[data-theme="dark"] .diffLabelGot {
+  color: #ff8a82;
+}
+[data-theme="dark"] .diffLabelRef {
+  color: #4cdb6f;
+}
+[data-theme="dark"] .diffDelGot {
+  color: #ffb1aa;
+}
+[data-theme="dark"] .diffDelRef {
+  color: #8df0a3;
+}
+[data-theme="dark"] .diffCommon {
+  color: var(--ifm-color-emphasis-500);
 }
 
 .tierBadge {
