@@ -301,12 +301,18 @@ parity-test: parity-sandbox ## Run the full parity test suite (#448)
 	@echo "Parity report: $(PARITY_REPORT)"
 
 PARITY_DASHBOARD := $(ROOT_DIR)/web/docs/static/data/parity-report.json
+PARITY_FIXTURES_JSON := $(ROOT_DIR)/web/docs/static/data/parity-fixtures.json
 
 parity-publish: parity-test ## Run the parity suite and publish dashboard JSON to the docs site
 	@cd $(ROOT_DIR) && go run ./scripts/testcompare \
 	    -in $(PARITY_REPORT) \
 	    -out $(PARITY_DASHBOARD)
 	@echo "Dashboard JSON: $(PARITY_DASHBOARD)"
+
+parity-fixtures: ## Run the round-trip coverage suite and emit per-fixture JSON for /parity/fixtures
+	@cd $(ROOT_DIR) && PARITY_FIXTURES_JSON=$(PARITY_FIXTURES_JSON) \
+	    $(GOTEST) -tags parity -count=1 -timeout 30m -run TestRoundTrip_Coverage ./cli/parity/roundtrip/
+	@echo "Fixtures JSON: $(PARITY_FIXTURES_JSON)"
 
 parity-clean: ## Remove the parity sandbox to force a fresh build next run
 	rm -rf $(PARITY_DIR)

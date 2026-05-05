@@ -46,6 +46,17 @@ func TestMain(m *testing.M) {
 			fmt.Fprintf(os.Stderr, "parity report: could not write %s: %v\n", path, err)
 		}
 	}
+	// PARITY_FIXTURES_JSON dumps per-fixture divergence detail as JSON
+	// for the /parity/fixtures Docusaurus dashboard. Same data the
+	// Markdown drill-down carries, machine-readable.
+	if path := os.Getenv("PARITY_FIXTURES_JSON"); path != "" {
+		if f, err := os.Create(path); err == nil {
+			_ = roundtrip.FlushParityFixturesJSON(f)
+			_ = f.Close()
+		} else {
+			fmt.Fprintf(os.Stderr, "parity fixtures: could not write %s: %v\n", path, err)
+		}
+	}
 
 	os.Exit(code)
 }

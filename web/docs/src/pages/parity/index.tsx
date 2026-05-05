@@ -94,6 +94,11 @@ export default function ParityDashboard() {
           without erroring) until a Go counterpart lands. Report generated{" "}
           <strong>{data.generated_at}</strong>.
         </p>
+        <p className={styles.subtitle}>
+          For per-fixture divergence detail (first-diff offsets, byte deltas,
+          comparison snippets) see the{" "}
+          <a href="/parity/fixtures">fixtures drill-down</a>.
+        </p>
 
         <div className={styles.totals}>
           {(Object.keys(data.totals) as Kind[]).map((kind) => {

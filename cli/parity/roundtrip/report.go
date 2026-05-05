@@ -3,11 +3,13 @@
 package roundtrip
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"sort"
 	"strings"
 	"sync"
+	"time"
 )
 
 // parityRecord is one (format, fixture, engine) outcome captured by
@@ -317,6 +319,151 @@ func writeDivergentDetail(w io.Writer, records []parityRecord) error {
 		}
 	}
 	return nil
+}
+
+// fixturesJSON is the on-disk shape consumed by the /parity/fixtures
+// drill-down dashboard. It carries per-engine totals plus a per-format
+// breakdown that nests every divergent fixture's first-diff offset and
+// reason snippet so a reader can answer "why does idml/06-hello-world.idml
+// still divergent?" without re-running the test.
+type fixturesJSON struct {
+	GeneratedAt string                  `json:"generated_at"`
+	Engines     map[string]engineTotals `json:"engines"`
+	Formats     []formatBreakdown       `json:"formats"`
+}
+
+type engineTotals struct {
+	Total   int     `json:"total"`
+	Byte    int     `json:"byte"`
+	Canon   int     `json:"canon"`
+	Sem     int     `json:"sem"`
+	Div     int     `json:"div"`
+	Skip    int     `json:"skip"`
+	BytePct float64 `json:"byte_pct"`
+}
+
+type formatBreakdown struct {
+	Format    string         `json:"format"`
+	Engine    string         `json:"engine"`
+	Total     int            `json:"total"`
+	Byte      int            `json:"byte"`
+	Canon     int            `json:"canon"`
+	Sem       int            `json:"sem"`
+	Div       int            `json:"div"`
+	Skip      int            `json:"skip"`
+	Divergent []fixtureEntry `json:"divergent,omitempty"`
+}
+
+type fixtureEntry struct {
+	Fixture        string `json:"fixture"`
+	Required       string `json:"required"`
+	Achieved       string `json:"achieved"`
+	GotSize        int    `json:"got_size"`
+	RefSize        int    `json:"ref_size"`
+	Delta          int    `json:"delta"`
+	RawDiffOffset  int    `json:"raw_diff_offset"`
+	NormDiffOffset int    `json:"norm_diff_offset,omitempty"`
+	Normalizer     string `json:"normalizer,omitempty"`
+	Reason         string `json:"reason"`
+}
+
+// FlushParityFixturesJSON writes the per-fixture parity dataset as JSON.
+// The shape is consumed by the /parity/fixtures Docusaurus page; the
+// Markdown report stays the canonical CLI surface. Only divergent
+// fixtures appear in the per-format detail array — byte/canon/sem
+// fixtures are aggregated in the totals so the JSON stays small.
+func FlushParityFixturesJSON(w io.Writer) error {
+	records := snapshotParityRecords()
+	out := fixturesJSON{
+		GeneratedAt: time.Now().UTC().Format(time.RFC3339),
+		Engines:     map[string]engineTotals{},
+	}
+
+	// Engine totals.
+	type engTot struct{ Total, Byte, Canon, Sem, Div, Skip int }
+	engines := map[string]*engTot{}
+	for _, r := range records {
+		v, ok := engines[r.Engine]
+		if !ok {
+			v = &engTot{}
+			engines[r.Engine] = v
+		}
+		v.Total++
+		switch {
+		case r.Skipped:
+			v.Skip++
+		case r.Achieved == TierByteEqual:
+			v.Byte++
+		case r.Achieved == TierCanonicalEqual:
+			v.Canon++
+		case r.Achieved == TierSemanticEqual:
+			v.Sem++
+		default:
+			v.Div++
+		}
+	}
+	for name, v := range engines {
+		asserted := v.Total - v.Skip
+		var pct float64
+		if asserted > 0 {
+			pct = 100 * float64(v.Byte) / float64(asserted)
+		}
+		out.Engines[name] = engineTotals{
+			Total:   v.Total,
+			Byte:    v.Byte,
+			Canon:   v.Canon,
+			Sem:     v.Sem,
+			Div:     v.Div,
+			Skip:    v.Skip,
+			BytePct: pct,
+		}
+	}
+
+	// Per-format breakdown plus per-fixture detail for divergent rows.
+	aggs, keys := aggregate(records)
+	type detailKey aggKey
+	groups := map[detailKey][]parityRecord{}
+	for _, r := range records {
+		if r.Skipped || r.Achieved == TierByteEqual || r.Achieved == TierCanonicalEqual || r.Achieved == TierSemanticEqual {
+			continue
+		}
+		groups[detailKey{r.Format, r.Engine}] = append(groups[detailKey{r.Format, r.Engine}], r)
+	}
+	for _, k := range keys {
+		v := aggs[k]
+		fb := formatBreakdown{
+			Format: k.Format,
+			Engine: k.Engine,
+			Total:  v.Total,
+			Byte:   v.Byte,
+			Canon:  v.Canonical,
+			Sem:    v.Semantic,
+			Div:    v.Divergent,
+			Skip:   v.Skipped,
+		}
+		if dets, ok := groups[detailKey{k.Format, k.Engine}]; ok {
+			sort.Slice(dets, func(i, j int) bool { return dets[i].Fixture < dets[j].Fixture })
+			for _, r := range dets {
+				fb.Divergent = append(fb.Divergent, fixtureEntry{
+					Fixture:        r.Fixture,
+					Required:       r.Required.String(),
+					Achieved:       r.Achieved.String(),
+					GotSize:        r.GotSize,
+					RefSize:        r.RefSize,
+					Delta:          r.GotSize - r.RefSize,
+					RawDiffOffset:  r.RawDiffOffset,
+					NormDiffOffset: r.NormDiffOffset,
+					Normalizer:     r.Normalizer,
+					Reason:         r.Reason,
+				})
+			}
+		}
+		out.Formats = append(out.Formats, fb)
+	}
+
+	enc := json.NewEncoder(w)
+	enc.SetIndent("", "  ")
+	return enc.Encode(out)
 }
 
 // formatDiffOffset renders the byte-diff column for a divergent row.
