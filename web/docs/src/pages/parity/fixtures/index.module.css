@@ -292,41 +292,59 @@
 
 .diffStack {
   display: flex;
-  flex-direction: column;
-  gap: 0.15rem;
+  flex-direction: row;
+  gap: 0;
   border: 1px solid var(--ifm-color-emphasis-200);
   border-radius: 0.3rem;
   background: var(--ifm-color-emphasis-100);
-  padding: 0.3rem 0;
+  overflow: hidden;
 }
 
-.diffSideRow {
+.diffSideCol {
+  flex: 1 1 0;
+  min-width: 0;
   display: flex;
-  align-items: baseline;
-  gap: 0.4rem;
+  flex-direction: column;
+  padding: 0.3rem 0.5rem;
   font-family: var(--ifm-font-family-monospace);
   font-size: 0.78rem;
-  padding: 0 0.5rem;
-  min-width: 0;
 }
 
-.diffSideRow .diffLine {
+.diffSideCol + .diffSideCol {
+  border-left: 1px solid var(--ifm-color-emphasis-200);
+}
+
+.diffSideCol .diffLine {
+  margin: 0.2rem 0 0 0;
+  padding: 0;
+  background: transparent;
+  border: none;
   white-space: pre-wrap;
   word-break: break-all;
   tab-size: 2;
+  font-family: inherit;
+  font-size: inherit;
+}
+
+@media (max-width: 720px) {
+  .diffStack {
+    flex-direction: column;
+  }
+  .diffSideCol + .diffSideCol {
+    border-left: none;
+    border-top: 1px solid var(--ifm-color-emphasis-200);
+  }
 }
 
 .diffLabelGot,
 .diffLabelRef,
 .diffLabelDiff {
-  display: inline-block;
-  padding: 0 0.3rem;
+  align-self: flex-start;
+  padding: 0 0.35rem;
   border-radius: 0.2rem;
   font-size: 0.68rem;
   font-weight: 700;
   text-transform: lowercase;
-  flex: 0 0 2.2rem;
-  text-align: center;
   letter-spacing: 0.02em;
 }
 

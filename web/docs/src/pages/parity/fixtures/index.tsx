@@ -335,9 +335,9 @@ function DiffView({ reason }: DiffViewProps) {
         </div>
       )}
       <div className={styles.diffStack}>
-        <div className={styles.diffSideRow}>
+        <div className={styles.diffSideCol}>
           <span className={styles.diffLabelGot}>got</span>
-          <span className={styles.diffLine}>
+          <pre className={styles.diffLine}>
             {diffTokens(got, ref).map((seg, i) => {
               if (seg.type === "ins") return null;
               const cls = seg.type === "common" ? styles.diffCommon : styles.diffDelGot;
@@ -347,11 +347,11 @@ function DiffView({ reason }: DiffViewProps) {
                 </span>
               );
             })}
-          </span>
+          </pre>
         </div>
-        <div className={styles.diffSideRow}>
+        <div className={styles.diffSideCol}>
           <span className={styles.diffLabelRef}>ref</span>
-          <span className={styles.diffLine}>
+          <pre className={styles.diffLine}>
             {diffTokens(got, ref).map((seg, i) => {
               if (seg.type === "del") return null;
               const cls = seg.type === "common" ? styles.diffCommon : styles.diffDelRef;
@@ -361,7 +361,7 @@ function DiffView({ reason }: DiffViewProps) {
                 </span>
               );
             })}
-          </span>
+          </pre>
         </div>
       </div>
     </div>
