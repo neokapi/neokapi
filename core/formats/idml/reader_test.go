@@ -283,20 +283,20 @@ func TestSkipDiscretionaryHyphens(t *testing.T) {
 </idPkg:Story>`,
 	})
 
-	// Default: skip discretionary hyphens
+	// Default (matches okapi: SkipDiscretionaryHyphens=false): preserve soft hyphens.
 	parts := readIDMLBytes(t, data)
 	blocks := testutil.FilterBlocks(parts)
 	require.Len(t, blocks, 1)
-	assert.Equal(t, "Bindestrich", blocks[0].SourceText())
+	assert.Equal(t, "Binde\u00ADstrich", blocks[0].SourceText())
 
-	// With skipDiscretionaryHyphens=false
+	// With skipDiscretionaryHyphens=true: U+00AD characters are removed.
 	cfg := &Config{}
 	cfg.Reset()
-	cfg.SkipDiscretionaryHyphens = false
+	cfg.SkipDiscretionaryHyphens = true
 	parts2 := readIDMLBytesWithConfig(t, data, cfg)
 	blocks2 := testutil.FilterBlocks(parts2)
 	require.Len(t, blocks2, 1)
-	assert.Equal(t, "Binde\u00ADstrich", blocks2[0].SourceText())
+	assert.Equal(t, "Bindestrich", blocks2[0].SourceText())
 }
 
 func TestMultipleStories(t *testing.T) {
@@ -795,9 +795,13 @@ func TestConfig(t *testing.T) {
 	cfg.Reset()
 
 	assert.Equal(t, "idml", cfg.FormatName())
+	// Defaults track okapi's IDML filter (filters/idml/Parameters.java::reset
+	// — verified against the okapi-bridge IDML filter bytecode):
+	// ExtractMasterSpreads=true, ExtractNotes=false, SkipDiscretionaryHyphens=false.
+	// See commit b1afcc4f for the realignment that flipped these back.
 	assert.False(t, cfg.ExtractNotes)
-	assert.True(t, cfg.SkipDiscretionaryHyphens)
-	assert.False(t, cfg.ExtractMasterSpreads)
+	assert.False(t, cfg.SkipDiscretionaryHyphens)
+	assert.True(t, cfg.ExtractMasterSpreads)
 	require.NoError(t, cfg.Validate())
 
 	err := cfg.ApplyMap(map[string]any{
