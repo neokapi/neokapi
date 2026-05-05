@@ -22,48 +22,45 @@ import (
 
 // htmlEntityRE matches a single HTML entity reference: a named entity
 // (`&amp;`), a numeric entity (`&#160;`), or a hex entity (`&#xA0;`).
-// Used by addTextWithEntities to peel entities out of bare text into
-// inline placeholder runs so they survive pseudo-translation as opaque
-// codes (rather than getting their hex letters case-folded — `&#xD7;`
-// would otherwise become `&#xĎ7;` because pseudo maps `D` → `Ď`).
-// Mirrors okapi MarkdownFilter behaviour of treating HTML entity
-// references as opaque inline codes.
+// Used by addTextWithEntities to detect entity references in plain text
+// for decoding (mirroring okapi MarkdownFilter line 379, which routes
+// TEXT tokens through DecodeUtil.fromPlainTextHTML before adding them
+// to the text unit).
 var htmlEntityRE = regexp.MustCompile(`&(?:[A-Za-z][A-Za-z0-9]*|#[0-9]+|#[xX][0-9A-Fa-f]+);`)
 
-// addTextWithEntities appends raw text to a runBuilder, splitting out
-// HTML entity references as inline placeholders so they don't get
-// pseudo-translated character by character. The entity's source bytes
-// (`&amp;`, `&#xD7;`) become the placeholder Data and are written back
-// verbatim by the markdown writer's RenderRunsWithData path.
+// addTextWithEntities appends plain text to a runBuilder, decoding any
+// HTML entity references inline so the text unit holds the resolved
+// character (e.g. `&#39;` → `'`, `&amp;` → `&`). Mirrors okapi
+// MarkdownFilter.handleAtomTextUnitToken's
+// `DecodeUtil.fromPlainTextHTML(token.getContent())` call
+// (MarkdownFilter.java line 379) and the HTML subfilter's
+// AbstractMarkupFilter.handleNumericEntity / handleCharacterEntity
+// behaviour, which decode entities by default unless
+// `preserve_character_entities` is set on the filter config (the
+// markdown HTML subfilter config leaves it unset).
+//
+// On round-trip the decoded character flows through the markdown
+// writer's MarkdownEncoder (which does not re-escape) so the entity
+// reference is dropped — exactly matching okapi's reference output. The
+// `idCounter` parameter is retained for callers that previously relied
+// on placeholder ids being bumped per entity; it is now a no-op for
+// pure-text input but kept for API stability.
 func addTextWithEntities(b *runBuilder, text string, idCounter *int) {
 	if text == "" {
 		return
 	}
-	matches := htmlEntityRE.FindAllStringIndex(text, -1)
-	if len(matches) == 0 {
+	if !strings.Contains(text, "&") || !htmlEntityRE.MatchString(text) {
 		b.AddText(text)
 		return
 	}
-	pos := 0
-	for _, m := range matches {
-		start, end := m[0], m[1]
-		if start > pos {
-			b.AddText(text[pos:start])
-		}
-		*idCounter++
-		b.AddPh(
-			strconv.Itoa(*idCounter),
-			"code:entity",
-			"md:entity",
-			text[start:end],
-			"", "",
-			false, false, false,
-		)
-		pos = end
-	}
-	if pos < len(text) {
-		b.AddText(text[pos:])
-	}
+	decoded := htmlEntityRE.ReplaceAllStringFunc(text, func(match string) string {
+		// xhtml.UnescapeString covers all HTML5 named entities plus
+		// decimal/hex numeric character references. If the lookup fails
+		// (unknown name) it returns the input unchanged.
+		return xhtml.UnescapeString(match)
+	})
+	b.AddText(decoded)
+	_ = idCounter
 }
 
 // BlockPropLinePrefix is the per-block property holding the per-line
@@ -1768,13 +1765,22 @@ func (r *Reader) processHTMLBlockSubfilter(ctx context.Context, ch chan<- model.
 }
 
 // emitHTMLSubfilterTextBlock emits one translatable Block whose source
-// text is the raw token bytes (preserving entity references and
-// whitespace exactly). The skeleton stream gets a single Ref so the
-// writer substitutes the translation in place.
+// text is the raw token bytes with HTML entity references decoded
+// (e.g. `&#39;` → `'`, `&amp;` → `&`). Mirrors okapi's HTML subfilter
+// path (AbstractMarkupFilter.handleNumericEntity / handleCharacterEntity)
+// which decodes entities before adding them to the text unit, except
+// when `preserve_character_entities` is set on the subfilter config —
+// the markdown HTML subfilter config (okf_html@for_markdown.fprm) leaves
+// it unset, so decoding is the default. The decoded text passes through
+// the markdown writer (MarkdownEncoder, no re-escape) unchanged, so the
+// entity reference is dropped on round-trip just like Java does.
+// The skeleton stream gets a single Ref so the writer substitutes the
+// translation in place.
 func (r *Reader) emitHTMLSubfilterTextBlock(ctx context.Context, ch chan<- model.PartResult, text []byte) {
 	r.blockCounter++
 	blockID := fmt.Sprintf("tu%d", r.blockCounter)
-	block := model.NewBlock(blockID, string(text))
+	decoded := xhtml.UnescapeString(string(text))
+	block := model.NewBlock(blockID, decoded)
 	block.Name = fmt.Sprintf("html%d", r.blockCounter)
 	block.Type = "html-text"
 
