@@ -597,6 +597,15 @@ func (s *tokenReaderState) processLeafBlock(tokenizer *html.Tokenizer, tag strin
 					Reorderable: endInfo.Constraints.Reorderable,
 				},
 			)
+			// For truly-unknown elements (atom == 0, e.g. </pub>), okapi's
+			// HtmlFilter swallows any whitespace immediately following the
+			// orphan close tag — peel it from the next text token to match.
+			// Known-element stray closes (</br>, </font>, …) keep their
+			// trailing whitespace because okapi treats them as recognised
+			// inline codes with normal spacing.
+			if atom.Lookup(endTagName) == 0 {
+				b.MarkDropNextLeadingSpace()
+			}
 
 		case html.SelfClosingTagToken:
 			childTagName, hasAttr := tokenizer.TagName()
@@ -842,6 +851,14 @@ func (s *tokenReaderState) collectInlineTokens(tokenizer *html.Tokenizer, parent
 					Reorderable: endInfo.Constraints.Reorderable,
 				},
 			)
+			// Same okapi parity rule as processLeafBlock: drop one leading
+			// whitespace char from the next text token whenever we just
+			// consumed an unknown orphan close (atom == 0). simple_subscript
+			// uses </pub>; anything else (</br>, </font>, …) keeps its
+			// surrounding spacing intact.
+			if atom.Lookup(endTagName) == 0 {
+				b.MarkDropNextLeadingSpace()
+			}
 
 		case html.SelfClosingTagToken:
 			childTagName, hasAttr := tokenizer.TagName()
@@ -1514,6 +1531,10 @@ var htmlEntityRE = regexp.MustCompile(`&(?:[A-Za-z][A-Za-z0-9]*|#[0-9]+|#[xX][0-
 // back verbatim, mirroring okapi's HtmlFilter behavior of treating
 // entities as opaque inline codes.
 func addTextWithEntities(b *runBuilder, text string, idCounter *int) {
+	if b.dropNextLeadingSpace {
+		b.dropNextLeadingSpace = false
+		text = trimLeadingHTMLWhitespace(text)
+	}
 	if text == "" {
 		return
 	}

@@ -11,6 +11,13 @@ import (
 // chunks produce a single text run.
 type runBuilder struct {
 	runs []model.Run
+	// dropNextLeadingSpace, when true, causes the very next AddText call
+	// to strip any leading HTML whitespace from its argument (and clears
+	// the flag). Set by token-stream handlers that consume an unknown
+	// orphan close tag (e.g. </pub> in simple_subscript.html) so the
+	// trailing space okapi's HtmlFilter swallows around such placeholders
+	// is dropped on the native side too. Internal whitespace is untouched.
+	dropNextLeadingSpace bool
 }
 
 // newRunBuilder returns a zero-valued runBuilder ready for appends.
@@ -18,9 +25,20 @@ func newRunBuilder() *runBuilder {
 	return &runBuilder{}
 }
 
+// MarkDropNextLeadingSpace flags the builder so the next AddText / addTextWithEntities
+// call peels any leading HTML whitespace from its input. The flag clears as
+// soon as it is consumed, so it never crosses more than one text token.
+func (b *runBuilder) MarkDropNextLeadingSpace() {
+	b.dropNextLeadingSpace = true
+}
+
 // AppendText adds plain text. If the previous run is a TextRun, the new
 // text is appended to it rather than emitting a second adjacent TextRun.
 func (b *runBuilder) AddText(text string) {
+	if b.dropNextLeadingSpace {
+		b.dropNextLeadingSpace = false
+		text = trimLeadingHTMLWhitespace(text)
+	}
 	if text == "" {
 		return
 	}
