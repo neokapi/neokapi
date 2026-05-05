@@ -17,6 +17,14 @@ type Writer struct {
 	format.BaseFormatWriter
 	skeletonStore *format.SkeletonStore
 	tracker       *trailingNewlineTracker
+
+	// lineEnd is the per-file line terminator used when expanding
+	// multi-line comment templates. Picked from the first Block's
+	// "lineEnding" property (set by the reader from the source bytes)
+	// and falls back to "\n" when absent. Without honouring this, a
+	// CRLF source like lists.h round-trips with LF inside every
+	// comment body and diverges from okapi byte-for-byte.
+	lineEnd string
 }
 
 // Ensure Writer implements SkeletonStoreConsumer.
@@ -83,7 +91,8 @@ func (w *Writer) SetOutput(path string) error {
 // okapi's DoxygenFilter behaviour — its line-buffered reader
 // concatenates `line + linebreak` for every line, so the merged output
 // always carries a terminating linebreak even when the source did
-// not.
+// not. Uses the writer's chosen lineEnd so a CRLF-source file gets
+// CRLF padding rather than a stray LF.
 func (w *Writer) finalize() error {
 	if w.tracker == nil {
 		return nil
@@ -94,7 +103,7 @@ func (w *Writer) finalize() error {
 	if w.tracker.lastByte == '\n' {
 		return nil
 	}
-	_, err := w.tracker.Write([]byte{'\n'})
+	_, err := w.tracker.Write([]byte(w.lineSep()))
 	return err
 }
 
@@ -136,6 +145,7 @@ func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
 // non-first blocks of a comment group (they fold into the first
 // block's output via writeBlockGrouped → joinedGroupText).
 func (w *Writer) writeCollected(collected []*model.Part, blocksByID map[string]*model.Block) error {
+	w.pickLineEnd(collected)
 	first := true
 	for _, part := range collected {
 		if part.Type == model.PartBlock {
@@ -160,6 +170,40 @@ func (w *Writer) writeCollected(collected []*model.Part, blocksByID map[string]*
 	return w.finalize()
 }
 
+// pickLineEnd locks the writer's line terminator to the first Block's
+// "lineEnding" property. Defaults to "\n" when no Block carries the
+// hint. Reading the value once up front matches okapi's behaviour of
+// picking a single linebreak per file from DoxygenFilter.detectLineBreak.
+func (w *Writer) pickLineEnd(collected []*model.Part) {
+	if w.lineEnd != "" {
+		return
+	}
+	for _, part := range collected {
+		if part == nil || part.Type != model.PartBlock {
+			continue
+		}
+		block, ok := part.Resource.(*model.Block)
+		if !ok {
+			continue
+		}
+		if le := block.Properties["lineEnding"]; le != "" {
+			w.lineEnd = le
+			return
+		}
+	}
+	w.lineEnd = "\n"
+}
+
+// lineSep returns the writer's chosen line terminator, defaulting to
+// "\n" when pickLineEnd has not run yet (e.g. unit tests that drive a
+// single block through writeBlock directly).
+func (w *Writer) lineSep() string {
+	if w.lineEnd == "" {
+		return "\n"
+	}
+	return w.lineEnd
+}
+
 // writeBlockGrouped writes a single Block, joining sibling blocks of
 // the same comment group when present.
 func (w *Writer) writeBlockGrouped(block *model.Block, first *bool, blocks map[string]*model.Block) error {
@@ -170,7 +214,7 @@ func (w *Writer) writeBlockGrouped(block *model.Block, first *bool, blocks map[s
 	layout := w.groupLayout(block, blocks)
 
 	if !*first {
-		if _, err := fmt.Fprint(w.Output, "\n"); err != nil {
+		if _, err := fmt.Fprint(w.Output, w.lineSep()); err != nil {
 			return err
 		}
 	}
@@ -212,11 +256,19 @@ func (w *Writer) writeWithSkeleton(ctx context.Context, parts <-chan *model.Part
 			if part.Type == model.PartBlock {
 				if block, ok := part.Resource.(*model.Block); ok {
 					blocksByID[block.ID] = block
+					if w.lineEnd == "" {
+						if le := block.Properties["lineEnding"]; le != "" {
+							w.lineEnd = le
+						}
+					}
 				}
 			}
 		}
 	}
 done:
+	if w.lineEnd == "" {
+		w.lineEnd = "\n"
+	}
 	if err := w.skeletonStore.Flush(); err != nil {
 		return fmt.Errorf("doxygen writer: flush skeleton: %w", err)
 	}
@@ -388,6 +440,35 @@ func (w *Writer) writeFromLayout(text, layout, _ string) error {
 		plans = append(plans, ep)
 	}
 
+	// Normalise B-style padding to the body indent of the FIRST
+	// continuation B entry (a ` * `-style line, not the opening
+	// `/**`/`/*!` delimiter line which carries `/`/`!` characters in
+	// its prefix). okapi computes a paragraph-level baseline indent and
+	// uses it for padding; without this, lists.h paragraph 2's
+	// tail-pad emerges as ` *            ` (the 12-space indent of the
+	// absorbed `More info about the click event.` line) where okapi
+	// emits a flat ` *  `. Skipping the opener prevents `/** ` /
+	// `/*! ` from contaminating the pad style for special_commands.h
+	// blocks whose opening line carries inline body content.
+	canonicalBPad := ""
+	for _, p := range plans {
+		if p.tag != 'B' || p.isPad || p.body == "" {
+			continue
+		}
+		if !isStarBodyPrefix(p.body) {
+			continue
+		}
+		canonicalBPad = p.body
+		break
+	}
+	if canonicalBPad != "" {
+		for i := range plans {
+			if plans[i].isPad && plans[i].tag == 'B' {
+				plans[i].canon = canonicalBPad
+			}
+		}
+	}
+
 	// Decide where padding lands: just before the LAST S-entry whose
 	// body looks like a comment closer (`*/` or anything that's NOT
 	// purely whitespace+comment-marker). For triple/excl layouts this
@@ -413,9 +494,10 @@ func (w *Writer) writeFromLayout(text, layout, _ string) error {
 	// original position; their canonical-blank counterparts get
 	// emitted at tailInsertAt instead.
 	first := true
+	nl := w.lineSep()
 	emit := func(s string) error {
 		if !first {
-			if _, err := fmt.Fprint(w.Output, "\n"); err != nil {
+			if _, err := fmt.Fprint(w.Output, nl); err != nil {
 				return err
 			}
 		}
@@ -635,7 +717,7 @@ func (w *Writer) writeData(part *model.Part, first *bool) error {
 	}
 
 	if !*first {
-		if _, err := fmt.Fprint(w.Output, "\n"); err != nil {
+		if _, err := fmt.Fprint(w.Output, w.lineSep()); err != nil {
 			return err
 		}
 	}
@@ -651,6 +733,14 @@ func (w *Writer) writeBlock(part *model.Part, first *bool) error {
 		return errors.New("doxygen writer: expected Block resource")
 	}
 
+	// Pick line ending lazily for callers that bypass writeCollected
+	// (e.g. unit tests driving a single Block straight to writeBlock).
+	if w.lineEnd == "" {
+		if le := block.Properties["lineEnding"]; le != "" {
+			w.lineEnd = le
+		}
+	}
+
 	text := w.blockText(block)
 
 	style := block.Properties["style"]
@@ -659,7 +749,7 @@ func (w *Writer) writeBlock(part *model.Part, first *bool) error {
 	layout := block.Properties["lineLayout"]
 
 	if !*first {
-		if _, err := fmt.Fprint(w.Output, "\n"); err != nil {
+		if _, err := fmt.Fprint(w.Output, w.lineSep()); err != nil {
 			return err
 		}
 	}
@@ -681,9 +771,10 @@ func linePrefixAt(prefixes []string, i int) string {
 func (w *Writer) writeTripleSlash(text, raw string, prefixes []string) error {
 	indent := extractIndent(raw)
 	lines := strings.Split(text, "\n")
+	nl := w.lineSep()
 	for i, line := range lines {
 		if i > 0 {
-			if _, err := fmt.Fprint(w.Output, "\n"); err != nil {
+			if _, err := fmt.Fprint(w.Output, nl); err != nil {
 				return err
 			}
 		}
@@ -706,9 +797,10 @@ func (w *Writer) writeTripleSlash(text, raw string, prefixes []string) error {
 func (w *Writer) writeExclamation(text, raw string, prefixes []string) error {
 	indent := extractIndent(raw)
 	lines := strings.Split(text, "\n")
+	nl := w.lineSep()
 	for i, line := range lines {
 		if i > 0 {
-			if _, err := fmt.Fprint(w.Output, "\n"); err != nil {
+			if _, err := fmt.Fprint(w.Output, nl); err != nil {
 				return err
 			}
 		}
@@ -729,6 +821,7 @@ func (w *Writer) writeExclamation(text, raw string, prefixes []string) error {
 func (w *Writer) writeJavadoc(text, raw string, prefixes []string) error {
 	indent := extractIndent(raw)
 	rawLines := strings.Split(raw, "\n")
+	nl := w.lineSep()
 
 	// Single-line block comment
 	if len(rawLines) == 1 {
@@ -744,11 +837,11 @@ func (w *Writer) writeJavadoc(text, raw string, prefixes []string) error {
 	}
 	for i, line := range lines {
 		px := linePrefixAt(prefixes, i)
-		if _, err := fmt.Fprintf(w.Output, "\n%s * %s%s", indent, px, line); err != nil {
+		if _, err := fmt.Fprintf(w.Output, "%s%s * %s%s", nl, indent, px, line); err != nil {
 			return err
 		}
 	}
-	_, err := fmt.Fprintf(w.Output, "\n%s */", indent)
+	_, err := fmt.Fprintf(w.Output, "%s%s */", nl, indent)
 	return err
 }
 
@@ -756,6 +849,7 @@ func (w *Writer) writeJavadoc(text, raw string, prefixes []string) error {
 func (w *Writer) writeQt(text, raw string, prefixes []string) error {
 	indent := extractIndent(raw)
 	rawLines := strings.Split(raw, "\n")
+	nl := w.lineSep()
 
 	// Single-line block comment
 	if len(rawLines) == 1 {
@@ -771,11 +865,11 @@ func (w *Writer) writeQt(text, raw string, prefixes []string) error {
 	}
 	for i, line := range lines {
 		px := linePrefixAt(prefixes, i)
-		if _, err := fmt.Fprintf(w.Output, "\n%s  %s%s", indent, px, line); err != nil {
+		if _, err := fmt.Fprintf(w.Output, "%s%s  %s%s", nl, indent, px, line); err != nil {
 			return err
 		}
 	}
-	_, err := fmt.Fprintf(w.Output, "\n%s*/", indent)
+	_, err := fmt.Fprintf(w.Output, "%s%s*/", nl, indent)
 	return err
 }
 
@@ -785,6 +879,7 @@ func (w *Writer) writeQt(text, raw string, prefixes []string) error {
 func (w *Writer) writeQtMember(text, raw string, prefixes []string) error {
 	indent := extractIndent(raw)
 	rawLines := strings.Split(raw, "\n")
+	nl := w.lineSep()
 	if len(rawLines) == 1 {
 		px := linePrefixAt(prefixes, 0)
 		_, err := fmt.Fprintf(w.Output, "%s/*!< %s%s */", indent, px, text)
@@ -796,11 +891,11 @@ func (w *Writer) writeQtMember(text, raw string, prefixes []string) error {
 	}
 	for i, line := range lines {
 		px := linePrefixAt(prefixes, i)
-		if _, err := fmt.Fprintf(w.Output, "\n%s  %s%s", indent, px, line); err != nil {
+		if _, err := fmt.Fprintf(w.Output, "%s%s  %s%s", nl, indent, px, line); err != nil {
 			return err
 		}
 	}
-	_, err := fmt.Fprintf(w.Output, "\n%s*/", indent)
+	_, err := fmt.Fprintf(w.Output, "%s%s*/", nl, indent)
 	return err
 }
 
@@ -809,6 +904,7 @@ func (w *Writer) writeQtMember(text, raw string, prefixes []string) error {
 func (w *Writer) writeJavadocMember(text, raw string, prefixes []string) error {
 	indent := extractIndent(raw)
 	rawLines := strings.Split(raw, "\n")
+	nl := w.lineSep()
 	if len(rawLines) == 1 {
 		px := linePrefixAt(prefixes, 0)
 		_, err := fmt.Fprintf(w.Output, "%s/**< %s%s */", indent, px, text)
@@ -820,11 +916,11 @@ func (w *Writer) writeJavadocMember(text, raw string, prefixes []string) error {
 	}
 	for i, line := range lines {
 		px := linePrefixAt(prefixes, i)
-		if _, err := fmt.Fprintf(w.Output, "\n%s * %s%s", indent, px, line); err != nil {
+		if _, err := fmt.Fprintf(w.Output, "%s%s * %s%s", nl, indent, px, line); err != nil {
 			return err
 		}
 	}
-	_, err := fmt.Fprintf(w.Output, "\n%s */", indent)
+	_, err := fmt.Fprintf(w.Output, "%s%s */", nl, indent)
 	return err
 }
 
@@ -844,6 +940,18 @@ func (w *Writer) writeTrailingQt(text, _ string) error {
 func (w *Writer) writeTrailingJavadoc(text, _ string) error {
 	_, err := fmt.Fprintf(w.Output, "/**< %s */", text)
 	return err
+}
+
+// isStarBodyPrefix reports whether body looks like a continuation
+// `*`-style line prefix (leading whitespace, then `*`, then optional
+// whitespace) — the canonical block-comment line shape. Returns false
+// for opener lines whose prefix contains `/` (e.g. `/** `, `/*! `).
+func isStarBodyPrefix(body string) bool {
+	i := 0
+	for i < len(body) && (body[i] == ' ' || body[i] == '\t') {
+		i++
+	}
+	return i < len(body) && body[i] == '*'
 }
 
 // extractIndent returns the leading whitespace from the first line of raw text.

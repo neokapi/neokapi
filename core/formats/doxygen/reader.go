@@ -1,7 +1,6 @@
 package doxygen
 
 import (
-	"bufio"
 	"bytes"
 	"context"
 	"errors"
@@ -21,6 +20,15 @@ type Reader struct {
 	cfg           *Config
 	skeletonStore *format.SkeletonStore
 	skelBuf       bytes.Buffer // coalesces skeleton text between refs
+
+	// lineEnding is the dominant per-file line terminator detected from
+	// the source bytes ("\r\n" for CRLF, "\n" for LF). Recorded on every
+	// emitted Block so the writer can preserve the source's line-ending
+	// convention when expanding multi-line comment templates rather than
+	// hardcoding "\n" — without this, CRLF-source files like lists.h
+	// lose every interior CR on round-trip (one CR per body line of every
+	// translatable comment, e.g. ~15 bytes for the doxygen lists.h fixture).
+	lineEnding string
 }
 
 // Ensure Reader implements SkeletonStoreEmitter.
@@ -152,6 +160,30 @@ type rawLine struct {
 	lineEnding string
 }
 
+// detectDominantLineEnding returns the line ending that appears most
+// often across rLines. Ties go to "\r\n" so a file that opens with
+// CRLF stays CRLF on round-trip even if it ends with a final-line
+// without a terminator. Empty input returns "" so callers can fall
+// back to a default.
+func detectDominantLineEnding(rLines []rawLine) string {
+	var crlf, lf int
+	for _, rl := range rLines {
+		switch rl.lineEnding {
+		case "\r\n":
+			crlf++
+		case "\n":
+			lf++
+		}
+	}
+	if crlf == 0 && lf == 0 {
+		return ""
+	}
+	if crlf >= lf {
+		return "\r\n"
+	}
+	return "\n"
+}
+
 // splitRawLines splits raw bytes into lines preserving line endings.
 func splitRawLines(data []byte) []rawLine {
 	remaining := string(data)
@@ -206,11 +238,26 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		for _, rl := range rLines {
 			lines = append(lines, rl.content)
 		}
+		r.lineEnding = detectDominantLineEnding(rLines)
 	} else {
-		scanner := bufio.NewScanner(r.Doc.Reader)
-		for scanner.Scan() {
-			lines = append(lines, scanner.Text())
+		// Non-skeleton path: read all bytes ourselves so we can detect
+		// CRLF vs LF up front (bufio.Scanner discards line endings).
+		// Without this the writer also loses CRLF on no-skeleton round-
+		// trips because Block emission feeds the writer's "\n" joiner
+		// which silently drops the source's CRs.
+		data, err := io.ReadAll(r.Doc.Reader)
+		if err != nil {
+			ch <- model.PartResult{Error: fmt.Errorf("doxygen: reading: %w", err)}
+			return
 		}
+		peeked := splitRawLines(data)
+		r.lineEnding = detectDominantLineEnding(peeked)
+		for _, rl := range peeked {
+			lines = append(lines, rl.content)
+		}
+	}
+	if r.lineEnding == "" {
+		r.lineEnding = "\n"
 	}
 
 	blockCounter := 0
@@ -686,6 +733,13 @@ func (r *Reader) emitCommentBlock(ctx context.Context, ch chan<- model.PartResul
 		block.Name = fmt.Sprintf("comment.%d", *blockCounter)
 		block.Properties["style"] = cb.style
 		block.Properties["raw"] = strings.Join(cb.rawLines, "\n")
+		// Per-block line-ending hint for the writer. Defaults to "\n"
+		// when detection found nothing (e.g. unit tests with synthetic
+		// in-memory content); only the non-default CRLF case ships a
+		// property so existing fixtures stay LF-clean.
+		if r.lineEnding != "" && r.lineEnding != "\n" {
+			block.Properties["lineEnding"] = r.lineEnding
+		}
 		// Store per-line command prefixes so the writer can reattach
 		// stripped Doxygen markers (e.g. "\brief ", "\param x ") on
 		// roundtrip. Joined with \x00 since prefixes themselves are
@@ -1460,8 +1514,54 @@ var listItemPattern = regexp.MustCompile(`^(?:[-+*]#?|\d+\.)\s+`)
 
 // isListItem reports whether a translatable text line opens with a
 // Doxygen list-item marker.
+//
+// A lone `.` (optionally followed by whitespace) is Doxygen's
+// explicit list-end marker — okapi tokenises it as its own row and
+// never joins it into the surrounding paragraph. Without recognising
+// it here, joinProseLines absorbs the `.` into the preceding list
+// item (e.g. lists.h line 20 ` *     . ` gets folded into ` *     -
+// sub sub item 2` and emerges as `sub sub item 2 . The dot above…`).
+//
+// HTML list items (`<li>`, `<li>foo`) are equally non-joinable. okapi
+// tokenises HTML markup via the same LIST_ITEM_PREFIX_PATTERN
+// alternation; lists.h's `<li>mouse events` rows would otherwise be
+// glued into one long paragraph by joinProseLines.
 func isListItem(s string) bool {
-	return listItemPattern.MatchString(s)
+	if listItemPattern.MatchString(s) {
+		return true
+	}
+	if isListEndMarker(s) {
+		return true
+	}
+	return isHTMLListItem(s)
+}
+
+// isListEndMarker reports whether s is the doxygen list-end marker —
+// a lone `.` with optional trailing whitespace (e.g. ".", ". ", ".\t").
+func isListEndMarker(s string) bool {
+	if s == "" || s[0] != '.' {
+		return false
+	}
+	for i := 1; i < len(s); i++ {
+		if s[i] != ' ' && s[i] != '\t' {
+			return false
+		}
+	}
+	return true
+}
+
+// isHTMLListItem reports whether s opens with `<li>` (case-insensitive,
+// optional attributes inside the tag).
+func isHTMLListItem(s string) bool {
+	if len(s) < 4 || s[0] != '<' {
+		return false
+	}
+	// Match `<li` followed by whitespace, `>`, or `/`.
+	if (s[1] == 'l' || s[1] == 'L') && (s[2] == 'i' || s[2] == 'I') {
+		c := s[3]
+		return c == '>' || c == ' ' || c == '\t' || c == '/'
+	}
+	return false
 }
 
 // joinProseLines mirrors okapi's "join consecutive plain-prose lines
@@ -1499,6 +1599,18 @@ func joinProseLines(texts, prefixes []string) ([]string, []string) {
 		// Skip already-empty slots (left behind by a previous merge
 		// pass when a paragraph is processed twice — defensive).
 		if out[i] == "" {
+			i++
+			continue
+		}
+		// Doxygen's lone `.` list-end marker doesn't absorb following
+		// prose — okapi keeps the `.` row on its own line and lets the
+		// trailing prose start a fresh paragraph (lists.h L21
+		// ` *     . Ţĥē ďōţ àƀōvē…` vs reference ` *     . ` followed
+		// by separate ` *     Ţĥē ďōţ…`). Plain `-`/`-#`/`<li>` list
+		// items still absorb their continuation prose (e.g. sample.h's
+		// ` *  -# mouse click event\n *     More info about…` collapses
+		// to a single row), so the gate is narrower than `isListItem`.
+		if isListEndMarker(out[i]) {
 			i++
 			continue
 		}
