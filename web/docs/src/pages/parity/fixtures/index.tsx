@@ -70,14 +70,6 @@ function formatBytes(n: number): string {
   return n.toLocaleString();
 }
 
-function formatOffset(raw: number, norm?: number, normalizer?: string): string {
-  if (raw < 0 && (norm === undefined || norm < 0)) return "—";
-  if (normalizer && norm !== undefined && norm >= 0) {
-    return `raw@${raw}, norm@${norm}`;
-  }
-  return `@${raw}`;
-}
-
 interface ParsedDiff {
   normalizer?: string;
   zipEntry?: string;
@@ -299,24 +291,10 @@ function DiffView({ reason }: DiffViewProps) {
           <span className={styles.diffLabelGot}>got</span>
           <span className={styles.diffLine}>
             {diffTokens(got, ref).map((seg, i) => {
-              if (seg.type === "common") {
-                return (
-                  <span key={i} className={styles.diffCommon}>
-                    {seg.text}
-                  </span>
-                );
-              }
-              if (seg.type === "del") {
-                return (
-                  <span key={i} className={styles.diffDelGot}>
-                    {seg.text}
-                  </span>
-                );
-              }
-              // ins: render as transparent padding on the got line so
-              // columns line up with the ref line below.
+              if (seg.type === "ins") return null;
+              const cls = seg.type === "common" ? styles.diffCommon : styles.diffDelGot;
               return (
-                <span key={i} className={styles.diffPad} aria-hidden="true">
+                <span key={i} className={cls}>
                   {seg.text}
                 </span>
               );
@@ -327,23 +305,10 @@ function DiffView({ reason }: DiffViewProps) {
           <span className={styles.diffLabelRef}>ref</span>
           <span className={styles.diffLine}>
             {diffTokens(got, ref).map((seg, i) => {
-              if (seg.type === "common") {
-                return (
-                  <span key={i} className={styles.diffCommon}>
-                    {seg.text}
-                  </span>
-                );
-              }
-              if (seg.type === "ins") {
-                return (
-                  <span key={i} className={styles.diffDelRef}>
-                    {seg.text}
-                  </span>
-                );
-              }
-              // del: render as transparent padding on the ref line.
+              if (seg.type === "del") return null;
+              const cls = seg.type === "common" ? styles.diffCommon : styles.diffDelRef;
               return (
-                <span key={i} className={styles.diffPad} aria-hidden="true">
+                <span key={i} className={cls}>
                   {seg.text}
                 </span>
               );
@@ -534,50 +499,41 @@ export default function ParityFixturesDashboard() {
                 </span>
               </div>
               {open && f.div > 0 && (
-                <table className={styles.fixtureTable}>
-                  <thead>
-                    <tr>
-                      <th>Fixture</th>
-                      <th>Required</th>
-                      <th>Achieved</th>
-                      <th className={styles.numCell}>got</th>
-                      <th className={styles.numCell}>ref</th>
-                      <th className={styles.numCell}>Δ</th>
-                      <th>First diff</th>
-                      <th>Reason</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {fixtures.map((d) => (
-                      <tr key={d.fixture}>
-                        <td className={styles.fixtureName}>{d.fixture}</td>
-                        <td>
+                <div className={styles.fixtureList}>
+                  {fixtures.map((d) => (
+                    <div key={d.fixture} className={styles.fixtureItem}>
+                      <div className={styles.fixtureMeta}>
+                        <div className={styles.fixtureName}>{d.fixture}</div>
+                        <div className={styles.fixtureTiers}>
                           <span className={`${styles.tierBadge} ${tierClass[d.required] ?? ""}`}>
-                            {tierShort[d.required] ?? d.required}
+                            req:{tierShort[d.required] ?? d.required}
                           </span>
-                        </td>
-                        <td>
                           <span className={`${styles.tierBadge} ${tierClass[d.achieved] ?? ""}`}>
-                            {tierShort[d.achieved] ?? d.achieved}
+                            got:{tierShort[d.achieved] ?? d.achieved}
                           </span>
-                        </td>
-                        <td className={styles.numCell}>{formatBytes(d.got_size)}</td>
-                        <td className={styles.numCell}>{formatBytes(d.ref_size)}</td>
-                        <td
-                          className={`${styles.deltaCell} ${d.delta > 0 ? styles.deltaPositive : d.delta < 0 ? styles.deltaNegative : ""}`}
-                        >
-                          {d.delta > 0 ? `+${formatBytes(d.delta)}` : formatBytes(d.delta)}
-                        </td>
-                        <td className={styles.offsetCell}>
-                          {formatOffset(d.raw_diff_offset, d.norm_diff_offset, d.normalizer)}
-                        </td>
-                        <td className={styles.reasonCell}>
-                          <DiffView reason={d.reason} />
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                        </div>
+                        <div className={styles.fixtureSizes}>
+                          <span>got <b>{formatBytes(d.got_size)}</b></span>
+                          <span>ref <b>{formatBytes(d.ref_size)}</b></span>
+                          <span
+                            className={
+                              d.delta > 0
+                                ? styles.deltaPositive
+                                : d.delta < 0
+                                  ? styles.deltaNegative
+                                  : undefined
+                            }
+                          >
+                            Δ <b>{d.delta > 0 ? `+${formatBytes(d.delta)}` : formatBytes(d.delta)}</b>
+                          </span>
+                        </div>
+                      </div>
+                      <div className={styles.fixtureDiff}>
+                        <DiffView reason={d.reason} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
               )}
             </div>
           );

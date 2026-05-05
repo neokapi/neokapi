@@ -198,17 +198,23 @@ func firstDiff(a, b []byte) int {
 	return n
 }
 
-// snippet returns a human-readable window of bytes starting at the
-// given offset. The window is sized to give the /parity/fixtures
-// dashboard enough context to recognize structural patterns (a full
-// open tag, the surrounding whitespace, the next attribute) — 32 bytes
+// snippet returns a human-readable window of bytes around the given
+// offset. The window includes a small lead-in before the divergence
+// (so the dashboard can show "what came right before the change" as
+// muted common context — the same bytes appear on both got and ref,
+// so the token-level diff naturally marks them as common) plus a
+// larger trailing window for the actual diff context. 32 bytes total
 // only ever caught the divergent token itself, which forced re-running
 // the test to understand what was around it. The Markdown drill-down
 // trims at render time when needed.
 func snippet(b []byte, offset int) string {
-	const window = 256
-	start := offset
-	end := offset + window
+	const before = 32
+	const after = 256
+	start := offset - before
+	if start < 0 {
+		start = 0
+	}
+	end := offset + after
 	if end > len(b) {
 		end = len(b)
 	}
