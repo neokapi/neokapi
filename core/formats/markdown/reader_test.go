@@ -324,20 +324,25 @@ func TestRoundTripWithTargetLocale(t *testing.T) {
 }
 
 // okapi: MarkdownFilterTest#testHtmlBlockWithMarkdown
-func TestReadHTMLBlockAsData(t *testing.T) {
+//
+// HTML blocks are routed through an in-process HTML subfilter (mirrors
+// okapi MarkdownFilter.processByHtmlFilter / okf_html@for_markdown.fprm).
+// Tag bytes pass through as skeleton text; text content between tags
+// becomes a translatable Block.
+func TestReadHTMLBlockSubfilter(t *testing.T) {
 	input := "Text before\n\n<div>HTML content</div>\n\nText after"
 	parts := readParts(t, input)
 
-	hasHTMLData := false
+	hasHTMLContentBlock := false
 	for _, p := range parts {
-		if p.Type == model.PartData {
-			data := p.Resource.(*model.Data)
-			if data.Name == "html-block" {
-				hasHTMLData = true
+		if p.Type == model.PartBlock {
+			block := p.Resource.(*model.Block)
+			if block.Type == "html-text" && len(block.Source) > 0 && block.Source[0].Text() == "HTML content" {
+				hasHTMLContentBlock = true
 			}
 		}
 	}
-	assert.True(t, hasHTMLData, "expected HTML block as Data")
+	assert.True(t, hasHTMLContentBlock, "expected HTML block text content extracted as a translatable Block")
 }
 
 // --- Skeleton Store Roundtrip Tests ---

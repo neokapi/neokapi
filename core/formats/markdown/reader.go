@@ -17,6 +17,7 @@ import (
 	"github.com/yuin/goldmark/extension"
 	east "github.com/yuin/goldmark/extension/ast"
 	"github.com/yuin/goldmark/text"
+	xhtml "golang.org/x/net/html"
 )
 
 // htmlEntityRE matches a single HTML entity reference: a named entity
@@ -64,6 +65,7 @@ func addTextWithEntities(b *runBuilder, text string, idCounter *int) {
 		b.AddText(text[pos:])
 	}
 }
+
 // BlockPropLinePrefix is the per-block property holding the per-line
 // continuation prefix for multi-line paragraphs (e.g. `> ` for
 // blockquote bodies, indentation for list-item continuations). The
@@ -1654,22 +1656,225 @@ func (r *Reader) emitHTMLBlock(ctx context.Context, ch chan<- model.PartResult, 
 		r.skelCursor = lineEnd
 
 		r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
-	} else {
-		r.dataCounter++
-		data := &model.Data{
-			ID:   fmt.Sprintf("d%d", r.dataCounter),
-			Name: "html-block",
-			Properties: map[string]string{
-				"content": content,
-			},
-		}
-
-		r.skelEmitGap(lineStart)
-		r.skelText(string(r.source[lineStart:lineEnd]))
-		r.skelCursor = lineEnd
-
-		r.emit(ctx, ch, &model.Part{Type: model.PartData, Resource: data})
+		return
 	}
+
+	// Default path: route HTML block through the in-process HTML subfilter
+	// (text content + select translatable attributes become Blocks; tags
+	// remain skeleton). Mirrors okapi MarkdownFilter.processByHtmlFilter
+	// (MarkdownFilter.java line 604) which delegates HTML blocks to
+	// HtmlFilter via okf_html@for_markdown.fprm so only inline content is
+	// extracted while tag structure passes through verbatim.
+	r.skelEmitGap(lineStart)
+	r.processHTMLBlockSubfilter(ctx, ch, r.source[lineStart:lineEnd])
+	r.skelCursor = lineEnd
+}
+
+// htmlExcludedElements are elements whose content (and any nested
+// content) is not translated. Mirrors okf_html@for_markdown.fprm's
+// EXCLUDE rule for math, script, style, stylesheet.
+var htmlExcludedElements = map[string]bool{
+	"math":       true,
+	"script":     true,
+	"style":      true,
+	"stylesheet": true,
+}
+
+// htmlTranslatableAttrs maps a tag name to the set of attributes whose
+// values should be extracted as translatable Blocks. Mirrors the
+// translatableAttributes map in okf_html@for_markdown.fprm. We cover
+// only the high-impact attrs (alt, title, value) on the elements that
+// appear in upstream markdown fixtures; the full okapi rule set is
+// larger but parity-tested fixtures don't exercise it.
+var htmlTranslatableAttrs = map[string]map[string]bool{
+	"a":      {"title": true},
+	"abbr":   {"title": true},
+	"area":   {"alt": true, "title": true},
+	"applet": {"alt": true, "title": true},
+	"img":    {"alt": true, "title": true},
+}
+
+// processHTMLBlockSubfilter tokenizes the raw bytes of an HTML block and
+// emits one Block per translatable text run + one Block per translatable
+// attribute value, preserving tag structure (and the verbatim bytes of
+// any non-translatable text such as whitespace, content inside excluded
+// elements, or entity references) as skeleton text. Mirrors okapi's
+// processByHtmlFilter path which routes HTML block content through an
+// HtmlFilter subfilter rather than translating the whole block as one
+// opaque text unit.
+func (r *Reader) processHTMLBlockSubfilter(ctx context.Context, ch chan<- model.PartResult, content []byte) {
+	z := xhtml.NewTokenizer(bytes.NewReader(content))
+	z.SetMaxBuf(0)
+
+	excludeDepth := 0 // >0 when inside math/script/style — text becomes skeleton
+	for {
+		tt := z.Next()
+		if tt == xhtml.ErrorToken {
+			return
+		}
+		raw := z.Raw()
+		// Copy raw because subsequent Next() calls invalidate the slice.
+		rawBytes := append([]byte(nil), raw...)
+
+		switch tt {
+		case xhtml.TextToken:
+			if excludeDepth > 0 || !hasNonWhitespace(rawBytes) {
+				r.skelText(string(rawBytes))
+				continue
+			}
+			r.emitHTMLSubfilterTextBlock(ctx, ch, rawBytes)
+
+		case xhtml.StartTagToken, xhtml.SelfClosingTagToken, xhtml.EndTagToken:
+			tagBytes, _ := z.TagName()
+			tag := strings.ToLower(string(tagBytes))
+			if tt == xhtml.EndTagToken {
+				if htmlExcludedElements[tag] && excludeDepth > 0 {
+					excludeDepth--
+				}
+				r.skelText(string(rawBytes))
+				continue
+			}
+			// Start or self-closing tag: maybe extract attributes.
+			if tt == xhtml.StartTagToken && htmlExcludedElements[tag] {
+				excludeDepth++
+				r.skelText(string(rawBytes))
+				continue
+			}
+			r.emitHTMLSubfilterTag(ctx, ch, tag, rawBytes)
+
+		case xhtml.CommentToken:
+			// `<![CDATA[...]]>` arrives here (html.Tokenizer reports it
+			// as a comment token). Mirror okapi's HTML_CDATA_PAT path
+			// which extracts the CDATA payload as a translatable text
+			// block while keeping the `<![CDATA[` and `]]>` markers as
+			// skeleton bytes.
+			if open, body, close, ok := splitCDATA(rawBytes); ok && excludeDepth == 0 {
+				r.skelText(string(open))
+				if hasNonWhitespace(body) {
+					r.emitHTMLSubfilterTextBlock(ctx, ch, body)
+				} else {
+					r.skelText(string(body))
+				}
+				r.skelText(string(close))
+				continue
+			}
+			r.skelText(string(rawBytes))
+
+		default:
+			// Doctype, etc. — pass through verbatim.
+			r.skelText(string(rawBytes))
+		}
+	}
+}
+
+// emitHTMLSubfilterTextBlock emits one translatable Block whose source
+// text is the raw token bytes (preserving entity references and
+// whitespace exactly). The skeleton stream gets a single Ref so the
+// writer substitutes the translation in place.
+func (r *Reader) emitHTMLSubfilterTextBlock(ctx context.Context, ch chan<- model.PartResult, text []byte) {
+	r.blockCounter++
+	blockID := fmt.Sprintf("tu%d", r.blockCounter)
+	block := model.NewBlock(blockID, string(text))
+	block.Name = fmt.Sprintf("html%d", r.blockCounter)
+	block.Type = "html-text"
+
+	r.skelRef(blockID)
+	r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
+}
+
+// emitHTMLSubfilterTag writes a start/self-closing tag's raw bytes to
+// skeleton, splitting around any translatable attribute values to emit
+// Block refs in their place. Attribute names that aren't translatable
+// for the given tag pass through verbatim.
+func (r *Reader) emitHTMLSubfilterTag(ctx context.Context, ch chan<- model.PartResult, tag string, raw []byte) {
+	transAttrs := htmlTranslatableAttrs[tag]
+	if len(transAttrs) == 0 {
+		r.skelText(string(raw))
+		return
+	}
+	// Find each attribute value's position inside `raw` and split around
+	// translatable ones. We re-scan the raw tag bytes because the html
+	// Tokenizer's TagAttr returns decoded values without offsets.
+	cursor := 0
+	for _, m := range htmlAttrRE.FindAllSubmatchIndex(raw, -1) {
+		// Group 1: attribute name; group 3: double-quoted value;
+		// group 4: single-quoted value; group 5: unquoted value.
+		nameStart, nameEnd := m[2], m[3]
+		name := strings.ToLower(string(raw[nameStart:nameEnd]))
+		if !transAttrs[name] {
+			continue
+		}
+		var valStart, valEnd int
+		switch {
+		case m[6] >= 0:
+			valStart, valEnd = m[6], m[7]
+		case m[8] >= 0:
+			valStart, valEnd = m[8], m[9]
+		case m[10] >= 0:
+			valStart, valEnd = m[10], m[11]
+		default:
+			continue
+		}
+		if valStart <= valEnd && valStart < len(raw) {
+			value := raw[valStart:valEnd]
+			if !hasNonWhitespace(value) {
+				continue
+			}
+			// Emit raw bytes up to the value start (includes attr name +
+			// `=` + opening quote).
+			if valStart > cursor {
+				r.skelText(string(raw[cursor:valStart]))
+			}
+			r.blockCounter++
+			blockID := fmt.Sprintf("tu%d", r.blockCounter)
+			block := model.NewBlock(blockID, string(value))
+			block.Name = fmt.Sprintf("html-attr%d", r.blockCounter)
+			block.Type = "html-attr"
+			block.Properties["attr"] = name
+			r.skelRef(blockID)
+			r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
+			cursor = valEnd
+		}
+	}
+	if cursor < len(raw) {
+		r.skelText(string(raw[cursor:]))
+	}
+}
+
+// htmlAttrRE matches a single HTML attribute inside a tag. Group 1 is
+// the attribute name; one of groups 4/5/6 holds the value (double,
+// single, or unquoted). The pattern intentionally tolerates messy real-
+// world attributes including bare names and unquoted values. It does
+// NOT match across `>` because the tokenizer always feeds a complete
+// tag (including any quoted-string contents).
+var htmlAttrRE = regexp.MustCompile(`([a-zA-Z_:][-a-zA-Z0-9_:.]*)(\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>` + "`" + `]+)))?`)
+
+// hasNonWhitespace reports whether b contains any byte that is not a
+// space, tab, CR, or LF. Used to decide whether a TextToken or
+// attribute value warrants extraction (pure whitespace stays skeleton).
+func hasNonWhitespace(b []byte) bool {
+	for _, c := range b {
+		switch c {
+		case ' ', '\t', '\r', '\n':
+		default:
+			return true
+		}
+	}
+	return false
+}
+
+// splitCDATA recognises a `<![CDATA[...]]>` token and returns its
+// opening (`<![CDATA[`), payload, and closing (`]]>`) byte slices.
+// Used by the HTML-block subfilter to route only the CDATA payload
+// through the translation channel — mirrors okapi MarkdownFilter's
+// HTML_CDATA_PAT handling (MarkdownFilter.java line 296).
+func splitCDATA(raw []byte) (open, body, close []byte, ok bool) {
+	const startMarker = "<![CDATA["
+	const endMarker = "]]>"
+	if !bytes.HasPrefix(raw, []byte(startMarker)) || !bytes.HasSuffix(raw, []byte(endMarker)) {
+		return nil, nil, nil, false
+	}
+	return raw[:len(startMarker)], raw[len(startMarker) : len(raw)-len(endMarker)], raw[len(raw)-len(endMarker):], true
 }
 
 func (r *Reader) emitThematicBreak(ctx context.Context, ch chan<- model.PartResult, n *ast.ThematicBreak, source []byte, baseOffset int) {
@@ -1884,7 +2089,45 @@ func (r *Reader) addInlineRuns(block *model.Block, node ast.Node, source []byte)
 }
 
 func (r *Reader) buildCodedRuns(b *runBuilder, node ast.Node, source []byte, idCounter *int) {
+	// excludeStack tracks open RawHTML tags whose content is non-
+	// translatable (math, script, style — see htmlExcludedElements).
+	// While the stack is non-empty, every sibling node — Text, RawHTML,
+	// even nested elements — is folded into one accumulating opaque
+	// PlaceholderRun so the original bytes round-trip verbatim through
+	// pseudo-translation. Mirrors okapi's HTML-subfilter EXCLUDE
+	// handling for inline RawHTML segments inside Markdown paragraphs.
+	var excludeStack []string
+	var excludeBuf strings.Builder
+	flushExclude := func() {
+		if excludeBuf.Len() == 0 {
+			return
+		}
+		*idCounter++
+		id := strconv.Itoa(*idCounter)
+		data := excludeBuf.String()
+		b.AddPcOpen(id, "fmt:html", "md:html-inline", data, "", "", false, false, false)
+		b.AddPcClose(id, "fmt:html", "md:html-inline", "", "")
+		excludeBuf.Reset()
+	}
+
 	for child := node.FirstChild(); child != nil; child = child.NextSibling() {
+		// While inside an excluded RawHTML element, accumulate every
+		// child's source bytes into the opaque placeholder.
+		if len(excludeStack) > 0 {
+			r.appendNodeRawBytes(&excludeBuf, child, source)
+			if rh, ok := child.(*ast.RawHTML); ok {
+				switch rawHTMLTagKind(rh, source) {
+				case rawHTMLOpenExcluded:
+					excludeStack = append(excludeStack, "")
+				case rawHTMLClose:
+					excludeStack = excludeStack[:len(excludeStack)-1]
+					if len(excludeStack) == 0 {
+						flushExclude()
+					}
+				}
+			}
+			continue
+		}
 		switch n := child.(type) {
 		case *ast.Text:
 			addTextWithEntities(b, string(n.Segment.Value(source)), idCounter)
@@ -1913,6 +2156,11 @@ func (r *Reader) buildCodedRuns(b *runBuilder, node ast.Node, source []byte, idC
 			r.buildAutoLinkRuns(b, n, source, idCounter)
 
 		case *ast.RawHTML:
+			if rawHTMLTagKind(n, source) == rawHTMLOpenExcluded {
+				r.appendNodeRawBytes(&excludeBuf, n, source)
+				excludeStack = append(excludeStack, "")
+				continue
+			}
 			r.buildRawHTMLRuns(b, n, source, idCounter)
 
 		default:
@@ -1921,6 +2169,97 @@ func (r *Reader) buildCodedRuns(b *runBuilder, node ast.Node, source []byte, idC
 			} else {
 				r.buildCodedRuns(b, child, source, idCounter)
 			}
+		}
+	}
+	flushExclude()
+}
+
+type rawHTMLKind int
+
+const (
+	rawHTMLOther rawHTMLKind = iota
+	rawHTMLOpenExcluded
+	rawHTMLClose
+)
+
+// rawHTMLTagKind classifies a goldmark RawHTML inline node so the
+// paragraph builder can detect openings and closings of excluded
+// elements (math, script, style). Self-closing tags and non-tag
+// fragments (comments, processing instructions) report rawHTMLOther.
+func rawHTMLTagKind(n *ast.RawHTML, source []byte) rawHTMLKind {
+	var raw bytes.Buffer
+	for i := range n.Segments.Len() {
+		seg := n.Segments.At(i)
+		raw.Write(seg.Value(source))
+	}
+	s := raw.Bytes()
+	if len(s) < 2 || s[0] != '<' {
+		return rawHTMLOther
+	}
+	closing := false
+	idx := 1
+	if s[1] == '/' {
+		closing = true
+		idx = 2
+	}
+	end := idx
+	for end < len(s) {
+		c := s[end]
+		if (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '-' || c == ':' {
+			end++
+			continue
+		}
+		break
+	}
+	tag := strings.ToLower(string(s[idx:end]))
+	if tag == "" {
+		return rawHTMLOther
+	}
+	if closing {
+		if htmlExcludedElements[tag] {
+			return rawHTMLClose
+		}
+		return rawHTMLOther
+	}
+	// Self-closing tags don't open a region.
+	if bytes.HasSuffix(bytes.TrimSpace(s), []byte("/>")) {
+		return rawHTMLOther
+	}
+	if htmlExcludedElements[tag] {
+		return rawHTMLOpenExcluded
+	}
+	return rawHTMLOther
+}
+
+// appendNodeRawBytes writes a node's source bytes to dst. For Text and
+// RawHTML nodes we use the segment ranges; everything else falls back
+// to the node's Lines() span (paragraph descendants typically expose
+// the same ranges via Lines() at the leaf level).
+func (r *Reader) appendNodeRawBytes(dst *strings.Builder, n ast.Node, source []byte) {
+	switch v := n.(type) {
+	case *ast.Text:
+		dst.Write(v.Segment.Value(source))
+		if v.SoftLineBreak() {
+			dst.WriteString(softBreakContinuation(source, v.Segment.Stop))
+		}
+		if v.HardLineBreak() {
+			dst.WriteByte('\n')
+		}
+	case *ast.RawHTML:
+		for i := range v.Segments.Len() {
+			seg := v.Segments.At(i)
+			dst.Write(seg.Value(source))
+		}
+	default:
+		// Best-effort: use Lines() ranges so nested inline nodes
+		// (Emphasis, Link, Image with text inside math) still
+		// contribute their source bytes verbatim. Excluded markup
+		// doesn't typically nest non-RawHTML children, but this guards
+		// against malformed input.
+		lines := n.Lines()
+		for i := range lines.Len() {
+			seg := lines.At(i)
+			dst.Write(seg.Value(source))
 		}
 	}
 }
@@ -2149,9 +2488,6 @@ func (r *Reader) buildAutoLinkRuns(b *runBuilder, n *ast.AutoLink, source []byte
 }
 
 func (r *Reader) buildRawHTMLRuns(b *runBuilder, n *ast.RawHTML, source []byte, idCounter *int) {
-	*idCounter++
-	id := strconv.Itoa(*idCounter)
-
 	var htmlContent strings.Builder
 	for i := range n.Segments.Len() {
 		seg := n.Segments.At(i)
@@ -2159,12 +2495,122 @@ func (r *Reader) buildRawHTMLRuns(b *runBuilder, n *ast.RawHTML, source []byte, 
 	}
 	tag := htmlContent.String()
 
+	// Mirrors okapi HTML-subfilter ATTRIBUTE_TRANS handling for inline
+	// RawHTML tags inside Markdown paragraphs: when a tag carries a
+	// translatable attribute (img alt, a title, …), split the raw bytes
+	// around the value so the value lands in the runs as a TextRun while
+	// the surrounding tag bytes stay opaque PlaceholderRun data.
+	if extracted := r.emitInlineHTMLWithAttrs(b, tag, idCounter); extracted {
+		return
+	}
+
+	// `<![CDATA[...]]>` payload is translatable text per okapi
+	// MarkdownFilter HTML_CDATA_PAT — split the markers off as opaque
+	// codes around the inner text run.
+	if open, body, close, ok := splitCDATA([]byte(tag)); ok && hasNonWhitespace(body) {
+		*idCounter++
+		id := strconv.Itoa(*idCounter)
+		b.AddPcOpen(id, "fmt:html", "md:html-cdata", string(open), "", "", false, false, false)
+		b.AddText(string(body))
+		b.AddPcClose(id, "fmt:html", "md:html-cdata", string(close), "")
+		return
+	}
+
 	// Raw inline HTML has no vocabulary entry in the original Fragment
 	// path, so emit with empty display/equiv and zero-valued constraints
 	// (mirrors the default all-false RunConstraints that MarshalRuns
 	// produces for a Span with unset Deletable/Cloneable/CanReorder).
+	*idCounter++
+	id := strconv.Itoa(*idCounter)
 	b.AddPcOpen(id, "fmt:html", "md:html-inline", tag, "", "", false, false, false)
 	b.AddPcClose(id, "fmt:html", "md:html-inline", "", "")
+}
+
+// emitInlineHTMLWithAttrs detects translatable attributes on an inline
+// HTML tag and splits the raw bytes so attribute values become inline
+// TextRuns surrounded by opaque PlaceholderRuns. Returns false for
+// closing tags, comments, processing instructions, or tags that carry
+// no translatable attributes — in those cases the caller falls back to
+// emitting the whole tag as one opaque placeholder.
+func (r *Reader) emitInlineHTMLWithAttrs(b *runBuilder, tag string, idCounter *int) bool {
+	raw := []byte(tag)
+	if len(raw) < 2 || raw[0] != '<' || raw[1] == '/' || raw[1] == '!' || raw[1] == '?' {
+		return false
+	}
+	// Locate tag name to look up its translatable-attribute set.
+	idx := 1
+	end := idx
+	for end < len(raw) {
+		c := raw[end]
+		if (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '-' || c == ':' {
+			end++
+			continue
+		}
+		break
+	}
+	tagName := strings.ToLower(string(raw[idx:end]))
+	transAttrs := htmlTranslatableAttrs[tagName]
+	if len(transAttrs) == 0 {
+		return false
+	}
+
+	type valueRange struct {
+		start, end int
+	}
+	var values []valueRange
+	for _, m := range htmlAttrRE.FindAllSubmatchIndex(raw, -1) {
+		nameStart, nameEnd := m[2], m[3]
+		if nameStart < end {
+			continue // skip the tag name itself
+		}
+		name := strings.ToLower(string(raw[nameStart:nameEnd]))
+		if !transAttrs[name] {
+			continue
+		}
+		var vs, ve int
+		switch {
+		case m[6] >= 0:
+			vs, ve = m[6], m[7]
+		case m[8] >= 0:
+			vs, ve = m[8], m[9]
+		case m[10] >= 0:
+			vs, ve = m[10], m[11]
+		default:
+			continue
+		}
+		if vs < 0 || vs >= ve || !hasNonWhitespace(raw[vs:ve]) {
+			continue
+		}
+		values = append(values, valueRange{vs, ve})
+	}
+	if len(values) == 0 {
+		return false
+	}
+	// Emit a sequence of PlaceholderRun(opaque-bytes) + TextRun(value)
+	// segments. The closing PlaceholderRun matches the last open id so
+	// MarshalRuns sees a balanced pair around the value sequence.
+	cursor := 0
+	*idCounter++
+	id := strconv.Itoa(*idCounter)
+	for i, v := range values {
+		preData := string(raw[cursor:v.start])
+		// Open code carrying the bytes leading up to the value (or
+		// between values). The first iteration's data includes the tag
+		// name + leading attrs; subsequent iterations carry the bytes
+		// between attributes.
+		if i == 0 {
+			b.AddPcOpen(id, "fmt:html", "md:html-inline", preData, "", "", false, false, false)
+		} else {
+			*idCounter++
+			placeholderID := strconv.Itoa(*idCounter)
+			b.AddPh(placeholderID, "code:html", "md:html-inline-bytes", preData, "", "", false, false, false)
+		}
+		b.AddText(string(raw[v.start:v.end]))
+		cursor = v.end
+	}
+	tail := string(raw[cursor:])
+	b.AddPcClose(id, "fmt:html", "md:html-inline", tail, "")
+	return true
 }
 
 func (r *Reader) buildStrikethroughRuns(b *runBuilder, node ast.Node, source []byte, idCounter *int) {
