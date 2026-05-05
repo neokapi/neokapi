@@ -267,6 +267,66 @@ func (r *Reader) parseStory(ctx context.Context, ch chan<- model.PartResult,
 		r.skelWriteEndElement(&skelBuf, t)
 	}
 
+	// Per-PSR bare-CSR wrapping. Okapi's IDML round-trip wraps any
+	// run of bare <Content>/<Br>/<TextFrame>/<HyperlinkTextSource>
+	// children of a <ParagraphStyleRange> in a synthetic
+	// <CharacterStyleRange AppliedCharacterStyle="…/[No character
+	// style]"> element. Real CSR siblings are preserved as-is. We
+	// track per-PSR-frame whether a synthetic CSR is currently open
+	// so the run can be opened/closed exactly once around each
+	// consecutive bare-child group. inCSR > 0 disables wrapping
+	// while we're already inside a real CharacterStyleRange.
+	// elemDepth tracks XML nesting depth so the bare-child detector
+	// only triggers on direct children of the active PSR (not e.g.
+	// <Properties> nested inside a wrapped <TextFrame>).
+	type psrFrame struct {
+		bareCSROpen bool
+		depth       int // elemDepth at which this PSR was opened
+	}
+	var psrStack []psrFrame
+	inCSR := 0
+	elemDepth := 0
+	openSynthCSR := func() {
+		commitPending()
+		if r.skeletonStore != nil {
+			skelBuf.WriteString(`<CharacterStyleRange AppliedCharacterStyle="CharacterStyle/$ID/[No character style]">`)
+		}
+	}
+	closeSynthCSR := func() {
+		commitPending()
+		if r.skeletonStore != nil {
+			skelBuf.WriteString(`</CharacterStyleRange>`)
+		}
+	}
+	// isPSRDirect reports whether the element about to be entered is
+	// a direct child of the innermost open PSR (and not inside a real
+	// CSR). Must be called BEFORE incrementing elemDepth for the new
+	// element.
+	isPSRDirect := func() bool {
+		if len(psrStack) == 0 || inCSR > 0 {
+			return false
+		}
+		return elemDepth == psrStack[len(psrStack)-1].depth
+	}
+	openBareIfDirect := func() {
+		if isPSRDirect() && !psrStack[len(psrStack)-1].bareCSROpen {
+			openSynthCSR()
+			psrStack[len(psrStack)-1].bareCSROpen = true
+		}
+	}
+	closeBareIfDirect := func() {
+		if isPSRDirect() && psrStack[len(psrStack)-1].bareCSROpen {
+			closeSynthCSR()
+			psrStack[len(psrStack)-1].bareCSROpen = false
+		}
+	}
+	closeBareOnPSREnd := func() {
+		if len(psrStack) > 0 && psrStack[len(psrStack)-1].bareCSROpen {
+			closeSynthCSR()
+			psrStack[len(psrStack)-1].bareCSROpen = false
+		}
+	}
+
 	for {
 		tok, err := d.Token()
 		if errors.Is(err, io.EOF) {
@@ -281,14 +341,20 @@ func (r *Reader) parseStory(ctx context.Context, ch chan<- model.PartResult,
 			rootOpened = true
 			switch t.Name.Local {
 			case "ParagraphStyleRange":
+				closeBareIfDirect()
 				styleStack = append(styleStack, currentStyle)
 				currentStyle.paragraphStyle = attrVal(t.Attr, "AppliedParagraphStyle")
 				emitStart(t)
+				elemDepth++
+				psrStack = append(psrStack, psrFrame{depth: elemDepth})
 
 			case "CharacterStyleRange":
+				closeBareIfDirect()
+				inCSR++
 				styleStack = append(styleStack, currentStyle)
 				currentStyle.charStyle = attrVal(t.Attr, "AppliedCharacterStyle")
 				emitStart(t)
+				elemDepth++
 
 			case "Content":
 				// IDML <Content> elements are always leaf text nodes (no
@@ -300,23 +366,36 @@ func (r *Reader) parseStory(ctx context.Context, ch chan<- model.PartResult,
 				// whether the source had the xml:space attribute. Match
 				// that so the placeholder ref slots into the same
 				// surrounding bytes.
+				openBareIfDirect()
 				commitPending()
 				if r.skeletonStore != nil {
 					skelBuf.WriteString(`<Content xml:space="preserve">`)
 				}
 				contentDepth++
 				textBuf.Reset()
+				elemDepth++
 
 			case "Br":
 				// Line break — skeleton only
+				openBareIfDirect()
 				emitStart(t)
+				elemDepth++
+
+			case "TextFrame", "HyperlinkTextSource":
+				openBareIfDirect()
+				emitStart(t)
+				elemDepth++
 
 			case "Note", "Footnote", "Endnote":
+				closeBareIfDirect()
 				noteDepth++
 				emitStart(t)
+				elemDepth++
 
 			default:
+				closeBareIfDirect()
 				emitStart(t)
+				elemDepth++
 			}
 
 		case xml.EndElement:
@@ -367,8 +446,14 @@ func (r *Reader) parseStory(ctx context.Context, ch chan<- model.PartResult,
 					contentDepth--
 					textBuf.Reset()
 				}
+				elemDepth--
 
 			case "ParagraphStyleRange":
+				closeBareOnPSREnd()
+				if len(psrStack) > 0 {
+					psrStack = psrStack[:len(psrStack)-1]
+				}
+				elemDepth--
 				emitEnd(t)
 				if len(styleStack) > 0 {
 					currentStyle = styleStack[len(styleStack)-1]
@@ -376,6 +461,10 @@ func (r *Reader) parseStory(ctx context.Context, ch chan<- model.PartResult,
 				}
 
 			case "CharacterStyleRange":
+				if inCSR > 0 {
+					inCSR--
+				}
+				elemDepth--
 				emitEnd(t)
 				if len(styleStack) > 0 {
 					currentStyle = styleStack[len(styleStack)-1]
@@ -384,9 +473,11 @@ func (r *Reader) parseStory(ctx context.Context, ch chan<- model.PartResult,
 
 			case "Note", "Footnote", "Endnote":
 				noteDepth--
+				elemDepth--
 				emitEnd(t)
 
 			default:
+				elemDepth--
 				emitEnd(t)
 			}
 
