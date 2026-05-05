@@ -292,10 +292,29 @@ func (v *writerVisitor) replaceInlineRun(parent *html.Node, runStart, runEnd *ht
 	}
 }
 
+// attrBlockTypes are the block.Type values that originate from HTML
+// attribute extraction (META content, title=, alt=, …). Okapi normalises
+// HTML attribute values by collapsing runs of HTML whitespace to a single
+// space; mirror that on the translated render so output bytes match. The
+// untranslated path keeps the original raw bytes via the skeleton, so the
+// no-translation round-trip stays byte-exact (test attr_double_space).
+var attrBlockTypes = map[string]bool{
+	"content":     true,
+	"title":       true,
+	"alt":         true,
+	"label":       true,
+	"placeholder": true,
+	"value":       true,
+}
+
 // getBlockText returns the text content to write for a block.
 func (w *Writer) getBlockText(block *model.Block) string {
 	if !w.Locale.IsEmpty() && block.HasTarget(w.Locale) {
-		return w.renderTargetRuns(block, w.Locale)
+		text := w.renderTargetRuns(block, w.Locale)
+		if attrBlockTypes[block.Type] {
+			text = collapseWhitespace(text)
+		}
+		return text
 	}
 	return w.renderSourceRuns(block)
 }
