@@ -179,6 +179,19 @@ type XMLCanonical struct {
 	// `AppliedFont,BasedOn,PreviewColor`) but native preserves source
 	// order. Both forms are semantically identical XML.
 	SortChildElements bool
+
+	// MergeAdjacentCSRs collapses consecutive <CharacterStyleRange>
+	// sibling elements that share an identical attribute set into a
+	// single CharacterStyleRange whose children are the concatenation
+	// of the merged runs' children. okapi's IDML pipeline normalises
+	// the source's "split-by-formatting-run" CSR shape by re-merging
+	// adjacent same-style CSRs on round-trip; native preserves the
+	// source structure. Both forms are semantically identical IDML
+	// (the rendered styled-text run is the same). Applied after
+	// SortChildElements so the structural canonicalisation lines up
+	// before the merge pass walks sibling positions. Opt-in — only
+	// IDML's normalizer turns it on.
+	MergeAdjacentCSRs bool
 }
 
 // Name implements Normalizer.
@@ -196,6 +209,9 @@ func (n XMLCanonical) Name() string {
 	if n.SortChildElements {
 		parts = append(parts, "sort-children")
 	}
+	if n.MergeAdjacentCSRs {
+		parts = append(parts, "merge-csrs")
+	}
 	if len(parts) == 0 {
 		return "xml-canonical"
 	}
@@ -209,12 +225,13 @@ func (n XMLCanonical) Normalize(in []byte) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	if n.SortChildElements {
+	if n.SortChildElements || n.MergeAdjacentCSRs {
 		// Build a tree from the per-element-balanced token stream so
 		// we can permute child elements alphabetically by local name
-		// without disturbing the relative position of non-element
-		// nodes (CharData, Comments, ProcInsts).
-		tokens = sortChildElementsInStream(tokens)
+		// (and/or merge adjacent same-attr CSR siblings) without
+		// disturbing the relative position of non-element nodes
+		// (CharData, Comments, ProcInsts).
+		tokens = transformXMLTree(tokens, n.SortChildElements, n.MergeAdjacentCSRs)
 	}
 	var buf bytes.Buffer
 	enc := xml.NewEncoder(&buf)
@@ -345,21 +362,30 @@ func (n XMLCanonical) collectTokens(dec *xml.Decoder) ([]xml.Token, error) {
 	return out, nil
 }
 
-// sortChildElementsInStream walks the (already canonicalised) token
-// stream and, for each element, alphabetises its child sub-elements
-// by local name. Non-element children keep their original slot in the
-// child sequence — only element-positions are permuted, so comments
-// and text nodes don't drift across siblings. The sort is stable, so
-// elements sharing a local name retain their relative order.
-func sortChildElementsInStream(tokens []xml.Token) []xml.Token {
+// transformXMLTree walks the (already canonicalised) token stream as
+// a tree and applies optional structural passes:
+//   - sortChildren: alphabetise each element's child sub-elements by
+//     local name (stable; non-element children keep their slots).
+//   - mergeCSRs: collapse consecutive <CharacterStyleRange> siblings
+//     with identical attribute sets into a single CSR whose children
+//     are the concatenation of the merged runs' children.
+//
+// Both passes operate on the in-memory tree; non-element children
+// (CharData, Comments, ProcInsts) preserve their relative position in
+// each parent's child sequence so text content never drifts across
+// element siblings.
+func transformXMLTree(tokens []xml.Token, sortChildren, mergeCSRs bool) []xml.Token {
 	// Build a synthetic root containing the top-level token stream and
 	// recurse. The root's "children" then re-emit in the original
 	// top-level order (no sorting at the root, which has no enclosing
 	// StartElement to scope a Properties-style sibling group).
 	var idx int
 	root := buildXMLNode(tokens, &idx, true /*topLevel*/)
+	if mergeCSRs {
+		mergeAdjacentCSRsInTree(root)
+	}
 	var out []xml.Token
-	emitXMLNode(root, &out, true /*topLevel*/)
+	emitXMLNode(root, &out, true /*topLevel*/, sortChildren)
 	return out
 }
 
@@ -419,17 +445,17 @@ func buildXMLNode(tokens []xml.Token, idx *int, topLevel bool) *xmlNode {
 // node is the synthetic root: skip emitting its StartElement /
 // EndElement and don't sort its top-level children (the document's
 // root element sits there as a sole child anyway).
-func emitXMLNode(node *xmlNode, out *[]xml.Token, topLevel bool) {
+func emitXMLNode(node *xmlNode, out *[]xml.Token, topLevel, sortChildren bool) {
 	if !topLevel {
 		*out = append(*out, node.start)
 	}
 	children := node.children
-	if !topLevel {
+	if sortChildren && !topLevel {
 		children = sortXMLChildElements(children)
 	}
 	for _, c := range children {
 		if c.sub != nil {
-			emitXMLNode(c.sub, out, false)
+			emitXMLNode(c.sub, out, false, sortChildren)
 			continue
 		}
 		*out = append(*out, c.raw)
@@ -437,6 +463,124 @@ func emitXMLNode(node *xmlNode, out *[]xml.Token, topLevel bool) {
 	if !topLevel {
 		*out = append(*out, node.end)
 	}
+}
+
+// mergeAdjacentCSRsInTree walks the tree depth-first, finding runs of
+// consecutive <CharacterStyleRange> sibling elements whose attribute
+// sets are identical and merging each run into a single CSR. Non-CSR
+// children act as "barriers" — a CharData or non-CSR element between
+// two CSRs ends the current run. The merged CSR retains the first
+// run member's start/end tokens; its children are the concatenation
+// of all run members' children (in source order). Recurses into the
+// merged children, then into the remaining (non-CSR) children.
+//
+// Why this matters for IDML: the source format splits runs of styled
+// text into multiple CSRs each time a formatting attribute toggles,
+// even across boundaries that round-trip back to the same effective
+// style. okapi's IDML pipeline rewrites these by emitting one CSR
+// per *style*, not one per source range; native preserves the source
+// shape. After this merge pass both forms canonicalise to the same
+// "one CSR per distinct style" tree.
+func mergeAdjacentCSRsInTree(node *xmlNode) {
+	if node == nil || len(node.children) == 0 {
+		return
+	}
+	merged := make([]xmlChild, 0, len(node.children))
+	i := 0
+	for i < len(node.children) {
+		c := node.children[i]
+		if c.sub == nil || !isCSR(c.sub) {
+			merged = append(merged, c)
+			i++
+			continue
+		}
+		// Start of a potential CSR run. Walk forward while the next
+		// sibling is also a CSR with identical attrs.
+		runStart := i
+		runEnd := i + 1 // exclusive
+		for runEnd < len(node.children) {
+			next := node.children[runEnd]
+			if next.sub == nil || !isCSR(next.sub) {
+				break
+			}
+			if !sameXMLAttrs(c.sub.start.Attr, next.sub.start.Attr) {
+				break
+			}
+			runEnd++
+		}
+		if runEnd-runStart == 1 {
+			// Singleton run — nothing to merge. Recurse into the lone
+			// CSR's children.
+			merged = append(merged, c)
+			i++
+			continue
+		}
+		// Merge: keep the first CSR's start/end; concatenate all
+		// children. Recursion happens on the merged result below.
+		head := node.children[runStart].sub
+		var combined []xmlChild
+		combined = append(combined, head.children...)
+		for k := runStart + 1; k < runEnd; k++ {
+			combined = append(combined, node.children[k].sub.children...)
+		}
+		head.children = combined
+		merged = append(merged, xmlChild{sub: head})
+		i = runEnd
+	}
+	node.children = merged
+	// Recurse into all element children (post-merge so merged CSRs are
+	// processed too — useful if a merged CSR's combined children have
+	// their own nested CSR runs that now line up).
+	for _, c := range node.children {
+		if c.sub != nil {
+			mergeAdjacentCSRsInTree(c.sub)
+		}
+	}
+}
+
+// isCSR reports whether the given node is a <CharacterStyleRange>
+// element (matched by local name only; namespace is ignored to avoid
+// false negatives on documents that decorate the IDML namespace
+// differently).
+func isCSR(n *xmlNode) bool {
+	return n != nil && n.start.Name.Local == "CharacterStyleRange"
+}
+
+// sameXMLAttrs reports whether two attribute slices represent the
+// same set of (name, value) pairs. Order is ignored — we sort
+// canonical copies before comparing — so attribute reordering
+// elsewhere in the pipeline doesn't break the equality test.
+func sameXMLAttrs(a, b []xml.Attr) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	if len(a) == 0 {
+		return true
+	}
+	ax := make([]xml.Attr, len(a))
+	copy(ax, a)
+	bx := make([]xml.Attr, len(b))
+	copy(bx, b)
+	sort.SliceStable(ax, func(i, j int) bool {
+		if ax[i].Name.Space != ax[j].Name.Space {
+			return ax[i].Name.Space < ax[j].Name.Space
+		}
+		return ax[i].Name.Local < ax[j].Name.Local
+	})
+	sort.SliceStable(bx, func(i, j int) bool {
+		if bx[i].Name.Space != bx[j].Name.Space {
+			return bx[i].Name.Space < bx[j].Name.Space
+		}
+		return bx[i].Name.Local < bx[j].Name.Local
+	})
+	for k := range ax {
+		if ax[k].Name.Space != bx[k].Name.Space ||
+			ax[k].Name.Local != bx[k].Name.Local ||
+			ax[k].Value != bx[k].Value {
+			return false
+		}
+	}
+	return true
 }
 
 // sortXMLChildElements returns a copy of children with the element
