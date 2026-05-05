@@ -66,9 +66,14 @@ func TestSkeletonStore_ByteExact_SingleQuoted(t *testing.T) {
 }
 
 func TestSkeletonStore_ByteExact_WithEscapes(t *testing.T) {
+	// `>` does not require escaping inside a quoted entity value, so the
+	// writer leaves it bare (matching okapi's DTDFilter output and the
+	// XML 1.0 spec's allowed-character set). Input `&gt;` round-trips to
+	// `>` after the reader resolves the entity reference.
 	input := "<!ENTITY escaped \"Text with &amp; ampersand and &lt;angle brackets&gt;\">\n"
+	expected := "<!ENTITY escaped \"Text with &amp; ampersand and &lt;angle brackets>\">\n"
 	output := snippetRoundtripWithSkeleton(t, input)
-	assert.Equal(t, input, output, "entities with XML escapes should be byte-exact")
+	assert.Equal(t, expected, output, "entities round-trip with `>` left bare")
 }
 
 func TestSkeletonStore_ByteExact_WithNCRs(t *testing.T) {
@@ -111,7 +116,7 @@ func TestSkeletonStore_ByteExact_ComplexFile(t *testing.T) {
 	assert.Contains(t, output, "<!-- Window title -->\n<!ENTITY findWindow.title \"Find Files\">\n")
 	assert.Contains(t, output, "<!-- File menu -->\n<!ENTITY fileMenu.label \"File\">\n")
 	assert.Contains(t, output, "<!ENTITY editMenu.label \"Edit\">\n")
-	assert.Contains(t, output, "<!ENTITY escaped \"Text with &amp; ampersand and &lt;angle brackets&gt;\">\n")
+	assert.Contains(t, output, "<!ENTITY escaped \"Text with &amp; ampersand and &lt;angle brackets>\">\n")
 	assert.Contains(t, output, "<!ENTITY ncr \"Char A and hex B\">\n")
 	assert.Contains(t, output, "<!ENTITY unicode \"\xe3\x81\x93\xe3\x82\x93\xe3\x81\xab\xe3\x81\xa1\xe3\x81\xaf\xe4\xb8\x96\xe7\x95\x8c\">\n")
 }

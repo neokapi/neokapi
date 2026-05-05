@@ -3,6 +3,7 @@ package dtd_test
 import (
 	"bytes"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/neokapi/neokapi/core/formats/dtd"
@@ -107,12 +108,23 @@ func TestEntryWithEntities(t *testing.T) {
 	blocks := testutil.CollectBlocks(t, reader.Read(ctx))
 	require.NotEmpty(t, blocks)
 
-	// Unknown entity references are preserved as-is in the text.
-	text := blocks[0].SourceText()
-	assert.Contains(t, text, "&ent1;")
-	assert.Contains(t, text, "=ent1, ")
-	assert.Contains(t, text, "%pent1;")
-	assert.Contains(t, text, "=pent1")
+	// Unknown entity references become inline placeholder runs (so they
+	// round-trip as opaque codes); the surrounding plain text stays in
+	// TextRuns. Reassemble the original surface form by walking SourceRuns.
+	var surface strings.Builder
+	for _, r := range blocks[0].SourceRuns() {
+		switch {
+		case r.Text != nil:
+			surface.WriteString(r.Text.Text)
+		case r.Ph != nil:
+			surface.WriteString(r.Ph.Data)
+		}
+	}
+	got := surface.String()
+	assert.Contains(t, got, "&ent1;")
+	assert.Contains(t, got, "=ent1, ")
+	assert.Contains(t, got, "%pent1;")
+	assert.Contains(t, got, "=pent1")
 }
 
 // okapi: DTDFilterTest#testEntryWithNCRs
