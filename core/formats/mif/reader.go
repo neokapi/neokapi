@@ -308,9 +308,25 @@ func (r *Reader) findStringPositions(rawText string, stmts []*mifStatement) []st
 		valStart := absIdx + len("<"+it.searchTag+" `")
 		valEnd := valStart + len(escapeMIFForSearch(expectedVal))
 
+		// For non-first <String> refs inside a multi-ParaLine <Para>, widen
+		// the ref so it swallows the entire surrounding `<ParaLine ...
+		// > # end of ParaLine\n` block. The native reader merges every
+		// String inside one Para into a single Block (matching okapi's
+		// per-Para text unit), so the writer emits the merged translated
+		// text into the FIRST String only and writes nothing for
+		// stringIdx>0 — but without this widening, the surrounding empty
+		// `<ParaLine><String \`'>` skeleton would still leak through.
+		// okapi's MIFFilter (writeParagraph) collapses the multi-ParaLine
+		// shape into a single ParaLine on output, so we mirror that by
+		// dropping the trailing ParaLine wrappers from the skeleton.
+		swallowStart, swallowEnd := valStart, valEnd
+		if it.searchTag == "String" && stringInItemIdx > 0 {
+			swallowStart, swallowEnd = expandToEnclosingParaLine(rawText, absIdx, valEnd)
+		}
+
 		refs = append(refs, stringRef{
-			startOffset: valStart,
-			endOffset:   valEnd,
+			startOffset: swallowStart,
+			endOffset:   swallowEnd,
 			blockIdx:    it.blockIdx,
 			stringIdx:   stringInItemIdx,
 		})
@@ -320,6 +336,61 @@ func (r *Reader) findStringPositions(rawText string, stmts []*mifStatement) []st
 	}
 
 	return refs
+}
+
+// expandToEnclosingParaLine returns a [start, end) byte span that covers
+// the entire `<ParaLine … > # end of ParaLine\n` block surrounding the
+// String at [stringTagStart, valEnd). `stringTagStart` is the byte offset
+// of the opening `<` of the `<String …>` tag; `valEnd` is the offset just
+// past the value (before the closing backquote). The expansion includes
+// any leading whitespace/newline before `<ParaLine` and the trailing
+// newline after the `> # end of ParaLine` closer so the writer's
+// stringIdx>0 elision drops the wrapper cleanly without leaving stray
+// blank lines.
+func expandToEnclosingParaLine(rawText string, stringTagStart, valEnd int) (int, int) {
+	// Walk backwards to find the most recent `<ParaLine` opener.
+	openIdx := strings.LastIndex(rawText[:stringTagStart], "<ParaLine")
+	if openIdx < 0 {
+		return stringTagStart, valEnd
+	}
+	// Include any whitespace + newline preceding `<ParaLine` so the line
+	// disappears entirely (otherwise we leak indentation + `\n`).
+	start := openIdx
+	for start > 0 {
+		c := rawText[start-1]
+		if c == ' ' || c == '\t' {
+			start--
+			continue
+		}
+		if c == '\n' {
+			start--
+			break
+		}
+		break
+	}
+
+	// Walk forwards from valEnd to find the matching `> # end of ParaLine`
+	// closer (or a bare `>` close at the same nesting). For wrapper-only
+	// secondary ParaLines this is the next `> # end of ParaLine` line.
+	tail := rawText[valEnd:]
+	closeIdx := strings.Index(tail, "> # end of ParaLine")
+	if closeIdx < 0 {
+		// Defensive: no comment marker — fall back to plain `>` line.
+		closeIdx = strings.Index(tail, "\n>")
+		if closeIdx < 0 {
+			return start, valEnd
+		}
+		closeIdx++ // skip the leading `\n`
+	}
+	end := valEnd + closeIdx
+	// Advance past the rest of the closer line up to (but NOT including)
+	// the trailing newline. The newline stays in the skeleton so it serves
+	// as the line break between the surviving first ParaLine's closer and
+	// whatever follows (e.g. `> # end of Para`).
+	for end < len(rawText) && rawText[end] != '\n' {
+		end++
+	}
+	return start, end
 }
 
 // escapeMIFForSearch re-encodes a parsed value back to the MIF in-string
