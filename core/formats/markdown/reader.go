@@ -64,6 +64,14 @@ func addTextWithEntities(b *runBuilder, text string, idCounter *int) {
 		b.AddText(text[pos:])
 	}
 }
+// BlockPropLinePrefix is the per-block property holding the per-line
+// continuation prefix for multi-line paragraphs (e.g. `> ` for
+// blockquote bodies, indentation for list-item continuations). The
+// writer re-emits this prefix after every "\n" in the rendered block
+// text so the round-tripped output preserves the original line shape.
+// Unset when the paragraph is single-line or its continuation lines
+// have inconsistent prefixes.
+const BlockPropLinePrefix = "md:line-prefix"
 
 // Reader implements DataFormatReader for Markdown files.
 type Reader struct {
@@ -420,6 +428,53 @@ func fullNodeAbsRange(node ast.Node, source []byte, baseOffset int) (int, int) {
 	return lineStart + baseOffset, last.Stop + baseOffset
 }
 
+// detectLinePrefix returns the inter-line prefix shared by every
+// continuation line of the given node (e.g. "> " for a blockquote
+// paragraph, "  " for an indented continuation inside a list item).
+// The prefix is computed from the source bytes between consecutive
+// line ranges: for line i+1 to logically continue line i with the
+// same paragraph, goldmark's parser strips a per-line prefix that
+// sits between the LF that ends line i's content and the start of
+// line i+1's content. We take that slice from each pair, then keep
+// it only when every gap has the same prefix.
+//
+// Returns "" when the paragraph has only one line, when the
+// continuation lines have inconsistent prefixes (e.g. one line is
+// `> ` and another is just empty), or when the gap is empty
+// (single-line paragraphs the parser split internally — there's no
+// per-line prefix to re-emit).
+func detectLinePrefix(node ast.Node, source []byte) string {
+	lines := node.Lines()
+	if lines.Len() < 2 {
+		return ""
+	}
+	var prefix string
+	first := true
+	for i := 0; i < lines.Len()-1; i++ {
+		curStop := lines.At(i).Stop
+		nextStart := lines.At(i + 1).Start
+		if curStop > nextStart || nextStart > len(source) {
+			return ""
+		}
+		gap := source[curStop:nextStart]
+		// gap typically begins with the LF that ended the previous line,
+		// followed by the per-line prefix. Strip the leading LF so the
+		// returned prefix is what we want to re-emit AFTER each "\n"
+		// in the block's text.
+		if len(gap) > 0 && gap[0] == '\n' {
+			gap = gap[1:]
+		}
+		if first {
+			prefix = string(gap)
+			first = false
+		} else if string(gap) != prefix {
+			// Inconsistent — bail out and let the writer emit just LFs.
+			return ""
+		}
+	}
+	return prefix
+}
+
 func (r *Reader) emitHeading(ctx context.Context, ch chan<- model.PartResult, n *ast.Heading, source []byte, baseOffset int) {
 	r.blockCounter++
 	blockID := fmt.Sprintf("tu%d", r.blockCounter)
@@ -452,6 +507,17 @@ func (r *Reader) emitParagraph(ctx context.Context, ch chan<- model.PartResult, 
 	block := model.NewBlock(blockID, textContent)
 	block.Name = fmt.Sprintf("para%d", r.blockCounter)
 	r.addInlineRuns(block, n, source)
+
+	// Multi-line paragraphs (e.g. blockquote bodies, indented
+	// continuation lines) carry a per-line prefix in source — `> ` for
+	// blockquotes, indentation for list-item continuations. The block's
+	// text only carries the literal LFs that separate lines (mirroring
+	// okapi's TextUnit content); the writer uses this property to
+	// re-emit the prefix after each "\n" so the round-tripped output
+	// preserves the original line shape.
+	if prefix := detectLinePrefix(n, source); prefix != "" {
+		block.Properties[BlockPropLinePrefix] = prefix
+	}
 
 	lineStart, lineEnd := nodeAbsRange(n, source, baseOffset)
 
@@ -487,10 +553,16 @@ func (r *Reader) emitListItem(ctx context.Context, ch chan<- model.PartResult, n
 	for child := n.FirstChild(); child != nil; child = child.NextSibling() {
 		if p, ok := child.(*ast.Paragraph); ok {
 			r.addInlineRuns(block, p, source)
+			if prefix := detectLinePrefix(p, source); prefix != "" {
+				block.Properties[BlockPropLinePrefix] = prefix
+			}
 			break
 		}
-		if _, ok := child.(*ast.TextBlock); ok {
+		if tb, ok := child.(*ast.TextBlock); ok {
 			r.addInlineRuns(block, child, source)
+			if prefix := detectLinePrefix(tb, source); prefix != "" {
+				block.Properties[BlockPropLinePrefix] = prefix
+			}
 			break
 		}
 	}
@@ -854,7 +926,15 @@ func (r *Reader) collectInlineText(buf *strings.Builder, node ast.Node, source [
 		case *ast.Text:
 			buf.Write(n.Segment.Value(source))
 			if n.SoftLineBreak() {
-				buf.WriteByte(' ')
+				// Preserve the literal LF inside a paragraph the way okapi
+				// MarkdownFilter does — its TextUnit content keeps the
+				// source's newline so the round-tripped output matches the
+				// original line shape (blockquote `> ` markers and indented
+				// continuation lines are re-emitted by the writer via the
+				// per-line prefix property; see emitParagraph). Collapsing
+				// to a space here would force the writer to emit a single
+				// joined line and lose the multi-line layout.
+				buf.WriteByte('\n')
 			}
 			if n.HardLineBreak() {
 				buf.WriteByte('\n')
@@ -921,7 +1001,13 @@ func (r *Reader) buildCodedRuns(b *runBuilder, node ast.Node, source []byte, idC
 		case *ast.Text:
 			addTextWithEntities(b, string(n.Segment.Value(source)), idCounter)
 			if n.SoftLineBreak() {
-				b.AddText(" ")
+				// Match collectInlineText's LF-preservation rule (see
+				// comment there): the source's newline travels through
+				// the Block as a literal LF so blockquotes and other
+				// multi-line constructs round-trip with their original
+				// line shape intact (the writer re-inserts the per-line
+				// prefix via BlockPropLinePrefix).
+				b.AddText("\n")
 			}
 			if n.HardLineBreak() {
 				b.AddText("\n")

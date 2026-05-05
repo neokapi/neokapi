@@ -138,13 +138,24 @@ func (w *Writer) writeFromBlocks(blocks []*model.Block) error {
 }
 
 // blockText returns the rendered text for a block, preferring the target
-// locale's translation if available, falling back to source.
+// locale's translation if available, falling back to source. Multi-line
+// paragraphs whose source carried a per-line continuation prefix (e.g.
+// `> ` for blockquote bodies — see BlockPropLinePrefix in reader.go)
+// have that prefix re-inserted after every "\n" so blockquotes and
+// indented continuations retain their original line shape on round-trip.
+// Mirrors okapi MarkdownFilter, whose TextUnit content carries only the
+// LFs between lines while its skeleton-driven writer re-emits the
+// per-line prefix.
 func (w *Writer) blockText(block *model.Block) string {
 	runs := w.blockRuns(block)
 	if runs == nil {
 		return ""
 	}
-	return model.RenderRunsWithData(runs)
+	rendered := model.RenderRunsWithData(runs)
+	if prefix, ok := block.Properties[BlockPropLinePrefix]; ok && prefix != "" && strings.Contains(rendered, "\n") {
+		rendered = strings.ReplaceAll(rendered, "\n", "\n"+prefix)
+	}
+	return rendered
 }
 
 // blockRuns returns the target Run sequence for the configured locale,

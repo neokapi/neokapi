@@ -430,7 +430,12 @@ func TestRead_Emphasis(t *testing.T) {
 func TestRead_EmphasisAcrossLines(t *testing.T) {
 	blocks := readBlocks(t, "This *spans\nacross* lines")
 	require.Len(t, blocks, 1)
-	assert.Equal(t, "This spans across lines", blocks[0].SourceText())
+	// The literal LF between source lines is preserved in the block's
+	// text (mirroring okapi MarkdownFilter, which keeps soft line breaks
+	// in TextUnit content rather than collapsing them to spaces). The
+	// writer re-emits the per-line continuation prefix from
+	// BlockPropLinePrefix so blockquote / indented bodies round-trip.
+	assert.Equal(t, "This spans\nacross lines", blocks[0].SourceText())
 	runs := blocks[0].SourceRuns()
 	assert.True(t, hasInlineCodeRun(runs))
 }
