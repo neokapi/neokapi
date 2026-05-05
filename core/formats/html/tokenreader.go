@@ -578,7 +578,6 @@ func (s *tokenReaderState) processLeafBlock(tokenizer *html.Tokenizer, tag strin
 		if s.deferredLeafEndTagRaw != nil {
 			closeTagRaw = s.deferredLeafEndTagRaw
 			s.deferredLeafEndTagRaw = nil
-			depth = 0
 			break
 		}
 		tt := tokenizer.Next()
@@ -1636,27 +1635,6 @@ func hasNonWhitespace(s string) bool {
 	return false
 }
 
-// splitEdgeWhitespace splits s into (leading, mid, trailing) where leading
-// is the run of HTML whitespace at the start, trailing the run at the end,
-// and mid the substring between (which is guaranteed to start and end with
-// non-whitespace). Used to peel inter-element whitespace off bare text
-// nodes before emitting them as block content, mirroring okapi's
-// HtmlFilter behavior.
-func splitEdgeWhitespace(s string) (leading, mid, trailing string) {
-	i := 0
-	for i < len(s) && isHTMLWhitespaceByte(s[i]) {
-		i++
-	}
-	if i == len(s) {
-		return s, "", ""
-	}
-	j := len(s)
-	for j > i && isHTMLWhitespaceByte(s[j-1]) {
-		j--
-	}
-	return s[:i], s[i:j], s[j:]
-}
-
 // htmlEntityRE matches a single HTML entity reference: a named entity
 // (`&amp;`), a numeric entity (`&#160;`), or a hex entity (`&#xA0;`).
 // Used by addTextWithEntities to peel entities out of bare text into
@@ -1707,7 +1685,7 @@ func addTextWithEntities(b *runBuilder, text string, idCounter *int) {
 
 // containsNewline reports whether s contains any \r or \n character.
 func containsNewline(s string) bool {
-	for i := 0; i < len(s); i++ {
+	for i := range len(s) {
 		if s[i] == '\n' || s[i] == '\r' {
 			return true
 		}
@@ -1811,27 +1789,6 @@ func (s *tokenReaderState) peelEdgeNewlinesFromRuns(b *runBuilder) {
 		b.runs[idx].Text.Text = t[:j]
 		break
 	}
-}
-
-// trimNewlineEdges trims leading and trailing whitespace runs from s only
-// if those runs contain at least one newline. Single-space edges (no
-// newline) are preserved as significant inter-word whitespace adjacent to
-// inline element boundaries. When the entire string is whitespace, returns
-// s unchanged.
-func trimNewlineEdges(s string) string {
-	leading, mid, trailing := splitEdgeWhitespace(s)
-	if mid == "" {
-		return s
-	}
-	leadingHasNL := strings.ContainsAny(leading, "\r\n")
-	trailingHasNL := strings.ContainsAny(trailing, "\r\n")
-	if !leadingHasNL {
-		mid = leading + mid
-	}
-	if !trailingHasNL {
-		mid = mid + trailing
-	}
-	return mid
 }
 
 func isHTMLWhitespaceByte(b byte) bool {

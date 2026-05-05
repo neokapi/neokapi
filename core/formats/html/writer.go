@@ -187,7 +187,7 @@ func htmlEncodeBlockText(s string, block *model.Block) string {
 	b.Grow(len(s) + 8)
 	depth := 0
 	inWS := false
-	for i := 0; i < len(s); i++ {
+	for i := range len(s) {
 		c := s[i]
 		switch {
 		case c == '<':

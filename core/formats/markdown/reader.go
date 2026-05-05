@@ -758,7 +758,7 @@ func detectLinePrefix(node ast.Node, source []byte) string {
 	}
 	var prefix string
 	first := true
-	for i := 0; i < lines.Len()-1; i++ {
+	for i := range lines.Len() - 1 {
 		curStop := lines.At(i).Stop
 		nextStart := lines.At(i + 1).Start
 		if curStop > nextStart || nextStart > len(source) {
@@ -848,7 +848,7 @@ func admonitionBodyGaps(n ast.Node, source []byte) []string {
 		return nil
 	}
 	out := make([]string, 0, lines.Len()-1)
-	for i := 0; i < lines.Len()-1; i++ {
+	for i := range lines.Len() - 1 {
 		curStop := lines.At(i).Stop
 		nextStart := lines.At(i + 1).Start
 		if curStop > nextStart || nextStart > len(source) {
@@ -1058,7 +1058,7 @@ func admonitionBodyRuns(text string) []model.Run {
 		}
 		id++
 		b.AddPh(
-			fmt.Sprintf("%d", id),
+			strconv.Itoa(id),
 			"code:keyword",
 			"md:admon-keyword",
 			text[start:end],
@@ -1126,7 +1126,7 @@ func (r *Reader) extractAdmonitionBodyText(n ast.Node, source []byte, outerInden
 	// outerIndent) so the join loop below can decide whether to double
 	// an intra-paragraph gap or keep it verbatim.
 	isStructural := make([]bool, lines.Len())
-	for i := 0; i < lines.Len(); i++ {
+	for i := range lines.Len() {
 		line := lines.At(i)
 		segment := bytes.TrimRight(source[line.Start:line.Stop], "\n")
 		// Strip outerIndent from the content's leading whitespace —

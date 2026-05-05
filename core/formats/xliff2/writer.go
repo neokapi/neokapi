@@ -418,7 +418,7 @@ func (w *Writer) flushRoundTrip(targetLang model.LocaleID) error {
 	// short-circuit, so the v2 byte-equal-on-untouched contract still
 	// holds for unmodified inputs.
 	stripOkapiDefaults(root)
-	propagateXmlSpaceToFragments(root, "")
+	propagateXMLSpaceToFragments(root, "")
 
 	if err := writeDocCREscape(w.Output, w.sourceDoc); err != nil {
 		return fmt.Errorf("xliff2 writer: round-trip write: %w", err)
@@ -814,7 +814,7 @@ func collectUsedUnitIDs(unitEl *etree.Element) map[string]bool {
 	return used
 }
 
-// propagateXmlSpaceToFragments stamps `xml:space="preserve"` on every
+// propagateXMLSpaceToFragments stamps `xml:space="preserve"` on every
 // <source> / <target> whose inherited xml:space is "preserve" but where
 // the attribute isn't already present on the element itself. This
 // mirrors okapi's writeFragment behaviour: when the parent unit's
@@ -827,7 +827,7 @@ func collectUsedUnitIDs(unitEl *etree.Element) map[string]bool {
 // Walks top-down so nested overrides win: a <segment xml:space="default">
 // child of a <file xml:space="preserve"> uses "default" for its
 // source/target.
-func propagateXmlSpaceToFragments(el *etree.Element, inheritedSpace string) {
+func propagateXMLSpaceToFragments(el *etree.Element, inheritedSpace string) {
 	if el == nil {
 		return
 	}
@@ -846,7 +846,7 @@ func propagateXmlSpaceToFragments(el *etree.Element, inheritedSpace string) {
 		return
 	}
 	for _, child := range el.ChildElements() {
-		propagateXmlSpaceToFragments(child, curSpace)
+		propagateXMLSpaceToFragments(child, curSpace)
 	}
 }
 
@@ -861,7 +861,7 @@ func propagateXmlSpaceToFragments(el *etree.Element, inheritedSpace string) {
 // 2 round-trip then re-emits the empty target.
 //
 // The synthesized target inherits xml:space from the source (the
-// propagateXmlSpaceToFragments pass picks up the new attribute later).
+// propagateXMLSpaceToFragments pass picks up the new attribute later).
 func synthesizeIgnorableTargets(unitEl *etree.Element) {
 	hasAnyTarget := false
 	for _, child := range unitEl.ChildElements() {
