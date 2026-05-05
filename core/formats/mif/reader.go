@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"regexp"
 	"strings"
 
 	"github.com/neokapi/neokapi/core/format"
@@ -162,136 +163,194 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 	stmts := parseMIF(rawText)
 	r.emitStatements(ctx, ch, stmts)
 
-	// Build skeleton if needed
+	// Build skeleton if needed. We always emit the skeleton (even with no
+	// translatable refs) so the writer can reproduce the source verbatim
+	// and reach TierByteEqual on fixtures whose translatable surface
+	// happens to be empty — without this, the writer falls back to its
+	// best-effort no-skeleton path and emits a near-empty stub.
 	if r.skeletonStore != nil {
 		refs := r.findStringPositions(rawText, stmts)
-		if len(refs) > 0 {
-			skelPos := 0
-			for _, sr := range refs {
-				if sr.startOffset > skelPos {
-					r.skelText(rawText[skelPos:sr.startOffset])
-				}
-				refID := fmt.Sprintf("%d:%d", sr.blockIdx, sr.stringIdx)
-				r.skelRef(refID)
-				skelPos = sr.endOffset
+		skelPos := 0
+		for _, sr := range refs {
+			if sr.startOffset > skelPos {
+				r.skelText(rawText[skelPos:sr.startOffset])
 			}
-			if skelPos < len(rawText) {
-				r.skelText(rawText[skelPos:])
-			}
-			r.skelFlush()
+			refID := fmt.Sprintf("%d:%d", sr.blockIdx, sr.stringIdx)
+			r.skelRef(refID)
+			skelPos = sr.endOffset
 		}
+		if skelPos < len(rawText) {
+			r.skelText(rawText[skelPos:])
+		}
+		r.skelFlush()
 	}
 
 	r.emit(ctx, ch, &model.Part{Type: model.PartLayerEnd, Resource: layer})
 }
 
-// findStringPositions scans raw MIF content for <String `...'> patterns and associates
-// them with block indices based on the parsed statement tree.
+// findStringPositions scans raw MIF content for <String `...'> and
+// <VariableDef `...'> patterns and associates them with block indices
+// based on the parsed statement tree. The block ordering must match the
+// order in which emitStatements emits Block parts so that
+// writeFromSkeleton's `blockIdx -> w.blocks[blockIdx]` lookup is
+// correct.
 func (r *Reader) findStringPositions(rawText string, stmts []*mifStatement) []stringRef {
-	// First, figure out which paragraphs are translatable and in which order
-	// (matching the same logic as emitStatements/processContainer).
-	var translatableParas []*mifStatement
+	// Walk the top-level statement list once to enumerate translatable
+	// items in emission order. Two kinds participate today:
+	//   - Para under TextFlow/Tbls/Notes (each Para → 1 block, may have
+	//     multiple <String> children inside its <ParaLine>s)
+	//   - VariableDef under VariableFormats (each VariableDef → 1 block,
+	//     exactly 1 string)
+	// Both share the same `blockIdx:stringIdx` skeleton-ref scheme so the
+	// writer can patch them uniformly.
+	type itemInfo struct {
+		blockIdx  int
+		strings   []string // values in order
+		searchTag string   // "String" or "VariableDef"
+	}
+	var items []itemInfo
+	blockIdx := 0
+
+	// Mirror exactly the recursion in processContainer +
+	// processVariableFormats so the blockIdx of every translatable item
+	// here matches the index assigned by emitStatements.
+	var walkContainer func(stmt *mifStatement)
+	walkContainer = func(stmt *mifStatement) {
+		for _, child := range stmt.children {
+			if child.tag == "Para" {
+				text := extractParaText(child)
+				if strings.TrimSpace(text) == "" {
+					continue
+				}
+				var strs []string
+				for _, gc := range child.children {
+					if gc.tag == "ParaLine" {
+						for _, lc := range gc.children {
+							if lc.tag == "String" {
+								strs = append(strs, lc.value)
+							}
+						}
+					}
+				}
+				items = append(items, itemInfo{
+					blockIdx:  blockIdx,
+					strings:   strs,
+					searchTag: "String",
+				})
+				blockIdx++
+				continue
+			}
+			if isMIFContainer(child.tag) {
+				walkContainer(child)
+			}
+		}
+	}
+	walkVariableFormats := func(stmt *mifStatement) {
+		for _, child := range stmt.children {
+			if child.tag != "VariableFormat" {
+				continue
+			}
+			var defStmt *mifStatement
+			for _, gc := range child.children {
+				if gc.tag == "VariableDef" {
+					defStmt = gc
+				}
+			}
+			if defStmt == nil {
+				continue
+			}
+			items = append(items, itemInfo{
+				blockIdx:  blockIdx,
+				strings:   []string{defStmt.value},
+				searchTag: "VariableDef",
+			})
+			blockIdx++
+		}
+	}
+
 	for _, stmt := range stmts {
 		if r.skipTag(stmt.tag) || stmt.tag == "MIFFile" {
 			continue
 		}
-		if stmt.tag == "TextFlow" || stmt.tag == "Tbls" || stmt.tag == "Notes" {
-			collectTranslatableParas(stmt, &translatableParas)
+		switch stmt.tag {
+		case "TextFlow", "Tbls", "Notes":
+			walkContainer(stmt)
+		case "VariableFormats":
+			walkVariableFormats(stmt)
 		}
 	}
 
-	// For each translatable para, find its String children and count them
-	type paraStringInfo struct {
-		blockIdx int
-		strings  []string // the string values in order
-	}
-	var paraInfos []paraStringInfo
-	blockIdx := 0
-	for _, para := range translatableParas {
-		text := extractParaText(para)
-		if strings.TrimSpace(text) == "" {
-			continue
-		}
-		var strs []string
-		for _, child := range para.children {
-			if child.tag == "ParaLine" {
-				for _, lc := range child.children {
-					if lc.tag == "String" {
-						strs = append(strs, lc.value)
-					}
-				}
-			}
-		}
-		paraInfos = append(paraInfos, paraStringInfo{blockIdx: blockIdx, strings: strs})
-		blockIdx++
-	}
-
-	// Now scan the raw text for <String `...'> patterns and match them to the para infos
+	// Now scan the raw text for the matching <Tag `value'> pattern for
+	// each item in order.
 	var refs []stringRef
-	paraIdx := 0
-	stringInParaIdx := 0
+	itemIdx := 0
+	stringInItemIdx := 0
 	searchFrom := 0
 
-	for paraIdx < len(paraInfos) {
-		pi := paraInfos[paraIdx]
-		if stringInParaIdx >= len(pi.strings) {
-			paraIdx++
-			stringInParaIdx = 0
+	for itemIdx < len(items) {
+		it := items[itemIdx]
+		if stringInItemIdx >= len(it.strings) {
+			itemIdx++
+			stringInItemIdx = 0
 			continue
 		}
 
-		expectedVal := pi.strings[stringInParaIdx]
-		// Find the next <String `expectedVal'> in rawText starting from searchFrom
-		pattern := "<String `" + escapeMIFForSearch(expectedVal) + "'>"
+		expectedVal := it.strings[stringInItemIdx]
+		pattern := "<" + it.searchTag + " `" + escapeMIFForSearch(expectedVal) + "'>"
 		idx := strings.Index(rawText[searchFrom:], pattern)
 		if idx < 0 {
-			// Try without exact match (shouldn't happen with well-formed MIF)
-			stringInParaIdx++
+			// Skip — should not happen with well-formed MIF.
+			stringInItemIdx++
 			continue
 		}
 
 		absIdx := searchFrom + idx
-		// The value starts after "<String `" (9 bytes for "<String `")
-		valStart := absIdx + len("<String `")
+		valStart := absIdx + len("<"+it.searchTag+" `")
 		valEnd := valStart + len(escapeMIFForSearch(expectedVal))
 
 		refs = append(refs, stringRef{
 			startOffset: valStart,
 			endOffset:   valEnd,
-			blockIdx:    pi.blockIdx,
-			stringIdx:   stringInParaIdx,
+			blockIdx:    it.blockIdx,
+			stringIdx:   stringInItemIdx,
 		})
 
 		searchFrom = valEnd
-		stringInParaIdx++
+		stringInItemIdx++
 	}
 
 	return refs
 }
 
-// escapeMIFForSearch converts a parsed string value back to its MIF-escaped form for searching.
+// escapeMIFForSearch re-encodes a parsed value back to the MIF in-string
+// escape form so we can locate it in the rawText scan. Mirrors
+// writer.escapeMIF — kept colocated with the reader since both
+// scanners and the writer must agree.
 func escapeMIFForSearch(s string) string {
-	// The value was unquoted by unquoteMIF, so the raw form in the file is the original.
-	// Since parseMIF uses unquoteMIF which just strips backtick/quote delimiters,
-	// the value already has MIF escapes resolved... but actually unquoteMIF only strips
-	// the delimiters, it doesn't unescape. So the value should match raw content.
-	return s
-}
-
-// collectTranslatableParas collects Para statements that contain translatable text.
-func collectTranslatableParas(stmt *mifStatement, result *[]*mifStatement) {
-	for _, child := range stmt.children {
-		if child.tag == "Para" {
-			text := extractParaText(child)
-			if strings.TrimSpace(text) != "" {
-				*result = append(*result, child)
-			}
-		} else if child.tag == "TextFlow" || child.tag == "Notes" || child.tag == "Tbls" ||
-			child.tag == "Cell" || child.tag == "CellContent" || child.tag == "Row" ||
-			child.tag == "TblBody" || child.tag == "Tbl" {
-			collectTranslatableParas(child, result)
+	if s == "" {
+		return s
+	}
+	var b strings.Builder
+	b.Grow(len(s))
+	for _, r := range s {
+		switch r {
+		case '`':
+			b.WriteString("\\`")
+		case '\'':
+			b.WriteString("\\'")
+		case '\\':
+			b.WriteString("\\\\")
+		case '>':
+			b.WriteString("\\>")
+		case '\t':
+			b.WriteString("\\t")
+		case '\n':
+			b.WriteString("\\n")
+		default:
+			b.WriteRune(r)
 		}
 	}
+	return b.String()
 }
 
 func (r *Reader) emitStatements(ctx context.Context, ch chan<- model.PartResult, stmts []*mifStatement) {
@@ -339,6 +398,17 @@ func (r *Reader) emitStatements(ctx context.Context, ch chan<- model.PartResult,
 			continue
 		}
 
+		if stmt.tag == "VariableFormats" {
+			// Extract each <VariableDef `...'> as a translatable block, so
+			// FrameMaker variable text round-trips through the
+			// pseudo-translate pipeline (matches okapi's MIFFilter
+			// behaviour). The skeleton-store ref scheme uses the same
+			// blockIdx:stringIdx form as Para/String — see
+			// findStringPositions.
+			blockCounter, dataCounter = r.processVariableFormats(ctx, ch, stmt, blockCounter, dataCounter)
+			continue
+		}
+
 		// Default: emit as data.
 		dataCounter++
 		d := &model.Data{
@@ -352,6 +422,120 @@ func (r *Reader) emitStatements(ctx context.Context, ch chan<- model.PartResult,
 		if !r.emit(ctx, ch, &model.Part{Type: model.PartData, Resource: d}) {
 			return
 		}
+	}
+}
+
+// processVariableFormats walks the <VariableFormats> block and emits one
+// Block per <VariableDef `...'> child, mirroring okapi's MIFFilter which
+// extracts the variable text as translatable. The block carries the
+// owning <VariableName> as a property so the writer/UI can show useful
+// context, but the writer round-trip uses the skeleton-ref scheme to
+// patch only the VariableDef value verbatim.
+func (r *Reader) processVariableFormats(ctx context.Context, ch chan<- model.PartResult, stmt *mifStatement, blockCounter, dataCounter int) (int, int) {
+	for _, child := range stmt.children {
+		if child.tag != "VariableFormat" {
+			continue
+		}
+		var name string
+		var defStmt *mifStatement
+		for _, gc := range child.children {
+			switch gc.tag {
+			case "VariableName":
+				name = gc.value
+			case "VariableDef":
+				defStmt = gc
+			}
+		}
+		if defStmt == nil {
+			continue
+		}
+		blockCounter++
+		block := model.NewBlock(fmt.Sprintf("tu%d", blockCounter), defStmt.value)
+		block.Name = fmt.Sprintf("variable.%d", blockCounter)
+		if name != "" {
+			block.Properties["variable_name"] = name
+		}
+		r.applyCodeFinder(block)
+		if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
+			return blockCounter, dataCounter
+		}
+	}
+	return blockCounter, dataCounter
+}
+
+// applyCodeFinder splits each TextRun in the block into text +
+// placeholder runs whenever a CodeFinder pattern matches. This keeps
+// FrameMaker building blocks (`<$lastpagenum\>`, `<n+\>`, `<$tblsheetnum\>`,
+// …) from being pseudo-translated character by character — the
+// pseudo-translate step only transforms text runs.
+func (r *Reader) applyCodeFinder(block *model.Block) {
+	patterns := r.cfg.GetCodeFinderPatterns()
+	if len(patterns) == 0 || block == nil {
+		return
+	}
+	applyCodeFinderToSegments(block.Source, patterns)
+	for _, segs := range block.Targets {
+		applyCodeFinderToSegments(segs, patterns)
+	}
+}
+
+// applyCodeFinderToSegments rewrites TextRun content in segs so that
+// every CodeFinder regex match becomes a Ph (placeholder) run carrying
+// the original literal in its Data field. The writer emits Ph.Data
+// verbatim via RenderRunsWithData, so inline FrameMaker codes survive
+// the round-trip even when target text is generated via pseudo or MT.
+//
+// Mirrors po.applyCodeFinderToSegments — kept colocated with the mif
+// reader to avoid an extra cross-package dependency. The two should
+// stay in sync.
+func applyCodeFinderToSegments(segs []*model.Segment, patterns []*regexp.Regexp) {
+	for _, seg := range segs {
+		if seg == nil || len(seg.Runs) == 0 {
+			continue
+		}
+		text := seg.Text()
+		var matches [][2]int
+		for _, re := range patterns {
+			for _, loc := range re.FindAllStringIndex(text, -1) {
+				matches = append(matches, [2]int{loc[0], loc[1]})
+			}
+		}
+		if len(matches) == 0 {
+			continue
+		}
+		// Sort matches by start, drop overlaps (keep the earlier match).
+		for i := 1; i < len(matches); i++ {
+			for j := i; j > 0 && matches[j][0] < matches[j-1][0]; j-- {
+				matches[j], matches[j-1] = matches[j-1], matches[j]
+			}
+		}
+		merged := matches[:0]
+		for _, m := range matches {
+			if len(merged) > 0 && m[0] < merged[len(merged)-1][1] {
+				continue
+			}
+			merged = append(merged, m)
+		}
+		matches = merged
+
+		var runs []model.Run
+		lastEnd := 0
+		spanID := 1
+		for _, m := range matches {
+			if m[0] > lastEnd {
+				runs = append(runs, model.Run{Text: &model.TextRun{Text: text[lastEnd:m[0]]}})
+			}
+			runs = append(runs, model.Run{Ph: &model.PlaceholderRun{
+				ID:   fmt.Sprintf("c%d", spanID),
+				Data: text[m[0]:m[1]],
+			}})
+			spanID++
+			lastEnd = m[1]
+		}
+		if lastEnd < len(text) {
+			runs = append(runs, model.Run{Text: &model.TextRun{Text: text[lastEnd:]}})
+		}
+		seg.Runs = runs
 	}
 }
 
@@ -373,20 +557,40 @@ func (r *Reader) processContainer(ctx context.Context, ch chan<- model.PartResul
 					}
 				}
 
+				r.applyCodeFinder(block)
 				if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
 					return blockCounter, dataCounter
 				}
 			}
-		} else if child.tag == "TextFlow" || child.tag == "Notes" || child.tag == "Tbls" || child.tag == "Cell" || child.tag == "CellContent" || child.tag == "Row" || child.tag == "TblBody" || child.tag == "Tbl" {
+		} else if isMIFContainer(child.tag) {
 			blockCounter, dataCounter = r.processContainer(ctx, ch, child, blockCounter, dataCounter)
 		}
 	}
 	return blockCounter, dataCounter
 }
 
+// isMIFContainer reports whether tag is a structural MIF wrapper that
+// the reader walks through to find Para children. Kept in one place so
+// processContainer (emit-side) and findStringPositions (skeleton-ref
+// side) stay in lock-step — drift between the two manifests as a
+// blockIdx misalignment that scrambles translated output across String
+// slots.
+func isMIFContainer(tag string) bool {
+	switch tag {
+	case "TextFlow", "Notes", "Tbls", "Tbl",
+		"TblBody", "TblH", "TblF",
+		"TblTitle", "TblTitleContent",
+		"Row", "Cell", "CellContent",
+		"Footnote":
+		return true
+	}
+	return false
+}
+
 // extractParaText extracts translatable text from a Para statement.
-// This standalone version always treats hard returns as text (used by findStringPositions
-// and collectTranslatableParas where config doesn't affect presence/absence of text).
+// This standalone version always treats hard returns as text (used by
+// findStringPositions where config doesn't affect presence/absence of
+// text).
 func extractParaText(para *mifStatement) string {
 	return extractParaTextImpl(para, true)
 }
@@ -428,24 +632,58 @@ func extractParaTextImpl(para *mifStatement, hardReturnsAsText bool) string {
 
 // parseMIF parses a MIF document into a list of top-level statements.
 //
-// MIF lines come in three flavours:
-//   - whole-line comment: a line whose first non-space char is `#`
-//     ("# Options:", "# end of Color"); always trailing on a `>` line too
-//     (e.g. " > # end of Color")
-//   - single-line statement: "<TagName value>" optionally followed by
-//     a "# trailing comment" (e.g. "<MIFFile 9.00> # Generated by FrameMaker")
-//   - multi-line container: opens with "<TagName" and closes on a later
-//     line whose first non-space char is `>` (followed by an optional
-//     "# end of TagName" comment)
+// MIF lines come in three shapes:
 //
-// The lexer here is line-oriented — it handles all three cases by
-// trimming the trailing "# ..." comment before classifying the line.
+//  1. Single-line statement: <Tag value>            (closes on same line)
+//  2. Single-line with comment: <Tag value> # comment
+//  3. Multi-line opener: <Tag                       (children follow)
+//
+// The closer for (3) is a `>` token, optionally followed by `#` comment
+// text on the same line. The parser must recognise both the inline `>`
+// in (1)/(2) and the closer-with-comment so containers like
+// VariableFormats / VariableFormat actually pop the stack.
 func parseMIF(content string) []*mifStatement {
 	scanner := bufio.NewScanner(strings.NewReader(content))
 	scanner.Buffer(make([]byte, 1024*1024), 1024*1024)
 	var stmts []*mifStatement
 	var stack []*mifStatement
 	var rawBuilder strings.Builder
+
+	popStack := func(line string) {
+		if len(stack) == 0 {
+			return
+		}
+		current := stack[len(stack)-1]
+		current.raw += line + "\n"
+		stack = stack[:len(stack)-1]
+		if len(stack) > 0 {
+			parent := stack[len(stack)-1]
+			parent.children = append(parent.children, current)
+			parent.raw += current.raw
+		} else {
+			stmts = append(stmts, current)
+		}
+	}
+
+	pushSingleLine := func(line, tagSrc string) {
+		// tagSrc is the in-tag content WITHOUT surrounding `<` `>`,
+		// i.e. just `Tag value` or `Tag` — used to derive tag/value.
+		tag, after, hasVal := strings.Cut(tagSrc, " ")
+		stmt := &mifStatement{
+			tag: tag,
+			raw: line + "\n",
+		}
+		if hasVal {
+			stmt.value = unquoteMIF(after)
+		}
+		if len(stack) > 0 {
+			parent := stack[len(stack)-1]
+			parent.children = append(parent.children, stmt)
+			parent.raw += line + "\n"
+		} else {
+			stmts = append(stmts, stmt)
+		}
+	}
 
 	for scanner.Scan() {
 		line := scanner.Text()
@@ -455,76 +693,29 @@ func parseMIF(content string) []*mifStatement {
 			continue
 		}
 
-		// Whole-line comment ("# Options:", "# End of MIFFile") —
-		// preserved as raw on the surrounding context but has no
-		// structural meaning.
-		if strings.HasPrefix(trimmed, "#") {
-			if len(stack) > 0 {
-				stack[len(stack)-1].raw += line + "\n"
-			} else {
-				rawBuilder.WriteString(line + "\n")
-			}
+		// Closer line: `>` possibly followed by `# comment`.
+		if isCloserLine(trimmed) {
+			popStack(line)
 			continue
 		}
 
-		// Strip a trailing "# comment" from the structural part before
-		// classifying. MIF allows trailing comments after `>` on close
-		// lines (" > # end of Color") and after the closing `>` of a
-		// single-line statement ("<MIFFile 9.00> # Generated by …").
-		structural := stripTrailingComment(trimmed)
-
-		if structural == ">" {
-			// End of current statement.
-			if len(stack) > 0 {
-				current := stack[len(stack)-1]
-				current.raw += line + "\n"
-				stack = stack[:len(stack)-1]
-				if len(stack) > 0 {
-					parent := stack[len(stack)-1]
-					parent.children = append(parent.children, current)
-					parent.raw += current.raw
-				} else {
-					stmts = append(stmts, current)
-				}
+		if strings.HasPrefix(trimmed, "<") {
+			// Find the unescaped `>` that closes the tag (if any) on
+			// this line. This handles `<Tag value>` and
+			// `<Tag value> # comment` uniformly.
+			if closeIdx := findInlineClose(trimmed); closeIdx >= 0 {
+				inner := trimmed[1:closeIdx]
+				pushSingleLine(line, inner)
+				continue
 			}
-			continue
-		}
 
-		if strings.HasPrefix(structural, "<") {
-			// Start of a new statement.
-			tag, value := parseTagLine(structural)
+			// Multi-line opener: tag spans lines, children follow.
+			tag, value := parseTagLine(trimmed)
 			stmt := &mifStatement{
 				tag:   tag,
 				value: value,
 				raw:   line + "\n",
 			}
-
-			// Check if this is a single-line statement (ends with >).
-			// Heuristic: MIF closes a single-line statement with a `>`
-			// at the end of the structural part. The earlier
-			// `!strings.HasSuffix(structural, " >")` guard preserved
-			// the multi-line opener case where the opening `<Tag` line
-			// has no value and no children on the same line — but real
-			// MIF never opens a container that way; container openers
-			// look like "<TagName" (no trailing `>`) or "<TagName ".
-			// Treat any trimmed-line ending in `>` as single-line.
-			if strings.HasSuffix(structural, ">") {
-				inner := structural[1 : len(structural)-1] // remove < and >
-				tag, after, hasVal := strings.Cut(inner, " ")
-				stmt.tag = tag
-				if hasVal {
-					stmt.value = unquoteMIF(after)
-				}
-				if len(stack) > 0 {
-					parent := stack[len(stack)-1]
-					parent.children = append(parent.children, stmt)
-					parent.raw += line + "\n"
-				} else {
-					stmts = append(stmts, stmt)
-				}
-				continue
-			}
-
 			stack = append(stack, stmt)
 			continue
 		}
@@ -537,7 +728,8 @@ func parseMIF(content string) []*mifStatement {
 		}
 	}
 
-	// Flush any unclosed statements.
+	// Flush any unclosed statements (defensive — a well-formed MIF will
+	// have already popped them above).
 	for len(stack) > 0 {
 		current := stack[len(stack)-1]
 		stack = stack[:len(stack)-1]
@@ -551,6 +743,69 @@ func parseMIF(content string) []*mifStatement {
 	}
 
 	return stmts
+}
+
+// isCloserLine reports whether trimmed is a stack-closer line. The
+// canonical form is `>` alone or `> # ...comment`.
+func isCloserLine(trimmed string) bool {
+	if trimmed == ">" {
+		return true
+	}
+	if !strings.HasPrefix(trimmed, ">") {
+		return false
+	}
+	rest := strings.TrimSpace(trimmed[1:])
+	return strings.HasPrefix(rest, "#")
+}
+
+// findInlineClose returns the index of the `>` that closes a tag on a
+// `<Tag …>` line, or -1 when the tag continues on subsequent lines. The
+// `>` is recognised when:
+//   - it is unescaped (preceding rune is not `\`)
+//   - it sits at end-of-line (with optional trailing whitespace) OR is
+//     followed by `# …` comment text on the same line
+//
+// String-literal regions (`…'`) are skipped so a `>` inside a backtick-
+// quoted MIF value (e.g. `<VariableDef '<$daynum\>'>`) doesn't mis-close
+// the tag. MIF escapes inline `>` inside such strings as `\>`, so we
+// also bail past `\>` defensively.
+func findInlineClose(s string) int {
+	inString := false
+	for i := 1; i < len(s); i++ {
+		c := s[i]
+		// Track entry/exit of MIF string literals: opens on `\``, closes
+		// on `'`. The opening backtick is never escaped.
+		if !inString && c == '`' {
+			inString = true
+			continue
+		}
+		if inString && c == '\'' {
+			// Backslash-escaped quote stays inside the string.
+			if i > 0 && s[i-1] == '\\' {
+				continue
+			}
+			inString = false
+			continue
+		}
+		if inString {
+			continue
+		}
+		if c != '>' {
+			continue
+		}
+		// Backslash-escaped `>` is not a closer.
+		if i > 0 && s[i-1] == '\\' {
+			continue
+		}
+		// What follows? Whitespace+EOL or whitespace+`#` is a real
+		// closer; anything else (an alphanumeric run, etc.) means the
+		// `>` is a literal and we keep scanning.
+		rest := strings.TrimLeft(s[i+1:], " \t")
+		if rest == "" || strings.HasPrefix(rest, "#") {
+			return i
+		}
+	}
+	return -1
 }
 
 // parseTagLine parses a MIF line like "<TagName value" or "<TagName".
@@ -569,43 +824,59 @@ func parseTagLine(line string) (string, string) {
 	return tag, value
 }
 
-// stripTrailingComment trims a trailing "# …" MIF inline comment from a
-// structural line, taking care to ignore `#` characters inside backtick-
-// quoted string values (e.g. `<String `width: #ffffff'>`). Returns the
-// structural prefix with trailing whitespace removed.
-func stripTrailingComment(s string) string {
-	inQuote := false
-	for i := 0; i < len(s); i++ {
-		c := s[i]
-		switch c {
-		case '`':
-			inQuote = true
-		case '\'':
-			if inQuote {
-				inQuote = false
-			}
-		case '\\':
-			// Skip escaped char inside or outside quotes — handles
-			// "\\`" / "\\'" / "\\>" sequences emitted by MIFEncoder.
-			if i+1 < len(s) {
-				i++
-			}
-		case '#':
-			if !inQuote {
-				return strings.TrimRight(s[:i], " \t")
-			}
-		}
-	}
-	return s
-}
-
-// unquoteMIF removes MIF backtick-single-quote delimiters from a string value.
+// unquoteMIF strips the MIF backtick…quote delimiters and decodes the
+// in-string escapes (`\>` → `>`, `\\` → `\`, `\t` → tab, `\n` →
+// newline, `\\` → `\`, `\q` → `'`, `\Q` → `` ` ``). The writer's
+// escapeMIF re-encodes the same set on output, so values round-trip
+// faithfully when no translation transforms them.
 func unquoteMIF(s string) string {
 	s = strings.TrimSpace(s)
 	if len(s) >= 2 && s[0] == '`' && s[len(s)-1] == '\'' {
-		return s[1 : len(s)-1]
+		s = s[1 : len(s)-1]
 	}
-	return s
+	return unescapeMIFString(s)
+}
+
+// unescapeMIFString decodes the in-string MIF escape sequences. The
+// inverse of escapeMIF in writer.go. Anything outside the recognised
+// set passes through verbatim — robust against partial sequences in
+// hand-written fixtures.
+func unescapeMIFString(s string) string {
+	if !strings.ContainsRune(s, '\\') {
+		return s
+	}
+	var b strings.Builder
+	b.Grow(len(s))
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		if c != '\\' || i+1 >= len(s) {
+			b.WriteByte(c)
+			continue
+		}
+		next := s[i+1]
+		switch next {
+		case '\\', '`', '\'', '>':
+			b.WriteByte(next)
+			i++
+		case 't':
+			b.WriteByte('\t')
+			i++
+		case 'n':
+			b.WriteByte('\n')
+			i++
+		case 'q':
+			b.WriteByte('\'')
+			i++
+		case 'Q':
+			b.WriteByte('`')
+			i++
+		default:
+			// Unknown escape — keep both bytes so encoder/decoder
+			// round-trip remains lossless.
+			b.WriteByte(c)
+		}
+	}
+	return b.String()
 }
 
 // skelText appends text to the skeleton buffer if active.

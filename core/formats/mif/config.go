@@ -2,6 +2,7 @@ package mif
 
 import (
 	"fmt"
+	"regexp"
 
 	"github.com/neokapi/neokapi/core/config"
 )
@@ -59,6 +60,30 @@ type Config struct {
 
 	// CodeFinderRules defines regex patterns for detecting inline codes.
 	CodeFinderRules []string
+
+	// compiledCodeFinder caches the regex.Compile result so repeated
+	// reader calls don't re-parse the rules. Reset() clears it.
+	compiledCodeFinder []*regexp.Regexp
+}
+
+// GetCodeFinderPatterns returns the compiled regex patterns when
+// UseCodeFinder is on, lazily building (and caching) them on first
+// call. Patterns that fail to compile are skipped silently — matching
+// the behaviour of other format readers (po/markdown).
+func (c *Config) GetCodeFinderPatterns() []*regexp.Regexp {
+	if c.compiledCodeFinder != nil {
+		return c.compiledCodeFinder
+	}
+	if !c.UseCodeFinder || len(c.CodeFinderRules) == 0 {
+		return nil
+	}
+	for _, pattern := range c.CodeFinderRules {
+		re, err := regexp.Compile(pattern)
+		if err == nil {
+			c.compiledCodeFinder = append(c.compiledCodeFinder, re)
+		}
+	}
+	return c.compiledCodeFinder
 }
 
 // FormatName returns the format this config applies to.
@@ -166,12 +191,14 @@ func (c *Config) ApplyMap(values map[string]any) error {
 				return fmt.Errorf("useCodeFinder: expected bool, got %T", val)
 			}
 			c.UseCodeFinder = b
+			c.compiledCodeFinder = nil
 		case "codeFinderRules":
 			rules, err := parseCodeFinderRules(val)
 			if err != nil {
 				return fmt.Errorf("codeFinderRules: %w", err)
 			}
 			c.CodeFinderRules = rules
+			c.compiledCodeFinder = nil
 		default:
 			return fmt.Errorf("mif: unknown parameter: %s", key)
 		}

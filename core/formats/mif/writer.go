@@ -7,7 +7,6 @@ import (
 	"io"
 	"strconv"
 	"strings"
-	"unicode/utf8"
 
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
@@ -110,10 +109,11 @@ func (w *Writer) writeFromSkeleton() error {
 			}
 
 			block := w.blocks[blockIdx]
-			text := block.SourceText()
+			segs := block.Source
 			if !w.Locale.IsEmpty() && block.HasTarget(w.Locale) {
-				text = block.TargetText(w.Locale)
+				segs = block.Targets[w.Locale]
 			}
+			text := renderSegments(segs)
 
 			// For skeleton roundtrip, each String in the para is a separate ref.
 			// If this is the only string (stringIdx==0 and it's the full text),
@@ -213,36 +213,51 @@ func (w *Writer) writeData(part *model.Part) error {
 	return nil
 }
 
-// escapeMIF escapes special characters for MIF string values. Non-ASCII
-// runes are written in UTF-8 (which mirrors what okapi-bridge emits for
-// the parity test target locale fr-FR; declared-encoding fidelity for
-// FrameRoman / shift-jis fixtures is tracked under the encoding cluster
-// in PARITY_NOTES.md).
+// renderSegments concatenates the rendered text of each segment using
+// RenderRunsWithData so inline-code Ph runs emit their captured
+// literal. Used by writeFromSkeleton to fill String/VariableDef refs
+// without losing the FrameMaker building blocks the reader extracted
+// via the CodeFinder.
+func renderSegments(segs []*model.Segment) string {
+	var sb strings.Builder
+	for _, seg := range segs {
+		if seg == nil {
+			continue
+		}
+		sb.WriteString(model.RenderRunsWithData(seg.Runs))
+	}
+	return sb.String()
+}
+
+// escapeMIF escapes special characters for MIF string values.
+//
+// The default branch must emit each rune as its UTF-8 byte sequence,
+// not a single byte cast — `byte(r)` truncates any rune above U+00FF
+// (e.g. pseudo-translated `ĺ` 0x013A → 0x3A = ':') and produces silent
+// data corruption. Use a string append so the runtime writes the full
+// UTF-8 encoding.
 func escapeMIF(s string) string {
-	var out []byte
+	var out strings.Builder
+	out.Grow(len(s))
 	for _, r := range s {
 		switch r {
 		case '`':
-			out = append(out, '\\', '`')
+			out.WriteString("\\`")
 		case '\'':
-			out = append(out, '\\', '\'')
+			out.WriteString("\\'")
 		case '\\':
-			out = append(out, '\\', '\\')
+			out.WriteString("\\\\")
 		case '>':
-			out = append(out, '\\', '>')
+			out.WriteString("\\>")
 		case '\t':
-			out = append(out, '\\', 't')
+			out.WriteString("\\t")
 		case '\n':
 			// Newlines in MIF strings should be represented with Char HardReturn.
 			// For simplicity, we keep the newline in the string.
-			out = append(out, '\\', 'n')
+			out.WriteString("\\n")
 		default:
-			if r < 128 {
-				out = append(out, byte(r))
-			} else {
-				out = utf8.AppendRune(out, r)
-			}
+			out.WriteRune(r)
 		}
 	}
-	return string(out)
+	return out.String()
 }
