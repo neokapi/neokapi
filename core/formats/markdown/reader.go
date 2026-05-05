@@ -747,7 +747,437 @@ func (r *Reader) emitHeading(ctx context.Context, ch chan<- model.PartResult, n 
 	r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
 }
 
+// admonitionHeaderRE matches a MkDocs/Material admonition opener:
+//
+//	!!! type
+//	!!! type "Title"
+//	??? type "Title"        (collapsible variant)
+//	???+ type "Title"       (collapsible, open-by-default)
+//
+// Group 1 is the marker (`!!!`, `???`, `???+`). Group 2 is the type
+// keyword (`note`, `danger`, `tip`, …). Group 3 (when present) is the
+// quoted title — the inner-quote group `4` carries its content.
+//
+// Mirrors okapi MarkdownParser's admonition recognition: when the line
+// has a non-empty quoted title, the keyword stays as skeleton bytes and
+// the title is the translatable atom; when there's no title, the keyword
+// itself becomes translatable; when the title is `""` the whole header
+// line is skeleton.
+var admonitionHeaderRE = regexp.MustCompile(`^(!!!|\?\?\?\+?)[ \t]+([A-Za-z][A-Za-z0-9_-]*)([ \t]+"([^"]*)")?[ \t]*$`)
+
+// docusaurusAdmonRE matches a Docusaurus-style `:::keyword` line, with
+// or without trailing inline title text.
+//
+//	:::note
+//	:::note Some title text
+//	:::                       (closing marker)
+//
+// Group 1 is the keyword (when present). Group 2 (when present) is the
+// trailing title text — extracted as a translatable atom; the keyword
+// itself stays as skeleton.
+var docusaurusAdmonRE = regexp.MustCompile(`^:::([A-Za-z][A-Za-z0-9_-]*)?(?:[ \t]+(.+))?[ \t]*$`)
+
+// admonitionBodyGaps returns the per-line goldmark-stripped indent of
+// each body line (line 1 onwards). The slice's length is lines.Len()-1
+// — entry i is the indent of body line i+1 in the paragraph. Lines for
+// which the gap can't be reconstructed are omitted (returns nil).
+func admonitionBodyGaps(n ast.Node, source []byte) []string {
+	lines := n.Lines()
+	if lines.Len() < 2 {
+		return nil
+	}
+	out := make([]string, 0, lines.Len()-1)
+	for i := 0; i < lines.Len()-1; i++ {
+		curStop := lines.At(i).Stop
+		nextStart := lines.At(i + 1).Start
+		if curStop > nextStart || nextStart > len(source) {
+			return nil
+		}
+		gap := source[curStop:nextStart]
+		if len(gap) > 0 && gap[0] == '\n' {
+			gap = gap[1:]
+		}
+		out = append(out, string(gap))
+	}
+	return out
+}
+
+// commonLeadingSpaces returns the longest run of leading whitespace
+// (' ' or '\t') shared by every string in xs. Returns "" on an empty
+// input or when any string has no leading whitespace.
+func commonLeadingSpaces(xs []string) string {
+	if len(xs) == 0 {
+		return ""
+	}
+	min := xs[0]
+	for _, s := range xs[1:] {
+		// Walk both strings byte-by-byte; stop at the first divergence
+		// or first non-whitespace character.
+		i := 0
+		for i < len(min) && i < len(s) && min[i] == s[i] && (min[i] == ' ' || min[i] == '\t') {
+			i++
+		}
+		min = min[:i]
+		if min == "" {
+			return ""
+		}
+	}
+	// Trim any trailing non-whitespace bytes from min (defensive — the
+	// loop already guarantees this, but keeps the function correct in
+	// the single-element case).
+	end := len(min)
+	for end > 0 && min[end-1] != ' ' && min[end-1] != '\t' {
+		end--
+	}
+	return min[:end]
+}
+
+// emitAdmonition handles a `!!! type "Title"` (or `??? type "Title"`)
+// admonition opener that goldmark parsed as a single Paragraph. The
+// header line (line 0) is split into skeleton + translatable atoms per
+// the rules described on admonitionHeaderRE. The body lines (line 1+)
+// are re-emitted as a continuation paragraph block whose per-line
+// prefix matches the body's indentation, so the writer round-trips
+// the indented body verbatim.
+//
+// Returns true when the paragraph was recognised and emitted as an
+// admonition; false leaves the paragraph for the regular emitParagraph
+// path.
+func (r *Reader) emitAdmonition(ctx context.Context, ch chan<- model.PartResult, n *ast.Paragraph, source []byte, baseOffset int) bool {
+	lines := n.Lines()
+	if lines.Len() == 0 {
+		return false
+	}
+	first := lines.At(0)
+	headerLine := source[first.Start:first.Stop]
+	// Trim a trailing LF before regex matching — the regex expects a
+	// "single line" with no terminator.
+	headerNoLF := bytes.TrimRight(headerLine, "\n")
+	m := admonitionHeaderRE.FindSubmatch(headerNoLF)
+	if m == nil {
+		return false
+	}
+	marker := string(m[1])  // !!!, ???, ???+
+	keyword := string(m[2]) // note, danger, …
+	hasTitleGroup := len(m[3]) > 0
+	title := ""
+	if len(m[4]) > 0 {
+		title = string(m[4])
+	}
+
+	headerAbsStart := first.Start + baseOffset
+	headerAbsEnd := first.Stop + baseOffset
+
+	r.skelEmitGap(headerAbsStart)
+
+	// Header skeleton + translatable atoms.
+	switch {
+	case hasTitleGroup && title != "":
+		// `!!! type "Title"` → keyword is skeleton, title translates.
+		r.skelText(marker + " " + keyword + ` "`)
+		r.blockCounter++
+		blockID := fmt.Sprintf("tu%d", r.blockCounter)
+		block := model.NewBlock(blockID, title)
+		block.Name = fmt.Sprintf("admon-title%d", r.blockCounter)
+		block.Type = "admonition-title"
+		r.skelRef(blockID)
+		r.skelText(`"`)
+		r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
+
+	case hasTitleGroup && title == "":
+		// `!!! type ""` → entire header line is skeleton.
+		r.skelText(string(headerNoLF))
+
+	default:
+		// `!!! type` (no title) → keyword itself is the translatable atom.
+		r.skelText(marker + " ")
+		r.blockCounter++
+		blockID := fmt.Sprintf("tu%d", r.blockCounter)
+		block := model.NewBlock(blockID, keyword)
+		block.Name = fmt.Sprintf("admon-keyword%d", r.blockCounter)
+		block.Type = "admonition-keyword"
+		r.skelRef(blockID)
+		r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
+	}
+
+	// Trailing LF of the header line, if any.
+	if first.Stop > first.Start && source[first.Stop-1] == '\n' {
+		r.skelText("\n")
+	}
+	r.skelCursor = headerAbsEnd
+
+	// Body lines: lines[1..N]. We emit one block carrying the body's
+	// inline text joined by literal LFs (matching emitParagraph's
+	// behaviour for soft line breaks), and stash the body indent as the
+	// per-line prefix so the writer re-emits each `\n` as `\n<indent>`.
+	if lines.Len() < 2 {
+		return true
+	}
+
+	gaps := admonitionBodyGaps(n, source)
+	bodyIndent := commonLeadingSpaces(gaps)
+	bodyAbsEnd := lines.At(lines.Len()-1).Stop + baseOffset
+
+	// Emit the body's leading indent (e.g. `    `) as skeleton — the
+	// writer re-emits it for line 2+ via the line-prefix property, but
+	// line 1's prefix has to come from the skeleton because
+	// BlockPropLinePrefix only fires AFTER each "\n" in the rendered
+	// block text.
+	if bodyIndent != "" {
+		r.skelText(bodyIndent)
+	}
+
+	r.blockCounter++
+	bodyID := fmt.Sprintf("tu%d", r.blockCounter)
+	bodyText, perLineExcess := r.extractAdmonitionBodyText(n, source, bodyIndent)
+	bodyBlock := model.NewBlock(bodyID, bodyText)
+	bodyBlock.Name = fmt.Sprintf("admon-body%d", r.blockCounter)
+	bodyBlock.Type = "admonition-body"
+	// Convert body text into runs so structural keywords inside the
+	// body — fenced-code language tags (`\`\`\` python`) and nested
+	// admonition keywords (`!!! danger`, `??? note`, `:::tip`) —
+	// become opaque inline placeholders. Without this they'd be
+	// pseudo-translated alongside ordinary prose, e.g. `python` →
+	// `ƥŷţĥōń`. Mirrors okapi MarkdownParser, which detects these
+	// constructs inside admonition bodies and excludes their tag
+	// fragments from translation.
+	if runs := admonitionBodyRuns(bodyText); runs != nil {
+		bodyBlock.Source = []*model.Segment{model.NewRunsSegment("s1", runs)}
+	}
+	// perLineExcess indicates whether any body line carries indent
+	// beyond the outer admonition indent. When every body line sits at
+	// exactly the outer indent we can rely on BlockPropLinePrefix alone
+	// to round-trip; otherwise the per-line excess is already embedded
+	// in bodyText so we must NOT also apply the outer prefix at write
+	// time (it would double up). Mirrors okapi MarkdownParser, which
+	// extracts each body line at its source column once the outer
+	// indent has been stripped.
+	if bodyIndent != "" && !perLineExcess {
+		bodyBlock.Properties[BlockPropLinePrefix] = bodyIndent
+	}
+	r.skelRef(bodyID)
+	r.skelCursor = bodyAbsEnd
+
+	r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: bodyBlock})
+	return true
+}
+
+// admonitionBodyKeywordRE matches structural keyword patterns inside
+// an admonition body that must NOT be pseudo-translated:
+//
+//	!!! note         (any !!!/??? admonition opener; group 1 is the keyword)
+//	??? danger
+//	``` python       (fenced-code-block info string; group 1 is the language)
+//	~~~ go
+//	:::tip           (Docusaurus admonition opener)
+//
+// The whole match — marker + space + keyword — is treated as one
+// opaque placeholder so the writer renders the bytes verbatim through
+// pseudo-translation. The marker (group 0 prefix) and keyword (group
+// 1 capture) round-trip together to keep the construct recognisable.
+var admonitionBodyKeywordRE = regexp.MustCompile(`(?:!!!\+?|\?\?\?\+?|\x60{3,}|~{3,}|:::)[ \t]*[A-Za-z][A-Za-z0-9_-]*`)
+
+// admonitionBodyRuns returns a Run sequence for the given admonition
+// body text where structural keyword patterns (see
+// admonitionBodyKeywordRE) are emitted as opaque placeholders. Returns
+// nil when the body text contains no keyword patterns — the caller
+// then keeps the default plain-text segment NewBlock provides.
+func admonitionBodyRuns(text string) []model.Run {
+	matches := admonitionBodyKeywordRE.FindAllStringIndex(text, -1)
+	if len(matches) == 0 {
+		return nil
+	}
+	b := newRunBuilder()
+	id := 0
+	pos := 0
+	for _, m := range matches {
+		start, end := m[0], m[1]
+		if start > pos {
+			b.AddText(text[pos:start])
+		}
+		id++
+		b.AddPh(
+			fmt.Sprintf("%d", id),
+			"code:keyword",
+			"md:admon-keyword",
+			text[start:end],
+			"", "",
+			false, false, false,
+		)
+		pos = end
+	}
+	if pos < len(text) {
+		b.AddText(text[pos:])
+	}
+	return b.Runs()
+}
+
+// admonitionBodyStructuralMarkerRE matches a body line whose
+// (post-outerIndent-strip) content begins with a structural marker:
+// fenced-code fence (`\`\`\``, `~~~`), nested admonition opener
+// (`!!!`, `???`), or Docusaurus marker (`:::`). Lines that match are
+// NOT joined into the preceding paragraph for indent-doubling purposes
+// — they belong to a separate inner block in okapi's sub-parsed view.
+var admonitionBodyStructuralMarkerRE = regexp.MustCompile(`^(?:\x60{3,}|~{3,}|!!!\+?|\?\?\?\+?|:::)`)
+
+// extractAdmonitionBodyText returns the body's text content plus a
+// flag indicating whether any body line had indent beyond outerIndent.
+//
+// Two strategies depending on the body shape:
+//
+//   - When every body line sits at exactly outerIndent (the simple case
+//     for plain-text admonition bodies), the returned text contains
+//     just the line content joined with `\n` — the writer re-applies
+//     outerIndent on every newline via BlockPropLinePrefix, so the
+//     round-trip recovers the original 4-space indent.
+//
+//   - When some body lines have extra indent (e.g. an inner code block
+//     at 8 spaces, or a nested admonition), the returned text embeds
+//     the *full* per-line indent verbatim (including outerIndent on
+//     every continuation line). The caller must then NOT set
+//     BlockPropLinePrefix — doing so would double-apply outerIndent.
+//
+// Within the second strategy we additionally double the gap of
+// "intra-paragraph soft break" pairs — adjacent body lines that both
+// sit at outerIndent and don't begin a structural marker. This
+// mirrors okapi MarkdownParser, which sub-parses the body and lets
+// the writer apply outerIndent twice to such continuation lines (once
+// from the per-line gap stored in the TextUnit, once from the writer's
+// line-prefix pass).
+//
+// The hasExcess return flag lets the caller make that choice.
+func (r *Reader) extractAdmonitionBodyText(n ast.Node, source []byte, outerIndent string) (text string, hasExcess bool) {
+	lines := n.Lines()
+	if lines.Len() < 2 {
+		return "", false
+	}
+	gaps := admonitionBodyGaps(n, source)
+
+	// Decide strategy: if any gap exceeds outerIndent, embed full gaps.
+	for _, g := range gaps {
+		if g != outerIndent {
+			hasExcess = true
+			break
+		}
+	}
+
+	// Pre-compute each line's structural-marker status (after stripping
+	// outerIndent) so the join loop below can decide whether to double
+	// an intra-paragraph gap or keep it verbatim.
+	isStructural := make([]bool, lines.Len())
+	for i := 0; i < lines.Len(); i++ {
+		line := lines.At(i)
+		segment := bytes.TrimRight(source[line.Start:line.Stop], "\n")
+		// Strip outerIndent from the content's leading whitespace —
+		// some lines (code-block content with extra indent) won't have
+		// outerIndent stripped already (gap > outerIndent), but for
+		// goldmark the line.Start already points past outerIndent for
+		// every body line, so we treat the segment directly.
+		isStructural[i] = admonitionBodyStructuralMarkerRE.Match(segment)
+	}
+
+	var buf strings.Builder
+	for i := 1; i < lines.Len(); i++ {
+		if i > 1 {
+			buf.WriteByte('\n')
+			gapIdx := i - 1
+			if hasExcess && gapIdx < len(gaps) {
+				gap := gaps[gapIdx]
+				// Intra-paragraph soft break: prev and current lines
+				// are both plain prose (no structural markers). Double
+				// the gap by emitting outerIndent + gap so the writer's
+				// line-prefix pass produces (outer + per-line) total
+				// indent on writeback. Mirrors okapi's sub-parser
+				// behaviour for continuation lines.
+				if !isStructural[i-1] && !isStructural[i] && gap == outerIndent {
+					buf.WriteString(outerIndent)
+				}
+				buf.WriteString(gap)
+			}
+		}
+		line := lines.At(i)
+		segment := source[line.Start:line.Stop]
+		segment = bytes.TrimRight(segment, "\n")
+		buf.Write(segment)
+	}
+	text = buf.String()
+	return text, hasExcess
+}
+
+// emitDocusaurusAdmonition handles a single-line `:::keyword [title]`
+// (or bare `:::` closer) that goldmark parsed as a one-line paragraph.
+// Returns true when the paragraph was recognised and emitted as a
+// Docusaurus admonition marker; false leaves it for emitParagraph.
+//
+// Match rules:
+//
+//	:::            → entire line is skeleton (closing marker)
+//	:::tip         → entire line is skeleton (opening marker, no inline title)
+//	:::note Title  → `:::note ` is skeleton, `Title` is the translatable atom
+func (r *Reader) emitDocusaurusAdmonition(ctx context.Context, ch chan<- model.PartResult, n *ast.Paragraph, source []byte, baseOffset int) bool {
+	lines := n.Lines()
+	if lines.Len() != 1 {
+		return false
+	}
+	first := lines.At(0)
+	lineBytes := source[first.Start:first.Stop]
+	lineNoLF := bytes.TrimRight(lineBytes, "\n")
+	if !bytes.HasPrefix(lineNoLF, []byte(":::")) {
+		return false
+	}
+	m := docusaurusAdmonRE.FindSubmatch(lineNoLF)
+	if m == nil {
+		return false
+	}
+
+	absStart := first.Start + baseOffset
+	absEnd := first.Stop + baseOffset
+	r.skelEmitGap(absStart)
+
+	keyword := string(m[1]) // may be ""
+	tail := strings.TrimSpace(string(m[2]))
+
+	if tail == "" {
+		// `:::` or `:::keyword` with no inline title — entire line is
+		// skeleton, no translatable atom.
+		r.skelText(string(lineNoLF))
+	} else {
+		// `:::keyword Title` — keyword + space is skeleton, title is
+		// the translatable atom.
+		r.skelText(":::" + keyword + " ")
+		r.blockCounter++
+		blockID := fmt.Sprintf("tu%d", r.blockCounter)
+		block := model.NewBlock(blockID, tail)
+		block.Name = fmt.Sprintf("docu-admon-title%d", r.blockCounter)
+		block.Type = "docusaurus-admonition-title"
+		r.skelRef(blockID)
+		r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
+	}
+
+	// Trailing LF of the line, if any.
+	if first.Stop > first.Start && source[first.Stop-1] == '\n' {
+		r.skelText("\n")
+	}
+	r.skelCursor = absEnd
+	return true
+}
+
 func (r *Reader) emitParagraph(ctx context.Context, ch chan<- model.PartResult, n *ast.Paragraph, source []byte, baseOffset int) {
+	// MkDocs/Material `!!! type "Title"` and `??? type "Title"` opener
+	// (with body indented underneath) is a single goldmark Paragraph
+	// because admonition syntax isn't part of CommonMark. Detect and
+	// route to emitAdmonition so the keyword stays as skeleton and the
+	// title + body extract as separate translatable atoms — mirrors
+	// okapi MarkdownParser's admonition handling.
+	if r.emitAdmonition(ctx, ch, n, source, baseOffset) {
+		return
+	}
+	// Docusaurus `:::note [Title]` (and the bare `:::` closer) is a
+	// single-line paragraph in goldmark — same routing.
+	if r.emitDocusaurusAdmonition(ctx, ch, n, source, baseOffset) {
+		return
+	}
+
 	r.blockCounter++
 	blockID := fmt.Sprintf("tu%d", r.blockCounter)
 	textContent := r.extractInlineText(n, source)
