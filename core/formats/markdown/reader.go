@@ -776,7 +776,14 @@ func (r *Reader) emitParagraph(ctx context.Context, ch chan<- model.PartResult, 
 }
 
 func (r *Reader) emitListItem(ctx context.Context, ch chan<- model.PartResult, n *ast.ListItem, source []byte, baseOffset int) {
-	// Check for nested blocks
+	// Check for nested blocks (sublists, code blocks, HTML blocks).
+	// When present, the list item carries both leading inline text
+	// (a TextBlock or Paragraph) and one or more nested block-level
+	// children. We must still extract the leading inline text as its
+	// own translatable block — otherwise "- item two\n  - sublist"
+	// loses the "item two" translation. Mirrors okapi
+	// MarkdownParser.visitListItem, which emits the inline header line
+	// before recursing into nested children.
 	hasNestedBlocks := false
 	for child := n.FirstChild(); child != nil; child = child.NextSibling() {
 		switch child.(type) {
@@ -786,7 +793,7 @@ func (r *Reader) emitListItem(ctx context.Context, ch chan<- model.PartResult, n
 	}
 
 	if hasNestedBlocks {
-		r.walkNode(ctx, ch, n, source, baseOffset)
+		r.emitListItemMixed(ctx, ch, n, source, baseOffset)
 		return
 	}
 
@@ -829,6 +836,104 @@ func (r *Reader) emitListItem(ctx context.Context, ch chan<- model.PartResult, n
 	r.skelCursor = lineEnd
 
 	r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
+}
+
+// emitListItemMixed handles a list item whose body mixes a leading
+// inline text node (TextBlock/Paragraph) with one or more nested
+// block-level children (sublist, fenced code, HTML block, …). The
+// leading text becomes a list-item block in its own right (so the
+// translation lands on the marker line), and remaining children walk
+// through walkNode as siblings — that way nested sublists, code
+// blocks, etc. emit their own blocks with correct skeleton offsets.
+func (r *Reader) emitListItemMixed(ctx context.Context, ch chan<- model.PartResult, n *ast.ListItem, source []byte, baseOffset int) {
+	// Locate the leading inline node, if any. Nested children come
+	// after it — we walk them after emitting the header.
+	var headerNode ast.Node
+	first := n.FirstChild()
+	if first != nil {
+		switch first.(type) {
+		case *ast.Paragraph, *ast.TextBlock:
+			headerNode = first
+		}
+	}
+
+	if headerNode != nil {
+		r.blockCounter++
+		blockID := fmt.Sprintf("tu%d", r.blockCounter)
+		textContent := r.extractInlineText(headerNode, source)
+		block := model.NewBlock(blockID, textContent)
+		block.Name = fmt.Sprintf("item%d", r.blockCounter)
+		block.Type = "list-item"
+		r.addInlineRuns(block, headerNode, source)
+		if prefix := detectLinePrefix(headerNode, source); prefix != "" {
+			block.Properties[BlockPropLinePrefix] = prefix
+		}
+
+		// Use the header node's line range so we don't accidentally
+		// claim bytes belonging to the trailing nested children. Scan
+		// backward to capture the list marker prefix ("- ", "1. ").
+		lineStart, lineEnd := nodeAbsRange(headerNode, source, baseOffset)
+		absStart := lineStart
+		for absStart > 0 && r.source[absStart-1] != '\n' {
+			absStart--
+		}
+
+		r.skelEmitGap(absStart)
+		r.skelText(string(r.source[absStart:lineStart]))
+		r.skelRef(blockID)
+		r.skelCursor = lineEnd
+
+		r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
+	}
+
+	// Walk the remaining children. If we emitted a header, skip it on
+	// the recursion; otherwise walk all children. We can't reuse
+	// walkNode directly (it walks every child), so iterate manually
+	// and dispatch via the same switch.
+	for child := n.FirstChild(); child != nil; child = child.NextSibling() {
+		if child == headerNode {
+			continue
+		}
+		r.walkSingle(ctx, ch, child, source, baseOffset)
+	}
+}
+
+// walkSingle dispatches a single AST child through the same switch
+// walkNode uses. Extracted so emitListItemMixed can iterate the
+// children manually while skipping the header node it already emitted.
+func (r *Reader) walkSingle(ctx context.Context, ch chan<- model.PartResult, child ast.Node, source []byte, baseOffset int) {
+	switch n := child.(type) {
+	case *ast.Heading:
+		r.emitHeading(ctx, ch, n, source, baseOffset)
+	case *ast.Paragraph:
+		r.emitParagraph(ctx, ch, n, source, baseOffset)
+	case *ast.ListItem:
+		r.emitListItem(ctx, ch, n, source, baseOffset)
+	case *ast.FencedCodeBlock:
+		r.emitFencedCodeBlock(ctx, ch, n, source, baseOffset)
+	case *ast.CodeBlock:
+		r.emitIndentedCodeBlock(ctx, ch, n, source, baseOffset)
+	case *ast.HTMLBlock:
+		r.emitHTMLBlock(ctx, ch, n, source, baseOffset)
+	case *ast.ThematicBreak:
+		r.emitThematicBreak(ctx, ch, n, source, baseOffset)
+	case *ast.List:
+		r.walkNode(ctx, ch, child, source, baseOffset)
+	case *ast.Blockquote:
+		if r.cfg.TranslateBlockQuotes() {
+			r.walkNode(ctx, ch, child, source, baseOffset)
+		} else {
+			r.emitBlockquoteAsData(ctx, ch, n, source, baseOffset)
+		}
+	case *ast.LinkReferenceDefinition:
+		r.emitLinkReferenceDefinition(ctx, ch, n, source, baseOffset)
+	default:
+		if child.Kind() == east.KindTable {
+			r.emitTable(ctx, ch, child, source, baseOffset)
+		} else {
+			r.walkNode(ctx, ch, child, source, baseOffset)
+		}
+	}
 }
 
 func (r *Reader) emitFencedCodeBlock(ctx context.Context, ch chan<- model.PartResult, n *ast.FencedCodeBlock, source []byte, baseOffset int) {
