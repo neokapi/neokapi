@@ -1297,6 +1297,44 @@ func (r *Reader) emitListItem(ctx context.Context, ch chan<- model.PartResult, n
 		return
 	}
 
+	// Empty list items (e.g. a bare "5. " on its own line) have no
+	// inline children, so blockRange returns (0, 0) — using that as the
+	// skeleton position would reset skelCursor to 0 and cause the next
+	// emit to re-flush the entire document as skeleton text. There's
+	// nothing to translate either, so consume the marker line directly
+	// into skeleton text and advance the cursor. Trailing whitespace on
+	// the marker line is dropped to mirror okapi MarkdownFilterWriter,
+	// which strips the bare marker's trailing space on round-trip.
+	if n.FirstChild() == nil {
+		// Find the marker line: skip any blank lines from the cursor,
+		// then take the next line as the empty marker.
+		i := r.skelCursor
+		for i < len(r.source) && r.source[i] == '\n' {
+			i++
+		}
+		lineEnd := i
+		for lineEnd < len(r.source) && r.source[lineEnd] != '\n' {
+			lineEnd++
+		}
+		if i >= len(r.source) || lineEnd <= i {
+			return
+		}
+		// Emit pending blank lines as-is, then the trimmed marker, then
+		// the line terminator (stripping trailing whitespace mirrors
+		// okapi's MarkdownFilterWriter behaviour for empty markers).
+		if i > r.skelCursor {
+			r.skelText(string(r.source[r.skelCursor:i]))
+		}
+		trimmed := strings.TrimRight(string(r.source[i:lineEnd]), " \t")
+		r.skelText(trimmed)
+		if lineEnd < len(r.source) && r.source[lineEnd] == '\n' {
+			r.skelText("\n")
+			lineEnd++
+		}
+		r.skelCursor = lineEnd
+		return
+	}
+
 	r.blockCounter++
 	blockID := fmt.Sprintf("tu%d", r.blockCounter)
 	textContent := r.extractListItemText(n, source)
@@ -2073,6 +2111,14 @@ func referenceCloseMarker(ref *ast.ReferenceLink) string {
 func linkDestinationLiteral(dest []byte, source []byte) string {
 	d := string(dest)
 	if d == "" {
+		// Empty destination keeps its angle-wrapped form when the
+		// source authored `](<>)` — the bare `]()` form is a separate
+		// syntactic choice the parser collapses to the same empty
+		// string. Preserving the source's choice keeps round-trip
+		// faithfulness for placeholder/anchor links.
+		if bytes.Contains(source, []byte("](<>)")) {
+			return "<>"
+		}
 		return d
 	}
 	// Match the destination only in inline-link context: the `](<dest`
