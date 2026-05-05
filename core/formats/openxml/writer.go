@@ -7,11 +7,55 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"regexp"
 	"strings"
 
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
 )
+
+// wmlStrippableElementRE matches self-closing WordprocessingML elements
+// that the okapi reference filter strips during round-trip:
+//   - <w:lang .../>          (run-property language, also paragraph-rPr)
+//   - <w:bidiVisual .../>    (paragraph-property right-to-left visual hint)
+//
+// Both live under <w:rPr>/<w:pPr> and are skipped by okapi's
+// SkippableElements.Default(BLOCK_PROPERTY_BIDI_VISUAL,
+// RUN_PROPERTY_LANGUAGE) wired into BlockPropertiesFactory and
+// WordStyleDefinition.DocumentDefaults; preserving them in pass-through
+// XML parts is the dominant openxml writer parity gap.
+var wmlStrippableElementRE = regexp.MustCompile(`<w:(?:lang|bidiVisual)\b[^>]*/>`)
+
+// stripWMLSkippableElements removes <w:lang/> and <w:bidiVisual/> from an
+// XML part to mirror okapi's BlockProperties/RunProperties stripping.
+// Returns the original slice if no element was matched (cheap fast path).
+func stripWMLSkippableElements(data []byte) []byte {
+	if !bytes.Contains(data, []byte("<w:lang")) && !bytes.Contains(data, []byte("<w:bidiVisual")) {
+		return data
+	}
+	return wmlStrippableElementRE.ReplaceAll(data, nil)
+}
+
+// shouldStripWMLLang reports whether the given ZIP entry path is a
+// WordprocessingML XML part where okapi's lang/bidiVisual stripping
+// applies. Other parts (drawings, themes, settings.xml) are untouched.
+func shouldStripWMLLang(name string) bool {
+	if !strings.HasPrefix(name, "word/") || !strings.HasSuffix(name, ".xml") {
+		return false
+	}
+	switch {
+	case name == "word/document.xml",
+		name == "word/styles.xml",
+		name == "word/footnotes.xml",
+		name == "word/endnotes.xml",
+		name == "word/comments.xml":
+		return true
+	case strings.HasPrefix(name, "word/header") && strings.HasSuffix(name, ".xml"),
+		strings.HasPrefix(name, "word/footer") && strings.HasSuffix(name, ".xml"):
+		return true
+	}
+	return false
+}
 
 // Writer implements DataFormatWriter for OpenXML files.
 type Writer struct {
@@ -169,9 +213,13 @@ func (w *Writer) writeFromSkeleton(origZR *zip.Reader, zw *zip.Writer, buf *byte
 
 	// Write output ZIP: replace translatable parts with skeleton-reconstructed content,
 	// and substitute locale-variant media files (Bowrain AD-007).
+	isDOCX := info.docType == docTypeDOCX
 	for _, f := range origZR.File {
 		if content, ok := partContents[f.Name]; ok && len(content) > 0 {
 			// Replace with skeleton-reconstructed content
+			if isDOCX && shouldStripWMLLang(f.Name) {
+				content = stripWMLSkippableElements(content)
+			}
 			fh := f.FileHeader
 			fh.Method = zip.Deflate
 			// Clear data descriptor fields to avoid checksum issues
@@ -197,6 +245,27 @@ func (w *Writer) writeFromSkeleton(origZR *zip.Reader, zw *zip.Writer, buf *byte
 				return err
 			}
 			if _, err := fw.Write(replacement); err != nil {
+				return err
+			}
+		} else if isDOCX && shouldStripWMLLang(f.Name) {
+			// Pass-through WordprocessingML part (e.g. word/styles.xml)
+			// that needs okapi-style lang/bidiVisual stripping. Read,
+			// transform, re-emit with a recompressed header.
+			data, err := readZipFile(f)
+			if err != nil {
+				return err
+			}
+			data = stripWMLSkippableElements(data)
+			fh := f.FileHeader
+			fh.Method = zip.Deflate
+			fh.CompressedSize64 = 0
+			fh.UncompressedSize64 = 0
+			fh.CRC32 = 0
+			fw, err := zw.CreateHeader(&fh)
+			if err != nil {
+				return err
+			}
+			if _, err := fw.Write(data); err != nil {
 				return err
 			}
 		} else {
