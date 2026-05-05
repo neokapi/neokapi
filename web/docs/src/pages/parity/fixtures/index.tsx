@@ -172,6 +172,27 @@ function parseDiffReason(reason: string): ParsedDiff {
   return out;
 }
 
+// unescapeGoVisual reverses the Go %q escapes that exist purely as
+// quote-safety noise — `\"` and `\\` — so the dashboard shows the
+// actual file content. Newlines/tabs/control chars stay as `\n` /
+// `\t` / `\xNN` literals so a single-line layout is preserved
+// (otherwise the diff rows would break across the cell).
+function unescapeGoVisual(s: string): string {
+  let out = "";
+  for (let i = 0; i < s.length; i++) {
+    if (s[i] === "\\" && i + 1 < s.length) {
+      const n = s[i + 1];
+      if (n === '"' || n === "\\") {
+        out += n;
+        i++;
+        continue;
+      }
+    }
+    out += s[i];
+  }
+  return out;
+}
+
 type DiffSeg = { type: "common" | "del" | "ins"; text: string };
 
 // diffChars returns the character-level diff between a (got) and b (ref)
@@ -236,8 +257,8 @@ function DiffView({ reason }: DiffViewProps) {
   if (!hasSnippet) {
     return <span className={styles.diffFallback}>{reason}</span>;
   }
-  const got = parsed.got ?? "";
-  const ref = parsed.ref ?? "";
+  const got = unescapeGoVisual(parsed.got ?? "");
+  const ref = unescapeGoVisual(parsed.ref ?? "");
   return (
     <div className={styles.diffBox}>
       {(parsed.zipEntry || parsed.context || parsed.normalizer || parsed.offset !== undefined) && (
@@ -258,23 +279,62 @@ function DiffView({ reason }: DiffViewProps) {
           )}
         </div>
       )}
-      <div className={styles.diffRow}>
-        <span className={styles.diffLabelDiff}>diff</span>
-        <span className={styles.diffLine}>
-          {diffChars(got, ref).map((seg, i) => {
-            const cls =
-              seg.type === "common"
-                ? styles.diffCommon
-                : seg.type === "del"
-                  ? styles.diffDelGot
-                  : styles.diffDelRef;
-            return (
-              <span key={i} className={cls}>
-                {seg.text}
-              </span>
-            );
-          })}
-        </span>
+      <div className={styles.diffStack}>
+        <div className={styles.diffSideRow}>
+          <span className={styles.diffLabelGot}>got</span>
+          <span className={styles.diffLine}>
+            {diffChars(got, ref).map((seg, i) => {
+              if (seg.type === "common") {
+                return (
+                  <span key={i} className={styles.diffCommon}>
+                    {seg.text}
+                  </span>
+                );
+              }
+              if (seg.type === "del") {
+                return (
+                  <span key={i} className={styles.diffDelGot}>
+                    {seg.text}
+                  </span>
+                );
+              }
+              // ins: render as transparent padding on the got line so
+              // columns line up with the ref line below.
+              return (
+                <span key={i} className={styles.diffPad} aria-hidden="true">
+                  {seg.text}
+                </span>
+              );
+            })}
+          </span>
+        </div>
+        <div className={styles.diffSideRow}>
+          <span className={styles.diffLabelRef}>ref</span>
+          <span className={styles.diffLine}>
+            {diffChars(got, ref).map((seg, i) => {
+              if (seg.type === "common") {
+                return (
+                  <span key={i} className={styles.diffCommon}>
+                    {seg.text}
+                  </span>
+                );
+              }
+              if (seg.type === "ins") {
+                return (
+                  <span key={i} className={styles.diffDelRef}>
+                    {seg.text}
+                  </span>
+                );
+              }
+              // del: render as transparent padding on the ref line.
+              return (
+                <span key={i} className={styles.diffPad} aria-hidden="true">
+                  {seg.text}
+                </span>
+              );
+            })}
+          </span>
+        </div>
       </div>
     </div>
   );

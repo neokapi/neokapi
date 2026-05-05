@@ -198,10 +198,15 @@ func firstDiff(a, b []byte) int {
 	return n
 }
 
-// snippet returns a short human-readable window of bytes around the
-// given offset, bounded so the diagnostic line stays readable.
+// snippet returns a human-readable window of bytes starting at the
+// given offset. The window is sized to give the /parity/fixtures
+// dashboard enough context to recognize structural patterns (a full
+// open tag, the surrounding whitespace, the next attribute) — 32 bytes
+// only ever caught the divergent token itself, which forced re-running
+// the test to understand what was around it. The Markdown drill-down
+// trims at render time when needed.
 func snippet(b []byte, offset int) string {
-	const window = 32
+	const window = 256
 	start := offset
 	end := offset + window
 	if end > len(b) {

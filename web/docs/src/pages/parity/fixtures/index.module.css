@@ -264,6 +264,33 @@
   white-space: nowrap;
 }
 
+.diffStack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  border: 1px solid var(--ifm-color-emphasis-200);
+  border-radius: 0.3rem;
+  overflow-x: auto;
+  overflow-y: hidden;
+  background: var(--ifm-color-emphasis-100);
+  padding: 0.2rem 0;
+}
+
+.diffSideRow {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  font-family: var(--ifm-font-family-monospace);
+  font-size: 0.78rem;
+  white-space: pre;
+  padding: 0 0.4rem;
+  min-width: max-content;
+}
+
+.diffPad {
+  visibility: hidden;
+}
+
 .diffLabelGot,
 .diffLabelRef,
 .diffLabelDiff {
@@ -295,8 +322,6 @@
 
 .diffLine {
   flex: 1 1 auto;
-  overflow-x: auto;
-  overflow-y: hidden;
   white-space: pre;
   display: inline-block;
 }
