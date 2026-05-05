@@ -1314,6 +1314,44 @@ func (p *parser) readBraceArgRuns() []model.Run {
 		ch := p.source[p.pos]
 		// Embedded \command — peek to classify.
 		if ch == '\\' {
+			// Escaped reserved characters (`\&`, `\$`, `\%`, `\#`,
+			// `\_`, `\{`, `\}`) inside a brace arg follow the same
+			// pattern as in body mode (line 859-893): emit a leading
+			// `\` Ph followed by the literal char as text. Okapi's
+			// TEXParser tokenises `\&` as a 2-char COMMAND token (no
+			// trailing whitespace absorbed because `&` triggers the
+			// cmd.length()==1 break), then processCommand's
+			// UnknownCommand branch peeks the next text token: when
+			// it starts with " ", it appends a synthetic " " to the
+			// command's data part. Mirror that here so e.g. the title
+			// `... Conferences \& Symposia` round-trips byte-equal
+			// (`\&  Symposia` — 2 spaces — in okapi's reference).
+			if p.pos+1 < len(p.source) {
+				next := p.source[p.pos+1]
+				switch next {
+				case '&', '%', '$', '#', '_', '{', '}':
+					flushText()
+					phCounter++
+					runs = append(runs, model.Run{Ph: &model.PlaceholderRun{
+						ID:    fmt.Sprintf("c%d", phCounter),
+						Type:  "tex:escape",
+						Data:  `\`,
+						Equiv: "",
+					}})
+					textBuf.WriteByte(next)
+					p.pos += 2
+					// Synthetic space rule (mirrors body parser). `\%`
+					// is the exception: okapi registers it in
+					// accentedCharsNonLetters and routes it through
+					// processAccentedChar, which does NOT inject a
+					// synthetic space — so we skip the synthetic for
+					// `\%` here too.
+					if next != '%' && p.pos < len(p.source) && p.source[p.pos] == ' ' {
+						textBuf.WriteByte(' ')
+					}
+					continue
+				}
+			}
 			cmd, cmdEnd := p.peekCommand()
 			if cmd == "" {
 				// Bare backslash; treat as text.

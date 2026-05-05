@@ -945,10 +945,13 @@ mergeCaptions.b=false
 			sources:           []string{"integration-tests/okapi/src/test/resources/tex"},
 			extensions:        []string{".tex"},
 			// okapi normalises CRLF → LF on round-trip; native preserves
-			// source line endings. Both are valid LaTeX. The remaining
-			// content-extraction divergences (LaTeX command-name handling,
-			// preamble extraction) are real reader bugs tracked in #568.
-			normalizer: roundtrip.LFLineEndings{},
+			// source line endings. Both are valid LaTeX. okapi also
+			// appends an extra trailing newline on output that the source
+			// doesn't have — IgnoreTrailingNewline folds that asymmetry.
+			normalizer: roundtrip.Chain{Steps: []roundtrip.Normalizer{
+				roundtrip.LFLineEndings{},
+				roundtrip.IgnoreTrailingNewline{},
+			}},
 		},
 		{
 			formatID:          "transtable",
