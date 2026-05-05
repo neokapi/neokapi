@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -17,6 +18,52 @@ import (
 	east "github.com/yuin/goldmark/extension/ast"
 	"github.com/yuin/goldmark/text"
 )
+
+// htmlEntityRE matches a single HTML entity reference: a named entity
+// (`&amp;`), a numeric entity (`&#160;`), or a hex entity (`&#xA0;`).
+// Used by addTextWithEntities to peel entities out of bare text into
+// inline placeholder runs so they survive pseudo-translation as opaque
+// codes (rather than getting their hex letters case-folded — `&#xD7;`
+// would otherwise become `&#xĎ7;` because pseudo maps `D` → `Ď`).
+// Mirrors okapi MarkdownFilter behaviour of treating HTML entity
+// references as opaque inline codes.
+var htmlEntityRE = regexp.MustCompile(`&(?:[A-Za-z][A-Za-z0-9]*|#[0-9]+|#[xX][0-9A-Fa-f]+);`)
+
+// addTextWithEntities appends raw text to a runBuilder, splitting out
+// HTML entity references as inline placeholders so they don't get
+// pseudo-translated character by character. The entity's source bytes
+// (`&amp;`, `&#xD7;`) become the placeholder Data and are written back
+// verbatim by the markdown writer's RenderRunsWithData path.
+func addTextWithEntities(b *runBuilder, text string, idCounter *int) {
+	if text == "" {
+		return
+	}
+	matches := htmlEntityRE.FindAllStringIndex(text, -1)
+	if len(matches) == 0 {
+		b.AddText(text)
+		return
+	}
+	pos := 0
+	for _, m := range matches {
+		start, end := m[0], m[1]
+		if start > pos {
+			b.AddText(text[pos:start])
+		}
+		*idCounter++
+		b.AddPh(
+			strconv.Itoa(*idCounter),
+			"code:entity",
+			"md:entity",
+			text[start:end],
+			"", "",
+			false, false, false,
+		)
+		pos = end
+	}
+	if pos < len(text) {
+		b.AddText(text[pos:])
+	}
+}
 
 // Reader implements DataFormatReader for Markdown files.
 type Reader struct {
@@ -872,7 +919,7 @@ func (r *Reader) buildCodedRuns(b *runBuilder, node ast.Node, source []byte, idC
 	for child := node.FirstChild(); child != nil; child = child.NextSibling() {
 		switch n := child.(type) {
 		case *ast.Text:
-			b.AddText(string(n.Segment.Value(source)))
+			addTextWithEntities(b, string(n.Segment.Value(source)), idCounter)
 			if n.SoftLineBreak() {
 				b.AddText(" ")
 			}
@@ -880,7 +927,7 @@ func (r *Reader) buildCodedRuns(b *runBuilder, node ast.Node, source []byte, idC
 				b.AddText("\n")
 			}
 		case *ast.String:
-			b.AddText(string(n.Value))
+			addTextWithEntities(b, string(n.Value), idCounter)
 
 		case *ast.Emphasis:
 			r.buildEmphasisRuns(b, n, source, idCounter)
