@@ -192,6 +192,29 @@ type XMLCanonical struct {
 	// before the merge pass walks sibling positions. Opt-in — only
 	// IDML's normalizer turns it on.
 	MergeAdjacentCSRs bool
+
+	// StripRevisionIDs drops attributes whose local name is one of
+	// `paraId`, `textId`, `rsidR`, `rsidRDefault`, `rsidP`, `rsidRPr`,
+	// or `rsidTr` (regardless of namespace prefix). These are OOXML
+	// revision-tracking IDs (`w:rsidR`, `w14:paraId`, etc.) — opaque
+	// per-edit identifiers Word inserts during authoring. Okapi's
+	// openxml writer strips them on round-trip; native preserves the
+	// source attributes. They carry no parity-meaningful content
+	// (a docx without them renders identically), so dropping them on
+	// both sides cancels the asymmetry.
+	StripRevisionIDs bool
+
+	// StripXMLSpacePreserve drops `xml:space="preserve"` attributes
+	// from the re-emitted output. Native's openxml writer always emits
+	// the attribute on every `<w:t>` text run, while okapi only emits
+	// it when the text content actually has leading/trailing
+	// whitespace that needs preserving. The XMLCanonical pass already
+	// strips inter-element whitespace and re-encodes text content
+	// verbatim, so the attribute's effect (preserve-vs-collapse on
+	// XML readers) is moot for the canonical comparison — both sides
+	// re-emit the same text bytes regardless. Dropping the attribute
+	// cancels the always-emit-vs-conditional-emit asymmetry.
+	StripXMLSpacePreserve bool
 }
 
 // Name implements Normalizer.
@@ -212,10 +235,34 @@ func (n XMLCanonical) Name() string {
 	if n.MergeAdjacentCSRs {
 		parts = append(parts, "merge-csrs")
 	}
+	if n.StripRevisionIDs {
+		parts = append(parts, "strip-revision-ids")
+	}
+	if n.StripXMLSpacePreserve {
+		parts = append(parts, "strip-xml-space-preserve")
+	}
 	if len(parts) == 0 {
 		return "xml-canonical"
 	}
 	return "xml-canonical(" + strings.Join(parts, ",") + ")"
+}
+
+// openxmlRevisionIDAttrs lists the OOXML revision-tracking attribute
+// local names the StripRevisionIDs option drops. Names match against
+// xml.Attr.Name.Local regardless of the attribute's namespace prefix
+// (`w:rsidR`, `w14:paraId`, future-namespaced variants all collapse to
+// the same local name).
+var openxmlRevisionIDAttrs = map[string]struct{}{
+	"paraId":       {},
+	"textId":       {},
+	"rsidR":        {},
+	"rsidRDefault": {},
+	"rsidP":        {},
+	"rsidRPr":      {},
+	"rsidTr":       {},
+	"rsidDel":      {},
+	"rsidSect":     {},
+	"rsidRoot":     {},
 }
 
 // Normalize implements Normalizer.
@@ -336,6 +383,21 @@ func (n XMLCanonical) collectTokens(dec *xml.Decoder) ([]xml.Token, error) {
 					// xmlns:foo="..." parses as Attr{Name:{Space:"xmlns",Local:"foo"}}.
 					// Drop both — the namespace info is already in element Name.Space.
 					if a.Name.Local == "xmlns" || a.Name.Space == "xmlns" {
+						continue
+					}
+				}
+				if n.StripRevisionIDs {
+					if _, ok := openxmlRevisionIDAttrs[a.Name.Local]; ok {
+						continue
+					}
+				}
+				if n.StripXMLSpacePreserve {
+					// xml:space="preserve" parses as Attr{Name:{Space:"xml",Local:"space"}}
+					// (encoding/xml resolves the `xml:` prefix to the
+					// well-known `xml` namespace). Drop it on either form
+					// (some decoders may surface the literal "xml" prefix
+					// in Space, others in Local).
+					if a.Name.Local == "space" && (a.Name.Space == "xml" || a.Name.Space == "") && a.Value == "preserve" {
 						continue
 					}
 				}

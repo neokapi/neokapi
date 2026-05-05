@@ -1024,10 +1024,38 @@ mergeCaptions.b=false
 			extensions:        []string{".docx"},
 			isZip:             true,
 			skip:              openxmlBridgeSkips(),
-			// OOXML is zip-of-XML. Same pattern as IDML — different
-			// writers emit XML decls with different quote styles. Strip
-			// the XML decl from each zip entry; rest stays byte-equal.
-			normalizer: roundtrip.ZipEntryNormalizer{Inner: roundtrip.StripXMLDeclaration{}},
+			// OOXML is zip-of-XML. Pure byte parity is unrealistic:
+			//   - encoding/xml always emits explicit close tags
+			//     (`<w:sz w:val="28"></w:sz>`) while okapi self-closes
+			//     empty elements (`<w:sz w:val="28"/>`).
+			//   - native preserves the source's multi-line xmlns
+			//     declarations (one per line) while okapi inlines them.
+			//   - native always emits `xml:space="preserve"` on every
+			//     `<w:t>` text run; okapi only emits it when leading/
+			//     trailing whitespace actually needs preserving.
+			//   - okapi strips revision-tracking IDs (`w:rsidR`,
+			//     `w14:paraId`, …) on round-trip; native preserves
+			//     whatever was authored.
+			//   - okapi alphabetises sibling order in `<docDefaults>`
+			//     (pPrDefault before rPrDefault) and other containers;
+			//     native preserves source order.
+			// Chain XMLCanonical with the openxml-specific options so
+			// both engines re-emit through the same encoding/xml
+			// pipeline — the structural noise cancels and the
+			// underlying content compares cleanly. Most fixtures still
+			// diverge on real semantic differences (lang attribute
+			// translation, dropped pPrDefault, mc:AlternateContent
+			// rewrites) that are openxml writer bugs, not normalisation
+			// concerns; surfacing those past the noise is the goal.
+			normalizer: roundtrip.ZipEntryNormalizer{Inner: roundtrip.Chain{Steps: []roundtrip.Normalizer{
+				roundtrip.StripXMLDeclaration{},
+				roundtrip.XMLCanonical{
+					SortAttrs:             true,
+					SortChildElements:     true,
+					StripRevisionIDs:      true,
+					StripXMLSpacePreserve: true,
+				},
+			}}},
 		},
 		{
 			// Bridge passes ~2 of 41 fixtures; the rest are flagged
