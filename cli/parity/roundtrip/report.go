@@ -343,15 +343,22 @@ type engineTotals struct {
 }
 
 type formatBreakdown struct {
-	Format    string         `json:"format"`
-	Engine    string         `json:"engine"`
-	Total     int            `json:"total"`
-	Byte      int            `json:"byte"`
-	Canon     int            `json:"canon"`
-	Sem       int            `json:"sem"`
-	Div       int            `json:"div"`
-	Skip      int            `json:"skip"`
-	Divergent []fixtureEntry `json:"divergent,omitempty"`
+	Format string `json:"format"`
+	Engine string `json:"engine"`
+	Total  int    `json:"total"`
+	Byte   int    `json:"byte"`
+	Canon  int    `json:"canon"`
+	Sem    int    `json:"sem"`
+	Div    int    `json:"div"`
+	Skip   int    `json:"skip"`
+	// Fixtures lists every per-fixture entry that didn't reach byte-equal
+	// — canonical-equal, semantic-equal, and divergent rows are all
+	// included so the dashboard can drill into "remaining work toward
+	// byte-equal". Byte-equal and intentionally-skipped fixtures stay
+	// out (no work left). For canon/sem rows the Reason still carries
+	// the *raw* byte diff (compare.go sets it before normalization
+	// succeeds), which is exactly the gap the user wants to inspect.
+	Fixtures []fixtureEntry `json:"fixtures,omitempty"`
 }
 
 type fixtureEntry struct {
@@ -369,9 +376,11 @@ type fixtureEntry struct {
 
 // FlushParityFixturesJSON writes the per-fixture parity dataset as JSON.
 // The shape is consumed by the /parity/fixtures Docusaurus page; the
-// Markdown report stays the canonical CLI surface. Only divergent
-// fixtures appear in the per-format detail array — byte/canon/sem
-// fixtures are aggregated in the totals so the JSON stays small.
+// Markdown report stays the canonical CLI surface. Every non-byte-equal
+// fixture appears in the per-format Fixtures array (canon, sem, div),
+// so the dashboard can surface the remaining work toward byte-equal.
+// Byte-equal and intentionally-skipped fixtures stay out — they have
+// no remaining work — and are summarised in the totals only.
 func FlushParityFixturesJSON(w io.Writer) error {
 	records := snapshotParityRecords()
 	out := fixturesJSON{
@@ -419,15 +428,32 @@ func FlushParityFixturesJSON(w io.Writer) error {
 		}
 	}
 
-	// Per-format breakdown plus per-fixture detail for divergent rows.
+	// Per-format breakdown plus per-fixture detail for every
+	// non-byte-equal fixture (canon, sem, div).
 	aggs, keys := aggregate(records)
 	type detailKey aggKey
 	groups := map[detailKey][]parityRecord{}
 	for _, r := range records {
-		if r.Skipped || r.Achieved == TierByteEqual || r.Achieved == TierCanonicalEqual || r.Achieved == TierSemanticEqual {
+		if r.Skipped || r.Achieved == TierByteEqual {
 			continue
 		}
 		groups[detailKey{r.Format, r.Engine}] = append(groups[detailKey{r.Format, r.Engine}], r)
+	}
+	// Sort fixtures within a (format, engine) group by remaining-work
+	// severity: divergent first, then semantic, canonical, byte (which
+	// is filtered out anyway). Fixtures with the same tier sort by name
+	// so the dashboard order is stable across runs.
+	tierRank := func(t Tier) int {
+		switch t {
+		case TierDivergent:
+			return 0
+		case TierSemanticEqual:
+			return 1
+		case TierCanonicalEqual:
+			return 2
+		default:
+			return 3
+		}
 	}
 	for _, k := range keys {
 		v := aggs[k]
@@ -442,9 +468,15 @@ func FlushParityFixturesJSON(w io.Writer) error {
 			Skip:   v.Skipped,
 		}
 		if dets, ok := groups[detailKey{k.Format, k.Engine}]; ok {
-			sort.Slice(dets, func(i, j int) bool { return dets[i].Fixture < dets[j].Fixture })
+			sort.Slice(dets, func(i, j int) bool {
+				ri, rj := tierRank(dets[i].Achieved), tierRank(dets[j].Achieved)
+				if ri != rj {
+					return ri < rj
+				}
+				return dets[i].Fixture < dets[j].Fixture
+			})
 			for _, r := range dets {
-				fb.Divergent = append(fb.Divergent, fixtureEntry{
+				fb.Fixtures = append(fb.Fixtures, fixtureEntry{
 					Fixture:        r.Fixture,
 					Required:       r.Required.String(),
 					Achieved:       r.Achieved.String(),
