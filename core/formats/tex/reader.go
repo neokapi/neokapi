@@ -844,6 +844,17 @@ func (p *parser) parse(ctx context.Context, ch chan<- model.PartResult, r *Reade
 					}
 					textBuf.WriteString(`\\`)
 					p.pos += 2
+					// Synthetic space rule (mirrors Okapi TEXFilter's
+					// UnknownCommand path): when an unknown command's
+					// next text token starts with whitespace, append a
+					// single separator space so the cmd stays visually
+					// detached after translation. `\\` (line break) is
+					// classified as UnknownCommand by okapi, so e.g.
+					// `verse \\             %` extends to 14 spaces in
+					// the okapi reference (1 synthetic + 13 source).
+					if p.pos < len(p.source) && p.source[p.pos] == ' ' {
+						textBuf.WriteByte(' ')
+					}
 					continue
 				case '&', '%', '$', '#', '_', '{', '}':
 					// Escaped reserved characters — model as a leading
@@ -867,6 +878,19 @@ func (p *parser) parse(ctx context.Context, ch chan<- model.PartResult, r *Reade
 					}})
 					textBuf.WriteByte(next)
 					p.pos += 2
+					// Synthetic space rule (mirrors Okapi TEXFilter's
+					// UnknownCommand path) for `\$`, `\&`, `\#`, `\{`,
+					// `\}`, `\_`. Okapi treats these as 2-char
+					// UnknownCommand tokens whose data part absorbs a
+					// trailing space when the next text token also
+					// starts with whitespace. `\%` is the exception:
+					// okapi registers it in accentedCharsNonLetters and
+					// routes it through processAccentedChar, which does
+					// NOT inject a synthetic space — so we skip the
+					// synthetic for `\%` here.
+					if next != '%' && p.pos < len(p.source) && p.source[p.pos] == ' ' {
+						textBuf.WriteByte(' ')
+					}
 					continue
 				case '~': // non-breaking space
 					if textStartPos < 0 {
@@ -986,6 +1010,68 @@ func (p *parser) parse(ctx context.Context, ch chan<- model.PartResult, r *Reade
 			}})
 			p.pos++
 			continue
+		}
+
+		// Superscript/subscript with brace argument — `^{…}` / `_{…}`.
+		// Mirrors Okapi TEXFilter's flow: `^` and `_` emit as
+		// addDocumentPartToEventBuilder (their own one-byte token), then
+		// the immediately-following `{` triggers processOpenCurly. Since
+		// the next token after `{` is TEXT (not COMMAND), processOpenCurly
+		// falls into the "non-translatable text between brackets" branch
+		// and absorbs the whole `{…}` as a document part. The composite
+		// `^{2n}` / `_{i}` therefore round-trips verbatim and the inner
+		// content (alphas like `n`, `i`) never reaches the pseudo
+		// translator. Without this branch the inner alphas get pseudo'd
+		// (sample1.tex line 128 produces `^{2ń}` instead of `^{2n}`).
+		// Only fires when the brace's first non-whitespace byte is NOT a
+		// `\` (i.e. not a COMMAND in okapi's token stream); a leading
+		// `\` would route okapi to processOneArgInlineText and the
+		// content stays translatable — fall through to the regular-char
+		// path in that case so existing inline-text handling kicks in.
+		if (ch0 == '^' || ch0 == '_') && p.pos+1 < len(p.source) && p.source[p.pos+1] == '{' {
+			braceStart := p.pos + 1
+			// Peek inside the brace, skipping leading whitespace.
+			peek := braceStart + 1
+			for peek < len(p.source) && (p.source[peek] == ' ' || p.source[peek] == '\t') {
+				peek++
+			}
+			if peek < len(p.source) && p.source[peek] != '\\' {
+				// Find matching `}` at depth 0.
+				depth := 1
+				end := braceStart + 1
+				for end < len(p.source) && depth > 0 {
+					switch p.source[end] {
+					case '{':
+						if end == 0 || p.source[end-1] != '\\' {
+							depth++
+						}
+					case '}':
+						if end == 0 || p.source[end-1] != '\\' {
+							depth--
+						}
+					}
+					if depth > 0 {
+						end++
+					}
+				}
+				if depth == 0 {
+					end++ // include the closing `}`
+					if textStartPos < 0 {
+						textStartPos = p.pos
+					}
+					flushBodyText()
+					pcCounter++
+					raw := p.source[p.pos:end]
+					bodyRuns = append(bodyRuns, model.Run{Ph: &model.PlaceholderRun{
+						ID:    fmt.Sprintf("c%d", pcCounter),
+						Type:  "tex:script",
+						Data:  raw,
+						Equiv: string(ch0),
+					}})
+					p.pos = end
+					continue
+				}
+			}
 		}
 
 		// Regular character
