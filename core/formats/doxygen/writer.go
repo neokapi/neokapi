@@ -325,22 +325,22 @@ func (w *Writer) writeCommentStyled(text, style, raw string, linePrefixes []stri
 	switch style {
 	case "triple":
 		if layout != "" {
-			return w.writeFromLayout(text, layout, "/// ")
+			return w.writeFromLayout(text, layout, "/// ", style)
 		}
 		return w.writeTripleSlash(text, raw, linePrefixes)
 	case "exclamation":
 		if layout != "" {
-			return w.writeFromLayout(text, layout, "//! ")
+			return w.writeFromLayout(text, layout, "//! ", style)
 		}
 		return w.writeExclamation(text, raw, linePrefixes)
 	case "javadoc":
 		if layout != "" {
-			return w.writeFromLayout(text, layout, "")
+			return w.writeFromLayout(text, layout, "", style)
 		}
 		return w.writeJavadoc(text, raw, linePrefixes)
 	case "qt":
 		if layout != "" {
-			return w.writeFromLayout(text, layout, "")
+			return w.writeFromLayout(text, layout, "", style)
 		}
 		return w.writeQt(text, raw, linePrefixes)
 	case "qt_member":
@@ -359,7 +359,7 @@ func (w *Writer) writeCommentStyled(text, style, raw string, linePrefixes []stri
 		return w.writeTrailingJavadoc(text, raw)
 	default:
 		if layout != "" {
-			return w.writeFromLayout(text, layout, "/// ")
+			return w.writeFromLayout(text, layout, "/// ", style)
 		}
 		return w.writeTripleSlash(text, raw, linePrefixes)
 	}
@@ -381,8 +381,11 @@ func (w *Writer) writeCommentStyled(text, style, raw string, linePrefixes []stri
 //
 // marker is preserved as a no-op argument for backward compatibility
 // with callers; T entries no longer consult it (the layout encodes
-// the full line prefix).
-func (w *Writer) writeFromLayout(text, layout, _ string) error {
+// the full line prefix). style identifies the comment shape ("qt",
+// "javadoc", …) so the layout walker can apply okapi's per-style
+// quirks — currently the Qt-block blank-then-canonical-body indent
+// transfer (see the inline comment further down for details).
+func (w *Writer) writeFromLayout(text, layout, _ string, style string) error {
 	textLines := strings.Split(text, "\n")
 	textCursor := 0
 	entries := strings.Split(layout, "\x01")
@@ -406,6 +409,7 @@ func (w *Writer) writeFromLayout(text, layout, _ string) error {
 		tag    byte
 		body   string
 		text   string
+		suffix string // optional trailing whitespace captured from raw (B entries only)
 		isPad  bool   // T/B-entry whose text is empty (padding)
 		canon  string // canonical bare comment marker for padding lines
 	}
@@ -417,7 +421,20 @@ func (w *Writer) writeFromLayout(text, layout, _ string) error {
 		}
 		tag := entry[0]
 		body := entry[2:]
-		ep := entryPlan{tag: tag, body: body}
+		// B entries may carry a trailing-whitespace suffix from the
+		// raw source line, encoded as `<prefix>\x02<suffix>`. Split
+		// it back out so the writer can emit prefix + text + suffix
+		// and preserve okapi's trailing-whitespace behaviour on lines
+		// like ` *     . ` (lists.h line 21 — list-end `.` anchor with
+		// a trailing space).
+		suffix := ""
+		if tag == 'B' {
+			if i := strings.IndexByte(body, '\x02'); i >= 0 {
+				suffix = body[i+1:]
+				body = body[:i]
+			}
+		}
+		ep := entryPlan{tag: tag, body: body, suffix: suffix}
 		if tag == 'T' || tag == 'B' {
 			line := ""
 			if textCursor < len(textLines) {
@@ -466,6 +483,56 @@ func (w *Writer) writeFromLayout(text, layout, _ string) error {
 			if plans[i].isPad && plans[i].tag == 'B' {
 				plans[i].canon = canonicalBPad
 			}
+		}
+	}
+
+	// okapi quirk: in /*! Qt-style blocks whose canonical body indent is
+	// `<marker>  ` (i.e. ` *  ` — two spaces between `*` and content),
+	// a blank ` *` separator immediately followed by a prose line whose
+	// prefix EXACTLY equals the canonical body pad gets the body indent
+	// transferred to the blank line. Source lines:
+	//
+	//	 *
+	//	 *  More text here.
+	//
+	// emit as:
+	//
+	//	 *
+	//	 *More text here.
+	//
+	// The behaviour is specific to /*! blocks with a 2-space body pad
+	// (lists.h block 1) — Javadoc /** blocks and /*! blocks with a
+	// 1-space body pad (special_commands.h) preserve source layout
+	// per the okapi reference. Restricting on style="qt" + canonical
+	// body pad ending in two trailing spaces keeps other fixtures
+	// byte-equal.
+	if style == "qt" && canonicalBPad != "" && strings.HasSuffix(canonicalBPad, "  ") {
+		marker := strings.TrimRight(canonicalBPad, " \t")
+		for i := 0; i+1 < len(plans); i++ {
+			cur, next := &plans[i], &plans[i+1]
+			if cur.tag != 'S' || next.tag != 'B' {
+				continue
+			}
+			// The S entry must encode a bare `*`-marker line (e.g.
+			// ` *` for ` *  ` canonical) — no trailing whitespace.
+			if cur.body != marker {
+				continue
+			}
+			// The B entry must use the canonical body pad EXACTLY —
+			// over- or under-indented prose lines are NOT subject to
+			// the transfer (lists.h block 2 has 5-space and 3-space
+			// post-blank prose lines that okapi preserves verbatim).
+			if next.body != canonicalBPad {
+				continue
+			}
+			// Padding entries don't participate (the canonical-pad
+			// rewrite already handles them). Only first-line-of-
+			// paragraph prose triggers the transfer.
+			if next.isPad {
+				continue
+			}
+			cur.body = canonicalBPad // ` *` → ` *  `
+			next.body = marker       // ` *  ` → ` *`
 		}
 	}
 
@@ -528,7 +595,7 @@ func (w *Writer) writeFromLayout(text, layout, _ string) error {
 			if ep.isPad {
 				continue // padding emitted at tail
 			}
-			if err := emit(ep.body + ep.text); err != nil {
+			if err := emit(ep.body + ep.text + ep.suffix); err != nil {
 				return err
 			}
 		case 'S':

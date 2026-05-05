@@ -1023,7 +1023,20 @@ func (r *Reader) buildBlockLayout(cb *commentBlock) string {
 				prefix = trimmed + " "
 			}
 		}
-		entries = append(entries, "B:"+prefix)
+		// Capture any trailing whitespace AFTER the translatable text
+		// in the raw line so the writer can preserve okapi-style
+		// trailing-space behaviour on lines like ` *     . ` (a
+		// list-end `.` anchor with a trailing space — see lists.h
+		// line 21). Encoded as B:<prefix>\x02<suffix>; the writer
+		// splits on \x02 and emits prefix + text + suffix. Lines with
+		// no trailing whitespace produce no \x02 — the writer's
+		// existing prefix-only path handles them unchanged.
+		suffix := raw[idxT+len(tl.text):]
+		if suffix != "" && strings.TrimRight(suffix, " \t") == "" {
+			entries = append(entries, "B:"+prefix+"\x02"+suffix)
+		} else {
+			entries = append(entries, "B:"+prefix)
+		}
 		textCursor++
 	}
 	// Layout serves no purpose if the block is a single-line text
