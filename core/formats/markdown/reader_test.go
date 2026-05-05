@@ -539,14 +539,24 @@ func TestRead_Link(t *testing.T) {
 func TestRead_LinkWithTitle(t *testing.T) {
 	blocks := readBlocks(t, `Click [here](https://example.com "Example") please`)
 	require.Len(t, blocks, 1)
-	assert.Equal(t, "Click here please", blocks[0].SourceText())
+	// Title is extracted as a translatable text run between two paired
+	// codes (md:link wrapping the link text, md:link-title wrapping the
+	// title). SourceText concatenates only TextRuns, so the title text
+	// "Example" appears adjacent to the link text "here".
+	assert.Equal(t, "Click hereExample please", blocks[0].SourceText())
 	runs := blocks[0].SourceRuns()
-	// Verify the closing run contains the title
-	for _, r := range runs {
-		if r.PcClose != nil && r.PcClose.Type == "link:hyperlink" {
-			assert.Contains(t, r.PcClose.Data, "Example")
+	// Verify the title is emitted as a translatable text run inside an
+	// md:link-title paired code (not baked into the closing skeleton).
+	var sawTitle bool
+	for i, r := range runs {
+		if r.PcOpen != nil && r.PcOpen.SubType == "md:link-title" {
+			require.Less(t, i+1, len(runs), "md:link-title pc-open must be followed by content")
+			require.NotNil(t, runs[i+1].Text, "md:link-title content must be a TextRun")
+			assert.Equal(t, "Example", runs[i+1].Text.Text)
+			sawTitle = true
 		}
 	}
+	assert.True(t, sawTitle, "expected an md:link-title paired code wrapping the link title")
 }
 
 // okapi: MarkdownFilterTest#testAutoLink
@@ -572,13 +582,21 @@ func TestRead_ExtractImageTitleAndAltText(t *testing.T) {
 	blocks := readBlocks(t, `![alt](image.png "title")`)
 	require.Len(t, blocks, 1)
 	assert.Contains(t, blocks[0].SourceText(), "alt")
+	// Title is now extracted as a translatable text run inside an
+	// md:image-title paired code, not part of the closing skeleton —
+	// matches okapi MarkdownFilter behaviour.
+	assert.Contains(t, blocks[0].SourceText(), "title")
 	runs := blocks[0].SourceRuns()
-	// Verify image closing run includes title
-	for _, r := range runs {
-		if r.PcClose != nil && r.PcClose.Type == "link:image" {
-			assert.Contains(t, r.PcClose.Data, "title")
+	var sawTitle bool
+	for i, r := range runs {
+		if r.PcOpen != nil && r.PcOpen.SubType == "md:image-title" {
+			require.Less(t, i+1, len(runs), "md:image-title pc-open must be followed by content")
+			require.NotNil(t, runs[i+1].Text, "md:image-title content must be a TextRun")
+			assert.Equal(t, "title", runs[i+1].Text.Text)
+			sawTitle = true
 		}
 	}
+	assert.True(t, sawTitle, "expected an md:image-title paired code wrapping the image title")
 }
 
 // --- Heading Variations ---
