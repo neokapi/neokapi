@@ -267,15 +267,52 @@ func (r *Reader) findStringPositions(rawText string, stmts []*mifStatement) []st
 			blockIdx++
 		}
 	}
+	// PgfCatalog → PgfNumFormat extraction mirrors okapi
+	// MIFFilter.java:357-362,1078-1095 with the extractable-PgfTag
+	// filter from Extracts.java:449-456. Walked inline so file-order
+	// (and blockIdx) tracks emitStatements' processPgfCatalog.
+	extractable := extractablePgfTags(stmts)
+	walkPgfCatalog := func(stmt *mifStatement) {
+		for _, child := range stmt.children {
+			if child.tag != "Pgf" {
+				continue
+			}
+			var pgfTag string
+			for _, gc := range child.children {
+				if gc.tag == "PgfTag" {
+					pgfTag = gc.value
+					break
+				}
+			}
+			if !extractable[pgfTag] {
+				continue
+			}
+			for _, gc := range child.children {
+				if gc.tag != "PgfNumFormat" || gc.value == "" {
+					continue
+				}
+				items = append(items, itemInfo{blockIdx: blockIdx, strings: []string{gc.value}, searchTag: "PgfNumFormat"})
+				blockIdx++
+			}
+		}
+	}
 
 	for _, stmt := range stmts {
-		if r.skipTag(stmt.tag) || stmt.tag == "MIFFile" {
+		if stmt.tag == "MIFFile" {
 			continue
 		}
 		switch stmt.tag {
+		case "PgfCatalog":
+			walkPgfCatalog(stmt)
 		case "TextFlow", "Tbls", "Notes":
+			if r.skipTag(stmt.tag) {
+				continue
+			}
 			walkContainer(stmt)
 		case "VariableFormats":
+			if r.skipTag(stmt.tag) {
+				continue
+			}
 			walkVariableFormats(stmt)
 		}
 	}
@@ -429,6 +466,13 @@ func (r *Reader) emitStatements(ctx context.Context, ch chan<- model.PartResult,
 	dataCounter := 0
 
 	for _, stmt := range stmts {
+		// PgfCatalog is walked first to emit translatable
+		// <PgfNumFormat> blocks (okapi MIFFilter.java:357-362,1078-1095);
+		// raw PgfCatalog text then flows through the alwaysSkipTags
+		// branch below as Data.
+		if stmt.tag == "PgfCatalog" {
+			blockCounter = r.processPgfCatalog(ctx, ch, stmt, extractablePgfTags(stmts), blockCounter)
+		}
 		if r.skipTag(stmt.tag) {
 			// Emit as non-translatable data.
 			dataCounter++
@@ -494,6 +538,89 @@ func (r *Reader) emitStatements(ctx context.Context, ch chan<- model.PartResult,
 			return
 		}
 	}
+}
+
+// extractablePgfTags returns the set of <PgfTag> names whose PgfCatalog
+// <PgfNumFormat> entry should be extracted as translatable. Mirrors
+// okapi Extracts.java:449-456: a tag is in the set iff some Para in
+// extractable TextFlow/Tbls has it, has non-empty <PgfNumString>, and
+// has NO inline <Pgf><PgfNumFormat> override — the catalog text is the
+// active numbering string in that case.
+func extractablePgfTags(stmts []*mifStatement) map[string]bool {
+	out := map[string]bool{}
+	var visit func(stmt *mifStatement)
+	visit = func(stmt *mifStatement) {
+		for _, child := range stmt.children {
+			if child.tag == "Para" {
+				var pgfTag string
+				hasNumString, inlineHasNumFormat := false, false
+				for _, gc := range child.children {
+					switch gc.tag {
+					case "PgfTag":
+						pgfTag = gc.value
+					case "PgfNumString":
+						hasNumString = true
+					case "Pgf":
+						for _, ggc := range gc.children {
+							if ggc.tag == "PgfNumFormat" {
+								inlineHasNumFormat = true
+							}
+						}
+					}
+				}
+				if pgfTag != "" && hasNumString && !inlineHasNumFormat {
+					out[pgfTag] = true
+				}
+				continue
+			}
+			if isMIFContainer(child.tag) {
+				visit(child)
+			}
+		}
+	}
+	for _, stmt := range stmts {
+		switch stmt.tag {
+		case "TextFlow", "Tbls", "Notes":
+			visit(stmt)
+		}
+	}
+	return out
+}
+
+// processPgfCatalog emits one Block per non-empty <PgfNumFormat> child
+// of every extractable <Pgf>. Mirrors okapi MIFFilter.java:357-362
+// (inPgfCatalog state) and 1078-1095 (PgfNumFormat → translatable when
+// inPgfCatalog). Surrounding raw bytes flow through the skeleton store.
+func (r *Reader) processPgfCatalog(ctx context.Context, ch chan<- model.PartResult, stmt *mifStatement, extractable map[string]bool, blockCounter int) int {
+	for _, child := range stmt.children {
+		if child.tag != "Pgf" {
+			continue
+		}
+		var pgfTag string
+		for _, gc := range child.children {
+			if gc.tag == "PgfTag" {
+				pgfTag = gc.value
+				break
+			}
+		}
+		if !extractable[pgfTag] {
+			continue
+		}
+		for _, gc := range child.children {
+			if gc.tag != "PgfNumFormat" || gc.value == "" {
+				continue
+			}
+			blockCounter++
+			block := model.NewBlock(fmt.Sprintf("tu%d", blockCounter), gc.value)
+			block.Name = fmt.Sprintf("pgf_num_format.%d", blockCounter)
+			block.Properties["pgf_tag"] = pgfTag
+			r.applyCodeFinder(block)
+			if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
+				return blockCounter
+			}
+		}
+	}
+	return blockCounter
 }
 
 // processVariableFormats walks the <VariableFormats> block and emits one
@@ -897,7 +1024,7 @@ func parseTagLine(line string) (string, string) {
 
 // unquoteMIF strips the MIF backtick…quote delimiters and decodes the
 // in-string escapes (`\>` → `>`, `\\` → `\`, `\t` → tab, `\n` →
-// newline, `\\` → `\`, `\q` → `'`, `\Q` → `` ` ``). The writer's
+// newline, `\\` → `\`, `\q` → `'`, `\Q` → “ ` “). The writer's
 // escapeMIF re-encodes the same set on output, so values round-trip
 // faithfully when no translation transforms them.
 func unquoteMIF(s string) string {
