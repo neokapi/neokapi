@@ -23,6 +23,13 @@ type tokenReaderState struct {
 	vocab        *model.VocabularyRegistry
 	blockCounter int
 	dataCounter  int
+	// needsCharsetMeta is set during pre-scan: true when the document
+	// contains a <head> element but no <meta charset=…> or
+	// <meta http-equiv="content-type" …>. Mirrors okapi's HtmlFilter
+	// behaviour, which injects a Content-Type meta directly after
+	// <head> in that case so the output declares its UTF-8 encoding
+	// in transport headers.
+	needsCharsetMeta bool
 }
 
 func newTokenReaderState(r *Reader, store *format.SkeletonStore) *tokenReaderState {
@@ -47,12 +54,58 @@ func (s *tokenReaderState) nextDataID() string {
 // run processes HTML content with the tokenizer, writing skeleton data and
 // emitting Parts to the channel.
 func (s *tokenReaderState) run(content []byte, ctx context.Context, ch chan<- model.PartResult) {
+	// Pre-scan: detect whether the document needs an injected
+	// Content-Type meta. Okapi's HtmlFilter mirrors this logic — if a
+	// <head> exists but no charset declaration is present, the writer
+	// inserts <meta http-equiv="Content-Type" …> right after <head>.
+	s.needsCharsetMeta = scanNeedsCharsetMeta(content)
+
 	tokenizer := html.NewTokenizer(bytes.NewReader(content))
 	tokenizer.SetMaxBuf(0) // unlimited buffer
 
 	// We process the token stream, maintaining a stack to track nesting.
 	// The approach: buffer tokens, classify elements, emit blocks and skeleton data.
 	s.processTokenStream(tokenizer, ctx, ch)
+}
+
+// scanNeedsCharsetMeta returns true when content contains a <head>
+// element but no <meta charset=…> or <meta http-equiv="content-type" …>.
+// The scan is single-pass and case-insensitive on tag/attribute names
+// (HTML5) to match okapi's detection.
+func scanNeedsCharsetMeta(content []byte) bool {
+	tokenizer := html.NewTokenizer(bytes.NewReader(content))
+	tokenizer.SetMaxBuf(0)
+	hasHead := false
+	for {
+		tt := tokenizer.Next()
+		if tt == html.ErrorToken {
+			break
+		}
+		switch tt {
+		case html.StartTagToken, html.SelfClosingTagToken:
+			tagName, hasAttr := tokenizer.TagName()
+			a := atom.Lookup(tagName)
+			if a == atom.Head {
+				hasHead = true
+				continue
+			}
+			if a != atom.Meta {
+				continue
+			}
+			if !hasAttr {
+				continue
+			}
+			attrs := collectTokenAttrs(tokenizer)
+			if charset := getTokenAttr(attrs, "charset"); charset != "" {
+				return false
+			}
+			httpEquiv := strings.ToLower(getTokenAttr(attrs, "http-equiv"))
+			if httpEquiv == "content-type" {
+				return false
+			}
+		}
+	}
+	return hasHead
 }
 
 // knownContainerElements are block-level elements that structurally always
@@ -241,6 +294,23 @@ func (s *tokenReaderState) processTokenStream(tokenizer *html.Tokenizer, ctx con
 					s.extractTokenAttrs(raw, tag, a, attrs, ctx, ch)
 				} else {
 					_ = s.store.WriteText(raw)
+				}
+
+				// Mirror okapi's HtmlFilter: when the document declares
+				// no Content-Type meta, inject one immediately after the
+				// <head> start tag so the output advertises UTF-8 in
+				// transport headers. Inject only once, even on malformed
+				// input with multiple <head> openings.
+				if a == atom.Head && s.needsCharsetMeta {
+					_ = s.store.WriteText([]byte(`<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">`))
+					s.reader.emit(ctx, ch, &model.Part{
+						Type: model.PartData,
+						Resource: &model.Data{
+							ID:   s.nextDataID(),
+							Name: "meta",
+						},
+					})
+					s.needsCharsetMeta = false
 				}
 
 				if info.translateNo {

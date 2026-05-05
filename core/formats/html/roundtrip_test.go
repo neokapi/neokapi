@@ -405,14 +405,22 @@ func roundtripWithSkeleton(t *testing.T, input string) string {
 }
 
 func TestSkeletonRoundtrip_ByteExact(t *testing.T) {
+	// Mirror okapi's HtmlFilter: when a <head> exists with no
+	// <meta charset> / <meta http-equiv="content-type">, the writer
+	// injects a UTF-8 Content-Type meta directly after <head>. The
+	// `expected` field captures that injection (and any other reader
+	// normalizations like inter-element whitespace trimming) so the
+	// byte-exact contract describes the actual emitted output rather
+	// than the input.
 	cases := []struct {
 		name string
 		// input is the source HTML.
 		input string
 		// expected, when non-empty, overrides the byte-exact assertion
 		// (input==output). Use this when the reader intentionally
-		// normalizes the source (e.g. dropping inter-element whitespace
-		// inside translatable block content, mirroring okapi).
+		// normalizes the source — e.g. dropping inter-element
+		// whitespace inside translatable block content, or injecting a
+		// Content-Type meta after <head> — mirroring okapi.
 		expected string
 	}{
 		{name: "simple_p", input: `<html><body><p>Hello</p></body></html>`},
@@ -420,7 +428,11 @@ func TestSkeletonRoundtrip_ByteExact(t *testing.T) {
 		{name: "single_quotes", input: `<p title='Tip'>Text</p>`},
 		{name: "self_closing", input: `<p>Line one<br/>Line two</p>`},
 		{name: "nested_blocks", input: `<html><body><ul><li>Item 1</li><li>Item 2</li></ul></body></html>`},
-		{name: "script_style", input: `<html><head><style>body{color:red}</style></head><body><script>var x=1;</script><p>Text</p></body></html>`},
+		{
+			name:     "script_style",
+			input:    `<html><head><style>body{color:red}</style></head><body><script>var x=1;</script><p>Text</p></body></html>`,
+			expected: `<html><head>` + injectedContentTypeMeta + `<style>body{color:red}</style></head><body><script>var x=1;</script><p>Text</p></body></html>`,
+		},
 		{name: "comments", input: `<html><body><!-- nav --><p>Content</p><!-- footer --></body></html>`},
 		{name: "meta", input: `<html><head><meta charset="utf-8"><meta name="description" content="A test page"></head><body><p>Body</p></body></html>`},
 		// Regression: preserve lang/xml:lang attributes unchanged (#147).
@@ -429,7 +441,11 @@ func TestSkeletonRoundtrip_ByteExact(t *testing.T) {
 		// Regression: preserve charset declarations unchanged (#147).
 		{name: "charset_iso8859", input: `<html><head><meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1"></head><body><p>Text</p></body></html>`},
 		// Regression: preserve whitespace in attribute values unchanged (#147).
-		{name: "attr_double_space", input: `<html><head><meta name="keywords" content="UFO,  Burlington"></head><body><p>Text</p></body></html>`},
+		{
+			name:     "attr_double_space",
+			input:    `<html><head><meta name="keywords" content="UFO,  Burlington"></head><body><p>Text</p></body></html>`,
+			expected: `<html><head>` + injectedContentTypeMeta + `<meta name="keywords" content="UFO,  Burlington"></head><body><p>Text</p></body></html>`,
+		},
 		// Inter-element whitespace inside translatable block content is
 		// dropped by the reader (mirroring okapi's HtmlFilter — leading/
 		// trailing newlines get treated as non-significant source
@@ -447,15 +463,17 @@ func TestSkeletonRoundtrip_ByteExact(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			output := roundtripWithSkeleton(t, tc.input)
 			want := tc.input
 			if tc.expected != "" {
 				want = tc.expected
 			}
+			output := roundtripWithSkeleton(t, tc.input)
 			assert.Equal(t, want, output, "skeleton roundtrip output mismatch")
 		})
 	}
 }
+
+const injectedContentTypeMeta = `<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">`
 
 func TestSkeletonRoundtrip_WithTranslation(t *testing.T) {
 	input := `<html><body><p>Hello world</p></body></html>`
