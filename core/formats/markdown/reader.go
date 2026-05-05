@@ -708,6 +708,35 @@ func fullNodeAbsRange(node ast.Node, source []byte, baseOffset int) (int, int) {
 	return lineStart + baseOffset, last.Stop + baseOffset
 }
 
+// hasOnlyHardBreaks reports whether the inline subtree under node
+// contains at least one hard line break and no soft line breaks. Used
+// to decide whether BlockPropLinePrefix should fire: the soft-break
+// path already bakes the literal `\n` + per-line prefix into the runs
+// (see softBreakContinuation), so handing the same prefix to the
+// writer would double it. Hard breaks emit a bare "\n" instead and
+// therefore still need the property to round-trip blockquote/indent
+// continuations. A node with no breaks at all returns false (single
+// line — no continuation prefix to apply anywhere).
+func hasOnlyHardBreaks(node ast.Node) bool {
+	hardSeen := false
+	softSeen := false
+	_ = ast.Walk(node, func(n ast.Node, entering bool) (ast.WalkStatus, error) {
+		if !entering {
+			return ast.WalkContinue, nil
+		}
+		if t, ok := n.(*ast.Text); ok {
+			if t.SoftLineBreak() {
+				softSeen = true
+			}
+			if t.HardLineBreak() {
+				hardSeen = true
+			}
+		}
+		return ast.WalkContinue, nil
+	})
+	return hardSeen && !softSeen
+}
+
 // detectLinePrefix returns the inter-line prefix shared by every
 // continuation line of the given node (e.g. "> " for a blockquote
 // paragraph, "  " for an indented continuation inside a list item).
@@ -1220,13 +1249,21 @@ func (r *Reader) emitParagraph(ctx context.Context, ch chan<- model.PartResult, 
 
 	// Multi-line paragraphs (e.g. blockquote bodies, indented
 	// continuation lines) carry a per-line prefix in source — `> ` for
-	// blockquotes, indentation for list-item continuations. The block's
-	// text only carries the literal LFs that separate lines (mirroring
-	// okapi's TextUnit content); the writer uses this property to
-	// re-emit the prefix after each "\n" so the round-tripped output
-	// preserves the original line shape.
-	if prefix := detectLinePrefix(n, source); prefix != "" {
-		block.Properties[BlockPropLinePrefix] = prefix
+	// blockquotes, indentation for list-item continuations. Soft-break
+	// continuations already have the literal `\n` + prefix baked into
+	// the runs by softBreakContinuation; storing the same prefix here
+	// too would let the writer prepend it a second time after every
+	// "\n", yielding `\n> > ` for blockquotes. Only hand the prefix to
+	// the writer when no soft break carries it (i.e. hard breaks, where
+	// the run sequence emits a bare "\n" and the writer must reinject
+	// the marker). When a paragraph mixes both kinds we still skip the
+	// property — the soft-break path covers the more common case and
+	// any bare "\n" introduced by a hard break stays unprefixed (an
+	// edge case okapi MarkdownFilter doesn't special-case either).
+	if hasOnlyHardBreaks(n) {
+		if prefix := detectLinePrefix(n, source); prefix != "" {
+			block.Properties[BlockPropLinePrefix] = prefix
+		}
 	}
 
 	lineStart, lineEnd := nodeAbsRange(n, source, baseOffset)
@@ -1270,15 +1307,19 @@ func (r *Reader) emitListItem(ctx context.Context, ch chan<- model.PartResult, n
 	for child := n.FirstChild(); child != nil; child = child.NextSibling() {
 		if p, ok := child.(*ast.Paragraph); ok {
 			r.addInlineRuns(block, p, source)
-			if prefix := detectLinePrefix(p, source); prefix != "" {
-				block.Properties[BlockPropLinePrefix] = prefix
+			if hasOnlyHardBreaks(p) {
+				if prefix := detectLinePrefix(p, source); prefix != "" {
+					block.Properties[BlockPropLinePrefix] = prefix
+				}
 			}
 			break
 		}
 		if tb, ok := child.(*ast.TextBlock); ok {
 			r.addInlineRuns(block, child, source)
-			if prefix := detectLinePrefix(tb, source); prefix != "" {
-				block.Properties[BlockPropLinePrefix] = prefix
+			if hasOnlyHardBreaks(tb) {
+				if prefix := detectLinePrefix(tb, source); prefix != "" {
+					block.Properties[BlockPropLinePrefix] = prefix
+				}
 			}
 			break
 		}
@@ -1328,8 +1369,10 @@ func (r *Reader) emitListItemMixed(ctx context.Context, ch chan<- model.PartResu
 		block.Name = fmt.Sprintf("item%d", r.blockCounter)
 		block.Type = "list-item"
 		r.addInlineRuns(block, headerNode, source)
-		if prefix := detectLinePrefix(headerNode, source); prefix != "" {
-			block.Properties[BlockPropLinePrefix] = prefix
+		if hasOnlyHardBreaks(headerNode) {
+			if prefix := detectLinePrefix(headerNode, source); prefix != "" {
+				block.Properties[BlockPropLinePrefix] = prefix
+			}
 		}
 
 		// Use the header node's line range so we don't accidentally
