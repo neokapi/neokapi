@@ -195,17 +195,32 @@ function unescapeGoVisual(s: string): string {
 
 type DiffSeg = { type: "common" | "del" | "ins"; text: string };
 
-// diffChars returns the character-level diff between a (got) and b (ref)
-// as a list of segments using a standard LCS DP backtrace. Segments are
-// coalesced so a run of common (or all-del or all-ins) chars renders as
-// one span. Bounded to ~256 chars per side — beyond that the snippets
-// themselves are too long to be useful.
-function diffChars(a: string, b: string): DiffSeg[] {
-  const m = a.length;
-  const n = b.length;
-  const limit = 256;
+// tokenize splits a string into atomic units for token-level diffing:
+// each match is either a maximal Unicode word run (letters + digits +
+// underscore + diacritics), a maximal whitespace run, or one
+// non-word/non-space character. This stops a char-level LCS from
+// stitching together coincidental letter overlaps in pseudo-translated
+// text — `Some text` vs `Sōm ēxt` should diff as two whole-word
+// replacements, not as five scattered char edits around three
+// coincidentally-shared letters.
+function tokenize(s: string): string[] {
+  const re = /[\p{L}\p{N}_]+|\s+|./gsu;
+  return Array.from(s.matchAll(re), (m) => m[0]);
+}
+
+// diffTokens returns the token-level diff between a (got) and b (ref)
+// using a standard LCS DP backtrace over tokens, then coalesces runs of
+// the same type so a phrase of consecutive insertions or deletions
+// renders as one highlighted span. Bounded to 768 tokens per side —
+// beyond that we render a whole-replacement fallback to keep the page
+// responsive.
+function diffTokens(a: string, b: string): DiffSeg[] {
+  const ta = tokenize(a);
+  const tb = tokenize(b);
+  const m = ta.length;
+  const n = tb.length;
+  const limit = 768;
   if (m > limit || n > limit) {
-    // Fall back to whole-replacement view to keep the page snappy.
     const out: DiffSeg[] = [];
     if (a) out.push({ type: "del", text: a });
     if (b) out.push({ type: "ins", text: b });
@@ -214,7 +229,7 @@ function diffChars(a: string, b: string): DiffSeg[] {
   const dp: number[][] = Array.from({ length: m + 1 }, () => new Array(n + 1).fill(0));
   for (let i = 1; i <= m; i++) {
     for (let j = 1; j <= n; j++) {
-      if (a[i - 1] === b[j - 1]) {
+      if (ta[i - 1] === tb[j - 1]) {
         dp[i][j] = dp[i - 1][j - 1] + 1;
       } else {
         dp[i][j] = Math.max(dp[i - 1][j], dp[i][j - 1]);
@@ -225,15 +240,15 @@ function diffChars(a: string, b: string): DiffSeg[] {
   let i = m;
   let j = n;
   while (i > 0 || j > 0) {
-    if (i > 0 && j > 0 && a[i - 1] === b[j - 1]) {
-      segs.push({ type: "common", text: a[i - 1] });
+    if (i > 0 && j > 0 && ta[i - 1] === tb[j - 1]) {
+      segs.push({ type: "common", text: ta[i - 1] });
       i--;
       j--;
     } else if (j > 0 && (i === 0 || dp[i][j - 1] >= dp[i - 1][j])) {
-      segs.push({ type: "ins", text: b[j - 1] });
+      segs.push({ type: "ins", text: tb[j - 1] });
       j--;
     } else {
-      segs.push({ type: "del", text: a[i - 1] });
+      segs.push({ type: "del", text: ta[i - 1] });
       i--;
     }
   }
@@ -283,7 +298,7 @@ function DiffView({ reason }: DiffViewProps) {
         <div className={styles.diffSideRow}>
           <span className={styles.diffLabelGot}>got</span>
           <span className={styles.diffLine}>
-            {diffChars(got, ref).map((seg, i) => {
+            {diffTokens(got, ref).map((seg, i) => {
               if (seg.type === "common") {
                 return (
                   <span key={i} className={styles.diffCommon}>
@@ -311,7 +326,7 @@ function DiffView({ reason }: DiffViewProps) {
         <div className={styles.diffSideRow}>
           <span className={styles.diffLabelRef}>ref</span>
           <span className={styles.diffLine}>
-            {diffChars(got, ref).map((seg, i) => {
+            {diffTokens(got, ref).map((seg, i) => {
               if (seg.type === "common") {
                 return (
                   <span key={i} className={styles.diffCommon}>
