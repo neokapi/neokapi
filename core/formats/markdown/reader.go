@@ -85,6 +85,23 @@ type Reader struct {
 	source       []byte
 	blockCounter int
 	dataCounter  int
+
+	// visibleRefs is the case-sensitive set of reference labels that
+	// appear as the displayed text of a shortcut or collapsed LinkRef
+	// (`[text]` or `[text][]`). When the matching link reference
+	// definition is encountered, its label is extracted as a translatable
+	// Block — okapi MarkdownFilter does this so the rendered shortcut and
+	// its definition stay in sync. Full LinkRefs (`[anchor][label]`) do
+	// NOT make their label visible: the anchor is what's translated, the
+	// `[label]` portion stays verbatim.
+	visibleRefs map[string]bool
+
+	// usedRefs is the lowercased set of labels referenced by any LinkRef
+	// or ImageRef. The link-reference definition's title is extracted as
+	// translatable only when its label appears in this set — okapi's
+	// behaviour for unused (dead) reference definitions is to treat the
+	// title as untranslatable skeleton bytes.
+	usedRefs map[string]bool
 }
 
 // Ensure Reader implements SkeletonStoreEmitter.
@@ -186,6 +203,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) er
 	body := content[bodyOffset:]
 	doc := md.Parser().Parse(text.NewReader(body))
 
+	r.scanReferenceVisibility(doc)
 	r.walkNode(ctx, ch, doc, body, bodyOffset)
 
 	// Flush remaining source bytes as skeleton text.
@@ -378,6 +396,9 @@ func (r *Reader) walkNode(ctx context.Context, ch chan<- model.PartResult, node 
 				r.emitBlockquoteAsData(ctx, ch, n, source, baseOffset)
 			}
 
+		case *ast.LinkReferenceDefinition:
+			r.emitLinkReferenceDefinition(ctx, ch, n, source, baseOffset)
+
 		default:
 			if child.Kind() == east.KindTable {
 				r.emitTable(ctx, ch, child, source, baseOffset)
@@ -385,6 +406,232 @@ func (r *Reader) walkNode(ctx context.Context, ch chan<- model.PartResult, node 
 				r.walkNode(ctx, ch, child, source, baseOffset)
 			}
 		}
+	}
+}
+
+// scanReferenceVisibility populates r.visibleRefs and r.usedRefs by
+// pre-walking every Link, Image, LinkRef and ImageRef node in the
+// document. Mirrors the okapi MarkdownParser.preVisitor pass:
+//
+//   - A reference label is "visible" (and therefore translatable in the
+//     matching reference definition) iff at least one shortcut or
+//     collapsed LinkRef uses it. Full LinkRefs (`[anchor][label]`) keep
+//     the anchor translatable but leave the bracketed label verbatim,
+//     so they do NOT mark the label visible.
+//   - A reference label is "used" iff any LinkRef or ImageRef points at
+//     it, case-folded for matching. Definitions for unused labels keep
+//     their title as opaque skeleton bytes.
+func (r *Reader) scanReferenceVisibility(doc ast.Node) {
+	r.visibleRefs = map[string]bool{}
+	r.usedRefs = map[string]bool{}
+	_ = ast.Walk(doc, func(n ast.Node, entering bool) (ast.WalkStatus, error) {
+		if !entering {
+			return ast.WalkContinue, nil
+		}
+		switch node := n.(type) {
+		case *ast.Link:
+			if ref := node.Reference; ref != nil {
+				label := string(ref.Value)
+				r.usedRefs[strings.ToLower(label)] = true
+				if ref.Type == ast.ReferenceLinkShortcut || ref.Type == ast.ReferenceLinkCollapsed {
+					r.visibleRefs[label] = true
+				}
+			}
+		case *ast.Image:
+			if ref := node.Reference; ref != nil {
+				label := string(ref.Value)
+				r.usedRefs[strings.ToLower(label)] = true
+				if ref.Type == ast.ReferenceLinkShortcut || ref.Type == ast.ReferenceLinkCollapsed {
+					r.visibleRefs[label] = true
+				}
+			}
+		}
+		return ast.WalkContinue, nil
+	})
+}
+
+// emitLinkReferenceDefinition emits one `[label]: url "title"` block. The
+// label and title are extracted as translatable text runs when the
+// matching shortcut/collapsed reference is visible (label) or any
+// reference uses the label (title); otherwise they are passed through as
+// opaque skeleton bytes. Mirrors okapi MarkdownParser.visitReferenceDefinition.
+//
+// Native goldmark places the AST node's Start at the position of `[`
+// (after any leading indent), matching okapi's behaviour of stripping
+// 1-3 spaces of indentation from the rendered output.
+func (r *Reader) emitLinkReferenceDefinition(ctx context.Context, ch chan<- model.PartResult, n *ast.LinkReferenceDefinition, source []byte, baseOffset int) {
+	lines := n.Lines()
+	if lines.Len() == 0 {
+		return
+	}
+	first := lines.At(0)
+	last := lines.At(lines.Len() - 1)
+
+	defStart := first.Start + baseOffset
+	defEnd := last.Stop + baseOffset
+
+	// fullLineStart points at the first byte of the source line that
+	// holds the `[label]:` marker — it backs up past any leading
+	// CommonMark indent (0–3 spaces). Okapi strips that indent on
+	// writeback, so we emit the gap up to defStart but skip it for the
+	// definition's own bytes.
+	fullLineStart := defStart
+	for fullLineStart > 0 && r.source[fullLineStart-1] != '\n' {
+		fullLineStart--
+	}
+	r.skelEmitGap(fullLineStart)
+	r.skelCursor = defEnd
+
+	label := string(n.Label)
+	labelVisible := r.visibleRefs[label]
+	titleUsed := len(n.Title) > 0 && r.usedRefs[strings.ToLower(label)]
+
+	// Reconstruct the URL slice. Reference definitions written with
+	// `<url>` angle brackets must preserve that wrapping; goldmark's
+	// Destination field is the unwrapped URL, so we sniff the source
+	// bytes immediately after the `:` separator to decide.
+	urlLiteral := referenceDefinitionURLLiteral(n.Destination, r.source[defStart:defEnd])
+
+	// The simple case: no translatable parts → emit as Data so the
+	// non-skeleton write path can still reconstruct the line, and let
+	// the skeleton path use the rebuilt literal (so leading indent gets
+	// stripped). When skeleton storage is in use this still produces
+	// byte-equal output because the rebuild uses the AST-derived label,
+	// dest, and title which are exactly the source bytes minus the
+	// indent.
+	if !labelVisible && !titleUsed {
+		r.dataCounter++
+		titleOpen, titleClose := titleDelimiters(r.source[defStart:defEnd], string(n.Title))
+		data := &model.Data{
+			ID:   fmt.Sprintf("d%d", r.dataCounter),
+			Name: "link-reference-definition",
+			Properties: map[string]string{
+				"label":       label,
+				"destination": urlLiteral,
+				"title":       string(n.Title),
+			},
+		}
+		r.skelText(buildLinkReferenceDefinitionLiteral(label, urlLiteral, string(n.Title), titleOpen, titleClose))
+		// preserve a trailing newline only when source had one (always
+		// true for non-EOF defs; goldmark already trimmed the line value
+		// so we add it back here).
+		if defEnd < len(r.source) && r.source[defEnd] == '\n' {
+			r.skelText("\n")
+			r.skelCursor = defEnd + 1
+		}
+		r.emit(ctx, ch, &model.Part{Type: model.PartData, Resource: data})
+		return
+	}
+
+	// Translatable case: emit individual blocks for label and/or title,
+	// interleaved with skeleton text containing the structural bytes.
+	// Mirrors okapi's `addToQueue(refText, isVisibleRef(refText), REFERENCE)`
+	// + `addToQueue(node.getTitle().toString(), isRefTextUsed(refText), REFERENCE)`
+	// pattern: each translatable atom becomes its own short text unit so
+	// the TM keys cleanly off the source string.
+	r.skelText("[")
+	if labelVisible {
+		r.blockCounter++
+		blockID := fmt.Sprintf("tu%d", r.blockCounter)
+		block := model.NewBlock(blockID, label)
+		block.Name = fmt.Sprintf("ref-label%d", r.blockCounter)
+		block.Type = "link-reference-label"
+		r.skelRef(blockID)
+		r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
+	} else {
+		r.skelText(label)
+	}
+	r.skelText("]: " + urlLiteral)
+	if titleUsed {
+		// Detect title delimiter from source so `'`, `"`, and `(...)`
+		// forms all round-trip exactly.
+		open, close := titleDelimiters(r.source[defStart:defEnd], string(n.Title))
+		r.skelText(" " + open)
+		r.blockCounter++
+		blockID := fmt.Sprintf("tu%d", r.blockCounter)
+		block := model.NewBlock(blockID, string(n.Title))
+		block.Name = fmt.Sprintf("ref-title%d", r.blockCounter)
+		block.Type = "link-reference-title"
+		r.skelRef(blockID)
+		r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
+		r.skelText(close)
+	} else if len(n.Title) > 0 {
+		// Title present but not extracted — emit as skeleton bytes to
+		// preserve the original source form.
+		open, close := titleDelimiters(r.source[defStart:defEnd], string(n.Title))
+		r.skelText(" " + open + string(n.Title) + close)
+	}
+	if defEnd < len(r.source) && r.source[defEnd] == '\n' {
+		r.skelText("\n")
+		r.skelCursor = defEnd + 1
+	}
+}
+
+// buildLinkReferenceDefinitionLiteral builds the source representation
+// of `[label]: url "title"` (or with the alternate quote/paren forms).
+// Used when the definition has no translatable parts so the writer can
+// still reconstruct the line from skeleton bytes alone.
+func buildLinkReferenceDefinitionLiteral(label, dest, title, titleOpen, titleClose string) string {
+	var sb strings.Builder
+	sb.WriteByte('[')
+	sb.WriteString(label)
+	sb.WriteString("]: ")
+	sb.WriteString(dest)
+	if title != "" {
+		open, close := titleOpen, titleClose
+		if open == "" || close == "" {
+			open, close = `"`, `"`
+		}
+		sb.WriteByte(' ')
+		sb.WriteString(open)
+		sb.WriteString(title)
+		sb.WriteString(close)
+	}
+	return sb.String()
+}
+
+// referenceDefinitionURLLiteral returns the URL as it appeared in the
+// source line (`<url>` or bare `url`). Goldmark's Destination field is
+// always the unwrapped URL, so we sniff the bytes immediately after the
+// `:` separator for a leading `<` to decide.
+func referenceDefinitionURLLiteral(dest []byte, defLine []byte) string {
+	d := string(dest)
+	colon := bytes.IndexByte(defLine, ':')
+	if colon < 0 {
+		return d
+	}
+	// Skip past `:` and any subsequent spaces.
+	i := colon + 1
+	for i < len(defLine) && (defLine[i] == ' ' || defLine[i] == '\t') {
+		i++
+	}
+	if i < len(defLine) && defLine[i] == '<' {
+		return "<" + d + ">"
+	}
+	return d
+}
+
+// titleDelimiters returns the opening and closing characters used to
+// wrap the link-reference-definition's title in source. Markdown allows
+// `"..."`, `'...'`, and `(...)`. We sniff the bytes immediately before
+// the title text to choose; default to double-quotes when the slice
+// doesn't contain a recognisable delimiter pair (defensive — should
+// never happen for valid CommonMark).
+func titleDelimiters(defLine []byte, title string) (string, string) {
+	if title == "" {
+		return `"`, `"`
+	}
+	idx := bytes.Index(defLine, []byte(title))
+	if idx <= 0 {
+		return `"`, `"`
+	}
+	switch defLine[idx-1] {
+	case '\'':
+		return "'", "'"
+	case '(':
+		return "(", ")"
+	default:
+		return `"`, `"`
 	}
 }
 
@@ -1107,6 +1354,22 @@ func (r *Reader) buildLinkRuns(b *runBuilder, n *ast.Link, source []byte, idCoun
 	id := strconv.Itoa(*idCounter)
 	info := r.vocab.LookupOrFallback("link:hyperlink")
 
+	// Reference-style links (`[text]`, `[text][]`, `[text][label]`)
+	// must round-trip in their reference form. Goldmark resolves the
+	// destination eagerly so the AST always carries the URL, but we
+	// detect the reference form via n.Reference and rebuild the closing
+	// marker as `]`, `][]`, or `][label]` accordingly. Mirrors okapi
+	// MarkdownParser.visitRefLink which emits the LINK_REF tokens
+	// verbatim from the source markers.
+	if n.Reference != nil {
+		closing := referenceCloseMarker(n.Reference)
+		b.AddPcOpen(id, "link:hyperlink", "md:link-ref", "[", info.Display.Open, info.Equiv,
+			info.Constraints.Deletable, info.Constraints.Cloneable, info.Constraints.Reorderable)
+		r.buildCodedRuns(b, n, source, idCounter)
+		b.AddPcClose(id, "link:hyperlink", "md:link-ref", closing, info.Equiv)
+		return
+	}
+
 	destLiteral := linkDestinationLiteral(n.Destination, source)
 
 	b.AddPcOpen(id, "link:hyperlink", "md:link", "[", info.Display.Open, info.Equiv,
@@ -1139,6 +1402,24 @@ func (r *Reader) buildImageRuns(b *runBuilder, n *ast.Image, source []byte, idCo
 	id := strconv.Itoa(*idCounter)
 	info := r.vocab.LookupOrFallback("link:image")
 
+	// Reference-style images (`![alt]`, `![alt][]`, `![alt][label]`)
+	// follow the same preserve-reference-form rule as buildLinkRuns: the
+	// closing marker becomes `]`, `][]`, or `][label]` instead of the
+	// resolved `](url)`. Note that for `![][label]` (empty alt) we still
+	// produce an empty pc-pair around no inline content, matching the
+	// shape okapi MarkdownParser uses for IMAGE_REF nodes whose text is
+	// undefined.
+	if n.Reference != nil {
+		closing := referenceCloseMarker(n.Reference)
+		b.AddPcOpen(id, "link:image", "md:image-ref", "![", info.Display.Open, info.Equiv,
+			info.Constraints.Deletable, info.Constraints.Cloneable, info.Constraints.Reorderable)
+		if r.cfg.TranslateImageAlt() {
+			r.buildCodedRuns(b, n, source, idCounter)
+		}
+		b.AddPcClose(id, "link:image", "md:image-ref", closing, info.Equiv)
+		return
+	}
+
 	destLiteral := linkDestinationLiteral(n.Destination, source)
 
 	b.AddPcOpen(id, "link:image", "md:image", "![", info.Display.Open, info.Equiv,
@@ -1164,26 +1445,47 @@ func (r *Reader) buildImageRuns(b *runBuilder, n *ast.Image, source []byte, idCo
 	b.AddPcClose(id, "link:image", "md:image", "]("+destLiteral+")", info.Equiv)
 }
 
+// referenceCloseMarker returns the closing-marker bytes for a
+// reference-style link or image, given the resolved Reference info from
+// goldmark's AST. The three CommonMark forms map as follows:
+//
+//	[text]            (Shortcut)  → "]"
+//	[text][]          (Collapsed) → "][]"
+//	[text][label]     (Full)      → "][label]"
+//
+// The label preserves the source casing exactly via Reference.Value, so
+// the round-trip output matches the original form even when the link
+// text was case-folded by translation.
+func referenceCloseMarker(ref *ast.ReferenceLink) string {
+	switch ref.Type {
+	case ast.ReferenceLinkShortcut:
+		return "]"
+	case ast.ReferenceLinkCollapsed:
+		return "][]"
+	default: // ReferenceLinkFull
+		return "][" + string(ref.Value) + "]"
+	}
+}
+
 // linkDestinationLiteral returns the destination URL as it appeared in
 // the source: bare (`http://example.com`) or wrapped in angle brackets
 // (`<http://example.com>`). goldmark's ast.Link/Image carries only the
 // resolved Destination string; we peek at the source bytes for the
-// wrapped form so round-trips preserve angle-bracket-wrapped URLs
+// inline-link form so round-trips preserve angle-bracket-wrapped URLs
 // (e.g. `[Link](<https://...> "title")`).
 func linkDestinationLiteral(dest []byte, source []byte) string {
 	d := string(dest)
-	// We can't reliably get the destination's source offset from goldmark's
-	// AST, so fall back to a conservative heuristic: search the source
-	// document for the destination wrapped in angle brackets. When found,
-	// use the wrapped form; otherwise emit the bare destination. This
-	// covers the common case where each link's URL is unique within the
-	// document — the only case the parity fixtures actually exercise.
 	if d == "" {
 		return d
 	}
-	wrapped := "<" + d + ">"
-	if bytes.Contains(source, []byte(wrapped)) {
-		return wrapped
+	// Match the destination only in inline-link context: the `](<dest`
+	// substring uniquely belongs to the inline `[text](<url>)` form.
+	// Searching for the bare `<dest>` would also match autolinks
+	// (`<http://...>`) elsewhere in the document, which would wrongly
+	// upgrade a bare-form inline link to angle-wrapped just because the
+	// same URL appears somewhere as an autolink.
+	if bytes.Contains(source, []byte("](<"+d+">")) {
+		return "<" + d + ">"
 	}
 	return d
 }
@@ -1193,10 +1495,14 @@ func (r *Reader) buildAutoLinkRuns(b *runBuilder, n *ast.AutoLink, source []byte
 	id := strconv.Itoa(*idCounter)
 	info := r.vocab.LookupOrFallback("link:hyperlink")
 	url := string(n.URL(source))
-	b.AddPcOpen(id, "link:hyperlink", "md:autolink", "<", info.Display.Open, info.Equiv,
+	// Autolink URLs and email addresses are non-translatable opaque
+	// codes — okapi MarkdownParser emits AUTO_LINK / MAIL_LINK tokens
+	// with translatable=false, so the URL/email travels through pseudo
+	// translation as verbatim bytes. We model the whole `<url>` as one
+	// inline placeholder so RenderRunsWithData writes it back unchanged.
+	b.AddPh(id, "link:hyperlink", "md:autolink", "<"+url+">",
+		info.Display.Open, info.Equiv,
 		info.Constraints.Deletable, info.Constraints.Cloneable, info.Constraints.Reorderable)
-	b.AddText(url)
-	b.AddPcClose(id, "link:hyperlink", "md:autolink", ">", info.Equiv)
 }
 
 func (r *Reader) buildRawHTMLRuns(b *runBuilder, n *ast.RawHTML, source []byte, idCounter *int) {

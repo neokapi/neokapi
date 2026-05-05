@@ -568,7 +568,19 @@ func TestRead_LinkWithTitle(t *testing.T) {
 func TestRead_AutoLink(t *testing.T) {
 	blocks := readBlocks(t, "Visit <https://example.com> now")
 	require.Len(t, blocks, 1)
-	assert.Contains(t, blocks[0].SourceText(), "https://example.com")
+	// The autolink itself is an opaque placeholder (not translatable
+	// text), but its source data must carry the full `<url>` so the
+	// writer can re-emit it verbatim. Check the placeholder data.
+	runs := blocks[0].SourceRuns()
+	var sawAutolink bool
+	for _, r := range runs {
+		if r.Ph != nil && r.Ph.SubType == "md:autolink" {
+			assert.Contains(t, r.Ph.Data, "https://example.com",
+				"autolink placeholder data must carry the full <url>")
+			sawAutolink = true
+		}
+	}
+	assert.True(t, sawAutolink, "expected an md:autolink placeholder run")
 }
 
 // --- Image Tests ---
