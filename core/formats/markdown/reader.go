@@ -654,6 +654,39 @@ func nodeAbsRange(node ast.Node, source []byte, baseOffset int) (int, int) {
 	return s + baseOffset, e + baseOffset
 }
 
+// softBreakContinuation returns the literal source bytes that bridge
+// two inline runs across a soft line break: a leading newline plus any
+// blockquote (`>` / `> `) or indentation prefix that introduces the
+// continuation line. This preserves okapi-parity for paragraphs and
+// blockquotes whose hard wraps must round-trip verbatim — okapi's
+// MarkdownFilter keeps the literal `\n` (and continuation marker)
+// rather than collapsing per CommonMark §6.7. Falls back to a single
+// space when the source slice doesn't begin with a newline (defensive
+// — should not happen for valid SoftLineBreak Text nodes).
+func softBreakContinuation(source []byte, pos int) string {
+	if pos < 0 || pos >= len(source) || source[pos] != '\n' {
+		return " "
+	}
+	end := pos + 1
+	for end < len(source) {
+		c := source[end]
+		switch c {
+		case ' ', '\t':
+			end++
+			continue
+		case '>':
+			end++
+			// A single optional space follows `>` per CommonMark §5.1.
+			if end < len(source) && source[end] == ' ' {
+				end++
+			}
+			continue
+		}
+		break
+	}
+	return string(source[pos:end])
+}
+
 // fullNodeAbsRange returns the absolute byte range of a node including
 // any prefix characters (like "# " for headings). This scans backward
 // from the line start to find the actual start of the markdown line.
@@ -1708,15 +1741,7 @@ func (r *Reader) collectInlineText(buf *strings.Builder, node ast.Node, source [
 		case *ast.Text:
 			buf.Write(n.Segment.Value(source))
 			if n.SoftLineBreak() {
-				// Preserve the literal LF inside a paragraph the way okapi
-				// MarkdownFilter does — its TextUnit content keeps the
-				// source's newline so the round-tripped output matches the
-				// original line shape (blockquote `> ` markers and indented
-				// continuation lines are re-emitted by the writer via the
-				// per-line prefix property; see emitParagraph). Collapsing
-				// to a space here would force the writer to emit a single
-				// joined line and lose the multi-line layout.
-				buf.WriteByte('\n')
+				buf.WriteString(softBreakContinuation(source, n.Segment.Stop))
 			}
 			if n.HardLineBreak() {
 				buf.WriteByte('\n')
@@ -1783,13 +1808,7 @@ func (r *Reader) buildCodedRuns(b *runBuilder, node ast.Node, source []byte, idC
 		case *ast.Text:
 			addTextWithEntities(b, string(n.Segment.Value(source)), idCounter)
 			if n.SoftLineBreak() {
-				// Match collectInlineText's LF-preservation rule (see
-				// comment there): the source's newline travels through
-				// the Block as a literal LF so blockquotes and other
-				// multi-line constructs round-trip with their original
-				// line shape intact (the writer re-inserts the per-line
-				// prefix via BlockPropLinePrefix).
-				b.AddText("\n")
+				b.AddText(softBreakContinuation(source, n.Segment.Stop))
 			}
 			if n.HardLineBreak() {
 				b.AddText("\n")

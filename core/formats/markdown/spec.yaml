@@ -109,19 +109,15 @@ features:
           - "First paragraph"
           - "Second paragraph"
       - name: emphasis_across_soft_break
-        # Soft line break inside a paragraph collapses to a space —
-        # the paragraph stays one Block.
-        origin: "authored: CommonMark §6.7 soft-break + emphasis case"
+        # Soft line break inside a paragraph round-trips as the
+        # literal `\n` (plus any blockquote/indent continuation
+        # prefix). Matches okapi MarkdownFilter — required so the
+        # writer can reproduce the source byte-for-byte rather than
+        # collapsing per CommonMark §6.7.
+        origin: "authored: okapi MarkdownFilter soft-break + emphasis case"
         input_xml: "Here comes _emphasized part of text that\nincludes a soft line break_."
-        expected_fail: |
-          bridge bug — Okapi MarkdownFilter preserves the literal `\n`
-          inside a paragraph instead of collapsing it to a space per
-          CommonMark soft-break semantics, yielding "...text that\n
-          includes a soft line break.". Native correctly collapses to
-          a single space. Tracked separately as a bridge soft-break
-          handling bug.
         block_count: 1
-        first_block_text: "Here comes emphasized part of text that includes a soft line break."
+        first_block_text: "Here comes emphasized part of text that\nincludes a soft line break."
     okapi_refs:
       - MarkdownFilterTest#testEventsFromEmptyInput
       - MarkdownFilterTest#testEmphasisAcrossLines

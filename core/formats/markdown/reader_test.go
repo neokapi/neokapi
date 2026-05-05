@@ -433,8 +433,9 @@ func TestRead_EmphasisAcrossLines(t *testing.T) {
 	// The literal LF between source lines is preserved in the block's
 	// text (mirroring okapi MarkdownFilter, which keeps soft line breaks
 	// in TextUnit content rather than collapsing them to spaces). The
-	// writer re-emits the per-line continuation prefix from
-	// BlockPropLinePrefix so blockquote / indented bodies round-trip.
+	// writer re-emits the per-line continuation prefix (blockquote `> `,
+	// list/indent) from BlockPropLinePrefix so soft-break bodies round-
+	// trip byte-for-byte.
 	assert.Equal(t, "This spans\nacross lines", blocks[0].SourceText())
 	runs := blocks[0].SourceRuns()
 	assert.True(t, hasInlineCodeRun(runs))
