@@ -164,20 +164,68 @@ function parseDiffReason(reason: string): ParsedDiff {
   return out;
 }
 
-// unescapeGoVisual reverses the Go %q escapes that exist purely as
-// quote-safety noise — `\"` and `\\` — so the dashboard shows the
-// actual file content. Newlines/tabs/control chars stay as `\n` /
-// `\t` / `\xNN` literals so a single-line layout is preserved
-// (otherwise the diff rows would break across the cell).
-function unescapeGoVisual(s: string): string {
+// unescapeGo reverses Go's %q escaping so the dashboard shows actual
+// file content rather than Go's quoted representation:
+//   `\\` `\"` → literal backslash / quote
+//   `\n` `\t` `\r` etc. → real control chars (`.diffLine` is pre-wrap,
+//     so real newlines render as line breaks — far more readable than
+//     `\n` literals scattered through the snippet)
+//   `\xHH` → the corresponding byte (typical for invalid UTF-8 in
+//     binary content like docx/idml)
+//   `\uHHHH` / `\UHHHHHHHH` → the corresponding rune (e.g. invisible
+//     `­` SHY, `﻿` BOM that often *are* the diff)
+// Unrecognised escapes are kept literal.
+function unescapeGo(s: string): string {
   let out = "";
   for (let i = 0; i < s.length; i++) {
-    if (s[i] === "\\" && i + 1 < s.length) {
-      const n = s[i + 1];
-      if (n === '"' || n === "\\") {
-        out += n;
-        i++;
-        continue;
+    if (s[i] !== "\\" || i + 1 >= s.length) {
+      out += s[i];
+      continue;
+    }
+    const n = s[i + 1];
+    switch (n) {
+      case "n": out += "\n"; i++; continue;
+      case "t": out += "\t"; i++; continue;
+      case "r": out += "\r"; i++; continue;
+      case "a": out += "\x07"; i++; continue;
+      case "b": out += "\x08"; i++; continue;
+      case "f": out += "\x0c"; i++; continue;
+      case "v": out += "\x0b"; i++; continue;
+      case "0": out += "\x00"; i++; continue;
+      case "\\": out += "\\"; i++; continue;
+      case '"': out += '"'; i++; continue;
+      case "x": {
+        if (i + 3 < s.length) {
+          const code = parseInt(s.slice(i + 2, i + 4), 16);
+          if (!Number.isNaN(code)) {
+            out += String.fromCharCode(code);
+            i += 3;
+            continue;
+          }
+        }
+        break;
+      }
+      case "u": {
+        if (i + 5 < s.length) {
+          const code = parseInt(s.slice(i + 2, i + 6), 16);
+          if (!Number.isNaN(code)) {
+            out += String.fromCharCode(code);
+            i += 5;
+            continue;
+          }
+        }
+        break;
+      }
+      case "U": {
+        if (i + 9 < s.length) {
+          const code = parseInt(s.slice(i + 2, i + 10), 16);
+          if (!Number.isNaN(code)) {
+            out += String.fromCodePoint(code);
+            i += 9;
+            continue;
+          }
+        }
+        break;
       }
     }
     out += s[i];
@@ -264,8 +312,8 @@ function DiffView({ reason }: DiffViewProps) {
   if (!hasSnippet) {
     return <span className={styles.diffFallback}>{reason}</span>;
   }
-  const got = unescapeGoVisual(parsed.got ?? "");
-  const ref = unescapeGoVisual(parsed.ref ?? "");
+  const got = unescapeGo(parsed.got ?? "");
+  const ref = unescapeGo(parsed.ref ?? "");
   return (
     <div className={styles.diffBox}>
       {(parsed.zipEntry || parsed.context || parsed.normalizer || parsed.offset !== undefined) && (

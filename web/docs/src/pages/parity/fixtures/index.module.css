@@ -313,6 +313,7 @@
 .diffSideRow .diffLine {
   white-space: pre-wrap;
   word-break: break-all;
+  tab-size: 2;
 }
 
 .diffLabelGot,
