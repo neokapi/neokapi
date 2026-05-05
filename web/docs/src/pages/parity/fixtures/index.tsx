@@ -235,6 +235,27 @@ function unescapeGo(s: string): string {
 
 type DiffSeg = { type: "common" | "del" | "ins"; text: string };
 
+// renderDiffText prepares a diff segment's text for rendering. Inside a
+// del/ins span, whitespace control characters are swapped for visible
+// Unicode glyphs (CR → ␍, LF → ␊, TAB → →) so EOL/whitespace-only
+// diffs are no longer invisible coloured boxes — the user can see at a
+// glance whether got is CRLF and ref is LF, or whether one side has a
+// stray tab. Newlines stay in-place after the glyph so the layout still
+// wraps correctly. Inside a common span, control chars pass through
+// unchanged so real newlines render as actual line breaks.
+function renderDiffText(text: string, type: DiffSeg["type"]): string {
+  if (type === "common") return text;
+  let out = "";
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (c === "\r") out += "␍";
+    else if (c === "\n") out += "␊\n";
+    else if (c === "\t") out += "→";
+    else out += c;
+  }
+  return out;
+}
+
 // tokenize splits a string into atomic units for token-level diffing:
 // each match is either a maximal Unicode word run (letters + digits +
 // underscore + diacritics), a maximal whitespace run, or one
@@ -343,7 +364,7 @@ function DiffView({ reason }: DiffViewProps) {
               const cls = seg.type === "common" ? styles.diffCommon : styles.diffDelGot;
               return (
                 <span key={i} className={cls}>
-                  {seg.text}
+                  {renderDiffText(seg.text, seg.type)}
                 </span>
               );
             })}
@@ -357,7 +378,7 @@ function DiffView({ reason }: DiffViewProps) {
               const cls = seg.type === "common" ? styles.diffCommon : styles.diffDelRef;
               return (
                 <span key={i} className={cls}>
-                  {seg.text}
+                  {renderDiffText(seg.text, seg.type)}
                 </span>
               );
             })}
