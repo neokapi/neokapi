@@ -42,6 +42,18 @@ type tokenReaderState struct {
 	// end-tag that was encountered inside a still-open inline span.
 	// processLeafBlock consumes it on its next loop iteration.
 	deferredLeafEndTagRaw []byte
+	// pendingWS buffers pure-whitespace TextTokens at top-level so we can
+	// decide later whether to flush them to skeleton or drop them. Okapi
+	// strips inter-element whitespace adjacent to a "text-unit" (a run of
+	// text + inline tags between two leaf-block boundaries) but preserves
+	// whitespace between two structural tags. We buffer pure-WS tokens and
+	// drop them when a structural event arrives after a text-unit (or
+	// vice-versa).
+	pendingWS [][]byte
+	// lastTextBlock points at the most recent top-level text-block emitted
+	// so we can retroactively trim its trailing whitespace when the next
+	// event proves we just exited a text-unit.
+	lastTextBlock *model.Block
 }
 
 func newTokenReaderState(r *Reader, store *format.SkeletonStore) *tokenReaderState {
@@ -61,6 +73,67 @@ func (s *tokenReaderState) nextBlockID() string {
 func (s *tokenReaderState) nextDataID() string {
 	s.dataCounter++
 	return "d" + strconv.Itoa(s.dataCounter)
+}
+
+// flushPendingWS writes any buffered pure-WS tokens to skeleton and clears
+// the buffer. Used when the surrounding context is structural-to-structural
+// (e.g. between two leaf-block tags with no text-unit in between).
+func (s *tokenReaderState) flushPendingWS() {
+	for _, ws := range s.pendingWS {
+		_ = s.store.WriteText(ws)
+	}
+	s.pendingWS = nil
+}
+
+// dropPendingWS discards buffered pure-WS tokens. Used when adjacent to a
+// text-unit (Okapi-style trimming).
+func (s *tokenReaderState) dropPendingWS() {
+	s.pendingWS = nil
+}
+
+// trimTrailingWSOfLastTextBlock retroactively trims trailing HTML whitespace
+// from the most recent top-level text-block. Called when a structural event
+// follows a text-unit, so any trailing whitespace inside the unit (embedded
+// in the last text-block's content) should be dropped to match Okapi.
+func (s *tokenReaderState) trimTrailingWSOfLastTextBlock() {
+	if s.lastTextBlock == nil {
+		return
+	}
+	if len(s.lastTextBlock.Source) == 0 {
+		return
+	}
+	runs := s.lastTextBlock.Source[0].Runs
+	if len(runs) == 0 {
+		return
+	}
+	last := &runs[len(runs)-1]
+	if last.Text == nil {
+		return
+	}
+	last.Text.Text = strings.TrimRightFunc(last.Text.Text, isHTMLWhitespace)
+}
+
+// onStructuralEvent is called immediately before writing a top-level
+// structural event (block-level tag, comment, doctype, script/style) to
+// the skeleton. It applies Okapi's text-unit-adjacency trimming: if we
+// just exited a text-unit, drop pendingWS and trim trailing whitespace of
+// the last text-block; otherwise flush pendingWS (it sits between two
+// structural events and is preserved).
+func (s *tokenReaderState) onStructuralEvent() {
+	if s.lastTextBlock != nil {
+		s.trimTrailingWSOfLastTextBlock()
+		s.dropPendingWS()
+		s.lastTextBlock = nil
+		return
+	}
+	s.flushPendingWS()
+}
+
+// onInlineEvent is called immediately before writing a top-level inline
+// tag (e.g. <b>, </b>) to the skeleton. Inline tags are part of the
+// text-unit, so any pendingWS is intra-unit and must be flushed.
+func (s *tokenReaderState) onInlineEvent() {
+	s.flushPendingWS()
 }
 
 // run processes HTML content with the tokenizer, writing skeleton data and
@@ -165,6 +238,12 @@ type elementInfo struct {
 func (s *tokenReaderState) processTokenStream(tokenizer *html.Tokenizer, ctx context.Context, ch chan<- model.PartResult) {
 	var stack []elementInfo
 	translateNo := false
+	defer func() {
+		// Flush any whitespace still buffered at end-of-document. The
+		// document boundary is treated like a structural event for trailing
+		// whitespace inside the last text-block.
+		s.onStructuralEvent()
+	}()
 
 	for {
 		tt := tokenizer.Next()
@@ -179,6 +258,7 @@ func (s *tokenReaderState) processTokenStream(tokenizer *html.Tokenizer, ctx con
 
 		switch tt {
 		case html.DoctypeToken:
+			s.onStructuralEvent()
 			_ = s.store.WriteText(raw)
 			s.reader.emit(ctx, ch, &model.Part{
 				Type: model.PartData,
@@ -192,6 +272,7 @@ func (s *tokenReaderState) processTokenStream(tokenizer *html.Tokenizer, ctx con
 			// Check if we're inside a block element (leaf).
 			// If so, this will be handled during block content collection.
 			// At top level or inside containers, it's non-translatable.
+			s.onStructuralEvent()
 			_ = s.store.WriteText(raw)
 			s.reader.emit(ctx, ch, &model.Part{
 				Type: model.PartData,
@@ -211,12 +292,11 @@ func (s *tokenReaderState) processTokenStream(tokenizer *html.Tokenizer, ctx con
 				// Bare text node outside a block context — emit as text
 				// block. Drop the leading HTML whitespace bytes that
 				// precede the first non-whitespace rune; okapi's html
-				// filter trims that prefix off the start of the text unit
-				// (so the output stitches as "</h3>T…" rather than
-				// "</h3>\r\nT…"). Trailing whitespace stays attached so
-				// the boundary with a following inline token (e.g. " <b>")
-				// is preserved. Inside preserve-whitespace elements
-				// (pre/textarea), keep the raw text intact.
+				// filter trims that prefix off the start of the text-unit.
+				// Pending pure-WS buffered before this text-block is also
+				// adjacent to a text-unit, so drop it. Inside preserve-
+				// whitespace elements (pre/textarea), keep the raw text
+				// intact (and don't touch pendingWS).
 				if preserveWS {
 					blockID := s.nextBlockID()
 					_ = s.store.WriteRef(blockID)
@@ -224,14 +304,19 @@ func (s *tokenReaderState) processTokenStream(tokenizer *html.Tokenizer, ctx con
 					block.PreserveWhitespace = true
 					s.reader.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
 				} else {
+					s.dropPendingWS()
 					body := trimLeadingHTMLWhitespace(text)
 					blockID := s.nextBlockID()
 					_ = s.store.WriteRef(blockID)
 					block := model.NewBlock(blockID, body)
 					s.reader.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
+					s.lastTextBlock = block
 				}
 			} else {
-				_ = s.store.WriteText(raw)
+				// Pure-whitespace text token at top level: buffer it. The
+				// next non-WS event decides whether to flush (between two
+				// structural tags) or drop (adjacent to a text-unit).
+				s.pendingWS = append(s.pendingWS, raw)
 			}
 
 		case html.StartTagToken:
@@ -261,6 +346,7 @@ func (s *tokenReaderState) processTokenStream(tokenizer *html.Tokenizer, ctx con
 
 			// Non-translatable elements (script, style).
 			if nonTranslatableElements[a] {
+				s.onStructuralEvent()
 				_ = s.store.WriteText(raw)
 				s.reader.emit(ctx, ch, &model.Part{
 					Type: model.PartData,
@@ -279,8 +365,19 @@ func (s *tokenReaderState) processTokenStream(tokenizer *html.Tokenizer, ctx con
 			if selfClosingElements[a] {
 				// Handle META tags.
 				if a == atom.Meta {
+					s.onStructuralEvent()
 					s.handleMetaToken(raw, attrs, ctx, ch)
 					continue
+				}
+
+				// Most void elements (br, hr, img, input, …) are inline-level.
+				// <link>, <base>, <meta>, <param>, <source>, <track>, <col>,
+				// <area>, <embed> are structural in practice. Use the inline
+				// element map as the discriminator.
+				if inlineElements[a] {
+					s.onInlineEvent()
+				} else {
+					s.onStructuralEvent()
 				}
 
 				// Extract lang attribute.
@@ -301,6 +398,9 @@ func (s *tokenReaderState) processTokenStream(tokenizer *html.Tokenizer, ctx con
 				// Block-level element.
 				info.isBlock = true
 				info.preserveWS = s.cfg.PreserveWhitespace || preserveWhitespaceElements[a]
+
+				// A block-level start tag exits any preceding text-unit.
+				s.onStructuralEvent()
 
 				// Extract lang attribute.
 				s.extractLangFromToken(nil, tag, attrs, ctx, ch)
@@ -367,7 +467,8 @@ func (s *tokenReaderState) processTokenStream(tokenizer *html.Tokenizer, ctx con
 				continue
 			}
 
-			// Inline element at top level — handled in text flow.
+			// Inline element at top level — part of a text-unit.
+			s.onInlineEvent()
 			_ = s.store.WriteText(raw)
 			stack = append(stack, info)
 			translateNo = info.translateNo
@@ -375,6 +476,7 @@ func (s *tokenReaderState) processTokenStream(tokenizer *html.Tokenizer, ctx con
 		case html.EndTagToken:
 			tagName, _ := tokenizer.TagName()
 			tag := string(tagName)
+			endAtom := atom.Lookup(tagName)
 
 			// Pop stack.
 			if len(stack) > 0 {
@@ -382,6 +484,14 @@ func (s *tokenReaderState) processTokenStream(tokenizer *html.Tokenizer, ctx con
 				if top.tag == tag {
 					stack = stack[:len(stack)-1]
 				}
+			}
+
+			// Inline end tag is part of the text-unit; structural end tag
+			// (container close) ends it.
+			if inlineElements[endAtom] {
+				s.onInlineEvent()
+			} else {
+				s.onStructuralEvent()
 			}
 
 			_ = s.store.WriteText(raw)
@@ -404,8 +514,15 @@ func (s *tokenReaderState) processTokenStream(tokenizer *html.Tokenizer, ctx con
 			}
 
 			if a == atom.Meta {
+				s.onStructuralEvent()
 				s.handleMetaToken(raw, attrs, ctx, ch)
 				continue
+			}
+
+			if inlineElements[a] {
+				s.onInlineEvent()
+			} else {
+				s.onStructuralEvent()
 			}
 
 			s.extractLangFromToken(raw, tag, attrs, ctx, ch)
