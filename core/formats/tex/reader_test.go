@@ -328,7 +328,15 @@ Main text\footnote{This is the footnote content.} continues.
 	assert.Contains(t, text, "This is the footnote content.")
 }
 
-// okapi: TEXFilterTest#testSectionVariants
+// TestSectionVariants verifies which `\section`-family commands
+// produce translatable text units. Mirrors Okapi TEXFilter's
+// `oneArgParaText` list — `\section`, `\subsection`, `\chapter` are
+// included; `\subsubsection`, `\paragraph`, `\subparagraph`, `\part`
+// are intentionally excluded (treated as unknown commands so their
+// `{...}` arguments stay non-translatable). Keeps native byte-equal
+// with the okapi reference for the upstream `sample.tex` fixture
+// where mid-paragraph `\subsubsection{Typefaces and Sizes:}` must NOT
+// emit "Typefaces and Sizes:" as translatable text.
 func TestSectionVariants(t *testing.T) {
 	blocks := readBlocks(t, `\begin{document}
 \section{Section}
@@ -340,8 +348,9 @@ func TestSectionVariants(t *testing.T) {
 	texts := blockTexts(blocks)
 	assert.Contains(t, texts, "Section")
 	assert.Contains(t, texts, "Subsection")
-	assert.Contains(t, texts, "Subsubsection")
 	assert.Contains(t, texts, "Chapter")
+	assert.NotContains(t, texts, "Subsubsection",
+		"\\subsubsection content must not be translatable per okapi parity")
 }
 
 // --- Additional tests ---

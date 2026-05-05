@@ -36,39 +36,49 @@ var noTextCommands = map[string]bool{
 	"pagenumbering":     true,
 }
 
-// inlineTextCommands are commands whose arguments contain inline translatable text.
+// inlineTextCommands are commands whose arguments contain inline
+// translatable text. Mirrors Okapi TEXFilter's oneArgInlineText for
+// the `\cmd{…}` form. Bare style switches (\bf, \em, \tt) used as
+// `{\bf text}` follow a different code path in okapi (processOpenCurly
+// → processOneArgInlineText) and are intentionally not on this list —
+// the native equivalent doesn't yet model the brace-first form. Other
+// styling commands (\textrm, \textsc, \textsl, \underline, \fbox,
+// \footnotetext, …) fall through to the unknown-command path so their
+// arguments stay non-translatable, matching okapi's body-mode behavior
+// for any command not on this list.
 var inlineTextCommands = map[string]bool{
-	"textbf":       true,
-	"textit":       true,
-	"emph":         true,
-	"texttt":       true,
-	"textsf":       true,
-	"textrm":       true,
-	"textsc":       true,
-	"textsl":       true,
-	"underline":    true,
-	"mbox":         true,
-	"fbox":         true,
-	"footnote":     true,
-	"footnotetext": true,
+	"emph":     true,
+	"footnote": true,
+	"hbox":     true,
+	"mbox":     true,
+	"textbackit": true,
+	"textbf":   true,
+	"texttt":   true,
+	"textsf":   true,
+	"textit":   true,
+	"vbox":     true,
 }
 
 // paragraphTextCommands produce separate text units for their arguments
 // when encountered in the body. Mirrors Okapi TEXFilter's oneArgParText
-// list — \date is intentionally excluded because Okapi treats it as an
-// unknown command in body mode (resulting in a non-translatable
-// document part). \date in the preamble is still translatable via
-// headerTextCommands.
+// list verbatim — `\subsubsection`, `\paragraph`, `\subparagraph`, and
+// `\part` are intentionally NOT here because Okapi treats them as
+// unknown commands in body mode (resulting in a non-translatable
+// document part). Adding them as paragraph-text commands would extract
+// `{Typefaces and Sizes:}` from `\subsubsection{Typefaces and Sizes:}`
+// as translatable text, diverging from okapi's reference output. The
+// trailing-running-head spelling `\titlerunning` and the silent
+// `\typeout` / index entries are mirrored from okapi for completeness.
 var paragraphTextCommands = map[string]bool{
+	"author":        true,
+	"Chapter":       true,
+	"chapter":       true,
+	"index":         true,
+	"typeout":       true,
+	"title":         true,
+	"titlerunning":  true,
 	"section":       true,
 	"subsection":    true,
-	"subsubsection": true,
-	"chapter":       true,
-	"part":          true,
-	"paragraph":     true,
-	"subparagraph":  true,
-	"title":         true,
-	"author":        true,
 	"caption":       true,
 }
 
@@ -615,6 +625,14 @@ func (p *parser) parse(ctx context.Context, ch chan<- model.PartResult, r *Reade
 					// and silently lost.
 					cmdStart := p.pos
 					p.pos = cmdEnd
+					// Mirror Okapi TEXParser.parse — extend the cmd past
+					// any trailing DEFAULT chars and one whitespace so
+					// the synthetic-space rule below fires only when the
+					// peek-next token (post-extension) still starts with
+					// a space. See body-mode branch + extendCmdRun for
+					// rationale.
+					extEnd := p.extendCmdRun(cmdEnd)
+					p.pos = extEnd
 					nextIsSpace := p.pos < len(p.source) && p.source[p.pos] == ' '
 					p.skipOptionalArg()
 					hasBraceArg := false
@@ -630,6 +648,16 @@ func (p *parser) parse(ctx context.Context, ch chan<- model.PartResult, r *Reade
 						// branch below for full rationale.
 						rawCmd := p.source[cmdStart:p.pos]
 						if r.skeletonStore != nil {
+							// Flush any unwritten skeleton bytes between
+							// the previous emit and the command's start
+							// (whitespace, paragraph breaks, …) before
+							// the command's own bytes — without this
+							// preceding `\n\n` runs vanish and the writer
+							// concatenates the previous line directly to
+							// the cmd, dropping the blank-line separator.
+							if cmdStart > p.lastSkelPos {
+								r.skelText(p.source[p.lastSkelPos:cmdStart])
+							}
 							r.skelText(rawCmd)
 							r.skelText(" ")
 							p.lastSkelPos = p.pos
@@ -747,9 +775,19 @@ func (p *parser) parse(ctx context.Context, ch chan<- model.PartResult, r *Reade
 				flushText()
 				cmdStart := p.pos
 				p.pos = cmdEnd
-				// Detect whether the next non-command byte is a space —
-				// must do this BEFORE skipOptionalArg, which silently
-				// consumes leading spaces while looking for `[`. Okapi
+				// Mirror Okapi TEXParser's command tokenization: extend
+				// the command past trailing DEFAULT chars (`,` `.` …)
+				// and absorb one trailing whitespace byte. Without this
+				// `\LaTeX,` is tokenised as `\LaTeX` only, but okapi
+				// emits the cmd as `\LaTeX, ` (8 chars) so the
+				// synthetic-space rule below + the remaining spaces in
+				// the source produce one more output space than native.
+				extEnd := p.extendCmdRun(cmdEnd)
+				p.pos = extEnd
+				// Detect whether the next non-command byte (after the
+				// extended cmd run) is still a space — must do this
+				// BEFORE skipOptionalArg, which silently consumes
+				// leading spaces while looking for `[`. Okapi
 				// TEXFilter peeks at the next token's content for a
 				// leading space and, if present, appends a single space
 				// to the command's data part WITHOUT consuming the
@@ -763,11 +801,20 @@ func (p *parser) parse(ctx context.Context, ch chan<- model.PartResult, r *Reade
 					hasBraceArg = true
 				}
 				if !hasBraceArg && nextIsSpace {
-					// Flush any preceding raw bytes (the command itself)
-					// to skeleton so the synthetic space lands at the
-					// right offset.
+					// Flush any unwritten skeleton bytes between the
+					// previous emit and the command's start — typically
+					// the inter-paragraph whitespace that flushText
+					// folded into the body's textBuf — before emitting
+					// the command itself + the synthetic separator
+					// space. Without this, a body unknown command that
+					// follows two newlines (`paragraph\n\n\foo `) loses
+					// the blank-line separator and the writer fuses the
+					// preceding paragraph into the cmd.
 					rawCmd := p.source[cmdStart:p.pos]
 					if r.skeletonStore != nil {
+						if cmdStart > p.lastSkelPos {
+							r.skelText(p.source[p.lastSkelPos:cmdStart])
+						}
 						r.skelText(rawCmd)
 						r.skelText(" ")
 						p.lastSkelPos = p.pos
@@ -909,6 +956,56 @@ func (p *parser) peekCommand() (string, int) {
 	return p.source[start:end], end
 }
 
+// isOkapiTexDefault reports whether b is a "DEFAULT" character per
+// Okapi's TEXParser.getCharType — i.e. anything outside the set of
+// significant TeX characters that can be appended to an in-progress
+// command token without ending it. Mirrors TEXParser.getCharType so
+// our cmd-extension logic in extendCmdRun matches the upstream
+// tokenizer byte-for-byte.
+func isOkapiTexDefault(b byte) bool {
+	switch b {
+	case '\\', '{', '}', '$', '&', '\n', '\r', '#', '^', '_',
+		' ', '\t', '~', '%', 0:
+		return false
+	}
+	if (b >= 'a' && b <= 'z') || (b >= 'A' && b <= 'Z') || (b >= '0' && b <= '9') {
+		return false
+	}
+	return true
+}
+
+// extendCmdRun mirrors Okapi TEXParser.parse's command-tokenization
+// loop for an alpha-named command: starting at end (the byte just past
+// the command-name's last alpha char), it consumes any contiguous
+// DEFAULT chars (`,` `.` `+` `-` …) and then a single trailing
+// whitespace byte if present. Returns the new end position. The
+// caller treats `[end:newEnd]` as part of the command token's
+// rendered data — without this, `\LaTeX,                %` would be
+// emitted with one less space than okapi's reference output because
+// okapi's tokenizer consumes the comma + first space into the cmd
+// token itself before the synthetic-space rule fires.
+//
+// Important: extendCmdRun must NOT cross into an optional argument
+// `[…]` even though `[` itself is a DEFAULT character. Okapi's
+// tokenizer special-cases `[` by greedily consuming up through the
+// matching `]` into the command — but the rest of our reader expects
+// `[…]` to be handled by skipOptionalArg, which re-reads the same
+// bracket span. Eating `[T2A]` here would leave the rest of the
+// `\usepackage[T2A]{fontenc}` line stranded in the body text stream,
+// making `T2A]{fontenc}` translatable.
+func (p *parser) extendCmdRun(end int) int {
+	for end < len(p.source) && isOkapiTexDefault(p.source[end]) {
+		if p.source[end] == '[' {
+			break
+		}
+		end++
+	}
+	if end < len(p.source) && (p.source[end] == ' ' || p.source[end] == '\t') {
+		end++
+	}
+	return end
+}
+
 // peekBraceArg looks for {argtext} starting at pos. Returns the text inside braces.
 func (p *parser) peekBraceArg(pos int) string {
 	if pos >= len(p.source) || p.source[pos] != '{' {
@@ -1025,6 +1122,32 @@ func (p *parser) readBraceArgRuns() []model.Run {
 				// Closing brace — consume and exit.
 				p.pos++
 			}
+		case '%':
+			// Comment inside the brace arg — okapi's TEXFilter routes
+			// COMMENT tokens to addDocumentPartToEventBuilder, which
+			// inside a TextUnit becomes a Code (placeholder) carrying
+			// the verbatim comment bytes. The translatable text stream
+			// thus excludes the comment, preventing things like
+			// `\author{Alice% <-comment\nBob}` from pseudo-translating
+			// the words inside the `% <-comment` line. We capture the
+			// `%`-to-EOL run (including the trailing newline so its
+			// `\thanks{...}` follow-on ends up on the next line) as a
+			// Ph run whose Data round-trips verbatim.
+			cmtStart := p.pos
+			for p.pos < len(p.source) && p.source[p.pos] != '\n' {
+				p.pos++
+			}
+			if p.pos < len(p.source) {
+				p.pos++ // include trailing newline (matches readToEndOfLine)
+			}
+			flushText()
+			phCounter++
+			runs = append(runs, model.Run{Ph: &model.PlaceholderRun{
+				ID:    fmt.Sprintf("c%d", phCounter),
+				Type:  "tex:comment",
+				Data:  p.source[cmtStart:p.pos],
+				Equiv: "%",
+			}})
 		default:
 			textBuf.WriteByte(ch)
 			p.pos++
