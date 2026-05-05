@@ -408,9 +408,18 @@ func (r *Reader) parseStory(ctx context.Context, ch chan<- model.PartResult,
 					}
 
 					trimmed := strings.TrimSpace(text)
-					inNote := noteDepth > 0
 
-					if trimmed == "" || (inNote && !r.cfg.ExtractNotes) {
+					// Footnote/Endnote/Note <Content> text is always
+					// extracted as a translatable Block — matching
+					// okapi's IDML round-trip, which translates
+					// footnote bodies regardless of the ExtractNotes
+					// flag. ExtractNotes controls whether the note is
+					// also exposed as a separate NoteAnnotation on
+					// the surrounding Block (we don't emit that
+					// annotation today, so the flag is currently a
+					// no-op for text extraction).
+
+					if trimmed == "" {
 						// Non-translatable: write to skeleton as text
 						commitPending()
 						r.skelText(&skelBuf, xmlEscape(text))

@@ -479,22 +479,29 @@ func TestFootnotes(t *testing.T) {
 </idPkg:Story>`,
 	})
 
-	// Default: notes are NOT extracted (matches okapi's IDML filter).
+	// Footnote <Content> text is always extracted as a translatable
+	// Block — matching okapi's IDML round-trip, which translates
+	// footnote bodies regardless of the ExtractNotes flag.
+	// ExtractNotes controls whether the note is also exposed as a
+	// separate NoteAnnotation (we don't emit that today, so the flag
+	// is currently a no-op for text extraction).
 	parts := readIDMLBytes(t, data)
 	blocks := testutil.FilterBlocks(parts)
-	require.Len(t, blocks, 1)
-	assert.Equal(t, "Main text", blocks[0].SourceText())
+	require.Len(t, blocks, 2)
+	texts := testutil.BlockTexts(blocks)
+	assert.Contains(t, texts, "Main text")
+	assert.Contains(t, texts, "Footnote text")
 
-	// With extractNotes=true: footnote text becomes a translatable block too.
+	// extractNotes=true: same blocks (flag is a no-op for text today).
 	cfg := &Config{}
 	cfg.Reset()
 	cfg.ExtractNotes = true
 	parts2 := readIDMLBytesWithConfig(t, data, cfg)
 	blocks2 := testutil.FilterBlocks(parts2)
 	require.Len(t, blocks2, 2)
-	texts := testutil.BlockTexts(blocks2)
-	assert.Contains(t, texts, "Main text")
-	assert.Contains(t, texts, "Footnote text")
+	texts2 := testutil.BlockTexts(blocks2)
+	assert.Contains(t, texts2, "Main text")
+	assert.Contains(t, texts2, "Footnote text")
 }
 
 func TestSpecialCharacters(t *testing.T) {
