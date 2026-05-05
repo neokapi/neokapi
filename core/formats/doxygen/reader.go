@@ -87,8 +87,7 @@ type commentBlock struct {
 
 // nonTranslatableCommands are Doxygen commands whose arguments are not translatable.
 var nonTranslatableCommands = map[string]bool{
-	"class": true, "file": true, "author": true, "date": true,
-	"version": true, "see": true, "since": true, "deprecated": true,
+	"class": true, "file": true, "see": true,
 	"namespace": true, "package": true, "defgroup": true, "ingroup": true,
 	"addtogroup": true, "name": true, "typedef": true, "enum": true,
 	"struct": true, "union": true, "fn": true, "var": true,
@@ -99,9 +98,26 @@ var nonTranslatableCommands = map[string]bool{
 	"skipline": true, "until": true, "example": true, "dir": true,
 	"relates": true, "relatesalso": true, "memberof": true,
 	"property": true, "implements": true, "extends": true,
+	// Group markers — `@{` opens a member group, `@}` closes one. Their
+	// presence on a line means "structural marker", not "translatable
+	// prose"; mirrors okapi's PLACEHOLDER classification for them.
+	"{": true, "}": true,
+	// `\overload` takes a function-declaration LINE arg that okapi
+	// declares non-translatable in doxygenConfiguration.yml. Without
+	// listing it here the declaration text gets pseudo-translated
+	// (special_commands.h `\overload void Test::drawRect(...)`).
+	"overload": true,
 }
 
 // translatableDescCommands are Doxygen commands whose description text IS translatable.
+//
+// Per okapi's doxygenConfiguration.yml, these are PLACEHOLDER commands
+// whose (commented-out) parameter is `length: PARAGRAPH, translatable:
+// true`. The text after the command (until the next blank line or
+// command) flows as the prose body. Native treats these as "anchor
+// + absorb-following-prose" via joinProseLines so multi-line bodies
+// roundtrip on a single output line, matching okapi's whitespace
+// collapse.
 var translatableDescCommands = map[string]bool{
 	"brief": true, "details": true, "short": true,
 	"param": true, "return": true, "returns": true, "retval": true,
@@ -110,6 +126,14 @@ var translatableDescCommands = map[string]bool{
 	"attention": true, "bug": true, "todo": true, "test": true,
 	"pre": true, "post": true, "invariant": true,
 	"tparam": true, "sa": true,
+	// PLACEHOLDER + commented-out PARAGRAPH/translatable arg in
+	// okapi's YAML — okapi pseudo-translates the text after these
+	// commands too. Without including them here, text like
+	// `\copyright GNU Public License.` falls through to prose and
+	// gets joined with the previous `\warning` line.
+	"copyright": true, "author": true, "authors": true,
+	"date": true, "version": true,
+	"since": true, "deprecated": true,
 }
 
 // inlineCommands enumerates Doxygen commands that produce inline
@@ -511,9 +535,12 @@ func (r *Reader) parseLineComments(lines []string, start int) *commentBlock {
 			text = strings.TrimPrefix(trimmed, "//!")
 		}
 		text = strings.TrimSpace(text)
-		if text != "" {
-			cb.textLines = append(cb.textLines, text)
-		}
+		// Preserve blank `///` / `//!` lines as empty textLine
+		// entries so extractTranslatable's BLANK_LINES paragraph
+		// splitter can flush groups at paragraph boundaries.
+		// Without this joinProseLines bleeds across paragraphs in
+		// fixtures like sample.h's constructor block.
+		cb.textLines = append(cb.textLines, text)
 	}
 
 	return cb
@@ -634,15 +661,17 @@ func (r *Reader) emitCommentBlock(ctx context.Context, ch chan<- model.PartResul
 				hasAnyPrefix = true
 			}
 		}
-		// For block-comment styles (/** … */ and /*! … */), okapi
-		// joins consecutive plain-prose lines within a paragraph into a
-		// single line separated by spaces, then preserves the original
-		// line count by emitting blank ` * ` lines after. This matches
+		// For block-comment styles (/** … */ and /*! … */) AND for
+		// line-comment styles (/// and //!), okapi joins consecutive
+		// plain-prose lines within a paragraph into a single line
+		// separated by spaces, then preserves the original line count
+		// by emitting blank `///` / ` * ` lines after. This matches
 		// okapi's BLANK_LINES paragraph splitter — only an explicit
 		// blank line breaks the join. Mirror that here so the joined
 		// text + padding matches the upstream byte sequence.
 		if cb.style == "javadoc" || cb.style == "qt" ||
-			cb.style == "javadoc_member" || cb.style == "qt_member" {
+			cb.style == "javadoc_member" || cb.style == "qt_member" ||
+			cb.style == "triple" || cb.style == "exclamation" {
 			texts, prefixes = joinProseLines(texts, prefixes)
 		}
 		// Build the block's source as a Run sequence rather than a
@@ -740,23 +769,33 @@ func (r *Reader) buildLineLayout(cb *commentBlock, groups [][]translatableLine) 
 			continue
 		}
 		if stripped == "" {
-			// Blank `///` / `//!` separator line — pass through.
+			// Blank `///` / `//!` separator line — pass through and
+			// advance textCursor to keep alignment with parseLineComments,
+			// which now appends an empty entry to textLines for these
+			// blanks (so extractTranslatable can detect paragraph
+			// boundaries).
 			entries = append(entries, "S:"+raw)
 			hasS = true
+			textCursor++
 			continue
 		}
 		// Match parseLineComments: only non-empty stripped lines
 		// contribute to textLines. Look up whether the current
 		// textCursor entry is translatable.
 		if tl, isTrans := textIdxToTL[textCursor]; isTrans {
-			// Reconstruct the full per-line prefix: original indent +
-			// comment marker (`/// ` or `//! `) + the stripped Doxygen
-			// command marker (e.g. `\param a `).
+			// Reconstruct the full per-line prefix verbatim from raw:
+			// original indent + comment marker WITH ITS POST-MARKER
+			// WHITESPACE (`/// `, `///   `, `//!  ` …) + the stripped
+			// Doxygen command marker (e.g. `\param a `). Capturing the
+			// extra whitespace is what preserves source indentation
+			// inside list items like `///   -# foo` (3 spaces between
+			// `///` and `-#` — naïvely using a canonical `/// ` marker
+			// would silently collapse to 1 space).
+			markerLen := 3 // both `///` and `//!` are 3 chars
+			afterMarker := raw[strings.Index(raw, trimmed[:markerLen])+markerLen:]
+			ws := afterMarker[:len(afterMarker)-len(strings.TrimLeft(afterMarker, " \t"))]
+			marker := trimmed[:markerLen] + ws
 			indent := raw[:len(raw)-len(strings.TrimLeft(raw, " \t"))]
-			marker := "/// "
-			if isExcl {
-				marker = "//! "
-			}
 			entries = append(entries, "T:"+indent+marker+tl.prefix)
 		} else {
 			// Non-translatable command line (e.g. \file, \author,
@@ -1073,6 +1112,16 @@ func (r *Reader) extractCommand(line string) string {
 	for i, ch := range line {
 		if ch == '@' || ch == '\\' {
 			rest := line[i+1:]
+			// Recognise the Doxygen group-open / group-close markers
+			// (`@{`, `@}`, `\{`, `\}`) as their own commands so they
+			// can be flagged non-translatable. Without this the `{`
+			// / `}` byte slips past isCommandChar (alphabetic-only)
+			// and the line falls through to the prose-extract path,
+			// where joinProseLines then absorbs `@{` into the previous
+			// paragraph (special_commands.h fixture line 7-8).
+			if len(rest) > 0 && (rest[0] == '{' || rest[0] == '}') {
+				return rest[:1]
+			}
 			// Extract the command word
 			end := 0
 			for end < len(rest) && isCommandChar(rest[end]) {
@@ -1100,6 +1149,13 @@ func isCommandChar(b byte) bool {
 // args + trailing whitespace) that the writer reattaches on roundtrip
 // so command markers like "\brief", "\param x", "\addtogroup mygroup"
 // survive in the output instead of being silently dropped.
+//
+// Whitespace inside the prefix (between command, args, and the
+// description) is collapsed to single spaces, mirroring okapi's
+// WhitespaceAdjustingEventBuilder.collapseWhitespace which folds
+// `\s+` between non-whitespace tokens to a single space. Without
+// this, `\brief     Pretty` would round-trip with the original
+// 5 spaces while okapi emits `\brief Pretty`.
 func (r *Reader) extractDescAndPrefix(line, cmd string, skipArgs int) (string, string) {
 	desc := r.extractDescriptionAfterCommand(line, cmd, skipArgs)
 	if desc == "" {
@@ -1110,7 +1166,35 @@ func (r *Reader) extractDescAndPrefix(line, cmd string, skipArgs int) (string, s
 	if idx <= 0 {
 		return desc, ""
 	}
-	return desc, line[:idx]
+	prefix := line[:idx]
+	prefix = collapseInteriorWhitespace(prefix)
+	// Trailing whitespace on the prefix (the gap between the command
+	// and the description) collapses to a single space too — okapi
+	// glues `\brief Pretty` regardless of how many spaces were between
+	// `\brief` and `Pretty` in the source. The collapseInteriorWhitespace
+	// pattern misses this case because there's no non-whitespace char
+	// to match after the gap (the description string isn't part of the
+	// prefix).
+	if trimmed := strings.TrimRight(prefix, " \t"); trimmed != prefix && trimmed != "" {
+		prefix = trimmed + " "
+	}
+	return desc, prefix
+}
+
+// collapseInteriorWhitespace replaces `\s+` runs surrounded by non-
+// whitespace with a single space, leaving leading and trailing
+// whitespace intact. Matches okapi's WHITESPACE_COLLAPSE pattern
+// `(?<=\S)\s+(?=\S)` for prefix normalization.
+var interiorWhitespacePattern = regexp.MustCompile(`(\S)[ \t]+(\S)`)
+
+func collapseInteriorWhitespace(s string) string {
+	for {
+		next := interiorWhitespacePattern.ReplaceAllString(s, "$1 $2")
+		if next == s {
+			return s
+		}
+		s = next
+	}
 }
 
 // extractDescriptionAfterCommand extracts the description text after a command and its N arguments.
@@ -1177,11 +1261,18 @@ func (r *Reader) processInlineCommands(line string) string {
 // argTakingCommandsPattern lists the Doxygen commands whose first
 // argument is the parameter NAME (a code identifier, never translated).
 // Matched first so the regex engine eats `\param x` / `\throws E` /
-// `\retval RC` etc. as one inline-code chunk — okapi appends the
-// argument to the placeholder Code (see DoxygenFilter.parseParameters
-// → code.append(extractor.parameter())) and pseudo-translation must
-// not touch the identifier.
-const argTakingCommandsPattern = `[\\@](?:param|tparam|throws?|exception|retval)\s+\w+`
+// `\retval RC` / `\cond LABEL` / `\if LABEL` etc. as one inline-code
+// chunk — okapi appends the argument to the placeholder Code (see
+// DoxygenFilter.parseParameters → code.append(extractor.parameter()))
+// and pseudo-translation must not touch the identifier.
+//
+// `\cond LABEL`, `\if LABEL`, `\ifnot LABEL` carry a section-label
+// WORD that okapi marks `translatable: false` in
+// doxygenConfiguration.yml. Without including them here the labels
+// (`TEST`, `DEV`, `Cond1`, …) get pseudo-translated alongside the
+// surrounding prose — visible in special_commands.h's `@cond TEST`
+// blocks.
+const argTakingCommandsPattern = `[\\@](?:param|tparam|throws?|exception|retval|cond|if|ifnot|elseif)\s+\w+`
 
 // inlineCodePattern matches Doxygen special commands (\cmd, @cmd) and
 // HTML-like tags (<tag>, </tag>) that appear inline within translatable
@@ -1225,10 +1316,20 @@ func tokenizeInlineCodes(line string, idStart int) ([]model.Run, int) {
 	cursor := 0
 	id := idStart
 	for _, m := range matches {
+		match := line[m[0]:m[1]]
+		// Mirror okapi DoxygenFilter.parseCommentChunk lines 432-438 —
+		// the regex matches any `\word` / `@word` substring, but okapi
+		// only protects KNOWN commands. Unknown commands like
+		// `\invalid` (sample.h) get treated as plain text and pseudo-
+		// translated. Without this check, native protects every
+		// `\word` and the unknown-command bytes round-trip verbatim,
+		// diverging from okapi by ~7 bytes per occurrence.
+		if !isProtectedInlineMatch(match) {
+			continue
+		}
 		if m[0] > cursor {
 			out = append(out, model.Run{Text: &model.TextRun{Text: line[cursor:m[0]]}})
 		}
-		match := line[m[0]:m[1]]
 		out = append(out, model.Run{Ph: &model.PlaceholderRun{
 			ID:   strconv.Itoa(id),
 			Type: "doxygen:cmd",
@@ -1240,7 +1341,115 @@ func tokenizeInlineCodes(line string, idStart int) ([]model.Run, int) {
 	if cursor < len(line) {
 		out = append(out, model.Run{Text: &model.TextRun{Text: line[cursor:]}})
 	}
+	if len(out) == 0 {
+		// Every regex match was an unknown command — emit the whole
+		// line as a single TextRun (the unknown commands flow through
+		// as plain text and get pseudo-translated like everything else).
+		return []model.Run{{Text: &model.TextRun{Text: line}}}, idStart
+	}
 	return out, id
+}
+
+// isProtectedInlineMatch reports whether a regex match from
+// inlineCodePattern names a known Doxygen command (or HTML tag, or
+// group toggle) that should round-trip as a verbatim placeholder. For
+// unknown commands like `\invalid`, okapi falls back to treating the
+// substring as plain text — this function mirrors that gate.
+func isProtectedInlineMatch(match string) bool {
+	if len(match) == 0 {
+		return false
+	}
+	// HTML-style tag — keep protecting these, okapi treats them as
+	// inline placeholders unconditionally via the same regex branch.
+	if match[0] == '<' {
+		return true
+	}
+	// Group toggles `@{` / `@}` — always protect, okapi has them as
+	// dedicated structural markers.
+	if match == "@{" || match == "@}" || match == "\\{" || match == "\\}" {
+		return true
+	}
+	// `\cmd` / `@cmd` — extract the command name (without the leading
+	// `\`/`@` and any trailing `[arg]` / `{arg}` / `(arg)` suffix) and
+	// check it against the known-Doxygen-command set.
+	if match[0] != '\\' && match[0] != '@' {
+		return false
+	}
+	body := match[1:]
+	// Trim any bracket-suffix so `\cmd{arg}` is keyed on `cmd`.
+	for i, b := range body {
+		if b == '[' || b == '(' || b == '{' {
+			body = body[:i]
+			break
+		}
+	}
+	// arg-taking commands are formatted as e.g. `\param x` or
+	// `\throws E` (the regex captures `\param x` as one token via
+	// argTakingCommandsPattern). Strip everything after the first
+	// whitespace so the lookup keys on the command name only.
+	if idx := strings.IndexAny(body, " \t"); idx >= 0 {
+		body = body[:idx]
+	}
+	return knownDoxygenCommands[body]
+}
+
+// knownDoxygenCommands enumerates Doxygen command names that okapi's
+// doxygenConfiguration.yml registers (from
+// okapi/filters/doxygen/src/main/resources/.../doxygenConfiguration.yml).
+// Used by isProtectedInlineMatch to decide whether a `\word` /
+// `@word` substring should be protected as a verbatim placeholder
+// (known) or pseudo-translated as plain text (unknown). Mirrors
+// okapi's DoxygenFilter.parseCommentChunk fallback.
+var knownDoxygenCommands = map[string]bool{
+	"a": true, "addindex": true, "addtogroup": true, "anchor": true,
+	"arg": true, "attention": true, "author": true, "authors": true,
+	"b": true, "blockquote": true, "body": true, "br": true,
+	"brief": true, "bug": true, "c": true, "callergraph": true,
+	"callgraph": true, "caption": true, "category": true, "center": true,
+	"cite": true, "class": true, "code": true, "cond": true,
+	"copybrief": true, "copydetails": true, "copydoc": true,
+	"copyright": true, "date": true, "dd": true, "def": true,
+	"defgroup": true, "deprecated": true, "description": true,
+	"details": true, "dfn": true, "dir": true, "div": true,
+	"dl": true, "dontinclude": true, "dot": true, "dotfile": true,
+	"dt": true, "e": true, "else": true, "elseif": true, "em": true,
+	"endcode": true, "endcond": true, "enddot": true, "endhtmlonly": true,
+	"endif": true, "endinternal": true, "endlatexonly": true,
+	"endlink": true, "endmanonly": true, "endmsc": true,
+	"endrtfonly": true, "endverbatim": true, "endxmlonly": true,
+	"enum": true, "example": true, "exception": true, "extends": true,
+	"file": true, "fn": true, "form": true, "headerfile": true,
+	"hideinitializer": true, "hr": true, "htmlinclude": true,
+	"htmlonly": true, "i": true, "if": true, "ifnot": true,
+	"image": true, "img": true, "implements": true, "include": true,
+	"includelineno": true, "ingroup": true, "inheritdoc": true,
+	"input": true, "interface": true, "internal": true, "invariant": true,
+	"item": true, "kbd": true, "latexonly": true, "li": true,
+	"line": true, "link": true, "list": true, "listheader": true,
+	"mainpage": true, "manonly": true, "memberof": true, "meta": true,
+	"msc": true, "mscfile": true, "multicol": true, "n": true,
+	"name": true, "namespace": true, "nosubgrouping": true, "note": true,
+	"ol": true, "overload": true, "p": true, "package": true,
+	"page": true, "par": true, "para": true, "paragraph": true,
+	"param": true, "paramref": true, "permission": true,
+	"post": true, "pre": true, "private": true, "privatesection": true,
+	"property": true, "protected": true, "protectedsection": true,
+	"protocol": true, "public": true, "publicsection": true,
+	"ref": true, "related": true, "relatedalso": true, "relates": true,
+	"relatesalso": true, "remark": true, "remarks": true, "result": true,
+	"return": true, "returns": true, "retval": true, "rtfonly": true,
+	"sa": true, "section": true, "see": true, "seealso": true,
+	"short": true, "showinitializer": true, "since": true, "skip": true,
+	"skipline": true, "small": true, "snippet": true, "span": true,
+	"strong": true, "struct": true, "sub": true, "subpage": true,
+	"subsection": true, "subsubsection": true, "summary": true,
+	"sup": true, "table": true, "tableofcontents": true, "td": true,
+	"term": true, "test": true, "th": true, "throw": true,
+	"throws": true, "todo": true, "tparam": true, "tr": true,
+	"tt": true, "typedef": true, "typeparam": true, "typeparamref": true,
+	"ul": true, "union": true, "until": true, "value": true,
+	"var": true, "verbatim": true, "verbinclude": true, "version": true,
+	"warning": true, "weakgroup": true, "xmlonly": true, "xrefitem": true,
 }
 
 // listItemPattern matches okapi's LIST_ITEM_PREFIX (`- `, `-# `,
@@ -1259,14 +1468,14 @@ func isListItem(s string) bool {
 // in a paragraph with a single space, padding to preserve the original
 // line count" behaviour (DoxygenFilter.parsePlainText splits on
 // BLANK_LINES_PATTERN, then collapses the remaining whitespace inside
-// each paragraph). Plain-prose lines are translatableLines whose
-// prefix is empty (no Doxygen command marker like `\brief ` or
-// `\param x ` was stripped). When two or more such lines appear in a
-// row, the function joins them into the first slot with " " separators
-// and replaces the trailing slots with empty strings — the writer
-// later emits a blank ` * ` raw line for each empty slot. Lines with
-// non-empty prefixes are left untouched, so command-marker lines and
-// command-arg lines preserve their own formatting.
+// each paragraph). Within one paragraph, the first translatable line
+// is the anchor — be it plain prose, a list item, or a command-anchor
+// like `\param a description` / `\section sec title`. Each anchor
+// absorbs the trailing plain-prose lines (those whose prefix is empty
+// AND that don't open with a list marker) into its slot with single-
+// space separators, leaving the absorbed slots empty. The writer then
+// emits a canonical comment-marker line (no trailing prose) for each
+// empty slot to preserve the source's line count.
 //
 // Lines whose body opens with a list-item marker (`- `, `-# `,
 // `1. `, …) are treated as their own rows — okapi's tokenizer
@@ -1287,23 +1496,27 @@ func joinProseLines(texts, prefixes []string) ([]string, []string) {
 	copy(outPx, prefixes)
 	i := 0
 	for i < len(out) {
-		// Only merge into a plain-prose anchor (list items are valid
-		// anchors — okapi extends a list item with its continuation
-		// prose lines).
-		if outPx[i] != "" {
+		// Skip already-empty slots (left behind by a previous merge
+		// pass when a paragraph is processed twice — defensive).
+		if out[i] == "" {
 			i++
 			continue
 		}
 		j := i + 1
 		// Continue absorbing trailing plain-prose lines until we hit
-		// a non-prose marker, a blank, or another list item (which
-		// starts its own row).
+		// a non-prose marker (non-empty prefix), a blank, or a list
+		// item (which starts its own row).
 		for j < len(out) && outPx[j] == "" && out[j] != "" && !isListItem(out[j]) {
 			out[i] = out[i] + " " + out[j]
 			out[j] = ""
 			j++
 		}
-		i = j
+		if j == i+1 {
+			// No absorption — advance by 1 to keep making progress.
+			i++
+		} else {
+			i = j
+		}
 	}
 	return out, outPx
 }

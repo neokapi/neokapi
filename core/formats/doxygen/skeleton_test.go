@@ -52,10 +52,19 @@ func TestSkeletonStore_ByteExact_CodeAndComment(t *testing.T) {
 	assert.Equal(t, input, output, "code between comments should be byte-exact")
 }
 
-func TestSkeletonStore_ByteExact_MultiLineComment(t *testing.T) {
+func TestSkeletonStore_OkapiPattern_MultiLineComment(t *testing.T) {
+	// Mirrors okapi DoxygenFilter behaviour: consecutive `///` prose
+	// lines collapse into a single TextUnit with whitespace flattened
+	// to single spaces (WhitespaceAdjustingEventBuilder.collapseWhitespace
+	// + parsePlainText). On roundtrip the joined text emits on the
+	// first line, with bare `///` padding lines accumulated at the end
+	// to preserve the original line count. Byte-exact against the okapi
+	// reference, NOT against the source — this is the same trade-off
+	// the parity harness verifies.
 	input := "/// First line\n/// Second line\n/// Third line\n"
+	expected := "/// First line Second line Third line\n///\n///\n"
 	output := snippetRoundtripWithSkeleton(t, input)
-	assert.Equal(t, input, output, "multi-line /// comment should be byte-exact")
+	assert.Equal(t, expected, output, "consecutive /// prose lines collapse to one line with bare-marker padding (okapi parity)")
 }
 
 func TestSkeletonStore_ByteExact_JavadocSingleLine(t *testing.T) {

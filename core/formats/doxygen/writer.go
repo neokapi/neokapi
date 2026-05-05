@@ -334,29 +334,131 @@ func (w *Writer) writeFromLayout(text, layout, _ string) error {
 	textLines := strings.Split(text, "\n")
 	textCursor := 0
 	entries := strings.Split(layout, "\x01")
-	for i, entry := range entries {
-		if i > 0 {
-			if _, err := fmt.Fprint(w.Output, "\n"); err != nil {
-				return err
-			}
-		}
+
+	// First pass: identify padding T/B entries (those that would
+	// consume an empty text-line). okapi's whitespace-collapse model
+	// treats the whole comment as one fluid TextUnit and pushes any
+	// "leftover" line slots — produced by joinProseLines collapsing
+	// continuation prose into the anchor line — to the END of the
+	// comment block, not inline with the prose. Mirror that: skip
+	// padding entries during the in-order walk and emit the
+	// equivalent canonical-blank lines just before the final closing
+	// delimiter (or at the end for line-comment styles with no
+	// delimiter).
+	//
+	// T entries (line-comment styles) emit `///` (bare marker, no
+	// trailing space) for padding. B entries (block-comment styles)
+	// emit the indent + `*` padding as okapi does (e.g. ` * ` for
+	// javadoc — keep the body as-is).
+	type entryPlan struct {
+		tag    byte
+		body   string
+		text   string
+		isPad  bool   // T/B-entry whose text is empty (padding)
+		canon  string // canonical bare comment marker for padding lines
+	}
+	plans := make([]entryPlan, 0, len(entries))
+	for _, entry := range entries {
 		if len(entry) < 2 {
+			plans = append(plans, entryPlan{})
 			continue
 		}
 		tag := entry[0]
 		body := entry[2:]
-		switch tag {
-		case 'T', 'B':
+		ep := entryPlan{tag: tag, body: body}
+		if tag == 'T' || tag == 'B' {
 			line := ""
 			if textCursor < len(textLines) {
 				line = textLines[textCursor]
 			}
 			textCursor++
-			if _, err := fmt.Fprintf(w.Output, "%s%s", body, line); err != nil {
+			ep.text = line
+			if line == "" {
+				ep.isPad = true
+				if tag == 'T' {
+					// `///` style — padding emits bare marker, no trailing space.
+					ep.canon = strings.TrimRight(body, " \t")
+				} else {
+					// `/** */` / `/*! */` style — padding emits the body
+					// as-is (includes the ` * ` line marker with its space).
+					ep.canon = body
+				}
+			}
+		}
+		plans = append(plans, ep)
+	}
+
+	// Decide where padding lands: just before the LAST S-entry whose
+	// body looks like a comment closer (`*/` or anything that's NOT
+	// purely whitespace+comment-marker). For triple/excl layouts this
+	// usually means "no closer" — the loop falls through and padding
+	// lands after the final entry.
+	tailInsertAt := len(plans)
+	for i := len(plans) - 1; i >= 0; i-- {
+		if plans[i].tag == 'S' && strings.Contains(plans[i].body, "*/") {
+			tailInsertAt = i
+			break
+		}
+	}
+
+	// Count padding entries to relocate.
+	var paddingCanons []string
+	for i := range plans {
+		if plans[i].isPad {
+			paddingCanons = append(paddingCanons, plans[i].canon)
+		}
+	}
+
+	// Second pass: emit. Padding T entries are dropped from their
+	// original position; their canonical-blank counterparts get
+	// emitted at tailInsertAt instead.
+	first := true
+	emit := func(s string) error {
+		if !first {
+			if _, err := fmt.Fprint(w.Output, "\n"); err != nil {
+				return err
+			}
+		}
+		first = false
+		if _, err := fmt.Fprint(w.Output, s); err != nil {
+			return err
+		}
+		return nil
+	}
+	for i, ep := range plans {
+		if i == tailInsertAt {
+			for _, c := range paddingCanons {
+				if err := emit(c); err != nil {
+					return err
+				}
+			}
+		}
+		if len(ep.body) == 0 && ep.tag == 0 {
+			// Empty entry placeholder — preserve the blank line that
+			// the strings.Split on \x01 produced for malformed input.
+			if err := emit(""); err != nil {
+				return err
+			}
+			continue
+		}
+		switch ep.tag {
+		case 'T', 'B':
+			if ep.isPad {
+				continue // padding emitted at tail
+			}
+			if err := emit(ep.body + ep.text); err != nil {
 				return err
 			}
 		case 'S':
-			if _, err := fmt.Fprint(w.Output, body); err != nil {
+			if err := emit(ep.body); err != nil {
+				return err
+			}
+		}
+	}
+	if tailInsertAt == len(plans) {
+		// No closer found — append padding at the very end.
+		for _, c := range paddingCanons {
+			if err := emit(c); err != nil {
 				return err
 			}
 		}
@@ -586,7 +688,14 @@ func (w *Writer) writeTripleSlash(text, raw string, prefixes []string) error {
 			}
 		}
 		px := linePrefixAt(prefixes, i)
-		if _, err := fmt.Fprintf(w.Output, "%s/// %s%s", indent, px, line); err != nil {
+		// Padding line (joinProseLines left this slot empty): okapi
+		// emits the bare comment marker without a trailing space, so
+		// strip the trailing space from the standard `/// ` marker.
+		marker := "/// "
+		if line == "" && px == "" {
+			marker = "///"
+		}
+		if _, err := fmt.Fprintf(w.Output, "%s%s%s%s", indent, marker, px, line); err != nil {
 			return err
 		}
 	}
@@ -604,7 +713,12 @@ func (w *Writer) writeExclamation(text, raw string, prefixes []string) error {
 			}
 		}
 		px := linePrefixAt(prefixes, i)
-		if _, err := fmt.Fprintf(w.Output, "%s//! %s%s", indent, px, line); err != nil {
+		// Same padding rule as writeTripleSlash — bare marker, no trailing space.
+		marker := "//! "
+		if line == "" && px == "" {
+			marker = "//!"
+		}
+		if _, err := fmt.Fprintf(w.Output, "%s%s%s%s", indent, marker, px, line); err != nil {
 			return err
 		}
 	}
