@@ -469,7 +469,17 @@ func (s *tokenReaderState) processTokenStream(tokenizer *html.Tokenizer, ctx con
 
 			// Inline element at top level — part of a text-unit.
 			s.onInlineEvent()
-			_ = s.store.WriteText(raw)
+			if !info.translateNo {
+				// Mirrors okapi: title/alt/etc. on top-level inline tags
+				// (e.g. a bare `<a title="…" href="…">link</a>` between
+				// other top-level text) participate in extraction even
+				// though the tag itself is skeleton. extractTokenAttrs
+				// writes raw to skeleton (with attr refs as needed) when
+				// translatable attrs are present, so we don't double-write.
+				s.extractTokenAttrs(raw, tag, a, attrs, ctx, ch)
+			} else {
+				_ = s.store.WriteText(raw)
+			}
 			stack = append(stack, info)
 			translateNo = info.translateNo
 

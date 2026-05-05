@@ -154,6 +154,7 @@ func (w *Writer) writeFromSkeleton(store *format.SkeletonStore, blocks map[strin
 			if block, ok := blocks[string(entry.Data)]; ok {
 				text := w.getBlockText(block)
 				text = w.substituteBlockRefs(text, blocks)
+				text = htmlEncodeBlockText(text, block)
 				if _, err := io.WriteString(w.Output, text); err != nil {
 					return err
 				}
@@ -161,6 +162,56 @@ func (w *Writer) writeFromSkeleton(store *format.SkeletonStore, blocks map[strin
 		}
 	}
 	return nil
+}
+
+// htmlEncodeBlockText post-processes a rendered block's text the same
+// way okapi's HtmlSkeletonWriter does before splicing it back into the
+// output stream:
+//
+//   - ASCII double-quotes (`"`) outside `<…>` placeholder spans become
+//     `&quot;`. This both matches okapi's text-content escaping (for
+//     shortcode-style text like `[vc_column width="1/2"]`) and keeps
+//     attribute values well-formed when block text lands inside
+//     `attr="…"` via the skeleton.
+//   - For blocks that don't preserve whitespace (i.e. not <pre>/<textarea>
+//     and not flagged via Config.PreserveWhitespace), runs of HTML
+//     whitespace outside `<…>` placeholders collapse to a single space —
+//     mirroring okapi's HTML5 whitespace normalisation on text-units that
+//     mix text and inline tags.
+func htmlEncodeBlockText(s string, block *model.Block) string {
+	collapseWS := block != nil && !block.PreserveWhitespace && !attrBlockTypes[block.Type]
+	if !collapseWS && !strings.ContainsAny(s, `"`) {
+		return s
+	}
+	var b strings.Builder
+	b.Grow(len(s) + 8)
+	depth := 0
+	inWS := false
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		switch {
+		case c == '<':
+			depth++
+			inWS = false
+			b.WriteByte(c)
+		case c == '>' && depth > 0:
+			depth--
+			inWS = false
+			b.WriteByte(c)
+		case depth == 0 && c == '"':
+			b.WriteString("&quot;")
+			inWS = false
+		case depth == 0 && collapseWS && isHTMLWhitespace(rune(c)):
+			if !inWS {
+				b.WriteByte(' ')
+				inWS = true
+			}
+		default:
+			inWS = false
+			b.WriteByte(c)
+		}
+	}
+	return b.String()
 }
 
 // substituteBlockRefs replaces every `\x00BLOCK:tuN\x00` sentinel in s
