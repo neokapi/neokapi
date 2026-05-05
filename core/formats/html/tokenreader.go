@@ -208,16 +208,15 @@ func (s *tokenReaderState) processTokenStream(tokenizer *html.Tokenizer, ctx con
 				preserveWS = stack[len(stack)-1].preserveWS
 			}
 			if !translateNo && hasNonWhitespace(text) {
-				// Bare text node outside a block context — emit as text block.
-				// Trim leading/trailing whitespace from edges that look like
-				// source formatting (whitespace runs containing a newline),
-				// dropping them from the skeleton entirely; this mirrors
-				// okapi's HtmlFilter behavior of joining text directly with
-				// adjacent block-level tags. Single-space edges (no newline)
-				// are preserved as significant inter-word whitespace inside
-				// inline boundaries (e.g. text inside <b>...</b>). When the
-				// parent is a preserve-whitespace element (pre/textarea),
-				// keep the raw text intact.
+				// Bare text node outside a block context — emit as text
+				// block. Drop the leading HTML whitespace bytes that
+				// precede the first non-whitespace rune; okapi's html
+				// filter trims that prefix off the start of the text unit
+				// (so the output stitches as "</h3>T…" rather than
+				// "</h3>\r\nT…"). Trailing whitespace stays attached so
+				// the boundary with a following inline token (e.g. " <b>")
+				// is preserved. Inside preserve-whitespace elements
+				// (pre/textarea), keep the raw text intact.
 				if preserveWS {
 					blockID := s.nextBlockID()
 					_ = s.store.WriteRef(blockID)
@@ -225,10 +224,10 @@ func (s *tokenReaderState) processTokenStream(tokenizer *html.Tokenizer, ctx con
 					block.PreserveWhitespace = true
 					s.reader.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
 				} else {
-					mid := trimNewlineEdges(text)
+					body := trimLeadingHTMLWhitespace(text)
 					blockID := s.nextBlockID()
 					_ = s.store.WriteRef(blockID)
-					block := model.NewBlock(blockID, mid)
+					block := model.NewBlock(blockID, body)
 					s.reader.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
 				}
 			} else {
