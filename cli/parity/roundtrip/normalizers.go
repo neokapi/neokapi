@@ -168,6 +168,17 @@ type XMLCanonical struct {
 	// cancels that asymmetry. Combined with SortAttrs this collapses
 	// most "same XML, differently shaped" diffs.
 	StripNamespaceDecls bool
+
+	// SortChildElements reorders each element's child sub-elements
+	// alphabetically by local name (stable). Non-element children
+	// (CharData, Comments, ProcInsts, Directives) keep their original
+	// slots in the sequence — the sort only permutes elements among
+	// their element-positions. Useful for IDML and similar formats
+	// where okapi's pipeline alphabetises `<Properties>` children
+	// (e.g. authored `BasedOn,PreviewColor,AppliedFont` is emitted as
+	// `AppliedFont,BasedOn,PreviewColor`) but native preserves source
+	// order. Both forms are semantically identical XML.
+	SortChildElements bool
 }
 
 // Name implements Normalizer.
@@ -182,6 +193,9 @@ func (n XMLCanonical) Name() string {
 	if n.StripNamespaceDecls {
 		parts = append(parts, "strip-ns-decls")
 	}
+	if n.SortChildElements {
+		parts = append(parts, "sort-children")
+	}
 	if len(parts) == 0 {
 		return "xml-canonical"
 	}
@@ -191,8 +205,49 @@ func (n XMLCanonical) Name() string {
 // Normalize implements Normalizer.
 func (n XMLCanonical) Normalize(in []byte) ([]byte, error) {
 	dec := xml.NewDecoder(bytes.NewReader(in))
+	tokens, err := n.collectTokens(dec)
+	if err != nil {
+		return nil, err
+	}
+	if n.SortChildElements {
+		// Build a tree from the per-element-balanced token stream so
+		// we can permute child elements alphabetically by local name
+		// without disturbing the relative position of non-element
+		// nodes (CharData, Comments, ProcInsts).
+		tokens = sortChildElementsInStream(tokens)
+	}
 	var buf bytes.Buffer
 	enc := xml.NewEncoder(&buf)
+	for _, tok := range tokens {
+		if err := enc.EncodeToken(tok); err != nil {
+			return nil, fmt.Errorf("xml-canonical: encode: %w", err)
+		}
+	}
+	if err := enc.Flush(); err != nil {
+		return nil, fmt.Errorf("xml-canonical: flush: %w", err)
+	}
+	out := buf.Bytes()
+	if n.StripNamespaceDecls {
+		// encoding/xml's encoder re-adds xmlns declarations on
+		// elements whose namespace differs from their parent's. We've
+		// already stripped them on input, but the encoder synthesizes
+		// new ones from Name.Space — strip those from the rendered
+		// bytes too so the comparison ignores namespace placement
+		// entirely.
+		out = stripXMLNSAttrs(out)
+	}
+	return out, nil
+}
+
+// collectTokens runs the per-token canonicalisation pass (drop XML
+// decl + DOCTYPE, strip whitespace-only CharData, collapse text WS
+// when configured, normalise attribute values, sort attrs) over the
+// decoder's stream and returns the resulting token slice. Each
+// returned token's storage is independent (CharData/Attr slices are
+// copied) so the caller can safely reorder them later without
+// re-decoding.
+func (n XMLCanonical) collectTokens(dec *xml.Decoder) ([]xml.Token, error) {
+	var out []xml.Token
 	for {
 		tok, err := dec.Token()
 		if err == io.EOF {
@@ -281,24 +336,141 @@ func (n XMLCanonical) Normalize(in []byte) ([]byte, error) {
 			se.Attr = attrs
 			tok = se
 		}
-		if err := enc.EncodeToken(tok); err != nil {
-			return nil, fmt.Errorf("xml-canonical: encode: %w", err)
-		}
-	}
-	if err := enc.Flush(); err != nil {
-		return nil, fmt.Errorf("xml-canonical: flush: %w", err)
-	}
-	out := buf.Bytes()
-	if n.StripNamespaceDecls {
-		// encoding/xml's encoder re-adds xmlns declarations on
-		// elements whose namespace differs from their parent's. We've
-		// already stripped them on input, but the encoder synthesizes
-		// new ones from Name.Space — strip those from the rendered
-		// bytes too so the comparison ignores namespace placement
-		// entirely.
-		out = stripXMLNSAttrs(out)
+		// xml.Token is an interface and CharData is a []byte alias
+		// that the decoder reuses across calls — make a defensive copy
+		// so a later sort pass can move tokens around without aliasing
+		// the decoder's internal buffer.
+		out = append(out, xml.CopyToken(tok))
 	}
 	return out, nil
+}
+
+// sortChildElementsInStream walks the (already canonicalised) token
+// stream and, for each element, alphabetises its child sub-elements
+// by local name. Non-element children keep their original slot in the
+// child sequence — only element-positions are permuted, so comments
+// and text nodes don't drift across siblings. The sort is stable, so
+// elements sharing a local name retain their relative order.
+func sortChildElementsInStream(tokens []xml.Token) []xml.Token {
+	// Build a synthetic root containing the top-level token stream and
+	// recurse. The root's "children" then re-emit in the original
+	// top-level order (no sorting at the root, which has no enclosing
+	// StartElement to scope a Properties-style sibling group).
+	var idx int
+	root := buildXMLNode(tokens, &idx, true /*topLevel*/)
+	var out []xml.Token
+	emitXMLNode(root, &out, true /*topLevel*/)
+	return out
+}
+
+// xmlNode is a tree representation of a buffered token slice. For
+// element nodes, Children holds the in-order child token slots:
+// xmlNode entries for sub-elements (recursive) and rawToken entries
+// for non-element children (CharData / Comment / ProcInst / …).
+type xmlNode struct {
+	// start is the StartElement token for this node. For the synthetic
+	// root, start.Name.Local is empty and the End/Children apply to
+	// the top-level stream.
+	start    xml.StartElement
+	end      xml.EndElement
+	children []xmlChild
+}
+
+// xmlChild is a discriminated union: either a child element (sub) or
+// a raw passthrough token (raw, e.g. xml.CharData).
+type xmlChild struct {
+	sub *xmlNode
+	raw xml.Token // nil when sub != nil
+}
+
+// buildXMLNode reads tokens starting at *idx and builds the children
+// of the current element until it sees the matching EndElement (or
+// end of stream when topLevel). The decoder/canonical pass guarantees
+// the token slice is well-balanced.
+func buildXMLNode(tokens []xml.Token, idx *int, topLevel bool) *xmlNode {
+	node := &xmlNode{}
+	for *idx < len(tokens) {
+		tok := tokens[*idx]
+		switch t := tok.(type) {
+		case xml.StartElement:
+			*idx++
+			child := buildXMLNode(tokens, idx, false)
+			child.start = t
+			node.children = append(node.children, xmlChild{sub: child})
+		case xml.EndElement:
+			node.end = t
+			*idx++
+			return node
+		default:
+			node.children = append(node.children, xmlChild{raw: tok})
+			*idx++
+		}
+	}
+	if !topLevel {
+		// Stream ended mid-element — return what we have. The encoder
+		// will fail on an unbalanced End anyway, so signalling via the
+		// returned node is enough.
+	}
+	return node
+}
+
+// emitXMLNode appends the token stream representing node (and its
+// recursively-sorted children) to out. When topLevel is true, the
+// node is the synthetic root: skip emitting its StartElement /
+// EndElement and don't sort its top-level children (the document's
+// root element sits there as a sole child anyway).
+func emitXMLNode(node *xmlNode, out *[]xml.Token, topLevel bool) {
+	if !topLevel {
+		*out = append(*out, node.start)
+	}
+	children := node.children
+	if !topLevel {
+		children = sortXMLChildElements(children)
+	}
+	for _, c := range children {
+		if c.sub != nil {
+			emitXMLNode(c.sub, out, false)
+			continue
+		}
+		*out = append(*out, c.raw)
+	}
+	if !topLevel {
+		*out = append(*out, node.end)
+	}
+}
+
+// sortXMLChildElements returns a copy of children with the element
+// slots permuted so that the sequence of element names is
+// alphabetical (by local name, stable). Non-element slots keep their
+// position in the child sequence — i.e. if children is `[E1, raw,
+// E2]`, the output is `[min(E1,E2), raw, max(E1,E2)]`. This preserves
+// the relative position of CharData / Comments / ProcInsts to text
+// content while letting elements rearrange among themselves.
+func sortXMLChildElements(children []xmlChild) []xmlChild {
+	if len(children) < 2 {
+		return children
+	}
+	// Pull out element children in order; remember the slot indices.
+	var elemSlots []int
+	var elems []*xmlNode
+	for i, c := range children {
+		if c.sub != nil {
+			elemSlots = append(elemSlots, i)
+			elems = append(elems, c.sub)
+		}
+	}
+	if len(elems) < 2 {
+		return children
+	}
+	sort.SliceStable(elems, func(i, j int) bool {
+		return elems[i].start.Name.Local < elems[j].start.Name.Local
+	})
+	out := make([]xmlChild, len(children))
+	copy(out, children)
+	for k, slot := range elemSlots {
+		out[slot] = xmlChild{sub: elems[k]}
+	}
+	return out
 }
 
 // stripXMLNSAttrs removes xmlns="..." and xmlns:foo="..." attribute

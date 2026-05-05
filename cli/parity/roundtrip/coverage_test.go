@@ -986,13 +986,16 @@ mergeCaptions.b=false
 			// emits double-quoted ("1.0" encoding="UTF-8"). Beyond the
 			// decl, okapi rewrites every IDML zip entry through its
 			// own XML reader/writer cycle which strips
-			// non-significant inter-element whitespace and reorders
-			// attributes — pure byte parity is unrealistic, so we
-			// chain XMLCanonical with attr sorting to capture the
-			// structural equivalence.
+			// non-significant inter-element whitespace, reorders
+			// attributes, and (importantly) alphabetises the children
+			// of `<Properties>` containers (`BasedOn,PreviewColor,
+			// AppliedFont` becomes `AppliedFont,BasedOn,
+			// PreviewColor`). Pure byte parity is unrealistic, so we
+			// chain XMLCanonical with attr-sort + child-sort to
+			// capture the structural equivalence.
 			normalizer: roundtrip.ZipEntryNormalizer{Inner: roundtrip.Chain{Steps: []roundtrip.Normalizer{
 				roundtrip.StripXMLDeclaration{},
-				roundtrip.XMLCanonical{SortAttrs: true},
+				roundtrip.XMLCanonical{SortAttrs: true, SortChildElements: true},
 			}}},
 		},
 		{
