@@ -132,25 +132,20 @@ type elementFrame struct {
 	spanID           int
 	hasContent       bool // true if inline element had any child content
 	contentByteStart int  // byte offset where element content begins (after '>'), for skeleton
-	// splitOnFirstChild marks a text-bearing parent whose accumulated
-	// runs should be flushed as a block whose skeleton content range
-	// ends at the first non-inline child element rather than at the
-	// element's own closing tag. Used when the parent has the shape
-	//   <mixed>And here's some more
-	//     <wrap4>
-	//       <p>...</p>
-	//     </wrap4>
-	//   </mixed>
-	// — the parent's "And here's some more" text is its own translatable
-	// fragment, but the inner <wrap4> subtree extracts further blocks
-	// (p, p1, one_out, …) whose own skeleton ranges sit inside the
-	// parent's element bytes. Without truncating the parent's range at
-	// the first child, removeOverlappingParents drops the parent's
-	// range entirely (it fully contains the children's ranges) and the
-	// pre-child text never gets substituted into the output.
-	splitOnFirstChild   bool
-	firstChildTokOffset int  // byte offset of the first non-inline child's start tag
-	splitDoneAccumulating bool // once a non-inline child has opened, drop further character data appended to this frame
+	// hasNonInlineChild marks a text-bearing parent whose accumulated
+	// runs were already flushed as an interim block (its content range
+	// ends at the first non-inline child's start tag). The parent may
+	// still accumulate text between subsequent non-inline children;
+	// each such segment is flushed in turn so okapi-style fixtures with
+	// shapes like
+	//   <p>before<x/>middle<x/>after</p>
+	// — where x is a non-inline child — produce one block per text
+	// segment ("before", "middle", "after"), each with its own
+	// non-overlapping skeleton range. Without per-segment flushes,
+	// post-child text would be dropped or the parent's full content
+	// range would overlap the child's own ranges and removeOverlapping-
+	// Parents would discard the parent.
+	hasNonInlineChild bool
 	// ITS locNote (literal text + type + ref) attached to this element,
 	// resolved from local its:locNote* attributes and/or matching
 	// its:locNoteRule. Surfaced on emitted blocks so writers / tools
@@ -480,7 +475,13 @@ func (s *xmlParseState) isTranslatable(frame *elementFrame) bool {
 // flushBlock emits the accumulated text as a block or data part.
 // The frame has already been popped from stack, so we pass the path separately.
 // endTagOffset is the byte offset of the end tag (for skeleton tracking).
-func (s *xmlParseState) flushBlock(frame *elementFrame, path string, endTagOffset int) {
+//
+// When interimEnd > 0, the block's skeleton content range ends at that
+// explicit offset (used by interimFlush when a non-inline child is
+// about to open inside a text-bearing parent). interimEnd == 0 selects
+// the default behavior: the range ends at the parent's closing tag,
+// located by searching backwards from endTagOffset.
+func (s *xmlParseState) flushBlock(frame *elementFrame, path string, endTagOffset, interimEnd int) {
 	if frame == nil || !frame.hasRuns {
 		return
 	}
@@ -513,6 +514,19 @@ func (s *xmlParseState) flushBlock(frame *elementFrame, path string, endTagOffse
 	// this filter — when whitespace is explicitly significant we
 	// want the block.
 	if !frame.preserveWS && !runsHaveInlineCodes(finalRuns) && isWhitespaceOnly(text) {
+		return
+	}
+	// Purely structural runs (only standalone Ph for comments / PIs /
+	// self-closed inline placeholders, plus whitespace text) aren't
+	// translatable on their own. The `<root><!-- note --><msg>...
+	// </msg></root>` shape leaves root's accumulator with [WS, Ph,
+	// WS] runs — these belong in skeleton verbatim rather than as a
+	// substituted block whose rendered bytes would duplicate the
+	// comment. Only emit a block when there is non-whitespace text or
+	// at least one PcOpen (translatable mixed content). FlattenRuns
+	// renders Ph as `{equiv}`, so isWhitespaceOnly(text) can't gate
+	// this — the runs themselves drive the decision.
+	if !frame.preserveWS && !runsHaveNonWhitespaceText(finalRuns) {
 		return
 	}
 
@@ -581,26 +595,25 @@ func (s *xmlParseState) flushBlock(frame *elementFrame, path string, endTagOffse
 	s.reader.emit(s.ctx, s.ch, &model.Part{Type: model.PartBlock, Resource: block})
 
 	// Track content range for skeleton
-	if s.contentRanges != nil && frame.contentByteStart > 0 && endTagOffset > 0 {
-		// When the frame was split on its first non-inline child, the
-		// block's text covers only the leading character data — its
-		// content range must end at the child's start tag rather than
-		// at the parent's own closing tag. Lets the inner subtree's
-		// own block ranges sit between the split point and the parent
-		// close, instead of being swallowed by an overlapping parent.
-		if frame.splitOnFirstChild && frame.firstChildTokOffset > frame.contentByteStart {
+	if s.contentRanges != nil && frame.contentByteStart > 0 {
+		// Interim flush (a non-inline child is about to open inside a
+		// text-bearing parent): the block's range ends at the child's
+		// start tag, leaving the inter-child / post-child bytes free
+		// for further interim ranges or the parent's final flush.
+		if interimEnd > 0 && interimEnd > frame.contentByteStart {
 			*s.contentRanges = append(*s.contentRanges, skelContentRange{
 				blockID: blockID,
 				start:   frame.contentByteStart,
-				end:     frame.firstChildTokOffset,
+				end:     interimEnd,
 			})
-		} else {
-			// Find the start of the end tag by searching backwards from
-			// endTagOffset. Use the source qname (`z:汇集`) when available
-			// — searching for the local name alone (`汇集`) misses the
-			// `z:` prefix in `</z:汇集>` and the search returns -1, so
-			// the block's content range is dropped from skeleton and the
-			// translation never gets substituted into the output.
+		} else if endTagOffset > 0 {
+			// Final flush: the range ends at the parent's own closing
+			// tag. Find it by searching backwards from endTagOffset.
+			// Use the source qname (`z:汇集`) when available — searching
+			// for the local name alone (`汇集`) misses the `z:` prefix
+			// in `</z:汇集>` and the search returns -1, so the block's
+			// content range is dropped from skeleton and the translation
+			// never gets substituted into the output.
 			closeName := frame.qname
 			if closeName == "" {
 				closeName = frame.name
@@ -1028,24 +1041,40 @@ func (s *xmlParseState) handleStartElement(t xml.StartElement, tokOffset int) {
 				return
 			}
 		}
-		// Mark a text-bearing ancestor (the prospective text frame) as
-		// "split on first child" when this non-inline element opens
-		// inside it AND the ancestor already has non-whitespace text or
-		// open inline spans. The ancestor's accumulated runs become
-		// their own translatable block whose skeleton content range
-		// ends at the first child's start tag — without this, the
+		// Interim-flush a text-bearing ancestor (the prospective text
+		// frame) when this non-inline element opens inside it AND the
+		// ancestor already has translatable mixed content (non-WS text
+		// or an open inline span). The ancestor's accumulated runs
+		// become their own translatable block whose skeleton content
+		// range ends at this child's start tag — without this, the
 		// ancestor's full-element content range overlaps every block
 		// extracted from the child's subtree (p, p1, one_out, …) and
-		// removeOverlappingParents drops it. Mirrors okapi ITSFilter's
-		// "leading text fragment becomes its own TU" behavior on
-		// fixtures like XRTT-Source1's <mixed> element.
+		// removeOverlappingParents drops it. After the child subtree
+		// closes, handleEndElement advances the ancestor's
+		// contentByteStart to just past the child's end tag so
+		// subsequent text segments flush as separate, non-overlapping
+		// blocks. Mirrors okapi ITSFilter's per-text-segment TU
+		// emission for fixtures like XRTT-Source1's <mixed> and
+		// openoffice_input.xml's mixed paragraphs.
+		//
+		// hasNonInlineChild is set on every non-inline child (not
+		// only when an interim flush fires) so the ancestor's final
+		// block range starts past the last non-inline child even when
+		// no preceding text triggered an interim flush — needed for
+		// shapes like <p><frame/>Illustration <seq>1</seq></p> where
+		// the parent's text appears after a non-inline first child.
+		// The ancestor's flushBlock guards against emitting a block
+		// for purely structural (Ph + whitespace) runs so this
+		// doesn't double-emit comments inside container elements like
+		// <root><!-- note --><message>...</message></root>.
 		if !frame.isExcluded && !strongExclude {
 			if parent := s.findTextFrame(); parent != nil && parent.hasRuns &&
-				!parent.isExcluded && !parent.splitDoneAccumulating &&
-				s.isTranslatable(parent) && runsHaveNonWhitespaceText(parent.runs) {
-				parent.splitOnFirstChild = true
-				parent.firstChildTokOffset = tokOffset
-				parent.splitDoneAccumulating = true
+				!parent.isExcluded && s.isTranslatable(parent) {
+				if runsHaveNonWhitespaceText(parent.runs) {
+					parentPath := s.elemPath()
+					s.flushBlock(parent, parentPath, 0, tokOffset)
+				}
+				parent.hasNonInlineChild = true
 			}
 		}
 		// Start a new text accumulator for this block element.
@@ -1129,7 +1158,23 @@ func (s *xmlParseState) handleEndElement(t xml.EndElement) {
 		}
 	} else if !frame.isExcluded {
 		// Flush accumulated text as a block
-		s.flushBlock(frame, path, endTagOffset)
+		s.flushBlock(frame, path, endTagOffset, 0)
+	}
+
+	// When a non-inline child closed inside a text-bearing parent
+	// that we earlier flushed an interim block from, advance the
+	// parent's contentByteStart to just past this child's end tag so
+	// any subsequent character data starts a fresh accumulator with
+	// a non-overlapping content range. Mirrors okapi's per-segment
+	// TU emission for shapes like <p>before<x/>middle<x/>after</p>.
+	// Auto-promoted inline frames (a non-inline element folded into
+	// the parent block as a Ph) must NOT advance contentByteStart —
+	// their bytes are part of the parent's existing range, not a
+	// boundary.
+	if !frame.isInline {
+		if parent := s.findTextFrame(); parent != nil && parent.hasNonInlineChild {
+			parent.contentByteStart = endTagOffset
+		}
 	}
 }
 
@@ -1169,16 +1214,6 @@ func (s *xmlParseState) handleCharData(t xml.CharData) {
 	textFrame := s.findTextFrame()
 
 	if textFrame != nil {
-		// When the text frame has been split on a non-inline child
-		// (XRTT-Source1 <mixed>: leading "And here's some more" became
-		// its own block, then <wrap4> opened and we marked the parent
-		// "split"), drop any further character data appended to the
-		// frame. The trailing whitespace between </wrap4> and </mixed>
-		// is preserved verbatim by the skeleton text that picks up
-		// after the truncated content range.
-		if textFrame.splitDoneAccumulating {
-			return
-		}
 		// Mark all inline ancestors as having content
 		for i := len(s.stack) - 1; i >= 0; i-- {
 			if s.stack[i].isInline {
