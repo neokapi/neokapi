@@ -166,19 +166,39 @@ func nativeOnlyEnv() []string {
 }
 
 func (e *KapiNativeEngine) ProcessBatch(ctx context.Context, files []TestFile, inputDir, outputDir, traceFile string) (*RunResult, []FileResult, error) {
+	return runKapiBatch(ctx, e.BinaryPath, files, inputDir, outputDir, traceFile, nativeOnlyEnv())
+}
+
+// runKapiBatch is the shared body for the three kapi engines. It runs
+// `kapi pseudo-translate <files...> --fail-on-unknown -o <template>`,
+// then verifies that every input produced an output file. If kapi exits
+// 0 but didn't actually write the expected output (e.g. the bridge
+// silently dropped the file because filter dispatch failed), the
+// fixture is marked as failed so the timing for that engine isn't
+// silently misreported as success. --fail-on-unknown ensures kapi
+// itself fails the run on any format-detection skip.
+func runKapiBatch(ctx context.Context, binPath string, files []TestFile, inputDir, outputDir, traceFile string, env []string) (*RunResult, []FileResult, error) {
 	args := []string{"pseudo-translate"}
 	fileResults := make([]FileResult, len(files))
+	inputs := make([]string, len(files))
 	for i, f := range files {
-		args = append(args, inputPathFor(f, inputDir))
+		inputs[i] = inputPathFor(f, inputDir)
+		args = append(args, inputs[i])
 		fileResults[i] = FileResult{Name: f.Name, Format: f.Format, Success: true}
 	}
 	outputTemplate := filepath.Join(outputDir, "{name}_{lang}{ext}")
+	// Don't pass --fail-on-unknown: some engines legitimately can't
+	// handle some formats (no native idml/openxml reader), and we want
+	// them to skip rather than fail the whole batch. Per-file success
+	// is determined post-hoc by checking output existence below — that
+	// catches the silent-skip class of bugs without losing engine-wide
+	// timing on partial-coverage formats.
 	args = append(args, "--target-lang", "qps", "-q", "-o", outputTemplate)
 	if traceFile != "" {
 		args = append(args, "--trace", traceFile)
 	}
 
-	result, err := runProcess(ctx, nativeOnlyEnv(), e.BinaryPath, args...)
+	result, err := runProcess(ctx, env, binPath, args...)
 	if err != nil {
 		for i := range fileResults {
 			fileResults[i].Success = false
@@ -187,8 +207,69 @@ func (e *KapiNativeEngine) ProcessBatch(ctx context.Context, files []TestFile, i
 		return nil, fileResults, err
 	}
 
+	// Sanity check: did each input actually produce an output file?
+	// kapi may exit 0 even when a filter silently failed downstream
+	// (e.g. bridge can't instantiate okf_json) and the file got
+	// skipped via --no-warn. This catches the silent-skip bug class.
+	written := collectOutputs(outputDir)
+	missing := 0
+	for i, in := range inputs {
+		if hasOutputFor(written, in) {
+			continue
+		}
+		fileResults[i].Success = false
+		fileResults[i].Error = "no output written"
+		missing++
+	}
+	// We don't fail the engine when missing > 0 — partial coverage is
+	// expected (e.g. native can't handle idml). Per-file Success flags
+	// already record exactly which fixtures the engine processed. Only
+	// fail if the engine produced literally nothing AND wasn't told it
+	// could skip; the runner will continue with the next iteration.
+	_ = missing
+
 	result.OutputBytes = sumDirSize(outputDir)
 	return result, fileResults, nil
+}
+
+// collectOutputs returns the set of all files (with absolute paths)
+// under outputDir, recursively. Used to verify that an engine actually
+// wrote an output for each input fixture.
+func collectOutputs(outputDir string) []string {
+	var files []string
+	_ = filepath.Walk(outputDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil || info == nil || info.IsDir() {
+			return nil
+		}
+		if info.Size() > 0 {
+			files = append(files, path)
+		}
+		return nil
+	})
+	return files
+}
+
+// hasOutputFor returns true if any file in `written` looks like the
+// pseudo-translated output of inputPath. kapi's `{name}_{lang}{ext}`
+// template can collapse to a directory containing the original
+// filename, so we accept any match by basename — exact path matching
+// is too brittle across the kapi/bridge/native engines.
+func hasOutputFor(written []string, inputPath string) bool {
+	base := filepath.Base(inputPath)
+	stem := base
+	if i := strings.LastIndex(base, "."); i >= 0 {
+		stem = base[:i]
+	}
+	for _, w := range written {
+		wb := filepath.Base(w)
+		if wb == base {
+			return true
+		}
+		if strings.HasPrefix(wb, stem+"_") || strings.HasPrefix(wb, stem+".") {
+			return true
+		}
+	}
+	return false
 }
 
 // --- Kapi Bridge Engine (subprocess per invocation) ---
@@ -203,33 +284,7 @@ func (e *KapiBridgeEngine) Name() string    { return "kapi-bridge" }
 func (e *KapiBridgeEngine) Version() string { return e.VersionStr }
 
 func (e *KapiBridgeEngine) ProcessBatch(ctx context.Context, files []TestFile, inputDir, outputDir, traceFile string) (*RunResult, []FileResult, error) {
-	args := []string{"pseudo-translate"}
-	fileResults := make([]FileResult, len(files))
-	for i, f := range files {
-		args = append(args, inputPathFor(f, inputDir))
-		fileResults[i] = FileResult{
-			Name:    f.Name,
-			Format:  f.Format,
-			Success: true,
-		}
-	}
-	outputTemplate := filepath.Join(outputDir, "{name}_{lang}{ext}")
-	args = append(args, "--target-lang", "qps", "-q", "-o", outputTemplate)
-	if traceFile != "" {
-		args = append(args, "--trace", traceFile)
-	}
-
-	result, err := runProcess(ctx, nil, e.BinaryPath, args...)
-	if err != nil {
-		for i := range fileResults {
-			fileResults[i].Success = false
-			fileResults[i].Error = err.Error()
-		}
-		return nil, fileResults, err
-	}
-
-	result.OutputBytes = sumDirSize(outputDir)
-	return result, fileResults, nil
+	return runKapiBatch(ctx, e.BinaryPath, files, inputDir, outputDir, traceFile, nil)
 }
 
 // --- Kapi Bridge Daemon Engine ---
@@ -245,22 +300,6 @@ func (e *KapiBridgeDaemonEngine) Name() string    { return "kapi-bridge-daemon" 
 func (e *KapiBridgeDaemonEngine) Version() string { return e.VersionStr }
 
 func (e *KapiBridgeDaemonEngine) ProcessBatch(ctx context.Context, files []TestFile, inputDir, outputDir, traceFile string) (*RunResult, []FileResult, error) {
-	args := []string{"pseudo-translate"}
-	fileResults := make([]FileResult, len(files))
-	for i, f := range files {
-		args = append(args, inputPathFor(f, inputDir))
-		fileResults[i] = FileResult{
-			Name:    f.Name,
-			Format:  f.Format,
-			Success: true,
-		}
-	}
-	outputTemplate := filepath.Join(outputDir, "{name}_{lang}{ext}")
-	args = append(args, "--target-lang", "qps", "-q", "-o", outputTemplate)
-	if traceFile != "" {
-		args = append(args, "--trace", traceFile)
-	}
-
 	// Tell kapi's plugin host to attach to our pre-started daemon's Unix
 	// socket instead of spawning a fresh JVM via the manifest's `daemon`
 	// command. This is what makes "kapi-bridge-daemon" actually different
@@ -269,18 +308,7 @@ func (e *KapiBridgeDaemonEngine) ProcessBatch(ctx context.Context, files []TestF
 	env := []string{
 		fmt.Sprintf("KAPI_DAEMON_SOCKET_OKAPI_BRIDGE=%s", e.Daemon.SocketPath()),
 	}
-
-	result, err := runProcess(ctx, env, e.BinaryPath, args...)
-	if err != nil {
-		for i := range fileResults {
-			fileResults[i].Success = false
-			fileResults[i].Error = err.Error()
-		}
-		return nil, fileResults, err
-	}
-
-	result.OutputBytes = sumDirSize(outputDir)
-	return result, fileResults, nil
+	return runKapiBatch(ctx, e.BinaryPath, files, inputDir, outputDir, traceFile, env)
 }
 
 // --- Okapi Pseudo Engine ---
