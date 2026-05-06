@@ -7,18 +7,18 @@
 //
 // Each entry in `formatSpecs` declares one filter:
 //
-//	  ID            okf_<name> — the manifest id and the FilterClass
-//	                sent to BridgeService.Process.
-//	  MimeType      mime hint passed to both bridge and native readers.
-//	  Inputs        list of named sample inputs (small inline strings
-//	                or testdata paths).
-//	  NewReader     constructs the in-process Go reader. Nil means
-//	                bridge-only — the test asserts the bridge runs and
-//	                produces a non-empty stream against `Inputs`, but
-//	                does not compare against a native implementation.
-//	  Skip          if non-empty, the test skips with this reason
-//	                (used for filters that need binary corpus we don't
-//	                ship in the repo — see SKIP_BINARY).
+//	ID            okf_<name> — the manifest id and the FilterClass
+//	              sent to BridgeService.Process.
+//	MimeType      mime hint passed to both bridge and native readers.
+//	Inputs        list of named sample inputs (small inline strings
+//	              or testdata paths).
+//	NewReader     constructs the in-process Go reader. Nil means
+//	              bridge-only — the test asserts the bridge runs and
+//	              produces a non-empty stream against `Inputs`, but
+//	              does not compare against a native implementation.
+//	Skip          if non-empty, the test skips with this reason
+//	              (used for filters that need binary corpus we don't
+//	              ship in the repo — see SKIP_BINARY).
 package formats
 
 import (
@@ -639,7 +639,6 @@ msgstr ""
 		MimeType: "application/x-transifex",
 		Skip:     SKIP_BINARY,
 	},
-
 }
 
 // SRT (bridge filter is okf_regex tuned to .srt; native srt has its

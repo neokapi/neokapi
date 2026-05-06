@@ -15,7 +15,7 @@ import (
 // For each filter:
 //   - Spec.Skip set       → record skip row, mode=bridge-only.
 //   - Spec.NewReader nil  → bridge-only stability run; assert the bridge
-//                            produces a non-empty stream and record pass.
+//     produces a non-empty stream and record pass.
 //   - Spec.NewReader set  → head-to-head: run both, CompareBlockText.
 //
 // The test reports one row per filter ID into the parity report so the
