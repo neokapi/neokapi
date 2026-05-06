@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
 import Layout from "@theme/Layout";
+import useBaseUrl from "@docusaurus/useBaseUrl";
 import styles from "./styles.module.css";
 
 /* ── Types (new experiment-based format) ── */
@@ -1051,9 +1052,10 @@ export default function PseudoBench() {
   const [report, setReport] = useState<Report | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>("summary");
+  const dataUrl = useBaseUrl("/data/pseudobench.json");
 
   useEffect(() => {
-    fetch("/data/pseudobench.json")
+    fetch(dataUrl)
       .then((r) => {
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
         return r.json();
@@ -1091,7 +1093,7 @@ export default function PseudoBench() {
           "No benchmark data found. Run PseudoBench and copy results to web/docs/static/data/pseudobench.json",
         ),
       );
-  }, []);
+  }, [dataUrl]);
 
   const experiments = useMemo(() => report?.experiments ?? [], [report]);
   const engines = useMemo(() => experiments.map((e) => e.engine), [experiments]);

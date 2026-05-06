@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
+import useBaseUrl from "@docusaurus/useBaseUrl";
 import type { FlowTrace, TraceEvent, FlowNode, PartSnapshotSet } from "./_types";
 import { usePlayback } from "./_usePlayback";
 import FlowGraph from "./_FlowGraph";
@@ -46,6 +47,8 @@ export default function FlowVisualization(): React.ReactElement {
   const [error, setError] = useState<string | null>(null);
   const [loadedFileName, setLoadedFileName] = useState<string | null>(null);
 
+  const tracePathResolved = useBaseUrl(tracePath);
+
   useEffect(() => {
     // Skip fetch when a file was loaded directly.
     if (loadedFileName) return;
@@ -53,14 +56,14 @@ export default function FlowVisualization(): React.ReactElement {
     setTrace(null);
     setError(null);
     setSelectedPartId(null);
-    fetch(tracePath)
+    fetch(tracePathResolved)
       .then((r) => {
         if (!r.ok) throw new Error(`Failed to load trace: ${r.status}`);
         return r.json();
       })
       .then(setTrace)
       .catch((e) => setError(e.message));
-  }, [tracePath, loadedFileName]);
+  }, [tracePathResolved, loadedFileName]);
 
   const handleSelectBuiltin = useCallback((path: string) => {
     setLoadedFileName(null);
