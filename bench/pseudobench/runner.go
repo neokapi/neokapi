@@ -237,8 +237,9 @@ func buildEngines(cfg *Config) ([]Engine, *DaemonProcess, error) {
 			VersionStr: kapiVersion,
 		})
 		engines = append(engines, &KapiBridgeEngine{
-			BinaryPath: cfg.KapiBin,
-			VersionStr: kapiVersion,
+			BinaryPath:  cfg.KapiBin,
+			OkapiBridge: cfg.OkapiBridge,
+			VersionStr:  kapiVersion,
 		})
 	}
 
@@ -252,9 +253,10 @@ func buildEngines(cfg *Config) ([]Engine, *DaemonProcess, error) {
 			daemon = d
 			fmt.Printf(" OK (PID %d, address %s)\n", d.PID(), d.Address())
 			engines = append(engines, &KapiBridgeDaemonEngine{
-				BinaryPath: cfg.KapiBin,
-				VersionStr: kapiVersion,
-				Daemon:     d,
+				BinaryPath:  cfg.KapiBin,
+				OkapiBridge: cfg.OkapiBridge,
+				VersionStr:  kapiVersion,
+				Daemon:      d,
 			})
 		}
 	}

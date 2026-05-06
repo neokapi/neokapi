@@ -165,6 +165,33 @@ func nativeOnlyEnv() []string {
 	}
 }
 
+// bridgePluginsDir derives the plugins directory from the path to the
+// jpackage bridge launcher. okapiBridgePath looks like
+// "<parity>/plugins/okapi-bridge/Contents/MacOS/kapi-okapi-bridge"; we
+// want "<parity>/plugins".
+func bridgePluginsDir(okapiBridgePath string) string {
+	d := filepath.Dir(okapiBridgePath) // .../Contents/MacOS
+	d = filepath.Dir(d)                // .../Contents
+	d = filepath.Dir(d)                // .../okapi-bridge
+	return filepath.Dir(d)             // .../plugins
+}
+
+// bridgeEnv pins kapi's plugin discovery to the parity-built
+// okapi-bridge under <parity>/plugins, AND blocks fallback to
+// ~/.local/share so the user's brew-installed plugin can't sneak into
+// the comparison. Without this the bench would benchmark whatever the
+// developer happened to have installed (typically an older release
+// JAR) instead of what was just built into the parity sandbox.
+func bridgeEnv(okapiBridgePath string) []string {
+	scratch := filepath.Join(os.TempDir(), "kapi-bridge-no-xdg")
+	_ = os.MkdirAll(scratch, 0o755)
+	return []string{
+		"KAPI_PLUGINS_DIR=" + bridgePluginsDir(okapiBridgePath),
+		"XDG_DATA_HOME=" + scratch,
+		"HOME=" + scratch,
+	}
+}
+
 func (e *KapiNativeEngine) ProcessBatch(ctx context.Context, files []TestFile, inputDir, outputDir, traceFile string) (*RunResult, []FileResult, error) {
 	return runKapiBatch(ctx, e.BinaryPath, files, inputDir, outputDir, traceFile, nativeOnlyEnv())
 }
@@ -276,24 +303,26 @@ func hasOutputFor(written []string, inputPath string) bool {
 
 // KapiBridgeEngine runs kapi with the bridge plugin (subprocess JVM).
 type KapiBridgeEngine struct {
-	BinaryPath string
-	VersionStr string
+	BinaryPath  string // path to kapi
+	OkapiBridge string // path to kapi-okapi-bridge launcher (used to derive plugins dir)
+	VersionStr  string
 }
 
 func (e *KapiBridgeEngine) Name() string    { return "kapi-bridge" }
 func (e *KapiBridgeEngine) Version() string { return e.VersionStr }
 
 func (e *KapiBridgeEngine) ProcessBatch(ctx context.Context, files []TestFile, inputDir, outputDir, traceFile string) (*RunResult, []FileResult, error) {
-	return runKapiBatch(ctx, e.BinaryPath, files, inputDir, outputDir, traceFile, nil)
+	return runKapiBatch(ctx, e.BinaryPath, files, inputDir, outputDir, traceFile, bridgeEnv(e.OkapiBridge))
 }
 
 // --- Kapi Bridge Daemon Engine ---
 
-// KapiBridgeDaemonEngine runs kapi with NEOKAPI_BRIDGE_ADDRS pointing to a pre-started daemon.
+// KapiBridgeDaemonEngine runs kapi attached to a pre-started bridge daemon.
 type KapiBridgeDaemonEngine struct {
-	BinaryPath string
-	VersionStr string
-	Daemon     *DaemonProcess
+	BinaryPath  string // path to kapi
+	OkapiBridge string // path to kapi-okapi-bridge launcher (used to derive plugins dir)
+	VersionStr  string
+	Daemon      *DaemonProcess
 }
 
 func (e *KapiBridgeDaemonEngine) Name() string    { return "kapi-bridge-daemon" }
@@ -305,9 +334,9 @@ func (e *KapiBridgeDaemonEngine) ProcessBatch(ctx context.Context, files []TestF
 	// command. This is what makes "kapi-bridge-daemon" actually different
 	// from "kapi-bridge": the JVM cold-start cost is paid once at bench
 	// startup, not on every kapi invocation.
-	env := []string{
+	env := append(bridgeEnv(e.OkapiBridge),
 		fmt.Sprintf("KAPI_DAEMON_SOCKET_OKAPI_BRIDGE=%s", e.Daemon.SocketPath()),
-	}
+	)
 	return runKapiBatch(ctx, e.BinaryPath, files, inputDir, outputDir, traceFile, env)
 }
 
@@ -452,16 +481,16 @@ func (e *KapiBridgeEngine) ProcessFile(ctx context.Context, file TestFile, input
 	args := []string{"pseudo-translate",
 		inputPathFor(file, inputDir), "--target-lang", "qps", "-q",
 		"-o", filepath.Join(outputDir, "{name}_{lang}{ext}")}
-	return runProcess(ctx, nil, e.BinaryPath, args...)
+	return runProcess(ctx, bridgeEnv(e.OkapiBridge), e.BinaryPath, args...)
 }
 
 func (e *KapiBridgeDaemonEngine) ProcessFile(ctx context.Context, file TestFile, inputDir, outputDir string) (*RunResult, error) {
 	args := []string{"pseudo-translate",
 		inputPathFor(file, inputDir), "--target-lang", "qps", "-q",
 		"-o", filepath.Join(outputDir, "{name}_{lang}{ext}")}
-	env := []string{
+	env := append(bridgeEnv(e.OkapiBridge),
 		fmt.Sprintf("KAPI_DAEMON_SOCKET_OKAPI_BRIDGE=%s", e.Daemon.SocketPath()),
-	}
+	)
 	return runProcess(ctx, env, e.BinaryPath, args...)
 }
 
