@@ -297,7 +297,7 @@ parity-test: parity-sandbox ## Run the full parity test suite (#448)
 	    echo "[parity] tikal not built at $$OKAPI_REPO — third-corner comparison will skip"; \
 	fi; \
 	cd cli && env $$TIKAL_ENV KAPI_PARITY_SANDBOX=$(PARITY_DIR) KAPI_PARITY_REPORT=$(PARITY_REPORT) \
-	    $(GOTEST) -tags parity -count=1 -timeout 30m ./parity/...
+	    $(GOTEST) -tags parity -count=1 -timeout 60m ./parity/...
 	@echo "Parity report: $(PARITY_REPORT)"
 
 PARITY_DASHBOARD := $(ROOT_DIR)/web/docs/static/data/parity-report.json

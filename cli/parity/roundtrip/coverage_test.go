@@ -112,14 +112,51 @@ func TestRoundTrip_Coverage(t *testing.T) {
 				t.Fatalf("format %q: no upstream fixtures discovered (sources=%v ext=%v) — typo or empty upstream dir?",
 					scan.formatID, scan.sources, scan.extensions)
 			}
+
+			// Pre-batch the okapi reference for all non-skipped fixtures of
+			// this format. One JVM cold-start per format instead of per
+			// fixture — that's the load-bearing fix for the parity CI
+			// timeout. Per-fixture OkapiEngine.RoundTrip then becomes a
+			// cache lookup. Skips are honored: fixtures the okapi engine
+			// cannot process are excluded from the batch.
+			batchInputs := make([]string, 0, len(files))
+			for _, f := range files {
+				if okapiSkippedForFixture(scan, filepath.Base(f)) {
+					continue
+				}
+				batchInputs = append(batchInputs, f)
+			}
+			okapiCache := roundtrip.RunOkapiBatch(t, scan.filterClass, scan.okapiParamConfig, "", "", batchInputs)
+
 			for _, f := range files {
 				f := f
 				t.Run(filepath.Base(f), func(t *testing.T) {
-					runOneFixture(t, scan, f)
+					runOneFixture(t, scan, f, okapiCache)
 				})
 			}
 		})
 	}
+}
+
+// okapiSkippedForFixture is true when the formatScan's per-fixture or
+// format-default skip list excludes the okapi reference engine for this
+// fixture. Used to keep the pre-batch lean — there's no point shelling
+// out to the bridge for a fixture we'd skip anyway, and some skips
+// exist specifically because the okapi engine errors on that file.
+func okapiSkippedForFixture(scan formatScan, base string) bool {
+	for _, e := range scan.formatDefaultSkip.Engines {
+		if e == "okapi" {
+			return true
+		}
+	}
+	if perFile, ok := scan.skip[base]; ok {
+		for _, e := range perFile.Engines {
+			if e == "okapi" {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // discoverFiles returns absolute paths to every upstream fixture this
@@ -173,7 +210,7 @@ func discoverFiles(t *testing.T, root string, scan formatScan) []string {
 	return out
 }
 
-func runOneFixture(t *testing.T, scan formatScan, abs string) {
+func runOneFixture(t *testing.T, scan formatScan, abs string, okapiCache *roundtrip.OkapiBatchCache) {
 	t.Helper()
 	base := filepath.Base(abs)
 	// Merge format-default + per-file skip. Per-file engines extend the
@@ -212,6 +249,8 @@ func runOneFixture(t *testing.T, scan formatScan, abs string) {
 	okapi := &roundtrip.OkapiEngine{
 		FilterClass: scan.filterClass,
 		ParamConfig: scan.okapiParamConfig,
+		BatchCache:  okapiCache,
+		InputPath:   abs,
 	}
 
 	var expectedSkipped []string
@@ -353,10 +392,10 @@ func coverageScans() []formatScan {
 			// okapi's mosestext filter recognises the same constructs as
 			// inline codes by default; this is the parity-equivalent
 			// config on the native side.
-			formatID:          "mosestext",
-			filterClass:       "okf_mosestext",
-			sources:           []string{"okapi/filters/mosestext/src/test/resources"},
-			extensions:        []string{".txt"},
+			formatID:    "mosestext",
+			filterClass: "okf_mosestext",
+			sources:     []string{"okapi/filters/mosestext/src/test/resources"},
+			extensions:  []string{".txt"},
 			nativeConfig: map[string]any{
 				"useCodeFinder": true,
 				"codeFinderRules": []any{
@@ -413,11 +452,11 @@ func coverageScans() []formatScan {
 			},
 		},
 		{
-			formatID:          "wiki",
-			filterClass:       "okf_wiki",
-			sources:           []string{"integration-tests/okapi/src/test/resources/wikitext"},
-			extensions:        []string{".wiki"},
-			normalizer:        roundtrip.IgnoreTrailingNewline{},
+			formatID:    "wiki",
+			filterClass: "okf_wiki",
+			sources:     []string{"integration-tests/okapi/src/test/resources/wikitext"},
+			extensions:  []string{".wiki"},
+			normalizer:  roundtrip.IgnoreTrailingNewline{},
 		},
 
 		// ── Key-value & structured data ───────────────────────────
@@ -490,10 +529,10 @@ func coverageScans() []formatScan {
 			minTier: map[string]roundtrip.Tier{"native": roundtrip.TierDivergent},
 		},
 		{
-			formatID:          "json",
-			filterClass:       "okf_json",
-			sources:           []string{"integration-tests/okapi/src/test/resources/json"},
-			extensions:        []string{".json"},
+			formatID:    "json",
+			filterClass: "okf_json",
+			sources:     []string{"integration-tests/okapi/src/test/resources/json"},
+			extensions:  []string{".json"},
 			// JSON normalizer reaches canonical-equal when fixtures
 			// differ only in whitespace (e.g. `"k" : "v"` vs `"k": "v"`)
 			// or string escape choices that encoding/json normalizes.
@@ -510,10 +549,10 @@ func coverageScans() []formatScan {
 			},
 		},
 		{
-			formatID:          "yaml",
-			filterClass:       "okf_yaml",
-			sources:           []string{"integration-tests/okapi/src/test/resources/yaml"},
-			extensions:        []string{".yaml", ".yml"},
+			formatID:    "yaml",
+			filterClass: "okf_yaml",
+			sources:     []string{"integration-tests/okapi/src/test/resources/yaml"},
+			extensions:  []string{".yaml", ".yml"},
 			// Okapi's okf_yaml extracts every scalar (including bool /
 			// int / null) as translatable text. Native defaults to
 			// strings-only — for parity we mirror okapi by extracting
@@ -562,10 +601,10 @@ func coverageScans() []formatScan {
 		{
 			// Phpcontent has no integration-tests dir — fall back to
 			// the unit-test resources dir.
-			formatID:          "phpcontent",
-			filterClass:       "okf_phpcontent",
-			sources:           []string{"okapi/filters/php/src/test/resources"},
-			extensions:        []string{".phpcnt"},
+			formatID:    "phpcontent",
+			filterClass: "okf_phpcontent",
+			sources:     []string{"okapi/filters/php/src/test/resources"},
+			extensions:  []string{".phpcnt"},
 			// okapi normalises heredoc line-endings to LF and emits a
 			// trailing newline; native preserves source CRLF and omits
 			// the trailing newline. Both are valid PHP — fold to canonical.
@@ -646,10 +685,10 @@ func coverageScans() []formatScan {
 
 		// ── Code/markup ───────────────────────────────────────────
 		{
-			formatID:          "doxygen",
-			filterClass:       "okf_doxygen",
-			sources:           []string{"integration-tests/okapi/src/test/resources/doxygen"},
-			extensions:        []string{".h", ".py"},
+			formatID:    "doxygen",
+			filterClass: "okf_doxygen",
+			sources:     []string{"integration-tests/okapi/src/test/resources/doxygen"},
+			extensions:  []string{".h", ".py"},
 		},
 
 		// ── XML / bilingual exchange formats ──────────────────────
@@ -658,10 +697,10 @@ func coverageScans() []formatScan {
 			// okapi/filters/its/...). 8 fixtures fail bridge due to
 			// inline-code marker emission diverging from the
 			// in-process okapi reference.
-			formatID:          "xml",
-			filterClass:       "okf_xml",
-			sources:           []string{"integration-tests/okapi/src/test/resources/xml"},
-			extensions:        []string{".xml"},
+			formatID:    "xml",
+			filterClass: "okf_xml",
+			sources:     []string{"integration-tests/okapi/src/test/resources/xml"},
+			extensions:  []string{".xml"},
 			writerOverlay: map[string]any{
 				// okapi always emits a `<?xml version="1.0" encoding="UTF-8"?>`
 				// prologue even when the source had none; native preserves
@@ -680,10 +719,10 @@ func coverageScans() []formatScan {
 			// 15 fixtures fail bridge against the in-process okapi
 			// reference: segmentation / alt-trans / inline-code
 			// handling divergences across various xliff dialects.
-			formatID:          "xliff",
-			filterClass:       "okf_xliff",
-			sources:           []string{"integration-tests/okapi/src/test/resources/xliff"},
-			extensions:        []string{".xlf"},
+			formatID:    "xliff",
+			filterClass: "okf_xliff",
+			sources:     []string{"integration-tests/okapi/src/test/resources/xliff"},
+			extensions:  []string{".xlf"},
 			// XLIFF is XML; sort attrs handles okapi reordering.
 			// Collapse text whitespace mirrors okapi's translatable-
 			// text normalisation (multi-line indented source becomes
@@ -717,12 +756,12 @@ func coverageScans() []formatScan {
 				"okapiCompat": map[string]any{
 					// Always-safe flags: these align with okapi's defaults
 					// across every fixture we've inspected.
-					"lowercaseLangSubtag": true,
-					"stripPhaseDateAttr":  true,
-					"stripCDataCREntities": true,
-					"hoistAltTransNotes":  true,
-					"stripAltTransSegSource": true,
-					"reorderHeaderToolToEnd": true,
+					"lowercaseLangSubtag":           true,
+					"stripPhaseDateAttr":            true,
+					"stripCDataCREntities":          true,
+					"hoistAltTransNotes":            true,
+					"stripAltTransSegSource":        true,
+					"reorderHeaderToolToEnd":        true,
 					"simulateBrokenWindows1252Read": true,
 					// Disabled: blanket strip is more aggressive than
 					// okapi. okapi PRESERVES `approved="yes"` whenever the
@@ -803,10 +842,10 @@ func coverageScans() []formatScan {
 			},
 		},
 		{
-			formatID:          "tmx",
-			filterClass:       "okf_tmx",
-			sources:           []string{"integration-tests/okapi/src/test/resources/tmx"},
-			extensions:        []string{".tmx"},
+			formatID:    "tmx",
+			filterClass: "okf_tmx",
+			sources:     []string{"integration-tests/okapi/src/test/resources/tmx"},
+			extensions:  []string{".tmx"},
 			// TMX is XML; same canonical normalizer.
 			normalizer: roundtrip.XMLCanonical{SortAttrs: true},
 			// Bridge reaches canonical-equal on 3 fixtures (ImportTest2A,
@@ -826,11 +865,11 @@ func coverageScans() []formatScan {
 		{
 			// Bridge passes 1 of 9 fixtures; the rest are flagged
 			// per-file via tsBridgeSkips().
-			formatID:          "ts",
-			filterClass:       "okf_ts",
-			sources:           []string{"integration-tests/okapi/src/test/resources/ts"},
-			extensions:        []string{".ts"},
-			skip:              tsBridgeSkips(),
+			formatID:    "ts",
+			filterClass: "okf_ts",
+			sources:     []string{"integration-tests/okapi/src/test/resources/ts"},
+			extensions:  []string{".ts"},
+			skip:        tsBridgeSkips(),
 			// TS is XML (Qt Linguist); same canonical normalizer.
 			normalizer: roundtrip.XMLCanonical{SortAttrs: true},
 		},
@@ -840,10 +879,10 @@ func coverageScans() []formatScan {
 			// Default mergeCaptions=true mutates timestamps and
 			// splits merged target text across cues; both engines
 			// want the same override.
-			formatID:   "vtt",
+			formatID:    "vtt",
 			filterClass: "okf_vtt",
-			sources:    []string{"integration-tests/okapi/src/test/resources/vtt"},
-			extensions: []string{".vtt"},
+			sources:     []string{"integration-tests/okapi/src/test/resources/vtt"},
+			extensions:  []string{".vtt"},
 			okapiParamConfig: `#v1
 timeFormat=HH:mm:ss.SSS
 maxLinesPerCaption.i=2
@@ -868,10 +907,10 @@ mergeCaptions.b=false
 		},
 		{
 			// Same mergeCaptions story as VTT.
-			formatID:   "ttml",
+			formatID:    "ttml",
 			filterClass: "okf_ttml",
-			sources:    []string{"integration-tests/okapi/src/test/resources/ttml"},
-			extensions: []string{".ttml"},
+			sources:     []string{"integration-tests/okapi/src/test/resources/ttml"},
+			extensions:  []string{".ttml"},
 			okapiParamConfig: `#v1
 timeFormat=HH:mm:ss.SSS
 maxLinesPerCaption.i=2
@@ -940,10 +979,10 @@ mergeCaptions.b=false
 			}},
 		},
 		{
-			formatID:          "tex",
-			filterClass:       "okf_tex",
-			sources:           []string{"integration-tests/okapi/src/test/resources/tex"},
-			extensions:        []string{".tex"},
+			formatID:    "tex",
+			filterClass: "okf_tex",
+			sources:     []string{"integration-tests/okapi/src/test/resources/tex"},
+			extensions:  []string{".tex"},
 			// okapi normalises CRLF → LF on round-trip; native preserves
 			// source line endings. Both are valid LaTeX. okapi also
 			// appends an extra trailing newline on output that the source
@@ -954,10 +993,10 @@ mergeCaptions.b=false
 			}},
 		},
 		{
-			formatID:          "transtable",
-			filterClass:       "okf_transtable",
-			sources:           []string{"integration-tests/okapi/src/test/resources/transtable"},
-			extensions:        []string{".txt"},
+			formatID:    "transtable",
+			filterClass: "okf_transtable",
+			sources:     []string{"integration-tests/okapi/src/test/resources/transtable"},
+			extensions:  []string{".txt"},
 			skip: map[string]fileSkip{
 				// okapi's pseudo round-trip emits only the extracted source
 				// text (e.g. "Text of the first record. ...") rather than
@@ -975,12 +1014,12 @@ mergeCaptions.b=false
 			// (~70 .idml fixtures). Bridge passes ~24 of 70; the
 			// remaining 46 are skipped per-file via idmlBridgeSkips()
 			// (kept in coverage_skips_test.go to keep this file readable).
-			formatID:          "idml",
-			filterClass:       "okf_idml",
-			sources:           []string{"okapi/filters/idml/src/test/resources"},
-			extensions:        []string{".idml"},
-			isZip:             true,
-			skip:              idmlBridgeSkips(),
+			formatID:    "idml",
+			filterClass: "okf_idml",
+			sources:     []string{"okapi/filters/idml/src/test/resources"},
+			extensions:  []string{".idml"},
+			isZip:       true,
+			skip:        idmlBridgeSkips(),
 			// IDML is a zip of XML. okapi emits XML decls with
 			// single-quoted attrs ('1.0' encoding='UTF-8'); native
 			// emits double-quoted ("1.0" encoding="UTF-8"). Beyond the
@@ -1018,12 +1057,12 @@ mergeCaptions.b=false
 			// 185 .docx fixtures in the upstream filter dir. Bridge
 			// passes ~61 of 185; the other 124 are skipped per-file
 			// via openxmlBridgeSkips() (in coverage_skips_test.go).
-			formatID:          "openxml",
-			filterClass:       "okf_openxml",
-			sources:           []string{"okapi/filters/openxml/src/test/resources"},
-			extensions:        []string{".docx"},
-			isZip:             true,
-			skip:              openxmlBridgeSkips(),
+			formatID:    "openxml",
+			filterClass: "okf_openxml",
+			sources:     []string{"okapi/filters/openxml/src/test/resources"},
+			extensions:  []string{".docx"},
+			isZip:       true,
+			skip:        openxmlBridgeSkips(),
 			// OOXML is zip-of-XML. Pure byte parity is unrealistic:
 			//   - encoding/xml always emits explicit close tags
 			//     (`<w:sz w:val="28"></w:sz>`) while okapi self-closes
@@ -1060,11 +1099,11 @@ mergeCaptions.b=false
 		{
 			// Bridge passes ~2 of 41 fixtures; the rest are flagged
 			// per-file via mifBridgeSkips().
-			formatID:          "mif",
-			filterClass:       "okf_mif",
-			sources:           []string{"integration-tests/okapi/src/test/resources/mif"},
-			extensions:        []string{".mif"},
-			skip:              mifBridgeSkips(),
+			formatID:    "mif",
+			filterClass: "okf_mif",
+			sources:     []string{"integration-tests/okapi/src/test/resources/mif"},
+			extensions:  []string{".mif"},
+			skip:        mifBridgeSkips(),
 		},
 	}
 }

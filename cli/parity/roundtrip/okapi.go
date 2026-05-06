@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"syscall"
 	"testing"
 	"time"
 
@@ -18,7 +19,9 @@ import (
 // OkapiEngine drives the okapi-bridge launcher's `pseudo` subcommand,
 // which composes upstream Okapi's
 // {@code RawDocumentToFilterEventsStep → TextModificationStep
-//   (TYPE_EXTREPLACE / SCRIPT_EXT_LATIN) → FilterEventsToRawDocumentStep}
+//
+//	(TYPE_EXTREPLACE / SCRIPT_EXT_LATIN) → FilterEventsToRawDocumentStep}
+//
 // pipeline. The same Latin-extended substitution is replicated on the
 // Go side by applyPseudoToBlock so all engines transform identically.
 //
@@ -41,6 +44,17 @@ type OkapiEngine struct {
 	// .fprm format (e.g. "#v1\nmergeCaptions.b=false\n") and is
 	// loaded via IParameters.fromString() against the filter.
 	ParamConfig string
+
+	// BatchCache, when non-nil, holds outputs pre-computed by
+	// RunOkapiBatch — RoundTrip looks up InputPath there before
+	// falling back to a fresh subprocess. This is the load-bearing
+	// optimisation that keeps the parity suite under its CI timeout
+	// (one JVM cold-start per format vs per fixture).
+	BatchCache *OkapiBatchCache
+
+	// InputPath is the absolute path of the current fixture used as
+	// the BatchCache lookup key. Required when BatchCache is set.
+	InputPath string
 }
 
 // Name returns "okapi" — this engine produces the upstream Okapi
@@ -70,6 +84,21 @@ func (e *OkapiEngine) Available() error {
 // and returns the merged output bytes.
 func (e *OkapiEngine) RoundTrip(t *testing.T, in Input, spec PseudoSpec) []byte {
 	t.Helper()
+
+	// Cached batch result wins — every format-level run pre-populates
+	// BatchCache so per-fixture RoundTrip is an O(1) lookup.
+	if e.BatchCache != nil && e.InputPath != "" {
+		if errMsg, hasErr := e.BatchCache.GetError(e.InputPath); hasErr {
+			t.Fatalf("OkapiEngine batch failed for %s: %s", e.InputPath, errMsg)
+		}
+		if cached, ok := e.BatchCache.Get(e.InputPath); ok {
+			return cached
+		}
+		// Cache miss with no recorded error: fall through to single-call
+		// subprocess path below. Happens for callers that didn't go
+		// through RunOkapiBatch (e.g. ad-hoc engine use).
+	}
+
 	s, err := parity.LoadSandbox()
 	if err != nil {
 		t.Fatalf("OkapiEngine: %v", err)
@@ -102,6 +131,18 @@ func (e *OkapiEngine) RoundTrip(t *testing.T, in Input, spec PseudoSpec) []byte 
 	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, s.OkapiBridgeBinary, args...)
+	// The jpackage launcher forks a JVM child that inherits the
+	// CombinedOutput pipes. SIGKILL on the launcher leaves the JVM
+	// running, holding stdout/stderr open — so cmd.Wait blocks past
+	// the ctx deadline. Put both in a process group and SIGKILL the
+	// whole group on cancel so the JVM dies and the pipes close.
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	cmd.Cancel = func() error {
+		if cmd.Process == nil {
+			return os.ErrProcessDone
+		}
+		return syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
+	}
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("OkapiEngine: launcher failed: %v\n--- args: %v\n--- output:\n%s", err, args, out)
