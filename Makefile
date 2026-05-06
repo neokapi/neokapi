@@ -540,28 +540,43 @@ test-e2e-dev: ; $(MAKE) -C bowrain $@ ## Run cloud e2e tests against dev environ
 # ── Bridge Tests ────────────────────────────────────────────────────────────
 
 # ── Bench (composite target at root) ───────────────────────────────────────
+#
+# `make bench` is the canonical regen path used to publish PseudoBench
+# results to the docs site. It depends on a built parity sandbox so the
+# kapi binary, okapi-bridge launcher, and okapi-testdata corpus are all
+# in place; without them the corpus discovery has nothing to walk.
 
-bench-build: ## Build benchmark binary
-	cd bench/pseudobench && $(GOBUILD) -o pseudobench .
+PSEUDOBENCH_BIN     ?= bench/pseudobench/pseudobench
+PSEUDOBENCH_RESULTS ?= bench/pseudobench/results
+PSEUDOBENCH_TRACES  ?= bench/pseudobench/traces
+PSEUDOBENCH_SAMPLE  ?= 0.10
+PSEUDOBENCH_ITERS   ?= 3
+PSEUDOBENCH_WARMUP  ?= 1
+OKAPI_VERSION       ?= 1.48.0
 
-bench-generate: ## Generate benchmark data
-	cd bench/pseudobench && $(GO) run . generate
+bench-build: ## Build pseudobench binary
+	cd bench/pseudobench && GOWORK=off $(GOBUILD) -o pseudobench .
 
-bench-run: ## Run benchmarks
-	cd bench/pseudobench && $(GO) run . run
+bench-run: bench-build parity-sandbox ## Run pseudobench against parity sandbox (writes JSON + HTML + traces)
+	@rm -rf $(PSEUDOBENCH_RESULTS) $(PSEUDOBENCH_TRACES)
+	$(PSEUDOBENCH_BIN) run \
+	    -kapi $(PARITY_DIR)/bin/kapi \
+	    -okapi-bridge $(PARITY_DIR)/plugins/okapi-bridge/Contents/MacOS/kapi-okapi-bridge \
+	    -okapi-testdata $(PARITY_DIR)/okapi-testdata/$(OKAPI_VERSION) \
+	    -sample $(PSEUDOBENCH_SAMPLE) \
+	    -iterations $(PSEUDOBENCH_ITERS) \
+	    -warmup $(PSEUDOBENCH_WARMUP) \
+	    -results $(PSEUDOBENCH_RESULTS) \
+	    -output $(PSEUDOBENCH_RESULTS)/output \
+	    -html $(PSEUDOBENCH_RESULTS)/pseudobench.html \
+	    -trace-dir $(PSEUDOBENCH_TRACES)
 
-bench-run-collection: ## Run collection benchmarks
-	cd bench/pseudobench && $(GO) run . run --collection
+bench-run-full: PSEUDOBENCH_SAMPLE := 1.0
+bench-run-full: bench-run ## Run pseudobench across the full corpus (slow)
 
-bench-run-all: ## Run all benchmarks
-	cd bench/pseudobench && $(GO) run . run --all
-
-bench-versions: ## Run version benchmarks
-	cd bench/pseudobench && $(GO) run . versions
-
-bench: bench-generate bench-run-all ## Run all benchmarks + copy results to website
-	cp bench/pseudobench/results/pseudobench.json web/docs/static/data/pseudobench.json
-	@echo "Results copied to web/docs/static/data/pseudobench.json"
+bench: bench-run ## Regenerate pseudobench data and publish to web/docs/static/data
+	cp $(PSEUDOBENCH_RESULTS)/pseudobench.json web/docs/static/data/pseudobench.json
+	@echo "Published $(PSEUDOBENCH_RESULTS)/pseudobench.json → web/docs/static/data/pseudobench.json"
 
 # ── Frontend Checks ──────────────────────────────────────────────────────────
 

@@ -1,5 +1,6 @@
 testdata/
 results/
+traces/
 output/
 versions/
 pseudobench

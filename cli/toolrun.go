@@ -11,7 +11,9 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/mattn/go-isatty"
 	"github.com/neokapi/neokapi/cli/output"
@@ -137,6 +139,26 @@ func (a *App) RunToolOnFiles(ctx context.Context, cfg ToolRunConfig) error {
 		)
 	}
 
+	// Batch trace mode: when --trace is set without a {name} placeholder
+	// and the run covers >1 files, capture per-file lane + timing into a
+	// single BatchFlowTrace and write it once at the end. The pseudobench
+	// concurrency view consumes this exact shape; without it that chart
+	// renders empty even though kapi processed everything in parallel.
+	// Per-file trace mode (with {name}) keeps its existing behaviour —
+	// the placeholder signals the user wants individual flow traces.
+	batchTrace := cfg.TracePath != "" && !strings.Contains(cfg.TracePath, "{name}") && len(files) > 1
+	var batchStart time.Time
+	var lanes chan int
+	var traceMu sync.Mutex
+	var traceInfos []*batchTraceInfo
+	if batchTrace {
+		batchStart = time.Now()
+		lanes = make(chan int, concurrency)
+		for i := range concurrency {
+			lanes <- i
+		}
+	}
+
 	g, ctx := errgroup.WithContext(ctx)
 	sem := make(chan struct{}, concurrency)
 
@@ -145,7 +167,31 @@ func (a *App) RunToolOnFiles(ctx context.Context, cfg ToolRunConfig) error {
 		g.Go(func() error {
 			defer func() { <-sem }()
 			active.Add(1)
-			err := a.processOneFile(ctx, cfg, file, collector, commonDir, progress)
+
+			var info *batchTraceInfo
+			if batchTrace {
+				lane := <-lanes
+				info = &batchTraceInfo{
+					file:    filepath.Base(file),
+					startUs: time.Since(batchStart).Microseconds(),
+					lane:    lane,
+				}
+				defer func() {
+					info.endUs = time.Since(batchStart).Microseconds()
+					traceMu.Lock()
+					traceInfos = append(traceInfos, info)
+					traceMu.Unlock()
+					lanes <- lane
+				}()
+			}
+
+			// Suppress per-file trace writes in batch mode — the path has no
+			// {name} placeholder so every file would clobber the same target.
+			runCfg := cfg
+			if batchTrace {
+				runCfg.TracePath = ""
+			}
+			err := a.processOneFile(ctx, runCfg, file, collector, commonDir, progress, info)
 			active.Add(-1)
 			if bar != nil {
 				bar.Increment()
@@ -165,6 +211,34 @@ func (a *App) RunToolOnFiles(ctx context.Context, cfg ToolRunConfig) error {
 		progress.Wait()
 	}
 
+	if batchTrace {
+		bt := &flow.BatchFlowTrace{
+			Name:        cfg.ToolName,
+			Concurrency: concurrency,
+			DurationUs:  time.Since(batchStart).Microseconds(),
+		}
+		for _, info := range traceInfos {
+			bt.FileTraces = append(bt.FileTraces, flow.FileFlowTrace{
+				File:       info.file,
+				Format:     info.format,
+				StartUs:    info.startUs,
+				EndUs:      info.endUs,
+				Lane:       info.lane,
+				DurationUs: info.endUs - info.startUs,
+			})
+		}
+		traceJSON, err := json.MarshalIndent(bt, "", "  ")
+		if err != nil {
+			return fmt.Errorf("marshal batch trace: %w", err)
+		}
+		if err := os.MkdirAll(filepath.Dir(cfg.TracePath), 0o755); err != nil {
+			return fmt.Errorf("create trace dir: %w", err)
+		}
+		if err := os.WriteFile(cfg.TracePath, traceJSON, 0o644); err != nil {
+			return fmt.Errorf("write batch trace: %w", err)
+		}
+	}
+
 	if collector == nil {
 		return nil
 	}
@@ -176,7 +250,18 @@ func (a *App) RunToolOnFiles(ctx context.Context, cfg ToolRunConfig) error {
 	return output.FormatCollectorResult(cfg.JSONOutput, result.Data)
 }
 
-func (a *App) processOneFile(ctx context.Context, cfg ToolRunConfig, filePath string, collector flow.Collector, commonDir string, progress *mpb.Progress) error {
+// batchTraceInfo holds per-file timing for the batch-trace assembler in
+// RunToolOnFiles. Lane is allocated before processOneFile runs; format is
+// filled in once the reader resolves it.
+type batchTraceInfo struct {
+	file    string
+	format  string
+	startUs int64
+	endUs   int64
+	lane    int
+}
+
+func (a *App) processOneFile(ctx context.Context, cfg ToolRunConfig, filePath string, collector flow.Collector, commonDir string, progress *mpb.Progress, batchInfo *batchTraceInfo) error {
 	// Resolve format: mapping > global -f flag > auto-detect by extension.
 	fmtName := matchFormatMapping(filePath, cfg.FormatMappings)
 	if fmtName == "" {
@@ -199,6 +284,10 @@ func (a *App) processOneFile(ctx context.Context, cfg ToolRunConfig, filePath st
 
 	ref := preset.ParseFormatRef(fmtName)
 	registryName := ref.RegistryName()
+
+	if batchInfo != nil {
+		batchInfo.format = registryName
+	}
 
 	reader, err := a.FormatReg.NewReader(registry.FormatID(registryName))
 	if err != nil {
