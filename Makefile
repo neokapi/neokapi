@@ -584,6 +584,19 @@ bench: bench-run ## Regenerate pseudobench data and publish to web/docs/static/d
 	cp $(PSEUDOBENCH_RESULTS)/pseudobench.json web/docs/static/data/pseudobench.json
 	@echo "Published $(PSEUDOBENCH_RESULTS)/pseudobench.json → web/docs/static/data/pseudobench.json"
 
+# `make bench-stress` is the publish-grade run: full 844-fixture corpus,
+# 3 measurement iterations + 1 warmup. On M1 Max takes ~30-40 min mostly
+# in the per-file trace pass — each kapi invocation pays JVM startup,
+# and bridge subprocess + okapi multiply that by 844. Use this when
+# refreshing the website data; use plain `make bench` (10% sample) for
+# quick local iteration.
+bench-stress: PSEUDOBENCH_SAMPLE := 1.0
+bench-stress: PSEUDOBENCH_ITERS  := 3
+bench-stress: PSEUDOBENCH_WARMUP := 1
+bench-stress: bench-run ## Stress-run full corpus and publish to docs (slow, ~30-40 min)
+	cp $(PSEUDOBENCH_RESULTS)/pseudobench.json web/docs/static/data/pseudobench.json
+	@echo "Published $(PSEUDOBENCH_RESULTS)/pseudobench.json → web/docs/static/data/pseudobench.json"
+
 # ── Frontend Checks ──────────────────────────────────────────────────────────
 
 frontend-check-all: ## Run lint, format, and typecheck across all frontend projects

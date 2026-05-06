@@ -183,26 +183,51 @@ function Legend({ engines }: { engines: string[] }) {
   );
 }
 
-/** Summary cards showing headline numbers with correct faster/slower labels. */
-function SummaryCards({ experiments }: { experiments: Experiment[] }) {
+/** engineMetric returns the ms number to use for headline ratios in the
+ * given view. Batch view: the wall-time median across iterations.
+ * Multi-Invocation: the summed per-file wall-time (each file = a fresh
+ * kapi invocation), where the JVM cold-start cost dominates and the
+ * subprocess engine ends up *slower* than okapi. Resources/files/
+ * concurrency stay on batch.
+ */
+function engineMetric(exp: Experiment, mode: ViewMode): number {
+  if (mode === "multi" && exp.fileTimings && exp.fileTimings.length > 0) {
+    return exp.fileTimings.reduce((s, f) => s + (f.success ? f.wallMs : 0), 0);
+  }
+  return exp.wallTimeMs.median;
+}
+
+function metricLabel(mode: ViewMode): string {
+  if (mode === "multi") return "vs okapi (multi-invocation)";
+  return "vs okapi (batch)";
+}
+
+/** Summary cards showing headline numbers that mirror the active view —
+ * so switching to Multi-Invocation rewrites the ratios from batch
+ * medians to per-call totals (where bridge subprocess is slower than
+ * okapi instead of faster). */
+function SummaryCards({ experiments, mode }: { experiments: Experiment[]; mode: ViewMode }) {
   const okapi = experiments.find((e) => e.engine === "okapi");
 
   const cards: { value: string; label: string; color: string }[] = [];
 
   for (const exp of experiments) {
     if (exp.engine === "okapi" || !okapi) continue;
-    const ratio = okapi.wallTimeMs.median / exp.wallTimeMs.median;
-    if (ratio > 1) {
+    const okapiMs = engineMetric(okapi, mode);
+    const expMs = engineMetric(exp, mode);
+    if (okapiMs <= 0 || expMs <= 0) continue;
+    const ratio = okapiMs / expMs;
+    if (ratio >= 1) {
       cards.push({
         value: `${ratio.toFixed(1)}x faster`,
-        label: `${engineLabel(exp.engine)} vs okapi`,
+        label: `${engineLabel(exp.engine)} ${metricLabel(mode)}`,
         color: engineColor(exp.engine),
       });
     } else {
       const inverse = 1 / ratio;
       cards.push({
         value: `${inverse.toFixed(2)}x slower`,
-        label: `${engineLabel(exp.engine)} vs okapi`,
+        label: `${engineLabel(exp.engine)} ${metricLabel(mode)}`,
         color: "#d97706",
       });
     }
@@ -1116,7 +1141,7 @@ export default function PseudoBench() {
           <>
             <MetadataBar metadata={report.metadata} />
             <Legend engines={engines} />
-            <SummaryCards experiments={experiments} />
+            <SummaryCards experiments={experiments} mode={viewMode} />
 
             <div className={styles.filters}>
               <div className={styles.filterGroup}>
