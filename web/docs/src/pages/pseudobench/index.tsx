@@ -85,7 +85,7 @@ const ENGINE_STYLES: Record<string, { color: string; label: string }> = {
   "kapi-native": { color: "#2563eb", label: "kapi (native)" },
   "kapi-bridge": { color: "#7c3aed", label: "kapi (bridge)" },
   "kapi-bridge-daemon": { color: "#059669", label: "kapi (bridge daemon)" },
-  okapi: { color: "#dc2626", label: "Okapi (tikal)" },
+  okapi: { color: "#dc2626", label: "Okapi (bridge pseudo)" },
 };
 
 const FORMAT_COLORS: Record<string, string> = {
@@ -161,14 +161,14 @@ function SummaryCards({ experiments }: { experiments: Experiment[] }) {
     if (ratio > 1) {
       cards.push({
         value: `${ratio.toFixed(1)}x faster`,
-        label: `${engineLabel(exp.engine)} vs tikal`,
+        label: `${engineLabel(exp.engine)} vs okapi`,
         color: engineColor(exp.engine),
       });
     } else {
       const inverse = 1 / ratio;
       cards.push({
         value: `${inverse.toFixed(2)}x slower`,
-        label: `${engineLabel(exp.engine)} vs tikal`,
+        label: `${engineLabel(exp.engine)} vs okapi`,
         color: "#d97706",
       });
     }
@@ -356,7 +356,7 @@ function MultiInvocationComparison({ experiments }: { experiments: Experiment[] 
         <div className={styles.compColHeader}>
           Total Time<span className={styles.compUnit}>ms</span>
         </div>
-        <div className={styles.compColHeader}>vs tikal</div>
+        <div className={styles.compColHeader}>vs okapi</div>
         <div className={styles.compColHeader} />
         <div className={styles.compColHeader} />
 

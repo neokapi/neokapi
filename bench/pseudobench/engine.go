@@ -19,6 +19,16 @@ var ansiRE = regexp.MustCompile(`\x1b\[[0-9;]*m`)
 // stripANSI removes ANSI escape codes from a string.
 func stripANSI(s string) string { return ansiRE.ReplaceAllString(s, "") }
 
+// inputPathFor returns the absolute path engines should pass to their
+// CLI for fixture f. DiscoverFixtures sets SourcePath; legacy callers
+// that hand-curate TestFile lists can still pass an inputDir + Name.
+func inputPathFor(f TestFile, inputDir string) string {
+	if f.SourcePath != "" {
+		return f.SourcePath
+	}
+	return filepath.Join(inputDir, f.Name)
+}
+
 // Engine processes a batch of files and returns metrics.
 type Engine interface {
 	Name() string
@@ -128,7 +138,10 @@ func parseBlockCount(stdout []byte) int64 {
 
 // --- Kapi Native Engine ---
 
-// KapiNativeEngine runs kapi with --disable-plugins okapi (native formats only).
+// KapiNativeEngine runs kapi with no plugins loaded (native formats only).
+// It points XDG_DATA_HOME at a scratch dir so the bridge plugin under
+// the user's real ~/.local/share/kapi/plugins does not register, and
+// the native filter wins format dispatch for every supported format.
 type KapiNativeEngine struct {
 	BinaryPath string
 	VersionStr string
@@ -137,24 +150,35 @@ type KapiNativeEngine struct {
 func (e *KapiNativeEngine) Name() string    { return "kapi-native" }
 func (e *KapiNativeEngine) Version() string { return e.VersionStr }
 
-func (e *KapiNativeEngine) ProcessBatch(ctx context.Context, files []TestFile, inputDir, outputDir, traceFile string) (*RunResult, []FileResult, error) {
-	var inputArgs []string
-	fileResults := make([]FileResult, len(files))
+// nativeOnlyEnv suppresses plugin discovery by redirecting every
+// search root the host walks: XDG_DATA_HOME (Order 2), KAPI_PLUGINS_DIR
+// (Order 1), and HOME (fallback for XDG resolution). Without this the
+// bridge plugin still loads and the comparison "native vs bridge" is
+// meaningless.
+func nativeOnlyEnv() []string {
+	scratch := filepath.Join(os.TempDir(), "kapi-native-no-plugins")
+	_ = os.MkdirAll(scratch, 0o755)
+	return []string{
+		"XDG_DATA_HOME=" + scratch,
+		"KAPI_PLUGINS_DIR=" + scratch,
+		"HOME=" + scratch,
+	}
+}
 
+func (e *KapiNativeEngine) ProcessBatch(ctx context.Context, files []TestFile, inputDir, outputDir, traceFile string) (*RunResult, []FileResult, error) {
+	args := []string{"pseudo-translate"}
+	fileResults := make([]FileResult, len(files))
 	for i, f := range files {
-		inputArgs = append(inputArgs, "-i", filepath.Join(inputDir, f.Name))
+		args = append(args, inputPathFor(f, inputDir))
 		fileResults[i] = FileResult{Name: f.Name, Format: f.Format, Success: true}
 	}
-
 	outputTemplate := filepath.Join(outputDir, "{name}_{lang}{ext}")
-	args := []string{"--disable-plugins", "okapi", "flow", "run", "pseudo-translate"}
-	args = append(args, inputArgs...)
 	args = append(args, "--target-lang", "qps", "-q", "-o", outputTemplate)
 	if traceFile != "" {
 		args = append(args, "--trace", traceFile)
 	}
 
-	result, err := runProcess(ctx, nil, e.BinaryPath, args...)
+	result, err := runProcess(ctx, nativeOnlyEnv(), e.BinaryPath, args...)
 	if err != nil {
 		for i := range fileResults {
 			fileResults[i].Success = false
@@ -179,20 +203,16 @@ func (e *KapiBridgeEngine) Name() string    { return "kapi-bridge" }
 func (e *KapiBridgeEngine) Version() string { return e.VersionStr }
 
 func (e *KapiBridgeEngine) ProcessBatch(ctx context.Context, files []TestFile, inputDir, outputDir, traceFile string) (*RunResult, []FileResult, error) {
-	var inputArgs []string
+	args := []string{"pseudo-translate"}
 	fileResults := make([]FileResult, len(files))
-
 	for i, f := range files {
-		inputArgs = append(inputArgs, "-i", filepath.Join(inputDir, f.Name))
+		args = append(args, inputPathFor(f, inputDir))
 		fileResults[i] = FileResult{
 			Name:    f.Name,
 			Format:  f.Format,
 			Success: true,
 		}
 	}
-
-	args := []string{"flow", "run", "pseudo-translate"}
-	args = append(args, inputArgs...)
 	outputTemplate := filepath.Join(outputDir, "{name}_{lang}{ext}")
 	args = append(args, "--target-lang", "qps", "-q", "-o", outputTemplate)
 	if traceFile != "" {
@@ -225,21 +245,17 @@ func (e *KapiBridgeDaemonEngine) Name() string    { return "kapi-bridge-daemon" 
 func (e *KapiBridgeDaemonEngine) Version() string { return e.VersionStr }
 
 func (e *KapiBridgeDaemonEngine) ProcessBatch(ctx context.Context, files []TestFile, inputDir, outputDir, traceFile string) (*RunResult, []FileResult, error) {
-	var inputArgs []string
+	args := []string{"pseudo-translate"}
 	fileResults := make([]FileResult, len(files))
-
 	for i, f := range files {
-		inputArgs = append(inputArgs, "-i", filepath.Join(inputDir, f.Name))
+		args = append(args, inputPathFor(f, inputDir))
 		fileResults[i] = FileResult{
 			Name:    f.Name,
 			Format:  f.Format,
 			Success: true,
 		}
 	}
-
 	outputTemplate := filepath.Join(outputDir, "{name}_{lang}{ext}")
-	args := []string{"flow", "run", "pseudo-translate"}
-	args = append(args, inputArgs...)
 	args = append(args, "--target-lang", "qps", "-q", "-o", outputTemplate)
 	if traceFile != "" {
 		args = append(args, "--trace", traceFile)
@@ -260,65 +276,122 @@ func (e *KapiBridgeDaemonEngine) ProcessBatch(ctx context.Context, files []TestF
 	return result, fileResults, nil
 }
 
-// --- Okapi Tikal Engine ---
+// --- Okapi Pseudo Engine ---
 
-// OkapiTikalEngine runs Okapi's tikal CLI.
-type OkapiTikalEngine struct {
-	TikalPath  string
+// OkapiPseudoEngine runs Okapi's pseudo-translate pipeline via the
+// `kapi-okapi-bridge pseudo --manifest <tsv>` CLI. Files are grouped
+// by (filter class, fprm) and each group is processed in a single
+// JVM invocation: one cold-start per group, all files in one batch.
+//
+// This replaces the previous tikal-based engine — same upstream Okapi
+// pipeline (RawDocumentToFilterEventsStep → TextModificationStep with
+// SCRIPT_EXT_LATIN → FilterEventsToRawDocumentStep) but routed through
+// our maintained bridge launcher instead of the legacy tikal jar that
+// shipped without batch support per filter.
+type OkapiPseudoEngine struct {
+	BinaryPath string // kapi-okapi-bridge launcher (jpackage native)
 	VersionStr string
 }
 
-func (e *OkapiTikalEngine) Name() string    { return "okapi" }
-func (e *OkapiTikalEngine) Version() string { return e.VersionStr }
+func (e *OkapiPseudoEngine) Name() string    { return "okapi" }
+func (e *OkapiPseudoEngine) Version() string { return e.VersionStr }
 
-func (e *OkapiTikalEngine) ProcessBatch(ctx context.Context, files []TestFile, inputDir, outputDir, _ string) (*RunResult, []FileResult, error) {
-	// Copy files to a temp dir so tikal writes output there.
+// pseudoGroupKey shards files into (filter class, fprm) buckets so each
+// JVM invocation can pin a single --filter and one shared --fprm.
+type pseudoGroupKey struct {
+	FilterClass string
+	Fprm        string
+}
+
+func (e *OkapiPseudoEngine) ProcessBatch(ctx context.Context, files []TestFile, inputDir, outputDir, _ string) (*RunResult, []FileResult, error) {
+	fileResults := make([]FileResult, len(files))
+
+	// Group files by (filter class, fprm). Files lacking a FilterClass
+	// (legacy hand-curated lists) are skipped with an explicit error so
+	// the report shows what the engine couldn't run.
+	type indexed struct {
+		i int
+		f TestFile
+	}
+	groups := map[pseudoGroupKey][]indexed{}
+	for i, f := range files {
+		fileResults[i] = FileResult{Name: f.Name, Format: f.Format, Success: true}
+		if f.FilterClass == "" {
+			fileResults[i].Success = false
+			fileResults[i].Error = "no filter class — fixture not in parity corpus"
+			continue
+		}
+		key := pseudoGroupKey{FilterClass: f.FilterClass, Fprm: f.OkapiFprm}
+		groups[key] = append(groups[key], indexed{i: i, f: f})
+	}
+
+	if len(groups) == 0 {
+		return &RunResult{}, fileResults, nil
+	}
+
 	tmpDir, err := os.MkdirTemp("", "pseudobench-okapi-*")
 	if err != nil {
 		return nil, nil, err
 	}
 	defer os.RemoveAll(tmpDir)
 
-	fileResults := make([]FileResult, len(files))
-	var tmpPaths []string
+	// Aggregate timings: wall = sum of group wall times (sequential),
+	// peak RSS = max across groups. Each group is one JVM cold-start
+	// + one PipelineDriver.processBatch() invocation.
+	agg := &RunResult{}
+	groupNo := 0
+	for key, items := range groups {
+		groupNo++
 
-	for i, f := range files {
-		src := filepath.Join(inputDir, f.Name)
-		dst := filepath.Join(tmpDir, f.Name)
-		data, err := os.ReadFile(src)
-		if err != nil {
-			fileResults[i] = FileResult{Name: f.Name, Format: f.Format, Success: false, Error: err.Error()}
-			continue
+		// Stage outputs in a per-group sub-tmpdir so a basename clash
+		// between formats (rare but possible) doesn't overwrite.
+		groupOutDir := filepath.Join(outputDir, fmt.Sprintf("%s-%d", strings.ReplaceAll(key.FilterClass, "okf_", ""), groupNo))
+		if err := os.MkdirAll(groupOutDir, 0o755); err != nil {
+			return nil, nil, fmt.Errorf("mkdir group out: %w", err)
 		}
-		if err := os.WriteFile(dst, data, 0o644); err != nil {
-			fileResults[i] = FileResult{Name: f.Name, Format: f.Format, Success: false, Error: err.Error()}
-			continue
+
+		// Build manifest: <input>\t<output> per line.
+		var manifest strings.Builder
+		for _, it := range items {
+			src := inputPathFor(it.f, inputDir)
+			dst := filepath.Join(groupOutDir, it.f.Name)
+			fmt.Fprintf(&manifest, "%s\t%s\n", src, dst)
 		}
-		tmpPaths = append(tmpPaths, dst)
-		fileResults[i] = FileResult{Name: f.Name, Format: f.Format, Success: true}
-	}
+		manifestPath := filepath.Join(tmpDir, fmt.Sprintf("manifest-%d.tsv", groupNo))
+		if err := os.WriteFile(manifestPath, []byte(manifest.String()), 0o644); err != nil {
+			return nil, nil, fmt.Errorf("write manifest: %w", err)
+		}
 
-	if len(tmpPaths) == 0 {
-		return &RunResult{}, fileResults, nil
-	}
+		args := []string{
+			"pseudo",
+			"--filter", key.FilterClass,
+			"--manifest", manifestPath,
+			"--src-lang", "en",
+			"--tgt-lang", "qps",
+		}
+		if key.Fprm != "" {
+			args = append(args, "--fprm", key.Fprm)
+		}
 
-	args := []string{"-t"}
-	args = append(args, tmpPaths...)
-	args = append(args, "-sl", "en", "-tl", "qps", "-od", outputDir)
-
-	result, err := runProcess(ctx, nil, e.TikalPath, args...)
-	if err != nil {
-		for i := range fileResults {
-			if fileResults[i].Success {
-				fileResults[i].Success = false
-				fileResults[i].Error = err.Error()
+		result, runErr := runProcess(ctx, nil, e.BinaryPath, args...)
+		if runErr != nil {
+			for _, it := range items {
+				fileResults[it.i].Success = false
+				fileResults[it.i].Error = runErr.Error()
 			}
+			continue
 		}
-		return nil, fileResults, err
+
+		agg.WallTime += result.WallTime
+		agg.UserCPU += result.UserCPU
+		agg.SystemCPU += result.SystemCPU
+		if result.PeakRSSKB > agg.PeakRSSKB {
+			agg.PeakRSSKB = result.PeakRSSKB
+		}
 	}
 
-	result.OutputBytes = sumDirSize(outputDir)
-	return result, fileResults, nil
+	agg.OutputBytes = sumDirSize(outputDir)
+	return agg, fileResults, nil
 }
 
 // --- Per-file processing (for timeline trace) ---
@@ -329,11 +402,10 @@ type FileProcessor interface {
 }
 
 func (e *KapiNativeEngine) ProcessFile(ctx context.Context, file TestFile, inputDir, outputDir string) (*RunResult, error) {
-	args := []string{"--disable-plugins", "okapi", "--output-format", "json",
-		"flow", "run", "pseudo-translate",
-		"-i", filepath.Join(inputDir, file.Name), "--target-lang", "qps",
-		"--stats", "-o", filepath.Join(outputDir, "{name}_{lang}{ext}")}
-	stdout, result, err := runProcessWithOutput(ctx, nil, e.BinaryPath, args...)
+	args := []string{"--output-format", "json", "pseudo-translate",
+		inputPathFor(file, inputDir), "--target-lang", "qps",
+		"--json", "-o", filepath.Join(outputDir, "{name}_{lang}{ext}")}
+	stdout, result, err := runProcessWithOutput(ctx, nativeOnlyEnv(), e.BinaryPath, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -342,35 +414,38 @@ func (e *KapiNativeEngine) ProcessFile(ctx context.Context, file TestFile, input
 }
 
 func (e *KapiBridgeEngine) ProcessFile(ctx context.Context, file TestFile, inputDir, outputDir string) (*RunResult, error) {
-	args := []string{"flow", "run", "pseudo-translate",
-		"-i", filepath.Join(inputDir, file.Name), "--target-lang", "qps", "-q",
+	args := []string{"pseudo-translate",
+		inputPathFor(file, inputDir), "--target-lang", "qps", "-q",
 		"-o", filepath.Join(outputDir, "{name}_{lang}{ext}")}
 	return runProcess(ctx, nil, e.BinaryPath, args...)
 }
 
 func (e *KapiBridgeDaemonEngine) ProcessFile(ctx context.Context, file TestFile, inputDir, outputDir string) (*RunResult, error) {
-	args := []string{"flow", "run", "pseudo-translate",
-		"-i", filepath.Join(inputDir, file.Name), "--target-lang", "qps", "-q",
+	args := []string{"pseudo-translate",
+		inputPathFor(file, inputDir), "--target-lang", "qps", "-q",
 		"-o", filepath.Join(outputDir, "{name}_{lang}{ext}")}
 	env := []string{fmt.Sprintf("NEOKAPI_BRIDGE_ADDRS=%s", e.Daemon.Address())}
 	return runProcess(ctx, env, e.BinaryPath, args...)
 }
 
-func (e *OkapiTikalEngine) ProcessFile(ctx context.Context, file TestFile, inputDir, outputDir string) (*RunResult, error) {
-	tmpDir, err := os.MkdirTemp("", "pseudobench-okapi-*")
-	if err != nil {
-		return nil, err
+func (e *OkapiPseudoEngine) ProcessFile(ctx context.Context, file TestFile, inputDir, outputDir string) (*RunResult, error) {
+	if file.FilterClass == "" {
+		return nil, fmt.Errorf("file %s has no filter class", file.Name)
 	}
-	defer os.RemoveAll(tmpDir)
-	data, err := os.ReadFile(filepath.Join(inputDir, file.Name))
-	if err != nil {
-		return nil, err
+	src := inputPathFor(file, inputDir)
+	dst := filepath.Join(outputDir, file.Name)
+	args := []string{
+		"pseudo",
+		"--filter", file.FilterClass,
+		"--input", src,
+		"--output", dst,
+		"--src-lang", "en",
+		"--tgt-lang", "qps",
 	}
-	dst := filepath.Join(tmpDir, file.Name)
-	if err := os.WriteFile(dst, data, 0o644); err != nil {
-		return nil, err
+	if file.OkapiFprm != "" {
+		args = append(args, "--fprm", file.OkapiFprm)
 	}
-	return runProcess(ctx, nil, e.TikalPath, "-t", dst, "-sl", "en", "-tl", "qps", "-od", outputDir)
+	return runProcess(ctx, nil, e.BinaryPath, args...)
 }
 
 // sumDirSize totals the sizes of all files in a directory (non-recursive).
@@ -398,19 +473,14 @@ func runCommand(name string, args ...string) (string, error) {
 	return string(out), err
 }
 
-// runCommandCombined runs a command and returns combined stdout+stderr.
-func runCommandCombined(name string, args ...string) (string, error) {
-	cmd := exec.Command(name, args...)
-	out, err := cmd.CombinedOutput()
-	return string(out), err
-}
-
 // detectVersion tries to get the version string from a binary.
+// Both kapi and kapi-okapi-bridge expose a `version` subcommand; the
+// bridge prints a bare version string ("0.0.0-dev"), kapi prints JSON
+// when given --json. Never invoke the binary with no args — the bridge
+// launcher treats that as "start gRPC daemon" and blocks forever.
 func detectVersion(binPath string) string {
-	// Try kapi-style: kapi version --json → {"version": "..."}
-	out, err := runCommand(binPath, "version", "--json")
-	if err == nil {
-		// Simple line-based parse to avoid importing encoding/json.
+	// kapi-style first: `binary version --json` → {"version": "..."}
+	if out, err := runCommand(binPath, "version", "--json"); err == nil {
 		for _, line := range strings.Split(out, "\n") {
 			line = strings.TrimSpace(line)
 			if strings.Contains(line, `"version"`) {
@@ -423,16 +493,22 @@ func detectVersion(binPath string) string {
 				}
 			}
 		}
+		// Bridge case: `version --json` ignores the flag and prints the
+		// bare string anyway. First non-empty stripped line wins.
+		for _, line := range strings.Split(out, "\n") {
+			clean := strings.TrimSpace(stripANSI(line))
+			if clean != "" && !strings.HasPrefix(clean, "[") {
+				return clean
+			}
+		}
 	}
 
-	// Try tikal-style: prints "Version: X.Y.Z" (may have logger prefix and ANSI codes).
-	out, err = runCommandCombined(binPath)
-	if err == nil {
+	// Last resort: `binary version` with no flag.
+	if out, err := runCommand(binPath, "version"); err == nil {
 		for _, line := range strings.Split(out, "\n") {
-			// Strip ANSI escape codes.
-			clean := stripANSI(line)
-			if idx := strings.Index(clean, "Version: "); idx >= 0 {
-				return strings.TrimSpace(clean[idx+len("Version: "):])
+			clean := strings.TrimSpace(stripANSI(line))
+			if clean != "" && !strings.HasPrefix(clean, "[") {
+				return clean
 			}
 		}
 	}

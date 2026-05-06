@@ -62,7 +62,7 @@ func runExperiment(engine Engine, cfg *Config, daemon *DaemonProcess) (*Experime
 		if err != nil {
 			return nil, err
 		}
-		_, _, _ = engine.ProcessBatch(ctx, testFiles, cfg.TestdataDir, tmpDir, "")
+		_, _, _ = engine.ProcessBatch(ctx, cfg.Fixtures, "", tmpDir, "")
 		os.RemoveAll(tmpDir)
 	}
 
@@ -107,7 +107,7 @@ func runExperiment(engine Engine, cfg *Config, daemon *DaemonProcess) (*Experime
 			iterTraceFile = traceFile
 		}
 
-		result, fileResults, err := engine.ProcessBatch(ctx, testFiles, cfg.TestdataDir, outputDir, iterTraceFile)
+		result, fileResults, err := engine.ProcessBatch(ctx, cfg.Fixtures, "", outputDir, iterTraceFile)
 		if err != nil {
 			fmt.Printf(" ERROR: %v\n", err)
 			// Record the error but continue with other iterations.
@@ -182,14 +182,16 @@ func runFileTrace(ctx context.Context, fp FileProcessor, cfg *Config) []FileTimi
 	traceStart := time.Now()
 	var timings []FileTiming
 
-	for _, f := range testFiles {
-		var sizeBytes int64
-		if info, serr := os.Stat(filepath.Join(cfg.TestdataDir, f.Name)); serr == nil {
-			sizeBytes = info.Size()
+	for _, f := range cfg.Fixtures {
+		sizeBytes := f.SizeBytes
+		if sizeBytes == 0 {
+			if info, serr := os.Stat(f.SourcePath); serr == nil {
+				sizeBytes = info.Size()
+			}
 		}
 
 		fileStart := time.Since(traceStart)
-		result, err := fp.ProcessFile(ctx, f, cfg.TestdataDir, tmpDir)
+		result, err := fp.ProcessFile(ctx, f, "", tmpDir)
 		fileEnd := time.Since(traceStart)
 
 		ft := FileTiming{
@@ -257,10 +259,11 @@ func buildEngines(cfg *Config) ([]Engine, *DaemonProcess, error) {
 		}
 	}
 
-	if cfg.OkapiBin != "" {
-		okapiVersion := detectVersion(cfg.OkapiBin)
-		engines = append(engines, &OkapiTikalEngine{
-			TikalPath:  cfg.OkapiBin,
+	if cfg.OkapiBridge != "" {
+		// Version detection: kapi-okapi-bridge supports `version` subcommand.
+		okapiVersion := detectVersion(cfg.OkapiBridge)
+		engines = append(engines, &OkapiPseudoEngine{
+			BinaryPath: cfg.OkapiBridge,
 			VersionStr: okapiVersion,
 		})
 	}

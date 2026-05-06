@@ -5,16 +5,24 @@ import "time"
 // Config holds the benchmark configuration.
 type Config struct {
 	KapiBin       string // path to kapi binary
-	OkapiBin      string // path to tikal binary
+	OkapiBridge   string // path to kapi-okapi-bridge binary (jpackage launcher)
 	BridgeJar     string // path to bridge JAR for daemon mode
 	Iterations    int    // measurement iterations per engine
 	Warmup        int    // warmup iterations (discarded)
-	TestdataDir   string // directory containing test files
-	OkapiTestdata string // path to okapi-testdata root (e.g. okapi-testdata/1.48.0-v4)
+	OkapiTestdata string // path to okapi-testdata root (DiscoverFixtures input)
 	OutputDir     string // directory for preserved output files
 	ResultsDir    string // directory for JSON + HTML results
 	HTMLFile      string // path to HTML report
 	TraceDir      string // directory for trace JSON files (empty = disabled)
+
+	// Fixtures is the discovered + sampled set the bench runs. Populated
+	// in main() by DiscoverFixtures() + Sample(); SourcePath on each
+	// entry is an absolute path so the engines don't need a staging dir.
+	Fixtures []TestFile
+
+	// Sample is the fraction of discovered fixtures to bench (0,1].
+	// Default 0.10 (10%); main sets it to 1.0 when -full is passed.
+	Sample float64
 }
 
 // VersionedBinary is a path to a binary with a version label.
