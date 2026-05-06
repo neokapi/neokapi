@@ -130,6 +130,11 @@ const sidebars: SidebarsConfig = {
     },
     {
       type: "link",
+      label: "Parity",
+      href: "/parity",
+    },
+    {
+      type: "link",
       label: "Test Results",
       href: "/test-comparison",
     },
