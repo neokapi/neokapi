@@ -86,7 +86,7 @@ const ENGINE_STYLES: Record<string, { color: string; label: string }> = {
   "kapi-native": { color: "#2563eb", label: "kapi (native)" },
   "kapi-bridge": { color: "#7c3aed", label: "kapi (bridge)" },
   "kapi-bridge-daemon": { color: "#059669", label: "kapi (bridge daemon)" },
-  okapi: { color: "#dc2626", label: "Okapi (bridge pseudo)" },
+  okapi: { color: "#dc2626", label: "Okapi" },
 };
 
 const FORMAT_COLORS: Record<string, string> = {
