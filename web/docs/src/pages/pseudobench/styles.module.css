@@ -524,3 +524,102 @@
   color: var(--ifm-color-emphasis-500);
   padding: 2rem;
 }
+
+/* ── Resources by Format chart ── */
+
+.pfCardBody {
+  padding: 1rem 0.5rem 1.25rem;
+}
+
+.pfRow {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.4rem 0.5rem;
+}
+
+.pfRowLabel {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 0 0 200px;
+  font-size: 0.85rem;
+  color: var(--ifm-color-emphasis-800);
+}
+
+.pfBarWrap {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  height: 20px;
+  background: var(--ifm-color-emphasis-100);
+  border-radius: 3px;
+  position: relative;
+  overflow: hidden;
+}
+
+.pfBar {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.3s ease;
+  min-width: 2px;
+}
+
+.pfBarLabel {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 0.75rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--ifm-color-emphasis-900);
+  text-shadow: 0 0 4px var(--ifm-background-color);
+  pointer-events: none;
+}
+
+.resourceGroup {
+  text-align: center;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--ifm-color-emphasis-700);
+  border-bottom: 1px solid var(--ifm-color-emphasis-200);
+}
+
+.resourceCell {
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  padding: 0.25rem 0.5rem;
+  vertical-align: middle;
+}
+
+.miniBarWrap {
+  position: relative;
+  width: 100%;
+  min-width: 70px;
+  height: 14px;
+  background: var(--ifm-color-emphasis-100);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.miniBar {
+  height: 100%;
+  border-radius: 2px;
+  min-width: 1px;
+}
+
+.miniBarLabel {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  color: var(--ifm-color-emphasis-900);
+  text-shadow: 0 0 3px var(--ifm-background-color);
+  pointer-events: none;
+}

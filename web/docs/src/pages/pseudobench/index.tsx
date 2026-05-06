@@ -92,12 +92,33 @@ const FORMAT_COLORS: Record<string, string> = {
   openxml: "#4CAF50",
   html: "#2196F3",
   xliff: "#FF9800",
+  xliff2: "#FB8C00",
   po: "#9C27B0",
   yaml: "#F44336",
   json: "#00BCD4",
   xml: "#795548",
   properties: "#607D8B",
   srt: "#E91E63",
+  vtt: "#EC407A",
+  ttml: "#AD1457",
+  tmx: "#5E35B1",
+  ts: "#3F51B5",
+  idml: "#00897B",
+  icml: "#26A69A",
+  mif: "#7CB342",
+  doxygen: "#FFB300",
+  markdown: "#8E24AA",
+  tex: "#43A047",
+  plaintext: "#9E9E9E",
+  paraplaintext: "#BDBDBD",
+  splicedlines: "#757575",
+  mosestext: "#6D4C41",
+  transtable: "#558B2F",
+  regex: "#37474F",
+  csv: "#33691E",
+  ini: "#0277BD",
+  dtd: "#4527A0",
+  table_filewriter: "#283593",
 };
 
 function engineLabel(engine: string): string {
@@ -105,6 +126,18 @@ function engineLabel(engine: string): string {
 }
 function engineColor(engine: string): string {
   return ENGINE_STYLES[engine]?.color ?? "#888";
+}
+
+// Bridge filters use `okf_<name>` (okf_xliff, okf_html, …); native engines
+// emit the bare name (xliff, html, …). Normalise so both share one palette.
+function normalizeFormat(format: string): string {
+  return format.startsWith("okf_") ? format.slice(4) : format;
+}
+function formatColor(format: string): string {
+  return FORMAT_COLORS[normalizeFormat(format)] ?? "#888";
+}
+function formatLabel(format: string): string {
+  return normalizeFormat(format);
 }
 
 function fmt(n: number): string {
@@ -444,7 +477,7 @@ function TimelineChart({ experiments }: { experiments: Experiment[] }) {
           <span key={f} className={styles.timelineLegendItem}>
             <span
               className={styles.timelineLegendDot}
-              style={{ backgroundColor: FORMAT_COLORS[f] ?? "#888" }}
+              style={{ backgroundColor: formatColor(f) }}
             />
             {f}
           </span>
@@ -467,7 +500,7 @@ function TimelineChart({ experiments }: { experiments: Experiment[] }) {
                 {exp.fileTimings!.map((f) => {
                   const left = (f.startMs / maxEndMs) * 100;
                   const width = Math.max(((f.endMs - f.startMs) / maxEndMs) * 100, 0.3);
-                  const color = FORMAT_COLORS[f.format] ?? "#888";
+                  const color = formatColor(f.format);
                   return (
                     <div
                       key={f.name}
@@ -574,9 +607,9 @@ function BatchConcurrencyChart({ experiments }: { experiments: Experiment[] }) {
                 <span key={f} className={styles.timelineLegendItem}>
                   <span
                     className={styles.timelineLegendDot}
-                    style={{ backgroundColor: FORMAT_COLORS[f] ?? "#888" }}
+                    style={{ backgroundColor: formatColor(f) }}
                   />
-                  {f}
+                  {formatLabel(f)}
                 </span>
               ))}
             </div>
@@ -591,7 +624,7 @@ function BatchConcurrencyChart({ experiments }: { experiments: Experiment[] }) {
                     {laneTraces.map((ft) => {
                       const left = (ft.startUs / maxTimeUs) * 100;
                       const width = Math.max(((ft.endUs - ft.startUs) / maxTimeUs) * 100, 0.3);
-                      const color = FORMAT_COLORS[ft.format] ?? "#888";
+                      const color = formatColor(ft.format);
                       return (
                         <div
                           key={ft.file}
@@ -634,7 +667,7 @@ function BatchConcurrencyChart({ experiments }: { experiments: Experiment[] }) {
               >
                 <strong>{hoveredFile.file.file}</strong>
                 <br />
-                {hoveredFile.file.format} · Lane {hoveredFile.file.lane}
+                {formatLabel(hoveredFile.file.format)} · Lane {hoveredFile.file.lane}
                 <br />
                 {fmt(hoveredFile.file.durationUs / 1000)} ms
               </div>
@@ -642,6 +675,247 @@ function BatchConcurrencyChart({ experiments }: { experiments: Experiment[] }) {
           </div>
         );
       })}
+    </>
+  );
+}
+
+/** Per-format CPU + memory breakdown across engines.
+ *
+ * Aggregates fileTimings into one row per format and shows side-by-side bars
+ * for wall time, peak RSS, and CPU (user + sys) per engine. Lets you spot
+ * which formats blow up memory or burn CPU on which engine — the batch-level
+ * stat cards average it out, this preserves the per-format shape.
+ */
+function ResourcesChart({ experiments }: { experiments: Experiment[] }) {
+  const withTimings = experiments.filter((e) => e.fileTimings && e.fileTimings.length > 0);
+  if (withTimings.length === 0) {
+    return (
+      <div className={styles.compCard}>
+        <div className={styles.compHeader}>
+          <span className={styles.compFormat}>Resources by Format</span>
+        </div>
+        <p className={styles.empty}>
+          No per-file timing data available. Re-run pseudobench to generate.
+        </p>
+      </div>
+    );
+  }
+
+  // Aggregate per (engine, normalized format): sum wall, sum cpu, max RSS, count.
+  type Agg = { wallMs: number; cpuMs: number; peakRssKB: number; n: number };
+  const byEngine = new Map<string, Map<string, Agg>>();
+  const formatsSet = new Set<string>();
+  for (const exp of withTimings) {
+    const formatMap = new Map<string, Agg>();
+    for (const ft of exp.fileTimings!) {
+      if (!ft.success) continue;
+      const fmtKey = normalizeFormat(ft.format);
+      formatsSet.add(fmtKey);
+      const cur = formatMap.get(fmtKey) ?? { wallMs: 0, cpuMs: 0, peakRssKB: 0, n: 0 };
+      cur.wallMs += ft.wallMs;
+      cur.cpuMs += ft.userCpuMs + ft.sysCpuMs;
+      cur.peakRssKB = Math.max(cur.peakRssKB, ft.peakRssKB);
+      cur.n += 1;
+      formatMap.set(fmtKey, cur);
+    }
+    byEngine.set(exp.engine, formatMap);
+  }
+
+  // Sort formats by aggregate wall time across engines (heaviest first).
+  const formats = [...formatsSet].sort((a, b) => {
+    const aw = [...byEngine.values()].reduce((s, m) => s + (m.get(a)?.wallMs ?? 0), 0);
+    const bw = [...byEngine.values()].reduce((s, m) => s + (m.get(b)?.wallMs ?? 0), 0);
+    return bw - aw;
+  });
+
+  // Per-metric maxima for normalising bar widths.
+  let maxWall = 0;
+  let maxCpu = 0;
+  let maxRss = 0;
+  for (const m of byEngine.values()) {
+    for (const a of m.values()) {
+      if (a.wallMs > maxWall) maxWall = a.wallMs;
+      if (a.cpuMs > maxCpu) maxCpu = a.cpuMs;
+      if (a.peakRssKB > maxRss) maxRss = a.peakRssKB;
+    }
+  }
+
+  const engines = withTimings.map((e) => e.engine);
+
+  return (
+    <>
+      <div className={styles.compCard}>
+        <div className={styles.compHeader}>
+          <span className={styles.compFormat}>Engine Memory (peak RSS, batch)</span>
+          <span className={styles.compSize}>max RSS observed across the batch run</span>
+        </div>
+        <div className={styles.pfCardBody}>
+          {experiments.map((e) => {
+            const maxBatchRss = Math.max(...experiments.map((x) => x.peakRssKB.max));
+            const pct = maxBatchRss > 0 ? (e.peakRssKB.max / maxBatchRss) * 100 : 0;
+            return (
+              <div key={e.engine} className={styles.pfRow}>
+                <div className={styles.pfRowLabel}>
+                  <span
+                    className={styles.compEngineDot}
+                    style={{ backgroundColor: engineColor(e.engine) }}
+                  />
+                  <span>{engineLabel(e.engine)}</span>
+                </div>
+                <div className={styles.pfBarWrap}>
+                  <div
+                    className={styles.pfBar}
+                    style={{ width: `${pct}%`, backgroundColor: engineColor(e.engine) }}
+                  />
+                  <span className={styles.pfBarLabel}>{fmt(e.peakRssKB.max / 1024)} MB</span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className={styles.compCard}>
+        <div className={styles.compHeader}>
+          <span className={styles.compFormat}>Per-Format Resources</span>
+          <span className={styles.compSize}>
+            {formats.length} formats · sorted by total wall time · sequential trace pass
+          </span>
+        </div>
+
+        <div className={styles.timelineLegend}>
+          {engines.map((e) => (
+            <span key={e} className={styles.timelineLegendItem}>
+              <span
+                className={styles.timelineLegendDot}
+                style={{ backgroundColor: engineColor(e) }}
+              />
+              {engineLabel(e)}
+            </span>
+          ))}
+        </div>
+
+        <div className={styles.overviewWrap}>
+          <table className={styles.overviewTable}>
+            <thead>
+              <tr>
+                <th rowSpan={2}>Format</th>
+                <th rowSpan={2} className={styles.num}>
+                  Files
+                </th>
+                <th colSpan={engines.length} className={styles.resourceGroup}>
+                  Wall (ms)
+                </th>
+                <th colSpan={engines.length} className={styles.resourceGroup}>
+                  CPU user+sys (ms)
+                </th>
+                <th colSpan={engines.length} className={styles.resourceGroup}>
+                  Peak RSS (MB)
+                </th>
+              </tr>
+              <tr>
+                {[0, 1, 2].map((g) =>
+                  engines.map((e) => (
+                    <th key={`${g}-${e}`} className={styles.resourceCell}>
+                      <span
+                        className={styles.compEngineDot}
+                        style={{ backgroundColor: engineColor(e) }}
+                      />
+                    </th>
+                  )),
+                )}
+              </tr>
+            </thead>
+            <tbody>
+              {formats.map((f) => {
+                const sample = withTimings[0].fileTimings!.filter(
+                  (ft) => normalizeFormat(ft.format) === f,
+                );
+                const fileCount = sample.length;
+                return (
+                  <tr key={f}>
+                    <td className={styles.overviewFormat}>
+                      <span
+                        className={styles.timelineLegendDot}
+                        style={{ backgroundColor: formatColor(f) }}
+                      />
+                      {f}
+                    </td>
+                    <td className={styles.num}>{fileCount}</td>
+                    {engines.map((eng) => {
+                      const a = byEngine.get(eng)?.get(f);
+                      const pct = maxWall > 0 && a ? (a.wallMs / maxWall) * 100 : 0;
+                      return (
+                        <td key={`w-${eng}`} className={styles.resourceCell}>
+                          {a ? (
+                            <div className={styles.miniBarWrap}>
+                              <div
+                                className={styles.miniBar}
+                                style={{
+                                  width: `${pct}%`,
+                                  backgroundColor: engineColor(eng),
+                                }}
+                              />
+                              <span className={styles.miniBarLabel}>{fmt(a.wallMs)}</span>
+                            </div>
+                          ) : (
+                            <span className={styles.overviewMissing}>-</span>
+                          )}
+                        </td>
+                      );
+                    })}
+                    {engines.map((eng) => {
+                      const a = byEngine.get(eng)?.get(f);
+                      const pct = maxCpu > 0 && a ? (a.cpuMs / maxCpu) * 100 : 0;
+                      return (
+                        <td key={`c-${eng}`} className={styles.resourceCell}>
+                          {a ? (
+                            <div className={styles.miniBarWrap}>
+                              <div
+                                className={styles.miniBar}
+                                style={{
+                                  width: `${pct}%`,
+                                  backgroundColor: engineColor(eng),
+                                }}
+                              />
+                              <span className={styles.miniBarLabel}>{fmt(a.cpuMs)}</span>
+                            </div>
+                          ) : (
+                            <span className={styles.overviewMissing}>-</span>
+                          )}
+                        </td>
+                      );
+                    })}
+                    {engines.map((eng) => {
+                      const a = byEngine.get(eng)?.get(f);
+                      const rssMB = a ? a.peakRssKB / 1024 : 0;
+                      const pct = maxRss > 0 && a ? (a.peakRssKB / maxRss) * 100 : 0;
+                      return (
+                        <td key={`r-${eng}`} className={styles.resourceCell}>
+                          {a ? (
+                            <div className={styles.miniBarWrap}>
+                              <div
+                                className={styles.miniBar}
+                                style={{
+                                  width: `${pct}%`,
+                                  backgroundColor: engineColor(eng),
+                                }}
+                              />
+                              <span className={styles.miniBarLabel}>{fmt(rssMB)}</span>
+                            </div>
+                          ) : (
+                            <span className={styles.overviewMissing}>-</span>
+                          )}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
     </>
   );
 }
@@ -771,7 +1045,7 @@ function Fragment({ children }: { children: React.ReactNode }) {
 
 /* ── Main Page ── */
 
-type ViewMode = "summary" | "files" | "concurrency" | "multi";
+type ViewMode = "summary" | "resources" | "files" | "concurrency" | "multi";
 
 export default function PseudoBench() {
   const [report, setReport] = useState<Report | null>(null);
@@ -849,6 +1123,12 @@ export default function PseudoBench() {
                   Batch Summary
                 </button>
                 <button
+                  className={`${styles.filterBtn} ${viewMode === "resources" ? styles.filterBtnActive : ""}`}
+                  onClick={() => setViewMode("resources")}
+                >
+                  Resources by Format
+                </button>
+                <button
                   className={`${styles.filterBtn} ${viewMode === "files" ? styles.filterBtnActive : ""}`}
                   onClick={() => setViewMode("files")}
                 >
@@ -870,6 +1150,7 @@ export default function PseudoBench() {
             </div>
 
             {viewMode === "summary" && <BatchComparison experiments={experiments} />}
+            {viewMode === "resources" && <ResourcesChart experiments={experiments} />}
             {viewMode === "files" && <FileTimingsTable experiments={experiments} />}
             {viewMode === "concurrency" && <BatchConcurrencyChart experiments={experiments} />}
             {viewMode === "multi" && <MultiInvocationComparison experiments={experiments} />}
