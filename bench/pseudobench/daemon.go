@@ -74,6 +74,13 @@ func (d *DaemonProcess) Address() string {
 	return d.address
 }
 
+// SocketPath returns the Unix socket the daemon is listening on, or ""
+// on platforms without a UDS path. Used to wire kapi's plugin host to
+// the pre-started daemon via KAPI_DAEMON_SOCKET_<plugin>.
+func (d *DaemonProcess) SocketPath() string {
+	return d.socketPath
+}
+
 // PID returns the process ID of the daemon.
 func (d *DaemonProcess) PID() int {
 	return d.pid
@@ -154,9 +161,13 @@ func (d *DaemonProcess) Shutdown() error {
 }
 
 // generateDaemonSocketPath returns a Unix socket path for the daemon.
-// Linux only — macOS TCP localhost outperforms kqueue/NIO UDS.
+// We use UDS on every Unix-like platform (Linux + macOS) because that's
+// the only transport kapi's plugin host accepts via the
+// KAPI_DAEMON_SOCKET_<plugin> attach hook — without it the bench's
+// "kapi-bridge-daemon" engine silently falls back to spawning a fresh
+// JVM per call, which is identical to "kapi-bridge".
 func generateDaemonSocketPath() string {
-	if runtime.GOOS != "linux" {
+	if runtime.GOOS == "windows" {
 		return ""
 	}
 	dir := filepath.Join(os.TempDir(), "kapi-bridge")

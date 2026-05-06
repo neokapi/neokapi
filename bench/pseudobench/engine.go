@@ -261,7 +261,14 @@ func (e *KapiBridgeDaemonEngine) ProcessBatch(ctx context.Context, files []TestF
 		args = append(args, "--trace", traceFile)
 	}
 
-	env := []string{fmt.Sprintf("NEOKAPI_BRIDGE_ADDRS=%s", e.Daemon.Address())}
+	// Tell kapi's plugin host to attach to our pre-started daemon's Unix
+	// socket instead of spawning a fresh JVM via the manifest's `daemon`
+	// command. This is what makes "kapi-bridge-daemon" actually different
+	// from "kapi-bridge": the JVM cold-start cost is paid once at bench
+	// startup, not on every kapi invocation.
+	env := []string{
+		fmt.Sprintf("KAPI_DAEMON_SOCKET_OKAPI_BRIDGE=%s", e.Daemon.SocketPath()),
+	}
 
 	result, err := runProcess(ctx, env, e.BinaryPath, args...)
 	if err != nil {
@@ -424,7 +431,9 @@ func (e *KapiBridgeDaemonEngine) ProcessFile(ctx context.Context, file TestFile,
 	args := []string{"pseudo-translate",
 		inputPathFor(file, inputDir), "--target-lang", "qps", "-q",
 		"-o", filepath.Join(outputDir, "{name}_{lang}{ext}")}
-	env := []string{fmt.Sprintf("NEOKAPI_BRIDGE_ADDRS=%s", e.Daemon.Address())}
+	env := []string{
+		fmt.Sprintf("KAPI_DAEMON_SOCKET_OKAPI_BRIDGE=%s", e.Daemon.SocketPath()),
+	}
 	return runProcess(ctx, env, e.BinaryPath, args...)
 }
 

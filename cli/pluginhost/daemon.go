@@ -24,6 +24,20 @@ import (
 // envMaxDaemons is the environment variable that caps the daemon pool.
 const envMaxDaemons = "KAPI_MAX_DAEMONS"
 
+// envExternalSocketPrefix is prepended to a normalised plugin name to
+// pick up a pre-started daemon's Unix socket. e.g. for plugin
+// "okapi-bridge" the env var is `KAPI_DAEMON_SOCKET_OKAPI_BRIDGE`.
+const envExternalSocketPrefix = "KAPI_DAEMON_SOCKET_"
+
+// externalDaemonSocket returns the Unix socket path of a pre-started
+// daemon for `pluginName`, or "" when the env var is unset. Used by
+// pseudobench to attach to a long-lived daemon and skip JVM startup
+// on every kapi invocation.
+func externalDaemonSocket(pluginName string) string {
+	key := envExternalSocketPrefix + strings.ToUpper(strings.ReplaceAll(pluginName, "-", "_"))
+	return os.Getenv(key)
+}
+
 // defaultMaxDaemons is the default cap when KAPI_MAX_DAEMONS is unset or
 // invalid.
 const defaultMaxDaemons = 8
@@ -169,8 +183,10 @@ func (c *DaemonClient) close(grace time.Duration) {
 			<-done
 		}
 	}
-	// Best-effort socket cleanup.
-	if c.Socket != "" {
+	// Best-effort socket cleanup — only if we spawned the daemon
+	// ourselves. External attach mode (cmd == nil) leaves the socket
+	// alone; the harness that started the daemon owns it.
+	if c.Socket != "" && c.cmd != nil {
 		_ = os.Remove(c.Socket)
 	}
 }
@@ -432,6 +448,35 @@ func (p *DaemonPool) spawn(ctx context.Context, plugin *Plugin) (*DaemonClient, 
 	}
 
 	startupTimeout := p.startupTimeoutFor(plugin)
+
+	// External attach: when KAPI_DAEMON_SOCKET_<PLUGIN> points at a Unix
+	// socket, skip exec entirely and dial that socket. Lets pseudobench
+	// (and other harnesses) measure a long-lived daemon's per-call cost
+	// without paying JVM startup on every kapi invocation. The DaemonClient
+	// is built with cmd=nil; close() already no-ops the kill path when
+	// cmd is nil, and we leave the socket in place — caller owns its
+	// lifecycle.
+	if attachSocket := externalDaemonSocket(plugin.Name()); attachSocket != "" {
+		dialCtx, dialCancel := context.WithTimeout(ctx, startupTimeout)
+		defer dialCancel()
+		conn, err := dialUnixSocket(dialCtx, attachSocket)
+		if err != nil {
+			return nil, fmt.Errorf("daemon pool: dial external socket %s: %w", attachSocket, err)
+		}
+		client := &DaemonClient{
+			Plugin:    plugin,
+			Conn:      conn,
+			Socket:    attachSocket,
+			Version:   "external",
+			pool:      p,
+			cmd:       nil,
+			startedAt: time.Now(),
+			stopCh:    make(chan struct{}),
+		}
+		client.touch()
+		p.opts.Logger("daemon pool: attached %q at external socket %s", plugin.Name(), attachSocket)
+		return client, nil
+	}
 	startCtx, cancel := context.WithTimeout(ctx, startupTimeout)
 	defer cancel()
 
