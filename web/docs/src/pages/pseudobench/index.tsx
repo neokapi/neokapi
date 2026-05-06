@@ -84,8 +84,8 @@ interface Report {
 
 const ENGINE_STYLES: Record<string, { color: string; label: string }> = {
   "kapi-native": { color: "#2563eb", label: "kapi (native)" },
-  "kapi-bridge": { color: "#7c3aed", label: "kapi (bridge)" },
-  "kapi-bridge-daemon": { color: "#059669", label: "kapi (bridge daemon)" },
+  "kapi-bridge": { color: "#7c3aed", label: "kapi (bridge, subprocess)" },
+  "kapi-bridge-daemon": { color: "#059669", label: "kapi (bridge, daemon)" },
   okapi: { color: "#dc2626", label: "Okapi" },
 };
 
@@ -382,8 +382,11 @@ function MultiInvocationComparison({ experiments }: { experiments: Experiment[] 
         </span>
       </div>
       <p className={styles.multiDesc}>
-        Simulates running each file as a separate <code>kapi</code> invocation. Bridge pays JVM
-        startup per call; daemon pays only gRPC round-trip.
+        Simulates running each file as a separate <code>kapi</code> invocation. The bridge plugin
+        runs a JVM either way; the difference is lifetime. In <strong>subprocess</strong> mode
+        (kapi-bridge) <code>kapi</code> spawns a fresh JVM per call and pays the cold-start tax
+        every time. In <strong>daemon</strong> mode (kapi-bridge-daemon) the JVM is already running
+        as a long-lived process and <code>kapi</code> only pays the gRPC round-trip.
       </p>
       <div className={styles.compGrid} style={{ "--engine-count": engineTotals.length } as any}>
         <div className={styles.compCorner} />
