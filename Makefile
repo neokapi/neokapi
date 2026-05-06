@@ -559,9 +559,15 @@ bench-build: ## Build pseudobench binary
 
 bench-run: bench-build parity-sandbox ## Run pseudobench against parity sandbox (writes JSON + HTML + traces)
 	@rm -rf $(PSEUDOBENCH_RESULTS) $(PSEUDOBENCH_TRACES)
+	@# The jpackage app-image bundles the bridge fat-jar at app/. Pass it
+	@# to pseudobench so it can also start a long-lived daemon and benchmark
+	@# kapi-bridge-daemon alongside the per-call subprocess mode.
+	$(eval BRIDGE_JAR := $(firstword $(wildcard $(PARITY_DIR)/plugins/okapi-bridge/Contents/app/neokapi-bridge-*-jar-with-dependencies.jar)))
+	@if [ -z "$(BRIDGE_JAR)" ]; then echo "[bench] no bridge jar found under $(PARITY_DIR)/plugins/okapi-bridge/Contents/app — daemon engine will be skipped"; fi
 	$(PSEUDOBENCH_BIN) run \
 	    -kapi $(PARITY_DIR)/bin/kapi \
 	    -okapi-bridge $(PARITY_DIR)/plugins/okapi-bridge/Contents/MacOS/kapi-okapi-bridge \
+	    $(if $(BRIDGE_JAR),-bridge-jar $(BRIDGE_JAR),) \
 	    -okapi-testdata $(PARITY_DIR)/okapi-testdata/$(OKAPI_VERSION) \
 	    -sample $(PSEUDOBENCH_SAMPLE) \
 	    -iterations $(PSEUDOBENCH_ITERS) \
