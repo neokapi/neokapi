@@ -812,8 +812,9 @@ func coverageScans() []formatScan {
 			// engines now run the full xliff2 fixture set end to end.
 			// Native achieves canonical-equal (XML formatting/attribute
 			// order diffs absorbed by the normalizer). Bridge achieves
-			// byte-equal on 16/18 fixtures; 2 remain divergent due to
-			// multi-part ignorable handling (tracked separately).
+			// byte-equal on all 18 fixtures now that PseudoTranslationStep
+			// correctly skips ignorable TextParts (matching the streaming
+			// path's segments-only semantics).
 			formatID:    "xliff2",
 			filterClass: "okf_xliff2",
 			sources:     []string{"integration-tests/okapi/src/test/resources/xliff2"},
@@ -832,15 +833,6 @@ func coverageScans() []formatScan {
 			minTier: map[string]roundtrip.Tier{
 				"native": roundtrip.TierDivergent,
 				"bridge": roundtrip.TierByteEqual,
-			},
-			skip: map[string]fileSkip{
-				// Multi-part unit with ignorables: okapi's TextModificationStep
-				// pseudo-translates ignorable content and skips translate="no"
-				// segments differently from the streaming path.
-				"comprehensive.xlf": {Engines: []string{"bridge"}, Reason: "multi-part ignorable pseudo-translation order differs from TextModificationStep"},
-				// ICU message fixture: ignorable containing inline <ph> code
-				// loses its target in the streaming write path.
-				"icu_message.xlf2": {Engines: []string{"bridge"}, Reason: "ignorable with inline code missing target in streaming path"},
 			},
 		},
 		{
