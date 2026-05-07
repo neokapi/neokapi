@@ -8,13 +8,13 @@
     "dev": "email dev --dir src --port 3001"
   },
   "dependencies": {
-    "@react-email/components": "1.0.10",
-    "@react-email/render": "2.0.4",
+    "@react-email/components": "1.0.12",
+    "@react-email/render": "2.0.8",
     "react": "^19.1.0"
   },
   "devDependencies": {
     "@types/react": "19.2.14",
-    "react-email": "6.0.0",
+    "react-email": "6.0.8",
     "tsx": "^4.21.0",
     "typescript": "^6.0.3"
   }
