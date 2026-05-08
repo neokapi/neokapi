@@ -836,7 +836,7 @@ func coverageScans() []formatScan {
 			// pseudo input matches the okapi reference.
 			bridgeForcePseudoSourceBase: true,
 			minTier: map[string]roundtrip.Tier{
-				"native": roundtrip.TierDivergent,
+				"native": roundtrip.TierCanonicalEqual,
 				"bridge": roundtrip.TierByteEqual,
 			},
 		},

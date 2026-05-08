@@ -91,11 +91,55 @@ func applyPseudoToBlockOpts(b *model.Block, spec PseudoSpec, forceSourceBase boo
 	if base == nil {
 		return
 	}
+
+	// Ignorable segments (xliff2 <ignorable> elements) are not
+	// pseudo-translated — okapi's TextModificationStep only
+	// operates on segments, never ignorables. Build a lookup from
+	// source segments so we can skip them regardless of whether
+	// base points at source or target.
+	srcIgnorable := make(map[string]bool)
+	for _, s := range b.Source {
+		if s != nil && s.Properties != nil && s.Properties["xliff2:ignorable"] == "yes" {
+			srcIgnorable[s.ID] = true
+		}
+	}
+
+	// Existing target lookup so ignorable segments preserve their
+	// original target verbatim (e.g. an authored French translation
+	// inside <ignorable>).
+	existingByID := make(map[string]*model.Segment)
+	if existing, ok := b.Targets[tgt]; ok {
+		for _, s := range existing {
+			if s != nil {
+				existingByID[s.ID] = s
+			}
+		}
+	}
+
 	targetSegs := make([]*model.Segment, 0, len(base))
 	for _, srcSeg := range base {
 		if srcSeg == nil {
 			continue
 		}
+
+		// Skip pseudo-translation for ignorable segments —
+		// preserve existing target or clone source verbatim.
+		if srcIgnorable[srcSeg.ID] {
+			if existing, ok := existingByID[srcSeg.ID]; ok {
+				targetSegs = append(targetSegs, existing)
+			} else {
+				clonedRuns := make([]model.Run, len(srcSeg.Runs))
+				copy(clonedRuns, srcSeg.Runs)
+				targetSegs = append(targetSegs, &model.Segment{
+					ID:          srcSeg.ID,
+					Runs:        clonedRuns,
+					Properties:  srcSeg.Properties,
+					Annotations: srcSeg.Annotations,
+				})
+			}
+			continue
+		}
+
 		newRuns := make([]model.Run, 0, len(srcSeg.Runs))
 		for _, r := range srcSeg.Runs {
 			if r.Text != nil {
