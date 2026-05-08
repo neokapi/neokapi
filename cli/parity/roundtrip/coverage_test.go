@@ -689,6 +689,11 @@ func coverageScans() []formatScan {
 			filterClass: "okf_doxygen",
 			sources:     []string{"integration-tests/okapi/src/test/resources/doxygen"},
 			extensions:  []string{".h", ".py"},
+			// special_commands.h has cosmetic whitespace divergences
+			// (blank-line indentation inside non-star-decorated blocks,
+			// paragraph reflow in \note / @copydoc, trailing space on
+			// one prose line). The canonical normalizer absorbs these.
+			normalizer: roundtrip.DoxygenCanonical{},
 		},
 
 		// ── XML / bilingual exchange formats ──────────────────────

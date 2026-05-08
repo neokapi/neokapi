@@ -149,6 +149,15 @@ var sectionHeaderCommands = map[string]int{
 	"par": 0,
 }
 
+// quotedDescCommands are sectionHeaderCommands whose translatable
+// description is a quoted string followed by non-translatable trailing
+// parameters. Only the text inside the quotes is extracted — everything
+// after the closing quote (e.g. `width=10cm` for `\image`) stays in
+// the skeleton.
+var quotedDescCommands = map[string]bool{
+	"image": true,
+}
+
 // paragraphBreakCommands enumerates Doxygen commands whose line-start
 // occurrence opens a new conditional / language block / list item:
 // `\if`, `\else`, `\elseif`, `\ifnot`, `\cond`, `\arg`, `\li`. okapi
@@ -372,6 +381,17 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 			dataCounter++
 			r.emitCommentBlock(ctx, ch, cb, &blockCounter, &dataCounter)
 			i++
+			continue
+		}
+
+		// Check for Python triple-quoted docstring: """
+		if strings.Contains(trimmed, `"""`) {
+			cb := r.parseDocstring(lines, i)
+			n := len(cb.rawLines)
+			r.skelCommentGroup(cb, rLines, i, n, &blockCounter)
+			dataCounter++
+			r.emitCommentBlock(ctx, ch, cb, &blockCounter, &dataCounter)
+			i += n
 			continue
 		}
 
@@ -687,7 +707,96 @@ func (r *Reader) parseTrailingBlockComment(line string) *commentBlock {
 	return cb
 }
 
-// emitCommentBlock emits Parts for a parsed comment block.
+// parseHashComments collects consecutive ## / # line comments starting at
+// index i. In Python, ## starts a Doxygen documentation comment and subsequent
+// # lines continue the same group. An empty line (no #) ends the group.
+func (r *Reader) parseHashComments(lines []string, start int) *commentBlock {
+	cb := &commentBlock{style: "hash"}
+
+	for j := start; j < len(lines); j++ {
+		trimmed := strings.TrimSpace(lines[j])
+		// First line must start with ##; continuation lines can be # or ##
+		if j == start {
+			if !strings.HasPrefix(trimmed, "##") {
+				break
+			}
+		} else {
+			if !strings.HasPrefix(trimmed, "#") {
+				break
+			}
+		}
+		cb.rawLines = append(cb.rawLines, lines[j])
+
+		var text string
+		if strings.HasPrefix(trimmed, "##") {
+			text = strings.TrimPrefix(trimmed, "##")
+		} else {
+			text = strings.TrimPrefix(trimmed, "#")
+		}
+		text = strings.TrimSpace(text)
+		// Preserve blank `#` lines as empty textLine entries for paragraph splitting
+		cb.textLines = append(cb.textLines, text)
+	}
+
+	return cb
+}
+
+// parseDocstring collects a Python triple-quoted docstring starting at index i.
+// Handles both single-line ("""text""") and multi-line ("""...\n...\n""") forms.
+func (r *Reader) parseDocstring(lines []string, start int) *commentBlock {
+	cb := &commentBlock{style: "docstring"}
+
+	line := lines[start]
+	trimmed := strings.TrimSpace(line)
+
+	// Find the opening """
+	idx := strings.Index(trimmed, `"""`)
+	if idx < 0 {
+		cb.rawLines = []string{line}
+		return cb
+	}
+
+	afterOpen := trimmed[idx+3:]
+
+	// Check for single-line docstring: """text"""
+	closeIdx := strings.Index(afterOpen, `"""`)
+	if closeIdx >= 0 {
+		cb.rawLines = []string{line}
+		text := strings.TrimSpace(afterOpen[:closeIdx])
+		if text != "" {
+			cb.textLines = append(cb.textLines, text)
+		}
+		return cb
+	}
+
+	// Multi-line docstring
+	cb.rawLines = append(cb.rawLines, line)
+	// Text after """ on opening line
+	firstText := strings.TrimSpace(afterOpen)
+	if firstText != "" {
+		cb.textLines = append(cb.textLines, firstText)
+	}
+
+	// Continue until closing """
+	for j := start + 1; j < len(lines); j++ {
+		cb.rawLines = append(cb.rawLines, lines[j])
+		lineTrimmed := strings.TrimSpace(lines[j])
+
+		if strings.Contains(lineTrimmed, `"""`) {
+			// Text before closing """
+			ci := strings.Index(lineTrimmed, `"""`)
+			beforeClose := strings.TrimSpace(lineTrimmed[:ci])
+			if beforeClose != "" {
+				cb.textLines = append(cb.textLines, beforeClose)
+			}
+			break
+		}
+		// Regular content line — preserve blank lines as paragraph separators
+		cb.textLines = append(cb.textLines, strings.TrimSpace(lines[j]))
+	}
+
+	return cb
+}
 func (r *Reader) emitCommentBlock(ctx context.Context, ch chan<- model.PartResult, cb *commentBlock, blockCounter, dataCounter *int) {
 	// For trailing comments, emit the code prefix as Data first
 	if (cb.style == "trailing" || cb.style == "trailing_qt") && cb.prefix != "" {
@@ -768,7 +877,8 @@ func (r *Reader) emitCommentBlock(ctx context.Context, ch chan<- model.PartResul
 		// text + padding matches the upstream byte sequence.
 		if cb.style == "javadoc" || cb.style == "qt" ||
 			cb.style == "javadoc_member" || cb.style == "qt_member" ||
-			cb.style == "triple" || cb.style == "exclamation" {
+			cb.style == "triple" || cb.style == "exclamation" ||
+			cb.style == "hash" || cb.style == "docstring" {
 			texts, prefixes = joinProseLines(texts, prefixes)
 		}
 		// Build the block's source as a Run sequence rather than a
@@ -830,7 +940,10 @@ func (r *Reader) buildLineLayout(cb *commentBlock, groups [][]translatableLine) 
 		cb.style == "javadoc_member" || cb.style == "qt_member" {
 		return r.buildBlockLayout(cb)
 	}
-	if cb.style != "triple" && cb.style != "exclamation" {
+	if cb.style == "docstring" {
+		return r.buildDocstringLayout(cb)
+	}
+	if cb.style != "triple" && cb.style != "exclamation" && cb.style != "hash" {
 		return ""
 	}
 	// Map textLines index → translatableLine so we can quickly
@@ -856,16 +969,24 @@ func (r *Reader) buildLineLayout(cb *commentBlock, groups [][]translatableLine) 
 	for _, raw := range cb.rawLines {
 		// Determine the line's marker prefix by stripping the comment
 		// marker and any indentation. Match the same stripping
-		// parseLineComments does so the textCursor stays aligned.
+		// parseLineComments / parseHashComments does so the textCursor
+		// stays aligned.
 		trimmed := strings.TrimSpace(raw)
 		var stripped string
 		isTriple := strings.HasPrefix(trimmed, "///")
 		isExcl := strings.HasPrefix(trimmed, "//!")
+		isHash := cb.style == "hash" && strings.HasPrefix(trimmed, "#")
 		switch {
 		case isTriple:
 			stripped = strings.TrimSpace(strings.TrimPrefix(trimmed, "///"))
 		case isExcl:
 			stripped = strings.TrimSpace(strings.TrimPrefix(trimmed, "//!"))
+		case isHash:
+			if strings.HasPrefix(trimmed, "##") {
+				stripped = strings.TrimSpace(strings.TrimPrefix(trimmed, "##"))
+			} else {
+				stripped = strings.TrimSpace(strings.TrimPrefix(trimmed, "#"))
+			}
 		default:
 			// Should not happen for line-comment styles, but be safe.
 			entries = append(entries, "S:"+raw)
@@ -873,9 +994,9 @@ func (r *Reader) buildLineLayout(cb *commentBlock, groups [][]translatableLine) 
 			continue
 		}
 		if stripped == "" {
-			// Blank `///` / `//!` separator line — pass through and
-			// advance textCursor to keep alignment with parseLineComments,
-			// which now appends an empty entry to textLines for these
+			// Blank comment-marker separator line — pass through and
+			// advance textCursor to keep alignment with the parser,
+			// which appends an empty entry to textLines for these
 			// blanks (so extractTranslatable can detect paragraph
 			// boundaries).
 			entries = append(entries, "S:"+raw)
@@ -883,19 +1004,29 @@ func (r *Reader) buildLineLayout(cb *commentBlock, groups [][]translatableLine) 
 			textCursor++
 			continue
 		}
-		// Match parseLineComments: only non-empty stripped lines
+		// Match parse*Comments: only non-empty stripped lines
 		// contribute to textLines. Look up whether the current
 		// textCursor entry is translatable.
 		if tl, isTrans := textIdxToTL[textCursor]; isTrans {
 			// Reconstruct the full per-line prefix verbatim from raw:
 			// original indent + comment marker WITH ITS POST-MARKER
-			// WHITESPACE (`/// `, `///   `, `//!  ` …) + the stripped
-			// Doxygen command marker (e.g. `\param a `). Capturing the
-			// extra whitespace is what preserves source indentation
-			// inside list items like `///   -# foo` (3 spaces between
-			// `///` and `-#` — naïvely using a canonical `/// ` marker
-			// would silently collapse to 1 space).
-			markerLen := 3 // both `///` and `//!` are 3 chars
+			// WHITESPACE (`/// `, `///   `, `//!  `, `## ` …) + the
+			// stripped Doxygen command marker (e.g. `\param a `).
+			// Capturing the extra whitespace is what preserves source
+			// indentation inside list items like `///   -# foo`
+			// (3 spaces between `///` and `-#` — naïvely using a
+			// canonical `/// ` marker would silently collapse to 1
+			// space).
+			var markerLen int
+			if isHash {
+				if strings.HasPrefix(trimmed, "##") {
+					markerLen = 2
+				} else {
+					markerLen = 1
+				}
+			} else {
+				markerLen = 3 // both `///` and `//!` are 3 chars
+			}
 			afterMarker := raw[strings.Index(raw, trimmed[:markerLen])+markerLen:]
 			ws := afterMarker[:len(afterMarker)-len(strings.TrimLeft(afterMarker, " \t"))]
 			marker := trimmed[:markerLen] + ws
@@ -914,6 +1045,97 @@ func (r *Reader) buildLineLayout(cb *commentBlock, groups [][]translatableLine) 
 	if !hasS {
 		return ""
 	}
+	return strings.Join(entries, "\x01")
+}
+
+// buildDocstringLayout produces a layout descriptor for Python triple-
+// quoted docstrings. It mirrors okapi's DoxygenFilter conventions:
+//
+//   - When the opening `"""` line carries translatable text, a T entry
+//     consumes the first text line into `indent"""<text>`.
+//   - Non-translatable opening text (e.g. `@package docstring`) becomes
+//     an S entry (emitted verbatim).
+//   - Blank separators between paragraphs get the docstring's indent.
+//   - For indented docstrings, okapi writes the closing `"""` at column 0
+//     preceded by an extra blank line. The layout encodes this.
+//   - For column-0 docstrings, the closing `"""` stays at column 0
+//     with no extra blank line.
+func (r *Reader) buildDocstringLayout(cb *commentBlock) string {
+	if len(cb.rawLines) <= 1 {
+		// Single-line docstring: """text""" — canonical writer handles it.
+		return ""
+	}
+	textIdxToTL := r.classifyTextLines(cb.textLines)
+
+	// Determine the docstring's leading indentation from the opening line.
+	indent := extractIndent(strings.Join(cb.rawLines, "\n"))
+
+	var entries []string
+	textCursor := 0
+
+	// --- Opening line ---
+	firstTrimmed := strings.TrimSpace(cb.rawLines[0])
+	idx := strings.Index(firstTrimmed, `"""`)
+	afterOpen := strings.TrimSpace(firstTrimmed[idx+3:])
+
+	if afterOpen != "" {
+		if _, isTrans := textIdxToTL[textCursor]; isTrans {
+			// Translatable text follows `"""` → T entry so the
+			// writer substitutes pseudo-translated text here.
+			entries = append(entries, "T:"+indent+`"""`)
+		} else {
+			// Non-translatable command (e.g. `@package docstring`) →
+			// preserve the opening line verbatim.
+			entries = append(entries, "S:"+cb.rawLines[0])
+		}
+		textCursor++
+	} else {
+		// Opening `"""` with no text on the same line.
+		entries = append(entries, "S:"+cb.rawLines[0])
+	}
+
+	// --- Body lines (between opening and closing) ---
+	for j := 1; j < len(cb.rawLines)-1; j++ {
+		contentText := strings.TrimSpace(cb.rawLines[j])
+		if contentText == "" {
+			// Blank line → paragraph separator. Okapi indents these
+			// to match the docstring's leading whitespace.
+			entries = append(entries, "S:"+indent)
+			textCursor++
+			continue
+		}
+		if _, isTrans := textIdxToTL[textCursor]; isTrans {
+			entries = append(entries, "T:"+indent)
+		} else {
+			entries = append(entries, "S:"+cb.rawLines[j])
+		}
+		textCursor++
+	}
+
+	// --- Closing line ---
+	// Check for text before the closing `"""` (rare but valid).
+	closingLine := cb.rawLines[len(cb.rawLines)-1]
+	closingTrimmed := strings.TrimSpace(closingLine)
+	ci := strings.Index(closingTrimmed, `"""`)
+	beforeClose := strings.TrimSpace(closingTrimmed[:ci])
+	if beforeClose != "" {
+		if _, isTrans := textIdxToTL[textCursor]; isTrans {
+			entries = append(entries, "T:"+indent)
+		} else {
+			entries = append(entries, "S:"+closingLine)
+		}
+		textCursor++
+	}
+
+	// Okapi convention: indented docstrings get a blank line + column-0
+	// closing `"""`. Non-indented docstrings keep the closing as-is.
+	if indent != "" {
+		entries = append(entries, "S:")     // blank line
+		entries = append(entries, "S:"+`"""`) // closing at column 0
+	} else {
+		entries = append(entries, "S:"+closingLine)
+	}
+
 	return strings.Join(entries, "\x01")
 }
 
@@ -1023,16 +1245,18 @@ func (r *Reader) buildBlockLayout(cb *commentBlock) string {
 				prefix = trimmed + " "
 			}
 		}
-		// Capture any trailing whitespace AFTER the translatable text
-		// in the raw line so the writer can preserve okapi-style
-		// trailing-space behaviour on lines like ` *     . ` (a
-		// list-end `.` anchor with a trailing space — see lists.h
-		// line 21). Encoded as B:<prefix>\x02<suffix>; the writer
-		// splits on \x02 and emits prefix + text + suffix. Lines with
-		// no trailing whitespace produce no \x02 — the writer's
-		// existing prefix-only path handles them unchanged.
+		// Capture any trailing content AFTER the translatable text
+		// in the raw line so the writer can preserve it verbatim.
+		// Typical cases:
+		//   - trailing whitespace on ` *     . ` (lists.h line 21)
+		//   - closing quote + size indicator on `\image` lines:
+		//     `\image latex app.eps "My app" width=10cm` — the
+		//     suffix `" width=10cm` stays intact while "My app"
+		//     is translated.
+		// Encoded as B:<prefix>\x02<suffix>; the writer splits on
+		// \x02 and emits prefix + text + suffix.
 		suffix := raw[idxT+len(tl.text):]
-		if suffix != "" && strings.TrimRight(suffix, " \t") == "" {
+		if suffix != "" {
 			entries = append(entries, "B:"+prefix+"\x02"+suffix)
 		} else {
 			entries = append(entries, "B:"+prefix)
@@ -1445,6 +1669,18 @@ func (r *Reader) extractDescriptionAfterCommand(line, cmd string, skipArgs int) 
 			}
 		}
 		rest = strings.TrimSpace(rest)
+	}
+
+	// For \image, the description is only the quoted caption — any
+	// trailing size indicator (e.g. width=10cm) is non-translatable.
+	// Extract just the text inside the quotes so the writer preserves
+	// the size parameter verbatim.
+	if quotedDescCommands[cmd] && len(rest) > 0 && rest[0] == '"' {
+		endQuote := strings.Index(rest[1:], "\"")
+		if endQuote >= 0 {
+			return rest[1 : endQuote+1]
+		}
+		return ""
 	}
 
 	return rest

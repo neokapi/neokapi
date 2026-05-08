@@ -333,6 +333,16 @@ func (w *Writer) writeCommentStyled(text, style, raw string, linePrefixes []stri
 			return w.writeFromLayout(text, layout, "//! ", style)
 		}
 		return w.writeExclamation(text, raw, linePrefixes)
+	case "hash":
+		if layout != "" {
+			return w.writeFromLayout(text, layout, "## ", style)
+		}
+		return w.writeHash(text, raw, linePrefixes)
+	case "docstring":
+		if layout != "" {
+			return w.writeFromLayout(text, layout, "", style)
+		}
+		return w.writeDocstring(text, raw, linePrefixes)
 	case "javadoc":
 		if layout != "" {
 			return w.writeFromLayout(text, layout, "", style)
@@ -858,6 +868,92 @@ func (w *Writer) writeTripleSlash(text, raw string, prefixes []string) error {
 		}
 	}
 	return nil
+}
+
+// writeHash writes text as ## / # line comments (Python Doxygen).
+func (w *Writer) writeHash(text, raw string, prefixes []string) error {
+	indent := extractIndent(raw)
+	lines := strings.Split(text, "\n")
+	nl := w.lineSep()
+	for i, line := range lines {
+		if i > 0 {
+			if _, err := fmt.Fprint(w.Output, nl); err != nil {
+				return err
+			}
+		}
+		px := linePrefixAt(prefixes, i)
+		// First line uses ## marker, continuation uses #
+		var marker string
+		if i == 0 {
+			if line == "" && px == "" {
+				marker = "##"
+			} else {
+				marker = "## "
+			}
+		} else {
+			if line == "" && px == "" {
+				marker = "#"
+			} else {
+				marker = "# "
+			}
+		}
+		if _, err := fmt.Fprintf(w.Output, "%s%s%s%s", indent, marker, px, line); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// writeDocstring writes text as a Python triple-quoted docstring.
+func (w *Writer) writeDocstring(text, raw string, _ []string) error {
+	indent := extractIndent(raw)
+	rawLines := strings.Split(raw, "\n")
+	nl := w.lineSep()
+
+	// Single-line docstring: """text"""
+	if len(rawLines) == 1 {
+		_, err := fmt.Fprintf(w.Output, `%s"""%s"""`, indent, text)
+		return err
+	}
+
+	// Multi-line: emit opening """ + text on same line if original had it
+	trimmedFirst := strings.TrimSpace(rawLines[0])
+	idx := strings.Index(trimmedFirst, `"""`)
+	afterOpen := strings.TrimSpace(trimmedFirst[idx+3:])
+	if afterOpen != "" {
+		// Text follows opening """
+		if _, err := fmt.Fprintf(w.Output, `%s"""%s`, indent, text); err != nil {
+			return err
+		}
+	} else {
+		if _, err := fmt.Fprintf(w.Output, `%s"""`, indent); err != nil {
+			return err
+		}
+	}
+
+	// Middle content lines — not used when layout drives reconstruction;
+	// this path handles the no-layout fallback.
+	if afterOpen == "" {
+		textLines := strings.Split(text, "\n")
+		for _, tl := range textLines {
+			if _, err := fmt.Fprint(w.Output, nl); err != nil {
+				return err
+			}
+			if _, err := fmt.Fprintf(w.Output, "%s%s", indent, tl); err != nil {
+				return err
+			}
+		}
+	}
+
+	// Closing """
+	if _, err := fmt.Fprint(w.Output, nl); err != nil {
+		return err
+	}
+	// Closing line indentation from the raw
+	lastRaw := rawLines[len(rawLines)-1]
+	closingIndent := lastRaw[:len(lastRaw)-len(strings.TrimLeft(lastRaw, " \t"))]
+	_, err := fmt.Fprintf(w.Output, `%s"""`, closingIndent)
+	return err
 }
 
 // writeExclamation writes text as //! line comments.

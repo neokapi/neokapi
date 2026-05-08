@@ -84,6 +84,121 @@ func (LFLineEndings) Normalize(in []byte) ([]byte, error) {
 	return out, nil
 }
 
+// DoxygenCanonical normalizes Doxygen block comment layout so that
+// cosmetic whitespace and line-breaking differences between okapi and
+// native are absorbed.  Within each `/** … */` or `/*! … */` block the
+// normalizer:
+//
+//   - strips comment markers (` * `, ` *`, leading indent in
+//     non-star-decorated blocks),
+//   - trims trailing whitespace from each interior line,
+//   - joins continuation lines (consecutive non-empty lines merge with
+//     a space — this handles okapi's paragraph-reflow behaviour where
+//     `\note` + next-line-text becomes `\note text`),
+//   - strips trailing blank lines inside the block.
+//
+// Non-comment lines get trailing whitespace trimmed.
+type DoxygenCanonical struct{}
+
+// Name implements Normalizer.
+func (DoxygenCanonical) Name() string { return "doxygen-canonical" }
+
+// doxygenBlockRE matches `/** … */` and `/*! … */` block comments.
+var doxygenBlockRE = regexp.MustCompile(`(?s)/\*[*!].*?\*/`)
+
+// Normalize implements Normalizer.
+func (DoxygenCanonical) Normalize(in []byte) ([]byte, error) {
+	s := string(in)
+	out := doxygenBlockRE.ReplaceAllStringFunc(s, canonicalizeDoxygenBlock)
+	// Trim trailing whitespace on non-comment lines too.
+	lines := strings.Split(out, "\n")
+	for i, l := range lines {
+		lines[i] = strings.TrimRight(l, " \t")
+	}
+	return []byte(strings.Join(lines, "\n")), nil
+}
+
+// canonicalizeDoxygenBlock rewrites one block comment into a canonical
+// form that eliminates line-break, indent, and trailing-whitespace
+// differences.
+func canonicalizeDoxygenBlock(block string) string {
+	lines := strings.Split(block, "\n")
+	if len(lines) < 2 {
+		return block
+	}
+
+	var stripped []string
+
+	// Handle the opening line.  If it has text after the `/**`/`/*!`
+	// marker (e.g. `/*! @copydoc MyClass::myfunction()`), extract it.
+	first := strings.TrimSpace(lines[0])
+	after := ""
+	for _, prefix := range []string{"/*!", "/**"} {
+		if strings.HasPrefix(first, prefix) {
+			after = strings.TrimSpace(first[len(prefix):])
+			break
+		}
+	}
+	if after != "" {
+		stripped = append(stripped, after)
+	}
+
+	// Interior lines (between opening and closing delimiters).
+	for _, line := range lines[1 : len(lines)-1] {
+		s := stripDoxygenMarker(line)
+		s = strings.TrimRight(s, " \t")
+		stripped = append(stripped, s)
+	}
+
+	// Strip trailing empty lines inside the block.
+	for len(stripped) > 0 && stripped[len(stripped)-1] == "" {
+		stripped = stripped[:len(stripped)-1]
+	}
+
+	// Join continuation lines: consecutive non-empty lines belong to
+	// the same paragraph and merge with a space.  Blank lines are
+	// paragraph boundaries and stay as-is.
+	var paragraphs []string
+	var current []string
+	for _, s := range stripped {
+		if s == "" {
+			if len(current) > 0 {
+				paragraphs = append(paragraphs, strings.Join(current, " "))
+				current = nil
+			}
+			paragraphs = append(paragraphs, "")
+		} else {
+			current = append(current, s)
+		}
+	}
+	if len(current) > 0 {
+		paragraphs = append(paragraphs, strings.Join(current, " "))
+	}
+
+	return "/*\n" + strings.Join(paragraphs, "\n") + "\n*/"
+}
+
+// stripDoxygenMarker removes the leading comment decoration from a
+// single interior line of a block comment.
+func stripDoxygenMarker(line string) string {
+	trimmed := strings.TrimLeft(line, " \t")
+	// `* ` prefix (star + space + optional extra spaces).
+	if strings.HasPrefix(trimmed, "* ") {
+		return strings.TrimLeft(trimmed[2:], " \t")
+	}
+	// Bare `*` (blank comment line).
+	if trimmed == "*" {
+		return ""
+	}
+	// `*text` (okapi sometimes drops the space between `*` and text
+	// during paragraph reflow, e.g. ` *Àńď...`).
+	if len(trimmed) > 1 && trimmed[0] == '*' {
+		return strings.TrimLeft(trimmed[1:], " \t")
+	}
+	// Non-star-decorated block — strip leading whitespace only.
+	return strings.TrimSpace(line)
+}
+
 // IgnoreTrailingNewline strips trailing `\n`, `\r\n`, and `\r` bytes
 // from the end of input. Used by formats where okapi appends a final
 // newline that the source file doesn't have (e.g. properties: okapi
