@@ -395,6 +395,17 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 			continue
 		}
 
+		// Check for Python ##-style Doxygen comment block.
+		if strings.HasPrefix(trimmed, "##") {
+			cb := r.parseHashComments(lines, i)
+			n := len(cb.rawLines)
+			r.skelCommentGroup(cb, rLines, i, n, &blockCounter)
+			dataCounter++
+			r.emitCommentBlock(ctx, ch, cb, &blockCounter, &dataCounter)
+			i += n
+			continue
+		}
+
 		// Non-comment line → emit as Data
 		r.skelLinesText(rLines, i, 1)
 		dataCounter++
@@ -1124,7 +1135,6 @@ func (r *Reader) buildDocstringLayout(cb *commentBlock) string {
 		} else {
 			entries = append(entries, "S:"+closingLine)
 		}
-		textCursor++
 	}
 
 	// Okapi convention: indented docstrings get a blank line + column-0
