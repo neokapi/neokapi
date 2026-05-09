@@ -6,7 +6,7 @@
 # Run:    docker run -p 3000:80 bowrain-web
 
 # ── Stage 1: Build web UI ──────────────────────────────────────────────────
-FROM node:24-slim AS web-builder
+FROM node:26-slim AS web-builder
 WORKDIR /src
 
 # Install vite-plus (vp) which the package build scripts call into.
