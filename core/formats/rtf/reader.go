@@ -484,6 +484,90 @@ func tokenize(data []byte) []token {
 	return tokens
 }
 
+// skipUnicodeFallback consumes count ANSI fallback "characters" that follow
+// a \uN unicode escape per the RTF spec. By default (\uc1) one fallback
+// character follows. A fallback "character" is one of:
+//   - a single literal byte (typical case: '?'), OR
+//   - a \'HH hex escape (4 bytes), OR
+//   - a \keyword control word, OR
+//   - a balanced {...} group.
+//
+// Without this, the fallback bytes leak through the tokenizer as plain
+// text, producing artifacts like "\u171?" being read as "«?".
+func skipUnicodeFallback(rd *bufio.Reader, pos *int, count int) {
+	for range count {
+		b, err := rd.ReadByte()
+		if err != nil {
+			return
+		}
+		*pos++
+		switch b {
+		case '\\':
+			next, err := rd.ReadByte()
+			if err != nil {
+				return
+			}
+			*pos++
+			switch {
+			case next == '\'':
+				// \'HH — consume two hex digits.
+				if _, err := rd.ReadByte(); err != nil {
+					return
+				}
+				*pos++
+				if _, err := rd.ReadByte(); err != nil {
+					return
+				}
+				*pos++
+			case (next >= 'a' && next <= 'z') || (next >= 'A' && next <= 'Z'):
+				// \keyword[N][ ] — consume the rest of the control word.
+				for {
+					c, err := rd.ReadByte()
+					if err != nil {
+						return
+					}
+					*pos++
+					if (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+						(c >= '0' && c <= '9') || c == '-' {
+						continue
+					}
+					if c != ' ' {
+						_ = rd.UnreadByte()
+						*pos--
+					}
+					break
+				}
+			default:
+				// \<single-char> escape — already consumed both bytes.
+			}
+		case '{':
+			// Skip a balanced group.
+			depth := 1
+			for depth > 0 {
+				c, err := rd.ReadByte()
+				if err != nil {
+					return
+				}
+				*pos++
+				switch c {
+				case '\\':
+					// Skip the next byte to avoid mis-counting \{ or \}.
+					if _, err := rd.ReadByte(); err != nil {
+						return
+					}
+					*pos++
+				case '{':
+					depth++
+				case '}':
+					depth--
+				}
+			}
+		default:
+			// Single-byte literal fallback — already consumed.
+		}
+	}
+}
+
 // parseControlWord reads a control word or special escape after '\'.
 func parseControlWord(rd *bufio.Reader, pos *int) token {
 	b, err := rd.ReadByte()
@@ -551,7 +635,12 @@ func parseControlWord(rd *bufio.Reader, pos *int) token {
 			}
 			num, convErr := strconv.Atoi(numBuf.String())
 			if convErr == nil {
-				// Valid Unicode escape.
+				// Valid Unicode escape. Per the RTF spec, \uN is followed by
+				// one or more ANSI fallback "characters" (count controlled by
+				// \ucN, default 1) that conformant readers must skip. Without
+				// this, the fallback bytes leak through the tokenizer as
+				// plain text — e.g. "\u171?" yields "«?" instead of "«".
+				skipUnicodeFallback(rd, pos, 1)
 				r := rune(num)
 				if r < 0 {
 					r += 65536

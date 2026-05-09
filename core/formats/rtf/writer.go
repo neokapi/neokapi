@@ -219,7 +219,11 @@ func (w *Writer) writePart(part *model.Part) error {
 }
 
 func (w *Writer) writeHeader() error {
-	if _, err := fmt.Fprint(w.Output, "{\\rtf1\\ansi\\deff0\n"); err != nil {
+	// \uc1 declares that each \uN is followed by exactly one ANSI fallback
+	// character. Emitting this explicitly (even though it is the spec
+	// default) makes the output unambiguous for consumers that don't assume
+	// the default.
+	if _, err := fmt.Fprint(w.Output, "{\\rtf1\\ansi\\deff0\\uc1\n"); err != nil {
 		return err
 	}
 	w.firstBlock = false
