@@ -226,9 +226,10 @@ type DaemonPoolOptions struct {
 type DaemonPool struct {
 	opts DaemonPoolOptions
 
-	mu      sync.Mutex
-	clients map[string]*DaemonClient // key: plugin name
-	closed  bool
+	mu          sync.Mutex
+	clients     map[string]*DaemonClient // key: plugin name
+	spawnLocks  map[string]*sync.Mutex   // per-plugin spawn coordination — prevents concurrent first-callers from each spawning a JVM only to kill all but one
+	closed      bool
 }
 
 // NewDaemonPool builds an empty pool. Daemons are spawned lazily in
@@ -244,8 +245,9 @@ func NewDaemonPool(opts DaemonPoolOptions) *DaemonPool {
 		opts.Logger = func(string, ...any) {}
 	}
 	return &DaemonPool{
-		opts:    opts,
-		clients: map[string]*DaemonClient{},
+		opts:       opts,
+		clients:    map[string]*DaemonClient{},
+		spawnLocks: map[string]*sync.Mutex{},
 	}
 }
 
@@ -270,6 +272,12 @@ func resolveMaxDaemons() int {
 //
 // The returned client must be used while the pool is alive; the pool
 // owns the lifetime. Callers do NOT close the client themselves.
+//
+// Concurrent first-callers for the same plugin coordinate via a
+// per-plugin spawn lock so only one JVM is started — the rest wait
+// and reuse it. Without this, N concurrent lanes would each spawn a
+// JVM, then kill N-1 of them right after handshake, wasting startup
+// time and flooding logs.
 func (p *DaemonPool) Acquire(ctx context.Context, plugin *Plugin) (*DaemonClient, error) {
 	if plugin == nil {
 		return nil, errors.New("daemon pool: plugin is nil")
@@ -278,12 +286,33 @@ func (p *DaemonPool) Acquire(ctx context.Context, plugin *Plugin) (*DaemonClient
 		return nil, fmt.Errorf("daemon pool: plugin %q is not Mode-C (no formats/tools/source_connectors)", plugin.Name())
 	}
 
+	// Fast path: cached, healthy client.
 	p.mu.Lock()
 	if p.closed {
 		p.mu.Unlock()
 		return nil, errors.New("daemon pool: closed")
 	}
+	if existing, ok := p.clients[plugin.Name()]; ok && !existing.IsClosed() && existing.Conn != nil {
+		existing.touch()
+		p.mu.Unlock()
+		return existing, nil
+	}
+	p.mu.Unlock()
 
+	// Slow path: serialize spawn-per-plugin so only one goroutine runs
+	// the JVM start. Other concurrent callers block here, then hit the
+	// re-check below and reuse the freshly spawned client.
+	spawnLock := p.spawnLockFor(plugin.Name())
+	spawnLock.Lock()
+	defer spawnLock.Unlock()
+
+	p.mu.Lock()
+	if p.closed {
+		p.mu.Unlock()
+		return nil, errors.New("daemon pool: closed")
+	}
+	// Re-check cache after acquiring spawn lock — we may have been the
+	// loser in a race and the winner already populated p.clients.
 	if existing, ok := p.clients[plugin.Name()]; ok && !existing.IsClosed() && existing.Conn != nil {
 		existing.touch()
 		p.mu.Unlock()
@@ -294,7 +323,6 @@ func (p *DaemonPool) Acquire(ctx context.Context, plugin *Plugin) (*DaemonClient
 		delete(p.clients, plugin.Name())
 		go stale.close(p.opts.ShutdownGrace)
 	}
-
 	// Evict LRU if we'd exceed the cap.
 	for len(p.clients) >= p.opts.MaxDaemons {
 		victim := p.lruLocked()
@@ -307,7 +335,8 @@ func (p *DaemonPool) Acquire(ctx context.Context, plugin *Plugin) (*DaemonClient
 	}
 	p.mu.Unlock()
 
-	// Spawn outside the lock.
+	// Spawn outside both locks. spawnLock still held, so no concurrent
+	// spawn for this plugin.
 	client, err := p.spawn(ctx, plugin)
 	if err != nil {
 		return nil, err
@@ -318,14 +347,6 @@ func (p *DaemonPool) Acquire(ctx context.Context, plugin *Plugin) (*DaemonClient
 		p.mu.Unlock()
 		client.close(p.opts.ShutdownGrace)
 		return nil, errors.New("daemon pool: closed")
-	}
-	// Race: another caller spawned the same plugin while we were
-	// blocked. Prefer theirs (they got there first); release ours.
-	if existing, ok := p.clients[plugin.Name()]; ok && !existing.IsClosed() {
-		existing.touch()
-		p.mu.Unlock()
-		client.close(p.opts.ShutdownGrace)
-		return existing, nil
 	}
 	p.clients[plugin.Name()] = client
 	client.touch()
@@ -338,6 +359,20 @@ func (p *DaemonPool) Acquire(ctx context.Context, plugin *Plugin) (*DaemonClient
 	}
 
 	return client, nil
+}
+
+// spawnLockFor returns the spawn-coordination mutex for a plugin,
+// creating one on first use. Per-plugin (not per-pool) so spawns for
+// different plugins remain parallel.
+func (p *DaemonPool) spawnLockFor(name string) *sync.Mutex {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if l, ok := p.spawnLocks[name]; ok {
+		return l
+	}
+	l := &sync.Mutex{}
+	p.spawnLocks[name] = l
+	return l
 }
 
 // lruLocked returns the least-recently-used client. p.mu must be held.

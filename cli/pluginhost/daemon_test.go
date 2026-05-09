@@ -305,6 +305,76 @@ func TestDaemonPool_RespawnAfterCrash(t *testing.T) {
 	assert.NotSame(t, c1, c2)
 }
 
+// TestDaemonPool_ConcurrentAcquireSpawnsOneDaemon validates that N
+// concurrent Acquire() calls for the same plugin coordinate via the
+// per-plugin spawn lock and only spawn ONE daemon process. Without the
+// lock, each goroutine races past the cache-miss check and spawns its
+// own JVM — the pool then returns the same winning client to all
+// callers (so a PID-equality test would still pass), but N-1 daemon
+// processes were started and killed for nothing. The spawn-log file
+// counts actual spawns regardless of which client was returned.
+func TestDaemonPool_ConcurrentAcquireSpawnsOneDaemon(t *testing.T) {
+	bin := buildFakeDaemon(t)
+	plugin := makePlugin(t, "fake", bin, &manifest.DaemonConfig{
+		StartupTimeoutSeconds: 5,
+		IdleTimeoutSeconds:    300,
+	})
+
+	// Daemon appends its PID to this file on startup. A 100ms startup
+	// delay widens the race window so a missing spawn lock will be
+	// caught reliably rather than relying on timing.
+	spawnLog := filepath.Join(t.TempDir(), "spawns.log")
+	t.Setenv("FAKE_DAEMON_SPAWN_LOG", spawnLog)
+	t.Setenv("FAKE_DAEMON_STARTUP_DELAY", "100ms")
+
+	pool := NewDaemonPool(DaemonPoolOptions{MaxDaemons: 4})
+	t.Cleanup(pool.Shutdown)
+
+	const concurrency = 10
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	start := make(chan struct{})
+	results := make(chan *DaemonClient, concurrency)
+	errs := make(chan error, concurrency)
+	for range concurrency {
+		go func() {
+			<-start
+			c, err := pool.Acquire(ctx, plugin)
+			if err != nil {
+				errs <- err
+				return
+			}
+			results <- c
+		}()
+	}
+	close(start)
+
+	pids := map[int]struct{}{}
+	for range concurrency {
+		select {
+		case c := <-results:
+			pids[c.PID()] = struct{}{}
+		case err := <-errs:
+			t.Fatalf("Acquire failed: %v", err)
+		case <-ctx.Done():
+			t.Fatalf("timed out waiting for Acquire results")
+		}
+	}
+	assert.Len(t, pids, 1, "all callers should receive the same client")
+	assert.Len(t, pool.Active(), 1, "pool should hold exactly one client")
+
+	logBytes, err := os.ReadFile(spawnLog)
+	require.NoError(t, err)
+	spawnLines := 0
+	for _, b := range logBytes {
+		if b == '\n' {
+			spawnLines++
+		}
+	}
+	assert.Equal(t, 1, spawnLines, "expected exactly one daemon to be spawned across %d concurrent Acquires (spawn log: %q)", concurrency, string(logBytes))
+}
+
 // processAlive reports whether a process with the given pid is alive on
 // the host. It uses kill(pid, 0) which returns nil for a live process
 // and an error for a reaped one.

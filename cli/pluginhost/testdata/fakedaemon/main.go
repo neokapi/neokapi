@@ -21,6 +21,12 @@
 //	FAKE_DAEMON_BRIDGE     If "1", register the BridgeService stub. The
 //	                       stub emits one BlockMessage per Process call
 //	                       and echoes back any client-sent parts.
+//	FAKE_DAEMON_SPAWN_LOG  Path to a file. On startup the daemon appends
+//	                       its PID + newline (O_APPEND, locked-by-OS).
+//	                       Tests count spawns by line-counting the file.
+//	FAKE_DAEMON_STARTUP_DELAY  Duration string (e.g. "200ms"); sleep
+//	                       before printing the handshake. Used to widen
+//	                       the race window for concurrent-spawn tests.
 package main
 
 import (
@@ -42,6 +48,23 @@ import (
 func main() {
 	name := envOr("FAKE_DAEMON_NAME", "fake")
 	version := envOr("FAKE_DAEMON_VERSION", "0.0.1")
+
+	// Record this spawn so tests can count actual JVM-equivalent starts
+	// (independent of how many clients the pool returns to callers).
+	if path := os.Getenv("FAKE_DAEMON_SPAWN_LOG"); path != "" {
+		if f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644); err == nil {
+			fmt.Fprintf(f, "%d\n", os.Getpid())
+			_ = f.Close()
+		}
+	}
+
+	// Optional startup delay — widens the race window for tests that
+	// validate concurrent-spawn coordination.
+	if d := os.Getenv("FAKE_DAEMON_STARTUP_DELAY"); d != "" {
+		if dur, err := time.ParseDuration(d); err == nil {
+			time.Sleep(dur)
+		}
+	}
 
 	// Pick a unique socket path under TMPDIR.
 	socket := filepath.Join(os.TempDir(), fmt.Sprintf("kapi-%s-%d.sock", name, os.Getpid()))
