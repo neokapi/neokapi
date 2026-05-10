@@ -59,8 +59,8 @@ var wmlMoveRangeStrippableElementRE = regexp.MustCompile(
 )
 
 // wmlEmptyPropertiesContainerRE matches WordprocessingML run-property and
-// paragraph-property containers that have no attributes and no children.
-// Okapi's RunProperties.Default.getEvents (line 580 of
+// paragraph-property containers that have no attributes and no element
+// children. Okapi's RunProperties.Default.getEvents (line 580 of
 // okapi/filters/openxml/src/main/java/net/sf/okapi/filters/openxml/RunProperties.java)
 // returns Collections.emptyList() when properties().isEmpty(), and
 // BlockProperties.Default.getEvents (line 169-180 of BlockProperties.java)
@@ -71,7 +71,18 @@ var wmlMoveRangeStrippableElementRE = regexp.MustCompile(
 // okapi-testdata fixtures, so the empty-with-attributes case need not
 // be considered. Stripping must be iterated because removing an empty
 // <w:rPr/> can leave its parent <w:pPr/> empty and itself eligible.
-var wmlEmptyPropertiesContainerRE = regexp.MustCompile(`<w:(?:rPr|pPr)></w:(?:rPr|pPr)>|<w:(?:rPr|pPr)/>`)
+//
+// The body matcher [\s]* tolerates any whitespace between the open and
+// close tags — encoding/xml may emit indented or newline-padded XML
+// which would otherwise survive the strip and force the empty container
+// into the output (and into the canonical comparison, where it diverges
+// against the okapi reference's omitted-entirely encoding).
+var wmlEmptyPropertiesContainerRE = regexp.MustCompile(
+	`<w:rPr>\s*</w:rPr>` +
+		`|<w:rPr\s*/>` +
+		`|<w:pPr>\s*</w:pPr>` +
+		`|<w:pPr\s*/>`,
+)
 
 // wmlNoProofRE matches the run-property <w:noProof> element (no
 // spelling/grammar marker) in both self-closing and open/close form.
@@ -245,10 +256,13 @@ func stripWMLSkippableElements(data []byte) []byte {
 	// requires at most two iterations (<w:p><w:pPr><w:rPr><w:lang/></w:rPr></w:pPr>
 	// becomes <w:p/> after lang+rPr+pPr strips), but the loop terminates
 	// generally because each pass strictly shrinks the buffer.
-	for bytes.Contains(data, []byte("<w:rPr></w:rPr>")) ||
-		bytes.Contains(data, []byte("<w:pPr></w:pPr>")) ||
-		bytes.Contains(data, []byte("<w:rPr/>")) ||
-		bytes.Contains(data, []byte("<w:pPr/>")) {
+	// Loop until the empty-container regex stops shrinking the buffer.
+	// The fast-path bytes.Contains gate looks at "<w:rPr" and "<w:pPr"
+	// substrings — matches any potentially-stripable form including
+	// whitespace-padded variants — which a more specific gate would
+	// miss after encoding/xml indented re-emission.
+	for bytes.Contains(data, []byte("<w:rPr")) ||
+		bytes.Contains(data, []byte("<w:pPr")) {
 		next := wmlEmptyPropertiesContainerRE.ReplaceAll(data, nil)
 		if len(next) == len(data) {
 			break
