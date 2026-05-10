@@ -528,3 +528,73 @@ func parseDocXMLWithStyles(t *testing.T, docXML string, cfg *Config, styles *sty
 	require.NoError(t, err)
 	return blocks
 }
+
+// TestDrawingNameAttrRE verifies the regex extracts name="..." from
+// docPr/cNvPr elements with various namespace prefixes — see
+// drawingNameAttrRE for the matched element list.
+func TestDrawingNameAttrRE(t *testing.T) {
+	cases := []struct {
+		name      string
+		input     string
+		wantValue string
+		wantOpen  string // expected first capture group prefix (sanity check)
+	}{
+		{
+			name:      "wp:docPr with double quotes",
+			input:     `<wp:docPr id="1" name="Bild 1"/>`,
+			wantValue: "Bild 1",
+		},
+		{
+			name:      "pic:cNvPr with double quotes",
+			input:     `<pic:cNvPr id="0" descr="x" name="Picture 1"/>`,
+			wantValue: "Picture 1",
+		},
+		{
+			name:      "wps:cNvPr with single quotes",
+			input:     `<wps:cNvPr id='2' name='Shape 1'/>`,
+			wantValue: "Shape 1",
+		},
+		{
+			name:      "no namespace prefix",
+			input:     `<docPr id="1" name="No Prefix"/>`,
+			wantValue: "No Prefix",
+		},
+		{
+			name:      "open-close form",
+			input:     `<wp:docPr id="1" name="Open Form"></wp:docPr>`,
+			wantValue: "Open Form",
+		},
+		{
+			name:      "name with empty value",
+			input:     `<wp:docPr id="1" name=""/>`,
+			wantValue: "",
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			m := drawingNameAttrRE.FindStringSubmatch(tc.input)
+			require.NotNil(t, m, "regex must match: %s", tc.input)
+			assert.Equal(t, tc.wantValue, m[3], "captured value")
+		})
+	}
+}
+
+// TestDrawingNameAttrRE_NonMatches verifies the regex does NOT match
+// unrelated elements that happen to have a name attribute.
+func TestDrawingNameAttrRE_NonMatches(t *testing.T) {
+	nonMatches := []string{
+		// other elements with name attribute should not match
+		`<w:bookmarkStart name="bookmark"/>`,
+		`<wp:cNvGraphicFramePr name="x"/>`, // not docPr/cNvPr
+		// docPr without name attribute
+		`<wp:docPr id="1"/>`,
+		// stray text
+		`name="Picture 1"`,
+	}
+	for _, s := range nonMatches {
+		t.Run(s, func(t *testing.T) {
+			m := drawingNameAttrRE.FindStringSubmatch(s)
+			assert.Nil(t, m, "regex must not match: %s", s)
+		})
+	}
+}
