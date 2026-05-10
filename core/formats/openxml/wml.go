@@ -183,6 +183,37 @@ func (p *wmlParser) parseParagraph(d *xml.Decoder, partPath string, emitBlock fu
 				}
 				runs = append(runs, sdtRuns...)
 
+			case "ins", "moveTo":
+				// Revision-tracking content wrapper: insertion / move-to.
+				// Mirrors okapi's SkippableElements.RevisionInline.skip
+				// (lines 209-212 of okapi/filters/openxml/src/main/java/
+				// net/sf/okapi/filters/openxml/SkippableElements.java)
+				// which returns early without skipping for INSERTED_CONTENT
+				// and MOVED_CONTENT_TO — i.e. the wrapper is unwrapped and
+				// its child runs are kept (the auto-accept-revisions
+				// default semantics: insertions are accepted into the
+				// final document).
+				//
+				// Process child <w:r> runs as if they were direct
+				// children of <w:p> by handing them off to the run
+				// parser inline.
+				if err := p.parseRevisionInsertion(d, t.Name.Local, &runs, &cfs); err != nil {
+					return err
+				}
+
+			case "del", "moveFrom":
+				// Revision-tracking content wrapper: deletion / move-from.
+				// Auto-accept-revisions drops the entire subtree (deleted
+				// content is removed from the final document). Per
+				// SkippableElements.RevisionInline at lines 213-214 of
+				// SkippableElements.java this falls through to the default
+				// skip path. The skipElement walker discards the subtree
+				// entirely, including any nested <w:r><w:delText>...
+				// </w:delText></w:r> runs.
+				if err := skipElement(d); err != nil {
+					return err
+				}
+
 			default:
 				if err := skipElement(d); err != nil {
 					return err
@@ -262,6 +293,66 @@ func (p *wmlParser) parseParagraph(d *xml.Decoder, partPath string, emitBlock fu
 
 				block := p.buildBlock(blockID, merged, partPath)
 				emitBlock(block)
+				return nil
+			}
+		}
+	}
+}
+
+// parseRevisionInsertion drains the children of a <w:ins> or <w:moveTo>
+// content wrapper that appears at paragraph level, appending any <w:r>
+// runs found inside to the caller's run list. The wrapper element is
+// effectively unwrapped — children are kept, the wrapper itself is
+// dropped — to mirror okapi's auto-accept-revisions semantics for
+// inserted/moved-in content.
+//
+// The local name passed in (`ins` or `moveTo`) lets the function know
+// when to stop draining (matching close tag).
+//
+// Nested <w:ins>/<w:moveTo> inside the wrapper are handled recursively.
+// Nested <w:del>/<w:moveFrom> inside the wrapper are skipped (their
+// content is "deletion-of-an-insertion", which auto-accept treats as
+// removal — same end state as if the deletion was direct).
+func (p *wmlParser) parseRevisionInsertion(d *xml.Decoder, wrapperName string, runs *[]textRun, cfs *complexFieldState) error {
+	for {
+		tok, err := d.Token()
+		if err != nil {
+			return err
+		}
+		switch t := tok.(type) {
+		case xml.StartElement:
+			switch t.Name.Local {
+			case "r":
+				run, err := p.parseRunWithFieldState(d, cfs)
+				if err != nil {
+					return err
+				}
+				if cfs.active && !cfs.extractable {
+					continue
+				}
+				if cfs.active && cfs.extractable && !cfs.atResult {
+					continue
+				}
+				*runs = append(*runs, run...)
+			case "ins", "moveTo":
+				if err := p.parseRevisionInsertion(d, t.Name.Local, runs, cfs); err != nil {
+					return err
+				}
+			case "del", "moveFrom":
+				if err := skipElement(d); err != nil {
+					return err
+				}
+			default:
+				// Unknown content (bookmarks, sdt, hyperlinks, etc. —
+				// rare inside revision wrappers in practice). Skip the
+				// subtree to mirror parseParagraph's default fallback;
+				// future fixtures can extend this case if needed.
+				if err := skipElement(d); err != nil {
+					return err
+				}
+			}
+		case xml.EndElement:
+			if t.Name.Local == wrapperName {
 				return nil
 			}
 		}
