@@ -9,16 +9,28 @@ import (
 
 // runProps holds normalized run properties extracted from <w:rPr>.
 type runProps struct {
-	bold       bool
-	italic     bool
-	underline  string // "single", "double", etc. — empty means none
-	strike     bool
-	vertAlign  string // "superscript", "subscript", or ""
-	vanish     bool   // hidden text
-	fontName   string // primary font name from <w:rFonts> (ascii or hAnsi)
-	fontNameCS string // complex script font name
-	fontNameEA string // East Asian font name
-	otherXML   string // serialized non-formatting properties we preserve but don't compare
+	bold      bool
+	italic    bool
+	underline string // "single", "double", etc. — empty means none
+	strike    bool
+	vertAlign string // "superscript", "subscript", or ""
+	vanish    bool   // hidden text
+	// vanishExplicit is true when the source rPr carried an explicit
+	// <w:vanish.../> element, regardless of its toggle value (true,
+	// false, off, 0). This distinguishes "direct rPr overrides
+	// inherited vanish" from "no direct vanish at all" so that
+	// inheritance from pStyle/docDefaults can be applied only when the
+	// run did not specify vanish itself. Mirrors upstream Okapi's
+	// minified() preCombined.contains(p) rule
+	// (RunProperties.java:497-540): a directly specified property is
+	// kept iff it is not already in the inherited hierarchy with the
+	// SAME value — an override (e.g. directly false against inherited
+	// true) is preserved.
+	vanishExplicit bool
+	fontName       string // primary font name from <w:rFonts> (ascii or hAnsi)
+	fontNameCS     string // complex script font name
+	fontNameEA     string // East Asian font name
+	otherXML       string // serialized non-formatting properties we preserve but don't compare
 	// rPrChildren is the ordered list of <w:rPr> child element
 	// serializations as they appeared on the source <w:r>, used to
 	// preserve per-run rPr through the writer (#592).
@@ -233,6 +245,7 @@ func parseRunProps(d *xml.Decoder, aggressive bool) (runProps, error) {
 				}
 			case local == "vanish":
 				props.vanish = !hasAttrVal(t, "val", "0") && !hasAttrVal(t, "val", "false")
+				props.vanishExplicit = true
 				if err := skipElement(d); err != nil {
 					return props, err
 				}
