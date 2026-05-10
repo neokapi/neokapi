@@ -1493,13 +1493,13 @@ func (s *tokenReaderState) extractTokenAttrs(raw []byte, tag string, a atom.Atom
 	// Collect which attributes are translatable.
 	var transAttrs []transAttrEntry
 
-	if title := getTokenAttr(attrs, "title"); title != "" {
+	if title := getTokenAttrLastNonEmpty(attrs, "title"); title != "" {
 		id := s.nextBlockID()
 		transAttrs = append(transAttrs, transAttrEntry{"title", title, id})
 		s.emitAttrBlock(id, "title", title, ctx, ch)
 	}
 
-	if alt := getTokenAttr(attrs, "alt"); alt != "" {
+	if alt := getTokenAttrLastNonEmpty(attrs, "alt"); alt != "" {
 		// okapi okf_html: alt is per-element only — img, area (no
 		// condition) and input (NOT_EQUALS [file, hidden, image,
 		// Password]). See nonwellformedConfiguration.yml lines 41
@@ -1518,7 +1518,7 @@ func (s *tokenReaderState) extractTokenAttrs(raw []byte, tag string, a atom.Atom
 		}
 	}
 
-	if label := getTokenAttr(attrs, "label"); label != "" {
+	if label := getTokenAttrLastNonEmpty(attrs, "label"); label != "" {
 		if a == atom.Option {
 			id := s.nextBlockID()
 			transAttrs = append(transAttrs, transAttrEntry{"label", label, id})
@@ -1526,7 +1526,7 @@ func (s *tokenReaderState) extractTokenAttrs(raw []byte, tag string, a atom.Atom
 		}
 	}
 
-	if ph := getTokenAttr(attrs, "placeholder"); ph != "" {
+	if ph := getTokenAttrLastNonEmpty(attrs, "placeholder"); ph != "" {
 		if a == atom.Input || a == atom.Textarea {
 			id := s.nextBlockID()
 			transAttrs = append(transAttrs, transAttrEntry{"placeholder", ph, id})
@@ -1534,7 +1534,7 @@ func (s *tokenReaderState) extractTokenAttrs(raw []byte, tag string, a atom.Atom
 		}
 	}
 
-	if val := getTokenAttr(attrs, "value"); val != "" && a == atom.Input {
+	if val := getTokenAttrLastNonEmpty(attrs, "value"); val != "" && a == atom.Input {
 		inputType := strings.ToLower(getTokenAttr(attrs, "type"))
 		if isTranslatableInputValue(inputType) {
 			id := s.nextBlockID()
@@ -1546,7 +1546,7 @@ func (s *tokenReaderState) extractTokenAttrs(raw []byte, tag string, a atom.Atom
 	// `accesskey`: per-element on a, area, button, label, legend, textarea
 	// (no condition) and input (NOT_EQUALS [file, hidden, image, Password]).
 	// See nonwellformedConfiguration.yml lines 81, 135, 180, 222, 265, 277, 339.
-	if ak := getTokenAttr(attrs, "accesskey"); ak != "" {
+	if ak := getTokenAttrLastNonEmpty(attrs, "accesskey"); ak != "" {
 		emit := false
 		switch a {
 		case atom.A, atom.Area, atom.Button, atom.Label, atom.Legend, atom.Textarea:
@@ -1579,12 +1579,12 @@ func (s *tokenReaderState) extractTokenAttrs(raw []byte, tag string, a atom.Atom
 // emit its source attribute values verbatim.
 func (s *tokenReaderState) extractTokenAttrsNoSkeleton(tag string, a atom.Atom, attrs []html.Attribute, ctx context.Context, ch chan<- model.PartResult) []transAttrEntry {
 	var out []transAttrEntry
-	if title := getTokenAttr(attrs, "title"); title != "" {
+	if title := getTokenAttrLastNonEmpty(attrs, "title"); title != "" {
 		id := s.nextBlockID()
 		s.emitAttrBlock(id, "title", title, ctx, ch)
 		out = append(out, transAttrEntry{"title", title, id})
 	}
-	if alt := getTokenAttr(attrs, "alt"); alt != "" {
+	if alt := getTokenAttrLastNonEmpty(attrs, "alt"); alt != "" {
 		// Same okapi okf_html rule as extractTokenAttrs.
 		switch a {
 		case atom.Img, atom.Area:
@@ -1599,19 +1599,19 @@ func (s *tokenReaderState) extractTokenAttrsNoSkeleton(tag string, a atom.Atom, 
 			}
 		}
 	}
-	if label := getTokenAttr(attrs, "label"); label != "" && a == atom.Option {
+	if label := getTokenAttrLastNonEmpty(attrs, "label"); label != "" && a == atom.Option {
 		id := s.nextBlockID()
 		s.emitAttrBlock(id, "label", label, ctx, ch)
 		out = append(out, transAttrEntry{"label", label, id})
 	}
-	if ph := getTokenAttr(attrs, "placeholder"); ph != "" {
+	if ph := getTokenAttrLastNonEmpty(attrs, "placeholder"); ph != "" {
 		if a == atom.Input || a == atom.Textarea {
 			id := s.nextBlockID()
 			s.emitAttrBlock(id, "placeholder", ph, ctx, ch)
 			out = append(out, transAttrEntry{"placeholder", ph, id})
 		}
 	}
-	if val := getTokenAttr(attrs, "value"); val != "" && a == atom.Input {
+	if val := getTokenAttrLastNonEmpty(attrs, "value"); val != "" && a == atom.Input {
 		inputType := strings.ToLower(getTokenAttr(attrs, "type"))
 		if isTranslatableInputValue(inputType) {
 			id := s.nextBlockID()
@@ -1621,7 +1621,7 @@ func (s *tokenReaderState) extractTokenAttrsNoSkeleton(tag string, a atom.Atom, 
 	}
 
 	// Same accesskey rule as extractTokenAttrs.
-	if ak := getTokenAttr(attrs, "accesskey"); ak != "" {
+	if ak := getTokenAttrLastNonEmpty(attrs, "accesskey"); ak != "" {
 		emit := false
 		switch a {
 		case atom.A, atom.Area, atom.Button, atom.Label, atom.Legend, atom.Textarea:
@@ -1764,14 +1764,24 @@ func (s *tokenReaderState) writeMultiAttrRefSkeleton(raw []byte, attrs []transAt
 // len) when stitching skeleton text around the value — otherwise entity-bearing
 // values like `&#x20000;` (1 decoded rune, 9 raw bytes) yield mismatched
 // before/after slices that duplicate or drop trailing raw bytes.
+// findAttrValueRange returns the (offset, length) of the value slot for
+// attribute `attrKey` in raw. When the attribute appears multiple times
+// (tag-soup duplicates like `alt="" alt="real"`), it returns the LAST
+// occurrence whose value is non-empty — mirroring getTokenAttrLastNonEmpty
+// so the substitute-translation pass writes into the same slot the
+// extraction pass picked. Falls back to the first occurrence when every
+// duplicate is empty.
 func findAttrValueRange(raw []byte, attrKey string) (int, int) {
 	keyBytes := []byte(strings.ToLower(attrKey))
+
+	firstStart, firstLen := -1, 0
+	bestStart, bestLen := -1, 0
 
 	idx := 0
 	for {
 		pos := indexBytesInsensitive(raw[idx:], keyBytes)
 		if pos < 0 {
-			return -1, 0
+			break
 		}
 		pos += idx
 
@@ -1797,31 +1807,45 @@ func findAttrValueRange(raw []byte, attrKey string) (int, int) {
 			eqPos++
 		}
 		if eqPos >= len(raw) {
-			return -1, 0
+			break
 		}
 
-		// Check for quote.
+		var start, end int
 		quote := raw[eqPos]
 		if quote == '"' || quote == '\'' {
-			start := eqPos + 1
-			end := start
+			start = eqPos + 1
+			end = start
 			for end < len(raw) && raw[end] != quote {
 				end++
 			}
-			return start, end - start
-		}
-		// Unquoted attribute value: terminate at whitespace, '>', or '/'.
-		start := eqPos
-		end := start
-		for end < len(raw) {
-			c := raw[end]
-			if c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '>' || c == '/' {
-				break
+			idx = end + 1
+		} else {
+			// Unquoted attribute value: terminate at whitespace, '>', or '/'.
+			start = eqPos
+			end = start
+			for end < len(raw) {
+				c := raw[end]
+				if c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '>' || c == '/' {
+					break
+				}
+				end++
 			}
-			end++
+			idx = end
 		}
-		return start, end - start
+
+		if firstStart < 0 {
+			firstStart, firstLen = start, end-start
+		}
+		if end > start {
+			// Non-empty value — prefer this slot (last non-empty wins).
+			bestStart, bestLen = start, end-start
+		}
 	}
+
+	if bestStart >= 0 {
+		return bestStart, bestLen
+	}
+	return firstStart, firstLen
 }
 
 // indexBytesInsensitive finds the first occurrence of the lowercase needle in
@@ -1884,6 +1908,38 @@ func getTokenAttr(attrs []html.Attribute, key string) string {
 		}
 	}
 	return ""
+}
+
+// getTokenAttrLastNonEmpty returns the value of the LAST attribute named
+// `key` with a non-empty value. When all occurrences are empty, falls back
+// to the first occurrence (so callers see "" for "no real value present").
+//
+// Tag-soup HTML — common in scraped pages — frequently emits duplicate
+// translatable attributes (e.g. `<img alt="" alt="Real text" />`) where
+// the meaningful content sits in the second slot. HTML5 §13.2.2.1 says
+// duplicates after the first are tokenizer errors, but golang.org/x/net/html
+// surfaces all of them in the parsed Attribute slice. Okapi's NekoHTML
+// preserves the meaningful (non-empty) attribute when extracting a
+// translation unit. Use this helper for translatable attributes (alt,
+// title, placeholder, value, label, accesskey) so the extraction picks
+// the same slot Okapi did. The skeleton-write side still preserves the
+// raw bytes of all duplicates verbatim — only the extraction target
+// changes.
+func getTokenAttrLastNonEmpty(attrs []html.Attribute, key string) string {
+	out := ""
+	found := false
+	for _, a := range attrs {
+		if a.Key == key {
+			if !found {
+				out = a.Val
+				found = true
+			}
+			if a.Val != "" {
+				out = a.Val
+			}
+		}
+	}
+	return out
 }
 
 func getTokenAttrNS(attrs []html.Attribute, ns, key string) string {
