@@ -275,26 +275,52 @@ func (r *Reader) findStringPositions(rawText string, stmts []*mifStatement) []st
 						blockIdx++
 					}
 				}
-				text := extractParaText(child)
-				if strings.TrimSpace(text) == "" {
-					continue
-				}
-				var strs []string
+				// Mirror processContainer: split the para into runs at
+				// inline-code boundaries. Each run with non-empty text
+				// gets its own Block (and skeleton ref). Within a single
+				// run, multiple `<String>` values still collapse into the
+				// run's first String slot — the writer fills slot 0 and
+				// elides the rest.
+				runs := extractParaRuns(child, true)
+				// Collect every <String> value in source order so we can
+				// pick out the indices each run should occupy.
+				var allStrings []string
 				for _, gc := range child.children {
 					if gc.tag == "ParaLine" {
 						for _, lc := range gc.children {
 							if lc.tag == "String" {
-								strs = append(strs, lc.value)
+								allStrings = append(allStrings, lc.value)
 							}
 						}
 					}
 				}
-				items = append(items, itemInfo{
-					blockIdx:  blockIdx,
-					strings:   strs,
-					searchTag: "String",
-				})
-				blockIdx++
+				for _, run := range runs {
+					if strings.TrimSpace(run.text) == "" {
+						continue
+					}
+					strs := make([]string, 0, len(run.stringOffsetIndices))
+					for _, off := range run.stringOffsetIndices {
+						if off < len(allStrings) {
+							strs = append(strs, allStrings[off])
+						}
+					}
+					if len(strs) == 0 {
+						// Run made entirely of Char-translated text; the
+						// skeleton has no <String> position to anchor to,
+						// so emit nothing here. The Para wrapper itself
+						// stays in skeleton text and the writer's data
+						// path will not fire — matches okapi's behavior
+						// for inline-only Char content.
+						blockIdx++
+						continue
+					}
+					items = append(items, itemInfo{
+						blockIdx:  blockIdx,
+						strings:   strs,
+						searchTag: "String",
+					})
+					blockIdx++
+				}
 				continue
 			}
 			if isMIFContainer(child.tag) {
@@ -1075,20 +1101,34 @@ func (r *Reader) processContainer(ctx context.Context, ch chan<- model.PartResul
 				}
 			}
 
-			text := extractParaTextImpl(child, r.cfg.ExtractHardReturnsAsText)
-			if strings.TrimSpace(text) != "" {
-				blockCounter++
-				block := model.NewBlock(fmt.Sprintf("tu%d", blockCounter), text)
-				block.Name = fmt.Sprintf("para.%d", blockCounter)
-
-				// Extract paragraph tag if present.
-				for _, gc := range child.children {
-					if gc.tag == "PgfTag" {
-						block.Properties["pgf_tag"] = gc.value
-						break
-					}
+			// Split the para's text into runs at inline-code boundaries
+			// (Font, Marker, AFrame, XRef, …). Each non-empty run becomes
+			// its own translatable Block so the writer can emit the
+			// `<String '...'><Font ...><String '...'>` interleaving that
+			// okapi's writeParagraph reconstructs from the per-Para
+			// TextFragment + inline codes (MIFFilter.java:636-805).
+			//
+			// Single-run paras (no inline codes between strings) are
+			// emitted as before — one Block per Para — so the existing
+			// 17 byte-equal MIF fixtures remain unchanged.
+			runs := extractParaRuns(child, r.cfg.ExtractHardReturnsAsText)
+			var pgfTag string
+			for _, gc := range child.children {
+				if gc.tag == "PgfTag" {
+					pgfTag = gc.value
+					break
 				}
-
+			}
+			for runIdx, run := range runs {
+				if strings.TrimSpace(run.text) == "" {
+					continue
+				}
+				blockCounter++
+				block := model.NewBlock(fmt.Sprintf("tu%d", blockCounter), run.text)
+				block.Name = fmt.Sprintf("para.%d.%d", blockCounter, runIdx)
+				if pgfTag != "" {
+					block.Properties["pgf_tag"] = pgfTag
+				}
 				r.applyCodeFinder(block)
 				if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
 					return blockCounter, dataCounter
@@ -1122,47 +1162,111 @@ func isMIFContainer(tag string) bool {
 	return false
 }
 
-// extractParaText extracts translatable text from a Para statement.
-// This standalone version always treats hard returns as text (used by
-// findStringPositions where config doesn't affect presence/absence of
-// text).
-func extractParaText(para *mifStatement) string {
-	return extractParaTextImpl(para, true)
+// paraTextRun describes one translatable text run inside a Para -- the
+// text that accumulates between (or before/after) inline-code statements
+// inside the para's ParaLines. Each run becomes one Block on emit and
+// one entry in findStringPositions' items list.
+//
+// stringOffsetIndices captures the sequential index (0-based, within
+// the para) of every `<String>` whose value contributes to this run.
+// findStringPositions uses these to know which `<String>` raw-text
+// positions to coalesce into a single skeleton ref. For example, a
+// para like `<String 'a'><String 'b'><Font...><String 'c'>` produces two
+// runs: ["ab", indices 0,1] and ["c", index 2].
+type paraTextRun struct {
+	text                string
+	stringOffsetIndices []int
 }
 
-// extractParaTextImpl extracts translatable text with configurable hard return handling.
-func extractParaTextImpl(para *mifStatement, hardReturnsAsText bool) string {
-	var texts []string
+// extractParaRuns walks a Para's ParaLines and returns the sequence of
+// translatable text runs split at inline-code boundaries (Font, Marker,
+// AFrame, ...). Mirrors okapi's processPara/readUntilText behavior
+// (MIFFilter.java:636-805 + 1027-1175): consecutive `<String>` and
+// inlinable `<Char>` content accumulates into one TextFragment until an
+// inline-code statement (Font/Marker/AFrame/etc.) is encountered, at
+// which point the current TextFragment closes and a new one starts
+// after the code.
+//
+// Within an `<XRef>...<XRefEnd>` pair, ALL content (including Strings)
+// is part of the XRef inline code -- no text run accumulates. The first
+// String after `<XRefEnd>` starts a fresh run.
+//
+// The returned slice always has at least one element. Empty runs (no
+// translatable text) are dropped from the output.
+func extractParaRuns(para *mifStatement, hardReturnsAsText bool) []paraTextRun {
+	var runs []paraTextRun
+	var cur paraTextRun
+	stringIdx := 0
+	inXRef := false
+
+	flush := func() {
+		if cur.text == "" {
+			cur = paraTextRun{}
+			return
+		}
+		runs = append(runs, cur)
+		cur = paraTextRun{}
+	}
+
 	for _, child := range para.children {
-		if child.tag == "ParaLine" {
-			for _, lc := range child.children {
-				switch lc.tag {
-				case "String":
-					texts = append(texts, lc.value)
-				case "Char":
-					switch lc.value {
-					case "HardReturn":
-						if hardReturnsAsText {
-							texts = append(texts, "\n")
-						}
-					case "Tab":
-						texts = append(texts, "\t")
-					case "HardSpace":
-						texts = append(texts, "\u00A0")
-					case "SoftHyphen":
-						texts = append(texts, "\u00AD")
-					case "EnSpace":
-						texts = append(texts, "\u2002")
-					case "EmSpace":
-						texts = append(texts, "\u2003")
-					case "ThinSpace":
-						texts = append(texts, "\u2009")
+		if child.tag != "ParaLine" {
+			continue
+		}
+		for _, lc := range child.children {
+			switch {
+			case lc.tag == "String":
+				if inXRef {
+					stringIdx++
+					continue
+				}
+				cur.text += lc.value
+				cur.stringOffsetIndices = append(cur.stringOffsetIndices, stringIdx)
+				stringIdx++
+			case lc.tag == "Char":
+				if inXRef {
+					continue
+				}
+				switch lc.value {
+				case "HardReturn":
+					if hardReturnsAsText {
+						cur.text += "\n"
 					}
+				case "Tab":
+					cur.text += "\t"
+				case "HardSpace":
+					cur.text += "\u00A0"
+				case "SoftHyphen":
+					cur.text += "\u00AD"
+				case "EnSpace":
+					cur.text += "\u2002"
+				case "EmSpace":
+					cur.text += "\u2003"
+				case "ThinSpace":
+					cur.text += "\u2009"
+				}
+			default:
+				// Any other ParaLine child statement is treated as an
+				// inline code: it closes the current text run and starts
+				// a new one. Mirrors okapi's default branch in
+				// readUntilText (MIFFilter.java:1144-1153) which calls
+				// skipOverContent + flips significant=true for any tag
+				// that isn't ParaLine/Pgf/String/Char/Marker — the next
+				// text appended via paraTextBuf becomes a fresh String
+				// in the writer's reconstructed paragraph.
+				//
+				// XRef is special: while inXRef is true, no Strings
+				// contribute to text runs. Track entry/exit explicitly.
+				flush()
+				if lc.tag == "XRef" {
+					inXRef = true
+				} else if lc.tag == "XRefEnd" {
+					inXRef = false
 				}
 			}
 		}
 	}
-	return strings.Join(texts, "")
+	flush()
+	return runs
 }
 
 // parseMIF parses a MIF document into a list of top-level statements.

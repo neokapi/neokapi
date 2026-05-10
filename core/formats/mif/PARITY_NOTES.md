@@ -13,9 +13,9 @@ It is **not** an architecture decision and **not** user-facing docs.
 | Engine | Total | byte | canon | sem | div |
 |---|---:|---:|---:|---:|---:|
 | bridge (okapi-bridge) | 41 | 41 | 0 | 0 | 0 |
-| native (this package) | 41 | **17** | 0 | 0 | 24 |
+| native (this package) | 41 | **26** | 0 | 0 | 15 |
 
-Cleared 17 of 41 fixtures so far through five commits that added
+Cleared 26 of 41 fixtures so far through six commits that added
 extraction for FrameMaker translatable surfaces the original reader
 walked past:
 
@@ -26,6 +26,7 @@ walked past:
 | Inline `<Para><Pgf><PgfNumFormat>` overrides | c87f4218 |
 | `<Marker><MText>` for Index + Hypertext markers | 404c1ba9 |
 | codeFinder `\x{NNNN}` escapes + walk into `<FNote>` | c68c016b |
+| Multi-Font run splitting (Cluster H + L/M side-effects) | (this iteration) |
 
 Remaining clusters break down as follows.
 
@@ -73,10 +74,12 @@ text as `<String>`.
 HardSpace>` into a `<String ' '>` and re-orders the resulting
 String/Marker/String sequence. Same family as Cluster C/F.
 
-### Cluster H — Multi-Font runs split per font (6 fixtures)
+### Cluster H — Multi-Font runs split per font (RESOLVED — 6 + 3 side-effects)
 
-**Affects**: `938-2.mif`, `990-ref-format-2.mif`, `991.mif`,
-`ImportedText.mif`, `Test03.mif`, `Test04.mif`.
+**Was Affecting**: `938-2.mif`, `990-ref-format-2.mif`, `991.mif`,
+`ImportedText.mif`, `Test03.mif`, `Test04.mif` (direct), plus
+`902-3.mif`, `938-1.mif`, `990-ref-format-1.mif` (assist via
+inline-code boundary handling).
 
 **Symptom**: When a paragraph contains multiple `<String>` runs
 separated by `<Font>` style changes (different font, weight, language,
@@ -86,17 +89,16 @@ etc.), okapi splits the translated text along the font boundaries:
   ref:    same shape, with each String pseudo-translated independently
   got:    one merged `<String 'ńōŕmàĺ ƀōĺď ńōŕmàĺ'>` losing the Font runs
 
-**Root cause**: `extractParaTextImpl` concatenates ALL String values in
-ALL ParaLines into one block, losing the Font-run structure entirely.
-The `findStringPositions` writer-side stringIdx>0 elision then
-collapses the multi-String shape into a single String on output.
-
-**Fix shape**: Treat Font changes as inline-code boundaries and emit
-the para text with `<Font>...</Font>` placeholders that survive the
-pseudo-translate transform. The skeleton store already supports
-multi-string refs (the existing `expandToEnclosingParaLine` widens
-secondary refs); extend it so the FONT skeleton lines between
-String refs are preserved.
+**Resolution**: `extractParaRuns` walks each ParaLine and emits one
+`paraTextRun` per text segment between inline-code boundaries
+(`<Font>`, `<Marker>`, `<AFrame>`, `<XRef>...<XRefEnd>`, `<TextInset>`
+… anything that isn't `<String>`/`<Char>`). Each non-empty run
+becomes its own translatable Block; the inline-code statements stay in
+skeleton text between block refs. Mirrors okapi's processPara +
+readUntilText (MIFFilter.java:636-805 + 1027-1175): okapi's `default`
+branch in readUntilText flips `significant=true` for any tag that
+isn't ParaLine/Pgf/String/Char/Marker, which closes the running
+TextFragment and starts a new one when text resumes.
 
 ### Cluster K — FNote/Para `>` close-line rewrite (1 fixture)
 
@@ -155,21 +157,30 @@ from the okapi source.
 
 ## Triage suggestion for the next iteration
 
-The single highest-value next investment is **Cluster H** (multi-Font
-runs in paragraphs) — six fixtures, and the same machinery would also
-unblock Cluster M (AFrame inline splitting) and contribute to
-Cluster L (XRef inline restructuring). It requires extending the
-para-text extraction model to preserve `<Font>` boundaries as inline
-codes, which means revisiting both `extractParaTextImpl` and the
-`findStringPositions` ref scheme.
+Cluster H is now resolved. The remaining 15 divergent fixtures break
+down into two coherent sub-projects:
 
-The Char-handling clusters (C, F, partial G) are a coherent
-sub-project: rewrite the writer/skeleton so any `<Char Foo>`
-statement whose value was inlined into the para text gets elided
-from the skeleton output.
+**Char-handling (Cluster C, F, partial G)**: 6+ fixtures
+(`1187_crlf.mif`, `1188_crlf.mif`, `987.mif`, `Test01.mif`,
+`Test01-v8.mif`, plus `990-marker.mif`/`TestMarkers.mif` for the
+HardSpace-before-Marker special case). The fix is uniform: rewrite
+the writer/skeleton so any `<Char Foo>` statement whose value was
+inlined into the para text gets elided from the skeleton output, and
+adjacent `<Char>` statements get folded into the surrounding `<String>`
+on output.
 
-Cluster K is okapi-side cosmetic and should be accepted as a
-permanent canonical-only diff.
+**Footnote/FNote ParaLine close cosmetic (Cluster K-like)**:
+`Test02-v9.mif`, `TestEncoding-v9.mif`, `TestEncoding-v10.mif`,
+`TestFootnote.mif`. Diff is a uniform 15-byte difference at the
+ParaLine/Para close inside `<FNote>`: native preserves source-faithful
+`>\n   > # end of Para`, okapi rewrites to `\n   > # end of ParaLine\n>
+# end of Para`. Either match okapi or accept as canonical-only.
+
+**Other (3 fixtures)**: `893.mif` (P:-prefix context detection),
+`895.mif` (`<Char Tab>`-before-Variable elision; same family as Char
+clusters), `896-autonumber-building-blocks.mif` (XRefDef inline
+PgfNumString building-block extraction), `TestParaLines.mif`
+(`<ElementEnd>` skeleton preservation when inside merged ParaLine).
 
 ## Files touched in this iteration
 
@@ -179,3 +190,15 @@ permanent canonical-only diff.
 - `core/formats/mif/config.go` — codeFinder rules use Go's `\x{NNNN}`
   unicode escape syntax instead of the never-compiling `\u…` form.
 - `core/formats/mif/PARITY_NOTES.md` — this file.
+
+## Files touched in the multi-Font (Cluster H) iteration
+
+- `core/formats/mif/reader.go` — replaced `extractParaTextImpl` with
+  `extractParaRuns`, which walks ParaLine children sequentially and
+  returns one `paraTextRun` per text segment between inline-code
+  boundaries (`<Font>`, `<Marker>`, `<AFrame>`, `<XRef>...<XRefEnd>`,
+  `<TextInset>`, etc.). `processContainer` and the `walkContainer`
+  branch of `findStringPositions` both consume the same run sequence,
+  so blockIdx ordering stays in lock-step. XRef-internal `<String>`
+  values are skipped (treated as part of the XRef inline code, per
+  okapi MIFFilter.java:1068).
