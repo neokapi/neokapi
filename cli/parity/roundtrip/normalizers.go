@@ -1136,16 +1136,66 @@ func mergeAdjacentCSRsInTree(node *xmlNode, mergeDefaultCSRs bool) {
 		// (their visual style genuinely differs).
 		runStart := i
 		runEnd := i + 1 // exclusive
+		// runAttrs / runPropsRef track the EFFECTIVE style of the
+		// run's content-bearing CSRs only. A content-empty CSR
+		// (isContentEmptySubtree → true) contributes no characters
+		// to the merged output, so its attributes / properties must
+		// not poison the merged style.
 		runAttrs := c.sub.start.Attr
 		runPropsRef := csrPropertiesChildren(c.sub)
+		runHasContent := !isContentEmptySubtree(c.sub)
+		if !runHasContent {
+			// Defer style adoption until we see the first
+			// content-bearing CSR in the run. Use default-only attrs
+			// as the placeholder so the default-merge transparency
+			// path picks up the next non-default neighbor's attrs.
+			runAttrs = []xml.Attr{{
+				Name:  xml.Name{Local: "AppliedCharacterStyle"},
+				Value: idmlDefaultCharacterStyle,
+			}}
+			runPropsRef = nil
+		}
 		for runEnd < len(node.children) {
 			next := node.children[runEnd]
 			if next.sub == nil || !isCSR(next.sub) {
 				break
 			}
 			nextProps := csrPropertiesChildren(next.sub)
-			propsCompatible := samePropertiesList(runPropsRef, nextProps)
-			if sameXMLAttrs(runAttrs, next.sub.start.Attr) && propsCompatible {
+			nextHasContent := !isContentEmptySubtree(next.sub)
+			// A content-empty CSR is style-transparent: it
+			// contributes nothing to the output, so any attribute
+			// (KerningMethod, Underline, …) it carries must NOT
+			// influence the merged CSR's surviving style. Mirrors
+			// upstream's StoryChildElementsMerger (operates on
+			// content-bearing styled-text elements only — empty
+			// markers contribute no element to merge).
+			//
+			// Concrete scenario this fixes (779-reference-and-tag-
+			// styles): the source has
+			// `<CSR ... KerningMethod="$ID/Optical"/>` (empty
+			// self-closing) immediately before a CSR wrapping a
+			// HyperlinkTextSource. Without this, the empty CSR's
+			// KerningMethod survived the merge and surfaced on the
+			// HTS-wrapping CSR; the reference (where Okapi dropped
+			// the empty CSR pre-merge) carried no KerningMethod on
+			// that wrapper.
+			nextAttrs := next.sub.start.Attr
+			nextEffectiveProps := nextProps
+			if !nextHasContent {
+				nextAttrs = []xml.Attr{{
+					Name:  xml.Name{Local: "AppliedCharacterStyle"},
+					Value: idmlDefaultCharacterStyle,
+				}}
+				nextEffectiveProps = nil
+			}
+			propsCompatible := samePropertiesList(runPropsRef, nextEffectiveProps)
+			if sameXMLAttrs(runAttrs, nextAttrs) && propsCompatible {
+				if !runHasContent && nextHasContent {
+					// Adopt the non-empty neighbor's real style.
+					runAttrs = next.sub.start.Attr
+					runPropsRef = nextProps
+					runHasContent = true
+				}
 				runEnd++
 				continue
 			}
@@ -1161,10 +1211,13 @@ func mergeAdjacentCSRsInTree(node *xmlNode, mergeDefaultCSRs bool) {
 				if len(runPropsRef) == 0 {
 					runPropsRef = nextProps
 				}
+				if nextHasContent {
+					runHasContent = true
+				}
 				runEnd++
 				continue
 			}
-			if mergeDefaultCSRs && isDefaultOnlyCSRAttrs(next.sub.start.Attr) && propsCompatible {
+			if mergeDefaultCSRs && isDefaultOnlyCSRAttrs(nextAttrs) && propsCompatible {
 				runEnd++
 				continue
 			}
