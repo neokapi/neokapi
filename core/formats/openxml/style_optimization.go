@@ -78,19 +78,6 @@ type runProp struct {
 	xml  string // raw element XML, e.g. `<w:rFonts w:ascii="Arial"/>`
 }
 
-// optimizationResult records the output of a style-optimisation pass.
-type optimizationResult struct {
-	// xml is the rewritten document.xml content.
-	xml []byte
-	// styles maps the synthesised styleId → its <w:rPr> body XML
-	// (children only, no surrounding <w:rPr>...</w:rPr>). The map is
-	// in insertion order via the orderedIDs slice.
-	styles map[string]synthesisedStyle
-	// orderedIDs preserves insertion order so styles.xml emits in the
-	// same order Okapi does (which depends on traversal order).
-	orderedIDs []string
-}
-
 // synthesisedStyle is a paragraph-style placeholder that was created by
 // the optimisation pass. parentID is the basedOn target ("Normal" by
 // default).
