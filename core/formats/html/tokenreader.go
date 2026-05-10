@@ -237,12 +237,22 @@ var knownLeafElements = map[atom.Atom]bool{
 // stops collecting and bounces the start tag back to the main loop so the
 // element is processed at the parent scope (mirrors the auto-close NekoHTML
 // performs and that okapi's HtmlFilter relies on).
+//
+// HTML5 §13.2.6.4.7 enumerates the start tags that, when seen in "in body"
+// insertion mode while a `<p>` is in button scope, first emit an end tag
+// for the open `<p>`: address, article, aside, blockquote, center, details,
+// dialog, dir, div, dl, fieldset, figcaption, figure, footer, h1-h6, header,
+// hgroup, main, menu, nav, ol, p, plaintext, pre, section, summary, ul, hr,
+// form, table, listing, xmp.
 var pImplicitClosers = map[atom.Atom]bool{
 	atom.Address:    true,
 	atom.Article:    true,
 	atom.Aside:      true,
 	atom.Blockquote: true,
+	atom.Center:     true,
 	atom.Details:    true,
+	atom.Dialog:     true,
+	atom.Dir:        true,
 	atom.Div:        true,
 	atom.Dl:         true,
 	atom.Fieldset:   true,
@@ -255,6 +265,7 @@ var pImplicitClosers = map[atom.Atom]bool{
 	atom.Header:  true,
 	atom.Hgroup:  true,
 	atom.Hr:      true,
+	atom.Listing: true,
 	atom.Main:    true,
 	atom.Menu:    true,
 	atom.Nav:     true,
@@ -262,8 +273,10 @@ var pImplicitClosers = map[atom.Atom]bool{
 	atom.P:       true,
 	atom.Pre:     true,
 	atom.Section: true,
+	atom.Summary: true,
 	atom.Table:   true,
 	atom.Ul:      true,
+	atom.Xmp:     true,
 }
 
 // implicitlyClosesLeaf reports whether childAtom (a block-level start tag
