@@ -20,6 +20,10 @@ const wmlNamespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/ma
 type textRun struct {
 	text  string
 	props runProps
+	// data carries raw XML payload for sentinel runs (drawing, pict,
+	// object, oMath, oMathPara, mc:AlternateContent). Empty for plain
+	// text and zero-data sentinels (tab, break).
+	data string
 }
 
 // complexFieldState tracks the state machine for complex field (fldChar) parsing.
@@ -214,6 +218,38 @@ func (p *wmlParser) parseParagraph(d *xml.Decoder, partPath string, emitBlock fu
 					return err
 				}
 
+			case "oMathPara", "oMath":
+				// Math content (Office Math Markup Language, OMML —
+				// ECMA-376 Part 1 §22.1). Word may emit <m:oMathPara>
+				// or <m:oMath> as a direct child of <w:p>, not wrapped
+				// in <w:r>. Okapi's MathSymbol / MathBlock parsers
+				// preserve the entire OMML subtree opaquely — text
+				// inside m:t is mathematical typography, not natural
+				// language — so we capture the raw XML as a sentinel
+				// run (TypeImage) so the writer round-trips the
+				// equation byte-for-byte. equation.docx is the
+				// canonical fixture.
+				raw, err := captureRawElement(d, t)
+				if err != nil {
+					return err
+				}
+				runs = append(runs, textRun{text: "", data: raw})
+
+			case "AlternateContent":
+				// Paragraph-level mc:AlternateContent (rare but legal:
+				// some authoring tools emit it as a <w:p> child rather
+				// than a <w:r> child). Same MCE semantics as the
+				// run-level handler — keep the wrapper + selected
+				// Choice, drop Fallback. ECMA-376 Part 3 §10. See
+				// captureAlternateContent for citations. Tagged with the
+				// paragraph-level sentinel  so runToXML emits it
+				// without wrapping in <w:r>.
+				raw, err := captureAlternateContent(d, t)
+				if err != nil {
+					return err
+				}
+				runs = append(runs, textRun{text: "", data: raw})
+
 			default:
 				if err := skipElement(d); err != nil {
 					return err
@@ -255,11 +291,19 @@ func (p *wmlParser) parseParagraph(d *xml.Decoder, partPath string, emitBlock fu
 				// Merge adjacent runs with same formatting
 				merged := mergeRuns(runs)
 
-				// Skip empty paragraphs
+				// Skip empty paragraphs. A "non-translatable but
+				// non-empty" paragraph (one whose only runs are
+				// drawing/pict/object sentinels) still needs its
+				// runs flushed to the skeleton so the embedded
+				// markup survives the round-trip — losing
+				// <w:drawing> here is the bug fixed in #590.
 				if isEmptyRuns(merged) {
 					p.skelWriteString("<w:p>")
 					if paraProps != "" {
 						p.skelText(paraProps)
+					}
+					for _, r := range merged {
+						p.skelText(runToXML(r))
 					}
 					p.skelWriteString("</w:p>")
 					return nil
@@ -452,10 +496,40 @@ func (p *wmlParser) parseRunWithFieldState(d *xml.Decoder, cfs *complexFieldStat
 				}
 
 			case "drawing", "pict", "object":
-				runs = append(runs, textRun{text: "\uE101", props: props}) // image sentinel
-				if err := skipElement(d); err != nil {
+				// Capture the full element verbatim so the writer can
+				// restore the original markup (drawings, OLE objects,
+				// pictures with VML/DrawingML are opaque to the
+				// translator but must round-trip byte-equivalently).
+				raw, err := captureRawElement(d, t)
+				if err != nil {
 					return nil, err
 				}
+				runs = append(runs, textRun{text: "\uE101", props: props, data: raw}) // image sentinel
+
+			case "AlternateContent":
+				// Markup Compatibility (ECMA-376 Part 3 / ISO/IEC
+				// 29500-3 \u00A710): mc:AlternateContent wraps one or more
+				// mc:Choice branches plus an optional mc:Fallback.
+				// The processor selects the first Choice whose
+				// Requires namespaces are all understood, otherwise
+				// the Fallback. Okapi unconditionally selects Choice
+				// and drops Fallback \u2014 see
+				// SkippableElement.GeneralInline.ALTERNATE_CONTENT_FALLBACK
+				// (line 56 of okapi/filters/openxml/src/main/java/
+				// net/sf/okapi/filters/openxml/SkippableElement.java)
+				// wired into RunSkippableElements (lines 45-49 and
+				// 93-105 of okapi/filters/openxml/src/main/java/
+				// net/sf/okapi/filters/openxml/RunSkippableElements.java).
+				// The wrapper itself (mc:AlternateContent + mc:Choice)
+				// stays in the output verbatim; the gold fixture
+				// gold/parts/block/document-alternate-content.xml
+				// shows mc:AlternateContent>mc:Choice surviving
+				// round-trip with Fallback stripped. Mirror that here.
+				raw, err := captureAlternateContent(d, t)
+				if err != nil {
+					return nil, err
+				}
+				runs = append(runs, textRun{text: "\uE101", props: props, data: raw})
 
 			case "footnoteReference", "endnoteReference":
 				noteID := attrVal(t, "id")
@@ -623,11 +697,19 @@ func (p *wmlParser) buildBlock(id string, runs []textRun, partPath string) *mode
 			continue
 		}
 		if strings.HasPrefix(run.text, "\uE101") {
-			// Image/drawing placeholder
+			// Image/drawing/pict/object/oMath/AlternateContent
+			// placeholder. The original element's full XML is in
+			// run.data so the writer can restore it byte-for-byte.
+			// Fall back to a self-closing <w:drawing/> if data was
+			// never populated (legacy callers).
 			spanCounter++
+			data := run.data
+			if data == "" {
+				data = "<w:drawing/>"
+			}
 			b.AddPh(fmt.Sprintf("c%d", spanCounter),
 				TypeImage, SubTypeImage,
-				"<w:drawing/>", "", "",
+				data, "", "",
 				false, false, false)
 			continue
 		}
@@ -766,10 +848,14 @@ func isSentinel(s string) bool {
 	if len(r) == 0 {
 		return false
 	}
-	if r[0] < '\uE100' || r[0] > '\uE104' {
+	if r[0] < '\uE100' || r[0] > '\uE105' {
 		return false
 	}
-	// Single-char sentinels (tab \uE100, image \uE101)
+	// Single-char sentinels (tab \uE100, image \uE101, paragraph
+	// opaque \uE105). Note: \uE105 wraps math (m:oMathPara/m:oMath)
+	// or paragraph-level mc:AlternateContent \u2014 content that is a
+	// direct <w:p> child rather than a <w:r> child, so the writer
+	// must not wrap it in <w:r> when re-emitting.
 	if len(r) == 1 {
 		return true
 	}
@@ -803,8 +889,22 @@ func allHidden(runs []textRun) bool {
 	return true
 }
 
-// runToXML converts a text run back to XML for skeleton output.
+// runToXML converts a text run back to XML for skeleton output. The
+// run is wrapped in <w:r>...</w:r>; the body is either an opaque
+// payload (drawing, pict, AlternateContent — preserved verbatim from
+// run.data) or a <w:t> text element. Empty drawings (no captured data)
+// fall back to a self-closing <w:drawing/>.
 func runToXML(r textRun) string {
+	// Paragraph-level opaque sentinel (\uE105): emit captured raw
+	// XML directly with no <w:r> wrapper. Used for math (m:oMathPara,
+	// m:oMath) and paragraph-level mc:AlternateContent that appear
+	// as direct children of <w:p>.
+	if strings.HasPrefix(r.text, "\uE105") {
+		if r.data != "" {
+			return r.data
+		}
+		return ""
+	}
 	var buf strings.Builder
 	buf.WriteString("<w:r>")
 	if !r.props.isEmpty() {
@@ -829,9 +929,27 @@ func runToXML(r textRun) string {
 		}
 		buf.WriteString("</w:rPr>")
 	}
-	buf.WriteString(`<w:t xml:space="preserve">`)
-	buf.WriteString(xmlEscape(r.text))
-	buf.WriteString("</w:t></w:r>")
+	switch {
+	case strings.HasPrefix(r.text, ""):
+		// drawing/pict/object/AlternateContent — emit captured raw XML
+		if r.data != "" {
+			buf.WriteString(r.data)
+		} else {
+			buf.WriteString("<w:drawing/>")
+		}
+	case r.text == "":
+		buf.WriteString("<w:tab/>")
+	case r.text == "\n":
+		buf.WriteString("<w:br/>")
+	case strings.HasPrefix(r.text, ":"):
+		noteID := strings.TrimPrefix(r.text, ":")
+		buf.WriteString(fmt.Sprintf(`<w:footnoteReference w:id="%s"/>`, noteID))
+	default:
+		buf.WriteString(`<w:t xml:space="preserve">`)
+		buf.WriteString(xmlEscape(r.text))
+		buf.WriteString("</w:t>")
+	}
+	buf.WriteString("</w:r>")
 	return buf.String()
 }
 
@@ -1194,6 +1312,100 @@ func captureRawElement(d *xml.Decoder, start xml.StartElement) (string, error) {
 		}
 	}
 	return buf.String(), nil
+}
+
+// captureAlternateContent serializes an <mc:AlternateContent> element,
+// preserving the wrapper plus the selected branch but dropping
+// <mc:Fallback>. Per ECMA-376 Part 3 / ISO/IEC 29500-3 §10 (Markup
+// Compatibility and Extensibility) the consumer must select the first
+// <mc:Choice Requires="..."> whose required namespaces are all
+// supported, otherwise the <mc:Fallback>. Okapi's reference filter
+// always selects the first Choice and unconditionally strips Fallback
+// (SkippableElement.GeneralInline.ALTERNATE_CONTENT_FALLBACK at line
+// 56 of okapi/filters/openxml/src/main/java/net/sf/okapi/filters/
+// openxml/SkippableElement.java; gold fixture
+// gold/parts/block/document-alternate-content.xml shows
+// <mc:AlternateContent><mc:Choice Requires="wps">...</mc:Choice></
+// mc:AlternateContent> surviving the round-trip with Fallback gone).
+// We mirror that policy: keep the wrapper, keep every Choice, drop
+// every Fallback. The wrapper element name (mc:AlternateContent) and
+// child Choice/Fallback names are matched by local-name regardless of
+// prefix so documents that bind the markup-compatibility namespace to
+// a non-default prefix still work.
+func captureAlternateContent(d *xml.Decoder, start xml.StartElement) (string, error) {
+	var buf strings.Builder
+	buf.WriteString("<")
+	writeElementName(&buf, start.Name)
+	for _, a := range start.Attr {
+		buf.WriteString(" ")
+		writeAttrName(&buf, a.Name)
+		buf.WriteString(`="`)
+		buf.WriteString(xmlEscapeAttr(a.Value))
+		buf.WriteString(`"`)
+	}
+	buf.WriteString(">")
+
+	for {
+		tok, err := d.Token()
+		if err != nil {
+			return "", err
+		}
+		switch t := tok.(type) {
+		case xml.StartElement:
+			switch t.Name.Local {
+			case "Fallback":
+				// Drop the Fallback subtree entirely. Skip without
+				// emitting anything — matches Okapi's
+				// SkippableElement.GeneralInline.ALTERNATE_CONTENT_FALLBACK
+				// behaviour described above.
+				if err := skipElement(d); err != nil {
+					return "", err
+				}
+			case "Choice":
+				// Keep the Choice element verbatim, including its
+				// Requires attribute and full subtree. Per the MCE
+				// spec a Choice consumer MAY select the first
+				// supported Choice — Okapi simply preserves every
+				// Choice and lets the rendering pipeline decide,
+				// which is byte-faithful to the source for any
+				// document that already had its wrapper survive a
+				// Word save/load round-trip.
+				raw, err := captureRawElement(d, t)
+				if err != nil {
+					return "", err
+				}
+				buf.WriteString(raw)
+			default:
+				// Defensive: unknown child of mc:AlternateContent
+				// (the schema only allows Choice and Fallback).
+				// Preserve it verbatim so unusual documents don't
+				// regress silently.
+				raw, err := captureRawElement(d, t)
+				if err != nil {
+					return "", err
+				}
+				buf.WriteString(raw)
+			}
+		case xml.EndElement:
+			if t.Name.Local == start.Name.Local {
+				buf.WriteString("</")
+				writeElementName(&buf, t.Name)
+				buf.WriteString(">")
+				return buf.String(), nil
+			}
+			// Should not happen for a well-formed document, but
+			// emit the close tag defensively.
+			buf.WriteString("</")
+			writeElementName(&buf, t.Name)
+			buf.WriteString(">")
+		case xml.CharData:
+			buf.WriteString(xmlEscape(string(t)))
+		case xml.Comment:
+			buf.WriteString("<!--")
+			buf.Write(t)
+			buf.WriteString("-->")
+		}
+	}
 }
 
 func xmlEscape(s string) string {
