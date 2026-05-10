@@ -103,6 +103,36 @@ func (p *wmlParser) parsePart(data []byte, partPath string, emitBlock func(*mode
 			case "tbl":
 				// Table — recurse to find paragraphs inside cells
 				p.skelWriteStartElement(t)
+			case "tr":
+				// Table row — inspect <w:trPr> for the row-deletion
+				// marker <w:trPr><w:del .../></w:trPr> (revision tracking,
+				// ECMA-376 Part 1 §17.13.5.13 Deleted Table Row). When
+				// AutomaticallyAcceptRevisions is true (Okapi default —
+				// ConditionalParameters.java line 813), the entire row
+				// (start tag, content, end tag) is dropped from the
+				// output. Mirrors upstream Okapi
+				// StyledTextPart.process() lines 530-551, which calls
+				// revisionPropertyTableRowDeletedSkippableElements.skip
+				// and then removes the queued row markup via
+				// delayedTableMarkup.componentsIteratorAtLastWith(
+				// LOCAL_TABLE_ROW); iterator.remove();
+				// removeComponentsWith(iterator).
+				//
+				// The row-INSERTION marker
+				// <w:trPr><w:ins .../></w:trPr> (ECMA-376 §17.13.5.16)
+				// is ALSO accepted: the inserted row stays, the <w:ins>
+				// marker inside trPr is dropped at write time by
+				// wmlRevisionParagraphMarkRE. Mirrors upstream
+				// revisionPropertyTableRowInsertedSkippableElements.skip
+				// at StyledTextPart.java lines 515-528, which drains the
+				// <w:ins> element without removing the row.
+				if (isWML(t) || isWMLNoNS(t)) && p.cfg != nil && p.cfg.AutomaticallyAcceptRevisions {
+					if err := p.handleTableRow(d, t); err != nil {
+						return err
+					}
+					continue
+				}
+				p.skelWriteStartElement(t)
 			case "footnote", "endnote":
 				// Skip the auto-generated separator footnotes (id 0 and 1)
 				id := attrVal(t, "id")
@@ -142,6 +172,169 @@ func (p *wmlParser) parsePart(data []byte, partPath string, emitBlock func(*mode
 		}
 	}
 	return nil
+}
+
+// handleTableRow processes a <w:tr> start element, deciding whether the
+// entire row should be dropped because <w:trPr> carries a <w:del> child
+// (revision tracking, ECMA-376 Part 1 §17.13.5.13). When a row-deletion
+// marker is found AND AutomaticallyAcceptRevisions is true, the helper
+// drains tokens through the matching </w:tr> end and emits no skeleton.
+//
+// If the row is NOT a deletion candidate, the helper emits the <w:tr>
+// start element, any whitespace/comments seen before the first child,
+// and then either the <w:trPr> raw bytes (if present) or the first
+// non-trPr child (re-dispatched). The caller's outer loop continues
+// reading the rest of the row's cell content.
+//
+// Mirrors upstream Okapi StyledTextPart.process() lines 530-551
+// (revisionPropertyTableRowDeletedSkippableElements + delayedTableMarkup
+// removal) and lines 515-528
+// (revisionPropertyTableRowInsertedSkippableElements drain-only).
+func (p *wmlParser) handleTableRow(d *xml.Decoder, start xml.StartElement) error {
+	// Peek at the first child token. Per ECMA-376 §17.4.79 (CT_Row),
+	// the row's child sequence is tblPrEx? trPr? content* — so trPr
+	// is at most the second child. We tolerate an optional tblPrEx
+	// preceding it. Whitespace between elements is preserved in the
+	// skeleton so we capture it as we go.
+	var pending []string // serialised whitespace / comments seen before first child
+
+	emitPending := func() {
+		for _, s := range pending {
+			p.skelText(s)
+		}
+	}
+
+	// Drain to matching </w:tr> end without emitting anything.
+	skipRowToEnd := func() error {
+		depth := 1
+		for depth > 0 {
+			tok, err := d.Token()
+			if err != nil {
+				return err
+			}
+			switch tt := tok.(type) {
+			case xml.StartElement:
+				if tt.Name.Local == "tr" {
+					depth++
+				}
+			case xml.EndElement:
+				if tt.Name.Local == "tr" {
+					depth--
+				}
+			}
+		}
+		return nil
+	}
+
+	for {
+		tok, err := d.Token()
+		if err != nil {
+			return err
+		}
+		switch tt := tok.(type) {
+		case xml.CharData:
+			// xml.CharData backing slice is reused by the decoder; copy via string().
+			pending = append(pending, xmlEscape(string(tt)))
+		case xml.Comment:
+			// xml.Comment backing slice is reused by the decoder; copy via string().
+			pending = append(pending, "<!--"+string(tt)+"-->")
+		case xml.StartElement:
+			// Found the first child element.
+			if tt.Name.Local == "trPr" {
+				// Capture raw and inspect for a top-level <w:del> child.
+				raw, err := captureRawElement(d, tt)
+				if err != nil {
+					return err
+				}
+				if trPrHasRowDeletion(raw) {
+					// Drain the rest of the row and emit nothing.
+					return skipRowToEnd()
+				}
+				// Not a deleted row — emit row start, any pending
+				// whitespace/comments, then the trPr raw. Caller
+				// continues normal processing for the rest of the row.
+				p.skelWriteStartElement(start)
+				emitPending()
+				p.skelText(raw)
+				return nil
+			}
+			// First child wasn't trPr — could be tblPrEx or a content
+			// cell (no row-property block at all). Either way, the
+			// row carries no row-revision marker; emit row start, any
+			// pending whitespace, the child start element, then
+			// hand back to the outer loop.
+			p.skelWriteStartElement(start)
+			emitPending()
+			return p.dispatchInRow(d, tt)
+		case xml.EndElement:
+			// Empty row (no children at all). Emit row start and
+			// row end, return — caller continues.
+			p.skelWriteStartElement(start)
+			emitPending()
+			p.skelWriteEndElement(tt)
+			return nil
+		}
+	}
+}
+
+// dispatchInRow forwards a start element seen as the first non-trPr
+// child of <w:tr> to the appropriate parsePart handler. Mirrors the
+// switch in parsePart for the elements that legitimately appear inside
+// a row (typically <w:tc> via the default branch, or another
+// <w:trPr>-less child).
+func (p *wmlParser) dispatchInRow(d *xml.Decoder, t xml.StartElement) error {
+	switch t.Name.Local {
+	case "tcPr":
+		raw, err := captureRawElement(d, t)
+		if err != nil {
+			return err
+		}
+		p.skelText(raw)
+	default:
+		p.skelWriteStartElement(t)
+	}
+	return nil
+}
+
+// trPrHasRowDeletion reports whether raw (the captured XML of a
+// <w:trPr> element) contains a top-level <w:del> child — the row
+// deletion revision marker per ECMA-376 Part 1 §17.13.5.13. Top-level
+// is determined by a single-element-deep scan: the marker appears as
+// a direct child of <w:trPr>, not inside any nested element. The
+// scan tolerates whitespace, attribute variations, and self-closing
+// or open/close empty forms.
+//
+// Mirrors upstream Okapi's
+// SkippableElement.RevisionProperty.TABLE_ROW_DELETED entry
+// (SkippableElement.java line 245) keyed on QName "del" with
+// parent QName "trPr" via
+// SkippableElements.RevisionProperty.CONTEXT_AWARE_REVISION_SKIPPABLE_ELEMENTS
+// (SkippableElements.java line 528-531).
+func trPrHasRowDeletion(raw string) bool {
+	// Strip the outer <w:trPr ...> and </w:trPr> wrapper, then scan
+	// only the immediate-child layer for <w:del. We use a simple
+	// depth tracker since the trPr content is small (revision
+	// markers, height, cantSplit, etc.) and rarely deeply nested.
+	dec := xml.NewDecoder(strings.NewReader(raw))
+	depth := 0
+	for {
+		tok, err := dec.Token()
+		if err != nil {
+			return false
+		}
+		switch tt := tok.(type) {
+		case xml.StartElement:
+			depth++
+			if depth == 2 && tt.Name.Local == "del" {
+				return true
+			}
+		case xml.EndElement:
+			depth--
+			if depth == 0 {
+				return false
+			}
+		}
+	}
 }
 
 // parseParagraph parses a <w:p> element and emits a Block if it contains text.

@@ -816,3 +816,196 @@ func TestParseParagraph_BookmarkSpanningParagraphs(t *testing.T) {
 	assert.Equal(t, SubTypeBookmarkEnd, runs2[1].Ph.SubType)
 	assert.Contains(t, runs2[1].Ph.Data, `w:id="2"`)
 }
+
+// TestRowDeletionAutoAccept verifies that <w:tr> rows carrying the
+// row-deletion revision marker <w:trPr><w:del .../></w:trPr> are
+// dropped entirely when AutomaticallyAcceptRevisions is true (default,
+// matching Okapi's ConditionalParameters.java line 813). The row's
+// cell contents must NOT emit blocks. Mirrors upstream
+// StyledTextPart.process() lines 530-551 — drain the row markup and
+// remove it from the queued table buffer.
+//
+// Per ECMA-376 Part 1 §17.13.5.13 (Deleted Table Row): the <w:del>
+// child of <w:trPr> indicates that the entire table row was deleted
+// in a tracked revision; an "accept" action removes the row from
+// the document.
+func TestRowDeletionAutoAccept(t *testing.T) {
+	docXML := `<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">` +
+		`<w:body>` +
+		`<w:tbl>` +
+		// Row 1: kept.
+		`<w:tr>` +
+		`<w:tc><w:p><w:r><w:t>kept</w:t></w:r></w:p></w:tc>` +
+		`</w:tr>` +
+		// Row 2: marked for deletion — must be dropped.
+		`<w:tr>` +
+		`<w:trPr><w:del w:id="1" w:author="A" w:date="2026-05-10T00:00:00Z"/></w:trPr>` +
+		`<w:tc><w:p><w:r><w:t>deleted</w:t></w:r></w:p></w:tc>` +
+		`</w:tr>` +
+		`</w:tbl>` +
+		`</w:body></w:document>`
+
+	cfg := &Config{}
+	cfg.Reset()
+	blocks := parseDocXML(t, docXML, cfg)
+
+	// Only the kept row's text becomes a block.
+	require.Len(t, blocks, 1, "deleted row's content must not produce a block")
+	runs := blocks[0].Source[0].Runs
+	require.Len(t, runs, 1)
+	require.NotNil(t, runs[0].Text)
+	assert.Equal(t, "kept", runs[0].Text.Text)
+}
+
+// TestRowDeletionAttributeVariants verifies the row-deletion detector
+// matches the marker regardless of attribute count, ordering, or
+// element form (self-closing vs open/close).
+func TestRowDeletionAttributeVariants(t *testing.T) {
+	cases := []struct {
+		name string
+		raw  string
+		want bool
+	}{
+		{
+			name: "self-closing del with attrs",
+			raw:  `<w:trPr><w:del w:id="5" w:author="User" w:date="2021-07-21T18:29:00Z"/></w:trPr>`,
+			want: true,
+		},
+		{
+			name: "open/close del",
+			raw:  `<w:trPr><w:del w:id="5" w:author="User" w:date="2021-07-21T18:29:00Z"></w:del></w:trPr>`,
+			want: true,
+		},
+		{
+			name: "del with no attrs",
+			raw:  `<w:trPr><w:del/></w:trPr>`,
+			want: true,
+		},
+		{
+			name: "del among siblings",
+			raw:  `<w:trPr><w:cantSplit/><w:del w:id="1"/></w:trPr>`,
+			want: true,
+		},
+		{
+			name: "ins (row insertion) — not a deletion",
+			raw:  `<w:trPr><w:ins w:id="1" w:author="U" w:date="2021-07-21T18:29:00Z"/></w:trPr>`,
+			want: false,
+		},
+		{
+			name: "no revision marker",
+			raw:  `<w:trPr><w:cantSplit/><w:trHeight w:val="240"/></w:trPr>`,
+			want: false,
+		},
+		{
+			name: "empty trPr",
+			raw:  `<w:trPr></w:trPr>`,
+			want: false,
+		},
+		{
+			name: "del nested inside another element — not a top-level child",
+			raw:  `<w:trPr><w:trPrChange><w:trPr><w:del/></w:trPr></w:trPrChange></w:trPr>`,
+			want: false,
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := trPrHasRowDeletion(tc.raw)
+			assert.Equal(t, tc.want, got)
+		})
+	}
+}
+
+// TestRowDeletionDisabledWhenAcceptRevisionsFalse verifies that
+// when AutomaticallyAcceptRevisions=false, deleted rows are NOT
+// dropped (mirroring upstream Okapi behaviour where the absence of
+// auto-accept causes the filter to throw or preserve the marker).
+// In our native reader we simply preserve the row + skip the
+// deletion logic; downstream the user sees the row.
+func TestRowDeletionDisabledWhenAcceptRevisionsFalse(t *testing.T) {
+	docXML := `<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">` +
+		`<w:body>` +
+		`<w:tbl>` +
+		`<w:tr>` +
+		`<w:trPr><w:del w:id="1" w:author="A" w:date="2026-05-10T00:00:00Z"/></w:trPr>` +
+		`<w:tc><w:p><w:r><w:t>deleted</w:t></w:r></w:p></w:tc>` +
+		`</w:tr>` +
+		`</w:tbl>` +
+		`</w:body></w:document>`
+
+	cfg := &Config{}
+	cfg.Reset()
+	cfg.AutomaticallyAcceptRevisions = false
+	blocks := parseDocXML(t, docXML, cfg)
+
+	// With auto-accept disabled, the row is kept and its text
+	// extracted as a normal block.
+	require.Len(t, blocks, 1)
+	runs := blocks[0].Source[0].Runs
+	require.Len(t, runs, 1)
+	require.NotNil(t, runs[0].Text)
+	assert.Equal(t, "deleted", runs[0].Text.Text)
+}
+
+// TestRowInsertionMarkerKeepsRow verifies that a row with a
+// <w:trPr><w:ins .../></w:trPr> marker (row insertion, ECMA-376 Part 1
+// §17.13.5.16) is KEPT — the inserted content is the post-revision
+// state we want. The <w:ins> marker itself is stripped at write time
+// by wmlRevisionParagraphMarkRE.
+func TestRowInsertionMarkerKeepsRow(t *testing.T) {
+	docXML := `<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">` +
+		`<w:body>` +
+		`<w:tbl>` +
+		`<w:tr>` +
+		`<w:trPr><w:ins w:id="1" w:author="A" w:date="2026-05-10T00:00:00Z"/></w:trPr>` +
+		`<w:tc><w:p><w:r><w:t>inserted</w:t></w:r></w:p></w:tc>` +
+		`</w:tr>` +
+		`</w:tbl>` +
+		`</w:body></w:document>`
+
+	cfg := &Config{}
+	cfg.Reset()
+	blocks := parseDocXML(t, docXML, cfg)
+
+	require.Len(t, blocks, 1, "row insertion must keep the row")
+	runs := blocks[0].Source[0].Runs
+	require.Len(t, runs, 1)
+	require.NotNil(t, runs[0].Text)
+	assert.Equal(t, "inserted", runs[0].Text.Text)
+}
+
+// TestNestedTableRowDeletion verifies that row-deletion handling
+// works correctly inside a nested table (table cell containing
+// another table). Mirrors fixtures
+// 848-nested-tables-with-revisions.docx where deleted rows live
+// inside a nested <w:tbl> within an outer cell.
+func TestNestedTableRowDeletion(t *testing.T) {
+	docXML := `<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">` +
+		`<w:body>` +
+		`<w:tbl>` +
+		`<w:tr>` +
+		`<w:tc>` +
+		// Nested table.
+		`<w:tbl>` +
+		`<w:tr>` +
+		`<w:tc><w:p><w:r><w:t>nested-kept</w:t></w:r></w:p></w:tc>` +
+		`</w:tr>` +
+		`<w:tr>` +
+		`<w:trPr><w:del w:id="1" w:author="A" w:date="2026-05-10T00:00:00Z"/></w:trPr>` +
+		`<w:tc><w:p><w:r><w:t>nested-deleted</w:t></w:r></w:p></w:tc>` +
+		`</w:tr>` +
+		`</w:tbl>` +
+		`</w:tc>` +
+		`</w:tr>` +
+		`</w:tbl>` +
+		`</w:body></w:document>`
+
+	cfg := &Config{}
+	cfg.Reset()
+	blocks := parseDocXML(t, docXML, cfg)
+
+	require.Len(t, blocks, 1, "nested-deleted row's content must not emit a block")
+	runs := blocks[0].Source[0].Runs
+	require.Len(t, runs, 1)
+	require.NotNil(t, runs[0].Text)
+	assert.Equal(t, "nested-kept", runs[0].Text.Text)
+}

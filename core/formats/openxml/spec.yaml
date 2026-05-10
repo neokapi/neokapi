@@ -71,7 +71,14 @@ config:
   - key: automaticallyAcceptRevisions
     type: boolean
     default: true
-    description: Apply pending tracked changes before extraction so output reflects accepted state.
+    description: |
+      Apply pending tracked changes before extraction so output reflects the
+      accepted state. When true (default, matching Okapi's
+      ConditionalParameters.java line 813), inserted runs are kept and
+      deleted runs are dropped. Rows marked with <w:trPr><w:del/>
+      (ECMA-376 §17.13.5.13) are removed entirely; rows marked with
+      <w:trPr><w:ins/> (§17.13.5.16) are kept (the <w:ins> marker itself
+      is stripped at write time).
     applies_to: [docx]
     okapi_param: bAutomaticallyAcceptRevisions
 

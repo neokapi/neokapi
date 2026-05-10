@@ -123,10 +123,14 @@ func (c *Config) Schema() *schema.FormatSchema {
 				Description: "Extract hyperlink text for translation.",
 			}),
 			"automaticallyAcceptRevisions": schema.Prop(coreschema.PropertySchema{
-				Type:        "boolean",
-				Title:       "Accept revisions automatically",
-				Default:     true,
-				Description: "Automatically accept tracked changes before extraction.",
+				Type:    "boolean",
+				Title:   "Accept revisions automatically",
+				Default: true,
+				Description: "Automatically accept tracked changes before extraction. " +
+					"When true (default, matching Okapi), inserted runs are kept and " +
+					"deleted runs are dropped; rows marked with <w:trPr><w:del/> " +
+					"(ECMA-376 §17.13.5.13) are removed entirely; rows marked with " +
+					"<w:trPr><w:ins/> (§17.13.5.16) are kept.",
 			}),
 			// Excel options
 			"translateSheetNames": schema.Prop(coreschema.PropertySchema{
