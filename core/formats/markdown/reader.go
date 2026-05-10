@@ -1283,12 +1283,36 @@ func (r *Reader) emitListItem(ctx context.Context, ch chan<- model.PartResult, n
 	// loses the "item two" translation. Mirrors okapi
 	// MarkdownParser.visitListItem, which emits the inline header line
 	// before recursing into nested children.
+	// A "mixed" list item is one whose body is more than a single
+	// inline text run — anything that needs its own block emit (sublist,
+	// code block, HTML block, blockquote, table) or a "loose-list"
+	// continuation paragraph (paragraph siblings beyond the first). The
+	// simple-emit path below handles only one Paragraph/TextBlock and
+	// silently drops everything else, so we route every multi-child or
+	// non-paragraph case through emitListItemMixed which walks ALL
+	// children. Mirrors okapi MarkdownParser.visitListItem
+	// (MarkdownParser.java:1062–1083) which calls
+	// visitor.visitChildren(listItem) unconditionally — every child node
+	// gets visited regardless of type or count.
 	hasNestedBlocks := false
+	paragraphLikeCount := 0
 	for child := n.FirstChild(); child != nil; child = child.NextSibling() {
 		switch child.(type) {
-		case *ast.List, *ast.FencedCodeBlock, *ast.CodeBlock, *ast.HTMLBlock:
+		case *ast.List, *ast.FencedCodeBlock, *ast.CodeBlock, *ast.HTMLBlock, *ast.Blockquote, *ast.Heading, *ast.ThematicBreak:
 			hasNestedBlocks = true
+		case *ast.Paragraph, *ast.TextBlock:
+			paragraphLikeCount++
+		default:
+			// Tables and other non-inline nodes also need their own
+			// block emit; route through the mixed path so walkSingle
+			// can dispatch them.
+			if child.Kind() == east.KindTable {
+				hasNestedBlocks = true
+			}
 		}
+	}
+	if paragraphLikeCount > 1 {
+		hasNestedBlocks = true
 	}
 
 	if hasNestedBlocks {
