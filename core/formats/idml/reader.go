@@ -104,6 +104,20 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		return
 	}
 
+	// Pre-scan visibility (designmap layers + spread/master TextFrames)
+	// to learn which stories should be skipped during extraction.
+	// Mirrors okapi's PasteboardItem.VisibilityFilter#filterVisible
+	// (PasteboardItem.java:192-211): a pasteboard item is dropped when
+	// its parent layer is invisible (extractHiddenLayers=false) OR when
+	// the textual spread item itself carries Visible="false"
+	// (extractHiddenPasteboardItems=false). Stories survive when ANY
+	// referencing TextFrame is visible (linked-frame chains).
+	hiddenStories, err := r.scanHiddenStories(zr)
+	if err != nil {
+		ch <- model.PartResult{Error: fmt.Errorf("idml: pre-scan: %w", err)}
+		return
+	}
+
 	// Emit root layer
 	rootLayer := &model.Layer{
 		ID:       "doc1",
@@ -124,6 +138,19 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		zf := zipFileByName(zr, sf)
 		if zf == nil {
 			continue
+		}
+
+		// Skip stories whose parent TextFrame (or layer) is hidden
+		// per the visibility pre-scan. The story file stays in the
+		// archive — only its translatable Content is suppressed; the
+		// writer copies the original Story_*.xml bytes through to the
+		// output zip. This matches okapi's behavior of preserving the
+		// document structure while excluding hidden frames from the
+		// translation surface.
+		if storyID := storyIDFromPath(sf); storyID != "" {
+			if hiddenStories[storyID] {
+				continue
+			}
 		}
 
 		storyData, err := readZipFile(zf)
@@ -738,6 +765,170 @@ func writeAttrName(buf *bytes.Buffer, name xml.Name) {
 		}
 	}
 	buf.WriteString(name.Local)
+}
+
+// storyIDFromPath extracts the Self id of a story file path, e.g.
+// "Stories/Story_u29d.xml" → "u29d". Returns "" when the path doesn't
+// match the expected layout.
+func storyIDFromPath(p string) string {
+	const prefix = "Stories/Story_"
+	const suffix = ".xml"
+	if !strings.HasPrefix(p, prefix) || !strings.HasSuffix(p, suffix) {
+		return ""
+	}
+	return p[len(prefix) : len(p)-len(suffix)]
+}
+
+// scanHiddenStories returns the set of story Self ids whose extraction
+// must be suppressed because every TextFrame referencing them is hidden
+// (TextFrame Visible="false") and/or because their parent layer is
+// hidden. Mirrors okapi's PasteboardItem.VisibilityFilter#filterVisible
+// (PasteboardItem.java:192-211) plus DesignMapFragments' Layer ingest
+// (DesignMapFragments.java:306-313).
+//
+// Spec: Adobe IDML File Format Specification §"Spread" / "TextFrame"
+// (TextFrame inherits SpreadItem; Visible attribute, default true) and
+// §"Layer" (designmap.xml's Layer Visible attribute, default true).
+//
+// A story is "hidden" when:
+//   - !ExtractHiddenLayers AND every referencing TextFrame's ItemLayer is
+//     a hidden layer (per designmap.xml), AND
+//   - !ExtractHiddenPasteboardItems AND every referencing TextFrame
+//     carries Visible="false".
+//
+// More precisely, we follow okapi's per-frame filter: each TextFrame is
+// dropped if the layer rule OR the frame rule excludes it; a story is
+// extracted iff at least one referencing frame survives both rules.
+func (r *Reader) scanHiddenStories(zr *zip.Reader) (map[string]bool, error) {
+	// Always-extract shortcut: nothing to do.
+	if r.cfg.ExtractHiddenLayers && r.cfg.ExtractHiddenPasteboardItems {
+		return nil, nil
+	}
+
+	// Layer visibility (designmap.xml). Default for a missing layer is
+	// "visible" — okapi treats unknown layer ids as an error
+	// (PasteboardItem.java:213-222), but real-world IDMLs occasionally
+	// reference ItemLayer ids that aren't declared (e.g. promoted from
+	// master spreads). Defaulting to visible avoids spurious skips.
+	layerVisible := map[string]bool{}
+	if dm := zipFileByName(zr, "designmap.xml"); dm != nil {
+		data, err := readZipFile(dm)
+		if err != nil {
+			return nil, fmt.Errorf("read designmap.xml: %w", err)
+		}
+		dec := xml.NewDecoder(bytes.NewReader(data))
+		for {
+			tok, err := dec.Token()
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			if err != nil {
+				return nil, fmt.Errorf("parse designmap.xml: %w", err)
+			}
+			se, ok := tok.(xml.StartElement)
+			if !ok || se.Name.Local != "Layer" {
+				continue
+			}
+			self := attrVal(se.Attr, "Self")
+			if self == "" {
+				continue
+			}
+			// IDML default for a missing Visible attribute is true
+			// (Adobe IDML spec §"Layer", Visible XSD default).
+			layerVisible[self] = parseBoolDefault(attrVal(se.Attr, "Visible"), true)
+		}
+	}
+
+	// Track per-story whether any referencing TextFrame survives the
+	// visibility rules. A story is hidden iff every reference fails.
+	storyAnyVisibleRef := map[string]bool{}
+	storyHasRef := map[string]bool{}
+
+	scanSpread := func(name string) error {
+		zf := zipFileByName(zr, name)
+		if zf == nil {
+			return nil
+		}
+		data, err := readZipFile(zf)
+		if err != nil {
+			return fmt.Errorf("read %s: %w", name, err)
+		}
+		dec := xml.NewDecoder(bytes.NewReader(data))
+		for {
+			tok, err := dec.Token()
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			if err != nil {
+				return fmt.Errorf("parse %s: %w", name, err)
+			}
+			se, ok := tok.(xml.StartElement)
+			if !ok || se.Name.Local != "TextFrame" {
+				continue
+			}
+			storyID := attrVal(se.Attr, "ParentStory")
+			if storyID == "" {
+				continue
+			}
+			storyHasRef[storyID] = true
+			frameVisible := parseBoolDefault(attrVal(se.Attr, "Visible"), true)
+			itemLayer := attrVal(se.Attr, "ItemLayer")
+
+			// Per-frame layer/visibility filter (mirrors okapi
+			// PasteboardItem.java:199-206).
+			if !r.cfg.ExtractHiddenLayers && itemLayer != "" {
+				if vis, known := layerVisible[itemLayer]; known && !vis {
+					continue
+				}
+			}
+			if !r.cfg.ExtractHiddenPasteboardItems && !frameVisible {
+				continue
+			}
+			storyAnyVisibleRef[storyID] = true
+		}
+		return nil
+	}
+
+	for _, f := range zr.File {
+		if strings.HasPrefix(f.Name, "Spreads/") && strings.HasSuffix(f.Name, ".xml") {
+			if err := scanSpread(f.Name); err != nil {
+				return nil, err
+			}
+		} else if strings.HasPrefix(f.Name, "MasterSpreads/") && strings.HasSuffix(f.Name, ".xml") {
+			if err := scanSpread(f.Name); err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	hidden := map[string]bool{}
+	for storyID := range storyHasRef {
+		if !storyAnyVisibleRef[storyID] {
+			hidden[storyID] = true
+		}
+	}
+	return hidden, nil
+}
+
+// parseBoolDefault parses an XML boolean attribute, returning def when
+// the value is empty. Recognises the IDML convention of "true"/"false"
+// (case-insensitive). Any other value returns def — okapi parses with
+// `Boolean.parseBoolean`, which only matches "true" (case-insensitive)
+// and treats every other value as false; we mirror that semantic but
+// keep the def fallback so a missing attribute returns the spec default.
+func parseBoolDefault(s string, def bool) bool {
+	if s == "" {
+		return def
+	}
+	switch strings.ToLower(s) {
+	case "true":
+		return true
+	case "false":
+		return false
+	}
+	// Any non-empty non-recognized value — Java Boolean.parseBoolean
+	// returns false here.
+	return false
 }
 
 // nsPrefix returns a namespace prefix for known IDML namespaces.

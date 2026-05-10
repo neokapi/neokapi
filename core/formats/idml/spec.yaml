@@ -81,6 +81,31 @@ config:
       hints that don't apply post-translation.
     okapi_param: skipDiscretionaryHyphens
 
+  - key: extractHiddenLayers
+    type: boolean
+    default: false
+    description: |
+      Extract translatable text from stories whose parent TextFrame
+      sits on a hidden InDesign layer (designmap.xml `<Layer
+      Visible="false">`). When false (the default, matching okapi),
+      hidden-layer stories are skipped during the visibility pre-scan
+      — their content stays in the archive but does not surface as
+      Blocks. Mirrors okapi's `extractHiddenLayers` parameter
+      (Parameters.java:63).
+    okapi_param: extractHiddenLayers
+
+  - key: extractHiddenPasteboardItems
+    type: boolean
+    default: false
+    description: |
+      Extract translatable text from stories whose parent TextFrame
+      on a Spread or MasterSpread carries `Visible="false"`. When
+      false (the default, matching okapi), hidden TextFrames are
+      filtered out during the visibility pre-scan and their stories
+      are skipped. Mirrors okapi's `extractHiddenPasteboardItems`
+      parameter (Parameters.java:64; PasteboardItem.java:192-211).
+    okapi_param: extractHiddenPasteboardItems
+
   # ── Formatting tolerance thresholds ───────────────────────────────
   - key: formatting
     type: string_map

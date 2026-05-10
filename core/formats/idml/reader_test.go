@@ -797,25 +797,252 @@ func TestConfig(t *testing.T) {
 	assert.Equal(t, "idml", cfg.FormatName())
 	// Defaults track okapi's IDML filter (filters/idml/Parameters.java::reset
 	// — verified against the okapi-bridge IDML filter bytecode):
-	// ExtractMasterSpreads=true, ExtractNotes=false, SkipDiscretionaryHyphens=false.
+	// ExtractMasterSpreads=true, ExtractNotes=false, SkipDiscretionaryHyphens=false,
+	// ExtractHiddenLayers=false, ExtractHiddenPasteboardItems=false.
 	// See commit b1afcc4f for the realignment that flipped these back.
 	assert.False(t, cfg.ExtractNotes)
 	assert.False(t, cfg.SkipDiscretionaryHyphens)
 	assert.True(t, cfg.ExtractMasterSpreads)
+	assert.False(t, cfg.ExtractHiddenLayers)
+	assert.False(t, cfg.ExtractHiddenPasteboardItems)
 	require.NoError(t, cfg.Validate())
 
 	err := cfg.ApplyMap(map[string]any{
-		"extractNotes":             true,
-		"skipDiscretionaryHyphens": false,
-		"extractMasterSpreads":     true,
+		"extractNotes":                 true,
+		"skipDiscretionaryHyphens":     false,
+		"extractMasterSpreads":         true,
+		"extractHiddenLayers":          true,
+		"extractHiddenPasteboardItems": true,
 	})
 	require.NoError(t, err)
 	assert.True(t, cfg.ExtractNotes)
 	assert.False(t, cfg.SkipDiscretionaryHyphens)
 	assert.True(t, cfg.ExtractMasterSpreads)
+	assert.True(t, cfg.ExtractHiddenLayers)
+	assert.True(t, cfg.ExtractHiddenPasteboardItems)
 
 	err = cfg.ApplyMap(map[string]any{"unknownKey": true})
 	require.Error(t, err)
+}
+
+// createIDMLWithSpreads is like createIDML but lets the caller supply
+// the designmap.xml body (so tests can declare layers with explicit
+// Visible attributes) and additional zip entries (Spreads/MasterSpreads
+// declaring TextFrames with ParentStory + Visible attributes). Used by
+// the visibility tests for okapi parameter parity:
+// extractHiddenLayers / extractHiddenPasteboardItems
+// (Parameters.java:63-64; PasteboardItem.java:174-223).
+func createIDMLWithSpreads(t *testing.T, designMapBody string, stories, spreads map[string]string) []byte {
+	t.Helper()
+	var buf bytes.Buffer
+	zw := zip.NewWriter(&buf)
+
+	mimeHeader := &zip.FileHeader{Name: "mimetype", Method: zip.Store}
+	mf, err := zw.CreateHeader(mimeHeader)
+	require.NoError(t, err)
+	_, err = mf.Write([]byte("application/vnd.adobe.indesign-idml-package"))
+	require.NoError(t, err)
+
+	dm, err := zw.Create("designmap.xml")
+	require.NoError(t, err)
+	_, err = dm.Write([]byte(designMapBody))
+	require.NoError(t, err)
+
+	for name, content := range stories {
+		sf, err := zw.Create("Stories/" + name)
+		require.NoError(t, err)
+		_, err = sf.Write([]byte(content))
+		require.NoError(t, err)
+	}
+	for name, content := range spreads {
+		sf, err := zw.Create(name)
+		require.NoError(t, err)
+		_, err = sf.Write([]byte(content))
+		require.NoError(t, err)
+	}
+
+	require.NoError(t, zw.Close())
+	return buf.Bytes()
+}
+
+// TestSpreadVisibilityFiltering covers the pre-scan that suppresses
+// stories whose parent TextFrame is hidden (Visible="false") on a
+// Spread or MasterSpread, OR whose ItemLayer is a hidden layer in
+// designmap.xml. Mirrors okapi's PasteboardItem.VisibilityFilter
+// (PasteboardItem.java:192-211) and DesignMapFragments layer ingest
+// (DesignMapFragments.java:306-313).
+func TestSpreadVisibilityFiltering(t *testing.T) {
+	storyVisible := `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<idPkg:Story xmlns:idPkg="http://ns.adobe.com/AdobeInDesign/idml/1.0/packaging">
+  <Story Self="uVis">
+    <ParagraphStyleRange AppliedParagraphStyle="ParagraphStyle/$ID/NormalParagraphStyle">
+      <CharacterStyleRange AppliedCharacterStyle="CharacterStyle/$ID/[No character style]">
+        <Content>Visible body</Content>
+      </CharacterStyleRange>
+    </ParagraphStyleRange>
+  </Story>
+</idPkg:Story>`
+	storyHiddenFrame := `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<idPkg:Story xmlns:idPkg="http://ns.adobe.com/AdobeInDesign/idml/1.0/packaging">
+  <Story Self="uHidF">
+    <ParagraphStyleRange AppliedParagraphStyle="ParagraphStyle/$ID/NormalParagraphStyle">
+      <CharacterStyleRange AppliedCharacterStyle="CharacterStyle/$ID/[No character style]">
+        <Content>Hidden by frame</Content>
+      </CharacterStyleRange>
+    </ParagraphStyleRange>
+  </Story>
+</idPkg:Story>`
+	storyHiddenLayer := `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<idPkg:Story xmlns:idPkg="http://ns.adobe.com/AdobeInDesign/idml/1.0/packaging">
+  <Story Self="uHidL">
+    <ParagraphStyleRange AppliedParagraphStyle="ParagraphStyle/$ID/NormalParagraphStyle">
+      <CharacterStyleRange AppliedCharacterStyle="CharacterStyle/$ID/[No character style]">
+        <Content>Hidden by layer</Content>
+      </CharacterStyleRange>
+    </ParagraphStyleRange>
+  </Story>
+</idPkg:Story>`
+
+	designMap := `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Document DOMVersion="16.0">
+  <Layer Self="layVis" Name="Visible" Visible="true"/>
+  <Layer Self="layHid" Name="Hidden" Visible="false"/>
+</Document>`
+
+	spreadXML := `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<idPkg:Spread xmlns:idPkg="http://ns.adobe.com/AdobeInDesign/idml/1.0/packaging">
+  <Spread Self="sp1">
+    <TextFrame Self="tf1" ParentStory="uVis" ItemLayer="layVis" Visible="true"/>
+    <TextFrame Self="tf2" ParentStory="uHidF" ItemLayer="layVis" Visible="false"/>
+    <TextFrame Self="tf3" ParentStory="uHidL" ItemLayer="layHid" Visible="true"/>
+  </Spread>
+</idPkg:Spread>`
+
+	data := createIDMLWithSpreads(t,
+		designMap,
+		map[string]string{
+			"Story_uVis.xml":  storyVisible,
+			"Story_uHidF.xml": storyHiddenFrame,
+			"Story_uHidL.xml": storyHiddenLayer,
+		},
+		map[string]string{
+			"Spreads/Spread_sp1.xml": spreadXML,
+		},
+	)
+
+	// Default config: both flags false → only the visible story's
+	// content survives.
+	parts := readIDMLBytes(t, data)
+	texts := testutil.BlockTexts(testutil.FilterBlocks(parts))
+	assert.ElementsMatch(t, []string{"Visible body"}, texts,
+		"default config (extractHidden*=false) should suppress hidden-frame and hidden-layer stories")
+
+	// extractHiddenPasteboardItems=true: hidden-by-frame story now
+	// appears; hidden-by-layer still suppressed.
+	cfg := &Config{}
+	cfg.Reset()
+	cfg.ExtractHiddenPasteboardItems = true
+	parts2 := readIDMLBytesWithConfig(t, data, cfg)
+	texts2 := testutil.BlockTexts(testutil.FilterBlocks(parts2))
+	assert.ElementsMatch(t, []string{"Visible body", "Hidden by frame"}, texts2,
+		"extractHiddenPasteboardItems=true should restore hidden-frame story but keep hidden-layer suppressed")
+
+	// extractHiddenLayers=true: hidden-by-layer story now appears;
+	// hidden-by-frame still suppressed.
+	cfg3 := &Config{}
+	cfg3.Reset()
+	cfg3.ExtractHiddenLayers = true
+	parts3 := readIDMLBytesWithConfig(t, data, cfg3)
+	texts3 := testutil.BlockTexts(testutil.FilterBlocks(parts3))
+	assert.ElementsMatch(t, []string{"Visible body", "Hidden by layer"}, texts3,
+		"extractHiddenLayers=true should restore hidden-layer story but keep hidden-frame suppressed")
+
+	// Both flags true: every story extracted.
+	cfg4 := &Config{}
+	cfg4.Reset()
+	cfg4.ExtractHiddenLayers = true
+	cfg4.ExtractHiddenPasteboardItems = true
+	parts4 := readIDMLBytesWithConfig(t, data, cfg4)
+	texts4 := testutil.BlockTexts(testutil.FilterBlocks(parts4))
+	assert.ElementsMatch(t, []string{"Visible body", "Hidden by frame", "Hidden by layer"}, texts4,
+		"both flags=true should extract every story")
+}
+
+// TestSpreadVisibilityLinkedFrames covers okapi's per-frame filter:
+// when multiple TextFrames reference the same story (linked frame
+// chains), the story is extracted iff at least one referencing frame
+// survives the visibility filter.
+func TestSpreadVisibilityLinkedFrames(t *testing.T) {
+	story := `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<idPkg:Story xmlns:idPkg="http://ns.adobe.com/AdobeInDesign/idml/1.0/packaging">
+  <Story Self="uShared">
+    <ParagraphStyleRange AppliedParagraphStyle="ParagraphStyle/$ID/NormalParagraphStyle">
+      <CharacterStyleRange AppliedCharacterStyle="CharacterStyle/$ID/[No character style]">
+        <Content>Shared between linked frames</Content>
+      </CharacterStyleRange>
+    </ParagraphStyleRange>
+  </Story>
+</idPkg:Story>`
+	designMap := `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Document DOMVersion="16.0">
+  <Layer Self="lay1" Name="Visible" Visible="true"/>
+</Document>`
+	// Two TextFrames share story uShared. tf1 is hidden, tf2 is
+	// visible — story should be extracted because at least one frame
+	// survives the filter.
+	spread := `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<idPkg:Spread xmlns:idPkg="http://ns.adobe.com/AdobeInDesign/idml/1.0/packaging">
+  <Spread Self="sp1">
+    <TextFrame Self="tf1" ParentStory="uShared" ItemLayer="lay1" Visible="false" NextTextFrame="tf2"/>
+    <TextFrame Self="tf2" ParentStory="uShared" ItemLayer="lay1" Visible="true" PreviousTextFrame="tf1"/>
+  </Spread>
+</idPkg:Spread>`
+
+	data := createIDMLWithSpreads(t,
+		designMap,
+		map[string]string{"Story_uShared.xml": story},
+		map[string]string{"Spreads/Spread_sp1.xml": spread},
+	)
+	parts := readIDMLBytes(t, data)
+	texts := testutil.BlockTexts(testutil.FilterBlocks(parts))
+	assert.ElementsMatch(t, []string{"Shared between linked frames"}, texts,
+		"linked frame chain with at least one visible frame should still extract")
+}
+
+// TestSpreadVisibilityMasterSpreads covers the MasterSpreads/ branch
+// of the pre-scan — okapi treats master-spread TextFrames the same as
+// spread TextFrames for the visibility filter.
+func TestSpreadVisibilityMasterSpreads(t *testing.T) {
+	story := `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<idPkg:Story xmlns:idPkg="http://ns.adobe.com/AdobeInDesign/idml/1.0/packaging">
+  <Story Self="uMaster">
+    <ParagraphStyleRange AppliedParagraphStyle="ParagraphStyle/$ID/NormalParagraphStyle">
+      <CharacterStyleRange AppliedCharacterStyle="CharacterStyle/$ID/[No character style]">
+        <Content>Master text</Content>
+      </CharacterStyleRange>
+    </ParagraphStyleRange>
+  </Story>
+</idPkg:Story>`
+	designMap := `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Document DOMVersion="16.0">
+  <Layer Self="lay1" Name="Visible" Visible="true"/>
+</Document>`
+	masterSpread := `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<idPkg:MasterSpread xmlns:idPkg="http://ns.adobe.com/AdobeInDesign/idml/1.0/packaging">
+  <MasterSpread Self="ms1">
+    <TextFrame Self="tfM" ParentStory="uMaster" ItemLayer="lay1" Visible="false"/>
+  </MasterSpread>
+</idPkg:MasterSpread>`
+
+	data := createIDMLWithSpreads(t,
+		designMap,
+		map[string]string{"Story_uMaster.xml": story},
+		map[string]string{"MasterSpreads/MasterSpread_ms1.xml": masterSpread},
+	)
+	parts := readIDMLBytes(t, data)
+	texts := testutil.BlockTexts(testutil.FilterBlocks(parts))
+	assert.Empty(t, texts,
+		"master-spread TextFrame Visible=false should suppress story (default extractHiddenPasteboardItems=false)")
 }
 
 func TestMultipleParagraphsInStory(t *testing.T) {

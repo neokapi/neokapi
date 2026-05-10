@@ -12,6 +12,20 @@ type Config struct {
 
 	// SkipDiscretionaryHyphens removes discretionary (soft) hyphens from extracted text.
 	SkipDiscretionaryHyphens bool
+
+	// ExtractHiddenLayers controls whether stories whose parent
+	// TextFrame sits on a hidden InDesign layer
+	// (designmap.xml `<Layer Visible="false">`) are extracted.
+	// Mirrors okapi's `extractHiddenLayers` parameter
+	// (Parameters.java:63, default false).
+	ExtractHiddenLayers bool
+
+	// ExtractHiddenPasteboardItems controls whether stories whose
+	// parent TextFrame on a Spread/MasterSpread carries
+	// `Visible="false"` are extracted. Mirrors okapi's
+	// `extractHiddenPasteboardItems` parameter
+	// (Parameters.java:64, default false).
+	ExtractHiddenPasteboardItems bool
 }
 
 // FormatName returns the format identifier.
@@ -20,13 +34,17 @@ func (c *Config) FormatName() string { return "idml" }
 // Reset restores default configuration values.
 //
 // Defaults track okapi's IDML filter defaults verbatim
-// (Parameters.java::reset): ExtractMasterSpreads=true,
-// ExtractNotes=false, SkipDiscretionaryHyphens=false. Matching the
-// reference engine out of the box keeps round-trip parity stable.
+// (Parameters.java::reset, lines 197-201):
+// ExtractMasterSpreads=true, ExtractNotes=false,
+// SkipDiscretionaryHyphens=false, ExtractHiddenLayers=false,
+// ExtractHiddenPasteboardItems=false. Matching the reference engine
+// out of the box keeps round-trip parity stable.
 func (c *Config) Reset() {
 	c.ExtractMasterSpreads = true
 	c.ExtractNotes = false
 	c.SkipDiscretionaryHyphens = false
+	c.ExtractHiddenLayers = false
+	c.ExtractHiddenPasteboardItems = false
 }
 
 // Validate checks configuration validity.
@@ -42,6 +60,10 @@ func (c *Config) ApplyMap(values map[string]any) error {
 			c.ExtractNotes = toBool(val)
 		case "skipDiscretionaryHyphens":
 			c.SkipDiscretionaryHyphens = toBool(val)
+		case "extractHiddenLayers":
+			c.ExtractHiddenLayers = toBool(val)
+		case "extractHiddenPasteboardItems":
+			c.ExtractHiddenPasteboardItems = toBool(val)
 		default:
 			return fmt.Errorf("idml: unknown config key %q", key)
 		}
