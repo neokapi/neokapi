@@ -94,7 +94,19 @@ func (c *Config) Reset() {
 	c.IncludeStyles = nil
 	c.UseCodeFinder = false
 	c.CodeFinderRules = nil
-	c.ComplexFieldDefinitionsToExtract = nil
+	// Okapi defaults the extract list to {"HYPERLINK"} — see
+	// ConditionalParameters.java line 826-827 of okapi/filters/openxml/
+	// src/main/java/net/sf/okapi/filters/openxml/ConditionalParameters.
+	// java:
+	//   tsComplexFieldDefinitionsToExtract = new TreeSet<>();
+	//   tsComplexFieldDefinitionsToExtract.add("HYPERLINK");
+	// HYPERLINK fields carry user-visible cached display text that
+	// represents the link's anchor in the source language; without it
+	// in the extract set the display text is dropped from translation
+	// and the HYPERLINK field round-trips with the source-language
+	// anchor still present (a real semantic divergence on every
+	// HYPERLINK fixture, e.g. 768.docx).
+	c.ComplexFieldDefinitionsToExtract = []string{"HYPERLINK"}
 	// Okapi's AllowWordStyleOptimisation parameter defaults to true (see
 	// upstream ConditionalParameters.java line 813:
 	// AllowWordStyleOptimisation=true). Mirroring the default keeps the

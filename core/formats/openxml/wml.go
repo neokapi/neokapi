@@ -367,17 +367,33 @@ func (p *wmlParser) parseParagraph(d *xml.Decoder, partPath string, emitBlock fu
 				paraStyleID = styleID
 
 			case "r":
-				// Text run — may contain fldChar/instrText for complex fields
-				run, err := p.parseRunWithFieldState(d, &cfs)
+				// Text run — may contain fldChar/instrText for complex
+				// fields. parseRunWithFieldState collapses such runs to
+				// a single SubTypeFieldChar sentinel carrying the raw
+				// <w:r>...</w:r>; surface them through the field-aware
+				// keep/drop logic below.
+				rawStart := startElementToRaw(t)
+				run, err := p.parseRunWithFieldState(d, &cfs, rawStart)
 				if err != nil {
 					return err
 				}
-				// If we're inside a non-extractable complex field, skip the runs
+				run = filterFieldRuns(run, &cfs)
+				// If we're inside a non-extractable complex field, drop
+				// any plain text runs (the field-markup sentinel runs
+				// have already been retained by filterFieldRuns); only
+				// the cached display text from non-extractable fields is
+				// suppressed per upstream Okapi
+				// (RunParser.parseComplexField, lines 501-506).
 				if cfs.active && !cfs.extractable {
-					continue
+					run = dropTextRuns(run)
 				}
-				// If we're inside an extractable field but before the separator, skip
+				// If we're inside an extractable field but before the
+				// separator, drop translatable text but keep field
+				// markup (begin / instrText / separate sentinels).
 				if cfs.active && cfs.extractable && !cfs.atResult {
+					run = dropTextRuns(run)
+				}
+				if len(run) == 0 {
 					continue
 				}
 				if inHyperlink {
@@ -497,6 +513,40 @@ func (p *wmlParser) parseParagraph(d *xml.Decoder, partPath string, emitBlock fu
 					return err
 				}
 				runs = append(runs, textRun{text: "", data: raw})
+
+			case "fldSimple":
+				// Simple field — `<w:fldSimple w:instr="...">...</
+				// w:fldSimple>` per ECMA-376 Part 1 §17.16.6. Per
+				// upstream Okapi the entire fldSimple element is
+				// gathered and flushed as a single opaque markup chunk
+				// (BlockParser.parse lines 242-250 of okapi/filters/
+				// openxml/src/main/java/net/sf/okapi/filters/openxml/
+				// BlockParser.java); nothing inside is treated as
+				// translatable. Mirror that here: capture the whole
+				// element raw and hand it to the block as a
+				// SubTypeFieldSimple sentinel so the writer emits it
+				// verbatim with no modifications.
+				raw, err := captureRawElement(d, t)
+				if err != nil {
+					return err
+				}
+				// Protect every nested <w:rPr> inside the captured
+				// payload from the writer's stripWMLSkippableElements
+				// pass: Okapi's BlockParser routes fldSimple through
+				// the gather-events-into-markup path (lines 242-250 of
+				// okapi/filters/openxml/src/main/java/net/sf/okapi/
+				// filters/openxml/BlockParser.java) which preserves the
+				// inner runs verbatim — no skippable-element stripping
+				// applied. So inner rPrs that carry only `<w:noProof/>`
+				// (e.g. AUTHOR cached-result run in Document-with-
+				// formula-and-tabs.docx) need to round-trip with the
+				// noProof intact, not stripped + empty-rPr-collapsed.
+				raw = protectFieldPayloadFromStripping(raw)
+				if inHyperlink {
+					hyperlinkRuns = append(hyperlinkRuns, textRun{text: ":fldSimple", data: raw})
+				} else {
+					runs = append(runs, textRun{text: ":fldSimple", data: raw})
+				}
 
 			default:
 				if err := skipElement(d); err != nil {
@@ -651,14 +701,19 @@ func (p *wmlParser) parseRevisionInsertion(d *xml.Decoder, wrapperName string, r
 		case xml.StartElement:
 			switch t.Name.Local {
 			case "r":
-				run, err := p.parseRunWithFieldState(d, cfs)
+				rawStart := startElementToRaw(t)
+				run, err := p.parseRunWithFieldState(d, cfs, rawStart)
 				if err != nil {
 					return err
 				}
+				run = filterFieldRuns(run, cfs)
 				if cfs.active && !cfs.extractable {
-					continue
+					run = dropTextRuns(run)
 				}
 				if cfs.active && cfs.extractable && !cfs.atResult {
+					run = dropTextRuns(run)
+				}
+				if len(run) == 0 {
 					continue
 				}
 				*runs = append(*runs, run...)
@@ -690,10 +745,77 @@ func (p *wmlParser) parseRevisionInsertion(d *xml.Decoder, wrapperName string, r
 // parseRunWithFieldState parses a <w:r> element while tracking complex field state.
 // It delegates to parseRun for content extraction, but handles fldChar and instrText
 // to maintain the field state machine across runs within a paragraph.
-func (p *wmlParser) parseRunWithFieldState(d *xml.Decoder, cfs *complexFieldState) ([]textRun, error) {
+//
+// When the run carries field markup (fldChar begin/separate/end or
+// instrText), the *entire* <w:r> — rPr, all children, end tag — is also
+// captured raw and returned as a SubTypeFieldChar sentinel run so the
+// writer can round-trip the markup verbatim. This mirrors upstream
+// Okapi's RunParser.parseComplexField behaviour (lines 461-542 of
+// okapi/filters/openxml/src/main/java/net/sf/okapi/filters/openxml/
+// RunParser.java) which routes fldChar/instrText runs through
+// runBuilder.addToMarkup so they survive on the block as opaque markup
+// chunks regardless of whether the field code is in
+// ConditionalParameters.tsComplexFieldDefinitionsToExtract.
+//
+// rawStart is the raw XML form of the <w:r> start tag (including the
+// open angle bracket and attributes) produced by the caller via
+// startElementToString. The function appends children verbatim to a
+// raw buffer alongside parsing them for content; if any child triggers
+// the field-markup path, the assembled raw block is returned as the
+// sentinel run's data field. Otherwise the raw buffer is discarded.
+func (p *wmlParser) parseRunWithFieldState(d *xml.Decoder, cfs *complexFieldState, rawStart string) ([]textRun, error) {
 	var props runProps
 	var runs []textRun
 	hasProps := false
+
+	// rawBuf accumulates the verbatim XML serialisation of the run as
+	// we decode it, so we can hand back an opaque copy when fldChar /
+	// instrText is detected. Initialised lazily on first need; backLog
+	// holds any post-<w:r> content already consumed before raw capture
+	// engaged (e.g. an rPr that precedes the fldChar in document order
+	// — `<w:r><w:rPr><w:b/></w:rPr><w:fldChar .../></w:r>` is the
+	// canonical shape in 768.docx). Without backLog the rPr would be
+	// dropped from the captured payload and the field-marker run would
+	// emit without its source rPr.
+	var rawBuf strings.Builder
+	var rawCaptured bool
+	var hasFieldMarkup bool
+	var backLog strings.Builder
+	startRawCapture := func() {
+		if rawCaptured {
+			return
+		}
+		rawBuf.WriteString(rawStart)
+		if backLog.Len() > 0 {
+			rawBuf.WriteString(backLog.String())
+			backLog.Reset()
+		}
+		rawCaptured = true
+	}
+	// emitRaw appends s to rawBuf when raw capture is active, otherwise
+	// holds it in backLog so a later startRawCapture() can replay any
+	// pre-trigger content (rPr that precedes the field marker, etc.).
+	emitRaw := func(s string) {
+		if rawCaptured {
+			rawBuf.WriteString(s)
+		} else {
+			backLog.WriteString(s)
+		}
+	}
+	// When the caller is already inside an active complex field whose
+	// content is being preserved verbatim — i.e. between begin and end
+	// for any non-extractable field, or between begin and separate for
+	// any field — every run in that span is opaque markup per upstream
+	// Okapi (RunParser.parseComplexField, lines 501-506: events route
+	// to runBuilder.addToMarkup unless extractable && atResult). Engage
+	// raw capture eagerly so display-text runs lacking fldChar /
+	// instrText (e.g. the cached `<w:r><w:rPr><w:noProof/></w:rPr>
+	// <w:t>I am a textfield.</w:t></w:r>` between separate and end in
+	// Textfield.docx) survive the round-trip with their rPr intact.
+	if cfs.active && (!cfs.extractable || !cfs.atResult) {
+		startRawCapture()
+		hasFieldMarkup = true
+	}
 
 	for {
 		tok, err := d.Token()
@@ -701,17 +823,85 @@ func (p *wmlParser) parseRunWithFieldState(d *xml.Decoder, cfs *complexFieldStat
 			return nil, err
 		}
 
+		// When raw capture is active, mirror the token verbatim into
+		// rawBuf alongside whatever specialised handling the switch
+		// performs below. The handlers themselves call into helpers
+		// (readCharData, parseRunProps, skipElement, captureRawElement)
+		// that consume tokens from d *without* re-emitting them, so the
+		// raw mirror has to be set up before each consumer call.
 		switch t := tok.(type) {
 		case xml.StartElement:
 			switch t.Name.Local {
 			case "rPr":
 				hasProps = true
-				props, err = parseRunProps(d, p.cfg.AggressiveCleanup)
+				// Capture rPr raw before consuming its tokens so we can
+				// preserve the run's run-properties verbatim on opaque
+				// emission. parseRunProps drains through the matching
+				// </w:rPr> via skipElement, so without pre-capture the
+				// raw buffer would lose the rPr subtree entirely.
+				rPrRaw, err := captureRawElement(d, t)
+				if err != nil {
+					return nil, err
+				}
+				// Pre-strip noProof / lang / rPrChange / etc. from the
+				// captured rPr to mirror upstream Okapi
+				// RunSkippableElements (lines 50-62 of okapi/filters/
+				// openxml/src/main/java/net/sf/okapi/filters/openxml/
+				// RunSkippableElements.java).
+				stripped := stripFieldRPrSkippables(rPrRaw)
+				// rPr policy on the field-markup capture path mirrors
+				// the upstream RunParser flow:
+				//   - When raw capture is already engaged (i.e. this
+				//     run is an interior field-content run, e.g. a
+				//     <w:rPr><w:noProof/></w:rPr> on a cached display
+				//     text run inside an active complex field) the
+				//     stripped rPr — even if empty — is included in
+				//     the opaque payload. Okapi's RunParser drops the
+				//     containing run into runBuilder.addToMarkup
+				//     verbatim (RunParser.parseComplexField lines
+				//     501-506) so the empty <w:rPr/> survives the
+				//     round-trip (Textfield.docx is the canonical
+				//     fixture).
+				//   - When raw capture has not yet engaged (this run
+				//     is the entry-point of the field, i.e. carries
+				//     the begin / instrText / separate / end marker
+				//     and the rPr appears in document order BEFORE
+				//     the marker), only stash the rPr in backLog if
+				//     stripping leaves a non-empty body. Okapi's
+				//     RunParser routes the entry-point run's rPr
+				//     through parseRunPropertiesAndRunStyle (line
+				//     159) and ultimately through
+				//     RunProperties.Default.getEvents (line 580 of
+				//     RunProperties.java) which returns an empty
+				//     event list for empty properties — so the rPr
+				//     wrapper is dropped from the output entirely
+				//     when nothing remains after stripping. The
+				//     768.docx HYPERLINK fixtures rely on the
+				//     non-empty branch (rPr carries <w:b/>); the
+				//     ComplexTextfield.docx IF-begin run relies on
+				//     the empty branch (rPr only had <w:lang/>).
+				if rawCaptured {
+					emitRaw(stripped)
+				} else if !isStrippedRPrEmpty(stripped) {
+					emitRaw(stripped)
+				}
+				// Re-parse the captured rPr for typed properties.
+				props, err = parseRunPropsFromRaw(rPrRaw, p.cfg.AggressiveCleanup)
 				if err != nil {
 					return nil, err
 				}
 
 			case "fldChar":
+				hasFieldMarkup = true
+				startRawCapture()
+				// Mirror the fldChar element raw (including its ffData
+				// subtree if present, e.g. Textfield.docx) into the
+				// buffer.
+				fldRaw, err := captureRawElement(d, t)
+				if err != nil {
+					return nil, err
+				}
+				rawBuf.WriteString(fldRaw)
 				// Complex field state machine transition
 				fldCharType := attrVal(t, "fldCharType")
 				switch fldCharType {
@@ -737,30 +927,80 @@ func (p *wmlParser) parseRunWithFieldState(d *xml.Decoder, cfs *complexFieldStat
 						cfs.nestingLevel = 0
 					}
 				}
-				if err := skipElement(d); err != nil {
-					return nil, err
-				}
 
 			case "instrText":
+				hasFieldMarkup = true
+				startRawCapture()
+				// Mirror the instrText element raw, preserving the
+				// xml:space="preserve" attribute that field codes
+				// commonly carry (e.g. ` PAGE \* MERGEFORMAT `).
+				rawBuf.WriteString("<")
+				writeElementName(&rawBuf, t.Name)
+				for _, a := range t.Attr {
+					rawBuf.WriteString(" ")
+					writeAttrName(&rawBuf, a.Name)
+					rawBuf.WriteString(`="`)
+					rawBuf.WriteString(xmlEscapeAttr(a.Value))
+					rawBuf.WriteString(`"`)
+				}
+				rawBuf.WriteString(">")
 				// Field instruction text — extract the field code name
 				text, err := readCharData(d)
 				if err != nil {
 					return nil, err
 				}
+				rawBuf.WriteString(xmlEscape(text))
+				rawBuf.WriteString("</")
+				writeElementName(&rawBuf, t.Name)
+				rawBuf.WriteString(">")
 				if cfs.active && cfs.nestingLevel == 1 && cfs.fieldCode == "" {
 					cfs.fieldCode = complexFieldCodeName(text)
 					cfs.extractable = p.isExtractableField(cfs.fieldCode)
 				}
 
 			case "t":
+				// Capture <w:t ...> open tag verbatim into rawBuf
+				// before draining its char data, so opaque emission
+				// preserves the text exactly as authored (including
+				// xml:space="preserve" when present).
+				if rawCaptured {
+					rawBuf.WriteString("<")
+					writeElementName(&rawBuf, t.Name)
+					for _, a := range t.Attr {
+						rawBuf.WriteString(" ")
+						writeAttrName(&rawBuf, a.Name)
+						rawBuf.WriteString(`="`)
+						rawBuf.WriteString(xmlEscapeAttr(a.Value))
+						rawBuf.WriteString(`"`)
+					}
+					rawBuf.WriteString(">")
+				}
 				text, err := readCharData(d)
 				if err != nil {
 					return nil, err
+				}
+				if rawCaptured {
+					rawBuf.WriteString(xmlEscape(text))
+					rawBuf.WriteString("</")
+					writeElementName(&rawBuf, t.Name)
+					rawBuf.WriteString(">")
 				}
 				_ = hasProps
 				runs = append(runs, textRun{text: text, props: props})
 
 			case "br":
+				if rawCaptured {
+					rawBuf.WriteString("<")
+					writeElementName(&rawBuf, t.Name)
+					for _, a := range t.Attr {
+						rawBuf.WriteString(" ")
+						writeAttrName(&rawBuf, a.Name)
+						rawBuf.WriteString(`="`)
+						rawBuf.WriteString(xmlEscapeAttr(a.Value))
+						rawBuf.WriteString(`"`)
+					}
+					rawBuf.WriteString("/>")
+				}
 				runs = append(runs, textRun{
 					text:  "\n",
 					props: runProps{}, // break has no formatting
@@ -770,6 +1010,11 @@ func (p *wmlParser) parseRunWithFieldState(d *xml.Decoder, cfs *complexFieldStat
 				}
 
 			case "tab":
+				if rawCaptured {
+					rawBuf.WriteString("<")
+					writeElementName(&rawBuf, t.Name)
+					rawBuf.WriteString("/>")
+				}
 				if p.cfg.TabAsCharacter {
 					runs = append(runs, textRun{text: "\t", props: props})
 				} else {
@@ -787,6 +1032,9 @@ func (p *wmlParser) parseRunWithFieldState(d *xml.Decoder, cfs *complexFieldStat
 				raw, err := captureRawElement(d, t)
 				if err != nil {
 					return nil, err
+				}
+				if rawCaptured {
+					rawBuf.WriteString(raw)
 				}
 				runs = append(runs, textRun{text: "\uE101", props: props, data: raw}) // image sentinel
 
@@ -813,10 +1061,25 @@ func (p *wmlParser) parseRunWithFieldState(d *xml.Decoder, cfs *complexFieldStat
 				if err != nil {
 					return nil, err
 				}
+				if rawCaptured {
+					rawBuf.WriteString(raw)
+				}
 				runs = append(runs, textRun{text: "\uE101", props: props, data: raw})
 
 			case "footnoteReference", "endnoteReference":
 				noteID := attrVal(t, "id")
+				if rawCaptured {
+					rawBuf.WriteString("<")
+					writeElementName(&rawBuf, t.Name)
+					for _, a := range t.Attr {
+						rawBuf.WriteString(" ")
+						writeAttrName(&rawBuf, a.Name)
+						rawBuf.WriteString(`="`)
+						rawBuf.WriteString(xmlEscapeAttr(a.Value))
+						rawBuf.WriteString(`"`)
+					}
+					rawBuf.WriteString("/>")
+				}
 				runs = append(runs, textRun{text: "\uE102:" + noteID, props: props}) // footnote sentinel
 				if err := skipElement(d); err != nil {
 					return nil, err
@@ -824,6 +1087,18 @@ func (p *wmlParser) parseRunWithFieldState(d *xml.Decoder, cfs *complexFieldStat
 
 			case "sym":
 				char := attrVal(t, "char")
+				if rawCaptured {
+					rawBuf.WriteString("<")
+					writeElementName(&rawBuf, t.Name)
+					for _, a := range t.Attr {
+						rawBuf.WriteString(" ")
+						writeAttrName(&rawBuf, a.Name)
+						rawBuf.WriteString(`="`)
+						rawBuf.WriteString(xmlEscapeAttr(a.Value))
+						rawBuf.WriteString(`"`)
+					}
+					rawBuf.WriteString("/>")
+				}
 				if char != "" {
 					runs = append(runs, textRun{text: "[sym:" + char + "]", props: props})
 				}
@@ -832,13 +1107,41 @@ func (p *wmlParser) parseRunWithFieldState(d *xml.Decoder, cfs *complexFieldStat
 				}
 
 			default:
-				if err := skipElement(d); err != nil {
-					return nil, err
+				// Unknown / unsupported child element. Mirror raw if
+				// we're already capturing \u2014 losing it on the opaque
+				// path would corrupt the field markup.
+				if rawCaptured {
+					raw, err := captureRawElement(d, t)
+					if err != nil {
+						return nil, err
+					}
+					rawBuf.WriteString(raw)
+				} else {
+					if err := skipElement(d); err != nil {
+						return nil, err
+					}
 				}
 			}
 
 		case xml.EndElement:
 			if t.Name.Local == "r" {
+				if hasFieldMarkup {
+					rawBuf.WriteString("</")
+					writeElementName(&rawBuf, t.Name)
+					rawBuf.WriteString(">")
+					// Replace any decoded child-runs with a single
+					// SubTypeFieldChar sentinel carrying the verbatim
+					// <w:r>...</w:r> payload so the writer can emit it
+					// untouched. parseRunPropsFromRaw still populated
+					// `props` so the run participates correctly in
+					// downstream merging / common-rPr computation, but
+					// the payload itself is opaque.
+					return []textRun{{
+						text:  "\uE108:fldChar",
+						props: props,
+						data:  rawBuf.String(),
+					}}, nil
+				}
 				return runs, nil
 			}
 		}
@@ -927,7 +1230,8 @@ func (p *wmlParser) parseInlineSDT(d *xml.Decoder) ([]textRun, error) {
 			case "r":
 				// SDT runs don't track complex field state — use a throwaway state
 				var cfs complexFieldState
-				r, err := p.parseRunWithFieldState(d, &cfs)
+				rawStart := startElementToRaw(t)
+				r, err := p.parseRunWithFieldState(d, &cfs, rawStart)
 				if err != nil {
 					return nil, err
 				}
@@ -1067,6 +1371,37 @@ func (p *wmlParser) buildBlock(id string, runs []textRun, partPath, commonRPrXML
 				false, false, false)
 			continue
 		}
+		if isFieldSentinel(run.text) {
+			// Complex-field markup chunk. Per upstream Okapi
+			// RunParser.parseComplexField (lines 461-542 of
+			// okapi/filters/openxml/src/main/java/net/sf/okapi/filters/
+			// openxml/RunParser.java) every fldChar (begin/separate/
+			// end) and instrText event flows through
+			// runBuilder.addToMarkup so the original markup survives
+			// the round-trip even when the field code is not in
+			// tsComplexFieldDefinitionsToExtract. Same shape applies to
+			// fldSimple per BlockParser.parse lines 242-250.
+			//
+			// Close any active formatting first so the field markup
+			// doesn't get trapped inside an <w:r>...rPr wrapper meant
+			// for the surrounding translatable text. The captured
+			// payload already carries its own <w:r>...</w:r> (or
+			// <w:fldSimple>...</w:fldSimple>) wrapper.
+			if activeProps != nil && !activeProps.isEmpty() {
+				activeProps.appendClosingRuns(b, &spanCounter)
+				activeProps = nil
+			}
+			subType := SubTypeFieldChar
+			if strings.HasPrefix(run.text, "\uE108:fldSimple") {
+				subType = SubTypeFieldSimple
+			}
+			spanCounter++
+			b.AddPh(fmt.Sprintf("c%d", spanCounter),
+				TypeField, subType,
+				run.data, "", "",
+				false, false, false)
+			continue
+		}
 
 		// Handle line break
 		if run.text == "\n" {
@@ -1180,7 +1515,7 @@ func isSentinel(s string) bool {
 	if len(r) == 0 {
 		return false
 	}
-	if r[0] < '\uE100' || r[0] > '\uE107' {
+	if r[0] < '\uE100' || r[0] > '\uE108' {
 		return false
 	}
 	// Single-char sentinels (tab \uE100, image \uE101, paragraph
@@ -1192,8 +1527,62 @@ func isSentinel(s string) bool {
 		return true
 	}
 	// Multi-char sentinels must have ':' separator
-	// (\uE102:id, \uE103:data, \uE104:data, \uE106:id, \uE107:id)
+	// (\uE102:id, \uE103:data, \uE104:data, \uE106:id, \uE107:id,
+	// \uE108:fldChar / \uE108:fldSimple)
 	return len(r) >= 2 && r[1] == ':'
+}
+
+// isFieldSentinel reports whether a textRun's text marker indicates
+// captured complex-field markup: a <w:r> wrapping fldChar / instrText
+// (subtype suffix `fldChar`) or a <w:fldSimple>...</w:fldSimple>
+// (subtype suffix `fldSimple`). Carrier sentinel is U+E108. Per
+// upstream Okapi (RunParser.parseComplexField, lines 461-542 of
+// okapi/filters/openxml/src/main/java/net/sf/okapi/filters/openxml/
+// RunParser.java; BlockParser.parse for fldSimple, lines 242-250 of
+// BlockParser.java) such markup is preserved as opaque chunks on the
+// block irrespective of whether the field code is in
+// tsComplexFieldDefinitionsToExtract \u2014 the writer dumps Ph.Data
+// verbatim with no <w:r> wrapper because the <w:r> open/close (or
+// <w:fldSimple> open/close) is part of the captured payload.
+func isFieldSentinel(text string) bool {
+	if text == "" {
+		return false
+	}
+	r := []rune(text)
+	if len(r) == 0 {
+		return false
+	}
+	return r[0] == '\uE108'
+}
+
+// filterFieldRuns is currently a pass-through that documents the run
+// shape coming out of parseRunWithFieldState: when a field-marker
+// child was seen the returned slice is exactly one SubTypeFieldChar
+// sentinel run carrying the raw <w:r>...</w:r> payload; otherwise
+// it's a regular slice of translatable text runs. The function exists
+// as a future extension point if per-run policy needs to evolve (e.g.
+// dropping field markup inside hidden text). At present we always
+// keep the captured field markup so it survives the round-trip.
+func filterFieldRuns(runs []textRun, _ *complexFieldState) []textRun {
+	return runs
+}
+
+// dropTextRuns removes plain translatable runs from a slice while
+// keeping every sentinel run (field markup, drawings, bookmarks, \u2026).
+// Mirrors upstream Okapi's parseComplexField branching at lines 501-
+// 506 of RunParser.java where, when the field is non-extractable or
+// the reader is still before the separator, content events are routed
+// to runBuilder.addToMarkup (preserved as opaque markup) rather than
+// to the run text. Translatable text alongside the field markup never
+// reaches the block, but the field markup itself does.
+func dropTextRuns(runs []textRun) []textRun {
+	out := runs[:0]
+	for _, r := range runs {
+		if isSentinel(r.text) {
+			out = append(out, r)
+		}
+	}
+	return out
 }
 
 // isBookmarkSentinel reports whether a textRun's text marker
@@ -1275,6 +1664,13 @@ func runToXML(r textRun) string {
 	// \u00A717.13.6.1 / \u00A717.13.6.2 specify <w:bookmarkStart> /
 	// <w:bookmarkEnd> as direct children of <w:p>, not <w:r>.
 	if isBookmarkSentinel(r.text) {
+		return r.data
+	}
+	// Field-markup sentinel (\uE108) \u2014 captured payload already
+	// carries the full <w:r>...</w:r> (for fldChar / instrText) or
+	// <w:fldSimple>...</w:fldSimple> wrapper, so emit verbatim with
+	// no additional wrapping. Mirrors the bookmark path above.
+	if isFieldSentinel(r.text) {
 		return r.data
 	}
 	var buf strings.Builder
@@ -1633,9 +2029,17 @@ func (p *wmlParser) extractTxbxParagraph(dec *xml.Decoder, out *strings.Builder,
 				paraProps = raw
 				paraStyleID = styleID
 			case "r":
-				rs, err := p.parseRunWithFieldState(dec, &cfs)
+				rawStart := startElementToRaw(t)
+				rs, err := p.parseRunWithFieldState(dec, &cfs, rawStart)
 				if err != nil {
 					return err
+				}
+				rs = filterFieldRuns(rs, &cfs)
+				if cfs.active && !cfs.extractable {
+					rs = dropTextRuns(rs)
+				}
+				if cfs.active && cfs.extractable && !cfs.atResult {
+					rs = dropTextRuns(rs)
 				}
 				runs = append(runs, rs...)
 			case "bookmarkStart", "bookmarkEnd":
@@ -1647,6 +2051,14 @@ func (p *wmlParser) extractTxbxParagraph(dec *xml.Decoder, out *strings.Builder,
 				if captured {
 					runs = append(runs, bookmark)
 				}
+			case "fldSimple":
+				// See parseParagraph for the fldSimple rationale.
+				raw, err := captureRawElement(dec, t)
+				if err != nil {
+					return err
+				}
+				raw = protectFieldPayloadFromStripping(raw)
+				runs = append(runs, textRun{text: ":fldSimple", data: raw})
 			case "proofErr", "commentRangeStart", "commentRangeEnd",
 				"permStart", "permEnd":
 				if err := skipElement(dec); err != nil {
@@ -1904,6 +2316,162 @@ func wrapDrawingXMLForDecode(xmlData string) string {
 // LOCAL_NON_VISUAL_CANVAS_PROPERTY ("cNvPr").
 func isDrawingPropertyElement(t xml.StartElement) bool {
 	return t.Name.Local == "docPr" || t.Name.Local == "cNvPr"
+}
+
+// startElementToRaw serialises the open form of an xml.StartElement to
+// the same raw XML shape captureRawElement uses — prefixed local name,
+// attribute pairs in source order, attributes xml-attr-escaped, no
+// closing slash. Used by callers of parseRunWithFieldState that need
+// to hand the function the raw <w:r ...> open tag so it can rebuild
+// the verbatim run payload when field markup is detected inside.
+// fieldRPrKeepEmptyMarker is the comment marker emitted inside an
+// otherwise-empty `<w:rPr></w:rPr>` captured from a complex-field run
+// so the writer's stripWMLSkippableElements pass leaves the wrapper
+// in place. Removed by postWML before the document is written to the
+// output zip. Per upstream Okapi (RunParser.parseComplexField, lines
+// 461-542 of okapi/filters/openxml/src/main/java/net/sf/okapi/filters/
+// openxml/RunParser.java) field-bearing runs flow through
+// runBuilder.addToMarkup verbatim, bypassing
+// RunProperties.Default.getEvents (RunProperties.java line 580) which
+// would otherwise collapse the empty rPr — so the emitted shape is
+// `<w:r><w:rPr/><w:t>...</w:t></w:r>` rather than the bare
+// `<w:r><w:t>...</w:t></w:r>` Okapi emits for non-field runs.
+const fieldRPrKeepEmptyMarker = "<!--KAPI-FIELD-RPR-->"
+
+// fieldRPrStripREs are the per-element regexes used by
+// stripFieldRPrSkippables to remove run-property children that Okapi
+// strips via RunSkippableElements (RunSkippableElements.java lines
+// 50-62 of okapi/filters/openxml/src/main/java/net/sf/okapi/filters/
+// openxml/RunSkippableElements.java). The complete list per upstream:
+//   - <w:lang>            (RUN_PROPERTY_LANGUAGE)
+//   - <w:noProof>         (RUN_PROPERTY_NO_SPELLING_OR_GRAMMAR)
+//   - <w:rPrChange>       (RUN_PROPERTIES_CHANGE — revision tracking)
+// Each regex matches both self-closing and open/close forms and
+// allows attributes / xmlns declarations on the start tag.
+var fieldRPrStripREs = []*regexp.Regexp{
+	regexp.MustCompile(`<w:lang\b[^>]*/>|<w:lang\b[^>]*>.*?</w:lang>`),
+	regexp.MustCompile(`<w:noProof\b[^>]*/>|<w:noProof\b[^>]*>.*?</w:noProof>`),
+	regexp.MustCompile(`<w:rPrChange\b[^>]*/>|<w:rPrChange\b[^>]*>.*?</w:rPrChange>`),
+}
+
+// fieldRPrEmptyRE matches an `<w:rPr>` that is empty after
+// stripFieldRPrSkippables removed every child. Captures the open and
+// close tags so the helper can replace the run with the
+// fieldRPrKeepEmptyMarker variant.
+var fieldRPrEmptyRE = regexp.MustCompile(`<w:rPr>\s*</w:rPr>|<w:rPr\s*/>`)
+
+// isStrippedRPrEmpty reports whether stripFieldRPrSkippables's output
+// represents an empty rPr — either the bare `<w:rPr></w:rPr>` /
+// `<w:rPr/>` shape OR the keep-empty marker variant
+// `<w:rPr><!--KAPI-FIELD-RPR--></w:rPr>` the helper emits when the
+// original rPr collapsed to empty after skippable-element stripping.
+// Used by the entry-point-run path of parseRunWithFieldState to drop
+// the rPr entirely when nothing of substance survives — mirroring
+// upstream Okapi's RunProperties.Default.getEvents (line 580 of
+// RunProperties.java) which returns no events for empty properties.
+func isStrippedRPrEmpty(stripped string) bool {
+	if fieldRPrEmptyRE.MatchString(stripped) {
+		return true
+	}
+	return stripped == "<w:rPr>"+fieldRPrKeepEmptyMarker+"</w:rPr>"
+}
+
+// protectFieldPayloadFromStripping wraps an opaque field payload (a
+// captured <w:fldSimple>...</w:fldSimple> blob, or any future opaque
+// field chunk) in element renames so the writer's
+// stripWMLSkippableElements pass leaves the payload alone. Per
+// upstream Okapi BlockParser.parse
+// (lines 242-250 of okapi/filters/openxml/src/main/java/net/sf/okapi/
+// filters/openxml/BlockParser.java) the entire <w:fldSimple> element
+// is gathered into markup verbatim — so any <w:noProof/> / <w:lang/>
+// / <w:rPrChange/> inside it must survive the round-trip with no
+// stripping (Document-with-formula-and-tabs.docx is the canonical
+// AUTHOR-fldSimple fixture: source has `<w:rPr><w:noProof/></w:rPr>`,
+// reference round-trip preserves it). Rename each strippable element's
+// open tag (e.g. `w:noProof` → `w:noProofKAPIKEEP`) so the writer's
+// stripWMLSkippableElements regex does not match. postWML reverses
+// the rename after stripping.
+//
+// This protect/unprotect dance is the cleanest way to scope a
+// document-wide regex strip to "everything except these regions",
+// short of refactoring stripWMLSkippableElements to be position-aware
+// (which would require an XML parse pass over the full document.xml
+// per write, and is overkill for a handful of opaque field payloads).
+func protectFieldPayloadFromStripping(payload string) string {
+	for _, name := range fieldKeepElementNames {
+		// Match `<w:NAME` (open tag, attrs follow) — replace with
+		// `<w:NAMEKAPIKEEP`. Match `</w:NAME` (close tag) — same. The
+		// body of the element is left untouched. Self-closing forms
+		// (`<w:NAME/>`) are also covered by the open-tag rename
+		// because the trailing `/>` is part of attribute-territory.
+		open := "<w:" + name
+		openKeep := "<w:" + name + fieldKeepElementSuffix
+		payload = strings.ReplaceAll(payload, open, openKeep)
+		closeTag := "</w:" + name + ">"
+		closeKeep := "</w:" + name + fieldKeepElementSuffix + ">"
+		payload = strings.ReplaceAll(payload, closeTag, closeKeep)
+	}
+	return payload
+}
+
+// fieldKeepElementNames lists the WordprocessingML element local
+// names that the writer's stripWMLSkippableElements pass would strip
+// from the entire document.xml — protectFieldPayloadFromStripping
+// renames each occurrence inside an opaque field payload so the strip
+// passes them by. Mirrors stripWMLSkippableElements / wmlNoProofRE /
+// wmlStrippableElementRE in writer.go: any element name added there
+// also needs to appear here so fldSimple round-trip stays clean.
+var fieldKeepElementNames = []string{
+	"noProof",
+	"lang",
+	"bidiVisual",
+	"rPrChange",
+	"moveToRange",
+	"moveFromRange",
+	"moveToRangeStart",
+	"moveToRangeEnd",
+	"moveFromRangeStart",
+	"moveFromRangeEnd",
+}
+
+// fieldKeepElementSuffix is the rename suffix appended by
+// protectFieldPayloadFromStripping. Chosen so the resulting element
+// name is well-formed XML, has no chance of colliding with a real
+// WordprocessingML element name, and is cheap to scan-and-replace in
+// postWML.
+const fieldKeepElementSuffix = "KAPIKEEP"
+
+// stripFieldRPrSkippables takes the raw `<w:rPr>...</w:rPr>` blob
+// captured from a complex-field run, strips the always-stripped
+// children (noProof, lang, rPrChange — the same set
+// RunSkippableElements drops upstream), and re-emits the wrapper. If
+// the wrapper would collapse to empty, emits
+// `<w:rPr>fieldRPrKeepEmptyMarker</w:rPr>` so the writer's empty-
+// container regex skips it. Pure string transform — keeps the prefix
+// shape (e.g. `w:`) the captureRawElement output uses.
+func stripFieldRPrSkippables(rPrXML string) string {
+	for _, re := range fieldRPrStripREs {
+		rPrXML = re.ReplaceAllString(rPrXML, "")
+	}
+	if fieldRPrEmptyRE.MatchString(rPrXML) {
+		return "<w:rPr>" + fieldRPrKeepEmptyMarker + "</w:rPr>"
+	}
+	return rPrXML
+}
+
+func startElementToRaw(start xml.StartElement) string {
+	var b strings.Builder
+	b.WriteString("<")
+	writeElementName(&b, start.Name)
+	for _, a := range start.Attr {
+		b.WriteString(" ")
+		writeAttrName(&b, a.Name)
+		b.WriteString(`="`)
+		b.WriteString(xmlEscapeAttr(a.Value))
+		b.WriteString(`"`)
+	}
+	b.WriteString(">")
+	return b.String()
 }
 
 // containsComplexField reports whether a captured <w:p> XML

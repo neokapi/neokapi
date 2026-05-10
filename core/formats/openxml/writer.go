@@ -619,6 +619,26 @@ func (w *Writer) writeFromSkeleton(origZR *zip.Reader, zw *zip.Writer, buf *byte
 		if !isDOCX {
 			return data
 		}
+		// Strip the field-rPr keep-empty marker the reader inserted to
+		// prevent stripWMLSkippableElements from collapsing
+		// `<w:rPr></w:rPr>` inside complex-field runs (see
+		// fieldRPrKeepEmptyMarker in wml.go for the upstream-Okapi
+		// citation). The marker only appears inside word/*.xml parts;
+		// the contains-check is the cheap fast path.
+		if bytes.Contains(data, []byte(fieldRPrKeepEmptyMarker)) {
+			data = bytes.ReplaceAll(data, []byte(fieldRPrKeepEmptyMarker), nil)
+		}
+		// Reverse protectFieldPayloadFromStripping (see wml.go for the
+		// upstream-Okapi citation): any element renamed with the keep
+		// suffix is restored to its original WordprocessingML name now
+		// that stripWMLSkippableElements has already run. The contains
+		// check is the cheap fast path.
+		if bytes.Contains(data, []byte(fieldKeepElementSuffix)) {
+			for _, name := range fieldKeepElementNames {
+				data = bytes.ReplaceAll(data, []byte("<w:"+name+fieldKeepElementSuffix), []byte("<w:"+name))
+				data = bytes.ReplaceAll(data, []byte("</w:"+name+fieldKeepElementSuffix+">"), []byte("</w:"+name+">"))
+			}
+		}
 		// Style optimisation is only applied to PARAGRAPH-bearing parts;
 		// styles.xml itself is handled separately (style injection at
 		// the end of this function).
@@ -1015,6 +1035,18 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string) string {
 				} else {
 					buf.WriteString(`<w:r>` + r.Ph.Data + `</w:r>`)
 				}
+			case TypeField:
+				// Complex field markup (fldChar / instrText) and
+				// fldSimple — the captured payload already carries its
+				// own <w:r>...</w:r> or <w:fldSimple>...</w:fldSimple>
+				// wrapper plus rPr, so we emit verbatim with no extra
+				// wrapping or per-paragraph rPr injection. Per upstream
+				// Okapi (RunParser.parseComplexField, lines 461-542 of
+				// okapi/filters/openxml/src/main/java/net/sf/okapi/
+				// filters/openxml/RunParser.java; BlockParser.parse for
+				// fldSimple, lines 242-250) the run that hosts a field
+				// marker is preserved as a single opaque markup chunk.
+				buf.WriteString(r.Ph.Data)
 			default:
 				buf.WriteString(r.Ph.Data)
 			}

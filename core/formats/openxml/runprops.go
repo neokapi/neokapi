@@ -278,6 +278,49 @@ func parseRunProps(d *xml.Decoder, aggressive bool) (runProps, error) {
 	}
 }
 
+// parseRunPropsFromRaw re-parses an already-captured <w:rPr>...</w:rPr>
+// blob (as produced by captureRawElement) for typed properties. Used by
+// callers that need to keep the raw rPr around for opaque emission yet
+// also need the strongly-typed runProps view (e.g. complex-field run
+// capture, where the entire <w:r> is preserved verbatim AND the typed
+// props feed downstream merging / style-optimisation passes).
+//
+// The captured blob uses the bare "w:" prefix (the writer's canonical
+// prefix table — captureRawElement → writeElementName) but carries no
+// xmlns binding, so encoding/xml would otherwise leave the prefix
+// unbound and downstream serialisation via prefixForNamespace would
+// drop the prefix entirely. Wrap the blob in a synthetic root element
+// that declares the standard WML namespaces so the decoder hydrates
+// the same Name.Space URIs the on-the-fly path produces (compare
+// runprops.go:484 writeStartTag, which keys off prefixForNamespace).
+func parseRunPropsFromRaw(rPrXML string, aggressive bool) (runProps, error) {
+	wrapped := `<root xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"` +
+		` xmlns:w14="http://schemas.microsoft.com/office/word/2010/wordml"` +
+		` xmlns:w15="http://schemas.microsoft.com/office/word/2012/wordml"` +
+		` xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"` +
+		` xmlns="http://schemas.openxmlformats.org/wordprocessingml/2006/main">` +
+		rPrXML + `</root>`
+	d := xml.NewDecoder(strings.NewReader(wrapped))
+	// Drain past <root> and the inner <w:rPr> start tag so
+	// parseRunProps sees the rPr children, matching the original
+	// on-the-fly call shape (which is invoked already positioned past
+	// the <w:rPr> start element by the parent <w:r> loop).
+	startsSeen := 0
+	for {
+		tok, err := d.Token()
+		if err != nil {
+			return runProps{}, err
+		}
+		if _, ok := tok.(xml.StartElement); ok {
+			startsSeen++
+			if startsSeen == 2 {
+				break
+			}
+		}
+	}
+	return parseRunProps(d, aggressive)
+}
+
 // skipElement skips past the current element and all its children.
 func skipElement(d *xml.Decoder) error {
 	depth := 1
