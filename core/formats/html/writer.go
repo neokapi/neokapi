@@ -220,6 +220,13 @@ func htmlEncodeBlockText(s string, block *model.Block) string {
 // placeholder data so attribute values get substituted with translations
 // at write time. Sentinels survive pseudo-translation because tools treat
 // placeholder Data as opaque.
+//
+// rewriteInlineTagWithRefs always positions sentinels inside HTML
+// attribute values (i.e. between the opening and closing `"` of an
+// attribute), so the substituted text needs HTML-attribute-value
+// encoding: any `"` in the translated text becomes `&#34;` (matching
+// okapi's HtmlEncoder NUMERIC_SINGLE_QUOTES default), and bare `&`
+// not introducing an existing entity becomes `&amp;`.
 func (w *Writer) substituteBlockRefs(s string, blocks map[string]*model.Block) string {
 	const sentinel = "\x00BLOCK:"
 	if !strings.Contains(s, sentinel) {
@@ -243,10 +250,22 @@ func (w *Writer) substituteBlockRefs(s string, blocks map[string]*model.Block) s
 		}
 		blockID := rest[:j]
 		if blk, ok := blocks[blockID]; ok {
-			b.WriteString(w.getBlockText(blk))
+			b.WriteString(encodeForAttributeValue(w.getBlockText(blk)))
 		}
 		s = rest[j+1:]
 	}
+}
+
+// encodeForAttributeValue escapes a substituted-into-attribute-value
+// string so it remains parseable inside `attr="…"`. Only `"` is escaped
+// (not `<`, `>`, or `&`) — okapi's HtmlEncoder default NUMERIC_SINGLE_QUOTES
+// quote mode emits `&#34;` for embedded double-quotes in attribute
+// values and leaves the rest intact, matching how the source is read.
+func encodeForAttributeValue(s string) string {
+	if !strings.ContainsAny(s, `"`) {
+		return s
+	}
+	return strings.ReplaceAll(s, `"`, "&#34;")
 }
 
 // writeReparse re-parses the original HTML, patches translations, and renders.
