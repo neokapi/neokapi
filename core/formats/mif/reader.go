@@ -245,6 +245,36 @@ func (r *Reader) findStringPositions(rawText string, stmts []*mifStatement) []st
 						}
 					}
 				}
+				// <Marker> entries inside ParaLines emit standalone
+				// MText blocks (interleaved with the para text in source
+				// order). Mirrors okapi MIFFilter.java:1128-1133 +
+				// processMarker (829-883) — markers with MTypeName
+				// 'Index' (when ExtractIndexMarkers=true) or 'Hypertext'
+				// (when ExtractLinks=true) become translatable referent
+				// units.
+				for _, gc := range child.children {
+					if gc.tag != "ParaLine" {
+						continue
+					}
+					for _, lc := range gc.children {
+						if lc.tag != "Marker" {
+							continue
+						}
+						if !r.extractMarker(lc) {
+							continue
+						}
+						mt := markerTextValue(lc)
+						if mt == "" {
+							continue
+						}
+						items = append(items, itemInfo{
+							blockIdx:  blockIdx,
+							strings:   []string{mt},
+							searchTag: "MText",
+						})
+						blockIdx++
+					}
+				}
 				text := extractParaText(child)
 				if strings.TrimSpace(text) == "" {
 					continue
@@ -820,6 +850,38 @@ func firstStringValue(stmt *mifStatement) (string, bool) {
 	return "", false
 }
 
+// extractMarker reports whether a <Marker> statement should be
+// extracted as translatable (its <MText> value becomes a Block).
+// Mirrors okapi processMarker (MIFFilter.java:842-857): only Index
+// markers (when ExtractIndexMarkers) and Hypertext markers (when
+// ExtractLinks) are extracted.
+func (r *Reader) extractMarker(stmt *mifStatement) bool {
+	for _, c := range stmt.children {
+		if c.tag != "MTypeName" {
+			continue
+		}
+		switch c.value {
+		case "Index":
+			return r.cfg.ExtractIndexMarkers
+		case "Hypertext":
+			return r.cfg.ExtractLinks
+		}
+		return false
+	}
+	return false
+}
+
+// markerTextValue returns the <MText> child's value of a <Marker>, or
+// "" if missing. Mirrors okapi MIFFilter.java:860 (readUntil("MText;")).
+func markerTextValue(stmt *mifStatement) string {
+	for _, c := range stmt.children {
+		if c.tag == "MText" {
+			return c.value
+		}
+	}
+	return ""
+}
+
 // processVariableFormats walks the <VariableFormats> block and emits one
 // Block per <VariableDef `...'> child, mirroring okapi's MIFFilter which
 // extracts the variable text as translatable. The block carries the
@@ -973,6 +1035,40 @@ func (r *Reader) processContainer(ctx context.Context, ch chan<- model.PartResul
 					b := model.NewBlock(fmt.Sprintf("tu%d", blockCounter), ggc.value)
 					b.Name = fmt.Sprintf("pgf_num_format_inline.%d", blockCounter)
 					r.applyCodeFinderWithExtras(b, []*regexp.Regexp{pgfNumFormatLeadingPrefix})
+					if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: b}) {
+						return blockCounter, dataCounter
+					}
+				}
+			}
+
+			// <Marker> MText extraction inside ParaLines, mirroring
+			// okapi MIFFilter.java:1128-1133 + processMarker (829-883).
+			// Index markers (when ExtractIndexMarkers=true) and
+			// Hypertext markers (when ExtractLinks=true) become
+			// translatable referent units. Emitted before the Para text
+			// because <Marker> always appears before the surrounding
+			// <String> in source order — keeping the emit order matched
+			// to the file order keeps findStringPositions' linear scan
+			// monotonic.
+			for _, gc := range child.children {
+				if gc.tag != "ParaLine" {
+					continue
+				}
+				for _, lc := range gc.children {
+					if lc.tag != "Marker" {
+						continue
+					}
+					if !r.extractMarker(lc) {
+						continue
+					}
+					mt := markerTextValue(lc)
+					if mt == "" {
+						continue
+					}
+					blockCounter++
+					b := model.NewBlock(fmt.Sprintf("tu%d", blockCounter), mt)
+					b.Name = fmt.Sprintf("marker.%d", blockCounter)
+					r.applyCodeFinder(b)
 					if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: b}) {
 						return blockCounter, dataCounter
 					}
