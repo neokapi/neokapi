@@ -312,19 +312,6 @@ func (r *Reader) parseStory(ctx context.Context, ch chan<- model.PartResult,
 		depth        int        // elemDepth at which this PSR was opened
 		attrs        []xml.Attr // start-tag attributes (for cross-PSR merge equality check)
 		bareCSRAttrs []xml.Attr // attrs used for the synth CSR wrapping bare children (nil → default)
-		// runningCSRAttrs is the AppliedCharacterStyle attribute set
-		// of the MOST RECENTLY CLOSED sibling at this PSR's child
-		// scope that contributed a character-style range (real CSR,
-		// or HTS whose last styled child carries one). Mirrors
-		// upstream StoryChildElementsParser's `currentStyleRanges`
-		// (StoryChildElementsParser.java:57, 92, 291) which is the
-		// running effective StyleRanges; when the next bare-HTS
-		// sibling appears as a direct child of PSR,
-		// parseAsFromCharacterStyleRange (line 132-136) wraps it
-		// with `currentStyleRanges.characterStyleRange()` rather
-		// than the default. nil → no prior real CSR sibling, fall
-		// back to default `[No character style]`.
-		runningCSRAttrs []xml.Attr
 	}
 	// Cross-PSR merge tracking. Mirrors upstream
 	// StoryChildElementsWriter (writeAsStyledTextElement, lines 70-89)
@@ -468,18 +455,45 @@ func (r *Reader) parseStory(ctx context.Context, ch chan<- model.PartResult,
 	// Properties nested deeper (inside the Cell's PSR/CSR/HyperlinkText
 	// Source/...) are NOT direct Cell children and must survive.
 	var cellDepthStack []int
+	// runningEffectiveCSRAttrs mirrors upstream's
+	// StoryChildElementsParser.this.currentStyleRanges.characterStyleRange()
+	// (StoryChildElementsParser.java:57). It is the LAST styled-text
+	// element's effective character-style attributes, carried across
+	// PSR boundaries (StoryParser.java:79 propagates the inner
+	// parser's currentStyleRanges to the next sibling parser). Used
+	// when an HTS opens with AppliedCharacterStyle="n" (STYLE_NONE):
+	// upstream merges referenceElementStyleRanges with this running
+	// scope (StoryChildElementsParser.java:504), so the synthetic CSR
+	// wrapping bare HTS children must carry the merged
+	// AppliedCharacterStyle (= running's, since merge picks the
+	// argument's name on collision per StyleRange.java:139-147).
+	// Updated at every real CSR close that observed content. nil →
+	// no prior styled-text element seen, falls back to default
+	// "[No character style]" (the StoryParser initial value at
+	// StoryParser.java:53-54).
+	var runningEffectiveCSRAttrs []xml.Attr
 	inCSR := 0
 	elemDepth := 0
 	openSynthCSRWith := func(appliedCharStyle string) {
 		commitPending()
+		if appliedCharStyle == "" {
+			appliedCharStyle = "CharacterStyle/$ID/[No character style]"
+		}
 		if r.skeletonStore != nil {
-			if appliedCharStyle == "" {
-				appliedCharStyle = "CharacterStyle/$ID/[No character style]"
-			}
 			skelBuf.WriteString(`<CharacterStyleRange AppliedCharacterStyle="`)
 			skelBuf.WriteString(xmlEscapeAttr(appliedCharStyle))
 			skelBuf.WriteString(`">`)
 		}
+		// Update running effective char style to reflect this synth
+		// wrap. Mirrors upstream's parseContent / parseBreak setting
+		// currentStyleRanges = styleRanges (StoryChildElementsParser.java:370,
+		// 378) — bare children inside this synth wrap will see this as
+		// the running. The wrap effectively represents a styled-text
+		// scope whose chars = appliedCharStyle.
+		runningEffectiveCSRAttrs = []xml.Attr{{
+			Name:  xml.Name{Local: "AppliedCharacterStyle"},
+			Value: appliedCharStyle,
+		}}
 	}
 	openSynthCSR := func() {
 		openSynthCSRWith("CharacterStyle/$ID/[No character style]")
@@ -494,34 +508,80 @@ func (r *Reader) parseStory(ctx context.Context, ch chan<- model.PartResult,
 			csrHadContent[n-1] = true
 		}
 	}
-	// openSynthCSRMerged emits a synthetic CSR whose attributes are
-	// the parent CSR's attribute set with AppliedCharacterStyle
-	// overridden by the supplied value. Mirrors upstream's
-	// StyleRange.mergedAttributesWith (StyleRange.java:149-181) where
-	// right-side (HTS-applied) attributes win on name match while
-	// other parent attributes survive intact.
-	openSynthCSRMerged := func(parentAttrs []xml.Attr, appliedCharStyle string) {
-		commitPending()
-		if r.skeletonStore == nil {
+	// updateRunningFromBareContent is called for each bare
+	// Content/Br element processed DIRECTLY inside a real CSR (not
+	// PSR-direct, not HTS-direct — those go through synth wraps that
+	// update running themselves). Mirrors upstream's parseContent /
+	// parseBreak (StoryChildElementsParser.java:370, 378) which set
+	// this.currentStyleRanges = styleRanges, where styleRanges =
+	// (paragraphStyleRange, characterStyleRange) of the enclosing CSR
+	// (parseFromCharacterStyleRange line 256, 261). The resulting
+	// running.characterStyleRange = enclosing CSR's chars, which then
+	// propagates to the next sibling's HTS-with-"n" merge
+	// (childElementsBaseStyleRanges argument).
+	//
+	// MUST be called AFTER openBareIfDirect so the HTS/PSR-direct
+	// synth wrap (if any) has set running first; this function then
+	// no-ops because content sitting in a synth wrap is not direct
+	// inside the outer real CSR.
+	updateRunningFromBareContent := func() {
+		if len(csrAttrStack) == 0 {
 			return
 		}
+		// Inside an HTS-direct synth wrap (HTS body, no inner real
+		// CSR): the synth wrap has already updated running. We're
+		// not direct inside the outer real CSR.
+		if len(htsStack) > 0 && htsStack[len(htsStack)-1].bareCSROpen {
+			return
+		}
+		// Inside a PSR-direct synth wrap: the synth wrap has already
+		// updated running.
+		if len(psrStack) > 0 && psrStack[len(psrStack)-1].bareCSROpen {
+			return
+		}
+		runningEffectiveCSRAttrs = csrAttrStack[len(csrAttrStack)-1]
+	}
+	// openSynthCSRWithAttrs emits a synthetic CSR with the supplied
+	// attribute set, with AppliedCharacterStyle overridden by the
+	// supplied value (mirrors upstream's mergedAttributesWith semantics
+	// at StyleRange.java:149-181 — the synthetic argument's
+	// AppliedCharacterStyle wins on collision). All other attrs from
+	// `attrs` (e.g. Underline, KerningMethod) survive intact. Updates
+	// runningEffectiveCSRAttrs to the resulting attr set so subsequent
+	// bare children inside this wrap see the correct running.
+	openSynthCSRWithAttrs := func(attrs []xml.Attr, appliedCharStyle string) {
+		commitPending()
 		if appliedCharStyle == "" {
 			appliedCharStyle = "CharacterStyle/$ID/[No character style]"
 		}
-		skelBuf.WriteString(`<CharacterStyleRange AppliedCharacterStyle="`)
-		skelBuf.WriteString(xmlEscapeAttr(appliedCharStyle))
-		skelBuf.WriteString(`"`)
-		for _, a := range parentAttrs {
+		if r.skeletonStore != nil {
+			skelBuf.WriteString(`<CharacterStyleRange AppliedCharacterStyle="`)
+			skelBuf.WriteString(xmlEscapeAttr(appliedCharStyle))
+			skelBuf.WriteString(`"`)
+			for _, a := range attrs {
+				if a.Name.Local == "AppliedCharacterStyle" {
+					continue
+				}
+				skelBuf.WriteString(" ")
+				writeAttrName(&skelBuf, a.Name)
+				skelBuf.WriteString(`="`)
+				skelBuf.WriteString(xmlEscapeAttr(a.Value))
+				skelBuf.WriteString(`"`)
+			}
+			skelBuf.WriteString(">")
+		}
+		merged := make([]xml.Attr, 0, len(attrs)+1)
+		merged = append(merged, xml.Attr{
+			Name:  xml.Name{Local: "AppliedCharacterStyle"},
+			Value: appliedCharStyle,
+		})
+		for _, a := range attrs {
 			if a.Name.Local == "AppliedCharacterStyle" {
 				continue
 			}
-			skelBuf.WriteString(" ")
-			writeAttrName(&skelBuf, a.Name)
-			skelBuf.WriteString(`="`)
-			skelBuf.WriteString(xmlEscapeAttr(a.Value))
-			skelBuf.WriteString(`"`)
+			merged = append(merged, a)
 		}
-		skelBuf.WriteString(">")
+		runningEffectiveCSRAttrs = merged
 	}
 	closeSynthCSR := func() {
 		commitPending()
@@ -532,27 +592,39 @@ func (r *Reader) parseStory(ctx context.Context, ch chan<- model.PartResult,
 	// htsAppliedCharStyle resolves the AppliedCharacterStyle to use
 	// for synthetic CSRs wrapping bare children of the innermost
 	// HTS. Mirrors StoryChildElementsParser.java:486-505 — when the
-	// HTS carries "n" (STYLE_NONE_VALUE), bare children fall back to
-	// the parent CSR's AppliedCharacterStyle (or "[No character
-	// style]" if the HTS isn't inside a CSR); otherwise the HTS's
-	// own AppliedCharacterStyle is used. Real adjacent CSR siblings
-	// can override the synthetic wrapping during the canonical
-	// normalizer's merge-default-csrs pass.
+	// HTS carries "n" (STYLE_NONE_VALUE), the merge of
+	// referenceElementStyleRanges with childElementsBaseStyleRanges
+	// (line 504) picks up the running effective character style's
+	// name (per StyleRange.mergedWith returning the argument's name,
+	// StyleRange.java:139-147). When the HTS carries an explicit
+	// AppliedCharacterStyle, that wins (line 491-502).
+	//
+	// Subsequent inner styled-text children of the HTS update
+	// childElementsCurrentStyleRanges
+	// (StoryChildElementsParser.java:541-542), so subsequent synth
+	// wraps for bare children that follow an inner real CSR pick up
+	// the CURRENT running effective char style — not a snapshot from
+	// HTS-open. We mirror that by reading the LIVE
+	// runningEffectiveCSRAttrs, which is updated at every CSR close
+	// (real CSR closes propagate via the global update path).
 	htsAppliedCharStyle := func() string {
 		if len(htsStack) == 0 {
 			return ""
 		}
-		top := htsStack[len(htsStack)-1]
-		s := top.appliedCharStyle
-		if s != "" && s != "n" {
-			return s
-		}
-		// HTS has "n" or no value → fall back to parent CSR's
-		// AppliedCharacterStyle. Mirrors mergedWith semantics where
-		// the right-side merges with the left-side base style ranges.
-		if pa := attrVal(top.parentCSRAttrs, "AppliedCharacterStyle"); pa != "" {
+		// Always use the LIVE running effective character style.
+		// At HTS open, running was already set to the merged
+		// childElementsCurrentStyleRanges (per HTS-open update
+		// below), so the FIRST wrap reads the correct initial value.
+		// After inner real CSRs / bare content update running, the
+		// NEXT wrap reads the updated value. Mirrors upstream's
+		// childElementsCurrentStyleRanges tracking
+		// (StoryChildElementsParser.java:541-542) which is the same
+		// state for every wrap inside the HTS body.
+		if pa := attrVal(runningEffectiveCSRAttrs, "AppliedCharacterStyle"); pa != "" {
 			return pa
 		}
+		// No prior styled-text element seen → default
+		// "[No character style]" (StoryParser.java:53-54 initial).
 		return "CharacterStyle/$ID/[No character style]"
 	}
 	// isPSRDirect reports whether the element about to be entered is
@@ -582,7 +654,21 @@ func (r *Reader) parseStory(ctx context.Context, ch chan<- model.PartResult,
 				return
 			}
 			if !top.bareCSROpen {
-				openSynthCSRMerged(top.parentCSRAttrs, htsAppliedCharStyle())
+				// HTS bare-child synth wrap: emit a CSR carrying the
+				// LIVE running effective char style attrs. Mirrors
+				// upstream's StoryChildElementsWriter — every Content
+				// inside an HTS body carries its own styleRanges (set
+				// by parseContent at line 370 from current
+				// childElementsCurrentStyleRanges), and the writer
+				// emits a CSR per styleRanges.
+				//
+				// For the FIRST wrap (before any inner real CSR), the
+				// HTS-open update has set running to (parent CSR's
+				// other attrs + AppliedCharacterStyle from HTS-effective).
+				// For SUBSEQUENT wraps after inner CSR closes, running
+				// reflects the inner CSR's attrs (typically just
+				// AppliedCharacterStyle, no other parent attrs).
+				openSynthCSRWithAttrs(runningEffectiveCSRAttrs, htsAppliedCharStyle())
 				top.bareCSROpen = true
 			}
 			return
@@ -607,36 +693,19 @@ func (r *Reader) parseStory(ctx context.Context, ch chan<- model.PartResult,
 					}
 					skelBuf.WriteString(`>`)
 				}
-			case attrVal(top.runningCSRAttrs, "AppliedCharacterStyle") != "":
-				// Running effective character style from the most
-				// recent closed sibling CSR (or last styled child of
-				// a closed sibling HTS / Footnote / etc.). Mirrors
+				// Mirror running update on the wrap's effective attrs.
+				runningEffectiveCSRAttrs = top.bareCSRAttrs
+			case attrVal(runningEffectiveCSRAttrs, "AppliedCharacterStyle") != "":
+				// GLOBAL running effective char style. Mirrors
 				// upstream StoryChildElementsParser.parseAsFromCharacterStyleRange
 				// (StoryChildElementsParser.java:132-136) which uses
 				// `this.currentStyleRanges.characterStyleRange()` —
 				// the LAST styled-text element's CSR attrs — to wrap
-				// the next non-CSR sibling.
-				//
-				// Emits ONLY the AppliedCharacterStyle attribute, not
-				// the full attribute set. The reason: when an outer
-				// CSR (e.g. `Hyperlink + Underline="false"`) wraps an
-				// HTS whose body's last inner CSR has only
-				// `Hyperlink` (no Underline), upstream's
-				// childElementsCurrentStyleRanges tracking takes the
-				// inner CSR's style as the running effective char
-				// style. Carrying only AppliedCharacterStyle from
-				// the outer CSR's start tag here approximates that
-				// behaviour for the common case where the outer CSR
-				// shares its character-style name with the inner
-				// last styled child. The full mergedWith semantics
-				// (all attrs minus the inner-overridden ones) would
-				// require a deeper inner-style track-back.
-				commitPending()
-				if r.skeletonStore != nil {
-					skelBuf.WriteString(`<CharacterStyleRange AppliedCharacterStyle="`)
-					skelBuf.WriteString(xmlEscapeAttr(attrVal(top.runningCSRAttrs, "AppliedCharacterStyle")))
-					skelBuf.WriteString(`">`)
-				}
+				// the next non-CSR sibling. Tracking is global (not
+				// per-PSR) because Java's StoryParser.java:79
+				// propagates currentStyleRanges across Story child
+				// parsers (so PSR boundaries don't reset it).
+				openSynthCSRWith(attrVal(runningEffectiveCSRAttrs, "AppliedCharacterStyle"))
 			default:
 				openSynthCSR()
 			}
@@ -973,6 +1042,7 @@ func (r *Reader) parseStory(ctx context.Context, ch chan<- model.PartResult,
 				markEnclosingCSRSeenContent()
 				openSynthIfBare()
 				openBareIfDirect()
+				updateRunningFromBareContent()
 				commitPending()
 				if r.skeletonStore != nil {
 					if stickyNoteDepth > 0 && !r.cfg.ExtractNotes {
@@ -990,6 +1060,7 @@ func (r *Reader) parseStory(ctx context.Context, ch chan<- model.PartResult,
 				markEnclosingCSRSeenContent()
 				openSynthIfBare()
 				openBareIfDirect()
+				updateRunningFromBareContent()
 				emitStart(t)
 				elemDepth++
 
@@ -1006,17 +1077,15 @@ func (r *Reader) parseStory(ctx context.Context, ch chan<- model.PartResult,
 				// Snapshot whether THIS HTS is about to be wrapped in
 				// a synth CSR (bare-HTS-direct-child-of-PSR case). If
 				// so, the just-opened synth CSR's effective char-style
-				// is the PSR's runningCSRAttrs's AppliedCharacterStyle
-				// — propagate it as the HTS's parentCSRAttrs so the
-				// HTS's bare-child inner synth wrap inherits the same
-				// style. Mirrors upstream where HTS u10a (with "n"
-				// character style) inherits the running effective char
-				// style for its bare children via the
-				// childElementsBaseStyleRanges path
-				// (StoryChildElementsParser.java:504).
+				// comes from the GLOBAL running effective char style
+				// (mirrors StoryChildElementsParser.parseAsFromCharacterStyleRange
+				// at line 132-136 + StoryParser.java:79's
+				// cross-PSR propagation). Propagate it as the HTS's
+				// parentCSRAttrs so the HTS's bare-child inner synth
+				// wrap inherits the same style.
 				var synthWrapAppliedStyle string
 				if isPSRDirect() && len(psrStack) > 0 && !psrStack[len(psrStack)-1].bareCSROpen {
-					if s := attrVal(psrStack[len(psrStack)-1].runningCSRAttrs, "AppliedCharacterStyle"); s != "" {
+					if s := attrVal(runningEffectiveCSRAttrs, "AppliedCharacterStyle"); s != "" {
 						synthWrapAppliedStyle = s
 					}
 				}
@@ -1065,6 +1134,39 @@ func (r *Reader) parseStory(ctx context.Context, ch chan<- model.PartResult,
 					suppressBareWrap: suppressBareWrap,
 				})
 				inCSR = 0
+				// Update runningEffectiveCSRAttrs to the merged
+				// childElementsCurrentStyleRanges that upstream
+				// initialises at HyperlinkTextSourceStyledTextReferenceElementParser
+				// (StoryChildElementsParser.java:490-505). The merge of
+				// referenceElementStyleRanges (= parent CSR's StyleRange)
+				// with either:
+				//   - synthetic{X} when HTS has explicit X (line 491-502): result.name = X
+				//   - childElementsBaseStyleRanges (= running) when HTS has "n" (line 503-505): result.name = running's name
+				// in both cases, OTHER parent attrs (Underline, KerningMethod, …)
+				// survive intact (mergedAttributesWith at StyleRange.java:149-181).
+				// The merged set becomes the LIVE running for the FIRST
+				// bare-child wrap inside the HTS body.
+				wrapName := htsAppliedStyle
+				if wrapName == "" || wrapName == "n" {
+					// "n" → name from running. If running is empty, fall
+					// back to default (StoryParser initial value).
+					wrapName = attrVal(runningEffectiveCSRAttrs, "AppliedCharacterStyle")
+					if wrapName == "" {
+						wrapName = "CharacterStyle/$ID/[No character style]"
+					}
+				}
+				merged := make([]xml.Attr, 0, len(parentCSRAttrs)+1)
+				merged = append(merged, xml.Attr{
+					Name:  xml.Name{Local: "AppliedCharacterStyle"},
+					Value: wrapName,
+				})
+				for _, a := range parentCSRAttrs {
+					if a.Name.Local == "AppliedCharacterStyle" {
+						continue
+					}
+					merged = append(merged, a)
+				}
+				runningEffectiveCSRAttrs = merged
 
 			case "Note", "Footnote", "Endnote", "EndnoteRange":
 				markEnclosingCSRSeenContent()
@@ -1321,23 +1423,16 @@ func (r *Reader) parseStory(ctx context.Context, ch chan<- model.PartResult,
 				}
 
 			case "CharacterStyleRange":
-				// Capture the closing CSR's attrs BEFORE popping so we
-				// can carry them as the "running" effective character
-				// style on the enclosing PSR scope. Mirrors upstream
-				// StoryChildElementsParser's `currentStyleRanges`
-				// update (StoryChildElementsParser.java:288-292): when
-				// parseFromCharacterStyleRange returns, it sets
-				// currentStyleRanges to the LAST styled-text element's
-				// styleRanges. The next bare-HTS sibling at PSR-direct
-				// scope inherits this via parseAsFromCharacterStyleRange
-				// (line 132-136).
-				var closingCSRAttrs []xml.Attr
-				closingCSRHadContent := false
-				if len(csrAttrStack) > 0 {
-					closingCSRAttrs = csrAttrStack[len(csrAttrStack)-1]
-				}
+				// Pop CSR tracking state. runningEffectiveCSRAttrs is
+				// updated at Content/Br time (updateRunningFromBareContent),
+				// at HTS open, and at synth-CSR wrap emission — NOT
+				// here. Updating at close would overwrite the inner
+				// HTS's last-styled value with the outer CSR's attrs,
+				// breaking upstream's parseHyperlinkTextSource
+				// (StoryChildElementsParser.java:312) where the
+				// parser's currentStyleRanges takes the HTS's
+				// childElementsCurrentStyleRanges.
 				if len(csrHadContent) > 0 {
-					closingCSRHadContent = csrHadContent[len(csrHadContent)-1]
 					csrHadContent = csrHadContent[:len(csrHadContent)-1]
 				}
 				if inCSR > 0 {
@@ -1351,22 +1446,6 @@ func (r *Reader) parseStory(ctx context.Context, ch chan<- model.PartResult,
 				if len(styleStack) > 0 {
 					currentStyle = styleStack[len(styleStack)-1]
 					styleStack = styleStack[:len(styleStack)-1]
-				}
-				// Update the innermost open PSR's running effective
-				// CSR attrs ONLY when the closing CSR was
-				// content-bearing. An empty CSR (no Content / Br /
-				// HTS / Footnote / etc. children) contributes no text
-				// to the output and must not poison the running
-				// effective character style for the next bare-HTS
-				// wrap. Mirrors upstream's lastStyledTextElementIn
-				// (StoryChildElementsParser.java:296-307) which skips
-				// non-styled-text elements when picking the running
-				// styleRanges; an empty CSR's StyledTextElement.Content.Empty
-				// would not be lastStyled in the typical "next sibling
-				// is a real CSR" path because the empty CSR was meant
-				// to be merged away by StoryChildElementsMerger.
-				if len(psrStack) > 0 && closingCSRAttrs != nil && closingCSRHadContent {
-					psrStack[len(psrStack)-1].runningCSRAttrs = closingCSRAttrs
 				}
 
 			case "HyperlinkTextSource":
