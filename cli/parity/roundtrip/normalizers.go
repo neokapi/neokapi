@@ -1396,6 +1396,15 @@ func shouldDropHTMLNode(parent, c *html.Node) bool {
 	if c.Type == html.ElementNode && c.DataAtom == atom.Hr {
 		return true
 	}
+	// Drop `<noscript>` elements — content is JS-fallback markup
+	// that some readers extract internal text/attrs from (okapi via
+	// NekoHTML in scripting-disabled mode) while others (native)
+	// treat as opaque per the HTML5 scripting-enabled tokenisation
+	// rule (golang.org/x/net/html). Both behaviours are spec-defensible;
+	// the divergence is a pure config knob, not a bug.
+	if c.Type == html.ElementNode && c.DataAtom == atom.Noscript {
+		return true
+	}
 	return false
 }
 

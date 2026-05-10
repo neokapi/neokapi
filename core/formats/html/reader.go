@@ -37,8 +37,21 @@ var selfClosingElements = map[atom.Atom]bool{
 }
 
 // nonTranslatableElements contain content that is not translatable.
+//
+// `<noscript>` is included because golang.org/x/net/html tokenises its
+// content as a single raw-text TextToken (per the HTML5 "scripting
+// enabled" mode default), so the inner markup arrives as bytes rather
+// than parsed tokens. Without this flag, pseudo-translation would
+// substitute the tag-name and attribute-name letters character-by-
+// character (e.g. `<img src="…">` → `<ĩmĝ śŕć="…">`), wrecking the
+// noscript fallback. okapi's NekoHTML parses noscript as HTML in
+// scripting-disabled mode, which would let us extract the inner `alt`
+// as a translatable block — a richer behaviour but one that requires
+// sub-parsing the raw text. Treating noscript as opaque mirrors the
+// safer default; the trade-off is intentional (parity contract:
+// "same semantic config → same results", #557).
 var nonTranslatableElements = map[atom.Atom]bool{
-	atom.Script: true, atom.Style: true,
+	atom.Script: true, atom.Style: true, atom.Noscript: true,
 }
 
 // preserveWhitespaceElements preserve whitespace by default.
