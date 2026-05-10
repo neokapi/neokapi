@@ -222,6 +222,29 @@ func (r *Reader) findStringPositions(rawText string, stmts []*mifStatement) []st
 	walkContainer = func(stmt *mifStatement) {
 		for _, child := range stmt.children {
 			if child.tag == "Para" {
+				// Inline <Pgf><PgfNumFormat> override comes BEFORE the
+				// para text in the source file, so emit it first.
+				// Mirrors okapi MIFFilter.java:1078-1112: when an inline
+				// PgfNumFormat is non-empty, okapi extracts it as a
+				// translatable text unit (as referent when
+				// extractPgfNumFormatsInline=false, as a paraTextBuf
+				// merge when true). Either way it IS extracted; native
+				// emits it as a standalone Block before the Para's text.
+				for _, gc := range child.children {
+					if gc.tag != "Pgf" {
+						continue
+					}
+					for _, ggc := range gc.children {
+						if ggc.tag == "PgfNumFormat" && ggc.value != "" {
+							items = append(items, itemInfo{
+								blockIdx:  blockIdx,
+								strings:   []string{ggc.value},
+								searchTag: "PgfNumFormat",
+							})
+							blockIdx++
+						}
+					}
+				}
 				text := extractParaText(child)
 				if strings.TrimSpace(text) == "" {
 					continue
@@ -930,6 +953,32 @@ func applyCodeFinderToSegments(segs []*model.Segment, patterns []*regexp.Regexp)
 func (r *Reader) processContainer(ctx context.Context, ch chan<- model.PartResult, stmt *mifStatement, blockCounter, dataCounter int) (int, int) {
 	for _, child := range stmt.children {
 		if child.tag == "Para" {
+			// Inline <Pgf><PgfNumFormat> override is extracted as a
+			// standalone translatable Block, emitted BEFORE the Para
+			// text so the blockIdx ordering matches the source-file
+			// scan order used by findStringPositions. Mirrors okapi
+			// MIFFilter.java:1078-1112 where a non-empty inline
+			// PgfNumFormat always yields a translatable unit (as
+			// referent when extractPgfNumFormatsInline=false, as a
+			// paraTextBuf merge when true).
+			for _, gc := range child.children {
+				if gc.tag != "Pgf" {
+					continue
+				}
+				for _, ggc := range gc.children {
+					if ggc.tag != "PgfNumFormat" || ggc.value == "" {
+						continue
+					}
+					blockCounter++
+					b := model.NewBlock(fmt.Sprintf("tu%d", blockCounter), ggc.value)
+					b.Name = fmt.Sprintf("pgf_num_format_inline.%d", blockCounter)
+					r.applyCodeFinderWithExtras(b, []*regexp.Regexp{pgfNumFormatLeadingPrefix})
+					if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: b}) {
+						return blockCounter, dataCounter
+					}
+				}
+			}
+
 			text := extractParaTextImpl(child, r.cfg.ExtractHardReturnsAsText)
 			if strings.TrimSpace(text) != "" {
 				blockCounter++
