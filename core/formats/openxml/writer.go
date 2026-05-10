@@ -73,16 +73,171 @@ var wmlMoveRangeStrippableElementRE = regexp.MustCompile(
 // <w:rPr/> can leave its parent <w:pPr/> empty and itself eligible.
 var wmlEmptyPropertiesContainerRE = regexp.MustCompile(`<w:(?:rPr|pPr)></w:(?:rPr|pPr)>|<w:(?:rPr|pPr)/>`)
 
+// wmlNoProofRE matches the run-property <w:noProof> element (no
+// spelling/grammar marker) in both self-closing and open/close form.
+// Okapi strips this from rPr in run/style contexts via
+// RunSkippableElements (line 55 of okapi/filters/openxml/src/main/java/
+// net/sf/okapi/filters/openxml/RunSkippableElements.java) and the
+// RunProperties parser. The element is container-free in practice
+// (carries no attributes either; the schema permits w:val but no fixture
+// corpus uses it), so a simple element-only regex is sufficient.
+var wmlNoProofRE = regexp.MustCompile(
+	`<w:noProof\b[^>]*/>` +
+		`|<w:noProof\b[^>]*></w:noProof>`,
+)
+
+// wmlRevisionParagraphMarkRE matches the EMPTY-BODY forms of the
+// paragraph-mark revision elements that appear INSIDE <w:rPr>:
+//   - <w:ins .../>           (RUN_PROPERTY_INSERTED_PARAGRAPH_MARK)
+//   - <w:ins ...></w:ins>    (same, re-emitted by encoding/xml)
+//   - <w:del .../>           (RUN_PROPERTY_DELETED_PARAGRAPH_MARK)
+//   - <w:del ...></w:del>    (same)
+//   - <w:moveTo .../>        (RUN_PROPERTY_MOVED_PARAGRAPH_TO)
+//   - <w:moveTo ...></w:moveTo>
+//   - <w:moveFrom .../>      (RUN_PROPERTY_MOVED_PARAGRAPH_FROM)
+//   - <w:moveFrom ...></w:moveFrom>
+//
+// These are skipped by okapi's SkippableElements.RevisionProperty when
+// AutomaticallyAcceptRevisions=true (the default — line 819 of
+// ConditionalParameters.java). Per okapi's SkippableElement.java lines
+// 231-234.
+//
+// Only the empty-body form is matched: the content-wrapping form
+// (<w:ins><w:r>...</w:r></w:ins> as inline-content marker — child
+// element present) is handled differently by okapi (the wrapper is
+// unwrapped, children kept). The fixture corpus uses self-closing/empty
+// form for paragraph-mark revisions universally; the empty-body open/
+// close form arises only when encoding/xml re-emits a previously
+// self-closing tag as open/close.
+var wmlRevisionParagraphMarkRE = regexp.MustCompile(
+	`<w:ins\b[^>]*/>` +
+		`|<w:ins\b[^>]*></w:ins>` +
+		`|<w:del\b[^>]*/>` +
+		`|<w:del\b[^>]*></w:del>` +
+		`|<w:moveTo\b[^>]*/>` +
+		`|<w:moveTo\b[^>]*></w:moveTo>` +
+		`|<w:moveFrom\b[^>]*/>` +
+		`|<w:moveFrom\b[^>]*></w:moveFrom>`,
+)
+
+// wmlRevisionPropertyChangeNames are the WordprocessingML
+// revision-property "change tracking" elements that okapi strips when
+// AutomaticallyAcceptRevisions=true (the default — see line 819 of
+// okapi/filters/openxml/src/main/java/net/sf/okapi/filters/openxml/
+// ConditionalParameters.java) via SkippableElements.RevisionProperty
+// (lines 506-569 of SkippableElements.java). All carry nested
+// <w:rPr>/<w:pPr>/etc. snapshots of pre-revision properties; stripping
+// them preserves only the post-revision (current) state.
+//
+// Per okapi's SkippableElement.RevisionProperty enum (lines 229-245 of
+// SkippableElement.java):
+//   - pPrChange    (PARAGRAPH_PROPERTIES_CHANGE)
+//   - rPrChange    (RUN_PROPERTIES_CHANGE)
+//   - sectPrChange (SECTION_PROPERTIES_CHANGE)
+//   - tblGridChange (TABLE_GRID_CHANGE)
+//   - tblPrChange  (TABLE_PROPERTIES_CHANGE)
+//   - tblPrExChange (TABLE_PROPERTIES_EXCEPTIONS_CHANGE)
+//   - tcPrChange   (TABLE_CELL_PROPERTIES_CHANGE)
+//   - trPrChange   (TABLE_ROW_PROPERTIES_CHANGE)
+//
+// Note: <w:ins> and <w:del> when used as paragraph-mark revision markers
+// inside <w:rPr> (RUN_PROPERTY_INSERTED/DELETED_PARAGRAPH_MARK) are also
+// in the same enum but require context-aware stripping (only inside
+// <w:rPr>, not as content wrappers); they are intentionally NOT included
+// in the unconditional regex to avoid stripping content-wrapper <w:ins>/
+// <w:del> elements that have legitimate text payload. Most fixtures with
+// these don't reach the canonical-equal tier for other reasons anyway.
+var wmlRevisionPropertyChangeNames = []string{
+	"pPrChange",
+	"rPrChange",
+	"sectPrChange",
+	"tblGridChange",
+	"tblPrChange",
+	"tblPrExChange",
+	"tcPrChange",
+	"trPrChange",
+}
+
+// stripBalancedElement removes every occurrence of <w:NAME ...>...</w:NAME>
+// (and the self-closing form <w:NAME .../>) from data, where NAME is the
+// supplied local name. The matcher is non-nested — the *Change elements
+// in the okapi-testdata corpus never embed themselves recursively, and
+// the schema doesn't allow it either. Returns the original slice if the
+// element name doesn't appear at all (cheap fast path).
+func stripBalancedElement(data []byte, name string) []byte {
+	startPrefix := []byte("<w:" + name)
+	if !bytes.Contains(data, startPrefix) {
+		return data
+	}
+	endTag := []byte("</w:" + name + ">")
+	out := make([]byte, 0, len(data))
+	for {
+		i := bytes.Index(data, startPrefix)
+		if i < 0 {
+			out = append(out, data...)
+			break
+		}
+		// Confirm the element-name boundary so "<w:noProofX" doesn't match
+		// a longer element name. The next byte must be `>`, `/`, or
+		// whitespace.
+		j := i + len(startPrefix)
+		if j >= len(data) {
+			out = append(out, data...)
+			break
+		}
+		b := data[j]
+		if b != '>' && b != '/' && b != ' ' && b != '\t' && b != '\n' && b != '\r' {
+			out = append(out, data[:j+1]...)
+			data = data[j+1:]
+			continue
+		}
+		// Find element terminator within the start tag.
+		k := bytes.IndexByte(data[j:], '>')
+		if k < 0 {
+			out = append(out, data...)
+			break
+		}
+		startEnd := j + k
+		out = append(out, data[:i]...)
+		// Self-closing form <w:NAME .../>: skip the tag.
+		if startEnd > 0 && data[startEnd-1] == '/' {
+			data = data[startEnd+1:]
+			continue
+		}
+		// Open form: find matching close tag.
+		closeIdx := bytes.Index(data[startEnd+1:], endTag)
+		if closeIdx < 0 {
+			// Unbalanced — bail out, append remainder unchanged.
+			out = append(out, data[i:]...)
+			break
+		}
+		data = data[startEnd+1+closeIdx+len(endTag):]
+	}
+	return out
+}
+
 // stripWMLSkippableElements removes WordprocessingML elements from an
-// XML part to mirror okapi's BlockProperties/RunProperties and
-// RevisionCrossStructure stripping. Returns the original slice if no
-// element was matched (cheap fast path).
+// XML part to mirror okapi's BlockProperties/RunProperties,
+// RevisionCrossStructure, and RevisionProperty stripping. Returns the
+// original slice if nothing was matched (cheap fast paths).
 func stripWMLSkippableElements(data []byte) []byte {
 	if bytes.Contains(data, []byte("<w:lang")) || bytes.Contains(data, []byte("<w:bidiVisual")) {
 		data = wmlStrippableElementRE.ReplaceAll(data, nil)
 	}
 	if bytes.Contains(data, []byte("<w:moveToRange")) || bytes.Contains(data, []byte("<w:moveFromRange")) {
 		data = wmlMoveRangeStrippableElementRE.ReplaceAll(data, nil)
+	}
+	if bytes.Contains(data, []byte("<w:noProof")) {
+		data = wmlNoProofRE.ReplaceAll(data, nil)
+	}
+	if bytes.Contains(data, []byte("<w:ins")) ||
+		bytes.Contains(data, []byte("<w:del")) ||
+		bytes.Contains(data, []byte("<w:moveTo")) ||
+		bytes.Contains(data, []byte("<w:moveFrom")) {
+		data = wmlRevisionParagraphMarkRE.ReplaceAll(data, nil)
+	}
+	for _, name := range wmlRevisionPropertyChangeNames {
+		data = stripBalancedElement(data, name)
 	}
 	// Iterate empty <w:rPr>/<w:pPr> stripping until fixpoint: removing an
 	// empty <w:rPr></w:rPr> nested inside an otherwise-empty <w:pPr>
