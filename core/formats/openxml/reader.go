@@ -408,14 +408,22 @@ func parseCoreProperties(data []byte, partPath string, blockCounter *int, emitBl
 	p := &corePropsParser{skeletonStore: skelStore}
 	d := xml.NewDecoder(bytes.NewReader(data))
 
-	// Translatable DC elements
+	// Translatable Dublin Core / OPC core-properties elements. Mirrors
+	// okapi's wordDocPropertiesConfiguration.yml (lines 41-60 of okapi/
+	// filters/openxml/src/main/resources/net/sf/okapi/filters/openxml/
+	// wordDocPropertiesConfiguration.yml) which lists every TEXTUNIT
+	// element the OpenXMLContentFilter extracts in MSWORDDOCPROPERTIES
+	// mode. The match is on local name (namespace-agnostic) — okapi
+	// scopes by qualified name (`cp:contentstatus`, `dc:title`, etc.)
+	// but Word never emits competing local names for these in core.xml.
 	translatableElements := map[string]bool{
-		"title":       true,
-		"subject":     true,
-		"creator":     true,
-		"keywords":    true,
-		"description": true,
-		"category":    true,
+		"title":         true,
+		"subject":       true,
+		"creator":       true,
+		"keywords":      true,
+		"description":   true,
+		"category":      true,
+		"contentStatus": true,
 	}
 
 	var inTranslatable bool
