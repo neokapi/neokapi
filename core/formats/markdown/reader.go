@@ -1587,7 +1587,14 @@ func (r *Reader) walkSingle(ctx context.Context, ch chan<- model.PartResult, chi
 }
 
 func (r *Reader) emitFencedCodeBlock(ctx context.Context, ch chan<- model.PartResult, n *ast.FencedCodeBlock, source []byte, baseOffset int) {
-	content := r.extractRawLines(n, source)
+	// Mirror upstream MarkdownParser.java:413-424 (FencedCodeBlock
+	// visitor) which iterates the content lines and skips any line
+	// matching NEWLINE_ONLY_PATTERN ("blank line") — okapi's
+	// round-tripped fenced code blocks therefore drop blank lines from
+	// inside the fences. Without this, fixtures like example2.md round-
+	// trip with a stray empty line where the source has one inside a
+	// JS fenced block.
+	content := extractRawLinesSkipBlanks(n, source)
 	lang := ""
 	if l := n.Language(source); l != nil {
 		lang = string(l)
@@ -2211,6 +2218,33 @@ func (r *Reader) extractRawLines(node ast.Node, source []byte) string {
 		buf.Write(line.Value(source))
 	}
 	return buf.String()
+}
+
+// extractRawLinesSkipBlanks is the same as extractRawLines but skips
+// any line that, after stripping leading whitespace and the trailing
+// `\n`, is empty. Mirrors upstream MarkdownParser.java:417's
+// NEWLINE_ONLY_PATTERN check inside the FencedCodeBlock visitor.
+func extractRawLinesSkipBlanks(node ast.Node, source []byte) string {
+	var buf strings.Builder
+	lines := node.Lines()
+	for i := range lines.Len() {
+		line := lines.At(i)
+		v := line.Value(source)
+		if isBlankLine(v) {
+			continue
+		}
+		buf.Write(v)
+	}
+	return buf.String()
+}
+
+func isBlankLine(line []byte) bool {
+	for _, c := range line {
+		if c != ' ' && c != '\t' && c != '\n' && c != '\r' {
+			return false
+		}
+	}
+	return true
 }
 
 // --- Inline run building ---
