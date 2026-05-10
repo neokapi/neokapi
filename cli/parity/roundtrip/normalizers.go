@@ -1351,6 +1351,17 @@ func shouldDropHTMLNode(parent, c *html.Node) bool {
 			return true
 		}
 	}
+	// Drop `<link>` elements entirely. Their placement in the
+	// document tree (head vs body) varies depending on whether the
+	// preceding sibling was an element or text — html.Parse moves
+	// `<link>` to body once it sees text content in head. Sources
+	// with malformed `<META>` (which okapi escapes as text and
+	// native preserves as element) cause the ref/native split. The
+	// `<link>` itself is transport metadata, not translation
+	// payload, so drop it on both sides.
+	if c.Type == html.ElementNode && c.DataAtom == atom.Link {
+		return true
+	}
 	return false
 }
 
