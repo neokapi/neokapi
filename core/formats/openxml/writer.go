@@ -811,16 +811,48 @@ func (w *Writer) renderBlock(block *model.Block, dt docType) string {
 		}
 	}
 
+	// Per-source-run rPr preservation (#592). The reader stashes the
+	// per-paragraph common rPr children under
+	// openxmlSourceRPrAnnotationKey when the source had at least one
+	// non-toggle rPr child; the writer prepends this XML to every
+	// emitted <w:r>'s <w:rPr>. The WSO post-pass (style_optimization.go)
+	// then lifts the redundant rPr into a synthesised paragraph style
+	// when the optimisation conditions hold.
+	sourceRPr := blockSourceRPrXML(block)
+
 	switch dt {
 	case docTypeDOCX:
-		return w.renderWMLBlock(runs)
+		return w.renderWMLBlock(runs, sourceRPr)
 	case docTypePPTX:
 		return w.renderDMLBlock(runs)
 	case docTypeXLSX:
 		return w.renderSMLBlock(runs, block)
 	default:
-		return w.renderWMLBlock(runs)
+		return w.renderWMLBlock(runs, sourceRPr)
 	}
+}
+
+// blockSourceRPrXML extracts the per-paragraph common rPr children
+// XML from the block annotation populated by the WML reader (#592).
+// Returns the empty string when no annotation is present (the writer
+// falls through to its toggle-only rPr path).
+func blockSourceRPrXML(block *model.Block) string {
+	if block == nil || block.Annotations == nil {
+		return ""
+	}
+	a, ok := block.Annotations[openxmlSourceRPrAnnotationKey]
+	if !ok {
+		return ""
+	}
+	g, ok := a.(*model.GenericAnnotation)
+	if !ok || g == nil || g.Fields == nil {
+		return ""
+	}
+	v, ok := g.Fields["xml"].(string)
+	if !ok {
+		return ""
+	}
+	return v
 }
 
 // runsHaveInlineCodes reports whether the run sequence contains any
@@ -836,9 +868,31 @@ func runsHaveInlineCodes(runs []model.Run) bool {
 }
 
 // renderWMLBlock renders a run sequence as WordprocessingML runs.
-func (w *Writer) renderWMLBlock(runs []model.Run) string {
-	if !runsHaveInlineCodes(runs) {
+//
+// sourceRPr is the per-paragraph common rPr children XML stashed by
+// the reader (#592). When non-empty it is prepended on every emitted
+// <w:r>'s <w:rPr>, mirroring upstream Okapi RunBuilder.java which
+// keeps the source's full rPr per run, and giving the WSO post-pass
+// (style_optimization.go) material to lift into a synthesised
+// paragraph style.
+func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string) string {
+	// Fast path: no inline codes AND no per-source rPr → single
+	// <w:r><w:t> with the flattened text. Pre-#592 behaviour for
+	// truly plain paragraphs (e.g. "Heading 1" inside a paragraph
+	// whose style already supplies all formatting).
+	if !runsHaveInlineCodes(runs) && sourceRPr == "" {
 		return `<w:r><w:t xml:space="preserve">` + xmlEscape(model.FlattenRuns(runs)) + `</w:t></w:r>`
+	}
+
+	// Fast path: no inline codes but we DO have per-source rPr →
+	// single <w:r><w:rPr>{sourceRPr}</w:rPr><w:t>. Mirrors
+	// Okapi's "RunMerger merges adjacent same-rPr runs into one
+	// <w:r> carrying the shared rPr" behaviour for paragraphs that
+	// extracted as a single TextRun (after font-mapping +
+	// subtractProps + mergeRuns).
+	if !runsHaveInlineCodes(runs) {
+		return `<w:r><w:rPr>` + sourceRPr + `</w:rPr><w:t xml:space="preserve">` +
+			xmlEscape(model.FlattenRuns(runs)) + `</w:t></w:r>`
 	}
 
 	var buf strings.Builder
@@ -852,17 +906,27 @@ func (w *Writer) renderWMLBlock(runs []model.Run) string {
 		}
 	}
 
+	// emitRPr concatenates the per-paragraph common rPr (sourceRPr)
+	// with the toggle rPr the model accumulated from PcOpen/PcClose
+	// runs. The combined block is wrapped in a single <w:rPr>...
+	// </w:rPr> per emitted <w:r>.
+	emitRPr := func() {
+		if sourceRPr == "" && runProps == "" {
+			return
+		}
+		buf.WriteString(`<w:rPr>`)
+		buf.WriteString(sourceRPr)
+		buf.WriteString(runProps)
+		buf.WriteString(`</w:rPr>`)
+	}
+
 	for _, r := range runs {
 		switch {
 		case r.Text != nil:
 			for _, ch := range r.Text.Text {
 				if !inRun {
 					buf.WriteString(`<w:r>`)
-					if runProps != "" {
-						buf.WriteString(`<w:rPr>`)
-						buf.WriteString(runProps)
-						buf.WriteString(`</w:rPr>`)
-					}
+					emitRPr()
 					buf.WriteString(`<w:t xml:space="preserve">`)
 					inRun = true
 				}
@@ -874,6 +938,12 @@ func (w *Writer) renderWMLBlock(runs []model.Run) string {
 				closeRun()
 				buf.WriteString(r.PcOpen.Data)
 			} else {
+				// A toggle change closes the current <w:r> so the
+				// next text emits with the updated rPr — mirrors
+				// upstream Okapi RunMerger.canRunPropertiesBeMerged
+				// (RunMerger.java lines 156-229), which prevents
+				// merging across rPr boundaries.
+				closeRun()
 				runProps = w.addWMLProp(runProps, r.PcOpen.Type)
 			}
 
@@ -882,6 +952,7 @@ func (w *Writer) renderWMLBlock(runs []model.Run) string {
 				closeRun()
 				buf.WriteString(r.PcClose.Data)
 			} else {
+				closeRun()
 				runProps = w.removeWMLProp(runProps, r.PcClose.Type)
 			}
 
@@ -889,13 +960,41 @@ func (w *Writer) renderWMLBlock(runs []model.Run) string {
 			closeRun()
 			switch r.Ph.Type {
 			case TypeBreak:
-				buf.WriteString(`<w:r><w:br/></w:r>`)
+				// A <w:br/> inside a run inherits the surrounding
+				// rPr in upstream Okapi (RunBuilder treats <w:br/>
+				// as a Markup chunk inside the same <w:r>). For
+				// the native renderer we wrap it in its own <w:r>
+				// for symmetry with the existing pipeline; the
+				// surrounding text runs carry their own rPr.
+				if sourceRPr != "" || runProps != "" {
+					buf.WriteString(`<w:r>`)
+					emitRPr()
+					buf.WriteString(`<w:br/></w:r>`)
+				} else {
+					buf.WriteString(`<w:r><w:br/></w:r>`)
+				}
 			case TypeTab:
-				buf.WriteString(`<w:r><w:tab/></w:r>`)
+				if sourceRPr != "" || runProps != "" {
+					buf.WriteString(`<w:r>`)
+					emitRPr()
+					buf.WriteString(`<w:tab/></w:r>`)
+				} else {
+					buf.WriteString(`<w:r><w:tab/></w:r>`)
+				}
 			case TypeImage:
+				// Drawings/pict/object are opaque — never wrap with
+				// our synthesised rPr because the captured payload
+				// is the original <w:r>'s body verbatim (see the
+				// reader's textRun{text:"", data:raw}).
 				buf.WriteString(`<w:r>` + r.Ph.Data + `</w:r>`)
 			case TypeFootnoteRef:
-				buf.WriteString(`<w:r>` + r.Ph.Data + `</w:r>`)
+				if sourceRPr != "" || runProps != "" {
+					buf.WriteString(`<w:r>`)
+					emitRPr()
+					buf.WriteString(r.Ph.Data + `</w:r>`)
+				} else {
+					buf.WriteString(`<w:r>` + r.Ph.Data + `</w:r>`)
+				}
 			default:
 				buf.WriteString(r.Ph.Data)
 			}

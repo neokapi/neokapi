@@ -67,6 +67,25 @@ const styleHashRoot = "NF974E24F"
 // a guard here.
 var runPropExclusions = map[string]bool{
 	"vanish": true,
+	// rStyle (character style reference) is excluded for WML per
+	// upstream WordDocument.java construction of StyleOptimisation.Default
+	// (see okapi/filters/openxml/WordDocument.java — the exclusion list
+	// for WML is `Collections.singletonList(new QName(..., "rStyle", ...))`).
+	// Character style references must stay on the run; they are not
+	// candidates for promotion into a synthesised paragraph style. ECMA-376-1
+	// §17.7.4 (Character Style Definitions) — the rStyle property
+	// references a character style by id and is run-scoped semantics.
+	"rStyle": true,
+	// rtl (run-level RTL direction marker) — observed in upstream
+	// fixtures (reordered-zip.docx) where Okapi keeps <w:rtl> on the
+	// run instead of lifting it into a synthesised paragraph style.
+	// Okapi handles directional run/paragraph markers through the
+	// AttributesClarification path (MarkupClarificationConfiguration.java
+	// lines 165-172) rather than via StyleOptimisation, so they are
+	// effectively run-scoped from the optimiser's perspective. Keeping
+	// rtl in this exclusion list keeps native byte-equal with Okapi for
+	// the rtl-only-rPr fixtures. ECMA-376-1 §17.3.2.30.13 (rtl).
+	"rtl": true,
 }
 
 // runProp is a single <w:rPr> child element captured by name and raw
@@ -265,25 +284,20 @@ func optimizeParagraph(
 
 	// Collect run rPr blocks (and the runs themselves so we can rewrite).
 	runs := findRuns(src)
-	if len(runs) < 2 {
-		// Pragmatic threshold: only optimise paragraphs with 2+ runs.
-		// Upstream Okapi optimises 1-run paragraphs too (see
-		// StyleOptimisation.Default.applyTo line 98 — bypass only when
-		// chunks.size() <= 2 == 0 runs), but the post-write pass
-		// operates on writer-emitted XML where the native reader/writer
-		// pipeline has already aggressively merged source runs into a
-		// single rendered run that no longer reflects the original
-		// per-run rPr distribution. Optimising those single-rendered-run
-		// paragraphs introduces synthesised styles that Okapi did not
-		// generate (the source had heterogeneous run rPr that Okapi's
-		// commonRunPropertiesOf() rejected — empty intersection because
-		// at least one run lacked rPr or carried fldChar/ins/del
-		// markers). 2+ runs means native's writer kept structural
-		// distinctions (e.g. color-exclusion fixtures) and the
-		// optimisation premise — common props across rendered runs —
-		// holds.
+	if len(runs) < 1 {
+		// Empty paragraph (no runs at all) — nothing to optimise.
 		return src
 	}
+	// Threshold note: upstream Okapi optimises 1-run paragraphs too
+	// (StyleOptimisation.Default.applyTo line 98 bypasses only when
+	// chunks.size() <= 2 — i.e. 0 runs in addition to outer markup).
+	// With #592 the native writer now preserves per-source-run rPr on
+	// every emitted <w:r>, so 1-run paragraphs carry the same rPr
+	// payload Okapi sees and the optimisation premise — common props
+	// across rendered runs — holds for them too. Pre-#592 the native
+	// reader/writer aggressively collapsed source runs into a single
+	// rPr-less <w:r>, so a 2+ threshold was used as a safety net to
+	// avoid synthesising styles upstream did not.
 	entries := make([]runEntry, 0, len(runs))
 	for _, r := range runs {
 		e := runEntry{runStart: r.start, runEnd: r.end}
@@ -754,19 +768,45 @@ func insertPStyle(src []byte, id string) []byte {
 	if startTagEnd < 0 {
 		return src
 	}
-	// Strip an existing first-child <w:pStyle w:val="..."/>.
+	// Strip an existing first-child <w:pStyle ...>. The captured pPr
+	// may carry pStyle in either self-closing form ("<w:pStyle w:val=
+	// \"...\"/>") OR open/close form ("<w:pStyle w:val=\"...\"></w:pStyle>"
+	// ; encoding/xml's Decoder/Encoder cycle re-emits captureRawElement
+	// payloads in the latter form even when the source was self-closing
+	// — which exposes the strip-only-self-closing path as a #592
+	// regression for fixtures whose pPr was lifted into a synthesised
+	// pStyle by the WSO post-pass).
 	body := src[startTagEnd+1:]
-	pStyleClose := []byte(`"/>`)
-	if bytes.HasPrefix(bytes.TrimLeft(body, " \t\n\r"), []byte("<w:pStyle ")) {
+	if bytes.HasPrefix(bytes.TrimLeft(body, " \t\n\r"), []byte("<w:pStyle")) {
 		// Skip leading whitespace
 		ws := 0
 		for ws < len(body) && (body[ws] == ' ' || body[ws] == '\t' || body[ws] == '\n' || body[ws] == '\r') {
 			ws++
 		}
-		// Find the end of the <w:pStyle ...> tag.
-		end := bytes.Index(body[ws:], pStyleClose)
-		if end >= 0 {
-			body = body[ws+end+len(pStyleClose):]
+		// pStyle character after the prefix must be a name boundary
+		// (' ', '/', '>') — otherwise we matched something like
+		// <w:pStyleId> by accident.
+		boundaryAt := ws + len("<w:pStyle")
+		if boundaryAt < len(body) {
+			b := body[boundaryAt]
+			if b == ' ' || b == '\t' || b == '\n' || b == '\r' || b == '/' || b == '>' {
+				// Find the start tag's '>' terminator.
+				tagEnd := bytes.IndexByte(body[ws:], '>')
+				if tagEnd >= 0 {
+					absTagEnd := ws + tagEnd
+					// Self-closing — element ends here.
+					if absTagEnd > 0 && body[absTagEnd-1] == '/' {
+						body = body[absTagEnd+1:]
+					} else {
+						// Open form — skip past matching </w:pStyle>.
+						closeNeedle := []byte("</w:pStyle>")
+						closeIdx := bytes.Index(body[absTagEnd+1:], closeNeedle)
+						if closeIdx >= 0 {
+							body = body[absTagEnd+1+closeIdx+len(closeNeedle):]
+						}
+					}
+				}
+			}
 		}
 	}
 	var b bytes.Buffer

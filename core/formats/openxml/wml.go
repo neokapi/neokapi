@@ -313,6 +313,24 @@ func (p *wmlParser) parseParagraph(d *xml.Decoder, partPath string, emitBlock fu
 					}
 				}
 
+				// Compute the per-paragraph common rPr children BEFORE
+				// mergeRuns collapses adjacent runs. mergeRuns drops the
+				// rPrChildren of merged-away neighbours (it only keeps
+				// the first run's props), so the intersection must be
+				// taken across the original source runs.
+				//
+				// commonRPrChildren mirrors upstream Okapi
+				// StyleOptimisation.commonRunPropertiesOf
+				// (StyleOptimisation.java lines 204-237) — the set of
+				// rPr child elements present and equal across every
+				// translatable text run in the paragraph. The writer
+				// emits these on every <w:r> for the block (#592), and
+				// the WSO post-pass then lifts them into a synthesised
+				// paragraph style when the threshold conditions are
+				// met (#589 / style_optimization.go).
+				commonRPr := commonRPrChildren(runs)
+				commonRPrXML := joinRPrChildren(commonRPr)
+
 				// Merge adjacent runs with same formatting
 				merged := mergeRuns(runs)
 
@@ -360,7 +378,7 @@ func (p *wmlParser) parseParagraph(d *xml.Decoder, partPath string, emitBlock fu
 				p.skelRef(blockID)
 				p.skelWriteString("</w:p>")
 
-				block := p.buildBlock(blockID, merged, partPath)
+				block := p.buildBlock(blockID, merged, partPath, commonRPrXML)
 				emitBlock(block)
 				return nil
 			}
@@ -704,7 +722,15 @@ func (p *wmlParser) wrapHyperlinkRuns(runs []textRun, relID string) []textRun {
 }
 
 // buildBlock builds a model.Block from a list of merged text runs.
-func (p *wmlParser) buildBlock(id string, runs []textRun, partPath string) *model.Block {
+//
+// commonRPrXML is the children-only serialisation of the rPr elements
+// that are present and identical across every translatable source run
+// in the paragraph (computed by commonRPrChildren BEFORE mergeRuns
+// collapsed adjacent same-toggle runs). When non-empty it is stored as
+// the openxmlSourceRPrAnnotation on the block so the writer can
+// reapply it on every emitted <w:r>. This is the per-run rPr
+// preservation path required by Bowrain Issue #592.
+func (p *wmlParser) buildBlock(id string, runs []textRun, partPath, commonRPrXML string) *model.Block {
 	b := &runBuilder{}
 	spanCounter := 0
 
@@ -832,6 +858,19 @@ func (p *wmlParser) buildBlock(id string, runs []textRun, partPath string) *mode
 				Kind:   "fonts",
 				Fields: map[string]any{"names": fonts},
 			}
+		}
+	}
+
+	// Stash the common per-source-run rPr children for the writer (#592).
+	// The writer prepends this XML to every emitted <w:r>'s <w:rPr>; the
+	// WSO post-pass then lifts it into a synthesised paragraph style when
+	// the optimisation conditions are met (mirroring upstream Okapi
+	// StyleOptimisation.Default.applyTo, see StyleOptimisation.java
+	// lines 96-129 of okapi-filter-openxml).
+	if commonRPrXML != "" {
+		block.Annotations[openxmlSourceRPrAnnotationKey] = &model.GenericAnnotation{
+			Kind:   openxmlSourceRPrAnnotationKey,
+			Fields: map[string]any{"xml": commonRPrXML},
 		}
 	}
 
