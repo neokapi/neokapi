@@ -6,11 +6,36 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"regexp"
 	"strings"
 	"sync"
 
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
+)
+
+// drawingNameAttrRE matches a name="..." attribute on either a
+// non-visual drawing object property element (<wp:docPr>) or a
+// non-visual canvas property element (<pic:cNvPr>, <wps:cNvPr>, …).
+// Both elements are translatable per Okapi's
+// XMLEventHelpers.isDrawingProperty (line 292 of okapi/filters/openxml
+// /src/main/java/net/sf/okapi/filters/openxml/XMLEventHelpers.java)
+// when ConditionalParameters.getTranslateWordGraphicName() is true
+// (default true; ConditionalParameters.java line ~setTranslate-
+// WordGraphicName(true) in the constructor). The submatch ordering is:
+//
+//	[1] open tag prefix up to the name= attribute (incl. the leading
+//	    "<docPr " or "<cNvPr " plus any preceding attributes)
+//	[2] quote character (' or ")
+//	[3] attribute value
+//	[4] tail of the open tag (closing '>' or '/>')
+//
+// Conservative: only matches docPr and cNvPr when they appear in a
+// drawing context. We don't try to disambiguate against unrelated
+// elements named docPr/cNvPr because none exist in the OOXML schema.
+// Multiline/indented forms tolerated via [^>]* segments.
+var drawingNameAttrRE = regexp.MustCompile(
+	`(<(?:[A-Za-z_][\w-]*:)?(?:docPr|cNvPr)\b[^>]*?\s+name=)(["'])([^"']*)(["'][^>]*?/?>)`,
 )
 
 // wmlNamespace is the WordprocessingML namespace.
@@ -303,7 +328,7 @@ func (p *wmlParser) parseParagraph(d *xml.Decoder, partPath string, emitBlock fu
 						p.skelText(paraProps)
 					}
 					for _, r := range merged {
-						p.skelText(runToXML(r))
+						p.writeRunToSkel(r, partPath, emitBlock)
 					}
 					p.skelWriteString("</w:p>")
 					return nil
@@ -951,6 +976,147 @@ func runToXML(r textRun) string {
 	}
 	buf.WriteString("</w:r>")
 	return buf.String()
+}
+
+// writeRunToSkel emits a textRun directly into the skeleton stream.
+// Mostly delegates to runToXML, but for opaque drawing/pict/object/
+// AlternateContent payloads (sentinel "" or paragraph-level
+// ""), it scans the captured XML for translatable name=
+// attributes on <wp:docPr> / <pic:cNvPr> / <wps:cNvPr> elements and
+// emits a separate "property" Block per match — interleaving the raw
+// XML between attribute-value substitution points and skeleton refs
+// to those blocks. This mirrors Okapi's
+// RunParser.processTranslatableAttributes (line ~838 of
+// okapi/filters/openxml/src/main/java/net/sf/okapi/filters/openxml/
+// RunParser.java) which extracts wp:docPr/@name when
+// ConditionalParameters.getTranslateWordGraphicName() is true (the
+// default). Without this extraction, drawings round-trip with the
+// source-language object name still present (e.g. "Bild 1") while
+// Okapi would have translated it ("ßĩĺď 1" under pseudo-translation),
+// producing structural-but-semantic divergence.
+func (p *wmlParser) writeRunToSkel(r textRun, partPath string, emitBlock func(*model.Block)) {
+	// For opaque sentinel runs with captured data, do attribute
+	// extraction. Otherwise, fall back to the simple runToXML path.
+	isOpaque := strings.HasPrefix(r.text, "") || strings.HasPrefix(r.text, "")
+	if !isOpaque || r.data == "" {
+		p.skelText(runToXML(r))
+		return
+	}
+
+	// Wrap opaque payload in <w:r>...</w:r> for run-level sentinels;
+	// paragraph-level sentinels () carry no <w:r> wrapper.
+	wrap := strings.HasPrefix(r.text, "")
+	if wrap {
+		// Emit the run open tag (with rPr if needed) via runToXML on
+		// a stripped variant — simpler to construct a synthetic
+		// run with empty data and slice the inner.
+		open, close := splitRunWrapper(r)
+		p.skelText(open)
+		p.writeDrawingXMLToSkel(r.data, partPath, emitBlock)
+		p.skelText(close)
+		return
+	}
+	p.writeDrawingXMLToSkel(r.data, partPath, emitBlock)
+}
+
+// splitRunWrapper returns the opening and closing portions of the
+// <w:r>...</w:r> wrapper for a sentinel run, with the run's run-
+// properties (rPr) included in the opening. Used by writeRunToSkel to
+// frame an opaque drawing payload with the original run wrapper while
+// emitting the inner XML piecewise to the skeleton.
+func splitRunWrapper(r textRun) (open, close string) {
+	var buf strings.Builder
+	buf.WriteString("<w:r>")
+	if !r.props.isEmpty() {
+		buf.WriteString("<w:rPr>")
+		if r.props.bold {
+			buf.WriteString("<w:b/>")
+		}
+		if r.props.italic {
+			buf.WriteString("<w:i/>")
+		}
+		if r.props.underline != "" {
+			buf.WriteString(`<w:u w:val="` + r.props.underline + `"/>`)
+		}
+		if r.props.strike {
+			buf.WriteString("<w:strike/>")
+		}
+		if r.props.vertAlign != "" {
+			buf.WriteString(`<w:vertAlign w:val="` + r.props.vertAlign + `"/>`)
+		}
+		if r.props.vanish {
+			buf.WriteString("<w:vanish/>")
+		}
+		buf.WriteString("</w:rPr>")
+	}
+	return buf.String(), "</w:r>"
+}
+
+// writeDrawingXMLToSkel emits a drawing's captured raw XML to the
+// skeleton, splitting at translatable name= attributes on docPr /
+// cNvPr elements. Each name attribute value becomes a separate
+// "property" Block (translatable, with single text source segment)
+// whose ID is referenced in the skeleton via skelRef. The writer's
+// renderBlock path emits "property" blocks as plain attribute-escaped
+// text (writer.go line 683-685), which is exactly what we need to
+// substitute back inside an attribute value.
+//
+// Empty or whitespace-only name values are passed through as
+// skeleton text — there's nothing translatable.
+func (p *wmlParser) writeDrawingXMLToSkel(xmlData, partPath string, emitBlock func(*model.Block)) {
+	matches := drawingNameAttrRE.FindAllStringSubmatchIndex(xmlData, -1)
+	if len(matches) == 0 {
+		p.skelText(xmlData)
+		return
+	}
+
+	pos := 0
+	for _, m := range matches {
+		// m = [whole_lo, whole_hi, g1_lo, g1_hi, g2_lo, g2_hi,
+		//      g3_lo, g3_hi, g4_lo, g4_hi]
+		gOpen := xmlData[m[2]:m[3]]  // "<docPr ... name="
+		quote := xmlData[m[4]:m[5]]  // single or double quote
+		gValue := xmlData[m[6]:m[7]] // attribute value
+		gClose := xmlData[m[8]:m[9]] // closing of element
+		// Emit any text before this match
+		p.skelText(xmlData[pos:m[0]])
+		// Emit the open part (e.g. `<wp:docPr id="1" name=`) plus the quote
+		p.skelText(gOpen)
+		p.skelText(quote)
+		// If the value is non-empty, emit a translatable block for it
+		// and replace the value with a skeleton ref. Empty values pass
+		// through verbatim.
+		if strings.TrimSpace(gValue) != "" {
+			*p.blockCounter++
+			blockID := fmt.Sprintf("tu%d", *p.blockCounter)
+			p.skelRef(blockID)
+			emitBlock(&model.Block{
+				ID:           blockID,
+				Type:         "property",
+				Translatable: true,
+				Source: []*model.Segment{model.NewRunsSegment(
+					"s1",
+					[]model.Run{{Text: &model.TextRun{Text: gValue}}},
+				)},
+				Targets: make(map[model.LocaleID][]*model.Segment),
+				Properties: map[string]string{
+					"partPath": partPath,
+					"element":  "drawing-name",
+				},
+				Annotations: make(map[string]model.Annotation),
+			})
+		} else {
+			p.skelText(gValue)
+		}
+		// Emit the closing quote + tail
+		p.skelText(quote)
+		// gClose already includes the closing quote in its first byte;
+		// strip it because we already wrote `quote` separately.
+		p.skelText(gClose[1:])
+		pos = m[1]
+	}
+	// Emit any trailing text after the last match
+	p.skelText(xmlData[pos:])
 }
 
 // collectFonts returns a comma-separated list of unique font names from runs.
