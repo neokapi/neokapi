@@ -569,6 +569,54 @@ func (w *Writer) writeFromSkeleton(origZR *zip.Reader, zw *zip.Writer, buf *byte
 	// Write output ZIP: replace translatable parts with skeleton-reconstructed content,
 	// and substitute locale-variant media files (Bowrain AD-007).
 	isDOCX := info.docType == docTypeDOCX
+
+	// AllowWordStyleOptimisation post-pass: applied per WML part that
+	// participates in style synthesis. Styles synthesised across all
+	// parts are accumulated in a single map keyed by styleId, then
+	// injected into word/styles.xml at the end. This mirrors Okapi's
+	// single-IdGenerator-per-filter-invocation scope (see
+	// WordStyleDefinitions.readWith line 114).
+	var (
+		synthesised   map[string]synthesisedStyle
+		orderedIDs    []string
+		idCounters    map[string]int
+		existingIDs   map[string]bool
+		pendingStyles map[string]pendingStylesEntry
+	)
+	if isDOCX && w.cfg.OptimiseWordStyles {
+		synthesised = make(map[string]synthesisedStyle)
+		idCounters = make(map[string]int)
+		// Pre-load existing styleIds from the source styles.xml so the
+		// generated NF974E24F-* ids don't collide.
+		for _, f := range origZR.File {
+			if f.Name == "word/styles.xml" {
+				data, err := readZipFile(f)
+				if err == nil {
+					existingIDs = extractExistingStyleIDs(data)
+				}
+				break
+			}
+		}
+		if existingIDs == nil {
+			existingIDs = make(map[string]bool)
+		}
+	}
+
+	// Helper: post-process a WML XML payload (after lang strip + lang
+	// retargeting, before recompression).
+	postWML := func(name string, data []byte) []byte {
+		if !isDOCX {
+			return data
+		}
+		// Style optimisation is only applied to PARAGRAPH-bearing parts;
+		// styles.xml itself is handled separately (style injection at
+		// the end of this function).
+		if w.cfg.OptimiseWordStyles && shouldOptimiseWMLPart(name) {
+			data = optimizeWMLPart(data, existingIDs, idCounters, synthesised, &orderedIDs)
+		}
+		return data
+	}
+
 	for _, f := range origZR.File {
 		if content, ok := partContents[f.Name]; ok && len(content) > 0 {
 			// Replace with skeleton-reconstructed content
@@ -578,6 +626,7 @@ func (w *Writer) writeFromSkeleton(origZR *zip.Reader, zw *zip.Writer, buf *byte
 			if isDOCX && shouldRewriteWMLLangVal(f.Name) {
 				content = rewriteWMLLangVal(content, w.sourceLocale, w.Locale)
 			}
+			content = postWML(f.Name, content)
 			fh := f.FileHeader
 			fh.Method = zip.Deflate
 			// Clear data descriptor fields to avoid checksum issues
@@ -621,6 +670,18 @@ func (w *Writer) writeFromSkeleton(origZR *zip.Reader, zw *zip.Writer, buf *byte
 			if shouldRewriteWMLLangVal(f.Name) {
 				data = rewriteWMLLangVal(data, w.sourceLocale, w.Locale)
 			}
+			data = postWML(f.Name, data)
+			// Defer styles.xml emission until all paragraph parts have
+			// been visited so we know the synthesised set. We instead
+			// stash the post-strip bytes in a sentinel map that's
+			// flushed after the loop.
+			if w.cfg.OptimiseWordStyles && isDOCX && f.Name == "word/styles.xml" {
+				if pendingStyles == nil {
+					pendingStyles = map[string]pendingStylesEntry{}
+				}
+				pendingStyles[f.Name] = pendingStylesEntry{header: f.FileHeader, data: data}
+				continue
+			}
 			fh := f.FileHeader
 			fh.Method = zip.Deflate
 			fh.CompressedSize64 = 0
@@ -641,7 +702,58 @@ func (w *Writer) writeFromSkeleton(origZR *zip.Reader, zw *zip.Writer, buf *byte
 		}
 	}
 
+	// Late-emit styles.xml with synthesised <w:style> entries appended.
+	if w.cfg.OptimiseWordStyles && isDOCX && pendingStyles != nil {
+		for name, ps := range pendingStyles {
+			data := ps.data
+			if name == "word/styles.xml" && len(orderedIDs) > 0 {
+				data = injectSynthesisedStyles(data, synthesised, orderedIDs)
+			}
+			fh := ps.header
+			fh.Method = zip.Deflate
+			fh.CompressedSize64 = 0
+			fh.UncompressedSize64 = 0
+			fh.CRC32 = 0
+			fw, err := zw.CreateHeader(&fh)
+			if err != nil {
+				return err
+			}
+			if _, err := fw.Write(data); err != nil {
+				return err
+			}
+		}
+	}
+
 	return zw.Close()
+}
+
+// pendingStylesEntry holds a WML part (currently only styles.xml) that
+// must be deferred until after all other parts have been post-processed
+// — the synthesised-style set isn't complete until then.
+type pendingStylesEntry struct {
+	header zip.FileHeader
+	data   []byte
+}
+
+// shouldOptimiseWMLPart reports whether a WML XML part participates in
+// AllowWordStyleOptimisation (paragraphs are walked, common rPr is
+// extracted into synthesised paragraph styles). Mirrors the set of
+// parts Okapi's openxml filter routes through WordPart processing.
+func shouldOptimiseWMLPart(name string) bool {
+	if !strings.HasPrefix(name, "word/") || !strings.HasSuffix(name, ".xml") {
+		return false
+	}
+	switch {
+	case name == "word/document.xml",
+		name == "word/footnotes.xml",
+		name == "word/endnotes.xml",
+		name == "word/comments.xml":
+		return true
+	case strings.HasPrefix(name, "word/header") && strings.HasSuffix(name, ".xml"),
+		strings.HasPrefix(name, "word/footer") && strings.HasSuffix(name, ".xml"):
+		return true
+	}
+	return false
 }
 
 // writeFromReparse copies the original ZIP, substituting locale-variant media (Bowrain AD-007).

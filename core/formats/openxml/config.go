@@ -95,7 +95,12 @@ func (c *Config) Reset() {
 	c.UseCodeFinder = false
 	c.CodeFinderRules = nil
 	c.ComplexFieldDefinitionsToExtract = nil
-	c.OptimiseWordStyles = false
+	// Okapi's AllowWordStyleOptimisation parameter defaults to true (see
+	// upstream ConditionalParameters.java line 813:
+	// AllowWordStyleOptimisation=true). Mirroring the default keeps the
+	// native filter byte-equal with the bridge for fixtures that rely on
+	// synthesised paragraph styles.
+	c.OptimiseWordStyles = true
 	c.FontMappings = nil
 	c.ExtractRunFontsInfo = false
 	c.ReplaceLineSeparator = false
