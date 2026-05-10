@@ -13,9 +13,9 @@ It is **not** an architecture decision and **not** user-facing docs.
 | Engine | Total | byte | canon | sem | div |
 |---|---:|---:|---:|---:|---:|
 | bridge (okapi-bridge) | 41 | 41 | 0 | 0 | 0 |
-| native (this package) | 41 | **31** | 0 | 0 | 10 |
+| native (this package) | 41 | **35** | 0 | 0 | 6 |
 
-Cleared 31 of 41 fixtures so far through seven commits that added
+Cleared 35 of 41 fixtures so far through eight commits that added
 extraction for FrameMaker translatable surfaces the original reader
 walked past:
 
@@ -27,7 +27,8 @@ walked past:
 | `<Marker><MText>` for Index + Hypertext markers | 404c1ba9 |
 | codeFinder `\x{NNNN}` escapes + walk into `<FNote>` | c68c016b |
 | Multi-Font run splitting (Cluster H + L/M side-effects) | 16e172dd |
-| `<Char>` glyph elision/rewrite (Clusters C + F + partial G) | (this iteration) |
+| `<Char>` glyph elision/rewrite (Clusters C + F + partial G) | 7ce509c7 |
+| FNote bare-`>` ParaLine close rewrite + empty-glyph Char elision (Cluster K) | (this iteration) |
 
 Remaining clusters break down as follows.
 
@@ -118,18 +119,30 @@ branch in readUntilText flips `significant=true` for any tag that
 isn't ParaLine/Pgf/String/Char/Marker, which closes the running
 TextFragment and starts a new one when text resumes.
 
-### Cluster K — FNote/Para `>` close-line rewrite (1 fixture)
+### Cluster K — FNote/Para `>` close-line rewrite (RESOLVED -- 4 fixtures)
 
-**Affects**: `TestFootnote.mif`.
+**Was Affecting**: `TestFootnote.mif`, `Test02-v9.mif`,
+`TestEncoding-v9.mif`, `TestEncoding-v10.mif`. **Now**: all four
+byte-equal.
 
-**Symptom**: Footnote text now correctly translates (commit c68c016b).
-The remaining diff is okapi's structural rewrite of the ParaLine
-close: source has bare `>`, reference always emits `> # end of
-ParaLine`. Native preserves source-faithful skeleton.
+**Resolution**: Two complementary mechanisms in `findStringPositions`:
 
-**Fix shape**: This is okapi-side cosmetic. Either match okapi
-(rewrite all bare `>` closes to `> # end of <Tag>` form), or accept
-this as a permanent canonical-only diff.
+  - `rewriteFNoteParaCloses` scans rawText for the bare-`>` ParaLine
+    close pattern (a `\n[ \t]*>\n[ \t]*> # end of Para\n` sequence
+    typical of FNote bodies where the source omits the
+    `# end of ParaLine` comment) and emits an elision dropping the
+    bare `>` byte plus a rewrite inserting ` # end of ParaLine\n>`
+    immediately after the source's `>` of the `> # end of Para` line.
+    Mirrors okapi MIFFilter.processPara at MIFFilter.java:1191-1200
+    which unconditionally appends ` # end of ParaLine\n>` on every
+    ParaLine close (paraLevel→0); when the source already has the
+    comment the insert-`>`-before-comment branch yields a byte-equal
+    output, so only the bare-`>` case needs an explicit rewrite.
+  - The per-Para Char elision now also drops `<Char>` lines whose
+    glyph value is empty (e.g. `<Char SoftHyphen>`). Mirrors okapi's
+    readTag at MIFFilter.java:1527-1532 which deletes the
+    just-appended `<Char` from sb regardless of glyph value -- the
+    source line is removed before the literal is even read.
 
 ### Cluster L — XRef structural rewrite (3 fixtures)
 
@@ -183,16 +196,9 @@ c87f4218. Cluster retired.
 
 ## Triage suggestion for the next iteration
 
-The Char-handling sub-project (Cluster C + F + G) is now resolved; the
-remaining 10 divergent fixtures break down into smaller threads:
-
-**Footnote/FNote ParaLine close cosmetic (Cluster K-like, 4 fixtures)**:
-`Test02-v9.mif`, `TestEncoding-v9.mif`, `TestEncoding-v10.mif`,
-`TestFootnote.mif`. Diff is a uniform 15-byte difference at the
-ParaLine/Para close inside `<FNote>`: native preserves source-faithful
-`>\n   > # end of Para`, okapi rewrites to
-`\n   > # end of ParaLine\n> # end of Para`. Either match okapi or
-accept as canonical-only.
+The Char-handling sub-project (Cluster C + F + G) and the FNote
+ParaLine close rewrite (Cluster K) are now resolved; the remaining 6
+divergent fixtures break down into smaller threads:
 
 **Cross-ParaLine merge after Char rewrite (1 fixture)**: `1188_crlf.mif`.
 The Char HardReturn rewrite is now correct, but the SECOND ParaLine

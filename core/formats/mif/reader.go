@@ -574,7 +574,27 @@ func (r *Reader) findStringPositions(rawText string, stmts []*mifStatement) ([]s
 							continue
 						}
 						lit, ok := charLiteral(ch.name, r.cfg.ExtractHardReturnsAsText)
+						// Always elide the `<Char>` line itself (mirrors
+						// okapi's readTag at MIFFilter.java:1527-1532
+						// which deletes the just-appended `<Char` from sb
+						// before the literal is even read). The lit/ok
+						// distinction only controls whether the Char
+						// contributes a glyph to a synthesized String run
+						// (rewriteChars) -- the source line elision
+						// applies regardless.
 						if !ok || lit == "" {
+							if len(strs) > 0 {
+								runSlot := -1
+								for i, off := range run.stringOffsetIndices {
+									if off <= ch.afterIdx {
+										runSlot = i
+									}
+								}
+								inline = append(inline, paraInlineChar{
+									name:            ch.name,
+									afterStringSlot: runSlot,
+								})
+							}
 							continue
 						}
 						if len(strs) == 0 {
@@ -1088,7 +1108,97 @@ func (r *Reader) findStringPositions(rawText string, stmts []*mifStatement) ([]s
 		}
 	}
 
+	// Cluster K: FNote/Para bare-`>` ParaLine close rewrite. Mirrors
+	// okapi MIFFilter.processPara at MIFFilter.java:1191-1200 which, on
+	// every ParaLine close (paraLevel→0), unconditionally appends
+	// ` # end of ParaLine\n>` (or inserts `>` before an existing comment
+	// if one is present). Source MIF often has the comment already, in
+	// which case okapi's insert-`>`-before-comment yields a byte-equal
+	// result. But when the source has a BARE `>` ParaLine close (no
+	// trailing `# end of ParaLine` comment), okapi rewrites the structure
+	// to add the labeled close + a synthesized Para close `>`. Per the
+	// MIF Reference (Adobe FrameMaker Parameters/MIF Reference, §
+	// "ParaLine Statement"), the `# end of <Tag>` comment is purely
+	// cosmetic — but okapi normalizes it. Native must mirror so the byte
+	// stream matches.
+	//
+	// The pattern is: a line containing only whitespace + `>` + `\n`,
+	// followed by a line whose `>` close is `> # end of Para`. We elide
+	// the bare `>` byte and insert ` # end of ParaLine\n>` immediately
+	// after the source's `>` of the `> # end of Para` line. Net result:
+	//   source: `>\n   > # end of Para\n`
+	//   output: `\n   > # end of ParaLine\n> # end of Para\n`
+	rewriteFNoteParaCloses(rawText, &elisions, &rewrites)
+
 	return refs, elisions, rewrites
+}
+
+// rewriteFNoteParaCloses scans rawText for the bare-`>` ParaLine close
+// pattern (typically inside `<FNote>` blocks) and emits the
+// elision + rewrite ops needed to mirror okapi's processPara
+// (MIFFilter.java:1191-1200) ParaLine close synthesis. See Cluster K
+// note in findStringPositions for the per-byte rewrite contract.
+func rewriteFNoteParaCloses(rawText string, elisions *[]elisionRange, rewrites *[]charRewrite) {
+	// Match: \n<whitespace>>\n<whitespace>> # end of Para\n
+	// Walk byte-by-byte to avoid pulling in regexp dependency.
+	n := len(rawText)
+	for i := 0; i < n; i++ {
+		if rawText[i] != '\n' {
+			continue
+		}
+		// Check for bare `>` line: <whitespace>>\n
+		j := i + 1
+		for j < n && (rawText[j] == ' ' || rawText[j] == '\t') {
+			j++
+		}
+		if j >= n || rawText[j] != '>' {
+			continue
+		}
+		bareGtPos := j
+		j++
+		if j >= n || rawText[j] != '\n' {
+			continue
+		}
+		// Now check the next line is `<whitespace>> # end of Para\n`.
+		k := j + 1
+		for k < n && (rawText[k] == ' ' || rawText[k] == '\t') {
+			k++
+		}
+		if k >= n || rawText[k] != '>' {
+			continue
+		}
+		paraGtPos := k
+		const endOfPara = " # end of Para"
+		if k+1+len(endOfPara) > n {
+			continue
+		}
+		if rawText[k+1:k+1+len(endOfPara)] != endOfPara {
+			continue
+		}
+		// Verify it's exactly `> # end of Para` and not a longer name
+		// like `> # end of ParaLine` -- the next byte after must be
+		// `\r` or `\n` (not a letter).
+		after := k + 1 + len(endOfPara)
+		if after < n && rawText[after] != '\n' && rawText[after] != '\r' {
+			continue
+		}
+		// Emit elision: drop the bare `>` byte.
+		*elisions = append(*elisions, elisionRange{
+			startOffset: bareGtPos,
+			endOffset:   bareGtPos + 1,
+		})
+		// Emit rewrite: insert ` # end of ParaLine\n>` right after the
+		// source's `>` of the `> # end of Para` line. start==end means
+		// pure insertion at that offset.
+		insertAt := paraGtPos + 1
+		*rewrites = append(*rewrites, charRewrite{
+			startOffset: insertAt,
+			endOffset:   insertAt,
+			text:        " # end of ParaLine\n>",
+		})
+		// Advance to skip over the matched region.
+		i = after
+	}
 }
 
 // findCharLineForRewrite locates the next `<Char NAME>` line at or
