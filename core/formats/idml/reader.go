@@ -214,8 +214,9 @@ func (r *Reader) parseStory(ctx context.Context, ch chan<- model.PartResult,
 	d := xml.NewDecoder(bytes.NewReader(data))
 
 	var skelBuf bytes.Buffer
-	var contentDepth int // >0 when inside a <Content> element
-	var noteDepth int    // >0 when inside a Note/Footnote/Endnote element
+	var contentDepth int    // >0 when inside a <Content> element
+	var noteDepth int       // >0 when inside a Note/Footnote/Endnote element
+	var stickyNoteDepth int // >0 when inside a <Note> (InDesign editor sticky note, not Footnote/Endnote)
 	var textBuf strings.Builder
 	// rootOpened tracks whether the root element start tag has been
 	// emitted. Whitespace between the `<?xml ?>` declaration and the
@@ -361,15 +362,27 @@ func (r *Reader) parseStory(ctx context.Context, ch chan<- model.PartResult,
 				// nesting), but we use a depth counter rather than a
 				// boolean so a malformed input can't silently lose state.
 				//
-				// Okapi's IDML round-trip rewrites every <Content> start
-				// tag as `<Content xml:space="preserve">` regardless of
-				// whether the source had the xml:space attribute. Match
-				// that so the placeholder ref slots into the same
-				// surrounding bytes.
+				// Okapi's IDML round-trip rewrites every translatable
+				// <Content> start tag as `<Content xml:space="preserve">`.
+				//
+				// `<Note>` (InDesign editor sticky note, distinct from
+				// `<Footnote>`/`<Endnote>` publication notes) is treated
+				// as an isolated inline code by upstream when
+				// extractNotes=false (the default):
+				// StyledTextElementsMapping.java:177-181. Its child
+				// Content stays in the source language with the source's
+				// original attributes — no `xml:space="preserve"`
+				// rewrite. We mirror that by emitting the source start
+				// tag verbatim; the close branch keeps the original
+				// CharData in skeleton so no Block ever fires.
 				openBareIfDirect()
 				commitPending()
 				if r.skeletonStore != nil {
-					skelBuf.WriteString(`<Content xml:space="preserve">`)
+					if stickyNoteDepth > 0 && !r.cfg.ExtractNotes {
+						r.skelWriteStartElement(&skelBuf, t)
+					} else {
+						skelBuf.WriteString(`<Content xml:space="preserve">`)
+					}
 				}
 				contentDepth++
 				textBuf.Reset()
@@ -389,6 +402,9 @@ func (r *Reader) parseStory(ctx context.Context, ch chan<- model.PartResult,
 			case "Note", "Footnote", "Endnote":
 				closeBareIfDirect()
 				noteDepth++
+				if t.Name.Local == "Note" {
+					stickyNoteDepth++
+				}
 				emitStart(t)
 				elemDepth++
 
@@ -409,17 +425,19 @@ func (r *Reader) parseStory(ctx context.Context, ch chan<- model.PartResult,
 
 					trimmed := strings.TrimSpace(text)
 
-					// Footnote/Endnote/Note <Content> text is always
-					// extracted as a translatable Block — matching
-					// okapi's IDML round-trip, which translates
-					// footnote bodies regardless of the ExtractNotes
-					// flag. ExtractNotes controls whether the note is
-					// also exposed as a separate NoteAnnotation on
-					// the surrounding Block (we don't emit that
-					// annotation today, so the flag is currently a
-					// no-op for text extraction).
+					// Footnote/Endnote <Content> text is always extracted
+					// as a translatable Block — matching okapi's IDML
+					// round-trip, which translates footnote/endnote
+					// bodies regardless of the ExtractNotes flag.
+					//
+					// `<Note>` (InDesign editor sticky note) is
+					// different: upstream treats it as an isolated
+					// inline code when extractNotes=false (the default,
+					// StyledTextElementsMapping.java:177-181), so its
+					// child Content stays in the skeleton untranslated.
+					inUnextractedStickyNote := stickyNoteDepth > 0 && !r.cfg.ExtractNotes
 
-					if trimmed == "" {
+					if trimmed == "" || inUnextractedStickyNote {
 						// Non-translatable: write to skeleton as text
 						commitPending()
 						r.skelText(&skelBuf, xmlEscape(text))
@@ -482,6 +500,9 @@ func (r *Reader) parseStory(ctx context.Context, ch chan<- model.PartResult,
 
 			case "Note", "Footnote", "Endnote":
 				noteDepth--
+				if t.Name.Local == "Note" && stickyNoteDepth > 0 {
+					stickyNoteDepth--
+				}
 				elemDepth--
 				emitEnd(t)
 

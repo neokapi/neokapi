@@ -950,8 +950,14 @@ func mergeAdjacentCSRsInTree(node *xmlNode, mergeDefaultCSRs bool) {
 			break
 		}
 		if runEnd-runStart == 1 {
-			// Singleton run — nothing to merge. Recurse into the lone
-			// CSR's children.
+			// Singleton run — nothing to merge across CSR siblings.
+			// Still apply the per-CSR content merge so adjacent
+			// `<Content>` children of this single CSR collapse: okapi's
+			// StoryChildElementsMerger:138-143 always fuses them
+			// regardless of whether neighboring CSRs were merged.
+			if mergeDefaultCSRs {
+				c.sub.children = mergeAdjacentContentsInCSR(c.sub.children)
+			}
 			merged = append(merged, c)
 			i++
 			continue
