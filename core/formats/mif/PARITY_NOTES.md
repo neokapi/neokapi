@@ -13,9 +13,9 @@ It is **not** an architecture decision and **not** user-facing docs.
 | Engine | Total | byte | canon | sem | div |
 |---|---:|---:|---:|---:|---:|
 | bridge (okapi-bridge) | 41 | 41 | 0 | 0 | 0 |
-| native (this package) | 41 | **26** | 0 | 0 | 15 |
+| native (this package) | 41 | **31** | 0 | 0 | 10 |
 
-Cleared 26 of 41 fixtures so far through six commits that added
+Cleared 31 of 41 fixtures so far through seven commits that added
 extraction for FrameMaker translatable surfaces the original reader
 walked past:
 
@@ -26,53 +26,71 @@ walked past:
 | Inline `<Para><Pgf><PgfNumFormat>` overrides | c87f4218 |
 | `<Marker><MText>` for Index + Hypertext markers | 404c1ba9 |
 | codeFinder `\x{NNNN}` escapes + walk into `<FNote>` | c68c016b |
-| Multi-Font run splitting (Cluster H + L/M side-effects) | (this iteration) |
+| Multi-Font run splitting (Cluster H + L/M side-effects) | 16e172dd |
+| `<Char>` glyph elision/rewrite (Clusters C + F + partial G) | (this iteration) |
 
 Remaining clusters break down as follows.
 
 ## Divergence clusters (still open)
 
-### Cluster C — `<Char HardReturn>` writer elision (4 fixtures)
+### Cluster C — `<Char HardReturn>` writer elision (RESOLVED for `Test01.mif`; partial elsewhere)
 
-**Affects**: `1187_crlf.mif`, `1188_crlf.mif`, `987.mif`, `Test01.mif`.
+**Was Affecting**: `1187_crlf.mif`, `1188_crlf.mif`, `987.mif`, `Test01.mif`.
+**Now**: only `1187_crlf.mif`, `1188_crlf.mif`, `987.mif` remain divergent --
+for reasons OTHER than the Char HardReturn elision. `Test01.mif` is byte-equal.
 
-**Symptom**: When `extractHardReturnsAsText: true` (default) the reader
-correctly inlines `<Char HardReturn>` into the block source as `\n`,
-but the writer's skeleton refs don't elide the matching `<Char
-HardReturn>` line — so the output carries BOTH the pseudo-translated
-text containing `\n` AND the leftover `<Char HardReturn>` skeleton
-line. okapi's `MIFFilter.writeParagraph` rebuilds the paragraph from
-the textual model on output so `<Char>` statements that were inlined
-as text never reappear.
+**Resolution**: `findStringPositions` now also returns an `elisions` slice
+that drops `<Char Foo>` lines from the skeleton when the glyph was inlined
+into the surrounding String run. Mirrors okapi `MIFFilter.processPara`
+(MIFFilter.java:1116-1126 + 740-741) which appends Char glyph values to
+`paraTextBuf` and re-emits the merged buffer as a single `<String>`,
+never re-emitting the original `<Char>` statement.
 
-**Fix shape**: Extend `findStringPositions` so each ref's
-`endOffset` swallows trailing `<Char HardReturn>` lines that
-contributed to the block text. Or: expand the ref to cover the entire
-ParaLine close + Char tail when the merged text contains `\n`.
+**Remaining divergences** in 1187_crlf, 1188_crlf, 987 are unrelated to
+the Char elision itself:
 
-### Cluster F — `<Char Cent>` / `<Char Pound>` glyph-to-String rewrite (1 fixture)
+  - 1187_crlf.mif: empty-ParaLine collapse (okapi rewrites a pair of
+    empty `<ParaLine>...</ParaLine>` siblings into a malformed
+    `   # end of ParaLine\n  \n  > # end of ParaLine` sequence -- looks
+    like an okapi-side quirk).
+  - 1188_crlf.mif: cross-ParaLine merge with `<Char HardReturn>` between
+    `</Font>` and the next ParaLine. Native correctly elides + rewrites
+    the HardReturn but doesn't yet handle the cross-ParaLine merge that
+    okapi performs on the surrounding `<Char Tab>` and following Strings.
+  - 987.mif: -1 byte off; the diverging byte is in a String value where
+    the source has `\x09` (literal MIF hex escape for tab) and okapi's
+    bridge produces `\n` in the output -- bridge-side quirk unrelated to
+    Char clusters.
 
-**Affects**: `Test01-v8.mif`.
+### Cluster F — `<Char Cent>` / `<Char Pound>` glyph-to-String rewrite (RESOLVED -- 1 fixture)
 
-**Symptom**: Source has `<Char Cent>`. Reference rewrites this to
-`<String '¢'>` and merges it into adjacent text. Native preserves the
-`<Char Cent>` skeleton line.
+**Was Affecting**: `Test01-v8.mif`. **Now**: byte-equal.
 
-**Fix shape**: Same family as Cluster C. The reader already maps Char
-glyph names to characters in `extractParaTextImpl`; the writer needs
-to elide the original `<Char>` skeleton lines and emit the merged
-text as `<String>`.
+**Resolution**: A new `paraCharRewrite` mechanism in `findStringPositions`
+rewrites `<Char NAME>` lines as `<indent><String 'X'>` (with X the glyph
+value, MIF-escaped) when the Char appears in a "Char-only run" (the merged
+text of the run is non-empty but no surrounding `<String>` exists in the
+source). The `charRewrite` op is processed alongside refs and elisions by
+the merged sort in the `readContent` skeleton emission loop. Mirrors okapi
+`MIFFilter.processPara` flush at MIFFilter.java:739-741 + addTextUnit at
+761 (paraTextBuf becomes a synthesized `<String>` on flush).
 
-### Cluster G — Marker structural rewrite (4 fixtures)
+### Cluster G — Marker structural rewrite (RESOLVED -- 4 fixtures)
 
-**Affects**: `938-1.mif`, `990-marker.mif`, `990-ref-format-1.mif`,
-`TestMarkers.mif`.
+**Was Affecting**: `938-1.mif`, `990-marker.mif`, `990-ref-format-1.mif`,
+`TestMarkers.mif`. **Now**: all four byte-equal.
 
-**Symptom**: Marker text is now correctly extracted and translated
-(commit 404c1ba9). The remaining diff is a Char-handling rewrite at
-`<Char HardSpace>` adjacent to the marker — okapi inlines `<Char
-HardSpace>` into a `<String ' '>` and re-orders the resulting
-String/Marker/String sequence. Same family as Cluster C/F.
+**Resolution**: Two complementary mechanisms in `findStringPositions`:
+
+  - `<Char HardSpace>` immediately before `<Marker>` is rewritten as
+    `<String ' '>` AND its trailing newline+indent is dropped via the
+    `joinNext` flag, so output joins `<String ' '><Marker ` on the same
+    line (mirrors okapi's writeParagraph which emits the synthesized
+    String + the Marker code without inter-tag whitespace).
+  - `<String '...'>` immediately before `<Marker>` triggers a
+    String-Marker join elision: the `'>` close of the String stays, but
+    the trailing whitespace + newline (up to the `<Marker ` keyword) is
+    added to the elision set so output joins them on the same line.
 
 ### Cluster H — Multi-Font runs split per font (RESOLVED — 6 + 3 side-effects)
 
@@ -145,53 +163,89 @@ c87f4218. Cluster retired.
 
 ### ?-other (3 fixtures)
 
-**Affects**: `893.mif`, `895.mif`,
-`896-autonumber-building-blocks.mif`.
+**Affects**: `893.mif`, `896-autonumber-building-blocks.mif`,
+`TestParaLines.mif`.
 
-These fixtures have multiple late-stage divergences that need
-individual investigation. `893.mif` has an okapi quirk where some
-`<String 'P:Body'>` cells preserve `P:` as code and others don't
-(unlike Test01.mif which always pseudo-translates `P` → `Ƥ`); the
-context-detection logic for the leading-letter rule isn't obvious
-from the okapi source.
+  - `893.mif`: leading-letter `^[A-Z]:` rule applied to plain
+    `<String>` text in cells (`P:Body` → `P:ßōďŷ` in ref vs
+    `Ƥ:ßōďŷ` in native). Okapi's bridge applies a context-sensitive
+    leading-prefix rule that native doesn't yet mirror.
+  - `896-autonumber-building-blocks.mif`: native pseudo-translates
+    okapi-recognised auto-numbering building-block names (`zenkaku a`,
+    `kanji kazu`, etc.) that the bridge keeps as code. Need a
+    PgfNumFormat-context codeFinder pattern for the building-block
+    vocabulary.
+  - `TestParaLines.mif`: `<ElementEnd 'Para'>` line appearing between
+    `<String>` and `> # end of ParaLine` in a multi-ParaLine merge
+    case is dropped by the merge elision. Need to teach the
+    multi-ParaLine elision to skip over `<ElementEnd>` (and similar
+    structural-only tags) without removing them.
 
 ## Triage suggestion for the next iteration
 
-Cluster H is now resolved. The remaining 15 divergent fixtures break
-down into two coherent sub-projects:
+The Char-handling sub-project (Cluster C + F + G) is now resolved; the
+remaining 10 divergent fixtures break down into smaller threads:
 
-**Char-handling (Cluster C, F, partial G)**: 6+ fixtures
-(`1187_crlf.mif`, `1188_crlf.mif`, `987.mif`, `Test01.mif`,
-`Test01-v8.mif`, plus `990-marker.mif`/`TestMarkers.mif` for the
-HardSpace-before-Marker special case). The fix is uniform: rewrite
-the writer/skeleton so any `<Char Foo>` statement whose value was
-inlined into the para text gets elided from the skeleton output, and
-adjacent `<Char>` statements get folded into the surrounding `<String>`
-on output.
-
-**Footnote/FNote ParaLine close cosmetic (Cluster K-like)**:
+**Footnote/FNote ParaLine close cosmetic (Cluster K-like, 4 fixtures)**:
 `Test02-v9.mif`, `TestEncoding-v9.mif`, `TestEncoding-v10.mif`,
 `TestFootnote.mif`. Diff is a uniform 15-byte difference at the
 ParaLine/Para close inside `<FNote>`: native preserves source-faithful
-`>\n   > # end of Para`, okapi rewrites to `\n   > # end of ParaLine\n>
-# end of Para`. Either match okapi or accept as canonical-only.
+`>\n   > # end of Para`, okapi rewrites to
+`\n   > # end of ParaLine\n> # end of Para`. Either match okapi or
+accept as canonical-only.
 
-**Other (3 fixtures)**: `893.mif` (P:-prefix context detection),
-`895.mif` (`<Char Tab>`-before-Variable elision; same family as Char
-clusters), `896-autonumber-building-blocks.mif` (XRefDef inline
-PgfNumString building-block extraction), `TestParaLines.mif`
-(`<ElementEnd>` skeleton preservation when inside merged ParaLine).
+**Cross-ParaLine merge after Char rewrite (1 fixture)**: `1188_crlf.mif`.
+The Char HardReturn rewrite is now correct, but the SECOND ParaLine
+(introduced after `</Font>`) needs to be merged into the first ParaLine
+along with its surrounding `<Char Tab>` (which becomes inline content
+in okapi's writeParagraph).
 
-## Files touched in this iteration
+**Empty-ParaLine collapse okapi quirk (1 fixture)**: `1187_crlf.mif`.
+Reference emits a malformed `   # end of ParaLine\n  \n  > # end of
+ParaLine` sequence for two consecutive empty ParaLines. Looks like an
+okapi quirk; consider canonical-only if reproducing it exactly proves
+infeasible.
 
-- `core/formats/mif/reader.go` — Page/AFrames/TextLine extraction,
-  inline PgfNumFormat extraction, Marker/MText extraction,
-  applyCodeFinderWithExtras helper, FNote in isMIFContainer.
-- `core/formats/mif/config.go` — codeFinder rules use Go's `\x{NNNN}`
-  unicode escape syntax instead of the never-compiling `\u…` form.
-- `core/formats/mif/PARITY_NOTES.md` — this file.
+**Other (4 fixtures)**: `893.mif` (leading-letter context detection),
+`896-autonumber-building-blocks.mif` (auto-numbering building-block
+codeFinder), `987.mif` (`\x09` escape -> `\n` bridge quirk),
+`TestParaLines.mif` (`<ElementEnd>` preservation in multi-ParaLine
+merge).
 
-## Files touched in the multi-Font (Cluster H) iteration
+## Files touched in this iteration (Char clusters C+F+G)
+
+- `core/formats/mif/reader.go`:
+  - Added `charGlyphMap` + `charLiteral` to centralize the okapi
+    `CharLiteralToken` mapping (CharLiteralToken.java:40-86).
+  - Refactored `findStringPositions` to return `(refs, elisions,
+    rewrites)` and produce a unified op stream consumed by the new
+    sort-merge in `readContent`.
+  - Added per-Para `paraInlineChar` tracking so each Char glyph that
+    contributed inlined text gets a corresponding elision range in
+    the skeleton.
+  - Added per-Para `paraCharRewrite` tracking for Char-only runs
+    (Cluster F) and Char-followed-by-Marker runs (Cluster G), with
+    `joinNext` controlling whether the Char line's trailing newline
+    is dropped so the next sibling joins on the same output line.
+  - Added a String-Marker join elision: when a String item's last
+    `'>` is immediately followed by a `<Marker `, drop the trailing
+    whitespace+newline so the two tags appear on the same output
+    line (mirrors okapi's writeParagraph layout).
+  - Same-ParaLine multi-String elision now drops the previous
+    String's `'>` (so the second String's `'>` closes the merged
+    output) instead of overshooting via the old
+    `expandToEnclosingParaLine` helper, which was removed.
+  - Multi-ParaLine merge elision now keeps the FIRST ParaLine's
+    `> # end of ParaLine` line and elides only the second ParaLine
+    wrapper + its close.
+  - Replaced `strings.TrimSpace(run.text) == ""` with
+    `run.text == ""` (matching okapi's `Util.isEmpty(text)` which
+    only checks for empty, not whitespace-only); whitespace-only
+    runs ARE extracted (e.g. `<String ' '>`).
+
+## Files touched in earlier iterations
+
+(Cluster H multi-Font split — commit 16e172dd)
 
 - `core/formats/mif/reader.go` — replaced `extractParaTextImpl` with
   `extractParaRuns`, which walks ParaLine children sequentially and
@@ -202,3 +256,11 @@ PgfNumString building-block extraction), `TestParaLines.mif`
   so blockIdx ordering stays in lock-step. XRef-internal `<String>`
   values are skipped (treated as part of the XRef inline code, per
   okapi MIFFilter.java:1068).
+
+(Earlier iterations)
+
+- `core/formats/mif/reader.go` — Page/AFrames/TextLine extraction,
+  inline PgfNumFormat extraction, Marker/MText extraction,
+  applyCodeFinderWithExtras helper, FNote in isMIFContainer.
+- `core/formats/mif/config.go` — codeFinder rules use Go's `\x{NNNN}`
+  unicode escape syntax instead of the never-compiling `\u…` form.

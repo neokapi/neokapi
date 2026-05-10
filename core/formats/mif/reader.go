@@ -92,6 +92,96 @@ type stringRef struct {
 	stringIdx   int // which string within the block (0-based)
 }
 
+// elisionRange records a raw byte range that should be dropped from the
+// skeleton output entirely. Used to elide `<Char Foo>` lines whose glyph
+// value was inlined into the surrounding String (mirrors okapi's
+// MIFFilter.processPara: `<Char>` text gets appended to paraTextBuf and
+// the original `<Char>` statement is consumed without re-emission --
+// MIFFilter.java:1116-1126), and the wrapper bytes of secondary
+// `<String>` tags whose value was merged into the first String's run.
+type elisionRange struct {
+	startOffset int
+	endOffset   int
+}
+
+// charRewrite records a `<Char Foo>` raw byte range that should be
+// rewritten on output as `<String 'X'>` where X is the Char glyph's
+// Unicode equivalent. Used for Char-only paragraphs (Cluster F:
+// `<Char Cent>` -> `<String '¢'>`) and Char-adjacent-to-Marker
+// cases (Cluster G: `<Char HardSpace>` -> `<String ' '>` on the same
+// line as the following Marker). Mirrors okapi's processPara behavior
+// where every Char glyph is converted to its literal in paraTextBuf and
+// re-emitted as part of a `<String>` (MIFFilter.java:1116-1126 +
+// writeParagraph rebuilds the String from paraTextBuf).
+type charRewrite struct {
+	startOffset int
+	endOffset   int
+	text        string // synthesized `<String 'X'>` text (with leading indent)
+}
+
+// skelOp is a single skeleton-emission operation. The skeleton-build
+// loop in readContent merges (refs, elisions, rewrites) into a sorted
+// ops slice keyed by start offset, then walks them to produce the
+// skeleton stream.
+type skelOp struct {
+	start, end int
+	kind       int // opRef / opElide / opRewrite
+	refID      string
+	rewriteOut string
+}
+
+const (
+	opRef     = 0
+	opElide   = 1
+	opRewrite = 2
+)
+
+// charGlyphMap maps `<Char NAME>` to its Unicode literal, mirroring
+// okapi's CharLiteralToken (CharLiteralToken.java:40-86). SoftHyphen
+// returns "" because okapi explicitly drops it ("we remove those" -- see
+// CharLiteralToken.java:48-49). Glyphs not in the map are passed through
+// verbatim by extractParaRuns / Char-elision discovery (i.e. they remain
+// in the skeleton as raw `<Char>` lines).
+var charGlyphMap = map[string]string{
+	"Tab":          "\t",
+	"HardSpace":    " ",
+	"SoftHyphen":   "", // okapi explicitly drops these
+	"HardHyphen":   "‑",
+	"DiscHyphen":   "\u00ad", // SOFT HYPHEN
+	"NoHyphen":     "\u200d", // ZERO WIDTH JOINER
+	"Cent":         "¢",
+	"Pound":        "£",
+	"Yen":          "¥",
+	"EnDash":       "–",
+	"EmDash":       "—",
+	"Dagger":       "†",
+	"DoubleDagger": "‡",
+	"Bullet":       "•",
+	"NumberSpace":  " ",
+	"ThinSpace":    " ",
+	"EnSpace":      " ",
+	"EmSpace":      " ",
+	// HardReturn is mapped to "\n" but only when extractHardReturnsAsText
+	// is true; handled separately in extractParaRuns and charLiteral.
+}
+
+// charLiteral returns the Unicode literal for a `<Char NAME>` glyph,
+// mirroring CharLiteralToken.toString. HardReturn returns "\n" only
+// when hardReturnsAsText is true (matching okapi's gating in
+// MIFFilter.processPara at line 740). Returns ("", false) for unknown
+// glyphs so the caller can leave the original `<Char>` statement
+// untouched in the skeleton.
+func charLiteral(name string, hardReturnsAsText bool) (string, bool) {
+	if name == "HardReturn" {
+		if hardReturnsAsText {
+			return "\n", true
+		}
+		return "", false
+	}
+	v, ok := charGlyphMap[name]
+	return v, ok
+}
+
 // alwaysSkipTags are top-level MIF tags whose content is always non-translatable.
 //
 // Mirrors okapi MIFFilter.java:54 (TOPSTATEMENTSTOSKIP). AFrames and Page are
@@ -173,15 +263,48 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 	// happens to be empty — without this, the writer falls back to its
 	// best-effort no-skeleton path and emits a near-empty stub.
 	if r.skeletonStore != nil {
-		refs := r.findStringPositions(rawText, stmts)
-		skelPos := 0
+		refs, elisions, rewrites := r.findStringPositions(rawText, stmts)
+		// Merge refs + elisions + rewrites into a single ordered op list
+		// keyed by start offset. See skelOp / opRef / opElide /
+		// opRewrite at package scope.
+		ops := make([]skelOp, 0, len(refs)+len(elisions)+len(rewrites))
 		for _, sr := range refs {
-			if sr.startOffset > skelPos {
-				r.skelText(rawText[skelPos:sr.startOffset])
+			ops = append(ops, skelOp{
+				start: sr.startOffset,
+				end:   sr.endOffset,
+				kind:  opRef,
+				refID: fmt.Sprintf("%d:%d", sr.blockIdx, sr.stringIdx),
+			})
+		}
+		for _, e := range elisions {
+			ops = append(ops, skelOp{start: e.startOffset, end: e.endOffset, kind: opElide})
+		}
+		for _, rw := range rewrites {
+			ops = append(ops, skelOp{
+				start: rw.startOffset, end: rw.endOffset, kind: opRewrite,
+				rewriteOut: rw.text,
+			})
+		}
+		// Sort by start offset; for equal starts, refs come before
+		// elisions (refs need their value bytes consumed first).
+		sortSkelOps(ops)
+
+		skelPos := 0
+		for _, op := range ops {
+			if op.start > skelPos {
+				r.skelText(rawText[skelPos:op.start])
 			}
-			refID := fmt.Sprintf("%d:%d", sr.blockIdx, sr.stringIdx)
-			r.skelRef(refID)
-			skelPos = sr.endOffset
+			switch op.kind {
+			case opRef:
+				r.skelRef(op.refID)
+			case opElide:
+				// no output; just advance position
+			case opRewrite:
+				r.skelText(op.rewriteOut)
+			}
+			if op.end > skelPos {
+				skelPos = op.end
+			}
 		}
 		if skelPos < len(rawText) {
 			r.skelText(rawText[skelPos:])
@@ -192,13 +315,48 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 	r.emit(ctx, ch, &model.Part{Type: model.PartLayerEnd, Resource: layer})
 }
 
+// paraInlineChar records the glyph name of a `<Char NAME>` statement
+// that contributed inlined text to a paragraph run. The position of the
+// Char inside the paragraph (relative to the surrounding `<String>`
+// statements) is tracked via `afterStringSlot`, which is the index into
+// the run's stringOffsetIndices slice that the Char appears after
+// (-1 = the Char appears before all Strings in the run).
+type paraInlineChar struct {
+	name            string
+	afterStringSlot int
+}
+
+// paraCharRewrite records a `<Char NAME>` statement that needs to be
+// rewritten on output. Used by Cluster F (Char-only run) and Cluster G
+// (Char-followed-by-Marker). The rewrite is applied during the
+// monotonic scan in findStringPositions so the search cursor stays
+// aligned with String positions.
+type paraCharRewrite struct {
+	name     string // raw `<Char NAME>` to find
+	text     string // glyph value to emit inside `<String 'X'>`
+	joinNext bool   // when true, drop the Char line's trailing `\n`+indent so the next sibling joins on the same line
+}
+
 // findStringPositions scans raw MIF content for <String `...'> and
 // <VariableDef `...'> patterns and associates them with block indices
 // based on the parsed statement tree. The block ordering must match the
 // order in which emitStatements emits Block parts so that
 // writeFromSkeleton's `blockIdx -> w.blocks[blockIdx]` lookup is
 // correct.
-func (r *Reader) findStringPositions(rawText string, stmts []*mifStatement) []stringRef {
+//
+// Returns three slices: (refs, elisions, rewrites).
+//   - refs: byte spans where translatable text gets injected by the
+//     writer.
+//   - elisions: byte spans of `<Char Foo>` lines (and similar) that get
+//     dropped from the skeleton because the glyph was inlined into a
+//     surrounding String run (Cluster C: HardReturn, Cluster H: inter-
+//     String Tab/HardSpace folding).
+//   - rewrites: `<Char Foo>` lines that get rewritten as `<String 'X'>`
+//     because the Char produced text in a paragraph that has no
+//     surrounding String (Cluster F: Char-only Para) or because the
+//     Char is immediately followed by a Marker that okapi attaches to
+//     a synthesized String (Cluster G: HardSpace before Marker).
+func (r *Reader) findStringPositions(rawText string, stmts []*mifStatement) ([]stringRef, []elisionRange, []charRewrite) {
 	// Walk the top-level statement list once to enumerate translatable
 	// items in emission order. Two kinds participate today:
 	//   - Para under TextFlow/Tbls/Notes (each Para → 1 block, may have
@@ -208,11 +366,14 @@ func (r *Reader) findStringPositions(rawText string, stmts []*mifStatement) []st
 	// Both share the same `blockIdx:stringIdx` skeleton-ref scheme so the
 	// writer can patch them uniformly.
 	type itemInfo struct {
-		blockIdx  int
-		strings   []string // values in order
-		searchTag string   // "String" or "VariableDef"
+		blockIdx        int
+		strings         []string // values in order
+		searchTag       string   // "String" or "VariableDef" or "CharRewrite"
+		inlineChars     []paraInlineChar
+		paraCharRewrite []paraCharRewrite // when searchTag == "CharRewrite"
 	}
 	var items []itemInfo
+	var rewrites []charRewrite
 	blockIdx := 0
 
 	// Mirror exactly the recursion in processContainer +
@@ -222,36 +383,28 @@ func (r *Reader) findStringPositions(rawText string, stmts []*mifStatement) []st
 	walkContainer = func(stmt *mifStatement) {
 		for _, child := range stmt.children {
 			if child.tag == "Para" {
-				// Inline <Pgf><PgfNumFormat> override comes BEFORE the
-				// para text in the source file, so emit it first.
-				// Mirrors okapi MIFFilter.java:1078-1112: when an inline
-				// PgfNumFormat is non-empty, okapi extracts it as a
-				// translatable text unit (as referent when
-				// extractPgfNumFormatsInline=false, as a paraTextBuf
-				// merge when true). Either way it IS extracted; native
-				// emits it as a standalone Block before the Para's text.
+				// Pre-assign blockIdx for translatable Blocks in the
+				// EMIT order used by processContainer (PgfNumFormat
+				// inline → Markers → Runs). The items list itself is
+				// later built in SOURCE order so the cursor advances
+				// monotonically through the raw text.
+				var pgfBlockIdxs []int // for each PgfNumFormat
+				var pgfValues []string
+				markerBlockIdxs := map[*mifStatement]int{} // by Marker statement
+				// Walk pgf overrides first.
 				for _, gc := range child.children {
 					if gc.tag != "Pgf" {
 						continue
 					}
 					for _, ggc := range gc.children {
 						if ggc.tag == "PgfNumFormat" && ggc.value != "" {
-							items = append(items, itemInfo{
-								blockIdx:  blockIdx,
-								strings:   []string{ggc.value},
-								searchTag: "PgfNumFormat",
-							})
+							pgfBlockIdxs = append(pgfBlockIdxs, blockIdx)
+							pgfValues = append(pgfValues, ggc.value)
 							blockIdx++
 						}
 					}
 				}
-				// <Marker> entries inside ParaLines emit standalone
-				// MText blocks (interleaved with the para text in source
-				// order). Mirrors okapi MIFFilter.java:1128-1133 +
-				// processMarker (829-883) — markers with MTypeName
-				// 'Index' (when ExtractIndexMarkers=true) or 'Hypertext'
-				// (when ExtractLinks=true) become translatable referent
-				// units.
+				// Pre-assign Marker block indices in source order.
 				for _, gc := range child.children {
 					if gc.tag != "ParaLine" {
 						continue
@@ -263,15 +416,10 @@ func (r *Reader) findStringPositions(rawText string, stmts []*mifStatement) []st
 						if !r.extractMarker(lc) {
 							continue
 						}
-						mt := markerTextValue(lc)
-						if mt == "" {
+						if markerTextValue(lc) == "" {
 							continue
 						}
-						items = append(items, itemInfo{
-							blockIdx:  blockIdx,
-							strings:   []string{mt},
-							searchTag: "MText",
-						})
+						markerBlockIdxs[lc] = blockIdx
 						blockIdx++
 					}
 				}
@@ -281,45 +429,242 @@ func (r *Reader) findStringPositions(rawText string, stmts []*mifStatement) []st
 				// run, multiple `<String>` values still collapse into the
 				// run's first String slot — the writer fills slot 0 and
 				// elides the rest.
-				runs := extractParaRuns(child, true)
-				// Collect every <String> value in source order so we can
-				// pick out the indices each run should occupy.
+				runs := extractParaRuns(child, r.cfg.ExtractHardReturnsAsText)
+				// Emit PgfNumFormat items first (they're at the head of
+				// the Para in source order).
+				for i, v := range pgfValues {
+					items = append(items, itemInfo{
+						blockIdx:  pgfBlockIdxs[i],
+						strings:   []string{v},
+						searchTag: "PgfNumFormat",
+					})
+				}
+				// Pre-assign blockIdx for each run in EMIT order
+				// (matches processContainer's runs loop). Char-only runs
+				// also get a blockIdx because processContainer emits a
+				// Block for any run with non-empty text.
+				runBlockIdxs := make([]int, len(runs))
+				for i, run := range runs {
+					if run.text == "" {
+						runBlockIdxs[i] = -1
+						continue
+					}
+					runBlockIdxs[i] = blockIdx
+					blockIdx++
+				}
+				// Pre-build the run -> strings mapping AND collect
+				// inline Char info per run.
+				runStrings := make([][]string, len(runs))
+				runInlineChars := make([][]paraInlineChar, len(runs))
+				runCharRewrites := make([][]paraCharRewrite, len(runs))
+				// Walk ParaLine children to collect allStrings + Char
+				// info, then assign each Char to its owning run.
+				type charSlot struct {
+					name     string
+					afterIdx int
+					nextTag  string
+				}
 				var allStrings []string
+				var allChars []charSlot
+				// Map run-index by absolute String slot (allStrings
+				// index): each String belongs to exactly one run via
+				// its stringOffsetIndices.
+				stringToRun := map[int]int{}
+				for ri, run := range runs {
+					for _, off := range run.stringOffsetIndices {
+						stringToRun[off] = ri
+					}
+				}
 				for _, gc := range child.children {
-					if gc.tag == "ParaLine" {
-						for _, lc := range gc.children {
-							if lc.tag == "String" {
-								allStrings = append(allStrings, lc.value)
+					if gc.tag != "ParaLine" {
+						continue
+					}
+					for lcIdx, lc := range gc.children {
+						switch lc.tag {
+						case "String":
+							allStrings = append(allStrings, lc.value)
+						case "Char":
+							nextTag := ""
+							if lcIdx+1 < len(gc.children) {
+								nextTag = gc.children[lcIdx+1].tag
 							}
+							allChars = append(allChars, charSlot{
+								name:     lc.value,
+								afterIdx: len(allStrings) - 1,
+								nextTag:  nextTag,
+							})
 						}
 					}
 				}
-				for _, run := range runs {
-					if strings.TrimSpace(run.text) == "" {
-						continue
-					}
-					strs := make([]string, 0, len(run.stringOffsetIndices))
+				// Build runStrings.
+				for ri, run := range runs {
+					var strs []string
 					for _, off := range run.stringOffsetIndices {
 						if off < len(allStrings) {
 							strs = append(strs, allStrings[off])
 						}
 					}
-					if len(strs) == 0 {
-						// Run made entirely of Char-translated text; the
-						// skeleton has no <String> position to anchor to,
-						// so emit nothing here. The Para wrapper itself
-						// stays in skeleton text and the writer's data
-						// path will not fire — matches okapi's behavior
-						// for inline-only Char content.
-						blockIdx++
+					runStrings[ri] = strs
+				}
+				// Assign each Char to its owning run. A Char belongs to
+				// the run that consumed it via extractParaRuns -- mirror
+				// the same walk to find which run is "current" when the
+				// Char is processed.
+				charOwnerRun := make([]int, len(allChars))
+				for i := range charOwnerRun {
+					charOwnerRun[i] = -1
+				}
+				{
+					ri := 0
+					stringIdx := 0
+					charIdx := 0
+					inXRef := false
+					// Re-walk ParaLine.children mirroring
+					// extractParaRuns to determine which run each Char
+					// goes into.
+					for _, gc := range child.children {
+						if gc.tag != "ParaLine" {
+							continue
+						}
+						for _, lc := range gc.children {
+							switch lc.tag {
+							case "String":
+								if inXRef {
+									stringIdx++
+									continue
+								}
+								if owner, ok := stringToRun[stringIdx]; ok {
+									ri = owner
+								}
+								stringIdx++
+							case "Char":
+								if !inXRef {
+									if _, ok := charLiteral(lc.value, r.cfg.ExtractHardReturnsAsText); ok {
+										charOwnerRun[charIdx] = ri
+									}
+								}
+								charIdx++
+							default:
+								// Inline-code boundary -- the next text
+								// will be in a new run. Advance ri to
+								// the next non-empty run.
+								if lc.tag == "XRef" {
+									inXRef = true
+								} else if lc.tag == "XRefEnd" {
+									inXRef = false
+								}
+								// Find the next run after the current.
+								// Don't bump ri here -- we'll let the
+								// next String/Char update it via
+								// stringToRun.
+							}
+						}
+					}
+				}
+				// Now iterate runs and split inline-vs-rewrite chars.
+				for ri, run := range runs {
+					if run.text == "" {
 						continue
 					}
-					items = append(items, itemInfo{
-						blockIdx:  blockIdx,
-						strings:   strs,
-						searchTag: "String",
-					})
-					blockIdx++
+					strs := runStrings[ri]
+					var inline []paraInlineChar
+					var rewriteChars []paraCharRewrite
+					for ci, ch := range allChars {
+						if charOwnerRun[ci] != ri {
+							continue
+						}
+						lit, ok := charLiteral(ch.name, r.cfg.ExtractHardReturnsAsText)
+						if !ok || lit == "" {
+							continue
+						}
+						if len(strs) == 0 {
+							rewriteChars = append(rewriteChars, paraCharRewrite{
+								name:     ch.name,
+								text:     lit,
+								joinNext: ch.nextTag == "Marker",
+							})
+						} else {
+							runSlot := -1
+							for i, off := range run.stringOffsetIndices {
+								if off <= ch.afterIdx {
+									runSlot = i
+								}
+							}
+							inline = append(inline, paraInlineChar{
+								name:            ch.name,
+								afterStringSlot: runSlot,
+							})
+						}
+					}
+					runInlineChars[ri] = inline
+					runCharRewrites[ri] = rewriteChars
+				}
+				// Emit items in SOURCE order: walk ParaLine.children
+				// sequentially and emit Marker / Run items as they
+				// appear. Each Run is emitted ONCE, at the position of
+				// its first contributing String or Char.
+				runEmitted := make([]bool, len(runs))
+				stringPosCursor := 0
+				charPosCursor := 0
+				for _, gc := range child.children {
+					if gc.tag != "ParaLine" {
+						continue
+					}
+					for _, lc := range gc.children {
+						switch lc.tag {
+						case "Marker":
+							if bi, ok := markerBlockIdxs[lc]; ok {
+								items = append(items, itemInfo{
+									blockIdx:  bi,
+									strings:   []string{markerTextValue(lc)},
+									searchTag: "MText",
+								})
+							}
+						case "String":
+							ri, ok := stringToRun[stringPosCursor]
+							stringPosCursor++
+							if !ok || runEmitted[ri] || runBlockIdxs[ri] < 0 {
+								continue
+							}
+							runEmitted[ri] = true
+							strs := runStrings[ri]
+							if len(strs) == 0 {
+								// Shouldn't happen for a String-driven
+								// run, but keep defensive.
+								continue
+							}
+							items = append(items, itemInfo{
+								blockIdx:    runBlockIdxs[ri],
+								strings:     strs,
+								searchTag:   "String",
+								inlineChars: runInlineChars[ri],
+							})
+						case "Char":
+							owner := charOwnerRun[charPosCursor]
+							charPosCursor++
+							if owner < 0 || runEmitted[owner] || runBlockIdxs[owner] < 0 {
+								continue
+							}
+							runEmitted[owner] = true
+							strs := runStrings[owner]
+							if len(strs) == 0 {
+								// Char-only run -- emit a CharRewrite
+								// item.
+								items = append(items, itemInfo{
+									blockIdx:        runBlockIdxs[owner],
+									searchTag:       "CharRewrite",
+									paraCharRewrite: runCharRewrites[owner],
+								})
+							} else {
+								items = append(items, itemInfo{
+									blockIdx:    runBlockIdxs[owner],
+									strings:     strs,
+									searchTag:   "String",
+									inlineChars: runInlineChars[owner],
+								})
+							}
+						}
+					}
 				}
 				continue
 			}
@@ -437,114 +782,400 @@ func (r *Reader) findStringPositions(rawText string, stmts []*mifStatement) []st
 	// Now scan the raw text for the matching <Tag `value'> pattern for
 	// each item in order.
 	var refs []stringRef
-	itemIdx := 0
-	stringInItemIdx := 0
+	var elisions []elisionRange
 	searchFrom := 0
 
-	for itemIdx < len(items) {
-		it := items[itemIdx]
-		if stringInItemIdx >= len(it.strings) {
-			itemIdx++
-			stringInItemIdx = 0
-			continue
-		}
-
-		expectedVal := it.strings[stringInItemIdx]
-		pattern := "<" + it.searchTag + " `" + escapeMIFForSearch(expectedVal) + "'>"
-		idx := strings.Index(rawText[searchFrom:], pattern)
+	// findCharLine locates the next `<Char NAME>` line (with leading
+	// indentation) at or after `from`. Returns the absolute byte span
+	// covering the entire physical line (including the leading `\n` or
+	// `\r\n` so the elision drops the line cleanly without stranding
+	// whitespace). Returns -1 if no match found, or if the Char is
+	// mid-line (in which case the elision is skipped to avoid breaking
+	// surrounding content).
+	findCharLine := func(from int, name string) (int, int) {
+		needle := "<Char " + name + ">"
+		idx := strings.Index(rawText[from:], needle)
 		if idx < 0 {
-			// Skip — should not happen with well-formed MIF.
-			stringInItemIdx++
-			continue
+			return -1, -1
 		}
-
-		absIdx := searchFrom + idx
-		valStart := absIdx + len("<"+it.searchTag+" `")
-		valEnd := valStart + len(escapeMIFForSearch(expectedVal))
-
-		// For non-first <String> refs inside a multi-ParaLine <Para>, widen
-		// the ref so it swallows the entire surrounding `<ParaLine ...
-		// > # end of ParaLine\n` block. The native reader merges every
-		// String inside one Para into a single Block (matching okapi's
-		// per-Para text unit), so the writer emits the merged translated
-		// text into the FIRST String only and writes nothing for
-		// stringIdx>0 — but without this widening, the surrounding empty
-		// `<ParaLine><String \`'>` skeleton would still leak through.
-		// okapi's MIFFilter (writeParagraph) collapses the multi-ParaLine
-		// shape into a single ParaLine on output, so we mirror that by
-		// dropping the trailing ParaLine wrappers from the skeleton.
-		swallowStart, swallowEnd := valStart, valEnd
-		if it.searchTag == "String" && stringInItemIdx > 0 {
-			swallowStart, swallowEnd = expandToEnclosingParaLine(rawText, absIdx, valEnd)
+		abs := from + idx
+		// Walk back over leading whitespace.
+		start := abs
+		for start > from {
+			c := rawText[start-1]
+			if c == ' ' || c == '\t' {
+				start--
+				continue
+			}
+			break
 		}
-
-		refs = append(refs, stringRef{
-			startOffset: swallowStart,
-			endOffset:   swallowEnd,
-			blockIdx:    it.blockIdx,
-			stringIdx:   stringInItemIdx,
-		})
-
-		searchFrom = valEnd
-		stringInItemIdx++
+		// At this point start should be at the start of the indentation
+		// after a newline. If the preceding byte is `\n` (with optional
+		// `\r` before it), include it in the elision so the line is
+		// dropped without stranding a bare `\r\n`.
+		if start > from && rawText[start-1] == '\n' {
+			start--
+			if start > from && rawText[start-1] == '\r' {
+				start--
+			}
+		} else {
+			// Char is mid-line (no preceding newline). Don't elide --
+			// the surrounding context isn't a clean line drop.
+			return -1, -1
+		}
+		end := abs + len(needle)
+		// Note: we deliberately do NOT advance past the trailing `\r\n`
+		// because the leading `\r\n` is already included via the
+		// back-walk. The next line's leading whitespace + content
+		// remains intact.
+		return start, end
 	}
 
-	return refs
+	for _, it := range items {
+		if it.searchTag == "CharRewrite" {
+			// Char-only run: emit a rewrite per Char glyph. Each
+			// rewrite replaces `<Char NAME>` with `<String 'X'>` (and
+			// optionally drops the trailing `\n`+indent so the next
+			// sibling joins on the same line). Mirrors okapi
+			// processPara: paraTextBuf accumulates Char text and is
+			// re-emitted as a fresh `<String>` (MIFFilter.java:
+			// 739-741, 761).
+			for _, rw := range it.paraCharRewrite {
+				start, joinEnd := findCharLineForRewrite(rawText, searchFrom, rw.name, rw.joinNext)
+				if start < 0 {
+					continue
+				}
+				// Replacement text: indentation + `<String 'X'>`.
+				out := buildCharRewriteReplacement(rawText, start, rw.text)
+				rewrites = append(rewrites, charRewrite{
+					startOffset: start,
+					endOffset:   joinEnd,
+					text:        out,
+				})
+				searchFrom = joinEnd
+			}
+			continue
+		}
+		if len(it.strings) == 0 {
+			continue
+		}
+		// Locate each String value position monotonically.
+		stringPositions := make([][2]int, 0, len(it.strings))
+		for stringInItemIdx, expectedVal := range it.strings {
+			pattern := "<" + it.searchTag + " `" + escapeMIFForSearch(expectedVal) + "'>"
+			idx := strings.Index(rawText[searchFrom:], pattern)
+			if idx < 0 {
+				continue
+			}
+			absIdx := searchFrom + idx
+			valStart := absIdx + len("<"+it.searchTag+" `")
+			valEnd := valStart + len(escapeMIFForSearch(expectedVal))
+			stringPositions = append(stringPositions, [2]int{absIdx, valEnd})
+			searchFrom = valEnd
+
+			if stringInItemIdx == 0 {
+				// First String in the item -- write the rendered text
+				// into the value slot.
+				refs = append(refs, stringRef{
+					startOffset: valStart,
+					endOffset:   valEnd,
+					blockIdx:    it.blockIdx,
+					stringIdx:   0,
+				})
+			} else if it.searchTag == "String" {
+				// Non-first String in the same Para item -- the writer
+				// emits empty text for stringIdx>0, but we also need to
+				// elide the wrapper bytes between the previous value's
+				// `'>` and this value's `'>` so the merged content
+				// appears as a single `<String '...'>`.
+				prevValEnd := stringPositions[len(stringPositions)-2][1]
+				// Determine where the previous String's wrapper ends.
+				// MIF wrapper close after the value is `'>` (2 bytes).
+				closeStart := prevValEnd
+				if closeStart+2 <= len(rawText) && rawText[closeStart] == '\'' && rawText[closeStart+1] == '>' {
+					closeStart += 2
+				}
+				// The current String's wrapper end is just past `'>`.
+				curValEnd := valEnd
+				if curValEnd+2 <= len(rawText) && rawText[curValEnd] == '\'' && rawText[curValEnd+1] == '>' {
+					curValEnd += 2
+				}
+				// Are the two Strings inside the SAME `<ParaLine>`? If
+				// the bytes between them contain `> # end of ParaLine`
+				// or `<ParaLine`, they are in different ParaLines and
+				// the elision must extend to swallow the wrapping
+				// `</ParaLine><ParaLine>` boundary so the output
+				// collapses to a single ParaLine (mirrors okapi's
+				// processPara unifying paraTextBuf across all ParaLines
+				// of one Para -- MIFFilter.java:740-741).
+				between := rawText[closeStart:absIdx]
+				if strings.Contains(between, "> # end of ParaLine") || strings.Contains(between, "<ParaLine") {
+					// Multi-ParaLine merge case. Mirrors okapi
+					// MIFFilter.processPara (MIFFilter.java:740-741)
+					// which appends ALL paraTextBuf content from every
+					// ParaLine into one TextFragment and re-emits one
+					// `<String>` -- the second ParaLine wrapper plus
+					// its empty `<String>` placeholders never reach the
+					// output skeleton.
+					//
+					// Concretely: keep the FIRST ParaLine and its
+					// closing `> # end of ParaLine` line, drop the
+					// `<ParaLine ...>` opener of the second AND its
+					// closing `> # end of ParaLine` line. Find the END
+					// of the first close line, set eraseStart there.
+					tailFromClose := rawText[closeStart:]
+					firstCloseIdx := strings.Index(tailFromClose, "> # end of ParaLine")
+					tail := rawText[curValEnd:]
+					closeIdx := strings.Index(tail, "> # end of ParaLine")
+					if closeIdx < 0 {
+						closeIdx = strings.Index(tail, "\n>")
+						if closeIdx >= 0 {
+							closeIdx++
+						}
+					}
+					if firstCloseIdx >= 0 && closeIdx >= 0 {
+						eraseStart := closeStart + firstCloseIdx + len("> # end of ParaLine")
+						// Walk past the first close line's trailing
+						// newline so we preserve the line termination
+						// for the first close.
+						for eraseStart < len(rawText) && rawText[eraseStart] != '\n' {
+							eraseStart++
+						}
+						if eraseStart < len(rawText) && rawText[eraseStart] == '\n' {
+							eraseStart++
+						}
+						eraseEnd := curValEnd + closeIdx + len("> # end of ParaLine")
+						// Walk forward past the close line through its
+						// trailing newline (so the line is fully
+						// removed rather than leaving stray
+						// indentation behind).
+						for eraseEnd < len(rawText) && rawText[eraseEnd] != '\n' {
+							eraseEnd++
+						}
+						if eraseEnd < len(rawText) && rawText[eraseEnd] == '\n' {
+							eraseEnd++
+						}
+						if eraseEnd > eraseStart {
+							elisions = append(elisions, elisionRange{
+								startOffset: eraseStart,
+								endOffset:   eraseEnd,
+							})
+						}
+					}
+				} else {
+					// Same-ParaLine multi-String. Elide from end of
+					// the previous String's value (i.e. starting at
+					// the `'>` close) through the wrapper opener
+					// `<String \`` of the current String. The current
+					// String's `'>` stays so the merged value remains
+					// terminated.
+					//
+					// prevValEnd points just after the value's last
+					// byte (before `'>`); start the elision there to
+					// drop the previous String's `'>`. The next ref's
+					// closing `'>` then serves as the close of the
+					// merged String.
+					eraseStart := prevValEnd
+					eraseEnd := absIdx + len("<"+it.searchTag+" `")
+					if eraseEnd < eraseStart {
+						eraseEnd = eraseStart
+					}
+					elisions = append(elisions, elisionRange{
+						startOffset: eraseStart,
+						endOffset:   eraseEnd,
+					})
+				}
+				// Always emit a ref for stringIdx>0 so the writer
+				// consumes the value bytes (writes empty text).
+				refs = append(refs, stringRef{
+					startOffset: valStart,
+					endOffset:   valEnd,
+					blockIdx:    it.blockIdx,
+					stringIdx:   stringInItemIdx,
+				})
+			} else {
+				// Non-String secondary value (PgfNumFormat etc.) -- no
+				// wrapper merging, just a plain value-replacement ref.
+				refs = append(refs, stringRef{
+					startOffset: valStart,
+					endOffset:   valEnd,
+					blockIdx:    it.blockIdx,
+					stringIdx:   stringInItemIdx,
+				})
+			}
+		}
+
+		// Per-Para inline Char elision (Cluster C / partial G). For each
+		// Char glyph that contributed text to this run, find its raw
+		// `<Char NAME>` line and add an elision range. The cursor walks
+		// monotonically forward; we constrain the search by the next
+		// String's position when known. Chars with afterStringSlot==-1
+		// appear BEFORE the first String, so we need to search from a
+		// position earlier than stringPositions[0][0]. Use the start of
+		// the String's enclosing ParaLine line as the back-search
+		// anchor (the previous newline boundary).
+		if it.searchTag == "String" && len(it.inlineChars) > 0 && len(stringPositions) > 0 {
+			firstStringPos := stringPositions[0][0]
+			// Walk back to the start of the line containing the first
+			// String so we can find any preceding Chars.
+			backAnchor := firstStringPos
+			for backAnchor > 0 && rawText[backAnchor-1] != '\n' {
+				backAnchor--
+			}
+			// Walk further back over previous lines to find any Char
+			// Tab-style lines that precede the first String. Limit the
+			// walk to the start of the enclosing ParaLine to avoid
+			// crossing into a previous Para's content.
+			paraLineOpen := strings.LastIndex(rawText[:firstStringPos], "<ParaLine")
+			if paraLineOpen < 0 {
+				paraLineOpen = 0
+			}
+			charSearchFrom := paraLineOpen
+			for _, ic := range it.inlineChars {
+				// Bound the search to the slot region. afterStringSlot
+				// == -1 means before the first String; bound by the
+				// first String's position.
+				upperBound := len(rawText)
+				if ic.afterStringSlot+1 < len(stringPositions) {
+					upperBound = stringPositions[ic.afterStringSlot+1][0]
+				}
+				start, end := findCharLine(charSearchFrom, ic.name)
+				if start < 0 || start >= upperBound {
+					continue
+				}
+				elisions = append(elisions, elisionRange{
+					startOffset: start,
+					endOffset:   end,
+				})
+				charSearchFrom = end
+			}
+		}
+
+		// String-followed-by-Marker join (Cluster G partial). Mirrors
+		// okapi writeParagraph (MIFFilter.java:636-805) which emits the
+		// reconstructed paragraph as a sequence of `<String 'val'>`
+		// + inline-code placeholders without inter-tag whitespace --
+		// `<String '...'><Marker ` rather than `<String '...'>\n   <Marker `.
+		// When the byte just past the LAST String's `'>` (skipping
+		// whitespace) is the start of `<Marker `, elide the whitespace
+		// so the two tags join on the same output line.
+		if it.searchTag == "String" && len(stringPositions) > 0 {
+			lastValEnd := stringPositions[len(stringPositions)-1][1]
+			// Skip past the closing `'>`.
+			cursor := lastValEnd
+			if cursor+2 <= len(rawText) && rawText[cursor] == '\'' && rawText[cursor+1] == '>' {
+				cursor += 2
+			}
+			// Skip whitespace (spaces, tabs, newlines).
+			scan := cursor
+			for scan < len(rawText) {
+				c := rawText[scan]
+				if c == ' ' || c == '\t' || c == '\n' || c == '\r' {
+					scan++
+					continue
+				}
+				break
+			}
+			// Check if the next tag is `<Marker `.
+			if scan < len(rawText) && strings.HasPrefix(rawText[scan:], "<Marker ") {
+				if scan > cursor {
+					elisions = append(elisions, elisionRange{
+						startOffset: cursor,
+						endOffset:   scan,
+					})
+				}
+			}
+		}
+	}
+
+	return refs, elisions, rewrites
 }
 
-// expandToEnclosingParaLine returns a [start, end) byte span that covers
-// the entire `<ParaLine … > # end of ParaLine\n` block surrounding the
-// String at [stringTagStart, valEnd). `stringTagStart` is the byte offset
-// of the opening `<` of the `<String …>` tag; `valEnd` is the offset just
-// past the value (before the closing backquote). The expansion includes
-// any leading whitespace/newline before `<ParaLine` and the trailing
-// newline after the `> # end of ParaLine` closer so the writer's
-// stringIdx>0 elision drops the wrapper cleanly without leaving stray
-// blank lines.
-func expandToEnclosingParaLine(rawText string, stringTagStart, valEnd int) (int, int) {
-	// Walk backwards to find the most recent `<ParaLine` opener.
-	openIdx := strings.LastIndex(rawText[:stringTagStart], "<ParaLine")
-	if openIdx < 0 {
-		return stringTagStart, valEnd
+// findCharLineForRewrite locates the next `<Char NAME>` line at or
+// after `from` and returns (start, joinEnd) where:
+//   - start is the byte offset of the first character of indentation
+//     for the line containing `<Char NAME>`. The leading newline is
+//     NOT included so the rewrite's replacement preserves line
+//     alignment with surrounding ParaLine children.
+//   - joinEnd is the byte offset just past the closing `>` of
+//     `<Char NAME>`; when joinNext=true it is extended through any
+//     trailing whitespace + newline so the sibling tag on the next
+//     source line joins on the same output line as the synthesized
+//     `<String>`.
+//
+// Returns (-1, -1) if no clean line-anchored match is found.
+func findCharLineForRewrite(rawText string, from int, name string, joinNext bool) (start, joinEnd int) {
+	needle := "<Char " + name + ">"
+	idx := strings.Index(rawText[from:], needle)
+	if idx < 0 {
+		return -1, -1
 	}
-	// Include any whitespace + newline preceding `<ParaLine` so the line
-	// disappears entirely (otherwise we leak indentation + `\n`).
-	start := openIdx
-	for start > 0 {
+	abs := from + idx
+	// Walk back over leading whitespace.
+	start = abs
+	for start > from {
 		c := rawText[start-1]
 		if c == ' ' || c == '\t' {
 			start--
 			continue
 		}
-		if c == '\n' {
-			start--
-			break
-		}
 		break
 	}
-
-	// Walk forwards from valEnd to find the matching `> # end of ParaLine`
-	// closer (or a bare `>` close at the same nesting). For wrapper-only
-	// secondary ParaLines this is the next `> # end of ParaLine` line.
-	tail := rawText[valEnd:]
-	closeIdx := strings.Index(tail, "> # end of ParaLine")
-	if closeIdx < 0 {
-		// Defensive: no comment marker — fall back to plain `>` line.
-		closeIdx = strings.Index(tail, "\n>")
-		if closeIdx < 0 {
-			return start, valEnd
-		}
-		closeIdx++ // skip the leading `\n`
+	// At this point `start` should be just after a newline.
+	if start <= from || rawText[start-1] != '\n' {
+		// Char is mid-line -- bail.
+		return -1, -1
 	}
-	end := valEnd + closeIdx
-	// Advance past the rest of the closer line up to (but NOT including)
-	// the trailing newline. The newline stays in the skeleton so it serves
-	// as the line break between the surviving first ParaLine's closer and
-	// whatever follows (e.g. `> # end of Para`).
-	for end < len(rawText) && rawText[end] != '\n' {
+	end := abs + len(needle)
+	joinEnd = end
+	if joinNext {
+		// Extend through trailing whitespace + newline so the next
+		// sibling joins on the same output line.
+		for joinEnd < len(rawText) {
+			c := rawText[joinEnd]
+			if c == ' ' || c == '\t' || c == '\n' || c == '\r' {
+				joinEnd++
+				continue
+			}
+			break
+		}
+	}
+	return start, joinEnd
+}
+
+// buildCharRewriteReplacement builds the replacement text for a
+// `<Char NAME>` rewrite. The output is `<indent><String 'X'>` where
+// `<indent>` is the leading whitespace at `start` (from the call to
+// findCharLineForRewrite), and X is the MIF-escaped glyph value.
+//
+// The trailing newline (if any) at the end of the original `<Char>`
+// line is preserved by the caller (rewrite range ends at the close
+// `>` so the original `\r?\n` after it stays in the skeleton). When
+// joinNext was set, the caller's range extends past the trailing
+// whitespace -- in that case the next sibling tag joins on the same
+// output line.
+func buildCharRewriteReplacement(rawText string, start int, glyphText string) string {
+	end := start
+	for end < len(rawText) && (rawText[end] == ' ' || rawText[end] == '\t') {
 		end++
 	}
-	return start, end
+	indent := rawText[start:end]
+	return indent + "<String `" + escapeMIFForSearch(glyphText) + "'>"
+}
+
+// sortSkelOps sorts skeleton ops in-place by start offset. Refs come
+// before elisions when starts are equal so the writer consumes the
+// value bytes before any wrapper-elision step jumps past them.
+func sortSkelOps(ops []skelOp) {
+	for i := 1; i < len(ops); i++ {
+		for j := i; j > 0; j-- {
+			a, b := ops[j-1], ops[j]
+			if a.start < b.start || (a.start == b.start && a.kind <= b.kind) {
+				break
+			}
+			ops[j-1], ops[j] = b, a
+		}
+	}
 }
 
 // escapeMIFForSearch re-encodes a parsed value back to the MIF in-string
@@ -1120,7 +1751,7 @@ func (r *Reader) processContainer(ctx context.Context, ch chan<- model.PartResul
 				}
 			}
 			for runIdx, run := range runs {
-				if strings.TrimSpace(run.text) == "" {
+				if run.text == "" {
 					continue
 				}
 				blockCounter++
@@ -1226,23 +1857,8 @@ func extractParaRuns(para *mifStatement, hardReturnsAsText bool) []paraTextRun {
 				if inXRef {
 					continue
 				}
-				switch lc.value {
-				case "HardReturn":
-					if hardReturnsAsText {
-						cur.text += "\n"
-					}
-				case "Tab":
-					cur.text += "\t"
-				case "HardSpace":
-					cur.text += "\u00A0"
-				case "SoftHyphen":
-					cur.text += "\u00AD"
-				case "EnSpace":
-					cur.text += "\u2002"
-				case "EmSpace":
-					cur.text += "\u2003"
-				case "ThinSpace":
-					cur.text += "\u2009"
+				if lit, ok := charLiteral(lc.value, hardReturnsAsText); ok {
+					cur.text += lit
 				}
 			default:
 				// Any other ParaLine child statement is treated as an

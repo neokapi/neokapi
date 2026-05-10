@@ -301,13 +301,22 @@ features:
     description: |
       MIF's `<Char …>` statement encodes inline special characters that
       can't appear as a literal byte inside a `<String `…'>` value.
-      The reader decodes the common variants to their Unicode
-      equivalents inside the surrounding paragraph: `<Char Tab>` →
-      U+0009, `<Char HardSpace>` → U+00A0 (non-breaking space),
-      `<Char SoftHyphen>` → U+00AD, `<Char EnSpace>` → U+2002,
-      `<Char EmSpace>` → U+2003, `<Char ThinSpace>` → U+2009.
+      The reader decodes the common glyph names to their Unicode
+      equivalents inside the surrounding paragraph (mirroring okapi's
+      `CharLiteralToken`): `<Char Tab>` → U+0009, `<Char HardSpace>` →
+      U+00A0, `<Char HardReturn>` → U+000A (when
+      `extractHardReturnsAsText=true`), `<Char SoftHyphen>` →  ""
+      (dropped), `<Char DiscHyphen>` → U+00AD, `<Char HardHyphen>` →
+      U+2011, `<Char NoHyphen>` → U+200D, `<Char Cent>` → U+00A2,
+      `<Char Pound>` → U+00A3, `<Char Yen>` → U+00A5, `<Char EnDash>` →
+      U+2013, `<Char EmDash>` → U+2014, `<Char Dagger>` → U+2020,
+      `<Char DoubleDagger>` → U+2021, `<Char Bullet>` → U+2022,
+      `<Char NumberSpace>` → U+2007, `<Char ThinSpace>` → U+2009,
+      `<Char EnSpace>` → U+2002, `<Char EmSpace>` → U+2003.
+      Glyphs not in the table pass through verbatim.
     spec_refs:
       - "Adobe FrameMaker MIF Reference — Char statement (Tab, HardSpace, HardReturn, SoftHyphen, EnSpace, EmSpace, ThinSpace) (PDF only)"
+      - "okapi MIFFilter CharLiteralToken.java:40-86 (glyph -> char map)"
     examples:
       - name: tab_between_strings
         origin: "authored: <String> <Char Tab> <String> sequence inside one ParaLine"
