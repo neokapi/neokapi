@@ -623,12 +623,27 @@ func htmlSemanticType(element string) string {
 }
 
 // isTranslatableInputValue returns true if the input type has a translatable value attribute.
+//
+// Mirrors the okapi okf_html `nonwellformedConfiguration.yml` rule for the
+// `input` element:
+//
+//	value: [type, NOT_EQUALS, [file, hidden, image, Password]]
+//
+// (HtmlFilter.java extends AbstractMarkupFilter; the YAML rule above is the
+// authoritative source. See
+// okapi/filters/html/src/main/resources/net/sf/okapi/filters/html/nonwellformedConfiguration.yml:260-267
+// for the full input-element rule block.)
+//
+// `radio` and `checkbox` were previously excluded here, but okapi extracts
+// their `value` attributes as translatable — typically used for user-visible
+// labels. The exclusion list matches okapi byte-for-byte: file, hidden,
+// image, password. The okapi YAML uses the literal "Password" but
+// okf_html lowercases the type before matching, so the comparison is
+// effectively case-insensitive (callers already lowercase inputType).
 func isTranslatableInputValue(inputType string) bool {
 	switch inputType {
-	case "file", "hidden", "radio", "checkbox", "image":
+	case "file", "hidden", "image", "password":
 		return false
-	case "submit", "button", "reset":
-		return true
 	default:
 		return true
 	}
