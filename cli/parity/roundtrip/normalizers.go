@@ -1180,35 +1180,108 @@ func canonicalizeHTMLNode(n *html.Node) {
 		canonicalizeHTMLNode(c)
 		if shouldDropHTMLNode(n, c) {
 			toRemove = append(toRemove, c)
-		} else if c.Type == html.TextNode && !isElementWithPreservedWhitespace(n) {
-			c.Data = collapseHTMLTextWhitespace(c.Data)
-			// Trim leading whitespace when this text is the first
-			// child of its parent (element-boundary whitespace
-			// doesn't render). Same for trailing when it's the last
-			// child. Avoids native preserving a source `\r\n` after
-			// `<body>` while okapi strips it.
-			if c.PrevSibling == nil {
-				c.Data = strings.TrimLeft(c.Data, " ")
-			}
-			if c.NextSibling == nil {
-				c.Data = strings.TrimRight(c.Data, " ")
-			}
-			if c.Data == "" {
-				toRemove = append(toRemove, c)
+		} else if c.Type == html.TextNode {
+			if isElementWithPreservedWhitespace(n) {
+				// Inside script/style we still collapse whitespace
+				// runs — script source whitespace is not visible
+				// content, and okapi's reformatter routinely
+				// rewrites the indentation around comment markers
+				// (`<!--` / `//-->`) inside `<script>`.
+				if isScriptLike(n) {
+					c.Data = collapseHTMLTextWhitespace(c.Data)
+					if c.Data == " " {
+						c.Data = ""
+					}
+				}
+				if c.Data == "" {
+					toRemove = append(toRemove, c)
+				}
+			} else {
+				c.Data = collapseHTMLTextWhitespace(c.Data)
+				// Trim leading whitespace when this text is the first
+				// child of its parent (element-boundary whitespace
+				// doesn't render). Same for trailing when it's the last
+				// child. Avoids native preserving a source `\r\n` after
+				// `<body>` while okapi strips it.
+				if c.PrevSibling == nil {
+					c.Data = strings.TrimLeft(c.Data, " ")
+				}
+				if c.NextSibling == nil {
+					c.Data = strings.TrimRight(c.Data, " ")
+				}
+				if c.Data == "" {
+					toRemove = append(toRemove, c)
+				}
 			}
 		}
 	}
 	for _, c := range toRemove {
 		n.RemoveChild(c)
 	}
-	if n.Type == html.ElementNode && len(n.Attr) > 1 {
-		sort.SliceStable(n.Attr, func(i, j int) bool {
-			if n.Attr[i].Namespace != n.Attr[j].Namespace {
-				return n.Attr[i].Namespace < n.Attr[j].Namespace
+	if n.Type == html.ElementNode && len(n.Attr) > 0 {
+		// Trim whitespace from attribute values — okapi strips
+		// surrounding whitespace, native preserves source bytes.
+		// Also drop attrs whose key is empty / pure punctuation —
+		// e.g. malformed input `border=0; padding=0;` parses as
+		// `border="0"`+`;=""`, and the duplicate `;=""` count
+		// differs between native (preserves all source artifacts)
+		// and okapi (collapses).
+		filtered := n.Attr[:0]
+		seen := map[string]struct{}{}
+		for _, a := range n.Attr {
+			a.Val = strings.TrimSpace(a.Val)
+			if a.Key == "" || isPunctOnly(a.Key) {
+				if _, ok := seen[a.Key]; ok {
+					continue
+				}
+				seen[a.Key] = struct{}{}
 			}
-			return n.Attr[i].Key < n.Attr[j].Key
-		})
+			filtered = append(filtered, a)
+		}
+		n.Attr = filtered
+		if len(n.Attr) > 1 {
+			sort.SliceStable(n.Attr, func(i, j int) bool {
+				if n.Attr[i].Namespace != n.Attr[j].Namespace {
+					return n.Attr[i].Namespace < n.Attr[j].Namespace
+				}
+				return n.Attr[i].Key < n.Attr[j].Key
+			})
+		}
 	}
+}
+
+// isScriptLike reports whether n is a `<script>` or `<style>` element.
+// `<pre>` and `<textarea>` content IS visible to the user, so we don't
+// collapse whitespace inside them.
+func isScriptLike(n *html.Node) bool {
+	if n == nil || n.Type != html.ElementNode {
+		return false
+	}
+	switch n.DataAtom {
+	case atom.Script, atom.Style:
+		return true
+	}
+	return false
+}
+
+// isPunctOnly reports whether s consists entirely of ASCII punctuation
+// characters (no letters / digits). Used to detect malformed-attribute
+// remnants like `;=""` that some parsers keep and others collapse.
+func isPunctOnly(s string) bool {
+	if s == "" {
+		return false
+	}
+	for _, r := range s {
+		switch {
+		case r >= 'a' && r <= 'z':
+			return false
+		case r >= 'A' && r <= 'Z':
+			return false
+		case r >= '0' && r <= '9':
+			return false
+		}
+	}
+	return true
 }
 
 // collapseHTMLTextWhitespace collapses runs of ASCII whitespace
