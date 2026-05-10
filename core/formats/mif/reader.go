@@ -1113,7 +1113,10 @@ func isMIFContainer(tag string) bool {
 		"TblBody", "TblH", "TblF",
 		"TblTitle", "TblTitleContent",
 		"Row", "Cell", "CellContent",
-		"Footnote":
+		// FNote (footnote container) holds <Para>; Footnote kept for
+		// older fixtures using the long form. Both must be walked so
+		// the contained Para text reaches processContainer.
+		"FNote", "Footnote":
 		return true
 	}
 	return false

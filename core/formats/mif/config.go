@@ -120,14 +120,24 @@ func (c *Config) Reset() {
 			// then survives the pseudo-translate transform unchanged
 			// (yielding `P:Body` -> `P:_pseudo(Body)_`) while okapi's
 			// reference round-trip pseudo-translates the whole literal
-			// (`P:Body` -> `_pseudo(P:Body)_`). Dropping the rule keeps
-			// the two engines byte-aligned for the leading-letter case.
-			`\u2022`,
+			// (`P:Body` -> `_pseudo(P:Body)_`). The leading-prefix rule is
+			// applied contextually inside reader.go for PgfNumFormat
+			// blocks instead, where it IS observably needed.
+			//
+			// Bullet (U+2022) and pilcrow (U+00B6) are written as
+			// `\x{NNNN}` codepoint escapes \u2014 Go's regexp engine does
+			// NOT interpret Java/Perl-style `\uNNNN` (it requires
+			// `\x{NNNN}` braces for non-ASCII codepoints), so the prior
+			// `\u2022` and `\u00B6` strings compiled to never-matching
+			// patterns. This bug silently broke pseudo-translate
+			// protection for `<Default \u00B6 Font>` and bullet codes inside
+			// VariableDef / paragraph text.
+			`\x{2022}`,
 			`\\t`,
 			`<[naArR ]{1}[+]*>`,
 			`<[naArR]{1}=[0-9]+>`,
 			`<\$.*?>`,
-			`<Default \u00B6 Font>`,
+			`<Default \x{00B6} Font>`,
 		},
 	}
 }
