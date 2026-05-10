@@ -12,6 +12,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"unicode/utf8"
 
 	"golang.org/x/net/html"
 	"golang.org/x/net/html/atom"
@@ -1197,6 +1198,7 @@ func canonicalizeHTMLNode(n *html.Node) {
 					toRemove = append(toRemove, c)
 				}
 			} else {
+				c.Data = stripEscapedMetaText(c.Data)
 				c.Data = collapseHTMLTextWhitespace(c.Data)
 				// Trim leading whitespace when this text is the first
 				// child of its parent (element-boundary whitespace
@@ -1339,6 +1341,121 @@ func shouldDropHTMLNode(parent, c *html.Node) bool {
 				return true
 			}
 		}
+		// Detect malformed `<META ...>` whose attributes contain
+		// commas/quotes/embedded HTML — these come from source like
+		// `<META KEYWORDS="x","y","z">` which okapi treats as text
+		// content (and entity-escapes back into the body). Both
+		// representations are noise; drop the native side and rely
+		// on `shouldDropMETAEscapeText` to drop the ref side.
+		if hasMalformedMetaAttr(c.Attr) {
+			return true
+		}
+	}
+	return false
+}
+
+// hasMalformedMetaAttr reports whether any META attr's key contains a
+// character that would never appear in a real HTML attribute name —
+// quotes, commas, equals, etc. html.Parse coerces a malformed
+// `<META KEYWORDS="x","y">` into a meta element with attribute keys
+// like `,"y"` and similar — clear signals the source META wasn't
+// well-formed. okapi's tagsoup parser bails on these and emits the
+// whole tag as text in the body; native preserves the malformed
+// attrs. For canonical comparison we collapse both forms.
+func hasMalformedMetaAttr(attrs []html.Attribute) bool {
+	for _, a := range attrs {
+		for _, r := range a.Key {
+			switch r {
+			case '"', '\'', ',', '=', '<', '>':
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// stripEscapedMetaText removes `<META …>` substrings (case-insensitive,
+// pseudo-translated tag-name allowed) from text. okapi's HTML reader
+// emits malformed `<META KEYWORDS="x","y","z">` source as escaped text
+// in the body; native parses it as a meta element. The native side is
+// dropped via shouldDropHTMLNode + hasMalformedMetaAttr; this handles
+// the symmetric ref-side text.
+//
+// Also strips a single trailing space after the `>` so that
+// "<META …> rest" and "rest" align byte-for-byte.
+func stripEscapedMetaText(s string) string {
+	if s == "" {
+		return s
+	}
+	out := s
+	for {
+		idx := indexEscapedMetaTag(out)
+		if idx < 0 {
+			break
+		}
+		end := strings.IndexByte(out[idx:], '>')
+		if end < 0 {
+			break
+		}
+		end += idx + 1
+		// Eat one trailing space if present.
+		if end < len(out) && out[end] == ' ' {
+			end++
+		}
+		out = out[:idx] + out[end:]
+	}
+	return out
+}
+
+// indexEscapedMetaTag returns the byte offset of the first `<META`
+// (or pseudo-translated `<MĒŢÀ` etc.) in s. Matches case-insensitively
+// for ASCII letters and accepts the common pseudo-translation
+// substitutions for M/E/T/A.
+func indexEscapedMetaTag(s string) int {
+	for i := 0; i < len(s); i++ {
+		if s[i] != '<' {
+			continue
+		}
+		// Need at least `<META` worth of bytes (5 ASCII bytes,
+		// or up to ~12 if all four letters are 2-byte UTF-8).
+		rest := s[i+1:]
+		if isMETALiteral(rest) {
+			return i
+		}
+	}
+	return -1
+}
+
+// isMETALiteral reports whether s starts with the four characters
+// M, E, T, A in that order — accepting either the ASCII letter or
+// any single Unicode codepoint (the pseudo-translation substitutes
+// each letter with one accented variant). After the four characters
+// the next byte must be a space, `=`, `>`, `/`, tab, or newline.
+func isMETALiteral(s string) bool {
+	want := []rune{'M', 'E', 'T', 'A'}
+	idx := 0
+	for _, w := range want {
+		if idx >= len(s) {
+			return false
+		}
+		r, sz := utf8.DecodeRuneInString(s[idx:])
+		if r == utf8.RuneError {
+			return false
+		}
+		// Accept the ASCII letter or any single non-ASCII rune as
+		// the pseudo-translated stand-in. We don't try to match a
+		// specific accented letter — the pseudo map varies.
+		if !(r == w || r > 127) {
+			return false
+		}
+		idx += sz
+	}
+	if idx >= len(s) {
+		return false
+	}
+	switch s[idx] {
+	case ' ', '\t', '\n', '\r', '=', '>', '/':
+		return true
 	}
 	return false
 }
