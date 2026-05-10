@@ -22,6 +22,17 @@ type dmlParser struct {
 	skeletonStore *format.SkeletonStore
 	skelBuf       bytes.Buffer
 	rels          map[string]relationship
+
+	// stripEmptyParaProps mirrors okapi's BlockProperties.Default.
+	// getEvents (line 169-171 of okapi/filters/openxml/src/main/java/
+	// net/sf/okapi/filters/openxml/BlockProperties.java) which omits
+	// the entire pPr element when isEmpty() returns true (no
+	// attributes, no non-empty children). Set true when parsing
+	// chart/diagram parts where okapi unconditionally strips
+	// scaffold-only <a:pPr><a:defRPr/></a:pPr> blocks (see
+	// gold/Transimple_chart.docx). Left false for PPTX slides where
+	// the existing behaviour preserved pPr verbatim.
+	stripEmptyParaProps bool
 }
 
 // parsePart streams through a DrawingML XML part, emitting Blocks.
@@ -122,7 +133,11 @@ func (p *dmlParser) parseParagraph(d *xml.Decoder, partPath string, emitBlock fu
 					return err
 				}
 				if t.Name.Local == "pPr" {
-					paraProps = raw
+					if p.stripEmptyParaProps && isStructurallyEmptyDMLBlockProperties(raw) {
+						paraProps = ""
+					} else {
+						paraProps = raw
+					}
 				}
 
 			case "r":

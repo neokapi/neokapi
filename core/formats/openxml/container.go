@@ -64,13 +64,15 @@ const (
 
 // Well-known relationship types.
 const (
-	relTypeMainDoc   = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument"
-	relTypeHeader    = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/header"
-	relTypeFooter    = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/footer"
-	relTypeFootnotes = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/footnotes"
-	relTypeEndnotes  = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/endnotes"
-	relTypeComments  = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/comments"
-	relTypeHyperlink = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink"
+	relTypeMainDoc     = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument"
+	relTypeHeader      = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/header"
+	relTypeFooter      = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/footer"
+	relTypeFootnotes   = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/footnotes"
+	relTypeEndnotes    = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/endnotes"
+	relTypeComments    = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/comments"
+	relTypeHyperlink   = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink"
+	relTypeChart       = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/chart"
+	relTypeDiagramData = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/diagramData"
 )
 
 // parseContainer analyzes the ZIP archive and returns container metadata.
@@ -308,11 +310,58 @@ func buildDOCXParts(info *containerInfo, cfg *Config) []string {
 		parts = append(parts, comments)
 	}
 
+	// Chart and diagram parts. These contain DrawingML <a:p> paragraphs
+	// with translatable text (chart titles, axis labels, SmartArt node
+	// labels). Mirrors okapi WordDocument.java line 202-203 / 369:
+	//
+	//	type.equals(Drawing.DIAGRAM_DATA_TYPE) ||
+	//	type.equals(Drawing.CHART_TYPE) ||
+	//
+	// Charts and diagrams can be referenced from the main document OR
+	// from header/footer parts (a header containing a chart is rare but
+	// allowed by ECMA-376). We scan every .rels file for the relevant
+	// relationship types and de-duplicate.
+	parts = appendChartAndDiagramParts(parts, info)
+
 	// Document properties (core.xml)
 	if cfg.TranslateDocProperties {
 		parts = append(parts, "docProps/core.xml")
 	}
 
+	return parts
+}
+
+// appendChartAndDiagramParts scans every .rels file for chart and
+// diagramData relationship targets, sorts them deterministically, and
+// appends them (de-duplicated against `parts`). The same chart can be
+// referenced from multiple parts (e.g. linked across header + body),
+// so de-duplication is essential.
+func appendChartAndDiagramParts(parts []string, info *containerInfo) []string {
+	seen := make(map[string]struct{}, len(parts))
+	for _, p := range parts {
+		seen[p] = struct{}{}
+	}
+	var charts, diagrams []string
+	for relsPath, rels := range info.relationships {
+		for _, rel := range rels {
+			target := resolveRelTarget(relsPath, rel.Target)
+			if _, dup := seen[target]; dup {
+				continue
+			}
+			switch rel.Type {
+			case relTypeChart:
+				charts = append(charts, target)
+				seen[target] = struct{}{}
+			case relTypeDiagramData:
+				diagrams = append(diagrams, target)
+				seen[target] = struct{}{}
+			}
+		}
+	}
+	slices.Sort(charts)
+	slices.Sort(diagrams)
+	parts = append(parts, charts...)
+	parts = append(parts, diagrams...)
 	return parts
 }
 

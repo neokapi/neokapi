@@ -208,6 +208,30 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		// Parse the part based on document type
 		switch info.docType {
 		case docTypeDOCX:
+			// Chart and SmartArt diagram parts are DrawingML, not
+			// WordprocessingML. Their text-bearing leaves are <a:p>
+			// paragraphs (chart titles inside <c:tx><c:rich>; diagram
+			// node text inside <dgm:t>) — the same paragraph shape
+			// PPTX slides use, just without the <txBody> wrapper. We
+			// route them through the dml parser's chart/diagram
+			// dispatch. Mirrors okapi WordDocument.java line 202-203
+			// (DIAGRAM_DATA_TYPE / CHART_TYPE → StyledTextPart).
+			if isChartPartPath(partPath) || isDiagramDataPartPath(partPath) {
+				parser := &dmlParser{
+					cfg:                 r.cfg,
+					blockCounter:        &blockCounter,
+					skeletonStore:       r.skeletonStore,
+					rels:                relsMap,
+					stripEmptyParaProps: true,
+				}
+				err = parser.parseChartOrDiagramPart(partData, partPath, emitBlock)
+				if err != nil {
+					ch <- model.PartResult{Error: err}
+					return
+				}
+				parser.skelFlush()
+				break
+			}
 			parser := &wmlParser{
 				cfg:           r.cfg,
 				blockCounter:  &blockCounter,

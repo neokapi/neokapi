@@ -796,6 +796,21 @@ func (w *Writer) renderBlock(block *model.Block, dt docType) string {
 		return xmlEscapeAttr(model.FlattenRuns(runs))
 	}
 
+	// Chart and diagram parts inside a DOCX are DrawingML, not WML —
+	// they declare the drawingml/2006/main namespace under the `a:`
+	// prefix and use <a:r>/<a:t>. Routing them through renderWMLBlock
+	// would emit <w:r>/<w:t>, but the `w:` prefix is undeclared in the
+	// chart/diagram XML and the round-trip output would mis-bind it
+	// (see TranchartAmpersand.docx / Transmart_art.docx golds, which
+	// produce <a:r>/<a:t> inside chart and diagram parts). Keying on
+	// partPath keeps the wml writer for body/header/footer parts and
+	// switches to the dml writer for chart and diagram parts.
+	if dt == docTypeDOCX {
+		if pp := block.Properties["partPath"]; isChartPartPath(pp) || isDiagramDataPartPath(pp) {
+			return w.renderDMLBlock(runs)
+		}
+	}
+
 	switch dt {
 	case docTypeDOCX:
 		return w.renderWMLBlock(runs)
