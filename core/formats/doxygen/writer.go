@@ -333,11 +333,6 @@ func (w *Writer) writeCommentStyled(text, style, raw string, linePrefixes []stri
 			return w.writeFromLayout(text, layout, "//! ", style)
 		}
 		return w.writeExclamation(text, raw, linePrefixes)
-	case "hash":
-		if layout != "" {
-			return w.writeFromLayout(text, layout, "## ", style)
-		}
-		return w.writeHash(text, raw, linePrefixes)
 	case "docstring":
 		if layout != "" {
 			return w.writeFromLayout(text, layout, "", style)
@@ -862,40 +857,6 @@ func (w *Writer) writeTripleSlash(text, raw string, prefixes []string) error {
 		marker := "/// "
 		if line == "" && px == "" {
 			marker = "///"
-		}
-		if _, err := fmt.Fprintf(w.Output, "%s%s%s%s", indent, marker, px, line); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-// writeHash writes text as ## / # line comments (Python Doxygen).
-func (w *Writer) writeHash(text, raw string, prefixes []string) error {
-	indent := extractIndent(raw)
-	lines := strings.Split(text, "\n")
-	nl := w.lineSep()
-	for i, line := range lines {
-		if i > 0 {
-			if _, err := fmt.Fprint(w.Output, nl); err != nil {
-				return err
-			}
-		}
-		px := linePrefixAt(prefixes, i)
-		// First line uses ## marker, continuation uses #
-		var marker string
-		if i == 0 {
-			if line == "" && px == "" {
-				marker = "##"
-			} else {
-				marker = "## "
-			}
-		} else {
-			if line == "" && px == "" {
-				marker = "#"
-			} else {
-				marker = "# "
-			}
 		}
 		if _, err := fmt.Fprintf(w.Output, "%s%s%s%s", indent, marker, px, line); err != nil {
 			return err

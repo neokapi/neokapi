@@ -395,17 +395,6 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 			continue
 		}
 
-		// Check for Python ##-style Doxygen comment block.
-		if strings.HasPrefix(trimmed, "##") {
-			cb := r.parseHashComments(lines, i)
-			n := len(cb.rawLines)
-			r.skelCommentGroup(cb, rLines, i, n, &blockCounter)
-			dataCounter++
-			r.emitCommentBlock(ctx, ch, cb, &blockCounter, &dataCounter)
-			i += n
-			continue
-		}
-
 		// Non-comment line → emit as Data
 		r.skelLinesText(rLines, i, 1)
 		dataCounter++
@@ -718,40 +707,6 @@ func (r *Reader) parseTrailingBlockComment(line string) *commentBlock {
 	return cb
 }
 
-// parseHashComments collects consecutive ## / # line comments starting at
-// index i. In Python, ## starts a Doxygen documentation comment and subsequent
-// # lines continue the same group. An empty line (no #) ends the group.
-func (r *Reader) parseHashComments(lines []string, start int) *commentBlock {
-	cb := &commentBlock{style: "hash"}
-
-	for j := start; j < len(lines); j++ {
-		trimmed := strings.TrimSpace(lines[j])
-		// First line must start with ##; continuation lines can be # or ##
-		if j == start {
-			if !strings.HasPrefix(trimmed, "##") {
-				break
-			}
-		} else {
-			if !strings.HasPrefix(trimmed, "#") {
-				break
-			}
-		}
-		cb.rawLines = append(cb.rawLines, lines[j])
-
-		var text string
-		if strings.HasPrefix(trimmed, "##") {
-			text = strings.TrimPrefix(trimmed, "##")
-		} else {
-			text = strings.TrimPrefix(trimmed, "#")
-		}
-		text = strings.TrimSpace(text)
-		// Preserve blank `#` lines as empty textLine entries for paragraph splitting
-		cb.textLines = append(cb.textLines, text)
-	}
-
-	return cb
-}
-
 // parseDocstring collects a Python triple-quoted docstring starting at index i.
 // Handles both single-line ("""text""") and multi-line ("""...\n...\n""") forms.
 func (r *Reader) parseDocstring(lines []string, start int) *commentBlock {
@@ -889,7 +844,7 @@ func (r *Reader) emitCommentBlock(ctx context.Context, ch chan<- model.PartResul
 		if cb.style == "javadoc" || cb.style == "qt" ||
 			cb.style == "javadoc_member" || cb.style == "qt_member" ||
 			cb.style == "triple" || cb.style == "exclamation" ||
-			cb.style == "hash" || cb.style == "docstring" {
+			cb.style == "docstring" {
 			texts, prefixes = joinProseLines(texts, prefixes)
 		}
 		// Build the block's source as a Run sequence rather than a
@@ -954,7 +909,7 @@ func (r *Reader) buildLineLayout(cb *commentBlock, groups [][]translatableLine) 
 	if cb.style == "docstring" {
 		return r.buildDocstringLayout(cb)
 	}
-	if cb.style != "triple" && cb.style != "exclamation" && cb.style != "hash" {
+	if cb.style != "triple" && cb.style != "exclamation" {
 		return ""
 	}
 	// Map textLines index → translatableLine so we can quickly
@@ -980,24 +935,16 @@ func (r *Reader) buildLineLayout(cb *commentBlock, groups [][]translatableLine) 
 	for _, raw := range cb.rawLines {
 		// Determine the line's marker prefix by stripping the comment
 		// marker and any indentation. Match the same stripping
-		// parseLineComments / parseHashComments does so the textCursor
-		// stays aligned.
+		// parseLineComments does so the textCursor stays aligned.
 		trimmed := strings.TrimSpace(raw)
 		var stripped string
 		isTriple := strings.HasPrefix(trimmed, "///")
 		isExcl := strings.HasPrefix(trimmed, "//!")
-		isHash := cb.style == "hash" && strings.HasPrefix(trimmed, "#")
 		switch {
 		case isTriple:
 			stripped = strings.TrimSpace(strings.TrimPrefix(trimmed, "///"))
 		case isExcl:
 			stripped = strings.TrimSpace(strings.TrimPrefix(trimmed, "//!"))
-		case isHash:
-			if strings.HasPrefix(trimmed, "##") {
-				stripped = strings.TrimSpace(strings.TrimPrefix(trimmed, "##"))
-			} else {
-				stripped = strings.TrimSpace(strings.TrimPrefix(trimmed, "#"))
-			}
 		default:
 			// Should not happen for line-comment styles, but be safe.
 			entries = append(entries, "S:"+raw)
@@ -1028,16 +975,7 @@ func (r *Reader) buildLineLayout(cb *commentBlock, groups [][]translatableLine) 
 			// (3 spaces between `///` and `-#` — naïvely using a
 			// canonical `/// ` marker would silently collapse to 1
 			// space).
-			var markerLen int
-			if isHash {
-				if strings.HasPrefix(trimmed, "##") {
-					markerLen = 2
-				} else {
-					markerLen = 1
-				}
-			} else {
-				markerLen = 3 // both `///` and `//!` are 3 chars
-			}
+			markerLen := 3 // both `///` and `//!` are 3 chars
 			afterMarker := raw[strings.Index(raw, trimmed[:markerLen])+markerLen:]
 			ws := afterMarker[:len(afterMarker)-len(strings.TrimLeft(afterMarker, " \t"))]
 			marker := trimmed[:markerLen] + ws
