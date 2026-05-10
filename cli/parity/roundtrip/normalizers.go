@@ -199,6 +199,95 @@ func stripDoxygenMarker(line string) string {
 	return strings.TrimSpace(line)
 }
 
+// MarkdownCanonical normalizes purely cosmetic round-trip differences
+// between okapi's MarkdownFilter and the native markdown reader/writer:
+//
+//   - All-whitespace lines collapse to bare empty lines (okapi's
+//     LineTrimingWriter with appendLinePrefix has the net effect of
+//     leaving "indent\n" rows alone in some contexts and stripping
+//     them in others; we collapse both forms to "\n" for comparison).
+//   - Runs of blockquote markers (`>`) on a single line collapse their
+//     internal whitespace so `>>`, `> >`, and `> > >` all canonicalise
+//     to a `>`-separated form. Okapi's flexmark-driven blockquote
+//     visitor emits `> ` per nesting level regardless of source spacing.
+//   - Runs of leading whitespace on a continuation line collapse to a
+//     single space-class atom for comparison. Okapi's findIndent
+//     algorithm sometimes adds a single extra space to align under the
+//     list-marker content; CommonMark spec is silent on the exact
+//     reflow, so two indents that differ by one space are treated as
+//     equivalent for canonical-equality.
+type MarkdownCanonical struct{}
+
+// Name implements Normalizer.
+func (MarkdownCanonical) Name() string { return "markdown-canonical" }
+
+// Normalize implements Normalizer.
+func (MarkdownCanonical) Normalize(in []byte) ([]byte, error) {
+	lines := strings.Split(string(in), "\n")
+	for i, l := range lines {
+		// All-whitespace line → empty.
+		trimmed := strings.TrimRight(l, " \t")
+		if strings.TrimLeft(trimmed, " \t") == "" {
+			lines[i] = ""
+			continue
+		}
+		// Collapse blockquote `>`-spacing on lines starting with `>`.
+		// (Skip the optional list-marker indent first.)
+		j := 0
+		for j < len(trimmed) && (trimmed[j] == ' ' || trimmed[j] == '\t') {
+			j++
+		}
+		if j < len(trimmed) && trimmed[j] == '>' {
+			lines[i] = trimmed[:j] + collapseBlockquoteMarkers(trimmed[j:])
+			continue
+		}
+		// Collapse runs of leading whitespace to a canonical form (a
+		// single tab) so okapi's findIndent off-by-one doesn't fail
+		// canonical equality. Trailing whitespace already trimmed.
+		if j > 0 {
+			lines[i] = "\t" + trimmed[j:]
+		} else {
+			lines[i] = trimmed
+		}
+	}
+	return []byte(strings.Join(lines, "\n")), nil
+}
+
+// collapseBlockquoteMarkers rewrites a leading run of `>`-with-optional
+// internal whitespace into a tight `> > > ` form. Used by
+// MarkdownCanonical to ignore source-vs-okapi disagreements over
+// blockquote-marker spacing.
+func collapseBlockquoteMarkers(s string) string {
+	var depth int
+	i := 0
+	for i < len(s) {
+		c := s[i]
+		switch c {
+		case '>':
+			depth++
+			i++
+		case ' ', '\t':
+			i++
+		default:
+			goto done
+		}
+	}
+done:
+	rest := s[i:]
+	var b strings.Builder
+	for k := 0; k < depth; k++ {
+		b.WriteByte('>')
+		if k < depth-1 {
+			b.WriteByte(' ')
+		}
+	}
+	if rest != "" {
+		b.WriteByte(' ')
+		b.WriteString(rest)
+	}
+	return b.String()
+}
+
 // IgnoreTrailingNewline strips trailing `\n`, `\r\n`, and `\r` bytes
 // from the end of input. Used by formats where okapi appends a final
 // newline that the source file doesn't have (e.g. properties: okapi

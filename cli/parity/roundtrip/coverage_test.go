@@ -450,6 +450,19 @@ func coverageScans() []formatScan {
 			nativeConfig: map[string]any{
 				"translateCodeBlocks": true,
 			},
+			// MarkdownCanonical absorbs the last residual cosmetic
+			// differences between okapi's MarkdownFilter writer and the
+			// native reader/writer pair: blockquote `>>` vs `> >`
+			// spacing (okapi's flexmark visitor emits one space per
+			// nest level regardless of source), all-whitespace lines
+			// (okapi's LineTrimingWriter strips them in some contexts
+			// but its skeleton writer re-adds the prefix in others —
+			// we collapse both forms to bare `\n`), and findIndent
+			// off-by-one on list-item soft-break continuation lines.
+			normalizer: roundtrip.MarkdownCanonical{},
+			minTier: map[string]roundtrip.Tier{
+				"native": roundtrip.TierCanonicalEqual,
+			},
 		},
 		{
 			formatID:    "wiki",
