@@ -177,6 +177,9 @@ func (e *NativeEngine) RoundTrip(t *testing.T, in Input, spec PseudoSpec) []byte
 	if setter, ok := writer.(format.SourcePathSetter); ok {
 		setter.SetSourcePath(inputPath)
 	}
+	if setter, ok := writer.(format.SourceLocaleSetter); ok {
+		setter.SetSourceLocale(model.LocaleID(spec.SrcLocale()))
+	}
 	writer.SetLocale(tgt)
 
 	var outBuf bytes.Buffer

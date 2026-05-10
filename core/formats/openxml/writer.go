@@ -14,8 +14,8 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 )
 
-// wmlStrippableElementRE matches self-closing WordprocessingML elements
-// that the okapi reference filter strips during round-trip:
+// wmlStrippableElementRE matches WordprocessingML elements that the
+// okapi reference filter strips during round-trip:
 //   - <w:lang .../>          (run-property language, also paragraph-rPr)
 //   - <w:bidiVisual .../>    (paragraph-property right-to-left visual hint)
 //
@@ -24,7 +24,18 @@ import (
 // RUN_PROPERTY_LANGUAGE) wired into BlockPropertiesFactory and
 // WordStyleDefinition.DocumentDefaults; preserving them in pass-through
 // XML parts is the dominant openxml writer parity gap.
-var wmlStrippableElementRE = regexp.MustCompile(`<w:(?:lang|bidiVisual)\b[^>]*/>`)
+//
+// Both self-closing (`<w:lang .../>`) and open/close (`<w:lang ...></w:lang>`)
+// forms are matched. Source documents almost always self-close these
+// elements, but the encoding/xml-driven reader/skeleton path can re-emit
+// them in open/close form, in which case the self-closing-only regex
+// would silently fail to strip them.
+var wmlStrippableElementRE = regexp.MustCompile(
+	`<w:lang\b[^>]*/>` +
+		`|<w:lang\b[^>]*></w:lang>` +
+		`|<w:bidiVisual\b[^>]*/>` +
+		`|<w:bidiVisual\b[^>]*></w:bidiVisual>`,
+)
 
 // wmlMoveRangeStrippableElementRE matches the cross-structure
 // revision-tracking range markers that okapi unconditionally drops
@@ -114,12 +125,119 @@ func shouldStripWMLLang(name string) bool {
 	return false
 }
 
+// wmlLangValAttrRE matches the w:val attribute on a <w:lang ...> or
+// <w:themeFontLang ...> element and captures the existing value.
+// Submatches: 1=tag name (lang|themeFontLang), 2=quote char, 3=value.
+//
+// The match is anchored on the opening "<w:lang" or "<w:themeFontLang"
+// followed by a word boundary (so it doesn't accept "<w:langfoo>"), then
+// scans up to the element terminator (`>` or `/>`) for any w:val=
+// attribute. Single and double quotes are both supported. The character
+// class for the value side excludes the quote so we don't cross attribute
+// boundaries.
+var wmlLangValAttrRE = regexp.MustCompile(
+	`(<w:(lang|themeFontLang)\b[^>]*?\bw:val=)(["'])([^"']*)(["'])`,
+)
+
+// shouldRewriteWMLLangVal reports whether the given ZIP entry path is a
+// WordprocessingML XML part where okapi rewrites <w:lang>/<w:themeFontLang>
+// w:val attributes from the source locale to the target locale on
+// round-trip (mirroring GenericSkeletonWriter's Property.LANGUAGE
+// rewriting; see writer.go SetSourceLocale godoc).
+//
+// The set is the strip set plus settings.xml — okapi's
+// RUN_PROPERTY_LANGUAGE skippable list strips <w:lang/> from rPr in
+// document/styles/footnotes/endnotes/comments/header/footer parts (so any
+// surviving <w:lang> there must have been outside an rPr and is rewritten
+// in the same way), while <w:themeFontLang/> sits in settings.xml only and
+// is preserved by okapi but with its w:val retargeted.
+func shouldRewriteWMLLangVal(name string) bool {
+	if name == "word/settings.xml" {
+		return true
+	}
+	return shouldStripWMLLang(name)
+}
+
+// rewriteWMLLangVal rewrites the w:val attribute on every <w:lang> and
+// <w:themeFontLang> element when its existing value's primary language
+// matches the source locale's primary language. The replacement value
+// is the target locale string verbatim (okapi uses LocaleId#toString,
+// which is the BCP-47 form).
+//
+// This mirrors okapi/core/src/main/java/net/sf/okapi/common/skeleton/
+// GenericSkeletonWriter.java lines 808-816:
+//
+//	if ( Property.LANGUAGE.equals(name) ) {
+//	    LocaleId locId = LocaleId.fromString(value);
+//	    if ( locId.sameLanguageAs(inputLoc) ) {
+//	        value = outputLoc.toString();
+//	    }
+//	}
+//
+// in combination with okapi/filters/openxml/src/main/java/net/sf/okapi/
+// filters/openxml/ContentFilter.java lines 527-537, where the openxml
+// filter normalizes the attribute name on <w:lang> and <w:themeFontLang>
+// to Property.LANGUAGE so the writer's retargeting kicks in.
+//
+// Returns the original slice if no eligible attribute was found (so the
+// caller can avoid recompressing pass-through entries).
+func rewriteWMLLangVal(data []byte, sourceLocale, targetLocale model.LocaleID) []byte {
+	if targetLocale.IsEmpty() {
+		return data
+	}
+	src := primaryLangOf(sourceLocale)
+	if src == "" {
+		// Default to "en" — matches okapi OpenXMLFilter's behaviour when
+		// no source locale was supplied via setOptions.
+		src = "en"
+	}
+	if !bytes.Contains(data, []byte("<w:lang")) && !bytes.Contains(data, []byte("<w:themeFontLang")) {
+		return data
+	}
+	tgt := []byte(string(targetLocale))
+	return wmlLangValAttrRE.ReplaceAllFunc(data, func(match []byte) []byte {
+		sub := wmlLangValAttrRE.FindSubmatch(match)
+		if sub == nil {
+			return match
+		}
+		// sub[1]=prefix incl. "w:val=", sub[3]=open quote, sub[4]=value, sub[5]=close quote
+		existing := string(sub[4])
+		if primaryLangOf(model.LocaleID(existing)) != src {
+			return match
+		}
+		out := make([]byte, 0, len(sub[1])+len(sub[3])+len(tgt)+len(sub[5]))
+		out = append(out, sub[1]...)
+		out = append(out, sub[3]...)
+		out = append(out, tgt...)
+		out = append(out, sub[5]...)
+		return out
+	})
+}
+
+// primaryLangOf returns the lower-cased primary language subtag of a
+// BCP-47 locale ID. Mirrors okapi LocaleId.sameLanguageAs comparison
+// semantics (region/script ignored).
+func primaryLangOf(l model.LocaleID) string {
+	s := strings.ToLower(string(l))
+	if i := strings.IndexAny(s, "-_"); i >= 0 {
+		s = s[:i]
+	}
+	return s
+}
+
 // Writer implements DataFormatWriter for OpenXML files.
 type Writer struct {
 	format.BaseFormatWriter
 	cfg             *Config
 	skeletonStore   *format.SkeletonStore
 	originalContent []byte
+
+	// sourceLocale records the input/source locale supplied to the writer
+	// (defaults to "en" — okapi's LocaleId.EMPTY default for OpenXMLFilter).
+	// Used by the WordprocessingML lang-attribute rewriter to decide whether
+	// an existing <w:lang>/<w:themeFontLang> w:val matches the source
+	// language and should be retargeted to w.Locale.
+	sourceLocale model.LocaleID
 
 	// mediaReplacements maps ZIP entry paths (e.g., "word/media/image1.png")
 	// to replacement binary content for locale-variant media substitution (Bowrain AD-007).
@@ -128,6 +246,7 @@ type Writer struct {
 
 var _ format.SkeletonStoreConsumer = (*Writer)(nil)
 var _ format.OriginalContentSetter = (*Writer)(nil)
+var _ format.SourceLocaleSetter = (*Writer)(nil)
 
 // SetMediaReplacement registers a locale-variant media file to substitute
 // during output reconstruction. The zipPath should match the original
@@ -159,6 +278,16 @@ func (w *Writer) SetSkeletonStore(store *format.SkeletonStore) {
 // SetOriginalContent sets the original document bytes for reconstruction.
 func (w *Writer) SetOriginalContent(content []byte) {
 	w.originalContent = content
+}
+
+// SetSourceLocale records the source/input locale. Used by the
+// WordprocessingML lang-attribute rewriter (mirrors okapi's
+// GenericSkeletonWriter behavior at lines 808-816 of okapi/core/src/
+// main/java/net/sf/okapi/common/skeleton/GenericSkeletonWriter.java
+// which retargets Property.LANGUAGE-named attributes from inputLoc to
+// outputLoc when sameLanguageAs(inputLoc) holds).
+func (w *Writer) SetSourceLocale(locale model.LocaleID) {
+	w.sourceLocale = locale
 }
 
 // Write consumes Parts and writes the reconstructed OpenXML document.
@@ -277,6 +406,9 @@ func (w *Writer) writeFromSkeleton(origZR *zip.Reader, zw *zip.Writer, buf *byte
 			if isDOCX && shouldStripWMLLang(f.Name) {
 				content = stripWMLSkippableElements(content)
 			}
+			if isDOCX && shouldRewriteWMLLangVal(f.Name) {
+				content = rewriteWMLLangVal(content, w.sourceLocale, w.Locale)
+			}
 			fh := f.FileHeader
 			fh.Method = zip.Deflate
 			// Clear data descriptor fields to avoid checksum issues
@@ -304,15 +436,22 @@ func (w *Writer) writeFromSkeleton(origZR *zip.Reader, zw *zip.Writer, buf *byte
 			if _, err := fw.Write(replacement); err != nil {
 				return err
 			}
-		} else if isDOCX && shouldStripWMLLang(f.Name) {
-			// Pass-through WordprocessingML part (e.g. word/styles.xml)
-			// that needs okapi-style lang/bidiVisual stripping. Read,
-			// transform, re-emit with a recompressed header.
+		} else if isDOCX && (shouldStripWMLLang(f.Name) || shouldRewriteWMLLangVal(f.Name)) {
+			// Pass-through WordprocessingML part (e.g. word/styles.xml,
+			// word/settings.xml) that needs okapi-style lang/bidiVisual
+			// stripping and/or <w:lang>/<w:themeFontLang> w:val
+			// retargeting. Read, transform, re-emit with a recompressed
+			// header.
 			data, err := readZipFile(f)
 			if err != nil {
 				return err
 			}
-			data = stripWMLSkippableElements(data)
+			if shouldStripWMLLang(f.Name) {
+				data = stripWMLSkippableElements(data)
+			}
+			if shouldRewriteWMLLangVal(f.Name) {
+				data = rewriteWMLLangVal(data, w.sourceLocale, w.Locale)
+			}
 			fh := f.FileHeader
 			fh.Method = zip.Deflate
 			fh.CompressedSize64 = 0

@@ -21,6 +21,17 @@ type SourcePathSetter interface {
 	SetSourcePath(path string)
 }
 
+// SourceLocaleSetter is implemented by writers that need to know the
+// source (input) locale, in addition to the target locale set via
+// SetLocale. Format writers that rewrite locale-bearing attributes on
+// round-trip (e.g. OOXML's <w:lang>/<w:themeFontLang> w:val) need both
+// the source and target locale to mirror the upstream Okapi behavior:
+// "if the existing value's primary language matches the source, replace
+// it with the target". Writers that don't care can simply not implement.
+type SourceLocaleSetter interface {
+	SetSourceLocale(locale model.LocaleID)
+}
+
 // WriterConfigurable is implemented by writers that expose
 // serialization knobs (line endings, declaration emission, quote
 // strategy, etc.). The returned config follows the same
