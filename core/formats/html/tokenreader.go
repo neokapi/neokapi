@@ -279,6 +279,28 @@ func implicitlyClosesLeaf(leafAtom, childAtom atom.Atom) bool {
 	return false
 }
 
+// synthesizeOrphanInlineClose appends a PcClose run with empty Data for an
+// inline element that was implicitly closed by an HTML5-illegal block-level
+// child (adoption agency). Empty Data means the writer renders nothing for
+// the close (mirrors NekoHTML, which closes the inline silently and reopens
+// it later if the next legal context permits). Keeps run pairs balanced for
+// downstream tools that assume PcOpen/PcClose come in pairs.
+func (s *tokenReaderState) synthesizeOrphanInlineClose(b *runBuilder, parentTag string, parentInfo *model.SpanTypeInfo) {
+	semType := htmlSemanticType(parentTag)
+	subType := "html:" + parentTag
+	equiv := ""
+	if parentInfo != nil {
+		equiv = parentInfo.Equiv
+	}
+	b.AddPcClose(
+		findOpeningRunID(b, semType),
+		semType,
+		subType,
+		"",
+		equiv,
+	)
+}
+
 // deferredStartTag carries the pre-fetched fields of a start tag that the
 // main loop should replay without calling tokenizer.Next() / TagName() /
 // collectTokenAttrs again. Used by processLeafBlock to bounce an
@@ -749,6 +771,16 @@ func (s *tokenReaderState) processLeafBlock(tokenizer *html.Tokenizer, tag strin
 					)
 					// Recursively collect inline content.
 					s.collectInlineTokens(tokenizer, childTag, b, &idCounter, info, ctx, ch)
+					// If the recursion saw a block-level start tag that
+					// HTML5-implicitly closed this inline (and therefore
+					// also this leaf, since leaves can't legally contain
+					// block children), unwind the leaf so the main loop
+					// can replay the deferred start. See the inline
+					// implicit-close branch in collectInlineTokens for
+					// the spec citation.
+					if s.deferredStart != nil {
+						goto leafClosed
+					}
 				}
 			} else if implicitlyClosesLeaf(a, childAtom) {
 				// HTML5 implicit close: a block-level start tag inside a
@@ -1015,7 +1047,40 @@ func (s *tokenReaderState) collectInlineTokens(tokenizer *html.Tokenizer, parent
 					if s.deferredLeafEndTagRaw != nil {
 						return
 					}
+					// If the inner recursion saw a block-level start tag
+					// (HTML5 adoption agency: e.g. `<a><h3>` implicitly
+					// closes the `<a>` and the enclosing leaf), unwind
+					// this frame too so processLeafBlock can flush.
+					if s.deferredStart != nil {
+						s.synthesizeOrphanInlineClose(b, parentTag, parentInfo)
+						return
+					}
 				}
+			} else {
+				// Block-level start tag inside an inline span. HTML5
+				// §13.2.6.4.7 "in body" insertion mode + adoption agency:
+				// any flow-content block start (`<h1-6>`, `<p>`, `<table>`,
+				// `<div>`, …) implicitly closes the open phrasing-content
+				// element (`<a>`, `<font>`, `<b>`, …) and the enclosing
+				// leaf block. NekoHTML follows this; without the unwind
+				// our reader silently dropped the block start tag and
+				// turned its end tag into a stray-Ph (e.g.
+				// `<a><h3>title</h3></a>` lost the `<h3>` opener and
+				// emitted an orphan `</h3>` placeholder).
+				//
+				// Defer the block start back to the main loop and
+				// synthesize an empty close for this inline run so the
+				// emitted runs stay balanced (the close has empty Data
+				// so the writer renders nothing — matches NekoHTML's
+				// "close-and-reopen" effect for the immediate output).
+				s.deferredStart = &deferredStartTag{
+					raw:   tokenRaw,
+					tag:   childTag,
+					a:     childAtom,
+					attrs: childAttrs,
+				}
+				s.synthesizeOrphanInlineClose(b, parentTag, parentInfo)
+				return
 			}
 
 		case html.EndTagToken:
