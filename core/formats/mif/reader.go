@@ -687,13 +687,43 @@ func (r *Reader) processPgfCatalog(ctx context.Context, ch chan<- model.PartResu
 			block := model.NewBlock(fmt.Sprintf("tu%d", blockCounter), gc.value)
 			block.Name = fmt.Sprintf("pgf_num_format.%d", blockCounter)
 			block.Properties["pgf_tag"] = pgfTag
-			r.applyCodeFinder(block)
+			// PgfNumFormat values get the additional ^[A-Z]: rule
+			// (pgfNumFormatLeadingPrefix). This protects auto-number type
+			// prefixes like `T:`, `C:`, `H:` while leaving regular
+			// <String>-context text alone. Both rule sets are applied in
+			// a single pass so the global codeFinder placeholders (e.g.
+			// `<n+>`, `<$lastpagenum>`) coexist with the leading prefix
+			// placeholder without one pass discarding the other.
+			r.applyCodeFinderWithExtras(block, []*regexp.Regexp{pgfNumFormatLeadingPrefix})
 			if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
 				return blockCounter
 			}
 		}
 	}
 	return blockCounter
+}
+
+// applyCodeFinderWithExtras is applyCodeFinder plus an additional
+// list of context-specific patterns appended to the global config
+// patterns for THIS block only. Both rule sets feed a single
+// applyCodeFinderToSegments call so a second pass doesn't undo the
+// first (Segment.Text() drops Ph data, so re-running the splitter
+// after a previous pass would lose the earlier placeholders).
+func (r *Reader) applyCodeFinderWithExtras(block *model.Block, extras []*regexp.Regexp) {
+	if block == nil {
+		return
+	}
+	patterns := r.cfg.GetCodeFinderPatterns()
+	merged := make([]*regexp.Regexp, 0, len(patterns)+len(extras))
+	merged = append(merged, patterns...)
+	merged = append(merged, extras...)
+	if len(merged) == 0 {
+		return
+	}
+	applyCodeFinderToSegments(block.Source, merged)
+	for _, segs := range block.Targets {
+		applyCodeFinderToSegments(segs, merged)
+	}
 }
 
 // skipPage reports whether a <Page> statement should be treated as a
@@ -804,6 +834,21 @@ func (r *Reader) processVariableFormats(ctx context.Context, ch chan<- model.Par
 	}
 	return blockCounter, dataCounter
 }
+
+// pgfNumFormatLeadingPrefix matches the okapi codeFinder rule
+// `^[A-Z]{1}:` (Parameters.java:196) that protects FrameMaker
+// auto-numbering type prefixes like `T:`, `C:`, `H:` from being
+// pseudo-translated. The rule is in okapi's default codeFinder rule
+// list but is intentionally omitted from the native default rule list
+// (config.go) because applying it to ordinary <String> text would
+// split and lose the leading capital — empirically the bridge does NOT
+// apply the leading-letter rule to text-flow strings (Test01.mif's
+// `<String P:Body>` reference output is `<String 'Ƥ:ßōďŷ'>`, not
+// `<String 'P:ßōďŷ'>`). It DOES apply it to <PgfNumFormat> values
+// inside <PgfCatalog> (Test02-v9.mif's `<PgfNumFormat 'T:Table <n+\>:'>`
+// reference is `'T:Ţàƀĺē <n+\>:'`, with `T` preserved). Apply it
+// contextually here.
+var pgfNumFormatLeadingPrefix = regexp.MustCompile(`^[A-Z]:`)
 
 // applyCodeFinder splits each TextRun in the block into text +
 // placeholder runs whenever a CodeFinder pattern matches. This keeps
