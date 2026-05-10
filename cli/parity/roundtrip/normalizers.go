@@ -1129,28 +1129,42 @@ func mergeAdjacentCSRsInTree(node *xmlNode, mergeDefaultCSRs bool) {
 		// sibling is also a CSR whose attrs are equal to the run's
 		// current effective attrs (or, when mergeDefaultCSRs is set,
 		// either side is a default-only CSR — see isDefaultOnlyCSR).
+		// Mirrors upstream StoryChildElementsMerger.canStyleRangesBeMerged
+		// (StoryChildElementsMerger.java:215-218) which gates the merge
+		// on BOTH attribute equality AND `<Properties>` equality. CSRs
+		// with same attrs but distinct Properties are NOT merged
+		// (their visual style genuinely differs).
 		runStart := i
 		runEnd := i + 1 // exclusive
 		runAttrs := c.sub.start.Attr
+		runPropsRef := csrPropertiesChildren(c.sub)
 		for runEnd < len(node.children) {
 			next := node.children[runEnd]
 			if next.sub == nil || !isCSR(next.sub) {
 				break
 			}
-			if sameXMLAttrs(runAttrs, next.sub.start.Attr) {
+			nextProps := csrPropertiesChildren(next.sub)
+			propsCompatible := samePropertiesList(runPropsRef, nextProps)
+			if sameXMLAttrs(runAttrs, next.sub.start.Attr) && propsCompatible {
 				runEnd++
 				continue
 			}
 			// Default-only CSR is merge-transparent (okapi's
 			// StoryChildElementsParser:132-136 makes bare contents
 			// inherit the previous CSR's style). Surviving attrs come
-			// from the non-default neighbor.
-			if mergeDefaultCSRs && isDefaultOnlyCSRAttrs(runAttrs) {
+			// from the non-default neighbor. Properties still gate
+			// the merge: a default-only CSR without Properties is
+			// transparent (gets the neighbor's), but if both sides
+			// carry distinct Properties the merge is unsafe.
+			if mergeDefaultCSRs && isDefaultOnlyCSRAttrs(runAttrs) && propsCompatible {
 				runAttrs = next.sub.start.Attr
+				if len(runPropsRef) == 0 {
+					runPropsRef = nextProps
+				}
 				runEnd++
 				continue
 			}
-			if mergeDefaultCSRs && isDefaultOnlyCSRAttrs(next.sub.start.Attr) {
+			if mergeDefaultCSRs && isDefaultOnlyCSRAttrs(next.sub.start.Attr) && propsCompatible {
 				runEnd++
 				continue
 			}
@@ -1171,14 +1185,37 @@ func mergeAdjacentCSRsInTree(node *xmlNode, mergeDefaultCSRs bool) {
 		}
 		// Merge: keep the first CSR's start/end; concatenate all
 		// children. head.start.Attr becomes runAttrs (the surviving
-		// non-default attribute set, or the original).
+		// non-default attribute set, or the original). Properties
+		// children are deduplicated — every merged CSR carried the
+		// same `<Properties>` (the merge gate above proved it), so
+		// keeping one copy reproduces upstream's per-CSR Properties
+		// emission (StoryChildElementsWriter writes one CSR with one
+		// Properties even when N source CSRs were merged).
 		head := node.children[runStart].sub
 		head.start.Attr = runAttrs
 		var combined []xmlChild
-		combined = append(combined, head.children...)
-		for k := runStart + 1; k < runEnd; k++ {
-			combined = append(combined, node.children[k].sub.children...)
+		var savedProps []xmlChild
+		appendNonProperties := func(children []xmlChild) {
+			for _, ch := range children {
+				if ch.sub != nil && ch.sub.start.Name.Local == "Properties" {
+					if savedProps == nil {
+						savedProps = []xmlChild{ch}
+					}
+					continue
+				}
+				combined = append(combined, ch)
+			}
 		}
+		appendNonProperties(head.children)
+		for k := runStart + 1; k < runEnd; k++ {
+			appendNonProperties(node.children[k].sub.children)
+		}
+		// Re-attach the single Properties at the end so adjacent
+		// Contents become genuinely adjacent for
+		// mergeAdjacentContentsInCSR. SortChildElements (sort-children)
+		// later re-orders alphabetically anyway, so trailing position
+		// is canonicalisation-safe.
+		combined = append(combined, savedProps...)
 		head.children = combined
 		if mergeDefaultCSRs {
 			// Same-style adjacent Contents are fused into one by okapi's
@@ -1197,6 +1234,94 @@ func mergeAdjacentCSRsInTree(node *xmlNode, mergeDefaultCSRs bool) {
 			mergeAdjacentCSRsInTree(c.sub, mergeDefaultCSRs)
 		}
 	}
+}
+
+// csrPropertiesChildren returns the `<Properties>` element children of
+// a CSR node. A CSR carries at most one `<Properties>` per upstream's
+// data model (one per StyleRange), but native may emit zero or more
+// depending on whether the source IDML had a Properties block; we
+// return them all so the equality check is faithful.
+func csrPropertiesChildren(n *xmlNode) []*xmlNode {
+	if n == nil {
+		return nil
+	}
+	var out []*xmlNode
+	for _, c := range n.children {
+		if c.sub != nil && c.sub.start.Name.Local == "Properties" {
+			out = append(out, c.sub)
+		}
+	}
+	return out
+}
+
+// samePropertiesList reports whether two `<Properties>` lists are
+// structurally equal (same number of Properties, each pairwise
+// structurally equal). Order-sensitive — Okapi emits a stable order
+// and never reorders within a single StyleRange's Properties.
+func samePropertiesList(a, b []*xmlNode) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for k := range a {
+		if !sameXMLSubtree(a[k], b[k]) {
+			return false
+		}
+	}
+	return true
+}
+
+// sameXMLSubtree reports whether two element subtrees are structurally
+// equal: same name, same attribute set (order-insensitive), and
+// recursively equal children. Raw children (CharData / Comments /
+// ProcInsts) compare by exact byte content.
+func sameXMLSubtree(a, b *xmlNode) bool {
+	if a == nil || b == nil {
+		return a == b
+	}
+	if a.start.Name.Space != b.start.Name.Space ||
+		a.start.Name.Local != b.start.Name.Local {
+		return false
+	}
+	if !sameXMLAttrs(a.start.Attr, b.start.Attr) {
+		return false
+	}
+	if len(a.children) != len(b.children) {
+		return false
+	}
+	for k := range a.children {
+		ac, bc := a.children[k], b.children[k]
+		if (ac.sub == nil) != (bc.sub == nil) {
+			return false
+		}
+		if ac.sub != nil {
+			if !sameXMLSubtree(ac.sub, bc.sub) {
+				return false
+			}
+			continue
+		}
+		// raw token comparison
+		switch av := ac.raw.(type) {
+		case xml.CharData:
+			bv, ok := bc.raw.(xml.CharData)
+			if !ok || string(av) != string(bv) {
+				return false
+			}
+		case xml.Comment:
+			bv, ok := bc.raw.(xml.Comment)
+			if !ok || string(av) != string(bv) {
+				return false
+			}
+		case xml.ProcInst:
+			bv, ok := bc.raw.(xml.ProcInst)
+			if !ok || av.Target != bv.Target || string(av.Inst) != string(bv.Inst) {
+				return false
+			}
+		default:
+			// Unknown raw token type — be conservative and reject.
+			return false
+		}
+	}
+	return true
 }
 
 // idmlDefaultCharacterStyle matches okapi's StyleRange.java:44

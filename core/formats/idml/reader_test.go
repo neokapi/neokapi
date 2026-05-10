@@ -968,10 +968,14 @@ func TestSpreadVisibilityFiltering(t *testing.T) {
 		"both flags=true should extract every story")
 }
 
-// TestSpreadVisibilityLinkedFrames covers okapi's per-frame filter:
-// when multiple TextFrames reference the same story (linked frame
-// chains), the story is extracted iff at least one referencing frame
-// survives the visibility filter.
+// TestSpreadVisibilityLinkedFrames covers okapi's chain-start
+// visibility rule: a story is visible iff its chain-start TextFrame
+// (the one with PreviousTextFrame == "n" — i.e. the head of the
+// linked-frame thread) survives the visibility filter. Mid-chain
+// visibility cannot rescue a hidden chain-start, since layout-wise
+// the hidden chain-start owns the whole thread. Mirrors upstream
+// DesignMapFragments.visibleStoryPartNames + OrderingIdioms.getOrderedStoryIds
+// (DesignMapFragments.java:192-204; OrderingIdioms.java:148-162).
 func TestSpreadVisibilityLinkedFrames(t *testing.T) {
 	story := `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <idPkg:Story xmlns:idPkg="http://ns.adobe.com/AdobeInDesign/idml/1.0/packaging">
@@ -987,26 +991,45 @@ func TestSpreadVisibilityLinkedFrames(t *testing.T) {
 <Document DOMVersion="16.0">
   <Layer Self="lay1" Name="Visible" Visible="true"/>
 </Document>`
-	// Two TextFrames share story uShared. tf1 is hidden, tf2 is
-	// visible — story should be extracted because at least one frame
-	// survives the filter.
-	spread := `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+	// Case A: chain-start (tf1, PreviousTextFrame missing == "n")
+	// is HIDDEN; mid-chain tf2 is visible. Per upstream Okapi, the
+	// story is suppressed because mid-chain visibility doesn't promote
+	// a hidden chain-start. (1016.idml's Story_u9cf.xml exhibits this
+	// shape — TextFrame u9e1 is the hidden chain-start, u900d is a
+	// visible mid-chain frame; Okapi drops u9cf entirely.)
+	spreadHiddenStart := `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <idPkg:Spread xmlns:idPkg="http://ns.adobe.com/AdobeInDesign/idml/1.0/packaging">
   <Spread Self="sp1">
     <TextFrame Self="tf1" ParentStory="uShared" ItemLayer="lay1" Visible="false" NextTextFrame="tf2"/>
     <TextFrame Self="tf2" ParentStory="uShared" ItemLayer="lay1" Visible="true" PreviousTextFrame="tf1"/>
   </Spread>
 </idPkg:Spread>`
-
-	data := createIDMLWithSpreads(t,
+	dataA := createIDMLWithSpreads(t,
 		designMap,
 		map[string]string{"Story_uShared.xml": story},
-		map[string]string{"Spreads/Spread_sp1.xml": spread},
+		map[string]string{"Spreads/Spread_sp1.xml": spreadHiddenStart},
 	)
-	parts := readIDMLBytes(t, data)
-	texts := testutil.BlockTexts(testutil.FilterBlocks(parts))
-	assert.ElementsMatch(t, []string{"Shared between linked frames"}, texts,
-		"linked frame chain with at least one visible frame should still extract")
+	textsA := testutil.BlockTexts(testutil.FilterBlocks(readIDMLBytes(t, dataA)))
+	assert.ElementsMatch(t, []string{}, textsA,
+		"hidden chain-start frame should suppress the whole story even when mid-chain frames are visible")
+
+	// Case B: chain-start (tf1) is visible; tf2 is hidden. Story IS
+	// extracted because the chain-start survives the filter.
+	spreadVisibleStart := `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<idPkg:Spread xmlns:idPkg="http://ns.adobe.com/AdobeInDesign/idml/1.0/packaging">
+  <Spread Self="sp1">
+    <TextFrame Self="tf1" ParentStory="uShared" ItemLayer="lay1" Visible="true" NextTextFrame="tf2"/>
+    <TextFrame Self="tf2" ParentStory="uShared" ItemLayer="lay1" Visible="false" PreviousTextFrame="tf1"/>
+  </Spread>
+</idPkg:Spread>`
+	dataB := createIDMLWithSpreads(t,
+		designMap,
+		map[string]string{"Story_uShared.xml": story},
+		map[string]string{"Spreads/Spread_sp1.xml": spreadVisibleStart},
+	)
+	textsB := testutil.BlockTexts(testutil.FilterBlocks(readIDMLBytes(t, dataB)))
+	assert.ElementsMatch(t, []string{"Shared between linked frames"}, textsB,
+		"visible chain-start frame should extract the story even when mid-chain frames are hidden")
 }
 
 // TestSpreadVisibilityMasterSpreads covers the MasterSpreads/ branch

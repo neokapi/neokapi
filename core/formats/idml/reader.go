@@ -308,10 +308,10 @@ func (r *Reader) parseStory(ctx context.Context, ch chan<- model.PartResult,
 	// only triggers on direct children of the active PSR (not e.g.
 	// <Properties> nested inside a wrapped <TextFrame>).
 	type psrFrame struct {
-		bareCSROpen   bool
-		depth         int        // elemDepth at which this PSR was opened
-		attrs         []xml.Attr // start-tag attributes (for cross-PSR merge equality check)
-		bareCSRAttrs  []xml.Attr // attrs used for the synth CSR wrapping bare children (nil → default)
+		bareCSROpen  bool
+		depth        int        // elemDepth at which this PSR was opened
+		attrs        []xml.Attr // start-tag attributes (for cross-PSR merge equality check)
+		bareCSRAttrs []xml.Attr // attrs used for the synth CSR wrapping bare children (nil → default)
 	}
 	// Cross-PSR merge tracking. Mirrors upstream
 	// StoryChildElementsWriter (writeAsStyledTextElement, lines 70-89)
@@ -431,6 +431,19 @@ func (r *Reader) parseStory(ctx context.Context, ch chan<- model.PartResult,
 	// StoryChildElementsParser.java:486-505 +
 	// StyleRange.java:134-181).
 	var csrAttrStack [][]xml.Attr
+	// cellDepthStack tracks the elemDepth of every currently-open
+	// <Cell> element. Mirrors upstream's
+	// StoryChildElement.StyledTextReferenceElement.Table.Cell
+	// (StoryChildElement.java:367-382), whose CellBuilder.build()
+	// always constructs a Cell with `new Properties.Empty(eventFactory)`
+	// — i.e. it deliberately discards any <Properties> direct child of
+	// <Cell> (e.g. <AllCellGradientAttrList>) on read, so the
+	// StoryChildElementsWriter never emits them on round-trip.
+	// We mirror that here by skipping any <Properties> subtree whose
+	// parent elemDepth equals the topmost open cell's elemDepth.
+	// Properties nested deeper (inside the Cell's PSR/CSR/HyperlinkText
+	// Source/...) are NOT direct Cell children and must survive.
+	var cellDepthStack []int
 	inCSR := 0
 	elemDepth := 0
 	openSynthCSRWith := func(appliedCharStyle string) {
@@ -1069,6 +1082,42 @@ func (r *Reader) parseStory(ctx context.Context, ch chan<- model.PartResult,
 					return fmt.Errorf("skipping %s: %w", t.Name.Local, err)
 				}
 
+			case "Cell":
+				// IDML Tables/Cells: track cell depth so a direct
+				// <Properties> child can be elided. Mirrors upstream
+				// StoryChildElement.StyledTextReferenceElement.Table.Cell
+				// (StoryChildElement.java:367-382): CellBuilder.build()
+				// always constructs a Cell with a Properties.Empty,
+				// dropping any <Properties> child the parser saw — the
+				// writer therefore never emits them. Cell content
+				// (PSRs / CSRs / Properties INSIDE those) is unaffected.
+				closeBareIfDirect()
+				closeActiveSynth()
+				emitStart(t)
+				elemDepth++
+				cellDepthStack = append(cellDepthStack, elemDepth)
+
+			case "Properties":
+				// Drop <Properties> when it is a direct child of the
+				// most recently opened <Cell> (Adobe IDML §3.7 Tables
+				// Cell properties: AllCellGradientAttrList,
+				// MetadataPacketPreference, …). Upstream Okapi's
+				// CellBuilder ignores parsed Properties, so the
+				// reference round-trip never contains them. All other
+				// <Properties> contexts (PSR, CSR, HyperlinkTextSource,
+				// Table itself, …) are preserved by falling through to
+				// the default branch.
+				if n := len(cellDepthStack); n > 0 && cellDepthStack[n-1] == elemDepth {
+					if err := skipElementSubtree(d, t.Name); err != nil {
+						return fmt.Errorf("skipping Cell Properties: %w", err)
+					}
+					break
+				}
+				closeBareIfDirect()
+				closeActiveSynth()
+				emitStart(t)
+				elemDepth++
+
 			default:
 				closeBareIfDirect()
 				closeActiveSynth()
@@ -1248,6 +1297,18 @@ func (r *Reader) parseStory(ctx context.Context, ch chan<- model.PartResult,
 				// tag is never seen here.) No emit, no elemDepth--.
 				closeBareIfDirect()
 				closeActiveSynth()
+
+			case "Cell":
+				// Pop the cell-depth stack so a sibling Cell at the
+				// same Table scope correctly tracks ITS own direct
+				// Properties subsequently. Mirrors upstream
+				// StoryChildElement.StyledTextReferenceElement.Table.Cell
+				// build behaviour.
+				if n := len(cellDepthStack); n > 0 {
+					cellDepthStack = cellDepthStack[:n-1]
+				}
+				elemDepth--
+				emitEnd(t)
 
 			default:
 				elemDepth--
@@ -1705,9 +1766,33 @@ func (r *Reader) scanHiddenStories(zr *zip.Reader) (map[string]bool, error) {
 		}
 	}
 
-	// Track per-story whether any referencing TextFrame survives the
-	// visibility rules. A story is hidden iff every reference fails.
-	storyAnyVisibleRef := map[string]bool{}
+	// Track per-story:
+	//   storyHasChainStart — at least one referencing frame is the
+	//     chain-start (PreviousTextFrame == "n"). Anchored-only stories
+	//     (no chain start, only inline-anchor TextFrames) lack this.
+	//   storyVisibleChainStart — at least one chain-start frame
+	//     survives the visibility filter (visible Layer + visible frame).
+	//
+	// A story is hidden iff it has chain-start references AND none of
+	// the chain-start frames are visible. This mirrors upstream
+	// DesignMapFragments.visibleStoryPartNames (lines 192-204 of
+	// DesignMapFragments.java) which:
+	//   1. computes visiblePasteboardItems via VisibilityFilter,
+	//   2. collects visibleStoryIds via OrderingIdioms.getOrderedStoryIds
+	//      (OrderingIdioms.java:148-152) — that helper ONLY adds a story
+	//      ID when the item's PreviousTextFrameId is NO_VALUE (i.e. the
+	//      item is the FIRST frame in its thread). Frames mid-chain
+	//      contribute zero story IDs.
+	//   3. anchoredStoryPartNames are stories with no chain-start at all
+	//      (referenced only from inline anchors); these get included via
+	//      the union at line 204.
+	//
+	// Net behaviour: a story whose chain-start frame is invisible is
+	// dropped EVEN IF mid-chain frames are visible. (Layout-wise, the
+	// hidden chain-start owns the whole thread; mid-chain visibility
+	// alone doesn't surface story content.)
+	storyHasChainStart := map[string]bool{}
+	storyVisibleChainStart := map[string]bool{}
 	storyHasRef := map[string]bool{}
 
 	scanSpread := func(name string) error {
@@ -1739,6 +1824,15 @@ func (r *Reader) scanHiddenStories(zr *zip.Reader) (map[string]bool, error) {
 			storyHasRef[storyID] = true
 			frameVisible := parseBoolDefault(attrVal(se.Attr, "Visible"), true)
 			itemLayer := attrVal(se.Attr, "ItemLayer")
+			// Adobe IDML §"TextFrame": PreviousTextFrame == "n" marks
+			// the head of a threaded-frame chain. Empty / missing also
+			// counts as no-previous (defensive — IDML always emits "n"
+			// in practice).
+			prev := attrVal(se.Attr, "PreviousTextFrame")
+			isChainStart := prev == "" || prev == "n"
+			if isChainStart {
+				storyHasChainStart[storyID] = true
+			}
 
 			// Per-frame layer/visibility filter (mirrors okapi
 			// PasteboardItem.java:199-206).
@@ -1750,7 +1844,12 @@ func (r *Reader) scanHiddenStories(zr *zip.Reader) (map[string]bool, error) {
 			if !r.cfg.ExtractHiddenPasteboardItems && !frameVisible {
 				continue
 			}
-			storyAnyVisibleRef[storyID] = true
+			// Frame survived visibility. Story is visible only if THIS
+			// frame is the chain-start; mid-chain visible frames can't
+			// rescue an invisible chain-start.
+			if isChainStart {
+				storyVisibleChainStart[storyID] = true
+			}
 		}
 		return nil
 	}
@@ -1769,7 +1868,13 @@ func (r *Reader) scanHiddenStories(zr *zip.Reader) (map[string]bool, error) {
 
 	hidden := map[string]bool{}
 	for storyID := range storyHasRef {
-		if !storyAnyVisibleRef[storyID] {
+		// Anchored-only stories (no chain start) are always extracted
+		// per DesignMapFragments line 201-204 (anchoredStoryPartNames
+		// gets unioned into visibleStoryPartNames).
+		if !storyHasChainStart[storyID] {
+			continue
+		}
+		if !storyVisibleChainStart[storyID] {
 			hidden[storyID] = true
 		}
 	}
