@@ -578,6 +578,16 @@ func (n XMLCanonical) Normalize(in []byte) ([]byte, error) {
 // re-decoding.
 func (n XMLCanonical) collectTokens(dec *xml.Decoder) ([]xml.Token, error) {
 	var out []xml.Token
+	// preserveWSDepth tracks how deep we're nested inside elements that
+	// declare leaf-significant whitespace (currently IDML's `<Content>`
+	// when StripIDMLACEPIs/MergeAdjacentCSRs are active — i.e. a
+	// known-IDML run). Whitespace-only CharData inside those elements
+	// is preserved so the per-CSR adjacent-Content merge can fuse
+	// `<Content>text</Content><Content> </Content>` into
+	// `<Content>text </Content>` exactly like upstream
+	// StoryChildElementsMerger does.
+	var preserveWSDepth int
+	preserveWSElement := n.StripIDMLACEPIs || n.MergeAdjacentCSRs
 	for {
 		tok, err := dec.Token()
 		if err == io.EOF {
@@ -606,15 +616,29 @@ func (n XMLCanonical) collectTokens(dec *xml.Decoder) ([]xml.Token, error) {
 				continue
 			}
 		}
+		// Track depth of whitespace-preserving elements (must run
+		// BEFORE the CharData strip so the strip can consult it).
+		if preserveWSElement {
+			if se, ok := tok.(xml.StartElement); ok && se.Name.Local == "Content" {
+				preserveWSDepth++
+			} else if ee, ok := tok.(xml.EndElement); ok && ee.Name.Local == "Content" {
+				if preserveWSDepth > 0 {
+					preserveWSDepth--
+				}
+			}
+		}
 		// Drop CharData runs that consist of nothing but ASCII
 		// whitespace — different writers indent differently and the
 		// inter-element whitespace isn't significant to XML semantics
 		// (excepting xml:space="preserve", which encoding/xml's
 		// tokenizer doesn't propagate to us so we conservatively
-		// always strip).
+		// always strip — except inside whitespace-preserving elements
+		// like IDML's `<Content>`, where a lone " " between text runs
+		// is a load-bearing inter-word space that the per-CSR Content
+		// merge needs to keep).
 		if cd, ok := tok.(xml.CharData); ok {
 			trimmed := bytes.TrimRight(bytes.TrimLeft(cd, " \t\r\n"), " \t\r\n")
-			if len(trimmed) == 0 {
+			if len(trimmed) == 0 && preserveWSDepth == 0 {
 				continue
 			}
 			// okapi's xliff writer collapses tabs to single spaces in
@@ -788,25 +812,23 @@ func stripEmptyIDMLContentInTree(node *xmlNode) {
 	node.children = kept
 }
 
-// isEmptyContentNode reports whether a `<Content>` node's children
-// hold no non-whitespace CharData. ProcessingInstructions and
-// element children are not counted as content (in well-formed IDML
-// `<Content>` is a leaf text node; nested elements should not occur).
+// isEmptyContentNode reports whether a `<Content>` node has zero
+// content of any kind: no element children, no CharData (not even
+// whitespace), no ProcessingInstructions. The strict "truly empty"
+// check matches okapi's drop behavior for the `<Content/>` placeholder
+// that InDesign sometimes leaves after a `<Table>`. A
+// whitespace-only `<Content xml:space="preserve"> </Content>` is
+// LEFT IN PLACE: it carries a load-bearing inter-word space that the
+// per-CSR adjacent-Content merge will fuse into the surrounding text
+// runs (e.g. CSR-with-`text` + CSR-with-` ` merge to "text ").
 func isEmptyContentNode(node *xmlNode) bool {
 	for _, c := range node.children {
 		if c.sub != nil {
-			// Conservative: an element child means "not the empty
-			// placeholder we want to drop" — leave as-is.
 			return false
 		}
 		if cd, ok := c.raw.(xml.CharData); ok {
-			for _, b := range cd {
-				switch b {
-				case ' ', '\t', '\r', '\n':
-					continue
-				default:
-					return false
-				}
+			if len(cd) > 0 {
+				return false
 			}
 		}
 	}
