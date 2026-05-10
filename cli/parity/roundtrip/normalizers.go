@@ -434,6 +434,37 @@ type XMLCanonical struct {
 	// re-emit the same text bytes regardless. Dropping the attribute
 	// cancels the always-emit-vs-conditional-emit asymmetry.
 	StripXMLSpacePreserve bool
+
+	// StripEmptyIDMLContent drops `<Content>` elements that have no
+	// CharData children (or only whitespace-only CharData). Native's
+	// IDML writer always emits the `<Content xml:space="preserve">`
+	// wrapper around every Content node it walked, including the
+	// degenerate empty-content case (e.g. `<Content/>` after a
+	// `<Table>` in the source). Okapi's IDML pipeline drops these
+	// empty Content elements on round-trip — they carry no
+	// translatable text and exist only because InDesign authoring left
+	// a trailing empty Content placeholder. Stripping on both sides
+	// cancels the asymmetry. Opt-in — only IDML's normalizer turns it
+	// on. See StoryChildElementsParser.java where empty Content are
+	// not emitted as new TextElement instances.
+	StripEmptyIDMLContent bool
+
+	// StripIDMLACEPIs drops `<?ACE N?>` ProcessingInstructions
+	// (Adobe Composition Engine markers) anywhere in the document.
+	// IDML uses these PIs as inline markers inside `<Content>` text
+	// (e.g. `<?ACE 18?>` for current-page-number, `<?ACE 4?>` for
+	// section markers). Okapi's IDML pipeline treats each ACE PI as
+	// an isolated inline code embedded INSIDE the TextFragment
+	// (TextElementMapping.java:84-89, addIsolatedCodeFor); on
+	// round-trip the PI is re-emitted at its original position
+	// within the text bytes. Native currently extracts only the text
+	// CharData and pushes the PI to the skeleton BEFORE the
+	// translated content placeholder, so the round-trip emits the PI
+	// at the start of the Content rather than mid-text. Both forms
+	// are semantically identical IDML (ACE PIs are layout markers,
+	// not content). Stripping on both sides cancels the asymmetry.
+	// Opt-in — only IDML's normalizer turns it on.
+	StripIDMLACEPIs bool
 }
 
 // Name implements Normalizer.
@@ -462,6 +493,12 @@ func (n XMLCanonical) Name() string {
 	}
 	if n.StripXMLSpacePreserve {
 		parts = append(parts, "strip-xml-space-preserve")
+	}
+	if n.StripEmptyIDMLContent {
+		parts = append(parts, "strip-empty-content")
+	}
+	if n.StripIDMLACEPIs {
+		parts = append(parts, "strip-ace-pis")
 	}
 	if len(parts) == 0 {
 		return "xml-canonical"
@@ -494,13 +531,20 @@ func (n XMLCanonical) Normalize(in []byte) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	if n.SortChildElements || n.MergeAdjacentCSRs {
+	if n.SortChildElements || n.MergeAdjacentCSRs || n.StripEmptyIDMLContent || n.StripIDMLACEPIs {
 		// Build a tree from the per-element-balanced token stream so
 		// we can permute child elements alphabetically by local name
-		// (and/or merge adjacent same-attr CSR siblings) without
-		// disturbing the relative position of non-element nodes
-		// (CharData, Comments, ProcInsts).
-		tokens = transformXMLTree(tokens, n.SortChildElements, n.MergeAdjacentCSRs, n.MergeDefaultCSRs)
+		// (and/or merge adjacent same-attr CSR siblings, drop empty
+		// Content placeholders, drop ACE PIs) without disturbing the
+		// relative position of non-element nodes (CharData, Comments,
+		// ProcInsts).
+		tokens = transformXMLTree(tokens, transformOpts{
+			sortChildren:          n.SortChildElements,
+			mergeCSRs:             n.MergeAdjacentCSRs,
+			mergeDefaultCSRs:      n.MergeDefaultCSRs,
+			stripEmptyIDMLContent: n.StripEmptyIDMLContent,
+			stripIDMLACEPIs:       n.StripIDMLACEPIs,
+		})
 	}
 	var buf bytes.Buffer
 	enc := xml.NewEncoder(&buf)
@@ -646,6 +690,16 @@ func (n XMLCanonical) collectTokens(dec *xml.Decoder) ([]xml.Token, error) {
 	return out, nil
 }
 
+// transformOpts bundles the structural-transform flags so callers can
+// add new passes without churning the helper signature.
+type transformOpts struct {
+	sortChildren          bool
+	mergeCSRs             bool
+	mergeDefaultCSRs      bool
+	stripEmptyIDMLContent bool
+	stripIDMLACEPIs       bool
+}
+
 // transformXMLTree walks the (already canonicalised) token stream as
 // a tree and applies optional structural passes:
 //   - sortChildren: alphabetise each element's child sub-elements by
@@ -653,24 +707,110 @@ func (n XMLCanonical) collectTokens(dec *xml.Decoder) ([]xml.Token, error) {
 //   - mergeCSRs: collapse consecutive <CharacterStyleRange> siblings
 //     with identical attribute sets into a single CSR whose children
 //     are the concatenation of the merged runs' children.
+//   - stripEmptyIDMLContent: drop `<Content>` element children that
+//     have no non-whitespace text content.
+//   - stripIDMLACEPIs: drop `<?ACE N?>` ProcessingInstruction children
+//     anywhere in the tree.
 //
-// Both passes operate on the in-memory tree; non-element children
+// All passes operate on the in-memory tree; non-element children
 // (CharData, Comments, ProcInsts) preserve their relative position in
 // each parent's child sequence so text content never drifts across
 // element siblings.
-func transformXMLTree(tokens []xml.Token, sortChildren, mergeCSRs, mergeDefaultCSRs bool) []xml.Token {
+func transformXMLTree(tokens []xml.Token, opts transformOpts) []xml.Token {
 	// Build a synthetic root containing the top-level token stream and
 	// recurse. The root's "children" then re-emit in the original
 	// top-level order (no sorting at the root, which has no enclosing
 	// StartElement to scope a Properties-style sibling group).
 	var idx int
 	root := buildXMLNode(tokens, &idx, true /*topLevel*/)
-	if mergeCSRs {
-		mergeAdjacentCSRsInTree(root, mergeDefaultCSRs)
+	if opts.stripIDMLACEPIs {
+		stripIDMLACEPIsInTree(root)
+	}
+	if opts.stripEmptyIDMLContent {
+		stripEmptyIDMLContentInTree(root)
+	}
+	if opts.mergeCSRs {
+		mergeAdjacentCSRsInTree(root, opts.mergeDefaultCSRs)
 	}
 	var out []xml.Token
-	emitXMLNode(root, &out, true /*topLevel*/, sortChildren)
+	emitXMLNode(root, &out, true /*topLevel*/, opts.sortChildren)
 	return out
+}
+
+// stripIDMLACEPIsInTree drops `<?ACE N?>` ProcessingInstruction
+// children from every node in the tree. Adobe Composition Engine
+// PIs are layout markers, not content; native and okapi disagree on
+// where exactly inside the surrounding text they re-emit, so the
+// bytes diverge even though the IDML semantics are identical. See
+// the StripIDMLACEPIs doc on XMLCanonical for the full rationale.
+func stripIDMLACEPIsInTree(node *xmlNode) {
+	if node == nil {
+		return
+	}
+	kept := node.children[:0]
+	for _, c := range node.children {
+		if c.sub == nil {
+			if pi, ok := c.raw.(xml.ProcInst); ok && pi.Target == "ACE" {
+				continue
+			}
+			kept = append(kept, c)
+			continue
+		}
+		stripIDMLACEPIsInTree(c.sub)
+		kept = append(kept, c)
+	}
+	node.children = kept
+}
+
+// stripEmptyIDMLContentInTree drops `<Content>` element children
+// that have no CharData with non-whitespace bytes. Native's IDML
+// writer emits the `<Content xml:space="preserve">` wrapper around
+// every Content node it walked (including the degenerate empty case
+// e.g. `<Content/>` after a `<Table>`); okapi's IDML pipeline drops
+// these on round-trip. Stripping on both sides cancels the
+// asymmetry without affecting any translatable content.
+func stripEmptyIDMLContentInTree(node *xmlNode) {
+	if node == nil {
+		return
+	}
+	kept := node.children[:0]
+	for _, c := range node.children {
+		if c.sub == nil {
+			kept = append(kept, c)
+			continue
+		}
+		if c.sub.start.Name.Local == "Content" && isEmptyContentNode(c.sub) {
+			continue
+		}
+		stripEmptyIDMLContentInTree(c.sub)
+		kept = append(kept, c)
+	}
+	node.children = kept
+}
+
+// isEmptyContentNode reports whether a `<Content>` node's children
+// hold no non-whitespace CharData. ProcessingInstructions and
+// element children are not counted as content (in well-formed IDML
+// `<Content>` is a leaf text node; nested elements should not occur).
+func isEmptyContentNode(node *xmlNode) bool {
+	for _, c := range node.children {
+		if c.sub != nil {
+			// Conservative: an element child means "not the empty
+			// placeholder we want to drop" — leave as-is.
+			return false
+		}
+		if cd, ok := c.raw.(xml.CharData); ok {
+			for _, b := range cd {
+				switch b {
+				case ' ', '\t', '\r', '\n':
+					continue
+				default:
+					return false
+				}
+			}
+		}
+	}
+	return true
 }
 
 // xmlNode is a tree representation of a buffered token slice. For
