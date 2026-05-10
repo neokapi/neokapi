@@ -1177,8 +1177,13 @@ func canonicalizeHTMLNode(n *html.Node) {
 	// First, recurse + collect children to drop. We can't drop while
 	// iterating with the linked-list traversal that html uses.
 	var toRemove []*html.Node
+	var toUnwrap []*html.Node
 	for c := n.FirstChild; c != nil; c = c.NextSibling {
 		canonicalizeHTMLNode(c)
+		if c.Type == html.ElementNode && c.DataAtom == atom.Center {
+			toUnwrap = append(toUnwrap, c)
+			continue
+		}
 		if shouldDropHTMLNode(n, c) {
 			toRemove = append(toRemove, c)
 		} else if c.Type == html.TextNode {
@@ -1219,6 +1224,27 @@ func canonicalizeHTMLNode(n *html.Node) {
 	}
 	for _, c := range toRemove {
 		n.RemoveChild(c)
+	}
+	// Unwrap purely presentational `<center>` elements: their
+	// auto-close behavior under html.Parse is fragile around
+	// `<P>` siblings, and they convey no translatable content.
+	for _, c := range toUnwrap {
+		unwrapHTMLElement(c)
+	}
+	// Drop empty inline elements `<b></b>`, `<i></i>`, `<u></u>`,
+	// `<font></font>`, `<span></span>`, `<em></em>`, `<strong></strong>` —
+	// they're noise from html.Parse auto-closing on malformed input
+	// (e.g. `<B>` at top-level then a block element auto-closes the B).
+	if n.Type == html.ElementNode {
+		var emptyKids []*html.Node
+		for c := n.FirstChild; c != nil; c = c.NextSibling {
+			if c.Type == html.ElementNode && c.FirstChild == nil && len(c.Attr) == 0 && isEmptyDroppable(c.DataAtom) {
+				emptyKids = append(emptyKids, c)
+			}
+		}
+		for _, c := range emptyKids {
+			n.RemoveChild(c)
+		}
 	}
 	if n.Type == html.ElementNode && len(n.Attr) > 0 {
 		// Trim whitespace from attribute values — okapi strips
@@ -1362,7 +1388,48 @@ func shouldDropHTMLNode(parent, c *html.Node) bool {
 	if c.Type == html.ElementNode && c.DataAtom == atom.Link {
 		return true
 	}
+	// Drop `<hr>` elements — pure presentation, no translatable
+	// content. okapi's reformatter can change their position
+	// relative to surrounding `<p>` and `<center>` elements
+	// (parser auto-closing rules differ between implementations
+	// on `<P><HR><P>` style soup).
+	if c.Type == html.ElementNode && c.DataAtom == atom.Hr {
+		return true
+	}
 	return false
+}
+
+// isEmptyDroppable reports whether an empty (no children, no attrs)
+// element of this kind is safe to drop in canonical comparison.
+// Inline formatting elements only — block elements like `<div>`
+// have semantic meaning even when empty. `<p>` is included because
+// okapi's HTML reformatter treats source `<P>` as a separator (it
+// emits `<p></p>` whereas native folds the implicit closure into
+// the next block element).
+func isEmptyDroppable(a atom.Atom) bool {
+	switch a {
+	case atom.B, atom.I, atom.U, atom.Em, atom.Strong, atom.Span, atom.Font, atom.P:
+		return true
+	}
+	return false
+}
+
+// unwrapHTMLElement removes element c from its parent but keeps c's
+// children, re-parented in c's slot. Used to flatten purely
+// presentational wrappers (`<center>`, `<font>`) whose only role is
+// styling. After unwrapping, the surrounding text/inline runs
+// canonicalise as if the wrapper was never there.
+func unwrapHTMLElement(c *html.Node) {
+	parent := c.Parent
+	if parent == nil {
+		return
+	}
+	for c.FirstChild != nil {
+		child := c.FirstChild
+		c.RemoveChild(child)
+		parent.InsertBefore(child, c)
+	}
+	parent.RemoveChild(c)
 }
 
 // hasMalformedMetaAttr reports whether any META attr's key contains a
