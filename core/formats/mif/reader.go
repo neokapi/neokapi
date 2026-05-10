@@ -93,6 +93,11 @@ type stringRef struct {
 }
 
 // alwaysSkipTags are top-level MIF tags whose content is always non-translatable.
+//
+// Mirrors okapi MIFFilter.java:54 (TOPSTATEMENTSTOSKIP). AFrames and Page are
+// NOT in this set — both are walked by processFramesAndTextLines in okapi
+// (MIFFilter.java:395-399) to extract <TextLine> <String> values used in
+// graphics frames anchored to FrameMaker pages and paragraphs.
 var alwaysSkipTags = map[string]bool{
 	"Units":                true,
 	"ColorCatalog":         true,
@@ -112,7 +117,6 @@ var alwaysSkipTags = map[string]bool{
 	"FmtChangeListCatalog": true,
 	"DefAttrValuesCatalog": true,
 	"AttrCondExprCatalog":  true,
-	"AFrames":              true,
 }
 
 // skipTag returns true if the tag should be skipped based on config.
@@ -296,6 +300,33 @@ func (r *Reader) findStringPositions(rawText string, stmts []*mifStatement) []st
 			}
 		}
 	}
+	// Page/AFrames/Frame → TextLine/String extraction mirrors okapi
+	// MIFFilter.java:395-399 (top-level dispatch) +
+	// 1629-1717 (processPage / processFramesAndTextLines /
+	// processTextLine). Each TextLine with a <String> emits one
+	// translatable item carrying just that single value. The recursive
+	// descent must mirror processFramesAndTextLines so blockIdx stays in
+	// lock-step with emitStatements.
+	var walkFramesAndTextLines func(stmt *mifStatement)
+	walkFramesAndTextLines = func(stmt *mifStatement) {
+		for _, child := range stmt.children {
+			switch child.tag {
+			case "Frame":
+				walkFramesAndTextLines(child)
+			case "TextLine":
+				val, ok := firstStringValue(child)
+				if !ok {
+					continue
+				}
+				items = append(items, itemInfo{
+					blockIdx:  blockIdx,
+					strings:   []string{val},
+					searchTag: "String",
+				})
+				blockIdx++
+			}
+		}
+	}
 
 	for _, stmt := range stmts {
 		if stmt.tag == "MIFFile" {
@@ -314,6 +345,13 @@ func (r *Reader) findStringPositions(rawText string, stmts []*mifStatement) []st
 				continue
 			}
 			walkVariableFormats(stmt)
+		case "Page":
+			if r.skipPage(stmt) {
+				continue
+			}
+			walkFramesAndTextLines(stmt)
+		case "AFrames":
+			walkFramesAndTextLines(stmt)
 		}
 	}
 
@@ -524,6 +562,41 @@ func (r *Reader) emitStatements(ctx context.Context, ch chan<- model.PartResult,
 			continue
 		}
 
+		if stmt.tag == "Page" {
+			// FrameMaker pages can carry translatable strings via direct
+			// <TextLine> children and via <Frame> children (each holding
+			// nested <TextLine> with <String>). Mirrors okapi
+			// MIFFilter.java:395 (processPage) + 1629-1644 + 1663-1673
+			// (processFramesAndTextLines). The PageType-based skip lives
+			// inside processPage to match the okapi gating.
+			if r.skipPage(stmt) {
+				dataCounter++
+				d := &model.Data{
+					ID:   fmt.Sprintf("d%d", dataCounter),
+					Name: "mif.Page",
+					Properties: map[string]string{
+						"tag": "Page",
+						"raw": stmt.raw,
+					},
+				}
+				if !r.emit(ctx, ch, &model.Part{Type: model.PartData, Resource: d}) {
+					return
+				}
+				continue
+			}
+			blockCounter, dataCounter = r.processFramesAndTextLines(ctx, ch, stmt, blockCounter, dataCounter)
+			continue
+		}
+
+		if stmt.tag == "AFrames" {
+			// Top-level anchored-frame container — mirrors okapi
+			// MIFFilter.java:398-400 (processFramesAndTextLines on
+			// AFrames). Walks <Frame> children recursively and emits one
+			// Block per <TextLine><String>.
+			blockCounter, dataCounter = r.processFramesAndTextLines(ctx, ch, stmt, blockCounter, dataCounter)
+			continue
+		}
+
 		// Default: emit as data.
 		dataCounter++
 		d := &model.Data{
@@ -621,6 +694,77 @@ func (r *Reader) processPgfCatalog(ctx context.Context, ch chan<- model.PartResu
 		}
 	}
 	return blockCounter
+}
+
+// skipPage reports whether a <Page> statement should be treated as a
+// non-translatable Data blob. Mirrors okapi
+// Extracts.java:127-132 (pageTypeExtractable) — true iff the page's
+// <PageType> value is in a category whose Extract* config flag is false.
+// Pages with no <PageType> are processed as if extractable, matching the
+// okapi default-include behaviour.
+func (r *Reader) skipPage(stmt *mifStatement) bool {
+	for _, c := range stmt.children {
+		if c.tag != "PageType" {
+			continue
+		}
+		switch c.value {
+		case "BodyPage":
+			return !r.cfg.ExtractBodyPages
+		case "ReferencePage":
+			return !r.cfg.ExtractReferencePages
+		case "HiddenPage":
+			return !r.cfg.ExtractHiddenPages
+		case "LeftMasterPage", "RightMasterPage", "OtherMasterPage":
+			return !r.cfg.ExtractMasterPages
+		}
+		return false
+	}
+	return false
+}
+
+// processFramesAndTextLines walks a <Page>/<AFrames>/<Frame> subtree and
+// emits one translatable Block per <TextLine> that holds a <String>.
+// Mirrors okapi MIFFilter.java:1663-1717:
+//   - Walks for direct <Frame> and <TextLine> children
+//   - <Frame> recurses (processFrame → processFramesAndTextLines)
+//   - <TextLine> with a <String> child becomes one TextUnit
+//
+// The skeleton-ref scheme uses the same `blockIdx:stringIdx` form as
+// Para/String. Each TextLine has at most one String (the okapi
+// processTextLine code stops after the first String it encounters), so
+// stringIdx is always 0 here.
+func (r *Reader) processFramesAndTextLines(ctx context.Context, ch chan<- model.PartResult, stmt *mifStatement, blockCounter, dataCounter int) (int, int) {
+	for _, child := range stmt.children {
+		switch child.tag {
+		case "Frame":
+			blockCounter, dataCounter = r.processFramesAndTextLines(ctx, ch, child, blockCounter, dataCounter)
+		case "TextLine":
+			val, ok := firstStringValue(child)
+			if !ok {
+				continue
+			}
+			blockCounter++
+			block := model.NewBlock(fmt.Sprintf("tu%d", blockCounter), val)
+			block.Name = fmt.Sprintf("textline.%d", blockCounter)
+			r.applyCodeFinder(block)
+			if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
+				return blockCounter, dataCounter
+			}
+		}
+	}
+	return blockCounter, dataCounter
+}
+
+// firstStringValue returns the value of the first <String> direct child
+// of stmt (typically a <TextLine>), and whether one was found. Mirrors
+// the single-String-per-TextLine model used by okapi processTextLine.
+func firstStringValue(stmt *mifStatement) (string, bool) {
+	for _, c := range stmt.children {
+		if c.tag == "String" {
+			return c.value, true
+		}
+	}
+	return "", false
 }
 
 // processVariableFormats walks the <VariableFormats> block and emits one
