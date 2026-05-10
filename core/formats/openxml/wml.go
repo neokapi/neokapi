@@ -153,6 +153,7 @@ func (p *wmlParser) parseParagraph(d *xml.Decoder, partPath string, emitBlock fu
 	var paraProps string
 	var paraStyleID string
 	var cfs complexFieldState
+	var bms bookmarkSkipState
 
 	for {
 		tok, err := d.Token()
@@ -197,8 +198,37 @@ func (p *wmlParser) parseParagraph(d *xml.Decoder, partPath string, emitBlock fu
 				hyperlinkID = attrVal(t, "id")
 				hyperlinkRuns = nil
 
-			case "bookmarkStart", "bookmarkEnd",
-				"proofErr", "commentRangeStart", "commentRangeEnd",
+			case "bookmarkStart", "bookmarkEnd":
+				// Bookmarks are direct children of <w:p> per ECMA-376
+				// Part 1 §17.13.6 (Bookmarks). They are cross-structure
+				// markers that delimit a named range; the markers can
+				// span runs, paragraphs, tables, and even sections, so
+				// they must be preserved verbatim at the position they
+				// appear in the source.
+				//
+				// Mirrors upstream Okapi
+				// SkippableElements.BookmarkCrossStructure
+				// (SkippableElements.java lines 300-331) and
+				// BlockSkippableElements.skip (BlockSkippableElements.java
+				// lines 116-121): the `_GoBack` bookmark — Word's auto-
+				// generated "return-to-last-edit" bookmark — is
+				// silently skipped (start AND its matching end by id),
+				// every other bookmark falls through to be added as
+				// inline markup on the block.
+				bookmark, captured, err := p.captureBookmark(d, t, &bms)
+				if err != nil {
+					return err
+				}
+				if !captured {
+					continue
+				}
+				if inHyperlink {
+					hyperlinkRuns = append(hyperlinkRuns, bookmark)
+				} else {
+					runs = append(runs, bookmark)
+				}
+
+			case "proofErr", "commentRangeStart", "commentRangeEnd",
 				"permStart", "permEnd":
 				if err := skipElement(d); err != nil {
 					return err
@@ -817,6 +847,33 @@ func (p *wmlParser) buildBlock(id string, runs []textRun, partPath, commonRPrXML
 				"</w:hyperlink>", "")
 			continue
 		}
+		if strings.HasPrefix(run.text, "\uE106:") || strings.HasPrefix(run.text, "\uE107:") {
+			// Bookmark start/end placeholder. Per ECMA-376 Part 1
+			// \u00A717.13.6 these are direct children of <w:p> rather
+			// than <w:r>. The writer's `default` Ph branch emits
+			// Ph.Data verbatim with no <w:r> wrapper, mirroring
+			// upstream Okapi which adds non-_GoBack bookmarks as
+			// inline Markup chunks on the Block (see
+			// BlockSkippableElements.skip / BlockParser line 294).
+			//
+			// Close any active formatting first so the bookmark
+			// doesn't sit between the open <w:r>...rPr and the
+			// next text run when re-rendered.
+			if activeProps != nil && !activeProps.isEmpty() {
+				activeProps.appendClosingRuns(b, &spanCounter)
+				activeProps = nil
+			}
+			subType := SubTypeBookmarkStart
+			if strings.HasPrefix(run.text, "\uE107:") {
+				subType = SubTypeBookmarkEnd
+			}
+			spanCounter++
+			b.AddPh(fmt.Sprintf("c%d", spanCounter),
+				TypeBookmark, subType,
+				run.data, "", "",
+				false, false, false)
+			continue
+		}
 
 		// Handle line break
 		if run.text == "\n" {
@@ -930,7 +987,7 @@ func isSentinel(s string) bool {
 	if len(r) == 0 {
 		return false
 	}
-	if r[0] < '\uE100' || r[0] > '\uE105' {
+	if r[0] < '\uE100' || r[0] > '\uE107' {
 		return false
 	}
 	// Single-char sentinels (tab \uE100, image \uE101, paragraph
@@ -941,8 +998,25 @@ func isSentinel(s string) bool {
 	if len(r) == 1 {
 		return true
 	}
-	// Multi-char sentinels must have ':' separator (\uE102:id, \uE103:data, \uE104:data)
+	// Multi-char sentinels must have ':' separator
+	// (\uE102:id, \uE103:data, \uE104:data, \uE106:id, \uE107:id)
 	return len(r) >= 2 && r[1] == ':'
+}
+
+// isBookmarkSentinel reports whether a textRun's text marker
+// indicates a captured `<w:bookmarkStart>` (\uE106) or
+// `<w:bookmarkEnd>` (\uE107). Bookmarks are direct children of
+// `<w:p>` per ECMA-376 \u00A717.13.6, NOT children of `<w:r>`, so the
+// writer must NOT wrap the captured XML in `<w:r>...</w:r>`.
+func isBookmarkSentinel(text string) bool {
+	if text == "" {
+		return false
+	}
+	r := []rune(text)
+	if len(r) == 0 {
+		return false
+	}
+	return r[0] == '' || r[0] == ''
 }
 
 // isDrawingSentinel reports whether a textRun's text marker
@@ -1002,6 +1076,13 @@ func runToXML(r textRun) string {
 			return r.data
 		}
 		return ""
+	}
+	// Bookmark sentinels (\uE106 / \uE107) \u2014 emit the captured raw
+	// XML verbatim with no <w:r> wrapper. ECMA-376 Part 1
+	// \u00A717.13.6.1 / \u00A717.13.6.2 specify <w:bookmarkStart> /
+	// <w:bookmarkEnd> as direct children of <w:p>, not <w:r>.
+	if isBookmarkSentinel(r.text) {
+		return r.data
 	}
 	var buf strings.Builder
 	buf.WriteString("<w:r>")
@@ -1341,6 +1422,7 @@ func (p *wmlParser) extractTxbxParagraph(dec *xml.Decoder, out *strings.Builder,
 	var paraStyleID string
 	var runs []textRun
 	var cfs complexFieldState
+	var bms bookmarkSkipState
 
 	for {
 		tok, err := dec.Token()
@@ -1363,8 +1445,16 @@ func (p *wmlParser) extractTxbxParagraph(dec *xml.Decoder, out *strings.Builder,
 					return err
 				}
 				runs = append(runs, rs...)
-			case "bookmarkStart", "bookmarkEnd",
-				"proofErr", "commentRangeStart", "commentRangeEnd",
+			case "bookmarkStart", "bookmarkEnd":
+				// See parseParagraph for the bookmark capture rationale.
+				bookmark, captured, err := p.captureBookmark(dec, t, &bms)
+				if err != nil {
+					return err
+				}
+				if captured {
+					runs = append(runs, bookmark)
+				}
+			case "proofErr", "commentRangeStart", "commentRangeEnd",
 				"permStart", "permEnd":
 				if err := skipElement(dec); err != nil {
 					return err
@@ -1945,6 +2035,81 @@ func extractPStyle(raw string) string {
 		return ""
 	}
 	return raw[start : start+end]
+}
+
+// skippableBookmarkName is the well-known Word internal bookmark
+// generated to track the user's last edit position. ECMA-376 doesn't
+// reserve the name, but every modern Word build emits it on save (and
+// expects it to round-trip as a no-op). Upstream Okapi's
+// SkippableElements.BookmarkCrossStructure.SKIPPABLE_BOOKMARK_NAME
+// (SkippableElements.java line 304) hard-codes it to `_GoBack` and
+// drops both the start and the matching end (by id) silently — we
+// mirror that policy exactly. The matching is by id, not by name,
+// because the end element only carries an id attribute (ECMA-376
+// Part 1 §17.13.6.2 — `<w:bookmarkEnd>` has only the `w:id` attribute).
+const skippableBookmarkName = "_GoBack"
+
+// bookmarkSkipState tracks the id of the most recent skipped
+// bookmarkStart so the matching bookmarkEnd can also be dropped.
+// Mirrors the `identifier` field on
+// SkippableElements.CrossStructure (SkippableElements.java line 231)
+// and the conditional id check on canBeSkipped (lines 277-281).
+type bookmarkSkipState struct {
+	skippedID string // id of the last skipped bookmarkStart, "" when no pending skip
+}
+
+// captureBookmark serializes a `<w:bookmarkStart>` or `<w:bookmarkEnd>`
+// element verbatim (preserving every attribute and namespace prefix)
+// and returns it as a sentinel textRun. The boolean second result is
+// false when the bookmark should be silently dropped (matching upstream
+// Okapi's `_GoBack` skip policy — see skippableBookmarkName for the
+// citation). The decoder is advanced past the matching end token in
+// every case so the caller can continue draining sibling tokens.
+//
+// ECMA-376 Part 1 §17.13.6.1 — `<w:bookmarkStart>` has `w:id`,
+// `w:name`, plus optional revision-tracking attributes (`w:colFirst`,
+// `w:colLast`, `w:displacedByCustomXml`). We preserve ALL of them.
+//
+// ECMA-376 Part 1 §17.13.6.2 — `<w:bookmarkEnd>` has only `w:id` plus
+// the optional `w:displacedByCustomXml`.
+func (p *wmlParser) captureBookmark(d *xml.Decoder, start xml.StartElement, bms *bookmarkSkipState) (textRun, bool, error) {
+	id := attrVal(start, "id")
+	if start.Name.Local == "bookmarkStart" {
+		name := attrVal(start, "name")
+		if name == skippableBookmarkName {
+			bms.skippedID = id
+			if err := skipElement(d); err != nil {
+				return textRun{}, false, err
+			}
+			return textRun{}, false, nil
+		}
+	} else if start.Name.Local == "bookmarkEnd" {
+		// A bookmarkEnd whose id matches the last skipped start is
+		// the closing half of a skipped `_GoBack` and is dropped
+		// silently; once consumed the tracking id is cleared so a
+		// later bookmarkEnd with the same id (uncommon but legal
+		// when ids are recycled) is preserved.
+		if bms.skippedID != "" && bms.skippedID == id {
+			bms.skippedID = ""
+			if err := skipElement(d); err != nil {
+				return textRun{}, false, err
+			}
+			return textRun{}, false, nil
+		}
+	}
+
+	raw, err := captureRawElement(d, start)
+	if err != nil {
+		return textRun{}, false, err
+	}
+
+	var sentinel string
+	if start.Name.Local == "bookmarkStart" {
+		sentinel = ":" + id
+	} else {
+		sentinel = ":" + id
+	}
+	return textRun{text: sentinel, data: raw}, true, nil
 }
 
 // captureRawElement captures an entire element (start to end) as raw XML.

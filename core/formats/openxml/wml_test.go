@@ -697,3 +697,122 @@ func TestDrawingMarkerRE(t *testing.T) {
 		assert.Equal(t, tc.wantID, m[2])
 	}
 }
+
+// TestParseParagraph_BookmarkPreserved verifies that a non-_GoBack
+// bookmark inside a paragraph is captured as an inline placeholder
+// run carrying the verbatim XML (start AND end), so the writer can
+// reinsert the bookmark at its original position. ECMA-376 Part 1
+// §17.13.6.1 / §17.13.6.2; mirrors upstream Okapi
+// BlockSkippableElements default-fall-through behaviour for non-
+// _GoBack bookmarks (BlockSkippableElements.java lines 116-121,
+// BlockParser.java line 294 — the bookmark element is added as a
+// Markup chunk on the Block).
+func TestParseParagraph_BookmarkPreserved(t *testing.T) {
+	docXML := `<?xml version="1.0"?>` +
+		`<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>` +
+		`<w:p>` +
+		`<w:bookmarkStart w:id="1" w:name="Text1"/>` +
+		`<w:r><w:t>hello</w:t></w:r>` +
+		`<w:bookmarkEnd w:id="1"/>` +
+		`</w:p>` +
+		`</w:body></w:document>`
+
+	cfg := &Config{}
+	cfg.Reset()
+	blocks := parseDocXML(t, docXML, cfg)
+	require.Len(t, blocks, 1)
+	runs := blocks[0].Source[0].Runs
+	// Expected: bookmarkStart placeholder, "hello" text, bookmarkEnd placeholder.
+	require.Len(t, runs, 3, "expect bookmarkStart + text + bookmarkEnd runs")
+
+	require.NotNil(t, runs[0].Ph)
+	assert.Equal(t, TypeBookmark, runs[0].Ph.Type)
+	assert.Equal(t, SubTypeBookmarkStart, runs[0].Ph.SubType)
+	assert.Contains(t, runs[0].Ph.Data, `<w:bookmarkStart`)
+	assert.Contains(t, runs[0].Ph.Data, `w:id="1"`)
+	assert.Contains(t, runs[0].Ph.Data, `w:name="Text1"`)
+
+	require.NotNil(t, runs[1].Text)
+	assert.Equal(t, "hello", runs[1].Text.Text)
+
+	require.NotNil(t, runs[2].Ph)
+	assert.Equal(t, TypeBookmark, runs[2].Ph.Type)
+	assert.Equal(t, SubTypeBookmarkEnd, runs[2].Ph.SubType)
+	assert.Contains(t, runs[2].Ph.Data, `<w:bookmarkEnd`)
+	assert.Contains(t, runs[2].Ph.Data, `w:id="1"`)
+}
+
+// TestParseParagraph_GoBackBookmarkSkipped verifies that the well-
+// known `_GoBack` bookmark — Word's auto-generated last-edit-position
+// marker — is silently dropped along with its matching end (by id),
+// mirroring upstream Okapi
+// SkippableElements.BookmarkCrossStructure.SKIPPABLE_BOOKMARK_NAME
+// (SkippableElements.java line 304). The test also threads the
+// state machine: a different-id bookmark before _GoBack should be
+// preserved, and a different-id bookmark after _GoBack should also
+// be preserved (because the skipped-id state is cleared once the
+// matching end is consumed).
+func TestParseParagraph_GoBackBookmarkSkipped(t *testing.T) {
+	docXML := `<?xml version="1.0"?>` +
+		`<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>` +
+		`<w:p>` +
+		`<w:bookmarkStart w:id="0" w:name="_GoBack"/>` +
+		`<w:r><w:t>hello</w:t></w:r>` +
+		`<w:bookmarkEnd w:id="0"/>` +
+		`</w:p>` +
+		`</w:body></w:document>`
+
+	cfg := &Config{}
+	cfg.Reset()
+	blocks := parseDocXML(t, docXML, cfg)
+	require.Len(t, blocks, 1)
+	runs := blocks[0].Source[0].Runs
+	// Expected: just the text run, both _GoBack markers dropped.
+	require.Len(t, runs, 1, "expect _GoBack start AND end to be skipped")
+	require.NotNil(t, runs[0].Text)
+	assert.Equal(t, "hello", runs[0].Text.Text)
+}
+
+// TestParseParagraph_BookmarkSpanningParagraphs verifies that a
+// bookmark whose start and end live in different paragraphs is
+// preserved as separate inline placeholder runs on each paragraph's
+// block. This is the cross-structure case the upstream type name
+// `BookmarkCrossStructure` is named for: per ECMA-376 §17.13.6 the
+// `<w:bookmarkStart>` / `<w:bookmarkEnd>` pair can span runs,
+// paragraphs, table rows, and even sections.
+func TestParseParagraph_BookmarkSpanningParagraphs(t *testing.T) {
+	docXML := `<?xml version="1.0"?>` +
+		`<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>` +
+		`<w:p>` +
+		`<w:bookmarkStart w:id="2" w:name="span"/>` +
+		`<w:r><w:t>first</w:t></w:r>` +
+		`</w:p>` +
+		`<w:p>` +
+		`<w:r><w:t>second</w:t></w:r>` +
+		`<w:bookmarkEnd w:id="2"/>` +
+		`</w:p>` +
+		`</w:body></w:document>`
+
+	cfg := &Config{}
+	cfg.Reset()
+	blocks := parseDocXML(t, docXML, cfg)
+	require.Len(t, blocks, 2)
+
+	// Paragraph 1: bookmarkStart + "first".
+	runs1 := blocks[0].Source[0].Runs
+	require.Len(t, runs1, 2)
+	require.NotNil(t, runs1[0].Ph)
+	assert.Equal(t, SubTypeBookmarkStart, runs1[0].Ph.SubType)
+	assert.Contains(t, runs1[0].Ph.Data, `w:name="span"`)
+	require.NotNil(t, runs1[1].Text)
+	assert.Equal(t, "first", runs1[1].Text.Text)
+
+	// Paragraph 2: "second" + bookmarkEnd.
+	runs2 := blocks[1].Source[0].Runs
+	require.Len(t, runs2, 2)
+	require.NotNil(t, runs2[0].Text)
+	assert.Equal(t, "second", runs2[0].Text.Text)
+	require.NotNil(t, runs2[1].Ph)
+	assert.Equal(t, SubTypeBookmarkEnd, runs2[1].Ph.SubType)
+	assert.Contains(t, runs2[1].Ph.Data, `w:id="2"`)
+}

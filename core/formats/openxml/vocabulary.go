@@ -14,6 +14,7 @@ const (
 	TypeTab           = "struct:tab"
 	TypeImage         = "media:image"
 	TypeFootnoteRef   = "struct:footnote"
+	TypeBookmark      = "struct:bookmark"
 )
 
 // SubType constants provide format-specific refinement.
@@ -29,4 +30,6 @@ const (
 	SubTypeTab           = "openxml:tab"
 	SubTypeImage         = "openxml:drawing"
 	SubTypeFootnoteRef   = "openxml:footnoteRef"
+	SubTypeBookmarkStart = "openxml:bookmarkStart"
+	SubTypeBookmarkEnd   = "openxml:bookmarkEnd"
 )
