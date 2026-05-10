@@ -1053,6 +1053,7 @@ mergeCaptions.b=false
 					MergeDefaultCSRs:      true,
 					StripEmptyIDMLContent: true,
 					StripIDMLACEPIs:       true,
+					UnwrapIDMLXMLElement:  true,
 				},
 			}}},
 		},

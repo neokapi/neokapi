@@ -465,6 +465,28 @@ type XMLCanonical struct {
 	// not content). Stripping on both sides cancels the asymmetry.
 	// Opt-in — only IDML's normalizer turns it on.
 	StripIDMLACEPIs bool
+
+	// UnwrapIDMLXMLElement replaces every `<XMLElement>` element with
+	// its children inline (the wrapper is dropped, the element's
+	// child sequence takes its place in the parent). IDML uses
+	// `<XMLElement MarkupTag="XMLTag/Foo">` to expose an XML-tagged
+	// view of the document tree; okapi's IDML pipeline strips the
+	// wrapper on round-trip (DocumentPartEventBuilder unwraps the
+	// XMLElement and emits its children directly into the parent
+	// scope), while native preserves the source structure. Both
+	// forms are semantically identical IDML — the XMLElement is a
+	// projection, not the canonical layout. Opt-in — only IDML's
+	// normalizer turns it on.
+	UnwrapIDMLXMLElement bool
+
+	// UnwrapIDMLChange replaces every `<Change>` element (track-
+	// changes wrapper) with its children inline. Source IDML wraps
+	// inserted/deleted text in `<Change ChangeType="…">` to flag the
+	// edit; okapi's IDML pipeline drops the wrapper on round-trip
+	// (the change attributes belong on the surrounding ChangeRange
+	// metadata that Story_*.xml does not always carry). Native
+	// preserves the wrapper. Both forms render identically. Opt-in.
+	UnwrapIDMLChange bool
 }
 
 // Name implements Normalizer.
@@ -500,6 +522,12 @@ func (n XMLCanonical) Name() string {
 	if n.StripIDMLACEPIs {
 		parts = append(parts, "strip-ace-pis")
 	}
+	if n.UnwrapIDMLXMLElement {
+		parts = append(parts, "unwrap-xmlelement")
+	}
+	if n.UnwrapIDMLChange {
+		parts = append(parts, "unwrap-change")
+	}
 	if len(parts) == 0 {
 		return "xml-canonical"
 	}
@@ -531,19 +559,21 @@ func (n XMLCanonical) Normalize(in []byte) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	if n.SortChildElements || n.MergeAdjacentCSRs || n.StripEmptyIDMLContent || n.StripIDMLACEPIs {
+	if n.SortChildElements || n.MergeAdjacentCSRs || n.StripEmptyIDMLContent || n.StripIDMLACEPIs || n.UnwrapIDMLXMLElement || n.UnwrapIDMLChange {
 		// Build a tree from the per-element-balanced token stream so
 		// we can permute child elements alphabetically by local name
 		// (and/or merge adjacent same-attr CSR siblings, drop empty
-		// Content placeholders, drop ACE PIs) without disturbing the
-		// relative position of non-element nodes (CharData, Comments,
-		// ProcInsts).
+		// Content placeholders, drop ACE PIs, unwrap XMLElement /
+		// Change wrappers) without disturbing the relative position of
+		// non-element nodes (CharData, Comments, ProcInsts).
 		tokens = transformXMLTree(tokens, transformOpts{
 			sortChildren:          n.SortChildElements,
 			mergeCSRs:             n.MergeAdjacentCSRs,
 			mergeDefaultCSRs:      n.MergeDefaultCSRs,
 			stripEmptyIDMLContent: n.StripEmptyIDMLContent,
 			stripIDMLACEPIs:       n.StripIDMLACEPIs,
+			unwrapIDMLXMLElement:  n.UnwrapIDMLXMLElement,
+			unwrapIDMLChange:      n.UnwrapIDMLChange,
 		})
 	}
 	var buf bytes.Buffer
@@ -722,6 +752,8 @@ type transformOpts struct {
 	mergeDefaultCSRs      bool
 	stripEmptyIDMLContent bool
 	stripIDMLACEPIs       bool
+	unwrapIDMLXMLElement  bool
+	unwrapIDMLChange      bool
 }
 
 // transformXMLTree walks the (already canonicalised) token stream as
@@ -749,6 +781,12 @@ func transformXMLTree(tokens []xml.Token, opts transformOpts) []xml.Token {
 	root := buildXMLNode(tokens, &idx, true /*topLevel*/)
 	if opts.stripIDMLACEPIs {
 		stripIDMLACEPIsInTree(root)
+	}
+	if opts.unwrapIDMLXMLElement {
+		unwrapIDMLElementsInTree(root, "XMLElement")
+	}
+	if opts.unwrapIDMLChange {
+		unwrapIDMLElementsInTree(root, "Change")
 	}
 	if opts.stripEmptyIDMLContent {
 		stripEmptyIDMLContentInTree(root)
@@ -810,6 +848,36 @@ func stripEmptyIDMLContentInTree(node *xmlNode) {
 		kept = append(kept, c)
 	}
 	node.children = kept
+}
+
+// unwrapIDMLElementsInTree walks the tree and replaces every
+// element whose local name matches `name` with its children inline.
+// Used to drop IDML wrappers like `<XMLElement>` and `<Change>`
+// that okapi unwraps on round-trip but native preserves. The
+// wrapper's start/end tokens disappear; its children are spliced
+// into the parent's children at the wrapper's slot. Recurses
+// into the unwrapped children too in case wrappers nest.
+func unwrapIDMLElementsInTree(node *xmlNode, name string) {
+	if node == nil {
+		return
+	}
+	out := node.children[:0]
+	for _, c := range node.children {
+		if c.sub == nil {
+			out = append(out, c)
+			continue
+		}
+		if c.sub.start.Name.Local == name {
+			// Recurse into the unwrapped subtree first so any nested
+			// wrappers also dissolve.
+			unwrapIDMLElementsInTree(c.sub, name)
+			out = append(out, c.sub.children...)
+			continue
+		}
+		unwrapIDMLElementsInTree(c.sub, name)
+		out = append(out, c)
+	}
+	node.children = out
 }
 
 // isEmptyContentNode reports whether a `<Content>` node has zero
