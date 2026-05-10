@@ -515,13 +515,37 @@ func (r *Reader) findStringPositions(rawText string, stmts []*mifStatement) ([]s
 					charOwnerRun[i] = -1
 				}
 				{
+					// Re-walk ParaLine.children mirroring extractParaRuns
+					// so that each Char's owner index reflects the run it
+					// actually accumulates into. The walk maintains an
+					// ephemeral "current run" via curText/curIndices and
+					// advances the run-index `ri` at the same boundaries
+					// extractParaRuns flushes on (inline-code tags). When
+					// Char text accumulates in cur, we know it belongs to
+					// the next non-empty run we'll flush -- which equals
+					// `runs[ri]` at flush time.
+					var curText string
+					var curIndices []int
 					ri := 0
 					stringIdx := 0
 					charIdx := 0
 					inXRef := false
-					// Re-walk ParaLine.children mirroring
-					// extractParaRuns to determine which run each Char
-					// goes into.
+					var pendingChars []int // Char indexes accumulated since last flush
+					flushCur := func() {
+						if curText == "" {
+							curText = ""
+							curIndices = nil
+							pendingChars = nil
+							return
+						}
+						for _, ci := range pendingChars {
+							charOwnerRun[ci] = ri
+						}
+						curText = ""
+						curIndices = nil
+						pendingChars = nil
+						ri++
+					}
 					for _, gc := range child.children {
 						if gc.tag != "ParaLine" {
 							continue
@@ -533,33 +557,30 @@ func (r *Reader) findStringPositions(rawText string, stmts []*mifStatement) ([]s
 									stringIdx++
 									continue
 								}
-								if owner, ok := stringToRun[stringIdx]; ok {
-									ri = owner
-								}
+								curText += lc.value
+								curIndices = append(curIndices, stringIdx)
 								stringIdx++
 							case "Char":
-								if !inXRef {
-									if _, ok := charLiteral(lc.value, r.cfg.ExtractHardReturnsAsText); ok {
-										charOwnerRun[charIdx] = ri
-									}
+								if inXRef {
+									charIdx++
+									continue
+								}
+								if lit, ok := charLiteral(lc.value, r.cfg.ExtractHardReturnsAsText); ok {
+									curText += lit
+									pendingChars = append(pendingChars, charIdx)
 								}
 								charIdx++
 							default:
-								// Inline-code boundary -- the next text
-								// will be in a new run. Advance ri to
-								// the next non-empty run.
+								flushCur()
 								if lc.tag == "XRef" {
 									inXRef = true
 								} else if lc.tag == "XRefEnd" {
 									inXRef = false
 								}
-								// Find the next run after the current.
-								// Don't bump ri here -- we'll let the
-								// next String/Char update it via
-								// stringToRun.
 							}
 						}
 					}
+					flushCur()
 				}
 				// Now iterate runs and split inline-vs-rewrite chars.
 				for ri, run := range runs {
@@ -1690,16 +1711,13 @@ func (r *Reader) processVariableFormats(ctx context.Context, ch chan<- model.Par
 // pgfNumFormatLeadingPrefix matches the okapi codeFinder rule
 // `^[A-Z]{1}:` (Parameters.java:196) that protects FrameMaker
 // auto-numbering type prefixes like `T:`, `C:`, `H:` from being
-// pseudo-translated. The rule is in okapi's default codeFinder rule
-// list but is intentionally omitted from the native default rule list
-// (config.go) because applying it to ordinary <String> text would
-// split and lose the leading capital — empirically the bridge does NOT
-// apply the leading-letter rule to text-flow strings (Test01.mif's
-// `<String P:Body>` reference output is `<String 'Ƥ:ßōďŷ'>`, not
-// `<String 'P:ßōďŷ'>`). It DOES apply it to <PgfNumFormat> values
-// inside <PgfCatalog> (Test02-v9.mif's `<PgfNumFormat 'T:Table <n+\>:'>`
-// reference is `'T:Ţàƀĺē <n+\>:'`, with `T` preserved). Apply it
-// contextually here.
+// pseudo-translated. The same rule ships in the global default rule
+// list (config.go) and is suppressed at apply-time when the block's
+// text was preceded by an inline-code statement in its ParaLine
+// (paraTextRun.precededByInlineCode). PgfNumFormat blocks do not flow
+// through paraTextRun, so apply it here unconditionally — mirrors
+// Java's checkInlineCodes call from MIFFilter.java:1098 inside the
+// extractedReferent / inPgfCatalog branch.
 var pgfNumFormatLeadingPrefix = regexp.MustCompile(`^[A-Z]:`)
 
 // applyCodeFinder splits each TextRun in the block into text +
@@ -1708,9 +1726,42 @@ var pgfNumFormatLeadingPrefix = regexp.MustCompile(`^[A-Z]:`)
 // …) from being pseudo-translated character by character — the
 // pseudo-translate step only transforms text runs.
 func (r *Reader) applyCodeFinder(block *model.Block) {
+	r.applyCodeFinderCtx(block, codeFinderCtx{})
+}
+
+// codeFinderCtx carries per-block context that adjusts which CodeFinder
+// rules are eligible for this block.
+//
+// suppressLeadingAnchored: drop rules anchored at `^` when applying to
+// this block. Mirrors okapi's behaviour where the InlineCodeFinder
+// processes a TextFragment's coded-text representation — when the
+// fragment has a leading inline-code (e.g. a Font/Marker code created
+// by paraCodeBuf in MIFFilter.processPara, MIFFilter.java:693-734),
+// the coded text begins with a marker character (U+E101..U+E103) and
+// `^[A-Z]:` cannot match at offset 0. Native runs split at code
+// boundaries instead of carrying an in-text marker, so the equivalent
+// gating must be applied explicitly via this flag.
+type codeFinderCtx struct {
+	suppressLeadingAnchored bool
+}
+
+func (r *Reader) applyCodeFinderCtx(block *model.Block, ctx codeFinderCtx) {
 	patterns := r.cfg.GetCodeFinderPatterns()
 	if len(patterns) == 0 || block == nil {
 		return
+	}
+	if ctx.suppressLeadingAnchored {
+		filtered := patterns[:0:0]
+		for _, p := range patterns {
+			if strings.HasPrefix(p.String(), "^") {
+				continue
+			}
+			filtered = append(filtered, p)
+		}
+		patterns = filtered
+		if len(patterns) == 0 {
+			return
+		}
 	}
 	applyCodeFinderToSegments(block.Source, patterns)
 	for _, segs := range block.Targets {
@@ -1870,7 +1921,9 @@ func (r *Reader) processContainer(ctx context.Context, ch chan<- model.PartResul
 				if pgfTag != "" {
 					block.Properties["pgf_tag"] = pgfTag
 				}
-				r.applyCodeFinder(block)
+				r.applyCodeFinderCtx(block, codeFinderCtx{
+					suppressLeadingAnchored: run.precededByInlineCode,
+				})
 				if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
 					return blockCounter, dataCounter
 				}
@@ -1914,9 +1967,21 @@ func isMIFContainer(tag string) bool {
 // positions to coalesce into a single skeleton ref. For example, a
 // para like `<String 'a'><String 'b'><Font...><String 'c'>` produces two
 // runs: ["ab", indices 0,1] and ["c", index 2].
+//
+// precededByInlineCode reports whether an inline-code statement (Font,
+// Marker, AFrame, XRef, …) appeared in the same Para before this run's
+// text accumulated. Mirrors okapi's TextFragment composition in
+// MIFFilter.processPara (MIFFilter.java:693-733): when paraCodeBuf has
+// content at the time text is appended, the resulting TF starts with a
+// leading code marker character, so codeFinder rules anchored at `^`
+// (like `^[A-Z]:`) cannot match. Native runs are split at code
+// boundaries — we don't model the leading code as an in-run marker —
+// so we track the "preceded by code" condition explicitly to gate the
+// leading-letter rule.
 type paraTextRun struct {
-	text                string
-	stringOffsetIndices []int
+	text                 string
+	stringOffsetIndices  []int
+	precededByInlineCode bool
 }
 
 // extractParaRuns walks a Para's ParaLines and returns the sequence of
@@ -1939,14 +2004,15 @@ func extractParaRuns(para *mifStatement, hardReturnsAsText bool) []paraTextRun {
 	var cur paraTextRun
 	stringIdx := 0
 	inXRef := false
+	pendingPrecededByCode := false
 
 	flush := func() {
 		if cur.text == "" {
-			cur = paraTextRun{}
+			cur = paraTextRun{precededByInlineCode: pendingPrecededByCode}
 			return
 		}
 		runs = append(runs, cur)
-		cur = paraTextRun{}
+		cur = paraTextRun{precededByInlineCode: pendingPrecededByCode}
 	}
 
 	for _, child := range para.children {
@@ -1983,6 +2049,8 @@ func extractParaRuns(para *mifStatement, hardReturnsAsText bool) []paraTextRun {
 				// XRef is special: while inXRef is true, no Strings
 				// contribute to text runs. Track entry/exit explicitly.
 				flush()
+				pendingPrecededByCode = true
+				cur.precededByInlineCode = true
 				if lc.tag == "XRef" {
 					inXRef = true
 				} else if lc.tag == "XRefEnd" {

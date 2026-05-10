@@ -13,9 +13,9 @@ It is **not** an architecture decision and **not** user-facing docs.
 | Engine | Total | byte | canon | sem | div |
 |---|---:|---:|---:|---:|---:|
 | bridge (okapi-bridge) | 41 | 41 | 0 | 0 | 0 |
-| native (this package) | 41 | **35** | 0 | 0 | 6 |
+| native (this package) | 41 | **37** | 0 | 0 | 4 |
 
-Cleared 35 of 41 fixtures so far through eight commits that added
+Cleared 37 of 41 fixtures so far through nine commits that added
 extraction for FrameMaker translatable surfaces the original reader
 walked past:
 
@@ -28,7 +28,8 @@ walked past:
 | codeFinder `\x{NNNN}` escapes + walk into `<FNote>` | c68c016b |
 | Multi-Font run splitting (Cluster H + L/M side-effects) | 16e172dd |
 | `<Char>` glyph elision/rewrite (Clusters C + F + partial G) | 7ce509c7 |
-| FNote bare-`>` ParaLine close rewrite + empty-glyph Char elision (Cluster K) | (this iteration) |
+| FNote bare-`>` ParaLine close rewrite + empty-glyph Char elision (Cluster K) | 07d084d5 |
+| codeFinder `^[A-Z]:` (gated) + autonumber building blocks + Char-only run owner fix | (this iteration) |
 
 Remaining clusters break down as follows.
 
@@ -174,25 +175,45 @@ preservation.
 **Affects**: previously `904.mif` — now byte-equal after commit
 c87f4218. Cluster retired.
 
-### ?-other (3 fixtures)
+### Cluster O — Global codeFinder default rules (RESOLVED — 2 fixtures)
 
-**Affects**: `893.mif`, `896-autonumber-building-blocks.mif`,
-`TestParaLines.mif`.
+**Was Affecting**: `893.mif`, `896-autonumber-building-blocks.mif`.
+**Now**: both byte-equal.
 
-  - `893.mif`: leading-letter `^[A-Z]:` rule applied to plain
-    `<String>` text in cells (`P:Body` → `P:ßōďŷ` in ref vs
-    `Ƥ:ßōďŷ` in native). Okapi's bridge applies a context-sensitive
-    leading-prefix rule that native doesn't yet mirror.
-  - `896-autonumber-building-blocks.mif`: native pseudo-translates
-    okapi-recognised auto-numbering building-block names (`zenkaku a`,
-    `kanji kazu`, etc.) that the bridge keeps as code. Need a
-    PgfNumFormat-context codeFinder pattern for the building-block
-    vocabulary.
-  - `TestParaLines.mif`: `<ElementEnd 'Para'>` line appearing between
-    `<String>` and `> # end of ParaLine` in a multi-ParaLine merge
-    case is dropped by the merge elision. Need to teach the
-    multi-ParaLine elision to skip over `<ElementEnd>` (and similar
-    structural-only tags) without removing them.
+**Resolution**: `config.go` now ships the full upstream Parameters.java
+default rule list (MIFFilter Parameters.java:196-207): `^[A-Z]:`,
+`<Default ¶ Font>`, the existing tag/dollar/glyph rules, plus the
+Asian autonumber building-block rules (`zenkaku [naA]`, `kanji kazu`,
+`daiji`, `hira iroha`, …). The `^[A-Z]:` rule is gated per-block via
+`paraTextRun.precededByInlineCode`: when a ParaLine has an inline-code
+statement (Font/Marker/AFrame/XRef/Variable/…) before the run's text
+accumulates, the rule is suppressed. This mirrors Java's
+TextFragment.coded-text representation where a leading inline-code
+inserts a marker character (U+E101..U+E103) at offset 0, preventing
+`^[A-Z]:` from matching (InlineCodeFinder.java:161-176 +
+MIFFilter.java:693-734). Native runs split at code boundaries instead
+of carrying an in-text marker, so the equivalent gating must be made
+explicit via a per-run flag.
+
+A second fix in the same iteration repairs Char-only run owner
+assignment in `findStringPositions`: the previous walk left `ri`
+stale across inline-code boundaries, so a `<Char Tab>` between two
+`<Variable>` blocks was attributed to the preceding String run
+(suppressing rewrite) instead of the new Char-only run. The walk now
+mirrors `extractParaRuns` precisely, accumulating pending Char indexes
+and assigning them on flush, so Char-only runs are correctly emitted as
+synthesized `<String>` entries (mirrors okapi MIFFilter.java:739-741 +
+761 paraTextBuf flush).
+
+### Cluster P — multi-ParaLine elision drops `<ElementEnd>` (1 fixture)
+
+**Affects**: `TestParaLines.mif`.
+
+**Symptom**: `<ElementEnd 'Para'>` line appearing between `<String>`
+and `> # end of ParaLine` in a multi-ParaLine merge case is dropped by
+the merge elision. The merge-elision step needs to skip over
+`<ElementEnd>` (and similar structural-only tags) without removing
+them.
 
 ## Triage suggestion for the next iteration
 

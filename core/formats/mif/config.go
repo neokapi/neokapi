@@ -107,22 +107,12 @@ func (c *Config) Reset() {
 		ExtractHardReturnsAsText:   true,
 		UseCodeFinder:              true,
 		CodeFinderRules: []string{
-			// Note: okapi's MIF Parameters.java adds `^[A-Z]{1}:` to its
-			// codeFinder rule list, but okapi also removes leading and
-			// trailing codes back into the skeleton via
-			// TextUnitSimplification + CodeSimplifier.simplifyAll(tf, true,
-			// true). Empirically the bridge-side TextUnit handed to Go for
-			// fixtures like Test01.mif's `<String P:Body>` cell content
-			// arrives as a single text run carrying the full literal
-			// "P:Body"; the rule has no observable effect on the
-			// translatable content okapi exposes. Including it on the
-			// native side splits a leading `P:` into a placeholder, which
-			// then survives the pseudo-translate transform unchanged
-			// (yielding `P:Body` -> `P:_pseudo(Body)_`) while okapi's
-			// reference round-trip pseudo-translates the whole literal
-			// (`P:Body` -> `_pseudo(P:Body)_`). The leading-prefix rule is
-			// applied contextually inside reader.go for PgfNumFormat
-			// blocks instead, where it IS observably needed.
+			// Mirrors okapi MIF Parameters.java:196-207 default rule list.
+			// `^[A-Z]:` protects FrameMaker auto-numbering type prefixes
+			// (`H:`, `T:`, `P:`, `C:`, ...) from being pseudo-translated.
+			// The building-block rules (zenkaku, kanji kazu, daiji, hira
+			// iroha, ...) protect Asian numbering format names that appear
+			// inside <PgfNumFormat> values.
 			//
 			// Bullet (U+2022) and pilcrow (U+00B6) are written as
 			// `\x{NNNN}` codepoint escapes \u2014 Go's regexp engine does
@@ -132,12 +122,17 @@ func (c *Config) Reset() {
 			// patterns. This bug silently broke pseudo-translate
 			// protection for `<Default \u00B6 Font>` and bullet codes inside
 			// VariableDef / paragraph text.
+			`^[A-Z]:`,
 			`\x{2022}`,
 			`\\t`,
 			`<[naArR ]{1}[+]*>`,
 			`<[naArR]{1}=[0-9]+>`,
 			`<\$.*?>`,
 			`<Default \x{00B6} Font>`,
+			`<(zenkaku|kanji|full-width|chinese|Indic|Farsi|Hebrew|Abjad|Alif Ba Ta|Thai) [naA]{1}[+]*>`,
+			`<(zenkaku|kanji|full-width|chinese|Indic|Farsi|Hebrew|Abjad|Alif Ba Ta|Thai) [naA]{1}=[0-9]+>`,
+			`<(kanji kazu|daiji|hira iroha|kata iroha|hira gojuon|kata gojuon)[+]*>`,
+			`<(kanji kazu|daiji|hira iroha|kata iroha|hira gojuon|kata gojuon)=[0-9]+>`,
 		},
 	}
 }
