@@ -1276,10 +1276,21 @@ func (s *tokenReaderState) extractTokenAttrs(raw []byte, tag string, a atom.Atom
 	}
 
 	if alt := getTokenAttr(attrs, "alt"); alt != "" {
-		if a == atom.Img || a == atom.Input || a == atom.Area {
+		// okapi okf_html: alt is per-element only — img, area (no
+		// condition) and input (NOT_EQUALS [file, hidden, image,
+		// Password]). See nonwellformedConfiguration.yml lines 41
+		// (img), 81 (area), 263 (input).
+		switch a {
+		case atom.Img, atom.Area:
 			id := s.nextBlockID()
 			transAttrs = append(transAttrs, transAttrEntry{"alt", alt, id})
 			s.emitAttrBlock(id, "alt", alt, ctx, ch)
+		case atom.Input:
+			if isTranslatableInputValue(strings.ToLower(getTokenAttr(attrs, "type"))) {
+				id := s.nextBlockID()
+				transAttrs = append(transAttrs, transAttrEntry{"alt", alt, id})
+				s.emitAttrBlock(id, "alt", alt, ctx, ch)
+			}
 		}
 	}
 
@@ -1308,6 +1319,24 @@ func (s *tokenReaderState) extractTokenAttrs(raw []byte, tag string, a atom.Atom
 		}
 	}
 
+	// `accesskey`: per-element on a, area, button, label, legend, textarea
+	// (no condition) and input (NOT_EQUALS [file, hidden, image, Password]).
+	// See nonwellformedConfiguration.yml lines 81, 135, 180, 222, 265, 277, 339.
+	if ak := getTokenAttr(attrs, "accesskey"); ak != "" {
+		emit := false
+		switch a {
+		case atom.A, atom.Area, atom.Button, atom.Label, atom.Legend, atom.Textarea:
+			emit = true
+		case atom.Input:
+			emit = isTranslatableInputValue(strings.ToLower(getTokenAttr(attrs, "type")))
+		}
+		if emit {
+			id := s.nextBlockID()
+			transAttrs = append(transAttrs, transAttrEntry{"accesskey", ak, id})
+			s.emitAttrBlock(id, "accesskey", ak, ctx, ch)
+		}
+	}
+
 	// Write skeleton data.
 	if raw != nil {
 		if len(transAttrs) == 0 {
@@ -1332,10 +1361,18 @@ func (s *tokenReaderState) extractTokenAttrsNoSkeleton(tag string, a atom.Atom, 
 		out = append(out, transAttrEntry{"title", title, id})
 	}
 	if alt := getTokenAttr(attrs, "alt"); alt != "" {
-		if a == atom.Img || a == atom.Input || a == atom.Area {
+		// Same okapi okf_html rule as extractTokenAttrs.
+		switch a {
+		case atom.Img, atom.Area:
 			id := s.nextBlockID()
 			s.emitAttrBlock(id, "alt", alt, ctx, ch)
 			out = append(out, transAttrEntry{"alt", alt, id})
+		case atom.Input:
+			if isTranslatableInputValue(strings.ToLower(getTokenAttr(attrs, "type"))) {
+				id := s.nextBlockID()
+				s.emitAttrBlock(id, "alt", alt, ctx, ch)
+				out = append(out, transAttrEntry{"alt", alt, id})
+			}
 		}
 	}
 	if label := getTokenAttr(attrs, "label"); label != "" && a == atom.Option {
@@ -1356,6 +1393,22 @@ func (s *tokenReaderState) extractTokenAttrsNoSkeleton(tag string, a atom.Atom, 
 			id := s.nextBlockID()
 			s.emitAttrBlock(id, "value", val, ctx, ch)
 			out = append(out, transAttrEntry{"value", val, id})
+		}
+	}
+
+	// Same accesskey rule as extractTokenAttrs.
+	if ak := getTokenAttr(attrs, "accesskey"); ak != "" {
+		emit := false
+		switch a {
+		case atom.A, atom.Area, atom.Button, atom.Label, atom.Legend, atom.Textarea:
+			emit = true
+		case atom.Input:
+			emit = isTranslatableInputValue(strings.ToLower(getTokenAttr(attrs, "type")))
+		}
+		if emit {
+			id := s.nextBlockID()
+			s.emitAttrBlock(id, "accesskey", ak, ctx, ch)
+			out = append(out, transAttrEntry{"accesskey", ak, id})
 		}
 	}
 	return out

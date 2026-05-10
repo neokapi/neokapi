@@ -212,8 +212,19 @@ func (w *domWalker) extractTranslatableAttributes(n *html.Node, translateNo bool
 	}
 
 	if alt := getAttr(n, "alt"); alt != "" {
-		if n.DataAtom == atom.Img || n.DataAtom == atom.Input || n.DataAtom == atom.Area {
+		// okapi okf_html: per-element rules only — there is no global
+		// rule for `alt` (see nonwellformedConfiguration.yml). The
+		// element rules cover img, area (no condition), and input
+		// (NOT_EQUALS [file, hidden, image, Password]).
+		switch n.DataAtom {
+		case atom.Img, atom.Area:
 			w.visitor.onAttributeBlock(w.nextBlockID(), n, "alt")
+		case atom.Input:
+			// alt and value share the same NOT_EQUALS exclusion list in
+			// okapi okf_html — reuse the helper.
+			if isTranslatableInputValue(strings.ToLower(getAttr(n, "type"))) {
+				w.visitor.onAttributeBlock(w.nextBlockID(), n, "alt")
+			}
 		}
 	}
 
@@ -225,7 +236,11 @@ func (w *domWalker) extractTranslatableAttributes(n *html.Node, translateNo bool
 
 	if ph := getAttr(n, "placeholder"); ph != "" {
 		if n.DataAtom == atom.Input || n.DataAtom == atom.Textarea {
-			w.visitor.onAttributeBlock(w.nextBlockID(), n, "placeholder")
+			// okapi rule: placeholder NOT_EQUALS 'dummy' — the literal
+			// string "dummy" is treated as a placeholder-of-a-placeholder.
+			if strings.ToLower(getAttr(n, "type")) != "dummy" {
+				w.visitor.onAttributeBlock(w.nextBlockID(), n, "placeholder")
+			}
 		}
 	}
 
@@ -233,6 +248,20 @@ func (w *domWalker) extractTranslatableAttributes(n *html.Node, translateNo bool
 		inputType := strings.ToLower(getAttr(n, "type"))
 		if isTranslatableInputValue(inputType) {
 			w.visitor.onAttributeBlock(w.nextBlockID(), n, "value")
+		}
+	}
+
+	// `accesskey` extracted on a, area, button, label, legend, textarea
+	// (no condition) and input (NOT_EQUALS [file, hidden, image, Password]).
+	// See nonwellformedConfiguration.yml lines 81, 135, 180, 222, 265, 277, 339.
+	if ak := getAttr(n, "accesskey"); ak != "" {
+		switch n.DataAtom {
+		case atom.A, atom.Area, atom.Button, atom.Label, atom.Legend, atom.Textarea:
+			w.visitor.onAttributeBlock(w.nextBlockID(), n, "accesskey")
+		case atom.Input:
+			if isTranslatableInputValue(strings.ToLower(getAttr(n, "type"))) {
+				w.visitor.onAttributeBlock(w.nextBlockID(), n, "accesskey")
+			}
 		}
 	}
 }
