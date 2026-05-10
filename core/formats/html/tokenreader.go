@@ -42,6 +42,12 @@ type tokenReaderState struct {
 	// end-tag that was encountered inside a still-open inline span.
 	// processLeafBlock consumes it on its next loop iteration.
 	deferredLeafEndTagRaw []byte
+	// deferredStart carries a block-level start tag that processLeafBlock
+	// consumed but couldn't process (HTML5 implicit-close pattern: a
+	// block-level start inside `<p>` etc. auto-closes the leaf and the
+	// block tag is processed at the parent level). The main loop replays
+	// it on its next iteration before calling tokenizer.Next().
+	deferredStart *deferredStartTag
 	// pendingWS buffers pure-whitespace TextTokens at top-level so we can
 	// decide later whether to flush them to skeleton or drop them. Okapi
 	// strips inter-element whitespace adjacent to a "text-unit" (a run of
@@ -225,6 +231,65 @@ var knownLeafElements = map[atom.Atom]bool{
 	atom.Address: true,
 }
 
+// pImplicitClosers lists the block-level start tags that implicitly close
+// an open `<p>` per HTML5 §13.2.6.4.7 ("in body" insertion mode). When
+// processLeafBlock is collecting `<p>` content and sees one of these, it
+// stops collecting and bounces the start tag back to the main loop so the
+// element is processed at the parent scope (mirrors the auto-close NekoHTML
+// performs and that okapi's HtmlFilter relies on).
+var pImplicitClosers = map[atom.Atom]bool{
+	atom.Address:    true,
+	atom.Article:    true,
+	atom.Aside:      true,
+	atom.Blockquote: true,
+	atom.Details:    true,
+	atom.Div:        true,
+	atom.Dl:         true,
+	atom.Fieldset:   true,
+	atom.Figcaption: true,
+	atom.Figure:     true,
+	atom.Footer:     true,
+	atom.Form:       true,
+	atom.H1:         true, atom.H2: true, atom.H3: true,
+	atom.H4: true, atom.H5: true, atom.H6: true,
+	atom.Header:  true,
+	atom.Hgroup:  true,
+	atom.Hr:      true,
+	atom.Main:    true,
+	atom.Menu:    true,
+	atom.Nav:     true,
+	atom.Ol:      true,
+	atom.P:       true,
+	atom.Pre:     true,
+	atom.Section: true,
+	atom.Table:   true,
+	atom.Ul:      true,
+}
+
+// implicitlyClosesLeaf reports whether childAtom (a block-level start tag
+// just seen inside the leaf currently being collected by processLeafBlock)
+// auto-closes that leaf per HTML5 parsing rules. Currently only `<p>` has
+// implicit-close handling; the other knownLeafElements (`<title>`, `<pre>`,
+// `<h1-6>`, etc.) cannot legally contain block children and historically
+// emitted their bytes inline anyway.
+func implicitlyClosesLeaf(leafAtom, childAtom atom.Atom) bool {
+	if leafAtom == atom.P {
+		return pImplicitClosers[childAtom]
+	}
+	return false
+}
+
+// deferredStartTag carries the pre-fetched fields of a start tag that the
+// main loop should replay without calling tokenizer.Next() / TagName() /
+// collectTokenAttrs again. Used by processLeafBlock to bounce an
+// HTML5-implicit-close block-level start back to the outer scope.
+type deferredStartTag struct {
+	raw   []byte
+	tag   string
+	a     atom.Atom
+	attrs []html.Attribute
+}
+
 // elementInfo tracks element nesting during tokenizer processing.
 type elementInfo struct {
 	tag          string
@@ -246,6 +311,16 @@ func (s *tokenReaderState) processTokenStream(tokenizer *html.Tokenizer, ctx con
 	}()
 
 	for {
+		// Replay any start tag deferred by processLeafBlock (HTML5
+		// implicit-close: e.g. <p>...<table>... auto-closes <p> and
+		// processes <table> at the outer scope).
+		if s.deferredStart != nil {
+			d := s.deferredStart
+			s.deferredStart = nil
+			s.processStartTag(tokenizer, d.raw, d.tag, d.a, d.attrs, &stack, &translateNo, ctx, ch)
+			continue
+		}
+
 		tt := tokenizer.Next()
 		if tt == html.ErrorToken {
 			break
@@ -329,159 +404,7 @@ func (s *tokenReaderState) processTokenStream(tokenizer *html.Tokenizer, ctx con
 				attrs = collectTokenAttrs(tokenizer)
 			}
 
-			info := elementInfo{
-				tag:         tag,
-				a:           a,
-				translateNo: translateNo,
-			}
-
-			// Check translate attribute.
-			if tv := getTokenAttr(attrs, "translate"); tv != "" {
-				if tv == "no" {
-					info.translateNo = true
-				} else if tv == "yes" {
-					info.translateNo = false
-				}
-			}
-
-			// Non-translatable elements (script, style).
-			if nonTranslatableElements[a] {
-				s.onStructuralEvent()
-				_ = s.store.WriteText(raw)
-				s.reader.emit(ctx, ch, &model.Part{
-					Type: model.PartData,
-					Resource: &model.Data{
-						ID:   s.nextDataID(),
-						Name: tag,
-					},
-				})
-				// Consume all content until closing tag.
-				s.consumeUntilClose(tokenizer, tag, ctx, ch)
-				stack = append(stack, info)
-				continue
-			}
-
-			// Check if void element.
-			if selfClosingElements[a] {
-				// Handle META tags.
-				if a == atom.Meta {
-					s.onStructuralEvent()
-					s.handleMetaToken(raw, attrs, ctx, ch)
-					continue
-				}
-
-				// Most void elements (br, hr, img, input, …) are inline-level.
-				// <link>, <base>, <meta>, <param>, <source>, <track>, <col>,
-				// <area>, <embed> are structural in practice. Use the inline
-				// element map as the discriminator.
-				if inlineElements[a] {
-					s.onInlineEvent()
-				} else {
-					s.onStructuralEvent()
-				}
-
-				// Extract lang attribute.
-				s.extractLangFromToken(raw, tag, attrs, ctx, ch)
-
-				// Extract translatable attributes.
-				if !info.translateNo {
-					s.extractTokenAttrs(raw, tag, a, attrs, ctx, ch)
-				} else {
-					_ = s.store.WriteText(raw)
-				}
-				continue
-			}
-
-			isInline := inlineElements[a]
-
-			if !isInline {
-				// Block-level element.
-				info.isBlock = true
-				info.preserveWS = s.cfg.PreserveWhitespace || preserveWhitespaceElements[a]
-
-				// A block-level start tag exits any preceding text-unit.
-				s.onStructuralEvent()
-
-				// Extract lang attribute.
-				s.extractLangFromToken(nil, tag, attrs, ctx, ch)
-
-				// Extract translatable attributes and write start tag
-				// to skeleton (with attr refs if needed).
-				if !info.translateNo {
-					s.extractTokenAttrs(raw, tag, a, attrs, ctx, ch)
-				} else {
-					_ = s.store.WriteText(raw)
-				}
-
-				// Mirror okapi's HtmlFilter: when the document declares
-				// no Content-Type meta, inject one immediately after the
-				// <head> start tag so the output advertises UTF-8 in
-				// transport headers. Inject only once, even on malformed
-				// input with multiple <head> openings.
-				if a == atom.Head && s.needsCharsetMeta {
-					_ = s.store.WriteText([]byte(`<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">`))
-					s.reader.emit(ctx, ch, &model.Part{
-						Type: model.PartData,
-						Resource: &model.Data{
-							ID:   s.nextDataID(),
-							Name: "meta",
-						},
-					})
-					s.needsCharsetMeta = false
-				}
-
-				if info.translateNo {
-					stack = append(stack, info)
-					translateNo = info.translateNo
-					continue
-				}
-
-				// Classify: leaf block or container.
-				// Known containers/leaves skip the forward scan entirely (#151).
-				var hasBlockKids bool
-				if knownContainerElements[a] {
-					hasBlockKids = true
-				} else if !knownLeafElements[a] {
-					// Ambiguous element (e.g. <div>): use forward scan.
-					// If buffer is exhausted, forwardScan defaults to container
-					// (safe: avoids losing structural tags).
-					remaining := tokenizer.Buffered()
-					hasBlockKids = s.forwardScanForBlockChildren(remaining, tag)
-				}
-				info.hasBlockKids = hasBlockKids
-
-				if hasBlockKids {
-					// Container: start tag already written to skeleton above.
-					stack = append(stack, info)
-					translateNo = info.translateNo
-					continue
-				}
-
-				// Leaf block: collect content until closing tag,
-				// build fragment, emit as block.
-				// Start tag already written to skeleton above.
-				s.processLeafBlock(tokenizer, tag, a, attrs, info.preserveWS, ctx, ch)
-				info.isBlock = false // mark as already processed
-				stack = append(stack, info)
-				translateNo = info.translateNo
-				continue
-			}
-
-			// Inline element at top level — part of a text-unit.
-			s.onInlineEvent()
-			if !info.translateNo {
-				// Mirrors okapi: title/alt/etc. on top-level inline tags
-				// (e.g. a bare `<a title="…" href="…">link</a>` between
-				// other top-level text) participate in extraction even
-				// though the tag itself is skeleton. extractTokenAttrs
-				// writes raw to skeleton (with attr refs as needed) when
-				// translatable attrs are present, so we don't double-write.
-				s.extractTokenAttrs(raw, tag, a, attrs, ctx, ch)
-			} else {
-				_ = s.store.WriteText(raw)
-			}
-			stack = append(stack, info)
-			translateNo = info.translateNo
+			s.processStartTag(tokenizer, raw, tag, a, attrs, &stack, &translateNo, ctx, ch)
 
 		case html.EndTagToken:
 			tagName, _ := tokenizer.TagName()
@@ -543,6 +466,125 @@ func (s *tokenReaderState) processTokenStream(tokenizer *html.Tokenizer, ctx con
 			}
 		}
 	}
+}
+
+// processStartTag handles a single StartTagToken. Extracted from the main
+// loop so it can be replayed by the deferred-start mechanism (HTML5
+// implicit-close: a block-level start inside `<p>` etc. auto-closes the
+// leaf and the block tag is processed at the parent level).
+func (s *tokenReaderState) processStartTag(tokenizer *html.Tokenizer, raw []byte, tag string, a atom.Atom, attrs []html.Attribute, stack *[]elementInfo, translateNo *bool, ctx context.Context, ch chan<- model.PartResult) {
+	info := elementInfo{
+		tag:         tag,
+		a:           a,
+		translateNo: *translateNo,
+	}
+
+	if tv := getTokenAttr(attrs, "translate"); tv != "" {
+		if tv == "no" {
+			info.translateNo = true
+		} else if tv == "yes" {
+			info.translateNo = false
+		}
+	}
+
+	if nonTranslatableElements[a] {
+		s.onStructuralEvent()
+		_ = s.store.WriteText(raw)
+		s.reader.emit(ctx, ch, &model.Part{
+			Type: model.PartData,
+			Resource: &model.Data{
+				ID:   s.nextDataID(),
+				Name: tag,
+			},
+		})
+		s.consumeUntilClose(tokenizer, tag, ctx, ch)
+		*stack = append(*stack, info)
+		return
+	}
+
+	if selfClosingElements[a] {
+		if a == atom.Meta {
+			s.onStructuralEvent()
+			s.handleMetaToken(raw, attrs, ctx, ch)
+			return
+		}
+		if inlineElements[a] {
+			s.onInlineEvent()
+		} else {
+			s.onStructuralEvent()
+		}
+		s.extractLangFromToken(raw, tag, attrs, ctx, ch)
+		if !info.translateNo {
+			s.extractTokenAttrs(raw, tag, a, attrs, ctx, ch)
+		} else {
+			_ = s.store.WriteText(raw)
+		}
+		return
+	}
+
+	isInline := inlineElements[a]
+
+	if !isInline {
+		info.isBlock = true
+		info.preserveWS = s.cfg.PreserveWhitespace || preserveWhitespaceElements[a]
+
+		s.onStructuralEvent()
+		s.extractLangFromToken(nil, tag, attrs, ctx, ch)
+
+		if !info.translateNo {
+			s.extractTokenAttrs(raw, tag, a, attrs, ctx, ch)
+		} else {
+			_ = s.store.WriteText(raw)
+		}
+
+		if a == atom.Head && s.needsCharsetMeta {
+			_ = s.store.WriteText([]byte(`<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">`))
+			s.reader.emit(ctx, ch, &model.Part{
+				Type: model.PartData,
+				Resource: &model.Data{
+					ID:   s.nextDataID(),
+					Name: "meta",
+				},
+			})
+			s.needsCharsetMeta = false
+		}
+
+		if info.translateNo {
+			*stack = append(*stack, info)
+			*translateNo = info.translateNo
+			return
+		}
+
+		var hasBlockKids bool
+		if knownContainerElements[a] {
+			hasBlockKids = true
+		} else if !knownLeafElements[a] {
+			remaining := tokenizer.Buffered()
+			hasBlockKids = s.forwardScanForBlockChildren(remaining, tag)
+		}
+		info.hasBlockKids = hasBlockKids
+
+		if hasBlockKids {
+			*stack = append(*stack, info)
+			*translateNo = info.translateNo
+			return
+		}
+
+		s.processLeafBlock(tokenizer, tag, a, attrs, info.preserveWS, ctx, ch)
+		info.isBlock = false
+		*stack = append(*stack, info)
+		*translateNo = info.translateNo
+		return
+	}
+
+	s.onInlineEvent()
+	if !info.translateNo {
+		s.extractTokenAttrs(raw, tag, a, attrs, ctx, ch)
+	} else {
+		_ = s.store.WriteText(raw)
+	}
+	*stack = append(*stack, info)
+	*translateNo = info.translateNo
 }
 
 // processLeafBlock collects tokens until the element's closing tag, builds a
@@ -689,6 +731,19 @@ func (s *tokenReaderState) processLeafBlock(tokenizer *html.Tokenizer, tag strin
 					// Recursively collect inline content.
 					s.collectInlineTokens(tokenizer, childTag, b, &idCounter, info, ctx, ch)
 				}
+			} else if implicitlyClosesLeaf(a, childAtom) {
+				// HTML5 implicit close: a block-level start tag inside a
+				// leaf (e.g. `<p><table>`) auto-closes the leaf. Defer
+				// the start back to the main loop and end this leaf
+				// without a close tag (the writer omits it cleanly).
+				// Mirrors NekoHTML's behaviour, which okapi relies on.
+				s.deferredStart = &deferredStartTag{
+					raw:   tokenRaw,
+					tag:   childTag,
+					a:     childAtom,
+					attrs: childAttrs,
+				}
+				goto leafClosed
 			} else {
 				// Nested block element inside a "leaf" — shouldn't happen
 				// if forward scan is correct, but handle gracefully.
@@ -772,6 +827,7 @@ func (s *tokenReaderState) processLeafBlock(tokenizer *html.Tokenizer, tag strin
 			)
 		}
 	}
+leafClosed:
 
 	// In skeleton mode, skip whitespace normalization entirely.
 	// The skeleton ref will be filled from the fragment's raw text,
