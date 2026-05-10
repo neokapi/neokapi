@@ -81,23 +81,17 @@ const styleHashRoot = "NF974E24F"
 //     run to become extracted as translatable on round-trip
 //     (TestRoundtripFormatted regresses without this guard).
 //
-//   - <w:rtl> (WpmlToggleRunProperty per RunPropertyFactory.java:219)
-//     is excluded pending RunProperty.minified() support in the native
-//     parser. Upstream's RunPropertiesParser path runs every direct rPr
-//     through RunProperties.minified(combined) (RunParser.java:280-294,
-//     RunProperties.java:497-540), which strips toggle properties whose
-//     value is the no-op default (false) when not in the inherited
-//     style hierarchy — so `<w:rtl w:val="0"/>` is removed from the
-//     run's rPr BEFORE WSO sees it. Native does not yet implement that
-//     minification, so without this exclusion neokapi promotes the
-//     redundant `<w:rtl w:val="0"/>` into a synthesised pStyle that
-//     upstream does not generate (reordered-zip.docx fixture). The
-//     proper fix is to add the minified() pass in parseRunProps and
-//     drop this exclusion.
+// rtl was previously listed here as a compensating guard for the missing
+// RunProperty.minified() pass. minifyRPrChildren in runprops.go now
+// implements that pass (mirrors RunProperties.java:497-540), so explicit
+// `<w:rtl w:val="0"/>` / `<w:rtl w:val="false"/>` toggles are stripped
+// from the run rPr at parse time — before WSO sees them. The exclusion
+// is no longer needed for rtl (or for any other WPML toggle), and keeping
+// it would actually swallow legitimate `<w:rtl/>` (true) markers that
+// must travel through to the writer.
 var runPropExclusions = map[string]bool{
 	"rStyle": true,
 	"vanish": true,
-	"rtl":    true,
 }
 
 // runProp is a single <w:rPr> child element captured by name and raw

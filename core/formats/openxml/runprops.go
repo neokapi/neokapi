@@ -273,9 +273,197 @@ func parseRunProps(d *xml.Decoder, aggressive bool) (runProps, error) {
 				slices.Sort(otherParts)
 				props.otherXML = strings.Join(otherParts, "")
 			}
+			// Apply RunProperties.minified() — strip default-valued
+			// run-property entries from props.rPrChildren before the
+			// downstream WSO/source-rPr passes see them. Mirrors upstream
+			// RunPropertiesParser → RunProperties.minified(combined) in
+			// RunParser.java:280-294 + RunProperties.java:497-540.
+			//
+			// Native lacks pStyle/docDefault inheritance ("combined" is
+			// effectively empty), so only the no-op-default branch of
+			// upstream's minified() applies here: a directly-specified
+			// property with a clearing-formatting value (false/0/none/
+			// nil/etc.) drops out because it would not have been there
+			// anyway in the inherited hierarchy. The "drop p when
+			// preCombined.contains(p)" branch is a no-op here.
+			//
+			// Without this, redundant `<w:rtl w:val="0"/>`,
+			// `<w:vanish w:val="false"/>`, etc. round-trip into
+			// synthesised pStyles via WSO and diverge from the upstream
+			// reference (reordered-zip.docx).
+			props.rPrChildren = minifyRPrChildren(props.rPrChildren)
 			return props, nil
 		}
 	}
+}
+
+// minifyRPrChildren drops rPr child entries that carry a default-valued
+// no-op formatting toggle / property. Mirrors upstream Okapi
+// RunProperties.Default.minified() in
+// okapi/filters/openxml/RunProperties.java:497-540 plus the omitted-
+// default constant tables on RunProperties.java:370-402.
+//
+// The native parser never reaches this function with toggle children
+// for the "model" toggles (b, i, u, strike, vertAlign, vanish) — those
+// are normalised into runProps fields and never enter rPrChildren.
+// Other WPML toggle properties (rtl, caps, smallCaps, dstrike, outline,
+// shadow, emboss, imprint, webHidden, cs, specVanish, snapToGrid, oMath)
+// land in rPrChildren via the default branch of parseRunProps, so this
+// is where they have to be filtered.
+//
+// References:
+//   - ECMA-376-1 §17.3.2 toggle properties default to "true" (an
+//     attribute-less element means on). Explicit `w:val="0"` /
+//     `w:val="false"` / `w:val="off"` is a no-op when no parent style
+//     turns the toggle on.
+//   - okapi/filters/openxml/RunPropertyFactory.java:201-222 enumerates
+//     the WpmlToggleRunProperty set; those names trigger the
+//     `WpmlToggleRunProperty && !getToggleValue()` branch on
+//     RunProperties.java:506-510.
+//   - RunProperties.java:370-402 lists the value-defaulted run
+//     properties (none/nil for u/highlight/em/effect/brd, 0 for kern/
+//     position, baseline for vertAlign, …). The matching branches on
+//     RunProperties.java:511-525 strip those when the value matches the
+//     documented default.
+func minifyRPrChildren(children []rPrChild) []rPrChild {
+	if len(children) == 0 {
+		return children
+	}
+	out := children[:0]
+	for _, c := range children {
+		if isDefaultValuedRPrChild(c) {
+			continue
+		}
+		out = append(out, c)
+	}
+	return out
+}
+
+// wpmlToggleNames lists the WPML run-property toggle element local names
+// that mirror upstream Okapi's RunPropertyFactory.WpmlTogglePropertyName
+// enum (RunPropertyFactory.java:201-222). Each toggle defaults to "true"
+// per ECMA-376-1 §17.3.2, so an explicit `w:val="0"` / `"false"` / `"off"`
+// is a no-op and gets stripped by RunProperties.minified().
+//
+// The members b, i, u (handled separately), strike, vertAlign, vanish are
+// excluded from this set in native because parseRunProps maps them onto
+// runProps struct fields rather than into rPrChildren — they never reach
+// minifyRPrChildren.
+var wpmlToggleNames = map[string]bool{
+	"caps":       true,
+	"smallCaps":  true,
+	"dstrike":    true,
+	"outline":    true,
+	"shadow":     true,
+	"emboss":     true,
+	"imprint":    true,
+	"webHidden":  true,
+	"specVanish": true,
+	"noProof":    true,
+	"snapToGrid": true,
+	"oMath":      true,
+	"cs":         true,
+	"rtl":        true,
+	"bCs":        true,
+	"iCs":        true,
+}
+
+// rPrOmittedWithNoneOrNil mirrors upstream
+// RunProperties.OMITTED_WITH_NONE_OR_NIL (RunProperties.java:370-380):
+// these properties are omitted when their `val` attribute is "none" or
+// "nil". Limited here to the WPML names since the native rPr parser only
+// sees WPML rPr children.
+var rPrOmittedWithNoneOrNil = map[string]bool{
+	"brd":       true,
+	"effect":    true,
+	"em":        true,
+	"highlight": true,
+	"u":         true, // ALSO present in the toggle path, but value-defaulted
+}
+
+// rPrOmittedWithZero mirrors upstream RunProperties.OMITTED_WITH_ZERO
+// (RunProperties.java:382-390): these properties are omitted when their
+// `val` attribute equals "0". Limited to WPML members.
+var rPrOmittedWithZero = map[string]bool{
+	"kern":     true,
+	"position": true,
+}
+
+// rPrOmittedWithHundred mirrors upstream RunProperties.OMITTED_WITH_HUNDRED
+// (RunProperties.java:391-394).
+var rPrOmittedWithHundred = map[string]bool{
+	"w": true,
+}
+
+// rPrOmittedWithBaseline mirrors upstream RunProperties.OMITTED_WITH_BASELINE
+// (RunProperties.java:395-398).
+var rPrOmittedWithBaseline = map[string]bool{
+	"vertAlign": true,
+}
+
+// isDefaultValuedRPrChild returns true when c is a run-property element
+// whose value matches its documented no-op default per upstream Okapi's
+// RunProperties.minified() rules.
+func isDefaultValuedRPrChild(c rPrChild) bool {
+	val, hasVal := parseRPrChildVal(c.xml)
+	// WPML toggles default to true: any explicit false-equivalent value
+	// drops the entry.
+	if wpmlToggleNames[c.name] {
+		if !hasVal {
+			return false // bare element ≡ val="true" → not a default no-op
+		}
+		switch val {
+		case "0", "false", "off":
+			return true
+		}
+		return false
+	}
+	if rPrOmittedWithNoneOrNil[c.name] && hasVal {
+		if val == "none" || val == "nil" {
+			return true
+		}
+	}
+	if rPrOmittedWithZero[c.name] && hasVal && val == "0" {
+		return true
+	}
+	if rPrOmittedWithHundred[c.name] && hasVal && val == "100" {
+		return true
+	}
+	if rPrOmittedWithBaseline[c.name] && hasVal && val == "baseline" {
+		return true
+	}
+	return false
+}
+
+// parseRPrChildVal extracts the `w:val` (or bare `val`) attribute value
+// from a serialised single rPr child element XML fragment, e.g.
+// `<w:rtl w:val="0"/>` → ("0", true). Returns ("", false) when no `val`
+// attribute is present (a bare `<w:rtl/>` is "val=true" by default and
+// should NOT be minified).
+//
+// The fragment is always one element with no nested children, produced by
+// serializeRPrChildElement / serializeWithCapture in this same file, so a
+// scoped string scan is sufficient — no need to wrap-and-decode through
+// encoding/xml.
+func parseRPrChildVal(elemXML string) (string, bool) {
+	// Find the end of the start tag (`>` or `/>`); we only ever need
+	// attributes from the opening tag.
+	end := strings.IndexAny(elemXML, ">")
+	if end < 0 {
+		return "", false
+	}
+	head := elemXML[:end]
+	for _, key := range []string{` w:val="`, ` val="`} {
+		if i := strings.Index(head, key); i >= 0 {
+			rest := head[i+len(key):]
+			j := strings.IndexByte(rest, '"')
+			if j < 0 {
+				return "", false
+			}
+			return rest[:j], true
+		}
+	}
+	return "", false
 }
 
 // parseRunPropsFromRaw re-parses an already-captured <w:rPr>...</w:rPr>

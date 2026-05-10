@@ -81,28 +81,48 @@ func TestOptimizeWMLPart_SingleRun_RStyle_Bypassed(t *testing.T) {
 	assert.Contains(t, string(got), `<w:rStyle w:val="Emphasis"/>`)
 }
 
-func TestOptimizeWMLPart_SingleRun_Rtl_Bypassed(t *testing.T) {
-	// rtl is a WpmlToggleRunProperty (RunPropertyFactory.java:219) and
-	// upstream's WSO exclusion list does NOT contain it
-	// (WordDocument.java:335-337 lists only rStyle). However, upstream's
-	// RunPropertiesParser pipeline runs every direct rPr through
-	// RunProperties.minified(combined) (RunParser.java:280-294,
-	// RunProperties.java:497-540), which removes redundant default-valued
-	// toggles (`<w:rtl w:val="0"/>` resolves to false, the document
-	// default, and gets dropped) BEFORE WSO runs. Native does not yet
-	// implement minified(), so rtl stays in the WSO exclusion map as a
-	// compensating guard — see runPropExclusions godoc. Without it, a
-	// 1-run paragraph carrying only `<w:rtl w:val="0"/>` would synthesise
-	// a pStyle that upstream does not generate (reordered-zip.docx).
-	src := []byte(`<w:body><w:p><w:r><w:rPr><w:rtl w:val="0"/></w:rPr><w:t>a</w:t></w:r></w:p></w:body>`)
-	existing := map[string]bool{}
-	counters := map[string]int{}
-	syn := map[string]synthesisedStyle{}
-	var ids []string
-	got := optimizeWMLPart(src, existing, counters, syn, &ids)
-	assert.NotContains(t, string(got), "NF974E24F")
-	assert.Len(t, ids, 0)
-	assert.Contains(t, string(got), `<w:rtl w:val="0"/>`)
+func TestParseRunProps_StripsDefaultValuedRtl(t *testing.T) {
+	// rtl is a WpmlToggleRunProperty (RunPropertyFactory.java:219).
+	// Toggle properties default to "true" per ECMA-376-1 §17.3.2, so
+	// `<w:rtl w:val="0"/>` is a no-op that upstream Okapi strips at
+	// parse time via RunProperties.minified() (RunParser.java:280-294 +
+	// RunProperties.java:497-540). minifyRPrChildren mirrors that
+	// pre-WSO step in native, so the rtl child never reaches
+	// rPrChildren and the writer never re-emits it.
+	//
+	// Without this, redundant `<w:rtl w:val="0"/>` rPrs round-trip
+	// into synthesised pStyles via WSO (reordered-zip.docx fixture).
+	src := `<w:rPr xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:rtl w:val="0"/></w:rPr>`
+	dec := xml.NewDecoder(strings.NewReader(src))
+	_, err := dec.Token()
+	require.NoError(t, err)
+	props, err := parseRunProps(dec, false)
+	require.NoError(t, err)
+	for _, c := range props.rPrChildren {
+		if c.name == "rtl" {
+			t.Fatalf("rtl should be stripped by minified(), got %q", c.xml)
+		}
+	}
+}
+
+func TestParseRunProps_KeepsExplicitRtlTrue(t *testing.T) {
+	// A bare `<w:rtl/>` (or explicit `w:val="1"` / `"true"`) is the
+	// actual on-toggle and must travel through to the writer. Only the
+	// no-op default (false-equivalent values) gets minified out.
+	src := `<w:rPr xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:rtl/></w:rPr>`
+	dec := xml.NewDecoder(strings.NewReader(src))
+	_, err := dec.Token()
+	require.NoError(t, err)
+	props, err := parseRunProps(dec, false)
+	require.NoError(t, err)
+	found := false
+	for _, c := range props.rPrChildren {
+		if c.name == "rtl" {
+			found = true
+			break
+		}
+	}
+	assert.True(t, found, "bare <w:rtl/> must be preserved (toggle defaults to true)")
 }
 
 func TestOptimizeWMLPart_SingleRun_Vanish_Bypassed(t *testing.T) {
