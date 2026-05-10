@@ -728,12 +728,22 @@ func (n XMLCanonical) collectTokens(dec *xml.Decoder) ([]xml.Token, error) {
 					}
 				}
 				if n.StripXMLSpacePreserve {
-					// xml:space="preserve" parses as Attr{Name:{Space:"xml",Local:"space"}}
-					// (encoding/xml resolves the `xml:` prefix to the
-					// well-known `xml` namespace). Drop it on either form
-					// (some decoders may surface the literal "xml" prefix
-					// in Space, others in Local).
-					if a.Name.Local == "space" && (a.Name.Space == "xml" || a.Name.Space == "") && a.Value == "preserve" {
+					// xml:space="preserve" can surface in two forms after
+					// encoding/xml decoding:
+					//   - Attr{Name:{Space:"xml", Local:"space"}}
+					//     when the `xml:` prefix wasn't bound by an
+					//     explicit xmlns declaration.
+					//   - Attr{Name:{Space:"http://www.w3.org/XML/1998/namespace",
+					//                 Local:"space"}}
+					//     when encoding/xml expands the well-known `xml`
+					//     prefix to its standard namespace URI (the more
+					//     common observed form on parsed OOXML payloads).
+					// Drop both, plus the unprefixed form some decoders
+					// surface when no namespace context is available.
+					if a.Name.Local == "space" && a.Value == "preserve" &&
+						(a.Name.Space == "xml" ||
+							a.Name.Space == "" ||
+							a.Name.Space == "http://www.w3.org/XML/1998/namespace") {
 						continue
 					}
 				}
