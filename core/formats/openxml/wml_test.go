@@ -598,3 +598,102 @@ func TestDrawingNameAttrRE_NonMatches(t *testing.T) {
 		})
 	}
 }
+
+// TestExtractDrawingTranslations_NameAttr verifies that a docPr
+// name attribute inside a captured drawing payload is replaced
+// with a property marker and a "property" Block emitted.
+func TestExtractDrawingTranslations_NameAttr(t *testing.T) {
+	counter := 0
+	cfg := &Config{}
+	cfg.Reset()
+	p := &wmlParser{blockCounter: &counter, cfg: cfg}
+	var emitted []*model.Block
+	emit := func(b *model.Block) { emitted = append(emitted, b) }
+	in := `<w:drawing><wp:docPr id="1" name="Picture 1"/></w:drawing>`
+	out := p.extractDrawingTranslations(in, "word/document.xml", emit)
+	require.Len(t, emitted, 1)
+	assert.Equal(t, "property", emitted[0].Type)
+	assert.Equal(t, "drawing-name", emitted[0].Properties["element"])
+	assert.Contains(t, out, drawingMarkerPropPrefix)
+	assert.NotContains(t, out, `name="Picture 1"`)
+}
+
+// TestExtractDrawingTranslations_TextpathString verifies that a
+// v:textpath string attribute inside a captured drawing payload is
+// replaced with a property marker.
+func TestExtractDrawingTranslations_TextpathString(t *testing.T) {
+	counter := 0
+	cfg := &Config{}
+	cfg.Reset()
+	p := &wmlParser{blockCounter: &counter, cfg: cfg}
+	var emitted []*model.Block
+	emit := func(b *model.Block) { emitted = append(emitted, b) }
+	in := `<w:pict><v:shape><v:textpath string="Word art is amazing!" trim="t"/></v:shape></w:pict>`
+	out := p.extractDrawingTranslations(in, "word/document.xml", emit)
+	require.Len(t, emitted, 1)
+	assert.Equal(t, "property", emitted[0].Type)
+	assert.Equal(t, "vml-textpath-string", emitted[0].Properties["element"])
+	assert.Contains(t, out, drawingMarkerPropPrefix)
+	assert.NotContains(t, out, `string="Word art is amazing!"`)
+	// Other attributes preserved.
+	assert.Contains(t, out, `trim="t"`)
+}
+
+// TestExtractDrawingTranslations_TxbxContent verifies that a
+// <w:txbxContent><w:p>...</w:p></w:txbxContent> body produces a
+// paragraph marker and a "paragraph" Block.
+func TestExtractDrawingTranslations_TxbxContent(t *testing.T) {
+	counter := 0
+	cfg := &Config{}
+	cfg.Reset()
+	p := &wmlParser{blockCounter: &counter, cfg: cfg}
+	var emitted []*model.Block
+	emit := func(b *model.Block) { emitted = append(emitted, b) }
+	in := `<wps:txbx><w:txbxContent><w:p><w:r><w:t>This is a test sentence.</w:t></w:r></w:p></w:txbxContent></wps:txbx>`
+	out := p.extractDrawingTranslations(in, "word/document.xml", emit)
+	require.Len(t, emitted, 1)
+	assert.Equal(t, "paragraph", emitted[0].Type)
+	assert.Contains(t, out, drawingMarkerParaPrefix)
+	assert.NotContains(t, out, "This is a test sentence.")
+	// txbxContent and paragraph wrappers preserved.
+	assert.Contains(t, out, "<w:txbxContent>")
+	assert.Contains(t, out, "<w:p>")
+}
+
+// TestExtractDrawingTranslations_TxbxComplexFieldVerbatim verifies
+// that a textbox paragraph carrying a complex field is preserved
+// verbatim — extraction would lose the fldChar markers since
+// parseRunWithFieldState's non-extractable-field path drops them.
+func TestExtractDrawingTranslations_TxbxComplexFieldVerbatim(t *testing.T) {
+	counter := 0
+	cfg := &Config{}
+	cfg.Reset()
+	p := &wmlParser{blockCounter: &counter, cfg: cfg}
+	var emitted []*model.Block
+	emit := func(b *model.Block) { emitted = append(emitted, b) }
+	in := `<wps:txbx><w:txbxContent><w:p><w:r><w:fldChar w:fldCharType="begin"/></w:r><w:r><w:instrText xml:space="preserve"> PAGE </w:instrText></w:r><w:r><w:fldChar w:fldCharType="end"/></w:r></w:p></w:txbxContent></wps:txbx>`
+	out := p.extractDrawingTranslations(in, "word/document.xml", emit)
+	assert.Empty(t, emitted, "complex-field paragraph must NOT emit a translatable block")
+	assert.NotContains(t, out, drawingMarkerParaPrefix)
+	assert.Contains(t, out, `<w:fldChar w:fldCharType="begin">`)
+	assert.Contains(t, out, "PAGE")
+	assert.Contains(t, out, `<w:fldChar w:fldCharType="end">`)
+}
+
+// TestDrawingMarkerRE verifies the marker regex captures kind+id.
+func TestDrawingMarkerRE(t *testing.T) {
+	cases := []struct {
+		input    string
+		wantKind string
+		wantID   string
+	}{
+		{`<!--KAPI-PROP:tu1-->`, "PROP", "tu1"},
+		{`<!--KAPI-PARA:tu42-->`, "PARA", "tu42"},
+	}
+	for _, tc := range cases {
+		m := drawingMarkerRE.FindStringSubmatch(tc.input)
+		require.Len(t, m, 3, "regex must match: %s", tc.input)
+		assert.Equal(t, tc.wantKind, m[1])
+		assert.Equal(t, tc.wantID, m[2])
+	}
+}

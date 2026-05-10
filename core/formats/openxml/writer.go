@@ -411,6 +411,15 @@ type Writer struct {
 	// mediaReplacements maps ZIP entry paths (e.g., "word/media/image1.png")
 	// to replacement binary content for locale-variant media substitution (Bowrain AD-007).
 	mediaReplacements map[string][]byte
+
+	// blocks holds the current Write call's block index, populated by
+	// Write() before invoking renderBlock and consumed by
+	// expandDrawingMarkers when renderWMLBlock's TypeImage handler
+	// substitutes <!--KAPI-PROP:tu123--> / <!--KAPI-PARA:tu123-->
+	// markers inside captured drawing payloads (set by the WML
+	// reader via extractDrawingTranslations). Reset at the end of
+	// each Write call.
+	blocks map[string]*model.Block
 }
 
 var _ format.SkeletonStoreConsumer = (*Writer)(nil)
@@ -470,6 +479,8 @@ func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
 			}
 		}
 	}
+	w.blocks = blocks
+	defer func() { w.blocks = nil }()
 
 	if w.originalContent == nil {
 		return errors.New("openxml: writer requires original content for reconstruction")
@@ -986,7 +997,16 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string) string {
 				// our synthesised rPr because the captured payload
 				// is the original <w:r>'s body verbatim (see the
 				// reader's textRun{text:"", data:raw}).
-				buf.WriteString(`<w:r>` + r.Ph.Data + `</w:r>`)
+				//
+				// extractDrawingTranslations may have replaced
+				// translatable sites (drawing-name attributes,
+				// vml-textpath strings, txbx-content paragraph
+				// bodies) with <!--KAPI-PROP:tu123--> /
+				// <!--KAPI-PARA:tu123--> markers; expand those
+				// against the per-Write blocks index here so the
+				// captured payload picks up translated content.
+				expanded := w.expandDrawingMarkers(r.Ph.Data)
+				buf.WriteString(`<w:r>` + expanded + `</w:r>`)
 			case TypeFootnoteRef:
 				if sourceRPr != "" || runProps != "" {
 					buf.WriteString(`<w:r>`)
@@ -1041,6 +1061,48 @@ func (w *Writer) removeWMLProp(current, spanType string) string {
 		return strings.ReplaceAll(current, `<w:vertAlign w:val="subscript"/>`, "")
 	}
 	return current
+}
+
+// expandDrawingMarkers replaces <!--KAPI-PROP:id--> /
+// <!--KAPI-PARA:id--> marker comments inside a captured drawing
+// payload with rendered translations from the current Write call's
+// blocks index. PROP markers (set in place of an attribute value
+// at READ time) expand to the property block's xml-attr-escaped
+// text. PARA markers (set in place of a textbox-body paragraph's
+// runs) expand to the paragraph block's renderWMLBlock output —
+// `<w:r><w:t>...</w:t></w:r>` plus any inline-code wrapping.
+//
+// When a marker has no matching block (defensive: e.g. the reader
+// emitted blocks but they were filtered out before reaching the
+// writer) the marker is replaced with the empty string. This is
+// the same behaviour the skeleton flush has for unresolved refs.
+func (w *Writer) expandDrawingMarkers(payload string) string {
+	if !strings.Contains(payload, drawingMarkerPropPrefix) && !strings.Contains(payload, drawingMarkerParaPrefix) {
+		return payload
+	}
+	return drawingMarkerRE.ReplaceAllStringFunc(payload, func(match string) string {
+		m := drawingMarkerRE.FindStringSubmatch(match)
+		if len(m) != 3 {
+			return ""
+		}
+		kind, id := m[1], m[2]
+		block, ok := w.blocks[id]
+		if !ok || block == nil {
+			return ""
+		}
+		runs := w.preferredRuns(block)
+		if runs == nil {
+			return ""
+		}
+		switch kind {
+		case "PROP":
+			return xmlEscapeAttr(model.FlattenRuns(runs))
+		case "PARA":
+			return w.renderWMLBlock(runs, blockSourceRPrXML(block))
+		default:
+			return ""
+		}
+	})
 }
 
 // renderDMLBlock renders a run sequence as DrawingML runs.

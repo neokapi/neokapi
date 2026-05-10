@@ -334,6 +334,24 @@ func (p *wmlParser) parseParagraph(d *xml.Decoder, partPath string, emitBlock fu
 				// Merge adjacent runs with same formatting
 				merged := mergeRuns(runs)
 
+				// Pre-extract translatable bits from any drawing
+				// sentinel runs in this paragraph so they reach
+				// the translation pipeline regardless of which
+				// writer path handles the run later (the empty-
+				// paragraph skeleton flush in writeDrawingXMLToSkel
+				// already extracted, but the build-block path
+				// below dumps Ph.Data verbatim through the
+				// renderBlock TypeImage handler — without this
+				// pre-extraction step, drawings inside paragraphs
+				// that ALSO contain translatable text never get
+				// their textbox/textpath content translated, e.g.
+				// TextBoxes.docx and OutOfTheTextBox.docx).
+				for i := range merged {
+					if isDrawingSentinel(merged[i].text) && merged[i].data != "" {
+						merged[i].data = p.extractDrawingTranslations(merged[i].data, partPath, emitBlock)
+					}
+				}
+
 				// Skip empty paragraphs. A "non-translatable but
 				// non-empty" paragraph (one whose only runs are
 				// drawing/pict/object sentinels) still needs its
@@ -927,6 +945,22 @@ func isSentinel(s string) bool {
 	return len(r) >= 2 && r[1] == ':'
 }
 
+// isDrawingSentinel reports whether a textRun's text marker
+// indicates an opaque drawing/pict/object/AlternateContent payload
+// (run-level "" or paragraph-level ""). Used by
+// parseParagraph to scope drawing-XML pre-extraction to the runs
+// that actually carry captured payloads.
+func isDrawingSentinel(text string) bool {
+	if text == "" {
+		return false
+	}
+	r := []rune(text)
+	if len(r) == 0 {
+		return false
+	}
+	return r[0] == '' || r[0] == ''
+}
+
 // isEmptyRuns returns true if all runs have no visible text content.
 func isEmptyRuns(runs []textRun) bool {
 	for _, r := range runs {
@@ -1091,71 +1125,514 @@ func splitRunWrapper(r textRun) (open, close string) {
 	return buf.String(), "</w:r>"
 }
 
-// writeDrawingXMLToSkel emits a drawing's captured raw XML to the
-// skeleton, splitting at translatable name= attributes on docPr /
-// cNvPr elements. Each name attribute value becomes a separate
-// "property" Block (translatable, with single text source segment)
-// whose ID is referenced in the skeleton via skelRef. The writer's
-// renderBlock path emits "property" blocks as plain attribute-escaped
-// text (writer.go line 683-685), which is exactly what we need to
-// substitute back inside an attribute value.
-//
-// Empty or whitespace-only name values are passed through as
-// skeleton text — there's nothing translatable.
-func (p *wmlParser) writeDrawingXMLToSkel(xmlData, partPath string, emitBlock func(*model.Block)) {
-	matches := drawingNameAttrRE.FindAllStringSubmatchIndex(xmlData, -1)
-	if len(matches) == 0 {
-		p.skelText(xmlData)
-		return
-	}
+// drawingMarkerProp is the comment marker syntax embedded inside
+// captured drawing XML at READ time to flag a translatable
+// attribute value (drawing-name, vml-textpath-string). The writer
+// expands these markers either into skeleton refs (skeleton path,
+// writeDrawingXMLToSkel) or into rendered "property" Block content
+// (in-block path, writer.go renderWMLBlock TypeImage handler).
+const drawingMarkerPropPrefix = "<!--KAPI-PROP:"
 
-	pos := 0
-	for _, m := range matches {
-		// m = [whole_lo, whole_hi, g1_lo, g1_hi, g2_lo, g2_hi,
-		//      g3_lo, g3_hi, g4_lo, g4_hi]
-		gOpen := xmlData[m[2]:m[3]]  // "<docPr ... name="
-		quote := xmlData[m[4]:m[5]]  // single or double quote
-		gValue := xmlData[m[6]:m[7]] // attribute value
-		gClose := xmlData[m[8]:m[9]] // closing of element
-		// Emit any text before this match
-		p.skelText(xmlData[pos:m[0]])
-		// Emit the open part (e.g. `<wp:docPr id="1" name=`) plus the quote
-		p.skelText(gOpen)
-		p.skelText(quote)
-		// If the value is non-empty, emit a translatable block for it
-		// and replace the value with a skeleton ref. Empty values pass
-		// through verbatim.
-		if strings.TrimSpace(gValue) != "" {
+// drawingMarkerPara is the marker syntax for a translatable
+// paragraph block — used when a captured drawing contains
+// <w:txbxContent><w:p>...</w:p></w:txbxContent> (textbox body
+// paragraphs).
+const drawingMarkerParaPrefix = "<!--KAPI-PARA:"
+
+const drawingMarkerSuffix = "-->"
+
+// drawingMarkerRE matches either a property marker
+// (<!--KAPI-PROP:tu123-->) or a paragraph marker
+// (<!--KAPI-PARA:tu123-->) and captures the kind plus block ID.
+var drawingMarkerRE = regexp.MustCompile(`<!--KAPI-(PROP|PARA):([a-zA-Z0-9_-]+)-->`)
+
+// extractDrawingTranslations scans a captured drawing XML payload,
+// emits "property" / "paragraph" Blocks for every translatable
+// site (drawing-name attributes, vml-textpath strings, txbx-
+// content paragraph bodies), and returns the XML with each site
+// replaced by a comment marker referencing the emitted block.
+//
+// Both writer paths (skeleton flush + in-block TypeImage handler)
+// then expand the markers — the skeleton flush turns them into
+// real skel refs (inside writeDrawingXMLToSkel), the TypeImage
+// handler resolves them against the blocks map and substitutes
+// rendered content. Splitting extraction from emission lets
+// drawings inside paragraphs that ALSO contain translatable text
+// runs (e.g. TextBoxes.docx where the body paragraph has three
+// pict-only runs followed by a "Doggy " text run) participate in
+// translation — the buildBlock path stuffs the captured XML into
+// a TypeImage placeholder, bypassing the skeleton entirely, so the
+// extraction must happen up-front.
+//
+// Mirrors Okapi's RunParser.processTranslatableAttributes
+// (RunParser.java lines 838-858) for attribute extraction and
+// wordConfiguration.yml's `'wps:txbx': ruleTypes: [GROUP]` (line
+// 141) for textbox descent.
+func (p *wmlParser) extractDrawingTranslations(xmlData, partPath string, emitBlock func(*model.Block)) string {
+	var out strings.Builder
+	out.Grow(len(xmlData))
+	wrapped := wrapDrawingXMLForDecode(xmlData)
+	dec := xml.NewDecoder(strings.NewReader(wrapped))
+	if _, err := dec.Token(); err != nil {
+		return xmlData
+	}
+	if err := p.copyAndExtractDrawing(dec, &out, partPath, emitBlock); err != nil {
+		// Decoding failure: fall back to verbatim. Do not corrupt
+		// the round-trip.
+		return xmlData
+	}
+	return out.String()
+}
+
+// copyAndExtractDrawing serialises tokens from dec into out until
+// it consumes the matching end of the synthetic wrapper element
+// emitted by wrapDrawingXMLForDecode. Translatable sites are
+// replaced with marker comments; everything else round-trips
+// verbatim.
+func (p *wmlParser) copyAndExtractDrawing(dec *xml.Decoder, out *strings.Builder, partPath string, emitBlock func(*model.Block)) error {
+	for {
+		tok, err := dec.Token()
+		if err != nil {
+			return err
+		}
+		switch t := tok.(type) {
+		case xml.StartElement:
+			switch {
+			case isDrawingPropertyElement(t):
+				p.writeStartElementWithTranslatableAttrTo(out, t, "name", "drawing-name", partPath, emitBlock)
+			case t.Name.Local == "textpath":
+				p.writeStartElementWithTranslatableAttrTo(out, t, "string", "vml-textpath-string", partPath, emitBlock)
+			case t.Name.Local == "txbxContent":
+				writeRawStartElementTo(out, t)
+				if err := p.extractTxbxContent(dec, out, t, partPath, emitBlock); err != nil {
+					return err
+				}
+			default:
+				writeRawStartElementTo(out, t)
+			}
+		case xml.EndElement:
+			if t.Name.Local == drawingDecodeWrapperLocal {
+				return nil
+			}
+			writeRawEndElementTo(out, t)
+		case xml.CharData:
+			out.WriteString(xmlEscape(string(t)))
+		case xml.Comment:
+			out.WriteString("<!--")
+			out.Write(t)
+			out.WriteString("-->")
+		case xml.ProcInst:
+			out.WriteString("<?")
+			out.WriteString(t.Target)
+			if len(t.Inst) > 0 {
+				out.WriteString(" ")
+				out.Write(t.Inst)
+			}
+			out.WriteString("?>")
+		}
+	}
+}
+
+// extractTxbxContent processes children of <w:txbxContent>: emits a
+// paragraph Block (and a marker comment in place) per <w:p> with
+// translatable runs; copies non-paragraph children verbatim.
+//
+// When a <w:p> contains a complex field (`<w:fldChar>`), the
+// paragraph is preserved verbatim — parseParagraph's existing
+// non-extractable-field path drops the field markup along with
+// its display runs. Falling back to verbatim keeps round-trip
+// safe (TextboxNumber.docx with PAGE \* MERGEFORMAT is the
+// canonical fixture for this corner).
+func (p *wmlParser) extractTxbxContent(
+	dec *xml.Decoder,
+	out *strings.Builder,
+	start xml.StartElement,
+	partPath string,
+	emitBlock func(*model.Block),
+) error {
+	for {
+		tok, err := dec.Token()
+		if err != nil {
+			return err
+		}
+		switch t := tok.(type) {
+		case xml.StartElement:
+			if t.Name.Local == "p" {
+				rawP, err := captureRawElement(dec, t)
+				if err != nil {
+					return err
+				}
+				if containsComplexField(rawP) {
+					// Preserve the field-bearing paragraph verbatim
+					// (rawP from captureRawElement is the full
+					// paragraph including its open and close tags).
+					// parseParagraph's existing non-extractable-field
+					// path drops both the field display runs AND the
+					// fldChar markers themselves, which would lose
+					// markup like PAGE \* MERGEFORMAT. Verbatim
+					// preservation is round-trip safe for textboxes.
+					// TextboxNumber.docx is the canonical fixture.
+					out.WriteString(rawP)
+					continue
+				}
+				// Re-decode the captured paragraph through a fresh
+				// namespace-aware decoder so extractTxbxParagraph
+				// sees the canonical token stream with the same
+				// prefix bindings as the outer document.
+				inner := wrapDrawingXMLForDecode(rawP)
+				idec := xml.NewDecoder(strings.NewReader(inner))
+				if _, err := idec.Token(); err != nil {
+					return err
+				}
+				// Advance past the <w:p> start tag so
+				// extractTxbxParagraph sees the inside of the
+				// paragraph (its pPr / runs / end tag).
+				for {
+					itok, err := idec.Token()
+					if err != nil {
+						return err
+					}
+					if se, ok := itok.(xml.StartElement); ok && se.Name.Local == "p" {
+						break
+					}
+				}
+				if err := p.extractTxbxParagraph(idec, out, partPath, emitBlock); err != nil {
+					return err
+				}
+			} else if t.Name.Local == "tbl" || t.Name.Local == "tr" || t.Name.Local == "tc" {
+				writeRawStartElementTo(out, t)
+				if err := p.extractTxbxContent(dec, out, t, partPath, emitBlock); err != nil {
+					return err
+				}
+			} else {
+				raw, err := captureRawElement(dec, t)
+				if err != nil {
+					return err
+				}
+				out.WriteString(raw)
+			}
+		case xml.EndElement:
+			writeRawEndElementTo(out, t)
+			if t.Name.Local == start.Name.Local {
+				return nil
+			}
+		case xml.CharData:
+			out.WriteString(xmlEscape(string(t)))
+		case xml.Comment:
+			out.WriteString("<!--")
+			out.Write(t)
+			out.WriteString("-->")
+		}
+	}
+}
+
+// extractTxbxParagraph parses a <w:p> from a textbox body: the
+// caller has already positioned the decoder right after the <w:p>
+// start tag. We re-implement a minimal subset of parseParagraph's
+// behaviour here, capturing pPr verbatim and collecting <w:r>
+// runs for blocking, then emit the paragraph block and write a
+// `<w:p><pPr/><!--KAPI-PARA:id--></w:p>` to out.
+//
+// Hyperlinks, sdt, ins/del/moveTo/moveFrom, and AlternateContent
+// inside textboxes are rare; we skip them via skipElement to keep
+// this scoped. Future fixtures can extend.
+func (p *wmlParser) extractTxbxParagraph(dec *xml.Decoder, out *strings.Builder, partPath string, emitBlock func(*model.Block)) error {
+	var paraProps string
+	var paraStyleID string
+	var runs []textRun
+	var cfs complexFieldState
+
+	for {
+		tok, err := dec.Token()
+		if err != nil {
+			return err
+		}
+		switch t := tok.(type) {
+		case xml.StartElement:
+			switch t.Name.Local {
+			case "pPr":
+				raw, styleID, err := captureParaProps(dec, t)
+				if err != nil {
+					return err
+				}
+				paraProps = raw
+				paraStyleID = styleID
+			case "r":
+				rs, err := p.parseRunWithFieldState(dec, &cfs)
+				if err != nil {
+					return err
+				}
+				runs = append(runs, rs...)
+			case "bookmarkStart", "bookmarkEnd",
+				"proofErr", "commentRangeStart", "commentRangeEnd",
+				"permStart", "permEnd":
+				if err := skipElement(dec); err != nil {
+					return err
+				}
+			default:
+				if err := skipElement(dec); err != nil {
+					return err
+				}
+			}
+		case xml.EndElement:
+			if t.Name.Local != "p" {
+				continue
+			}
+			// Apply style optimisation as parseParagraph does.
+			if p.styles != nil && paraStyleID != "" {
+				styleProps := p.styles.resolveProps(paraStyleID)
+				for i := range runs {
+					if !isSentinel(runs[i].text) {
+						subtractProps(&runs[i].props, styleProps)
+					}
+				}
+			}
+			commonRPr := commonRPrChildren(runs)
+			commonRPrXML := joinRPrChildren(commonRPr)
+			merged := mergeRuns(runs)
+			// Recurse extraction into nested drawing/pict
+			// payloads so e.g. a docPr name inside an image
+			// embedded within a textbox paragraph still reaches
+			// the translation pipeline (GraphicInTextBox.docx).
+			for i := range merged {
+				if isDrawingSentinel(merged[i].text) && merged[i].data != "" {
+					merged[i].data = p.extractDrawingTranslations(merged[i].data, partPath, emitBlock)
+				}
+			}
+			// Empty paragraph: emit verbatim wrapper without a
+			// translatable block. The pPr (if any) is preserved
+			// inside <w:p>...</w:p>.
+			if isEmptyRuns(merged) {
+				out.WriteString("<w:p>")
+				if paraProps != "" {
+					out.WriteString(paraProps)
+				}
+				for _, r := range merged {
+					out.WriteString(runToXML(r))
+				}
+				out.WriteString("</w:p>")
+				return nil
+			}
 			*p.blockCounter++
 			blockID := fmt.Sprintf("tu%d", *p.blockCounter)
-			p.skelRef(blockID)
+			out.WriteString("<w:p>")
+			if paraProps != "" {
+				out.WriteString(paraProps)
+			}
+			out.WriteString(drawingMarkerParaPrefix)
+			out.WriteString(blockID)
+			out.WriteString(drawingMarkerSuffix)
+			out.WriteString("</w:p>")
+			block := p.buildBlock(blockID, merged, partPath, commonRPrXML)
+			emitBlock(block)
+			return nil
+		}
+	}
+}
+
+// writeRawStartElementTo emits an XML start element to a strings.Builder,
+// preserving namespace prefixes via the package nsPrefixMap and
+// registering any new xmlns declarations on the element.
+func writeRawStartElementTo(out *strings.Builder, t xml.StartElement) {
+	registerNamespaces(t.Attr)
+	out.WriteString("<")
+	writeElementName(out, t.Name)
+	for _, a := range t.Attr {
+		out.WriteString(" ")
+		writeAttrName(out, a.Name)
+		out.WriteString(`="`)
+		out.WriteString(xmlEscapeAttr(a.Value))
+		out.WriteString(`"`)
+	}
+	out.WriteString(">")
+}
+
+// writeRawEndElementTo emits an XML end element to a strings.Builder.
+func writeRawEndElementTo(out *strings.Builder, t xml.EndElement) {
+	out.WriteString("</")
+	writeElementName(out, t.Name)
+	out.WriteString(">")
+}
+
+// writeStartElementWithTranslatableAttrTo emits a start element to
+// the given builder, replacing the named attribute's value with a
+// drawingMarkerProp comment marker referencing an emitted block.
+func (p *wmlParser) writeStartElementWithTranslatableAttrTo(
+	out *strings.Builder,
+	t xml.StartElement,
+	attrLocal, blockElementTag, partPath string,
+	emitBlock func(*model.Block),
+) {
+	out.WriteString("<")
+	writeElementName(out, t.Name)
+	emittedRef := false
+	for _, a := range t.Attr {
+		out.WriteString(" ")
+		writeAttrName(out, a.Name)
+		out.WriteString(`="`)
+		if !emittedRef && a.Name.Local == attrLocal && a.Name.Space == "" && strings.TrimSpace(a.Value) != "" {
+			*p.blockCounter++
+			refID := fmt.Sprintf("tu%d", *p.blockCounter)
+			out.WriteString(drawingMarkerPropPrefix)
+			out.WriteString(refID)
+			out.WriteString(drawingMarkerSuffix)
+			emittedRef = true
 			emitBlock(&model.Block{
-				ID:           blockID,
+				ID:           refID,
 				Type:         "property",
 				Translatable: true,
 				Source: []*model.Segment{model.NewRunsSegment(
 					"s1",
-					[]model.Run{{Text: &model.TextRun{Text: gValue}}},
+					[]model.Run{{Text: &model.TextRun{Text: a.Value}}},
 				)},
 				Targets: make(map[model.LocaleID][]*model.Segment),
 				Properties: map[string]string{
 					"partPath": partPath,
-					"element":  "drawing-name",
+					"element":  blockElementTag,
 				},
 				Annotations: make(map[string]model.Annotation),
 			})
 		} else {
-			p.skelText(gValue)
+			out.WriteString(xmlEscapeAttr(a.Value))
 		}
-		// Emit the closing quote + tail
-		p.skelText(quote)
-		// gClose already includes the closing quote in its first byte;
-		// strip it because we already wrote `quote` separately.
-		p.skelText(gClose[1:])
+		out.WriteString(`"`)
+	}
+	out.WriteString(">")
+}
+
+// writeDrawingXMLToSkel emits a drawing's captured raw XML to the
+// skeleton, walking the XML token stream to extract translatable
+// content at three structural sites:
+//
+//  1. name= attribute on <wp:docPr> / <pic:cNvPr> / <wps:cNvPr>
+//     (drawing object names) — extracted as a "property" Block.
+//     Mirrors Okapi's RunParser.processTranslatableAttributes
+//     (RunParser.java lines 838-858) gated by
+//     ConditionalParameters.getTranslateWordGraphicName() (default
+//     true).
+//
+//  2. string= attribute on <v:textpath> (legacy WordArt text
+//     painted along a curve) — extracted as a "property" Block.
+//     Mirrors RunParser.processTranslatableAttributes (RunParser.java
+//     lines 854-855) which calls processTranslatableAttribute(startEl,
+//     "string") whenever XMLEventHelpers.isTextPath(startEl) holds
+//     (XMLEventHelpers.java lines 287-289, LOCAL_TEXTPATH = "textpath"
+//     at line 77). Per ECMA-376 Part 4 (VML) §6.2.2, the textpath
+//     element's string attribute carries the displayed text.
+//
+//  3. <w:p> paragraphs nested inside <w:txbxContent> (drawing
+//     textbox bodies — both the WordprocessingML <wps:txbx> shape
+//     wrapper and the legacy VML <v:textbox> wrapper produce a
+//     <w:txbxContent> child holding regular WML paragraphs). These
+//     are parsed via parseParagraph so the inner text emits as
+//     normal "paragraph" Blocks (with inline runs, hyperlinks,
+//     fldChars, …). The skeleton stream interleaves the captured
+//     drawing/textbox markup with paragraph block refs so the
+//     writer reconstructs <w:txbxContent> with translated runs in
+//     place. Mirrors Okapi's word-configuration.yml at line 141
+//     ('wps:txbx': ruleTypes: [GROUP]) which directs the filter to
+//     descend into the textbox content as a structural group rather
+//     than treating it as opaque inline content.
+//
+// Anything else passes through verbatim.
+//
+// The xmlData has already been processed by
+// extractDrawingTranslations (called from parseParagraph before
+// the empty-runs path branches into writeRunToSkel) — meaning
+// translatable sites are already represented as
+// <!--KAPI-PROP:tu123--> / <!--KAPI-PARA:tu123--> markers and the
+// corresponding Blocks have been emitted to the part stream. All
+// this function does is split the modified XML on markers,
+// emitting skeleton refs in their place so the writer's skeleton
+// stitching expands them into rendered block content.
+func (p *wmlParser) writeDrawingXMLToSkel(xmlData, _partPath string, _emitBlock func(*model.Block)) {
+	matches := drawingMarkerRE.FindAllStringSubmatchIndex(xmlData, -1)
+	if len(matches) == 0 {
+		p.skelText(xmlData)
+		return
+	}
+	pos := 0
+	for _, m := range matches {
+		// m = [whole_lo, whole_hi, kind_lo, kind_hi, id_lo, id_hi]
+		p.skelText(xmlData[pos:m[0]])
+		blockID := xmlData[m[4]:m[5]]
+		p.skelRef(blockID)
 		pos = m[1]
 	}
-	// Emit any trailing text after the last match
 	p.skelText(xmlData[pos:])
+}
+
+// drawingDecodeWrapperLocal is the local-name of the synthetic root
+// element used to wrap captured drawing XML so encoding/xml can
+// resolve prefixes. It only ever exists in the temporary input to
+// the decoder and never reaches the skeleton stream.
+const drawingDecodeWrapperLocal = "neokapi_drawing_wrapper"
+
+// drawingDecodeWrapperPrefix is the namespace declarations injected
+// onto the synthetic wrapper so every known OpenXML prefix resolves
+// to its full URI when the decoder reads child elements. Built once
+// at package init from nsPrefixMap (skipping the empty prefix and
+// the synthetic xmlns/xml prefixes which encoding/xml handles).
+var drawingDecodeWrapperPrefix string
+
+func init() {
+	var b strings.Builder
+	b.WriteString("<")
+	b.WriteString(drawingDecodeWrapperLocal)
+	for uri, prefix := range nsPrefixMap {
+		// xml prefix is implicit; xmlns prefix is reserved.
+		if prefix == "" || prefix == "xml" || prefix == "xmlns" {
+			continue
+		}
+		b.WriteString(` xmlns:`)
+		b.WriteString(prefix)
+		b.WriteString(`="`)
+		b.WriteString(xmlEscapeAttr(uri))
+		b.WriteString(`"`)
+	}
+	b.WriteString(">")
+	drawingDecodeWrapperPrefix = b.String()
+}
+
+// wrapDrawingXMLForDecode wraps captured drawing XML in a synthetic
+// root that declares every known OpenXML namespace prefix, so
+// encoding/xml's namespace-aware decoder can fully qualify the
+// Names of nested elements (`w:drawing`, `v:textpath`, `wps:txbx`,
+// …). The wrapper is stripped during re-emission — see
+// writeDrawingXMLToSkel.
+func wrapDrawingXMLForDecode(xmlData string) string {
+	var b strings.Builder
+	b.Grow(len(drawingDecodeWrapperPrefix) + len(xmlData) + len(drawingDecodeWrapperLocal) + 4)
+	b.WriteString(drawingDecodeWrapperPrefix)
+	b.WriteString(xmlData)
+	b.WriteString("</")
+	b.WriteString(drawingDecodeWrapperLocal)
+	b.WriteString(">")
+	return b.String()
+}
+
+// isDrawingPropertyElement reports whether t is a non-visual drawing
+// property carrier (<docPr> on a wp wrapper, or <cNvPr> on any
+// pic/wps/dgm wrapper) whose name attribute Okapi treats as
+// translatable. Mirrors XMLEventHelpers.isDrawingProperty (lines
+// 291-294 of okapi/filters/openxml/src/main/java/net/sf/okapi/
+// filters/openxml/XMLEventHelpers.java) which checks two local
+// names: LOCAL_NON_VISUAL_OBJECT_PROPERTY ("docPr") and
+// LOCAL_NON_VISUAL_CANVAS_PROPERTY ("cNvPr").
+func isDrawingPropertyElement(t xml.StartElement) bool {
+	return t.Name.Local == "docPr" || t.Name.Local == "cNvPr"
+}
+
+// containsComplexField reports whether a captured <w:p> XML
+// fragment contains an Office complex-field marker (`<w:fldChar`).
+// Used by walkTxbxContent to decide between extracting the
+// paragraph's text (clean case) and preserving the paragraph
+// verbatim (the field-bearing case). String-level scan is
+// sufficient — captureRawElement always emits prefixed names via
+// the package nsPrefixMap, so the literal `<w:fldChar` substring
+// is a stable test for any namespace binding the source used.
+func containsComplexField(rawP string) bool {
+	return strings.Contains(rawP, "<w:fldChar")
 }
 
 // collectFonts returns a comma-separated list of unique font names from runs.
