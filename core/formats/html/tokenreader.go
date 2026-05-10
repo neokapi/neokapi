@@ -388,7 +388,18 @@ func (s *tokenReaderState) processTokenStream(tokenizer *html.Tokenizer, ctx con
 					s.reader.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
 				} else {
 					s.dropPendingWS()
-					body := trimLeadingHTMLWhitespace(text)
+					body := text
+					// Only trim leading whitespace at the start of a new
+					// text-unit. When `lastTextBlock` is set, this text is
+					// the continuation of an existing unit (split across an
+					// inline boundary like `</i>`), and the leading space is
+					// intra-unit content — okapi preserves it. Mirrors
+					// HtmlFilter's behaviour of trimming the unit's leading
+					// whitespace once and treating subsequent text-runs as
+					// part of the same unit.
+					if s.lastTextBlock == nil {
+						body = trimLeadingHTMLWhitespace(text)
+					}
 					blockID := s.nextBlockID()
 					_ = s.store.WriteRef(blockID)
 					block := buildBlockWithEntities(blockID, body)

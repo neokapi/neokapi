@@ -244,6 +244,58 @@ func TestReaderMetadata(t *testing.T) {
 	assert.Equal(t, "html", reader.Name())
 	assert.Equal(t, "HTML", reader.DisplayName())
 }
+// TestReadBareTextLeadingSpacePreservedAfterInline asserts that when a
+// container's content gets split across the bare-text top-level path
+// (e.g. an `<li>` whose content makes forwardScanForBlockChildren
+// return its safe-default container classification), text following an
+// inline element keeps its leading whitespace. Previously the bare-text
+// path called trimLeadingHTMLWhitespace unconditionally, dropping the
+// space after `</i>` in `<i>need</i> to recieve` and corrupting the
+// round-trip.
+//
+// okapi: HtmlFilter trims a text-unit's leading whitespace once at unit
+// start; subsequent text-runs inside the same unit keep their content
+// verbatim. See HtmlFilter#characters in
+// okapi/filters/html/src/main/java/net/sf/okapi/filters/html/HtmlFilter.java.
+func TestReadBareTextLeadingSpacePreservedAfterInline(t *testing.T) {
+	ctx := t.Context()
+	reader := htmlfmt.NewReader()
+	store, err := format.NewSkeletonStore()
+	require.NoError(t, err)
+	defer store.Close()
+	reader.SetSkeletonStore(store)
+	src := `<html><body><ul>
+<li>
+<a name="g3">    you don't <i>need</i> to recieve scripts; this content is intentionally long enough to force the forward-scan to treat its container as inline-only and split text across the bare-text path.
+</a></li></ul></body></html>`
+	err = reader.Open(ctx, testutil.RawDocFromString(src, model.LocaleEnglish))
+	require.NoError(t, err)
+	defer reader.Close()
+	blocks := testutil.CollectBlocks(t, reader.Read(ctx))
+
+	// Find a block whose first run is text starting with `to recieve` —
+	// that's the bare-text continuation we care about. If the block was
+	// emitted via inline-collection (PcOpen first run), the trim
+	// concern doesn't apply (collectInlineTokens preserves text
+	// verbatim). Either way, the assertion is that whatever path emits
+	// `to recieve` keeps the leading space.
+	for _, b := range blocks {
+		text := b.SourceText()
+		if !strings.Contains(text, "to recieve") {
+			continue
+		}
+		// Look for the actual "to recieve" position and check what
+		// precedes it in the rendered text.
+		idx := strings.Index(text, "to recieve")
+		require.Greater(t, idx, 0, "block %s: 'to recieve' must not be at offset 0; preceded text dropped: %q", b.ID, text)
+		precedingChar := text[idx-1]
+		assert.Equal(t, byte(' '), precedingChar,
+			"block %s: char before 'to recieve' must be a space; got %q in text %q", b.ID, string(precedingChar), text)
+		return
+	}
+	t.Fatalf("expected a block containing 'to recieve' but none found")
+}
+
 // TestReadEntityInBareTextBlock asserts that HTML entities surviving the
 // top-level (bare-text) block path are extracted as inline placeholder
 // runs rather than literal text. Previously, the bare-text path created
