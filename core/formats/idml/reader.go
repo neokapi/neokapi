@@ -308,9 +308,45 @@ func (r *Reader) parseStory(ctx context.Context, ch chan<- model.PartResult,
 	// only triggers on direct children of the active PSR (not e.g.
 	// <Properties> nested inside a wrapped <TextFrame>).
 	type psrFrame struct {
-		bareCSROpen bool
-		depth       int // elemDepth at which this PSR was opened
+		bareCSROpen   bool
+		depth         int        // elemDepth at which this PSR was opened
+		attrs         []xml.Attr // start-tag attributes (for cross-PSR merge equality check)
+		bareCSRAttrs  []xml.Attr // attrs used for the synth CSR wrapping bare children (nil → default)
 	}
+	// Cross-PSR merge tracking. Mirrors upstream
+	// StoryChildElementsWriter (writeAsStyledTextElement, lines 70-89)
+	// which only opens a new <ParagraphStyleRange> when the next
+	// styled-text element's paragraphStyleRange differs from the
+	// current one. Adjacent PSRs with identical attributes get
+	// collapsed into one PSR with the children of all merged PSRs
+	// concatenated. The canonical normalizer's merge-csrs +
+	// mergeAdjacentContentsInCSR passes then fuse the now-adjacent
+	// CSRs and Contents.
+	//
+	// Implementation: at PSR end we record the closed PSR's
+	// attributes per parent scope ("scopeKey" = the parent
+	// element's elemDepth). At PSR start we check whether the
+	// previous closed PSR at the SAME parent scope had identical
+	// attributes AND no intervening non-whitespace token has been
+	// emitted since. If both hold, we truncate the previous
+	// `</ParagraphStyleRange>` end tag from skelBuf and skip
+	// emitting this PSR's `<ParagraphStyleRange>` start tag. The
+	// state is keyed by parent scope so adjacent PSRs inside a
+	// footnote / cell merge independently from PSRs at the story
+	// level.
+	type psrCloseRecord struct {
+		attrs       []xml.Attr
+		closeOffset int // skelBuf offset where `</ParagraphStyleRange>` starts
+	}
+	// lastClosedPSR maps parent-scope elemDepth → record of the last
+	// PSR closed at that scope. The merge attempt at the next PSR
+	// start verifies the recorded close is still the very last bytes
+	// in skelBuf — any intervening write naturally invalidates the
+	// merge (closeOffset+len(closeTag) != skelBuf.Len() check below).
+	// The map is keyed by elemDepth so adjacent PSRs inside a
+	// footnote / cell merge independently from PSRs at the story
+	// level.
+	lastClosedPSR := map[int]*psrCloseRecord{}
 	// Per-HTS bare-CSR wrapping. Mirrors okapi's
 	// HyperlinkTextSourceStyledTextReferenceElementParser
 	// (StoryChildElementsParser.java:464-569) — every direct child
@@ -357,6 +393,35 @@ func (r *Reader) parseStory(ctx context.Context, ch chan<- model.PartResult,
 	}
 	var psrStack []psrFrame
 	var htsStack []htsFrame
+	// Synthetic PSR wrapping for bare styled-text children of
+	// <Story> / <EndnoteRange> / <Footnote> / <Note> elements.
+	// Mirrors upstream StoryParser (StoryParser.java:73-78) and
+	// StyledTextReferenceElementParser (StoryChildElementsParser.java:404-462)
+	// which both route every direct child through
+	// StoryChildElementsParser.parseWith — bare Content/Br/CSR
+	// siblings are then assigned the default (paragraph + character)
+	// StyleRanges. The writer (StoryChildElementsWriter.writeAsStyledTextElement,
+	// lines 70-89) emits a <ParagraphStyleRange AppliedParagraphStyle=
+	// "...NormalParagraphStyle"> wrapper around any run of styled-text
+	// children whose paragraphStyleRange is the default. Adjacent
+	// real PSRs whose AppliedParagraphStyle equals the default merge
+	// into the same wrapper via the cross-PSR merge logic above.
+	//
+	// We push a frame on this stack at every Story / EndnoteRange /
+	// Footnote / Note start. The frame tracks the child scope
+	// (elemDepth at which direct children sit) and whether a synth
+	// PSR wrapper is currently open at that scope. Bare Content/Br/
+	// CSR/HTS children of the scope-owning element trigger
+	// openSynthPSR; the next real PSR / nested wrapper closes it.
+	type synthScopeFrame struct {
+		childScope     int        // elemDepth at which the scope owner's children sit
+		synthPSROpen   bool       // synth <ParagraphStyleRange> currently open at this scope
+		psrAttrs       []xml.Attr // attrs of the open synth PSR (recorded for cross-PSR merge)
+		savedInCSR     int        // inCSR depth before this scope opened (restored on close)
+		inheritPSRAttr []xml.Attr // PSR attrs to use for synth wrapping (parent context); nil → default NormalParagraphStyle
+		inheritCSRAttr []xml.Attr // CSR attrs to use for the inner synth CSR; nil → default
+	}
+	var synthScopeStack []synthScopeFrame
 	// csrAttrStack tracks the open CSR start-element attributes for
 	// each currently-open real <CharacterStyleRange>. The top of the
 	// stack is the immediate parent CSR; HTS uses this to seed its
@@ -476,8 +541,28 @@ func (r *Reader) parseStory(ctx context.Context, ch chan<- model.PartResult,
 			return
 		}
 		if isPSRDirect() && !psrStack[len(psrStack)-1].bareCSROpen {
-			openSynthCSR()
-			psrStack[len(psrStack)-1].bareCSROpen = true
+			top := &psrStack[len(psrStack)-1]
+			if len(top.bareCSRAttrs) > 0 {
+				// Synth scope (Story-direct, EndnoteRange, …) carries
+				// the inherited CSR attrs from the parent context.
+				// Emit a CSR with that attribute set so the bare
+				// children inherit the correct effective char-style.
+				commitPending()
+				if r.skeletonStore != nil {
+					skelBuf.WriteString(`<CharacterStyleRange`)
+					for _, a := range top.bareCSRAttrs {
+						skelBuf.WriteString(` `)
+						writeAttrName(&skelBuf, a.Name)
+						skelBuf.WriteString(`="`)
+						skelBuf.WriteString(xmlEscapeAttr(a.Value))
+						skelBuf.WriteString(`"`)
+					}
+					skelBuf.WriteString(`>`)
+				}
+			} else {
+				openSynthCSR()
+			}
+			top.bareCSROpen = true
 		}
 	}
 	closeBareIfDirect := func() {
@@ -502,6 +587,221 @@ func (r *Reader) parseStory(ctx context.Context, ch chan<- model.PartResult,
 			closeSynthCSR()
 			htsStack[len(htsStack)-1].bareCSROpen = false
 		}
+	}
+	// tryMergePSRStart attempts to elide the boundary between a
+	// previously-closed PSR (at the current parent scope) and this
+	// PSR-about-to-open. Returns true if the merge succeeded — in
+	// that case the caller MUST NOT emit the `<ParagraphStyleRange>`
+	// start tag (the corresponding `</ParagraphStyleRange>` end tag
+	// has been truncated from skelBuf).
+	tryMergePSRStart := func(attrs []xml.Attr) bool {
+		// PSR directly inside an HTS is handled separately (unwrapped).
+		// Only consider merges at scopes outside HTS bodies.
+		if isHTSDirect() {
+			return false
+		}
+		// Pending start-tag optimisation must be committed before we
+		// can safely inspect / mutate the trailing bytes of skelBuf.
+		// (A pending self-close on an empty PSR would have already
+		// truncated `>` to `/>`, breaking the close-tag match.)
+		commitPending()
+		rec, ok := lastClosedPSR[elemDepth]
+		if !ok {
+			return false
+		}
+		if !samePSRAttrs(rec.attrs, attrs) {
+			return false
+		}
+		const closeTag = "</ParagraphStyleRange>"
+		// Verify the recorded close tag is still the very last bytes
+		// in skelBuf — any intervening token committed by another
+		// branch would have appended after this offset and the merge
+		// is no longer safe.
+		if rec.closeOffset+len(closeTag) != skelBuf.Len() {
+			return false
+		}
+		buf := skelBuf.Bytes()
+		if string(buf[rec.closeOffset:]) != closeTag {
+			return false
+		}
+		skelBuf.Truncate(rec.closeOffset)
+		delete(lastClosedPSR, elemDepth)
+		return true
+	}
+	// recordPSRClose stores the just-emitted `</ParagraphStyleRange>`
+	// end tag's position so the next PSR start at the same parent
+	// scope can attempt a merge. attrs is the START tag's attribute
+	// set captured when the PSR was opened.
+	recordPSRClose := func(attrs []xml.Attr) {
+		// elemDepth has already been decremented by the end branch;
+		// the parent scope is the current elemDepth.
+		const closeTag = "</ParagraphStyleRange>"
+		// The close tag was appended via emitEnd → skelWriteEndElement,
+		// which doesn't go through the self-close pending optimisation
+		// for end tags (only start tags accumulate pending state).
+		// So skelBuf.Len() - len(closeTag) is the offset of the
+		// close tag's `<` byte.
+		offset := skelBuf.Len() - len(closeTag)
+		if offset < 0 {
+			return
+		}
+		buf := skelBuf.Bytes()
+		if string(buf[offset:]) != closeTag {
+			// Defensive: someone appended after the end tag emission;
+			// don't try to merge.
+			return
+		}
+		lastClosedPSR[elemDepth] = &psrCloseRecord{
+			attrs:       attrs,
+			closeOffset: offset,
+		}
+	}
+	// activeSynthScope returns the innermost open synth scope frame
+	// AND whether the element about to be entered is a direct child
+	// of that scope owner (not inside any nested PSR/HTS/CSR). Must
+	// be called BEFORE elemDepth is incremented for the new element.
+	// Returns nil when no scope is active or the about-to-emit
+	// element isn't directly under one.
+	activeSynthScope := func() *synthScopeFrame {
+		if len(synthScopeStack) == 0 {
+			return nil
+		}
+		scope := &synthScopeStack[len(synthScopeStack)-1]
+		// Direct child of the scope owner: depth matches and we
+		// aren't currently inside a CSR/HTS opened deeper.
+		if elemDepth != scope.childScope {
+			return nil
+		}
+		if inCSR > 0 || len(htsStack) > 0 {
+			return nil
+		}
+		// A real PSR is "deeper than this scope" when its frame.depth
+		// > scope.childScope. The synth PSR for this scope (if any)
+		// has frame.depth == scope.childScope. Bare children only
+		// trigger when no real PSR is between us and the scope.
+		if len(psrStack) > 0 {
+			topPSR := psrStack[len(psrStack)-1]
+			if topPSR.depth > scope.childScope {
+				return nil
+			}
+		}
+		return scope
+	}
+	// synthPSRDefaultAttrs returns the default attribute set used by
+	// the synthetic <ParagraphStyleRange>. Mirrors upstream
+	// StyleRange.defaultParagraphStyleRange (StyleRange.java) which
+	// carries only AppliedParagraphStyle = NormalParagraphStyle.
+	synthPSRDefaultAttrs := func() []xml.Attr {
+		return []xml.Attr{{
+			Name:  xml.Name{Local: "AppliedParagraphStyle"},
+			Value: "ParagraphStyle/$ID/NormalParagraphStyle",
+		}}
+	}
+	// openSynthPSR opens a synthetic <ParagraphStyleRange> at the
+	// given scope's child level. The synth PSR uses default
+	// NormalParagraphStyle. A psrFrame is pushed so the existing
+	// PSR-direct bare-CSR wrapping (openBareIfDirect /
+	// closeBareIfDirect) handles bare Content/Br/HTS children
+	// automatically, and a bare CSR child slots in as a normal
+	// PSR-child CSR.
+	openSynthPSR := func(scope *synthScopeFrame) {
+		if scope.synthPSROpen {
+			return
+		}
+		attrs := scope.inheritPSRAttr
+		if attrs == nil {
+			attrs = synthPSRDefaultAttrs()
+		}
+		// Cross-PSR merge: if the previously-closed sibling PSR at
+		// this scope had the same attrs, elide the boundary (truncate
+		// the previous </ParagraphStyleRange> and don't emit this
+		// synth PSR's start tag).
+		if !tryMergePSRStart(attrs) {
+			commitPending()
+			if r.skeletonStore != nil {
+				skelBuf.WriteString(`<ParagraphStyleRange`)
+				for _, a := range attrs {
+					skelBuf.WriteString(` `)
+					writeAttrName(&skelBuf, a.Name)
+					skelBuf.WriteString(`="`)
+					skelBuf.WriteString(xmlEscapeAttr(a.Value))
+					skelBuf.WriteString(`"`)
+				}
+				skelBuf.WriteString(`>`)
+			}
+		}
+		scope.synthPSROpen = true
+		scope.psrAttrs = attrs
+		// Push a psrFrame so existing PSR-direct logic (bare-CSR
+		// wrapping, isPSRDirect, etc.) handles inner children. The
+		// bareCSRAttrs carries the inherited character-style attrs
+		// (from the enclosing CSR, when this scope is for an
+		// EndnoteRange/Footnote/Note inside one).
+		psrStack = append(psrStack, psrFrame{
+			depth:        scope.childScope,
+			attrs:        attrs,
+			bareCSRAttrs: scope.inheritCSRAttr,
+		})
+	}
+	closeSynthPSR := func(scope *synthScopeFrame) {
+		if !scope.synthPSROpen {
+			return
+		}
+		// First close any open bare-CSR inside the synth PSR.
+		if len(psrStack) > 0 && psrStack[len(psrStack)-1].bareCSROpen {
+			closeSynthCSR()
+			psrStack[len(psrStack)-1].bareCSROpen = false
+		}
+		commitPending()
+		if r.skeletonStore != nil {
+			skelBuf.WriteString(`</ParagraphStyleRange>`)
+		}
+		// Pop the synthetic psrFrame.
+		if len(psrStack) > 0 {
+			psrStack = psrStack[:len(psrStack)-1]
+		}
+		// Record this synthetic PSR's close so a real PSR with
+		// matching default attrs can absorb it via cross-PSR merge.
+		const closeTag = "</ParagraphStyleRange>"
+		offset := skelBuf.Len() - len(closeTag)
+		if offset >= 0 {
+			lastClosedPSR[elemDepth] = &psrCloseRecord{
+				attrs:       scope.psrAttrs,
+				closeOffset: offset,
+			}
+		}
+		scope.synthPSROpen = false
+		scope.psrAttrs = nil
+	}
+	// openSynthIfBare opens the active scope's synthetic PSR wrapper
+	// when a bare styled-text element (Content/Br/CSR/HTS) is about
+	// to be emitted directly under the scope owner.
+	openSynthIfBare := func() {
+		scope := activeSynthScope()
+		if scope == nil {
+			return
+		}
+		openSynthPSR(scope)
+	}
+	// closeActiveSynth closes the innermost scope's synth PSR (if
+	// any) without popping the scope itself. Called when a non-bare
+	// sibling (real PSR / Footnote / etc.) starts, to terminate the
+	// synth wrapper before processing the new element.
+	closeActiveSynth := func() {
+		if len(synthScopeStack) == 0 {
+			return
+		}
+		top := &synthScopeStack[len(synthScopeStack)-1]
+		// Only close if the about-to-emit element is at the scope's
+		// child level (not deeper). This guards against accidentally
+		// closing the synth wrapper from a non-direct sibling — e.g.
+		// elements deeper inside a real PSR shouldn't close a synth
+		// PSR at story level. But the close should fire for siblings
+		// at the SAME depth as bare children would be.
+		if elemDepth != top.childScope {
+			return
+		}
+		closeSynthPSR(top)
 	}
 
 	for {
@@ -536,14 +836,33 @@ func (r *Reader) parseStory(ctx context.Context, ch chan<- model.PartResult,
 					break
 				}
 				closeBareIfDirect()
+				// Close any open story-direct synth PSR before
+				// processing this real PSR. The synth PSR's recorded
+				// close attrs may match this real PSR's attrs, in
+				// which case tryMergePSRStart will absorb the synth
+				// PSR's wrapper into this real PSR.
+				closeActiveSynth()
 				styleStack = append(styleStack, currentStyle)
 				currentStyle.paragraphStyle = attrVal(t.Attr, "AppliedParagraphStyle")
-				emitStart(t)
+				// Cross-PSR merge: when the previous closed sibling
+				// PSR at this scope had identical attributes and no
+				// intervening token, elide the boundary by truncating
+				// the previous `</ParagraphStyleRange>` and skipping
+				// this start tag. Mirrors upstream
+				// StoryChildElementsWriter.writeAsStyledTextElement
+				// (StoryChildElementsWriter.java:70-89) which only
+				// emits a new <ParagraphStyleRange> when the next
+				// styled-text element's paragraphStyleRange differs
+				// from the current one.
+				if !tryMergePSRStart(t.Attr) {
+					emitStart(t)
+				}
 				elemDepth++
-				psrStack = append(psrStack, psrFrame{depth: elemDepth})
+				psrStack = append(psrStack, psrFrame{depth: elemDepth, attrs: t.Attr})
 
 			case "CharacterStyleRange":
 				closeBareIfDirect()
+				openSynthIfBare()
 				inCSR++
 				styleStack = append(styleStack, currentStyle)
 				currentStyle.charStyle = attrVal(t.Attr, "AppliedCharacterStyle")
@@ -572,6 +891,7 @@ func (r *Reader) parseStory(ctx context.Context, ch chan<- model.PartResult,
 				// rewrite. We mirror that by emitting the source start
 				// tag verbatim; the close branch keeps the original
 				// CharData in skeleton so no Block ever fires.
+				openSynthIfBare()
 				openBareIfDirect()
 				commitPending()
 				if r.skeletonStore != nil {
@@ -587,16 +907,19 @@ func (r *Reader) parseStory(ctx context.Context, ch chan<- model.PartResult,
 
 			case "Br":
 				// Line break — skeleton only
+				openSynthIfBare()
 				openBareIfDirect()
 				emitStart(t)
 				elemDepth++
 
 			case "TextFrame":
+				openSynthIfBare()
 				openBareIfDirect()
 				emitStart(t)
 				elemDepth++
 
 			case "HyperlinkTextSource":
+				openSynthIfBare()
 				openBareIfDirect()
 				// Capture the immediately-enclosing CSR's attrs (if
 				// any) so synthetic CSRs wrapping bare HTS children
@@ -634,17 +957,121 @@ func (r *Reader) parseStory(ctx context.Context, ch chan<- model.PartResult,
 				})
 				inCSR = 0
 
-			case "Note", "Footnote", "Endnote":
+			case "Note", "Footnote", "Endnote", "EndnoteRange":
 				closeBareIfDirect()
+				closeActiveSynth()
 				noteDepth++
 				if t.Name.Local == "Note" {
 					stickyNoteDepth++
 				}
+				// Capture the parent PSR/CSR attrs BEFORE emitting —
+				// the synth wrapping inside the reference element
+				// inherits these so its children carry the same
+				// effective styled-text context.
+				var parentPSRAttrs, parentCSRAttrs []xml.Attr
+				if len(psrStack) > 0 {
+					parentPSRAttrs = psrStack[len(psrStack)-1].attrs
+				}
+				if len(csrAttrStack) > 0 {
+					parentCSRAttrs = csrAttrStack[len(csrAttrStack)-1]
+				}
 				emitStart(t)
 				elemDepth++
+				// Push a synth scope frame: bare children of these
+				// reference elements need synthetic PSR+CSR wrapping
+				// just like Story-direct children. Mirrors upstream
+				// StyledTextReferenceElementParser
+				// (StoryChildElementsParser.java:404-462) which routes
+				// every direct child through
+				// StoryChildElementsParser.parseWith with the parent
+				// styleRanges — bare Content/Br get assigned those
+				// inherited StyleRanges. The writer
+				// (StoryChildElementsWriter, line 434) emits PSR + CSR
+				// wrappers around them.
+				//
+				// Save and clear inCSR. The reference element's
+				// interior is a fresh styled-text scope; the
+				// surrounding CSR (if any) doesn't apply to direct
+				// children — upstream creates new wrappers via the
+				// inherited styleRanges.
+				synthScopeStack = append(synthScopeStack, synthScopeFrame{
+					childScope:     elemDepth,
+					savedInCSR:     inCSR,
+					inheritPSRAttr: parentPSRAttrs,
+					inheritCSRAttr: parentCSRAttrs,
+				})
+				inCSR = 0
+
+			case "Story":
+				// Both the outer wrapper <idPkg:Story> and the inner
+				// content-bearing <Story> have local name "Story", so
+				// distinguish by namespace. The outer is in the
+				// idPkg namespace; the inner uses the default
+				// namespace (or no namespace). Only the inner one
+				// gates story-direct synth-PSR wrapping — the outer
+				// wrapper just contains the inner Story as its sole
+				// child.
+				closeBareIfDirect()
+				closeActiveSynth()
+				emitStart(t)
+				elemDepth++
+				if !strings.Contains(t.Name.Space, "packaging") {
+					synthScopeStack = append(synthScopeStack, synthScopeFrame{childScope: elemDepth})
+				}
+
+			case "XMLElement":
+				// Mirrors upstream's untagXmlStructures=true default
+				// (Parameters.java:195) where parseFromElementRange
+				// (StoryChildElementsParser.java:271-294) flattens
+				// XMLElement wrappers — only their styled children
+				// survive in the resulting StoryChildElement list.
+				// We achieve the same by NOT emitting the start/end
+				// tags AND not incrementing elemDepth, so the wrapper
+				// effectively disappears: its children become direct
+				// siblings of XMLElement's parent for all
+				// depth-aware logic (PSR-direct, story-direct,
+				// cross-PSR merge).
+				closeBareIfDirect()
+				closeActiveSynth()
+				// No emitStart, no elemDepth++.
+
+			case "Change":
+				// Mirrors upstream parseFromChangedRange
+				// (StoryChildElementsParser.java:342-351). Track-
+				// changes wrappers come in three flavours:
+				//   - DeletedText: skipRange — drop the entire
+				//     subtree (the deleted content does not survive).
+				//   - InsertedText / MovedText / others:
+				//     acceptChanges → parseFromElementRange — unwrap
+				//     the wrapper, leaving its children inline.
+				closeBareIfDirect()
+				closeActiveSynth()
+				if attrVal(t.Attr, "ChangeType") == "DeletedText" {
+					// Skip the entire <Change> subtree.
+					if err := skipElementSubtree(d, t.Name); err != nil {
+						return fmt.Errorf("skipping deleted Change: %w", err)
+					}
+					break
+				}
+				// InsertedText / MovedText / etc.: unwrap (no emit,
+				// no elemDepth++). The matching </Change> end tag
+				// also produces no output (handled in the EndElement
+				// branch).
+
+			case "XMLAttribute", "XMLComment", "XMLInstruction":
+				// Mirrors upstream's untagXmlStructures=true default
+				// (Parameters.java:195) where parseAsFromCharacterStyleRange
+				// (StoryChildElementsParser.java:138-146) skips these
+				// XML-projection elements entirely (skipRange).
+				// We consume the entire subtree from the decoder and
+				// emit nothing.
+				if err := skipElementSubtree(d, t.Name); err != nil {
+					return fmt.Errorf("skipping %s: %w", t.Name.Local, err)
+				}
 
 			default:
 				closeBareIfDirect()
+				closeActiveSynth()
 				emitStart(t)
 				elemDepth++
 			}
@@ -728,11 +1155,20 @@ func (r *Reader) parseStory(ctx context.Context, ch chan<- model.PartResult,
 					}
 				}
 				closeBareOnPSREnd()
+				var closingAttrs []xml.Attr
 				if len(psrStack) > 0 {
+					closingAttrs = psrStack[len(psrStack)-1].attrs
 					psrStack = psrStack[:len(psrStack)-1]
 				}
 				elemDepth--
 				emitEnd(t)
+				// Record this PSR's close so the next PSR start at the
+				// same parent scope can attempt a cross-PSR merge.
+				// recordPSRClose silently no-ops when the close was
+				// truncated (self-closing tags) or otherwise mutated.
+				if closingAttrs != nil {
+					recordPSRClose(closingAttrs)
+				}
 				if len(styleStack) > 0 {
 					currentStyle = styleStack[len(styleStack)-1]
 					styleStack = styleStack[:len(styleStack)-1]
@@ -761,13 +1197,57 @@ func (r *Reader) parseStory(ctx context.Context, ch chan<- model.PartResult,
 				elemDepth--
 				emitEnd(t)
 
-			case "Note", "Footnote", "Endnote":
+			case "Note", "Footnote", "Endnote", "EndnoteRange":
+				// Close any still-open synth PSR at this scope before
+				// popping the scope frame and emitting </X>.
+				if len(synthScopeStack) > 0 {
+					top := &synthScopeStack[len(synthScopeStack)-1]
+					closeSynthPSR(top)
+					inCSR = top.savedInCSR
+					synthScopeStack = synthScopeStack[:len(synthScopeStack)-1]
+				}
 				noteDepth--
 				if t.Name.Local == "Note" && stickyNoteDepth > 0 {
 					stickyNoteDepth--
 				}
 				elemDepth--
 				emitEnd(t)
+
+			case "Story":
+				// Close any still-open synth PSR at this scope before
+				// emitting the </Story> close tag — the synth PSR
+				// might have absorbed bare children at the very end of
+				// Story with no following real PSR / Footnote / etc.
+				// to trigger the close. Both outer <idPkg:Story> and
+				// inner <Story> end tags share the local name "Story";
+				// only the inner one pops the synth scope frame.
+				if !strings.Contains(t.Name.Space, "packaging") &&
+					len(synthScopeStack) > 0 {
+					top := &synthScopeStack[len(synthScopeStack)-1]
+					closeSynthPSR(top)
+					synthScopeStack = synthScopeStack[:len(synthScopeStack)-1]
+				}
+				elemDepth--
+				emitEnd(t)
+
+			case "XMLElement":
+				// Matching close for the XMLElement wrapper start —
+				// no emit, no elemDepth--. See start branch comment.
+				closeBareIfDirect()
+				// Mirror closeActiveSynth so trailing bare children
+				// of the unwrapped XMLElement get their synth PSR
+				// closed before any sibling outside the unwrapped
+				// region picks up.
+				closeActiveSynth()
+
+			case "Change":
+				// Matching close for an InsertedText / MovedText /
+				// etc. <Change> wrapper that we elided in the start
+				// branch. (DeletedText changes are consumed
+				// wholesale by skipElementSubtree, so their close
+				// tag is never seen here.) No emit, no elemDepth--.
+				closeBareIfDirect()
+				closeActiveSynth()
 
 			default:
 				elemDepth--
@@ -925,6 +1405,66 @@ func attrVal(attrs []xml.Attr, name string) string {
 		}
 	}
 	return ""
+}
+
+// skipElementSubtree consumes tokens from the decoder until the
+// matching EndElement for the given start name is found. Tracks
+// generic XML nesting depth so unrelated nested children don't
+// confuse the boundary detection. Mirrors upstream's skipRange
+// (StoryChildElementsParser.java:353-363) used for XMLAttribute /
+// XMLComment / XMLInstruction when untagXmlStructures is true.
+func skipElementSubtree(d *xml.Decoder, name xml.Name) error {
+	depth := 1
+	for depth > 0 {
+		tok, err := d.Token()
+		if err != nil {
+			return err
+		}
+		switch tt := tok.(type) {
+		case xml.StartElement:
+			depth++
+			_ = tt
+		case xml.EndElement:
+			depth--
+			if depth == 0 && tt.Name != name {
+				// Mismatched close — XML wasn't balanced as expected.
+				return fmt.Errorf("unexpected end %s while skipping %s", tt.Name.Local, name.Local)
+			}
+		}
+	}
+	return nil
+}
+
+// samePSRAttrs reports whether two ParagraphStyleRange attribute
+// sets are equivalent. Two PSR-attribute lists are equivalent when
+// they cover the same (name, value) pairs regardless of order.
+//
+// This is the equality test driving the cross-PSR merge — adjacent
+// PSRs whose start tags carry the same attributes get collapsed
+// into a single PSR wrapper. Mirrors upstream
+// StoryChildElementsWriter.writeAsStyledTextElement
+// (StoryChildElementsWriter.java:75) which compares
+// `currentStyleRanges.paragraphStyleRange().equals(...)` — StyleRange
+// equality is structural over attribute pairs.
+func samePSRAttrs(a, b []xml.Attr) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for _, x := range a {
+		found := false
+		for _, y := range b {
+			if x.Name.Space == y.Name.Space &&
+				x.Name.Local == y.Name.Local &&
+				x.Value == y.Value {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return false
+		}
+	}
+	return true
 }
 
 // shouldSuppressHTSBareWrap pre-scans the remainder of an HTS body
