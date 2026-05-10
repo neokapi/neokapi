@@ -674,14 +674,49 @@ func extractPrefixedName(tag []byte) string {
 // commonProps returns the run-property elements present and equal
 // (by exact xml serialization) in EVERY run-entry. Order is preserved
 // from the first run.
+//
+// <w:rFonts> is special-cased: the common rFonts is the per-attribute
+// intersection of every run's rFonts (an attribute is kept iff every
+// run that has rFonts agrees on the value AND every run has rFonts).
+// This mirrors upstream Okapi's behaviour: RunMerger fuses adjacent
+// runs whose rFonts are mergeable (RunFonts.canBeMerged + RunFonts.merge)
+// BEFORE StyleOptimisation runs, so by the time WSO sees the runs, all
+// rFonts are already the merged consensus. We don't have RunMerger in
+// the post-write pass, so we compute the consensus here. The intersection
+// rule is the safe approximation of Okapi's merge logic for plain-text
+// runs (where the COMPLEX_SCRIPT/EAST_ASIAN content categories aren't
+// "detected" and thus don't carry extra attributes through the merge).
+//
+// Per ECMA-376-1 §17.3.2.26 (rFonts), the ascii, hAnsi, cs, eastAsia
+// (and corresponding theme variants) attributes are independent: an
+// rFonts element may carry any subset. The intersection of attribute/
+// value pairs is therefore a valid rFonts and a faithful per-run common
+// font specification.
+//
+// References:
+//   - okapi/filters/openxml/RunFonts.java lines 190-247 (canBeMerged,
+//     mergeContentCategories) — upstream merge contract.
+//   - okapi/filters/openxml/StyleOptimisation.java lines 204-238
+//     (commonRunPropertiesOf) — exact-equality List.retainAll on
+//     post-merge runs.
+//   - ECMA-376-1 4th ed §17.3.2.26 (rFonts).
 func commonProps(seed []runProp, entries []runEntry) []runProp {
 	if len(entries) == 0 {
 		return nil
 	}
-	// For each prop in seed, check that every entry contains an equal-xml
-	// prop.
 	out := make([]runProp, 0, len(seed))
+	rFontsHandled := false
 	for _, p := range seed {
+		if p.name == "rFonts" {
+			if rFontsHandled {
+				continue
+			}
+			rFontsHandled = true
+			if merged, ok := commonRFonts(entries); ok {
+				out = append(out, runProp{name: "rFonts", xml: merged})
+			}
+			continue
+		}
 		all := true
 		for _, e := range entries {
 			found := false
@@ -701,6 +736,183 @@ func commonProps(seed []runProp, entries []runEntry) []runProp {
 		}
 	}
 	return out
+}
+
+// commonRFonts computes the per-attribute intersection of every run's
+// <w:rFonts>. Returns the synthesised rFonts XML (with attribute order
+// matching the first run that has rFonts) and true iff the intersection
+// is non-empty AND every run has an rFonts.
+//
+// Attribute equality is by exact (name, value) pair. Attribute name
+// uses the namespace-prefixed form as it appears in the source (e.g.
+// "w:ascii"); the value is compared after stripping its quote
+// character. Both forms are preserved in the emitted rFonts.
+func commonRFonts(entries []runEntry) (string, bool) {
+	if len(entries) == 0 {
+		return "", false
+	}
+	// Every entry must have exactly one rFonts (the typical case;
+	// duplicate rFonts within a single rPr is invalid per ECMA-376
+	// schema and would indicate malformed input — skip optimisation).
+	var firstAttrs []rfontsAttr
+	allAttrSets := make([]map[string]string, len(entries))
+	for i, e := range entries {
+		var rfonts *runProp
+		for k := range e.props {
+			if e.props[k].name == "rFonts" {
+				if rfonts != nil {
+					return "", false // duplicate rFonts in one rPr
+				}
+				rfonts = &e.props[k]
+			}
+		}
+		if rfonts == nil {
+			return "", false // a run lacks rFonts → not common
+		}
+		attrs, ok := parseRFontsAttrs(rfonts.xml)
+		if !ok {
+			return "", false
+		}
+		if i == 0 {
+			firstAttrs = attrs
+		}
+		m := make(map[string]string, len(attrs))
+		for _, a := range attrs {
+			m[a.name] = a.value
+		}
+		allAttrSets[i] = m
+	}
+	// Walk the first run's attribute order; keep an attribute iff every
+	// other run has the same name with the same value.
+	var kept []rfontsAttr
+	for _, a := range firstAttrs {
+		ok := true
+		for j := 1; j < len(allAttrSets); j++ {
+			v, present := allAttrSets[j][a.name]
+			if !present || v != a.value {
+				ok = false
+				break
+			}
+		}
+		if ok {
+			kept = append(kept, a)
+		}
+	}
+	if len(kept) == 0 {
+		return "", false
+	}
+	// Re-emit. Preserve the source rFonts element name prefix (likely
+	// "w:rFonts" but could differ).
+	prefix := extractRFontsElemNameFromProps(entries[0].props)
+	if prefix == "" {
+		prefix = "w:rFonts"
+	}
+	var b strings.Builder
+	b.WriteByte('<')
+	b.WriteString(prefix)
+	for _, a := range kept {
+		b.WriteByte(' ')
+		b.WriteString(a.name)
+		b.WriteByte('=')
+		q := a.quote
+		if q == 0 {
+			q = '"'
+		}
+		b.WriteByte(q)
+		b.WriteString(a.value)
+		b.WriteByte(q)
+	}
+	b.WriteString("/>")
+	return b.String(), true
+}
+
+// extractRFontsElemNameFromProps returns the prefixed element name of the first
+// rFonts found in props, e.g. "w:rFonts". Returns "" if not found.
+func extractRFontsElemNameFromProps(props []runProp) string {
+	for _, p := range props {
+		if p.name != "rFonts" {
+			continue
+		}
+		// Tag is like "<w:rFonts ...>" — extract up to first space/slash/>.
+		if len(p.xml) < 2 || p.xml[0] != '<' {
+			return ""
+		}
+		end := strings.IndexAny(p.xml[1:], " \t\n\r/>")
+		if end < 0 {
+			return ""
+		}
+		return p.xml[1 : 1+end]
+	}
+	return ""
+}
+
+// rfontsAttr captures one parsed rFonts attribute.
+type rfontsAttr struct {
+	name  string // prefixed name as in source, e.g. "w:ascii"
+	value string // unescaped value (quotes stripped)
+	quote byte
+}
+
+// parseRFontsAttrs parses attributes of a self-closing or open-form
+// <w:rFonts ...> element. Returns the attribute list in source order.
+// Returns false if the element is malformed.
+func parseRFontsAttrs(xmlStr string) ([]rfontsAttr, bool) {
+	if len(xmlStr) < 2 || xmlStr[0] != '<' {
+		return nil, false
+	}
+	// Skip element name.
+	nameEnd := strings.IndexAny(xmlStr[1:], " \t\n\r/>")
+	if nameEnd < 0 {
+		return nil, false
+	}
+	rest := xmlStr[1+nameEnd:]
+	// Find end of start-tag.
+	tagEnd := strings.IndexByte(rest, '>')
+	if tagEnd < 0 {
+		return nil, false
+	}
+	body := rest[:tagEnd]
+	if len(body) > 0 && body[len(body)-1] == '/' {
+		body = body[:len(body)-1]
+	}
+	var attrs []rfontsAttr
+	i := 0
+	for i < len(body) {
+		// Skip whitespace.
+		for i < len(body) && (body[i] == ' ' || body[i] == '\t' || body[i] == '\n' || body[i] == '\r') {
+			i++
+		}
+		if i >= len(body) {
+			break
+		}
+		// Read name up to '='.
+		eq := strings.IndexByte(body[i:], '=')
+		if eq < 0 {
+			return nil, false
+		}
+		name := strings.TrimRight(body[i:i+eq], " \t\n\r")
+		i += eq + 1
+		// Skip whitespace.
+		for i < len(body) && (body[i] == ' ' || body[i] == '\t' || body[i] == '\n' || body[i] == '\r') {
+			i++
+		}
+		if i >= len(body) {
+			return nil, false
+		}
+		q := body[i]
+		if q != '"' && q != '\'' {
+			return nil, false
+		}
+		i++
+		end := strings.IndexByte(body[i:], q)
+		if end < 0 {
+			return nil, false
+		}
+		val := body[i : i+end]
+		i += end + 1
+		attrs = append(attrs, rfontsAttr{name: name, value: val, quote: q})
+	}
+	return attrs, true
 }
 
 // buildRPrXML emits the children-only serialization of the common

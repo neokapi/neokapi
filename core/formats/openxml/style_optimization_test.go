@@ -210,3 +210,90 @@ func TestCommonRPrChildren_RunWithoutRPrClearsCommon(t *testing.T) {
 	common := commonRPrChildren(runs)
 	assert.Empty(t, common)
 }
+
+func TestCommonRPrChildren_RFontsAttributeSubset(t *testing.T) {
+	// Heterogeneous rFonts — same value but different attribute subsets
+	// across runs (gettysburg_en.docx pattern). Mirrors upstream Okapi
+	// RunFonts.canBeMerged + RunFonts.merge (RunFonts.java lines 190-247
+	// and 267-315): RunMerger fuses adjacent runs whose rFonts are
+	// mergeable BEFORE WSO sees them. Native does not run RunMerger, so
+	// commonRPrChildren approximates the upstream merge as the per-
+	// attribute intersection of every run's rFonts. Per ECMA-376-1
+	// §17.3.2.26 the rFonts attributes (ascii, hAnsi, cs, eastAsia, *Theme,
+	// hint) are independent and an rFonts may carry any subset.
+	runs := []textRun{
+		{text: "A", props: runProps{rPrChildren: []rPrChild{
+			{name: "rFonts", xml: `<w:rFonts w:ascii="DejaVu Serif" w:cs="DejaVu Serif" w:hAnsi="DejaVu Serif"/>`},
+			{name: "b", xml: `<w:b/>`},
+		}}},
+		{text: "B", props: runProps{rPrChildren: []rPrChild{
+			{name: "rFonts", xml: `<w:rFonts w:ascii="DejaVu Serif" w:cs="DejaVu Serif" w:eastAsia="DejaVu Serif" w:hAnsi="DejaVu Serif"/>`},
+			{name: "b", xml: `<w:b/>`},
+		}}},
+	}
+	common := commonRPrChildren(runs)
+	require.Len(t, common, 2)
+	// Pick out by name; order is implementation-defined.
+	byName := map[string]rPrChild{}
+	for _, c := range common {
+		byName[c.name] = c
+	}
+	require.Contains(t, byName, "b")
+	require.Contains(t, byName, "rFonts")
+	// b survives unchanged.
+	assert.Equal(t, `<w:b/>`, byName["b"].xml)
+	// rFonts is the per-attribute intersection: ascii + cs + hAnsi
+	// (eastAsia present in only one run is dropped).
+	assert.Contains(t, byName["rFonts"].xml, `w:ascii="DejaVu Serif"`)
+	assert.Contains(t, byName["rFonts"].xml, `w:cs="DejaVu Serif"`)
+	assert.Contains(t, byName["rFonts"].xml, `w:hAnsi="DejaVu Serif"`)
+	assert.NotContains(t, byName["rFonts"].xml, "eastAsia")
+}
+
+func TestCommonRPrChildren_RFontsValueDisagreementDrops(t *testing.T) {
+	// When runs disagree on a shared rFonts attribute value, that
+	// attribute drops out of the intersection. If nothing remains,
+	// rFonts is excluded from the common set entirely (and stays on
+	// each run).
+	runs := []textRun{
+		{text: "A", props: runProps{rPrChildren: []rPrChild{
+			{name: "rFonts", xml: `<w:rFonts w:ascii="Arial"/>`},
+		}}},
+		{text: "B", props: runProps{rPrChildren: []rPrChild{
+			{name: "rFonts", xml: `<w:rFonts w:ascii="Times"/>`},
+		}}},
+	}
+	common := commonRPrChildren(runs)
+	assert.Empty(t, common, "rFonts with disagreeing ascii drops; nothing else common")
+}
+
+func TestOptimizeWMLPart_HeterogeneousRFontsLiftedToStyle(t *testing.T) {
+	// End-to-end: post-write WSO sees runs with identical (already-merged)
+	// rFonts content prepended by renderWMLBlock from the source-rPr
+	// annotation, and lifts the rFonts plus other shared rPr children
+	// into the synthesised paragraph style. The reader-side merge happens
+	// in commonRPrChildren (source_rpr.go); the post-write merge in
+	// commonProps (style_optimization.go) handles the unusual case where
+	// the source-rPr annotation was bypassed and runs reach the post-pass
+	// with heterogeneous rFonts.
+	src := []byte(`<w:body><w:p>` +
+		`<w:r><w:rPr><w:rFonts w:ascii="DejaVu Serif" w:cs="DejaVu Serif" w:hAnsi="DejaVu Serif"/><w:b/></w:rPr><w:t>a</w:t></w:r>` +
+		`<w:r><w:rPr><w:rFonts w:ascii="DejaVu Serif" w:cs="DejaVu Serif" w:eastAsia="DejaVu Serif" w:hAnsi="DejaVu Serif"/><w:b/></w:rPr><w:t>b</w:t></w:r>` +
+		`</w:p></w:body>`)
+	existing := map[string]bool{}
+	counters := map[string]int{}
+	syn := map[string]synthesisedStyle{}
+	var ids []string
+	got := optimizeWMLPart(src, existing, counters, syn, &ids)
+	require.Len(t, ids, 1, "one synthesised style expected")
+	s := syn[ids[0]]
+	assert.Contains(t, s.rPrXML, "rFonts", "synthesised style must include common rFonts")
+	assert.Contains(t, s.rPrXML, `w:ascii="DejaVu Serif"`)
+	assert.Contains(t, s.rPrXML, `w:cs="DejaVu Serif"`)
+	assert.Contains(t, s.rPrXML, `w:hAnsi="DejaVu Serif"`)
+	assert.NotContains(t, s.rPrXML, "eastAsia", "eastAsia present in only one run must NOT be in common")
+	assert.Contains(t, string(got), "NF974E24F-Normal1")
+	// Both runs should have rFonts stripped (full strip by name, mirroring
+	// upstream Run.refineRunProperties).
+	assert.NotContains(t, string(got), "rFonts")
+}
