@@ -2025,30 +2025,40 @@ func (r *Reader) emitBlockquoteAsData(ctx context.Context, ch chan<- model.PartR
 }
 
 func (r *Reader) emitTable(ctx context.Context, ch chan<- model.PartResult, node ast.Node, source []byte, baseOffset int) {
-	// Compute the table's source range so we can scan backward from the
-	// header row to capture any leading "| " on the first line. We use
-	// the *cell* content ranges (TableCell.Lines()) as anchors and emit
-	// raw bytes between them as skeleton text. This preserves the cell
-	// separator characters exactly while routing each cell's content
-	// through a block ref so writer-time translations land in the right
-	// columns. Mirrors okapi MarkdownParser's TableCell visitor which
-	// rebuilds tables piece-by-piece.
+	// Build each row as `| cell | cell |\n` with single-space padding
+	// around each cell. Mirrors upstream MarkdownParser.java:770-806 —
+	// the TableCell visitor unconditionally emits `"| "` before the
+	// cell content and `" "` after, regardless of how the source
+	// padded it (so `| data   |   foo |` collapses to `| data | foo |`).
+	// The header separator row is preserved verbatim from source
+	// because okapi's TableSeparator visitor emits the node's text
+	// verbatim (line 808-820 in MarkdownParser.java).
 	absStart, absEnd := nodeAbsRange(node, source, baseOffset)
-
-	// Header/row's first line may include leading "| " which sits before
-	// the first cell's content range — scan back from absStart to the
-	// preceding newline so we capture the table's full source extent.
 	tableLineStart := absStart
 	for tableLineStart > 0 && r.source[tableLineStart-1] != '\n' {
 		tableLineStart--
 	}
 	r.skelEmitGap(tableLineStart)
-
-	type cellEmit struct {
-		block            *model.Block
-		absStart, absEnd int
+	// Walk forward from absEnd through the trailing pipe(s) and final
+	// newline of the last row so the cursor lands at the start of the
+	// next block instead of leaving stray ` |\n` bytes for the next gap.
+	cursorEnd := absEnd
+	for cursorEnd < len(r.source) && r.source[cursorEnd] != '\n' {
+		cursorEnd++
 	}
-	var cellEmits []cellEmit
+	if cursorEnd < len(r.source) && r.source[cursorEnd] == '\n' {
+		cursorEnd++
+	}
+	r.skelCursor = cursorEnd
+
+	// Find the source separator line (`| --- | --- |`) so we can emit
+	// it verbatim — okapi's TableSeparator visitor preserves the
+	// separator's exact source bytes (alignment colons, dash count)
+	// rather than synthesizing it. Goldmark doesn't expose the
+	// separator as an AST child, so locate it from source by scanning
+	// the line that immediately follows the header row.
+	separatorLine := r.tableSeparatorLine(node, baseOffset)
+
 	for row := node.FirstChild(); row != nil; row = row.NextSibling() {
 		if row.Kind() != east.KindTableHeader && row.Kind() != east.KindTableRow {
 			continue
@@ -2057,19 +2067,11 @@ func (r *Reader) emitTable(ctx context.Context, ch chan<- model.PartResult, node
 			if cell.Kind() != east.KindTableCell {
 				continue
 			}
-			lines := cell.Lines()
-			if lines.Len() == 0 {
-				continue
-			}
-			first := lines.At(0)
-			last := lines.At(lines.Len() - 1)
-			cellAbsStart := first.Start + baseOffset
-			cellAbsEnd := last.Stop + baseOffset
-
+			r.skelText("| ")
 			cellText := r.extractInlineText(cell, source)
 			if strings.TrimSpace(cellText) == "" {
-				// Empty cell — leave the raw separator bytes in skeleton
-				// text only; no block needed.
+				// Empty cell: emit just a space to give an "| |" pair.
+				r.skelText(" ")
 				continue
 			}
 			r.blockCounter++
@@ -2078,27 +2080,48 @@ func (r *Reader) emitTable(ctx context.Context, ch chan<- model.PartResult, node
 			block.Name = fmt.Sprintf("cell%d", r.blockCounter)
 			block.Type = "table-cell"
 			r.addInlineRuns(block, cell, source)
-			cellEmits = append(cellEmits, cellEmit{block: block, absStart: cellAbsStart, absEnd: cellAbsEnd})
+			r.skelRef(blockID)
+			r.skelText(" ")
+			r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
+		}
+		r.skelText("|\n")
+		// Inject the separator immediately after the header row.
+		if row.Kind() == east.KindTableHeader && separatorLine != "" {
+			r.skelText(separatorLine)
 		}
 	}
+}
 
-	// Walk the cells in source order, interleaving raw skeleton text
-	// with block refs for cell content.
-	for _, ce := range cellEmits {
-		if ce.absStart > r.skelCursor {
-			r.skelText(string(r.source[r.skelCursor:ce.absStart]))
-		}
-		r.skelRef(ce.block.ID)
-		r.skelCursor = ce.absEnd
-		r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: ce.block})
+// tableSeparatorLine returns the source line that holds the GFM table
+// separator (e.g. "| --- | --- |\n") sandwiched between the header
+// row and the first body row. Returns "" when the line can't be
+// located (defensive — well-formed GFM tables always have one). Uses
+// r.source (the full document) plus baseOffset because nodeAbsRange's
+// "absolute" positions index into r.source, not into the body slice
+// goldmark sees (which strips any leading YAML front matter).
+func (r *Reader) tableSeparatorLine(table ast.Node, baseOffset int) string {
+	header := table.FirstChild()
+	if header == nil || header.Kind() != east.KindTableHeader {
+		return ""
 	}
-
-	// Trailing separator/pipes/whitespace after the last cell up to the
-	// table's end (e.g. " |\n").
-	if absEnd > r.skelCursor {
-		r.skelText(string(r.source[r.skelCursor:absEnd]))
-		r.skelCursor = absEnd
+	_, headerEnd := nodeAbsRange(header, r.source[baseOffset:], baseOffset)
+	i := headerEnd
+	for i < len(r.source) && r.source[i] != '\n' {
+		i++
 	}
+	if i >= len(r.source) {
+		return ""
+	}
+	i++ // skip header row's newline
+	start := i
+	for i < len(r.source) && r.source[i] != '\n' {
+		i++
+	}
+	if i >= len(r.source) {
+		return ""
+	}
+	i++ // include the trailing newline
+	return string(r.source[start:i])
 }
 
 // --- Skeleton store helpers ---
@@ -2651,18 +2674,48 @@ func linkDestinationLiteral(dest []byte, source []byte) string {
 }
 
 func (r *Reader) buildAutoLinkRuns(b *runBuilder, n *ast.AutoLink, source []byte, idCounter *int) {
-	*idCounter++
-	id := strconv.Itoa(*idCounter)
-	info := r.vocab.LookupOrFallback("link:hyperlink")
 	url := string(n.URL(source))
-	// Autolink URLs and email addresses are non-translatable opaque
-	// codes — okapi MarkdownParser emits AUTO_LINK / MAIL_LINK tokens
-	// with translatable=false, so the URL/email travels through pseudo
-	// translation as verbatim bytes. We model the whole `<url>` as one
-	// inline placeholder so RenderRunsWithData writes it back unchanged.
-	b.AddPh(id, "link:hyperlink", "md:autolink", "<"+url+">",
-		info.Display.Open, info.Equiv,
-		info.Constraints.Deletable, info.Constraints.Cloneable, info.Constraints.Reorderable)
+	// Standard CommonMark `<url>` autolinks are opaque non-translatable
+	// inline codes — okapi MarkdownParser emits AUTO_LINK / MAIL_LINK
+	// tokens with translatable=false, so the `<url>` travels through
+	// pseudo translation as verbatim bytes. Goldmark's linkify
+	// extension also surfaces bare-URL matches (e.g. `https://...`
+	// without angle brackets) as AutoLink nodes, but okapi (which uses
+	// flexmark's matching set of extensions) treats those bare URLs as
+	// plain TEXT and DOES pseudo-translate them. Mirror that split:
+	//   - source had `<url>` → opaque placeholder
+	//   - source had bare URL (linkify) → plain text
+	if hasAngleBrackets(n, source) {
+		*idCounter++
+		id := strconv.Itoa(*idCounter)
+		info := r.vocab.LookupOrFallback("link:hyperlink")
+		b.AddPh(id, "link:hyperlink", "md:autolink", "<"+url+">",
+			info.Display.Open, info.Equiv,
+			info.Constraints.Deletable, info.Constraints.Cloneable, info.Constraints.Reorderable)
+		return
+	}
+	b.AddText(url)
+}
+
+// hasAngleBrackets reports whether the AutoLink's source representation
+// includes the surrounding `<...>` markers (standard CommonMark §6.5)
+// rather than the bare URL form recognised by goldmark's linkify
+// extension. Goldmark stores the AutoLink's URL segment in a private
+// `value *Text` field with no public accessor and doesn't add it as a
+// child node, so we infer the source position from the previous
+// sibling's text segment: the AutoLink starts immediately after that
+// segment's end, and a `<` byte there means the standard form.
+func hasAngleBrackets(n *ast.AutoLink, source []byte) bool {
+	prev := n.PreviousSibling()
+	if prev == nil {
+		return false
+	}
+	t, ok := prev.(*ast.Text)
+	if !ok {
+		return false
+	}
+	pos := t.Segment.Stop
+	return pos < len(source) && source[pos] == '<'
 }
 
 func (r *Reader) buildRawHTMLRuns(b *runBuilder, n *ast.RawHTML, source []byte, idCounter *int) {
@@ -2795,10 +2848,54 @@ func (r *Reader) buildStrikethroughRuns(b *runBuilder, node ast.Node, source []b
 	*idCounter++
 	id := strconv.Itoa(*idCounter)
 	info := r.vocab.LookupOrFallback("fmt:strike")
-	b.AddPcOpen(id, "fmt:strike", "md:strikethrough", "~~", info.Display.Open, info.Equiv,
+	// Goldmark's GFM strikethrough accepts both `~` (subscript-style)
+	// and `~~` (standard) delimiters. Detect the actual marker length
+	// from source so `H~2~O` (single tildes) round-trips intact rather
+	// than getting normalized to `H~~2~~O`. Mirrors okapi
+	// MarkdownParser which preserves the source delimiter verbatim.
+	openMarker, closeMarker := strikethroughFences(node, source)
+	b.AddPcOpen(id, "fmt:strike", "md:strikethrough", openMarker, info.Display.Open, info.Equiv,
 		info.Constraints.Deletable, info.Constraints.Cloneable, info.Constraints.Reorderable)
 	r.buildCodedRuns(b, node, source, idCounter)
-	b.AddPcClose(id, "fmt:strike", "md:strikethrough", "~~", info.Equiv)
+	b.AddPcClose(id, "fmt:strike", "md:strikethrough", closeMarker, info.Equiv)
+}
+
+// strikethroughFences returns the source-literal opening/closing
+// `~` runs that delimit the strikethrough node. Falls back to `~~` /
+// `~~` when boundaries can't be determined.
+func strikethroughFences(node ast.Node, source []byte) (string, string) {
+	first := node.FirstChild()
+	last := node.LastChild()
+	if first == nil || last == nil {
+		return "~~", "~~"
+	}
+	firstText, ok1 := first.(*ast.Text)
+	lastText, ok2 := last.(*ast.Text)
+	if !ok1 || !ok2 {
+		return "~~", "~~"
+	}
+	contentStart := firstText.Segment.Start
+	contentEnd := lastText.Segment.Stop
+	if contentStart > len(source) || contentEnd > len(source) || contentStart > contentEnd {
+		return "~~", "~~"
+	}
+	openStart := contentStart
+	for openStart > 0 && source[openStart-1] == '~' {
+		openStart--
+	}
+	closeEnd := contentEnd
+	for closeEnd < len(source) && source[closeEnd] == '~' {
+		closeEnd++
+	}
+	open := string(source[openStart:contentStart])
+	close := string(source[contentEnd:closeEnd])
+	if open == "" {
+		open = "~~"
+	}
+	if close == "" {
+		close = "~~"
+	}
+	return open, close
 }
 
 // --- Emit helper ---
