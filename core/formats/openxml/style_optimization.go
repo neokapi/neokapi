@@ -48,44 +48,56 @@ const styleHashRoot = "NF974E24F"
 
 // runPropExclusions are local-names of <w:rPr> children that BLOCK a
 // paragraph from being optimised at all when ANY run in it carries one.
-// Mirrors Okapi's RunSkippableElements toggle set + RunProperties
-// special handling that StyleOptimisation.Default.innerChunksContainExclusions
-// guards against.
 //
-// "vanish" (hidden text marker) is excluded conservatively: in Okapi the
-// reader correctly resolves paragraph-style→run inheritance and so
-// preserves the hidden flag after extraction even when vanish is moved
-// into a synthesised paragraph style. The native reader does not yet
-// resolve that inheritance, so moving vanish out of a run causes the
-// re-extracted block count to grow on round-trip (TestRoundtripFormatted
-// would then fail). Excluding vanish here is the spec-compatible
-// fallback while inheritance resolution is a separate work item.
+// Upstream Okapi's WSO exclusion list for WordprocessingML is JUST
+// rStyle (see okapi/filters/openxml/WordDocument.java:335-337 — the
+// styleOptimisationsFor() factory passes
+// Collections.singletonList(rStyle) as the exclusion set when building
+// StyleOptimisation.Default for a WML part).
 //
-// Tracked-revision run-property elements (rPrChange, ins, del, moveTo,
-// moveFrom inside rPr) have already been stripped by
-// stripWMLSkippableElements when this function runs, so they don't need
-// a guard here.
+// rStyle (character style reference) is run-scoped semantics: it points
+// to a character style by id and must remain on each <w:r>. ECMA-376-1
+// §17.7.4 (Character Style Definitions). Lifting it into a synthesised
+// PARAGRAPH style would silently change the rendered result.
+//
+// Other rPr children that might look like exclusion candidates:
+//   - <w:lang>, <w:noProof>, <w:rPrChange> are stripped from rPr at
+//     parse time (parseRunProps) and at writer post-pass time
+//     (stripWMLSkippableElements) — mirroring upstream RunSkippableElements
+//     (RunSkippableElements.java:50-62). They never reach this map.
+//   - Tracked-revision run-property elements (rPrChange, ins, del,
+//     moveTo, moveFrom inside rPr) have already been stripped by
+//     stripWMLSkippableElements when this function runs.
+//
+// Native-only over-exclusions (compensating for missing upstream
+// behaviour the native pipeline does not yet implement):
+//
+//   - <w:vanish> (hidden text marker, ECMA-376-1 §17.3.2.42) is excluded
+//     pending paragraph-style→run inheritance support in the native
+//     reader. Upstream Okapi resolves pStyle inheritance so a hidden run
+//     stays hidden after extraction even when vanish is promoted into a
+//     synthesised paragraph style; the native reader does not yet do
+//     that resolution, so promoting vanish causes a previously hidden
+//     run to become extracted as translatable on round-trip
+//     (TestRoundtripFormatted regresses without this guard).
+//
+//   - <w:rtl> (WpmlToggleRunProperty per RunPropertyFactory.java:219)
+//     is excluded pending RunProperty.minified() support in the native
+//     parser. Upstream's RunPropertiesParser path runs every direct rPr
+//     through RunProperties.minified(combined) (RunParser.java:280-294,
+//     RunProperties.java:497-540), which strips toggle properties whose
+//     value is the no-op default (false) when not in the inherited
+//     style hierarchy — so `<w:rtl w:val="0"/>` is removed from the
+//     run's rPr BEFORE WSO sees it. Native does not yet implement that
+//     minification, so without this exclusion neokapi promotes the
+//     redundant `<w:rtl w:val="0"/>` into a synthesised pStyle that
+//     upstream does not generate (reordered-zip.docx fixture). The
+//     proper fix is to add the minified() pass in parseRunProps and
+//     drop this exclusion.
 var runPropExclusions = map[string]bool{
-	"vanish": true,
-	// rStyle (character style reference) is excluded for WML per
-	// upstream WordDocument.java construction of StyleOptimisation.Default
-	// (see okapi/filters/openxml/WordDocument.java — the exclusion list
-	// for WML is `Collections.singletonList(new QName(..., "rStyle", ...))`).
-	// Character style references must stay on the run; they are not
-	// candidates for promotion into a synthesised paragraph style. ECMA-376-1
-	// §17.7.4 (Character Style Definitions) — the rStyle property
-	// references a character style by id and is run-scoped semantics.
 	"rStyle": true,
-	// rtl (run-level RTL direction marker) — observed in upstream
-	// fixtures (reordered-zip.docx) where Okapi keeps <w:rtl> on the
-	// run instead of lifting it into a synthesised paragraph style.
-	// Okapi handles directional run/paragraph markers through the
-	// AttributesClarification path (MarkupClarificationConfiguration.java
-	// lines 165-172) rather than via StyleOptimisation, so they are
-	// effectively run-scoped from the optimiser's perspective. Keeping
-	// rtl in this exclusion list keeps native byte-equal with Okapi for
-	// the rtl-only-rPr fixtures. ECMA-376-1 §17.3.2.30.13 (rtl).
-	"rtl": true,
+	"vanish": true,
+	"rtl":    true,
 }
 
 // runProp is a single <w:rPr> child element captured by name and raw

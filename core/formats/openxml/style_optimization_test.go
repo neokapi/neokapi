@@ -82,10 +82,18 @@ func TestOptimizeWMLPart_SingleRun_RStyle_Bypassed(t *testing.T) {
 }
 
 func TestOptimizeWMLPart_SingleRun_Rtl_Bypassed(t *testing.T) {
-	// rtl (run-level RTL direction marker) is also in the WSO exclusion
-	// list — observed parity behaviour in reordered-zip.docx (Okapi
-	// keeps <w:rtl> on the run rather than lifting it into a synthesised
-	// paragraph style). #592.
+	// rtl is a WpmlToggleRunProperty (RunPropertyFactory.java:219) and
+	// upstream's WSO exclusion list does NOT contain it
+	// (WordDocument.java:335-337 lists only rStyle). However, upstream's
+	// RunPropertiesParser pipeline runs every direct rPr through
+	// RunProperties.minified(combined) (RunParser.java:280-294,
+	// RunProperties.java:497-540), which removes redundant default-valued
+	// toggles (`<w:rtl w:val="0"/>` resolves to false, the document
+	// default, and gets dropped) BEFORE WSO runs. Native does not yet
+	// implement minified(), so rtl stays in the WSO exclusion map as a
+	// compensating guard — see runPropExclusions godoc. Without it, a
+	// 1-run paragraph carrying only `<w:rtl w:val="0"/>` would synthesise
+	// a pStyle that upstream does not generate (reordered-zip.docx).
 	src := []byte(`<w:body><w:p><w:r><w:rPr><w:rtl w:val="0"/></w:rPr><w:t>a</w:t></w:r></w:p></w:body>`)
 	existing := map[string]bool{}
 	counters := map[string]int{}
@@ -95,6 +103,25 @@ func TestOptimizeWMLPart_SingleRun_Rtl_Bypassed(t *testing.T) {
 	assert.NotContains(t, string(got), "NF974E24F")
 	assert.Len(t, ids, 0)
 	assert.Contains(t, string(got), `<w:rtl w:val="0"/>`)
+}
+
+func TestOptimizeWMLPart_SingleRun_Vanish_Bypassed(t *testing.T) {
+	// vanish (hidden text) is conservatively excluded pending
+	// paragraph-style→run inheritance support in the native reader
+	// (TestRoundtripFormatted relies on hidden runs remaining hidden
+	// after roundtrip; promoting vanish into a synthesised pStyle
+	// would expose them as translatable on the second read). See
+	// runPropExclusions godoc. Upstream Okapi DOES lift vanish; this
+	// is a temporary native-only over-exclusion.
+	src := []byte(`<w:body><w:p><w:r><w:rPr><w:vanish/></w:rPr><w:t>a</w:t></w:r></w:p></w:body>`)
+	existing := map[string]bool{}
+	counters := map[string]int{}
+	syn := map[string]synthesisedStyle{}
+	var ids []string
+	got := optimizeWMLPart(src, existing, counters, syn, &ids)
+	assert.NotContains(t, string(got), "NF974E24F")
+	assert.Len(t, ids, 0)
+	assert.Contains(t, string(got), `<w:vanish/>`)
 }
 
 func TestInsertPStyle_OpenCloseFormStripped(t *testing.T) {
