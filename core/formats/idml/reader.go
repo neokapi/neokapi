@@ -311,20 +311,137 @@ func (r *Reader) parseStory(ctx context.Context, ch chan<- model.PartResult,
 		bareCSROpen bool
 		depth       int // elemDepth at which this PSR was opened
 	}
+	// Per-HTS bare-CSR wrapping. Mirrors okapi's
+	// HyperlinkTextSourceStyledTextReferenceElementParser
+	// (StoryChildElementsParser.java:464-569) — every direct child
+	// of <HyperlinkTextSource> is routed through
+	// parseFromCharacterStyleRange (line 535-543), and bare
+	// Content/Br children get assembled under the HTS's effective
+	// character-style ranges. We replicate this by wrapping bare
+	// children in a synthetic <CharacterStyleRange> whose
+	// AppliedCharacterStyle is taken from the HTS itself (or
+	// "[No character style]" when the HTS carries the special
+	// `n` value, mirroring upstream's STYLE_NONE_VALUE fallback at
+	// StoryChildElementsParser.java:491-505).
+	//
+	// Additionally, a <ParagraphStyleRange> directly inside an HTS
+	// is unwrapped — only its CSR children survive — because
+	// upstream's parseFromParagraphStyleRange (StoryChildElementsParser.java:105-130)
+	// flattens PSR children into a list of CSRs without re-emitting
+	// the wrapping PSR tag. We achieve this by suppressing emission
+	// of the PSR start/end tags when they appear as a direct HTS
+	// child, while keeping the inner CSR/Content tokens flowing.
+	type htsFrame struct {
+		bareCSROpen      bool
+		depth            int        // elemDepth at which this HTS was opened
+		appliedCharStyle string     // AppliedCharacterStyle attribute of the HTS
+		savedInCSR       int        // inCSR depth before HTS opened (restored on close)
+		parentCSRAttrs   []xml.Attr // attrs of the immediately enclosing CSR (if any)
+		// suppressBareWrap is set by the HTS-start pre-scan when
+		// the entire HTS body would canonicalise to a single uniform
+		// style range (HTS effective char-style equals parent CSR's
+		// char-style AND no real CSR/PSR/etc. siblings appear). In
+		// that case upstream's
+		// HyperlinkTextSourceStyledTextReferenceElementParser
+		// (StoryChildElementsParser.java:514-520) selects the
+		// "empty-style" writer that emits children verbatim with no
+		// CharacterStyleRange wrapper. We mirror that by skipping
+		// the synth-CSR wrap entirely.
+		suppressBareWrap bool
+		// suppressedPSRDepth records the elemDepth where we elided a
+		// nested ParagraphStyleRange start tag. The matching end tag
+		// is also suppressed when elemDepth-1 == this value.
+		// Multiple suppressions are tracked via a stack so adjacent
+		// PSR children inside the same HTS each get unwrapped.
+		suppressedPSRStack []int
+	}
 	var psrStack []psrFrame
+	var htsStack []htsFrame
+	// csrAttrStack tracks the open CSR start-element attributes for
+	// each currently-open real <CharacterStyleRange>. The top of the
+	// stack is the immediate parent CSR; HTS uses this to seed its
+	// synthetic CSR attributes (so e.g. Underline="false" carried by
+	// the parent CSR survives onto the wrapper around bare HTS
+	// children, mirroring upstream's mergedWith semantics in
+	// StoryChildElementsParser.java:486-505 +
+	// StyleRange.java:134-181).
+	var csrAttrStack [][]xml.Attr
 	inCSR := 0
 	elemDepth := 0
-	openSynthCSR := func() {
+	openSynthCSRWith := func(appliedCharStyle string) {
 		commitPending()
 		if r.skeletonStore != nil {
-			skelBuf.WriteString(`<CharacterStyleRange AppliedCharacterStyle="CharacterStyle/$ID/[No character style]">`)
+			if appliedCharStyle == "" {
+				appliedCharStyle = "CharacterStyle/$ID/[No character style]"
+			}
+			skelBuf.WriteString(`<CharacterStyleRange AppliedCharacterStyle="`)
+			skelBuf.WriteString(xmlEscapeAttr(appliedCharStyle))
+			skelBuf.WriteString(`">`)
 		}
+	}
+	openSynthCSR := func() {
+		openSynthCSRWith("CharacterStyle/$ID/[No character style]")
+	}
+	// openSynthCSRMerged emits a synthetic CSR whose attributes are
+	// the parent CSR's attribute set with AppliedCharacterStyle
+	// overridden by the supplied value. Mirrors upstream's
+	// StyleRange.mergedAttributesWith (StyleRange.java:149-181) where
+	// right-side (HTS-applied) attributes win on name match while
+	// other parent attributes survive intact.
+	openSynthCSRMerged := func(parentAttrs []xml.Attr, appliedCharStyle string) {
+		commitPending()
+		if r.skeletonStore == nil {
+			return
+		}
+		if appliedCharStyle == "" {
+			appliedCharStyle = "CharacterStyle/$ID/[No character style]"
+		}
+		skelBuf.WriteString(`<CharacterStyleRange AppliedCharacterStyle="`)
+		skelBuf.WriteString(xmlEscapeAttr(appliedCharStyle))
+		skelBuf.WriteString(`"`)
+		for _, a := range parentAttrs {
+			if a.Name.Local == "AppliedCharacterStyle" {
+				continue
+			}
+			skelBuf.WriteString(" ")
+			writeAttrName(&skelBuf, a.Name)
+			skelBuf.WriteString(`="`)
+			skelBuf.WriteString(xmlEscapeAttr(a.Value))
+			skelBuf.WriteString(`"`)
+		}
+		skelBuf.WriteString(">")
 	}
 	closeSynthCSR := func() {
 		commitPending()
 		if r.skeletonStore != nil {
 			skelBuf.WriteString(`</CharacterStyleRange>`)
 		}
+	}
+	// htsAppliedCharStyle resolves the AppliedCharacterStyle to use
+	// for synthetic CSRs wrapping bare children of the innermost
+	// HTS. Mirrors StoryChildElementsParser.java:486-505 — when the
+	// HTS carries "n" (STYLE_NONE_VALUE), bare children fall back to
+	// the parent CSR's AppliedCharacterStyle (or "[No character
+	// style]" if the HTS isn't inside a CSR); otherwise the HTS's
+	// own AppliedCharacterStyle is used. Real adjacent CSR siblings
+	// can override the synthetic wrapping during the canonical
+	// normalizer's merge-default-csrs pass.
+	htsAppliedCharStyle := func() string {
+		if len(htsStack) == 0 {
+			return ""
+		}
+		top := htsStack[len(htsStack)-1]
+		s := top.appliedCharStyle
+		if s != "" && s != "n" {
+			return s
+		}
+		// HTS has "n" or no value → fall back to parent CSR's
+		// AppliedCharacterStyle. Mirrors mergedWith semantics where
+		// the right-side merges with the left-side base style ranges.
+		if pa := attrVal(top.parentCSRAttrs, "AppliedCharacterStyle"); pa != "" {
+			return pa
+		}
+		return "CharacterStyle/$ID/[No character style]"
 	}
 	// isPSRDirect reports whether the element about to be entered is
 	// a direct child of the innermost open PSR (and not inside a real
@@ -336,13 +453,39 @@ func (r *Reader) parseStory(ctx context.Context, ch chan<- model.PartResult,
 		}
 		return elemDepth == psrStack[len(psrStack)-1].depth
 	}
+	// isHTSDirect reports whether the element about to be entered is
+	// a direct child of the innermost open HTS (and not inside a real
+	// CSR). Mirrors isPSRDirect's semantics: must be called before
+	// elemDepth is incremented.
+	isHTSDirect := func() bool {
+		if len(htsStack) == 0 || inCSR > 0 {
+			return false
+		}
+		return elemDepth == htsStack[len(htsStack)-1].depth
+	}
 	openBareIfDirect := func() {
+		if isHTSDirect() {
+			top := &htsStack[len(htsStack)-1]
+			if top.suppressBareWrap {
+				return
+			}
+			if !top.bareCSROpen {
+				openSynthCSRMerged(top.parentCSRAttrs, htsAppliedCharStyle())
+				top.bareCSROpen = true
+			}
+			return
+		}
 		if isPSRDirect() && !psrStack[len(psrStack)-1].bareCSROpen {
 			openSynthCSR()
 			psrStack[len(psrStack)-1].bareCSROpen = true
 		}
 	}
 	closeBareIfDirect := func() {
+		if isHTSDirect() && htsStack[len(htsStack)-1].bareCSROpen {
+			closeSynthCSR()
+			htsStack[len(htsStack)-1].bareCSROpen = false
+			return
+		}
 		if isPSRDirect() && psrStack[len(psrStack)-1].bareCSROpen {
 			closeSynthCSR()
 			psrStack[len(psrStack)-1].bareCSROpen = false
@@ -352,6 +495,12 @@ func (r *Reader) parseStory(ctx context.Context, ch chan<- model.PartResult,
 		if len(psrStack) > 0 && psrStack[len(psrStack)-1].bareCSROpen {
 			closeSynthCSR()
 			psrStack[len(psrStack)-1].bareCSROpen = false
+		}
+	}
+	closeBareOnHTSEnd := func() {
+		if len(htsStack) > 0 && htsStack[len(htsStack)-1].bareCSROpen {
+			closeSynthCSR()
+			htsStack[len(htsStack)-1].bareCSROpen = false
 		}
 	}
 
@@ -369,6 +518,23 @@ func (r *Reader) parseStory(ctx context.Context, ch chan<- model.PartResult,
 			rootOpened = true
 			switch t.Name.Local {
 			case "ParagraphStyleRange":
+				// A PSR directly inside an HTS is unwrapped — only its
+				// CSR/Content children survive in the output, mirroring
+				// upstream parseFromParagraphStyleRange (StoryChildElementsParser.java:105-130)
+				// which flattens PSR children into a list of CSRs.
+				// We track the suppressed PSR depth so the matching
+				// EndElement is also elided. Style stack still pushes
+				// because the PSR's AppliedParagraphStyle still
+				// influences inner Block properties.
+				if isHTSDirect() {
+					closeBareIfDirect()
+					styleStack = append(styleStack, currentStyle)
+					currentStyle.paragraphStyle = attrVal(t.Attr, "AppliedParagraphStyle")
+					elemDepth++
+					top := &htsStack[len(htsStack)-1]
+					top.suppressedPSRStack = append(top.suppressedPSRStack, elemDepth)
+					break
+				}
 				closeBareIfDirect()
 				styleStack = append(styleStack, currentStyle)
 				currentStyle.paragraphStyle = attrVal(t.Attr, "AppliedParagraphStyle")
@@ -381,6 +547,10 @@ func (r *Reader) parseStory(ctx context.Context, ch chan<- model.PartResult,
 				inCSR++
 				styleStack = append(styleStack, currentStyle)
 				currentStyle.charStyle = attrVal(t.Attr, "AppliedCharacterStyle")
+				// Track CSR start-element attributes so a child HTS
+				// can seed its synthetic-CSR wrapper with the parent's
+				// attribute set (Underline, KerningMethod, …).
+				csrAttrStack = append(csrAttrStack, t.Attr)
 				emitStart(t)
 				elemDepth++
 
@@ -421,10 +591,48 @@ func (r *Reader) parseStory(ctx context.Context, ch chan<- model.PartResult,
 				emitStart(t)
 				elemDepth++
 
-			case "TextFrame", "HyperlinkTextSource":
+			case "TextFrame":
 				openBareIfDirect()
 				emitStart(t)
 				elemDepth++
+
+			case "HyperlinkTextSource":
+				openBareIfDirect()
+				// Capture the immediately-enclosing CSR's attrs (if
+				// any) so synthetic CSRs wrapping bare HTS children
+				// inherit them. When the HTS isn't inside a CSR (e.g.
+				// directly under a PSR), parentCSRAttrs is nil and
+				// the synthetic CSR uses just its AppliedCharacterStyle.
+				var parentCSRAttrs []xml.Attr
+				if len(csrAttrStack) > 0 {
+					parentCSRAttrs = csrAttrStack[len(csrAttrStack)-1]
+				}
+				htsAppliedStyle := attrVal(t.Attr, "AppliedCharacterStyle")
+				// Pre-scan remaining HTS body to decide whether
+				// synthetic-CSR wrapping is needed. Mirrors
+				// StoryChildElementsParser.java:514-520 — when the
+				// HTS's effective style equals the parent's AND every
+				// child element is bare (Content/Br only, no real
+				// CSR/PSR/...), upstream emits the empty-style writer
+				// that produces no wrapping tags.
+				suppressBareWrap := shouldSuppressHTSBareWrap(data, d.InputOffset(),
+					htsAppliedStyle, parentCSRAttrs)
+				emitStart(t)
+				elemDepth++
+				// Save and clear inCSR. HTS introduces a new
+				// CSR-wrapping scope: bare children of HTS need to be
+				// detected as "direct HTS children" even though the
+				// HTS itself is nested inside a parent CSR. Real
+				// CSR children of HTS will re-establish inCSR via
+				// their own start-element handling.
+				htsStack = append(htsStack, htsFrame{
+					depth:            elemDepth,
+					appliedCharStyle: htsAppliedStyle,
+					savedInCSR:       inCSR,
+					parentCSRAttrs:   parentCSRAttrs,
+					suppressBareWrap: suppressBareWrap,
+				})
+				inCSR = 0
 
 			case "Note", "Footnote", "Endnote":
 				closeBareIfDirect()
@@ -503,6 +711,22 @@ func (r *Reader) parseStory(ctx context.Context, ch chan<- model.PartResult,
 				elemDepth--
 
 			case "ParagraphStyleRange":
+				// If this PSR end matches a suppressed-PSR-start
+				// (PSR directly inside HTS that we elided), don't
+				// emit the end tag either. Just unwind state.
+				if len(htsStack) > 0 {
+					top := &htsStack[len(htsStack)-1]
+					if n := len(top.suppressedPSRStack); n > 0 && top.suppressedPSRStack[n-1] == elemDepth {
+						closeBareIfDirect()
+						top.suppressedPSRStack = top.suppressedPSRStack[:n-1]
+						elemDepth--
+						if len(styleStack) > 0 {
+							currentStyle = styleStack[len(styleStack)-1]
+							styleStack = styleStack[:len(styleStack)-1]
+						}
+						break
+					}
+				}
 				closeBareOnPSREnd()
 				if len(psrStack) > 0 {
 					psrStack = psrStack[:len(psrStack)-1]
@@ -518,12 +742,24 @@ func (r *Reader) parseStory(ctx context.Context, ch chan<- model.PartResult,
 				if inCSR > 0 {
 					inCSR--
 				}
+				if len(csrAttrStack) > 0 {
+					csrAttrStack = csrAttrStack[:len(csrAttrStack)-1]
+				}
 				elemDepth--
 				emitEnd(t)
 				if len(styleStack) > 0 {
 					currentStyle = styleStack[len(styleStack)-1]
 					styleStack = styleStack[:len(styleStack)-1]
 				}
+
+			case "HyperlinkTextSource":
+				closeBareOnHTSEnd()
+				if len(htsStack) > 0 {
+					inCSR = htsStack[len(htsStack)-1].savedInCSR
+					htsStack = htsStack[:len(htsStack)-1]
+				}
+				elemDepth--
+				emitEnd(t)
 
 			case "Note", "Footnote", "Endnote":
 				noteDepth--
@@ -689,6 +925,96 @@ func attrVal(attrs []xml.Attr, name string) string {
 		}
 	}
 	return ""
+}
+
+// shouldSuppressHTSBareWrap pre-scans the remainder of an HTS body
+// (starting at the byte offset right after the HTS start tag) to
+// decide whether bare-content wrapping is needed. Returns true when
+// the HTS contains only bare Content/Br/Properties children (no
+// real CharacterStyleRange / ParagraphStyleRange / Table /
+// HyperlinkTextSource / etc.) AND the HTS's effective character-
+// style equals the parent CSR's character-style.
+//
+// This mirrors upstream's
+// HyperlinkTextSourceStyledTextReferenceElementParser.parse
+// (StoryChildElementsParser.java:514-520) which selects an
+// "empty-style" writer (no CSR wrapping) when
+// childElementsCurrentStyleRanges.equals(mergedReferenceAndChildElementsStyleRanges)
+// AND sameStyleRangesFor(mergedStoryChildElements). When the
+// condition fails — different child styles or HTS overrides parent —
+// the wrapped writer kicks in and the synthetic CSRs we emit during
+// the main pass match upstream's output.
+func shouldSuppressHTSBareWrap(data []byte, fromOffset int64,
+	htsAppliedStyle string, parentCSRAttrs []xml.Attr) bool {
+	// Determine effective HTS char style. Mirrors
+	// StoryChildElementsParser.java:486-505 — STYLE_NONE_VALUE ("n")
+	// or empty falls back to parent CSR's char style.
+	effective := htsAppliedStyle
+	if effective == "" || effective == "n" {
+		effective = attrVal(parentCSRAttrs, "AppliedCharacterStyle")
+	}
+	parentStyle := attrVal(parentCSRAttrs, "AppliedCharacterStyle")
+	// Suppression requires effective == parent. When they differ,
+	// upstream's mergedReferenceAndChildElementsStyleRanges differs
+	// from the parent's reference, so the empty-style writer is not
+	// selected.
+	if effective != parentStyle {
+		return false
+	}
+	if int(fromOffset) >= len(data) {
+		return false
+	}
+	// Wrap the remainder in a synthetic <HyperlinkTextSource> root so
+	// Go's xml.Decoder doesn't choke on the unbalanced
+	// </HyperlinkTextSource> close tag at the end of the slice.
+	var buf bytes.Buffer
+	buf.WriteString("<HyperlinkTextSource>")
+	buf.Write(data[fromOffset:])
+	scan := xml.NewDecoder(&buf)
+	// Consume our synthetic root start.
+	if _, err := scan.Token(); err != nil {
+		return false
+	}
+	depth := 0 // depth relative to the HTS body
+	for {
+		tok, err := scan.Token()
+		if errors.Is(err, io.EOF) {
+			return true
+		}
+		if err != nil {
+			return false
+		}
+		switch t := tok.(type) {
+		case xml.StartElement:
+			// Direct children of HTS sit at depth 0 when encountered.
+			// `Content`, `Br`, and `Properties` are bare/leaf-style
+			// elements; anything else (CharacterStyleRange,
+			// ParagraphStyleRange, Footnote, Endnote, EndnoteRange,
+			// Note, Table, HyperlinkTextSource, Change, …) forces the
+			// wrapped writer per
+			// StyledTextElementsMapping.java:172-201 + the
+			// referent-emission paths in
+			// HyperlinkTextSourceStyledTextReferenceElementParser.parse
+			// loop body (StoryChildElementsParser.java:535-543) which
+			// re-enter parseFromCharacterStyleRange and surface
+			// non-bare children.
+			if depth == 0 {
+				switch t.Name.Local {
+				case "Content", "Br", "Properties":
+					// bare child — fine
+				default:
+					return false
+				}
+			}
+			depth++
+		case xml.EndElement:
+			if depth == 0 {
+				// Reached HTS close.
+				return true
+			}
+			depth--
+		}
+	}
 }
 
 // xmlEscape escapes the three required XML text-content characters

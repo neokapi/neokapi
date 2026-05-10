@@ -26,6 +26,26 @@ type Config struct {
 	// `extractHiddenPasteboardItems` parameter
 	// (Parameters.java:64, default false).
 	ExtractHiddenPasteboardItems bool
+
+	// ExtractHyperlinkTextSourcesInline controls how
+	// HyperlinkTextSource elements are stored in the resource model.
+	// Mirrors okapi's `extractHyperlinkTextSourcesInline` parameter
+	// (Parameters.java:67, default false).
+	//
+	// Independent of this flag, the writer always reconstructs
+	// HyperlinkTextSource as an inline element in the Story_*.xml
+	// output: bare Content/Br children of the HTS are wrapped in
+	// synthetic CharacterStyleRange elements (using HTS's
+	// AppliedCharacterStyle, falling back to "[No character style]"
+	// when the HTS carries `n`), and any nested ParagraphStyleRange
+	// is unwrapped so only its CSR children remain. This mirrors
+	// upstream's HyperlinkTextSourceStyledTextReferenceElementParser
+	// (StoryChildElementsParser.java:464-569) which ALWAYS routes
+	// HTS children through parseFromCharacterStyleRange — the
+	// `extractHyperlinkTextSourcesInline` flag only changes the
+	// resource-model storage form (referent vs inline), not the
+	// serialized XML structure.
+	ExtractHyperlinkTextSourcesInline bool
 }
 
 // FormatName returns the format identifier.
@@ -34,17 +54,19 @@ func (c *Config) FormatName() string { return "idml" }
 // Reset restores default configuration values.
 //
 // Defaults track okapi's IDML filter defaults verbatim
-// (Parameters.java::reset, lines 197-201):
+// (Parameters.java::reset, lines 197-203):
 // ExtractMasterSpreads=true, ExtractNotes=false,
 // SkipDiscretionaryHyphens=false, ExtractHiddenLayers=false,
-// ExtractHiddenPasteboardItems=false. Matching the reference engine
-// out of the box keeps round-trip parity stable.
+// ExtractHiddenPasteboardItems=false,
+// ExtractHyperlinkTextSourcesInline=false. Matching the reference
+// engine out of the box keeps round-trip parity stable.
 func (c *Config) Reset() {
 	c.ExtractMasterSpreads = true
 	c.ExtractNotes = false
 	c.SkipDiscretionaryHyphens = false
 	c.ExtractHiddenLayers = false
 	c.ExtractHiddenPasteboardItems = false
+	c.ExtractHyperlinkTextSourcesInline = false
 }
 
 // Validate checks configuration validity.
@@ -64,6 +86,8 @@ func (c *Config) ApplyMap(values map[string]any) error {
 			c.ExtractHiddenLayers = toBool(val)
 		case "extractHiddenPasteboardItems":
 			c.ExtractHiddenPasteboardItems = toBool(val)
+		case "extractHyperlinkTextSourcesInline":
+			c.ExtractHyperlinkTextSourcesInline = toBool(val)
 		default:
 			return fmt.Errorf("idml: unknown config key %q", key)
 		}
