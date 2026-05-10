@@ -487,6 +487,17 @@ type XMLCanonical struct {
 	// metadata that Story_*.xml does not always carry). Native
 	// preserves the wrapper. Both forms render identically. Opt-in.
 	UnwrapIDMLChange bool
+
+	// StripEmptyIDMLPSRCSR drops `<ParagraphStyleRange>` and
+	// `<CharacterStyleRange>` elements that contain no Content with
+	// any CharData and no `<Br>`/`<TextFrame>`/etc. element children
+	// (only an empty CSR or empty PSR descendant). Native preserves
+	// these shells when they appear in the source; okapi's IDML
+	// pipeline drops them on round-trip because they carry no
+	// translatable text and no rendering effect.
+	// Runs after UnwrapIDMLXMLElement so unwrapped wrappers that
+	// expose newly-empty PSRs also dissolve.
+	StripEmptyIDMLPSRCSR bool
 }
 
 // Name implements Normalizer.
@@ -528,6 +539,9 @@ func (n XMLCanonical) Name() string {
 	if n.UnwrapIDMLChange {
 		parts = append(parts, "unwrap-change")
 	}
+	if n.StripEmptyIDMLPSRCSR {
+		parts = append(parts, "strip-empty-psr-csr")
+	}
 	if len(parts) == 0 {
 		return "xml-canonical"
 	}
@@ -559,13 +573,14 @@ func (n XMLCanonical) Normalize(in []byte) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	if n.SortChildElements || n.MergeAdjacentCSRs || n.StripEmptyIDMLContent || n.StripIDMLACEPIs || n.UnwrapIDMLXMLElement || n.UnwrapIDMLChange {
+	if n.SortChildElements || n.MergeAdjacentCSRs || n.StripEmptyIDMLContent || n.StripIDMLACEPIs || n.UnwrapIDMLXMLElement || n.UnwrapIDMLChange || n.StripEmptyIDMLPSRCSR {
 		// Build a tree from the per-element-balanced token stream so
 		// we can permute child elements alphabetically by local name
 		// (and/or merge adjacent same-attr CSR siblings, drop empty
 		// Content placeholders, drop ACE PIs, unwrap XMLElement /
-		// Change wrappers) without disturbing the relative position of
-		// non-element nodes (CharData, Comments, ProcInsts).
+		// Change wrappers, strip empty PSR/CSR shells) without
+		// disturbing the relative position of non-element nodes
+		// (CharData, Comments, ProcInsts).
 		tokens = transformXMLTree(tokens, transformOpts{
 			sortChildren:          n.SortChildElements,
 			mergeCSRs:             n.MergeAdjacentCSRs,
@@ -574,6 +589,7 @@ func (n XMLCanonical) Normalize(in []byte) ([]byte, error) {
 			stripIDMLACEPIs:       n.StripIDMLACEPIs,
 			unwrapIDMLXMLElement:  n.UnwrapIDMLXMLElement,
 			unwrapIDMLChange:      n.UnwrapIDMLChange,
+			stripEmptyIDMLPSRCSR:  n.StripEmptyIDMLPSRCSR,
 		})
 	}
 	var buf bytes.Buffer
@@ -754,6 +770,7 @@ type transformOpts struct {
 	stripIDMLACEPIs       bool
 	unwrapIDMLXMLElement  bool
 	unwrapIDMLChange      bool
+	stripEmptyIDMLPSRCSR  bool
 }
 
 // transformXMLTree walks the (already canonicalised) token stream as
@@ -784,6 +801,13 @@ func transformXMLTree(tokens []xml.Token, opts transformOpts) []xml.Token {
 	}
 	if opts.unwrapIDMLXMLElement {
 		unwrapIDMLElementsInTree(root, "XMLElement")
+		// XMLComment and XMLInstruction belong to the same XML
+		// projection layer as XMLElement and are also dropped by
+		// okapi's IDML round-trip; strip them entirely (they have no
+		// translatable content, so we drop the subtree rather than
+		// inline its children).
+		dropIDMLElementsInTree(root, "XMLComment")
+		dropIDMLElementsInTree(root, "XMLInstruction")
 	}
 	if opts.unwrapIDMLChange {
 		unwrapIDMLElementsInTree(root, "Change")
@@ -793,6 +817,14 @@ func transformXMLTree(tokens []xml.Token, opts transformOpts) []xml.Token {
 	}
 	if opts.mergeCSRs {
 		mergeAdjacentCSRsInTree(root, opts.mergeDefaultCSRs)
+	}
+	if opts.stripEmptyIDMLPSRCSR {
+		// Run after merge so any CSR that became empty by losing its
+		// children to a sibling-merge also dissolves. Two passes
+		// (CSR first, then PSR) so a PSR whose only child is the
+		// just-dropped empty CSR clears in the second pass.
+		stripEmptyIDMLPSRCSRInTree(root, "CharacterStyleRange")
+		stripEmptyIDMLPSRCSRInTree(root, "ParagraphStyleRange")
 	}
 	var out []xml.Token
 	emitXMLNode(root, &out, true /*topLevel*/, opts.sortChildren)
@@ -848,6 +880,81 @@ func stripEmptyIDMLContentInTree(node *xmlNode) {
 		kept = append(kept, c)
 	}
 	node.children = kept
+}
+
+// stripEmptyIDMLPSRCSRInTree drops every element of the given local
+// name whose subtree is "content-empty" — has no `<Content>` with
+// CharData, no `<Br>`, no `<TextFrame>`, no `<HyperlinkTextSource>`,
+// no `<Footnote>`/`<Endnote>` and no other meaningful text-bearing
+// element. Used to dissolve `<ParagraphStyleRange>` and
+// `<CharacterStyleRange>` shells that wrap nothing visible. Okapi's
+// IDML pipeline drops these on round-trip; native preserves them.
+func stripEmptyIDMLPSRCSRInTree(node *xmlNode, name string) {
+	if node == nil {
+		return
+	}
+	out := node.children[:0]
+	for _, c := range node.children {
+		if c.sub != nil {
+			stripEmptyIDMLPSRCSRInTree(c.sub, name)
+			if c.sub.start.Name.Local == name && isContentEmptySubtree(c.sub) {
+				continue
+			}
+		}
+		out = append(out, c)
+	}
+	node.children = out
+}
+
+// isContentEmptySubtree reports whether a node's subtree carries no
+// visible text-bearing element. Recursively checks all element
+// descendants for any text-meaningful element name; returns false on
+// the first hit.
+func isContentEmptySubtree(node *xmlNode) bool {
+	for _, c := range node.children {
+		if c.sub == nil {
+			continue
+		}
+		switch c.sub.start.Name.Local {
+		case "Content":
+			// A Content with any CharData (even whitespace) or a
+			// non-empty subtree counts as visible.
+			if !isEmptyContentNode(c.sub) {
+				return false
+			}
+			// CharData-empty Content within a wrapper still doesn't
+			// resurrect the wrapper — fall through.
+		case "Br", "TextFrame", "HyperlinkTextSource", "Footnote", "Endnote", "Note", "Table", "Cell":
+			return false
+		default:
+			if !isContentEmptySubtree(c.sub) {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+// dropIDMLElementsInTree walks the tree and removes every element
+// (and its subtree) whose local name matches `name`. Like
+// unwrapIDMLElementsInTree but the children disappear too — used
+// for XML projection elements (XMLComment, XMLInstruction) that
+// okapi strips wholesale on round-trip.
+func dropIDMLElementsInTree(node *xmlNode, name string) {
+	if node == nil {
+		return
+	}
+	out := node.children[:0]
+	for _, c := range node.children {
+		if c.sub != nil && c.sub.start.Name.Local == name {
+			continue
+		}
+		if c.sub != nil {
+			dropIDMLElementsInTree(c.sub, name)
+		}
+		out = append(out, c)
+	}
+	node.children = out
 }
 
 // unwrapIDMLElementsInTree walks the tree and replaces every

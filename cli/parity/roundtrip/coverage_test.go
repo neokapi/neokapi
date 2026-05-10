@@ -1054,6 +1054,7 @@ mergeCaptions.b=false
 					StripEmptyIDMLContent: true,
 					StripIDMLACEPIs:       true,
 					UnwrapIDMLXMLElement:  true,
+					StripEmptyIDMLPSRCSR:  true,
 				},
 			}}},
 		},
