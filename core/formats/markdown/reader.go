@@ -510,7 +510,12 @@ func (r *Reader) emitLinkReferenceDefinition(ctx context.Context, ch chan<- mode
 				"title":       string(n.Title),
 			},
 		}
-		r.skelText(buildLinkReferenceDefinitionLiteral(label, urlLiteral, string(n.Title), titleOpen, titleClose))
+		// Preserve the literal whitespace authored after `]:` so
+		// `[l]:  #list` (two spaces) doesn't collapse to `[l]: #list`.
+		// Mirrors okapi MarkdownFilter, which round-trips link reference
+		// definitions verbatim through skeleton bytes.
+		sep := refDefSeparator(r.source[defStart:defEnd])
+		r.skelText(buildLinkReferenceDefinitionLiteral(label, urlLiteral, sep, string(n.Title), titleOpen, titleClose))
 		// preserve a trailing newline only when source had one (always
 		// true for non-EOF defs; goldmark already trimmed the line value
 		// so we add it back here).
@@ -540,7 +545,7 @@ func (r *Reader) emitLinkReferenceDefinition(ctx context.Context, ch chan<- mode
 	} else {
 		r.skelText(label)
 	}
-	r.skelText("]: " + urlLiteral)
+	r.skelText("]:" + refDefSeparator(r.source[defStart:defEnd]) + urlLiteral)
 	if titleUsed {
 		// Detect title delimiter from source so `'`, `"`, and `(...)`
 		// forms all round-trip exactly.
@@ -570,11 +575,15 @@ func (r *Reader) emitLinkReferenceDefinition(ctx context.Context, ch chan<- mode
 // of `[label]: url "title"` (or with the alternate quote/paren forms).
 // Used when the definition has no translatable parts so the writer can
 // still reconstruct the line from skeleton bytes alone.
-func buildLinkReferenceDefinitionLiteral(label, dest, title, titleOpen, titleClose string) string {
+func buildLinkReferenceDefinitionLiteral(label, dest, sep, title, titleOpen, titleClose string) string {
+	if sep == "" {
+		sep = " "
+	}
 	var sb strings.Builder
 	sb.WriteByte('[')
 	sb.WriteString(label)
-	sb.WriteString("]: ")
+	sb.WriteString("]:")
+	sb.WriteString(sep)
 	sb.WriteString(dest)
 	if title != "" {
 		open, close := titleOpen, titleClose
@@ -587,6 +596,26 @@ func buildLinkReferenceDefinitionLiteral(label, dest, title, titleOpen, titleClo
 		sb.WriteString(close)
 	}
 	return sb.String()
+}
+
+// refDefSeparator returns the literal whitespace bytes between the
+// `]:` and the destination URL on the source line. Returns " " when
+// the line is malformed (no colon found) so callers always get at
+// least the canonical single-space separator.
+func refDefSeparator(defLine []byte) string {
+	colon := bytes.IndexByte(defLine, ':')
+	if colon < 0 {
+		return " "
+	}
+	i := colon + 1
+	start := i
+	for i < len(defLine) && (defLine[i] == ' ' || defLine[i] == '\t') {
+		i++
+	}
+	if i == start {
+		return " "
+	}
+	return string(defLine[start:i])
 }
 
 // referenceDefinitionURLLiteral returns the URL as it appeared in the
@@ -2397,14 +2426,79 @@ func (r *Reader) buildCodeSpanRuns(b *runBuilder, n *ast.CodeSpan, source []byte
 	*idCounter++
 	id := strconv.Itoa(*idCounter)
 	info := r.vocab.LookupOrFallback("fmt:code")
-	b.AddPcOpen(id, "fmt:code", "md:code", "`", info.Display.Open, info.Equiv,
+	// CommonMark §6.1: a code span's opening and closing fences are a
+	// run of backticks; the length must avoid any backtick run in the
+	// content. The fence is also followed by an optional padding space
+	// when the content begins/ends with a backtick. Reconstruct the
+	// exact fence + padding from source so `` ` `` (literal backtick
+	// surrounded by 2-backtick fences with single padding space)
+	// round-trips intact instead of collapsing to ``` (3 backticks).
+	openMarker, closeMarker := codeSpanFences(n, source)
+	b.AddPcOpen(id, "fmt:code", "md:code", openMarker, info.Display.Open, info.Equiv,
 		info.Constraints.Deletable, info.Constraints.Cloneable, info.Constraints.Reorderable)
 	for gc := n.FirstChild(); gc != nil; gc = gc.NextSibling() {
 		if t, ok := gc.(*ast.Text); ok {
 			b.AddText(string(t.Segment.Value(source)))
 		}
 	}
-	b.AddPcClose(id, "fmt:code", "md:code", "`", info.Equiv)
+	b.AddPcClose(id, "fmt:code", "md:code", closeMarker, info.Equiv)
+}
+
+// codeSpanFences returns the opening and closing markers (each a run
+// of `` ` `` plus an optional padding space) for the given CodeSpan as
+// they appear in source. Falls back to "`" / "`" when boundaries
+// can't be determined (defensive — should not happen for a well-formed
+// CodeSpan).
+func codeSpanFences(n *ast.CodeSpan, source []byte) (string, string) {
+	first := n.FirstChild()
+	last := n.LastChild()
+	if first == nil || last == nil {
+		return "`", "`"
+	}
+	firstText, ok1 := first.(*ast.Text)
+	lastText, ok2 := last.(*ast.Text)
+	if !ok1 || !ok2 {
+		return "`", "`"
+	}
+	contentStart := firstText.Segment.Start
+	contentEnd := lastText.Segment.Stop
+	if contentStart >= len(source) || contentEnd > len(source) || contentStart > contentEnd {
+		return "`", "`"
+	}
+	// Walk back from contentStart to capture optional padding space + backticks.
+	openEnd := contentStart
+	openStart := contentStart
+	if openStart > 0 && source[openStart-1] == ' ' {
+		openStart--
+	}
+	for openStart > 0 && source[openStart-1] == '`' {
+		openStart--
+	}
+	// If we backed up over a space but found no backticks, undo the space.
+	if openStart < openEnd && (openEnd-openStart == 1 && source[openStart] == ' ') {
+		openStart++
+	}
+	open := string(source[openStart:openEnd])
+	// Walk forward from contentEnd to capture optional padding space + backticks.
+	closeStart := contentEnd
+	closeEnd := contentEnd
+	if closeEnd < len(source) && source[closeEnd] == ' ' {
+		closeEnd++
+	}
+	for closeEnd < len(source) && source[closeEnd] == '`' {
+		closeEnd++
+	}
+	if closeEnd > closeStart && (closeEnd-closeStart == 1 && source[closeStart] == ' ') {
+		closeEnd--
+	}
+	close := string(source[closeStart:closeEnd])
+	if open == "" {
+		open = "`"
+	}
+	if close == "" {
+		close = "`"
+	}
+	return open, close
 }
 
 func (r *Reader) buildLinkRuns(b *runBuilder, n *ast.Link, source []byte, idCounter *int) {
