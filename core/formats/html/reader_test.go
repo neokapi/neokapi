@@ -2,8 +2,10 @@ package html_test
 
 import (
 	"bytes"
+	"strings"
 	"testing"
 
+	"github.com/neokapi/neokapi/core/format"
 	htmlfmt "github.com/neokapi/neokapi/core/formats/html"
 	"github.com/neokapi/neokapi/core/internal/testutil"
 	"github.com/neokapi/neokapi/core/model"
@@ -241,4 +243,56 @@ func TestReaderMetadata(t *testing.T) {
 	reader := htmlfmt.NewReader()
 	assert.Equal(t, "html", reader.Name())
 	assert.Equal(t, "HTML", reader.DisplayName())
+}
+// TestReadEntityInBareTextBlock asserts that HTML entities surviving the
+// top-level (bare-text) block path are extracted as inline placeholder
+// runs rather than literal text. Previously, the bare-text path created
+// blocks via `model.NewBlock(blockID, text)` which preserved `&amp;` as
+// text — pseudo-translation then substituted `amp` letter-by-letter
+// (`&amp;` → `&àmƥ;`). This regression-tests the buildBlockWithEntities
+// fix that mirrors addTextWithEntities for the bare-text path.
+//
+// okapi: HtmlFilter peels entity references into opaque inline `<code>`
+// pairs regardless of whether the surrounding container is a leaf block
+// or not. See HtmlFilter#startEntity in
+// okapi/filters/html/src/main/java/net/sf/okapi/filters/html/HtmlFilter.java.
+func TestReadEntityInBareTextBlock(t *testing.T) {
+	ctx := t.Context()
+	reader := htmlfmt.NewReader()
+	store, err := format.NewSkeletonStore()
+	require.NoError(t, err)
+	defer store.Close()
+	reader.SetSkeletonStore(store)
+	// `<td>` with content that exceeds the tokenizer buffer triggers
+	// forwardScanForBlockChildren's safe-default container classification,
+	// so text inside the td emits via the bare-text top-level path.
+	// Synthesise that condition with a deeply-nested inline structure
+	// containing `&amp;` entity in source.
+	src := `<html><body><table><tr><td><a href="x"><b><font size="-1"><span style="font-size: 12px;">BUFO &amp; Paranormal</span></font></b></a></td></tr></table></body></html>`
+	err = reader.Open(ctx, testutil.RawDocFromString(src, model.LocaleEnglish))
+	require.NoError(t, err)
+	defer reader.Close()
+
+	blocks := testutil.CollectBlocks(t, reader.Read(ctx))
+	require.NotEmpty(t, blocks)
+
+	// Locate the block with the entity.
+	var target *model.Block
+	for _, b := range blocks {
+		if strings.Contains(b.SourceText(), "BUFO") {
+			target = b
+			break
+		}
+	}
+	require.NotNil(t, target, "block containing BUFO should exist")
+	require.Len(t, target.Source, 1)
+
+	var sawEntity bool
+	for _, r := range target.Source[0].Runs {
+		if r.Ph != nil && r.Ph.Type == "code:entity" && r.Ph.Data == "&amp;" {
+			sawEntity = true
+			break
+		}
+	}
+	assert.True(t, sawEntity, "expected `&amp;` entity to be extracted as a code:entity placeholder run; got runs: %+v", target.Source[0].Runs)
 }

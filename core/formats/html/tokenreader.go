@@ -372,10 +372,18 @@ func (s *tokenReaderState) processTokenStream(tokenizer *html.Tokenizer, ctx con
 				// adjacent to a text-unit, so drop it. Inside preserve-
 				// whitespace elements (pre/textarea), keep the raw text
 				// intact (and don't touch pendingWS).
+				//
+				// HTML entities (`&amp;`, `&nbsp;`, …) are peeled into
+				// inline placeholder runs so they survive pseudo-translation
+				// as opaque codes rather than having their letters
+				// substituted (e.g. `&amp;` → `&àmƥ;`). This mirrors okapi's
+				// HtmlFilter, which treats entity references as inline
+				// `<code>` pairs. Same logic as addTextWithEntities in the
+				// leaf-block / inline-collection paths.
 				if preserveWS {
 					blockID := s.nextBlockID()
 					_ = s.store.WriteRef(blockID)
-					block := model.NewBlock(blockID, text)
+					block := buildBlockWithEntities(blockID, text)
 					block.PreserveWhitespace = true
 					s.reader.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
 				} else {
@@ -383,7 +391,7 @@ func (s *tokenReaderState) processTokenStream(tokenizer *html.Tokenizer, ctx con
 					body := trimLeadingHTMLWhitespace(text)
 					blockID := s.nextBlockID()
 					_ = s.store.WriteRef(blockID)
-					block := model.NewBlock(blockID, body)
+					block := buildBlockWithEntities(blockID, body)
 					s.reader.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
 					s.lastTextBlock = block
 				}
@@ -1751,6 +1759,52 @@ func hasNonWhitespace(s string) bool {
 // opaque codes (rather than getting their letters substituted to
 // `&ĺţ;` etc.).
 var htmlEntityRE = regexp.MustCompile(`&(?:[A-Za-z][A-Za-z0-9]*|#[0-9]+|#[xX][0-9A-Fa-f]+);`)
+
+// buildBlockWithEntities wraps NewBlock so bare-text blocks (the
+// processTokenStream top-level path) get the same entity peeling as
+// leaf-block / inline-collection paths. Without this a `<td>` whose
+// content exceeds the tokenizer buffer (so forwardScanForBlockChildren
+// returns the safe-default true and treats td as a container) would
+// have its inner text emitted via NewBlock(text), and entities like
+// `&amp;` would survive pseudo-translation as `&àmƥ;` because pseudo
+// substitutes letters rune-by-rune. Mirrors okapi's HtmlFilter, which
+// always wraps entity references as opaque inline codes regardless of
+// whether the surrounding container is a leaf block or not.
+func buildBlockWithEntities(blockID, text string) *model.Block {
+	matches := htmlEntityRE.FindAllStringIndex(text, -1)
+	if len(matches) == 0 {
+		return model.NewBlock(blockID, text)
+	}
+	b := newRunBuilder()
+	idCounter := 0
+	pos := 0
+	for _, m := range matches {
+		start, end := m[0], m[1]
+		if start > pos {
+			b.AddText(text[pos:start])
+		}
+		idCounter++
+		b.AddPh(
+			strconv.Itoa(idCounter),
+			"code:entity",
+			"html:entity",
+			text[start:end],
+			"", "", model.RunConstraints{},
+		)
+		pos = end
+	}
+	if pos < len(text) {
+		b.AddText(text[pos:])
+	}
+	return &model.Block{
+		ID:           blockID,
+		Translatable: true,
+		Source:       []*model.Segment{model.NewRunsSegment("s1", b.runs)},
+		Targets:      make(map[model.LocaleID][]*model.Segment),
+		Properties:   make(map[string]string),
+		Annotations:  make(map[string]model.Annotation),
+	}
+}
 
 // addTextWithEntities adds raw HTML text to a runBuilder, splitting
 // out HTML entity references as inline placeholders so they don't get
