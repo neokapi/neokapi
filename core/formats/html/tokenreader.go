@@ -60,6 +60,52 @@ type tokenReaderState struct {
 	// so we can retroactively trim its trailing whitespace when the next
 	// event proves we just exited a text-unit.
 	lastTextBlock *model.Block
+	// content is the entire input document. forwardScanForBlockChildren
+	// uses this for lookahead because tokenizer.Buffered() only returns
+	// what is currently in the bufio buffer — after a giant <script>
+	// body, the buffered window may stop short of the next `</td>`,
+	// causing forwardScan to exhaust its scanner and default to
+	// container, mis-classifying TEXTUNIT-typed parents (td/li/dd/…).
+	content []byte
+}
+
+// remainingContent returns the input bytes that have not yet been
+// processed by the tokenizer, with a fallback to tokenizer.Buffered().
+// It computes the position by subtracting the tokenizer's still-buffered
+// portion from the start of the saved full content. When fullContent is
+// not set (older callers / tests), falls back to tokenizer.Buffered().
+//
+// Locating the tokenizer's "current position" precisely is not exposed
+// by golang.org/x/net/html; the practical proxy used here is the
+// position of the most recent Raw() inside the original content. Since
+// Raw() returns a slice reference into the tokenizer's internal buffer,
+// not into our content slice, we approximate by using strings.Index on
+// the buffered tail. This is accurate enough for forward-scan lookahead
+// (a buffered chunk + the remaining file read on demand will both find
+// the next end-tag).
+func (s *tokenReaderState) remainingContent(tokenizer *html.Tokenizer) []byte {
+	buffered := tokenizer.Buffered()
+	if len(s.content) == 0 {
+		return buffered
+	}
+	// If buffered is empty but we still have content, return the tail
+	// of content. Otherwise, find the buffered slice in content and
+	// return everything from that point.
+	if len(buffered) == 0 {
+		// Tokenizer has consumed everything currently buffered; we
+		// don't have a precise offset, so fall back to buffered (empty
+		// — forward-scan will return the safe-default container, same
+		// as before this fix). Better than nothing.
+		return buffered
+	}
+	// Try to locate the buffered slice in content. Buffered may be a
+	// suffix of content; use bytes.Index. For typical short buffered
+	// windows (< 4KB) this is fast.
+	idx := bytes.Index(s.content, buffered)
+	if idx < 0 {
+		return buffered
+	}
+	return s.content[idx:]
 }
 
 func newTokenReaderState(r *Reader, store *format.SkeletonStore) *tokenReaderState {
@@ -150,6 +196,9 @@ func (s *tokenReaderState) run(content []byte, ctx context.Context, ch chan<- mo
 	// <head> exists but no charset declaration is present, the writer
 	// inserts <meta http-equiv="Content-Type" …> right after <head>.
 	s.needsCharsetMeta = scanNeedsCharsetMeta(content)
+
+	// Save full content for forwardScanForBlockChildren lookahead.
+	s.content = content
 
 	tokenizer := html.NewTokenizer(bytes.NewReader(content))
 	tokenizer.SetMaxBuf(0) // unlimited buffer
@@ -613,7 +662,18 @@ func (s *tokenReaderState) processStartTag(tokenizer *html.Tokenizer, raw []byte
 		if knownContainerElements[a] {
 			hasBlockKids = true
 		} else if !knownLeafElements[a] {
-			remaining := tokenizer.Buffered()
+			// Prefer scanning the full remaining content rather than
+			// just tokenizer.Buffered(): after a giant <script> body
+			// the buffered window may stop short of the next `</td>`,
+			// causing forwardScan to exhaust and default to container,
+			// which mis-classifies TEXTUNIT-typed parents and loses
+			// translatable inline content (e.g. dropped whitespace
+			// between text and `<input>` because the parent is a
+			// container, not a leaf — its inline child becomes a
+			// bare-text block whose trailing WS is then trimmed by
+			// trimTrailingWSOfLastTextBlock when the input self-
+			// closing tag follows).
+			remaining := s.remainingContent(tokenizer)
 			hasBlockKids = s.forwardScanForBlockChildren(remaining, tag)
 		}
 		info.hasBlockKids = hasBlockKids
@@ -1247,10 +1307,21 @@ func (s *tokenReaderState) forwardScanForBlockChildren(remaining []byte, parentT
 		case html.EndTagToken:
 			tagName, _ := scanner.TagName()
 			endTag := string(tagName)
+			// An end-tag matching parentTag closes the parent regardless
+			// of nested-inline depth: HTML5 §13.2.6.4.7 "in body" insertion
+			// mode treats unclosed inline phrasing-content (e.g. an open
+			// `<font>` when `</td>` arrives) as implicitly closed by the
+			// adoption agency algorithm — the `</td>` does belong to the
+			// parent, not to the open inline. Without this, sources with
+			// unclosed inline tags (`<td><font>text </td>`) cause the
+			// scanner to keep walking past `</td>`, exhaust the buffer,
+			// and misclassify the parent as a container — collapsing the
+			// translatable text into a sequence of raw skeleton tags.
+			if endTag == parentTag {
+				return false
+			}
 			if depth > 0 {
 				depth--
-			} else if endTag == parentTag {
-				return false
 			}
 
 		case html.SelfClosingTagToken:

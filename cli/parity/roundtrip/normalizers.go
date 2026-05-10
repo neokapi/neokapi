@@ -1915,9 +1915,18 @@ func isElementWithPreservedWhitespace(n *html.Node) bool {
 		return false
 	}
 	switch n.DataAtom {
-	case atom.Script, atom.Style, atom.Pre, atom.Textarea:
+	case atom.Script, atom.Style, atom.Pre:
 		return true
 	}
+	// `<textarea>` is intentionally not in this list. Per HTML5
+	// §13.2.5.4 (RAWTEXT/RCDATA states) it preserves whitespace in the
+	// browser, but Okapi's HtmlFilter classifies it as INLINE in
+	// wellformedConfiguration.yml — so its content text is folded into
+	// the surrounding TEXTUNIT and gets standard HTML whitespace
+	// collapsing on extraction. Native classifies textarea as
+	// preserve-whitespace per HTML5; canonicalising both sides through
+	// whitespace collapse cancels the configuration divergence (parity
+	// contract: "same semantic config → same results", #557).
 	return false
 }
 

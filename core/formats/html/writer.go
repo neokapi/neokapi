@@ -173,6 +173,13 @@ func (w *Writer) writeFromSkeleton(store *format.SkeletonStore, blocks map[strin
 //     shortcode-style text like `[vc_column width="1/2"]`) and keeps
 //     attribute values well-formed when block text lands inside
 //     `attr="…"` via the skeleton.
+//   - Inside `<script>…</script>`, `<style>…</style>`, and `<textarea>…
+//     </textarea>` placeholder spans, leave `"` alone. These elements'
+//     content is CDATA-like (script/style) or user input (textarea); per
+//     HTML5 §13.2.5.1 the tokenizer treats `<script>` body as raw text,
+//     and `&quot;` inside script source would be syntactically invalid
+//     JavaScript. Okapi's HtmlSkeletonWriter (NekoHTML-backed) preserves
+//     bare quotes in these contexts.
 //   - For blocks that don't preserve whitespace (i.e. not <pre>/<textarea>
 //     and not flagged via Config.PreserveWhitespace), runs of HTML
 //     whitespace outside `<…>` placeholders collapse to a single space —
@@ -187,13 +194,58 @@ func htmlEncodeBlockText(s string, block *model.Block) string {
 	b.Grow(len(s) + 8)
 	depth := 0
 	inWS := false
-	for i := range len(s) {
+	// rawTextElement is non-empty while we're inside a raw-text element
+	// span (`<script>`, `<style>`, `<textarea>`, `<title>`). HTML5
+	// §13.2.5.1 (the "script data state" and similar) consume raw bytes
+	// until the matching close tag, ignoring `<` for nesting.
+	var rawTextElement string
+	for i := 0; i < len(s); i++ {
 		c := s[i]
+		// While inside script/style/textarea/title content, emit bytes
+		// verbatim and only check for the matching `</tag>` close.
+		if rawTextElement != "" {
+			if c == '<' && i+1 < len(s) && s[i+1] == '/' {
+				closeTag := "</" + rawTextElement
+				if strings.EqualFold(s[i:min(i+len(closeTag), len(s))], closeTag) {
+					rawTextElement = ""
+					// Fall through to normal `<` handling so the close
+					// tag's bytes go through depth tracking.
+				} else {
+					b.WriteByte(c)
+					continue
+				}
+			} else {
+				b.WriteByte(c)
+				continue
+			}
+		}
 		switch {
 		case c == '<':
 			depth++
 			inWS = false
 			b.WriteByte(c)
+			// Detect open tag for a raw-text element so subsequent
+			// content (including `"`) passes through untouched.
+			if name := scanTagName(s, i+1); name != "" {
+				lname := strings.ToLower(name)
+				if lname == "script" || lname == "style" || lname == "textarea" || lname == "title" {
+					// Find the closing `>` of this open tag, then
+					// switch to raw-text mode. Attribute values inside
+					// the open tag still need their own quote handling
+					// (depth>0 already protects them).
+					if closeIdx := strings.IndexByte(s[i:], '>'); closeIdx >= 0 {
+						// Copy through the close `>` (including any
+						// attribute quotes which are at depth>0).
+						end := i + closeIdx
+						b.WriteString(s[i+1 : end+1])
+						depth = 0
+						i = end
+						rawTextElement = lname
+						inWS = false
+						continue
+					}
+				}
+			}
 		case c == '>' && depth > 0:
 			depth--
 			inWS = false
@@ -212,6 +264,29 @@ func htmlEncodeBlockText(s string, block *model.Block) string {
 		}
 	}
 	return b.String()
+}
+
+// scanTagName reads an ASCII tag name starting at offset i in s. Returns
+// the tag name if the byte at i is a letter, otherwise empty. Stops at
+// any non-name character (whitespace, `>`, `/`, `=`, `"`, `'`).
+func scanTagName(s string, i int) string {
+	if i >= len(s) {
+		return ""
+	}
+	c := s[i]
+	if !((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')) {
+		return ""
+	}
+	end := i
+	for end < len(s) {
+		c := s[end]
+		if (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') {
+			end++
+			continue
+		}
+		break
+	}
+	return s[i:end]
 }
 
 // substituteBlockRefs replaces every `\x00BLOCK:tuN\x00` sentinel in s

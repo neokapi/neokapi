@@ -26,6 +26,19 @@ var inlineElements = map[atom.Atom]bool{
 	atom.Span: true, atom.Strike: true, atom.Strong: true,
 	atom.Sub: true, atom.Sup: true, atom.Tt: true,
 	atom.U: true, atom.Var: true, atom.Wbr: true,
+	// Obsolete presentational elements that HTML5 §13.2.6.4.7 still
+	// classifies as block (so they implicitly close an open <p>) but
+	// that Okapi's HtmlFilter treats as raw skeleton bytes — neither
+	// wellformedConfiguration.yml nor nonwellformedConfiguration.yml
+	// declare them as TEXTUNIT or GROUP, so they fall through as
+	// RULE_NOT_FOUND and pass through verbatim. Treating them as
+	// inline here mirrors that behaviour: their text content stays
+	// inside the surrounding TEXTUNIT instead of being misclassified
+	// as a separate bare-text block (which would lose trailing
+	// whitespace via trimTrailingWSOfLastTextBlock when the next
+	// inline tag follows). The implicit-P-close rule is preserved
+	// via pImplicitClosers in tokenreader.go.
+	atom.Center: true, atom.Dir: true,
 }
 
 // selfClosingElements are void HTML elements.
