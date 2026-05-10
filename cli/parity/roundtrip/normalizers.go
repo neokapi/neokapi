@@ -1238,9 +1238,19 @@ func canonicalizeHTMLNode(n *html.Node) {
 	if n.Type == html.ElementNode {
 		var emptyKids []*html.Node
 		for c := n.FirstChild; c != nil; c = c.NextSibling {
-			if c.Type == html.ElementNode && c.FirstChild == nil && len(c.Attr) == 0 && isEmptyDroppable(c.DataAtom) {
-				emptyKids = append(emptyKids, c)
+			if c.Type != html.ElementNode || c.FirstChild != nil {
+				continue
 			}
+			if !isEmptyDroppable(c.DataAtom) {
+				continue
+			}
+			// Drop unconditionally for purely-presentational inline
+			// elements regardless of attrs — `<font size="5"></font>`,
+			// `<span class="x"></span>`, `<i id="y"></i>` are all noise.
+			// okapi's HTML reformatter sometimes emits these on
+			// implicit-close interactions while native folds them away
+			// (or vice versa); both are equally meaningless.
+			emptyKids = append(emptyKids, c)
 		}
 		for _, c := range emptyKids {
 			n.RemoveChild(c)
