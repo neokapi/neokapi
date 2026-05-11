@@ -2702,15 +2702,35 @@ func (p *wmlParser) buildBlock(id string, runs []textRun, partPath, commonRPrXML
 			// adjacent same-rPr runs even when one begins with
 			// <w:tab/> (Document-with-tabs.docx reference output:
 			// `<r>Before</r><r><tab/>after</r>` merges to
-			// `<r><t>Before</t><tab/><t>after</t></r>`). The writer
-			// inline-into-run path mirrors that behaviour, so tabs
-			// never use the standalone subtype \u2014 RunMerger.canRun
-			// PropertiesBeMerged (RunMerger.java:156-229) gates on
-			// rPr equality, not source-run shape, for tab markup
-			// chunks. Per ECMA-376-1 \u00A717.3.3.31 (<w:tab/>) the tab
-			// is a run child whose rPr context is its containing
-			// <w:r>; reusing the previous run's <w:r> when rPr
-			// matches is semantically equivalent.
+			// `<r><t>Before</t><tab/><t>after</t></r>`); the writer's
+			// inline-into-run path mirrors that behaviour.
+			//
+			// RunMerger.canRunPropertiesBeMerged (RunMerger.java:156-229)
+			// gates merging on rPr equality, so when the tab's source
+			// <w:r> rPr toggles diverge from the currently-active
+			// toggles upstream's RunMerger does NOT merge \u2014 the bold or
+			// italic run before the tab stays in its own envelope.
+			//
+			// When the tab started a fresh source <w:r> AND its source
+			// rPr toggles (b/i/u/strike/vertAlign) differ from activeProps,
+			// close the active toggles BEFORE emitting the Ph so the
+			// writer's runProps no longer carries them. Otherwise the
+			// writer's inline-into-run path (curRPr == adjSrc) would
+			// silently match on the empty common-rPr while the OPEN
+			// <w:r> carries a runProps toggle that the tab's source
+			// <w:r> never had, trapping the <w:tab/> inside a bold or
+			// italic envelope. Fixture: TabAtEndAfterNewRun.docx
+			// (`<r>Usag</r><r><rPr><b/></rPr>es</r><r><tab/></r>` \u2014 the
+			// trailing tab's <w:r> has no <w:rPr>, so the bold close
+			// must land between "es" and the <w:tab/>, and the tab
+			// opens a fresh empty-rPr <w:r>). Per ECMA-376-1
+			// \u00A717.3.3.31 (<w:tab/>) the tab is a run child whose rPr
+			// context is its containing <w:r>; preserving the source
+			// envelope means the per-run rPr round-trips intact.
+			if run.srcRunStart && activeProps != nil && !activeProps.isEmpty() && !activeProps.equal(run.props) {
+				activeProps.appendClosingRuns(b, &spanCounter)
+				activeProps = nil
+			}
 			spanCounter++
 			b.AddPh(fmt.Sprintf("c%d", spanCounter),
 				TypeTab, SubTypeTab,
