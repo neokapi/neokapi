@@ -590,13 +590,12 @@ func (w *Writer) writeFromSkeleton(origZR *zip.Reader, zw *zip.Writer, buf *byte
 	var (
 		synthesised   map[string]synthesisedStyle
 		orderedIDs    []string
-		idCounters    map[string]int
+		idCounter     int
 		existingIDs   map[string]bool
 		pendingStyles map[string]pendingStylesEntry
 	)
 	if isDOCX && w.cfg.OptimiseWordStyles {
 		synthesised = make(map[string]synthesisedStyle)
-		idCounters = make(map[string]int)
 		// Pre-load existing styleIds from the source styles.xml so the
 		// generated NF974E24F-* ids don't collide.
 		for _, f := range origZR.File {
@@ -613,9 +612,21 @@ func (w *Writer) writeFromSkeleton(origZR *zip.Reader, zw *zip.Writer, buf *byte
 		}
 	}
 
+	// wsoOptimised stashes the WSO-rewritten bytes for each
+	// shouldOptimiseWMLPart part (keyed by ZIP entry name). It is
+	// populated in the WSO PRE-PASS below, in canonical Okapi processing
+	// order (mainPart first, then headers/footers/footnotes/endnotes/
+	// comments — see ZipEntryComparator + reorderedPartPaths in
+	// WordDocument.java:74-97). The shared idCounter ticks in that order
+	// so the synthesised styleId sequence (NF974E24F-{parent}{N}) lines
+	// up with the upstream filter's IdGenerator stream.
+	wsoOptimised := map[string][]byte{}
 	// Helper: post-process a WML XML payload (after lang strip + lang
-	// retargeting, before recompression).
-	postWML := func(name string, data []byte) []byte {
+	// retargeting, before recompression). WSO is applied in a separate
+	// pre-pass — postNonWSOForName runs the field-marker reversal that
+	// must always happen, then defers to wsoOptimised when the part has
+	// already been WSO'd.
+	postNonWSOForName := func(data []byte) []byte {
 		if !isDOCX {
 			return data
 		}
@@ -639,13 +650,62 @@ func (w *Writer) writeFromSkeleton(origZR *zip.Reader, zw *zip.Writer, buf *byte
 				data = bytes.ReplaceAll(data, []byte("</w:"+name+fieldKeepElementSuffix+">"), []byte("</w:"+name+">"))
 			}
 		}
-		// Style optimisation is only applied to PARAGRAPH-bearing parts;
-		// styles.xml itself is handled separately (style injection at
-		// the end of this function).
-		if w.cfg.OptimiseWordStyles && shouldOptimiseWMLPart(name) {
-			data = optimizeWMLPart(data, existingIDs, idCounters, synthesised, &orderedIDs)
+		return data
+	}
+	postWML := func(name string, data []byte) []byte {
+		data = postNonWSOForName(data)
+		if isDOCX && w.cfg.OptimiseWordStyles && shouldOptimiseWMLPart(name) {
+			if optimised, ok := wsoOptimised[name]; ok {
+				return optimised
+			}
 		}
 		return data
+	}
+
+	// WSO pre-pass: visit WSO-eligible parts in the order Okapi's
+	// ZipEntryComparator produces (mainPart first; see Okapi
+	// WordDocument.java:74-90 / ZipEntryComparator.java:39-44). For each
+	// part, fetch the same bytes the file-emit loop would feed to postWML
+	// (skeleton-reconstructed content if present, otherwise the raw ZIP
+	// content with strip-lang and lang-retarget applied), apply the
+	// non-WSO post-processing, and run optimizeWMLPart with the SHARED
+	// idCounter so styleId sequence numbers stay in lockstep with the
+	// upstream IdGenerator stream.
+	if isDOCX && w.cfg.OptimiseWordStyles {
+		wsoNames := wsoPartOrder(origZR, info)
+		for _, name := range wsoNames {
+			f := zipFileByName(origZR, name)
+			if f == nil {
+				continue
+			}
+			var data []byte
+			if content, ok := partContents[name]; ok && len(content) > 0 {
+				data = content
+				if shouldStripWMLLang(name) {
+					data = stripWMLSkippableElements(data)
+				}
+				if shouldRewriteWMLLangVal(name) {
+					data = rewriteWMLLangVal(data, w.sourceLocale, w.Locale)
+				}
+			} else if shouldStripWMLLang(name) || shouldRewriteWMLLangVal(name) {
+				raw, err := readZipFile(f)
+				if err != nil {
+					continue
+				}
+				data = raw
+				if shouldStripWMLLang(name) {
+					data = stripWMLSkippableElements(data)
+				}
+				if shouldRewriteWMLLangVal(name) {
+					data = rewriteWMLLangVal(data, w.sourceLocale, w.Locale)
+				}
+			} else {
+				continue
+			}
+			data = postNonWSOForName(data)
+			data = optimizeWMLPart(data, existingIDs, &idCounter, synthesised, &orderedIDs)
+			wsoOptimised[name] = data
+		}
 	}
 
 	for _, f := range origZR.File {
@@ -764,6 +824,39 @@ func (w *Writer) writeFromSkeleton(origZR *zip.Reader, zw *zip.Writer, buf *byte
 type pendingStylesEntry struct {
 	header zip.FileHeader
 	data   []byte
+}
+
+// wsoPartOrder returns the ordered list of WSO-eligible part paths,
+// in the canonical order Okapi's ZipEntryComparator produces (see
+// WordDocument.java:74-97 / ZipEntryComparator.java:39-44 — main
+// document part comes first; the rest in original ZIP order).
+//
+// The shared idCounter must increment in this order so that the
+// synthesised styleIds (NF974E24F-{parent}{N}) match upstream's
+// IdGenerator stream — otherwise headers/footers that come before
+// document.xml in raw ZIP order would consume the low sequence numbers
+// the upstream filter assigns to document.xml first.
+func wsoPartOrder(origZR *zip.Reader, info *containerInfo) []string {
+	var out []string
+	seen := make(map[string]struct{})
+	// Main part first (Okapi reorderedPartPaths places mainPartPath
+	// after relsPath, which is not WSO-eligible — so mainPart is the
+	// first WSO target after the early non-WSO entries).
+	if info.mainDocumentPart != "" && shouldOptimiseWMLPart(info.mainDocumentPart) {
+		out = append(out, info.mainDocumentPart)
+		seen[info.mainDocumentPart] = struct{}{}
+	}
+	// Then everything else in ZIP order.
+	for _, f := range origZR.File {
+		if _, dup := seen[f.Name]; dup {
+			continue
+		}
+		if shouldOptimiseWMLPart(f.Name) {
+			out = append(out, f.Name)
+			seen[f.Name] = struct{}{}
+		}
+	}
+	return out
 }
 
 // shouldOptimiseWMLPart reports whether a WML XML part participates in

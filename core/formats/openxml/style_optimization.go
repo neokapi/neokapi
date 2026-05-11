@@ -124,19 +124,26 @@ type rawParagraph struct {
 // post-pass for word/document.xml, word/header*.xml, word/footer*.xml,
 // word/footnotes.xml, word/endnotes.xml.
 //
-// idCounters is updated in-place across calls so that styleId
-// sequence numbers continue across multi-part documents (matching
-// Okapi's single IdGenerator scope for the entire openxml filter
-// invocation).
+// idCounter is a single shared sequence number — a *int updated in
+// place across calls so that styleId sequence numbers continue across
+// multi-part documents (matching Okapi's single IdGenerator scope for
+// the entire openxml filter invocation, see IdGenerator.createId at
+// okapi/core/.../IdGenerator.java:124-138 — the seq field is
+// IdGenerator-scoped, NOT prefix-scoped, so e.g. "Normal1", "Normal2",
+// "Footer3" can interleave by call order).
 //
-// existingStyleIDs contains the styleIds present in the source
-// word/styles.xml; an existing match short-circuits new-id generation.
-// This is consulted before idCounters because Okapi's parentBased()
-// re-uses an existing matching style if one is found.
+// existingStyleIDs is the SOURCE styles.xml id set. It is consulted
+// for two purposes: (1) parent-style lookup — a paragraph pStyle that
+// isn't defined in this set falls back to "Normal", mirroring
+// WordStyleDefinitions.Ids.basedOn at lines 453-460; (2) generated-id
+// collision avoidance — generation tickets that hit an existing id
+// re-roll, mirroring parentBasedGenerated's do/while loop. The map is
+// updated in place when a new synthesised id is added so subsequent
+// generations see the new id too (matching the upstream contract).
 func optimizeWMLPart(
 	src []byte,
 	existingStyleIDs map[string]bool,
-	idCounters map[string]int,
+	idCounter *int,
 	synthesised map[string]synthesisedStyle,
 	orderedIDs *[]string,
 ) []byte {
@@ -159,7 +166,7 @@ func optimizeWMLPart(
 		out.Write(src[cursor:para.start])
 		rewritten := optimizeParagraph(
 			src[para.start:para.end],
-			existingStyleIDs, idCounters, synthesised, orderedIDs,
+			existingStyleIDs, idCounter, synthesised, orderedIDs,
 		)
 		out.Write(rewritten)
 		cursor = para.end
@@ -265,7 +272,7 @@ type runEntry struct {
 func optimizeParagraph(
 	src []byte,
 	existingStyleIDs map[string]bool,
-	idCounters map[string]int,
+	idCounter *int,
 	synthesised map[string]synthesisedStyle,
 	orderedIDs *[]string,
 ) []byte {
@@ -339,25 +346,43 @@ func optimizeParagraph(
 		return src
 	}
 
-	// Build the synthesised style id.
+	// Build the synthesised style id. Mirrors WordStyleDefinitions.Ids
+	// .basedOn (lines 453-460): the paragraph's pStyle is used as
+	// parent ONLY if it is defined in styles.xml; otherwise the call
+	// falls through to defaultBased() which uses the document default
+	// paragraph style (universally "Normal" in practice — see
+	// StyleDefinitions.defaultStylesByStyleTypes population at
+	// WordStyleDefinitions.readWith). This guard matters for fixtures
+	// like 992.docx whose footer paragraphs carry a pStyle ("Corpodeltesto",
+	// "Pidipagina") that isn't actually defined — Okapi resolves them
+	// to Normal-based, native must do the same to keep styleId
+	// sequences aligned.
+	//
+	// existingStyleIDs accumulates synthesised ids too (so that the
+	// collision-avoidance loop below sees them). To distinguish source
+	// from synthesised, we exclude entries whose styleId starts with
+	// the synthesised-id prefix — no source-defined pStyle ever takes
+	// that shape in practice.
 	parentID := pStyleID
-	if parentID == "" {
+	if parentID == "" || !existingStyleIDs[parentID] || strings.HasPrefix(parentID, styleHashRoot+"-") {
 		parentID = "Normal"
 	}
 	commonRPrXML := buildRPrXML(common)
 	matchedID := findMatchingStyle(parentID, commonRPrXML, synthesised, *orderedIDs)
 	if matchedID == "" {
-		// Generate a fresh id "NF974E24F-<parentID><N>"
-		idCounters[parentID]++
-		seq := idCounters[parentID]
+		// Generate a fresh id "NF974E24F-<parentID><N>" using the
+		// SHARED IdGenerator counter — see the optimizeWMLPart doc
+		// comment for the upstream contract. The do/while in
+		// WordStyleDefinitions.Ids.parentBasedGenerated keeps ticking
+		// the shared counter until an id not already in
+		// stylesByStyleIds is produced.
 		for {
-			candidate := fmt.Sprintf("%s-%s%d", styleHashRoot, parentID, seq)
+			*idCounter++
+			candidate := fmt.Sprintf("%s-%s%d", styleHashRoot, parentID, *idCounter)
 			if !existingStyleIDs[candidate] {
 				matchedID = candidate
 				break
 			}
-			idCounters[parentID]++
-			seq = idCounters[parentID]
 		}
 		synthesised[matchedID] = synthesisedStyle{
 			id:       matchedID,
@@ -612,7 +637,7 @@ func parseRunPropElements(src []byte) []runProp {
 				continue
 			}
 			elemEnd := j + tagEnd + 1 + endIdx + len(closeNeedle)
-			out = append(out, runProp{name: localName, xml: string(body[j:elemEnd])})
+			out = append(out, runProp{name: localName, xml: normalizeEmptyElement(string(body[j:elemEnd]))})
 			j = elemEnd
 			continue
 		}
@@ -640,10 +665,51 @@ func parseRunPropElements(src []byte) []runProp {
 			continue
 		}
 		elemEnd := j + tagEnd + 1 + endIdx + len(closeNeedle)
-		out = append(out, runProp{name: name, xml: string(body[j:elemEnd])})
+		out = append(out, runProp{name: name, xml: normalizeEmptyElement(string(body[j:elemEnd]))})
 		j = elemEnd
 	}
 	return out
+}
+
+// normalizeEmptyElement collapses an empty open/close element form
+// (`<w:X></w:X>` or `<w:X attr="…"></w:X>`) to its self-closing form
+// (`<w:X/>` / `<w:X attr="…"/>`). encoding/xml's Decoder/Encoder cycle
+// re-emits captureRawElement payloads in open/close form even when the
+// source was self-closing — see the same #592 note in insertPStyle.
+// Without normalisation, two semantically identical run-property
+// elements compare unequal here (one self-closing, one open/close) and
+// commonProps spuriously returns empty, which is what causes WSO to
+// silently bypass headers/footers in fixtures like 956.docx and 992.docx
+// (the runs come back from encoding/xml in mixed forms).
+//
+// The normalisation is conservative: only elements with EMPTY bodies
+// (no child elements, no character data, only optional whitespace)
+// collapse. Anything with content is left untouched.
+func normalizeEmptyElement(xml string) string {
+	if len(xml) < 4 || xml[0] != '<' || xml[len(xml)-1] != '>' {
+		return xml
+	}
+	if xml[len(xml)-2] == '/' {
+		return xml // already self-closing
+	}
+	startTagEnd := strings.IndexByte(xml, '>')
+	if startTagEnd < 0 {
+		return xml
+	}
+	body := xml[startTagEnd+1:]
+	closeIdx := strings.LastIndex(body, "</")
+	if closeIdx < 0 {
+		return xml
+	}
+	inner := body[:closeIdx]
+	for i := range len(inner) {
+		c := inner[i]
+		if c != ' ' && c != '\t' && c != '\n' && c != '\r' {
+			return xml // non-empty body
+		}
+	}
+	// Re-emit start tag as self-closing.
+	return xml[:startTagEnd] + "/>"
 }
 
 // extractLocal returns the local element name from a tag like
