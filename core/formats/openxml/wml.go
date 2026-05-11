@@ -69,6 +69,21 @@ type textRun struct {
 	// object, oMath, oMathPara, mc:AlternateContent). Empty for plain
 	// text and zero-data sentinels (tab, break).
 	data string
+	// srcRunStart is true when this textRun is the FIRST content
+	// emitted from a fresh source <w:r>. The flag survives mergeRuns
+	// (mergeRuns never crosses sentinels or "\n" line breaks, so the
+	// first textRun of each source run is preserved). buildBlock
+	// consults this flag for <w:br/> textRuns so the writer can keep
+	// the source-run boundary visible: upstream Okapi RunBuilder
+	// (okapi/filters/openxml/RunBuilder.java:73-188) keeps tab/break
+	// chunks INSIDE their source <w:r> rather than fusing across
+	// run boundaries, so a <w:br/> that began a new <w:r> must NOT
+	// be inlined into the preceding text's run on the way out. Per
+	// ECMA-376-1 §17.3.3.1, <w:br/> is a run child whose containing
+	// <w:r> defines its rPr context; reusing the previous <w:r> for
+	// a break that originated in a different source <w:r> changes
+	// the wire-level structure (1421-line-break.docx).
+	srcRunStart bool
 }
 
 // complexFieldState tracks the state machine for complex field (fldChar) parsing.
@@ -1462,6 +1477,12 @@ func (p *wmlParser) parseParagraph(d *xml.Decoder, partPath string, emitBlock fu
 
 				// Merge adjacent runs with same formatting
 				merged := mergeRuns(runs)
+				// Capture per-text-run "starts new source <w:r>"
+				// flags AFTER mergeRuns so the slice aligns 1:1
+				// with the model.TextRun stream the writer sees
+				// (mergeRuns preserves the srcRunStart of the
+				// first run it keeps in a merge group).
+				perRunSrcRunStart := perRunSrcRunStartFlags(merged)
 
 				// Pre-extract translatable bits from any drawing
 				// sentinel runs in this paragraph so they reach
@@ -1525,7 +1546,7 @@ func (p *wmlParser) parseParagraph(d *xml.Decoder, partPath string, emitBlock fu
 				p.skelRef(blockID)
 				p.skelWriteString("</w:p>")
 
-				block := p.buildBlock(blockID, merged, partPath, commonRPrXML, perRunRPrXML)
+				block := p.buildBlock(blockID, merged, partPath, commonRPrXML, perRunRPrXML, perRunSrcRunStart)
 				emitBlock(block)
 				return nil
 			}
@@ -2165,10 +2186,19 @@ func (p *wmlParser) parseRunWithFieldState(d *xml.Decoder, cfs *complexFieldStat
 					// downstream merging / common-rPr computation, but
 					// the payload itself is opaque.
 					return []textRun{{
-						text:  "\uE108:fldChar",
-						props: props,
-						data:  rawBuf.String(),
+						text:        "\uE108:fldChar",
+						props:       props,
+						data:        rawBuf.String(),
+						srcRunStart: true,
 					}}, nil
+				}
+				if len(runs) > 0 {
+					// Mark the first emitted textRun with the source-run
+					// boundary so downstream merging and the writer can keep
+					// the original <w:r> envelope visible (e.g. a leading
+					// <w:br/> in a fresh source <w:r> must NOT inline into
+					// the preceding text's run \u2014 see textRun.srcRunStart).
+					runs[0].srcRunStart = true
 				}
 				return runs, nil
 			}
@@ -2328,7 +2358,7 @@ func serializeRPrChildrenXML(p runProps) string {
 // the block; the writer wire-up that consumes it lands in Phase 2.
 // Until then this annotation is read-only sidecar data and does not
 // change writer behaviour.
-func (p *wmlParser) buildBlock(id string, runs []textRun, partPath, commonRPrXML string, perRunRPrXML []string) *model.Block {
+func (p *wmlParser) buildBlock(id string, runs []textRun, partPath, commonRPrXML string, perRunRPrXML []string, perRunSrcRunStart []bool) *model.Block {
 	b := &runBuilder{}
 	spanCounter := 0
 
@@ -2337,7 +2367,19 @@ func (p *wmlParser) buildBlock(id string, runs []textRun, partPath, commonRPrXML
 	for _, run := range runs {
 		// Handle sentinel markers for special content
 		if strings.HasPrefix(run.text, "\uE100") {
-			// Tab placeholder
+			// Tab placeholder. Upstream Okapi RunMerger fuses
+			// adjacent same-rPr runs even when one begins with
+			// <w:tab/> (Document-with-tabs.docx reference output:
+			// `<r>Before</r><r><tab/>after</r>` merges to
+			// `<r><t>Before</t><tab/><t>after</t></r>`). The writer
+			// inline-into-run path mirrors that behaviour, so tabs
+			// never use the standalone subtype \u2014 RunMerger.canRun
+			// PropertiesBeMerged (RunMerger.java:156-229) gates on
+			// rPr equality, not source-run shape, for tab markup
+			// chunks. Per ECMA-376-1 \u00A717.3.3.31 (<w:tab/>) the tab
+			// is a run child whose rPr context is its containing
+			// <w:r>; reusing the previous run's <w:r> when rPr
+			// matches is semantically equivalent.
 			spanCounter++
 			b.AddPh(fmt.Sprintf("c%d", spanCounter),
 				TypeTab, SubTypeTab,
@@ -2543,11 +2585,21 @@ func (p *wmlParser) buildBlock(id string, runs []textRun, partPath, commonRPrXML
 			continue
 		}
 
-		// Handle line break
+		// Handle line break. When the source <w:br/> began a new
+		// <w:r> with no preceding text in it, tag the Ph with
+		// SubTypeBreakStandalone so the writer keeps the source-run
+		// envelope intact (cannot inline into the previous run).
+		// 1421-line-break.docx is the canonical fixture: three
+		// source runs <r>text</r><r>br</r><r>br+text</r> must
+		// round-trip as three output runs, not collapse into one.
 		if run.text == "\n" {
+			subType := SubTypeBreak
+			if run.srcRunStart {
+				subType = SubTypeBreakStandalone
+			}
 			spanCounter++
 			b.AddPh(fmt.Sprintf("c%d", spanCounter),
-				TypeBreak, SubTypeBreak,
+				TypeBreak, subType,
 				"<w:br/>", "\n", "",
 				false, false, false)
 			continue
@@ -2644,6 +2696,17 @@ func (p *wmlParser) buildBlock(id string, runs []textRun, partPath, commonRPrXML
 		block.Annotations[openxmlPerRunRPrAnnotationKey] = &model.GenericAnnotation{
 			Kind:   openxmlPerRunRPrAnnotationKey,
 			Fields: map[string]any{"fragments": perRunRPrXML},
+		}
+	}
+
+	// Stash the per-text-run "starts new source <w:r>" boolean sidecar
+	// so the writer can decide whether a text run reuses the still-open
+	// <w:r> from a preceding standalone <w:br/> / <w:tab/> Ph or opens
+	// a fresh <w:r>. See openxmlPerRunSrcRunStartAnnotationKey.
+	if len(perRunSrcRunStart) > 0 {
+		block.Annotations[openxmlPerRunSrcRunStartAnnotationKey] = &model.GenericAnnotation{
+			Kind:   openxmlPerRunSrcRunStartAnnotationKey,
+			Fields: map[string]any{"flags": perRunSrcRunStart},
 		}
 	}
 
@@ -3312,6 +3375,8 @@ func (p *wmlParser) extractTxbxParagraph(dec *xml.Decoder, out *strings.Builder,
 			// Per-run rPr sidecar (Phase 1) — see PARITY_NOTES.md.
 			perRunRPrXML := perRunRPrFragments(runs)
 			merged := mergeRuns(runs)
+			// Per-text-run srcRunStart flags align with merged runs.
+			perRunSrcRunStart := perRunSrcRunStartFlags(merged)
 			// Recurse extraction into nested drawing/pict
 			// payloads so e.g. a docPr name inside an image
 			// embedded within a textbox paragraph still reaches
@@ -3345,7 +3410,7 @@ func (p *wmlParser) extractTxbxParagraph(dec *xml.Decoder, out *strings.Builder,
 			out.WriteString(blockID)
 			out.WriteString(drawingMarkerSuffix)
 			out.WriteString("</w:p>")
-			block := p.buildBlock(blockID, merged, partPath, commonRPrXML, perRunRPrXML)
+			block := p.buildBlock(blockID, merged, partPath, commonRPrXML, perRunRPrXML, perRunSrcRunStart)
 			emitBlock(block)
 			return nil
 		}

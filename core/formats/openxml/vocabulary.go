@@ -51,6 +51,29 @@ const (
 	SubTypeSmartTag      = "openxml:smartTag"
 	SubTypeBreak         = "openxml:br"
 	SubTypeTab           = "openxml:tab"
+	// SubTypeBreakStandalone tags a <w:br/> that began a fresh source
+	// <w:r> (no preceding text/tab/break in the same <w:r>). The writer
+	// must close any open run BEFORE emitting this break so the source
+	// run boundary survives the round-trip. Mirrors upstream Okapi
+	// RunBuilder (okapi/filters/openxml/RunBuilder.java:73-188) which
+	// keeps each <w:br/> Markup chunk anchored to its own source
+	// RunBuilder; RunMerger does not collapse break-bearing runs across
+	// source <w:r> boundaries (RunMerger.java:156-229). Per ECMA-376-1
+	// §17.3.3.1, <w:br/> is a run child whose containing <w:r> defines
+	// its rPr context — moving it into the previous text's <w:r>
+	// rewrites that envelope (1421-line-break.docx).
+	SubTypeBreakStandalone = "openxml:br:standalone"
+	// SubTypeTabStandalone is the analogue for <w:tab/>: a tab that
+	// began a fresh source <w:r>. Defined for symmetry with
+	// SubTypeBreakStandalone but currently never set — upstream
+	// Okapi RunMerger fuses adjacent same-rPr runs across <w:tab/>
+	// boundaries (Document-with-tabs.docx: `<r>Before</r>
+	// <r><tab/>after</r>` merges to `<r><t>Before</t><tab/><t>after
+	// </t></r>`), so the writer's inline-into-run path already
+	// matches the reference output without a boundary marker.
+	// ECMA-376-1 §17.3.3.31. Reserved for future use should a fixture
+	// emerge that needs the same boundary semantics for tabs.
+	SubTypeTabStandalone = "openxml:tab:standalone"
 	SubTypeImage         = "openxml:drawing"
 	SubTypeFootnoteRef   = "openxml:footnoteRef"
 	SubTypeBookmarkStart     = "openxml:bookmarkStart"

@@ -78,6 +78,49 @@ const openxmlSourceRPrAnnotationKey = "openxml-source-rpr"
 //     stays heterogeneous on the way to the writer.
 const openxmlPerRunRPrAnnotationKey = "openxml-per-run-rpr"
 
+// openxmlPerRunSrcRunStartAnnotationKey is the model.Block.Annotations
+// map key under which the writer reads the per-text-run "starts a new
+// source <w:r>" boolean sidecar — one entry per text-bearing source
+// run, in source order, aligned with the perRunRPr fragments.
+//
+// The reader sets textRun.srcRunStart on the FIRST emission of each
+// source <w:r>; perRunSrcRunStartFlags copies that signal into the
+// sidecar so the writer can decide whether a text run should reuse
+// the still-open <w:r> from a preceding standalone <w:br/> / <w:tab/>
+// or open a fresh <w:r>. Mirrors upstream Okapi RunBuilder
+// (okapi/filters/openxml/RunBuilder.java:73-188) which scopes
+// <w:br/> / <w:tab/> markup chunks to their containing <w:r>;
+// RunMerger does not fuse runs across source-run boundaries
+// (RunMerger.java:156-229). Per ECMA-376-1 §17.3.2.1 (CT_R) the
+// <w:r> envelope is meaningful even when the rPr is identical to
+// a neighbouring run.
+//
+// The annotation value is a model.GenericAnnotation with
+// Fields["flags"] holding a []bool. Length equals the perRunRPr
+// fragments length; entry i is true iff the i-th text-bearing source
+// run was the FIRST content of a fresh source <w:r> (i.e. preceded
+// by nothing — no text, tab, or break — within that <w:r>).
+const openxmlPerRunSrcRunStartAnnotationKey = "openxml-per-run-src-run-start"
+
+// perRunSrcRunStartFlags returns one bool per text-bearing source
+// run, aligned with perRunRPrFragments. The boolean is true when
+// the run was the FIRST textRun emitted from a fresh source <w:r>.
+// Same filtering rule as perRunRPrFragments (skip sentinels and
+// "\n" line breaks).
+func perRunSrcRunStartFlags(runs []textRun) []bool {
+	var out []bool
+	for _, r := range runs {
+		if isSentinel(r.text) {
+			continue
+		}
+		if r.text == "\n" {
+			continue
+		}
+		out = append(out, r.srcRunStart)
+	}
+	return out
+}
+
 // perRunRPrFragments returns one rPr-children XML fragment per
 // text-bearing source run in `runs`, in source order.
 //

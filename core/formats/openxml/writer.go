@@ -975,16 +975,17 @@ func (w *Writer) renderBlock(block *model.Block, dt docType) string {
 	// previous common-rPr path. When heterogeneous, per-run divergences
 	// (e.g. rStyle on hyperlink display text) are preserved.
 	perRunRPr := blockPerRunRPrFragments(block)
+	perRunSrcStart := blockPerRunSrcRunStartFlags(block)
 
 	switch dt {
 	case docTypeDOCX:
-		return w.renderWMLBlock(runs, sourceRPr, perRunRPr)
+		return w.renderWMLBlock(runs, sourceRPr, perRunRPr, perRunSrcStart)
 	case docTypePPTX:
 		return w.renderDMLBlock(runs)
 	case docTypeXLSX:
 		return w.renderSMLBlock(runs, block)
 	default:
-		return w.renderWMLBlock(runs, sourceRPr, perRunRPr)
+		return w.renderWMLBlock(runs, sourceRPr, perRunRPr, perRunSrcStart)
 	}
 }
 
@@ -1054,6 +1055,31 @@ func blockPerRunRPrFragments(block *model.Block) []string {
 		stripped[i] = stripToggleMirrorChildren(f)
 	}
 	return dedupeAdjacent(stripped)
+}
+
+// blockPerRunSrcRunStartFlags extracts the per-text-run "starts new
+// source <w:r>" boolean sidecar from the block annotation populated
+// by the WML reader. See source_rpr.go
+// openxmlPerRunSrcRunStartAnnotationKey for the contract.
+//
+// Returns nil when the annotation is absent.
+func blockPerRunSrcRunStartFlags(block *model.Block) []bool {
+	if block == nil || block.Annotations == nil {
+		return nil
+	}
+	a, ok := block.Annotations[openxmlPerRunSrcRunStartAnnotationKey]
+	if !ok {
+		return nil
+	}
+	g, ok := a.(*model.GenericAnnotation)
+	if !ok || g == nil || g.Fields == nil {
+		return nil
+	}
+	v, ok := g.Fields["flags"].([]bool)
+	if !ok {
+		return nil
+	}
+	return v
 }
 
 // stripToggleMirrorChildren removes <w:bCs/> and <w:iCs/> elements
@@ -1181,7 +1207,7 @@ func countTextRuns(runs []model.Run) int {
 // elements rather than collapsing to a single rPr-less <w:r>).
 //
 // Per ECMA-376-1 §17.3.2.
-func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []string) string {
+func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []string, perRunSrcStart []bool) string {
 	// Alignment guard: the per-run sidecar is one fragment per
 	// text-bearing source run AFTER dedupe-on-collapse. The writer
 	// emits one <w:r> per text-bearing model.Run.Text. When the two
@@ -1194,6 +1220,14 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 	// common-rPr behaviour for ambiguous paragraphs.
 	if len(perRunRPr) != countTextRuns(runs) {
 		perRunRPr = nil
+	}
+	// Mirror the same alignment guard for the srcRunStart sidecar:
+	// it must have one entry per post-merge text-bearing run. If the
+	// length disagrees, drop it — the writer falls back to the
+	// pre-#592 behaviour (every standalone <w:br/>/<w:tab/> closes
+	// the <w:r> envelope immediately, never reused by following text).
+	if len(perRunSrcStart) != countTextRuns(runs) {
+		perRunSrcStart = nil
 	}
 
 	// effectiveRPr returns the per-run rPr to emit at text-run index
@@ -1208,6 +1242,18 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 			return sourceRPr
 		}
 		return perRunRPr[idx]
+	}
+
+	// textSrcStart returns true iff the text-run at idx began a fresh
+	// source <w:r>. Defaults to true when the sidecar is absent so
+	// the writer never accidentally fuses heterogeneous source-run
+	// origins (false would invite previously-separate runs to merge
+	// into a preceding standalone <w:br/>/<w:tab/>'s <w:r>).
+	textSrcStart := func(idx int) bool {
+		if idx < 0 || idx >= len(perRunSrcStart) {
+			return true
+		}
+		return perRunSrcStart[idx]
 	}
 
 	// Fast paths below collapse the entire run sequence into a single
@@ -1243,6 +1289,18 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 
 	var buf strings.Builder
 	var inRun bool
+	// inRunNoText flags an open <w:r> that has emitted a standalone
+	// <w:br/> / <w:tab/> but no <w:t> yet. The next text Run, if it
+	// shares the same rPr, joins this <w:r> by opening <w:t> inside
+	// it rather than spawning a new <w:r>. This preserves the source
+	// shape `<w:r><w:br/><w:t>...</w:t></w:r>` (run 3 of
+	// 1421-line-break.docx) which upstream Okapi RunBuilder keeps as
+	// a single <w:r> per ECMA-376-1 §17.3.2.1 (CT_R: rPr followed by
+	// run children — <w:br/> and <w:t> may both appear inside one
+	// run). When the next Run is NOT a same-rPr text Run (different
+	// rPr, another Ph, or PcOpen/PcClose), this <w:r> closes via
+	// closeRunNoText so the open envelope doesn't leak.
+	var inRunNoText bool
 	var runProps string
 	textRunIdx := -1 // pre-increment on each new <w:r> for r.Text
 
@@ -1250,6 +1308,10 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 		if inRun {
 			buf.WriteString(`</w:t></w:r>`)
 			inRun = false
+		}
+		if inRunNoText {
+			buf.WriteString(`</w:r>`)
+			inRunNoText = false
 		}
 	}
 
@@ -1302,6 +1364,32 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 					closeRun()
 				}
 			}
+			// If a prior standalone <w:br/> / <w:tab/> left an <w:r>
+			// open without a <w:t>, decide whether this text joins it.
+			// Two conditions must hold:
+			//   (a) the text was NOT marked as starting a new source
+			//       <w:r> (perRunSrcStart sidecar from the reader); and
+			//   (b) the text's effectiveRPr matches the rPr the Ph
+			//       emitted via emitNonTextRPr (sourceRPr + runProps).
+			// Both true → reuse the open <w:r> by opening <w:t> in
+			// it, preserving `<w:r><w:br/><w:t>…</w:t></w:r>` (run 3
+			// of 1421-line-break.docx). Otherwise close the no-text
+			// <w:r> first so the text emits in a fresh <w:r> carrying
+			// its own rPr. Per upstream Okapi RunBuilder (lines
+			// 73-188) and ECMA-376-1 §17.3.2.1 (CT_R), the <w:r>
+			// envelope is preserved per source run.
+			if inRunNoText {
+				nextRPr := effectiveRPr(textRunIdx + 1)
+				if !textSrcStart(textRunIdx+1) && nextRPr == sourceRPr {
+					textRunIdx++
+					buf.WriteString(`<w:t xml:space="preserve">`)
+					inRun = true
+					inRunNoText = false
+				} else {
+					buf.WriteString(`</w:r>`)
+					inRunNoText = false
+				}
+			}
 			for _, ch := range r.Text.Text {
 				if !inRun {
 					textRunIdx++
@@ -1352,7 +1440,19 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 			// run rather than spawning a new <w:r>. Per ECMA-376-1
 			// §17.3.3.31 (<w:tab/>) and §17.3.3.1 (<w:br/>), both are run
 			// children that share the enclosing <w:r>'s rPr context.
-			if (r.Ph.Type == TypeTab || r.Ph.Type == TypeBreak) && inRun && effectiveRPr(textRunIdx) == sourceRPr {
+			//
+			// The SubTypeBreakStandalone / SubTypeTabStandalone subtypes
+			// tag Ph chunks that began a fresh source <w:r> (the reader
+			// sets textRun.srcRunStart on the first emission of each
+			// <w:r> and buildBlock propagates it through the SubType).
+			// Those MUST close the current run before emitting so the
+			// source-run envelope round-trips intact — RunMerger does
+			// not collapse break-bearing runs across <w:r> boundaries
+			// (RunMerger.java:156-229). 1421-line-break.docx is the
+			// canonical fixture.
+			canInline := (r.Ph.Type == TypeTab && r.Ph.SubType != SubTypeTabStandalone) ||
+				(r.Ph.Type == TypeBreak && r.Ph.SubType != SubTypeBreakStandalone)
+			if canInline && inRun && effectiveRPr(textRunIdx) == sourceRPr {
 				if r.Ph.Type == TypeTab {
 					buf.WriteString(`</w:t><w:tab/><w:t xml:space="preserve">`)
 				} else {
@@ -1369,7 +1469,23 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 				// the native renderer we wrap it in its own <w:r>
 				// for symmetry with the existing pipeline; the
 				// surrounding text runs carry their own rPr.
-				if sourceRPr != "" || runProps != "" {
+				//
+				// When the Ph is SubTypeBreakStandalone (began a
+				// fresh source <w:r>), leave the <w:r> OPEN
+				// (inRunNoText=true) so a following text run that
+				// originated in the same source <w:r> can join it
+				// by opening <w:t> inside this <w:r>. Otherwise
+				// close immediately. Mirrors upstream Okapi
+				// RunBuilder (RunBuilder.java:73-188) which keeps
+				// each source <w:r>'s br + text together in one
+				// envelope. 1421-line-break.docx is the canonical
+				// fixture (run 3: `<w:r><w:br/><w:t>…</w:t></w:r>`).
+				if r.Ph.SubType == SubTypeBreakStandalone {
+					buf.WriteString(`<w:r>`)
+					emitNonTextRPr()
+					buf.WriteString(`<w:br/>`)
+					inRunNoText = true
+				} else if sourceRPr != "" || runProps != "" {
 					buf.WriteString(`<w:r>`)
 					emitNonTextRPr()
 					buf.WriteString(`<w:br/></w:r>`)
@@ -1377,7 +1493,12 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 					buf.WriteString(`<w:r><w:br/></w:r>`)
 				}
 			case TypeTab:
-				if sourceRPr != "" || runProps != "" {
+				if r.Ph.SubType == SubTypeTabStandalone {
+					buf.WriteString(`<w:r>`)
+					emitNonTextRPr()
+					buf.WriteString(`<w:tab/>`)
+					inRunNoText = true
+				} else if sourceRPr != "" || runProps != "" {
 					buf.WriteString(`<w:r>`)
 					emitNonTextRPr()
 					buf.WriteString(`<w:tab/></w:r>`)
@@ -1513,7 +1634,7 @@ func (w *Writer) expandDrawingMarkers(payload string) string {
 		case "PROP":
 			return xmlEscapeAttr(model.FlattenRuns(runs))
 		case "PARA":
-			return w.renderWMLBlock(runs, blockSourceRPrXML(block), blockPerRunRPrFragments(block))
+			return w.renderWMLBlock(runs, blockSourceRPrXML(block), blockPerRunRPrFragments(block), blockPerRunSrcRunStartFlags(block))
 		default:
 			return ""
 		}
