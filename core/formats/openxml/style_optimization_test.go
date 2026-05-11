@@ -22,6 +22,43 @@ func TestFindRuns_basic(t *testing.T) {
 	assert.Len(t, got, 2)
 }
 
+func TestFindRuns_NestedDrawingTextboxRun(t *testing.T) {
+	// 859.docx pattern: a drawing-only outer run wraps a <wp:anchor> +
+	// <wne:txbxContent> + nested <w:p> + nested <w:r>. Without
+	// opaque-subtree skipping the outer run's end tag would be matched
+	// to the FIRST </w:r> in the byte stream — which belongs to the
+	// inner textbox content run — and the outer run would be reported
+	// as having the inner run's <w:rPr>. WSO would then promote the
+	// inner textbox run's lang into a synthesised paragraph style on
+	// the OUTER drawing-only paragraph. The inner textbox run is a
+	// SUB-document run (separate styled-text part in upstream Okapi)
+	// and must NOT be surfaced as a sibling of the outer run for
+	// per-paragraph WSO purposes — drawing/pict/object/AlternateContent
+	// payloads are opaque markup at the parent paragraph's scope.
+	// Mirrors upstream RunBuilder.addToMarkup (RunBuilder.java:73-188)
+	// where these elements pass through as opaque chunks.
+	src := []byte(`<w:p><w:r><w:drawing><wp:anchor>` +
+		`<wne:txbxContent><w:p><w:r><w:rPr><w:lang w:val="en-US"/></w:rPr>` +
+		`<w:t>Inner</w:t></w:r></w:p></wne:txbxContent>` +
+		`</wp:anchor></w:drawing></w:r></w:p>`)
+	got := findRuns(src)
+	require.Len(t, got, 1, "only the outer drawing-bearing run should be surfaced; the inner textbox run is sub-document scope")
+	outer := string(src[got[0].start:got[0].end])
+	assert.Contains(t, outer, "<w:drawing>")
+	assert.Contains(t, outer, "</w:drawing></w:r>")
+	assert.Contains(t, outer, "<wne:txbxContent>")
+}
+
+func TestFindRuns_SelfClosingDrawing(t *testing.T) {
+	// Defensive: <w:drawing/> (self-closing) must not break the
+	// opaque-skip logic. Encountered only in malformed/empty drawing
+	// fallbacks but the code path needs to handle it.
+	src := []byte(`<w:p><w:r><w:drawing/></w:r></w:p>`)
+	got := findRuns(src)
+	require.Len(t, got, 1)
+	assert.Equal(t, `<w:r><w:drawing/></w:r>`, string(src[got[0].start:got[0].end]))
+}
+
 func TestParseRunPropElements_basic(t *testing.T) {
 	src := []byte(`<w:rPr><w:rFonts w:ascii="Arial"/><w:b/></w:rPr>`)
 	got := parseRunPropElements(src)

@@ -614,15 +614,49 @@ type rawRun struct {
 	start, end int
 }
 
-// findRuns returns every top-level <w:r>...</w:r> element inside src.
-// "Top-level" here means it doesn't recurse into nested runs (which
-// don't exist — runs cannot contain runs in WML), but it DOES find
-// runs nested inside hyperlinks/sdt/ins-content-wrappers because the
-// scan is purely sequential.
+// findRuns returns every paragraph-level <w:r>...</w:r> element inside
+// src. Per ECMA-376-1 §17.3.2.1 (CT_R) a <w:r> cannot directly
+// contain another <w:r>, but it CAN contain a <w:drawing> /
+// <w:pict> / <w:object> / <mc:AlternateContent> whose subtree
+// carries a <wne:txbxContent> (or VML/AlternateContent equivalent)
+// holding nested <w:p>...<w:r>...</w:p> blocks. Those nested runs
+// belong to a SUB-document (a separate styled-text part in upstream
+// Okapi) and must NOT be surfaced as siblings of the outer
+// drawing-bearing run for WSO purposes — promoting them would
+// mis-attribute their per-run rPr to the OUTER paragraph and
+// cause WSO to synthesise a spurious paragraph style on the
+// drawing-only paragraph (859.docx — drawing paragraph picked up
+// `<w:lang w:val="en-US"/>` from the inner textbox run rPr and got
+// `<w:pStyle w:val="NF974E24F-Normal1"/>` injected; the okapi
+// reference promotes the inner textbox-paragraph rPr to its own
+// synthesised style and leaves the outer drawing-only paragraph
+// alone).
+//
+// To match Okapi's per-block scope (upstream walks one paragraph at
+// a time and treats the drawing subtree as opaque markup —
+// MarkupComponent payload, see RunBuilder.addToMarkup
+// (RunBuilder.java:73-188) and RunContainer's opaque-chunk model),
+// the byte scanner skips past the entire <w:drawing>...</w:drawing>
+// (and <w:pict>/<w:object>/<mc:AlternateContent>) extent before
+// resuming the <w:r> hunt. The outer drawing run is still emitted
+// (it's a paragraph-level <w:r>); only the inner runs are filtered.
+//
+// Sequential top-level scan: paragraphs returned by findParagraphs
+// are the outermost <w:p>, but within ONE such paragraph runs may
+// appear at any depth (inside hyperlink, sdt content, ins/del
+// wrappers, smartTag). All surfaced as separate rawRun entries;
+// the opaque-subtree skip targets only drawing/pict/object/AC,
+// which carry their own paragraphs.
 func findRuns(src []byte) []rawRun {
 	var out []rawRun
 	open := []byte("<w:r")
 	close := []byte("</w:r>")
+	// opaqueRunChildren names elements that may appear inside <w:r>
+	// and contain nested <w:r> in a sub-document scope. Mirrors the
+	// upstream RunContainer/MarkupComponent opaque-payload set:
+	// drawings + objects + pictures + AlternateContent (the latter
+	// because mc:Choice often wraps a drawing).
+	opaqueRunChildren := []string{"<w:drawing", "<w:pict", "<w:object", "<mc:AlternateContent"}
 	i := 0
 	for i < len(src) {
 		idx := bytes.Index(src[i:], open)
@@ -650,11 +684,102 @@ func findRuns(src []byte) []rawRun {
 			i = startTagEnd + 1
 			continue
 		}
-		ci := bytes.Index(src[startTagEnd+1:], close)
-		if ci < 0 {
+		// Walk forward looking for either an opaque-subtree start
+		// (<w:drawing>/<w:pict>/<w:object>/<mc:AlternateContent>)
+		// or this run's matching </w:r>. When we hit an opaque
+		// subtree, jump past its balanced end tag so any nested
+		// <w:r> inside textbox/object content is filtered out.
+		scan := startTagEnd + 1
+		end := -1
+		for scan < len(src) {
+			ci := bytes.Index(src[scan:], close)
+			if ci < 0 {
+				return out
+			}
+			closeAbs := scan + ci
+			// Find the earliest opaque-subtree open that precedes
+			// the candidate </w:r> close. If found, skip over it.
+			earliestOpaqueAbs := -1
+			var matchedTag string
+			for _, tag := range opaqueRunChildren {
+				ti := bytes.Index(src[scan:closeAbs], []byte(tag))
+				if ti < 0 {
+					continue
+				}
+				// Element-name boundary: next char must be ` `, `>`, `/`.
+				bj := scan + ti + len(tag)
+				if bj >= len(src) {
+					continue
+				}
+				bb := src[bj]
+				if bb != '>' && bb != ' ' && bb != '\t' && bb != '\n' && bb != '\r' && bb != '/' {
+					continue
+				}
+				abs := scan + ti
+				if earliestOpaqueAbs < 0 || abs < earliestOpaqueAbs {
+					earliestOpaqueAbs = abs
+					matchedTag = tag
+				}
+			}
+			if earliestOpaqueAbs >= 0 {
+				// Find balanced close for this opaque element.
+				closeName := []byte("</" + matchedTag[1:] + ">")
+				// Self-closing form: <w:drawing/> — no inner content.
+				openTagEnd := bytes.IndexByte(src[earliestOpaqueAbs:], '>')
+				if openTagEnd < 0 {
+					return out
+				}
+				openTagAbsEnd := earliestOpaqueAbs + openTagEnd
+				if openTagAbsEnd > 0 && src[openTagAbsEnd-1] == '/' {
+					scan = openTagAbsEnd + 1
+					continue
+				}
+				// Find matching close tag with depth counter for
+				// nested same-name elements (rare but possible for
+				// AlternateContent).
+				depth := 1
+				inner := openTagAbsEnd + 1
+				for depth > 0 && inner < len(src) {
+					nextOpen := bytes.Index(src[inner:], []byte(matchedTag))
+					nextClose := bytes.Index(src[inner:], closeName)
+					if nextClose < 0 {
+						return out
+					}
+					if nextOpen >= 0 && nextOpen < nextClose {
+						// Confirm element-name boundary on the open.
+						bj := inner + nextOpen + len(matchedTag)
+						if bj < len(src) {
+							bb := src[bj]
+							if bb == '>' || bb == ' ' || bb == '\t' || bb == '\n' || bb == '\r' || bb == '/' {
+								// Self-closing variant doesn't
+								// increment depth.
+								kk := bytes.IndexByte(src[bj:], '>')
+								if kk >= 0 {
+									se := bj + kk
+									if !(se > 0 && src[se-1] == '/') {
+										depth++
+									}
+									inner = se + 1
+									continue
+								}
+							}
+						}
+						inner = bj
+						continue
+					}
+					depth--
+					inner = inner + nextClose + len(closeName)
+				}
+				scan = inner
+				continue
+			}
+			// No opaque subtree before </w:r> — this is our close.
+			end = closeAbs + len(close)
+			break
+		}
+		if end < 0 {
 			return out
 		}
-		end := startTagEnd + 1 + ci + len(close)
 		out = append(out, rawRun{start: start, end: end})
 		i = end
 	}
