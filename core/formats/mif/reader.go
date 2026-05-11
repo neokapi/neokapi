@@ -82,6 +82,20 @@ type mifStatement struct {
 	value    string
 	children []*mifStatement
 	raw      string // Original raw text for non-translatable parts.
+
+	// rawValue is the literal source bytes between the opening backtick
+	// and closing quote of a value-bearing tag (e.g. `<String 'foo'>`),
+	// BEFORE in-string escape decoding. value is the decoded form fed
+	// into translatable Blocks. The two differ only when the source uses
+	// hex escapes (`\xNN `) that Hexadecimal.toString collapses to a
+	// shorter Unicode equivalent (e.g. `\x09 ` -> `\n`). findStringPositions
+	// uses rawValue to locate the original `<String>` bytes in rawText,
+	// while extractParaRuns feeds value into the translatable run text;
+	// the writer's escapeMIF then re-encodes value canonically on output
+	// (mirrors okapi MIFEncoder.encode, which never emits the `\xNN`
+	// form -- a tab in memory always serializes to `\t`, a LF always to
+	// `\n`, regardless of how the source encoded them).
+	rawValue string
 }
 
 // stringRef records the byte position of a String value and its block association.
@@ -371,6 +385,15 @@ func (r *Reader) findStringPositions(rawText string, stmts []*mifStatement) ([]s
 		searchTag       string   // "String" or "VariableDef" or "CharRewrite"
 		inlineChars     []paraInlineChar
 		paraCharRewrite []paraCharRewrite // when searchTag == "CharRewrite"
+		// stringsAreRaw signals that `strings` contains source-form
+		// bytes (post-quote, pre-decode). The search pattern uses them
+		// verbatim instead of re-running escapeMIFForSearch. Used by
+		// String items where the source may have `\xNN ` hex escapes
+		// that decode to a different byte form (e.g. `\x09 ` -> `\n`).
+		// PgfNumFormat items keep stringsAreRaw=false because they go
+		// through processPgfCatalog with decoded values today; bridging
+		// them to rawValue is a separate cluster.
+		stringsAreRaw bool
 	}
 	var items []itemInfo
 	var rewrites []charRewrite
@@ -482,7 +505,13 @@ func (r *Reader) findStringPositions(rawText string, stmts []*mifStatement) ([]s
 					for lcIdx, lc := range gc.children {
 						switch lc.tag {
 						case "String":
-							allStrings = append(allStrings, lc.value)
+							// Use the raw source bytes for skeleton-ref
+							// matching: findStringPositions searches rawText
+							// for `<String 'rawValue'>` and a decoded value
+							// (e.g. `\x09 ` -> `\n`) won't appear verbatim
+							// in the source. value (decoded) feeds the
+							// translatable Block elsewhere.
+							allStrings = append(allStrings, lc.rawValue)
 						case "Char":
 							nextTag := ""
 							if lcIdx+1 < len(gc.children) {
@@ -656,9 +685,10 @@ func (r *Reader) findStringPositions(rawText string, stmts []*mifStatement) ([]s
 						case "Marker":
 							if bi, ok := markerBlockIdxs[lc]; ok {
 								items = append(items, itemInfo{
-									blockIdx:  bi,
-									strings:   []string{markerTextValue(lc)},
-									searchTag: "MText",
+									blockIdx:      bi,
+									strings:       []string{markerTextRawValue(lc)},
+									searchTag:     "MText",
+									stringsAreRaw: true,
 								})
 							}
 						case "String":
@@ -675,10 +705,11 @@ func (r *Reader) findStringPositions(rawText string, stmts []*mifStatement) ([]s
 								continue
 							}
 							items = append(items, itemInfo{
-								blockIdx:    runBlockIdxs[ri],
-								strings:     strs,
-								searchTag:   "String",
-								inlineChars: runInlineChars[ri],
+								blockIdx:      runBlockIdxs[ri],
+								strings:       strs,
+								searchTag:     "String",
+								inlineChars:   runInlineChars[ri],
+								stringsAreRaw: true,
 							})
 						case "Char":
 							owner := charOwnerRun[charPosCursor]
@@ -698,10 +729,11 @@ func (r *Reader) findStringPositions(rawText string, stmts []*mifStatement) ([]s
 								})
 							} else {
 								items = append(items, itemInfo{
-									blockIdx:    runBlockIdxs[owner],
-									strings:     strs,
-									searchTag:   "String",
-									inlineChars: runInlineChars[owner],
+									blockIdx:      runBlockIdxs[owner],
+									strings:       strs,
+									searchTag:     "String",
+									inlineChars:   runInlineChars[owner],
+									stringsAreRaw: true,
 								})
 							}
 						}
@@ -779,14 +811,15 @@ func (r *Reader) findStringPositions(rawText string, stmts []*mifStatement) ([]s
 			case "Frame":
 				walkFramesAndTextLines(child)
 			case "TextLine":
-				val, ok := firstStringValue(child)
+				val, ok := firstStringRawValue(child)
 				if !ok {
 					continue
 				}
 				items = append(items, itemInfo{
-					blockIdx:  blockIdx,
-					strings:   []string{val},
-					searchTag: "String",
+					blockIdx:      blockIdx,
+					strings:       []string{val},
+					searchTag:     "String",
+					stringsAreRaw: true,
 				})
 				blockIdx++
 			}
@@ -901,16 +934,26 @@ func (r *Reader) findStringPositions(rawText string, stmts []*mifStatement) ([]s
 			continue
 		}
 		// Locate each String value position monotonically.
+		// it.strings carries source-form bytes (rawValue) for String
+		// values and decoded values for PgfNumFormat. The flag below
+		// records which: source-form skips re-escaping (raw bytes
+		// already match the rawText), decoded reapplies escapeMIFForSearch.
 		stringPositions := make([][2]int, 0, len(it.strings))
 		for stringInItemIdx, expectedVal := range it.strings {
-			pattern := "<" + it.searchTag + " `" + escapeMIFForSearch(expectedVal) + "'>"
+			var encoded string
+			if it.stringsAreRaw {
+				encoded = expectedVal
+			} else {
+				encoded = escapeMIFForSearch(expectedVal)
+			}
+			pattern := "<" + it.searchTag + " `" + encoded + "'>"
 			idx := strings.Index(rawText[searchFrom:], pattern)
 			if idx < 0 {
 				continue
 			}
 			absIdx := searchFrom + idx
 			valStart := absIdx + len("<"+it.searchTag+" `")
-			valEnd := valStart + len(escapeMIFForSearch(expectedVal))
+			valEnd := valStart + len(encoded)
 			stringPositions = append(stringPositions, [2]int{absIdx, valEnd})
 			searchFrom = valEnd
 
@@ -2132,6 +2175,21 @@ func firstStringValue(stmt *mifStatement) (string, bool) {
 	return "", false
 }
 
+// firstStringRawValue is firstStringValue but returns the source-form
+// bytes (rawValue) used by findStringPositions to match against
+// rawText. Use this whenever the returned value flows into
+// findStringPositions' itemInfo.strings; use firstStringValue when the
+// decoded text feeds a translatable Block (extractParaRuns / processContainer
+// don't pass through here today — TextLine emits one block per String).
+func firstStringRawValue(stmt *mifStatement) (string, bool) {
+	for _, c := range stmt.children {
+		if c.tag == "String" {
+			return c.rawValue, true
+		}
+	}
+	return "", false
+}
+
 // extractMarker reports whether a <Marker> statement should be
 // extracted as translatable (its <MText> value becomes a Block).
 // Mirrors okapi processMarker (MIFFilter.java:842-857): only Index
@@ -2159,6 +2217,20 @@ func markerTextValue(stmt *mifStatement) string {
 	for _, c := range stmt.children {
 		if c.tag == "MText" {
 			return c.value
+		}
+	}
+	return ""
+}
+
+// markerTextRawValue returns the source-form bytes of the MText
+// child, used by findStringPositions to locate the original
+// `<MText '...'>` line in rawText. Differs from markerTextValue when
+// the MText body contains `\xNN ` hex escapes that Hexadecimal.toString
+// collapses to a different Unicode form on decode.
+func markerTextRawValue(stmt *mifStatement) string {
+	for _, c := range stmt.children {
+		if c.tag == "MText" {
+			return c.rawValue
 		}
 	}
 	return ""
@@ -2602,6 +2674,7 @@ func parseMIF(content string) []*mifStatement {
 		}
 		if hasVal {
 			stmt.value = unquoteMIF(after)
+			stmt.rawValue = unquoteMIFRaw(after)
 		}
 		if len(stack) > 0 {
 			parent := stack[len(stack)-1]
@@ -2764,10 +2837,36 @@ func unquoteMIF(s string) string {
 	return unescapeMIFString(s)
 }
 
+// unquoteMIFRaw strips the MIF backtick…quote delimiters but preserves
+// the body bytes verbatim (no escape decoding). Mirrors what
+// findStringPositions needs to locate the exact source bytes for a
+// `<String>` / `<PgfNumFormat>` / `<VariableDef>` value in rawText.
+// Differs from unquoteMIF only when the source used `\xNN ` hex escapes
+// that Hexadecimal.toString collapses to a different Unicode form on
+// decode -- escapeMIF re-encodes the decoded form canonically (`\t`,
+// `\n`, …), so the raw source bytes can't be reconstructed from value
+// alone (MIFFilter.java:1804-1819 readHexa).
+func unquoteMIFRaw(s string) string {
+	s = strings.TrimSpace(s)
+	if len(s) >= 2 && s[0] == '`' && s[len(s)-1] == '\'' {
+		s = s[1 : len(s)-1]
+	}
+	return s
+}
+
 // unescapeMIFString decodes the in-string MIF escape sequences. The
 // inverse of escapeMIF in writer.go. Anything outside the recognised
 // set passes through verbatim — robust against partial sequences in
 // hand-written fixtures.
+//
+// The `\xNN ` (2-hex-digit + mandatory trailing space) form mirrors
+// okapi MIFFilter.readHexa (MIFFilter.java:1804-1819) which calls
+// Hexadecimal.toString to map the integer value to a Unicode equivalent:
+// `\x08` -> tab, `\x09` -> LF, `\x11` -> NBSP (U+00A0), `\x10` -> figure
+// space (U+2007), etc. The trailing space byte IS consumed (per the
+// `readExtraSpace=true` argument okapi passes for `\x`). Values not in
+// the table fall through to literal `\xNN ` preservation so unknown
+// codes survive round-trip.
 func unescapeMIFString(s string) string {
 	if !strings.ContainsRune(s, '\\') {
 		return s
@@ -2797,6 +2896,20 @@ func unescapeMIFString(s string) string {
 		case 'Q':
 			b.WriteByte('`')
 			i++
+		case 'x':
+			// `\xNN ` — 2 hex digits plus a mandatory trailing space
+			// (consumed). Mirrors MIFFilter.readHexa with
+			// readExtraSpace=true (MIFFilter.java:1813-1819).
+			if i+4 < len(s) && isHexDigit(s[i+2]) && isHexDigit(s[i+3]) && s[i+4] == ' ' {
+				v := (hexDigitValue(s[i+2]) << 4) | hexDigitValue(s[i+3])
+				if lit, ok := hexadecimalLiteral(v); ok {
+					b.WriteString(lit)
+					i += 4
+					continue
+				}
+			}
+			// Unknown / malformed `\xNN` — preserve bytes verbatim.
+			b.WriteByte(c)
 		default:
 			// Unknown escape — keep both bytes so encoder/decoder
 			// round-trip remains lossless.
@@ -2804,6 +2917,57 @@ func unescapeMIFString(s string) string {
 		}
 	}
 	return b.String()
+}
+
+// hexadecimalLiteral mirrors okapi's Hexadecimal.toString
+// (Hexadecimal.java:43-84) — maps the integer value of a `\xNN ` MIF
+// escape to its Unicode literal. Values not in this table return
+// (zero, false) so the caller can preserve the source bytes verbatim
+// (okapi logs a warning and emits the `\xNN ` form wrapped in inline-code
+// brackets; native preserves the raw form which matches byte-equal
+// when no translation transforms it).
+func hexadecimalLiteral(v int) (string, bool) {
+	switch v {
+	case 0x04:
+		return "\u00ad", true // Discretionary hyphen (U+00AD)
+	case 0x05:
+		return "\u200d", true // No hyphen / ZWJ (U+200D)
+	case 0x06:
+		return "", true // Removed entirely per okapi
+	case 0x08:
+		return "\t", true // Tab
+	case 0x09:
+		return "\n", true // Forced return / line break
+	case 0x10:
+		return " ", true // Numeric / figure space
+	case 0x11:
+		return " ", true // Non-breaking space
+	case 0x12:
+		return " ", true // Thin space
+	case 0x13:
+		return " ", true // En space
+	case 0x14:
+		return " ", true // Em space
+	case 0x15:
+		return "‑", true // Non-breaking / hard hyphen
+	}
+	return "", false
+}
+
+func isHexDigit(b byte) bool {
+	return (b >= '0' && b <= '9') || (b >= 'a' && b <= 'f') || (b >= 'A' && b <= 'F')
+}
+
+func hexDigitValue(b byte) int {
+	switch {
+	case b >= '0' && b <= '9':
+		return int(b - '0')
+	case b >= 'a' && b <= 'f':
+		return int(b-'a') + 10
+	case b >= 'A' && b <= 'F':
+		return int(b-'A') + 10
+	}
+	return 0
 }
 
 // skelText appends text to the skeleton buffer if active.

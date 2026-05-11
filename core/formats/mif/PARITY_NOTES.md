@@ -13,9 +13,9 @@ It is **not** an architecture decision and **not** user-facing docs.
 | Engine | Total | byte | canon | sem | div |
 |---|---:|---:|---:|---:|---:|
 | bridge (okapi-bridge) | 41 | 41 | 0 | 0 | 0 |
-| native (this package) | 41 | **40** | 0 | 0 | 1 |
+| native (this package) | 41 | **41** | 0 | 0 | 0 |
 
-Cleared 40 of 41 fixtures so far through eleven commits that added
+Cleared 41 of 41 fixtures so far through twelve commits that added
 extraction for FrameMaker translatable surfaces the original reader
 walked past:
 
@@ -31,7 +31,8 @@ walked past:
 | FNote bare-`>` ParaLine close rewrite + empty-glyph Char elision (Cluster K) | 07d084d5 |
 | codeFinder `^[A-Z]:` (gated) + autonumber building blocks + Char-only run owner fix | 5a4b66ea |
 | Empty multi-ParaLine collapse (1187_crlf, Cluster Q) | 7cdcae16 |
-| Content-bearing multi-ParaLine collapse after Char rewrite (1188_crlf, Cluster S) | (this iteration) |
+| Content-bearing multi-ParaLine collapse after Char rewrite (1188_crlf, Cluster S) | 7cdcae16 |
+| `\xNN ` hex escape decoding + rawValue tracking for skeleton refs (Cluster T, 987.mif) | (this iteration) |
 
 Remaining clusters break down as follows.
 
@@ -40,8 +41,7 @@ Remaining clusters break down as follows.
 ### Cluster C — `<Char HardReturn>` writer elision (RESOLVED)
 
 **Was Affecting**: `1187_crlf.mif`, `1188_crlf.mif`, `987.mif`, `Test01.mif`.
-**Now**: only `987.mif` remains divergent -- for a reason OTHER than the
-Char HardReturn elision (bridge-side `\x09 → \n` quirk).
+**Now**: all four byte-equal (987.mif resolved via Cluster T).
 
 **Resolution**: `findStringPositions` now also returns an `elisions` slice
 that drops `<Char Foo>` lines from the skeleton when the glyph was inlined
@@ -49,14 +49,6 @@ into the surrounding String run. Mirrors okapi `MIFFilter.processPara`
 (MIFFilter.java:1116-1126 + 740-741) which appends Char glyph values to
 `paraTextBuf` and re-emits the merged buffer as a single `<String>`,
 never re-emitting the original `<Char>` statement.
-
-**Remaining divergence** in 987 is unrelated to the Char elision itself
-(1187_crlf is byte-equal via Cluster Q, 1188_crlf via Cluster S):
-
-  - 987.mif: -1 byte off; the diverging byte is in a String value where
-    the source has `\x09` (literal MIF hex escape for tab) and okapi's
-    bridge produces `\n` in the output -- bridge-side quirk unrelated to
-    Char clusters.
 
 ### Cluster R — multi-ParaLine merge with `<ElementEnd>` preservation (RESOLVED — 1 fixture)
 
@@ -273,15 +265,60 @@ the merge elision. The merge-elision step needs to skip over
 `<ElementEnd>` (and similar structural-only tags) without removing
 them.
 
-## Triage suggestion for the next iteration
+### Cluster T — `\xNN ` hex escape decoding for translatable Strings (RESOLVED -- 1 fixture)
 
-The Char-handling sub-project (Cluster C + F + G), the FNote ParaLine
-close rewrite (Cluster K), and the multi-ParaLine collapse cases
-(Clusters Q + R + S) are now resolved. The remaining 1 divergent
-fixture is a bridge-side quirk:
+**Was Affecting**: `987.mif`. **Now**: byte-equal (41/41 in native).
 
-**Other (1 fixture)**: `987.mif` (`\x09` escape -> `\n` bridge quirk,
-out of scope for native).
+**Symptom**: Source has `<String `Para 1.\x09 '>` (literal MIF hex
+escape for value 0x09 with mandatory trailing space). Native left the
+String un-extracted because the byte form `\x09 ` round-tripped through
+`unescapeMIFString` -> `escapeMIFForSearch` as `\\x09 ` (with the
+backslash doubled), and the pattern never matched the source bytes in
+`findStringPositions`. The skeleton kept the source verbatim while
+okapi pseudo-translated to `<String `Ƥàŕà 1.\n'>` (per okapi's
+`Hexadecimal.toString` which maps 0x09 -> `\n`, then MIFEncoder which
+re-encodes `\n` -> `\\n`). Result: -1 byte off and missing pseudo.
+
+**Resolution**: Three coordinated changes in `reader.go`:
+
+  - `unescapeMIFString` now recognises the `\xNN ` form (2 hex digits +
+    mandatory trailing space, mirroring `MIFFilter.readHexa` with
+    `readExtraSpace=true` at MIFFilter.java:1813-1819) and substitutes
+    the integer value's Unicode literal via the new
+    `hexadecimalLiteral` helper, which mirrors okapi's
+    `Hexadecimal.toString` table (Hexadecimal.java:43-84): 0x04 -> SHY,
+    0x05 -> ZWJ, 0x06 -> removed, 0x08 -> tab, 0x09 -> LF, 0x10 -> figure
+    space, 0x11 -> NBSP, 0x12 -> thin space, 0x13 -> en space,
+    0x14 -> em space, 0x15 -> non-breaking hyphen. Unknown values
+    fall through so source bytes round-trip when no translation
+    transforms them (okapi's "unknown" branch wraps `\xNN ` in
+    inline-code markers; native preserves the raw form, which matches
+    byte-equal when those Strings stay un-extracted -- e.g. PgfCatalog
+    bodies that aren't pseudo'd anyway).
+  - `mifStatement` gained a `rawValue` field holding the literal source
+    bytes BEFORE in-string escape decoding. `pushSingleLine` now calls
+    `unquoteMIFRaw` alongside `unquoteMIF` so both forms are
+    available. Required because `escapeMIFForSearch` is the inverse of
+    `unescapeMIFString` but ONLY for the simple-escape set
+    (`\t`/`\n`/`\>`/`\\`/`\q`/`\Q`) -- it cannot reconstruct the
+    source's choice of `\xNN ` form versus the canonical short form.
+  - `findStringPositions` now carries a `stringsAreRaw` flag on
+    `itemInfo`. String/MText/TextLine items set it to true and pass
+    `rawValue`-derived strings into the search; the matcher then uses
+    those bytes verbatim instead of re-encoding via
+    `escapeMIFForSearch`. PgfNumFormat / VariableDef keep
+    `stringsAreRaw=false` since their items use decoded `value`
+    today; bridging them to raw is unnecessary as long as the
+    corresponding fixtures stay byte-equal (they do -- those values
+    don't carry `\xNN` in any extractable position).
+
+Per the Adobe FrameMaker MIF Reference §"String Tokens" the `\xNN `
+form encodes one of FrameMaker's reserved internal character values
+(numeric / non-breaking spaces, hard hyphen, hard return, etc.) -- the
+trailing space is part of the lexeme, not document content. Per
+MIFFilter.readHexa the same byte sequence is normalized to its Unicode
+equivalent on extract; the writer's encoder then commits to the canonical
+short form (`\t`, `\n`, …). Native now matches that round-trip exactly.
 
 ## Files touched in this iteration (Char clusters C+F+G)
 
