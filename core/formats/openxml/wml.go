@@ -619,24 +619,48 @@ func dropMoveFromRanges(data []byte) []byte {
 		// level (not inside any <w:p>), keep startIdx as-is so we
 		// only drop from the start marker forward.
 		var dropFrom int
-		if isInsideParagraph(data, startIdx) {
-			pOpenStart := findEnclosingParagraphOpenStart(data, startIdx)
-			if pOpenStart < 0 {
+		startInsideP := isInsideParagraph(data, startIdx)
+		pOpenStartForStart := -1
+		if startInsideP {
+			pOpenStartForStart = findEnclosingParagraphOpenStart(data, startIdx)
+			if pOpenStartForStart < 0 {
 				// Defensive: should not happen if isInsideParagraph
 				// said yes, but bail safely.
 				out = append(out, data[cursor:endTagEnd+1]...)
 				cursor = endTagEnd + 1
 				continue
 			}
-			dropFrom = pOpenStart
+			dropFrom = pOpenStartForStart
 		} else {
 			dropFrom = startIdx
 		}
 		// Drop endpoint depends on where the end marker sits.
 		//
-		//   * INSIDE a paragraph: extend the drop through the
-		//     enclosing </w:p> end tag, then re-emit a single
-		//     synthetic empty <w:p/> in its place. Upstream
+		//   * SAME paragraph as the start marker (no parentStructure
+		//     crossed): drop only the byte span between (and
+		//     including) the two markers. Mirrors upstream Okapi
+		//     SkippableElements.MoveFromRevisionCrossStructure.skip
+		//     (SkippableElements.java lines 402-434): the event walk
+		//     consumes events from moveFromRangeStart through
+		//     moveFromRangeEnd; when no parentStructure (<w:p>) end
+		//     tag was traversed, parentStructureCrossed stays false
+		//     and BlockParser does NOT mark the block as
+		//     skipped(true) (BlockParser.java lines 267-274 only
+		//     drops the block when the cross-structure skip marked
+		//     it). The surrounding paragraph content (text, <w:ins>
+		//     wrappers, <w:moveTo> already-accepted runs, sibling
+		//     <w:r>s) survives verbatim. 843-1.docx is the canonical
+		//     fixture: <w:moveFromRangeStart> and
+		//     <w:moveFromRangeEnd> sit in the same paragraph,
+		//     wrapping a single <w:moveFrom><w:r>...</w:r></w:moveFrom>
+		//     that gets stripped, leaving "Moved text. Text 1. " (the
+		//     accepted <w:moveTo> + plain text + accepted <w:ins>
+		//     spaces).
+		//
+		//   * DIFFERENT paragraphs (parentStructure crossed): extend
+		//     the drop through the enclosing </w:p> end tag of the
+		//     paragraph containing the end marker, then re-emit a
+		//     single synthetic empty <w:p/> in its place. Upstream
 		//     BlockParser collapses the cross-structure span into a
 		//     single skipped block whose closing tag is the </w:p>
 		//     of the last straddled paragraph (lines 267-274 of
@@ -652,14 +676,27 @@ func dropMoveFromRanges(data []byte) []byte {
 		var dropTo int
 		var insertEmptyP bool
 		if isInsideParagraph(data, endStart) {
-			pCloseEnd := findEnclosingParagraphCloseEnd(data, endTagEnd+1)
-			if pCloseEnd < 0 {
+			pOpenStartForEnd := findEnclosingParagraphOpenStart(data, endStart)
+			if pOpenStartForEnd < 0 {
 				out = append(out, data[cursor:endTagEnd+1]...)
 				cursor = endTagEnd + 1
 				continue
 			}
-			dropTo = pCloseEnd
-			insertEmptyP = true
+			if startInsideP && pOpenStartForEnd == pOpenStartForStart {
+				// Same paragraph: drop only the marker-to-marker
+				// span; the rest of the paragraph survives.
+				dropFrom = startIdx
+				dropTo = endTagEnd + 1
+			} else {
+				pCloseEnd := findEnclosingParagraphCloseEnd(data, endTagEnd+1)
+				if pCloseEnd < 0 {
+					out = append(out, data[cursor:endTagEnd+1]...)
+					cursor = endTagEnd + 1
+					continue
+				}
+				dropTo = pCloseEnd
+				insertEmptyP = true
+			}
 		} else {
 			dropTo = endTagEnd + 1
 		}
@@ -2867,12 +2904,40 @@ func (p *wmlParser) buildBlock(id string, runs []textRun, partPath, commonRPrXML
 		// Handle formatting changes
 		if activeProps == nil || !activeProps.equal(run.props) {
 			// Close previous formatting
+			emittedClose := false
 			if activeProps != nil && !activeProps.isEmpty() {
 				activeProps.appendClosingRuns(b, &spanCounter)
+				emittedClose = true
 			}
 			// Open new formatting
+			emittedOpen := false
 			if !run.props.isEmpty() {
 				run.props.appendOpeningRuns(b, &spanCounter)
+				emittedOpen = true
+			}
+			// When neither close nor open emitted any toggle codes the
+			// run boundary is invisible to runBuilder's text-coalescing
+			// path — AddText would append into the previous TextRun and
+			// lose the source-run boundary. This happens when adjacent
+			// source runs share toggle props (both empty) but differ on
+			// font name (rFonts ascii vs asciiTheme — fixture
+			// 1312-fonts-info.docx) or other non-toggle properties that
+			// runProps.equal() inspects (just fontName today, but the
+			// rule is "any !equal() that emits no markers"). Force a
+			// model.Run boundary so the per-source-run rPr sidecar
+			// (#592 Phase 1) stays slot-aligned with the model.Run
+			// population — otherwise the writer's alignment guard
+			// (renderWMLBlock) nils the sidecar and per-run rPr emission
+			// (Phase 2) silently regresses to common-rPr-only output.
+			//
+			// Mirrors upstream Okapi RunBuilder.java lines 73-188 +
+			// RunMerger.canRunPropertiesBeMerged (RunMerger.java lines
+			// 156-229): heterogeneous RunProperties keep runs distinct
+			// on the way to the writer. Per ECMA-376-1 §17.3.2 and
+			// §17.3.2.26 (the rFonts content-category model that makes
+			// asciiTheme/ascii alternatives for the same Latin script).
+			if activeProps != nil && !emittedClose && !emittedOpen {
+				b.Break()
 			}
 			propsCopy := run.props
 			activeProps = &propsCopy

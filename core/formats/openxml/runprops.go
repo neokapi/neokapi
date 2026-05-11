@@ -209,6 +209,25 @@ func splitRFonts(children []rPrChild) ([]rPrChild, *rPrChild) {
 // matching upstream's "undetected category drops out" branch in
 // RunFonts.mergeContentCategories at RunFonts.java:299-315).
 //
+// Per ECMA-376-1 §17.3.2.26 each content category (Latin/ASCII,
+// HighAnsi, ComplexScript, EastAsian) has a direct font-name attribute
+// (ascii / hAnsi / cs / eastAsia) AND a theme-reference alternative
+// (asciiTheme / hAnsiTheme / cstheme / eastAsiaTheme). The two
+// alternatives address the SAME content category — a run that asserts
+// `ascii="Times New Roman"` cannot be merged with a run that asserts
+// `asciiTheme="minorHAnsi"` because they describe different fonts for
+// the same character range. Upstream Okapi's RunFonts.canBeMerged
+// (RunFonts.java:190-247) walks ContentCategory enum members and uses
+// `containsDetected` for both the direct and the theme alternative
+// (`fontThemeContentCategories.get(contentCategory)`) — when both
+// runs detect the category and the values differ (whether direct vs
+// theme or direct vs direct), the merge fails. Native has no script
+// detection, so the safe over-constraint is to treat ANY divergence
+// across a theme-pair as a merge blocker — see fixture 1312-fonts-info*
+// where Run 1 has `asciiTheme="minorHAnsi"` and Run 2 has
+// `ascii="Times New Roman"`: upstream keeps the two runs separate, so
+// native must too.
+//
 // The `hint` attribute is treated differently: it must be byte-equal
 // on both sides OR ABSENT on both. Mirrors upstream Okapi
 // RunFonts.canHintsBeMerged (RunFonts.java:232-248) without access
@@ -241,6 +260,29 @@ func rFontsMergeable(aXML, bXML string) bool {
 			return false
 		}
 	}
+	// Theme/direct-pair conflict: each content category (Latin/HighAnsi/
+	// ComplexScript/EastAsian) has a direct attribute AND a theme
+	// alternative, and asserting one on one run while the other asserts
+	// the alternative for the same category is a merge blocker. Per
+	// upstream RunFonts.canContentCategoriesBeMerged (RunFonts.java:211-
+	// 230), the comparison walks `containsDetected(fontThemeCategory)`
+	// for both the direct and theme alternatives. Without script
+	// detection, treat any divergence on a theme-pair as a blocker.
+	for _, pair := range rFontsThemePairs {
+		_, aHasDirect := aMap[pair.direct]
+		_, aHasTheme := aMap[pair.theme]
+		_, bHasDirect := bMap[pair.direct]
+		_, bHasTheme := bMap[pair.theme]
+		// A asserts direct, B asserts theme (or vice versa) → conflict.
+		// Both-direct or both-theme divergences are already caught by
+		// the byte-equality loop above (same attribute name).
+		if aHasDirect && bHasTheme {
+			return false
+		}
+		if aHasTheme && bHasDirect {
+			return false
+		}
+	}
 	// Hint compatibility: refuse merge when only one side carries a
 	// hint. Upstream's canHintsBeMerged also rejects most of those
 	// cases (the rare exception is when the other run has no font in
@@ -248,6 +290,27 @@ func rFontsMergeable(aXML, bXML string) bool {
 	aHasHint := hasHintAttr(aMap)
 	bHasHint := hasHintAttr(bMap)
 	return aHasHint == bHasHint
+}
+
+// rFontsThemePairs lists the (direct, theme) attribute pairs that
+// address the same content category per ECMA-376-1 §17.3.2.26.
+// Used by rFontsMergeable to detect mergeability conflicts across
+// the direct/theme alternatives. Both prefixed and unprefixed forms
+// are listed because the captured rFonts attribute strings use the
+// "w:" prefix form when the source was in the WML namespace (the
+// standard case) but downstream callers may also feed un-prefixed
+// attribute names through the legacy otherXML capture path.
+var rFontsThemePairs = []struct {
+	direct, theme string
+}{
+	{"w:ascii", "w:asciiTheme"},
+	{"w:hAnsi", "w:hAnsiTheme"},
+	{"w:cs", "w:cstheme"},
+	{"w:eastAsia", "w:eastAsiaTheme"},
+	{"ascii", "asciiTheme"},
+	{"hAnsi", "hAnsiTheme"},
+	{"cs", "cstheme"},
+	{"eastAsia", "eastAsiaTheme"},
 }
 
 // hasHintAttr returns true if the rFonts attribute map carries a
