@@ -1241,8 +1241,34 @@ func (p *wmlParser) parseParagraph(d *xml.Decoder, partPath string, emitBlock fu
 					runs = append(runs, bookmark)
 				}
 
-			case "proofErr", "commentRangeStart", "commentRangeEnd",
-				"permStart", "permEnd":
+			case "commentRangeStart", "commentRangeEnd":
+				// Comment range markers are direct children of <w:p>
+				// per ECMA-376 Part 1 §17.13.4.4 (CT_MarkupRange) and
+				// §17.13.4.3 (CT_MarkupRangeStart). They delimit the
+				// run-range that a comment annotates and must round-
+				// trip verbatim so the commentReference run still has
+				// a valid range to associate with. Upstream Okapi's
+				// wordConfiguration.ymlbal classifies them as INLINE
+				// rules (lines 59-63) — preserved as inline markup
+				// chunks on the block, not as translatable text.
+				//
+				// We reuse the bookmark sentinel machinery: capture
+				// the element verbatim, tag with a comment-range
+				// sentinel char ( / ), and let the writer
+				// re-emit the raw XML at the original position so the
+				// commentRangeStart/end pair survives a round-trip
+				// without being absorbed into a neighbouring <w:r>.
+				marker, err := p.captureCommentRangeMarker(d, t)
+				if err != nil {
+					return err
+				}
+				if inHyperlink {
+					hyperlinkRuns = append(hyperlinkRuns, marker)
+				} else {
+					runs = append(runs, marker)
+				}
+
+			case "proofErr", "permStart", "permEnd":
 				if err := skipElement(d); err != nil {
 					return err
 				}
@@ -2034,25 +2060,54 @@ func (p *wmlParser) parseRunWithFieldState(d *xml.Decoder, cfs *complexFieldStat
 					return nil, err
 				}
 
-			case "footnoteRef", "endnoteRef":
-				// Back-reference element appearing inside footnote/endnote
-				// body paragraphs (e.g. <w:footnote w:id="1"><w:p>
-				// <w:r><w:rPr><w:rStyle w:val="FootnoteReference"/></w:rPr>
-				// <w:footnoteRef/></w:r>...</w:p></w:footnote>). ECMA-376
-				// Part 1 \u00A717.11.13 (CT_FtnEdnRef) / \u00A717.11.6: child of
-				// <w:r>, no attributes, sibling to the run's <w:rPr>.
-				// Upstream Okapi's RunBuilder treats it as markup that
-				// stays in the same <w:r> as its rPr (RunBuilder.java
-				// addToMarkup path + noteReferencePresent flag) \u2014 the
-				// containing run is opaque (no translatable text). We
-				// reuse the field-markup capture machinery so the whole
-				// <w:r>...</w:r> is preserved verbatim, which carries the
-				// rPr inside the same <w:r> per the schema.
+			case "footnoteRef", "endnoteRef", "commentReference", "annotationRef":
+				// Back-reference / annotation marker elements appearing
+				// inside footnote/endnote/comment body paragraphs and
+				// inside main-document runs that wrap a comment marker.
+				//
+				// Footnote/endnote back-references (e.g. <w:footnote
+				// w:id="1"><w:p><w:r><w:rPr><w:rStyle
+				// w:val="FootnoteReference"/></w:rPr><w:footnoteRef/>
+				// </w:r>...</w:p></w:footnote>) \u2014 ECMA-376 Part 1
+				// \u00A717.11.13 (CT_FtnEdnRef) / \u00A717.11.6: child of <w:r>,
+				// no attributes, sibling to the run's <w:rPr>.
+				//
+				// Comment annotation marker (CT_Markup) \u2014 the comment
+				// part's <w:r><w:rPr><w:rStyle w:val="CommentReference"/>
+				// </w:rPr><w:annotationRef/></w:r> at the start of every
+				// <w:comment> body, ECMA-376 Part 1 \u00A717.13.4.1.
+				//
+				// Comment reference call-site (CT_Markup) \u2014 the main
+				// document's <w:r><w:rPr><w:rStyle
+				// w:val="CommentReference"/></w:rPr><w:commentReference
+				// w:id="N"/></w:r>, ECMA-376 Part 1 \u00A717.13.4.5.
+				//
+				// All four share the same shape: a <w:r> whose body is
+				// the marker element plus an optional rPr, with no
+				// translatable text. Upstream Okapi's wordConfiguration
+				// .ymlbal classifies w_commentreference (line 65) as
+				// INLINE alongside w_footnotereference / w_endnotereference,
+				// and RunBuilder routes the run through addToMarkup so
+				// the whole <w:r>...</w:r> is preserved verbatim. We
+				// reuse the field-markup capture machinery so the run
+				// keeps its rPr inside the same <w:r> per the schema.
 				elemName := t.Name.Local
 				startRawCapture()
 				hasFieldMarkup = true
 				rawBuf.WriteString("<w:")
 				rawBuf.WriteString(elemName)
+				// commentReference carries a w:id attribute (CT_Markup
+				// derives from CT_Markup with required ID); the back-
+				// reference forms (footnoteRef/endnoteRef/annotationRef)
+				// are attribute-less per their schema, so we only emit
+				// the attributes that were actually present.
+				for _, a := range t.Attr {
+					rawBuf.WriteString(" ")
+					writeAttrName(&rawBuf, a.Name)
+					rawBuf.WriteString(`="`)
+					rawBuf.WriteString(xmlEscapeAttr(a.Value))
+					rawBuf.WriteString(`"`)
+				}
 				rawBuf.WriteString("/>")
 				if err := skipElement(d); err != nil {
 					return nil, err
@@ -2427,6 +2482,35 @@ func (p *wmlParser) buildBlock(id string, runs []textRun, partPath, commonRPrXML
 				false, false, false)
 			continue
 		}
+		if strings.HasPrefix(run.text, "\uE10B:") || strings.HasPrefix(run.text, "\uE10C:") {
+			// Comment-range start/end placeholder. Per ECMA-376
+			// Part 1 \u00A717.13.4.3 / \u00A717.13.4.4 (CT_MarkupRangeStart
+			// / CT_MarkupRange) these are direct children of <w:p>
+			// \u2014 same shape as <w:bookmarkStart>/<w:bookmarkEnd>.
+			// The writer's `default` Ph branch emits Ph.Data
+			// verbatim with no <w:r> wrapper, mirroring upstream
+			// Okapi's wordConfiguration.ymlbal classification of
+			// w_commentrangestart / w_commentrangeend as INLINE
+			// markup (lines 59-63).
+			//
+			// Close any active formatting first so the marker
+			// doesn't sit between the open <w:r>...rPr and the
+			// next text run when re-rendered.
+			if activeProps != nil && !activeProps.isEmpty() {
+				activeProps.appendClosingRuns(b, &spanCounter)
+				activeProps = nil
+			}
+			subType := SubTypeCommentRangeStart
+			if strings.HasPrefix(run.text, "\uE10C:") {
+				subType = SubTypeCommentRangeEnd
+			}
+			spanCounter++
+			b.AddPh(fmt.Sprintf("c%d", spanCounter),
+				TypeCommentRange, subType,
+				run.data, "", "",
+				false, false, false)
+			continue
+		}
 		if isFieldSentinel(run.text) {
 			// Complex-field markup chunk. Per upstream Okapi
 			// RunParser.parseComplexField (lines 461-542 of
@@ -2610,7 +2694,7 @@ func isSentinel(s string) bool {
 	if len(r) == 0 {
 		return false
 	}
-	if r[0] < '\uE100' || r[0] > '\uE10A' {
+	if r[0] < '\uE100' || r[0] > '\uE10C' {
 		return false
 	}
 	// Single-char sentinels (tab \uE100, image \uE101, paragraph
@@ -2623,7 +2707,8 @@ func isSentinel(s string) bool {
 	}
 	// Multi-char sentinels must have ':' separator
 	// (\uE102:id, \uE103:data, \uE104:data, \uE106:id, \uE107:id,
-	// \uE108:fldChar / \uE108:fldSimple, \uE109:data, \uE10A:data)
+	// \uE108:fldChar / \uE108:fldSimple, \uE109:data, \uE10A:data,
+	// \uE10B:id, \uE10C:id)
 	return len(r) >= 2 && r[1] == ':'
 }
 
@@ -2678,6 +2763,24 @@ func dropTextRuns(runs []textRun) []textRun {
 		}
 	}
 	return out
+}
+
+// isCommentRangeSentinel reports whether a textRun's text marker
+// indicates a captured `<w:commentRangeStart>` (\uE10B) or
+// `<w:commentRangeEnd>` (\uE10C). Like bookmarks, comment-range
+// markers are direct children of `<w:p>` per ECMA-376 Part 1
+// \u00A717.13.4.3 / \u00A717.13.4.4 (CT_MarkupRangeStart /
+// CT_MarkupRange), so the writer must NOT wrap the captured XML
+// in `<w:r>...</w:r>`.
+func isCommentRangeSentinel(text string) bool {
+	if text == "" {
+		return false
+	}
+	r := []rune(text)
+	if len(r) == 0 {
+		return false
+	}
+	return r[0] == '\uE10B' || r[0] == '\uE10C'
 }
 
 // isBookmarkSentinel reports whether a textRun's text marker
@@ -2759,6 +2862,12 @@ func runToXML(r textRun) string {
 	// \u00A717.13.6.1 / \u00A717.13.6.2 specify <w:bookmarkStart> /
 	// <w:bookmarkEnd> as direct children of <w:p>, not <w:r>.
 	if isBookmarkSentinel(r.text) {
+		return r.data
+	}
+	// Comment-range sentinels ( / ) — same shape as
+	// bookmarks (paragraph-level direct child, no <w:r> wrapper).
+	// Per ECMA-376 Part 1 §17.13.4.3 / §17.13.4.4.
+	if isCommentRangeSentinel(r.text) {
 		return r.data
 	}
 	// Field-markup sentinel (\uE108) \u2014 captured payload already
@@ -3169,8 +3278,14 @@ func (p *wmlParser) extractTxbxParagraph(dec *xml.Decoder, out *strings.Builder,
 				if err := p.parseSmartTag(dec, &runs, &cfs, rawStart); err != nil {
 					return err
 				}
-			case "proofErr", "commentRangeStart", "commentRangeEnd",
-				"permStart", "permEnd":
+			case "commentRangeStart", "commentRangeEnd":
+				// See parseParagraph for the comment-range rationale.
+				marker, err := p.captureCommentRangeMarker(dec, t)
+				if err != nil {
+					return err
+				}
+				runs = append(runs, marker)
+			case "proofErr", "permStart", "permEnd":
 				if err := skipElement(dec); err != nil {
 					return err
 				}
@@ -3984,6 +4099,34 @@ func (p *wmlParser) captureBookmark(d *xml.Decoder, start xml.StartElement, bms 
 		sentinel = ":" + id
 	}
 	return textRun{text: sentinel, data: raw}, true, nil
+}
+
+// captureCommentRangeMarker serializes a <w:commentRangeStart/> or
+// <w:commentRangeEnd/> element verbatim and returns it as a sentinel
+// textRun. ECMA-376 Part 1 §17.13.4.3 (CT_MarkupRangeStart) /
+// §17.13.4.4 (CT_MarkupRange) define both as direct children of <w:p>
+// carrying a required w:id attribute that ties the range to the
+// matching <w:commentReference w:id="N"/> in a sibling run.
+//
+// Mirrors the bookmark capture path (captureBookmark): the marker
+// has no inner content (empty element), so a single self-closing tag
+// captures its complete representation. The sentinel uses a distinct
+// PUA char ( for start, for end) so the writer can tell
+// comment-range markers apart from bookmarks and dispatch the
+// appropriate SubType on the resulting Run.Ph.
+func (p *wmlParser) captureCommentRangeMarker(d *xml.Decoder, start xml.StartElement) (textRun, error) {
+	raw, err := captureRawElement(d, start)
+	if err != nil {
+		return textRun{}, err
+	}
+	id := attrVal(start, "id")
+	var sentinel string
+	if start.Name.Local == "commentRangeStart" {
+		sentinel = ":" + id
+	} else {
+		sentinel = ":" + id
+	}
+	return textRun{text: sentinel, data: raw}, nil
 }
 
 // captureRawElement captures an entire element (start to end) as raw XML.

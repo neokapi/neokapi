@@ -16,6 +16,14 @@ const (
 	TypeImage         = "media:image"
 	TypeFootnoteRef   = "struct:footnote"
 	TypeBookmark      = "struct:bookmark"
+	// TypeCommentRange tags a <w:commentRangeStart/> or
+	// <w:commentRangeEnd/> marker that delimits the run range a
+	// comment annotates. ECMA-376 Part 1 §17.13.4.3 / §17.13.4.4
+	// (CT_MarkupRangeStart / CT_MarkupRange). Upstream Okapi
+	// wordConfiguration.ymlbal lines 59-63 classify both as INLINE
+	// markup, so they survive the round-trip as inline placeholders
+	// rather than translatable text.
+	TypeCommentRange = "struct:commentRange"
 	// TypeField is an opaque field-markup chunk: a <w:r> wrapping a
 	// <w:fldChar> (begin/separate/end), a <w:r> wrapping <w:instrText>,
 	// or a <w:fldSimple>...</w:fldSimple>. Per upstream Okapi
@@ -45,8 +53,10 @@ const (
 	SubTypeTab           = "openxml:tab"
 	SubTypeImage         = "openxml:drawing"
 	SubTypeFootnoteRef   = "openxml:footnoteRef"
-	SubTypeBookmarkStart = "openxml:bookmarkStart"
-	SubTypeBookmarkEnd   = "openxml:bookmarkEnd"
+	SubTypeBookmarkStart     = "openxml:bookmarkStart"
+	SubTypeBookmarkEnd       = "openxml:bookmarkEnd"
+	SubTypeCommentRangeStart = "openxml:commentRangeStart"
+	SubTypeCommentRangeEnd   = "openxml:commentRangeEnd"
 	// SubTypeFieldChar tags a captured <w:r> that wraps a complex-field
 	// fldChar marker (begin/separate/end) or an instrText element.
 	// SubTypeFieldSimple tags a captured <w:fldSimple> element.

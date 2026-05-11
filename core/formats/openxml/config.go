@@ -73,7 +73,15 @@ func (c *Config) Reset() {
 	c.TranslateHiddenText = false
 	c.TranslateHeadersFooters = true
 	c.TranslateFootnotes = true
-	c.TranslateComments = false
+	// Okapi's ConditionalParameters.reset() (ConditionalParameters.java
+	// line 781) defaults this to true:
+	//   setTranslateComments(true); // Word, Excel Comments
+	// Comments are part of the StyledTextPart family in upstream Okapi —
+	// WordDocument.isStyledTextPart() (WordDocument.java lines 192-206)
+	// returns true for Word.COMMENTS_TYPE alongside MAIN_DOCUMENT_TYPE,
+	// FOOTNOTES_TYPE, and ENDNOTES_TYPE, so word/comments.xml flows
+	// through the same translatable-block pipeline as document.xml.
+	c.TranslateComments = true
 	c.TranslateHyperlinks = true
 	c.AggressiveCleanup = true
 	c.TabAsCharacter = false

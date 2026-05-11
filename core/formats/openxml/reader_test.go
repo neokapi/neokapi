@@ -554,7 +554,9 @@ func TestReaderConfigDefaults(t *testing.T) {
 	assert.False(t, cfg.TranslateHiddenText)
 	assert.True(t, cfg.TranslateHeadersFooters)
 	assert.True(t, cfg.TranslateFootnotes)
-	assert.False(t, cfg.TranslateComments)
+	// Mirrors okapi ConditionalParameters.reset() line 781:
+	//   setTranslateComments(true); // Word, Excel Comments
+	assert.True(t, cfg.TranslateComments)
 	assert.True(t, cfg.TranslateHyperlinks)
 	assert.True(t, cfg.AggressiveCleanup)
 	assert.False(t, cfg.TabAsCharacter)
