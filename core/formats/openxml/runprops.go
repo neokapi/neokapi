@@ -126,6 +126,282 @@ func (rp runProps) equalIncludingChildren(other runProps) bool {
 	return true
 }
 
+// canBeMergedWith reports whether two runProps are mergeable per upstream
+// Okapi RunMerger.canRunPropertiesBeMerged (RunMerger.java:156-229) —
+// stricter than byte-equality but looser than equalIncludingChildren:
+// rFonts is merged per-attribute (no contradictory values per shared
+// content category — RunFonts.canBeMerged at RunFonts.java:190-247),
+// every other rPr child must be byte-equal. Per ECMA-376-1 §17.3.2.26
+// rFonts attributes (ascii, hAnsi, cs, eastAsia, *Theme, hint) are
+// independent and an rFonts may carry any subset, so an rFonts that
+// only specifies (ascii, cs) is compatible with one that specifies
+// (ascii, hAnsi, cs) when their shared attributes agree.
+//
+// This is the gate used by mergeRuns. When two runs are mergeable but
+// not byte-equal, mergeRPrChildren computes the merged rPrChildren so
+// the surviving textRun carries the rFonts that satisfies both source
+// runs.
+func (rp runProps) canBeMergedWith(other runProps) bool {
+	if !rp.equal(other) {
+		return false
+	}
+	return rPrChildrenMergeable(rp.rPrChildren, other.rPrChildren)
+}
+
+// rPrChildrenMergeable reports whether two ordered rPrChildren slices
+// can be merged per upstream Okapi RunMerger.canRunPropertiesBeMerged
+// (RunMerger.java:156-229): every non-rFonts child must be byte-equal,
+// and rFonts (if both have it) must be per-attribute compatible. An
+// rFonts present on only one side is also mergeable (the merged result
+// keeps it).
+//
+// The native rPrChildren list omits the toggle children
+// (b/i/u/strike/vertAlign/vanish) — those flow through runProps's
+// toggle fields. rPrChildren contains the non-toggle children that
+// upstream RunBuilder tracks as Properties (rStyle, rFonts, color, sz,
+// szCs, highlight, bCs, iCs, …).
+func rPrChildrenMergeable(a, b []rPrChild) bool {
+	// Build maps from name → xml for non-rFonts children.
+	// Multiple children with the same name are unusual in well-formed
+	// WPML; fall back to ordered byte comparison in that case.
+	aOther, aFonts := splitRFonts(a)
+	bOther, bFonts := splitRFonts(b)
+	if len(aOther) != len(bOther) {
+		return false
+	}
+	for i, c := range aOther {
+		oc := bOther[i]
+		if c.name != oc.name || c.xml != oc.xml {
+			return false
+		}
+	}
+	// rFonts: if both absent or only one side has it, mergeable.
+	if aFonts == nil || bFonts == nil {
+		return true
+	}
+	return rFontsMergeable(aFonts.xml, bFonts.xml)
+}
+
+// splitRFonts partitions rPrChildren into (non-rFonts entries, rFonts
+// entry). The non-rFonts slice preserves source order. The rFonts
+// pointer is nil when the slice carries no rFonts. When the slice
+// carries multiple rFonts (malformed source), only the first is
+// returned; the rest are kept in the non-rFonts slice so byte-equality
+// at those slots still gates merging.
+func splitRFonts(children []rPrChild) ([]rPrChild, *rPrChild) {
+	var fonts *rPrChild
+	out := make([]rPrChild, 0, len(children))
+	for i := range children {
+		if children[i].name == "rFonts" && fonts == nil {
+			fonts = &children[i]
+			continue
+		}
+		out = append(out, children[i])
+	}
+	return out, fonts
+}
+
+// rFontsMergeable reports whether two <w:rFonts ...> elements are
+// per-attribute compatible: shared attribute names must have equal
+// values; font-name attributes (ascii, hAnsi, cs, eastAsia, *Theme)
+// may be present on only one side (the merged result drops attributes
+// not shared by both — see mergeRFontsXML for the intersection rule
+// matching upstream's "undetected category drops out" branch in
+// RunFonts.mergeContentCategories at RunFonts.java:299-315).
+//
+// The `hint` attribute is treated differently: it must be byte-equal
+// on both sides OR ABSENT on both. Mirrors upstream Okapi
+// RunFonts.canHintsBeMerged (RunFonts.java:232-248) without access
+// to detected-content-category state — native cannot tell whether the
+// other run "uses" the script category the hint addresses, so the
+// safe over-constraint is to refuse merge whenever one run carries a
+// hint and the other does not. This preserves the boundary between
+// e.g. `<w:rFonts w:cs="Arial" w:hint="cs"/>` (complex-script text)
+// and `<w:rFonts w:cs="Arial"/>` (whitespace span) so 1385-style
+// paragraphs round-trip with all runs intact.
+//
+// Mirrors upstream Okapi RunFonts.canBeMerged (RunFonts.java:190-247).
+func rFontsMergeable(aXML, bXML string) bool {
+	aAttrs, ok := parseRFontsAttrs(aXML)
+	if !ok {
+		return false
+	}
+	bAttrs, ok := parseRFontsAttrs(bXML)
+	if !ok {
+		return false
+	}
+	aMap := make(map[string]string, len(aAttrs))
+	for _, a := range aAttrs {
+		aMap[a.name] = a.value
+	}
+	bMap := make(map[string]string, len(bAttrs))
+	for _, b := range bAttrs {
+		bMap[b.name] = b.value
+		if v, ok := aMap[b.name]; ok && v != b.value {
+			return false
+		}
+	}
+	// Hint compatibility: refuse merge when only one side carries a
+	// hint. Upstream's canHintsBeMerged also rejects most of those
+	// cases (the rare exception is when the other run has no font in
+	// the category the hint addresses — we cannot detect that here).
+	aHasHint := hasHintAttr(aMap)
+	bHasHint := hasHintAttr(bMap)
+	return aHasHint == bHasHint
+}
+
+// hasHintAttr returns true if the rFonts attribute map carries a
+// `w:hint` (or bare `hint`) attribute.
+func hasHintAttr(m map[string]string) bool {
+	if _, ok := m["w:hint"]; ok {
+		return true
+	}
+	_, ok := m["hint"]
+	return ok
+}
+
+// mergeRPrChildren returns the merged rPrChildren of two mergeable
+// runs. Non-rFonts children are taken from a (byte-equal to b's by
+// the rPrChildrenMergeable contract). rFonts is the per-attribute
+// intersection (shared attribute names with equal values) — matching
+// the per-paragraph rFonts consensus computed by
+// mergeRFontsAcrossRuns (source_rpr.go) for the WSO common-rPr lift.
+//
+// When the rFonts intersection is empty, the rFonts entry is dropped
+// from the merged rPrChildren rather than emitted as an empty
+// `<w:rFonts/>` — an attribute-less rFonts carries no formatting and
+// would only noise up the per-run rPr sidecar.
+//
+// The caller must have established mergeability via
+// rPrChildrenMergeable; this function does NOT re-check compatibility.
+func mergeRPrChildren(a, b []rPrChild) []rPrChild {
+	_, aFonts := splitRFonts(a)
+	_, bFonts := splitRFonts(b)
+	merged := mergeRFontsXML(aFonts, bFonts)
+	mergedHasAttrs := rFontsHasAttrs(merged.xml)
+	out := make([]rPrChild, 0, len(a)+1)
+	rFontsEmitted := false
+	for _, p := range a {
+		if p.name == "rFonts" {
+			if !rFontsEmitted && mergedHasAttrs {
+				out = append(out, merged)
+				rFontsEmitted = true
+			}
+			continue
+		}
+		out = append(out, p)
+	}
+	if !rFontsEmitted && aFonts == nil && bFonts != nil && mergedHasAttrs {
+		out = append(out, merged)
+	}
+	return out
+}
+
+// rFontsHasAttrs reports whether a serialised `<w:rFonts .../>`
+// fragment carries at least one attribute. Used to drop attribute-less
+// rFonts from merged rPrChildren.
+func rFontsHasAttrs(xmlStr string) bool {
+	// Look for any name=" or name=' inside the start tag.
+	end := strings.IndexAny(xmlStr, "/>")
+	if end < 0 {
+		return false
+	}
+	head := xmlStr[:end]
+	return strings.ContainsAny(head, "=")
+}
+
+// mergeRFontsXML returns the per-attribute intersection of two rFonts
+// entries — an attribute is kept iff BOTH sides carry it with equal
+// values. This approximates upstream Okapi RunFonts.merge
+// (RunFonts.java:267-315) in the absence of script-detection
+// categories: upstream drops attributes whose category is not
+// "detected" on either side, and undetected-equal-on-both also yields
+// the shared value. Native has no detection signal, so the safe
+// approximation is INTERSECTION — never invent an attribute that
+// wasn't on every contributing run. This matches the per-paragraph
+// rFonts consensus computed by mergeRFontsAcrossRuns (source_rpr.go)
+// for the WSO common-rPr lift, so the post-merge per-run rPr stays in
+// step with the lifted pStyle.
+//
+// Either input may be nil; nil means "no rFonts at all" on that side,
+// which is treated identically to "rFonts with no attributes" — the
+// intersection is empty unless the non-nil side also has zero
+// attributes, in which case the result is an empty-element rFonts
+// (`<w:rFonts/>`). When both are nil the result carries an empty xml
+// field. The element name is taken from the first non-nil source.
+func mergeRFontsXML(a, b *rPrChild) rPrChild {
+	if a == nil && b == nil {
+		return rPrChild{name: "rFonts"}
+	}
+	if a == nil || b == nil {
+		// An rFonts on only one side has no intersection partner —
+		// upstream would drop every undetected attribute. With no
+		// detection signal in native, drop them all.
+		var prefix string
+		if a != nil {
+			prefix = extractRFontsElemNameFromXML(a.xml)
+		} else {
+			prefix = extractRFontsElemNameFromXML(b.xml)
+		}
+		if prefix == "" {
+			prefix = "w:rFonts"
+		}
+		return rPrChild{name: "rFonts", xml: "<" + prefix + "/>"}
+	}
+	aAttrs, _ := parseRFontsAttrs(a.xml)
+	bAttrs, _ := parseRFontsAttrs(b.xml)
+	bMap := make(map[string]string, len(bAttrs))
+	for _, x := range bAttrs {
+		bMap[x.name] = x.value
+	}
+	// Walk a's order; keep iff b has the same name with the same
+	// value. This matches mergeRFontsAcrossRuns' iteration order.
+	var kept []rfontsAttr
+	for _, x := range aAttrs {
+		if v, ok := bMap[x.name]; ok && v == x.value {
+			kept = append(kept, x)
+		}
+	}
+	prefix := extractRFontsElemNameFromXML(a.xml)
+	if prefix == "" {
+		prefix = extractRFontsElemNameFromXML(b.xml)
+	}
+	if prefix == "" {
+		prefix = "w:rFonts"
+	}
+	var buf strings.Builder
+	buf.WriteByte('<')
+	buf.WriteString(prefix)
+	for _, x := range kept {
+		buf.WriteByte(' ')
+		buf.WriteString(x.name)
+		buf.WriteByte('=')
+		q := x.quote
+		if q == 0 {
+			q = '"'
+		}
+		buf.WriteByte(q)
+		buf.WriteString(x.value)
+		buf.WriteByte(q)
+	}
+	buf.WriteString("/>")
+	return rPrChild{name: "rFonts", xml: buf.String()}
+}
+
+// extractRFontsElemNameFromXML extracts the prefixed element name from
+// a single rFonts XML fragment, e.g. "<w:rFonts .../>" → "w:rFonts".
+// Returns "" when the input is malformed.
+func extractRFontsElemNameFromXML(xmlStr string) string {
+	if len(xmlStr) < 2 || xmlStr[0] != '<' {
+		return ""
+	}
+	end := strings.IndexAny(xmlStr[1:], " \t\n\r/>")
+	if end < 0 {
+		return ""
+	}
+	return xmlStr[1 : 1+end]
+}
+
 // isEmpty returns true if no formatting properties are set.
 func (rp runProps) isEmpty() bool {
 	return !rp.bold && !rp.italic && rp.underline == "" &&

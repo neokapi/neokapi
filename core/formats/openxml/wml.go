@@ -1474,18 +1474,23 @@ func (p *wmlParser) parseParagraph(d *xml.Decoder, partPath string, emitBlock fu
 				// met (#589 / style_optimization.go).
 				commonRPr := commonRPrChildren(runs)
 				commonRPrXML := joinRPrChildren(commonRPr)
-				// Capture per-text-run rPr fragments BEFORE
-				// mergeRuns collapses adjacent runs (mergeRuns
-				// drops the rPrChildren of the merged-away
-				// neighbours by keeping only the first run's
-				// props). Phase 1 only stashes the sidecar on the
-				// block; the writer wire-up that consumes it
-				// (Phase 2) lands separately. See PARITY_NOTES.md
-				// "1083-*" per-run rPr investigation.
-				perRunRPrXML := perRunRPrFragments(runs)
 
-				// Merge adjacent runs with same formatting
+				// Merge adjacent runs with mergeable rPr (mirrors
+				// upstream Okapi RunMerger.canRunPropertiesBeMerged
+				// at RunMerger.java:156-229). mergeRuns updates the
+				// surviving textRun's rPrChildren to the merged
+				// per-attribute union so the sidecars below see the
+				// post-merge consensus props.
 				merged := mergeRuns(runs)
+				// Capture per-text-run rPr fragments AFTER mergeRuns
+				// so the sidecar aligns 1:1 with the model.TextRun
+				// stream the writer emits. mergeRuns updates the
+				// kept run's rPrChildren to the merged consensus, so
+				// the post-merge fragment is the correct rPr to emit
+				// for that <w:r>. Phase 1 only stashes the sidecar
+				// on the block; Phase 2 wires it into the writer.
+				// See PARITY_NOTES.md "1083-*" per-run rPr.
+				perRunRPrXML := perRunRPrFragments(merged)
 				// Capture per-text-run "starts new source <w:r>"
 				// flags AFTER mergeRuns so the slice aligns 1:1
 				// with the model.TextRun stream the writer sees
@@ -2722,16 +2727,29 @@ func (p *wmlParser) buildBlock(id string, runs []textRun, partPath, commonRPrXML
 	return block
 }
 
-// mergeRuns merges adjacent runs with identical formatting.
+// mergeRuns merges adjacent runs whose rPr can be merged per upstream
+// Okapi RunMerger.canRunPropertiesBeMerged (RunMerger.java:156-229).
 //
-// The equality test gates fusion on the FULL rPr (toggles + non-toggle
-// children — rStyle, color, sz, lang, highlight, …) via
-// equalIncludingChildren, mirroring upstream Okapi
-// RunMerger.canRunPropertiesBeMerged (RunMerger.java:156-229). Per
-// ECMA-376-1 §17.3.2, heterogeneous rPr means heterogeneous runs:
-// runs that differ on ANY rPr property must remain distinct merged
-// runs so the per-source-run rPr sidecar (#592, Phase 1) stays aligned
-// with the merged-run count for the writer (Phase 2).
+// Two runs are mergeable when (a) toggles + fontName match (runProps.equal)
+// AND (b) every non-rFonts rPr child is byte-equal AND (c) rFonts is
+// per-attribute compatible (no contradictory values for shared
+// attribute names — RunFonts.canBeMerged at RunFonts.java:190-247).
+// When the rFonts differ but are compatible (e.g. one run carries
+// rFonts ascii/hAnsi/cs all "Arial" and the next carries rFonts
+// ascii/cs both "Arial" but no hAnsi), the merged run carries the
+// per-attribute union via mergeRPrChildren — mirroring RunFonts.merge
+// (RunFonts.java:267-288).
+//
+// Per ECMA-376-1 §17.3.2.1 (CT_R) and §17.3.2.26 (CT_Fonts), adjacent
+// runs with equivalent rPr are semantically a single run; upstream
+// RunMerger fuses them on the way to the writer so the corpus
+// reference for 1411-mergable-runs.docx emits one <w:r> rather than
+// three.
+//
+// The kept run's rPr (toggles + rPrChildren) is updated to the merged
+// rPr so the per-source-run rPr sidecar — computed AFTER mergeRuns
+// over the merged slice — sees the merged props and stays aligned 1:1
+// with the model.Run population the writer emits.
 func mergeRuns(runs []textRun) []textRun {
 	if len(runs) <= 1 {
 		return runs
@@ -2749,8 +2767,15 @@ func mergeRuns(runs []textRun) []textRun {
 			current = r
 			continue
 		}
-		if current.props.equalIncludingChildren(r.props) {
+		if current.props.canBeMergedWith(r.props) {
 			current.text += r.text
+			// Replace the kept run's rPrChildren with the merged
+			// per-attribute union of rFonts so downstream sidecars
+			// (perRunRPrFragments) see the consensus rFonts.
+			if !current.props.equalIncludingChildren(r.props) {
+				current.props.rPrChildren = mergeRPrChildren(
+					current.props.rPrChildren, r.props.rPrChildren)
+			}
 		} else {
 			merged = append(merged, current)
 			current = r
@@ -3381,9 +3406,14 @@ func (p *wmlParser) extractTxbxParagraph(dec *xml.Decoder, out *strings.Builder,
 			}
 			commonRPr := commonRPrChildren(runs)
 			commonRPrXML := joinRPrChildren(commonRPr)
-			// Per-run rPr sidecar (Phase 1) — see PARITY_NOTES.md.
-			perRunRPrXML := perRunRPrFragments(runs)
 			merged := mergeRuns(runs)
+			// Per-run rPr sidecar (Phase 1) computed AFTER mergeRuns
+			// so the slice aligns 1:1 with the model.TextRun stream
+			// the writer emits. mergeRuns updates merged-away runs'
+			// rPr to the per-attribute consensus (RunMerger
+			// at RunMerger.java:156-229 + RunFonts.merge at
+			// RunFonts.java:267-288). See PARITY_NOTES.md.
+			perRunRPrXML := perRunRPrFragments(merged)
 			// Per-text-run srcRunStart flags align with merged runs.
 			perRunSrcRunStart := perRunSrcRunStartFlags(merged)
 			// Recurse extraction into nested drawing/pict
