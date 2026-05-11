@@ -1151,14 +1151,69 @@ func blockPerRunSrcRunStartFlags(block *model.Block) []bool {
 // the independent toggle for the complex-script side of the run's
 // font triple, and stripping them when text is complex-script-
 // bearing would drop legitimate formatting (cluster 1200-*).
+//
+// Paired-toggle preservation: an explicit-off
+// `<w:bCs w:val="false"/>` is KEPT when the SAME fragment also carries
+// an explicit-off `<w:b w:val="false"/>` (and likewise iCs ↔ i). This
+// mirrors upstream Okapi RunParser.canBeSkipped (RunParser.java:240-
+// 250): bCs is skippable only when preCombined and runProperties have
+// EQUAL bCs values. When the inherited style chain has `<w:bCs/>`
+// (bare-on, the natural way pStyles like Heading2 set the toggle) and
+// the run has `<w:bCs w:val="false"/>`, the values disagree and the
+// strip cannot fire. Native lacks the preCombined view at write time
+// but DOES see the b↔bCs / i↔iCs explicit-off pairing in the rPr —
+// authoring tools emit both halves of the pair only when the
+// inherited chain has them ON, so the pairing is a faithful proxy.
+// Fixture 1311.docx (Heading2 → bCs/) is the canonical case.
 func stripToggleMirrorChildren(s string) string {
 	if s == "" {
 		return s
 	}
-	for _, name := range []string{"bCs", "iCs"} {
-		s = stripWMLElement(s, name)
+	keepBCs := hasExplicitOffElement(s, "b")
+	keepICs := hasExplicitOffElement(s, "i")
+	if !keepBCs {
+		s = stripWMLElement(s, "bCs")
+	}
+	if !keepICs {
+		s = stripWMLElement(s, "iCs")
 	}
 	return s
+}
+
+// hasExplicitOffElement reports whether the rPr-children fragment s
+// contains a `<w:NAME w:val="0"/>` / `"false"` / `"off"` element. Used
+// by stripToggleMirrorChildren to detect the paired-toggle preservation
+// signal (b ↔ bCs / i ↔ iCs).
+func hasExplicitOffElement(s, name string) bool {
+	prefix := "<w:" + name + " "
+	idx := 0
+	for {
+		i := strings.Index(s[idx:], prefix)
+		if i < 0 {
+			return false
+		}
+		// Find element end (`/>` or `>`).
+		start := idx + i
+		end := strings.IndexAny(s[start:], ">")
+		if end < 0 {
+			return false
+		}
+		head := s[start : start+end]
+		// Skip if this is a longer name (e.g. "<w:bCs " when looking for "<w:b ").
+		// The trailing space after the name in `prefix` already enforces a
+		// boundary, so this is fine — but we also want to skip `<w:bCs ` when
+		// looking for `<w:b ` is not possible because prefix has trailing
+		// space. Good.
+		if strings.Contains(head, ` w:val="0"`) ||
+			strings.Contains(head, ` w:val="false"`) ||
+			strings.Contains(head, ` w:val="off"`) {
+			return true
+		}
+		idx = start + end + 1
+		if idx >= len(s) {
+			return false
+		}
+	}
 }
 
 // containsComplexScriptText reports whether s contains any Unicode
