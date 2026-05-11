@@ -611,25 +611,79 @@ func parseRunProps(d *xml.Decoder, aggressive bool) (runProps, error) {
 					return props, err
 				}
 			case local == "b":
-				props.bold = !hasAttrVal(t, "val", "0") && !hasAttrVal(t, "val", "false")
-				if err := skipElement(d); err != nil {
-					return props, err
+				// Toggle property per ECMA-376-1 §17.3.2.1 (<w:b>). A
+				// bare element turns bold ON; an explicit `val="0"` /
+				// `"false"` / `"off"` is the clearing form. The bare-on
+				// path normalises into runProps.bold so the writer can
+				// reconstruct it from the PcOpen/PcClose toggle codes.
+				//
+				// The clearing form is preserved verbatim in rPrChildren
+				// so it survives into the per-run rPr sidecar (#592) —
+				// upstream Okapi's RunProperties.minified() preserves a
+				// clearing-value toggle when the inherited style chain
+				// carries that property by name
+				// (RunProperties.java:497-540, the
+				// `!preCombined.contains(p.getName())` condition).
+				// Native does not have the full preCombined view at
+				// parse time, so the conservative choice — keep the
+				// explicit-off so it round-trips on paragraphs whose
+				// pStyle inherits bold (e.g. 1311.docx Heading2 with
+				// `<w:b/>` + `<w:bCs/>` in the resolved chain). The
+				// `bold=false` set keeps the toggle field semantics
+				// consistent with the bare-off-equivalent state so the
+				// writer's PcOpen/PcClose path correctly emits NO
+				// `<w:b/>` for this run.
+				if isExplicitOffBIToggle(t) {
+					raw, err := serializeRPrChildElement(d, t)
+					if err != nil {
+						return props, err
+					}
+					props.rPrChildren = append(props.rPrChildren, rPrChild{name: local, xml: raw})
+					props.bold = false
+				} else {
+					props.bold = !hasAttrVal(t, "val", "0") && !hasAttrVal(t, "val", "false")
+					if err := skipElement(d); err != nil {
+						return props, err
+					}
 				}
 			case local == "bCs":
-				// Complex script bold — preserve verbatim for the writer
-				// (#592). The model has no separate complex-script bold
-				// toggle; bCs travels with the run's full rPr serialization.
+				// Complex-script bold per ECMA-376-1 §17.3.2.16. The
+				// model has no separate complex-script bold toggle; bCs
+				// travels with the run's full rPr serialization through
+				// rPrChildren (#592). Both the bare-on form and the
+				// explicit-off form are preserved verbatim — the
+				// downstream minifyRPrChildren rule EXEMPTS bCs from the
+				// strip-on-explicit-false default-toggle path (see
+				// wpmlToggleNames) so the clearing form survives for
+				// paragraphs whose inherited style chain turns bCs ON
+				// (1311.docx Heading2).
 				raw, err := serializeRPrChildElement(d, t)
 				if err != nil {
 					return props, err
 				}
 				props.rPrChildren = append(props.rPrChildren, rPrChild{name: local, xml: raw})
 			case local == "i":
-				props.italic = !hasAttrVal(t, "val", "0") && !hasAttrVal(t, "val", "false")
-				if err := skipElement(d); err != nil {
-					return props, err
+				// Toggle property per ECMA-376-1 §17.3.2.13 (<w:i>).
+				// Same handling as <w:b> above — the explicit-off form
+				// is preserved verbatim in rPrChildren so it survives
+				// for paragraphs whose inherited style chain turns
+				// italic ON.
+				if isExplicitOffBIToggle(t) {
+					raw, err := serializeRPrChildElement(d, t)
+					if err != nil {
+						return props, err
+					}
+					props.rPrChildren = append(props.rPrChildren, rPrChild{name: local, xml: raw})
+					props.italic = false
+				} else {
+					props.italic = !hasAttrVal(t, "val", "0") && !hasAttrVal(t, "val", "false")
+					if err := skipElement(d); err != nil {
+						return props, err
+					}
 				}
 			case local == "iCs":
+				// Complex-script italic per ECMA-376-1 §17.3.2.17. Same
+				// preservation as bCs above.
 				raw, err := serializeRPrChildElement(d, t)
 				if err != nil {
 					return props, err
@@ -766,7 +820,8 @@ func minifyRPrChildren(children []rPrChild) []rPrChild {
 // that mirror upstream Okapi's RunPropertyFactory.WpmlTogglePropertyName
 // enum (RunPropertyFactory.java:201-222). Each toggle defaults to "true"
 // per ECMA-376-1 §17.3.2, so an explicit `w:val="0"` / `"false"` / `"off"`
-// is a no-op and gets stripped by RunProperties.minified().
+// is a no-op and gets stripped by RunProperties.minified() WHEN the
+// inherited style chain does not also carry the property by name.
 //
 // The members b, i, u (handled separately), strike, vertAlign, vanish are
 // excluded from this set in native because parseRunProps maps them onto
@@ -1259,4 +1314,18 @@ func attrVal(el xml.StartElement, localName string) string {
 // hasAttrVal returns true if the element has an attribute with the given local name and value.
 func hasAttrVal(el xml.StartElement, localName, value string) bool {
 	return attrVal(el, localName) == value
+}
+
+// isExplicitOffBIToggle reports whether a WPML <w:b> / <w:bCs> / <w:i>
+// / <w:iCs> element carries an explicit clearing `val` attribute. Per
+// ECMA-376-1 §17.3.2 (toggle properties), a bare element (no attribute)
+// defaults to "true" — bold/italic ON — and an explicit `val="0"`,
+// `"false"`, or `"off"` clears the toggle. The explicit-off form is
+// preserved by parseRunProps in rPrChildren so paragraphs whose
+// inherited style turns the toggle ON round-trip with the clearing
+// override intact (1311.docx Heading2 → `<w:b/>` + `<w:bCs/>`).
+func isExplicitOffBIToggle(t xml.StartElement) bool {
+	return hasAttrVal(t, "val", "0") ||
+		hasAttrVal(t, "val", "false") ||
+		hasAttrVal(t, "val", "off")
 }
