@@ -13,7 +13,22 @@ docs.
 | Engine | Total | byte | canon | sem | div |
 |---|---:|---:|---:|---:|---:|
 | bridge (okapi-bridge) | 185 | 185 | 0 | 0 | 0 |
-| native (this package) | 185 | 0 | 53 | 0 | 132 |
+| native (this package) | 185 | 0 | 115 | 0 | 70 |
+
+## Recently cleared
+
+- `AltContentEscaping.docx` — bare `<w:t>` inside `<mc:Choice>`
+  now extracted via the new TEXT marker in
+  `extractDrawingTranslations` (commit `397836ca`). The previous
+  state preserved the wrapper verbatim so the `<w:t>` text never
+  reached the translation pipeline.
+- WSO recursion into `<w:txbxContent>` paragraphs
+  (`optimizeNestedParagraphs`, commit `bfaf0b15`) brings several
+  drawing-bearing fixtures (AlternateContent.docx,
+  AlternateContentTest.docx) much closer to canon-equality —
+  inner textbox paragraphs now synthesise their own pStyle and
+  styleId numbering aligns with upstream's per-document
+  IdGenerator stream.
 
 ## Outstanding clusters
 
