@@ -98,6 +98,59 @@ func TestRunPropsEqual(t *testing.T) {
 	assert.False(t, a.equal(c))
 }
 
+func TestRunBuilderAddTextCoalesces(t *testing.T) {
+	b := &runBuilder{}
+	b.AddText("hello ")
+	b.AddText("world")
+	runs := b.Runs()
+	require.Len(t, runs, 1)
+	require.NotNil(t, runs[0].Text)
+	assert.Equal(t, "hello world", runs[0].Text.Text)
+}
+
+func TestRunBuilderBreakSplitsTextRun(t *testing.T) {
+	// Phase 4: Break() preserves heterogeneous-rPr boundaries between
+	// adjacent source runs whose toggle props match (so no PcOpen/
+	// PcClose break is emitted) but whose non-toggle rPrChildren
+	// differ. Mirrors upstream Okapi RunBuilder.java lines 73-188 +
+	// RunMerger.canRunPropertiesBeMerged (RunMerger.java lines
+	// 156-229) — heterogeneous RunProperties keep runs distinct on
+	// the way to the writer. Per ECMA-376-1 §17.3.2.
+	b := &runBuilder{}
+	b.AddText("red ")
+	b.Break()
+	b.AddText("blue")
+	runs := b.Runs()
+	require.Len(t, runs, 2)
+	require.NotNil(t, runs[0].Text)
+	require.NotNil(t, runs[1].Text)
+	assert.Equal(t, "red ", runs[0].Text.Text)
+	assert.Equal(t, "blue", runs[1].Text.Text)
+}
+
+func TestRunBuilderBreakIsOneShot(t *testing.T) {
+	// Calling Break() then AddText starts a new run; subsequent
+	// AddText calls coalesce as usual until Break() is called again.
+	b := &runBuilder{}
+	b.AddText("a")
+	b.Break()
+	b.AddText("b")
+	b.AddText("c")
+	runs := b.Runs()
+	require.Len(t, runs, 2)
+	assert.Equal(t, "a", runs[0].Text.Text)
+	assert.Equal(t, "bc", runs[1].Text.Text)
+}
+
+func TestRunBuilderBreakBeforeFirstAddIsHarmless(t *testing.T) {
+	b := &runBuilder{}
+	b.Break()
+	b.AddText("hello")
+	runs := b.Runs()
+	require.Len(t, runs, 1)
+	assert.Equal(t, "hello", runs[0].Text.Text)
+}
+
 func TestRunPropsOpeningClosingRuns(t *testing.T) {
 	props := runProps{bold: true, italic: true}
 	counter := 0

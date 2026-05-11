@@ -2206,6 +2206,25 @@ func (p *wmlParser) buildBlock(id string, runs []textRun, partPath, commonRPrXML
 			}
 			propsCopy := run.props
 			activeProps = &propsCopy
+		} else if !activeProps.equalIncludingChildren(run.props) {
+			// Toggles match (so no PcOpen/PcClose break was emitted)
+			// but the non-toggle rPrChildren differ between adjacent
+			// source runs (e.g. different <w:color>, <w:sz>, or
+			// <w:rStyle>). Force a model.Run boundary so the per-
+			// source-run rPr sidecar (#592 Phase 1) stays slot-
+			// aligned with the model.Run population — otherwise the
+			// writer's alignment guard (renderWMLBlock) nils the
+			// sidecar and per-run rPr emission (Phase 2) silently
+			// regresses to common-rPr-only output.
+			//
+			// Mirrors upstream Okapi RunBuilder.java lines 73-188 +
+			// RunMerger.canRunPropertiesBeMerged (RunMerger.java
+			// lines 156-229): heterogeneous RunProperties (toggle OR
+			// non-toggle) keep runs distinct on the way to the
+			// writer. Per ECMA-376-1 §17.3.2.
+			b.Break()
+			propsCopy := run.props
+			activeProps = &propsCopy
 		}
 
 		b.AddText(run.text)
