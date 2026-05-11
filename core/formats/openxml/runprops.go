@@ -806,14 +806,72 @@ func minifyRPrChildren(children []rPrChild) []rPrChild {
 	if len(children) == 0 {
 		return children
 	}
+	// Paired-toggle preservation signal for `bCs` / `iCs`. When the
+	// SAME rPr also carries an explicit-off `<w:b>` / `<w:i>`, the
+	// authoring tool authored the complex-script clearing override
+	// alongside the Latin clearing override — a strong indicator that
+	// the inherited style chain has the complex-script toggle ON (the
+	// only case where upstream Okapi's
+	// RunProperties.minified() preserves the clearing form per
+	// `preCombined.contains("bCs")` in RunProperties.java:497-540).
+	// Fixture 1311.docx is the canonical case: a `Heading2`-styled
+	// paragraph whose direct rPr clears both <w:b> and <w:bCs>.
+	// Native has no preCombined view at minify time but DOES see
+	// the b-bCs / i-iCs pairing in rPrChildren (because the explicit-
+	// off forms of <w:b> and <w:i> are now preserved in rPrChildren
+	// — see the parseRunProps `case local == "b"` / `case local ==
+	// "i"` clearing-form branches). Keeping the paired bCs/iCs
+	// clearing form mirrors upstream's effective behaviour for
+	// fixtures that author both halves of the pair together; the
+	// default no-op-strip path still applies when the pair is
+	// absent (so isolated `<w:bCs w:val="false"/>` on a paragraph
+	// with no bCs in its style chain continues to be stripped).
+	//
+	// Per ECMA-376-1 §17.3.2.16 (<w:bCs>) and §17.3.2.17 (<w:iCs>)
+	// these are independent toggle properties. Per §17.3.2.1 (<w:b>)
+	// and §17.3.2.13 (<w:i>) the Latin halves are independent too.
+	// The pairing-as-signal heuristic only fires when the source
+	// authors both clearing forms together, so it cannot falsely
+	// promote a lone <w:bCs w:val="false"/>.
+	keepBCs := hasExplicitOffByName(children, "b")
+	keepICs := hasExplicitOffByName(children, "i")
 	out := children[:0]
 	for _, c := range children {
+		if keepBCs && c.name == "bCs" {
+			out = append(out, c)
+			continue
+		}
+		if keepICs && c.name == "iCs" {
+			out = append(out, c)
+			continue
+		}
 		if isDefaultValuedRPrChild(c) {
 			continue
 		}
 		out = append(out, c)
 	}
 	return out
+}
+
+// hasExplicitOffByName reports whether children contain an rPr child
+// element with the given local name whose `val` attribute equals "0",
+// "false", or "off" — the WPML clearing-form signature per ECMA-376-1
+// §17.3.2. Used by minifyRPrChildren to detect paired-toggle
+// preservation signals (b ↔ bCs / i ↔ iCs).
+func hasExplicitOffByName(children []rPrChild, name string) bool {
+	for _, c := range children {
+		if c.name != name {
+			continue
+		}
+		val, ok := parseRPrChildVal(c.xml)
+		if !ok {
+			continue
+		}
+		if val == "0" || val == "false" || val == "off" {
+			return true
+		}
+	}
+	return false
 }
 
 // wpmlToggleNames lists the WPML run-property toggle element local names
