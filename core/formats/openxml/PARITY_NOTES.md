@@ -112,6 +112,72 @@ not about cross-paragraph field state, it's about per-run rPr loss
 that happens to be most visible on complex-field fixtures because
 HYPERLINK display text always carries `rStyle`.
 
+### 1145-colors* — writer slow-path collapses adjacent text runs
+
+**Fixtures**: `1145-colors.docx`, `1145-colors-aggressive.docx`.
+
+**Symptom (post-Phase-5)**: native still divergent despite the
+per-run rPr trilogy. Native emits ONE `<w:r>` per paragraph carrying
+the FIRST source run's rPr, losing colors from the remaining N-1
+source runs. WSO then over-synthesises a `NF974E24F-Normal1`
+paragraph style for the second paragraph (whose collapsed run has
+non-empty rPr `<w:color w:val="A50021"/>`), since WSO sees a single
+run with non-empty rPr and `commonProps([single])` = the rPr itself.
+
+**Investigation summary**:
+
+The Phase-5 agent's diagnostic ("WSO synthesises an extra paragraph
+style — that's a follow-up in style_optimization.go") was incorrect.
+Per-run rPrs are NOT actually preserved on the wire. WSO_DEBUG dump
+of the WSO INPUT for `1145-colors.docx` shows:
+
+```
+<w:p><w:pPr><w:rPr><w:color w:val="C00000"/></w:rPr></w:pPr>
+  <w:r><w:rPr><w:color w:val="A50021"/></w:rPr>
+    <w:t xml:space="preserve">Ƥàŕàĝŕàƥĥ ŵĩţĥ ŕēď ćōĺōŕś.</w:t>
+  </w:r>
+</w:p>
+```
+
+Single `<w:r>` with all six source colors collapsed into the first
+run's rPr (A50021). Bridge reference emits 6 distinct `<w:r>`
+elements with their own per-run colors.
+
+**Cause**: `renderWMLBlock`'s slow path
+(`writer.go` ~line 1273-1300) keeps `inRun=true` across adjacent
+`r.Text` runs — only `PcOpen`/`PcClose`/`Ph` runs call `closeRun()`.
+Two adjacent text runs with different `effectiveRPr(idx)` values
+fold into the same `<w:r>` because the second run's chars hit the
+`if !inRun` skip and append directly without a new `<w:r>` wrapper
+or fresh `emitRPr(idx)`. The per-run rPr sidecar slot 1+ is
+effectively unreachable for adjacent text-text run pairs.
+
+**Why a WSO-only fix won't help**: even bailing on style synthesis
+in `style_optimization.go` only removes the synthesised `pStyle`
+entry from `styles.xml`. The collapsed `<w:r>` in `document.xml`
+still loses 5 of 6 source colors — `document.xml` stays divergent
+on the colors alone.
+
+**Real fix (writer.go, OUT OF SCOPE for this WSO-only iteration)**:
+in the text-emission case at the top of the `for _, r := range
+runs` loop, close the open `<w:r>` and reset state when transitioning
+between two consecutive `r.Text` runs whose `effectiveRPr(textRunIdx)`
+or `effectiveRPr(textRunIdx+1)` would differ. The closeRun()
+helper already exists; the fix is conditioning it on rPr-slot
+divergence between adjacent text runs (not just on toggle/code
+boundaries). Mirrors upstream Okapi `RunMerger.canRunPropertiesBeMerged`
+(`RunMerger.java:156-229`) — adjacent runs only fuse when
+`RunProperties.equals()`; heterogeneous-rPr text runs MUST surface
+as separate `<w:r>` elements.
+
+Ground source for the writer fix:
+- ECMA-376-1 §17.3.2.1 `<w:r>` Run — each `<w:r>` is a self-contained
+  formatting unit; runs with different rPr must be separate runs.
+- `okapi/filters/openxml/RunBuilder.java` lines 73-188 — every
+  source run keeps its full rPr.
+- `okapi/filters/openxml/RunMerger.java` lines 156-229 — adjacent
+  runs only fuse when `RunProperties.equals()`.
+
 ### Other outstanding clusters
 
 (Not investigated in this iteration — left as-is from the wider
