@@ -45,6 +45,75 @@ import "strings"
 // every emitted <w:r>.
 const openxmlSourceRPrAnnotationKey = "openxml-source-rpr"
 
+// openxmlPerRunRPrAnnotationKey is the model.Block.Annotations map
+// key under which the writer reads the per-text-run rPr fragments —
+// one entry per text-bearing source run, in source order, mirroring
+// the upstream Okapi RunBuilder/RunMerger contract that every source
+// run keeps its FULL rPr verbatim
+// (okapi/filters/openxml/RunBuilder.java lines 73-188 and
+// RunMerger.java lines 156-229: heterogeneous-rPr paragraphs surface
+// multiple <w:r> elements, each with its own rPr, rather than
+// collapsing to a single rPr-less <w:r>).
+//
+// The annotation value is a model.GenericAnnotation with
+// Fields["fragments"] holding a []string. Each entry is the
+// children-only XML of one source run's <w:rPr> (no <w:rPr>
+// wrapper), in the same order as the text-bearing entries of
+// `runs []textRun` (i.e. excluding sentinels and lone "\n" line
+// breaks — see `commonRPrChildren` for the exact filtering rule).
+// An entry is the empty string when the corresponding run had no
+// rPr children at all.
+//
+// This is the reader-side capture half of the per-run rPr sidecar
+// described in PARITY_NOTES.md (1083-* per-run rPr cluster). The
+// writer wire-up (Phase 2) will consume this annotation; until then
+// it is stashed but not read, so behaviour is unchanged.
+//
+// References:
+//   - ECMA-376-1 §17.3.2 — <w:rPr> on <w:r>.
+//   - okapi/filters/openxml/RunBuilder.java lines 73-188 — every
+//     source run carries its full rPr through the builder.
+//   - okapi/filters/openxml/RunMerger.java lines 156-229 —
+//     RunProperties.equals gates run fusion, so heterogeneous rPr
+//     stays heterogeneous on the way to the writer.
+const openxmlPerRunRPrAnnotationKey = "openxml-per-run-rpr"
+
+// perRunRPrFragments returns one rPr-children XML fragment per
+// text-bearing source run in `runs`, in source order.
+//
+// The filtering rule mirrors `commonRPrChildren`: sentinel runs
+// (tab/image/footnoteRef/hyperlink wrappers/paragraph-level
+// opaque/field markup) and lone "\n" line breaks are skipped — they
+// don't carry text the writer reuses a per-run rPr for. The result
+// length therefore equals the number of text-bearing source runs.
+//
+// Each entry is the children-only XML serialisation (no <w:rPr>
+// wrapper); a run whose rPr was empty (or absent entirely) yields
+// the empty string at its slot.
+//
+// Per RunBuilder.java lines 73-188 the source run's full rPr — both
+// the toggle children (b/i/u/strike/vertAlign/vanish) AND the
+// non-toggle children (rStyle/color/sz/lang/highlight/...) — must
+// be preserved. `runProps.rPrChildren` already excludes the toggles
+// the native writer reconstructs from PcOpen/PcClose; per-run rPr
+// emission must therefore COMBINE the per-run sidecar (non-toggle
+// children) with the writer's toggle reconstruction at write time.
+// Phase 1 only captures the sidecar; Phase 2 wires it into the
+// writer.
+func perRunRPrFragments(runs []textRun) []string {
+	var out []string
+	for _, r := range runs {
+		if isSentinel(r.text) {
+			continue
+		}
+		if r.text == "\n" {
+			continue
+		}
+		out = append(out, joinRPrChildren(r.props.rPrChildren))
+	}
+	return out
+}
+
 // commonRPrChildren returns the rPr child elements present and
 // equal across every text-bearing source run in the paragraph.
 // Mirrors upstream Okapi

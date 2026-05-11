@@ -1368,6 +1368,15 @@ func (p *wmlParser) parseParagraph(d *xml.Decoder, partPath string, emitBlock fu
 				// met (#589 / style_optimization.go).
 				commonRPr := commonRPrChildren(runs)
 				commonRPrXML := joinRPrChildren(commonRPr)
+				// Capture per-text-run rPr fragments BEFORE
+				// mergeRuns collapses adjacent runs (mergeRuns
+				// drops the rPrChildren of the merged-away
+				// neighbours by keeping only the first run's
+				// props). Phase 1 only stashes the sidecar on the
+				// block; the writer wire-up that consumes it
+				// (Phase 2) lands separately. See PARITY_NOTES.md
+				// "1083-*" per-run rPr investigation.
+				perRunRPrXML := perRunRPrFragments(runs)
 
 				// Merge adjacent runs with same formatting
 				merged := mergeRuns(runs)
@@ -1434,7 +1443,7 @@ func (p *wmlParser) parseParagraph(d *xml.Decoder, partPath string, emitBlock fu
 				p.skelRef(blockID)
 				p.skelWriteString("</w:p>")
 
-				block := p.buildBlock(blockID, merged, partPath, commonRPrXML)
+				block := p.buildBlock(blockID, merged, partPath, commonRPrXML, perRunRPrXML)
 				emitBlock(block)
 				return nil
 			}
@@ -2040,7 +2049,14 @@ func (p *wmlParser) wrapHyperlinkRuns(runs []textRun, relID string) []textRun {
 // the openxmlSourceRPrAnnotation on the block so the writer can
 // reapply it on every emitted <w:r>. This is the per-run rPr
 // preservation path required by Bowrain Issue #592.
-func (p *wmlParser) buildBlock(id string, runs []textRun, partPath, commonRPrXML string) *model.Block {
+//
+// perRunRPrXML is the per-text-run rPr fragments sidecar (Phase 1 of
+// the per-run rPr work — see PARITY_NOTES.md "1083-*" cluster).
+// When non-empty it is stashed as the openxmlPerRunRPrAnnotation on
+// the block; the writer wire-up that consumes it lands in Phase 2.
+// Until then this annotation is read-only sidecar data and does not
+// change writer behaviour.
+func (p *wmlParser) buildBlock(id string, runs []textRun, partPath, commonRPrXML string, perRunRPrXML []string) *model.Block {
 	b := &runBuilder{}
 	spanCounter := 0
 
@@ -2239,6 +2255,17 @@ func (p *wmlParser) buildBlock(id string, runs []textRun, partPath, commonRPrXML
 		block.Annotations[openxmlSourceRPrAnnotationKey] = &model.GenericAnnotation{
 			Kind:   openxmlSourceRPrAnnotationKey,
 			Fields: map[string]any{"xml": commonRPrXML},
+		}
+	}
+
+	// Stash the per-text-run rPr fragments sidecar (Phase 1 of the
+	// per-run rPr work — see PARITY_NOTES.md "1083-*" cluster). The
+	// writer wire-up (Phase 2) consumes this annotation; until then it
+	// is read-only sidecar data and does not change writer behaviour.
+	if len(perRunRPrXML) > 0 {
+		block.Annotations[openxmlPerRunRPrAnnotationKey] = &model.GenericAnnotation{
+			Kind:   openxmlPerRunRPrAnnotationKey,
+			Fields: map[string]any{"fragments": perRunRPrXML},
 		}
 	}
 
@@ -2849,6 +2876,8 @@ func (p *wmlParser) extractTxbxParagraph(dec *xml.Decoder, out *strings.Builder,
 			}
 			commonRPr := commonRPrChildren(runs)
 			commonRPrXML := joinRPrChildren(commonRPr)
+			// Per-run rPr sidecar (Phase 1) — see PARITY_NOTES.md.
+			perRunRPrXML := perRunRPrFragments(runs)
 			merged := mergeRuns(runs)
 			// Recurse extraction into nested drawing/pict
 			// payloads so e.g. a docPr name inside an image
@@ -2883,7 +2912,7 @@ func (p *wmlParser) extractTxbxParagraph(dec *xml.Decoder, out *strings.Builder,
 			out.WriteString(blockID)
 			out.WriteString(drawingMarkerSuffix)
 			out.WriteString("</w:p>")
-			block := p.buildBlock(blockID, merged, partPath, commonRPrXML)
+			block := p.buildBlock(blockID, merged, partPath, commonRPrXML, perRunRPrXML)
 			emitBlock(block)
 			return nil
 		}
