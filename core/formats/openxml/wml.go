@@ -1235,6 +1235,23 @@ func (p *wmlParser) parseParagraph(d *xml.Decoder, partPath string, emitBlock fu
 				}
 				runs = append(runs, sdtRuns...)
 
+			case "smartTag":
+				// <w:smartTag> is a transparent run-container per
+				// ECMA-376 Part 1 §17.5.1.9 and upstream Okapi
+				// RunContainer (RunContainer.java lines 29-43,
+				// 187-191). Drain the wrapper, processing inner
+				// runs as if they were direct children of <w:p>;
+				// the start/end tags are preserved verbatim as
+				// paired-code sentinels around the inner runs.
+				rawStart := startElementToRaw(t)
+				target := &runs
+				if inHyperlink {
+					target = &hyperlinkRuns
+				}
+				if err := p.parseSmartTag(d, target, &cfs, rawStart); err != nil {
+					return err
+				}
+
 			case "ins", "moveTo":
 				// Revision-tracking content wrapper: insertion / move-to.
 				// Mirrors okapi's SkippableElements.RevisionInline.skip
@@ -1529,6 +1546,104 @@ func (p *wmlParser) parseRevisionInsertion(d *xml.Decoder, wrapperName string, r
 			}
 		case xml.EndElement:
 			if t.Name.Local == wrapperName {
+				return nil
+			}
+		}
+	}
+}
+
+// parseSmartTag drains a <w:smartTag> wrapper, processing its <w:r>
+// children as if they were direct paragraph children and emitting
+// paired-code sentinels ( open,  close) around them so
+// the writer can round-trip the smartTag start/end tags verbatim.
+//
+// Mirrors upstream Okapi's RunContainer model (RunContainer.java
+// lines 29-43, 187-191) where <w:smartTag> — alongside <w:hyperlink>
+// and <w:sdt> — is a transparent wrapper around runs: inner runs
+// can be simplified and consolidated, but the wrapper boundary is
+// preserved as a single set of paired codes on the block. ECMA-376
+// Part 1 §17.5.1.9 (smartTag) defines smartTag as a markup container
+// that nests around a CT_R (run) sequence; smartTag may itself
+// contain nested <w:smartTag> elements (commonly seen for a
+// place/country-region pair around the same text). The nesting is
+// handled by recursing through this helper.
+//
+// <w:smartTagPr> is dropped per upstream Okapi
+// RunContainer.isPropertiesStart (line 77-83): smartTagPr properties
+// are skippable and are NOT part of the preserved paired-code
+// payload — only the <w:smartTag ...> start element itself (with its
+// w:uri and w:element attributes) and its matching end tag are
+// round-tripped.
+//
+// rawStart is the raw XML form of the <w:smartTag ...> open tag
+// (including any namespace declarations and attributes) produced by
+// the caller via startElementToRaw. It is paired with the literal
+// "</w:smartTag>" close tag in the close sentinel.
+func (p *wmlParser) parseSmartTag(d *xml.Decoder, runs *[]textRun, cfs *complexFieldState, rawStart string) error {
+	*runs = append(*runs, textRun{text: ":" + rawStart, props: runProps{}})
+	for {
+		tok, err := d.Token()
+		if err != nil {
+			return err
+		}
+		switch t := tok.(type) {
+		case xml.StartElement:
+			switch t.Name.Local {
+			case "smartTagPr":
+				// Drop smartTag properties — preserved only as a
+				// skippable per upstream RunContainer.isPropertiesStart
+				// (RunContainer.java lines 77-83).
+				if err := skipElement(d); err != nil {
+					return err
+				}
+			case "r":
+				rawRStart := startElementToRaw(t)
+				run, err := p.parseRunWithFieldState(d, cfs, rawRStart)
+				if err != nil {
+					return err
+				}
+				run = filterFieldRuns(run, cfs)
+				if cfs.active && !cfs.extractable {
+					run = dropTextRuns(run)
+				}
+				if cfs.active && cfs.extractable && !cfs.atResult {
+					run = dropTextRuns(run)
+				}
+				if len(run) == 0 {
+					continue
+				}
+				*runs = append(*runs, run...)
+			case "smartTag":
+				// Nested smartTag (e.g. <smartTag element="place">
+				// wrapping <smartTag element="country-region"> in
+				// 952-3.docx). Recurse so the nested wrapper emits
+				// its own paired-code sentinels.
+				nestedRaw := startElementToRaw(t)
+				if err := p.parseSmartTag(d, runs, cfs, nestedRaw); err != nil {
+					return err
+				}
+			case "ins", "moveTo":
+				// Revision insertion inside a smartTag — unwrap
+				// children. Mirrors parseParagraph's handling.
+				if err := p.parseRevisionInsertion(d, t.Name.Local, runs, cfs); err != nil {
+					return err
+				}
+			case "del", "moveFrom":
+				if err := skipElement(d); err != nil {
+					return err
+				}
+			default:
+				// Unknown content — skip the subtree. Per upstream
+				// Okapi smartTag is restricted to runs and nested
+				// containers (RunContainer.RUN_CONTAINER_TYPES), so
+				// other children are out of spec.
+				if err := skipElement(d); err != nil {
+					return err
+				}
+			}
+		case xml.EndElement:
+			if t.Name.Local == "smartTag" {
+				*runs = append(*runs, textRun{text: ":</w:smartTag>", props: runProps{}})
 				return nil
 			}
 		}
@@ -2144,6 +2259,42 @@ func (p *wmlParser) buildBlock(id string, runs []textRun, partPath, commonRPrXML
 				"</w:hyperlink>", "")
 			continue
 		}
+		if strings.HasPrefix(run.text, "\uE109:") {
+			// SmartTag open \u2014 paired-code open emitted as opaque
+			// markup. Per ECMA-376 Part 1 \u00A717.5.1.9 and upstream
+			// Okapi RunContainer (RunContainer.java lines 29-43)
+			// the start tag must round-trip verbatim around the
+			// inner runs. Close any active rPr toggle so the
+			// smartTag start element doesn't sit inside an open
+			// <w:r>.
+			if activeProps != nil && !activeProps.isEmpty() {
+				activeProps.appendClosingRuns(b, &spanCounter)
+				activeProps = nil
+			}
+			data := strings.TrimPrefix(run.text, "\uE109:")
+			spanCounter++
+			b.AddPcOpen(fmt.Sprintf("c%d", spanCounter),
+				TypeSmartTag, SubTypeSmartTag,
+				data, "", "",
+				true, true, true)
+			continue
+		}
+		if strings.HasPrefix(run.text, "\uE10A:") {
+			// SmartTag close \u2014 paired-code close emitted as opaque
+			// markup. Same close-active-rPr discipline as the open
+			// half so the end tag isn't trapped inside an open
+			// <w:r>.
+			if activeProps != nil && !activeProps.isEmpty() {
+				activeProps.appendClosingRuns(b, &spanCounter)
+				activeProps = nil
+			}
+			data := strings.TrimPrefix(run.text, "\uE10A:")
+			spanCounter++
+			b.AddPcClose(fmt.Sprintf("c%d", spanCounter),
+				TypeSmartTag, SubTypeSmartTag,
+				data, "")
+			continue
+		}
 		if strings.HasPrefix(run.text, "\uE106:") || strings.HasPrefix(run.text, "\uE107:") {
 			// Bookmark start/end placeholder. Per ECMA-376 Part 1
 			// \u00A717.13.6 these are direct children of <w:p> rather
@@ -2354,7 +2505,7 @@ func isSentinel(s string) bool {
 	if len(r) == 0 {
 		return false
 	}
-	if r[0] < '\uE100' || r[0] > '\uE108' {
+	if r[0] < '\uE100' || r[0] > '\uE10A' {
 		return false
 	}
 	// Single-char sentinels (tab \uE100, image \uE101, paragraph
@@ -2367,7 +2518,7 @@ func isSentinel(s string) bool {
 	}
 	// Multi-char sentinels must have ':' separator
 	// (\uE102:id, \uE103:data, \uE104:data, \uE106:id, \uE107:id,
-	// \uE108:fldChar / \uE108:fldSimple)
+	// \uE108:fldChar / \uE108:fldSimple, \uE109:data, \uE10A:data)
 	return len(r) >= 2 && r[1] == ':'
 }
 
@@ -2898,6 +3049,14 @@ func (p *wmlParser) extractTxbxParagraph(dec *xml.Decoder, out *strings.Builder,
 				}
 				raw = protectFieldPayloadFromStripping(raw)
 				runs = append(runs, textRun{text: ":fldSimple", data: raw})
+			case "smartTag":
+				// See parseParagraph for the smartTag rationale —
+				// transparent run-container unwrap per ECMA-376
+				// Part 1 §17.5.1.9 and upstream Okapi RunContainer.
+				rawStart := startElementToRaw(t)
+				if err := p.parseSmartTag(dec, &runs, &cfs, rawStart); err != nil {
+					return err
+				}
 			case "proofErr", "commentRangeStart", "commentRangeEnd",
 				"permStart", "permEnd":
 				if err := skipElement(dec); err != nil {

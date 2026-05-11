@@ -1299,7 +1299,15 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 			}
 
 		case r.PcOpen != nil:
-			if r.PcOpen.Type == TypeHyperlink {
+			if r.PcOpen.Type == TypeHyperlink || r.PcOpen.Type == TypeSmartTag {
+				// Opaque paired-code open: emit captured raw XML
+				// (the <w:hyperlink ...> or <w:smartTag ...> start
+				// element) verbatim, paired with the matching close
+				// data emitted by the corresponding PcClose. Per
+				// upstream Okapi RunContainer (RunContainer.java
+				// lines 29-43, 187-191) hyperlink and smartTag are
+				// transparent run-containers preserved as a single
+				// pair of codes around their inner runs.
 				closeRun()
 				buf.WriteString(r.PcOpen.Data)
 			} else {
@@ -1313,7 +1321,7 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 			}
 
 		case r.PcClose != nil:
-			if r.PcClose.Type == TypeHyperlink {
+			if r.PcClose.Type == TypeHyperlink || r.PcClose.Type == TypeSmartTag {
 				closeRun()
 				buf.WriteString(r.PcClose.Data)
 			} else {
