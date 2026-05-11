@@ -1523,6 +1523,24 @@ func (p *wmlParser) parseParagraph(d *xml.Decoder, partPath string, emitBlock fu
 				// markup survives the round-trip — losing
 				// <w:drawing> here is the bug fixed in #590.
 				if isEmptyRuns(merged) {
+					// Tracked deletion of the paragraph mark
+					// (ECMA-376 Part 1 §17.13.5.13 CT_ParaRPr):
+					// when <w:pPr><w:rPr> carries <w:del> or
+					// <w:moveFrom>, the paragraph break itself is
+					// deleted and the (empty) paragraph collapses
+					// into the next one under auto-accept-revisions.
+					// Mirror upstream Okapi's mergeable-block path
+					// (BlockParser.parse lines 207-213 +
+					// StyledTextPart.process lines 312-319 +
+					// Block.mergeWith short-circuit on chunks<=2 at
+					// Block.java line 140): a mergeable block whose
+					// only chunks are markup-start + markup-end is
+					// dropped entirely. Fixture
+					// 1370-same-nested-revisions.docx is the
+					// canonical case.
+					if paragraphHasDeletedMark(paraProps) && len(merged) == 0 {
+						return nil
+					}
 					p.skelWriteString("<w:p>")
 					if paraProps != "" {
 						p.skelText(paraProps)
@@ -4105,6 +4123,68 @@ func captureParaProps(d *xml.Decoder, start xml.StartElement) (string, string, e
 	// Extract pStyle value from the raw XML
 	styleID := extractPStyle(raw)
 	return raw, styleID, nil
+}
+
+// paragraphHasDeletedMark reports whether the raw `<w:pPr>` payload
+// contains a `<w:rPr>` direct child that itself carries a `<w:del>` or
+// `<w:moveFrom>` start element — the "deleted paragraph mark" /
+// "moved-from paragraph mark" tracked-change markers introduced by
+// ECMA-376 Part 1 §17.13.5.13 (CT_ParaRPr) and §17.13.5.14
+// (CT_ParaRPrChange).
+//
+// In ECMA-376 these markers indicate that the paragraph mark (¶) itself
+// is part of a tracked deletion / move-from. Under auto-accept-revisions
+// the paragraph break is removed, which collapses the paragraph into the
+// following one. Upstream Okapi mirrors this via
+// `ParagraphBlockProperties.containsRunPropertyDeletedParagraphMark()`
+// (ParagraphBlockProperties.java lines 576-586) — keyed on
+// `SkippableElement.RevisionProperty.RUN_PROPERTY_DELETED_PARAGRAPH_MARK`
+// (`w:del`) and `RUN_PROPERTY_MOVED_PARAGRAPH_FROM` (`w:moveFrom`) per
+// SkippableElement.java lines 232 and 234. `BlockParser.parse` lines
+// 207-213 then sets `builder.mergeable(true)` when this marker is
+// present so `StyledTextPart.process` (lines 312-319) can absorb the
+// paragraph into the next block.
+//
+// We use the xml.Decoder for safety rather than substring search so
+// nested `<w:pPrChange>` history (which can itself contain a
+// `<w:rPr><w:del/></w:rPr>` re-stating the pre-change state) does not
+// produce a false positive — we only consider the immediate
+// `<w:pPr><w:rPr>` direct-child path.
+func paragraphHasDeletedMark(raw string) bool {
+	if raw == "" {
+		return false
+	}
+	if !strings.Contains(raw, "<w:del") && !strings.Contains(raw, "<w:moveFrom") {
+		return false
+	}
+	dec := xml.NewDecoder(strings.NewReader(raw))
+	var depth int
+	// Path stack of element local names from the root <w:pPr>.
+	var path []string
+	for {
+		tok, err := dec.Token()
+		if err != nil {
+			return false
+		}
+		switch t := tok.(type) {
+		case xml.StartElement:
+			depth++
+			path = append(path, t.Name.Local)
+			// We want the chain <pPr> (depth 1) -> <rPr> (depth 2) ->
+			// <del>|<moveFrom> (depth 3). pPrChange / rPrChange history
+			// blocks live one level deeper, so this check excludes them.
+			if depth == 3 && len(path) >= 3 &&
+				path[0] == "pPr" && path[1] == "rPr" &&
+				(t.Name.Local == "del" || t.Name.Local == "moveFrom") {
+				return true
+			}
+		case xml.EndElement:
+			depth--
+			if len(path) > 0 {
+				path = path[:len(path)-1]
+			}
+		}
+	}
 }
 
 // extractPStyle extracts the w:val attribute from <w:pStyle> in raw paragraph properties XML.
