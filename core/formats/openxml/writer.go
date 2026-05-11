@@ -1092,7 +1092,20 @@ func blockPerRunRPrFragments(block *model.Block) []string {
 	// plus a few extensions; see containsComplexScriptText for
 	// the full inventory derived from ECMA-376-1 §17.3.2.16
 	// (bCs) and §17.3.2.17 (iCs)).
-	return dedupeAdjacent(v)
+	//
+	// dedupeAdjacent is NOT applied here. The reader's mergeRuns
+	// (wml.go) already coalesces adjacent text runs whose toggle +
+	// non-toggle rPr are fully equal, so the sidecar arrives with
+	// one entry per surviving model text-run. Adjacent fragments
+	// that happen to be byte-equal (e.g. two HYPERLINK display runs
+	// separated by an intervening fldChar / PcClose) must NOT be
+	// collapsed — they belong to distinct model runs and the writer
+	// needs the slot at each text-run index. Prior code ran
+	// dedupeAdjacent and triggered the alignment guard in
+	// renderWMLBlock (sidecar suppressed → fall back to sourceRPr),
+	// which dropped rStyle from hyperlink-internal runs in
+	// 830-7.docx, external_hyperlink.docx, etc.
+	return v
 }
 
 // blockPerRunSrcRunStartFlags extracts the per-text-run "starts new
@@ -1251,31 +1264,6 @@ func stripWMLElement(s, name string) string {
 		end += boundary + 1
 		s = s[:i] + s[end:]
 	}
-}
-
-// dedupeAdjacent returns a copy of `frags` with adjacent equal
-// entries collapsed to a single entry. mergeRuns coalesces adjacent
-// source runs whose toggle rPr (b/i/u/strike/vertAlign/vanish/font)
-// are equal — when those runs ALSO had byte-equal non-toggle rPr,
-// the per-run sidecar carries duplicate adjacent fragments that
-// must collapse to align with the post-merge model run sequence
-// (one model TextRun per coalesced source-run group). Per upstream
-// Okapi RunMerger.java lines 156-229 — adjacent runs fuse only when
-// RunProperties.equals, so an output rPr per merged group matches
-// upstream's emit cadence.
-func dedupeAdjacent(frags []string) []string {
-	if len(frags) <= 1 {
-		return frags
-	}
-	out := make([]string, 0, len(frags))
-	out = append(out, frags[0])
-	for i := 1; i < len(frags); i++ {
-		if frags[i] == out[len(out)-1] {
-			continue
-		}
-		out = append(out, frags[i])
-	}
-	return out
 }
 
 // runsHaveInlineCodes reports whether the run sequence contains any
