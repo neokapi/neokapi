@@ -359,24 +359,46 @@ func optimizeParagraph(
 	if len(common) == 0 {
 		return src
 	}
-	// Drop bCs/iCs from the SYNTHESISED style's rPr (commonForStyle).
-	// They remain in `common` so the run-strip pass below still removes
-	// them from each run alongside b/i — consistent with WSO's "lift
-	// common props off runs" contract. bCs/iCs are the complex-script
-	// bidi-mirrors of b/i (ECMA-376-1 §17.3.2.30 — the rPr children list
-	// pairs bCs/iCs with b/i as the bidi-mirror toggle): upstream Okapi
-	// reconstructs them from the b/i toggle pair at run-emit time and
-	// never surfaces bCs/iCs into a synthesised paragraph style. This is
-	// the WSO-layer counterpart of writer.go's stripToggleMirrorChildren
-	// (lines 1044-1058) which performs the equivalent strip on the
-	// per-source-run rPr sidecar before write.
-	commonForStyle := stripToggleMirrorsFromCommon(common)
+	// Normalise the b/i toggle entries in the SYNTHESISED style's rPr
+	// (commonForStyle) to the bidi form that matches the common run's
+	// script direction:
+	//
+	//   - LTR runs (no <w:rtl/> in common): keep b/i, drop bCs/iCs.
+	//     bCs/iCs are the complex-script bidi-mirrors of b/i
+	//     (ECMA-376-1 §17.3.2.4); upstream Okapi reconstructs the
+	//     mirror at run-emit time from the b/i toggle and never
+	//     surfaces bCs/iCs alone into a synthesised paragraph style.
+	//   - RTL runs (<w:rtl/> in common): rename b→bCs, i→iCs in the
+	//     synthesised rPr. Per ECMA-376-1 §17.3.2.4, bCs/iCs are the
+	//     bold/italic toggles that APPLY to complex-script (RTL) text
+	//     in a run; upstream Okapi's WSO promotes the bidi-script
+	//     toggle that matches the run's directionality. The native
+	//     writer's blockPerRunRPrFragments path always strips bCs/iCs
+	//     from per-run sidecars BEFORE WSO sees the XML (writer.go
+	//     :1028-1041), so the surviving b/i entries are the stand-in
+	//     for the original bCs/iCs on RTL runs. Observed in
+	//     947-cs.docx / 947-non-cs-and-cs.docx reference output:
+	//     synthesised style rPr is <bCs/><iCs/><rtl/><sz/>, not
+	//     <b/><i/><rtl/><sz/>.
+	//
+	// b/i remain in `common`, so the run-strip pass below (which
+	// builds its commonNames map from `common`, not commonForStyle)
+	// continues to lift them off each run — matching upstream's "no
+	// rPr at all on the run" emit shape for 952-3.docx /
+	// TestDako2.docx / 947-cs.docx.
+	//
+	// This is the WSO-layer counterpart of writer.go's
+	// stripToggleMirrorChildren (lines 1044-1058) which performs the
+	// equivalent strip on the per-source-run rPr sidecar before write.
+	rtlCommon := commonContainsRTL(common)
+	commonForStyle := stripToggleMirrorsFromCommon(common, rtlCommon)
 	if len(commonForStyle) == 0 {
-		// Only bCs/iCs were common — there is nothing meaningful to
-		// lift into a parent style. Upstream Okapi would have skipped
-		// these from the common set in the first place (the toggle
-		// mirrors don't surface as standalone synthesisable props), so
-		// bail to match upstream's "no style synthesised" outcome.
+		// Only the dropped toggle members were common — there is
+		// nothing meaningful to lift into a parent style. Upstream
+		// Okapi would have skipped these from the common set in the
+		// first place (the toggle mirrors don't surface as standalone
+		// synthesisable props), so bail to match upstream's "no style
+		// synthesised" outcome.
 		return src
 	}
 
@@ -848,39 +870,94 @@ func commonProps(seed []runProp, entries []runEntry) []runProp {
 	return out
 }
 
-// stripToggleMirrorsFromCommon removes <w:bCs>/<w:iCs> entries from
-// the WSO common-rPr set. These are the complex-script bidi-mirrors
-// of b/i (ECMA-376-1 §17.3.2.30): per-run rPr in WordprocessingML
-// pairs `<w:b/>` with `<w:bCs/>` and `<w:i/>` with `<w:iCs/>` to
-// describe the same toggle for LTR vs complex-script text. Upstream
-// Okapi's RunBuilder/RunMerger and StyleOptimisation lift only the
-// b/i toggles into synthesised paragraph styles — the bCs/iCs mirror
-// is reconstructed at run-emit time from the toggle pair, never
-// surfaced into a parent <w:rPr>. The native writer's
-// stripToggleMirrorChildren helper (writer.go lines 1044-1058) does
-// the same on the per-source-run rPr sidecar; this function is the
-// WSO-layer counterpart so the post-pass synthesised style matches
-// upstream's emit shape (e.g. 952-3.docx, TestDako2.docx).
+// stripToggleMirrorsFromCommon rewrites the b/i toggle entries in
+// the WSO common-rPr set based on the common run's script direction:
 //
-// The strip applies only to the SYNTHESISED style's rPr — bCs/iCs
-// remain in the original `common` slice, so the run-strip pass below
-// (which builds its commonNames map from `common`, not `commonForStyle`)
-// continues to lift bCs/iCs off each run alongside b/i. Upstream's
-// observed behaviour matches: 952-3.docx and TestDako2.docx ref output
-// has runs with no rPr at all (b, bCs, i, iCs all stripped) and a
-// synthesised paragraph style carrying only `<w:b/>`.
-func stripToggleMirrorsFromCommon(props []runProp) []runProp {
+//   - rtl == false (LTR): drop <w:bCs/>/<w:iCs/> if present, keep
+//     <w:b/>/<w:i/>. bCs/iCs are the complex-script bidi-mirrors of
+//     b/i (ECMA-376-1 §17.3.2.4): per-run rPr in WordprocessingML
+//     pairs `<w:b/>` with `<w:bCs/>` and `<w:i/>` with `<w:iCs/>` to
+//     describe the same toggle for LTR vs complex-script text.
+//     Upstream Okapi's RunBuilder/RunMerger and StyleOptimisation
+//     lift only the b/i toggle into synthesised paragraph styles for
+//     LTR runs; the bCs/iCs mirror is reconstructed at run-emit time
+//     and is never the surfaced form in the parent <w:rPr>. Observed
+//     in 952-3.docx / TestDako2.docx reference.
+//   - rtl == true (RTL): rename <w:b/>→<w:bCs/> and <w:i/>→<w:iCs/>
+//     so the synthesised style carries the bidi-script toggle that
+//     actually applies to the run's complex-script text. Per
+//     ECMA-376-1 §17.3.2.4, bCs/iCs are the bold/italic toggles that
+//     APPLY to complex-script (RTL) text in a run. The native
+//     writer's blockPerRunRPrFragments path always strips bCs/iCs
+//     from per-run sidecars BEFORE WSO sees the XML (writer.go
+//     :1028-1041), so for RTL runs the b/i entries in `common` are
+//     the surviving stand-in — we rename them at WSO time to recover
+//     the upstream-emit shape. Observed in 947-cs.docx /
+//     947-non-cs-and-cs.docx reference: the synthesised style's rPr
+//     is <bCs/><iCs/><rtl/><sz/>, not <b/><i/><rtl/><sz/>.
+//
+// The rename/drop applies only to the SYNTHESISED style's rPr — the
+// raw `common` slice the caller passes in is left untouched, so the
+// run-strip pass below (which builds its commonNames map from
+// `common`, not `commonForStyle`) continues to lift b/i off every
+// run. Upstream's observed behaviour matches: 952-3.docx /
+// TestDako2.docx ref has runs with no rPr at all and a synthesised
+// paragraph style carrying only <w:b/>; 947-cs.docx ref has the same
+// shape with <bCs/><iCs/><rtl/> in the synthesised style.
+//
+// This function is the WSO-layer counterpart of writer.go's
+// stripToggleMirrorChildren (lines 1044-1058) which performs an
+// equivalent strip on the per-source-run rPr sidecar before write.
+func stripToggleMirrorsFromCommon(props []runProp, rtl bool) []runProp {
 	if len(props) == 0 {
 		return props
 	}
 	out := make([]runProp, 0, len(props))
 	for _, p := range props {
-		if p.name == "bCs" || p.name == "iCs" {
-			continue
+		switch p.name {
+		case "bCs", "iCs":
+			// bCs/iCs in common is unusual (writer.go:1028-1041 strips
+			// them from per-run rPr before WSO). If one does survive
+			// here, it has no LTR meaning, so it stays only when the
+			// common is RTL.
+			if rtl {
+				out = append(out, p)
+			}
+		case "b":
+			if rtl {
+				out = append(out, runProp{name: "bCs", xml: "<w:bCs/>"})
+			} else {
+				out = append(out, p)
+			}
+		case "i":
+			if rtl {
+				out = append(out, runProp{name: "iCs", xml: "<w:iCs/>"})
+			} else {
+				out = append(out, p)
+			}
+		default:
+			out = append(out, p)
 		}
-		out = append(out, p)
 	}
 	return out
+}
+
+// commonContainsRTL reports whether the common-rPr set contains a
+// truthy <w:rtl/> marker. minifyRPrChildren (runprops.go:355-380)
+// has already removed any explicit `<w:rtl w:val="0"/>` /
+// `<w:rtl w:val="false"/>` toggles before WSO runs, so a surviving
+// `rtl` runProp is always the truthy form (`<w:rtl/>` or
+// `<w:rtl w:val="1"/>` / `<w:rtl w:val="true"/>`). Per ECMA-376-1
+// §17.3.2.4, <w:rtl/> marks the run as containing complex-script
+// (right-to-left) content — the cue used by RunBuilder/RunMerger to
+// pick the bCs/iCs toggles over b/i.
+func commonContainsRTL(props []runProp) bool {
+	for _, p := range props {
+		if p.name == "rtl" {
+			return true
+		}
+	}
+	return false
 }
 
 // commonRFonts computes the per-attribute intersection of every run's
