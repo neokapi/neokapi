@@ -13,9 +13,9 @@ It is **not** an architecture decision and **not** user-facing docs.
 | Engine | Total | byte | canon | sem | div |
 |---|---:|---:|---:|---:|---:|
 | bridge (okapi-bridge) | 41 | 41 | 0 | 0 | 0 |
-| native (this package) | 41 | **38** | 0 | 0 | 3 |
+| native (this package) | 41 | **40** | 0 | 0 | 1 |
 
-Cleared 38 of 41 fixtures so far through ten commits that added
+Cleared 40 of 41 fixtures so far through eleven commits that added
 extraction for FrameMaker translatable surfaces the original reader
 walked past:
 
@@ -30,17 +30,18 @@ walked past:
 | `<Char>` glyph elision/rewrite (Clusters C + F + partial G) | 7ce509c7 |
 | FNote bare-`>` ParaLine close rewrite + empty-glyph Char elision (Cluster K) | 07d084d5 |
 | codeFinder `^[A-Z]:` (gated) + autonumber building blocks + Char-only run owner fix | 5a4b66ea |
-| Empty multi-ParaLine collapse (1187_crlf) | (this iteration) |
+| Empty multi-ParaLine collapse (1187_crlf, Cluster Q) | 7cdcae16 |
+| Content-bearing multi-ParaLine collapse after Char rewrite (1188_crlf, Cluster S) | (this iteration) |
 
 Remaining clusters break down as follows.
 
 ## Divergence clusters (still open)
 
-### Cluster C — `<Char HardReturn>` writer elision (RESOLVED for `Test01.mif`; partial elsewhere)
+### Cluster C — `<Char HardReturn>` writer elision (RESOLVED)
 
 **Was Affecting**: `1187_crlf.mif`, `1188_crlf.mif`, `987.mif`, `Test01.mif`.
-**Now**: only `1187_crlf.mif`, `1188_crlf.mif`, `987.mif` remain divergent --
-for reasons OTHER than the Char HardReturn elision. `Test01.mif` is byte-equal.
+**Now**: only `987.mif` remains divergent -- for a reason OTHER than the
+Char HardReturn elision (bridge-side `\x09 → \n` quirk).
 
 **Resolution**: `findStringPositions` now also returns an `elisions` slice
 that drops `<Char Foo>` lines from the skeleton when the glyph was inlined
@@ -49,13 +50,9 @@ into the surrounding String run. Mirrors okapi `MIFFilter.processPara`
 `paraTextBuf` and re-emits the merged buffer as a single `<String>`,
 never re-emitting the original `<Char>` statement.
 
-**Remaining divergences** in 1188_crlf, 987 are unrelated to
-the Char elision itself (1187_crlf is now byte-equal — see Cluster Q):
+**Remaining divergence** in 987 is unrelated to the Char elision itself
+(1187_crlf is byte-equal via Cluster Q, 1188_crlf via Cluster S):
 
-  - 1188_crlf.mif: cross-ParaLine merge with `<Char HardReturn>` between
-    `</Font>` and the next ParaLine. Native correctly elides + rewrites
-    the HardReturn but doesn't yet handle the cross-ParaLine merge that
-    okapi performs on the surrounding `<Char Tab>` and following Strings.
   - 987.mif: -1 byte off; the diverging byte is in a String value where
     the source has `\x09` (literal MIF hex escape for tab) and okapi's
     bridge produces `\n` in the output -- bridge-side quirk unrelated to
@@ -79,6 +76,32 @@ okapi `MIFFilter.processPara`'s "default: skip over" branch
 statements to `paraCodeBuf`, preserving them in source order. Per the
 MIF Reference §"Element Statements", `<ElementEnd>` is a structure-tag
 boundary that must survive ParaLine collapse.
+
+### Cluster S — content-bearing multi-ParaLine collapse after Char rewrite (RESOLVED — 1 fixture)
+
+**Was Affecting**: `1188_crlf.mif`. **Now**: byte-equal.
+
+**Resolution**: New `collapseContentMultiParaLineAfterCharRewrite` pass
+in `findStringPositions`. When the FIRST ParaLine of a Para ends with
+`<Char HardReturn>` (rewritten to a synthesized `<String '\n'>` by
+paraCharRewrite) AND has NO preceding `<String>` in the same ParaLine,
+AND is followed by a SECOND ParaLine with content, the pass elides the
+inter-ParaLine wrapper boundary (from the `\r` after `<Char HardReturn>`'s
+closing `>` through the `\r` of `<ParaLine\r\n`), leaving only the
+trailing `\n` as the single LF separator between the synthesized String
+and the second ParaLine's first child. Mirrors okapi
+`MIFFilter.processPara` (MIFFilter.java:739-766): the HardReturn at the
+end of a ParaLine flushes the current text unit via `addTextUnit` and
+resets `skel = new GenericSkeleton()` (line 764); the subsequent
+`readUntilText` for the second ParaLine starts with a fresh
+`paraCodeBuf` (cleared at line 772), so the close line of the first
+ParaLine and the opener of the second never accumulate into the
+output skeleton. The String-presence guard ensures the existing
+multi-String multi-ParaLine merge (line 953 in findStringPositions)
+remains the sole handler for Paras whose first ParaLine contains an
+explicit `<String>` -- both passes firing would over-elide. Per the
+MIF Reference §"ParaLine Statement", inter-ParaLine wrapper bytes are
+cosmetic.
 
 ### Cluster Q — empty multi-ParaLine collapse (RESOLVED — 1 fixture)
 
@@ -252,27 +275,13 @@ them.
 
 ## Triage suggestion for the next iteration
 
-The Char-handling sub-project (Cluster C + F + G) and the FNote
-ParaLine close rewrite (Cluster K) are now resolved; the remaining 6
-divergent fixtures break down into smaller threads:
+The Char-handling sub-project (Cluster C + F + G), the FNote ParaLine
+close rewrite (Cluster K), and the multi-ParaLine collapse cases
+(Clusters Q + R + S) are now resolved. The remaining 1 divergent
+fixture is a bridge-side quirk:
 
-**Cross-ParaLine merge after Char rewrite (1 fixture)**: `1188_crlf.mif`.
-The Char HardReturn rewrite is now correct, but the SECOND ParaLine
-(introduced after `</Font>`) needs to be merged into the first ParaLine
-along with its surrounding `<Char Tab>` (which becomes inline content
-in okapi's writeParagraph).
-
-**Empty-ParaLine collapse okapi quirk (1 fixture)**: `1187_crlf.mif`.
-Reference emits a malformed `   # end of ParaLine\n  \n  > # end of
-ParaLine` sequence for two consecutive empty ParaLines. Looks like an
-okapi quirk; consider canonical-only if reproducing it exactly proves
-infeasible.
-
-**Other (4 fixtures)**: `893.mif` (leading-letter context detection),
-`896-autonumber-building-blocks.mif` (auto-numbering building-block
-codeFinder), `987.mif` (`\x09` escape -> `\n` bridge quirk),
-`TestParaLines.mif` (`<ElementEnd>` preservation in multi-ParaLine
-merge).
+**Other (1 fixture)**: `987.mif` (`\x09` escape -> `\n` bridge quirk,
+out of scope for native).
 
 ## Files touched in this iteration (Char clusters C+F+G)
 

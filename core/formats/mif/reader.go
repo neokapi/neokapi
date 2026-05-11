@@ -1207,6 +1207,30 @@ func (r *Reader) findStringPositions(rawText string, stmts []*mifStatement) ([]s
 	// surrounding bytes anyway, so native must mirror.
 	collapseEmptyMultiParaLines(rawText, &elisions)
 
+	// Cluster: content-bearing multi-ParaLine collapse after a Char
+	// rewrite (1188_crlf cluster). When a Para's FIRST ParaLine ends with
+	// a `<Char HardReturn>` (rewritten to a synthesized `<String '\n'>`
+	// by paraCharRewrite) and is followed by a SECOND ParaLine with its
+	// own content, okapi's processPara merges both ParaLines into a
+	// single output ParaLine: the second ParaLine wrapper bytes and the
+	// first's close line both disappear, leaving only a single `\n`
+	// separator between the synthesized String and the next ParaLine's
+	// first child statement.
+	//
+	// This generalises Cluster Q's empty-ParaLine collapse to the case
+	// where the first ParaLine carries a HardReturn-derived String.
+	// Mirrors okapi MIFFilter.processPara (MIFFilter.java:739-766): the
+	// HardReturn flushes the current text unit via addTextUnit and starts
+	// a fresh skel via `skel = new GenericSkeleton()`, so the inter-
+	// ParaLine wrapper bytes that DID accumulate in paraCodeBuf for the
+	// next iteration are reset (paraCodeBuf.setLength(0) at line 772).
+	// readUntilText then begins a fresh paraCodeBuf for the second
+	// ParaLine and only the `<ParaLine` keyword is deleted (line 1058-
+	// 1064) -- the close line of the first ParaLine and the opener of
+	// the second never make it to the output. Per MIF Reference §
+	// "ParaLine Statement", inter-ParaLine wrapper bytes are cosmetic.
+	collapseContentMultiParaLineAfterCharRewrite(rawText, &elisions)
+
 	return refs, elisions, rewrites
 }
 
@@ -1463,6 +1487,164 @@ func collapseEmptyMultiParaLines(rawText string, elisions *[]elisionRange) {
 			continue
 		}
 		i = afterOpen
+	}
+}
+
+// collapseContentMultiParaLineAfterCharRewrite scans rawText for the
+// pattern of a `<Char HardReturn>` line (which paraCharRewrite turns
+// into a synthesized `<String '\n'>`) immediately followed by an
+// inter-ParaLine wrapper boundary (`> # end of ParaLine` close line
+// then `<ParaLine` open line) where the next ParaLine carries its own
+// content. For each such match, it emits an elision range that drops
+// the entire boundary except for a single `\n` byte separator.
+//
+// Concretely, for source bytes (after `<Char HardReturn>'s closing `>`):
+//
+//	\r\n  > # end of ParaLine\r\n  <ParaLine\r\n   <NextTag...
+//
+// the elision spans from the `\r` right after `>` through (and
+// including) the `\r` of `<ParaLine\r\n`. What survives in the output
+// is `\n   <NextTag...` -- the LF after `<ParaLine\r` becomes the
+// single-`\n` separator that mirrors okapi's `skel = new GenericSkeleton`
+// reset semantics at MIFFilter.java:764.
+//
+// LF-only line endings are handled symmetrically: the elision then
+// drops `\n  > # end of ParaLine\n  <ParaLine` (no `\r` bytes), again
+// preserving the trailing `\n` that follows `<ParaLine`.
+func collapseContentMultiParaLineAfterCharRewrite(rawText string, elisions *[]elisionRange) {
+	const charTag = "<Char HardReturn>"
+	const closeMark = "> # end of ParaLine"
+	const openTag = "<ParaLine"
+	n := len(rawText)
+	i := 0
+	for i < n {
+		idx := strings.Index(rawText[i:], charTag)
+		if idx < 0 {
+			return
+		}
+		abs := i + idx
+		// Advance i for the next iteration regardless of whether we
+		// emit an elision.
+		i = abs + len(charTag)
+		// Require that `<Char HardReturn>` is line-anchored: walk back
+		// over leading whitespace and require a preceding newline.
+		ls := abs
+		for ls > 0 {
+			c := rawText[ls-1]
+			if c == ' ' || c == '\t' {
+				ls--
+				continue
+			}
+			break
+		}
+		if ls == 0 || rawText[ls-1] != '\n' {
+			continue
+		}
+		// Walk backwards to the enclosing `<ParaLine` opener and require
+		// that no `<String` appears between the opener and the
+		// `<Char HardReturn>`. If a String IS present, the multi-String-
+		// multi-ParaLine merge at line 953 already handles the boundary
+		// collapse; firing this pass on top of that would over-elide.
+		paraLineStart := strings.LastIndex(rawText[:abs], openTag)
+		if paraLineStart < 0 {
+			continue
+		}
+		if strings.Contains(rawText[paraLineStart:abs], "<String ") ||
+			strings.Contains(rawText[paraLineStart:abs], "<String\t") ||
+			strings.Contains(rawText[paraLineStart:abs], "<String`") {
+			continue
+		}
+		// Position right after `>` of `<Char HardReturn>`.
+		p := abs + len(charTag)
+		eraseStart := p
+		// Match `\r?\n` after the Char close.
+		if p < n && rawText[p] == '\r' {
+			p++
+		}
+		if p >= n || rawText[p] != '\n' {
+			continue
+		}
+		p++
+		// Match `[ws]> # end of ParaLine`.
+		for p < n && (rawText[p] == ' ' || rawText[p] == '\t') {
+			p++
+		}
+		if p+len(closeMark) > n || rawText[p:p+len(closeMark)] != closeMark {
+			continue
+		}
+		p += len(closeMark)
+		// Match `\r?\n` after the close.
+		if p < n && rawText[p] == '\r' {
+			p++
+		}
+		if p >= n || rawText[p] != '\n' {
+			continue
+		}
+		p++
+		// Match `[ws]<ParaLine` (opener of next ParaLine).
+		for p < n && (rawText[p] == ' ' || rawText[p] == '\t') {
+			p++
+		}
+		if p+len(openTag) > n || rawText[p:p+len(openTag)] != openTag {
+			continue
+		}
+		p += len(openTag)
+		// The opener may have a trailing space before its newline
+		// (e.g. `<ParaLine \n`); skip any space/tab.
+		for p < n && (rawText[p] == ' ' || rawText[p] == '\t') {
+			p++
+		}
+		// Match `\r?\n` after the opener; preserve the final `\n` byte
+		// as the separator in the output.
+		if p < n && rawText[p] == '\r' {
+			// Erase up to AND INCLUDING the `\r`; the `\n` survives.
+			p++
+		} else if p < n && rawText[p] == '\n' {
+			// LF-only: erase up to (but NOT including) the `\n`.
+		} else {
+			continue
+		}
+		eraseEnd := p
+		// Verify the next ParaLine has content (i.e. there is at least
+		// one `<` tag before the next `> # end of ParaLine`). This
+		// keeps the elision conservative -- if the second ParaLine is
+		// empty, the existing collapseEmptyMultiParaLines pass handles
+		// it (and applying both would over-elide).
+		nextLineStart := p
+		if nextLineStart < n && rawText[nextLineStart] == '\n' {
+			nextLineStart++
+		}
+		// Scan forward to the matching close of the next ParaLine.
+		scan := nextLineStart
+		foundContent := false
+		for scan < n {
+			c := rawText[scan]
+			switch c {
+			case ' ', '\t', '\r', '\n':
+				scan++
+				continue
+			case '<':
+				// Found content (a tag) before close -- this ParaLine
+				// has content.
+				foundContent = true
+			case '>':
+				// Bare `>` (close of empty ParaLine) -- no content.
+			default:
+				// Some other char -- treat as no content for safety.
+			}
+			break
+		}
+		if !foundContent {
+			continue
+		}
+		if eraseEnd > eraseStart {
+			*elisions = append(*elisions, elisionRange{
+				startOffset: eraseStart,
+				endOffset:   eraseEnd,
+			})
+		}
+		// Advance i past the elision.
+		i = eraseEnd
 	}
 }
 
