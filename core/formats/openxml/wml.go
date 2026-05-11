@@ -93,6 +93,28 @@ func (p *wmlParser) parsePart(data []byte, partPath string, emitBlock func(*mode
 	// registry is global), and breaks raw-payload capture for VML
 	// shapes inside the row. Doing the strip up front sidesteps both.
 	if p.cfg != nil && p.cfg.AutomaticallyAcceptRevisions {
+		// Cross-structure moveFromRange spans
+		// (<w:moveFromRangeStart w:id="N"/>...<w:moveFromRangeEnd
+		// w:id="N"/>) consume EVERY event between the start and end
+		// markers via SkippableElements.MoveFromRevisionCrossStructure
+		// (lines 371-450 of SkippableElements.java). When the skip
+		// crosses a paragraph boundary (parentStructureCrossed), the
+		// enclosing block is marked skipped via
+		// builder.skipped(true) in BlockParser (lines 267-274 of
+		// BlockParser.java) and the StyledTextPart outer loop drops
+		// it (lines 299-305). Any paragraphs WHOLLY inside the range
+		// are also consumed wholesale — including their text content,
+		// even untracked — because the cross-structure skip walks
+		// past the </w:p>/<w:p> boundaries inside the skip loop.
+		//
+		// The byte-level pre-pass mirrors this: we identify each
+		// matched (moveFromRangeStart id, moveFromRangeEnd id) pair
+		// and drop from the start tag of the <w:p> containing
+		// moveFromRangeStart through the end tag of the <w:p>
+		// containing moveFromRangeEnd. Subsequent rangefulness on
+		// table-row-level moveFrom (the <w:moveFrom> wrapper on a
+		// row) is handled by dropMoveFromTableRows below.
+		data = dropMoveFromRanges(data)
 		data = dropMoveFromTableRows(data)
 		// After moveFrom rows are removed, a table whose every row
 		// was a moveFrom-row becomes structurally empty (only
@@ -331,6 +353,436 @@ func dropMoveFromTableRows(data []byte) []byte {
 		data = data[rowEnd:]
 	}
 	return out
+}
+
+// dropMoveFromRanges removes the cross-structure spans bracketed by
+// <w:moveFromRangeStart w:id="N"/> ... <w:moveFromRangeEnd w:id="N"/>
+// markers (ECMA-376 Part 1 §17.13.5.18 / §17.13.5.19) when accepting
+// revisions. Mirrors upstream Okapi's
+// SkippableElements.MoveFromRevisionCrossStructure (lines 371-450 of
+// SkippableElements.java) + BlockParser.parse skipped-block handling
+// (lines 267-274 of BlockParser.java) + StyledTextPart.process
+// dispatch (lines 580-593 + 299-305 of StyledTextPart.java).
+//
+// Upstream semantics: when moveFromRangeStart is encountered, an
+// event-by-event skip walks through the reader until moveFromRangeEnd
+// is consumed (inclusive). EVERY event in between — including the
+// </w:p>/<w:p> boundaries of any straddled paragraphs and any
+// untracked text in those paragraphs — is dropped wholesale. The
+// enclosing block (the <w:p> containing moveFromRangeStart) is marked
+// skipped(true) by the BlockParser because parentStructureCrossed
+// became true during the skip, and StyledTextPart drops it.
+//
+// At the byte level we mirror this by, for each (moveFromRangeStart,
+// moveFromRangeEnd) pair matched by w:id, removing from the start
+// tag of the <w:p> that contains moveFromRangeStart through and
+// INCLUDING the </w:p> end tag of the <w:p> that contains
+// moveFromRangeEnd. Rationale:
+//
+//   - The paragraph holding moveFromRangeStart is dropped because the
+//     BlockParser returns skipped=true (parentStructureCrossed).
+//   - All paragraphs strictly between the two markers are consumed by
+//     the cross-structure skip (their start/end tags + content all
+//     pass through the skip's event loop).
+//   - The paragraph holding moveFromRangeEnd is consumed too: by the
+//     time the skip exits, the eventReader is positioned past
+//     moveFromRangeEnd inside that paragraph; the trailing events
+//     (any content between moveFromRangeEnd and </w:p>, plus the
+//     </w:p>) are emitted by the outer loop without a paragraph
+//     start. In practice for the 843-3* fixtures upstream produces an
+//     empty <w:p></w:p> here (the trailing content is itself
+//     revision-tracked <w:del>/<w:ins> that auto-accept-revisions
+//     erases). Dropping the wrapper paragraph entirely loses that
+//     synthetic empty <w:p> shell — but the difference does not
+//     affect translatable content, only document-structural skeleton
+//     bytes that the XMLCanonical normalizer compares against the
+//     reference. The observed delta on 843-3* is small enough that
+//     wrapping the byte-level pass with paragraph-end heuristics
+//     (rather than full XML parsing) keeps complexity low.
+//
+// Pairs are matched by w:id attribute value. Unmatched start markers
+// (no corresponding end with matching id, or vice versa) are left
+// alone — the writer's stripWMLSkippableElements pass strips the
+// stray markers. Self-closing markers (always the schema form for
+// these elements per ECMA-376 §CT_MarkupRange) and the explicit
+// open+empty-close form are both recognised.
+func dropMoveFromRanges(data []byte) []byte {
+	const startMarker = "<w:moveFromRangeStart"
+	const endMarker = "<w:moveFromRangeEnd"
+	if !bytes.Contains(data, []byte(startMarker)) {
+		return data
+	}
+	out := make([]byte, 0, len(data))
+	cursor := 0
+	for cursor < len(data) {
+		startIdx := bytes.Index(data[cursor:], []byte(startMarker))
+		if startIdx < 0 {
+			out = append(out, data[cursor:]...)
+			break
+		}
+		startIdx += cursor
+		// Validate element-name boundary: next byte must be `/`,
+		// `>`, or whitespace (rules out e.g. <w:moveFromRangeStartX).
+		if !isElementNameBoundary(data, startIdx+len(startMarker)) {
+			out = append(out, data[cursor:startIdx+len(startMarker)]...)
+			cursor = startIdx + len(startMarker)
+			continue
+		}
+		// Find the closing `>` of the moveFromRangeStart element.
+		startTagEnd := bytes.IndexByte(data[startIdx:], '>')
+		if startTagEnd < 0 {
+			out = append(out, data[cursor:]...)
+			break
+		}
+		startTagEnd += startIdx // absolute position of `>`
+		// Extract the w:id="N" value from the start marker.
+		id := extractWIDAttr(data[startIdx : startTagEnd+1])
+		if id == "" {
+			// Malformed start marker — pass through unchanged.
+			out = append(out, data[cursor:startTagEnd+1]...)
+			cursor = startTagEnd + 1
+			continue
+		}
+		// Find the matching <w:moveFromRangeEnd w:id="N"/> after
+		// startTagEnd. Iterate end markers and match by w:id value.
+		endStart, endTagEnd := findMoveFromRangeEnd(data, startTagEnd+1, id, endMarker)
+		if endStart < 0 {
+			// No matching end — leave the start marker in place;
+			// the writer strips it. Continue from after the start
+			// marker so we don't hunt the same location forever.
+			out = append(out, data[cursor:startTagEnd+1]...)
+			cursor = startTagEnd + 1
+			continue
+		}
+		// Skip pairs whose span crosses a table cell, row, or table
+		// boundary. Upstream Okapi handles those cases via the
+		// tableRowStructureCrossed / tableStructureCrossed branches
+		// (lines 415-426 of SkippableElements.java +
+		// removeComponentsFromLastWith(LOCAL_TABLE/LOCAL_TABLE_ROW)
+		// in StyledTextPart). The byte-level pre-pass here only
+		// implements the parentStructureCrossed (paragraph) case;
+		// the row-level case is partially handled by the existing
+		// dropMoveFromTableRows pass for moveFrom CONTENT wrappers.
+		// Cross-cell ranges (e.g. 1080-1.docx) are left to the
+		// streaming parser which would otherwise produce malformed
+		// XML if we ate the row/cell boundary tags.
+		if spanCrossesTableBoundary(data[startTagEnd+1 : endStart]) {
+			out = append(out, data[cursor:startTagEnd+1]...)
+			cursor = startTagEnd + 1
+			continue
+		}
+		// Locate the enclosing <w:p> open tag for the start marker
+		// (search backwards from startIdx). If startIdx is at body
+		// level (not inside any <w:p>), keep startIdx as-is so we
+		// only drop from the start marker forward.
+		var dropFrom int
+		if isInsideParagraph(data, startIdx) {
+			pOpenStart := findEnclosingParagraphOpenStart(data, startIdx)
+			if pOpenStart < 0 {
+				// Defensive: should not happen if isInsideParagraph
+				// said yes, but bail safely.
+				out = append(out, data[cursor:endTagEnd+1]...)
+				cursor = endTagEnd + 1
+				continue
+			}
+			dropFrom = pOpenStart
+		} else {
+			dropFrom = startIdx
+		}
+		// Drop endpoint depends on where the end marker sits.
+		//
+		//   * INSIDE a paragraph: extend the drop through the
+		//     enclosing </w:p> end tag, then re-emit a single
+		//     synthetic empty <w:p/> in its place. Upstream
+		//     BlockParser collapses the cross-structure span into a
+		//     single skipped block whose closing tag is the </w:p>
+		//     of the last straddled paragraph (lines 267-274 of
+		//     BlockParser.java); the empty <w:p/> shell that
+		//     remains at the boundary mirrors what upstream emits
+		//     verbatim (observed on 843-31/-32 fixtures: a single
+		//     `<w:p/>` precedes the trailing <w:sectPr>).
+		//
+		//   * AT BODY LEVEL (between sibling <w:p> elements, e.g.
+		//     843-33/-34 fixtures): drop through the end marker
+		//     only so any subsequent sibling paragraph survives
+		//     unchanged.
+		var dropTo int
+		var insertEmptyP bool
+		if isInsideParagraph(data, endStart) {
+			pCloseEnd := findEnclosingParagraphCloseEnd(data, endTagEnd+1)
+			if pCloseEnd < 0 {
+				out = append(out, data[cursor:endTagEnd+1]...)
+				cursor = endTagEnd + 1
+				continue
+			}
+			dropTo = pCloseEnd
+			insertEmptyP = true
+		} else {
+			dropTo = endTagEnd + 1
+		}
+		// Drop everything in [dropFrom, dropTo); inject a synthetic
+		// empty paragraph if the boundary needs one.
+		out = append(out, data[cursor:dropFrom]...)
+		if insertEmptyP {
+			out = append(out, []byte("<w:p/>")...)
+		}
+		cursor = dropTo
+	}
+	return out
+}
+
+// isInsideParagraph reports whether the position pos in data falls
+// inside an open <w:p>...</w:p> region (i.e. between an unmatched
+// <w:p> open tag and its eventual </w:p> close). Linear scan from
+// the start of data; suitable for the once-per-call check we need.
+func isInsideParagraph(data []byte, pos int) bool {
+	const pOpen = "<w:p"
+	const pClose = "</w:p>"
+	depth := 0
+	cursor := 0
+	for cursor < pos {
+		nextOpen := indexValidElement(data[cursor:pos], pOpen)
+		nextClose := bytes.Index(data[cursor:pos], []byte(pClose))
+		if nextOpen < 0 && nextClose < 0 {
+			return depth > 0
+		}
+		if nextOpen >= 0 && (nextClose < 0 || nextOpen < nextClose) {
+			absOpen := cursor + nextOpen
+			tagEnd := bytes.IndexByte(data[absOpen:], '>')
+			if tagEnd < 0 {
+				return depth > 0
+			}
+			absOpenEnd := absOpen + tagEnd
+			if absOpenEnd > 0 && data[absOpenEnd-1] != '/' {
+				depth++
+			}
+			cursor = absOpenEnd + 1
+		} else {
+			depth--
+			cursor = cursor + nextClose + len(pClose)
+		}
+	}
+	return depth > 0
+}
+
+// spanCrossesTableBoundary reports whether the byte slice between a
+// moveFromRangeStart and the matching moveFromRangeEnd crosses a
+// </w:tc>, </w:tr>, or </w:tbl> end tag without first opening a
+// matching <w:tc>, <w:tr>, or <w:tbl> inside the span. A crossing
+// would mean my drop would unbalance cell/row/table structure.
+func spanCrossesTableBoundary(span []byte) bool {
+	for _, name := range []string{"tc", "tr", "tbl"} {
+		open := "<w:" + name
+		close := "</w:" + name + ">"
+		depth := 0
+		cursor := 0
+		for cursor < len(span) {
+			nextOpen := indexValidElement(span[cursor:], open)
+			nextClose := bytes.Index(span[cursor:], []byte(close))
+			if nextOpen < 0 && nextClose < 0 {
+				break
+			}
+			if nextClose < 0 || (nextOpen >= 0 && nextOpen < nextClose) {
+				absOpen := cursor + nextOpen
+				tagEnd := bytes.IndexByte(span[absOpen:], '>')
+				if tagEnd < 0 {
+					break
+				}
+				absOpenEnd := absOpen + tagEnd
+				if absOpenEnd > 0 && span[absOpenEnd-1] != '/' {
+					depth++
+				}
+				cursor = absOpenEnd + 1
+				continue
+			}
+			if depth == 0 {
+				return true
+			}
+			depth--
+			cursor = cursor + nextClose + len(close)
+		}
+	}
+	return false
+}
+
+// isElementNameBoundary reports whether the byte at position pos in
+// data is a valid character that can follow an XML element name (so we
+// know we matched the full element name and not a prefix).
+func isElementNameBoundary(data []byte, pos int) bool {
+	if pos >= len(data) {
+		return false
+	}
+	b := data[pos]
+	return b == '>' || b == '/' || b == ' ' || b == '\t' || b == '\n' || b == '\r'
+}
+
+// extractWIDAttr extracts the value of the w:id="..." attribute from
+// the given element open-tag bytes (including the leading `<` and
+// closing `>`). Returns "" if the attribute is absent or malformed.
+func extractWIDAttr(tag []byte) string {
+	const attr = "w:id="
+	idx := bytes.Index(tag, []byte(attr))
+	if idx < 0 {
+		return ""
+	}
+	q := idx + len(attr)
+	if q >= len(tag) {
+		return ""
+	}
+	quote := tag[q]
+	if quote != '"' && quote != '\'' {
+		return ""
+	}
+	end := bytes.IndexByte(tag[q+1:], quote)
+	if end < 0 {
+		return ""
+	}
+	return string(tag[q+1 : q+1+end])
+}
+
+// findMoveFromRangeEnd searches data from start onward for the next
+// <w:moveFromRangeEnd w:id="id" .../> marker. Returns (startIdx,
+// endIdx) where startIdx is the position of the `<` and endIdx is the
+// position of the closing `>`. Returns (-1, -1) if no matching marker
+// is found.
+func findMoveFromRangeEnd(data []byte, from int, id, endMarker string) (int, int) {
+	cursor := from
+	for cursor < len(data) {
+		idx := bytes.Index(data[cursor:], []byte(endMarker))
+		if idx < 0 {
+			return -1, -1
+		}
+		idx += cursor
+		if !isElementNameBoundary(data, idx+len(endMarker)) {
+			cursor = idx + len(endMarker)
+			continue
+		}
+		tagEnd := bytes.IndexByte(data[idx:], '>')
+		if tagEnd < 0 {
+			return -1, -1
+		}
+		tagEnd += idx
+		if extractWIDAttr(data[idx:tagEnd+1]) == id {
+			return idx, tagEnd
+		}
+		cursor = tagEnd + 1
+	}
+	return -1, -1
+}
+
+// findEnclosingParagraphOpenStart searches backwards from pos for the
+// nearest `<w:p>` or `<w:p ...>` start tag whose content has not yet
+// been closed by a `</w:p>` between the tag and pos. Returns the
+// absolute index of the `<` byte, or -1 if pos is not inside any
+// paragraph.
+func findEnclosingParagraphOpenStart(data []byte, pos int) int {
+	const pOpen = "<w:p"
+	const pClose = "</w:p>"
+	depth := 0
+	cursor := pos
+	for cursor > 0 {
+		// Find the previous occurrence of either <w:p or </w:p>.
+		// Search the substring data[:cursor] from the right.
+		closeIdx := bytes.LastIndex(data[:cursor], []byte(pClose))
+		// For openIdx we need the LAST occurrence of "<w:p" whose
+		// boundary char is `>`, `/`, ` `, `\t`, `\n`, `\r` so we
+		// don't match <w:pPr or <w:pict, etc.
+		openIdx := lastIndexValidElement(data[:cursor], pOpen)
+		if openIdx < 0 && closeIdx < 0 {
+			return -1
+		}
+		// Pick the later of the two; that's the next event going
+		// backwards.
+		if openIdx > closeIdx {
+			if depth == 0 {
+				return openIdx
+			}
+			depth--
+			cursor = openIdx
+		} else {
+			depth++
+			cursor = closeIdx
+		}
+	}
+	return -1
+}
+
+// lastIndexValidElement returns the last index in data where elemName
+// appears followed by a valid element-name boundary character. -1 if
+// none found.
+func lastIndexValidElement(data []byte, elemName string) int {
+	cursor := len(data)
+	for cursor > 0 {
+		idx := bytes.LastIndex(data[:cursor], []byte(elemName))
+		if idx < 0 {
+			return -1
+		}
+		if isElementNameBoundary(data, idx+len(elemName)) {
+			return idx
+		}
+		cursor = idx
+	}
+	return -1
+}
+
+// findEnclosingParagraphCloseEnd searches forward from pos for the
+// matching `</w:p>` end tag of the enclosing paragraph (depth=0 at
+// pos, so we want the first `</w:p>` not preceded by an unmatched
+// `<w:p>`). Returns the absolute index ONE PAST the `>` of the end
+// tag (so it can be used as a slice upper bound), or -1 if no match.
+func findEnclosingParagraphCloseEnd(data []byte, pos int) int {
+	const pOpen = "<w:p"
+	const pClose = "</w:p>"
+	depth := 0
+	cursor := pos
+	for cursor < len(data) {
+		nextOpen := indexValidElement(data[cursor:], pOpen)
+		nextClose := bytes.Index(data[cursor:], []byte(pClose))
+		if nextClose < 0 {
+			return -1
+		}
+		if nextOpen >= 0 && nextOpen < nextClose {
+			// Stepped into a nested paragraph (rare — paragraphs
+			// don't nest in document.xml normally, but they can
+			// inside textbox/sdt content). Track depth.
+			absOpen := cursor + nextOpen
+			tagEnd := bytes.IndexByte(data[absOpen:], '>')
+			if tagEnd < 0 {
+				return -1
+			}
+			absOpenEnd := absOpen + tagEnd
+			if data[absOpenEnd-1] != '/' {
+				depth++
+			}
+			cursor = absOpenEnd + 1
+			continue
+		}
+		if depth == 0 {
+			return cursor + nextClose + len(pClose)
+		}
+		depth--
+		cursor = cursor + nextClose + len(pClose)
+	}
+	return -1
+}
+
+// indexValidElement returns the first index in data where elemName
+// appears followed by a valid element-name boundary character. -1 if
+// none found.
+func indexValidElement(data []byte, elemName string) int {
+	cursor := 0
+	for cursor < len(data) {
+		idx := bytes.Index(data[cursor:], []byte(elemName))
+		if idx < 0 {
+			return -1
+		}
+		idx += cursor
+		if isElementNameBoundary(data, idx+len(elemName)) {
+			return idx
+		}
+		cursor = idx + len(elemName)
+	}
+	return -1
 }
 
 // dropEmptyTables removes every <w:tbl ...>...</w:tbl> region from data
