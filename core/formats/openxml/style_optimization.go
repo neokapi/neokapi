@@ -359,6 +359,26 @@ func optimizeParagraph(
 	if len(common) == 0 {
 		return src
 	}
+	// Drop bCs/iCs from the SYNTHESISED style's rPr (commonForStyle).
+	// They remain in `common` so the run-strip pass below still removes
+	// them from each run alongside b/i — consistent with WSO's "lift
+	// common props off runs" contract. bCs/iCs are the complex-script
+	// bidi-mirrors of b/i (ECMA-376-1 §17.3.2.30 — the rPr children list
+	// pairs bCs/iCs with b/i as the bidi-mirror toggle): upstream Okapi
+	// reconstructs them from the b/i toggle pair at run-emit time and
+	// never surfaces bCs/iCs into a synthesised paragraph style. This is
+	// the WSO-layer counterpart of writer.go's stripToggleMirrorChildren
+	// (lines 1044-1058) which performs the equivalent strip on the
+	// per-source-run rPr sidecar before write.
+	commonForStyle := stripToggleMirrorsFromCommon(common)
+	if len(commonForStyle) == 0 {
+		// Only bCs/iCs were common — there is nothing meaningful to
+		// lift into a parent style. Upstream Okapi would have skipped
+		// these from the common set in the first place (the toggle
+		// mirrors don't surface as standalone synthesisable props), so
+		// bail to match upstream's "no style synthesised" outcome.
+		return src
+	}
 
 	// Build the synthesised style id. Mirrors WordStyleDefinitions.Ids
 	// .basedOn (lines 453-460): the paragraph's pStyle is used as
@@ -385,7 +405,7 @@ func optimizeParagraph(
 			parentID = "Normal"
 		}
 	}
-	commonRPrXML := buildRPrXML(common)
+	commonRPrXML := buildRPrXML(commonForStyle)
 	matchedID := findMatchingStyle(parentID, commonRPrXML, synthesised, *orderedIDs)
 	if matchedID == "" {
 		// Generate a fresh id "NF974E24F-<parentID><N>" using the
@@ -824,6 +844,41 @@ func commonProps(seed []runProp, entries []runEntry) []runProp {
 		if all {
 			out = append(out, p)
 		}
+	}
+	return out
+}
+
+// stripToggleMirrorsFromCommon removes <w:bCs>/<w:iCs> entries from
+// the WSO common-rPr set. These are the complex-script bidi-mirrors
+// of b/i (ECMA-376-1 §17.3.2.30): per-run rPr in WordprocessingML
+// pairs `<w:b/>` with `<w:bCs/>` and `<w:i/>` with `<w:iCs/>` to
+// describe the same toggle for LTR vs complex-script text. Upstream
+// Okapi's RunBuilder/RunMerger and StyleOptimisation lift only the
+// b/i toggles into synthesised paragraph styles — the bCs/iCs mirror
+// is reconstructed at run-emit time from the toggle pair, never
+// surfaced into a parent <w:rPr>. The native writer's
+// stripToggleMirrorChildren helper (writer.go lines 1044-1058) does
+// the same on the per-source-run rPr sidecar; this function is the
+// WSO-layer counterpart so the post-pass synthesised style matches
+// upstream's emit shape (e.g. 952-3.docx, TestDako2.docx).
+//
+// The strip applies only to the SYNTHESISED style's rPr — bCs/iCs
+// remain in the original `common` slice, so the run-strip pass below
+// (which builds its commonNames map from `common`, not `commonForStyle`)
+// continues to lift bCs/iCs off each run alongside b/i. Upstream's
+// observed behaviour matches: 952-3.docx and TestDako2.docx ref output
+// has runs with no rPr at all (b, bCs, i, iCs all stripped) and a
+// synthesised paragraph style carrying only `<w:b/>`.
+func stripToggleMirrorsFromCommon(props []runProp) []runProp {
+	if len(props) == 0 {
+		return props
+	}
+	out := make([]runProp, 0, len(props))
+	for _, p := range props {
+		if p.name == "bCs" || p.name == "iCs" {
+			continue
+		}
+		out = append(out, p)
 	}
 	return out
 }
