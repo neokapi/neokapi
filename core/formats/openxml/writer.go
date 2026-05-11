@@ -172,6 +172,144 @@ var wmlRevisionPropertyChangeNames = []string{
 	"trPrChange",
 }
 
+// wmlFldCharEndRE matches a `<w:fldChar w:fldCharType="end"/>` element
+// in both self-closing (`.../>`) and open/close
+// (`<w:fldChar ...></w:fldChar>`) forms. Per ECMA-376-1 §17.16.5 the
+// element is always logically empty; the captured payload from the
+// reader can be either shape depending on the encoding/xml emit path.
+// Used to detect a fldChar-end inside a captured field run's payload
+// so the writer can merge the field-end `<w:r>` with a following
+// same-rPr text run, mirroring upstream Okapi RunMerger
+// (RunMerger.java:402-441 mergeRunBodyChunks concatenates a Markup
+// chunk followed by a RunText chunk when their containing runs share
+// rPr per canRunPropertiesBeMerged at RunMerger.java:156-229). Per
+// ECMA-376-1 §17.3.2.1 (CT_R), a single `<w:r>` may carry both
+// fldChar and `<w:t>` children.
+var wmlFldCharEndRE = regexp.MustCompile(
+	`<w:fldChar\b[^>]*\bw:fldCharType="end"[^>]*/>` +
+		`|<w:fldChar\b[^>]*\bw:fldCharType="end"[^>]*></w:fldChar>`,
+)
+
+// wmlRPrInRunPayloadRE captures the `<w:rPr>...</w:rPr>` element inside
+// a captured `<w:r>...</w:r>` field payload. Used to extract the
+// run-prop fragment so it can be compared against the next text run's
+// effectiveRPr to decide whether to merge them into a single `<w:r>`.
+// Per ECMA-376-1 §17.3.2.1 (CT_R) a `<w:rPr>` is the first child of
+// `<w:r>` when present.
+var wmlRPrInRunPayloadRE = regexp.MustCompile(
+	`<w:rPr\b[^>]*>([\s\S]*?)</w:rPr>` +
+		`|<w:rPr\b[^>]*/>`,
+)
+
+// wmlCloseRunTagRE matches the trailing `</w:r>` of a captured field
+// payload. Used by the fldChar-end + text merge path to drop the
+// close-run tag so the following text can append `<w:t>` inside the
+// still-open `<w:r>`.
+var wmlCloseRunTagRE = regexp.MustCompile(`</w:r>\s*$`)
+
+// fldCharEndMergeInfo holds the parts of a captured fldChar-end `<w:r>`
+// payload we need to inspect when deciding whether to merge it with a
+// following same-rPr text run.
+type fldCharEndMergeInfo struct {
+	// rprChildren is the children-only contents of the embedded
+	// `<w:rPr>` (empty string when the payload has no rPr or a
+	// self-closing `<w:rPr/>`).
+	rprChildren string
+	// truncated is the payload with its trailing `</w:r>` stripped so
+	// the writer can keep the run open and append `<w:t>` from the
+	// following text run.
+	truncated string
+	// ok is true only when the payload contains exactly one
+	// `<w:fldChar w:fldCharType="end"/>` and ends with `</w:r>`.
+	ok bool
+}
+
+// detectFldCharEndForMerge inspects a TypeField Ph payload (the raw
+// captured `<w:r>...</w:r>` shell wrapping a fldChar). If the payload
+// is a fldChar-end run with a well-formed shape it returns a populated
+// fldCharEndMergeInfo with ok=true; otherwise ok=false and the caller
+// emits the payload verbatim.
+//
+// The rPr extraction normalises whitespace between siblings and
+// collapses open/close empty elements (`<w:b></w:b>` → `<w:b/>`) so
+// the result can be compared byte-for-byte against the
+// writer-synthesised rPr (which uses self-closing toggle markers like
+// `<w:b/>`). Mirrors upstream Okapi's mergeRunBodyChunks
+// (RunMerger.java:402-441) fusing a Markup chunk followed by a
+// RunText chunk when their containing runs share rPr per
+// canRunPropertiesBeMerged (RunMerger.java:156-229). Per ECMA-376-1
+// §17.3.2.1 (CT_R), a single `<w:r>` may carry both `<w:fldChar>`
+// and `<w:t>` children.
+func detectFldCharEndForMerge(payload string) fldCharEndMergeInfo {
+	if !wmlFldCharEndRE.MatchString(payload) {
+		return fldCharEndMergeInfo{}
+	}
+	if !wmlCloseRunTagRE.MatchString(payload) {
+		return fldCharEndMergeInfo{}
+	}
+	rpr := ""
+	if m := wmlRPrInRunPayloadRE.FindStringSubmatch(payload); m != nil {
+		rpr = normaliseRPrChildrenFragment(m[1])
+	}
+	truncated := wmlCloseRunTagRE.ReplaceAllString(payload, "")
+	return fldCharEndMergeInfo{
+		rprChildren: rpr,
+		truncated:   truncated,
+		ok:          true,
+	}
+}
+
+// emptyElementOpenCloseRE matches an XML element with an empty body
+// in open/close form (e.g. `<w:b></w:b>` or `<w:i  attr="x"></w:i>`).
+// Used by normaliseRPrChildrenFragment to collapse the open/close
+// form emitted by Go's encoding/xml into the self-closing form
+// authored by Word and emitted by the toggle-writer's addWMLProp.
+// Go's regexp doesn't support backreferences, so the post-processing
+// step verifies name equality in code.
+var emptyElementOpenCloseRE = regexp.MustCompile(
+	`<(w:[A-Za-z][A-Za-z0-9]*)\b([^>]*)></w:([A-Za-z][A-Za-z0-9]*)>`,
+)
+
+// betweenTagsWhitespaceRE matches whitespace between tags, used to
+// strip the layout whitespace encoding/xml inserts when re-emitting
+// nested elements (e.g. `</w:rPr>\n  <w:fldChar...>` between rPr and
+// fldChar siblings). The rPr children fragment carries no significant
+// inter-tag whitespace per ECMA-376-1 §17.3.2 — toggle and property
+// elements have no mixed content.
+var betweenTagsWhitespaceRE = regexp.MustCompile(`>\s+<`)
+
+// leadingTrailingWhitespaceRE strips leading and trailing whitespace.
+var leadingTrailingWhitespaceRE = regexp.MustCompile(`^\s+|\s+$`)
+
+// normaliseRPrChildrenFragment normalises a `<w:rPr>` children-only
+// fragment to the canonical form the writer's toggle-writer
+// (`addWMLProp`) emits: self-closing tags with no inter-tag
+// whitespace. Per ECMA-376-1 §17.3.2 the rPr children are empty
+// elements with attributes; the canonical serialization is
+// `<w:b/><w:i/>...` regardless of whether the source used the
+// self-closing or open/close form.
+func normaliseRPrChildrenFragment(s string) string {
+	if s == "" {
+		return s
+	}
+	s = betweenTagsWhitespaceRE.ReplaceAllString(s, `><`)
+	s = leadingTrailingWhitespaceRE.ReplaceAllString(s, "")
+	s = emptyElementOpenCloseRE.ReplaceAllStringFunc(s, func(m string) string {
+		sub := emptyElementOpenCloseRE.FindStringSubmatch(m)
+		if len(sub) != 4 {
+			return m
+		}
+		// sub[1] is `w:NAME`, sub[3] is `NAME` (the closing tag's
+		// local name without the `w:` prefix). Verify the local
+		// names agree before collapsing.
+		if sub[1][2:] != sub[3] {
+			return m
+		}
+		return `<` + sub[1] + sub[2] + `/>`
+	})
+	return s
+}
+
 // stripBalancedElement removes every occurrence of <w:NAME ...>...</w:NAME>
 // (and the self-closing form <w:NAME .../>) from data, where NAME is the
 // supplied local name. The matcher is non-nested — the *Change elements
@@ -1507,6 +1645,25 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 	// following <w:t>; emitting an empty <w:t/> would be a
 	// meaningless artefact that diverges from upstream byte output.
 	var pendingTReopen bool
+	// inFieldEndRun flags an open <w:r> emitted from a fldChar-end Ph
+	// whose closing `</w:r>` has been stripped because the next Text
+	// run carries matching rPr. When the following Text arrives, it
+	// appends `<w:t xml:space="preserve">…</w:t></w:r>` inside this
+	// run rather than spawning a new <w:r>. fieldEndRPrEffective stores
+	// the FULL post-toggle rPr (sidecar base + runProps) the field run
+	// carried so the join decision at the next Text can compare it
+	// against the equivalent fragment that emitRPr would produce for
+	// that text. Mirrors upstream Okapi RunMerger.mergeRunBodyChunks
+	// (RunMerger.java:402-441), which fuses a Markup chunk (the
+	// captured fldChar end) followed by a RunText chunk (the
+	// following text) into a single Run when their containing source
+	// runs share rPr per canRunPropertiesBeMerged
+	// (RunMerger.java:156-229). Per ECMA-376-1 §17.3.2.1 (CT_R) and
+	// §17.16.5 (complex fields), a single `<w:r>` may carry
+	// `<w:fldChar>` and `<w:t>` children. Fixtures: 768.docx,
+	// 768-2.docx.
+	var inFieldEndRun bool
+	var fieldEndRPrEffective string
 	var runProps string
 	textRunIdx := -1 // pre-increment on each new <w:r> for r.Text
 
@@ -1528,6 +1685,11 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 		if inRunNoText {
 			buf.WriteString(`</w:r>`)
 			inRunNoText = false
+		}
+		if inFieldEndRun {
+			buf.WriteString(`</w:r>`)
+			inFieldEndRun = false
+			fieldEndRPrEffective = ""
 		}
 	}
 
@@ -1563,7 +1725,8 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 		buf.WriteString(`</w:rPr>`)
 	}
 
-	for _, r := range runs {
+	for runIdx := 0; runIdx < len(runs); runIdx++ {
+		r := runs[runIdx]
 		switch {
 		case r.Text != nil:
 			// When the next text run's effectiveRPr differs from the
@@ -1604,6 +1767,30 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 				} else {
 					buf.WriteString(`</w:r>`)
 					inRunNoText = false
+				}
+			}
+			// If a prior fldChar-end Ph left an <w:r> open (its
+			// trailing `</w:r>` stripped), join it when the next
+			// text's emitted rPr matches the field run's rPr. Mirrors
+			// upstream Okapi mergeRunBodyChunks (RunMerger.java:402-
+			// 441): a Markup chunk followed by a RunText chunk fuses
+			// when the containing source runs share rPr per
+			// canRunPropertiesBeMerged (RunMerger.java:156-229).
+			// ECMA-376-1 §17.3.2.1 (CT_R) and §17.16.5 (complex
+			// fields) allow a single `<w:r>` to carry `<w:fldChar>`
+			// and `<w:t>` children. Fixtures: 768.docx, 768-2.docx.
+			if inFieldEndRun {
+				nextRPr := effectiveRPr(textRunIdx+1) + runProps
+				if nextRPr == fieldEndRPrEffective {
+					textRunIdx++
+					buf.WriteString(`<w:t xml:space="preserve">`)
+					inRun = true
+					inFieldEndRun = false
+					fieldEndRPrEffective = ""
+				} else {
+					buf.WriteString(`</w:r>`)
+					inFieldEndRun = false
+					fieldEndRPrEffective = ""
 				}
 			}
 			for _, ch := range r.Text.Text {
@@ -1812,6 +1999,72 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 				// filters/openxml/RunParser.java; BlockParser.parse for
 				// fldSimple, lines 242-250) the run that hosts a field
 				// marker is preserved as a single opaque markup chunk.
+				//
+				// Special-case for fldChar="end": when the next Text
+				// run (skipping intervening PcOpen/PcClose toggles)
+				// shares rPr with this field run, upstream Okapi
+				// fuses them into a single <w:r> carrying both the
+				// fldChar-end and the following text
+				// (mergeRunBodyChunks at RunMerger.java:402-441 +
+				// canRunPropertiesBeMerged at RunMerger.java:156-229).
+				// ECMA-376-1 §17.3.2.1 (CT_R) and §17.16.5 (complex
+				// fields) both permit a run with multiple body
+				// children. We strip the trailing `</w:r>` from the
+				// payload, advance past the intervening toggle codes
+				// (folding them into runProps directly so the writer's
+				// PcOpen/PcClose handler can't fire its closeRun),
+				// and set inFieldEndRun so the next matching Text
+				// branch appends `<w:t xml:space="preserve">…</w:t>
+				// </w:r>` inside the still-open run. Fixtures:
+				// 768.docx, 768-2.docx.
+				if info := detectFldCharEndForMerge(r.Ph.Data); info.ok {
+					anticipatedRunProps := runProps
+					nextTextAt := -1
+					mergeable := true
+					for j := runIdx + 1; j < len(runs); j++ {
+						nr := runs[j]
+						switch {
+						case nr.Text != nil:
+							nextTextAt = j
+						case nr.PcOpen != nil:
+							if nr.PcOpen.Type == TypeHyperlink || nr.PcOpen.Type == TypeSmartTag {
+								mergeable = false
+							} else {
+								anticipatedRunProps = w.addWMLProp(anticipatedRunProps, nr.PcOpen.Type)
+								continue
+							}
+						case nr.PcClose != nil:
+							if nr.PcClose.Type == TypeHyperlink || nr.PcClose.Type == TypeSmartTag {
+								mergeable = false
+							} else {
+								anticipatedRunProps = w.removeWMLProp(anticipatedRunProps, nr.PcClose.Type)
+								continue
+							}
+						default:
+							// Any Ph between fldChar-end and the next
+							// text breaks the merge (the Ph wants its
+							// own <w:r> envelope).
+							mergeable = false
+						}
+						break
+					}
+					if mergeable && nextTextAt > runIdx {
+						nextRPr := effectiveRPr(textRunIdx+1) + anticipatedRunProps
+						if nextRPr == info.rprChildren {
+							// Commit the merge: write the truncated
+							// payload, fold the intervening PcOpen/
+							// PcClose codes into runProps directly,
+							// and advance runIdx so the outer loop
+							// resumes at the next Text.
+							buf.WriteString(info.truncated)
+							inFieldEndRun = true
+							fieldEndRPrEffective = info.rprChildren
+							runProps = anticipatedRunProps
+							runIdx = nextTextAt - 1
+							continue
+						}
+					}
+				}
 				buf.WriteString(r.Ph.Data)
 			default:
 				buf.WriteString(r.Ph.Data)
