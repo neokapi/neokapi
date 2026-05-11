@@ -121,6 +121,44 @@ func perRunSrcRunStartFlags(runs []textRun) []bool {
 	return out
 }
 
+// openxmlPerRunInFieldDisplayAnnotationKey is the model.Block.Annotations
+// map key under which the writer reads the per-text-run "is inside a
+// complex field's extracted display text" boolean sidecar. The reader
+// sets textRun.inFieldDisplay when extracting display text between a
+// fldChar-separate and the matching fldChar-end of an extractable
+// field; the writer uses this to keep the source's per-<w:r> envelopes
+// distinct rather than fusing same-rPr neighbours into one <w:r>.
+//
+// Mirrors upstream Okapi parseComplexField (RunParser.java:461-542):
+// extracted display text becomes RunText body chunks INSIDE the
+// field's single RunBuilder, with Markup chunks preserving the
+// source </w:r><w:r> boundaries — RunMerger never fuses these
+// because they are not separate RunBuilders. Per ECMA-376-1 §17.16.5
+// (Complex Fields) the field's display text retains the source's
+// run grouping. Fixtures: 1083-empty-and-hyperlink-instructions.docx
+// and the two hyperlink-and-* siblings.
+//
+// The annotation value is a model.GenericAnnotation with
+// Fields["flags"] holding a []bool aligned with perRunRPr fragments.
+const openxmlPerRunInFieldDisplayAnnotationKey = "openxml-per-run-in-field-display"
+
+// perRunInFieldDisplayFlags returns one bool per text-bearing source
+// run, aligned with perRunRPrFragments. Same filtering rule as
+// perRunRPrFragments (skip sentinels and "\n" line breaks).
+func perRunInFieldDisplayFlags(runs []textRun) []bool {
+	var out []bool
+	for _, r := range runs {
+		if isSentinel(r.text) {
+			continue
+		}
+		if r.text == "\n" {
+			continue
+		}
+		out = append(out, r.inFieldDisplay)
+	}
+	return out
+}
+
 // perRunRPrFragments returns one rPr-children XML fragment per
 // text-bearing source run in `runs`, in source order.
 //

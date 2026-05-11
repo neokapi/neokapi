@@ -1316,16 +1316,17 @@ func (w *Writer) renderBlock(block *model.Block, dt docType) string {
 	// (e.g. rStyle on hyperlink display text) are preserved.
 	perRunRPr := blockPerRunRPrFragments(block)
 	perRunSrcStart := blockPerRunSrcRunStartFlags(block)
+	perRunInFieldDisplay := blockPerRunInFieldDisplayFlags(block)
 
 	switch dt {
 	case docTypeDOCX:
-		return w.renderWMLBlock(runs, sourceRPr, perRunRPr, perRunSrcStart)
+		return w.renderWMLBlock(runs, sourceRPr, perRunRPr, perRunSrcStart, perRunInFieldDisplay)
 	case docTypePPTX:
 		return w.renderDMLBlock(runs)
 	case docTypeXLSX:
 		return w.renderSMLBlock(runs, block)
 	default:
-		return w.renderWMLBlock(runs, sourceRPr, perRunRPr, perRunSrcStart)
+		return w.renderWMLBlock(runs, sourceRPr, perRunRPr, perRunSrcStart, perRunInFieldDisplay)
 	}
 }
 
@@ -1419,6 +1420,31 @@ func blockPerRunSrcRunStartFlags(block *model.Block) []bool {
 		return nil
 	}
 	a, ok := block.Annotations[openxmlPerRunSrcRunStartAnnotationKey]
+	if !ok {
+		return nil
+	}
+	g, ok := a.(*model.GenericAnnotation)
+	if !ok || g == nil || g.Fields == nil {
+		return nil
+	}
+	v, ok := g.Fields["flags"].([]bool)
+	if !ok {
+		return nil
+	}
+	return v
+}
+
+// blockPerRunInFieldDisplayFlags extracts the per-text-run "inside a
+// complex field's display text" boolean sidecar from the block
+// annotation populated by the WML reader. See source_rpr.go
+// openxmlPerRunInFieldDisplayAnnotationKey for the contract.
+//
+// Returns nil when the annotation is absent.
+func blockPerRunInFieldDisplayFlags(block *model.Block) []bool {
+	if block == nil || block.Annotations == nil {
+		return nil
+	}
+	a, ok := block.Annotations[openxmlPerRunInFieldDisplayAnnotationKey]
 	if !ok {
 		return nil
 	}
@@ -1670,7 +1696,7 @@ func countTextRuns(runs []model.Run) int {
 // elements rather than collapsing to a single rPr-less <w:r>).
 //
 // Per ECMA-376-1 §17.3.2.
-func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []string, perRunSrcStart []bool) string {
+func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []string, perRunSrcStart []bool, perRunInFieldDisplay []bool) string {
 	// Alignment guard: the per-run sidecar is one fragment per
 	// text-bearing source run AFTER dedupe-on-collapse. The writer
 	// emits one <w:r> per text-bearing model.Run.Text. When the two
@@ -1691,6 +1717,12 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 	// the <w:r> envelope immediately, never reused by following text).
 	if len(perRunSrcStart) != countTextRuns(runs) {
 		perRunSrcStart = nil
+	}
+	// Same alignment guard for the inFieldDisplay sidecar — drop the
+	// flags when they disagree with the run count, otherwise the
+	// writer would force-split runs at the wrong indices.
+	if len(perRunInFieldDisplay) != countTextRuns(runs) {
+		perRunInFieldDisplay = nil
 	}
 
 	// textRunTexts holds the post-pseudo text per text-bearing model
@@ -1746,6 +1778,20 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 			return true
 		}
 		return perRunSrcStart[idx]
+	}
+
+	// textInFieldDisplay returns true iff the text-run at idx was
+	// emitted from inside an extractable complex field's display text
+	// region. Defaults to false when the sidecar is absent (i.e. the
+	// paragraph carries no such runs). See
+	// openxmlPerRunInFieldDisplayAnnotationKey for the upstream-Okapi
+	// rationale — runs inside the field display area must keep their
+	// per-source-<w:r> envelopes distinct.
+	textInFieldDisplay := func(idx int) bool {
+		if idx < 0 || idx >= len(perRunInFieldDisplay) {
+			return false
+		}
+		return perRunInFieldDisplay[idx]
 	}
 
 	// Fast paths below collapse the entire run sequence into a single
@@ -1898,10 +1944,26 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 			// RunMerger.canRunPropertiesBeMerged (RunMerger.java:156-229)
 			// per ECMA-376-1 §17.3.2.1: each distinct rPr boundary is a
 			// distinct <w:r>.
+			//
+			// Additionally: when BOTH this run and the next come from
+			// an extractable complex field's display text region, the
+			// per-source-<w:r> boundary must round-trip even when the
+			// rPr matches. Upstream Okapi parseComplexField captures
+			// each source <w:r> as its own RunText body chunk with
+			// the surrounding </w:r><w:r> events preserved in adjacent
+			// Markup chunks (RunParser.java:537 + 815) — the chunks do
+			// NOT pass through RunMerger.canMergeWith so neighbours
+			// stay as separate <w:r> envelopes. Fixtures
+			// 1083-empty-and-hyperlink-instructions.docx (and the two
+			// hyperlink-and-* siblings) carry " "+"with" pairs that
+			// must emerge as two `<w:r>` elements. Per ECMA-376-1
+			// §17.16.5 (Complex Fields) the field's display text
+			// retains the source's run grouping.
 			if inRun {
 				nextRPr := effectiveRPr(textRunIdx + 1)
 				curRPr := effectiveRPr(textRunIdx)
-				if nextRPr != curRPr {
+				if nextRPr != curRPr ||
+					(textInFieldDisplay(textRunIdx) && textInFieldDisplay(textRunIdx+1) && textSrcStart(textRunIdx+1)) {
 					closeRun()
 				}
 			}
@@ -2362,7 +2424,7 @@ func (w *Writer) expandDrawingMarkers(payload string) string {
 		case "PROP":
 			return xmlEscapeAttr(model.FlattenRuns(runs))
 		case "PARA":
-			return w.renderWMLBlock(runs, blockSourceRPrXML(block), blockPerRunRPrFragments(block), blockPerRunSrcRunStartFlags(block))
+			return w.renderWMLBlock(runs, blockSourceRPrXML(block), blockPerRunRPrFragments(block), blockPerRunSrcRunStartFlags(block), blockPerRunInFieldDisplayFlags(block))
 		default:
 			return ""
 		}

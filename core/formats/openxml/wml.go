@@ -84,6 +84,26 @@ type textRun struct {
 	// a break that originated in a different source <w:r> changes
 	// the wire-level structure (1421-line-break.docx).
 	srcRunStart bool
+	// inFieldDisplay is true when this textRun was emitted while the
+	// reader was inside the display-text region of an extractable
+	// complex field (between fldChar-separate and fldChar-end with
+	// cfs.atResult=true). Upstream Okapi captures every source <w:r>
+	// of that region as its own RunText body chunk inside the field's
+	// single RunBuilder (parseContent at RunParser.java:537 +
+	// parseText at lines 820-836; addToMarkup at line 815 captures
+	// the surrounding <w:r>...</w:r> envelope events as Markup body
+	// chunks between the RunText chunks). The serialised output
+	// therefore preserves the source's per-`<w:r>` boundaries —
+	// adjacent same-rPr display-text runs do NOT collapse into one
+	// `<w:r>` the way RunMerger fuses adjacent paragraph-level
+	// RunBuilders (RunMerger.add at RunMerger.java:83-95). Honour
+	// this in mergeRuns by refusing to merge across an inFieldDisplay
+	// boundary. Per ECMA-376-1 §17.16.5 (Complex Fields) the
+	// extracted display text retains the source's run grouping;
+	// fixtures 1083-empty-and-hyperlink-instructions.docx (and the
+	// two hyperlink-and-* siblings) expose the " " + "with" boundary
+	// that must round-trip as two `<w:r>` shells, not one.
+	inFieldDisplay bool
 }
 
 // complexFieldState tracks the state machine for complex field (fldChar) parsing.
@@ -2298,7 +2318,16 @@ func (p *wmlParser) parseRunWithFieldState(d *xml.Decoder, cfs *complexFieldStat
 					rawBuf.WriteString(">")
 				}
 				_ = hasProps
-				runs = append(runs, textRun{text: text, props: props})
+				// Tag display-text runs inside an extractable complex
+				// field's result region so mergeRuns honours the
+				// source's per-<w:r> boundary. See textRun.inFieldDisplay
+				// for the upstream-Okapi rationale (parseComplexField
+				// captures these as RunText body chunks inside the
+				// field's RunBuilder, separated by Markup chunks
+				// preserving the source `</w:r><w:r>` boundaries —
+				// they do NOT pass through RunMerger.canMergeWith).
+				inField := cfs.active && cfs.extractable && cfs.atResult
+				runs = append(runs, textRun{text: text, props: props, inFieldDisplay: inField})
 
 			case "br":
 				if rawCaptured {
@@ -3105,6 +3134,25 @@ func (p *wmlParser) buildBlock(id string, runs []textRun, partPath, commonRPrXML
 			b.Break()
 			propsCopy := run.props
 			activeProps = &propsCopy
+		} else if run.inFieldDisplay && run.srcRunStart {
+			// Same toggle + non-toggle rPr as the previous run, but
+			// this run started a fresh source <w:r> inside an
+			// extractable complex field's display text region. Force
+			// a model.Run boundary so the writer keeps the source's
+			// per-<w:r> envelopes distinct, mirroring upstream Okapi
+			// parseComplexField (RunParser.java:461-542) where each
+			// display-text source run becomes its own RunText body
+			// chunk inside the field's RunBuilder and the surrounding
+			// </w:r><w:r> boundaries survive as Markup chunks
+			// between them. Per ECMA-376-1 §17.16.5 (Complex Fields)
+			// the field's display text retains the source's run
+			// grouping. Without this break the writer would emit the
+			// pair as a single <w:r> via runBuilder's text-coalescing
+			// path. Fixtures: 1083-empty-and-hyperlink-instructions.
+			// docx (and the two hyperlink-and-* siblings).
+			b.Break()
+			propsCopy := run.props
+			activeProps = &propsCopy
 		}
 
 		b.AddText(run.text)
@@ -3179,6 +3227,28 @@ func (p *wmlParser) buildBlock(id string, runs []textRun, partPath, commonRPrXML
 		}
 	}
 
+	// Stash the per-text-run "inside a complex-field display region"
+	// boolean sidecar so the writer keeps separate <w:r> envelopes for
+	// each source run inside an extractable field's display text. See
+	// openxmlPerRunInFieldDisplayAnnotationKey for the upstream-Okapi
+	// rationale (parseComplexField at RunParser.java:461-542).
+	perRunInFieldDisplay := perRunInFieldDisplayFlags(runs)
+	if len(perRunInFieldDisplay) > 0 {
+		anyTrue := false
+		for _, f := range perRunInFieldDisplay {
+			if f {
+				anyTrue = true
+				break
+			}
+		}
+		if anyTrue {
+			block.Annotations[openxmlPerRunInFieldDisplayAnnotationKey] = &model.GenericAnnotation{
+				Kind:   openxmlPerRunInFieldDisplayAnnotationKey,
+				Fields: map[string]any{"flags": perRunInFieldDisplay},
+			}
+		}
+	}
+
 	return block
 }
 
@@ -3218,6 +3288,25 @@ func mergeRuns(runs []textRun) []textRun {
 		// Don't merge sentinel markers or line breaks
 		if isSentinel(current.text) || isSentinel(r.text) ||
 			current.text == "\n" || r.text == "\n" {
+			merged = append(merged, current)
+			current = r
+			continue
+		}
+		// Refuse to merge across the boundary of an extractable
+		// complex field's display text. Upstream Okapi captures each
+		// source <w:r> of that region as its own RunText body chunk
+		// (parseContent at RunParser.java:537 + parseText at lines
+		// 820-836) inside the field's single RunBuilder, with Markup
+		// body chunks preserving the source </w:r><w:r> boundaries
+		// between them — those runs do NOT pass through
+		// RunMerger.canMergeWith so they emerge as separate <w:r>
+		// envelopes in the output. Fixtures
+		// 1083-empty-and-hyperlink-instructions.docx (and siblings)
+		// rely on this for the " " + "with" sequence inside their
+		// HYPERLINK field's display area. Per ECMA-376-1 §17.16.5
+		// (Complex Fields) the field's display text retains the
+		// source's run grouping.
+		if r.inFieldDisplay && r.srcRunStart {
 			merged = append(merged, current)
 			current = r
 			continue
