@@ -146,56 +146,37 @@ type wmlParser struct {
 // parsePart streams through a WordprocessingML XML part, emitting Blocks.
 func (p *wmlParser) parsePart(data []byte, partPath string, emitBlock func(*model.Block), emitData func()) error {
 	// When AutomaticallyAcceptRevisions is true, pre-process the bytes
-	// to drop any <w:tr>...</w:tr> rows whose content carries a
-	// <w:moveFrom> revision-tracking wrapper (ECMA-376 Part 1 §17.13.5.17).
-	// Mirrors upstream Okapi's MoveFromRevisionCrossStructure +
-	// StyledTextPart.process row-removal path: when a
-	// moveFromRange.skip() crosses a table-row boundary,
-	// extraStructureCrossed() returns LOCAL_TABLE_ROW and
-	// StyledTextPart lines 299-305 invoke
-	// delayedTableMarkup.removeComponentsFromLastWith(LOCAL_TABLE_ROW)
-	// so the row never reaches the writer (SkippableElements.java
-	// lines 371-450; StyledTextPart.java lines 580-593).
+	// to mirror upstream Okapi's revision-acceptance passes that
+	// happen before the streaming parser sees the document:
 	//
-	// The byte-level pre-pass keeps the streaming parser's hot loop
-	// untouched; the alternative — capturing the row body and
-	// re-decoding to peek at the moveFrom signal — is invasive,
-	// changes namespace resolution semantics for the row's children
-	// (encoding/xml binds prefixes per-decoder, our namespace
-	// registry is global), and breaks raw-payload capture for VML
-	// shapes inside the row. Doing the strip up front sidesteps both.
+	//   1. dropMoveFromRanges: collapses <w:moveFromRangeStart ...>...
+	//      <w:moveFromRangeEnd .../> cross-structure spans, dropping
+	//      enclosing paragraphs/rows/tables depending on what the
+	//      span crosses (ECMA-376 Part 1 §17.13.5.18 / §17.13.5.19).
+	//      Mirrors SkippableElements.MoveFromRevisionCrossStructure +
+	//      StyledTextPart row/table cleanup branches.
+	//
+	//   2. dropDeletedRows: drops <w:tr> rows whose <w:trPr> carries
+	//      a top-level <w:del> child (ECMA-376 §17.13.5.13 Deleted
+	//      Table Row). Mirrors StyledTextPart.process lines 530-551
+	//      + RevisionProperty.TABLE_ROW_DELETED.
+	//
+	//   3. dropEmptyTables: collapses any <w:tbl> whose body lost all
+	//      its rows to the previous passes. Mirrors the TableEnd
+	//      branch in StyledTextPart (lines 410-424) which drops the
+	//      queued delayedTableMarkup when no translatable block
+	//      reached the writer between <w:tbl> and </w:tbl>.
+	//
+	// Byte-level pre-passes keep the streaming xml.Decoder loop
+	// unchanged; the alternative — re-decoding captured subtrees
+	// mid-parse — is invasive, changes namespace-resolution semantics
+	// for the captured children (encoding/xml binds prefixes per-
+	// decoder, our namespace registry is global), and breaks raw-
+	// payload capture for VML shapes inside the row/table. Doing the
+	// strips up front sidesteps both.
 	if p.cfg != nil && p.cfg.AutomaticallyAcceptRevisions {
-		// Cross-structure moveFromRange spans
-		// (<w:moveFromRangeStart w:id="N"/>...<w:moveFromRangeEnd
-		// w:id="N"/>) consume EVERY event between the start and end
-		// markers via SkippableElements.MoveFromRevisionCrossStructure
-		// (lines 371-450 of SkippableElements.java). When the skip
-		// crosses a paragraph boundary (parentStructureCrossed), the
-		// enclosing block is marked skipped via
-		// builder.skipped(true) in BlockParser (lines 267-274 of
-		// BlockParser.java) and the StyledTextPart outer loop drops
-		// it (lines 299-305). Any paragraphs WHOLLY inside the range
-		// are also consumed wholesale — including their text content,
-		// even untracked — because the cross-structure skip walks
-		// past the </w:p>/<w:p> boundaries inside the skip loop.
-		//
-		// The byte-level pre-pass mirrors this: we identify each
-		// matched (moveFromRangeStart id, moveFromRangeEnd id) pair
-		// and drop from the start tag of the <w:p> containing
-		// moveFromRangeStart through the end tag of the <w:p>
-		// containing moveFromRangeEnd. Subsequent rangefulness on
-		// table-row-level moveFrom (the <w:moveFrom> wrapper on a
-		// row) is handled by dropMoveFromTableRows below.
 		data = dropMoveFromRanges(data)
-		data = dropMoveFromTableRows(data)
-		// After moveFrom rows are removed, a table whose every row
-		// was a moveFrom-row becomes structurally empty (only
-		// <w:tblPr>/<w:tblGrid> remain). Upstream Okapi cleans this
-		// up via StyledTextPart.process lines 410-424 (TableEnd
-		// handler): if delayedTableMarkup has no translatable block
-		// for the last <w:tbl>, removeComponentsFromLastWith
-		// (LOCAL_TABLE) drops the entire table. We mirror that
-		// post-pass at the byte level here.
+		data = dropDeletedRows(data)
 		data = dropEmptyTables(data)
 	}
 	d := xml.NewDecoder(bytes.NewReader(data))
@@ -318,47 +299,42 @@ func (p *wmlParser) parsePart(data []byte, partPath string, emitBlock func(*mode
 	return nil
 }
 
-// dropMoveFromTableRows removes every <w:tr ...>...</w:tr> region from
-// data whose body contains a <w:moveFrom> revision-tracking content
-// wrapper (ECMA-376 Part 1 §17.13.5.17 Move From Run Content). When
-// AutomaticallyAcceptRevisions is true such a row's translatable
-// content has been moved out — upstream Okapi removes the row markup
-// via MoveFromRevisionCrossStructure (lines 371-450 of okapi/filters/
-// openxml/src/main/java/net/sf/okapi/filters/openxml/SkippableElements.java)
-// tracking tableRowStructureCrossed during the moveFromRange skip,
-// then triggering
-// delayedTableMarkup.removeComponentsFromLastWith(LOCAL_TABLE_ROW)
-// in StyledTextPart (lines 299-305 of StyledTextPart.java).
+// dropDeletedRows removes every <w:tr ...>...</w:tr> region whose
+// <w:trPr> carries a top-level <w:del> child — the row-deletion
+// revision marker per ECMA-376 Part 1 §17.13.5.13 (CT_TrPrBase /
+// `del`). The streaming parser's handleTableRow already strips
+// these rows, but pre-stripping at the byte level lets dropEmptyTables
+// collapse a table whose every row was deleted; otherwise the
+// structurally-empty <w:tbl> would survive the round-trip (fixture
+// 1080-1.docx table 2 with <w:tblpPr> positioning).
 //
-// The detector matches <w:moveFrom (with trailing space or `>`) — the
-// content-wrapper form, distinct from <w:moveFromRangeStart and
-// <w:moveFromRangeEnd which never carry inner content. Pre-stripping
-// at the byte level (rather than mid-parse via lookahead) keeps the
-// streaming xml.Decoder loop unchanged and avoids the namespace-
-// resolution issues that arise when re-decoding a captured row body
-// without its document-scoped xmlns declarations.
+// Mirrors upstream Okapi's row-removal path:
+// StyledTextPart.process() lines 530-551 (the
+// RevisionPropertyTableRowDeletedSkippableElements.skip dispatch)
+// removes the queued row markup; the downstream TableEnd branch
+// (lines 410-424) then drops the whole table when no translatable
+// block reached it. The context-aware `del` → `trPr` mapping is at
+// SkippableElements.java lines 528-531
+// (CONTEXT_AWARE_REVISION_SKIPPABLE_ELEMENTS).
 //
 // Nested rows (legal per the schema — a <w:tc> may contain another
 // <w:tbl>) are handled correctly by tracking depth on <w:tr balanced
 // open/close pairs.
-func dropMoveFromTableRows(data []byte) []byte {
+func dropDeletedRows(data []byte) []byte {
 	const trOpen = "<w:tr"
 	const trClose = "</w:tr>"
-	const moveFromOpen = "<w:moveFrom" // shared prefix; we disambiguate after
-	if !bytes.Contains(data, []byte(moveFromOpen)) {
-		// Fast path: no moveFrom anywhere in the part, nothing to do.
+	const trPrOpen = "<w:trPr"
+	if !bytes.Contains(data, []byte(trPrOpen)) {
+		// Fast path: no trPr means no row-deletion markers either.
 		return data
 	}
 	out := make([]byte, 0, len(data))
 	for {
-		// Find the next <w:tr boundary.
 		idx := bytes.Index(data, []byte(trOpen))
 		if idx < 0 {
 			out = append(out, data...)
 			break
 		}
-		// Validate the element-name boundary: next byte must be `>`,
-		// `/`, or whitespace so we don't match `<w:trPr`/`<w:trHeight`.
 		j := idx + len(trOpen)
 		if j >= len(data) {
 			out = append(out, data...)
@@ -366,25 +342,23 @@ func dropMoveFromTableRows(data []byte) []byte {
 		}
 		b := data[j]
 		if b != '>' && b != '/' && b != ' ' && b != '\t' && b != '\n' && b != '\r' {
-			// Not <w:tr; advance past this position and keep scanning.
+			// Not <w:tr; advance past this position.
 			out = append(out, data[:j+1]...)
 			data = data[j+1:]
 			continue
 		}
-		// Find the end of the <w:tr ...> open tag.
 		k := bytes.IndexByte(data[j:], '>')
 		if k < 0 {
 			out = append(out, data...)
 			break
 		}
-		startEnd := j + k // position of the `>` closing the open tag
-		// Self-closing <w:tr/> form: empty row, never a moveFrom row.
+		startEnd := j + k
 		if startEnd > 0 && data[startEnd-1] == '/' {
+			// Self-closing <w:tr/>: no <w:trPr>, never deleted.
 			out = append(out, data[:startEnd+1]...)
 			data = data[startEnd+1:]
 			continue
 		}
-		// Find the matching </w:tr> respecting nested rows.
 		bodyStart := startEnd + 1
 		depth := 1
 		cursor := bodyStart
@@ -392,21 +366,15 @@ func dropMoveFromTableRows(data []byte) []byte {
 			nextOpen := bytes.Index(data[cursor:], []byte(trOpen))
 			nextClose := bytes.Index(data[cursor:], []byte(trClose))
 			if nextClose < 0 {
-				// Unbalanced — bail, append remainder unchanged.
 				out = append(out, data...)
 				return out
 			}
-			// If the next nested <w:tr open beats the next </w:tr> close,
-			// step into it (incrementing depth). Otherwise, step out of
-			// the current row (decrementing depth).
 			if nextOpen >= 0 && nextOpen < nextClose {
-				// Re-validate the nested open's element-name boundary.
 				absOpen := cursor + nextOpen
 				jj := absOpen + len(trOpen)
 				if jj < len(data) {
 					bb := data[jj]
 					if bb == '>' || bb == '/' || bb == ' ' || bb == '\t' || bb == '\n' || bb == '\r' {
-						// Skip past this nested open.
 						kk := bytes.IndexByte(data[jj:], '>')
 						if kk < 0 {
 							out = append(out, data...)
@@ -424,26 +392,76 @@ func dropMoveFromTableRows(data []byte) []byte {
 				cursor = cursor + nextOpen + len(trOpen)
 				continue
 			}
-			// Step out via the close.
 			cursor = cursor + nextClose + len(trClose)
 			depth--
 		}
 		rowEnd := cursor // one past the last byte of </w:tr>
 		body := data[bodyStart : rowEnd-len(trClose)]
-		if rowBodyHasMoveFromContent(body) {
-			// Drop the entire <w:tr>...</w:tr> region (including the
-			// open and close tags). Skeleton bytes are written via the
-			// streaming pass that follows; removing the bytes here
-			// means the streaming pass simply never sees the row.
+		if rowBodyHasDeletedTrPr(body) {
 			out = append(out, data[:idx]...)
 			data = data[rowEnd:]
 			continue
 		}
-		// Keep the row verbatim; advance past it.
 		out = append(out, data[:rowEnd]...)
 		data = data[rowEnd:]
 	}
 	return out
+}
+
+// rowBodyHasDeletedTrPr reports whether the captured row body's own
+// direct-child <w:trPr> contains a top-level <w:del> element — the
+// row-deletion revision marker per ECMA-376 Part 1 §17.13.5.13
+// (CT_TrPrBase / `del`). Mirrors upstream Okapi's
+// RevisionProperty.TABLE_ROW_DELETED context-aware skip
+// (SkippableElements.java lines 528-531 — `del` keyed under parent
+// `trPr`).
+//
+// Per the schema's `tblPrEx? trPr? content*` sequence the row's
+// own trPr precedes any cell content. We locate it by finding the
+// first <w:trPr> open tag and verifying no <w:tc>, <w:tbl>, or
+// nested <w:tr> appears before it — otherwise the matched trPr
+// belongs to a deeper nested row, not the outer row we're examining,
+// and must be ignored so a deleted nested row doesn't drag its
+// outer ancestor with it.
+func rowBodyHasDeletedTrPr(body []byte) bool {
+	const trPrOpen = "<w:trPr"
+	idx := bytes.Index(body, []byte(trPrOpen))
+	if idx < 0 {
+		return false
+	}
+	// Validate element-name boundary so <w:trPrChange> doesn't match.
+	j := idx + len(trPrOpen)
+	if j >= len(body) {
+		return false
+	}
+	b := body[j]
+	if b != '>' && b != '/' && b != ' ' && b != '\t' && b != '\n' && b != '\r' {
+		return false
+	}
+	// Reject if any nested container precedes this trPr — the trPr
+	// then belongs to a deeper-nested row, not this one.
+	prefix := body[:idx]
+	for _, name := range [...]string{"<w:tc", "<w:tbl", "<w:tr"} {
+		if pIdx := indexValidElement(prefix, name); pIdx >= 0 {
+			return false
+		}
+	}
+	// Find the closing `>` of the open tag and read through </w:trPr>.
+	k := bytes.IndexByte(body[j:], '>')
+	if k < 0 {
+		return false
+	}
+	startEnd := j + k
+	if startEnd > 0 && body[startEnd-1] == '/' {
+		// Self-closing <w:trPr/> — no children, no row deletion.
+		return false
+	}
+	closeIdx := bytes.Index(body[startEnd+1:], []byte("</w:trPr>"))
+	if closeIdx < 0 {
+		return false
+	}
+	raw := body[idx : startEnd+1+closeIdx+len("</w:trPr>")]
+	return trPrHasRowDeletion(string(raw))
 }
 
 // dropMoveFromRanges removes the cross-structure spans bracketed by
@@ -545,21 +563,55 @@ func dropMoveFromRanges(data []byte) []byte {
 			cursor = startTagEnd + 1
 			continue
 		}
-		// Skip pairs whose span crosses a table cell, row, or table
-		// boundary. Upstream Okapi handles those cases via the
-		// tableRowStructureCrossed / tableStructureCrossed branches
-		// (lines 415-426 of SkippableElements.java +
-		// removeComponentsFromLastWith(LOCAL_TABLE/LOCAL_TABLE_ROW)
-		// in StyledTextPart). The byte-level pre-pass here only
-		// implements the parentStructureCrossed (paragraph) case;
-		// the row-level case is partially handled by the existing
-		// dropMoveFromTableRows pass for moveFrom CONTENT wrappers.
-		// Cross-cell ranges (e.g. 1080-1.docx) are left to the
-		// streaming parser which would otherwise produce malformed
-		// XML if we ate the row/cell boundary tags.
-		if spanCrossesTableBoundary(data[startTagEnd+1 : endStart]) {
-			out = append(out, data[cursor:startTagEnd+1]...)
-			cursor = startTagEnd + 1
+		// Determine which structural boundaries the span between the
+		// two markers crosses. Mirrors upstream's table/row/parent
+		// crossed flags (SkippableElements.java lines 415-426):
+		//
+		//   * crossesTable: a </w:tbl> end tag was traversed without
+		//     a matching <w:tbl> start inside the span. Drop the whole
+		//     enclosing table — upstream's
+		//     removeComponentsFromLastWith(LOCAL_TABLE) + the
+		//     TableEnd-branch table drop both fire.
+		//
+		//   * crossesRow: a </w:tr> end tag was traversed without a
+		//     matching <w:tr> start. Drop from <w:tr> of the start
+		//     marker through end of moveFromRangeEnd (or </w:tr> of
+		//     the row containing it, whichever is later). Mirrors
+		//     removeComponentsFromLastWith(LOCAL_TABLE_ROW) plus the
+		//     consumed events between rows.
+		//
+		// Cell-only crossings (</w:tc>) without a row crossing collapse
+		// to the row-drop case as well: even a same-row cross-cell
+		// moveFromRange leaves the row's translatable content in
+		// disarray (cells dropped from delayedTableMarkup), and
+		// upstream's outer loop drops the row's downstream cells via
+		// the skip's event consumption. The simpler byte-level model
+		// drops the whole row.
+		crossesTable, crossesRow, crossesCell := spanCrossesTableStructure(data[startTagEnd+1 : endStart])
+		if crossesTable || crossesRow || crossesCell {
+			scope := "tr"
+			if crossesTable {
+				scope = "tbl"
+			}
+			dropFrom := findEnclosingElementOpenStart(data, startIdx, scope)
+			if dropFrom < 0 {
+				// Defensive: marker is supposed to be inside a row or
+				// table but we couldn't find the enclosing element.
+				// Bail: leave the start marker, skip past it.
+				out = append(out, data[cursor:startTagEnd+1]...)
+				cursor = startTagEnd + 1
+				continue
+			}
+			// Drop-to endpoint: extend through </w:tr> (or </w:tbl>)
+			// of the element containing moveFromRangeEnd when the end
+			// marker sits inside one. Otherwise stop after the end
+			// marker itself (sibling-position case).
+			dropTo := endTagEnd + 1
+			if enclosingClose := findEnclosingElementCloseEnd(data, endTagEnd+1, scope); enclosingClose >= 0 {
+				dropTo = enclosingClose
+			}
+			out = append(out, data[cursor:dropFrom]...)
+			cursor = dropTo
 			continue
 		}
 		// Locate the enclosing <w:p> open tag for the start marker
@@ -656,44 +708,130 @@ func isInsideParagraph(data []byte, pos int) bool {
 	return depth > 0
 }
 
-// spanCrossesTableBoundary reports whether the byte slice between a
+// spanCrossesTableStructure inspects the byte slice between a
+// moveFromRangeStart and the matching moveFromRangeEnd and reports
+// which table-structural boundaries it crosses. Mirrors upstream
+// Okapi's tableRowStructureCrossed / tableStructureCrossed flag
+// bookkeeping in SkippableElements.MoveFromRevisionCrossStructure
+// (SkippableElements.java lines 415-426): an end-element of the
+// given local name with no matching start-element earlier in the
+// span flips the corresponding "crossed" flag on.
+//
+// Returns (crossesTable, crossesRow, crossesCell). The caller picks
+// the outermost crossed scope as the drop scope.
+func spanCrossesTableStructure(span []byte) (crossesTable, crossesRow, crossesCell bool) {
+	crossesCell = spanCrossesElement(span, "tc")
+	crossesRow = spanCrossesElement(span, "tr")
+	crossesTable = spanCrossesElement(span, "tbl")
+	return
+}
+
+// spanCrossesElement reports whether the byte slice between a
 // moveFromRangeStart and the matching moveFromRangeEnd crosses a
-// </w:tc>, </w:tr>, or </w:tbl> end tag without first opening a
-// matching <w:tc>, <w:tr>, or <w:tbl> inside the span. A crossing
-// would mean my drop would unbalance cell/row/table structure.
-func spanCrossesTableBoundary(span []byte) bool {
-	for _, name := range []string{"tc", "tr", "tbl"} {
-		open := "<w:" + name
-		close := "</w:" + name + ">"
-		depth := 0
-		cursor := 0
-		for cursor < len(span) {
-			nextOpen := indexValidElement(span[cursor:], open)
-			nextClose := bytes.Index(span[cursor:], []byte(close))
-			if nextOpen < 0 && nextClose < 0 {
-				break
-			}
-			if nextClose < 0 || (nextOpen >= 0 && nextOpen < nextClose) {
-				absOpen := cursor + nextOpen
-				tagEnd := bytes.IndexByte(span[absOpen:], '>')
-				if tagEnd < 0 {
-					break
-				}
-				absOpenEnd := absOpen + tagEnd
-				if absOpenEnd > 0 && span[absOpenEnd-1] != '/' {
-					depth++
-				}
-				cursor = absOpenEnd + 1
-				continue
-			}
-			if depth == 0 {
-				return true
-			}
-			depth--
-			cursor = cursor + nextClose + len(close)
+// </w:NAME> end tag without first opening a matching <w:NAME> inside
+// the span. A crossing would mean dropping the span verbatim would
+// unbalance the structure.
+func spanCrossesElement(span []byte, name string) bool {
+	open := "<w:" + name
+	close := "</w:" + name + ">"
+	depth := 0
+	cursor := 0
+	for cursor < len(span) {
+		nextOpen := indexValidElement(span[cursor:], open)
+		nextClose := bytes.Index(span[cursor:], []byte(close))
+		if nextOpen < 0 && nextClose < 0 {
+			return false
 		}
+		if nextClose < 0 || (nextOpen >= 0 && nextOpen < nextClose) {
+			absOpen := cursor + nextOpen
+			tagEnd := bytes.IndexByte(span[absOpen:], '>')
+			if tagEnd < 0 {
+				return false
+			}
+			absOpenEnd := absOpen + tagEnd
+			if absOpenEnd > 0 && span[absOpenEnd-1] != '/' {
+				depth++
+			}
+			cursor = absOpenEnd + 1
+			continue
+		}
+		if depth == 0 {
+			return true
+		}
+		depth--
+		cursor = cursor + nextClose + len(close)
 	}
 	return false
+}
+
+// findEnclosingElementOpenStart searches backwards from pos for the
+// nearest `<w:NAME>` (or `<w:NAME ...>`) start tag whose matching
+// `</w:NAME>` lies AFTER pos. Returns the absolute index of the `<`
+// byte, or -1 if pos is not inside any such element. The element-
+// name boundary check disambiguates from longer-name siblings (e.g.
+// `<w:tr` from `<w:trPr`, `<w:tbl` from `<w:tblGrid`).
+func findEnclosingElementOpenStart(data []byte, pos int, name string) int {
+	open := "<w:" + name
+	close := "</w:" + name + ">"
+	depth := 0
+	cursor := pos
+	for cursor > 0 {
+		closeIdx := bytes.LastIndex(data[:cursor], []byte(close))
+		openIdx := lastIndexValidElement(data[:cursor], open)
+		if openIdx < 0 && closeIdx < 0 {
+			return -1
+		}
+		if openIdx > closeIdx {
+			if depth == 0 {
+				return openIdx
+			}
+			depth--
+			cursor = openIdx
+		} else {
+			depth++
+			cursor = closeIdx
+		}
+	}
+	return -1
+}
+
+// findEnclosingElementCloseEnd searches forward from pos for the
+// matching `</w:NAME>` end tag of the enclosing element (depth=0 at
+// pos, so we want the first `</w:NAME>` not preceded by an unmatched
+// `<w:NAME>`). Returns the absolute index ONE PAST the `>` of the
+// end tag, or -1 if no match (i.e. pos is NOT inside an element of
+// that name).
+func findEnclosingElementCloseEnd(data []byte, pos int, name string) int {
+	open := "<w:" + name
+	close := "</w:" + name + ">"
+	depth := 0
+	cursor := pos
+	for cursor < len(data) {
+		nextOpen := indexValidElement(data[cursor:], open)
+		nextClose := bytes.Index(data[cursor:], []byte(close))
+		if nextClose < 0 {
+			return -1
+		}
+		if nextOpen >= 0 && nextOpen < nextClose {
+			absOpen := cursor + nextOpen
+			tagEnd := bytes.IndexByte(data[absOpen:], '>')
+			if tagEnd < 0 {
+				return -1
+			}
+			absOpenEnd := absOpen + tagEnd
+			if data[absOpenEnd-1] != '/' {
+				depth++
+			}
+			cursor = absOpenEnd + 1
+			continue
+		}
+		if depth == 0 {
+			return cursor + nextClose + len(close)
+		}
+		depth--
+		cursor = cursor + nextClose + len(close)
+	}
+	return -1
 }
 
 // isElementNameBoundary reports whether the byte at position pos in
@@ -878,9 +1016,9 @@ func indexValidElement(data []byte, elemName string) int {
 
 // dropEmptyTables removes every <w:tbl ...>...</w:tbl> region from data
 // whose body contains no <w:tr> child element. This complements
-// dropMoveFromTableRows: when every row of a table was wrapped in a
-// moveFrom revision, removing the rows leaves a structurally empty
-// table behind. Upstream Okapi removes these via
+// dropDeletedRows and dropMoveFromRanges: when those passes strip
+// every row of a table, the structurally-empty <w:tbl> shell would
+// otherwise reach the writer. Upstream Okapi removes these via
 // StyledTextPart.process lines 410-424 (the TableEnd branch): if
 // delayedTableMarkup has accumulated no translatable block since the
 // last <w:tbl>, the entire table-markup component chain is dropped
