@@ -1438,12 +1438,36 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 	// rPr, another Ph, or PcOpen/PcClose), this <w:r> closes via
 	// closeRunNoText so the open envelope doesn't leak.
 	var inRunNoText bool
+	// pendingTReopen marks a speculative `<w:t xml:space="preserve">`
+	// opened by the inline-tab/br branch right after `<w:tab/>` /
+	// `<w:br/>` in anticipation of more text in the same <w:r>. If no
+	// character data follows before closeRun fires, the open <w:t>
+	// must NOT receive a closing tag — the source had
+	// `<w:r><w:t>…</w:t><w:tab/></w:r>` with nothing after the tab
+	// (e.g. 992.docx footer1.xml's "Be Shaping The Future " run).
+	// Upstream Okapi RunBuilder.java:73-188 preserves the source-run
+	// envelope and never authors a trailing empty <w:t/>. Per
+	// ECMA-376-1 §17.3.3.31 (<w:tab/>) and §17.3.3.1 (<w:br/>),
+	// tab/break are run children whose effect is independent of any
+	// following <w:t>; emitting an empty <w:t/> would be a
+	// meaningless artefact that diverges from upstream byte output.
+	var pendingTReopen bool
 	var runProps string
 	textRunIdx := -1 // pre-increment on each new <w:r> for r.Text
 
 	closeRun := func() {
 		if inRun {
-			buf.WriteString(`</w:t></w:r>`)
+			if pendingTReopen {
+				trail := `<w:t xml:space="preserve">`
+				if cur := buf.String(); strings.HasSuffix(cur, trail) {
+					buf.Reset()
+					buf.WriteString(cur[:len(cur)-len(trail)])
+				}
+				pendingTReopen = false
+				buf.WriteString(`</w:r>`)
+			} else {
+				buf.WriteString(`</w:t></w:r>`)
+			}
 			inRun = false
 		}
 		if inRunNoText {
@@ -1535,6 +1559,10 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 					buf.WriteString(`<w:t xml:space="preserve">`)
 					inRun = true
 				}
+				// Any character data clears the speculative-<w:t>
+				// flag — the <w:t> now has content so closeRun must
+				// emit its closing tag normally.
+				pendingTReopen = false
 				xmlEscapeRune(&buf, ch)
 			}
 
@@ -1589,13 +1617,55 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 			// canonical fixture.
 			canInline := (r.Ph.Type == TypeTab && r.Ph.SubType != SubTypeTabStandalone) ||
 				(r.Ph.Type == TypeBreak && r.Ph.SubType != SubTypeBreakStandalone)
-			if canInline && inRun && effectiveRPr(textRunIdx) == sourceRPr {
-				if r.Ph.Type == TypeTab {
-					buf.WriteString(`</w:t><w:tab/><w:t xml:space="preserve">`)
-				} else {
-					buf.WriteString(`</w:t><w:br/><w:t xml:space="preserve">`)
+			if canInline && inRun {
+				// Compare the open <w:r>'s emitted rPr to what a
+				// standalone tab/br <w:r> would emit. Both derive from
+				// the SAME source <w:r> (the tab/br was authored
+				// alongside the surrounding text in one <w:r>), so the
+				// source rPr is identical — but the writer applies
+				// bCs/iCs stripping to the text-run's rPr based on the
+				// text's complex-script content
+				// (adjustRPrForRunText / RunParser.java:219-229). For
+				// the tab/br to inline correctly we need the post-strip
+				// view of BOTH sides to match. A direct compare of the
+				// raw fragments fails when one side carries bCs/iCs and
+				// the other had them stripped. Per ECMA-376-1
+				// §17.3.2.16/.17 (bCs/iCs) the complex-script toggle
+				// mirrors are no-ops on non-complex-script text, so
+				// applying the strip to sourceRPr here is semantically
+				// equivalent to the strip the writer applies on the
+				// text run's <w:r>. Mirrors upstream Okapi RunMerger
+				// (RunMerger.java:156-229 + RunBuilder.java:73-188):
+				// the source authored the tab/br alongside the text in
+				// ONE <w:r>; RunMerger's canRunPropertiesBeMerged gate
+				// operates on already-script-resolved RunProperties so
+				// the merge is preserved. Fixture 992 footer1.xml is
+				// the canonical case: a Calibri-bold run authored as
+				// <w:r><w:rPr>{Calibri, b, bCs, …}</w:rPr>
+				//   <w:t>Be Shaping ...</w:t><w:tab/></w:r>
+				// where the text is Latin-script (bCs strips off the
+				// text-run's <w:r> rPr); the tab would otherwise emit a
+				// standalone <w:r> with bCs still present, losing the
+				// source-run envelope.
+				curRPr := effectiveRPr(textRunIdx)
+				var text string
+				if textRunIdx >= 0 && textRunIdx < len(textRunTexts) {
+					text = textRunTexts[textRunIdx]
 				}
-				continue
+				adjSrc := adjustRPrForRunText(sourceRPr, text)
+				if curRPr == adjSrc {
+					if r.Ph.Type == TypeTab {
+						buf.WriteString(`</w:t><w:tab/><w:t xml:space="preserve">`)
+					} else {
+						buf.WriteString(`</w:t><w:br/><w:t xml:space="preserve">`)
+					}
+					// Speculative <w:t> opened in case more text
+					// follows in the same source <w:r>. closeRun
+					// strips the trailing <w:t/> if no character
+					// data arrives first.
+					pendingTReopen = true
+					continue
+				}
 			}
 			closeRun()
 			switch r.Ph.Type {
