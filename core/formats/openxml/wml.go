@@ -2273,6 +2273,15 @@ func (p *wmlParser) buildBlock(id string, runs []textRun, partPath, commonRPrXML
 }
 
 // mergeRuns merges adjacent runs with identical formatting.
+//
+// The equality test gates fusion on the FULL rPr (toggles + non-toggle
+// children — rStyle, color, sz, lang, highlight, …) via
+// equalIncludingChildren, mirroring upstream Okapi
+// RunMerger.canRunPropertiesBeMerged (RunMerger.java:156-229). Per
+// ECMA-376-1 §17.3.2, heterogeneous rPr means heterogeneous runs:
+// runs that differ on ANY rPr property must remain distinct merged
+// runs so the per-source-run rPr sidecar (#592, Phase 1) stays aligned
+// with the merged-run count for the writer (Phase 2).
 func mergeRuns(runs []textRun) []textRun {
 	if len(runs) <= 1 {
 		return runs
@@ -2290,7 +2299,7 @@ func mergeRuns(runs []textRun) []textRun {
 			current = r
 			continue
 		}
-		if current.props.equal(r.props) {
+		if current.props.equalIncludingChildren(r.props) {
 			current.text += r.text
 		} else {
 			merged = append(merged, current)

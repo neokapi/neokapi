@@ -61,8 +61,22 @@ type rPrChild struct {
 	xml  string // raw XML serialization, e.g. `<w:color w:val="FF0000"/>`
 }
 
-// equal returns true if two runProps produce the same visual formatting.
-// Font names are compared when set (for font mapping merging).
+// equal returns true if two runProps produce the same visual formatting
+// at the level of toggle props + primary font name. Font names are
+// compared when set (for font mapping merging).
+//
+// equal INTENTIONALLY ignores rPrChildren (rStyle, color, sz, lang,
+// highlight, etc.) because its callers — the open/close PcOpen/PcClose
+// emitter loops in wml.go (~line 2198), sml.go (~line 376), and
+// dml.go (~line 276) — only emit toggle markers. Non-toggle rPr
+// children are carried through the per-source-run rPr sidecar (#592),
+// not through the toggle Spans.
+//
+// For the stricter "should two runs be coalesced into one merged run"
+// check used by mergeRuns, see equalIncludingChildren below — that
+// mirrors upstream Okapi RunMerger.canRunPropertiesBeMerged
+// (RunMerger.java:156-229) which compares EVERY RunProperty, not just
+// toggles.
 func (rp runProps) equal(other runProps) bool {
 	return rp.bold == other.bold &&
 		rp.italic == other.italic &&
@@ -71,6 +85,45 @@ func (rp runProps) equal(other runProps) bool {
 		rp.vertAlign == other.vertAlign &&
 		rp.vanish == other.vanish &&
 		rp.fontName == other.fontName
+}
+
+// equalIncludingChildren reports whether two runProps are equivalent
+// across the FULL rPr — toggles AND non-toggle children (rStyle, color,
+// sz, lang, highlight, …).
+//
+// Mirrors upstream Okapi RunMerger.canRunPropertiesBeMerged
+// (RunMerger.java:156-229): if any RunProperty differs (toggle OR
+// non-toggle), runs cannot be coalesced. Per ECMA-376-1 §17.3.2,
+// heterogeneous rPr means heterogeneous runs.
+//
+// This is the gate used by mergeRuns to keep the per-source-run rPr
+// sidecar's run-count aligned with the merged-run count: when source
+// runs carried different rPrChildren, mergeRuns must NOT collapse them
+// into one merged run, otherwise the sidecar count and the merged-run
+// count drift apart and Phase 2's alignment guard nils the sidecar
+// (regression-free fallback).
+//
+// rPrChildren is compared as an ordered list of (name, xml) pairs.
+// Order matters because parseRunProps preserves the source rPr child
+// order, and upstream RunBuilder also keeps RunProperty order — two
+// runs whose children differ only by ordering are unusual in
+// well-formed WPML but, when they occur, upstream's filteredBy/contains
+// also implicitly respects the property identity so order-equality is
+// a safe overconstraint.
+func (rp runProps) equalIncludingChildren(other runProps) bool {
+	if !rp.equal(other) {
+		return false
+	}
+	if len(rp.rPrChildren) != len(other.rPrChildren) {
+		return false
+	}
+	for i, c := range rp.rPrChildren {
+		oc := other.rPrChildren[i]
+		if c.name != oc.name || c.xml != oc.xml {
+			return false
+		}
+	}
+	return true
 }
 
 // isEmpty returns true if no formatting properties are set.
