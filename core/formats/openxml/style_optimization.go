@@ -152,10 +152,25 @@ type rawParagraph struct {
 // styles.xml has no default paragraph style, fall back to "Normal" —
 // matches Okapi's documentDefaultBased path collapsing onto the
 // document defaults (see WordStyleDefinitions.java:493-505).
+//
+// hasStylesPart reports whether the source ZIP includes a
+// word/styles.xml part. When it does NOT, WSO still runs but cannot
+// synthesise a styleId — upstream Okapi instantiates
+// StyleDefinitions.Empty for the missing part
+// (WordDocument.java:115-119, StyleDefinitions.java:39-93), whose
+// place(parentId, …) is a no-op and whose placedId() returns null.
+// The optimiser still inserts a <w:pStyle> element into the
+// paragraph's pPr (and strips common rPr props from each run), but
+// the w:val attribute is empty — there is no parent style to base
+// on and no styles.xml to append a synthesised <w:style> to. Per
+// ECMA-376-1 §17.7.4, when no styles part is present no style
+// hierarchy exists; the empty-val pStyle is upstream's surfaced
+// form of "synthesis ran but produced no id."
 func optimizeWMLPart(
 	src []byte,
 	existingStyleIDs map[string]bool,
 	defaultParagraphStyleID string,
+	hasStylesPart bool,
 	idCounter *int,
 	synthesised map[string]synthesisedStyle,
 	orderedIDs *[]string,
@@ -179,7 +194,7 @@ func optimizeWMLPart(
 		out.Write(src[cursor:para.start])
 		rewritten := optimizeParagraph(
 			src[para.start:para.end],
-			existingStyleIDs, defaultParagraphStyleID, idCounter, synthesised, orderedIDs,
+			existingStyleIDs, defaultParagraphStyleID, hasStylesPart, idCounter, synthesised, orderedIDs,
 		)
 		out.Write(rewritten)
 		cursor = para.end
@@ -286,6 +301,7 @@ func optimizeParagraph(
 	src []byte,
 	existingStyleIDs map[string]bool,
 	defaultParagraphStyleID string,
+	hasStylesPart bool,
 	idCounter *int,
 	synthesised map[string]synthesisedStyle,
 	orderedIDs *[]string,
@@ -428,29 +444,42 @@ func optimizeParagraph(
 		}
 	}
 	commonRPrXML := buildRPrXML(commonForStyle)
-	matchedID := findMatchingStyle(parentID, commonRPrXML, synthesised, *orderedIDs)
-	if matchedID == "" {
-		// Generate a fresh id "NF974E24F-<parentID><N>" using the
-		// SHARED IdGenerator counter — see the optimizeWMLPart doc
-		// comment for the upstream contract. The do/while in
-		// WordStyleDefinitions.Ids.parentBasedGenerated keeps ticking
-		// the shared counter until an id not already in
-		// stylesByStyleIds is produced.
-		for {
-			*idCounter++
-			candidate := fmt.Sprintf("%s-%s%d", styleHashRoot, parentID, *idCounter)
-			if !existingStyleIDs[candidate] {
-				matchedID = candidate
-				break
+	var matchedID string
+	if !hasStylesPart {
+		// No word/styles.xml in the source → upstream uses
+		// StyleDefinitions.Empty whose place() is a no-op and whose
+		// placedId() returns null (StyleDefinitions.java:53-59). The
+		// run-strip + pPr-pStyle insertion still happens, but the
+		// pStyle's w:val is empty and no <w:style> is accumulated
+		// (there is no styles.xml to inject it into). Per ECMA-376-1
+		// §17.7.4: no style hierarchy exists when the styles part is
+		// absent.
+		matchedID = ""
+	} else {
+		matchedID = findMatchingStyle(parentID, commonRPrXML, synthesised, *orderedIDs)
+		if matchedID == "" {
+			// Generate a fresh id "NF974E24F-<parentID><N>" using the
+			// SHARED IdGenerator counter — see the optimizeWMLPart doc
+			// comment for the upstream contract. The do/while in
+			// WordStyleDefinitions.Ids.parentBasedGenerated keeps ticking
+			// the shared counter until an id not already in
+			// stylesByStyleIds is produced.
+			for {
+				*idCounter++
+				candidate := fmt.Sprintf("%s-%s%d", styleHashRoot, parentID, *idCounter)
+				if !existingStyleIDs[candidate] {
+					matchedID = candidate
+					break
+				}
 			}
+			synthesised[matchedID] = synthesisedStyle{
+				id:       matchedID,
+				parentID: parentID,
+				rPrXML:   commonRPrXML,
+			}
+			*orderedIDs = append(*orderedIDs, matchedID)
+			existingStyleIDs[matchedID] = true
 		}
-		synthesised[matchedID] = synthesisedStyle{
-			id:       matchedID,
-			parentID: parentID,
-			rPrXML:   commonRPrXML,
-		}
-		*orderedIDs = append(*orderedIDs, matchedID)
-		existingStyleIDs[matchedID] = true
 	}
 
 	// Rewrite paragraph: insert pStyle into pPr (or create pPr) and

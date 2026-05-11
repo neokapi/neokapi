@@ -594,6 +594,20 @@ func (w *Writer) writeFromSkeleton(origZR *zip.Reader, zw *zip.Writer, buf *byte
 		existingIDs             map[string]bool
 		defaultParagraphStyleID string
 		pendingStyles           map[string]pendingStylesEntry
+		// hasStylesPart records whether word/styles.xml exists in the
+		// source ZIP. When it does NOT, upstream Okapi instantiates
+		// `StyleDefinitions.Empty` for the missing styles part
+		// (WordDocument.java:115-119, calling styleDefinitions(EMPTY)
+		// → new StyleDefinitions.Empty()). The optimiser still runs —
+		// inserting <w:pStyle> in pPr and stripping common rPr props
+		// from runs — but Empty.place(…) is a no-op and Empty.placedId()
+		// returns null (StyleDefinitions.java:53-59), so the inserted
+		// pStyle carries an empty w:val and no <w:style> is appended to
+		// a styles part (none exists to append to). Per ECMA-376-1
+		// §17.7.4, when no styles part is present no style hierarchy
+		// exists; the empty-val pStyle is upstream's surfaced form of
+		// "synthesis ran but produced no id."
+		hasStylesPart bool
 	)
 	if isDOCX && w.cfg.OptimiseWordStyles {
 		synthesised = make(map[string]synthesisedStyle)
@@ -605,6 +619,7 @@ func (w *Writer) writeFromSkeleton(origZR *zip.Reader, zw *zip.Writer, buf *byte
 		// (WordStyleDefinitions.java:485-491).
 		for _, f := range origZR.File {
 			if f.Name == "word/styles.xml" {
+				hasStylesPart = true
 				data, err := readZipFile(f)
 				if err == nil {
 					existingIDs = extractExistingStyleIDs(data)
@@ -709,7 +724,7 @@ func (w *Writer) writeFromSkeleton(origZR *zip.Reader, zw *zip.Writer, buf *byte
 				continue
 			}
 			data = postNonWSOForName(data)
-			data = optimizeWMLPart(data, existingIDs, defaultParagraphStyleID, &idCounter, synthesised, &orderedIDs)
+			data = optimizeWMLPart(data, existingIDs, defaultParagraphStyleID, hasStylesPart, &idCounter, synthesised, &orderedIDs)
 			wsoOptimised[name] = data
 		}
 	}

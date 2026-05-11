@@ -40,7 +40,7 @@ func TestOptimizeWMLPart_MultipleRunsCommonProps(t *testing.T) {
 	var counter int
 	syn := map[string]synthesisedStyle{}
 	var ids []string
-	got := optimizeWMLPart(src, existing, "", &counter, syn, &ids)
+	got := optimizeWMLPart(src, existing, "", true, &counter, syn, &ids)
 	assert.Contains(t, string(got), "NF974E24F-Normal1")
 	assert.Len(t, ids, 1)
 }
@@ -58,7 +58,7 @@ func TestOptimizeWMLPart_SingleRun_Optimised(t *testing.T) {
 	var counter int
 	syn := map[string]synthesisedStyle{}
 	var ids []string
-	got := optimizeWMLPart(src, existing, "", &counter, syn, &ids)
+	got := optimizeWMLPart(src, existing, "", true, &counter, syn, &ids)
 	assert.Contains(t, string(got), "NF974E24F-Normal1")
 	assert.Len(t, ids, 1)
 }
@@ -74,7 +74,7 @@ func TestOptimizeWMLPart_SingleRun_RStyle_Bypassed(t *testing.T) {
 	var counter int
 	syn := map[string]synthesisedStyle{}
 	var ids []string
-	got := optimizeWMLPart(src, existing, "", &counter, syn, &ids)
+	got := optimizeWMLPart(src, existing, "", true, &counter, syn, &ids)
 	assert.NotContains(t, string(got), "NF974E24F")
 	assert.Len(t, ids, 0)
 	// Bypass keeps rStyle on the run.
@@ -138,7 +138,7 @@ func TestOptimizeWMLPart_SingleRun_Vanish_Bypassed(t *testing.T) {
 	var counter int
 	syn := map[string]synthesisedStyle{}
 	var ids []string
-	got := optimizeWMLPart(src, existing, "", &counter, syn, &ids)
+	got := optimizeWMLPart(src, existing, "", true, &counter, syn, &ids)
 	assert.NotContains(t, string(got), "NF974E24F")
 	assert.Len(t, ids, 0)
 	assert.Contains(t, string(got), `<w:vanish/>`)
@@ -331,7 +331,7 @@ func TestOptimizeWMLPart_HeterogeneousRFontsLiftedToStyle(t *testing.T) {
 	var counter int
 	syn := map[string]synthesisedStyle{}
 	var ids []string
-	got := optimizeWMLPart(src, existing, "", &counter, syn, &ids)
+	got := optimizeWMLPart(src, existing, "", true, &counter, syn, &ids)
 	require.Len(t, ids, 1, "one synthesised style expected")
 	s := syn[ids[0]]
 	assert.Contains(t, s.rPrXML, "rFonts", "synthesised style must include common rFonts")
@@ -362,7 +362,7 @@ func TestOptimizeWMLPart_MixedSelfClosingAndOpenForms_NormalisedToCommon(t *test
 	var counter int
 	syn := map[string]synthesisedStyle{}
 	var ids []string
-	got := optimizeWMLPart(src, existing, "", &counter, syn, &ids)
+	got := optimizeWMLPart(src, existing, "", true, &counter, syn, &ids)
 	require.Len(t, ids, 1, "the common sz=14 must lift into a synthesised style")
 	s := syn[ids[0]]
 	assert.Equal(t, `<w:sz w:val="14"/>`, s.rPrXML)
@@ -384,7 +384,7 @@ func TestOptimizeWMLPart_UnknownPStyleFallsBackToNormal(t *testing.T) {
 	var counter int
 	syn := map[string]synthesisedStyle{}
 	var ids []string
-	got := optimizeWMLPart(src, existing, "", &counter, syn, &ids)
+	got := optimizeWMLPart(src, existing, "", true, &counter, syn, &ids)
 	require.Len(t, ids, 1)
 	s := syn[ids[0]]
 	assert.Equal(t, "Normal", s.parentID, "unknown parent must collapse to Normal")
@@ -410,8 +410,8 @@ func TestOptimizeWMLPart_SharedCounter_AcrossParts(t *testing.T) {
 	var counter int
 	syn := map[string]synthesisedStyle{}
 	var ids []string
-	_ = optimizeWMLPart(docPart, existing, "", &counter, syn, &ids)
-	_ = optimizeWMLPart(footerPart, existing, "", &counter, syn, &ids)
+	_ = optimizeWMLPart(docPart, existing, "", true, &counter, syn, &ids)
+	_ = optimizeWMLPart(footerPart, existing, "", true, &counter, syn, &ids)
 	require.Len(t, ids, 2, "one synthesised style per part")
 	assert.Equal(t, "NF974E24F-Normal1", ids[0])
 	assert.Equal(t, "NF974E24F-Footer2", ids[1], "shared counter must increment across parts")
