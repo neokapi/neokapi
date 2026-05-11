@@ -14,26 +14,29 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 )
 
-// wmlStrippableElementRE matches WordprocessingML elements that the
-// okapi reference filter strips during round-trip:
-//   - <w:lang .../>          (run-property language, also paragraph-rPr)
-//   - <w:bidiVisual .../>    (paragraph-property right-to-left visual hint)
+// wmlLangElementRE matches the WordprocessingML <w:lang> element in
+// both self-closing (`<w:lang .../>`) and open/close (`<w:lang ...>
+// </w:lang>`) forms. Source documents almost always self-close this
+// element, but the encoding/xml-driven reader/skeleton path can
+// re-emit it in open/close form, in which case the self-closing-only
+// regex would silently fail to strip it.
 //
-// Both live under <w:rPr>/<w:pPr> and are skipped by okapi's
-// SkippableElements.Default(BLOCK_PROPERTY_BIDI_VISUAL,
-// RUN_PROPERTY_LANGUAGE) wired into BlockPropertiesFactory and
-// WordStyleDefinition.DocumentDefaults; preserving them in pass-through
-// XML parts is the dominant openxml writer parity gap.
-//
-// Both self-closing (`<w:lang .../>`) and open/close (`<w:lang ...></w:lang>`)
-// forms are matched. Source documents almost always self-close these
-// elements, but the encoding/xml-driven reader/skeleton path can re-emit
-// them in open/close form, in which case the self-closing-only regex
-// would silently fail to strip them.
-var wmlStrippableElementRE = regexp.MustCompile(
+// <w:lang> is stripped by upstream Okapi's RunSkippableElements
+// (lines 50-62 of RunSkippableElements.java) keyed on the
+// TRANSITIONAL WPML namespace QName — see stripWMLSkippableElements
+// for the Strict-OOXML gate that mirrors upstream's QName semantics.
+var wmlLangElementRE = regexp.MustCompile(
 	`<w:lang\b[^>]*/>` +
-		`|<w:lang\b[^>]*></w:lang>` +
-		`|<w:bidiVisual\b[^>]*/>` +
+		`|<w:lang\b[^>]*></w:lang>`,
+)
+
+// wmlBidiVisualElementRE matches the WordprocessingML <w:bidiVisual>
+// paragraph-property element (RTL visual hint, ECMA-376-1 §17.3.1.7)
+// in both forms. Stripped unconditionally by upstream Okapi's
+// BlockPropertiesFactory via SkippableElements.Default
+// (BLOCK_PROPERTY_BIDI_VISUAL).
+var wmlBidiVisualElementRE = regexp.MustCompile(
+	`<w:bidiVisual\b[^>]*/>` +
 		`|<w:bidiVisual\b[^>]*></w:bidiVisual>`,
 )
 
@@ -231,9 +234,33 @@ func stripBalancedElement(data []byte, name string) []byte {
 // XML part to mirror okapi's BlockProperties/RunProperties,
 // RevisionCrossStructure, and RevisionProperty stripping. Returns the
 // original slice if nothing was matched (cheap fast paths).
+//
+// <w:lang> stripping is gated on the document's WordprocessingML
+// namespace URI. Upstream Okapi's RunSkippableElements identifies lang
+// by QName — Namespaces.WordProcessingML.getQName("lang") — keyed on
+// the TRANSITIONAL WPML URI ("http://schemas.openxmlformats.org/
+// wordprocessingml/2006/main", Namespaces.java:26). For Strict OOXML
+// documents using "http://purl.oclc.org/ooxml/wordprocessingml/main"
+// (858.docx — Word's "Save As → Strict Open XML Document" output),
+// the QName does NOT match — the SkippableElements.Default contains
+// check at SkippableElements.java:122 returns false — so upstream
+// PRESERVES <w:lang> through round-trip. The reference output for
+// 858.docx keeps <w:lang> in the paragraph mark rPr (inside pPr) AND
+// in the WSO-synthesised paragraph style's rPr.
+//
+// Native mirrors this: when the document binds the "w" prefix to the
+// strict URI, the lang strip is skipped. Both prefix and URI are
+// observed in the part itself — the writer doesn't track which doc
+// the part came from, but every WPML XML part declares the prefix
+// binding on its root element. ECMA-376 Part 1 §A.1 / ISO/IEC 29500-1
+// §A.1 (the two URIs).
 func stripWMLSkippableElements(data []byte) []byte {
-	if bytes.Contains(data, []byte("<w:lang")) || bytes.Contains(data, []byte("<w:bidiVisual")) {
-		data = wmlStrippableElementRE.ReplaceAll(data, nil)
+	stripLang := !bytes.Contains(data, []byte(wmlStrictNamespace))
+	if stripLang && bytes.Contains(data, []byte("<w:lang")) {
+		data = wmlLangElementRE.ReplaceAll(data, nil)
+	}
+	if bytes.Contains(data, []byte("<w:bidiVisual")) {
+		data = wmlBidiVisualElementRE.ReplaceAll(data, nil)
 	}
 	if bytes.Contains(data, []byte("<w:moveToRange")) || bytes.Contains(data, []byte("<w:moveFromRange")) {
 		data = wmlMoveRangeStrippableElementRE.ReplaceAll(data, nil)
@@ -352,6 +379,19 @@ func shouldRewriteWMLLangVal(name string) bool {
 // caller can avoid recompressing pass-through entries).
 func rewriteWMLLangVal(data []byte, sourceLocale, targetLocale model.LocaleID) []byte {
 	if targetLocale.IsEmpty() {
+		return data
+	}
+	// Strict OOXML namespace: upstream's QName-keyed Property.LANGUAGE
+	// rewrite does NOT match elements bound to the strict URI
+	// "http://purl.oclc.org/ooxml/wordprocessingml/main" — the rewrite
+	// hook lives on ContentFilter (lines 527-537) and only fires when
+	// the openxml filter has classified the element as a
+	// Property.LANGUAGE-carrying WordProcessingML element, which is
+	// QName-keyed by the transitional URI (Namespaces.java:26). 858.docx
+	// reference output keeps <w:lang w:val="en-US"/> through round-trip
+	// even with target=fr, so the native rewrite must also skip strict
+	// parts.
+	if bytes.Contains(data, []byte(wmlStrictNamespace)) {
 		return data
 	}
 	src := primaryLangOf(sourceLocale)

@@ -239,6 +239,16 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 				rels:          relsMap,
 				codeFinder:    cf,
 				styles:        styles,
+				// Detect Strict OOXML conformance by searching the
+				// part bytes for the strict WPML namespace URI.
+				// Every WPML XML part declares the prefix binding on
+				// its root element; a substring scan is sufficient
+				// because the URI is unique to OOXML Strict. Mirrors
+				// upstream Okapi's namespace classification via
+				// Namespaces.WordProcessingML vs
+				// Namespaces.StrictWordProcessingML
+				// (Namespaces.java:26-27).
+				strict: bytes.Contains(partData, []byte(wmlStrictNamespace)),
 			}
 			err = parser.parsePart(partData, partPath, emitBlock, func() {})
 			if err != nil {

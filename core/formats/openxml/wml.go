@@ -104,6 +104,15 @@ type wmlParser struct {
 	rels          map[string]relationship // hyperlink rels for this part
 	codeFinder    *codeFinder             // regex-based inline code detection
 	styles        *styleMap               // resolved style inheritance (nil if not enabled)
+	// strict reports whether the document binds the "w" prefix to the
+	// Strict OOXML namespace (wmlStrictNamespace,
+	// "http://purl.oclc.org/ooxml/wordprocessingml/main"). Used by
+	// raw-rPr re-parse paths (parseRunPropsFromRaw) so that lang
+	// skipping in parseRunProps mirrors upstream Okapi's namespace-
+	// keyed RUN_PROPERTY_LANGUAGE QName check — strict documents
+	// preserve <w:lang> through the round-trip per the QName mismatch
+	// against Namespaces.WordProcessingML (Namespaces.java:26-27).
+	strict bool
 }
 
 // parsePart streams through a WordprocessingML XML part, emitting Blocks.
@@ -1861,7 +1870,7 @@ func (p *wmlParser) parseRunWithFieldState(d *xml.Decoder, cfs *complexFieldStat
 					emitRaw(stripped)
 				}
 				// Re-parse the captured rPr for typed properties.
-				props, err = parseRunPropsFromRaw(rPrRaw, p.cfg.AggressiveCleanup)
+				props, err = parseRunPropsFromRaw(rPrRaw, p.cfg.AggressiveCleanup, p.strict)
 				if err != nil {
 					return nil, err
 				}

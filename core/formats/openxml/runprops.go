@@ -244,7 +244,25 @@ func parseRunProps(d *xml.Decoder, aggressive bool) (runProps, error) {
 			// <w:lang/> would get a synthesised pStyle by the WSO post-pass
 			// even though Okapi keeps the paragraph rPr-less (the lang is
 			// stripped by the writer's stripWMLSkippableElements). #592.
-			if local == "lang" || local == "noProof" || local == "rPrChange" {
+			//
+			// The lang skip is GATED on the transitional WPML namespace.
+			// Upstream's RUN_PROPERTY_LANGUAGE QName binds to
+			// Namespaces.WordProcessingML — the transitional URI
+			// "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+			// (Namespaces.java:26). For Strict OOXML documents using
+			// "http://purl.oclc.org/ooxml/wordprocessingml/main" (e.g.
+			// 858.docx — Word's "Save As → Strict Open XML Document"
+			// output), the QName does NOT match upstream's skippable
+			// set, so <w:lang> is preserved in run rPr. Keeping it in
+			// rPrChildren lets the WSO post-pass lift it into the
+			// synthesised paragraph style — matching the upstream emit
+			// shape for 858.docx where the common run-rPr lang is
+			// promoted into the new <w:style>'s rPr and stripped from
+			// each <w:r><w:rPr>. ECMA-376-1 / ISO/IEC 29500-1 §A.1.
+			if local == "lang" && t.Name.Space != wmlStrictNamespace {
+				skip = true
+			}
+			if local == "noProof" || local == "rPrChange" {
 				skip = true
 			}
 
@@ -547,12 +565,25 @@ func parseRPrChildVal(elemXML string) (string, bool) {
 // that declares the standard WML namespaces so the decoder hydrates
 // the same Name.Space URIs the on-the-fly path produces (compare
 // runprops.go:484 writeStartTag, which keys off prefixForNamespace).
-func parseRunPropsFromRaw(rPrXML string, aggressive bool) (runProps, error) {
-	wrapped := `<root xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"` +
+//
+// The strict parameter selects which WML namespace the "w" prefix is
+// bound to: when true, the bare-"w:" elements re-hydrate into the
+// Strict OOXML URI (Names.Space == wmlStrictNamespace), which the
+// parseRunProps lang-skip gate uses to mirror upstream Okapi's
+// namespace-keyed RUN_PROPERTY_LANGUAGE QName behaviour
+// (Namespaces.java:26-27). Without this, raw-captured rPr from a
+// Strict OOXML document would re-hydrate as transitional WPML and
+// parseRunProps would incorrectly strip <w:lang> from rPrChildren.
+func parseRunPropsFromRaw(rPrXML string, aggressive bool, strict bool) (runProps, error) {
+	wNS := wmlNamespace
+	if strict {
+		wNS = wmlStrictNamespace
+	}
+	wrapped := `<root xmlns:w="` + wNS + `"` +
 		` xmlns:w14="http://schemas.microsoft.com/office/word/2010/wordml"` +
 		` xmlns:w15="http://schemas.microsoft.com/office/word/2012/wordml"` +
 		` xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"` +
-		` xmlns="http://schemas.openxmlformats.org/wordprocessingml/2006/main">` +
+		` xmlns="` + wNS + `">` +
 		rPrXML + `</root>`
 	d := xml.NewDecoder(strings.NewReader(wrapped))
 	// Drain past <root> and the inner <w:rPr> start tag so
@@ -790,6 +821,13 @@ func prefixForNamespace(ns string) string {
 	case "":
 		return ""
 	case "http://schemas.openxmlformats.org/wordprocessingml/2006/main":
+		return "w:"
+	case "http://purl.oclc.org/ooxml/wordprocessingml/main":
+		// Strict OOXML WPML namespace (ISO/IEC 29500-1 §A.1). Same
+		// `w:` prefix as transitional WPML — the writer always emits
+		// the `w:` prefix regardless of which URI the document binds
+		// it to, mirroring upstream Okapi's prefix-preservation
+		// policy on round-trip.
 		return "w:"
 	case "http://schemas.openxmlformats.org/markup-compatibility/2006":
 		return "mc:"
