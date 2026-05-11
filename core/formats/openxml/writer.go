@@ -1385,7 +1385,18 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 				expanded := w.expandDrawingMarkers(r.Ph.Data)
 				buf.WriteString(`<w:r>` + expanded + `</w:r>`)
 			case TypeFootnoteRef:
-				if sourceRPr != "" || runProps != "" {
+				// When the Ph data starts with <w:rPr> the reader
+				// embedded the run-specific rPr (e.g.
+				// <w:rStyle w:val="FootnoteReference"/>) alongside the
+				// marker so the writer keeps the marker inside the same
+				// <w:r> as that rPr — mirrors upstream Okapi RunBuilder
+				// which never splits the marker from its rPr. Per
+				// ECMA-376 Part 1 §17.3.2.1 (CT_R) <w:rPr> precedes the
+				// run's other children, so the embedded fragment is
+				// already in document order.
+				if strings.HasPrefix(r.Ph.Data, `<w:rPr>`) {
+					buf.WriteString(`<w:r>` + r.Ph.Data + `</w:r>`)
+				} else if sourceRPr != "" || runProps != "" {
 					buf.WriteString(`<w:r>`)
 					emitNonTextRPr()
 					buf.WriteString(r.Ph.Data + `</w:r>`)

@@ -1975,6 +1975,19 @@ func (p *wmlParser) parseRunWithFieldState(d *xml.Decoder, cfs *complexFieldStat
 				runs = append(runs, textRun{text: "\uE101", props: props, data: raw})
 
 			case "footnoteReference", "endnoteReference":
+				// Call-site marker (in document.xml). The containing
+				// <w:r> may carry its own rPr (e.g.
+				// <w:rStyle w:val="FootnoteReference"/>); upstream
+				// Okapi keeps the marker inside the same <w:r> as that
+				// rPr so the rStyle applies to the note number. ECMA-376
+				// Part 1 \u00A717.11.13 (CT_FtnEdnRef) plus \u00A717.3.2.1
+				// (CT_R: rPr precedes children). Capture the full
+				// <w:r>...</w:r> verbatim via the field-markup machinery
+				// so the writer emits the run with its rPr intact, just
+				// like the back-reference case below. The previous Ph
+				// path (TypeFootnoteRef) dropped the run-specific rPr
+				// because it only consulted the paragraph-wide
+				// sourceRPr fallback.
 				noteID := attrVal(t, "id")
 				if rawCaptured {
 					rawBuf.WriteString("<")
@@ -1988,7 +2001,39 @@ func (p *wmlParser) parseRunWithFieldState(d *xml.Decoder, cfs *complexFieldStat
 					}
 					rawBuf.WriteString("/>")
 				}
-				runs = append(runs, textRun{text: "\uE102:" + noteID, props: props}) // footnote sentinel
+				// Encode the element kind into the sentinel so the writer
+				// emits the correct marker (footnoteReference vs
+				// endnoteReference). Default to "f" for back-compat with
+				// any legacy callers that don't tag the sentinel.
+				kind := "f"
+				if t.Name.Local == "endnoteReference" {
+					kind = "e"
+				}
+				runs = append(runs, textRun{text: "\uE102:" + kind + ":" + noteID, props: props}) // footnote/endnote sentinel
+				if err := skipElement(d); err != nil {
+					return nil, err
+				}
+
+			case "footnoteRef", "endnoteRef":
+				// Back-reference element appearing inside footnote/endnote
+				// body paragraphs (e.g. <w:footnote w:id="1"><w:p>
+				// <w:r><w:rPr><w:rStyle w:val="FootnoteReference"/></w:rPr>
+				// <w:footnoteRef/></w:r>...</w:p></w:footnote>). ECMA-376
+				// Part 1 \u00A717.11.13 (CT_FtnEdnRef) / \u00A717.11.6: child of
+				// <w:r>, no attributes, sibling to the run's <w:rPr>.
+				// Upstream Okapi's RunBuilder treats it as markup that
+				// stays in the same <w:r> as its rPr (RunBuilder.java
+				// addToMarkup path + noteReferencePresent flag) \u2014 the
+				// containing run is opaque (no translatable text). We
+				// reuse the field-markup capture machinery so the whole
+				// <w:r>...</w:r> is preserved verbatim, which carries the
+				// rPr inside the same <w:r> per the schema.
+				elemName := t.Name.Local
+				startRawCapture()
+				hasFieldMarkup = true
+				rawBuf.WriteString("<w:")
+				rawBuf.WriteString(elemName)
+				rawBuf.WriteString("/>")
 				if err := skipElement(d); err != nil {
 					return nil, err
 				}
@@ -2174,6 +2219,24 @@ func (p *wmlParser) wrapHyperlinkRuns(runs []textRun, relID string) []textRun {
 	return result
 }
 
+// serializeRPrChildrenXML returns a `<w:rPr>...</w:rPr>` fragment for
+// the run's non-toggle rPr children (rStyle, color, sz, etc.). Used by
+// the footnote/endnote reference Ph emission so the marker travels with
+// its per-run rPr inside the same <w:r>. Returns "" when the run has no
+// rPrChildren — callers fall back to wrapping the marker in a bare <w:r>.
+func serializeRPrChildrenXML(p runProps) string {
+	if len(p.rPrChildren) == 0 {
+		return ""
+	}
+	var b strings.Builder
+	b.WriteString("<w:rPr>")
+	for _, c := range p.rPrChildren {
+		b.WriteString(c.xml)
+	}
+	b.WriteString("</w:rPr>")
+	return b.String()
+}
+
 // buildBlock builds a model.Block from a list of merged text runs.
 //
 // commonRPrXML is the children-only serialisation of the rPr elements
@@ -2225,12 +2288,34 @@ func (p *wmlParser) buildBlock(id string, runs []textRun, partPath, commonRPrXML
 			continue
 		}
 		if strings.HasPrefix(run.text, "\uE102:") {
-			// Footnote/endnote reference
-			noteID := strings.TrimPrefix(run.text, "\uE102:")
+			// Footnote/endnote reference. The per-run rPr children
+			// (e.g. <w:rStyle w:val="FootnoteReference"/>) travel
+			// alongside the marker so the writer can emit the marker
+			// inside a <w:r> that carries that rPr \u2014 matching upstream
+			// Okapi RunBuilder which keeps the marker inside the same
+			// <w:r> as its rPr (ECMA-376 Part 1 \u00A717.3.2.1: CT_R requires
+			// rPr to precede children).
+			// The sentinel may tag the element kind ("f" for
+			// footnoteReference, "e" for endnoteReference). Older
+			// callers emit the untagged form ("\uE102:<id>"); treat
+			// those as footnote references for back-compat.
+			rest := strings.TrimPrefix(run.text, "\uE102:")
+			markerElem := "footnoteReference"
+			if strings.HasPrefix(rest, "f:") {
+				rest = strings.TrimPrefix(rest, "f:")
+			} else if strings.HasPrefix(rest, "e:") {
+				rest = strings.TrimPrefix(rest, "e:")
+				markerElem = "endnoteReference"
+			}
+			noteID := rest
 			spanCounter++
+			data := fmt.Sprintf(`<w:%s w:id="%s"/>`, markerElem, noteID)
+			if rPr := serializeRPrChildrenXML(run.props); rPr != "" {
+				data = rPr + data
+			}
 			b.AddPh(fmt.Sprintf("c%d", spanCounter),
 				TypeFootnoteRef, SubTypeFootnoteRef,
-				fmt.Sprintf(`<w:footnoteReference w:id="%s"/>`, noteID),
+				data,
 				"",
 				fmt.Sprintf("[%s]", noteID),
 				false, false, false)
@@ -2700,8 +2785,15 @@ func runToXML(r textRun) string {
 	case r.text == "\n":
 		buf.WriteString("<w:br/>")
 	case strings.HasPrefix(r.text, ":"):
-		noteID := strings.TrimPrefix(r.text, ":")
-		buf.WriteString(fmt.Sprintf(`<w:footnoteReference w:id="%s"/>`, noteID))
+		rest := strings.TrimPrefix(r.text, ":")
+		markerElem := "footnoteReference"
+		if strings.HasPrefix(rest, "f:") {
+			rest = strings.TrimPrefix(rest, "f:")
+		} else if strings.HasPrefix(rest, "e:") {
+			rest = strings.TrimPrefix(rest, "e:")
+			markerElem = "endnoteReference"
+		}
+		buf.WriteString(fmt.Sprintf(`<w:%s w:id="%s"/>`, markerElem, rest))
 	default:
 		buf.WriteString(`<w:t xml:space="preserve">`)
 		buf.WriteString(xmlEscape(r.text))
