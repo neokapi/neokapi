@@ -1081,20 +1081,18 @@ func blockPerRunRPrFragments(block *model.Block) []string {
 	if !ok {
 		return nil
 	}
-	// Strip bCs/iCs toggle-mirror children from per-run fragments
-	// before consumption. Upstream Okapi normalises <w:bCs/> /
-	// <w:iCs/> into the b/i toggle pair and emits only <w:b/> /
-	// <w:i/> on round-trip (see BoldWorld.docx reference output).
-	// Native captures bCs/iCs in rPrChildren for the common-rPr
-	// path (where the intersection collapses them when not present
-	// on every run). Phase 2's per-run path would otherwise leak
-	// them onto runs that ALSO carry the b/i toggle, producing
-	// <w:b/><w:bCs/> where upstream emits <w:b/> alone.
-	stripped := make([]string, len(v))
-	for i, f := range v {
-		stripped[i] = stripToggleMirrorChildren(f)
-	}
-	return dedupeAdjacent(stripped)
+	// The per-run sidecar is returned raw here. The text-aware
+	// bCs/iCs strip — which mirrors upstream Okapi RunParser.java
+	// :219-229 (strip bCs/iCs/szCs when runFonts has no detected
+	// complex-script content categories) — is applied per text
+	// run inside renderWMLBlock where the post-pseudo run text is
+	// known. ContentCategoriesDetection (upstream
+	// ContentCategoriesDetection.java:134-138) classifies runText
+	// against the complex-script Unicode block (U+0590..U+074F
+	// plus a few extensions; see containsComplexScriptText for
+	// the full inventory derived from ECMA-376-1 §17.3.2.16
+	// (bCs) and §17.3.2.17 (iCs)).
+	return dedupeAdjacent(v)
 }
 
 // blockPerRunSrcRunStartFlags extracts the per-text-run "starts new
@@ -1125,9 +1123,21 @@ func blockPerRunSrcRunStartFlags(block *model.Block) []bool {
 // stripToggleMirrorChildren removes <w:bCs/> and <w:iCs/> elements
 // (with or without attributes) from an rPr children-only XML
 // fragment. These are complex-script toggle mirrors that upstream
-// Okapi normalises away on emit; the writer reconstructs the b/i
-// pair from the model's toggle codes (PcOpen/PcClose) anyway, so
-// the per-run sidecar must not re-emit them.
+// Okapi strips at parse time when the run text has NO detected
+// complex-script content categories
+// (okapi/filters/openxml/RunParser.java:219-229 — when
+// !runFonts.containsDetectedComplexScriptContentCategories the
+// RUN_PROPERTY_COMPLEX_SCRIPT_BOLD/ITALICS/FONT_SIZE elements are
+// added to skippableProperties and dropped from the run's rPr).
+//
+// Callers in the per-run sidecar path must gate this on the
+// post-pseudo run text — see containsComplexScriptText. When the
+// text contains complex-script characters, bCs/iCs must be preserved
+// per ECMA-376-1 §17.3.2.16 (CT_OnOff bCs — complex-script bold)
+// and §17.3.2.17 (CT_OnOff iCs — complex-script italics): each is
+// the independent toggle for the complex-script side of the run's
+// font triple, and stripping them when text is complex-script-
+// bearing would drop legitimate formatting (cluster 1200-*).
 func stripToggleMirrorChildren(s string) string {
 	if s == "" {
 		return s
@@ -1136,6 +1146,76 @@ func stripToggleMirrorChildren(s string) string {
 		s = stripWMLElement(s, name)
 	}
 	return s
+}
+
+// containsComplexScriptText reports whether s contains any Unicode
+// code point that upstream Okapi's
+// ContentCategoriesDetection.Default classifies as a complex-script
+// content category (ContentCategoriesDetection.java:71-74,
+// 134-138). The ranges mirror Microsoft's "Office Open XML Themes,
+// Schemes and Fonts" guidance for the complex-script font slot
+// referenced by ECMA-376-1 §17.3.2.16 / .17 / .27.
+//
+// When this returns false for the post-pseudo run text, upstream
+// Okapi strips the complex-script run-property toggle mirrors
+// (bCs/iCs/szCs) at parse time — so the writer must do the same
+// on the per-run sidecar to round-trip byte-equally with the
+// reference.
+//
+// References:
+//   - okapi/filters/openxml/ContentCategoriesDetection.java:71-74,
+//     134-138 — COMPLEX_SCRIPT_CHARACTERS Pattern + detection rule.
+//   - okapi/filters/openxml/RunParser.java:219-229 — skip
+//     bCs/iCs/szCs when no detected CS categories.
+//   - ECMA-376-1 §17.3.2.16 (bCs), §17.3.2.17 (iCs).
+func containsComplexScriptText(s string) bool {
+	for _, r := range s {
+		switch {
+		case r >= 0x0590 && r <= 0x074F: // Hebrew, Arabic, Syriac, …
+			return true
+		case r >= 0x0780 && r <= 0x07BF: // Thaana
+			return true
+		case r >= 0x0900 && r <= 0x109F: // Devanagari … Myanmar
+			return true
+		case r >= 0x1780 && r <= 0x18AF: // Khmer … Mongolian
+			return true
+		case r >= 0x200C && r <= 0x200F: // ZWJ / ZWNJ / LRM / RLM
+			return true
+		case r >= 0x202A && r <= 0x202F: // bidi formatting + NNBSP
+			return true
+		case r >= 0x2670 && r <= 0x2671: // misc symbols
+			return true
+		case r >= 0xFB1D && r <= 0xFB4F: // Hebrew presentation forms
+			return true
+		}
+	}
+	return false
+}
+
+// adjustRPrForRunText returns the per-run rPr fragment with bCs/iCs
+// removed when the run text has no complex-script characters. This
+// mirrors upstream Okapi's parse-time strip
+// (okapi/filters/openxml/RunParser.java:219-229) which removes the
+// complex-script toggle mirrors when
+// !runFonts.containsDetectedComplexScriptContentCategories. We
+// apply it at write time because the post-pseudo run text is what
+// upstream's ContentCategoriesDetection runs against
+// (ContentCategoriesDetection.java:111 — performFor receives the
+// run's effective text).
+//
+// Per ECMA-376-1 §17.3.2.16 (bCs) and §17.3.2.17 (iCs) the
+// complex-script side of the bold / italic toggle pair applies
+// independently to complex-script runs of the run's text. When
+// none of the text classifies as complex-script the toggle mirror
+// is a no-op by definition and gets stripped.
+func adjustRPrForRunText(fragment, text string) string {
+	if fragment == "" {
+		return fragment
+	}
+	if containsComplexScriptText(text) {
+		return fragment
+	}
+	return stripToggleMirrorChildren(fragment)
 }
 
 // stripWMLElement removes every occurrence of <w:NAME ...?/> (self-
@@ -1270,18 +1350,47 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 		perRunSrcStart = nil
 	}
 
+	// textRunTexts holds the post-pseudo text per text-bearing model
+	// run, aligned with the text-run-idx the writer assigns below.
+	// It lets effectiveRPr apply upstream Okapi's parse-time
+	// bCs/iCs strip (okapi/filters/openxml/RunParser.java:219-229)
+	// against the actual run text, rather than blanket-stripping
+	// every occurrence — which would drop legitimate complex-script
+	// formatting on Arabic/Hebrew/… runs (cluster 1200-*; see
+	// PARITY_NOTES.md for the divergence inventory).
+	var textRunTexts []string
+	for _, r := range runs {
+		if r.Text != nil && r.Text.Text != "" {
+			textRunTexts = append(textRunTexts, r.Text.Text)
+		}
+	}
+
 	// effectiveRPr returns the per-run rPr to emit at text-run index
 	// idx (0-based, counting only text-bearing model.Run.Text
 	// emissions). Falls back to sourceRPr when the sidecar is empty
 	// or the slot is absent/empty.
+	//
+	// bCs/iCs are stripped on-the-fly when the corresponding run
+	// text contains no complex-script characters (mirrors upstream
+	// Okapi RunParser.java:219-229 + ContentCategoriesDetection.java
+	// :134-138; ECMA-376-1 §17.3.2.16 / .17). When the text DOES
+	// carry complex-script content, the source's bCs/iCs survive
+	// verbatim — fixing the 1200-* RTL synthesis cluster.
 	effectiveRPr := func(idx int) string {
-		if idx < 0 || idx >= len(perRunRPr) {
-			return sourceRPr
+		var base string
+		if idx < 0 || idx >= len(perRunRPr) || perRunRPr[idx] == "" {
+			base = sourceRPr
+		} else {
+			base = perRunRPr[idx]
 		}
-		if perRunRPr[idx] == "" {
-			return sourceRPr
+		if base == "" {
+			return base
 		}
-		return perRunRPr[idx]
+		var text string
+		if idx >= 0 && idx < len(textRunTexts) {
+			text = textRunTexts[idx]
+		}
+		return adjustRPrForRunText(base, text)
 	}
 
 	// textSrcStart returns true iff the text-run at idx began a fresh

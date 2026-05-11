@@ -941,26 +941,61 @@ func stripToggleMirrorsFromCommon(props []runProp, rtl bool) []runProp {
 	if len(props) == 0 {
 		return props
 	}
+	// Pre-scan: bCs/iCs may already be present in the common props
+	// when the writer's per-run sidecar preserved them for complex-
+	// script-bearing runs (writer.go adjustRPrForRunText keeps the
+	// mirror toggle when run text matches the Okapi complex-script
+	// pattern — see ContentCategoriesDetection.java:134-138, ECMA-
+	// 376-1 §17.3.2.16 / .17). When that's the case AND the
+	// paragraph is RTL, the b→bCs / i→iCs rename below must be
+	// SUPPRESSED — otherwise the synthesised style emits a duplicate
+	// `<w:bCs/>` (one preserved, one renamed) and a duplicate
+	// `<w:iCs/>`. The reference emits a single bCs and iCs per
+	// instance (mirrors upstream Okapi RunPropertyFactory.java
+	// :201-222 which treats the WpmlToggleRunProperty set as a
+	// singleton per property name; ECMA-376-1 §17.3.2 toggle
+	// elements appear at most once per <w:rPr>).
+	hasBCs := false
+	hasICs := false
+	for _, p := range props {
+		switch p.name {
+		case "bCs":
+			hasBCs = true
+		case "iCs":
+			hasICs = true
+		}
+	}
 	out := make([]runProp, 0, len(props))
 	for _, p := range props {
 		switch p.name {
 		case "bCs", "iCs":
-			// bCs/iCs in common is unusual (writer.go:1028-1041 strips
-			// them from per-run rPr before WSO). If one does survive
-			// here, it has no LTR meaning, so it stays only when the
-			// common is RTL.
+			// Keep bCs/iCs only on RTL paragraphs; on LTR they have
+			// no rendering effect and stripping matches upstream
+			// (952-3.docx / TestDako2.docx reference).
 			if rtl {
 				out = append(out, p)
 			}
 		case "b":
 			if rtl {
-				out = append(out, runProp{name: "bCs", xml: "<w:bCs/>"})
+				// Rename b→bCs only when bCs is not already present
+				// in the common — otherwise the synthesised style
+				// would emit a duplicate `<w:bCs/>`. Dropping `b`
+				// when bCs is present is correct: the paragraph's
+				// runs are complex-script (rtl=true) and the
+				// preserved bCs covers the bold toggle for that
+				// text per ECMA-376-1 §17.3.2.16. 947-cs.docx is
+				// the canonical fixture.
+				if !hasBCs {
+					out = append(out, runProp{name: "bCs", xml: "<w:bCs/>"})
+				}
 			} else {
 				out = append(out, p)
 			}
 		case "i":
 			if rtl {
-				out = append(out, runProp{name: "iCs", xml: "<w:iCs/>"})
+				if !hasICs {
+					out = append(out, runProp{name: "iCs", xml: "<w:iCs/>"})
+				}
 			} else {
 				out = append(out, p)
 			}
