@@ -1009,3 +1009,130 @@ func TestNestedTableRowDeletion(t *testing.T) {
 	require.NotNil(t, runs[0].Text)
 	assert.Equal(t, "nested-kept", runs[0].Text.Text)
 }
+
+// TestMoveFromRowAutoAccept verifies that <w:tr> rows whose content
+// carries a <w:moveFrom> revision-tracking wrapper (ECMA-376 Part 1
+// §17.13.5.17 Move From Run Content) are dropped entirely when
+// AutomaticallyAcceptRevisions is true. Mirrors upstream Okapi
+// MoveFromRevisionCrossStructure (lines 371-450 of SkippableElements.java)
+// + StyledTextPart row removal at lines 299-305 of StyledTextPart.java.
+func TestMoveFromRowAutoAccept(t *testing.T) {
+	docXML := `<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">` +
+		`<w:body>` +
+		`<w:tbl>` +
+		// Row 1: kept, plain content.
+		`<w:tr>` +
+		`<w:tc><w:p><w:r><w:t>kept</w:t></w:r></w:p></w:tc>` +
+		`</w:tr>` +
+		// Row 2: every cell's paragraph contents are wrapped in <w:moveFrom>.
+		`<w:tr>` +
+		`<w:tc><w:p>` +
+		`<w:moveFromRangeStart w:id="0" w:author="U" w:date="2026-05-10T00:00:00Z" w:name="m1"/>` +
+		`<w:moveFrom w:id="1" w:author="U" w:date="2026-05-10T00:00:00Z">` +
+		`<w:r><w:t>moved-from</w:t></w:r>` +
+		`</w:moveFrom>` +
+		`</w:p></w:tc>` +
+		`<w:tc><w:p>` +
+		`<w:moveFrom w:id="2" w:author="U" w:date="2026-05-10T00:00:00Z">` +
+		`<w:r><w:t>also-moved</w:t></w:r>` +
+		`</w:moveFrom>` +
+		`<w:moveFromRangeEnd w:id="0"/>` +
+		`</w:p></w:tc>` +
+		`</w:tr>` +
+		`</w:tbl>` +
+		`</w:body></w:document>`
+
+	cfg := &Config{}
+	cfg.Reset()
+	blocks := parseDocXML(t, docXML, cfg)
+
+	// Only the kept row's text becomes a block — moveFrom-row's
+	// translatable content is dropped.
+	require.Len(t, blocks, 1, "moveFrom row's content must not produce a block")
+	runs := blocks[0].Source[0].Runs
+	require.Len(t, runs, 1)
+	require.NotNil(t, runs[0].Text)
+	assert.Equal(t, "kept", runs[0].Text.Text)
+}
+
+// TestMoveFromRowEmptyTableDropped verifies that when every row of a
+// table is a moveFrom row (so all rows are dropped by
+// dropMoveFromTableRows), the now-empty <w:tbl> is also removed by the
+// dropEmptyTables follow-up pass. Mirrors upstream
+// StyledTextPart.process lines 410-424 (the TableEnd branch removes
+// the entire table when no translatable block reached the writer).
+func TestMoveFromRowEmptyTableDropped(t *testing.T) {
+	docXML := `<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">` +
+		`<w:body>` +
+		`<w:p><w:r><w:t>before</w:t></w:r></w:p>` +
+		`<w:tbl>` +
+		`<w:tblGrid><w:gridCol w:w="1000"/></w:tblGrid>` +
+		`<w:tr>` +
+		`<w:tc><w:p>` +
+		`<w:moveFrom w:id="1" w:author="U" w:date="2026-05-10T00:00:00Z">` +
+		`<w:r><w:t>only-moved</w:t></w:r>` +
+		`</w:moveFrom>` +
+		`</w:p></w:tc>` +
+		`</w:tr>` +
+		`</w:tbl>` +
+		`<w:p><w:r><w:t>after</w:t></w:r></w:p>` +
+		`</w:body></w:document>`
+
+	cfg := &Config{}
+	cfg.Reset()
+	blocks := parseDocXML(t, docXML, cfg)
+
+	require.Len(t, blocks, 2, "empty-after-moveFrom table must not emit blocks")
+	assert.Equal(t, "before", blocks[0].Source[0].Runs[0].Text.Text)
+	assert.Equal(t, "after", blocks[1].Source[0].Runs[0].Text.Text)
+}
+
+// TestMoveFromRowDetectorAttributeForms verifies the row-body detector
+// matches the moveFrom wrapper across attribute and self-closing
+// variants while NOT matching the cross-structure range markers
+// <w:moveFromRangeStart> / <w:moveFromRangeEnd> which carry
+// different element local names.
+func TestMoveFromRowDetectorAttributeForms(t *testing.T) {
+	cases := []struct {
+		name string
+		body string
+		want bool
+	}{
+		{
+			name: "moveFrom with attrs",
+			body: `<w:tc><w:p><w:moveFrom w:id="1" w:author="U" w:date="2026-05-10T00:00:00Z"><w:r><w:t>x</w:t></w:r></w:moveFrom></w:p></w:tc>`,
+			want: true,
+		},
+		{
+			name: "moveFrom no attrs (open form)",
+			body: `<w:tc><w:p><w:moveFrom><w:r><w:t>x</w:t></w:r></w:moveFrom></w:p></w:tc>`,
+			want: true,
+		},
+		{
+			name: "only moveFromRangeStart — not the wrapper",
+			body: `<w:tc><w:p><w:moveFromRangeStart w:id="0" w:name="m"/></w:p></w:tc>`,
+			want: false,
+		},
+		{
+			name: "only moveFromRangeEnd — not the wrapper",
+			body: `<w:tc><w:p><w:moveFromRangeEnd w:id="0"/></w:p></w:tc>`,
+			want: false,
+		},
+		{
+			name: "no moveFrom at all",
+			body: `<w:tc><w:p><w:r><w:t>plain</w:t></w:r></w:p></w:tc>`,
+			want: false,
+		},
+		{
+			name: "moveFromRange* alongside moveFrom — the wrapper still triggers",
+			body: `<w:tc><w:p><w:moveFromRangeStart w:id="0" w:name="m"/><w:moveFrom w:id="1"><w:r><w:t>x</w:t></w:r></w:moveFrom></w:p></w:tc>`,
+			want: true,
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := rowBodyHasMoveFromContent([]byte(tc.body))
+			assert.Equal(t, tc.want, got)
+		})
+	}
+}

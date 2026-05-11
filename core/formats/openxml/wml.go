@@ -73,6 +73,37 @@ type wmlParser struct {
 
 // parsePart streams through a WordprocessingML XML part, emitting Blocks.
 func (p *wmlParser) parsePart(data []byte, partPath string, emitBlock func(*model.Block), emitData func()) error {
+	// When AutomaticallyAcceptRevisions is true, pre-process the bytes
+	// to drop any <w:tr>...</w:tr> rows whose content carries a
+	// <w:moveFrom> revision-tracking wrapper (ECMA-376 Part 1 §17.13.5.17).
+	// Mirrors upstream Okapi's MoveFromRevisionCrossStructure +
+	// StyledTextPart.process row-removal path: when a
+	// moveFromRange.skip() crosses a table-row boundary,
+	// extraStructureCrossed() returns LOCAL_TABLE_ROW and
+	// StyledTextPart lines 299-305 invoke
+	// delayedTableMarkup.removeComponentsFromLastWith(LOCAL_TABLE_ROW)
+	// so the row never reaches the writer (SkippableElements.java
+	// lines 371-450; StyledTextPart.java lines 580-593).
+	//
+	// The byte-level pre-pass keeps the streaming parser's hot loop
+	// untouched; the alternative — capturing the row body and
+	// re-decoding to peek at the moveFrom signal — is invasive,
+	// changes namespace resolution semantics for the row's children
+	// (encoding/xml binds prefixes per-decoder, our namespace
+	// registry is global), and breaks raw-payload capture for VML
+	// shapes inside the row. Doing the strip up front sidesteps both.
+	if p.cfg != nil && p.cfg.AutomaticallyAcceptRevisions {
+		data = dropMoveFromTableRows(data)
+		// After moveFrom rows are removed, a table whose every row
+		// was a moveFrom-row becomes structurally empty (only
+		// <w:tblPr>/<w:tblGrid> remain). Upstream Okapi cleans this
+		// up via StyledTextPart.process lines 410-424 (TableEnd
+		// handler): if delayedTableMarkup has no translatable block
+		// for the last <w:tbl>, removeComponentsFromLastWith
+		// (LOCAL_TABLE) drops the entire table. We mirror that
+		// post-pass at the byte level here.
+		data = dropEmptyTables(data)
+	}
 	d := xml.NewDecoder(bytes.NewReader(data))
 
 	for {
@@ -172,6 +203,288 @@ func (p *wmlParser) parsePart(data []byte, partPath string, emitBlock func(*mode
 		}
 	}
 	return nil
+}
+
+// dropMoveFromTableRows removes every <w:tr ...>...</w:tr> region from
+// data whose body contains a <w:moveFrom> revision-tracking content
+// wrapper (ECMA-376 Part 1 §17.13.5.17 Move From Run Content). When
+// AutomaticallyAcceptRevisions is true such a row's translatable
+// content has been moved out — upstream Okapi removes the row markup
+// via MoveFromRevisionCrossStructure (lines 371-450 of okapi/filters/
+// openxml/src/main/java/net/sf/okapi/filters/openxml/SkippableElements.java)
+// tracking tableRowStructureCrossed during the moveFromRange skip,
+// then triggering
+// delayedTableMarkup.removeComponentsFromLastWith(LOCAL_TABLE_ROW)
+// in StyledTextPart (lines 299-305 of StyledTextPart.java).
+//
+// The detector matches <w:moveFrom (with trailing space or `>`) — the
+// content-wrapper form, distinct from <w:moveFromRangeStart and
+// <w:moveFromRangeEnd which never carry inner content. Pre-stripping
+// at the byte level (rather than mid-parse via lookahead) keeps the
+// streaming xml.Decoder loop unchanged and avoids the namespace-
+// resolution issues that arise when re-decoding a captured row body
+// without its document-scoped xmlns declarations.
+//
+// Nested rows (legal per the schema — a <w:tc> may contain another
+// <w:tbl>) are handled correctly by tracking depth on <w:tr balanced
+// open/close pairs.
+func dropMoveFromTableRows(data []byte) []byte {
+	const trOpen = "<w:tr"
+	const trClose = "</w:tr>"
+	const moveFromOpen = "<w:moveFrom" // shared prefix; we disambiguate after
+	if !bytes.Contains(data, []byte(moveFromOpen)) {
+		// Fast path: no moveFrom anywhere in the part, nothing to do.
+		return data
+	}
+	out := make([]byte, 0, len(data))
+	for {
+		// Find the next <w:tr boundary.
+		idx := bytes.Index(data, []byte(trOpen))
+		if idx < 0 {
+			out = append(out, data...)
+			break
+		}
+		// Validate the element-name boundary: next byte must be `>`,
+		// `/`, or whitespace so we don't match `<w:trPr`/`<w:trHeight`.
+		j := idx + len(trOpen)
+		if j >= len(data) {
+			out = append(out, data...)
+			break
+		}
+		b := data[j]
+		if b != '>' && b != '/' && b != ' ' && b != '\t' && b != '\n' && b != '\r' {
+			// Not <w:tr; advance past this position and keep scanning.
+			out = append(out, data[:j+1]...)
+			data = data[j+1:]
+			continue
+		}
+		// Find the end of the <w:tr ...> open tag.
+		k := bytes.IndexByte(data[j:], '>')
+		if k < 0 {
+			out = append(out, data...)
+			break
+		}
+		startEnd := j + k // position of the `>` closing the open tag
+		// Self-closing <w:tr/> form: empty row, never a moveFrom row.
+		if startEnd > 0 && data[startEnd-1] == '/' {
+			out = append(out, data[:startEnd+1]...)
+			data = data[startEnd+1:]
+			continue
+		}
+		// Find the matching </w:tr> respecting nested rows.
+		bodyStart := startEnd + 1
+		depth := 1
+		cursor := bodyStart
+		for depth > 0 {
+			nextOpen := bytes.Index(data[cursor:], []byte(trOpen))
+			nextClose := bytes.Index(data[cursor:], []byte(trClose))
+			if nextClose < 0 {
+				// Unbalanced — bail, append remainder unchanged.
+				out = append(out, data...)
+				return out
+			}
+			// If the next nested <w:tr open beats the next </w:tr> close,
+			// step into it (incrementing depth). Otherwise, step out of
+			// the current row (decrementing depth).
+			if nextOpen >= 0 && nextOpen < nextClose {
+				// Re-validate the nested open's element-name boundary.
+				absOpen := cursor + nextOpen
+				jj := absOpen + len(trOpen)
+				if jj < len(data) {
+					bb := data[jj]
+					if bb == '>' || bb == '/' || bb == ' ' || bb == '\t' || bb == '\n' || bb == '\r' {
+						// Skip past this nested open.
+						kk := bytes.IndexByte(data[jj:], '>')
+						if kk < 0 {
+							out = append(out, data...)
+							return out
+						}
+						nestedOpenEnd := jj + kk
+						if nestedOpenEnd > 0 && data[nestedOpenEnd-1] != '/' {
+							depth++
+						}
+						cursor = nestedOpenEnd + 1
+						continue
+					}
+				}
+				// Misleading prefix (e.g. <w:trPr inside the body).
+				cursor = cursor + nextOpen + len(trOpen)
+				continue
+			}
+			// Step out via the close.
+			cursor = cursor + nextClose + len(trClose)
+			depth--
+		}
+		rowEnd := cursor // one past the last byte of </w:tr>
+		body := data[bodyStart : rowEnd-len(trClose)]
+		if rowBodyHasMoveFromContent(body) {
+			// Drop the entire <w:tr>...</w:tr> region (including the
+			// open and close tags). Skeleton bytes are written via the
+			// streaming pass that follows; removing the bytes here
+			// means the streaming pass simply never sees the row.
+			out = append(out, data[:idx]...)
+			data = data[rowEnd:]
+			continue
+		}
+		// Keep the row verbatim; advance past it.
+		out = append(out, data[:rowEnd]...)
+		data = data[rowEnd:]
+	}
+	return out
+}
+
+// dropEmptyTables removes every <w:tbl ...>...</w:tbl> region from data
+// whose body contains no <w:tr> child element. This complements
+// dropMoveFromTableRows: when every row of a table was wrapped in a
+// moveFrom revision, removing the rows leaves a structurally empty
+// table behind. Upstream Okapi removes these via
+// StyledTextPart.process lines 410-424 (the TableEnd branch): if
+// delayedTableMarkup has accumulated no translatable block since the
+// last <w:tbl>, the entire table-markup component chain is dropped
+// via removeComponentsFromLastWith(LOCAL_TABLE).
+//
+// The pass iterates until fixed-point so that nested tables collapsed
+// by an outer-level removal also disappear (a <w:tc> may contain
+// another <w:tbl>; if that inner table becomes empty after row drops,
+// the outer cell may itself become empty — but cell/row dropping is
+// not addressed here, only the strictly-empty table case Okapi
+// directly handles).
+func dropEmptyTables(data []byte) []byte {
+	const tblOpen = "<w:tbl"
+	const tblClose = "</w:tbl>"
+	if !bytes.Contains(data, []byte(tblOpen)) {
+		return data
+	}
+	out := make([]byte, 0, len(data))
+	for {
+		idx := bytes.Index(data, []byte(tblOpen))
+		if idx < 0 {
+			out = append(out, data...)
+			break
+		}
+		// Validate element-name boundary so we don't match <w:tblPr,
+		// <w:tblGrid, <w:tblBorders, etc.
+		j := idx + len(tblOpen)
+		if j >= len(data) {
+			out = append(out, data...)
+			break
+		}
+		b := data[j]
+		if b != '>' && b != '/' && b != ' ' && b != '\t' && b != '\n' && b != '\r' {
+			out = append(out, data[:j+1]...)
+			data = data[j+1:]
+			continue
+		}
+		k := bytes.IndexByte(data[j:], '>')
+		if k < 0 {
+			out = append(out, data...)
+			break
+		}
+		startEnd := j + k
+		// Self-closing <w:tbl/> is already empty — drop.
+		if startEnd > 0 && data[startEnd-1] == '/' {
+			out = append(out, data[:idx]...)
+			data = data[startEnd+1:]
+			continue
+		}
+		// Find matching </w:tbl> respecting nested tables.
+		bodyStart := startEnd + 1
+		depth := 1
+		cursor := bodyStart
+		for depth > 0 {
+			nextOpen := bytes.Index(data[cursor:], []byte(tblOpen))
+			nextClose := bytes.Index(data[cursor:], []byte(tblClose))
+			if nextClose < 0 {
+				out = append(out, data...)
+				return out
+			}
+			if nextOpen >= 0 && nextOpen < nextClose {
+				absOpen := cursor + nextOpen
+				jj := absOpen + len(tblOpen)
+				if jj < len(data) {
+					bb := data[jj]
+					if bb == '>' || bb == '/' || bb == ' ' || bb == '\t' || bb == '\n' || bb == '\r' {
+						kk := bytes.IndexByte(data[jj:], '>')
+						if kk < 0 {
+							out = append(out, data...)
+							return out
+						}
+						nestedOpenEnd := jj + kk
+						if nestedOpenEnd > 0 && data[nestedOpenEnd-1] != '/' {
+							depth++
+						}
+						cursor = nestedOpenEnd + 1
+						continue
+					}
+				}
+				cursor = cursor + nextOpen + len(tblOpen)
+				continue
+			}
+			cursor = cursor + nextClose + len(tblClose)
+			depth--
+		}
+		tableEnd := cursor
+		body := data[bodyStart : tableEnd-len(tblClose)]
+		if !tableBodyHasRow(body) {
+			// Empty table — drop the whole region.
+			out = append(out, data[:idx]...)
+			data = data[tableEnd:]
+			continue
+		}
+		out = append(out, data[:tableEnd]...)
+		data = data[tableEnd:]
+	}
+	return out
+}
+
+// tableBodyHasRow reports whether the captured table body contains at
+// least one <w:tr> element. The boundary check disambiguates <w:tr from
+// <w:trPr/<w:trHeight/<w:trCantSplit etc.
+func tableBodyHasRow(body []byte) bool {
+	const marker = "<w:tr"
+	cursor := 0
+	for {
+		idx := bytes.Index(body[cursor:], []byte(marker))
+		if idx < 0 {
+			return false
+		}
+		j := cursor + idx + len(marker)
+		if j >= len(body) {
+			return false
+		}
+		b := body[j]
+		if b == '>' || b == '/' || b == ' ' || b == '\t' || b == '\n' || b == '\r' {
+			return true
+		}
+		cursor = j
+	}
+}
+
+// rowBodyHasMoveFromContent reports whether the captured row body
+// contains a <w:moveFrom> revision-tracking content wrapper (ECMA-376
+// Part 1 §17.13.5.17 Move From Run Content). The detector explicitly
+// disambiguates from <w:moveFromRangeStart and <w:moveFromRangeEnd
+// (different element local names) by requiring the next byte after
+// `<w:moveFrom` to be a space (attributes follow) or `>`; the wrapper
+// form always carries id/author/date attributes per the schema.
+func rowBodyHasMoveFromContent(body []byte) bool {
+	const marker = "<w:moveFrom"
+	cursor := 0
+	for {
+		idx := bytes.Index(body[cursor:], []byte(marker))
+		if idx < 0 {
+			return false
+		}
+		j := cursor + idx + len(marker)
+		if j >= len(body) {
+			return false
+		}
+		b := body[j]
+		if b == ' ' || b == '\t' || b == '\n' || b == '\r' || b == '>' {
+			return true
+		}
+		cursor = j
+	}
 }
 
 // handleTableRow processes a <w:tr> start element, deciding whether the
