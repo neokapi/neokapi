@@ -61,6 +61,25 @@ the Char elision itself (1187_crlf is now byte-equal — see Cluster Q):
     bridge produces `\n` in the output -- bridge-side quirk unrelated to
     Char clusters.
 
+### Cluster R — multi-ParaLine merge with `<ElementEnd>` preservation (RESOLVED — 1 fixture)
+
+**Was Affecting**: `TestParaLines.mif`. **Now**: byte-equal.
+
+**Resolution**: When a Para has multiple non-empty ParaLines and the
+second ParaLine carries `<ElementEnd ...>` (or other structure-tag
+markers) between its `<String>` and `> # end of ParaLine`, the existing
+multi-ParaLine merge elision dropped those markers along with the
+wrapper bytes. `findStringPositions` now detects `<ElementEnd>` lines
+inside the proposed elision range (`hasElementEndLine`) and shifts the
+boundary to drop the FIRST close instead of the second — making the
+second close the surviving close — then carves the `<ElementEnd>` line
+out of the elision (`splitElisionPreservingElementEnd`). This mirrors
+okapi `MIFFilter.processPara`'s "default: skip over" branch
+(MIFFilter.java:1044-1066, 1145-1153) which appends non-extracted
+statements to `paraCodeBuf`, preserving them in source order. Per the
+MIF Reference §"Element Statements", `<ElementEnd>` is a structure-tag
+boundary that must survive ParaLine collapse.
+
 ### Cluster Q — empty multi-ParaLine collapse (RESOLVED — 1 fixture)
 
 **Was Affecting**: `1187_crlf.mif`. **Now**: byte-equal.

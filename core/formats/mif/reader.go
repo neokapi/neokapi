@@ -997,10 +997,48 @@ func (r *Reader) findStringPositions(rawText string, stmts []*mifStatement) ([]s
 							eraseEnd++
 						}
 						if eraseEnd > eraseStart {
-							elisions = append(elisions, elisionRange{
-								startOffset: eraseStart,
-								endOffset:   eraseEnd,
-							})
+							// If the elision range contains any
+							// `<ElementEnd ...>` lines, those structure-
+							// tag boundaries must survive the merge
+							// (mirrors okapi MIFFilter.processPara
+							// MIFFilter.java:1044-1066 + 1145-1153 where
+							// non-extracted statements between Strings
+							// fall through "default: skip over" and
+							// accumulate in paraCodeBuf -- per MIF
+							// Reference §"Element Statements",
+							// `<ElementEnd>` is a structure-tag boundary
+							// that must not be silently dropped during
+							// ParaLine collapse).
+							//
+							// Per okapi's per-line emission order, the
+							// preserved `<ElementEnd>` lines must sit
+							// BEFORE the surviving ParaLine close. To
+							// achieve that, we shift the elision boundary
+							// to drop the FIRST close instead of the
+							// second: the second close becomes the
+							// surviving close and any preserved
+							// `<ElementEnd>` lines naturally precede it.
+							if hasElementEndLine(rawText, eraseStart, eraseEnd) {
+								// Walk eraseStart back to the START of
+								// the first close line so the first
+								// close is now part of the elision.
+								firstCloseLineStart := eraseStart - 1 // step onto the \n
+								for firstCloseLineStart > 0 && rawText[firstCloseLineStart-1] != '\n' {
+									firstCloseLineStart--
+								}
+								// Walk eraseEnd back to the START of the
+								// second close line so the second close
+								// survives the elision.
+								secondCloseLineStart := eraseEnd - 1
+								for secondCloseLineStart > 0 && rawText[secondCloseLineStart-1] != '\n' {
+									secondCloseLineStart--
+								}
+								if firstCloseLineStart < secondCloseLineStart {
+									eraseStart = firstCloseLineStart
+									eraseEnd = secondCloseLineStart
+								}
+							}
+							elisions = append(elisions, splitElisionPreservingElementEnd(rawText, eraseStart, eraseEnd)...)
 						}
 					}
 				} else {
@@ -1170,6 +1208,118 @@ func (r *Reader) findStringPositions(rawText string, stmts []*mifStatement) ([]s
 	collapseEmptyMultiParaLines(rawText, &elisions)
 
 	return refs, elisions, rewrites
+}
+
+// hasElementEndLine reports whether rawText[start:end) contains at least
+// one `<ElementEnd ...>` statement at the start of its physical line
+// (i.e. preceded only by indent whitespace then a newline). Used to
+// decide whether the multi-ParaLine merge needs to preserve structure-
+// tag markers (per MIF Reference §"Element Statements").
+func hasElementEndLine(rawText string, start, end int) bool {
+	const tag = "<ElementEnd "
+	if start < 0 || end > len(rawText) || start >= end {
+		return false
+	}
+	scan := start
+	for scan < end {
+		idx := strings.Index(rawText[scan:end], tag)
+		if idx < 0 {
+			return false
+		}
+		abs := scan + idx
+		// Walk back over leading whitespace.
+		ls := abs
+		for ls > start {
+			c := rawText[ls-1]
+			if c == ' ' || c == '\t' {
+				ls--
+				continue
+			}
+			break
+		}
+		if ls == start || rawText[ls-1] == '\n' {
+			return true
+		}
+		scan = abs + len(tag)
+	}
+	return false
+}
+
+// splitElisionPreservingElementEnd returns one or more elision ranges
+// covering [start, end) that skip over (i.e. preserve in the skeleton)
+// every `<ElementEnd ...>` line that falls within the input range. The
+// returned ranges always cover [start, end) minus the bytes spanning each
+// preserved `<ElementEnd>` physical line (its leading indent through the
+// trailing newline). When no `<ElementEnd>` lines are found, the result
+// is a single range identical to [start, end).
+//
+// This mirrors okapi MIFFilter.processPara (MIFFilter.java:1044-1066 +
+// 1145-1153): when collapsing multi-ParaLine paragraphs, non-extracted
+// statements between ParaLines (notably `<ElementBegin>` / `<ElementEnd>`
+// structure tag markers per MIF Reference §"Element Statements") fall
+// through the "default: skip over" branch and accumulate in paraCodeBuf,
+// so they survive into the merged paragraph's output.
+func splitElisionPreservingElementEnd(rawText string, start, end int) []elisionRange {
+	const tag = "<ElementEnd "
+	if start < 0 || end > len(rawText) || start >= end {
+		return nil
+	}
+	var out []elisionRange
+	cursor := start
+	scan := start
+	for scan < end {
+		idx := strings.Index(rawText[scan:end], tag)
+		if idx < 0 {
+			break
+		}
+		abs := scan + idx
+		// Walk back over leading whitespace to find the line start.
+		lineStart := abs
+		for lineStart > start {
+			c := rawText[lineStart-1]
+			if c == ' ' || c == '\t' {
+				lineStart--
+				continue
+			}
+			break
+		}
+		// Require the preceding char (if any) to be a newline, i.e. the
+		// `<ElementEnd>` is at the start of its physical line. Mid-line
+		// occurrences are not safe to split out.
+		if lineStart > start && rawText[lineStart-1] != '\n' {
+			scan = abs + len(tag)
+			continue
+		}
+		// Walk forward to the end of the line (include the trailing \n).
+		lineEnd := abs + len(tag)
+		for lineEnd < end && rawText[lineEnd] != '\n' {
+			lineEnd++
+		}
+		if lineEnd < end && rawText[lineEnd] == '\n' {
+			lineEnd++
+		}
+		// Emit an elision for [cursor, lineStart) -- the preceding chunk
+		// up to (but not including) the preserved ElementEnd line.
+		if lineStart > cursor {
+			out = append(out, elisionRange{startOffset: cursor, endOffset: lineStart})
+		}
+		// Skip the preserved ElementEnd line; advance cursor and scan
+		// past it.
+		cursor = lineEnd
+		scan = lineEnd
+	}
+	if cursor < end {
+		out = append(out, elisionRange{startOffset: cursor, endOffset: end})
+	}
+	if len(out) == 0 {
+		// No content to elide (entire range was preserved). Fall back to
+		// the original range so the caller's invariant (eraseEnd >
+		// eraseStart implies at least one elision) holds for empty
+		// inputs; in practice this branch isn't reached because we only
+		// call this when end > start.
+		return []elisionRange{{startOffset: start, endOffset: end}}
+	}
+	return out
 }
 
 // collapseEmptyMultiParaLines scans rawText for runs of two or more
