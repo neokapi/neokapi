@@ -87,12 +87,40 @@ type textRun struct {
 }
 
 // complexFieldState tracks the state machine for complex field (fldChar) parsing.
+//
+// The effective fields (active, fieldCode, extractable, atResult) describe
+// the INNERMOST currently-open field — they mirror what upstream Okapi's
+// recursive parseComplexField sees at the deepest stack frame. When a
+// nested begin is encountered we push the current frame's
+// (fieldCode, extractable, atResult) snapshot onto outerFrames and reset the
+// effective state for the inner field; on its matching end we pop back to
+// the outer frame so the parent field's extraction policy resumes.
+//
+// Upstream reference: okapi/filters/openxml/.../RunParser.parseComplexField
+// (RunParser.java:461-542) — each recursive invocation owns its own
+// `extractable` / `atComplexFieldResult` locals, so a nested non-extractable
+// field (e.g. TITLE or COMMENTS) cannot leak its result text into the parent
+// HYPERLINK's translatable area.
 type complexFieldState struct {
 	active       bool   // inside a complex field (between begin and end)
 	fieldCode    string // field instruction name (e.g., "HYPERLINK", "TOC")
 	extractable  bool   // whether the field's display text should be extracted
 	atResult     bool   // past the "separate" marker (in display text area)
 	nestingLevel int    // nesting depth for nested complex fields
+
+	// outerFrames preserves enclosing-field state (one frame per open
+	// outer level) so that on inner-field end we can pop back. Mirrors
+	// the per-frame locals of upstream Okapi's recursive
+	// parseComplexField.
+	outerFrames []complexFieldFrame
+}
+
+// complexFieldFrame is the per-level snapshot saved on outerFrames when
+// nesting into an inner complex field.
+type complexFieldFrame struct {
+	fieldCode   string
+	extractable bool
+	atResult    bool
 }
 
 // wmlParser parses WordprocessingML XML parts (document.xml, headers, footers, etc.).
@@ -1909,21 +1937,33 @@ func (p *wmlParser) parseRunWithFieldState(d *xml.Decoder, cfs *complexFieldStat
 					return nil, err
 				}
 				rawBuf.WriteString(fldRaw)
-				// Complex field state machine transition
+				// Complex field state machine transition.
+				//
+				// Nested fields (level > 1) push the parent's state onto
+				// outerFrames so the inner field operates with a fresh
+				// (extractable=false, atResult=false) frame — mirroring
+				// the per-frame locals of upstream Okapi's recursive
+				// parseComplexField (RunParser.java:461-542). On the
+				// matching end we pop the frame so the parent's
+				// extraction policy resumes for any remaining content
+				// inside the parent's result area.
 				fldCharType := attrVal(t, "fldCharType")
 				switch fldCharType {
 				case "begin":
+					if cfs.nestingLevel >= 1 {
+						cfs.outerFrames = append(cfs.outerFrames, complexFieldFrame{
+							fieldCode:   cfs.fieldCode,
+							extractable: cfs.extractable,
+							atResult:    cfs.atResult,
+						})
+					}
 					cfs.nestingLevel++
-					if cfs.nestingLevel == 1 {
-						cfs.active = true
-						cfs.fieldCode = ""
-						cfs.extractable = false
-						cfs.atResult = false
-					}
+					cfs.active = true
+					cfs.fieldCode = ""
+					cfs.extractable = false
+					cfs.atResult = false
 				case "separate":
-					if cfs.nestingLevel == 1 {
-						cfs.atResult = true
-					}
+					cfs.atResult = true
 				case "end":
 					cfs.nestingLevel--
 					if cfs.nestingLevel <= 0 {
@@ -1932,6 +1972,13 @@ func (p *wmlParser) parseRunWithFieldState(d *xml.Decoder, cfs *complexFieldStat
 						cfs.extractable = false
 						cfs.atResult = false
 						cfs.nestingLevel = 0
+						cfs.outerFrames = nil
+					} else if n := len(cfs.outerFrames); n > 0 {
+						top := cfs.outerFrames[n-1]
+						cfs.outerFrames = cfs.outerFrames[:n-1]
+						cfs.fieldCode = top.fieldCode
+						cfs.extractable = top.extractable
+						cfs.atResult = top.atResult
 					}
 				}
 
@@ -1960,7 +2007,11 @@ func (p *wmlParser) parseRunWithFieldState(d *xml.Decoder, cfs *complexFieldStat
 				rawBuf.WriteString("</")
 				writeElementName(&rawBuf, t.Name)
 				rawBuf.WriteString(">")
-				if cfs.active && cfs.nestingLevel == 1 && cfs.fieldCode == "" {
+				// The fieldCode / extractable update applies to whichever
+				// frame is currently innermost — nested fields run with
+				// their own (fieldCode, extractable) per the upstream
+				// recursive parseComplexField semantics.
+				if cfs.active && cfs.fieldCode == "" {
 					cfs.fieldCode = complexFieldCodeName(text)
 					cfs.extractable = p.isExtractableField(cfs.fieldCode)
 				}
