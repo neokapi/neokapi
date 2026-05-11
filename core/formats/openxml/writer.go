@@ -434,6 +434,49 @@ func isExtractableFldCharBeginRun(runs []model.Run, beginIdx int) bool {
 	return false
 }
 
+// isExtractableFldCharEndRun reports whether the TypeField Ph at the
+// given index closes an EXTRACTABLE complex field. Symmetric to
+// isExtractableFldCharBeginRun but scans BACKWARD to find the matching
+// fldChar-begin Ph: when any Text run appears between the begin and
+// end, the field's display text was promoted to translatable text by
+// the reader (extractable). Mirrors upstream Okapi
+// RunParser.parseComplexField (RunParser.java:461-542) where
+// parseContent (line 537) routes display events to RunText only when
+// `extractable && atComplexFieldResult` is true.
+//
+// Used by the writer's fldChar-end + text merge to gate the fusion:
+// for non-extractable fields (e.g. DATE) upstream keeps the field-end
+// run as opaque markup separate from any following translatable text,
+// matching the source's run boundary. Fixture
+// 1083-date-and-hyperlink-instructions.docx is the canonical
+// non-extractable case where merging would diverge from upstream.
+func isExtractableFldCharEndRun(runs []model.Run, endIdx int) bool {
+	depth := 1
+	for j := endIdx - 1; j >= 0; j-- {
+		nr := runs[j]
+		if nr.Text != nil {
+			return true
+		}
+		if nr.Ph == nil || nr.Ph.Type != TypeField {
+			continue
+		}
+		if nr.Ph.SubType == SubTypeFieldSimple {
+			continue
+		}
+		data := nr.Ph.Data
+		switch {
+		case wmlFldCharEndRE.MatchString(data):
+			depth++
+		case wmlFldCharBeginRE.MatchString(data):
+			depth--
+			if depth == 0 {
+				return false
+			}
+		}
+	}
+	return false
+}
+
 // emptyElementOpenCloseRE matches an XML element with an empty body
 // in open/close form (e.g. `<w:b></w:b>` or `<w:i  attr="x"></w:i>`).
 // Used by normaliseRPrChildrenFragment to collapse the open/close
@@ -2305,7 +2348,7 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 				// branch appends `<w:t xml:space="preserve">…</w:t>
 				// </w:r>` inside the still-open run. Fixtures:
 				// 768.docx, 768-2.docx.
-				if info := detectFldCharEndForMerge(r.Ph.Data); info.ok {
+				if info := detectFldCharEndForMerge(r.Ph.Data); info.ok && isExtractableFldCharEndRun(runs, runIdx) {
 					anticipatedRunProps := runProps
 					nextTextAt := -1
 					mergeable := true

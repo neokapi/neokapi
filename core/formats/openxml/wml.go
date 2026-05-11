@@ -1473,6 +1473,33 @@ func (p *wmlParser) parseParagraph(d *xml.Decoder, partPath string, emitBlock fu
 				if err != nil {
 					return err
 				}
+				// When the paragraph sits inside a NON-extractable
+				// complex field's display area (between separate and
+				// end of an unsupported-code field, e.g. DATE), upstream
+				// Okapi captures the entire paragraph as raw markup
+				// inside the field's RunBuilder via parseContent →
+				// runBuilder.addToMarkup (RunParser.java:501-506) so
+				// the source's pPr/rPr structure survives verbatim
+				// regardless of upstream's normal `BlockProperties.
+				// Default.getEvents` empty-collapse rule (BlockProperties.
+				// java:169-172). For extractable fields and ordinary
+				// paragraphs, ParagraphBlockProperties (line 302-304)
+				// emits the inner rPr wrapper unconditionally only when
+				// the wrapping pPr already had non-empty content — an
+				// originally-skippable-only `<w:rPr>` collapses to a
+				// missing wrapper instead. To match the non-extractable
+				// path on round-trip, mark the captured pPr's inner rPr
+				// with the keep-empty marker so the writer's
+				// stripWMLSkippableElements pass leaves it in place even
+				// after lang/noProof stripping. Fixture
+				// 1083-date-and-hyperlink-instructions.docx paragraph 3
+				// is the canonical case: a `<w:pPr><w:rPr><w:lang/>
+				// </w:rPr></w:pPr>` shell inside a DATE field's display
+				// area must round-trip as `<w:pPr><w:rPr></w:rPr>
+				// </w:pPr>`.
+				if cfs.active && !cfs.extractable && cfs.atResult {
+					raw = markPPrInnerRPrKeepEmpty(raw)
+				}
 				paraProps = raw
 				paraStyleID = styleID
 				// Resolve the style chain's rPr-child-name set so
@@ -4684,6 +4711,80 @@ func captureParaProps(d *xml.Decoder, start xml.StartElement) (string, string, e
 	// Extract pStyle value from the raw XML
 	styleID := extractPStyle(raw)
 	return raw, styleID, nil
+}
+
+// pprInnerRPrRE matches a `<w:rPr>...</w:rPr>` (or self-closing
+// `<w:rPr/>`) that is a direct child of `<w:pPr>` and captures the
+// children fragment in submatch 1. Used by markPPrInnerRPrKeepEmpty
+// to inspect/mark the wrapper.
+var pprInnerRPrRE = regexp.MustCompile(`<w:rPr\b[^>]*>([\s\S]*?)</w:rPr>|<w:rPr\b[^>]*/>`)
+
+// pprInnerRPrSkippableRE matches the rPr children that upstream Okapi's
+// RunSkippableElements drops on round-trip (lang/noProof/rPrChange). A
+// `<w:rPr>` inside pPr whose every child is one of these is the
+// candidate for the keep-empty marker — after the writer's strip pass
+// the wrapper would otherwise collapse to a missing pPr/rPr.
+var pprInnerRPrSkippableRE = regexp.MustCompile(
+	`<w:(?:lang|noProof|rPrChange)\b[^>]*/>` +
+		`|<w:(?:lang|noProof|rPrChange)\b[^>]*>[\s\S]*?</w:(?:lang|noProof|rPrChange)>`,
+)
+
+// markPPrInnerRPrKeepEmpty injects fieldRPrKeepEmptyMarker into the
+// FIRST `<w:rPr>` direct child of `<w:pPr>` when that rPr's children
+// are entirely skippable per pprInnerRPrSkippableRE. The marker
+// (an XML comment) prevents the writer's stripWMLSkippableElements
+// fixpoint from collapsing the wrapper, mirroring upstream Okapi's
+// raw-markup capture path for paragraphs inside non-extractable
+// complex fields (parseContent → addToMarkup at RunParser.java:501-506
+// preserves the source structure verbatim, including the
+// post-skippable-strip empty `<w:rPr></w:rPr>`). The marker itself is
+// stripped from the wire by postNonWSOForName, so the final emission
+// carries `<w:rPr></w:rPr>` rather than the comment-bearing
+// intermediate. Only the pPr → rPr direct-child relationship is
+// targeted.
+func markPPrInnerRPrKeepEmpty(raw string) string {
+	if !strings.HasPrefix(strings.TrimLeft(raw, " \t\r\n"), "<w:pPr") {
+		return raw
+	}
+	if !strings.Contains(raw, "<w:rPr") {
+		return raw
+	}
+	loc := pprInnerRPrRE.FindStringIndex(raw)
+	if loc == nil {
+		return raw
+	}
+	// Verify the match sits at depth-2 directly under pPr (no other
+	// element opens between the `<w:pPr ...>` open tag and the
+	// matched `<w:rPr ...>` start).
+	pprStartEnd := strings.Index(raw, ">")
+	if pprStartEnd < 0 || pprStartEnd >= loc[0] {
+		return raw
+	}
+	between := raw[pprStartEnd+1 : loc[0]]
+	if strings.TrimSpace(between) != "" {
+		return raw
+	}
+	sub := pprInnerRPrRE.FindStringSubmatch(raw[loc[0]:loc[1]])
+	if sub == nil {
+		return raw
+	}
+	children := sub[1]
+	residue := pprInnerRPrSkippableRE.ReplaceAllString(children, "")
+	if strings.TrimSpace(residue) != "" {
+		return raw
+	}
+	matched := raw[loc[0]:loc[1]]
+	var replacement string
+	if strings.HasSuffix(matched, "/>") {
+		replacement = "<w:rPr>" + fieldRPrKeepEmptyMarker + "</w:rPr>"
+	} else {
+		closeTagIdx := strings.LastIndex(matched, "</w:rPr>")
+		if closeTagIdx < 0 {
+			return raw
+		}
+		replacement = matched[:closeTagIdx] + fieldRPrKeepEmptyMarker + matched[closeTagIdx:]
+	}
+	return raw[:loc[0]] + replacement + raw[loc[1]:]
 }
 
 // paragraphHasDeletedMark reports whether the raw `<w:pPr>` payload
