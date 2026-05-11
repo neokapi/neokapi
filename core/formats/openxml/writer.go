@@ -2089,15 +2089,20 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 			}
 
 		case r.PcOpen != nil:
-			if r.PcOpen.Type == TypeHyperlink || r.PcOpen.Type == TypeSmartTag {
+			if r.PcOpen.Type == TypeHyperlink || r.PcOpen.Type == TypeSmartTag || r.PcOpen.Type == TypeRevisionIns {
 				// Opaque paired-code open: emit captured raw XML
-				// (the <w:hyperlink ...> or <w:smartTag ...> start
-				// element) verbatim, paired with the matching close
-				// data emitted by the corresponding PcClose. Per
-				// upstream Okapi RunContainer (RunContainer.java
-				// lines 29-43, 187-191) hyperlink and smartTag are
-				// transparent run-containers preserved as a single
-				// pair of codes around their inner runs.
+				// (the <w:hyperlink ...>, <w:smartTag ...>, or
+				// strict-OOXML <w:ins ...>/<w:moveTo ...> start element)
+				// verbatim, paired with the matching close data emitted
+				// by the corresponding PcClose. Per upstream Okapi
+				// RunContainer (RunContainer.java lines 29-43, 187-191)
+				// hyperlink and smartTag are transparent run-containers
+				// preserved as a single pair of codes around their inner
+				// runs; ECMA-376-1 §17.13.5.16 (CT_RunTrackChange) gives
+				// the same shape to <w:ins>/<w:moveTo> in strict OOXML
+				// where upstream's RevisionInline skippable QName does
+				// not match (transitional binding only;
+				// SkippableElement.java:209-212).
 				closeRun()
 				buf.WriteString(r.PcOpen.Data)
 			} else {
@@ -2111,7 +2116,7 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 			}
 
 		case r.PcClose != nil:
-			if r.PcClose.Type == TypeHyperlink || r.PcClose.Type == TypeSmartTag {
+			if r.PcClose.Type == TypeHyperlink || r.PcClose.Type == TypeSmartTag || r.PcClose.Type == TypeRevisionIns {
 				closeRun()
 				buf.WriteString(r.PcClose.Data)
 			} else {
@@ -2358,14 +2363,14 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 						case nr.Text != nil:
 							nextTextAt = j
 						case nr.PcOpen != nil:
-							if nr.PcOpen.Type == TypeHyperlink || nr.PcOpen.Type == TypeSmartTag {
+							if nr.PcOpen.Type == TypeHyperlink || nr.PcOpen.Type == TypeSmartTag || nr.PcOpen.Type == TypeRevisionIns {
 								mergeable = false
 							} else {
 								anticipatedRunProps = w.addWMLProp(anticipatedRunProps, nr.PcOpen.Type)
 								continue
 							}
 						case nr.PcClose != nil:
-							if nr.PcClose.Type == TypeHyperlink || nr.PcClose.Type == TypeSmartTag {
+							if nr.PcClose.Type == TypeHyperlink || nr.PcClose.Type == TypeSmartTag || nr.PcClose.Type == TypeRevisionIns {
 								mergeable = false
 							} else {
 								anticipatedRunProps = w.removeWMLProp(anticipatedRunProps, nr.PcClose.Type)

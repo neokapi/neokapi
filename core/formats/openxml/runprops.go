@@ -612,7 +612,26 @@ func parseRunProps(d *xml.Decoder, aggressive bool, styleChainNames map[string]b
 			if local == "lang" && t.Name.Space != wmlStrictNamespace {
 				skip = true
 			}
-			if local == "noProof" || local == "rPrChange" {
+			// The noProof skip is GATED on the transitional WPML namespace
+			// for the same reason as <w:lang> above. Upstream's
+			// SkippableElement.RunProperty.RUN_PROPERTY_NO_SPELLING_OR_GRAMMAR
+			// (SkippableElement.java:207) binds to
+			// Namespaces.WordProcessingML.getQName("noProof") — the
+			// transitional URI. For Strict OOXML documents the QName
+			// does NOT match upstream's skippable set, so <w:noProof>
+			// is preserved in run rPr (RunSkippableElements does not
+			// strip it on read). 859.docx is the canonical fixture: its
+			// drawing-bearing run carries
+			// `<w:rPr><w:noProof/><w:lang w:eastAsia="ru-RU"/></w:rPr>`
+			// and both children must round-trip on the wire.
+			//
+			// rPrChange is a revision-tracking element (ECMA-376-1
+			// §17.13.5.31 CT_RPrChange) — stripped under
+			// auto-accept-revisions semantics regardless of namespace.
+			if local == "noProof" && t.Name.Space != wmlStrictNamespace {
+				skip = true
+			}
+			if local == "rPrChange" {
 				skip = true
 			}
 

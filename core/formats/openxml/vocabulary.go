@@ -49,6 +49,26 @@ const (
 	// in the Ph's Data field. The writer wraps Data in a <w:r> with
 	// the source rPr context, just like <w:tab/>.
 	TypeRawRunMarkup = "struct:raw-run-markup"
+	// TypeRevisionIns tags a paired-code wrapper for a strict-OOXML
+	// `<w:ins>` (revision insertion) or `<w:moveTo>` (revision move-in)
+	// element. Per ECMA-376 Part 1 / ISO/IEC 29500-1 §17.13.5.16
+	// (CT_RunTrackChange) these wrap inserted runs in tracked-revision
+	// content. Upstream Okapi's
+	// SkippableElement.RevisionInline.RUN_INSERTED_CONTENT and
+	// MOVED_CONTENT_TO bind to the transitional WordprocessingML QName
+	// (Namespaces.WordProcessingML.getQName("ins") /
+	// .getQName("moveTo") — see Namespaces.java:26 and
+	// SkippableElement.java:209-212), so the unwrap-and-keep-children
+	// behaviour fires only for the transitional namespace. Strict-OOXML
+	// `<w:ins>` (xmlns="http://purl.oclc.org/ooxml/wordprocessingml/main")
+	// does NOT match that QName and is preserved verbatim around its
+	// inner runs. We model the strict-mode preservation as paired
+	// codes — the writer re-emits the captured `<w:ins ...>` start
+	// tag and matching `</w:ins>` end tag around the inner content.
+	// 859.docx (Strict OOXML) is the canonical fixture: a
+	// `<w:ins w:id="0" w:author="User" w:date="…">` wrapping a
+	// translatable run survives the round-trip intact.
+	TypeRevisionIns = "struct:revision-ins"
 )
 
 // SubType constants provide format-specific refinement.
@@ -104,4 +124,10 @@ const (
 	// without re-parsing Ph.Data.
 	SubTypeNoBreakHyphen = "openxml:noBreakHyphen"
 	SubTypeSoftHyphen    = "openxml:softHyphen"
+	// SubTypeRevisionIns / SubTypeRevisionMoveTo distinguish the two
+	// element variants paired-coded by TypeRevisionIns. ECMA-376-1
+	// §17.13.5.16 (<w:ins> CT_RunTrackChange) and §17.13.5.25
+	// (<w:moveTo> CT_RunTrackChange) share the same content model.
+	SubTypeRevisionIns    = "openxml:ins"
+	SubTypeRevisionMoveTo = "openxml:moveTo"
 )

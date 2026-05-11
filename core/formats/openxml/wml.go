@@ -1664,7 +1664,7 @@ func (p *wmlParser) parseParagraph(d *xml.Decoder, partPath string, emitBlock fu
 				// Process child <w:r> runs as if they were direct
 				// children of <w:p> by handing them off to the run
 				// parser inline.
-				if err := p.parseRevisionInsertion(d, t.Name.Local, &runs, cfs); err != nil {
+				if err := p.parseRevisionInsertion(d, t.Name.Local, &runs, cfs, t); err != nil {
 					return err
 				}
 
@@ -1929,7 +1929,24 @@ func (p *wmlParser) parseParagraph(d *xml.Decoder, partPath string, emitBlock fu
 // Nested <w:del>/<w:moveFrom> inside the wrapper are skipped (their
 // content is "deletion-of-an-insertion", which auto-accept treats as
 // removal — same end state as if the deletion was direct).
-func (p *wmlParser) parseRevisionInsertion(d *xml.Decoder, wrapperName string, runs *[]textRun, cfs *complexFieldState) error {
+func (p *wmlParser) parseRevisionInsertion(d *xml.Decoder, wrapperName string, runs *[]textRun, cfs *complexFieldState, wrapperStart xml.StartElement) error {
+	// Strict OOXML preservation: when the wrapper sits in the strict
+	// WordprocessingML namespace, upstream Okapi's
+	// SkippableElement.RevisionInline (RUN_INSERTED_CONTENT /
+	// MOVED_CONTENT_TO at SkippableElement.java:209-212) does NOT
+	// classify it as skippable — the QName binds to the transitional
+	// URI via Namespaces.WordProcessingML.getQName (Namespaces.java:26)
+	// — so the wrapper round-trips around its child runs verbatim.
+	// Emit paired-code sentinels (\uE10E open, \uE10F close) carrying
+	// the captured `<w:ins ...>` / `<w:moveTo ...>` start tag and the
+	// synthesised matching close tag; buildBlock dispatches them into
+	// PcOpen/PcClose with TypeRevisionIns so the writer re-emits the
+	// element verbatim around the inner runs.
+	strictWrapper := p.strict && wrapperStart.Name.Space == wmlStrictNamespace
+	if strictWrapper {
+		rawStart := startElementToRaw(wrapperStart)
+		*runs = append(*runs, textRun{text: "\uE10E:" + wrapperName + ":" + rawStart, props: runProps{}})
+	}
 	for {
 		tok, err := d.Token()
 		if err != nil {
@@ -1956,7 +1973,7 @@ func (p *wmlParser) parseRevisionInsertion(d *xml.Decoder, wrapperName string, r
 				}
 				*runs = append(*runs, run...)
 			case "ins", "moveTo":
-				if err := p.parseRevisionInsertion(d, t.Name.Local, runs, cfs); err != nil {
+				if err := p.parseRevisionInsertion(d, t.Name.Local, runs, cfs, t); err != nil {
 					return err
 				}
 			case "del", "moveFrom":
@@ -1974,6 +1991,10 @@ func (p *wmlParser) parseRevisionInsertion(d *xml.Decoder, wrapperName string, r
 			}
 		case xml.EndElement:
 			if t.Name.Local == wrapperName {
+				if strictWrapper {
+					closeData := "</w:" + wrapperName + ">"
+					*runs = append(*runs, textRun{text: "\uE10F:" + wrapperName + ":" + closeData, props: runProps{}})
+				}
 				return nil
 			}
 		}
@@ -2053,7 +2074,7 @@ func (p *wmlParser) parseSmartTag(d *xml.Decoder, runs *[]textRun, cfs *complexF
 			case "ins", "moveTo":
 				// Revision insertion inside a smartTag — unwrap
 				// children. Mirrors parseParagraph's handling.
-				if err := p.parseRevisionInsertion(d, t.Name.Local, runs, cfs); err != nil {
+				if err := p.parseRevisionInsertion(d, t.Name.Local, runs, cfs, t); err != nil {
 					return err
 				}
 			case "del", "moveFrom":
@@ -3013,6 +3034,51 @@ func (p *wmlParser) buildBlock(id string, runs []textRun, partPath, commonRPrXML
 			spanCounter++
 			b.AddPcClose(fmt.Sprintf("c%d", spanCounter),
 				TypeSmartTag, SubTypeSmartTag,
+				data, "")
+			continue
+		}
+		if strings.HasPrefix(run.text, "\uE10E:") {
+			// Strict-OOXML revision-insertion paired-code OPEN
+			// (<w:ins>/<w:moveTo>). Per ECMA-376-1 \u00A717.13.5.16 the
+			// wrapper preserves around its inner runs in the strict
+			// namespace (upstream Okapi's RevisionInline skippable QName
+			// is bound to the transitional URI only \u2014
+			// SkippableElement.java:209-212). Close any active rPr toggle
+			// so the wrapper start tag doesn't sit inside an open <w:r>.
+			// Sentinel payload format: "\uE10E:<localName>:<rawStartTag>".
+			if activeProps != nil && !activeProps.isEmpty() {
+				activeProps.appendClosingRuns(b, &spanCounter)
+				activeProps = nil
+			}
+			rest := strings.TrimPrefix(run.text, "\uE10E:")
+			localName, data, _ := strings.Cut(rest, ":")
+			subType := SubTypeRevisionIns
+			if localName == "moveTo" {
+				subType = SubTypeRevisionMoveTo
+			}
+			spanCounter++
+			b.AddPcOpen(fmt.Sprintf("c%d", spanCounter),
+				TypeRevisionIns, subType,
+				data, "", "",
+				true, true, true)
+			continue
+		}
+		if strings.HasPrefix(run.text, "\uE10F:") {
+			// Strict-OOXML revision-insertion paired-code CLOSE.
+			// Sentinel payload format: "\uE10F:<localName>:<rawEndTag>".
+			if activeProps != nil && !activeProps.isEmpty() {
+				activeProps.appendClosingRuns(b, &spanCounter)
+				activeProps = nil
+			}
+			rest := strings.TrimPrefix(run.text, "\uE10F:")
+			localName, data, _ := strings.Cut(rest, ":")
+			subType := SubTypeRevisionIns
+			if localName == "moveTo" {
+				subType = SubTypeRevisionMoveTo
+			}
+			spanCounter++
+			b.AddPcClose(fmt.Sprintf("c%d", spanCounter),
+				TypeRevisionIns, subType,
 				data, "")
 			continue
 		}
