@@ -1330,6 +1330,21 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 			}
 
 		case r.Ph != nil:
+			// Inline <w:tab/> / <w:br/> into the open <w:r> when its rPr
+			// matches what a free-standing tab/break would use (sourceRPr +
+			// runProps). Mirrors upstream Okapi RunBuilder.java:73-188
+			// which keeps tab/break as Markup chunks inside the surrounding
+			// run rather than spawning a new <w:r>. Per ECMA-376-1
+			// §17.3.3.31 (<w:tab/>) and §17.3.3.1 (<w:br/>), both are run
+			// children that share the enclosing <w:r>'s rPr context.
+			if (r.Ph.Type == TypeTab || r.Ph.Type == TypeBreak) && inRun && effectiveRPr(textRunIdx) == sourceRPr {
+				if r.Ph.Type == TypeTab {
+					buf.WriteString(`</w:t><w:tab/><w:t xml:space="preserve">`)
+				} else {
+					buf.WriteString(`</w:t><w:br/><w:t xml:space="preserve">`)
+				}
+				continue
+			}
 			closeRun()
 			switch r.Ph.Type {
 			case TypeBreak:
