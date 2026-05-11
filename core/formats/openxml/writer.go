@@ -190,6 +190,31 @@ var wmlFldCharEndRE = regexp.MustCompile(
 		`|<w:fldChar\b[^>]*\bw:fldCharType="end"[^>]*></w:fldChar>`,
 )
 
+// wmlFldCharBeginRE matches a `<w:fldChar w:fldCharType="begin"/>` element
+// in both self-closing and open/close forms. Per ECMA-376-1 §17.16.5 the
+// element is always logically empty. Used by the writer to detect a
+// fldChar-begin Ph following a same-rPr text run so the two can be fused
+// into a single `<w:r>` carrying both `<w:t>…</w:t>` and `<w:fldChar/>`.
+// Mirrors the symmetric fldChar-end merge path (wmlFldCharEndRE), modelled
+// on upstream Okapi RunMerger (RunMerger.add at RunMerger.java:83-95 +
+// canRunPropertiesBeMerged at RunMerger.java:156-229) — adjacent same-rPr
+// runs fuse before serialisation, so the source's plain text run
+// preceding the fldChar-begin run is emitted inside the same `<w:r>` as
+// the fldChar. Per ECMA-376-1 §17.3.2.1 (CT_R) a single `<w:r>` may
+// carry both `<w:fldChar>` and `<w:t>` children. Fixtures
+// 1083-*-hyperlink-* exercise this path.
+var wmlFldCharBeginRE = regexp.MustCompile(
+	`<w:fldChar\b[^>]*\bw:fldCharType="begin"[^>]*/>` +
+		`|<w:fldChar\b[^>]*\bw:fldCharType="begin"[^>]*></w:fldChar>`,
+)
+
+// wmlRunStartTagRE matches the leading `<w:r ...>` opening tag of a
+// captured field payload. Used by the fldChar-begin merge path to
+// identify the inner span between the `<w:r>` open and the first child
+// element so the writer can verify no extraneous siblings are present
+// before fusing the field-begin into the preceding text run.
+var wmlRunStartTagRE = regexp.MustCompile(`^\s*<w:r\b[^>]*>`)
+
 // wmlRPrInRunPayloadRE captures the `<w:rPr>...</w:rPr>` element inside
 // a captured `<w:r>...</w:r>` field payload. Used to extract the
 // run-prop fragment so it can be compared against the next text run's
@@ -257,6 +282,143 @@ func detectFldCharEndForMerge(payload string) fldCharEndMergeInfo {
 		truncated:   truncated,
 		ok:          true,
 	}
+}
+
+// fldCharBeginMergeInfo holds the inspection result for a captured
+// fldChar-begin `<w:r>` payload when the writer is considering fusing it
+// with the immediately-preceding same-rPr text run. The inner fldChar
+// element (without the surrounding `<w:r>...</w:r>` shell) is appended
+// inside the still-open text run, mirroring upstream Okapi RunMerger
+// behavior for adjacent same-rPr runs (RunMerger.add at
+// RunMerger.java:83-95 + canRunPropertiesBeMerged at
+// RunMerger.java:156-229). Per ECMA-376-1 §17.3.2.1 (CT_R) a single
+// `<w:r>` may carry both `<w:t>` and `<w:fldChar>` children.
+type fldCharBeginMergeInfo struct {
+	// rprChildren is the children-only contents of the embedded
+	// `<w:rPr>` after normalisation (empty when the payload has no rPr
+	// or a self-closing `<w:rPr/>`).
+	rprChildren string
+	// innerFldChar is the `<w:fldChar w:fldCharType="begin"/>` element
+	// alone, ready to be appended inside the open `<w:r>` after the
+	// closing `</w:t>` is emitted.
+	innerFldChar string
+	// ok is true only when the payload is a minimal `<w:r>` shell
+	// wrapping (optionally) an rPr and a single fldChar-begin child.
+	ok bool
+}
+
+// detectFldCharBeginForMerge inspects a TypeField Ph payload to decide
+// whether the writer can fuse it with a same-rPr text run emitted just
+// before it. Returns ok=true only for a minimal
+// `<w:r>[<w:rPr>…</w:rPr>]<w:fldChar w:fldCharType="begin"/></w:r>`
+// shape — payloads carrying adjacent siblings (e.g. an extra
+// `<w:instrText>`) are rejected because the fldChar-begin run is the
+// syntactic start of the complex field and is always followed by its
+// own run boundary in well-formed Word output. Mirrors upstream Okapi
+// RunMerger.add (RunMerger.java:83-95) + canRunPropertiesBeMerged
+// (RunMerger.java:156-229) for the case where a plain text run
+// immediately preceding a fldChar-begin run carries the same rPr and is
+// fused into the field's leading run (see the 1083-*-hyperlink-*
+// fixtures — upstream output places `<w:t>A Text</w:t>` and
+// `<w:fldChar fldCharType="begin"/>` inside one `<w:r>`). Per
+// ECMA-376-1 §17.3.2.1 (CT_R) a `<w:r>` may carry both `<w:t>` and
+// `<w:fldChar>` children; §17.16.5 (Complex Fields) classifies fldChar
+// as a run child.
+func detectFldCharBeginForMerge(payload string) fldCharBeginMergeInfo {
+	loc := wmlFldCharBeginRE.FindStringIndex(payload)
+	if loc == nil {
+		return fldCharBeginMergeInfo{}
+	}
+	closeLoc := wmlCloseRunTagRE.FindStringIndex(payload)
+	if closeLoc == nil {
+		return fldCharBeginMergeInfo{}
+	}
+	runStart := wmlRunStartTagRE.FindStringIndex(payload)
+	if runStart == nil {
+		return fldCharBeginMergeInfo{}
+	}
+	// Inspect everything between the `<w:r ...>` open and the fldChar
+	// start: it must be either empty or an `<w:rPr>...</w:rPr>` (which
+	// belongs to the carrier run, not to a sibling). Anything else
+	// (instrText, t, drawing, …) is a multi-child run that upstream
+	// Okapi keeps as its own envelope, so abort the fusion.
+	beforeFld := payload[runStart[1]:loc[0]]
+	if rprMatch := wmlRPrInRunPayloadRE.FindStringIndex(payload); rprMatch != nil &&
+		rprMatch[0] >= runStart[1] && rprMatch[1] <= loc[0] {
+		beforeFld = payload[runStart[1]:rprMatch[0]] + payload[rprMatch[1]:loc[0]]
+	}
+	if strings.TrimSpace(beforeFld) != "" {
+		return fldCharBeginMergeInfo{}
+	}
+	// Tail between fldChar-begin and the run's `</w:r>` must be empty
+	// (no siblings allowed inside the carrier run).
+	if strings.TrimSpace(payload[loc[1]:closeLoc[0]]) != "" {
+		return fldCharBeginMergeInfo{}
+	}
+	rpr := ""
+	if m := wmlRPrInRunPayloadRE.FindStringSubmatch(payload); m != nil {
+		rpr = normaliseRPrChildrenFragment(m[1])
+	}
+	return fldCharBeginMergeInfo{
+		rprChildren:  rpr,
+		innerFldChar: payload[loc[0]:loc[1]],
+		ok:           true,
+	}
+}
+
+// isExtractableFldCharBeginRun reports whether the TypeField Ph at the
+// given index is the begin marker of an EXTRACTABLE complex field. The
+// determination scans forward through the run list until the matching
+// fldChar-end is found (tracking nesting depth so nested fields don't
+// confuse the count): when any Text run appears inside the field's
+// scope, the field's display text was promoted to translatable text by
+// the reader, which only happens for fields whose code is in
+// ComplexFieldDefinitionsToExtract (e.g. HYPERLINK). Mirrors upstream
+// Okapi RunParser.parseComplexField (lines 461-542 of RunParser.java)
+// where parseContent (line 537) routes display events to RunText only
+// when `extractable && atComplexFieldResult` is true — otherwise events
+// land in runBuilder.addToMarkup (line 505) and stay as opaque markup
+// on the field's RunBuilder, never becoming Text in the block.
+//
+// Used by the writer's fldChar-begin merge path to decide whether to
+// fuse the begin run with a preceding same-rPr text run. For
+// non-extractable fields (e.g. DATE) upstream's RunMerger refuses the
+// fusion (canMergeWith returns false on containsComplexFields, line
+// 147 of RunMerger.java), so we must not fuse either. Fixture
+// 1083-date-and-hyperlink-instructions.docx is the canonical
+// non-extractable case.
+func isExtractableFldCharBeginRun(runs []model.Run, beginIdx int) bool {
+	depth := 1
+	for j := beginIdx + 1; j < len(runs); j++ {
+		nr := runs[j]
+		if nr.Text != nil {
+			// A Text run anywhere inside this field's nesting scope
+			// signals the reader extracted display text — i.e. the
+			// (innermost) field is extractable and we're past the
+			// separator. The outer field carrying this run is also
+			// extractable per upstream's recursive parseComplexField.
+			return true
+		}
+		if nr.Ph == nil || nr.Ph.Type != TypeField {
+			continue
+		}
+		// fldSimple sentinels (SubTypeFieldSimple) are self-contained
+		// and don't contribute to begin/end nesting depth.
+		if nr.Ph.SubType == SubTypeFieldSimple {
+			continue
+		}
+		data := nr.Ph.Data
+		switch {
+		case wmlFldCharBeginRE.MatchString(data):
+			depth++
+		case wmlFldCharEndRE.MatchString(data):
+			depth--
+			if depth == 0 {
+				return false
+			}
+		}
+	}
+	return false
 }
 
 // emptyElementOpenCloseRE matches an XML element with an empty body
@@ -1907,6 +2069,39 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 					// data arrives first.
 					pendingTReopen = true
 					continue
+				}
+			}
+			// Symmetric counterpart to the fldChar-end + text merge
+			// (TypeField branch below). When the current open <w:r>
+			// is a plain text run AND the next Ph is a fldChar-BEGIN
+			// whose rPr matches what the open run emitted, fuse them
+			// into a single <w:r> carrying both `<w:t>` and
+			// `<w:fldChar/>` children. Mirrors upstream Okapi
+			// RunMerger (RunMerger.add + canRunPropertiesBeMerged,
+			// RunMerger.java:83-95 + 156-229): the source's plain
+			// text run preceding the field-begin run is fused into
+			// the field-begin's <w:r> when their RunProperties match
+			// AND containsComplexFields is false on both sides — the
+			// latter is true for the begin run of an EXTRACTABLE field
+			// only (see isExtractableFldCharBeginRun for the
+			// determination). Per ECMA-376-1 §17.3.2.1 (CT_R) a single
+			// `<w:r>` may carry both `<w:t>` and `<w:fldChar>` children;
+			// §17.16.5 (Complex Fields) classifies fldChar as a run
+			// child. Fixtures: 1083-empty-and-hyperlink-instructions.
+			// docx, 1083-hyperlink-and-date-instructions.docx,
+			// 1083-hyperlink-and-empty-instructions.docx.
+			if r.Ph.Type == TypeField && inRun && !pendingTReopen {
+				if info := detectFldCharBeginForMerge(r.Ph.Data); info.ok {
+					if isExtractableFldCharBeginRun(runs, runIdx) {
+						curRPr := effectiveRPr(textRunIdx) + runProps
+						if curRPr == info.rprChildren {
+							buf.WriteString(`</w:t>`)
+							buf.WriteString(info.innerFldChar)
+							buf.WriteString(`</w:r>`)
+							inRun = false
+							continue
+						}
+					}
 				}
 			}
 			closeRun()

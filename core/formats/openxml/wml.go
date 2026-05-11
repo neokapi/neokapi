@@ -150,6 +150,22 @@ type wmlParser struct {
 	// preserve <w:lang> through the round-trip per the QName mismatch
 	// against Namespaces.WordProcessingML (Namespaces.java:26-27).
 	strict bool
+	// partCfs carries complex-field state ACROSS paragraph boundaries
+	// within one XML part. A `<w:fldChar fldCharType="begin"/>` opens
+	// the field at the run granularity, but the matching end may live
+	// in a later paragraph — upstream Okapi reads the event stream as
+	// one continuous flow (parseComplexField at RunParser.java:461-542
+	// consumes events past `<w:p>` and `</w:p>` until isComplexFieldEnd
+	// fires). To match that semantics our reader keeps the state
+	// machine on the parser rather than re-initialising it on each
+	// `<w:p>`. Per ECMA-376-1 §17.16.5 (Complex Fields) the field's
+	// scope is defined by its begin/end pair regardless of the
+	// enclosing block structure. Fixture
+	// 1083-date-and-hyperlink-instructions.docx is the canonical
+	// cross-paragraph non-extractable case ("A link" sits in its own
+	// `<w:p>` between separate and end of a DATE field — must NOT be
+	// extracted as translatable text).
+	partCfs complexFieldState
 }
 
 // parsePart streams through a WordprocessingML XML part, emitting Blocks.
@@ -1409,7 +1425,17 @@ func (p *wmlParser) parseParagraph(d *xml.Decoder, partPath string, emitBlock fu
 	var hyperlinkAttrs []xml.Attr
 	var paraProps string
 	var paraStyleID string
-	var cfs complexFieldState
+	// Use the parser-wide complex-field state so begin/end pairs that
+	// straddle paragraph boundaries carry the correct extractable flag
+	// across `<w:p>` borders. Mirrors upstream Okapi
+	// parseComplexField (RunParser.java:461-542) which reads through
+	// the entire event stream — paragraph boundaries between begin and
+	// end land in deferredEvents (lines 508-514) rather than splitting
+	// the field into independent state machines. Fixture
+	// 1083-date-and-hyperlink-instructions.docx hits this path: the
+	// `A link` run lives in its own `<w:p>` inside a non-extractable
+	// DATE field and must not be extracted.
+	cfs := &p.partCfs
 	var bms bookmarkSkipState
 
 	for {
@@ -1447,11 +1473,11 @@ func (p *wmlParser) parseParagraph(d *xml.Decoder, partPath string, emitBlock fu
 				// <w:r>...</w:r>; surface them through the field-aware
 				// keep/drop logic below.
 				rawStart := startElementToRaw(t)
-				run, err := p.parseRunWithFieldState(d, &cfs, rawStart)
+				run, err := p.parseRunWithFieldState(d, cfs, rawStart)
 				if err != nil {
 					return err
 				}
-				run = filterFieldRuns(run, &cfs)
+				run = filterFieldRuns(run, cfs)
 				// If we're inside a non-extractable complex field, drop
 				// any plain text runs (the field-markup sentinel runs
 				// have already been retained by filterFieldRuns); only
@@ -1573,7 +1599,7 @@ func (p *wmlParser) parseParagraph(d *xml.Decoder, partPath string, emitBlock fu
 				if inHyperlink {
 					target = &hyperlinkRuns
 				}
-				if err := p.parseSmartTag(d, target, &cfs, rawStart); err != nil {
+				if err := p.parseSmartTag(d, target, cfs, rawStart); err != nil {
 					return err
 				}
 
@@ -1591,7 +1617,7 @@ func (p *wmlParser) parseParagraph(d *xml.Decoder, partPath string, emitBlock fu
 				// Process child <w:r> runs as if they were direct
 				// children of <w:p> by handing them off to the run
 				// parser inline.
-				if err := p.parseRevisionInsertion(d, t.Name.Local, &runs, &cfs); err != nil {
+				if err := p.parseRevisionInsertion(d, t.Name.Local, &runs, cfs); err != nil {
 					return err
 				}
 
