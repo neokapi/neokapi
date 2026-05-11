@@ -13,9 +13,9 @@ It is **not** an architecture decision and **not** user-facing docs.
 | Engine | Total | byte | canon | sem | div |
 |---|---:|---:|---:|---:|---:|
 | bridge (okapi-bridge) | 41 | 41 | 0 | 0 | 0 |
-| native (this package) | 41 | **37** | 0 | 0 | 4 |
+| native (this package) | 41 | **38** | 0 | 0 | 3 |
 
-Cleared 37 of 41 fixtures so far through nine commits that added
+Cleared 38 of 41 fixtures so far through ten commits that added
 extraction for FrameMaker translatable surfaces the original reader
 walked past:
 
@@ -29,7 +29,8 @@ walked past:
 | Multi-Font run splitting (Cluster H + L/M side-effects) | 16e172dd |
 | `<Char>` glyph elision/rewrite (Clusters C + F + partial G) | 7ce509c7 |
 | FNote bare-`>` ParaLine close rewrite + empty-glyph Char elision (Cluster K) | 07d084d5 |
-| codeFinder `^[A-Z]:` (gated) + autonumber building blocks + Char-only run owner fix | (this iteration) |
+| codeFinder `^[A-Z]:` (gated) + autonumber building blocks + Char-only run owner fix | 5a4b66ea |
+| Empty multi-ParaLine collapse (1187_crlf) | (this iteration) |
 
 Remaining clusters break down as follows.
 
@@ -48,13 +49,9 @@ into the surrounding String run. Mirrors okapi `MIFFilter.processPara`
 `paraTextBuf` and re-emits the merged buffer as a single `<String>`,
 never re-emitting the original `<Char>` statement.
 
-**Remaining divergences** in 1187_crlf, 1188_crlf, 987 are unrelated to
-the Char elision itself:
+**Remaining divergences** in 1188_crlf, 987 are unrelated to
+the Char elision itself (1187_crlf is now byte-equal — see Cluster Q):
 
-  - 1187_crlf.mif: empty-ParaLine collapse (okapi rewrites a pair of
-    empty `<ParaLine>...</ParaLine>` siblings into a malformed
-    `   # end of ParaLine\n  \n  > # end of ParaLine` sequence -- looks
-    like an okapi-side quirk).
   - 1188_crlf.mif: cross-ParaLine merge with `<Char HardReturn>` between
     `</Font>` and the next ParaLine. Native correctly elides + rewrites
     the HardReturn but doesn't yet handle the cross-ParaLine merge that
@@ -63,6 +60,25 @@ the Char elision itself:
     the source has `\x09` (literal MIF hex escape for tab) and okapi's
     bridge produces `\n` in the output -- bridge-side quirk unrelated to
     Char clusters.
+
+### Cluster Q — empty multi-ParaLine collapse (RESOLVED — 1 fixture)
+
+**Was Affecting**: `1187_crlf.mif`. **Now**: byte-equal.
+
+**Resolution**: New `collapseEmptyMultiParaLines` pass in
+`findStringPositions` scans rawText for runs of two or more adjacent
+empty `<ParaLine>...> # end of ParaLine` wrappers (no String/Char/Marker
+between opener and close) and emits elisions that mirror okapi's
+`MIFFilter.processPara` normalization: every non-first ParaLine drops its
+`<ParaLine` opener + the trailing first whitespace char (matching
+readTag's `Char`/`ParaLine` !storeCharStatement deletion at
+MIFFilter.java:1527-1532); every non-last ParaLine close drops its bare
+`>` byte (matching the `paraLevel==1 && !inPgf` fall-through at
+MIFFilter.java:1171-1187 which leaves the `>` unappended; the `>` is
+re-inserted only at the LAST ` # end of ParaLine` via lastIndexOf at
+MIFFilter.java:1191-1199). Per the MIF Reference §"ParaLine Statement",
+the `# end of <Tag>` comment is purely cosmetic — but okapi normalizes
+the surrounding bytes anyway, so native must mirror byte-for-byte.
 
 ### Cluster F — `<Char Cent>` / `<Char Pound>` glyph-to-String rewrite (RESOLVED -- 1 fixture)
 

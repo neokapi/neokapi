@@ -1151,7 +1151,169 @@ func (r *Reader) findStringPositions(rawText string, stmts []*mifStatement) ([]s
 	//   output: `\n   > # end of ParaLine\n> # end of Para\n`
 	rewriteFNoteParaCloses(rawText, &elisions, &rewrites)
 
+	// Cluster: empty multi-ParaLine collapse. Mirrors okapi
+	// MIFFilter.processPara handling of consecutive empty ParaLines
+	// inside a single Para. okapi's readUntilText (MIFFilter.java:1043-
+	// 1066, 1490-1556) drops the `<ParaLine` opener + first whitespace
+	// from every NON-FIRST ParaLine in a Para (via readTag's special
+	// `Char`/`ParaLine` !storeCharStatement deletion at lines 1527-1532),
+	// and drops the bare `>` close char from EVERY ParaLine (lines 1171-
+	// 1187 — `paraLevel==1 && !inPgf && !inXRef` falls through without
+	// appending). The `>` is then re-inserted only at the LAST
+	// `" # end of ParaLine"` occurrence via lastIndexOf
+	// (MIFFilter.java:1191-1199). Net effect on consecutive empty
+	// ParaLines: first opener kept, last close kept; middle openers and
+	// non-last `>` chars elided. Per MIF Reference (Adobe FrameMaker
+	// Parameters/MIF Reference, §"ParaLine Statement"), the
+	// `# end of <Tag>` comment is cosmetic — but okapi normalizes the
+	// surrounding bytes anyway, so native must mirror.
+	collapseEmptyMultiParaLines(rawText, &elisions)
+
 	return refs, elisions, rewrites
+}
+
+// collapseEmptyMultiParaLines scans rawText for runs of two or more
+// adjacent empty ParaLine wrappers inside the same Para and emits the
+// elision ops needed to mirror okapi's processPara normalization
+// (MIFFilter.java:1043-1066, 1171-1199). For each such run:
+//   - drop `<ParaLine` + the trailing first whitespace char (the `\r`
+//     in CRLF or `\n` in LF) from every non-first ParaLine opener
+//   - drop the bare `>` close char from every non-last ParaLine close
+//
+// The `<ParaLine` opener and ParaLine close lines that bracket the run
+// keep their indentation and trailing newline characters so the
+// surrounding lines stay correctly framed.
+func collapseEmptyMultiParaLines(rawText string, elisions *[]elisionRange) {
+	const openTag = "<ParaLine"
+	const closeMark = "> # end of ParaLine"
+	n := len(rawText)
+	i := 0
+	for i < n {
+		// Find the next ParaLine opener that is followed only by a
+		// matching empty close (no String/Char/Marker between them).
+		idx := strings.Index(rawText[i:], openTag)
+		if idx < 0 {
+			break
+		}
+		first := i + idx
+		// Confirm this is a multi-line opener: the only chars from `<`
+		// to end-of-line after `<ParaLine` are whitespace.
+		afterOpen := first + len(openTag)
+		if afterOpen >= n {
+			break
+		}
+		// Reject inline `<ParaLine ...>` style (single-line); we want
+		// the multi-line form where the line ends right after the tag.
+		// Walk over optional whitespace then expect \r or \n.
+		j := afterOpen
+		for j < n && (rawText[j] == ' ' || rawText[j] == '\t') {
+			j++
+		}
+		if j >= n || (rawText[j] != '\r' && rawText[j] != '\n') {
+			i = afterOpen
+			continue
+		}
+		// Walk a run of consecutive empty ParaLines starting at `first`.
+		// runStarts[k] = byte offset of the k-th `<ParaLine` opener.
+		// runCloseGt[k] = byte offset of the bare `>` of the k-th close.
+		var runStarts []int
+		var runCloseGt []int
+		cursor := first
+		for cursor < n {
+			// Confirm `<ParaLine` at cursor.
+			if cursor+len(openTag) > n || rawText[cursor:cursor+len(openTag)] != openTag {
+				break
+			}
+			// Find end of opener line (\n).
+			lineEnd := cursor + len(openTag)
+			for lineEnd < n && rawText[lineEnd] != '\n' {
+				if rawText[lineEnd] != '\r' && rawText[lineEnd] != ' ' && rawText[lineEnd] != '\t' {
+					// Non-multi-line opener (e.g. `<ParaLine ...>`).
+					lineEnd = -1
+					break
+				}
+				lineEnd++
+			}
+			if lineEnd < 0 || lineEnd >= n {
+				break
+			}
+			// Now scan past the opener line. The next non-blank line
+			// must be a close: `[ws]> # end of ParaLine[ws]\n` with no
+			// intervening child statements.
+			k := lineEnd + 1
+			// Skip leading whitespace on the close line.
+			for k < n && (rawText[k] == ' ' || rawText[k] == '\t') {
+				k++
+			}
+			if k >= n || rawText[k] != '>' {
+				break
+			}
+			gtPos := k
+			// Confirm the `>` is followed by ` # end of ParaLine`.
+			if k+len(closeMark) > n {
+				break
+			}
+			if rawText[k:k+len(closeMark)] != closeMark {
+				break
+			}
+			// Walk to end of close line.
+			closeLineEnd := k + len(closeMark)
+			for closeLineEnd < n && rawText[closeLineEnd] != '\n' {
+				closeLineEnd++
+			}
+			if closeLineEnd >= n {
+				break
+			}
+			closeLineEnd++ // include the \n
+			runStarts = append(runStarts, cursor)
+			runCloseGt = append(runCloseGt, gtPos)
+			// Advance to potential next ParaLine opener: skip indent
+			// after the close line.
+			next := closeLineEnd
+			for next < n && (rawText[next] == ' ' || rawText[next] == '\t') {
+				next++
+			}
+			if next+len(openTag) > n || rawText[next:next+len(openTag)] != openTag {
+				break
+			}
+			cursor = next
+		}
+		if len(runStarts) >= 2 {
+			// Apply elisions:
+			//   - Non-first opener: drop `<ParaLine` + the first
+			//     trailing whitespace byte (`\r` in CRLF, or `\n` in
+			//     LF). The remaining `\n` plus indent of the close line
+			//     stays so the close line still terminates cleanly.
+			//   - Non-last close: drop the bare `>` byte.
+			for k := 1; k < len(runStarts); k++ {
+				op := runStarts[k]
+				end := op + len(openTag)
+				// Consume the first whitespace char after `<ParaLine`
+				// (the `\r` of CRLF, or the `\n` of LF, or a space/tab).
+				if end < n {
+					c := rawText[end]
+					if c == '\r' || c == '\n' || c == ' ' || c == '\t' {
+						end++
+					}
+				}
+				*elisions = append(*elisions, elisionRange{
+					startOffset: op,
+					endOffset:   end,
+				})
+			}
+			for k := range len(runCloseGt) - 1 {
+				gt := runCloseGt[k]
+				*elisions = append(*elisions, elisionRange{
+					startOffset: gt,
+					endOffset:   gt + 1,
+				})
+			}
+			// Advance past the run.
+			i = runCloseGt[len(runCloseGt)-1] + 1
+			continue
+		}
+		i = afterOpen
+	}
 }
 
 // rewriteFNoteParaCloses scans rawText for the bare-`>` ParaLine close
