@@ -438,6 +438,29 @@ type corePropsParser struct {
 
 // parseCoreProperties extracts translatable content from docProps/core.xml.
 // Dublin Core elements like dc:title, dc:subject, dc:creator, cp:keywords etc.
+//
+// One okapi-bridge quirk is faithfully reproduced for byte-equal parity:
+// a SELF-CLOSING (e.g. `<cp:category/>`) trailing translatable element is
+// dropped from the skeleton when it has no text content. Upstream Okapi
+// parses core.xml with Jericho through OpenXMLContentFilter
+// (okapi/filters/openxml/src/main/java/.../ContentFilter.java
+// handleStartTag case TEXT_UNIT_ELEMENT, lines 312-319): start tags are
+// stored as a "pending" tag and only committed to the document part when
+// the NEXT start tag arrives (line 269 calls startDelayedTextUnit). For
+// self-closing TEXTUNIT elements, Jericho emits only a StartTag (no
+// EndTag); when such an element is the last translatable inside
+// `<cp:coreProperties>` nothing flushes the pending tag, so it is
+// effectively dropped. An empty element written with explicit open/close
+// form (`<cp:category></cp:category>`) is preserved because Jericho
+// emits an EndTag which fires handleEndTag's TEXT_UNIT_ELEMENT case and
+// flushes pendingTagText + the end tag (ContentFilter.java lines 386-394).
+// We mirror that distinction by inspecting the byte slice Go's
+// xml.Decoder advanced over for the EndElement token: zero-length means
+// self-closing (decoder synthesizes EndElement without consuming input);
+// non-zero means an explicit `</name>` was consumed.
+// ECMA-376-1 §15.2.12 makes every Dublin Core / cp:* element in the
+// core properties part optional, so omitting an empty cp:category is
+// spec-valid.
 func parseCoreProperties(data []byte, partPath string, blockCounter *int, emitBlock func(*model.Block), skelStore *format.SkeletonStore) {
 	p := &corePropsParser{skeletonStore: skelStore}
 	d := xml.NewDecoder(bytes.NewReader(data))
@@ -463,20 +486,46 @@ func parseCoreProperties(data []byte, partPath string, blockCounter *int, emitBl
 	var inTranslatable bool
 	var currentElement string
 	var currentStart xml.StartElement
+	var startOffsetAfter int64 // d.InputOffset() right after the StartElement token
 	var textBuf strings.Builder
 
+	// pendingSelfClosing holds the skeleton bytes for an empty
+	// self-closing translatable element. The bytes are only committed
+	// to the real skeleton when a subsequent xml.StartElement arrives
+	// (mirroring okapi's startDelayedTextUnit at the start of
+	// handleStartTag). If the next event is the root EndElement (or
+	// EOF), the bytes stay buffered and are dropped — matching okapi's
+	// drop of the trailing self-closing TEXTUNIT element. An empty
+	// element written with explicit open/close form bypasses this
+	// buffer entirely and is committed straight to the skeleton.
+	var pendingSelfClosing strings.Builder
+	hasPending := false
+	flushPending := func() {
+		if hasPending {
+			p.skelText(pendingSelfClosing.String())
+			pendingSelfClosing.Reset()
+			hasPending = false
+		}
+	}
+
+	prevOffset := d.InputOffset()
 	for {
 		tok, err := d.Token()
 		if err != nil {
 			break
 		}
+		curOffset := d.InputOffset()
 
 		switch t := tok.(type) {
 		case xml.StartElement:
+			// A new element start always flushes any pending empty
+			// translatable, matching okapi's startDelayedTextUnit().
+			flushPending()
 			if translatableElements[t.Name.Local] {
 				inTranslatable = true
 				currentElement = t.Name.Local
 				currentStart = t
+				startOffsetAfter = curOffset
 				textBuf.Reset()
 			} else {
 				p.skelWriteStartElement(t)
@@ -512,21 +561,86 @@ func parseCoreProperties(data []byte, partPath string, blockCounter *int, emitBl
 					}
 					emitBlock(block)
 				} else {
-					// Empty translatable element — pass through to skeleton
-					p.skelWriteStartElement(currentStart)
-					p.skelText(xmlEscape(textBuf.String()))
-					p.skelWriteEndElement(t)
+					// Empty translatable element. Detect the source
+					// form by inspecting the byte slice the decoder
+					// consumed for THIS EndElement event. Go's
+					// xml.Decoder synthesizes an EndElement for
+					// `<x/>` without consuming any input (curOffset
+					// == prevOffset), and consumes `</x>` for an
+					// explicit close form (curOffset > prevOffset).
+					// We additionally require startOffsetAfter ==
+					// prevOffset — i.e. no CharData or other token
+					// arrived between the StartElement and the
+					// EndElement; a `<x>   </x>` form would have a
+					// CharData event and is treated as explicit
+					// open/close even though textBuf trims to "".
+					selfClosing := curOffset == prevOffset && startOffsetAfter == prevOffset
+					if selfClosing {
+						pendingSelfClosing.Reset()
+						writeStartElementToBuilder(&pendingSelfClosing, currentStart)
+						writeEndElementToBuilder(&pendingSelfClosing, t)
+						hasPending = true
+					} else {
+						// Explicit open/close form — upstream Okapi
+						// preserves it via handleEndTag's
+						// TEXT_UNIT_ELEMENT case (ContentFilter.java
+						// lines 386-394).
+						p.skelWriteStartElement(currentStart)
+						p.skelWriteEndElement(t)
+					}
 				}
 				inTranslatable = false
 				currentElement = ""
 			} else {
+				// Non-translatable end tag. For the closing of the
+				// root (`</cp:coreProperties>`) the pending self-
+				// closing element must NOT be flushed: upstream Okapi
+				// drops it because no further start tag arrives to
+				// trigger startDelayedTextUnit. For any other
+				// non-translatable end tag (future-proofing — none
+				// expected today in core.xml) flush so element order
+				// is preserved.
+				if t.Name.Local != "coreProperties" {
+					flushPending()
+				}
 				p.skelWriteEndElement(t)
 			}
 		case xml.ProcInst:
+			flushPending()
 			p.skelText("<?" + t.Target + " " + string(t.Inst) + "?>")
 		}
+		prevOffset = curOffset
 	}
+	// Note: any still-pending self-closing translatable is
+	// intentionally discarded here, matching okapi's drop of the
+	// trailing self-closing TEXTUNIT element.
 	p.skelFlush()
+}
+
+// writeStartElementToBuilder serializes an xml.StartElement to buf,
+// mirroring corePropsParser.skelWriteStartElement but writing to an
+// arbitrary strings.Builder. Used to hold "pending self-closing empty
+// translatable" skeleton bytes that may be discarded later.
+func writeStartElementToBuilder(buf *strings.Builder, t xml.StartElement) {
+	registerNamespaces(t.Attr)
+	buf.WriteString("<")
+	writeElementName(buf, t.Name)
+	for _, a := range t.Attr {
+		buf.WriteString(" ")
+		writeAttrName(buf, a.Name)
+		buf.WriteString(`="`)
+		buf.WriteString(xmlEscapeAttr(a.Value))
+		buf.WriteString(`"`)
+	}
+	buf.WriteString(">")
+}
+
+// writeEndElementToBuilder serializes an xml.EndElement to buf,
+// mirroring corePropsParser.skelWriteEndElement.
+func writeEndElementToBuilder(buf *strings.Builder, t xml.EndElement) {
+	buf.WriteString("</")
+	writeElementName(buf, t.Name)
+	buf.WriteString(">")
 }
 
 func (p *corePropsParser) skelText(s string) {
