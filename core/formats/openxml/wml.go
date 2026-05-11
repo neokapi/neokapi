@@ -2838,6 +2838,56 @@ func serializeRPrChildrenXML(p runProps) string {
 	return b.String()
 }
 
+// serializeFullRPrXML returns a `<w:rPr>...</w:rPr>` fragment combining
+// every preserved property of the run: toggle elements (b/i/u/strike/
+// vertAlign/vanish — bare-on form, mirroring source authoring) AND the
+// non-toggle rPrChildren (rStyle, color, sz, lang, noProof, …). Returns
+// "" when the run has neither. Used by the image-sentinel emission path
+// (TypeImage Ph) so a drawing-bearing run carries its source <w:r>'s
+// own rPr through the writer instead of relying on the paragraph-wide
+// sourceRPr fallback (which the writer's TypeImage handler does not
+// consult). 859.docx is the canonical fixture: the drawing's source
+// run carries `<w:rPr><w:noProof/><w:lang w:eastAsia="ru-RU"/></w:rPr>`
+// (both children preserved by the Strict-OOXML namespace gates on
+// `lang`/`noProof` in runprops.go), and that rPr must round-trip on
+// the wire alongside `<w:drawing>`.
+//
+// Per ECMA-376-1 §17.3.2.1 (CT_R) `<w:rPr>` is the first child of `<w:r>`,
+// preceding `<w:drawing>` / `<w:pict>` / `<w:object>` and any other run
+// children. Mirrors upstream Okapi's RunBuilder, which materialises the
+// source RunProperties on every emitted run regardless of whether the
+// run carries text or only an opaque drawing chunk.
+func serializeFullRPrXML(p runProps) string {
+	if p.isEmpty() && len(p.rPrChildren) == 0 {
+		return ""
+	}
+	var b strings.Builder
+	b.WriteString("<w:rPr>")
+	if p.bold {
+		b.WriteString("<w:b/>")
+	}
+	if p.italic {
+		b.WriteString("<w:i/>")
+	}
+	if p.underline != "" {
+		b.WriteString(`<w:u w:val="` + p.underline + `"/>`)
+	}
+	if p.strike {
+		b.WriteString("<w:strike/>")
+	}
+	if p.vertAlign != "" {
+		b.WriteString(`<w:vertAlign w:val="` + p.vertAlign + `"/>`)
+	}
+	if p.vanish {
+		b.WriteString("<w:vanish/>")
+	}
+	for _, c := range p.rPrChildren {
+		b.WriteString(c.xml)
+	}
+	b.WriteString("</w:rPr>")
+	return b.String()
+}
+
 // buildBlock builds a model.Block from a list of merged text runs.
 //
 // commonRPrXML is the children-only serialisation of the rPr elements
@@ -2909,10 +2959,27 @@ func (p *wmlParser) buildBlock(id string, runs []textRun, partPath, commonRPrXML
 			// run.data so the writer can restore it byte-for-byte.
 			// Fall back to a self-closing <w:drawing/> if data was
 			// never populated (legacy callers).
+			//
+			// When the source <w:r> wrapping the drawing carried its
+			// own <w:rPr>, prepend that rPr to Ph.Data so the writer's
+			// TypeImage handler can re-emit it inside the <w:r>. Per
+			// ECMA-376-1 \u00A717.3.2.1 (CT_R) <w:rPr> precedes the run's
+			// other children, so the embedded fragment is in document
+			// order. The writer detects the `<w:rPr>` prefix and emits
+			// the rPr alongside the drawing payload (mirroring the
+			// existing TypeFootnoteRef envelope, which also threads its
+			// per-run rPr through the Ph.Data prefix). 859.docx is the
+			// canonical fixture: the drawing-bearing run carries
+			// `<w:rPr><w:noProof/><w:lang w:eastAsia="ru-RU"/></w:rPr>
+			// <w:drawing>` and the rPr must round-trip with the
+			// drawing on the wire.
 			spanCounter++
 			data := run.data
 			if data == "" {
 				data = "<w:drawing/>"
+			}
+			if rPr := serializeFullRPrXML(run.props); rPr != "" {
+				data = rPr + data
 			}
 			b.AddPh(fmt.Sprintf("c%d", spanCounter),
 				TypeImage, SubTypeImage,
@@ -3450,7 +3517,12 @@ func isSentinel(s string) bool {
 	if len(r) == 0 {
 		return false
 	}
-	if r[0] < '\uE100' || r[0] > '\uE10D' {
+	// Sentinel range covers all reserved Private Use Area code points
+	// used by the WML reader: \uE100 (tab) through \uE10F (revision-
+	// insertion close). Extending the range past \uE10D requires the
+	// matching dispatch in buildBlock \u2014 see the \uE10E / \uE10F
+	// (revision-insertion paired-code OPEN/CLOSE) cases there.
+	if r[0] < '\uE100' || r[0] > '\uE10F' {
 		return false
 	}
 	// Single-char sentinels (tab \uE100, image \uE101, paragraph
@@ -3464,7 +3536,8 @@ func isSentinel(s string) bool {
 	// Multi-char sentinels must have ':' separator
 	// (\uE102:id, \uE103:data, \uE104:data, \uE106:id, \uE107:id,
 	// \uE108:fldChar / \uE108:fldSimple, \uE109:data, \uE10A:data,
-	// \uE10B:id, \uE10C:id, \uE10D:rawXML)
+	// \uE10B:id, \uE10C:id, \uE10D:rawXML, \uE10E:wrapper:rawStart,
+	// \uE10F:wrapper:rawEnd)
 	return len(r) >= 2 && r[1] == ':'
 }
 
@@ -3735,31 +3808,18 @@ func (p *wmlParser) writeRunToSkel(r textRun, partPath string, emitBlock func(*m
 // frame an opaque drawing payload with the original run wrapper while
 // emitting the inner XML piecewise to the skeleton.
 func splitRunWrapper(r textRun) (open, close string) {
-	var buf strings.Builder
-	buf.WriteString("<w:r>")
-	if !r.props.isEmpty() {
-		buf.WriteString("<w:rPr>")
-		if r.props.bold {
-			buf.WriteString("<w:b/>")
-		}
-		if r.props.italic {
-			buf.WriteString("<w:i/>")
-		}
-		if r.props.underline != "" {
-			buf.WriteString(`<w:u w:val="` + r.props.underline + `"/>`)
-		}
-		if r.props.strike {
-			buf.WriteString("<w:strike/>")
-		}
-		if r.props.vertAlign != "" {
-			buf.WriteString(`<w:vertAlign w:val="` + r.props.vertAlign + `"/>`)
-		}
-		if r.props.vanish {
-			buf.WriteString("<w:vanish/>")
-		}
-		buf.WriteString("</w:rPr>")
-	}
-	return buf.String(), "</w:r>"
+	// Delegate to serializeFullRPrXML so the wrapper carries BOTH
+	// the toggle props (b/i/u/strike/vertAlign/vanish) AND the
+	// non-toggle rPrChildren (rStyle, color, sz, lang, noProof, …).
+	// Previously this function only emitted toggles, dropping
+	// children like <w:noProof/> and <w:lang w:eastAsia="ru-RU"/> on
+	// drawing-only paragraphs (859.docx — Strict OOXML — was the
+	// canonical fixture: the drawing paragraph hits the
+	// isEmptyRuns branch in parseParagraph, which routes through
+	// writeRunToSkel → splitRunWrapper, bypassing buildBlock).
+	// Per ECMA-376-1 §17.3.2.1 (CT_R) every rPr child applies to the
+	// run regardless of what the run carries (text vs drawing).
+	return "<w:r>" + serializeFullRPrXML(r.props), "</w:r>"
 }
 
 // drawingMarkerProp is the comment marker syntax embedded inside

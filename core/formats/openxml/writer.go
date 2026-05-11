@@ -1120,7 +1120,8 @@ func (w *Writer) writeFromSkeleton(origZR *zip.Reader, zw *zip.Writer, buf *byte
 				continue
 			}
 			data = postNonWSOForName(data)
-			data = optimizeWMLPart(data, existingIDs, defaultParagraphStyleID, hasStylesPart, &idCounter, synthesised, &orderedIDs)
+			partStrict := bytes.Contains(data, []byte(wmlStrictNamespace))
+			data = optimizeWMLPart(data, existingIDs, defaultParagraphStyleID, hasStylesPart, partStrict, &idCounter, synthesised, &orderedIDs)
 			wsoOptimised[name] = data
 		}
 	}
@@ -2274,9 +2275,27 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 				}
 			case TypeImage:
 				// Drawings/pict/object are opaque — never wrap with
-				// our synthesised rPr because the captured payload
-				// is the original <w:r>'s body verbatim (see the
-				// reader's textRun{text:"", data:raw}).
+				// our paragraph-synthesised rPr because the captured
+				// payload is the original <w:r>'s body verbatim (see
+				// the reader's textRun{text:"", data:raw}).
+				//
+				// When the source <w:r> wrapping the drawing carried
+				// its own <w:rPr>, the buildBlock image path
+				// (serializeFullRPrXML) prepends the serialised
+				// `<w:rPr>...</w:rPr>` fragment to Ph.Data so the
+				// writer threads it back into the run envelope here.
+				// Per ECMA-376-1 §17.3.2.1 (CT_R) <w:rPr> is the first
+				// child of <w:r>, preceding `<w:drawing>` /
+				// `<w:pict>` / `<w:object>`, so the embedded fragment
+				// is in document order; we just emit Ph.Data as-is
+				// inside the <w:r> wrapper. Mirrors upstream Okapi's
+				// RunBuilder which materialises the source
+				// RunProperties on every emitted run, drawing-bearing
+				// or not. 859.docx fixture: a strict-OOXML drawing
+				// run carrying
+				// `<w:rPr><w:noProof/><w:lang w:eastAsia="ru-RU"/></w:rPr>
+				// <w:drawing>` round-trips with both rPr and drawing
+				// preserved.
 				//
 				// extractDrawingTranslations may have replaced
 				// translatable sites (drawing-name attributes,

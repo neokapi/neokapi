@@ -171,6 +171,7 @@ func optimizeWMLPart(
 	existingStyleIDs map[string]bool,
 	defaultParagraphStyleID string,
 	hasStylesPart bool,
+	partStrict bool,
 	idCounter *int,
 	synthesised map[string]synthesisedStyle,
 	orderedIDs *[]string,
@@ -194,7 +195,7 @@ func optimizeWMLPart(
 		out.Write(src[cursor:para.start])
 		rewritten := optimizeParagraph(
 			src[para.start:para.end],
-			existingStyleIDs, defaultParagraphStyleID, hasStylesPart, idCounter, synthesised, orderedIDs,
+			existingStyleIDs, defaultParagraphStyleID, hasStylesPart, partStrict, idCounter, synthesised, orderedIDs,
 		)
 		out.Write(rewritten)
 		cursor = para.end
@@ -302,6 +303,7 @@ func optimizeParagraph(
 	existingStyleIDs map[string]bool,
 	defaultParagraphStyleID string,
 	hasStylesPart bool,
+	partStrict bool,
 	idCounter *int,
 	synthesised map[string]synthesisedStyle,
 	orderedIDs *[]string,
@@ -321,7 +323,22 @@ func optimizeParagraph(
 	// stripWMLSkippableElements has already removed the empty-form
 	// (paragraph-mark) <w:ins>/<w:del> from inside <w:rPr>, so any
 	// surviving instance is a content wrapper.
-	if containsContentRevisionWrapper(src, pPrStart, pPrEnd, hasPPr) {
+	//
+	// EXCEPTION: For Strict-OOXML parts (xmlns="http://purl.oclc.org/
+	// ooxml/wordprocessingml/main") the reader's parseRevisionInsertion
+	// preserves <w:ins>/<w:moveTo> as paired-code wrappers around the
+	// inner runs (see vocabulary.go TypeRevisionIns) — there is no
+	// auto-accept-revisions unwrap to mismatch with. Upstream Okapi's
+	// StyleOptimisation still walks into the preserved wrappers and
+	// computes common rPr across the inner runs (the bypass exists in
+	// upstream only for the transitional-namespace empty-form
+	// paragraph-mark variant inside pPr's rPr, which our pipeline has
+	// already stripped). 859.docx is the canonical fixture — its first
+	// paragraph carries `<w:r>...<w:t>Saving as OOXML Strict...</w:t>
+	// </w:r><w:ins>...<w:r>...<w:t> New text...</w:t></w:r></w:ins>`,
+	// and the reference output synthesises a Normal1 pStyle from the
+	// shared `<w:lang w:val="en-US"/>` across both runs.
+	if !partStrict && containsContentRevisionWrapper(src, pPrStart, pPrEnd, hasPPr) {
 		return src
 	}
 
