@@ -2193,6 +2193,28 @@ func (p *wmlParser) parseRunWithFieldState(d *xml.Decoder, cfs *complexFieldStat
 					emitRaw(stripped)
 				} else if !isStrippedRPrEmpty(stripped) {
 					emitRaw(stripped)
+				} else if cfs.active && cfs.extractable && cfs.atResult {
+					// Past the separate marker of an extractable field
+					// — this run is in the display-text region whose
+					// envelope upstream Okapi preserves verbatim
+					// (parseComplexField at RunParser.java:461-542
+					// routes the wrapping <w:r>/<w:rPr>/</w:r> events
+					// through runBuilder.addToMarkup via the
+					// non-isTextStartEvent branch of parseContent at
+					// lines 808-816). The captured payload feeds the
+					// fldChar-end + text merge in the writer (the same
+					// Ph carries the entire <w:r>…<w:fldChar end/></w:r>
+					// shell), so the post-strip rPr — even when empty
+					// — must reach the backLog or the merged output
+					// loses the empty <w:rPr/> wrapper that upstream
+					// emits. Fixtures: 1083-empty-and-hyperlink-
+					// instructions.docx (and the two hyperlink-and-*
+					// siblings) — the field-end run's source rPr is
+					// <w:rPr><w:lang/></w:rPr>; after stripping the
+					// strippable lang the wrapper is empty but the
+					// reference output still carries `<w:rPr/>` inside
+					// the fused run.
+					emitRaw(stripped)
 				}
 				// Re-parse the captured rPr for typed properties.
 				props, err = parseRunPropsFromRaw(rPrRaw, p.cfg.AggressiveCleanup, p.strict, p.currentStyleChainNames)

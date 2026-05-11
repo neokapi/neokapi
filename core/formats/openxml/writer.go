@@ -275,6 +275,19 @@ func detectFldCharEndForMerge(payload string) fldCharEndMergeInfo {
 	rpr := ""
 	if m := wmlRPrInRunPayloadRE.FindStringSubmatch(payload); m != nil {
 		rpr = normaliseRPrChildrenFragment(m[1])
+		// The reader's stripFieldRPrSkippables stamps the
+		// fieldRPrKeepEmptyMarker (an XML comment) inside an otherwise
+		// empty rPr to prevent the writer's stripWMLSkippableElements
+		// pass from collapsing it. The marker is stripped from the
+		// final wire by postNonWSOForName, so the EFFECTIVE rPr we
+		// compare against is the empty string. Without this
+		// normalisation the merge gate would never fire on
+		// post-strip-empty rPr field-end runs (the 1083-*-hyperlink-*
+		// cluster). See fieldRPrKeepEmptyMarker in wml.go for the
+		// upstream-Okapi rationale.
+		if rpr == fieldRPrKeepEmptyMarker {
+			rpr = ""
+		}
 	}
 	truncated := wmlCloseRunTagRE.ReplaceAllString(payload, "")
 	return fldCharEndMergeInfo{
