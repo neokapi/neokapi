@@ -1256,8 +1256,16 @@ func findMatchingStyle(
 // <w:pStyle w:val="<id>"/> inserted as the FIRST child. Okapi places
 // pStyle as the first child of pPr (per ParagraphBlockProperties.refine).
 //
-// If the existing pPr already has a pStyle, it is REPLACED with the
-// new one (Okapi's refine() overrides the paragraphStyle slot).
+// If the existing pPr already has a pStyle ANYWHERE in its body it is
+// REPLACED with the new one (Okapi's refine() overrides the
+// paragraphStyle slot regardless of position). Per ECMA-376-1
+// §17.3.1.26 (CT_PPr) <w:pStyle> is normally the first child, but
+// real-world authoring tools occasionally emit it later (fixture
+// 847-2.docx is the canonical case: its P3 source has
+// `<w:pPr><w:rPr><w:b/></w:rPr><w:pStyle w:val="i1"/></w:pPr>` with
+// pStyle as the SECOND child after rPr). Without this strip, the
+// WSO post-pass leaves the original pStyle in place AND prepends the
+// synthesised one, producing an invalid two-pStyle pPr.
 func insertPStyle(src []byte, id string) []byte {
 	// Self-closing <w:pPr/> — convert to open/close with pStyle child.
 	if bytes.HasSuffix(bytes.TrimSpace(src), []byte("/>")) {
@@ -1278,47 +1286,20 @@ func insertPStyle(src []byte, id string) []byte {
 	if startTagEnd < 0 {
 		return src
 	}
-	// Strip an existing first-child <w:pStyle ...>. The captured pPr
-	// may carry pStyle in either self-closing form ("<w:pStyle w:val=
-	// \"...\"/>") OR open/close form ("<w:pStyle w:val=\"...\"></w:pStyle>"
-	// ; encoding/xml's Decoder/Encoder cycle re-emits captureRawElement
-	// payloads in the latter form even when the source was self-closing
-	// — which exposes the strip-only-self-closing path as a #592
-	// regression for fixtures whose pPr was lifted into a synthesised
-	// pStyle by the WSO post-pass).
-	body := src[startTagEnd+1:]
-	if bytes.HasPrefix(bytes.TrimLeft(body, " \t\n\r"), []byte("<w:pStyle")) {
-		// Skip leading whitespace
-		ws := 0
-		for ws < len(body) && (body[ws] == ' ' || body[ws] == '\t' || body[ws] == '\n' || body[ws] == '\r') {
-			ws++
-		}
-		// pStyle character after the prefix must be a name boundary
-		// (' ', '/', '>') — otherwise we matched something like
-		// <w:pStyleId> by accident.
-		boundaryAt := ws + len("<w:pStyle")
-		if boundaryAt < len(body) {
-			b := body[boundaryAt]
-			if b == ' ' || b == '\t' || b == '\n' || b == '\r' || b == '/' || b == '>' {
-				// Find the start tag's '>' terminator.
-				tagEnd := bytes.IndexByte(body[ws:], '>')
-				if tagEnd >= 0 {
-					absTagEnd := ws + tagEnd
-					// Self-closing — element ends here.
-					if absTagEnd > 0 && body[absTagEnd-1] == '/' {
-						body = body[absTagEnd+1:]
-					} else {
-						// Open form — skip past matching </w:pStyle>.
-						closeNeedle := []byte("</w:pStyle>")
-						closeIdx := bytes.Index(body[absTagEnd+1:], closeNeedle)
-						if closeIdx >= 0 {
-							body = body[absTagEnd+1+closeIdx+len(closeNeedle):]
-						}
-					}
-				}
-			}
-		}
-	}
+	// Strip an existing <w:pStyle ...> child wherever it appears in
+	// the body. The captured pPr may carry pStyle in either self-
+	// closing form ("<w:pStyle w:val=\"...\"/>") OR open/close form
+	// ("<w:pStyle w:val=\"...\"></w:pStyle>" — encoding/xml's
+	// Decoder/Encoder cycle re-emits captureRawElement payloads in
+	// the latter form even when the source was self-closing, which
+	// exposes the strip-only-self-closing path as a #592 regression
+	// for fixtures whose pPr was lifted into a synthesised pStyle by
+	// the WSO post-pass).
+	//
+	// stripChildElement does a hard name-boundary check so we don't
+	// match a longer element name that starts with "pStyle" (no such
+	// element exists in WPML, but the guard costs nothing).
+	body := stripChildElement(src[startTagEnd+1:], "w:pStyle")
 	var b bytes.Buffer
 	b.Write(src[:startTagEnd+1])
 	b.WriteString(`<w:pStyle w:val="`)
@@ -1326,6 +1307,78 @@ func insertPStyle(src []byte, id string) []byte {
 	b.WriteString(`"/>`)
 	b.Write(body)
 	return b.Bytes()
+}
+
+// stripChildElement removes the FIRST occurrence of a `<name ...>...
+// </name>` (open/close) or `<name .../>` (self-closing) child element
+// from a fragment of WPML XML. Surrounding whitespace runs (immediately
+// preceding AND immediately following the element) are collapsed so
+// the fragment does not accumulate empty gaps; when whitespace existed
+// on both sides the leading whitespace run is retained as a single
+// separator between the surviving siblings.
+//
+// Used by insertPStyle to drop an existing <w:pStyle> regardless of
+// its position in the pPr's child sequence — see insertPStyle for the
+// ECMA-376 / fixture rationale.
+func stripChildElement(body []byte, name string) []byte {
+	prefix := append([]byte("<"), name...)
+	idx := bytes.Index(body, prefix)
+	for idx >= 0 {
+		end := idx + len(prefix)
+		if end >= len(body) {
+			return body
+		}
+		b := body[end]
+		if b != ' ' && b != '\t' && b != '\n' && b != '\r' && b != '/' && b != '>' {
+			next := bytes.Index(body[end:], prefix)
+			if next < 0 {
+				return body
+			}
+			idx = end + next
+			continue
+		}
+		tagEnd := bytes.IndexByte(body[end:], '>')
+		if tagEnd < 0 {
+			return body
+		}
+		absTagEnd := end + tagEnd
+		var endOfElem int
+		if absTagEnd > 0 && body[absTagEnd-1] == '/' {
+			endOfElem = absTagEnd + 1
+		} else {
+			closeNeedle := append([]byte("</"), name...)
+			closeNeedle = append(closeNeedle, '>')
+			closeIdx := bytes.Index(body[absTagEnd+1:], closeNeedle)
+			if closeIdx < 0 {
+				return body
+			}
+			endOfElem = absTagEnd + 1 + closeIdx + len(closeNeedle)
+		}
+		wsBefore := idx
+		for wsBefore > 0 {
+			c := body[wsBefore-1]
+			if c != ' ' && c != '\t' && c != '\n' && c != '\r' {
+				break
+			}
+			wsBefore--
+		}
+		wsAfter := endOfElem
+		for wsAfter < len(body) {
+			c := body[wsAfter]
+			if c != ' ' && c != '\t' && c != '\n' && c != '\r' {
+				break
+			}
+			wsAfter++
+		}
+		out := make([]byte, 0, len(body)-(wsAfter-wsBefore))
+		out = append(out, body[:wsBefore]...)
+		if wsBefore != idx && wsAfter != endOfElem {
+			out = append(out, body[wsBefore:idx]...)
+		}
+		out = append(out, body[wsAfter:]...)
+		return out
+	}
+	return body
 }
 
 // stripPropsFromRun removes named property elements from the <w:rPr>
