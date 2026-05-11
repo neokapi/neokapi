@@ -187,9 +187,28 @@ func (p *wmlParser) parsePart(data []byte, partPath string, emitBlock func(*mode
 				}
 				p.skelWriteStartElement(t)
 			case "footnote", "endnote":
-				// Skip the auto-generated separator footnotes (id 0 and 1)
-				id := attrVal(t, "id")
-				if id == "0" || id == "1" || id == "-1" {
+				// Skip the auto-generated separator/continuation
+				// footnotes whose body is non-translatable boilerplate
+				// (a <w:separator/>, <w:continuationSeparator/>, or
+				// continuation-notice marker run). Per ECMA-376 Part 1
+				// §17.11.10 (CT_Footnote) and §17.11.16 (CT_Endnote),
+				// the w:type attribute (ST_FtnEdn) discriminates these
+				// from the default ("normal") footnotes/endnotes that
+				// carry translatable text. The previous heuristic of
+				// matching by w:id ("0", "1", "-1") was unreliable —
+				// the non-translatable IDs are author-assigned and
+				// vary per document (e.g. {-1, 0} in docxtest.docx,
+				// {0, 1} in OpenXML_text_reference_v1_2.docx), so any
+				// id-based filter risked dropping the actual footnote
+				// content from the translatable-block pipeline. Mirrors
+				// upstream Okapi's behaviour: BlockParser emits no
+				// translatable block for runs whose only content is a
+				// <w:separator/> / <w:continuationSeparator/> element,
+				// so those <w:footnote> wrappers reach the writer as
+				// pure skeleton; the same outcome is achieved here by
+				// switching on w:type.
+				wType := attrVal(t, "type")
+				if wType == "separator" || wType == "continuationSeparator" || wType == "continuationNotice" {
 					p.skelWriteStartElement(t)
 					if err := p.skipAndSkel(d); err != nil {
 						return err
