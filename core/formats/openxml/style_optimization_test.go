@@ -426,6 +426,25 @@ func TestCommonRPrChildren_RFontsValueDisagreementDrops(t *testing.T) {
 	assert.Empty(t, common, "rFonts with disagreeing ascii drops; nothing else common")
 }
 
+// TestOptimizeWMLPart_NestedTxbxParagraph verifies WSO recurses
+// into <w:txbxContent> bodies. Per upstream Okapi each textbox
+// paragraph body is its own StyledTextPart (WordDocument.java
+// lines 261-271); the inner paragraph's common rPr lifts into a
+// synthesised pStyle independently of the outer drawing-bearing
+// paragraph. AlternateContentTest.docx is the canonical fixture.
+func TestOptimizeWMLPart_NestedTxbxParagraph(t *testing.T) {
+	src := []byte(`<w:body><w:p><w:r><w:drawing><wps:txbx><w:txbxContent><w:p><w:pPr><w:rPr><w:sz w:val="18"/></w:rPr></w:pPr><w:r><w:rPr><w:sz w:val="18"/></w:rPr><w:t>Inner</w:t></w:r></w:p></w:txbxContent></wps:txbx></w:drawing></w:r></w:p></w:body>`)
+	existing := map[string]bool{}
+	var counter int
+	syn := map[string]synthesisedStyle{}
+	var ids []string
+	got := optimizeWMLPart(src, existing, "", true, &counter, syn, &ids)
+	assert.Contains(t, string(got), "NF974E24F-Normal1", "inner txbx paragraph synthesises pStyle")
+	require.Len(t, ids, 1)
+	s := syn[ids[0]]
+	assert.Contains(t, s.rPrXML, `w:val="18"`, "common rPr lifted")
+}
+
 func TestOptimizeWMLPart_HeterogeneousRFontsLiftedToStyle(t *testing.T) {
 	// End-to-end: post-write WSO sees runs with identical (already-merged)
 	// rFonts content prepended by renderWMLBlock from the source-rPr

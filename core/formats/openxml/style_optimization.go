@@ -193,12 +193,129 @@ func optimizeWMLPart(
 	cursor := 0
 	for _, para := range paragraphs {
 		out.Write(src[cursor:para.start])
+		paraBytes := src[para.start:para.end]
+		// Pre-recurse into any paragraphs nested within this outer
+		// paragraph (typically inside a <w:drawing><wps:txbx><w:txbxContent>
+		// body). Upstream Okapi treats every textbox-paragraph body as
+		// its own StyledTextPart (RunBuilder + StyleOptimisation runs
+		// per nested paragraph — see WordDocument.java's per-block
+		// StyleOptimisation construction at line 261-271). The outer
+		// drawing-bearing paragraph itself is processed below; runs
+		// nested in the drawing are filtered from its findRuns scope
+		// by the opaque-subtree skip (style_optimization.go:650-733
+		// per the 1a3627db doc) so synthesising on the outer is a
+		// no-op while the inner paragraphs need their own pass to pick
+		// up textbox-body rPr lifting (AlternateContentTest.docx,
+		// AlternateContent.docx, graphicdata.docx footers).
+		if hasNestedParagraphs(paraBytes) {
+			paraBytes = optimizeNestedParagraphs(
+				paraBytes,
+				existingStyleIDs, defaultParagraphStyleID, hasStylesPart, partStrict, idCounter, synthesised, orderedIDs,
+			)
+		}
 		rewritten := optimizeParagraph(
-			src[para.start:para.end],
+			paraBytes,
 			existingStyleIDs, defaultParagraphStyleID, hasStylesPart, partStrict, idCounter, synthesised, orderedIDs,
 		)
 		out.Write(rewritten)
 		cursor = para.end
+	}
+	out.Write(src[cursor:])
+	return out.Bytes()
+}
+
+// hasNestedParagraphs reports whether src (one outer paragraph
+// extent) contains additional <w:p> elements nested inside it
+// (typically textbox-body paragraphs within a <w:drawing>).
+// Quick byte scan: any <w:p... after the first opening tag,
+// before the matching </w:p> closer, indicates nesting.
+func hasNestedParagraphs(src []byte) bool {
+	// Skip past the outer <w:p ...> start tag.
+	i := bytes.IndexByte(src, '>')
+	if i < 0 {
+		return false
+	}
+	rest := src[i+1:]
+	// Strip the trailing </w:p> closer.
+	closer := []byte("</w:p>")
+	if cidx := bytes.LastIndex(rest, closer); cidx >= 0 {
+		rest = rest[:cidx]
+	}
+	openTag := []byte("<w:p")
+	for j := 0; j < len(rest); {
+		k := bytes.Index(rest[j:], openTag)
+		if k < 0 {
+			return false
+		}
+		bj := j + k + len(openTag)
+		if bj >= len(rest) {
+			return false
+		}
+		b := rest[bj]
+		if b == '>' || b == ' ' || b == '\t' || b == '\n' || b == '\r' || b == '/' {
+			return true
+		}
+		j = bj
+	}
+	return false
+}
+
+// optimizeNestedParagraphs recursively applies optimizeWMLPart to
+// any nested paragraphs inside src. Used for textbox-body
+// paragraphs wrapped in <w:drawing><wps:txbx><w:txbxContent>...
+// (AlternateContentTest.docx, AlternateContent.docx) and for any
+// other site where Okapi's per-block StyleOptimisation reaches a
+// nested paragraph that the outer-level findParagraphs walk
+// skipped.
+//
+// Strategy: locate the inner <w:txbxContent>...</w:txbxContent>
+// (or nested-paragraph window in general) and recurse with
+// optimizeWMLPart. This keeps the SHARED idCounter, synthesised
+// map, and orderedIDs in lockstep so styleId numbering matches
+// upstream's per-document IdGenerator stream.
+func optimizeNestedParagraphs(
+	src []byte,
+	existingStyleIDs map[string]bool,
+	defaultParagraphStyleID string,
+	hasStylesPart bool,
+	partStrict bool,
+	idCounter *int,
+	synthesised map[string]synthesisedStyle,
+	orderedIDs *[]string,
+) []byte {
+	// Find every <w:txbxContent>...</w:txbxContent> inside src
+	// and recurse into its body. Other nested-paragraph carriers
+	// (e.g. footnote references, custom XML) don't typically
+	// appear inside a textbox/drawing scope and need their own
+	// part-level treatment — txbxContent is the canonical case.
+	openTag := []byte("<w:txbxContent")
+	closeTag := []byte("</w:txbxContent>")
+	var out bytes.Buffer
+	out.Grow(len(src))
+	cursor := 0
+	for cursor < len(src) {
+		oi := bytes.Index(src[cursor:], openTag)
+		if oi < 0 {
+			break
+		}
+		// Skip past the start tag's terminator.
+		k := bytes.IndexByte(src[cursor+oi:], '>')
+		if k < 0 {
+			break
+		}
+		bodyStart := cursor + oi + k + 1
+		ci := bytes.Index(src[bodyStart:], closeTag)
+		if ci < 0 {
+			break
+		}
+		bodyEnd := bodyStart + ci
+		out.Write(src[cursor:bodyStart])
+		body := src[bodyStart:bodyEnd]
+		// Recursively optimize the txbxContent body — its inner
+		// paragraphs surface to optimizeWMLPart's outer-level
+		// findParagraphs walk on the recursive call.
+		out.Write(optimizeWMLPart(body, existingStyleIDs, defaultParagraphStyleID, hasStylesPart, partStrict, idCounter, synthesised, orderedIDs))
+		cursor = bodyEnd
 	}
 	out.Write(src[cursor:])
 	return out.Bytes()
