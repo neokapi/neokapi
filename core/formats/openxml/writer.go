@@ -588,21 +588,27 @@ func (w *Writer) writeFromSkeleton(origZR *zip.Reader, zw *zip.Writer, buf *byte
 	// single-IdGenerator-per-filter-invocation scope (see
 	// WordStyleDefinitions.readWith line 114).
 	var (
-		synthesised   map[string]synthesisedStyle
-		orderedIDs    []string
-		idCounter     int
-		existingIDs   map[string]bool
-		pendingStyles map[string]pendingStylesEntry
+		synthesised             map[string]synthesisedStyle
+		orderedIDs              []string
+		idCounter               int
+		existingIDs             map[string]bool
+		defaultParagraphStyleID string
+		pendingStyles           map[string]pendingStylesEntry
 	)
 	if isDOCX && w.cfg.OptimiseWordStyles {
 		synthesised = make(map[string]synthesisedStyle)
-		// Pre-load existing styleIds from the source styles.xml so the
-		// generated NF974E24F-* ids don't collide.
+		// Pre-load existing styleIds AND the default paragraph styleId
+		// from the source styles.xml so generated NF974E24F-* ids don't
+		// collide AND so synthesised styles' basedOn (and id parent
+		// fragment) point at the document's actual default paragraph
+		// style — mirroring upstream WordStyleDefinitions.Ids.defaultBased
+		// (WordStyleDefinitions.java:485-491).
 		for _, f := range origZR.File {
 			if f.Name == "word/styles.xml" {
 				data, err := readZipFile(f)
 				if err == nil {
 					existingIDs = extractExistingStyleIDs(data)
+					defaultParagraphStyleID = extractDefaultParagraphStyleID(data)
 				}
 				break
 			}
@@ -703,7 +709,7 @@ func (w *Writer) writeFromSkeleton(origZR *zip.Reader, zw *zip.Writer, buf *byte
 				continue
 			}
 			data = postNonWSOForName(data)
-			data = optimizeWMLPart(data, existingIDs, &idCounter, synthesised, &orderedIDs)
+			data = optimizeWMLPart(data, existingIDs, defaultParagraphStyleID, &idCounter, synthesised, &orderedIDs)
 			wsoOptimised[name] = data
 		}
 	}

@@ -134,15 +134,28 @@ type rawParagraph struct {
 //
 // existingStyleIDs is the SOURCE styles.xml id set. It is consulted
 // for two purposes: (1) parent-style lookup — a paragraph pStyle that
-// isn't defined in this set falls back to "Normal", mirroring
+// isn't defined in this set falls back to defaultParagraphStyleID (or
+// "Normal" if no default exists), mirroring
 // WordStyleDefinitions.Ids.basedOn at lines 453-460; (2) generated-id
 // collision avoidance — generation tickets that hit an existing id
 // re-roll, mirroring parentBasedGenerated's do/while loop. The map is
 // updated in place when a new synthesised id is added so subsequent
 // generations see the new id too (matching the upstream contract).
+//
+// defaultParagraphStyleID is the styleId of the default paragraph
+// style declared in word/styles.xml (i.e. the
+// `<w:style w:type="paragraph" w:default="1" w:styleId="X">` element).
+// Mirrors upstream WordStyleDefinitions.Ids.defaultBased
+// (WordStyleDefinitions.java:485-491): when a paragraph has no pStyle,
+// the synthesised style's basedOn (and the parentBased id) derive from
+// the default paragraph style id rather than the literal "Normal". If
+// styles.xml has no default paragraph style, fall back to "Normal" —
+// matches Okapi's documentDefaultBased path collapsing onto the
+// document defaults (see WordStyleDefinitions.java:493-505).
 func optimizeWMLPart(
 	src []byte,
 	existingStyleIDs map[string]bool,
+	defaultParagraphStyleID string,
 	idCounter *int,
 	synthesised map[string]synthesisedStyle,
 	orderedIDs *[]string,
@@ -166,7 +179,7 @@ func optimizeWMLPart(
 		out.Write(src[cursor:para.start])
 		rewritten := optimizeParagraph(
 			src[para.start:para.end],
-			existingStyleIDs, idCounter, synthesised, orderedIDs,
+			existingStyleIDs, defaultParagraphStyleID, idCounter, synthesised, orderedIDs,
 		)
 		out.Write(rewritten)
 		cursor = para.end
@@ -272,6 +285,7 @@ type runEntry struct {
 func optimizeParagraph(
 	src []byte,
 	existingStyleIDs map[string]bool,
+	defaultParagraphStyleID string,
 	idCounter *int,
 	synthesised map[string]synthesisedStyle,
 	orderedIDs *[]string,
@@ -365,7 +379,11 @@ func optimizeParagraph(
 	// that shape in practice.
 	parentID := pStyleID
 	if parentID == "" || !existingStyleIDs[parentID] || strings.HasPrefix(parentID, styleHashRoot+"-") {
-		parentID = "Normal"
+		if defaultParagraphStyleID != "" {
+			parentID = defaultParagraphStyleID
+		} else {
+			parentID = "Normal"
+		}
 	}
 	commonRPrXML := buildRPrXML(common)
 	matchedID := findMatchingStyle(parentID, commonRPrXML, synthesised, *orderedIDs)
@@ -1184,6 +1202,56 @@ func injectSynthesisedStyles(stylesXML []byte, synthesised map[string]synthesise
 	out.Write(inj.Bytes())
 	out.Write(stylesXML[idx:])
 	return out.Bytes()
+}
+
+// extractDefaultParagraphStyleID scans word/styles.xml for the default
+// paragraph style — the
+// `<w:style w:type="paragraph" w:default="1" w:styleId="X">` element —
+// and returns "X". Returns "" if no such element is present.
+//
+// Mirrors WordStyleDefinitions.place (line 138-145) which builds the
+// defaultStylesByStyleTypes map keyed on (StyleType.PARAGRAPH ->
+// styleId). That map is consulted by Ids.defaultBased
+// (WordStyleDefinitions.java:485-491) when a paragraph lacks pStyle —
+// the styleId becomes the parent of the synthesised style and feeds
+// IdGenerator.createId(parentId).
+func extractDefaultParagraphStyleID(stylesXML []byte) string {
+	cursor := 0
+	openNeedle := []byte("<w:style")
+	for {
+		idx := bytes.Index(stylesXML[cursor:], openNeedle)
+		if idx < 0 {
+			return ""
+		}
+		start := cursor + idx
+		j := start + len(openNeedle)
+		if j >= len(stylesXML) {
+			return ""
+		}
+		// Element-name boundary check.
+		if b := stylesXML[j]; b != ' ' && b != '\t' && b != '\n' && b != '\r' && b != '>' && b != '/' {
+			cursor = j
+			continue
+		}
+		end := bytes.IndexByte(stylesXML[j:], '>')
+		if end < 0 {
+			return ""
+		}
+		tag := stylesXML[j : j+end]
+		hasType := bytes.Contains(tag, []byte(`w:type="paragraph"`))
+		hasDefault := bytes.Contains(tag, []byte(`w:default="1"`)) || bytes.Contains(tag, []byte(`w:default="true"`))
+		if hasType && hasDefault {
+			styleIDIdx := bytes.Index(tag, []byte(`w:styleId="`))
+			if styleIDIdx >= 0 {
+				vstart := styleIDIdx + len(`w:styleId="`)
+				vend := bytes.IndexByte(tag[vstart:], '"')
+				if vend > 0 {
+					return string(tag[vstart : vstart+vend])
+				}
+			}
+		}
+		cursor = j + end + 1
+	}
 }
 
 // extractExistingStyleIDs scans word/styles.xml for every
