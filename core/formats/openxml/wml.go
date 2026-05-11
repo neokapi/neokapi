@@ -1199,6 +1199,14 @@ func (p *wmlParser) parseParagraph(d *xml.Decoder, partPath string, emitBlock fu
 	var hyperlinkRuns []textRun
 	var inHyperlink bool
 	var hyperlinkID string
+	// hyperlinkAttrs captures every attribute on the <w:hyperlink>
+	// start element other than `r:id` so the writer can re-emit them
+	// verbatim. ECMA-376-1 §17.16.22 (CT_Hyperlink) defines tooltip,
+	// history, anchor, docLocation, tgtFrame; upstream Okapi preserves
+	// the start element verbatim via RunContainer.startMarkup
+	// (RunContainer.java:97-99, getEvents() lines 168-176) and does NOT
+	// synthesise the `href` attribute the native writer was emitting.
+	var hyperlinkAttrs []xml.Attr
 	var paraProps string
 	var paraStyleID string
 	var cfs complexFieldState
@@ -1261,6 +1269,15 @@ func (p *wmlParser) parseParagraph(d *xml.Decoder, partPath string, emitBlock fu
 			case "hyperlink":
 				inHyperlink = true
 				hyperlinkID = attrVal(t, "id")
+				hyperlinkAttrs = hyperlinkAttrs[:0]
+				for _, a := range t.Attr {
+					// Skip r:id — wrapHyperlinkRuns re-emits it from
+					// the hyperlinkID we just captured.
+					if a.Name.Local == "id" {
+						continue
+					}
+					hyperlinkAttrs = append(hyperlinkAttrs, a)
+				}
 				hyperlinkRuns = nil
 
 			case "bookmarkStart", "bookmarkEnd":
@@ -1456,10 +1473,11 @@ func (p *wmlParser) parseParagraph(d *xml.Decoder, partPath string, emitBlock fu
 		case xml.EndElement:
 			if t.Name.Local == "hyperlink" {
 				if inHyperlink && len(hyperlinkRuns) > 0 {
-					runs = append(runs, p.wrapHyperlinkRuns(hyperlinkRuns, hyperlinkID)...)
+					runs = append(runs, p.wrapHyperlinkRuns(hyperlinkRuns, hyperlinkID, hyperlinkAttrs)...)
 				}
 				inHyperlink = false
 				hyperlinkID = ""
+				hyperlinkAttrs = hyperlinkAttrs[:0]
 				continue
 			}
 
@@ -2387,17 +2405,37 @@ func (p *wmlParser) parseInlineSDT(d *xml.Decoder) ([]textRun, error) {
 }
 
 // wrapHyperlinkRuns wraps runs in hyperlink opening/closing markers.
-func (p *wmlParser) wrapHyperlinkRuns(runs []textRun, relID string) []textRun {
-	// Resolve the hyperlink URL from relationships
-	url := ""
-	if rel, ok := p.rels[relID]; ok {
-		url = rel.Target
+//
+// The emitted <w:hyperlink> start tag mirrors upstream Okapi's preserved
+// startMarkup (RunContainer.java:97-99, getEvents() lines 168-176): every
+// non-`r:id` attribute on the source <w:hyperlink> survives the round-
+// trip, including w:tooltip, w:history, w:anchor, w:docLocation, and
+// w:tgtFrame (ECMA-376-1 \u00A717.16.22 CT_Hyperlink). The native pipeline
+// previously reconstructed the tag from `relID` alone and synthesised a
+// non-OOXML `href=...` attribute, which dropped tooltip/history and
+// added a spurious href that the reference output never carries
+// (830-7.docx, 952-1.docx, 952-2.docx, hyperlink.docx,
+// external_hyperlink.docx, 1341-textbox-with-a-hyperlink.docx).
+func (p *wmlParser) wrapHyperlinkRuns(runs []textRun, relID string, extraAttrs []xml.Attr) []textRun {
+	// Build <w:hyperlink> opening tag preserving every captured
+	// attribute. The relID feeds the r:id attribute; the remaining
+	// attributes come from extraAttrs in source order.
+	var b strings.Builder
+	b.WriteString("<w:hyperlink")
+	if relID != "" {
+		b.WriteString(` r:id="`)
+		b.WriteString(xmlEscapeAttr(relID))
+		b.WriteString(`"`)
 	}
-
-	data := "<w:hyperlink>"
-	if url != "" {
-		data = fmt.Sprintf(`<w:hyperlink r:id="%s" href="%s">`, xmlEscapeAttr(relID), xmlEscapeAttr(url))
+	for _, a := range extraAttrs {
+		b.WriteString(" ")
+		writeAttrName(&b, a.Name)
+		b.WriteString(`="`)
+		b.WriteString(xmlEscapeAttr(a.Value))
+		b.WriteString(`"`)
 	}
+	b.WriteString(">")
+	data := b.String()
 
 	// Create wrapper with sentinel markers
 	var result []textRun
