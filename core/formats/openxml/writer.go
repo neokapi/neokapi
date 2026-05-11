@@ -1273,6 +1273,20 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 	for _, r := range runs {
 		switch {
 		case r.Text != nil:
+			// When the next text run's effectiveRPr differs from the
+			// currently-open <w:r>'s rPr, close the current run and open
+			// a new one so per-run rPr boundaries (Phase 1-5 sidecar) are
+			// preserved on the wire. Mirrors RunBuilder.java:73-188 +
+			// RunMerger.canRunPropertiesBeMerged (RunMerger.java:156-229)
+			// per ECMA-376-1 §17.3.2.1: each distinct rPr boundary is a
+			// distinct <w:r>.
+			if inRun {
+				nextRPr := effectiveRPr(textRunIdx + 1)
+				curRPr := effectiveRPr(textRunIdx)
+				if nextRPr != curRPr {
+					closeRun()
+				}
+			}
 			for _, ch := range r.Text.Text {
 				if !inRun {
 					textRunIdx++
