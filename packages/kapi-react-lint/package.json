@@ -52,12 +52,12 @@
   },
   "devDependencies": {
     "@types/eslint": "^9.6.0",
-    "@types/estree": "^1.0.0",
-    "@types/node": "^25.6.0",
+    "@types/estree": "^1.0.9",
+    "@types/node": "^25.7.0",
     "esbuild": "^0.28.0",
     "eslint": "^9.0.0",
     "typescript": "^6.0.3",
-    "vitest": "^4.1.5"
+    "vitest": "^4.1.6"
   },
   "peerDependencies": {
     "eslint": "^8.57.0 || ^9.0.0"
