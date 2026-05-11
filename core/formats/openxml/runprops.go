@@ -731,22 +731,31 @@ var wpmlToggleNames = map[string]bool{
 // rPrOmittedWithNoneOrNil mirrors upstream
 // RunProperties.OMITTED_WITH_NONE_OR_NIL (RunProperties.java:370-380):
 // these properties are omitted when their `val` attribute is "none" or
-// "nil". Limited here to the WPML names since the native rPr parser only
-// sees WPML rPr children.
+// "nil". The upstream set is matched purely by `localPart`
+// (RunProperties.java:512 calls `p.getName().getLocalPart()`), so the
+// DML-flagged "cap" entry also drops a WPML `<w:cap w:val="none"/>` —
+// see fixture 1440-default-formatting.docx whose translatable run carries
+// `<w:cap w:val="none"/>` next to other clearing-value toggles.
 var rPrOmittedWithNoneOrNil = map[string]bool{
 	"brd":       true,
 	"effect":    true,
 	"em":        true,
 	"highlight": true,
 	"u":         true, // ALSO present in the toggle path, but value-defaulted
+	"cap":       true, // DML by upstream comment, matched by local-name only
+	"scheme":    true, // SML by upstream comment, matched by local-name only
 }
 
 // rPrOmittedWithZero mirrors upstream RunProperties.OMITTED_WITH_ZERO
 // (RunProperties.java:382-390): these properties are omitted when their
-// `val` attribute equals "0". Limited to WPML members.
+// `val` attribute equals "0". Upstream matches by `localPart` only so
+// DML members (`baseline`, `spc`) also fire on WPML elements that happen
+// to share the local name.
 var rPrOmittedWithZero = map[string]bool{
 	"kern":     true,
 	"position": true,
+	"baseline": true, // DML by upstream comment, matched by local-name only
+	"spc":      true, // DML by upstream comment, matched by local-name only
 }
 
 // rPrOmittedWithHundred mirrors upstream RunProperties.OMITTED_WITH_HUNDRED
@@ -759,6 +768,16 @@ var rPrOmittedWithHundred = map[string]bool{
 // (RunProperties.java:395-398).
 var rPrOmittedWithBaseline = map[string]bool{
 	"vertAlign": true,
+}
+
+// rPrOmittedWithNoStrike mirrors upstream RunProperties.OMITTED_WITH_NO_STRIKE
+// (RunProperties.java:399-402). Upstream matches by `localPart` only; the
+// DML `strike` element accepts a `noStrike` value to mean "no
+// strikethrough". The native parser would otherwise have already lifted a
+// `<w:strike>` into runProps.strike, but a DML/SML element sharing the
+// local name "strike" lands in rPrChildren via the default branch.
+var rPrOmittedWithNoStrike = map[string]bool{
+	"strike": true,
 }
 
 // isDefaultValuedRPrChild returns true when c is a run-property element
@@ -790,6 +809,9 @@ func isDefaultValuedRPrChild(c rPrChild) bool {
 		return true
 	}
 	if rPrOmittedWithBaseline[c.name] && hasVal && val == "baseline" {
+		return true
+	}
+	if rPrOmittedWithNoStrike[c.name] && hasVal && val == "noStrike" {
 		return true
 	}
 	return false
