@@ -62,17 +62,35 @@ const (
 	ctSpreadDoc  = "application/vnd.openxmlformats-officedocument.spreadsheetml"
 )
 
-// Well-known relationship types.
+// Well-known relationship types. Both the Transitional (ECMA-376
+// Part 1 §A.1, schemas.openxmlformats.org URIs) and Strict
+// (ISO/IEC 29500-1 §A.1, purl.oclc.org URIs) variants are accepted —
+// .docx files saved as "Strict Open XML" by Word use the purl form
+// for the officeDocument relationship type even though the inner
+// [Content_Types].xml still declares Transitional content types
+// (859.docx is the canonical fixture). Upstream Okapi accepts both
+// via the Namespaces enum (StrictDocumentRelationships +
+// DocumentRelationships) — see Namespaces.class in
+// okapi-filter-openxml-1.48.0.
 const (
-	relTypeMainDoc     = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument"
-	relTypeHeader      = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/header"
-	relTypeFooter      = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/footer"
-	relTypeFootnotes   = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/footnotes"
-	relTypeEndnotes    = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/endnotes"
-	relTypeComments    = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/comments"
-	relTypeHyperlink   = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink"
-	relTypeChart       = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/chart"
-	relTypeDiagramData = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/diagramData"
+	relTypeMainDoc           = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument"
+	relTypeMainDocStrict     = "http://purl.oclc.org/ooxml/officeDocument/relationships/officeDocument"
+	relTypeHeader            = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/header"
+	relTypeHeaderStrict      = "http://purl.oclc.org/ooxml/officeDocument/relationships/header"
+	relTypeFooter            = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/footer"
+	relTypeFooterStrict      = "http://purl.oclc.org/ooxml/officeDocument/relationships/footer"
+	relTypeFootnotes         = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/footnotes"
+	relTypeFootnotesStrict   = "http://purl.oclc.org/ooxml/officeDocument/relationships/footnotes"
+	relTypeEndnotes          = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/endnotes"
+	relTypeEndnotesStrict    = "http://purl.oclc.org/ooxml/officeDocument/relationships/endnotes"
+	relTypeComments          = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/comments"
+	relTypeCommentsStrict    = "http://purl.oclc.org/ooxml/officeDocument/relationships/comments"
+	relTypeHyperlink         = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink"
+	relTypeHyperlinkStrict   = "http://purl.oclc.org/ooxml/officeDocument/relationships/hyperlink"
+	relTypeChart             = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/chart"
+	relTypeChartStrict       = "http://purl.oclc.org/ooxml/officeDocument/relationships/chart"
+	relTypeDiagramData       = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/diagramData"
+	relTypeDiagramDataStrict = "http://purl.oclc.org/ooxml/officeDocument/relationships/diagramData"
 )
 
 // parseContainer analyzes the ZIP archive and returns container metadata.
@@ -218,7 +236,7 @@ func parseRelationships(f *zip.File) ([]relationship, error) {
 func findMainDocumentPart(allRels map[string][]relationship) string {
 	rootRels := allRels["_rels/.rels"]
 	for _, rel := range rootRels {
-		if rel.Type == relTypeMainDoc {
+		if rel.Type == relTypeMainDoc || rel.Type == relTypeMainDocStrict {
 			return rel.Target
 		}
 	}
@@ -271,23 +289,23 @@ func buildDOCXParts(info *containerInfo, cfg *Config) []string {
 		}
 
 		switch rel.Type {
-		case relTypeHeader:
+		case relTypeHeader, relTypeHeaderStrict:
 			if cfg.TranslateHeadersFooters {
 				headers = append(headers, target)
 			}
-		case relTypeFooter:
+		case relTypeFooter, relTypeFooterStrict:
 			if cfg.TranslateHeadersFooters {
 				footers = append(footers, target)
 			}
-		case relTypeFootnotes:
+		case relTypeFootnotes, relTypeFootnotesStrict:
 			if cfg.TranslateFootnotes {
 				footnotes = target
 			}
-		case relTypeEndnotes:
+		case relTypeEndnotes, relTypeEndnotesStrict:
 			if cfg.TranslateFootnotes {
 				endnotes = target
 			}
-		case relTypeComments:
+		case relTypeComments, relTypeCommentsStrict:
 			if cfg.TranslateComments {
 				comments = target
 			}
@@ -349,10 +367,10 @@ func appendChartAndDiagramParts(parts []string, info *containerInfo) []string {
 				continue
 			}
 			switch rel.Type {
-			case relTypeChart:
+			case relTypeChart, relTypeChartStrict:
 				charts = append(charts, target)
 				seen[target] = struct{}{}
-			case relTypeDiagramData:
+			case relTypeDiagramData, relTypeDiagramDataStrict:
 				diagrams = append(diagrams, target)
 				seen[target] = struct{}{}
 			}

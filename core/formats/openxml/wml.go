@@ -38,8 +38,28 @@ var drawingNameAttrRE = regexp.MustCompile(
 	`(<(?:[A-Za-z_][\w-]*:)?(?:docPr|cNvPr)\b[^>]*?\s+name=)(["'])([^"']*)(["'][^>]*?/?>)`,
 )
 
-// wmlNamespace is the WordprocessingML namespace.
+// wmlNamespace is the Transitional WordprocessingML namespace defined
+// by ECMA-376 Part 1 §A.1 (the original 2006 schemas.openxmlformats.org
+// URI). It identifies <w:p>/<w:r>/<w:t> etc. in the vast majority of
+// .docx files produced by Word.
 const wmlNamespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+
+// wmlStrictNamespace is the Strict OOXML WordprocessingML namespace
+// defined by ISO/IEC 29500-1 §A.1 (the purl.oclc.org URI used when
+// `<w:document w:conformance="strict">` is set). Word saves to this
+// namespace via "Save as → Strict Open XML Document" (the OOXML Strict
+// conformance class). The fixture 859.docx is the canonical example —
+// see ECMA-376 Part 1 §17.13.5.16 (<w:ins>) inside a strict body.
+//
+// Upstream Okapi accepts both URIs as WordprocessingML via the
+// Namespaces enum (WordProcessingML + StrictWordProcessingML, see
+// Namespaces.class in okapi-filter-openxml-1.48.0). Without this
+// alias the streaming parser falls through every `<w:p>` to skeleton-
+// only output, which means no translatable block is ever emitted for
+// strict documents and pseudo-translation (or any Block tool) never
+// touches the body text — including any text wrapped in `<w:ins>`
+// inserted-content wrappers.
+const wmlStrictNamespace = "http://purl.oclc.org/ooxml/wordprocessingml/main"
 
 // textRun holds a single run's text and formatting within a paragraph.
 type textRun struct {
@@ -3767,8 +3787,9 @@ func xmlEscapeAttr(s string) string {
 
 // nsPrefix maps namespace URI → prefix for known OpenXML namespaces.
 var nsPrefixMap = map[string]string{
-	wmlNamespace: "w",
-	dmlNamespace: "a",
+	wmlNamespace:       "w",
+	wmlStrictNamespace: "w",
+	dmlNamespace:       "a",
 	"http://schemas.openxmlformats.org/officeDocument/2006/relationships":       "r",
 	"http://schemas.openxmlformats.org/markup-compatibility/2006":               "mc",
 	"http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing":    "wp",
@@ -3827,7 +3848,7 @@ var nsPrefixMap = map[string]string{
 }
 
 func isWML(el xml.StartElement) bool {
-	return el.Name.Space == wmlNamespace
+	return el.Name.Space == wmlNamespace || el.Name.Space == wmlStrictNamespace
 }
 
 func isWMLNoNS(el xml.StartElement) bool {

@@ -1189,3 +1189,89 @@ func TestMoveFromRowDetectorAttributeForms(t *testing.T) {
 		})
 	}
 }
+
+// TestInsContentRunExtraction verifies that <w:ins> revision-content
+// wrappers (ECMA-376 Part 1 §17.13.5.16) have their inner <w:r> runs
+// extracted as translatable text on the SAME paragraph block as
+// adjacent non-wrapped <w:r> siblings. Mirrors 859.docx where a single
+// paragraph contains `<w:r>Saving as OOXML Strict in MS Office 2013.
+// </w:r><w:ins><w:r> New text for tracking changes.</w:r></w:ins>` —
+// both runs must reach the translatable block so pseudo-translation
+// (or any Block tool) sees the inserted content.
+//
+// Upstream Okapi BlockParser.java treats <w:ins> as a transparent
+// RUN_CONTAINER per RunContainer.java lines 29-43 and
+// SkippableElements.RevisionInline (lines 209-212 of
+// SkippableElements.java) which returns early without skipping for
+// INSERTED_CONTENT/MOVED_CONTENT_TO under the auto-accept-revisions
+// default (ConditionalParameters.java line 819).
+func TestInsContentRunExtraction(t *testing.T) {
+	// Use the EXACT shape from 859.docx — both <w:r> elements carry an
+	// <w:rPr><w:lang w:val="en-US"/></w:rPr>, the <w:ins>-wrapped run
+	// also has w:rsidR="00C97B0B". This matters because if mergeRuns
+	// cannot collapse them (different rPr), the two runs survive as
+	// distinct entries on the block and the writer's per-run handling
+	// must keep both texts intact.
+	docXML := `<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">` +
+		`<w:body>` +
+		`<w:p w:rsidR="007F21CC" w:rsidRDefault="007F21CC">` +
+		`<w:pPr><w:rPr><w:lang w:val="en-US"/></w:rPr></w:pPr>` +
+		`<w:r><w:rPr><w:lang w:val="en-US"/></w:rPr><w:t>Saving as OOXML Strict in MS Office 2013.</w:t></w:r>` +
+		`<w:ins w:id="0" w:author="U" w:date="2019-08-29T21:16:00Z">` +
+		`<w:r w:rsidR="00C97B0B"><w:rPr><w:lang w:val="en-US"/></w:rPr><w:t xml:space="preserve"> New text for tracking changes.</w:t></w:r>` +
+		`</w:ins>` +
+		`</w:p>` +
+		`</w:body></w:document>`
+
+	cfg := &Config{}
+	cfg.Reset()
+	blocks := parseDocXML(t, docXML, cfg)
+
+	require.Len(t, blocks, 1, "single paragraph must emit one block")
+	require.Len(t, blocks[0].Source, 1)
+	runs := blocks[0].Source[0].Runs
+	// Collect all TextRun strings in source order.
+	var texts []string
+	for _, r := range runs {
+		if r.Text != nil {
+			texts = append(texts, r.Text.Text)
+		}
+	}
+	// Adjacent same-props runs may merge via mergeRuns; what matters is
+	// both texts reach the block in source order. Join all extracted
+	// texts and assert the concatenation matches the source.
+	assert.Equal(t,
+		"Saving as OOXML Strict in MS Office 2013. New text for tracking changes.",
+		strings.Join(texts, ""),
+		"both the plain <w:r> and the <w:ins>-wrapped <w:r> must extract as translatable text on the block",
+	)
+	assert.True(t, blocks[0].Translatable, "block carrying <w:ins> content must remain translatable so pseudo-translation reaches the inserted run")
+}
+
+// TestRead859InsParagraph reads the real 859.docx fixture and verifies
+// the inserted run text reaches a translatable block. The fixture has a
+// single body paragraph: `<w:r>Saving as OOXML Strict in MS Office 2013.
+// </w:r><w:ins><w:r> New text for tracking changes.</w:r></w:ins>`. Both
+// texts must surface on the translatable block so downstream tools
+// (pseudo-translation, MT, TM) operate on the inserted content too.
+func TestRead859InsParagraph(t *testing.T) {
+	parts := readDocx(t, "testdata/test_859.docx")
+	blocks := translatableBlocks(parts)
+	require.NotEmpty(t, blocks)
+	// Search for the paragraph containing the inserted text.
+	found := false
+	for _, b := range blocks {
+		if strings.Contains(b.SourceText(), "Saving as OOXML Strict") {
+			found = true
+			assert.Equal(t,
+				"Saving as OOXML Strict in MS Office 2013. New text for tracking changes.",
+				b.SourceText(),
+				"body block must include the <w:ins>-wrapped inserted run text",
+			)
+			break
+		}
+	}
+	assert.True(t, found,
+		"expected a body block with the inserted-content paragraph — strict OOXML <w:p> must reach the translatable-block pipeline so <w:ins> children are pseudo-translated",
+	)
+}
