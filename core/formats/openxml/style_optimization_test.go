@@ -438,7 +438,7 @@ func TestOptimizeWMLPart_NestedTxbxParagraph(t *testing.T) {
 	var counter int
 	syn := map[string]synthesisedStyle{}
 	var ids []string
-	got := optimizeWMLPart(src, existing, "", true, &counter, syn, &ids)
+	got := optimizeWMLPart(src, existing, "", true, false, &counter, syn, &ids)
 	assert.Contains(t, string(got), "NF974E24F-Normal1", "inner txbx paragraph synthesises pStyle")
 	require.Len(t, ids, 1)
 	s := syn[ids[0]]

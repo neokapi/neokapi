@@ -409,6 +409,12 @@ type runEntry struct {
 	hasRPr           bool
 	props            []runProp
 	excluded         bool // run carries an exclusion property
+	// csOnlyText is true when the run's text is purely complex-script
+	// (no detected ASCII / HighAnsi / EastAsian content categories).
+	// Mirrors upstream Okapi RunParser.java:208-217 which strips
+	// b/i/sz from such runs at parse time. Native applies the strip
+	// downstream — see optimizeParagraph for the rationale.
+	csOnlyText bool
 }
 
 // optimizeParagraph rewrites a single <w:p>...</w:p> block applying
@@ -489,6 +495,48 @@ func optimizeParagraph(
 					e.excluded = true
 					break
 				}
+			}
+			// Symmetric counterpart of writer.go's stripToggleMirrorChildren
+			// — drop <w:b/> and <w:i/> from runs whose text is purely
+			// complex-script. Upstream Okapi's RunParser.endRunParsing
+			// (RunParser.java:208-217) classifies each run's text via
+			// ContentCategoriesDetection and adds RUN_PROPERTY_BOLD /
+			// RUN_PROPERTY_ITALICS to the run's skippableProperties when
+			// runFonts.containsDetectedNonComplexScriptContentCategories
+			// returns false (i.e. no ASCII / HighAnsi / EastAsian chars),
+			// then filters those properties out of the run's RunProperties
+			// before WSO sees them (RunParser.java:230-232). The neokapi
+			// reader keeps b/i alive through the run-codes / runProps
+			// reconstruction in writer.go (PcOpen TypeBold / TypeItalic →
+			// addWMLProp emits `<w:b/>` / `<w:i/>` after the per-run
+			// sidecar), so the b/i appears in the EMITTED rPr that WSO's
+			// post-pass sees. Without this strip the toggles get lifted
+			// into the synthesised paragraph style for paragraphs that mix
+			// CS-only and non-CS runs (947-non-cs-and-cs.docx — reference
+			// synth carries only `<w:sz/><w:szCs/>` while native promoted
+			// `<w:b/><w:i/>` from the LTR run because the CS-only run also
+			// reconstructed b/i in its emitted rPr).
+			//
+			// We drop ONLY b and i — sz is conditionally preserved in
+			// upstream Okapi via `canBeSkipped` (RunParser.java:236-250),
+			// which checks the value against the inherited style chain
+			// and keeps the property when the inherited value differs
+			// (947-cs.docx: pre.sz=24 from docDefaults, direct.sz=28 → not
+			// stripped). Native cannot reconstruct the inherited chain at
+			// WSO time, so we mirror only the toggles whose default chain
+			// is empty (b/i are absent in Normal + docDefaults across the
+			// fixture corpus) and skip the value-dependent sz strip.
+			//
+			// References:
+			//   - okapi RunParser.java:208-217 — symmetric strip trigger.
+			//   - okapi ContentCategoriesDetection.java:37-49,56,64,84,
+			//     147-154 — CS vs non-CS detection patterns.
+			//   - okapi RunFonts.java:156-163 —
+			//     containsDetectedNonComplexScriptContentCategories.
+			//   - ECMA-376-1 §17.3.2.1 (`<w:b>`), §17.3.2.13 (`<w:i>`).
+			if e.hasRPr && textIsAllComplexScript(extractRunText(src[r.start:r.end])) {
+				e.csOnlyText = true
+				e.props = stripWMLNamesFromProps(e.props, "b", "i")
 			}
 		}
 		entries = append(entries, e)
@@ -653,8 +701,27 @@ func optimizeParagraph(
 		}
 		out.Write(src[cursor:e.runStart])
 		runBuf := src[e.runStart:e.runEnd]
-		if e.hasRPr && len(commonNames) > 0 {
-			runBuf = stripPropsFromRun(runBuf, commonNames)
+		if e.hasRPr {
+			stripNames := commonNames
+			if e.csOnlyText {
+				// Symmetric upstream strip: drop b/i from the emitted
+				// rPr in addition to any commonNames the WSO lift
+				// computes. Without this the writer's runProps
+				// reconstruction (writer.go addWMLProp emits `<w:b/>` /
+				// `<w:i/>` from PcOpen TypeBold/TypeItalic toggles) would
+				// echo b/i back onto a CS-only run that upstream Okapi
+				// never emits — see the "symmetric counterpart" comment
+				// at the props-parse site above for the full rationale.
+				stripNames = make(map[string]bool, len(commonNames)+2)
+				for k, v := range commonNames {
+					stripNames[k] = v
+				}
+				stripNames["b"] = true
+				stripNames["i"] = true
+			}
+			if len(stripNames) > 0 {
+				runBuf = stripPropsFromRun(runBuf, stripNames)
+			}
 		}
 		out.Write(runBuf)
 		cursor = e.runEnd
@@ -1681,6 +1748,150 @@ func stripPropsFromRun(runSrc []byte, names map[string]bool) []byte {
 	out.Write(newRPr.Bytes())
 	out.Write(runSrc[rpe:])
 	return out.Bytes()
+}
+
+// stripWMLNamesFromProps returns a new []runProp with every entry
+// whose `name` matches one of the supplied names removed. Used by
+// optimizeParagraph to drop b/i from CS-only runs before WSO computes
+// the common props (so they don't get lifted into the synthesised
+// paragraph style and don't survive on the run after the strip rewrite).
+func stripWMLNamesFromProps(props []runProp, names ...string) []runProp {
+	if len(props) == 0 || len(names) == 0 {
+		return props
+	}
+	drop := make(map[string]bool, len(names))
+	for _, n := range names {
+		drop[n] = true
+	}
+	out := props[:0:0]
+	for _, p := range props {
+		if drop[p.name] {
+			continue
+		}
+		out = append(out, p)
+	}
+	return out
+}
+
+// extractRunText concatenates the character data inside every <w:t>...
+// </w:t> child of the given <w:r>...</w:r> source bytes. Returns the
+// empty string when the run has no <w:t> child or its text is empty.
+//
+// Mirrors upstream Okapi Run.text (Run.java:99-107) which feeds the
+// run's effective text to ContentCategoriesDetection.performFor. The
+// detection runs against the run's TEXT only — non-text run children
+// (<w:tab/>, <w:br/>, <w:drawing>, ...) don't classify as content
+// categories. Native applies the strip on the WSO-rewrite pass, so
+// we extract from the EMITTED run bytes (post-render) which is the
+// post-pseudo text the upstream filter would also see.
+//
+// XML entity references inside <w:t> (`&amp;`, `&#x...;`) are passed
+// through verbatim — the strip's CS-detection only inspects characters
+// in dedicated Unicode ranges and treats unknowns as non-CS, so a stray
+// "&amp;" in the run text will correctly mark it as containing non-CS
+// content (the literal "&" is ASCII).
+func extractRunText(runSrc []byte) string {
+	var out strings.Builder
+	cursor := 0
+	for {
+		idx := bytes.Index(runSrc[cursor:], []byte("<w:t"))
+		if idx < 0 {
+			break
+		}
+		start := cursor + idx
+		j := start + len("<w:t")
+		if j >= len(runSrc) {
+			break
+		}
+		// Element-name boundary check — accept "<w:t " / "<w:t>" /
+		// "<w:t/>" but reject "<w:tab" or "<w:tbl".
+		b := runSrc[j]
+		if b != ' ' && b != '\t' && b != '\n' && b != '\r' && b != '>' && b != '/' {
+			cursor = j
+			continue
+		}
+		// Find element-tag end.
+		tagEnd := bytes.IndexByte(runSrc[j:], '>')
+		if tagEnd < 0 {
+			break
+		}
+		absTagEnd := j + tagEnd
+		// Self-closing <w:t/> — no content.
+		if absTagEnd > 0 && runSrc[absTagEnd-1] == '/' {
+			cursor = absTagEnd + 1
+			continue
+		}
+		closeIdx := bytes.Index(runSrc[absTagEnd+1:], []byte("</w:t>"))
+		if closeIdx < 0 {
+			break
+		}
+		out.Write(runSrc[absTagEnd+1 : absTagEnd+1+closeIdx])
+		cursor = absTagEnd + 1 + closeIdx + len("</w:t>")
+	}
+	return out.String()
+}
+
+// textIsAllComplexScript reports whether s is non-empty AND every
+// non-whitespace character classifies as complex-script per upstream
+// Okapi's ContentCategoriesDetection (no detected ASCII / HighAnsi /
+// EastAsian / Symbols / Shared categories). Mirrors
+// `!runFonts.containsDetectedNonComplexScriptContentCategories()` from
+// RunParser.endRunParsing (RunParser.java:208) — the gate for the
+// symmetric strip of b/i (and sz, value-permitting) from purely
+// complex-script runs.
+//
+// The CS character ranges follow the same inventory as
+// containsComplexScriptText (writer.go), derived from
+// ContentCategoriesDetection.java:71-74 + Microsoft's "Office Open XML
+// Themes, Schemes and Fonts" guidance referenced by ECMA-376-1
+// §17.3.2.16 / .17.
+//
+// Whitespace is treated as compatible with either side (the strip is
+// safe on `" "` runs because Okapi's detection considers ASCII / Latin /
+// CS independently, and a whitespace-only run has neither — which
+// upstream treats as "no non-CS detected" too, so the strip fires).
+func textIsAllComplexScript(s string) bool {
+	if s == "" {
+		return false
+	}
+	hasCS := false
+	for _, r := range s {
+		if r == ' ' || r == '\t' || r == '\n' || r == '\r' {
+			continue
+		}
+		if isComplexScriptRune(r) {
+			hasCS = true
+			continue
+		}
+		// Any non-whitespace, non-CS character disqualifies the run.
+		return false
+	}
+	return hasCS
+}
+
+// isComplexScriptRune reports whether r belongs to one of the Unicode
+// ranges upstream Okapi's ContentCategoriesDetection classifies as
+// complex-script. Mirrors containsComplexScriptText in writer.go.
+func isComplexScriptRune(r rune) bool {
+	switch {
+	case r >= 0x0590 && r <= 0x074F: // Hebrew, Arabic, Syriac, …
+		return true
+	case r >= 0x0780 && r <= 0x07BF: // Thaana
+		return true
+	case r >= 0x0900 && r <= 0x109F: // Devanagari … Myanmar
+		return true
+	case r >= 0x1780 && r <= 0x18AF: // Khmer … Mongolian
+		return true
+	case r >= 0x200C && r <= 0x200F: // ZWJ / ZWNJ / LRM / RLM
+		return true
+	case r >= 0x202A && r <= 0x202F: // bidi formatting + NNBSP
+		return true
+	case r >= 0x2670 && r <= 0x2671: // misc symbols
+		return true
+	case r >= 0xFB1D && r <= 0xFB4F: // Hebrew presentation forms
+		return true
+	}
+	return false
 }
 
 // injectSynthesisedStyles inserts synthesised <w:style> elements into
