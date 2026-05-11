@@ -4018,12 +4018,32 @@ const drawingMarkerPropPrefix = "<!--KAPI-PROP:"
 // paragraphs).
 const drawingMarkerParaPrefix = "<!--KAPI-PARA:"
 
+// drawingMarkerText is the marker syntax for a translatable
+// text node — used when a captured drawing contains a bare
+// <w:t> element (no enclosing <w:r>/<w:p>) such as inside
+// <mc:AlternateContent><mc:Choice><w:t>...</w:t></mc:Choice></
+// mc:AlternateContent>. AltContentEscaping.docx is the
+// canonical fixture: a <w:t xml:space="preserve"> appearing
+// directly under <mc:Choice Requires="wpg">. Per ECMA-376
+// Part 3 / ISO/IEC 29500-3 §10 (Markup Compatibility) the
+// consumer walks INTO mc:Choice transparently and continues
+// processing children with their own semantics — upstream
+// Okapi's RunParser.parseContent (RunParser.java line 708-818)
+// hits isTextStartEvent on the inner <w:t> and emits its
+// character data as translatable text (line 710-713), with
+// the surrounding mc:AlternateContent/mc:Choice wrapper
+// preserved as opaque markup. Mirror that: descend through
+// mc:Choice, replace <w:t>...</w:t>'s character data with
+// this marker, and emit a property block carrying the text.
+const drawingMarkerTextPrefix = "<!--KAPI-TEXT:"
+
 const drawingMarkerSuffix = "-->"
 
-// drawingMarkerRE matches either a property marker
-// (<!--KAPI-PROP:tu123-->) or a paragraph marker
-// (<!--KAPI-PARA:tu123-->) and captures the kind plus block ID.
-var drawingMarkerRE = regexp.MustCompile(`<!--KAPI-(PROP|PARA):([a-zA-Z0-9_-]+)-->`)
+// drawingMarkerRE matches a property marker
+// (<!--KAPI-PROP:tu123-->), a paragraph marker
+// (<!--KAPI-PARA:tu123-->), or a text marker
+// (<!--KAPI-TEXT:tu123-->) and captures the kind plus block ID.
+var drawingMarkerRE = regexp.MustCompile(`<!--KAPI-(PROP|PARA|TEXT):([a-zA-Z0-9_-]+)-->`)
 
 // extractDrawingTranslations scans a captured drawing XML payload,
 // emits "property" / "paragraph" Blocks for every translatable
@@ -4084,6 +4104,22 @@ func (p *wmlParser) copyAndExtractDrawing(dec *xml.Decoder, out *strings.Builder
 			case t.Name.Local == "txbxContent":
 				writeRawStartElementTo(out, t)
 				if err := p.extractTxbxContent(dec, out, t, partPath, emitBlock); err != nil {
+					return err
+				}
+			case t.Name.Local == "t" && isWML(t):
+				// Bare <w:t> inside opaque markup (typically
+				// <mc:Choice>): replace its character data with
+				// a TEXT marker pointing at an emitted property
+				// block. Per ECMA-376 Part 3 §10 the consumer
+				// walks INTO mc:Choice transparently and treats
+				// inner WML elements with their normal semantics
+				// — including <w:t> (Part 1 §17.3.3.31) which is
+				// always translatable text. Mirrors upstream
+				// Okapi RunParser.parseContent line 710-713
+				// (isTextStartEvent → parseText) for any <w:t>
+				// reached during the AlternateContent walk.
+				// Fixture: AltContentEscaping.docx.
+				if err := p.extractBareTextElement(dec, out, t, partPath, emitBlock); err != nil {
 					return err
 				}
 			default:
@@ -4438,6 +4474,86 @@ func (p *wmlParser) writeStartElementWithTranslatableAttrTo(
 		out.WriteString(`"`)
 	}
 	out.WriteString(">")
+}
+
+// extractBareTextElement handles a bare <w:t> element encountered
+// during a copyAndExtractDrawing walk. It emits the start tag
+// verbatim (preserving xml:space="preserve" and any other
+// attributes), accumulates the character data into a property
+// Block (text-run only), inserts a <!--KAPI-TEXT:tuN--> marker
+// in place of the text content, then emits the end tag.
+//
+// Used for <w:t> children of <mc:Choice> in
+// AltContentEscaping.docx — see the case in copyAndExtractDrawing
+// for the namespace check and ECMA-376 / upstream-Okapi
+// citations. The marker is later expanded by the writer's
+// expandDrawingMarkers (kind=TEXT) to xml-escaped translation
+// text (no element wrapping). If the <w:t> has no character
+// data the function still emits the surrounding tags but skips
+// the block emission so the writer doesn't materialise an
+// empty target later.
+func (p *wmlParser) extractBareTextElement(
+	dec *xml.Decoder,
+	out *strings.Builder,
+	start xml.StartElement,
+	partPath string,
+	emitBlock func(*model.Block),
+) error {
+	writeRawStartElementTo(out, start)
+	var text strings.Builder
+	depth := 1
+	for depth > 0 {
+		tok, err := dec.Token()
+		if err != nil {
+			return err
+		}
+		switch tt := tok.(type) {
+		case xml.StartElement:
+			// <w:t> per ECMA-376 Part 1 §17.3.3.31 has only
+			// CT_Text (string content); nested elements are not
+			// schema-valid. Defensive: copy the unexpected
+			// child verbatim so malformed inputs round-trip
+			// rather than corrupt.
+			depth++
+			writeRawStartElementTo(out, tt)
+		case xml.EndElement:
+			depth--
+			if depth == 0 {
+				if text.Len() > 0 {
+					*p.blockCounter++
+					refID := fmt.Sprintf("tu%d", *p.blockCounter)
+					out.WriteString(drawingMarkerTextPrefix)
+					out.WriteString(refID)
+					out.WriteString(drawingMarkerSuffix)
+					emitBlock(&model.Block{
+						ID:           refID,
+						Type:         "property",
+						Translatable: true,
+						Source: []*model.Segment{model.NewRunsSegment(
+							"s1",
+							[]model.Run{{Text: &model.TextRun{Text: text.String()}}},
+						)},
+						Targets: make(map[model.LocaleID][]*model.Segment),
+						Properties: map[string]string{
+							"partPath": partPath,
+							"element":  "alt-content-text",
+						},
+						Annotations: make(map[string]model.Annotation),
+					})
+				}
+				writeRawEndElementTo(out, tt)
+				return nil
+			}
+			writeRawEndElementTo(out, tt)
+		case xml.CharData:
+			text.WriteString(string(tt))
+		case xml.Comment:
+			out.WriteString("<!--")
+			out.Write(tt)
+			out.WriteString("-->")
+		}
+	}
+	return nil
 }
 
 // writeDrawingXMLToSkel emits a drawing's captured raw XML to the

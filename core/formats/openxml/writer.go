@@ -2499,7 +2499,9 @@ func (w *Writer) removeWMLProp(current, spanType string) string {
 // writer) the marker is replaced with the empty string. This is
 // the same behaviour the skeleton flush has for unresolved refs.
 func (w *Writer) expandDrawingMarkers(payload string) string {
-	if !strings.Contains(payload, drawingMarkerPropPrefix) && !strings.Contains(payload, drawingMarkerParaPrefix) {
+	if !strings.Contains(payload, drawingMarkerPropPrefix) &&
+		!strings.Contains(payload, drawingMarkerParaPrefix) &&
+		!strings.Contains(payload, drawingMarkerTextPrefix) {
 		return payload
 	}
 	return drawingMarkerRE.ReplaceAllStringFunc(payload, func(match string) string {
@@ -2521,6 +2523,17 @@ func (w *Writer) expandDrawingMarkers(payload string) string {
 			return xmlEscapeAttr(model.FlattenRuns(runs))
 		case "PARA":
 			return w.renderWMLBlock(runs, blockSourceRPrXML(block), blockPerRunRPrFragments(block), blockPerRunSrcRunStartFlags(block), blockPerRunInFieldDisplayFlags(block))
+		case "TEXT":
+			// Character-data marker: emit xml-escaped text only,
+			// without the run/text-element wrapper. Used for bare
+			// <w:t> elements that live inside opaque markup
+			// (e.g. <mc:Choice><w:t>...</w:t></mc:Choice>) where
+			// the <w:t> tag itself is preserved verbatim and only
+			// its character data needs the translation. Differs
+			// from PROP only in the escape rules — text contexts
+			// don't need the quote escape that attribute contexts
+			// require.
+			return xmlEscape(model.FlattenRuns(runs))
 		default:
 			return ""
 		}

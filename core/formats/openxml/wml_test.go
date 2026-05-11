@@ -733,6 +733,39 @@ func TestExtractDrawingTranslations_TxbxComplexFieldVerbatim(t *testing.T) {
 	assert.Contains(t, out, `<w:fldChar w:fldCharType="end">`)
 }
 
+// TestExtractDrawingTranslations_BareTInChoice verifies that a
+// bare <w:t> element appearing as a direct child of <mc:Choice>
+// (AltContentEscaping.docx pattern) emits a TEXT marker plus a
+// translatable property block. Per ECMA-376 Part 3 §10 the
+// consumer walks INTO mc:Choice transparently, so any inner
+// <w:t> retains its CT_Text translatable semantics.
+func TestExtractDrawingTranslations_BareTInChoice(t *testing.T) {
+	counter := 0
+	cfg := &Config{}
+	cfg.Reset()
+	p := &wmlParser{blockCounter: &counter, cfg: cfg}
+	var emitted []*model.Block
+	emit := func(b *model.Block) { emitted = append(emitted, b) }
+	in := `<mc:AlternateContent><mc:Choice Requires="wpg"><w:t xml:space="preserve"> &amp; &lt; &gt; &amp;amp; Grouping options</w:t></mc:Choice></mc:AlternateContent>`
+	out := p.extractDrawingTranslations(in, "word/document.xml", emit)
+	require.Len(t, emitted, 1)
+	assert.Equal(t, "property", emitted[0].Type)
+	assert.Equal(t, "alt-content-text", emitted[0].Properties["element"])
+	srcRuns := emitted[0].Source[0].Runs
+	require.Len(t, srcRuns, 1)
+	require.NotNil(t, srcRuns[0].Text)
+	// Decoder applies entity decoding once on read.
+	assert.Equal(t, " & < > &amp; Grouping options", srcRuns[0].Text.Text)
+	// The rewritten payload preserves the wrapper + Choice + start/
+	// end <w:t> tag, with the character data replaced by a TEXT
+	// marker.
+	assert.Contains(t, out, drawingMarkerTextPrefix)
+	assert.Contains(t, out, `<mc:AlternateContent>`)
+	assert.Contains(t, out, `<mc:Choice Requires="wpg">`)
+	assert.Contains(t, out, `<w:t xml:space="preserve">`)
+	assert.NotContains(t, out, "Grouping options")
+}
+
 // TestDrawingMarkerRE verifies the marker regex captures kind+id.
 func TestDrawingMarkerRE(t *testing.T) {
 	cases := []struct {
@@ -742,6 +775,7 @@ func TestDrawingMarkerRE(t *testing.T) {
 	}{
 		{`<!--KAPI-PROP:tu1-->`, "PROP", "tu1"},
 		{`<!--KAPI-PARA:tu42-->`, "PARA", "tu42"},
+		{`<!--KAPI-TEXT:tu7-->`, "TEXT", "tu7"},
 	}
 	for _, tc := range cases {
 		m := drawingMarkerRE.FindStringSubmatch(tc.input)
