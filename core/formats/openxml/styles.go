@@ -21,6 +21,24 @@ import (
 type styleMap struct {
 	styles      map[string]*styleEntry
 	docDefaults runProps
+	// docDefaultsRPrChildNames is the set of WordprocessingML rPr
+	// child element local names that appear in
+	// <w:docDefaults><w:rPrDefault><w:rPr>...</w:rPr></w:rPrDefault>.
+	// Used together with each styleEntry's rPrChildNames to compute
+	// the resolved style-chain name set passed to minifyRPrChildren
+	// (mirrors upstream Okapi's
+	// `preCombined.contains(p.getName())` branch in
+	// RunProperties.minified() — RunProperties.java:497-540).
+	docDefaultsRPrChildNames map[string]bool
+	// defaultParagraphStyleID is the styleId of the
+	// <w:style w:type="paragraph" w:default="1" w:styleId="X"> entry
+	// in styles.xml. Per ECMA-376-1 §17.3.1.10 (CT_P) a paragraph
+	// with no <w:pStyle> implicitly inherits from this default
+	// paragraph style. effectiveRPrChildNames falls back to this
+	// id when the caller passes an empty paraStyleID — mirrors
+	// upstream Okapi WordStyleDefinitions.Ids.defaultBased
+	// (WordStyleDefinitions.java:485-491).
+	defaultParagraphStyleID string
 }
 
 // styleEntry holds a single style definition.
@@ -28,6 +46,16 @@ type styleEntry struct {
 	id      string
 	basedOn string   // parent style ID
 	props   runProps // run properties defined directly on this style
+	// rPrChildNames is the set of WordprocessingML rPr child element
+	// local names that appear DIRECTLY in this style's rPr (e.g.
+	// "rtl", "b", "rFonts", "lang", "color"). Used by
+	// minifyRPrChildren to honour upstream Okapi's
+	// `preCombined.contains(p.getName())` branch in
+	// RunProperties.minified() (RunProperties.java:497-540): an
+	// explicit-off WPML toggle on a run is preserved when the run's
+	// resolved style chain carries the toggle BY NAME, because it
+	// is needed to clear the inherited toggle.
+	rPrChildNames map[string]bool
 }
 
 // effectiveProps returns the effective inherited run properties for a
@@ -78,6 +106,67 @@ func (sm *styleMap) resolveProps(styleID string) runProps {
 	// Override with this style's properties
 	mergeProps(&resolved, entry.props)
 	return resolved
+}
+
+// effectiveRPrChildNames returns the union of rPr-child element local
+// names contributed by docDefaults + every style in the basedOn chain
+// of paraStyleID. Mirrors upstream Okapi
+// WordStyleDefinitions.combinedRunProperties
+// (WordStyleDefinitions.java:302-315) at the granularity of "which
+// property NAMES would be in the pre-combined view for a run
+// inheriting this paragraph style". Consumed by minifyRPrChildren
+// to decide when an explicit-off WPML toggle must be preserved as a
+// style-chain clearing override (RunProperties.java:497-540 —
+// `preCombined.contains(p.getName())` branch).
+//
+// When paraStyleID is empty, the resolver falls back to
+// defaultParagraphStyleID — ECMA-376-1 §17.3.1.10 (CT_P): a
+// paragraph without a pStyle inherits from the default paragraph
+// style (the <w:style w:default="1" w:type="paragraph"> entry in
+// styles.xml). Upstream Okapi resolves this fallback via
+// WordStyleDefinitions.Ids.defaultBased (WordStyleDefinitions.java
+// :485-491) — the same default the WSO synthesised-style id-
+// generator already honours.
+//
+// Returns nil when sm is nil so callers can use a nil-pointer fast
+// path. Always returns a non-nil map otherwise (even for unknown
+// paraStyleID — docDefaults still contribute).
+func (sm *styleMap) effectiveRPrChildNames(paraStyleID string) map[string]bool {
+	if sm == nil {
+		return nil
+	}
+	out := make(map[string]bool, len(sm.docDefaultsRPrChildNames))
+	for name := range sm.docDefaultsRPrChildNames {
+		out[name] = true
+	}
+	effectiveID := paraStyleID
+	if effectiveID == "" {
+		effectiveID = sm.defaultParagraphStyleID
+	}
+	if effectiveID != "" {
+		sm.collectRPrChildNames(effectiveID, out, make(map[string]bool))
+	}
+	return out
+}
+
+// collectRPrChildNames walks the basedOn chain of styleID, unioning
+// each style's rPrChildNames into out. The visited set guards against
+// cycles in malformed styles.xml.
+func (sm *styleMap) collectRPrChildNames(styleID string, out map[string]bool, visited map[string]bool) {
+	if sm == nil || styleID == "" || visited[styleID] {
+		return
+	}
+	visited[styleID] = true
+	entry, ok := sm.styles[styleID]
+	if !ok {
+		return
+	}
+	for name := range entry.rPrChildNames {
+		out[name] = true
+	}
+	if entry.basedOn != "" {
+		sm.collectRPrChildNames(entry.basedOn, out, visited)
+	}
 }
 
 // mergeProps applies non-zero values from src onto dst.
@@ -181,6 +270,30 @@ func parseStyles(zr *zip.Reader) *styleMap {
 		return nil
 	}
 
+	// rPrChildNameTarget returns the name-set being filled while we
+	// are inside an rPr element. Captures every rPr child local name
+	// regardless of whether the field-typed dispatch above recognises
+	// it, so minifyRPrChildren can match upstream's
+	// `preCombined.contains(p.getName())` check by name (not by
+	// typed-field presence). ECMA-376-1 §17.3.2 specifies the
+	// individual rPr children — only the union of names matters here,
+	// not their values.
+	rPrChildNameTarget := func() *map[string]bool {
+		switch {
+		case inStyle && current != nil && inRPr:
+			if current.rPrChildNames == nil {
+				current.rPrChildNames = make(map[string]bool)
+			}
+			return &current.rPrChildNames
+		case inDocDefaults && inRPrDefault && inRPr:
+			if sm.docDefaultsRPrChildNames == nil {
+				sm.docDefaultsRPrChildNames = make(map[string]bool)
+			}
+			return &sm.docDefaultsRPrChildNames
+		}
+		return nil
+	}
+
 	for {
 		tok, err := d.Token()
 		if errors.Is(err, io.EOF) {
@@ -192,6 +305,19 @@ func parseStyles(zr *zip.Reader) *styleMap {
 
 		switch t := tok.(type) {
 		case xml.StartElement:
+			// Capture rPr child element names BEFORE the field-typed
+			// dispatch below. The handlers below only inspect a few
+			// toggle/font properties; minifyRPrChildren needs the
+			// full set of property names so the style-chain "contains
+			// p.getName()" check covers e.g. <w:rtl/>, <w:caps/>,
+			// <w:lang>, <w:color>, <w:bidi> — none of which the
+			// typed-field branches recognise yet but all of which
+			// upstream Okapi's preCombined view exposes by name.
+			if inRPr && t.Name.Local != "rPr" {
+				if dst := rPrChildNameTarget(); dst != nil {
+					(*dst)[t.Name.Local] = true
+				}
+			}
 			switch t.Name.Local {
 			case "docDefaults":
 				inDocDefaults = true
@@ -203,6 +329,16 @@ func parseStyles(zr *zip.Reader) *styleMap {
 				inStyle = true
 				current = &styleEntry{
 					id: attrVal(t, "styleId"),
+				}
+				// Track the default paragraph style for the implicit
+				// pStyle fallback used by effectiveRPrChildNames.
+				// Mirrors upstream Okapi WordStyleDefinitions.Ids
+				// .defaultBased (WordStyleDefinitions.java:485-491):
+				// a <w:style w:type="paragraph" w:default="1"> entry
+				// is the parent of every paragraph that doesn't
+				// explicitly name a pStyle.
+				if attrVal(t, "type") == "paragraph" && attrVal(t, "default") == "1" {
+					sm.defaultParagraphStyleID = current.id
 				}
 
 			case "basedOn":

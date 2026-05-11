@@ -545,7 +545,18 @@ func idStr(n int) string {
 // rFonts, lang, highlight, bCs, iCs, …). Mirroring upstream Okapi
 // RunBuilder.java (lines 73-188): every rPr child not classified as a
 // toggle by RunSkippableElements becomes a tracked Property on the run.
-func parseRunProps(d *xml.Decoder, aggressive bool) (runProps, error) {
+// styleChainNames (when non-nil) is the set of WordprocessingML rPr
+// child element local names contributed by docDefaults + the
+// paragraph style's resolved basedOn chain (see
+// styleMap.effectiveRPrChildNames). Passed through to
+// minifyRPrChildren so explicit-off WPML toggles can be preserved
+// when they clear a style-chain toggle by name (RunProperties.java
+// :497-540, `preCombined.contains(p.getName())` branch). When nil
+// (style optimisation disabled, or caller has no style context), the
+// minifier falls back to its current behaviour (always strip default-
+// valued WPML toggles); this matches the documented "lacks
+// pStyle/docDefault inheritance" comment on minifyRPrChildren.
+func parseRunProps(d *xml.Decoder, aggressive bool, styleChainNames map[string]bool) (runProps, error) {
 	var props runProps
 	var otherParts []string
 
@@ -768,7 +779,7 @@ func parseRunProps(d *xml.Decoder, aggressive bool) (runProps, error) {
 			// `<w:vanish w:val="false"/>`, etc. round-trip into
 			// synthesised pStyles via WSO and diverge from the upstream
 			// reference (reordered-zip.docx).
-			props.rPrChildren = minifyRPrChildren(props.rPrChildren)
+			props.rPrChildren = minifyRPrChildren(props.rPrChildren, styleChainNames)
 			return props, nil
 		}
 	}
@@ -802,7 +813,18 @@ func parseRunProps(d *xml.Decoder, aggressive bool) (runProps, error) {
 //     position, baseline for vertAlign, …). The matching branches on
 //     RunProperties.java:511-525 strip those when the value matches the
 //     documented default.
-func minifyRPrChildren(children []rPrChild) []rPrChild {
+// styleChainNames (when non-nil) is the set of WordprocessingML rPr
+// child element local names that appear in the resolved style chain
+// of the run's paragraph (docDefaults + basedOn chain). Mirrors
+// upstream Okapi RunProperties.minified()'s
+// `preCombined.contains(p.getName())` guard (RunProperties.java:527):
+// when an rPr child is a WPML toggle with an explicit-off value AND
+// the style chain has the property by name, the explicit-off form is
+// preserved because it functions as a clearing override against the
+// inherited toggle. A nil map preserves the legacy behaviour
+// (always strip default-valued toggles), matching native's pre-#xxx
+// pStyle-inheritance-absent baseline.
+func minifyRPrChildren(children []rPrChild, styleChainNames map[string]bool) []rPrChild {
 	if len(children) == 0 {
 		return children
 	}
@@ -846,7 +868,28 @@ func minifyRPrChildren(children []rPrChild) []rPrChild {
 			continue
 		}
 		if isDefaultValuedRPrChild(c) {
-			continue
+			// Mirror upstream Okapi RunProperties.minified()'s
+			// `preCombined.contains(p.getName())` guard
+			// (RunProperties.java:527). An explicit-off WPML toggle
+			// (e.g. <w:rtl w:val="0"/>) is a CLEARING override when
+			// the run's resolved style chain carries the toggle by
+			// name — dropping it would let the inherited toggle leak
+			// through and change effective formatting. Fixture
+			// 899.docx (Normal style has <w:rtl/>) is the canonical
+			// case: each run carries <w:rtl w:val="0"/> to suppress
+			// the inherited <w:rtl/>; upstream Okapi keeps the
+			// clearing form so the synthesised paragraph styles emit
+			// <w:rtl w:val="0"/> in their rPr.
+			//
+			// When styleChainNames is nil (no style context — caller
+			// disabled style optimisation OR is a unit test that does
+			// not load styles.xml), fall through to the unconditional
+			// strip to preserve the legacy behaviour for the
+			// reordered-zip.docx-style fixtures whose source Normal
+			// style has no rtl property.
+			if styleChainNames == nil || !styleChainNames[c.name] {
+				continue
+			}
 		}
 		out = append(out, c)
 	}
@@ -1048,7 +1091,11 @@ func parseRPrChildVal(elemXML string) (string, bool) {
 // (Namespaces.java:26-27). Without this, raw-captured rPr from a
 // Strict OOXML document would re-hydrate as transitional WPML and
 // parseRunProps would incorrectly strip <w:lang> from rPrChildren.
-func parseRunPropsFromRaw(rPrXML string, aggressive bool, strict bool) (runProps, error) {
+// styleChainNames (when non-nil) is forwarded to parseRunProps →
+// minifyRPrChildren so explicit-off WPML toggles can be preserved
+// as style-chain clearing overrides. See parseRunProps for the
+// upstream-Okapi citation.
+func parseRunPropsFromRaw(rPrXML string, aggressive bool, strict bool, styleChainNames map[string]bool) (runProps, error) {
 	wNS := wmlNamespace
 	if strict {
 		wNS = wmlStrictNamespace
@@ -1077,7 +1124,7 @@ func parseRunPropsFromRaw(rPrXML string, aggressive bool, strict bool) (runProps
 			}
 		}
 	}
-	return parseRunProps(d, aggressive)
+	return parseRunProps(d, aggressive, styleChainNames)
 }
 
 // skipElement skips past the current element and all its children.

@@ -1007,17 +1007,29 @@ func stripToggleMirrorsFromCommon(props []runProp, rtl bool) []runProp {
 }
 
 // commonContainsRTL reports whether the common-rPr set contains a
-// truthy <w:rtl/> marker. minifyRPrChildren (runprops.go:355-380)
-// has already removed any explicit `<w:rtl w:val="0"/>` /
-// `<w:rtl w:val="false"/>` toggles before WSO runs, so a surviving
-// `rtl` runProp is always the truthy form (`<w:rtl/>` or
-// `<w:rtl w:val="1"/>` / `<w:rtl w:val="true"/>`). Per ECMA-376-1
-// §17.3.2.4, <w:rtl/> marks the run as containing complex-script
-// (right-to-left) content — the cue used by RunBuilder/RunMerger to
-// pick the bCs/iCs toggles over b/i.
+// TRUTHY <w:rtl/> marker — i.e. the run is complex-script (RTL).
+// Per ECMA-376-1 §17.3.2.4, <w:rtl/> marks the run as containing
+// complex-script (right-to-left) content — the cue used by
+// RunBuilder/RunMerger to pick the bCs/iCs toggles over b/i.
+//
+// minifyRPrChildren NOW preserves explicit-off `<w:rtl w:val="0"/>`
+// when the resolved style chain carries an rtl toggle by name
+// (mirrors RunProperties.java:497-540's preCombined.contains-by-name
+// branch — used by 899.docx where the Normal style has <w:rtl/>).
+// That clearing form must NOT be treated as a truthy RTL marker
+// here: it is the run authoring "I am LTR despite my paragraph
+// style being RTL." Pre-#xxx the clearing form was unconditionally
+// stripped at parse time, so any surviving rtl runProp was
+// guaranteed truthy. The check below now also inspects the value
+// attribute and excludes the "0" / "false" / "off" forms (ECMA-376
+// §17.3.2 toggle semantics).
 func commonContainsRTL(props []runProp) bool {
 	for _, p := range props {
 		if p.name == "rtl" {
+			val, hasVal := parseRPrChildVal(p.xml)
+			if hasVal && (val == "0" || val == "false" || val == "off") {
+				continue
+			}
 			return true
 		}
 	}

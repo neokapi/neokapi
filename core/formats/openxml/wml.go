@@ -132,6 +132,15 @@ type wmlParser struct {
 	rels          map[string]relationship // hyperlink rels for this part
 	codeFinder    *codeFinder             // regex-based inline code detection
 	styles        *styleMap               // resolved style inheritance (nil if not enabled)
+	// currentStyleChainNames is the resolved set of rPr-child element
+	// local names contributed by docDefaults + the current paragraph's
+	// basedOn chain. It is recomputed on each <w:pPr> we encounter
+	// (when styles is non-nil and the paragraph carries a pStyle that
+	// matches a known styleEntry) and consumed by parseRunPropsFromRaw
+	// → minifyRPrChildren so explicit-off WPML toggles can be kept as
+	// style-chain clearing overrides. Reset to nil at paragraph entry
+	// so it never leaks across paragraphs.
+	currentStyleChainNames map[string]bool
 	// strict reports whether the document binds the "w" prefix to the
 	// Strict OOXML namespace (wmlStrictNamespace,
 	// "http://purl.oclc.org/ooxml/wordprocessingml/main"). Used by
@@ -1370,6 +1379,22 @@ func trPrHasRowDeletion(raw string) bool {
 
 // parseParagraph parses a <w:p> element and emits a Block if it contains text.
 func (p *wmlParser) parseParagraph(d *xml.Decoder, partPath string, emitBlock func(*model.Block)) error {
+	// Reset per-paragraph style-chain context. parseRunPropsFromRaw
+	// consults p.currentStyleChainNames during minifyRPrChildren —
+	// see the field declaration on wmlParser for the upstream-Okapi
+	// citation. The reset is mandatory: an earlier paragraph in the
+	// same part may have set this for its own pStyle, and leaking
+	// that chain into a sibling paragraph would falsely preserve
+	// explicit-off WPML toggles whose parent style chain does NOT
+	// actually carry them. We restore the prior value on return so
+	// nested paragraph parsers (e.g. textbox / table-cell recursion
+	// reusing this method) see their parent's context again — though
+	// the current wmlParser doesn't recurse paragraphs through
+	// parseParagraph, the save/restore keeps the contract clean.
+	savedStyleChainNames := p.currentStyleChainNames
+	p.currentStyleChainNames = nil
+	defer func() { p.currentStyleChainNames = savedStyleChainNames }()
+
 	var runs []textRun
 	var hyperlinkRuns []textRun
 	var inHyperlink bool
@@ -1404,6 +1429,16 @@ func (p *wmlParser) parseParagraph(d *xml.Decoder, partPath string, emitBlock fu
 				}
 				paraProps = raw
 				paraStyleID = styleID
+				// Resolve the style chain's rPr-child-name set so
+				// parseRunPropsFromRaw → minifyRPrChildren can honour
+				// upstream Okapi's
+				// `preCombined.contains(p.getName())` clearing-toggle
+				// guard (RunProperties.java:497-540). When the
+				// paragraph has no pStyle, docDefaults alone still
+				// contribute names.
+				if p.styles != nil {
+					p.currentStyleChainNames = p.styles.effectiveRPrChildNames(paraStyleID)
+				}
 
 			case "r":
 				// Text run — may contain fldChar/instrText for complex
@@ -2114,7 +2149,7 @@ func (p *wmlParser) parseRunWithFieldState(d *xml.Decoder, cfs *complexFieldStat
 					emitRaw(stripped)
 				}
 				// Re-parse the captured rPr for typed properties.
-				props, err = parseRunPropsFromRaw(rPrRaw, p.cfg.AggressiveCleanup, p.strict)
+				props, err = parseRunPropsFromRaw(rPrRaw, p.cfg.AggressiveCleanup, p.strict, p.currentStyleChainNames)
 				if err != nil {
 					return nil, err
 				}
@@ -3625,6 +3660,12 @@ func (p *wmlParser) extractTxbxContent(
 // inside textboxes are rare; we skip them via skipElement to keep
 // this scoped. Future fixtures can extend.
 func (p *wmlParser) extractTxbxParagraph(dec *xml.Decoder, out *strings.Builder, partPath string, emitBlock func(*model.Block)) error {
+	// Reset per-paragraph style-chain context — see parseParagraph
+	// for the rationale.
+	savedStyleChainNames := p.currentStyleChainNames
+	p.currentStyleChainNames = nil
+	defer func() { p.currentStyleChainNames = savedStyleChainNames }()
+
 	var paraProps string
 	var paraStyleID string
 	var runs []textRun
@@ -3646,6 +3687,13 @@ func (p *wmlParser) extractTxbxParagraph(dec *xml.Decoder, out *strings.Builder,
 				}
 				paraProps = raw
 				paraStyleID = styleID
+				// See parseParagraph for the upstream-Okapi citation;
+				// textbox paragraphs share the same run-property
+				// minification path and need the same style-chain
+				// awareness.
+				if p.styles != nil {
+					p.currentStyleChainNames = p.styles.effectiveRPrChildNames(paraStyleID)
+				}
 			case "r":
 				rawStart := startElementToRaw(t)
 				rs, err := p.parseRunWithFieldState(dec, &cfs, rawStart)

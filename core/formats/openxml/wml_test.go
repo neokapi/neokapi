@@ -24,7 +24,7 @@ func TestParseRunPropsEmpty(t *testing.T) {
 	input := `<w:rPr></w:rPr>`
 	d := xml.NewDecoder(bytes.NewReader([]byte(input)))
 	skipStart(t, d)
-	props, err := parseRunProps(d, true)
+	props, err := parseRunProps(d, true, nil)
 	require.NoError(t, err)
 	assert.True(t, props.isEmpty())
 }
@@ -33,7 +33,7 @@ func TestParseRunPropsBold(t *testing.T) {
 	input := `<rPr><b/></rPr>`
 	d := xml.NewDecoder(bytes.NewReader([]byte(input)))
 	skipStart(t, d)
-	props, err := parseRunProps(d, true)
+	props, err := parseRunProps(d, true, nil)
 	require.NoError(t, err)
 	assert.True(t, props.bold)
 	assert.False(t, props.italic)
@@ -43,7 +43,7 @@ func TestParseRunPropsBoldFalse(t *testing.T) {
 	input := `<rPr><b val="0"/></rPr>`
 	d := xml.NewDecoder(bytes.NewReader([]byte(input)))
 	skipStart(t, d)
-	props, err := parseRunProps(d, true)
+	props, err := parseRunProps(d, true, nil)
 	require.NoError(t, err)
 	assert.False(t, props.bold)
 }
@@ -52,7 +52,7 @@ func TestParseRunPropsMultiple(t *testing.T) {
 	input := `<rPr><b/><i/><u val="single"/><strike/></rPr>`
 	d := xml.NewDecoder(bytes.NewReader([]byte(input)))
 	skipStart(t, d)
-	props, err := parseRunProps(d, true)
+	props, err := parseRunProps(d, true, nil)
 	require.NoError(t, err)
 	assert.True(t, props.bold)
 	assert.True(t, props.italic)
@@ -64,7 +64,7 @@ func TestParseRunPropsVertAlign(t *testing.T) {
 	input := `<rPr><vertAlign val="superscript"/></rPr>`
 	d := xml.NewDecoder(bytes.NewReader([]byte(input)))
 	skipStart(t, d)
-	props, err := parseRunProps(d, true)
+	props, err := parseRunProps(d, true, nil)
 	require.NoError(t, err)
 	assert.Equal(t, "superscript", props.vertAlign)
 }
@@ -73,7 +73,7 @@ func TestParseRunPropsVanish(t *testing.T) {
 	input := `<rPr><vanish/></rPr>`
 	d := xml.NewDecoder(bytes.NewReader([]byte(input)))
 	skipStart(t, d)
-	props, err := parseRunProps(d, true)
+	props, err := parseRunProps(d, true, nil)
 	require.NoError(t, err)
 	assert.True(t, props.vanish)
 }
@@ -83,7 +83,7 @@ func TestParseRunPropsAggressiveCleanup(t *testing.T) {
 	input := `<rPr><b/><rsidR val="001234"/><noProof/></rPr>`
 	d := xml.NewDecoder(bytes.NewReader([]byte(input)))
 	skipStart(t, d)
-	props, err := parseRunProps(d, true)
+	props, err := parseRunProps(d, true, nil)
 	require.NoError(t, err)
 	assert.True(t, props.bold)
 	// rsid should not affect formatting comparison

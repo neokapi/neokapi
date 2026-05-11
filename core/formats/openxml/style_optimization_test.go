@@ -96,7 +96,7 @@ func TestParseRunProps_StripsDefaultValuedRtl(t *testing.T) {
 	dec := xml.NewDecoder(strings.NewReader(src))
 	_, err := dec.Token()
 	require.NoError(t, err)
-	props, err := parseRunProps(dec, false)
+	props, err := parseRunProps(dec, false, nil)
 	require.NoError(t, err)
 	for _, c := range props.rPrChildren {
 		if c.name == "rtl" {
@@ -113,7 +113,7 @@ func TestParseRunProps_KeepsExplicitRtlTrue(t *testing.T) {
 	dec := xml.NewDecoder(strings.NewReader(src))
 	_, err := dec.Token()
 	require.NoError(t, err)
-	props, err := parseRunProps(dec, false)
+	props, err := parseRunProps(dec, false, nil)
 	require.NoError(t, err)
 	found := false
 	for _, c := range props.rPrChildren {
@@ -173,7 +173,7 @@ func TestParseRunProps_PreservesNonToggleChildren(t *testing.T) {
 	// Skip past the opening <w:rPr> token.
 	_, err := dec.Token()
 	require.NoError(t, err)
-	props, err := parseRunProps(dec, false)
+	props, err := parseRunProps(dec, false, nil)
 	require.NoError(t, err)
 	// Toggles parsed into struct fields.
 	assert.True(t, props.bold)
@@ -200,7 +200,7 @@ func TestParseRunProps_SkipsLangNoProof(t *testing.T) {
 	dec := xml.NewDecoder(strings.NewReader(src))
 	_, err := dec.Token()
 	require.NoError(t, err)
-	props, err := parseRunProps(dec, false)
+	props, err := parseRunProps(dec, false, nil)
 	require.NoError(t, err)
 	names := make([]string, 0, len(props.rPrChildren))
 	for _, c := range props.rPrChildren {
