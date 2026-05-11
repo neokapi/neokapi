@@ -950,15 +950,26 @@ func (w *Writer) renderBlock(block *model.Block, dt docType) string {
 	// when the optimisation conditions hold.
 	sourceRPr := blockSourceRPrXML(block)
 
+	// Per-text-run rPr sidecar (Phase 2 of the per-run rPr work — see
+	// PARITY_NOTES.md "1083-*" cluster). When non-empty the writer
+	// prefers each text-run's specific rPr over the paragraph-common
+	// sourceRPr, mirroring upstream Okapi RunBuilder.java lines 73-188
+	// + RunMerger.java lines 156-229 (per ECMA-376-1 §17.3.2): every
+	// source run keeps its full rPr verbatim. When all fragments are
+	// identical (or after dedupe-on-collapse), output matches the
+	// previous common-rPr path. When heterogeneous, per-run divergences
+	// (e.g. rStyle on hyperlink display text) are preserved.
+	perRunRPr := blockPerRunRPrFragments(block)
+
 	switch dt {
 	case docTypeDOCX:
-		return w.renderWMLBlock(runs, sourceRPr)
+		return w.renderWMLBlock(runs, sourceRPr, perRunRPr)
 	case docTypePPTX:
 		return w.renderDMLBlock(runs)
 	case docTypeXLSX:
 		return w.renderSMLBlock(runs, block)
 	default:
-		return w.renderWMLBlock(runs, sourceRPr)
+		return w.renderWMLBlock(runs, sourceRPr, perRunRPr)
 	}
 }
 
@@ -985,6 +996,127 @@ func blockSourceRPrXML(block *model.Block) string {
 	return v
 }
 
+// blockPerRunRPrFragments extracts the per-text-run rPr children XML
+// fragments from the block annotation populated by the WML reader
+// (Phase 1 — see source_rpr.go openxmlPerRunRPrAnnotationKey).
+//
+// The slice has one entry per text-bearing source run BEFORE
+// mergeRuns coalescing — adjacent identical fragments correspond to
+// runs that mergeRuns combined into a single model TextRun. The
+// writer dedupes adjacent identical fragments at emit time so the
+// remaining slice aligns 1:1 with the post-merge model TextRun
+// stream emitted by renderWMLBlock.
+//
+// Returns nil when no annotation is present (the writer falls
+// through to the paragraph-common sourceRPr path).
+func blockPerRunRPrFragments(block *model.Block) []string {
+	if block == nil || block.Annotations == nil {
+		return nil
+	}
+	a, ok := block.Annotations[openxmlPerRunRPrAnnotationKey]
+	if !ok {
+		return nil
+	}
+	g, ok := a.(*model.GenericAnnotation)
+	if !ok || g == nil || g.Fields == nil {
+		return nil
+	}
+	v, ok := g.Fields["fragments"].([]string)
+	if !ok {
+		return nil
+	}
+	// Strip bCs/iCs toggle-mirror children from per-run fragments
+	// before consumption. Upstream Okapi normalises <w:bCs/> /
+	// <w:iCs/> into the b/i toggle pair and emits only <w:b/> /
+	// <w:i/> on round-trip (see BoldWorld.docx reference output).
+	// Native captures bCs/iCs in rPrChildren for the common-rPr
+	// path (where the intersection collapses them when not present
+	// on every run). Phase 2's per-run path would otherwise leak
+	// them onto runs that ALSO carry the b/i toggle, producing
+	// <w:b/><w:bCs/> where upstream emits <w:b/> alone.
+	stripped := make([]string, len(v))
+	for i, f := range v {
+		stripped[i] = stripToggleMirrorChildren(f)
+	}
+	return dedupeAdjacent(stripped)
+}
+
+// stripToggleMirrorChildren removes <w:bCs/> and <w:iCs/> elements
+// (with or without attributes) from an rPr children-only XML
+// fragment. These are complex-script toggle mirrors that upstream
+// Okapi normalises away on emit; the writer reconstructs the b/i
+// pair from the model's toggle codes (PcOpen/PcClose) anyway, so
+// the per-run sidecar must not re-emit them.
+func stripToggleMirrorChildren(s string) string {
+	if s == "" {
+		return s
+	}
+	for _, name := range []string{"bCs", "iCs"} {
+		s = stripWMLElement(s, name)
+	}
+	return s
+}
+
+// stripWMLElement removes every occurrence of <w:NAME ...?/> (self-
+// closing) from s. The per-run rPr fragments use WML "w:" prefixes
+// throughout and the b/i toggle mirrors are always self-closing.
+//
+// Match terminates at the next ">" after a strict element-name
+// boundary (whitespace, "/", or ">") to avoid partial-prefix
+// matches like <w:bCsExtension/>.
+func stripWMLElement(s, name string) string {
+	open := "<w:" + name
+	for {
+		i := strings.Index(s, open)
+		if i < 0 {
+			return s
+		}
+		boundary := i + len(open)
+		if boundary >= len(s) {
+			return s
+		}
+		next := s[boundary]
+		if next != ' ' && next != '\t' && next != '\n' && next != '\r' && next != '/' && next != '>' {
+			// Not an exact element-name match (e.g. matched <w:bCsX/>
+			// while looking for <w:bCs/>). Skip past this prefix and
+			// keep searching.
+			s = s[:i+1] + stripWMLElement(s[i+1:], name)
+			return s
+		}
+		end := strings.Index(s[boundary:], ">")
+		if end < 0 {
+			return s
+		}
+		end += boundary + 1
+		s = s[:i] + s[end:]
+	}
+}
+
+// dedupeAdjacent returns a copy of `frags` with adjacent equal
+// entries collapsed to a single entry. mergeRuns coalesces adjacent
+// source runs whose toggle rPr (b/i/u/strike/vertAlign/vanish/font)
+// are equal — when those runs ALSO had byte-equal non-toggle rPr,
+// the per-run sidecar carries duplicate adjacent fragments that
+// must collapse to align with the post-merge model run sequence
+// (one model TextRun per coalesced source-run group). Per upstream
+// Okapi RunMerger.java lines 156-229 — adjacent runs fuse only when
+// RunProperties.equals, so an output rPr per merged group matches
+// upstream's emit cadence.
+func dedupeAdjacent(frags []string) []string {
+	if len(frags) <= 1 {
+		return frags
+	}
+	out := make([]string, 0, len(frags))
+	out = append(out, frags[0])
+	for i := 1; i < len(frags); i++ {
+		if frags[i] == out[len(out)-1] {
+			continue
+		}
+		out = append(out, frags[i])
+	}
+	return out
+}
+
 // runsHaveInlineCodes reports whether the run sequence contains any
 // non-text runs (placeholders or paired codes). The fast path for a
 // plain-text block short-circuits the walker below.
@@ -997,6 +1129,21 @@ func runsHaveInlineCodes(runs []model.Run) bool {
 	return false
 }
 
+// countTextRuns returns the number of text-bearing model runs (one
+// per non-nil r.Text with non-empty Text). Used to gate the per-run
+// rPr sidecar alignment guard in renderWMLBlock — when this count
+// matches len(perRunRPr) the writer can index slot-by-slot; when
+// it doesn't, the sidecar is suppressed.
+func countTextRuns(runs []model.Run) int {
+	n := 0
+	for _, r := range runs {
+		if r.Text != nil && r.Text.Text != "" {
+			n++
+		}
+	}
+	return n
+}
+
 // renderWMLBlock renders a run sequence as WordprocessingML runs.
 //
 // sourceRPr is the per-paragraph common rPr children XML stashed by
@@ -1005,29 +1152,72 @@ func runsHaveInlineCodes(runs []model.Run) bool {
 // keeps the source's full rPr per run, and giving the WSO post-pass
 // (style_optimization.go) material to lift into a synthesised
 // paragraph style.
-func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string) string {
-	// Fast path: no inline codes AND no per-source rPr → single
+//
+// perRunRPr is the per-text-run rPr fragments sidecar (Phase 2 of
+// the per-run rPr work — see PARITY_NOTES.md "1083-*" cluster).
+// When non-empty AND the slot for the current text-run index is
+// non-empty, this fragment REPLACES sourceRPr on that <w:r>; runs
+// for which the sidecar slot is empty fall back to sourceRPr. This
+// preserves heterogeneous-rPr runs (e.g. hyperlink display runs
+// carrying <w:rStyle val="Hyperlink"/> alongside surrounding
+// non-hyperlink text) per upstream Okapi RunBuilder.java lines
+// 73-188 + RunMerger.java lines 156-229 (RunProperties.equals
+// gates run fusion, so heterogeneous rPr surfaces multiple <w:r>
+// elements rather than collapsing to a single rPr-less <w:r>).
+//
+// Per ECMA-376-1 §17.3.2.
+func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []string) string {
+	// Alignment guard: the per-run sidecar is one fragment per
+	// text-bearing source run AFTER dedupe-on-collapse. The writer
+	// emits one <w:r> per text-bearing model.Run.Text. When the two
+	// counts disagree, the sidecar cannot be aligned 1:1 to model
+	// runs (typically because mergeRuns coalesced source runs whose
+	// non-toggle rPr differed — see runProps.equal: it ignores
+	// non-toggle children, mergeRuns merges across them). In that
+	// case fall back to sourceRPr-only mode rather than risk
+	// emitting wrong-rPr-on-wrong-run. This preserves the previous
+	// common-rPr behaviour for ambiguous paragraphs.
+	if len(perRunRPr) != countTextRuns(runs) {
+		perRunRPr = nil
+	}
+
+	// effectiveRPr returns the per-run rPr to emit at text-run index
+	// idx (0-based, counting only text-bearing model.Run.Text
+	// emissions). Falls back to sourceRPr when the sidecar is empty
+	// or the slot is absent/empty.
+	effectiveRPr := func(idx int) string {
+		if idx < 0 || idx >= len(perRunRPr) {
+			return sourceRPr
+		}
+		if perRunRPr[idx] == "" {
+			return sourceRPr
+		}
+		return perRunRPr[idx]
+	}
+
+	// Fast path: no inline codes AND no rPr at all → single
 	// <w:r><w:t> with the flattened text. Pre-#592 behaviour for
 	// truly plain paragraphs (e.g. "Heading 1" inside a paragraph
 	// whose style already supplies all formatting).
-	if !runsHaveInlineCodes(runs) && sourceRPr == "" {
+	if !runsHaveInlineCodes(runs) && sourceRPr == "" && effectiveRPr(0) == "" {
 		return `<w:r><w:t xml:space="preserve">` + xmlEscape(model.FlattenRuns(runs)) + `</w:t></w:r>`
 	}
 
-	// Fast path: no inline codes but we DO have per-source rPr →
-	// single <w:r><w:rPr>{sourceRPr}</w:rPr><w:t>. Mirrors
-	// Okapi's "RunMerger merges adjacent same-rPr runs into one
-	// <w:r> carrying the shared rPr" behaviour for paragraphs that
-	// extracted as a single TextRun (after font-mapping +
-	// subtractProps + mergeRuns).
+	// Fast path: no inline codes but we DO have rPr → single
+	// <w:r><w:rPr>{rPr}</w:rPr><w:t>. Prefer the per-run sidecar
+	// slot 0 over sourceRPr. Mirrors Okapi's "RunMerger merges
+	// adjacent same-rPr runs into one <w:r> carrying the shared
+	// rPr" behaviour for paragraphs that extracted as a single
+	// TextRun (after font-mapping + subtractProps + mergeRuns).
 	if !runsHaveInlineCodes(runs) {
-		return `<w:r><w:rPr>` + sourceRPr + `</w:rPr><w:t xml:space="preserve">` +
+		return `<w:r><w:rPr>` + effectiveRPr(0) + `</w:rPr><w:t xml:space="preserve">` +
 			xmlEscape(model.FlattenRuns(runs)) + `</w:t></w:r>`
 	}
 
 	var buf strings.Builder
 	var inRun bool
 	var runProps string
+	textRunIdx := -1 // pre-increment on each new <w:r> for r.Text
 
 	closeRun := func() {
 		if inRun {
@@ -1036,11 +1226,29 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string) string {
 		}
 	}
 
-	// emitRPr concatenates the per-paragraph common rPr (sourceRPr)
-	// with the toggle rPr the model accumulated from PcOpen/PcClose
-	// runs. The combined block is wrapped in a single <w:rPr>...
-	// </w:rPr> per emitted <w:r>.
-	emitRPr := func() {
+	// emitRPr concatenates the per-text-run rPr (slot at the given
+	// idx, falling back to sourceRPr) with the toggle rPr the model
+	// accumulated from PcOpen/PcClose runs. The combined block is
+	// wrapped in a single <w:rPr>...</w:rPr> per emitted <w:r>.
+	emitRPr := func(idx int) {
+		base := effectiveRPr(idx)
+		if base == "" && runProps == "" {
+			return
+		}
+		buf.WriteString(`<w:rPr>`)
+		buf.WriteString(base)
+		buf.WriteString(runProps)
+		buf.WriteString(`</w:rPr>`)
+	}
+
+	// emitNonTextRPr is used by Ph runs (br/tab/footnoteRef) that
+	// emit their own <w:r> wrapper. They reuse the paragraph-common
+	// sourceRPr (NOT a per-text-run slot) because they are not
+	// text-bearing and don't consume a sidecar slot — the sidecar
+	// is aligned to text runs only (perRunRPrFragments skips lone
+	// "\n" line breaks and sentinel runs by construction; see
+	// source_rpr.go).
+	emitNonTextRPr := func() {
 		if sourceRPr == "" && runProps == "" {
 			return
 		}
@@ -1055,8 +1263,9 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string) string {
 		case r.Text != nil:
 			for _, ch := range r.Text.Text {
 				if !inRun {
+					textRunIdx++
 					buf.WriteString(`<w:r>`)
-					emitRPr()
+					emitRPr(textRunIdx)
 					buf.WriteString(`<w:t xml:space="preserve">`)
 					inRun = true
 				}
@@ -1098,7 +1307,7 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string) string {
 				// surrounding text runs carry their own rPr.
 				if sourceRPr != "" || runProps != "" {
 					buf.WriteString(`<w:r>`)
-					emitRPr()
+					emitNonTextRPr()
 					buf.WriteString(`<w:br/></w:r>`)
 				} else {
 					buf.WriteString(`<w:r><w:br/></w:r>`)
@@ -1106,7 +1315,7 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string) string {
 			case TypeTab:
 				if sourceRPr != "" || runProps != "" {
 					buf.WriteString(`<w:r>`)
-					emitRPr()
+					emitNonTextRPr()
 					buf.WriteString(`<w:tab/></w:r>`)
 				} else {
 					buf.WriteString(`<w:r><w:tab/></w:r>`)
@@ -1129,7 +1338,7 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string) string {
 			case TypeFootnoteRef:
 				if sourceRPr != "" || runProps != "" {
 					buf.WriteString(`<w:r>`)
-					emitRPr()
+					emitNonTextRPr()
 					buf.WriteString(r.Ph.Data + `</w:r>`)
 				} else {
 					buf.WriteString(`<w:r>` + r.Ph.Data + `</w:r>`)
@@ -1229,7 +1438,7 @@ func (w *Writer) expandDrawingMarkers(payload string) string {
 		case "PROP":
 			return xmlEscapeAttr(model.FlattenRuns(runs))
 		case "PARA":
-			return w.renderWMLBlock(runs, blockSourceRPrXML(block))
+			return w.renderWMLBlock(runs, blockSourceRPrXML(block), blockPerRunRPrFragments(block))
 		default:
 			return ""
 		}
