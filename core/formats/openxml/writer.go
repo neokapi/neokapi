@@ -1195,23 +1195,35 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 		return perRunRPr[idx]
 	}
 
-	// Fast path: no inline codes AND no rPr at all → single
-	// <w:r><w:t> with the flattened text. Pre-#592 behaviour for
-	// truly plain paragraphs (e.g. "Heading 1" inside a paragraph
-	// whose style already supplies all formatting).
-	if !runsHaveInlineCodes(runs) && sourceRPr == "" && effectiveRPr(0) == "" {
-		return `<w:r><w:t xml:space="preserve">` + xmlEscape(model.FlattenRuns(runs)) + `</w:t></w:r>`
-	}
+	// Fast paths below collapse the entire run sequence into a single
+	// <w:r> via model.FlattenRuns. They are only valid when there is
+	// at most one text-bearing model run — otherwise per-run rPr
+	// boundaries (Phase 4 split on rPrChildren divergence; sidecar
+	// slots from Phase 1/2) would be erased. When countTextRuns > 1
+	// fall through to the slow path which emits one <w:r> per text
+	// run with the correct effectiveRPr(idx). Mirrors upstream Okapi
+	// RunBuilder.java lines 73-188 + RunMerger.java lines 156-229:
+	// each distinct rPr boundary becomes a distinct <w:r>. Per
+	// ECMA-376-1 §17.3.2.
+	if countTextRuns(runs) <= 1 {
+		// Fast path: no inline codes AND no rPr at all → single
+		// <w:r><w:t> with the flattened text. Pre-#592 behaviour for
+		// truly plain paragraphs (e.g. "Heading 1" inside a paragraph
+		// whose style already supplies all formatting).
+		if !runsHaveInlineCodes(runs) && sourceRPr == "" && effectiveRPr(0) == "" {
+			return `<w:r><w:t xml:space="preserve">` + xmlEscape(model.FlattenRuns(runs)) + `</w:t></w:r>`
+		}
 
-	// Fast path: no inline codes but we DO have rPr → single
-	// <w:r><w:rPr>{rPr}</w:rPr><w:t>. Prefer the per-run sidecar
-	// slot 0 over sourceRPr. Mirrors Okapi's "RunMerger merges
-	// adjacent same-rPr runs into one <w:r> carrying the shared
-	// rPr" behaviour for paragraphs that extracted as a single
-	// TextRun (after font-mapping + subtractProps + mergeRuns).
-	if !runsHaveInlineCodes(runs) {
-		return `<w:r><w:rPr>` + effectiveRPr(0) + `</w:rPr><w:t xml:space="preserve">` +
-			xmlEscape(model.FlattenRuns(runs)) + `</w:t></w:r>`
+		// Fast path: no inline codes but we DO have rPr → single
+		// <w:r><w:rPr>{rPr}</w:rPr><w:t>. Prefer the per-run sidecar
+		// slot 0 over sourceRPr. Mirrors Okapi's "RunMerger merges
+		// adjacent same-rPr runs into one <w:r> carrying the shared
+		// rPr" behaviour for paragraphs that extracted as a single
+		// TextRun (after font-mapping + subtractProps + mergeRuns).
+		if !runsHaveInlineCodes(runs) {
+			return `<w:r><w:rPr>` + effectiveRPr(0) + `</w:rPr><w:t xml:space="preserve">` +
+				xmlEscape(model.FlattenRuns(runs)) + `</w:t></w:r>`
+		}
 	}
 
 	var buf strings.Builder
