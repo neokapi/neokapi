@@ -2310,6 +2310,46 @@ func (p *wmlParser) parseRunWithFieldState(d *xml.Decoder, cfs *complexFieldStat
 					return nil, err
 				}
 
+			case "noBreakHyphen", "softHyphen":
+				// Per ECMA-376-1 \u00A717.3.3.18 (CT_Empty noBreakHyphen)
+				// and \u00A717.3.3.30 (CT_Empty softHyphen), these are
+				// run-child elements with no content. Upstream Okapi
+				// RunParser (RunParser.java lines 752-766) preserves
+				// the element verbatim unless the conditional
+				// parameter `replaceNoBreakHyphenTag` is true (in which
+				// case it's substituted with a regular hyphen "-") or
+				// `ignoreSoftHyphenTag` is true (in which case the
+				// softHyphen is dropped). When preserved, upstream
+				// adds the element to the run's Markup chunk stream so
+				// it survives the round-trip \u2014 see fixture
+				// special-chars-and-linebreaks.docx whose gold output
+				// retains both <w:noBreakHyphen/> and <w:softHyphen/>.
+				//
+				// We mirror that with the \uE10D raw-run-markup
+				// sentinel: the marker prefix carries the literal XML
+				// to re-emit, so the writer can drop it back inside a
+				// <w:r> without needing a dedicated Ph type. The
+				// element's source <w:r> rPr travels in `props` so the
+				// per-run rPr sidecar stays slot-aligned with the
+				// model run population.
+				localName := t.Name.Local
+				if rawCaptured {
+					rawBuf.WriteString("<")
+					writeElementName(&rawBuf, t.Name)
+					rawBuf.WriteString("/>")
+				}
+				if localName == "noBreakHyphen" && p.cfg.ReplaceNoBreakHyphenTag {
+					runs = append(runs, textRun{text: "-", props: props})
+				} else if localName == "softHyphen" && p.cfg.IgnoreSoftHyphenTag {
+					// drop entirely per upstream's IGNORE_SOFT_HYPHEN_TAG
+				} else {
+					rawXML := "<w:" + localName + "/>"
+					runs = append(runs, textRun{text: "\uE10D:" + rawXML, props: props})
+				}
+				if err := skipElement(d); err != nil {
+					return nil, err
+				}
+
 			case "drawing", "pict", "object":
 				// Capture the full element verbatim so the writer can
 				// restore the original markup (drawings, OLE objects,
@@ -2755,6 +2795,30 @@ func (p *wmlParser) buildBlock(id string, runs []textRun, partPath, commonRPrXML
 				false, false, false)
 			continue
 		}
+		if strings.HasPrefix(run.text, "\uE10D:") {
+			// Raw run-child markup (TypeRawRunMarkup) for empty
+			// CT_Empty elements that round-trip verbatim:
+			// <w:noBreakHyphen/> (ECMA-376-1 \u00A717.3.3.18) and
+			// <w:softHyphen/> (\u00A717.3.3.30). Mirrors upstream Okapi
+			// RunParser (RunParser.java lines 752-766) which routes
+			// these to runBuilder.addToMarkup so they survive the
+			// round-trip when ConditionalParameters has neither
+			// `replaceNoBreakHyphenTag` nor `ignoreSoftHyphenTag`
+			// set. The sentinel payload after the ":" is the literal
+			// XML to re-emit; the writer wraps it in a <w:r> with
+			// the source rPr context.
+			rawXML := strings.TrimPrefix(run.text, "\uE10D:")
+			subType := SubTypeNoBreakHyphen
+			if strings.Contains(rawXML, "softHyphen") {
+				subType = SubTypeSoftHyphen
+			}
+			spanCounter++
+			b.AddPh(fmt.Sprintf("c%d", spanCounter),
+				TypeRawRunMarkup, subType,
+				rawXML, "", "",
+				false, false, false)
+			continue
+		}
 		if strings.HasPrefix(run.text, "\uE102:") {
 			// Footnote/endnote reference. The per-run rPr children
 			// (e.g. <w:rStyle w:val="FootnoteReference"/>) travel
@@ -3156,7 +3220,7 @@ func isSentinel(s string) bool {
 	if len(r) == 0 {
 		return false
 	}
-	if r[0] < '\uE100' || r[0] > '\uE10C' {
+	if r[0] < '\uE100' || r[0] > '\uE10D' {
 		return false
 	}
 	// Single-char sentinels (tab \uE100, image \uE101, paragraph
@@ -3170,7 +3234,7 @@ func isSentinel(s string) bool {
 	// Multi-char sentinels must have ':' separator
 	// (\uE102:id, \uE103:data, \uE104:data, \uE106:id, \uE107:id,
 	// \uE108:fldChar / \uE108:fldSimple, \uE109:data, \uE10A:data,
-	// \uE10B:id, \uE10C:id)
+	// \uE10B:id, \uE10C:id, \uE10D:rawXML)
 	return len(r) >= 2 && r[1] == ':'
 }
 

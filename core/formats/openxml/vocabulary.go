@@ -37,6 +37,18 @@ const (
 	// DefinitionsToExtract) is parsed for translation. ECMA-376 Part 1
 	// §17.16.5 (fldChar), §17.16.18 (instrText), §17.16.6 (fldSimple).
 	TypeField = "struct:field"
+	// TypeRawRunMarkup is a verbatim run-child markup chunk that
+	// neither carries text nor maps to a structured neokapi span. The
+	// reader uses this for elements that ECMA-376 defines as empty
+	// run children (CT_Empty descendants) but that don't fit the
+	// existing <w:tab/>, <w:br/>, drawing/pict/object envelopes:
+	// <w:noBreakHyphen/> (§17.3.3.18) and <w:softHyphen/> (§17.3.3.30).
+	// Upstream Okapi RunParser (RunParser.java lines 752-766) routes
+	// these to runBuilder.addToMarkup, preserving the element verbatim
+	// in the run's body; we mirror that by stashing the literal XML
+	// in the Ph's Data field. The writer wraps Data in a <w:r> with
+	// the source rPr context, just like <w:tab/>.
+	TypeRawRunMarkup = "struct:raw-run-markup"
 )
 
 // SubType constants provide format-specific refinement.
@@ -85,4 +97,11 @@ const (
 	// SubTypeFieldSimple tags a captured <w:fldSimple> element.
 	SubTypeFieldChar   = "openxml:fldChar"
 	SubTypeFieldSimple = "openxml:fldSimple"
+	// SubTypeNoBreakHyphen / SubTypeSoftHyphen identify the two
+	// CT_Empty hyphen run-children covered by TypeRawRunMarkup
+	// (ECMA-376-1 §17.3.3.18 and §17.3.3.30 respectively). Stored on
+	// the Ph so future writers can branch on the specific element type
+	// without re-parsing Ph.Data.
+	SubTypeNoBreakHyphen = "openxml:noBreakHyphen"
+	SubTypeSoftHyphen    = "openxml:softHyphen"
 )

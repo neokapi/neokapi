@@ -1969,6 +1969,24 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 				// captured payload picks up translated content.
 				expanded := w.expandDrawingMarkers(r.Ph.Data)
 				buf.WriteString(`<w:r>` + expanded + `</w:r>`)
+			case TypeRawRunMarkup:
+				// Raw run-child markup chunk (<w:noBreakHyphen/> per
+				// ECMA-376-1 §17.3.3.18, <w:softHyphen/> per §17.3.3.30).
+				// The Ph.Data field holds the literal element XML; wrap
+				// it in a <w:r> with the surrounding paragraph's source
+				// rPr context (sourceRPr + active toggles in runProps)
+				// so the markup inherits the right formatting envelope
+				// the same way upstream Okapi RunParser
+				// (RunParser.java:752-766) routes the element to
+				// runBuilder.addToMarkup, where it lives inside the
+				// containing RunBuilder's <w:r> on output.
+				if sourceRPr != "" || runProps != "" {
+					buf.WriteString(`<w:r>`)
+					emitNonTextRPr()
+					buf.WriteString(r.Ph.Data + `</w:r>`)
+				} else {
+					buf.WriteString(`<w:r>` + r.Ph.Data + `</w:r>`)
+				}
 			case TypeFootnoteRef:
 				// When the Ph data starts with <w:rPr> the reader
 				// embedded the run-specific rPr (e.g.
