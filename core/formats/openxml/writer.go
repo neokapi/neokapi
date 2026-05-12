@@ -2068,7 +2068,42 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 			// envelope is preserved per source run.
 			if inRunNoText {
 				nextRPr := effectiveRPr(textRunIdx + 1)
-				if !textSrcStart(textRunIdx+1) && nextRPr == sourceRPr {
+				// Fuse the next text into the still-open <w:r> from a
+				// prior standalone <w:br/>/<w:tab/> when the text's
+				// effective rPr matches what the Ph emitted via
+				// emitNonTextRPr (sourceRPr + runProps). Mirrors
+				// upstream Okapi RunMerger.canMergeWith
+				// (RunMerger.java:126-154 → canRunPropertiesBeMerged
+				// at lines 156-229) which fuses adjacent same-rPr
+				// source runs into one <w:r> regardless of source-run
+				// boundary; the fused runBody carries both the br/tab
+				// Markup chunk and the following RunText chunk side by
+				// side (canRunBodyChunksBeMerged at lines 438-441 keeps
+				// distinct chunk types adjacent inside one <w:r>). Per
+				// ECMA-376-1 §17.3.2.1 (CT_R) a single <w:r> may carry
+				// both `<w:br/>` and `<w:t>` children with one shared
+				// rPr.
+				//
+				// Previously the join also required
+				// !textSrcStart(textRunIdx+1) — an over-conservative
+				// guard added to preserve `<w:r><w:br/></w:r>` followed
+				// by `<w:r><w:br/><w:t>...</w:t></w:r>` (1421-line-
+				// break.docx). That case still works without the
+				// textSrcStart gate: source-run-3's br is itself
+				// SubTypeBreakStandalone (srcRunStart=true), so it
+				// arrives in step 3 closing the prior inRunNoText and
+				// opening its own; only at step 4 does the text join
+				// — and step 4's text has srcRunStart=false (it's the
+				// SECOND child of source-run-3) so the gate would have
+				// allowed the join anyway. The gate was active for
+				// fixtures where a standalone-br source-run is followed
+				// by a separate text source-run with matching rPr (e.g.
+				// OpenXmlRoundtripSoftLineBreaksDoNotTranslateTest
+				// CharacterStyle.docx, special-chars-and-linebreaks.
+				// docx) — bridge fuses these per RunMerger's rPr-only
+				// gate, so dropping the textSrcStart guard restores
+				// parity without regressing the 1421 case.
+				if nextRPr == sourceRPr {
 					textRunIdx++
 					buf.WriteString(`<w:t xml:space="preserve">`)
 					inRun = true
