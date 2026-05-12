@@ -206,9 +206,10 @@ func (rp runProps) canBeMergedWith(other runProps) bool {
 // rPrChildrenMergeable reports whether two ordered rPrChildren slices
 // can be merged per upstream Okapi RunMerger.canRunPropertiesBeMerged
 // (RunMerger.java:156-229): every non-rFonts child must be byte-equal,
-// and rFonts (if both have it) must be per-attribute compatible. An
-// rFonts present on only one side is also mergeable (the merged result
-// keeps it).
+// and rFonts (if both have it) must be per-attribute compatible. The
+// property count must match — a run with N properties cannot fuse
+// with a run with M ≠ N properties (RunMerger.java:192-194's
+// `numberOfRunProperties != numberOfOtherRunProperties` guard).
 //
 // The native rPrChildren list omits the toggle children
 // (b/i/u/strike/vertAlign/vanish) — those flow through runProps's
@@ -216,6 +217,21 @@ func (rp runProps) canBeMergedWith(other runProps) bool {
 // upstream RunBuilder tracks as Properties (rStyle, rFonts, color, sz,
 // szCs, highlight, bCs, iCs, …).
 func rPrChildrenMergeable(a, b []rPrChild) bool {
+	// Per RunMerger.java:192-194, the total property count must match
+	// for two runs to merge. A run with `<w:rFonts/>` and nothing else
+	// (1 property) cannot merge with a run with no rPr children at all
+	// (0 properties), even when rFontsMergeable would otherwise allow
+	// the merge. Mirrors upstream's
+	// `numberOfRunProperties != numberOfOtherRunProperties → return false`
+	// short-circuit before the per-property comparison loop. Fixture
+	// OkapiMarkers.docx is the canonical case: a run with
+	// `<w:rPr><w:rFonts w:hint="eastAsia"/></w:rPr><w:t> </w:t>`
+	// must NOT fuse with a following bare `<w:r><w:t>Content</w:t></w:r>`
+	// — the bridge keeps them as 2 separate `<w:r>` elements per
+	// upstream's count-mismatch guard.
+	if len(a) != len(b) {
+		return false
+	}
 	// Build maps from name → xml for non-rFonts children.
 	// Multiple children with the same name are unusual in well-formed
 	// WPML; fall back to ordered byte comparison in that case.
@@ -230,7 +246,9 @@ func rPrChildrenMergeable(a, b []rPrChild) bool {
 			return false
 		}
 	}
-	// rFonts: if both absent or only one side has it, mergeable.
+	// rFonts: if both absent, the count-match check above already
+	// passed and there's nothing to compare. Per the count guard we
+	// would have bailed if only one side has it.
 	if aFonts == nil || bFonts == nil {
 		return true
 	}
