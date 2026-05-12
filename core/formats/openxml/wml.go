@@ -2752,8 +2752,32 @@ func (p *wmlParser) isExtractableField(fieldCode string) bool {
 
 // parseSDT parses a structured document tag, extracting its content.
 func (p *wmlParser) parseSDT(d *xml.Decoder, partPath string, emitBlock func(*model.Block), emitData func()) error {
+	// The caller's case branch consumed the `<w:sdt>` start element. Write
+	// it to the skeleton so the writer re-emits the SDT envelope on
+	// round-trip; bridge preserves <w:sdt><w:sdtContent>...</w:sdtContent>
+	// </w:sdt> wrappers around block-level paragraphs (e.g. watermark
+	// header2.xml contains a single paragraph wrapped in sdt). Per
+	// ECMA-376-1 §17.5.2.31 (CT_SdtBlock) the sdt is a structural envelope
+	// for content controls; dropping it on round-trip changes the document
+	// structure and breaks the byte-equivalence guarantee.
+	//
+	// <w:sdtPr> (the SDT properties block — id, alias, dataBinding, …) and
+	// <w:sdtEndPr> (post-content rPr) are captured raw because their
+	// children carry attributes the streaming skeleton emit would not
+	// preserve byte-for-byte. <w:sdtContent> is the content envelope; the
+	// inner <w:p> paragraphs route through parseParagraph normally and
+	// emit their block refs into the skeleton between the wrapper markers.
+	// Nested <w:sdt> inside <w:sdtContent> recurses (Practice2.docx
+	// footer2.xml).
 	depth := 1
 	inContent := false
+
+	p.skelText("<w:sdt>")
+
+	// Buffer for sdtPr / sdtEndPr captured payloads — they appear before
+	// the content and must be emitted between `<w:sdt>` and
+	// `<w:sdtContent>`.
+	var preContent strings.Builder
 
 	for depth > 0 {
 		tok, err := d.Token()
@@ -2765,10 +2789,19 @@ func (p *wmlParser) parseSDT(d *xml.Decoder, partPath string, emitBlock func(*mo
 			depth++
 			switch t.Name.Local {
 			case "sdtContent":
+				p.skelText(preContent.String())
+				preContent.Reset()
 				inContent = true
-			case "sdtPr":
-				// Skip SDT properties
-				if err := skipElement(d); err != nil {
+				p.skelText("<w:sdtContent>")
+			case "sdtPr", "sdtEndPr":
+				raw, err := captureRawElement(d, t)
+				if err != nil {
+					return err
+				}
+				preContent.WriteString(raw)
+				depth--
+			case "sdt":
+				if err := p.parseSDT(d, partPath, emitBlock, emitData); err != nil {
 					return err
 				}
 				depth--
@@ -2784,9 +2817,14 @@ func (p *wmlParser) parseSDT(d *xml.Decoder, partPath string, emitBlock func(*mo
 			depth--
 			if t.Name.Local == "sdtContent" {
 				inContent = false
+				p.skelText("</w:sdtContent>")
 			}
 		}
 	}
+	if preContent.Len() > 0 {
+		p.skelText(preContent.String())
+	}
+	p.skelText("</w:sdt>")
 	return nil
 }
 
