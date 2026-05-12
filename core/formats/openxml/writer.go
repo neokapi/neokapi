@@ -2436,6 +2436,41 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 				buf.WriteString(r.Ph.Data)
 				continue
 			}
+			// Fuse a follow-on <w:tab/> Ph into the still-open <w:r>
+			// from a prior standalone tab. Mirrors upstream Okapi
+			// BlockTextUnitWriter.flush(Run.Markup) at
+			// BlockTextUnitWriter.java:238-251, which appends each
+			// MarkupComponent into xmlEvents inside the already-open
+			// run and only calls flushRunEnd/flushRunStart for
+			// <w:br>/<a:br> elements (line 243's
+			// isLineBreakStartEvent). Tab markup elements pass
+			// straight through into the open run. Per ECMA-376-1
+			// §17.3.2.1 (CT_R) a single `<w:r>` may carry multiple
+			// `<w:tab/>` children sharing one rPr.
+			//
+			// Pre-condition: inRunNoText is set ONLY by previous
+			// tab/br emissions that left the run open expecting more
+			// content in the same source <w:r>. Since both the open
+			// run and this tab inherit the paragraph-wide source rPr
+			// + active toggles (Ph chunks don't consume per-run
+			// sidecar slots), the rPr context is identical. Mirrors
+			// RunMerger.canRunPropertiesBeMerged (RunMerger.java:
+			// 156-229) — same rPr → adjacent runs fuse on the way to
+			// the writer.
+			//
+			// Fixture apissue.docx header2.xml authors three adjacent
+			// source <w:r>s: `<w:r>…<w:tab/></w:r><w:r>…<w:tab/></w:r>
+			// <w:r>…<w:t>F150 USB…</w:t></w:r>`, all carrying the
+			// same Arial/40 rPr. Bridge fuses them into a single
+			// `<w:r><w:tab/><w:tab/><w:t>F150 USB…</w:t></w:r>`. The
+			// follow-on text run picks up the still-open <w:r> via
+			// the existing inRunNoText branch (text path).
+			if r.Ph.Type == TypeTab && inRunNoText {
+				buf.WriteString(`<w:tab/>`)
+				// Leave inRunNoText set so a subsequent tab or
+				// same-rPr text continues to fuse into this run.
+				continue
+			}
 			closeRun()
 			switch r.Ph.Type {
 			case TypeBreak:
@@ -2491,9 +2526,25 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 				// Document-with-tabs-5.docx P2: source
 				// `<w:r><w:tab/><w:t>Text after tab.</w:t></w:r>` must
 				// round-trip as one <w:r>, not two.
+				// Lookahead extension: also keep the new <w:r> open
+				// when the next run is another TypeTab Ph that will
+				// itself fuse via the TypeTab + inRunNoText branch
+				// above. Mirrors upstream Okapi
+				// BlockTextUnitWriter.flush(Run.Markup) lines 238-251
+				// — adjacent <w:tab/> markup chunks live inside the
+				// same open <w:r> envelope. Fixture apissue.docx
+				// header2.xml authors `<w:r>…<w:tab/></w:r>
+				// <w:r>…<w:tab/></w:r><w:r>…<w:t>F150…</w:t></w:r>`
+				// all carrying Arial/40 rPr; bridge fuses to one
+				// `<w:r><w:tab/><w:tab/><w:t>F150…</w:t></w:r>`.
 				keepOpen := runIdx+1 < len(runs) &&
 					runs[runIdx+1].Text != nil &&
 					!textSrcStart(textRunIdx+1)
+				if !keepOpen && runIdx+1 < len(runs) &&
+					runs[runIdx+1].Ph != nil &&
+					runs[runIdx+1].Ph.Type == TypeTab {
+					keepOpen = true
+				}
 				if r.Ph.SubType == SubTypeTabStandalone {
 					buf.WriteString(`<w:r>`)
 					emitNonTextRPr()
