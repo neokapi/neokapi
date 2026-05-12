@@ -412,44 +412,62 @@ type runEntry struct {
 	// downstream — see optimizeParagraph for the rationale.
 	csOnlyText bool
 	// fieldContentRun is true when this <w:r> is part of a complex
-	// field's body chunks per the upstream model — a run containing
-	// `<w:fldChar fldCharType="separate"/>`, `<w:fldChar
-	// fldCharType="end"/>`, or `<w:instrText>` (but NOT a run
-	// containing `<w:fldChar fldCharType="begin"/>`, which is the
-	// "outer" run that owns the complex-field span).
+	// field's body chunks per the upstream model — any run that sits
+	// strictly between a `<w:fldChar fldCharType="begin"/>` run (the
+	// "outer" run that owns the complex-field span) and the matching
+	// `<w:fldChar fldCharType="end"/>` run, INCLUDING the
+	// instrText-bearing runs, the fldChar=separate run, the
+	// fldChar=end run itself, AND any plain text-bearing runs that
+	// appear between fldChar=separate and fldChar=end (the field's
+	// rendered display content, e.g. `<w:r><w:t>2020</w:t></w:r>`
+	// inside a `DATE` field's result region).
 	//
 	// Upstream Okapi's RunParser.parseComplexField (RunParser.java:
 	// 461-542) routes every event between fldChar=begin and
-	// fldChar=end into the SAME RunBuilder via runBuilder.addToMarkup.
-	// The result is ONE Run object whose body chunks carry the
-	// instrText / fldChar separate/end events as Markup. Only the
-	// outer Run object's RunProperties are passed to RunBuilder.
-	// setRunProperties (RunParser.java:280-294); the body-chunk
-	// runs' rPr survives verbatim through the Markup events.
+	// fldChar=end into the SAME RunBuilder via runBuilder.addToMarkup
+	// (line 505). The result is ONE Run object whose body chunks
+	// carry the instrText / fldChar separate/end events AND the
+	// display-content runs as Markup. Only the outer Run object's
+	// RunProperties (the begin run's rPr) are passed to
+	// RunBuilder.setRunProperties (RunParser.java:280-294); the
+	// body-chunk runs' rPr survives verbatim through the Markup
+	// events.
 	//
-	// At StyleOptimisation time (StyleOptimisation.java:240-249,
-	// refineRuns) only the OUTER Run's properties are refined via
-	// Run.refineRunProperties (Run.java:70-74) — the markup-chunk
-	// rPr is never touched. Per ECMA-376-1 §17.3.2.1 (CT_R) and
-	// §17.16.5 (Complex Fields) every <w:r> is structurally a run
-	// regardless of whether it carries fldChar/instrText markup,
-	// but the upstream pipeline collapses them for WSO scope.
+	// At StyleOptimisation time (StyleOptimisation.java:204-237,
+	// commonRunPropertiesOf, and 240-249, refineRuns) only the
+	// OUTER Run is visited as a Chunk — display-text runs INSIDE
+	// the field span are body chunks of that Run and are invisible
+	// to both common-prop computation AND the per-run rPr refine
+	// pass. Per ECMA-376-1 §17.3.2.1 (CT_R) and §17.16.5 (Complex
+	// Fields) every `<w:r>` is structurally a run regardless of
+	// whether it carries fldChar/instrText/text markup, but the
+	// upstream pipeline collapses them for WSO scope.
 	//
-	// Native's reader/writer emit each fld-bearing <w:r> as a
-	// separate model.Run entry (paragraph-level findRuns sees them
-	// as siblings), so WSO's per-entry strip pass would strip the
-	// common-rPr children from EVERY field-bearing run — including
-	// the body-chunk runs that upstream leaves alone. Skipping the
-	// strip on field-content runs aligns the visible XML output
-	// with upstream's "only the outer run gets refined" model.
+	// Native's reader/writer emit each `<w:r>` inside the field as
+	// a separate model.Run entry (paragraph-level findRuns sees
+	// them as siblings), so without this flag WSO would BOTH (a)
+	// fold the field-content rPr into the common-prop computation
+	// (skewing the lift) AND (b) strip the lifted props from each
+	// field-content run on the way out. Marking field-content runs
+	// — including display-text runs between separate/end — and
+	// excluding them from BOTH the seed/intersection (commonProps)
+	// AND the per-run strip (optimizeParagraph's run-rewrite loop)
+	// aligns the visible XML output with upstream's "only the outer
+	// run is refined" model.
 	//
-	// Fixture Mauris.docx — paragraph contains one EQ field with
-	// fldChar=begin / instrText / fldChar=end runs all carrying
-	// rPr `<w:noProof/><w:sz w:val="144"/><w:szCs w:val="144"/>`.
-	// Upstream emits the BEGIN run with empty rPr and every
-	// instrText / END run with `<w:sz w:val="144"/><w:szCs
-	// w:val="144"/>` preserved (Normal1 also synth'd with sz/szCs).
-	// Without this flag native stripped sz/szCs from all 8 runs.
+	// Fixtures:
+	//   - Mauris.docx — paragraph contains one EQ field with
+	//     fldChar=begin / instrText / fldChar=end runs all carrying
+	//     rPr `<w:noProof/><w:sz w:val="144"/><w:szCs w:val="144"/>`.
+	//     Upstream emits the BEGIN run with empty rPr and every
+	//     instrText / END run with `<w:sz w:val="144"/><w:szCs
+	//     w:val="144"/>` preserved (Normal1 also synth'd with sz/szCs).
+	//   - 956.docx — footer paragraph contains a DATE field whose
+	//     display-text run `<w:r><w:rPr><w:noProof/><w:sz
+	//     w:val="14"/></w:rPr><w:t>2020</w:t></w:r>` sits between
+	//     fldChar=separate and fldChar=end. Upstream preserves that
+	//     run's rPr verbatim (sz=14 is not stripped) because the
+	//     display-text run is a Markup body chunk of the outer Run.
 	fieldContentRun bool
 }
 
@@ -606,32 +624,137 @@ func optimizeParagraph(
 				e.props = stripWMLNamesFromProps(e.props, "b", "i")
 			}
 		}
-		// Detect field-content runs (instrText / fldChar=separate /
-		// fldChar=end). The fldChar=begin run is the "outer" run per
-		// upstream Okapi's parseComplexField model and IS subject to
-		// rPr refinement. See runEntry.fieldContentRun for full
-		// rationale. Per ECMA-376-1 §17.16.5 (Complex Fields).
-		runBody := src[r.start:r.end]
-		if bytes.Contains(runBody, []byte("<w:instrText")) ||
-			bytes.Contains(runBody, []byte(`<w:fldChar w:fldCharType="separate"`)) ||
-			bytes.Contains(runBody, []byte(`<w:fldChar w:fldCharType="end"`)) {
-			e.fieldContentRun = true
-		}
 		entries = append(entries, e)
 	}
 
-	// Compute common props across all runs. If any run has empty rPr,
-	// commons is empty (per Okapi: "if direct properties empty,
-	// commonRunProperties.clear()").
+	// Detect field-content runs by tracking complex-field nesting
+	// depth across the paragraph's run siblings. A run is field-
+	// content iff it is a body chunk of an enclosing outer Run per
+	// upstream Okapi's parseComplexField model — i.e. it sits
+	// strictly between a `<w:fldChar fldCharType="begin"/>` run (the
+	// "outer" run that owns the field span) and the matching
+	// `<w:fldChar fldCharType="end"/>` run, INCLUSIVE of the end run
+	// itself (which is a Markup body chunk of the outer Run).
+	//
+	// The classification is depth-sensitive to handle three corner
+	// cases:
+	//
+	//   1. Nested complex fields — `<w:r><w:fldChar="begin"/></w:r>`
+	//      INSIDE an already-open field becomes a body chunk of the
+	//      outer Run. Upstream's parseComplexField recurses
+	//      (RunParser.java:494-499 isComplexFieldBegin branch); the
+	//      nested begin/instrText/separate/end runs are all Markup
+	//      chunks of the outermost Run. Our flag follows the same
+	//      contract: a begin run is field-content only if fieldDepth
+	//      was already > 0 when we encountered it.
+	//
+	//   2. Orphan fldChar=end at paragraph start — common in
+	//      paragraphs that continue a field opened in the prior
+	//      paragraph (e.g. 830-5.docx p[5] starts with
+	//      `<w:r><w:fldChar fldCharType="end"/></w:r>` followed by a
+	//      regular text run). Upstream's RunParser is per-paragraph
+	//      (paragraph boundaries reset the RunBuilder); the orphan
+	//      end run becomes a plain Run with the fldChar as run body
+	//      events, and IS subject to commonRunPropertiesOf. Our flag
+	//      mirrors this: an end run is field-content only if there's
+	//      an open field at our depth (fieldDepth > 0).
+	//
+	//   3. instrText / fldChar=separate outside any field span —
+	//      these are not legally producible by Word but the parser
+	//      should not panic. We require fieldDepth > 0 for them too
+	//      so a malformed orphan stays a regular run.
+	//
+	// References:
+	//   - RunParser.java:461-542 (parseComplexField) — recursive
+	//     descent, addToMarkup for body events.
+	//   - StyleOptimisation.java:204-237 (commonRunPropertiesOf) —
+	//     only iterates Chunk-level Runs.
+	//   - ECMA-376-1 §17.16.5 (Complex Fields) — fldChar
+	//     begin/separate/end sequencing.
+	fieldDepth := 0
+	for i := range entries {
+		runBody := src[entries[i].runStart:entries[i].runEnd]
+		hasBegin := bytes.Contains(runBody, []byte(`<w:fldChar w:fldCharType="begin"`))
+		hasEnd := bytes.Contains(runBody, []byte(`<w:fldChar w:fldCharType="end"`))
+		hasSep := bytes.Contains(runBody, []byte(`<w:fldChar w:fldCharType="separate"`))
+		hasInstr := bytes.Contains(runBody, []byte("<w:instrText"))
+
+		switch {
+		case hasBegin:
+			// A nested-begin sitting inside an already-open field is
+			// a body chunk of the outer Run (case 1 above).
+			if fieldDepth > 0 {
+				entries[i].fieldContentRun = true
+			}
+			fieldDepth++
+		case hasEnd:
+			// An end run closes the current field span; mark it as
+			// field-content BEFORE decrementing so it counts as part
+			// of the span it's closing. Orphan end runs (fieldDepth
+			// == 0 — case 2) stay as regular runs upstream-equivalently.
+			if fieldDepth > 0 {
+				entries[i].fieldContentRun = true
+				fieldDepth--
+			}
+		case hasInstr, hasSep:
+			// instrText / separate runs are field-content only inside
+			// an open field (case 3). Orphans (malformed XML) stay
+			// regular runs.
+			if fieldDepth > 0 {
+				entries[i].fieldContentRun = true
+			}
+		default:
+			// Plain run (text / drawing / hyperlink markup / etc).
+			// It's field-content iff it sits inside an open field.
+			// This covers the display-text region between
+			// fldChar=separate and fldChar=end (e.g.
+			// `<w:r><w:t>2020</w:t></w:r>` for a DATE field's
+			// rendered result in 956.docx footer1.xml).
+			if fieldDepth > 0 {
+				entries[i].fieldContentRun = true
+			}
+		}
+	}
+
+	// Compute common props across all runs. If any non-field-content
+	// run has empty rPr, commons is empty (per Okapi: "if direct
+	// properties empty, commonRunProperties.clear()"). Field-content
+	// runs (instrText / fldChar / display-text runs between
+	// separate/end) are body chunks of the outer Run upstream and
+	// are invisible to commonRunPropertiesOf — they cannot trigger
+	// the empty-rPr bypass. See runEntry.fieldContentRun for the
+	// upstream contract.
 	for _, e := range entries {
 		if e.excluded {
 			return src // bypass per StyleOptimisation.innerChunksContainExclusions
+		}
+		if e.fieldContentRun {
+			continue
 		}
 		if !e.hasRPr || len(e.props) == 0 {
 			return src
 		}
 	}
-	common := commonProps(entries[0].props, entries)
+	// Seed the intersection from the first non-field-content run.
+	// When the paragraph starts with a complex field (e.g. the first
+	// sibling is a `<w:r><w:fldChar w:fldCharType="begin"/></w:r>`
+	// which IS the outer begin run and therefore NOT field-content),
+	// entries[0] is already the upstream-visible outer run. But for
+	// safety pick the first entry whose fieldContentRun==false — it
+	// matches the seed upstream's commonRunPropertiesOf would use.
+	seedIdx := -1
+	for i := range entries {
+		if !entries[i].fieldContentRun {
+			seedIdx = i
+			break
+		}
+	}
+	if seedIdx < 0 {
+		// Every run is field-content — paragraph is degenerate
+		// (e.g. malformed XML with no begin run). Bail.
+		return src
+	}
+	common := commonProps(entries[seedIdx].props, entries)
 	if len(common) == 0 {
 		return src
 	}
@@ -1341,6 +1464,39 @@ func commonProps(seed []runProp, entries []runEntry) []runProp {
 	if len(entries) == 0 {
 		return nil
 	}
+	// Field-content runs (instrText / fldChar=separate / fldChar=end
+	// AND any display-text runs sitting between fldChar=separate and
+	// fldChar=end) are body chunks of the outer Run upstream and are
+	// invisible to commonRunPropertiesOf (StyleOptimisation.java:
+	// 204-237). Including them here would skew the lift in two
+	// directions:
+	//   - When field-content rPr happens to share a property with
+	//     the outer runs, that property gets lifted into the synth
+	//     style and stripped from EVERY field-content run on the
+	//     way out (956.docx footer1: sz=14 stripped from the
+	//     `<w:r><w:t>2020</w:t></w:r>` display-text run).
+	//   - When field-content rPr DIVERGES from the outer runs, the
+	//     intersection collapses and the synth lift gets cancelled
+	//     for an outer-run property that upstream would have lifted.
+	// Filter once so all subsequent operations (rFonts intersection
+	// AND per-prop intersection) operate on the upstream-visible set.
+	visible := entries
+	if hasFieldContent(entries) {
+		visible = make([]runEntry, 0, len(entries))
+		for _, e := range entries {
+			if !e.fieldContentRun {
+				visible = append(visible, e)
+			}
+		}
+		if len(visible) == 0 {
+			// All runs were field-content (degenerate paragraph
+			// containing only a single complex field's body chunks).
+			// Upstream would still see the outer begin run, but if
+			// our pass marked everything as field-content it means
+			// no begin run was found in the XML — bail to be safe.
+			return nil
+		}
+	}
 	out := make([]runProp, 0, len(seed))
 	rFontsHandled := false
 	for _, p := range seed {
@@ -1349,13 +1505,13 @@ func commonProps(seed []runProp, entries []runEntry) []runProp {
 				continue
 			}
 			rFontsHandled = true
-			if merged, ok := commonRFonts(entries); ok {
+			if merged, ok := commonRFonts(visible); ok {
 				out = append(out, runProp{name: "rFonts", xml: merged})
 			}
 			continue
 		}
 		all := true
-		for _, e := range entries {
+		for _, e := range visible {
 			found := false
 			for _, q := range e.props {
 				if q.name == p.name && q.xml == p.xml {
@@ -1373,6 +1529,19 @@ func commonProps(seed []runProp, entries []runEntry) []runProp {
 		}
 	}
 	return out
+}
+
+// hasFieldContent reports whether any entry is a field-content run.
+// Used by commonProps to short-circuit the per-entry filter when
+// the paragraph carries no complex-field markup at all (the common
+// case across the corpus).
+func hasFieldContent(entries []runEntry) bool {
+	for _, e := range entries {
+		if e.fieldContentRun {
+			return true
+		}
+	}
+	return false
 }
 
 // stripToggleMirrorsFromCommon rewrites the b/i toggle entries in
