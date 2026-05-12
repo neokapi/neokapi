@@ -796,18 +796,65 @@ func optimizeParagraph(
 }
 
 // findFirstChild returns the byte range of the first <w:NAME>...</w:NAME>
-// (or self-closing <w:NAME/>) element appearing inside the parent element
-// represented by src. start/end are relative to src. The element must
-// appear before any other content (children-only matcher won't see
-// elements past the first sub-element of a different name — safe enough
-// for pPr/rPr lookup which is always the first child if present).
+// (or self-closing <w:NAME/>) element appearing as a DIRECT child of the
+// parent element represented by src. start/end are relative to src.
+//
+// Per ECMA-376-1 §17.3.1.10 (CT_P) <w:pPr> MUST be the first child of
+// <w:p> if present, and per §17.3.2.1 (CT_R) <w:rPr> MUST be the first
+// child of <w:r> if present. So a "first direct child" search is
+// equivalent to "is the next non-whitespace content right after the
+// parent's start tag a <w:NAME ...>?".
+//
+// The previous implementation did `bytes.Index(src, open)` which would
+// happily match a <w:NAME> nested arbitrarily deep — e.g. a
+// <w:r><mc:AlternateContent>…<w:p><w:rPr>…</w:rPr>…</w:p>…</mc:Alternate
+// Content></w:r> drawing-only run would falsely report having an rPr
+// because the inner txbxContent paragraph carries one. That mis-detected
+// rPr would then feed WSO's optimizeParagraph as if it belonged to the
+// outer drawing-only run, polluting the common-rPr lift. Fixture
+// highlights_block.docx is the canonical case: a paragraph whose first
+// run carries `<w:rPr><w:color/></w:rPr><w:t>Run 1.</w:t>` and whose
+// second run is a drawing-only `<w:r><mc:AlternateContent>…</w:r>` with
+// NO direct rPr was being mis-classified as a 2-run paragraph with
+// matching rPrs (the inner txbxContent rPr leaking to the outer drawing
+// run), causing native to synthesise a spurious BodyText3 pStyle that
+// the bridge correctly leaves un-synthesised because the drawing run
+// has no direct rPr to lift.
 func findFirstChild(src []byte, name string) (int, int, bool) {
 	open := []byte("<w:" + name)
 	close := []byte("</w:" + name + ">")
-	i := bytes.Index(src, open)
-	if i < 0 {
+	// Skip past the parent's start tag. The parent is the outermost
+	// element in src (e.g. <w:p ...> or <w:r ...>); its start tag ends
+	// at the first '>'. After that we expect either whitespace or the
+	// first child element to start.
+	parentTagEnd := bytes.IndexByte(src, '>')
+	if parentTagEnd < 0 {
 		return 0, 0, false
 	}
+	// Parent could be self-closing (<w:r/>) — no children possible.
+	if parentTagEnd > 0 && src[parentTagEnd-1] == '/' {
+		return 0, 0, false
+	}
+	// Walk past whitespace immediately after the parent's start tag to
+	// the first non-whitespace byte. That byte must be the start of an
+	// element — `<` — or there is no first child to compare against.
+	cursor := parentTagEnd + 1
+	for cursor < len(src) {
+		b := src[cursor]
+		if b == ' ' || b == '\t' || b == '\n' || b == '\r' {
+			cursor++
+			continue
+		}
+		break
+	}
+	if cursor >= len(src) || src[cursor] != '<' {
+		return 0, 0, false
+	}
+	// The first child must be `<w:NAME ...>` for the lookup to succeed.
+	if !bytes.HasPrefix(src[cursor:], open) {
+		return 0, 0, false
+	}
+	i := cursor
 	// Confirm name boundary.
 	j := i + len(open)
 	if j >= len(src) {
