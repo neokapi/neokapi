@@ -772,10 +772,39 @@ func parseRunProps(d *xml.Decoder, aggressive bool, styleChainNames map[string]b
 					return props, err
 				}
 			case local == "vanish":
-				props.vanish = !hasAttrVal(t, "val", "0") && !hasAttrVal(t, "val", "false")
+				// Toggle property per ECMA-376-1 §17.3.2.42 (<w:vanish>).
+				// A bare element turns hide-text ON; an explicit
+				// `val="0"` / `"false"` / `"off"` is the clearing form.
+				// The bare-on path normalises into runProps.vanish so
+				// downstream consumers (allHidden, writer toggle emit)
+				// can read it efficiently. The clearing form is preserved
+				// verbatim in rPrChildren so it survives into the per-run
+				// rPr sidecar — upstream Okapi's RunProperties.minified()
+				// preserves a clearing-value toggle when the inherited
+				// style chain carries that property by name
+				// (RunProperties.java:497-540, the
+				// `!preCombined.contains(p.getName())` condition).
+				// Mirrors the local == "b" / local == "i" clearing-form
+				// branches above. Without this, lang.docx's
+				// `editform`-styled space run loses its
+				// `<w:vanish w:val="0"/>` clearing override on round-trip
+				// (the source uses it to suppress a `vanish` toggle that
+				// would otherwise be inherited at the document layer; the
+				// minifyRPrChildren default-strip path drops it because
+				// the immediate Normal style chain has no vanish).
+				off := hasAttrVal(t, "val", "0") || hasAttrVal(t, "val", "false") || hasAttrVal(t, "val", "off")
+				props.vanish = !off
 				props.vanishExplicit = true
-				if err := skipElement(d); err != nil {
-					return props, err
+				if off {
+					raw, err := serializeRPrChildElement(d, t)
+					if err != nil {
+						return props, err
+					}
+					props.rPrChildren = append(props.rPrChildren, rPrChild{name: local, xml: raw})
+				} else {
+					if err := skipElement(d); err != nil {
+						return props, err
+					}
 				}
 			case local == "rFonts":
 				// Capture font names: ascii/hAnsi for Latin, cs for complex script, eastAsia for EA

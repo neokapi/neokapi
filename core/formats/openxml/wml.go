@@ -4005,28 +4005,21 @@ func runToXML(r textRun) string {
 	}
 	var buf strings.Builder
 	buf.WriteString("<w:r>")
-	if !r.props.isEmpty() {
-		buf.WriteString("<w:rPr>")
-		if r.props.bold {
-			buf.WriteString("<w:b/>")
-		}
-		if r.props.italic {
-			buf.WriteString("<w:i/>")
-		}
-		if r.props.underline != "" {
-			buf.WriteString(`<w:u w:val="` + r.props.underline + `"/>`)
-		}
-		if r.props.strike {
-			buf.WriteString("<w:strike/>")
-		}
-		if r.props.vertAlign != "" {
-			buf.WriteString(`<w:vertAlign w:val="` + r.props.vertAlign + `"/>`)
-		}
-		if r.props.vanish {
-			buf.WriteString("<w:vanish/>")
-		}
-		buf.WriteString("</w:rPr>")
-	}
+	// Emit BOTH the toggle properties AND the non-toggle rPrChildren
+	// (rStyle, color, sz, szCs, lang, noProof, …). Previously this
+	// path only emitted toggles, dropping rStyle and other non-toggle
+	// children on whitespace-only / empty-text runs that route through
+	// the skeleton emit path (parseParagraph isEmptyRuns branch). The
+	// downstream WSO post-pass then sees a stripped-down `<w:rPr>` and
+	// silently synthesises a paragraph style from the surviving toggle
+	// (e.g. lang.docx's editform-styled space run: source rPr was
+	// `<w:rStyle w:val="editform"/><w:b/><w:vanish w:val="0"/>...`,
+	// stripped to just `<w:b/>` here, then WSO lifts the `<w:b/>` into
+	// a synthesised pStyle). Per ECMA-376-1 §17.3.2.1 (CT_R) every
+	// rPr child applies to the run regardless of the run's payload
+	// (text vs whitespace vs drawing); upstream Okapi RunBuilder
+	// materialises the full source RunProperties on every emitted run.
+	buf.WriteString(serializeFullRPrXML(r.props))
 	switch {
 	case strings.HasPrefix(r.text, ""):
 		// drawing/pict/object/AlternateContent — emit captured raw XML
