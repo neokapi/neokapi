@@ -447,7 +447,21 @@ func dropDeletedRows(data []byte) []byte {
 			data = data[rowEnd:]
 			continue
 		}
-		out = append(out, data[:rowEnd]...)
+		// Recurse into the row body so deleted rows nested inside a
+		// retained outer row (a <w:tc> may host another <w:tbl> with
+		// its own <w:tr>s) get pruned too. Without this descent the
+		// outer row is appended verbatim and the inner deleted row
+		// rides along into the merged document.xml — fixture
+		// 848-nested-tables-with-revisions.docx is the canonical case
+		// where every inner row carries `<w:trPr><w:del/></w:trPr>`
+		// and the outer's row-skip pass leaves them in place. Per
+		// ECMA-376-1 §17.4.78 (CT_Row) and §17.4.16 (CT_Cell), nested
+		// tables are legal cell content; the row-deletion revision
+		// (§17.13.5.13) applies independently at every depth.
+		bodyCleaned := dropDeletedRows(body)
+		out = append(out, data[:bodyStart]...)
+		out = append(out, bodyCleaned...)
+		out = append(out, data[rowEnd-len(trClose):rowEnd]...)
 		data = data[rowEnd:]
 	}
 	return out
@@ -1188,13 +1202,32 @@ func dropEmptyTables(data []byte) []byte {
 		}
 		tableEnd := cursor
 		body := data[bodyStart : tableEnd-len(tblClose)]
-		if !tableBodyHasRow(body) {
+		// Recurse into the body first so any inner <w:tbl> that lost
+		// all its rows in earlier passes (or other inner empty
+		// tables) is collapsed BEFORE we test whether THIS table has
+		// surviving rows. Without this descent, nested tables emptied
+		// by dropDeletedRows linger inside an outer cell — the outer
+		// `tableBodyHasRow` check looks at the outer's own rows so
+		// the empty inner tbl rides along into the writer. Fixture
+		// 848-nested-tables-with-revisions.docx is the canonical
+		// case: every inner table's rows carry <w:trPr><w:del/></w:trPr>
+		// (ECMA-376-1 §17.13.5.13) and after row removal the inner
+		// `<w:tbl><w:tblPr/><w:tblGrid/></w:tbl>` shell would survive
+		// into the merged document.xml; upstream Okapi drops it via
+		// StyledTextPart.process lines 410-424 (the TableEnd branch
+		// removing queued delayedTableMarkup when no translatable
+		// block reached the writer).
+		bodyCleaned := dropEmptyTables(body)
+		if !tableBodyHasRow(bodyCleaned) {
 			// Empty table — drop the whole region.
 			out = append(out, data[:idx]...)
 			data = data[tableEnd:]
 			continue
 		}
-		out = append(out, data[:tableEnd]...)
+		// Splice the cleaned body back into the table region.
+		out = append(out, data[:bodyStart]...)
+		out = append(out, bodyCleaned...)
+		out = append(out, data[tableEnd-len(tblClose):tableEnd]...)
 		data = data[tableEnd:]
 	}
 	return out
@@ -3338,7 +3371,7 @@ func serializeFullRPrXML(p runProps) string {
 		b.WriteString(`<w:vertAlign w:val="` + p.vertAlign + `"/>`)
 	}
 	if p.vanish {
-		b.WriteString("<w:vanish/>")
+		b.WriteString(vanishOnXML(p))
 	}
 	for _, c := range p.rPrChildren {
 		b.WriteString(c.xml)
