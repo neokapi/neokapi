@@ -13,9 +13,39 @@ docs.
 | Engine | Total | byte | canon | sem | div |
 |---|---:|---:|---:|---:|---:|
 | bridge (okapi-bridge) | 185 | 185 | 0 | 0 | 0 |
-| native (this package) | 185 | 0 | 136 | 0 | 49 |
+| native (this package) | 185 | 0 | 140 | 0 | 45 |
 
 ## Recently cleared
+
+- 830-2.docx, 830-6.docx — empty placeholder run preservation
+  inside active complex fields. parseRunWithFieldState now emits a
+  SubTypeFieldChar sentinel carrying the verbatim
+  `<w:r><w:rPr>...</w:rPr></w:r>` payload when a run with no body
+  chunks but a non-trivial rPr is encountered AND the parser is
+  inside an active field (cfs.active). Empty placeholders OUTSIDE
+  field state continue to be dropped — 830-6.docx para 5 is the
+  canonical case where Okapi collapses the paragraph to
+  `<w:p><w:pPr/></w:p>` without the placeholder.
+- 830-2.docx, 830-6.docx text-run rPr — explicit-off
+  `<w:rtl w:val="0"/>` is preserved on per-run rPr when the same rPr
+  carries other non-default-valued siblings. Empirical match against
+  upstream's reference output for 830-2.docx text runs (whose rPr
+  authors rFonts/b/color/sz/szCs/highlight/u alongside rtl). The
+  reordered-zip.docx case (rtl as the SOLE rPr child) continues to
+  strip — that fixture's reference output emits `<w:r><w:t>` with no
+  rPr at all, so the strip is correct when post-strip rPr would
+  collapse. The synthesised paragraph style still drops rtl=0
+  unconditionally (stripToggleMirrorsFromCommon) per upstream's
+  830-2 reference where the synth NF974E24F-a1 has no rtl child.
+- 848-nested-tables-with-revisions.docx — dropDeletedRows and
+  dropEmptyTables now recurse into the body of each retained row /
+  table so deleted nested rows and post-deletion empty inner tables
+  get pruned. Per ECMA-376-1 §17.4.78 (CT_Row), §17.4.16 (CT_Cell),
+  and §17.13.5.13 (deleted table row), nested tables are legal cell
+  content and the row-deletion revision applies independently at
+  every depth.
+- Mauris.docx — cleared as a side effect of the rtl-preservation +
+  empty-placeholder fixes (was diverging on the same rPr-strip path).
 
 - WSO synthesis cluster — vanish promotion + paired explicit-off
   bCs/iCs preservation in synth rPr (8 fixtures: 948-1, vertAlign,
