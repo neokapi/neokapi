@@ -1775,12 +1775,135 @@ func (p *wmlParser) parseParagraph(d *xml.Decoder, partPath string, emitBlock fu
 			}
 
 			if t.Name.Local == "p" {
-				// Apply style optimization: subtract inherited properties
-				if p.styles != nil && paraStyleID != "" {
-					styleProps := p.styles.resolveProps(paraStyleID)
+				// Apply style optimization: subtract inherited properties.
+				// The inherited chain combines:
+				//   1. The paragraph's pStyle chain (resolveProps walks
+				//      basedOn from paraStyleID up).
+				//   2. Each run's rStyle chain (a character style applied
+				//      directly to the run; mergeProps overlays the
+				//      character style's resolved rPr on top of the
+				//      paragraph's resolved rPr per ECMA-376-1 §17.7.1
+				//      (Style Inheritance) — character style wins over
+				//      paragraph style for run-level properties).
+				//
+				// Without the rStyle merge, a directly-authored property
+				// on a run that matches what the rStyle chain provides
+				// (e.g. 948-1.docx's `Character1`-styled run carries
+				// `rFonts ascii=Calibri ...` AND the Character1 style
+				// chain already supplies the same rFonts) is NOT seen
+				// as redundant by subtractProps — the run keeps the
+				// duplicate rPr child and the writer emits it on the
+				// wire even though upstream Okapi (which DOES walk the
+				// rStyle chain at minified() time) drops it. Mirrors
+				// upstream Okapi's CombinedRunProperties.combine
+				// (RunProperties.java:497-540) which builds preCombined
+				// from BOTH the pStyle chain and the rStyle chain
+				// before computing minified().
+				if p.styles != nil {
+					var paraStyleProps runProps
+					if paraStyleID != "" {
+						paraStyleProps = p.styles.resolveProps(paraStyleID)
+					}
+					paraChainNames := p.currentStyleChainNames
 					for i := range runs {
-						if !isSentinel(runs[i].text) {
-							subtractProps(&runs[i].props, styleProps)
+						if isSentinel(runs[i].text) {
+							continue
+						}
+						rStyleID := extractRStyleID(runs[i].props.rPrChildren)
+						styleProps := paraStyleProps
+						chainNames := paraChainNames
+						if rStyleID != "" {
+							rStyleProps := p.styles.resolveProps(rStyleID)
+							mergeProps(&styleProps, rStyleProps)
+							// Compute the merged chain-name set so
+							// minifyRPrChildren's preCombined-by-name
+							// guard can see properties contributed by
+							// the rStyle chain (e.g. lang.docx's
+							// `editform` character style supplies
+							// <w:vanish/>; without folding it into
+							// chainNames, an explicit-off
+							// `<w:vanish w:val="0"/>` on a Character1-
+							// styled run looks like a no-op default
+							// and gets stripped, breaking lang.docx).
+							chainNames = mergeChainNames(paraChainNames, p.styles.effectiveRPrChildNames(rStyleID))
+						}
+						subtractProps(&runs[i].props, styleProps)
+						// Re-run minifyRPrChildren with the merged
+						// per-run chain (paraStyle ∪ rStyle). The
+						// initial pass in parseRunProps used only the
+						// paragraph's chain; if the rStyle adds new
+						// names (e.g. <w:vanish/> on `editform`), an
+						// explicit-off entry that the parse-time
+						// minify dropped should now be preserved, and
+						// vice-versa. Mirrors upstream Okapi's late
+						// minified() invocation that operates on the
+						// FULL preCombined view (RunParser.java:280-294
+						// + RunProperties.java:497-540).
+						runs[i].props.rPrChildren = minifyRPrChildren(runs[i].props.rPrChildren, chainNames)
+						// Strip an explicit-off `<w:vanish w:val="0"/>`
+						// from the run's rPrChildren when the merged
+						// style chain does not author <w:vanish/> by
+						// name. ECMA-376-1 §17.3.2.42 (<w:vanish>):
+						// the toggle defaults OFF, so an explicit-off
+						// authoring is redundant unless the inherited
+						// chain turns it ON. Mirrors upstream Okapi
+						// RunProperties.minified() default-strip
+						// (RunProperties.java:497-540) on the
+						// PreCombined view that includes both pStyle
+						// AND rStyle chains. Vanish is excluded from
+						// `wpmlToggleNames` so the parse-time minify
+						// (which only sees the paragraph chain) never
+						// strips the clearing form prematurely; this
+						// late strip runs only when both chains have
+						// been merged. Fixtures: 948-1.docx ($
+						// `Character1`-styled run carries vanish=0 but
+						// Character1 chain has no vanish — drop it),
+						// lang.docx (editform-styled run carries
+						// vanish=0 AND editform supplies <w:vanish/> —
+						// keep it).
+						if !chainNames["vanish"] {
+							runs[i].props.rPrChildren = stripExplicitOffVanish(runs[i].props.rPrChildren)
+						}
+						// Strip per-run rPrChildren whose canonical XML
+						// matches the resolved style chain. Mirrors
+						// upstream Okapi RunProperties.minified()'s
+						// `if (preCombined.contains(p))` branch
+						// (RunProperties.java:497-540): a directly-
+						// authored property is dropped from the run
+						// when the resolved chain already supplies it
+						// with the SAME value. Today this strip covers
+						// `<w:rFonts>` (the canonical case is
+						// 948-1.docx, where every `Character1`-styled
+						// run authors the same `<w:rFonts ...>` the
+						// Character1 style supplies via its basedOn
+						// chain). Other rPr children (`<w:color>`,
+						// `<w:sz>`, …) are not yet covered because
+						// their canonical XML is not captured into
+						// styleEntry.rPrChildXMLs — extend the parser
+						// + this strip to cover them as parity gaps
+						// surface. Per ECMA-376-1 §17.3.2.26 (CT_Fonts)
+						// the rFonts element identity is its attribute
+						// set, so byte-equal canonicalised XML is a
+						// safe equality check.
+						if rStyleID != "" || paraStyleID != "" {
+							children := runs[i].props.rPrChildren
+							out := children[:0]
+							for _, c := range children {
+								if c.name == "rFonts" {
+									chainXML := ""
+									if rStyleID != "" {
+										chainXML = p.styles.effectiveRPrChildXML(rStyleID, "rFonts")
+									}
+									if chainXML == "" && paraStyleID != "" {
+										chainXML = p.styles.effectiveRPrChildXML(paraStyleID, "rFonts")
+									}
+									if chainXML != "" && chainXML == c.xml {
+										continue
+									}
+								}
+								out = append(out, c)
+							}
+							runs[i].props.rPrChildren = out
 						}
 					}
 				}

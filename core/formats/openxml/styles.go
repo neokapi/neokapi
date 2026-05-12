@@ -6,6 +6,7 @@ import (
 	"encoding/xml"
 	"errors"
 	"io"
+	"strings"
 )
 
 // styleMap holds resolved style definitions from styles.xml.
@@ -56,6 +57,20 @@ type styleEntry struct {
 	// resolved style chain carries the toggle BY NAME, because it
 	// is needed to clear the inherited toggle.
 	rPrChildNames map[string]bool
+	// rPrChildXMLs is the canonical XML serialisation of each rPr child
+	// authored DIRECTLY on this style (e.g. "rFonts" →
+	// `<w:rFonts w:ascii="Calibri" w:hAnsi="Calibri" w:cs="Calibri"
+	// w:eastAsia="Calibri"/>`). Used by per-run rPr minification to
+	// drop duplicate rPr children whose value matches the resolved
+	// style chain — mirrors upstream Okapi RunProperties.minified()
+	// `if (preCombined.contains(p))` branch which does Object.equals
+	// on the Property (RunProperties.java:497-540 +
+	// RunProperty.equalsProperty implementations). Without this, a
+	// per-run `<w:rFonts ...>` that exactly matches the rStyle chain's
+	// rFonts gets emitted twice on the wire (948-1.docx is the
+	// canonical case: `Character1` style supplies the same rFonts that
+	// every rStyle="Character1" run authors directly).
+	rPrChildXMLs map[string]string
 }
 
 // effectiveProps returns the effective inherited run properties for a
@@ -106,6 +121,103 @@ func (sm *styleMap) resolveProps(styleID string) runProps {
 	// Override with this style's properties
 	mergeProps(&resolved, entry.props)
 	return resolved
+}
+
+// mergeChainNames returns the union of two chain-name maps. Used by
+// the per-run minification path to combine the paragraph's style
+// chain names with the run's rStyle chain names so
+// minifyRPrChildren's preCombined.contains-by-name check sees
+// properties contributed by either chain. Returns a fresh map even
+// when one input is nil.
+func mergeChainNames(a, b map[string]bool) map[string]bool {
+	out := make(map[string]bool, len(a)+len(b))
+	for k := range a {
+		out[k] = true
+	}
+	for k := range b {
+		out[k] = true
+	}
+	return out
+}
+
+// effectiveRPrChildXML returns the canonical XML serialisation of the
+// named rPr child as supplied by the resolved style chain (basedOn
+// walk from styleID). Returns "" if no style in the chain authors a
+// child with that name. Used by per-run rPr minification to drop a
+// run's rPr child when its value matches the chain — mirrors upstream
+// Okapi RunProperties.minified() `if (preCombined.contains(p))` branch
+// (RunProperties.java:497-540) which does Property.equals on the
+// resolved chain (RunProperty.equalsProperty implementations).
+//
+// The walk is child-takes-first: the youngest style in the chain
+// wins (i.e. the style itself, then its basedOn, then grandparent,
+// …). docDefaults are NOT consulted — at the per-run minification
+// site the caller should fold them in separately if needed.
+func (sm *styleMap) effectiveRPrChildXML(styleID, name string) string {
+	if sm == nil || styleID == "" {
+		return ""
+	}
+	visited := make(map[string]bool)
+	cursor := styleID
+	for cursor != "" {
+		if visited[cursor] {
+			break
+		}
+		visited[cursor] = true
+		entry, ok := sm.styles[cursor]
+		if !ok {
+			break
+		}
+		if v, ok := entry.rPrChildXMLs[name]; ok {
+			return v
+		}
+		cursor = entry.basedOn
+	}
+	return ""
+}
+
+// formatRFontsXML serialises a `<w:rFonts ...>` start element to its
+// canonical XML form with attributes in source order, w:-prefixed.
+// Used by parseStyles to populate styleEntry.rPrChildXMLs and by
+// per-run minification to compare a run's rFonts against the chain.
+//
+// The canonical form mirrors what parseRunProps captures into
+// rPrChildren via serializeWithCapture so byte-equality holds.
+func formatRFontsXML(t xml.StartElement) string {
+	var b strings.Builder
+	b.WriteString("<w:rFonts")
+	for _, a := range t.Attr {
+		// Strip the xmlns attribute that some encoders surface on
+		// child elements; rFonts always shares the parent w: namespace.
+		if a.Name.Local == "xmlns" || a.Name.Space == "xmlns" {
+			continue
+		}
+		b.WriteByte(' ')
+		b.WriteString("w:")
+		b.WriteString(a.Name.Local)
+		b.WriteString(`="`)
+		b.WriteString(xmlEscapeAttr(a.Value))
+		b.WriteString(`"`)
+	}
+	b.WriteString("/>")
+	return b.String()
+}
+
+// extractRStyleID returns the value of the `<w:rStyle w:val="…"/>` child
+// in the given rPrChildren slice, or "" if no rStyle is present. Used
+// by the per-run rPr minification path to find the character style
+// that should be merged into the resolved style chain when computing
+// inherited rPr.
+func extractRStyleID(children []rPrChild) string {
+	for _, c := range children {
+		if c.name != "rStyle" {
+			continue
+		}
+		if v, ok := parseRPrChildVal(c.xml); ok {
+			return v
+		}
+	}
+	return ""
 }
 
 // effectiveRPrChildNames returns the union of rPr-child element local
@@ -419,6 +531,21 @@ func parseStyles(zr *zip.Reader) *styleMap {
 					} else if v := attrVal(t, "hAnsi"); v != "" {
 						dst.fontName = v
 					}
+				}
+				// Capture the rFonts element's canonical XML on the
+				// style entry so per-run rPr minification can drop a
+				// run's `<w:rFonts>` child when its attribute set
+				// matches what the resolved rStyle/pStyle chain
+				// supplies. ECMA-376-1 §17.3.2.26 (CT_Fonts): the
+				// element is identified by its attribute set
+				// (ascii, hAnsi, cs, eastAsia, *Theme, hint), not by
+				// content; canonicalising via formatRFontsXML keeps
+				// equality stable across attribute order.
+				if inStyle && current != nil && inRPr {
+					if current.rPrChildXMLs == nil {
+						current.rPrChildXMLs = make(map[string]string)
+					}
+					current.rPrChildXMLs["rFonts"] = formatRFontsXML(t)
 				}
 			}
 

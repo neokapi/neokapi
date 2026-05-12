@@ -1029,6 +1029,33 @@ var wpmlToggleNames = map[string]bool{
 	"iCs":        true,
 }
 
+// stripExplicitOffVanish returns children with any
+// `<w:vanish w:val="0"/>` / `<w:vanish w:val="false"/>` /
+// `<w:vanish w:val="off"/>` entry removed. Used by the wml.go
+// run-loop AFTER folding the rStyle chain into the chain-name set,
+// so the strip only fires when the merged chain doesn't author
+// vanish by name. Vanish is intentionally excluded from
+// `wpmlToggleNames` so the parse-time minify pass (which only sees
+// the paragraph's chain) doesn't strip the clearing form
+// prematurely. Fixture lang.docx is the canonical case: the editform
+// rStyle chain authors `<w:vanish/>`, so the per-run
+// `<w:vanish w:val="0"/>` clearing override must round-trip; without
+// the deferred-strip split, the parse-time minify (which only sees
+// the empty pStyle chain) drops it before wml.go can decide.
+func stripExplicitOffVanish(children []rPrChild) []rPrChild {
+	out := children[:0]
+	for _, c := range children {
+		if c.name == "vanish" {
+			val, ok := parseRPrChildVal(c.xml)
+			if ok && (val == "0" || val == "false" || val == "off") {
+				continue
+			}
+		}
+		out = append(out, c)
+	}
+	return out
+}
+
 // rPrOmittedWithNoneOrNil mirrors upstream
 // RunProperties.OMITTED_WITH_NONE_OR_NIL (RunProperties.java:370-380):
 // these properties are omitted when their `val` attribute is "none" or
