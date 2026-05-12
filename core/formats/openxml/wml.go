@@ -2315,10 +2315,29 @@ func (p *wmlParser) parseParagraph(d *xml.Decoder, partPath string, emitBlock fu
 				// at Block.java line 140 (a mergeable block whose
 				// only chunks are paragraph open + close drops away).
 				//
-				// Fixtures: 847-2.docx, 847-3.docx, 1102.docx exercise
-				// the content-bearing buffer path; 1370-same-nested-
+				// Fixtures: 847-2.docx, 847-3.docx exercise the
+				// content-bearing buffer path; 1370-same-nested-
 				// revisions.docx remains the empty-content drop case.
-				if paragraphHasDeletedMark(paraProps) && !isEmptyRuns(merged) {
+				//
+				// Exception: when an extractable complex field is OPEN
+				// across this paragraph boundary (cfs.active — fldChar
+				// begin seen, fldChar end not yet), upstream Okapi's
+				// `<w:pPr>` events flow through `RunParser.parseContent`
+				// as opaque markup inside the field's RunBuilder
+				// (RunParser.java:516-535) — they never reach
+				// `BlockParser.parse`'s `containsRunPropertyDeletedParagraphMark`
+				// check at line 207-213. The block's mergeable flag is
+				// driven SOLELY by the pPr of the paragraph BlockParser
+				// itself opened (the paragraph that holds the fldChar-
+				// begin). Inner paragraphs' deletedMark / moveFrom marks
+				// in pPr/rPr are inert in this state. Skip absorption to
+				// match: P2/P3 in 1102.docx both carry
+				// `<w:pPr><w:rPr><w:ins/><w:del/></w:rPr></w:pPr>` AND
+				// sit inside the open HYPERLINK field (begin/instrText/
+				// separate in P2's <w:ins>, end in P4's <w:ins>);
+				// reference output keeps both paragraphs intact rather
+				// than absorbing them. Fixture 1102.docx.
+				if paragraphHasDeletedMark(paraProps) && !isEmptyRuns(merged) && !(cfs.active && cfs.extractable) {
 					p.partMergeable = &pendingMergeable{
 						runs:        merged,
 						paraProps:   paraProps,
@@ -2383,7 +2402,17 @@ func (p *wmlParser) parseParagraph(d *xml.Decoder, partPath string, emitBlock fu
 					// dropped entirely. Fixture
 					// 1370-same-nested-revisions.docx is the
 					// canonical case.
-					if paragraphHasDeletedMark(paraProps) && len(merged) == 0 {
+					//
+					// Exception (same rationale as the content-bearing
+					// branch above): when an extractable complex field
+					// is OPEN across this paragraph boundary, inner
+					// pPr events are opaque markup to upstream's
+					// BlockParser — the deletedMark drop does not fire.
+					// Fixture 1102.docx: P3 is empty with deletedMark
+					// in pPr and sits between the HYPERLINK field's
+					// separate (P2) and end (P4); reference keeps P3
+					// as an empty paragraph rather than dropping it.
+					if paragraphHasDeletedMark(paraProps) && len(merged) == 0 && !(cfs.active && cfs.extractable) {
 						return nil
 					}
 					p.skelWriteString("<w:p>")
