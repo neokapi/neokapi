@@ -1667,40 +1667,61 @@ func stripToggleMirrorsFromCommon(props []runProp, rtl bool, parentInheritsRTL b
 	// elements appear at most once per <w:rPr>).
 	hasBCs := false
 	hasICs := false
-	// Paired explicit-off detection (b ↔ bCs / i ↔ iCs). Mirrors
-	// stripToggleMirrorChildren in writer.go (lines 1580-1593) which
-	// preserves an explicit-off `<w:bCs w:val="0"/>` when the SAME
-	// fragment also carries an explicit-off `<w:b w:val="0"/>`. This is
-	// upstream Okapi's RunParser.canBeSkipped pairing rule
-	// (RunParser.java:240-250): bCs is skippable only when preCombined
-	// and runProperties have EQUAL bCs values; the explicit-off pair
-	// signals the inherited style chain has the toggle ON, so the
-	// clearing override must travel through to the synthesised style's
-	// rPr too — otherwise the synth style fails to clear the parent's
-	// italic/bold for paragraphs whose pStyle inherits it (Caption with
-	// `<w:i w:val="0"/><w:iCs w:val="0"/>` overriding the italic
-	// Caption style — highlights_block.docx is the canonical fixture).
+	// Paired-toggle detection (b ↔ bCs / i ↔ iCs). Mirrors
+	// stripToggleMirrorChildren in writer.go which preserves bCs/iCs
+	// when the SAME fragment also carries the b/i mirror partner.
+	// Upstream Okapi RunParser.canBeSkipped (RunParser.java:240-250):
+	// bCs is skippable only when preCombined and runProperties have
+	// EQUAL bCs values. Two well-known cases where preCombined and
+	// run disagree:
+	//
+	//   (a) Explicit-off pair: `<w:b w:val="0"/><w:bCs w:val="0"/>`
+	//       — paragraph clears an inherited bold AND its complex-
+	//       script mirror (highlights_block.docx Caption).
+	//   (b) Bare-on pair: `<w:b/><w:bCs/>` — paragraph sets bold on
+	//       both halves, often paired against a docDefaults that
+	//       clears them (992.docx footer: docDefaults <w:bCs val=0/>
+	//       differs from common's bare-on <w:bCs/>, so upstream's
+	//       canBeSkipped returns false and bCs survives into the
+	//       synthesised pStyle).
+	//
+	// Native lacks the preCombined view at the WSO lift site but
+	// DOES see the b↔bCs / i↔iCs pairing in the common props —
+	// authoring tools emit both halves only when they intend the
+	// pair to land in the resolved chain, so the pairing is a
+	// faithful proxy for "the strip cannot fire".
 	hasExplicitOffB := false
 	hasExplicitOffI := false
 	hasExplicitOffBCs := false
 	hasExplicitOffICs := false
+	hasAnyB := false
+	hasAnyI := false
+	hasBareOnBCs := false
+	hasBareOnICs := false
 	for _, p := range props {
 		switch p.name {
 		case "bCs":
 			hasBCs = true
 			if v, ok := parseRPrChildVal(p.xml); ok && (v == "0" || v == "false" || v == "off") {
 				hasExplicitOffBCs = true
+			} else if !ok {
+				// No val attribute — bare-on form `<w:bCs/>`.
+				hasBareOnBCs = true
 			}
 		case "iCs":
 			hasICs = true
 			if v, ok := parseRPrChildVal(p.xml); ok && (v == "0" || v == "false" || v == "off") {
 				hasExplicitOffICs = true
+			} else if !ok {
+				hasBareOnICs = true
 			}
 		case "b":
+			hasAnyB = true
 			if v, ok := parseRPrChildVal(p.xml); ok && (v == "0" || v == "false" || v == "off") {
 				hasExplicitOffB = true
 			}
 		case "i":
+			hasAnyI = true
 			if v, ok := parseRPrChildVal(p.xml); ok && (v == "0" || v == "false" || v == "off") {
 				hasExplicitOffI = true
 			}
@@ -1711,16 +1732,23 @@ func stripToggleMirrorsFromCommon(props []runProp, rtl bool, parentInheritsRTL b
 		switch p.name {
 		case "bCs":
 			// Keep bCs on RTL paragraphs (the bidi-script bold toggle
-			// applies to complex-script text). On LTR, also keep when
-			// the bCs is explicit-off AND its mirror b is explicit-off:
-			// the pair signals an inherited bold being cleared, and the
-			// synthesised style must carry both halves to match upstream
-			// (RunProperties.java:497-540 explicit-off-pair branch).
-			if rtl || (hasExplicitOffBCs && hasExplicitOffB) {
+			// applies to complex-script text). On LTR, also keep when:
+			//   (a) explicit-off pair (clearing inherited bold from
+			//       both Latin and complex-script halves), OR
+			//   (b) bare-on pair AND docDefaults declares
+			//       <w:bCs w:val="0"/> — the docDefaults' explicit-
+			//       off bCs disagrees with the run's bare-on bCs,
+			//       so upstream RunParser.canBeSkipped (RunParser.java:
+			//       240-250) returns false (pcrp.equals(rp)=false) and
+			//       refuses the strip.
+			// 992.docx: docDefaults `<w:bCs val="0"/>` + run `<w:bCs/>`
+			// → preserve.
+			// large-attribute.docx counter: no docDefaults bCs → strip.
+			if rtl || (hasExplicitOffBCs && hasExplicitOffB) || (hasBareOnBCs && hasAnyB && currentDocDefaultsBCsExplicitOff) {
 				out = append(out, p)
 			}
 		case "iCs":
-			if rtl || (hasExplicitOffICs && hasExplicitOffI) {
+			if rtl || (hasExplicitOffICs && hasExplicitOffI) || (hasBareOnICs && hasAnyI && currentDocDefaultsICsExplicitOff) {
 				out = append(out, p)
 			}
 		case "b":
@@ -2887,6 +2915,23 @@ var _ = sort.Strings
 // fixtures whose styles.xml has no rtl-bearing chain).
 var currentRTLChainStyles map[string]bool
 
+// currentDocDefaultsBCsExplicitOff reports whether the source
+// styles.xml docDefaults rPr authors `<w:bCs w:val="0"/>` (or
+// "false" / "off"). Consulted by stripToggleMirrorsFromCommon and
+// writer.go's stripToggleMirrorChildren to decide whether a run-level
+// bare-on `<w:bCs/>` must be preserved (because preCombined's bCs
+// value differs from the run's, so upstream RunParser.canBeSkipped at
+// RunParser.java:240-250 refuses the strip).
+//
+// Module-level state instead of threaded parameter for the same
+// reason as currentRTLChainStyles — see its doc above for the
+// rationale on signature stability.
+var currentDocDefaultsBCsExplicitOff bool
+
+// currentDocDefaultsICsExplicitOff is the iCs counterpart of
+// currentDocDefaultsBCsExplicitOff. See its doc for the rationale.
+var currentDocDefaultsICsExplicitOff bool
+
 // styleHasRTLDirect reports whether the named styleID's rPr (in
 // stylesXML) has a bare-on `<w:rtl/>` element (i.e. NOT explicit-off
 // `<w:rtl w:val="0"/>`). Used by extractRTLChainStyleIDs to seed the
@@ -2982,6 +3027,80 @@ func styleBasedOn(stylesXML []byte, styleID string) string {
 // 830-2.docx counterexample: Normal does NOT carry `<w:rtl/>`, so the
 // per-run `<w:rtl w:val="0"/>` lift is structurally redundant (no
 // inherited rtl to clear). The drop matches upstream output.
+// extractDocDefaultsToggleExplicitOff reports whether
+// <w:docDefaults><w:rPrDefault><w:rPr> in stylesXML authors an
+// explicit-off form of `<w:NAME w:val="0"/>` (or "false" / "off").
+// Used by the writer's WSO pre-pass to populate
+// currentDocDefaultsBCsExplicitOff / currentDocDefaultsICsExplicitOff
+// — consulted by stripToggleMirrorsFromCommon and the writer's per-
+// run sidecar strip to decide whether a bare-on `<w:bCs/>` /
+// `<w:iCs/>` must be preserved on the run/synth-pStyle (because the
+// run-side value differs from the preCombined value coming from
+// docDefaults, blocking upstream's RunParser.canBeSkipped strip).
+//
+// Per ECMA-376-1 §17.7.5.5 (CT_DocDefaults) the docDefaults rPr
+// applies to every run unless overridden by a paragraph style /
+// rStyle / direct formatting. A `<w:bCs w:val="0"/>` in docDefaults
+// means the inherited bCs is "off"; a run's bare `<w:bCs/>` (val
+// implicit true) is then a clearing-vs-bare-on disagreement that
+// RunParser.canBeSkipped (RunParser.java:240-250) detects and
+// refuses to strip.
+//
+// Fixture 992.docx: docDefaults declares
+//   <w:bCs w:val="0"/><w:iCs w:val="0"/>
+// against which every run that authors a bare `<w:bCs/>` / `<w:iCs/>`
+// must preserve the toggle mirror on the per-run rPr AND on any
+// synthesised paragraph style's lift.
+//
+// large-attribute.docx counter-example: docDefaults has NO bCs/iCs,
+// so upstream's canBeSkipped takes the `else { v = true; }` branch
+// and bCs/iCs ARE stripped — the docDefaults-flag-false path
+// preserves that behaviour.
+func extractDocDefaultsToggleExplicitOff(stylesXML []byte, name string) bool {
+	if len(stylesXML) == 0 {
+		return false
+	}
+	// Locate <w:docDefaults>...<w:rPrDefault>...<w:rPr>...</w:rPr>
+	docDefaultsStart := bytes.Index(stylesXML, []byte("<w:docDefaults"))
+	if docDefaultsStart < 0 {
+		return false
+	}
+	docDefaultsEnd := bytes.Index(stylesXML[docDefaultsStart:], []byte("</w:docDefaults>"))
+	if docDefaultsEnd < 0 {
+		return false
+	}
+	body := stylesXML[docDefaultsStart : docDefaultsStart+docDefaultsEnd]
+	rPrDefaultStart := bytes.Index(body, []byte("<w:rPrDefault"))
+	if rPrDefaultStart < 0 {
+		return false
+	}
+	rPrDefaultEnd := bytes.Index(body[rPrDefaultStart:], []byte("</w:rPrDefault>"))
+	if rPrDefaultEnd < 0 {
+		return false
+	}
+	rPrBody := body[rPrDefaultStart : rPrDefaultStart+rPrDefaultEnd]
+	// Find <w:NAME ... w:val="..."/> with val ∈ {0, false, off}.
+	prefix := []byte("<w:" + name + " ")
+	for cursor := 0; cursor < len(rPrBody); {
+		i := bytes.Index(rPrBody[cursor:], prefix)
+		if i < 0 {
+			return false
+		}
+		start := cursor + i
+		end := bytes.IndexAny(rPrBody[start:], "/>")
+		if end < 0 {
+			return false
+		}
+		elem := string(rPrBody[start : start+end])
+		// Check val attribute.
+		if strings.Contains(elem, `w:val="0"`) || strings.Contains(elem, `w:val="false"`) || strings.Contains(elem, `w:val="off"`) {
+			return true
+		}
+		cursor = start + end + 1
+	}
+	return false
+}
+
 func extractRTLChainStyleIDs(stylesXML []byte) map[string]bool {
 	out := make(map[string]bool)
 	if len(stylesXML) == 0 {

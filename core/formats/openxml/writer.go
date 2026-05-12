@@ -1177,6 +1177,14 @@ func (w *Writer) writeFromSkeleton(origZR *zip.Reader, zw *zip.Writer, buf *byte
 					// see style_optimization.go for the 899.docx-vs-
 					// 830-2.docx rationale.
 					currentRTLChainStyles = extractRTLChainStyleIDs(data)
+					// Detect docDefaults' explicit-off bCs/iCs so the
+					// WSO common-rPr strip + the per-run sidecar's
+					// stripToggleMirrorChildren preserve a run's bCs/
+					// iCs when upstream's canBeSkipped (RunParser.java:
+					// 240-250) would refuse the strip due to a
+					// preCombined-vs-run value disagreement.
+					currentDocDefaultsBCsExplicitOff = extractDocDefaultsToggleExplicitOff(data, "bCs")
+					currentDocDefaultsICsExplicitOff = extractDocDefaultsToggleExplicitOff(data, "iCs")
 					// Hand the source paragraph style set off to the
 					// WSO matcher via currentSourceParagraphStyles.
 					// Consumed by findMatchingStyle to mirror upstream
@@ -1200,6 +1208,8 @@ func (w *Writer) writeFromSkeleton(origZR *zip.Reader, zw *zip.Writer, buf *byte
 		defer func() {
 			currentRTLChainStyles = nil
 			currentSourceParagraphStyles = nil
+			currentDocDefaultsBCsExplicitOff = false
+			currentDocDefaultsICsExplicitOff = false
 		}()
 	}
 
@@ -1804,8 +1814,34 @@ func stripToggleMirrorChildren(s string) string {
 	if s == "" {
 		return s
 	}
-	keepBCs := hasExplicitOffElement(s, "b")
-	keepICs := hasExplicitOffElement(s, "i")
+	// Paired-toggle preservation: keep bCs/iCs when the strip cannot
+	// fire per upstream Okapi RunParser.canBeSkipped (RunParser.java:
+	// 240-250), which requires `preCombined.bCs.equals(run.bCs)` for
+	// the strip to apply. Two known cases of preCombined-vs-run
+	// disagreement:
+	//
+	//   (a) Explicit-off pair authored on the run rPr:
+	//       `<w:b w:val="0"/><w:bCs w:val="0"/>` — paragraph clears
+	//       an inherited bold AND its complex-script mirror
+	//       (1311.docx Heading2 / highlights_block.docx Caption).
+	//   (b) Bare-on pair authored on the run rPr against a
+	//       docDefaults that clears the toggle:
+	//       `<w:b/><w:bCs/>` + docDefaults `<w:bCs w:val="0"/>`
+	//       (992.docx footer). preCombined's bCs is val=0 and run's
+	//       bCs is bare-on (val implicit true) → disagree → no strip.
+	//
+	// Native consults two signals:
+	//   - The pairing in the rPr itself (always available).
+	//   - currentDocDefaultsBCsExplicitOff / *ICsExplicitOff set by
+	//     the writer's WSO pre-pass from styles.xml.
+	//
+	// Bare-on pair only preserves when docDefaults has the explicit-
+	// off form — otherwise the strip is correct (large-attribute.docx
+	// has no docDefaults bCs, so its bare-on `<w:b/><w:bCs/>` runs
+	// hit upstream's `else { v = true; }` branch at RunParser.java:
+	// 247-248 and ARE stripped).
+	keepBCs := stripBCsBlockedByPairing(s, "b", "bCs", currentDocDefaultsBCsExplicitOff)
+	keepICs := stripBCsBlockedByPairing(s, "i", "iCs", currentDocDefaultsICsExplicitOff)
 	if !keepBCs {
 		s = stripWMLElement(s, "bCs")
 	}
@@ -1813,6 +1849,64 @@ func stripToggleMirrorChildren(s string) string {
 		s = stripWMLElement(s, "iCs")
 	}
 	return s
+}
+
+// stripBCsBlockedByPairing reports whether the rPr fragment s should
+// KEEP its bCs/iCs (i.e. the strip is blocked) given:
+//
+//   - latinName: "b" / "i" — the mirror partner element
+//   - mirrorName: "bCs" / "iCs" — the toggle mirror to gate
+//   - docDefaultsExplicitOff: whether docDefaults rPr authors
+//     `<w:NAME w:val="0"/>` for the mirror
+//
+// Rules:
+//   - Explicit-off pair (`<w:b w:val="0"/>` + `<w:bCs w:val="0"/>`)
+//     → preserve.
+//   - Bare-on pair (`<w:b/>` + `<w:bCs/>`) AND docDefaults has the
+//     explicit-off mirror → preserve.
+//   - Otherwise → strip.
+//
+// Per ECMA-376-1 §17.3.2.16 (CT_OnOff bCs) and §17.3.2.17 (CT_OnOff
+// iCs).
+func stripBCsBlockedByPairing(s, latinName, mirrorName string, docDefaultsExplicitOff bool) bool {
+	hasLatin := hasToggleMirrorPartner(s, latinName)
+	hasMirror := hasToggleMirrorPartner(s, mirrorName)
+	if !hasLatin || !hasMirror {
+		return false
+	}
+	// Explicit-off pair branch.
+	if hasExplicitOffElement(s, latinName) && hasExplicitOffElement(s, mirrorName) {
+		return true
+	}
+	// Bare-on pair branch — requires docDefaults explicit-off.
+	if docDefaultsExplicitOff {
+		return true
+	}
+	return false
+}
+
+// hasToggleMirrorPartner reports whether the rPr fragment s contains
+// a `<w:NAME...>` element (the Latin half of a b↔bCs / i↔iCs pair) in
+// any form — bare-on, explicit-on, or explicit-off. Used by
+// stripToggleMirrorChildren to detect the paired-toggle preservation
+// signal. The trailing space after the name in the search prefix
+// enforces a strict element-name boundary so `<w:bCs/>` does not
+// match a search for `<w:b/>` (the prefix is `<w:b ` or `<w:b/`,
+// neither of which is a prefix of `<w:bCs`).
+func hasToggleMirrorPartner(s, name string) bool {
+	openWithSpace := "<w:" + name + " "
+	openSelfClose := "<w:" + name + "/"
+	openWithGT := "<w:" + name + ">"
+	if strings.Contains(s, openWithSpace) {
+		return true
+	}
+	if strings.Contains(s, openSelfClose) {
+		return true
+	}
+	if strings.Contains(s, openWithGT) {
+		return true
+	}
+	return false
 }
 
 // hasExplicitOffElement reports whether the rPr-children fragment s
