@@ -3470,15 +3470,73 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 				buf.WriteString(`<w:r>` + expanded + `</w:r>`)
 			case TypeRawRunMarkup:
 				// Raw run-child markup chunk (<w:noBreakHyphen/> per
-				// ECMA-376-1 §17.3.3.18, <w:softHyphen/> per §17.3.3.30).
-				// The Ph.Data field holds the literal element XML; wrap
-				// it in a <w:r> with the surrounding paragraph's source
-				// rPr context (sourceRPr + active toggles in runProps)
-				// so the markup inherits the right formatting envelope
-				// the same way upstream Okapi RunParser
-				// (RunParser.java:752-766) routes the element to
-				// runBuilder.addToMarkup, where it lives inside the
-				// containing RunBuilder's <w:r> on output.
+				// ECMA-376-1 §17.3.3.18, <w:softHyphen/> per §17.3.3.30,
+				// <w:cr/> per §17.3.3.4). The Ph.Data field holds the
+				// literal element XML; wrap it in a <w:r> with the
+				// surrounding paragraph's source rPr context
+				// (sourceRPr + active toggles in runProps) so the markup
+				// inherits the right formatting envelope the same way
+				// upstream Okapi RunParser (RunParser.java:752-766)
+				// routes the element to runBuilder.addToMarkup, where
+				// it lives inside the containing RunBuilder's <w:r> on
+				// output.
+				//
+				// SubTypeCR + same-source-<w:r> lookahead: when the cr
+				// markup originates from a source `<w:r>` that ALSO
+				// carries a `<w:t>` sibling (e.g. MissingPara.docx
+				// para 1: `<w:r><w:rPr>...</w:rPr><w:cr/>
+				// <w:t>FRIENDLY</w:t></w:r>` — legal per
+				// ECMA-376-1 §17.3.2.1 CT_R), the reader emits two
+				// adjacent textRuns: [cr-rawmarkup with srcRunStart=
+				// true, text with srcRunStart=false]. The default
+				// emit-and-close path above splits the source envelope,
+				// producing `<w:r>...<w:cr/></w:r><w:r>...<w:t>...
+				// </w:t></w:r>`. Upstream Okapi RunBuilder
+				// (RunBuilder.java:73-188) keeps the cr Markup chunk
+				// and following RunText chunk inside one <w:r>; per
+				// ECMA-376-1 §17.3.3.4 (CT_Empty for <w:cr/>) the cr
+				// has no content of its own and inherits the
+				// containing <w:r>'s rPr context.
+				//
+				// Mirror the SubTypeBreakStandalone path: leave the
+				// <w:r> OPEN (inRunNoText=true) so the next text run
+				// joins it via the existing inRunNoText branch above.
+				// Same rPr-equality guard applies: the text fuses only
+				// when its effectiveRPr matches the open run's rPr
+				// (inRunNoTextRPr || sourceRPr). Fixture: MissingPara.
+				// docx — the bridge reference has multiple
+				// `<w:r><w:cr/><w:t>...</w:t></w:r>` envelopes that
+				// must round-trip as one <w:r> each.
+				if r.Ph.SubType == SubTypeCR &&
+					runIdx+1 < len(runs) && runs[runIdx+1].Text != nil &&
+					!textSrcStart(textRunIdx+1) {
+					if strings.HasPrefix(r.Ph.Data, `<w:rPr>`) {
+						// Embedded per-run rPr (reader sets this when
+						// commonRPrXML is empty so the cr's source
+						// `<w:rPr>` survives — wml.go ~line 4742).
+						// Stash the embedded rPr text as inRunNoTextRPr
+						// so the join check at line ~2697 compares the
+						// next text's effectiveRPr against the SAME
+						// rPr the cr carried.
+						embeddedRPr := ""
+						if end := strings.Index(r.Ph.Data, `</w:rPr>`); end >= 0 {
+							// Extract inner text between <w:rPr> and </w:rPr>.
+							embeddedRPr = r.Ph.Data[len(`<w:rPr>`):end]
+						}
+						buf.WriteString(`<w:r>` + r.Ph.Data)
+						inRunNoText = true
+						inRunNoTextRPr = embeddedRPr
+					} else if sourceRPr != "" || runProps != "" {
+						buf.WriteString(`<w:r>`)
+						emitNonTextRPr()
+						buf.WriteString(r.Ph.Data)
+						inRunNoText = true
+					} else {
+						buf.WriteString(`<w:r>` + r.Ph.Data)
+						inRunNoText = true
+					}
+					continue
+				}
 				if sourceRPr != "" || runProps != "" {
 					buf.WriteString(`<w:r>`)
 					emitNonTextRPr()
