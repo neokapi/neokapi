@@ -82,9 +82,20 @@ type styleEntry struct {
 // fixtures that exercise rStyle keep the rStyle on every <w:r> so the
 // per-paragraph WSO commonRunProperties pass already excludes them).
 //
+// When paraStyleID is empty, the resolver falls back to
+// defaultParagraphStyleID — ECMA-376-1 §17.3.1.10 (CT_P): a paragraph
+// without a pStyle inherits from the default paragraph style (the
+// <w:style w:default="1" w:type="paragraph"> entry in styles.xml).
+// Mirrors upstream Okapi WordStyleDefinitions.Ids.defaultBased
+// (WordStyleDefinitions.java:485-491) — the same fallback the
+// effectiveRPrChildNames sister method already honours, keeping the
+// "names" view and the "props" view consistent for paragraphs that
+// inherit purely through the default paragraph style.
+//
 // When sm is nil (caller did not enable style optimisation) or
-// paraStyleID is empty AND docDefaults are zero-valued, the returned
-// runProps is the zero value — equivalent to "no inheritance".
+// paraStyleID is empty AND there is no defaultParagraphStyleID AND
+// docDefaults are zero-valued, the returned runProps is the zero
+// value — equivalent to "no inheritance".
 //
 // Consumed by parseParagraph's hidden-text filter (allHidden gate in
 // wml.go) so a paragraph whose <w:vanish/> travels via pStyle (e.g.
@@ -96,8 +107,12 @@ func (sm *styleMap) effectiveProps(paraStyleID string) runProps {
 		return runProps{}
 	}
 	resolved := sm.docDefaults
-	if paraStyleID != "" {
-		mergeProps(&resolved, sm.resolveProps(paraStyleID))
+	effectiveID := paraStyleID
+	if effectiveID == "" {
+		effectiveID = sm.defaultParagraphStyleID
+	}
+	if effectiveID != "" {
+		mergeProps(&resolved, sm.resolveProps(effectiveID))
 	}
 	return resolved
 }
