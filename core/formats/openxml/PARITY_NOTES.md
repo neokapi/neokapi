@@ -13,10 +13,36 @@ docs.
 | Engine | Total | byte | canon | sem | div |
 |---|---:|---:|---:|---:|---:|
 | bridge (okapi-bridge) | 185 | 185 | 0 | 0 | 0 |
-| native (this package) | 185 | 0 | 140 | 0 | 45 |
+| native (this package) | 185 | 0 | 143 | 0 | 42 |
 
 ## Recently cleared
 
+- highlights_block.docx — WSO findFirstChild was searching for
+  `<w:rPr>` anywhere in the parent's bytes via bytes.Index, which
+  matched a deeply-nested rPr inside an `<mc:AlternateContent>` /
+  `<w:drawing>` / `<wps:txbx>` / `<w:txbxContent>` payload. A
+  drawing-only run like `<w:r><mc:AlternateContent>…<w:p><w:rPr>…
+  </w:rPr></w:p>…</mc:AlternateContent></w:r>` was being mis-
+  classified as having a direct rPr — the inner txbxContent
+  paragraph's rPr leaked to the outer drawing-only run, polluting
+  WSO's common-rPr lift with phantom properties. Fixed by walking
+  past the parent's start tag, skipping whitespace, and requiring
+  the next bytes to be `<w:NAME` (per ECMA-376-1 §17.3.1.10 and
+  §17.3.2.1 — pPr/rPr MUST be the first child if present).
+- OkapiMarkers.docx — rPrChildrenMergeable now refuses run merge
+  when the property counts differ. Mirrors RunMerger.java:192-194's
+  `numberOfRunProperties != numberOfOtherRunProperties → return
+  false` short-circuit. A run with `<w:rFonts hint="eastAsia"/>` (1
+  property) was fusing with a following bare run (0 properties),
+  producing a single `<w:r><w:t> Content</w:t></w:r>` and losing
+  the source-run boundary.
+- HiddenTablesApachePoi.docx vanish form — `<w:vanish>` now
+  preserves the explicit-on form (e.g. `w:val="on"`) through the
+  round-trip. Mirrors boldXML / italicXML which already capture the
+  explicit-on forms of `<w:b>` / `<w:i>`. ECMA-376-1 §17.3.2.42
+  (CT_OnOff <w:vanish>): bare element and val="1"/"true"/"on" are
+  equivalent ON states; upstream Okapi preserves the source
+  RunProperty's exact QName + attributes.
 - 830-2.docx, 830-6.docx — empty placeholder run preservation
   inside active complex fields. parseRunWithFieldState now emits a
   SubTypeFieldChar sentinel carrying the verbatim
