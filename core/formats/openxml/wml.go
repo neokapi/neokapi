@@ -2290,8 +2290,61 @@ func (p *wmlParser) parseParagraph(d *xml.Decoder, partPath string, emitBlock fu
 					if paraProps != "" {
 						p.skelText(paraProps)
 					}
-					for _, r := range merged {
-						p.writeRunToSkel(r, partPath, emitBlock)
+					// Fuse adjacent same-rPr opaque-drawing runs (each
+					// was a separate `<w:r>` envelope in the source) so
+					// they share one `<w:r>` envelope on output.
+					// Mirrors upstream Okapi RunMerger
+					// (RunMerger.java:83-95 +
+					// canRunPropertiesBeMerged at :156-229): adjacent
+					// source `<w:r>` envelopes with identical
+					// RunProperties merge into one RunBuilder; the
+					// resulting `<w:r>` carries each drawing as a
+					// separate Markup body chunk under the shared rPr.
+					// Per ECMA-376-1 §17.3.2.1 (CT_R) a single `<w:r>`
+					// may carry multiple `<w:drawing>` / `<w:pict>` /
+					// `<w:object>` children alongside one shared
+					// `<w:rPr>`.
+					//
+					// Fixture neverendingloop.docx is the canonical
+					// case: three adjacent `<w:r><w:rPr><w:sz val=
+					// "40"/></w:rPr><w:pict>...</w:pict></w:r>`
+					// envelopes that bridge fuses into one `<w:r>`
+					// with all three picts.
+					i := 0
+					for i < len(merged) {
+						r := merged[i]
+						if !isFusableDrawingRun(r) {
+							p.writeRunToSkel(r, partPath, emitBlock)
+							i++
+							continue
+						}
+						// Look ahead for adjacent fusable drawing runs
+						// with identical rPr.
+						j := i + 1
+						for j < len(merged) {
+							if !isFusableDrawingRun(merged[j]) {
+								break
+							}
+							if !merged[j].props.equalIncludingChildren(r.props) {
+								break
+							}
+							j++
+						}
+						if j == i+1 {
+							p.writeRunToSkel(r, partPath, emitBlock)
+							i++
+							continue
+						}
+						// Emit one `<w:r>` envelope with all the
+						// drawing payloads concatenated under the
+						// shared rPr.
+						open, close := splitRunWrapper(r)
+						p.skelText(open)
+						for k := i; k < j; k++ {
+							p.writeDrawingXMLToSkel(merged[k].data, partPath, emitBlock)
+						}
+						p.skelText(close)
+						i = j
 					}
 					p.skelWriteString("</w:p>")
 					return nil
@@ -4663,6 +4716,31 @@ func (p *wmlParser) writeRunToSkel(r textRun, partPath string, emitBlock func(*m
 		return
 	}
 	p.writeDrawingXMLToSkel(r.data, partPath, emitBlock)
+}
+
+// isFusableDrawingRun reports whether r is an opaque drawing-bearing
+// sentinel run (`<w:pict>`, `<w:drawing>`, `<w:object>`,
+// `<w:AlternateContent>`, `<w:ruby>`, …) that the parser captured as
+// raw XML and can be fused with adjacent same-rPr drawing runs into
+// one `<w:r>` envelope on emit.
+//
+// Opaque-drawing sentinels carry text "" ( — the run-level
+// drawing carrier set by parseRunWithFieldState's drawing branch).
+// Paragraph-level drawings ("" / ) and other sentinels
+// don't fuse — only run-level drawings share the same `<w:r>`
+// container semantics under ECMA-376-1 §17.3.2.1 (CT_R).
+//
+// Used by parseParagraph's isEmptyRuns skeleton-emit path to coalesce
+// neverendingloop.docx-style adjacent `<w:r><w:pict>...</w:pict></w:r>`
+// envelopes — see commit message at the call site.
+func isFusableDrawingRun(r textRun) bool {
+	if !strings.HasPrefix(r.text, "") {
+		return false
+	}
+	if r.data == "" {
+		return false
+	}
+	return true
 }
 
 // splitRunWrapper returns the opening and closing portions of the
