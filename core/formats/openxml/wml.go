@@ -4829,28 +4829,48 @@ func (p *wmlParser) buildBlock(id string, runs []textRun, partPath, commonRPrXML
 
 		// Handle formatting changes
 		if activeProps == nil || !activeProps.equal(run.props) {
-			// Close previous formatting
-			emittedClose := false
+			// Close previous formatting. We measure the runBuilder
+			// before/after so the post-emit "boundary still invisible"
+			// guard below sees the ACTUAL marker count, not just the
+			// "tried to emit" intent. appendClosingRuns / appendOpeningRuns
+			// only emit Pc markers for the toggles bold / italic /
+			// underline / strike / vertAlign — toggles like vanish that
+			// runProps tracks but never round-trip as inline codes (per
+			// ECMA-376-1 §17.3.2.42 the hidden-text bit is a run-level
+			// rPr property with no inline span representation) appear in
+			// `equal()` but contribute no Pc markers. Without measuring
+			// actual emission, a run boundary that differs ONLY in vanish
+			// would silently coalesce into the previous TextRun via
+			// AddText (HiddenExcluded.docx fixture: a paragraph mixing
+			// `<w:r><w:t>visible</w:t></w:r>` and
+			// `<w:r><w:rPr><w:vanish/></w:rPr><w:t>hidden</w:t></w:r>`
+			// would emit a single fused TextRun, dropping the per-source
+			// vanish sidecar). Mirrors upstream Okapi RunBuilder.java
+			// lines 73-188 + RunMerger.canRunPropertiesBeMerged
+			// (RunMerger.java:156-229): hidden runs are kept distinct
+			// (RunMerger.canMergeWith line 127 short-circuits on
+			// `runBuilder.isHidden() || otherRunBuilder.isHidden()`).
+			beforeClose := len(b.runs)
 			if activeProps != nil && !activeProps.isEmpty() {
 				activeProps.appendClosingRuns(b, &spanCounter)
-				emittedClose = true
 			}
-			// Open new formatting
-			emittedOpen := false
+			emittedClose := len(b.runs) > beforeClose
+			beforeOpen := len(b.runs)
 			if !run.props.isEmpty() {
 				run.props.appendOpeningRuns(b, &spanCounter)
-				emittedOpen = true
 			}
+			emittedOpen := len(b.runs) > beforeOpen
 			// When neither close nor open emitted any toggle codes the
 			// run boundary is invisible to runBuilder's text-coalescing
 			// path — AddText would append into the previous TextRun and
 			// lose the source-run boundary. This happens when adjacent
 			// source runs share toggle props (both empty) but differ on
 			// font name (rFonts ascii vs asciiTheme — fixture
-			// 1312-fonts-info.docx) or other non-toggle properties that
-			// runProps.equal() inspects (just fontName today, but the
-			// rule is "any !equal() that emits no markers"). Force a
-			// model.Run boundary so the per-source-run rPr sidecar
+			// 1312-fonts-info.docx), on vanish (HiddenExcluded.docx —
+			// `<w:vanish/>` toggles hidden state without an inline code),
+			// or on other non-toggle properties that runProps.equal()
+			// inspects. The rule is "any !equal() that emits no markers".
+			// Force a model.Run boundary so the per-source-run rPr sidecar
 			// (#592 Phase 1) stays slot-aligned with the model.Run
 			// population — otherwise the writer's alignment guard
 			// (renderWMLBlock) nils the sidecar and per-run rPr emission
@@ -5666,7 +5686,17 @@ func (p *wmlParser) copyAndExtractDrawing(dec *xml.Decoder, out *strings.Builder
 				p.writeStartElementWithTranslatableAttrTo(out, t, "string", "vml-textpath-string", partPath, emitBlock)
 			case t.Name.Local == "txbxContent":
 				writeRawStartElementTo(out, t)
-				if err := p.extractTxbxContent(dec, out, t, partPath, emitBlock); err != nil {
+				// Each <w:txbxContent> is its own logical scope for
+				// complex fields: an open `<w:fldChar>` started inside
+				// the textbox body cannot straddle the surrounding
+				// drawing's outer paragraph (the txbx is XML-nested
+				// inside a non-WML run-container). Allocate a fresh
+				// state machine that the textbox paragraphs share so a
+				// HYPERLINK begin in one `<w:p>` keeps its extractable
+				// flag through the matching end in a later sibling
+				// `<w:p>`. Fixture: 1341-textbox-with-a-hyperlink.docx.
+				var txbxCfs complexFieldState
+				if err := p.extractTxbxContent(dec, out, t, partPath, emitBlock, &txbxCfs); err != nil {
 					return err
 				}
 			case t.Name.Local == "t" && isWML(t):
@@ -5715,18 +5745,30 @@ func (p *wmlParser) copyAndExtractDrawing(dec *xml.Decoder, out *strings.Builder
 // paragraph Block (and a marker comment in place) per <w:p> with
 // translatable runs; copies non-paragraph children verbatim.
 //
-// When a <w:p> contains a complex field (`<w:fldChar>`), the
-// paragraph is preserved verbatim — parseParagraph's existing
-// non-extractable-field path drops the field markup along with
-// its display runs. Falling back to verbatim keeps round-trip
-// safe (TextboxNumber.docx with PAGE \* MERGEFORMAT is the
-// canonical fixture for this corner).
+// txbxCfs carries complex-field state across the textbox's sibling
+// paragraphs. Upstream Okapi reads the WML event stream as one
+// continuous flow (RunParser.parseComplexField at lines 461-542 of
+// okapi/filters/openxml/src/main/java/net/sf/okapi/filters/openxml/
+// RunParser.java) so a `<w:fldChar fldCharType="begin"/>` opened in
+// one textbox paragraph can be closed by a matching end in the next.
+// The caller scopes the state to one `<w:txbxContent>` (allocating a
+// fresh instance at the txbxContent boundary) — the textbox body is
+// XML-nested inside a non-WML run-container, so its field state never
+// leaks into the surrounding paragraph's `partCfs`. Fixture:
+// 1341-textbox-with-a-hyperlink.docx (a HYPERLINK whose begin /
+// instrText / separate sit in `<w:p>` #1 and whose matching end sits
+// in `<w:p>` #2; the display text "Okapiframework" inside the field's
+// result region must reach the translation pipeline). Non-extractable
+// fields (TextboxNumber.docx's PAGE \* MERGEFORMAT) still drop their
+// display text runs the same way parseParagraph does via dropTextRuns
+// — see extractTxbxParagraph's `cfs.active && !cfs.extractable` guard.
 func (p *wmlParser) extractTxbxContent(
 	dec *xml.Decoder,
 	out *strings.Builder,
 	start xml.StartElement,
 	partPath string,
 	emitBlock func(*model.Block),
+	txbxCfs *complexFieldState,
 ) error {
 	for {
 		tok, err := dec.Token()
@@ -5739,19 +5781,6 @@ func (p *wmlParser) extractTxbxContent(
 				rawP, err := captureRawElement(dec, t)
 				if err != nil {
 					return err
-				}
-				if containsComplexField(rawP) {
-					// Preserve the field-bearing paragraph verbatim
-					// (rawP from captureRawElement is the full
-					// paragraph including its open and close tags).
-					// parseParagraph's existing non-extractable-field
-					// path drops both the field display runs AND the
-					// fldChar markers themselves, which would lose
-					// markup like PAGE \* MERGEFORMAT. Verbatim
-					// preservation is round-trip safe for textboxes.
-					// TextboxNumber.docx is the canonical fixture.
-					out.WriteString(rawP)
-					continue
 				}
 				// Re-decode the captured paragraph through a fresh
 				// namespace-aware decoder so extractTxbxParagraph
@@ -5774,12 +5803,12 @@ func (p *wmlParser) extractTxbxContent(
 						break
 					}
 				}
-				if err := p.extractTxbxParagraph(idec, out, partPath, emitBlock); err != nil {
+				if err := p.extractTxbxParagraph(idec, out, partPath, emitBlock, txbxCfs); err != nil {
 					return err
 				}
 			} else if t.Name.Local == "tbl" || t.Name.Local == "tr" || t.Name.Local == "tc" {
 				writeRawStartElementTo(out, t)
-				if err := p.extractTxbxContent(dec, out, t, partPath, emitBlock); err != nil {
+				if err := p.extractTxbxContent(dec, out, t, partPath, emitBlock, txbxCfs); err != nil {
 					return err
 				}
 			} else {
@@ -5814,7 +5843,14 @@ func (p *wmlParser) extractTxbxContent(
 // Hyperlinks, sdt, ins/del/moveTo/moveFrom, and AlternateContent
 // inside textboxes are rare; we skip them via skipElement to keep
 // this scoped. Future fixtures can extend.
-func (p *wmlParser) extractTxbxParagraph(dec *xml.Decoder, out *strings.Builder, partPath string, emitBlock func(*model.Block)) error {
+//
+// cfs is the textbox-scoped complex-field state shared across sibling
+// paragraphs inside one `<w:txbxContent>` so a HYPERLINK that opens in
+// paragraph N keeps its extractable flag through the matching end in
+// paragraph N+1. See extractTxbxContent's contract for the upstream
+// citation. Mirrors parseParagraph's use of `p.partCfs` for body-text
+// paragraphs.
+func (p *wmlParser) extractTxbxParagraph(dec *xml.Decoder, out *strings.Builder, partPath string, emitBlock func(*model.Block), cfs *complexFieldState) error {
 	// Reset per-paragraph style-chain context — see parseParagraph
 	// for the rationale.
 	savedStyleChainNames := p.currentStyleChainNames
@@ -5824,7 +5860,6 @@ func (p *wmlParser) extractTxbxParagraph(dec *xml.Decoder, out *strings.Builder,
 	var paraProps string
 	var paraStyleID string
 	var runs []textRun
-	var cfs complexFieldState
 	var bms bookmarkSkipState
 
 	for {
@@ -5851,11 +5886,11 @@ func (p *wmlParser) extractTxbxParagraph(dec *xml.Decoder, out *strings.Builder,
 				}
 			case "r":
 				rawStart := startElementToRaw(t)
-				rs, err := p.parseRunWithFieldState(dec, &cfs, rawStart)
+				rs, err := p.parseRunWithFieldState(dec, cfs, rawStart)
 				if err != nil {
 					return err
 				}
-				rs = filterFieldRuns(rs, &cfs)
+				rs = filterFieldRuns(rs, cfs)
 				if cfs.active && !cfs.extractable {
 					rs = dropTextRuns(rs)
 				}
@@ -5885,7 +5920,7 @@ func (p *wmlParser) extractTxbxParagraph(dec *xml.Decoder, out *strings.Builder,
 				// transparent run-container unwrap per ECMA-376
 				// Part 1 §17.5.1.9 and upstream Okapi RunContainer.
 				rawStart := startElementToRaw(t)
-				if err := p.parseSmartTag(dec, &runs, &cfs, rawStart); err != nil {
+				if err := p.parseSmartTag(dec, &runs, cfs, rawStart); err != nil {
 					return err
 				}
 			case "commentRangeStart", "commentRangeEnd":
@@ -6507,18 +6542,6 @@ func startElementToRaw(start xml.StartElement) string {
 	}
 	b.WriteString(">")
 	return b.String()
-}
-
-// containsComplexField reports whether a captured <w:p> XML
-// fragment contains an Office complex-field marker (`<w:fldChar`).
-// Used by walkTxbxContent to decide between extracting the
-// paragraph's text (clean case) and preserving the paragraph
-// verbatim (the field-bearing case). String-level scan is
-// sufficient — captureRawElement always emits prefixed names via
-// the package nsPrefixMap, so the literal `<w:fldChar` substring
-// is a stable test for any namespace binding the source used.
-func containsComplexField(rawP string) bool {
-	return strings.Contains(rawP, "<w:fldChar")
 }
 
 // collectFonts returns a comma-separated list of unique font names from runs.
