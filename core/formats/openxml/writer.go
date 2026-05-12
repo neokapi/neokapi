@@ -1095,6 +1095,28 @@ func (w *Writer) writeFromSkeleton(origZR *zip.Reader, zw *zip.Writer, buf *byte
 		if bytes.Contains(data, []byte("<a:p")) {
 			data = []byte(stripDMLRunPropertyAttrs(string(data)))
 		}
+		// Pull a leading `<w:fldChar w:fldCharType="end"/>` run out
+		// of its host paragraph and append it to the immediately
+		// preceding paragraph when that previous paragraph carries
+		// an open complex-field begin/separate without a matching
+		// end. Mirrors upstream Okapi RunParser.parseComplexField
+		// (RunParser.java:461-542) + BlockParser.parse (lines
+		// 221-228): when a complex field straddles paragraph
+		// boundaries, the field-end event is held in deferredEvents
+		// alongside the intervening paragraph-ends and gets
+		// re-anchored to whichever paragraph closes first inside
+		// the field's run consumption — see the
+		// `endComplexFieldParsing` branch invoked at line 476 +
+		// `goesAfterAnotherRun` deferred-events check at line 612.
+		// The visible end-state is that an isolated leading fld-end
+		// in a paragraph migrates to the previous paragraph during
+		// field consumption. Per ECMA-376-1 §17.16.5 (complex
+		// fields) the fldChar elements bookend a single semantic
+		// run regardless of paragraph layout. Fixtures: 830-1.docx,
+		// 830-3.docx, 830-5.docx, 830-6.docx.
+		if bytes.Contains(data, []byte(`fldCharType="end"`)) {
+			data = pullLeadingFldCharEndIntoPrevParagraph(data)
+		}
 		return data
 	}
 	postWML := func(name string, data []byte) []byte {
@@ -2658,6 +2680,197 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 
 	closeRun()
 	return buf.String()
+}
+
+// pullLeadingFldCharEndIntoPrevParagraph is the post-skeleton WML
+// pass that re-anchors a leading `<w:fldChar w:fldCharType="end"/>`
+// run to the immediately preceding paragraph when that previous
+// paragraph carries an open complex-field begin/separate without a
+// matching end inside its own body.
+//
+// Mirrors upstream Okapi RunParser.parseComplexField
+// (RunParser.java:461-542) plus BlockParser.parse lines 221-228:
+// the field-end event is held in deferredEvents alongside the
+// intervening paragraph-end events, and when the field finally
+// closes the deferred chunks attach to the run/paragraph that
+// finished consuming them — visibly migrating an isolated leading
+// fld-end into the previous paragraph. Per ECMA-376-1 §17.16.5
+// (complex fields) the fldChar elements bookend a single semantic
+// run regardless of paragraph layout, so moving a stray leading
+// end into the previous paragraph is content-preserving.
+//
+// Scope: only matches the simple case where the host paragraph's
+// FIRST translatable run is `<w:r>...<w:fldChar w:fldCharType=
+// "end"/>...</w:r>` (optionally preceded by a `<w:r><w:rPr>...
+// </w:rPr></w:r>` empty-rPr placeholder run) and the previous
+// paragraph contains an unmatched `<w:fldChar w:fldCharType=
+// "begin"/>` (begin count > end count when scanning the previous
+// paragraph's body). Other fld-end runs (mid-paragraph, after text)
+// are left in place. Empty-rPr placeholder runs that precede the
+// fld-end stay with their original paragraph (the reference output
+// shows them remaining there alongside the moved end's slot).
+//
+// Fixtures: 830-1.docx, 830-3.docx, 830-5.docx, 830-6.docx (the
+// canonical fld-end paragraph movement cluster).
+func pullLeadingFldCharEndIntoPrevParagraph(data []byte) []byte {
+	// Both forms appear in the wire output: native renderer emits
+	// `<w:fldChar w:fldCharType="end"></w:fldChar>` (paired) for
+	// in-block field-end runs and `<w:fldChar.../>` (self-closing)
+	// in some skeleton paths. Match either.
+	const fldEndRunPaired = `<w:r><w:fldChar w:fldCharType="end"></w:fldChar></w:r>`
+	const fldEndRunEmpty = `<w:r><w:fldChar w:fldCharType="end"/></w:r>`
+	if !bytes.Contains(data, []byte(fldEndRunPaired)) && !bytes.Contains(data, []byte(fldEndRunEmpty)) {
+		return data
+	}
+	src := string(data)
+	var out strings.Builder
+	out.Grow(len(src))
+
+	pos := 0
+	// Track the byte offset within `out` where the previous
+	// paragraph's `</w:p>` was emitted, so we can splice the
+	// migrated fld-end run in just before it.
+	prevParaCloseInOut := -1
+	// Track the CUMULATIVE open/close balance across all
+	// paragraphs seen so far. A POSITIVE balance means more
+	// begins than ends across the document body so far — i.e.
+	// there is at least one unmatched begin somewhere upstream
+	// awaiting an end. Per upstream Okapi RunParser.
+	// parseComplexField (RunParser.java:461-542) the field
+	// consumption is parser-wide, so the destination paragraph
+	// for a migrated end is the IMMEDIATELY preceding paragraph
+	// regardless of whether IT carries the begin: the begin may
+	// live arbitrarily far upstream with empty paragraphs in
+	// between (830-3.docx is the canonical case: para 1 has the
+	// unmatched begin/separate, para 2 is empty, para 3 holds
+	// the stray end — the end migrates to para 2).
+	cumulativeFldBalance := 0
+
+	for pos < len(src) {
+		// Find next paragraph-open / paragraph-close.
+		nextOpen := indexFromOf(src, pos, "<w:p>", "<w:p ")
+		if nextOpen < 0 {
+			out.WriteString(src[pos:])
+			break
+		}
+		// Copy up to the paragraph open verbatim.
+		out.WriteString(src[pos:nextOpen])
+		// Locate the end of this paragraph open tag (`>` after
+		// `<w:p` — covers both `<w:p>` and `<w:p attr="…">`).
+		tagClose := strings.IndexByte(src[nextOpen:], '>')
+		if tagClose < 0 {
+			out.WriteString(src[nextOpen:])
+			break
+		}
+		paraOpenEnd := nextOpen + tagClose + 1
+		// Find this paragraph's `</w:p>` — search forward.
+		paraEnd := strings.Index(src[paraOpenEnd:], "</w:p>")
+		if paraEnd < 0 {
+			out.WriteString(src[nextOpen:])
+			break
+		}
+		paraEndAbs := paraOpenEnd + paraEnd
+		paraCloseEndAbs := paraEndAbs + len("</w:p>")
+		paraOpenTag := src[nextOpen:paraOpenEnd]
+		paraBody := src[paraOpenEnd:paraEndAbs]
+
+		// Skip past the optional <w:pPr>...</w:pPr> at the head
+		// of the body — pPr is paragraph properties, not a
+		// translatable run.
+		bodyStart := 0
+		if strings.HasPrefix(paraBody, "<w:pPr>") || strings.HasPrefix(paraBody, "<w:pPr ") {
+			pprEnd := strings.Index(paraBody, "</w:pPr>")
+			if pprEnd >= 0 {
+				bodyStart = pprEnd + len("</w:pPr>")
+			} else if i := strings.Index(paraBody, "/>"); i >= 0 && strings.HasPrefix(paraBody, "<w:pPr") {
+				// Self-closing <w:pPr/>.
+				bodyStart = i + 2
+			}
+		}
+
+		// Try to migrate the leading fld-end run upward.
+		moved := false
+		if prevParaCloseInOut >= 0 && cumulativeFldBalance > 0 {
+			// The leading run must be exactly the no-rPr fld-end
+			// run, in either the paired or empty serialisation.
+			// Per ECMA-376-1 §17.3.2.1 (CT_R) an rPr-bearing
+			// fld-end (different shape) wouldn't match the bare
+			// `<w:r><w:fldChar.../></w:r>` body chunk and is
+			// intentionally left in place.
+			leading := paraBody[bodyStart:]
+			var matchedRun string
+			switch {
+			case strings.HasPrefix(leading, fldEndRunPaired):
+				matchedRun = fldEndRunPaired
+			case strings.HasPrefix(leading, fldEndRunEmpty):
+				matchedRun = fldEndRunEmpty
+			}
+			if matchedRun != "" {
+				// Splice the run at the recorded `</w:p>` of
+				// the previous paragraph in `out`. The previous
+				// paragraph thereby acquires a fld-end that
+				// closes the upstream open begin.
+				existing := out.String()
+				newOut := existing[:prevParaCloseInOut] + matchedRun + existing[prevParaCloseInOut:]
+				out.Reset()
+				out.WriteString(newOut)
+				cumulativeFldBalance--
+				// Drop the leading run from the current body.
+				newBody := paraBody[:bodyStart] + paraBody[bodyStart+len(matchedRun):]
+				// Re-emit this paragraph WITHOUT the leading run.
+				out.WriteString(paraOpenTag)
+				out.WriteString(newBody)
+				out.WriteString("</w:p>")
+				prevParaCloseInOut = out.Len() - len("</w:p>")
+				cumulativeFldBalance += countFldBeginEndBalance(newBody)
+				moved = true
+			}
+		}
+
+		if !moved {
+			out.WriteString(paraOpenTag)
+			out.WriteString(paraBody)
+			out.WriteString("</w:p>")
+			prevParaCloseInOut = out.Len() - len("</w:p>")
+			cumulativeFldBalance += countFldBeginEndBalance(paraBody)
+		}
+		pos = paraCloseEndAbs
+	}
+
+	return []byte(out.String())
+}
+
+// countFldBeginEndBalance counts the difference between
+// `<w:fldChar w:fldCharType="begin"/>` and `<w:fldChar
+// w:fldCharType="end"/>` occurrences in body, where `body` is the
+// inner XML of a `<w:p>` element (after pPr stripping is optional —
+// pPr never carries a fldChar). Positive means more begins than
+// ends — an unmatched begin awaiting an end.
+func countFldBeginEndBalance(body string) int {
+	const beginTok = `w:fldCharType="begin"`
+	const endTok = `w:fldCharType="end"`
+	begins := strings.Count(body, beginTok)
+	ends := strings.Count(body, endTok)
+	return begins - ends
+}
+
+// indexFromOf returns the smallest non-negative index >= start of
+// any of the substrings, or -1 when none occur.
+func indexFromOf(s string, start int, subs ...string) int {
+	best := -1
+	for _, sub := range subs {
+		i := strings.Index(s[start:], sub)
+		if i < 0 {
+			continue
+		}
+		if best < 0 || i < best {
+			best = i
+		}
+	}
+	if best < 0 {
+		return -1
+	}
+	return start + best
 }
 
 // addWMLProp adds a formatting property element to the accumulated rPr content.
