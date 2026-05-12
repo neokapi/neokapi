@@ -1880,6 +1880,26 @@ func (p *wmlParser) parseParagraph(d *xml.Decoder, partPath string, emitBlock fu
 	// `A link` run lives in its own `<w:p>` inside a non-extractable
 	// DATE field and must not be extracted.
 	cfs := &p.partCfs
+	// Snapshot the complex-field state at paragraph entry so the
+	// cross-paragraph absorption guards can distinguish "field opened
+	// DURING this paragraph" (e.g. 1102.docx P2 which contains the
+	// fldChar-begin + separate, leaving cfs.active=true at paragraph
+	// close) from "field already open BEFORE this paragraph" (e.g.
+	// 847-3.docx P2 which sits between P1's fldChar-separate and P3's
+	// fldChar-end). Upstream Okapi's `mergeable` flag on a Block is
+	// driven solely by the block's own pPr (BlockParser.java:207-213)
+	// — it knows nothing about complex-field state. But cross-block
+	// absorption only fires in StyledTextPart.process when the block
+	// is actually built as a separate Block; when fldChar-begin opens
+	// mid-paragraph, RunParser.parseComplexField consumes subsequent
+	// paragraph events as opaque markup inside the SAME RunBuilder
+	// (RunParser.java:461-542) and no separate Block is built for the
+	// inner paragraphs — so mergeable absorption never fires for them.
+	// We mirror that by allowing delMark absorption only when the
+	// field was already open at paragraph entry (passthrough case).
+	cfsActiveAtEntry := cfs.active
+	cfsExtractableAtEntry := cfs.extractable
+	cfsAtResultAtEntry := cfs.atResult
 	var bms bookmarkSkipState
 
 	for {
@@ -2562,25 +2582,47 @@ func (p *wmlParser) parseParagraph(d *xml.Decoder, partPath string, emitBlock fu
 				// content-bearing buffer path; 1370-same-nested-
 				// revisions.docx remains the empty-content drop case.
 				//
-				// Exception: when an extractable complex field is OPEN
-				// across this paragraph boundary (cfs.active — fldChar
-				// begin seen, fldChar end not yet), upstream Okapi's
-				// `<w:pPr>` events flow through `RunParser.parseContent`
-				// as opaque markup inside the field's RunBuilder
+				// Exception: when this paragraph ITSELF opens the
+				// extractable complex field (fldChar-begin appears
+				// inside, so cfs.active flipped from false → true
+				// during parsing), upstream Okapi's
+				// `<w:pPr>` events for any FOLLOWING paragraphs flow
+				// through `RunParser.parseContent` as opaque markup
+				// inside the field's RunBuilder
 				// (RunParser.java:516-535) — they never reach
 				// `BlockParser.parse`'s `containsRunPropertyDeletedParagraphMark`
-				// check at line 207-213. The block's mergeable flag is
-				// driven SOLELY by the pPr of the paragraph BlockParser
-				// itself opened (the paragraph that holds the fldChar-
-				// begin). Inner paragraphs' deletedMark / moveFrom marks
-				// in pPr/rPr are inert in this state. Skip absorption to
-				// match: P2/P3 in 1102.docx both carry
-				// `<w:pPr><w:rPr><w:ins/><w:del/></w:rPr></w:pPr>` AND
-				// sit inside the open HYPERLINK field (begin/instrText/
-				// separate in P2's <w:ins>, end in P4's <w:ins>);
-				// reference output keeps both paragraphs intact rather
-				// than absorbing them. Fixture 1102.docx.
-				if paragraphHasDeletedMark(paraProps) && !isEmptyRuns(merged) && !(cfs.active && cfs.extractable) {
+				// check at line 207-213. But THIS paragraph IS its own
+				// Block — built by BlockParser before fldChar-begin
+				// triggered parseComplexField — so its mergeable flag
+				// IS honoured by StyledTextPart.process at lines
+				// 312-319. However, the very next "block" StyledTextPart
+				// sees is NOT a separate paragraph (those are engulfed
+				// by parseComplexField) but the next non-field paragraph
+				// AFTER fldChar-end. For 1102.docx P2 this means
+				// merging P2 into P5 (the bare trailing paragraph
+				// after the field) — that path is already wired via
+				// partFieldStraddle + partAbsorbedTrailingEmpty below;
+				// the partMergeable mechanism is NOT the right one for
+				// field-opener paragraphs.
+				//
+				// In contrast, when the field is already open at
+				// paragraph entry (847-3.docx P2 — fldChar-begin was in
+				// P1, fldChar-end is in P3), THIS paragraph is itself
+				// engulfed by parseComplexField in upstream and never
+				// reaches StyledTextPart as a separate Block. The
+				// rendered output naturally fuses P2's content with the
+				// surrounding field-display runs, so on the writer side
+				// we absorb P2's runs into the NEXT paragraph (P3) via
+				// the standard partMergeable plumbing — that is what
+				// the diff demands. Allow buffering when the field was
+				// open at paragraph entry (passthrough case).
+				//
+				// Fixtures: 847-3.docx P2 exercises the passthrough
+				// absorb path; 1102.docx P2 exercises the field-opener
+				// path that must NOT use partMergeable.
+				openFieldAtEntry := cfsActiveAtEntry && cfsExtractableAtEntry && cfsAtResultAtEntry
+				openedFieldThisPara := !openFieldAtEntry && cfs.active && cfs.extractable
+				if paragraphHasDeletedMark(paraProps) && !isEmptyRuns(merged) && !openedFieldThisPara {
 					p.partMergeable = &pendingMergeable{
 						runs:        merged,
 						paraProps:   paraProps,
@@ -2979,9 +3021,14 @@ func (p *wmlParser) parseParagraph(d *xml.Decoder, partPath string, emitBlock fu
 				// flushes the buffer first then proceeds normally (no
 				// regression vs the unbuffered baseline). Skip the
 				// buffer when partMergeable is also being set
-				// (deletedMark + open field — already excluded above
-				// by the `!(cfs.active && cfs.extractable)` guard) so
-				// the two cross-paragraph mechanisms never overlap.
+				// (deletedMark + open-field-at-entry passthrough case
+				// — already buffered above by the `!openedFieldThisPara`
+				// guard which returns before this point) so the two
+				// cross-paragraph mechanisms never overlap. The
+				// field-opener case (1102.docx P2 — cfs.active flipped
+				// to true DURING this paragraph) falls through to here
+				// and uses partFieldStraddle, which is the right path
+				// for that scenario.
 				if cfs.active && cfs.extractable && cfs.atResult {
 					p.partFieldStraddle = &pendingFieldBlock{
 						runs:        merged,
