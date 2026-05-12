@@ -13,10 +13,58 @@ docs.
 | Engine | Total | byte | canon | sem | div |
 |---|---:|---:|---:|---:|---:|
 | bridge (okapi-bridge) | 185 | 185 | 0 | 0 | 0 |
-| native (this package) | 185 | 0 | 118 | 0 | 67 |
+| native (this package) | 185 | 0 | 128 | 0 | 57 |
 
 ## Recently cleared
 
+- Source text containing private-use sentinel codepoints
+  (U+E100..U+E10F) no longer gets misclassified as a synthetic
+  `<w:tab/>` / `<w:drawing/>`. The buildBlock dispatch now uses
+  EXACT match (`run.text == ""`) instead of `HasPrefix` for
+  the single-char sentinels. Cleared OkapiMarkers.docx,
+  1335-doc-properties.docx, 1440-default-formatting.docx — see
+  commit "openxml: don't misclassify source text starting with
+  private-use sentinel codepoints".
+- `<w:br>` element attributes (`w:type="page"`, `w:type="column"`,
+  `w:clear`) now survive round-trip in BOTH the canInline and the
+  TypeBreak emit paths. Reader captures the full br element into
+  `textRun.data`, buildBlock propagates as `Ph.Data`, writer
+  prefers it over the literal `<w:br/>`. ECMA-376-1 §17.3.3.1.
+- Cross-source-run br + text fusion: standalone `<w:br/>` source
+  run followed by a separate text source-run with matching rPr
+  now fuses into one `<w:r><w:br/><w:t>...</w:t></w:r>` per
+  upstream RunMerger's rPr-only canMergeWith gate. The previous
+  textSrcStart guard was over-conservative; removing it preserves
+  the 1421-line-break.docx case (its third br is itself
+  SubTypeBreakStandalone so step-3 closeRun fires regardless).
+  Cleared OpenXmlRoundtripSoftLineBreaksDoNotTranslateTest
+  CharacterStyle.docx.
+- Cross-source-run br + raw markup fusion: a standalone br/tab
+  followed by `<w:noBreakHyphen/>` or `<w:softHyphen/>` (Markup
+  chunks emitted via flushMarkup, no break-induced run boundary)
+  now fuses into one `<w:r>`. Mirrors upstream
+  BlockTextUnitWriter.java:240-251 + 349-371. Cleared
+  special-chars-and-linebreaks.docx.
+- `<w:ruby>` (ECMA-376-1 §17.3.3.25) is now captured as opaque
+  markup using the existing image-sentinel placeholder. Previously
+  the dispatcher's default branch dropped the entire ruby subtree
+  (translatable text inside `<w:rt>` and `<w:rubyBase>` was lost).
+  Bridge keeps ruby content inline in its reference output, so
+  verbatim capture matches the round-trip envelope. Cleared
+  HelloWorld.docx, sample.docx, SampleRuby.docx.
+- `<w:sdt>` envelopes around block-level paragraphs now survive
+  round-trip. parseSDT writes `<w:sdt>` to the skeleton on entry,
+  captures sdtPr / sdtEndPr raw and emits them inside the wrapper,
+  recurses into nested `<w:sdt>` children, and emits
+  `</w:sdtContent></w:sdt>` on close. Cleared watermark.docx.
+- Inline drawing/pict/object/AlternateContent/ruby fused into
+  preceding text-run envelope: a new SubTypeImageInline marks
+  image Ph chunks that did NOT begin their source `<w:r>` (text
+  preceded them inside the same `<w:r>`). The writer fuses such
+  chunks into the still-open envelope when both sides have
+  rPr-empty, mirroring `RunMerger`'s same-rPr fusion. Cleared
+  gettysburg_en.docx (P3 source `<w:r><w:rPr/><w:t>N</w:t>
+  <w:drawing>...</w:drawing></w:r>` + following text run).
 - DML run-property strippable attributes (`lang`, `altLang`,
   `dirty`, `smtClean`, `err`, `noProof`) are now scrubbed from
   `<a:rPr>`/`<a:endParaRPr>`/`<a:defRPr>` start tags inside
