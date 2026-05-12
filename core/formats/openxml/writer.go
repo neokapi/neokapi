@@ -3122,6 +3122,28 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 		r := runs[runIdx]
 		switch {
 		case r.Text != nil:
+			// Snapshot whether a prior inline-tab/br left a speculative
+			// `<w:t xml:space="preserve">` open inside the surrounding
+			// `<w:r>` (pendingTReopen=true). When this text Run lands its
+			// chars into that open `<w:t>` (instead of spawning a fresh
+			// `<w:r>`), no later increment of textRunIdx happens, so
+			// subsequent per-run-rPr comparisons would lag by one slot.
+			// The flag drives a textRunIdx bump AFTER the rPr check —
+			// the check still wants to compare the previously-emitted
+			// run's rPr against the candidate's rPr, so we mustn't bump
+			// before it.
+			//
+			// Fixture TestLTinsideBoxFails.docx footer1.xml is the
+			// canonical case: source paragraph has tabbed run "Last
+			// Updated: …" followed by a trailing space run carrying only
+			// `<w:rPr><w:lang/></w:rPr>` (whose lang gets parse-time
+			// stripped, leaving rPrChildren empty). The lagging index
+			// caused the writer to compare the space run's slot against
+			// "Last Updated"'s slot — both `<w:sz/>` — so it fused.
+			// Upstream Okapi RunMerger.canRunPropertiesBeMerged
+			// (RunMerger.java:156-229) correctly sees the space run's
+			// rPr as empty and refuses the merge.
+			willJoinViaPendingTReopen := inRun && pendingTReopen
 			// When the next text run's effectiveRPr differs from the
 			// currently-open <w:r>'s rPr, close the current run and open
 			// a new one so per-run rPr boundaries (Phase 1-5 sidecar) are
@@ -3151,6 +3173,16 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 					(textInFieldDisplay(textRunIdx) && textInFieldDisplay(textRunIdx+1) && textSrcStart(textRunIdx+1)) {
 					closeRun()
 				}
+			}
+			// If the comparison above didn't close the run AND we're
+			// joining via the pendingTReopen path, advance textRunIdx
+			// now so subsequent comparisons (and the per-run-rPr writes
+			// inside emitRPr) reference the correct slot. The other
+			// "joining without close" paths (inRunNoText, inFieldEndRun)
+			// each bump textRunIdx themselves; pendingTReopen had no
+			// matching bump until this fix.
+			if willJoinViaPendingTReopen && inRun && len(r.Text.Text) > 0 {
+				textRunIdx++
 			}
 			// If a prior standalone <w:br/> / <w:tab/> left an <w:r>
 			// open without a <w:t>, decide whether this text joins it.
@@ -3928,6 +3960,29 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 					if nextRPr != tabRPr && nextRPr != "" && nextRPr == prevRPr {
 						inheritedNextRPr = nextRPr
 						keepOpen = true
+					}
+				}
+				// When the initial keepOpen fired from !textSrcStart (tab
+				// and the following text share a source `<w:r>`) AND
+				// sourceRPr+runProps is empty, the tab would otherwise
+				// emit as a bare `<w:r><w:tab/>` whose `inRunNoTextRPr`
+				// is "" — and the following text's join check would fail
+				// (next rPr is non-empty, openRPr is empty). Inherit the
+				// next text's effective rPr so the tab carries the same
+				// `<w:rPr>` the source had and the join succeeds.
+				// Mirrors upstream Okapi RunBuilder.java:73-188 — the
+				// tab and following text live inside one source `<w:r>`
+				// whose rPr applies to both. Without this, fixture
+				// TestLTinsideBoxFails.docx footer1 splits the tab away
+				// from its accompanying `Last Updated…` text after a
+				// preceding `<w:fldSimple>` closes the prior run.
+				if keepOpen && inheritedNextRPr == "" &&
+					runIdx+1 < len(runs) && runs[runIdx+1].Text != nil &&
+					!textSrcStart(textRunIdx+1) {
+					nextRPr := effectiveRPr(textRunIdx + 1)
+					tabRPr := sourceRPr + runProps
+					if nextRPr != "" && nextRPr != tabRPr {
+						inheritedNextRPr = nextRPr
 					}
 				}
 				if r.Ph.SubType == SubTypeTabStandalone {
