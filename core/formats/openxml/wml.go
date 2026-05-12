@@ -2052,35 +2052,58 @@ func (p *wmlParser) parseParagraph(d *xml.Decoder, partPath string, emitBlock fu
 						// (RunProperties.java:497-540): a directly-
 						// authored property is dropped from the run
 						// when the resolved chain already supplies it
-						// with the SAME value. Today this strip covers
-						// `<w:rFonts>` (the canonical case is
-						// 948-1.docx, where every `Character1`-styled
-						// run authors the same `<w:rFonts ...>` the
-						// Character1 style supplies via its basedOn
-						// chain). Other rPr children (`<w:color>`,
-						// `<w:sz>`, …) are not yet covered because
-						// their canonical XML is not captured into
-						// styleEntry.rPrChildXMLs — extend the parser
-						// + this strip to cover them as parity gaps
-						// surface. Per ECMA-376-1 §17.3.2.26 (CT_Fonts)
-						// the rFonts element identity is its attribute
-						// set, so byte-equal canonicalised XML is a
-						// safe equality check.
+						// with the SAME value (Property.equals via
+						// RunProperty.equalsProperty implementations).
+						// Native captures the chain side via
+						// styleEntry.rPrChildXMLs (parseStyles writes
+						// the canonical w:-prefixed XML for every rPr
+						// child the style authors) and the run side
+						// via rPrChild.xml (parseRunProps writes the
+						// matching wmlPrefixed form via
+						// serializeRPrChildElement /
+						// serializeWithCapture). When both sides match
+						// byte-for-byte, the run-level entry is a
+						// no-op duplicate of the inherited chain and
+						// gets dropped — fixture HiddenTablesApachePoi
+						// is the canonical case (per-run
+						// `<w:outline w:val="0"/>` matches the `Body`
+						// pStyle's chain `<w:outline w:val="0"/>` from
+						// docDefaults; without this strip native lifts
+						// outline=0 into the synth NF974E24F-Body1
+						// style's rPr). Per ECMA-376-1 §17.3.2 every
+						// rPr child element is identified by its name
+						// + attribute set (no character data content),
+						// so byte-equal canonicalised XML is a safe
+						// equality check.
+						//
+						// Excluded names: rStyle (the run's character-
+						// style reference is not a Property.equals-
+						// minifiable entry — upstream's
+						// RunProperties.minified() filter at line 497
+						// of RunProperties.java explicitly excludes
+						// StyleRunProperty via the
+						// `combineDistinct(.. !(p instanceof
+						// StyleRunProperty))` branch in
+						// combinedRunProperties, and the chain
+						// matching here would falsely match an rStyle
+						// reference against itself).
 						if rStyleID != "" || paraStyleID != "" {
 							children := runs[i].props.rPrChildren
 							out := children[:0]
 							for _, c := range children {
-								if c.name == "rFonts" {
-									chainXML := ""
-									if rStyleID != "" {
-										chainXML = p.styles.effectiveRPrChildXML(rStyleID, "rFonts")
-									}
-									if chainXML == "" && paraStyleID != "" {
-										chainXML = p.styles.effectiveRPrChildXML(paraStyleID, "rFonts")
-									}
-									if chainXML != "" && chainXML == c.xml {
-										continue
-									}
+								if c.name == "rStyle" {
+									out = append(out, c)
+									continue
+								}
+								chainXML := ""
+								if rStyleID != "" {
+									chainXML = p.styles.effectiveRPrChildXML(rStyleID, c.name)
+								}
+								if chainXML == "" && paraStyleID != "" {
+									chainXML = p.styles.effectiveRPrChildXML(paraStyleID, c.name)
+								}
+								if chainXML != "" && chainXML == c.xml {
+									continue
 								}
 								out = append(out, c)
 							}
@@ -2310,6 +2333,30 @@ func (p *wmlParser) parseParagraph(d *xml.Decoder, partPath string, emitBlock fu
 					// "40"/></w:rPr><w:pict>...</w:pict></w:r>`
 					// envelopes that bridge fuses into one `<w:r>`
 					// with all three picts.
+					// Drop trivially-empty `<w:r><w:t></w:t></w:r>`
+					// placeholders sitting alongside drawing-bearing
+					// runs in an otherwise-content-empty paragraph.
+					// Mirrors upstream Okapi RunMerger
+					// (RunMerger.java:83-95): a RunBuilder whose
+					// chunks list materialises only an empty Text
+					// chunk does not survive the merge — the run is
+					// dropped before flushBuilders. Per ECMA-376-1
+					// §17.3.2.1 (CT_R) an empty `<w:r>` carrying a
+					// single `<w:t/>` and no rPr children contributes
+					// no formatting and no content, so dropping it is
+					// a no-op for rendering. Fixture
+					// AlternateContent.docx is the canonical case:
+					// each AC-bearing paragraph ends with an empty
+					// `<w:r><w:t xml:space="preserve"></w:t></w:r>`
+					// trailing the drawings, which upstream drops.
+					emptyDropped := merged[:0]
+					for _, r := range merged {
+						if isEmptyTextPlaceholder(r) {
+							continue
+						}
+						emptyDropped = append(emptyDropped, r)
+					}
+					merged = emptyDropped
 					i := 0
 					for i < len(merged) {
 						r := merged[i]
@@ -2319,13 +2366,31 @@ func (p *wmlParser) parseParagraph(d *xml.Decoder, partPath string, emitBlock fu
 							continue
 						}
 						// Look ahead for adjacent fusable drawing runs
-						// with identical rPr.
+						// with identical rPr AND identical opaque
+						// element kind. Per ECMA-376-1 §17.3.2.1
+						// (CT_R) a single `<w:r>` may host multiple
+						// `<w:drawing>` siblings or multiple `<w:pict>`
+						// siblings, but mixing kinds (drawing + AC,
+						// drawing + pict) inside one `<w:r>` is not
+						// what upstream Okapi RunMerger emits — its
+						// MarkupComponent merge logic groups by
+						// component kind. AlternateContent.docx
+						// canonical case: a `<w:r><w:drawing></w:r>`
+						// followed by `<w:r><mc:AlternateContent></w:r>`
+						// share rsidRPr-only rPr but stay TWO `<w:r>`
+						// envelopes upstream because the inner kind
+						// differs (`<w:drawing>` vs
+						// `<mc:AlternateContent>`).
+						rKind := opaqueRunKind(r.data)
 						j := i + 1
 						for j < len(merged) {
 							if !isFusableDrawingRun(merged[j]) {
 								break
 							}
 							if !merged[j].props.equalIncludingChildren(r.props) {
+								break
+							}
+							if opaqueRunKind(merged[j].data) != rKind {
 								break
 							}
 							j++
@@ -4718,6 +4783,70 @@ func (p *wmlParser) writeRunToSkel(r textRun, partPath string, emitBlock func(*m
 	p.writeDrawingXMLToSkel(r.data, partPath, emitBlock)
 }
 
+// opaqueRunKind returns the local element name of the first opening
+// tag in an opaque-drawing payload — "w:drawing", "w:pict",
+// "w:object", "mc:AlternateContent", etc. Used by the drawing-fusion
+// path to refuse merging adjacent same-rPr opaque runs whose inner
+// element kinds differ. Per ECMA-376-1 §17.3.2.1 (CT_R), a single
+// `<w:r>` may host repeats of one opaque-element kind but mixing
+// kinds is not what upstream Okapi RunMerger emits — its
+// MarkupComponent merge groups by component kind.
+//
+// Returns "" for payloads that do not begin with a recognised
+// opaque-element open tag (e.g. payload starts with rPr or text).
+// In practice the data passed in here is captured raw XML produced
+// by captureRawElement / captureAlternateContent, which always
+// starts with the wrapping element's open tag.
+func opaqueRunKind(data string) string {
+	if data == "" {
+		return ""
+	}
+	if data[0] != '<' {
+		return ""
+	}
+	end := strings.IndexAny(data[1:], " >/\t\n\r")
+	if end < 0 {
+		return ""
+	}
+	return data[1 : 1+end]
+}
+
+// isEmptyTextPlaceholder reports whether r is a content-bearing
+// run carrying an empty `<w:t></w:t>` body and no surviving rPr
+// children — the trivially-empty placeholder `<w:r><w:t/></w:r>`
+// shape that upstream Okapi RunMerger discards before flushBuilders
+// (RunMerger.java:83-95: a RunBuilder whose only chunk is an empty
+// Text contributes nothing to the merged paragraph). Used by
+// parseParagraph's isEmptyRuns skeleton-emit path to filter out
+// trailing empty placeholders that sit alongside drawing-bearing
+// runs in an otherwise-content-empty paragraph (AlternateContent.docx
+// canonical case: each AC-bearing paragraph ends with `<w:r><w:t
+// xml:space="preserve"></w:t></w:r>` after the drawings).
+//
+// Sentinel runs (drawings, fields, breaks, tabs) keep their full
+// shape — only the text-payload empty form is dropped.
+func isEmptyTextPlaceholder(r textRun) bool {
+	if r.text != "" {
+		return false
+	}
+	if isSentinel(r.text) {
+		return false
+	}
+	if r.data != "" {
+		return false
+	}
+	if len(r.props.rPrChildren) > 0 {
+		return false
+	}
+	if r.props.bold || r.props.italic || r.props.strike ||
+		r.props.vanish || r.props.underline != "" ||
+		r.props.vertAlign != "" || r.props.fontName != "" ||
+		r.props.boldClear || r.props.italicClear || r.props.strikeClear {
+		return false
+	}
+	return true
+}
+
 // isFusableDrawingRun reports whether r is an opaque drawing-bearing
 // sentinel run (`<w:pict>`, `<w:drawing>`, `<w:object>`,
 // `<w:AlternateContent>`, `<w:ruby>`, …) that the parser captured as
@@ -4751,6 +4880,21 @@ func isFusableDrawingRun(r textRun) bool {
 	// `<w:r><w:pict><v:rect/></w:pict></w:r>` — the picts share rPr
 	// (`<w:noProof/>`) but bridge keeps them as two `<w:r>` envelopes.
 	if strings.Contains(r.data, "<w:txbxContent") {
+		return false
+	}
+	// mc:AlternateContent is a markup-compatibility selector
+	// (ECMA-376 Part 3 / ISO/IEC 29500-3 §10): each AC is its own
+	// alternative-resolution context with `<mc:Choice Requires="…">`
+	// / `<mc:Fallback>` semantics. Fusing two adjacent same-rPr ACs
+	// into one `<w:r>` would imply the consumer treats them as a
+	// single resolution unit, contradicting the per-AC selection
+	// rule. Upstream Okapi keeps each AC in its own `<w:r>` envelope.
+	// AlternateContent.docx canonical case: a paragraph carrying two
+	// adjacent `<w:r><mc:AlternateContent>...</mc:AlternateContent>
+	// </w:r>` envelopes (each rsidRPr-only rPr) whose inner Choice
+	// payloads have no txbxContent so the txbx guard doesn't catch
+	// them.
+	if strings.HasPrefix(r.data, "<mc:AlternateContent") {
 		return false
 	}
 	return true
