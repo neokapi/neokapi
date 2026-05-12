@@ -1979,6 +1979,14 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 	// rPr, another Ph, or PcOpen/PcClose), this <w:r> closes via
 	// closeRunNoText so the open envelope doesn't leak.
 	var inRunNoText bool
+	// inRunNoTextRPr is the effective rPr the still-open `<w:r>` carries
+	// (sourceRPr+runProps OR an inherited-from-neighbour rPr when the
+	// open run was emitted by the Tab Ph inherit-from-next-text fuse).
+	// The text-side join check compares the next text's effectiveRPr
+	// against THIS, not against the paragraph-wide sourceRPr — so an
+	// inherited-rPr open run can still fuse same-rPr text. When empty,
+	// fall back to the original sourceRPr-only comparison.
+	var inRunNoTextRPr string
 	// pendingTReopen marks a speculative `<w:t xml:space="preserve">`
 	// opened by the inline-tab/br branch right after `<w:tab/>` /
 	// `<w:br/>` in anticipation of more text in the same <w:r>. If no
@@ -2043,6 +2051,7 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 		if inRunNoText {
 			buf.WriteString(`</w:r>`)
 			inRunNoText = false
+			inRunNoTextRPr = ""
 		}
 		if inFieldEndRun {
 			buf.WriteString(`</w:r>`)
@@ -2168,14 +2177,30 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 				// docx) — bridge fuses these per RunMerger's rPr-only
 				// gate, so dropping the textSrcStart guard restores
 				// parity without regressing the 1421 case.
-				if nextRPr == sourceRPr {
+				// Compare against the actual rPr the open `<w:r>`
+				// carries. When the open run was emitted by the Tab
+				// Ph inherit-from-next-text fuse path, the rPr is
+				// inRunNoTextRPr (the neighbour's effectiveRPr); the
+				// canonical case is sourceRPr+runProps emitted via
+				// emitNonTextRPr (then inRunNoTextRPr is "" and we
+				// fall back to sourceRPr). Without this check an
+				// inherited-rPr open run never fuses with the
+				// following text — AlternateContentTest.docx footer1
+				// tab-after-hyperlink case.
+				openRPr := inRunNoTextRPr
+				if openRPr == "" {
+					openRPr = sourceRPr
+				}
+				if nextRPr == openRPr {
 					textRunIdx++
 					buf.WriteString(`<w:t xml:space="preserve">`)
 					inRun = true
 					inRunNoText = false
+					inRunNoTextRPr = ""
 				} else {
 					buf.WriteString(`</w:r>`)
 					inRunNoText = false
+					inRunNoTextRPr = ""
 				}
 			}
 			// If a prior fldChar-end Ph left an <w:r> open (its
@@ -2503,6 +2528,68 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 				// same-rPr text continues to fuse into this run.
 				continue
 			}
+			// Fuse a Tab Ph into the still-open <w:r> from a prior
+			// text run when the surrounding text runs share the same
+			// effective rPr. Mirrors upstream Okapi RunMerger
+			// (RunMerger.java:156-229): adjacent source <w:r>
+			// envelopes with matching RunProperties fuse into one
+			// RunBuilder; tab MarkupComponents inside such a run
+			// stay inline with the text body chunks. Per ECMA-376-1
+			// §17.3.2.1 (CT_R) and §17.3.3.31 (`<w:tab/>`) a single
+			// `<w:r>` may carry both `<w:t>` and `<w:tab/>` children
+			// under one shared rPr.
+			//
+			// Pre-conditions:
+			//   - inRun: the preceding text opened a `<w:r>` that's
+			//     still emitting `<w:t>` content (pendingTReopen
+			//     might be set; we'll override the trailing `<w:t
+			//     xml:space="preserve">` placeholder).
+			//   - The next model run is a Text whose effectiveRPr
+			//     matches the currently-open run's effectiveRPr
+			//     (textRunIdx points to the last emitted text run,
+			//     so its effectiveRPr is the open run's rPr).
+			// When both hold, emit `</w:t><w:tab/>` to close the
+			// current text body and stitch the tab in-place, then
+			// open `<w:t xml:space="preserve">` as the new text body
+			// (pendingTReopen=true) so the next text continues
+			// inside the same `<w:r>`.
+			//
+			// The tab's own source-rPr is dropped (sidecars are
+			// aligned to text runs only, so we don't have its
+			// per-run slot). For the fuse to be semantically
+			// correct the surrounding texts must share rPr — when
+			// they do, the dropped tab rPr is equivalent to what
+			// the surrounding runs carry, so the fusion is
+			// content-preserving. Fixture AlternateContentTest.docx
+			// footer1: the source has 8+ source `<w:r>` envelopes
+			// all carrying `<w:rStyle val="FontStyle18"/><w:lang
+			// val="cs-CZ"/>` rPr, including tab-bearing runs and
+			// text-bearing runs alike. Upstream RunMerger fuses
+			// them into one `<w:r>` with multiple `<w:t>` and
+			// `<w:tab/>` body chunks under the shared rPr;
+			// pre-fix native opened a fresh empty-rPr `<w:r>` per
+			// tab.
+			if r.Ph.Type == TypeTab && inRun &&
+				runIdx+1 < len(runs) && runs[runIdx+1].Text != nil &&
+				effectiveRPr(textRunIdx) == effectiveRPr(textRunIdx+1) {
+				if pendingTReopen {
+					trail := `<w:t xml:space="preserve">`
+					if cur := buf.String(); strings.HasSuffix(cur, trail) {
+						buf.Reset()
+						buf.WriteString(cur[:len(cur)-len(trail)])
+					}
+					pendingTReopen = false
+				} else {
+					buf.WriteString(`</w:t>`)
+				}
+				buf.WriteString(`<w:tab/>`)
+				buf.WriteString(`<w:t xml:space="preserve">`)
+				pendingTReopen = true
+				// inRun stays true; the next text branch sees the
+				// open `<w:t xml:space="preserve">` and continues
+				// writing into it.
+				continue
+			}
 			closeRun()
 			switch r.Ph.Type {
 			case TypeBreak:
@@ -2577,11 +2664,93 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 					runs[runIdx+1].Ph.Type == TypeTab {
 					keepOpen = true
 				}
+				// Mirrors upstream Okapi RunMerger.canMergeWith
+				// (RunMerger.java:126-154 → canRunPropertiesBeMerged at
+				// 156-229) which fuses adjacent source `<w:r>` envelopes
+				// when their RunProperties match — independent of the
+				// source-run boundary. The tab's Ph carries no per-text-
+				// run sidecar slot (sidecars cover text only), so its
+				// effective rPr is sourceRPr + active toggles
+				// (`runProps`); we compare that to the next text's
+				// effective rPr. When equal, keep the `<w:r>` open so
+				// the text fuses inside via the `inRunNoText` text
+				// branch above — emerging as
+				// `<w:r><w:rPr.../><w:tab/><w:t>...</w:t></w:r>`,
+				// matching upstream's RunMerger output. Per ECMA-376-1
+				// §17.3.2.1 (CT_R) and §17.3.3.31 (`<w:tab/>`) a single
+				// `<w:r>` may carry both `<w:tab/>` and `<w:t>` children
+				// under one shared `<w:rPr>`. Fixture
+				// AlternateContentTest.docx footer1: a paragraph whose
+				// text-tab-text-tab-text source runs all share the same
+				// `<w:rStyle val="FontStyle18"/><w:lang val="cs-CZ"/>`
+				// rPr — bridge fuses them into ONE `<w:r>` with multiple
+				// `<w:t>` and `<w:tab/>` body chunks; pre-fix native
+				// kept them split because the textSrcStart guard above
+				// blocked the join.
+				// Lookahead: when the next text run's effective rPr
+				// matches what this tab WOULD carry on its own (sourceRPr
+				// + active toggles), fuse them into one <w:r>.
+				if !keepOpen && runIdx+1 < len(runs) && runs[runIdx+1].Text != nil {
+					nextRPr := effectiveRPr(textRunIdx + 1)
+					tabRPr := sourceRPr + runProps
+					if nextRPr == tabRPr {
+						keepOpen = true
+					}
+				}
+				// Inherit-from-neighbour rPr: when the tab Ph is
+				// sandwiched between two text runs that SHARE the same
+				// effective rPr AND that rPr differs from
+				// sourceRPr+runProps, emit the tab inside an `<w:r>`
+				// carrying that shared rPr. The tab in the source
+				// carried the same per-run rPr override (a property of
+				// the surrounding style context — typically a shared
+				// `<w:rStyle>`); reconstructing it from the neighbours
+				// matches upstream Okapi's RunMerger fusion behaviour
+				// (RunMerger.canMergeWith at RunMerger.java:126-154 +
+				// canRunPropertiesBeMerged at 156-229). Per ECMA-376-1
+				// §17.3.2.1 (CT_R) the tab `<w:r>`'s rPr is
+				// independent; a shared neighbour rPr is strong
+				// evidence the tab carried the same. Both-sides match
+				// guard avoids mis-fusing when the tab sits between
+				// runs with DIFFERENT rPr (e.g.
+				// AlternateContentTest.docx: a tab between
+				// `<w:t>46 70 82 19</w:t>` (FontStyle18) and
+				// `<w:t>DIC</w:t>` (FontStyle25) — the surrounding
+				// runs differ so the tab keeps its sourceRPr-only
+				// emit and the DIC text opens its own `<w:r>`).
+				//
+				// Fixture AlternateContentTest.docx footer1: a tab
+				// between a `<w:hyperlink>` close and a `<w:r>` with
+				// `<w:rStyle val="FontStyle18"/>` rPr. The previous
+				// (extracted) text was inside the hyperlink and ALSO
+				// carried `<w:rStyle val="FontStyle18"/>` — so
+				// textRunIdx and textRunIdx+1 share effectiveRPr.
+				// Inheriting matches upstream's fused
+				// `<w:r><w:rPr><w:rStyle val="FontStyle18"/></w:rPr>
+				// <w:tab/><w:t>IC: 46 70 82 19</w:t><w:tab/></w:r>`
+				// (the next-next run is another tab that the
+				// adjacent-tab fuse handles).
+				inheritedNextRPr := ""
+				if !keepOpen && runIdx+1 < len(runs) && runs[runIdx+1].Text != nil {
+					nextRPr := effectiveRPr(textRunIdx + 1)
+					prevRPr := effectiveRPr(textRunIdx)
+					tabRPr := sourceRPr + runProps
+					if nextRPr != tabRPr && nextRPr != "" && nextRPr == prevRPr {
+						inheritedNextRPr = nextRPr
+						keepOpen = true
+					}
+				}
 				if r.Ph.SubType == SubTypeTabStandalone {
 					buf.WriteString(`<w:r>`)
 					emitNonTextRPr()
 					buf.WriteString(`<w:tab/>`)
 					inRunNoText = true
+				} else if inheritedNextRPr != "" {
+					buf.WriteString(`<w:r><w:rPr>`)
+					buf.WriteString(inheritedNextRPr)
+					buf.WriteString(`</w:rPr><w:tab/>`)
+					inRunNoText = true
+					inRunNoTextRPr = inheritedNextRPr
 				} else if sourceRPr != "" || runProps != "" {
 					buf.WriteString(`<w:r>`)
 					emitNonTextRPr()

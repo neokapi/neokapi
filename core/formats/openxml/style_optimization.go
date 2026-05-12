@@ -945,6 +945,48 @@ func optimizeParagraph(
 				stripNames["b"] = true
 				stripNames["i"] = true
 			}
+			// Symmetric drawing-only strip: when the run is drawing-
+			// only, b/i (and the bCs/iCs mirror pair) were removed
+			// from e.props above so they don't get LIFTED into the
+			// synth pStyle. They must ALSO be stripped from the
+			// EMITTED per-run rPr, otherwise the surviving toggle
+			// re-renders an effective bold/italic toggle that the
+			// drawing-only run shouldn't carry on the wire. Mirrors
+			// upstream Okapi's RunBuilder MarkupComponent path:
+			// BlockTextUnitWriter walks the MarkupComponent body
+			// chunks directly without the addToggleToRPr re-emission
+			// pass that text runs go through, so b/i never appear on
+			// the materialised drawing-only `<w:r>`. Per ECMA-376-1
+			// §17.3.2.1 (CT_R) toggle properties apply to text
+			// children; for a run with no text those toggles are
+			// no-ops at render time.
+			//
+			// Fixture AlternateContentTest.docx: a textbox-bearing
+			// paragraph holds a single `<w:r><w:rPr><w:i/><w:iCs/>
+			// <w:noProof/><w:sz val="18"/><w:szCs val="18"/><w:lang
+			// .../></w:rPr><mc:AlternateContent>...</w:r>`. Pre-fix
+			// native re-emitted `<w:i/>` on the per-run rPr; post-fix
+			// the strip drops it, matching upstream's emitted
+			// `<w:r><w:rPr><w:noProof/><w:sz/><w:szCs/><w:lang/>
+			// </w:rPr><mc:AlternateContent>...</w:r>` (the lang/
+			// noProof survive on the per-run rPr because they are
+			// non-toggle properties — the strip is targeted at the
+			// b/i pair only).
+			if runIsDrawingOnly(src[e.runStart:e.runEnd]) {
+				if len(stripNames) == 0 {
+					stripNames = make(map[string]bool, 4)
+				} else if !e.csOnlyText {
+					orig := stripNames
+					stripNames = make(map[string]bool, len(orig)+4)
+					for k, v := range orig {
+						stripNames[k] = v
+					}
+				}
+				stripNames["b"] = true
+				stripNames["bCs"] = true
+				stripNames["i"] = true
+				stripNames["iCs"] = true
+			}
 			if len(stripNames) > 0 {
 				runBuf = stripPropsFromRun(runBuf, stripNames)
 			}
@@ -2249,10 +2291,149 @@ func runIsDrawingOnly(runSrc []byte) bool {
 	if !hasDrawing {
 		return false
 	}
-	if extractRunText(runSrc) != "" {
+	if extractRunTextSkippingOpaque(runSrc) != "" {
 		return false
 	}
 	return true
+}
+
+// extractRunTextSkippingOpaque returns the concatenated text of every
+// `<w:t>` that is a DIRECT child of runSrc — i.e. not nested inside a
+// `<w:drawing>` / `<w:pict>` / `<w:object>` / `<mc:AlternateContent>`
+// opaque subtree. Mirrors upstream Okapi's RunBuilder which treats
+// opaque MarkupComponent payloads as black boxes whose internal
+// `<w:t>` (e.g. inside a textbox `<w:txbxContent>`) belongs to a
+// nested StyledTextPart, not to the outer run. Per ECMA-376-1
+// §17.3.2.1 (CT_R), the run's direct text children are `<w:t>`,
+// `<w:delText>`, `<w:instrText>` etc.; an opaque subtree's text
+// belongs to its own scope.
+//
+// Without this skip, AlternateContentTest.docx's textbox-bearing run
+// is mis-classified as text-bearing (the inner `<w:txbxContent>`
+// paragraph carries `<w:t>Text2</w:t>` that the simple
+// `extractRunText` scan finds), defeating the drawing-only b/i
+// strip and letting `<w:i/>` leak into the synth Style12's lifted
+// rPr.
+func extractRunTextSkippingOpaque(runSrc []byte) string {
+	opaqueOpens := []string{"<w:drawing", "<w:pict", "<w:object", "<mc:AlternateContent"}
+	var out strings.Builder
+	i := 0
+	for i < len(runSrc) {
+		// Find the next opaque-subtree start OR the next <w:t>.
+		// Whichever comes first wins; if opaque, skip past it.
+		nextOpaqueAbs := -1
+		var matchedTag string
+		for _, tag := range opaqueOpens {
+			ti := bytes.Index(runSrc[i:], []byte(tag))
+			if ti < 0 {
+				continue
+			}
+			// Element-name boundary.
+			bj := i + ti + len(tag)
+			if bj >= len(runSrc) {
+				continue
+			}
+			bb := runSrc[bj]
+			if bb != '>' && bb != ' ' && bb != '\t' && bb != '\n' && bb != '\r' && bb != '/' {
+				continue
+			}
+			abs := i + ti
+			if nextOpaqueAbs < 0 || abs < nextOpaqueAbs {
+				nextOpaqueAbs = abs
+				matchedTag = tag
+			}
+		}
+		nextTAbs := -1
+		for k := i; k < len(runSrc); {
+			ti := bytes.Index(runSrc[k:], []byte("<w:t"))
+			if ti < 0 {
+				break
+			}
+			abs := k + ti
+			j := abs + len("<w:t")
+			if j >= len(runSrc) {
+				break
+			}
+			b := runSrc[j]
+			// Element-name boundary — accept "<w:t " / "<w:t>" /
+			// "<w:t/>" but reject "<w:tab" or "<w:tbl".
+			if b != ' ' && b != '\t' && b != '\n' && b != '\r' && b != '>' && b != '/' {
+				k = j
+				continue
+			}
+			nextTAbs = abs
+			break
+		}
+		if nextTAbs < 0 && nextOpaqueAbs < 0 {
+			break
+		}
+		if nextOpaqueAbs >= 0 && (nextTAbs < 0 || nextOpaqueAbs < nextTAbs) {
+			// Skip past the opaque subtree (balanced close).
+			openTagEnd := bytes.IndexByte(runSrc[nextOpaqueAbs:], '>')
+			if openTagEnd < 0 {
+				break
+			}
+			openTagAbsEnd := nextOpaqueAbs + openTagEnd
+			// Self-closing.
+			if openTagAbsEnd > 0 && runSrc[openTagAbsEnd-1] == '/' {
+				i = openTagAbsEnd + 1
+				continue
+			}
+			closeName := []byte("</" + matchedTag[1:] + ">")
+			depth := 1
+			inner := openTagAbsEnd + 1
+			for depth > 0 && inner < len(runSrc) {
+				no := bytes.Index(runSrc[inner:], []byte(matchedTag))
+				nc := bytes.Index(runSrc[inner:], closeName)
+				if nc < 0 {
+					return out.String()
+				}
+				if no >= 0 && no < nc {
+					// Confirm boundary.
+					bjj := inner + no + len(matchedTag)
+					if bjj < len(runSrc) {
+						bbb := runSrc[bjj]
+						if bbb == '>' || bbb == ' ' || bbb == '\t' || bbb == '\n' || bbb == '\r' || bbb == '/' {
+							// Self-closing inner same-name open?
+							ote := bytes.IndexByte(runSrc[inner+no:], '>')
+							if ote > 0 && runSrc[inner+no+ote-1] == '/' {
+								inner = inner + no + ote + 1
+								continue
+							}
+							depth++
+							inner = inner + no + len(matchedTag)
+							continue
+						}
+					}
+					inner = inner + no + len(matchedTag)
+					continue
+				}
+				depth--
+				inner = inner + nc + len(closeName)
+			}
+			i = inner
+			continue
+		}
+		// Process the <w:t> at nextTAbs.
+		j := nextTAbs + len("<w:t")
+		tagEnd := bytes.IndexByte(runSrc[j:], '>')
+		if tagEnd < 0 {
+			break
+		}
+		absTagEnd := j + tagEnd
+		if absTagEnd > 0 && runSrc[absTagEnd-1] == '/' {
+			// Self-closing <w:t/> — no content.
+			i = absTagEnd + 1
+			continue
+		}
+		closeIdx := bytes.Index(runSrc[absTagEnd+1:], []byte("</w:t>"))
+		if closeIdx < 0 {
+			break
+		}
+		out.Write(runSrc[absTagEnd+1 : absTagEnd+1+closeIdx])
+		i = absTagEnd + 1 + closeIdx + len("</w:t>")
+	}
+	return out.String()
 }
 
 func extractRunText(runSrc []byte) string {
