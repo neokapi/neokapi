@@ -5261,12 +5261,67 @@ func (p *wmlParser) extractTxbxParagraph(dec *xml.Decoder, out *strings.Builder,
 			if t.Name.Local != "p" {
 				continue
 			}
-			// Apply style optimisation as parseParagraph does.
-			if p.styles != nil && paraStyleID != "" {
-				styleProps := p.styles.resolveProps(paraStyleID)
+			// Apply style optimisation as parseParagraph does. The
+			// parse-time minify in parseRunProps runs in deferred mode
+			// (any default-valued rPr child whose name is absent from
+			// the paragraph chain is KEPT, expecting a later minify
+			// to fold in the rStyle chain before deciding). Run the
+			// late minify here for textbox paragraphs too — without
+			// it, an explicit-off WPML toggle (e.g. `<w:rtl w:val=
+			// "0"/>` on a textbox run inside a header — fixture
+			// HiddenTablesApachePoi.docx, header1.xml MERGEFORMAT
+			// run) lingers in rPrChildren and round-trips to the
+			// output, while upstream Okapi
+			// `RunProperties.minified()` strips it because the
+			// resolved style chain has no rtl by name
+			// (RunProperties.java:497-540, the
+			// `WpmlToggleRunProperty && !getToggleValue()` branch
+			// gated by `!preCombined.contains(p.getName())`).
+			//
+			// Mirrors the parseParagraph late-minify block (see
+			// the long doc comment at the rStyle chain merge site
+			// around line 1985) — same upstream-Okapi citation.
+			if p.styles != nil {
+				paraStyleProps := p.styles.resolveProps(paraStyleID)
+				paraChainNames := p.styles.effectiveRPrChildNames(paraStyleID)
 				for i := range runs {
-					if !isSentinel(runs[i].text) {
-						subtractProps(&runs[i].props, styleProps)
+					if isSentinel(runs[i].text) {
+						continue
+					}
+					rStyleID := extractRStyleID(runs[i].props.rPrChildren)
+					styleProps := paraStyleProps
+					chainNames := paraChainNames
+					if rStyleID != "" {
+						rStyleProps := p.styles.resolveProps(rStyleID)
+						mergeProps(&styleProps, rStyleProps)
+						chainNames = mergeChainNames(paraChainNames, p.styles.effectiveRPrChildNames(rStyleID))
+					}
+					subtractProps(&runs[i].props, styleProps)
+					runs[i].props.rPrChildren = minifyRPrChildren(runs[i].props.rPrChildren, chainNames)
+					if !chainNames["vanish"] {
+						runs[i].props.rPrChildren = stripExplicitOffVanish(runs[i].props.rPrChildren)
+					}
+					if rStyleID != "" || paraStyleID != "" {
+						children := runs[i].props.rPrChildren
+						out := children[:0]
+						for _, c := range children {
+							if c.name == "rStyle" {
+								out = append(out, c)
+								continue
+							}
+							chainXML := ""
+							if rStyleID != "" {
+								chainXML = p.styles.effectiveRPrChildXML(rStyleID, c.name)
+							}
+							if chainXML == "" && paraStyleID != "" {
+								chainXML = p.styles.effectiveRPrChildXML(paraStyleID, c.name)
+							}
+							if chainXML != "" && chainXML == c.xml {
+								continue
+							}
+							out = append(out, c)
+						}
+						runs[i].props.rPrChildren = out
 					}
 				}
 			}
