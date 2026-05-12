@@ -574,6 +574,37 @@ func optimizeParagraph(
 				e.csOnlyText = true
 				e.props = stripWMLNamesFromProps(e.props, "b", "i")
 			}
+			// Drawing-only runs (run carries `<w:drawing>` / `<w:pict>`
+			// / `<w:object>` / `<mc:AlternateContent>` and no `<w:t>`)
+			// don't render text — toggle properties like `<w:b>` /
+			// `<w:i>` / `<w:u>` on their rPr have no rendering effect.
+			// Mirrors upstream Okapi's RunBuilder which materialises
+			// MarkupComponent runs without surfacing their direct
+			// RunProperties' rendering toggles into the
+			// commonRunProperties pass: WordStyleOptimisation lifts
+			// only properties that contribute to TEXT formatting, and
+			// drawing-only runs aren't text-formatting carriers.
+			//
+			// AlternateContentTest.docx canonical case: the textbox-
+			// bearing paragraph holds 1 run with rPr `<w:i/><w:iCs/>
+			// <w:noProof/><w:sz w:val="18"/><w:szCs w:val="18"/><w:lang
+			// .../>` and an `<mc:AlternateContent>` body. Upstream
+			// synthesised Style12 lifts only `<w:sz/><w:szCs/>` (the
+			// font-size shape that DOES affect drawing layout via the
+			// inherited paragraph-mark rPr), dropping `<w:i/>` /
+			// `<w:iCs/>` / `<w:noProof/>` / `<w:lang/>` because they
+			// have no effect on a drawing-only run.
+			//
+			// We strip b/i (the toggle pair native promotes from
+			// boolean fields) here so the WSO common-prop computation
+			// matches upstream's emitted style. Other rPr children
+			// like noProof/lang remain in the props slice — they
+			// don't typically appear in commonForStyle either, but
+			// when they do, the synth match is fixture-specific and
+			// the targeted strip below avoids over-eager removal.
+			if e.hasRPr && runIsDrawingOnly(src[r.start:r.end]) {
+				e.props = stripWMLNamesFromProps(e.props, "b", "i")
+			}
 		}
 		// Detect field-content runs (instrText / fldChar=separate /
 		// fldChar=end). The fldChar=begin run is the "outer" run per
@@ -2018,6 +2049,33 @@ func stripWMLNamesFromProps(props []runProp, names ...string) []runProp {
 // in dedicated Unicode ranges and treats unknowns as non-CS, so a stray
 // "&amp;" in the run text will correctly mark it as containing non-CS
 // content (the literal "&" is ASCII).
+// runIsDrawingOnly reports whether runSrc contains a `<w:drawing>`,
+// `<w:pict>`, `<w:object>`, `<mc:AlternateContent>` body and NO
+// `<w:t>` text element. Used by optimizeParagraph to recognise
+// drawing-only runs whose rPr toggle properties (b/i) don't affect
+// rendering and should be stripped before the common-prop pass.
+//
+// Mirrors upstream Okapi's RunBuilder MarkupComponent path: a run
+// holding only opaque markup components contributes those components
+// to the Block's chunk list but does NOT promote rendering toggles
+// into the WSO commonRunProperties view. Per ECMA-376-1 §17.3.2.1
+// (CT_R) the rPr applies to the run's TEXT children; for a run with
+// no text, properties like `<w:b>`/`<w:i>`/`<w:u>` are no-ops at
+// render time.
+func runIsDrawingOnly(runSrc []byte) bool {
+	hasDrawing := bytes.Contains(runSrc, []byte("<w:drawing")) ||
+		bytes.Contains(runSrc, []byte("<w:pict")) ||
+		bytes.Contains(runSrc, []byte("<w:object")) ||
+		bytes.Contains(runSrc, []byte("<mc:AlternateContent"))
+	if !hasDrawing {
+		return false
+	}
+	if extractRunText(runSrc) != "" {
+		return false
+	}
+	return true
+}
+
 func extractRunText(runSrc []byte) string {
 	var out strings.Builder
 	cursor := 0
