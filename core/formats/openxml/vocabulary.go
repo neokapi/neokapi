@@ -167,6 +167,21 @@ const (
 	SubTypeNoBreakHyphen = "openxml:noBreakHyphen"
 	SubTypeSoftHyphen    = "openxml:softHyphen"
 	SubTypeCR            = "openxml:cr"
+	// SubTypeBidi tags a `<w:bidi>` element that appears as a DIRECT
+	// child of `<w:r>` (rather than its schema-correct position inside
+	// `<w:rPr>`). ECMA-376-1 §17.3.1.6 defines `<w:bidi>` as a CT_OnOff
+	// child of CT_RPr (run properties); however real-world authored
+	// .docx files (e.g. 899.docx) place it as a direct CT_R child
+	// between the `<w:r>` start tag and `<w:rPr>`. Upstream Okapi
+	// RunParser preserves it via the generic markup branch
+	// (RunParser.java:815 — `runBuilder.addToMarkup(e)`) and emits it
+	// alongside the run's text inside the same `<w:r>` envelope. We
+	// piggy-back on TypeRawRunMarkup with this subtype so the writer
+	// can leave the `<w:r>` open after emitting the bidi markup,
+	// allowing a following same-source-run text to fuse via the
+	// inRunNoText path. The element carries no children and has at
+	// most a `w:val` attribute (CT_OnOff).
+	SubTypeBidi = "openxml:bidi"
 	// SubTypeRevisionIns / SubTypeRevisionMoveTo distinguish the two
 	// element variants paired-coded by TypeRevisionIns. ECMA-376-1
 	// §17.13.5.16 (<w:ins> CT_RunTrackChange) and §17.13.5.25

@@ -3704,6 +3704,55 @@ func (p *wmlParser) parseRunWithFieldState(d *xml.Decoder, cfs *complexFieldStat
 					return nil, err
 				}
 
+			case "bidi":
+				// Per ECMA-376-1 \u00A717.3.1.6 (CT_OnOff bidi) \u2014 schema places
+				// `<w:bidi>` inside `<w:rPr>` (CT_RPr child), not as a
+				// direct `<w:r>` child. However real-world authored
+				// .docx files do place it as a DIRECT child of `<w:r>`,
+				// between the `<w:r>` start tag and `<w:rPr>`. Fixture
+				// 899.docx authors `<w:r><w:bidi w:val="0"/><w:rPr>
+				// <w:rtl w:val="0"/><w:lang w:val="en-US"/></w:rPr>
+				// <w:t>C11</w:t></w:r>`. Upstream Okapi RunParser
+				// handles this via the generic markup fall-through
+				// (RunParser.java:815 \u2014 `runBuilder.addToMarkup(e)`):
+				// the bidi element survives as Markup inside the
+				// containing RunBuilder's `<w:r>` envelope, emerging
+				// alongside the run's `<w:t>` text under one shared
+				// (post-strip) `<w:rPr>`.
+				//
+				// Without this case the default branch silently
+				// skipElement-s the `<w:bidi>` and the writer loses
+				// the marker entirely. We piggy-back on the U+E10D
+				// raw-run-markup sentinel (TypeRawRunMarkup) and tag
+				// the Ph with SubTypeBidi so the writer's
+				// TypeRawRunMarkup branch can recognise it and leave
+				// the `<w:r>` open (inRunNoText=true) \u2014 the following
+				// same-source-run text then fuses inside the same
+				// envelope via the writer's existing inRunNoText
+				// branch. Per ECMA-376-1 \u00A717.3.2.1 (CT_R) a single
+				// `<w:r>` may carry multiple body children alongside
+				// one shared `<w:rPr>`; preserving the bidi as a
+				// direct child rather than relocating it into the
+				// rPr matches upstream Okapi's verbatim markup
+				// preservation.
+				//
+				// CT_OnOff carries at most a single `w:val` attribute.
+				// We capture the full start element raw (including
+				// the attribute) so 1 vs 0 vs absent are all round-
+				// tripped exactly. The element has no children per
+				// the CT_OnOff schema.
+				bidiRaw := startElementToRaw(t)
+				if strings.HasSuffix(bidiRaw, ">") {
+					bidiRaw = bidiRaw[:len(bidiRaw)-1] + "/>"
+				}
+				if rawCaptured {
+					rawBuf.WriteString(bidiRaw)
+				}
+				runs = append(runs, textRun{text: "\uE10D:" + bidiRaw, props: props})
+				if err := skipElement(d); err != nil {
+					return nil, err
+				}
+
 			case "drawing", "pict", "object":
 				// Capture the full element verbatim so the writer can
 				// restore the original markup (drawings, OLE objects,
@@ -4676,6 +4725,14 @@ func (p *wmlParser) buildBlock(id string, runs []textRun, partPath, commonRPrXML
 				subType = SubTypeSoftHyphen
 			case strings.Contains(rawXML, "cr"):
 				subType = SubTypeCR
+			case strings.Contains(rawXML, "bidi"):
+				// `<w:bidi>` as direct `<w:r>` child (899.docx). See
+				// SubTypeBidi doc + the reader's `case "bidi":` in
+				// parseRunWithFieldState for the upstream-Okapi
+				// citation. The writer's TypeRawRunMarkup branch
+				// keys on this subtype to leave the `<w:r>` open for
+				// the following same-source-run text to fuse into.
+				subType = SubTypeBidi
 			}
 			// When the paragraph has no common rPr (heterogeneous
 			// rPr across text runs \u2192 commonRPrXML is empty) AND this

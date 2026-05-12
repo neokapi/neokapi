@@ -3471,7 +3471,8 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 			case TypeRawRunMarkup:
 				// Raw run-child markup chunk (<w:noBreakHyphen/> per
 				// ECMA-376-1 §17.3.3.18, <w:softHyphen/> per §17.3.3.30,
-				// <w:cr/> per §17.3.3.4). The Ph.Data field holds the
+				// <w:cr/> per §17.3.3.4, schema-misplaced <w:bidi>
+				// per §17.3.1.6+§17.3.2.1). The Ph.Data field holds the
 				// literal element XML; wrap it in a <w:r> with the
 				// surrounding paragraph's source rPr context
 				// (sourceRPr + active toggles in runProps) so the markup
@@ -3498,15 +3499,20 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 				// has no content of its own and inherits the
 				// containing <w:r>'s rPr context.
 				//
-				// Mirror the SubTypeBreakStandalone path: leave the
-				// <w:r> OPEN (inRunNoText=true) so the next text run
-				// joins it via the existing inRunNoText branch above.
-				// Same rPr-equality guard applies: the text fuses only
-				// when its effectiveRPr matches the open run's rPr
-				// (inRunNoTextRPr || sourceRPr). Fixture: MissingPara.
-				// docx — the bridge reference has multiple
-				// `<w:r><w:cr/><w:t>...</w:t></w:r>` envelopes that
-				// must round-trip as one <w:r> each.
+				// SubTypeBidi is the schema-misplaced `<w:bidi>` that
+				// appears as a DIRECT child of `<w:r>` (between `<w:r>`
+				// start and `<w:rPr>`). Upstream Okapi RunParser
+				// preserves it via runBuilder.addToMarkup
+				// (RunParser.java:815) and emits it alongside the run's
+				// text inside the same `<w:r>` envelope. Fixture:
+				// 899.docx.
+				//
+				// Both subtypes leave the `<w:r>` OPEN
+				// (inRunNoText=true) so the next text run joins via
+				// the existing inRunNoText branch above. Same
+				// rPr-equality guard applies: the text fuses only when
+				// its effectiveRPr matches the open run's rPr
+				// (inRunNoTextRPr || sourceRPr).
 				if r.Ph.SubType == SubTypeCR &&
 					runIdx+1 < len(runs) && runs[runIdx+1].Text != nil &&
 					!textSrcStart(textRunIdx+1) {
@@ -3537,7 +3543,16 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 					}
 					continue
 				}
-				if sourceRPr != "" || runProps != "" {
+				if r.Ph.SubType == SubTypeBidi {
+					if sourceRPr != "" || runProps != "" {
+						buf.WriteString(`<w:r>`)
+						emitNonTextRPr()
+						buf.WriteString(r.Ph.Data)
+					} else {
+						buf.WriteString(`<w:r>` + r.Ph.Data)
+					}
+					inRunNoText = true
+				} else if sourceRPr != "" || runProps != "" {
 					buf.WriteString(`<w:r>`)
 					emitNonTextRPr()
 					buf.WriteString(r.Ph.Data + `</w:r>`)
