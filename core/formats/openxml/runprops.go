@@ -9,8 +9,23 @@ import (
 
 // runProps holds normalized run properties extracted from <w:rPr>.
 type runProps struct {
-	bold      bool
-	italic    bool
+	bold bool
+	// boldXML preserves the source serialisation of an explicit-on
+	// `<w:b ...>` toggle (e.g. `<w:b w:val="1"/>`). Empty means the
+	// source authored the bare on-form `<w:b/>` (or the run has no
+	// bold). Per ECMA-376-1 §17.3.2.1 (CT_OnOff <w:b>) the bare
+	// element and val="1"/"true"/"on" are equivalent ON states, but
+	// upstream Okapi preserves the source form across the
+	// round-trip (RunProperties.minified() retains the captured
+	// RunProperty's exact QName + attributes; RunProperties.java:
+	// 497-540). 830-2.docx and 830-6.docx are the canonical
+	// fixtures: hyperlink-display runs author `<w:b w:val="1"/>`,
+	// reference output preserves it.
+	boldXML string
+	italic  bool
+	// italicXML mirrors boldXML for <w:i> per ECMA-376-1 §17.3.2.13
+	// (CT_OnOff <w:i>).
+	italicXML string
 	underline string // "single", "double", etc. — empty means none
 	strike    bool
 	vertAlign string // "superscript", "subscript", or ""
@@ -495,6 +510,26 @@ func (rp runProps) isEmpty() bool {
 		!rp.strike && rp.vertAlign == "" && !rp.vanish
 }
 
+// boldOnXML returns the rPr child serialisation to emit for an
+// ON-state bold toggle: the source's preserved explicit-on form when
+// captured (e.g. `<w:b w:val="1"/>`), otherwise the canonical bare
+// `<w:b/>`. ECMA-376-1 §17.3.2.1 (CT_OnOff <w:b>) treats the bare
+// element and val="1"/"true"/"on" as equivalent ON states.
+func boldOnXML(rp runProps) string {
+	if rp.boldXML != "" {
+		return rp.boldXML
+	}
+	return "<w:b/>"
+}
+
+// italicOnXML mirrors boldOnXML for `<w:i>`. ECMA-376-1 §17.3.2.13.
+func italicOnXML(rp runProps) string {
+	if rp.italicXML != "" {
+		return rp.italicXML
+	}
+	return "<w:i/>"
+}
+
 // appendOpeningRuns emits PcOpen runs for this run's formatting.
 func (rp runProps) appendOpeningRuns(b *runBuilder, idCounter *int) {
 	emit := func(typ, subType, data string) {
@@ -502,10 +537,15 @@ func (rp runProps) appendOpeningRuns(b *runBuilder, idCounter *int) {
 		b.AddPcOpen(idStr(*idCounter), typ, subType, data, "", "", true, true, true)
 	}
 	if rp.bold {
-		emit(TypeBold, SubTypeBold, "<w:b/>")
+		// Use the captured explicit-on form (e.g.
+		// `<w:b w:val="1"/>`) when the source authored one;
+		// otherwise emit the canonical bare `<w:b/>`. ECMA-376-1
+		// §17.3.2.1 (CT_OnOff <w:b>).
+		emit(TypeBold, SubTypeBold, boldOnXML(rp))
 	}
 	if rp.italic {
-		emit(TypeItalic, SubTypeItalic, "<w:i/>")
+		// Same treatment as bold per ECMA-376-1 §17.3.2.13.
+		emit(TypeItalic, SubTypeItalic, italicOnXML(rp))
 	}
 	if rp.underline != "" {
 		emit(TypeUnderline, SubTypeUnderline, "<w:u w:val=\""+rp.underline+"\"/>")
@@ -706,7 +746,29 @@ func parseRunProps(d *xml.Decoder, aggressive bool, styleChainNames map[string]b
 					props.bold = false
 				} else {
 					props.bold = !hasAttrVal(t, "val", "0") && !hasAttrVal(t, "val", "false")
-					if err := skipElement(d); err != nil {
+					// Preserve the explicit-on form (e.g.
+					// `<w:b w:val="1"/>`) so the writer can re-emit
+					// the source authoring form. The bare `<w:b/>`
+					// is the canonical default and stays in
+					// boldXML="" so callers fall through to the
+					// fixed `<w:b/>` literal. Only capture when the
+					// element carried any attributes (rsid* etc are
+					// already pre-stripped by stripFieldRPrSkippables
+					// in the field-markup capture path; the
+					// translatable rPr path here sees a bare element
+					// without any rsids on a `<w:b/>` toggle in
+					// well-formed WPML). Per ECMA-376-1 §17.3.2.1
+					// (CT_OnOff <w:b>), val="1" / "true" / "on" are
+					// equivalent ON states; upstream Okapi preserves
+					// the source RunProperty's exact QName +
+					// attributes (RunProperties.java:497-540).
+					if props.bold && len(t.Attr) > 0 {
+						raw, err := serializeRPrChildElement(d, t)
+						if err != nil {
+							return props, err
+						}
+						props.boldXML = raw
+					} else if err := skipElement(d); err != nil {
 						return props, err
 					}
 				}
@@ -741,7 +803,17 @@ func parseRunProps(d *xml.Decoder, aggressive bool, styleChainNames map[string]b
 					props.italic = false
 				} else {
 					props.italic = !hasAttrVal(t, "val", "0") && !hasAttrVal(t, "val", "false")
-					if err := skipElement(d); err != nil {
+					// Mirror the bold path: capture the explicit-on
+					// form (e.g. `<w:i w:val="1"/>`) so the writer
+					// can re-emit the source's exact serialisation.
+					// ECMA-376-1 §17.3.2.13 (CT_OnOff <w:i>).
+					if props.italic && len(t.Attr) > 0 {
+						raw, err := serializeRPrChildElement(d, t)
+						if err != nil {
+							return props, err
+						}
+						props.italicXML = raw
+					} else if err := skipElement(d); err != nil {
 						return props, err
 					}
 				}

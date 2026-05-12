@@ -1959,6 +1959,16 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 	var inFieldEndRun bool
 	var fieldEndRPrEffective string
 	var runProps string
+	// toggleOpenForms tracks the source serialisation of each
+	// currently-open toggle (TypeBold → `<w:b w:val="1"/>` or
+	// `<w:b/>`, TypeItalic → `<w:i ...>`, etc.) so the matching
+	// PcClose can strip the same byte sequence from runProps. Per
+	// ECMA-376-1 §17.3.2.1 (CT_OnOff <w:b>) the bare element and
+	// val="1"/"true"/"on" are equivalent ON states, but upstream
+	// Okapi preserves the source form across the round-trip — this
+	// map carries the per-PcOpen Data string through to the
+	// matching PcClose so the writer can do the same.
+	toggleOpenForms := map[string]string{}
 	textRunIdx := -1 // pre-increment on each new <w:r> for r.Text
 
 	closeRun := func() {
@@ -2179,9 +2189,13 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 				// next text emits with the updated rPr — mirrors
 				// upstream Okapi RunMerger.canRunPropertiesBeMerged
 				// (RunMerger.java lines 156-229), which prevents
-				// merging across rPr boundaries.
+				// merging across rPr boundaries. PcOpen.Data carries
+				// the source serialisation of the toggle (e.g.
+				// `<w:b w:val="1"/>` vs the canonical bare
+				// `<w:b/>`); track it on toggleOpenForms so the
+				// matching PcClose can strip the same form on close.
 				closeRun()
-				runProps = w.addWMLProp(runProps, r.PcOpen.Type)
+				runProps = w.addWMLPropForm(runProps, r.PcOpen.Type, r.PcOpen.Data, toggleOpenForms)
 			}
 
 		case r.PcClose != nil:
@@ -2190,7 +2204,7 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 				buf.WriteString(r.PcClose.Data)
 			} else {
 				closeRun()
-				runProps = w.removeWMLProp(runProps, r.PcClose.Type)
+				runProps = w.removeWMLPropForm(runProps, r.PcClose.Type, toggleOpenForms)
 			}
 
 		case r.Ph != nil:
@@ -2581,6 +2595,13 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 				// 768.docx, 768-2.docx.
 				if info := detectFldCharEndForMerge(r.Ph.Data); info.ok && isExtractableFldCharEndRun(runs, runIdx) {
 					anticipatedRunProps := runProps
+					// Clone toggleOpenForms so the speculative
+					// add/remove pass doesn't mutate live state used
+					// by the outer PcOpen / PcClose branches.
+					anticipatedOpens := make(map[string]string, len(toggleOpenForms))
+					for k, v := range toggleOpenForms {
+						anticipatedOpens[k] = v
+					}
 					nextTextAt := -1
 					mergeable := true
 					for j := runIdx + 1; j < len(runs); j++ {
@@ -2592,14 +2613,14 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 							if nr.PcOpen.Type == TypeHyperlink || nr.PcOpen.Type == TypeSmartTag || nr.PcOpen.Type == TypeRevisionIns || nr.PcOpen.Type == TypeSDT {
 								mergeable = false
 							} else {
-								anticipatedRunProps = w.addWMLProp(anticipatedRunProps, nr.PcOpen.Type)
+								anticipatedRunProps = w.addWMLPropForm(anticipatedRunProps, nr.PcOpen.Type, nr.PcOpen.Data, anticipatedOpens)
 								continue
 							}
 						case nr.PcClose != nil:
 							if nr.PcClose.Type == TypeHyperlink || nr.PcClose.Type == TypeSmartTag || nr.PcClose.Type == TypeRevisionIns || nr.PcClose.Type == TypeSDT {
 								mergeable = false
 							} else {
-								anticipatedRunProps = w.removeWMLProp(anticipatedRunProps, nr.PcClose.Type)
+								anticipatedRunProps = w.removeWMLPropForm(anticipatedRunProps, nr.PcClose.Type, anticipatedOpens)
 								continue
 							}
 						default:
@@ -2622,6 +2643,7 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 							inFieldEndRun = true
 							fieldEndRPrEffective = info.rprChildren
 							runProps = anticipatedRunProps
+							toggleOpenForms = anticipatedOpens
 							runIdx = nextTextAt - 1
 							continue
 						}
@@ -2674,6 +2696,50 @@ func (w *Writer) removeWMLProp(current, spanType string) string {
 		return strings.ReplaceAll(current, `<w:vertAlign w:val="subscript"/>`, "")
 	}
 	return current
+}
+
+// addWMLPropForm appends the source-preserving toggle serialisation
+// for spanType to current and stashes that form in opens so the
+// matching close can strip the same byte sequence. data is the
+// PcOpen.Data captured by appendOpeningRuns: the bare element form
+// (`<w:b/>`) when the source authored it, or the explicit-on form
+// (`<w:b w:val="1"/>`) when the source carried `val="1"` /
+// `val="true"` / `val="on"`. data="" or any non-toggle spanType
+// falls back to addWMLProp's hardcoded canonical form to preserve
+// the legacy code path for non-bold/italic toggles.
+//
+// Per ECMA-376-1 §17.3.2.1 (CT_OnOff <w:b>) and §17.3.2.13
+// (CT_OnOff <w:i>) the bare element and val="1"/"true"/"on" are
+// equivalent ON states, but upstream Okapi preserves the source
+// form across the round-trip (RunProperties.minified() retains the
+// captured RunProperty's exact QName + attributes;
+// RunProperties.java:497-540). 830-2.docx and 830-6.docx are the
+// canonical fixtures.
+func (w *Writer) addWMLPropForm(current, spanType, data string, opens map[string]string) string {
+	switch spanType {
+	case TypeBold, TypeItalic:
+		form := data
+		if form == "" {
+			form = w.addWMLProp("", spanType)
+		}
+		opens[spanType] = form
+		return current + form
+	}
+	return w.addWMLProp(current, spanType)
+}
+
+// removeWMLPropForm strips the toggle form previously stashed by
+// addWMLPropForm (or, when no captured form is present, falls back
+// to removeWMLProp's hardcoded canonical form).
+func (w *Writer) removeWMLPropForm(current, spanType string, opens map[string]string) string {
+	switch spanType {
+	case TypeBold, TypeItalic:
+		if form, ok := opens[spanType]; ok && form != "" {
+			delete(opens, spanType)
+			return strings.ReplaceAll(current, form, "")
+		}
+	}
+	return w.removeWMLProp(current, spanType)
 }
 
 // dmlRunPropertyStartTagRE matches the start tag of a DrawingML

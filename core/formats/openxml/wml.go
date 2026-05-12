@@ -3206,10 +3206,10 @@ func serializeFullRPrXML(p runProps) string {
 	var b strings.Builder
 	b.WriteString("<w:rPr>")
 	if p.bold {
-		b.WriteString("<w:b/>")
+		b.WriteString(boldOnXML(p))
 	}
 	if p.italic {
-		b.WriteString("<w:i/>")
+		b.WriteString(italicOnXML(p))
 	}
 	if p.underline != "" {
 		b.WriteString(`<w:u w:val="` + p.underline + `"/>`)
