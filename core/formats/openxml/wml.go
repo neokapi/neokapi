@@ -3394,8 +3394,11 @@ func (p *wmlParser) buildBlock(id string, runs []textRun, partPath, commonRPrXML
 			// the source rPr context.
 			rawXML := strings.TrimPrefix(run.text, "\uE10D:")
 			subType := SubTypeNoBreakHyphen
-			if strings.Contains(rawXML, "softHyphen") {
+			switch {
+			case strings.Contains(rawXML, "softHyphen"):
 				subType = SubTypeSoftHyphen
+			case strings.Contains(rawXML, "cr"):
+				subType = SubTypeCR
 			}
 			spanCounter++
 			b.AddPh(fmt.Sprintf("c%d", spanCounter),

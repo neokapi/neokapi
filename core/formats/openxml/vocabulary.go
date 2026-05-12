@@ -143,13 +143,14 @@ const (
 	// SubTypeFieldSimple tags a captured <w:fldSimple> element.
 	SubTypeFieldChar   = "openxml:fldChar"
 	SubTypeFieldSimple = "openxml:fldSimple"
-	// SubTypeNoBreakHyphen / SubTypeSoftHyphen identify the two
-	// CT_Empty hyphen run-children covered by TypeRawRunMarkup
-	// (ECMA-376-1 §17.3.3.18 and §17.3.3.30 respectively). Stored on
+	// SubTypeNoBreakHyphen / SubTypeSoftHyphen / SubTypeCR identify the
+	// CT_Empty run-children covered by TypeRawRunMarkup (ECMA-376-1
+	// §17.3.3.18, §17.3.3.30, and §17.3.3.4 respectively). Stored on
 	// the Ph so future writers can branch on the specific element type
 	// without re-parsing Ph.Data.
 	SubTypeNoBreakHyphen = "openxml:noBreakHyphen"
 	SubTypeSoftHyphen    = "openxml:softHyphen"
+	SubTypeCR            = "openxml:cr"
 	// SubTypeRevisionIns / SubTypeRevisionMoveTo distinguish the two
 	// element variants paired-coded by TypeRevisionIns. ECMA-376-1
 	// §17.13.5.16 (<w:ins> CT_RunTrackChange) and §17.13.5.25
