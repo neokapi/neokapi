@@ -448,7 +448,43 @@ func parseStyles(zr *zip.Reader) *styleMap {
 			// upstream Okapi's preCombined view exposes by name.
 			if inRPr && t.Name.Local != "rPr" {
 				if dst := rPrChildNameTarget(); dst != nil {
+					// Mirror upstream Okapi's resolved-chain semantics:
+					// a WPML toggle authored in explicit-off form
+					// (val="0"/"false"/"off") collapses to OFF in the
+					// resolved style — it does NOT contribute the
+					// toggle's name to the preCombined view a downstream
+					// run's minified() would see. Per ECMA-376-1
+					// §17.3.2 (CT_OnOff): explicit-off authoring is
+					// equivalent to omission, so the chain entry adds
+					// no override-by-name to inheritors.
+					//
+					// Without this guard, lang.docx's `editform`
+					// character style — which authors `<w:specVanish
+					// w:val="0"/>` and `<w:webHidden w:val="0"/>` —
+					// would mark `specVanish`/`webHidden` as chain
+					// names; minifyRPrChildren would then PRESERVE the
+					// per-run `<w:specVanish w:val="0"/>` clearing
+					// override (treating chain-by-name as a hint that
+					// the parent toggle is on), diverging from
+					// upstream Okapi which treats both halves as
+					// no-op and drops the run-level redundant entry.
+					//
+					// `vanish` itself stays in the chain set
+					// unconditionally (it has no clearing-form variant
+					// here — `<w:vanish/>` is the bare-on form), so the
+					// late stripExplicitOffVanish branch in wml.go
+					// continues to work for fixtures that author bare-
+					// on vanish in their style chain.
+					if wpmlToggleNames[t.Name.Local] {
+						off := hasAttrVal(t, "val", "0") ||
+							hasAttrVal(t, "val", "false") ||
+							hasAttrVal(t, "val", "off")
+						if off {
+							goto afterRPrChildName
+						}
+					}
 					(*dst)[t.Name.Local] = true
+				afterRPrChildName:
 				}
 			}
 			switch t.Name.Local {
