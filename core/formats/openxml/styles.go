@@ -517,26 +517,51 @@ func parseStyles(zr *zip.Reader) *styleMap {
 			// upstream Okapi's preCombined view exposes by name.
 			if inRPr && t.Name.Local != "rPr" {
 				if dst := rPrChildNameTarget(); dst != nil {
-					// Mirror upstream Okapi's resolved-chain semantics:
-					// a WPML toggle authored in explicit-off form
-					// (val="0"/"false"/"off") collapses to OFF in the
-					// resolved style — it does NOT contribute the
-					// toggle's name to the preCombined view a downstream
-					// run's minified() would see. Per ECMA-376-1
-					// §17.3.2 (CT_OnOff): explicit-off authoring is
-					// equivalent to omission, so the chain entry adds
-					// no override-by-name to inheritors.
+					// Suppression rule for explicit-off WPML toggles
+					// in NAMED STYLE rPrs only.
 					//
-					// Without this guard, lang.docx's `editform`
-					// character style — which authors `<w:specVanish
-					// w:val="0"/>` and `<w:webHidden w:val="0"/>` —
-					// would mark `specVanish`/`webHidden` as chain
-					// names; minifyRPrChildren would then PRESERVE the
-					// per-run `<w:specVanish w:val="0"/>` clearing
-					// override (treating chain-by-name as a hint that
-					// the parent toggle is on), diverging from
-					// upstream Okapi which treats both halves as
-					// no-op and drops the run-level redundant entry.
+					// Mirror upstream Okapi's effective behaviour:
+					// when a named style (e.g. character style
+					// `editform`) authors `<w:specVanish w:val="0"/>`
+					// AND a downstream run authors the same
+					// `<w:specVanish w:val="0"/>`, Java's
+					// RunProperties.minified() drops the run-level
+					// entry via the first branch
+					// (`preCombined.contains(p)` — full Property.equals
+					// match, RunProperties.java:497-540). Native has
+					// no chain-XML byte-equal compare for these
+					// non-typed toggle names, so we approximate the
+					// drop by NOT contributing the chain-by-name signal
+					// for explicit-off toggles authored on a style.
+					// The default-strip path in minifyRPrChildren then
+					// fires correctly. Fixture lang.docx is the
+					// canonical case (`editform` character style with
+					// explicit-off `specVanish`/`webHidden`).
+					//
+					// docDefaults DIFFER. Per
+					// WordStyleDefinitions.combinedRunProperties
+					// (WordStyleDefinitions.java:302-315), the
+					// documentDefaults always contribute their
+					// Property objects to preCombined. Java's
+					// `preCombined.contains(p.getName())` therefore
+					// returns true even when docDefaults authored the
+					// toggle in explicit-off form. So an off-form
+					// docDefaults toggle DOES contribute its name to
+					// the chain. Fixture 992.docx is the canonical
+					// case: docDefaults authors
+					// `<w:outline w:val="0"/>` and every text run
+					// authors `<w:outline w:val="false"/>`. The two
+					// XML serialisations are NOT byte-equal (val="0"
+					// vs val="false"), so Java's first branch
+					// (Property.equals) does NOT drop; the second
+					// branch — clearing-form &&
+					// !preCombined.contains(p.getName()) — also does
+					// NOT drop because docDefaults contributes
+					// "outline" by name. The per-run
+					// `<w:outline w:val="false"/>` survives upstream;
+					// native must preserve it too so the WSO
+					// commonProps lift carries outline into the
+					// synthesised style's rPr.
 					//
 					// `vanish` itself stays in the chain set
 					// unconditionally (it has no clearing-form variant
@@ -544,7 +569,7 @@ func parseStyles(zr *zip.Reader) *styleMap {
 					// late stripExplicitOffVanish branch in wml.go
 					// continues to work for fixtures that author bare-
 					// on vanish in their style chain.
-					if wpmlToggleNames[t.Name.Local] {
+					if inStyle && wpmlToggleNames[t.Name.Local] {
 						off := hasAttrVal(t, "val", "0") ||
 							hasAttrVal(t, "val", "false") ||
 							hasAttrVal(t, "val", "off")
