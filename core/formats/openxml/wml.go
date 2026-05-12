@@ -2811,6 +2811,52 @@ func (p *wmlParser) parseParagraph(d *xml.Decoder, partPath string, emitBlock fu
 					i := 0
 					for i < len(merged) {
 						r := merged[i]
+						// Same-source-`<w:r>` group: when the next
+						// merged run was emitted from the SAME source
+						// `<w:r>` as r (its `srcRunStart` is false),
+						// the source XML had multiple body children
+						// (e.g. `<mc:AlternateContent>` + `<w:drawing>`
+						// siblings) under one shared `<w:rPr>`. Per
+						// ECMA-376-1 §17.3.2.1 (CT_R) a single `<w:r>`
+						// may carry any combination of run children,
+						// and upstream Okapi RunBuilder
+						// (RunBuilder.java:73-188) materialises the
+						// source `<w:r>` body chunks in order under one
+						// envelope. Without this branch the output
+						// splits the source `<w:r>` into N envelopes
+						// (one per child) and the AC/drawing pair
+						// loses its shared run boundary
+						// (992.docx header1.xml canonical case: source
+						// `<w:r><w:rPr/><mc:AlternateContent/>
+						// <w:drawing/></w:r>` was being emitted as
+						// `<w:r><AC/></w:r><w:r><drawing/></w:r>`).
+						//
+						// Both runs must be opaque sentinels ()
+						// so we can splice their payloads safely;
+						// non-opaque follower runs fall through to the
+						// per-run path below.
+						if isRunLevelOpaque(r) {
+							j := i + 1
+							for j < len(merged) {
+								if merged[j].srcRunStart {
+									break
+								}
+								if !isRunLevelOpaque(merged[j]) {
+									break
+								}
+								j++
+							}
+							if j > i+1 {
+								open, close := splitRunWrapper(r)
+								p.skelText(open)
+								for k := i; k < j; k++ {
+									p.writeDrawingXMLToSkel(merged[k].data, partPath, emitBlock)
+								}
+								p.skelText(close)
+								i = j
+								continue
+							}
+						}
 						if !isFusableDrawingRun(r) {
 							p.writeRunToSkel(r, partPath, emitBlock)
 							i++
@@ -5738,6 +5784,23 @@ func isEmptyTextPlaceholder(r textRun) bool {
 		return false
 	}
 	return true
+}
+
+// isRunLevelOpaque reports whether r is a run-level opaque sentinel
+// (`` carrier) with a captured XML payload — i.e. a drawing,
+// pict, object, mc:AlternateContent, or ruby element extracted by
+// parseRun. Used by the same-source-`<w:r>` grouping path in
+// parseParagraph to splice multiple opaque body children of one source
+// `<w:r>` back under a single envelope (992.docx canonical case:
+// `<w:r><mc:AlternateContent/><w:drawing/></w:r>`). Paragraph-level
+// opaque sentinels (`` for math / paragraph-level
+// mc:AlternateContent) are excluded — those are direct `<w:p>`
+// children and never share a `<w:r>` envelope.
+func isRunLevelOpaque(r textRun) bool {
+	if !strings.HasPrefix(r.text, "") {
+		return false
+	}
+	return r.data != ""
 }
 
 // isFusableDrawingRun reports whether r is an opaque drawing-bearing
