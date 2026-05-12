@@ -91,6 +91,16 @@ const (
 	relTypeChartStrict       = "http://purl.oclc.org/ooxml/officeDocument/relationships/chart"
 	relTypeDiagramData       = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/diagramData"
 	relTypeDiagramDataStrict = "http://purl.oclc.org/ooxml/officeDocument/relationships/diagramData"
+	// Glossary document — a parallel WordprocessingML package containing
+	// AutoText/building-block entries (ECMA-376 Part 1 §17.12.7). The
+	// translatable content is the building-block run text inside
+	// <w:docParts><w:docPart><w:docPartBody>. Okapi's WordDocument.java
+	// adds /glossaryDocument to its styled-text-part set, so the same
+	// reader path handles it — see GLOSSARY_DOCUMENT relationship in
+	// WordDocument.java line 100-107 and isGlossaryStyledTextPart at
+	// line 208-211.
+	relTypeGlossaryDocument       = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/glossaryDocument"
+	relTypeGlossaryDocumentStrict = "http://purl.oclc.org/ooxml/officeDocument/relationships/glossaryDocument"
 )
 
 // parseContainer analyzes the ZIP archive and returns container metadata.
@@ -280,7 +290,7 @@ func buildDOCXParts(info *containerInfo, cfg *Config) []string {
 
 	// Collect parts by type
 	var headers, footers []string
-	var footnotes, endnotes, comments string
+	var footnotes, endnotes, comments, glossary string
 
 	for _, rel := range docRels {
 		target := rel.Target
@@ -309,6 +319,17 @@ func buildDOCXParts(info *containerInfo, cfg *Config) []string {
 			if cfg.TranslateComments {
 				comments = target
 			}
+		case relTypeGlossaryDocument, relTypeGlossaryDocumentStrict:
+			// Glossary part contains AutoText/building-block runs
+			// (ECMA-376-1 §17.12.7); Okapi's WordDocument treats it
+			// as just another styled-text part — see Practice2.docx
+			// glossary/document.xml `[Type text]` placeholder. The
+			// glossary target is a *subdirectory*-relative path
+			// (e.g. `glossary/document.xml`), so the naive
+			// `!strings.Contains(target, "/")` prefix branch above
+			// won't apply mainDir. Use resolveRelTarget which honors
+			// the rels file path for sibling-of-_rels resolution.
+			glossary = resolveRelTarget(relsPath, rel.Target)
 		}
 	}
 
@@ -326,6 +347,9 @@ func buildDOCXParts(info *containerInfo, cfg *Config) []string {
 	}
 	if comments != "" {
 		parts = append(parts, comments)
+	}
+	if glossary != "" {
+		parts = append(parts, glossary)
 	}
 
 	// Chart and diagram parts. These contain DrawingML <a:p> paragraphs
