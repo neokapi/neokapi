@@ -3400,7 +3400,28 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 					text = textRunTexts[textRunIdx]
 				}
 				adjSrc := adjustRPrForRunText(sourceRPr, text)
-				if curRPr == adjSrc {
+				// Also accept inline when the Ph carries an embedded
+				// source-`<w:r>` rPr (encoded as a `<w:rPr>...</w:rPr>`
+				// prefix on Ph.Data) and that rPr matches the open run's
+				// effective rPr. This covers the per-source-`<w:r>` tab/br
+				// case where the paragraph-common sourceRPr is empty (so
+				// adjSrc=="" diverges from the open run's perRun rPr).
+				// Reader-side: wml.go buildBlock's TypeTab and TypeBreak
+				// branches prepend `serializeFullRPrXML(run.props)` to
+				// Ph.Data when the tab/br carried per-run rPr. Mirrors
+				// upstream Okapi RunMerger.canRunPropertiesBeMerged
+				// (RunMerger.java:156-229) which fuses adjacent same-rPr
+				// source `<w:r>` envelopes — tab-bearing or text-bearing —
+				// into one RunBuilder. AlternateContentTest.docx footer1
+				// is the canonical fixture (FontStyle18-only after WSO,
+				// per-run sidecar on the text vs empty paragraph-common).
+				embeddedTabRPr := ""
+				if r.Ph.Type == TypeTab && strings.HasPrefix(r.Ph.Data, "<w:rPr>") {
+					if end := strings.Index(r.Ph.Data, "</w:rPr>"); end >= 0 {
+						embeddedTabRPr = r.Ph.Data[len("<w:rPr>"):end]
+					}
+				}
+				if curRPr == adjSrc || (embeddedTabRPr != "" && curRPr == embeddedTabRPr) {
 					// If the previous tab/br already opened a speculative
 					// <w:t> via pendingTReopen and no character data has
 					// landed inside it (the buffer still ends with the
@@ -3985,6 +4006,19 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 						inheritedNextRPr = nextRPr
 					}
 				}
+				// Extract embedded source-rPr from Ph.Data, if any. Reader
+				// embeds `<w:rPr>...</w:rPr><w:tab/>` when the source
+				// `<w:r>` carried per-run rPr; the writer uses this as the
+				// fallback rPr when no surrounding context drove an
+				// inherited rPr. Mirrors upstream Okapi RunMerger which
+				// preserves the tab's source `<w:r>` rPr when fusion
+				// doesn't apply.
+				embeddedTabRPr := ""
+				if strings.HasPrefix(r.Ph.Data, "<w:rPr>") {
+					if end := strings.Index(r.Ph.Data, "</w:rPr>"); end >= 0 {
+						embeddedTabRPr = r.Ph.Data[len("<w:rPr>"):end]
+					}
+				}
 				if r.Ph.SubType == SubTypeTabStandalone {
 					buf.WriteString(`<w:r>`)
 					emitNonTextRPr()
@@ -3996,6 +4030,22 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 					buf.WriteString(`</w:rPr><w:tab/>`)
 					inRunNoText = true
 					inRunNoTextRPr = inheritedNextRPr
+				} else if embeddedTabRPr != "" && sourceRPr == "" && runProps == "" {
+					// Reader supplied the source `<w:r>`'s rPr; prefer it
+					// over the empty paragraph-common rPr so the tab's
+					// envelope round-trips its source styling. WSO has
+					// already stripped redundant children at the model
+					// layer, so the embedded fragment is what the bridge
+					// would emit.
+					buf.WriteString(`<w:r><w:rPr>`)
+					buf.WriteString(embeddedTabRPr)
+					buf.WriteString(`</w:rPr><w:tab/>`)
+					if keepOpen {
+						inRunNoText = true
+						inRunNoTextRPr = embeddedTabRPr
+					} else {
+						buf.WriteString(`</w:r>`)
+					}
 				} else if sourceRPr != "" || runProps != "" {
 					buf.WriteString(`<w:r>`)
 					emitNonTextRPr()

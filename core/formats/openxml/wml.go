@@ -4611,10 +4611,34 @@ func (p *wmlParser) buildBlock(id string, runs []textRun, partPath, commonRPrXML
 				activeProps.appendClosingRuns(b, &spanCounter)
 				activeProps = nil
 			}
+			// Embed the source <w:r>'s rPr into the Ph.Data so the writer
+			// can inline this tab into a preceding text run when their
+			// source-rPrs match. Without this, a `<w:r>{X}<w:t>foo</w:t></w:r>
+			// <w:r>{X}<w:tab/></w:r>` source sequence (separate source <w:r>s
+			// with identical rPr X) splits at the writer because the tab Ph
+			// has no per-run sidecar slot, so the writer's inline gate
+			// (curRPr == adjustRPrForRunText(sourceRPr,text)) falls back to
+			// comparing against the paragraph-common rPr (empty when the
+			// paragraph's runs vary) and refuses the inline. Mirrors
+			// upstream Okapi RunMerger (RunMerger.java:156-229) which
+			// fuses adjacent same-rPr source <w:r> envelopes \u2014 tab-bearing
+			// or text-bearing \u2014 into one RunBuilder with both <w:t> and
+			// <w:tab/> body chunks under the shared rPr. Per ECMA-376-1
+			// \u00A717.3.2.1 (CT_R) a single <w:r> may carry multiple <w:tab/>
+			// children alongside <w:t> children under one shared rPr.
+			// AlternateContentTest.docx footer1 is the canonical fixture:
+			// `<w:r>{FontStyle18,lang}<w:t>46 70 82 19</w:t></w:r>
+			// <w:r>{FontStyle18,lang}<w:tab/></w:r>` round-trips as
+			// `<w:r>{FontStyle18}<w:tab/><w:t>...</w:t><w:tab/></w:r>`
+			// after WSO/lang strip.
+			tabData := "<w:tab/>"
+			if rPr := serializeFullRPrXML(run.props); rPr != "" {
+				tabData = rPr + tabData
+			}
 			spanCounter++
 			b.AddPh(fmt.Sprintf("c%d", spanCounter),
 				TypeTab, SubTypeTab,
-				"<w:tab/>", "\t", "",
+				tabData, "\t", "",
 				false, false, false)
 			continue
 		}
