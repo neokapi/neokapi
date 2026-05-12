@@ -13,10 +13,24 @@ docs.
 | Engine | Total | byte | canon | sem | div |
 |---|---:|---:|---:|---:|---:|
 | bridge (okapi-bridge) | 185 | 185 | 0 | 0 | 0 |
-| native (this package) | 185 | 0 | 115 | 0 | 70 |
+| native (this package) | 185 | 0 | 118 | 0 | 67 |
 
 ## Recently cleared
 
+- DML run-property strippable attributes (`lang`, `altLang`,
+  `dirty`, `smtClean`, `err`, `noProof`) are now scrubbed from
+  `<a:rPr>`/`<a:endParaRPr>`/`<a:defRPr>` start tags inside
+  `<a:p>` paragraph bodies of captured `<w:drawing>` payloads.
+  The strip is scoped to paragraph blocks (matching upstream
+  Okapi's `BlockParser` / `RunParser` /
+  `ParagraphBlockProperties.refine` invocation contexts) so
+  list-style and table-style `<a:defRPr>` defaults inside
+  `<a:lstStyle><a:defPPr>` are preserved verbatim. Mirrors
+  upstream Okapi's `StrippableAttributes.DrawingRunProperties`
+  (StrippableAttributes.java lines 67-100). Implemented in
+  `writer.go::stripDMLRunPropertyAttrs`, applied during the
+  WML post-skeleton flush in `postNonWSOForName`. Reduced
+  divergence on `DrawingML_Test.docx` and `Hidden_Textbox.docx`.
 - `AltContentEscaping.docx` — bare `<w:t>` inside `<mc:Choice>`
   now extracted via the new TEXT marker in
   `extractDrawingTranslations` (commit `397836ca`). The previous
