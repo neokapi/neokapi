@@ -725,11 +725,34 @@ func optimizeParagraph(
 	// the empty-rPr bypass. See runEntry.fieldContentRun for the
 	// upstream contract.
 	for _, e := range entries {
+		if e.fieldContentRun {
+			// Field-content runs (between fldChar=begin and matching
+			// fldChar=end) live as Markup/RunText body chunks of the
+			// OUTER field Run upstream — they are invisible to
+			// StyleOptimisation.innerChunksContainExclusions
+			// (StyleOptimisation.java:131-150), which iterates only
+			// Chunk-level Runs and RunContainers. The outer field Run's
+			// direct properties are what the exclusion check sees; an
+			// rStyle on a field-display run (e.g. <w:rStyle val=
+			// "Hyperlink"/> on the rendered link text of a HYPERLINK
+			// field) does NOT reach the exclusion gate upstream and so
+			// does NOT block the synthesis. Mirror that by skipping the
+			// excluded check for field-content runs — they still don't
+			// participate in commonRunPropertiesOf (per the
+			// fieldContentRun branch in the seed/intersection loop
+			// below) but they no longer veto the whole paragraph just
+			// because they happen to carry an excluded property.
+			//
+			// Fixture 1341-textbox-with-a-hyperlink.docx: textbox P1
+			// is a HYPERLINK field whose display-text run carries
+			// rStyle="Hyperlink"; upstream synthesises a Normal1 style
+			// from the outer field run's {b,bCs,sz,szCs} common rPr.
+			// Without this guard the rStyle on the inner display-text
+			// run triggers the bypass and native loses the pStyle.
+			continue
+		}
 		if e.excluded {
 			return src // bypass per StyleOptimisation.innerChunksContainExclusions
-		}
-		if e.fieldContentRun {
-			continue
 		}
 		if !e.hasRPr || len(e.props) == 0 {
 			return src
