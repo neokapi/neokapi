@@ -1587,6 +1587,7 @@ func (w *Writer) renderBlock(block *model.Block, dt docType) string {
 	perRunRPr := blockPerRunRPrFragments(block)
 	perRunSrcStart := blockPerRunSrcRunStartFlags(block)
 	perRunInFieldDisplay := blockPerRunInFieldDisplayFlags(block)
+	perRunSourceHadRPr := blockPerRunSourceHadRPrFlags(block)
 	// Cross-paragraph field straddle marker set by wml.go's
 	// flushPendingFieldBlock — see "openxml:field-straddle" property
 	// comment there. When true the writer mirrors upstream Okapi
@@ -1603,13 +1604,13 @@ func (w *Writer) renderBlock(block *model.Block, dt docType) string {
 
 	switch dt {
 	case docTypeDOCX:
-		return w.renderWMLBlock(runs, sourceRPr, perRunRPr, perRunSrcStart, perRunInFieldDisplay, fieldStraddle)
+		return w.renderWMLBlock(runs, sourceRPr, perRunRPr, perRunSrcStart, perRunInFieldDisplay, perRunSourceHadRPr, fieldStraddle)
 	case docTypePPTX:
 		return w.renderDMLBlock(runs)
 	case docTypeXLSX:
 		return w.renderSMLBlock(runs, block)
 	default:
-		return w.renderWMLBlock(runs, sourceRPr, perRunRPr, perRunSrcStart, perRunInFieldDisplay, fieldStraddle)
+		return w.renderWMLBlock(runs, sourceRPr, perRunRPr, perRunSrcStart, perRunInFieldDisplay, perRunSourceHadRPr, fieldStraddle)
 	}
 }
 
@@ -1728,6 +1729,31 @@ func blockPerRunInFieldDisplayFlags(block *model.Block) []bool {
 		return nil
 	}
 	a, ok := block.Annotations[openxmlPerRunInFieldDisplayAnnotationKey]
+	if !ok {
+		return nil
+	}
+	g, ok := a.(*model.GenericAnnotation)
+	if !ok || g == nil || g.Fields == nil {
+		return nil
+	}
+	v, ok := g.Fields["flags"].([]bool)
+	if !ok {
+		return nil
+	}
+	return v
+}
+
+// blockPerRunSourceHadRPrFlags extracts the per-text-run "source had
+// rPr" boolean sidecar from the block annotation populated by the WML
+// reader. See source_rpr.go openxmlPerRunSourceHadRPrAnnotationKey
+// for the contract.
+//
+// Returns nil when the annotation is absent.
+func blockPerRunSourceHadRPrFlags(block *model.Block) []bool {
+	if block == nil || block.Annotations == nil {
+		return nil
+	}
+	a, ok := block.Annotations[openxmlPerRunSourceHadRPrAnnotationKey]
 	if !ok {
 		return nil
 	}
@@ -1979,7 +2005,7 @@ func countTextRuns(runs []model.Run) int {
 // elements rather than collapsing to a single rPr-less <w:r>).
 //
 // Per ECMA-376-1 §17.3.2.
-func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []string, perRunSrcStart []bool, perRunInFieldDisplay []bool, fieldStraddle bool) string {
+func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []string, perRunSrcStart []bool, perRunInFieldDisplay []bool, perRunSourceHadRPr []bool, fieldStraddle bool) string {
 	// Alignment guard: the per-run sidecar is one fragment per
 	// text-bearing source run AFTER dedupe-on-collapse. The writer
 	// emits one <w:r> per text-bearing model.Run.Text. When the two
@@ -2006,6 +2032,10 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 	// writer would force-split runs at the wrong indices.
 	if len(perRunInFieldDisplay) != countTextRuns(runs) {
 		perRunInFieldDisplay = nil
+	}
+	// Same alignment guard for the sourceHadRPr sidecar.
+	if len(perRunSourceHadRPr) != countTextRuns(runs) {
+		perRunSourceHadRPr = nil
 	}
 
 	// textRunTexts holds the post-pseudo text per text-bearing model
@@ -2210,6 +2240,31 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 	emitRPr := func(idx int) {
 		base := effectiveRPr(idx)
 		if base == "" && runProps == "" {
+			// When the text run sits inside a cross-paragraph
+			// extractable field's display region AND the source `<w:r>`
+			// declared an `<w:rPr>` child (even if all of its children
+			// got stripped by RunSkippableElements), preserve an empty
+			// `<w:rPr></w:rPr>` wrapper. Mirrors upstream Okapi
+			// BlockTextUnitWriter.flush(Run.Markup) at lines 238-251 —
+			// the source rPr open/close events flow verbatim through
+			// the field's outer Run body chunks. The keep-empty marker
+			// guards the wrapper against the writer's
+			// stripWMLSkippableElements / wmlEmptyPropertiesContainerRE
+			// post-pass; postWML strips the marker before emit. Per
+			// ECMA-376-1 §17.3.2.1 (CT_R) an empty `<w:rPr>` is
+			// rendering-neutral but byte-distinguishable from an
+			// absent `<w:rPr>`. Fixture 1102.docx P4 runs:
+			// `<w:r><w:rPr><w:lang/></w:rPr><w:t>...</w:t></w:r>`
+			// source → `<w:r><w:rPr/><w:t>...</w:t></w:r>` after the
+			// lang strip. Excluded: runs whose source had NO rPr
+			// (e.g. 1172.docx P2's bare `<w:r><w:t>...</w:t></w:r>`)
+			// must emit without an rPr wrapper.
+			if idx >= 0 && idx < len(perRunInFieldDisplay) && perRunInFieldDisplay[idx] &&
+				idx < len(perRunSourceHadRPr) && perRunSourceHadRPr[idx] {
+				buf.WriteString(`<w:rPr>`)
+				buf.WriteString(fieldRPrKeepEmptyMarker)
+				buf.WriteString(`</w:rPr>`)
+			}
 			return
 		}
 		buf.WriteString(`<w:rPr>`)
@@ -3865,7 +3920,7 @@ func (w *Writer) expandDrawingMarkers(payload string) string {
 			return xmlEscapeAttr(model.FlattenRuns(runs))
 		case "PARA":
 			fieldStraddle := block.Properties != nil && block.Properties["openxml:field-straddle"] == "true"
-			return w.renderWMLBlock(runs, blockSourceRPrXML(block), blockPerRunRPrFragments(block), blockPerRunSrcRunStartFlags(block), blockPerRunInFieldDisplayFlags(block), fieldStraddle)
+			return w.renderWMLBlock(runs, blockSourceRPrXML(block), blockPerRunRPrFragments(block), blockPerRunSrcRunStartFlags(block), blockPerRunInFieldDisplayFlags(block), blockPerRunSourceHadRPrFlags(block), fieldStraddle)
 		case "TEXT":
 			// Character-data marker: emit xml-escaped text only,
 			// without the run/text-element wrapper. Used for bare

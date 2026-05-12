@@ -159,6 +159,38 @@ func perRunInFieldDisplayFlags(runs []textRun) []bool {
 	return out
 }
 
+// openxmlPerRunSourceHadRPrAnnotationKey is the model.Block.Annotations
+// map key under which the writer reads the per-text-run "the source
+// <w:r> declared a <w:rPr> child" boolean sidecar. Distinguishing
+// "rPr was absent in source" from "rPr was present but stripped empty"
+// matters when the run sits inside a cross-paragraph complex field's
+// display region — upstream Okapi preserves the source rPr wrapper
+// verbatim in that case (BlockTextUnitWriter.flush(Run.Markup) emits
+// the raw `<w:rPr>` start/end events from the outer Run's body chunks),
+// so the wire output carries `<w:rPr></w:rPr>` even when no rPr child
+// survived stripping.
+//
+// The annotation value is a model.GenericAnnotation with
+// Fields["flags"] holding a []bool aligned with perRunRPr fragments.
+const openxmlPerRunSourceHadRPrAnnotationKey = "openxml-per-run-source-had-rpr"
+
+// perRunSourceHadRPrFlags returns one bool per text-bearing source
+// run, aligned with perRunRPrFragments. Same filtering rule as
+// perRunRPrFragments (skip sentinels and "\n" line breaks).
+func perRunSourceHadRPrFlags(runs []textRun) []bool {
+	var out []bool
+	for _, r := range runs {
+		if isSentinel(r.text) {
+			continue
+		}
+		if r.text == "\n" {
+			continue
+		}
+		out = append(out, r.sourceHadRPr)
+	}
+	return out
+}
+
 // perRunRPrFragments returns one rPr-children XML fragment per
 // text-bearing source run in `runs`, in source order.
 //

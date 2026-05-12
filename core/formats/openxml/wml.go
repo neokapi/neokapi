@@ -104,6 +104,18 @@ type textRun struct {
 	// two hyperlink-and-* siblings) expose the " " + "with" boundary
 	// that must round-trip as two `<w:r>` shells, not one.
 	inFieldDisplay bool
+	// sourceHadRPr is true when the source `<w:r>` carried a `<w:rPr>`
+	// child element at parse time — regardless of whether any of its
+	// children survived the RunSkippableElements strip. Upstream Okapi's
+	// flush(Run.Markup) path (BlockTextUnitWriter.java:238-251) emits the
+	// raw `<w:rPr>` open/close events verbatim from the field's outer
+	// Run body chunks, so an originally-`<w:rPr><w:lang/></w:rPr>` shell
+	// surfaces as `<w:rPr></w:rPr>` after stripping. The flag lets the
+	// writer (writer.go emitRPr) emit a placeholder-empty wrapper for
+	// in-field-display runs whose source declared an rPr; runs that had
+	// NO source rPr (e.g. 1172.docx P2's bare `<w:r><w:t>...</w:t></w:r>`
+	// runs) stay without an rPr wrapper.
+	sourceHadRPr bool
 }
 
 // complexFieldState tracks the state machine for complex field (fldChar) parsing.
@@ -3353,7 +3365,6 @@ func (p *wmlParser) parseRunWithFieldState(d *xml.Decoder, cfs *complexFieldStat
 					writeElementName(&rawBuf, t.Name)
 					rawBuf.WriteString(">")
 				}
-				_ = hasProps
 				// Tag display-text runs inside an extractable complex
 				// field's result region so mergeRuns honours the
 				// source's per-<w:r> boundary. See textRun.inFieldDisplay
@@ -3363,7 +3374,7 @@ func (p *wmlParser) parseRunWithFieldState(d *xml.Decoder, cfs *complexFieldStat
 				// preserving the source `</w:r><w:r>` boundaries —
 				// they do NOT pass through RunMerger.canMergeWith).
 				inField := cfs.active && cfs.extractable && cfs.atResult
-				runs = append(runs, textRun{text: text, props: props, inFieldDisplay: inField})
+				runs = append(runs, textRun{text: text, props: props, inFieldDisplay: inField, sourceHadRPr: hasProps})
 
 			case "br":
 				// Capture the break element verbatim (including any
@@ -4887,6 +4898,28 @@ func (p *wmlParser) buildBlock(id string, runs []textRun, partPath, commonRPrXML
 			block.Annotations[openxmlPerRunInFieldDisplayAnnotationKey] = &model.GenericAnnotation{
 				Kind:   openxmlPerRunInFieldDisplayAnnotationKey,
 				Fields: map[string]any{"flags": perRunInFieldDisplay},
+			}
+		}
+	}
+
+	// Stash the per-text-run "source had rPr" boolean sidecar so the
+	// writer (emitRPr) can emit an empty `<w:rPr></w:rPr>` placeholder
+	// for in-field-display runs whose source declared an rPr even when
+	// nothing survived the strip pass. See
+	// openxmlPerRunSourceHadRPrAnnotationKey.
+	perRunSourceHadRPr := perRunSourceHadRPrFlags(runs)
+	if len(perRunSourceHadRPr) > 0 {
+		anyTrue := false
+		for _, f := range perRunSourceHadRPr {
+			if f {
+				anyTrue = true
+				break
+			}
+		}
+		if anyTrue {
+			block.Annotations[openxmlPerRunSourceHadRPrAnnotationKey] = &model.GenericAnnotation{
+				Kind:   openxmlPerRunSourceHadRPrAnnotationKey,
+				Fields: map[string]any{"flags": perRunSourceHadRPr},
 			}
 		}
 	}
