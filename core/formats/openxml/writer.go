@@ -2309,17 +2309,26 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 				// each source <w:r>'s br + text together in one
 				// envelope. 1421-line-break.docx is the canonical
 				// fixture (run 3: `<w:r><w:br/><w:t>…</w:t></w:r>`).
+				// Prefer Ph.Data (captured `<w:br ...>/>` with attrs)
+				// over the literal `<w:br/>` so w:type="page" /
+				// w:type="column" / w:clear survive. Per ECMA-376-1
+				// §17.3.3.1 (CT_Br) the type attribute distinguishes
+				// textWrap, page, and column break semantics.
+				brXMLBranch := r.Ph.Data
+				if brXMLBranch == "" {
+					brXMLBranch = "<w:br/>"
+				}
 				if r.Ph.SubType == SubTypeBreakStandalone {
 					buf.WriteString(`<w:r>`)
 					emitNonTextRPr()
-					buf.WriteString(`<w:br/>`)
+					buf.WriteString(brXMLBranch)
 					inRunNoText = true
 				} else if sourceRPr != "" || runProps != "" {
 					buf.WriteString(`<w:r>`)
 					emitNonTextRPr()
-					buf.WriteString(`<w:br/></w:r>`)
+					buf.WriteString(brXMLBranch + `</w:r>`)
 				} else {
-					buf.WriteString(`<w:r><w:br/></w:r>`)
+					buf.WriteString(`<w:r>` + brXMLBranch + `</w:r>`)
 				}
 			case TypeTab:
 				// Look ahead: if the NEXT model run is a Text whose
