@@ -3579,6 +3579,45 @@ func (p *wmlParser) parseRunWithFieldState(d *xml.Decoder, cfs *complexFieldStat
 					return nil, err
 				}
 
+			case "ptab":
+				// Per ECMA-376-1 §17.3.1.32 (CT_PTab) — a positional
+				// tab is a run-child element with attributes (alignment,
+				// relativeTo, leader) controlling rendering position
+				// relative to the page. Upstream Okapi RunParser routes
+				// `<w:ptab .../>` to runBuilder.addToMarkup
+				// (RunParser.java:752-766) so it survives the round-trip
+				// inside the same <w:r> as its rPr context.
+				//
+				// Without this case the default branch at the bottom of
+				// the dispatcher silently skipElement-s the <w:ptab/>,
+				// so the writer drops it on round-trip and the source-run
+				// envelope around it disappears (the surrounding text
+				// runs collapse into one). Fixture:
+				// OpenXML_text_reference_v1_2.docx — header1.xml authors
+				// `<w:r><w:t>Header left align</w:t></w:r><w:r>
+				// <w:ptab w:relativeTo="margin" w:alignment="center" .../>
+				// </w:r><w:r><w:t>Header center</w:t></w:r>` and reference
+				// output preserves both ptab elements between the text
+				// runs.
+				//
+				// We piggy-back on the U+E10D raw-run-markup sentinel
+				// (TypeRawRunMarkup in writer.go re-emits the captured
+				// XML inside its <w:r>). Unlike <w:cr/> / <w:tab/>, ptab
+				// carries attributes (relativeTo / alignment / leader), so
+				// we capture the full start-element raw rather than
+				// hard-coding a literal `<w:ptab/>`.
+				ptabRaw := startElementToRaw(t)
+				if strings.HasSuffix(ptabRaw, ">") {
+					ptabRaw = ptabRaw[:len(ptabRaw)-1] + "/>"
+				}
+				if rawCaptured {
+					rawBuf.WriteString(ptabRaw)
+				}
+				runs = append(runs, textRun{text: ":" + ptabRaw, props: props})
+				if err := skipElement(d); err != nil {
+					return nil, err
+				}
+
 			case "noBreakHyphen", "softHyphen":
 				// Per ECMA-376-1 \u00A717.3.3.18 (CT_Empty noBreakHyphen)
 				// and \u00A717.3.3.30 (CT_Empty softHyphen), these are
