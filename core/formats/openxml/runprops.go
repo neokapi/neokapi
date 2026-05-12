@@ -1133,6 +1133,147 @@ func vanishOnXML(rp runProps) string {
 	return "<w:vanish/>"
 }
 
+// fuseBareOnToggleMirrorPair moves a bare-on `<w:bCs/>` from rPrChildren
+// into boldXML (and similarly a bare-on `<w:iCs/>` into italicXML) when
+// the source rPr authored the bare-on toggle/mirror pair (`<w:b/>` +
+// `<w:bCs/>` or `<w:i/>` + `<w:iCs/>`) AND ALSO carries an `<w:rStyle>`
+// reference.
+//
+// Why: the per-run rPr sidecar path in writer.go runs the rPrChildren
+// fragment through adjustRPrForRunText → stripToggleMirrorChildren,
+// which removes `<w:bCs/>` / `<w:iCs/>` from a run whose text contains
+// no complex-script characters unless the rPr also carries the
+// explicit-off pair (`<w:b w:val="0"/>` + `<w:bCs w:val="0"/>`) or
+// docDefaults authors the explicit-off mirror.
+//
+// The strip's bare-on pair-on-rPr case is empirically correct for runs
+// WITHOUT an `<w:rStyle>` reference — upstream Okapi's
+// RunProperties.minified() drops bCs against an empty inherited chain
+// when the run carries no character style reference (BoldWorld.docx,
+// HelloWorld.docx, sample.docx, docxsegtest.docx all author `<w:b/>` +
+// `<w:bCs/>` on Latin text without an rStyle and bridge strips bCs
+// from the output).
+//
+// The strip is INCORRECT for runs that DO carry `<w:rStyle>` —
+// upstream preserves bCs because the run's bCs is asserted against
+// the character style's inherited chain (which may declare bCs via
+// the latent-style mechanism even when the style entry itself is
+// absent from styles.xml). The canonical case is fixture
+// 1341-textbox-with-a-hyperlink.docx where the hyperlink text run
+// authors `<w:rStyle w:val="Hyperlink"/><w:b/><w:bCs/><w:sz/><w:szCs/>`
+// and bridge keeps bCs in the round-trip output.
+//
+// The fix is to fuse the bare-on mirror INTO the bold/italic toggle's
+// captured serialisation, gated on the presence of `<w:rStyle>` in
+// rPrChildren. Specifically:
+//
+//	props.boldXML   = "<w:b/><w:bCs/>"    when source had <w:rStyle>+<w:b/>+<w:bCs/>
+//	props.italicXML = "<w:i/><w:iCs/>"    when source had <w:rStyle>+<w:i/>+<w:iCs/>
+//
+// The bCs/iCs entry is removed from rPrChildren in the same pass to
+// avoid double-emission. boldOnXML/italicOnXML now return the fused
+// form, which:
+//
+//   - serializeFullRPrXML (wml.go:4413) emits `<w:b/><w:bCs/>` in the
+//     bold slot, then iterates rPrChildren (no bCs) — single bCs in
+//     output.
+//   - writer.go's per-run rPr path (emitRPr) emits rPrChildren (no
+//     bCs) as `base`, runs adjustRPrForRunText (no-op since bCs
+//     absent), then appends runProps which carries the fused
+//     `<w:b/><w:bCs/>` from PcOpen.Data (addWMLPropForm stashes the
+//     form for the matching PcClose to strip atomically via
+//     ReplaceAll). bCs survives the strip and appears in output.
+//
+// References:
+//   - ECMA-376-1 §17.3.2.16 (CT_OnOff <w:bCs>) and §17.3.2.17 (CT_OnOff
+//     <w:iCs>): the bare element and val="1"/"true"/"on" are equivalent
+//     ON states; upstream preserves the source RunProperty's exact QName
+//     when the strip can't fire.
+//   - upstream Okapi RunProperties.minified() (RunProperties.java:497-540):
+//     when preCombined (paragraph style ∪ run style ∪ docDefaults) contains
+//     bCs (or, more precisely, doesn't agree on a strippable value), the
+//     run's bCs survives.
+//   - upstream Okapi RunParser.canBeSkipped (RunParser.java:240-250) —
+//     same logic for the strip path under cleanupAggressively=true.
+//   - Bowrain Issue #592 — per-run rPr preservation cluster.
+func fuseBareOnToggleMirrorPair(props *runProps) {
+	if props == nil {
+		return
+	}
+	// The fusion is conservative: it only applies when the source rPr
+	// also carries an `<w:rStyle>` reference. Without that signal the
+	// run's resolved style chain is just paragraph style + docDefaults
+	// and the bridge's minified() strip applies → keep matching the
+	// current (correct) behaviour for the BoldWorld-style cluster.
+	if !rPrChildrenContainName(props.rPrChildren, "rStyle") {
+		return
+	}
+	// Bold + bCs pair. Only fuse when:
+	//   - props.bold is true (the source carried a bare-on or explicit-on <w:b>),
+	//   - props.boldXML is empty (the source authored bare-on `<w:b/>`, not
+	//     an explicit-on form like `<w:b w:val="1"/>` — explicit-on forms
+	//     are emitted verbatim and we don't want to append bCs after attrs),
+	//   - rPrChildren contains a bare-on `<w:bCs/>` entry.
+	if props.bold && props.boldXML == "" {
+		if idx := indexOfBareOnRPrChild(props.rPrChildren, "bCs"); idx >= 0 {
+			props.boldXML = "<w:b/><w:bCs/>"
+			props.rPrChildren = removeRPrChildAt(props.rPrChildren, idx)
+		}
+	}
+	// Italic + iCs pair — same rule as bold/bCs.
+	if props.italic && props.italicXML == "" {
+		if idx := indexOfBareOnRPrChild(props.rPrChildren, "iCs"); idx >= 0 {
+			props.italicXML = "<w:i/><w:iCs/>"
+			props.rPrChildren = removeRPrChildAt(props.rPrChildren, idx)
+		}
+	}
+}
+
+// rPrChildrenContainName reports whether the slice contains an entry
+// whose local element name equals `name`.
+func rPrChildrenContainName(children []rPrChild, name string) bool {
+	for _, c := range children {
+		if c.name == name {
+			return true
+		}
+	}
+	return false
+}
+
+// indexOfBareOnRPrChild returns the index of the first rPrChild whose
+// name matches `name` AND whose xml is the BARE-ON form
+// (`<w:NAME/>` exactly, no attributes). Returns -1 if no match.
+//
+// Explicit-off forms (`<w:bCs w:val="0"/>` etc.) and explicit-on forms
+// with attrs are intentionally NOT matched — the bare-on fusion only
+// applies when the source's mirror element has no `val` attribute, so
+// the boldXML/italicXML fused string remains exactly equivalent in
+// content to what the source rPr declared.
+func indexOfBareOnRPrChild(children []rPrChild, name string) int {
+	want := "<w:" + name + "/>"
+	for i, c := range children {
+		if c.name != name {
+			continue
+		}
+		if c.xml == want {
+			return i
+		}
+	}
+	return -1
+}
+
+// removeRPrChildAt returns a new slice with the entry at index i
+// elided, preserving the relative order of the remaining entries.
+func removeRPrChildAt(children []rPrChild, i int) []rPrChild {
+	if i < 0 || i >= len(children) {
+		return children
+	}
+	out := make([]rPrChild, 0, len(children)-1)
+	out = append(out, children[:i]...)
+	out = append(out, children[i+1:]...)
+	return out
+}
+
 // appendOpeningRuns emits PcOpen runs for this run's formatting.
 func (rp runProps) appendOpeningRuns(b *runBuilder, idCounter *int) {
 	emit := func(typ, subType, data string) {
@@ -1591,6 +1732,7 @@ func parseRunProps(d *xml.Decoder, aggressive bool, styleChainNames map[string]b
 			// / Hyperlink). Strict mode (paired-toggle bCs/iCs
 			// preservation, rtl-with-sibling preservation) still runs.
 			props.rPrChildren = minifyRPrChildrenDeferred(props.rPrChildren, styleChainNames)
+			fuseBareOnToggleMirrorPair(&props)
 			return props, nil
 		}
 	}
