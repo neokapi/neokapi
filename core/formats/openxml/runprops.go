@@ -1033,6 +1033,42 @@ func minifyRPrChildren(children []rPrChild, styleChainNames map[string]bool) []r
 	// promote a lone <w:bCs w:val="false"/>.
 	keepBCs := hasExplicitOffByName(children, "b")
 	keepICs := hasExplicitOffByName(children, "i")
+	// Empirical Okapi behavior: <w:rtl w:val="0"/> is preserved in run
+	// rPr whenever the rPr also carries other formatting that survives
+	// minified() — it's only stripped when the rPr would otherwise be
+	// emptied entirely (the reordered-zip.docx case where rtl=0 is the
+	// SOLE child of <w:rPr> and the upstream writer drops the empty
+	// rPr after stripping).
+	//
+	// Reading RunProperties.minified() (RunProperties.java:497-540) at
+	// face value, the `<w:rtl w:val="0"/>` toggle should land in the
+	// drop branch (WpmlToggleRunProperty && !getToggleValue() &&
+	// !preCombined.contains("rtl")) for any rPr whose paragraph-style
+	// chain doesn't author rtl. But empirically, running the bridge
+	// against 830-2.docx KEEPS the entry on every text-bearing run AND
+	// on the empty placeholder run. Two equally-shaped runs in 830-2
+	// vs reordered-zip — same source rPr `<w:rPr><w:rtl w:val="0"/>
+	// </w:rPr>` — diverge: reordered-zip's rPr is emptied (because rtl
+	// is the only child) while 830-2's is preserved (because the run
+	// either has no text body or has text alongside other rPr
+	// children). The most parsimonious model is "Okapi only collapses
+	// rtl=0 when the post-strip rPr would itself collapse" — possibly
+	// realised through some downstream re-emit path we haven't located
+	// in the source. Mirror that effective behaviour with a sibling
+	// check: keep rtl=0 when the rPr has any non-default-valued
+	// sibling, drop it otherwise so reordered-zip.docx still emits
+	// `<w:r><w:t>` without an empty `<w:rPr/>`.
+	hasRtlPreservingSibling := func() bool {
+		for _, c := range children {
+			if c.name == "rtl" {
+				continue
+			}
+			if !isDefaultValuedRPrChild(c) {
+				return true
+			}
+		}
+		return false
+	}()
 	out := children[:0]
 	for _, c := range children {
 		if keepBCs && c.name == "bCs" {
@@ -1063,6 +1099,10 @@ func minifyRPrChildren(children []rPrChild, styleChainNames map[string]bool) []r
 			// strip to preserve the legacy behaviour for the
 			// reordered-zip.docx-style fixtures whose source Normal
 			// style has no rtl property.
+			if c.name == "rtl" && hasRtlPreservingSibling {
+				out = append(out, c)
+				continue
+			}
 			if styleChainNames == nil || !styleChainNames[c.name] {
 				continue
 			}

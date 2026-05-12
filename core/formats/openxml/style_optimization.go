@@ -1372,6 +1372,31 @@ func stripToggleMirrorsFromCommon(props []runProp, rtl bool) []runProp {
 			} else {
 				out = append(out, p)
 			}
+		case "rtl":
+			// Drop explicit-off `<w:rtl w:val="0"/>` from the
+			// synthesised style's rPr. minifyRPrChildren preserves
+			// the clearing form on per-run rPr (mirroring Okapi's
+			// observed behavior — see runprops.go for the empirical
+			// rationale), but lifting the SAME clearing form into
+			// the synthesised paragraph style is a different
+			// outcome: upstream Okapi's WSO never promotes a
+			// directly-specified explicit-off rtl into the synth
+			// style's rPr (830-2.docx / 830-6.docx reference output:
+			// runs keep `<w:rtl w:val="0"/>` while the synthesised
+			// `NF974E24F-a1` style has NO rtl child). Per ECMA-376-1
+			// §17.3.2.4 a paragraph style without `<w:rtl/>` already
+			// implies LTR for its runs, so a pStyle-level
+			// `<w:rtl w:val="0"/>` is structurally redundant — it
+			// would only matter if some basedOn ancestor turned rtl
+			// on (the 899.docx case where the Normal style has
+			// `<w:rtl/>` and synthesised children inherit-and-clear).
+			// For the 830-2-shaped fixtures the chain is rtl-free,
+			// so the explicit-off form is dropped from the lift.
+			val, hasVal := parseRPrChildVal(p.xml)
+			if hasVal && (val == "0" || val == "false" || val == "off") {
+				continue
+			}
+			out = append(out, p)
 		case "highlight":
 			// Drop `<w:highlight w:val="white"/>` from the
 			// synthesised style's rPr — `white` and `none` resolve
