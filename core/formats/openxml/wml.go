@@ -4608,6 +4608,28 @@ func (p *wmlParser) buildBlock(id string, runs []textRun, partPath, commonRPrXML
 		// source runs <r>text</r><r>br</r><r>br+text</r> must
 		// round-trip as three output runs, not collapse into one.
 		if run.text == "\n" {
+			// When the br started a fresh source <w:r> AND its source
+			// rPr toggles (b/i/u/strike/vertAlign) differ from
+			// activeProps, close the active toggles BEFORE emitting
+			// the Ph so the writer's runProps no longer carries them.
+			// Symmetric with the <w:tab/> guard above (line ~4227).
+			// Without this, a `<r><rPr><i/></rPr><t>...</t></r>
+			// <r><rPr><rFonts.../></rPr><br/></r>` source sequence
+			// (br.docx, br2.docx, EndGroup.docx canonical case) leaks
+			// the open <w:i/> toggle into the standalone <w:br/>'s
+			// emitted <w:r> — upstream Okapi RunBuilder + RunMerger
+			// (RunBuilder.java:73-188, RunMerger.java:156-229) treat
+			// a heterogeneous-rPr boundary as a hard run break,
+			// closing toggles first per ECMA-376-1 §17.3.2.1 (CT_R)
+			// where each <w:r> has its own <w:rPr> context. The
+			// `run.srcRunStart` predicate matches the tab branch: a
+			// br that DIDN'T begin a fresh source <w:r> shares the
+			// surrounding text's <w:r> envelope and should keep the
+			// active toggle context.
+			if run.srcRunStart && activeProps != nil && !activeProps.isEmpty() && !activeProps.equal(run.props) {
+				activeProps.appendClosingRuns(b, &spanCounter)
+				activeProps = nil
+			}
 			subType := SubTypeBreak
 			if run.srcRunStart {
 				subType = SubTypeBreakStandalone

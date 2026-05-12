@@ -2658,6 +2658,104 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 				// same-rPr text continues to fuse into this run.
 				continue
 			}
+			// Symmetric fusion path for <w:br/>: adjacent same-rPr
+			// br runs collapse into one `<w:r>` envelope with
+			// multiple `<w:br/>` children. Mirrors upstream Okapi
+			// RunMerger.add → canMergeWith (RunMerger.java:83-95 +
+			// 126-154 → canRunPropertiesBeMerged at 156-229): two
+			// source `<w:r>` envelopes each carrying a single
+			// `<w:br/>` Markup chunk with byte-equal RunProperties
+			// merge into one RunBuilder whose body chunks list
+			// retains both br Markup chunks side by side
+			// (canRunBodyChunksBeMerged at lines 438-441 keeps
+			// distinct chunk types — and like-typed Markup chunks —
+			// adjacent inside one run). Per ECMA-376-1 §17.3.2.1
+			// (CT_R) a single `<w:r>` may carry multiple `<w:br/>`
+			// children under one shared rPr; §17.3.3.1 (CT_Br)
+			// classifies `<w:br/>` as a run child.
+			//
+			// Pre-condition: the prior br emission set inRunNoText
+			// (SubTypeBreakStandalone branch at the same TypeBreak
+			// case below). Since Ph runs don't consume per-text-run
+			// sidecar slots, both br Markup chunks inherit the
+			// paragraph-wide source rPr + active toggles — the
+			// equality of effective rPr is implicit. Native's
+			// per-run sidecar already pruned divergent-rPr neighbours
+			// into distinct br Phs at the parser level via the
+			// `run.srcRunStart && !activeProps.equal(run.props)`
+			// guard in buildBlock (wml.go ~line 4630), so by the
+			// time two TypeBreak Phs land adjacent here their
+			// source rPr already matched.
+			//
+			// Fixture br.docx: source authors
+			// `<w:r><w:rPr>{rFonts,color,szCs,lang}</w:rPr><w:br/>
+			// </w:r><w:r><w:rPr>{same}</w:rPr><w:br/></w:r>` —
+			// bridge fuses to `<w:r><w:br/><w:br/></w:r>` (rPr
+			// stripped to empty by StyleOptimisation since none
+			// of the children survive WSO's no-content drop on a
+			// br-only run). br2.docx and EndGroup.docx exhibit the
+			// same shape with shd/sz variants.
+			if r.Ph.Type == TypeBreak && inRunNoText {
+				// Refuse to fuse when the about-to-fuse br itself
+				// began a source `<w:r>` that ALSO carries trailing
+				// content in the SAME envelope (text or another br
+				// followed by text). In that case the new br's source
+				// `<w:r>` must round-trip intact — fusing into the
+				// prior `<w:r>` would split the br away from the
+				// text/markup it shared a source envelope with, and
+				// upstream Okapi RunMerger / BlockTextUnitWriter
+				// preserves the source's `<w:br/>+<w:t>` boundary.
+				//
+				// 1421-line-break.docx is the canonical fixture: source
+				// authors `<w:r><w:rPr>{lang}</w:rPr><w:br/></w:r>
+				// <w:r><w:rPr>{lang}</w:rPr><w:br/><w:t>...</w:t></w:r>`.
+				// Bridge keeps the two source envelopes — the first
+				// br emerges as `<w:r><w:br/></w:r>`, the second as
+				// `<w:r><w:br/><w:t>...</w:t></w:r>`. The lookahead
+				// here detects "next model run is a Text whose sidecar
+				// flags it as continuing this br's source <w:r>"
+				// (textSrcStart(textRunIdx+1) == false) and bails out
+				// of the fuse so the next-iteration TypeBreak handler
+				// closes the prior inRunNoText and opens a fresh `<w:r>`
+				// for the br + trailing text.
+				//
+				// Similarly, when the immediate successor is another
+				// TypeBreak Ph but THAT br's source `<w:r>` carries
+				// trailing text (lookahead: runs[runIdx+2].Text with
+				// !textSrcStart), the same source-envelope-preservation
+				// rule applies. Otherwise (next br is also "lone" or
+				// is followed by a srcRunStart text — i.e., a fresh
+				// source `<w:r>`) the fuse is correct. Fixture
+				// special-chars-and-linebreaks.docx exercises the
+				// adjacent same-rPr `<w:r><w:br/></w:r>` pairs where
+				// each br is the SOLE child of its source `<w:r>`,
+				// matching br.docx's shape.
+				if runIdx+1 < len(runs) &&
+					runs[runIdx+1].Text != nil &&
+					!textSrcStart(textRunIdx+1) {
+					// Next model run is a Text continuing THIS br's
+					// source <w:r>. Don't fuse — let the TypeBreak
+					// branch below close prior inRunNoText and open
+					// a fresh <w:r> for the br + trailing text.
+				} else if runIdx+1 < len(runs) &&
+					runs[runIdx+1].Ph != nil &&
+					runs[runIdx+1].Ph.Type == TypeBreak &&
+					runIdx+2 < len(runs) &&
+					runs[runIdx+2].Text != nil &&
+					!textSrcStart(textRunIdx+1) {
+					// Next br + text in the new br's source envelope.
+					// Mirror the single-Text case above.
+				} else {
+					brXMLFuse := r.Ph.Data
+					if brXMLFuse == "" {
+						brXMLFuse = "<w:br/>"
+					}
+					buf.WriteString(brXMLFuse)
+					// Leave inRunNoText set so a subsequent br, tab,
+					// or same-rPr text continues to fuse into this run.
+					continue
+				}
+			}
 			// Fuse a Tab Ph into the still-open <w:r> from a prior
 			// text run when the surrounding text runs share the same
 			// effective rPr. Mirrors upstream Okapi RunMerger
