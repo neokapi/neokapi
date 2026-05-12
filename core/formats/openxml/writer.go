@@ -2214,6 +2214,34 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 				}
 				adjSrc := adjustRPrForRunText(sourceRPr, text)
 				if curRPr == adjSrc {
+					// If the previous tab/br already opened a speculative
+					// <w:t> via pendingTReopen and no character data has
+					// landed inside it (the buffer still ends with the
+					// open `<w:t xml:space="preserve">`), strip the open
+					// `<w:t>` instead of closing it — otherwise we emit a
+					// stray empty `<w:t></w:t>` between adjacent tab/br
+					// pairs (tabstyles.docx: `<w:r><w:t>has</w:t>
+					// <w:tab/><w:tab/><w:t>tabs</w:t></w:r>` round-trips
+					// with `<w:t/>` between the two tabs). Mirrors
+					// upstream Okapi RunBuilder.java:73-188 — adjacent
+					// tab/br Markup chunks live next to each other
+					// inside the surrounding `<w:r>` with no synthetic
+					// `<w:t/>` separator.
+					trail := `<w:t xml:space="preserve">`
+					if pendingTReopen {
+						if cur := buf.String(); strings.HasSuffix(cur, trail) {
+							buf.Reset()
+							buf.WriteString(cur[:len(cur)-len(trail)])
+							pendingTReopen = false
+							if r.Ph.Type == TypeTab {
+								buf.WriteString(`<w:tab/><w:t xml:space="preserve">`)
+							} else {
+								buf.WriteString(`<w:br/><w:t xml:space="preserve">`)
+							}
+							pendingTReopen = true
+							continue
+						}
+					}
 					if r.Ph.Type == TypeTab {
 						buf.WriteString(`</w:t><w:tab/><w:t xml:space="preserve">`)
 					} else {
