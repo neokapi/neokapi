@@ -1028,6 +1028,69 @@ var rPrOmittedWithNoStrike = map[string]bool{
 	"strike": true,
 }
 
+// rPrOmittedWithBlack lists run-property elements whose `val="000000"` is
+// the implicit document-default per upstream Okapi WordStyleDefinition
+// .DocumentDefaults.addExplicitDefaults() (WordStyleDefinition.java:164-228).
+// When a docDefault `<w:rPrDefault>` lacks an explicit `<w:color>` child,
+// upstream injects a synthetic `<w:color w:val="000000"/>` into the
+// pre-combined run properties so any directly-specified `<w:color w:val=
+// "000000"/>` on a run becomes a no-op duplicate of the precombined
+// default and is dropped by RunProperties.minified()'s
+// `preCombined.contains(p)` branch (RunProperties.java:504).
+//
+// Native does not materialise a precombined view, so we mirror the
+// effective behaviour: drop `<w:color w:val="000000"/>` from rPrChildren
+// unconditionally when the inherited style chain does not carry a
+// `<w:color>` (the styleChainNames guard in minifyRPrChildren). When the
+// style chain DOES carry a non-000000 color, the directly-specified
+// 000000 is a real clearing override and must be preserved — that case
+// goes through the `styleChainNames[c.name]` branch in minifyRPrChildren.
+//
+// References:
+//   - WordStyleDefinition.java:122 explicitDefaultColorPropertyValue =
+//     systemColorValues.valueFor(Color.System.DEFAULT_FOREGROUND_NAME).asRgb()
+//     where DEFAULT_FOREGROUND_NAME = "windowText" → "000000".
+//   - WordStyleDefinition.java:192-227 addExplicitDefaults() — adds the
+//     synthetic ColorRunProperty with val=000000 to the docDefaults rPr.
+//   - RunProperties.java:497-540 minified() — drops properties already
+//     present (by equality) in the preCombined chain.
+//   - ECMA-376-1 §17.3.2.6 (`<w:color>`).
+//
+// Fixtures: 830-7.docx (run-level redundant `<w:color w:val="000000"/>`),
+// 1335-doc-properties.docx (synthesised paragraph style picking up the
+// runs' redundant color).
+var rPrOmittedWithBlack = map[string]bool{
+	"color": true,
+}
+
+// rPrExplicitOffBINames lists the run-property elements whose explicit-off
+// form (val="0"|"false"|"off") is a no-op when the inherited style chain
+// does not carry the property by name. The `b` and `i` toggles are
+// "model" toggles in native (parseRunProps lifts the bare-on form into
+// runProps.bold / runProps.italic and discards the element), but the
+// EXPLICIT-OFF branch in parseRunProps preserves the clearing form in
+// rPrChildren so it can survive when the resolved style chain turns the
+// toggle ON (1311.docx Heading2 case). When the style chain does NOT
+// carry the toggle, the clearing form is a no-op duplicate of the
+// implicit default-off and must be stripped — otherwise it leaks into
+// synthesised paragraph styles via WSO and diverges from upstream
+// (1335-doc-properties.docx is the canonical case: every run carries
+// `<w:b w:val="0"/>` + `<w:i w:val="0"/>` against a Normal-based pStyle
+// whose chain has no b/i, so upstream RunProperties.minified() drops
+// both before WSO computes commonRunProperties).
+//
+// Per ECMA-376-1 §17.3.2.1 (`<w:b>`) and §17.3.2.13 (`<w:i>`) these
+// toggles default to OFF in the absence of an inherited override, so the
+// explicit-off form is a no-op. Upstream Okapi handles these via the
+// `WpmlToggleRunProperty && !getToggleValue()` branch on
+// RunProperties.java:506-510, gated by the same
+// `!preCombined.contains(p.getName())` guard
+// (RunProperties.java:527) that `styleChainNames[c.name]` mirrors.
+var rPrExplicitOffBINames = map[string]bool{
+	"b": true,
+	"i": true,
+}
+
 // isDefaultValuedRPrChild returns true when c is a run-property element
 // whose value matches its documented no-op default per upstream Okapi's
 // RunProperties.minified() rules.
@@ -1045,6 +1108,18 @@ func isDefaultValuedRPrChild(c rPrChild) bool {
 		}
 		return false
 	}
+	// b / i model toggles default to OFF: an explicit-off value is a
+	// no-op duplicate of the implicit default. The clearing form
+	// reaches rPrChildren via the explicit-off branches in parseRunProps
+	// (lines 676-688 for `b`, 711-723 for `i`); the styleChainNames
+	// guard in minifyRPrChildren preserves it when the inherited style
+	// chain turns the toggle ON.
+	if rPrExplicitOffBINames[c.name] && hasVal {
+		switch val {
+		case "0", "false", "off":
+			return true
+		}
+	}
 	if rPrOmittedWithNoneOrNil[c.name] && hasVal {
 		if val == "none" || val == "nil" {
 			return true
@@ -1060,6 +1135,9 @@ func isDefaultValuedRPrChild(c rPrChild) bool {
 		return true
 	}
 	if rPrOmittedWithNoStrike[c.name] && hasVal && val == "noStrike" {
+		return true
+	}
+	if rPrOmittedWithBlack[c.name] && hasVal && val == "000000" {
 		return true
 	}
 	return false
