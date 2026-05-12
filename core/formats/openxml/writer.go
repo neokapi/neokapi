@@ -2227,26 +2227,27 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 					// tab/br Markup chunks live next to each other
 					// inside the surrounding `<w:r>` with no synthetic
 					// `<w:t/>` separator.
+					// Re-emit br with its captured attrs (Ph.Data) when
+					// available; tab is always self-closing with no
+					// attributes per ECMA-376-1 §17.3.3.31.
+					phData := r.Ph.Data
+					if r.Ph.Type == TypeBreak && phData == "" {
+						phData = "<w:br/>"
+					} else if r.Ph.Type == TypeTab {
+						phData = "<w:tab/>"
+					}
 					trail := `<w:t xml:space="preserve">`
 					if pendingTReopen {
 						if cur := buf.String(); strings.HasSuffix(cur, trail) {
 							buf.Reset()
 							buf.WriteString(cur[:len(cur)-len(trail)])
 							pendingTReopen = false
-							if r.Ph.Type == TypeTab {
-								buf.WriteString(`<w:tab/><w:t xml:space="preserve">`)
-							} else {
-								buf.WriteString(`<w:br/><w:t xml:space="preserve">`)
-							}
+							buf.WriteString(phData + `<w:t xml:space="preserve">`)
 							pendingTReopen = true
 							continue
 						}
 					}
-					if r.Ph.Type == TypeTab {
-						buf.WriteString(`</w:t><w:tab/><w:t xml:space="preserve">`)
-					} else {
-						buf.WriteString(`</w:t><w:br/><w:t xml:space="preserve">`)
-					}
+					buf.WriteString(`</w:t>` + phData + `<w:t xml:space="preserve">`)
 					// Speculative <w:t> opened in case more text
 					// follows in the same source <w:r>. closeRun
 					// strips the trailing <w:t/> if no character
