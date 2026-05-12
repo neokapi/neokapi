@@ -4740,6 +4740,19 @@ func isFusableDrawingRun(r textRun) bool {
 	if r.data == "" {
 		return false
 	}
+	// Drawing payloads that carry translatable content
+	// (`<w:txbxContent>` — textbox body paragraphs that the reader
+	// extracted as separate Blocks via extractTxbxContent) do NOT fuse:
+	// upstream Okapi keeps the wrapping `<w:r>` per source pict so the
+	// textbox's per-run markup boundary survives the round-trip.
+	// Practice2.docx header3.xml is the canonical fixture: a
+	// textbox-bearing `<w:r><w:pict>...<w:txbxContent>...
+	// </w:txbxContent>...</w:pict></w:r>` followed by a plain
+	// `<w:r><w:pict><v:rect/></w:pict></w:r>` — the picts share rPr
+	// (`<w:noProof/>`) but bridge keeps them as two `<w:r>` envelopes.
+	if strings.Contains(r.data, "<w:txbxContent") {
+		return false
+	}
 	return true
 }
 
@@ -5840,18 +5853,36 @@ func xmlEscapeAttr(s string) string {
 }
 
 // nsPrefix maps namespace URI → prefix for known OpenXML namespaces.
+//
+// Strict OOXML (ISO/IEC 29500-1 §A.1) variants for the core
+// drawingml/wordprocessingDrawing/officeDocument-math URIs share
+// the same canonical prefix as their transitional siblings — the
+// nsPrefixMap is consulted to write the prefix back when the source
+// element bound `a:` (or `wp:`/`m:`) to a strict URI. 859.docx is
+// the canonical fixture: a strict-conformance document whose
+// drawing payload binds `a:` to `http://purl.oclc.org/ooxml/
+// drawingml/main`. Without these entries, captureRawElement's
+// writeElementName falls through to the unknown-prefix path and
+// emits the element without a prefix (e.g. `<graphicFrameLocks
+// xmlns:a="..."/>` instead of `<a:graphicFrameLocks xmlns:a="..."/>`),
+// which the canonicalizer interprets as default-namespace and
+// diverges from upstream.
 var nsPrefixMap = map[string]string{
 	wmlNamespace:       "w",
 	wmlStrictNamespace: "w",
 	dmlNamespace:       "a",
+	"http://purl.oclc.org/ooxml/drawingml/main":                                 "a",
 	"http://schemas.openxmlformats.org/officeDocument/2006/relationships":       "r",
+	"http://purl.oclc.org/ooxml/officeDocument/relationships":                   "r",
 	"http://schemas.openxmlformats.org/markup-compatibility/2006":               "mc",
 	"http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing":    "wp",
+	"http://purl.oclc.org/ooxml/drawingml/wordprocessingDrawing":                "wp",
 	"http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing":       "xdr",
 	"http://schemas.openxmlformats.org/drawingml/2006/chart":                    "c",
 	"http://schemas.openxmlformats.org/drawingml/2006/diagram":                  "dgm",
 	"http://schemas.openxmlformats.org/drawingml/2006/picture":                  "pic",
 	"http://schemas.openxmlformats.org/officeDocument/2006/math":                "m",
+	"http://purl.oclc.org/ooxml/officeDocument/math":                            "m",
 	"http://schemas.openxmlformats.org/officeDocument/2006/extended-properties": "ep",
 	"http://schemas.openxmlformats.org/officeDocument/2006/custom-properties":   "cp",
 	"http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes":      "vt",
