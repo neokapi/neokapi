@@ -1789,11 +1789,31 @@ func stripPropsFromRun(runSrc []byte, names map[string]bool) []byte {
 	}
 	rPrSrc := runSrc[rps:rpe]
 	props := parseRunPropElements(rPrSrc)
+	// Strip only the FIRST occurrence per matching name. Mirrors
+	// upstream Okapi RunProperties.refine
+	// (RunProperties.java :240-260) which removes properties from the
+	// run's rPr by Property.equals against commonRunProperties — each
+	// property is removed once, not all instances. Source documents
+	// occasionally author the same property element twice in a single
+	// run rPr (e.g. content_category_test.docx authors `<w:sz w:val=
+	// "32"/>` twice in the Arabic run); stripping ALL instances when
+	// commonNames lifts ONE into the synth pStyle drops the surviving
+	// duplicate that upstream keeps, costing a per-run rPr child on
+	// the wire. Per ECMA-376-1 §17.3.2 the toggle/value-bearing
+	// elements are well-defined as single-instance per <w:rPr>; the
+	// duplicate in source is malformed but Okapi preserves it
+	// faithfully, so native must too.
+	stripBudget := make(map[string]int, len(names))
+	for n := range names {
+		stripBudget[n] = 1
+	}
 	var kept []runProp
 	for _, p := range props {
-		if !names[p.name] {
-			kept = append(kept, p)
+		if stripBudget[p.name] > 0 {
+			stripBudget[p.name]--
+			continue
 		}
+		kept = append(kept, p)
 	}
 	var newRPr bytes.Buffer
 	if len(kept) == 0 {
