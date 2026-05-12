@@ -411,6 +411,46 @@ type runEntry struct {
 	// b/i/sz from such runs at parse time. Native applies the strip
 	// downstream — see optimizeParagraph for the rationale.
 	csOnlyText bool
+	// fieldContentRun is true when this <w:r> is part of a complex
+	// field's body chunks per the upstream model — a run containing
+	// `<w:fldChar fldCharType="separate"/>`, `<w:fldChar
+	// fldCharType="end"/>`, or `<w:instrText>` (but NOT a run
+	// containing `<w:fldChar fldCharType="begin"/>`, which is the
+	// "outer" run that owns the complex-field span).
+	//
+	// Upstream Okapi's RunParser.parseComplexField (RunParser.java:
+	// 461-542) routes every event between fldChar=begin and
+	// fldChar=end into the SAME RunBuilder via runBuilder.addToMarkup.
+	// The result is ONE Run object whose body chunks carry the
+	// instrText / fldChar separate/end events as Markup. Only the
+	// outer Run object's RunProperties are passed to RunBuilder.
+	// setRunProperties (RunParser.java:280-294); the body-chunk
+	// runs' rPr survives verbatim through the Markup events.
+	//
+	// At StyleOptimisation time (StyleOptimisation.java:240-249,
+	// refineRuns) only the OUTER Run's properties are refined via
+	// Run.refineRunProperties (Run.java:70-74) — the markup-chunk
+	// rPr is never touched. Per ECMA-376-1 §17.3.2.1 (CT_R) and
+	// §17.16.5 (Complex Fields) every <w:r> is structurally a run
+	// regardless of whether it carries fldChar/instrText markup,
+	// but the upstream pipeline collapses them for WSO scope.
+	//
+	// Native's reader/writer emit each fld-bearing <w:r> as a
+	// separate model.Run entry (paragraph-level findRuns sees them
+	// as siblings), so WSO's per-entry strip pass would strip the
+	// common-rPr children from EVERY field-bearing run — including
+	// the body-chunk runs that upstream leaves alone. Skipping the
+	// strip on field-content runs aligns the visible XML output
+	// with upstream's "only the outer run gets refined" model.
+	//
+	// Fixture Mauris.docx — paragraph contains one EQ field with
+	// fldChar=begin / instrText / fldChar=end runs all carrying
+	// rPr `<w:noProof/><w:sz w:val="144"/><w:szCs w:val="144"/>`.
+	// Upstream emits the BEGIN run with empty rPr and every
+	// instrText / END run with `<w:sz w:val="144"/><w:szCs
+	// w:val="144"/>` preserved (Normal1 also synth'd with sz/szCs).
+	// Without this flag native stripped sz/szCs from all 8 runs.
+	fieldContentRun bool
 }
 
 // optimizeParagraph rewrites a single <w:p>...</w:p> block applying
@@ -534,6 +574,17 @@ func optimizeParagraph(
 				e.csOnlyText = true
 				e.props = stripWMLNamesFromProps(e.props, "b", "i")
 			}
+		}
+		// Detect field-content runs (instrText / fldChar=separate /
+		// fldChar=end). The fldChar=begin run is the "outer" run per
+		// upstream Okapi's parseComplexField model and IS subject to
+		// rPr refinement. See runEntry.fieldContentRun for full
+		// rationale. Per ECMA-376-1 §17.16.5 (Complex Fields).
+		runBody := src[r.start:r.end]
+		if bytes.Contains(runBody, []byte("<w:instrText")) ||
+			bytes.Contains(runBody, []byte(`<w:fldChar w:fldCharType="separate"`)) ||
+			bytes.Contains(runBody, []byte(`<w:fldChar w:fldCharType="end"`)) {
+			e.fieldContentRun = true
 		}
 		entries = append(entries, e)
 	}
@@ -710,7 +761,12 @@ func optimizeParagraph(
 		}
 		out.Write(src[cursor:e.runStart])
 		runBuf := src[e.runStart:e.runEnd]
-		if e.hasRPr {
+		// Skip the per-run rPr strip on field-content runs (instrText,
+		// fldChar=separate, fldChar=end) so their rPr survives
+		// verbatim — mirrors upstream Okapi's "only the outer Run
+		// is refined" model. See runEntry.fieldContentRun docstring
+		// for the upstream contract reference.
+		if e.hasRPr && !e.fieldContentRun {
 			stripNames := commonNames
 			if e.csOnlyText {
 				// Symmetric upstream strip: drop b/i from the emitted
