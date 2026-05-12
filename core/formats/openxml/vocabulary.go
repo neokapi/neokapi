@@ -120,6 +120,19 @@ const (
 	// emerge that needs the same boundary semantics for tabs.
 	SubTypeTabStandalone = "openxml:tab:standalone"
 	SubTypeImage         = "openxml:drawing"
+	// SubTypeImageInline tags a drawing/pict/object/AlternateContent/ruby
+	// Ph that did NOT begin its source <w:r> — text or other content
+	// preceded it inside the same <w:r>. The writer's TypeImage emit can
+	// fuse such Ph chunks back into a still-open <w:r> from a preceding
+	// text run when both sides have rPr-empty, mirroring upstream Okapi
+	// RunMerger which keeps the original <w:r> envelope intact across the
+	// embedded body chunks. Default SubTypeImage means the drawing began
+	// a fresh source <w:r> and must emit its own envelope. Fixture
+	// gettysburg_en.docx P3 source authors
+	// `<w:r><w:rPr/><w:t>N</w:t><w:drawing>...</w:drawing></w:r>` — the
+	// drawing carries SubTypeImageInline so the writer keeps it inside
+	// the open <w:r> next to the "N" text.
+	SubTypeImageInline = "openxml:drawing:inline"
 	SubTypeFootnoteRef   = "openxml:footnoteRef"
 	SubTypeBookmarkStart     = "openxml:bookmarkStart"
 	SubTypeBookmarkEnd       = "openxml:bookmarkEnd"

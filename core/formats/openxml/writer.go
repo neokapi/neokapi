@@ -2325,6 +2325,50 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 					}
 				}
 			}
+			// Fuse a TypeImage Ph (drawing/pict/object/AlternateContent)
+			// into the still-open <w:r> when both the open run and the
+			// drawing carry no rPr. Mirrors upstream Okapi RunMerger
+			// (RunMerger.java:83-95 + 156-229): when the source <w:r>
+			// wrapping the drawing carries the same RunProperties as the
+			// preceding text-run, the runs are merged into one
+			// RunBuilder; the resulting `<w:r>` carries both the
+			// `<w:t>` text body chunk and the drawing Markup chunk
+			// inside one envelope. Per ECMA-376-1 §17.3.2.1 (CT_R) a
+			// single <w:r> may carry both <w:t> and <w:drawing> /
+			// <w:pict> / <w:object> children with one shared rPr.
+			//
+			// The narrow case implemented here covers the
+			// no-rPr-on-either-side scenario: the drawing's Ph.Data
+			// does not start with `<w:rPr>` (the reader's image path
+			// only prepends rPr when the source run had its own rPr —
+			// see wml.go::buildBlock TypeImage emit), and the open
+			// <w:r> carries no per-text-run rPr (effectiveRPr is empty)
+			// AND no active toggles (runProps empty). Under those
+			// conditions both sides have rPr-empty, so the merge is
+			// rPr-equivalent.
+			//
+			// Fixture gettysburg_en.docx P3 source authors
+			// `<w:r><w:rPr/><w:t>N</w:t><w:drawing>...</w:drawing></w:r>
+			// <w:r><w:rPr/><w:t>ow we are...</w:t></w:r>` — bridge fuses
+			// across the source-run boundary into one <w:r> with text +
+			// drawing + text. Without this fusion native splits into
+			// three separate <w:r>s.
+			if r.Ph.Type == TypeImage && r.Ph.SubType == SubTypeImageInline &&
+				inRun && !pendingTReopen &&
+				effectiveRPr(textRunIdx) == "" && runProps == "" &&
+				!strings.HasPrefix(r.Ph.Data, "<w:rPr>") {
+				expanded := w.expandDrawingMarkers(r.Ph.Data)
+				buf.WriteString(`</w:t>`)
+				buf.WriteString(expanded)
+				// Speculative <w:t> opened in case more text follows in
+				// this <w:r>. closeRun strips the trailing <w:t/> if no
+				// character data arrives first (the same pendingTReopen
+				// machinery used by the inline tab/br path). Leave inRun
+				// true so the next text continues inside this envelope.
+				buf.WriteString(`<w:t xml:space="preserve">`)
+				pendingTReopen = true
+				continue
+			}
 			// Fuse a TypeRawRunMarkup chunk (<w:noBreakHyphen/> per
 			// ECMA-376-1 §17.3.3.18, <w:softHyphen/> per §17.3.3.30)
 			// into the still-open <w:r> from a prior standalone <w:br/>

@@ -3221,8 +3221,16 @@ func (p *wmlParser) buildBlock(id string, runs []textRun, partPath, commonRPrXML
 			if rPr := serializeFullRPrXML(run.props); rPr != "" {
 				data = rPr + data
 			}
+			subType := SubTypeImage
+			if !run.srcRunStart {
+				// Drawing/pict/object/AlternateContent/ruby NOT at the
+				// start of its source <w:r> — the writer can fuse it
+				// back into a still-open envelope from the preceding
+				// text/Markup chunk. See SubTypeImageInline doc.
+				subType = SubTypeImageInline
+			}
 			b.AddPh(fmt.Sprintf("c%d", spanCounter),
-				TypeImage, SubTypeImage,
+				TypeImage, subType,
 				data, "", "",
 				false, false, false)
 			continue
