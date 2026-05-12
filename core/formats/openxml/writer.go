@@ -611,8 +611,20 @@ func stripBalancedElement(data []byte, name string) []byte {
 // binding on its root element. ECMA-376 Part 1 §A.1 / ISO/IEC 29500-1
 // §A.1 (the two URIs).
 func stripWMLSkippableElements(data []byte) []byte {
-	stripLang := !bytes.Contains(data, []byte(wmlStrictNamespace))
-	if stripLang && bytes.Contains(data, []byte("<w:lang")) {
+	// stripLang AND stripNoProof are gated on the transitional WPML
+	// namespace for the same reason: upstream Okapi binds the
+	// RUN_PROPERTY_LANGUAGE / RUN_PROPERTY_NO_SPELLING_OR_GRAMMAR
+	// QNames to Namespaces.WordProcessingML which is the transitional
+	// URI ("http://schemas.openxmlformats.org/wordprocessingml/2006/
+	// main", Namespaces.java:26 + SkippableElement.java:205-207). For
+	// Strict OOXML documents the QName does NOT match upstream's
+	// skippable set, so both `<w:lang>` AND `<w:noProof>` are PRESERVED
+	// through round-trip. 859.docx is the canonical fixture — its
+	// drawing-bearing run carries `<w:rPr><w:noProof/><w:lang
+	// w:eastAsia="ru-RU"/></w:rPr>` which must round-trip on the wire
+	// AND lift into the WSO-synthesised paragraph style's rPr.
+	strict := bytes.Contains(data, []byte(wmlStrictNamespace))
+	if !strict && bytes.Contains(data, []byte("<w:lang")) {
 		data = wmlLangElementRE.ReplaceAll(data, nil)
 	}
 	if bytes.Contains(data, []byte("<w:bidiVisual")) {
@@ -621,7 +633,7 @@ func stripWMLSkippableElements(data []byte) []byte {
 	if bytes.Contains(data, []byte("<w:moveToRange")) || bytes.Contains(data, []byte("<w:moveFromRange")) {
 		data = wmlMoveRangeStrippableElementRE.ReplaceAll(data, nil)
 	}
-	if bytes.Contains(data, []byte("<w:noProof")) {
+	if !strict && bytes.Contains(data, []byte("<w:noProof")) {
 		data = wmlNoProofRE.ReplaceAll(data, nil)
 	}
 	if bytes.Contains(data, []byte("<w:ins")) ||
@@ -2090,20 +2102,24 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 			}
 
 		case r.PcOpen != nil:
-			if r.PcOpen.Type == TypeHyperlink || r.PcOpen.Type == TypeSmartTag || r.PcOpen.Type == TypeRevisionIns {
+			if r.PcOpen.Type == TypeHyperlink || r.PcOpen.Type == TypeSmartTag || r.PcOpen.Type == TypeRevisionIns || r.PcOpen.Type == TypeSDT {
 				// Opaque paired-code open: emit captured raw XML
-				// (the <w:hyperlink ...>, <w:smartTag ...>, or
-				// strict-OOXML <w:ins ...>/<w:moveTo ...> start element)
-				// verbatim, paired with the matching close data emitted
-				// by the corresponding PcClose. Per upstream Okapi
-				// RunContainer (RunContainer.java lines 29-43, 187-191)
-				// hyperlink and smartTag are transparent run-containers
-				// preserved as a single pair of codes around their inner
-				// runs; ECMA-376-1 §17.13.5.16 (CT_RunTrackChange) gives
-				// the same shape to <w:ins>/<w:moveTo> in strict OOXML
-				// where upstream's RevisionInline skippable QName does
-				// not match (transitional binding only;
-				// SkippableElement.java:209-212).
+				// (the <w:hyperlink ...>, <w:smartTag ...>,
+				// strict-OOXML <w:ins ...>/<w:moveTo ...>, or
+				// <w:sdt><w:sdtPr>...</w:sdtPr><w:sdtEndPr/>
+				// <w:sdtContent> start element) verbatim, paired
+				// with the matching close data emitted by the
+				// corresponding PcClose. Per upstream Okapi
+				// RunContainer (RunContainer.java lines 29-43,
+				// 97-176, 187-191) hyperlink, smartTag, and sdt are
+				// transparent run-containers preserved as a single
+				// pair of codes around their inner runs; ECMA-376-1
+				// §17.13.5.16 (CT_RunTrackChange) gives the same
+				// shape to <w:ins>/<w:moveTo> in strict OOXML where
+				// upstream's RevisionInline skippable QName does not
+				// match (transitional binding only;
+				// SkippableElement.java:209-212). ECMA-376-1 §17.5.2
+				// (Structured Document Tags) for <w:sdt>.
 				closeRun()
 				buf.WriteString(r.PcOpen.Data)
 			} else {
@@ -2117,7 +2133,7 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 			}
 
 		case r.PcClose != nil:
-			if r.PcClose.Type == TypeHyperlink || r.PcClose.Type == TypeSmartTag || r.PcClose.Type == TypeRevisionIns {
+			if r.PcClose.Type == TypeHyperlink || r.PcClose.Type == TypeSmartTag || r.PcClose.Type == TypeRevisionIns || r.PcClose.Type == TypeSDT {
 				closeRun()
 				buf.WriteString(r.PcClose.Data)
 			} else {
@@ -2382,14 +2398,14 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 						case nr.Text != nil:
 							nextTextAt = j
 						case nr.PcOpen != nil:
-							if nr.PcOpen.Type == TypeHyperlink || nr.PcOpen.Type == TypeSmartTag || nr.PcOpen.Type == TypeRevisionIns {
+							if nr.PcOpen.Type == TypeHyperlink || nr.PcOpen.Type == TypeSmartTag || nr.PcOpen.Type == TypeRevisionIns || nr.PcOpen.Type == TypeSDT {
 								mergeable = false
 							} else {
 								anticipatedRunProps = w.addWMLProp(anticipatedRunProps, nr.PcOpen.Type)
 								continue
 							}
 						case nr.PcClose != nil:
-							if nr.PcClose.Type == TypeHyperlink || nr.PcClose.Type == TypeSmartTag || nr.PcClose.Type == TypeRevisionIns {
+							if nr.PcClose.Type == TypeHyperlink || nr.PcClose.Type == TypeSmartTag || nr.PcClose.Type == TypeRevisionIns || nr.PcClose.Type == TypeSDT {
 								mergeable = false
 							} else {
 								anticipatedRunProps = w.removeWMLProp(anticipatedRunProps, nr.PcClose.Type)

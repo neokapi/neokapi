@@ -69,6 +69,19 @@ const (
 	// `<w:ins w:id="0" w:author="User" w:date="…">` wrapping a
 	// translatable run survives the round-trip intact.
 	TypeRevisionIns = "struct:revision-ins"
+	// TypeSDT tags a paired-code wrapper for an inline `<w:sdt>`
+	// (Structured Document Tag) element. Per ECMA-376 Part 1 / ISO/IEC
+	// 29500-1 §17.5.2 the SDT envelope wraps `<w:sdtPr>`, optional
+	// `<w:sdtEndPr>`, and `<w:sdtContent>` around the placeholder
+	// content. Upstream Okapi RunContainer (RunContainer.java:97-176)
+	// preserves the outer markup as paired startMarkup / endMarkup
+	// events around the extracted inner content. We model the
+	// preservation as paired codes — the OPEN payload carries
+	// `<w:sdt><w:sdtPr>...</w:sdtPr><w:sdtEndPr/><w:sdtContent>` and
+	// the CLOSE payload carries `</w:sdtContent></w:sdt>`. 1085.docx
+	// is the canonical fixture: an empty-sdtContent SDT must round-
+	// trip with all wrapper metadata intact.
+	TypeSDT = "struct:sdt"
 )
 
 // SubType constants provide format-specific refinement.
@@ -130,4 +143,13 @@ const (
 	// (<w:moveTo> CT_RunTrackChange) share the same content model.
 	SubTypeRevisionIns    = "openxml:ins"
 	SubTypeRevisionMoveTo = "openxml:moveTo"
+	// SubTypeSDT tags the standard inline `<w:sdt>` paired-code wrapper
+	// emitted by parseInlineSDT for SDTs whose source carried a
+	// `<w:sdtContent>` element (open or self-closing).
+	SubTypeSDT = "openxml:sdt"
+	// SubTypeSDTNoContent tags an inline `<w:sdt>` whose source had
+	// no `<w:sdtContent>` child at all. Per ECMA-376-1 §17.5.2 this is
+	// schema-questionable but observed in the wild; the close payload
+	// is a synthesised `</w:sdt>` rather than `</w:sdtContent></w:sdt>`.
+	SubTypeSDTNoContent = "openxml:sdt-no-content"
 )

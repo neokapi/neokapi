@@ -247,6 +247,81 @@ func TestParseRunProps_SkipsLangNoProof(t *testing.T) {
 		"lang and noProof must be skipped from rPrChildren capture")
 }
 
+func TestParseRunPropsFromRaw_PreservesNoProofInStrict(t *testing.T) {
+	// The drawing-bearing run in 859.docx carries
+	// `<w:rPr><w:noProof/><w:lang w:eastAsia="ru-RU"/></w:rPr>`.
+	// parseRunPropsFromRaw is called with strict=true and re-hydrates
+	// the rPrXML against the strict-namespace binding. With Fix #2
+	// (runprops.go strict gate on noProof) both children should be
+	// preserved in props.rPrChildren so the writer can emit them.
+	rpr := `<w:rPr><w:noProof/><w:lang w:eastAsia="ru-RU"/></w:rPr>`
+	props, err := parseRunPropsFromRaw(rpr, false, true, nil)
+	require.NoError(t, err)
+	names := make([]string, 0, len(props.rPrChildren))
+	for _, c := range props.rPrChildren {
+		names = append(names, c.name)
+	}
+	assert.Equal(t, []string{"noProof", "lang"}, names,
+		"strict-namespace noProof + lang must both be preserved")
+}
+
+func TestParseRunPropsFromRaw_PreservesNoProofInStrict_OpenClose(t *testing.T) {
+	// captureRawElement re-emits an empty element in OPEN-CLOSE form
+	// (`<w:noProof></w:noProof>`) rather than self-closing. Make sure
+	// the strict gate fires on this form too.
+	rpr := `<w:rPr><w:noProof></w:noProof><w:lang w:eastAsia="ru-RU"></w:lang></w:rPr>`
+	props, err := parseRunPropsFromRaw(rpr, false, true, nil)
+	require.NoError(t, err)
+	names := make([]string, 0, len(props.rPrChildren))
+	for _, c := range props.rPrChildren {
+		names = append(names, c.name)
+	}
+	assert.Equal(t, []string{"noProof", "lang"}, names,
+		"strict-namespace noProof + lang must be preserved in open-close form too")
+}
+
+func TestParseRunPropsFromRaw_PreservesNoProofInStrict_Aggressive(t *testing.T) {
+	// AggressiveCleanup defaults to TRUE in DefaultConfig (config.go:86),
+	// and the aggressive branch in parseRunProps strips noProof. That
+	// strip must also be gated on the transitional WPML namespace —
+	// otherwise strict-OOXML noProof is dropped at the parser even
+	// though the dedicated noProof strip below is correctly gated.
+	rpr := `<w:rPr><w:noProof></w:noProof><w:lang w:eastAsia="ru-RU"></w:lang></w:rPr>`
+	props, err := parseRunPropsFromRaw(rpr, true, true, nil)
+	require.NoError(t, err)
+	names := make([]string, 0, len(props.rPrChildren))
+	for _, c := range props.rPrChildren {
+		names = append(names, c.name)
+	}
+	assert.Equal(t, []string{"noProof", "lang"}, names,
+		"strict-namespace noProof must survive aggressive cleanup")
+}
+
+func TestParseRunProps_PreservesLangNoProofInStrict(t *testing.T) {
+	// For Strict OOXML documents (xmlns="http://purl.oclc.org/ooxml/
+	// wordprocessingml/main") upstream Okapi's RunSkippableElements
+	// QName for lang/noProof binds to the TRANSITIONAL URI only
+	// (Namespaces.WordProcessingML.getQName, Namespaces.java:26 +
+	// SkippableElement.java:207). Strict-namespace lang/noProof are
+	// preserved on the run rPr — the native reader must mirror that.
+	// 859.docx is the canonical fixture: a strict-OOXML drawing-bearing
+	// run whose `<w:rPr><w:noProof/><w:lang w:eastAsia="ru-RU"/></w:rPr>`
+	// must round-trip on the wire so WSO can lift both children into
+	// the synthesised paragraph style.
+	src := `<w:rPr xmlns:w="http://purl.oclc.org/ooxml/wordprocessingml/main"><w:lang w:eastAsia="ru-RU"/><w:noProof/></w:rPr>`
+	dec := xml.NewDecoder(strings.NewReader(src))
+	_, err := dec.Token()
+	require.NoError(t, err)
+	props, err := parseRunProps(dec, false, nil)
+	require.NoError(t, err)
+	names := make([]string, 0, len(props.rPrChildren))
+	for _, c := range props.rPrChildren {
+		names = append(names, c.name)
+	}
+	assert.Equal(t, []string{"lang", "noProof"}, names,
+		"lang and noProof must be preserved in strict-OOXML namespace")
+}
+
 func TestCommonRPrChildren_IntersectionAcrossRuns(t *testing.T) {
 	// #592: commonRPrChildren computes the per-paragraph intersection
 	// of source-run rPr children, mirroring upstream Okapi

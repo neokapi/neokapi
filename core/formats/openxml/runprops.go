@@ -571,12 +571,22 @@ func parseRunProps(d *xml.Decoder, aggressive bool, styleChainNames map[string]b
 			local := t.Name.Local
 			skip := false
 
-			// Skip rsid and proof attributes in aggressive cleanup
+			// Skip rsid and proof attributes in aggressive cleanup.
+			// noProof's strip is gated on the transitional WPML
+			// namespace for the same reason as the dedicated noProof
+			// strip below: upstream Okapi's
+			// SkippableElement.RUN_PROPERTY_NO_SPELLING_OR_GRAMMAR
+			// QName binds to the transitional URI only
+			// (SkippableElement.java:207). For Strict OOXML documents
+			// `<w:noProof>` must be preserved on the run rPr —
+			// 859.docx is the canonical fixture.
 			if aggressive {
 				if strings.HasPrefix(local, "rsid") ||
 					local == "proofErr" ||
-					local == "lastRenderedPageBreak" ||
-					local == "noProof" {
+					local == "lastRenderedPageBreak" {
+					skip = true
+				}
+				if local == "noProof" && t.Name.Space != wmlStrictNamespace {
 					skip = true
 				}
 			}

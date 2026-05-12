@@ -1626,12 +1626,22 @@ func (p *wmlParser) parseParagraph(d *xml.Decoder, partPath string, emitBlock fu
 				}
 
 			case "sdt":
-				// Inline structured document tag — recurse
-				sdtRuns, err := p.parseInlineSDT(d)
-				if err != nil {
+				// Inline structured document tag — capture wrapper as
+				// paired-code sentinels around inner runs so the
+				// `<w:sdt>...</w:sdt>` envelope plus `<w:sdtPr>`,
+				// `<w:sdtEndPr/>`, `<w:sdtContent>` round-trip on the
+				// wire. ECMA-376-1 §17.5.2 (Structured Document Tags);
+				// upstream Okapi RunContainer.java:97-176 preserves the
+				// outer markup as paired startMarkup / endMarkup events
+				// around the extracted inner content.
+				rawStart := startElementToRaw(t)
+				target := &runs
+				if inHyperlink {
+					target = &hyperlinkRuns
+				}
+				if err := p.parseInlineSDT(d, target, rawStart); err != nil {
 					return err
 				}
-				runs = append(runs, sdtRuns...)
 
 			case "smartTag":
 				// <w:smartTag> is a transparent run-container per
@@ -2742,41 +2752,174 @@ func (p *wmlParser) parseSDT(d *xml.Decoder, partPath string, emitBlock func(*mo
 	return nil
 }
 
-// parseInlineSDT parses an inline SDT and returns its text runs.
-func (p *wmlParser) parseInlineSDT(d *xml.Decoder) ([]textRun, error) {
-	var runs []textRun
-	depth := 1
+// sdtEndPrIsEmpty reports whether a captured `<w:sdtEndPr ...>` element
+// has no child elements (either self-closing `<w:sdtEndPr/>` or empty
+// body `<w:sdtEndPr></w:sdtEndPr>`). Per ECMA-376-1 \u00A717.5.2.38
+// (CT_SdtEndPr) the element carries `<w:rPr>` children defining the
+// post-content run properties; in practice most authoring tools emit
+// an empty sdtEndPr that upstream Okapi drops on round-trip (the
+// RunContainer SDT path filters the empty form out via the
+// SDT_END_PROPERTIES skippable set).
+//
+// Used by parseInlineSDT to suppress the empty form when wrapping the
+// SDT envelope into the paired-code OPEN sentinel \u2014 keeping the
+// non-empty form for fidelity in the rare cases it carries children.
+// 1085.docx is the canonical empty-form fixture.
+func sdtEndPrIsEmpty(raw string) bool {
+	// Self-closing form: `<w:sdtEndPr/>` or `<w:sdtEndPr ... />`.
+	if strings.HasSuffix(strings.TrimRight(raw, " \t\r\n"), "/>") {
+		return true
+	}
+	// Empty-body form: `<w:sdtEndPr ...></w:sdtEndPr>` with only whitespace
+	// (or nothing) between the open and close tags.
+	openEnd := strings.IndexByte(raw, '>')
+	if openEnd < 0 {
+		return false
+	}
+	body := raw[openEnd+1:]
+	closeIdx := strings.LastIndex(body, "</")
+	if closeIdx < 0 {
+		return false
+	}
+	return strings.TrimSpace(body[:closeIdx]) == ""
+}
 
-	for depth > 0 {
+// parseInlineSDT drains an inline `<w:sdt>` wrapper, processing its
+// child runs as if they were direct paragraph children and emitting
+// paired-code sentinels (\uE10E open / \uE10F close, shared with the
+// strict-OOXML revision-insertion path) around them so the writer can
+// re-emit the SDT envelope verbatim.
+//
+// The OPEN sentinel carries the captured raw `<w:sdt ...>` start tag
+// followed by every child verbatim up to the matching `</w:sdtContent>`
+// open boundary — i.e. the captured `<w:sdtPr>...</w:sdtPr>`, the
+// optional `<w:sdtEndPr/>`, and the `<w:sdtContent>` start tag itself.
+// The CLOSE sentinel emits the literal `</w:sdtContent></w:sdt>` close
+// pair. Inner runs of `<w:sdtContent>` are parsed inline and live in
+// the textRun slice between the OPEN and CLOSE sentinels.
+//
+// When `<w:sdtContent>` is self-closing (no inner runs at all — the
+// 1085.docx fixture: `<w:sdt><w:sdtPr><w:tag/><w:id/></w:sdtPr>
+// <w:sdtEndPr/><w:sdtContent/></w:sdt>`), the OPEN sentinel emits
+// `<w:sdt><w:sdtPr>...</w:sdtPr><w:sdtEndPr/><w:sdtContent>` and the
+// CLOSE emits `</w:sdtContent></w:sdt>`; the empty
+// `<w:sdtContent></w:sdtContent>` is canonical-equivalent to the
+// self-closing form (XML canonicalisation collapses an empty element
+// to its self-closing variant).
+//
+// Mirrors upstream Okapi RunContainer (RunContainer.java:97-176),
+// which preserves <w:sdt>, <w:sdtPr>, <w:sdtEndPr>, and <w:sdtContent>
+// as outer/inner markup around the extracted inner content
+// (RunContainer.RUN_CONTAINER_TYPES + the sdt-specific properties handler).
+// Per ECMA-376 Part 1 / ISO/IEC 29500-1 §17.5.2 (Structured Document
+// Tags), `<w:sdtPr>` and `<w:sdtEndPr>` carry SDT metadata (id, tag,
+// alias, …) that must round-trip; `<w:sdtContent>` wraps the placeholder
+// content.
+//
+// rawStart is the raw XML form of the `<w:sdt ...>` open tag (including
+// any attributes) produced by the caller via startElementToRaw.
+func (p *wmlParser) parseInlineSDT(d *xml.Decoder, runs *[]textRun, rawStart string) error {
+	// Capture sdtPr (always present per CT_SdtRun) and the optional
+	// sdtEndPr verbatim, then accumulate them onto rawStart so the
+	// OPEN sentinel emits the full `<w:sdt><w:sdtPr>...</w:sdtPr>
+	// <w:sdtEndPr/><w:sdtContent>` prefix.
+	wrapperOpen := rawStart
+	inSdtContent := false
+	for !inSdtContent {
 		tok, err := d.Token()
 		if err != nil {
-			return nil, err
+			return err
 		}
 		switch t := tok.(type) {
 		case xml.StartElement:
-			depth++
 			switch t.Name.Local {
 			case "sdtPr":
-				if err := skipElement(d); err != nil {
-					return nil, err
-				}
-				depth--
-			case "r":
-				// SDT runs don't track complex field state — use a throwaway state
-				var cfs complexFieldState
-				rawStart := startElementToRaw(t)
-				r, err := p.parseRunWithFieldState(d, &cfs, rawStart)
+				raw, err := captureRawElement(d, t)
 				if err != nil {
-					return nil, err
+					return err
 				}
-				runs = append(runs, r...)
-				depth--
+				wrapperOpen += raw
+			case "sdtEndPr":
+				// Empty <w:sdtEndPr/> is dropped by upstream Okapi
+				// (RunContainer.SDT_END_PROPERTIES filter — only the
+				// non-trivial members survive). When sdtEndPr carries
+				// child elements (rare), preserve verbatim.
+				raw, err := captureRawElement(d, t)
+				if err != nil {
+					return err
+				}
+				// Self-closing or empty body: drop. Otherwise keep.
+				if !sdtEndPrIsEmpty(raw) {
+					wrapperOpen += raw
+				}
+			case "sdtContent":
+				wrapperOpen += startElementToRaw(t)
+				inSdtContent = true
+			default:
+				// Unknown SDT child outside sdtContent — skip the
+				// subtree to keep round-trip safe; future fixtures
+				// can add handling here.
+				if err := skipElement(d); err != nil {
+					return err
+				}
 			}
 		case xml.EndElement:
-			depth--
+			// Premature `</w:sdt>` — the SDT had no sdtContent at all.
+			// Emit a single-shot pair: the OPEN sentinel carries the
+			// rawStart + captured sdtPr/sdtEndPr; the CLOSE sentinel
+			// emits a synthesised empty `</w:sdt>` pair (no
+			// sdtContent boundary because the source had none).
+			if t.Name.Local == "sdt" {
+				*runs = append(*runs, textRun{text: "\uE10E:sdt-no-content:" + wrapperOpen, props: runProps{}})
+				*runs = append(*runs, textRun{text: "\uE10F:sdt-no-content:</w:sdt>", props: runProps{}})
+				return nil
+			}
 		}
 	}
-	return runs, nil
+	// Emit the OPEN sentinel covering everything through the
+	// `<w:sdtContent>` start tag.
+	*runs = append(*runs, textRun{text: "\uE10E:sdt:" + wrapperOpen, props: runProps{}})
+	// Drain `<w:sdtContent>` children, processing inner runs inline.
+	var cfs complexFieldState
+	for {
+		tok, err := d.Token()
+		if err != nil {
+			return err
+		}
+		switch t := tok.(type) {
+		case xml.StartElement:
+			switch t.Name.Local {
+			case "r":
+				rawRStart := startElementToRaw(t)
+				r, err := p.parseRunWithFieldState(d, &cfs, rawRStart)
+				if err != nil {
+					return err
+				}
+				*runs = append(*runs, r...)
+			default:
+				// Unknown child inside sdtContent — skip subtree.
+				if err := skipElement(d); err != nil {
+					return err
+				}
+			}
+		case xml.EndElement:
+			if t.Name.Local == "sdtContent" {
+				// Now drain to the matching `</w:sdt>` (no children
+				// expected after sdtContent per CT_SdtRun, but be
+				// defensive).
+				for {
+					tok2, err := d.Token()
+					if err != nil {
+						return err
+					}
+					if et, ok := tok2.(xml.EndElement); ok && et.Name.Local == "sdt" {
+						*runs = append(*runs, textRun{text: "\uE10F:sdt:</w:sdtContent></w:sdt>", props: runProps{}})
+						return nil
+					}
+				}
+			}
+		}
+	}
 }
 
 // wrapHyperlinkRuns wraps runs in hyperlink opening/closing markers.
@@ -3105,33 +3248,49 @@ func (p *wmlParser) buildBlock(id string, runs []textRun, partPath, commonRPrXML
 			continue
 		}
 		if strings.HasPrefix(run.text, "\uE10E:") {
-			// Strict-OOXML revision-insertion paired-code OPEN
-			// (<w:ins>/<w:moveTo>). Per ECMA-376-1 \u00A717.13.5.16 the
-			// wrapper preserves around its inner runs in the strict
-			// namespace (upstream Okapi's RevisionInline skippable QName
-			// is bound to the transitional URI only \u2014
-			// SkippableElement.java:209-212). Close any active rPr toggle
-			// so the wrapper start tag doesn't sit inside an open <w:r>.
-			// Sentinel payload format: "\uE10E:<localName>:<rawStartTag>".
+			// Generic opaque paired-code OPEN. Currently dispatches:
+			//   - "ins" / "moveTo": Strict-OOXML revision-insertion
+			//     wrapper. Per ECMA-376-1 \u00A717.13.5.16 the wrapper
+			//     preserves around its inner runs in the strict namespace
+			//     (upstream Okapi's RevisionInline skippable QName is
+			//     bound to the transitional URI only \u2014
+			//     SkippableElement.java:209-212).
+			//   - "sdt" / "sdt-no-content": inline `<w:sdt>` Structured
+			//     Document Tag wrapper. Per ECMA-376-1 \u00A717.5.2 the
+			//     `<w:sdt>` envelope and its `<w:sdtPr>` /
+			//     `<w:sdtEndPr>` / `<w:sdtContent>` children round-trip
+			//     verbatim (upstream Okapi RunContainer.java:97-176).
+			// Close any active rPr toggle so the wrapper start tag
+			// doesn't sit inside an open <w:r>. Sentinel payload format:
+			// "\uE10E:<localName>:<rawStartTagOrPrefix>".
 			if activeProps != nil && !activeProps.isEmpty() {
 				activeProps.appendClosingRuns(b, &spanCounter)
 				activeProps = nil
 			}
 			rest := strings.TrimPrefix(run.text, "\uE10E:")
 			localName, data, _ := strings.Cut(rest, ":")
+			pcType := TypeRevisionIns
 			subType := SubTypeRevisionIns
-			if localName == "moveTo" {
+			switch localName {
+			case "moveTo":
 				subType = SubTypeRevisionMoveTo
+			case "sdt":
+				pcType = TypeSDT
+				subType = SubTypeSDT
+			case "sdt-no-content":
+				pcType = TypeSDT
+				subType = SubTypeSDTNoContent
 			}
 			spanCounter++
 			b.AddPcOpen(fmt.Sprintf("c%d", spanCounter),
-				TypeRevisionIns, subType,
+				pcType, subType,
 				data, "", "",
 				true, true, true)
 			continue
 		}
 		if strings.HasPrefix(run.text, "\uE10F:") {
-			// Strict-OOXML revision-insertion paired-code CLOSE.
+			// Generic opaque paired-code CLOSE. See the OPEN dispatch
+			// above for the full localName \u2192 Type/SubType mapping.
 			// Sentinel payload format: "\uE10F:<localName>:<rawEndTag>".
 			if activeProps != nil && !activeProps.isEmpty() {
 				activeProps.appendClosingRuns(b, &spanCounter)
@@ -3139,13 +3298,21 @@ func (p *wmlParser) buildBlock(id string, runs []textRun, partPath, commonRPrXML
 			}
 			rest := strings.TrimPrefix(run.text, "\uE10F:")
 			localName, data, _ := strings.Cut(rest, ":")
+			pcType := TypeRevisionIns
 			subType := SubTypeRevisionIns
-			if localName == "moveTo" {
+			switch localName {
+			case "moveTo":
 				subType = SubTypeRevisionMoveTo
+			case "sdt":
+				pcType = TypeSDT
+				subType = SubTypeSDT
+			case "sdt-no-content":
+				pcType = TypeSDT
+				subType = SubTypeSDTNoContent
 			}
 			spanCounter++
 			b.AddPcClose(fmt.Sprintf("c%d", spanCounter),
-				TypeRevisionIns, subType,
+				pcType, subType,
 				data, "")
 			continue
 		}
@@ -3705,6 +3872,21 @@ func runToXML(r textRun) string {
 	// no additional wrapping. Mirrors the bookmark path above.
 	if isFieldSentinel(r.text) {
 		return r.data
+	}
+	// Generic paired-code wrapper sentinels (\uE10E open / \uE10F close)
+	// — used for strict-OOXML <w:ins>/<w:moveTo> revision wrappers
+	// (TypeRevisionIns, ECMA-376-1 §17.13.5.16) and inline <w:sdt>
+	// envelopes (TypeSDT, ECMA-376-1 §17.5.2). The captured payload
+	// after the "<sentinel>:<localName>:" prefix is a complete XML
+	// chunk (start tag for OPEN, end tag(s) for CLOSE) that's emitted
+	// verbatim with no <w:r> wrapper — the wrapper is the SDT/ins
+	// envelope itself, not a run. Used by writeRunToSkel for empty-
+	// runs paragraphs (e.g. the 1085.docx
+	// <w:p><w:sdt>...</w:sdt></w:p>).
+	if strings.HasPrefix(r.text, "\uE10E:") || strings.HasPrefix(r.text, "\uE10F:") {
+		rest := r.text[len("\uE10E:"):] // drop sentinel + ':' (both are 1+1 chars)
+		_, data, _ := strings.Cut(rest, ":")
+		return data
 	}
 	var buf strings.Builder
 	buf.WriteString("<w:r>")
