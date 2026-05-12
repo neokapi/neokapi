@@ -223,6 +223,321 @@ func fuseBareFldCharEndAndTextRuns(data []byte) []byte {
 		data, []byte(`$1<w:r>$2$3</w:r>`))
 }
 
+// stripFldCharBeginRunRPrWhenInheritedFromFollowingRun elides the
+// `<w:rPr>` from a `<w:r ...><w:rPr>X</w:rPr><w:fldChar
+// w:fldCharType="begin"/></w:r>` envelope when the IMMEDIATELY-following
+// run is an `<w:r ...><w:rPr>Y</w:rPr><w:instrText ...>` envelope whose
+// rPr Y contains the rPr X verbatim as a prefix or interior substring.
+//
+// Rationale: upstream Okapi RunMerger composes a complex field as a
+// single semantic run carrying the begin/instrText/separate/end markup
+// chunks plus any display text under one shared RunProperties — see
+// RunMerger.mergeRunBodyChunks (RunMerger.java:402-441) and the
+// canRunPropertiesBeMerged gate (RunMerger.java:156-229). After the
+// merge, RunProperties.minified() strips redundant inherited toggles
+// from the per-chunk rPr slots so that only the SUPERSET rPr survives
+// on the chunk that carries the most distinguishing properties — in
+// practice the instrText carrier — while the fldChar-begin emerges
+// with a bare-body `<w:r><w:fldChar/></w:r>` envelope.
+//
+// Per ECMA-376-1 §17.16.5 (Complex Fields) the fldChar elements bookend
+// a single semantic field; per §17.3.2.1 (CT_R) a single `<w:r>` may
+// carry both `<w:fldChar>` and `<w:instrText>` children with one shared
+// rPr — but when the source splits the begin and instrText into two
+// separate `<w:r>` envelopes (as Practice2.docx does), the rPr on the
+// begin run is redundant when the instrText run already carries a
+// rPr that's a SUPERSET of the begin's rPr.
+//
+// The superset test uses verbatim substring containment of the rPr
+// inner text. This is a conservative match: it fires only when every
+// child element of the begin's rPr (in document order) appears as a
+// contiguous run inside the instrText's rPr children. False negatives
+// (different child ordering) leave the rPr in place — safe.
+//
+// Practice2.docx footer2.xml / footer3.xml is the canonical fixture:
+// the source `<w:r><w:rPr><w:b/></w:rPr><w:fldChar begin/></w:r>` is
+// followed by `<w:r><w:rPr>{rFonts,b,sz,szCs}</w:rPr><w:instrText>
+// PAGE</w:instrText></w:r>`. Bridge's RunMerger fuses the field and
+// minified() drops the redundant <w:b/> from the begin slot; native's
+// per-run skeleton emit preserves the source per-run rPr, leaving a
+// diff that this post-pass closes.
+// canonicalRPrChildren parses the inner content of `<w:rPr>` and
+// returns each child element normalised to its self-closing form
+// (`<w:NAME ATTRS/>`), preserving attribute order verbatim. This
+// canonicalisation lets the strip's superset comparison ignore the
+// self-closing vs paired difference that encoding/xml may introduce
+// on re-emit, while preserving attribute distinctions (e.g. two
+// `<w:rFonts>` children with different attrs remain distinct).
+//
+// Children that don't parse as `<w:NAME ...>` are returned verbatim
+// — the caller's substring containment then degrades gracefully to
+// no-match (safer than over-stripping).
+//
+// Per ECMA-376-1 §17.3.2.28 (CT_RPr) the rPr children are all
+// individual property elements; this function preserves their
+// document order but the caller's `rPrChildrenSubset` does an
+// order-insensitive set containment check.
+func canonicalRPrChildren(inner []byte) []string {
+	if len(inner) == 0 {
+		return nil
+	}
+	var out []string
+	pos := 0
+	for pos < len(inner) {
+		// Skip whitespace.
+		for pos < len(inner) && (inner[pos] == ' ' || inner[pos] == '\t' || inner[pos] == '\n' || inner[pos] == '\r') {
+			pos++
+		}
+		if pos >= len(inner) {
+			break
+		}
+		if inner[pos] != '<' {
+			// Unexpected text content — bail.
+			return nil
+		}
+		tagClose := bytes.IndexByte(inner[pos:], '>')
+		if tagClose < 0 {
+			return nil
+		}
+		tagCloseAbs := pos + tagClose
+		tag := inner[pos : tagCloseAbs+1]
+		if len(tag) >= 2 && tag[len(tag)-2] == '/' {
+			// Self-closing form already.
+			out = append(out, string(tag))
+			pos = tagCloseAbs + 1
+			continue
+		}
+		// Paired form: find matching `</w:NAME>`.
+		// Extract the element name (between `<` and the first space or `>`).
+		nameEnd := pos + 1
+		for nameEnd < tagCloseAbs && inner[nameEnd] != ' ' && inner[nameEnd] != '\t' && inner[nameEnd] != '\n' && inner[nameEnd] != '\r' {
+			nameEnd++
+		}
+		name := inner[pos+1 : nameEnd]
+		closingTag := append([]byte("</"), name...)
+		closingTag = append(closingTag, '>')
+		closeIdx := bytes.Index(inner[tagCloseAbs+1:], closingTag)
+		if closeIdx < 0 {
+			return nil
+		}
+		bodyEnd := tagCloseAbs + 1 + closeIdx
+		body := inner[tagCloseAbs+1 : bodyEnd]
+		// Only treat empty-body paired form as self-closing equivalent.
+		// Non-empty body (rare in rPr children) preserves the paired form.
+		if len(bytes.TrimSpace(body)) == 0 {
+			// Convert `<w:NAME ATTRS></w:NAME>` to `<w:NAME ATTRS/>`.
+			normalised := make([]byte, 0, len(tag)+1)
+			normalised = append(normalised, tag[:len(tag)-1]...)
+			normalised = append(normalised, '/', '>')
+			out = append(out, string(normalised))
+		} else {
+			out = append(out, string(inner[pos:bodyEnd+len(closingTag)]))
+		}
+		pos = bodyEnd + len(closingTag)
+	}
+	return out
+}
+
+// rPrChildrenSubset reports whether every canonical child of subset
+// appears in superset. Order-insensitive set inclusion. Used by
+// stripFldCharBeginRunRPrWhenInheritedFromFollowingRun to verify that
+// the fldChar-begin run's rPr is fully covered by the following
+// instrText run's rPr before stripping.
+func rPrChildrenSubset(subset, superset []byte) bool {
+	subC := canonicalRPrChildren(subset)
+	if subC == nil {
+		return false
+	}
+	superC := canonicalRPrChildren(superset)
+	if superC == nil {
+		return false
+	}
+	superSet := make(map[string]struct{}, len(superC))
+	for _, c := range superC {
+		superSet[c] = struct{}{}
+	}
+	for _, c := range subC {
+		if _, ok := superSet[c]; !ok {
+			return false
+		}
+	}
+	return true
+}
+
+// countRPrChildren returns the number of distinguishable child
+// elements inside the rPr inner content. Used to enforce strict
+// superset (more children in superset than subset) so identical-rPr
+// pairs leave the strip OFF.
+func countRPrChildren(inner []byte) int {
+	return len(canonicalRPrChildren(inner))
+}
+
+func stripFldCharBeginRunRPrWhenInheritedFromFollowingRun(data []byte) []byte {
+	if !bytes.Contains(data, []byte(`fldCharType="begin"`)) {
+		return data
+	}
+	if !bytes.Contains(data, []byte(`<w:instrText`)) {
+		return data
+	}
+	out := make([]byte, 0, len(data))
+	pos := 0
+	for pos < len(data) {
+		// Find next `<w:r` open tag.
+		runOpenIdx := bytes.Index(data[pos:], []byte(`<w:r`))
+		if runOpenIdx < 0 {
+			out = append(out, data[pos:]...)
+			break
+		}
+		runOpenAbs := pos + runOpenIdx
+		// Require `<w:r>` or `<w:r ` (not `<w:rPr` or `<w:rStyle` etc).
+		next := data[runOpenAbs+len("<w:r")]
+		if next != '>' && next != ' ' && next != '\t' && next != '\n' && next != '\r' {
+			out = append(out, data[pos:runOpenAbs+1]...)
+			pos = runOpenAbs + 1
+			continue
+		}
+		// Find end of run open tag.
+		openClose := bytes.IndexByte(data[runOpenAbs:], '>')
+		if openClose < 0 {
+			out = append(out, data[pos:]...)
+			break
+		}
+		runOpenEndAbs := runOpenAbs + openClose + 1
+		// Expect `<w:rPr>` immediately following.
+		rprPrefix := []byte(`<w:rPr>`)
+		if !bytes.HasPrefix(data[runOpenEndAbs:], rprPrefix) {
+			out = append(out, data[pos:runOpenEndAbs]...)
+			pos = runOpenEndAbs
+			continue
+		}
+		rprInnerStart := runOpenEndAbs + len(rprPrefix)
+		// Find `</w:rPr>`.
+		rprClose := bytes.Index(data[rprInnerStart:], []byte(`</w:rPr>`))
+		if rprClose < 0 {
+			out = append(out, data[pos:rprInnerStart]...)
+			pos = rprInnerStart
+			continue
+		}
+		rprInnerEnd := rprInnerStart + rprClose
+		rprEndAbs := rprInnerEnd + len(`</w:rPr>`)
+		// Expect `<w:fldChar` next, with type="begin", in either
+		// self-closing or paired form, then `</w:r>`.
+		fldOpen := []byte(`<w:fldChar`)
+		if !bytes.HasPrefix(data[rprEndAbs:], fldOpen) {
+			out = append(out, data[pos:rprEndAbs]...)
+			pos = rprEndAbs
+			continue
+		}
+		// Locate end of fldChar element. Look for `/>` or `></w:fldChar>`.
+		fldStart := rprEndAbs
+		fldTagClose := bytes.IndexByte(data[fldStart:], '>')
+		if fldTagClose < 0 {
+			out = append(out, data[pos:fldStart]...)
+			pos = fldStart
+			continue
+		}
+		fldTagCloseAbs := fldStart + fldTagClose
+		// Check attrs include w:fldCharType="begin".
+		fldOpenTag := data[fldStart : fldTagCloseAbs+1]
+		if !bytes.Contains(fldOpenTag, []byte(`w:fldCharType="begin"`)) {
+			out = append(out, data[pos:fldTagCloseAbs+1]...)
+			pos = fldTagCloseAbs + 1
+			continue
+		}
+		// Determine fldChar element end.
+		var fldEndAbs int
+		if fldTagCloseAbs > 0 && data[fldTagCloseAbs-1] == '/' {
+			// Self-closing `<w:fldChar .../>`.
+			fldEndAbs = fldTagCloseAbs + 1
+		} else {
+			// Paired `<w:fldChar ...></w:fldChar>`.
+			closingTag := []byte(`</w:fldChar>`)
+			if !bytes.HasPrefix(data[fldTagCloseAbs+1:], closingTag) {
+				out = append(out, data[pos:fldTagCloseAbs+1]...)
+				pos = fldTagCloseAbs + 1
+				continue
+			}
+			fldEndAbs = fldTagCloseAbs + 1 + len(closingTag)
+		}
+		// Expect `</w:r>` next.
+		runCloseTag := []byte(`</w:r>`)
+		if !bytes.HasPrefix(data[fldEndAbs:], runCloseTag) {
+			out = append(out, data[pos:fldEndAbs]...)
+			pos = fldEndAbs
+			continue
+		}
+		fldRunEndAbs := fldEndAbs + len(runCloseTag)
+		// We've identified a `<w:r ...><w:rPr>X</w:rPr><w:fldChar begin
+		// .../></w:r>` envelope. Now look at what follows: it must be a
+		// `<w:r ...><w:rPr>Y</w:rPr><w:instrText ...>` envelope.
+		innerRPr := data[rprInnerStart:rprInnerEnd]
+		// Compute the post-envelope position.
+		nextRunPos := fldRunEndAbs
+		nextRunOpenIdx := bytes.Index(data[nextRunPos:], []byte(`<w:r`))
+		stripped := false
+		if nextRunOpenIdx == 0 && len(innerRPr) > 0 {
+			// Verify the next run starts with rPr + instrText.
+			nextRunOpenAbs := nextRunPos
+			nextOpenClose := bytes.IndexByte(data[nextRunOpenAbs:], '>')
+			if nextOpenClose > 0 {
+				nextRunOpenEndAbs := nextRunOpenAbs + nextOpenClose + 1
+				// First, ensure this is `<w:r>` or `<w:r `, not
+				// `<w:rPr` etc.
+				ch := data[nextRunOpenAbs+len("<w:r")]
+				if ch == '>' || ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r' {
+					if bytes.HasPrefix(data[nextRunOpenEndAbs:], rprPrefix) {
+						nextRprInnerStart := nextRunOpenEndAbs + len(rprPrefix)
+						nextRprClose := bytes.Index(data[nextRprInnerStart:], []byte(`</w:rPr>`))
+						if nextRprClose >= 0 {
+							nextRprInnerEnd := nextRprInnerStart + nextRprClose
+							nextRprEndAbs := nextRprInnerEnd + len(`</w:rPr>`)
+							instrPrefix := []byte(`<w:instrText`)
+							if bytes.HasPrefix(data[nextRprEndAbs:], instrPrefix) {
+								// Quick check the byte after the
+								// `<w:instrText` is space or `>` (not
+								// part of a longer name).
+								after := data[nextRprEndAbs+len(instrPrefix)]
+								if after == ' ' || after == '>' || after == '\t' || after == '\n' || after == '\r' {
+									innerInstrRPr := data[nextRprInnerStart:nextRprInnerEnd]
+									// Strict superset: instrText's rPr must
+									// carry all of fldChar's rPr children,
+									// PLUS at least one additional child.
+									// Identical rPrs leave the strip OFF —
+									// reference Okapi keeps the fldChar rPr
+									// when the two carry exactly the same
+									// children (no minified() collapse to
+									// trigger). Fixture 1102.docx is the
+									// canonical guard: both rPrs are
+									// `<w:b/>` and the reference retains
+									// the rPr on the begin run.
+									if rPrChildrenSubset(innerRPr, innerInstrRPr) &&
+										countRPrChildren(innerInstrRPr) > countRPrChildren(innerRPr) {
+										// Emit the begin-run with rPr stripped.
+										runOpenTag := data[runOpenAbs:runOpenEndAbs]
+										// Copy everything up to runOpenAbs.
+										out = append(out, data[pos:runOpenAbs]...)
+										out = append(out, runOpenTag...)
+										out = append(out, data[fldStart:fldEndAbs]...)
+										out = append(out, runCloseTag...)
+										pos = fldRunEndAbs
+										stripped = true
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+		if !stripped {
+			// Preserve verbatim up through the end of this fld-begin run.
+			out = append(out, data[pos:fldRunEndAbs]...)
+			pos = fldRunEndAbs
+		}
+	}
+	return out
+}
+
 // bareTextThenBarePTabRunRE matches a bare `<w:r><w:t [attrs]>content</w:t></w:r>`
 // envelope IMMEDIATELY followed by a bare `<w:r><w:ptab .../></w:r>` envelope.
 // Both envelopes must lack `<w:rPr>` so the fuse is rPr-equivalent. The ptab
@@ -1661,8 +1976,22 @@ func (w *Writer) writeFromSkeleton(origZR *zip.Reader, zw *zip.Writer, buf *byte
 		data = postNonWSOForName(data)
 		if isDOCX && w.cfg.OptimiseWordStyles && shouldOptimiseWMLPart(name) {
 			if optimised, ok := wsoOptimised[name]; ok {
-				return optimised
+				data = optimised
 			}
+		}
+		// Strip `<w:rPr>` from a `<w:r ...><w:rPr>X</w:rPr><w:fldChar
+		// w:fldCharType="begin"/></w:r>` envelope when the IMMEDIATELY-
+		// following `<w:r ...><w:rPr>Y</w:rPr><w:instrText>…</w:instrText>
+		// </w:r>` carries an rPr Y that contains X verbatim. Mirrors
+		// upstream Okapi RunMerger + RunProperties.minified() collapse of
+		// the field's per-chunk rPr to the superset rPr on the instrText
+		// carrier. Runs AFTER WSO so it doesn't perturb style synthesis
+		// (WSO inspects per-run rPr to choose synth styleIds). See
+		// stripFldCharBeginRunRPrWhenInheritedFromFollowingRun for the
+		// citation and the Practice2.docx (footer2.xml / footer3.xml)
+		// fixture rationale.
+		if isDOCX && bytes.Contains(data, []byte(`fldCharType="begin"`)) {
+			data = stripFldCharBeginRunRPrWhenInheritedFromFollowingRun(data)
 		}
 		return data
 	}
