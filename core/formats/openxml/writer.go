@@ -3806,6 +3806,12 @@ func stripDMLRunPropertyAttrs(payload string) string {
 		// occurrences in lockedCanvas chart fragments — keeping them
 		// adds ~57KB of phantom markup vs the reference output.
 		stripped = stripEmptyDMLEndParaRPr(stripped)
+		// Hoist common run properties into a paragraph-default-run
+		// (`<a:defRPr>` inside `<a:pPr>`) — see dml_style_optimization.go
+		// for the upstream Okapi RunParser.java:386-389 +
+		// StyleOptimisation.java:96-129 citation. Fixture:
+		// DrawingML_Test.docx single-run textbox paragraph.
+		stripped = optimiseDMLBlockProperties(stripped)
 		out.WriteString(stripped)
 		out.WriteString(dmlBlockCloseTag)
 		pos = blockEnd + len(dmlBlockCloseTag)
