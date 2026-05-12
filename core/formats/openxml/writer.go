@@ -223,6 +223,97 @@ func fuseBareFldCharEndAndTextRuns(data []byte) []byte {
 		data, []byte(`$1<w:r>$2$3</w:r>`))
 }
 
+// bareTextThenBarePTabRunRE matches a bare `<w:r><w:t [attrs]>content</w:t></w:r>`
+// envelope IMMEDIATELY followed by a bare `<w:r><w:ptab .../></w:r>` envelope.
+// Both envelopes must lack `<w:rPr>` so the fuse is rPr-equivalent. The ptab
+// element is logically empty per ECMA-376-1 §17.3.3.27 (CT_PTab) and is
+// matched in both self-closing and open/close (re-emitted by encoding/xml)
+// shapes. Captures:
+//
+//	$1 = the t element verbatim (open tag + body + close tag)
+//	$2 = the ptab element verbatim (self-closing or open/close form)
+//
+// Used by fuseBareTextAndPTabRuns; see the call site for the upstream Okapi
+// RunMerger citation and the OpenXML_text_reference_v1_2.docx fixture
+// rationale.
+var bareTextThenBarePTabRunRE = regexp.MustCompile(
+	`<w:r>(<w:t\b[^>]*>[^<]*</w:t>)</w:r><w:r>(<w:ptab\b[^>]*(?:/>|></w:ptab>))</w:r>`)
+
+// barePTabThenBareTextRunRE matches a bare `<w:r><w:ptab .../></w:r>`
+// envelope IMMEDIATELY followed by a bare `<w:r><w:t [attrs]>content</w:t></w:r>`
+// envelope. Both envelopes must lack `<w:rPr>` so the fuse is rPr-equivalent.
+// Captures:
+//
+//	$1 = the ptab element verbatim (self-closing or open/close form)
+//	$2 = the t element verbatim (open tag + body + close tag)
+//
+// Used by fuseBareTextAndPTabRuns to handle the reverse adjacency (ptab
+// followed by text) once the leading-text-then-ptab fuse has folded the
+// first ptab into the leading text envelope.
+var barePTabThenBareTextRunRE = regexp.MustCompile(
+	`<w:r>(<w:ptab\b[^>]*(?:/>|></w:ptab>))</w:r><w:r>(<w:t\b[^>]*>[^<]*</w:t>)</w:r>`)
+
+// bareTextPTabEnvelopePairRE matches a `<w:r>` envelope whose body is a
+// sequence of one or more bare `<w:t>` and `<w:ptab/>` children (no rPr)
+// immediately followed by another `<w:r>` envelope of the same shape.
+// Both envelopes must lack `<w:rPr>` so the fuse is rPr-equivalent. The
+// first envelope is the already-fused leading chunk produced by the
+// initial t+ptab fold; this iterative regex absorbs adjacent same-shape
+// envelopes into the same `<w:r>`. Captures:
+//
+//	$1 = the leading envelope body (one or more t and/or ptab children)
+//	$2 = the trailing envelope body (one or more t and/or ptab children)
+//
+// Used by fuseBareTextAndPTabRuns to walk a t/ptab/t/ptab/t alternation
+// (or any superset) into a single envelope.
+var bareTextPTabEnvelopePairRE = regexp.MustCompile(
+	`<w:r>((?:<w:t\b[^>]*>[^<]*</w:t>|<w:ptab\b[^>]*(?:/>|></w:ptab>))+)</w:r>` +
+		`<w:r>((?:<w:t\b[^>]*>[^<]*</w:t>|<w:ptab\b[^>]*(?:/>|></w:ptab>))+)</w:r>`)
+
+// fuseBareTextAndPTabRuns collapses adjacent bare `<w:r><w:t>…</w:t></w:r>`
+// and `<w:r><w:ptab/></w:r>` envelopes into a single `<w:r>` envelope
+// carrying all `<w:t>` and `<w:ptab/>` children side-by-side. All source
+// envelopes must lack `<w:rPr>` so the fuse is rPr-equivalent. Mirrors
+// upstream Okapi RunMerger.mergeRunBodyChunks (RunMerger.java:402-441)
+// fusing adjacent same-rPr runs: a sequence of bare `<w:r>` envelopes
+// with matching (here: empty) RunProperties merges into one RunBuilder
+// whose body chunks list intersperses RunText (the <w:t>) and Markup
+// (the <w:ptab/>) chunks. Per ECMA-376-1 §17.3.2.1 (CT_R) a single
+// `<w:r>` may carry both `<w:t>` and `<w:ptab>` children alongside one
+// shared `<w:rPr>` (here: empty / absent). Per §17.3.3.27 (CT_PTab) the
+// positional-tab element's attrs (alignment/leader/relativeTo) are
+// independent of the run's text bytes, so preserving the captured ptab
+// tag verbatim survives the round-trip.
+//
+// OpenXML_text_reference_v1_2.docx (header2.xml) is the canonical
+// fixture: a header paragraph with the alternation
+// `<w:r><w:t>left</w:t></w:r><w:r><w:ptab center/></w:r><w:r><w:t>center</w:t></w:r><w:r><w:ptab right/></w:r><w:r><w:t>right</w:t></w:r>`
+// where bridge's RunMerger fuses the five runs into one envelope while
+// native's per-run skeleton emit keeps them split. The fuse runs in
+// postNonWSOForName (after skeleton reconstruction + WSO) so it sees the
+// post-WSO wire shape where the rPr-less envelopes have already been
+// emitted.
+//
+// The fuse is applied iteratively (loop until no further change) so a
+// long alternation like t/ptab/t/ptab/t collapses into a single envelope
+// in one call. The two regexes handle either starting adjacency
+// (text-first or ptab-first) and the iterative version absorbs the next
+// bare text run into the growing envelope.
+func fuseBareTextAndPTabRuns(data []byte) []byte {
+	if !bytes.Contains(data, []byte(`<w:ptab`)) {
+		return data
+	}
+	for {
+		next := bareTextThenBarePTabRunRE.ReplaceAll(data, []byte(`<w:r>$1$2</w:r>`))
+		next = barePTabThenBareTextRunRE.ReplaceAll(next, []byte(`<w:r>$1$2</w:r>`))
+		next = bareTextPTabEnvelopePairRE.ReplaceAll(next, []byte(`<w:r>$1$2</w:r>`))
+		if bytes.Equal(next, data) {
+			return data
+		}
+		data = next
+	}
+}
+
 // wmlRevisionParagraphMarkRE matches the EMPTY-BODY forms of the
 // paragraph-mark revision elements that appear INSIDE <w:rPr>:
 //   - <w:ins .../>           (RUN_PROPERTY_INSERTED_PARAGRAPH_MARK)
@@ -1486,6 +1577,17 @@ func (w *Writer) writeFromSkeleton(origZR *zip.Reader, zw *zip.Writer, buf *byte
 		// so the fuse is rPr-equivalent.
 		if bytes.Contains(data, []byte(`fldCharType="end"`)) {
 			data = fuseBareFldCharEndAndTextRuns(data)
+		}
+		// Fuse an alternation of bare `<w:r><w:t>…</w:t></w:r>` and
+		// `<w:r><w:ptab/></w:r>` envelopes into a single `<w:r>`
+		// envelope carrying all the t and ptab children side by side.
+		// All source envelopes must lack `<w:rPr>` so the fuse is
+		// rPr-equivalent. See fuseBareTextAndPTabRuns for the upstream
+		// Okapi RunMerger citation and the
+		// OpenXML_text_reference_v1_2.docx (header2.xml) fixture
+		// rationale.
+		if bytes.Contains(data, []byte(`<w:ptab`)) {
+			data = fuseBareTextAndPTabRuns(data)
 		}
 		return data
 	}
