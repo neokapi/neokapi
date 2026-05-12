@@ -270,6 +270,63 @@ var bareTextPTabEnvelopePairRE = regexp.MustCompile(
 	`<w:r>((?:<w:t\b[^>]*>[^<]*</w:t>|<w:ptab\b[^>]*(?:/>|></w:ptab>))+)</w:r>` +
 		`<w:r>((?:<w:t\b[^>]*>[^<]*</w:t>|<w:ptab\b[^>]*(?:/>|></w:ptab>))+)</w:r>`)
 
+// sameRPrAnnotationRefThenTextRunRE matches a `<w:r><w:rPr>…</w:rPr>
+// <w:annotationRef/></w:r>` envelope immediately followed by a
+// `<w:r><w:rPr>…</w:rPr><w:t [attrs]>content</w:t></w:r>` envelope
+// where both `<w:rPr>` bodies match a single rStyle pointing at the
+// CommentReference style (the canonical comment-marker rPr per
+// ECMA-376-1 §17.13.4.1 / §17.13.4.5). Both rStyle inner elements may
+// appear in self-closing (`<w:rStyle .../>`) or open/close
+// (`<w:rStyle ...></w:rStyle>`) form — encoding/xml may re-emit either
+// shape depending on the captured rawMarkup provenance, but per
+// ECMA-376-1 §17.7.4.5 (CT_String) the element is logically empty in
+// both. Captures:
+//
+//	$1 = the leading run's rPr/rStyle val attribute (re-emitted verbatim)
+//	$2 = the trailing t element verbatim (open tag + body + close tag)
+//
+// The replacement fuses the two runs by emitting one `<w:r>` envelope
+// carrying the canonical self-closing rStyle inside the rPr, followed
+// by `<w:annotationRef/>` and the captured `<w:t>` child. Per
+// ECMA-376-1 §17.3.2.1 (CT_R) a single `<w:r>` may carry both
+// `<w:annotationRef>` and `<w:t>` children alongside one shared
+// `<w:rPr>`.
+//
+// Used by fuseSameRPrAnnotationRefAndTextRuns; see the call site for
+// the upstream Okapi RunMerger citation and the
+// OpenXML_text_reference_v1_2.docx (comments.xml) fixture rationale.
+var sameRPrAnnotationRefThenTextRunRE = regexp.MustCompile(
+	`<w:r><w:rPr><w:rStyle w:val="CommentReference"(?:/>|></w:rStyle>)</w:rPr><w:annotationRef/></w:r>` +
+		`<w:r><w:rPr><w:rStyle w:val="CommentReference"(?:/>|></w:rStyle>)</w:rPr>(<w:t\b[^>]*>[^<]*</w:t>)</w:r>`)
+
+// fuseSameRPrAnnotationRefAndTextRuns collapses an
+// `<w:r><w:rPr><w:rStyle w:val="CommentReference"/></w:rPr><w:annotationRef/></w:r>`
+// envelope followed by an
+// `<w:r><w:rPr><w:rStyle w:val="CommentReference"/></w:rPr><w:t>…</w:t></w:r>`
+// envelope into a single `<w:r>` carrying the rPr, the annotationRef
+// and the t children together. Mirrors upstream Okapi RunMerger
+// (RunMerger.java:402-441 fusing a Markup + RunText body chunk pair
+// when the containing runs share rPr per canRunPropertiesBeMerged at
+// 156-229). The two source rPrs are equal modulo `<w:rStyle>` self-close
+// vs open/close form — the regex accepts either shape, and the
+// replacement always emits the canonical self-closing form.
+//
+// Per ECMA-376-1 §17.13.4.1 (annotation comment body) every
+// `<w:comment>` body opens with a marker run carrying the
+// CommentReference rStyle plus an `<w:annotationRef/>` child. The
+// comment's display text appears in the immediately-following same-rPr
+// run; bridge's RunMerger fuses these two source runs into one
+// envelope, while native's per-run skeleton emit preserves the source's
+// envelope split. OpenXML_text_reference_v1_2.docx (comments.xml) is
+// the canonical fixture exercising this path.
+func fuseSameRPrAnnotationRefAndTextRuns(data []byte) []byte {
+	if !bytes.Contains(data, []byte(`<w:annotationRef/>`)) {
+		return data
+	}
+	return sameRPrAnnotationRefThenTextRunRE.ReplaceAll(data,
+		[]byte(`<w:r><w:rPr><w:rStyle w:val="CommentReference"/></w:rPr><w:annotationRef/>$1</w:r>`))
+}
+
 // fuseBareTextAndPTabRuns collapses adjacent bare `<w:r><w:t>…</w:t></w:r>`
 // and `<w:r><w:ptab/></w:r>` envelopes into a single `<w:r>` envelope
 // carrying all `<w:t>` and `<w:ptab/>` children side-by-side. All source
@@ -1588,6 +1645,15 @@ func (w *Writer) writeFromSkeleton(origZR *zip.Reader, zw *zip.Writer, buf *byte
 		// rationale.
 		if bytes.Contains(data, []byte(`<w:ptab`)) {
 			data = fuseBareTextAndPTabRuns(data)
+		}
+		// Fuse the `<w:r>` envelope carrying the comment-body marker
+		// (`<w:annotationRef/>` with CommentReference rStyle) with the
+		// immediately-following same-rPr text run. See
+		// fuseSameRPrAnnotationRefAndTextRuns for the upstream Okapi
+		// RunMerger citation and the OpenXML_text_reference_v1_2.docx
+		// (comments.xml) fixture rationale.
+		if bytes.Contains(data, []byte(`<w:annotationRef/>`)) {
+			data = fuseSameRPrAnnotationRefAndTextRuns(data)
 		}
 		return data
 	}
