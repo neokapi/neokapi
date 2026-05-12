@@ -1051,6 +1051,13 @@ func (w *Writer) writeFromSkeleton(origZR *zip.Reader, zw *zip.Writer, buf *byte
 				if err == nil {
 					existingIDs = extractExistingStyleIDs(data)
 					defaultParagraphStyleID = extractDefaultParagraphStyleID(data)
+					// Hand the rtl-bearing chain set off to the WSO
+					// strip pass via the package-level
+					// currentRTLChainStyles. Consumed by
+					// stripToggleMirrorsFromCommon's `case "rtl":` —
+					// see style_optimization.go for the 899.docx-vs-
+					// 830-2.docx rationale.
+					currentRTLChainStyles = extractRTLChainStyleIDs(data)
 				}
 				break
 			}
@@ -1058,6 +1065,12 @@ func (w *Writer) writeFromSkeleton(origZR *zip.Reader, zw *zip.Writer, buf *byte
 		if existingIDs == nil {
 			existingIDs = make(map[string]bool)
 		}
+		// Reset the rtl-chain handoff after the WSO pass below so it
+		// doesn't leak into another Writer's invocation. Tests that
+		// invoke optimizeWMLPart directly leave currentRTLChainStyles
+		// nil — preserving the pre-fix drop behaviour for fixtures
+		// whose chain has no rtl-bearing styles.
+		defer func() { currentRTLChainStyles = nil }()
 	}
 
 	// wsoOptimised stashes the WSO-rewritten bytes for each

@@ -667,16 +667,6 @@ func optimizeParagraph(
 	// stripToggleMirrorChildren (lines 1044-1058) which performs the
 	// equivalent strip on the per-source-run rPr sidecar before write.
 	rtlCommon := commonContainsRTL(common)
-	commonForStyle := stripToggleMirrorsFromCommon(common, rtlCommon)
-	if len(commonForStyle) == 0 {
-		// Only the dropped toggle members were common — there is
-		// nothing meaningful to lift into a parent style. Upstream
-		// Okapi would have skipped these from the common set in the
-		// first place (the toggle mirrors don't surface as standalone
-		// synthesisable props), so bail to match upstream's "no style
-		// synthesised" outcome.
-		return src
-	}
 
 	// Build the synthesised style id. Mirrors WordStyleDefinitions.Ids
 	// .basedOn (lines 453-460): the paragraph's pStyle is used as
@@ -702,6 +692,23 @@ func optimizeParagraph(
 		} else {
 			parentID = "Normal"
 		}
+	}
+	// Does the synth style's parent chain inherit `<w:rtl/>`? Used by
+	// stripToggleMirrorsFromCommon's `case "rtl":` to PRESERVE an
+	// explicit-off `<w:rtl w:val="0"/>` lift in the synth style's rPr
+	// (899.docx Normal-with-rtl) vs DROP it as redundant (830-2.docx
+	// Normal-without-rtl). currentRTLChainStyles is set by writer.go
+	// from extractRTLChainStyleIDs(stylesXML).
+	parentInheritsRTL := currentRTLChainStyles != nil && currentRTLChainStyles[parentID]
+	commonForStyle := stripToggleMirrorsFromCommon(common, rtlCommon, parentInheritsRTL)
+	if len(commonForStyle) == 0 {
+		// Only the dropped toggle members were common — there is
+		// nothing meaningful to lift into a parent style. Upstream
+		// Okapi would have skipped these from the common set in the
+		// first place (the toggle mirrors don't surface as standalone
+		// synthesisable props), so bail to match upstream's "no style
+		// synthesised" outcome.
+		return src
 	}
 	commonRPrXML := buildRPrXML(commonForStyle)
 	var matchedID string
@@ -1406,7 +1413,7 @@ func commonProps(seed []runProp, entries []runEntry) []runProp {
 // This function is the WSO-layer counterpart of writer.go's
 // stripToggleMirrorChildren (lines 1044-1058) which performs an
 // equivalent strip on the per-source-run rPr sidecar before write.
-func stripToggleMirrorsFromCommon(props []runProp, rtl bool) []runProp {
+func stripToggleMirrorsFromCommon(props []runProp, rtl bool, parentInheritsRTL bool) []runProp {
 	if len(props) == 0 {
 		return props
 	}
@@ -1522,13 +1529,16 @@ func stripToggleMirrorsFromCommon(props []runProp, rtl bool) []runProp {
 			// implies LTR for its runs, so a pStyle-level
 			// `<w:rtl w:val="0"/>` is structurally redundant — it
 			// would only matter if some basedOn ancestor turned rtl
-			// on (the 899.docx case where the Normal style has
-			// `<w:rtl/>` and synthesised children inherit-and-clear).
-			// For the 830-2-shaped fixtures the chain is rtl-free,
-			// so the explicit-off form is dropped from the lift.
+			// on. parentInheritsRTL flags exactly that case (899.docx
+			// Normal style authors `<w:rtl/>` so synth children based
+			// on Normal need the clearing form to actually clear).
+			// For 830-2-shaped fixtures the chain is rtl-free, so the
+			// explicit-off form is dropped from the lift.
 			val, hasVal := parseRPrChildVal(p.xml)
 			if hasVal && (val == "0" || val == "false" || val == "off") {
-				continue
+				if !parentInheritsRTL {
+					continue
+				}
 			}
 			out = append(out, p)
 		case "highlight":
@@ -2296,6 +2306,146 @@ func extractExistingStyleIDs(stylesXML []byte) map[string]bool {
 
 // _ keeps sort imported for future use (sorted-id traversal).
 var _ = sort.Strings
+
+// currentRTLChainStyles is set by the writer (writer.go) to the result
+// of extractRTLChainStyleIDs(stylesXML) before invoking optimizeWMLPart
+// on each WML part. It is consulted by stripToggleMirrorsFromCommon's
+// rtl-clearing-form preservation branch to decide whether an explicit-
+// off `<w:rtl w:val="0"/>` lifted into a synthesised paragraph style
+// must be PRESERVED (parent chain inherits `<w:rtl/>`) or DROPPED as
+// structurally redundant (parent chain has no rtl).
+//
+// Module-level state instead of a threaded parameter so the existing
+// optimizeWMLPart / optimizeNestedParagraphs / optimizeParagraph call
+// sites in style_optimization_test.go keep their current 8-argument
+// signatures. The Writer always resets this to nil after each
+// per-Writer WSO pass via a deferred cleanup; tests that run
+// optimizeWMLPart directly leave it nil (treated as "no parent
+// inherits rtl", preserving the pre-fix drop behaviour for in-test
+// fixtures whose styles.xml has no rtl-bearing chain).
+var currentRTLChainStyles map[string]bool
+
+// styleHasRTLDirect reports whether the named styleID's rPr (in
+// stylesXML) has a bare-on `<w:rtl/>` element (i.e. NOT explicit-off
+// `<w:rtl w:val="0"/>`). Used by extractRTLChainStyleIDs to seed the
+// chain walk.
+//
+// The match is local to ONE `<w:style w:styleId="X">` entry — it does
+// NOT walk basedOn (the caller does the chain walk). Returns false for
+// styles whose rPr authors `<w:rtl w:val="0"/>`/"false"/"off" (those
+// are clearing forms, not bare-on per ECMA-376-1 §17.3.2.4 CT_OnOff).
+func styleHasRTLDirect(stylesXML []byte, styleID string) bool {
+	needle := []byte(`w:styleId="` + styleID + `"`)
+	idx := bytes.Index(stylesXML, needle)
+	if idx < 0 {
+		return false
+	}
+	end := bytes.Index(stylesXML[idx:], []byte(`</w:style>`))
+	if end < 0 {
+		return false
+	}
+	body := stylesXML[idx : idx+end]
+	for cursor := 0; cursor < len(body); {
+		i := bytes.Index(body[cursor:], []byte("<w:rtl"))
+		if i < 0 {
+			break
+		}
+		start := cursor + i + len("<w:rtl")
+		if start >= len(body) {
+			break
+		}
+		b := body[start]
+		if b != ' ' && b != '/' && b != '>' && b != '\t' && b != '\n' && b != '\r' {
+			cursor = start
+			continue
+		}
+		te := bytes.IndexByte(body[start:], '>')
+		if te < 0 {
+			break
+		}
+		tag := body[start : start+te]
+		if bytes.Contains(tag, []byte(`w:val="0"`)) ||
+			bytes.Contains(tag, []byte(`w:val="false"`)) ||
+			bytes.Contains(tag, []byte(`w:val="off"`)) {
+			cursor = start + te + 1
+			continue
+		}
+		return true
+	}
+	return false
+}
+
+// styleBasedOn returns the basedOn value for the named styleID in
+// stylesXML, or "" if not found / no basedOn declared.
+func styleBasedOn(stylesXML []byte, styleID string) string {
+	needle := []byte(`w:styleId="` + styleID + `"`)
+	idx := bytes.Index(stylesXML, needle)
+	if idx < 0 {
+		return ""
+	}
+	end := bytes.Index(stylesXML[idx:], []byte(`</w:style>`))
+	if end < 0 {
+		return ""
+	}
+	body := stylesXML[idx : idx+end]
+	bi := bytes.Index(body, []byte(`<w:basedOn w:val="`))
+	if bi < 0 {
+		return ""
+	}
+	bi += len(`<w:basedOn w:val="`)
+	be := bytes.IndexByte(body[bi:], '"')
+	if be < 0 {
+		return ""
+	}
+	return string(body[bi : bi+be])
+}
+
+// extractRTLChainStyleIDs returns the set of styleIDs in stylesXML
+// whose chain (own rPr + basedOn-walked ancestors) carries a bare-on
+// `<w:rtl/>` toggle. Consumed by stripToggleMirrorsFromCommon to
+// decide when an explicit-off `<w:rtl w:val="0"/>` lifted into a
+// synthesised paragraph style must be PRESERVED — without it, the
+// synth style fails to clear the inherited rtl from the parent style
+// chain, producing right-aligned text where the source authored a
+// left-aligned LTR override.
+//
+// 899.docx canonical case: the Normal paragraph style declares
+// `<w:rPr><w:rtl/></w:rPr>` (the document defaults to RTL). Every LTR
+// paragraph carries a per-run `<w:rtl w:val="0"/>` clearing override;
+// WSO lifts the common clearing form into a synthesised `Normal1`
+// style based on `Normal`. If the synthesised style drops `<w:rtl
+// w:val="0"/>`, the inherited `<w:rtl/>` from `Normal` flows through
+// and the LTR text renders RTL.
+//
+// 830-2.docx counterexample: Normal does NOT carry `<w:rtl/>`, so the
+// per-run `<w:rtl w:val="0"/>` lift is structurally redundant (no
+// inherited rtl to clear). The drop matches upstream output.
+func extractRTLChainStyleIDs(stylesXML []byte) map[string]bool {
+	out := make(map[string]bool)
+	if len(stylesXML) == 0 {
+		return out
+	}
+	allIDs := extractExistingStyleIDs(stylesXML)
+	directRTL := make(map[string]bool)
+	for id := range allIDs {
+		if styleHasRTLDirect(stylesXML, id) {
+			directRTL[id] = true
+		}
+	}
+	for id := range allIDs {
+		visited := make(map[string]bool)
+		cursor := id
+		for cursor != "" && !visited[cursor] {
+			visited[cursor] = true
+			if directRTL[cursor] {
+				out[id] = true
+				break
+			}
+			cursor = styleBasedOn(stylesXML, cursor)
+		}
+	}
+	return out
+}
 
 // containsContentRevisionWrapper reports whether the paragraph src has
 // any <w:ins>...</w:ins> or <w:del>...</w:del> CONTENT wrapper (i.e.
