@@ -831,6 +831,39 @@ func optimizeParagraph(
 			return src // bypass per StyleOptimisation.innerChunksContainExclusions
 		}
 		if !e.hasRPr || len(e.props) == 0 {
+			// Relax the early bail when docDefaults carries an rFonts:
+			// commonRFonts (style_optimization.go:2087) virtually
+			// overlays currentDocDefaultsRFonts onto runs that lack a
+			// direct rFonts, mirroring upstream Okapi's RunMerger
+			// combined-rFonts view (RunMerger.java:389-396
+			// clarifyFontsRunProperties + WordStyleDefinitions.
+			// combinedRunProperties lines 302-315). Per ECMA-376-1
+			// §17.7.5.5 (CT_DocDefaults) the docDefaults rPr applies
+			// implicitly to every run that doesn't override the
+			// property — so an empty-rPr run still has an effective
+			// rFonts via the docDefaults overlay, and commonProps can
+			// still surface an agreed rFonts value across the runs.
+			//
+			// StartsWithLineSeparator.docx paragraph 1: R1 carries a
+			// direct rFonts (MS Gothic) and R2-R4 carry no rPr at all.
+			// With docDefaults `<w:rFonts asciiTheme=minorHAnsi
+			// hAnsiTheme=minorHAnsi …/>`, the overlay gives R2-R4 a
+			// virtual rFonts matching docDefaults so the
+			// per-content-category intersection can surface
+			// asciiTheme=minorHAnsi (R1's `MS Gothic` direct ascii is
+			// detected via the docDefaults asciiTheme on R2-R4 — and
+			// the merged rFonts gets lifted into a synth pStyle).
+			//
+			// Non-rFonts props of empty-rPr runs still drop the
+			// corresponding common-prop entries via the loop in
+			// commonProps (entry's prop set is empty so the lookup
+			// fails) — only rFonts benefits from the overlay. The
+			// relaxation is therefore safe for paragraphs where every
+			// run has empty rPr (commonProps returns nil → outer
+			// `len(common) == 0` bail still fires).
+			if len(currentDocDefaultsRFonts) > 0 {
+				continue
+			}
 			return src
 		}
 	}
@@ -2091,9 +2124,35 @@ func commonRFonts(entries []runEntry) (string, bool) {
 	// Every entry must have exactly one rFonts (the typical case;
 	// duplicate rFonts within a single rPr is invalid per ECMA-376
 	// schema and would indicate malformed input — skip optimisation).
+	//
+	// When the source docDefaults declares an rFonts (ECMA-376-1
+	// §17.7.5.5 CT_DocDefaults) we virtually overlay it onto entries
+	// that lack a direct rFonts — mirroring upstream Okapi
+	// RunMerger's clarifyFontsRunProperties (RunMerger.java:389-396)
+	// which refines the merged run's direct rFonts to the combined-
+	// run-properties view (docDefaults + pStyle + rStyle + direct,
+	// per WordStyleDefinitions.combinedRunProperties lines 302-315).
+	// The overlay lets the per-content-category intersection see
+	// the docDefaults-supplied attributes instead of bailing out the
+	// moment a single rFonts-less run shows up.
+	//
+	// StartsWithLineSeparator.docx paragraph 1 canonical fixture:
+	// R1 carries `<w:rFonts ascii=MS Gothic eastAsia=MS Gothic
+	// hAnsi=MS Gothic cs=MS Gothic/>` and R2-R4 carry no direct rPr
+	// at all. With docDefaults `<w:rFonts asciiTheme=minorHAnsi
+	// eastAsiaTheme=minorHAnsi hAnsiTheme=minorHAnsi
+	// cstheme=minorBidi/>`, the overlay gives R2-R4 a virtual rFonts
+	// matching docDefaults so the per-category intersection can
+	// surface the agreed effective values (asciiTheme=minorHAnsi via
+	// R1's docDefaults overlay + R2-R4's direct-from-overlay).
 	var firstAttrs []rfontsAttr
 	allAttrs := make([][]rfontsAttr, len(entries))
 	allAttrSets := make([]map[string]string, len(entries))
+	// hadDirectRFonts[i] tracks whether entry i ORIGINALLY authored
+	// rFonts (i.e. before the docDefaults overlay). Used below to
+	// keep first-attr-source-ordering anchored on a real run rather
+	// than a virtual one.
+	hadDirectRFonts := make([]bool, len(entries))
 	for i, e := range entries {
 		var rfonts *runProp
 		for k := range e.props {
@@ -2104,14 +2163,24 @@ func commonRFonts(entries []runEntry) (string, bool) {
 				rfonts = &e.props[k]
 			}
 		}
-		if rfonts == nil {
-			return "", false // a run lacks rFonts → not common
+		var attrs []rfontsAttr
+		if rfonts != nil {
+			parsed, ok := parseRFontsAttrs(rfonts.xml)
+			if !ok {
+				return "", false
+			}
+			attrs = parsed
+			hadDirectRFonts[i] = true
+		} else if len(currentDocDefaultsRFonts) > 0 {
+			// Virtual overlay from docDefaults. Copy the slice so any
+			// downstream mutation (none today, but defensive) does
+			// not leak into the module-level state.
+			attrs = make([]rfontsAttr, len(currentDocDefaultsRFonts))
+			copy(attrs, currentDocDefaultsRFonts)
+		} else {
+			return "", false // a run lacks rFonts AND no docDefaults overlay → not common
 		}
-		attrs, ok := parseRFontsAttrs(rfonts.xml)
-		if !ok {
-			return "", false
-		}
-		if i == 0 {
+		if firstAttrs == nil {
 			firstAttrs = attrs
 		}
 		allAttrs[i] = attrs
@@ -2120,6 +2189,19 @@ func commonRFonts(entries []runEntry) (string, bool) {
 			m[a.name] = a.value
 		}
 		allAttrSets[i] = m
+	}
+	// Prefer the first entry that ORIGINALLY authored rFonts as the
+	// source-order anchor for firstAttrs. When the first entry was
+	// virtual (docDefaults overlay) and a later entry carries a real
+	// direct rFonts, the real direct's attribute ORDER is what
+	// upstream's emitted rFonts surfaces — keeping the synth-pStyle
+	// output stable across map iteration order and aligned with
+	// upstream Okapi's serialised attribute sequence.
+	for i, attrs := range allAttrs {
+		if hadDirectRFonts[i] {
+			firstAttrs = attrs
+			break
+		}
 	}
 	// Per-content-category emit with theme/direct cross-equivalence.
 	// Mirrors upstream Okapi RunFonts.mergeContentCategories
@@ -3441,6 +3523,122 @@ var currentDocDefaultsICsExplicitOff bool
 // extractDefaultCharacterStyleToggles.
 var currentDefaultCharacterStyleToggles map[string]bool
 
+// currentDocDefaultsRFonts holds the attribute list of the rFonts
+// element authored by `<w:docDefaults><w:rPrDefault><w:rPr><w:rFonts
+// .../></w:rPr></w:rPrDefault></w:docDefaults>` in word/styles.xml.
+//
+// Per ECMA-376-1 §17.7.5.5 (CT_DocDefaults) the docDefaults rPr
+// applies implicitly to every run that doesn't override the property
+// through pStyle / rStyle / direct formatting. When upstream Okapi's
+// RunMerger fuses adjacent runs whose direct rFonts disagree but whose
+// combined (docDefaults-overlaid) rFonts agree per
+// `RunFonts.canContentCategoriesBeMerged` (RunFonts.java:211-230) and
+// `mergeContentCategories` (RunFonts.java:299-315), the merged run's
+// direct rFonts captures the combined view. WSO then sees ONE run
+// whose direct rFonts is the merged value and trivially lifts it into
+// a synthesised pStyle.
+//
+// Native does NOT run RunMerger at parse time; runs reach WSO with
+// their source-direct rFonts intact (or absent). When SOME runs in a
+// paragraph carry rFonts directly and OTHERS author no rFonts,
+// `commonRFonts`'s per-attribute intersection collapses (the run
+// without rFonts has no attributes to intersect with), and the
+// synthesis path bails out.
+//
+// To approximate upstream's RunMerger-equivalent lift in that case,
+// `commonRFonts` virtually overlays this docDefaults rFonts onto runs
+// that lack a direct rFonts. The intersection then runs against the
+// docDefaults-supplied attributes — matching the values RunMerger
+// would have surfaced after `clarifyFontsRunProperties`
+// (RunMerger.java:389-396) refines the merged run's direct rFonts to
+// the merged combined view.
+//
+// Populated as a side effect of extractDefaultCharacterStyleToggles
+// (which writer.go already invokes with stylesXML at the WSO
+// pre-pass entry — see writer.go:1494). The piggyback keeps the
+// docDefaults rFonts lifecycle aligned with the other docDefaults-
+// derived state (currentDocDefaultsBCsExplicitOff, etc.) without
+// requiring an additional plumbing call. Nil/empty when the source
+// has no docDefaults rFonts.
+//
+// Fixture StartsWithLineSeparator.docx: docDefaults declares
+//
+//	<w:rFonts w:asciiTheme="minorHAnsi" w:eastAsiaTheme="minorHAnsi"
+//	          w:hAnsiTheme="minorHAnsi" w:cstheme="minorBidi"/>
+//
+// Paragraph 1 has R1=`<w:rPr><w:rFonts ascii=MS Gothic eastAsia=MS
+// Gothic hAnsi=MS Gothic cs=MS Gothic/></w:rPr>` followed by R2-R4
+// with empty rPr. Upstream RunMerger fuses R1+R2-R4, surfaces a
+// merged rFonts that includes `ascii=MS Gothic, asciiTheme=minorHAnsi,
+// hAnsi=MS Gothic, hAnsiTheme=minorHAnsi` (via
+// `mergeContentCategories` + `preserveAsciiAndHighAnsi`), then
+// `commonRunPropertiesOf` lifts the merged direct rFonts into a
+// synthesised `NF974E24F-Standard1` pStyle. Without the docDefaults
+// overlay, native's `commonRFonts` would short-circuit because R2-R4
+// lack rFonts, and no synth pStyle would be emitted.
+//
+// Module-level state instead of threaded parameter for the same
+// reason as currentRTLChainStyles — see its doc above for the
+// rationale on signature stability.
+var currentDocDefaultsRFonts []rfontsAttr
+
+// extractDocDefaultsRFontsAttrs returns the parsed attribute list of
+// the `<w:rFonts ...>` element that lives directly under
+// `<w:docDefaults><w:rPrDefault><w:rPr>` in stylesXML. Returns nil if
+// no such element exists.
+//
+// Used by extractDefaultCharacterStyleToggles to refresh
+// currentDocDefaultsRFonts as a piggyback side effect at the WSO
+// pre-pass entry. See currentDocDefaultsRFonts doc for the upstream
+// contract reference and the StartsWithLineSeparator.docx fixture
+// rationale.
+//
+// Per ECMA-376-1 §17.7.5.5 (CT_DocDefaults) only one
+// `<w:rPrDefault>` may appear and at most one `<w:rFonts>` inside it.
+// The parse mirrors extractDocDefaultsToggleExplicitOff's byte-scan
+// approach — keeping the cost cheap and aligned with the rest of the
+// stylesXML parsing in this file.
+func extractDocDefaultsRFontsAttrs(stylesXML []byte) []rfontsAttr {
+	if len(stylesXML) == 0 {
+		return nil
+	}
+	docDefaultsStart := bytes.Index(stylesXML, []byte("<w:docDefaults"))
+	if docDefaultsStart < 0 {
+		return nil
+	}
+	docDefaultsEnd := bytes.Index(stylesXML[docDefaultsStart:], []byte("</w:docDefaults>"))
+	if docDefaultsEnd < 0 {
+		return nil
+	}
+	body := stylesXML[docDefaultsStart : docDefaultsStart+docDefaultsEnd]
+	rPrDefaultStart := bytes.Index(body, []byte("<w:rPrDefault"))
+	if rPrDefaultStart < 0 {
+		return nil
+	}
+	rPrDefaultEnd := bytes.Index(body[rPrDefaultStart:], []byte("</w:rPrDefault>"))
+	if rPrDefaultEnd < 0 {
+		return nil
+	}
+	rPrBody := body[rPrDefaultStart : rPrDefaultStart+rPrDefaultEnd]
+	// Locate the rFonts element (self-closing or open form).
+	rfontsStart := bytes.Index(rPrBody, []byte("<w:rFonts"))
+	if rfontsStart < 0 {
+		return nil
+	}
+	// Find the end of the rFonts start-tag (`/>` for self-closing or
+	// `>` for open form; both are accepted by parseRFontsAttrs).
+	rfontsTagEnd := bytes.IndexByte(rPrBody[rfontsStart:], '>')
+	if rfontsTagEnd < 0 {
+		return nil
+	}
+	rfontsXML := string(rPrBody[rfontsStart : rfontsStart+rfontsTagEnd+1])
+	attrs, ok := parseRFontsAttrs(rfontsXML)
+	if !ok {
+		return nil
+	}
+	return attrs
+}
+
 // styleHasRTLDirect reports whether the named styleID's rPr (in
 // stylesXML) has a bare-on `<w:rtl/>` element (i.e. NOT explicit-off
 // `<w:rtl w:val="0"/>`). Used by extractRTLChainStyleIDs to seed the
@@ -3635,6 +3833,20 @@ func extractDocDefaultsToggleExplicitOff(stylesXML []byte, name string) bool {
 // aren't in this set (rFonts, color, sz, lang, …) are not toggles
 // and are not handled here.
 func extractDefaultCharacterStyleToggles(stylesXML []byte) map[string]bool {
+	// Piggyback-refresh the docDefaults rFonts state from the same
+	// stylesXML. Writer.go owns this function's call lifecycle (see
+	// writer.go:1494 — invoked once per Writer at the WSO pre-pass,
+	// reset to nil in the deferred cleanup at writer.go:1520). By
+	// piggybacking the rFonts extraction here, the currentDocDefaultsRFonts
+	// state shares that lifecycle automatically — the explicit reset
+	// at the start guarantees no leak across Writer invocations when
+	// stylesXML is empty or lacks a docDefaults rFonts.
+	//
+	// See currentDocDefaultsRFonts doc for the upstream contract
+	// (WordStyleDefinitions.combinedRunProperties / RunMerger.
+	// clarifyFontsRunProperties) and the StartsWithLineSeparator.docx
+	// fixture rationale that motivated the overlay.
+	currentDocDefaultsRFonts = extractDocDefaultsRFontsAttrs(stylesXML)
 	out := make(map[string]bool)
 	if len(stylesXML) == 0 {
 		return out
