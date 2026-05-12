@@ -1079,6 +1079,22 @@ func (w *Writer) writeFromSkeleton(origZR *zip.Reader, zw *zip.Writer, buf *byte
 				data = bytes.ReplaceAll(data, []byte("</w:"+name+fieldKeepElementSuffix+">"), []byte("</w:"+name+">"))
 			}
 		}
+		// Strip DrawingML run-property strippable attributes (lang,
+		// altLang, dirty, smtClean, err, noProof) from any
+		// <a:rPr>/<a:endParaRPr>/<a:defRPr> embedded inside a
+		// <a:p> paragraph block in a captured <w:drawing> payload.
+		// The WML reader writes drawings to the skeleton verbatim
+		// (writeDrawingXMLToSkel in wml.go) so the strip has to
+		// happen here, after skeleton reconstruction. Mirrors
+		// upstream Okapi's StrippableAttributes.DrawingRunProperties
+		// which is unconditionally applied during DrawingML block
+		// parsing — see stripDMLRunPropertyAttrs for the citation
+		// and scope rationale (list-style/table-style defaults are
+		// preserved). Fixture: DrawingML_Test.docx <a:endParaRPr
+		// lang="en-US" dirty="0">.
+		if bytes.Contains(data, []byte("<a:p")) {
+			data = []byte(stripDMLRunPropertyAttrs(string(data)))
+		}
 		return data
 	}
 	postWML := func(name string, data []byte) []byte {
@@ -2277,6 +2293,22 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 					buf.WriteString(`<w:r><w:br/></w:r>`)
 				}
 			case TypeTab:
+				// Look ahead: if the NEXT model run is a Text whose
+				// per-text-run sidecar marks it as continuing the SAME
+				// source <w:r> as this tab (textSrcStart=false), leave
+				// the new <w:r> open as inRunNoText so the text fuses
+				// inside this run via the inRunNoText branch above.
+				// Mirrors upstream Okapi RunBuilder.java:73-188 — a
+				// source <w:r> may carry both <w:tab/> and <w:t>
+				// children; per ECMA-376-1 §17.3.3.31 (<w:tab/>) +
+				// §17.3.2.1 (CT_R) the tab and following text share the
+				// enclosing <w:r>'s rPr context. Fixture
+				// Document-with-tabs-5.docx P2: source
+				// `<w:r><w:tab/><w:t>Text after tab.</w:t></w:r>` must
+				// round-trip as one <w:r>, not two.
+				keepOpen := runIdx+1 < len(runs) &&
+					runs[runIdx+1].Text != nil &&
+					!textSrcStart(textRunIdx+1)
 				if r.Ph.SubType == SubTypeTabStandalone {
 					buf.WriteString(`<w:r>`)
 					emitNonTextRPr()
@@ -2285,9 +2317,19 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 				} else if sourceRPr != "" || runProps != "" {
 					buf.WriteString(`<w:r>`)
 					emitNonTextRPr()
-					buf.WriteString(`<w:tab/></w:r>`)
+					buf.WriteString(`<w:tab/>`)
+					if keepOpen {
+						inRunNoText = true
+					} else {
+						buf.WriteString(`</w:r>`)
+					}
 				} else {
-					buf.WriteString(`<w:r><w:tab/></w:r>`)
+					buf.WriteString(`<w:r><w:tab/>`)
+					if keepOpen {
+						inRunNoText = true
+					} else {
+						buf.WriteString(`</w:r>`)
+					}
 				}
 			case TypeImage:
 				// Drawings/pict/object are opaque — never wrap with
@@ -2483,6 +2525,122 @@ func (w *Writer) removeWMLProp(current, spanType string) string {
 		return strings.ReplaceAll(current, `<w:vertAlign w:val="subscript"/>`, "")
 	}
 	return current
+}
+
+// dmlRunPropertyStartTagRE matches the start tag of a DrawingML
+// run-property container — `<a:rPr>`, `<a:endParaRPr>`, or
+// `<a:defRPr>` — including any attributes. Used by
+// stripDMLRunPropertyAttrs to scrub Okapi's strippable attribute
+// set without disturbing the element body or any inner children
+// (`<a:solidFill>`, `<a:latin>`, `<a:hlinkClick>`, …).
+//
+// The (?s) flag is unnecessary — start tags do not contain
+// newlines in any encoder we feed (encoding/xml, captureRawElement,
+// hand-built strings) — but the `[^>]*` body is naturally
+// dot-equivalent because `[^>]` matches newlines.
+var dmlRunPropertyStartTagRE = regexp.MustCompile(`<a:(?:rPr|endParaRPr|defRPr)\b[^>]*>`)
+
+// dmlStrippableAttrRE matches a single attribute (preceded by
+// whitespace) inside a DrawingML run-property start tag whose name
+// matches Okapi's StrippableAttributes.DrawingRunProperties set —
+// `err`, `noProof`, `dirty`, `smtClean`, `lang`, `altLang`. These
+// six attribute names are unconditionally dropped from any
+// `<a:rPr>` / `<a:endParaRPr>` / `<a:defRPr>` element by upstream
+// Okapi (StrippableAttributes.java lines 67-100, RunProperty enum
+// at lines 258-277, BlockParser.java instantiating the stripper
+// for every block-properties parse).
+//
+// Per ECMA-376-1 §22.1.2 (DrawingML EG_RPrBase / CT_TextCharacter
+// PropertiesType): `lang` defaults to "en-US" at runtime, `dirty`
+// defaults to false (revision-tracking hint), `smtClean` defaults
+// to false (smart-tag hint), `err` / `noProof` are spell/grammar
+// hints with implementation-defined defaults — none of these
+// affect rendered text shape, so dropping them is content-
+// preserving.
+var dmlStrippableAttrRE = regexp.MustCompile(` (?:err|noProof|dirty|smtClean|lang|altLang)="[^"]*"`)
+
+// dmlBlockOpenTagRE matches an `<a:p>` (paragraph) opening tag,
+// either self-closing or with attributes. The opening tag scopes a
+// block of content where Okapi's RunParser /
+// BlockPropertiesFactory pipeline applies
+// StrippableAttributes.DrawingRunProperties to every `<a:rPr>` /
+// `<a:endParaRPr>` / `<a:defRPr>` it encounters. Outside this scope
+// (e.g. inside `<a:lstStyle>` paragraph defaults per ECMA-376-1
+// §21.1.2.4.4) the stripper is NOT invoked and the source attribute
+// set survives verbatim — see the BlockParser / RunParser citation
+// in stripDMLRunPropertyAttrs.
+var dmlBlockOpenTagRE = regexp.MustCompile(`<a:p\b[^>]*>`)
+
+// dmlBlockCloseTag is the literal `</a:p>` closing tag.
+const dmlBlockCloseTag = "</a:p>"
+
+// stripDMLRunPropertyAttrs scans payload for DrawingML run-property
+// start tags (<a:rPr>, <a:endParaRPr>, <a:defRPr>) that appear
+// INSIDE a `<a:p>` paragraph block and removes the six attributes
+// Okapi unconditionally strips during paragraph parsing
+// (StrippableAttributes.DrawingRunProperties). Body and child
+// elements pass through unchanged. Run-property elements outside
+// `<a:p>` (e.g. inside `<a:lstStyle><a:defPPr><a:defRPr/>`
+// list-style defaults per ECMA-376-1 §21.1.2.4.4) are left alone
+// because upstream Okapi's stripper is only attached to
+// BlockParser / RunParser / ParagraphBlockProperties (see
+// BlockParser.java:163, RunParser.java:525,
+// ParagraphBlockProperties.java:664) — list-style and table-style
+// defaults bypass this pipeline.
+//
+// The fast-path skips payloads that obviously contain no <a:p>.
+//
+// This is the post-write equivalent of upstream Okapi's
+// BlockPropertiesFactory + BlockParser pipeline applying
+// drawingRunPropertiesStrippableAttributes to every <a:rPr>,
+// <a:endParaRPr>, <a:defRPr> start element observed inside a
+// paragraph block.
+//
+// Native's WML drawing path captures the entire <w:drawing>
+// payload as opaque XML in extractDrawingTranslations and writes
+// it back verbatim through writeDrawingXMLToSkel (see wml.go).
+// Without this strip, source-side `<a:endParaRPr lang="en-US"
+// dirty="0">` survives round-trip, diverging against upstream
+// canon (DrawingML_Test.docx fixture).
+func stripDMLRunPropertyAttrs(payload string) string {
+	if !strings.Contains(payload, "<a:p") {
+		return payload
+	}
+	var out strings.Builder
+	out.Grow(len(payload))
+	pos := 0
+	for pos < len(payload) {
+		loc := dmlBlockOpenTagRE.FindStringIndex(payload[pos:])
+		if loc == nil {
+			out.WriteString(payload[pos:])
+			return out.String()
+		}
+		openEnd := pos + loc[1]
+		out.WriteString(payload[pos:openEnd])
+		// <a:p> elements do not nest in any fixture corpus
+		// (DrawingML §21.1.2.2.6 CT_TextParagraph allows <a:r>/
+		// <a:fld>/<a:br> children but not nested <a:p>), so a
+		// flat strings.Index is sufficient to find the matching
+		// </a:p>.
+		closeRel := strings.Index(payload[openEnd:], dmlBlockCloseTag)
+		if closeRel < 0 {
+			// Unbalanced — emit rest verbatim and bail. Defensive
+			// against captured-payload truncation.
+			out.WriteString(payload[openEnd:])
+			return out.String()
+		}
+		blockEnd := openEnd + closeRel
+		block := payload[openEnd:blockEnd]
+		// Strip attributes from any <a:rPr>/<a:endParaRPr>/<a:defRPr>
+		// start tag inside the paragraph body.
+		stripped := dmlRunPropertyStartTagRE.ReplaceAllStringFunc(block, func(tag string) string {
+			return dmlStrippableAttrRE.ReplaceAllString(tag, "")
+		})
+		out.WriteString(stripped)
+		out.WriteString(dmlBlockCloseTag)
+		pos = blockEnd + len(dmlBlockCloseTag)
+	}
+	return out.String()
 }
 
 // expandDrawingMarkers replaces <!--KAPI-PROP:id--> /
