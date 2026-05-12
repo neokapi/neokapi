@@ -2755,6 +2755,25 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 					}
 				}
 				buf.WriteString(r.Ph.Data)
+			case TypeOpaqueParaChild:
+				// Paragraph-level opaque element captured by the
+				// reader's `case "oMathPara", "oMath":` and
+				// `case "AlternateContent":` arms (paragraph-level
+				// dispatch in parseParagraph). The captured payload
+				// is the entire `<m:oMath>` / `<m:oMathPara>`
+				// (ECMA-376 Part 1 §22.1) or paragraph-level
+				// `<mc:AlternateContent>` (ECMA-376 Part 3 §10)
+				// subtree — a direct `<w:p>` child rather than a
+				// `<w:r>` child. Emit Ph.Data raw at paragraph level
+				// (closeRun above already terminated any open
+				// `<w:r>`) so the source position survives the
+				// round-trip. Mirrors upstream Okapi BlockParser
+				// (BlockParser.java:240-260) which gathers these
+				// events into a markup chunk that the writer
+				// re-emits verbatim around the paragraph's
+				// translatable runs. Canonical fixture:
+				// OpenXML_text_reference_v1_2.docx.
+				buf.WriteString(r.Ph.Data)
 			default:
 				buf.WriteString(r.Ph.Data)
 			}

@@ -82,6 +82,22 @@ const (
 	// is the canonical fixture: an empty-sdtContent SDT must round-
 	// trip with all wrapper metadata intact.
 	TypeSDT = "struct:sdt"
+	// TypeOpaqueParaChild tags a captured opaque element that is a
+	// direct child of `<w:p>` rather than `<w:r>` — currently
+	// `<m:oMath>` / `<m:oMathPara>` (Office Math Markup, ECMA-376
+	// Part 1 §22.1) and paragraph-level `<mc:AlternateContent>`
+	// (ECMA-376 Part 3 §10). Upstream Okapi treats these as opaque
+	// markup chunks: the entire OMML / AC subtree round-trips
+	// byte-for-byte alongside the paragraph's translatable runs
+	// (BlockParser routes the events through the gather-into-markup
+	// path, BlockParser.java:240-260). The captured XML is stored
+	// in Ph.Data; the writer dumps it raw with no `<w:r>` wrapper
+	// because `<m:oMath>` and `<mc:AlternateContent>` are direct
+	// paragraph-level children. Carrier sentinel: U+E105.
+	// Canonical fixture: OpenXML_text_reference_v1_2.docx (an
+	// `<m:oMath>` integral equation immediately follows a paragraph's
+	// "Here is a math equation:  " text body inside the same `<w:p>`).
+	TypeOpaqueParaChild = "struct:opaque-para-child"
 )
 
 // SubType constants provide format-specific refinement.
@@ -166,4 +182,14 @@ const (
 	// schema-questionable but observed in the wild; the close payload
 	// is a synthesised `</w:sdt>` rather than `</w:sdtContent></w:sdt>`.
 	SubTypeSDTNoContent = "openxml:sdt-no-content"
+	// SubTypeOMath tags an `<m:oMath>` or `<m:oMathPara>` payload
+	// captured under TypeOpaqueParaChild. ECMA-376 Part 1 §22.1
+	// (Office Math Markup Language).
+	SubTypeOMath = "openxml:oMath"
+	// SubTypeAlternateContentParaChild tags a paragraph-level
+	// `<mc:AlternateContent>` payload captured under
+	// TypeOpaqueParaChild. ECMA-376 Part 3 §10 (Markup Compatibility
+	// & Extensibility) — the AC envelope sits as a direct `<w:p>`
+	// child rather than under a `<w:r>`.
+	SubTypeAlternateContentParaChild = "openxml:alternateContent:para-child"
 )

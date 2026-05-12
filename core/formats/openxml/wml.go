@@ -3936,6 +3936,52 @@ func (p *wmlParser) buildBlock(id string, runs []textRun, partPath, commonRPrXML
 				false, false, false)
 			continue
 		}
+		if run.text == "\uE105" {
+			// Paragraph-level opaque sentinel \u2014 captures
+			// `<m:oMath>` / `<m:oMathPara>` (ECMA-376 Part 1 \u00A722.1)
+			// or paragraph-level `<mc:AlternateContent>` (ECMA-376
+			// Part 3 \u00A710) that the reader saw as a direct `<w:p>`
+			// child rather than wrapped in a `<w:r>` (parseParagraph
+			// dispatch at the `case "oMathPara", "oMath":` and
+			// `case "AlternateContent":` arms emits the run with
+			// `text: "\uE105", data: <captured raw XML>`).
+			//
+			// Without an explicit case here the run falls through to
+			// the formatting/AddText branches below, where
+			// `b.AddText("\uE105")` swallows the sentinel as plain
+			// text and the captured paragraph-level payload would be
+			// lost on round-trip. Mirrors upstream Okapi BlockParser
+			// (BlockParser.java:240-260) which routes `<m:oMath>`
+			// and paragraph-level `<mc:AlternateContent>` events
+			// into the gather-into-markup path so the entire subtree
+			// survives as opaque markup chunks on the resulting
+			// Block.
+			//
+			// The writer's TypeOpaqueParaChild branch dumps Ph.Data
+			// raw at paragraph level (no `<w:r>` wrapper) \u2014 matching
+			// the source's direct-`<w:p>`-child position. Canonical
+			// fixture: OpenXML_text_reference_v1_2.docx (an
+			// `<m:oMath>` integral equation immediately follows the
+			// translatable "Here is a math equation:  " text body
+			// inside the same `<w:p>`).
+			spanCounter++
+			subType := SubTypeOMath
+			// The captured payload begins with the source element's
+			// start tag \u2014 `<m:oMath`, `<m:oMathPara`, or
+			// `<mc:AlternateContent`. Most paragraph-level AC sits
+			// inside `<w:r>` and reaches the `\uE101` image sentinel
+			// path; the rare `<w:p>`-direct-child AC variant lands
+			// here. Tag the subtype so downstream consumers can
+			// distinguish the two without reparsing Ph.Data.
+			if strings.HasPrefix(run.data, "<mc:AlternateContent") {
+				subType = SubTypeAlternateContentParaChild
+			}
+			b.AddPh(fmt.Sprintf("c%d", spanCounter),
+				TypeOpaqueParaChild, subType,
+				run.data, "", "",
+				false, false, false)
+			continue
+		}
 		if run.text == "\uE101" {
 			// Image/drawing/pict/object/oMath/AlternateContent
 			// placeholder. The original element's full XML is in
