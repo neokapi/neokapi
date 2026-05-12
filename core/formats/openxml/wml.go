@@ -2602,6 +2602,48 @@ func (p *wmlParser) parseRunWithFieldState(d *xml.Decoder, cfs *complexFieldStat
 					return nil, err
 				}
 
+			case "cr":
+				// Per ECMA-376-1 \u00A717.3.3.4 (CT_Empty cr) \u2014 a soft
+				// carriage return inside a run, equivalent to a
+				// <w:br/> with default w:type="textWrap" but emitted
+				// as its own element. Upstream Okapi RunParser
+				// (RunParser.java:752-766) routes <w:cr/> to
+				// runBuilder.addToMarkup so it survives the round-trip
+				// inside the same <w:r> as its rPr context. RunMerger
+				// does not collapse cr-bearing runs across <w:r>
+				// boundaries (RunMerger.java:156-229 \u2014 same rPr fuses
+				// only Markup chunks, the cr stays inside its own
+				// envelope when neighbouring runs differ).
+				//
+				// Without this case the default branch at the bottom
+				// of the dispatcher silently skipElement-s the
+				// <w:cr/>, which has two side effects: the source
+				// <w:r> wrapper that bracketed the cr disappears
+				// (textRun boundary lost), and the subsequent text
+				// run loses its source-run identity. The WSO post-pass
+				// then mis-promotes the surviving run's rPr into a
+				// synthesised pStyle (see MissingPara.docx fixture
+				// where `<w:r><w:rPr><w:rStyle val="DONOTTRANSLATE"/>
+				// </w:rPr><w:cr/></w:r>` was being dropped, taking the
+				// DONOTTRANSLATE rStyle with it).
+				//
+				// We piggy-back on the U+E10D raw-run-markup sentinel
+				// (already plumbed end-to-end via SubTypeCR in
+				// vocabulary.go and TypeRawRunMarkup in writer.go) so
+				// the writer re-emits `<w:cr/>` verbatim inside a
+				// <w:r> carrying the source rPr. The element is
+				// CT_Empty per the schema so there are no children
+				// to capture.
+				if rawCaptured {
+					rawBuf.WriteString("<")
+					writeElementName(&rawBuf, t.Name)
+					rawBuf.WriteString("/>")
+				}
+				runs = append(runs, textRun{text: "\uE10D:<w:cr/>", props: props})
+				if err := skipElement(d); err != nil {
+					return nil, err
+				}
+
 			case "noBreakHyphen", "softHyphen":
 				// Per ECMA-376-1 \u00A717.3.3.18 (CT_Empty noBreakHyphen)
 				// and \u00A717.3.3.30 (CT_Empty softHyphen), these are
