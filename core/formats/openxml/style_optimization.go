@@ -1296,7 +1296,48 @@ func optimizeParagraph(
 		// absent.
 		matchedID = ""
 	} else {
-		matchedID = findMatchingStyle(parentID, commonRPrXML, commonForStyle, synthesised, *orderedIDs)
+		// Writer-merge recovery (rFonts hint variant): when the paragraph
+		// is the merged-collapse shape of two source runs (break-only +
+		// text, fused into one run by the writer), the surviving merged
+		// run's rPr lacks attributes that the original text run carried.
+		// In particular, when the text run authored an rFonts.hint that
+		// the break-only run lacked, the merge drops the hint. Upstream
+		// Okapi's RunMerger sees the source runs as separate Run events
+		// (canRunPropertiesBeMerged refuses to merge runs whose rFonts
+		// disagree on a non-category attribute — RunMerger.java:156-229),
+		// so its WSO computes the common rPr from the text run alone
+		// (the break-only run is a Markup body chunk and contributes no
+		// rPr) and matches/reuses an existing synth style that carries
+		// the hint.
+		//
+		// Native's WSO sees the merged-shape: a single run with the
+		// hint-less rPr. The merged paragraph also retains the paragraph
+		// mark's pPr.rPr declarations, which in this case carry the same
+		// rFonts including the hint=eastAsia attribute. We use that
+		// paragraph-mark rFonts to surface the effective hint and prefer
+		// an existing synth style that matches the hint-augmented rFonts
+		// over an exact match against the hint-less common rPr.
+		//
+		// Per ECMA-376-1 §17.3.1.29 (CT_PPr.rPr) the paragraph-mark rPr
+		// participates in the run-level effective-rFonts merge as the
+		// fallback context for runs that don't override (RunFonts.merge
+		// at RunFonts.java:232-248). The augmented match runs BEFORE the
+		// plain findMatchingStyle so the hint-bearing synth style (a14
+		// in Hangs.docx) wins over the hint-less twin (a19) that may
+		// have been synthesised earlier for a paragraph whose pPr.rPr
+		// genuinely lacked the hint.
+		if paragraphHasMergedBreakTextRun(runs, entries, src) && hasPPr {
+			pPrHintAttrs := extractPPrRPrRFontsAttrs(src[pPrStart:pPrEnd])
+			if pPrHintAttrs != nil {
+				if id := findSynthMatchingWithPPrHint(parentID, commonForStyle, pPrHintAttrs, synthesised, *orderedIDs); id != "" {
+					matchedID = id
+					common = parseRunPropElements([]byte("<w:rPr>" + synthesised[id].rPrXML + "</w:rPr>"))
+				}
+			}
+		}
+		if matchedID == "" {
+			matchedID = findMatchingStyle(parentID, commonRPrXML, commonForStyle, synthesised, *orderedIDs)
+		}
 		// Writer-merge recovery: a single-run paragraph whose lone run
 		// carries BOTH <w:br> AND <w:t> is the merged-collapse shape of
 		// what upstream Okapi sees as two distinct <w:r> source events
@@ -3062,6 +3103,183 @@ func findSupersetSynthStyle(
 		if allFound {
 			return id
 		}
+	}
+	return ""
+}
+
+// extractPPrRPrRFontsAttrs returns the rFonts attribute set declared on
+// the paragraph mark's rPr (i.e. <w:pPr><w:rPr><w:rFonts .../></w:rPr>
+// </w:pPr>) inside the given pPr extent, or nil when no rFonts is
+// present. Used by findSynthMatchingWithPPrHint to surface the paragraph-
+// mark's effective rFonts.hint when the merged run's rPr lacks it.
+//
+// Per ECMA-376-1 §17.3.1.29 (CT_PPr.rPr) the paragraph mark's rPr
+// describes the formatting applied to the paragraph mark glyph AND
+// participates in the run-level rFonts merge as a fallback context for
+// runs whose own rFonts doesn't override (RunFonts.merge in upstream
+// Okapi — RunFonts.java:232-248 — composes the effective rFonts per
+// content category from the docDefaults / pStyle / paragraph-mark / run
+// chain).
+func extractPPrRPrRFontsAttrs(pPrSrc []byte) []rfontsAttr {
+	// Locate <w:rPr> child of pPr.
+	rPrStart, rPrEnd, hasRPr := findFirstChild(pPrSrc, "rPr")
+	if !hasRPr {
+		return nil
+	}
+	rPrBody := pPrSrc[rPrStart:rPrEnd]
+	// Find <w:rFonts ...> within rPr.
+	rfStart, rfEnd, hasRF := findFirstChild(rPrBody, "rFonts")
+	if !hasRF {
+		return nil
+	}
+	attrs, ok := parseRFontsAttrs(string(rPrBody[rfStart:rfEnd]))
+	if !ok {
+		return nil
+	}
+	return attrs
+}
+
+// findSynthMatchingWithPPrHint finds an existing synthesised paragraph
+// style whose rPr matches `common` EXCEPT that the style's rFonts may
+// carry additional attributes (notably `hint`) that the paragraph mark's
+// rPr.rFonts authors. Used for the writer-merge recovery case where the
+// merged run's rPr lacks an explicit hint that the paragraph-mark rFonts
+// provides; per RunFonts.merge (RunFonts.java:232-248) the effective
+// rFonts seen by upstream Okapi WSO would carry the paragraph-mark hint.
+//
+// Match criteria:
+//   - Style's parentID matches.
+//   - Style's non-rFonts props equal `common`'s non-rFonts props
+//     element-by-element (same order, same xml).
+//   - Style's rFonts attributes are equal to `common`'s rFonts plus
+//     OPTIONALLY a `hint` attribute that pPrRFontsAttrs also declares
+//     with the same value. Style may also carry attributes that
+//     pPrRFontsAttrs declares — supporting paragraphs whose run-level
+//     rFonts dropped a font category attribute (e.g. eastAsia direct)
+//     that the paragraph mark still declares.
+//
+// Returns "" when no match exists. Matches deterministically in
+// orderedIDs order so output stays reproducible.
+//
+// Fixture: Hangs.docx — a single-run paragraph whose source authored two
+// runs (a break-only run + a text run with rFonts.hint=eastAsia) gets
+// fused by the writer into one run whose rPr lacks the hint. The
+// paragraph mark's rPr.rFonts still carries hint=eastAsia. Existing
+// synth a14 with rFonts ascii=hAnsi=TNR hint=eastAsia + sz=22 is what
+// upstream Okapi reuses (text run's rPr survives upstream's RunMerger
+// path because the two source runs disagree on rFonts.hint and canMerge
+// blocks the merge); native must match a14 here to avoid synthesising a
+// duplicate a19 with the hint-less rFonts.
+func findSynthMatchingWithPPrHint(
+	parentID string,
+	common []runProp,
+	pPrRFontsAttrs []rfontsAttr,
+	synthesised map[string]synthesisedStyle,
+	orderedIDs []string,
+) string {
+	if len(pPrRFontsAttrs) == 0 {
+		return ""
+	}
+	// Extract common's rFonts attrs (if any) for delta comparison.
+	var commonRFontsAttrs []rfontsAttr
+	commonHasRFonts := false
+	for _, p := range common {
+		if p.name == "rFonts" {
+			attrs, ok := parseRFontsAttrs(p.xml)
+			if !ok {
+				return ""
+			}
+			commonRFontsAttrs = attrs
+			commonHasRFonts = true
+			break
+		}
+	}
+	if !commonHasRFonts {
+		return ""
+	}
+	// Build a hint-augmented attribute set from common + any attribute
+	// pPrRFontsAttrs provides that common lacks. Only consider non-
+	// category attributes (notably `hint`) for the augmentation — the
+	// category attribute set (ascii/hAnsi/cs/eastAsia + their theme
+	// siblings) must already agree byte-equal between common's rFonts
+	// and the candidate style's rFonts to avoid widening matches into
+	// fonts the run never authored.
+	categoryAttrs := rFontsCategoryAttrSet()
+	augmented := make(map[string]string, len(commonRFontsAttrs)+1)
+	for _, a := range commonRFontsAttrs {
+		augmented[a.name] = a.value
+	}
+	pPrAttrMap := make(map[string]string, len(pPrRFontsAttrs))
+	for _, a := range pPrRFontsAttrs {
+		pPrAttrMap[a.name] = a.value
+	}
+	// Augment common's rFonts with non-category attrs from pPr.rPr.rFonts.
+	for n, v := range pPrAttrMap {
+		if categoryAttrs[n] {
+			continue
+		}
+		if _, present := augmented[n]; !present {
+			augmented[n] = v
+		}
+	}
+	if len(augmented) == len(commonRFontsAttrs) {
+		// No augmentation occurred — the match would already be found by
+		// findMatchingStyle's exact compare. Skip to avoid double-match.
+		return ""
+	}
+	for _, id := range orderedIDs {
+		s := synthesised[id]
+		if s.parentID != parentID {
+			continue
+		}
+		styleProps := parseRunPropElements([]byte("<w:rPr>" + s.rPrXML + "</w:rPr>"))
+		if len(styleProps) != len(common) {
+			continue
+		}
+		// Walk style props in lockstep with common; rFonts compared via
+		// augmented attribute equality, others via byte-equal xml.
+		mismatch := false
+		var styleRFontsAttrs []rfontsAttr
+		for i, sp := range styleProps {
+			cp := common[i]
+			if sp.name != cp.name {
+				mismatch = true
+				break
+			}
+			if sp.name == "rFonts" {
+				attrs, ok := parseRFontsAttrs(sp.xml)
+				if !ok {
+					mismatch = true
+					break
+				}
+				styleRFontsAttrs = attrs
+				continue // verified below after the loop
+			}
+			if sp.xml != cp.xml {
+				mismatch = true
+				break
+			}
+		}
+		if mismatch || styleRFontsAttrs == nil {
+			continue
+		}
+		// Style's rFonts attrs must equal `augmented` (the common rFonts
+		// augmented with the pPr.rPr non-category attrs).
+		if len(styleRFontsAttrs) != len(augmented) {
+			continue
+		}
+		allMatch := true
+		for _, a := range styleRFontsAttrs {
+			v, ok := augmented[a.name]
+			if !ok || v != a.value {
+				allMatch = false
+				break
+			}
+		}
+		if !allMatch {
+			continue
+		}
+		return id
 	}
 	return ""
 }
