@@ -557,6 +557,13 @@ func (p *wmlParser) flushPendingMergeable(partPath string, emitBlock func(*model
 func (p *wmlParser) flushPendingFieldBlock(extraTailRuns []textRun, partPath string, emitBlock func(*model.Block)) error {
 	pf := p.partFieldStraddle
 	p.partFieldStraddle = nil
+	// When the captured paragraph's pPr/rPr carries a `<w:del>` or
+	// `<w:moveFrom>` paragraph-mark revision marker, upstream Okapi
+	// suppresses the pPr (BlockParser.java:207-213 — see
+	// `stripPPrIfDeletedMark` for the full citation). Apply that
+	// suppression here so the deferred paragraph mirrors Okapi's emit.
+	// Fixture 1102.docx P2 is the canonical case.
+	pf.paraProps = stripPPrIfDeletedMark(pf.paraProps)
 	runs := pf.runs
 	if len(extraTailRuns) > 0 {
 		combined := make([]textRun, 0, len(runs)+len(extraTailRuns))
@@ -2580,9 +2587,13 @@ func (p *wmlParser) parseParagraph(d *xml.Decoder, partPath string, emitBlock fu
 						if err := p.flushPendingFieldBlock(merged, partPath, emitBlock); err != nil {
 							return err
 						}
+						// Suppress deletedMark-bearing pPr — see
+						// stripPPrIfDeletedMark for the BlockParser.java:
+						// 207-213 citation.
+						emitParaProps := stripPPrIfDeletedMark(paraProps)
 						p.skelWriteString("<w:p>")
-						if paraProps != "" {
-							p.skelText(paraProps)
+						if emitParaProps != "" {
+							p.skelText(emitParaProps)
 						}
 						p.skelWriteString("</w:p>")
 						return nil
@@ -2631,9 +2642,17 @@ func (p *wmlParser) parseParagraph(d *xml.Decoder, partPath string, emitBlock fu
 					if paragraphHasDeletedMark(paraProps) && len(merged) == 0 && !(cfs.active && cfs.extractable) {
 						return nil
 					}
+					// When the captured pPr/rPr carries a deletedMark
+					// (`<w:del>` / `<w:moveFrom>`), upstream Okapi's
+					// BlockParser (BlockParser.java:207-213) suppresses
+					// the pPr entirely — only the paragraph's `<w:p>`
+					// shell survives. Mirror that here so the inner
+					// rPr (which can carry a leftover `<w:rStyle>` etc.)
+					// does not leak through. Fixture 1102.docx P3.
+					emitParaProps := stripPPrIfDeletedMark(paraProps)
 					p.skelWriteString("<w:p>")
-					if paraProps != "" {
-						p.skelText(paraProps)
+					if emitParaProps != "" {
+						p.skelText(emitParaProps)
 					}
 					// Fuse adjacent same-rPr opaque-drawing runs (each
 					// was a separate `<w:r>` envelope in the source) so
@@ -2747,9 +2766,13 @@ func (p *wmlParser) parseParagraph(d *xml.Decoder, partPath string, emitBlock fu
 					inheritedVanish = p.styles.effectiveProps(paraStyleID).vanish
 				}
 				if !p.cfg.TranslateHiddenText && allHidden(merged, inheritedVanish) {
+					// Suppress deletedMark-bearing pPr — see
+					// stripPPrIfDeletedMark for the BlockParser.java:
+					// 207-213 citation.
+					emitParaProps := stripPPrIfDeletedMark(paraProps)
 					p.skelWriteString("<w:p>")
-					if paraProps != "" {
-						p.skelText(paraProps)
+					if emitParaProps != "" {
+						p.skelText(emitParaProps)
 					}
 					// Write runs as skeleton text
 					for _, r := range merged {
@@ -2817,10 +2840,17 @@ func (p *wmlParser) parseParagraph(d *xml.Decoder, partPath string, emitBlock fu
 				*p.blockCounter++
 				blockID := fmt.Sprintf("tu%d", *p.blockCounter)
 
-				// Skeleton: write paragraph open, props, ref, close
+				// Skeleton: write paragraph open, props, ref, close.
+				// Suppress deletedMark-bearing pPr — see
+				// stripPPrIfDeletedMark for the BlockParser.java:
+				// 207-213 citation. (Most content-bearing paragraphs
+				// with a deletedMark are absorbed via partMergeable
+				// above; this strip protects emit-paths where the
+				// absorption was gated off.)
+				emitParaProps := stripPPrIfDeletedMark(paraProps)
 				p.skelWriteString("<w:p>")
-				if paraProps != "" {
-					p.skelText(paraProps)
+				if emitParaProps != "" {
+					p.skelText(emitParaProps)
 				}
 				p.skelRef(blockID)
 				p.skelWriteString("</w:p>")
@@ -4888,14 +4918,20 @@ func mergeRuns(runs []textRun) []textRun {
 			current = r
 			continue
 		}
-		if current.props.canBeMergedWith(r.props) {
+		if current.props.canBeMergedWithTexts(r.props, current.text, r.text) {
+			oldText := current.text
 			current.text += r.text
 			// Replace the kept run's rPrChildren with the merged
 			// per-attribute union of rFonts so downstream sidecars
-			// (perRunRPrFragments) see the consensus rFonts.
+			// (perRunRPrFragments) see the consensus rFonts. Use the
+			// text-aware variant so a whitespace-only side defers to
+			// the detected side's rFonts — mirrors upstream Okapi
+			// RunFonts.merge (RunFonts.java:267-315) where the
+			// detected content category's value wins.
 			if !current.props.equalIncludingChildren(r.props) {
-				current.props.rPrChildren = mergeRPrChildren(
-					current.props.rPrChildren, r.props.rPrChildren)
+				current.props.rPrChildren = mergeRPrChildrenTexts(
+					current.props.rPrChildren, r.props.rPrChildren,
+					oldText, r.text)
 			}
 		} else {
 			merged = append(merged, current)
@@ -6810,6 +6846,60 @@ func paragraphHasDeletedMark(raw string) bool {
 			}
 		}
 	}
+}
+
+// stripPPrIfDeletedMark returns an empty string when the captured
+// paragraph-properties XML carries a `<w:del>` or `<w:moveFrom>` paragraph-
+// mark revision marker inside `<w:pPr>/<w:rPr>`. Otherwise it returns the
+// input unchanged.
+//
+// Mirrors upstream Okapi BlockParser.parse (BlockParser.java:207-213):
+// when `ParagraphBlockProperties.containsRunPropertyDeletedParagraphMark()`
+// returns true (ParagraphBlockProperties.java:576-586), the parser sets
+// `builder.mergeable(true)` and SKIPS adding the blockProperties to the
+// RunBuilder's markup. The pPr never reaches the emitted block — only the
+// `mergeable` flag is set, and `StyledTextPart.process` either absorbs
+// the block into the next paragraph (`block.mergeWith(mergeableBlock)`,
+// Block.java:139-166, which copies chunks 1..N-1, NOT chunk 0 which
+// carries the paragraph open + pPr) or emits the dangling block at EOF
+// without ever materialising the suppressed pPr.
+//
+// The native parser already handles the partMergeable absorption path
+// (lines 2398-2404 + 2495-2502 below). But absorption is GATED off when
+// an extractable complex field is open across the paragraph boundary
+// (the `!(cfs.active && cfs.extractable)` guard at 2495) — in that
+// state Okapi's `RunParser.parseComplexField` (RunParser.java:516-528 +
+// 594-609) routes the inner `<w:pPr>` through `deferredEvents`, the
+// pPr arrives at `BlockParser.parse` later, and BlockParser still
+// applies the `containsRunPropertyDeletedParagraphMark` gate then —
+// dropping the pPr exactly the same way.
+//
+// To mirror that final emit, the native skeleton write paths funnel
+// paraProps through this helper so the pPr disappears whenever its
+// rPr carries a `<w:del>` / `<w:moveFrom>` paragraph-mark marker —
+// regardless of whether the merge actually absorbed the runs. The
+// paragraph still emits as a structural shell (`<w:p>` / `<w:p/>`),
+// but without the suppressed pPr.
+//
+// Fixture 1102.docx: P2 (content + del-marked pPr inside open HYPERLINK
+// field) and P3 (empty + del-marked pPr, still inside the open field)
+// both lose their pPr in the reference output; native previously
+// preserved the source pPr (including a `<w:rStyle w:val="Hyperlink"/>`
+// child that's invisible-but-real after `<w:ins>`/`<w:del>` revision
+// markers are stripped).
+//
+// References:
+//   - ECMA-376-1 §17.13.5.13 (CT_ParaRPr) — defines `<w:del>` /
+//     `<w:moveFrom>` inside `<w:pPr>/<w:rPr>` as paragraph-mark
+//     revisions, the same shape this helper detects.
+//   - Okapi BlockParser.java:207-213 — the suppression site.
+//   - Okapi ParagraphBlockProperties.java:576-586 —
+//     containsRunPropertyDeletedParagraphMark logic this mirrors.
+func stripPPrIfDeletedMark(raw string) string {
+	if !paragraphHasDeletedMark(raw) {
+		return raw
+	}
+	return ""
 }
 
 // extractPStyle extracts the w:val attribute from <w:pStyle> in raw paragraph properties XML.
