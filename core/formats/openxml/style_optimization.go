@@ -2274,6 +2274,37 @@ func commonRFonts(entries []runEntry) (string, bool) {
 	if len(emitted) == 0 {
 		return "", false
 	}
+	// Whole-RunFonts equality gate — mirrors upstream Okapi's
+	// StyleOptimisation.commonRunPropertiesOf which intersects via
+	// `List<Property>.retainAll` using RunFonts.equals (RunFonts.java:
+	// 380-387, strict map equality of the EnumMap<ContentCategory,String>).
+	// A Property is "common" iff every run's RunProperties list contains
+	// a Property that compares equal — for RunFonts that means every run
+	// must have an effectively-equal RunFonts.
+	//
+	// The per-attribute intersection above is the natural Go shape, but
+	// without this gate it can lift a partial-overlap rFonts that upstream
+	// would reject. Hangs.docx P6 is the canonical case: R1 has only
+	// `<w:rFonts w:hint="eastAsia"/>` while R2 has
+	// `<w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"
+	// w:hint="eastAsia"/>`. The hint matches byte-equal in both, so
+	// keptNonCategory keeps it, but upstream's RunFonts.equals sees
+	// `{HINT=eastAsia}` ≠ `{ASCII=TNR, HIGH_ANSI=TNR, HINT=eastAsia}`
+	// and drops rFonts from the common — common is empty, WSO bypasses,
+	// pStyle=a4 stays. Without this gate native lifts `{rFonts hint}`,
+	// synthesises NF974E24F-a425, and the entire header1.xml diverges
+	// (+26K bytes from the bigger style table + every paragraph swap).
+	//
+	// Theme/direct equivalence (FontThemeOverFont.docx) IS preserved: the
+	// effective-value comparison considers `ascii`+`asciiTheme` jointly
+	// per content-category (theme dominates per RunFonts.mergeContent
+	// Categories at RunFonts.java:299-315) — when a run authors only
+	// `ascii=minorHAnsi` and another authors `ascii=TNR asciiTheme=
+	// minorHAnsi`, both effective ASCII values are minorHAnsi so the
+	// equivalence holds and the rFonts stays in the common.
+	if !rFontsEmittedEquivalentToEveryRun(emitted, allAttrSets) {
+		return "", false
+	}
 	// Re-emit. Preserve the source rFonts element name prefix (likely
 	// "w:rFonts" but could differ).
 	prefix := extractRFontsElemNameFromProps(entries[0].props)
@@ -2297,6 +2328,96 @@ func commonRFonts(entries []runEntry) (string, bool) {
 	}
 	b.WriteString("/>")
 	return b.String(), true
+}
+
+// rFontsEmittedEquivalentToEveryRun reports whether the synthesised
+// `emitted` rFonts attribute set is RunFonts-equivalent to every run's
+// rFonts attribute set in `allAttrSets`. Mirrors upstream Okapi's
+// RunFonts.equals (RunFonts.java:380-387, strict EnumMap equality)
+// modulo the theme/direct effective-value collapse from
+// RunFonts.mergeContentCategories (RunFonts.java:299-315):
+//
+//  1. For each content category (ASCII/HIGH_ANSI/COMPLEX_SCRIPT/
+//     EAST_ASIAN), the effective value is the theme attribute's value
+//     when set, otherwise the direct attribute's value, otherwise unset.
+//     A run is equivalent to emitted at this category iff their effective
+//     values are equal (or both unset).
+//  2. Non-category attributes (e.g. `w:hint`) are compared by direct
+//     value equality — equivalent iff both sides have the same value (or
+//     both lack the attribute).
+//
+// The check is needed because commonRFonts's per-attribute intersection
+// can land on an emit shape that's a strict subset of one of the runs'
+// attribute sets — upstream's whole-Property semantics would have
+// rejected that case in commonRunPropertiesOf. See the gate-call site
+// in commonRFonts for the Hangs.docx motivating fixture.
+func rFontsEmittedEquivalentToEveryRun(emitted []rfontsAttr, allAttrSets []map[string]string) bool {
+	emittedMap := make(map[string]string, len(emitted))
+	for _, a := range emitted {
+		emittedMap[a.name] = a.value
+	}
+	// Compute emitted's effective ContentCategory map. Keyed by direct
+	// attribute name (the "category id"). Theme overrides direct.
+	type catEff struct {
+		value string
+		set   bool
+	}
+	emittedCat := make(map[string]catEff, len(rFontsThemePairs))
+	for _, pair := range rFontsThemePairs {
+		var eff catEff
+		if v, ok := emittedMap[pair.theme]; ok {
+			eff = catEff{value: v, set: true}
+		} else if v, ok := emittedMap[pair.direct]; ok {
+			eff = catEff{value: v, set: true}
+		}
+		emittedCat[pair.direct] = eff
+	}
+	// Per-run check.
+	for _, runMap := range allAttrSets {
+		// Category-effective equivalence.
+		for _, pair := range rFontsThemePairs {
+			var runEff catEff
+			if v, ok := runMap[pair.theme]; ok {
+				runEff = catEff{value: v, set: true}
+			} else if v, ok := runMap[pair.direct]; ok {
+				runEff = catEff{value: v, set: true}
+			}
+			ee := emittedCat[pair.direct]
+			if runEff.set != ee.set || runEff.value != ee.value {
+				return false
+			}
+		}
+		// Non-category attribute equivalence — covers `w:hint` and any
+		// other rFonts attribute outside the theme-pair table (the
+		// category attrs are explicitly handled above; the
+		// rFontsCategoryAttrSet exclusion in commonRFonts's per-attribute
+		// loop means non-category attrs in `emitted` are the only ones
+		// here).
+		categoryAttrs := rFontsCategoryAttrSet()
+		// Every non-category attr in emitted must equal run's.
+		for name, val := range emittedMap {
+			if categoryAttrs[name] {
+				continue
+			}
+			rv, ok := runMap[name]
+			if !ok || rv != val {
+				return false
+			}
+		}
+		// Every non-category attr in run must equal emitted's (catches
+		// the case where the run has an extra non-category attribute the
+		// emitted set lacks — upstream's whole-RunFonts equality would
+		// reject that).
+		for name := range runMap {
+			if categoryAttrs[name] {
+				continue
+			}
+			if _, ok := emittedMap[name]; !ok {
+				return false
+			}
+		}
+	}
+	return true
 }
 
 // extractRFontsElemNameFromProps returns the prefixed element name of the first

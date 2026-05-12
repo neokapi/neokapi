@@ -448,15 +448,29 @@ func TestOptimizeWMLPart_NestedTxbxParagraph(t *testing.T) {
 	assert.Contains(t, s.rPrXML, `w:val="18"`, "common rPr lifted")
 }
 
-func TestOptimizeWMLPart_HeterogeneousRFontsLiftedToStyle(t *testing.T) {
-	// End-to-end: post-write WSO sees runs with identical (already-merged)
-	// rFonts content prepended by renderWMLBlock from the source-rPr
-	// annotation, and lifts the rFonts plus other shared rPr children
-	// into the synthesised paragraph style. The reader-side merge happens
-	// in commonRPrChildren (source_rpr.go); the post-write merge in
-	// commonProps (style_optimization.go) handles the unusual case where
-	// the source-rPr annotation was bypassed and runs reach the post-pass
-	// with heterogeneous rFonts.
+func TestOptimizeWMLPart_HeterogeneousRFontsNotLiftedToStyle(t *testing.T) {
+	// Post-write WSO must NOT lift rFonts when runs carry genuinely
+	// heterogeneous rFonts content category sets — upstream Okapi's
+	// StyleOptimisation.commonRunPropertiesOf intersects with
+	// `List<Property>.retainAll` which uses RunFonts.equals (RunFonts.java
+	// :380-387, strict EnumMap<ContentCategory,String> equality). A run
+	// with `{ASCII, CS, HIGH_ANSI}` is NOT .equals() to a run with
+	// `{ASCII, CS, EAST_ASIAN, HIGH_ANSI}` even when every shared
+	// attribute matches, so upstream drops rFonts from the common and
+	// the only lift candidates are the remaining per-run-equal props
+	// (here `<w:b/>`).
+	//
+	// This is the WSO-post-pass mirror of source_rpr.go's
+	// commonRPrChildren which performs the per-attribute intersection
+	// at READ time (when runs share the same source rPr annotation).
+	// In this hand-crafted scenario the source-rPr annotation pathway is
+	// absent — runs reach the post-pass with their heterogeneous rFonts
+	// intact, so the WSO must match upstream's strict whole-Property
+	// semantics rather than the read-time lenient per-attribute merge.
+	// Motivating real-world fixture: Hangs.docx header1.xml para 6 (R1
+	// has `{HINT=eastAsia}` only, R2 has `{ASCII, HIGH_ANSI, HINT}` —
+	// hint matches byte-equal but rFonts as a whole differs; upstream
+	// keeps pStyle="a4", native used to synthesise NF974E24F-a425).
 	src := []byte(`<w:body><w:p>` +
 		`<w:r><w:rPr><w:rFonts w:ascii="DejaVu Serif" w:cs="DejaVu Serif" w:hAnsi="DejaVu Serif"/><w:b/></w:rPr><w:t>a</w:t></w:r>` +
 		`<w:r><w:rPr><w:rFonts w:ascii="DejaVu Serif" w:cs="DejaVu Serif" w:eastAsia="DejaVu Serif" w:hAnsi="DejaVu Serif"/><w:b/></w:rPr><w:t>b</w:t></w:r>` +
@@ -466,17 +480,14 @@ func TestOptimizeWMLPart_HeterogeneousRFontsLiftedToStyle(t *testing.T) {
 	syn := map[string]synthesisedStyle{}
 	var ids []string
 	got := optimizeWMLPart(src, existing, "", true, false, &counter, syn, &ids)
-	require.Len(t, ids, 1, "one synthesised style expected")
+	require.Len(t, ids, 1, "one synthesised style expected (shared <w:b/> lifts)")
 	s := syn[ids[0]]
-	assert.Contains(t, s.rPrXML, "rFonts", "synthesised style must include common rFonts")
-	assert.Contains(t, s.rPrXML, `w:ascii="DejaVu Serif"`)
-	assert.Contains(t, s.rPrXML, `w:cs="DejaVu Serif"`)
-	assert.Contains(t, s.rPrXML, `w:hAnsi="DejaVu Serif"`)
-	assert.NotContains(t, s.rPrXML, "eastAsia", "eastAsia present in only one run must NOT be in common")
+	assert.NotContains(t, s.rPrXML, "rFonts", "heterogeneous rFonts must NOT be lifted (upstream whole-RunFonts.equals semantics)")
+	assert.Contains(t, s.rPrXML, "<w:b/>", "shared <w:b/> still lifts")
 	assert.Contains(t, string(got), "NF974E24F-Normal1")
-	// Both runs should have rFonts stripped (full strip by name, mirroring
-	// upstream Run.refineRunProperties).
-	assert.NotContains(t, string(got), "rFonts")
+	// rFonts must remain on each run (only <w:b/> stripped).
+	assert.Contains(t, string(got), `w:ascii="DejaVu Serif"`, "R1's rFonts kept on the run")
+	assert.Contains(t, string(got), "eastAsia", "R2's eastAsia kept on the run")
 }
 
 func TestOptimizeWMLPart_MixedSelfClosingAndOpenForms_NormalisedToCommon(t *testing.T) {
