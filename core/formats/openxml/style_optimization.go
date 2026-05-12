@@ -1363,6 +1363,39 @@ func stripToggleMirrorsFromCommon(props []runProp, rtl bool) []runProp {
 			} else {
 				out = append(out, p)
 			}
+		case "highlight":
+			// Drop `<w:highlight w:val="white"/>` from the
+			// synthesised style's rPr — `white` and `none` resolve
+			// to the same RGB FFFFFF (the system default
+			// background), and upstream Okapi treats them as
+			// equivalent via HighlightRunProperty.equalsProperty
+			// (RunProperty.java:259-264) which compares values
+			// through HighlightColorValues.valuesFor (Color.java:
+			// 172-176, matching by RGB / external name / internal
+			// name). When the document defaults' rPr lacks
+			// `<w:highlight>`, addExplicitDefaults
+			// (WordStyleDefinition.java:164-191) injects a phantom
+			// `<w:highlight w:val="none"/>` for the lifetime of the
+			// minified()/contains() comparison; the run-side
+			// `highlight=white` then matches and is excluded from
+			// the synthesised style's lifted set. Per ECMA-376-1
+			// §17.3.2.15 (CT_Highlight) the rendered colour for
+			// "none" and "white" is identical; lifting "white"
+			// into the synthesised style is a no-op vs the implicit
+			// default, and Okapi's reference output omits it.
+			//
+			// Other highlight values (yellow, green, red, …) are
+			// preserved verbatim — they encode a real visible
+			// highlight that differs from the default background.
+			// 830-3.docx, 830-5.docx, 830-6.docx are the canonical
+			// fixtures where every run carries
+			// `<w:highlight w:val="white"/>` and the synthesised
+			// style's reference rPr does NOT include it.
+			val, hasVal := parseRPrChildVal(p.xml)
+			if hasVal && val == "white" {
+				continue
+			}
+			out = append(out, p)
 		default:
 			out = append(out, p)
 		}
