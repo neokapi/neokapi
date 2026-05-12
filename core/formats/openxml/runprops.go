@@ -275,9 +275,34 @@ func (rp runProps) equalTextAware(other runProps, rText, otherText string) bool 
 // upstream Okapi RunFonts.canContentCategoriesBeMerged
 // (RunFonts.java:211-230). See canBeMergedWithTexts for the
 // rationale.
+//
+// Asymmetric rFonts relaxation: when one side has NO rPr children and
+// the other side has ONLY an rFonts entry, the merge is allowed iff
+// the empty-rPr side's text has no detected script categories
+// (whitespace-only or empty). Per ECMA-376-1 §17.3.2.26 (CT_Fonts),
+// rFonts categories (ASCII, hAnsi/HighAnsi, cs/ComplexScript,
+// eastAsia/EastAsian) only apply to characters in their respective
+// Unicode ranges. An undetected-text side has no character that
+// "uses" any rFonts category — its inherited rFonts (whatever the
+// style chain assigns) is moot for its actual glyph rendering. This
+// mirrors upstream Okapi RunFonts.canContentCategoriesBeMerged
+// (RunFonts.java:211-230) where `containsDetected(category)=false`
+// on a whitespace run allows the asserting side's value to carry
+// through.
+//
+// For runs with detected text and empty rPrChildren, native cannot
+// safely materialise the inherited rFonts (the styleMap is not
+// accessible from the merge gate without changes to mergeRuns in
+// wml.go), so those cases continue to refuse the merge. Fixture
+// 851.docx — runs with empty rPr inheriting Normal style's
+// `<w:rFonts w:ascii="Courier New"/>` adjacent to runs with direct
+// `<w:rFonts w:ascii="Far East"/>` over East-Asian text — is the
+// canonical case that would benefit from full inherited-rFonts
+// materialisation in mergeRuns. See PARITY_NOTES.md / openxml issue
+// tracker for the broader fix.
 func rPrChildrenMergeableTexts(a, b []rPrChild, aText, bText string) bool {
 	if len(a) != len(b) {
-		return false
+		return rPrChildrenMergeableAsymRFonts(a, b, aText, bText)
 	}
 	aOther, aFonts := splitRFonts(a)
 	bOther, bFonts := splitRFonts(b)
@@ -294,6 +319,48 @@ func rPrChildrenMergeableTexts(a, b []rPrChild, aText, bText string) bool {
 		return true
 	}
 	return rFontsMergeableTexts(aFonts.xml, bFonts.xml, aText, bText)
+}
+
+// rPrChildrenMergeableAsymRFonts handles the narrow asymmetric case
+// where one side has 0 rPr children and the other has exactly 1
+// rFonts entry. The merge is allowed iff the empty-rPr side's text
+// has no detected script categories — its inherited rFonts is moot
+// for its actual content per ECMA-376-1 §17.3.2.26.
+//
+// Used as the slow-path fallback when the fast-path
+// `len(a) != len(b)` check would otherwise reject. Returns false for
+// every other asymmetry (rPr lists differing in any non-rFonts
+// child) — those are real RunProperty disagreements per upstream
+// Okapi RunMerger.canRunPropertiesBeMerged (RunMerger.java:156-229).
+func rPrChildrenMergeableAsymRFonts(a, b []rPrChild, aText, bText string) bool {
+	var rFontsSide []rPrChild
+	var emptyText string
+	switch {
+	case len(a) == 0 && len(b) == 1:
+		rFontsSide = b
+		emptyText = aText
+	case len(b) == 0 && len(a) == 1:
+		rFontsSide = a
+		emptyText = bText
+	default:
+		return false
+	}
+	if rFontsSide[0].name != "rFonts" {
+		return false
+	}
+	// Per ECMA-376-1 §17.3.2.26, rFonts categories only apply to
+	// characters in their respective Unicode ranges. An undetected
+	// text side has no character that "uses" any rFonts category, so
+	// its inherited (chain) rFonts is moot — the merge is safe under
+	// the same script-relaxation principle that already governs the
+	// equal-length path. Mirrors upstream Okapi
+	// RunFonts.canContentCategoriesBeMerged (RunFonts.java:211-230)
+	// where `containsDetected(category)=false` on a whitespace run
+	// allows the asserting side's value to win.
+	if detectScriptCategories(emptyText) != 0 {
+		return false
+	}
+	return true
 }
 
 // rFontsMergeableTexts is the text-aware variant of rFontsMergeable.
