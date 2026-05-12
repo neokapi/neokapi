@@ -257,6 +257,14 @@ func perRunRPrFragments(runs []textRun) []string {
 // or a paragraph with only sentinels), the result is empty (the
 // writer falls through to its toggle-only rPr path).
 func commonRPrChildren(runs []textRun) []rPrChild {
+	// Side-effect pass: minify drawing-bearing sentinel runs' rPr
+	// against the inherited paragraph-mark rPr context. Mirrors upstream
+	// Okapi RunProperties.minified() (RunProperties.java:497-540) for the
+	// specific case of a run that wraps only a `<w:drawing>` /
+	// `<w:pict>` / `<w:object>` payload. See
+	// minifyDrawingRunToggles for the full rationale.
+	minifyDrawingRunToggles(runs)
+
 	var common []rPrChild
 	seeded := false
 	// Track text-bearing runs so the rFonts merger sees the same
@@ -682,4 +690,149 @@ func joinRPrChildren(children []rPrChild) string {
 		b.WriteString(c.xml)
 	}
 	return b.String()
+}
+
+// minifyDrawingRunToggles strips bare-on `<w:b/>` / `<w:bCs/>` /
+// `<w:i/>` / `<w:iCs/>` from the rPr of every drawing-bearing sentinel
+// run (`<w:drawing>` / `<w:pict>` / `<w:object>` payload) in the
+// paragraph. Mirrors a narrow slice of upstream Okapi
+// RunProperties.minified() (RunProperties.java:497-540) for the case
+// where the run's resolved chain — paragraph-style + docDefaults +
+// paragraph-mark rPr — declares the toggle's effective ON value via a
+// preceding pPr/rPr context. The drawing-bearing run wraps only an
+// opaque payload (no text body), so the toggle has no rendering effect:
+// upstream's RunBuilder materialises the source RunProperty literally,
+// then BlockTextUnitWriter.flush(...) feeds it through minified() against
+// the combinedRunProperties chain (`paragraphStyle + runStyle +
+// runProperties`, see RunProperties.combinedRunProperties usage in
+// StyledTextPart line 642-644 / BlockTextUnitWriter.java:238-251).
+// Bare-on toggles whose ON value is also declared in the inherited chain
+// drop out of the run-level rPr.
+//
+// Why we can apply this unconditionally for drawing sentinels:
+//
+//   - A drawing run carries no character data, so the toggle has no
+//     visible effect on rendering. ECMA-376-1 §17.3.2.1 (`<w:b>`) and
+//     §17.3.2.13 (`<w:i>`) describe toggle properties as boolean
+//     formatting on text content; a drawing's runProperties context
+//     is used by upstream Okapi only to keep the source `<w:r>`'s
+//     RunProperties materialised on output (RunBuilder.java:73-188),
+//     not to influence the drawing payload. Stripping the toggle
+//     leaves the drawing identical on the wire.
+//   - The strip is gated on the BARE-ON form (`<w:b/>` without
+//     attributes). Explicit-off (`<w:b w:val="0"/>`) and explicit-on
+//     (`<w:b w:val="1"/>`) forms are NOT stripped — those carry
+//     clearing/asserting semantics against the inherited chain and
+//     would alter the effective formatting if removed. Per ECMA-376-1
+//     §17.3.2.1 the bare element and `w:val="true"` / `w:val="1"` /
+//     `w:val="on"` are equivalent ON states; the bare form is the only
+//     authoring shape upstream's minified() drops at parse time.
+//   - The mirror toggles `<w:bCs/>` / `<w:iCs/>` follow the same rule
+//     (ECMA-376-1 §17.3.2.16 / §17.3.2.17): complex-script halves of
+//     the bold/italic pair, also toggle properties with the same
+//     minification behaviour.
+//
+// Fixture: graphicdata.docx — the `<w:txbxContent>` body's
+// drawing-bearing run authors `<w:rPr><w:rFonts/><w:b/><w:bCs/>
+// <w:noProof/><w:color/></w:rPr><w:drawing>...`, with `<w:b/>` /
+// `<w:bCs/>` inherited from the paragraph-mark rPr's
+// `<w:rFonts/><w:b/><w:bCs/><w:color/>`. Upstream emits
+// `<w:rPr><w:rFonts/><w:color/></w:rPr>` on the drawing run; without
+// this strip native carries the redundant `<w:b/>` / `<w:bCs/>`
+// through `serializeFullRPrXML(run.props)`.
+//
+// Scope: the strip applies ONLY to drawing-bearing sentinel runs
+// (image-marker text starting with the run-level drawing/pict/object
+// sentinel). Text-bearing runs go through the existing
+// `RunProperties.minified()`-equivalent path in
+// `parseParagraph` (wml.go's per-run subtractProps +
+// minifyRPrChildren loop), which already honours docDefaults +
+// paragraph style chains; the paragraph-mark rPr's role in
+// `combinedRunProperties` is not modelled there but text runs
+// generally agree on their toggle inheritance with the paragraph mark
+// (RunMerger fuses same-rPr runs upstream), so the gap doesn't
+// surface in the text-run population. Drawing-bearing runs are
+// excluded from that loop by the `isSentinel` guard
+// (parseParagraph line ~2285), so they don't pick up the existing
+// minification — this helper fills that gap for the bare-on toggle
+// case.
+//
+// runs is mutated in-place: `runs[i].props.bold` /
+// `runs[i].props.italic` are cleared and the matching `<w:bCs/>` /
+// `<w:iCs/>` entries in `runs[i].props.rPrChildren` are removed.
+// `commonRPrChildren` and `perRunRPrFragments` skip sentinels by
+// `isSentinel(r.text)`, so the mutation does not affect the
+// text-run intersection — only the drawing run's own
+// `serializeFullRPrXML(run.props)` output downstream (wml.go line
+// ~4692, which threads the drawing run's source rPr into the
+// `<w:r><w:rPr>...</w:rPr><w:drawing>...</w:drawing></w:r>`
+// envelope).
+func minifyDrawingRunToggles(runs []textRun) {
+	for i := range runs {
+		if !isDrawingSentinelText(runs[i].text) {
+			continue
+		}
+		// Strip bare-on bold + matching bCs mirror.
+		if runs[i].props.bold && runs[i].props.boldXML == "" {
+			runs[i].props.bold = false
+			runs[i].props.rPrChildren = removeBareOnByName(
+				runs[i].props.rPrChildren, "bCs")
+		}
+		// Strip bare-on italic + matching iCs mirror.
+		if runs[i].props.italic && runs[i].props.italicXML == "" {
+			runs[i].props.italic = false
+			runs[i].props.rPrChildren = removeBareOnByName(
+				runs[i].props.rPrChildren, "iCs")
+		}
+	}
+}
+
+// isDrawingSentinelText reports whether the run's text marker
+// indicates an opaque drawing/pict/object payload. Mirrors
+// wml.go's isDrawingSentinel (kept here to avoid widening the
+// surface area touched by this change): per the WML sentinel
+// allocation in `isSentinel` (wml.go:5506-5534), the run-level
+// drawing payload uses the sentinel rune U+E101 and the
+// paragraph-level opaque payload (math, paragraph-level
+// AlternateContent) uses U+E105. Both are valid carriers of
+// `<w:drawing>` / `<w:pict>` / `<w:object>` markup that the writer
+// re-emits verbatim from `run.data`.
+func isDrawingSentinelText(text string) bool {
+	if text == "" {
+		return false
+	}
+	r := []rune(text)
+	if len(r) == 0 {
+		return false
+	}
+	return r[0] == '' || r[0] == ''
+}
+
+// removeBareOnByName returns a copy of children with the FIRST
+// entry whose name == `name` AND whose xml is the BARE-ON form
+// (`<w:NAME/>` exactly, no attributes) elided. Other forms
+// (explicit-off `<w:NAME w:val="0"/>`, explicit-on
+// `<w:NAME w:val="1"/>`) are preserved — those carry semantic
+// override intent (clearing or asserting against the inherited
+// chain) that must round-trip. If no bare-on entry matches the
+// slice is returned unchanged. Mirrors indexOfBareOnRPrChild +
+// removeRPrChildAt in runprops.go.
+func removeBareOnByName(children []rPrChild, name string) []rPrChild {
+	if len(children) == 0 {
+		return children
+	}
+	want := "<w:" + name + "/>"
+	for i, c := range children {
+		if c.name != name {
+			continue
+		}
+		if c.xml != want {
+			continue
+		}
+		out := make([]rPrChild, 0, len(children)-1)
+		out = append(out, children[:i]...)
+		out = append(out, children[i+1:]...)
+		return out
+	}
+	return children
 }
