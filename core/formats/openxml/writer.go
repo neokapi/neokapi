@@ -141,6 +141,76 @@ func fuseBareBrAndTextRuns(data []byte) []byte {
 	return bareBrThenBareTextRunRE.ReplaceAll(data, []byte(`<w:r>$1$2</w:r>`))
 }
 
+// altContentRunThenBareBrRunRE matches an `<mc:AlternateContent>` host
+// run's closing `</mc:AlternateContent></w:r>` IMMEDIATELY followed by a
+// bare `<w:r><w:br[...]/>...` run envelope (with optional `<w:t>` body
+// from a prior fuseBareBrAndTextRuns fusion). The following run must
+// lack `<w:rPr>` so the boundary is rPr-equivalent — when the source's
+// post-image run carries a non-empty rPr the structural per-run skeleton
+// emit preserves the boundary naturally. Captures:
+//
+//	$1 = the trailing run envelope verbatim (preserved unchanged), starting
+//	     at `<w:r>` and continuing through `<w:br[...]/>` (with optional
+//	     `<w:t>` body).
+//
+// The replacement keeps the trailing run unchanged and inserts a fresh
+// empty `<w:r></w:r>` placeholder between the AlternateContent host run
+// and the trailing br-bearing run. Used by
+// emitEmptyRunAfterAltContentPostImageBoundary; see the call site for
+// the upstream-Okapi citation and the graphicdata.docx fixture
+// rationale.
+var altContentRunThenBareBrRunRE = regexp.MustCompile(
+	`</mc:AlternateContent></w:r>(<w:r><w:br\b[^/>]*/>)`)
+
+// emitEmptyRunAfterAltContentPostImageBoundary inserts an empty
+// `<w:r></w:r>` placeholder run between an `<mc:AlternateContent>`
+// host run's closing `</mc:AlternateContent></w:r>` and the
+// IMMEDIATELY-following bare `<w:r><w:br[...]/>...` run envelope.
+//
+// Rationale: upstream Okapi's RunBuilder.flushRunStart/flushRunEnd
+// cycle (RunBuilder.java) emits an empty placeholder `<w:r></w:r>`
+// envelope on the boundary between a complex image run (a `<w:drawing>`
+// / `<w:pict>` / `<w:mc:AlternateContent>` envelope) and the next
+// `<w:r>` envelope whose body begins with a `<w:br/>` markup chunk.
+// The placeholder is the visible artefact of the post-image flush
+// cycle in BlockParser.parse — the same pattern that produces the
+// cross-paragraph `fieldStraddle` artefact, but scoped to post-image
+// boundaries. Per ECMA-376-1 §11.3 (CT_AlternateContent) the
+// AlternateContent element is a Markup compatibility wrapper that
+// carries no rendering effect; per §17.3.2.1 (CT_R) an empty `<w:r/>`
+// run is well-formed.
+//
+// Native's writer emits the AlternateContent host run + the bare
+// br-bearing run as adjacent siblings without the boundary placeholder,
+// so a byte-level diff at the post-image boundary shows up as a missing
+// `<w:r></w:r>` envelope. This post-pass closes that gap.
+//
+// The br-bearing run must lack `<w:rPr>` so the boundary is rPr-
+// equivalent — when the source's post-image run carries a non-empty
+// rPr the structural per-run skeleton emit preserves the boundary
+// naturally and Okapi's flush cycle does not synthesise a separate
+// placeholder.
+//
+// graphicdata.docx is the canonical fixture: a textbox-shape +
+// AlternateContent host run is immediately followed by a bare-rPr
+// `<w:br/>` run (post-rPr-strip) and then a bare-rPr text run; the
+// br + text runs fuse via fuseBareBrAndTextRuns leaving the post-image
+// boundary as a single `</mc:AlternateContent></w:r><w:r><w:br/>...`
+// junction that upstream Okapi punctuates with the empty placeholder.
+//
+// The br match accepts both self-closing (`<w:br ...>`) and bare
+// (`<w:br/>`) shapes — encoding/xml may re-emit either form depending
+// on payload provenance. The trailing capture `$1` is preserved
+// verbatim, which means the inserted placeholder lands BEFORE any
+// `<w:t>` body the br-bearing run may carry post-fuse.
+func emitEmptyRunAfterAltContentPostImageBoundary(data []byte) []byte {
+	if !bytes.Contains(data, []byte(`</mc:AlternateContent></w:r><w:r><w:br`)) {
+		return data
+	}
+	return altContentRunThenBareBrRunRE.ReplaceAll(
+		data, []byte(`</mc:AlternateContent></w:r><w:r></w:r>$1`))
+}
+
 // bareFldCharEndAfterTextThenBareTextRunRE matches a bare
 // `<w:r><w:t ...>...</w:t></w:r>` envelope (display text from an
 // extractable complex field) IMMEDIATELY followed by a bare
@@ -2279,6 +2349,22 @@ func (w *Writer) writeFromSkeleton(origZR *zip.Reader, zw *zip.Writer, buf *byte
 		// citation and the Hangs.docx (header1.xml) fixture rationale.
 		if isDOCX && bytes.Contains(data, []byte(`<w:r><w:pict>`)) {
 			data = fuseBarePictAndRPrTextRuns(data)
+		}
+		// Insert an empty `<w:r></w:r>` placeholder run between an
+		// `<mc:AlternateContent>` host run's closing
+		// `</mc:AlternateContent></w:r>` and the IMMEDIATELY-following
+		// bare `<w:r><w:br[...]/>...` run envelope. Mirrors upstream
+		// Okapi RunBuilder.flushRunStart/flushRunEnd's post-image flush
+		// cycle that emits an empty placeholder run on the boundary
+		// between a complex image run (drawing/pict/AlternateContent)
+		// and the next br-bearing run. Runs AFTER WSO (which strips the
+		// post-image run's rPr when its members are inherited from the
+		// surrounding paragraph style), so the regex sees the rPr-less
+		// `<w:r><w:br/>...` envelope. See
+		// emitEmptyRunAfterAltContentPostImageBoundary for the citation
+		// and the graphicdata.docx fixture rationale.
+		if isDOCX && bytes.Contains(data, []byte(`</mc:AlternateContent></w:r><w:r><w:br`)) {
+			data = emitEmptyRunAfterAltContentPostImageBoundary(data)
 		}
 		return data
 	}
