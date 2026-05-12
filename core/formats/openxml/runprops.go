@@ -181,60 +181,80 @@ func (rp runProps) equalIncludingChildren(other runProps) bool {
 	return true
 }
 
-// canBeMergedWith reports whether two runProps are mergeable per upstream
-// Okapi RunMerger.canRunPropertiesBeMerged (RunMerger.java:156-229) —
-// stricter than byte-equality but looser than equalIncludingChildren:
-// rFonts is merged per-attribute (no contradictory values per shared
-// content category — RunFonts.canBeMerged at RunFonts.java:190-247),
-// every other rPr child must be byte-equal. Per ECMA-376-1 §17.3.2.26
-// rFonts attributes (ascii, hAnsi, cs, eastAsia, *Theme, hint) are
-// independent and an rFonts may carry any subset, so an rFonts that
-// only specifies (ascii, cs) is compatible with one that specifies
-// (ascii, hAnsi, cs) when their shared attributes agree.
+
+// canBeMergedWithTexts is the text-aware variant of canBeMergedWith.
+// When either side's text is whitespace-only (or empty), per upstream
+// Okapi RunFonts.canContentCategoriesBeMerged (RunFonts.java:211-230)
+// the whitespace run has no detected content categories and its
+// rFonts attributes are "irrelevant" for any script category — the
+// shared-attribute byte-equality requirement relaxes per category.
+// Concretely: if A's text is Latin-only and B's text is whitespace,
+// B's `w:ascii` value can differ from A's `w:ascii` because B has no
+// Latin chars that "use" the ascii font category. The merged result
+// keeps A's value for the category (mergeRFontsXMLTextAware below).
 //
-// This is the gate used by mergeRuns. When two runs are mergeable but
-// not byte-equal, mergeRPrChildren computes the merged rPrChildren so
-// the surviving textRun carries the rFonts that satisfies both source
-// runs.
-func (rp runProps) canBeMergedWith(other runProps) bool {
-	if !rp.equal(other) {
+// rText / otherText are the source text bodies of the two runs (the
+// raw `<w:t>` payload, NOT the post-merge concatenation). Sentinels
+// (tab, image, …) and line-breaks should be filtered out by the
+// caller — they don't pass through the rFonts merge anyway because
+// mergeRuns refuses to fuse them with text runs.
+//
+// Mirrors upstream Okapi RunFonts.canBeMerged + RunFonts.merge
+// (RunFonts.java:190-315) where the per-category gate consults
+// `containsDetected(category)` on each side; an "undetected" run
+// on either side allows the merge for that category.
+//
+// Used by mergeRuns to fuse adjacent runs where one is a
+// whitespace-only spacer between two text bodies sharing the same
+// rPr otherwise (1200-1.docx canonical: a Times-ascii space run
+// between two Georgia-ascii text runs both carrying b/bCs +
+// matching color/sz/lang).
+func (rp runProps) canBeMergedWithTexts(other runProps, rText, otherText string) bool {
+	if !rp.equalTextAware(other, rText, otherText) {
 		return false
 	}
-	return rPrChildrenMergeable(rp.rPrChildren, other.rPrChildren)
+	return rPrChildrenMergeableTexts(rp.rPrChildren, other.rPrChildren, rText, otherText)
 }
 
-// rPrChildrenMergeable reports whether two ordered rPrChildren slices
-// can be merged per upstream Okapi RunMerger.canRunPropertiesBeMerged
-// (RunMerger.java:156-229): every non-rFonts child must be byte-equal,
-// and rFonts (if both have it) must be per-attribute compatible. The
-// property count must match — a run with N properties cannot fuse
-// with a run with M ≠ N properties (RunMerger.java:192-194's
-// `numberOfRunProperties != numberOfOtherRunProperties` guard).
+// equalTextAware reports whether two runProps have equal toggle state
+// AND compatible fontName (per the script-detection relaxation). Toggles
+// (bold/italic/underline/strike/vertAlign/vanish) must match — they
+// affect every character regardless of script. The fontName check
+// follows the same whitespace-only relaxation as rFontsMergeableTexts:
+// when one side's text is undetected (whitespace/empty), its fontName
+// is "irrelevant" — upstream Okapi RunFonts.merge resolves to the
+// detected side's value (RunFonts.java:267-315).
 //
-// The native rPrChildren list omits the toggle children
-// (b/i/u/strike/vertAlign/vanish) — those flow through runProps's
-// toggle fields. rPrChildren contains the non-toggle children that
-// upstream RunBuilder tracks as Properties (rStyle, rFonts, color, sz,
-// szCs, highlight, bCs, iCs, …).
-func rPrChildrenMergeable(a, b []rPrChild) bool {
-	// Per RunMerger.java:192-194, the total property count must match
-	// for two runs to merge. A run with `<w:rFonts/>` and nothing else
-	// (1 property) cannot merge with a run with no rPr children at all
-	// (0 properties), even when rFontsMergeable would otherwise allow
-	// the merge. Mirrors upstream's
-	// `numberOfRunProperties != numberOfOtherRunProperties → return false`
-	// short-circuit before the per-property comparison loop. Fixture
-	// OkapiMarkers.docx is the canonical case: a run with
-	// `<w:rPr><w:rFonts w:hint="eastAsia"/></w:rPr><w:t> </w:t>`
-	// must NOT fuse with a following bare `<w:r><w:t>Content</w:t></w:r>`
-	// — the bridge keeps them as 2 separate `<w:r>` elements per
-	// upstream's count-mismatch guard.
+// Used by canBeMergedWithTexts to allow merging a text+space sequence
+// where the space's rFonts ascii/hAnsi differs from the surrounding
+// text (1200-1.docx canonical case).
+func (rp runProps) equalTextAware(other runProps, rText, otherText string) bool {
+	if rp.bold != other.bold ||
+		rp.italic != other.italic ||
+		rp.underline != other.underline ||
+		rp.strike != other.strike ||
+		rp.vertAlign != other.vertAlign ||
+		rp.vanish != other.vanish {
+		return false
+	}
+	if rp.fontName == other.fontName {
+		return true
+	}
+	// fontName differs: allow when at least one side is undetected.
+	return isUndetectedRunText(rText) || isUndetectedRunText(otherText)
+}
+
+// rPrChildrenMergeableTexts is the text-aware variant of
+// rPrChildrenMergeable. Same contract for non-rFonts children, but
+// the rFonts compatibility check passes the run texts so the
+// per-attribute gate can allow undetected-category divergence per
+// upstream Okapi RunFonts.canContentCategoriesBeMerged
+// (RunFonts.java:211-230). See canBeMergedWithTexts for the
+// rationale.
+func rPrChildrenMergeableTexts(a, b []rPrChild, aText, bText string) bool {
 	if len(a) != len(b) {
 		return false
 	}
-	// Build maps from name → xml for non-rFonts children.
-	// Multiple children with the same name are unusual in well-formed
-	// WPML; fall back to ordered byte comparison in that case.
 	aOther, aFonts := splitRFonts(a)
 	bOther, bFonts := splitRFonts(b)
 	if len(aOther) != len(bOther) {
@@ -246,13 +266,135 @@ func rPrChildrenMergeable(a, b []rPrChild) bool {
 			return false
 		}
 	}
-	// rFonts: if both absent, the count-match check above already
-	// passed and there's nothing to compare. Per the count guard we
-	// would have bailed if only one side has it.
 	if aFonts == nil || bFonts == nil {
 		return true
 	}
-	return rFontsMergeable(aFonts.xml, bFonts.xml)
+	return rFontsMergeableTexts(aFonts.xml, bFonts.xml, aText, bText)
+}
+
+// rFontsMergeableTexts is the text-aware variant of rFontsMergeable.
+// When a shared attribute has different values across the two runs,
+// the merge is allowed iff at least one side has NO text in the
+// content category the attribute addresses (per ECMA-376-1
+// §17.3.2.26: ascii→Latin/Basic, hAnsi→High ANSI, cs→Complex Script,
+// eastAsia→East Asian).
+//
+// Native lacks the full ContentCategoriesDetection state machine, so
+// the approximation is: a run whose text is empty or whitespace-only
+// has no detected content category for ANY script — the rFonts
+// attributes from the other side carry through. Mirrors upstream
+// Okapi RunFonts.canContentCategoriesBeMerged (RunFonts.java:211-230)
+// where `containsDetected(category)` is false on a whitespace-only
+// run (whitespace is not "in" any script range).
+//
+// For richer runs (mixed scripts), the per-attribute byte-equality
+// path applies unchanged — over-conservative compared to upstream's
+// full content-category detection but never invents a merge that
+// upstream wouldn't.
+func rFontsMergeableTexts(aXML, bXML, aText, bText string) bool {
+	aAttrs, ok := parseRFontsAttrs(aXML)
+	if !ok {
+		return false
+	}
+	bAttrs, ok := parseRFontsAttrs(bXML)
+	if !ok {
+		return false
+	}
+	aMap := make(map[string]string, len(aAttrs))
+	for _, a := range aAttrs {
+		aMap[a.name] = a.value
+	}
+	bMap := make(map[string]string, len(bAttrs))
+	for _, b := range bAttrs {
+		bMap[b.name] = b.value
+	}
+	aUndetected := isUndetectedRunText(aText)
+	bUndetected := isUndetectedRunText(bText)
+	for name, aV := range aMap {
+		bV, has := bMap[name]
+		if !has {
+			continue
+		}
+		if aV == bV {
+			continue
+		}
+		// Differing values for the same attribute.
+		// Allow when at least one side is undetected for any
+		// category (the whitespace-only relaxation).
+		if !aUndetected && !bUndetected {
+			return false
+		}
+	}
+	// Theme/direct-pair conflict: same rule as rFontsMergeable —
+	// asserting direct on one side while the other asserts theme
+	// for the same content category is a blocker. The whitespace
+	// relaxation also applies here when either side is undetected.
+	for _, pair := range rFontsThemePairs {
+		_, aHasDirect := aMap[pair.direct]
+		_, aHasTheme := aMap[pair.theme]
+		_, bHasDirect := bMap[pair.direct]
+		_, bHasTheme := bMap[pair.theme]
+		if (aHasDirect && bHasTheme) || (aHasTheme && bHasDirect) {
+			if !aUndetected && !bUndetected {
+				return false
+			}
+		}
+	}
+	// Hint compatibility: only relax the one-sided-hint blocker
+	// when the SIDE THAT CARRIES THE HINT is undetected (so its
+	// hint references no real script category in the run text).
+	// Mirrors upstream Okapi RunFonts.canHintsBeMerged
+	// (RunFonts.java:232-248): when one side has hint=X and the
+	// other doesn't, the merge is allowed iff the hint-bearing
+	// side does NOT contain text in the script category X. For
+	// native, we approximate "doesn't contain text in any script"
+	// as "whitespace-only or empty" — sufficient for the spacer-
+	// run cases (1200-1.docx) without breaking Arabic-with-hint vs
+	// space-no-hint adjacent fixtures (1385-whitespace-styles.docx)
+	// where the hint-bearing side carries genuine CS text.
+	aHasHint := hasHintAttr(aMap)
+	bHasHint := hasHintAttr(bMap)
+	if aHasHint != bHasHint {
+		switch {
+		case aHasHint && aUndetected:
+			// A has hint but no script text → its hint is moot.
+		case bHasHint && bUndetected:
+			// B has hint but no script text → its hint is moot.
+		default:
+			return false
+		}
+	}
+	return true
+}
+
+// isUndetectedRunText reports whether s carries no characters in any
+// detectable script content category. Used as a native approximation
+// of upstream Okapi RunFonts.containsDetected returning false for ALL
+// categories. The approximation is "empty or whitespace-only" —
+// whitespace (ASCII space, tab, newline, NBSP, narrow NBSP, …) is not
+// in any script range per Unicode general categories and is treated
+// as undetected by upstream's RunFonts.containsContentCategoryFor +
+// ContentCategoriesDetection.java:134-138.
+//
+// Sentinel/PUA runs (.. internal markers) are not
+// expected to reach this path because mergeRuns refuses to fuse them
+// with regular text via the isSentinel guard.
+func isUndetectedRunText(s string) bool {
+	if s == "" {
+		return true
+	}
+	for _, r := range s {
+		switch r {
+		case ' ', '\t', '\n', '\r', ' ', ' ', ' ', ' ', ' ':
+			// Common whitespace forms: ASCII space/tab/newline/CR,
+			// NBSP, narrow NBSP, figure space, thin space, hair space.
+			continue
+		}
+		// Non-whitespace character → at least one script category
+		// may be detected. Conservative: treat as detected.
+		return false
+	}
+	return true
 }
 
 // splitRFonts partitions rPrChildren into (non-rFonts entries, rFonts
@@ -272,97 +414,6 @@ func splitRFonts(children []rPrChild) ([]rPrChild, *rPrChild) {
 		out = append(out, children[i])
 	}
 	return out, fonts
-}
-
-// rFontsMergeable reports whether two <w:rFonts ...> elements are
-// per-attribute compatible: shared attribute names must have equal
-// values; font-name attributes (ascii, hAnsi, cs, eastAsia, *Theme)
-// may be present on only one side (the merged result drops attributes
-// not shared by both — see mergeRFontsXML for the intersection rule
-// matching upstream's "undetected category drops out" branch in
-// RunFonts.mergeContentCategories at RunFonts.java:299-315).
-//
-// Per ECMA-376-1 §17.3.2.26 each content category (Latin/ASCII,
-// HighAnsi, ComplexScript, EastAsian) has a direct font-name attribute
-// (ascii / hAnsi / cs / eastAsia) AND a theme-reference alternative
-// (asciiTheme / hAnsiTheme / cstheme / eastAsiaTheme). The two
-// alternatives address the SAME content category — a run that asserts
-// `ascii="Times New Roman"` cannot be merged with a run that asserts
-// `asciiTheme="minorHAnsi"` because they describe different fonts for
-// the same character range. Upstream Okapi's RunFonts.canBeMerged
-// (RunFonts.java:190-247) walks ContentCategory enum members and uses
-// `containsDetected` for both the direct and the theme alternative
-// (`fontThemeContentCategories.get(contentCategory)`) — when both
-// runs detect the category and the values differ (whether direct vs
-// theme or direct vs direct), the merge fails. Native has no script
-// detection, so the safe over-constraint is to treat ANY divergence
-// across a theme-pair as a merge blocker — see fixture 1312-fonts-info*
-// where Run 1 has `asciiTheme="minorHAnsi"` and Run 2 has
-// `ascii="Times New Roman"`: upstream keeps the two runs separate, so
-// native must too.
-//
-// The `hint` attribute is treated differently: it must be byte-equal
-// on both sides OR ABSENT on both. Mirrors upstream Okapi
-// RunFonts.canHintsBeMerged (RunFonts.java:232-248) without access
-// to detected-content-category state — native cannot tell whether the
-// other run "uses" the script category the hint addresses, so the
-// safe over-constraint is to refuse merge whenever one run carries a
-// hint and the other does not. This preserves the boundary between
-// e.g. `<w:rFonts w:cs="Arial" w:hint="cs"/>` (complex-script text)
-// and `<w:rFonts w:cs="Arial"/>` (whitespace span) so 1385-style
-// paragraphs round-trip with all runs intact.
-//
-// Mirrors upstream Okapi RunFonts.canBeMerged (RunFonts.java:190-247).
-func rFontsMergeable(aXML, bXML string) bool {
-	aAttrs, ok := parseRFontsAttrs(aXML)
-	if !ok {
-		return false
-	}
-	bAttrs, ok := parseRFontsAttrs(bXML)
-	if !ok {
-		return false
-	}
-	aMap := make(map[string]string, len(aAttrs))
-	for _, a := range aAttrs {
-		aMap[a.name] = a.value
-	}
-	bMap := make(map[string]string, len(bAttrs))
-	for _, b := range bAttrs {
-		bMap[b.name] = b.value
-		if v, ok := aMap[b.name]; ok && v != b.value {
-			return false
-		}
-	}
-	// Theme/direct-pair conflict: each content category (Latin/HighAnsi/
-	// ComplexScript/EastAsian) has a direct attribute AND a theme
-	// alternative, and asserting one on one run while the other asserts
-	// the alternative for the same category is a merge blocker. Per
-	// upstream RunFonts.canContentCategoriesBeMerged (RunFonts.java:211-
-	// 230), the comparison walks `containsDetected(fontThemeCategory)`
-	// for both the direct and theme alternatives. Without script
-	// detection, treat any divergence on a theme-pair as a blocker.
-	for _, pair := range rFontsThemePairs {
-		_, aHasDirect := aMap[pair.direct]
-		_, aHasTheme := aMap[pair.theme]
-		_, bHasDirect := bMap[pair.direct]
-		_, bHasTheme := bMap[pair.theme]
-		// A asserts direct, B asserts theme (or vice versa) → conflict.
-		// Both-direct or both-theme divergences are already caught by
-		// the byte-equality loop above (same attribute name).
-		if aHasDirect && bHasTheme {
-			return false
-		}
-		if aHasTheme && bHasDirect {
-			return false
-		}
-	}
-	// Hint compatibility: refuse merge when only one side carries a
-	// hint. Upstream's canHintsBeMerged also rejects most of those
-	// cases (the rare exception is when the other run has no font in
-	// the category the hint addresses — we cannot detect that here).
-	aHasHint := hasHintAttr(aMap)
-	bHasHint := hasHintAttr(bMap)
-	return aHasHint == bHasHint
 }
 
 // rFontsThemePairs lists the (direct, theme) attribute pairs that
@@ -396,24 +447,29 @@ func hasHintAttr(m map[string]string) bool {
 	return ok
 }
 
-// mergeRPrChildren returns the merged rPrChildren of two mergeable
-// runs. Non-rFonts children are taken from a (byte-equal to b's by
-// the rPrChildrenMergeable contract). rFonts is the per-attribute
-// intersection (shared attribute names with equal values) — matching
-// the per-paragraph rFonts consensus computed by
-// mergeRFontsAcrossRuns (source_rpr.go) for the WSO common-rPr lift.
+// mergeRPrChildrenTexts returns the merged rPrChildren of two
+// mergeable runs (text-aware: when one side's text is undetected —
+// empty or whitespace-only via isUndetectedRunText — shared rFonts
+// attributes that differ in value resolve to the DETECTED side's
+// value; mirrors upstream Okapi RunFonts.merge at RunFonts.java:267-
+// 315 which prefers the detected content category's value).
 //
-// When the rFonts intersection is empty, the rFonts entry is dropped
-// from the merged rPrChildren rather than emitted as an empty
-// `<w:rFonts/>` — an attribute-less rFonts carries no formatting and
-// would only noise up the per-run rPr sidecar.
+// Non-rFonts children are taken from `a` (byte-equal to `b`'s per the
+// rPrChildrenMergeableTexts contract). rFonts is the per-attribute
+// intersection (or detected-side preference when one side is
+// undetected). An empty rFonts intersection is dropped rather than
+// emitted as a bare `<w:rFonts/>` — an attribute-less rFonts carries
+// no formatting and only noises up the per-run rPr sidecar.
 //
-// The caller must have established mergeability via
-// rPrChildrenMergeable; this function does NOT re-check compatibility.
-func mergeRPrChildren(a, b []rPrChild) []rPrChild {
+// Used by mergeRuns when canBeMergedWithTexts allowed the merge via
+// the whitespace relaxation. The caller must have already gated on
+// rPrChildrenMergeableTexts.
+func mergeRPrChildrenTexts(a, b []rPrChild, aText, bText string) []rPrChild {
 	_, aFonts := splitRFonts(a)
 	_, bFonts := splitRFonts(b)
-	merged := mergeRFontsXML(aFonts, bFonts)
+	aUndetected := isUndetectedRunText(aText)
+	bUndetected := isUndetectedRunText(bText)
+	merged := mergeRFontsXMLTextAware(aFonts, bFonts, aUndetected, bUndetected)
 	mergedHasAttrs := rFontsHasAttrs(merged.xml)
 	out := make([]rPrChild, 0, len(a)+1)
 	rFontsEmitted := false
@@ -431,6 +487,48 @@ func mergeRPrChildren(a, b []rPrChild) []rPrChild {
 		out = append(out, merged)
 	}
 	return out
+}
+
+// mergeRFontsXMLTextAware merges two rFonts entries with awareness of
+// each side's content-category detection (approximated as "undetected
+// when text is whitespace-only"). The merge rules:
+//
+//  1. Both sides detected → per-attribute intersection (only shared
+//     attrs with equal values are kept). Same as mergeRFontsXML.
+//  2. A detected, B undetected → keep A's attributes verbatim
+//     (B has no "opinion" on font choice).
+//  3. A undetected, B detected → keep B's attributes verbatim.
+//  4. Both undetected → per-attribute intersection (no detection
+//     signal either way).
+//
+// Per upstream Okapi RunFonts.merge (RunFonts.java:267-315 +
+// mergeContentCategories at 299-315): the merged value for a content
+// category is the DETECTED side's value when only one is detected;
+// when both are detected with equal values, that value is kept;
+// when both are detected with different values, the merge would have
+// been refused by canBeMerged upstream (so we don't reach this path
+// unless the byte-equality / undetected-relaxation gate passed).
+func mergeRFontsXMLTextAware(a, b *rPrChild, aUndetected, bUndetected bool) rPrChild {
+	if a == nil && b == nil {
+		return rPrChild{name: "rFonts"}
+	}
+	if a == nil {
+		return *b
+	}
+	if b == nil {
+		return *a
+	}
+	if aUndetected && !bUndetected {
+		// A's attributes carry no content-category signal — defer to
+		// B's choices for the merged result.
+		return *b
+	}
+	if !aUndetected && bUndetected {
+		return *a
+	}
+	// Both detected (or both undetected): fall back to the
+	// byte-equality intersection (mergeRFontsXML).
+	return mergeRFontsXML(a, b)
 }
 
 // rFontsHasAttrs reports whether a serialised `<w:rFonts .../>`
