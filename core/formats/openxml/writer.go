@@ -3242,9 +3242,92 @@ func stripDMLRunPropertyAttrs(payload string) string {
 		stripped := dmlRunPropertyStartTagRE.ReplaceAllStringFunc(block, func(tag string) string {
 			return dmlStrippableAttrRE.ReplaceAllString(tag, "")
 		})
+		// After attribute strip, drop any `<a:endParaRPr/>` (or
+		// `<a:endParaRPr></a:endParaRPr>`) that no longer carries any
+		// attribute or child content. Upstream Okapi's
+		// ParagraphBlockProperties.getEvents
+		// (BlockProperties.java:169-172) drops empty paragraph-property
+		// envelopes — the same rule applies to
+		// `<a:endParaRPr>` (the paragraph-mark run-property in
+		// DrawingML, ECMA-376-1 §21.1.2.2.3). Without this drop, a
+		// source `<a:endParaRPr lang="en-CA"/>` (only-strippable-attrs
+		// shape) survives the round-trip as `<a:endParaRPr/>` while
+		// upstream drops it entirely. apissue.docx has 5 such
+		// occurrences in lockedCanvas chart fragments — keeping them
+		// adds ~57KB of phantom markup vs the reference output.
+		stripped = stripEmptyDMLEndParaRPr(stripped)
 		out.WriteString(stripped)
 		out.WriteString(dmlBlockCloseTag)
 		pos = blockEnd + len(dmlBlockCloseTag)
+	}
+	return out.String()
+}
+
+// stripEmptyDMLEndParaRPr removes every empty `<a:endParaRPr/>` (or
+// `<a:endParaRPr></a:endParaRPr>` with no children/attrs) from the
+// paragraph body. Mirrors upstream Okapi's
+// ParagraphBlockProperties.getEvents (BlockProperties.java:169-172)
+// empty-envelope drop applied to the DML paragraph-mark rPr — see
+// stripDMLRunPropertyAttrs for the apissue.docx canonical case.
+//
+// We only strip the empty form. A `<a:endParaRPr>` carrying child
+// elements (a:solidFill, a:latin, …) is preserved verbatim because
+// those children encode rendered formatting per ECMA-376-1
+// §21.1.2.2.3 and dropping them would alter the paragraph mark's
+// appearance.
+func stripEmptyDMLEndParaRPr(block string) string {
+	if !strings.Contains(block, "<a:endParaRPr") {
+		return block
+	}
+	var out strings.Builder
+	out.Grow(len(block))
+	pos := 0
+	for pos < len(block) {
+		i := strings.Index(block[pos:], "<a:endParaRPr")
+		if i < 0 {
+			out.WriteString(block[pos:])
+			return out.String()
+		}
+		start := pos + i
+		out.WriteString(block[pos:start])
+		// Find the end of the tag's open-tag (first '>').
+		tagEnd := strings.Index(block[start:], ">")
+		if tagEnd < 0 {
+			// Malformed — pass through.
+			out.WriteString(block[start:])
+			return out.String()
+		}
+		tagEndAbs := start + tagEnd + 1
+		openTag := block[start:tagEndAbs]
+		// Distinguish self-closing `<a:endParaRPr.../>` from the
+		// open-form `<a:endParaRPr...>...</a:endParaRPr>`.
+		if strings.HasSuffix(openTag, "/>") {
+			// Self-closing. Drop iff every attribute was stripped
+			// (the tag is now exactly `<a:endParaRPr/>`).
+			if openTag == "<a:endParaRPr/>" {
+				pos = tagEndAbs
+				continue
+			}
+			out.WriteString(openTag)
+			pos = tagEndAbs
+			continue
+		}
+		// Open form. Look for `</a:endParaRPr>`. If the body between
+		// open and close is empty AND the open tag has no attributes,
+		// drop the whole envelope.
+		closeIdx := strings.Index(block[tagEndAbs:], "</a:endParaRPr>")
+		if closeIdx < 0 {
+			out.WriteString(block[start:])
+			return out.String()
+		}
+		body := block[tagEndAbs : tagEndAbs+closeIdx]
+		closeEnd := tagEndAbs + closeIdx + len("</a:endParaRPr>")
+		if openTag == "<a:endParaRPr>" && strings.TrimSpace(body) == "" {
+			pos = closeEnd
+			continue
+		}
+		out.WriteString(block[start:closeEnd])
+		pos = closeEnd
 	}
 	return out.String()
 }
