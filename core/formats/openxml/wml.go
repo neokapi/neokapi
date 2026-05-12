@@ -251,6 +251,33 @@ type wmlParser struct {
 	// the trailing fldChar-end-only paragraph then re-emits as an
 	// empty `<w:p>` with its own pPr.
 	partFieldStraddle *pendingFieldBlock
+	// partAbsorbedTrailingEmpty signals that we just flushed a
+	// partFieldStraddle whose original pPr carried a
+	// `<w:pPr><w:rPr><w:del/></w:rPr></w:pPr>` (ECMA-376 Part 1
+	// §17.13.5.13 CT_ParaRPr) deleted-paragraph-mark. Upstream Okapi
+	// makes the absorbed block `mergeable=true` (BlockParser.java:207-
+	// 213). When such a block reaches StyledTextPart.process line
+	// 312-319 it is buffered as `mergeableBlock` and only emitted when
+	// the next non-mergeable block (often a trailing empty
+	// `<w:p ...>/`) calls `block.mergeWith(mergeableBlock)` —
+	// absorbing the buffered block's chunks INTO the trailing
+	// paragraph's wrapper. The trailing wrapper carries through to
+	// the rendered output; the original mergeable paragraph's `<w:p>`
+	// wrapper is discarded.
+	//
+	// Native already emits the absorbed merged block inline at the
+	// flush point (using the field-straddle paragraph's own pPr). To
+	// mirror upstream's wrapper-consumption we mark the next plain
+	// trailing `<w:p ...>` element (no pPr, no body) as the structural
+	// merge target and drop it without emit. The flag clears after one
+	// consumption (the next non-empty paragraph also clears it).
+	//
+	// Fixture 1102.docx is the canonical case: source P2 (mergeable
+	// via delMark, content "Label 1:" plus HYPERLINK field begin/sep)
+	// gets buffered as partFieldStraddle; P3 (empty with delMark)
+	// triggers the flush; P5 (`<w:p ... />` self-closing, no pPr)
+	// is the trailing wrapper Okapi consumes for the merged block.
+	partAbsorbedTrailingEmpty bool
 }
 
 // pendingMergeable carries the post-mergeRuns slice for a paragraph
@@ -440,6 +467,17 @@ func (p *wmlParser) parsePart(data []byte, partPath string, emitBlock func(*mode
 						return err
 					}
 				}
+				// Clear the trailing-empty absorption flag at sectPr —
+				// if no bare empty `<w:p ... />` consumed it, the
+				// absorbed merged block already emitted standalone via
+				// flushPendingFieldBlock and there is no structural
+				// merge target. Mirrors upstream Okapi's behaviour at
+				// StyledTextPart.process lines 642-644: the dangling
+				// `mergeableBlock` still emits as a standalone
+				// paragraph at EOF (no successor non-mergeable arrives).
+				if t.Name.Local == "sectPr" {
+					p.partAbsorbedTrailingEmpty = false
+				}
 				raw, err := captureRawElement(d, t)
 				if err != nil {
 					return err
@@ -488,6 +526,11 @@ func (p *wmlParser) parsePart(data []byte, partPath string, emitBlock func(*mode
 			return err
 		}
 	}
+	// Reset the trailing-empty absorption flag at end-of-part — if any
+	// flag survived past sectPr (no sectPr in this part — headers,
+	// footers, comments, footnotes typically have none), clear it now
+	// so the flag never leaks across parts.
+	p.partAbsorbedTrailingEmpty = false
 	return nil
 }
 
@@ -575,6 +618,14 @@ func (p *wmlParser) flushPendingFieldBlock(extraTailRuns []textRun, partPath str
 	// `stripPPrIfDeletedMark` for the full citation). Apply that
 	// suppression here so the deferred paragraph mirrors Okapi's emit.
 	// Fixture 1102.docx P2 is the canonical case.
+	//
+	// Capture the delMark presence BEFORE stripping so we can flag the
+	// next trailing empty `<w:p ...>` element as the structural merge
+	// target Okapi consumes (see partAbsorbedTrailingEmpty field doc
+	// and the empty-runs emit branch in parseParagraph).
+	if paragraphHasDeletedMark(pf.paraProps) {
+		p.partAbsorbedTrailingEmpty = true
+	}
 	pf.paraProps = stripPPrIfDeletedMark(pf.paraProps)
 	runs := pf.runs
 	if len(extraTailRuns) > 0 {
@@ -2672,6 +2723,35 @@ func (p *wmlParser) parseParagraph(d *xml.Decoder, partPath string, emitBlock fu
 					if paragraphHasDeletedMark(paraProps) && len(merged) == 0 && !(cfs.active && cfs.extractable) {
 						return nil
 					}
+					// Structural absorption target for a delMark-bearing
+					// partFieldStraddle that already flushed (see
+					// partAbsorbedTrailingEmpty field doc and
+					// flushPendingFieldBlock). Upstream Okapi marks the
+					// absorbed cross-field block `mergeable=true`
+					// (BlockParser.java:207-213) and consumes the NEXT
+					// non-mergeable paragraph as the wrapper
+					// (StyledTextPart.process lines 312-319 +
+					// Block.mergeWith at Block.java:139-166). The
+					// trailing paragraph itself is dropped — its content
+					// (none) and its wrapper hold the absorbed runs.
+					// Mirror that here by silently dropping a plain
+					// empty `<w:p ...>` (no pPr, no body) sitting between
+					// the flushed straddle and the section properties.
+					// Fixture 1102.docx P5 is the canonical case (source
+					// `<w:p w14:paraId="2E5C8AD6" .../>` immediately
+					// before `<w:sectPr>`).
+					//
+					// Guarded on `len(paraProps) == 0` so paragraphs that
+					// carry their OWN pPr (rare in this position, but
+					// distinct from the structural shell) still emit.
+					// Also gated on `!cfs.active` so we don't drop a
+					// placeholder paragraph that the field machinery
+					// still expects to flow through (e.g. fldChar-end-
+					// only sole-run cases handled above).
+					if p.partAbsorbedTrailingEmpty && paraProps == "" && !cfs.active {
+						p.partAbsorbedTrailingEmpty = false
+						return nil
+					}
 					// When the captured pPr/rPr carries a deletedMark
 					// (`<w:del>` / `<w:moveFrom>`), upstream Okapi's
 					// BlockParser (BlockParser.java:207-213) suppresses
@@ -2869,6 +2949,25 @@ func (p *wmlParser) parseParagraph(d *xml.Decoder, partPath string, emitBlock fu
 				// Build block
 				*p.blockCounter++
 				blockID := fmt.Sprintf("tu%d", *p.blockCounter)
+
+				// Note: do NOT clear partAbsorbedTrailingEmpty here.
+				// In the 1102.docx pattern the content-bearing
+				// paragraph that follows the partFieldStraddle flush
+				// (P4) carries the fldChar-end run that closes the
+				// straddling field, so it is structurally part of the
+				// same absorbed block in upstream Okapi's view
+				// (RunParser.parseComplexField + StyledTextPart.process
+				// — P4's `<w:p>` never opens a new BlockParser frame;
+				// it is consumed as opaque markup inside P2's
+				// RunBuilder). The structural merge target Okapi
+				// consumes is the BARE empty paragraph that follows
+				// (P5: no pPr, no body, sole sibling of `<w:sectPr>`).
+				// Clearing the flag here would drop the consumption
+				// before that bare empty arrives.
+				//
+				// The flag is consumed at the empty-runs branch above
+				// (single bare `<w:p ... />` drop) or cleared at sectPr
+				// time in parsePart so it never escapes one part.
 
 				// Skeleton: write paragraph open, props, ref, close.
 				// Suppress deletedMark-bearing pPr — see
