@@ -4709,10 +4709,32 @@ const fieldRPrKeepEmptyMarker = "<!--KAPI-FIELD-RPR-->"
 //   - <w:rPrChange>       (RUN_PROPERTIES_CHANGE — revision tracking)
 // Each regex matches both self-closing and open/close forms and
 // allows attributes / xmlns declarations on the start tag.
+//
+// fieldRPrColorBlackRE additionally drops `<w:color w:val="000000"/>` —
+// the black foreground color is implicitly injected by upstream Okapi
+// into docDefaults' rPr (WordStyleDefinition.DocumentDefaults
+// .addExplicitDefaults() at WordStyleDefinition.java:192-227 with
+// DEFAULT_FOREGROUND_NAME="windowText" → RGB 000000 per
+// Color.java:953). RunProperties.minified() then drops any directly-
+// specified `<w:color w:val="000000"/>` via the
+// `preCombined.contains(p)` branch (RunProperties.java:504). The
+// minified result is what upstream's RunParser.parseRunPropertiesAndRunStyle
+// (RunParser.java:280-294) feeds into RunBuilder.setRunProperties for
+// EVERY run, including the fldChar / instrText / display-text runs that
+// flow through parseComplexField. Native's parseRunWithFieldState
+// captures these runs verbatim, bypassing parseRunProps's minification
+// path; the equivalent strip has to be applied at the raw-rPr layer
+// here so field-bearing runs do not retain redundant black foreground.
+//
+// Fixture: 830-7.docx — runs surrounding the COMMENTS / HYPERLINK
+// extractable field markers carry `<w:color w:val="000000"/>` that
+// upstream strips; native otherwise emits the redundant element on
+// the field markers. Per ECMA-376-1 §17.3.2.6 (`<w:color>`).
 var fieldRPrStripREs = []*regexp.Regexp{
 	regexp.MustCompile(`<w:lang\b[^>]*/>|<w:lang\b[^>]*>.*?</w:lang>`),
 	regexp.MustCompile(`<w:noProof\b[^>]*/>|<w:noProof\b[^>]*>.*?</w:noProof>`),
 	regexp.MustCompile(`<w:rPrChange\b[^>]*/>|<w:rPrChange\b[^>]*>.*?</w:rPrChange>`),
+	regexp.MustCompile(`<w:color\b[^>]*\bw:val="000000"[^>]*/>|<w:color\b[^>]*\bw:val="000000"[^>]*>.*?</w:color>`),
 }
 
 // fieldRPrEmptyRE matches an `<w:rPr>` that is empty after
