@@ -172,6 +172,58 @@ func optimizeWMLPart(
 	synthesised map[string]synthesisedStyle,
 	orderedIDs *[]string,
 ) []byte {
+	return optimizeWMLPartWithSource(
+		src, nil,
+		existingStyleIDs, defaultParagraphStyleID, hasStylesPart, partStrict,
+		idCounter, synthesised, orderedIDs,
+	)
+}
+
+// optimizeWMLPartWithSource is optimizeWMLPart with an optional original
+// SOURCE XML argument. When srcXML is non-nil and its top-level paragraph
+// count matches the post-strip src paragraph count, paragraphs whose
+// SOURCE counterpart was entirely composed of revision-tracked content
+// wrappers (<w:ins>/<w:del>/<w:moveTo>/<w:moveFrom>) at content level
+// bypass WSO synthesis.
+//
+// Rationale: upstream Okapi's BlockParser-driven WSO operates on the
+// Block.chunks tree where revision wrappers participate as RunContainer
+// chunks; for paragraphs whose ENTIRE run content was inside revision
+// wrappers, the upstream commonRunPropertiesOf walk computes properties
+// from chunks that the post-write pass cannot reconstruct (the
+// auto-accept-revisions unwrap at READ time discards the wrapper
+// structure that the upstream filter still has visibility into via
+// preserved revision events). The existing post-strip
+// containsContentRevisionWrapper check at optimizeParagraph cannot
+// detect this case because the read-time unwrap removed the wrappers
+// before they reached the writer.
+//
+// Fixture 847-3.docx P2: every run is wrapped in <w:ins> (with nested
+// <w:del>) in the source; the upstream reference preserves each run's
+// `<w:rPr><w:b/></w:rPr>` verbatim without synthesising a paragraph
+// style, while native (pre-fix) synthesised an NF974E24F-Normal1 with
+// the docDefaults rFonts overlay because the post-strip paragraph
+// showed no <w:ins>/<w:del> wrappers.
+//
+// References:
+//   - ECMA-376 Part 1 / ISO/IEC 29500-1 §17.13.5.16 (CT_RunTrackChange,
+//     `<w:ins>`) — revision insertion content wrappers.
+//   - okapi BlockParser.parse — auto-accept-revisions unwrap of
+//     transitional <w:ins> content children (SkippableElements.java:
+//     209-212).
+//   - okapi StyleOptimisation.Default.applyTo — chunks-level common
+//     property computation that the wrappers participate in upstream.
+func optimizeWMLPartWithSource(
+	src []byte,
+	srcXML []byte,
+	existingStyleIDs map[string]bool,
+	defaultParagraphStyleID string,
+	hasStylesPart bool,
+	partStrict bool,
+	idCounter *int,
+	synthesised map[string]synthesisedStyle,
+	orderedIDs *[]string,
+) []byte {
 	if len(src) == 0 {
 		return src
 	}
@@ -184,10 +236,61 @@ func optimizeWMLPart(
 		return src
 	}
 
+	// Build the source-side revision-wrapped paragraph flag list. Only
+	// usable when the source and post-strip paragraph counts align (i.e.
+	// no merge/drop happened between read and post-strip). When counts
+	// diverge we fall back to nil and the per-paragraph bypass is
+	// disabled — this is conservative and never triggers false-positive
+	// bypasses on fixtures where the writer's paragraph-mark-merge logic
+	// changes the count.
+	//
+	// A paragraph qualifies for bypass when BOTH of:
+	//   - its content body (direct children of <w:p> excluding <w:pPr>)
+	//     is entirely composed of revision content wrappers (<w:ins>,
+	//     <w:del>, <w:moveTo>, <w:moveFrom>); AND
+	//   - its <w:pPr>/<w:rPr> carries a paragraph-mark deletion marker
+	//     (<w:del> or <w:moveFrom>).
+	//
+	// The AND-pair is required to avoid bypassing paragraphs that
+	// merely use <w:ins> as the only content wrapper for a single
+	// translatable insertion (e.g. document-revision-information-
+	// stripping.docx P4-P6, where each paragraph has one <w:ins>
+	// wrapper around a single <w:r> and the upstream reference DOES
+	// synthesise a paragraph style from the runs' common rPr after
+	// the auto-accept-revisions unwrap). The del-paragraph-mark gate
+	// targets the cross-paragraph merge scenario specifically:
+	// upstream Okapi sets builder.mergeable(true) for these paragraphs
+	// (BlockParser.java:207-213) and StyledTextPart.process buffers
+	// them for absorption into the next block; native's writer
+	// reconstruction does not always reproduce the absorption (cfs.active
+	// && cfs.extractable can guard the absorption — see wml.go:2583),
+	// leaving a standalone paragraph that WSO synthesises a style on
+	// when upstream would have folded the runs into the merged block
+	// where they participate in the next paragraph's commonRunProperties
+	// computation (with different chunk structure that doesn't
+	// synthesise). Fixture: 847-3.docx P2.
+	var srcRevWrapped []bool
+	if len(srcXML) > 0 {
+		srcParas := findParagraphs(srcXML)
+		if len(srcParas) == len(paragraphs) {
+			srcRevWrapped = make([]bool, len(srcParas))
+			for i, sp := range srcParas {
+				sb := srcXML[sp.start:sp.end]
+				if !paragraphAllContentRevisionWrapped(sb) {
+					continue
+				}
+				if !paragraphSourceHasDeletedMark(sb) {
+					continue
+				}
+				srcRevWrapped[i] = true
+			}
+		}
+	}
+
 	var out bytes.Buffer
 	out.Grow(len(src) + 1024)
 	cursor := 0
-	for _, para := range paragraphs {
+	for i, para := range paragraphs {
 		out.Write(src[cursor:para.start])
 		paraBytes := src[para.start:para.end]
 		// Pre-recurse into any paragraphs nested within this outer
@@ -209,6 +312,18 @@ func optimizeWMLPart(
 				existingStyleIDs, defaultParagraphStyleID, hasStylesPart, partStrict, idCounter, synthesised, orderedIDs,
 			)
 		}
+		// Source-driven bypass: when the source paragraph at this
+		// index was entirely composed of revision-wrapped content,
+		// skip WSO synthesis. See the optimizeWMLPartWithSource
+		// docstring for the rationale (the post-strip XML cannot
+		// detect revision-wrapper paragraphs because the wrappers were
+		// unwrapped at READ time — auto-accept-revisions semantics
+		// per okapi SkippableElement.RevisionInline).
+		if srcRevWrapped != nil && srcRevWrapped[i] {
+			out.Write(paraBytes)
+			cursor = para.end
+			continue
+		}
 		rewritten := optimizeParagraph(
 			paraBytes,
 			existingStyleIDs, defaultParagraphStyleID, hasStylesPart, partStrict, idCounter, synthesised, orderedIDs,
@@ -218,6 +333,195 @@ func optimizeWMLPart(
 	}
 	out.Write(src[cursor:])
 	return out.Bytes()
+}
+
+// paragraphSourceHasDeletedMark reports whether a SOURCE paragraph's
+// <w:pPr> contains a paragraph-mark deletion marker (<w:del> or
+// <w:moveFrom> inside <w:pPr>/<w:rPr>). Used together with
+// paragraphAllContentRevisionWrapped to decide whether to bypass WSO
+// on a paragraph that upstream Okapi would have folded into the next
+// block via the auto-accept-revisions paragraph-mark merge path. The
+// underlying paragraphHasDeletedMark walker is in wml.go and accepts
+// just the <w:pPr> element raw XML; this helper extracts that element
+// from the paragraph and forwards.
+func paragraphSourceHasDeletedMark(paraSrc []byte) bool {
+	pPrStart, pPrEnd, hasPPr := findFirstChild(paraSrc, "pPr")
+	if !hasPPr {
+		return false
+	}
+	return paragraphHasDeletedMark(string(paraSrc[pPrStart:pPrEnd]))
+}
+
+// paragraphAllContentRevisionWrapped reports whether every direct child
+// content element of a SOURCE paragraph (excluding <w:pPr>) is wrapped
+// in a tracked-revision content element (<w:ins>, <w:del>, <w:moveTo>,
+// <w:moveFrom>). Returns false when the paragraph mixes plain <w:r>
+// children with revision-wrapped runs, or contains no revision
+// wrappers at all.
+//
+// The check operates on the raw SOURCE paragraph (before
+// stripWMLSkippableElements) — only this view has the content wrappers
+// because the writer's auto-accept-revisions unwrap at READ time
+// (BlockParser.parse case "ins"/"moveTo" handling) discards the wrapper
+// element before its inner runs reach the post-strip XML.
+//
+// Self-closing/empty-body revision elements (the paragraph-mark
+// variants `<w:ins/>` / `<w:del/>` etc. that live inside `<w:pPr>/<w:rPr>`)
+// are NOT counted as content wrappers — they are accounted for
+// separately by stripWMLSkippableElements and the BlockParser
+// mergeable-paragraph machinery.
+//
+// Mirrors the auto-accept-revisions semantics in okapi
+// SkippableElement.RevisionInline (SkippableElement.java:209-214) which
+// unwraps `<w:ins>` / `<w:moveTo>` and discards `<w:del>` / `<w:moveFrom>`
+// at read time.
+func paragraphAllContentRevisionWrapped(src []byte) bool {
+	// Find pPr range (must be the first child if present) so we can
+	// skip past it. The pPr's own <w:rPr> may contain
+	// `<w:ins>` / `<w:del>` paragraph-mark variants that don't count.
+	pPrStart, pPrEnd, hasPPr := findFirstChild(src, "pPr")
+	// Locate the start of the paragraph's content (after the opening
+	// <w:p ...> tag).
+	openEnd := bytes.IndexByte(src, '>')
+	if openEnd < 0 {
+		return false
+	}
+	bodyStart := openEnd + 1
+	// Strip the trailing </w:p> closer.
+	bodyEnd := len(src)
+	if idx := bytes.LastIndex(src, []byte("</w:p>")); idx > bodyStart {
+		bodyEnd = idx
+	}
+	// Skip past pPr inside the body if it's present.
+	contentStart := bodyStart
+	if hasPPr && pPrStart >= bodyStart && pPrEnd <= bodyEnd {
+		contentStart = pPrEnd
+	}
+	body := src[contentStart:bodyEnd]
+	if len(body) == 0 {
+		return false
+	}
+	// Walk direct-child elements. We require:
+	//   1. At least one revision content wrapper child is present, AND
+	//   2. Every non-whitespace, non-bookmarkStart/End, non-empty-revision
+	//      direct child is itself a revision content wrapper.
+	revWrapperNames := map[string]bool{
+		"ins":      true,
+		"del":      true,
+		"moveTo":   true,
+		"moveFrom": true,
+	}
+	// Direct-children that don't carry rendered run content and don't
+	// disqualify the "all wrapped" determination: bookmarkStart,
+	// bookmarkEnd, commentRangeStart, commentRangeEnd, proofErr.
+	// These are revision/annotation markers that surround content
+	// without participating in WSO's commonRunPropertiesOf.
+	transparentChildNames := map[string]bool{
+		"bookmarkStart":      true,
+		"bookmarkEnd":        true,
+		"commentRangeStart":  true,
+		"commentRangeEnd":    true,
+		"commentReference":   true,
+		"proofErr":           true,
+		"permStart":          true,
+		"permEnd":            true,
+	}
+	sawRevWrapper := false
+	depth := 0
+	i := 0
+	for i < len(body) {
+		ch := body[i]
+		// Skip whitespace at depth 0.
+		if depth == 0 && (ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r') {
+			i++
+			continue
+		}
+		if ch != '<' {
+			i++
+			continue
+		}
+		// Start tag, end tag, or self-closing?
+		if i+1 < len(body) && body[i+1] == '/' {
+			// End tag at depth 0 means premature close — shouldn't happen
+			// in well-formed XML, but bail safely.
+			if depth == 0 {
+				return false
+			}
+			// Find tag end
+			end := bytes.IndexByte(body[i:], '>')
+			if end < 0 {
+				return false
+			}
+			depth--
+			i += end + 1
+			continue
+		}
+		// Start tag (or self-closing). Only inspect direct children at
+		// depth 0.
+		if depth > 0 {
+			// Scan past this nested start tag to track depth.
+			end := bytes.IndexByte(body[i:], '>')
+			if end < 0 {
+				return false
+			}
+			selfClosing := end > 0 && body[i+end-1] == '/'
+			if !selfClosing {
+				depth++
+			}
+			i += end + 1
+			continue
+		}
+		// At depth 0: inspect element name.
+		end := bytes.IndexByte(body[i:], '>')
+		if end < 0 {
+			return false
+		}
+		tag := body[i : i+end+1]
+		selfClosing := end > 0 && body[i+end-1] == '/'
+		// Extract local name. Tag form: "<w:name ..." or "<name ...".
+		nameStart := i + 1
+		nameEnd := nameStart
+		for nameEnd < i+end && body[nameEnd] != ' ' && body[nameEnd] != '\t' &&
+			body[nameEnd] != '\n' && body[nameEnd] != '\r' && body[nameEnd] != '>' &&
+			body[nameEnd] != '/' {
+			nameEnd++
+		}
+		name := string(body[nameStart:nameEnd])
+		// Strip namespace prefix.
+		if colon := strings.IndexByte(name, ':'); colon >= 0 {
+			name = name[colon+1:]
+		}
+		_ = tag
+		if revWrapperNames[name] {
+			// A revision content wrapper. Self-closing forms are the
+			// paragraph-mark variants (empty body) — those don't count
+			// as content wrappers.
+			if !selfClosing {
+				sawRevWrapper = true
+				depth++
+				i += end + 1
+				continue
+			}
+			// Self-closing revision element at depth 0 is unusual
+			// (paragraph-mark variants live INSIDE pPr/rPr, not at
+			// paragraph content level). Treat as transparent — don't
+			// disqualify and don't count as wrapper.
+			i += end + 1
+			continue
+		}
+		// Transparent / non-disqualifying direct children.
+		if transparentChildNames[name] {
+			if !selfClosing {
+				depth++
+			}
+			i += end + 1
+			continue
+		}
+		// Any other direct child (notably <w:r>, <w:fldSimple>, <w:hyperlink>,
+		// <w:sdt>, etc.) disqualifies the "all wrapped" determination.
+		return false
+	}
+	return sawRevWrapper
 }
 
 // hasNestedParagraphs reports whether src (one outer paragraph

@@ -2052,7 +2052,19 @@ func (w *Writer) writeFromSkeleton(origZR *zip.Reader, zw *zip.Writer, buf *byte
 			}
 			data = postNonWSOForName(data)
 			partStrict := bytes.Contains(data, []byte(wmlStrictNamespace))
-			data = optimizeWMLPart(data, existingIDs, defaultParagraphStyleID, hasStylesPart, partStrict, &idCounter, synthesised, &orderedIDs)
+			// Read the SOURCE bytes (pre-read, pre-strip) so optimizeWMLPart
+			// can bypass paragraphs whose ENTIRE content was inside
+			// tracked-revision wrappers (<w:ins>/<w:del>/<w:moveTo>/
+			// <w:moveFrom>) before the auto-accept-revisions unwrap at
+			// READ time removed the wrappers. See the
+			// optimizeWMLPartWithSource docstring + 847-3.docx fixture.
+			// readZipFile failure is non-fatal: fall back to source-less
+			// WSO (preserves pre-fix behaviour).
+			var srcXML []byte
+			if rawSrc, err := readZipFile(f); err == nil {
+				srcXML = rawSrc
+			}
+			data = optimizeWMLPartWithSource(data, srcXML, existingIDs, defaultParagraphStyleID, hasStylesPart, partStrict, &idCounter, synthesised, &orderedIDs)
 			wsoOptimised[name] = data
 		}
 	}
