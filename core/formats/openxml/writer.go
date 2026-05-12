@@ -100,6 +100,47 @@ var wmlNoProofRE = regexp.MustCompile(
 		`|<w:noProof\b[^>]*></w:noProof>`,
 )
 
+// bareBrThenBareTextRunRE matches a bare `<w:r><w:br [attrs]/></w:r>`
+// envelope IMMEDIATELY followed by a bare
+// `<w:r><w:t [attrs]>content</w:t></w:r>` envelope. Both envelopes
+// must lack `<w:rPr>` so the fuse is rPr-equivalent. Captures:
+//
+//	$1 = the br element verbatim (including any w:type / w:clear attrs)
+//	$2 = the t element verbatim (open tag + body + close tag)
+//
+// The replacement collapses the pair into a single `<w:r>` carrying
+// both children. Used by fuseBareBrAndTextRuns; see the call site
+// for the upstream Okapi RunMerger citation and apissue.docx fixture
+// rationale.
+var bareBrThenBareTextRunRE = regexp.MustCompile(
+	`<w:r>(<w:br\b[^/>]*/>)</w:r><w:r>(<w:t\b[^>]*>[^<]*</w:t>)</w:r>`)
+
+// fuseBareBrAndTextRuns collapses adjacent bare `<w:r><w:br/></w:r>`
+// + `<w:r><w:t>…</w:t></w:r>` envelopes into one `<w:r>` envelope
+// carrying both children. Both envelopes must lack `<w:rPr>` so the
+// fuse is rPr-equivalent. See bareBrThenBareTextRunRE for the regex
+// shape and the postNonWSOForName call site for the upstream Okapi
+// RunMerger citation.
+//
+// Per ECMA-376-1 §17.3.2.1 (CT_R) a single `<w:r>` may carry both
+// `<w:br>` and `<w:t>` children alongside one shared `<w:rPr>`
+// (here: empty / absent). Per §17.3.3.1 (CT_Br) the break element's
+// w:type/w:clear attrs are independent of the run's text bytes, so
+// preserving the captured br tag verbatim survives the round-trip.
+//
+// apissue.docx is the canonical fixture: page-break + space text
+// run pairs in non-translatable paragraphs reach this writer via
+// the wml.go skeleton path's per-run runToXML emit, which always
+// wraps each source `<w:r>` in its own envelope. Bridge's
+// RunMerger fuses these on the way out; this post-pass mirrors
+// that for parity.
+func fuseBareBrAndTextRuns(data []byte) []byte {
+	if !bytes.Contains(data, []byte(`<w:r><w:br`)) {
+		return data
+	}
+	return bareBrThenBareTextRunRE.ReplaceAll(data, []byte(`<w:r>$1$2</w:r>`))
+}
+
 // wmlRevisionParagraphMarkRE matches the EMPTY-BODY forms of the
 // paragraph-mark revision elements that appear INSIDE <w:rPr>:
 //   - <w:ins .../>           (RUN_PROPERTY_INSERTED_PARAGRAPH_MARK)
@@ -1325,6 +1366,34 @@ func (w *Writer) writeFromSkeleton(origZR *zip.Reader, zw *zip.Writer, buf *byte
 		// 830-3.docx, 830-5.docx, 830-6.docx.
 		if bytes.Contains(data, []byte(`fldCharType="end"`)) {
 			data = pullLeadingFldCharEndIntoPrevParagraph(data)
+		}
+		// Fuse a bare `<w:r><w:br .../></w:r>` envelope with the
+		// IMMEDIATELY-following bare `<w:r><w:t ...>…</w:t></w:r>`
+		// envelope into a single `<w:r>` carrying both the br and
+		// the t children. Both source envelopes must lack `<w:rPr>`
+		// so the fuse is rPr-equivalent. Mirrors upstream Okapi
+		// RunMerger.add → canMergeWith (RunMerger.java:83-95 +
+		// canRunPropertiesBeMerged at 156-229): adjacent source
+		// `<w:r>` envelopes with matching (here: empty)
+		// RunProperties merge into one RunBuilder; the resulting
+		// `<w:r>` carries the br Markup body chunk and the t
+		// RunText body chunk side by side. Per ECMA-376-1
+		// §17.3.2.1 (CT_R) a single `<w:r>` may carry both
+		// `<w:br/>` and `<w:t>` children.
+		//
+		// The fuse runs in postNonWSOForName (after skeleton
+		// reconstruction + WSO) so it sees the post-WSO wire shape
+		// where the rPr-less envelopes have already been emitted.
+		// The skeleton path's `runToXML` (wml.go) emits each
+		// source `<w:r>` envelope verbatim, so the source's
+		// `<w:r><w:br type="page"/></w:r><w:r><w:t> </w:t></w:r>`
+		// pattern arrives here intact when the paragraph is
+		// non-translatable (skeleton-only). apissue.docx is the
+		// canonical fixture: page-break + space text run pairs in
+		// otherwise-empty paragraphs that bridge fuses but the
+		// per-run skeleton emit splits.
+		if bytes.Contains(data, []byte(`<w:br`)) {
+			data = fuseBareBrAndTextRuns(data)
 		}
 		return data
 	}

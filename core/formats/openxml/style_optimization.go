@@ -469,6 +469,19 @@ type runEntry struct {
 	//     run's rPr verbatim (sz=14 is not stripped) because the
 	//     display-text run is a Markup body chunk of the outer Run.
 	fieldContentRun bool
+
+	// breakOnlyRun is true when this <w:r> carries a `<w:br/>` element
+	// and no text. Mirrors upstream Okapi WordStyleOptimisation's
+	// treatment of standalone-break Markup body chunks: the br run's
+	// rPr is invisible to commonRunPropertiesOf (StyleOptimisation.java:
+	// 204-237) because the break itself is a Markup component whose
+	// formatting toggles render no text. Excluding break-only runs
+	// from BOTH the seed/intersection (commonProps) AND the per-run
+	// strip (optimizeParagraph's run-rewrite loop) aligns the visible
+	// XML output with upstream's "only text-bearing runs are refined"
+	// model for break-bearing paragraphs. See runIsBreakOnly for the
+	// citation and EndGroup.docx fixture rationale.
+	breakOnlyRun bool
 }
 
 // optimizeParagraph rewrites a single <w:p>...</w:p> block applying
@@ -624,6 +637,13 @@ func optimizeParagraph(
 				e.props = stripWMLNamesFromProps(e.props, "b", "i")
 			}
 		}
+		// Mark break-only runs so they're excluded from common-rPr
+		// computation downstream (matches upstream Okapi WSO's
+		// "Markup chunks don't contribute to commonRunPropertiesOf"
+		// model). See runIsBreakOnly + breakOnlyRun docstring.
+		if runIsBreakOnly(src[r.start:r.end]) {
+			e.breakOnlyRun = true
+		}
 		entries = append(entries, e)
 	}
 
@@ -724,6 +744,19 @@ func optimizeParagraph(
 	// are invisible to commonRunPropertiesOf — they cannot trigger
 	// the empty-rPr bypass. See runEntry.fieldContentRun for the
 	// upstream contract.
+	// Pre-compute whether to skip break-only runs in the early-bail
+	// scan. We skip them only when there's at least one non-field-
+	// content, non-break-only entry — see commonProps for the same
+	// gate's rationale.
+	skipBreakOnlyEarly := false
+	if hasBreakOnly(entries) {
+		for _, e := range entries {
+			if !e.fieldContentRun && !e.breakOnlyRun {
+				skipBreakOnlyEarly = true
+				break
+			}
+		}
+	}
 	for _, e := range entries {
 		if e.fieldContentRun {
 			// Field-content runs (between fldChar=begin and matching
@@ -751,6 +784,14 @@ func optimizeParagraph(
 			// run triggers the bypass and native loses the pStyle.
 			continue
 		}
+		if skipBreakOnlyEarly && e.breakOnlyRun {
+			// Break-only runs (`<w:r>...<w:br/></w:r>` with no text)
+			// are Markup body chunks of an outer Run upstream — they
+			// don't participate in commonRunPropertiesOf when the
+			// paragraph contains other text-bearing runs. See
+			// breakOnlyRun docstring + commonProps rationale.
+			continue
+		}
 		if e.excluded {
 			return src // bypass per StyleOptimisation.innerChunksContainExclusions
 		}
@@ -765,12 +806,26 @@ func optimizeParagraph(
 	// entries[0] is already the upstream-visible outer run. But for
 	// safety pick the first entry whose fieldContentRun==false — it
 	// matches the seed upstream's commonRunPropertiesOf would use.
+	// Pre-compute the same break-only skip gate used by commonProps.
+	skipBreakOnlySeed := false
+	if hasBreakOnly(entries) {
+		for _, e := range entries {
+			if !e.fieldContentRun && !e.breakOnlyRun {
+				skipBreakOnlySeed = true
+				break
+			}
+		}
+	}
 	seedIdx := -1
 	for i := range entries {
-		if !entries[i].fieldContentRun {
-			seedIdx = i
-			break
+		if entries[i].fieldContentRun {
+			continue
 		}
+		if skipBreakOnlySeed && entries[i].breakOnlyRun {
+			continue
+		}
+		seedIdx = i
+		break
 	}
 	if seedIdx < 0 {
 		// Every run is field-content — paragraph is degenerate
@@ -949,7 +1004,12 @@ func optimizeParagraph(
 		// fldChar=separate, fldChar=end) so their rPr survives
 		// verbatim — mirrors upstream Okapi's "only the outer Run
 		// is refined" model. See runEntry.fieldContentRun docstring
-		// for the upstream contract reference.
+		// for the upstream contract reference. Break-only runs DO
+		// participate in the strip pass — bridge's WSO strips the
+		// lifted-common property names from break-only `<w:r>`
+		// envelopes too (br.docx fixture: source `<w:r><w:rPr>
+		// {rFonts,szCs}</w:rPr><w:br/></w:r>` runs whose common rPr
+		// was lifted to a synth pStyle emit as `<w:r><w:br/></w:r>`).
 		if e.hasRPr && !e.fieldContentRun {
 			stripNames := commonNames
 			if e.csOnlyText {
@@ -1533,32 +1593,61 @@ func commonProps(seed []runProp, entries []runEntry) []runProp {
 	// AND any display-text runs sitting between fldChar=separate and
 	// fldChar=end) are body chunks of the outer Run upstream and are
 	// invisible to commonRunPropertiesOf (StyleOptimisation.java:
-	// 204-237). Including them here would skew the lift in two
-	// directions:
-	//   - When field-content rPr happens to share a property with
-	//     the outer runs, that property gets lifted into the synth
-	//     style and stripped from EVERY field-content run on the
-	//     way out (956.docx footer1: sz=14 stripped from the
-	//     `<w:r><w:t>2020</w:t></w:r>` display-text run).
-	//   - When field-content rPr DIVERGES from the outer runs, the
+	// 204-237). Break-only runs (standalone `<w:r><w:br/></w:r>`
+	// envelopes with no text) are likewise Markup body chunks
+	// upstream and contribute no rPr to the common-prop computation
+	// — UNLESS they're the only kind of run in the paragraph. When
+	// the paragraph contains other (text-bearing) runs, including
+	// break-only chunks would skew the lift:
+	//   - When the chunk's rPr DIVERGES from the outer runs, the
 	//     intersection collapses and the synth lift gets cancelled
-	//     for an outer-run property that upstream would have lifted.
+	//     for an outer-run property that upstream would have lifted
+	//     (EndGroup.docx: a `<w:r><w:rPr><w:szCs/></w:rPr><w:br/>
+	//     </w:r>` whose rPr lacks rFonts narrows the common away
+	//     from rFonts hint=eastAsia, costing the rFonts lift).
+	// When the paragraph holds ONLY break-only runs (e.g.
+	// PageBreak.docx P2: `<w:p><w:r><w:rPr><w:vanish/></w:rPr>
+	// <w:br type="page"/></w:r></w:p>`), upstream still computes a
+	// common-rPr from those runs and lifts a synthesised pStyle —
+	// the BlockTextUnitWriter sees a single Markup chunk Run whose
+	// RunProperties are the br-run's rPr. Mirror that by NOT
+	// excluding break-only runs when they are the sole non-field-
+	// content runs in the paragraph.
+	//
+	// For field-content runs the same kind of override would apply,
+	// but in practice a paragraph with ONLY field-content runs is
+	// degenerate (a complex field's outer begin run is always a
+	// regular Run from the WSO viewpoint), so we keep field-content
+	// exclusion unconditional.
+	//
 	// Filter once so all subsequent operations (rFonts intersection
 	// AND per-prop intersection) operate on the upstream-visible set.
 	visible := entries
-	if hasFieldContent(entries) {
+	excludeBreakOnly := false
+	if hasBreakOnly(entries) {
+		// Only exclude when at least one non-field-content,
+		// non-break-only entry exists.
+		for _, e := range entries {
+			if !e.fieldContentRun && !e.breakOnlyRun {
+				excludeBreakOnly = true
+				break
+			}
+		}
+	}
+	if hasFieldContent(entries) || excludeBreakOnly {
 		visible = make([]runEntry, 0, len(entries))
 		for _, e := range entries {
-			if !e.fieldContentRun {
-				visible = append(visible, e)
+			if e.fieldContentRun {
+				continue
 			}
+			if excludeBreakOnly && e.breakOnlyRun {
+				continue
+			}
+			visible = append(visible, e)
 		}
 		if len(visible) == 0 {
 			// All runs were field-content (degenerate paragraph
 			// containing only a single complex field's body chunks).
-			// Upstream would still see the outer begin run, but if
-			// our pass marked everything as field-content it means
-			// no begin run was found in the XML — bail to be safe.
 			return nil
 		}
 	}
@@ -1603,6 +1692,18 @@ func commonProps(seed []runProp, entries []runEntry) []runProp {
 func hasFieldContent(entries []runEntry) bool {
 	for _, e := range entries {
 		if e.fieldContentRun {
+			return true
+		}
+	}
+	return false
+}
+
+// hasBreakOnly reports whether any entry is a break-only run. Used by
+// commonProps to short-circuit the per-entry filter when the paragraph
+// carries no standalone-break envelopes (the common case).
+func hasBreakOnly(entries []runEntry) bool {
+	for _, e := range entries {
+		if e.breakOnlyRun {
 			return true
 		}
 	}
@@ -2578,6 +2679,53 @@ func runIsDrawingOnly(runSrc []byte) bool {
 		return false
 	}
 	if extractRunTextSkippingOpaque(runSrc) != "" {
+		return false
+	}
+	return true
+}
+
+// runIsBreakOnly reports whether runSrc carries a `<w:br/>` element and
+// has no `<w:t>` text (and no opaque drawing/pict/object content). Used
+// by optimizeParagraph to recognise standalone-break runs whose rPr is
+// invisible to upstream Okapi's WordStyleOptimisation common-rPr lift.
+//
+// Mirrors upstream Okapi's RunBuilder + WordStyleOptimisation behaviour:
+// a `<w:br>` arrives as a Markup body chunk (RunParser.java:752-766
+// addToMarkup path) of an outer Run whose RunProperties come from the
+// surrounding text-bearing rPr context. When the source authors a
+// dedicated `<w:r><w:rPr>...</w:rPr><w:br/></w:r>` envelope (no `<w:t>`
+// in the same run), the upstream pipeline does NOT promote the br run's
+// rPr into commonRunPropertiesOf — the break is rendering-neutral with
+// respect to character formatting per ECMA-376-1 §17.3.3.1 (CT_Br) and
+// §17.3.2.1 (CT_R), so the br-run's rPr does not contribute to the
+// paragraph-wide common rPr that WSO lifts into a synthesised pStyle.
+//
+// EndGroup.docx is the canonical fixture: a paragraph with runs
+//
+//	<w:r><w:rPr><w:rFonts hint="eastAsia"/><w:szCs val="21"/></w:rPr><w:t>...</w:t></w:r>
+//	<w:r><w:rPr><w:szCs val="21"/></w:rPr><w:br/></w:r>
+//	<w:r><w:rPr><w:rFonts hint="eastAsia"/><w:szCs val="21"/></w:rPr><w:t>...</w:t></w:r>
+//
+// Including the br run in the common-rPr computation narrows the
+// intersection to `<w:szCs val="21"/>` (the br-run lacks rFonts), so
+// native synthesises a fresh `Normal2` style with just szCs while
+// bridge re-uses `Normal1` (rFonts+szCs). Excluding the br run lets the
+// remaining text-runs' rFonts hint = eastAsia survive in the common,
+// matching upstream's lift.
+func runIsBreakOnly(runSrc []byte) bool {
+	if !bytes.Contains(runSrc, []byte("<w:br")) {
+		return false
+	}
+	// Reject runs that ALSO carry text or opaque content — the br is
+	// then a sibling chunk of text in the SAME source <w:r>, and its
+	// rPr is the rPr of the text-bearing run too.
+	if extractRunTextSkippingOpaque(runSrc) != "" {
+		return false
+	}
+	if bytes.Contains(runSrc, []byte("<w:drawing")) ||
+		bytes.Contains(runSrc, []byte("<w:pict")) ||
+		bytes.Contains(runSrc, []byte("<w:object")) ||
+		bytes.Contains(runSrc, []byte("<mc:AlternateContent")) {
 		return false
 	}
 	return true
