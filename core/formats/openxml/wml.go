@@ -2861,6 +2861,59 @@ func (p *wmlParser) parseRunWithFieldState(d *xml.Decoder, cfs *complexFieldStat
 						srcRunStart: true,
 					}}, nil
 				}
+				if len(runs) == 0 && hasProps && backLog.Len() > 0 && cfs.active {
+					// Empty placeholder run preservation INSIDE an active
+					// complex field. Source shape:
+					// `<w:r><w:rPr>...</w:rPr></w:r>` with no body chunks
+					// (no <w:t>, <w:fldChar>, <w:tab>, <w:br>, etc.). The
+					// rPr lands in backLog via the rPr case above when its
+					// stripped form is non-empty. Without this branch the
+					// run is dropped entirely (caller's
+					// `if len(run) == 0 { continue }` at parseParagraph),
+					// taking its source <w:r> wrapper with it.
+					//
+					// The cfs.active gate matches upstream Okapi's
+					// observed behaviour: empty placeholder runs sitting
+					// between a complex field's separate and end markers
+					// (often inside an intermediate paragraph that gets
+					// pulled into the begin paragraph by the fld-end
+					// migration logic) round-trip with their rPr intact \u2014
+					// see 830-2.docx para 7 and 830-6.docx para 7, where
+					// the placeholder run carries
+					// `<w:rPr><w:rtl w:val="0"/></w:rPr>` and survives
+					// alongside the migrated `<w:r><w:fldChar end/></w:r>`.
+					//
+					// Empty placeholders OUTSIDE field state (no active
+					// field) are dropped by upstream \u2014 830-6.docx para 5
+					// is the canonical case: a standalone
+					// `<w:r><w:rPr><w:rtl w:val="0"/></w:rPr></w:r>` in a
+					// paragraph with no field activity gets dropped, and
+					// the paragraph collapses to `<w:p><w:pPr/></w:p>`.
+					// The cfs.active guard mirrors that: only emit the
+					// sentinel when the parser is between separate and
+					// end (or otherwise inside a field span), so the
+					// out-of-field placeholders return empty runs and
+					// fall through to the caller's drop branch.
+					//
+					// Sentinel choice: piggy-back on SubTypeFieldChar
+					// \u2014 its "captured opaque <w:r>...</w:r> payload"
+					// semantics are exactly what we need, and the
+					// writer's existing fldChar handler emits the data
+					// verbatim. Avoiding a new sentinel type keeps the
+					// cross-cutting writer logic untouched.
+					var rb strings.Builder
+					rb.WriteString(rawStart)
+					rb.WriteString(backLog.String())
+					rb.WriteString("</")
+					writeElementName(&rb, t.Name)
+					rb.WriteString(">")
+					return []textRun{{
+						text:        "\uE108:fldChar",
+						props:       props,
+						data:        rb.String(),
+						srcRunStart: true,
+					}}, nil
+				}
 				if len(runs) > 0 {
 					// Mark the first emitted textRun with the source-run
 					// boundary so downstream merging and the writer can keep
