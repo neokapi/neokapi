@@ -186,6 +186,65 @@ type wmlParser struct {
 	// `<w:p>` between separate and end of a DATE field — must NOT be
 	// extracted as translatable text).
 	partCfs complexFieldState
+	// partMergeable carries cross-paragraph "deleted paragraph mark"
+	// merge state. When a paragraph carries the
+	// `<w:pPr><w:rPr><w:del/></w:rPr></w:pPr>` (or `<w:moveFrom/>`)
+	// marker (ECMA-376 Part 1 §17.13.5.13 CT_ParaRPr) AND has
+	// non-empty translatable content, the paragraph mark itself is
+	// part of a tracked deletion: under auto-accept-revisions the
+	// paragraph break is removed, so the paragraph's content
+	// collapses into the FOLLOWING paragraph's block.
+	//
+	// Mirrors upstream Okapi's mergeable-block flow:
+	//   - BlockParser.parse line 207-213 sets builder.mergeable(true)
+	//     on a block whose ParagraphBlockProperties.containsRunPropertyDeletedParagraphMark()
+	//     returns true (ParagraphBlockProperties.java lines 576-586).
+	//   - StyledTextPart.process lines 312-319 buffers that block as
+	//     `mergeableBlock` and, when the next block arrives, calls
+	//     `block.mergeWith(mergeableBlock)` (Block.java lines 139-166)
+	//     to splice the mergeable's middle chunks into the receiver
+	//     ahead of the receiver's own runs.
+	//   - The mergeable's pPr is discarded — only the mergeable's
+	//     content runs survive (Block.mergeWith copies chunks 1..N-1
+	//     and keeps the receiver's chunk 0 paragraph markup).
+	//
+	// We mirror this by buffering the post-mergeRuns slice on the
+	// parser (no skeleton bytes written for the deferred paragraph)
+	// and prepending it to the next paragraph's runs before
+	// commonRPrChildren / mergeRuns / buildBlock.
+	//
+	// `partMergeable` is scoped to one XML part (one `wmlParser`
+	// instance) — each part gets a fresh parser via the reader, so
+	// the buffer never leaks between parts. If a part ends with a
+	// pending mergeable (no successor paragraph absorbs it), the
+	// EOF flush in parsePart emits it as a standalone paragraph
+	// using its saved pPr — matching upstream's
+	// StyledTextPart.process tail at lines 642-644 which still
+	// emits the dangling mergeableBlock.
+	//
+	// Fixtures: 847-2.docx, 847-3.docx, 1102.docx (the canonical
+	// content-bearing cases). 1370 remains the empty-content
+	// "drop entirely" case handled by the existing
+	// paragraphHasDeletedMark check at the empty-runs branch.
+	partMergeable *pendingMergeable
+}
+
+// pendingMergeable carries the post-mergeRuns slice for a paragraph
+// whose `<w:pPr><w:rPr>` declares a deleted/moveFrom paragraph mark
+// (ECMA-376 Part 1 §17.13.5.13). The runs are saved AFTER style
+// subtraction and mergeRuns, so they can be prepended into the
+// next paragraph's run list without re-subtraction. The captured
+// pPr is retained for the EOF dangling-mergeable fallback path so
+// we can synthesise a standalone `<w:p>` if no successor arrives.
+//
+// Mirrors upstream Okapi's `mergeableBlock` local in
+// StyledTextPart.process (lines 270, 312-319, 642-644) — a single
+// pending block per parser, replaced when consumed by the next
+// non-mergeable block.
+type pendingMergeable struct {
+	runs        []textRun
+	paraProps   string
+	paraStyleID string
 }
 
 // parsePart streams through a WordprocessingML XML part, emitting Blocks.
@@ -341,6 +400,78 @@ func (p *wmlParser) parsePart(data []byte, partPath string, emitBlock func(*mode
 			p.skelText("<!--" + string(t) + "-->")
 		}
 	}
+	// Flush any dangling mergeable paragraph buffer. If the last
+	// paragraph in this part carried `<w:pPr><w:rPr><w:del/></w:rPr>`
+	// (ECMA-376 Part 1 §17.13.5.13) but no successor paragraph
+	// arrived to absorb it, emit the buffered runs as a standalone
+	// paragraph using their saved pPr — matching upstream Okapi
+	// StyledTextPart.process at lines 642-644 which still emits
+	// `mergeableBlock` if it remains non-null at end of part. The
+	// writer's stripWMLSkippableElements pass will subsequently
+	// remove the `<w:del/>` paragraph mark from the emitted pPr.
+	if p.partMergeable != nil {
+		if err := p.flushPendingMergeable(partPath, emitBlock); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// flushPendingMergeable emits a buffered mergeable paragraph as a
+// standalone `<w:p>` block. Used by the EOF tail in parsePart when
+// no successor paragraph arrives to absorb the buffer. Mirrors
+// upstream Okapi StyledTextPart.process lines 642-644 (the
+// `if (null != mergeableBlock) { mergeableBlock.optimiseStyles();
+// mapToEvents(mergeableBlock); }` tail).
+//
+// Re-runs commonRPrChildren / mergeRuns / drawing extraction on
+// the buffered runs (they were saved post-mergeRuns but pre-
+// drawing-extraction; mergeRuns is idempotent on already-merged
+// groups).
+func (p *wmlParser) flushPendingMergeable(partPath string, emitBlock func(*model.Block)) error {
+	pm := p.partMergeable
+	p.partMergeable = nil
+	runs := pm.runs
+	commonRPr := commonRPrChildren(runs)
+	commonRPrXML := joinRPrChildren(commonRPr)
+	merged := mergeRuns(runs)
+	perRunRPrXML := perRunRPrFragments(merged)
+	perRunSrcRunStart := perRunSrcRunStartFlags(merged)
+	for i := range merged {
+		if isDrawingSentinel(merged[i].text) && merged[i].data != "" {
+			merged[i].data = p.extractDrawingTranslations(merged[i].data, partPath, emitBlock)
+		}
+	}
+	if isEmptyRuns(merged) {
+		// Defensive: shouldn't happen because we only buffer when
+		// !isEmptyRuns at the buffer site. Drop silently.
+		return nil
+	}
+	inheritedVanish := false
+	if p.styles != nil && pm.paraStyleID != "" {
+		inheritedVanish = p.styles.effectiveProps(pm.paraStyleID).vanish
+	}
+	if !p.cfg.TranslateHiddenText && allHidden(merged, inheritedVanish) {
+		p.skelWriteString("<w:p>")
+		if pm.paraProps != "" {
+			p.skelText(pm.paraProps)
+		}
+		for _, r := range merged {
+			p.skelText(runToXML(r))
+		}
+		p.skelWriteString("</w:p>")
+		return nil
+	}
+	*p.blockCounter++
+	blockID := fmt.Sprintf("tu%d", *p.blockCounter)
+	p.skelWriteString("<w:p>")
+	if pm.paraProps != "" {
+		p.skelText(pm.paraProps)
+	}
+	p.skelRef(blockID)
+	p.skelWriteString("</w:p>")
+	block := p.buildBlock(blockID, merged, partPath, commonRPrXML, perRunRPrXML, perRunSrcRunStart)
+	emitBlock(block)
 	return nil
 }
 
@@ -1952,6 +2083,54 @@ func (p *wmlParser) parseParagraph(d *xml.Decoder, partPath string, emitBlock fu
 					}
 				}
 
+				// Cross-paragraph absorption (deleted paragraph mark).
+				// When a previous paragraph in this part carried
+				// `<w:pPr><w:rPr><w:del/></w:rPr></w:pPr>` (ECMA-376
+				// Part 1 §17.13.5.13 CT_ParaRPr) AND had non-empty
+				// translatable content, its runs were buffered on
+				// `p.partMergeable` rather than written. Under
+				// auto-accept-revisions the deleted paragraph mark
+				// removes the paragraph break, so its content collapses
+				// into the FOLLOWING paragraph. Prepend those buffered
+				// runs to the receiver's `runs` slice now — this
+				// mirrors upstream Okapi `Block.mergeWith` (Block.java
+				// lines 144-154) which inserts the mergeable block's
+				// middle chunks (chunks 1..N-1, i.e. the run chunks
+				// without the paragraph open/close markup) into the
+				// receiver block ahead of the receiver's own runs via
+				// `chunks.listIterator(1)`.
+				//
+				// The buffered runs already went through THEIR
+				// original paragraph's style subtraction loop above
+				// (each set of runs is subtracted against its OWN
+				// pStyle before being buffered); prepending here —
+				// AFTER the receiver's subtraction loop — keeps each
+				// run subtracted against its own paragraph's chain
+				// rather than double-subtracting. This matches
+				// upstream where mergeWith just splices already-built
+				// Run chunks; `block.optimiseStyles()` runs once on
+				// the merged whole at StyledTextPart line 320 but the
+				// per-run minified() state was set by each run's own
+				// BlockParser pass (RunParser.java:280-294 +
+				// RunProperties.java:497-540).
+				//
+				// Re-running mergeRuns / commonRPrChildren on the
+				// combined slice below is safe — both are idempotent
+				// across already-merged groups and the boundary
+				// between buffered and receiver runs is allowed to
+				// fuse if their rPr is mergeable per
+				// RunMerger.canRunPropertiesBeMerged
+				// (RunMerger.java:156-229).
+				//
+				// Fixtures: 847-2.docx, 847-3.docx, 1102.docx.
+				if p.partMergeable != nil {
+					prepended := make([]textRun, 0, len(p.partMergeable.runs)+len(runs))
+					prepended = append(prepended, p.partMergeable.runs...)
+					prepended = append(prepended, runs...)
+					runs = prepended
+					p.partMergeable = nil
+				}
+
 				// Compute the per-paragraph common rPr children BEFORE
 				// mergeRuns collapses adjacent runs. mergeRuns drops the
 				// rPrChildren of merged-away neighbours (it only keeps
@@ -1977,6 +2156,60 @@ func (p *wmlParser) parseParagraph(d *xml.Decoder, partPath string, emitBlock fu
 				// per-attribute union so the sidecars below see the
 				// post-merge consensus props.
 				merged := mergeRuns(runs)
+
+				// Cross-paragraph absorption (deleted paragraph mark) —
+				// content-bearing case. When this paragraph carries
+				// `<w:pPr><w:rPr><w:del/></w:rPr></w:pPr>` (or
+				// `<w:moveFrom/>`) AND has non-empty translatable
+				// content, the paragraph break is part of a tracked
+				// deletion (ECMA-376 Part 1 §17.13.5.13 CT_ParaRPr).
+				// Under auto-accept-revisions the break is removed,
+				// collapsing the paragraph's content into the FOLLOWING
+				// paragraph. Mirrors upstream Okapi:
+				//   - BlockParser.parse lines 207-213: marks the block
+				//     mergeable when ParagraphBlockProperties.
+				//     containsRunPropertyDeletedParagraphMark() is true
+				//     (ParagraphBlockProperties.java lines 576-586).
+				//   - StyledTextPart.process lines 312-319: buffers
+				//     the block as `mergeableBlock`; when the next
+				//     block arrives, calls `block.mergeWith(mergeableBlock)`
+				//     (Block.java lines 139-166) which inserts the
+				//     mergeable's middle chunks (chunks 1..N-1) into
+				//     the receiver ahead of the receiver's own runs
+				//     and discards the mergeable's pPr.
+				//
+				// We buffer the post-mergeRuns slice on `p.partMergeable`
+				// and return without writing skeleton bytes for this
+				// paragraph. The next parseParagraph invocation
+				// prepends the buffer to its runs (above, before
+				// commonRPrChildren) so commonRPrChildren / mergeRuns /
+				// buildBlock all run on the combined slice. If no
+				// successor paragraph absorbs the buffer, the EOF
+				// flush in parsePart emits it as a standalone
+				// paragraph (matching upstream's
+				// StyledTextPart.process tail at lines 642-644 which
+				// still emits the dangling mergeableBlock).
+				//
+				// The empty-content case (`len(merged) == 0`) is
+				// handled by the existing branch below at the
+				// `isEmptyRuns(merged)` check — that path drops the
+				// paragraph entirely (no buffer set), matching
+				// Block.mergeWith's `chunks.size() <= 2` short-circuit
+				// at Block.java line 140 (a mergeable block whose
+				// only chunks are paragraph open + close drops away).
+				//
+				// Fixtures: 847-2.docx, 847-3.docx, 1102.docx exercise
+				// the content-bearing buffer path; 1370-same-nested-
+				// revisions.docx remains the empty-content drop case.
+				if paragraphHasDeletedMark(paraProps) && !isEmptyRuns(merged) {
+					p.partMergeable = &pendingMergeable{
+						runs:        merged,
+						paraProps:   paraProps,
+						paraStyleID: paraStyleID,
+					}
+					return nil
+				}
+
 				// Capture per-text-run rPr fragments AFTER mergeRuns
 				// so the sidecar aligns 1:1 with the model.TextRun
 				// stream the writer emits. mergeRuns updates the
@@ -3245,6 +3478,31 @@ func (p *wmlParser) parseInlineSDT(d *xml.Decoder, runs *[]textRun, rawStart str
 					return err
 				}
 				*runs = append(*runs, r...)
+			case "sdt":
+				// Nested inline SDT inside <w:sdtContent> — recurse
+				// so the inner OPEN/CLOSE sentinels (and any text
+				// runs they bracket) sit between our own sentinels in
+				// the textRun stream. 834.docx footnotes.xml is the
+				// canonical fixture: an outer SDT whose <w:sdtContent>
+				// carries an inner <w:sdt> followed by a trailing
+				// <w:r>; without recursion the nested SDT subtree
+				// (and the trailing same-rPr run) are dropped on
+				// output. Mirrors upstream Okapi RunContainer.java
+				// :97-176 where SDT is part of RUN_CONTAINER_TYPES
+				// and the parent RunContainer re-enters the same
+				// parser for nested run-containers.
+				rawNested := startElementToRaw(t)
+				if err := p.parseInlineSDT(d, runs, rawNested); err != nil {
+					return err
+				}
+			case "proofErr", "permStart", "permEnd", "bookmarkStart", "bookmarkEnd":
+				// Skippable revision/bookmark markers — drop and
+				// continue. Mirrors parseParagraph's treatment of the
+				// same elements (run-container content is otherwise
+				// transparent per RunContainer.java:97-176).
+				if err := skipElement(d); err != nil {
+					return err
+				}
 			default:
 				// Unknown child inside sdtContent — skip subtree.
 				if err := skipElement(d); err != nil {
