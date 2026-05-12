@@ -3066,8 +3066,29 @@ func (p *wmlParser) buildBlock(id string, runs []textRun, partPath, commonRPrXML
 	var activeProps *runProps
 
 	for _, run := range runs {
-		// Handle sentinel markers for special content
-		if strings.HasPrefix(run.text, "\uE100") {
+		// Handle sentinel markers for special content.
+		//
+		// The single-char sentinels (U+E100 tab, U+E101 image) are
+		// dispatched only on EXACT match, not HasPrefix, so source text
+		// that legitimately contains private-use characters in this
+		// range (e.g. fixture OkapiMarkers.docx whose first <w:t> body
+		// is U+E101 U+E102 U+E103) does not trip the sentinel branches
+		// and get rewritten as a phantom <w:tab/> / <w:drawing/>. The
+		// reader populates these sentinel runs with the codepoint as
+		// the WHOLE text (textRun{text:"\uE100"...} at the tab read
+		// site, {text:"\uE101"...} at the drawing/AlternateContent
+		// read sites); mergeRuns refuses to fuse sentinel runs with
+		// regular text (see isSentinel guard) so a true sentinel never
+		// grows past one rune. Per Unicode U+E000..U+F8FF (Private Use
+		// Area) these codepoints carry no inherent semantics — Okapi's
+		// reservation of them as internal markers must not collide
+		// with documents that author them as text. Mirrors upstream
+		// Okapi which never substitutes a synthetic element for source
+		// text containing PUA chars: RunParser.parseText
+		// (RunParser.java lines 820-836) emits the source text
+		// verbatim into the RunText body chunk regardless of code
+		// point.
+		if run.text == "\uE100" {
 			// Tab placeholder. Upstream Okapi RunMerger fuses
 			// adjacent same-rPr runs even when one begins with
 			// <w:tab/> (Document-with-tabs.docx reference output:
@@ -3108,7 +3129,7 @@ func (p *wmlParser) buildBlock(id string, runs []textRun, partPath, commonRPrXML
 				false, false, false)
 			continue
 		}
-		if strings.HasPrefix(run.text, "\uE101") {
+		if run.text == "\uE101" {
 			// Image/drawing/pict/object/oMath/AlternateContent
 			// placeholder. The original element's full XML is in
 			// run.data so the writer can restore it byte-for-byte.
@@ -3945,7 +3966,16 @@ func runToXML(r textRun) string {
 	case r.text == "":
 		buf.WriteString("<w:tab/>")
 	case r.text == "\n":
-		buf.WriteString("<w:br/>")
+		// Prefer the captured br element (r.data) so any
+		// w:type="page" / w:type="column" / w:clear attribute
+		// survives the round-trip. Per ECMA-376-1 §17.3.3.1
+		// (CT_Br) the type attribute distinguishes textWrap,
+		// page, and column break semantics.
+		if r.data != "" {
+			buf.WriteString(r.data)
+		} else {
+			buf.WriteString("<w:br/>")
+		}
 	case strings.HasPrefix(r.text, ":"):
 		rest := strings.TrimPrefix(r.text, ":")
 		markerElem := "footnoteReference"
