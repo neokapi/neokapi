@@ -1764,7 +1764,7 @@ func stripToggleMirrorsFromCommon(props []runProp, rtl bool, parentInheritsRTL b
 				if !hasBCs {
 					out = append(out, runProp{name: "bCs", xml: "<w:bCs/>"})
 				}
-			} else {
+			} else if !defaultCharStyleSuppliesToggle(p, "b") {
 				out = append(out, p)
 			}
 		case "i":
@@ -1772,7 +1772,7 @@ func stripToggleMirrorsFromCommon(props []runProp, rtl bool, parentInheritsRTL b
 				if !hasICs {
 					out = append(out, runProp{name: "iCs", xml: "<w:iCs/>"})
 				}
-			} else {
+			} else if !defaultCharStyleSuppliesToggle(p, "i") {
 				out = append(out, p)
 			}
 		case "rtl":
@@ -1837,10 +1837,50 @@ func stripToggleMirrorsFromCommon(props []runProp, rtl bool, parentInheritsRTL b
 			}
 			out = append(out, p)
 		default:
+			// Default character style toggle suppression — apply to
+			// any toggle in the recognised set (strike, outline,
+			// shadow, vanish, caps, smallCaps, emboss, imprint,
+			// dstrike, rtl). Per ECMA-376-1 §17.7.4 the default
+			// character style applies implicitly; toggles it asserts
+			// already flow into preCombined and would be dropped by
+			// upstream's RunProperties.minified() before the WSO
+			// common-rPr lift.
+			if defaultCharStyleSuppliesToggle(p, p.name) {
+				continue
+			}
 			out = append(out, p)
 		}
 	}
 	return out
+}
+
+// defaultCharStyleSuppliesToggle reports whether the default
+// character style (currentDefaultCharacterStyleToggles, populated by
+// the writer's WSO pre-pass) declares a bare-on form of the named
+// toggle, AND the candidate prop p is itself the bare-on form (no
+// explicit-off val attribute). When true, lifting p into a
+// synthesised paragraph style would be redundant — upstream Okapi
+// drops the duplicate via RunProperties.minified()'s
+// `preCombined.contains(p)` Property.equals branch
+// (RunProperties.java:497-540).
+//
+// document-style-definitions.docx canonical: Emphasis is the default
+// character style with `<w:i/>`; runs that author `<w:i/>` directly
+// match the chain value and are dropped from the synthesised pStyle
+// by upstream. Native consumes this flag in stripToggleMirrorsFromCommon
+// to mirror that behaviour.
+func defaultCharStyleSuppliesToggle(p runProp, name string) bool {
+	if currentDefaultCharacterStyleToggles == nil {
+		return false
+	}
+	if !currentDefaultCharacterStyleToggles[name] {
+		return false
+	}
+	// Only suppress when p is the bare-on form (no explicit-off val).
+	if val, ok := parseRPrChildVal(p.xml); ok && (val == "0" || val == "false" || val == "off") {
+		return false
+	}
+	return true
 }
 
 // commonContainsRTL reports whether the common-rPr set contains a
@@ -2938,6 +2978,35 @@ var currentDocDefaultsBCsExplicitOff bool
 // currentDocDefaultsBCsExplicitOff. See its doc for the rationale.
 var currentDocDefaultsICsExplicitOff bool
 
+// currentDefaultCharacterStyleToggles is the set of toggle property
+// names (from {b, i, strike, outline, shadow, vanish, caps, smallCaps,
+// emboss, imprint, …}) authored as bare-on form by the default
+// character style — the
+// `<w:style w:type="character" w:default="true">` element in
+// styles.xml. Per ECMA-376-1 §17.7.4 the default character style
+// applies implicitly to runs that don't author rStyle, so any toggle
+// it asserts is part of every run's preCombined view. The WSO common-
+// rPr lift must skip those toggles to avoid emitting redundant
+// `<w:b/>` / `<w:i/>` / etc on the synthesised paragraph style — the
+// inherited default character style already supplies them.
+//
+// Mirrors upstream Okapi
+// WordStyleDefinitions.combinedRunProperties (lines 302-315) which
+// folds the default character style into preCombined when the run has
+// no rStyle, and RunProperties.minified() (RunProperties.java:497-540)
+// which drops a duplicate property whose Property.equals matches the
+// preCombined value.
+//
+// document-style-definitions.docx canonical: source has
+// `<w:style w:type="character" w:default="true" w:styleId="Emphasis">`
+// with `<w:i/><w:iCs/><w:color val="0000FF"/>`. Runs that author
+// `<w:i/>` directly are emitting a value that the implicit Emphasis
+// chain already supplies; upstream Okapi's commonRunProperties pass
+// drops the redundant `<w:i/>` from the WSO common-rPr lift. The set
+// is populated by the writer's WSO pre-pass via
+// extractDefaultCharacterStyleToggles.
+var currentDefaultCharacterStyleToggles map[string]bool
+
 // styleHasRTLDirect reports whether the named styleID's rPr (in
 // stylesXML) has a bare-on `<w:rtl/>` element (i.e. NOT explicit-off
 // `<w:rtl w:val="0"/>`). Used by extractRTLChainStyleIDs to seed the
@@ -3105,6 +3174,110 @@ func extractDocDefaultsToggleExplicitOff(stylesXML []byte, name string) bool {
 		cursor = start + end + 1
 	}
 	return false
+}
+
+// extractDefaultCharacterStyleToggles returns the set of bare-on
+// toggle property names authored by the default character style in
+// stylesXML — i.e. the
+// `<w:style w:type="character" w:default="true">` element's rPr's
+// children that match a known toggle name AND lack an explicit-off
+// `w:val="0"/"false"/"off"` attribute.
+//
+// Per ECMA-376-1 §17.7.4 the default character style applies
+// implicitly to every run that doesn't author rStyle. Its toggles
+// flow into preCombined, so any direct on the run that matches one
+// of them (Property.equals) is dropped by RunProperties.minified()
+// (RunProperties.java:497-540) and never reaches the WSO common-rPr
+// lift in the upstream output.
+//
+// Native consumes this set in the WSO common-rPr lift to drop
+// duplicate toggles that the default character style already supplies
+// — preserving byte-equality with upstream's synthesised pStyle's
+// rPr.
+//
+// Toggle names recognised: b, i, strike, dstrike, outline, shadow,
+// vanish, caps, smallCaps, emboss, imprint, rtl. The list mirrors
+// ECMA-376-1 §17.3.2's CT_OnOff toggle properties; values that
+// aren't in this set (rFonts, color, sz, lang, …) are not toggles
+// and are not handled here.
+func extractDefaultCharacterStyleToggles(stylesXML []byte) map[string]bool {
+	out := make(map[string]bool)
+	if len(stylesXML) == 0 {
+		return out
+	}
+	// Find the default character style entry.
+	cursor := 0
+	openNeedle := []byte("<w:style")
+	for {
+		idx := bytes.Index(stylesXML[cursor:], openNeedle)
+		if idx < 0 {
+			return out
+		}
+		start := cursor + idx
+		j := start + len(openNeedle)
+		if j >= len(stylesXML) {
+			return out
+		}
+		if b := stylesXML[j]; b != ' ' && b != '\t' && b != '\n' && b != '\r' && b != '>' && b != '/' {
+			cursor = j
+			continue
+		}
+		end := bytes.IndexByte(stylesXML[j:], '>')
+		if end < 0 {
+			return out
+		}
+		tag := stylesXML[j : j+end]
+		hasType := bytes.Contains(tag, []byte(`w:type="character"`))
+		hasDefault := bytes.Contains(tag, []byte(`w:default="1"`)) || bytes.Contains(tag, []byte(`w:default="true"`))
+		if !hasType || !hasDefault {
+			cursor = j + end + 1
+			continue
+		}
+		// Locate the style's <w:rPr>...</w:rPr> within the entry body.
+		bodyEnd := bytes.Index(stylesXML[j+end+1:], []byte("</w:style>"))
+		if bodyEnd < 0 {
+			return out
+		}
+		body := stylesXML[j+end+1 : j+end+1+bodyEnd]
+		rPrStart := bytes.Index(body, []byte("<w:rPr"))
+		if rPrStart < 0 {
+			return out
+		}
+		rPrEnd := bytes.Index(body[rPrStart:], []byte("</w:rPr>"))
+		if rPrEnd < 0 {
+			return out
+		}
+		rPrBody := body[rPrStart : rPrStart+rPrEnd]
+		// Scan for known toggle children.
+		toggleNames := []string{"b", "i", "strike", "dstrike", "outline", "shadow", "vanish", "caps", "smallCaps", "emboss", "imprint", "rtl"}
+		for _, name := range toggleNames {
+			// Match `<w:NAME ` (with attrs), `<w:NAME/`, or `<w:NAME>`.
+			prefixes := [][]byte{
+				[]byte("<w:" + name + " "),
+				[]byte("<w:" + name + "/"),
+				[]byte("<w:" + name + ">"),
+			}
+			for _, prefix := range prefixes {
+				idx := bytes.Index(rPrBody, prefix)
+				if idx < 0 {
+					continue
+				}
+				// Found. Check if explicit-off (w:val="0"/"false"/"off").
+				elemEnd := bytes.IndexByte(rPrBody[idx:], '>')
+				if elemEnd < 0 {
+					continue
+				}
+				elem := string(rPrBody[idx : idx+elemEnd])
+				if strings.Contains(elem, `w:val="0"`) || strings.Contains(elem, `w:val="false"`) || strings.Contains(elem, `w:val="off"`) {
+					// Explicit-off — does NOT contribute to preCombined as on.
+					continue
+				}
+				out[name] = true
+				break
+			}
+		}
+		return out
+	}
 }
 
 func extractRTLChainStyleIDs(stylesXML []byte) map[string]bool {

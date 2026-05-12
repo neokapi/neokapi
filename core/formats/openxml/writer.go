@@ -1185,6 +1185,17 @@ func (w *Writer) writeFromSkeleton(origZR *zip.Reader, zw *zip.Writer, buf *byte
 					// preCombined-vs-run value disagreement.
 					currentDocDefaultsBCsExplicitOff = extractDocDefaultsToggleExplicitOff(data, "bCs")
 					currentDocDefaultsICsExplicitOff = extractDocDefaultsToggleExplicitOff(data, "iCs")
+					// Capture the default character style's bare-on
+					// toggles so the WSO common-rPr lift can drop
+					// duplicates per ECMA-376-1 §17.7.4 (default
+					// character style applies implicitly to runs
+					// without rStyle). document-style-definitions
+					// fixture: Emphasis is the default character style
+					// with `<w:i/>` — runs that author `<w:i/>` have
+					// it dropped from the synthesised pStyle's rPr
+					// because the implicit Emphasis chain already
+					// supplies it.
+					currentDefaultCharacterStyleToggles = extractDefaultCharacterStyleToggles(data)
 					// Hand the source paragraph style set off to the
 					// WSO matcher via currentSourceParagraphStyles.
 					// Consumed by findMatchingStyle to mirror upstream
@@ -1210,6 +1221,7 @@ func (w *Writer) writeFromSkeleton(origZR *zip.Reader, zw *zip.Writer, buf *byte
 			currentSourceParagraphStyles = nil
 			currentDocDefaultsBCsExplicitOff = false
 			currentDocDefaultsICsExplicitOff = false
+			currentDefaultCharacterStyleToggles = nil
 		}()
 	}
 
