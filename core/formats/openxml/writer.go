@@ -1075,6 +1075,31 @@ func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
 func (w *Writer) writeFromSkeleton(origZR *zip.Reader, zw *zip.Writer, buf *bytes.Buffer,
 	info *containerInfo, blocks map[string]*model.Block) error {
 
+	// Pre-load source styles.xml flags BEFORE the per-block renderBlock
+	// loop below — adjustRPrForRunText / stripToggleMirrorChildren are
+	// invoked during renderBlock and consult these module-level flags
+	// to gate per-run bCs/iCs preservation against the docDefaults'
+	// explicit-off form. Per ECMA-376-1 §17.7.5.5 (docDefaults) the
+	// preCombined rPr a run inherits via the default chain comes from
+	// docDefaults' rPrDefault; when docDefaults declares `<w:bCs val="0"/>`
+	// and a run authors a bare-on `<w:bCs/>`, upstream's
+	// RunParser.canBeSkipped (RunParser.java:240-250) refuses the strip
+	// because pcrp.equals(rp) is false. Native must mirror that gate
+	// at write time. Mirrors the WSO pre-pass below (lines ~1159+)
+	// which sets the same vars for the post-pass; the docDefaults
+	// detection itself is style-set-invariant, so both passes consult
+	// the same single source-of-truth.
+	for _, f := range origZR.File {
+		if f.Name == "word/styles.xml" {
+			data, err := readZipFile(f)
+			if err == nil {
+				currentDocDefaultsBCsExplicitOff = extractDocDefaultsToggleExplicitOff(data, "bCs")
+				currentDocDefaultsICsExplicitOff = extractDocDefaultsToggleExplicitOff(data, "iCs")
+			}
+			break
+		}
+	}
+
 	// Read all skeleton entries, splitting by part-boundary markers
 	partContents := make(map[string][]byte)
 	var currentPart string
@@ -1881,17 +1906,30 @@ func stripToggleMirrorChildren(s string) string {
 // Per ECMA-376-1 §17.3.2.16 (CT_OnOff bCs) and §17.3.2.17 (CT_OnOff
 // iCs).
 func stripBCsBlockedByPairing(s, latinName, mirrorName string, docDefaultsExplicitOff bool) bool {
-	hasLatin := hasToggleMirrorPartner(s, latinName)
 	hasMirror := hasToggleMirrorPartner(s, mirrorName)
-	if !hasLatin || !hasMirror {
+	if !hasMirror {
 		return false
 	}
-	// Explicit-off pair branch.
-	if hasExplicitOffElement(s, latinName) && hasExplicitOffElement(s, mirrorName) {
+	// Branch 1: explicit-off pair on the same rPr. Mirrors the case
+	// where the source authored `<w:b w:val="0"/><w:bCs w:val="0"/>`
+	// to clear an inherited bold's complex-script half (1311.docx
+	// Heading2 / highlights_block.docx Caption).
+	hasLatin := hasToggleMirrorPartner(s, latinName)
+	if hasLatin && hasExplicitOffElement(s, latinName) && hasExplicitOffElement(s, mirrorName) {
 		return true
 	}
-	// Bare-on pair branch — requires docDefaults explicit-off.
-	if docDefaultsExplicitOff {
+	// Branch 2: docDefaults declares an explicit-off form of the
+	// mirror, AND the run authors a bare-on (or any non-explicit-off)
+	// form. preCombined's value (val=0) disagrees with run's value
+	// (val implicit true) so upstream's canBeSkipped at
+	// RunParser.java:244-245 returns false. The bare-on b mirror
+	// partner is NOT required for this branch — the disagreement is
+	// solely between preCombined.bCs and run.bCs; the bold half can
+	// be present, absent, or asserted via a separate <w:b/> outside
+	// the rPr-children fragment (the writer's toggle path emits
+	// <w:b/> from props.bold rather than from the captured
+	// rPrChildren XML).
+	if docDefaultsExplicitOff && !hasExplicitOffElement(s, mirrorName) {
 		return true
 	}
 	return false
