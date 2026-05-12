@@ -141,6 +141,88 @@ func fuseBareBrAndTextRuns(data []byte) []byte {
 	return bareBrThenBareTextRunRE.ReplaceAll(data, []byte(`<w:r>$1$2</w:r>`))
 }
 
+// bareFldCharEndAfterTextThenBareTextRunRE matches a bare
+// `<w:r><w:t ...>...</w:t></w:r>` envelope (display text from an
+// extractable complex field) IMMEDIATELY followed by a bare
+// `<w:r><w:fldChar w:fldCharType="end"/></w:r>` envelope and then a
+// bare `<w:r><w:t [attrs]>content</w:t></w:r>` envelope. All three
+// envelopes must lack `<w:rPr>` so the fuse is rPr-equivalent.
+// Captures:
+//
+//	$1 = the preceding text run verbatim (preserved unchanged)
+//	$2 = the fldChar-end element verbatim (self-closing or open/close form)
+//	$3 = the trailing t element verbatim (open tag + body + close tag)
+//
+// The replacement keeps the preceding text run as-is and collapses the
+// fldChar-end + trailing text pair into a single `<w:r>` carrying both
+// children. The leading-text gate distinguishes EXTRACTABLE fields
+// (whose display text upstream emits as RunText body chunks subject to
+// RunMerger fusion) from NON-EXTRACTABLE fields like XE index markers
+// (whose preceding sibling is `<w:instrText>` rather than `<w:t>`, and
+// whose fldChar-end + trailing text upstream keeps split per
+// canMergeWith's containsComplexFields gate at RunMerger.java:147-149).
+// Used by fuseBareFldCharEndAndTextRuns; see the call site for the
+// upstream Okapi RunMerger citation and the 830-4.docx vs docxtest.docx
+// fixture pair rationale.
+//
+// The fldChar match accepts both self-closing
+// (`<w:fldChar .../>`) and open/close (`<w:fldChar ...></w:fldChar>`)
+// shapes — encoding/xml may re-emit either form depending on payload
+// provenance.
+var bareFldCharEndAfterTextThenBareTextRunRE = regexp.MustCompile(
+	`(<w:r><w:t\b[^>]*>[^<]*</w:t></w:r>)<w:r>(<w:fldChar\b[^>]*\bw:fldCharType="end"[^>]*(?:/>|></w:fldChar>))</w:r><w:r>(<w:t\b[^>]*>[^<]*</w:t>)</w:r>`)
+
+// fuseBareFldCharEndAndTextRuns collapses adjacent bare
+// `<w:r><w:fldChar fldCharType="end"/></w:r>` + `<w:r><w:t>…</w:t></w:r>`
+// envelopes into one `<w:r>` envelope carrying both children, but ONLY
+// when the fldChar-end run is itself preceded by another bare
+// `<w:r><w:t>…</w:t></w:r>` envelope (the field's extracted display
+// text). All three envelopes must lack `<w:rPr>` so the fuse is
+// rPr-equivalent — when any side carries an `<w:rPr>` the structural
+// fldChar-end + text merge path inside writeWMLBlock (see the
+// inFieldEndRun branch around the `case r.Text != nil:` arm) handles
+// the join with full effective-rPr comparison.
+//
+// Mirrors upstream Okapi RunMerger.mergeRunBodyChunks
+// (RunMerger.java:402-441) fusing a Markup chunk (the fldChar-end)
+// followed by a RunText chunk (the trailing text) when the containing
+// source runs share rPr per canRunPropertiesBeMerged
+// (RunMerger.java:156-229). Per ECMA-376-1 §17.3.2.1 (CT_R) a single
+// `<w:r>` may carry both `<w:fldChar>` and `<w:t>` children, and per
+// §17.16.5 (Complex Fields) the fldChar elements bookend a single
+// semantic run regardless of intervening syntactic-run boundaries.
+//
+// The leading-text gate exists because non-extractable complex fields
+// (e.g. XE index markers) flow through parseComplexField's non-
+// extractable branch (RunParser.java:501-507) which adds the entire
+// field — including the fldChar-end — to a single RunBuilder's markup
+// chunk; the trailing text is a SEPARATE RunBuilder whose merge with
+// the field run is blocked by canMergeWith's containsComplexFields
+// gate (RunMerger.java:147-149). For these the source emits an
+// `<w:instrText>` run immediately before the fldChar-end run, so the
+// regex's `<w:t>` precondition naturally filters them out. Fixture
+// pair: 830-4.docx (extractable COMMENTS field — fuse) vs
+// docxtest.docx (non-extractable XE field — keep split).
+//
+// 830-4.docx is the canonical fuse fixture: a COMMENTS field
+// straddling multiple paragraphs ends with a bare-rPr fldChar-end run
+// immediately followed by a bare-rPr "." text run; upstream merges
+// them into one `<w:r>` while native's per-run skeleton emit preserves
+// the source envelope split. The structural inFieldEndRun fast path
+// doesn't fire here because the fldChar-end Ph payload arrives via
+// the skeleton reconstruction (writeWMLBlock isn't called for this
+// block since the surrounding paragraph is non-translatable apart
+// from the field's stripped display text), so the fix is applied at
+// the post-pass layer where the per-run emit has already produced the
+// envelope triplet.
+func fuseBareFldCharEndAndTextRuns(data []byte) []byte {
+	if !bytes.Contains(data, []byte(`<w:r><w:fldChar`)) {
+		return data
+	}
+	return bareFldCharEndAfterTextThenBareTextRunRE.ReplaceAll(
+		data, []byte(`$1<w:r>$2$3</w:r>`))
+}
+
 // wmlRevisionParagraphMarkRE matches the EMPTY-BODY forms of the
 // paragraph-mark revision elements that appear INSIDE <w:rPr>:
 //   - <w:ins .../>           (RUN_PROPERTY_INSERTED_PARAGRAPH_MARK)
@@ -1394,6 +1476,16 @@ func (w *Writer) writeFromSkeleton(origZR *zip.Reader, zw *zip.Writer, buf *byte
 		// per-run skeleton emit splits.
 		if bytes.Contains(data, []byte(`<w:br`)) {
 			data = fuseBareBrAndTextRuns(data)
+		}
+		// Fuse a bare `<w:r><w:fldChar fldCharType="end"/></w:r>`
+		// envelope with the IMMEDIATELY-following bare
+		// `<w:r><w:t ...>…</w:t></w:r>` envelope into a single `<w:r>`
+		// carrying both children. See fuseBareFldCharEndAndTextRuns
+		// for the upstream Okapi RunMerger citation and the 830-4.docx
+		// fixture rationale. Both source envelopes must lack `<w:rPr>`
+		// so the fuse is rPr-equivalent.
+		if bytes.Contains(data, []byte(`fldCharType="end"`)) {
+			data = fuseBareFldCharEndAndTextRuns(data)
 		}
 		return data
 	}
