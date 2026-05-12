@@ -269,6 +269,20 @@ func hasNestedParagraphs(src []byte) bool {
 // optimizeWMLPart. This keeps the SHARED idCounter, synthesised
 // map, and orderedIDs in lockstep so styleId numbering matches
 // upstream's per-document IdGenerator stream.
+//
+// Both `<w:txbxContent>` (Transitional WPML) and `<wne:txbxContent>`
+// (Strict OOXML, bound to the wordml extension namespace
+// "http://schemas.openxmlformats.org/wordml/...") are recognised.
+// Per ECMA-376-1 / ISO/IEC 29500-1, the textbox-content element is
+// part of the WordprocessingML schema in both conformance classes;
+// Word's "Save As → Strict Open XML Document" emits it with the
+// `wne:` prefix on the WORDML extension namespace. Fixture 859.docx
+// is the canonical case — its drawing-bearing paragraph carries
+// `<wp:txbx><wne:txbxContent><w:p>...` and the inner paragraph's
+// `<w:lang w:val="en-US"/>` rPr must be lifted into a synthesised
+// pStyle ("NF974E24F-Normal1") to match upstream Okapi's reference
+// output (which does the same lift via WordDocument.java's per-block
+// StyleOptimisation construction at line 261-271).
 func optimizeNestedParagraphs(
 	src []byte,
 	existingStyleIDs map[string]bool,
@@ -279,28 +293,49 @@ func optimizeNestedParagraphs(
 	synthesised map[string]synthesisedStyle,
 	orderedIDs *[]string,
 ) []byte {
-	// Find every <w:txbxContent>...</w:txbxContent> inside src
-	// and recurse into its body. Other nested-paragraph carriers
-	// (e.g. footnote references, custom XML) don't typically
-	// appear inside a textbox/drawing scope and need their own
-	// part-level treatment — txbxContent is the canonical case.
-	openTag := []byte("<w:txbxContent")
-	closeTag := []byte("</w:txbxContent>")
+	// Find every <*:txbxContent>...</*:txbxContent> inside src and
+	// recurse into its body. Both `<w:txbxContent>` (Transitional WPML
+	// — AlternateContentTest.docx, AlternateContent.docx, graphicdata.
+	// docx footers) and `<wne:txbxContent>` (Strict OOXML — 859.docx)
+	// are scanned. Other nested-paragraph carriers (e.g. footnote
+	// references, custom XML) don't typically appear inside a textbox/
+	// drawing scope and need their own part-level treatment —
+	// txbxContent is the canonical case.
+	variants := []struct {
+		open  []byte
+		close []byte
+	}{
+		{[]byte("<w:txbxContent"), []byte("</w:txbxContent>")},
+		{[]byte("<wne:txbxContent"), []byte("</wne:txbxContent>")},
+	}
 	var out bytes.Buffer
 	out.Grow(len(src))
 	cursor := 0
 	for cursor < len(src) {
-		oi := bytes.Index(src[cursor:], openTag)
-		if oi < 0 {
+		// Find the earliest opener of any variant past cursor.
+		bestOI := -1
+		bestVar := -1
+		for vi, v := range variants {
+			oi := bytes.Index(src[cursor:], v.open)
+			if oi < 0 {
+				continue
+			}
+			if bestOI < 0 || oi < bestOI {
+				bestOI = oi
+				bestVar = vi
+			}
+		}
+		if bestOI < 0 {
 			break
 		}
+		v := variants[bestVar]
 		// Skip past the start tag's terminator.
-		k := bytes.IndexByte(src[cursor+oi:], '>')
+		k := bytes.IndexByte(src[cursor+bestOI:], '>')
 		if k < 0 {
 			break
 		}
-		bodyStart := cursor + oi + k + 1
-		ci := bytes.Index(src[bodyStart:], closeTag)
+		bodyStart := cursor + bestOI + k + 1
+		ci := bytes.Index(src[bodyStart:], v.close)
 		if ci < 0 {
 			break
 		}
