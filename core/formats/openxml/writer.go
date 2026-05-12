@@ -1587,16 +1587,29 @@ func (w *Writer) renderBlock(block *model.Block, dt docType) string {
 	perRunRPr := blockPerRunRPrFragments(block)
 	perRunSrcStart := blockPerRunSrcRunStartFlags(block)
 	perRunInFieldDisplay := blockPerRunInFieldDisplayFlags(block)
+	// Cross-paragraph field straddle marker set by wml.go's
+	// flushPendingFieldBlock — see "openxml:field-straddle" property
+	// comment there. When true the writer mirrors upstream Okapi
+	// BlockTextUnitWriter.flush(Run.Markup) lines 238-251: an empty
+	// `<w:r/>` placeholder is emitted before every TypeBreak Ph that
+	// began a fresh source `<w:r>`, capturing the artifact of the
+	// open-then-close `<w:r>` cycle that Okapi's flush performs when
+	// the first MarkupComponent of the outer-Run's body chunk is a
+	// `<w:br>` Component.Start.
+	fieldStraddle := false
+	if block.Properties != nil && block.Properties["openxml:field-straddle"] == "true" {
+		fieldStraddle = true
+	}
 
 	switch dt {
 	case docTypeDOCX:
-		return w.renderWMLBlock(runs, sourceRPr, perRunRPr, perRunSrcStart, perRunInFieldDisplay)
+		return w.renderWMLBlock(runs, sourceRPr, perRunRPr, perRunSrcStart, perRunInFieldDisplay, fieldStraddle)
 	case docTypePPTX:
 		return w.renderDMLBlock(runs)
 	case docTypeXLSX:
 		return w.renderSMLBlock(runs, block)
 	default:
-		return w.renderWMLBlock(runs, sourceRPr, perRunRPr, perRunSrcStart, perRunInFieldDisplay)
+		return w.renderWMLBlock(runs, sourceRPr, perRunRPr, perRunSrcStart, perRunInFieldDisplay, fieldStraddle)
 	}
 }
 
@@ -1966,7 +1979,7 @@ func countTextRuns(runs []model.Run) int {
 // elements rather than collapsing to a single rPr-less <w:r>).
 //
 // Per ECMA-376-1 §17.3.2.
-func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []string, perRunSrcStart []bool, perRunInFieldDisplay []bool) string {
+func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []string, perRunSrcStart []bool, perRunInFieldDisplay []bool, fieldStraddle bool) string {
 	// Alignment guard: the per-run sidecar is one fragment per
 	// text-bearing source run AFTER dedupe-on-collapse. The writer
 	// emits one <w:r> per text-bearing model.Run.Text. When the two
@@ -2750,6 +2763,21 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 					if brXMLFuse == "" {
 						brXMLFuse = "<w:br/>"
 					}
+					// Strip the embedded `<w:rPr>...</w:rPr>` prefix
+					// (added by the reader at wml.go ~line 4683 to
+					// preserve the source <w:r>'s rPr): the fusion
+					// reuses the prior open `<w:r>`'s rPr context,
+					// so dropping the duplicate rPr is correct. If
+					// the rPrs disagreed the lookahead guards above
+					// would have refused the fuse — but we don't
+					// repeat the rPr comparison here because
+					// inRunNoText was set by the prior br emission
+					// which already gated on its own rPr.
+					if strings.HasPrefix(brXMLFuse, "<w:rPr>") {
+						if end := strings.Index(brXMLFuse, "</w:rPr>"); end >= 0 {
+							brXMLFuse = brXMLFuse[end+len("</w:rPr>"):]
+						}
+					}
 					buf.WriteString(brXMLFuse)
 					// Leave inRunNoText set so a subsequent br, tab,
 					// or same-rPr text continues to fuse into this run.
@@ -2847,7 +2875,58 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 				if brXMLBranch == "" {
 					brXMLBranch = "<w:br/>"
 				}
-				if r.Ph.SubType == SubTypeBreakStandalone {
+				// When the Ph data starts with <w:rPr> the reader
+				// embedded the source <w:r>'s rPr alongside the br
+				// (wml.go ~line 4683) — emit the rPr inside this
+				// run's envelope instead of the paragraph-wide
+				// sourceRPr + active toggles. Mirrors the existing
+				// TypeImage / TypeFootnoteRef embedded-rPr pattern
+				// (writer.go ~line 3060). Per ECMA-376-1 §17.3.2.1
+				// (CT_R) <w:rPr> precedes the run's other children.
+				// EndGroup.docx is the canonical fixture: a
+				// `<w:r><w:rPr>{szCs val=21}</w:rPr><w:br/></w:r>`
+				// must round-trip with its szCs intact even when
+				// the surrounding text runs have different rPr (so
+				// the common-rPr is empty and would otherwise drop
+				// the szCs sidecar).
+				// Cross-paragraph field straddle: prepend an empty
+				// `<w:r></w:r>` envelope before every standalone-br Ph.
+				// Mirrors upstream Okapi BlockTextUnitWriter.flush(
+				// Run.Markup) lines 238-251: when the outer field
+				// Run's body chunk's first Component.Start is a
+				// `<w:br>`, flushRunStart opens an `<w:r>` and the
+				// loop's flushRunEnd immediately closes it before
+				// flushRunStart re-opens a fresh `<w:r>` for the
+				// br's events. The closed-immediately envelope
+				// becomes an empty `<w:r></w:r>` in the wire output.
+				//
+				// Native preserves the source's per-`<w:r>` boundaries
+				// per textRun, so the equivalent artifact must be
+				// synthesised explicitly here. Only SubTypeBreakStandalone
+				// (a br that began a fresh source `<w:r>`) qualifies —
+				// the in-run br shape (`<w:br/>` followed by `<w:t>`
+				// inside the same source `<w:r>`) already lives in a
+				// single envelope via the inRunNoText fuse path above.
+				//
+				// Fixture 1172.docx P2 is the canonical case: the
+				// HYPERLINK field's display area spans P1 (begin/
+				// instrText/separate), P2 (text + br + br+text), and
+				// P3 (fldChar end). Reference output emits an empty
+				// `<w:r/>` before each of the br-only and br+text
+				// source runs.
+				if fieldStraddle && r.Ph.SubType == SubTypeBreakStandalone {
+					closeRun() // belt-and-braces; closeRun was already invoked above
+					buf.WriteString(`<w:r></w:r>`)
+				}
+				if strings.HasPrefix(brXMLBranch, "<w:rPr>") {
+					if r.Ph.SubType == SubTypeBreakStandalone {
+						buf.WriteString(`<w:r>`)
+						buf.WriteString(brXMLBranch)
+						inRunNoText = true
+					} else {
+						buf.WriteString(`<w:r>` + brXMLBranch + `</w:r>`)
+					}
+				} else if r.Ph.SubType == SubTypeBreakStandalone {
 					buf.WriteString(`<w:r>`)
 					emitNonTextRPr()
 					buf.WriteString(brXMLBranch)
@@ -3785,7 +3864,8 @@ func (w *Writer) expandDrawingMarkers(payload string) string {
 		case "PROP":
 			return xmlEscapeAttr(model.FlattenRuns(runs))
 		case "PARA":
-			return w.renderWMLBlock(runs, blockSourceRPrXML(block), blockPerRunRPrFragments(block), blockPerRunSrcRunStartFlags(block), blockPerRunInFieldDisplayFlags(block))
+			fieldStraddle := block.Properties != nil && block.Properties["openxml:field-straddle"] == "true"
+			return w.renderWMLBlock(runs, blockSourceRPrXML(block), blockPerRunRPrFragments(block), blockPerRunSrcRunStartFlags(block), blockPerRunInFieldDisplayFlags(block), fieldStraddle)
 		case "TEXT":
 			// Character-data marker: emit xml-escaped text only,
 			// without the run/text-element wrapper. Used for bare

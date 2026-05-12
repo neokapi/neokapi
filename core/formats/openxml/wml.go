@@ -617,6 +617,24 @@ func (p *wmlParser) flushPendingFieldBlock(extraTailRuns []textRun, partPath str
 	p.skelRef(blockID)
 	p.skelWriteString("</w:p>")
 	block := p.buildBlock(blockID, merged, partPath, commonRPrXML, perRunRPrXML, perRunSrcRunStart)
+	// Mark the block as a cross-paragraph field straddle so the
+	// writer can mirror upstream Okapi's flush(Run.Markup) artifact —
+	// an empty `<w:r/>` placeholder emitted before every `<w:br>`
+	// Component.Start inside the field's outer Run body chunks.
+	// See writer.go (the openxmlBlockFieldStraddleProperty consumer)
+	// for the citation chain — BlockTextUnitWriter.flush(Run.Markup)
+	// at lines 238-251 closes any open `<w:r>` immediately before
+	// re-opening a fresh `<w:r>` for the `<w:br>` events; the
+	// initial flushRunStart at line 240 produces the empty
+	// envelope when the first component happens to be a `<w:br>`
+	// Start. Fixture 1172.docx is the canonical case: source P2
+	// runs (text, br, br+text) become Markup body chunks of the
+	// outer field Run, and Okapi inserts two empty `<w:r/>` before
+	// the br-only and br+text runs respectively.
+	if block.Properties == nil {
+		block.Properties = map[string]string{}
+	}
+	block.Properties["openxml:field-straddle"] = "true"
 	emitBlock(block)
 	return nil
 }
@@ -4673,6 +4691,23 @@ func (p *wmlParser) buildBlock(id string, runs []textRun, partPath, commonRPrXML
 			brXML := run.data
 			if brXML == "" {
 				brXML = "<w:br/>"
+			}
+			// When the source <w:r> wrapping the br carries its own
+			// <w:rPr>, prepend that rPr to the Ph data so the writer's
+			// TypeBreak handler can re-emit it inside the <w:r>.
+			// Mirrors the existing TypeImage / TypeFootnoteRef
+			// embedded-rPr pattern (wml.go ~line 4309, writer.go
+			// ~line 3060). Per ECMA-376-1 §17.3.2.1 (CT_R) <w:rPr>
+			// precedes the run's other children, so the embedded
+			// fragment is in document order. Without this, a
+			// `<w:r><w:rPr>{szCs}</w:rPr><w:br/></w:r>` source run
+			// (EndGroup.docx canonical case) loses its szCs sidecar
+			// on the way out — the writer falls back to the empty
+			// paragraph-wide sourceRPr when the surrounding text
+			// runs have different rPr (so the common-rPr is empty)
+			// and the br Ph has no per-text-run sidecar slot.
+			if rPr := serializeFullRPrXML(run.props); rPr != "" {
+				brXML = rPr + brXML
 			}
 			spanCounter++
 			b.AddPh(fmt.Sprintf("c%d", spanCounter),
