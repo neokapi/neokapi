@@ -2324,6 +2324,37 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 					}
 				}
 			}
+			// Fuse a TypeRawRunMarkup chunk (<w:noBreakHyphen/> per
+			// ECMA-376-1 §17.3.3.18, <w:softHyphen/> per §17.3.3.30)
+			// into the still-open <w:r> from a prior standalone <w:br/>
+			// or <w:tab/>. Mirrors upstream Okapi BlockTextUnitWriter:
+			// the noBreakHyphen / softHyphen Markup is emitted via the
+			// flushMarkup path that does NOT call flushRunEnd /
+			// flushRunStart (BlockTextUnitWriter.java:240-251 only
+			// terminates the run on <w:br>); meanwhile the surrounding
+			// br/tab opens its own <w:r> via writeLineBreakAt
+			// (BlockTextUnitWriter.java:349-371). The combined effect:
+			// `<w:r><w:br/></w:r><w:r><w:noBreakHyphen/></w:r>` source
+			// emerges as `<w:r><w:br/><w:noBreakHyphen/></w:r>` because
+			// the noBreakHyphen Markup chunk attaches to the still-open
+			// run from the br. Per ECMA-376-1 §17.3.2.1 (CT_R) a single
+			// <w:r> may carry both <w:br/> and <w:noBreakHyphen/>
+			// children with one shared rPr. Fixture
+			// special-chars-and-linebreaks.docx authors br + noBreakHyphen
+			// and br + softHyphen pairs that round-trip as one <w:r>
+			// each in the bridge reference output.
+			//
+			// Br/tab Ph chunks are NOT fused here. Bridge's
+			// writeLineBreakAt always closes and reopens the run around
+			// each break (BlockTextUnitWriter.java:365-366) — adjacent
+			// brs end up in separate <w:r> envelopes even when their
+			// source runs share rPr. Fixtures 1421-line-break.docx and
+			// br.docx both show `<w:r><w:br/></w:r><w:r><w:br/></w:r>`
+			// for two adjacent standalone brs.
+			if r.Ph.Type == TypeRawRunMarkup && inRunNoText {
+				buf.WriteString(r.Ph.Data)
+				continue
+			}
 			closeRun()
 			switch r.Ph.Type {
 			case TypeBreak:
