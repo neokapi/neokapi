@@ -2745,6 +2745,23 @@ func pullLeadingFldCharEndIntoPrevParagraph(data []byte) []byte {
 	// unmatched begin/separate, para 2 is empty, para 3 holds
 	// the stray end — the end migrates to para 2).
 	cumulativeFldBalance := 0
+	// Track whether the immediately-preceding paragraph's body
+	// (after pPr) is "migration-eligible" — either empty (no
+	// runs) or carrying an unmatched fld-begin/separate of its
+	// own. When the previous paragraph is non-empty and not
+	// itself carrying the open field, leaving the fld-end in
+	// its source paragraph matches upstream Okapi: the
+	// deferredEvents flush in parseComplexField anchors the
+	// end to whichever paragraph the parser's stream cursor
+	// is in at the time of the end event, and full text-bearing
+	// paragraphs with no field content of their own do NOT
+	// receive a migrated end via that mechanism. Fixture
+	// 830-5.docx para 6 is the canonical guard: a bare `<w:p>`
+	// holds a leading fld-end + space, the immediately-
+	// preceding paragraph (00000006) holds plain text
+	// "paragraphs.", and upstream LEAVES the end in the bare
+	// paragraph.
+	prevParaMigrationEligible := false
 
 	for pos < len(src) {
 		// Find next paragraph-open / paragraph-close.
@@ -2790,7 +2807,7 @@ func pullLeadingFldCharEndIntoPrevParagraph(data []byte) []byte {
 
 		// Try to migrate the leading fld-end run upward.
 		moved := false
-		if prevParaCloseInOut >= 0 && cumulativeFldBalance > 0 {
+		if prevParaCloseInOut >= 0 && cumulativeFldBalance > 0 && prevParaMigrationEligible {
 			// The leading run must be exactly the no-rPr fld-end
 			// run, in either the paired or empty serialisation.
 			// Per ECMA-376-1 §17.3.2.1 (CT_R) an rPr-bearing
@@ -2823,6 +2840,7 @@ func pullLeadingFldCharEndIntoPrevParagraph(data []byte) []byte {
 				out.WriteString("</w:p>")
 				prevParaCloseInOut = out.Len() - len("</w:p>")
 				cumulativeFldBalance += countFldBeginEndBalance(newBody)
+				prevParaMigrationEligible = paraMigrationEligible(newBody, bodyStart)
 				moved = true
 			}
 		}
@@ -2833,11 +2851,52 @@ func pullLeadingFldCharEndIntoPrevParagraph(data []byte) []byte {
 			out.WriteString("</w:p>")
 			prevParaCloseInOut = out.Len() - len("</w:p>")
 			cumulativeFldBalance += countFldBeginEndBalance(paraBody)
+			prevParaMigrationEligible = paraMigrationEligible(paraBody, bodyStart)
 		}
 		pos = paraCloseEndAbs
 	}
 
 	return []byte(out.String())
+}
+
+// paraMigrationEligible reports whether a paragraph's emitted body
+// is a valid destination for a migrated leading fld-end run from
+// the immediately-following paragraph. The eligibility rules
+// approximate upstream Okapi's deferredEvents flush behaviour
+// (RunParser.parseComplexField + BlockParser.parse lines 221-228):
+// the field-end is anchored to whichever paragraph the parser's
+// stream cursor is in at the time of the end event, which in
+// practice means
+//
+//   - an EMPTY paragraph between the begin/separate paragraph and
+//     the source paragraph that originally held the end gets the
+//     end attached (the parser's stream cursor lands in the empty
+//     paragraph after consuming it during deferred flush). Fixture
+//     830-3.docx is the canonical case.
+//   - a paragraph that itself carries an unmatched fld-begin/separate
+//     gets the end appended (the field's local close happens in the
+//     same paragraph as its open). Fixture 830-1.docx is the
+//     canonical case.
+//   - a paragraph whose body carries plain text content but NO open
+//     fld-begin/separate of its own is NOT eligible — leaving the
+//     end in the source paragraph matches upstream's behaviour
+//     where the field doesn't reach back through arbitrary text
+//     content. Fixture 830-5.docx para 6 is the canonical guard.
+//
+// bodyStart is the offset within body of the first non-pPr byte —
+// passed in from the caller's bookkeeping.
+func paraMigrationEligible(body string, bodyStart int) bool {
+	rest := body[bodyStart:]
+	// Empty paragraph (only pPr): eligible.
+	if strings.TrimSpace(rest) == "" {
+		return true
+	}
+	// Paragraph carrying its own unmatched fld-begin: eligible.
+	const beginTok = `w:fldCharType="begin"`
+	const endTok = `w:fldCharType="end"`
+	begins := strings.Count(rest, beginTok)
+	ends := strings.Count(rest, endTok)
+	return begins > ends
 }
 
 // countFldBeginEndBalance counts the difference between
