@@ -374,7 +374,24 @@ func (p *wmlParser) parsePart(data []byte, partPath string, emitBlock func(*mode
 				}
 				p.skelWriteStartElement(t)
 			case "pPr", "sectPr", "tblPr", "tblGrid", "trPr", "tcPr":
-				// Non-translatable properties — skeleton only
+				// Non-translatable properties — skeleton only.
+				// `<w:sectPr>` at the body level is the closing
+				// structural marker; if a pending mergeable paragraph
+				// (deleted paragraph mark, ECMA-376 Part 1
+				// §17.13.5.13) is still buffered here, no successor
+				// paragraph arrived to absorb it. Flush it first so
+				// the standalone paragraph appears BEFORE the
+				// `<w:sectPr>` in document order. Mirrors upstream
+				// Okapi StyledTextPart.process tail at lines 642-644
+				// emitting the dangling `mergeableBlock`. Fixture
+				// 847-1.docx is the canonical case (one paragraph
+				// with deleted-mark + content, immediately followed
+				// by `<w:sectPr>`).
+				if t.Name.Local == "sectPr" && p.partMergeable != nil {
+					if err := p.flushPendingMergeable(partPath, emitBlock); err != nil {
+						return err
+					}
+				}
 				raw, err := captureRawElement(d, t)
 				if err != nil {
 					return err
