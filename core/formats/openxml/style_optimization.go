@@ -960,6 +960,32 @@ func optimizeParagraph(
 		matchedID = ""
 	} else {
 		matchedID = findMatchingStyle(parentID, commonRPrXML, commonForStyle, synthesised, *orderedIDs)
+		// Writer-merge recovery: a single-run paragraph whose lone run
+		// carries BOTH <w:br> AND <w:t> is the merged-collapse shape of
+		// what upstream Okapi sees as two distinct <w:r> source events
+		// (a break-only run + an adjacent text run). The merge can drop
+		// the text run's richer rPr (e.g. `{rFonts, szCs}`) in favour
+		// of the break-only run's narrower rPr (e.g. `{szCs}`), so WSO
+		// computes an under-specified common set and would otherwise
+		// synthesise a spurious fresh style instead of reusing the
+		// richer style that earlier same-document paragraphs already
+		// placed. When an existing synth style with the matching
+		// parentID has rPr props that are a strict SUPERSET of the
+		// computed common, reuse it and broaden the per-run strip to
+		// cover the style's full prop set. See findSupersetSynthStyle
+		// doc + EndGroup.docx fixture rationale.
+		if matchedID == "" && paragraphHasMergedBreakTextRun(runs, entries, src) {
+			if id := findSupersetSynthStyle(parentID, commonForStyle, synthesised, *orderedIDs); id != "" {
+				matchedID = id
+				// Broaden `common` to the matched style's full rPr so
+				// the run-strip below removes every property the style
+				// supplies, leaving the run rPr-less to match upstream's
+				// emit shape. (commonForStyle / commonRPrXML are not read
+				// after this point — they only drove the style synthesis
+				// fork which we just bypassed.)
+				common = parseRunPropElements([]byte("<w:rPr>" + synthesised[id].rPrXML + "</w:rPr>"))
+			}
+		}
 		if matchedID == "" {
 			// Generate a fresh id "NF974E24F-<parentID><N>" using the
 			// SHARED IdGenerator counter — see the optimizeWMLPart doc
@@ -2458,6 +2484,110 @@ func findMatchingStyle(
 		}
 	}
 	return ""
+}
+
+// findSupersetSynthStyle finds an existing synthesised paragraph style
+// whose rPr props are a strict SUPERSET of `common` (every prop in
+// `common` is present, with identical XML, in the style's rPr) and
+// whose parentID matches.
+//
+// Used as a narrow recovery for paragraphs where the writer has merged
+// a break-only `<w:r>` source chunk into the adjacent text-bearing
+// `<w:r>` (collapsing two distinct upstream Runs into one merged Run).
+// The merge loses the text-bearing run's richer rPr in favour of the
+// break-only run's rPr, so WSO sees an under-specified common-prop set
+// (e.g. `{szCs=21}` instead of the upstream-visible `{rFonts hint=eastAsia,
+// szCs=21}`). When an earlier paragraph in the same document already
+// synthesised the richer style, that style is what upstream Okapi
+// would have placed on this paragraph too — see EndGroup.docx:
+// upstream synth Normal1 carries `{rFonts hint=eastAsia, szCs=21}` and
+// is reused on the merged-break+text paragraph; native, computing
+// common=`{szCs=21}` from the merged run, would otherwise synthesise a
+// fresh "Normal2" with just `<w:szCs/>`.
+//
+// Narrow trigger gate (single-run paragraph where the run contains BOTH
+// `<w:br>` AND `<w:t>`) avoids false-positive matches on independent
+// paragraphs whose smaller rPr happens to be a subset of a richer
+// earlier synth — upstream creates one style per unique rPr signature
+// (WordStyleDefinitions.Ids.parentBased line 469 uses RunProperties
+// .equals on the COMPLETE set, not a subset match) and so do we, except
+// in this writer-merge recovery path.
+//
+// Returns "" when no superset match exists. Matches deterministically
+// in orderedIDs order so output stays reproducible.
+func findSupersetSynthStyle(
+	parentID string,
+	common []runProp,
+	synthesised map[string]synthesisedStyle,
+	orderedIDs []string,
+) string {
+	if len(common) == 0 {
+		return ""
+	}
+	for _, id := range orderedIDs {
+		s := synthesised[id]
+		if s.parentID != parentID {
+			continue
+		}
+		// synthesisedStyle.rPrXML stores children-only XML (no wrapping
+		// <w:rPr> element) — wrap it so parseRunPropElements can locate
+		// its parent. See buildRPrXML for the children-only contract.
+		styleProps := parseRunPropElements([]byte("<w:rPr>" + s.rPrXML + "</w:rPr>"))
+		if len(styleProps) <= len(common) {
+			// Need a strict superset — same size means equality (which
+			// would have already matched in findMatchingStyle).
+			continue
+		}
+		allFound := true
+		for _, c := range common {
+			found := false
+			for _, p := range styleProps {
+				if p.name == c.name && p.xml == c.xml {
+					found = true
+					break
+				}
+			}
+			if !found {
+				allFound = false
+				break
+			}
+		}
+		if allFound {
+			return id
+		}
+	}
+	return ""
+}
+
+// paragraphHasMergedBreakTextRun reports whether `src` (a single <w:p>
+// element extent) holds exactly ONE non-field-content, non-break-only
+// run that itself carries BOTH a `<w:br>` child AND a `<w:t>` child.
+// This is the writer-merged shape that motivates findSupersetSynthStyle:
+// upstream's RunBuilder treats `<w:br>` and `<w:t>` chunks as separate
+// MarkupComponent / RunText body events with their own owning Run rPrs,
+// so the upstream byte trace shows two distinct <w:r>...</w:r>
+// envelopes; the native writer collapses them when emitting because the
+// run-encoded fragment chain happens to land both chunks on a single
+// emitted run.
+//
+// Both source-run flavours of `<w:br>` (line break, page break, column
+// break per ECMA-376-1 §17.3.3.1 CT_Br) qualify — the merge is purely
+// structural, independent of break type.
+func paragraphHasMergedBreakTextRun(runs []rawRun, entries []runEntry, src []byte) bool {
+	if len(runs) != 1 || len(entries) != 1 {
+		return false
+	}
+	runBody := src[runs[0].start:runs[0].end]
+	if !bytes.Contains(runBody, []byte("<w:br")) {
+		return false
+	}
+	// Skip opaque-subtree text scan so a textbox-content <w:t> inside
+	// a drawing-bearing run doesn't qualify (per the upstream Markup
+	// body-chunk model — see extractRunTextSkippingOpaque docstring).
+	if extractRunTextSkippingOpaque(runBody) == "" {
+		return false
+	}
+	return true
 }
 
 // insertPStyle returns a new <w:pPr>...</w:pPr> block with
