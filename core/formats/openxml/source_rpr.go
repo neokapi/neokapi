@@ -264,7 +264,7 @@ func commonRPrChildren(runs []textRun) []rPrChild {
 	// via WSO). Replace any kept rFonts entry with the per-attribute
 	// merged form.
 	merged, mergedOK := mergeRFontsAcrossRuns(textRuns)
-	out := make([]rPrChild, 0, len(common))
+	out := make([]rPrChild, 0, len(common)+1)
 	rFontsInjected := false
 	for _, p := range common {
 		if p.name == "rFonts" {
@@ -279,12 +279,60 @@ func commonRPrChildren(runs []textRun) []rPrChild {
 		out = append(out, p)
 	}
 	// If the seed run had rFonts but other runs differed → naive
-	// intersection dropped it. The per-attribute merge may still
-	// yield a non-empty rFonts, so inject it now.
+	// intersection dropped it from `common`, and the for-loop above
+	// never re-emitted it. The per-attribute merge may still yield a
+	// non-empty rFonts, so inject it at the seed run's original rFonts
+	// position so the resulting rPr-children list still respects ECMA-
+	// 376-1 §17.3.1.29 / CT_RPrBase strict child order (rFonts comes
+	// after rStyle but BEFORE every later property such as sz/szCs/u/
+	// color/highlight/lang/...). Without this, a paragraph whose
+	// runs disagree on eastAsia (e.g. Practice2 footer3.xml — text
+	// runs with Times-only rFonts interleaved with tab runs that
+	// carry Times+eastAsia) would emit `<w:rPr><w:sz/><w:szCs/>
+	// <w:rFonts/></w:rPr>` while every per-run rPr fragment emits
+	// `<w:rPr><w:rFonts/><w:sz/><w:szCs/></w:rPr>` — the writer's
+	// effectiveRPr-vs-sourceRPr equality checks (used by the
+	// inline-tab/br fusion path and the cross-run text close gate)
+	// would fail purely on child order, blocking the run merge that
+	// upstream Okapi achieves via RunMerger.canMergeWith
+	// (RunMerger.java:156-229) operating on already-canonical-order
+	// RunFonts (RunFonts.java:299-315 mergeContentCategories +
+	// 355-388 getAttributes which iterates ContentCategory enum
+	// values in CT_Fonts attribute order).
 	if !rFontsInjected && mergedOK {
-		out = append(out, rPrChild{name: "rFonts", xml: merged})
+		insertAt := seedRFontsPosition(textRuns)
+		// Bound insertAt by the size of `out` (some preceding common
+		// entries may have been intersected away).
+		if insertAt > len(out) {
+			insertAt = len(out)
+		}
+		out = append(out, rPrChild{}) // grow
+		copy(out[insertAt+1:], out[insertAt:])
+		out[insertAt] = rPrChild{name: "rFonts", xml: merged}
 	}
 	return out
+}
+
+// seedRFontsPosition returns the index of <w:rFonts> in the FIRST
+// text-bearing run's rPrChildren — used to re-inject merged rFonts
+// at its source position when intersection dropped it. Falls back to
+// 0 when the seed run has no rFonts (anomalous: mergeRFontsAcrossRuns
+// would have returned mergedOK=false in that case, so this branch
+// should be unreachable). Per ECMA-376-1 §17.3.1.29 (CT_RPrBase) the
+// strict child order requires rFonts to precede all properties that
+// follow it in the schema (sz, szCs, u, color, highlight, lang, …);
+// the seed run's source already obeys that order so re-using its
+// rFonts position keeps the merged common-rPr in canonical order.
+func seedRFontsPosition(textRuns []textRun) int {
+	if len(textRuns) == 0 {
+		return 0
+	}
+	for i, c := range textRuns[0].props.rPrChildren {
+		if c.name == "rFonts" {
+			return i
+		}
+	}
+	return 0
 }
 
 // intersectRPrChildren returns the rPrChildren of `a` that are also
