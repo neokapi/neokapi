@@ -829,9 +829,31 @@ func parseRunProps(d *xml.Decoder, aggressive bool, styleChainNames map[string]b
 				val := attrVal(t, "val")
 				if val != "" && val != "none" {
 					props.underline = val
-				}
-				if err := skipElement(d); err != nil {
-					return props, err
+					if err := skipElement(d); err != nil {
+						return props, err
+					}
+				} else {
+					// Clearing form (`<w:u w:val="none"/>` or
+					// `<w:u w:val="none" w:color="..."/>`) per ECMA-376-1
+					// §17.3.2.40 (CT_Underline) — explicit no-underline,
+					// the override that suppresses an inherited underline
+					// from the resolved style chain. Preserve verbatim in
+					// rPrChildren so it survives the per-run rPr sidecar.
+					// Mirrors upstream Okapi RunProperties.minified()
+					// preCombined.contains check (RunProperties.java
+					// :497-540) which keeps the clearing form when the
+					// style chain authors `<w:u>` by name. Fixture
+					// 992.docx footer1.xml is the canonical case: every
+					// hyperlink-wrapped text run carries
+					// `<w:u w:val="none" w:color="808080"/>` to suppress
+					// the inherited Hyperlink-style underline; without
+					// preservation the round-trip emits the inherited
+					// underline on those runs.
+					raw, err := serializeRPrChildElement(d, t)
+					if err != nil {
+						return props, err
+					}
+					props.rPrChildren = append(props.rPrChildren, rPrChild{name: local, xml: raw})
 				}
 			case local == "strike":
 				props.strike = !hasAttrVal(t, "val", "0") && !hasAttrVal(t, "val", "false")
