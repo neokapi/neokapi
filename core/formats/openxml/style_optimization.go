@@ -1283,22 +1283,60 @@ func stripToggleMirrorsFromCommon(props []runProp, rtl bool) []runProp {
 	// elements appear at most once per <w:rPr>).
 	hasBCs := false
 	hasICs := false
+	// Paired explicit-off detection (b ↔ bCs / i ↔ iCs). Mirrors
+	// stripToggleMirrorChildren in writer.go (lines 1580-1593) which
+	// preserves an explicit-off `<w:bCs w:val="0"/>` when the SAME
+	// fragment also carries an explicit-off `<w:b w:val="0"/>`. This is
+	// upstream Okapi's RunParser.canBeSkipped pairing rule
+	// (RunParser.java:240-250): bCs is skippable only when preCombined
+	// and runProperties have EQUAL bCs values; the explicit-off pair
+	// signals the inherited style chain has the toggle ON, so the
+	// clearing override must travel through to the synthesised style's
+	// rPr too — otherwise the synth style fails to clear the parent's
+	// italic/bold for paragraphs whose pStyle inherits it (Caption with
+	// `<w:i w:val="0"/><w:iCs w:val="0"/>` overriding the italic
+	// Caption style — highlights_block.docx is the canonical fixture).
+	hasExplicitOffB := false
+	hasExplicitOffI := false
+	hasExplicitOffBCs := false
+	hasExplicitOffICs := false
 	for _, p := range props {
 		switch p.name {
 		case "bCs":
 			hasBCs = true
+			if v, ok := parseRPrChildVal(p.xml); ok && (v == "0" || v == "false" || v == "off") {
+				hasExplicitOffBCs = true
+			}
 		case "iCs":
 			hasICs = true
+			if v, ok := parseRPrChildVal(p.xml); ok && (v == "0" || v == "false" || v == "off") {
+				hasExplicitOffICs = true
+			}
+		case "b":
+			if v, ok := parseRPrChildVal(p.xml); ok && (v == "0" || v == "false" || v == "off") {
+				hasExplicitOffB = true
+			}
+		case "i":
+			if v, ok := parseRPrChildVal(p.xml); ok && (v == "0" || v == "false" || v == "off") {
+				hasExplicitOffI = true
+			}
 		}
 	}
 	out := make([]runProp, 0, len(props))
 	for _, p := range props {
 		switch p.name {
-		case "bCs", "iCs":
-			// Keep bCs/iCs only on RTL paragraphs; on LTR they have
-			// no rendering effect and stripping matches upstream
-			// (952-3.docx / TestDako2.docx reference).
-			if rtl {
+		case "bCs":
+			// Keep bCs on RTL paragraphs (the bidi-script bold toggle
+			// applies to complex-script text). On LTR, also keep when
+			// the bCs is explicit-off AND its mirror b is explicit-off:
+			// the pair signals an inherited bold being cleared, and the
+			// synthesised style must carry both halves to match upstream
+			// (RunProperties.java:497-540 explicit-off-pair branch).
+			if rtl || (hasExplicitOffBCs && hasExplicitOffB) {
+				out = append(out, p)
+			}
+		case "iCs":
+			if rtl || (hasExplicitOffICs && hasExplicitOffI) {
 				out = append(out, p)
 			}
 		case "b":
