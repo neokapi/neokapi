@@ -1912,6 +1912,20 @@ func (w *Writer) writeFromSkeleton(origZR *zip.Reader, zw *zip.Writer, buf *byte
 		if bytes.Contains(data, []byte(`fldCharType="end"`)) {
 			data = pullLeadingFldCharEndIntoPrevParagraph(data)
 		}
+		// Same fld-end migration scoped to each
+		// `<w:txbxContent>...</w:txbxContent>` region. The document-
+		// level pass above doesn't reach paragraphs nested inside
+		// textbox bodies because the outer paragraph's `</w:p>`
+		// search short-circuits on the FIRST inner textbox `</w:p>`.
+		// Per upstream Okapi the textbox body is parsed as its own
+		// IBlock event stream so its complex-field deferredEvents
+		// flush runs independently — see
+		// pullLeadingFldCharEndIntoPrevParagraphInTxbxContents for the
+		// full citation. Fixture: 1341-textbox-with-a-hyperlink.docx.
+		if bytes.Contains(data, []byte("<w:txbxContent")) &&
+			bytes.Contains(data, []byte(`fldCharType="end"`)) {
+			data = pullLeadingFldCharEndIntoPrevParagraphInTxbxContents(data)
+		}
 		// Fuse a bare `<w:r><w:br .../></w:r>` envelope with the
 		// IMMEDIATELY-following bare `<w:r><w:t ...>…</w:t></w:r>`
 		// envelope into a single `<w:r>` carrying both the br and
@@ -4369,6 +4383,183 @@ func pullLeadingFldCharEndIntoPrevParagraph(data []byte) []byte {
 	return []byte(out.String())
 }
 
+// pullLeadingFldCharEndIntoPrevParagraphInTxbxContents applies the
+// same fld-end migration as pullLeadingFldCharEndIntoPrevParagraph
+// but scoped to each `<w:txbxContent>...</w:txbxContent>` region,
+// and matches BOTH the bare-body and the rPr-bearing leading
+// fld-end run shapes (see matchLeadingFldEndRunInTxbx).
+//
+// Textbox bodies are XML-nested inside `<w:drawing>` / `<w:pict>`
+// envelopes which themselves sit inside an outer `<w:r>` of a
+// surrounding `<w:p>`. The document-level migration pass
+// (pullLeadingFldCharEndIntoPrevParagraph) scans top-level `<w:p>`
+// boundaries and, because of the nesting, never identifies the
+// inner textbox paragraphs as standalone units — the first
+// `</w:p>` it locates after the outer paragraph open is actually
+// the inner textbox paragraph's close, so the outer-paragraph body
+// it computes spans only as far as that inner close. This pass
+// walks the file looking for txbxContent regions and applies the
+// migration to the paragraphs they enclose, with the upstream-
+// Okapi-correct rPr-bearing-run shape allowed.
+//
+// Mirrors upstream Okapi: the textbox body is parsed as a separate
+// IBlock event stream (TextboxContentExtraction + BlockParser.parse
+// over the inner WML), so the deferredEvents/complex-field flush
+// in RunParser.parseComplexField (RunParser.java:461-542) runs
+// independently inside the txbxContent scope. A HYPERLINK opened
+// in textbox paragraph N with its matching end in paragraph N+1
+// produces — after the deferredEvents flush — an output where the
+// end run (with its rPr) lives at the tail of paragraph N and
+// paragraph N+1's body is empty. Fixture:
+// 1341-textbox-with-a-hyperlink.docx.
+//
+// Idempotent: matchLeadingFldEndRunInTxbx only matches leading
+// fld-end runs in a paragraph body, so running this pass twice is
+// safe.
+func pullLeadingFldCharEndIntoPrevParagraphInTxbxContents(data []byte) []byte {
+	if !bytes.Contains(data, []byte("<w:txbxContent")) {
+		return data
+	}
+	if !bytes.Contains(data, []byte(`fldCharType="end"`)) {
+		return data
+	}
+	src := string(data)
+	var out strings.Builder
+	out.Grow(len(src))
+	pos := 0
+	const closeTok = "</w:txbxContent>"
+	for pos < len(src) {
+		nextOpen := indexFromOf(src, pos, "<w:txbxContent>", "<w:txbxContent ")
+		if nextOpen < 0 {
+			out.WriteString(src[pos:])
+			break
+		}
+		// Locate the end of the open tag (`>` after `<w:txbxContent`).
+		tagClose := strings.IndexByte(src[nextOpen:], '>')
+		if tagClose < 0 {
+			out.WriteString(src[pos:])
+			break
+		}
+		openEnd := nextOpen + tagClose + 1
+		closeAt := strings.Index(src[openEnd:], closeTok)
+		if closeAt < 0 {
+			out.WriteString(src[pos:])
+			break
+		}
+		innerStart := openEnd
+		innerEnd := openEnd + closeAt
+		// Copy everything up to and including the txbxContent open tag.
+		out.WriteString(src[pos:openEnd])
+		// Apply the inner-scope migration to the txbxContent contents.
+		inner := []byte(src[innerStart:innerEnd])
+		migrated := pullLeadingFldCharEndIntoPrevParagraphTxbxScope(inner)
+		out.Write(migrated)
+		// Copy the closing tag verbatim.
+		out.WriteString(closeTok)
+		pos = innerEnd + len(closeTok)
+	}
+	return []byte(out.String())
+}
+
+// pullLeadingFldCharEndIntoPrevParagraphTxbxScope is the
+// txbxContent-scoped migration loop. Same algorithm as
+// pullLeadingFldCharEndIntoPrevParagraph except the leading-run
+// match accepts an rPr-bearing fld-end run as well as the bare
+// form (see matchLeadingFldEndRunInTxbx for the upstream-Okapi
+// rationale). It also handles the self-closing `<w:p ... />`
+// paragraph shape that appears inside textboxes that originally
+// had no pPr and ended up with an empty body after WSO.
+func pullLeadingFldCharEndIntoPrevParagraphTxbxScope(data []byte) []byte {
+	src := string(data)
+	var out strings.Builder
+	out.Grow(len(src))
+
+	pos := 0
+	prevParaCloseInOut := -1
+	cumulativeFldBalance := 0
+	prevParaMigrationEligible := false
+
+	for pos < len(src) {
+		nextOpen := indexFromOf(src, pos, "<w:p>", "<w:p ")
+		if nextOpen < 0 {
+			out.WriteString(src[pos:])
+			break
+		}
+		out.WriteString(src[pos:nextOpen])
+		tagClose := strings.IndexByte(src[nextOpen:], '>')
+		if tagClose < 0 {
+			out.WriteString(src[nextOpen:])
+			break
+		}
+		// Self-closing `<w:p .../>` paragraph — copy verbatim. The
+		// self-closing form has no body to receive a migrated run.
+		if tagClose > 0 && src[nextOpen+tagClose-1] == '/' {
+			paraCloseEndAbs := nextOpen + tagClose + 1
+			out.WriteString(src[nextOpen:paraCloseEndAbs])
+			// Treat as an empty paragraph: not a valid migration
+			// destination in the next iteration (no `</w:p>` to
+			// splice before), and resets eligibility.
+			prevParaCloseInOut = -1
+			prevParaMigrationEligible = false
+			pos = paraCloseEndAbs
+			continue
+		}
+		paraOpenEnd := nextOpen + tagClose + 1
+		paraEnd := strings.Index(src[paraOpenEnd:], "</w:p>")
+		if paraEnd < 0 {
+			out.WriteString(src[nextOpen:])
+			break
+		}
+		paraEndAbs := paraOpenEnd + paraEnd
+		paraCloseEndAbs := paraEndAbs + len("</w:p>")
+		paraOpenTag := src[nextOpen:paraOpenEnd]
+		paraBody := src[paraOpenEnd:paraEndAbs]
+
+		bodyStart := 0
+		if strings.HasPrefix(paraBody, "<w:pPr>") || strings.HasPrefix(paraBody, "<w:pPr ") {
+			pprEnd := strings.Index(paraBody, "</w:pPr>")
+			if pprEnd >= 0 {
+				bodyStart = pprEnd + len("</w:pPr>")
+			} else if i := strings.Index(paraBody, "/>"); i >= 0 && strings.HasPrefix(paraBody, "<w:pPr") {
+				bodyStart = i + 2
+			}
+		}
+
+		moved := false
+		if prevParaCloseInOut >= 0 && cumulativeFldBalance > 0 && prevParaMigrationEligible {
+			leading := paraBody[bodyStart:]
+			matchedRun := matchLeadingFldEndRunInTxbx(leading)
+			if matchedRun != "" {
+				existing := out.String()
+				newOut := existing[:prevParaCloseInOut] + matchedRun + existing[prevParaCloseInOut:]
+				out.Reset()
+				out.WriteString(newOut)
+				cumulativeFldBalance--
+				newBody := paraBody[:bodyStart] + paraBody[bodyStart+len(matchedRun):]
+				out.WriteString(paraOpenTag)
+				out.WriteString(newBody)
+				out.WriteString("</w:p>")
+				prevParaCloseInOut = out.Len() - len("</w:p>")
+				cumulativeFldBalance += countFldBeginEndBalance(newBody)
+				prevParaMigrationEligible = paraMigrationEligible(newBody, bodyStart)
+				moved = true
+			}
+		}
+
+		if !moved {
+			out.WriteString(paraOpenTag)
+			out.WriteString(paraBody)
+			out.WriteString("</w:p>")
+			prevParaCloseInOut = out.Len() - len("</w:p>")
+			cumulativeFldBalance += countFldBeginEndBalance(paraBody)
+			prevParaMigrationEligible = paraMigrationEligible(paraBody, bodyStart)
+		}
+		pos = paraCloseEndAbs
+	}
+
+	return []byte(out.String())
+}
+
 // leadingFldEndRunRE matches a `<w:r ...><w:fldChar
 // w:fldCharType="end"/></w:r>` (or paired body) at the head of a
 // paragraph body. The wrapper attrs are arbitrary (rsid* survive
@@ -4381,6 +4572,13 @@ var leadingFldEndRunRE = regexp.MustCompile(
 	`^<w:r(?:\s[^>]*)?><w:fldChar w:fldCharType="end"(?:/>|></w:fldChar>)</w:r>`,
 )
 
+// leadingRunOpenRE matches just the `<w:r ...>` open tag at the head
+// of a body. Used by matchLeadingFldEndRunInTxbx to peel the wrapper
+// before inspecting the run body shape, since Go's RE2 regexp engine
+// can't match a `<w:rPr>...</w:rPr>` child with arbitrary inner XML
+// via a single pattern.
+var leadingRunOpenRE = regexp.MustCompile(`^<w:r(?:\s[^>]*)?>`)
+
 // matchLeadingFldEndRun returns the byte slice of the leading
 // fld-end run when present at the head of body, or "" otherwise.
 // The returned slice is suitable for splicing verbatim into the
@@ -4388,6 +4586,51 @@ var leadingFldEndRunRE = regexp.MustCompile(
 func matchLeadingFldEndRun(body string) string {
 	m := leadingFldEndRunRE.FindString(body)
 	return m
+}
+
+// matchLeadingFldEndRunInTxbx returns the byte slice of a leading
+// fld-end run at the head of body, accepting EITHER the bare-body
+// form (no rPr) or the rPr-bearing form (one `<w:rPr>...</w:rPr>`
+// preceding the fldChar). Used by the txbxContent-scoped migration
+// pass where upstream Okapi preserves the fld-end run's rPr when
+// the run migrates across the paragraph boundary inside a textbox
+// body. Per ECMA-376-1 §17.3.2.1 (CT_R), `<w:rPr>` is the first
+// optional child of `<w:r>`. Fixture:
+// 1341-textbox-with-a-hyperlink.docx — the textbox's fld-end run
+// carries `<w:rPr><w:b/><w:bCs/><w:sz w:val="32"/>
+// <w:szCs w:val="28"/></w:rPr>` and that rPr survives migration.
+//
+// The RE2 regexp engine can't match a `<w:rPr>...</w:rPr>` child
+// containing arbitrary inner WML elements via a single bounded
+// pattern, so this routine peels the `<w:r ...>` open tag, scans
+// for `</w:rPr>` to delimit the optional rPr child, then matches
+// the fld-end + `</w:r>` tail.
+func matchLeadingFldEndRunInTxbx(body string) string {
+	if m := leadingFldEndRunRE.FindString(body); m != "" {
+		return m
+	}
+	openLoc := leadingRunOpenRE.FindStringIndex(body)
+	if openLoc == nil {
+		return ""
+	}
+	rest := body[openLoc[1]:]
+	if !strings.HasPrefix(rest, "<w:rPr>") && !strings.HasPrefix(rest, "<w:rPr ") {
+		return ""
+	}
+	rprEnd := strings.Index(rest, "</w:rPr>")
+	if rprEnd < 0 {
+		return ""
+	}
+	tail := rest[rprEnd+len("</w:rPr>"):]
+	const fldEndSelfClose = `<w:fldChar w:fldCharType="end"/></w:r>`
+	const fldEndPaired = `<w:fldChar w:fldCharType="end"></w:fldChar></w:r>`
+	if strings.HasPrefix(tail, fldEndSelfClose) {
+		return body[:openLoc[1]+rprEnd+len("</w:rPr>")+len(fldEndSelfClose)]
+	}
+	if strings.HasPrefix(tail, fldEndPaired) {
+		return body[:openLoc[1]+rprEnd+len("</w:rPr>")+len(fldEndPaired)]
+	}
+	return ""
 }
 
 // paraMigrationEligible reports whether a paragraph's emitted body
