@@ -6004,6 +6004,26 @@ func (p *wmlParser) copyAndExtractDrawing(dec *xml.Decoder, out *strings.Builder
 				if err := p.extractBareTextElement(dec, out, t, partPath, emitBlock); err != nil {
 					return err
 				}
+			case t.Name.Local == "t" && t.Name.Space == dmlNamespace:
+				// DrawingML <a:t> (ECMA-376-1 §21.1.2.2.7) inside a
+				// captured drawing payload — text content of an <a:r>
+				// run inside an <a:p> paragraph inside a DrawingML
+				// container (<lc:lockedCanvas>, <wps:txbx>, <a:txBody>,
+				// chart text, …). Upstream Okapi's wordConfiguration.yml
+				// declares 'a:t' as a TEXTMARKER (line ~138) so its
+				// character data is the translatable text payload of
+				// the surrounding <a:r>; the run/text envelope rounds
+				// trips verbatim. Mirror that here by replacing the
+				// CDATA with a TEXT marker — the wrapping <a:r><a:rPr/>
+				// <a:t> ... </a:t></a:r> stays intact in the captured
+				// XML stream.
+				//
+				// Fixture: DrawingML_Test.docx (a <lc:lockedCanvas>
+				// hosting an <a:p><a:r><a:t>Important</a:t></a:r></a:p>
+				// inside a <wp:inline> drawing in document.xml).
+				if err := p.extractBareTextElement(dec, out, t, partPath, emitBlock); err != nil {
+					return err
+				}
 			default:
 				writeRawStartElementTo(out, t)
 			}
