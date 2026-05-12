@@ -4677,6 +4677,72 @@ func (p *wmlParser) buildBlock(id string, runs []textRun, partPath, commonRPrXML
 			case strings.Contains(rawXML, "cr"):
 				subType = SubTypeCR
 			}
+			// When the paragraph has no common rPr (heterogeneous
+			// rPr across text runs \u2192 commonRPrXML is empty) AND this
+			// raw-markup run carried its OWN rPr in the source, the
+			// writer's TypeRawRunMarkup branch would emit
+			// `<w:r><w:cr/></w:r>` with no rPr at all \u2014 the source's
+			// per-run rPr (e.g. `<w:rStyle w:val="DONOTTRANSLATE"/>`)
+			// is lost on the wire. Embed the rPr into the Ph.Data so
+			// the writer's empty-sourceRPr branch (writer.go ~3394:
+			// `<w:r>` + Ph.Data + `</w:r>`) emits the rPr in document
+			// order. Mirrors the TypeImage / TypeBreak embedded-rPr
+			// pattern in writer.go for the same heterogeneous-rPr
+			// paragraph scenario. Per ECMA-376-1 \u00A717.3.2.1 (CT_R)
+			// `<w:rPr>` precedes the run's other children; per
+			// \u00A717.3.3.4 the `<w:cr/>` inherits its containing `<w:r>`'s
+			// rPr context.
+			//
+			// Guarded on commonRPrXML == "" so the homogeneous-rPr
+			// case (sourceRPr non-empty \u2192 writer prefixes its own
+			// `<w:rPr>` block) doesn't get a duplicate `<w:rPr>`
+			// element.
+			//
+			// Strip `<w:szCs/>` from the embedded rPr \u2014 sentinels were
+			// skipped by the per-run szCs strip in parseParagraph
+			// (isSentinel guard at line 2285) because they previously
+			// did not surface their rPr. With the embedding the cr's
+			// rPr does reach the wire, so the same chain-absent strip
+			// must apply per upstream Okapi RunParser.canBeSkipped
+			// (RunParser.java:226-228) \u2014 szCs is the complex-script
+			// mirror of `<w:sz>` (ECMA-376-1 \u00A717.3.2.39) and the cr
+			// element carries no character data, so the no-CS-text
+			// gate trivially passes. Without this strip MissingPara's
+			// cr-bearing runs would emit `<w:szCs val="48"/>` that
+			// upstream Okapi strips at parse time. The chain-absent
+			// gate `!chainNames["szCs"]` is checked because some
+			// fixtures (947-non-cs.docx) intentionally inherit
+			// `<w:szCs val="\u2026"/>` via docDefaults \u2014 there the strip
+			// is correctly gated off.
+			//
+			// Fixture: MissingPara.docx \u2014 the `<w:r>` carrying
+			// `<w:rPr><w:rStyle w:val="DONOTTRANSLATE"/></w:rPr>
+			// <w:cr/></w:r>` was emitting as `<w:r><w:cr/></w:r>`
+			// with the rStyle dropped.
+			if commonRPrXML == "" {
+				crProps := run.props
+				// Mirror the body-text loop's szCs strip at
+				// parseParagraph line ~2365 — sentinels were skipped
+				// there by the isSentinel guard because their rPr did
+				// not previously reach the wire. Now that we embed the
+				// rPr the same chain-absent strip applies; subType ==
+				// SubTypeCR guarantees the run carries no character
+				// data so the containsComplexScriptText gate from
+				// upstream RunParser.canBeSkipped trivially passes.
+				// The chain-authored-szCs case is rare for cr-bearing
+				// runs (cr appears inside a body-text paragraph whose
+				// chain already passed the strip on its text runs);
+				// when present the cr's szCs will match the chain via
+				// the chain-XML-match strip applied by later optim
+				// passes. Per ECMA-376-1 §17.3.2.39 (szCs) the strip
+				// is semantically safe for the no-CS-content case.
+				if subType == SubTypeCR {
+					crProps.rPrChildren = stripChainAbsentSzCs(append([]rPrChild(nil), run.props.rPrChildren...))
+				}
+				if rPr := serializeFullRPrXML(crProps); rPr != "" {
+					rawXML = rPr + rawXML
+				}
+			}
 			spanCounter++
 			b.AddPh(fmt.Sprintf("c%d", spanCounter),
 				TypeRawRunMarkup, subType,
