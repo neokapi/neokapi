@@ -6232,6 +6232,15 @@ var nsPrefixMap = map[string]string{
 	"http://schemas.microsoft.com/office/powerpoint/2012/main":                  "p15",
 	"http://schemas.microsoft.com/office/drawing/2010/main":                     "a14",
 	"http://schemas.microsoft.com/office/drawing/2014/main":                     "a16",
+	// Mac DrawingML extension namespace used by `<ma14:wrappingTextBoxFlag>`
+	// inside DrawingML `<a:ext>` elements (ECMA-376 Part 1 §20.1 / Microsoft
+	// Office DrawingML extensions). Hidden_Textbox.docx is the canonical
+	// fixture — without this entry writeElementName falls into the
+	// unknown-prefix path and emits `<wrappingTextBoxFlag xmlns:ma14="..."/>`
+	// instead of `<ma14:wrappingTextBoxFlag xmlns:ma14="..."/>`, which the
+	// canon comparator interprets as default-namespace and flags as
+	// divergent (the canonical xmlns="..." pseudo-declaration is missing).
+	"http://schemas.microsoft.com/office/mac/drawingml/2011/main": "ma14",
 	"http://purl.org/dc/elements/1.1/":                                          "dc",
 	"http://purl.org/dc/terms/":                                                 "dcterms",
 	"http://schemas.openxmlformats.org/officeDocument/2006/customXml":           "ds",
