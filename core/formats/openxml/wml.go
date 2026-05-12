@@ -4346,6 +4346,97 @@ func serializeFullRPrXML(p runProps) string {
 	return b.String()
 }
 
+// TypeHiddenRun tags an isolated RunCode-style placeholder carrying the
+// FULL `<w:r>...</w:r>` envelope of a hidden-text run (vanish on the
+// run's own rPr or via the rStyle character-style chain). The Ph.Data
+// field holds the raw `<w:r>...</w:r>` XML; the writer's renderWMLBlock
+// `default` case in the Ph dispatch emits Ph.Data verbatim, which
+// preserves the source text untranslated. Mirrors upstream Okapi
+// StyledTextMapping.addRun (StyledTextMapping.java:203-211) which
+// promotes runs with `!containsVisibleText()` to isolated RunCodes.
+//
+// SubTypeHiddenRunVanish is the only refinement currently emitted: it
+// covers both direct `<w:vanish/>` on the run AND vanish inherited via
+// rStyle. ECMA-376-1 §17.3.2.45 (<w:vanish>) defines the toggle; per
+// §17.3.2.29 (<w:rStyle>) the resolved style chain contributes to the
+// run's effective formatting, so a chain that authors `<w:vanish/>`
+// (e.g. HiddenExcluded.docx's Haydn / FranzJosef styles) produces an
+// effectively hidden run even when the run's own rPr lacks vanish.
+//
+// These two constants live here (in wml.go) rather than in
+// vocabulary.go so the change stays scoped to the reader-side
+// promotion path; the writer's existing `default` Ph branch emits the
+// payload verbatim regardless of the type-string value, so no writer
+// dispatch update is required.
+const (
+	TypeHiddenRun          = "struct:hidden-run"
+	SubTypeHiddenRunVanish = "openxml:vanish"
+)
+
+// isHiddenRun reports whether a textRun should be promoted to an
+// isolated RunCode-style Ph (TypeHiddenRun) so the pseudo-translator
+// and downstream tooling skip its body.
+//
+// A run is hidden when:
+//
+//  1. Its own rPr carries `<w:vanish/>` (parsed into runProps.vanish).
+//  2. Its rStyle chain resolves to a style whose effective rPr has
+//     vanish (e.g. HiddenExcluded.docx's Haydn / FranzJosef styles
+//     which carry `<w:vanish/>` directly in the style's rPr).
+//
+// Whole-paragraph hidden cases (paragraph-level `<w:vanish/>` via
+// pStyle, all runs hidden) are filtered upstream by allHidden in
+// parseParagraph — those paragraphs never reach buildBlock. This
+// helper covers the per-paragraph mixed case where some runs are
+// hidden and some are visible.
+//
+// Mirrors upstream Okapi RunParser.clarifyVisibility
+// (RunParser.java:298-316): the vanish lookup walks
+// `combinedRunProperties = styleDefinitions.combinedRunProperties(
+// paragraphStyle, runStyle, runProperties)` so the rStyle's resolved
+// chain participates in the visibility decision.
+//
+// We deliberately skip the highlight / color / excluded-style branches
+// of upstream's clarifyVisibility — those paths only fire when
+// `tsExcludeWordStyles`, `tsWordHighlightColors`, or
+// `tsWordExcludedColors` are non-empty (defaults are empty, see
+// ConditionalParameters.reset() at line 829-832). Native's Config has
+// no equivalent toggles wired through yet; if one is added, extend
+// this helper symmetrically.
+//
+// Vanish-clear semantics: when the run carries an explicit
+// `<w:vanish w:val="0"/>` (or "false"/"off"), runProps.vanishExplicit
+// is true AND runProps.vanish is false — the run's direct rPr CLEARS
+// any vanish inherited via the rStyle chain. ECMA-376-1 §17.3.2.45
+// (CT_OnOff) toggle semantics: a clearing override at the closer
+// (more specific) level wins over the inherited setting. Mirrors
+// upstream Okapi RunParser.clarifyVisibility (RunParser.java:310-316)
+// which iterates `combinedRunProperties.properties()` and the FIRST
+// vanish encountered (the run's direct one — combine merges the
+// run's properties last, so they sit on top of the chain) is the
+// deciding value. HiddenExcluded.docx's 17th paragraph is the
+// canonical case: rStyle=Haydn (Haydn carries `<w:vanish/>`) with a
+// direct `<w:vanish w:val="0"/>` override → the run is VISIBLE and
+// must be translated.
+func (p *wmlParser) isHiddenRun(run textRun) bool {
+	if run.props.vanishExplicit {
+		// Direct rPr authored a vanish toggle (on or off). The run's
+		// own value overrides any rStyle-chain inheritance.
+		return run.props.vanish
+	}
+	if run.props.vanish {
+		return true
+	}
+	if p.styles == nil {
+		return false
+	}
+	rStyleID := extractRStyleID(run.props.rPrChildren)
+	if rStyleID == "" {
+		return false
+	}
+	return p.styles.resolveProps(rStyleID).vanish
+}
+
 // buildBlock builds a model.Block from a list of merged text runs.
 //
 // commonRPrXML is the children-only serialisation of the rPr elements
@@ -4866,6 +4957,81 @@ func (p *wmlParser) buildBlock(id string, runs []textRun, partPath, commonRPrXML
 			continue
 		}
 
+		// Promote a hidden-text run (vanish on the run's own rPr OR via
+		// the rStyle character-style chain) to an opaque RunCode-style
+		// Ph carrying the FULL `<w:r>...</w:r>` envelope verbatim. The
+		// pseudo-translator and the writer never look inside the Ph's
+		// raw payload — the source text round-trips untranslated, the
+		// hidden run's source-rPr (vanish toggle, rStyle reference, …)
+		// is preserved byte-for-byte, and the run boundaries against
+		// the surrounding visible runs survive intact.
+		//
+		// Mirrors upstream Okapi StyledTextMapping.addRun
+		// (StyledTextMapping.java:203-211): when
+		// `!run.containsVisibleText()` the run is converted into an
+		// isolated RunCode (PLACEHOLDER) so it does not contribute
+		// translatable text to the TextFragment. Run.containsVisibleText
+		// returns false when the RunBuilder's `isHidden` flag is set —
+		// computed by RunParser.clarifyVisibility (RunParser.java:298-364)
+		// from `combinedRunProperties` which folds the rStyle chain in
+		// alongside the run's direct rPr (line 305-309).
+		// `clarifyVisibility` reads the merged vanish toggle at line 311-314
+		// and short-circuits on `getTranslateWordHidden`.
+		//
+		// Per ECMA-376-1 §17.3.2.45 (<w:vanish>) hidden text is
+		// suppressed from display; treating it as translatable would
+		// expose it to the translator and pseudo-pass would mutate
+		// content that is never shown. Per ECMA-376-1 §17.3.2.29
+		// (<w:rStyle>) the referenced character style's rPr is part of
+		// the run's effective formatting, so a style chain that
+		// authors `<w:vanish/>` (e.g. the Haydn / FranzJosef styles in
+		// HiddenExcluded.docx) marks every run that uses it as hidden
+		// even when the run's own rPr lacks vanish.
+		//
+		// HiddenExcluded.docx is the canonical fixture: a paragraph
+		// mixes visible runs with a `<w:rPr><w:vanish/></w:rPr>` run
+		// AND a `<w:rPr><w:rStyle w:val="Haydn"/></w:rPr>` run (Haydn
+		// rStyle has `<w:vanish/>` in its rPr). The reference
+		// pseudo-translates the visible runs only; the two hidden runs
+		// keep their source text verbatim. Whole-paragraph hidden
+		// cases (paras whose pStyle inherits vanish, runs whose own
+		// vanish covers the whole para) are filtered earlier by
+		// `allHidden` in parseParagraph (no Block emitted at all);
+		// this branch handles the per-paragraph mixed case where some
+		// runs are hidden and some are not.
+		//
+		// `cfg.TranslateHiddenText` mirrors upstream's
+		// `getTranslateWordHidden`: when true the hidden runs flow as
+		// regular translatable text (no Ph promotion).
+		if !p.cfg.TranslateHiddenText && p.isHiddenRun(run) {
+			if activeProps != nil && !activeProps.isEmpty() {
+				activeProps.appendClosingRuns(b, &spanCounter)
+				activeProps = nil
+			}
+			rPrXML := serializeFullRPrXML(run.props)
+			// Always emit `xml:space="preserve"` — the source text may
+			// carry leading/trailing whitespace (HiddenExcluded.docx's
+			// `hidden [direct vanish] ` ends with a space) and the
+			// reference output preserves it. Per ECMA-376-1 §17.3.3.20
+			// (<w:t>) the xml:space attribute defaults to "default"
+			// which collapses surrounding whitespace; "preserve" keeps
+			// it intact, matching upstream Okapi RunBuilder which
+			// emits xml:space="preserve" whenever the run text is not
+			// pure non-whitespace.
+			fullRunXML := "<w:r>" + rPrXML + `<w:t xml:space="preserve">` + xmlEscape(run.text) + "</w:t></w:r>"
+			spanCounter++
+			b.AddPh(fmt.Sprintf("c%d", spanCounter),
+				TypeHiddenRun, SubTypeHiddenRunVanish,
+				fullRunXML, run.text, "",
+				false, false, false)
+			// Reset activeProps so the next visible run opens its own
+			// formatting context — the hidden Ph has its own
+			// self-contained <w:r> envelope and does not influence
+			// open toggles.
+			activeProps = nil
+			continue
+		}
+
 		// Handle formatting changes
 		if activeProps == nil || !activeProps.equal(run.props) {
 			// Close previous formatting. We measure the runBuilder
@@ -5328,12 +5494,33 @@ func isEmptyRuns(runs []textRun) bool {
 // PageBreak.docx after WSO promotes <w:vanish/> into a synthesised
 // Standard1 pStyle) still gets skipped by the hidden-text filter on
 // re-read. Callers without style context pass false.
+//
+// Vanish-clear semantics: a run carrying an explicit
+// `<w:vanish w:val="0"/>` (runProps.vanishExplicit && !runProps.vanish)
+// CLEARS any inherited vanish — that run is visible. Per ECMA-376-1
+// §17.3.2.45 (CT_OnOff) the closer (more specific) authoring level
+// wins. Mirrors upstream Okapi RunParser.clarifyVisibility
+// (RunParser.java:310-316) where the run's direct vanish overrides
+// inheritance. Without this, paragraph 18 of HiddenExcluded.docx
+// (`<w:pPr><w:pStyle w:val="FranzJosef"/></w:pPr>` — FranzJosef
+// has vanish — `<w:r><w:rPr><w:vanish w:val="0"/></w:rPr><w:t>…</w:t>`)
+// would be incorrectly filtered as wholly hidden, when in fact the
+// run's clear-override makes it visible and the paragraph must emit a
+// translatable Block.
 func allHidden(runs []textRun, inheritedVanish bool) bool {
 	for _, r := range runs {
 		if isSentinel(r.text) {
 			continue
 		}
-		if !r.props.vanish && !inheritedVanish && strings.TrimSpace(r.text) != "" {
+		if strings.TrimSpace(r.text) == "" {
+			continue
+		}
+		// Run with an explicit vanish-clear overrides paragraph-style
+		// inheritance — visible.
+		if r.props.vanishExplicit && !r.props.vanish {
+			return false
+		}
+		if !r.props.vanish && !inheritedVanish {
 			return false
 		}
 	}
@@ -6433,6 +6620,7 @@ const fieldRPrKeepEmptyMarker = "<!--KAPI-FIELD-RPR-->"
 //   - <w:lang>            (RUN_PROPERTY_LANGUAGE)
 //   - <w:noProof>         (RUN_PROPERTY_NO_SPELLING_OR_GRAMMAR)
 //   - <w:rPrChange>       (RUN_PROPERTIES_CHANGE — revision tracking)
+//
 // Each regex matches both self-closing and open/close forms and
 // allows attributes / xmlns declarations on the start tag.
 //
@@ -6826,16 +7014,16 @@ var nsPrefixMap = map[string]string{
 	// instead of `<ma14:wrappingTextBoxFlag xmlns:ma14="..."/>`, which the
 	// canon comparator interprets as default-namespace and flags as
 	// divergent (the canonical xmlns="..." pseudo-declaration is missing).
-	"http://schemas.microsoft.com/office/mac/drawingml/2011/main": "ma14",
-	"http://purl.org/dc/elements/1.1/":                                          "dc",
-	"http://purl.org/dc/terms/":                                                 "dcterms",
-	"http://schemas.openxmlformats.org/officeDocument/2006/customXml":           "ds",
-	"urn:schemas-microsoft-com:vml":                                             "v",
-	"urn:schemas-microsoft-com:office:office":                                   "o",
-	"urn:schemas-microsoft-com:office:word":                                     "w10",
-	"http://www.w3.org/2001/XMLSchema-instance":                                 "xsi",
-	"http://www.w3.org/2001/XMLSchema":                                          "xsd",
-	"http://www.w3.org/XML/1998/namespace":                                      "xml",
+	"http://schemas.microsoft.com/office/mac/drawingml/2011/main":     "ma14",
+	"http://purl.org/dc/elements/1.1/":                                "dc",
+	"http://purl.org/dc/terms/":                                       "dcterms",
+	"http://schemas.openxmlformats.org/officeDocument/2006/customXml": "ds",
+	"urn:schemas-microsoft-com:vml":                                   "v",
+	"urn:schemas-microsoft-com:office:office":                         "o",
+	"urn:schemas-microsoft-com:office:word":                           "w10",
+	"http://www.w3.org/2001/XMLSchema-instance":                       "xsi",
+	"http://www.w3.org/2001/XMLSchema":                                "xsd",
+	"http://www.w3.org/XML/1998/namespace":                            "xml",
 	// Microsoft Office extension namespaces
 	"http://schemas.microsoft.com/office/word/2010/wordprocessingCanvas":  "wpc",
 	"http://schemas.microsoft.com/office/word/2010/wordprocessingDrawing": "wp14",
