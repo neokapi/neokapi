@@ -328,11 +328,415 @@ func optimizeWMLPartWithSource(
 			paraBytes,
 			existingStyleIDs, defaultParagraphStyleID, hasStylesPart, partStrict, idCounter, synthesised, orderedIDs,
 		)
+		// Post-pass: split any <w:r> envelope that fused multiple
+		// drawing-bearing source runs whose <wp:docPr> carries a
+		// translatable @name or @descr (or whose <v:textpath> carries a
+		// translatable @string). Mirrors upstream Okapi RunMerger's
+		// nested-items refusal — RunMerger.canMergeWith
+		// (RunMerger.java:143-149) returns false when either
+		// RunBuilder.containsNestedItems() is true. The flag is set by
+		// RunParser.processTranslatableAttribute (RunParser.java:867)
+		// whenever a translatable graphic name/desc or v:textpath string
+		// is encountered. Native's parseParagraph drawing-fusion path
+		// (wml.go ~2865) coalesces adjacent same-rPr drawing runs
+		// without checking for translatable attributes, so we split
+		// post-WSO to restore the per-source-`<w:r>` envelope
+		// boundary. Fixture: delTextAmp.docx header1.xml — two adjacent
+		// `<w:r><w:rPr><w:noProof/></w:rPr><w:drawing>...
+		// <wp:docPr name="Picture 54" descr="HBF Logo_HorizColor copy"/>
+		// ...</w:drawing></w:r>` envelopes get fused by native into one
+		// `<w:r>` with two `<w:drawing>` children; bridge keeps them as
+		// two `<w:r>` envelopes.
+		rewritten = splitFusedTranslatableDrawingRuns(rewritten)
 		out.Write(rewritten)
 		cursor = para.end
 	}
 	out.Write(src[cursor:])
 	return out.Bytes()
+}
+
+// splitFusedTranslatableDrawingRuns scans a paragraph and splits any
+// `<w:r>` envelope that contains 2+ opaque drawing children (`<w:drawing>`
+// or `<w:pict>`) where ANY child carries a translatable attribute marker
+// — `<wp:docPr w:name="…"/>` or `<wp:docPr w:descr="…"/>` (graphic name
+// or description) or `<v:textpath v:string="…"/>` — into separate
+// `<w:r>` envelopes, one per opaque child.
+//
+// Rationale: upstream Okapi's RunMerger refuses to fuse adjacent
+// `RunBuilder`s when either's `containsNestedItems` is true
+// (RunMerger.canMergeWith, RunMerger.java:143-149). The flag is set by
+// `RunParser.processTranslatableAttribute` (RunParser.java:860-885)
+// whenever it encounters a translatable graphic name/descr or
+// v:textpath string. Native's drawing-fusion path in
+// `parseParagraph` (wml.go ~2865) coalesces adjacent same-rPr
+// drawing-only runs without consulting the nested-items flag, so when
+// the source has two adjacent `<w:r><w:rPr><w:noProof/></w:rPr><w:drawing>
+// …<wp:docPr name="…"/>…</w:drawing></w:r>` envelopes they get fused
+// into one `<w:r>` carrying both `<w:drawing>` children. Bridge keeps
+// them separate. This post-pass restores the per-source-`<w:r>`
+// envelope boundary by detecting the fused shape and splitting.
+//
+// The function operates on the WSO-rewritten paragraph bytes — after
+// `optimizeParagraph` may have stripped common-rPr children — so the
+// `<w:rPr>` we replicate is the one each split envelope actually carries
+// on the wire. Drawing children without a translatable name/descr/string
+// (e.g. `<w:pict>` envelopes containing only `<v:rect>` shapes, which
+// `RunParser.processTranslatableAttributes` ignores) skip the split —
+// upstream Okapi DOES fuse those into one `<w:r>` (neverendingloop.docx
+// is the canonical preserved-fusion fixture).
+//
+// References:
+//   - ECMA-376-1 §17.3.2.1 (CT_R) — a `<w:r>` may carry zero or more
+//     `<w:drawing>` / `<w:pict>` / `<w:object>` children.
+//   - ECMA-376-1 §20.4.2.5 (`<wp:docPr>`) — graphic name/descr.
+//   - okapi RunMerger.canMergeWith (RunMerger.java:143-149) — nested-
+//     items refusal.
+//   - okapi RunParser.processTranslatableAttribute (RunParser.java:
+//     860-885) — sets containsNestedItems when name/descr/string is
+//     present and the translate option is enabled (defaults true for
+//     all three — ConditionalParameters.java:789-792).
+func splitFusedTranslatableDrawingRuns(paraSrc []byte) []byte {
+	if len(paraSrc) == 0 {
+		return paraSrc
+	}
+	// Fast bail: no drawing/pict at all, or no translatable marker.
+	if !bytes.Contains(paraSrc, []byte("<w:drawing")) &&
+		!bytes.Contains(paraSrc, []byte("<w:pict")) {
+		return paraSrc
+	}
+	if !drawingHasTranslatableAttr(paraSrc) {
+		return paraSrc
+	}
+	runs := findRuns(paraSrc)
+	if len(runs) == 0 {
+		return paraSrc
+	}
+	var out bytes.Buffer
+	out.Grow(len(paraSrc) + 256)
+	cursor := 0
+	for _, r := range runs {
+		runBytes := paraSrc[r.start:r.end]
+		// Locate top-level opaque children inside this <w:r>.
+		// (findOpaqueDrawingChildren skips children nested inside
+		// other opaque subtrees — e.g. a nested <w:drawing> inside
+		// a <w:pict>'s VML body never qualifies as a top-level
+		// sibling for splitting purposes.)
+		children := findOpaqueDrawingChildren(runBytes)
+		if len(children) < 2 {
+			continue
+		}
+		// At least one child must carry a translatable attribute
+		// marker. If none do, leave the run intact: upstream Okapi
+		// fuses non-translatable adjacent drawing/pict runs.
+		anyTranslatable := false
+		for _, c := range children {
+			if drawingHasTranslatableAttr(runBytes[c.start:c.end]) {
+				anyTranslatable = true
+				break
+			}
+		}
+		if !anyTranslatable {
+			continue
+		}
+		// Locate the run's <w:rPr> (if any) and the run's
+		// `<w:r ...>` open + `</w:r>` close so each split envelope
+		// can replicate the original wrapper.
+		openTagEnd := bytes.IndexByte(runBytes, '>')
+		if openTagEnd < 0 {
+			continue
+		}
+		openTag := runBytes[:openTagEnd+1]
+		closeTag := []byte("</w:r>")
+		// rPr child (if present) sits immediately after the open
+		// tag. findFirstChild handles namespaced names without the
+		// "w:" prefix.
+		rPrStart, rPrEnd, hasRPr := findFirstChild(runBytes, "rPr")
+		var rPrXML []byte
+		if hasRPr {
+			rPrXML = runBytes[rPrStart:rPrEnd]
+		}
+		// Emit pre-run bytes.
+		out.Write(paraSrc[cursor:r.start])
+		// Emit one <w:r> envelope per opaque child.
+		for k, c := range children {
+			out.Write(openTag)
+			if hasRPr {
+				out.Write(rPrXML)
+			}
+			// Between consecutive opaque children, the source
+			// could carry whitespace or comments — keep ONLY the
+			// child bytes themselves; whitespace between siblings
+			// inside a fused <w:r> is non-semantic per ECMA-376
+			// (CT_R children are element-only). Subsequent
+			// extraction of inline text fields ensures intra-
+			// child markers stay intact.
+			out.Write(runBytes[c.start:c.end])
+			out.Write(closeTag)
+			_ = k
+		}
+		cursor = r.end
+	}
+	out.Write(paraSrc[cursor:])
+	return out.Bytes()
+}
+
+// drawingHasTranslatableAttr reports whether the byte slice contains a
+// translatable attribute marker on a `<wp:docPr>` or `<v:textpath>`
+// element — `name="…"`, `descr="…"` (drawing properties), or
+// `string="…"` (VML textpath). Used by splitFusedTranslatableDrawingRuns
+// to gate the split — only runs whose payload would have triggered
+// RunBuilder.setContainsNestedItems upstream are split.
+//
+// We accept any non-empty attribute value (mirroring upstream Okapi
+// which always sets the flag when the attribute is present, regardless
+// of value; see RunParser.processTranslatableAttribute,
+// RunParser.java:860-885).
+func drawingHasTranslatableAttr(data []byte) bool {
+	// Look for <wp:docPr ... name=" or <wp:docPr ... descr=".
+	for _, tag := range [][]byte{[]byte("<wp:docPr"), []byte("<v:textpath")} {
+		i := 0
+		for {
+			idx := bytes.Index(data[i:], tag)
+			if idx < 0 {
+				break
+			}
+			abs := i + idx
+			// Confirm element-name boundary.
+			j := abs + len(tag)
+			if j >= len(data) {
+				break
+			}
+			b := data[j]
+			if b != '>' && b != ' ' && b != '\t' && b != '\n' && b != '\r' && b != '/' {
+				i = j
+				continue
+			}
+			// Find end of this open tag.
+			endIdx := bytes.IndexByte(data[j:], '>')
+			if endIdx < 0 {
+				break
+			}
+			tagBody := data[j : j+endIdx]
+			var attrs []string
+			if bytes.Equal(tag, []byte("<wp:docPr")) {
+				attrs = []string{"name=\"", "descr=\""}
+			} else {
+				attrs = []string{"string=\""}
+			}
+			for _, a := range attrs {
+				if bytes.Contains(tagBody, []byte(a)) {
+					return true
+				}
+			}
+			i = j + endIdx
+		}
+	}
+	return false
+}
+
+// skipBalancedSubtree returns the absolute offset just past the end of
+// the balanced element opened at `start` with the given open-tag form
+// (`<mc:AlternateContent`, `<w:object`, …). If the element is
+// self-closing or unbalanced/truncated, returns the offset just past
+// the open tag (best-effort — the runs in our pipeline are always
+// well-formed XML, so the balanced walk is the live path).
+func skipBalancedSubtree(src []byte, start int, openTag string) int {
+	if start >= len(src) {
+		return len(src)
+	}
+	endIdx := bytes.IndexByte(src[start:], '>')
+	if endIdx < 0 {
+		return len(src)
+	}
+	openTagAbsEnd := start + endIdx
+	if openTagAbsEnd > 0 && src[openTagAbsEnd-1] == '/' {
+		return openTagAbsEnd + 1
+	}
+	closeName := []byte("</" + openTag[1:] + ">")
+	depth := 1
+	inner := openTagAbsEnd + 1
+	for depth > 0 && inner < len(src) {
+		nextOpen := bytes.Index(src[inner:], []byte(openTag))
+		nextClose := bytes.Index(src[inner:], closeName)
+		if nextClose < 0 {
+			return len(src)
+		}
+		if nextOpen >= 0 && nextOpen < nextClose {
+			bj := inner + nextOpen + len(openTag)
+			if bj < len(src) {
+				bb := src[bj]
+				if bb == '>' || bb == ' ' || bb == '\t' || bb == '\n' || bb == '\r' || bb == '/' {
+					kk := bytes.IndexByte(src[bj:], '>')
+					if kk >= 0 {
+						se := bj + kk
+						if !(se > 0 && src[se-1] == '/') {
+							depth++
+						}
+						inner = se + 1
+						continue
+					}
+				}
+			}
+			inner = bj
+			continue
+		}
+		depth--
+		inner = inner + nextClose + len(closeName)
+	}
+	return inner
+}
+
+// opaqueDrawingChild is a top-level `<w:drawing>` or `<w:pict>` child
+// inside a `<w:r>` envelope, captured by its byte offsets within the
+// run.
+type opaqueDrawingChild struct {
+	start int
+	end   int
+}
+
+// findOpaqueDrawingChildren returns the top-level `<w:drawing>` and
+// `<w:pict>` children of a `<w:r>` envelope, with offsets relative to
+// the run bytes. Nested drawings/picts inside a textbox or VML payload
+// are excluded — only direct children of the `<w:r>` qualify.
+//
+// `<w:object>` and `<mc:AlternateContent>` are NOT scanned: the wml.go
+// drawing-fusion path (wml.go ~2865) only fuses runs whose opaqueRunKind
+// matches AND whose kind is in the fusable-drawing set — and
+// `mc:AlternateContent` is explicitly excluded from fusion
+// (isFusableDrawingRun, wml.go ~6000). `<w:object>` is treated like a
+// drawing by the fusion path so we include `<w:object>` too if it
+// surfaces; in practice we have no fixture exercising the fused-object
+// translatable-attribute shape, so we keep the include conservative.
+func findOpaqueDrawingChildren(runBytes []byte) []opaqueDrawingChild {
+	// Skip past the <w:r ...> open tag.
+	openEnd := bytes.IndexByte(runBytes, '>')
+	if openEnd < 0 {
+		return nil
+	}
+	if openEnd > 0 && runBytes[openEnd-1] == '/' {
+		// Self-closing <w:r/> — no children.
+		return nil
+	}
+	scan := openEnd + 1
+	var out []opaqueDrawingChild
+	for scan < len(runBytes) {
+		// Find next opening tag.
+		lt := bytes.IndexByte(runBytes[scan:], '<')
+		if lt < 0 {
+			break
+		}
+		abs := scan + lt
+		if abs+1 >= len(runBytes) {
+			break
+		}
+		// Bail out if we've reached </w:r>.
+		if bytes.HasPrefix(runBytes[abs:], []byte("</w:r>")) {
+			break
+		}
+		// Identify the element name.
+		var matched string
+		for _, tag := range []string{"<w:drawing", "<w:pict"} {
+			if bytes.HasPrefix(runBytes[abs:], []byte(tag)) {
+				bj := abs + len(tag)
+				if bj >= len(runBytes) {
+					return out
+				}
+				b := runBytes[bj]
+				if b == '>' || b == ' ' || b == '\t' || b == '\n' || b == '\r' || b == '/' {
+					matched = tag
+					break
+				}
+			}
+		}
+		// Sibling opaque envelopes that aren't drawing/pict (mc:Alternate
+		// Content, w:object, w:ruby, w:fldSimple, …) must be skipped as
+		// balanced subtrees so we don't descend into them and pick up
+		// nested <w:drawing>/<w:pict> children as if they were direct
+		// siblings of this <w:r>. Fixture: 992.docx header1.xml — a
+		// source `<w:r>` carries `<mc:AlternateContent>...
+		// <w:drawing>...</w:drawing></mc:AlternateContent><w:drawing>...
+		// </w:drawing></w:r>`; the outer AlternateContent must be
+		// skipped as a single sibling so the drawing inside its
+		// `<mc:Choice>` doesn't surface as a top-level child alongside
+		// the trailing `<w:drawing>`.
+		if matched == "" {
+			skipped := false
+			for _, skipTag := range []string{"<mc:AlternateContent", "<w:object", "<w:ruby", "<w:fldSimple"} {
+				if !bytes.HasPrefix(runBytes[abs:], []byte(skipTag)) {
+					continue
+				}
+				bj := abs + len(skipTag)
+				if bj >= len(runBytes) {
+					return out
+				}
+				b := runBytes[bj]
+				if b != '>' && b != ' ' && b != '\t' && b != '\n' && b != '\r' && b != '/' {
+					continue
+				}
+				scan = skipBalancedSubtree(runBytes, abs, skipTag)
+				skipped = true
+				break
+			}
+			if skipped {
+				continue
+			}
+			// Plain non-opaque element — skip past this open tag.
+			endIdx := bytes.IndexByte(runBytes[abs:], '>')
+			if endIdx < 0 {
+				break
+			}
+			scan = abs + endIdx + 1
+			continue
+		}
+		// Find balanced close for this opaque element.
+		openTagEnd := bytes.IndexByte(runBytes[abs:], '>')
+		if openTagEnd < 0 {
+			break
+		}
+		openTagAbsEnd := abs + openTagEnd
+		// Self-closing form: e.g. <w:drawing/>.
+		if openTagAbsEnd > 0 && runBytes[openTagAbsEnd-1] == '/' {
+			out = append(out, opaqueDrawingChild{start: abs, end: openTagAbsEnd + 1})
+			scan = openTagAbsEnd + 1
+			continue
+		}
+		closeName := []byte("</" + matched[1:] + ">")
+		// Depth-counted walk to handle nested same-name elements.
+		depth := 1
+		inner := openTagAbsEnd + 1
+		for depth > 0 && inner < len(runBytes) {
+			nextOpen := bytes.Index(runBytes[inner:], []byte(matched))
+			nextClose := bytes.Index(runBytes[inner:], closeName)
+			if nextClose < 0 {
+				return out
+			}
+			if nextOpen >= 0 && nextOpen < nextClose {
+				bj := inner + nextOpen + len(matched)
+				if bj < len(runBytes) {
+					bb := runBytes[bj]
+					if bb == '>' || bb == ' ' || bb == '\t' || bb == '\n' || bb == '\r' || bb == '/' {
+						// Determine self-closing.
+						kk := bytes.IndexByte(runBytes[bj:], '>')
+						if kk >= 0 {
+							se := bj + kk
+							if !(se > 0 && runBytes[se-1] == '/') {
+								depth++
+							}
+							inner = se + 1
+							continue
+						}
+					}
+				}
+				inner = bj
+				continue
+			}
+			depth--
+			inner = inner + nextClose + len(closeName)
+		}
+		out = append(out, opaqueDrawingChild{start: abs, end: inner})
+		scan = inner
+	}
+	return out
 }
 
 // paragraphSourceHasDeletedMark reports whether a SOURCE paragraph's
