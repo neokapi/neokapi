@@ -1318,6 +1318,57 @@ func stripExplicitOffVanish(children []rPrChild) []rPrChild {
 	return out
 }
 
+// stripChainAbsentSzCs returns children with `<w:szCs .../>` removed
+// when the merged style chain (paragraph style ∪ rStyle, with
+// docDefaults folded in) does NOT author szCs by name. Mirrors the
+// `else { v = true }` branch of upstream Okapi's
+// RunParser.canBeSkipped (RunParser.java:236-250): when
+// `preCombinedRunProperties.contains(name)` is false the property is
+// unconditionally skippable, which feeds the no-CS-text strip at
+// RunParser.java:226-228 (RUN_PROPERTY_COMPLEX_SCRIPT_FONT_SIZE
+// added to skippableProperties when
+// !runFonts.containsDetectedComplexScriptContentCategories — the
+// upstream gate is text-driven, the caller is responsible for that
+// guard).
+//
+// Per ECMA-376-1 §17.3.2.39 (CT_HpsMeasure szCs — complex-script
+// font size), szCs is the paired complex-script side of `<w:sz>`
+// (§17.3.2.38). When neither the chain nor the run text is
+// complex-script bearing the property is a no-op duplicate of
+// `<w:sz>` and Okapi drops it at parse time.
+//
+// The OTHER half of canBeSkipped — chain HAS szCs and the run's
+// szCs xml byte-equals the chain's szCs xml — is already handled by
+// the chain-XML-match strip in wml.go (the loop that consults
+// `effectiveRPrChildXML`). This helper closes the missing branch.
+//
+// Caller contract: invoke only when the run's text is
+// non-complex-script (containsComplexScriptText == false) AND the
+// merged chainNames map does NOT contain "szCs". The two-fold gate
+// keeps the strip semantically equivalent to upstream and avoids
+// dropping a legitimate value override for paragraphs whose chain
+// inherits a different szCs (947-non-cs.docx counterexample:
+// docDefaults declares `<w:szCs val="24"/>`, so chainNames["szCs"]
+// is true — the strip is gated off and the run's `<w:szCs val="28"/>`
+// override survives into the synth common rPr).
+//
+// MissingPara.docx canonical case: no style or docDefaults declares
+// szCs by name; every translatable paragraph's runs carry
+// `<w:rPr><w:szCs val="…"/></w:rPr>` (often with rFonts/sz too) on
+// ASCII text. Without this strip native lifts szCs into a synth
+// `Normal2` paragraph style, diverging from upstream which strips it
+// at parse time and never lifts it.
+func stripChainAbsentSzCs(children []rPrChild) []rPrChild {
+	out := children[:0]
+	for _, c := range children {
+		if c.name == "szCs" {
+			continue
+		}
+		out = append(out, c)
+	}
+	return out
+}
+
 // rPrOmittedWithNoneOrNil mirrors upstream
 // RunProperties.OMITTED_WITH_NONE_OR_NIL (RunProperties.java:370-380):
 // these properties are omitted when their `val` attribute is "none" or

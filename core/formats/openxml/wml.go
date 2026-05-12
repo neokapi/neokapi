@@ -2021,6 +2021,23 @@ func (p *wmlParser) parseParagraph(d *xml.Decoder, partPath string, emitBlock fu
 						paraStyleProps = p.styles.resolveProps(paraStyleID)
 					}
 					paraChainNames := p.currentStyleChainNames
+					// When the paragraph has NO `<w:pPr>` element,
+					// `currentStyleChainNames` is still nil from the
+					// per-paragraph reset above. Resolve it now so the
+					// chain-aware run-prop strips below see the
+					// docDefaults baseline. ECMA-376-1 §17.3.1.10
+					// (CT_P): a paragraph without pPr inherits all
+					// properties from the default paragraph style;
+					// styleMap.effectiveRPrChildNames("") already
+					// handles the empty-paraStyleID fallback. Without
+					// this, fixtures whose paragraphs omit pPr (e.g.
+					// docxsegtest.docx P11) would see chainNames=nil
+					// and the chain-absent szCs strip below would
+					// incorrectly fire on a chain that DOES carry szCs
+					// via docDefaults.
+					if paraChainNames == nil {
+						paraChainNames = p.styles.effectiveRPrChildNames(paraStyleID)
+					}
 					for i := range runs {
 						if isSentinel(runs[i].text) {
 							continue
@@ -2079,6 +2096,31 @@ func (p *wmlParser) parseParagraph(d *xml.Decoder, partPath string, emitBlock fu
 						// keep it).
 						if !chainNames["vanish"] {
 							runs[i].props.rPrChildren = stripExplicitOffVanish(runs[i].props.rPrChildren)
+						}
+						// Strip `<w:szCs/>` from a non-CS run when the
+						// merged chain has no szCs by name. Mirrors the
+						// `else { v = true }` branch of upstream Okapi's
+						// RunParser.canBeSkipped (RunParser.java:236-250)
+						// feeding the no-CS-text strip at
+						// RunParser.java:226-228 (skips
+						// RUN_PROPERTY_COMPLEX_SCRIPT_FONT_SIZE when
+						// !runFonts.containsDetectedComplexScriptContentCategories
+						// AND the chain doesn't carry a szCs to compare
+						// against). Per ECMA-376-1 §17.3.2.39 (szCs)
+						// the property is the complex-script side of
+						// `<w:sz>` (§17.3.2.38) and is a no-op duplicate
+						// when neither the chain nor the run text is CS-
+						// bearing. The other half (chain HAS szCs +
+						// values match) is handled by the chain-XML-
+						// match strip below. MissingPara.docx is the
+						// canonical case — every translatable paragraph
+						// has runs with `<w:szCs val="…"/>` on ASCII
+						// text, the chain carries no szCs, and upstream
+						// strips them at parse time so WSO sees empty-
+						// rPr runs and synthesises no spurious `Normal2`
+						// style.
+						if !chainNames["szCs"] && !containsComplexScriptText(runs[i].text) {
+							runs[i].props.rPrChildren = stripChainAbsentSzCs(runs[i].props.rPrChildren)
 						}
 						// Strip per-run rPrChildren whose canonical XML
 						// matches the resolved style chain. Mirrors
@@ -5335,6 +5377,16 @@ func (p *wmlParser) extractTxbxParagraph(dec *xml.Decoder, out *strings.Builder,
 					runs[i].props.rPrChildren = minifyRPrChildren(runs[i].props.rPrChildren, chainNames)
 					if !chainNames["vanish"] {
 						runs[i].props.rPrChildren = stripExplicitOffVanish(runs[i].props.rPrChildren)
+					}
+					// Mirror the szCs strip from the body-text run loop
+					// (see the canonical comment above the corresponding
+					// stripChainAbsentSzCs call) — same chain + non-CS
+					// gate, applied here for nested-block / textbox-body
+					// run loops so MissingPara-style fixtures (and any
+					// nested paragraph that authors `<w:szCs/>` on non-
+					// CS text without chain support) don't slip through.
+					if !chainNames["szCs"] && !containsComplexScriptText(runs[i].text) {
+						runs[i].props.rPrChildren = stripChainAbsentSzCs(runs[i].props.rPrChildren)
 					}
 					if rStyleID != "" || paraStyleID != "" {
 						children := runs[i].props.rPrChildren
