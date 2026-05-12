@@ -2511,6 +2511,32 @@ func (p *wmlParser) parseRunWithFieldState(d *xml.Decoder, cfs *complexFieldStat
 				}
 				runs = append(runs, textRun{text: "\uE101", props: props, data: raw}) // image sentinel
 
+			case "ruby":
+				// <w:ruby> (ECMA-376-1 §17.3.3.25) wraps phonetic
+				// guides above base text — used for East Asian ruby
+				// annotations (furigana, pinyin, etc.). Capture the
+				// full element verbatim so the writer can restore the
+				// nested <w:rt> (ruby text) and <w:rubyBase> structure
+				// byte-for-byte. Translatable strings inside ruby are
+				// not yet extracted — bridge keeps them inline within
+				// the ruby element in its reference output (the rt and
+				// rubyBase <w:t> bodies survive translation but are
+				// not pseudo-translated separately in the regression
+				// suite), so verbatim capture matches the bridge
+				// envelope for round-trip purposes. Per ECMA-376-1
+				// §17.3.3.25 (CT_Ruby) ruby is a run child whose
+				// CT_RubyContent + CT_RubyContent children are
+				// themselves <w:r> wrappers — the captured payload
+				// preserves the entire subtree.
+				raw, err := captureRawElement(d, t)
+				if err != nil {
+					return nil, err
+				}
+				if rawCaptured {
+					rawBuf.WriteString(raw)
+				}
+				runs = append(runs, textRun{text: "\uE101", props: props, data: raw}) // ruby reuses the opaque-image sentinel
+
 			case "AlternateContent":
 				// Markup Compatibility (ECMA-376 Part 3 / ISO/IEC
 				// 29500-3 \u00A710): mc:AlternateContent wraps one or more
