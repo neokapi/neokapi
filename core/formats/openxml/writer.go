@@ -1361,6 +1361,7 @@ func (w *Writer) renderBlock(block *model.Block, dt docType) string {
 		return ""
 	}
 
+
 	// Core properties and table column names are plain text (no XML wrapping needed).
 	if block.Type == "property" || block.Type == "table-column" {
 		return xmlEscapeAttr(model.FlattenRuns(runs))

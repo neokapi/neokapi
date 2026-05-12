@@ -169,18 +169,35 @@ func (sm *styleMap) collectRPrChildNames(styleID string, out map[string]bool, vi
 	}
 }
 
-// mergeProps applies non-zero values from src onto dst.
+// mergeProps applies non-zero values from src onto dst. Explicit-off
+// toggles authored by src (boldClear/italicClear/strikeClear) override
+// the inherited bare-on form so the resolved style chain reflects the
+// child style's clearing intent — mirrors ECMA-376-1 §17.3.2.1
+// (CT_OnOff: explicit val="0"/"false"/"off" clears the toggle in the
+// resolved chain) + upstream Okapi RunProperties.minified()
+// (RunProperties.java:497-540). Without the explicit-off branch the
+// resolved chain would silently keep the parent's bold/italic/strike
+// and `subtractProps` would strip a per-run override that should have
+// remained on the wire (canonical fixture
+// `document-style-definitions.docx`: `Normal1` clears `Style1`'s
+// inherited bold).
 func mergeProps(dst *runProps, src runProps) {
-	if src.bold {
+	if src.boldClear {
+		dst.bold = false
+	} else if src.bold {
 		dst.bold = true
 	}
-	if src.italic {
+	if src.italicClear {
+		dst.italic = false
+	} else if src.italic {
 		dst.italic = true
 	}
 	if src.underline != "" {
 		dst.underline = src.underline
 	}
-	if src.strike {
+	if src.strikeClear {
+		dst.strike = false
+	} else if src.strike {
 		dst.strike = true
 	}
 	if src.vertAlign != "" {
@@ -354,11 +371,19 @@ func parseStyles(zr *zip.Reader) *styleMap {
 
 			case "b":
 				if dst := effectivePropsTarget(); dst != nil {
-					dst.bold = !hasAttrVal(t, "val", "0") && !hasAttrVal(t, "val", "false")
+					off := hasAttrVal(t, "val", "0") || hasAttrVal(t, "val", "false") || hasAttrVal(t, "val", "off")
+					dst.bold = !off
+					if off {
+						dst.boldClear = true
+					}
 				}
 			case "i":
 				if dst := effectivePropsTarget(); dst != nil {
-					dst.italic = !hasAttrVal(t, "val", "0") && !hasAttrVal(t, "val", "false")
+					off := hasAttrVal(t, "val", "0") || hasAttrVal(t, "val", "false") || hasAttrVal(t, "val", "off")
+					dst.italic = !off
+					if off {
+						dst.italicClear = true
+					}
 				}
 			case "u":
 				if dst := effectivePropsTarget(); dst != nil {
@@ -369,7 +394,11 @@ func parseStyles(zr *zip.Reader) *styleMap {
 				}
 			case "strike":
 				if dst := effectivePropsTarget(); dst != nil {
-					dst.strike = !hasAttrVal(t, "val", "0") && !hasAttrVal(t, "val", "false")
+					off := hasAttrVal(t, "val", "0") || hasAttrVal(t, "val", "false") || hasAttrVal(t, "val", "off")
+					dst.strike = !off
+					if off {
+						dst.strikeClear = true
+					}
 				}
 			case "vertAlign":
 				if dst := effectivePropsTarget(); dst != nil {

@@ -27,6 +27,30 @@ type runProps struct {
 	// SAME value — an override (e.g. directly false against inherited
 	// true) is preserved.
 	vanishExplicit bool
+	// boldClear/italicClear/strikeClear are set when a style entry
+	// explicitly authored a clearing-form toggle — `<w:b w:val="0"/>`,
+	// `<w:i w:val="false"/>`, `<w:strike w:val="off"/>` etc. — so
+	// mergeProps can apply the clear during basedOn-chain resolution.
+	// Without this, a child style's explicit-off toggle never overrides
+	// a parent style's bare-on toggle (mergeProps only sets bool fields
+	// when src is true; it had no signal to clear them). Mirrors
+	// upstream Okapi RunProperties.minified() chain semantics
+	// (RunProperties.java:497-540) and ECMA-376-1 §17.3.2.1
+	// (CT_OnOff: explicit val="0"/false/off CLEARS the toggle in the
+	// resolved style chain). Fixture `document-style-definitions.docx`
+	// is the canonical case: `Normal1` basedOn `Style1` (bold=true)
+	// authors `<w:b w:val="0"/>` to clear the inherited bold; without
+	// the clear-tracking the resolved Normal1 chain incorrectly carries
+	// bold=true and `subtractProps` strips the per-run `<w:b/>` from
+	// any direct override on a Normal1-styled paragraph's middle run.
+	//
+	// These fields are populated only by parseStyles for style entries.
+	// Per-run rPr keeps the existing explicit-off path: parseRunProps
+	// preserves the clearing form in rPrChildren so it survives into
+	// the per-run sidecar, and the writer emits it verbatim.
+	boldClear   bool
+	italicClear bool
+	strikeClear bool
 	fontName       string // primary font name from <w:rFonts> (ascii or hAnsi)
 	fontNameCS     string // complex script font name
 	fontNameEA     string // East Asian font name
