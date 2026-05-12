@@ -497,16 +497,91 @@ func rFontsMergeableTexts(aXML, bXML, aText, bText string) bool {
 	aHasHint := hasHintAttr(aMap)
 	bHasHint := hasHintAttr(bMap)
 	if aHasHint != bHasHint {
-		switch {
-		case aHasHint && aUndetected:
-			// A has hint but no script text → its hint is moot.
-		case bHasHint && bUndetected:
-			// B has hint but no script text → its hint is moot.
-		default:
-			return false
+		// Content-category-aware hint merging — mirrors upstream
+		// Okapi RunFonts.canHintsBeMerged (RunFonts.java:232-248).
+		// When one side has hint=X and the other doesn't, the merge
+		// is allowed iff the hint-bearing side does NOT contain a
+		// content category corresponding to X.
+		// `contentCategoriesByHints` mapping (RunFonts.java:73-78):
+		//   hint=eastAsia → check {EAST_ASIAN_THEME, EAST_ASIAN}
+		//   hint=cs       → check {COMPLEX_SCRIPT_THEME, COMPLEX_SCRIPT}
+		//   hint=default  → check {HIGH_ANSI_THEME, HIGH_ANSI}
+		//
+		// Two relaxations apply:
+		//   - The hint-bearing side's text is undetected
+		//     (whitespace/empty) — the hint references no script
+		//     category in any of its text.
+		//   - The hint-bearing side has NO font attribute in the
+		//     hint's content-category slot (per
+		//     containsContentCategoryFor at RunFonts.java:250-257).
+		//     E.g. hint="eastAsia" + ascii=X but no eastAsia/
+		//     eastAsiaTheme — the hint is moot because no
+		//     East-Asian-category font is asserted.
+		//
+		// Fixture document-with-run-fonts-variations.docx: R0 has
+		// `<w:rFonts ascii="Courier New" hint="eastAsia"/>` (no
+		// eastAsia direct/theme attribute), R1 has
+		// `<w:rFonts ascii="Courier New"/>`. The hint references
+		// EAST_ASIAN but R0 has no East-Asian font slot — upstream
+		// canHintsBeMerged returns true.
+		hintSideMap := aMap
+		hintSideUndetected := aUndetected
+		if bHasHint {
+			hintSideMap = bMap
+			hintSideUndetected = bUndetected
 		}
+		if hintSideUndetected {
+			return true
+		}
+		if !hintSideHasContentCategorySlot(hintSideMap) {
+			return true
+		}
+		return false
 	}
 	return true
+}
+
+// hintSideHasContentCategorySlot reports whether the rFonts attribute
+// map carries a font attribute in the content-category slot that the
+// `hint` attribute references. Mirrors upstream Okapi
+// RunFonts.containsContentCategoryFor (RunFonts.java:250-257) + the
+// contentCategoriesByHints mapping (RunFonts.java:73-78):
+//
+//	hint="eastAsia" → check eastAsia / eastAsiaTheme
+//	hint="cs"       → check cs / cstheme
+//	hint="default"  → check hAnsi / hAnsiTheme
+//
+// Returns false when the hint attribute is absent (the caller should
+// have gated on hasHintAttr before reaching here).
+func hintSideHasContentCategorySlot(m map[string]string) bool {
+	hint := m["w:hint"]
+	if hint == "" {
+		hint = m["hint"]
+	}
+	if hint == "" {
+		return false
+	}
+	switch hint {
+	case "eastAsia":
+		return mapHasAny(m, "w:eastAsia", "w:eastAsiaTheme", "eastAsia", "eastAsiaTheme")
+	case "cs":
+		return mapHasAny(m, "w:cs", "w:cstheme", "cs", "cstheme")
+	case "default":
+		return mapHasAny(m, "w:hAnsi", "w:hAnsiTheme", "hAnsi", "hAnsiTheme")
+	}
+	// Unknown hint value — conservative: assume it's relevant.
+	return true
+}
+
+// mapHasAny reports whether m contains any of the listed keys with a
+// non-empty value.
+func mapHasAny(m map[string]string, keys ...string) bool {
+	for _, k := range keys {
+		if v, ok := m[k]; ok && v != "" {
+			return true
+		}
+	}
+	return false
 }
 
 // isUndetectedRunText reports whether s carries no characters in any
@@ -823,9 +898,30 @@ func mergeRFontsXMLCategoryUnion(a, b *rPrChild) rPrChild {
 		}
 	}
 	categoryAttrs := rFontsCategoryAttrSet()
-	// Non-category attributes: byte-equal intersection.
+	// Hint attribute: prefer the side that has it (A wins ties).
+	// Mirrors upstream Okapi RunFonts.mergeContentCategories HINT
+	// branch (RunFonts.java:300-304):
+	//   if (null == fonts.get(HINT)) return runFonts.fonts.get(HINT);
+	//   else return fonts.get(HINT);
+	// The gate (rFontsMergeableTexts) already verified the hint can
+	// be merged via canHintsBeMerged content-category-aware check, so
+	// we simply preserve the hint-bearing side's value here.
+	if v, ok := aMap["w:hint"]; ok {
+		emit["w:hint"] = v
+	} else if v, ok := bMap["w:hint"]; ok {
+		emit["w:hint"] = v
+	}
+	if v, ok := aMap["hint"]; ok {
+		emit["hint"] = v
+	} else if v, ok := bMap["hint"]; ok {
+		emit["hint"] = v
+	}
+	// Non-category, non-hint attributes: byte-equal intersection.
 	for _, x := range aAttrs {
 		if categoryAttrs[x.name] {
+			continue
+		}
+		if x.name == "w:hint" || x.name == "hint" {
 			continue
 		}
 		if v, ok := bMap[x.name]; ok && v == x.value {

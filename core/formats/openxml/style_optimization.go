@@ -2019,7 +2019,13 @@ func commonRFonts(entries []runEntry) (string, bool) {
 			categoryEmit[pair.theme] = preferredTheme
 		}
 	}
-	// Non-category attributes: byte-equal intersection.
+	// Non-category attributes (including hint): byte-equal
+	// intersection. The hint slot's per-run merge applies at parse
+	// time via RunMerger; the WSO common-rPr lift here operates on
+	// the post-merge population and treats every property as "common
+	// iff every entry has the same byte-equal value". Mirrors
+	// upstream StyleOptimisation.commonRunPropertiesOf
+	// (StyleOptimisation.java:204-237) Property.equals semantics.
 	var keptNonCategory []rfontsAttr
 	for _, a := range firstAttrs {
 		if categoryAttrs[a.name] {

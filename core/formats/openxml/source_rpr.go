@@ -406,6 +406,7 @@ func mergeRFontsAcrossRuns(runs []textRun) (string, bool) {
 	}
 	var firstAttrs []rfontsAttr
 	allAttrSets := make([]map[string]string, len(runs))
+	allRunAttrs := make([][]rfontsAttr, len(runs))
 	for i, r := range runs {
 		var rfonts *rPrChild
 		for k := range r.props.rPrChildren {
@@ -427,6 +428,7 @@ func mergeRFontsAcrossRuns(runs []textRun) (string, bool) {
 		if i == 0 {
 			firstAttrs = attrs
 		}
+		allRunAttrs[i] = attrs
 		m := make(map[string]string, len(attrs))
 		for _, a := range attrs {
 			m[a.name] = a.value
@@ -548,7 +550,16 @@ func mergeRFontsAcrossRuns(runs []textRun) (string, bool) {
 			categoryEmit[pair.theme] = preferredTheme
 		}
 	}
-	// Non-category attributes: byte-equal intersection (hint, …).
+	// Non-category attributes (including hint): byte-equal
+	// intersection. The hint slot's per-run merge (RunFonts.
+	// mergeContentCategories HINT branch at RunFonts.java:300-304)
+	// applies during the parse-time RunMerger; the WSO common-rPr
+	// lift in this function operates on the POST-MERGE run population
+	// and treats every property uniformly as "common iff every run
+	// asserts the same byte-equal value". Mirrors upstream
+	// StyleOptimisation.commonRunPropertiesOf
+	// (StyleOptimisation.java:204-237) which compares Property
+	// instances by Object.equals.
 	var kept []rfontsAttr
 	for _, a := range firstAttrs {
 		if categoryAttrs[a.name] {
@@ -569,6 +580,7 @@ func mergeRFontsAcrossRuns(runs []textRun) (string, bool) {
 			kept = append(kept, a)
 		}
 	}
+	_ = allRunAttrs // kept for symmetry with commonRFonts; not used.
 	// Inject per-category emit attributes, preserving the first run's
 	// attribute order where possible, then appending later-run-only
 	// attributes (e.g. asciiTheme from R3 when R1 had only ascii).
