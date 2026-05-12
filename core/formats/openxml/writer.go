@@ -528,6 +528,113 @@ func normaliseRPrChildrenFragment(s string) string {
 	return s
 }
 
+// sdtPropertiesContainerNames lists the SDT-envelope property containers
+// whose inner contents must NOT be touched by the writer-side
+// RunSkippableElements-mirroring strips. Both elements carry an inner
+// `<w:rPr>` per ECMA-376-1 §17.5.2.40 (CT_SdtPr) and §17.5.2.38
+// (CT_SdtEndPr) — the placeholder and post-content run properties for
+// the SDT preview — and upstream Okapi routes them through
+// BlockParser.parseRunContainer:155-166 with `emptySkippableElements`,
+// so noProof/lang are preserved inside.
+var sdtPropertiesContainerNames = [...]string{"sdtPr", "sdtEndPr"}
+
+// applyREOutsideSDTPr applies a regex strip to `data` everywhere EXCEPT
+// inside `<w:sdtPr>...</w:sdtPr>` and `<w:sdtEndPr>...</w:sdtEndPr>`
+// ranges. Mirrors upstream Okapi's scoped instantiation of
+// RunSkippableElements: that strip set is wired into the `<w:r>`
+// parsing path (BlockParser.processRun → RunPropertiesParser →
+// RunSkippableElements; RunSkippableElements.java:50-62), but the SDT
+// envelope's properties blocks route through
+// BlockParser.parseRunContainer:155-166 with `emptySkippableElements`
+// — i.e. NO `<w:lang>` / `<w:noProof>` stripping. The end-state diff
+// shows up on `<w:sdt><w:sdtPr><w:rPr><w:noProof/><w:sz/></w:rPr></w:sdtPr>`
+// (956.docx footer1.xml) and `<w:sdtEndPr><w:rPr><w:noProof/></w:rPr>
+// </w:sdtEndPr>` (956.docx footer2.xml) where upstream preserves the
+// noProof and our writer-side post-pass must leave it alone too. Per
+// ECMA-376-1 §17.5.2.40 / §17.5.2.38 the rPr child holds placeholder
+// run properties — the non-run rPr context the schema explicitly
+// carves out.
+//
+// sdtPr/sdtEndPr are non-nested in practice (the schema doesn't allow
+// either to contain itself), so the scan only needs a flat open/close
+// pair match. The implementation walks the buffer and applies the regex
+// piecewise to the slices outside of any matched range.
+func applyREOutsideSDTPr(data []byte, re *regexp.Regexp) []byte {
+	hasContainer := false
+	for _, n := range sdtPropertiesContainerNames {
+		if bytes.Contains(data, []byte("<w:"+n)) {
+			hasContainer = true
+			break
+		}
+	}
+	if !hasContainer {
+		return re.ReplaceAll(data, nil)
+	}
+	out := make([]byte, 0, len(data))
+	cursor := 0
+	for cursor < len(data) {
+		// Find the nearest occurrence of any container open tag.
+		nearestStart := -1
+		nearestName := ""
+		for _, n := range sdtPropertiesContainerNames {
+			open := []byte("<w:" + n)
+			i := bytes.Index(data[cursor:], open)
+			if i < 0 {
+				continue
+			}
+			abs := cursor + i
+			if nearestStart < 0 || abs < nearestStart {
+				nearestStart = abs
+				nearestName = n
+			}
+		}
+		if nearestStart < 0 {
+			out = append(out, re.ReplaceAll(data[cursor:], nil)...)
+			break
+		}
+		openTag := []byte("<w:" + nearestName)
+		closeTag := []byte("</w:" + nearestName + ">")
+		boundaryIdx := nearestStart + len(openTag)
+		if boundaryIdx >= len(data) {
+			out = append(out, re.ReplaceAll(data[cursor:], nil)...)
+			break
+		}
+		b := data[boundaryIdx]
+		if b != '>' && b != '/' && b != ' ' && b != '\t' && b != '\n' && b != '\r' {
+			// False positive — apply the strip up to and including the
+			// rejected boundary byte, then continue scanning past it.
+			out = append(out, re.ReplaceAll(data[cursor:boundaryIdx+1], nil)...)
+			cursor = boundaryIdx + 1
+			continue
+		}
+		tagEnd := bytes.IndexByte(data[boundaryIdx:], '>')
+		if tagEnd < 0 {
+			out = append(out, re.ReplaceAll(data[cursor:], nil)...)
+			break
+		}
+		startTagEnd := boundaryIdx + tagEnd + 1
+		// Apply strip to the prelude before the container.
+		out = append(out, re.ReplaceAll(data[cursor:nearestStart], nil)...)
+		// Self-closing form `<w:sdtPr.../>` (no body — copy verbatim).
+		if startTagEnd >= 2 && data[startTagEnd-2] == '/' {
+			out = append(out, data[nearestStart:startTagEnd]...)
+			cursor = startTagEnd
+			continue
+		}
+		// Open form — find matching close.
+		closeIdx := bytes.Index(data[startTagEnd:], closeTag)
+		if closeIdx < 0 {
+			// Unbalanced — preserve the rest as-is to be safe.
+			out = append(out, data[nearestStart:]...)
+			break
+		}
+		rangeEnd := startTagEnd + closeIdx + len(closeTag)
+		out = append(out, data[nearestStart:rangeEnd]...)
+		cursor = rangeEnd
+	}
+	return out
+}
+
 // stripBalancedElement removes every occurrence of <w:NAME ...>...</w:NAME>
 // (and the self-closing form <w:NAME .../>) from data, where NAME is the
 // supplied local name. The matcher is non-nested — the *Change elements
@@ -625,7 +732,13 @@ func stripWMLSkippableElements(data []byte) []byte {
 	// AND lift into the WSO-synthesised paragraph style's rPr.
 	strict := bytes.Contains(data, []byte(wmlStrictNamespace))
 	if !strict && bytes.Contains(data, []byte("<w:lang")) {
-		data = wmlLangElementRE.ReplaceAll(data, nil)
+		// Scope the strip to OUTSIDE `<w:sdtPr>...</w:sdtPr>` /
+		// `<w:sdtEndPr>...</w:sdtEndPr>` — upstream Okapi's
+		// RunSkippableElements is only wired into the `<w:r>` parsing
+		// path; the SDT properties block routes through
+		// BlockParser.parseRunContainer:155-166 with
+		// `emptySkippableElements`, so `<w:lang>` survives there.
+		data = applyREOutsideSDTPr(data, wmlLangElementRE)
 	}
 	if bytes.Contains(data, []byte("<w:bidiVisual")) {
 		data = wmlBidiVisualElementRE.ReplaceAll(data, nil)
@@ -634,7 +747,13 @@ func stripWMLSkippableElements(data []byte) []byte {
 		data = wmlMoveRangeStrippableElementRE.ReplaceAll(data, nil)
 	}
 	if !strict && bytes.Contains(data, []byte("<w:noProof")) {
-		data = wmlNoProofRE.ReplaceAll(data, nil)
+		// Same SDT scoping as `<w:lang>` — see comment above. Canonical
+		// fixture: 956.docx footer1.xml/footer2.xml, Page Numbers
+		// (Bottom of Page) SDT — `<w:sdtPr><w:rPr><w:noProof/>
+		// <w:sz w:val="14"/></w:rPr>...</w:sdtPr>` and
+		// `<w:sdtEndPr><w:rPr><w:noProof/></w:rPr></w:sdtEndPr>` must
+		// round-trip with noProof intact.
+		data = applyREOutsideSDTPr(data, wmlNoProofRE)
 	}
 	if bytes.Contains(data, []byte("<w:ins")) ||
 		bytes.Contains(data, []byte("<w:del")) ||
