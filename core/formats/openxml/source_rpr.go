@@ -433,10 +433,130 @@ func mergeRFontsAcrossRuns(runs []textRun) (string, bool) {
 		}
 		allAttrSets[i] = m
 	}
-	// Walk first-run attribute order; keep iff every run has the
-	// same name=value.
+	// Per-category emit decision with theme/direct cross-equivalence.
+	// Mirrors upstream Okapi RunFonts.mergeContentCategories
+	// (RunFonts.java:299-315) iterating EVERY ContentCategory: for
+	// each (direct, theme) pair the merged value is the agreed
+	// effective category value (theme dominates direct per run).
+	// When every run carrying the category agrees on the effective
+	// value, we emit every (direct, theme) attribute any run authored
+	// — preserving the per-side content-category-detection signal.
+	//
+	// FontThemeOverFont.docx: runs carry
+	//   R1: ascii=minorHAnsi
+	//   R3: ascii=Times, asciiTheme=minorHAnsi
+	// Effective ASCII value resolves to minorHAnsi on both sides; the
+	// merge keeps ascii=minorHAnsi (from R1) AND asciiTheme=minorHAnsi
+	// (from R3), matching upstream's style-optimisation lift into the
+	// synthesised pStyle. Per ECMA-376-1 §17.3.2.26 (CT_Fonts), the
+	// theme variant overrides the direct attribute when the active
+	// theme resolves to a known font, so the cross-equivalence is
+	// semantically lossless.
+	categoryEmit := make(map[string]string, 8)
+	categoryAttrs := rFontsCategoryAttrSet()
+	for _, pair := range rFontsThemePairs {
+		// Compute each run's effective value for this category.
+		// A run is "asserting" the category iff it has the direct
+		// OR the theme attribute.
+		type sample struct {
+			eff string
+			val map[string]string // attr name → value (direct/theme)
+		}
+		samples := make([]sample, 0, len(allAttrSets))
+		for _, m := range allAttrSets {
+			direct, hasDirect := m[pair.direct]
+			theme, hasTheme := m[pair.theme]
+			if !hasDirect && !hasTheme {
+				continue
+			}
+			s := sample{val: map[string]string{}}
+			switch {
+			case hasTheme:
+				s.eff = theme
+			case hasDirect:
+				s.eff = direct
+			}
+			if hasDirect {
+				s.val[pair.direct] = direct
+			}
+			if hasTheme {
+				s.val[pair.theme] = theme
+			}
+			samples = append(samples, s)
+		}
+		if len(samples) == 0 {
+			continue
+		}
+		if len(samples) < len(allAttrSets) {
+			// Some run lacks both direct and theme for this category —
+			// intersection drops the pair (matching upstream's
+			// mergeContentCategories returning null when only one side
+			// is "detected" but native lacks the detection signal).
+			continue
+		}
+		// All runs assert. Effective values must agree.
+		eff := samples[0].eff
+		agree := true
+		for _, s := range samples[1:] {
+			if s.eff != eff {
+				agree = false
+				break
+			}
+		}
+		if !agree {
+			continue
+		}
+		// Prefer "theme-less direct" for the direct slot — mirrors
+		// upstream's containsDetected semantics where a direct
+		// attribute without an accompanying theme is the detected
+		// category value (see mergeContentCategories at RunFonts.java:
+		// 299-315: when A has direct and B has theme, the merged
+		// `fonts.get(contentCategory)` is A's direct value because A
+		// is the run whose detection actually used the direct slot).
+		var preferredDirect, preferredTheme string
+		var preferredDirectFromThemeless bool
+		var anyDirect, anyTheme bool
+		for _, s := range samples {
+			if _, hasD := s.val[pair.direct]; hasD {
+				anyDirect = true
+			}
+			if _, hasT := s.val[pair.theme]; hasT {
+				anyTheme = true
+			}
+		}
+		for _, s := range samples {
+			directVal, hasD := s.val[pair.direct]
+			_, hasT := s.val[pair.theme]
+			if hasD {
+				if !hasT {
+					if !preferredDirectFromThemeless {
+						preferredDirect = directVal
+						preferredDirectFromThemeless = true
+					}
+				} else if preferredDirect == "" && !preferredDirectFromThemeless {
+					preferredDirect = directVal
+				}
+			}
+			if hasT && preferredTheme == "" {
+				preferredTheme = s.val[pair.theme]
+			}
+		}
+		if anyDirect {
+			categoryEmit[pair.direct] = preferredDirect
+		}
+		if anyTheme {
+			categoryEmit[pair.theme] = preferredTheme
+		}
+	}
+	// Non-category attributes: byte-equal intersection (hint, …).
 	var kept []rfontsAttr
 	for _, a := range firstAttrs {
+		if categoryAttrs[a.name] {
+			// Category attribute — already handled above. Skip the
+			// generic intersection; we'll merge in the per-category
+			// emit set at the end.
+			continue
+		}
 		ok := true
 		for j := 1; j < len(allAttrSets); j++ {
 			v, present := allAttrSets[j][a.name]
@@ -449,17 +569,50 @@ func mergeRFontsAcrossRuns(runs []textRun) (string, bool) {
 			kept = append(kept, a)
 		}
 	}
-	if len(kept) == 0 {
-		return "", false
-	}
+	// Inject per-category emit attributes, preserving the first run's
+	// attribute order where possible, then appending later-run-only
+	// attributes (e.g. asciiTheme from R3 when R1 had only ascii).
 	prefix := extractRFontsElemName(runs[0].props.rPrChildren)
 	if prefix == "" {
 		prefix = "w:rFonts"
 	}
+	// Walk first run's attribute order; emit any category attr that
+	// matches an emit entry, then non-category kept attrs in their
+	// natural order; then append later-run category attrs in their
+	// source order.
+	seenCategory := make(map[string]bool, len(categoryEmit))
+	var emitted []rfontsAttr
+	for _, a := range firstAttrs {
+		if categoryAttrs[a.name] {
+			if v, ok := categoryEmit[a.name]; ok && !seenCategory[a.name] {
+				emitted = append(emitted, rfontsAttr{name: a.name, value: v, quote: a.quote})
+				seenCategory[a.name] = true
+			}
+		}
+	}
+	// Append any category attribute that the first run lacked but a
+	// later run authored (e.g. asciiTheme from R3).
+	for i := 1; i < len(runs); i++ {
+		attrs, _ := parseRFontsAttrs(runFontsXMLOf(&runs[i]))
+		for _, a := range attrs {
+			if !categoryAttrs[a.name] {
+				continue
+			}
+			if v, ok := categoryEmit[a.name]; ok && !seenCategory[a.name] {
+				emitted = append(emitted, rfontsAttr{name: a.name, value: v, quote: a.quote})
+				seenCategory[a.name] = true
+			}
+		}
+	}
+	// Append non-category kept attrs in their order.
+	emitted = append(emitted, kept...)
+	if len(emitted) == 0 {
+		return "", false
+	}
 	var b strings.Builder
 	b.WriteByte('<')
 	b.WriteString(prefix)
-	for _, a := range kept {
+	for _, a := range emitted {
 		b.WriteByte(' ')
 		b.WriteString(a.name)
 		b.WriteByte('=')
@@ -473,6 +626,17 @@ func mergeRFontsAcrossRuns(runs []textRun) (string, bool) {
 	}
 	b.WriteString("/>")
 	return b.String(), true
+}
+
+// runFontsXMLOf returns the rFonts child XML on a textRun, or "".
+func runFontsXMLOf(r *textRun) string {
+	for k := range r.props.rPrChildren {
+		c := &r.props.rPrChildren[k]
+		if c.name == "rFonts" {
+			return c.xml
+		}
+	}
+	return ""
 }
 
 // extractRFontsElemName (rPrChild slice version) returns the prefixed

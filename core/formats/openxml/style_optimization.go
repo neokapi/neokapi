@@ -1862,6 +1862,7 @@ func commonRFonts(entries []runEntry) (string, bool) {
 	// duplicate rFonts within a single rPr is invalid per ECMA-376
 	// schema and would indicate malformed input — skip optimisation).
 	var firstAttrs []rfontsAttr
+	allAttrs := make([][]rfontsAttr, len(entries))
 	allAttrSets := make([]map[string]string, len(entries))
 	for i, e := range entries {
 		var rfonts *runProp
@@ -1883,16 +1884,119 @@ func commonRFonts(entries []runEntry) (string, bool) {
 		if i == 0 {
 			firstAttrs = attrs
 		}
+		allAttrs[i] = attrs
 		m := make(map[string]string, len(attrs))
 		for _, a := range attrs {
 			m[a.name] = a.value
 		}
 		allAttrSets[i] = m
 	}
-	// Walk the first run's attribute order; keep an attribute iff every
-	// other run has the same name with the same value.
-	var kept []rfontsAttr
+	// Per-content-category emit with theme/direct cross-equivalence.
+	// Mirrors upstream Okapi RunFonts.mergeContentCategories
+	// (RunFonts.java:299-315): for each (direct, theme) pair, the
+	// merged effective value is the agreed value across runs (theme
+	// dominates direct per run); when every run asserting the
+	// category agrees on the effective value, emit every attribute
+	// any run authored for that pair.
+	//
+	// FontThemeOverFont.docx WSO lift: runs disagree on the direct
+	// `ascii` attribute (minorHAnsi vs "Times New Roman") but agree
+	// on the effective ASCII content-category value (minorHAnsi via
+	// asciiTheme on the Times-direct run). Upstream lifts BOTH
+	// ascii=minorHAnsi (R1) AND asciiTheme=minorHAnsi (R3) into the
+	// synthesised pStyle — preserving each run's content-category-
+	// detection signal per ECMA-376-1 §17.3.2.26.
+	categoryEmit := make(map[string]string, 8)
+	categoryAttrs := rFontsCategoryAttrSet()
+	for _, pair := range rFontsThemePairs {
+		type sample struct {
+			eff    string
+			direct string
+			theme  string
+			hasD   bool
+			hasT   bool
+		}
+		samples := make([]sample, 0, len(allAttrSets))
+		for _, m := range allAttrSets {
+			direct, hasDirect := m[pair.direct]
+			theme, hasTheme := m[pair.theme]
+			if !hasDirect && !hasTheme {
+				continue
+			}
+			s := sample{direct: direct, theme: theme, hasD: hasDirect, hasT: hasTheme}
+			switch {
+			case hasTheme:
+				s.eff = theme
+			case hasDirect:
+				s.eff = direct
+			}
+			samples = append(samples, s)
+		}
+		if len(samples) < len(allAttrSets) {
+			// Some run lacks both direct/theme for this category —
+			// intersection drops the pair.
+			continue
+		}
+		eff := samples[0].eff
+		agree := true
+		for _, s := range samples[1:] {
+			if s.eff != eff {
+				agree = false
+				break
+			}
+		}
+		if !agree {
+			continue
+		}
+		// Prefer "theme-less direct" for the direct slot — those are
+		// the runs whose direct attribute is "the effective value" per
+		// upstream's containsDetected semantics (when the run has no
+		// theme set, the direct attribute IS the detected category
+		// value). When every asserting run also has theme, fall back
+		// to any direct value (they all agree on the effective value
+		// per the gate above, but their direct values may differ —
+		// e.g. one carries `ascii="Times New Roman"` overridden by
+		// `asciiTheme=minorHAnsi`).
+		var preferredDirect, preferredTheme string
+		var preferredDirectFromThemeless bool
+		for _, s := range samples {
+			if s.hasD {
+				if !s.hasT {
+					if !preferredDirectFromThemeless {
+						preferredDirect = s.direct
+						preferredDirectFromThemeless = true
+					}
+				} else if !preferredDirectFromThemeless && preferredDirect == "" {
+					preferredDirect = s.direct
+				}
+			}
+			if s.hasT && preferredTheme == "" {
+				preferredTheme = s.theme
+			}
+		}
+		anyDirect := false
+		anyTheme := false
+		for _, s := range samples {
+			if s.hasD {
+				anyDirect = true
+			}
+			if s.hasT {
+				anyTheme = true
+			}
+		}
+		if anyDirect {
+			categoryEmit[pair.direct] = preferredDirect
+		}
+		if anyTheme {
+			categoryEmit[pair.theme] = preferredTheme
+		}
+	}
+	// Non-category attributes: byte-equal intersection.
+	var keptNonCategory []rfontsAttr
 	for _, a := range firstAttrs {
+		if categoryAttrs[a.name] {
+			continue
+		}
 		ok := true
 		for j := 1; j < len(allAttrSets); j++ {
 			v, present := allAttrSets[j][a.name]
@@ -1902,10 +2006,36 @@ func commonRFonts(entries []runEntry) (string, bool) {
 			}
 		}
 		if ok {
-			kept = append(kept, a)
+			keptNonCategory = append(keptNonCategory, a)
 		}
 	}
-	if len(kept) == 0 {
+	// Assemble category attributes in source-order: first run's
+	// authored order takes precedence, then later runs' category
+	// attributes that the first run lacked (e.g. asciiTheme from R3).
+	var emitted []rfontsAttr
+	seen := make(map[string]bool, len(categoryEmit))
+	for _, a := range firstAttrs {
+		if !categoryAttrs[a.name] {
+			continue
+		}
+		if v, ok := categoryEmit[a.name]; ok && !seen[a.name] {
+			emitted = append(emitted, rfontsAttr{name: a.name, value: v, quote: a.quote})
+			seen[a.name] = true
+		}
+	}
+	for i := 1; i < len(allAttrs); i++ {
+		for _, a := range allAttrs[i] {
+			if !categoryAttrs[a.name] {
+				continue
+			}
+			if v, ok := categoryEmit[a.name]; ok && !seen[a.name] {
+				emitted = append(emitted, rfontsAttr{name: a.name, value: v, quote: a.quote})
+				seen[a.name] = true
+			}
+		}
+	}
+	emitted = append(emitted, keptNonCategory...)
+	if len(emitted) == 0 {
 		return "", false
 	}
 	// Re-emit. Preserve the source rFonts element name prefix (likely
@@ -1917,7 +2047,7 @@ func commonRFonts(entries []runEntry) (string, bool) {
 	var b strings.Builder
 	b.WriteByte('<')
 	b.WriteString(prefix)
-	for _, a := range kept {
+	for _, a := range emitted {
 		b.WriteByte(' ')
 		b.WriteString(a.name)
 		b.WriteByte('=')

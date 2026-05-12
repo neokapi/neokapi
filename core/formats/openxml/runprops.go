@@ -241,7 +241,104 @@ func (rp runProps) equalTextAware(other runProps, rText, otherText string) bool 
 		return true
 	}
 	// fontName differs: allow when at least one side is undetected.
-	return isUndetectedRunText(rText) || isUndetectedRunText(otherText)
+	if isUndetectedRunText(rText) || isUndetectedRunText(otherText) {
+		return true
+	}
+	// Theme/direct cross-equivalence: when one side authors a direct
+	// `ascii=X` and the other authors `asciiTheme=X` (or any other
+	// theme-direct pair) for the same content category, the effective
+	// fonts resolve to the same value per ECMA-376-1 §17.3.2.26
+	// (CT_Fonts). fontName here is a parse-time shortcut populated
+	// from `ascii` (then `hAnsi`); it does NOT consider asciiTheme.
+	// Defer the strict-fontName gate to the full rFontsMergeableTexts
+	// per-category check below — that's the authoritative compatibility
+	// test and already handles theme/direct equivalence. Returning true
+	// here lets canBeMergedWithTexts proceed to rPrChildrenMergeableTexts
+	// which will either confirm or refuse the merge.
+	//
+	// FontThemeOverFont.docx canonical: R1 fontName="minorHAnsi" (from
+	// direct ascii), R3 fontName="Times New Roman" (from direct ascii)
+	// — but R3 also carries asciiTheme="minorHAnsi" which dominates per
+	// ECMA-376-1 §17.3.2.26, so the effective Latin font is the same on
+	// both sides and upstream Okapi merges the runs.
+	return rp.fontNameThemeDirectCompatible(other)
+}
+
+// fontNameThemeDirectCompatible reports whether two runProps with
+// differing fontName values are theme/direct compatible — i.e. one
+// run's direct font matches the other's theme alternative for the
+// same content category. Approximates upstream Okapi's per-category
+// effective-value comparison (RunFonts.canContentCategoriesBeMerged,
+// RunFonts.java:211-230) for the Latin/ASCII content category that
+// fontName tracks. Returns true when:
+//   - One side has rFonts asciiTheme equal to the other side's
+//     fontName (direct ascii), OR vice versa.
+//   - Both sides' rFonts effective ASCII category values agree even
+//     when the literal `ascii` attribute differs.
+//
+// Falls back to false when no rPrChildren rFonts is available to
+// reason about — the caller's per-attribute gate (rFontsMergeableTexts)
+// is the authoritative check; this method only relaxes equalTextAware.
+func (rp runProps) fontNameThemeDirectCompatible(other runProps) bool {
+	aRFonts := rp.findRFontsXML()
+	bRFonts := other.findRFontsXML()
+	if aRFonts == "" || bRFonts == "" {
+		return false
+	}
+	aAttrs, ok := parseRFontsAttrs(aRFonts)
+	if !ok {
+		return false
+	}
+	bAttrs, ok := parseRFontsAttrs(bRFonts)
+	if !ok {
+		return false
+	}
+	aMap := make(map[string]string, len(aAttrs))
+	for _, a := range aAttrs {
+		aMap[a.name] = a.value
+	}
+	bMap := make(map[string]string, len(bAttrs))
+	for _, a := range bAttrs {
+		bMap[a.name] = a.value
+	}
+	// Effective ASCII category value: asciiTheme dominates ascii.
+	aEff := aMap["w:asciiTheme"]
+	if aEff == "" {
+		aEff = aMap["w:ascii"]
+	}
+	bEff := bMap["w:asciiTheme"]
+	if bEff == "" {
+		bEff = bMap["w:ascii"]
+	}
+	if aEff != "" && bEff != "" && aEff == bEff {
+		return true
+	}
+	// Same for HIGH_ANSI (hAnsiTheme/hAnsi) — fontName falls back to
+	// hAnsi when ascii is absent (see parseRunProps RunProperty rFonts).
+	aHAnsiEff := aMap["w:hAnsiTheme"]
+	if aHAnsiEff == "" {
+		aHAnsiEff = aMap["w:hAnsi"]
+	}
+	bHAnsiEff := bMap["w:hAnsiTheme"]
+	if bHAnsiEff == "" {
+		bHAnsiEff = bMap["w:hAnsi"]
+	}
+	if aHAnsiEff != "" && bHAnsiEff != "" && aHAnsiEff == bHAnsiEff {
+		return true
+	}
+	return false
+}
+
+// findRFontsXML returns the raw XML of the run's <w:rFonts> child or
+// "" when absent. Helper for fontNameThemeDirectCompatible.
+func (rp runProps) findRFontsXML() string {
+	for k := range rp.rPrChildren {
+		c := &rp.rPrChildren[k]
+		if c.name == "rFonts" {
+			return c.xml
+		}
+	}
+	return ""
 }
 
 // rPrChildrenMergeableTexts is the text-aware variant of
@@ -310,7 +407,70 @@ func rFontsMergeableTexts(aXML, bXML, aText, bText string) bool {
 	}
 	aUndetected := isUndetectedRunText(aText)
 	bUndetected := isUndetectedRunText(bText)
+	// Per-content-category mergeability — mirrors upstream Okapi
+	// RunFonts.canContentCategoriesBeMerged (RunFonts.java:211-230).
+	// For each content category C ∈ {ASCII, HIGH_ANSI, COMPLEX_SCRIPT,
+	// EAST_ASIAN} the effective rFonts value is themeC when present,
+	// else directC. Two runs can merge on category C when:
+	//   - neither side has any attribute for C (no conflict), OR
+	//   - the effective values are equal (themeC vs themeC, themeC vs
+	//     directC, directC vs themeC, or directC vs directC), OR
+	//   - at least one side is "undetected" (whitespace/empty text)
+	//     so its attribute is moot for that category.
+	// The theme/direct cross-equivalence is required by FontThemeOverFont.docx:
+	// run "Hello" has `ascii=minorHAnsi`; run "World" has
+	// `ascii="Times New Roman", asciiTheme=minorHAnsi`. Per
+	// ECMA-376-1 §17.3.2.26 (CT_Fonts) `asciiTheme` resolves to the
+	// active theme's `minorHAnsi` font, taking precedence over the
+	// direct `ascii` attribute. Effective ASCII values are equal
+	// (both resolve to minorHAnsi) so upstream merges the runs.
+	for _, pair := range rFontsThemePairs {
+		aDirect, aHasDirect := aMap[pair.direct]
+		aTheme, aHasTheme := aMap[pair.theme]
+		bDirect, bHasDirect := bMap[pair.direct]
+		bTheme, bHasTheme := bMap[pair.theme]
+		// Effective value: theme dominates direct.
+		var aEff, bEff string
+		var aHas, bHas bool
+		switch {
+		case aHasTheme:
+			aEff = aTheme
+			aHas = true
+		case aHasDirect:
+			aEff = aDirect
+			aHas = true
+		}
+		switch {
+		case bHasTheme:
+			bEff = bTheme
+			bHas = true
+		case bHasDirect:
+			bEff = bDirect
+			bHas = true
+		}
+		if !aHas || !bHas {
+			continue
+		}
+		if aEff == bEff {
+			continue
+		}
+		// Effective category values differ.
+		if !aUndetected && !bUndetected {
+			return false
+		}
+	}
+	// Non-font rFonts attributes (everything except ascii/hAnsi/cs/
+	// eastAsia and their theme siblings + hint, which is handled
+	// below). These have no theme/direct equivalence; differing values
+	// are blockers unless one side is undetected.
+	categoryAttrs := rFontsCategoryAttrSet()
 	for name, aV := range aMap {
+		if name == "w:hint" || name == "hint" {
+			continue
+		}
+		if categoryAttrs[name] {
+			continue
+		}
 		bV, has := bMap[name]
 		if !has {
 			continue
@@ -318,26 +478,8 @@ func rFontsMergeableTexts(aXML, bXML, aText, bText string) bool {
 		if aV == bV {
 			continue
 		}
-		// Differing values for the same attribute.
-		// Allow when at least one side is undetected for any
-		// category (the whitespace-only relaxation).
 		if !aUndetected && !bUndetected {
 			return false
-		}
-	}
-	// Theme/direct-pair conflict: same rule as rFontsMergeable —
-	// asserting direct on one side while the other asserts theme
-	// for the same content category is a blocker. The whitespace
-	// relaxation also applies here when either side is undetected.
-	for _, pair := range rFontsThemePairs {
-		_, aHasDirect := aMap[pair.direct]
-		_, aHasTheme := aMap[pair.theme]
-		_, bHasDirect := bMap[pair.direct]
-		_, bHasTheme := bMap[pair.theme]
-		if (aHasDirect && bHasTheme) || (aHasTheme && bHasDirect) {
-			if !aUndetected && !bUndetected {
-				return false
-			}
 		}
 	}
 	// Hint compatibility: only relax the one-sided-hint blocker
@@ -447,6 +589,21 @@ func hasHintAttr(m map[string]string) bool {
 	return ok
 }
 
+// rFontsCategoryAttrSet returns the set of rFonts attribute names that
+// address a per-content-category font (ASCII / HIGH_ANSI / COMPLEX_SCRIPT
+// / EAST_ASIAN) — covered by the theme/direct pair-aware effective-value
+// comparison in rFontsMergeableTexts. Used to exclude these attributes
+// from the generic per-attribute equality loop so the per-category
+// comparison is the sole authority.
+func rFontsCategoryAttrSet() map[string]bool {
+	out := make(map[string]bool, 2*len(rFontsThemePairs))
+	for _, p := range rFontsThemePairs {
+		out[p.direct] = true
+		out[p.theme] = true
+	}
+	return out
+}
+
 // mergeRPrChildrenTexts returns the merged rPrChildren of two
 // mergeable runs (text-aware: when one side's text is undetected —
 // empty or whitespace-only via isUndetectedRunText — shared rFonts
@@ -526,9 +683,195 @@ func mergeRFontsXMLTextAware(a, b *rPrChild, aUndetected, bUndetected bool) rPrC
 	if !aUndetected && bUndetected {
 		return *a
 	}
-	// Both detected (or both undetected): fall back to the
-	// byte-equality intersection (mergeRFontsXML).
-	return mergeRFontsXML(a, b)
+	// Both detected (or both undetected): per-content-category union
+	// with theme/direct cross-equivalence. Mirrors upstream Okapi
+	// RunFonts.merge + mergeContentCategories (RunFonts.java:267-315)
+	// which iterates EVERY ContentCategory and emits a value per
+	// (theme, direct) attribute when either run carries one, even
+	// when the per-attribute byte-equal intersection would drop it.
+	//
+	// Concretely, FontThemeOverFont.docx merges:
+	//   A: ascii=minorHAnsi, eastAsia=minorHAnsi, hAnsi=minorHAnsi
+	//   B: ascii=Times, asciiTheme=minorHAnsi, eastAsia=minorHAnsi,
+	//      hAnsi=minorHAnsi
+	// Effective ASCII category resolves to minorHAnsi on both sides
+	// (A via ascii, B via asciiTheme dominating direct). Upstream's
+	// merge keeps ascii=minorHAnsi (from A's detected side) AND
+	// asciiTheme=minorHAnsi (from B's detected side) as separate
+	// attributes — both attribute slots are populated whenever
+	// either source carried the corresponding slot.
+	return mergeRFontsXMLCategoryUnion(a, b)
+}
+
+// mergeRFontsXMLCategoryUnion is the per-content-category union of two
+// rFonts entries with theme/direct cross-equivalence. For each
+// (direct, theme) pair plus the non-category attributes, the merged
+// result keeps an attribute when the contributing runs agree on the
+// effective category value. Mirrors upstream Okapi RunFonts.merge
+// + RunFonts.mergeContentCategories (RunFonts.java:267-315).
+//
+// Algorithm:
+//  1. For each (direct, theme) pair in rFontsThemePairs:
+//     - Compute the effective category value: theme if present, else
+//       direct.
+//     - If both sides have an effective value AND they agree, emit
+//       every attribute that any side carried for the pair (direct,
+//       theme).
+//     - If only one side has an effective value, emit that side's
+//       attributes for the pair.
+//     - If neither side has the pair, skip.
+//  2. For non-category attributes (hint, …), take the byte-equal
+//     intersection — upstream's behavior for the hint slot.
+//
+// Attribute order: walk a's attribute order first, then append any
+// theme/non-theme slot from b not already emitted. Preserves the
+// "a's order" stability used by the byte-equality intersection path.
+func mergeRFontsXMLCategoryUnion(a, b *rPrChild) rPrChild {
+	aAttrs, _ := parseRFontsAttrs(a.xml)
+	bAttrs, _ := parseRFontsAttrs(b.xml)
+	aMap := make(map[string]string, len(aAttrs))
+	for _, x := range aAttrs {
+		aMap[x.name] = x.value
+	}
+	bMap := make(map[string]string, len(bAttrs))
+	for _, x := range bAttrs {
+		bMap[x.name] = x.value
+	}
+	// Per-content-category emit decision. For each (direct, theme)
+	// pair, we honour the theme/direct cross-equivalence rule of
+	// upstream Okapi RunFonts.mergeContentCategories (RunFonts.java:
+	// 299-315) under a conservative native approximation:
+	//
+	//   - Both sides assert a category value (via direct or theme):
+	//     emit the corresponding attribute when the effective values
+	//     match. When A's direct value equals B's theme value (or
+	//     vice versa), the cross-effective values are equivalent; we
+	//     emit BOTH source attributes (direct from A, theme from B)
+	//     to preserve each side's content-category-detection signal —
+	//     mirroring upstream's mergeContentCategories iterating every
+	//     ContentCategory.
+	//   - Only one side asserts the category: drop the attribute
+	//     (intersection semantics). Upstream's mergeContentCategories
+	//     would emit the asserted value iff the asserting side has the
+	//     content category detected; with no script-detection signal
+	//     native conservatively drops it. This preserves 1411-mergable
+	//     -runs.docx's intersection where R2 lacks hAnsi.
+	emit := make(map[string]string, 8)
+	for _, pair := range rFontsThemePairs {
+		aDirect, aHasDirect := aMap[pair.direct]
+		aTheme, aHasTheme := aMap[pair.theme]
+		bDirect, bHasDirect := bMap[pair.direct]
+		bTheme, bHasTheme := bMap[pair.theme]
+		// Effective category value (theme dominates direct).
+		var aEff, bEff string
+		aHas := aHasDirect || aHasTheme
+		bHas := bHasDirect || bHasTheme
+		switch {
+		case aHasTheme:
+			aEff = aTheme
+		case aHasDirect:
+			aEff = aDirect
+		}
+		switch {
+		case bHasTheme:
+			bEff = bTheme
+		case bHasDirect:
+			bEff = bDirect
+		}
+		if !aHas || !bHas {
+			// Only one side has this category. Intersect: emit only
+			// when the direct attribute is byte-equal on both sides
+			// (no asymmetric carry-through — matches the prior
+			// mergeRFontsXML behaviour for the side-with-attr/side
+			// -without case).
+			continue
+		}
+		if aEff != bEff {
+			// Effective values disagree — would have been refused by
+			// canBeMerged. Drop the pair (intersection fallback).
+			continue
+		}
+		// Effective values agree. Emit every attribute that any side
+		// carried for the pair. When A authored direct and B authored
+		// theme (or vice versa) we emit both — each side's
+		// content-category-detection signal is preserved on the wire.
+		// Prefer "theme-less direct" for the direct slot: that's the
+		// detected-direct value per upstream's mergeContentCategories
+		// (RunFonts.java:299-315) which keeps the value of the side
+		// whose detection actually used the direct attribute.
+		anyDirect := aHasDirect || bHasDirect
+		anyTheme := aHasTheme || bHasTheme
+		if anyDirect {
+			switch {
+			case aHasDirect && !aHasTheme:
+				emit[pair.direct] = aDirect
+			case bHasDirect && !bHasTheme:
+				emit[pair.direct] = bDirect
+			case aHasDirect:
+				emit[pair.direct] = aDirect
+			case bHasDirect:
+				emit[pair.direct] = bDirect
+			}
+		}
+		if anyTheme {
+			switch {
+			case aHasTheme:
+				emit[pair.theme] = aTheme
+			case bHasTheme:
+				emit[pair.theme] = bTheme
+			}
+		}
+	}
+	categoryAttrs := rFontsCategoryAttrSet()
+	// Non-category attributes: byte-equal intersection.
+	for _, x := range aAttrs {
+		if categoryAttrs[x.name] {
+			continue
+		}
+		if v, ok := bMap[x.name]; ok && v == x.value {
+			emit[x.name] = x.value
+		}
+	}
+	// Build XML preserving a's attribute order, then append b-only
+	// category attributes in b's order. Matches mergeRFontsAcrossRuns'
+	// "a's order wins" stability.
+	prefix := extractRFontsElemNameFromXML(a.xml)
+	if prefix == "" {
+		prefix = extractRFontsElemNameFromXML(b.xml)
+	}
+	if prefix == "" {
+		prefix = "w:rFonts"
+	}
+	var b1 strings.Builder
+	b1.WriteByte('<')
+	b1.WriteString(prefix)
+	seen := make(map[string]bool, len(emit))
+	for _, x := range aAttrs {
+		v, ok := emit[x.name]
+		if !ok || seen[x.name] {
+			continue
+		}
+		b1.WriteByte(' ')
+		b1.WriteString(x.name)
+		b1.WriteString(`="`)
+		b1.WriteString(escapeAttrVal(v))
+		b1.WriteByte('"')
+		seen[x.name] = true
+	}
+	for _, x := range bAttrs {
+		v, ok := emit[x.name]
+		if !ok || seen[x.name] {
+			continue
+		}
+		b1.WriteByte(' ')
+		b1.WriteString(x.name)
+		b1.WriteString(`="`)
+		b1.WriteString(escapeAttrVal(v))
+		b1.WriteByte('"')
+		seen[x.name] = true
+	}
+	b1.WriteString("/>")
+	return rPrChild{name: "rFonts", xml: b1.String()}
 }
 
 // rFontsHasAttrs reports whether a serialised `<w:rFonts .../>`
@@ -542,84 +885,6 @@ func rFontsHasAttrs(xmlStr string) bool {
 	}
 	head := xmlStr[:end]
 	return strings.ContainsAny(head, "=")
-}
-
-// mergeRFontsXML returns the per-attribute intersection of two rFonts
-// entries — an attribute is kept iff BOTH sides carry it with equal
-// values. This approximates upstream Okapi RunFonts.merge
-// (RunFonts.java:267-315) in the absence of script-detection
-// categories: upstream drops attributes whose category is not
-// "detected" on either side, and undetected-equal-on-both also yields
-// the shared value. Native has no detection signal, so the safe
-// approximation is INTERSECTION — never invent an attribute that
-// wasn't on every contributing run. This matches the per-paragraph
-// rFonts consensus computed by mergeRFontsAcrossRuns (source_rpr.go)
-// for the WSO common-rPr lift, so the post-merge per-run rPr stays in
-// step with the lifted pStyle.
-//
-// Either input may be nil; nil means "no rFonts at all" on that side,
-// which is treated identically to "rFonts with no attributes" — the
-// intersection is empty unless the non-nil side also has zero
-// attributes, in which case the result is an empty-element rFonts
-// (`<w:rFonts/>`). When both are nil the result carries an empty xml
-// field. The element name is taken from the first non-nil source.
-func mergeRFontsXML(a, b *rPrChild) rPrChild {
-	if a == nil && b == nil {
-		return rPrChild{name: "rFonts"}
-	}
-	if a == nil || b == nil {
-		// An rFonts on only one side has no intersection partner —
-		// upstream would drop every undetected attribute. With no
-		// detection signal in native, drop them all.
-		var prefix string
-		if a != nil {
-			prefix = extractRFontsElemNameFromXML(a.xml)
-		} else {
-			prefix = extractRFontsElemNameFromXML(b.xml)
-		}
-		if prefix == "" {
-			prefix = "w:rFonts"
-		}
-		return rPrChild{name: "rFonts", xml: "<" + prefix + "/>"}
-	}
-	aAttrs, _ := parseRFontsAttrs(a.xml)
-	bAttrs, _ := parseRFontsAttrs(b.xml)
-	bMap := make(map[string]string, len(bAttrs))
-	for _, x := range bAttrs {
-		bMap[x.name] = x.value
-	}
-	// Walk a's order; keep iff b has the same name with the same
-	// value. This matches mergeRFontsAcrossRuns' iteration order.
-	var kept []rfontsAttr
-	for _, x := range aAttrs {
-		if v, ok := bMap[x.name]; ok && v == x.value {
-			kept = append(kept, x)
-		}
-	}
-	prefix := extractRFontsElemNameFromXML(a.xml)
-	if prefix == "" {
-		prefix = extractRFontsElemNameFromXML(b.xml)
-	}
-	if prefix == "" {
-		prefix = "w:rFonts"
-	}
-	var buf strings.Builder
-	buf.WriteByte('<')
-	buf.WriteString(prefix)
-	for _, x := range kept {
-		buf.WriteByte(' ')
-		buf.WriteString(x.name)
-		buf.WriteByte('=')
-		q := x.quote
-		if q == 0 {
-			q = '"'
-		}
-		buf.WriteByte(q)
-		buf.WriteString(x.value)
-		buf.WriteByte(q)
-	}
-	buf.WriteString("/>")
-	return rPrChild{name: "rFonts", xml: buf.String()}
 }
 
 // extractRFontsElemNameFromXML extracts the prefixed element name from
