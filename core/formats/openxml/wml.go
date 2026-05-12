@@ -2014,8 +2014,16 @@ func (p *wmlParser) parseParagraph(d *xml.Decoder, partPath string, emitBlock fu
 					return nil
 				}
 
-				// Skip hidden text unless configured
-				if !p.cfg.TranslateHiddenText && allHidden(merged) {
+				// Skip hidden text unless configured. inheritedVanish lets
+				// a paragraph whose <w:vanish/> travels via pStyle (e.g.
+				// after WSO promoted vanish from per-run rPr into a
+				// synthesised paragraph style — PageBreak.docx,
+				// Hidden_Textbox.docx) still get filtered out.
+				inheritedVanish := false
+				if p.styles != nil && paraStyleID != "" {
+					inheritedVanish = p.styles.effectiveProps(paraStyleID).vanish
+				}
+				if !p.cfg.TranslateHiddenText && allHidden(merged, inheritedVanish) {
 					p.skelWriteString("<w:p>")
 					if paraProps != "" {
 						p.skelText(paraProps)
@@ -4062,13 +4070,26 @@ func isEmptyRuns(runs []textRun) bool {
 	return true
 }
 
-// allHidden returns true if all runs have the vanish property.
-func allHidden(runs []textRun) bool {
+// allHidden returns true if all runs have the vanish property — either
+// directly on the run's rPr OR inherited via inheritedVanish from the
+// paragraph style chain. Mirrors upstream Okapi's
+// `RunPropertyHidden.containsRunPropertyHidden(combinedRunProperties)`
+// pattern (Block.java / RunBuilder), where an inherited <w:vanish/> from
+// the paragraph's pStyle marks every run in the paragraph as hidden
+// regardless of the run's own rPr.
+//
+// inheritedVanish lets the caller signal that the paragraph-style
+// chain (resolved via styleMap.resolveProps) has <w:vanish/> set —
+// required so a paragraph whose vanish travels via pStyle (e.g.
+// PageBreak.docx after WSO promotes <w:vanish/> into a synthesised
+// Standard1 pStyle) still gets skipped by the hidden-text filter on
+// re-read. Callers without style context pass false.
+func allHidden(runs []textRun, inheritedVanish bool) bool {
 	for _, r := range runs {
 		if isSentinel(r.text) {
 			continue
 		}
-		if !r.props.vanish && strings.TrimSpace(r.text) != "" {
+		if !r.props.vanish && !inheritedVanish && strings.TrimSpace(r.text) != "" {
 			return false
 		}
 	}

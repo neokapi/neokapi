@@ -240,10 +240,15 @@ func TestIsEmptyRuns(t *testing.T) {
 func TestAllHidden(t *testing.T) {
 	assert.True(t, allHidden([]textRun{
 		{text: "hidden", props: runProps{vanish: true}},
-	}))
+	}, false))
 	assert.False(t, allHidden([]textRun{
 		{text: "visible", props: runProps{}},
-	}))
+	}, false))
+	// Inherited vanish (e.g. from a synthesised paragraph style) marks
+	// the paragraph as hidden even when the run's own rPr lacks <w:vanish/>.
+	assert.True(t, allHidden([]textRun{
+		{text: "visible", props: runProps{}},
+	}, true))
 }
 
 // --- Complex field definitions tests ---

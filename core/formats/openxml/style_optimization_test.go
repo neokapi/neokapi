@@ -162,23 +162,26 @@ func TestParseRunProps_KeepsExplicitRtlTrue(t *testing.T) {
 	assert.True(t, found, "bare <w:rtl/> must be preserved (toggle defaults to true)")
 }
 
-func TestOptimizeWMLPart_SingleRun_Vanish_Bypassed(t *testing.T) {
-	// vanish (hidden text) is conservatively excluded pending
-	// paragraph-style→run inheritance support in the native reader
-	// (TestRoundtripFormatted relies on hidden runs remaining hidden
-	// after roundtrip; promoting vanish into a synthesised pStyle
-	// would expose them as translatable on the second read). See
-	// runPropExclusions godoc. Upstream Okapi DOES lift vanish; this
-	// is a temporary native-only over-exclusion.
+func TestOptimizeWMLPart_SingleRun_Vanish_Promoted(t *testing.T) {
+	// vanish (hidden text) is now lifted into the synthesised paragraph
+	// style — matching upstream Okapi (PageBreak.docx, Hidden_Textbox.docx
+	// reference output). The native reader's allHidden guard now consults
+	// styleMap.effectiveProps(paraStyleID).vanish so a paragraph whose
+	// vanish travels via pStyle still gets filtered out on re-read; see
+	// runPropExclusions godoc + wml.go allHidden().
 	src := []byte(`<w:body><w:p><w:r><w:rPr><w:vanish/></w:rPr><w:t>a</w:t></w:r></w:p></w:body>`)
 	existing := map[string]bool{}
 	var counter int
 	syn := map[string]synthesisedStyle{}
 	var ids []string
 	got := optimizeWMLPart(src, existing, "", true, false, &counter, syn, &ids)
-	assert.NotContains(t, string(got), "NF974E24F")
-	assert.Len(t, ids, 0)
-	assert.Contains(t, string(got), `<w:vanish/>`)
+	assert.Contains(t, string(got), "NF974E24F-Normal1")
+	assert.Len(t, ids, 1)
+	assert.Equal(t, "NF974E24F-Normal1", ids[0])
+	// The synthesised style's rPr carries <w:vanish/> (not the run's rPr).
+	assert.Equal(t, "<w:vanish/>", syn["NF974E24F-Normal1"].rPrXML)
+	// The run's <w:vanish/> has been stripped (it's now inherited).
+	assert.NotContains(t, string(got), `<w:rPr><w:vanish/></w:rPr><w:t>a</w:t>`)
 }
 
 func TestInsertPStyle_OpenCloseFormStripped(t *testing.T) {

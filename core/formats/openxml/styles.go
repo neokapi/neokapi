@@ -86,7 +86,11 @@ type styleEntry struct {
 // paraStyleID is empty AND docDefaults are zero-valued, the returned
 // runProps is the zero value — equivalent to "no inheritance".
 //
-//nolint:unused // foundation; wire-up to parseRunProps in subsequent commit
+// Consumed by parseParagraph's hidden-text filter (allHidden gate in
+// wml.go) so a paragraph whose <w:vanish/> travels via pStyle (e.g.
+// PageBreak.docx after WSO promoted vanish into a synthesised
+// pStyle) still gets filtered on re-read despite its runs no longer
+// carrying direct vanish.
 func (sm *styleMap) effectiveProps(paraStyleID string) runProps {
 	if sm == nil {
 		return runProps{}

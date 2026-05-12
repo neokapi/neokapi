@@ -69,18 +69,6 @@ const styleHashRoot = "NF974E24F"
 //     moveTo, moveFrom inside rPr) have already been stripped by
 //     stripWMLSkippableElements when this function runs.
 //
-// Native-only over-exclusions (compensating for missing upstream
-// behaviour the native pipeline does not yet implement):
-//
-//   - <w:vanish> (hidden text marker, ECMA-376-1 §17.3.2.42) is excluded
-//     pending paragraph-style→run inheritance support in the native
-//     reader. Upstream Okapi resolves pStyle inheritance so a hidden run
-//     stays hidden after extraction even when vanish is promoted into a
-//     synthesised paragraph style; the native reader does not yet do
-//     that resolution, so promoting vanish causes a previously hidden
-//     run to become extracted as translatable on round-trip
-//     (TestRoundtripFormatted regresses without this guard).
-//
 // rtl was previously listed here as a compensating guard for the missing
 // RunProperty.minified() pass. minifyRPrChildren in runprops.go now
 // implements that pass (mirrors RunProperties.java:497-540), so explicit
@@ -89,9 +77,17 @@ const styleHashRoot = "NF974E24F"
 // is no longer needed for rtl (or for any other WPML toggle), and keeping
 // it would actually swallow legitimate `<w:rtl/>` (true) markers that
 // must travel through to the writer.
+//
+// <w:vanish> (hidden text marker, ECMA-376-1 §17.3.2.42) was previously
+// excluded pending paragraph-style→run inheritance in the native reader.
+// allHidden in wml.go now consults `styleMap.effectiveProps(paraStyleID).
+// vanish` so a paragraph whose vanish was promoted to its pStyle stays
+// hidden on re-read even though its runs no longer carry direct vanish.
+// Upstream Okapi DOES lift vanish into the synthesised style — see
+// PageBreak.docx and Hidden_Textbox.docx reference output (NF974E24F-
+// Standard1 / NF974E24F-Normal1 with `<w:rPr><w:vanish/></w:rPr>`).
 var runPropExclusions = map[string]bool{
 	"rStyle": true,
-	"vanish": true,
 }
 
 // runProp is a single <w:rPr> child element captured by name and raw
@@ -692,6 +688,19 @@ func optimizeParagraph(
 	// Now iterate runs, stripping common props from each rPr.
 	commonNames := make(map[string]bool, len(common))
 	for _, p := range common {
+		// When matchedID is empty (no word/styles.xml present →
+		// upstream's StyleDefinitions.Empty.placedId() returns null),
+		// the synthesised pStyle is unresolvable, so nothing can be
+		// inherited back at re-read time. Stripping <w:vanish/> from
+		// the run's rPr would silently expose hidden text on the next
+		// pass (formatted.docx — a docx with no styles.xml whose only
+		// translatable content is a `<w:vanish/>` run that must
+		// remain hidden after round-trip). Keep vanish on the run in
+		// that case; the synth pStyle's val is empty so the inherited-
+		// vanish path in allHidden cannot recover it.
+		if matchedID == "" && p.name == "vanish" {
+			continue
+		}
 		commonNames[p.name] = true
 	}
 	for _, e := range entries {
