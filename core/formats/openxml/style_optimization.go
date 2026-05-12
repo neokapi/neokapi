@@ -846,7 +846,7 @@ func optimizeParagraph(
 		// absent.
 		matchedID = ""
 	} else {
-		matchedID = findMatchingStyle(parentID, commonRPrXML, synthesised, *orderedIDs)
+		matchedID = findMatchingStyle(parentID, commonRPrXML, commonForStyle, synthesised, *orderedIDs)
 		if matchedID == "" {
 			// Generate a fresh id "NF974E24F-<parentID><N>" using the
 			// SHARED IdGenerator counter — see the optimizeWMLPart doc
@@ -2016,19 +2016,78 @@ func buildRPrXML(props []runProp) string {
 // in-progress synthesised set for a paragraph style with the same
 // parent and identical rPr body. Returns the styleId or "" if none.
 //
-// Mirrors WordStyleDefinitions.Ids.parentBased() — Okapi's optimiser
-// re-uses an existing matching synthesised style instead of creating a
-// new one.
+// Mirrors WordStyleDefinitions.Ids.parentBased() (WordStyleDefinitions
+// .java:462-475) — Okapi's optimiser re-uses an existing matching style
+// (source OR synthesised) instead of creating a new one. The upstream
+// `stylesByStyleIds` map is populated with source styles during
+// WordStyleDefinitions.readWith BEFORE any synth ids are placed, so the
+// `.entrySet().stream()...findFirst()` walk naturally considers BOTH
+// kinds.
 //
-// We don't search the source's existing styles (they're paragraph
-// styles whose rPr would need a full-tree comparison). The
-// optimisation only checks in-pass synthesised styles.
+// Match criteria (mirroring the upstream filter chain):
+//
+//  1. `type == StyleType.PARAGRAPH` — source side is filtered by
+//     extractSourceParagraphStyles which only collects
+//     `w:type="paragraph"` entries; synthesised side is paragraph by
+//     construction (`<w:style w:type="paragraph" .../>` in
+//     injectSynthesisedStyles).
+//  2. `parentId.equals(...)` — string-equal on basedOn.
+//  3. `paragraphBlockProperties.mergeableWith(other.paragraphProperties())`
+//     — the candidate's pPr properties must be a subset of the
+//     paragraph's pPr at the WSO call site (ParagraphBlockProperties
+//     .java:693-701, Word.mergeableWith). Native's WSO scope is rPr
+//     only; we don't track paragraph-level pPr equality, so we apply
+//     the conservative guard described on sourceParagraphStyleInfo
+//     .hasParagraphProps — candidates with a non-empty pPr are
+//     rejected.
+//  4. `runProperties.equals(other.runProperties())` — order-sensitive
+//     element-by-element equality of the rPr children list
+//     (RunProperties.java:653-663). On the synth side we already use a
+//     byte-equal rPrXML compare; on the source side we use the
+//     canonical runProp slice via runPropsEqual.
+//
+// Source-style matches return the source styleId verbatim (e.g.
+// "FranzJosef"), so the inserted `<w:pStyle w:val="FranzJosef"/>` re-
+// uses an existing definition and NO synth id is generated — clearing
+// counter-drift in fixtures where upstream's parentBased finds a
+// source-side match before the IdGenerator ticks.
 func findMatchingStyle(
 	parentID string,
 	rPrXML string,
+	common []runProp,
 	synthesised map[string]synthesisedStyle,
 	orderedIDs []string,
 ) string {
+	// Source paragraph styles win when present — upstream's
+	// `entrySet().stream().findFirst()` traversal sees source styles
+	// first because they were placed during readWith before any synth
+	// ids exist. Match deterministically by sorted styleId so output is
+	// stable across map iteration order (Go map ranges are intentionally
+	// unordered).
+	if len(currentSourceParagraphStyles) > 0 {
+		ids := make([]string, 0, len(currentSourceParagraphStyles))
+		for id := range currentSourceParagraphStyles {
+			ids = append(ids, id)
+		}
+		sort.Strings(ids)
+		for _, id := range ids {
+			info := currentSourceParagraphStyles[id]
+			if info.basedOn != parentID {
+				continue
+			}
+			if info.hasParagraphProps {
+				// See sourceParagraphStyleInfo.hasParagraphProps doc —
+				// conservative skip; native does not track per-pPr
+				// property equality so we can't safely assert
+				// mergeableWith for candidates with pPr content.
+				continue
+			}
+			if !runPropsEqual(info.rPrProps, common) {
+				continue
+			}
+			return id
+		}
+	}
 	for _, id := range orderedIDs {
 		s := synthesised[id]
 		if s.parentID == parentID && s.rPrXML == rPrXML {
@@ -2795,6 +2854,255 @@ func extractRTLChainStyleIDs(stylesXML []byte) map[string]bool {
 		}
 	}
 	return out
+}
+
+// sourceParagraphStyleInfo captures the metadata WSO needs to test a
+// source paragraph style as a match candidate per upstream Okapi's
+// WordStyleDefinitions.Ids.parentBased contract — see
+// WordStyleDefinitions.java:462-475:
+//
+//	final Optional<String> existing = this.styleDefinitions.stylesByStyleIds.entrySet()
+//	    .stream()
+//	    .filter(e -> type == e.getValue().type())
+//	    .filter(e -> parentId.equals(e.getValue().parentId()))
+//	    .filter(e -> paragraphBlockProperties.mergeableWith(e.getValue().paragraphProperties()))
+//	    .filter(e -> runProperties.equals(e.getValue().runProperties()))
+//	    .map(e -> e.getKey())
+//	    .findFirst();
+//
+// The match fields:
+//
+//   - basedOn — the parent style id (filtered against the current
+//     paragraph's resolved parentID). Native compares string-equal.
+//   - rPrProps — the rPr children of THIS style entry, parsed in source
+//     order into the same canonical-XML runProp shape native uses for
+//     commonForStyle / commonRPrXML. Compared element-by-element for the
+//     `runProperties.equals` check (List<Property>.equals in Java is
+//     order-sensitive — see RunProperties.Default.equalsProperties at
+//     RunProperties.java:653-663: `return properties.equals(rp.properties)`
+//     with the per-RunProperty.equalsProperty implementations).
+//   - hasParagraphProps — true when the style's pPr has ANY child
+//     property element (a pPr element with content other than the bare
+//     `<w:pPr/>` / `<w:pPr></w:pPr>` envelope). When the source style
+//     authors paragraph-level pPr props, native conservatively SKIPS
+//     this candidate to honour upstream's mergeableWith semantics. The
+//     paragraph at the WSO call site has its pPr's pStyle already
+//     stripped at the equivalence point (Word.mergeableWith /
+//     Default.mergeableWith at ParagraphBlockProperties.java:128-131,
+//     :693-701) but native does not track pPr property-by-property
+//     equality, so the safe approximation is "candidate must have an
+//     empty pPr too". This covers the recipe's targeted fixtures
+//     (delTextAmp / Hangs / StartsWithLineSeparator: their source
+//     paragraph styles either have no pPr or carry only structurally-
+//     ignorable members like rsid+spacing, which our hasParagraphProps
+//     check correctly rejects until per-prop equality is implemented).
+//
+// Per ECMA-376-1 §17.7.4 (Style Definitions) every `<w:style>` carries
+// w:type ∈ {paragraph, character, table, numbering}; only paragraph
+// styles participate in WSO's parentBased candidate set — character
+// styles parent rStyle inheritance, table/numbering styles serve their
+// own block types.
+type sourceParagraphStyleInfo struct {
+	basedOn           string
+	rPrProps          []runProp
+	hasParagraphProps bool
+}
+
+// currentSourceParagraphStyles is set by the writer (writer.go) before
+// invoking optimizeWMLPart on each WML part. It maps every source
+// paragraph styleId to its WSO-relevant metadata so findMatchingStyle
+// can match against existing-source styles in addition to the in-pass
+// synthesised set — mirroring upstream WordStyleDefinitions.Ids
+// .parentBased (WordStyleDefinitions.java:462-475) which walks the
+// FULL stylesByStyleIds map (which already contains source styles
+// placed by WordStyleDefinitions.readWith before any synth occurs).
+//
+// Module-level state matching the pattern of currentRTLChainStyles
+// (defined above) — keeps the optimizeWMLPart / optimizeParagraph
+// signatures stable for the test suite. The Writer resets it to nil
+// after each WSO pass via the same deferred cleanup that resets
+// currentRTLChainStyles.
+var currentSourceParagraphStyles map[string]sourceParagraphStyleInfo
+
+// extractSourceParagraphStyles walks stylesXML and returns the map of
+// every `<w:style w:type="paragraph" ... w:styleId="X">` entry to its
+// WSO match metadata (basedOn, rPrProps, hasParagraphProps).
+//
+// Per ECMA-376-1 §17.7.4 the `w:type="paragraph"` attribute filters out
+// character/table/numbering styles which never appear as WSO match
+// candidates (Ids.parentBased filters `type == e.getValue().type()` and
+// StyleOptimisation.Default constructs with `StyleType.PARAGRAPH`).
+// Self-closing `<w:style/>` entries (no body) are skipped — they cannot
+// carry rPr/pPr/basedOn.
+//
+// The rPr children are parsed via parseRunPropElements so the result is
+// byte-equal in canonical form to the runProp slice that
+// commonProps / buildRPrXML produce for the common-rPr lift. Property
+// order is preserved from styles.xml — mirrors upstream's
+// `properties.equals(rp.properties)` order-sensitive List comparison
+// (RunProperties.java:653-663, with the TODO comment "handle out of
+// order properties" acknowledging the order-sensitivity).
+func extractSourceParagraphStyles(stylesXML []byte) map[string]sourceParagraphStyleInfo {
+	out := make(map[string]sourceParagraphStyleInfo)
+	if len(stylesXML) == 0 {
+		return out
+	}
+	cursor := 0
+	openNeedle := []byte("<w:style")
+	closeNeedle := []byte("</w:style>")
+	for {
+		idx := bytes.Index(stylesXML[cursor:], openNeedle)
+		if idx < 0 {
+			return out
+		}
+		start := cursor + idx
+		j := start + len(openNeedle)
+		if j >= len(stylesXML) {
+			return out
+		}
+		// Element-name boundary check (reject "<w:styles", "<w:styleLink").
+		b := stylesXML[j]
+		if b != ' ' && b != '\t' && b != '\n' && b != '\r' && b != '>' && b != '/' {
+			cursor = j
+			continue
+		}
+		// Locate end of start tag.
+		tagEnd := bytes.IndexByte(stylesXML[j:], '>')
+		if tagEnd < 0 {
+			return out
+		}
+		tag := stylesXML[start : j+tagEnd+1]
+		// Self-closing `<w:style ... />` — no body.
+		selfClose := tagEnd > 0 && stylesXML[j+tagEnd-1] == '/'
+		if selfClose {
+			cursor = j + tagEnd + 1
+			continue
+		}
+		// Must be type="paragraph".
+		if !bytes.Contains(tag, []byte(`w:type="paragraph"`)) {
+			// Advance past start tag and continue.
+			cursor = j + tagEnd + 1
+			continue
+		}
+		// Extract styleId from start tag.
+		idAttrStart := bytes.Index(tag, []byte(`w:styleId="`))
+		if idAttrStart < 0 {
+			cursor = j + tagEnd + 1
+			continue
+		}
+		vstart := idAttrStart + len(`w:styleId="`)
+		vend := bytes.IndexByte(tag[vstart:], '"')
+		if vend < 0 {
+			cursor = j + tagEnd + 1
+			continue
+		}
+		styleID := string(tag[vstart : vstart+vend])
+		// Locate close tag to bound body.
+		ci := bytes.Index(stylesXML[j+tagEnd+1:], closeNeedle)
+		if ci < 0 {
+			return out
+		}
+		bodyStart := j + tagEnd + 1
+		bodyEnd := bodyStart + ci
+		body := stylesXML[bodyStart:bodyEnd]
+		info := sourceParagraphStyleInfo{}
+		// basedOn — flat scan (basedOn appears at most once per ECMA-376-1
+		// §17.7.4.3 ST_BasedOn).
+		if bi := bytes.Index(body, []byte(`<w:basedOn w:val="`)); bi >= 0 {
+			vs := bi + len(`<w:basedOn w:val="`)
+			ve := bytes.IndexByte(body[vs:], '"')
+			if ve > 0 {
+				info.basedOn = string(body[vs : vs+ve])
+			}
+		}
+		// pPr presence + non-empty check. We look for `<w:pPr`; if
+		// present and not the empty `<w:pPr/>` / `<w:pPr></w:pPr>`
+		// shape, treat the style as carrying paragraph-level props.
+		// Mirrors the conservative `mergeableWith` guard described on
+		// the sourceParagraphStyleInfo type.
+		if pi := bytes.Index(body, []byte("<w:pPr")); pi >= 0 {
+			pj := pi + len("<w:pPr")
+			if pj < len(body) {
+				pc := body[pj]
+				if pc == '/' || pc == '>' || pc == ' ' || pc == '\t' || pc == '\n' || pc == '\r' {
+					// Find end of pPr start tag.
+					pte := bytes.IndexByte(body[pj:], '>')
+					if pte >= 0 {
+						pTagEnd := pj + pte
+						pSelf := pTagEnd > 0 && body[pTagEnd-1] == '/'
+						if !pSelf {
+							// Open form — find balanced close.
+							pClose := bytes.Index(body[pTagEnd+1:], []byte("</w:pPr>"))
+							if pClose >= 0 {
+								inner := body[pTagEnd+1 : pTagEnd+1+pClose]
+								// Treat as having properties when inner
+								// has non-whitespace content.
+								for _, ic := range inner {
+									if ic != ' ' && ic != '\t' && ic != '\n' && ic != '\r' {
+										info.hasParagraphProps = true
+										break
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+		// rPr — parse children into runProp slice in source order.
+		if ri := bytes.Index(body, []byte("<w:rPr")); ri >= 0 {
+			rj := ri + len("<w:rPr")
+			if rj < len(body) {
+				rc := body[rj]
+				if rc == '/' || rc == '>' || rc == ' ' || rc == '\t' || rc == '\n' || rc == '\r' {
+					rte := bytes.IndexByte(body[rj:], '>')
+					if rte >= 0 {
+						rTagEnd := rj + rte
+						rSelf := rTagEnd > 0 && body[rTagEnd-1] == '/'
+						if !rSelf {
+							rClose := bytes.Index(body[rTagEnd+1:], []byte("</w:rPr>"))
+							if rClose >= 0 {
+								// parseRunPropElements expects the rPr
+								// envelope as input (matches its findFirst
+								// of `<w:rPr` + trim to `</w:rPr>`); slice
+								// the full envelope here.
+								envelope := body[ri : rTagEnd+1+rClose+len("</w:rPr>")]
+								info.rPrProps = parseRunPropElements(envelope)
+							}
+						}
+					}
+				}
+			}
+		}
+		out[styleID] = info
+		cursor = bodyEnd + len(closeNeedle)
+	}
+}
+
+// runPropsEqual reports whether two runProp slices have identical
+// element-by-element canonical XML. Used by findMatchingStyle's
+// existing-source-style branch to mirror upstream's
+// `runProperties.equals` check (RunProperties.java:653-663:
+// `properties.equals(rp.properties)` — a List<Property>.equals that is
+// order-sensitive per Java's AbstractList.equals contract).
+//
+// Native's normalizeEmptyElement (called by parseRunPropElements)
+// canonicalises `<w:X></w:X>` to `<w:X/>` so the equality is robust to
+// the open/close vs self-closing distinction encoding/xml's
+// Decoder/Encoder cycle can introduce. Both inputs flow through
+// parseRunPropElements (run-side at WSO time via runEntry.props;
+// styles-side via extractSourceParagraphStyles → parseRunPropElements)
+// so the canonical form is consistent on both sides.
+func runPropsEqual(a, b []runProp) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i].name != b[i].name || a[i].xml != b[i].xml {
+			return false
+		}
+	}
+	return true
 }
 
 // containsContentRevisionWrapper reports whether the paragraph src has

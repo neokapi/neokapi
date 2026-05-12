@@ -1058,6 +1058,14 @@ func (w *Writer) writeFromSkeleton(origZR *zip.Reader, zw *zip.Writer, buf *byte
 					// see style_optimization.go for the 899.docx-vs-
 					// 830-2.docx rationale.
 					currentRTLChainStyles = extractRTLChainStyleIDs(data)
+					// Hand the source paragraph style set off to the
+					// WSO matcher via currentSourceParagraphStyles.
+					// Consumed by findMatchingStyle to mirror upstream
+					// WordStyleDefinitions.Ids.parentBased
+					// (WordStyleDefinitions.java:462-475) which walks
+					// BOTH source and in-pass synthesised styles when
+					// looking for a re-use candidate.
+					currentSourceParagraphStyles = extractSourceParagraphStyles(data)
 				}
 				break
 			}
@@ -1070,7 +1078,10 @@ func (w *Writer) writeFromSkeleton(origZR *zip.Reader, zw *zip.Writer, buf *byte
 		// invoke optimizeWMLPart directly leave currentRTLChainStyles
 		// nil — preserving the pre-fix drop behaviour for fixtures
 		// whose chain has no rtl-bearing styles.
-		defer func() { currentRTLChainStyles = nil }()
+		defer func() {
+			currentRTLChainStyles = nil
+			currentSourceParagraphStyles = nil
+		}()
 	}
 
 	// wsoOptimised stashes the WSO-rewritten bytes for each
