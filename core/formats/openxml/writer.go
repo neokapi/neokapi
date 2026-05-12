@@ -671,6 +671,15 @@ func stripWMLSkippableElements(data []byte) []byte {
 // WordprocessingML XML part where okapi's lang/bidiVisual and
 // RevisionCrossStructure (moveTo/moveFrom range) stripping applies.
 // Other parts (drawings, themes, settings.xml) are untouched.
+//
+// `word/glossary/<name>.xml` mirrors the main-document set: ECMA-376-1
+// §17.12.7 (Glossary Document Part) defines a glossary as a parallel
+// WordprocessingML package whose parts mirror the main document's
+// structure (its own document.xml, settings.xml, styles.xml, etc.).
+// Okapi's filter walks the glossary document via the same
+// XmlEventStreamingPart path as the main document
+// (OpenXMLFilter.openZip + DocumentParts.glossary), so the same
+// `<w:lang>` strip applies. 834.docx is the canonical fixture.
 func shouldStripWMLLang(name string) bool {
 	if !strings.HasPrefix(name, "word/") || !strings.HasSuffix(name, ".xml") {
 		return false
@@ -685,6 +694,16 @@ func shouldStripWMLLang(name string) bool {
 	case strings.HasPrefix(name, "word/header") && strings.HasSuffix(name, ".xml"),
 		strings.HasPrefix(name, "word/footer") && strings.HasSuffix(name, ".xml"):
 		return true
+	}
+	if strings.HasPrefix(name, "word/glossary/") && strings.HasSuffix(name, ".xml") {
+		switch name {
+		case "word/glossary/document.xml",
+			"word/glossary/styles.xml",
+			"word/glossary/footnotes.xml",
+			"word/glossary/endnotes.xml",
+			"word/glossary/comments.xml":
+			return true
+		}
 	}
 	return false
 }
@@ -716,7 +735,7 @@ var wmlLangValAttrRE = regexp.MustCompile(
 // in the same way), while <w:themeFontLang/> sits in settings.xml only and
 // is preserved by okapi but with its w:val retargeted.
 func shouldRewriteWMLLangVal(name string) bool {
-	if name == "word/settings.xml" {
+	if name == "word/settings.xml" || name == "word/glossary/settings.xml" {
 		return true
 	}
 	return shouldStripWMLLang(name)

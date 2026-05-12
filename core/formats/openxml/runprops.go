@@ -1020,7 +1020,16 @@ func parseRunProps(d *xml.Decoder, aggressive bool, styleChainNames map[string]b
 			// `<w:vanish w:val="false"/>`, etc. round-trip into
 			// synthesised pStyles via WSO and diverge from the upstream
 			// reference (reordered-zip.docx).
-			props.rPrChildren = minifyRPrChildren(props.rPrChildren, styleChainNames)
+			// Defer the strip of default-valued entries that depend on
+			// the rStyle chain. wml.go runs minifyRPrChildren again
+			// per-run with the merged paraChain ∪ rStyleChain — entries
+			// that need the rStyle context to be preserved (e.g.
+			// `<w:u w:val="none"/>` against an rStyle-supplied
+			// `<w:u w:val="single"/>`) survive this parse-time pass.
+			// 834.docx footnotes is the canonical fixture (rStyle="a6"
+			// / Hyperlink). Strict mode (paired-toggle bCs/iCs
+			// preservation, rtl-with-sibling preservation) still runs.
+			props.rPrChildren = minifyRPrChildrenDeferred(props.rPrChildren, styleChainNames)
 			return props, nil
 		}
 	}
@@ -1066,6 +1075,37 @@ func parseRunProps(d *xml.Decoder, aggressive bool, styleChainNames map[string]b
 // (always strip default-valued toggles), matching native's pre-#xxx
 // pStyle-inheritance-absent baseline.
 func minifyRPrChildren(children []rPrChild, styleChainNames map[string]bool) []rPrChild {
+	return minifyRPrChildrenWithMode(children, styleChainNames, false)
+}
+
+// minifyRPrChildrenDeferred behaves like minifyRPrChildren but DEFERS
+// the "strip default-valued entries whose name is absent from the
+// chain" rule. Used at parse time inside parseRunProps where the
+// supplied chain only covers the paragraph's pStyle — the rStyle
+// chain is unknown until the wml.go run-loop applies subtractProps +
+// late minify. Without deferral, a run that authors
+// `<w:u w:val="none"/>` to clear an inherited Hyperlink-style
+// underline gets stripped at parse time (paragraph chain has no `u`)
+// and the late minify with the merged chain (which DOES include `u`
+// from the rStyle) has no entry left to preserve.
+//
+// 834.docx footnotes runs (rStyle="a6" / Hyperlink) are the canonical
+// fixture: nested SDT runs carry `<w:u w:val="none"/>` to clear the
+// inherited Hyperlink underline; without deferral the merged
+// "śďţ 2" run loses its clearing form.
+//
+// Strict mode (paired-toggle bCs/iCs preservation, rtl-with-sibling
+// preservation) still runs — those rules don't depend on rStyle
+// chain context.
+func minifyRPrChildrenDeferred(children []rPrChild, styleChainNames map[string]bool) []rPrChild {
+	return minifyRPrChildrenWithMode(children, styleChainNames, true)
+}
+
+// minifyRPrChildrenWithMode is the internal worker. When deferDefault
+// is true, default-valued entries that would be stripped because the
+// chain doesn't carry the name are PRESERVED — the caller must run
+// minifyRPrChildren again with the augmented chain.
+func minifyRPrChildrenWithMode(children []rPrChild, styleChainNames map[string]bool, deferDefault bool) []rPrChild {
 	if len(children) == 0 {
 		return children
 	}
@@ -1169,6 +1209,29 @@ func minifyRPrChildren(children []rPrChild, styleChainNames map[string]bool) []r
 				continue
 			}
 			if styleChainNames == nil || !styleChainNames[c.name] {
+				// Defer the strip ONLY when the caller provided a
+				// chain that doesn't carry `c.name`. With a nil chain
+				// (no style context — caller disabled style optimisation
+				// OR a unit test that does not load styles.xml), keep
+				// the legacy "always strip default-valued entries"
+				// behaviour so style-context-free callers stay byte-
+				// equivalent (TestParseRunProps_StripsDefaultValuedRtl
+				// and the reordered-zip.docx fixture path rely on this).
+				if deferDefault && styleChainNames != nil {
+					// Caller (parseRunProps) only sees the paragraph
+					// chain; the rStyle chain may add `c.name` and
+					// flip this strip into a "preserve as clearing
+					// override". Keep verbatim and let the late
+					// minify in wml.go (with paraChain ∪ rStyleChain)
+					// decide. Fixture 834.docx footnotes: rStyle="a6"
+					// (Hyperlink) chain has `<w:u w:val="single"/>`,
+					// so a per-run `<w:u w:val="none"/>` clearing
+					// form must round-trip; without deferral the
+					// parse-time minify (paragraph chain only) drops
+					// it and the late minify has nothing left.
+					out = append(out, c)
+					continue
+				}
 				continue
 			}
 		}
