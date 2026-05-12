@@ -2713,13 +2713,17 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 // Fixtures: 830-1.docx, 830-3.docx, 830-5.docx, 830-6.docx (the
 // canonical fld-end paragraph movement cluster).
 func pullLeadingFldCharEndIntoPrevParagraph(data []byte) []byte {
-	// Both forms appear in the wire output: native renderer emits
-	// `<w:fldChar w:fldCharType="end"></w:fldChar>` (paired) for
-	// in-block field-end runs and `<w:fldChar.../>` (self-closing)
-	// in some skeleton paths. Match either.
-	const fldEndRunPaired = `<w:r><w:fldChar w:fldCharType="end"></w:fldChar></w:r>`
-	const fldEndRunEmpty = `<w:r><w:fldChar w:fldCharType="end"/></w:r>`
-	if !bytes.Contains(data, []byte(fldEndRunPaired)) && !bytes.Contains(data, []byte(fldEndRunEmpty)) {
+	// The `<w:r>` envelope around a fld-end may carry rsid* /
+	// rsidDel / rsidR / rsidRPr attributes that survive into the
+	// post-WSO output (the rsid strip is only applied by the
+	// canonical normalizer, not by stripWMLSkippableElements).
+	// Use a regex that accepts any `<w:r ...>` open tag and either
+	// the paired `<w:fldChar.../></w:fldChar>` or the empty
+	// self-closing `<w:fldChar.../>` body. Per ECMA-376-1
+	// §17.3.2.1 (CT_R) and §17.16.5.6 (CT_FldChar), an isolated
+	// fld-end run carries no rPr or other body chunks — match
+	// only the bare-body shape.
+	if !bytes.Contains(data, []byte(`fldCharType="end"`)) {
 		return data
 	}
 	src := string(data)
@@ -2808,20 +2812,18 @@ func pullLeadingFldCharEndIntoPrevParagraph(data []byte) []byte {
 		// Try to migrate the leading fld-end run upward.
 		moved := false
 		if prevParaCloseInOut >= 0 && cumulativeFldBalance > 0 && prevParaMigrationEligible {
-			// The leading run must be exactly the no-rPr fld-end
-			// run, in either the paired or empty serialisation.
-			// Per ECMA-376-1 §17.3.2.1 (CT_R) an rPr-bearing
-			// fld-end (different shape) wouldn't match the bare
-			// `<w:r><w:fldChar.../></w:r>` body chunk and is
-			// intentionally left in place.
+			// The leading run must be a bare-body fld-end run
+			// (no rPr, no other body chunks) wrapped in any
+			// `<w:r ...>` envelope. The wrapper may carry
+			// rsid* attrs that survived the WSO pass; rPr-bearing
+			// fld-ends (different shape) are intentionally left
+			// in place because they're not the simple deferred-
+			// flush shape the migration models. Per ECMA-376-1
+			// §17.3.2.1 (CT_R) and §17.16.5.6 (CT_FldChar) an
+			// isolated fld-end carries no rPr or body chunks
+			// other than the fldChar itself.
 			leading := paraBody[bodyStart:]
-			var matchedRun string
-			switch {
-			case strings.HasPrefix(leading, fldEndRunPaired):
-				matchedRun = fldEndRunPaired
-			case strings.HasPrefix(leading, fldEndRunEmpty):
-				matchedRun = fldEndRunEmpty
-			}
+			matchedRun := matchLeadingFldEndRun(leading)
 			if matchedRun != "" {
 				// Splice the run at the recorded `</w:p>` of
 				// the previous paragraph in `out`. The previous
@@ -2859,6 +2861,27 @@ func pullLeadingFldCharEndIntoPrevParagraph(data []byte) []byte {
 	return []byte(out.String())
 }
 
+// leadingFldEndRunRE matches a `<w:r ...><w:fldChar
+// w:fldCharType="end"/></w:r>` (or paired body) at the head of a
+// paragraph body. The wrapper attrs are arbitrary (rsid* survive
+// the WSO pass); the fld-end body must carry no rPr or other
+// children — only the fldChar itself, in either self-closing or
+// paired form. Anchored to the start with ^ so it only fires when
+// the run is the FIRST token of the post-pPr body. Per ECMA-376-1
+// §17.3.2.1 (CT_R) and §17.16.5.6 (CT_FldChar).
+var leadingFldEndRunRE = regexp.MustCompile(
+	`^<w:r(?:\s[^>]*)?><w:fldChar w:fldCharType="end"(?:/>|></w:fldChar>)</w:r>`,
+)
+
+// matchLeadingFldEndRun returns the byte slice of the leading
+// fld-end run when present at the head of body, or "" otherwise.
+// The returned slice is suitable for splicing verbatim into the
+// destination paragraph and removing from the source body.
+func matchLeadingFldEndRun(body string) string {
+	m := leadingFldEndRunRE.FindString(body)
+	return m
+}
+
 // paraMigrationEligible reports whether a paragraph's emitted body
 // is a valid destination for a migrated leading fld-end run from
 // the immediately-following paragraph. The eligibility rules
@@ -2868,27 +2891,40 @@ func pullLeadingFldCharEndIntoPrevParagraph(data []byte) []byte {
 // stream cursor is in at the time of the end event, which in
 // practice means
 //
-//   - an EMPTY paragraph between the begin/separate paragraph and
-//     the source paragraph that originally held the end gets the
-//     end attached (the parser's stream cursor lands in the empty
-//     paragraph after consuming it during deferred flush). Fixture
-//     830-3.docx is the canonical case.
+//   - an EMPTY paragraph (no runs, or only empty placeholder runs
+//     such as `<w:r><w:rPr><w:rtl w:val="0"/></w:rPr></w:r>`)
+//     between the begin/separate paragraph and the source
+//     paragraph that originally held the end gets the end
+//     attached (the parser's stream cursor lands in the
+//     placeholder paragraph after consuming it during deferred
+//     flush). Fixtures 830-3.docx and 830-2.docx (para 7 with
+//     a single empty rtl-only run) are the canonical cases.
 //   - a paragraph that itself carries an unmatched fld-begin/separate
 //     gets the end appended (the field's local close happens in the
 //     same paragraph as its open). Fixture 830-1.docx is the
 //     canonical case.
-//   - a paragraph whose body carries plain text content but NO open
-//     fld-begin/separate of its own is NOT eligible — leaving the
-//     end in the source paragraph matches upstream's behaviour
-//     where the field doesn't reach back through arbitrary text
-//     content. Fixture 830-5.docx para 6 is the canonical guard.
+//   - a paragraph whose body carries text-bearing runs (`<w:t>`
+//     children) but NO open fld-begin/separate of its own is NOT
+//     eligible — leaving the end in the source paragraph matches
+//     upstream's behaviour where the field doesn't reach back
+//     through arbitrary text content. Fixture 830-5.docx para 6
+//     is the canonical guard: a bare `<w:p>` holds a leading
+//     fld-end + space, the immediately-preceding paragraph
+//     (00000006) holds plain text "paragraphs.", and upstream
+//     LEAVES the end in the bare paragraph.
 //
 // bodyStart is the offset within body of the first non-pPr byte —
 // passed in from the caller's bookkeeping.
 func paraMigrationEligible(body string, bodyStart int) bool {
 	rest := body[bodyStart:]
-	// Empty paragraph (only pPr): eligible.
-	if strings.TrimSpace(rest) == "" {
+	// Treat as empty when there are no `<w:t>` (text) children.
+	// Empty placeholder runs (e.g. `<w:r><w:rPr><w:rtl w:val=
+	// "0"/></w:rPr></w:r>` in 830-2.docx para 7) carry no
+	// translatable text and let the parser's deferredEvents
+	// flush attach the migrated end after them. Per
+	// ECMA-376-1 §17.3.2.1 (CT_R) a `<w:t>` child marks the
+	// run as text-bearing.
+	if !strings.Contains(rest, "<w:t>") && !strings.Contains(rest, "<w:t ") {
 		return true
 	}
 	// Paragraph carrying its own unmatched fld-begin: eligible.
