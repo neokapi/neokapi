@@ -30,6 +30,22 @@ type runProps struct {
 	strike    bool
 	vertAlign string // "superscript", "subscript", or ""
 	vanish    bool   // hidden text
+	// vanishXML mirrors boldXML/italicXML for `<w:vanish>` per
+	// ECMA-376-1 §17.3.2.42 (CT_OnOff). When the source authored an
+	// explicit-on form (e.g. `<w:vanish w:val="on"/>` /
+	// `<w:vanish w:val="1"/>` / `<w:vanish w:val="true"/>`), this
+	// preserves the source serialisation so the writer can re-emit
+	// the original form. Empty means the source authored the bare
+	// `<w:vanish/>` (or vanish=false). Per ECMA-376-1 §17.3.2.1
+	// (CT_OnOff) the bare element and val="1"/"true"/"on" are
+	// equivalent ON states, but upstream Okapi's RunProperties.
+	// minified() preserves the source RunProperty's exact QName +
+	// attributes (RunProperties.java:497-540). Fixture
+	// HiddenTablesApachePoi.docx authors `<w:vanish w:val="on"/>`
+	// on the hidden table runs; the WSO post-pass lifts vanish into
+	// a synthesised pStyle and the bridge preserves the explicit-on
+	// form there.
+	vanishXML string
 	// vanishExplicit is true when the source rPr carried an explicit
 	// <w:vanish.../> element, regardless of its toggle value (true,
 	// false, off, 0). This distinguishes "direct rPr overrides
@@ -530,6 +546,14 @@ func italicOnXML(rp runProps) string {
 	return "<w:i/>"
 }
 
+// vanishOnXML mirrors boldOnXML for `<w:vanish>`. ECMA-376-1 §17.3.2.42.
+func vanishOnXML(rp runProps) string {
+	if rp.vanishXML != "" {
+		return rp.vanishXML
+	}
+	return "<w:vanish/>"
+}
+
 // appendOpeningRuns emits PcOpen runs for this run's formatting.
 func (rp runProps) appendOpeningRuns(b *runBuilder, idCounter *int) {
 	emit := func(typ, subType, data string) {
@@ -896,7 +920,30 @@ func parseRunProps(d *xml.Decoder, aggressive bool, styleChainNames map[string]b
 					}
 					props.rPrChildren = append(props.rPrChildren, rPrChild{name: local, xml: raw})
 				} else {
-					if err := skipElement(d); err != nil {
+					// Preserve the explicit-on form (e.g.
+					// `<w:vanish w:val="on"/>` /
+					// `<w:vanish w:val="1"/>`) so the writer can re-emit
+					// the source authoring form. The bare `<w:vanish/>`
+					// is the canonical default and stays in
+					// vanishXML="" so callers fall through to the
+					// fixed `<w:vanish/>` literal. Mirrors the bold/
+					// italic explicit-on capture above. Per ECMA-376-1
+					// §17.3.2.42 (CT_OnOff <w:vanish>), val="1" /
+					// "true" / "on" are equivalent ON states; upstream
+					// Okapi preserves the source RunProperty's exact
+					// QName + attributes (RunProperties.java:497-540).
+					// HiddenTablesApachePoi.docx is the canonical
+					// fixture: hidden table runs author
+					// `<w:vanish w:val="on"/>`; the WSO post-pass lifts
+					// vanish into a synthesised pStyle and the bridge
+					// preserves the explicit-on form there.
+					if len(t.Attr) > 0 {
+						raw, err := serializeRPrChildElement(d, t)
+						if err != nil {
+							return props, err
+						}
+						props.vanishXML = raw
+					} else if err := skipElement(d); err != nil {
 						return props, err
 					}
 				}
