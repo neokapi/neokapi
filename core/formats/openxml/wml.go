@@ -227,6 +227,18 @@ type wmlParser struct {
 	// "drop entirely" case handled by the existing
 	// paragraphHasDeletedMark check at the empty-runs branch.
 	partMergeable *pendingMergeable
+	// partFieldStraddle defers emit of a paragraph that closed while
+	// an extractable complex field was still open at result phase
+	// (cfs.active && cfs.extractable && cfs.atResult). The next
+	// paragraph(s) may carry a lone fldChar-end run that upstream
+	// Okapi absorbs back into the prior block via
+	// `parseComplexField`'s deferred-events path
+	// (RunParser.java:508-514 + endComplexFieldParsing at 594-609).
+	// Deferring lets us append the tail fldChar-end to this
+	// paragraph's buffered run slice and emit one combined block;
+	// the trailing fldChar-end-only paragraph then re-emits as an
+	// empty `<w:p>` with its own pPr.
+	partFieldStraddle *pendingFieldBlock
 }
 
 // pendingMergeable carries the post-mergeRuns slice for a paragraph
@@ -245,6 +257,30 @@ type pendingMergeable struct {
 	runs        []textRun
 	paraProps   string
 	paraStyleID string
+}
+
+// pendingFieldBlock carries a deferred paragraph emit for a paragraph
+// that closed while an extractable complex field was still open at
+// result phase. We retain everything needed to (a) append additional
+// fldChar-end runs from a successor paragraph (b) re-run buildBlock /
+// commonRPrChildren / per-run sidecars on the augmented slice and
+// (c) emit the skeleton bytes (`<w:p>` + paraProps + ref + `</w:p>`)
+// at the right moment.
+//
+// Mirrors upstream Okapi's `parseComplexField` deferred-events
+// machinery (RunParser.java:461-542): when a paragraph end event
+// arrives inside an extractable field at result phase, it goes into
+// `deferredEvents`. When the field finally ends via the
+// `goesAfterAnotherRun=true` branch of endComplexFieldParsing
+// (RunParser.java:594-598), the deferred events flush through
+// parseContent and the fldChar-end markup lands BEFORE the deferred
+// `<w:p>` end events — so the field-end appears in the previous
+// paragraph in the rendered output.
+type pendingFieldBlock struct {
+	runs        []textRun // post-mergeRuns
+	paraProps   string
+	paraStyleID string
+	partPath    string
 }
 
 // parsePart streams through a WordprocessingML XML part, emitting Blocks.
@@ -431,6 +467,15 @@ func (p *wmlParser) parsePart(data []byte, partPath string, emitBlock func(*mode
 			return err
 		}
 	}
+	// Flush a dangling field-straddle buffer too. When an extractable
+	// complex field remains open at end-of-part (no fldChar-end ever
+	// arrives), emit the buffered paragraph as-is (no extra tail runs)
+	// so its display content survives.
+	if p.partFieldStraddle != nil {
+		if err := p.flushPendingFieldBlock(nil, partPath, emitBlock); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -490,6 +535,116 @@ func (p *wmlParser) flushPendingMergeable(partPath string, emitBlock func(*model
 	block := p.buildBlock(blockID, merged, partPath, commonRPrXML, perRunRPrXML, perRunSrcRunStart)
 	emitBlock(block)
 	return nil
+}
+
+// flushPendingFieldBlock emits a buffered field-straddle paragraph
+// as a standalone `<w:p>` block. `extraTailRuns` carries any
+// successor paragraph's field-tail runs (the lone fldChar-end run
+// closing the straddling field) that should be appended to this
+// block's run slice; pass nil when no successor paragraph absorbed
+// them.
+//
+// Re-runs commonRPrChildren / mergeRuns / drawing-extraction on the
+// (possibly augmented) slice — mergeRuns is idempotent for already-
+// merged groups, and field-markup sentinels are skipped by
+// commonRPrChildren (StyleOptimisation.java:204-237 only iterates
+// text-bearing chunks), so appending them does not alter the
+// per-paragraph common-rPr intersection.
+//
+// Mirrors upstream Okapi's tail of `endComplexFieldParsing`
+// (RunParser.java:594-609) plus the `BlockParser.parse` block close
+// (BlockParser.java:284-292).
+func (p *wmlParser) flushPendingFieldBlock(extraTailRuns []textRun, partPath string, emitBlock func(*model.Block)) error {
+	pf := p.partFieldStraddle
+	p.partFieldStraddle = nil
+	runs := pf.runs
+	if len(extraTailRuns) > 0 {
+		combined := make([]textRun, 0, len(runs)+len(extraTailRuns))
+		combined = append(combined, runs...)
+		combined = append(combined, extraTailRuns...)
+		runs = combined
+	}
+	commonRPr := commonRPrChildren(runs)
+	commonRPrXML := joinRPrChildren(commonRPr)
+	merged := mergeRuns(runs)
+	perRunRPrXML := perRunRPrFragments(merged)
+	perRunSrcRunStart := perRunSrcRunStartFlags(merged)
+	for i := range merged {
+		if isDrawingSentinel(merged[i].text) && merged[i].data != "" {
+			merged[i].data = p.extractDrawingTranslations(merged[i].data, partPath, emitBlock)
+		}
+	}
+	if isEmptyRuns(merged) {
+		// Defensive: we only buffer paragraphs with display
+		// content, so the merged slice should remain non-empty
+		// even after the tail-runs append. If somehow empty,
+		// emit a degenerate empty paragraph as a safety net.
+		p.skelWriteString("<w:p>")
+		if pf.paraProps != "" {
+			p.skelText(pf.paraProps)
+		}
+		p.skelWriteString("</w:p>")
+		return nil
+	}
+	inheritedVanish := false
+	if p.styles != nil && pf.paraStyleID != "" {
+		inheritedVanish = p.styles.effectiveProps(pf.paraStyleID).vanish
+	}
+	if !p.cfg.TranslateHiddenText && allHidden(merged, inheritedVanish) {
+		p.skelWriteString("<w:p>")
+		if pf.paraProps != "" {
+			p.skelText(pf.paraProps)
+		}
+		for _, r := range merged {
+			p.skelText(runToXML(r))
+		}
+		p.skelWriteString("</w:p>")
+		return nil
+	}
+	*p.blockCounter++
+	blockID := fmt.Sprintf("tu%d", *p.blockCounter)
+	p.skelWriteString("<w:p>")
+	if pf.paraProps != "" {
+		p.skelText(pf.paraProps)
+	}
+	p.skelRef(blockID)
+	p.skelWriteString("</w:p>")
+	block := p.buildBlock(blockID, merged, partPath, commonRPrXML, perRunRPrXML, perRunSrcRunStart)
+	emitBlock(block)
+	return nil
+}
+
+// allFldCharEndOnly reports whether every entry in `runs` carries
+// only a fldChar-end marker (U+E108 field sentinel whose captured
+// payload contains `w:fldCharType="end"` and no other fldChar /
+// instrText). Returns false for empty slices and for sentinels
+// carrying non-end content (e.g. a `<w:r><w:rPr><w:rtl/></w:rPr>
+// </w:r>` empty placeholder run which is also a U+E108 sentinel but
+// represents the field's display area, not its closing marker —
+// 830-2.docx P2 / 830-6.docx P2). Used by the cross-paragraph
+// field-straddle reabsorption path to distinguish a true
+// "fldChar-end-only" paragraph (whose lone fldChar-end can be moved
+// back to the prior block — 1172.docx P3, 1341 textbox P2) from a
+// placeholder paragraph that should keep its content. Per ECMA-376-1
+// §17.16.5.6 (CT_FldChar) the fldCharType attribute discriminates
+// begin / separate / end forms; only `end` closes the field.
+func allFldCharEndOnly(runs []textRun) bool {
+	if len(runs) == 0 {
+		return false
+	}
+	for _, r := range runs {
+		if !isFieldSentinel(r.text) {
+			return false
+		}
+		if !strings.Contains(r.data, `w:fldCharType="end"`) {
+			return false
+		}
+		if strings.Contains(r.data, `w:fldCharType="begin"`) ||
+			strings.Contains(r.data, `w:fldCharType="separate"`) {
+			return false
+		}
+	}
+	return true
 }
 
 // dropDeletedRows removes every <w:tr ...>...</w:tr> region whose
@@ -2387,6 +2542,67 @@ func (p *wmlParser) parseParagraph(d *xml.Decoder, partPath string, emitBlock fu
 				// markup survives the round-trip — losing
 				// <w:drawing> here is the bug fixed in #590.
 				if isEmptyRuns(merged) {
+					// Field-straddle absorption (fldChar-end-only
+					// paragraph). When the previous paragraph buffered
+					// itself as a `pendingFieldBlock` (display content
+					// + cfs.active+extractable+atResult at close) AND
+					// THIS paragraph carries only a lone fldChar-end
+					// sentinel (no other fldChar / instrText / display
+					// content — strictly the field's closing marker),
+					// upstream Okapi absorbs that tail run back into
+					// the prior block via `parseComplexField`'s
+					// deferred-events `goesAfterAnotherRun=true`
+					// branch (RunParser.java:594-598): the fldChar-end
+					// markup lands BEFORE the deferred pEnd events, so
+					// the rendered output places it in the previous
+					// paragraph. The paragraph that originally held
+					// the fldChar-end survives as a structural shell —
+					// `<w:p>pPr</w:p>`.
+					//
+					// Fixtures: 1172.docx P3 (only fldChar-end +
+					// _GoBack bookmark — bookmark filtered, fldChar-
+					// end remains as the only run) and 1341-textbox-
+					// with-a-hyperlink.docx textbox P2 (only
+					// fldChar-end). ECMA-376-1 §17.16.5 (CT_FldChar)
+					// defines fldChar children of <w:r>; §17.16.18
+					// (HYPERLINK field instructions) defines the field
+					// code extracted by `complexFieldCodeName`.
+					//
+					// The fldChar-end-only check `allFldCharEndOnly`
+					// excludes placeholder-only sentinels (empty
+					// `<w:r><w:rPr>...</w:rPr></w:r>` inside an open
+					// field — 830-2.docx P2, 830-6.docx P2) because
+					// upstream keeps those placeholders in their
+					// source paragraph and the writer-side
+					// `pullLeadingFldCharEndIntoPrevParagraph` post-
+					// pass migrates the fld-end into them.
+					if p.partFieldStraddle != nil && allFldCharEndOnly(merged) {
+						if err := p.flushPendingFieldBlock(merged, partPath, emitBlock); err != nil {
+							return err
+						}
+						p.skelWriteString("<w:p>")
+						if paraProps != "" {
+							p.skelText(paraProps)
+						}
+						p.skelWriteString("</w:p>")
+						return nil
+					}
+					// If a field-straddle buffer is pending but THIS
+					// paragraph is not the fldChar-end-only absorber
+					// (e.g. an empty paragraph with deletedMark sitting
+					// between the field-display paragraph and the
+					// field-end paragraph — 1102.docx P3, or a
+					// placeholder-only paragraph — 830-2.docx P2), flush
+					// the buffer first so the buffered block emits
+					// BEFORE this paragraph in document order. The
+					// current paragraph then proceeds through the
+					// existing empty-runs path (its placeholder
+					// content reaches the skeleton via writeRunToSkel).
+					if p.partFieldStraddle != nil {
+						if err := p.flushPendingFieldBlock(nil, partPath, emitBlock); err != nil {
+							return err
+						}
+					}
 					// Tracked deletion of the paragraph mark
 					// (ECMA-376 Part 1 §17.13.5.13 CT_ParaRPr):
 					// when <w:pPr><w:rPr> carries <w:del> or
@@ -2540,6 +2756,60 @@ func (p *wmlParser) parseParagraph(d *xml.Decoder, partPath string, emitBlock fu
 						p.skelText(runToXML(r))
 					}
 					p.skelWriteString("</w:p>")
+					return nil
+				}
+
+				// If a previous paragraph buffered itself as a
+				// partFieldStraddle and THIS paragraph carries display
+				// content (didn't fall into the empty-runs branch
+				// above), flush the buffered block FIRST so it emits
+				// in document order. This covers 1102.docx P4 (" " +
+				// "text" + fldChar-end — display content interleaved
+				// with the field-end, NOT a sole fldChar-end) and the
+				// existing 830-2/830-6 case where the prev paragraph's
+				// buffer flushes before this paragraph's text runs
+				// (and the writer-side `pullLeadingFldCharEndIntoPrevParagraph`
+				// handles the cross-paragraph fld-end move).
+				if p.partFieldStraddle != nil {
+					if err := p.flushPendingFieldBlock(nil, partPath, emitBlock); err != nil {
+						return err
+					}
+				}
+
+				// Cross-paragraph extractable-field straddle (defer
+				// trigger). When this paragraph closes while an
+				// extractable complex field is still open at result
+				// phase (cfs.active && cfs.extractable && cfs.atResult
+				// — fldChar-begin and fldChar-separate seen,
+				// fldChar-end NOT yet), upstream Okapi defers the
+				// `</w:p>` event inside `RunParser.parseComplexField`'s
+				// `deferredEvents` queue (RunParser.java:508-514) and
+				// continues gathering events into the SAME RunBuilder
+				// until the field closes. The display-area runs from
+				// this paragraph plus the lone fldChar-end run from a
+				// SOLE-fldChar-end successor paragraph all land in one
+				// block; the fldChar-end's original `<w:p>` survives
+				// only as a structural shell with its pPr.
+				//
+				// Native mirrors this by buffering the post-mergeRuns
+				// slice + paraProps + sidecars. The next
+				// parseParagraph invocation either appends the
+				// successor's fldChar-end and flushes (1172.docx P3,
+				// 1341-textbox-with-a-hyperlink.docx textbox P2) or —
+				// when the successor carries display content too —
+				// flushes the buffer first then proceeds normally (no
+				// regression vs the unbuffered baseline). Skip the
+				// buffer when partMergeable is also being set
+				// (deletedMark + open field — already excluded above
+				// by the `!(cfs.active && cfs.extractable)` guard) so
+				// the two cross-paragraph mechanisms never overlap.
+				if cfs.active && cfs.extractable && cfs.atResult {
+					p.partFieldStraddle = &pendingFieldBlock{
+						runs:        merged,
+						paraProps:   paraProps,
+						paraStyleID: paraStyleID,
+						partPath:    partPath,
+					}
 					return nil
 				}
 
