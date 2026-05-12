@@ -180,27 +180,60 @@ func (sm *styleMap) effectiveRPrChildXML(styleID, name string) string {
 	return ""
 }
 
-// formatRFontsXML serialises a `<w:rFonts ...>` start element to its
-// canonical XML form with attributes in source order, w:-prefixed.
-// Used by parseStyles to populate styleEntry.rPrChildXMLs and by
-// per-run minification to compare a run's rFonts against the chain.
+// formatRPrChildXML serialises an rPr child start element to its
+// canonical self-closing w:-prefixed XML form. Used by parseStyles to
+// populate styleEntry.rPrChildXMLs for value-bearing rPr children
+// (color, sz, szCs, kern, position, vertAlign, lang, …) AND for
+// no-attribute toggles (b, i, outline, shadow, strike, …) so per-run
+// rPr minification can drop a run's child whose canonical XML matches
+// what the resolved rStyle/pStyle chain supplies — mirrors upstream
+// Okapi RunProperties.minified()'s `if (preCombined.contains(p))`
+// branch (RunProperties.java:497-540) which performs Property.equals
+// (RunProperty.equalsProperty) on the resolved chain.
 //
-// The canonical form mirrors what parseRunProps captures into
-// rPrChildren via serializeWithCapture so byte-equality holds.
-func formatRFontsXML(t xml.StartElement) string {
+// The serialisation matches what parseRunProps captures into
+// rPrChildren via serializeWithCapture / serializeRPrChildElement
+// (the wmlPrefixed form), so a byte-equal comparison correctly
+// identifies redundant authoring regardless of attribute ordering
+// quirks in the source XML — both sides walk t.Attr in source order
+// and write `w:`-prefixed attribute names. For pure no-attribute
+// toggles (`<w:b/>`, `<w:rtl/>`, `<w:outline/>`, `<w:shadow/>`,
+// `<w:strike/>`, etc.) the output is the bare self-closing element.
+//
+// Per ECMA-376-1 §17.3.2 every rPr child element is identified by
+// its name + attribute set (no character data content), so the
+// self-closing `<w:NAME ...attrs.../>` shape is the canonical wire
+// form for equality purposes.
+func formatRPrChildXML(t xml.StartElement) string {
 	var b strings.Builder
-	b.WriteString("<w:rFonts")
+	b.WriteByte('<')
+	// rPr children in styles.xml are bound to the WML namespace; the
+	// element prefix is always "w:" regardless of the source's
+	// declared prefix because parseStyles strips the xmlns dance.
+	// Mirrors serializeRPrChildElement / writeStartTag in runprops.go
+	// which use prefixForNamespace(Name.Space) — the WML URI maps to
+	// "w:" — keeping byte-equal canonical XML across the parse-time
+	// run capture and the styles-side chain capture.
+	b.WriteString("w:")
+	b.WriteString(t.Name.Local)
 	for _, a := range t.Attr {
-		// Strip the xmlns attribute that some encoders surface on
-		// child elements; rFonts always shares the parent w: namespace.
+		// Strip xmlns attributes that some encoders surface on
+		// child elements; rPr children always share the parent w:
+		// namespace and the writer never emits xmlns on them.
 		if a.Name.Local == "xmlns" || a.Name.Space == "xmlns" {
 			continue
 		}
 		b.WriteByte(' ')
-		b.WriteString("w:")
+		// Mirror serializeWithCapture's per-attribute prefix
+		// resolution: the attribute's effective prefix comes from
+		// its namespace URI via prefixForNamespace, NOT from the
+		// source's declared prefix. This keeps the chain XML
+		// byte-equal to the per-run rPrChildren XML for byte
+		// equality in the chain-value strip.
+		b.WriteString(prefixForNamespace(a.Name.Space))
 		b.WriteString(a.Name.Local)
 		b.WriteString(`="`)
-		b.WriteString(xmlEscapeAttr(a.Value))
+		b.WriteString(escapeAttrVal(a.Value))
 		b.WriteString(`"`)
 	}
 	b.WriteString("/>")
@@ -438,6 +471,42 @@ func parseStyles(zr *zip.Reader) *styleMap {
 
 		switch t := tok.(type) {
 		case xml.StartElement:
+			// Capture rPr child canonical XML BEFORE the field-typed
+			// dispatch below — the dispatch below only handles a few
+			// toggle/font members but the per-run minification path
+			// needs the full XML form for every rPr child the chain
+			// might author. Mirrors upstream Okapi
+			// RunProperties.minified()'s `if (preCombined.contains(p))`
+			// branch (RunProperties.java:497-540) which compares run
+			// properties to the FULL preCombined view by Property
+			// equality. Captured for `<w:style>` definitions only —
+			// docDefaults rPr also reach here but the chain-value
+			// strip in wml.go currently consults named styles via
+			// effectiveRPrChildXML (which walks the basedOn chain)
+			// rather than docDefaults; capturing them on docDefaults
+			// would require a separate lookup path and is left for a
+			// follow-up if a fixture surfaces the gap.
+			//
+			// Canonical fixture: HiddenTablesApachePoi.docx — the
+			// `Body` paragraph style authors `<w:outline w:val="0"/>`,
+			// and every `Body`-styled run also authors
+			// `<w:outline w:val="0"/>` directly. Without chain XML
+			// capture the per-run minification cannot detect the
+			// match and the WSO post-pass lifts outline=0 into the
+			// synthesised `NF974E24F-Body1` style's rPr — a divergence
+			// from upstream Okapi which RunProperties.minified() drops
+			// the run-level entry as a Property.equals duplicate of
+			// the inherited value before WSO computes commonRunProperties.
+			if inStyle && current != nil && inRPr && t.Name.Local != "rPr" {
+				if current.rPrChildXMLs == nil {
+					current.rPrChildXMLs = make(map[string]string)
+				}
+				// Last-write-wins per-name (the source style
+				// authoring is single-instance per name per
+				// ECMA-376-1 §17.3.2; well-formed styles.xml never
+				// repeats an rPr child within one rPr block).
+				current.rPrChildXMLs[t.Name.Local] = formatRPrChildXML(t)
+			}
 			// Capture rPr child element names BEFORE the field-typed
 			// dispatch below. The handlers below only inspect a few
 			// toggle/font properties; minifyRPrChildren needs the
@@ -572,21 +641,14 @@ func parseStyles(zr *zip.Reader) *styleMap {
 						dst.fontName = v
 					}
 				}
-				// Capture the rFonts element's canonical XML on the
-				// style entry so per-run rPr minification can drop a
-				// run's `<w:rFonts>` child when its attribute set
-				// matches what the resolved rStyle/pStyle chain
-				// supplies. ECMA-376-1 §17.3.2.26 (CT_Fonts): the
-				// element is identified by its attribute set
-				// (ascii, hAnsi, cs, eastAsia, *Theme, hint), not by
-				// content; canonicalising via formatRFontsXML keeps
-				// equality stable across attribute order.
-				if inStyle && current != nil && inRPr {
-					if current.rPrChildXMLs == nil {
-						current.rPrChildXMLs = make(map[string]string)
-					}
-					current.rPrChildXMLs["rFonts"] = formatRFontsXML(t)
-				}
+				// Note: the canonical XML for `<w:rFonts>` (and every
+				// other rPr child) is captured by the generic block
+				// at the top of `case xml.StartElement`. ECMA-376-1
+				// §17.3.2.26 (CT_Fonts): the element is identified by
+				// its attribute set (ascii, hAnsi, cs, eastAsia,
+				// *Theme, hint), not by content; canonicalising via
+				// formatRPrChildXML keeps equality stable across
+				// attribute order.
 			}
 
 		case xml.EndElement:
