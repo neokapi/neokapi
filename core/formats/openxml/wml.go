@@ -2564,9 +2564,23 @@ func (p *wmlParser) parseRunWithFieldState(d *xml.Decoder, cfs *complexFieldStat
 				if rawCaptured {
 					rawBuf.WriteString(brXML.String())
 				}
+				// Carry the surrounding `<w:r>`'s rPr through on
+				// the break run so toggle-bearing properties like
+				// <w:vanish/> survive into the model. ECMA-376-1
+				// §17.3.2.1 (CT_R) — every rPr child applies to the
+				// run regardless of its payload (text vs <w:br/> vs
+				// <w:tab/>). Without this, a vanish-bearing page-break
+				// run loses its hidden marker on read; the writer's
+				// runToXML uses serializeFullRPrXML(r.props) to emit
+				// the rPr so the upstream WSO post-pass sees vanish
+				// and lifts it into the synthesised paragraph style
+				// (PageBreak.docx — `<w:r><w:rPr><w:vanish/></w:rPr>
+				// <w:br w:type="page"/></w:r>` must round-trip with
+				// the vanish in place; both reference and native then
+				// promote it into NF974E24F-Standard1).
 				runs = append(runs, textRun{
 					text:  "\n",
-					props: runProps{}, // break has no formatting
+					props: props,
 					data:  brXML.String(),
 				})
 				if err := skipElement(d); err != nil {
@@ -4640,6 +4654,30 @@ func (p *wmlParser) extractTxbxParagraph(dec *xml.Decoder, out *strings.Builder,
 			// translatable block. The pPr (if any) is preserved
 			// inside <w:p>...</w:p>.
 			if isEmptyRuns(merged) {
+				out.WriteString("<w:p>")
+				if paraProps != "" {
+					out.WriteString(paraProps)
+				}
+				for _, r := range merged {
+					out.WriteString(runToXML(r))
+				}
+				out.WriteString("</w:p>")
+				return nil
+			}
+			// Hidden text inside a textbox paragraph: emit verbatim
+			// (mirrors the parseParagraph allHidden guard at line ~2026).
+			// Without this, vanish-bearing textbox runs (Hidden_Textbox.docx
+			// — `<w:r><w:rPr><w:vanish/></w:rPr><w:t>Hidden Text</w:t></w:r>`
+			// inside a wps:txbx body) get extracted as translatable, then
+			// the writer reconstructs the paragraph without the original
+			// rPr structure and WSO no longer sees the vanish to promote.
+			// inheritedVanish is computed the same way as the outer
+			// parseParagraph path — see allHidden() and styleMap.effectiveProps().
+			inheritedVanish := false
+			if p.styles != nil && paraStyleID != "" {
+				inheritedVanish = p.styles.effectiveProps(paraStyleID).vanish
+			}
+			if !p.cfg.TranslateHiddenText && allHidden(merged, inheritedVanish) {
 				out.WriteString("<w:p>")
 				if paraProps != "" {
 					out.WriteString(paraProps)
