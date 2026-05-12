@@ -2410,21 +2410,33 @@ func (p *wmlParser) parseRunWithFieldState(d *xml.Decoder, cfs *complexFieldStat
 				runs = append(runs, textRun{text: text, props: props, inFieldDisplay: inField})
 
 			case "br":
+				// Capture the break element verbatim (including any
+				// w:type="page" / w:type="column" / w:clear attribute)
+				// so the writer can re-emit the source's full element.
+				// Per ECMA-376-1 §17.3.3.1 (CT_Br) the type attribute
+				// distinguishes textWrap (default), page, and column
+				// break semantics — losing it on round-trip changes
+				// rendering. Fixture: PageBreak.docx (P2 carries
+				// `<w:br w:type="page"/>` whose type attr was dropped
+				// by the previous reader path's hardcoded `<w:br/>`).
+				var brXML strings.Builder
+				brXML.WriteString("<")
+				writeElementName(&brXML, t.Name)
+				for _, a := range t.Attr {
+					brXML.WriteString(" ")
+					writeAttrName(&brXML, a.Name)
+					brXML.WriteString(`="`)
+					brXML.WriteString(xmlEscapeAttr(a.Value))
+					brXML.WriteString(`"`)
+				}
+				brXML.WriteString("/>")
 				if rawCaptured {
-					rawBuf.WriteString("<")
-					writeElementName(&rawBuf, t.Name)
-					for _, a := range t.Attr {
-						rawBuf.WriteString(" ")
-						writeAttrName(&rawBuf, a.Name)
-						rawBuf.WriteString(`="`)
-						rawBuf.WriteString(xmlEscapeAttr(a.Value))
-						rawBuf.WriteString(`"`)
-					}
-					rawBuf.WriteString("/>")
+					rawBuf.WriteString(brXML.String())
 				}
 				runs = append(runs, textRun{
 					text:  "\n",
 					props: runProps{}, // break has no formatting
+					data:  brXML.String(),
 				})
 				if err := skipElement(d); err != nil {
 					return nil, err
@@ -3416,10 +3428,20 @@ func (p *wmlParser) buildBlock(id string, runs []textRun, partPath, commonRPrXML
 			if run.srcRunStart {
 				subType = SubTypeBreakStandalone
 			}
+			// Use the captured br element verbatim if available so
+			// page/column-break attrs survive the round-trip; fall
+			// back to the literal `<w:br/>` for legacy callers that
+			// did not populate run.data. Per ECMA-376-1 §17.3.3.1
+			// (CT_Br), w:type ("page" / "column" / "textWrap") and
+			// w:clear control rendering and must round-trip.
+			brXML := run.data
+			if brXML == "" {
+				brXML = "<w:br/>"
+			}
 			spanCounter++
 			b.AddPh(fmt.Sprintf("c%d", spanCounter),
 				TypeBreak, subType,
-				"<w:br/>", "\n", "",
+				brXML, "\n", "",
 				false, false, false)
 			continue
 		}
