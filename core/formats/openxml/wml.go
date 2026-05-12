@@ -1731,6 +1731,41 @@ func (p *wmlParser) parseParagraph(d *xml.Decoder, partPath string, emitBlock fu
 				}
 
 			case "hyperlink":
+				// Inside a NON-extractable complex field's display area
+				// (e.g. TOC \h \z \u — code "TOC" is not in
+				// tsComplexFieldDefinitionsToExtract by default), every
+				// event flows through runBuilder.addToMarkup verbatim per
+				// upstream Okapi RunParser.parseComplexField (lines 501-
+				// 506 of okapi/filters/openxml/src/main/java/net/sf/okapi/
+				// filters/openxml/RunParser.java). The `<w:hyperlink>`
+				// subtree — including the inner `<w:r><w:t>...</w:t></w:r>`
+				// chain and any nested PAGEREF field markup — is preserved
+				// as opaque markup; nothing inside it is extracted as
+				// translatable text. ECMA-376-1 §17.16.22 (CT_Hyperlink)
+				// places `<w:hyperlink>` as a direct `<w:p>` child, so we
+				// reuse the U+E108 field-markup sentinel which the writer
+				// emits verbatim with NO `<w:r>` wrapper.
+				//
+				// Without this branch, the standard hyperlink path opens
+				// inHyperlink=true and routes inner runs through
+				// dropTextRuns (since the surrounding field is non-
+				// extractable) — the inner `<w:t>Text of Heading 1</w:t>`
+				// is dropped, and the U+E103/U+E104 paired-code sentinels
+				// emitted by wrapHyperlinkRuns hit the all-sentinel
+				// `isEmptyRuns` branch where `runToXML` lacks an open/
+				// close hyperlink case and falls through to the default
+				// `<w:t>` text emit — exactly the apissue.docx /
+				// docxsegtest.docx / docxtest.docx / table of contents -
+				// automatic.docx divergence in the parity report
+				// (offset-833 native `<pStyle>TOC1` vs ref `<hyperlink>`).
+				if cfs.active && !cfs.extractable {
+					raw, err := captureRawElement(d, t)
+					if err != nil {
+						return err
+					}
+					runs = append(runs, textRun{text: ":hyperlinkOpaque", data: raw})
+					continue
+				}
 				inHyperlink = true
 				hyperlinkID = attrVal(t, "id")
 				hyperlinkAttrs = hyperlinkAttrs[:0]
@@ -6208,19 +6243,60 @@ func markPPrInnerRPrKeepEmpty(raw string) string {
 	if !strings.Contains(raw, "<w:rPr") {
 		return raw
 	}
+	// Find the FIRST `<w:rPr>` direct child of `<w:pPr>`. The regex
+	// matches the first `<w:rPr>` anywhere; we then verify it sits at
+	// depth 1 inside pPr (i.e. all preceding sibling tags between the
+	// pPr open tag and this rPr have been closed). This admits the
+	// canonical pattern `<w:pPr><w:pStyle/><w:tabs>...</w:tabs><w:rPr>...
+	// </w:rPr></w:pPr>` (e.g. TOC2 paragraph in docxsegtest.docx where
+	// pStyle + tabs precede the field-mark rPr) — not just the simpler
+	// case where rPr is the first pPr child (1083-* fixtures).
 	loc := pprInnerRPrRE.FindStringIndex(raw)
 	if loc == nil {
 		return raw
 	}
-	// Verify the match sits at depth-2 directly under pPr (no other
-	// element opens between the `<w:pPr ...>` open tag and the
-	// matched `<w:rPr ...>` start).
 	pprStartEnd := strings.Index(raw, ">")
 	if pprStartEnd < 0 || pprStartEnd >= loc[0] {
 		return raw
 	}
 	between := raw[pprStartEnd+1 : loc[0]]
-	if strings.TrimSpace(between) != "" {
+	// Walk preceding siblings to confirm depth balance: every <foo>
+	// must be matched by </foo> before the rPr starts. Self-closing
+	// tags `<foo/>` are depth-neutral. If any tag remains open by the
+	// time we reach the rPr, the rPr is nested inside another element
+	// (not a direct pPr child) and we leave the raw alone.
+	depth := 0
+	for i := 0; i < len(between); i++ {
+		c := between[i]
+		if c != '<' {
+			continue
+		}
+		if i+1 < len(between) && between[i+1] == '!' {
+			// Comment — skip to "-->".
+			j := strings.Index(between[i:], "-->")
+			if j < 0 {
+				break
+			}
+			i += j + 2
+			continue
+		}
+		// Find end of tag.
+		end := strings.Index(between[i:], ">")
+		if end < 0 {
+			break
+		}
+		tag := between[i : i+end+1]
+		switch {
+		case strings.HasSuffix(tag, "/>"):
+			// self-closing — depth-neutral
+		case strings.HasPrefix(tag, "</"):
+			depth--
+		default:
+			depth++
+		}
+		i += end
+	}
+	if depth != 0 {
 		return raw
 	}
 	sub := pprInnerRPrRE.FindStringSubmatch(raw[loc[0]:loc[1]])
