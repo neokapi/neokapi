@@ -13,10 +13,51 @@ docs.
 | Engine | Total | byte | canon | sem | div |
 |---|---:|---:|---:|---:|---:|
 | bridge (okapi-bridge) | 185 | 185 | 0 | 0 | 0 |
-| native (this package) | 185 | 0 | 128 | 0 | 57 |
+| native (this package) | 185 | 0 | 136 | 0 | 49 |
 
 ## Recently cleared
 
+- WSO synthesis cluster — vanish promotion + paired explicit-off
+  bCs/iCs preservation in synth rPr (8 fixtures: 948-1, vertAlign,
+  830-1/3/5, content_category_test, lang, PageBreak):
+  - `bCs`/`iCs` were unconditionally stripped from the synthesised
+    pStyle's rPr on LTR paragraphs. The strip now respects the
+    paired explicit-off rule (when both `<w:b val="0"/>` AND
+    `<w:bCs val="0"/>` appear in the common, the `bCs` clearing
+    override is preserved — it's needed to clear an inherited
+    `bCs` from the parent style chain). Mirrors writer.go's
+    stripToggleMirrorChildren which already implemented the
+    pairing rule on per-run sidecar rPr. References: ECMA-376-1
+    §17.3.2.16/.17, RunParser.canBeSkipped at RunParser.java:240-250.
+  - `<w:vanish/>` was excluded from WSO promotion pending paragraph
+    -style→run inheritance support in the native reader. allHidden()
+    now consults `styleMap.effectiveProps(paraStyleID).vanish` so a
+    paragraph whose vanish was promoted into a synthesised pStyle
+    stays hidden on re-read (the inherited vanish keeps the
+    allHidden guard firing). Edge case: when the source has no
+    word/styles.xml, the synth pStyle's val is empty (upstream's
+    StyleDefinitions.Empty.placedId() returns null), so the
+    inheritance path can't recover stripped vanish — the run-strip
+    pass now skips vanish in that case to keep TestRoundtripFormatted
+    green. References: ECMA-376-1 §17.3.2.42, StyleOptimisation.java
+    :96-129, WordDocument.java:335-337 styleOptimisationsFor() (only
+    rStyle is on the WPML exclusion list).
+  - `<w:br/>` sentinel runs now carry the source `<w:r>`'s rPr
+    (was being reset to `runProps{}` at parse time). Per ECMA-376-1
+    §17.3.2.1 (CT_R) every rPr child applies to the run regardless
+    of its payload — vanish-bearing page-break runs (PageBreak.docx
+    `<w:r><w:rPr><w:vanish/></w:rPr><w:br w:type="page"/></w:r>`)
+    must round-trip with the vanish so WSO can lift it.
+  - extractTxbxParagraph now applies the same allHidden guard as
+    the outer parseParagraph branch so vanish-bearing textbox runs
+    (Hidden_Textbox.docx) get routed through the hidden-text
+    skeleton path instead of being extracted as translatable.
+- `<w:cr/>` (ECMA-376-1 §17.3.3.4 carriage return) is captured via
+  the existing  raw-run-markup sentinel so it round-trips
+  inside the same envelope as the source `<w:r>`'s rPr (mirrors
+  noBreakHyphen / softHyphen). Was being silently dropped via
+  default-branch skipElement; MissingPara.docx authors `<w:cr/>`
+  runs that previously vanished entirely.
 - Source text containing private-use sentinel codepoints
   (U+E100..U+E10F) no longer gets misclassified as a synthetic
   `<w:tab/>` / `<w:drawing/>`. The buildBlock dispatch now uses
