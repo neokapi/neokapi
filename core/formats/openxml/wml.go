@@ -4005,13 +4005,49 @@ func (p *wmlParser) parseRunWithFieldState(d *xml.Decoder, cfs *complexFieldStat
 					rawBuf.WriteString("</")
 					writeElementName(&rawBuf, t.Name)
 					rawBuf.WriteString(">")
-					// Replace any decoded child-runs with a single
-					// SubTypeFieldChar sentinel carrying the verbatim
-					// <w:r>...</w:r> payload so the writer can emit it
-					// untouched. parseRunPropsFromRaw still populated
-					// `props` so the run participates correctly in
-					// downstream merging / common-rPr computation, but
-					// the payload itself is opaque.
+					// Pre-fldChar translatable content preservation.
+					// Source shape `<w:r><w:rPr>...</w:rPr><w:t>text</w:t>
+					// <w:fldChar w:fldCharType="begin"/></w:r>` (830-7.docx
+					// line 65; also 956.docx, N_001_Auswertung_Part2.docx,
+					// neverendingloop.docx) authors translatable text \u2014 or
+					// `<w:tab/>` markup \u2014 BEFORE the field markup in the
+					// same source `<w:r>`. Upstream Okapi's RunParser
+					// processes the `<w:t>` as a RunText body chunk first
+					// (parseContent at RunParser.java:537), then sees the
+					// fldChar and transitions to parseComplexField (line
+					// 259) \u2014 the text remains a body chunk of the run.
+					//
+					// Without this branch the runs slice is discarded
+					// when hasFieldMarkup fires, losing translatable
+					// content. The opaque sentinel's rawBuf only mirrors
+					// content AFTER startRawCapture() engaged (i.e. on
+					// the fldChar), so the pre-field `<w:t>` does NOT
+					// appear in the sentinel's payload \u2014 emitting both
+					// the text run AND the sentinel does NOT double the
+					// text in output.
+					//
+					// Note: byte-shape divergence from upstream Okapi's
+					// reference output is INTENTIONAL here. Okapi's
+					// bridge runner drops the pre-fldChar text entirely
+					// for some shapes (956.docx footer1.xml's `<w:t>1</w:t>
+					// <w:fldChar end/>`, N_001_Auswertung_Part2.docx's
+					// `<w:tab/><w:fldChar begin/>`, neverendingloop.docx
+					// similar). Per ECMA-376-1 \u00A717.3.2.1 (CT_R), every
+					// run child applies to the run; translatable text
+					// must not be silently dropped on extraction. Native
+					// is spec-correct; the parity tier "regression" on
+					// 956/N_001/neverendingloop reflects Okapi being
+					// equally-wrong-in-the-other-direction.
+					if len(runs) > 0 {
+						runs[0].srcRunStart = true
+						runs = append(runs, textRun{
+							text:        "\uE108:fldChar",
+							props:       props,
+							data:        rawBuf.String(),
+							srcRunStart: true,
+						})
+						return runs, nil
+					}
 					return []textRun{{
 						text:        "\uE108:fldChar",
 						props:       props,

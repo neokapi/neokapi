@@ -13,7 +13,31 @@ docs.
 | Engine | Total | byte | canon | sem | div |
 |---|---:|---:|---:|---:|---:|
 | bridge (okapi-bridge) | 185 | 185 | 0 | 0 | 0 |
-| native (this package) | 185 | 0 | 178 | 0 | 7 |
+| native (this package) | 185 | 0 | 175 | 0 | 10 |
+
+**Important framing**: the parity tier above compares against
+upstream Okapi as the reference. It does NOT measure spec
+compliance. Per ECMA-376 (ISO/IEC 29500) analysis:
+
+- **Spec-correctness**: native is correct on **183 of 185**
+  fixtures. Two real data-loss bugs remain — `delTextAmp` (drops
+  `<w:spacing w:val="-2"/>` per ECMA-376-1 §17.3.2.35) and
+  partial `830-7` (drops one of three pre-fldChar text runs).
+- **Byte-equality vs Okapi after canonicalization**: 175 of 185.
+  The 5 cosmetic divergences (`847-3`, `851`,
+  `StartsWithLineSeparator`, `br2`, `multiple_tabs`) preserve
+  source rPr verbatim while Okapi aggressively strips
+  attributes that are moot for the run's actual content per
+  ECMA-376-1 §17.3.2.26 (rFonts categories only apply to
+  characters in their script range). Both forms render
+  identically; only Okapi's is more compact.
+- **Native is strictly more spec-correct than Okapi on 3
+  fixtures** (`956`, `N_001_Auswertung_Part2`, `neverendingloop`):
+  Okapi drops translatable text/tabs that appear before
+  `<w:fldChar>` markup in the same source `<w:r>`. Native (since
+  the pre-fldChar text-preservation fix) preserves them. The
+  parity tier reports these as divergent because the comparison
+  is byte-against-Okapi — but functionally these are wins.
 
 **Residual 7 divergent fixtures** — none of these can be cleared
 by single-file local fixes because they touch shared WSO machinery
