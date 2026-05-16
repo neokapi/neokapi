@@ -137,7 +137,63 @@ reference, post-canonicalization, all `word/*.xml` parts combined):
 | `br2.docx` (doc) | 5 | 4 | native splits a run into 2 — more granular but same content |
 | `StartsWithLineSeparator.docx` | 4 | 3 | native splits — same content |
 | `830-7.docx` | 18 | 18 | ✓ post-fix — pre-fldChar text now preserved |
-| `delTextAmp.docx` footer1 | 23 | 25 | **REAL BUG** — native merges a single-char `ţ` (with `<w:spacing val="-2"/>`) into the next run, losing the spacing on that character. Source authors `<w:r><w:rPr>...<w:spacing val="-2"/>...</w:rPr><w:t>t</w:t></w:r><w:r><w:rPr>...(no spacing)...</w:rPr><w:t>he total…</w:t></w:r>`; native's `mergeRuns` fuses them despite rPr inequality. ECMA-376-1 §17.3.2.35 (character spacing in twentieths of a point) — the merged run loses the kerning on that character. Fix would require tightening `canBeMergedWithTexts` to refuse rPr-child-count asymmetry beyond the rFonts whitespace relaxation; high cascade risk per the synth-ID counter discussion above. Marked as known issue. |
+| `delTextAmp.docx` footer1 | 23 | 25 | **REAL BUG** — see investigation notes below. |
+
+### delTextAmp investigation notes (2026-05-16)
+
+The bug surfaces as: in footer1.xml's "In any event, the total
+aggregate liability of H.B. Fuller…" paragraph, native emits the
+"In any event," run with rPr `<w:rFonts w:cs="Helvetica"/>`
+(NOT in source) while the reference emits `<w:spacing w:val="-2"/>`
+(which IS in source). The single-char `t` and following `he total…`
+runs are fused in native; reference keeps them separate.
+
+Source for the `In any event,` run carries rPr `<w:color
+w:val="5F5F5F"/><w:spacing w:val="-2"/><w:sz w:val="12"/><w:szCs
+w:val="12"/>` — neighbouring runs carry `<w:rFonts w:cs="Helvetica"/>
+<w:iCs/><w:color w:val="5F5F5F"/><w:sz w:val="12"/><w:szCs
+w:val="12"/><w:u w:val="single"/>` etc. The synth pStyle
+`NF974E24F-Normal4` correctly contains `<w:color/><w:sz/>` (common
+across runs); spacing should remain on the single run that
+authored it.
+
+Attempts that did NOT resolve it:
+1. **Tighten `canBeMergedWithTexts` to refuse rPr-child-count
+   asymmetry beyond rFonts** — cascaded into 8 other fixtures.
+2. **Force-close run on srcRunStart in writer slow-path** —
+   broad version cascaded into 8 fixtures; narrow version (only
+   when sidecar nilled) had zero effect on delTextAmp, meaning
+   the sidecar IS aligned for this case (perRunRPr is populated
+   correctly).
+3. **Instrument `mergeRuns`** — zero merges fire for the `ţ` +
+   `ĥē` runs. The fusion happens elsewhere.
+4. **Never strip `<w:spacing>` from per-run rPr in WSO's run-
+   rewrite loop** — didn't help delTextAmp (so spacing isn't
+   stripped by this path either), and cascaded 2 other fixtures.
+
+Remaining hypothesis: the `<w:rFonts w:cs="Helvetica"/>`
+injection onto the bare-rFonts source run happens via
+`commonRFonts` (style_optimization.go:2869) which applies a
+docDefaults overlay onto runs lacking direct rFonts and computes
+a per-content-category intersection. The "In any event," run's
+text contains no complex-script characters, so the cs="Helvetica"
+from neighbours can "win" the intersection per the per-category
+relaxation. This same path also somehow collapses the spacing
+distinction. The reader/writer interaction here is non-local;
+narrowing the fix without cascade requires either:
+  - Instrumenting `commonRFonts` end-to-end for this paragraph
+    to find the exact decision that materialises the wrong
+    rFonts, OR
+  - Treating spacing as a "rendering-critical" property that
+    bypasses the entire WSO merge/lift chain on a per-run basis,
+    OR
+  - Faithfully porting Okapi's `RunFonts.canContentCategoriesBeMerged`
+    + `RunFonts.merge` end-to-end so the strict-equality model
+    matches upstream.
+
+None of these are a one-line change. Marked for follow-up;
+documented here so the next iteration starts with the failed
+attempts ruled out.
 
 **Residual 7 divergent fixtures** — none of these can be cleared
 by single-file local fixes because they touch shared WSO machinery
