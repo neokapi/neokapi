@@ -39,6 +39,21 @@ compliance. Per ECMA-376 (ISO/IEC 29500) analysis:
   parity tier reports these as divergent because the comparison
   is byte-against-Okapi — but functionally these are wins.
 
+### Verification of "cosmetic" divergences (2026-05-16)
+
+Translatable text span counts per fixture (native vs Okapi
+reference, post-canonicalization, all `word/*.xml` parts combined):
+
+| Fixture | native | ref | Verdict |
+|---|---:|---:|---|
+| `847-3.docx` | 6 | 6 | ✓ no data loss, rPr placement differs only |
+| `851.docx` | 9 | 9 | ✓ no data loss, rFonts attribute placement differs |
+| `multiple_tabs.docx` | 4 | 4 | ✓ no data loss, rFonts placement differs |
+| `br2.docx` (doc) | 5 | 4 | native splits a run into 2 — more granular but same content |
+| `StartsWithLineSeparator.docx` | 4 | 3 | native splits — same content |
+| `830-7.docx` | 18 | 18 | ✓ post-fix — pre-fldChar text now preserved |
+| `delTextAmp.docx` footer1 | 23 | 25 | **REAL BUG** — native merges a single-char `ţ` (with `<w:spacing val="-2"/>`) into the next run, losing the spacing on that character. Source authors `<w:r><w:rPr>...<w:spacing val="-2"/>...</w:rPr><w:t>t</w:t></w:r><w:r><w:rPr>...(no spacing)...</w:rPr><w:t>he total…</w:t></w:r>`; native's `mergeRuns` fuses them despite rPr inequality. ECMA-376-1 §17.3.2.35 (character spacing in twentieths of a point) — the merged run loses the kerning on that character. Fix would require tightening `canBeMergedWithTexts` to refuse rPr-child-count asymmetry beyond the rFonts whitespace relaxation; high cascade risk per the synth-ID counter discussion above. Marked as known issue. |
+
 **Residual 7 divergent fixtures** — none of these can be cleared
 by single-file local fixes because they touch shared WSO machinery
 (synth ID counter, common-rPr computation, run-merging) that has
