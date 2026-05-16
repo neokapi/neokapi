@@ -8,7 +8,69 @@ This file is a working note for the next iteration of OpenXML parity
 work. It is **not** an architecture decision and **not** user-facing
 docs.
 
-## Status
+## Status (2026-05-16)
+
+| Engine | Total | byte | canon | sem | div |
+|---|---:|---:|---:|---:|---:|
+| bridge (okapi-bridge) | 185 | 185 | 0 | 0 | 0 |
+| native (this package) | 185 | 0 | 178 | 0 | 7 |
+
+**Residual 7 divergent fixtures** — none of these can be cleared
+by single-file local fixes because they touch shared WSO machinery
+(synth ID counter, common-rPr computation, run-merging) that has
+180+ pre-existing fixtures depending on the current behavior. Each
+targeted fix attempted in 2026-05-16 cascaded into 2-3 regressions:
+
+| Fixture | Δbytes | Root area | Cascade-safe fix needs |
+|---|---:|---|---|
+| `830-7.docx` | +820 | Pre-fldChar text in same `<w:r>` | Writer-side fuse of text + fldChar-begin sentinel into one `<w:r>` |
+| `847-3.docx` | +1042 | Cross-paragraph field continuation | Cross-paragraph field-depth tracking in WSO (must not perturb synth ID counter for unrelated paragraphs) |
+| `851.docx` | +900 | East-Asian segment rFonts inheritance | Faithful RunFonts.canContentCategoriesBeMerged port (RunFonts.java:211-230) |
+| `StartsWithLineSeparator.docx` | +61 | Bare run rFonts strip + synth on hAnsi remainder | Same as #851 + docDefaults rFonts overlay into synth style |
+| `delTextAmp.docx` | +3742 | Textbox footer rPr — `<w:spacing>` dropped | Investigation needed |
+| `multiple_tabs.docx` | +4629 | Font-category fragmentation + tab fusion | Same as #851 |
+| `br2.docx` | +4707 | Font-subset rename (`ONGPN A+` prefix) via style chain | Port Okapi's font-subset infrastructure |
+
+**Architectural blocker**: native and reference both run WSO with a
+shared, monotonic synth-style ID stream (`NF974E24F-Normal1`,
+`-Normal2`, etc.). For canonical-equality, native must visit
+paragraphs in the exact same order AND make the exact same
+synthesise/skip decision for each one, so the IDs align. Any
+per-paragraph fix that changes a synth decision shifts every
+subsequent synth ID by one, cascading divergence through the
+remaining 178 currently-passing fixtures.
+
+Genuinely clearing the residual 7 requires a coordinated port:
+1. Cross-paragraph state model (open fields, revisions) mirroring
+   Okapi's `BlockParser` invariants.
+2. RunFonts content-category detection (`ContentCategoriesDetection.java`).
+3. RunMerger faithful port (`RunMerger.java:156-229` — strict
+   `RunProperties.equals`, not the relaxed text-aware variant we
+   currently use).
+4. Synth ID stream alignment — match Okapi's `IdGenerator` visit
+   order paragraph-by-paragraph.
+
+This is multi-day work, not single-session work. Each piece touches
+the others.
+
+### Recent architectural fix (2026-05-16)
+
+- **effectiveRPr absent-vs-empty conflation** (commit 254bbcc4) —
+  the per-run rPr sidecar's empty string was conflated between
+  "sidecar slot absent" and "source `<w:r>` had no rPr". Bare source
+  runs were falling back to `sourceRPr` (the paragraph-wide common
+  subset), injecting common rFonts into them and fusing them with
+  neighbours. Per `RunBuilder.java:73-188` each source run keeps
+  its rPr verbatim; bare runs must emit without rPr. The fix only
+  affects paragraphs where the alignment guard at writer.go:3206
+  hasn't dropped the sidecar — for the residual 7 fixtures the
+  guard fires (relaxed `canBeMergedWithTexts` causes count
+  mismatch), so the fix is defensive correctness with no fixture
+  flip observed. It will become load-bearing once the RunMerger
+  faithful port lands (item 3 above), at which point the alignment
+  guard will stop firing and the sidecar will flow through.
+
+## Earlier status
 
 | Engine | Total | byte | canon | sem | div |
 |---|---:|---:|---:|---:|---:|
