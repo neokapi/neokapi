@@ -3546,8 +3546,26 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 			if inRun {
 				nextRPr := effectiveRPr(textRunIdx + 1)
 				curRPr := effectiveRPr(textRunIdx)
+				// Force-close on a fresh source <w:r> boundary when the
+				// per-run rPr sidecar has been nilled by the alignment
+				// guard (writer.go:3206 — count mismatch from mergeRuns
+				// reducing the text-run population). In that fallback
+				// state effectiveRPr returns sourceRPr (the paragraph-
+				// wide common subset) for ALL runs, so two source <w:r>
+				// envelopes that mergeRuns REFUSED to fuse (genuinely
+				// different rPr per RunMerger.canRunPropertiesBeMerged,
+				// RunMerger.java:156-229) would silently fuse here and
+				// lose the rPr distinction on the wire. With the sidecar
+				// alive we already split on perRunRPr inequality via the
+				// nextRPr != curRPr check above; this clause covers the
+				// nilled-sidecar fallback. Fixture: delTextAmp.docx
+				// footer1 — single-char `<w:t>t</w:t>` with `<w:spacing
+				// w:val="-2"/>` would otherwise fuse with the next bare-
+				// rPr text run, losing character-kerning per ECMA-376-1
+				// §17.3.2.35.
 				if nextRPr != curRPr ||
-					(textInFieldDisplay(textRunIdx) && textInFieldDisplay(textRunIdx+1) && textSrcStart(textRunIdx+1)) {
+					(textInFieldDisplay(textRunIdx) && textInFieldDisplay(textRunIdx+1) && textSrcStart(textRunIdx+1)) ||
+					(perRunRPr == nil && textSrcStart(textRunIdx+1)) {
 					closeRun()
 				}
 			}
