@@ -1,0 +1,8 @@
+format: transtable
+fixtures:
+  test01.xml.txt:
+    severity: native-more-correct
+    summary: "okapi's pseudo round-trip emits only the extracted source text rather than reconstructing the TransTableV1 structure. Native correctly preserves the tabular structure (header + rows) — its output is the right answer but doesn't match the okapi reference."
+    skip:
+      engines: [okapi]
+      reason: "okapi pseudo emits plain extracted text instead of round-tripping TransTableV1 structure; reference unhelpful"

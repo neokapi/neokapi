@@ -1,0 +1,8 @@
+format: ttml
+fixtures:
+  example1.ttml:
+    severity: fixture-bug
+    summary: "Fixture ships with malformed XML — <okp:foo> elements closed with </lilt:foo> (stale namespace prefix from LILT-fork days). Okapi's lenient parser tolerates the mismatch; native's encoding/xml correctly rejects it."
+    skip:
+      engines: [native]
+      reason: "fixture ships with malformed XML (<okp:foo>...</lilt:foo>); native's strict encoding/xml rejects it"

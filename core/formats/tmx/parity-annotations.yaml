@@ -1,0 +1,14 @@
+format: tmx
+fixtures:
+  code_fail.tmx:
+    severity: fixture-bug
+    summary: "Intentionally-malformed test fixture; okf_tmx rejects with 'no <tuv> set to source language'."
+    skip:
+      engines: [okapi]
+      reason: "intentionally-malformed test fixture; okf_tmx rejects with 'no <tuv> set to source language'"
+  code_id_difference.tmx:
+    severity: fixture-bug
+    summary: "Intentionally-malformed test fixture for code-id mismatch detection."
+    skip:
+      engines: [okapi]
+      reason: "intentionally-malformed test fixture for code-id mismatch detection"

@@ -1,0 +1,32 @@
+format: icml
+fixtures:
+  OpenofficeFootnoteTest.icml:
+    severity: fixture-bug
+    summary: "Upstream Okapi icml merge crashes on this fixture."
+    skip:
+      engines: [okapi]
+      reason: "upstream Okapi icml merge crashes on this fixture"
+  TakeItNoItsYoursReallyTheExcellentInevitabilityOfFree.icml:
+    severity: fixture-bug
+    summary: "Upstream Okapi icml merge crashes on this fixture."
+    skip:
+      engines: [okapi]
+      reason: "upstream Okapi icml merge crashes on this fixture"
+  TestArticle.icml:
+    severity: fixture-bug
+    summary: "Upstream Okapi icml merge crashes on this fixture."
+    skip:
+      engines: [okapi]
+      reason: "upstream Okapi icml merge crashes on this fixture"
+  ThreeParagraphFootnoteTest.icml:
+    severity: fixture-bug
+    summary: "Upstream Okapi icml merge crashes on this fixture."
+    skip:
+      engines: [okapi]
+      reason: "upstream Okapi icml merge crashes on this fixture"
+  WordFootnoteTest.icml:
+    severity: fixture-bug
+    summary: "Upstream Okapi icml merge crashes on this fixture."
+    skip:
+      engines: [okapi]
+      reason: "upstream Okapi icml merge crashes on this fixture"

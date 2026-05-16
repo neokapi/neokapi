@@ -1,0 +1,8 @@
+format: ts
+fixtures:
+  issue531.ts:
+    severity: fixture-bug
+    summary: "okapi's pseudo round-trip emits malformed XML (a <translation> element closed by </TS> instead of </translation>). Likely an okapi-side bug in the regression fixture for okapi GitHub issue #531. Native parses fine."
+    skip:
+      engines: [okapi]
+      reason: "okapi pseudo round-trip emits malformed XML (unclosed <translation>); reference unusable"

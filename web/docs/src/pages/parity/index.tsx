@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import Layout from "@theme/Layout";
 import report from "@site/static/data/parity-report.json";
+import fixturesData from "@site/static/data/parity-fixtures.json";
 import styles from "./index.module.css";
 
 type Status = "pass" | "fail" | "skip" | "error";
@@ -29,7 +30,32 @@ interface ReportData {
   rows: Row[];
 }
 
+type Severity = "bug" | "cosmetic" | "native-more-correct" | "fixture-bug" | "unknown";
+
+interface FixtureAnnotation {
+  severity?: Severity;
+  issue?: number;
+  issue_url?: string;
+}
+
+interface FixtureRow {
+  fixture: string;
+  achieved: string;
+  annotation?: FixtureAnnotation;
+}
+
+interface FixturesFormat {
+  format: string;
+  engine: string;
+  fixtures?: FixtureRow[];
+}
+
+interface FixturesShape {
+  formats: FixturesFormat[];
+}
+
 const data = report as unknown as ReportData;
+const fixtures = fixturesData as unknown as FixturesShape;
 
 const kindLabels: Record<Kind, string> = {
   format: "Formats (DataFormatReader/Writer)",
@@ -45,9 +71,85 @@ const statusBadge: Record<Status, string> = {
   error: styles.badgeError,
 };
 
+const severityOrder: Severity[] = [
+  "bug",
+  "unknown",
+  "cosmetic",
+  "native-more-correct",
+  "fixture-bug",
+];
+
+const severityLabel: Record<Severity, string> = {
+  bug: "bug",
+  cosmetic: "cosmetic",
+  "native-more-correct": "native+",
+  "fixture-bug": "fixture-bug",
+  unknown: "unannotated",
+};
+
+const severityBadgeClass: Record<Severity, string> = {
+  bug: styles.badgeFail,
+  cosmetic: styles.badgePass, // visually muted positive — renders identically
+  "native-more-correct": styles.badgePass,
+  "fixture-bug": styles.badgeSkip,
+  unknown: styles.badgeError,
+};
+
 function formatPercent(n: number, d: number): string {
   if (d === 0) return "0%";
   return `${Math.round((n / d) * 100)}%`;
+}
+
+function severityCounts(): Record<Severity, number> {
+  const init: Record<Severity, number> = {
+    bug: 0,
+    cosmetic: 0,
+    "native-more-correct": 0,
+    "fixture-bug": 0,
+    unknown: 0,
+  };
+  for (const f of fixtures.formats) {
+    if (!f.fixtures) continue;
+    for (const fx of f.fixtures) {
+      if (fx.achieved !== "divergent") continue;
+      const sev: Severity = fx.annotation?.severity ?? (fx.annotation ? "unknown" : "unknown");
+      init[sev] = (init[sev] ?? 0) + 1;
+    }
+  }
+  return init;
+}
+
+// DivergenceSeverityCard summarises divergent-fixture severity counts
+// at the top of the /parity dashboard. The unannotated count is the
+// fail-new gate signal — anything > 0 means a divergence landed
+// without a YAML annotation, which CI will fail on.
+function DivergenceSeverityCard() {
+  const counts = severityCounts();
+  const total = severityOrder.reduce((n, s) => n + (counts[s] ?? 0), 0);
+  if (total === 0) {
+    return null;
+  }
+  return (
+    <div className={styles.severityCard}>
+      <h2 className={styles.severityCardTitle}>Divergent fixtures by severity</h2>
+      <ul className={styles.severityCardList}>
+        {severityOrder.map((s) => {
+          const n = counts[s] ?? 0;
+          if (n === 0) return null;
+          return (
+            <li key={s}>
+              <span className={severityBadgeClass[s]}>{severityLabel[s]}</span> <strong>{n}</strong>
+            </li>
+          );
+        })}
+      </ul>
+      <p className={styles.severityCardHint}>
+        Severity is loaded from <code>core/formats/&lt;format&gt;/parity-annotations.yaml</code>.{" "}
+        <a href="/parity/fixtures">Open fixtures drill-down</a> for the full list with issue links,
+        spec references, and diff snippets.
+      </p>
+    </div>
+  );
 }
 
 export default function ParityDashboard() {
@@ -86,19 +188,18 @@ export default function ParityDashboard() {
       <main className="container margin-vert--lg">
         <h1>Parity Dashboard</h1>
         <p className={styles.subtitle}>
-          Per-format and per-step parity status produced by{" "}
-          <code>make parity-publish</code>. Each row corresponds to one Okapi
-          filter or pipeline step; head-to-head rows compare neokapi (Go) and
-          Okapi (Java via okapi-bridge) on the same input. Bridge-only rows are
-          stability gates (the daemon must accept the input and complete
-          without erroring) until a Go counterpart lands. Report generated{" "}
-          <strong>{data.generated_at}</strong>.
+          Per-format and per-step parity status produced by <code>make parity-publish</code>. Each
+          row corresponds to one Okapi filter or pipeline step; head-to-head rows compare neokapi
+          (Go) and Okapi (Java via okapi-bridge) on the same input. Bridge-only rows are stability
+          gates (the daemon must accept the input and complete without erroring) until a Go
+          counterpart lands. Report generated <strong>{data.generated_at}</strong>.
         </p>
         <p className={styles.subtitle}>
-          For per-fixture divergence detail (first-diff offsets, byte deltas,
-          comparison snippets) see the{" "}
-          <a href="/parity/fixtures">fixtures drill-down</a>.
+          For per-fixture divergence detail (first-diff offsets, byte deltas, comparison snippets,
+          severity, GitHub issue links) see the <a href="/parity/fixtures">fixtures drill-down</a>.
         </p>
+
+        <DivergenceSeverityCard />
 
         <div className={styles.totals}>
           {(Object.keys(data.totals) as Kind[]).map((kind) => {

@@ -29,6 +29,12 @@ type parityRecord struct {
 	RawDiffOffset  int // -1 when byte-equal
 	NormDiffOffset int // -1 when canonical-equal or normalizer absent
 	Normalizer     string
+
+	// Annotation, when non-nil, carries the per-fixture metadata loaded
+	// from core/formats/<format>/parity-annotations.yaml. nil = no
+	// annotation declared for this fixture. The harness fills this in
+	// when recording each result.
+	Annotation *Annotation
 }
 
 var (
@@ -58,6 +64,67 @@ func snapshotParityRecords() []parityRecord {
 	defer parityRecordsMu.Unlock()
 	out := make([]parityRecord, len(parityRecords))
 	copy(out, parityRecords)
+	return out
+}
+
+// UnannotatedDivergence pairs a divergent (format, fixture, engine)
+// triple with the parityRecord that produced it. Used by the
+// fail-new CI gate to surface unannotated divergences.
+type UnannotatedDivergence struct {
+	Format  string
+	Fixture string
+	Engine  string
+	Reason  string
+}
+
+// UnannotatedDivergences returns one entry per (format, fixture,
+// engine) that reached the divergent tier without a corresponding
+// annotation in core/formats/<format>/parity-annotations.yaml.
+// "Divergent" here means the achieved tier was strictly worse than
+// the required tier — meeting MinTier with canonical-equal counts as
+// passing, not as a divergence to annotate.
+//
+// The CI gate (TestParityFailNew) uses this to refuse merges that
+// add new divergences without documenting them. Existing divergences
+// are grandfathered by annotation; clearing one means deleting the
+// annotation entry once the underlying bug is fixed.
+//
+// Records collected per fixture/engine are deduplicated by
+// (format, fixture) — a single missing annotation surfaces once, not
+// once per engine. The dashboard is annotation-keyed at the fixture
+// level, so per-engine entries would just be noise.
+func UnannotatedDivergences() []UnannotatedDivergence {
+	records := snapshotParityRecords()
+	seen := map[string]bool{}
+	var out []UnannotatedDivergence
+	for _, r := range records {
+		if r.Skipped {
+			continue
+		}
+		if r.Achieved <= r.Required {
+			continue
+		}
+		if r.Annotation != nil {
+			continue
+		}
+		key := r.Format + "/" + r.Fixture
+		if seen[key] {
+			continue
+		}
+		seen[key] = true
+		out = append(out, UnannotatedDivergence{
+			Format:  r.Format,
+			Fixture: r.Fixture,
+			Engine:  r.Engine,
+			Reason:  r.Reason,
+		})
+	}
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].Format != out[j].Format {
+			return out[i].Format < out[j].Format
+		}
+		return out[i].Fixture < out[j].Fixture
+	})
 	return out
 }
 
@@ -362,16 +429,54 @@ type formatBreakdown struct {
 }
 
 type fixtureEntry struct {
-	Fixture        string `json:"fixture"`
-	Required       string `json:"required"`
-	Achieved       string `json:"achieved"`
-	GotSize        int    `json:"got_size"`
-	RefSize        int    `json:"ref_size"`
-	Delta          int    `json:"delta"`
-	RawDiffOffset  int    `json:"raw_diff_offset"`
-	NormDiffOffset int    `json:"norm_diff_offset,omitempty"`
-	Normalizer     string `json:"normalizer,omitempty"`
-	Reason         string `json:"reason"`
+	Fixture        string          `json:"fixture"`
+	Required       string          `json:"required"`
+	Achieved       string          `json:"achieved"`
+	GotSize        int             `json:"got_size"`
+	RefSize        int             `json:"ref_size"`
+	Delta          int             `json:"delta"`
+	RawDiffOffset  int             `json:"raw_diff_offset"`
+	NormDiffOffset int             `json:"norm_diff_offset,omitempty"`
+	Normalizer     string          `json:"normalizer,omitempty"`
+	Reason         string          `json:"reason"`
+	Annotation     *annotationJSON `json:"annotation,omitempty"`
+}
+
+// annotationJSON is the dashboard-facing slice of an Annotation. The
+// loader's full Annotation also carries the optional Skip directive,
+// which is harness-internal — the dashboard only needs the metadata
+// fields, plus an issue_url synthesised from Issue.
+type annotationJSON struct {
+	Severity    string `json:"severity,omitempty"`
+	Issue       int    `json:"issue,omitempty"`
+	IssueURL    string `json:"issue_url,omitempty"`
+	Summary     string `json:"summary,omitempty"`
+	SpecRef     string `json:"spec_ref,omitempty"`
+	NotesAnchor string `json:"notes_anchor,omitempty"`
+}
+
+// annotationIssueRepo is the GitHub repo whose issue numbers are
+// auto-linked in the dashboard. Single-source-of-truth for the URL
+// template — change here if the project ever moves repos.
+const annotationIssueRepo = "neokapi/neokapi"
+
+// toAnnotationJSON projects a loader Annotation into the dashboard
+// shape, synthesising the issue URL from the issue number.
+func toAnnotationJSON(a *Annotation) *annotationJSON {
+	if a == nil {
+		return nil
+	}
+	out := &annotationJSON{
+		Severity:    a.Severity,
+		Issue:       a.Issue,
+		Summary:     a.Summary,
+		SpecRef:     a.SpecRef,
+		NotesAnchor: a.NotesAnchor,
+	}
+	if a.Issue > 0 {
+		out.IssueURL = fmt.Sprintf("https://github.com/%s/issues/%d", annotationIssueRepo, a.Issue)
+	}
+	return out
 }
 
 // FlushParityFixturesJSON writes the per-fixture parity dataset as JSON.
@@ -487,6 +592,7 @@ func FlushParityFixturesJSON(w io.Writer) error {
 					NormDiffOffset: r.NormDiffOffset,
 					Normalizer:     r.Normalizer,
 					Reason:         r.Reason,
+					Annotation:     toAnnotationJSON(r.Annotation),
 				})
 			}
 		}

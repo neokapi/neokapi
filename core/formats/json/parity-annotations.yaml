@@ -1,0 +1,8 @@
+format: json
+fixtures:
+  invalid_by_most_processors.json:
+    severity: fixture-bug
+    summary: "Intentionally-malformed JSON5 fixture with bare keys and single-quoted strings. Both engines emit lenient output; json-canonical normalizer can't parse either side, so there's no useful tier comparison."
+    skip:
+      engines: [okapi]
+      reason: "JSON5 fixture; both engines emit lenient output, json-canonical can't parse either side"

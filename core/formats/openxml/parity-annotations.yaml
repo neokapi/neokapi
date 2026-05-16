@@ -1,0 +1,86 @@
+# Per-fixture parity annotations for openxml.
+#
+# Consumed by cli/parity/roundtrip's annotation loader to enrich the
+# /parity/fixtures dashboard with severity, summary, issue link, and
+# spec citations. The annotation system is read-only metadata — it does
+# NOT change tier comparison results. See PARITY_NOTES.md for the full
+# spec/Okapi/neokapi three-way framing.
+#
+# severity:
+#   bug                  Real data-loss or correctness bug in neokapi.
+#                        Must be fixed; fixture currently fails.
+#   cosmetic             Output differs only in attribute placement,
+#                        run granularity, or other choices that render
+#                        identically. Spec-permissible on both sides.
+#   native-more-correct  Native output is more spec-compliant than the
+#                        Okapi reference. Divergence is a "win" — the
+#                        comparison flags it only because Okapi is the
+#                        reference, not because native is wrong.
+#   fixture-bug          The upstream fixture itself is malformed or
+#                        otherwise unusable for parity comparison.
+#   unknown              Not yet triaged.
+#
+# skip: optional. When present, the parity harness skips the listed
+# engines for this fixture. Replaces the legacy fileSkip map.
+format: openxml
+fixtures:
+  830-7.docx:
+    severity: bug
+    issue: 598
+    summary: "Pre-fldChar translatable text now preserved (bfed80d3); writer-side fuse of text + fldChar-begin sentinel into one <w:r> still pending."
+    spec_ref: "ECMA-376-1 §17.16.5 (complex fields)"
+    notes_anchor: residual-7-divergent-fixtures
+
+  847-3.docx:
+    severity: bug
+    summary: "Cross-paragraph field continuation; clearing the 847-3 divergence cascades into 830-4 / 830-5 via the shared monotonic synth-style ID counter. Architectural blocker — needs cross-paragraph field-depth tracking in WSO that doesn't perturb downstream synth IDs."
+    spec_ref: "ECMA-376-1 §17.16.5"
+    notes_anchor: residual-7-divergent-fixtures
+
+  851.docx:
+    severity: cosmetic
+    summary: "East-Asian segment rFonts inheritance differs; same translatable content. Per §17.3.2.26, rFonts categories only apply to characters in their script range, so attribute placement is moot for the rendered text."
+    spec_ref: "ECMA-376-1 §17.3.2.26 (CT_Fonts)"
+    notes_anchor: verification-of-cosmetic-divergences-2026-05-16
+
+  StartsWithLineSeparator.docx:
+    severity: cosmetic
+    summary: "Bare-run rFonts strip + synth on hAnsi remainder. Native splits one source run into two — same content, more granular markup."
+    spec_ref: "ECMA-376-1 §17.3.2.26"
+    notes_anchor: verification-of-cosmetic-divergences-2026-05-16
+
+  br2.docx:
+    severity: cosmetic
+    summary: "Font-subset rename (ONGPN A+ Garamond) via style chain. Native emits the embedded-subset alias unresolved; reference resolves to the public family name. Both render identically."
+    notes_anchor: verification-of-cosmetic-divergences-2026-05-16
+
+  multiple_tabs.docx:
+    severity: cosmetic
+    summary: "Font-category fragmentation + tab fusion. Native and reference both carry the same 4 translatable text spans — rFonts placement differs."
+    spec_ref: "ECMA-376-1 §17.3.2.26"
+    notes_anchor: verification-of-cosmetic-divergences-2026-05-16
+
+  delTextAmp.docx:
+    severity: bug
+    issue: 597
+    summary: "Character spacing <w:spacing w:val=\"-2\"/> lost on single-char run; <w:rFonts w:cs=\"Helvetica\"/> injected. Four investigation attempts ruled out (run-merger tightening, srcRunStart force-close, mergeRuns instrumentation, WSO spacing protection). Root cause likely in commonRFonts docDefaults overlay."
+    spec_ref: "ECMA-376-1 §17.3.2.35 (CT_SignedTwipsMeasure / w:spacing)"
+    notes_anchor: deltextamp-investigation-notes-2026-05-16
+
+  956.docx:
+    severity: native-more-correct
+    summary: "Native preserves translatable text before <w:fldChar> in the same source <w:r>; Okapi drops it. Functionally a win — flagged as divergent only because Okapi is the byte-equality reference."
+    spec_ref: "ECMA-376-1 §17.16.5"
+    notes_anchor: status-2026-05-16
+
+  N_001_Auswertung_Part2.docx:
+    severity: native-more-correct
+    summary: "Native preserves <w:tab/> + text before <w:fldChar> in the same source <w:r>; Okapi drops them. Functionally a win."
+    spec_ref: "ECMA-376-1 §17.16.5"
+    notes_anchor: status-2026-05-16
+
+  neverendingloop.docx:
+    severity: native-more-correct
+    summary: "Native preserves translatable text before <w:fldChar> in the same source <w:r>; Okapi drops it. Functionally a win."
+    spec_ref: "ECMA-376-1 §17.16.5"
+    notes_anchor: status-2026-05-16

@@ -1,0 +1,20 @@
+format: yaml
+fixtures:
+  no-children-1-pretty.yaml:
+    severity: fixture-bug
+    summary: "Okapi YAML parser rejects !!timestamp tag."
+    skip:
+      engines: [okapi]
+      reason: "Okapi YAML parser rejects !!timestamp tag"
+  Test03.yml:
+    severity: fixture-bug
+    summary: "Okapi YAML parser rejects !!timestamp tag."
+    skip:
+      engines: [okapi]
+      reason: "Okapi YAML parser rejects !!timestamp tag"
+  emoji1.yaml:
+    severity: fixture-bug
+    summary: "Okapi YAML writer emits 4-byte UTF-8 emoji (U+1F60E 😎) as a lone low surrogate \\ude0e (missing high surrogate \\ud83d) — invalid UTF-16. yaml-canonical fails to parse the okapi reference."
+    skip:
+      engines: [okapi]
+      reason: "okapi YAML writer emits lone low surrogate for 4-byte emoji; invalid UTF-16"

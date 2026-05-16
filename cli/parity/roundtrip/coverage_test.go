@@ -79,12 +79,10 @@ type formatScan struct {
 	// formatDefaultSkip applies to every discovered file in this
 	// scan: use it when a real engine bug affects the whole format
 	// (e.g. native's CRLF preservation in srt, bridge's read-only
-	// xliff2). Per-file skip entries below extend this set.
+	// xliff2). Per-fixture engine skips are declared in
+	// core/formats/<format>/parity-annotations.yaml and resolved at
+	// runtime via roundtrip.LookupSkip — see runOneFixture.
 	formatDefaultSkip fileSkip
-
-	// skip records known divergences keyed by file basename. These
-	// extend formatDefaultSkip with per-file engines/reasons.
-	skip map[string]fileSkip
 
 	// normalizer, when non-nil, is forwarded to every Case so the
 	// canonical-tier comparison can declare semantically-equivalent
@@ -149,7 +147,7 @@ func okapiSkippedForFixture(scan formatScan, base string) bool {
 			return true
 		}
 	}
-	if perFile, ok := scan.skip[base]; ok {
+	if perFile, ok := roundtrip.LookupSkip(string(scan.formatID), base); ok {
 		for _, e := range perFile.Engines {
 			if e == "okapi" {
 				return true
@@ -215,12 +213,15 @@ func runOneFixture(t *testing.T, scan formatScan, abs string, okapiCache *roundt
 	base := filepath.Base(abs)
 	// Merge format-default + per-file skip. Per-file engines extend the
 	// default set; the per-file reason wins when set, otherwise default.
+	// Per-file skip is loaded from core/formats/<format>/parity-annotations.yaml
+	// via the annotation system — the legacy in-code fileSkip map was
+	// migrated there so the dashboard sees the same source of truth.
 	skipSet := map[string]bool{}
 	reason := scan.formatDefaultSkip.Reason
 	for _, e := range scan.formatDefaultSkip.Engines {
 		skipSet[e] = true
 	}
-	if perFile, ok := scan.skip[base]; ok {
+	if perFile, ok := roundtrip.LookupSkip(string(scan.formatID), base); ok {
 		for _, e := range perFile.Engines {
 			skipSet[e] = true
 		}
@@ -416,7 +417,6 @@ func coverageScans() []formatScan {
 			filterClass: "okf_html",
 			sources:     []string{"integration-tests/okapi/src/test/resources/html"},
 			extensions:  []string{".html"},
-			skip:        htmlBridgeSkips(),
 			// HTMLCanonical reaches canonical-equal for fixtures whose
 			// semantic structure agrees but whose byte form differs in
 			// attribute quoting/order, inter-tag whitespace, or
@@ -431,7 +431,6 @@ func coverageScans() []formatScan {
 			filterClass: "okf_markdown",
 			sources:     []string{"integration-tests/okapi/src/test/resources/markdown"},
 			extensions:  []string{".md"},
-			skip:        markdownBridgeSkips(),
 			// okf_markdown's Java reset() defaults translateCodeBlocks=true
 			// and translateIndentedCodeBlocks=true (single neokapi flag
 			// covers both). Native default keeps both off — code is
@@ -480,7 +479,6 @@ func coverageScans() []formatScan {
 			filterClass: "okf_po",
 			sources:     []string{"integration-tests/okapi/src/test/resources/po"},
 			extensions:  []string{".po"},
-			skip:        poBridgeSkips(),
 			// okf_po defaults to useCodeFinder=true with printf-style
 			// patterns so `%s`, `%d`, `%1$s`, `{0}`, etc. are extracted
 			// as inline codes (Spans) and not pseudo-translated as text.
@@ -550,16 +548,6 @@ func coverageScans() []formatScan {
 			// differ only in whitespace (e.g. `"k" : "v"` vs `"k": "v"`)
 			// or string escape choices that encoding/json normalizes.
 			normalizer: roundtrip.JSONCanonical{},
-			skip: map[string]fileSkip{
-				// Intentionally-malformed JSON5 fixture with bare keys
-				// and single-quoted strings. Both engines accept it
-				// leniently and emit slightly different whitespace
-				// around the `:` separator. The canonical normalizer
-				// fails to parse either output (single-quoted strings
-				// aren't standard JSON), so there's no useful tier
-				// comparison to make.
-				"invalid_by_most_processors.json": {Engines: []string{"okapi"}, Reason: "JSON5 fixture; both engines emit lenient output, json-canonical can't parse either side"},
-			},
 		},
 		{
 			formatID:    "yaml",
@@ -601,15 +589,6 @@ func coverageScans() []formatScan {
 			// differ only in indentation, quote style, or block-vs-flow
 			// — both sides round-trip through gopkg.in/yaml.v3.
 			normalizer: roundtrip.YAMLCanonical{},
-			skip: map[string]fileSkip{
-				"no-children-1-pretty.yaml": {Engines: []string{"okapi"}, Reason: "Okapi YAML parser rejects !!timestamp tag"},
-				"Test03.yml":                {Engines: []string{"okapi"}, Reason: "Okapi YAML parser rejects !!timestamp tag"},
-				// okapi emits the 4-byte UTF-8 emoji (U+1F60E 😎) as a
-				// lone low surrogate `\ude0e` (missing the high surrogate
-				// `\ud83d`) — invalid UTF-16. yaml-canonical fails to
-				// parse the okapi reference. Skip on okapi.
-				"emoji1.yaml": {Engines: []string{"okapi"}, Reason: "okapi YAML writer emits lone low surrogate for 4-byte emoji; invalid UTF-16"},
-			},
 		},
 		{
 			// Phpcontent has no integration-tests dir — fall back to
@@ -635,30 +614,6 @@ func coverageScans() []formatScan {
 			filterClass: "okf_commaseparatedvalues",
 			sources:     []string{"integration-tests/okapi/src/test/resources/table"},
 			extensions:  []string{".csv"},
-			skip: map[string]fileSkip{
-				// Source contains Windows-1252 byte 0x96 (en-dash) with
-				// no explicit charset marker. Native preserves the raw
-				// byte; okapi treats it as invalid UTF-8 and replaces
-				// with U+FFFD. Both diverge from the fixture's true
-				// content (en-dash) — neither is "right" for parity
-				// without an explicit encoding annotation.
-				"computer_science_article.csv": {Engines: []string{"okapi"}, Reason: "fixture has Windows-1252 0x96 with no charset marker; engines disagree on invalid-byte handling"},
-				// Source rows have layout `one,,four,,seven` (empty
-				// translatable column). With sourceColumns="2"
-				// okapi falls back to writing column-1's translation
-				// into the empty column-2 slot; native correctly leaves
-				// the empty cell empty and emits no translation. Two
-				// defensible behaviours, no semantic config knob bridges
-				// them.
-				"some_blank_columns.csv": {Engines: []string{"okapi"}, Reason: "okapi writes col-1 translation into adjacent empty cell; native leaves empty cells empty"},
-				// Fixture is intentionally malformed CSV (unmatched
-				// double-quotes spanning newlines, embedded `""` inside
-				// quoted regions). Native and okapi recover from the
-				// broken quote state differently — both are defensible
-				// readings of broken input. Diff appears mid-file at
-				// row 820 onwards.
-				"test2cols.csv": {Engines: []string{"okapi"}, Reason: "fixture is malformed CSV (quotes spanning lines); engines recover from broken state differently"},
-			},
 			// okf_commaseparatedvalues defaults to "translate column 1
 			// across all rows including the first" (no header). Native
 			// csv defaults to "translate every cell of every data row,
@@ -818,9 +773,6 @@ func coverageScans() []formatScan {
 					"escapeBeyondLatin1AsEntities": true,
 				},
 			},
-			skip: map[string]fileSkip{
-				"lqiTest.xlf": {Engines: []string{"okapi"}, Reason: "okf_xliff needs lqiTestIssues.xml in the same dir; harness now copies companions but okapi still rejects this fixture"},
-			},
 		},
 		{
 			// okapi-bridge release 9b9521c added EnsureFilterWriterStep so
@@ -869,19 +821,12 @@ func coverageScans() []formatScan {
 			minTier: map[string]roundtrip.Tier{
 				"bridge": roundtrip.TierCanonicalEqual,
 			},
-			skip: map[string]fileSkip{
-				"code_fail.tmx":          {Engines: []string{"okapi"}, Reason: "intentionally-malformed test fixture; okf_tmx rejects with 'no <tuv> set to source language'"},
-				"code_id_difference.tmx": {Engines: []string{"okapi"}, Reason: "intentionally-malformed test fixture for code-id mismatch detection"},
-			},
 		},
 		{
-			// Bridge passes 1 of 9 fixtures; the rest are flagged
-			// per-file via tsBridgeSkips().
 			formatID:    "ts",
 			filterClass: "okf_ts",
 			sources:     []string{"integration-tests/okapi/src/test/resources/ts"},
 			extensions:  []string{".ts"},
-			skip:        tsBridgeSkips(),
 			// TS is XML (Qt Linguist); same canonical normalizer.
 			normalizer: roundtrip.XMLCanonical{SortAttrs: true},
 		},
@@ -940,14 +885,6 @@ mergeCaptions.b=false
 			},
 			// TTML is XML; same canonical normalizer.
 			normalizer: roundtrip.XMLCanonical{SortAttrs: true},
-			skip: map[string]fileSkip{
-				// example1.ttml ships with malformed XML — `<okp:foo>`
-				// elements are closed with `</lilt:foo>` (a stale namespace
-				// prefix from the LILT-fork days). Okapi's lenient parser
-				// tolerates the mismatch; native's encoding/xml rejects it.
-				// Documented in core/formats/ttml/spec.yaml:539-549.
-				"example1.ttml": {Engines: []string{"native"}, Reason: "fixture ships with malformed XML (<okp:foo>...</lilt:foo>); native's strict encoding/xml rejects it"},
-			},
 		},
 		// srt: omitted from this scan — upstream tikal routes .srt via
 		// `okf_regex-srt`, which loads regex rules from a packaged .fprm
@@ -1009,15 +946,6 @@ mergeCaptions.b=false
 			filterClass: "okf_transtable",
 			sources:     []string{"integration-tests/okapi/src/test/resources/transtable"},
 			extensions:  []string{".txt"},
-			skip: map[string]fileSkip{
-				// okapi's pseudo round-trip emits only the extracted source
-				// text (e.g. "Text of the first record. ...") rather than
-				// reconstructing the TransTableV1 structure. Native correctly
-				// preserves the tabular structure (header + rows) on
-				// round-trip — its output is the "right" answer but doesn't
-				// match the okapi reference. Skip on okapi.
-				"test01.xml.txt": {Engines: []string{"okapi"}, Reason: "okapi pseudo emits plain extracted text instead of round-tripping TransTableV1 structure; reference unhelpful"},
-			},
 		},
 
 		// ── Binary / compound formats ─────────────────────────────
@@ -1031,7 +959,6 @@ mergeCaptions.b=false
 			sources:     []string{"okapi/filters/idml/src/test/resources"},
 			extensions:  []string{".idml"},
 			isZip:       true,
-			skip:        idmlBridgeSkips(),
 			// IDML is a zip of XML. okapi emits XML decls with
 			// single-quoted attrs ('1.0' encoding='UTF-8'); native
 			// emits double-quoted ("1.0" encoding="UTF-8"). Beyond the
@@ -1067,7 +994,6 @@ mergeCaptions.b=false
 			filterClass: "okf_icml",
 			sources:     []string{"integration-tests/okapi/src/test/resources/icml"},
 			extensions:  []string{".icml", ".wcml"},
-			skip:        icmlMergedSkips(),
 			// ICML is Adobe InDesign XML; same canonical normalizer as
 			// other XML formats reaches canonical-equal when source and
 			// reference differ only in attribute order or non-significant
@@ -1083,7 +1009,6 @@ mergeCaptions.b=false
 			sources:     []string{"okapi/filters/openxml/src/test/resources"},
 			extensions:  []string{".docx"},
 			isZip:       true,
-			skip:        openxmlBridgeSkips(),
 			// OOXML is zip-of-XML. Pure byte parity is unrealistic:
 			//   - encoding/xml always emits explicit close tags
 			//     (`<w:sz w:val="28"></w:sz>`) while okapi self-closes
@@ -1124,7 +1049,6 @@ mergeCaptions.b=false
 			filterClass: "okf_mif",
 			sources:     []string{"integration-tests/okapi/src/test/resources/mif"},
 			extensions:  []string{".mif"},
-			skip:        mifBridgeSkips(),
 		},
 	}
 }

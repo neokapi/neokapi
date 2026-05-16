@@ -15,6 +15,17 @@ interface EngineTotals {
   byte_pct: number;
 }
 
+type Severity = "bug" | "cosmetic" | "native-more-correct" | "fixture-bug" | "unknown";
+
+interface Annotation {
+  severity?: Severity;
+  issue?: number;
+  issue_url?: string;
+  summary?: string;
+  spec_ref?: string;
+  notes_anchor?: string;
+}
+
 interface FixtureEntry {
   fixture: string;
   required: Tier;
@@ -26,6 +37,7 @@ interface FixtureEntry {
   norm_diff_offset?: number;
   normalizer?: string;
   reason: string;
+  annotation?: Annotation;
 }
 
 interface FormatBreakdown {
@@ -61,6 +73,42 @@ const tierShort: Record<string, string> = {
   "semantic-equal": "sem",
   divergent: "div",
 };
+
+const severityClass: Record<Severity, string> = {
+  bug: styles.severityBug,
+  cosmetic: styles.severityCosmetic,
+  "native-more-correct": styles.severityNativeBetter,
+  "fixture-bug": styles.severityFixtureBug,
+  unknown: styles.severityUnknown,
+};
+
+const severityLabel: Record<Severity, string> = {
+  bug: "bug",
+  cosmetic: "cosmetic",
+  "native-more-correct": "native+",
+  "fixture-bug": "fixture-bug",
+  unknown: "unannotated",
+};
+
+const severityDescription: Record<Severity, string> = {
+  bug: "Real correctness/data-loss bug in native. Must be fixed.",
+  cosmetic:
+    "Output differs only in attribute placement, run granularity, or other choices that render identically per spec. Spec-permissible on both sides.",
+  "native-more-correct":
+    "Native output is more spec-compliant than the Okapi reference. The divergence is a 'win' — flagged only because Okapi is the byte-equality reference.",
+  "fixture-bug":
+    "The upstream fixture itself is malformed or otherwise unusable for parity comparison.",
+  unknown:
+    "Divergence not yet triaged. The fail-new CI gate fails on these — add a YAML entry documenting why it diverges.",
+};
+
+const severityFilterOrder: Severity[] = [
+  "bug",
+  "cosmetic",
+  "native-more-correct",
+  "fixture-bug",
+  "unknown",
+];
 
 function rowKey(f: FormatBreakdown): string {
   return `${f.engine}/${f.format}`;
@@ -184,16 +232,46 @@ function unescapeGo(s: string): string {
     }
     const n = s[i + 1];
     switch (n) {
-      case "n": out += "\n"; i++; continue;
-      case "t": out += "\t"; i++; continue;
-      case "r": out += "\r"; i++; continue;
-      case "a": out += "\x07"; i++; continue;
-      case "b": out += "\x08"; i++; continue;
-      case "f": out += "\x0c"; i++; continue;
-      case "v": out += "\x0b"; i++; continue;
-      case "0": out += "\x00"; i++; continue;
-      case "\\": out += "\\"; i++; continue;
-      case '"': out += '"'; i++; continue;
+      case "n":
+        out += "\n";
+        i++;
+        continue;
+      case "t":
+        out += "\t";
+        i++;
+        continue;
+      case "r":
+        out += "\r";
+        i++;
+        continue;
+      case "a":
+        out += "\x07";
+        i++;
+        continue;
+      case "b":
+        out += "\x08";
+        i++;
+        continue;
+      case "f":
+        out += "\x0c";
+        i++;
+        continue;
+      case "v":
+        out += "\x0b";
+        i++;
+        continue;
+      case "0":
+        out += "\x00";
+        i++;
+        continue;
+      case "\\":
+        out += "\\";
+        i++;
+        continue;
+      case '"':
+        out += '"';
+        i++;
+        continue;
       case "x": {
         if (i + 3 < s.length) {
           const code = parseInt(s.slice(i + 2, i + 4), 16);
@@ -343,12 +421,11 @@ function DiffView({ reason }: DiffViewProps) {
             <span className={styles.diffOffset}>@{parsed.offset.toLocaleString()}</span>
           )}
           {parsed.context && <span className={styles.diffContext}>{parsed.context}</span>}
-          {parsed.zipEntry && (
-            <span className={styles.diffEntryChip}>zip:{parsed.zipEntry}</span>
-          )}
+          {parsed.zipEntry && <span className={styles.diffEntryChip}>zip:{parsed.zipEntry}</span>}
           {parsed.normalizer && (
             <span className={styles.diffNormChip} title={parsed.normalizer}>
-              norm:{parsed.normalizer.length > 60
+              norm:
+              {parsed.normalizer.length > 60
                 ? parsed.normalizer.slice(0, 57) + "…"
                 : parsed.normalizer}
             </span>
@@ -389,7 +466,6 @@ function DiffView({ reason }: DiffViewProps) {
   );
 }
 
-
 type TierFilter = "all-non-byte" | "div-only" | "sem-only" | "canon-only";
 
 const tierFilterLabels: Record<TierFilter, string> = {
@@ -401,26 +477,93 @@ const tierFilterLabels: Record<TierFilter, string> = {
 
 function fixtureMatchesTier(f: FixtureEntry, t: TierFilter): boolean {
   switch (t) {
-    case "div-only": return f.achieved === "divergent";
-    case "sem-only": return f.achieved === "semantic-equal";
-    case "canon-only": return f.achieved === "canonical-equal";
-    default: return f.achieved !== "byte-equal";
+    case "div-only":
+      return f.achieved === "divergent";
+    case "sem-only":
+      return f.achieved === "semantic-equal";
+    case "canon-only":
+      return f.achieved === "canonical-equal";
+    default:
+      return f.achieved !== "byte-equal";
   }
 }
 
 function formatHasMatchingFixture(f: FormatBreakdown, t: TierFilter): boolean {
   switch (t) {
-    case "div-only": return f.div > 0;
-    case "sem-only": return f.sem > 0;
-    case "canon-only": return f.canon > 0;
-    default: return f.div + f.sem + f.canon > 0;
+    case "div-only":
+      return f.div > 0;
+    case "sem-only":
+      return f.sem > 0;
+    case "canon-only":
+      return f.canon > 0;
+    default:
+      return f.div + f.sem + f.canon > 0;
   }
+}
+
+function fixtureSeverity(f: FixtureEntry): Severity {
+  if (f.annotation?.severity) return f.annotation.severity;
+  // A divergent fixture without an annotation is "unannotated" — the
+  // fail-new CI gate fails on these. A non-divergent fixture without
+  // an annotation is just an expected canonical/semantic result and
+  // doesn't need one — we don't badge those.
+  if (f.achieved === "divergent") return "unknown";
+  return "unknown";
+}
+
+function fixtureMatchesSeverity(f: FixtureEntry, set: Set<Severity>): boolean {
+  if (set.size === 0) return true;
+  return set.has(fixtureSeverity(f));
+}
+
+function isUnannotatedDivergence(f: FixtureEntry): boolean {
+  return f.achieved === "divergent" && !f.annotation;
+}
+
+// SeverityLegend renders a compact card explaining each severity
+// value. It doubles as a discoverable filter — clicking a row toggles
+// the corresponding severity in the filter set.
+function SeverityLegend({
+  active,
+  onToggle,
+}: {
+  active: Set<Severity>;
+  onToggle: (s: Severity) => void;
+}) {
+  return (
+    <div className={styles.legend}>
+      <div className={styles.legendTitle}>Severity legend (click to filter)</div>
+      <ul className={styles.legendList}>
+        {severityFilterOrder.map((s) => {
+          const isOn = active.has(s);
+          return (
+            <li key={s}>
+              <button
+                type="button"
+                className={`${styles.legendRow} ${isOn ? styles.legendRowActive : ""}`}
+                onClick={() => onToggle(s)}
+              >
+                <span
+                  className={`${styles.severityBadge} ${severityClass[s]}`}
+                  title={severityDescription[s]}
+                >
+                  {severityLabel[s]}
+                </span>
+                <span className={styles.legendDescription}>{severityDescription[s]}</span>
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
 }
 
 export default function ParityFixturesDashboard() {
   const [search, setSearch] = useState("");
   const [activeEngine, setActiveEngine] = useState<string | null>("native");
   const [tierFilter, setTierFilter] = useState<TierFilter>("all-non-byte");
+  const [severityFilter, setSeverityFilter] = useState<Set<Severity>>(() => new Set());
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
 
   const engineNames = useMemo(() => {
@@ -429,12 +572,52 @@ export default function ParityFixturesDashboard() {
     return Array.from(set).sort();
   }, []);
 
+  // Aggregate severity counts across the entire current view so the
+  // header shows e.g. "1 unannotated divergence" prominently — that's
+  // exactly what the CI gate fails on, so it deserves to surface.
+  const severityCounts = useMemo<Record<Severity, number>>(() => {
+    const init: Record<Severity, number> = {
+      bug: 0,
+      cosmetic: 0,
+      "native-more-correct": 0,
+      "fixture-bug": 0,
+      unknown: 0,
+    };
+    for (const f of dataset.formats) {
+      if (!f.fixtures) continue;
+      for (const fx of f.fixtures) {
+        if (fx.achieved !== "divergent") continue;
+        if (isUnannotatedDivergence(fx)) {
+          init.unknown += 1;
+          continue;
+        }
+        const sev = fx.annotation?.severity ?? "unknown";
+        init[sev] = (init[sev] ?? 0) + 1;
+      }
+    }
+    return init;
+  }, []);
+
+  const toggleSeverity = (s: Severity): void => {
+    setSeverityFilter((prev) => {
+      const next = new Set(prev);
+      if (next.has(s)) next.delete(s);
+      else next.add(s);
+      return next;
+    });
+  };
+
   const filteredFixtures = (f: FormatBreakdown): FixtureEntry[] => {
     const q = search.trim().toLowerCase();
     return (f.fixtures ?? []).filter((d) => {
       if (!fixtureMatchesTier(d, tierFilter)) return false;
+      if (!fixtureMatchesSeverity(d, severityFilter)) return false;
       if (!q) return true;
-      return d.fixture.toLowerCase().includes(q) || d.reason.toLowerCase().includes(q);
+      return (
+        d.fixture.toLowerCase().includes(q) ||
+        d.reason.toLowerCase().includes(q) ||
+        (d.annotation?.summary?.toLowerCase().includes(q) ?? false)
+      );
     });
   };
 
@@ -444,10 +627,16 @@ export default function ParityFixturesDashboard() {
       .filter((f) => (activeEngine ? f.engine === activeEngine : true))
       .filter((f) => formatHasMatchingFixture(f, tierFilter))
       .filter((f) => {
+        // Apply severity filter at format level so empty formats hide.
+        if (severityFilter.size === 0) return true;
+        return (f.fixtures ?? []).some((fx) => fixtureMatchesSeverity(fx, severityFilter));
+      })
+      .filter((f) => {
         if (!q) return true;
         if (f.format.toLowerCase().includes(q)) return true;
         if (f.fixtures?.some((d) => d.fixture.toLowerCase().includes(q))) return true;
         if (f.fixtures?.some((d) => d.reason.toLowerCase().includes(q))) return true;
+        if (f.fixtures?.some((d) => d.annotation?.summary?.toLowerCase().includes(q))) return true;
         return false;
       })
       .sort((a, b) => {
@@ -458,10 +647,9 @@ export default function ParityFixturesDashboard() {
         if (a.format !== b.format) return a.format.localeCompare(b.format);
         return a.engine.localeCompare(b.engine);
       });
-  }, [search, activeEngine, tierFilter]);
+  }, [search, activeEngine, tierFilter, severityFilter]);
 
-  const toggle = (k: string): void =>
-    setExpanded((prev) => ({ ...prev, [k]: !prev[k] }));
+  const toggle = (k: string): void => setExpanded((prev) => ({ ...prev, [k]: !prev[k] }));
 
   return (
     <Layout
@@ -471,16 +659,13 @@ export default function ParityFixturesDashboard() {
       <main className="container margin-vert--lg">
         <h1>Parity Fixtures Drill-Down</h1>
         <p className={styles.subtitle}>
-          Per (format, engine, fixture) drill-down for every fixture that
-          isn't byte-equal — the remaining work toward byte-exact parity.
-          Each row carries raw/normalized first-diff offsets and the
-          comparison snippet so you can scan for patterns (line endings,
-          whitespace, encoding…) without re-running the test. Canon and
-          sem rows show the <em>raw</em> byte gap that the normalizer
-          (or semantic comparator) is currently bridging. Generated by{" "}
-          <code>make parity-fixtures</code> at{" "}
-          <strong>{dataset.generated_at}</strong>. See also the higher-level{" "}
-          <a href="/parity">/parity dashboard</a>.
+          Per (format, engine, fixture) drill-down for every fixture that isn't byte-equal — the
+          remaining work toward byte-exact parity. Each row carries raw/normalized first-diff
+          offsets and the comparison snippet so you can scan for patterns (line endings, whitespace,
+          encoding…) without re-running the test. Canon and sem rows show the <em>raw</em> byte gap
+          that the normalizer (or semantic comparator) is currently bridging. Generated by{" "}
+          <code>make parity-fixtures</code> at <strong>{dataset.generated_at}</strong>. See also the
+          higher-level <a href="/parity">/parity dashboard</a>.
         </p>
 
         <div className={styles.totals}>
@@ -489,33 +674,26 @@ export default function ParityFixturesDashboard() {
               <h2>{eng}</h2>
               <div className={styles.headline}>
                 {t.byte} / {t.total - t.skip}{" "}
-                <span className={styles.headlineSuffix}>
-                  byte-equal ({t.byte_pct.toFixed(1)}%)
-                </span>
+                <span className={styles.headlineSuffix}>byte-equal ({t.byte_pct.toFixed(1)}%)</span>
               </div>
               <ul className={styles.totalBreakdown}>
                 <li>
-                  <span className={`${styles.tierBadge} ${styles.tierByte}`}>byte</span>{" "}
-                  {t.byte}
+                  <span className={`${styles.tierBadge} ${styles.tierByte}`}>byte</span> {t.byte}
                 </li>
                 <li>
-                  <span className={`${styles.tierBadge} ${styles.tierCanon}`}>canon</span>{" "}
-                  {t.canon}
+                  <span className={`${styles.tierBadge} ${styles.tierCanon}`}>canon</span> {t.canon}
                 </li>
                 {t.sem > 0 && (
                   <li>
-                    <span className={`${styles.tierBadge} ${styles.tierSem}`}>sem</span>{" "}
-                    {t.sem}
+                    <span className={`${styles.tierBadge} ${styles.tierSem}`}>sem</span> {t.sem}
                   </li>
                 )}
                 <li>
-                  <span className={`${styles.tierBadge} ${styles.tierDiv}`}>div</span>{" "}
-                  {t.div}
+                  <span className={`${styles.tierBadge} ${styles.tierDiv}`}>div</span> {t.div}
                 </li>
                 {t.skip > 0 && (
                   <li>
-                    <span className={`${styles.tierBadge} ${styles.tierSkip}`}>skip</span>{" "}
-                    {t.skip}
+                    <span className={`${styles.tierBadge} ${styles.tierSkip}`}>skip</span> {t.skip}
                   </li>
                 )}
               </ul>
@@ -523,11 +701,32 @@ export default function ParityFixturesDashboard() {
           ))}
         </div>
 
+        <div className={styles.severityHeadline}>
+          {severityFilterOrder.map((s) => (
+            <button
+              key={s}
+              type="button"
+              className={`${styles.severityHeadlineItem} ${
+                severityFilter.has(s) ? styles.severityHeadlineActive : ""
+              }`}
+              onClick={() => toggleSeverity(s)}
+              title={severityDescription[s]}
+            >
+              <span className={`${styles.severityBadge} ${severityClass[s]}`}>
+                {severityLabel[s]}
+              </span>
+              <span className={styles.severityHeadlineCount}>{severityCounts[s]}</span>
+            </button>
+          ))}
+        </div>
+
+        <SeverityLegend active={severityFilter} onToggle={toggleSeverity} />
+
         <div className={styles.toolbar}>
           <input
             type="text"
             className={styles.search}
-            placeholder="Filter by format, fixture name, or reason snippet..."
+            placeholder="Filter by format, fixture name, reason snippet, or annotation summary..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -563,6 +762,22 @@ export default function ParityFixturesDashboard() {
         <p className={styles.resultCount}>
           {visible.length} (format, engine) rows ·{" "}
           {visible.reduce((n, f) => n + filteredFixtures(f).length, 0)} fixtures matching
+          {severityFilter.size > 0 && (
+            <>
+              {" "}
+              · filtered by severity:{" "}
+              {Array.from(severityFilter)
+                .map((s) => severityLabel[s])
+                .join(", ")}{" "}
+              <button
+                type="button"
+                className={styles.clearSeverity}
+                onClick={() => setSeverityFilter(new Set())}
+              >
+                clear
+              </button>
+            </>
+          )}
         </p>
 
         {visible.map((f) => {
@@ -607,36 +822,81 @@ export default function ParityFixturesDashboard() {
               </div>
               {open && fixtures.length > 0 && (
                 <div className={styles.fixtureList}>
-                  {fixtures.map((d) => (
-                    <div key={d.fixture} className={styles.fixtureItem}>
-                      <div className={styles.fixtureMeta}>
-                        <div className={styles.fixtureName}>{d.fixture}</div>
-                        <div className={styles.fixtureTiers}>
-                          <span className={`${styles.tierBadge} ${tierClass[d.achieved] ?? ""}`}>
-                            {tierShort[d.achieved] ?? d.achieved}
-                          </span>
+                  {fixtures.map((d) => {
+                    const sev: Severity | null =
+                      d.annotation?.severity ?? (isUnannotatedDivergence(d) ? "unknown" : null);
+                    return (
+                      <div key={d.fixture} className={styles.fixtureItem}>
+                        <div className={styles.fixtureMeta}>
+                          <div className={styles.fixtureName}>{d.fixture}</div>
+                          <div className={styles.fixtureTiers}>
+                            <span className={`${styles.tierBadge} ${tierClass[d.achieved] ?? ""}`}>
+                              {tierShort[d.achieved] ?? d.achieved}
+                            </span>
+                            {sev && (
+                              <span
+                                className={`${styles.severityBadge} ${severityClass[sev]}`}
+                                title={severityDescription[sev]}
+                              >
+                                {severityLabel[sev]}
+                              </span>
+                            )}
+                            {d.annotation?.issue_url && (
+                              <a
+                                className={styles.annotationIssue}
+                                href={d.annotation.issue_url}
+                                target="_blank"
+                                rel="noreferrer noopener"
+                                title={`GitHub issue #${d.annotation.issue}`}
+                              >
+                                #{d.annotation.issue}
+                              </a>
+                            )}
+                            {d.annotation?.spec_ref && (
+                              <span className={styles.annotationSpec} title={d.annotation.spec_ref}>
+                                {d.annotation.spec_ref}
+                              </span>
+                            )}
+                          </div>
+                          <div className={styles.fixtureSizes}>
+                            <span>
+                              got <b>{formatBytes(d.got_size)}</b>
+                            </span>
+                            <span>
+                              ref <b>{formatBytes(d.ref_size)}</b>
+                            </span>
+                            <span
+                              className={
+                                d.delta > 0
+                                  ? styles.deltaPositive
+                                  : d.delta < 0
+                                    ? styles.deltaNegative
+                                    : undefined
+                              }
+                            >
+                              Δ{" "}
+                              <b>
+                                {d.delta > 0 ? `+${formatBytes(d.delta)}` : formatBytes(d.delta)}
+                              </b>
+                            </span>
+                          </div>
+                          {d.annotation?.summary && (
+                            <div className={styles.annotationSummary}>{d.annotation.summary}</div>
+                          )}
+                          {isUnannotatedDivergence(d) && (
+                            <div className={styles.annotationMissing}>
+                              ⚠ Unannotated divergence — add an entry to{" "}
+                              <code>core/formats/{f.format}/parity-annotations.yaml</code> so the CI
+                              gate stops failing.
+                            </div>
+                          )}
                         </div>
-                        <div className={styles.fixtureSizes}>
-                          <span>got <b>{formatBytes(d.got_size)}</b></span>
-                          <span>ref <b>{formatBytes(d.ref_size)}</b></span>
-                          <span
-                            className={
-                              d.delta > 0
-                                ? styles.deltaPositive
-                                : d.delta < 0
-                                  ? styles.deltaNegative
-                                  : undefined
-                            }
-                          >
-                            Δ <b>{d.delta > 0 ? `+${formatBytes(d.delta)}` : formatBytes(d.delta)}</b>
-                          </span>
+                        <div className={styles.fixtureDiff}>
+                          <DiffView reason={d.reason} />
                         </div>
                       </div>
-                      <div className={styles.fixtureDiff}>
-                        <DiffView reason={d.reason} />
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>

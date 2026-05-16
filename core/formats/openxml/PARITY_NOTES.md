@@ -8,6 +8,17 @@ This file is a working note for the next iteration of OpenXML parity
 work. It is **not** an architecture decision and **not** user-facing
 docs.
 
+> **Per-fixture annotations live in
+> [`parity-annotations.yaml`](parity-annotations.yaml)** — that file is
+> the single source of truth that feeds the parity harness (which
+> consults it to skip okapi-incapable fixtures), the
+> [/parity/fixtures dashboard](/parity/fixtures) (which renders
+> severity badges + GitHub issue links), and the fail-new CI gate
+> (`TestParityFailNew`, which refuses unannotated divergences).
+> Severity values: `bug` (real defect), `cosmetic` (renders
+> identically per spec), `native-more-correct` (native beats Okapi per
+> spec), `fixture-bug` (upstream fixture itself unusable).
+
 ## Spec vs Okapi vs neokapi — three-way framing
 
 The parity tier (above) measures **byte-equality against upstream

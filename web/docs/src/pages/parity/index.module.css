@@ -173,3 +173,48 @@
 [data-theme="dark"] .badgeError {
   color: #ffa64d;
 }
+
+.severityCard {
+  border: 1px solid var(--ifm-color-emphasis-300);
+  border-radius: var(--ifm-card-border-radius);
+  padding: 0.9rem 1.1rem;
+  margin-bottom: 1.5rem;
+  background: var(--ifm-card-background-color);
+}
+
+.severityCardTitle {
+  font-size: 1rem;
+  margin: 0 0 0.5rem;
+  font-weight: 600;
+  color: var(--ifm-color-emphasis-700);
+}
+
+.severityCardList {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 0.5rem;
+  display: flex;
+  gap: 0.85rem;
+  flex-wrap: wrap;
+}
+
+.severityCardList li {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.9rem;
+}
+
+.severityCardList strong {
+  font-variant-numeric: tabular-nums;
+}
+
+.severityCardHint {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--ifm-color-emphasis-700);
+}
+
+.severityCardHint code {
+  font-size: 0.78rem;
+}

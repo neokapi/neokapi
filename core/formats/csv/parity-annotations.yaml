@@ -1,0 +1,20 @@
+format: csv
+fixtures:
+  computer_science_article.csv:
+    severity: fixture-bug
+    summary: "Source contains Windows-1252 byte 0x96 (en-dash) with no explicit charset marker. Native preserves the raw byte; okapi treats it as invalid UTF-8 and replaces with U+FFFD. Neither is 'right' for parity without an explicit encoding annotation."
+    skip:
+      engines: [okapi]
+      reason: "fixture has Windows-1252 0x96 with no charset marker; engines disagree on invalid-byte handling"
+  some_blank_columns.csv:
+    severity: cosmetic
+    summary: "Source rows have layout `one,,four,,seven` (empty translatable column). With sourceColumns=2 okapi falls back to writing column-1's translation into the empty column-2 slot; native leaves the empty cell empty. Two defensible behaviours."
+    skip:
+      engines: [okapi]
+      reason: "okapi writes col-1 translation into adjacent empty cell; native leaves empty cells empty"
+  test2cols.csv:
+    severity: fixture-bug
+    summary: "Fixture is intentionally malformed CSV (unmatched double-quotes spanning newlines, embedded `\"\"` inside quoted regions). Native and okapi recover from the broken quote state differently — both are defensible readings of broken input."
+    skip:
+      engines: [okapi]
+      reason: "fixture is malformed CSV (quotes spanning lines); engines recover from broken state differently"

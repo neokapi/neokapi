@@ -117,6 +117,13 @@ func RunThreeWay(t *testing.T, c Case, native *NativeEngine, bridge *BridgeEngin
 	}
 
 	formatID := string(c.FormatID)
+	// Annotation is per-(format, fixture), shared across engines.
+	// Looked up once per Case so the YAML loader sees one hit per
+	// fixture instead of one per engine.
+	var ann *Annotation
+	if a, ok := LookupAnnotation(formatID, c.Name); ok {
+		ann = &a
+	}
 
 	var divergences []Divergence
 	for _, e := range entries {
@@ -125,12 +132,13 @@ func RunThreeWay(t *testing.T, c Case, native *NativeEngine, bridge *BridgeEngin
 			required := requiredTier(c.MinTier, e.name)
 			if skipSet[e.name] {
 				recordParityResult(parityRecord{
-					Format:   formatID,
-					Fixture:  c.Name,
-					Engine:   e.name,
-					Required: required,
-					Skipped:  true,
-					SkipMsg:  c.SkipReason,
+					Format:     formatID,
+					Fixture:    c.Name,
+					Engine:     e.name,
+					Required:   required,
+					Skipped:    true,
+					SkipMsg:    c.SkipReason,
+					Annotation: ann,
 				})
 				t.Skipf("engine %q intentionally skipped for this case: %s", e.name, c.SkipReason)
 			}
@@ -164,6 +172,7 @@ func RunThreeWay(t *testing.T, c Case, native *NativeEngine, bridge *BridgeEngin
 				RawDiffOffset:  result.RawDiffOffset,
 				NormDiffOffset: result.NormDiffOffset,
 				Normalizer:     result.Normalizer,
+				Annotation:     ann,
 			})
 			if result.Achieved > required {
 				reason := result.Reason

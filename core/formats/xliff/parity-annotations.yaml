@@ -1,0 +1,8 @@
+format: xliff
+fixtures:
+  lqiTest.xlf:
+    severity: fixture-bug
+    summary: "okf_xliff needs lqiTestIssues.xml in the same dir; harness now copies companions but okapi still rejects this fixture."
+    skip:
+      engines: [okapi]
+      reason: "okf_xliff needs lqiTestIssues.xml in the same dir; harness now copies companions but okapi still rejects this fixture"
