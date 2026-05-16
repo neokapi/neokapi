@@ -3242,8 +3242,23 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 
 	// effectiveRPr returns the per-run rPr to emit at text-run index
 	// idx (0-based, counting only text-bearing model.Run.Text
-	// emissions). Falls back to sourceRPr when the sidecar is empty
-	// or the slot is absent/empty.
+	// emissions).
+	//
+	// When the per-run sidecar is present (alignment guard at line
+	// ~3206 hasn't dropped it), the slot is authoritative — including
+	// when it is the empty string, which means the source `<w:r>` had
+	// no rPr at all. Falling back to sourceRPr in that case would
+	// inject the paragraph-wide common rPr into a bare source run,
+	// fusing it with neighbouring runs that share the common subset.
+	// Per upstream Okapi RunBuilder.java:73-188 each source run keeps
+	// its rPr verbatim; bare runs surface as `<w:r><w:t>…</w:t></w:r>`
+	// with no rPr, distinct from neighbours per
+	// RunMerger.canRunPropertiesBeMerged (RunMerger.java:156-229).
+	//
+	// sourceRPr is only consulted when the sidecar was dropped (the
+	// alignment guard set perRunRPr to nil) or when the index is out
+	// of range — both defensive paths preserving pre-#592 behaviour
+	// for paragraphs the sidecar cannot describe.
 	//
 	// bCs/iCs are stripped on-the-fly when the corresponding run
 	// text contains no complex-script characters (mirrors upstream
@@ -3253,9 +3268,12 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 	// verbatim — fixing the 1200-* RTL synthesis cluster.
 	effectiveRPr := func(idx int) string {
 		var base string
-		if idx < 0 || idx >= len(perRunRPr) || perRunRPr[idx] == "" {
+		switch {
+		case perRunRPr == nil:
 			base = sourceRPr
-		} else {
+		case idx < 0 || idx >= len(perRunRPr):
+			base = sourceRPr
+		default:
 			base = perRunRPr[idx]
 		}
 		if base == "" {
