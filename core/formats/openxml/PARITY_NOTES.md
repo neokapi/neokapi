@@ -8,6 +8,91 @@ This file is a working note for the next iteration of OpenXML parity
 work. It is **not** an architecture decision and **not** user-facing
 docs.
 
+## Spec vs Okapi vs neokapi — three-way framing
+
+The parity tier (above) measures **byte-equality against upstream
+Okapi after canonicalization**. It does NOT measure spec
+compliance. There are three distinct "correctness" questions we
+care about, and they don't always agree:
+
+### 1. Is native a valid ECMA-376 / ISO/IEC 29500 OOXML producer?
+
+For 184 of 185 fixtures: yes. Native produces well-formed WordprocessingML
+that any OOXML consumer (Word, LibreOffice, Pages, custom parsers)
+would render identically to the source. The one bug: `delTextAmp`
+(see below).
+
+### 2. Is native byte-equal to Okapi after canonicalization?
+
+For 175 of 185 fixtures: yes. The remaining 10:
+
+- **5 fixtures** differ on rPr placement choices — both forms are
+  spec-compliant and render identically, only verbosity differs.
+  Examples:
+  - Okapi strips moot rFonts attributes per ECMA-376-1 §17.3.2.26
+    (rFonts categories only apply to characters in their script
+    range — `cs="Courier New"` on a run with no complex-script text
+    is a no-op the consumer ignores). Native preserves source.
+  - Okapi lifts paragraph-wide common rPr into a synthesized pStyle
+    (e.g. `NF974E24F-Normal1`) and strips it from runs. Native
+    sometimes does the same, sometimes doesn't, depending on which
+    runs share what.
+  - Both choices are explicitly permitted by ECMA-376; consumers
+    must produce identical rendering.
+- **3 fixtures** (`956`, `N_001_Auswertung_Part2`, `neverendingloop`)
+  where **native is MORE spec-correct than Okapi**: Okapi drops
+  translatable text and `<w:tab/>` markers that appear before
+  `<w:fldChar>` in the same source `<w:r>`. Per ECMA-376-1
+  §17.3.2.1 (CT_R) every run child applies to the run; silent
+  data loss on extraction is a bug. The parity tier reports
+  these as divergent because the byte comparison is against
+  Okapi — but functionally these are wins.
+- **1 fixture** (`delTextAmp`): real native bug — single-char
+  `<w:t>t</w:t>` carrying `<w:spacing w:val="-2"/>` is fused with
+  the next run on the wire, losing character-kerning per
+  ECMA-376-1 §17.3.2.35. Source-of-fusion still under
+  investigation (sidecar is aligned; merge happens elsewhere).
+- **1 fixture** (`830-7`): native preserves more text than before
+  the pre-fldChar fix, still byte-divergent because the
+  in-same-`<w:r>` writer-side fusion is missing (text and fldChar
+  emit as separate `<w:r>` elements instead of one).
+
+### 3. Does Okapi match the spec where it differs from native?
+
+Mostly yes — Okapi's choices are typically spec-compliant
+"compact" forms. Two known exceptions:
+
+- **Pre-fldChar content drop** (`956`, `N_001_Auswertung_Part2`,
+  `neverendingloop`): Okapi silently drops `<w:t>` or `<w:tab/>`
+  content that appears in the same source `<w:r>` before a
+  `<w:fldChar>` marker. Native preserves the content (see commit
+  bfed80d3). This is an Okapi extraction bug; native is more
+  spec-correct.
+- **Font-subset resolution** (`br2`): Okapi rewrites a source
+  `<w:rFonts w:cs="Courier New"/>` (which is moot on the run's
+  text per §17.3.2.26) into `<w:rFonts w:ascii="ONGPN A+ Garamond"/>`
+  by resolving the style-chain ASCII font and emitting its
+  subset-renamed form from `fontTable.xml`. Both reference valid
+  fonts; only Okapi's choice round-trips byte-equal because it
+  uses the font Word actually rendered with. Native's verbatim-
+  source form is also valid (consumers re-resolve from chain).
+
+### Summary
+
+| Question | Score | Notes |
+|---|---:|---|
+| ECMA-376 spec compliance | 184/185 | only `delTextAmp` has real bug |
+| Byte-equal to Okapi (parity tier) | 175/185 | as above |
+| More-correct than Okapi | 3 | `956`, `N_001`, `neverendingloop` |
+| Cosmetic divergence (spec-compliant, both OK) | 5 | `847-3`, `851`, `multiple_tabs`, `br2`, `StartsWithLineSeparator` |
+| Real bugs needing fix | 2 | `delTextAmp` (kerning), `830-7` (partial — writer-side fuse missing) |
+
+The parity tier counter is **not** the right success metric for
+the residual gap — it's the right metric for the bulk fixtures
+where both engines should agree, but it conflates "we lost data"
+with "we made a different valid choice". The two-bug count (or
+the 184/185 spec-compliance metric) is the more meaningful one.
+
 ## Status (2026-05-16)
 
 | Engine | Total | byte | canon | sem | div |
