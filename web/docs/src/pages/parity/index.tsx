@@ -90,11 +90,54 @@ interface FormatBreakdown {
   fixtures?: FixtureEntry[];
 }
 
+type CoverageStatus = "covered" | "no-fixtures" | "bridge-only" | "native-only" | "unknown";
+
+interface CoverageMapEntry {
+  id: string;
+  bridge_filter?: string;
+  native: boolean;
+  roundtrip_fixtures: number;
+  native_byte?: number;
+  native_canon?: number;
+  native_div?: number;
+  annotations?: number;
+  status: CoverageStatus;
+}
+
 interface FixturesData {
   generated_at: string;
   engines: Record<string, EngineTotals>;
   formats: FormatBreakdown[];
+  coverage_map?: CoverageMapEntry[];
 }
+
+const coverageStatusLabel: Record<CoverageStatus, string> = {
+  covered: "covered",
+  "no-fixtures": "no fixtures",
+  "bridge-only": "bridge only",
+  "native-only": "native only",
+  unknown: "unknown",
+};
+
+const coverageStatusClass: Record<CoverageStatus, string> = {
+  covered: styles.coverageCovered,
+  "no-fixtures": styles.coverageNoFixtures,
+  "bridge-only": styles.coverageBridgeOnly,
+  "native-only": styles.coverageNativeOnly,
+  unknown: styles.coverageUnknown,
+};
+
+const coverageStatusDescription: Record<CoverageStatus, string> = {
+  covered:
+    "Bridge filter + Go port + round-trip fixtures all present. Status reflected in the per-format breakdown above.",
+  "no-fixtures":
+    "Bridge filter + Go port exist, but the round-trip suite finds zero fixtures. Either upstream Okapi ships no test corpus for this format, or the coverage scan is missing wiring (.fprm rules, file extensions, etc.).",
+  "bridge-only":
+    "Bridge filter exists but no native Go reader/writer. Typically binary-corpus formats (PDF, RTF, archives, SDL packages) that haven't been ported yet.",
+  "native-only":
+    "Go port exists but no Okapi counterpart. neokapi-only formats with no bridge reference to compare against.",
+  unknown: "Coverage status not classified — file an issue if you see this.",
+};
 
 const dataset = data as unknown as FixturesData;
 
@@ -558,36 +601,163 @@ function isUnannotatedDivergence(f: FixtureEntry): boolean {
   return f.achieved === "divergent" && !f.annotation;
 }
 
-// SeverityLegend renders a compact card explaining each severity
-// value. It doubles as a discoverable filter — clicking a row toggles
-// the corresponding severity in the filter set.
-function SeverityLegend({
+// CoverageMapPanel surfaces every known format and its parity status —
+// covered, no-fixtures, bridge-only, native-only. Read this when asking
+// "what's pending?": no-fixtures rows are formats with bridge + Go port
+// where the upstream testdata corpus is empty or wiring is incomplete;
+// bridge-only rows are formats lacking a Go port; native-only rows are
+// neokapi-only formats with no Okapi reference to compare against.
+//
+// Default-collapsed so it doesn't crowd the round-trip drill-down; the
+// header surfaces the per-status counts so the gap is visible at a
+// glance even when the table is closed.
+function CoverageMapPanel({ rows }: { rows: CoverageMapEntry[] }) {
+  const [open, setOpen] = useState(false);
+  const counts = rows.reduce<Record<CoverageStatus, number>>(
+    (acc, r) => ({ ...acc, [r.status]: (acc[r.status] ?? 0) + 1 }),
+    {
+      covered: 0,
+      "no-fixtures": 0,
+      "bridge-only": 0,
+      "native-only": 0,
+      unknown: 0,
+    },
+  );
+  return (
+    <section className={styles.coveragePanel}>
+      <button
+        type="button"
+        className={styles.coverageToggle}
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+      >
+        {open ? "▾" : "▸"} Coverage map — {rows.length} formats ·{" "}
+        <span className={`${styles.coverageStatusBadge} ${coverageStatusClass.covered}`}>
+          covered
+        </span>{" "}
+        {counts.covered} ·{" "}
+        <span className={`${styles.coverageStatusBadge} ${coverageStatusClass["no-fixtures"]}`}>
+          no fixtures
+        </span>{" "}
+        {counts["no-fixtures"]} ·{" "}
+        <span className={`${styles.coverageStatusBadge} ${coverageStatusClass["bridge-only"]}`}>
+          bridge only
+        </span>{" "}
+        {counts["bridge-only"]} ·{" "}
+        <span className={`${styles.coverageStatusBadge} ${coverageStatusClass["native-only"]}`}>
+          native only
+        </span>{" "}
+        {counts["native-only"]}
+      </button>
+      {open && (
+        <>
+          <p className={styles.coverageHint}>
+            Every known format and its parity status across the bridge / native / round-trip axes.{" "}
+            <strong>no-fixtures</strong> means bridge + Go port both exist but the round-trip suite
+            finds zero upstream test fixtures — either Okapi ships none for this format or the
+            coverage scan is missing wiring. <strong>bridge-only</strong> means no native Go
+            reader/writer yet. <strong>native-only</strong> means neokapi-only format with no Okapi
+            reference.
+          </p>
+          <table className={styles.coverageTable}>
+            <thead>
+              <tr>
+                <th>Format</th>
+                <th>Bridge filter</th>
+                <th>Native</th>
+                <th className={styles.numCell}>Round-trip</th>
+                <th className={styles.numCell}>byte</th>
+                <th className={styles.numCell}>canon</th>
+                <th className={styles.numCell}>div</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r) => (
+                <tr key={r.id}>
+                  <td>
+                    <code>{r.id}</code>
+                  </td>
+                  <td>
+                    {r.bridge_filter ? (
+                      <code>{r.bridge_filter}</code>
+                    ) : (
+                      <span className={styles.coverageMissing}>—</span>
+                    )}
+                  </td>
+                  <td>
+                    {r.native ? (
+                      <span className={styles.coverageYes}>✓</span>
+                    ) : (
+                      <span className={styles.coverageMissing}>—</span>
+                    )}
+                  </td>
+                  <td className={styles.numCell}>
+                    {r.roundtrip_fixtures > 0 ? (
+                      r.roundtrip_fixtures
+                    ) : (
+                      <span className={styles.coverageMissing}>—</span>
+                    )}
+                  </td>
+                  <td className={styles.numCell}>{r.native_byte || ""}</td>
+                  <td className={styles.numCell}>{r.native_canon || ""}</td>
+                  <td className={styles.numCell}>
+                    {r.native_div ? <strong>{r.native_div}</strong> : ""}
+                  </td>
+                  <td>
+                    <span
+                      className={`${styles.coverageStatusBadge} ${coverageStatusClass[r.status]}`}
+                      title={coverageStatusDescription[r.status]}
+                    >
+                      {coverageStatusLabel[r.status]}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </>
+      )}
+    </section>
+  );
+}
+
+// SeverityFilterPanel is the unified replacement for the old
+// (count chips + separate legend) pair. Each row in this single panel
+// carries badge + count + description and is clickable as a filter
+// toggle — one place instead of two for the same information.
+function SeverityFilterPanel({
+  counts,
   active,
   onToggle,
 }: {
+  counts: Record<Severity, number>;
   active: Set<Severity>;
   onToggle: (s: Severity) => void;
 }) {
   return (
-    <div className={styles.legend}>
-      <div className={styles.legendTitle}>Severity legend (click to filter)</div>
-      <ul className={styles.legendList}>
+    <div className={styles.severityPanel}>
+      <div className={styles.severityPanelTitle}>
+        Divergence severity{" "}
+        <span className={styles.severityPanelHint}>(click a row to filter)</span>
+      </div>
+      <ul className={styles.severityPanelList}>
         {severityFilterOrder.map((s) => {
           const isOn = active.has(s);
+          const n = counts[s] ?? 0;
           return (
             <li key={s}>
               <button
                 type="button"
-                className={`${styles.legendRow} ${isOn ? styles.legendRowActive : ""}`}
+                className={`${styles.severityPanelRow} ${isOn ? styles.severityPanelRowActive : ""}`}
                 onClick={() => onToggle(s)}
+                aria-pressed={isOn}
               >
-                <span
-                  className={`${styles.severityBadge} ${severityClass[s]}`}
-                  title={severityDescription[s]}
-                >
+                <span className={`${styles.severityBadge} ${severityClass[s]}`}>
                   {severityLabel[s]}
                 </span>
-                <span className={styles.legendDescription}>{severityDescription[s]}</span>
+                <span className={styles.severityPanelCount}>{n}</span>
+                <span className={styles.severityPanelDescription}>{severityDescription[s]}</span>
               </button>
             </li>
           );
@@ -740,26 +910,13 @@ export default function ParityFixturesDashboard() {
           ))}
         </div>
 
-        <div className={styles.severityHeadline}>
-          {severityFilterOrder.map((s) => (
-            <button
-              key={s}
-              type="button"
-              className={`${styles.severityHeadlineItem} ${
-                severityFilter.has(s) ? styles.severityHeadlineActive : ""
-              }`}
-              onClick={() => toggleSeverity(s)}
-              title={severityDescription[s]}
-            >
-              <span className={`${styles.severityBadge} ${severityClass[s]}`}>
-                {severityLabel[s]}
-              </span>
-              <span className={styles.severityHeadlineCount}>{severityCounts[s]}</span>
-            </button>
-          ))}
-        </div>
+        <SeverityFilterPanel
+          counts={severityCounts}
+          active={severityFilter}
+          onToggle={toggleSeverity}
+        />
 
-        <SeverityLegend active={severityFilter} onToggle={toggleSeverity} />
+        {dataset.coverage_map && <CoverageMapPanel rows={dataset.coverage_map} />}
 
         <div className={styles.toolbar}>
           <input

@@ -473,97 +473,203 @@
   color: #ffa64d;
 }
 
-.severityHeadline {
-  display: flex;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-  margin: 0.5rem 0 0.75rem;
-  align-items: center;
-}
-
-.severityHeadlineItem {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  padding: 0.2rem 0.55rem;
-  border: 1px solid var(--ifm-color-emphasis-300);
-  border-radius: var(--ifm-button-border-radius);
-  background: var(--ifm-card-background-color);
-  color: inherit;
-  cursor: pointer;
-  font: inherit;
-}
-
-.severityHeadlineItem:hover {
-  background: var(--ifm-color-emphasis-100);
-}
-
-.severityHeadlineActive {
-  border-color: var(--ifm-color-primary);
-  box-shadow: 0 0 0 1px var(--ifm-color-primary);
-}
-
-.severityHeadlineCount {
-  font-variant-numeric: tabular-nums;
-  font-weight: 600;
-  color: var(--ifm-color-emphasis-800);
-  min-width: 1.5rem;
-  text-align: right;
-}
-
-.legend {
+.severityPanel {
   border: 1px solid var(--ifm-color-emphasis-300);
   border-radius: var(--ifm-card-border-radius);
   padding: 0.75rem 1rem;
-  margin-bottom: 1rem;
+  margin: 0.5rem 0 1rem;
   background: var(--ifm-card-background-color);
 }
 
-.legendTitle {
-  font-size: 0.85rem;
+.severityPanelTitle {
+  font-size: 0.9rem;
   font-weight: 600;
-  color: var(--ifm-color-emphasis-700);
+  color: var(--ifm-color-emphasis-800);
   margin-bottom: 0.5rem;
 }
 
-.legendList {
+.severityPanelHint {
+  font-weight: 400;
+  font-size: 0.78rem;
+  color: var(--ifm-color-emphasis-600);
+  margin-left: 0.3rem;
+}
+
+.severityPanelList {
   list-style: none;
   padding: 0;
   margin: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: 0.2rem;
 }
 
-.legendRow {
+.severityPanelRow {
   display: grid;
-  grid-template-columns: 9rem 1fr;
+  grid-template-columns: 7rem 3rem 1fr;
   gap: 0.75rem;
   align-items: center;
   width: 100%;
   background: transparent;
   border: 1px solid transparent;
   border-radius: 0.3rem;
-  padding: 0.3rem 0.5rem;
+  padding: 0.4rem 0.6rem;
   text-align: left;
   cursor: pointer;
   color: inherit;
   font: inherit;
 }
 
-.legendRow:hover {
+.severityPanelRow:hover {
   background: var(--ifm-color-emphasis-100);
 }
 
-.legendRowActive {
+.severityPanelRowActive {
   background: var(--ifm-color-emphasis-100);
   border-color: var(--ifm-color-primary);
 }
 
-.legendDescription {
-  font-size: 0.8rem;
+.severityPanelCount {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  font-size: 1rem;
+  color: var(--ifm-color-emphasis-800);
+  text-align: right;
+}
+
+.severityPanelDescription {
+  font-size: 0.82rem;
   color: var(--ifm-color-emphasis-700);
   line-height: 1.4;
+}
+
+.coveragePanel {
+  margin: 0.5rem 0 1.5rem;
+  border: 1px solid var(--ifm-color-emphasis-300);
+  border-radius: var(--ifm-card-border-radius);
+  background: var(--ifm-card-background-color);
+  padding: 0.6rem 1rem;
+}
+
+.coverageToggle {
+  background: transparent;
+  border: none;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--ifm-color-emphasis-800);
+  cursor: pointer;
+  padding: 0.3rem 0;
+  width: 100%;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.coverageToggle:hover {
+  color: var(--ifm-color-primary);
+}
+
+.coverageHint {
+  font-size: 0.82rem;
+  color: var(--ifm-color-emphasis-700);
+  line-height: 1.5;
+  margin: 0.6rem 0 0.8rem;
+  max-width: 56rem;
+}
+
+.coverageTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+}
+
+.coverageTable th,
+.coverageTable td {
+  text-align: left;
+  padding: 0.35rem 0.6rem;
+  border-bottom: 1px solid var(--ifm-color-emphasis-200);
+  vertical-align: middle;
+}
+
+.coverageTable thead th {
+  background: var(--ifm-color-emphasis-100);
+  font-weight: 600;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.coverageTable code {
+  font-size: 0.78rem;
+}
+
+.coverageYes {
+  color: #1f7a37;
+  font-weight: 700;
+}
+
+[data-theme="dark"] .coverageYes {
+  color: #4cdb6f;
+}
+
+.coverageMissing {
+  color: var(--ifm-color-emphasis-500);
+}
+
+.coverageStatusBadge {
+  display: inline-block;
+  padding: 0.05rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  border: 1px solid transparent;
+}
+
+.coverageCovered {
+  background: rgba(46, 160, 67, 0.18);
+  color: #1f7a37;
+  border-color: rgba(46, 160, 67, 0.35);
+}
+
+.coverageNoFixtures {
+  background: rgba(204, 92, 0, 0.2);
+  color: #b35900;
+  border-color: rgba(204, 92, 0, 0.4);
+}
+
+.coverageBridgeOnly {
+  background: rgba(229, 83, 75, 0.18);
+  color: #b3261e;
+  border-color: rgba(229, 83, 75, 0.35);
+}
+
+.coverageNativeOnly {
+  background: rgba(74, 144, 226, 0.18);
+  color: #1d6fa5;
+  border-color: rgba(74, 144, 226, 0.4);
+}
+
+.coverageUnknown {
+  background: rgba(120, 130, 140, 0.18);
+  color: var(--ifm-color-emphasis-700);
+}
+
+[data-theme="dark"] .coverageCovered {
+  color: #4cdb6f;
+}
+[data-theme="dark"] .coverageNoFixtures {
+  color: #ffa64d;
+}
+[data-theme="dark"] .coverageBridgeOnly {
+  color: #ff8a82;
+}
+[data-theme="dark"] .coverageNativeOnly {
+  color: #6cb6ff;
 }
 
 .annotationIssue {

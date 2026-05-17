@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 	"sync"
@@ -388,15 +390,48 @@ func writeDivergentDetail(w io.Writer, records []parityRecord) error {
 	return nil
 }
 
-// fixturesJSON is the on-disk shape consumed by the /parity/fixtures
-// drill-down dashboard. It carries per-engine totals plus a per-format
-// breakdown that nests every divergent fixture's first-diff offset and
-// reason snippet so a reader can answer "why does idml/06-hello-world.idml
-// still divergent?" without re-running the test.
+// fixturesJSON is the on-disk shape consumed by the /parity dashboard.
+// It carries per-engine totals, a per-format breakdown that nests every
+// divergent fixture's first-diff offset and reason snippet, and a
+// coverage map describing each format's parity status across the
+// bridge / native / round-trip axes.
 type fixturesJSON struct {
 	GeneratedAt string                  `json:"generated_at"`
 	Engines     map[string]engineTotals `json:"engines"`
 	Formats     []formatBreakdown       `json:"formats"`
+	CoverageMap []coverageMapEntry      `json:"coverage_map"`
+}
+
+// coverageMapEntry is one row of the coverage map: a single format's
+// status across the bridge / native / round-trip axes. Surfaces "what's
+// pending" — a format with a bridge filter but no Go port, or with a Go
+// port but no round-trip fixtures, lights up as bug-tracked work.
+//
+// Status values:
+//
+//   - "covered"        — bridge + native + round-trip fixtures present.
+//   - "no-fixtures"    — bridge + native present, but no round-trip
+//                        fixtures land in the suite. Either the upstream
+//                        testdata tarball has none, or the test wiring is
+//                        incomplete (regex/srt needs .fprm rules, txml NPEs,
+//                        rtf has only tradosrtf, etc.).
+//   - "bridge-only"    — bridge filter exists, no Go port yet. Typically
+//                        binary-corpus formats (pdf, rtf, archive, sdlpackage,
+//                        openoffice, pensieve, …) where neokapi hasn't built
+//                        a native reader/writer.
+//   - "native-only"    — Go port exists, no bridge filter. neokapi-only
+//                        formats (jsx, klf, versifiedtext, messageformat) —
+//                        no Okapi reference to compare against.
+type coverageMapEntry struct {
+	ID                string `json:"id"`
+	BridgeFilter      string `json:"bridge_filter,omitempty"`
+	Native            bool   `json:"native"`
+	RoundtripFixtures int    `json:"roundtrip_fixtures"`
+	NativeByte        int    `json:"native_byte,omitempty"`
+	NativeCanon       int    `json:"native_canon,omitempty"`
+	NativeDiv         int    `json:"native_div,omitempty"`
+	Annotations       int    `json:"annotations,omitempty"`
+	Status            string `json:"status"`
 }
 
 type engineTotals struct {
@@ -599,9 +634,222 @@ func FlushParityFixturesJSON(w io.Writer) error {
 		out.Formats = append(out.Formats, fb)
 	}
 
+	out.CoverageMap = buildCoverageMap(records)
+
 	enc := json.NewEncoder(w)
 	enc.SetIndent("", "  ")
 	return enc.Encode(out)
+}
+
+// buildCoverageMap joins three sources to produce the per-format
+// coverage rows: the upstream bridge filter universe (cli/parity/formats
+// keyword list), the native package universe (core/formats/ subdirs
+// walked at runtime), and the round-trip coverage actually exercised by
+// this test run (the records buffer). Missing entries surface as
+// bridge-only, native-only, or no-fixtures so the dashboard can guide
+// the next port / wiring effort.
+func buildCoverageMap(records []parityRecord) []coverageMapEntry {
+	native := discoverNativeFormats()
+	bridge := bridgeFilterIDs()
+	roundtrip := map[string]struct {
+		fixtures, byteCount, canon, div, annotated int
+	}{}
+	for _, r := range records {
+		if r.Engine != "native" {
+			continue
+		}
+		v := roundtrip[r.Format]
+		v.fixtures++
+		switch {
+		case r.Achieved == TierByteEqual:
+			v.byteCount++
+		case r.Achieved == TierCanonicalEqual:
+			v.canon++
+		case r.Achieved == TierDivergent:
+			v.div++
+		}
+		if r.Annotation != nil {
+			v.annotated++
+		}
+		roundtrip[r.Format] = v
+	}
+
+	ids := map[string]bool{}
+	for _, id := range native {
+		ids[id] = true
+	}
+	for id := range bridge {
+		ids[id] = true
+	}
+	for id := range roundtrip {
+		ids[id] = true
+	}
+
+	out := make([]coverageMapEntry, 0, len(ids))
+	for id := range ids {
+		hasNative := false
+		for _, n := range native {
+			if n == id {
+				hasNative = true
+				break
+			}
+		}
+		bridgeFilter := bridge[id]
+		rt := roundtrip[id]
+		status := classifyCoverage(hasNative, bridgeFilter != "", rt.fixtures)
+		out = append(out, coverageMapEntry{
+			ID:                id,
+			BridgeFilter:      bridgeFilter,
+			Native:            hasNative,
+			RoundtripFixtures: rt.fixtures,
+			NativeByte:        rt.byteCount,
+			NativeCanon:       rt.canon,
+			NativeDiv:         rt.div,
+			Annotations:       rt.annotated,
+			Status:            status,
+		})
+	}
+	sort.Slice(out, func(i, j int) bool {
+		// Surface gaps first: no-fixtures and bridge-only top of list,
+		// then native-only, then fully-covered. Stable within bucket by
+		// format name.
+		ri := coverageStatusRank(out[i].Status)
+		rj := coverageStatusRank(out[j].Status)
+		if ri != rj {
+			return ri < rj
+		}
+		return out[i].ID < out[j].ID
+	})
+	return out
+}
+
+func classifyCoverage(hasNative, hasBridge bool, roundtripFixtures int) string {
+	switch {
+	case hasNative && hasBridge && roundtripFixtures > 0:
+		return "covered"
+	case hasNative && hasBridge && roundtripFixtures == 0:
+		return "no-fixtures"
+	case hasBridge && !hasNative:
+		return "bridge-only"
+	case hasNative && !hasBridge:
+		return "native-only"
+	default:
+		return "unknown"
+	}
+}
+
+func coverageStatusRank(s string) int {
+	switch s {
+	case "no-fixtures":
+		return 0
+	case "bridge-only":
+		return 1
+	case "native-only":
+		return 2
+	case "covered":
+		return 3
+	default:
+		return 4
+	}
+}
+
+// discoverNativeFormats walks core/formats/<name>/ in the repo tree to
+// enumerate the native format packages. A subdir counts as a format if
+// it contains spec.yaml — the project-wide convention for a registered
+// format. Returns format IDs (subdir names) sorted alphabetically.
+//
+// Walking the filesystem (rather than calling into the registry) keeps
+// this independent of registration order and free of init-time side
+// effects.
+func discoverNativeFormats() []string {
+	root, err := findRepoRoot()
+	if err != nil {
+		return nil
+	}
+	formatsDir := filepath.Join(root, "core", "formats")
+	entries, err := os.ReadDir(formatsDir)
+	if err != nil {
+		return nil
+	}
+	var out []string
+	for _, e := range entries {
+		if !e.IsDir() {
+			continue
+		}
+		if _, err := os.Stat(filepath.Join(formatsDir, e.Name(), "spec.yaml")); err == nil {
+			out = append(out, e.Name())
+		}
+	}
+	sort.Strings(out)
+	return out
+}
+
+// bridgeFilterIDs returns the static bridge-filter ID map used by the
+// coverage map. Keys are bare format IDs (matching native subdir names
+// when both exist); values are the okf_<id> bridge filter ID.
+//
+// Single source of truth is cli/parity/formats/spec.go, but importing
+// that test package from this test package would create a cycle on the
+// parity build tag. The mapping below is hand-maintained instead and
+// must be updated when filters are added to the bridge manifest.
+//
+// "tsv" → okf_tabseparatedvalues, "csv" → okf_commaseparatedvalues:
+// these are the two filter IDs that don't follow the okf_<id> pattern;
+// every other entry strips the okf_ prefix to get the bare ID.
+func bridgeFilterIDs() map[string]string {
+	pairs := [][2]string{
+		{"archive", "okf_archive"},
+		{"csv", "okf_commaseparatedvalues"},
+		{"doxygen", "okf_doxygen"},
+		{"dtd", "okf_dtd"},
+		{"fixedwidth", "okf_fixedwidthcolumns"},
+		{"html", "okf_html"},
+		{"icml", "okf_icml"},
+		{"idml", "okf_idml"},
+		{"json", "okf_json"},
+		{"markdown", "okf_markdown"},
+		{"mif", "okf_mif"},
+		{"mosestext", "okf_mosestext"},
+		{"odf", "okf_odf"},
+		{"openoffice", "okf_openoffice"},
+		{"openxml", "okf_openxml"},
+		{"paraplaintext", "okf_paraplaintext"},
+		{"pdf", "okf_pdf"},
+		{"pensieve", "okf_pensieve"},
+		{"phpcontent", "okf_phpcontent"},
+		{"plaintext", "okf_plaintext"},
+		{"po", "okf_po"},
+		{"properties", "okf_properties"},
+		{"rainbowkit", "okf_rainbowkit"},
+		{"regex", "okf_regex"},
+		{"rtf", "okf_rtf"},
+		{"sdlpackage", "okf_sdlpackage"},
+		{"splicedlines", "okf_splicedlines"},
+		{"srt", "okf_regex-srt"},
+		{"tex", "okf_tex"},
+		{"tmx", "okf_tmx"},
+		{"transifex", "okf_transifex"},
+		{"transtable", "okf_transtable"},
+		{"ts", "okf_ts"},
+		{"tsv", "okf_tabseparatedvalues"},
+		{"ttml", "okf_ttml"},
+		{"ttx", "okf_ttx"},
+		{"txml", "okf_txml"},
+		{"vignette", "okf_vignette"},
+		{"vtt", "okf_vtt"},
+		{"wiki", "okf_wiki"},
+		{"xini", "okf_xini"},
+		{"xinirainbowkit", "okf_xinirainbowkit"},
+		{"xliff", "okf_xliff"},
+		{"xliff2", "okf_xliff2"},
+		{"xml", "okf_xml"},
+		{"yaml", "okf_yaml"},
+	}
+	out := make(map[string]string, len(pairs))
+	for _, p := range pairs {
+		out[p[0]] = p[1]
+	}
+	return out
 }
 
 // formatDiffOffset renders the byte-diff column for a divergent row.
