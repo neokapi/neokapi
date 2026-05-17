@@ -836,6 +836,59 @@ func coverageScans() []formatScan {
 			// TS is XML (Qt Linguist); same canonical normalizer.
 			normalizer: roundtrip.XMLCanonical{SortAttrs: true},
 		},
+		{
+			// Trados TTX bilingual XML — 4 fixtures upstream. The
+			// upstream .ttx files are UTF-16 LE with BOM (TRADOS
+			// convention). The native TTX reader currently assumes
+			// UTF-8 and errors out via t.Fatalf, suppressing a
+			// divergent parity record. Skip native until UTF-16 BOM
+			// detection is wired into the ttx reader (tracked as a
+			// follow-up). Bridge still runs; per-fixture divergences
+			// are annotated in core/formats/ttx/parity-annotations.yaml.
+			formatID:    "ttx",
+			filterClass: "okf_ttx",
+			sources:     []string{"okapi/filters/ttx/src/test/resources"},
+			extensions:  []string{".ttx"},
+			normalizer:  roundtrip.XMLCanonical{SortAttrs: true},
+			formatDefaultSkip: fileSkip{
+				Engines: []string{"native"},
+				Reason:  "native ttx reader doesn't handle UTF-16 LE BOM that Trados emits; pending UTF-16 detection",
+			},
+			minTier: map[string]roundtrip.Tier{
+				"bridge": roundtrip.TierDivergent,
+			},
+		},
+		{
+			// TXML bilingual XML — 3 fixtures: Test01.docx.txml,
+			// Test02.html.txml, Test03.mif.txml. Native lowercases
+			// targetlocale and drops <target> elements present in the
+			// source; documented in core/formats/txml/parity-annotations.yaml.
+			formatID:    "txml",
+			filterClass: "okf_txml",
+			sources:     []string{"okapi/filters/txml/src/test/resources"},
+			extensions:  []string{".txml"},
+			normalizer:  roundtrip.XMLCanonical{SortAttrs: true},
+			minTier: map[string]roundtrip.Tier{
+				"native": roundtrip.TierDivergent,
+				"bridge": roundtrip.TierDivergent,
+			},
+		},
+		{
+			// Vignette CMS XML — 1 fixture (Test01.xml). XML extension
+			// shared with many formats; cherry-pick via explicitFiles
+			// to keep this scan tight. Native pseudo-translates
+			// <valueCLOB><![CDATA[...]]></valueCLOB> contents which
+			// upstream VignetteFilter treats as opaque payload;
+			// documented in core/formats/vignette/parity-annotations.yaml.
+			formatID:      "vignette",
+			filterClass:   "okf_vignette",
+			explicitFiles: []string{"okapi/filters/vignette/src/test/resources/Test01.xml"},
+			normalizer:    roundtrip.XMLCanonical{SortAttrs: true},
+			minTier: map[string]roundtrip.Tier{
+				"native": roundtrip.TierDivergent,
+				"bridge": roundtrip.TierDivergent,
+			},
+		},
 
 		// ── Subtitle / timed-text ─────────────────────────────────
 		{
@@ -1055,6 +1108,84 @@ mergeCaptions.b=false
 			filterClass: "okf_mif",
 			sources:     []string{"integration-tests/okapi/src/test/resources/mif"},
 			extensions:  []string{".mif"},
+		},
+		{
+			// PDF — 3 upstream fixtures. PDF is binary; native's pdf
+			// writer is extraction-only (no synthesis path), so it
+			// produces empty output by design. Bridge runs through
+			// okapi's PDFFilter which has a (lossy) write path.
+			// minTier=TierDivergent for bridge surfaces the bridge↔
+			// okapi-reference round-trip; native engine is skipped
+			// pending a write-side implementation.
+			formatID:    "pdf",
+			filterClass: "okf_pdf",
+			sources:     []string{"okapi/filters/pdf/src/test/resources"},
+			extensions:  []string{".pdf", ".PDF"},
+			minTier: map[string]roundtrip.Tier{
+				"bridge": roundtrip.TierDivergent,
+			},
+			formatDefaultSkip: fileSkip{
+				Engines: []string{"native"},
+				Reason:  "native pdf writer is extraction-only; no synthesis path produces output bytes",
+			},
+		},
+		{
+			// RTF — 6 upstream fixtures. Per the existing PARITY_NOTES
+			// commentary, upstream Okapi's only RTF round-trip path
+			// goes through okf_tradosrtf (a separate filter that
+			// expects TRADOS bilingual RTF, not plain RTF). The
+			// okf_rtf filter exists but doesn't have an end-to-end
+			// pseudo pipeline that matches the upstream test fixtures.
+			// formatDefaultSkip[okapi] keeps the scan visible — the
+			// dashboard shows "all-okapi-skipped" rather than
+			// scan-missing — without crashing on the okapi reference.
+			formatID:    "rtf",
+			filterClass: "okf_rtf",
+			sources:     []string{"okapi/filters/rtf/src/test/resources"},
+			extensions:  []string{".rtf"},
+			formatDefaultSkip: fileSkip{
+				Engines: []string{"okapi"},
+				Reason:  "upstream Okapi has no usable okf_rtf pseudo pipeline (only okf_tradosrtf works end-to-end); the .rtf corpus here is reference material for tradosrtf",
+			},
+		},
+
+		{
+			// OpenDocument Format (.odt/.ods/.odp/.odg). Zip of XML,
+			// same shape as openxml/idml. Upstream filter dir holds
+			// ~142 fixtures shared between okf_odf (content.xml-only
+			// inner filter / flat .fodt) and okf_openoffice (zip
+			// wrapper). neokapi's odf spec.yaml binds to okf_openoffice
+			// — matches what's needed to unpack the zip and dispatch
+			// to ODFFilter for each inner XML stream.
+			//
+			// minTier[native]=TierDivergent because native vs okapi
+			// have real semantic differences on every fixture (Okapi's
+			// ODFFilter inlines drawing/script elements differently
+			// from native; documenting each as bug/cosmetic is a
+			// large follow-up). bridge engine is skipped pending
+			// okapi-bridge#11 — the daemon's concurrent reader/writer
+			// races against OpenOfficeFilter.nextInZipFile()'s
+			// internal close() before the writer drains earlier
+			// DocumentPart events (ZipFilterWriter "zip file closed").
+			formatID:    "odf",
+			filterClass: "okf_openoffice",
+			sources:     []string{"okapi/filters/openoffice/src/test/resources"},
+			extensions:  []string{".odt", ".ods", ".odp", ".odg"},
+			isZip:       true,
+			normalizer: roundtrip.ZipEntryNormalizer{Inner: roundtrip.Chain{Steps: []roundtrip.Normalizer{
+				roundtrip.StripXMLDeclaration{},
+				roundtrip.XMLCanonical{
+					SortAttrs:         true,
+					SortChildElements: true,
+				},
+			}}},
+			minTier: map[string]roundtrip.Tier{
+				"native": roundtrip.TierDivergent,
+			},
+			formatDefaultSkip: fileSkip{
+				Engines: []string{"bridge"},
+				Reason:  "okapi-bridge#11: daemon writer races against OpenOfficeFilter.close() in nextInZipFile (ZipFilterWriter 'zip file closed'). Pseudo subcommand path works (single-threaded PipelineDriver), so okapi reference engine runs fine.",
+			},
 		},
 	}
 }

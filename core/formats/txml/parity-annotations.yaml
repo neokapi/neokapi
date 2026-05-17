@@ -1,0 +1,14 @@
+format: txml
+fixtures:
+  Test01.docx.txml:
+    severity: bug
+    summary: "Native lowercases targetlocale (FR→fr) and drops <target> elements present in the source <translatable>. Wordfast's TXML preserves both verbatim on round-trip; native rewrites them via the bilingual writer's locale-normalisation + target-pseudo-replacement path."
+    spec_ref: "Wordfast TXML schema (no public spec; Okapi TXMLFilter is the de-facto reference)"
+  Test02.html.txml:
+    severity: bug
+    summary: "Same targetlocale lowercasing + target-element drop pattern as Test01."
+    spec_ref: "Wordfast TXML schema"
+  Test03.mif.txml:
+    severity: bug
+    summary: "Same targetlocale lowercasing + target-element drop pattern; this fixture also exercises a longer translatable corpus so the byte gap is larger."
+    spec_ref: "Wordfast TXML schema"

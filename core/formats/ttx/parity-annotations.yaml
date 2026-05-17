@@ -1,0 +1,11 @@
+format: ttx
+fixtures:
+  Test01.html.ttx:
+    severity: bug
+    summary: "Bridge pseudo writes 'Texte en gras' (segment-text replaced with French translation) instead of pseudo-translated source 'Text in bold'. okapi-bridge's TTXFilter is preserving the existing <Tuv Lang=FR-FR> target verbatim rather than overwriting it with pseudo source. Round-trip should produce pseudo-source on both Tuv lang elements per the parity contract."
+  Test02_allseg.html.ttx:
+    severity: bug
+    summary: "Same target-preserved-instead-of-pseudo'd pattern as Test01.html.ttx — title text 'Jericho HTML Parser Test Document' kept verbatim in FR-FR Tuv instead of pseudo'd from the EN-US source."
+  Test02_noseg.html.ttx:
+    severity: bug
+    summary: "Bridge produces malformed XML (<df> closed by </Tuv> at line 86) when round-tripping an unsegmented TTX. xml-canonical normalizer rejects the output. Likely an okapi-bridge TTXFilter writer bug specific to noseg variants."

@@ -1,0 +1,6 @@
+format: vignette
+fixtures:
+  Test01.xml:
+    severity: bug
+    summary: "Native pseudo-translates the content inside <valueCLOB><![CDATA[...]]></valueCLOB> elements; Okapi VignetteFilter passes the CDATA body through unchanged. Vignette CMS treats CLOB content as opaque payload — native should treat <valueCLOB> as non-translatable wrapper around CDATA."
+    spec_ref: "Okapi VignetteFilter — okapi/filters/vignette"
