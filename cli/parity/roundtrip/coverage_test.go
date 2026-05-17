@@ -945,11 +945,26 @@ mergeCaptions.b=false
 			// TTML is XML; same canonical normalizer.
 			normalizer: roundtrip.XMLCanonical{SortAttrs: true},
 		},
-		// srt: omitted from this scan — upstream tikal routes .srt via
-		// `okf_regex-srt`, which loads regex rules from a packaged .fprm
-		// resource. The bridge exposes `okf_regex` but the SRT-specific
-		// rules need to be loaded as a sizable .fprm before round-tripping
-		// works. Wire that in when there's a real signal worth catching.
+		// srt + regex are intentionally NOT scanned here:
+		//
+		//   srt — upstream Okapi has no dedicated okf_subrip filter;
+		//   tikal routes .srt through okf_regex with okf_regex@SRT.fprm
+		//   (a 24-line param block including a regex like
+		//   ^\d\d:\d\d:\d\d(.*?)\n(.*?)(\n\n|\z) that extracts cue text
+		//   only — sequence numbers and timestamps land in skeleton).
+		//   Native srt has a proper SubRip implementation (cue number +
+		//   timestamps + multi-line text). They produce semantically
+		//   different output: native preserves full cue structure;
+		//   okapi-regex just text-substitutes inside cues. Wiring this
+		//   would surface divergence on every fixture without a clear
+		//   bug signal, so it's deferred until we add a "semantic-srt"
+		//   normalizer or pick a different reference engine.
+		//
+		//   regex — every fixture in okapi/filters/regex/src/test/resources
+		//   has its own okf_regex@<name>.fprm. The harness currently
+		//   passes one okapiParamConfig per format; per-fixture .fprm
+		//   wiring is a separate test-infrastructure change (formatScan
+		//   needs a fixtureToFprm map and the engines need to consume it).
 
 		// ── Misc text formats ─────────────────────────────────────
 		{
