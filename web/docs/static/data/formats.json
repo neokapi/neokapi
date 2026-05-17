@@ -4,43 +4,25 @@
       "id": "csv",
       "displayName": "CSV",
       "description": "Configuration for the CSV/TSV format reader/writer",
-      "extensions": [
-        ".csv"
-      ],
-      "mimeTypes": [
-        "text/csv"
-      ],
+      "extensions": [".csv"],
+      "mimeTypes": ["text/csv"],
       "hasReader": true,
       "hasWriter": true,
       "groups": [
         {
           "id": "format",
           "label": "CSV Format Settings",
-          "fields": [
-            "separator",
-            "textQualifier",
-            "hasHeader",
-            "columnNamesRow",
-            "valuesStartRow"
-          ]
+          "fields": ["separator", "textQualifier", "hasHeader", "columnNamesRow", "valuesStartRow"]
         },
         {
           "id": "extraction",
           "label": "Extraction",
-          "fields": [
-            "translatableColumns",
-            "keyColumns",
-            "commentColumns",
-            "trimValues"
-          ]
+          "fields": ["translatableColumns", "keyColumns", "commentColumns", "trimValues"]
         },
         {
           "id": "inlineCodes",
           "label": "Inline Codes",
-          "fields": [
-            "useCodeFinder",
-            "codeFinderRules"
-          ]
+          "fields": ["useCodeFinder", "codeFinderRules"]
         }
       ],
       "properties": {
@@ -102,34 +84,20 @@
       "id": "doxygen",
       "displayName": "Doxygen Comments",
       "description": "Extracts translatable text from Doxygen/Javadoc comments in source code",
-      "extensions": [
-        ".c",
-        ".cpp",
-        ".h",
-        ".java",
-        ".m",
-        ".py"
-      ],
-      "mimeTypes": [
-        "text/x-doxygen-txt"
-      ],
+      "extensions": [".c", ".cpp", ".h", ".java", ".m", ".py"],
+      "mimeTypes": ["text/x-doxygen-txt"],
       "hasReader": true,
       "hasWriter": true,
       "groups": [
         {
           "id": "parser",
           "label": "Parser Settings",
-          "fields": [
-            "preserveWhitespace"
-          ]
+          "fields": ["preserveWhitespace"]
         },
         {
           "id": "inlineCodes",
           "label": "Inline Codes",
-          "fields": [
-            "useCodeFinder",
-            "codeFinderRules"
-          ]
+          "fields": ["useCodeFinder", "codeFinderRules"]
         }
       ],
       "properties": {
@@ -154,12 +122,8 @@
       "id": "dtd",
       "displayName": "DTD",
       "description": "",
-      "extensions": [
-        ".dtd"
-      ],
-      "mimeTypes": [
-        "application/xml-dtd"
-      ],
+      "extensions": [".dtd"],
+      "mimeTypes": ["application/xml-dtd"],
       "hasReader": true,
       "hasWriter": true
     },
@@ -167,12 +131,8 @@
       "id": "epub",
       "displayName": "EPUB E-Book",
       "description": "",
-      "extensions": [
-        ".epub"
-      ],
-      "mimeTypes": [
-        "application/epub+zip"
-      ],
+      "extensions": [".epub"],
+      "mimeTypes": ["application/epub+zip"],
       "hasReader": true,
       "hasWriter": true
     },
@@ -189,10 +149,7 @@
       "id": "fixedwidth",
       "displayName": "Fixed-Width",
       "description": "",
-      "extensions": [
-        ".dat",
-        ".fixed"
-      ],
+      "extensions": [".dat", ".fixed"],
       "mimeTypes": null,
       "hasReader": true,
       "hasWriter": true
@@ -201,40 +158,25 @@
       "id": "html",
       "displayName": "HTML",
       "description": "Configuration for the native HTML format reader/writer",
-      "extensions": [
-        ".html",
-        ".htm",
-        ".xhtml"
-      ],
-      "mimeTypes": [
-        "text/html",
-        "application/xhtml+xml"
-      ],
+      "extensions": [".html", ".htm", ".xhtml"],
+      "mimeTypes": ["text/html", "application/xhtml+xml"],
       "hasReader": true,
       "hasWriter": true,
       "groups": [
         {
           "id": "parser",
           "label": "Parser Settings",
-          "fields": [
-            "preserveWhitespace"
-          ]
+          "fields": ["preserveWhitespace"]
         },
         {
           "id": "extraction",
           "label": "Extraction Rules",
-          "fields": [
-            "elements",
-            "attributes"
-          ]
+          "fields": ["elements", "attributes"]
         },
         {
           "id": "inlineCodes",
           "label": "Inline Codes",
-          "fields": [
-            "useCodeFinder",
-            "codeFinderRules"
-          ]
+          "fields": ["useCodeFinder", "codeFinderRules"]
         }
       ],
       "properties": {
@@ -267,13 +209,8 @@
       "id": "icml",
       "displayName": "ICML (Adobe InCopy)",
       "description": "",
-      "extensions": [
-        ".icml",
-        ".wcml"
-      ],
-      "mimeTypes": [
-        "application/x-icml+xml"
-      ],
+      "extensions": [".icml", ".wcml"],
+      "mimeTypes": ["application/x-icml+xml"],
       "hasReader": true,
       "hasWriter": true
     },
@@ -281,12 +218,8 @@
       "id": "idml",
       "displayName": "Adobe InDesign Markup Language",
       "description": "",
-      "extensions": [
-        ".idml"
-      ],
-      "mimeTypes": [
-        "application/vnd.adobe.indesign-idml-package"
-      ],
+      "extensions": [".idml"],
+      "mimeTypes": ["application/vnd.adobe.indesign-idml-package"],
       "hasReader": true,
       "hasWriter": true
     },
@@ -294,24 +227,15 @@
       "id": "json",
       "displayName": "JSON",
       "description": "Configuration for the native JSON format reader/writer",
-      "extensions": [
-        ".json"
-      ],
-      "mimeTypes": [
-        "application/json"
-      ],
+      "extensions": [".json"],
+      "mimeTypes": ["application/json"],
       "hasReader": true,
       "hasWriter": true,
       "groups": [
         {
           "id": "extraction",
           "label": "Extraction",
-          "fields": [
-            "extractAllPairs",
-            "exceptions",
-            "extractIsolatedStrings",
-            "extractionRules"
-          ]
+          "fields": ["extractAllPairs", "exceptions", "extractIsolatedStrings", "extractionRules"]
         },
         {
           "id": "naming",
@@ -327,36 +251,22 @@
         {
           "id": "subfilters",
           "label": "Subfilters",
-          "fields": [
-            "subfilters",
-            "subfilter",
-            "subfilterRules"
-          ]
+          "fields": ["subfilters", "subfilter", "subfilterRules"]
         },
         {
           "id": "metadata",
           "label": "Metadata",
-          "fields": [
-            "noteRules",
-            "genericMetaRules",
-            "maxwidthRules",
-            "maxwidthSizeUnit"
-          ]
+          "fields": ["noteRules", "genericMetaRules", "maxwidthRules", "maxwidthSizeUnit"]
         },
         {
           "id": "output",
           "label": "Output",
-          "fields": [
-            "escapeForwardSlashes"
-          ]
+          "fields": ["escapeForwardSlashes"]
         },
         {
           "id": "inlineCodes",
           "label": "Inline Codes",
-          "fields": [
-            "useCodeFinder",
-            "codeFinderRules"
-          ]
+          "fields": ["useCodeFinder", "codeFinderRules"]
         }
       ],
       "properties": {
@@ -481,12 +391,8 @@
       "id": "jsx",
       "displayName": "Kapi Localization Format (KLF)",
       "description": "",
-      "extensions": [
-        ".klf"
-      ],
-      "mimeTypes": [
-        "application/vnd.neokapi.klf+json"
-      ],
+      "extensions": [".klf"],
+      "mimeTypes": ["application/vnd.neokapi.klf+json"],
       "hasReader": true,
       "hasWriter": true
     },
@@ -494,14 +400,8 @@
       "id": "markdown",
       "displayName": "Markdown",
       "description": "Configuration for the Markdown format reader/writer",
-      "extensions": [
-        ".md",
-        ".markdown"
-      ],
-      "mimeTypes": [
-        "text/markdown",
-        "text/x-markdown"
-      ],
+      "extensions": [".md", ".markdown"],
+      "mimeTypes": ["text/markdown", "text/x-markdown"],
       "hasReader": true,
       "hasWriter": true,
       "groups": [
@@ -520,24 +420,17 @@
         {
           "id": "output",
           "label": "Output",
-          "fields": [
-            "unescapeBackslashCharacters"
-          ]
+          "fields": ["unescapeBackslashCharacters"]
         },
         {
           "id": "subfilters",
           "label": "Subfilters",
-          "fields": [
-            "subfilter"
-          ]
+          "fields": ["subfilter"]
         },
         {
           "id": "inlineCodes",
           "label": "Inline Codes",
-          "fields": [
-            "useCodeFinder",
-            "codeFinderRules"
-          ]
+          "fields": ["useCodeFinder", "codeFinderRules"]
         }
       ],
       "properties": {
@@ -596,13 +489,8 @@
       "id": "messageformat",
       "displayName": "ICU MessageFormat",
       "description": "",
-      "extensions": [
-        ".mf",
-        ".messageformat"
-      ],
-      "mimeTypes": [
-        "text/x-messageformat"
-      ],
+      "extensions": [".mf", ".messageformat"],
+      "mimeTypes": ["text/x-messageformat"],
       "hasReader": true,
       "hasWriter": true
     },
@@ -610,13 +498,8 @@
       "id": "mif",
       "displayName": "Adobe FrameMaker MIF",
       "description": "",
-      "extensions": [
-        ".mif"
-      ],
-      "mimeTypes": [
-        "application/x-mif",
-        "application/vnd.mif"
-      ],
+      "extensions": [".mif"],
+      "mimeTypes": ["application/x-mif", "application/vnd.mif"],
       "hasReader": true,
       "hasWriter": true
     },
@@ -624,12 +507,8 @@
       "id": "mo",
       "displayName": "MO (Gettext, binary)",
       "description": "Writer for compiled gettext MO catalogs. Consumes Blocks and emits a binary catalog keyed by (msgctxt, msgid). msgctxt is taken from Block.Properties[\"context\"] when present, else Block.Name, else Block.ID.",
-      "extensions": [
-        ".mo"
-      ],
-      "mimeTypes": [
-        "application/x-gettext-translation"
-      ],
+      "extensions": [".mo"],
+      "mimeTypes": ["application/x-gettext-translation"],
       "hasReader": true,
       "hasWriter": true
     },
@@ -638,9 +517,7 @@
       "displayName": "Moses Text",
       "description": "",
       "extensions": [],
-      "mimeTypes": [
-        "text/x-mosestext"
-      ],
+      "mimeTypes": ["text/x-mosestext"],
       "hasReader": true,
       "hasWriter": true
     },
@@ -648,13 +525,7 @@
       "id": "odf",
       "displayName": "Open Document Format",
       "description": "",
-      "extensions": [
-        ".odt",
-        ".ods",
-        ".odp",
-        ".odg",
-        ".odf"
-      ],
+      "extensions": [".odt", ".ods", ".odp", ".odg", ".odf"],
       "mimeTypes": [
         "application/vnd.oasis.opendocument.text",
         "application/vnd.oasis.opendocument.spreadsheet",
@@ -750,10 +621,7 @@
           "id": "inlineCodes",
           "label": "Inline Codes",
           "collapsed": true,
-          "fields": [
-            "useCodeFinder",
-            "codeFinderRules"
-          ]
+          "fields": ["useCodeFinder", "codeFinderRules"]
         },
         {
           "id": "advanced",
@@ -945,12 +813,8 @@
       "id": "pdf",
       "displayName": "PDF Text Extraction",
       "description": "",
-      "extensions": [
-        ".pdf"
-      ],
-      "mimeTypes": [
-        "application/pdf"
-      ],
+      "extensions": [".pdf"],
+      "mimeTypes": ["application/pdf"],
       "hasReader": true,
       "hasWriter": true
     },
@@ -958,23 +822,15 @@
       "id": "phpcontent",
       "displayName": "PHP Content",
       "description": "Extracts translatable strings from PHP source files",
-      "extensions": [
-        ".php",
-        ".phpcnt"
-      ],
-      "mimeTypes": [
-        "application/x-php"
-      ],
+      "extensions": [".php", ".phpcnt"],
+      "mimeTypes": ["application/x-php"],
       "hasReader": true,
       "hasWriter": true,
       "groups": [
         {
           "id": "extraction",
           "label": "Extraction settings",
-          "fields": [
-            "useDirectives",
-            "extractOutsideDirectives"
-          ]
+          "fields": ["useDirectives", "extractOutsideDirectives"]
         }
       ],
       "properties": {
@@ -994,22 +850,15 @@
       "id": "plaintext",
       "displayName": "Plain Text",
       "description": "Configuration for the plain text format reader/writer",
-      "extensions": [
-        ".txt",
-        ".text"
-      ],
-      "mimeTypes": [
-        "text/plain"
-      ],
+      "extensions": [".txt", ".text"],
+      "mimeTypes": ["text/plain"],
       "hasReader": true,
       "hasWriter": true,
       "groups": [
         {
           "id": "segmentation",
           "label": "Segmentation",
-          "fields": [
-            "segmentByLine"
-          ]
+          "fields": ["segmentByLine"]
         }
       ],
       "properties": {
@@ -1024,45 +873,30 @@
       "id": "po",
       "displayName": "PO (Gettext)",
       "description": "Configuration for the PO/POT format reader/writer",
-      "extensions": [
-        ".po",
-        ".pot"
-      ],
-      "mimeTypes": [
-        "text/x-gettext-translation"
-      ],
+      "extensions": [".po", ".pot"],
+      "mimeTypes": ["text/x-gettext-translation"],
       "hasReader": true,
       "hasWriter": true,
       "groups": [
         {
           "id": "extraction",
           "label": "Extraction",
-          "fields": [
-            "preserveUntranslated"
-          ]
+          "fields": ["preserveUntranslated"]
         },
         {
           "id": "mode",
           "label": "Processing Mode",
-          "fields": [
-            "bilingualMode"
-          ]
+          "fields": ["bilingualMode"]
         },
         {
           "id": "output",
           "label": "Output",
-          "fields": [
-            "wrapContent",
-            "allowEmptyOutputTarget"
-          ]
+          "fields": ["wrapContent", "allowEmptyOutputTarget"]
         },
         {
           "id": "inlineCodes",
           "label": "Inline Codes",
-          "fields": [
-            "useCodeFinder",
-            "codeFinderRules"
-          ]
+          "fields": ["useCodeFinder", "codeFinderRules"]
         }
       ],
       "properties": {
@@ -1102,54 +936,35 @@
       "id": "properties",
       "displayName": "Java Properties",
       "description": "Configuration for the Java .properties format reader/writer",
-      "extensions": [
-        ".properties"
-      ],
-      "mimeTypes": [
-        "text/x-java-properties"
-      ],
+      "extensions": [".properties"],
+      "mimeTypes": ["text/x-java-properties"],
       "hasReader": true,
       "hasWriter": true,
       "groups": [
         {
           "id": "parsing",
           "label": "Parsing",
-          "fields": [
-            "separator"
-          ]
+          "fields": ["separator"]
         },
         {
           "id": "extraction",
           "label": "Extraction",
-          "fields": [
-            "useKeyCondition",
-            "extractOnlyMatchingKey",
-            "keyCondition",
-            "extraComments"
-          ]
+          "fields": ["useKeyCondition", "extractOnlyMatchingKey", "keyCondition", "extraComments"]
         },
         {
           "id": "notes",
           "label": "Notes",
-          "fields": [
-            "commentsAreNotes"
-          ]
+          "fields": ["commentsAreNotes"]
         },
         {
           "id": "output",
           "label": "Output",
-          "fields": [
-            "useJavaEscapes",
-            "escapeExtendedChars"
-          ]
+          "fields": ["useJavaEscapes", "escapeExtendedChars"]
         },
         {
           "id": "inlineCodes",
           "label": "Inline Codes",
-          "fields": [
-            "useCodeFinder",
-            "codeFinderRules"
-          ]
+          "fields": ["useCodeFinder", "codeFinderRules"]
         }
       ],
       "properties": {
@@ -1210,15 +1025,8 @@
       "id": "regex",
       "displayName": "Regex Extraction",
       "description": "",
-      "extensions": [
-        ".strings",
-        ".ini",
-        ".info",
-        ".rls"
-      ],
-      "mimeTypes": [
-        "text/x-regex"
-      ],
+      "extensions": [".strings", ".ini", ".info", ".rls"],
+      "mimeTypes": ["text/x-regex"],
       "hasReader": true,
       "hasWriter": true
     },
@@ -1226,13 +1034,8 @@
       "id": "rtf",
       "displayName": "Rich Text Format",
       "description": "",
-      "extensions": [
-        ".rtf"
-      ],
-      "mimeTypes": [
-        "application/rtf",
-        "text/rtf"
-      ],
+      "extensions": [".rtf"],
+      "mimeTypes": ["application/rtf", "text/rtf"],
       "hasReader": true,
       "hasWriter": true
     },
@@ -1249,13 +1052,8 @@
       "id": "srt",
       "displayName": "SRT Subtitles",
       "description": "SubRip subtitle format — no configurable parameters",
-      "extensions": [
-        ".srt"
-      ],
-      "mimeTypes": [
-        "application/x-subrip",
-        "text/srt"
-      ],
+      "extensions": [".srt"],
+      "mimeTypes": ["application/x-subrip", "text/srt"],
       "hasReader": true,
       "hasWriter": true
     },
@@ -1263,14 +1061,8 @@
       "id": "tex",
       "displayName": "TeX/LaTeX",
       "description": "",
-      "extensions": [
-        ".tex",
-        ".latex"
-      ],
-      "mimeTypes": [
-        "application/x-tex",
-        "text/x-tex"
-      ],
+      "extensions": [".tex", ".latex"],
+      "mimeTypes": ["application/x-tex", "text/x-tex"],
       "hasReader": true,
       "hasWriter": true
     },
@@ -1278,37 +1070,25 @@
       "id": "tmx",
       "displayName": "TMX",
       "description": "Configuration for the native TMX translation memory format reader/writer",
-      "extensions": [
-        ".tmx"
-      ],
-      "mimeTypes": [
-        "application/x-tmx+xml"
-      ],
+      "extensions": [".tmx"],
+      "mimeTypes": ["application/x-tmx+xml"],
       "hasReader": true,
       "hasWriter": true,
       "groups": [
         {
           "id": "extraction",
           "label": "Extraction",
-          "fields": [
-            "processAllTargets",
-            "exitOnInvalid"
-          ]
+          "fields": ["processAllTargets", "exitOnInvalid"]
         },
         {
           "id": "output",
           "label": "Output",
-          "fields": [
-            "escapeGT"
-          ]
+          "fields": ["escapeGT"]
         },
         {
           "id": "inlineCodes",
           "label": "Inline Codes",
-          "fields": [
-            "useCodeFinder",
-            "codeFinderRules"
-          ]
+          "fields": ["useCodeFinder", "codeFinderRules"]
         }
       ],
       "properties": {
@@ -1343,13 +1123,8 @@
       "id": "transtable",
       "displayName": "Translation Table",
       "description": "",
-      "extensions": [
-        ".tab",
-        ".tsv"
-      ],
-      "mimeTypes": [
-        "text/tab-separated-values"
-      ],
+      "extensions": [".tab", ".tsv"],
+      "mimeTypes": ["text/tab-separated-values"],
       "hasReader": true,
       "hasWriter": true
     },
@@ -1358,10 +1133,7 @@
       "displayName": "Qt TS",
       "description": "",
       "extensions": [],
-      "mimeTypes": [
-        "application/x-ts",
-        "application/x-linguist"
-      ],
+      "mimeTypes": ["application/x-ts", "application/x-linguist"],
       "hasReader": true,
       "hasWriter": true
     },
@@ -1369,43 +1141,25 @@
       "id": "tsv",
       "displayName": "TSV",
       "description": "Configuration for the CSV/TSV format reader/writer",
-      "extensions": [
-        ".tsv"
-      ],
-      "mimeTypes": [
-        "text/tab-separated-values"
-      ],
+      "extensions": [".tsv"],
+      "mimeTypes": ["text/tab-separated-values"],
       "hasReader": true,
       "hasWriter": true,
       "groups": [
         {
           "id": "format",
           "label": "CSV Format Settings",
-          "fields": [
-            "separator",
-            "textQualifier",
-            "hasHeader",
-            "columnNamesRow",
-            "valuesStartRow"
-          ]
+          "fields": ["separator", "textQualifier", "hasHeader", "columnNamesRow", "valuesStartRow"]
         },
         {
           "id": "extraction",
           "label": "Extraction",
-          "fields": [
-            "translatableColumns",
-            "keyColumns",
-            "commentColumns",
-            "trimValues"
-          ]
+          "fields": ["translatableColumns", "keyColumns", "commentColumns", "trimValues"]
         },
         {
           "id": "inlineCodes",
           "label": "Inline Codes",
-          "fields": [
-            "useCodeFinder",
-            "codeFinderRules"
-          ]
+          "fields": ["useCodeFinder", "codeFinderRules"]
         }
       ],
       "properties": {
@@ -1467,33 +1221,20 @@
       "id": "ttml",
       "displayName": "TTML Subtitles",
       "description": "Timed Text Markup Language (W3C standard) subtitle format",
-      "extensions": [
-        ".ttml",
-        ".dfxp"
-      ],
-      "mimeTypes": [
-        "application/ttml+xml"
-      ],
+      "extensions": [".ttml", ".dfxp"],
+      "mimeTypes": ["application/ttml+xml"],
       "hasReader": true,
       "hasWriter": true,
       "groups": [
         {
           "id": "extraction",
           "label": "Extraction",
-          "fields": [
-            "mergeAdjacentCaptions",
-            "escapeBR"
-          ]
+          "fields": ["mergeAdjacentCaptions", "escapeBR"]
         },
         {
           "id": "output",
           "label": "Output settings",
-          "fields": [
-            "maxCharsPerLine",
-            "maxLinesPerCaption",
-            "cjkCharsPerLine",
-            "splitWords"
-          ]
+          "fields": ["maxCharsPerLine", "maxLinesPerCaption", "cjkCharsPerLine", "splitWords"]
         }
       ],
       "properties": {
@@ -1533,12 +1274,8 @@
       "id": "ttx",
       "displayName": "Trados TagEditor TTX",
       "description": "",
-      "extensions": [
-        ".ttx"
-      ],
-      "mimeTypes": [
-        "application/x-ttx+xml"
-      ],
+      "extensions": [".ttx"],
+      "mimeTypes": ["application/x-ttx+xml"],
       "hasReader": true,
       "hasWriter": true
     },
@@ -1546,12 +1283,8 @@
       "id": "txml",
       "displayName": "Trados XML",
       "description": "",
-      "extensions": [
-        ".txml"
-      ],
-      "mimeTypes": [
-        "application/x-txml+xml"
-      ],
+      "extensions": [".txml"],
+      "mimeTypes": ["application/x-txml+xml"],
       "hasReader": true,
       "hasWriter": true
     },
@@ -1559,9 +1292,7 @@
       "id": "versifiedtext",
       "displayName": "Versified Text",
       "description": "",
-      "extensions": [
-        ".ver"
-      ],
+      "extensions": [".ver"],
       "mimeTypes": null,
       "hasReader": true,
       "hasWriter": true
@@ -1570,13 +1301,8 @@
       "id": "vignette",
       "displayName": "R Vignette",
       "description": "",
-      "extensions": [
-        ".Rmd",
-        ".Rnw"
-      ],
-      "mimeTypes": [
-        "text/x-r-markdown"
-      ],
+      "extensions": [".Rmd", ".Rnw"],
+      "mimeTypes": ["text/x-r-markdown"],
       "hasReader": true,
       "hasWriter": true
     },
@@ -1584,24 +1310,15 @@
       "id": "vtt",
       "displayName": "WebVTT",
       "description": "Web Video Text Tracks (WebVTT) subtitle format",
-      "extensions": [
-        ".vtt"
-      ],
-      "mimeTypes": [
-        "text/vtt"
-      ],
+      "extensions": [".vtt"],
+      "mimeTypes": ["text/vtt"],
       "hasReader": true,
       "hasWriter": true,
       "groups": [
         {
           "id": "output",
           "label": "Output settings",
-          "fields": [
-            "maxCharsPerLine",
-            "maxLinesPerCaption",
-            "cjkCharsPerLine",
-            "splitWords"
-          ]
+          "fields": ["maxCharsPerLine", "maxLinesPerCaption", "cjkCharsPerLine", "splitWords"]
         }
       ],
       "properties": {
@@ -1631,23 +1348,15 @@
       "id": "wiki",
       "displayName": "Wiki",
       "description": "Configuration for the Wiki (MediaWiki/DokuWiki) format reader/writer",
-      "extensions": [
-        ".wiki",
-        ".mediawiki"
-      ],
-      "mimeTypes": [
-        "text/x-wiki"
-      ],
+      "extensions": [".wiki", ".mediawiki"],
+      "mimeTypes": ["text/x-wiki"],
       "hasReader": true,
       "hasWriter": true,
       "groups": [
         {
           "id": "syntax",
           "label": "Syntax",
-          "fields": [
-            "variant",
-            "preserveWhitespace"
-          ]
+          "fields": ["variant", "preserveWhitespace"]
         }
       ],
       "properties": {
@@ -1667,14 +1376,8 @@
       "id": "xliff",
       "displayName": "XLIFF 1.2",
       "description": "Configuration for the native XLIFF 1.2 bilingual exchange format reader/writer",
-      "extensions": [
-        ".xlf",
-        ".xliff"
-      ],
-      "mimeTypes": [
-        "application/xliff+xml",
-        "application/x-xliff+xml"
-      ],
+      "extensions": [".xlf", ".xliff"],
+      "mimeTypes": ["application/xliff+xml", "application/x-xliff+xml"],
       "hasReader": true,
       "hasWriter": true,
       "groups": [
@@ -1693,12 +1396,7 @@
         {
           "id": "states",
           "label": "Translation State Handling",
-          "fields": [
-            "useTranslationTargetState",
-            "targetStateValue",
-            "editAltTrans",
-            "addAltTrans"
-          ]
+          "fields": ["useTranslationTargetState", "targetStateValue", "editAltTrans", "addAltTrans"]
         },
         {
           "id": "output",
@@ -1713,10 +1411,7 @@
         {
           "id": "inlineCodes",
           "label": "Inline Codes",
-          "fields": [
-            "useCodeFinder",
-            "codeFinderRules"
-          ]
+          "fields": ["useCodeFinder", "codeFinderRules"]
         }
       ],
       "properties": {
@@ -1806,46 +1501,30 @@
       "id": "xliff2",
       "displayName": "XLIFF 2.x",
       "description": "Configuration for the native XLIFF 2.0/2.1/2.2 bilingual exchange format reader/writer",
-      "extensions": [
-        ".xlf",
-        ".xliff"
-      ],
-      "mimeTypes": [
-        "application/xliff+xml"
-      ],
+      "extensions": [".xlf", ".xliff"],
+      "mimeTypes": ["application/xliff+xml"],
       "hasReader": true,
       "hasWriter": true,
       "groups": [
         {
           "id": "output",
           "label": "Output",
-          "fields": [
-            "version",
-            "writeOriginalData"
-          ]
+          "fields": ["version", "writeOriginalData"]
         },
         {
           "id": "extraction",
           "label": "Extraction",
-          "fields": [
-            "forceUniqueIds",
-            "ignoreTagTypeMatch"
-          ]
+          "fields": ["forceUniqueIds", "ignoreTagTypeMatch"]
         },
         {
           "id": "states",
           "label": "Translation State Handling",
-          "fields": [
-            "discardInvalidTargets"
-          ]
+          "fields": ["discardInvalidTargets"]
         },
         {
           "id": "inlineCodes",
           "label": "Inline Codes",
-          "fields": [
-            "useCodeFinder",
-            "codeFinderRules"
-          ]
+          "fields": ["useCodeFinder", "codeFinderRules"]
         }
       ],
       "properties": {
@@ -1890,22 +1569,15 @@
       "id": "xml",
       "displayName": "XML",
       "description": "Configuration for the generic XML format reader/writer",
-      "extensions": [
-        ".xml"
-      ],
-      "mimeTypes": [
-        "text/xml",
-        "application/xml"
-      ],
+      "extensions": [".xml"],
+      "mimeTypes": ["text/xml", "application/xml"],
       "hasReader": true,
       "hasWriter": true,
       "groups": [
         {
           "id": "parser",
           "label": "Parser Settings",
-          "fields": [
-            "preserveWhitespace"
-          ]
+          "fields": ["preserveWhitespace"]
         },
         {
           "id": "extraction",
@@ -1924,26 +1596,17 @@
         {
           "id": "advanced",
           "label": "Advanced",
-          "fields": [
-            "elements",
-            "attributes",
-            "blockTypeMap"
-          ]
+          "fields": ["elements", "attributes", "blockTypeMap"]
         },
         {
           "id": "subfilters",
           "label": "Subfilters",
-          "fields": [
-            "subfilters"
-          ]
+          "fields": ["subfilters"]
         },
         {
           "id": "inlineCodes",
           "label": "Inline Codes",
-          "fields": [
-            "useCodeFinder",
-            "codeFinderRules"
-          ]
+          "fields": ["useCodeFinder", "codeFinderRules"]
         }
       ],
       "properties": {
@@ -2017,40 +1680,25 @@
       "id": "yaml",
       "displayName": "YAML",
       "description": "Configuration for the native YAML format reader/writer",
-      "extensions": [
-        ".yaml",
-        ".yml"
-      ],
-      "mimeTypes": [
-        "application/yaml",
-        "text/yaml",
-        "application/x-yaml"
-      ],
+      "extensions": [".yaml", ".yml"],
+      "mimeTypes": ["application/yaml", "text/yaml", "application/x-yaml"],
       "hasReader": true,
       "hasWriter": true,
       "groups": [
         {
           "id": "extraction",
           "label": "Extraction",
-          "fields": [
-            "extractNonStrings",
-            "keyPathPatterns"
-          ]
+          "fields": ["extractNonStrings", "keyPathPatterns"]
         },
         {
           "id": "subfilters",
           "label": "Subfilters",
-          "fields": [
-            "subfilter"
-          ]
+          "fields": ["subfilter"]
         },
         {
           "id": "inlineCodes",
           "label": "Inline Codes",
-          "fields": [
-            "useCodeFinder",
-            "codeFinderRules"
-          ]
+          "fields": ["useCodeFinder", "codeFinderRules"]
         }
       ],
       "properties": {

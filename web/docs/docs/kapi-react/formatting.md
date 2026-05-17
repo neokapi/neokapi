@@ -17,9 +17,7 @@ import { useNeokapi } from "@neokapi/kapi-react/runtime";
 function Price({ amount, currency }: { amount: number; currency: string }) {
   const { locale } = useNeokapi();
   return (
-    <span>
-      {new Intl.NumberFormat(locale, { style: "currency", currency }).format(amount)}
-    </span>
+    <span>{new Intl.NumberFormat(locale, { style: "currency", currency }).format(amount)}</span>
   );
 }
 ```
@@ -32,43 +30,39 @@ When `loadTranslations()` swaps the dict, `useNeokapi()` fires a re-render with 
 
 ```tsx
 // Currency
-new Intl.NumberFormat(locale, { style: "currency", currency: "USD" })
-  .format(1234.56);
+new Intl.NumberFormat(locale, { style: "currency", currency: "USD" }).format(1234.56);
 // "$1,234.56" / "1.234,56 $"
 
 // Percent
-new Intl.NumberFormat(locale, { style: "percent", maximumFractionDigits: 1 })
-  .format(0.1824);
+new Intl.NumberFormat(locale, { style: "percent", maximumFractionDigits: 1 }).format(0.1824);
 // "18.2%" / "18,2 %"
 
 // Date
-new Intl.DateTimeFormat(locale, { dateStyle: "medium" })
-  .format(new Date());
+new Intl.DateTimeFormat(locale, { dateStyle: "medium" }).format(new Date());
 // "Apr 22, 2026" / "22. Apr. 2026"
 
 // Date + time
-new Intl.DateTimeFormat(locale, { dateStyle: "short", timeStyle: "short" })
-  .format(new Date());
+new Intl.DateTimeFormat(locale, { dateStyle: "short", timeStyle: "short" }).format(new Date());
 // "4/22/26, 6:30 PM" / "22.04.26, 18:30"
 
 // Relative time
-new Intl.RelativeTimeFormat(locale, { numeric: "auto" })
-  .format(-2, "day");
+new Intl.RelativeTimeFormat(locale, { numeric: "auto" }).format(-2, "day");
 // "2 days ago" / "vor 2 Tagen"
 
 // List
-new Intl.ListFormat(locale, { style: "long", type: "conjunction" })
-  .format(["apples", "oranges", "bananas"]);
+new Intl.ListFormat(locale, { style: "long", type: "conjunction" }).format([
+  "apples",
+  "oranges",
+  "bananas",
+]);
 // "apples, oranges, and bananas"
 
 // Unit
-new Intl.NumberFormat(locale, { style: "unit", unit: "kilometer-per-hour" })
-  .format(80);
+new Intl.NumberFormat(locale, { style: "unit", unit: "kilometer-per-hour" }).format(80);
 // "80 km/h"
 
 // Compact
-new Intl.NumberFormat(locale, { notation: "compact", compactDisplay: "short" })
-  .format(1_250_000);
+new Intl.NumberFormat(locale, { notation: "compact", compactDisplay: "short" }).format(1_250_000);
 // "1.3M" / "1,3 Mio."
 ```
 
@@ -132,7 +126,11 @@ import { enUS, de, fr, es, ja } from "date-fns/locale";
 import type { Locale } from "date-fns";
 
 const DATE_FNS_LOCALES: Record<string, Locale> = {
-  en: enUS, de, fr, es, ja,
+  en: enUS,
+  de,
+  fr,
+  es,
+  ja,
 };
 
 function useDateFnsLocale(): Locale {
@@ -143,9 +141,7 @@ function useDateFnsLocale(): Locale {
 
 function Ago({ date }: { date: Date }) {
   const dfl = useDateFnsLocale();
-  return (
-    <time>{formatDistance(date, new Date(), { addSuffix: true, locale: dfl })}</time>
-  );
+  return <time>{formatDistance(date, new Date(), { addSuffix: true, locale: dfl })}</time>;
 }
 ```
 
@@ -204,15 +200,15 @@ For greenfield apps: stick with Intl. FormatJS adds ~40 kB for features kapi-rea
 
 ## Library picker
 
-| Need | Pick | Notes |
-|---|---|---|
-| Currency, percent, date, time, relative time, list, unit, compact numbers | `Intl.*` | Already in the runtime. No imports. |
-| Pluralization (count-aware copy) | kapi-react's [`<Plural>`](./plurals-and-select) | Uses `Intl.PluralRules`. No extra library. |
-| Sorting translated names | `Intl.Collator` | `list.sort((a,b) => col.compare(a,b))` |
-| Timezone-aware dates, heavy date math | Luxon or date-fns(-tz) | Luxon is Intl-based; date-fns is older but lighter. |
-| Duration formatting ("3h 12m") | Luxon `Duration.toHuman()` or `@formatjs/intl-durationformat` polyfill | `Intl.DurationFormat` exists in newer runtimes but isn't universally shipped yet. |
-| Legacy moment.js codebase | migrate incrementally | moment.js is maintenance-mode; Luxon is its successor from the same author. |
-| ICU MessageFormat outside kapi-react's plural/select | `@formatjs/intl-messageformat` standalone | Just the formatter, not the whole react-intl stack. |
+| Need                                                                      | Pick                                                                   | Notes                                                                             |
+| ------------------------------------------------------------------------- | ---------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| Currency, percent, date, time, relative time, list, unit, compact numbers | `Intl.*`                                                               | Already in the runtime. No imports.                                               |
+| Pluralization (count-aware copy)                                          | kapi-react's [`<Plural>`](./plurals-and-select)                        | Uses `Intl.PluralRules`. No extra library.                                        |
+| Sorting translated names                                                  | `Intl.Collator`                                                        | `list.sort((a,b) => col.compare(a,b))`                                            |
+| Timezone-aware dates, heavy date math                                     | Luxon or date-fns(-tz)                                                 | Luxon is Intl-based; date-fns is older but lighter.                               |
+| Duration formatting ("3h 12m")                                            | Luxon `Duration.toHuman()` or `@formatjs/intl-durationformat` polyfill | `Intl.DurationFormat` exists in newer runtimes but isn't universally shipped yet. |
+| Legacy moment.js codebase                                                 | migrate incrementally                                                  | moment.js is maintenance-mode; Luxon is its successor from the same author.       |
+| ICU MessageFormat outside kapi-react's plural/select                      | `@formatjs/intl-messageformat` standalone                              | Just the formatter, not the whole react-intl stack.                               |
 
 ## Initial render and SSR
 
@@ -220,10 +216,10 @@ All of the above read the locale at render time. On first paint — before `load
 
 ```tsx
 // On the server, before hydration
-setTranslations(cookieLocale, {});  // empty dict; locale alone is enough
+setTranslations(cookieLocale, {}); // empty dict; locale alone is enough
 ```
 
-Now the first client render happens with the right locale, Intl formatters match, and the dict swap only changes *strings* — not formatting.
+Now the first client render happens with the right locale, Intl formatters match, and the dict swap only changes _strings_ — not formatting.
 
 See also [Configuration → HTML `lang` and `dir` attributes](./configuration#html-lang-and-dir-attributes) for keeping the document locale in sync on first paint.
 
@@ -237,6 +233,6 @@ These aren't i18n concerns so much as data normalization — they need domain lo
 
 ## Next
 
-- [Plurals and select](./plurals-and-select) — the one formatting case kapi-react *does* own, because it's intertwined with the translated string itself.
+- [Plurals and select](./plurals-and-select) — the one formatting case kapi-react _does_ own, because it's intertwined with the translated string itself.
 - [`t()` escape hatch](./t-escape-hatch) — feeding formatted values into translated copy via placeholders: `t("Price: {price}", { price: currencyFormatter.format(amount) })`.
 - [Configuration](./configuration) — runtime options, including the `<html lang>` / `dir` sync.

@@ -19,27 +19,27 @@ kapi extract [flags]
 
 ## Options
 
-| Flag | Default | Description |
-|------|---------|-------------|
-| `-p`, `--project <path>` | (auto-discovered) | Project recipe path. Walks upward from cwd if omitted. |
-| `--target-lang <csv>` | recipe `target_languages` | Comma-separated subset of target locales. |
-| `--only <collection>` | all | Restrict to one content collection by name. |
-| `--pattern <glob>` | all | Extra glob filter on source files. |
-| `--format <name>` | `xliff2` | Output bilingual format: `xliff2` (default) or `po` (gettext). |
-| `--xliff-version <v>` | `2.2` | XLIFF 2.x version to emit: `2.0`, `2.1`, or `2.2`. |
-| `--no-tm` | off | Skip TM pre-fill. |
-| `--out-dir <dir>` | `out` | Directory for emitted bilingual files. Relative paths resolve under the project root. |
+| Flag                     | Default                   | Description                                                                           |
+| ------------------------ | ------------------------- | ------------------------------------------------------------------------------------- |
+| `-p`, `--project <path>` | (auto-discovered)         | Project recipe path. Walks upward from cwd if omitted.                                |
+| `--target-lang <csv>`    | recipe `target_languages` | Comma-separated subset of target locales.                                             |
+| `--only <collection>`    | all                       | Restrict to one content collection by name.                                           |
+| `--pattern <glob>`       | all                       | Extra glob filter on source files.                                                    |
+| `--format <name>`        | `xliff2`                  | Output bilingual format: `xliff2` (default) or `po` (gettext).                        |
+| `--xliff-version <v>`    | `2.2`                     | XLIFF 2.x version to emit: `2.0`, `2.1`, or `2.2`.                                    |
+| `--no-tm`                | off                       | Skip TM pre-fill.                                                                     |
+| `--out-dir <dir>`        | `out`                     | Directory for emitted bilingual files. Relative paths resolve under the project root. |
 
 ## What it writes
 
 Every run creates a new **extraction batch** under
 `.kapi/extractions/<batch-id>/`:
 
-| Artifact | Purpose |
-|----------|---------|
-| `manifest.yaml` | Source→output mapping, per-file SHA-256, TM leverage counts. |
-| `skel-<source-hash>.bin` | Per-source skeleton for byte-exact merge reconstruction (when the source format supports skeletons). |
-| `<out-dir>/<source-slug>.<src>-to-<tgt>.xliff` | One bilingual file per source → target pair. |
+| Artifact                                       | Purpose                                                                                              |
+| ---------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| `manifest.yaml`                                | Source→output mapping, per-file SHA-256, TM leverage counts.                                         |
+| `skel-<source-hash>.bin`                       | Per-source skeleton for byte-exact merge reconstruction (when the source format supports skeletons). |
+| `<out-dir>/<source-slug>.<src>-to-<tgt>.xliff` | One bilingual file per source → target pair.                                                         |
 
 Each emitted XLIFF carries file-level `<notes>` stamping the batch id,
 source file (relative to project root), and source hash — so `kapi

@@ -91,7 +91,6 @@ Additional tools planned but not yet implemented:
 
 ## Concept Relations (Phase 2)
 
-
 ```go
 type Stream struct {
     ID          string
@@ -106,7 +105,6 @@ type Stream struct {
 Named what-if experiments for terminology changes. Streams isolate changes from the active termbase until explicitly promoted.stream terms applied to content. Promotion applies changes atomically.
 
 ## Content Model Extensions
-
 
 - `TermAnnotation` -- matched term with concept, target terms, and position
 - `EntityAnnotation` -- named entity with type, DNT flag, and position

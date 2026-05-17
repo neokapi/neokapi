@@ -64,7 +64,6 @@ Use Kapi CLI when you:
 
 For a visual interface, use [Kapi](/kapi-desktop/overview) — the GUI companion for building flows, managing plugins, and running tools with live progress.
 
-
 ## Installation
 
 ```bash

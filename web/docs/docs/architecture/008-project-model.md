@@ -81,7 +81,7 @@ Ownership:
   Gitignored by default; opt in to commit `.kapi/tm.db` / `.kapi/termbase.db`
   when cross-clone reproducibility matters.
 - **`src/**`** — user-authored content. Referenced by the recipe; never moved
-  into `.kapi/`.
+into `.kapi/`.
 - **Writer outputs** (e.g. `i18n/{locale}.json`) — produced by format writers
   the recipe declares. The runtime consumes these; kapi does not.
 
@@ -330,10 +330,10 @@ type Capabilities struct {
 
 ### Block store providers
 
-| Provider  | Backing                      | Use case                                         |
-| --------- | ---------------------------- | ------------------------------------------------ |
-| `memory`  | Go maps                      | ephemeral flows, tests, ad-hoc CLI invocations   |
-| `cache`   | SQLite at `.kapi/cache/blocks.db` | default for kapi projects, long-lived local work |
+| Provider | Backing                           | Use case                                         |
+| -------- | --------------------------------- | ------------------------------------------------ |
+| `memory` | Go maps                           | ephemeral flows, tests, ad-hoc CLI invocations   |
+| `cache`  | SQLite at `.kapi/cache/blocks.db` | default for kapi projects, long-lived local work |
 
 Tools never open `cache/blocks.db` directly — they operate on a session. Swapping
 defines the interface.

@@ -24,11 +24,11 @@ per input).
 
 ## Options
 
-| Flag | Default | Description |
-|------|---------|-------------|
-| `-p`, `--project <path>` | (auto-discovered) | Project recipe path. Walks upward from cwd if omitted. |
-| `-i`, `--input <path>` | _(required, repeatable)_ | Input XLIFF file, glob, or directory. |
-| `--no-tm-update` | off | Skip TM write-back (dry-run / review workflows). |
+| Flag                     | Default                  | Description                                            |
+| ------------------------ | ------------------------ | ------------------------------------------------------ |
+| `-p`, `--project <path>` | (auto-discovered)        | Project recipe path. Walks upward from cwd if omitted. |
+| `-i`, `--input <path>`   | _(required, repeatable)_ | Input XLIFF file, glob, or directory.                  |
+| `--no-tm-update`         | off                      | Skip TM write-back (dry-run / review workflows).       |
 
 ## How merge finds the right extraction
 
@@ -72,11 +72,11 @@ still merge cleanly.
 
 Controlled by `defaults.merge.conflict_policy` in the recipe:
 
-| Policy              | On-disk target                                                    | TM write-back                       |
-| ------------------- | ----------------------------------------------------------------- | ----------------------------------- |
-| `translator-wins`   | Translator's target replaces existing. **(default)**              | Translator's target replaces TU.    |
-| `existing-wins`     | Existing target preserved; translator's skipped.                  | Existing TU preserved.              |
-| `newest-wins`       | Compare source file mtime vs. XLIFF mtime; pick the newer.        | Compare TU `UpdatedAt` vs. XLIFF.   |
+| Policy            | On-disk target                                             | TM write-back                     |
+| ----------------- | ---------------------------------------------------------- | --------------------------------- |
+| `translator-wins` | Translator's target replaces existing. **(default)**       | Translator's target replaces TU.  |
+| `existing-wins`   | Existing target preserved; translator's skipped.           | Existing TU preserved.            |
+| `newest-wins`     | Compare source file mtime vs. XLIFF mtime; pick the newer. | Compare TU `UpdatedAt` vs. XLIFF. |
 
 Merge is non-interactive by design — scriptable in CI without
 prompting.

@@ -202,9 +202,8 @@ kapi flow run my-flow.yaml -i input.json
 kapi flows
 ```
 
-
-
 ```bash
+
 ```
 
 ### Programmatically

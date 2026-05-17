@@ -132,7 +132,7 @@ type TranslationMemory interface {
 `Lookup` takes a `*model.Block` rather than a string. The Block carries the
 entity annotations needed to compute the generalized key and the Spans
 needed for the structural key; no separate pre-processing step is required.
-By default `Lookup` keys on the block's *first* segment, which is correct
+By default `Lookup` keys on the block's _first_ segment, which is correct
 when segmentation is off (one segment per Block — the verbatim lookup case).
 
 `LookupSegment` selects a specific segment by index for the
@@ -187,7 +187,7 @@ tooling. The element mapping:
 | Fragment Span     | TMX Element |
 | ----------------- | ----------- |
 | `SpanPlaceholder` | `<ph>`      |
-| `SpanOpening`     | `<bpt>`    |
+| `SpanOpening`     | `<bpt>`     |
 | `SpanClosing`     | `<ept>`     |
 
 Entity metadata travels as `<prop>` elements on the TMX `<tu>`. Inline

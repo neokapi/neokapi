@@ -183,7 +183,7 @@ Four independent recording pipelines:
 2. **Kapi CLI** — [VHS](https://github.com/charmbracelet/vhs) terminal
    recordings from `.tape` files in `web/docs/tapes/`. No server
    required.
-4.VHS tape files are declarative:
+   4.VHS tape files are declarative:
 
 ```tape
 Output output/convert.webm

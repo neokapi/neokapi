@@ -39,7 +39,7 @@ Add it to CI as a UI-layout smoke test:
 - run: vp kapi-react extract
 - run: kapi pseudo-translate i18n/ --target-lang qps
 - run: vp kapi-react compile i18n/ --out public/translations
-- run: npm run test:e2e     # runs against ?locale=qps
+- run: npm run test:e2e # runs against ?locale=qps
 ```
 
 ## AI translation
@@ -141,13 +141,11 @@ Then pass `i18n-pre/` to `kapi ai-translate`, which respects the pre-translated 
 
 See [Terminology](/features/terminology).
 
-
 klf` directly:
 
 ```bash
 # …translators work in the web editor…
 ```
-
 
 ## Putting it together
 
@@ -157,8 +155,8 @@ A complete Makefile / package-scripts setup for a multi-locale app:
 {
   "scripts": {
     "i18n:extract": "vp kapi-react extract",
-    "i18n:pseudo":  "kapi pseudo-translate i18n/ --target-lang qps",
-    "i18n:ai":      "for lang in fr de ja; do kapi ai-translate i18n/ --target-lang $lang; done",
+    "i18n:pseudo": "kapi pseudo-translate i18n/ --target-lang qps",
+    "i18n:ai": "for lang in fr de ja; do kapi ai-translate i18n/ --target-lang $lang; done",
     "i18n:compile": "vp kapi-react compile i18n/ --out public/translations"
   }
 }
@@ -172,7 +170,7 @@ If you have a [`.kapi` project file](/architecture/008-project-model) with the c
 {
   "scripts": {
     "i18n:extract": "kapi extract -p translation.kapi",
-    "i18n:sync":    "kapi sync -p translation.kapi --tool ai-translate",
+    "i18n:sync": "kapi sync -p translation.kapi --tool ai-translate",
     "i18n:compile": "vp kapi-react compile i18n/ --out public/translations"
   }
 }

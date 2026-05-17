@@ -145,11 +145,9 @@ kapi pseudo-translate i18n/ --target-lang qps
 
 The `.klf` is the exchange format. A translator's workflow might be:
 
-1.2. Translate every block, leveraging their existing TM.
-3. Save back to the same `i18n/`.
+1.2. Translate every block, leveraging their existing TM. 3. Save back to the same `i18n/`.
 
 Structural context (the `jsxPath`, the translator note, the inline element tokens) renders as rich context in modern CAT tools.
-
 
 ### In-place default vs. explicit redirect
 
@@ -265,10 +263,7 @@ const routes = [
     lazy: async () => {
       const [mod] = await Promise.all([
         import("./SettingsPage"),
-        loadTranslationChunk(
-          locale,
-          `/translations/${locale}/SettingsPage.json`,
-        ),
+        loadTranslationChunk(locale, `/translations/${locale}/SettingsPage.json`),
       ]);
       return { Component: mod.default };
     },

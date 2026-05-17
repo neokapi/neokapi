@@ -18,7 +18,7 @@ import { Plural, Zero, One, Two, Few, Many, Other } from "@neokapi/kapi-react/ru
     <One>1 message</One>
     <Other>{n} messages</Other>
   </Plural>
-</p>
+</p>;
 ```
 
 At render time, `<Plural>` consults `Intl.PluralRules` for the active locale and picks the matching form. For English `n = 1` resolves to `<One>`, everything else to `<Other>`. For Arabic, `<Zero>`, `<One>`, `<Two>`, `<Few>`, `<Many>`, `<Other>` all have distinct rules.
@@ -35,7 +35,7 @@ import { Select, Case, Other } from "@neokapi/kapi-react/runtime";
     <Case when="viewer">Viewer access</Case>
     <Other>No access</Other>
   </Select>
-</p>
+</p>;
 ```
 
 `<Select>` picks the `<Case>` whose `when` prop equals the source value, or falls back to `<Other>`.
@@ -62,8 +62,12 @@ Under the hood the extractor emits the canonical ICU template that translators k
 <p>
   <Plural count={items.length}>
     <Zero>Your cart is empty</Zero>
-    <One><strong>1</strong> item in your cart</One>
-    <Other><strong>{items.length}</strong> items in your cart</Other>
+    <One>
+      <strong>1</strong> item in your cart
+    </One>
+    <Other>
+      <strong>{items.length}</strong> items in your cart
+    </Other>
   </Plural>
 </p>
 ```
@@ -74,13 +78,13 @@ Each form is extracted as a typed run sequence — `<strong>` becomes a position
 
 Use the superset of forms your product actually ships. Languages you don't target today can still be added later without source changes: add the translation in the CAT tool, the runtime picks the right form.
 
-| Language | Forms used |
-|---|---|
-| English | `one`, `other` |
-| French | `one`, `other` |
-| Russian | `one`, `few`, `many`, `other` |
-| Arabic | `zero`, `one`, `two`, `few`, `many`, `other` |
-| Japanese, Korean, Chinese | `other` only |
+| Language                  | Forms used                                   |
+| ------------------------- | -------------------------------------------- |
+| English                   | `one`, `other`                               |
+| French                    | `one`, `other`                               |
+| Russian                   | `one`, `few`, `many`, `other`                |
+| Arabic                    | `zero`, `one`, `two`, `few`, `many`, `other` |
+| Japanese, Korean, Chinese | `other` only                                 |
 
 Source authors usually only need `one` + `other`, plus optional `zero` for UX polish ("No messages" vs. "0 messages"). Translators fill the rest per locale.
 
@@ -102,7 +106,7 @@ const n = cart.items.length;
 <Plural count={n}>
   <One>1 item</One>
   <Other>{n} items</Other>
-</Plural>
+</Plural>;
 ```
 
 ## Translator-authored plurals

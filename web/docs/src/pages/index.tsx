@@ -16,10 +16,7 @@ function HomepageHeader() {
           {siteConfig.title} &mdash; {siteConfig.tagline}
         </Heading>
         <div className={styles.buttons}>
-          <Link
-            className="button button--secondary button--lg"
-            to="/getting-started/introduction"
-          >
+          <Link className="button button--secondary button--lg" to="/getting-started/introduction">
             Get Started
           </Link>
         </div>

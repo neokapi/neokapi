@@ -11,12 +11,12 @@ A quick reference for teams already using — or evaluating — another React i1
 
 The incumbent. Uses developer-authored keys and a `t(key)` / `<Trans>` runtime.
 
-| | react-i18next | kapi-react |
-|---|---|---|
-| Source identifier | Developer-invented key | Source text + structural context |
-| JSX wrapping | `t("key")` or `<Trans i18nKey="...">` | Plain JSX |
-| Extraction | `i18next-parser` CLI or manual | Plugin during normal build |
-| Format | Flat JSON / XLIFF | KLF/KLF with structural context, placeholders, plural forms |
+|                   | react-i18next                         | kapi-react                                                  |
+| ----------------- | ------------------------------------- | ----------------------------------------------------------- |
+| Source identifier | Developer-invented key                | Source text + structural context                            |
+| JSX wrapping      | `t("key")` or `<Trans i18nKey="...">` | Plain JSX                                                   |
+| Extraction        | `i18next-parser` CLI or manual        | Plugin during normal build                                  |
+| Format            | Flat JSON / XLIFF                     | KLF/KLF with structural context, placeholders, plural forms |
 
 Migrating from react-i18next typically means dropping the `t()` / `<Trans>` wrappers and re-running the extract against the bare JSX. Existing translations can be loaded as-is if you key them by the same source text; otherwise it's a one-time re-translation pass through your TM.
 
@@ -24,12 +24,12 @@ Migrating from react-i18next typically means dropping the `t()` / `<Trans>` wrap
 
 Developer-authored message descriptors with ICU formatting baked in.
 
-| | FormatJS | kapi-react |
-|---|---|---|
-| Source identifier | Developer-invented id (or auto-hash of the descriptor) | Source text + structural context |
-| JSX wrapping | `<FormattedMessage>` or `useIntl().formatMessage()` | Plain JSX |
-| Plurals / select | Raw ICU message strings | `<Plural>` / `<Select>` authoring components |
-| Extraction | `@formatjs/cli` | Plugin during normal build |
+|                   | FormatJS                                               | kapi-react                                   |
+| ----------------- | ------------------------------------------------------ | -------------------------------------------- |
+| Source identifier | Developer-invented id (or auto-hash of the descriptor) | Source text + structural context             |
+| JSX wrapping      | `<FormattedMessage>` or `useIntl().formatMessage()`    | Plain JSX                                    |
+| Plurals / select  | Raw ICU message strings                                | `<Plural>` / `<Select>` authoring components |
+| Extraction        | `@formatjs/cli`                                        | Plugin during normal build                   |
 
 FormatJS's ICU-in-source approach is powerful for complex message composition, but forces translators (and developers) to work in ICU directly. kapi-react keeps the source looking like React, then emits the canonical ICU template for translators' CAT tools downstream.
 
@@ -37,12 +37,12 @@ FormatJS's ICU-in-source approach is powerful for complex message composition, b
 
 The closest in philosophy — Lingui uses macros (`<Trans>`, `t` tagged templates) to rewrite source text into hashed-key runtime lookups at build time.
 
-| | Lingui | kapi-react |
-|---|---|---|
-| Source identifier | Source text (via Babel macro) | Source text + structural context (via SWC plugin) |
-| JSX wrapping | `<Trans>Hello</Trans>`, `t\`...\`` macro | Plain JSX |
-| Extraction | `lingui extract` | Plugin during normal build |
-| Format | Flat JSON / PO | KLF/KLF with structural context, placeholders, plural forms |
+|                   | Lingui                                   | kapi-react                                                  |
+| ----------------- | ---------------------------------------- | ----------------------------------------------------------- |
+| Source identifier | Source text (via Babel macro)            | Source text + structural context (via SWC plugin)           |
+| JSX wrapping      | `<Trans>Hello</Trans>`, `t\`...\`` macro | Plain JSX                                                   |
+| Extraction        | `lingui extract`                         | Plugin during normal build                                  |
+| Format            | Flat JSON / PO                           | KLF/KLF with structural context, placeholders, plural forms |
 
 Lingui and kapi-react agree on "source text as key". The core difference: Lingui asks you to opt every string into the macro (`<Trans>`, `` t`...` ``); kapi-react opts in by default. `t()` in kapi-react is a small escape hatch for non-JSX strings, not the normal authoring pattern.
 
@@ -50,10 +50,10 @@ Lingui and kapi-react agree on "source text as key". The core difference: Lingui
 
 Typed, per-message functions generated at build time. A message `welcome` becomes `m.welcome()`.
 
-| | Paraglide | kapi-react |
-|---|---|---|
-| Source identifier | Developer-invented message id | Source text + structural context |
-| JSX wrapping | Generated function call (`m.welcome()`) | Plain JSX |
+|                   | Paraglide                                            | kapi-react                       |
+| ----------------- | ---------------------------------------------------- | -------------------------------- |
+| Source identifier | Developer-invented message id                        | Source text + structural context |
+| JSX wrapping      | Generated function call (`m.welcome()`)              | Plain JSX                        |
 | Tree-shakeability | Every message is a function — excellent tree-shaking | Dict lookup — dict is one object |
 
 Paraglide's typed-function model gives strong refactoring support but requires the ids-as-function-names model. kapi-react is source-text-as-key; the two can coexist in a codebase if needed, but usually you pick one.

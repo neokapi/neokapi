@@ -92,13 +92,13 @@ docs</a>` (two pairs, ids `m0` and `m1`). Inner content may contain text,
 expressions (`{userName}`), placeholders (`<Icon/>`), or further paired
 elements:
 
-| Source                                     | Runs                                                  |
-| ------------------------------------------ | ----------------------------------------------------- |
-| `<a>here</a>`                              | `pcOpen + text + pcClose`                             |
-| `<a><Icon/></a>`                           | `pcOpen + ph(icon) + pcClose`                         |
-| `<a>{userName}</a>`                        | `pcOpen + ph(userName) + pcClose`                     |
-| `<strong>{count}</strong>`                 | `pcOpen + ph(count) + pcClose`                        |
-| `<a>read <em>the</em> docs</a>`            | `pcOpen + text + pcOpen + text + pcClose + text + pcClose` |
+| Source                          | Runs                                                       |
+| ------------------------------- | ---------------------------------------------------------- |
+| `<a>here</a>`                   | `pcOpen + text + pcClose`                                  |
+| `<a><Icon/></a>`                | `pcOpen + ph(icon) + pcClose`                              |
+| `<a>{userName}</a>`             | `pcOpen + ph(userName) + pcClose`                          |
+| `<strong>{count}</strong>`      | `pcOpen + ph(count) + pcClose`                             |
+| `<a>read <em>the</em> docs</a>` | `pcOpen + text + pcOpen + text + pcClose + text + pcClose` |
 
 This makes the translator the unit of decision. A German translation can
 write `Klicken Sie {=m0}hier{/=m0}, um die Dokumentation zu lesen.` and
@@ -111,12 +111,12 @@ JSX constructs without children — self-closing icons, `<br/>`, zero-child
 unmapped components, expression containers, conditional nodes — become a
 single `PlaceholderRun` rather than a paired pair:
 
-| Source                    | Run                                                |
-| ------------------------- | -------------------------------------------------- |
-| `<Icon/>`                 | `ph { type: "jsx:element", equiv: "=m0" }`         |
-| `<br/>`                   | `ph { type: "fmt:break", equiv: "=m0" }`           |
-| `{userName}`              | `ph { type: "jsx:var", equiv: "userName" }`        |
-| `{cond && <Banner/>}`     | `ph { type: "jsx:node", equiv: "=m0", optional: true }` |
+| Source                | Run                                                     |
+| --------------------- | ------------------------------------------------------- |
+| `<Icon/>`             | `ph { type: "jsx:element", equiv: "=m0" }`              |
+| `<br/>`               | `ph { type: "fmt:break", equiv: "=m0" }`                |
+| `{userName}`          | `ph { type: "jsx:var", equiv: "userName" }`             |
+| `{cond && <Banner/>}` | `ph { type: "jsx:node", equiv: "=m0", optional: true }` |
 
 JSX-element placeholders share the `=m<N>` synthetic-id convention with
 paired pairs; the difference is structural — a standalone is a single
@@ -146,11 +146,11 @@ Custom React components (`<TabsTrigger>`, `<DialogTitle>`,
 inline-vs-block classification and the resulting hash keys on the
 mapped HTML element name rather than the React component identifier.
 
-| Map entry                           | Behavior                                          |
-| ----------------------------------- | ------------------------------------------------- |
-| `{ TabsTrigger: "button" }`         | Treats `<TabsTrigger>` as a translatable element. |
-| `{ Strong: "strong" }`              | Treats `<Strong>` as inline; eligible for paired pair. |
-| `{ Icon: "x-icon" }` (no html tag)  | Marks `<Icon>` as opaque inline (icon-tolerant).  |
+| Map entry                          | Behavior                                               |
+| ---------------------------------- | ------------------------------------------------------ |
+| `{ TabsTrigger: "button" }`        | Treats `<TabsTrigger>` as a translatable element.      |
+| `{ Strong: "strong" }`             | Treats `<Strong>` as inline; eligible for paired pair. |
+| `{ Icon: "x-icon" }` (no html tag) | Marks `<Icon>` as opaque inline (icon-tolerant).       |
 
 ### Hash and runtime dictionary
 
@@ -160,7 +160,7 @@ canonical key produced by the runs builder. The hash plus a
 the elements map drives `__t` / `__tx`:
 
 ```ts
-__tx(hash, fallback, elements, params)
+__tx(hash, fallback, elements, params);
 ```
 
 At extract time, the transform replaces the original JSX with the
@@ -206,16 +206,16 @@ no wrapping `<span>`, so layout (e.g. shadcn-style buttons relying on
 Block. For paired markers the default `RunConstraints` are
 `{ deletable: false, duplicable: false }`:
 
-| Translation behavior                                 | Lint        |
-| ---------------------------------------------------- | ----------- |
-| Drop a paired pair entirely                          | error       |
-| Duplicate a paired pair                              | error       |
-| Reorder paired pairs (with their content)            | allowed     |
-| Unbalanced (open without matching close)             | error       |
-| Mismatched ids                                       | error       |
-| Ill-nested (close before matching open in LIFO order)| error       |
-| Empty inner where source had content                 | error       |
-| Standalone `{equiv}` token dropped                   | error       |
+| Translation behavior                                  | Lint    |
+| ----------------------------------------------------- | ------- |
+| Drop a paired pair entirely                           | error   |
+| Duplicate a paired pair                               | error   |
+| Reorder paired pairs (with their content)             | allowed |
+| Unbalanced (open without matching close)              | error   |
+| Mismatched ids                                        | error   |
+| Ill-nested (close before matching open in LIFO order) | error   |
+| Empty inner where source had content                  | error   |
+| Standalone `{equiv}` token dropped                    | error   |
 
 Per-element overrides via `componentMap` or `rules` entries — for
 example, marking a decorative `<em>` as `deletable: true` for languages

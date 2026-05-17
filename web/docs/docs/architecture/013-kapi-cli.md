@@ -250,16 +250,16 @@ to AI agents (Claude Desktop, Cursor, VS Code, etc.).
 
 Tools exposed:
 
-| Tool               | Description                                   |
-| ------------------ | --------------------------------------------- |
-| `list_formats`     | List supported file formats                   |
-| `detect_format`    | Detect format from file path                  |
-| `extract_content`  | Parse file, return translatable blocks        |
-| `word_count`       | Count translatable words                      |
-| `run_flow`         | Execute a processing flow on a file           |
-| `pseudo_translate` | Pseudo-translate a file for QA                |
-| `list_flows`       | List available processing flows               |
-| `list_tools`       | List available processing tools               |
+| Tool               | Description                            |
+| ------------------ | -------------------------------------- |
+| `list_formats`     | List supported file formats            |
+| `detect_format`    | Detect format from file path           |
+| `extract_content`  | Parse file, return translatable blocks |
+| `word_count`       | Count translatable words               |
+| `run_flow`         | Execute a processing flow on a file    |
+| `pseudo_translate` | Pseudo-translate a file for QA         |
+| `list_flows`       | List available processing flows        |
+| `list_tools`       | List available processing tools        |
 
 Each tool has typed `Input` and `Output` structs with `json` and
 `jsonschema` struct tags. The MCP SDK generates JSON Schema from these

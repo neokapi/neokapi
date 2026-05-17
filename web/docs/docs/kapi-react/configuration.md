@@ -115,14 +115,14 @@ Declarative overrides keyed on selectors:
 neokapi({
   rules: [
     // Turn translation off for specific matches
-    { selector: ".code-block",    translate: false },
-    { selector: "[data-testid]",  translate: false },
+    { selector: ".code-block", translate: false },
+    { selector: "[data-testid]", translate: false },
 
     // Attach a translator note
-    { selector: ".legal-copy",    locNote: "Must match legal-approved wording" },
+    { selector: ".legal-copy", locNote: "Must match legal-approved wording" },
 
     // Turn translation on for a container that wouldn't normally auto-promote
-    { selector: ".hero-tagline",  translate: true },
+    { selector: ".hero-tagline", translate: true },
   ],
 });
 ```
@@ -215,9 +215,7 @@ The extract CLI reads the same `componentMap` / `rules` from a JSON config file:
     "TabsTrigger": "button",
     "PageHeader": "header"
   },
-  "rules": [
-    { "selector": "[data-testid]", "translate": false }
-  ]
+  "rules": [{ "selector": "[data-testid]", "translate": false }]
 }
 ```
 
@@ -233,9 +231,9 @@ import { neokapiDecorator, neokapiGlobalType } from "@neokapi/kapi-react/storybo
 
 const i18n = {
   locales: [
-    { value: "en",  title: "English" },
-    { value: "fr",  title: "French",  url: "/translations/fr.json" },
-    { value: "qps", title: "Pseudo",  url: "/translations/qps.json" },
+    { value: "en", title: "English" },
+    { value: "fr", title: "French", url: "/translations/fr.json" },
+    { value: "qps", title: "Pseudo", url: "/translations/qps.json" },
   ],
 };
 
@@ -272,9 +270,9 @@ A globe icon appears in the Storybook toolbar; switching locale re-renders every
 ```html
 <!-- before -->
 <html lang="en" dir="ltr">
-
-<!-- after loadTranslations("ar-SA", …) -->
-<html lang="ar-SA" dir="rtl">
+  <!-- after loadTranslations("ar-SA", …) -->
+  <html lang="ar-SA" dir="rtl"></html>
+</html>
 ```
 
 The runtime also swaps `dir="rtl"` for the common RTL primary subtags (`ar`, `dv`, `fa`, `he`, `ku`, `ps`, `sd`, `ur`, `yi`, and a few more). Everything else defaults to `dir="ltr"`. The attribute drives browser-level hyphenation, spelling, font fallbacks, and — most importantly — screen-reader language announcements.
@@ -333,7 +331,7 @@ document.documentElement.setAttribute("dir", myRTLPolicy(locale) ? "rtl" : "ltr"
 rules: [
   { selector: ".monospace", translate: false },
   { selector: "[aria-hidden]", translate: false },
-]
+];
 ```
 
 ### Per attribute on a component
@@ -391,7 +389,9 @@ second pair of markers. Common with dynamic label patterns:
 
 ```tsx
 // meta.label is already a t()-resolved string from categoryMeta()
-<Button>{meta.label} ({catTools.length})</Button>
+<Button>
+  {meta.label} ({catTools.length})
+</Button>
 // pseudo: ▒ ▒ Utility ▒ (32) ▒   ← double wrap
 ```
 

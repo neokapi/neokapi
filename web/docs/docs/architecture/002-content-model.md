@@ -155,15 +155,15 @@ type Annotation interface {
 
 Built-in annotation types include:
 
-| Annotation                | Type Key           | Producer              | Purpose                                    |
-| ------------------------- | ------------------ | --------------------- | ------------------------------------------ |
-| `AltTranslation`          | `alt-translation`  | TM leverage, AI tools | Alternative translations with scores       |
-| `TMMatchAnnotation`       | `tm-match`         | tm-leverage           | Best TM match with fuzzy score             |
-| `TermAnnotation`          | `term`             | term-lookup           | Matched terminology with target terms      |
-| `TermCandidateAnnotation` | `term-candidate`   | ai-terminology        | Term extraction candidates from LLM        |
-| `EntityAnnotation`        | `entity`           | entity-annotate       | Named entities (people, places, dates)     |
-| `QAFindingAnnotation`     | `qa-finding`       | qa-check              | Quality check findings with severity       |
-| `WordCountAnnotation`     | `word-count`       | word-count            | Token and character counts                 |
+| Annotation                | Type Key          | Producer              | Purpose                                |
+| ------------------------- | ----------------- | --------------------- | -------------------------------------- |
+| `AltTranslation`          | `alt-translation` | TM leverage, AI tools | Alternative translations with scores   |
+| `TMMatchAnnotation`       | `tm-match`        | tm-leverage           | Best TM match with fuzzy score         |
+| `TermAnnotation`          | `term`            | term-lookup           | Matched terminology with target terms  |
+| `TermCandidateAnnotation` | `term-candidate`  | ai-terminology        | Term extraction candidates from LLM    |
+| `EntityAnnotation`        | `entity`          | entity-annotate       | Named entities (people, places, dates) |
+| `QAFindingAnnotation`     | `qa-finding`      | qa-check              | Quality check findings with severity   |
+| `WordCountAnnotation`     | `word-count`      | word-count            | Token and character counts             |
 
 Annotations are keyed by type and instance (`"term:0"`, `"term:1"`) to
 support multiple annotations of the same type per Block. They carry
@@ -297,7 +297,7 @@ types, grouped into categories by namespace prefix:
 | `entity:date`         | Date value        |
 | `entity:time`         | Time value        |
 | `entity:currency`     | Currency amount   |
-| `entity:measurement` | Measurement value |
+| `entity:measurement`  | Measurement value |
 
 ### Format-specific refinement via SubType
 
@@ -416,17 +416,17 @@ This separation is deliberate:
 
 The framework provides:
 
-| Projection                                      | Surface                                | Consumer                                                                  |
-| ----------------------------------------------- | -------------------------------------- | ------------------------------------------------------------------------- |
-| `Run[]` (no projection)                         | `Segment.Runs`, KLF JSON wire          | Pipeline tools, store, format readers/writers                             |
-| `RenderRunsWithData(runs)`                      | native source markup                   | Format writers (HTML, Markdown, XLIFF fallback) — replays `Data` verbatim |
-| `RunsStructuralText(runs)`                      | `Click {1}here{/1} for info`           | TM matching (structural tier) — cross-format leverage                     |
-| `RunsGeneralizedText(runs)`                     | structural + entity placeholders       | TM matching (generalized tier)                                            |
-| `RunsPlaceholderText(runs)`                     | `<x id="1"/>here<x id="/1"/>`          | LLM prompts where tag preservation is critical                            |
-| `RunsSemanticHTML(runs, reg)`                   | `<a href="…">here</a>`                 | Commercial MT (DeepL, Google) and HTML-style LLM prompts                  |
-| `flattenRuns(runs)` (TS)                        | `Click {=m0}here{/=m0}`                | ICU runtime, kapi-react `__tx` re-attach                                  |
-| `runsToCoded(runs)` (TS)                        | PUA-marker text + `SpanInfo[]`         | Visual editor (chips, formatting, semantic spans rendered as styled text) |
-| `Fragment.CodedText` + `Spans`                  | PUA-marker text + `Span[]`             | Persistence bridge, XLIFF round-trip via `Span.Data`                      |
+| Projection                     | Surface                          | Consumer                                                                  |
+| ------------------------------ | -------------------------------- | ------------------------------------------------------------------------- |
+| `Run[]` (no projection)        | `Segment.Runs`, KLF JSON wire    | Pipeline tools, store, format readers/writers                             |
+| `RenderRunsWithData(runs)`     | native source markup             | Format writers (HTML, Markdown, XLIFF fallback) — replays `Data` verbatim |
+| `RunsStructuralText(runs)`     | `Click {1}here{/1} for info`     | TM matching (structural tier) — cross-format leverage                     |
+| `RunsGeneralizedText(runs)`    | structural + entity placeholders | TM matching (generalized tier)                                            |
+| `RunsPlaceholderText(runs)`    | `<x id="1"/>here<x id="/1"/>`    | LLM prompts where tag preservation is critical                            |
+| `RunsSemanticHTML(runs, reg)`  | `<a href="…">here</a>`           | Commercial MT (DeepL, Google) and HTML-style LLM prompts                  |
+| `flattenRuns(runs)` (TS)       | `Click {=m0}here{/=m0}`          | ICU runtime, kapi-react `__tx` re-attach                                  |
+| `runsToCoded(runs)` (TS)       | PUA-marker text + `SpanInfo[]`   | Visual editor (chips, formatting, semantic spans rendered as styled text) |
+| `Fragment.CodedText` + `Spans` | PUA-marker text + `Span[]`       | Persistence bridge, XLIFF round-trip via `Span.Data`                      |
 
 Two consequences fall out of the convention:
 

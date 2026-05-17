@@ -186,10 +186,10 @@ export default function TestComparison() {
           <>
             <h2 className={styles.subfilterHeading}>Layer formats (subfilters)</h2>
             <p className={styles.subfilterNote}>
-              These filters are invoked by a parent filter when it encounters embedded content
-              (e.g. ICU MessageFormat inside a Properties value). They have no top-level bridge
-              schema and are not dispatched standalone, so the bridge column and parity runner
-              show no data — the native runner still verifies the spec.
+              These filters are invoked by a parent filter when it encounters embedded content (e.g.
+              ICU MessageFormat inside a Properties value). They have no top-level bridge schema and
+              are not dispatched standalone, so the bridge column and parity runner show no data —
+              the native runner still verifies the spec.
             </p>
             <div className={styles.filterList}>
               <FilterColumnHeadings />

@@ -50,15 +50,15 @@ Inline elements that produce paired markers: `<span>`, `<strong>`, `<em>`, `<b>`
 
 The rule is uniform: **any inline element with at least one child → paired pair**, regardless of whether the inner content is text, an expression, an icon, or further nested elements. Empty inline elements become **standalone markers** instead. A few examples:
 
-| Source                                | Extracted form                              |
-| ------------------------------------- | ------------------------------------------- |
-| `<a>here</a>`                         | `"{=m0}here{/=m0}"`                         |
-| `<a><Icon/></a>`                      | `"{=m0}{=m1}{/=m0}"`                        |
-| `<a>{userName}</a>`                   | `"{=m0}{userName}{/=m0}"`                   |
-| `<strong>{count}</strong>`            | `"{=m0}{count}{/=m0}"`                      |
-| `<a>read <em>the</em> docs</a>`       | `"{=m0}read {=m1}the{/=m1} docs{/=m0}"`     |
-| `<Icon/>` (no children)               | `"{=m0}"` (no matching `{/=m0}` close)      |
-| `<br/>` (no children)                 | `"{=m0}"` (no matching `{/=m0}` close)      |
+| Source                          | Extracted form                          |
+| ------------------------------- | --------------------------------------- |
+| `<a>here</a>`                   | `"{=m0}here{/=m0}"`                     |
+| `<a><Icon/></a>`                | `"{=m0}{=m1}{/=m0}"`                    |
+| `<a>{userName}</a>`             | `"{=m0}{userName}{/=m0}"`               |
+| `<strong>{count}</strong>`      | `"{=m0}{count}{/=m0}"`                  |
+| `<a>read <em>the</em> docs</a>` | `"{=m0}read {=m1}the{/=m1} docs{/=m0}"` |
+| `<Icon/>` (no children)         | `"{=m0}"` (no matching `{/=m0}` close)  |
+| `<br/>` (no children)           | `"{=m0}"` (no matching `{/=m0}` close)  |
 
 JSX-element tokens always read `{=m<N>}`; the runtime tells standalone from paired by looking for a matching `{/=m<N>}` close in the same scope. Variable tokens (`{userName}`, `{count}`) carry the JS identifier directly.
 
@@ -75,7 +75,7 @@ Lots of real React UI looks like `<Button><Icon />Open File...</Button>` — an 
 
 Extracts as `"{=m0} Open File..."` with `{=m0}` bound to the `<FolderOpen />` element (standalone — no matching `{/=m0}` close). Works the same for Radix icons, lucide-react, Heroicons, custom `<Spinner />` components — anything with no children.
 
-Unmapped React components with children are still treated as block-level by default (warning suggests a `componentMap` entry — see "Unknown components" below). The narrow rule for *zero-children* unmapped components prevents false positives on custom block-level components like `<Panel><Heading>…</Heading></Panel>`.
+Unmapped React components with children are still treated as block-level by default (warning suggests a `componentMap` entry — see "Unknown components" below). The narrow rule for _zero-children_ unmapped components prevents false positives on custom block-level components like `<Panel><Heading>…</Heading></Panel>`.
 
 ### Auto-promoted containers
 
@@ -92,9 +92,7 @@ To opt out: `<div translate="no">...</div>` or a rule:
 
 ```ts
 neokapi({
-  rules: [
-    { selector: ".hero-video-caption", translate: false },
-  ],
+  rules: [{ selector: ".hero-video-caption", translate: false }],
 });
 ```
 
@@ -131,10 +129,10 @@ neokapi({
 
 These attribute names are extracted on any element (mapped or not):
 
-| Bucket | Names |
-|---|---|
-| HTML | `alt`, `title`, `placeholder` |
-| ARIA | `aria-label`, `aria-description`, `aria-placeholder`, `aria-roledescription`, `aria-valuetext` |
+| Bucket            | Names                                                                                                                 |
+| ----------------- | --------------------------------------------------------------------------------------------------------------------- |
+| HTML              | `alt`, `title`, `placeholder`                                                                                         |
+| ARIA              | `aria-label`, `aria-description`, `aria-placeholder`, `aria-roledescription`, `aria-valuetext`                        |
 | React conventions | `subtitle`, `description`, `label`, `heading`, `caption`, `helpText`, `helperText`, `errorMessage`, `hint`, `tooltip` |
 
 So these all work out of the box:
@@ -154,7 +152,7 @@ Each attribute becomes its own translatable block.
 
 ### Ternary attribute values
 
-When a translatable attribute's value is a ternary with *both branches as plain string literals*, each branch extracts as its own block:
+When a translatable attribute's value is a ternary with _both branches as plain string literals_, each branch extracts as its own block:
 
 ```tsx
 <PageHeader title={isProjectMode ? "Project Flows" : "Flows"} />
@@ -162,7 +160,7 @@ When a translatable attribute's value is a ternary with *both branches as plain 
 
 Both `"Project Flows"` and `"Flows"` get extracted (with `::0` / `::1` suffixes on the context to keep the hashes distinct). At runtime the transform rewrites each literal branch with its own `__t()` lookup; the condition still fires at render time.
 
-Mixed-shape ternaries (one literal, one computed, or both templates) *aren't* statically extractable — the lint rule [`no-ternary-in-translatable-attr`](./linting#no-ternary-in-translatable-attr) flags them. Fix by wrapping both branches with `t()` so the t-call walker picks them up:
+Mixed-shape ternaries (one literal, one computed, or both templates) _aren't_ statically extractable — the lint rule [`no-ternary-in-translatable-attr`](./linting#no-ternary-in-translatable-attr) flags them. Fix by wrapping both branches with `t()` so the t-call walker picks them up:
 
 ```tsx
 // ✗ extractor can't see the template-literal branch
@@ -226,12 +224,12 @@ The extractor can only see what it can statically reason about. These patterns s
 
 ```tsx
 const THEMES = [
-  { value: "system", label: "System" },   // ✗ not extractable
-  { value: "light",  label: "Light" },
+  { value: "system", label: "System" }, // ✗ not extractable
+  { value: "light", label: "Light" },
 ];
 
 return THEMES.map(({ value, label }) => (
-  <button>{label}</button>                // ✗ label is an expression
+  <button>{label}</button> // ✗ label is an expression
 ));
 ```
 
@@ -240,7 +238,7 @@ Fix with the [`t()` escape hatch](./t-escape-hatch):
 ```tsx
 const THEMES = [
   { value: "system", label: t("System") },
-  { value: "light",  label: t("Light") },
+  { value: "light", label: t("Light") },
 ];
 ```
 
@@ -255,7 +253,7 @@ The render-side mirror of the above: `{obj.label}` / `{item.title}` rendered as 
 <h1>{meta.label}</h1>
 ```
 
-Fix by wrapping the *source* data with `t()` (same as "Strings in JS data structures" above). The lint rule [`prefer-t-for-label-expr`](./linting#prefer-t-for-label-expr) flags the render site to prompt the refactor.
+Fix by wrapping the _source_ data with `t()` (same as "Strings in JS data structures" above). The lint rule [`prefer-t-for-label-expr`](./linting#prefer-t-for-label-expr) flags the render site to prompt the refactor.
 
 ### Ternary with string literals as JSX children
 
@@ -274,7 +272,7 @@ Caught by [`no-ternary-literals-in-jsx-child`](./linting#no-ternary-literals-in-
 
 ### Module-level `t()` gotcha
 
-`t()` reads the active dictionary **at call time**. A module-level const evaluates once, at import time — typically *before* `loadTranslations()` has finished. The const freezes at the fallback language forever.
+`t()` reads the active dictionary **at call time**. A module-level const evaluates once, at import time — typically _before_ `loadTranslations()` has finished. The const freezes at the fallback language forever.
 
 ```tsx
 // ✗ "Utility" will still say "Utility" in pseudo.
@@ -290,8 +288,10 @@ Fix: wrap the lookup in a function that runs per render.
 // ✓ each render resolves the label against the current dict.
 function categoryMeta(cat: string) {
   switch (cat) {
-    case "utility":  return { label: t("Utility") };
-    case "pipeline": return { label: t("Pipeline") };
+    case "utility":
+      return { label: t("Utility") };
+    case "pipeline":
+      return { label: t("Pipeline") };
     // …
   }
 }
@@ -304,7 +304,7 @@ function Chip({ cat }: { cat: string }) {
 
 ### Double-translation: already-translated values inside translatable blocks
 
-A subtle pattern that only shows up in pseudo. If you render a `t()`-resolved string as a child of an element the extractor also wraps as a block, pseudo-translation gets applied *twice* — the inner `t()` adds its markers, and the outer element's translation wraps around them:
+A subtle pattern that only shows up in pseudo. If you render a `t()`-resolved string as a child of an element the extractor also wraps as a block, pseudo-translation gets applied _twice_ — the inner `t()` adds its markers, and the outer element's translation wraps around them:
 
 ```tsx
 <Button>
@@ -335,29 +335,27 @@ Attach a note to an element so translators see context when they open the block:
 Or via a rule:
 
 ```ts
-rules: [
-  { selector: ".legal-copy", locNote: "Legal team must review" },
-]
+rules: [{ selector: ".legal-copy", locNote: "Legal team must review" }];
 ```
 
 ## Summary: what goes where
 
-| Source pattern | Extracted? | Notes |
-|---|---|---|
-| `<h1>Hello</h1>` | ✓ | standard translatable element |
-| `<div>Hello</div>` | ✓ | auto-promoted silently |
-| `<Button><Icon/>Save</Button>` | ✓ | "Save" extracts with `{=m0}` standalone for the icon |
-| `<TabsTrigger>Hello</TabsTrigger>` | ✓ | warning suggests `componentMap` |
-| `<PageHeader title="Hi" />` | ✓ | `title` in the translatable-attributes set |
-| `<PageHeader title={cond ? "A" : "B"} />` | ✓ | both branches — one block each |
-| `<MyComp description="Hi" />` | ✓ | `description` too |
-| `<p>Click <a>here</a></p>` | ✓ | one block, `<a>` becomes paired `{=m0}…{/=m0}` |
-| `<code>foo</code>` | ✗ | non-translatable element |
-| `<h1 translate="no">X</h1>` | ✗ | explicit opt-out (suppresses lint too) |
-| `<button>{label}</button>` | ✗ | bare expression — use `t()` on the source |
-| `<button>{obj.label}</button>` | ✗ | flagged by `prefer-t-for-label-expr` — wrap the source |
-| `<button>{cond ? "A" : "B"}</button>` | ✗ | flagged by `no-ternary-literals-in-jsx-child` — wrap branches with `t()` |
-| `<div>{cond && 'Hi'}</div>` | ✗ | expression — use `t()` |
+| Source pattern                            | Extracted? | Notes                                                                    |
+| ----------------------------------------- | ---------- | ------------------------------------------------------------------------ |
+| `<h1>Hello</h1>`                          | ✓          | standard translatable element                                            |
+| `<div>Hello</div>`                        | ✓          | auto-promoted silently                                                   |
+| `<Button><Icon/>Save</Button>`            | ✓          | "Save" extracts with `{=m0}` standalone for the icon                     |
+| `<TabsTrigger>Hello</TabsTrigger>`        | ✓          | warning suggests `componentMap`                                          |
+| `<PageHeader title="Hi" />`               | ✓          | `title` in the translatable-attributes set                               |
+| `<PageHeader title={cond ? "A" : "B"} />` | ✓          | both branches — one block each                                           |
+| `<MyComp description="Hi" />`             | ✓          | `description` too                                                        |
+| `<p>Click <a>here</a></p>`                | ✓          | one block, `<a>` becomes paired `{=m0}…{/=m0}`                           |
+| `<code>foo</code>`                        | ✗          | non-translatable element                                                 |
+| `<h1 translate="no">X</h1>`               | ✗          | explicit opt-out (suppresses lint too)                                   |
+| `<button>{label}</button>`                | ✗          | bare expression — use `t()` on the source                                |
+| `<button>{obj.label}</button>`            | ✗          | flagged by `prefer-t-for-label-expr` — wrap the source                   |
+| `<button>{cond ? "A" : "B"}</button>`     | ✗          | flagged by `no-ternary-literals-in-jsx-child` — wrap branches with `t()` |
+| `<div>{cond && 'Hi'}</div>`               | ✗          | expression — use `t()`                                                   |
 
 ## Next
 

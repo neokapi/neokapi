@@ -267,15 +267,15 @@ func ResolveFlowLocales(
 Resolution returns a slice of locale sets — one set per execution pass.
 Examples:
 
-| Flow                      | Tools                                         | Passes                                        |
-| ------------------------- | --------------------------------------------- | --------------------------------------------- |
-| word-count                | `[word-count(mono)]`                          | `[[en]]`                                      |
-| pseudo-translate          | `[pseudo-translate(bi, default:qps)]`         | `[[en, qps]]`                                 |
-| translate                 | `[ai-translate(bi)]`                          | `[[en, de], [en, fr], [en, ja], ...]`         |
-| translate+qa              | `[ai-translate(bi), qa-check(bi)]`            | `[[en, de], [en, fr], ...]`                   |
-| compare de vs fr          | `[comparison(bi)]` with config `[de, fr]`     | `[[de, fr]]`                                  |
-| cross-locale QA           | `[consistency-check(multi)]`                  | `[[en, de, fr, ja, nb, ar]]`                  |
-| translate + pseudo        | `[ai-translate(bi), pseudo(bi, default:qps)]` | `[[en, de], [en, fr], ..., [en, qps]]`        |
+| Flow               | Tools                                         | Passes                                 |
+| ------------------ | --------------------------------------------- | -------------------------------------- |
+| word-count         | `[word-count(mono)]`                          | `[[en]]`                               |
+| pseudo-translate   | `[pseudo-translate(bi, default:qps)]`         | `[[en, qps]]`                          |
+| translate          | `[ai-translate(bi)]`                          | `[[en, de], [en, fr], [en, ja], ...]`  |
+| translate+qa       | `[ai-translate(bi), qa-check(bi)]`            | `[[en, de], [en, fr], ...]`            |
+| compare de vs fr   | `[comparison(bi)]` with config `[de, fr]`     | `[[de, fr]]`                           |
+| cross-locale QA    | `[consistency-check(multi)]`                  | `[[en, de, fr, ja, nb, ar]]`           |
+| translate + pseudo | `[ai-translate(bi), pseudo(bi, default:qps)]` | `[[en, de], [en, fr], ..., [en, qps]]` |
 
 Mixed flows resolve to the union of all needed passes.
 
@@ -437,12 +437,12 @@ All built-in tools register via `RegisterAll()` in `core/tools/register.go`.
 
 **Pipeline tools** — operate on the part stream:
 
-| Tool               | Description                                                                             |
-| ------------------ | --------------------------------------------------------------------------------------- |
-| `layer-processor`  | Apply format-specific tool chains to child layers                                       |
-| `external-command` | Execute an external command on block text                                               |
-| `script`           | Run user-provided JavaScript (ES5 via goja) on each part                                |
-| `batch`            | Collect blocks into configurable batches for downstream batch processing                |
+| Tool               | Description                                                              |
+| ------------------ | ------------------------------------------------------------------------ |
+| `layer-processor`  | Apply format-specific tool chains to child layers                        |
+| `external-command` | Execute an external command on block text                                |
+| `script`           | Run user-provided JavaScript (ES5 via goja) on each part                 |
+| `batch`            | Collect blocks into configurable batches for downstream batch processing |
 
 ### AI, MT, and terminology tools
 
@@ -468,16 +468,16 @@ in flows.
 
 **Terminology tools** (`termbase/`):
 
-| Tool           | Description                                          |
-| -------------- | ---------------------------------------------------- |
-| `term-lookup`  | Annotate blocks with matching terms from a TermBase  |
-| `term-enforce` | Verify correct terminology usage in translations     |
+| Tool           | Description                                         |
+| -------------- | --------------------------------------------------- |
+| `term-lookup`  | Annotate blocks with matching terms from a TermBase |
+| `term-enforce` | Verify correct terminology usage in translations    |
 
 **TM tools** (`sievepen/`):
 
-| Tool          | Description                                                                             |
-| ------------- | --------------------------------------------------------------------------------------- |
-| `tm-leverage` | Content-aware TM leverage with generalized, structural, and plain matching              |
+| Tool          | Description                                                                |
+| ------------- | -------------------------------------------------------------------------- |
+| `tm-leverage` | Content-aware TM leverage with generalized, structural, and plain matching |
 
 ### Flow steps format
 

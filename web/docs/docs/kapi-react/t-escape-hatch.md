@@ -16,14 +16,14 @@ Use `t()` to mark them for extraction without leaving the translator's flow.
 import { t } from "@neokapi/kapi-react/runtime";
 
 const UI_LANGUAGES = [
-  { value: "en",  label: t("English") },
+  { value: "en", label: t("English") },
   { value: "qps", label: t("Pseudo English (qps)") },
 ];
 
 const THEMES = [
   { value: "system", icon: Monitor, label: t("System") },
-  { value: "light",  icon: Sun,     label: t("Light") },
-  { value: "dark",   icon: Moon,    label: t("Dark") },
+  { value: "light", icon: Sun, label: t("Light") },
+  { value: "dark", icon: Moon, label: t("Dark") },
 ];
 
 function greet(user: User) {
@@ -35,10 +35,10 @@ At build time the plugin rewrites every `t("...")` call bound to `@neokapi/kapi-
 
 ```ts
 // Input
-t("English")
+t("English");
 
 // Output (runtime mode)
-__t("aB3xZ", "English")
+__t("aB3xZ", "English");
 ```
 
 In dev mode (plugin not active) `t` is a no-op that returns the source text verbatim, with `{name}` substitutions applied. So you can use it unconditionally — tests, SSR, storybook, dev server: all fine.
@@ -52,7 +52,7 @@ kapi-react's promise is zero wrappers for JSX. JS data structures are different 
 ## Parameters
 
 ```tsx
-t("Hello, {name}!", { name: "Alice" })
+t("Hello, {name}!", { name: "Alice" });
 // → "Hello, Alice!" in dev mode
 // → translation with {name} substituted at runtime in production
 ```
@@ -66,9 +66,9 @@ Some strings are spelled the same in English but mean different things. A CAT to
 Pass a positional context as the second argument:
 
 ```tsx
-t("State", "US state")          // → address form field
-t("State", "workflow status")   // → task lifecycle
-t("State", "physics lecture")   // → h / cold / gas / plasma
+t("State", "US state"); // → address form field
+t("State", "workflow status"); // → task lifecycle
+t("State", "physics lecture"); // → h / cold / gas / plasma
 ```
 
 Each of those is a **separate block** with a different hash, so translators can give each one its own target string.
@@ -76,7 +76,7 @@ Each of those is a **separate block** with a different hash, so translators can 
 With params, context comes first:
 
 ```tsx
-t("Hello, {name}!", "greeting", { name: user.name })
+t("Hello, {name}!", "greeting", { name: user.name });
 ```
 
 Context only affects the hash at extract / transform time. It's stripped from the emitted `__t()` call and never ships to the runtime — the hash already encodes the disambiguation.
@@ -89,11 +89,11 @@ The plugin only rewrites `t` identifiers bound to `@neokapi/kapi-react/runtime`.
 
 ```tsx
 import { t } from "@neokapi/kapi-react/runtime";
-import { t as styled } from "styled-components";   // ← unrelated
+import { t as styled } from "styled-components"; // ← unrelated
 
-const Wrapper = styled.div`...`;   // ← not rewritten
+const Wrapper = styled.div`...`; // ← not rewritten
 
-const label = t("Hello");          // ← rewritten to __t("hash", "Hello")
+const label = t("Hello"); // ← rewritten to __t("hash", "Hello")
 ```
 
 Aliases work too:
@@ -101,7 +101,7 @@ Aliases work too:
 ```tsx
 import { t as tr } from "@neokapi/kapi-react/runtime";
 
-const label = tr("Hello");   // ← rewritten
+const label = tr("Hello"); // ← rewritten
 ```
 
 ## Where the hash comes from
@@ -117,7 +117,7 @@ So `t("Save")` and `<button>Save</button>` produce **different** hashes. That's 
 ## Module-level `t()` gotcha
 
 `t()` reads the active dictionary **at call time**. A module-level
-const evaluates once, at import — typically *before* the app has
+const evaluates once, at import — typically _before_ the app has
 finished calling `loadTranslations()`. The const freezes at the
 fallback language forever:
 
@@ -136,8 +136,10 @@ reads the current dict:
 // ✓ Per-render resolution.
 function categoryMeta(cat: string) {
   switch (cat) {
-    case "utility":  return { label: t("Utility") };
-    case "pipeline": return { label: t("Pipeline") };
+    case "utility":
+      return { label: t("Utility") };
+    case "pipeline":
+      return { label: t("Pipeline") };
     // …
   }
 }
@@ -151,14 +153,14 @@ function Chip({ cat }: { cat: string }) {
 
 **Why the `translate="no"`?** If the parent would be extractable on
 its own (has static text, inline children, etc.), it'd wrap the
-already-translated `meta.label` in a *second* translation layer,
+already-translated `meta.label` in a _second_ translation layer,
 showing `▒ ▒ Utility ▒ ▒` in pseudo. `translate="no"` tells the
 extractor the inner `t()` is the single source of truth for this
 subtree. See [Writing components → Double-translation](./writing-components#double-translation-already-translated-values-inside-translatable-blocks).
 
 ## Ternary children with string literals
 
-kapi-react treats the *whole* `JSXExpressionContainer` as one
+kapi-react treats the _whole_ `JSXExpressionContainer` as one
 placeholder — it never looks inside a ternary at its branches:
 
 ```tsx

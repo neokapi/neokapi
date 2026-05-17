@@ -120,6 +120,7 @@ All four framework modules are Apache-2.0. The broader repository also hosts
 The license gradient is one-directional:
 
 ```
+
 ```
 
 This is a structural property, not a convention. Because the framework

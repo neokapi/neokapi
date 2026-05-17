@@ -24,25 +24,25 @@ Serious localization shops run on bilingual exchange formats. XLIFF
 are the lingua franca between authored sources, CAT tools (Trados,
 memoQ, OmegaT, Smartcat, Phrase, Crowdin, Lokalise, Weblate, Poedit,
 …) and everything else a translation project touches. Kapi already
-had high-quality *format support* for bilingual formats — full
+had high-quality _format support_ for bilingual formats — full
 readers and writers with byte-exact roundtripping (AD-005) — but no
 workflow glue tying extract, translate, merge, and the TM
 touchpoints on each into one integrated feature.
 
 Every data exchange kapi touches falls into one of six categories:
 
-| # | Boundary | Direction | Format(s) |
-|---|---|---|---|
-| 1 | Authored source | In | JSON, YAML, HTML, .strings, .properties, .docx, .xml, .md, … |
-| 2 | Translated output | Out | Same as #1 |
-| 3 | **Bilingual exchange** | Out/In | **XLIFF 2.x, PO** (day-one); XLIFF 1.2, Qt TS, XLSX-bilingual, SRT, TTML available as format support |
-| 4 | **Translation memory** | In (loop) / Out/In (TMX) | Project TM (`sievepen/`), TMX for interop |
-| 5 | Terminology | In (loop) / Out/In | Project termbase (`termbase/`), TBX/CSV/JSON |
-| 6 | Project portability | Out/In | `.kapi` folder (YAML recipe + `.kapi/` state) |
+| #   | Boundary               | Direction                | Format(s)                                                                                            |
+| --- | ---------------------- | ------------------------ | ---------------------------------------------------------------------------------------------------- |
+| 1   | Authored source        | In                       | JSON, YAML, HTML, .strings, .properties, .docx, .xml, .md, …                                         |
+| 2   | Translated output      | Out                      | Same as #1                                                                                           |
+| 3   | **Bilingual exchange** | Out/In                   | **XLIFF 2.x, PO** (day-one); XLIFF 1.2, Qt TS, XLSX-bilingual, SRT, TTML available as format support |
+| 4   | **Translation memory** | In (loop) / Out/In (TMX) | Project TM (`sievepen/`), TMX for interop                                                            |
+| 5   | Terminology            | In (loop) / Out/In       | Project termbase (`termbase/`), TBX/CSV/JSON                                                         |
+| 6   | Project portability    | Out/In                   | `.kapi` folder (YAML recipe + `.kapi/` state)                                                        |
 
 Boundary 3 is the headline gap this AD closes; **boundary 4 is the
 silent one**. The TM exists, TMX ships in and out, but the loop that
-matters — *leverage on extract, absorb on merge* — has to be wired
+matters — _leverage on extract, absorb on merge_ — has to be wired
 or the most valuable asset a translation project accumulates over
 time goes unused.
 
@@ -164,10 +164,10 @@ Each `kapi extract` run writes a manifest at
 schemaVersion: 1
 kind: kapi-extraction
 batchId: 6f2e8a1c-...
-generator: {id: kapi, version: v1.x}
+generator: { id: kapi, version: v1.x }
 createdAt: 2026-04-24T10:00:00Z
 sourceLocale: en-US
-options: {format: xliff2, xliffVersion: "2.2", noTM: false}
+options: { format: xliff2, xliffVersion: "2.2", noTM: false }
 pairs:
   - targetLocale: fr-FR
     output: out/myapp-en-to-fr.xliff
@@ -175,7 +175,7 @@ pairs:
       - source: src/locales/en-US/app.json
         sourceHash: sha256:...
         blocks: 412
-        leverage: {exact: 108, fuzzy: 67, new: 237}
+        leverage: { exact: 108, fuzzy: 67, new: 237 }
         skeleton: skel-<source-hash>.bin
   - targetLocale: de-DE
     output: out/myapp-en-to-de.xliff
@@ -265,14 +265,14 @@ defaults:
   source_language: en-US
   target_languages: [fr-FR, de-DE, es-ES]
   merge:
-    conflict_policy: translator-wins    # | existing-wins | newest-wins
+    conflict_policy: translator-wins # | existing-wins | newest-wins
   tm:
-    fuzzy_threshold: 75                 # int 0..100
-    read:                               # optional read-only TMs
+    fuzzy_threshold: 75 # int 0..100
+    read: # optional read-only TMs
       - /path/to/corporate.tmx
   segmentation:
-    source: false                       # opt-in
-    srx: rules.srx                      # optional SRX override
+    source: false # opt-in
+    srx: rules.srx # optional SRX override
 ```
 
 Unknown fields are rejected with a clear error. Enum values are
@@ -315,7 +315,7 @@ is an overlay, not a structural change. The same Block may emit 1
 or N segments depending on the recipe; using block hash as the
 stable key means the project can change segmentation settings
 between extractions without breaking merge. Segment IDs (`s1`,
-`s2`, …) ride *inside* the block's bookkeeping.
+`s2`, …) ride _inside_ the block's bookkeeping.
 
 **Why project-state skeletons (not embedded)?** Keeps the emitted
 XLIFF small and CAT-friendly. Makes TM absorb cheap (no skeleton

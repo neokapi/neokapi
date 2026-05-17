@@ -30,13 +30,13 @@ The two commands that define this workflow are `kapi extract` and
   ┌───────────────── TM absorb on merge ─────────────────┐
   │                                                      │
 authored source  ──►  kapi extract  ──►  XLIFF / PO  ──► translator  ──►
-                           │                                               
-                           │                                               
-                           ▼                                               
-                      project TM                                           
-                           ▲                                               
-                           │                                               
-  ◄── kapi merge   ◄── translated XLIFF / PO   ◄── returned by translator   
+                           │
+                           │
+                           ▼
+                      project TM
+                           ▲
+                           │
+  ◄── kapi merge   ◄── translated XLIFF / PO   ◄── returned by translator
 ```
 
 - **TM pre-fill on extract** — every segment is looked up against the
@@ -66,11 +66,11 @@ defaults:
   source_language: en-US
   target_languages: [fr-FR, de-DE, es-ES]
   merge:
-    conflict_policy: translator-wins   # | existing-wins | newest-wins
+    conflict_policy: translator-wins # | existing-wins | newest-wins
   tm:
-    fuzzy_threshold: 75                 # percent; 0..100
+    fuzzy_threshold: 75 # percent; 0..100
   segmentation:
-    source: false                       # opt-in SRX segmentation
+    source: false # opt-in SRX segmentation
 content:
   - path: src/locales/en/*.json
     format: json
@@ -191,11 +191,11 @@ You can re-extract and re-translate the drifted portion.
 When an on-disk target (or TM TU) already carries a translation for a
 block, `merge.conflict_policy` picks what happens:
 
-| Policy              | Behavior                                                         |
-| ------------------- | ---------------------------------------------------------------- |
-| `translator-wins`   | Default. The translator's target always replaces the existing.   |
-| `existing-wins`     | Preserve the existing target; skip the translator's.             |
-| `newest-wins`       | Compare timestamps (file mtime / TU `UpdatedAt`); pick the newer.|
+| Policy            | Behavior                                                          |
+| ----------------- | ----------------------------------------------------------------- |
+| `translator-wins` | Default. The translator's target always replaces the existing.    |
+| `existing-wins`   | Preserve the existing target; skip the translator's.              |
+| `newest-wins`     | Compare timestamps (file mtime / TU `UpdatedAt`); pick the newer. |
 
 The same policy applies to TM write-back when a TU for this source already
 has a translation — never ambiguous, never interactive.

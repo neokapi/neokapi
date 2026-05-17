@@ -262,7 +262,8 @@ export function normalizeFilter(f: FilterComparison): FilterComparison {
   return {
     filterName: f.filterName,
     nativeFilterName: f.nativeFilterName,
-    specKind: specKind === "subfilter" ? "subfilter" : specKind === "top_level" ? "top_level" : undefined,
+    specKind:
+      specKind === "subfilter" ? "subfilter" : specKind === "top_level" ? "top_level" : undefined,
     okapi: f.okapi ?? null,
     bridge,
     native,

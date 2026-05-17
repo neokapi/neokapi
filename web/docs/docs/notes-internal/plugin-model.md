@@ -14,12 +14,12 @@ This note is the reference for: how the registries work, how to write a new plug
 
 The framework and shared CLI module expose four registries. A plugin can use any subset.
 
-| Registry | Lives in | Plugin extends with |
-|---|---|---|
-| `core/project.RegisterExtension` | framework | Recipe schema (typed YAML decoders for keys under `Extras`) |
-| `cli.RegisterCommandFactory` | shared CLI module | Top-level cobra subcommands (`push`, `pull`, …) |
-| `cli.RegisterAppInitializer` | shared CLI module | Mutates `*cli.App` after construction (sets fields, wires hooks) |
-| `cli.RegisterMCPToolFactory` | shared CLI module | MCP tools served by the shared `mcp` subcommand |
+| Registry                         | Lives in          | Plugin extends with                                              |
+| -------------------------------- | ----------------- | ---------------------------------------------------------------- |
+| `core/project.RegisterExtension` | framework         | Recipe schema (typed YAML decoders for keys under `Extras`)      |
+| `cli.RegisterCommandFactory`     | shared CLI module | Top-level cobra subcommands (`push`, `pull`, …)                  |
+| `cli.RegisterAppInitializer`     | shared CLI module | Mutates `*cli.App` after construction (sets fields, wires hooks) |
+| `cli.RegisterMCPToolFactory`     | shared CLI module | MCP tools served by the shared `mcp` subcommand                  |
 
 A plugin that only declares schema can be a tiny module with just one decoder file and no CLI deps — that's how `bowrain/plugin/schema/` is structured. A plugin that adds full UX (commands, MCP tools, source connector) layers more on top, but the schema part can ship independently.
 
@@ -255,13 +255,14 @@ make build-pure  # kapi-pure (no bowrain)
 ## Initialization order
 
 Within one Go binary:
+
 1. All `init()` functions run during binary startup, in package import order. Cross-package init order is undefined — the registries are append-only, so order shouldn't matter for correctness.
 2. The binary's `main()` constructs `*cli.App`, calls `app.InitRegistries()` (built-in formats/tools).
 3. Cobra's `init()` builds the command tree; the host calls `cli.ApplyCommandFactories(root, app)` after.
 4. `cobra.Execute()` runs. `PersistentPreRun` calls `app.Init()` then `cli.ApplyAppInitializers(app)`.
 5. The chosen subcommand's `RunE` runs.
 
-`AppInitializer` runs *after* `Init`, so plugins can rely on the registries (FormatReg, ToolReg, Credentials, Config) being populated. `CommandFactory` runs at `init()`-time of the host's main package — registries must be ready by then, which is why `InitRegistries` runs at cobra init too.
+`AppInitializer` runs _after_ `Init`, so plugins can rely on the registries (FormatReg, ToolReg, Credentials, Config) being populated. `CommandFactory` runs at `init()`-time of the host's main package — registries must be ready by then, which is why `InitRegistries` runs at cobra init too.
 
 ## Goroutines and async work
 
@@ -286,11 +287,13 @@ Tests that mutate the global registries should call `coreproj.ResetExtensionsFor
 ## Comparison with the gRPC plugin system
 
 The framework still has a separate gRPC-based plugin system at `core/plugin/` for **format readers/writers and tools** loaded out-of-process (e.g. the Java Okapi bridge). That system is appropriate when:
+
 - The plugin is written in another language (Java, etc.)
 - The plugin needs process isolation (different runtime, sandboxing)
 - The plugin is dynamically discovered at runtime (per-project or per-user)
 
 The build-time plugin model documented here is appropriate when:
+
 - The plugin is Go and ships as part of a binary distribution
 - Direct function calls and shared in-memory state are acceptable
 - The license / branding story benefits from a clean compile-time link

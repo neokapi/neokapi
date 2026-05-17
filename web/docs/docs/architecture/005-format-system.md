@@ -77,23 +77,23 @@ delegates lifecycle to the base embed.
 
 Fifteen formats ship in `core/formats/`:
 
-| Format             | Extensions              | Type                   |
-| ------------------ | ----------------------- | ---------------------- |
-| HTML               | `.html`, `.htm`         | Markup                 |
-| XML                | `.xml`                  | Markup                 |
-| XLIFF 1.2 / 2.0    | `.xliff`, `.xlf`        | Translation exchange   |
-| TMX                | `.tmx`                  | Translation memory     |
-| TBX                | `.tbx`                  | Terminology exchange   |
-| JSON               | `.json`                 | Structured             |
-| YAML               | `.yaml`, `.yml`         | Structured             |
-| Markdown           | `.md`, `.markdown`      | Markup                 |
-| CSV                | `.csv`                  | Grid                   |
-| Java Properties    | `.properties`           | Key-value              |
-| Gettext PO         | `.po`, `.pot`           | Key-value translation  |
-| .NET resx          | `.resx`                 | Key-value              |
-| Android strings    | `strings.xml`           | Key-value              |
-| iOS strings        | `.strings`              | Key-value              |
-| OpenXML            | `.docx`, `.xlsx`, `.pptx` | Markup (zipped)      |
+| Format          | Extensions                | Type                  |
+| --------------- | ------------------------- | --------------------- |
+| HTML            | `.html`, `.htm`           | Markup                |
+| XML             | `.xml`                    | Markup                |
+| XLIFF 1.2 / 2.0 | `.xliff`, `.xlf`          | Translation exchange  |
+| TMX             | `.tmx`                    | Translation memory    |
+| TBX             | `.tbx`                    | Terminology exchange  |
+| JSON            | `.json`                   | Structured            |
+| YAML            | `.yaml`, `.yml`           | Structured            |
+| Markdown        | `.md`, `.markdown`        | Markup                |
+| CSV             | `.csv`                    | Grid                  |
+| Java Properties | `.properties`             | Key-value             |
+| Gettext PO      | `.po`, `.pot`             | Key-value translation |
+| .NET resx       | `.resx`                   | Key-value             |
+| Android strings | `strings.xml`             | Key-value             |
+| iOS strings     | `.strings`                | Key-value             |
+| OpenXML         | `.docx`, `.xlsx`, `.pptx` | Markup (zipped)       |
 
 Each format package under `core/formats/<name>/` contains `reader.go`,
 `writer.go`, and `config.go`. Formats register both the reader factory

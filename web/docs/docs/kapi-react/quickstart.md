@@ -33,7 +33,7 @@ import neokapi from "@neokapi/kapi-react/vite";
 
 export default defineConfig({
   plugins: [
-    neokapi({ mode: "runtime" }),  // ← add this
+    neokapi({ mode: "runtime" }), // ← add this
     react(),
   ],
 });
@@ -144,14 +144,16 @@ A 10-line language picker wired to `setTranslations` / `loadTranslations`:
 import { loadTranslations, setTranslations, useNeokapi } from "@neokapi/kapi-react/runtime";
 
 export function LocaleSwitcher() {
-  useNeokapi();  // subscribe so the component re-renders on locale change
+  useNeokapi(); // subscribe so the component re-renders on locale change
 
   return (
-    <select onChange={async (e) => {
-      const value = e.target.value;
-      if (value === "en") setTranslations("en", {});
-      else await loadTranslations(value, `/translations/${value}.json`);
-    }}>
+    <select
+      onChange={async (e) => {
+        const value = e.target.value;
+        if (value === "en") setTranslations("en", {});
+        else await loadTranslations(value, `/translations/${value}.json`);
+      }}
+    >
       <option value="en">English</option>
       <option value="qps">Pseudo-English</option>
     </select>

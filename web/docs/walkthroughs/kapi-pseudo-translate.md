@@ -16,7 +16,7 @@ scenes:
 ## Story
 
 You're shipping a feature with new strings and want to catch UI truncation
-problems *before* the strings come back from a real translation provider.
+problems _before_ the strings come back from a real translation provider.
 Pseudo-translation expands every string with locale-shaped accent characters
 so issues surface immediately on screen — no API key, no waiting, no cost.
 

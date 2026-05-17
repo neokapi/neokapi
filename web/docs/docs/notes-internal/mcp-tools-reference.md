@@ -183,8 +183,8 @@ List all available processing tools (built-in and plugin-provided).
 ```
 
 ---
-### `project_config`
 
+### `project_config`
 
 **Input:** none
 
@@ -307,7 +307,6 @@ When `dry_run` is true, the output includes `"dry_run": true` instead of `up_to_
 
 ### `list_flows`
 
-
 **Input:** none
 
 **Output:**
@@ -337,14 +336,13 @@ Project-defined flows include a `steps` count. Built-in flows always have `sourc
 
 ## Implementation Files
 
-| File                                        | Purpose                                 |
-| ------------------------------------------- | --------------------------------------- |
-| `kapi/cmd/kapi/mcp_cmd.go`                  | Cobra subcommand, server bootstrap      |
-| `kapi/cmd/kapi/mcp_tools.go`                | 8 tool handlers + input/output types    |
-| `kapi/cmd/kapi/mcp_tools_test.go`           | Unit tests for kapi MCP handlers        |
+| File                              | Purpose                              |
+| --------------------------------- | ------------------------------------ |
+| `kapi/cmd/kapi/mcp_cmd.go`        | Cobra subcommand, server bootstrap   |
+| `kapi/cmd/kapi/mcp_tools.go`      | 8 tool handlers + input/output types |
+| `kapi/cmd/kapi/mcp_tools_test.go` | Unit tests for kapi MCP handlers     |
 
 ## Testing
-
 
 The MCP handshake can be verified manually:
 

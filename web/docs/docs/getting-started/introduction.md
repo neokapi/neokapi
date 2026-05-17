@@ -14,7 +14,6 @@ neokapi consists of two products:
 
 - **Neokapi Framework + Kapi CLI** — open-source localization engine and command-line tool for file processing
 
-
 ## Kapi CLI
 
 Kapi is a standalone command-line tool for file-based localization tasks:

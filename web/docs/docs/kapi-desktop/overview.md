@@ -48,12 +48,10 @@ Your workflow is saved as a Kapi project file that you can reopen, share, or run
 kapi run translate -p myproject.kapi
 ```
 
-
 | ------------- | ---------------------------------- | ------------------------------ |
-| Purpose       | Standalone file processing         | Platform-connected editing     |
-| Collaboration | Share Kapi projects via git        | Real-time multi-user editing   |
-| Automation    | Local flows                        | Server-side hooks + automation |
-
+| Purpose | Standalone file processing | Platform-connected editing |
+| Collaboration | Share Kapi projects via git | Real-time multi-user editing |
+| Automation | Local flows | Server-side hooks + automation |
 
 ## Next Steps
 

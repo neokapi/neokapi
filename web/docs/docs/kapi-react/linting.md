@@ -5,17 +5,17 @@ title: Linting
 
 # Linting
 
-kapi-react's build-time transform catches a lot, but some authoring mistakes only show up *after* extraction (a `t(variable)` that can't be extracted, a label string hidden in a data array that the extractor never walks, a ternary that smuggles two literals past the JSX walker). `@neokapi/kapi-react-lint` gives you editor squigglies for those cases.
+kapi-react's build-time transform catches a lot, but some authoring mistakes only show up _after_ extraction (a `t(variable)` that can't be extracted, a label string hidden in a data array that the extractor never walks, a ternary that smuggles two literals past the JSX walker). `@neokapi/kapi-react-lint` gives you editor squigglies for those cases.
 
 The same rule objects work under **ESLint** and **oxlint** — oxlint's plugin API is ESLint v9 compatible, so you install one plugin and wire it into whichever linter you already use. Oxlint is recommended for speed (typically 100–200ms on a few hundred files).
 
 ## The three layers
 
-| Layer | When it runs | What catches | How loud |
-|---|---|---|---|
-| **Lint rules** | editor / `oxlint` / `eslint` | single-file authoring mistakes (unextractable `t()` calls, concat in translatable attrs, ternaries smuggling literals past extraction) | per-rule severity in your config |
-| **Plugin warnings** | build-time transform | cross-cutting issues that need config context (unmapped components → componentMap, ternary attrs the extractor can't resolve) | `console.warn` by default |
-| **Enforcement** | CI | both of the above, promoted to errors | `--strict` on the extract CLI or `warningsAsErrors: true` in plugin config |
+| Layer               | When it runs                 | What catches                                                                                                                           | How loud                                                                   |
+| ------------------- | ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| **Lint rules**      | editor / `oxlint` / `eslint` | single-file authoring mistakes (unextractable `t()` calls, concat in translatable attrs, ternaries smuggling literals past extraction) | per-rule severity in your config                                           |
+| **Plugin warnings** | build-time transform         | cross-cutting issues that need config context (unmapped components → componentMap, ternary attrs the extractor can't resolve)          | `console.warn` by default                                                  |
+| **Enforcement**     | CI                           | both of the above, promoted to errors                                                                                                  | `--strict` on the extract CLI or `warningsAsErrors: true` in plugin config |
 
 Keep the loudest layer (enforcement) off in day-to-day authoring, and turn it on in CI once the codebase is clean.
 
@@ -58,14 +58,14 @@ The `overrides` block disables the two higher-FP rules for Storybook fixture fil
 ## ESLint (flat config)
 
 ```js title="eslint.config.js"
-import { recommended } from '@neokapi/kapi-react-lint/eslint';
+import { recommended } from "@neokapi/kapi-react-lint/eslint";
 
 export default [
   {
-    files: ['**/*.{ts,tsx,js,jsx}'],
+    files: ["**/*.{ts,tsx,js,jsx}"],
     languageOptions: {
       ecmaVersion: 2023,
-      sourceType: 'module',
+      sourceType: "module",
       parserOptions: { ecmaFeatures: { jsx: true } },
     },
   },
@@ -104,26 +104,26 @@ Flags `t(variable)` / `t(getLabel())` / `t(cond ? 'A' : 'B')`. The extractor rea
 
 ```tsx
 // ✓ fine
-t('Sign in');
-t('Sign in', 'Button label');  // with context
+t("Sign in");
+t("Sign in", "Button label"); // with context
 
 // ✗ not extractable
 t(label);
 t(labels[key]);
-t(ok ? 'Save' : 'Cancel');
+t(ok ? "Save" : "Cancel");
 ```
 
 ### `t-no-concat`
 
-Flags `t('Hello ' + name)` and `` t(`Hello ${name}`) `` — neither extracts because the full string isn't visible at build time. Use a placeholder pattern instead.
+Flags `t('Hello ' + name)` and ``t(`Hello ${name}`)`` — neither extracts because the full string isn't visible at build time. Use a placeholder pattern instead.
 
 ```tsx
 // ✗ broken
-t('Welcome ' + user.name);
+t("Welcome " + user.name);
 t(`You have ${count} messages`);
 
 // ✓ extractable, rendered via runtime substitution
-t('Welcome {name}', { name: user.name });
+t("Welcome {name}", { name: user.name });
 // or use <Plural>/<Select> for pluralisation
 ```
 
@@ -141,7 +141,7 @@ Any attribute in kapi-react's translatable-attribute set (`alt`, `title`, `place
 
 ### `no-ternary-in-translatable-attr`
 
-Sibling of `no-concat-in-translatable-attr`. Flags translatable attributes whose value is a ternary with at least one *non-string-literal* branch. The all-string-literal case (`title={cond ? "A" : "B"}`) is extracted by the kapi-react walker as two blocks — no warning. The mixed case is unextractable.
+Sibling of `no-concat-in-translatable-attr`. Flags translatable attributes whose value is a ternary with at least one _non-string-literal_ branch. The all-string-literal case (`title={cond ? "A" : "B"}`) is extracted by the kapi-react walker as two blocks — no warning. The mixed case is unextractable.
 
 ```tsx
 // ✓ both branches are string literals — extractor handles them.
@@ -195,7 +195,7 @@ The render-side companion to `prefer-t-for-label-props` below. Flags `{obj.label
 ```tsx
 // ✗ `meta.label` looks user-visible; the extractor can't see the string
 // it will resolve to at runtime.
-<h1>{meta.label}</h1>
+<h1>{meta.label}</h1>;
 
 // ✓ wrap the source data so the literal is visible to extraction
 const categoryMeta = {
@@ -204,7 +204,7 @@ const categoryMeta = {
 };
 ```
 
-Only fires on a narrow set of property names that *almost always* name user-visible copy: `label`, `title`, `heading`, `caption`, `subtitle`, `tooltip`, `placeholder`, `summary`. Deliberately excludes `.name`, `.description`, `.text`, `.message` — those overwhelmingly name backend / runtime data in real React apps and would create too much noise.
+Only fires on a narrow set of property names that _almost always_ name user-visible copy: `label`, `title`, `heading`, `caption`, `subtitle`, `tooltip`, `placeholder`, `summary`. Deliberately excludes `.name`, `.description`, `.text`, `.message` — those overwhelmingly name backend / runtime data in real React apps and would create too much noise.
 
 Customise via the `keys` option:
 
@@ -216,25 +216,27 @@ Suppress false positives on a specific element with `translate="no"`:
 
 ```tsx
 // file.name is an OS path, not UI copy
-<option value={f.path} translate="no">{f.name}</option>
+<option value={f.path} translate="no">
+  {f.name}
+</option>
 ```
 
 ### `prefer-t-for-label-props`
 
-The classic "label hidden in a data array" pattern — the *declaration side* of the same idea:
+The classic "label hidden in a data array" pattern — the _declaration side_ of the same idea:
 
 ```tsx
 // ✗ 'System' never gets extracted
 const THEMES = [
-  { value: 'system', label: 'System' },
-  { value: 'light', label: 'Light' },
+  { value: "system", label: "System" },
+  { value: "light", label: "Light" },
 ];
 return THEMES.map(({ value, label }) => <button>{label}</button>);
 
 // ✓ the literals are now visible to extraction
 const THEMES = [
-  { value: 'system', label: t('System') },
-  { value: 'light', label: t('Light') },
+  { value: "system", label: t("System") },
+  { value: "light", label: t("Light") },
 ];
 ```
 
@@ -246,7 +248,7 @@ Only in the `recommendedStrict` preset by default because it can fire on interna
 
 ### Module-level `t()` gotcha
 
-All `t()`-wrapping fixes above assume the calls happen **per render**. A module-level const freezes each `t()` call at whatever the dict said when the module first loaded — typically the fallback language, because translations load *after* the initial import.
+All `t()`-wrapping fixes above assume the calls happen **per render**. A module-level const freezes each `t()` call at whatever the dict said when the module first loaded — typically the fallback language, because translations load _after_ the initial import.
 
 ```tsx
 // ✗ Frozen at load time. "Utility" will still say "Utility" in pseudo.
@@ -257,7 +259,8 @@ const categoryMeta = {
 // ✓ Per-render: each invocation picks up the current dict.
 function categoryMeta(cat: string) {
   switch (cat) {
-    case "utility": return { label: t("Utility") };
+    case "utility":
+      return { label: t("Utility") };
     // …
   }
 }
@@ -288,10 +291,10 @@ Exits non-zero if the extractor recorded any warning (`unknown-component`, `tern
 **Plugin (build-time):**
 
 ```ts title="vite.config.ts"
-import neokapi from '@neokapi/kapi-react/vite';
+import neokapi from "@neokapi/kapi-react/vite";
 
 export default {
-  plugins: [neokapi({ warningsAsErrors: process.env.CI === 'true' })],
+  plugins: [neokapi({ warningsAsErrors: process.env.CI === "true" })],
 };
 ```
 

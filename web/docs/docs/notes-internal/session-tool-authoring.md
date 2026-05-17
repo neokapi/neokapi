@@ -123,11 +123,11 @@ func (t *MyTool) handle(sess blockstore.Session, ra bool, kind string, part *mod
 
 ## Overlay conventions
 
-| Kind prefix | Used by | Payload shape |
-|---|---|---|
-| `targets/<locale>` | translators (ai-translate, mt-translate, pseudo-translate, human editor) | `{"text": "...", "provider": "..."}` |
-| `annotations/<name>` | term-lookup, tm-leverage, qa checks | tool-specific JSON |
-| `skeletons/<format>` | format writers (round-trip skeletons) | opaque payload |
+| Kind prefix          | Used by                                                                  | Payload shape                        |
+| -------------------- | ------------------------------------------------------------------------ | ------------------------------------ |
+| `targets/<locale>`   | translators (ai-translate, mt-translate, pseudo-translate, human editor) | `{"text": "...", "provider": "..."}` |
+| `annotations/<name>` | term-lookup, tm-leverage, qa checks                                      | tool-specific JSON                   |
+| `skeletons/<format>` | format writers (round-trip skeletons)                                    | opaque payload                       |
 
 The `targets/<locale>` shape is cross-tool: any translator writes
 and reads the same key, so a session hydrated by one can be
@@ -139,7 +139,7 @@ The `FormatReaderStore` wraps a raw XLIFF / JSON / etc. file as a
 read-only BlockStore. Its `PutOverlay` returns
 `blockstore.ErrReadOnly`. Tools should ignore this error on the
 overlay-write path — the in-flight `*model.Block` already carries
-the result, and caching is best-effort for the *next* run. See the
+the result, and caching is best-effort for the _next_ run. See the
 pattern in `core/tools/pseudo.go` and
 `core/ai/tools/translate.go`.
 
@@ -155,12 +155,12 @@ overlay-write at the **output**. Example:
 
 - `memory` — default when no store is declared. Snapshot-per-session,
   last-writer-wins on commit. Capabilities: RandomAccess + Concurrent
-  + Writable.
+  - Writable.
 - `cache` — SQLite at `.kapi/cache.db`. The default for kapi
   projects. Full ACID, persistent across runs.
 - `format-reader` — wraps a `format.DataFormatReader` as a read-only
   store. Useful for ad-hoc CLI flows (`kapi ai-translate -i
-  file.xliff`). RandomAccess=true, Writable=false.
+file.xliff`). RandomAccess=true, Writable=false.
   collaborative projects.
 
 The executor receives the store via `flow.WithBlockStore(s)`; tools

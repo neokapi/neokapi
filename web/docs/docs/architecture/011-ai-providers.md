@@ -60,13 +60,13 @@ manual flag registration.
 
 ### Built-in providers
 
-| Provider      | File                                 | Default Model            | Notes                         |
-| ------------- | ------------------------------------ | ------------------------ | ----------------------------- |
-| Anthropic     | `providers/ai/anthropic.go`          | claude-sonnet-4-20250514 | Extended thinking support     |
-| OpenAI        | `providers/ai/openai.go`             | gpt-4o                   | `response_format` JSON schema |
-| Azure OpenAI  | `providers/ai/azureopenai.go`        | deployment-specific      | Managed Identity via `TokenProvider` |
-| Ollama        | `providers/ai/ollama.go`             | llama3                   | Local models, `format: json`  |
-| Google Gemini | `providers/ai/gemini.go`             | gemini-3-flash-preview   | SSE streaming with `includeThoughts` |
+| Provider      | File                          | Default Model            | Notes                                |
+| ------------- | ----------------------------- | ------------------------ | ------------------------------------ |
+| Anthropic     | `providers/ai/anthropic.go`   | claude-sonnet-4-20250514 | Extended thinking support            |
+| OpenAI        | `providers/ai/openai.go`      | gpt-4o                   | `response_format` JSON schema        |
+| Azure OpenAI  | `providers/ai/azureopenai.go` | deployment-specific      | Managed Identity via `TokenProvider` |
+| Ollama        | `providers/ai/ollama.go`      | llama3                   | Local models, `format: json`         |
+| Google Gemini | `providers/ai/gemini.go`      | gemini-3-flash-preview   | SSE streaming with `includeThoughts` |
 
 A mock provider (`providers/ai/mock.go`) enables deterministic testing
 without API calls.
@@ -137,13 +137,13 @@ execute through the circuit breaker with retry, release the semaphore.
 AI capabilities reach the pipeline as ordinary Tools
 ([AD-006: Tool System](006-tool-system.md)):
 
-| Tool                | Purpose                                                     |
-| ------------------- | ----------------------------------------------------------- |
-| `ai-translate`      | Translate untranslated Blocks using an LLM                  |
-| `ai-qa`             | Check translations for fluency, accuracy, terminology       |
-| `ai-terminology`    | Extract terminology candidates from source Blocks           |
-| `ai-review`         | Review translations with explanations                       |
-| `ai-entity-extract` | Extract entities and term candidates (hybrid LLM + NER)     |
+| Tool                | Purpose                                                 |
+| ------------------- | ------------------------------------------------------- |
+| `ai-translate`      | Translate untranslated Blocks using an LLM              |
+| `ai-qa`             | Check translations for fluency, accuracy, terminology   |
+| `ai-terminology`    | Extract terminology candidates from source Blocks       |
+| `ai-review`         | Review translations with explanations                   |
+| `ai-entity-extract` | Extract entities and term candidates (hybrid LLM + NER) |
 
 Because AI tools are ordinary Tools, they compose naturally:
 

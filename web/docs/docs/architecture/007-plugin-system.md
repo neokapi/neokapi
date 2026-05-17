@@ -95,13 +95,13 @@ in detail at [`docs/internals/plugin-protocol-v1.md`](https://github.com/neokapi
 
 kapi scans this fixed list of locations in precedence order:
 
-| Order | Location | Purpose |
-|---|---|---|
-| 1 (highest) | `$KAPI_PLUGINS_DIR` (`:`-separated; `;` on Windows) | Dev / CI / sandbox |
-| 2 | `$XDG_DATA_HOME/kapi/plugins/` (default `~/.local/share/kapi/plugins/`) | `kapi plugin install` target |
-| 3 | `/opt/homebrew/share/kapi/plugins/` (macOS Homebrew) | OS package manager |
-| 3 | `/usr/local/share/kapi/plugins/` (Linux `/usr/local`) | OS package manager |
-| 3 | `/usr/share/kapi/plugins/` (distro) | OS package manager |
+| Order       | Location                                                                | Purpose                      |
+| ----------- | ----------------------------------------------------------------------- | ---------------------------- |
+| 1 (highest) | `$KAPI_PLUGINS_DIR` (`:`-separated; `;` on Windows)                     | Dev / CI / sandbox           |
+| 2           | `$XDG_DATA_HOME/kapi/plugins/` (default `~/.local/share/kapi/plugins/`) | `kapi plugin install` target |
+| 3           | `/opt/homebrew/share/kapi/plugins/` (macOS Homebrew)                    | OS package manager           |
+| 3           | `/usr/local/share/kapi/plugins/` (Linux `/usr/local`)                   | OS package manager           |
+| 3           | `/usr/share/kapi/plugins/` (distro)                                     | OS package manager           |
 
 Within each location, every direct subdirectory containing a
 `manifest.json` is a plugin. First-match-wins on plugin name.
@@ -267,8 +267,8 @@ Two reference plugins ship with the project:
   `share/kapi/plugins/bowrain/`).
 - **okapi-bridge** — Java bridge exposing 57+ Okapi Framework filters.
   Built with `jpackage` (no Go shim): produces a native launcher
-  + bundled JRE per platform. Cosign-signed via GitHub Actions
-  keyless OIDC.
+  - bundled JRE per platform. Cosign-signed via GitHub Actions
+    keyless OIDC.
 
 A minimal Go reference plugin in `examples/plugins/hello/` covers
 Mode A + B with no third-party deps.

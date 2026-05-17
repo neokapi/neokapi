@@ -49,7 +49,7 @@ async function bootstrap() {
 
 // Somewhere in the tree that should re-render on locale change
 function AppRoot() {
-  useNeokapi();   // subscribe
+  useNeokapi(); // subscribe
   return <Routes />;
 }
 ```
@@ -116,8 +116,8 @@ setPseudoMode({});
 setPseudoMode({
   prefix: "« ",
   suffix: " »",
-  expansion: 30,      // +30% padding to test layout
-  accent: true,       // ASCII → accented variants
+  expansion: 30, // +30% padding to test layout
+  accent: true, // ASCII → accented variants
 });
 
 // Off
@@ -185,7 +185,7 @@ export default defineConfig({
       mode: "inline",
       locale: process.env.LOCALE ?? "en",
       translationsDir: "./translations",
-      strict: "error",   // fail the build on missing translations
+      strict: "error", // fail the build on missing translations
     }),
     react(),
   ],
@@ -224,14 +224,14 @@ Mixing modes within a single build is not supported — you pick one per deploy.
 
 ## Mode comparison
 
-| | runtime | inline |
-|---|---|---|
-| Number of builds | 1 | 1 per locale |
-| Runtime bundle cost | ~2 kB | 0 |
-| Dict fetch at runtime | yes (per locale) | no |
-| Missing translation | fallback to source text | warn or error at build |
-| Hot-swap locale in-page | yes | full page reload / swap bundle |
-| Best for | app shells, SaaS dashboards | marketing sites, SSR, SSG, locale-per-domain |
+|                         | runtime                     | inline                                       |
+| ----------------------- | --------------------------- | -------------------------------------------- |
+| Number of builds        | 1                           | 1 per locale                                 |
+| Runtime bundle cost     | ~2 kB                       | 0                                            |
+| Dict fetch at runtime   | yes (per locale)            | no                                           |
+| Missing translation     | fallback to source text     | warn or error at build                       |
+| Hot-swap locale in-page | yes                         | full page reload / swap bundle               |
+| Best for                | app shells, SaaS dashboards | marketing sites, SSR, SSG, locale-per-domain |
 
 ## What doesn't change between modes
 
