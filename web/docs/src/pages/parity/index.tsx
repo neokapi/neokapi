@@ -90,13 +90,20 @@ interface FormatBreakdown {
   fixtures?: FixtureEntry[];
 }
 
-type CoverageStatus = "covered" | "no-fixtures" | "bridge-only" | "native-only" | "unknown";
+type CoverageStatus =
+  | "covered"
+  | "scan-missing"
+  | "no-upstream"
+  | "bridge-only"
+  | "native-only"
+  | "unknown";
 
 interface CoverageMapEntry {
   id: string;
   bridge_filter?: string;
   native: boolean;
   roundtrip_fixtures: number;
+  upstream_fixtures: number;
   native_byte?: number;
   native_canon?: number;
   native_div?: number;
@@ -113,7 +120,8 @@ interface FixturesData {
 
 const coverageStatusLabel: Record<CoverageStatus, string> = {
   covered: "covered",
-  "no-fixtures": "no fixtures",
+  "scan-missing": "scan missing",
+  "no-upstream": "no upstream",
   "bridge-only": "bridge only",
   "native-only": "native only",
   unknown: "unknown",
@@ -121,7 +129,8 @@ const coverageStatusLabel: Record<CoverageStatus, string> = {
 
 const coverageStatusClass: Record<CoverageStatus, string> = {
   covered: styles.coverageCovered,
-  "no-fixtures": styles.coverageNoFixtures,
+  "scan-missing": styles.coverageNoFixtures,
+  "no-upstream": styles.coverageUnknown,
   "bridge-only": styles.coverageBridgeOnly,
   "native-only": styles.coverageNativeOnly,
   unknown: styles.coverageUnknown,
@@ -130,8 +139,10 @@ const coverageStatusClass: Record<CoverageStatus, string> = {
 const coverageStatusDescription: Record<CoverageStatus, string> = {
   covered:
     "Bridge filter + Go port + round-trip fixtures all present. Status reflected in the per-format breakdown above.",
-  "no-fixtures":
-    "Bridge filter + Go port exist, but the round-trip suite finds zero fixtures. Either upstream Okapi ships no test corpus for this format, or the coverage scan is missing wiring (.fprm rules, file extensions, etc.).",
+  "scan-missing":
+    "Bridge filter + Go port exist AND upstream Okapi ships fixtures for this format, but our cli/parity/roundtrip coverageScans() doesn't include it. The upstream_fixtures count shows how many files we're sitting on. Adding a scan entry is the work.",
+  "no-upstream":
+    "Bridge filter + Go port exist but upstream Okapi has no test corpus for this format. Either no upstream pipeline produces a usable reference, or special setup the harness can't autodetect is needed.",
   "bridge-only":
     "Bridge filter exists but no native Go reader/writer. Typically binary-corpus formats (PDF, RTF, archives, SDL packages) that haven't been ported yet.",
   "native-only":
@@ -617,7 +628,8 @@ function CoverageMapPanel({ rows }: { rows: CoverageMapEntry[] }) {
     (acc, r) => ({ ...acc, [r.status]: (acc[r.status] ?? 0) + 1 }),
     {
       covered: 0,
-      "no-fixtures": 0,
+      "scan-missing": 0,
+      "no-upstream": 0,
       "bridge-only": 0,
       "native-only": 0,
       unknown: 0,
@@ -636,10 +648,10 @@ function CoverageMapPanel({ rows }: { rows: CoverageMapEntry[] }) {
           covered
         </span>{" "}
         {counts.covered} ·{" "}
-        <span className={`${styles.coverageStatusBadge} ${coverageStatusClass["no-fixtures"]}`}>
-          no fixtures
+        <span className={`${styles.coverageStatusBadge} ${coverageStatusClass["scan-missing"]}`}>
+          scan missing
         </span>{" "}
-        {counts["no-fixtures"]} ·{" "}
+        {counts["scan-missing"]} ·{" "}
         <span className={`${styles.coverageStatusBadge} ${coverageStatusClass["bridge-only"]}`}>
           bridge only
         </span>{" "}
@@ -648,16 +660,27 @@ function CoverageMapPanel({ rows }: { rows: CoverageMapEntry[] }) {
           native only
         </span>{" "}
         {counts["native-only"]}
+        {counts["no-upstream"] > 0 && (
+          <>
+            {" "}
+            ·{" "}
+            <span className={`${styles.coverageStatusBadge} ${coverageStatusClass["no-upstream"]}`}>
+              no upstream
+            </span>{" "}
+            {counts["no-upstream"]}
+          </>
+        )}
       </button>
       {open && (
         <>
           <p className={styles.coverageHint}>
-            Every known format and its parity status across the bridge / native / round-trip axes.{" "}
-            <strong>no-fixtures</strong> means bridge + Go port both exist but the round-trip suite
-            finds zero upstream test fixtures — either Okapi ships none for this format or the
-            coverage scan is missing wiring. <strong>bridge-only</strong> means no native Go
-            reader/writer yet. <strong>native-only</strong> means neokapi-only format with no Okapi
-            reference.
+            Every known format with parity status across the bridge / native / round-trip axes and
+            the count of fixtures Okapi ships for it upstream. <strong>scan-missing</strong> =
+            bridge + Go port both exist AND upstream has fixtures, but our cli/parity/roundtrip
+            coverageScans() doesn't include the format — the upstream column shows how many fixtures
+            we're sitting on. <strong>bridge-only</strong> = no native Go reader/writer yet
+            (typically binary corpus). <strong>native-only</strong> = neokapi-only format with no
+            Okapi reference.
           </p>
           <table className={styles.coverageTable}>
             <thead>
@@ -665,6 +688,7 @@ function CoverageMapPanel({ rows }: { rows: CoverageMapEntry[] }) {
                 <th>Format</th>
                 <th>Bridge filter</th>
                 <th>Native</th>
+                <th className={styles.numCell}>Upstream</th>
                 <th className={styles.numCell}>Round-trip</th>
                 <th className={styles.numCell}>byte</th>
                 <th className={styles.numCell}>canon</th>
@@ -688,6 +712,13 @@ function CoverageMapPanel({ rows }: { rows: CoverageMapEntry[] }) {
                   <td>
                     {r.native ? (
                       <span className={styles.coverageYes}>✓</span>
+                    ) : (
+                      <span className={styles.coverageMissing}>—</span>
+                    )}
+                  </td>
+                  <td className={styles.numCell}>
+                    {r.upstream_fixtures > 0 ? (
+                      r.upstream_fixtures
                     ) : (
                       <span className={styles.coverageMissing}>—</span>
                     )}

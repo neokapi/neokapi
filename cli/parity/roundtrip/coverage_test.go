@@ -230,6 +230,12 @@ func runOneFixture(t *testing.T, scan formatScan, abs string, okapiCache *roundt
 		}
 	}
 	if skipSet["okapi"] {
+		// Record a Skipped parityRecord so the coverage map sees this
+		// fixture exists and is part of the scan, even though okapi
+		// can't process it. Without this the format gets misclassified
+		// as scan-missing or no-upstream when really we DO have a scan
+		// — it just produces no comparable output.
+		roundtrip.RecordOkapiSkip(string(scan.formatID), base, reason)
 		t.Skipf("okapi reference engine cannot process %s: %s", base, reason)
 	}
 

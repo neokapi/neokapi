@@ -12,6 +12,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/neokapi/neokapi/cli/parity"
 )
 
 // parityRecord is one (format, fixture, engine) outcome captured by
@@ -50,6 +52,34 @@ func recordParityResult(r parityRecord) {
 	parityRecordsMu.Lock()
 	defer parityRecordsMu.Unlock()
 	parityRecords = append(parityRecords, r)
+}
+
+// RecordOkapiSkip is called from the coverage harness when a fixture's
+// `okapi` engine is skipped via the per-format annotation system, so
+// the round-trip never runs. We emit a Skipped parityRecord against
+// the "native" engine slot so the coverage map / dashboard can still
+// see this fixture exists and is part of the scan — without it,
+// scan-having formats whose every fixture is okapi-skipped (e.g.
+// transtable) get misclassified as scan-missing.
+//
+// We pick "native" as the engine name (rather than a synthetic
+// "okapi-skipped") because buildCoverageMap counts native records to
+// derive roundtrip_fixtures, and this is the cheapest way to make
+// transtable visible without changing that aggregation rule.
+func RecordOkapiSkip(format, fixture, reason string) {
+	var ann *Annotation
+	if a, ok := LookupAnnotation(format, fixture); ok {
+		ann = &a
+	}
+	recordParityResult(parityRecord{
+		Format:     format,
+		Fixture:    fixture,
+		Engine:     "native",
+		Required:   TierDivergent,
+		Skipped:    true,
+		SkipMsg:    reason,
+		Annotation: ann,
+	})
 }
 
 // resetParityRecords clears the buffer. Useful in tests.
@@ -405,20 +435,28 @@ type fixturesJSON struct {
 // coverageMapEntry is one row of the coverage map: a single format's
 // status across the bridge / native / round-trip axes. Surfaces "what's
 // pending" — a format with a bridge filter but no Go port, or with a Go
-// port but no round-trip fixtures, lights up as bug-tracked work.
+// port whose round-trip scan isn't wired up despite upstream having
+// fixtures, lights up as actionable work.
 //
 // Status values:
 //
-//   - "covered"        — bridge + native + round-trip fixtures present.
-//   - "no-fixtures"    — bridge + native present, but no round-trip
-//                        fixtures land in the suite. Either the upstream
-//                        testdata tarball has none, or the test wiring is
-//                        incomplete (regex/srt needs .fprm rules, txml NPEs,
-//                        rtf has only tradosrtf, etc.).
+//   - "covered"        — bridge + native + round-trip fixtures present
+//                        AND the suite actually exercises them.
+//   - "scan-missing"   — bridge + native present, upstream Okapi has
+//                        fixtures for this format (.odt files for odf,
+//                        .pdf for pdf, …), but our cli/parity/roundtrip
+//                        coverageScans() doesn't include it. Adding a
+//                        scan entry is the work.
+//   - "no-upstream"    — bridge + native present, and upstream Okapi
+//                        truly has no test corpus to run. Either no
+//                        upstream pipeline produces a usable reference
+//                        (rtf has only tradosrtf; txml NPEs on merge)
+//                        or the scan needs special setup the harness
+//                        can't autodetect (srt needs .fprm rules).
 //   - "bridge-only"    — bridge filter exists, no Go port yet. Typically
-//                        binary-corpus formats (pdf, rtf, archive, sdlpackage,
-//                        openoffice, pensieve, …) where neokapi hasn't built
-//                        a native reader/writer.
+//                        binary-corpus formats (pdf, rtf, archive,
+//                        sdlpackage, pensieve, …) where neokapi hasn't
+//                        built a native reader/writer.
 //   - "native-only"    — Go port exists, no bridge filter. neokapi-only
 //                        formats (jsx, klf, versifiedtext, messageformat) —
 //                        no Okapi reference to compare against.
@@ -427,11 +465,18 @@ type coverageMapEntry struct {
 	BridgeFilter      string `json:"bridge_filter,omitempty"`
 	Native            bool   `json:"native"`
 	RoundtripFixtures int    `json:"roundtrip_fixtures"`
-	NativeByte        int    `json:"native_byte,omitempty"`
-	NativeCanon       int    `json:"native_canon,omitempty"`
-	NativeDiv         int    `json:"native_div,omitempty"`
-	Annotations       int    `json:"annotations,omitempty"`
-	Status            string `json:"status"`
+	// UpstreamFixtures is the count of files in the upstream Okapi
+	// testdata tarball whose extension matches one of this format's
+	// known extensions. Best-effort — relies on the format-extension
+	// map below being kept in sync. Zero = nothing upstream (true gap
+	// is on the Okapi side); non-zero but RoundtripFixtures==0 = we
+	// have a scan-wiring gap on the neokapi side.
+	UpstreamFixtures int    `json:"upstream_fixtures"`
+	NativeByte       int    `json:"native_byte,omitempty"`
+	NativeCanon      int    `json:"native_canon,omitempty"`
+	NativeDiv        int    `json:"native_div,omitempty"`
+	Annotations      int    `json:"annotations,omitempty"`
+	Status           string `json:"status"`
 }
 
 type engineTotals struct {
@@ -641,16 +686,19 @@ func FlushParityFixturesJSON(w io.Writer) error {
 	return enc.Encode(out)
 }
 
-// buildCoverageMap joins three sources to produce the per-format
-// coverage rows: the upstream bridge filter universe (cli/parity/formats
-// keyword list), the native package universe (core/formats/ subdirs
-// walked at runtime), and the round-trip coverage actually exercised by
-// this test run (the records buffer). Missing entries surface as
-// bridge-only, native-only, or no-fixtures so the dashboard can guide
-// the next port / wiring effort.
+// buildCoverageMap joins four sources to produce the per-format
+// coverage rows: the upstream bridge filter universe (bridgeFilterIDs),
+// the native package universe (core/formats/ subdirs walked at runtime),
+// the round-trip coverage actually exercised by this test run (the
+// records buffer), and a count of how many fixtures upstream Okapi
+// ships for each format (extension-matched file count under
+// $sandbox/okapi/). The upstream count is what lets us distinguish
+// "scan-missing" (we need to wire it up) from "no-upstream" (there's
+// genuinely nothing to test against).
 func buildCoverageMap(records []parityRecord) []coverageMapEntry {
 	native := discoverNativeFormats()
 	bridge := bridgeFilterIDs()
+	upstream := countUpstreamFixtures()
 	roundtrip := map[string]struct {
 		fixtures, byteCount, canon, div, annotated int
 	}{}
@@ -696,12 +744,14 @@ func buildCoverageMap(records []parityRecord) []coverageMapEntry {
 		}
 		bridgeFilter := bridge[id]
 		rt := roundtrip[id]
-		status := classifyCoverage(hasNative, bridgeFilter != "", rt.fixtures)
+		up := upstream[id]
+		status := classifyCoverage(hasNative, bridgeFilter != "", rt.fixtures, up)
 		out = append(out, coverageMapEntry{
 			ID:                id,
 			BridgeFilter:      bridgeFilter,
 			Native:            hasNative,
 			RoundtripFixtures: rt.fixtures,
+			UpstreamFixtures:  up,
 			NativeByte:        rt.byteCount,
 			NativeCanon:       rt.canon,
 			NativeDiv:         rt.div,
@@ -710,9 +760,11 @@ func buildCoverageMap(records []parityRecord) []coverageMapEntry {
 		})
 	}
 	sort.Slice(out, func(i, j int) bool {
-		// Surface gaps first: no-fixtures and bridge-only top of list,
-		// then native-only, then fully-covered. Stable within bucket by
-		// format name.
+		// Surface actionable gaps first: scan-missing (we're sitting on
+		// upstream fixtures we don't exercise), then bridge-only (need a
+		// Go port), then no-upstream and native-only (no work the
+		// dashboard can directly drive), then fully-covered. Stable
+		// within bucket by format name.
 		ri := coverageStatusRank(out[i].Status)
 		rj := coverageStatusRank(out[j].Status)
 		if ri != rj {
@@ -723,12 +775,14 @@ func buildCoverageMap(records []parityRecord) []coverageMapEntry {
 	return out
 }
 
-func classifyCoverage(hasNative, hasBridge bool, roundtripFixtures int) string {
+func classifyCoverage(hasNative, hasBridge bool, roundtripFixtures, upstreamFixtures int) string {
 	switch {
 	case hasNative && hasBridge && roundtripFixtures > 0:
 		return "covered"
-	case hasNative && hasBridge && roundtripFixtures == 0:
-		return "no-fixtures"
+	case hasNative && hasBridge && roundtripFixtures == 0 && upstreamFixtures > 0:
+		return "scan-missing"
+	case hasNative && hasBridge && roundtripFixtures == 0 && upstreamFixtures == 0:
+		return "no-upstream"
 	case hasBridge && !hasNative:
 		return "bridge-only"
 	case hasNative && !hasBridge:
@@ -740,16 +794,120 @@ func classifyCoverage(hasNative, hasBridge bool, roundtripFixtures int) string {
 
 func coverageStatusRank(s string) int {
 	switch s {
-	case "no-fixtures":
+	case "scan-missing":
 		return 0
 	case "bridge-only":
 		return 1
-	case "native-only":
+	case "no-upstream":
 		return 2
-	case "covered":
+	case "native-only":
 		return 3
-	default:
+	case "covered":
 		return 4
+	default:
+		return 5
+	}
+}
+
+// countUpstreamFixtures walks each format's source directories within
+// the unpacked Okapi testdata tarball and counts files with that
+// format's known extensions. Returns format ID → file count. Restricts
+// per-format walks to per-format dirs (vs walking the whole tarball
+// once) to avoid inflating counts for formats sharing extensions —
+// .txt belongs to plaintext, mosestext, fixedwidth, regex, transtable,
+// splicedlines all at once, and a global walk would attribute every
+// .txt match to every one of them.
+//
+// Best-effort: when the sandbox is unavailable (e.g. running the
+// report writer outside of a parity test), returns an empty map and
+// classification falls back to no-upstream for anything without a scan.
+func countUpstreamFixtures() map[string]int {
+	out := map[string]int{}
+	s, err := parity.LoadSandbox()
+	if err != nil || s == nil || s.OkapiTestDataDir == "" {
+		return out
+	}
+	root := s.OkapiTestDataDir
+	for fmtID, src := range formatSourceDirs() {
+		extSet := map[string]bool{}
+		for _, e := range src.Extensions {
+			extSet[strings.ToLower(e)] = true
+		}
+		if len(extSet) == 0 {
+			continue
+		}
+		for _, dir := range src.Dirs {
+			abs := filepath.Join(root, dir)
+			info, err := os.Stat(abs)
+			if err != nil || !info.IsDir() {
+				continue
+			}
+			_ = filepath.WalkDir(abs, func(path string, d os.DirEntry, err error) error {
+				if err != nil || d.IsDir() {
+					return nil
+				}
+				if extSet[strings.ToLower(filepath.Ext(path))] {
+					out[fmtID]++
+				}
+				return nil
+			})
+		}
+	}
+	return out
+}
+
+type upstreamSource struct {
+	Dirs       []string
+	Extensions []string
+}
+
+// formatSourceDirs returns the per-format upstream Okapi source
+// directories and accepted extensions used to count "fixtures Okapi
+// ships for this format". Mirrors coverageScans() for scanned formats
+// and fills in conventional paths for unscanned ones (typical patterns:
+// `okapi/filters/<id>/src/test/resources` and
+// `integration-tests/okapi/src/test/resources/<id>`).
+func formatSourceDirs() map[string]upstreamSource {
+	return map[string]upstreamSource{
+		"csv":           {[]string{"integration-tests/okapi/src/test/resources/table"}, []string{".csv"}},
+		"doxygen":       {[]string{"integration-tests/okapi/src/test/resources/doxygen"}, []string{".h", ".py"}},
+		"dtd":           {[]string{"okapi/filters/dtd/src/test/resources"}, []string{".dtd"}},
+		"fixedwidth":    {[]string{"okapi/filters/table/src/test/resources"}, []string{".txt"}},
+		"html":          {[]string{"integration-tests/okapi/src/test/resources/html"}, []string{".html", ".htm"}},
+		"icml":          {[]string{"integration-tests/okapi/src/test/resources/icml"}, []string{".icml", ".wcml"}},
+		"idml":          {[]string{"okapi/filters/idml/src/test/resources"}, []string{".idml"}},
+		"json":          {[]string{"integration-tests/okapi/src/test/resources/json"}, []string{".json"}},
+		"markdown":      {[]string{"integration-tests/okapi/src/test/resources/markdown"}, []string{".md"}},
+		"mif":           {[]string{"integration-tests/okapi/src/test/resources/mif"}, []string{".mif"}},
+		"mosestext":     {[]string{"okapi/filters/mosestext/src/test/resources"}, []string{".txt"}},
+		"odf":           {[]string{"okapi/filters/openoffice/src/test/resources", "integration-tests/okapi/src/test/resources/openoffice"}, []string{".odt", ".ods", ".odp", ".odg"}},
+		"openoffice":    {[]string{"okapi/filters/openoffice/src/test/resources", "integration-tests/okapi/src/test/resources/openoffice"}, []string{".odt", ".ods", ".odp", ".odg", ".sxw", ".sxc", ".sxi"}},
+		"openxml":       {[]string{"okapi/filters/openxml/src/test/resources"}, []string{".docx", ".xlsx", ".pptx"}},
+		"paraplaintext": {[]string{"integration-tests/okapi/src/test/resources/plaintext"}, []string{".txt"}},
+		"pdf":           {[]string{"okapi/filters/pdf/src/test/resources"}, []string{".pdf"}},
+		"phpcontent":    {[]string{"okapi/filters/php/src/test/resources"}, []string{".phpcnt", ".php"}},
+		"plaintext":     {[]string{"integration-tests/okapi/src/test/resources/plaintext"}, []string{".txt"}},
+		"po":            {[]string{"integration-tests/okapi/src/test/resources/po"}, []string{".po", ".pot"}},
+		"properties":    {[]string{"integration-tests/okapi/src/test/resources/property"}, []string{".properties"}},
+		"regex":         {[]string{"okapi/filters/regex/src/test/resources"}, []string{".txt", ".srt"}},
+		"rtf":           {[]string{"okapi/filters/rtf/src/test/resources"}, []string{".rtf"}},
+		"splicedlines":  {[]string{"okapi/filters/plaintext/src/test/resources"}, []string{".txt"}},
+		"srt":           {[]string{"okapi/filters/regex/src/test/resources"}, []string{".srt"}},
+		"tex":           {[]string{"integration-tests/okapi/src/test/resources/tex"}, []string{".tex"}},
+		"tmx":           {[]string{"integration-tests/okapi/src/test/resources/tmx"}, []string{".tmx"}},
+		"transtable":    {[]string{"integration-tests/okapi/src/test/resources/transtable"}, []string{".txt"}},
+		"ts":            {[]string{"integration-tests/okapi/src/test/resources/ts"}, []string{".ts"}},
+		"tsv":           {[]string{"okapi/filters/table/src/test/resources"}, []string{".tsv", ".txt"}},
+		"ttml":          {[]string{"integration-tests/okapi/src/test/resources/ttml"}, []string{".ttml", ".xml"}},
+		"ttx":           {[]string{"okapi/filters/ttx/src/test/resources"}, []string{".ttx"}},
+		"txml":          {[]string{"okapi/filters/txml/src/test/resources"}, []string{".txml"}},
+		"vignette":      {[]string{"okapi/filters/vignette/src/test/resources"}, []string{".vignette", ".xml"}},
+		"vtt":           {[]string{"integration-tests/okapi/src/test/resources/vtt"}, []string{".vtt"}},
+		"wiki":          {[]string{"integration-tests/okapi/src/test/resources/wikitext"}, []string{".wiki"}},
+		"xliff":         {[]string{"integration-tests/okapi/src/test/resources/xliff"}, []string{".xlf", ".xliff"}},
+		"xliff2":        {[]string{"integration-tests/okapi/src/test/resources/xliff2"}, []string{".xlf", ".xlf2", ".xliff"}},
+		"xml":           {[]string{"integration-tests/okapi/src/test/resources/xml"}, []string{".xml"}},
+		"yaml":          {[]string{"integration-tests/okapi/src/test/resources/yaml"}, []string{".yaml", ".yml"}},
 	}
 }
 
