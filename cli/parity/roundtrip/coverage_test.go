@@ -1173,15 +1173,15 @@ mergeCaptions.b=false
 			// — matches what's needed to unpack the zip and dispatch
 			// to ODFFilter for each inner XML stream.
 			//
-			// minTier[native]=TierDivergent because native vs okapi
-			// have real semantic differences on every fixture (Okapi's
-			// ODFFilter inlines drawing/script elements differently
-			// from native; documenting each as bug/cosmetic is a
-			// large follow-up). bridge engine is skipped pending
-			// okapi-bridge#11 — the daemon's concurrent reader/writer
-			// races against OpenOfficeFilter.nextInZipFile()'s
-			// internal close() before the writer drains earlier
-			// DocumentPart events (ZipFilterWriter "zip file closed").
+			// Bridge daemon round-trips OO containers correctly after
+			// okapi-bridge#11's two-pass refactor (pass 1 reads with
+			// filter A, pass 2 opens a fresh filter B for write so
+			// the source-side close() in nextInZipFile can't race the
+			// writer). minTier=TierDivergent for both engines because
+			// native vs okapi reference have real semantic differences
+			// on every fixture (Okapi's ODFFilter inlines drawing/
+			// script elements differently from native); per-fixture
+			// annotation is a separate follow-up.
 			formatID:    "odf",
 			filterClass: "okf_openoffice",
 			sources:     []string{"okapi/filters/openoffice/src/test/resources"},
@@ -1196,10 +1196,7 @@ mergeCaptions.b=false
 			}}},
 			minTier: map[string]roundtrip.Tier{
 				"native": roundtrip.TierDivergent,
-			},
-			formatDefaultSkip: fileSkip{
-				Engines: []string{"bridge"},
-				Reason:  "okapi-bridge#11: daemon writer races against OpenOfficeFilter.close() in nextInZipFile (ZipFilterWriter 'zip file closed'). Pseudo subcommand path works (single-threaded PipelineDriver), so okapi reference engine runs fine.",
+				"bridge": roundtrip.TierDivergent,
 			},
 		},
 	}
