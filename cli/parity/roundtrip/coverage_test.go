@@ -839,22 +839,28 @@ func coverageScans() []formatScan {
 		{
 			// Trados TTX bilingual XML — 4 fixtures upstream. The
 			// upstream .ttx files are UTF-16 LE with BOM (TRADOS
-			// convention). The native TTX reader currently assumes
-			// UTF-8 and errors out via t.Fatalf, suppressing a
-			// divergent parity record. Skip native until UTF-16 BOM
-			// detection is wired into the ttx reader (tracked as a
-			// follow-up). Bridge still runs; per-fixture divergences
-			// are annotated in core/formats/ttx/parity-annotations.yaml.
-			formatID:    "ttx",
-			filterClass: "okf_ttx",
-			sources:     []string{"okapi/filters/ttx/src/test/resources"},
-			extensions:  []string{".ttx"},
-			normalizer:  roundtrip.XMLCanonical{SortAttrs: true},
-			formatDefaultSkip: fileSkip{
-				Engines: []string{"native"},
-				Reason:  "native ttx reader doesn't handle UTF-16 LE BOM that Trados emits; pending UTF-16 detection",
-			},
+			// convention); native handles that via encoding.ToUTF8
+			// in the ttx reader (see core/formats/ttx/reader.go).
+			//
+			// Like xliff2, TTX is bilingual on disk: each <Tu> has
+			// <Tuv Lang="EN-US"> + <Tuv Lang="FR-FR"> pairs. Okapi's
+			// PseudoTranslationStep ignores the existing target and
+			// pseudo-translates the source, then writes the pseudo'd
+			// source into the target Tuv. bridgeForcePseudoSourceBase
+			// mirrors that for the bridge daemon (the Go side's
+			// applyPseudoToBlock defaults to using the existing target
+			// as the pseudo base — same flag fix that xliff2 uses).
+			//
+			// Per-fixture divergences are annotated in
+			// core/formats/ttx/parity-annotations.yaml.
+			formatID:                    "ttx",
+			filterClass:                 "okf_ttx",
+			sources:                     []string{"okapi/filters/ttx/src/test/resources"},
+			extensions:                  []string{".ttx"},
+			normalizer:                  roundtrip.XMLCanonical{SortAttrs: true},
+			bridgeForcePseudoSourceBase: true,
 			minTier: map[string]roundtrip.Tier{
+				"native": roundtrip.TierDivergent,
 				"bridge": roundtrip.TierDivergent,
 			},
 		},

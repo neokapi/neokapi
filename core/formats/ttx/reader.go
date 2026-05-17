@@ -9,6 +9,7 @@ import (
 	"io"
 	"strings"
 
+	"github.com/neokapi/neokapi/core/encoding"
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
 )
@@ -51,8 +52,15 @@ func (r *Reader) Signature() format.FormatSignature {
 		MIMETypes:  []string{"application/x-ttx+xml"},
 		Extensions: []string{".ttx"},
 		Sniff: func(data []byte) bool {
-			s := string(data)
-			return strings.Contains(s, "<TRADOStag")
+			// Trados emits .ttx as UTF-16 LE with BOM by convention,
+			// so a raw UTF-8 substring check misses every native
+			// Trados file. Transcode via BOM detection before
+			// scanning for the root element.
+			text, _, err := encoding.ToUTF8(data)
+			if err != nil {
+				return false
+			}
+			return strings.Contains(string(text), "<TRADOStag")
 		},
 	}
 }
@@ -90,11 +98,27 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		ch <- model.PartResult{Error: fmt.Errorf("ttx: reading: %w", err)}
 		return
 	}
-	rawText := string(content)
+	// Trados writes .ttx as UTF-16 LE with a BOM; UTF-8 with a BOM
+	// shows up too. Transcode to BOM-stripped UTF-8 before parsing.
+	decoded, detectedEnc, err := encoding.ToUTF8(content)
+	if err != nil {
+		ch <- model.PartResult{Error: fmt.Errorf("ttx: decoding %s: %w", detectedEnc, err)}
+		return
+	}
+	rawText := string(decoded)
 
 	locale := r.Doc.SourceLocale
 	if locale.IsEmpty() {
 		locale = model.LocaleEnglish
+	}
+
+	// Surface the detected on-disk encoding on the Layer so downstream
+	// stages (including the writer) can re-emit in the same encoding
+	// without losing the Trados convention. Caller-provided Encoding
+	// wins when set.
+	layerEncoding := r.Doc.Encoding
+	if layerEncoding == "" {
+		layerEncoding = detectedEnc
 	}
 
 	layer := &model.Layer{
@@ -102,7 +126,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		Name:     r.Doc.URI,
 		Format:   "ttx",
 		Locale:   locale,
-		Encoding: r.Doc.Encoding,
+		Encoding: layerEncoding,
 		MimeType: "application/x-ttx+xml",
 	}
 	if !r.emit(ctx, ch, &model.Part{Type: model.PartLayerStart, Resource: layer}) {

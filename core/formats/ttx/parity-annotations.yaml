@@ -1,11 +1,14 @@
 format: ttx
 fixtures:
+  Issue_164.ttx:
+    severity: bug
+    summary: "Native drops <FrontMatter> on round-trip — the writer's skeleton path emits content for the Tu elements but the no-Tu wrapper has no fallback for re-emitting frontmatter metadata. Bridge produces output that matches upstream tikal."
   Test01.html.ttx:
     severity: bug
-    summary: "Bridge pseudo writes 'Texte en gras' (segment-text replaced with French translation) instead of pseudo-translated source 'Text in bold'. okapi-bridge's TTXFilter is preserving the existing <Tuv Lang=FR-FR> target verbatim rather than overwriting it with pseudo source. Round-trip should produce pseudo-source on both Tuv lang elements per the parity contract."
+    summary: "Native: fixture has only <ut> markup and no <Tu>, so skeleton-store is empty and the writer falls to direct-XML path that emits a bare TRADOStag wrapper with empty <Raw>. Bridge: now byte-equal with okapi reference after the parity scan was switched to bridgeForcePseudoSourceBase (mirrors xliff2 — TTXFilter's PseudoTranslationStep uses the source as the pseudo base, not the existing FR-FR target)."
   Test02_allseg.html.ttx:
     severity: bug
-    summary: "Same target-preserved-instead-of-pseudo'd pattern as Test01.html.ttx — title text 'Jericho HTML Parser Test Document' kept verbatim in FR-FR Tuv instead of pseudo'd from the EN-US source."
+    summary: "Native: same no-Tu/empty-wrapper bug as Test01.html.ttx. Bridge: now byte-equal with okapi reference (same forcePseudoSourceBase fix as Test01)."
   Test02_noseg.html.ttx:
     severity: bug
-    summary: "Bridge produces malformed XML (<df> closed by </Tuv> at line 86) when round-tripping an unsegmented TTX. xml-canonical normalizer rejects the output. Likely an okapi-bridge TTXFilter writer bug specific to noseg variants."
+    summary: "Bridge daemon produces malformed XML — emits <df Font=\"Courier New\"><ut .../></df><ut .../> without a closing </df> in some segments where the TTX has flat <Raw> content without <Tu> wrappers. The okapi pseudo subcommand (PipelineDriver-driven) produces well-formed output on the same fixture, so the divergence is in the daemon's StreamingTranslationApplier event/translation handling for unsegmented TTX, not in upstream Okapi's TTXFilter. Native: writer emits unescaped ']]>' inside CharData (XML 1.0 §2.4 forbids ']]>' in CharData outside CDATA sections); also drops <FrontMatter>."
