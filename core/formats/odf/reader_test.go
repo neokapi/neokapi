@@ -245,9 +245,12 @@ func TestReadODSSpreadsheet(t *testing.T) {
 	assert.Equal(t, "ods", rootLayer.Properties["docType"])
 
 	blocks := testutil.FilterBlocks(parts)
-	require.Len(t, blocks, 6)
+	// 6 cell text:p values + 1 translatable table:name="Sheet1" attribute
+	// (the simpleODSContent helper wraps cells in <table:table table:name="Sheet1">).
+	require.Len(t, blocks, 7)
 
 	texts := testutil.BlockTexts(blocks)
+	assert.Contains(t, texts, "Sheet1")
 	assert.Contains(t, texts, "Name")
 	assert.Contains(t, texts, "Value")
 	assert.Contains(t, texts, "Item A")
@@ -535,7 +538,22 @@ func TestReadODTWithLineBreak(t *testing.T) {
 	blocks := testutil.FilterBlocks(parts)
 
 	require.Len(t, blocks, 1)
-	assert.Equal(t, "Line one\nLine two", blocks[0].SourceText())
+	// Upstream Okapi emits text:line-break as a PLACEHOLDER inline code
+	// carrying the original <text:line-break/> markup, NOT as a literal
+	// '\n' in the translatable text (ODFFilter.java:619-622). SourceText
+	// returns only TextRun content; the line-break placeholder shows up
+	// in SourceRuns as a Ph run carrying the original markup so the
+	// writer can splice it back into the reconstructed XML.
+	runs := blocks[0].SourceRuns()
+	require.Len(t, runs, 3)
+	require.NotNil(t, runs[0].Text)
+	assert.Equal(t, "Line one", runs[0].Text.Text)
+	require.NotNil(t, runs[1].Ph)
+	assert.Equal(t, "lb", runs[1].Ph.Type)
+	assert.Equal(t, "<text:line-break/>", runs[1].Ph.Data)
+	require.NotNil(t, runs[2].Text)
+	assert.Equal(t, "Line two", runs[2].Text.Text)
+	assert.Equal(t, "Line oneLine two", blocks[0].SourceText())
 }
 
 func TestReadODTWithTab(t *testing.T) {

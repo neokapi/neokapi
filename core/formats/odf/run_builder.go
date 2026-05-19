@@ -32,10 +32,33 @@ func (b *runBuilder) AddPcOpen(id, semType, data string) {
 	}})
 }
 
+// AddPh adds a placeholder run carrying the original self-closing
+// markup as Data (e.g. `<text:line-break/>`). Mirrors upstream Okapi's
+// TagType.PLACEHOLDER for self-closing inline elements like line-break.
+func (b *runBuilder) AddPh(id, semType, data string) {
+	b.runs = append(b.runs, model.Run{Ph: &model.PlaceholderRun{
+		ID:   id,
+		Type: semType,
+		Data: data,
+	}})
+}
+
 func (b *runBuilder) AddPcClose(id, semType string) {
 	b.runs = append(b.runs, model.Run{PcClose: &model.PcCloseRun{
 		ID:   id,
 		Type: semType,
+	}})
+}
+
+// AddPcCloseData is like AddPcClose but also captures the original
+// closing-tag markup in Data so the writer can splice it back into the
+// reconstructed XML verbatim. Used by the generic inline-element path
+// to mirror upstream Okapi's TagType.CLOSING code emission.
+func (b *runBuilder) AddPcCloseData(id, semType, data string) {
+	b.runs = append(b.runs, model.Run{PcClose: &model.PcCloseRun{
+		ID:   id,
+		Type: semType,
+		Data: data,
 	}})
 }
 

@@ -10,6 +10,7 @@ import (
 	"io"
 	"os"
 	"strings"
+	"unicode"
 
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
@@ -21,7 +22,10 @@ const (
 	nsTable        = "urn:oasis:names:tc:opendocument:xmlns:table:1.0"
 	nsOffice       = "urn:oasis:names:tc:opendocument:xmlns:office:1.0"
 	nsPresentation = "urn:oasis:names:tc:opendocument:xmlns:presentation:1.0"
+	nsStyle        = "urn:oasis:names:tc:opendocument:xmlns:style:1.0"
 	nsXLink        = "http://www.w3.org/1999/xlink"
+	nsMeta         = "urn:oasis:names:tc:opendocument:xmlns:meta:1.0"
+	nsDC           = "http://purl.org/dc/elements/1.1/"
 )
 
 // Span type constants for inline formatting.
@@ -46,8 +50,8 @@ var odfNSPrefixMap = map[string]string{
 	nsTable:        "table",
 	nsOffice:       "office",
 	nsPresentation: "presentation",
+	nsStyle:        "style",
 	nsXLink:        "xlink",
-	"urn:oasis:names:tc:opendocument:xmlns:style:1.0":           "style",
 	"urn:oasis:names:tc:opendocument:xmlns:fo:1.0":              "fo",
 	"urn:oasis:names:tc:opendocument:xmlns:drawing:1.0":         "draw",
 	"urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0":  "svg",
@@ -271,6 +275,23 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		}
 	}
 
+	// Process meta.xml (carries document metadata: dc:title, dc:description,
+	// dc:subject, meta:keyword, meta:user-defined — see upstream Okapi
+	// ODFFilter.java:127-130). Matches OpenDocument 1.2 §4.3 (document
+	// metadata).
+	metaXML := zipFileByName(zr, "meta.xml")
+	if metaXML != nil {
+		metaData, err := readZipFile(metaXML)
+		if err != nil {
+			ch <- model.PartResult{Error: fmt.Errorf("odf: reading meta.xml: %w", err)}
+			tmpFile.Close()
+			return
+		}
+		r.skelPartStart("meta.xml")
+		r.parseODFContent(ctx, ch, metaData, docType, &blockCounter, "meta.xml")
+		r.skelPartEnd("meta.xml")
+	}
+
 	// Process styles.xml (may contain translatable master page content)
 	stylesXML := zipFileByName(zr, "styles.xml")
 	if stylesXML != nil {
@@ -388,6 +409,12 @@ func (r *Reader) parseODFContent(ctx context.Context, ch chan<- model.PartResult
 	var translatableDepth int
 	// For skeleton: buffer the start element of a translatable block
 	var translatableStart xml.StartElement
+	// inlineIDStack records the PcOpen id for each currently-open
+	// generic inline element so the matching EndElement can emit a
+	// PcClose with the same id. Special-cased elements (text:line-break,
+	// text:tab, text:s, and the translatable wrapper itself) push a 0
+	// to keep depths aligned without emitting a code.
+	var inlineIDStack []int
 
 	for {
 		tok, err := d.Token()
@@ -404,25 +431,26 @@ func (r *Reader) parseODFContent(ctx context.Context, ch chan<- model.PartResult
 				translatableDepth = len(elementStack)
 				b = newRunBuilder()
 				idCounter = 0
+				inlineIDStack = inlineIDStack[:0]
 				translatableStart = t.Copy()
 			} else if inTranslatable {
-				// Handle inline formatting elements
-				if isInlineFormattingElement(t.Name) {
-					spanType := inlineSpanType(t.Name)
-					if spanType != "" {
-						idCounter++
-						b.AddPcOpen(fmt.Sprintf("s%d", idCounter), spanType, "")
-					}
-				} else if t.Name.Space == nsText && t.Name.Local == "a" {
-					// Hyperlink — the text inside is still translatable
+				switch {
+				case t.Name.Space == nsText && t.Name.Local == "line-break":
+					// Upstream Okapi emits a PLACEHOLDER code carrying the
+					// original `<text:line-break/>` markup (ODFFilter.java:619-622).
+					// Preserve the same shape so the writer splices the
+					// original self-closing element back into the output.
 					idCounter++
-					b.AddPcOpen(fmt.Sprintf("s%d", idCounter), TypeHyperlink, getAttr(t, nsXLink, "href"))
-				} else if t.Name.Space == nsText && t.Name.Local == "line-break" {
-					b.AddText("\n")
-				} else if t.Name.Space == nsText && t.Name.Local == "tab" {
+					b.AddPh(fmt.Sprintf("s%d", idCounter), "lb", odfBuildEmptyTagMarkup(t))
+					inlineIDStack = append(inlineIDStack, 0)
+				case t.Name.Space == nsText && t.Name.Local == "tab":
+					// Upstream Okapi extracts the tab as a literal "\t"
+					// character (ODFFilter.java:615-618), not a code.
 					b.AddText("\t")
-				} else if t.Name.Space == nsText && t.Name.Local == "s" {
-					// text:s = space(s)
+					inlineIDStack = append(inlineIDStack, 0)
+				case t.Name.Space == nsText && t.Name.Local == "s":
+					// text:s = space(s); upstream extracts as literal spaces
+					// (ODFFilter.java:604-613).
 					count := 1
 					for _, a := range t.Attr {
 						if a.Name.Local == "c" {
@@ -430,9 +458,24 @@ func (r *Reader) parseODFContent(ctx context.Context, ch chan<- model.PartResult
 						}
 					}
 					b.AddText(strings.Repeat(" ", count))
+					inlineIDStack = append(inlineIDStack, 0)
+				default:
+					// Generic inline element: preserve its full opening
+					// markup (element + attributes) as PcOpen.Data so the
+					// writer can splice the original tag back around the
+					// translated inner runs. Mirrors upstream Okapi
+					// ODFFilter.processStartElement falling through to
+					// `tf.append(TagType.OPENING, name, buildStartTag(...))`
+					// (ODFFilter.java:636-644) for any element that's not
+					// in toExtract/toProtect/subFlow.
+					idCounter++
+					data := odfBuildStartTagMarkup(t)
+					spanType := inlineSpanTypeFor(t.Name)
+					b.AddPcOpen(fmt.Sprintf("s%d", idCounter), spanType, data)
+					inlineIDStack = append(inlineIDStack, idCounter)
 				}
 			} else {
-				p.skelWriteStartElement(t)
+				r.emitElementWithAttrExtraction(ctx, ch, p, t, docType, blockCounter, partPath)
 			}
 
 		case xml.CharData:
@@ -444,21 +487,16 @@ func (r *Reader) parseODFContent(ctx context.Context, ch chan<- model.PartResult
 
 		case xml.EndElement:
 			if inTranslatable {
-				if isInlineFormattingElement(t.Name) {
-					spanType := inlineSpanType(t.Name)
-					if spanType != "" {
-						idCounter++
-						b.AddPcClose(fmt.Sprintf("s%d", idCounter), spanType)
-					}
-				} else if t.Name.Space == nsText && t.Name.Local == "a" {
-					idCounter++
-					b.AddPcClose(fmt.Sprintf("s%d", idCounter), TypeHyperlink)
-				}
-
 				if len(elementStack) == translatableDepth {
-					// End of translatable element
-					plain := strings.TrimSpace(b.PlainText())
-					if plain != "" {
+					// End of translatable element. Use the trimmed plain
+					// text only for the emptiness check; preserve the
+					// untrimmed content in the emitted block so leading
+					// or trailing whitespace inside the element round-
+					// trips byte-for-byte (upstream Okapi keeps it).
+					raw := b.PlainText()
+					runs := b.Runs()
+					hasContent := strings.TrimSpace(raw) != "" || hasInlineCodeRuns(runs)
+					if hasContent {
 						*blockCounter++
 						blockID := fmt.Sprintf("tu%d", *blockCounter)
 
@@ -467,9 +505,8 @@ func (r *Reader) parseODFContent(ctx context.Context, ch chan<- model.PartResult
 						p.skelRef(blockID)
 						p.skelWriteEndElement(t)
 
-						runs := b.Runs()
 						var block *model.Block
-						if len(runs) > 0 && hasInlineCodeRuns(runs) {
+						if hasInlineCodeRuns(runs) {
 							block = &model.Block{
 								ID:           blockID,
 								Translatable: true,
@@ -482,7 +519,7 @@ func (r *Reader) parseODFContent(ctx context.Context, ch chan<- model.PartResult
 								Annotations: make(map[string]model.Annotation),
 							}
 						} else {
-							block = model.NewBlock(blockID, plain)
+							block = model.NewBlock(blockID, raw)
 							block.Properties["partPath"] = partPath
 							block.Properties["element"] = t.Name.Local
 						}
@@ -491,10 +528,21 @@ func (r *Reader) parseODFContent(ctx context.Context, ch chan<- model.PartResult
 					} else {
 						// Empty translatable element — pass through to skeleton
 						p.skelWriteStartElement(translatableStart)
-						p.skelText(odfXMLEscape(b.PlainText()))
+						p.skelText(odfXMLEscape(raw))
 						p.skelWriteEndElement(t)
 					}
 					inTranslatable = false
+					inlineIDStack = inlineIDStack[:0]
+				} else if len(inlineIDStack) > 0 {
+					// Pop the matching inline id; emit a PcClose iff the
+					// open emitted a PcOpen (id > 0).
+					id := inlineIDStack[len(inlineIDStack)-1]
+					inlineIDStack = inlineIDStack[:len(inlineIDStack)-1]
+					if id > 0 {
+						data := odfBuildEndTagMarkup(t)
+						spanType := inlineSpanTypeFor(t.Name)
+						b.AddPcCloseData(fmt.Sprintf("s%d", id), spanType, data)
+					}
 				}
 			} else {
 				p.skelWriteEndElement(t)
@@ -522,6 +570,165 @@ func (r *Reader) parseODFContent(ctx context.Context, ch chan<- model.PartResult
 	}
 
 	p.skelFlush()
+}
+
+// odfBuildStartTagMarkup serialises an xml.StartElement back to its
+// `<prefix:name attr="val" ...>` form for use as inline-code Data.
+// Mirrors upstream Okapi ODFFilter.buildStartTag (ODFFilter.java:431-489)
+// — the captured outer markup is what gets spliced back into the
+// reconstructed XML around the translated inner text.
+func odfBuildStartTagMarkup(t xml.StartElement) string {
+	odfRegisterNamespaces(t.Attr)
+	var buf strings.Builder
+	buf.WriteString("<")
+	odfWriteElementName(&buf, t.Name)
+	for _, a := range t.Attr {
+		buf.WriteString(" ")
+		odfWriteAttrName(&buf, a.Name)
+		buf.WriteString(`="`)
+		buf.WriteString(odfXMLEscapeAttr(a.Value))
+		buf.WriteString(`"`)
+	}
+	buf.WriteString(">")
+	return buf.String()
+}
+
+// odfBuildEndTagMarkup serialises an xml.EndElement back to `</prefix:name>`.
+func odfBuildEndTagMarkup(t xml.EndElement) string {
+	var buf strings.Builder
+	buf.WriteString("</")
+	odfWriteElementName(&buf, t.Name)
+	buf.WriteString(">")
+	return buf.String()
+}
+
+// odfBuildEmptyTagMarkup serialises an xml.StartElement back to a
+// self-closing `<prefix:name attr="val"/>` form for use as a placeholder
+// inline-code Data. Mirrors upstream Okapi's `<text:line-break/>`
+// emission for self-closing inline elements.
+func odfBuildEmptyTagMarkup(t xml.StartElement) string {
+	odfRegisterNamespaces(t.Attr)
+	var buf strings.Builder
+	buf.WriteString("<")
+	odfWriteElementName(&buf, t.Name)
+	for _, a := range t.Attr {
+		buf.WriteString(" ")
+		odfWriteAttrName(&buf, a.Name)
+		buf.WriteString(`="`)
+		buf.WriteString(odfXMLEscapeAttr(a.Value))
+		buf.WriteString(`"`)
+	}
+	buf.WriteString("/>")
+	return buf.String()
+}
+
+// inlineSpanTypeFor returns the semantic type for an inline element.
+// Known formatting elements (text:span, text:a) keep their named types
+// for downstream tools that branch on them; all other elements get an
+// `x-<localName>` generic type so the original markup round-trips
+// without losing identity.
+func inlineSpanTypeFor(name xml.Name) string {
+	switch {
+	case name.Space == nsText && name.Local == "span":
+		return TypeBold
+	case name.Space == nsText && name.Local == "a":
+		return TypeHyperlink
+	}
+	return "x-" + name.Local
+}
+
+// emitElementWithAttrExtraction writes a start element to the skeleton,
+// extracting translatable attribute values into Blocks. This mirrors
+// upstream Okapi ODFFilter's attrbutesToExtract behaviour (see
+// ODFFilter.java:133-136 and ODFFilter.java:454-474): the attributes
+// style:num-prefix, style:num-suffix, and (for spreadsheets) table:name
+// hold display text wrapping list-level numbering / sheet names and
+// should be pseudo-translated. Matches OpenDocument 1.2 §19.711 /
+// §19.812 / §19.731.
+func (r *Reader) emitElementWithAttrExtraction(ctx context.Context, ch chan<- model.PartResult,
+	p *odfParser, t xml.StartElement, docType odfDocType, blockCounter *int, partPath string) {
+
+	odfRegisterNamespaces(t.Attr)
+
+	// Buffer "<elementName" into the skeleton text buffer.
+	var head strings.Builder
+	head.WriteString("<")
+	odfWriteElementName(&head, t.Name)
+	p.skelText(head.String())
+
+	for _, a := range t.Attr {
+		if isTranslatableAttribute(a.Name, docType) && hasTrueText(a.Value) {
+			// Emit a Block whose source text is the attribute value.
+			*blockCounter++
+			blockID := fmt.Sprintf("tu%d", *blockCounter)
+			block := model.NewBlock(blockID, a.Value)
+			block.Properties["partPath"] = partPath
+			block.Properties["element"] = t.Name.Local
+			block.Properties["attribute"] = a.Name.Local
+			if a.Name.Space != "" {
+				block.Properties["attributeNS"] = a.Name.Space
+			}
+			r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
+
+			// Write ` name="` then a ref to the block, then `"`.
+			var pre strings.Builder
+			pre.WriteString(" ")
+			odfWriteAttrName(&pre, a.Name)
+			pre.WriteString(`="`)
+			p.skelText(pre.String())
+			p.skelRef(blockID)
+			p.skelText(`"`)
+			continue
+		}
+
+		// Non-translatable: write literally.
+		var attr strings.Builder
+		attr.WriteString(" ")
+		odfWriteAttrName(&attr, a.Name)
+		attr.WriteString(`="`)
+		attr.WriteString(odfXMLEscapeAttr(a.Value))
+		attr.WriteString(`"`)
+		p.skelText(attr.String())
+	}
+
+	p.skelText(">")
+}
+
+// isTranslatableAttribute reports whether an attribute should be
+// extracted as a translatable string. Mirrors upstream ODFFilter's
+// attrbutesToExtract map (initialised in ODFFilter.java:133-136):
+//   - style:num-prefix and style:num-suffix on every document type
+//     (list-level numbering wrappers, e.g. "Text before>" / "<Text after")
+//   - table:name only on spreadsheets (sheet display name)
+func isTranslatableAttribute(name xml.Name, docType odfDocType) bool {
+	switch name.Space {
+	case nsStyle:
+		switch name.Local {
+		case "num-prefix", "num-suffix":
+			return true
+		}
+	case nsTable:
+		if name.Local == "name" {
+			return docType == odfTypeSpreadsheet
+		}
+	}
+	return false
+}
+
+// hasTrueText returns true if the string contains at least one letter
+// character. Mirrors upstream ODFFilter.hasTrueText (ODFFilter.java:491):
+// purely punctuation/whitespace/digit values (such as the num-suffix="."
+// found on most list levels) aren't worth extracting as translatable.
+func hasTrueText(s string) bool {
+	if s == "" {
+		return false
+	}
+	for _, r := range s {
+		if unicode.IsLetter(r) {
+			return true
+		}
+	}
+	return false
 }
 
 // emitSubfiltered emits a child layer with content parsed by the XML sub-format reader.
@@ -594,30 +801,30 @@ func (r *Reader) skelPartEnd(partPath string) {
 	}
 }
 
-// isTranslatableElement returns true if the XML element can contain translatable text.
+// isTranslatableElement returns true if the XML element can contain
+// translatable text. Mirrors upstream Okapi ODFFilter.toExtract
+// (ODFFilter.java:124-131): paragraph/heading shells in content.xml +
+// styles.xml, plus the document-metadata elements in meta.xml
+// (dc:title, dc:description, dc:subject, meta:keyword, meta:user-defined).
 func isTranslatableElement(name xml.Name) bool {
 	switch name.Space {
 	case nsText:
 		switch name.Local {
-		case "p", "h":
+		case "p", "h", "index-title-template":
+			return true
+		}
+	case nsDC:
+		switch name.Local {
+		case "title", "description", "subject":
+			return true
+		}
+	case nsMeta:
+		switch name.Local {
+		case "keyword", "user-defined":
 			return true
 		}
 	}
 	return false
-}
-
-// isInlineFormattingElement returns true if the element represents inline formatting.
-func isInlineFormattingElement(name xml.Name) bool {
-	return name.Space == nsText && name.Local == "span"
-}
-
-// inlineSpanType returns the span type for an inline formatting element.
-// For text:span, we return a generic type since ODF uses style references.
-func inlineSpanType(name xml.Name) string {
-	if name.Space == nsText && name.Local == "span" {
-		return TypeBold // Default — actual style resolution would require parsing styles.xml
-	}
-	return ""
 }
 
 // detectODFType detects the ODF document type from the mimetype file.
