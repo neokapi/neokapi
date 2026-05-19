@@ -36,6 +36,9 @@ interface FileResult {
   format: string;
   success: boolean;
   error?: string;
+  pseudoChars?: number;
+  verified?: boolean;
+  verifyNote?: string;
 }
 
 interface FileTrace {
@@ -64,6 +67,16 @@ interface Experiment {
   fileResults: FileResult[];
   fileTimings?: FileTiming[];
   batchTrace?: BatchTrace;
+  // Verification aggregates — populated by the post-batch pass that
+  // scans each output for SCRIPT_EXT_LATIN destination runes. A high
+  // wallTimeMs.median paired with FilesVerified ≪ FilesSucceeded
+  // means the engine is "fast" because it short-circuited pseudo,
+  // not because it's efficient.
+  filesAttempted?: number;
+  filesSucceeded?: number;
+  filesVerified?: number;
+  filesUnverified?: number;
+  totalPseudoChars?: number;
 }
 
 interface Metadata {
@@ -183,6 +196,42 @@ function Legend({ engines }: { engines: string[] }) {
   );
 }
 
+/** VerificationBanner flags engines whose outputs pass the existence
+ * check but contain zero pseudo runes — a signal that the engine
+ * short-circuited pseudo-translate (silent no-op) and its wall-time
+ * numbers are misleading. Renders nothing when every engine clears
+ * the threshold.
+ */
+function VerificationBanner({ experiments }: { experiments: Experiment[] }) {
+  const flagged = experiments
+    .map((e) => {
+      const succeeded = e.filesSucceeded ?? e.fileResults?.length ?? 0;
+      const verified = e.filesVerified ?? 0;
+      const unverified = e.filesUnverified ?? 0;
+      const pct = succeeded > 0 ? (verified / succeeded) * 100 : 100;
+      return { engine: e.engine, succeeded, verified, unverified, pct };
+    })
+    .filter((r) => r.unverified > 0 && r.pct < 80);
+  if (flagged.length === 0) return null;
+  return (
+    <div className={styles.verifyBanner}>
+      <strong>⚠ Verification warning:</strong>{" "}
+      {flagged.length === 1 ? "One engine" : `${flagged.length} engines`} succeeded on most files
+      but produced output with zero pseudo-translated runes. The timings for these engines
+      benchmark silent no-ops, not real pseudo work:
+      <ul>
+        {flagged.map((r) => (
+          <li key={r.engine}>
+            <strong>{engineLabel(r.engine)}</strong>: only {r.verified}/{r.succeeded} succeeded
+            files actually contain pseudo content ({r.unverified} files written without any
+            SCRIPT_EXT_LATIN runes).
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 /** engineMetric returns the ms number to use for headline ratios in the
  * given view. Batch view: the wall-time median across iterations.
  * Multi-Invocation: the summed per-file wall-time (each file = a fresh
@@ -284,6 +333,12 @@ function BatchComparison({ experiments }: { experiments: Experiment[] }) {
         <div className={styles.compColHeader}>
           Stddev<span className={styles.compUnit}>ms</span>
         </div>
+        <div
+          className={styles.compColHeader}
+          title="Files where the output actually contains pseudo-translated runes. An engine that completes a file but produces zero pseudo characters is silently no-op'ing — the timing for that file isn't meaningful."
+        >
+          Verified<span className={styles.compUnit}>files</span>
+        </div>
 
         {experiments.map((e) => {
           const color = engineColor(e.engine);
@@ -292,6 +347,13 @@ function BatchComparison({ experiments }: { experiments: Experiment[] }) {
             e.wallTimeMs.median === Math.min(...experiments.map((x) => x.wallTimeMs.median));
           const isRssWin =
             e.peakRssKB.median === Math.min(...experiments.map((x) => x.peakRssKB.median));
+          const verified = e.filesVerified ?? 0;
+          const succeeded = e.filesSucceeded ?? e.fileResults?.length ?? 0;
+          const unverified = e.filesUnverified ?? 0;
+          const verifyPct = succeeded > 0 ? (verified / succeeded) * 100 : 100;
+          // Red when fewer than 80% of succeeded files actually contain
+          // pseudo runes — strong signal that timing is misleading.
+          const verifyBad = succeeded > 0 && verifyPct < 80;
 
           return (
             <Fragment key={e.engine}>
@@ -314,17 +376,31 @@ function BatchComparison({ experiments }: { experiments: Experiment[] }) {
                   />
                 </div>
                 <span className={styles.compVal}>{fmt(e.wallTimeMs.median)}</span>
-                {isTimeWin && <span className={styles.compWinBadge} />}
+                {isTimeWin && !verifyBad && <span className={styles.compWinBadge} />}
               </div>
               <div className={styles.compCell}>
                 <span className={styles.compVal}>{fmt(e.wallTimeMs.p95)}</span>
               </div>
               <div className={`${styles.compCell} ${isRssWin ? styles.compCellWinner : ""}`}>
                 <span className={styles.compVal}>{fmt(e.peakRssKB.median / 1024)}</span>
-                {isRssWin && <span className={styles.compWinBadge} />}
+                {isRssWin && !verifyBad && <span className={styles.compWinBadge} />}
               </div>
               <div className={styles.compCell}>
                 <span className={styles.compVal}>{fmt(e.wallTimeMs.stddev)}</span>
+              </div>
+              <div className={styles.compCell}>
+                <span
+                  className={styles.compVal}
+                  style={verifyBad ? { color: "#dc2626", fontWeight: 600 } : undefined}
+                  title={
+                    unverified > 0
+                      ? `${unverified} files succeeded but produced ZERO pseudo runes — engine likely short-circuited pseudo-translate. Timing on this row is misleading.`
+                      : `All ${verified} succeeded files contain pseudo content.`
+                  }
+                >
+                  {verifyBad && "⚠ "}
+                  {verified}/{succeeded}
+                </span>
               </div>
             </Fragment>
           );
@@ -1141,6 +1217,7 @@ export default function PseudoBench() {
           <>
             <MetadataBar metadata={report.metadata} />
             <Legend engines={engines} />
+            <VerificationBanner experiments={experiments} />
             <SummaryCards experiments={experiments} mode={viewMode} />
 
             <div className={styles.filters}>

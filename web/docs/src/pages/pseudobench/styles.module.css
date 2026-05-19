@@ -48,6 +48,24 @@
   flex-shrink: 0;
 }
 
+/* ── Verification warning banner ── */
+.verifyBanner {
+  background: rgba(220, 38, 38, 0.08);
+  border-left: 4px solid #dc2626;
+  border-radius: 4px;
+  padding: 0.75rem 1rem;
+  margin-bottom: 1.25rem;
+  font-size: 0.9rem;
+  color: var(--ifm-color-emphasis-900);
+}
+.verifyBanner ul {
+  margin: 0.5rem 0 0 0;
+  padding-left: 1.25rem;
+}
+.verifyBanner li {
+  margin-bottom: 0.25rem;
+}
+
 /* ── Summary cards ── */
 .summaryCards {
   display: flex;
@@ -163,8 +181,8 @@
 /* ── Comparison Grid (inside card) ── */
 .compGrid {
   display: grid;
-  /* 1 engine-label col + 4 metric cols */
-  grid-template-columns: 160px repeat(4, 1fr);
+  /* 1 engine-label col + 5 metric cols (Wall, p95, Peak RSS, Stddev, Verified) */
+  grid-template-columns: 160px repeat(5, 1fr);
   gap: 4px 8px;
   align-items: center;
 }
