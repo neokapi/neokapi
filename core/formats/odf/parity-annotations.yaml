@@ -21,8 +21,8 @@ fixtures:
     summary: "Same namespace-canonicalisation pattern as TestDocument01."
   TestDocument06.odt:
     severity: bug
-    summary: "Residual: same namespace-canonicalisation pattern as TestDocument01 — once the style:num-prefix / style:num-suffix attribute extraction matched okapi (issue cleared), the remaining divergence is the namespace prefix shape (native emits xmlns:office=.../xmlns:style=...; okapi rewrites to xmlns=...+xmlns:_=...). After XML canonicalisation the namespace URIs match but the wire format diverges from offset 1."
-    spec_ref: "OpenDocument 1.2 §1.4 (namespace handling)"
+    summary: "Residual: style:num-prefix / style:num-suffix attribute extraction now matches okapi (\"Text before>\" / \"<Text after\" pseudo-translate). What remains is the same namespace-canonicalisation pattern as TestDocument01 — native emits xmlns:office=.../xmlns:style=...; okapi rewrites to xmlns=...+xmlns:_=... . After XML canonicalisation the namespace URIs match but the wire format diverges from offset 1."
+    spec_ref: "OpenDocument 1.2 §1.4 (namespace handling) / §19.711 / §19.812"
   TestDocumentWithNumberTag.odp:
     severity: bug
     summary: "styles.xml namespace canonicalisation differs from offset 1 (same shape as TestDocument01)."
