@@ -24,12 +24,12 @@ fixtures:
     summary: "Same namespace-canonicalisation pattern as TestDocument01."
   TestDocument06.odt:
     severity: bug
-    summary: "Native does not extract __1:num-prefix and __1:num-suffix attributes on list-level definitions as translatable strings. These attributes carry display strings (\"Text before>\" / \"<Text after\") that wrap auto-numbering markers; okapi extracts and pseudo-translates them. Native leaves them untouched."
-    spec_ref: "OpenDocument 1.2 §19.711 / §19.812 (text:num-prefix / text:num-suffix)"
+    summary: "Residual: style:num-prefix / style:num-suffix attribute extraction now matches okapi (\"Text before>\" / \"<Text after\" pseudo-translate). What remains is the same namespace-canonicalisation pattern as TestDocument01 — native emits xmlns:office=.../xmlns:style=...; okapi rewrites to xmlns=...+xmlns:_=... . After XML canonicalisation the namespace URIs match but the wire format diverges from offset 1."
+    spec_ref: "OpenDocument 1.2 §1.4 (namespace handling) / §19.711 / §19.812"
   TestDocumentWithFormulaResults.ods:
     severity: bug
-    summary: "Native does not extract the table:name attribute (\"Sheet1\") on table elements as translatable. okapi pseudo-translates the sheet name. Same pattern as TestSpreadsheet01.ods."
-    spec_ref: "OpenDocument 1.2 §19.731 (table:name)"
+    summary: "Residual: table:name extraction (\"Sheet1\") and style:num-prefix/num-suffix extraction now match okapi. What remains is (a) a trailing-whitespace trim in cell paragraphs — native's strings.TrimSpace(b.PlainText()) drops the 10 trailing spaces in \"spaces at the end          \" that okapi preserves — and (b) the styles.xml <text:page-number> inline element being flattened to literal \"1\" (same pattern as TestDocumentWithMetadata)."
+    spec_ref: "OpenDocument 1.2 §6.4.5 (text:page-number) / paragraph whitespace handling / §19.731"
   TestDocumentWithMetadata.odt:
     severity: bug
     summary: "Native flattens <page-count>2</page-count> and <page-number>2</page-number> inline markup in footer/header content into literal \"2 of 2\" text; the inline elements are part of the paragraph runs and should be preserved as inline markup with their numeric placeholders intact (okapi does this)."
@@ -55,8 +55,8 @@ fixtures:
     spec_ref: "OpenDocument 1.2 §4.3.2.6 (dc:description)"
   TestSpreadsheet01.ods:
     severity: bug
-    summary: "Native does not extract the table:name attribute (\"Title of sheet one\") as translatable. Same pattern as TestDocumentWithFormulaResults.ods."
-    spec_ref: "OpenDocument 1.2 §19.731 (table:name)"
+    summary: "Residual: table:name extraction (\"Title of sheet one\") now matches okapi. What remains is the annotation/comment <text:span> inline markup being flattened — native drops the <span text:style-name=\"T1\">…</span> wrapper inside cell comments. Same drop-inline-markup pattern as TestDrawing01 / TestPresentation01."
+    spec_ref: "OpenDocument 1.2 §6.1.7 (text:span) / §19.731 (table:name)"
   bookmark-reference.odt:
     severity: bug
     summary: "Same namespace-canonicalisation pattern as TestDocument01."

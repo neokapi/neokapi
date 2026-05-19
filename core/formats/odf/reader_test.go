@@ -245,9 +245,12 @@ func TestReadODSSpreadsheet(t *testing.T) {
 	assert.Equal(t, "ods", rootLayer.Properties["docType"])
 
 	blocks := testutil.FilterBlocks(parts)
-	require.Len(t, blocks, 6)
+	// 6 cell text:p values + 1 translatable table:name="Sheet1" attribute
+	// (the simpleODSContent helper wraps cells in <table:table table:name="Sheet1">).
+	require.Len(t, blocks, 7)
 
 	texts := testutil.BlockTexts(blocks)
+	assert.Contains(t, texts, "Sheet1")
 	assert.Contains(t, texts, "Name")
 	assert.Contains(t, texts, "Value")
 	assert.Contains(t, texts, "Item A")

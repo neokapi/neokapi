@@ -10,6 +10,7 @@ import (
 	"io"
 	"os"
 	"strings"
+	"unicode"
 
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
@@ -21,6 +22,7 @@ const (
 	nsTable        = "urn:oasis:names:tc:opendocument:xmlns:table:1.0"
 	nsOffice       = "urn:oasis:names:tc:opendocument:xmlns:office:1.0"
 	nsPresentation = "urn:oasis:names:tc:opendocument:xmlns:presentation:1.0"
+	nsStyle        = "urn:oasis:names:tc:opendocument:xmlns:style:1.0"
 	nsXLink        = "http://www.w3.org/1999/xlink"
 )
 
@@ -46,8 +48,8 @@ var odfNSPrefixMap = map[string]string{
 	nsTable:        "table",
 	nsOffice:       "office",
 	nsPresentation: "presentation",
+	nsStyle:        "style",
 	nsXLink:        "xlink",
-	"urn:oasis:names:tc:opendocument:xmlns:style:1.0":           "style",
 	"urn:oasis:names:tc:opendocument:xmlns:fo:1.0":              "fo",
 	"urn:oasis:names:tc:opendocument:xmlns:drawing:1.0":         "draw",
 	"urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0":  "svg",
@@ -432,7 +434,7 @@ func (r *Reader) parseODFContent(ctx context.Context, ch chan<- model.PartResult
 					b.AddText(strings.Repeat(" ", count))
 				}
 			} else {
-				p.skelWriteStartElement(t)
+				r.emitElementWithAttrExtraction(ctx, ch, p, t, docType, blockCounter, partPath)
 			}
 
 		case xml.CharData:
@@ -522,6 +524,100 @@ func (r *Reader) parseODFContent(ctx context.Context, ch chan<- model.PartResult
 	}
 
 	p.skelFlush()
+}
+
+// emitElementWithAttrExtraction writes a start element to the skeleton,
+// extracting translatable attribute values into Blocks. This mirrors
+// upstream Okapi ODFFilter's attrbutesToExtract behaviour (see
+// ODFFilter.java:133-136 and ODFFilter.java:454-474): the attributes
+// style:num-prefix, style:num-suffix, and (for spreadsheets) table:name
+// hold display text wrapping list-level numbering / sheet names and
+// should be pseudo-translated. Matches OpenDocument 1.2 §19.711 /
+// §19.812 / §19.731.
+func (r *Reader) emitElementWithAttrExtraction(ctx context.Context, ch chan<- model.PartResult,
+	p *odfParser, t xml.StartElement, docType odfDocType, blockCounter *int, partPath string) {
+
+	odfRegisterNamespaces(t.Attr)
+
+	// Buffer "<elementName" into the skeleton text buffer.
+	var head strings.Builder
+	head.WriteString("<")
+	odfWriteElementName(&head, t.Name)
+	p.skelText(head.String())
+
+	for _, a := range t.Attr {
+		if isTranslatableAttribute(a.Name, docType) && hasTrueText(a.Value) {
+			// Emit a Block whose source text is the attribute value.
+			*blockCounter++
+			blockID := fmt.Sprintf("tu%d", *blockCounter)
+			block := model.NewBlock(blockID, a.Value)
+			block.Properties["partPath"] = partPath
+			block.Properties["element"] = t.Name.Local
+			block.Properties["attribute"] = a.Name.Local
+			if a.Name.Space != "" {
+				block.Properties["attributeNS"] = a.Name.Space
+			}
+			r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
+
+			// Write ` name="` then a ref to the block, then `"`.
+			var pre strings.Builder
+			pre.WriteString(" ")
+			odfWriteAttrName(&pre, a.Name)
+			pre.WriteString(`="`)
+			p.skelText(pre.String())
+			p.skelRef(blockID)
+			p.skelText(`"`)
+			continue
+		}
+
+		// Non-translatable: write literally.
+		var attr strings.Builder
+		attr.WriteString(" ")
+		odfWriteAttrName(&attr, a.Name)
+		attr.WriteString(`="`)
+		attr.WriteString(odfXMLEscapeAttr(a.Value))
+		attr.WriteString(`"`)
+		p.skelText(attr.String())
+	}
+
+	p.skelText(">")
+}
+
+// isTranslatableAttribute reports whether an attribute should be
+// extracted as a translatable string. Mirrors upstream ODFFilter's
+// attrbutesToExtract map (initialised in ODFFilter.java:133-136):
+//   - style:num-prefix and style:num-suffix on every document type
+//     (list-level numbering wrappers, e.g. "Text before>" / "<Text after")
+//   - table:name only on spreadsheets (sheet display name)
+func isTranslatableAttribute(name xml.Name, docType odfDocType) bool {
+	switch name.Space {
+	case nsStyle:
+		switch name.Local {
+		case "num-prefix", "num-suffix":
+			return true
+		}
+	case nsTable:
+		if name.Local == "name" {
+			return docType == odfTypeSpreadsheet
+		}
+	}
+	return false
+}
+
+// hasTrueText returns true if the string contains at least one letter
+// character. Mirrors upstream ODFFilter.hasTrueText (ODFFilter.java:491):
+// purely punctuation/whitespace/digit values (such as the num-suffix="."
+// found on most list levels) aren't worth extracting as translatable.
+func hasTrueText(s string) bool {
+	if s == "" {
+		return false
+	}
+	for _, r := range s {
+		if unicode.IsLetter(r) {
+			return true
+		}
+	}
+	return false
 }
 
 // emitSubfiltered emits a child layer with content parsed by the XML sub-format reader.
