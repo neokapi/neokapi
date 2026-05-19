@@ -135,6 +135,31 @@ func runExperiment(engine Engine, cfg *Config, daemon *DaemonProcess) (*Experime
 		FileResults: lastFileResults,
 	}
 
+	// Aggregate verification stats from the last iteration's per-file
+	// results. FilesUnverified counts fixtures whose output exists but
+	// has zero pseudo-translated runes despite the input containing
+	// letters — a strong signal the engine short-circuited pseudo or
+	// dropped translatable content. Surfaced in the report so a "fast"
+	// engine that does nothing useful is visibly distinct from a "fast"
+	// engine that actually pseudo-translates.
+	exp.FilesAttempted = len(lastFileResults)
+	for _, fr := range lastFileResults {
+		if fr.Success {
+			exp.FilesSucceeded++
+		}
+		if fr.Verified {
+			exp.FilesVerified++
+		} else if fr.Success && fr.PseudoChars == 0 && fr.VerifyNote != "" {
+			exp.FilesUnverified++
+		}
+		exp.TotalPseudoChars += fr.PseudoChars
+	}
+	fmt.Printf("  verified: %d/%d files have pseudo content (%d total runes)\n",
+		exp.FilesVerified, exp.FilesAttempted, exp.TotalPseudoChars)
+	if exp.FilesUnverified > 0 {
+		fmt.Printf("  ⚠ %d files succeeded but produced zero pseudo runes\n", exp.FilesUnverified)
+	}
+
 	// Collect daemon RSS stats.
 	if isDaemon {
 		samples := daemon.StopRSSSampling()

@@ -58,6 +58,17 @@ type ExperimentResult struct {
 	FileResults []FileResult `json:"fileResults"`
 	FileTimings []FileTiming `json:"fileTimings,omitempty"`
 	BatchTrace  *BatchTrace  `json:"batchTrace,omitempty"`
+
+	// Verification aggregates (populated from the last iteration's
+	// FileResults at report-write time). Lets readers see at a glance
+	// whether the engine's outputs actually contain pseudo-translated
+	// content — a no-op engine that exits 0 quickly would look great
+	// in WallTimeMs but show 0 verified files here.
+	FilesAttempted   int `json:"filesAttempted,omitempty"`
+	FilesSucceeded   int `json:"filesSucceeded,omitempty"`
+	FilesVerified    int `json:"filesVerified,omitempty"`
+	FilesUnverified  int `json:"filesUnverified,omitempty"`
+	TotalPseudoChars int `json:"totalPseudoChars,omitempty"`
 }
 
 // BatchTrace mirrors flow.BatchFlowTrace for JSON parsing.
@@ -81,10 +92,13 @@ type FileTrace struct {
 
 // FileResult tracks per-file success/failure within an experiment.
 type FileResult struct {
-	Name    string `json:"name"`
-	Format  string `json:"format"`
-	Success bool   `json:"success"`
-	Error   string `json:"error,omitempty"`
+	Name        string `json:"name"`
+	Format      string `json:"format"`
+	Success     bool   `json:"success"`
+	Error       string `json:"error,omitempty"`
+	PseudoChars int    `json:"pseudoChars,omitempty"`
+	Verified    bool   `json:"verified,omitempty"`
+	VerifyNote  string `json:"verifyNote,omitempty"`
 }
 
 // FileTiming holds per-file timing from a sequential trace pass.

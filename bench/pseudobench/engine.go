@@ -234,7 +234,7 @@ func runKapiBatch(ctx context.Context, binPath string, files []TestFile, inputDi
 		return nil, fileResults, err
 	}
 
-	// Sanity check: did each input actually produce an output file?
+	// Sanity check 1: did each input actually produce an output file?
 	// kapi may exit 0 even when a filter silently failed downstream
 	// (e.g. bridge can't instantiate okf_json) and the file got
 	// skipped via --no-warn. This catches the silent-skip bug class.
@@ -255,8 +255,58 @@ func runKapiBatch(ctx context.Context, binPath string, files []TestFile, inputDi
 	// could skip; the runner will continue with the next iteration.
 	_ = missing
 
+	// Sanity check 2: does each output ACTUALLY contain pseudo-
+	// translated content? kapi may write an output that's byte-identical
+	// to the input (engine short-circuited pseudo, filter dropped the
+	// translatable units, etc.). Without this check the timing for
+	// "I read 5MB and wrote 5MB really fast" looks great but the bench
+	// is meaningless. Count SCRIPT_EXT_LATIN destination runes in each
+	// output; flag fixtures where input had letters but output has zero
+	// pseudo runes.
+	for i, in := range inputs {
+		if !fileResults[i].Success {
+			continue
+		}
+		outPath := findOutputFor(written, in)
+		if outPath == "" {
+			continue
+		}
+		letters := countLetters(in)
+		vr, err := verifyPseudoOutput(outPath, letters)
+		if err != nil {
+			fileResults[i].VerifyNote = err.Error()
+			continue
+		}
+		fileResults[i].PseudoChars = vr.PseudoChars
+		fileResults[i].Verified = vr.Verified
+		if vr.Reason != "" {
+			fileResults[i].VerifyNote = vr.Reason
+		}
+	}
+
 	result.OutputBytes = sumDirSize(outputDir)
 	return result, fileResults, nil
+}
+
+// findOutputFor returns the first output path whose basename matches
+// the input. Returns "" if none. Used by verifyPseudoOutput to locate
+// the bytes to scan.
+func findOutputFor(written []string, inputPath string) string {
+	base := filepath.Base(inputPath)
+	stem := base
+	if i := strings.LastIndex(base, "."); i >= 0 {
+		stem = base[:i]
+	}
+	for _, w := range written {
+		wb := filepath.Base(w)
+		if wb == base {
+			return w
+		}
+		if strings.HasPrefix(wb, stem+"_") || strings.HasPrefix(wb, stem+".") {
+			return w
+		}
+	}
+	return ""
 }
 
 // collectOutputs returns the set of all files (with absolute paths)
@@ -451,6 +501,30 @@ func (e *OkapiPseudoEngine) ProcessBatch(ctx context.Context, files []TestFile, 
 		agg.SystemCPU += result.SystemCPU
 		if result.PeakRSSKB > agg.PeakRSSKB {
 			agg.PeakRSSKB = result.PeakRSSKB
+		}
+	}
+
+	// Per-file pseudo-output verification (same as runKapiBatch).
+	written := collectOutputs(outputDir)
+	for i, f := range files {
+		if !fileResults[i].Success {
+			continue
+		}
+		in := inputPathFor(f, inputDir)
+		outPath := findOutputFor(written, in)
+		if outPath == "" {
+			continue
+		}
+		letters := countLetters(in)
+		vr, err := verifyPseudoOutput(outPath, letters)
+		if err != nil {
+			fileResults[i].VerifyNote = err.Error()
+			continue
+		}
+		fileResults[i].PseudoChars = vr.PseudoChars
+		fileResults[i].Verified = vr.Verified
+		if vr.Reason != "" {
+			fileResults[i].VerifyNote = vr.Reason
 		}
 	}
 
