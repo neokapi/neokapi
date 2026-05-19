@@ -23,8 +23,8 @@
   ],
   "devDependencies": {
     "jsdom": "^29.1.1",
-    "storybook": "^10.3.6",
-    "vite-plus": "^0.1.20"
+    "storybook": "^10.4.0",
+    "vite-plus": "^0.1.21"
   },
   "overrides": {
     "@tailwindcss/vite": {
