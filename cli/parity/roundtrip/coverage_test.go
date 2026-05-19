@@ -1196,8 +1196,9 @@ mergeCaptions.b=false
 			normalizer: roundtrip.ZipEntryNormalizer{Inner: roundtrip.Chain{Steps: []roundtrip.Normalizer{
 				roundtrip.StripXMLDeclaration{},
 				roundtrip.XMLCanonical{
-					SortAttrs:         true,
-					SortChildElements: true,
+					SortAttrs:           true,
+					SortChildElements:   true,
+					StripNamespaceDecls: true,
 				},
 			}}},
 			minTier: map[string]roundtrip.Tier{

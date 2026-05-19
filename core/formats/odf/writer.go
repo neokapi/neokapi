@@ -500,21 +500,101 @@ func (w *Writer) fallbackChildText(parts []*model.Part) string {
 // getBlockText returns the rendered text for a block. When the block
 // carries inline-code runs (PcOpen/PcClose pairs captured by the reader
 // from elements like <text:span>, <text:script>, <draw:frame>, etc.),
-// the runs are serialised via RenderRunsWithData so the original markup
+// the runs are serialised via renderRunsForODF so the original markup
 // is spliced back into the reconstructed XML — mirroring upstream Okapi
 // ODFFilter's TextFragment-with-codes round-trip. Plain-text-only blocks
-// use TargetText/SourceText as before.
+// XML-escape the text so special chars (< > & " ') in pseudo-translated
+// content (e.g. "<=lt, >=gt, &=amp, &quot;=quot, '=apos") survive the
+// round-trip without breaking the surrounding XML.
 func (w *Writer) getBlockText(block *model.Block) string {
 	if !w.Locale.IsEmpty() && block.HasTarget(w.Locale) {
 		runs := block.TargetRuns(w.Locale)
 		if hasInlineCodeRuns(runs) {
-			return model.RenderRunsWithData(runs)
+			return renderRunsForODF(runs)
 		}
-		return block.TargetText(w.Locale)
+		return odfEscapeText(block.TargetText(w.Locale))
 	}
 	runs := block.SourceRuns()
 	if hasInlineCodeRuns(runs) {
-		return model.RenderRunsWithData(runs)
+		return renderRunsForODF(runs)
 	}
-	return block.SourceText()
+	return odfEscapeText(block.SourceText())
+}
+
+// odfEscapeText XML-escapes the five XML special characters in CharData
+// position. Mirrors what an XML writer would do for any text emitted
+// between tags. We can't use encoding/xml's EscapeText directly inside
+// the inline-code renderer below because Data fields hold already-
+// escaped literal markup that must stay verbatim.
+func odfEscapeText(s string) string {
+	if !strings.ContainsAny(s, "<>&\"'") {
+		return s
+	}
+	var b strings.Builder
+	b.Grow(len(s) + 16)
+	for _, r := range s {
+		switch r {
+		case '<':
+			b.WriteString("&lt;")
+		case '>':
+			b.WriteString("&gt;")
+		case '&':
+			b.WriteString("&amp;")
+		case '"':
+			b.WriteString("&quot;")
+		case '\'':
+			b.WriteString("&apos;")
+		default:
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
+}
+
+// renderRunsForODF walks a Run sequence the same way model.RenderRunsWithData
+// does, but XML-escapes the TextRun content while leaving Data fields
+// (PcOpen/PcClose/Ph) verbatim — those already hold valid XML markup
+// (the reader captured them via odfBuildStartTagMarkup which produces
+// properly-escaped attributes). This is what lets a pseudo-translated
+// "<=ĺţ, >=ĝţ" inside a <text:span> render as
+// "&lt;=ĺţ, &gt;=ĝţ" between the span tags.
+func renderRunsForODF(runs []model.Run) string {
+	var b strings.Builder
+	renderRunsForODFTo(&b, runs)
+	return b.String()
+}
+
+func renderRunsForODFTo(buf *strings.Builder, runs []model.Run) {
+	for _, r := range runs {
+		switch {
+		case r.Text != nil:
+			buf.WriteString(odfEscapeText(r.Text.Text))
+		case r.Ph != nil:
+			buf.WriteString(r.Ph.Data)
+		case r.PcOpen != nil:
+			buf.WriteString(r.PcOpen.Data)
+		case r.PcClose != nil:
+			buf.WriteString(r.PcClose.Data)
+		case r.Sub != nil:
+			buf.WriteString(r.Sub.Ref)
+		case r.Plural != nil:
+			if form, ok := r.Plural.Forms[model.PluralOther]; ok {
+				renderRunsForODFTo(buf, form)
+				continue
+			}
+			for _, form := range r.Plural.Forms {
+				renderRunsForODFTo(buf, form)
+				break
+			}
+		case r.Select != nil:
+			if form, ok := r.Select.Cases["other"]; ok {
+				renderRunsForODFTo(buf, form)
+				continue
+			}
+			for _, form := range r.Select.Cases {
+				renderRunsForODFTo(buf, form)
+				break
+			}
+		}
+	}
 }

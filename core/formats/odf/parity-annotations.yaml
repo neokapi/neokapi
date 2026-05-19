@@ -1,31 +1,6 @@
 format: odf
-# Native (neokapi) ODF reader/writer divergences against the upstream
-# okapi-bridge reference. Bridge engine is byte-equal with okapi on all
-# 15 fixtures (literally invokes Okapi's OpenOfficeFilter via
-# okapi-bridge#11's two-pass pipeline). Divergences below are native-
-# side bugs/gaps unless noted.
-fixtures:
-  TestDocument01.odt:
-    severity: bug
-    summary: "Native serialises content.xml with the source's original namespace prefixes (xmlns:office=..., xmlns:style=...) while okapi's ODFFilter re-emits canonical form (xmlns=..., xmlns:_=same-uri, prefixed attrs as _:attr, original-prefix aliased via xmlns:_xmlns). After XML canonicalisation the namespace URIs match but the wire format diverges from offset 1. Cosmetic in isolation, but stacked with the bugs below across the corpus."
-    spec_ref: "OpenDocument 1.2 §1.4 (namespace handling)"
-  TestDocument03.odt:
-    severity: bug
-    summary: "Same namespace-canonicalisation pattern as TestDocument01 (this fixture happens to declare _:version=\"1.1\" — older ODF spec — so prefix shapes diverge similarly)."
-    spec_ref: "OpenDocument 1.1 §1.4"
-  TestDocument04.odt:
-    severity: bug
-    summary: "Same namespace-canonicalisation pattern as TestDocument01."
-  TestDocument05.odt:
-    severity: bug
-    summary: "Same namespace-canonicalisation pattern as TestDocument01."
-  TestDocument06.odt:
-    severity: bug
-    summary: "Residual: style:num-prefix / style:num-suffix attribute extraction now matches okapi (\"Text before>\" / \"<Text after\" pseudo-translate). What remains is the same namespace-canonicalisation pattern as TestDocument01 — native emits xmlns:office=.../xmlns:style=...; okapi rewrites to xmlns=...+xmlns:_=... . After XML canonicalisation the namespace URIs match but the wire format diverges from offset 1."
-    spec_ref: "OpenDocument 1.2 §1.4 (namespace handling) / §19.711 / §19.812"
-  TestDocumentWithNumberTag.odp:
-    severity: bug
-    summary: "styles.xml namespace canonicalisation differs from offset 1 (same shape as TestDocument01)."
-  bookmark-reference.odt:
-    severity: bug
-    summary: "Same namespace-canonicalisation pattern as TestDocument01."
+# Native ODF reads/writes are now canonical-equal with the upstream
+# okapi reference on all 15 fixtures. Bridge is byte-equal on all 15
+# (literally invokes Okapi's OpenOfficeFilter via okapi-bridge#11's
+# two-pass pipeline). No outstanding native divergences.
+fixtures: {}

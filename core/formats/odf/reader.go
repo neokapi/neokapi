@@ -435,6 +435,27 @@ func (r *Reader) parseODFContent(ctx context.Context, ch chan<- model.PartResult
 				translatableStart = t.Copy()
 			} else if inTranslatable {
 				switch {
+				case isProtectedInlineElement(t.Name):
+					// Capture the entire subtree (open + inner content
+					// + close) verbatim as a single PLACEHOLDER code so
+					// the inner text is NOT pseudo-translated. Mirrors
+					// upstream Okapi's opaque-element handling for
+					// metadata + auto-generated reference fields.
+					sub, err := odfReadSubtreeMarkup(d, t)
+					if err != nil {
+						// Fall back to the generic inline path on
+						// decode error so we don't drop content.
+						idCounter++
+						b.AddPcOpen(fmt.Sprintf("s%d", idCounter), inlineSpanTypeFor(t.Name), odfBuildStartTagMarkup(t))
+						inlineIDStack = append(inlineIDStack, idCounter)
+						break
+					}
+					idCounter++
+					b.AddPh(fmt.Sprintf("s%d", idCounter), "x-"+t.Name.Local, sub)
+					// elementStack was pushed for this StartElement;
+					// the subtree consume read past the matching
+					// EndElement, so pop the entry here.
+					elementStack = elementStack[:len(elementStack)-1]
 				case t.Name.Space == nsText && t.Name.Local == "line-break":
 					// Upstream Okapi emits a PLACEHOLDER code carrying the
 					// original `<text:line-break/>` markup (ODFFilter.java:619-622).
@@ -600,6 +621,49 @@ func odfBuildEndTagMarkup(t xml.EndElement) string {
 	odfWriteElementName(&buf, t.Name)
 	buf.WriteString(">")
 	return buf.String()
+}
+
+// odfReadSubtreeMarkup consumes XML tokens from dec starting JUST
+// AFTER the given xml.StartElement and through its matching
+// xml.EndElement, returning the verbatim serialised subtree (including
+// the open and close tags). Used for "protected" elements whose entire
+// content must round-trip without extraction (annotation metadata,
+// auto-generated reference fields). The decoder is left positioned
+// after the consumed EndElement so the caller's outer loop continues
+// past the subtree cleanly.
+func odfReadSubtreeMarkup(dec *xml.Decoder, start xml.StartElement) (string, error) {
+	var buf strings.Builder
+	buf.WriteString(odfBuildStartTagMarkup(start))
+	depth := 1
+	for depth > 0 {
+		tok, err := dec.Token()
+		if err != nil {
+			return "", err
+		}
+		switch tt := tok.(type) {
+		case xml.StartElement:
+			buf.WriteString(odfBuildStartTagMarkup(tt))
+			depth++
+		case xml.EndElement:
+			buf.WriteString(odfBuildEndTagMarkup(tt))
+			depth--
+		case xml.CharData:
+			buf.WriteString(odfXMLEscape(string(tt)))
+		case xml.Comment:
+			buf.WriteString("<!--")
+			buf.Write([]byte(tt))
+			buf.WriteString("-->")
+		case xml.ProcInst:
+			buf.WriteString("<?")
+			buf.WriteString(tt.Target)
+			if len(tt.Inst) > 0 {
+				buf.WriteString(" ")
+				buf.Write(tt.Inst)
+			}
+			buf.WriteString("?>")
+		}
+	}
+	return buf.String(), nil
 }
 
 // odfBuildEmptyTagMarkup serialises an xml.StartElement back to a
@@ -821,6 +885,58 @@ func isTranslatableElement(name xml.Name) bool {
 	case nsMeta:
 		switch name.Local {
 		case "keyword", "user-defined":
+			return true
+		}
+	}
+	return false
+}
+
+// isProtectedInlineElement returns true for elements whose ENTIRE
+// subtree (open tag + inner content + close tag) should be preserved
+// verbatim as opaque inline markup — the inner text is NOT extracted
+// for translation. Mirrors upstream Okapi ODFFilter.toProtect / opaque-
+// content handling (ODFFilter.java:148-156 + buildOpaqueElement
+// fallback). Without this, native walks into the inner CharData and
+// pseudo-translates it, while okapi leaves it verbatim. Examples:
+//
+//   - <office:annotation>/<dc:creator>, <dc:date>: comment author +
+//     timestamp metadata, not authored text.
+//   - <text:bookmark-ref>, <text:reference-ref>, <text:sequence-ref>,
+//     <text:note-ref>, <text:bibliography-mark>: auto-generated
+//     reference text that mirrors a target elsewhere in the document.
+//   - <text:page-number>, <text:page-count>: presentation/header-footer
+//     placeholders whose inner text ("<number>") is a literal sentinel.
+func isProtectedInlineElement(name xml.Name) bool {
+	switch name.Space {
+	case nsDC:
+		switch name.Local {
+		case "creator", "date":
+			return true
+		}
+	case nsText:
+		switch name.Local {
+		case "bookmark-ref", "reference-ref", "sequence-ref", "note-ref":
+			return true
+		case "page-number", "page-count":
+			return true
+		case
+			// text:* informational field elements that render values
+			// from document metadata / system state, plus auto-
+			// generated reference fields. Inner CharData is the cached
+			// preview of the rendered value (read-only on round-trip),
+			// not authored text. Mirrors upstream Okapi
+			// ODFFilter.toProtect verbatim (ODFFilter.java:143-178).
+			"initial-creator", "creation-date", "creation-time",
+			"description", "user-defined",
+			"print-time", "print-date", "printed-by",
+			"editing-cycles", "editing-duration",
+			"modification-time", "modification-date",
+			"creator",
+			"paragraph-count", "word-count", "character-count",
+			"table-count", "image-count", "object-count",
+			"note-citation",
+			"tracked-changes",
+			"title", "subject", "keywords":
 			return true
 		}
 	}
