@@ -233,7 +233,7 @@ func (w *Writer) writeFromReparse(origZR *zip.Reader, zw *zip.Writer,
 			if _, err := fw.Write([]byte(val)); err != nil {
 				return err
 			}
-		} else if f.Name == "content.xml" || f.Name == "styles.xml" {
+		} else if f.Name == "content.xml" || f.Name == "styles.xml" || f.Name == "meta.xml" {
 			// Replace translatable content in XML files
 			origData, err := readZipFile(f)
 			if err != nil {
@@ -497,10 +497,24 @@ func (w *Writer) fallbackChildText(parts []*model.Part) string {
 	return sb.String()
 }
 
-// getBlockText returns the target text for a block, falling back to source.
+// getBlockText returns the rendered text for a block. When the block
+// carries inline-code runs (PcOpen/PcClose pairs captured by the reader
+// from elements like <text:span>, <text:script>, <draw:frame>, etc.),
+// the runs are serialised via RenderRunsWithData so the original markup
+// is spliced back into the reconstructed XML — mirroring upstream Okapi
+// ODFFilter's TextFragment-with-codes round-trip. Plain-text-only blocks
+// use TargetText/SourceText as before.
 func (w *Writer) getBlockText(block *model.Block) string {
 	if !w.Locale.IsEmpty() && block.HasTarget(w.Locale) {
+		runs := block.TargetRuns(w.Locale)
+		if hasInlineCodeRuns(runs) {
+			return model.RenderRunsWithData(runs)
+		}
 		return block.TargetText(w.Locale)
+	}
+	runs := block.SourceRuns()
+	if hasInlineCodeRuns(runs) {
+		return model.RenderRunsWithData(runs)
 	}
 	return block.SourceText()
 }

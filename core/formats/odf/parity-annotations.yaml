@@ -9,9 +9,6 @@ fixtures:
     severity: bug
     summary: "Native serialises content.xml with the source's original namespace prefixes (xmlns:office=..., xmlns:style=...) while okapi's ODFFilter re-emits canonical form (xmlns=..., xmlns:_=same-uri, prefixed attrs as _:attr, original-prefix aliased via xmlns:_xmlns). After XML canonicalisation the namespace URIs match but the wire format diverges from offset 1. Cosmetic in isolation, but stacked with the bugs below across the corpus."
     spec_ref: "OpenDocument 1.2 §1.4 (namespace handling)"
-  TestDocument02.odt:
-    severity: bug
-    summary: "Native drops the inline <script> wrapper in paragraph text — pseudo-translates the script body as if it were paragraph text, losing the <script xmlns:script:1.0 language=JavaScript> element. okapi preserves <script>…</script> as inline markup and pseudo-translates only the text around it."
   TestDocument03.odt:
     severity: bug
     summary: "Same namespace-canonicalisation pattern as TestDocument01 (this fixture happens to declare _:version=\"1.1\" — older ODF spec — so prefix shapes diverge similarly)."
@@ -24,39 +21,11 @@ fixtures:
     summary: "Same namespace-canonicalisation pattern as TestDocument01."
   TestDocument06.odt:
     severity: bug
-    summary: "Native does not extract __1:num-prefix and __1:num-suffix attributes on list-level definitions as translatable strings. These attributes carry display strings (\"Text before>\" / \"<Text after\") that wrap auto-numbering markers; okapi extracts and pseudo-translates them. Native leaves them untouched."
-    spec_ref: "OpenDocument 1.2 §19.711 / §19.812 (text:num-prefix / text:num-suffix)"
-  TestDocumentWithFormulaResults.ods:
-    severity: bug
-    summary: "Native does not extract the table:name attribute (\"Sheet1\") on table elements as translatable. okapi pseudo-translates the sheet name. Same pattern as TestSpreadsheet01.ods."
-    spec_ref: "OpenDocument 1.2 §19.731 (table:name)"
-  TestDocumentWithMetadata.odt:
-    severity: bug
-    summary: "Native flattens <page-count>2</page-count> and <page-number>2</page-number> inline markup in footer/header content into literal \"2 of 2\" text; the inline elements are part of the paragraph runs and should be preserved as inline markup with their numeric placeholders intact (okapi does this)."
-    spec_ref: "OpenDocument 1.2 §6.4.5 (text:page-number) / §6.4.6 (text:page-count)"
+    summary: "Residual: same namespace-canonicalisation pattern as TestDocument01 — once the style:num-prefix / style:num-suffix attribute extraction matched okapi (issue cleared), the remaining divergence is the namespace prefix shape (native emits xmlns:office=.../xmlns:style=...; okapi rewrites to xmlns=...+xmlns:_=...). After XML canonicalisation the namespace URIs match but the wire format diverges from offset 1."
+    spec_ref: "OpenDocument 1.2 §1.4 (namespace handling)"
   TestDocumentWithNumberTag.odp:
     severity: bug
     summary: "styles.xml namespace canonicalisation differs from offset 1 (same shape as TestDocument01)."
-  TestDocumentWithTableWrappingAboutTable.odt:
-    severity: bug
-    summary: "Native drops <frame> inline markup inside paragraph runs — pseudo-translates the paragraph text as a single string, losing the framed content boundary. okapi keeps <frame xmlns:draw=… name=\"Frame1\" style-name=\"fr1\"> as inline markup around its inner text."
-    spec_ref: "OpenDocument 1.2 §10.4.2 (draw:frame)"
-  TestDocument_WithITS.odt:
-    severity: bug
-    summary: "Native ignores ITS translate annotations — pseudo-translates content marked with its:translate=\"no\" (the \"NOT to translate\" span) which okapi correctly preserves. ITS metadata recognition is a known gap in the native ODF reader."
-    spec_ref: "ITS 2.0 §6.2 (Translate)"
-  TestDrawing01.odg:
-    severity: bug
-    summary: "Native drops the inline <span style-name=\"T1\">bold</span> markup inside text boxes — pseudo-translates the entire paragraph as flat text, losing the styled-run boundaries. Same drop-inline-markup pattern as TestDocument02/TestDocumentWithTableWrappingAboutTable."
-    spec_ref: "OpenDocument 1.2 §6.1.7 (text:span)"
-  TestPresentation01.odp:
-    severity: bug
-    summary: "Native does not extract the meta:description Dublin-Core metadata as translatable (\"Orange title on dark blue background...\") — leaves it in source language while okapi pseudo-translates it."
-    spec_ref: "OpenDocument 1.2 §4.3.2.6 (dc:description)"
-  TestSpreadsheet01.ods:
-    severity: bug
-    summary: "Native does not extract the table:name attribute (\"Title of sheet one\") as translatable. Same pattern as TestDocumentWithFormulaResults.ods."
-    spec_ref: "OpenDocument 1.2 §19.731 (table:name)"
   bookmark-reference.odt:
     severity: bug
     summary: "Same namespace-canonicalisation pattern as TestDocument01."
