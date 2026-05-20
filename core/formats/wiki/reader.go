@@ -116,6 +116,23 @@ var (
 		"del":    regexp.MustCompile(`(?i)</del>`),
 		"nowiki": regexp.MustCompile(`(?i)</nowiki>`),
 	}
+
+	// Anchored (`^`) variants of the opener patterns above, used by the
+	// inline-run scanner where a match is only accepted at the current
+	// position (the historic `loc[0] == 0` guard). Without the anchor,
+	// FindStringIndex(text[absStart:]) scans the entire remaining paragraph
+	// looking for a match anywhere before reporting "no match at 0", which
+	// — repeated per unmatched opener — made a marker-dense paragraph
+	// O(n^2) (#608, N2). Anchoring lets the regex bail in O(1) when there
+	// is no construct at `absStart`. These are byte-neutral: they match
+	// exactly the same constructs the `loc[0] == 0` checks already required.
+	// The shared (unanchored) vars are kept for the table/temp-extract scans
+	// that legitimately search anywhere (e.g. dokuWikiImageRe at file scope).
+	dokuWikiNamedLinkStartAnchoredRe = regexp.MustCompile(`^\[\[[^|\]\r\n]+\|`)
+	dokuWikiLinkAnchoredRe           = regexp.MustCompile(`^\[\[[^|\]\r\n]+\]\]`)
+	dokuWikiImageAnchoredRe          = regexp.MustCompile(`^\{\{[^}\r\n]+\}\}`)
+	dokuWikiMacroAnchoredRe          = regexp.MustCompile(`^~~(?:NOTOC|NOCACHE|INFO:\w*)~~`)
+	dokuWikiHTMLOpenAnchoredRe       = regexp.MustCompile(`(?i)^<(sub|sup|del|nowiki)\b[^>]*>`)
 )
 
 // dokuWikiPaired lists symmetric paired inline markers. Each entry's
@@ -143,6 +160,15 @@ var dokuWikiPaired = []struct {
 	// markers (`~~NOTOC~~`, URLs, …) stay translatable plain text.
 	{marker: "%%", codeID: "wiki:nowiki"},
 }
+
+// dokuWikiInlineMarkers is the ordered set of inline-construct openers
+// scanned by splitDokuWikiInlineRuns. Order is significant: the candidate
+// loop breaks earliest-start ties in favour of the marker appearing first
+// here (link / image before the symmetric markers), matching the historic
+// scan order. The list is kept package-level so the per-paragraph scan can
+// maintain a cached next-occurrence offset per marker without re-allocating
+// the slice on every call.
+var dokuWikiInlineMarkers = []string{"[[", "{{", "**", "__", "''", "//", "<", "~~", "%%"}
 
 // MediaWiki table patterns
 var mediaWikiTableStartRe = regexp.MustCompile(`^\{\|`)
@@ -693,6 +719,23 @@ func splitDokuWikiInlineRuns(text string) ([]model.Run, bool) {
 		scan = lastEmit
 		changed = true
 	}
+	// markerNext caches, per opener, the absolute offset of its next
+	// occurrence at-or-after the current `scan` position (-1 = none left).
+	// Re-Indexing all 9 markers from `scan` on every iteration is O(n) per
+	// loop and the loop advances by as little as one byte on an unmatched
+	// opener, so a marker-dense paragraph (`** ** ** …`, `// // // …`) was
+	// O(n²) in paragraph length (#608, N2). Because markers are fixed
+	// substrings, any cached offset that is still >= `scan` remains the
+	// true next occurrence; we only re-search a marker once `scan` passes
+	// its cached offset, making the total work linear in paragraph length.
+	markerNext := make([]int, len(dokuWikiInlineMarkers))
+	for i, m := range dokuWikiInlineMarkers {
+		if idx := strings.Index(text, m); idx >= 0 {
+			markerNext[i] = idx
+		} else {
+			markerNext[i] = -1
+		}
+	}
 	for scan < len(text) {
 		// Find the next inline construct from `scan`. We rank by
 		// earliest start offset so left-to-right precedence wins; ties
@@ -708,12 +751,22 @@ func splitDokuWikiInlineRuns(text string) ([]model.Run, bool) {
 		// dokuWikiMacroRe match validates the full token.
 		bestStart := -1
 		var bestKind string
-		for _, m := range []string{"[[", "{{", "**", "__", "''", "//", "<", "~~", "%%"} {
-			if idx := strings.Index(text[scan:], m); idx >= 0 {
-				if bestStart < 0 || idx < bestStart {
-					bestStart = idx
-					bestKind = m
+		for i, m := range dokuWikiInlineMarkers {
+			// Refresh any cached offset that `scan` has advanced past.
+			if markerNext[i] >= 0 && markerNext[i] < scan {
+				if idx := strings.Index(text[scan:], m); idx >= 0 {
+					markerNext[i] = scan + idx
+				} else {
+					markerNext[i] = -1
 				}
+			}
+			if markerNext[i] < 0 {
+				continue
+			}
+			rel := markerNext[i] - scan
+			if bestStart < 0 || rel < bestStart {
+				bestStart = rel
+				bestKind = m
 			}
 		}
 		if bestStart < 0 {
@@ -725,7 +778,7 @@ func splitDokuWikiInlineRuns(text string) ([]model.Run, bool) {
 
 		// HTML-style paired tag (case-insensitive sub/sup/del/nowiki).
 		if bestKind == "<" {
-			if openLoc := dokuWikiHTMLOpenRe.FindStringSubmatchIndex(text[absStart:]); openLoc != nil && openLoc[0] == 0 {
+			if openLoc := dokuWikiHTMLOpenAnchoredRe.FindStringSubmatchIndex(text[absStart:]); openLoc != nil {
 				tag := strings.ToLower(text[absStart+openLoc[2] : absStart+openLoc[3]])
 				if closeRe, ok := dokuWikiHTMLCloseRe[tag]; ok {
 					rest := text[absStart+openLoc[1]:]
@@ -755,7 +808,7 @@ func splitDokuWikiInlineRuns(text string) ([]model.Run, bool) {
 		// PropertyTextUnitPlaceholder, i.e. translatable text
 		// embedded in an opaque inline code.
 		if bestKind == "{{" {
-			if loc := dokuWikiImageRe.FindStringIndex(text[absStart:]); loc != nil && loc[0] == 0 {
+			if loc := dokuWikiImageAnchoredRe.FindStringIndex(text[absStart:]); loc != nil {
 				imgRaw := text[absStart : absStart+loc[1]]
 				if name, caption := splitDokuWikiImage(imgRaw); strings.TrimSpace(caption) != "" {
 					// Reconstruct the opener (`{{` + leading whitespace
@@ -794,7 +847,7 @@ func splitDokuWikiInlineRuns(text string) ([]model.Run, bool) {
 
 		if !matched && bestKind == "[[" {
 			// Try named link `[[target|alt]]`.
-			if startLoc := dokuWikiNamedLinkStartRe.FindStringIndex(text[absStart:]); startLoc != nil && startLoc[0] == 0 {
+			if startLoc := dokuWikiNamedLinkStartAnchoredRe.FindStringIndex(text[absStart:]); startLoc != nil {
 				rest := text[absStart+startLoc[1]:]
 				if endLoc := dokuWikiNamedLinkEndRe.FindStringIndex(rest); endLoc != nil {
 					emitPaired(
@@ -811,7 +864,7 @@ func splitDokuWikiInlineRuns(text string) ([]model.Run, bool) {
 			}
 			// Fall back to bare `[[target]]` placeholder.
 			if !matched {
-				if loc := dokuWikiLinkRe.FindStringIndex(text[absStart:]); loc != nil && loc[0] == 0 {
+				if loc := dokuWikiLinkAnchoredRe.FindStringIndex(text[absStart:]); loc != nil {
 					flushTextUpTo(absStart)
 					idCounter++
 					runs = append(runs, model.Run{Ph: &model.PlaceholderRun{
@@ -830,7 +883,7 @@ func splitDokuWikiInlineRuns(text string) ([]model.Run, bool) {
 		// DokuWiki macro (`~~NOTOC~~` / `~~NOCACHE~~` /
 		// `~~INFO:<word>~~`). Single placeholder run.
 		if !matched && bestKind == "~~" {
-			if loc := dokuWikiMacroRe.FindStringIndex(text[absStart:]); loc != nil && loc[0] == 0 {
+			if loc := dokuWikiMacroAnchoredRe.FindStringIndex(text[absStart:]); loc != nil {
 				flushTextUpTo(absStart)
 				idCounter++
 				runs = append(runs, model.Run{Ph: &model.PlaceholderRun{

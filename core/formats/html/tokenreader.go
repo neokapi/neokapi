@@ -67,45 +67,52 @@ type tokenReaderState struct {
 	// causing forwardScan to exhaust its scanner and default to
 	// container, mis-classifying TEXTUNIT-typed parents (td/li/dd/…).
 	content []byte
+	// consumed is the number of bytes of content already consumed by the
+	// main tokenizer. It is advanced by len(tokenizer.Raw()) after every
+	// Next() call (via next()). golang.org/x/net/html's Raw() returns the
+	// exact source bytes of each token, and consecutive Raw() slices
+	// concatenate to the input byte-for-byte, so the running sum is an
+	// exact, O(1) cursor — replacing the former O(n) bytes.Index scan from
+	// byte 0 in remainingContent (#608, N1).
+	consumed int
+}
+
+// next advances the main tokenizer one token and tracks the consumed-byte
+// cursor. Every read from the document tokenizer must go through this so that
+// remainingContent can locate the tokenizer's position in O(1). Tokens that
+// are replayed from stashed raw bytes (deferredStart/deferredLeafEndTagRaw)
+// must NOT be re-counted — they were already consumed (and counted) when first
+// read, and replaying them does not call Next().
+func (s *tokenReaderState) next(tokenizer *html.Tokenizer) html.TokenType {
+	tt := tokenizer.Next()
+	s.consumed += len(tokenizer.Raw())
+	return tt
 }
 
 // remainingContent returns the input bytes that have not yet been
 // processed by the tokenizer, with a fallback to tokenizer.Buffered().
-// It computes the position by subtracting the tokenizer's still-buffered
-// portion from the start of the saved full content. When fullContent is
-// not set (older callers / tests), falls back to tokenizer.Buffered().
 //
-// Locating the tokenizer's "current position" precisely is not exposed
-// by golang.org/x/net/html; the practical proxy used here is the
-// position of the most recent Raw() inside the original content. Since
-// Raw() returns a slice reference into the tokenizer's internal buffer,
-// not into our content slice, we approximate by using strings.Index on
-// the buffered tail. This is accurate enough for forward-scan lookahead
-// (a buffered chunk + the remaining file read on demand will both find
-// the next end-tag).
+// The tokenizer's current position is tracked exactly and cheaply by the
+// consumed-byte cursor (s.consumed), advanced by len(Raw()) after every
+// Next() in next(). golang.org/x/net/html's Raw() returns the verbatim
+// source of each token and consecutive tokens' Raw() slices concatenate to
+// the input, so s.consumed is precisely the offset of the byte following the
+// last-read token — equivalent to where tokenizer.Buffered() begins, but in
+// O(1) rather than the former O(n) bytes.Index scan from byte 0 (#608, N1).
+//
+// When the cursor is unavailable (content not saved, e.g. older callers /
+// tests) we fall back to tokenizer.Buffered(): only the bytes currently in
+// the bufio window, which is still a safe input for forward-scan lookahead.
 func (s *tokenReaderState) remainingContent(tokenizer *html.Tokenizer) []byte {
-	buffered := tokenizer.Buffered()
 	if len(s.content) == 0 {
-		return buffered
+		return tokenizer.Buffered()
 	}
-	// If buffered is empty but we still have content, return the tail
-	// of content. Otherwise, find the buffered slice in content and
-	// return everything from that point.
-	if len(buffered) == 0 {
-		// Tokenizer has consumed everything currently buffered; we
-		// don't have a precise offset, so fall back to buffered (empty
-		// — forward-scan will return the safe-default container, same
-		// as before this fix). Better than nothing.
-		return buffered
+	if s.consumed < 0 || s.consumed > len(s.content) {
+		// Defensive: cursor out of range (should not happen). Fall back
+		// to Buffered() rather than panic on a bad slice.
+		return tokenizer.Buffered()
 	}
-	// Try to locate the buffered slice in content. Buffered may be a
-	// suffix of content; use bytes.Index. For typical short buffered
-	// windows (< 4KB) this is fast.
-	idx := bytes.Index(s.content, buffered)
-	if idx < 0 {
-		return buffered
-	}
-	return s.content[idx:]
+	return s.content[s.consumed:]
 }
 
 func newTokenReaderState(r *Reader, store *format.SkeletonStore) *tokenReaderState {
@@ -405,7 +412,7 @@ func (s *tokenReaderState) processTokenStream(tokenizer *html.Tokenizer, ctx con
 			continue
 		}
 
-		tt := tokenizer.Next()
+		tt := s.next(tokenizer)
 		if tt == html.ErrorToken {
 			break
 		}
@@ -739,7 +746,7 @@ func (s *tokenReaderState) processLeafBlock(tokenizer *html.Tokenizer, tag strin
 			s.deferredLeafEndTagRaw = nil
 			break
 		}
-		tt := tokenizer.Next()
+		tt := s.next(tokenizer)
 		if tt == html.ErrorToken {
 			break
 		}
@@ -1013,7 +1020,7 @@ leafClosed:
 // until the matching close tag for parentTag is found.
 func (s *tokenReaderState) collectInlineTokens(tokenizer *html.Tokenizer, parentTag string, b *runBuilder, idCounter *int, parentInfo *model.SpanTypeInfo, ctx context.Context, ch chan<- model.PartResult) {
 	for {
-		tt := tokenizer.Next()
+		tt := s.next(tokenizer)
 		if tt == html.ErrorToken {
 			return
 		}
@@ -1338,7 +1345,7 @@ func (s *tokenReaderState) forwardScanForBlockChildren(remaining []byte, parentT
 func (s *tokenReaderState) consumeUntilClose(tokenizer *html.Tokenizer, tag string, ctx context.Context, ch chan<- model.PartResult) {
 	depth := 1
 	for depth > 0 {
-		tt := tokenizer.Next()
+		tt := s.next(tokenizer)
 		if tt == html.ErrorToken {
 			return
 		}
@@ -1366,7 +1373,7 @@ func (s *tokenReaderState) consumeRawUntilClose(tokenizer *html.Tokenizer, tag s
 	var buf bytes.Buffer
 	depth := 1
 	for depth > 0 {
-		tt := tokenizer.Next()
+		tt := s.next(tokenizer)
 		if tt == html.ErrorToken {
 			break
 		}
