@@ -53,7 +53,8 @@ func TestLineBreaks_CR(t *testing.T) {
 	assert.Contains(t, texts, "Line 2")
 }
 
-// okapi: MosesTextFilterTest#testLineBreaks_CRLF
+// okapi: MosesTextFilterTest#testineBreaks_CRLF
+// (the upstream Okapi method name has a typo: "testineBreaks_CRLF").
 func TestLineBreaks_CRLF(t *testing.T) {
 	ctx := t.Context()
 	reader := mosestext.NewReader()
@@ -101,7 +102,8 @@ func TestEntry(t *testing.T) {
 	assert.Equal(t, "Line 2", blocks[1].SourceText())
 }
 
-// okapi: MosesTextFilterTest#testEntries
+// neokapi-only: multi-line extraction sanity check. Okapi has no
+// matching @Test (testEntry covers single-line extraction).
 func TestEntries(t *testing.T) {
 	ctx := t.Context()
 	reader := mosestext.NewReader()

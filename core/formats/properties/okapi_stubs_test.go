@@ -335,25 +335,157 @@ func TestRoundTrip_EscapeSequences(t *testing.T) {
 	assert.Equal(t, input, buf.String())
 }
 
-// ---- Unmapped subfilter tests ----
-// These Java tests require HTML subfilter support which is not implemented in the native reader.
+// ---- Localization directives ----
+//
+// The native reader honors Okapi-compatible localization directives in
+// comment lines: single-entry `#_skip` / `#_text` and block
+// `#_bskip` / `#_eskip`, `#_btext` / `#_etext`. These are on by default
+// (matching Okapi's LocalizationDirectives.reset() → setOptions(true, true)).
+// See reader.go directiveKind / directiveStack / nextOverride.
 
-// okapi-unmapped: PropertiesFilterTest#testDoubleExtractionSubFilter — HTML subfiltering not implemented in native reader
-// okapi-unmapped: PropertiesFilterTest#testWithSubfilter — HTML subfiltering not implemented in native reader
-// okapi-unmapped: PropertiesFilterTest#testWithSubfilterOutput — HTML subfiltering not implemented in native reader
-// okapi-unmapped: PropertiesFilterTest#testWithSubfilterOutputDoNotEscapeExtended — HTML subfiltering not implemented in native reader
-// okapi-unmapped: PropertiesFilterTest#testWithSubfilterOutputEscapeExtended — HTML subfiltering not implemented in native reader
-// okapi-unmapped: PropertiesFilterTest#testWithSubfilterTwoParas — HTML subfiltering not implemented in native reader
-// okapi-unmapped: PropertiesFilterTest#testWithSubfilterWithEmbeddedEscapedMessagePH — HTML subfiltering not implemented in native reader
-// okapi-unmapped: PropertiesFilterTest#testWithSubfilterWithEmbeddedMessagePH — HTML subfiltering not implemented in native reader
-// okapi-unmapped: PropertiesFilterTest#testWithSubfilterWithHTMLEscapes — HTML subfiltering not implemented in native reader
+// okapi: PropertiesFilterTest#testLocDirectives_Skip
+func TestRead_LocDirectivesSkip(t *testing.T) {
+	// `#_skip` suppresses extraction of the single entry that follows;
+	// the entry after that is extracted normally.
+	//   #_skip
+	//   Key1:Text1   → skipped
+	//   Key2:Text2   → extracted
+	// Okapi: TU#1 == "Text2".
+	ctx := t.Context()
+	reader := properties.NewReader()
+	input := "#_skip\nKey1:Text1\nKey2:Text2"
+	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
+	require.NoError(t, err)
+	defer reader.Close()
 
-// ---- Unmapped localization directive tests ----
-// These Java tests require localization directives (#_skip, #_bskip, #_text) which are not implemented in the native reader.
+	blocks := testutil.CollectBlocks(t, reader.Read(ctx))
+	require.Len(t, blocks, 1, "only the entry after the skipped one is extracted")
+	assert.Equal(t, "Key2", blocks[0].Name)
+	assert.Equal(t, "Text2", blocks[0].SourceText())
+}
 
-// okapi-unmapped: PropertiesFilterTest#testLocDirectives_Skip — localization directives not implemented in native reader
-// okapi-unmapped: PropertiesFilterTest#testLocDirectives_Group — localization directives not implemented in native reader
+// okapi: PropertiesFilterTest#testLocDirectives_Group
+func TestRead_LocDirectivesGroup(t *testing.T) {
+	// `#_bskip` opens a skip block; a single-entry `#_text` overrides it
+	// for exactly the next entry; subsequent entries fall back to the
+	// surrounding skip block.
+	//   #_bskip
+	//   Key1:Text1   → skipped (block)
+	//   #_text
+	//   Key2:Text2   → extracted (single override)
+	//   Key2:Text3   → skipped (block resumes)
+	// Okapi: TU#1 == "Text2", TU#2 == null.
+	ctx := t.Context()
+	reader := properties.NewReader()
+	input := "#_bskip\nKey1:Text1\n#_text\nKey2:Text2\nKey2:Text3"
+	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
+	require.NoError(t, err)
+	defer reader.Close()
 
-// ---- Unmapped ID generation with subfilter ----
+	blocks := testutil.CollectBlocks(t, reader.Read(ctx))
+	require.Len(t, blocks, 1, "only the single _text override is extracted inside the _bskip block")
+	assert.Equal(t, "Key2", blocks[0].Name)
+	assert.Equal(t, "Text2", blocks[0].SourceText())
+}
 
-// okapi-unmapped: PropertiesFilterTest#testIdGeneration_subfiltersConfig — HTML subfiltering not implemented in native reader
+// ---- Subfilter tests (not applicable to the native reader) ----
+//
+// All of these Okapi @Test methods set `params.setSubfilter("okf_html")`
+// and assert on the result of dispatching each property VALUE through the
+// HTML subfilter (inner-text extraction, HTML-entity decoding, `<p>`/`<br>`
+// splitting into multiple TUs, START_SUBFILTER events, and code-finder
+// rules being propagated into the embedded HTML filter). The neokapi
+// native properties reader extracts each value as a single opaque Block;
+// embedded-format dispatch is a flow/recipe concern handled by composing a
+// downstream HTML tool or the okapi-bridge plugin, not behavior of the
+// native reader/writer. See TestRead_HtmlOutput for the native (no-subfilter)
+// treatment of HTML-bearing values.
+
+// okapi-skip: PropertiesFilterTest#testWithSubfilter — subfilter dispatch (okf_html inner-text extraction) is a flow/recipe concern, not native reader behavior
+// okapi-skip: PropertiesFilterTest#testWithSubfilterTwoParas — subfilter dispatch (okf_html splits value into multiple TUs) is a flow/recipe concern, not native reader behavior
+// okapi-skip: PropertiesFilterTest#testWithSubfilterWithEmbeddedMessagePH — code-finder rules propagated into the okf_html subfilter; subfilter dispatch not native reader behavior
+// okapi-skip: PropertiesFilterTest#testWithSubfilterWithEmbeddedEscapedMessagePH — code-finder rules propagated into the okf_html subfilter; subfilter dispatch not native reader behavior
+// okapi-skip: PropertiesFilterTest#testWithSubfilterWithHTMLEscapes — HTML-entity decoding via okf_html subfilter is a flow/recipe concern, not native reader behavior
+// okapi-skip: PropertiesFilterTest#testWithSubfilterOutput — round-trip through the okf_html subfilter; subfilter dispatch not native reader behavior
+// okapi-skip: PropertiesFilterTest#testWithSubfilterOutputEscapeExtended — escapeExtendedChars output is exercised natively in TestWrite_EscapeExtendedChars; this case is subfilter-coupled (okf_html), not native reader behavior
+// okapi-skip: PropertiesFilterTest#testWithSubfilterOutputDoNotEscapeExtended — escapeExtendedChars=false output is exercised natively in TestWrite_DoNotEscapeExtendedChars; this case is subfilter-coupled (okf_html), not native reader behavior
+// okapi-skip: PropertiesFilterTest#testDoubleExtractionSubFilter — round-trip comparison with the okf_html subfilter; subfilter dispatch not native reader behavior
+// okapi-skip: PropertiesFilterTest#testIdGeneration_subfiltersConfig — asserts START_SUBFILTER events and subfilter-derived TU id/name generation; subfilter dispatch not native reader behavior
+func TestRead_SubfilterValueIsOpaque(t *testing.T) {
+	// Documents the native (no-subfilter) contract that justifies the
+	// okapi-skip annotations above: a value containing HTML markup is
+	// extracted verbatim as a single Block. There is no inner-text
+	// extraction and no splitting into multiple TUs.
+	ctx := t.Context()
+	reader := properties.NewReader()
+	input := "Key1=<b>Text with more</b> <p> test"
+	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
+	require.NoError(t, err)
+	defer reader.Close()
+
+	blocks := testutil.CollectBlocks(t, reader.Read(ctx))
+	require.Len(t, blocks, 1, "native reader does not split HTML values via a subfilter")
+	assert.Equal(t, "<b>Text with more</b> <p> test", blocks[0].SourceText())
+}
+
+// ---- escapeExtendedChars writer knob (no-subfilter native equivalent) ----
+//
+// These exercise the escapeExtendedChars output behavior that the Okapi
+// testWithSubfilterOutput{,DoNot}EscapeExtended tests assert, minus the
+// okf_html subfilter dispatch those tests couple it with. They are the
+// native carriers for the writer knob; the subfilter-coupled Okapi tests
+// stay skip-classified above.
+
+// writeValue runs a single value through the native reader+writer with the
+// given escapeExtendedChars setting on the writer, returning the output.
+func writeValue(t *testing.T, value string, escapeExtended bool) string {
+	t.Helper()
+	ctx := t.Context()
+
+	reader := properties.NewReader()
+	require.NoError(t, reader.Open(ctx, testutil.RawDocFromString("key="+value, model.LocaleEnglish)))
+	parts := testutil.CollectParts(t, reader.Read(ctx))
+	reader.Close()
+
+	// The reader stored the raw value for byte-exact skeleton-less output.
+	// Drop it so the writer re-encodes the source through encodePropertyValue,
+	// which is where the escapeExtendedChars knob takes effect.
+	for _, p := range parts {
+		if p.Type == model.PartBlock {
+			delete(p.Resource.(*model.Block).Properties, "rawValue")
+		}
+	}
+
+	cfg := &properties.Config{}
+	cfg.Reset()
+	cfg.EscapeExtendedChars = escapeExtended
+
+	var buf bytes.Buffer
+	writer := properties.NewWriter()
+	writer.SetConfig(cfg)
+	require.NoError(t, writer.SetOutputWriter(&buf))
+	writer.SetLocale(model.LocaleEnglish)
+	require.NoError(t, writer.Write(ctx, testutil.PartsToChannel(parts)))
+	writer.Close()
+
+	return buf.String()
+}
+
+// neokapi-only: covers the escapeExtendedChars=true (default) writer path
+// independently of the okf_html subfilter that
+// PropertiesFilterTest#testWithSubfilterOutputEscapeExtended couples it with.
+func TestWrite_EscapeExtendedChars(t *testing.T) {
+	// Latin-1 supplement chars are escaped to \uXXXX (lowercase hex).
+	got := writeValue(t, "vältüé wîth html", true)
+	assert.Equal(t, "key=v\\u00e4lt\\u00fc\\u00e9 w\\u00eeth html", got)
+}
+
+// neokapi-only: covers the escapeExtendedChars=false writer path
+// independently of the okf_html subfilter that
+// PropertiesFilterTest#testWithSubfilterOutputDoNotEscapeExtended couples it
+// with. Before this fix the writer ignored the flag and always escaped.
+func TestWrite_DoNotEscapeExtendedChars(t *testing.T) {
+	// With escapeExtendedChars=false the non-ASCII bytes pass through verbatim.
+	got := writeValue(t, "vältüé wîth html", false)
+	assert.Equal(t, "key=vältüé wîth html", got)
+}

@@ -24,7 +24,9 @@ const minimalEmptyDoc = `<?xml version="1.0" encoding="UTF-8"?>` +
 
 // simpleBilingualPair mirrors VignetteFilterTest#createSimpleDoc — one
 // es_ES target instance + one en_US source instance for content id1,
-// with HTML-wrapped body payloads.
+// with HTML-wrapped body payloads, plus an interleaved non-instance
+// <stuff/> element (as in the upstream fixture) that must pass through
+// untouched.
 const simpleBilingualPair = `<?xml version="1.0" encoding="UTF-8"?>` +
 	`<packageBody xmlns="http://www.vignette.com/xmlschemas/importexport">` +
 	`<importProject>` +
@@ -34,6 +36,7 @@ const simpleBilingualPair = `<?xml version="1.0" encoding="UTF-8"?>` +
 	`<attribute name="SOURCE_ID"><valueString>id1</valueString></attribute>` +
 	`<attribute name="LOCALE_ID"><valueString>es_ES</valueString></attribute>` +
 	`</contentInstance></importContentInstance>` +
+	`<stuff/>` +
 	`<importContentInstance><contentInstance>` +
 	`<attribute name="SMCCONTENT-CONTENT-ID"><valueString>id1</valueString></attribute>` +
 	`<attribute name="SMCCONTENT-BODY"><valueCLOB>&lt;p&gt;ENtext&lt;/p&gt;</valueCLOB></attribute>` +
@@ -105,6 +108,11 @@ func TestReadEmptyProject(t *testing.T) {
 	assert.Empty(t, blocks, "an empty importProject should produce zero translatable Blocks")
 }
 
+// okapi: VignetteFilterTest#testSimpleEntry
+// Upstream getTextUnit(events,1).getSource() == "ENtext" for a single
+// bilingual pair (en_US source + es_ES target). The native reader emits
+// one Block whose source text is the en_US payload "ENtext" (the okf_html
+// sub-filter strips the wrapping <p>…</p>). Same observable behavior.
 func TestReadSimpleBilingualPair(t *testing.T) {
 	ctx := t.Context()
 	reader := vignette.NewReader()
@@ -121,6 +129,11 @@ func TestReadSimpleBilingualPair(t *testing.T) {
 	assert.Equal(t, "id1", blocks[0].Properties["sourceId"])
 }
 
+// okapi: VignetteFilterTest#testComplexEntry
+// Upstream getTextUnit(events,1)=="EN-id1" and getTextUnit(events,2)=="EN-id2"
+// for createComplexDoc (four importContentInstance blocks → two bilingual
+// pairs, interleaved). The native reader extracts the two source-side
+// (en_US) payloads in target-driven document order, matching upstream.
 func TestReadComplexTwoPairs(t *testing.T) {
 	ctx := t.Context()
 	reader := vignette.NewReader()
@@ -132,9 +145,10 @@ func TestReadComplexTwoPairs(t *testing.T) {
 	require.Len(t, blocks, 2, "two bilingual pairs → two Blocks in target-driven order")
 	// Walking in document order, we encounter id1's target first (es_ES at
 	// position 1); the source-side payload (en_US) is "EN-id1". Then id2.
-	texts := []string{blocks[0].SourceText(), blocks[1].SourceText()}
-	assert.Contains(t, texts, "EN-id1")
-	assert.Contains(t, texts, "EN-id2")
+	// Upstream asserts positionally: getTextUnit(events,1)=="EN-id1" and
+	// getTextUnit(events,2)=="EN-id2" — assert the same exact ordering here.
+	assert.Equal(t, "EN-id1", blocks[0].SourceText(), "first Block == source-side payload of the first encountered pair (id1)")
+	assert.Equal(t, "EN-id2", blocks[1].SourceText(), "second Block == source-side payload of the second pair (id2)")
 }
 
 func TestReadPlainPayloadBilingualPair(t *testing.T) {
@@ -207,6 +221,13 @@ func TestReadNilDocument(t *testing.T) {
 	require.Error(t, err)
 }
 
+// okapi: VignetteFilterTest#testStartDocument
+// FilterTestDriver.testStartDocument verifies the filter emits a
+// START_DOCUMENT first, carrying the document's name, locale and
+// encoding. The native reader's equivalent of START_DOCUMENT is the
+// leading PartLayerStart; assert it is emitted first (and PartLayerEnd
+// last) and carries the format name, source locale and UTF-8 encoding
+// the upstream contract forces on read.
 func TestReadLayerStartEnd(t *testing.T) {
 	ctx := t.Context()
 	reader := vignette.NewReader()
@@ -221,6 +242,8 @@ func TestReadLayerStartEnd(t *testing.T) {
 
 	layer := parts[0].Resource.(*model.Layer)
 	assert.Equal(t, "vignette", layer.Format)
+	assert.Equal(t, model.LocaleEnglish, layer.Locale, "START_DOCUMENT carries the source locale")
+	assert.Equal(t, "UTF-8", layer.Encoding, "Vignette read encoding is forced to UTF-8 per the upstream contract")
 }
 
 func TestReaderSignature(t *testing.T) {
@@ -237,6 +260,36 @@ func TestReaderMetadata(t *testing.T) {
 	reader := vignette.NewReader()
 	assert.Equal(t, "vignette", reader.Name())
 	assert.Equal(t, "Vignette CMS Export", reader.DisplayName())
+}
+
+// okapi: VignetteFilterTest#testDefaultInfo
+// Upstream asserts the filter exposes non-null parameters, a non-null
+// name, and a non-empty configuration list. The native equivalents are
+// the reader's default Config (non-nil, populated with the standard SMC
+// PartsNames/PartsConfigurations), a non-empty display name, and the
+// PartsMap derived from the default configuration (the "configurations"
+// the native reader recognises). Same observable contract.
+func TestDefaultInfo(t *testing.T) {
+	reader := vignette.NewReader()
+
+	// Parameters present and populated with the upstream defaults.
+	cfg, ok := reader.Config().(*vignette.Config)
+	require.True(t, ok, "reader must expose a *vignette.Config")
+	require.NotNil(t, cfg)
+	assert.NotEmpty(t, cfg.PartsNames, "default parameters carry the SMC parts names")
+	assert.NotEmpty(t, cfg.PartsConfigurations, "default parameters carry per-part sub-filter ids")
+	assert.Equal(t, vignette.DefaultSourceID, cfg.SourceID)
+	assert.Equal(t, vignette.DefaultLocaleID, cfg.LocaleID)
+
+	// Name present.
+	assert.NotEmpty(t, reader.Name())
+	assert.NotEmpty(t, reader.DisplayName())
+
+	// Non-empty "configuration" surface: the parts map pairs each
+	// extractable attribute name with its sub-filter id.
+	parts := cfg.PartsMap()
+	require.NotEmpty(t, parts, "default configuration must list extractable attributes")
+	assert.Equal(t, "okf_html", parts["SMCCONTENT-BODY"])
 }
 
 func TestConfigFormatName(t *testing.T) {
