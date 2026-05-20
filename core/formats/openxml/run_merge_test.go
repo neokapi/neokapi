@@ -197,7 +197,7 @@ func BenchmarkOracleFuseStack(b *testing.B) {
 		b.Run(fmt.Sprintf("%dKB", kb), func(b *testing.B) {
 			b.SetBytes(int64(len(in)))
 			b.ReportAllocs()
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				cp := make([]byte, len(in))
 				copy(cp, in)
 				_ = oracleFuseStack(cp)
@@ -212,7 +212,7 @@ func BenchmarkProdFuseStack(b *testing.B) {
 		b.Run(fmt.Sprintf("%dKB", kb), func(b *testing.B) {
 			b.SetBytes(int64(len(in)))
 			b.ReportAllocs()
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				_ = prodFuseStack(in)
 			}
 		})
@@ -255,7 +255,7 @@ func BenchmarkRealPart(b *testing.B) {
 	b.Run("regex", func(b *testing.B) {
 		b.SetBytes(int64(len(doc)))
 		b.ReportAllocs()
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			cp := make([]byte, len(doc))
 			copy(cp, doc)
 			_ = oracleFuseStack(cp)
@@ -264,7 +264,7 @@ func BenchmarkRealPart(b *testing.B) {
 	b.Run("scanner", func(b *testing.B) {
 		b.SetBytes(int64(len(doc)))
 		b.ReportAllocs()
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			_ = prodFuseStack(doc)
 		}
 	})
