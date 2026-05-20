@@ -15,8 +15,9 @@ import (
 // BenchmarkBigDocxRoundtrip profiles the full read → translate → write path on
 // a large (~1 MB) .docx — the pseudobench outlier where native goes
 // superlinear (~7.3s vs ~1.7s for the bridge daemon). Mirrors the native
-// pseudo path: skeleton store wired, FR targets set on every translatable
-// block, skeleton-replay write.
+// pseudo path: skeleton store wired, the real qps pseudo tool applied (so
+// target RUNS are produced — a flat-text target would bypass the writer's
+// translated-run path), skeleton-replay write.
 //
 // Run:
 //
