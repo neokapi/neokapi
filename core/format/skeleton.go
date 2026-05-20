@@ -17,6 +17,17 @@ const (
 	SkeletonText SkeletonEntryType = 0
 	// SkeletonRef is a block ID placeholder entry.
 	SkeletonRef SkeletonEntryType = 1
+	// SkeletonLang is a language-attribute value entry. The payload is the
+	// SOURCE-locale lang value as it appeared in the document (the raw bytes
+	// between the surrounding quotes of a lang=/xml:lang= attribute). Writers
+	// that retarget the document language emit the target locale when the
+	// stored value matches the document's source locale, otherwise they emit
+	// the stored value verbatim. Writers that do not understand this entry
+	// type must treat it as inert — emitting nothing for it would drop the
+	// attribute value. Only the HTML reader emits SkeletonLang today; other
+	// formats never see it, and their entry-type switches ignore unknown
+	// types (no default case), so this addition is purely additive.
+	SkeletonLang SkeletonEntryType = 2
 )
 
 // SkeletonEntry is a single entry in the skeleton stream.
@@ -107,6 +118,14 @@ func (s *SkeletonStore) WriteText(data []byte) error {
 // WriteRef writes a block ID reference entry to the store.
 func (s *SkeletonStore) WriteRef(blockID string) error {
 	return s.writeEntry(SkeletonRef, []byte(blockID))
+}
+
+// WriteLang writes a language-attribute value entry to the store. The value
+// is the raw source-locale lang value spliced out of a lang=/xml:lang=
+// attribute, so the writer can retarget it structurally instead of
+// rewriting serialized bytes. See SkeletonLang for the consumption contract.
+func (s *SkeletonStore) WriteLang(value string) error {
+	return s.writeEntry(SkeletonLang, []byte(value))
 }
 
 func (s *SkeletonStore) writeEntry(typ SkeletonEntryType, data []byte) error {

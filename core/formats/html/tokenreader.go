@@ -565,7 +565,10 @@ func (s *tokenReaderState) processTokenStream(tokenizer *html.Tokenizer, ctx con
 			if !translateNo {
 				s.extractTokenAttrs(raw, tag, a, attrs, ctx, ch)
 			} else {
-				_ = s.store.WriteText(raw)
+				// translate="no": no translatable attributes are extracted,
+				// but the language declaration is still spliced out as a
+				// typed SkeletonLang entry so the writer can retarget it.
+				s.writeStartTagSkeleton(raw, nil, langAttrKey(attrs))
 			}
 		}
 	}
@@ -620,7 +623,7 @@ func (s *tokenReaderState) processStartTag(tokenizer *html.Tokenizer, raw []byte
 		if !info.translateNo {
 			s.extractTokenAttrs(raw, tag, a, attrs, ctx, ch)
 		} else {
-			_ = s.store.WriteText(raw)
+			s.writeStartTagSkeleton(raw, nil, langAttrKey(attrs))
 		}
 		return
 	}
@@ -637,7 +640,7 @@ func (s *tokenReaderState) processStartTag(tokenizer *html.Tokenizer, raw []byte
 		if !info.translateNo {
 			s.extractTokenAttrs(raw, tag, a, attrs, ctx, ch)
 		} else {
-			_ = s.store.WriteText(raw)
+			s.writeStartTagSkeleton(raw, nil, langAttrKey(attrs))
 		}
 
 		if a == atom.Head && s.needsCharsetMeta {
@@ -695,7 +698,7 @@ func (s *tokenReaderState) processStartTag(tokenizer *html.Tokenizer, raw []byte
 	if !info.translateNo {
 		s.extractTokenAttrs(raw, tag, a, attrs, ctx, ch)
 	} else {
-		_ = s.store.WriteText(raw)
+		s.writeStartTagSkeleton(raw, nil, langAttrKey(attrs))
 	}
 	*stack = append(*stack, info)
 	*translateNo = info.translateNo
@@ -1469,7 +1472,11 @@ func (s *tokenReaderState) handleMetaToken(raw []byte, attrs []html.Attribute, c
 	})
 }
 
-// extractLangFromToken extracts lang/xml:lang attributes.
+// extractLangFromToken extracts lang/xml:lang attributes, emitting a Data
+// part carrying the declared language. The skeleton write for the start tag
+// happens elsewhere (extractTokenAttrs / writeStartTagSkeleton); those paths
+// splice the lang value out as a typed SkeletonLang entry so the writer can
+// retarget the document language structurally — see langAttrKey.
 func (s *tokenReaderState) extractLangFromToken(raw []byte, tag string, attrs []html.Attribute, ctx context.Context, ch chan<- model.PartResult) {
 	lang := getTokenAttr(attrs, "lang")
 	if lang == "" {
@@ -1485,6 +1492,22 @@ func (s *tokenReaderState) extractLangFromToken(raw []byte, tag string, attrs []
 			},
 		})
 	}
+}
+
+// langAttrKey returns the literal attribute key form ("lang" or "xml:lang")
+// of a language declaration carrying a non-empty value, or "" when none is
+// present. The returned key is the form that appears in the raw start-tag
+// bytes, so writeStartTagSkeleton can locate it with findAttrValueRange and
+// splice the value out as a SkeletonLang entry. A bare lang= takes
+// precedence over xml:lang= (matching extractLangFromToken's preference).
+func langAttrKey(attrs []html.Attribute) string {
+	if getTokenAttr(attrs, "lang") != "" {
+		return "lang"
+	}
+	if getTokenAttrNS(attrs, "xml", "lang") != "" {
+		return "xml:lang"
+	}
+	return ""
 }
 
 // extractTokenAttrs extracts translatable attributes (title, alt, etc.) from a token.
@@ -1561,13 +1584,12 @@ func (s *tokenReaderState) extractTokenAttrs(raw []byte, tag string, a atom.Atom
 		}
 	}
 
-	// Write skeleton data.
+	// Write skeleton data. The language attribute (if any) is spliced out as
+	// a typed SkeletonLang entry alongside the translatable-attribute refs in
+	// a single offset-sorted pass, so the writer can retarget the document
+	// language structurally instead of rewriting serialized bytes (#604).
 	if raw != nil {
-		if len(transAttrs) == 0 {
-			_ = s.store.WriteText(raw)
-		} else {
-			s.writeMultiAttrRefSkeleton(raw, transAttrs)
-		}
+		s.writeStartTagSkeleton(raw, transAttrs, langAttrKey(attrs))
 	}
 }
 
@@ -1719,40 +1741,78 @@ func (s *tokenReaderState) writeAttrRefSkeleton(raw []byte, attrKey, blockID str
 	_ = s.store.WriteText(raw[offset+length:])
 }
 
-// writeMultiAttrRefSkeleton writes a tag's raw bytes to skeleton, replacing
-// multiple attribute values with block references.
-func (s *tokenReaderState) writeMultiAttrRefSkeleton(raw []byte, attrs []transAttrEntry) {
-	type replacement struct {
-		offset  int
-		length  int
-		blockID string
-	}
+// skelSpliceKind distinguishes how a spliced-out attribute-value byte range
+// is re-emitted by the writer: as a translatable block reference, or as a
+// language-attribute value to retarget structurally.
+type skelSpliceKind int
 
-	repls := make([]replacement, 0, len(attrs))
-	for _, a := range attrs {
+const (
+	spliceRef  skelSpliceKind = iota // -> SkeletonRef(payload = blockID)
+	spliceLang                       // -> SkeletonLang(payload = source lang value)
+)
+
+// skelSplice describes one byte range inside a raw start tag that is replaced
+// by a typed skeleton entry (rather than written as opaque SkeletonText).
+type skelSplice struct {
+	offset  int
+	length  int
+	kind    skelSpliceKind
+	payload string // blockID for spliceRef, source lang value for spliceLang
+}
+
+// writeStartTagSkeleton writes a start tag's raw bytes to skeleton, splicing
+// out translatable attribute values (as SkeletonRef) and the language
+// attribute value (as SkeletonLang) so the writer can substitute or retarget
+// them structurally. Both splice kinds share a single offset-sorted pass so
+// that lang and translatable attributes on the SAME tag interleave correctly.
+//
+// langKey is "" when no lang/xml:lang declaration is present (most tags); pass
+// the literal key form returned by langAttrKey otherwise.
+func (s *tokenReaderState) writeStartTagSkeleton(raw []byte, transAttrs []transAttrEntry, langKey string) {
+	splices := make([]skelSplice, 0, len(transAttrs)+1)
+	for _, a := range transAttrs {
 		offset, length := findAttrValueRange(raw, a.key)
 		if offset >= 0 {
-			repls = append(repls, replacement{offset, length, a.blockID})
+			splices = append(splices, skelSplice{offset, length, spliceRef, a.blockID})
+		}
+	}
+	if langKey != "" {
+		offset, length := findAttrValueRange(raw, langKey)
+		if offset >= 0 {
+			splices = append(splices, skelSplice{offset, length, spliceLang, string(raw[offset : offset+length])})
 		}
 	}
 
-	if len(repls) == 0 {
+	if len(splices) == 0 {
 		_ = s.store.WriteText(raw)
 		return
 	}
 
-	// Sort by offset (ascending).
-	slices.SortFunc(repls, func(a, b replacement) int {
+	// Sort by offset (ascending) so lang and translatable splices on the
+	// same tag are emitted in document order.
+	slices.SortFunc(splices, func(a, b skelSplice) int {
 		return cmp.Compare(a.offset, b.offset)
 	})
 
 	pos := 0
-	for _, r := range repls {
-		_ = s.store.WriteText(raw[pos:r.offset])
-		_ = s.store.WriteRef(r.blockID)
-		pos = r.offset + r.length
+	for _, sp := range splices {
+		_ = s.store.WriteText(raw[pos:sp.offset])
+		switch sp.kind {
+		case spliceRef:
+			_ = s.store.WriteRef(sp.payload)
+		case spliceLang:
+			_ = s.store.WriteLang(sp.payload)
+		}
+		pos = sp.offset + sp.length
 	}
 	_ = s.store.WriteText(raw[pos:])
+}
+
+// writeMultiAttrRefSkeleton writes a tag's raw bytes to skeleton, replacing
+// multiple attribute values with block references. Thin wrapper over
+// writeStartTagSkeleton with no language splice.
+func (s *tokenReaderState) writeMultiAttrRefSkeleton(raw []byte, attrs []transAttrEntry) {
+	s.writeStartTagSkeleton(raw, attrs, "")
 }
 
 // findAttrValueRange returns the byte offset and length of an attribute's value

@@ -1,13 +1,11 @@
 package html
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
 	"io"
 	"os"
-	"regexp"
 	"strings"
 
 	"github.com/neokapi/neokapi/core/format"
@@ -82,32 +80,15 @@ done:
 
 	// Mode 1: Skeleton store (optimal, byte-exact).
 	//
-	// The skeleton path stores lang/xml:lang attribute declarations as
-	// opaque bytes inside SkeletonText segments, so the writer has no typed
-	// access to them and must rewrite the assembled output bytes with a
-	// regex (rewriteLangAttrs). Promoting lang attributes to typed skeleton
-	// entries is a follow-up (#604); until then the regex is scoped to this
-	// path only — output is buffered so it can be post-processed.
+	// lang/xml:lang attribute declarations are stored as typed SkeletonLang
+	// entries carrying the source-locale value (#604). The writer retargets
+	// them structurally in writeFromSkeleton — no post-serialization regex,
+	// no output buffering.
 	if w.skeletonStore != nil {
 		if err := w.skeletonStore.Flush(); err != nil {
 			return fmt.Errorf("html writer: flush skeleton: %w", err)
 		}
-
-		if !needsLangRewrite {
-			return w.writeFromSkeleton(w.skeletonStore, blocks)
-		}
-
-		var langBuf bytes.Buffer
-		origOutput := w.Output
-		w.Output = &langBuf
-		writeErr := w.writeFromSkeleton(w.skeletonStore, blocks)
-		w.Output = origOutput
-		if writeErr != nil {
-			return writeErr
-		}
-		result := rewriteLangAttrs(langBuf.Bytes(), sourceLocale, w.Locale)
-		_, err := w.Output.Write(result)
-		return err
+		return w.writeFromSkeleton(w.skeletonStore, blocks, sourceLocale, needsLangRewrite)
 	}
 
 	// Modes 2 and 3 build a golang.org/x/net/html node tree (or render
@@ -141,8 +122,17 @@ func (w *Writer) loadOriginalContent() ([]byte, error) {
 }
 
 // writeFromSkeleton reads skeleton entries and fills in block content.
-// This produces byte-exact output — only translated text differs from the original.
-func (w *Writer) writeFromSkeleton(store *format.SkeletonStore, blocks map[string]*model.Block) error {
+// This produces byte-exact output — only translated text (and, when
+// retargeting, lang/xml:lang declarations) differ from the original.
+//
+// sourceLocale is the document's declared source locale; needsLangRewrite is
+// true when the writer targets a different locale. SkeletonLang entries carry
+// the original source-locale lang value: when retargeting and the stored
+// value matches the source locale (case-insensitively, mirroring
+// writerVisitor.retargetLangAttr), the target locale is emitted; otherwise
+// the stored value is emitted verbatim so unrelated declarations
+// (e.g. lang="de" in an en→fr document) and the no-target case stay byte-exact.
+func (w *Writer) writeFromSkeleton(store *format.SkeletonStore, blocks map[string]*model.Block, sourceLocale model.LocaleID, needsLangRewrite bool) error {
 	for {
 		entry, err := store.Next()
 		if errors.Is(err, io.EOF) {
@@ -164,6 +154,14 @@ func (w *Writer) writeFromSkeleton(store *format.SkeletonStore, blocks map[strin
 				if _, err := io.WriteString(w.Output, text); err != nil {
 					return err
 				}
+			}
+		case format.SkeletonLang:
+			lang := string(entry.Data)
+			if needsLangRewrite && strings.EqualFold(lang, sourceLocale.String()) {
+				lang = w.Locale.String()
+			}
+			if _, err := io.WriteString(w.Output, lang); err != nil {
+				return err
 			}
 		}
 	}
@@ -607,24 +605,4 @@ func collectPlainTextRecur(n *html.Node, buf *strings.Builder) {
 			collectPlainTextRecur(child, buf)
 		}
 	}
-}
-
-// rewriteLangAttrs replaces lang/xml:lang attribute values that match the
-// source locale with the target locale. This mirrors Okapi's behavior: when
-// producing a translated document, the language declaration should reflect
-// the output language.
-func rewriteLangAttrs(data []byte, srcLocale, tgtLocale model.LocaleID) []byte {
-	src := string(srcLocale)
-	tgt := string(tgtLocale)
-
-	// Build a regex that matches lang="<srcLocale>" or xml:lang="<srcLocale>"
-	// with either double or single quotes, case-insensitive on the attribute name.
-	// The locale value is matched case-insensitively too.
-	pattern := `(?i)((?:xml:)?lang\s*=\s*)(["'])` + regexp.QuoteMeta(src) + `(["'])`
-	re, err := regexp.Compile(pattern)
-	if err != nil {
-		return data
-	}
-
-	return re.ReplaceAll(data, []byte(`${1}${2}`+tgt+`${3}`))
 }
