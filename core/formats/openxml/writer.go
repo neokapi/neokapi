@@ -3926,7 +3926,7 @@ func pullLeadingFldCharEndIntoPrevParagraph(data []byte) []byte {
 
 	for pos < len(src) {
 		// Find next paragraph-open / paragraph-close.
-		nextOpen := indexFromOf(src, pos, "<w:p>", "<w:p ")
+		nextOpen := indexTagOpen(src, pos, "w:p")
 		if nextOpen < 0 {
 			out.WriteString(src[pos:])
 			break
@@ -4064,7 +4064,7 @@ func pullLeadingFldCharEndIntoPrevParagraphInTxbxContents(data []byte) []byte {
 	pos := 0
 	const closeTok = "</w:txbxContent>"
 	for pos < len(src) {
-		nextOpen := indexFromOf(src, pos, "<w:txbxContent>", "<w:txbxContent ")
+		nextOpen := indexTagOpen(src, pos, "w:txbxContent")
 		if nextOpen < 0 {
 			out.WriteString(src[pos:])
 			break
@@ -4115,7 +4115,7 @@ func pullLeadingFldCharEndIntoPrevParagraphTxbxScope(data []byte) []byte {
 	prevParaMigrationEligible := false
 
 	for pos < len(src) {
-		nextOpen := indexFromOf(src, pos, "<w:p>", "<w:p ")
+		nextOpen := indexTagOpen(src, pos, "w:p")
 		if nextOpen < 0 {
 			out.WriteString(src[pos:])
 			break
@@ -4335,23 +4335,32 @@ func countFldBeginEndBalance(body string) int {
 	return begins - ends
 }
 
-// indexFromOf returns the smallest non-negative index >= start of
-// any of the substrings, or -1 when none occur.
-func indexFromOf(s string, start int, subs ...string) int {
-	best := -1
-	for _, sub := range subs {
-		i := strings.Index(s[start:], sub)
-		if i < 0 {
-			continue
+// indexTagOpen finds the next opening tag for element `name` — either
+// `<name>` or `<name ...>` — in s at or after start, returning its absolute
+// byte index or -1. It locates the "<name" prefix and checks the following
+// delimiter ('>' or ' '), staying O(n) across a forward walk.
+//
+// It replaced indexFromOf(s, start, "<name>", "<name "), whose second
+// strings.Index scanned to EOF on EVERY call when the attributed `<name `
+// form was absent — making the paragraph walk O(paragraphs × docsize). That
+// was the dominant native cost on large bare-paragraph .docx (big.docx:
+// 1815 `<w:p>` paragraphs, 0 `<w:p `, 4.3MB → ~4GB of pointless scanning,
+// ~7s). The match set is identical: "<name" + '>' == "<name>", "<name" + ' '
+// == "<name ".
+func indexTagOpen(s string, start int, name string) int {
+	prefix := "<" + name
+	for {
+		rel := strings.Index(s[start:], prefix)
+		if rel < 0 {
+			return -1
 		}
-		if best < 0 || i < best {
-			best = i
+		i := start + rel
+		after := i + len(prefix)
+		if after < len(s) && (s[after] == '>' || s[after] == ' ') {
+			return i
 		}
+		start = after // e.g. "<w:pPr"/"<w:pict" — not a <name> open; keep scanning.
 	}
-	if best < 0 {
-		return -1
-	}
-	return start + best
 }
 
 // addWMLProp adds a formatting property element to the accumulated rPr content.
