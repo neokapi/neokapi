@@ -174,28 +174,6 @@ func (r *FileRunner) RunFileWithReaderWriter(ctx context.Context, flowName strin
 		return fmt.Errorf("build flow: %w", err)
 	}
 
-	executor := NewExecutor()
-	inCh, outCh, wait := executor.ExecuteWithChannels(ctx, f)
-
-	go func() {
-		for _, p := range parts {
-			inCh <- p
-		}
-		close(inCh)
-	}()
-
-	var outputParts []*model.Part
-	for p := range outCh {
-		outputParts = append(outputParts, p)
-	}
-
-	if err := wait(); err != nil {
-		if skeletonStore != nil {
-			skeletonStore.Close()
-		}
-		return fmt.Errorf("execute flow: %w", err)
-	}
-
 	// Ensure output directory exists.
 	if err := os.MkdirAll(filepath.Dir(outputPath), 0o755); err != nil {
 		if skeletonStore != nil {
@@ -211,20 +189,38 @@ func (r *FileRunner) RunFileWithReaderWriter(ctx context.Context, flowName strin
 	// coalesces them. The buffer is flushed AFTER writer.Close() returns —
 	// some writers (e.g. the KLF writer) only emit their payload in Close,
 	// so the buffer must outlive Close. Output bytes are unchanged.
-	outFile, err := os.Create(outputPath)
+	//
+	// Write into a sibling temp file and rename on success (#608, S1).
+	// The executor and writer now run concurrently — the writer drains
+	// the tool output channel directly instead of buffering every output
+	// Part into a slice and re-feeding a third channel. Because output is
+	// produced incrementally, a tool/writer error could leave a partial
+	// file at outputPath; the temp-then-rename keeps the destination
+	// all-or-nothing, matching the pre-S1 contract where a tool error
+	// produced no output file at all.
+	tmpFile, err := os.CreateTemp(filepath.Dir(outputPath), ".kapi-out-*")
 	if err != nil {
 		if skeletonStore != nil {
 			skeletonStore.Close()
 		}
 		return fmt.Errorf("set output: %w", err)
 	}
-	bw := bufio.NewWriterSize(outFile, 64*1024)
-	if err := writer.SetOutputWriter(bw); err != nil {
-		_ = outFile.Close()
+	tmpPath := tmpFile.Name()
+	// failTmp closes + removes the temp file (so outputPath is never left
+	// with partial bytes), closes the skeleton store, and returns the
+	// formatted error. Used on every error path before the final rename.
+	failTmp := func(format string, args ...any) error {
+		_ = tmpFile.Close()
+		_ = os.Remove(tmpPath)
 		if skeletonStore != nil {
 			skeletonStore.Close()
 		}
-		return fmt.Errorf("set output: %w", err)
+		return fmt.Errorf(format, args...)
+	}
+
+	bw := bufio.NewWriterSize(tmpFile, 64*1024)
+	if err := writer.SetOutputWriter(bw); err != nil {
+		return failTmp("set output: %w", err)
 	}
 
 	// Pass original content for skeleton-based writers (e.g., OpenXML).
@@ -236,41 +232,85 @@ func (r *FileRunner) RunFileWithReaderWriter(ctx context.Context, flowName strin
 
 	writer.SetLocale(model.LocaleID(targetLang))
 
-	ch := make(chan *model.Part, len(outputParts))
-	for _, p := range outputParts {
-		ch <- p
-	}
-	close(ch)
+	// Single concurrent pipeline: feed the read parts into the executor's
+	// input channel from a goroutine while the writer drains the executor's
+	// output channel directly. The reader has already been fully read and
+	// closed above, which preserves the read-then-write ordering required
+	// by daemon-backed plugin formats (one Process stream at a time) and
+	// guarantees every skeleton entry is written before the writer's
+	// internal skeleton Flush().
+	executor := NewExecutor()
 
-	if err := writer.Write(ctx, ch); err != nil {
-		_ = outFile.Close()
-		if skeletonStore != nil {
-			skeletonStore.Close()
+	// Derive a cancellable context for the feeder so a tool error (which
+	// cancels the executor's own internal context and stops the tools)
+	// can also unblock the feeder if it's parked on an inCh send. Without
+	// this the feeder goroutine would leak. feedDone lets us join it.
+	feedCtx, feedCancel := context.WithCancel(ctx)
+	defer feedCancel()
+
+	inCh, outCh, wait := executor.ExecuteWithChannels(ctx, f)
+
+	feedDone := make(chan struct{})
+	go func() {
+		defer close(feedDone)
+		defer close(inCh)
+		for _, p := range parts {
+			select {
+			case inCh <- p:
+			case <-feedCtx.Done():
+				return
+			}
 		}
-		return fmt.Errorf("write %q: %w", filepath.Base(outputPath), err)
+	}()
+
+	// The writer drains outCh (every DataFormatWriter loops
+	// `for part := range parts`), so the executor's tool goroutines can
+	// make progress and close outCh — no deadlock. Should a writer return
+	// early without draining (e.g. it rejects the input before consuming
+	// all parts), drain the remainder here so a tool goroutine blocked on
+	// an `outCh <- p` send can still finish; otherwise the executor's
+	// errgroup Wait() — and thus this function — would hang.
+	writeErr := writer.Write(ctx, outCh)
+	if writeErr != nil {
+		for range outCh { //nolint:revive // intentional drain to unblock tools
+		}
 	}
+	waitErr := wait()
+	// The executor has finished; cancel and join the feeder so it never
+	// leaks (it may still be parked on an inCh send if the tools stopped
+	// early on a tool error before reading every part).
+	feedCancel()
+	<-feedDone
+	if waitErr != nil {
+		return failTmp("execute flow: %w", waitErr)
+	}
+	if writeErr != nil {
+		return failTmp("write %q: %w", filepath.Base(outputPath), writeErr)
+	}
+
 	// Close the writer first (lets writers that emit on Close, like KLF,
 	// finish writing into the buffer), then flush the buffer to the file,
-	// then close the file. Any flush/close error is surfaced.
+	// then close the file, then rename into place. Any error removes the
+	// temp file so outputPath is never left partial.
 	if cerr := writer.Close(); cerr != nil {
-		_ = outFile.Close()
-		if skeletonStore != nil {
-			skeletonStore.Close()
-		}
-		return fmt.Errorf("close writer %q: %w", filepath.Base(outputPath), cerr)
+		return failTmp("close writer %q: %w", filepath.Base(outputPath), cerr)
 	}
 	if ferr := bw.Flush(); ferr != nil {
-		_ = outFile.Close()
-		if skeletonStore != nil {
-			skeletonStore.Close()
-		}
-		return fmt.Errorf("flush %q: %w", filepath.Base(outputPath), ferr)
+		return failTmp("flush %q: %w", filepath.Base(outputPath), ferr)
 	}
-	if ferr := outFile.Close(); ferr != nil {
+	if ferr := tmpFile.Close(); ferr != nil {
+		_ = os.Remove(tmpPath)
 		if skeletonStore != nil {
 			skeletonStore.Close()
 		}
 		return fmt.Errorf("close %q: %w", filepath.Base(outputPath), ferr)
+	}
+	if rerr := os.Rename(tmpPath, outputPath); rerr != nil {
+		_ = os.Remove(tmpPath)
+		if skeletonStore != nil {
+			skeletonStore.Close()
+		}
+		return fmt.Errorf("finalize %q: %w", filepath.Base(outputPath), rerr)
 	}
 
 	if skeletonStore != nil {
