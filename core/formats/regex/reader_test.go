@@ -6,6 +6,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/formats/regex"
 	"github.com/neokapi/neokapi/core/internal/testutil"
 	"github.com/neokapi/neokapi/core/model"
@@ -816,6 +817,266 @@ func TestConfigReset(t *testing.T) {
 	assert.Nil(t, cfg.Rules)
 	assert.Equal(t, regex.EscapeNone, cfg.EscapeType)
 	assert.Equal(t, "\"", cfg.EscapeChar)
+}
+
+// --- Prefix/Suffix Assembly Tests (issue #605) ---
+
+// roundtripWithTranslations reads the input, applies the given target
+// translations keyed by source text, and writes the output. When
+// useSkeleton is true the skeleton (byte-exact) write path is exercised;
+// otherwise the streaming (non-skeleton) path is used.
+func roundtripWithTranslations(t *testing.T, input string, rules []regex.Rule, escType, escChar string, locale model.LocaleID, translations map[string]string, useSkeleton bool) string {
+	t.Helper()
+	ctx := t.Context()
+
+	reader := regex.NewReader()
+	cfg := reader.Config().(*regex.Config)
+	cfg.Rules = rules
+	if escType != "" {
+		cfg.EscapeType = escType
+	}
+	if escChar != "" {
+		cfg.EscapeChar = escChar
+	}
+
+	writer := regex.NewWriter()
+	writerCfg := &regex.Config{}
+	writerCfg.Reset()
+	writerCfg.Rules = rules
+	if escType != "" {
+		writerCfg.EscapeType = escType
+	}
+	if escChar != "" {
+		writerCfg.EscapeChar = escChar
+	}
+	require.NoError(t, writer.SetConfig(writerCfg))
+
+	var store *format.SkeletonStore
+	if useSkeleton {
+		var err error
+		store, err = format.NewSkeletonStore()
+		require.NoError(t, err)
+		defer store.Close()
+		reader.SetSkeletonStore(store)
+		writer.SetSkeletonStore(store)
+	}
+
+	require.NoError(t, reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish)))
+	parts := testutil.CollectParts(t, reader.Read(ctx))
+	reader.Close()
+
+	for _, p := range parts {
+		if p.Type != model.PartBlock {
+			continue
+		}
+		block := p.Resource.(*model.Block)
+		if tgt, ok := translations[block.SourceText()]; ok {
+			block.SetTargetText(locale, tgt)
+		}
+	}
+
+	var buf bytes.Buffer
+	require.NoError(t, writer.SetOutputWriter(&buf))
+	writer.SetLocale(locale)
+
+	ch := testutil.PartsToChannel(parts)
+	require.NoError(t, writer.Write(ctx, ch))
+	writer.Close()
+
+	return buf.String()
+}
+
+// prefixSuffixRules captures group 2 of ^prefix(.*?)suffix$, leaving a
+// non-empty prefix ("prefix") and suffix ("suffix") around the capture.
+func prefixSuffixRules() []regex.Rule {
+	return []regex.Rule{
+		{
+			Pattern:     `(?m)^(prefix)(.*?)(suffix)$`,
+			SourceGroup: 2,
+		},
+	}
+}
+
+// TestPrefixSuffixStored asserts the reader records the raw text before and
+// after the translatable capture as block properties.
+func TestPrefixSuffixStored(t *testing.T) {
+	ctx := t.Context()
+	reader := regex.NewReader()
+	cfg := reader.Config().(*regex.Config)
+	cfg.Rules = prefixSuffixRules()
+
+	input := "prefixHELLOsuffix"
+	require.NoError(t, reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish)))
+	defer reader.Close()
+
+	blocks := testutil.CollectBlocks(t, reader.Read(ctx))
+	require.Len(t, blocks, 1)
+	assert.Equal(t, "HELLO", blocks[0].SourceText())
+	assert.Equal(t, "prefix", blocks[0].Properties["regex.prefix"])
+	assert.Equal(t, "suffix", blocks[0].Properties["regex.suffix"])
+	// Old reconstruction key is gone; assembly is purely prefix+value+suffix.
+	assert.NotContains(t, blocks[0].Properties, "regex.fullMatch")
+}
+
+// TestPrefixSuffixRoundTripStreaming round-trips with a changed translation on
+// the non-skeleton path, asserting prefix+suffix are preserved exactly and the
+// translation is spliced between them.
+func TestPrefixSuffixRoundTripStreaming(t *testing.T) {
+	input := "prefixHELLOsuffix"
+	output := roundtripWithTranslations(t, input, prefixSuffixRules(), "", "",
+		model.LocaleFrench, map[string]string{"HELLO": "BONJOUR"}, false)
+	assert.Equal(t, "prefixBONJOURsuffix", output)
+}
+
+// TestPrefixSuffixRoundTripSkeleton round-trips the same case via the
+// byte-exact skeleton write path.
+func TestPrefixSuffixRoundTripSkeleton(t *testing.T) {
+	input := "prefixHELLOsuffix"
+	output := roundtripWithTranslations(t, input, prefixSuffixRules(), "", "",
+		model.LocaleFrench, map[string]string{"HELLO": "BONJOUR"}, true)
+	assert.Equal(t, "prefixBONJOURsuffix", output)
+}
+
+// TestPrefixSuffixWithSurroundingData covers a non-empty prefix/suffix where the
+// match is embedded among non-matching content (Data parts), confirming
+// surrounding bytes and delimiters survive the assembly untouched.
+func TestPrefixSuffixWithSurroundingData(t *testing.T) {
+	rules := []regex.Rule{
+		{
+			Pattern:     `(?m)^msg\[(\w+)\] = <<(.*?)>>;$`,
+			SourceGroup: 2,
+			IDGroup:     1,
+		},
+	}
+	input := "# header\nmsg[greet] = <<Hello>>;\n# footer\nmsg[bye] = <<Goodbye>>;\n"
+
+	for _, skel := range []bool{false, true} {
+		out := roundtripWithTranslations(t, input, rules, "", "", model.LocaleFrench,
+			map[string]string{"Hello": "Bonjour", "Goodbye": "Au revoir"}, skel)
+		expected := "# header\nmsg[greet] = <<Bonjour>>;\n# footer\nmsg[bye] = <<Au revoir>>;\n"
+		assert.Equal(t, expected, out, "skeleton=%v", skel)
+	}
+}
+
+// TestPrefixSuffixNoTranslationRoundTrip confirms that without any translation
+// the assembly reproduces the source byte-for-byte (both paths).
+func TestPrefixSuffixNoTranslationRoundTrip(t *testing.T) {
+	input := "prefixHELLOsuffix"
+	for _, skel := range []bool{false, true} {
+		out := roundtripWithTranslations(t, input, prefixSuffixRules(), "", "",
+			model.LocaleFrench, nil, skel)
+		assert.Equal(t, input, out, "skeleton=%v: source must round-trip exactly", skel)
+	}
+}
+
+// TestEmptyPrefixSuffix covers a capture that spans the entire match, leaving
+// both prefix and suffix empty. The translation replaces the whole match.
+func TestEmptyPrefixSuffix(t *testing.T) {
+	rules := []regex.Rule{
+		{
+			Pattern:     `(?m)^(.+)$`,
+			SourceGroup: 1,
+		},
+	}
+	input := "Hello\n"
+	for _, skel := range []bool{false, true} {
+		out := roundtripWithTranslations(t, input, rules, "", "", model.LocaleFrench,
+			map[string]string{"Hello": "Bonjour"}, skel)
+		assert.Equal(t, "Bonjour\n", out, "skeleton=%v", skel)
+	}
+}
+
+// TestPrefixOnly covers a non-empty prefix with an empty suffix (capture at the
+// end of the match).
+func TestPrefixOnly(t *testing.T) {
+	rules := []regex.Rule{
+		{
+			Pattern:     `(?m)^key: (.+)$`,
+			SourceGroup: 1,
+		},
+	}
+	input := "key: Hello\n"
+	for _, skel := range []bool{false, true} {
+		out := roundtripWithTranslations(t, input, rules, "", "", model.LocaleFrench,
+			map[string]string{"Hello": "Bonjour"}, skel)
+		assert.Equal(t, "key: Bonjour\n", out, "skeleton=%v", skel)
+	}
+}
+
+// TestMultipleCaptureGroupsAssembly confirms prefix/suffix are computed from the
+// correct (source) capture group when several groups participate in the match,
+// so ID/note groups land in the prefix/suffix and survive verbatim.
+func TestMultipleCaptureGroupsAssembly(t *testing.T) {
+	rules := macStringsWithNotesRules() // groups: 1=note, 2=id, 3=source
+	input := "/* Menu item */\n\"File\" = \"File\";\n"
+	for _, skel := range []bool{false, true} {
+		out := roundtripWithTranslations(t, input, rules, "", "", model.LocaleFrench,
+			map[string]string{"File": "Fichier"}, skel)
+		// Note comment and the id ("File" key) are part of prefix/suffix and
+		// must be untouched; only the source value (group 3) is translated.
+		assert.Equal(t, "/* Menu item */\n\"File\" = \"Fichier\";\n", out, "skeleton=%v", skel)
+	}
+}
+
+// --- Escape Interaction Tests (issue #605) ---
+
+// TestDoubleCharEscapeRoundTripWithTranslation confirms doublechar escaping is
+// applied only to the value, not to the surrounding prefix/suffix, and that
+// re-escaping a translated value containing the escape char does not double up
+// the surrounding delimiters.
+func TestDoubleCharEscapeRoundTripWithTranslation(t *testing.T) {
+	rules := []regex.Rule{
+		{
+			Pattern:     `"((?:[^"]|"")*)"`,
+			SourceGroup: 1,
+		},
+	}
+	// Source value contains an escaped (doubled) quote: "" decodes to ".
+	input := "\"Say \"\"Hi\"\"\""
+	// Translate to a value that also contains a quote; the writer must
+	// re-escape only the value (" -> "") without disturbing the outer
+	// delimiter quotes that live in prefix/suffix.
+	for _, skel := range []bool{false, true} {
+		out := roundtripWithTranslations(t, input, rules, regex.EscapeDoubleChar, "\"",
+			model.LocaleFrench, map[string]string{`Say "Hi"`: `Dis "Salut"`}, skel)
+		assert.Equal(t, "\"Dis \"\"Salut\"\"\"", out, "skeleton=%v", skel)
+	}
+}
+
+// TestDoubleCharEscapeNoTranslationNoDoubleEscape is the regression guard: a
+// source-only round-trip with doublechar escaping must reproduce the input
+// byte-for-byte (no double-escaping of the value, no escaping of delimiters).
+func TestDoubleCharEscapeNoTranslationNoDoubleEscape(t *testing.T) {
+	rules := []regex.Rule{
+		{
+			Pattern:     `"((?:[^"]|"")*)"`,
+			SourceGroup: 1,
+		},
+	}
+	input := "\"Hello \"\"World\"\"\""
+	for _, skel := range []bool{false, true} {
+		out := roundtripWithTranslations(t, input, rules, regex.EscapeDoubleChar, "\"",
+			model.LocaleFrench, nil, skel)
+		assert.Equal(t, input, out, "skeleton=%v: doublechar source must round-trip exactly", skel)
+	}
+}
+
+// TestBackslashEscapeRoundTripWithTranslation confirms backslash escaping of the
+// translated value works through pure assembly, with prefix/suffix delimiters
+// preserved.
+func TestBackslashEscapeRoundTripWithTranslation(t *testing.T) {
+	rules := []regex.Rule{
+		{
+			Pattern:     `"((?:[^"\\]|\\.)*)"`,
+			SourceGroup: 1,
+		},
+	}
+	input := "\"Hello \\\"World\\\"\"\n"
+	for _, skel := range []bool{false, true} {
+		out := roundtripWithTranslations(t, input, rules, regex.EscapeBackslash, "",
+			model.LocaleFrench, map[string]string{`Hello "World"`: `Salut "Monde"`}, skel)
+		assert.Equal(t, "\"Salut \\\"Monde\\\"\"\n", out, "skeleton=%v", skel)
+	}
 }
 
 // --- Context Cancellation Test ---

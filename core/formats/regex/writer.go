@@ -87,31 +87,35 @@ func (w *Writer) writeBlock(part *model.Part) error {
 		return errors.New("regex writer: expected Block resource")
 	}
 
+	// Reconstruct the match by pure assembly: prefix + escape(value) + suffix.
+	// The prefix and suffix are the raw document bytes recorded by the reader
+	// around the translatable capture, so no string replacement over
+	// reconstructed full-match text is needed.
+	_, err := io.WriteString(w.Output, w.renderBlock(block))
+	return err
+}
+
+// renderBlock builds the output text for a block by assembling the raw prefix,
+// the escaped value (target if available, else source), and the raw suffix.
+func (w *Writer) renderBlock(block *model.Block) string {
 	// Get the text to write (target if available, else source)
 	text := block.SourceText()
 	if !w.Locale.IsEmpty() && block.HasTarget(w.Locale) {
 		text = block.TargetText(w.Locale)
 	}
 
-	// Re-escape the text for output
+	// Re-escape the value (benign per-value escaping; never touches the
+	// surrounding prefix/suffix which are already raw document bytes).
 	text = w.escape(text)
 
-	// Reconstruct the original match with the translated text
-	fullMatch := block.Properties["regex.fullMatch"]
-	sourceText := block.SourceText()
-
-	if fullMatch != "" {
-		// Re-escape the original source for matching against the full match string
-		escapedOriginal := w.escape(sourceText)
-		// Replace source text within the full match with translated text
-		output := strings.Replace(fullMatch, escapedOriginal, text, 1)
-		_, err := fmt.Fprint(w.Output, output)
-		return err
+	prefix, hasPrefix := block.Properties["regex.prefix"]
+	suffix := block.Properties["regex.suffix"]
+	if hasPrefix {
+		return prefix + text + suffix
 	}
 
-	// Fallback: write just the text
-	_, err := fmt.Fprint(w.Output, text)
-	return err
+	// Fallback for blocks lacking recorded offsets: write just the value.
+	return text
 }
 
 func (w *Writer) writeData(part *model.Part) error {
@@ -216,24 +220,10 @@ func (w *Writer) writeFromSkeleton(blocks map[string]*model.Block) error {
 			}
 		case format.SkeletonRef:
 			if block, ok := blocks[string(entry.Data)]; ok {
-				// Reconstruct the match with translated text
-				text := block.SourceText()
-				if !w.Locale.IsEmpty() && block.HasTarget(w.Locale) {
-					text = block.TargetText(w.Locale)
-				}
-				text = w.escape(text)
-
-				fullMatch := block.Properties["regex.fullMatch"]
-				if fullMatch != "" {
-					escapedOriginal := w.escape(block.SourceText())
-					output := strings.Replace(fullMatch, escapedOriginal, text, 1)
-					if _, err := io.WriteString(w.Output, output); err != nil {
-						return err
-					}
-				} else {
-					if _, err := io.WriteString(w.Output, text); err != nil {
-						return err
-					}
+				// Reconstruct the match by pure assembly (prefix + value + suffix),
+				// identical to the non-skeleton path.
+				if _, err := io.WriteString(w.Output, w.renderBlock(block)); err != nil {
+					return err
 				}
 			}
 		}

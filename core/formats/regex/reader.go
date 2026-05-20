@@ -137,12 +137,19 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 }
 
 // match represents a regex match with its associated rule.
+//
+// prefix and suffix are the raw document text on either side of the
+// translatable source capture group, sliced directly from the original
+// content. They let the writer rebuild output by pure assembly
+// (prefix + value + suffix) instead of string-replacing inside the full
+// match.
 type match struct {
-	start     int
-	end       int
-	groups    []string
-	rule      compiledRule
-	fullMatch string
+	start  int
+	end    int
+	groups []string
+	rule   compiledRule
+	prefix string
+	suffix string
 }
 
 func (r *Reader) extractWithRules(ctx context.Context, ch chan<- model.PartResult, content string, rules []compiledRule) {
@@ -155,12 +162,14 @@ func (r *Reader) extractWithRules(ctx context.Context, ch chan<- model.PartResul
 				continue
 			}
 			groups := extractGroups(content, idx)
+			prefix, suffix := splitAroundSourceGroup(content, idx, cr.SourceGroup)
 			m := match{
-				start:     idx[0],
-				end:       idx[1],
-				groups:    groups,
-				rule:      cr,
-				fullMatch: content[idx[0]:idx[1]],
+				start:  idx[0],
+				end:    idx[1],
+				groups: groups,
+				rule:   cr,
+				prefix: prefix,
+				suffix: suffix,
 			}
 			matches = append(matches, m)
 		}
@@ -220,8 +229,12 @@ func (r *Reader) extractWithRules(ctx context.Context, ch chan<- model.PartResul
 			}
 		}
 
-		// Store the full match for the writer to reconstruct
-		block.Properties["regex.fullMatch"] = m.fullMatch
+		// Store the raw text on either side of the translatable capture so
+		// the writer can rebuild the match by pure assembly:
+		//   prefix + escape(value) + suffix
+		// No reverse-engineering of the split via string replacement.
+		block.Properties["regex.prefix"] = m.prefix
+		block.Properties["regex.suffix"] = m.suffix
 		block.Properties["regex.sourceGroup"] = strconv.Itoa(m.rule.SourceGroup)
 
 		if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
@@ -351,6 +364,29 @@ func (r *Reader) Close() error {
 		return r.Doc.Reader.Close()
 	}
 	return nil
+}
+
+// splitAroundSourceGroup returns the raw document text before and after the
+// translatable source capture group within the full match. Offsets come from
+// FindAllStringSubmatchIndex, so prefix+group+suffix == content[idx[0]:idx[1]]
+// exactly (byte-for-byte), preserving any delimiters, whitespace, or escaped
+// characters that surround the captured value.
+//
+// When the source group is unset, out of range, or did not participate in the
+// match (negative offsets), the whole match is treated as prefix and the
+// suffix is empty — the writer then emits prefix verbatim, matching the old
+// fallback behaviour for matches with no usable capture.
+func splitAroundSourceGroup(content string, idx []int, sourceGroup int) (prefix, suffix string) {
+	full := content[idx[0]:idx[1]]
+	if sourceGroup <= 0 || 2*sourceGroup+1 >= len(idx) {
+		return full, ""
+	}
+	gStart := idx[2*sourceGroup]
+	gEnd := idx[2*sourceGroup+1]
+	if gStart < 0 || gEnd < 0 {
+		return full, ""
+	}
+	return content[idx[0]:gStart], content[gEnd:idx[1]]
 }
 
 // extractGroups extracts the matched groups from submatch indices.
