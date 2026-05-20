@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"sync"
 	"unicode/utf8"
 
 	"golang.org/x/text/encoding"
@@ -193,12 +194,22 @@ func stripAttrInTag(b []byte, tag, attr string) []byte {
 	})
 }
 
+// reCacheMu guards the two regexp caches below. Without it, two
+// concurrent writer goroutines (e.g. a flow processing several XLIFF
+// files in parallel) compiling the same tag/attr regex for the first
+// time would race on the map write, which the Go race detector flags
+// and which can corrupt the map. A single mutex is enough: regex
+// compilation is rare (once per distinct tag/attr name) and cheap to
+// serialize.
 var (
+	reCacheMu    sync.Mutex
 	tagStartREs  = map[string]*regexp.Regexp{}
 	innerAttrREs = map[string]*regexp.Regexp{}
 )
 
 func tagStartRE(tag string) *regexp.Regexp {
+	reCacheMu.Lock()
+	defer reCacheMu.Unlock()
 	if re, ok := tagStartREs[tag]; ok {
 		return re
 	}
@@ -213,6 +224,8 @@ func tagStartRE(tag string) *regexp.Regexp {
 }
 
 func innerAttrRE(attr string) *regexp.Regexp {
+	reCacheMu.Lock()
+	defer reCacheMu.Unlock()
 	if re, ok := innerAttrREs[attr]; ok {
 		return re
 	}

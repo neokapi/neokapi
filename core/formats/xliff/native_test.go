@@ -1,6 +1,7 @@
 package xliff
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/neokapi/neokapi/core/model"
@@ -94,5 +95,43 @@ func TestRenderBodyWithSegments_PseudoSubstitution(t *testing.T) {
 	want := `<bpt id="1" ctype="bold">&lt;b></bpt>ƒõẋ<ept id="1">&lt;/b></ept>`
 	if got != want {
 		t.Errorf("\ngot  %q\nwant %q", got, want)
+	}
+}
+
+// TestNativeToRuns_EquivalentToParseInlineContent proves the X1 perf fix
+// is byte-neutral: deriving the generic Runs from the already-parsed
+// native IR (nativeToRuns) yields exactly the same []model.Run that the
+// old direct second-decoder path (parseInlineContent) produced. If this
+// drifts, the reader would change its emitted Runs — so we lock it down
+// across the full inline vocabulary.
+func TestNativeToRuns_EquivalentToParseInlineContent(t *testing.T) {
+	cases := []string{
+		"",
+		"plain text only",
+		"leading <g id=\"1\">grouped</g> trailing",
+		`The quick brown <bpt id="1" ctype="bold">&lt;b></bpt>fox<ept id="1">&lt;/b></ept> jumped.`,
+		`<ph id="1">{0}</ph> and <x id="2" equiv-text="[X]"/> done`,
+		`a<bx id="1" ctype="link"/>b<ex id="1"/>c`,
+		`<it id="1" pos="open" ctype="bold">&lt;b></it>x<it id="2" pos="close">&lt;/b></it>`,
+		`<it id="3" ctype="italic">&lt;i></it> standalone-it`,
+		`<mrk mid="0" mtype="seg">Segment one.</mrk> <mrk mid="1" mtype="seg">Segment two.</mrk>`,
+		`<mrk mtype="x-comment">noted</mrk> tail`,
+		`pre <ph id="1">code<sub>nested<ph id="9">x</ph>still in sub</sub>more</ph> post`,
+		`<ph id="1">a<sub>one</sub>b<sub>two</sub>c</ph>`,
+		`<bpt id="1">open<sub>subtext</sub></bpt>mid<ept id="1">close</ept>`,
+		`nested <g id="1"><g id="2">deep</g></g> end`,
+		`text with <unknown attr="z">kept text</unknown> after`,
+		`amp &amp; lt &lt; gt &gt; quote &quot; entities`,
+		`&#x20AC; numeric ref and literal € euro`,
+		`<ph id="1" ctype="x-custom" equiv-text="EQ">DATA</ph>`,
+		`<g id="1" ctype="link" equiv-text="L">link text</g>`,
+		`mixed <g id="1">a<ph id="2">P</ph>b<bpt id="3">&lt;b></bpt>c<ept id="3">&lt;/b></ept>d</g> tail`,
+	}
+	for _, src := range cases {
+		want := parseInlineContent(src)
+		got := nativeToRuns(parseNativeContent(src))
+		if !reflect.DeepEqual(want, got) {
+			t.Errorf("nativeToRuns mismatch for %q:\nwant %#v\ngot  %#v", src, want, got)
+		}
 	}
 }

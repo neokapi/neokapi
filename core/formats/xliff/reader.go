@@ -312,10 +312,14 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 	// content holds the same bytes the decoder is reading from, so byte
 	// offsets reported by decoder.InputOffset() can index into it
 	// directly. After a non-UTF-8 transcode this differs from the
-	// on-disk bytes.
+	// on-disk bytes. We keep a single full copy of the UTF-8 text here:
+	// the decoder reads from a bytes.Reader over it, per-unit bodies are
+	// sliced out of it, and the skeleton text is sliced from it too — so
+	// there is no separate `[]byte(rawText)` duplicate.
 	content := []byte(rawText)
+	rawText = "" // release the string copy; `content` is now the sole buffer
 
-	decoder := xml.NewDecoder(strings.NewReader(rawText))
+	decoder := xml.NewDecoder(bytes.NewReader(content))
 	decoder.Strict = false
 	decoder.CharsetReader = xmlCharsetReader
 
@@ -523,14 +527,14 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		skelPos := 0
 		for _, ep := range elemPositions {
 			if ep.startOffset > skelPos {
-				r.skelText(rawText[skelPos:ep.startOffset])
+				r.skelText(string(content[skelPos:ep.startOffset]))
 			}
 			refID := fmt.Sprintf("%d:%s", ep.blockIdx, ep.elemType)
 			r.skelRef(refID)
 			skelPos = ep.endOffset
 		}
-		if skelPos < len(rawText) {
-			r.skelText(rawText[skelPos:])
+		if skelPos < len(content) {
+			r.skelText(string(content[skelPos:]))
 		}
 		r.skelFlush()
 	}
@@ -709,9 +713,9 @@ func (r *Reader) parseTransUnit(decoder *xml.Decoder, start xml.StartElement, fi
 
 	var positions []elemPos
 	hasTarget := false
-	sourceAfterClose := -1 // byte offset right after </source>
+	sourceAfterClose := -1  // byte offset right after </source>
 	transUnitCloseOff := -1 // byte offset of `<` in `</trans-unit>`
-	nextSiblingStart := -1 // offset of `<` for first start-tag sibling after </source>
+	nextSiblingStart := -1  // offset of `<` for first start-tag sibling after </source>
 	awaitingNextSibling := false
 
 	depth := 1
@@ -1232,10 +1236,13 @@ func (r *Reader) buildBlock(tu *parsedTransUnit, sourceLang, targetLang model.Lo
 			Content: parseNativeContent(tu.source),
 		}
 	} else {
-		// Use <source> content
-		block.Source = []*model.Segment{newSegmentWithNative("s1", tu.source)}
+		// Use <source> content. The single segment and the body
+		// annotation cover the same bytes, so parse the native IR once
+		// and share it between both rather than decoding tu.source twice.
+		srcNative := parseNativeContent(tu.source)
+		block.Source = []*model.Segment{newSegmentFromNative("s1", srcNative)}
 		block.Annotations["xliff:source-body"] = &SourceBodyNativeAnnotation{
-			Content: parseNativeContent(tu.source),
+			Content: srcNative,
 		}
 		// When we dropped the seg-source segments, also clear the
 		// downstream segmentation hints so the writer doesn't try to
@@ -1266,6 +1273,11 @@ func (r *Reader) buildBlock(tu *parsedTransUnit, sourceLang, targetLang model.Lo
 		effectiveTargetLang = model.LocaleID(tu.targetLang)
 	}
 	if targetContent != "" && !effectiveTargetLang.IsEmpty() {
+		// Parse the target body native IR once. It feeds the body-level
+		// annotation (so the writer can reconstruct mrk wrappers and
+		// between-mrk whitespace exactly) and, in the unsegmented case,
+		// is shared with the single target segment to avoid re-decoding.
+		targetNative := parseNativeContent(targetContent)
 		// Check if target has mrk segments
 		targetSegs := parseMrkSegmentsFromString(targetContent)
 		if len(targetSegs) > 0 {
@@ -1275,14 +1287,14 @@ func (r *Reader) buildBlock(tu *parsedTransUnit, sourceLang, targetLang model.Lo
 			}
 			block.Targets[effectiveTargetLang] = tgtSegs
 		} else {
-			block.Targets[effectiveTargetLang] = []*model.Segment{newSegmentWithNative("s1", targetContent)}
+			block.Targets[effectiveTargetLang] = []*model.Segment{newSegmentFromNative("s1", targetNative)}
 		}
 		// Attach body-level native IR for <target>. Walking this lets
 		// the writer reconstruct mrk wrappers and between-mrk
 		// whitespace exactly as the source file had them.
 		block.Annotations["xliff:target-body"] = &TargetBodyNativeAnnotation{
 			Locale:  effectiveTargetLang,
-			Content: parseNativeContent(targetContent),
+			Content: targetNative,
 		}
 	}
 	if hasTargetElem {
@@ -1392,14 +1404,25 @@ func prefixForURI(uri string) string {
 // both the generic Run downconversion (consumed by tools) and the
 // xliff-native IR annotation (consumed by the writer for byte-faithful
 // re-emission of inline elements with all their attributes).
+//
+// The body is parsed into the native IR exactly once; the generic Runs
+// are derived from that IR via nativeToRuns rather than re-decoding the
+// XML a second time. See newSegmentFromNative for the shared path.
 func newSegmentWithNative(id, innerXML string) *model.Segment {
-	seg := model.NewRunsSegment(id, parseInlineContent(innerXML))
+	return newSegmentFromNative(id, parseNativeContent(innerXML))
+}
+
+// newSegmentFromNative builds a Segment from an already-parsed native IR.
+// The caller owns nc; it is stored on the segment annotation unchanged
+// and downconverted to generic Runs. Sharing one *NativeContent between
+// the segment annotation and (in the unsegmented case) the block body
+// annotation avoids re-parsing the same body bytes.
+func newSegmentFromNative(id string, nc *NativeContent) *model.Segment {
+	seg := model.NewRunsSegment(id, nativeToRuns(nc))
 	if seg.Annotations == nil {
 		seg.Annotations = make(map[string]model.Annotation)
 	}
-	seg.Annotations["xliff:native"] = &SegmentNativeAnnotation{
-		Content: parseNativeContent(innerXML),
-	}
+	seg.Annotations["xliff:native"] = &SegmentNativeAnnotation{Content: nc}
 	return seg
 }
 
