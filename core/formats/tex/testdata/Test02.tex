@@ -1,0 +1,37 @@
+\documentclass{article}
+ 
+%Russian-specific packages
+%--------------------------------------
+\usepackage[T2A]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[russian]{babel}
+%--------------------------------------
+
+%Hyphenation rules
+%--------------------------------------
+\usepackage{hyphenat}
+\hyphenation{ма-те-ма-ти-ка вос-ста-нав-ли-вать}
+%--------------------------------------
+
+\begin{document}
+
+\tableofcontents
+
+\begin{abstract}
+  Это вводный абзац в начале документа.
+\end{abstract}
+
+\section{Предисловие}
+ Этот текст будет на русском языке. Это демонстрация того, что символы кириллицы
+ в сгенерированном документе (Compile to PDF) отображаются правильно.
+ Для этого Вы должны установить нужный  язык (russian) 
+и необходимую кодировку шрифта (T2A).
+
+\section{Математические формулы}
+Кириллические символы также могут быть использованы в математическом режиме.
+
+\begin{equation}
+  S_\textup{ис} = S_{123}
+\end{equation}
+
+\end{document}

@@ -301,7 +301,6 @@ features:
       - VTTFilterTest#testMergeCaptions
       - VTTSkeletonWriterTest#testProcessTextUnitSplitLines
       - VTTSkeletonWriterTest#testProcessTextUnitSplitCaptionsLines
-      - RoundTripVttIT#vttFiles
     native_refs:
       - vtt.TestExtract_MergeCaptions
       - vtt.TestExtract_MultilineCueText

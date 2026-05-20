@@ -47,16 +47,16 @@ var noTextCommands = map[string]bool{
 // arguments stay non-translatable, matching okapi's body-mode behavior
 // for any command not on this list.
 var inlineTextCommands = map[string]bool{
-	"emph":     true,
-	"footnote": true,
-	"hbox":     true,
-	"mbox":     true,
+	"emph":       true,
+	"footnote":   true,
+	"hbox":       true,
+	"mbox":       true,
 	"textbackit": true,
-	"textbf":   true,
-	"texttt":   true,
-	"textsf":   true,
-	"textit":   true,
-	"vbox":     true,
+	"textbf":     true,
+	"texttt":     true,
+	"textsf":     true,
+	"textit":     true,
+	"vbox":       true,
 }
 
 // paragraphTextCommands produce separate text units for their arguments
@@ -70,16 +70,16 @@ var inlineTextCommands = map[string]bool{
 // trailing-running-head spelling `\titlerunning` and the silent
 // `\typeout` / index entries are mirrored from okapi for completeness.
 var paragraphTextCommands = map[string]bool{
-	"author":        true,
-	"Chapter":       true,
-	"chapter":       true,
-	"index":         true,
-	"typeout":       true,
-	"title":         true,
-	"titlerunning":  true,
-	"section":       true,
-	"subsection":    true,
-	"caption":       true,
+	"author":       true,
+	"Chapter":      true,
+	"chapter":      true,
+	"index":        true,
+	"typeout":      true,
+	"title":        true,
+	"titlerunning": true,
+	"section":      true,
+	"subsection":   true,
+	"caption":      true,
 }
 
 // accentMap maps LaTeX accent commands to their Unicode equivalent.
@@ -1176,7 +1176,7 @@ func (p *parser) extendCmdRun(end int) int {
 // extractDefaultCmd attempts to tokenize an okapi-style "default
 // command" starting at p.pos (where p.source[p.pos] == '\\'), in the
 // case where the byte after `\` is a DEFAULT character (per
-// Okapi TEXParser.getCharType — punctuation like `,`, `;`, `` ` ``,
+// Okapi TEXParser.getCharType — punctuation like `,`, `;`, “ ` “,
 // `'`, `.`, `=`, `-` …) that is NOT one of our handled escape
 // specials (`&`, `%`, `$`, `#`, `_`, `{`, `}`, `\`, `~`).
 //

@@ -1,0 +1,23 @@
+\documentclass{article}
+\begin{document}
+\title{Installing \LaTeX}
+\author{Jason, Gross}
+\date{Spark 2010}
+%\makeatletter
+I'm not that familiar with unix systems, so if you use one, hopefully, you know more than I do. This line 
+Checks if \date{translated} linebreaks are processed correctly. 
+And this is another line with \date{translated} untranslatable or translatable\emph{translated} segmnet insesrted. This line contains tag \title{translated} which sholud give us new paragraph 55\% of times we tried. 
+%\v S\={\i} L\={\i}nija p\=Arbaud\=a latvie\v{s}u simbolu att\=elo\v{s}anu.
+\v{S}\={\i} L\={\i}nija p\={A}rbaud\={a} latvie\v{s}u simbolu att\={e}lo\v{s}anu.
+\begin{table}[]
+\centering
+\begin{tabular}{|lrrr|}
+\hline
+\multicolumn{1}{|c}{\textbf{System}} & \multicolumn{1}{c}{\textbf{BLEU}} & \multicolumn{1}{c}{\textbf{NIST}} & \multicolumn{1}{c|}{\textbf{ChrF2}} \\ \hline
+SMT & 46.57$\pm$1.46 & 9.45$\pm$0.18 & 0.7586 \\
+NMT & 38.44$\pm$1.62 & 8.63$\pm$0.15 & 0.7065 \\ \hline
+\end{tabular}
+\caption{Automatic evaluation results}
+\label{mt-eval-table}
+\end{table}
+\end{document}

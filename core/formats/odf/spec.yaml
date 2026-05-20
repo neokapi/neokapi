@@ -134,7 +134,7 @@ features:
           - "Item 3"
     okapi_refs:
       - OpenOfficeFilterTest#testFirstTextUnit
-      - OpenOfficeFilterTest#testNumberOfTextUnits
+      - OpenOfficeFilterTest#testDoubleExtraction
     native_refs:
       - odf.TestReadSimpleODT
       - odf.TestReadODTBlockProperties
@@ -189,7 +189,7 @@ features:
           - "Item 2"
           - "Item 3"
     okapi_refs:
-      - OpenOfficeFilterTest#testNumberOfTextUnits
+      - OpenOfficeFilterTest#testFirstTextUnit
     native_refs:
       - odf.TestReadODTHeadings
 
