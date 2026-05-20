@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"regexp"
+	"slices"
 	"strings"
 
 	"github.com/neokapi/neokapi/core/format"
@@ -1036,35 +1037,30 @@ func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
 		return err
 	}
 
-	// Create output ZIP
-	var buf bytes.Buffer
-	zw := zip.NewWriter(&buf)
+	// Stream the output ZIP straight to w.Output (#608, S3-openxml).
+	// writeFromSkeleton/writeFromReparse close zw, which flushes the
+	// central directory; buffering the whole archive first was a full
+	// extra copy of the output (164MB+ on big.docx) for no benefit — the
+	// zip.Writer never seeks, so a forward-only io.Writer suffices.
+	zw := zip.NewWriter(w.Output)
 
 	// If we have a skeleton store, use skeleton-based reconstruction
 	if w.skeletonStore != nil {
 		if err := w.skeletonStore.Flush(); err != nil {
 			return fmt.Errorf("openxml: skeleton flush: %w", err)
 		}
-		if err := w.writeFromSkeleton(origZR, zw, &buf, info, blocks); err != nil {
-			return err
-		}
-		_, err = w.Output.Write(buf.Bytes())
-		return err
+		return w.writeFromSkeleton(origZR, zw, info, blocks)
 	}
 
 	// Fallback: copy original unchanged
-	if err := w.writeFromReparse(origZR, zw, &buf, blocks); err != nil {
-		return err
-	}
-	_, err = w.Output.Write(buf.Bytes())
-	return err
+	return w.writeFromReparse(origZR, zw, blocks)
 }
 
 // writeFromSkeleton reconstructs translatable XML parts using the skeleton store.
 // The skeleton stream contains part-boundary markers (skelPartStartPrefix/skelPartEndPrefix)
 // that delimit each XML part's skeleton content. The writer collects each part's
 // reconstructed bytes, then writes the output ZIP with replacements.
-func (w *Writer) writeFromSkeleton(origZR *zip.Reader, zw *zip.Writer, buf *bytes.Buffer,
+func (w *Writer) writeFromSkeleton(origZR *zip.Reader, zw *zip.Writer,
 	info *containerInfo, blocks map[string]*model.Block) error {
 
 	// Pre-load source styles.xml flags BEFORE the per-block renderBlock
@@ -1267,6 +1263,39 @@ func (w *Writer) writeFromSkeleton(origZR *zip.Reader, zw *zip.Writer, buf *byte
 	// so the synthesised styleId sequence (NF974E24F-{parent}{N}) lines
 	// up with the upstream filter's IdGenerator stream.
 	wsoOptimised := map[string][]byte{}
+	// decompressedParts memoizes readZipFile(f) per ZIP entry name so a
+	// part is decompressed at most once even when both the WSO pre-pass
+	// (which reads the part as the strip source AND as the WSO source)
+	// and the emit loop need its raw bytes (#608, O3). The bytes are
+	// returned read-only; callers must not mutate the slice in place.
+	decompressedParts := map[string][]byte{}
+	readZipFileCached := func(f *zip.File) ([]byte, error) {
+		if b, ok := decompressedParts[f.Name]; ok {
+			return b, nil
+		}
+		b, err := readZipFile(f)
+		if err != nil {
+			return nil, err
+		}
+		decompressedParts[f.Name] = b
+		return b, nil
+	}
+	// strippedParts memoizes stripWMLSkippableElements(<part bytes>) per
+	// ZIP entry name. stripWMLSkippableElements is deterministic for a
+	// given input and its empty-container fixpoint loop reallocates the
+	// full buffer each iteration, so running it once per part (instead of
+	// once in the WSO pre-pass and again in the emit loop) is a large
+	// win on big documents (#608, O3). The cached slice is returned
+	// read-only.
+	strippedParts := map[string][]byte{}
+	stripWMLSkippableElementsCached := func(name string, data []byte) []byte {
+		if b, ok := strippedParts[name]; ok {
+			return b
+		}
+		b := stripWMLSkippableElements(data)
+		strippedParts[name] = b
+		return b
+	}
 	// Helper: post-process a WML XML payload (after lang strip + lang
 	// retargeting, before recompression). WSO is applied in a separate
 	// pre-pass — postNonWSOForName runs the field-marker reversal that
@@ -1482,14 +1511,14 @@ func (w *Writer) writeFromSkeleton(origZR *zip.Reader, zw *zip.Writer, buf *byte
 			if content, ok := partContents[name]; ok && len(content) > 0 {
 				data = content
 				if shouldStripWMLLang(name) {
-					data = stripWMLSkippableElements(data)
+					data = stripWMLSkippableElementsCached(name, data)
 				}
 			} else if shouldStripWMLLang(name) {
-				raw, err := readZipFile(f)
+				raw, err := readZipFileCached(f)
 				if err != nil {
 					continue
 				}
-				data = stripWMLSkippableElements(raw)
+				data = stripWMLSkippableElementsCached(name, raw)
 			} else {
 				continue
 			}
@@ -1504,7 +1533,7 @@ func (w *Writer) writeFromSkeleton(origZR *zip.Reader, zw *zip.Writer, buf *byte
 			// readZipFile failure is non-fatal: fall back to source-less
 			// WSO (preserves pre-fix behaviour).
 			var srcXML []byte
-			if rawSrc, err := readZipFile(f); err == nil {
+			if rawSrc, err := readZipFileCached(f); err == nil {
 				srcXML = rawSrc
 			}
 			data = optimizeWMLPartWithSource(data, srcXML, existingIDs, defaultParagraphStyleID, hasStylesPart, partStrict, &idCounter, synthesised, &orderedIDs)
@@ -1520,7 +1549,7 @@ func (w *Writer) writeFromSkeleton(origZR *zip.Reader, zw *zip.Writer, buf *byte
 			// reader spliced it as a SkeletonLang entry — #607), so there is
 			// no write-side lang rewrite here.
 			if isDOCX && shouldStripWMLLang(f.Name) {
-				content = stripWMLSkippableElements(content)
+				content = stripWMLSkippableElementsCached(f.Name, content)
 			}
 			content = postWML(f.Name, content)
 			fh := f.FileHeader
@@ -1559,12 +1588,12 @@ func (w *Writer) writeFromSkeleton(origZR *zip.Reader, zw *zip.Writer, buf *byte
 			// arrive via the partContents branch above with the value already
 			// retargeted structurally (#607). Read, transform, re-emit with a
 			// recompressed header.
-			data, err := readZipFile(f)
+			data, err := readZipFileCached(f)
 			if err != nil {
 				return err
 			}
 			if shouldStripWMLLang(f.Name) {
-				data = stripWMLSkippableElements(data)
+				data = stripWMLSkippableElementsCached(f.Name, data)
 			}
 			data = postWML(f.Name, data)
 			// Defer styles.xml emission until all paragraph parts have
@@ -1686,7 +1715,7 @@ func shouldOptimiseWMLPart(name string) bool {
 }
 
 // writeFromReparse copies the original ZIP, substituting locale-variant media (Bowrain AD-007).
-func (w *Writer) writeFromReparse(origZR *zip.Reader, zw *zip.Writer, buf *bytes.Buffer,
+func (w *Writer) writeFromReparse(origZR *zip.Reader, zw *zip.Writer,
 	blocks map[string]*model.Block) error {
 
 	for _, f := range origZR.File {
@@ -3884,8 +3913,12 @@ func pullLeadingFldCharEndIntoPrevParagraph(data []byte) []byte {
 		return data
 	}
 	src := string(data)
-	var out strings.Builder
-	out.Grow(len(src))
+	// out accumulates the rewritten bytes. Using a []byte (not a
+	// strings.Builder) lets the fld-end migration splice with a single
+	// slices.Insert instead of out.String()+concat+out.Reset(), which
+	// recopied the whole buffer three times per migrated run — O(n²) on
+	// fld-heavy docs (#608, O5).
+	out := make([]byte, 0, len(src))
 
 	pos := 0
 	// Track the byte offset within `out` where the previous
@@ -3928,23 +3961,23 @@ func pullLeadingFldCharEndIntoPrevParagraph(data []byte) []byte {
 		// Find next paragraph-open / paragraph-close.
 		nextOpen := indexTagOpen(src, pos, "w:p")
 		if nextOpen < 0 {
-			out.WriteString(src[pos:])
+			out = append(out, src[pos:]...)
 			break
 		}
 		// Copy up to the paragraph open verbatim.
-		out.WriteString(src[pos:nextOpen])
+		out = append(out, src[pos:nextOpen]...)
 		// Locate the end of this paragraph open tag (`>` after
 		// `<w:p` — covers both `<w:p>` and `<w:p attr="…">`).
 		tagClose := strings.IndexByte(src[nextOpen:], '>')
 		if tagClose < 0 {
-			out.WriteString(src[nextOpen:])
+			out = append(out, src[nextOpen:]...)
 			break
 		}
 		paraOpenEnd := nextOpen + tagClose + 1
 		// Find this paragraph's `</w:p>` — search forward.
 		paraEnd := strings.Index(src[paraOpenEnd:], "</w:p>")
 		if paraEnd < 0 {
-			out.WriteString(src[nextOpen:])
+			out = append(out, src[nextOpen:]...)
 			break
 		}
 		paraEndAbs := paraOpenEnd + paraEnd
@@ -3986,18 +4019,15 @@ func pullLeadingFldCharEndIntoPrevParagraph(data []byte) []byte {
 				// the previous paragraph in `out`. The previous
 				// paragraph thereby acquires a fld-end that
 				// closes the upstream open begin.
-				existing := out.String()
-				newOut := existing[:prevParaCloseInOut] + matchedRun + existing[prevParaCloseInOut:]
-				out.Reset()
-				out.WriteString(newOut)
+				out = slices.Insert(out, prevParaCloseInOut, []byte(matchedRun)...)
 				cumulativeFldBalance--
 				// Drop the leading run from the current body.
 				newBody := paraBody[:bodyStart] + paraBody[bodyStart+len(matchedRun):]
 				// Re-emit this paragraph WITHOUT the leading run.
-				out.WriteString(paraOpenTag)
-				out.WriteString(newBody)
-				out.WriteString("</w:p>")
-				prevParaCloseInOut = out.Len() - len("</w:p>")
+				out = append(out, paraOpenTag...)
+				out = append(out, newBody...)
+				out = append(out, "</w:p>"...)
+				prevParaCloseInOut = len(out) - len("</w:p>")
 				cumulativeFldBalance += countFldBeginEndBalance(newBody)
 				prevParaMigrationEligible = paraMigrationEligible(newBody, bodyStart)
 				moved = true
@@ -4005,17 +4035,17 @@ func pullLeadingFldCharEndIntoPrevParagraph(data []byte) []byte {
 		}
 
 		if !moved {
-			out.WriteString(paraOpenTag)
-			out.WriteString(paraBody)
-			out.WriteString("</w:p>")
-			prevParaCloseInOut = out.Len() - len("</w:p>")
+			out = append(out, paraOpenTag...)
+			out = append(out, paraBody...)
+			out = append(out, "</w:p>"...)
+			prevParaCloseInOut = len(out) - len("</w:p>")
 			cumulativeFldBalance += countFldBeginEndBalance(paraBody)
 			prevParaMigrationEligible = paraMigrationEligible(paraBody, bodyStart)
 		}
 		pos = paraCloseEndAbs
 	}
 
-	return []byte(out.String())
+	return out
 }
 
 // pullLeadingFldCharEndIntoPrevParagraphInTxbxContents applies the
@@ -4106,8 +4136,10 @@ func pullLeadingFldCharEndIntoPrevParagraphInTxbxContents(data []byte) []byte {
 // had no pPr and ended up with an empty body after WSO.
 func pullLeadingFldCharEndIntoPrevParagraphTxbxScope(data []byte) []byte {
 	src := string(data)
-	var out strings.Builder
-	out.Grow(len(src))
+	// []byte (not strings.Builder) so the fld-end migration splices with
+	// a single slices.Insert rather than the O(n²) String()+concat+Reset
+	// pattern (#608, O5).
+	out := make([]byte, 0, len(src))
 
 	pos := 0
 	prevParaCloseInOut := -1
@@ -4117,20 +4149,20 @@ func pullLeadingFldCharEndIntoPrevParagraphTxbxScope(data []byte) []byte {
 	for pos < len(src) {
 		nextOpen := indexTagOpen(src, pos, "w:p")
 		if nextOpen < 0 {
-			out.WriteString(src[pos:])
+			out = append(out, src[pos:]...)
 			break
 		}
-		out.WriteString(src[pos:nextOpen])
+		out = append(out, src[pos:nextOpen]...)
 		tagClose := strings.IndexByte(src[nextOpen:], '>')
 		if tagClose < 0 {
-			out.WriteString(src[nextOpen:])
+			out = append(out, src[nextOpen:]...)
 			break
 		}
 		// Self-closing `<w:p .../>` paragraph — copy verbatim. The
 		// self-closing form has no body to receive a migrated run.
 		if tagClose > 0 && src[nextOpen+tagClose-1] == '/' {
 			paraCloseEndAbs := nextOpen + tagClose + 1
-			out.WriteString(src[nextOpen:paraCloseEndAbs])
+			out = append(out, src[nextOpen:paraCloseEndAbs]...)
 			// Treat as an empty paragraph: not a valid migration
 			// destination in the next iteration (no `</w:p>` to
 			// splice before), and resets eligibility.
@@ -4142,7 +4174,7 @@ func pullLeadingFldCharEndIntoPrevParagraphTxbxScope(data []byte) []byte {
 		paraOpenEnd := nextOpen + tagClose + 1
 		paraEnd := strings.Index(src[paraOpenEnd:], "</w:p>")
 		if paraEnd < 0 {
-			out.WriteString(src[nextOpen:])
+			out = append(out, src[nextOpen:]...)
 			break
 		}
 		paraEndAbs := paraOpenEnd + paraEnd
@@ -4165,16 +4197,13 @@ func pullLeadingFldCharEndIntoPrevParagraphTxbxScope(data []byte) []byte {
 			leading := paraBody[bodyStart:]
 			matchedRun := matchLeadingFldEndRunInTxbx(leading)
 			if matchedRun != "" {
-				existing := out.String()
-				newOut := existing[:prevParaCloseInOut] + matchedRun + existing[prevParaCloseInOut:]
-				out.Reset()
-				out.WriteString(newOut)
+				out = slices.Insert(out, prevParaCloseInOut, []byte(matchedRun)...)
 				cumulativeFldBalance--
 				newBody := paraBody[:bodyStart] + paraBody[bodyStart+len(matchedRun):]
-				out.WriteString(paraOpenTag)
-				out.WriteString(newBody)
-				out.WriteString("</w:p>")
-				prevParaCloseInOut = out.Len() - len("</w:p>")
+				out = append(out, paraOpenTag...)
+				out = append(out, newBody...)
+				out = append(out, "</w:p>"...)
+				prevParaCloseInOut = len(out) - len("</w:p>")
 				cumulativeFldBalance += countFldBeginEndBalance(newBody)
 				prevParaMigrationEligible = paraMigrationEligible(newBody, bodyStart)
 				moved = true
@@ -4182,17 +4211,17 @@ func pullLeadingFldCharEndIntoPrevParagraphTxbxScope(data []byte) []byte {
 		}
 
 		if !moved {
-			out.WriteString(paraOpenTag)
-			out.WriteString(paraBody)
-			out.WriteString("</w:p>")
-			prevParaCloseInOut = out.Len() - len("</w:p>")
+			out = append(out, paraOpenTag...)
+			out = append(out, paraBody...)
+			out = append(out, "</w:p>"...)
+			prevParaCloseInOut = len(out) - len("</w:p>")
 			cumulativeFldBalance += countFldBeginEndBalance(paraBody)
 			prevParaMigrationEligible = paraMigrationEligible(paraBody, bodyStart)
 		}
 		pos = paraCloseEndAbs
 	}
 
-	return []byte(out.String())
+	return out
 }
 
 // leadingFldEndRunRE matches a `<w:r ...><w:fldChar

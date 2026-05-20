@@ -237,6 +237,164 @@ func TestIsEmptyRuns(t *testing.T) {
 	assert.False(t, isEmptyRuns([]textRun{{text: "hello"}}))
 }
 
+// TestSentinelClassifiers locks the rune-inspection behavior of the
+// sentinel predicates, which were converted from []rune(s) to
+// utf8.DecodeRuneInString for zero-allocation (umbrella #608, O2). The
+// classification must stay byte-identical to the slice-based version.
+func TestSentinelClassifiers(t *testing.T) {
+	const (
+		tab          = "\uE100"
+		image        = "\uE101"
+		opaqueIDA    = "\uE102:abc"
+		paraOpaque   = "\uE105"
+		bookmarkOpen = "\uE106"
+		bookmarkEnd  = "\uE107"
+		field        = "\uE108"
+		fieldPayload = "\uE108:fldChar"
+		commentOpen  = "\uE10B"
+		commentEnd   = "\uE10C"
+		topRange     = "\uE10F"
+		// Multi-char sentinel without the required ':' separator.
+		badMulti = "\uE102x"
+		// Just below / above the reserved sentinel range.
+		belowRange = "\uE0FF"
+		aboveRange = "\uE110"
+	)
+
+	t.Run("isSentinel", func(t *testing.T) {
+		assert.False(t, isSentinel(""))
+		assert.False(t, isSentinel("plain text"))
+		assert.False(t, isSentinel(belowRange))
+		assert.False(t, isSentinel(aboveRange))
+		// Single-rune sentinels.
+		assert.True(t, isSentinel(tab))
+		assert.True(t, isSentinel(image))
+		assert.True(t, isSentinel(paraOpaque))
+		assert.True(t, isSentinel(topRange))
+		// Multi-rune sentinels require a ':' immediately after the marker.
+		assert.True(t, isSentinel(opaqueIDA))
+		assert.True(t, isSentinel(fieldPayload))
+		assert.False(t, isSentinel(badMulti))
+	})
+
+	t.Run("isFieldSentinel", func(t *testing.T) {
+		assert.False(t, isFieldSentinel(""))
+		assert.False(t, isFieldSentinel("plain"))
+		assert.False(t, isFieldSentinel(image))
+		assert.True(t, isFieldSentinel(field))
+		assert.True(t, isFieldSentinel(fieldPayload))
+	})
+
+	t.Run("isCommentRangeSentinel", func(t *testing.T) {
+		assert.False(t, isCommentRangeSentinel(""))
+		assert.False(t, isCommentRangeSentinel(field))
+		assert.True(t, isCommentRangeSentinel(commentOpen))
+		assert.True(t, isCommentRangeSentinel(commentEnd))
+	})
+
+	t.Run("isBookmarkSentinel", func(t *testing.T) {
+		assert.False(t, isBookmarkSentinel(""))
+		assert.False(t, isBookmarkSentinel(field))
+		assert.True(t, isBookmarkSentinel(bookmarkOpen))
+		assert.True(t, isBookmarkSentinel(bookmarkEnd))
+	})
+
+	t.Run("isDrawingSentinel", func(t *testing.T) {
+		assert.False(t, isDrawingSentinel(""))
+		assert.False(t, isDrawingSentinel(field))
+		assert.True(t, isDrawingSentinel(image))
+		assert.True(t, isDrawingSentinel(paraOpaque))
+	})
+}
+
+// TestParseRunPropsFromRawCached verifies the per-part rPr parse cache
+// (#608, O1) is behaviourally identical to the uncached path: a cache hit
+// yields equal runProps, the returned rPrChildren is independent of the
+// cached entry (so downstream in-place minification cannot corrupt later
+// hits), and distinct style chains do not collide.
+func TestParseRunPropsFromRawCached(t *testing.T) {
+	newParser := func(strict bool) *wmlParser {
+		counter := 0
+		cfg := &Config{}
+		cfg.Reset()
+		return &wmlParser{blockCounter: &counter, cfg: cfg, strict: strict}
+	}
+
+	rpr := `<w:rPr><w:rStyle w:val="Emphasis"/><w:color w:val="FF0000"/></w:rPr>`
+
+	t.Run("matches uncached path", func(t *testing.T) {
+		p := newParser(false)
+		uncached, err := parseRunPropsFromRaw(rpr, p.cfg.AggressiveCleanup, p.strict, nil)
+		require.NoError(t, err)
+
+		cached1, err := p.parseRunPropsFromRawCached(rpr, nil)
+		require.NoError(t, err)
+		assert.Equal(t, uncached, cached1, "first (miss) result must match uncached path")
+
+		cached2, err := p.parseRunPropsFromRawCached(rpr, nil)
+		require.NoError(t, err)
+		assert.Equal(t, uncached, cached2, "second (hit) result must match uncached path")
+	})
+
+	t.Run("hit returns independent rPrChildren slice", func(t *testing.T) {
+		p := newParser(false)
+		first, err := p.parseRunPropsFromRawCached(rpr, nil)
+		require.NoError(t, err)
+		require.NotEmpty(t, first.rPrChildren)
+
+		// Mutate the caller's slice in place, mirroring the
+		// children[:0]-append minification in parseParagraph.
+		first.rPrChildren = first.rPrChildren[:0]
+
+		second, err := p.parseRunPropsFromRawCached(rpr, nil)
+		require.NoError(t, err)
+		assert.Len(t, second.rPrChildren, 2,
+			"cache hit must not be corrupted by the previous caller's in-place mutation")
+	})
+
+	t.Run("strict flag changes parse (separate parser)", func(t *testing.T) {
+		langRPr := `<w:rPr><w:lang w:eastAsia="ru-RU"/></w:rPr>`
+		// Transitional namespace: <w:lang> is a skippable element.
+		trans := newParser(false)
+		tp, err := trans.parseRunPropsFromRawCached(langRPr, nil)
+		require.NoError(t, err)
+		// Strict namespace: <w:lang> is preserved.
+		strict := newParser(true)
+		sp, err := strict.parseRunPropsFromRawCached(langRPr, nil)
+		require.NoError(t, err)
+		assert.NotEqual(t, len(tp.rPrChildren), len(sp.rPrChildren),
+			"strict vs transitional must parse <w:lang> differently")
+	})
+
+	t.Run("distinct style chains do not collide", func(t *testing.T) {
+		p := newParser(false)
+		chainA := map[string]bool{"color": true}
+		chainB := map[string]bool{"sz": true}
+		a, err := p.parseRunPropsFromRawCached(rpr, chainA)
+		require.NoError(t, err)
+		b, err := p.parseRunPropsFromRawCached(rpr, chainB)
+		require.NoError(t, err)
+
+		refA, err := parseRunPropsFromRaw(rpr, p.cfg.AggressiveCleanup, p.strict, chainA)
+		require.NoError(t, err)
+		refB, err := parseRunPropsFromRaw(rpr, p.cfg.AggressiveCleanup, p.strict, chainB)
+		require.NoError(t, err)
+		assert.Equal(t, refA, a, "chainA result must match uncached path for chainA")
+		assert.Equal(t, refB, b, "chainB result must match uncached path for chainB")
+	})
+
+	t.Run("chainKeyFor is content-based", func(t *testing.T) {
+		p := newParser(false)
+		// Two distinct maps with identical content must share a key so
+		// paragraphs with the same resolved chain reuse cache entries.
+		m1 := map[string]bool{"color": true, "sz": true}
+		m2 := map[string]bool{"sz": true, "color": true}
+		assert.Equal(t, p.chainKeyFor(m1), p.chainKeyFor(m2))
+		assert.Equal(t, "", p.chainKeyFor(nil))
+		assert.NotEqual(t, p.chainKeyFor(m1), p.chainKeyFor(map[string]bool{"color": true}))
+	})
+}
+
 func TestAllHidden(t *testing.T) {
 	assert.True(t, allHidden([]textRun{
 		{text: "hidden", props: runProps{vanish: true}},

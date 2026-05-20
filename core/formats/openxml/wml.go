@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"strings"
 	"sync"
+	"unicode/utf8"
 
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
@@ -182,6 +183,18 @@ type wmlParser struct {
 	// preserve <w:lang> through the round-trip per the QName mismatch
 	// against Namespaces.WordProcessingML (Namespaces.java:26-27).
 	strict bool
+	// rawRPrCache memoizes parseRunPropsFromRaw results within this part
+	// (#608, O1). parseRunPropsFromRaw builds an xmlns wrapper string and
+	// spins a fresh xml.NewDecoder on every captured complex-field run;
+	// most runs share a handful of distinct rPr shapes, so caching by
+	// (rPr blob + resolved style-chain fingerprint) collapses the
+	// per-run decode to one decode per distinct shape. cfg.AggressiveCleanup
+	// and strict are fixed for the parser, so they are not part of the
+	// key. The cached runProps is returned with a freshly cloned
+	// rPrChildren slice so downstream in-place minification
+	// (runs[i].props.rPrChildren = children[:0]...) cannot corrupt the
+	// shared entry — keeping the result byte-identical to the uncached path.
+	rawRPrCache map[rawRPrCacheKey]runProps
 	// partCfs carries complex-field state ACROSS paragraph boundaries
 	// within one XML part. A `<w:fldChar fldCharType="begin"/>` opens
 	// the field at the run granularity, but the matching end may live
@@ -3449,7 +3462,7 @@ func (p *wmlParser) parseRunWithFieldState(d *xml.Decoder, cfs *complexFieldStat
 					emitRaw(stripped)
 				}
 				// Re-parse the captured rPr for typed properties.
-				props, err = parseRunPropsFromRaw(rPrRaw, p.cfg.AggressiveCleanup, p.strict, p.currentStyleChainNames)
+				props, err = p.parseRunPropsFromRawCached(rPrRaw, p.currentStyleChainNames)
 				if err != nil {
 					return nil, err
 				}
@@ -5626,8 +5639,8 @@ func mergeRuns(runs []textRun) []textRun {
 
 // isSentinel returns true if the text is a special marker.
 func isSentinel(s string) bool {
-	r := []rune(s)
-	if len(r) == 0 {
+	r0, size := utf8.DecodeRuneInString(s)
+	if size == 0 {
 		return false
 	}
 	// Sentinel range covers all reserved Private Use Area code points
@@ -5635,7 +5648,7 @@ func isSentinel(s string) bool {
 	// insertion close). Extending the range past \uE10D requires the
 	// matching dispatch in buildBlock \u2014 see the \uE10E / \uE10F
 	// (revision-insertion paired-code OPEN/CLOSE) cases there.
-	if r[0] < '\uE100' || r[0] > '\uE10F' {
+	if r0 < '\uE100' || r0 > '\uE10F' {
 		return false
 	}
 	// Single-char sentinels (tab \uE100, image \uE101, paragraph
@@ -5643,7 +5656,8 @@ func isSentinel(s string) bool {
 	// or paragraph-level mc:AlternateContent \u2014 content that is a
 	// direct <w:p> child rather than a <w:r> child, so the writer
 	// must not wrap it in <w:r> when re-emitting.
-	if len(r) == 1 {
+	rest := s[size:]
+	if rest == "" {
 		return true
 	}
 	// Multi-char sentinels must have ':' separator
@@ -5651,7 +5665,8 @@ func isSentinel(s string) bool {
 	// \uE108:fldChar / \uE108:fldSimple, \uE109:data, \uE10A:data,
 	// \uE10B:id, \uE10C:id, \uE10D:rawXML, \uE10E:wrapper:rawStart,
 	// \uE10F:wrapper:rawEnd)
-	return len(r) >= 2 && r[1] == ':'
+	r1, _ := utf8.DecodeRuneInString(rest)
+	return r1 == ':'
 }
 
 // isFieldSentinel reports whether a textRun's text marker indicates
@@ -5670,11 +5685,11 @@ func isFieldSentinel(text string) bool {
 	if text == "" {
 		return false
 	}
-	r := []rune(text)
-	if len(r) == 0 {
+	r0, size := utf8.DecodeRuneInString(text)
+	if size == 0 {
 		return false
 	}
-	return r[0] == '\uE108'
+	return r0 == '\uE108'
 }
 
 // filterFieldRuns is currently a pass-through that documents the run
@@ -5718,11 +5733,11 @@ func isCommentRangeSentinel(text string) bool {
 	if text == "" {
 		return false
 	}
-	r := []rune(text)
-	if len(r) == 0 {
+	r0, size := utf8.DecodeRuneInString(text)
+	if size == 0 {
 		return false
 	}
-	return r[0] == '\uE10B' || r[0] == '\uE10C'
+	return r0 == '\uE10B' || r0 == '\uE10C'
 }
 
 // isBookmarkSentinel reports whether a textRun's text marker
@@ -5734,11 +5749,11 @@ func isBookmarkSentinel(text string) bool {
 	if text == "" {
 		return false
 	}
-	r := []rune(text)
-	if len(r) == 0 {
+	r0, size := utf8.DecodeRuneInString(text)
+	if size == 0 {
 		return false
 	}
-	return r[0] == '' || r[0] == ''
+	return r0 == '' || r0 == ''
 }
 
 // isDrawingSentinel reports whether a textRun's text marker
@@ -5750,11 +5765,11 @@ func isDrawingSentinel(text string) bool {
 	if text == "" {
 		return false
 	}
-	r := []rune(text)
-	if len(r) == 0 {
+	r0, size := utf8.DecodeRuneInString(text)
+	if size == 0 {
 		return false
 	}
-	return r[0] == '' || r[0] == ''
+	return r0 == '' || r0 == ''
 }
 
 // isEmptyRuns returns true if all runs have no visible text content.

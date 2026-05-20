@@ -82,10 +82,10 @@ type runProps struct {
 	boldClear   bool
 	italicClear bool
 	strikeClear bool
-	fontName       string // primary font name from <w:rFonts> (ascii or hAnsi)
-	fontNameCS     string // complex script font name
-	fontNameEA     string // East Asian font name
-	otherXML       string // serialized non-formatting properties we preserve but don't compare
+	fontName    string // primary font name from <w:rFonts> (ascii or hAnsi)
+	fontNameCS  string // complex script font name
+	fontNameEA  string // East Asian font name
+	otherXML    string // serialized non-formatting properties we preserve but don't compare
 	// rPrChildren is the ordered list of <w:rPr> child element
 	// serializations as they appeared on the source <w:r>, used to
 	// preserve per-run rPr through the writer (#592).
@@ -181,7 +181,6 @@ func (rp runProps) equalIncludingChildren(other runProps) bool {
 	return true
 }
 
-
 // canBeMergedWithTexts is the text-aware variant of canBeMergedWith.
 // When either side's text is whitespace-only (or empty), per upstream
 // Okapi RunFonts.canContentCategoriesBeMerged (RunFonts.java:211-230)
@@ -265,8 +264,6 @@ func (rp runProps) equalTextAware(other runProps, rText, otherText string) bool 
 	// on both sides and the per-category gate confirms the merge.
 	return true
 }
-
-
 
 // rPrChildrenMergeableTexts is the text-aware variant of
 // rPrChildrenMergeable. Same contract for non-rFonts children, but
@@ -667,7 +664,6 @@ func hintSideTextDetectsHintCategory(m map[string]string, cats scriptCategorySet
 	// satisfied by the caller).
 	return true
 }
-
 
 // scriptCategorySet is a bitset of the four CT_Fonts content
 // categories used by rFonts: ASCII, HIGH_ANSI (LATIN), COMPLEX_SCRIPT,
@@ -1136,8 +1132,6 @@ func mergeRFontsXMLDetected(a, b *rPrChild, aCats, bCats scriptCategorySet) rPrC
 	b1.WriteString("/>")
 	return rPrChild{name: "rFonts", xml: b1.String()}
 }
-
-
 
 // rFontsHasAttrs reports whether a serialised `<w:rFonts .../>`
 // fragment carries at least one attribute. Used to drop attribute-less
@@ -1833,6 +1827,7 @@ func parseRunProps(d *xml.Decoder, aggressive bool, styleChainNames map[string]b
 //     position, baseline for vertAlign, …). The matching branches on
 //     RunProperties.java:511-525 strip those when the value matches the
 //     documented default.
+//
 // styleChainNames (when non-nil) is the set of WordprocessingML rPr
 // child element local names that appear in the resolved style chain
 // of the run's paragraph (docDefaults + basedOn chain). Mirrors
@@ -2395,6 +2390,67 @@ func parseRunPropsFromRaw(rPrXML string, aggressive bool, strict bool, styleChai
 		}
 	}
 	return parseRunProps(d, aggressive, styleChainNames)
+}
+
+// rawRPrCacheKey identifies a parseRunPropsFromRaw result. aggressive and
+// strict are constant for a given wmlParser (cfg.AggressiveCleanup /
+// p.strict), so only the raw rPr blob and the resolved style-chain
+// fingerprint vary within a part.
+type rawRPrCacheKey struct {
+	rPr   string
+	chain string
+}
+
+// chainKeyFor returns a stable content fingerprint of a style-chain name
+// set (sorted local names joined on NUL). Two distinct maps with the same
+// content yield the same key, so paragraphs sharing a resolved style chain
+// share cache entries. The fingerprint is computed per call rather than
+// memoized by map pointer: effectiveRPrChildNames returns a fresh map per
+// paragraph, and a pointer-keyed memo could return a stale fingerprint if
+// the GC recycled an address for a different-content map. The sort+join of
+// a handful of names is cheap relative to the decoder spin this cache
+// avoids. nil → "".
+func (p *wmlParser) chainKeyFor(styleChainNames map[string]bool) string {
+	if len(styleChainNames) == 0 {
+		return ""
+	}
+	names := make([]string, 0, len(styleChainNames))
+	for n := range styleChainNames {
+		names = append(names, n)
+	}
+	slices.Sort(names)
+	// "\x00" separator keeps the join unambiguous (rPr child local names
+	// never contain NUL).
+	return strings.Join(names, "\x00")
+}
+
+// parseRunPropsFromRawCached memoizes parseRunPropsFromRaw within the part
+// (#608, O1). The returned runProps carries a freshly cloned rPrChildren
+// slice so callers may mutate it in place (e.g. the minification passes in
+// parseParagraph reuse the slice's backing array) without corrupting the
+// cached entry — the result is byte-identical to the uncached path.
+func (p *wmlParser) parseRunPropsFromRawCached(rPrXML string, styleChainNames map[string]bool) (runProps, error) {
+	key := rawRPrCacheKey{rPr: rPrXML, chain: p.chainKeyFor(styleChainNames)}
+	if p.rawRPrCache != nil {
+		if cached, ok := p.rawRPrCache[key]; ok {
+			cached.rPrChildren = slices.Clone(cached.rPrChildren)
+			return cached, nil
+		}
+	}
+	props, err := parseRunPropsFromRaw(rPrXML, p.cfg.AggressiveCleanup, p.strict, styleChainNames)
+	if err != nil {
+		return runProps{}, err
+	}
+	if p.rawRPrCache == nil {
+		p.rawRPrCache = map[rawRPrCacheKey]runProps{}
+	}
+	// Store a copy whose rPrChildren is independent of the returned slice
+	// so a later cache hit (which clones again) and the current caller's
+	// mutations never alias the same backing array.
+	stored := props
+	stored.rPrChildren = slices.Clone(props.rPrChildren)
+	p.rawRPrCache[key] = stored
+	return props, nil
 }
 
 // skipElement skips past the current element and all its children.
