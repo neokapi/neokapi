@@ -573,9 +573,7 @@ func (p *wmlParser) flushPendingMergeable(partPath string, emitBlock func(*model
 		if pm.paraProps != "" {
 			p.skelText(pm.paraProps)
 		}
-		for _, r := range merged {
-			p.skelText(runToXML(r))
-		}
+		p.skelText(emitRunEnvelopes(merged))
 		p.skelWriteString("</w:p>")
 		return nil
 	}
@@ -665,9 +663,7 @@ func (p *wmlParser) flushPendingFieldBlock(extraTailRuns []textRun, partPath str
 		if pf.paraProps != "" {
 			p.skelText(pf.paraProps)
 		}
-		for _, r := range merged {
-			p.skelText(runToXML(r))
-		}
+		p.skelText(emitRunEnvelopes(merged))
 		p.skelWriteString("</w:p>")
 		return nil
 	}
@@ -2853,6 +2849,26 @@ func (p *wmlParser) parseParagraph(d *xml.Decoder, partPath string, emitBlock fu
 					i := 0
 					for i < len(merged) {
 						r := merged[i]
+						// Simple run-children (text / tab / break /
+						// footnote-ref) are emitted natively as <w:r>
+						// envelopes via emitRunEnvelopes (#602): it groups
+						// same-source splits AND fuses the cross-source
+						// break->text adjacency, replacing the
+						// fuseBareBrAndTextRuns post-serialization regex.
+						// Drawings/opaque/paragraph-level sentinels are
+						// NOT simple (see simpleRunChild) and fall through
+						// to the drawing-fusion + writeRunToSkel paths
+						// below, which they require for docPr/@name
+						// attribute extraction.
+						if simpleRunChild(r) {
+							j := i + 1
+							for j < len(merged) && simpleRunChild(merged[j]) {
+								j++
+							}
+							p.skelText(emitRunEnvelopes(merged[i:j]))
+							i = j
+							continue
+						}
 						// Same-source-`<w:r>` group: when the next
 						// merged run was emitted from the SAME source
 						// `<w:r>` as r (its `srcRunStart` is false),
@@ -2973,9 +2989,7 @@ func (p *wmlParser) parseParagraph(d *xml.Decoder, partPath string, emitBlock fu
 						p.skelText(emitParaProps)
 					}
 					// Write runs as skeleton text
-					for _, r := range merged {
-						p.skelText(runToXML(r))
-					}
+					p.skelText(emitRunEnvelopes(merged))
 					p.skelWriteString("</w:p>")
 					return nil
 				}

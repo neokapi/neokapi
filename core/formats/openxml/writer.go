@@ -100,51 +100,17 @@ var wmlNoProofRE = regexp.MustCompile(
 		`|<w:noProof\b[^>]*></w:noProof>`,
 )
 
-// bareBrThenBareTextRunRE matches a bare `<w:r><w:br [attrs]/></w:r>`
-// envelope IMMEDIATELY followed by a bare
-// `<w:r><w:t [attrs]>content</w:t></w:r>` envelope. Both envelopes
-// must lack `<w:rPr>` so the fuse is rPr-equivalent. Captures:
-//
-//	$1 = the br element verbatim (including any w:type / w:clear attrs)
-//	$2 = the t element verbatim (open tag + body + close tag)
-//
-// The replacement collapses the pair into a single `<w:r>` carrying
-// both children. Used by fuseBareBrAndTextRuns; see the call site
-// for the upstream Okapi RunMerger citation and apissue.docx fixture
-// rationale.
-var bareBrThenBareTextRunRE = regexp.MustCompile(
-	`<w:r>(<w:br\b[^/>]*/>)</w:r><w:r>(<w:t\b[^>]*>[^<]*</w:t>)</w:r>`)
-
-// fuseBareBrAndTextRuns collapses adjacent bare `<w:r><w:br/></w:r>`
-// + `<w:r><w:t>…</w:t></w:r>` envelopes into one `<w:r>` envelope
-// carrying both children. Both envelopes must lack `<w:rPr>` so the
-// fuse is rPr-equivalent. See bareBrThenBareTextRunRE for the regex
-// shape and the postNonWSOForName call site for the upstream Okapi
-// RunMerger citation.
-//
-// Per ECMA-376-1 §17.3.2.1 (CT_R) a single `<w:r>` may carry both
-// `<w:br>` and `<w:t>` children alongside one shared `<w:rPr>`
-// (here: empty / absent). Per §17.3.3.1 (CT_Br) the break element's
-// w:type/w:clear attrs are independent of the run's text bytes, so
-// preserving the captured br tag verbatim survives the round-trip.
-//
-// apissue.docx is the canonical fixture: page-break + space text
-// run pairs in non-translatable paragraphs reach this writer via
-// the wml.go skeleton path's per-run runToXML emit, which always
-// wraps each source `<w:r>` in its own envelope. Bridge's
-// RunMerger fuses these on the way out; this post-pass mirrors
-// that for parity.
-func fuseBareBrAndTextRuns(data []byte) []byte {
-	if !bytes.Contains(data, []byte(`<w:r><w:br`)) {
-		return data
-	}
-	return bareBrThenBareTextRunRE.ReplaceAll(data, []byte(`<w:r>$1$2</w:r>`))
-}
+// (bareBrThenBareTextRunRE / fuseBareBrAndTextRuns retired in #602 —
+// the break→text envelope fusion is now produced structurally by
+// emitRunEnvelopes in wml.go, which every simple run-child emission
+// path routes through. Per ECMA-376-1 §17.3.2.1 (CT_R) a single <w:r>
+// may carry both <w:br> and <w:t> children under one shared <w:rPr>;
+// emitRunEnvelopes builds that envelope directly.)
 
 // altContentRunThenBareBrRunRE matches an `<mc:AlternateContent>` host
 // run's closing `</mc:AlternateContent></w:r>` IMMEDIATELY followed by a
 // bare `<w:r><w:br[...]/>...` run envelope (with optional `<w:t>` body
-// from a prior fuseBareBrAndTextRuns fusion). The following run must
+// from a prior emitRunEnvelopes break->text fusion, #602). The following run must
 // lack `<w:rPr>` so the boundary is rPr-equivalent — when the source's
 // post-image run carries a non-empty rPr the structural per-run skeleton
 // emit preserves the boundary naturally. Captures:
@@ -194,7 +160,7 @@ var altContentRunThenBareBrRunRE = regexp.MustCompile(
 // graphicdata.docx is the canonical fixture: a textbox-shape +
 // AlternateContent host run is immediately followed by a bare-rPr
 // `<w:br/>` run (post-rPr-strip) and then a bare-rPr text run; the
-// br + text runs fuse via fuseBareBrAndTextRuns leaving the post-image
+// br + text runs fuse via emitRunEnvelopes (#602) leaving the post-image
 // boundary as a single `</mc:AlternateContent></w:r><w:r><w:br/>...`
 // junction that upstream Okapi punctuates with the empty placeholder.
 //
@@ -2283,9 +2249,12 @@ func (w *Writer) writeFromSkeleton(origZR *zip.Reader, zw *zip.Writer, buf *byte
 		// canonical fixture: page-break + space text run pairs in
 		// otherwise-empty paragraphs that bridge fuses but the
 		// per-run skeleton emit splits.
-		if bytes.Contains(data, []byte(`<w:br`)) {
-			data = fuseBareBrAndTextRuns(data)
-		}
+		// fuseBareBrAndTextRuns retired (#602): both the same-source
+		// <w:r><w:br/><w:t>…</w:t></w:r> split and the cross-source
+		// `<w:r><w:br/></w:r><w:r><w:t>…</w:t></w:r>` → one-envelope
+		// fusion are now produced structurally by emitRunEnvelopes,
+		// which the skeleton emit loops (hidden + general non-
+		// translatable) route every simple run-child through.
 		// Fuse a bare `<w:r><w:fldChar fldCharType="end"/></w:r>`
 		// envelope with the IMMEDIATELY-following bare
 		// `<w:r><w:t ...>…</w:t></w:r>` envelope into a single `<w:r>`
