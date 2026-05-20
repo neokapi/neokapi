@@ -216,6 +216,7 @@ type testCaseMatch struct {
 	SkipReason   string `json:"skipReason,omitempty"`
 	TestState    string `json:"testState,omitempty"` // implemented | pending | skipped | unmapped
 	SkipCategory string `json:"skipCategory,omitempty"`
+	Params       int    `json:"params,omitempty"` // >1 when this @Test collapses N JUnit parameterized invocations
 }
 
 type filterResult struct {
@@ -402,12 +403,47 @@ func main() {
 // reviewer can navigate either side. Only one direction is needed
 // because the generator keys all maps by Okapi filter id.
 var nativeFilterAliases = map[string]string{
-	"php":       "phpcontent",
-	"xmlstream": "xml",
-	"table":     "csv",
+	"php":        "phpcontent",
+	"xmlstream":  "xml",
+	"table":      "csv",
+	"openoffice": "odf", // Okapi's openoffice module (ODF + legacy OpenOffice) ↔ neokapi odf reader
 	// neokapi splits Okapi's `subtitles` filter into `vtt`+`ttml`+`srt`.
 	// We keep the per-format Okapi ids and rely on the per-class join
 	// in scanAnnotations to match them.
+}
+
+// noNativeFilters lists Okapi filters that neokapi deliberately does not
+// implement as a native Go reader — proprietary/vendor containers, Okapi
+// composite meta-filters, and abstract base classes. Their behaviour is
+// covered by the okapi-bridge (the Java filter runs in-process via gRPC),
+// so every bare-unmapped @Test for these filters is classified
+// not-applicable-to-native with an honest reason rather than counted as a
+// gap (#611). When a native reader is later added, drop the entry and the
+// tests become real mapping targets.
+var noNativeFilters = map[string]string{
+	"xini":            "no native reader — XINI (Wordbee interchange) is bridge-only",
+	"sdlpackage":      "no native reader — SDL Trados package (proprietary) is bridge-only",
+	"rainbowkit":      "no native reader — Okapi Rainbow translation kit is bridge-only",
+	"wsxzpackage":     "no native reader — WorldServer WSXZ package is bridge-only",
+	"autoxliff":       "no native reader — Okapi auto-XLIFF detection wrapper is bridge-only",
+	"multiparsers":    "no native reader — Okapi multi-parsers composite filter is bridge-only",
+	"cascadingfilter": "no native reader — Okapi cascading composite filter is bridge-only",
+	"archive":         "no native reader — generic archive (zip) container is bridge-only",
+	"abstractmarkup":  "abstract base class — behaviour exercised via concrete html/xml/odf native readers",
+	"its":             "no native ITS filter — ITS global-rule processing is bridge-only (inline ITS in HTML/XML is handled by the html/xml readers)",
+}
+
+// noNativeCategory bins a no-native filter into a skip category for the
+// dashboard's breakdown.
+func noNativeCategory(filter string) string {
+	switch filter {
+	case "abstractmarkup":
+		return "abstract"
+	case "sdlpackage", "rainbowkit", "wsxzpackage":
+		return "vendor"
+	default:
+		return "no-native"
+	}
 }
 
 // parseSurefireDir walks surefireDir and returns one filterResult per
@@ -830,6 +866,22 @@ func buildDoc(okapiByFilter, nativeByFilter map[string]*filterResult, bridgeByFi
 		// Build one row per Okapi @Test method, joined with annotations
 		// and per-fixture bridge outcomes.
 		fc.TestCases = buildRows(fc.Okapi, annByOkapi, nativeStatus, brEntry)
+		// No-native classification: for filters neokapi deliberately does
+		// not implement natively, mark every still-bare-unmapped row
+		// not-applicable (bridge-only) with an honest reason, so they are
+		// not counted as gaps. Rows already mapped/skipped by an annotation
+		// are left untouched.
+		if reason, ok := noNativeFilters[name]; ok {
+			cat := noNativeCategory(name)
+			for i := range fc.TestCases {
+				r := &fc.TestCases[i]
+				if r.TestState == "" && r.SkipReason == "" {
+					r.TestState = "skipped"
+					r.SkipReason = reason
+					r.SkipCategory = cat
+				}
+			}
+		}
 		// Per-test bridge coverage: count rows with a bridge status
 		// populated (i.e. a fixture flowed through the bridge for that
 		// @Test). This is the honest signal of bridge-test reach.
@@ -907,6 +959,7 @@ func buildRows(okapi *filterResult, annByOkapi map[string]annotation, nativeStat
 				JavaClass:   javaClass,
 				JavaMethod:  tc.Name,
 				OkapiStatus: tc.Status,
+				Params:      tc.Params,
 			}
 			// Per-test bridge join. Fixtures key on short-class form
 			// (HtmlSnippetsTest#testFoo); accept either FQN or short

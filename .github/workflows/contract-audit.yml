@@ -21,9 +21,9 @@ on:
   workflow_dispatch:
     inputs:
       okapi_ref:
-        description: "Okapi git ref to pin (tag, branch, or SHA). Defaults to v1.47.0."
+        description: "Okapi git ref to pin (tag, branch, or SHA). Defaults to v1.48.0."
         required: false
-        default: "v1.47.0"
+        default: "v1.48.0"
       filters:
         description: "Comma-separated filter ids to audit (e.g. html,json,po). Defaults to html only."
         required: false
@@ -42,7 +42,7 @@ jobs:
       # site so injection via the workflow_dispatch text fields is
       # blocked even though only contributors with write access can
       # trigger this workflow.
-      OKAPI_REF: ${{ inputs.okapi_ref || 'v1.47.0' }}
+      OKAPI_REF: ${{ inputs.okapi_ref || 'v1.48.0' }}
       FILTERS: ${{ inputs.filters || 'html' }}
     steps:
       - name: Checkout neokapi
