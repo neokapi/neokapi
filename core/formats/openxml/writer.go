@@ -107,74 +107,36 @@ var wmlNoProofRE = regexp.MustCompile(
 // may carry both <w:br> and <w:t> children under one shared <w:rPr>;
 // emitRunEnvelopes builds that envelope directly.)
 
-// altContentRunThenBareBrRunRE matches an `<mc:AlternateContent>` host
-// run's closing `</mc:AlternateContent></w:r>` IMMEDIATELY followed by a
-// bare `<w:r><w:br[...]/>...` run envelope (with optional `<w:t>` body
-// from a prior emitRunEnvelopes break->text fusion, #602). The following run must
-// lack `<w:rPr>` so the boundary is rPr-equivalent — when the source's
-// post-image run carries a non-empty rPr the structural per-run skeleton
-// emit preserves the boundary naturally. Captures:
+// runIsAltContentImageHost reports whether r is a complex-image host
+// run whose body ends with `</mc:AlternateContent>` — i.e. an
+// `<mc:AlternateContent>` envelope (textbox shape / VML fallback)
+// emitted as a TypeImage Ph. Used by renderWMLBlock to detect the
+// post-image boundary at which upstream Okapi's RunBuilder flush cycle
+// emits an empty placeholder run before a following standalone `<w:br/>`
+// run.
 //
-//	$1 = the trailing run envelope verbatim (preserved unchanged), starting
-//	     at `<w:r>` and continuing through `<w:br[...]/>` (with optional
-//	     `<w:t>` body).
+// The match is on the captured run payload (Ph.Data), which the reader
+// records verbatim from the source `<w:r>` body (optionally prefixed
+// with the source run's `<w:rPr>`). An AlternateContent host run's body
+// always closes with `</mc:AlternateContent>`, so a suffix test after
+// trimming trailing whitespace is sufficient and avoids false positives
+// on `<w:drawing>` / `<w:pict>` host runs (which upstream does NOT
+// punctuate with a post-image placeholder before a br — see the
+// graphicdata.docx header1.xml AltContent→drawing boundary, which
+// carries no placeholder).
 //
-// The replacement keeps the trailing run unchanged and inserts a fresh
-// empty `<w:r></w:r>` placeholder between the AlternateContent host run
-// and the trailing br-bearing run. Used by
-// emitEmptyRunAfterAltContentPostImageBoundary; see the call site for
-// the upstream-Okapi citation and the graphicdata.docx fixture
-// rationale.
-var altContentRunThenBareBrRunRE = regexp.MustCompile(
-	`</mc:AlternateContent></w:r>(<w:r><w:br\b[^/>]*/>)`)
-
-// emitEmptyRunAfterAltContentPostImageBoundary inserts an empty
-// `<w:r></w:r>` placeholder run between an `<mc:AlternateContent>`
-// host run's closing `</mc:AlternateContent></w:r>` and the
-// IMMEDIATELY-following bare `<w:r><w:br[...]/>...` run envelope.
-//
-// Rationale: upstream Okapi's RunBuilder.flushRunStart/flushRunEnd
-// cycle (RunBuilder.java) emits an empty placeholder `<w:r></w:r>`
-// envelope on the boundary between a complex image run (a `<w:drawing>`
-// / `<w:pict>` / `<w:mc:AlternateContent>` envelope) and the next
-// `<w:r>` envelope whose body begins with a `<w:br/>` markup chunk.
-// The placeholder is the visible artefact of the post-image flush
-// cycle in BlockParser.parse — the same pattern that produces the
-// cross-paragraph `fieldStraddle` artefact, but scoped to post-image
-// boundaries. Per ECMA-376-1 §11.3 (CT_AlternateContent) the
-// AlternateContent element is a Markup compatibility wrapper that
-// carries no rendering effect; per §17.3.2.1 (CT_R) an empty `<w:r/>`
-// run is well-formed.
-//
-// Native's writer emits the AlternateContent host run + the bare
-// br-bearing run as adjacent siblings without the boundary placeholder,
-// so a byte-level diff at the post-image boundary shows up as a missing
-// `<w:r></w:r>` envelope. This post-pass closes that gap.
-//
-// The br-bearing run must lack `<w:rPr>` so the boundary is rPr-
-// equivalent — when the source's post-image run carries a non-empty
-// rPr the structural per-run skeleton emit preserves the boundary
-// naturally and Okapi's flush cycle does not synthesise a separate
-// placeholder.
-//
-// graphicdata.docx is the canonical fixture: a textbox-shape +
-// AlternateContent host run is immediately followed by a bare-rPr
-// `<w:br/>` run (post-rPr-strip) and then a bare-rPr text run; the
-// br + text runs fuse via emitRunEnvelopes (#602) leaving the post-image
-// boundary as a single `</mc:AlternateContent></w:r><w:r><w:br/>...`
-// junction that upstream Okapi punctuates with the empty placeholder.
-//
-// The br match accepts both self-closing (`<w:br ...>`) and bare
-// (`<w:br/>`) shapes — encoding/xml may re-emit either form depending
-// on payload provenance. The trailing capture `$1` is preserved
-// verbatim, which means the inserted placeholder lands BEFORE any
-// `<w:t>` body the br-bearing run may carry post-fuse.
-func emitEmptyRunAfterAltContentPostImageBoundary(data []byte) []byte {
-	if !bytes.Contains(data, []byte(`</mc:AlternateContent></w:r><w:r><w:br`)) {
-		return data
+// Per ECMA-376-1 §11.3 (CT_AlternateContent) the element is a Markup-
+// compatibility wrapper that carries no rendering effect; per §17.3.2.1
+// (CT_R) an empty `<w:r/>` run is well-formed. The placeholder mirrors
+// RunBuilder.flushRunStart/flushRunEnd (RunBuilder.java) closing and
+// re-opening a run on the boundary between a complex image run and the
+// next `<w:br/>`-bearing run.
+func runIsAltContentImageHost(r model.Run) bool {
+	if r.Ph == nil || r.Ph.Type != TypeImage {
+		return false
 	}
-	return altContentRunThenBareBrRunRE.ReplaceAll(
-		data, []byte(`</mc:AlternateContent></w:r><w:r></w:r>$1`))
+	data := strings.TrimRight(r.Ph.Data, " \t\r\n")
+	return strings.HasSuffix(data, "</mc:AlternateContent>")
 }
 
 // stripFldCharBeginRunRPrWhenInheritedFromFollowingRun elides the
@@ -2058,22 +2020,14 @@ func (w *Writer) writeFromSkeleton(origZR *zip.Reader, zw *zip.Writer, buf *byte
 		if isDOCX && bytes.Contains(data, []byte(`<w:r><w:pict>`)) {
 			data = fuseBarePictAndRPrTextRuns(data)
 		}
-		// Insert an empty `<w:r></w:r>` placeholder run between an
-		// `<mc:AlternateContent>` host run's closing
-		// `</mc:AlternateContent></w:r>` and the IMMEDIATELY-following
-		// bare `<w:r><w:br[...]/>...` run envelope. Mirrors upstream
-		// Okapi RunBuilder.flushRunStart/flushRunEnd's post-image flush
-		// cycle that emits an empty placeholder run on the boundary
-		// between a complex image run (drawing/pict/AlternateContent)
-		// and the next br-bearing run. Runs AFTER WSO (which strips the
-		// post-image run's rPr when its members are inherited from the
-		// surrounding paragraph style), so the regex sees the rPr-less
-		// `<w:r><w:br/>...` envelope. See
-		// emitEmptyRunAfterAltContentPostImageBoundary for the citation
-		// and the graphicdata.docx fixture rationale.
-		if isDOCX && bytes.Contains(data, []byte(`</mc:AlternateContent></w:r><w:r><w:br`)) {
-			data = emitEmptyRunAfterAltContentPostImageBoundary(data)
-		}
+		// The empty placeholder run between an `<mc:AlternateContent>`
+		// host run and an immediately-following standalone-br run is now
+		// emitted STRUCTURALLY (as a self-closing `<w:r/>`) by
+		// renderWMLBlock at the post-image boundary — see
+		// runIsAltContentImageHost and its call site in the TypeBreak
+		// case. Emitting it before WSO (rather than via a post-WSO
+		// regex) keeps the placeholder out of WSO's findRuns scan, so
+		// the IdGenerator counter stays in lockstep with the bridge.
 		return data
 	}
 
@@ -2334,7 +2288,6 @@ func (w *Writer) renderBlock(block *model.Block, dt docType) string {
 	if runs == nil {
 		return ""
 	}
-
 
 	// Core properties and table column names are plain text (no XML wrapping needed).
 	if block.Type == "property" || block.Type == "table-column" {
@@ -3948,6 +3901,30 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 				if fieldStraddle && r.Ph.SubType == SubTypeBreakStandalone {
 					closeRun() // belt-and-braces; closeRun was already invoked above
 					buf.WriteString(`<w:r></w:r>`)
+				}
+				// Post-image flush placeholder: when this standalone-br
+				// run is IMMEDIATELY preceded by an `<mc:AlternateContent>`
+				// host run (a complex-image envelope), upstream Okapi's
+				// RunBuilder.flushRunStart/flushRunEnd cycle punctuates the
+				// image→br boundary with an empty placeholder run. Emit a
+				// SELF-CLOSING `<w:r/>` here — structurally, BEFORE WSO —
+				// rather than via a post-WSO regex. The self-closing form
+				// is invisible to WSO's findRuns (which skips `<w:r/>`,
+				// style_optimization.go:2124-2128), so the IdGenerator
+				// counter and per-run rPr strip stay in lockstep with the
+				// bridge reference; an open/close `<w:r></w:r>` would be
+				// counted as a (rPr-less) run and collapse the paragraph's
+				// commonRunProperties intersection, perturbing style
+				// synthesis. okapi emits the placeholder self-closing too
+				// (`</mc:AlternateContent></w:r><w:r/><w:r><w:br/>…`).
+				// graphicdata.docx (document.xml) is the canonical fixture.
+				// See runIsAltContentImageHost for the ECMA-376-1 citation;
+				// this replaces the retired post-WSO regex
+				// (emitEmptyRunAfterAltContentPostImageBoundary).
+				if r.Ph.SubType == SubTypeBreakStandalone &&
+					runIdx > 0 && runIsAltContentImageHost(runs[runIdx-1]) {
+					closeRun() // belt-and-braces; closeRun was already invoked above
+					buf.WriteString(`<w:r/>`)
 				}
 				if strings.HasPrefix(brXMLBranch, "<w:rPr>") {
 					if r.Ph.SubType == SubTypeBreakStandalone {
