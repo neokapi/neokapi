@@ -24,7 +24,7 @@ import (
 // distinct so a substring search cannot short-circuit.
 func markerDenseParagraph(n int) string {
 	var b strings.Builder
-	for i := 0; i < n; i++ {
+	for i := range n {
 		b.WriteString("< ")
 		b.WriteByte(byte('a' + i%26))
 		b.WriteByte(' ')

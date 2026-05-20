@@ -317,7 +317,6 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 	// sliced out of it, and the skeleton text is sliced from it too — so
 	// there is no separate `[]byte(rawText)` duplicate.
 	content := []byte(rawText)
-	rawText = "" // release the string copy; `content` is now the sole buffer
 
 	decoder := xml.NewDecoder(bytes.NewReader(content))
 	decoder.Strict = false

@@ -24,7 +24,7 @@ import (
 func buildDivSpanHeavyHTML(n int) string {
 	var b strings.Builder
 	b.WriteString("<html><body>")
-	for i := 0; i < n; i++ {
+	for i := range n {
 		id := strconv.Itoa(i)
 		// Alternate the structural wrappers so several distinct
 		// non-container tags hit the fall-through classification path.

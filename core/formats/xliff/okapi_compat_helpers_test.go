@@ -30,10 +30,10 @@ func TestRegexCacheConcurrent(t *testing.T) {
 
 	var wg sync.WaitGroup
 	wg.Add(goroutines)
-	for g := 0; g < goroutines; g++ {
+	for range goroutines {
 		go func() {
 			defer wg.Done()
-			for i := 0; i < iterations; i++ {
+			for i := range iterations {
 				tag := tags[i%len(tags)]
 				attr := attrs[i%len(attrs)]
 				// stripAttrInTag fetches both a tagStartRE and an innerAttrRE.
@@ -72,10 +72,10 @@ func TestApplySkeletonAttrStrippingConcurrent(t *testing.T) {
 
 	var wg sync.WaitGroup
 	wg.Add(8)
-	for g := 0; g < 8; g++ {
+	for range 8 {
 		go func() {
 			defer wg.Done()
-			for i := 0; i < 100; i++ {
+			for range 100 {
 				out := applySkeletonAttrStripping(src, compat)
 				if bytes.Contains(out, []byte(`approved="no"`)) || bytes.Contains(out, []byte(`date="2020-01-01"`)) {
 					t.Errorf("attrs not stripped: %q", out)

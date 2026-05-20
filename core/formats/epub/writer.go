@@ -271,7 +271,7 @@ func (w *Writer) writeFromSkeleton(blocks map[string]*model.Block, childLayerVal
 	if err != nil {
 		return err
 	}
-	defer closeSrc()
+	defer func() { _ = closeSrc() }()
 
 	zw := zip.NewWriter(w.Output)
 	defer zw.Close()
@@ -341,7 +341,7 @@ func (w *Writer) writeEPUB(parts []*model.Part, childLayerValues map[string]stri
 	if err != nil {
 		return err
 	}
-	defer closeSrc()
+	defer func() { _ = closeSrc() }()
 
 	zw := zip.NewWriter(w.Output)
 	defer zw.Close()

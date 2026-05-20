@@ -86,30 +86,15 @@ func storeHeaderLayout(block *model.Block, line string) {
 // `[[...|...]]` constructs remain as regular text and continue to flow
 // through paragraph extraction unchanged.
 var (
-	// `[[target|` — opening half of `[[target|alt text]]`. The alt text
-	// between the opening and closing codes is translatable.
-	dokuWikiNamedLinkStartRe = regexp.MustCompile(`\[\[[^|\]\r\n]+\|`)
 	// `]]` — closing half of `[[target|alt]]`.
 	dokuWikiNamedLinkEndRe = regexp.MustCompile(`\]\]`)
-	// `[[target]]` — full placeholder (no pipe, content is not
-	// translatable).
-	dokuWikiLinkRe = regexp.MustCompile(`\[\[[^|\]\r\n]+\]\]`)
 	// `{{...}}` — image / template placeholder. Single-line only,
 	// matching Okapi's IMAGE_START.
 	dokuWikiImageRe = regexp.MustCompile(`\{\{[^}\r\n]+\}\}`)
-	// `~~NOTOC~~` / `~~NOCACHE~~` / `~~INFO:<word>~~` — DokuWiki
-	// macro placeholders. Mirrors okapi WikiPatterns
-	// MACRO_START_PATTERN (`~~(?:NOTOC|NOCACHE|INFO:\w*)~~`); the
-	// entire token is opaque inline markup that must round-trip
-	// verbatim instead of being pseudo-translated as plain text.
-	dokuWikiMacroRe = regexp.MustCompile(`~~(?:NOTOC|NOCACHE|INFO:\w*)~~`)
-
 	// HTML-style paired inline tags recognised by Okapi WikiPatterns
-	// (SUB, SUP, DEL, NOWIKI_TAG). Each opener is `<tag>` (case-insensitive
-	// with optional attributes); each closer is `</tag>`. We capture the
-	// tag literally so the writer round-trips opener / closer bytes
-	// verbatim. The inner text remains translatable.
-	dokuWikiHTMLOpenRe  = regexp.MustCompile(`(?i)<(sub|sup|del|nowiki)\b[^>]*>`)
+	// (SUB, SUP, DEL, NOWIKI_TAG); each closer is `</tag>`. We capture the
+	// tag literally so the writer round-trips closer bytes verbatim. The
+	// inner text remains translatable.
 	dokuWikiHTMLCloseRe = map[string]*regexp.Regexp{
 		"sub":    regexp.MustCompile(`(?i)</sub>`),
 		"sup":    regexp.MustCompile(`(?i)</sup>`),
@@ -748,7 +733,7 @@ func splitDokuWikiInlineRuns(text string) ([]model.Run, bool) {
 		// translatable text fall through to the default text run.
 		// `~~` opens DokuWiki macro placeholders such as
 		// `~~NOTOC~~` / `~~NOCACHE~~` / `~~INFO:<word>~~` — the
-		// dokuWikiMacroRe match validates the full token.
+		// macro match validates the full token.
 		bestStart := -1
 		var bestKind string
 		for i, m := range dokuWikiInlineMarkers {

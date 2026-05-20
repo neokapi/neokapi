@@ -31,7 +31,7 @@ func TestRemainingContentCursorIsExactAndConstant(t *testing.T) {
 	var sb strings.Builder
 	sb.WriteString("<html><body>")
 	const blocks = 400
-	for i := 0; i < blocks; i++ {
+	for i := range blocks {
 		sb.WriteString("<div>Text <span>x</span> tail " + strconv.Itoa(i) + "</div>")
 	}
 	sb.WriteString("</body></html>")

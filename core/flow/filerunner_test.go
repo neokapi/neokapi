@@ -3,6 +3,7 @@ package flow_test
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -66,7 +67,7 @@ func TestFileRunner_BufferedOutputFlushesFully(t *testing.T) {
 	var sb strings.Builder
 	sb.WriteString("{\n")
 	const n = 4000
-	for i := 0; i < n; i++ {
+	for i := range n {
 		if i > 0 {
 			sb.WriteString(",\n")
 		}
@@ -187,7 +188,7 @@ func (e *erroringTool) Process(ctx context.Context, in <-chan *model.Part, out c
 	}
 }
 
-var errBoom = fmt.Errorf("boom: simulated tool failure")
+var errBoom = errors.New("boom: simulated tool failure")
 
 // TestFileRunner_ToolErrorAbortsWithoutPartialOutput verifies that a tool
 // error aborts the run, surfaces the error, and leaves NO output file at
@@ -211,7 +212,7 @@ func TestFileRunner_ToolErrorAbortsWithoutPartialOutput(t *testing.T) {
 		inputPath, outputPath, "qps")
 
 	require.Error(t, err, "tool error must propagate")
-	assert.ErrorIs(t, err, errBoom)
+	require.ErrorIs(t, err, errBoom)
 
 	_, statErr := os.Stat(outputPath)
 	assert.True(t, os.IsNotExist(statErr),
@@ -236,7 +237,7 @@ func TestFileRunner_ContextCancellationAborts(t *testing.T) {
 
 	var sb strings.Builder
 	sb.WriteString("{\n")
-	for i := 0; i < 2000; i++ {
+	for i := range 2000 {
 		if i > 0 {
 			sb.WriteString(",\n")
 		}
@@ -262,7 +263,7 @@ func TestFileRunner_ContextCancellationAborts(t *testing.T) {
 		inputPath, outputPath, "qps")
 
 	require.Error(t, runErr, "a cancelled context must abort the run")
-	assert.ErrorIs(t, runErr, context.Canceled)
+	require.ErrorIs(t, runErr, context.Canceled)
 
 	_, statErr := os.Stat(outputPath)
 	assert.True(t, os.IsNotExist(statErr),
