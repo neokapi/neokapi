@@ -388,10 +388,10 @@ func (v *writerVisitor) onData(dataID string, n *html.Node, dataName string, pro
 }
 
 // retargetLangAttr rewrites lang/xml:lang attribute values on n from the
-// source locale to the writer's target locale. It mirrors rewriteLangAttrs:
-// only attributes whose value equals the source locale (case-insensitively)
-// are rewritten, so unrelated declarations (e.g. lang="de" in an en→fr
-// document) are preserved.
+// source locale to the writer's target locale. As in the skeleton path's
+// SkeletonLang handling, only attributes whose value equals the source
+// locale (case-insensitively) are rewritten, so unrelated declarations
+// (e.g. lang="de" in an en→fr document) are preserved.
 func (v *writerVisitor) retargetLangAttr(n *html.Node) {
 	tgt := v.writer.Locale
 	src := v.sourceLocale
