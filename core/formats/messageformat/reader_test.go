@@ -566,10 +566,16 @@ func TestReaderSignature(t *testing.T) {
 	assert.Contains(t, sig.Extensions, ".mf")
 }
 
+// okapi: MessageFormatFilterTest#testDefaultInfo
 func TestReaderMetadata(t *testing.T) {
 	reader := messageformat.NewReader()
+	// Okapi's testDefaultInfo asserts the filter exposes non-null parameters,
+	// a name, and a non-empty configuration list. The native analog is the
+	// reader's identifying metadata + a usable (validating) config.
 	assert.Equal(t, "messageformat", reader.Name())
 	assert.Equal(t, "ICU MessageFormat", reader.DisplayName())
+	assert.NotEmpty(t, reader.Signature().MIMETypes)
+	assert.NotEmpty(t, reader.Signature().Extensions)
 }
 
 func TestReadNilDocument(t *testing.T) {
