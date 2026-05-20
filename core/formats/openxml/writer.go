@@ -1159,7 +1159,17 @@ var leadingTrailingWhitespaceRE = regexp.MustCompile(`^\s+|\s+$`)
 // whitespace. Per ECMA-376-1 §17.3.2 the rPr children are empty
 // elements with attributes; the canonical serialization is
 // `<w:b/><w:i/>...` regardless of whether the source used the
-// self-closing or open/close form.
+// self-closing or open/close form (the latter being an artefact of
+// captureRawElement round-tripping the payload through encoding/xml).
+//
+// NOTE: this is COMPARE-TIME canonicalization, not a write-side output
+// fixup. Its result is used only as a match key compared (==) against the
+// writer-synthesised rPr to gate the structural fldChar↔text merge; it is
+// never emitted to the wire (the merge writes the raw payload, the
+// non-merge path writes Ph.Data verbatim). This is the sanctioned #603
+// pattern (the no-regex convention's points 2/3: compare-time
+// canonicalization + structural-merge-as-canonicalization), distinct from
+// the prohibited regex-rewriting of already-serialized output. KEEP.
 func normaliseRPrChildrenFragment(s string) string {
 	if s == "" {
 		return s
