@@ -17,12 +17,18 @@ import (
 // Writer implements DataFormatWriter for ODF files.
 type Writer struct {
 	format.BaseFormatWriter
-	resolver        format.SubfilterResolver
-	skeletonStore   *format.SkeletonStore
+	resolver      format.SubfilterResolver
+	skeletonStore *format.SkeletonStore
+	// originalContent holds the source archive bytes when handed over via
+	// SetOriginalContent. When sourcePath is set instead the source is
+	// re-opened from disk in Write, avoiding a full second copy in memory
+	// (#608, S2).
 	originalContent []byte
+	sourcePath      string
 }
 
 var _ format.OriginalContentSetter = (*Writer)(nil)
+var _ format.SourcePathSetter = (*Writer)(nil)
 var _ format.SkeletonStoreConsumer = (*Writer)(nil)
 var _ format.SubfilterAware = (*Writer)(nil)
 
@@ -50,6 +56,13 @@ func (w *Writer) SetOriginalContent(content []byte) {
 	w.originalContent = content
 }
 
+// SetSourcePath records the path to the original ODF so Write can re-open
+// it from disk instead of holding a full in-memory copy. When set it
+// takes precedence over SetOriginalContent (#608, S2).
+func (w *Writer) SetSourcePath(path string) {
+	w.sourcePath = path
+}
+
 // Write consumes Parts and writes the reconstructed ODF document.
 func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
 	// Collect all blocks keyed by ID
@@ -72,14 +85,25 @@ func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
 		}
 	}
 
-	if w.originalContent == nil {
+	// Resolve the source archive: prefer re-opening from the path (no
+	// second in-memory copy) and fall back to held bytes.
+	if w.sourcePath == "" && w.originalContent == nil {
 		return errors.New("odf: writer requires original content for reconstruction")
 	}
-
-	// Open original ZIP
-	origZR, err := zip.NewReader(bytes.NewReader(w.originalContent), int64(len(w.originalContent)))
-	if err != nil {
-		return fmt.Errorf("odf: invalid original ZIP: %w", err)
+	var origZR *zip.Reader
+	if w.sourcePath != "" {
+		zrc, err := zip.OpenReader(w.sourcePath)
+		if err != nil {
+			return fmt.Errorf("odf: open source %q: %w", w.sourcePath, err)
+		}
+		defer zrc.Close()
+		origZR = &zrc.Reader
+	} else {
+		zr, err := zip.NewReader(bytes.NewReader(w.originalContent), int64(len(w.originalContent)))
+		if err != nil {
+			return fmt.Errorf("odf: invalid original ZIP: %w", err)
+		}
+		origZR = zr
 	}
 
 	// Create output ZIP
@@ -97,8 +121,8 @@ func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
 		if err := zw.Close(); err != nil {
 			return err
 		}
-		_, err = w.Output.Write(buf.Bytes())
-		return err
+		_, werr := w.Output.Write(buf.Bytes())
+		return werr
 	}
 
 	// Fallback: reparse-based reconstruction
@@ -108,8 +132,8 @@ func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
 	if err := zw.Close(); err != nil {
 		return err
 	}
-	_, err = w.Output.Write(buf.Bytes())
-	return err
+	_, werr := w.Output.Write(buf.Bytes())
+	return werr
 }
 
 // writeFromSkeleton reconstructs translatable XML parts using the skeleton store.

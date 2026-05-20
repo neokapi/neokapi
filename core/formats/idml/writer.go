@@ -20,13 +20,20 @@ import (
 // ZIP entries unchanged.
 type Writer struct {
 	format.BaseFormatWriter
-	cfg             *Config
-	skeletonStore   *format.SkeletonStore
+	cfg           *Config
+	skeletonStore *format.SkeletonStore
+	// originalContent holds the source archive bytes when the caller hands
+	// them over via SetOriginalContent. When sourcePath is set instead
+	// (SourcePathSetter), the source is re-opened from disk in Write and
+	// these bytes are never held — avoiding a full second copy of the
+	// archive in memory (#608, S2).
 	originalContent []byte
+	sourcePath      string
 }
 
 var _ format.SkeletonStoreConsumer = (*Writer)(nil)
 var _ format.OriginalContentSetter = (*Writer)(nil)
+var _ format.SourcePathSetter = (*Writer)(nil)
 
 // NewWriter creates a new IDML writer.
 func NewWriter() *Writer {
@@ -50,6 +57,13 @@ func (w *Writer) SetOriginalContent(content []byte) {
 	w.originalContent = content
 }
 
+// SetSourcePath records the path to the original IDML so Write can
+// re-open it from disk instead of holding a full in-memory copy. When
+// set it takes precedence over SetOriginalContent (#608, S2).
+func (w *Writer) SetSourcePath(path string) {
+	w.sourcePath = path
+}
+
 // Write consumes Parts and writes the reconstructed IDML document.
 func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
 	// Collect all blocks keyed by ID
@@ -62,14 +76,25 @@ func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
 		}
 	}
 
-	if w.originalContent == nil {
+	// Resolve the source archive: prefer re-opening from the path (no
+	// second in-memory copy) and fall back to held bytes.
+	if w.sourcePath == "" && w.originalContent == nil {
 		return errors.New("idml: writer requires original content for reconstruction")
 	}
-
-	// Open original ZIP
-	origZR, err := zip.NewReader(bytes.NewReader(w.originalContent), int64(len(w.originalContent)))
-	if err != nil {
-		return fmt.Errorf("idml: invalid original ZIP: %w", err)
+	var origZR *zip.Reader
+	if w.sourcePath != "" {
+		zrc, err := zip.OpenReader(w.sourcePath)
+		if err != nil {
+			return fmt.Errorf("idml: open source %q: %w", w.sourcePath, err)
+		}
+		defer zrc.Close()
+		origZR = &zrc.Reader
+	} else {
+		zr, err := zip.NewReader(bytes.NewReader(w.originalContent), int64(len(w.originalContent)))
+		if err != nil {
+			return fmt.Errorf("idml: invalid original ZIP: %w", err)
+		}
+		origZR = zr
 	}
 
 	// Stream the output ZIP straight to w.Output rather than buffering the

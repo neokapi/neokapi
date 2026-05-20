@@ -17,13 +17,18 @@ import (
 // Writer implements DataFormatWriter for EPUB e-book files.
 type Writer struct {
 	format.BaseFormatWriter
-	resolver        format.SubfilterResolver
-	skeletonStore   *format.SkeletonStore
+	resolver      format.SubfilterResolver
+	skeletonStore *format.SkeletonStore
+	// originalContent holds the source archive bytes when handed over via
+	// SetOriginalContent. When sourcePath is set instead the source is
+	// re-opened from disk, avoiding a full second copy in memory (#608, S2).
 	originalContent []byte
+	sourcePath      string
 }
 
 var _ format.SkeletonStoreConsumer = (*Writer)(nil)
 var _ format.OriginalContentSetter = (*Writer)(nil)
+var _ format.SourcePathSetter = (*Writer)(nil)
 var _ format.SubfilterAware = (*Writer)(nil)
 
 // NewWriter creates a new EPUB writer.
@@ -48,6 +53,38 @@ func (w *Writer) SetSkeletonStore(store *format.SkeletonStore) {
 // SetOriginalContent provides the original EPUB bytes for roundtrip fidelity.
 func (w *Writer) SetOriginalContent(content []byte) {
 	w.originalContent = content
+}
+
+// SetSourcePath records the path to the original EPUB so reconstruction
+// can re-open it from disk instead of holding a full in-memory copy.
+// When set it takes precedence over SetOriginalContent (#608, S2).
+func (w *Writer) SetSourcePath(path string) {
+	w.sourcePath = path
+}
+
+// hasSource reports whether a source archive is available (either as held
+// bytes or a re-openable path).
+func (w *Writer) hasSource() bool {
+	return w.sourcePath != "" || w.originalContent != nil
+}
+
+// openSource returns a *zip.Reader over the source archive. When a source
+// path is set the archive is re-opened from disk (the returned closer
+// must be closed by the caller); otherwise the held bytes are used and
+// the returned closer is a no-op. Avoids a second full in-memory copy.
+func (w *Writer) openSource() (*zip.Reader, func() error, error) {
+	if w.sourcePath != "" {
+		zrc, err := zip.OpenReader(w.sourcePath)
+		if err != nil {
+			return nil, nil, fmt.Errorf("epub writer: open source %q: %w", w.sourcePath, err)
+		}
+		return &zrc.Reader, zrc.Close, nil
+	}
+	zr, err := zip.NewReader(bytes.NewReader(w.originalContent), int64(len(w.originalContent)))
+	if err != nil {
+		return nil, nil, fmt.Errorf("epub writer: reading original: %w", err)
+	}
+	return zr, func() error { return nil }, nil
 }
 
 // Write consumes Parts from a channel and writes a reconstructed EPUB.
@@ -168,7 +205,7 @@ func (w *Writer) fallbackChildText(parts []*model.Part) string {
 
 // writeFromSkeleton reconstructs translatable XHTML parts using the skeleton store.
 func (w *Writer) writeFromSkeleton(blocks map[string]*model.Block, childLayerValues map[string]string) error {
-	if w.originalContent == nil {
+	if !w.hasSource() {
 		return errors.New("epub writer: original content required for reconstruction")
 	}
 
@@ -230,10 +267,11 @@ func (w *Writer) writeFromSkeleton(blocks map[string]*model.Block, childLayerVal
 	}
 
 	// Open original ZIP for copying structure
-	zr, err := zip.NewReader(bytes.NewReader(w.originalContent), int64(len(w.originalContent)))
+	zr, closeSrc, err := w.openSource()
 	if err != nil {
-		return fmt.Errorf("epub writer: reading original: %w", err)
+		return err
 	}
+	defer closeSrc()
 
 	zw := zip.NewWriter(w.Output)
 	defer zw.Close()
@@ -278,7 +316,7 @@ func (w *Writer) renderBlockText(block *model.Block) string {
 }
 
 func (w *Writer) writeEPUB(parts []*model.Part, childLayerValues map[string]string) error {
-	if w.originalContent == nil {
+	if !w.hasSource() {
 		return errors.New("epub writer: original content required for roundtrip")
 	}
 
@@ -299,10 +337,11 @@ func (w *Writer) writeEPUB(parts []*model.Part, childLayerValues map[string]stri
 		entryBlocks[entry] = append(entryBlocks[entry], block)
 	}
 
-	zr, err := zip.NewReader(bytes.NewReader(w.originalContent), int64(len(w.originalContent)))
+	zr, closeSrc, err := w.openSource()
 	if err != nil {
-		return fmt.Errorf("epub writer: reading original: %w", err)
+		return err
 	}
+	defer closeSrc()
 
 	zw := zip.NewWriter(w.Output)
 	defer zw.Close()
