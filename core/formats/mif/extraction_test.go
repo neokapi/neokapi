@@ -252,6 +252,7 @@ func TestTwoPartsEntry(t *testing.T) {
 // Tab/Char glyphs wrongly yields a translatable block. Okapi treats Tab as
 // an inline code (codeFinder-protected) and emits NO text unit for a
 // char-only paragraph.
+// okapi: ExtractionTest#testCharOnly — #509 native inlines <Char Tab> as literal text instead of treating it as an inline code
 func TestCharOnly(t *testing.T) {
 	t.Skip("TODO(#509): native inlines <Char Tab> as literal text; okapi (testCharOnly) emits no text unit for a Char-only paragraph")
 }
@@ -259,6 +260,7 @@ func TestCharOnly(t *testing.T) {
 // Native divergence: same Tab-as-text issue — okapi (testEndsInCharAndCode)
 // drops the trailing <Char Tab>+codes and yields one unit "aaa"; native
 // emits an extra "\t" block after "aaa".
+// okapi: ExtractionTest#testEndsInCharAndCode — #509 native emits an extra tab-only block; okapi drops the trailing Char/codes into one unit "aaa"
 func TestEndsInCharAndCode(t *testing.T) {
 	t.Skip("TODO(#509): native emits an extra tab-only block after \"aaa\"; okapi yields the single unit \"aaa\"")
 }
@@ -266,12 +268,14 @@ func TestEndsInCharAndCode(t *testing.T) {
 // Native divergence: okapi (testDummyCharString) routes the leading
 // AFrame+Tab into the skeleton and extracts just "aaa"; native inlines the
 // tab into the text, producing "\taaa".
+// okapi: ExtractionTest#testDummyCharString — #509 native inlines the leading <Char Tab> into the text; okapi routes AFrame+Tab into the skeleton
 func TestDummyCharString(t *testing.T) {
 	t.Skip("TODO(#509): native inlines the leading <Char Tab> into the text (\"\\taaa\"); okapi extracts \"aaa\" with the tab in the skeleton")
 }
 
 // Native divergence: okapi (testTabsAndCodes) emits no text unit and keeps
 // the tabs as skeleton <String '\t'> codes; native emits two "\t" blocks.
+// okapi: ExtractionTest#testTabsAndCodes — #509 native extracts tab-only blocks; okapi emits no unit and keeps tabs as skeleton strings
 func TestTabsAndCodes(t *testing.T) {
 	t.Skip("TODO(#509): native extracts tab-only blocks; okapi emits no text unit and keeps tabs as skeleton strings")
 }
@@ -279,6 +283,7 @@ func TestTabsAndCodes(t *testing.T) {
 // Native split-model divergence: okapi (testEmptyString) yields ONE unit
 // "Text 1<1/> <2/> end" with inline codes; native splits the paragraph
 // into separate blocks at every inline-code boundary.
+// okapi: ExtractionTest#testEmptyString — #558 native splits paragraphs into per-run blocks; okapi keeps one TextUnit with inline codes
 func TestEmptyString(t *testing.T) {
 	t.Skip("TODO(#558): native splits paragraphs into per-run blocks; okapi keeps one TextUnit with inline codes (<1/>, <2/>)")
 }
@@ -286,6 +291,7 @@ func TestEmptyString(t *testing.T) {
 // Native split-model divergence: okapi (testCodeAtTheFront) yields ONE unit
 // "text 1<2/>text 2"; native splits into two blocks at the inter-String
 // <Font> code.
+// okapi: ExtractionTest#testCodeAtTheFront — #558 native splits paragraphs into per-run blocks; okapi keeps one TextUnit with an inline code
 func TestCodeAtTheFront(t *testing.T) {
 	t.Skip("TODO(#558): native splits paragraphs into per-run blocks; okapi keeps one TextUnit with an inline code")
 }
@@ -293,12 +299,14 @@ func TestCodeAtTheFront(t *testing.T) {
 // Native split-model divergence: okapi (testDummyBeforeChar) yields ONE unit
 // "Text 1<1/> Text 2" with an inline code for the Dummy; native splits
 // into two blocks.
+// okapi: ExtractionTest#testDummyBeforeChar — #558 native splits paragraphs into per-run blocks; okapi keeps one TextUnit with an inline code for the Dummy
 func TestDummyBeforeChar(t *testing.T) {
 	t.Skip("TODO(#558): native splits paragraphs into per-run blocks; okapi keeps one TextUnit with an inline code")
 }
 
 // Native split-model divergence: okapi (testEmptyFTag) yields ONE unit
 // "Text 1 <2/>text 2"; native splits into two blocks at the AFrame code.
+// okapi: ExtractionTest#testEmptyFTag — #558 native splits paragraphs into per-run blocks; okapi keeps one TextUnit with an inline code
 func TestEmptyFTag(t *testing.T) {
 	t.Skip("TODO(#558): native splits paragraphs into per-run blocks; okapi keeps one TextUnit with an inline code")
 }
@@ -306,12 +314,14 @@ func TestEmptyFTag(t *testing.T) {
 // Native divergence: okapi (testSlashCodes, v10) models VariableDef building
 // blocks as inline codes, yielding "<zBold><1/><Default Z Font> ‍<3/><2/>";
 // native flattens them and keeps the raw \x0b escape.
+// okapi: ExtractionTest#testSlashCodes — #558 native does not model <$paranum>/building-block VariableDef tokens as inline codes
 func TestSlashCodes(t *testing.T) {
 	t.Skip("TODO(#558): native does not model <$paranum>/building-block VariableDef tokens as inline codes")
 }
 
 // Native divergence: okapi (testSlashCodesOutput) re-encodes VariableDef
 // building blocks on output; native's VariableDef round-trip differs.
+// okapi: ExtractionTest#testSlashCodesOutput — #558 native VariableDef building-block output differs from okapi's code re-encoding
 func TestSlashCodesOutput(t *testing.T) {
 	t.Skip("TODO(#558): native VariableDef building-block output differs from okapi's code re-encoding")
 }
@@ -320,6 +330,7 @@ func TestSlashCodesOutput(t *testing.T) {
 // unsupported <MIFFile 7.00> is accepted (no error). Okapi
 // (doesNotProcessUnsupportedVersions) throws OkapiBadFilterInputException
 // "Unsupported document version: 7.00".
+// okapi: ExtractionTest#doesNotProcessUnsupportedVersions — #558 native reader does not reject unsupported MIF versions; okapi throws on <MIFFile 7.00>
 func TestDoesNotProcessUnsupportedVersions(t *testing.T) {
 	t.Skip("TODO(#558): native reader does not reject unsupported MIF versions; okapi throws on <MIFFile 7.00>")
 }
@@ -328,6 +339,7 @@ func TestDoesNotProcessUnsupportedVersions(t *testing.T) {
 // extracts only body-page text under the Common params — first two units
 // "Line 1\nLine 2" and "à=agrave". Native lacks body-page-only scoping
 // and extracts catalog/all-page content (~206 blocks, first is empty).
+// okapi: ExtractionTest#testBodyOnlyNoVariables — #558 native lacks body-page-only extraction scoping; it pulls in catalog and non-body-page content
 func TestBodyOnlyNoVariables(t *testing.T) {
 	t.Skip("TODO(#558): native lacks body-page-only extraction scoping; it pulls in catalog and non-body-page content")
 }
@@ -335,6 +347,7 @@ func TestBodyOnlyNoVariables(t *testing.T) {
 // Native divergence (body-page filtering): okapi
 // (extractsBodyPageRelatedInformationOnly) extracts a single body-page unit
 // "Goes over the PgfCatalog." from 893.mif; native extracts >1000 blocks.
+// okapi: ExtractionTest#extractsBodyPageRelatedInformationOnly — #558 native lacks body-page-only extraction scoping (893.mif: native >1000 blocks vs okapi 1)
 func TestExtractsBodyPageRelatedInformationOnly(t *testing.T) {
 	t.Skip("TODO(#558): native lacks body-page-only extraction scoping (893.mif: native >1000 blocks vs okapi 1)")
 }
@@ -342,6 +355,7 @@ func TestExtractsBodyPageRelatedInformationOnly(t *testing.T) {
 // Native divergence (body-page filtering): okapi
 // (extractsMultipleTextFramesPerPage) extracts 7 body-page text-frame units
 // from 895.mif; native extracts a different set/order.
+// okapi: ExtractionTest#extractsMultipleTextFramesPerPage — #558 native body-page text-frame extraction differs from okapi (895.mif)
 func TestExtractsMultipleTextFramesPerPage(t *testing.T) {
 	t.Skip("TODO(#558): native body-page text-frame extraction differs from okapi (895.mif)")
 }
@@ -350,6 +364,7 @@ func TestExtractsMultipleTextFramesPerPage(t *testing.T) {
 // (extractsNumberedParagraphFormats) extracts 8/3/5 units across the 896*
 // fixtures with autonumber building-block markers (); native
 // extracts ~190 blocks without the building-block markers.
+// okapi: ExtractionTest#extractsNumberedParagraphFormats — #558 native lacks body-page scoping and autonumber building-block markers (896*.mif)
 func TestExtractsNumberedParagraphFormats(t *testing.T) {
 	t.Skip("TODO(#558): native lacks body-page scoping and autonumber building-block markers (896*.mif)")
 }
@@ -357,6 +372,7 @@ func TestExtractsNumberedParagraphFormats(t *testing.T) {
 // Native divergence (table-cell numbered formats + body filtering): okapi
 // (extractsNumberedParagraphFormatInTableCells) extracts 17 ordered units
 // from 904.mif with building-block markers; native extracts ~200 blocks.
+// okapi: ExtractionTest#extractsNumberedParagraphFormatInTableCells — #558 native lacks body-page scoping and building-block markers (904.mif)
 func TestExtractsNumberedParagraphFormatInTableCells(t *testing.T) {
 	t.Skip("TODO(#558): native lacks body-page scoping and building-block markers (904.mif)")
 }
@@ -364,6 +380,7 @@ func TestExtractsNumberedParagraphFormatInTableCells(t *testing.T) {
 // Native divergence (anchored frames + body filtering): okapi
 // (extractsAnchoredFramesContent) extracts 2/1/8 units across 902-*.mif;
 // native extracts ~190 blocks.
+// okapi: ExtractionTest#extractsAnchoredFramesContent — #558 native lacks body-page scoping for anchored-frame extraction (902-*.mif)
 func TestExtractsAnchoredFramesContent(t *testing.T) {
 	t.Skip("TODO(#558): native lacks body-page scoping for anchored-frame extraction (902-*.mif)")
 }
@@ -371,6 +388,7 @@ func TestExtractsAnchoredFramesContent(t *testing.T) {
 // Native divergence (nested anchored frames + body filtering): okapi
 // (extractsNestedAnchoredFrames) extracts 14/5/4 units across 909-*.mif;
 // native extracts ~190 blocks.
+// okapi: ExtractionTest#extractsNestedAnchoredFrames — #558 native lacks body-page scoping for nested anchored-frame extraction (909-*.mif)
 func TestExtractsNestedAnchoredFrames(t *testing.T) {
 	t.Skip("TODO(#558): native lacks body-page scoping for nested anchored-frame extraction (909-*.mif)")
 }
@@ -378,6 +396,7 @@ func TestExtractsNestedAnchoredFrames(t *testing.T) {
 // Native divergence (sequential paragraph formats + body filtering): okapi
 // (sequentialParagraphFormatsExtracted) extracts 4 units from 940.mif with
 // building-block markers; native extracts ~189 blocks.
+// okapi: ExtractionTest#sequentialParagraphFormatsExtracted — #558 native lacks body-page scoping and building-block markers (940.mif)
 func TestSequentialParagraphFormatsExtracted(t *testing.T) {
 	t.Skip("TODO(#558): native lacks body-page scoping and building-block markers (940.mif)")
 }
@@ -386,6 +405,7 @@ func TestSequentialParagraphFormatsExtracted(t *testing.T) {
 // (referenceFormatsConditionallyExtracted) conditionally extracts XRef
 // reference formats with building-block markers from 938/1052.mif; native
 // extracts ~188 blocks without them.
+// okapi: ExtractionTest#referenceFormatsConditionallyExtracted — #558 native lacks body-page scoping and conditional reference-format extraction (938/1052.mif)
 func TestReferenceFormatsConditionallyExtracted(t *testing.T) {
 	t.Skip("TODO(#558): native lacks body-page scoping and conditional reference-format extraction (938/1052.mif)")
 }
@@ -393,6 +413,7 @@ func TestReferenceFormatsConditionallyExtracted(t *testing.T) {
 // Native divergence (text lines + body filtering): okapi
 // (textLinesExtracted) extracts 5/12 ordered TextLine units from 942-*.mif;
 // native extracts ~190 blocks.
+// okapi: ExtractionTest#textLinesExtracted — #558 native lacks body-page scoping for TextLine extraction (942-*.mif)
 func TestTextLinesExtracted(t *testing.T) {
 	t.Skip("TODO(#558): native lacks body-page scoping for TextLine extraction (942-*.mif)")
 }
@@ -400,6 +421,7 @@ func TestTextLinesExtracted(t *testing.T) {
 // Native divergence (nested text frames + body filtering): okapi
 // (nestedTextFramesExtracted) extracts 5 ordered units from 943.mif; native
 // extracts ~190 blocks.
+// okapi: ExtractionTest#nestedTextFramesExtracted — #558 native lacks body-page scoping for nested text-frame extraction (943.mif)
 func TestNestedTextFramesExtracted(t *testing.T) {
 	t.Skip("TODO(#558): native lacks body-page scoping for nested text-frame extraction (943.mif)")
 }
@@ -408,6 +430,7 @@ func TestNestedTextFramesExtracted(t *testing.T) {
 // (hardReturnsFormNewTransUnits, ExtractHardReturnsAsText=false) splits at
 // hard returns into ordered units across 987/990*.mif; native extracts
 // catalog/all-page content.
+// okapi: ExtractionTest#hardReturnsFormNewTransUnits — #558 native lacks body-page scoping; hard-return unit splitting differs (987/990*.mif)
 func TestHardReturnsFormNewTransUnits(t *testing.T) {
 	t.Skip("TODO(#558): native lacks body-page scoping; hard-return unit splitting differs (987/990*.mif)")
 }
@@ -416,6 +439,7 @@ func TestHardReturnsFormNewTransUnits(t *testing.T) {
 // (testExtractIndexMarkers) extracts the index-marker text "Text of marker"
 // (type x-index) as the first text unit; native extracts catalog content
 // first and does not surface the marker at that position.
+// okapi: ExtractionTest#testExtractIndexMarkers — #558 native lacks body-page scoping; index-marker extraction position differs (TestMarkers.mif)
 func TestExtractIndexMarkers(t *testing.T) {
 	t.Skip("TODO(#558): native lacks body-page scoping; index-marker extraction position differs (TestMarkers.mif)")
 }
@@ -424,6 +448,7 @@ func TestExtractIndexMarkers(t *testing.T) {
 // (testExtractLinks) gates link text on ExtractLinks and surfaces it as the
 // 5th text unit (type link); native extracts catalog content and the link
 // count barely changes.
+// okapi: ExtractionTest#testExtractLinks — #558 native lacks body-page scoping; hypertext-link extraction differs (TestMarkers.mif)
 func TestExtractLinks(t *testing.T) {
 	t.Skip("TODO(#558): native lacks body-page scoping; hypertext-link extraction differs (TestMarkers.mif)")
 }
@@ -432,6 +457,7 @@ func TestExtractLinks(t *testing.T) {
 // blocks): okapi (tabsRepresentedAsCodesAndHardReturnsAsText) yields 2 units
 // with tabs/building-blocks as codes from 1188_crlf.mif; native inlines tabs
 // and omits building-block markers, yielding 4 blocks (first empty).
+// okapi: ExtractionTest#tabsRepresentedAsCodesAndHardReturnsAsText — #509/#558 native inlines tabs as text and omits building-block markers (1188_crlf.mif)
 func TestTabsRepresentedAsCodesAndHardReturnsAsText(t *testing.T) {
 	t.Skip("TODO(#509/#558): native inlines tabs as text and omits building-block markers (1188_crlf.mif)")
 }
@@ -440,6 +466,7 @@ func TestTabsRepresentedAsCodesAndHardReturnsAsText(t *testing.T) {
 // (tabsRepresentedAsCodesAndNewTextualUnitsFormedOnHardReturnsAppearance,
 // ExtractHardReturnsAsText=false) yields 4 ordered units from 1188_crlf.mif;
 // native's tab/hard-return handling produces a different block set.
+// okapi: ExtractionTest#tabsRepresentedAsCodesAndNewTextualUnitsFormedOnHardReturnsAppearance — #509/#558 native tab/hard-return unit formation differs from okapi (1188_crlf.mif)
 func TestTabsRepresentedAsCodesAndNewTextualUnitsFormedOnHardReturnsAppearance(t *testing.T) {
 	t.Skip("TODO(#509/#558): native tab/hard-return unit formation differs from okapi (1188_crlf.mif)")
 }
@@ -447,6 +474,7 @@ func TestTabsRepresentedAsCodesAndNewTextualUnitsFormedOnHardReturnsAppearance(t
 // Native round-trip gap: okapi (RoundTripTest#consequentialEmptyParaLinesMerged)
 // round-trips 1187_crlf.mif line-for-line. Native writer is not byte-exact on
 // this fixture (462 -> 431 bytes; content dropped).
+// okapi: RoundTripTest#consequentialEmptyParaLinesMerged — #558 native round-trip of 1187_crlf.mif is not byte-exact (462 -> 431 bytes)
 func TestConsequentialEmptyParaLinesMerged(t *testing.T) {
 	t.Skip("TODO(#558): native round-trip of 1187_crlf.mif is not byte-exact (462 -> 431 bytes)")
 }
@@ -455,6 +483,7 @@ func TestConsequentialEmptyParaLinesMerged(t *testing.T) {
 // (RoundTripTest#tabsEncodedOnExtractionAndHardReturnsEncodedOnMerge)
 // round-trips 1188_crlf.mif with both ExtractHardReturnsAsText settings.
 // Native writer is not byte-exact (6807 -> 6740 bytes).
+// okapi: RoundTripTest#tabsEncodedOnExtractionAndHardReturnsEncodedOnMerge — #558 native round-trip of 1188_crlf.mif is not byte-exact (6807 -> 6740 bytes)
 func TestTabsEncodedOnExtractionAndHardReturnsEncodedOnMerge(t *testing.T) {
 	t.Skip("TODO(#558): native round-trip of 1188_crlf.mif is not byte-exact (6807 -> 6740 bytes)")
 }
@@ -463,6 +492,7 @@ func TestTabsEncodedOnExtractionAndHardReturnsEncodedOnMerge(t *testing.T) {
 // (RoundTripTest#hardReturnsAsNonTextualRoundTripped) round-trips the
 // 987/990* fixtures with the non-textual-hard-returns config. Native writer
 // is not byte-exact (e.g. 987.mif 235724 -> 234872 bytes).
+// okapi: RoundTripTest#hardReturnsAsNonTextualRoundTripped — #558 native round-trip of 987/990* fixtures is not byte-exact
 func TestHardReturnsAsNonTextualRoundTripped(t *testing.T) {
 	t.Skip("TODO(#558): native round-trip of 987/990* fixtures is not byte-exact")
 }
