@@ -326,13 +326,18 @@ parity-clean: ## Remove the parity sandbox to force a fresh build next run
 # scans for `// okapi: ClassName#methodName` annotations next to Go
 # tests, and emits the JSON the /contract-audit dashboard renders.
 #
-# Set OKAPI_REPO if your Okapi clone is not at /Users/asgeirf/src/okapi/okapi-java.
+# Set OKAPI_REPO if your Okapi clone is not at /Users/asgeirf/src/okapi/Okapi.
 # Set CONTRACT_FILTER to scope to a single filter (default: html).
+#
+# Canonical Okapi clone is ~/src/okapi/Okapi (cleanly tagged v1.48.0, matching
+# the okapi-bridge framework_version). The older ~/src/okapi/okapi-java clone
+# is stuck on a stale `v1.4.8` tag and mislabels the dashboard version — do not
+# use it for the contract audit (#611).
 
 CONTRACT_DIR             := $(ROOT_DIR)/.contract-audit
 CONTRACT_REPORT          := $(ROOT_DIR)/web/docs/static/data/contract-audit.json
 CONTRACT_FILTER          ?= html
-OKAPI_REPO               ?= /Users/asgeirf/src/okapi/okapi-java
+OKAPI_REPO               ?= /Users/asgeirf/src/okapi/Okapi
 BRIDGE_SCHEMAS           ?= $(ROOT_DIR)/../okapi-bridge/schemas
 PARITY_REPORT            ?= $(ROOT_DIR)/.parity/test-comparison.json
 # Set CONTRACT_FAIL_ON_DRIFT=1 to fail the audit when any // okapi:
@@ -371,26 +376,17 @@ CONTRACT_FILTERS_ALL := archive doxygen dtd epub html icml idml json markdown me
 
 contract-audit-all: ## Generate the dashboard for every filter with cached Surefire output
 	@mkdir -p $(CONTRACT_DIR)
-	@echo "[contract-audit] running native go test for all known filters in parallel..."
-	@for f in $(CONTRACT_FILTERS_ALL); do \
-	    native=$$(echo "$$f" | sed -e 's/^php$$/phpcontent/' -e 's/^xmlstream$$/xml/' -e 's/^table$$/csv/'); \
-	    if [ -d $(ROOT_DIR)/core/formats/$$native ]; then \
-	        ( cd $(ROOT_DIR) && go test -json ./core/formats/$$native/... > $(CONTRACT_DIR)/native-$$native.json 2>/dev/null || true ) & \
-	    fi; \
-	done; wait
-	@cat $(CONTRACT_DIR)/native-*.json > $(CONTRACT_DIR)/native-all.json
+	@echo "[contract-audit] running native go test across all core/formats packages..."
+	@# Run (and scan annotations for) every native format package, not a
+	@# curated subset — otherwise formats absent from the list undercount as
+	@# unmapped even when they carry // okapi: annotations (#611). go test
+	@# parallelises package compilation/execution on its own.
+	@cd $(ROOT_DIR) && go test -json ./core/formats/... > $(CONTRACT_DIR)/native-all.json 2>/dev/null || true
 	@echo "[contract-audit] joining surefire + native + annotations..."
-	@native_dirs=""; \
-	for f in $(CONTRACT_FILTERS_ALL); do \
-	    native=$$(echo "$$f" | sed -e 's/^php$$/phpcontent/' -e 's/^xmlstream$$/xml/' -e 's/^table$$/csv/'); \
-	    if [ -d $(ROOT_DIR)/core/formats/$$native ]; then \
-	        native_dirs="$$native_dirs,core/formats/$$native"; \
-	    fi; \
-	done; native_dirs=$$(echo $$native_dirs | sed 's/^,//'); \
-	cd $(ROOT_DIR) && go run ./scripts/contract-audit \
+	@cd $(ROOT_DIR) && go run ./scripts/contract-audit \
 	    -okapi-surefire $(OKAPI_REPO)/okapi/filters \
 	    -native-gotest $(CONTRACT_DIR)/native-all.json \
-	    -native-src "$$native_dirs" \
+	    -native-src core/formats \
 	    $(if $(wildcard $(PARITY_REPORT)),-parity-report $(PARITY_REPORT),) \
 	    $(if $(wildcard $(BRIDGE_SCHEMAS)),-bridge-schemas $(BRIDGE_SCHEMAS),) \
 	    $(if $(CONTRACT_FAIL_ON_DRIFT),-fail-on-drift,) \

@@ -6,28 +6,28 @@
 //
 // Inputs:
 //
-//   -okapi-surefire <dir>   Directory containing surefire-reports/TEST-*.xml
-//                           from a `mvn test` of one or more Okapi filter
-//                           modules. Walked recursively. Each XML maps to
-//                           one Okapi test class, each <testcase/> inside
-//                           it to one contract row.
+//	-okapi-surefire <dir>   Directory containing surefire-reports/TEST-*.xml
+//	                        from a `mvn test` of one or more Okapi filter
+//	                        modules. Walked recursively. Each XML maps to
+//	                        one Okapi test class, each <testcase/> inside
+//	                        it to one contract row.
 //
-//   -native-gotest <path>   Output of `go test -json ./core/formats/<f>/...`
-//                           (a JSONL stream). Optional — when omitted, the
-//                           native column is left empty (every Okapi method
-//                           shows as `unmapped`).
+//	-native-gotest <path>   Output of `go test -json ./core/formats/<f>/...`
+//	                        (a JSONL stream). Optional — when omitted, the
+//	                        native column is left empty (every Okapi method
+//	                        shows as `unmapped`).
 //
-//   -okapi-version <ver>    Pinned Okapi version (e.g. 1.47.0). Surfaced
-//                           in the dashboard header.
+//	-okapi-version <ver>    Pinned Okapi version (e.g. 1.47.0). Surfaced
+//	                        in the dashboard header.
 //
-//   -okapi-tag <tag>        Git tag for source links (e.g. v1.47.0).
+//	-okapi-tag <tag>        Git tag for source links (e.g. v1.47.0).
 //
-//   -go-commit <sha>        neokapi git SHA for source links.
+//	-go-commit <sha>        neokapi git SHA for source links.
 //
-//   -out <path>             Output JSON path. Defaults to
-//                           web/docs/static/data/contract-audit.json so
-//                           the legacy /test-comparison.json stays intact
-//                           during the MVP.
+//	-out <path>             Output JSON path. Defaults to
+//	                        web/docs/static/data/contract-audit.json so
+//	                        the legacy /test-comparison.json stays intact
+//	                        during the MVP.
 //
 // Filter scope: each Surefire XML's package prefix
 // (net.sf.okapi.filters.<name>.*) selects the filter row it belongs to.
@@ -50,9 +50,9 @@
 //
 //   - implemented — annotation present, Go test passes.
 //   - pending     — annotation present, Go test is t.Skip()'d
-//                   (or Java method is `@Ignore`d).
+//     (or Java method is `@Ignore`d).
 //   - skipped     — `// okapi-skip:` declares the test not-applicable
-//                   to neokapi by design; reason carried verbatim.
+//     to neokapi by design; reason carried verbatim.
 //   - unmapped    — Java method exists, no Go counterpart found.
 //
 // The dashboard renders this directly: every Okapi @Test method is one
@@ -137,21 +137,21 @@ type summary struct {
 }
 
 type filterComparison struct {
-	FilterName       string                 `json:"filterName"`
-	NativeFilterName string                 `json:"nativeFilterName,omitempty"`
+	FilterName       string `json:"filterName"`
+	NativeFilterName string `json:"nativeFilterName,omitempty"`
 	// SpecKind mirrors spec.Spec.Kind. Empty for filters with no
 	// spec.yaml; "top_level" or "subfilter" for filters that have one.
 	// The dashboard groups subfilters (layer formats) into their own
 	// section rather than counting them against top-level coverage.
-	SpecKind         string                 `json:"specKind,omitempty"`
-	Okapi            *filterResult          `json:"okapi"`
-	Bridge           *filterResult          `json:"bridge"`
-	Native           *filterResult          `json:"native"`
-	TestCases        []testCaseMatch        `json:"testCases"`
-	Coverage         *coverage              `json:"coverage"`
-	Spec             *specSummary           `json:"spec,omitempty"`
-	SpecDrift        []specDriftEntry       `json:"specDrift,omitempty"`
-	SpecConfigDrift  []specConfigDriftEntry `json:"specConfigDrift,omitempty"`
+	SpecKind        string                 `json:"specKind,omitempty"`
+	Okapi           *filterResult          `json:"okapi"`
+	Bridge          *filterResult          `json:"bridge"`
+	Native          *filterResult          `json:"native"`
+	TestCases       []testCaseMatch        `json:"testCases"`
+	Coverage        *coverage              `json:"coverage"`
+	Spec            *specSummary           `json:"spec,omitempty"`
+	SpecDrift       []specDriftEntry       `json:"specDrift,omitempty"`
+	SpecConfigDrift []specConfigDriftEntry `json:"specConfigDrift,omitempty"`
 }
 
 // specDriftEntry records one okapi_refs entry in spec.yaml that no
@@ -201,21 +201,21 @@ type specExample struct {
 }
 
 type testCaseMatch struct {
-	JavaClass     string `json:"javaClass"`
-	JavaMethod    string `json:"javaMethod"`
-	OkapiStatus   string `json:"okapiStatus"`
-	OkapiFile     string `json:"okapiFile,omitempty"`
-	BridgeTest    string `json:"bridgeTest,omitempty"`
-	BridgeStatus  string `json:"bridgeStatus,omitempty"`
-	BridgeFile    string `json:"bridgeFile,omitempty"`
-	BridgeLine    int    `json:"bridgeLine,omitempty"`
-	NativeTest    string `json:"nativeTest,omitempty"`
-	NativeStatus  string `json:"nativeStatus,omitempty"`
-	NativeFile    string `json:"nativeFile,omitempty"`
-	NativeLine    int    `json:"nativeLine,omitempty"`
-	SkipReason    string `json:"skipReason,omitempty"`
-	TestState     string `json:"testState,omitempty"` // implemented | pending | skipped | unmapped
-	SkipCategory  string `json:"skipCategory,omitempty"`
+	JavaClass    string `json:"javaClass"`
+	JavaMethod   string `json:"javaMethod"`
+	OkapiStatus  string `json:"okapiStatus"`
+	OkapiFile    string `json:"okapiFile,omitempty"`
+	BridgeTest   string `json:"bridgeTest,omitempty"`
+	BridgeStatus string `json:"bridgeStatus,omitempty"`
+	BridgeFile   string `json:"bridgeFile,omitempty"`
+	BridgeLine   int    `json:"bridgeLine,omitempty"`
+	NativeTest   string `json:"nativeTest,omitempty"`
+	NativeStatus string `json:"nativeStatus,omitempty"`
+	NativeFile   string `json:"nativeFile,omitempty"`
+	NativeLine   int    `json:"nativeLine,omitempty"`
+	SkipReason   string `json:"skipReason,omitempty"`
+	TestState    string `json:"testState,omitempty"` // implemented | pending | skipped | unmapped
+	SkipCategory string `json:"skipCategory,omitempty"`
 }
 
 type filterResult struct {
@@ -243,6 +243,7 @@ type testCase struct {
 	ClassName  string `json:"className,omitempty"`
 	Status     string `json:"status"` // pass | fail | skip | error
 	DurationMS int64  `json:"durationMs"`
+	Params     int    `json:"params,omitempty"` // >1 when this row collapses N JUnit parameterized invocations
 }
 
 type coverage struct {
@@ -355,8 +356,8 @@ func main() {
 			fmt.Fprintf(os.Stderr, "contract-audit: %d annotation(s) reference Okapi tests not present in %s:\n", len(drift), *okapiVersion)
 			for _, a := range drift {
 				marker := "okapi"
-				if a.Skip {
-					marker = "okapi-skip"
+				if a.Kind != "" && a.Kind != "map" {
+					marker = "okapi-" + a.Kind
 				}
 				fmt.Fprintf(os.Stderr, "  %s:%d  // %s: %s#%s  (Go func: %s)\n", a.File, a.Line, marker, a.JavaClass, a.JavaMethod, a.GoFunc)
 			}
@@ -444,21 +445,68 @@ func parseSurefireDir(surefireDir string) (map[string]*filterResult, error) {
 			Name:       ts.Name,
 			DurationMS: parseSecondsToMs(ts.Time),
 		}
+		// Collapse JUnit parameterized invocations (method[0: a], method[1: b], …)
+		// into one logical contract row per base method. Each @Test method is
+		// one behavioural contract regardless of how many fixtures it iterates,
+		// so the dashboard counts methods, not fixture×method cells (#611).
+		// Status aggregates pessimistically: fail dominates error dominates pass
+		// dominates skip, mirroring "the method passes for every parameter".
+		type acc struct {
+			className                string
+			anyFail, anyErr, anyPass bool
+			allSkip                  bool
+			dur                      int64
+			params                   int
+		}
+		order := make([]string, 0, len(ts.TestCase))
+		byBase := map[string]*acc{}
 		for _, tc := range ts.TestCase {
-			status := "pass"
+			base := stripParamSuffix(tc.Name)
+			a := byBase[base]
+			if a == nil {
+				a = &acc{className: tc.ClassName, allSkip: true}
+				byBase[base] = a
+				order = append(order, base)
+			}
+			a.params++
+			a.dur += parseSecondsToMs(tc.Time)
 			switch {
 			case tc.Failure != nil:
-				status = "fail"
+				a.anyFail = true
+				a.allSkip = false
 			case tc.Error != nil:
-				status = "error"
+				a.anyErr = true
+				a.allSkip = false
 			case tc.Skipped != nil:
+				// keep allSkip
+			default:
+				a.anyPass = true
+				a.allSkip = false
+			}
+		}
+		for _, base := range order {
+			a := byBase[base]
+			status := "skip"
+			switch {
+			case a.anyFail:
+				status = "fail"
+			case a.anyErr:
+				status = "error"
+			case a.anyPass:
+				status = "pass"
+			case a.allSkip:
 				status = "skip"
 			}
+			params := 0
+			if a.params > 1 {
+				params = a.params
+			}
 			suite.Tests = append(suite.Tests, testCase{
-				Name:       tc.Name,
-				ClassName:  tc.ClassName,
+				Name:       base,
+				ClassName:  a.className,
 				Status:     status,
-				DurationMS: parseSecondsToMs(tc.Time),
+				DurationMS: a.dur,
+				Params:     params,
 			})
 			suite.Total++
 			fr.Total++
@@ -880,13 +928,16 @@ func buildRows(okapi *filterResult, annByOkapi map[string]annotation, nativeStat
 			}
 			switch {
 			case !ok:
-				// Dashboard convention: unmapped rows leave testState
-				// empty (so the "no annotation" filter at
-				// _TestCaseTable.tsx#186 matches them).
-			case ann.Skip:
+				// Dashboard convention: bare-unmapped rows (no annotation
+				// of any kind) leave testState empty — the only true gap.
+			case ann.Skip():
+				// okapi-skip / okapi-unmapped / okapi-deferred all resolve
+				// to a reviewed not-applicable state with a reason. The
+				// marker kind feeds the category so the dashboard can tell
+				// "won't port (design)" from "covered indirectly".
 				row.TestState = "skipped"
 				row.SkipReason = ann.Reason
-				row.SkipCategory = classifySkip(ann.Reason)
+				row.SkipCategory = classifySkipKind(ann.Kind, ann.Reason)
 				row.NativeTest = ann.GoFunc
 				row.NativeFile = ann.File
 				row.NativeLine = ann.Line
@@ -1344,6 +1395,25 @@ func bridgeStatusFromParity(s string) string {
 	}
 }
 
+// classifySkipKind bins a not-applicable annotation into a SkipCategory,
+// preferring the marker kind where it carries meaning the free-text
+// reason might not. okapi-deferred always means "behavior covered
+// indirectly", so it gets its own category regardless of wording; the
+// reason text classifies the rest.
+func classifySkipKind(kind, reason string) string {
+	if kind == "deferred" {
+		return "deferred"
+	}
+	if c := classifySkip(reason); c != "other" {
+		return c
+	}
+	if kind == "unmapped" {
+		// Reviewed gap with a reason that didn't match a keyword bucket.
+		return "acknowledged"
+	}
+	return "other"
+}
+
 // classifySkip bins a free-text skip reason into a SkipCategory the
 // dashboard recognises. Matches are case-insensitive substring lookups
 // against the most distinctive keyword.
@@ -1382,23 +1452,83 @@ func classifySkip(reason string) string {
 type annotation struct {
 	JavaClass  string // short class name (e.g. HtmlSnippetsTest) or FQN
 	JavaMethod string
-	Skip       bool
-	Reason     string // free-text reason for // okapi-skip:
-	GoFunc     string // the Go func it sits above (e.g. TestSnippets_Foo)
-	File       string // path relative to the scan root, then prefixed with the package dir
-	Line       int    // 1-based line of the func declaration
+	// Kind classifies the annotation marker:
+	//   "map"      — // okapi:           (a native test verifies this contract)
+	//   "skip"     — // okapi-skip:      (not applicable to neokapi native by design)
+	//   "unmapped" — // okapi-unmapped:  (reviewed gap, not ported, reason given)
+	//   "deferred" — // okapi-deferred:  (behavior covered indirectly / corpus-gated)
+	// Any kind other than "map" resolves to a reviewed not-applicable
+	// state: the test has been looked at and a reason recorded, so it is
+	// NOT a bare gap.
+	Kind   string
+	Reason string // free-text reason after an em-dash / hyphen / parenthetical
+	GoFunc string // the Go func it sits above (e.g. TestSnippets_Foo)
+	File   string // path relative to the scan root, then prefixed with the package dir
+	Line   int    // 1-based line of the func declaration
 }
 
+// Skip reports whether this annotation marks a reviewed, not-to-be-mapped
+// contract (any marker other than a live // okapi: mapping).
+func (a annotation) Skip() bool { return a.Kind != "map" }
+
 var (
-	okapiCommentRE     = regexp.MustCompile(`^\s*//\s*okapi:\s*([^#\s]+)#(\S+)\s*$`)
-	okapiSkipCommentRE = regexp.MustCompile(`^\s*//\s*okapi-skip:\s*([^#\s]+)#(\S+)(?:\s*[—\-]\s*(.+))?\s*$`)
-	funcDeclRE         = regexp.MustCompile(`^func\s+(Test\w+)\s*\(`)
+	// One regex matches every per-test okapi annotation marker; the
+	// optional first group captures the marker suffix
+	// (-skip/-unmapped/-deferred), the second the "Class#method …"
+	// payload. splitOkapiPayload then parses the payload so trailing
+	// notes, em-dash reasons, and parentheticals after the method name
+	// no longer silently break the join (a recurring authoring footgun,
+	// #611). `okapi-filter:` file headers never match (the payload must
+	// contain a '#').
+	okapiAnyRE = regexp.MustCompile(`^\s*//\s*okapi(-skip|-unmapped|-deferred)?:\s*([^#\s]+#\S.*)$`)
+	funcDeclRE = regexp.MustCompile(`^func\s+(Test\w+)\s*\(`)
 )
 
-// scanAnnotations walks dir and extracts all // okapi: and // okapi-skip:
-// annotations from *.go test files. The annotation must immediately
-// precede a func TestXxx declaration (allowing other comment lines in
-// between, since godoc-style multi-line comments are common).
+// markerKind maps the regex suffix group to an annotation Kind.
+func markerKind(suffix string) string {
+	switch suffix {
+	case "-skip":
+		return "skip"
+	case "-unmapped":
+		return "unmapped"
+	case "-deferred":
+		return "deferred"
+	default:
+		return "map"
+	}
+}
+
+// splitOkapiPayload parses "Class#method <optional note>" into its parts.
+// The method name ends at the first whitespace, em-dash, or '(' so a
+// trailing " — reason" or " (note)" is captured as the reason rather than
+// breaking the join. Returns ok=false when there is no '#'.
+func splitOkapiPayload(payload string) (class, method, reason string, ok bool) {
+	hash := strings.IndexByte(payload, '#')
+	if hash < 0 {
+		return "", "", "", false
+	}
+	class = strings.TrimSpace(payload[:hash])
+	rest := payload[hash+1:]
+	end := len(rest)
+	for i, r := range rest {
+		if r == ' ' || r == '\t' || r == '(' || r == '—' || r == '-' {
+			end = i
+			break
+		}
+	}
+	method = rest[:end]
+	reason = strings.TrimSpace(rest[end:])
+	reason = strings.TrimLeft(reason, "—-( \t")
+	reason = strings.TrimRight(reason, ")")
+	reason = strings.TrimSpace(reason)
+	return class, method, reason, class != "" && method != ""
+}
+
+// scanAnnotations walks dir and extracts all
+// // okapi[-skip|-unmapped|-deferred]: annotations from *.go test files.
+// The annotation must immediately precede a func TestXxx declaration
+// (allowing other comment lines in between, since godoc-style multi-line
+// comments are common).
 func scanAnnotations(dir string) ([]annotation, error) {
 	var out []annotation
 	err := filepath.WalkDir(dir, func(path string, d os.DirEntry, walkErr error) error {
@@ -1426,44 +1556,69 @@ func scanFile(path string) ([]annotation, error) {
 	lines := strings.Split(string(data), "\n")
 	rel := relPath(path)
 
-	// Walk forward, accumulating comment lines, then attaching them to
-	// the next func TestXxx declaration we see.
+	// Walk forward accumulating annotation comments. A live `// okapi:`
+	// mapping must sit above a `func TestXxx` (it claims that test verifies
+	// the contract), so it is dropped if some other declaration interrupts
+	// it. The reviewed not-applicable markers (skip/unmapped/deferred) are
+	// standalone documentation — a whole block of them commonly sits at the
+	// top of a file or above a helper — so they are kept regardless of what
+	// follows. Each annotation records its own comment line for source links.
 	var pending []annotation
 	var out []annotation
-	for i, line := range lines {
-		if m := okapiCommentRE.FindStringSubmatch(line); m != nil {
-			pending = append(pending, annotation{JavaClass: m[1], JavaMethod: m[2]})
-			continue
-		}
-		if m := okapiSkipCommentRE.FindStringSubmatch(line); m != nil {
-			reason := ""
-			if len(m) > 3 {
-				reason = strings.TrimSpace(m[3])
+
+	// flush emits the pending annotations at a boundary. When the boundary
+	// is a Test func, every pending annotation links to it; otherwise only
+	// the standalone (non-map) markers survive, linked to their own comment.
+	flush := func(testFunc string, funcLine int) {
+		for _, a := range pending {
+			switch {
+			case testFunc != "":
+				a.GoFunc = testFunc
+				a.Line = funcLine
+				a.File = rel
+				out = append(out, a)
+			case a.Kind != "map":
+				// Standalone reviewed-not-applicable marker: keep it,
+				// linked to the comment line (GoFunc stays empty).
+				a.File = rel
+				out = append(out, a)
+				// a.Line already holds the comment line.
+			default:
+				// Orphaned `// okapi:` map not above a Test func — drop.
 			}
-			pending = append(pending, annotation{
-				JavaClass:  m[1],
-				JavaMethod: m[2],
-				Skip:       true,
-				Reason:     reason,
-			})
-			continue
 		}
-		// Line that's neither okapi comment nor func decl: keep
-		// accumulating as long as it's a comment or blank line.
+		pending = nil
+	}
+
+	for i, line := range lines {
+		if m := okapiAnyRE.FindStringSubmatch(line); m != nil {
+			class, method, reason, ok := splitOkapiPayload(m[2])
+			if ok {
+				pending = append(pending, annotation{
+					JavaClass:  class,
+					JavaMethod: method,
+					Kind:       markerKind(m[1]),
+					Reason:     reason,
+					Line:       i + 1, // comment line; overridden for map annotations on attach
+				})
+				continue
+			}
+		}
+		// Comment / blank lines keep the block accumulating.
 		trimmed := strings.TrimSpace(line)
 		if strings.HasPrefix(trimmed, "//") || trimmed == "" {
 			continue
 		}
 		if m := funcDeclRE.FindStringSubmatch(line); m != nil {
-			for _, a := range pending {
-				a.GoFunc = m[1]
-				a.File = rel
-				a.Line = i + 1
-				out = append(out, a)
-			}
+			flush(m[1], i+1)
+		} else {
+			// Any other declaration (package, import, var, helper func):
+			// keep standalone skip markers, drop orphaned maps.
+			flush("", 0)
 		}
-		pending = nil
 	}
+	// EOF: flush any trailing standalone markers.
+	flush("", 0)
 	return out, nil
 }
 
@@ -1502,6 +1657,16 @@ func shortClass(fqn string) string {
 		return fqn
 	}
 	return fqn[idx+1:]
+}
+
+// stripParamSuffix removes the JUnit parameterized-invocation suffix
+// (`method[3: fixture.docx]`) so every invocation of one @Test method
+// collapses to a single base-method contract row.
+func stripParamSuffix(name string) string {
+	if i := strings.IndexByte(name, '['); i > 0 {
+		return name[:i]
+	}
+	return name
 }
 
 func statusFromGo(s string) string {
