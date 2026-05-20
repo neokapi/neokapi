@@ -3,6 +3,7 @@ package mif_test
 import (
 	"bytes"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/neokapi/neokapi/core/formats/mif"
@@ -277,6 +278,96 @@ func TestRoundTrip(t *testing.T) {
 	assert.Contains(t, output, "This is the second paragraph.")
 	assert.Contains(t, output, "A heading paragraph.")
 	assert.Contains(t, output, "MIFFile")
+}
+
+// TestRoundTripNonSkeletonDeepNesting exercises the non-skeleton writer
+// fallback (writer.go writeData -> data.Properties["raw"]) and proves it
+// stays byte-exact for deeply nested non-translatable top-level
+// statements. Skip tags such as <Document> / <ColorCatalog> are
+// TOPSTATEMENTSTOSKIP, so the reader emits each as a single Data part
+// whose "raw" carries the full, verbatim source text of the entire
+// subtree. This is the path that the parseMIF raw accumulation feeds;
+// the perf fix (#608 M1) replaced the O(file × tree-depth) up-the-tree
+// copy with a single root-level builder and must keep it byte-identical.
+//
+// The fixture is entirely non-translatable so the whole file round-trips
+// through the raw path (translatable containers like <TextFlow> are
+// rebuilt from the model and are deliberately out of scope here — see
+// TestRoundTrip, which uses Contains for that reason).
+func TestRoundTripNonSkeletonDeepNesting(t *testing.T) {
+	ctx := t.Context()
+
+	// A deep tree (5+ levels) under a skipped top-level <Document>, plus a
+	// second skipped sibling. The old accumulation copied every leaf's
+	// bytes up through every ancestor; the new code records each line
+	// once into the root builder.
+	input := `<MIFFile 2015>
+<Document
+ <DStartPage 1>
+ <DOutline
+  <DOutlineLevel
+   <DOLPgfTag ` + "`Level1'>" + `
+   <DOLNested
+    <DOLDeep ` + "`leaf value'>" + `
+   >
+  >
+ >
+ <DPageSize  21.0 cm 29.7 cm>
+>
+<ColorCatalog
+ <Color
+  <ColorTag ` + "`Black'>" + `
+  <ColorCyan  0.000000>
+ >
+>
+`
+
+	reader := mif.NewReader()
+	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
+	require.NoError(t, err)
+
+	parts := testutil.CollectParts(t, reader.Read(ctx))
+	reader.Close()
+
+	// The skipped <Document> must capture its full subtree verbatim in
+	// the "raw" Data property.
+	foundDocumentRaw := false
+	for _, p := range parts {
+		if p.Type != model.PartData {
+			continue
+		}
+		data := p.Resource.(*model.Data)
+		if data.Properties["tag"] == "Document" {
+			foundDocumentRaw = true
+			raw := data.Properties["raw"]
+			assert.Contains(t, raw, "<DOLDeep `leaf value'>",
+				"deepest leaf must be present in the accumulated raw")
+			assert.Contains(t, raw, "<DPageSize  21.0 cm 29.7 cm>",
+				"sibling after the deep subtree must also be present")
+			assert.True(t, strings.HasPrefix(raw, "<Document\n"),
+				"raw must begin with the <Document> opener")
+			assert.True(t, strings.HasSuffix(raw, ">\n"),
+				"raw must end with the <Document> closer")
+		}
+	}
+	require.True(t, foundDocumentRaw, "expected a <Document> Data part with raw")
+
+	// Non-skeleton writer path: no SkeletonStore set on reader or writer.
+	var buf bytes.Buffer
+	writer := mif.NewWriter()
+	err = writer.SetOutputWriter(&buf)
+	require.NoError(t, err)
+	writer.SetLocale(model.LocaleEnglish)
+
+	ch := testutil.PartsToChannel(parts)
+	err = writer.Write(ctx, ch)
+	require.NoError(t, err)
+	writer.Close()
+
+	// The non-skeleton fallback rebuilds both skipped statements verbatim
+	// from raw, so the whole file is byte-exact.
+	assert.Equal(t, input, buf.String(),
+		"non-skeleton roundtrip of deeply nested skipped statements must be byte-exact")
 }
 
 func TestRoundTripWithTargetLocale(t *testing.T) {

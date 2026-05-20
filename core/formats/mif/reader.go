@@ -3,11 +3,13 @@ package mif
 import (
 	"bufio"
 	"bytes"
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
 	"io"
 	"regexp"
+	"slices"
 	"strings"
 
 	"github.com/neokapi/neokapi/core/format"
@@ -1833,17 +1835,16 @@ func buildCharRewriteReplacement(rawText string, start int, glyphText string) st
 
 // sortSkelOps sorts skeleton ops in-place by start offset. Refs come
 // before elisions when starts are equal so the writer consumes the
-// value bytes before any wrapper-elision step jumps past them.
+// value bytes before any wrapper-elision step jumps past them. The sort
+// is stable so ops sharing a (start, kind) keep their insertion order,
+// matching the previous hand-rolled stable insertion sort exactly.
 func sortSkelOps(ops []skelOp) {
-	for i := 1; i < len(ops); i++ {
-		for j := i; j > 0; j-- {
-			a, b := ops[j-1], ops[j]
-			if a.start < b.start || (a.start == b.start && a.kind <= b.kind) {
-				break
-			}
-			ops[j-1], ops[j] = b, a
+	slices.SortStableFunc(ops, func(a, b skelOp) int {
+		if c := cmp.Compare(a.start, b.start); c != 0 {
+			return c
 		}
-	}
+		return cmp.Compare(a.kind, b.kind)
+	})
 }
 
 // escapeMIFForSearch re-encodes a parsed value back to the MIF in-string
@@ -2646,20 +2647,44 @@ func parseMIF(content string) []*mifStatement {
 	scanner.Buffer(make([]byte, 1024*1024), 1024*1024)
 	var stmts []*mifStatement
 	var stack []*mifStatement
-	var rawBuilder strings.Builder
+
+	// raw is only ever read for top-level statements (emitStatements +
+	// the non-skeleton writer.go fallback). Rather than copying each
+	// child's bytes up into every ancestor on pop — which is O(file ×
+	// tree-depth) memory and O(n²) CPU as the growing parent string is
+	// re-copied per `+=` — we accumulate the top-level statement's raw
+	// text exactly once, line by line in document order, into a single
+	// builder for the currently-open root statement. The reconstructed
+	// byte stream is identical (every line is re-emitted as line+"\n",
+	// blank lines skipped); only the copy count changes.
+	var rootBuilder strings.Builder
+
+	// appendLine records line+"\n" into the root statement's raw text.
+	// When the stack is empty there is no open multi-line top-level
+	// statement, so the line belongs to no root and is dropped (matching
+	// the old behaviour where such lines went only to a discarded
+	// package-local builder).
+	appendLine := func(line string) {
+		if len(stack) > 0 {
+			rootBuilder.WriteString(line)
+			rootBuilder.WriteByte('\n')
+		}
+	}
 
 	popStack := func(line string) {
 		if len(stack) == 0 {
 			return
 		}
 		current := stack[len(stack)-1]
-		current.raw += line + "\n"
+		appendLine(line)
 		stack = stack[:len(stack)-1]
 		if len(stack) > 0 {
 			parent := stack[len(stack)-1]
 			parent.children = append(parent.children, current)
-			parent.raw += current.raw
 		} else {
+			// Closing a top-level multi-line statement: finalize its raw.
+			current.raw = rootBuilder.String()
+			rootBuilder.Reset()
 			stmts = append(stmts, current)
 		}
 	}
@@ -2668,10 +2693,7 @@ func parseMIF(content string) []*mifStatement {
 		// tagSrc is the in-tag content WITHOUT surrounding `<` `>`,
 		// i.e. just `Tag value` or `Tag` — used to derive tag/value.
 		tag, after, hasVal := strings.Cut(tagSrc, " ")
-		stmt := &mifStatement{
-			tag: tag,
-			raw: line + "\n",
-		}
+		stmt := &mifStatement{tag: tag}
 		if hasVal {
 			stmt.value = unquoteMIF(after)
 			stmt.rawValue = unquoteMIFRaw(after)
@@ -2679,8 +2701,10 @@ func parseMIF(content string) []*mifStatement {
 		if len(stack) > 0 {
 			parent := stack[len(stack)-1]
 			parent.children = append(parent.children, stmt)
-			parent.raw += line + "\n"
+			appendLine(line)
 		} else {
+			// Single-line top-level statement: its raw is just this line.
+			stmt.raw = line + "\n"
 			stmts = append(stmts, stmt)
 		}
 	}
@@ -2714,18 +2738,24 @@ func parseMIF(content string) []*mifStatement {
 			stmt := &mifStatement{
 				tag:   tag,
 				value: value,
-				raw:   line + "\n",
+			}
+			// Record the opener into the root builder. For a nested
+			// opener the stack is already non-empty so appendLine works;
+			// for a new top-level opener the stack is still empty here, so
+			// write the opener directly (the root builder was just reset
+			// by the previous top-level pop).
+			if len(stack) > 0 {
+				appendLine(line)
+			} else {
+				rootBuilder.WriteString(line)
+				rootBuilder.WriteByte('\n')
 			}
 			stack = append(stack, stmt)
 			continue
 		}
 
 		// Non-statement line (comment or other content).
-		if len(stack) > 0 {
-			stack[len(stack)-1].raw += line + "\n"
-		} else {
-			rawBuilder.WriteString(line + "\n")
-		}
+		appendLine(line)
 	}
 
 	// Flush any unclosed statements (defensive — a well-formed MIF will
@@ -2736,8 +2766,9 @@ func parseMIF(content string) []*mifStatement {
 		if len(stack) > 0 {
 			parent := stack[len(stack)-1]
 			parent.children = append(parent.children, current)
-			parent.raw += current.raw
 		} else {
+			current.raw = rootBuilder.String()
+			rootBuilder.Reset()
 			stmts = append(stmts, current)
 		}
 	}
