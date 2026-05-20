@@ -2,10 +2,12 @@ package yaml
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
 	"io"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -729,11 +731,11 @@ func scalarStyleName(style yamlv3.Style) string {
 // scalar byte ranges.
 func (r *Reader) buildSkeleton(content []byte, ranges []scalarRange) {
 	// Sort by start offset (they should already be in order from tree walk).
-	for i := 1; i < len(ranges); i++ {
-		for j := i; j > 0 && ranges[j].start < ranges[j-1].start; j-- {
-			ranges[j], ranges[j-1] = ranges[j-1], ranges[j]
-		}
-	}
+	// SortStableFunc preserves the prior insertion-sort's stable ordering for
+	// any equal-start entries, keeping output byte-identical.
+	slices.SortStableFunc(ranges, func(a, b scalarRange) int {
+		return cmp.Compare(a.start, b.start)
+	})
 
 	pos := 0
 	for _, sr := range ranges {
