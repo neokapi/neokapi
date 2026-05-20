@@ -11,17 +11,20 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// Real TTX (TRADOStag) places translatable text directly inside <Tuv> —
+// there is no <Seg> wrapper element in the format. All snippets below match
+// the shape of genuine Trados TagEditor output and the Okapi test fixtures.
 const simpleTTX = `<?xml version="1.0" encoding="utf-8"?>
 <TRADOStag Version="2.0">
 <Body>
 <Raw>
 <Tu MatchPercent="0">
-<Tuv Lang="EN-US"><Seg>Hello world</Seg></Tuv>
-<Tuv Lang="FR-FR"><Seg>Bonjour le monde</Seg></Tuv>
+<Tuv Lang="EN-US">Hello world</Tuv>
+<Tuv Lang="FR-FR">Bonjour le monde</Tuv>
 </Tu>
 <Tu MatchPercent="100">
-<Tuv Lang="EN-US"><Seg>Goodbye</Seg></Tuv>
-<Tuv Lang="FR-FR"><Seg>Au revoir</Seg></Tuv>
+<Tuv Lang="EN-US">Goodbye</Tuv>
+<Tuv Lang="FR-FR">Au revoir</Tuv>
 </Tu>
 </Raw>
 </Body>
@@ -32,7 +35,7 @@ const sourceOnlyTTX = `<?xml version="1.0" encoding="utf-8"?>
 <Body>
 <Raw>
 <Tu MatchPercent="0">
-<Tuv Lang="EN-US"><Seg>Source only text</Seg></Tuv>
+<Tuv Lang="EN-US">Source only text</Tuv>
 </Tu>
 </Raw>
 </Body>
@@ -43,7 +46,7 @@ const inlineTagsTTX = `<?xml version="1.0" encoding="utf-8"?>
 <Body>
 <Raw>
 <Tu MatchPercent="0">
-<Tuv Lang="EN-US"><Seg>Text with <ut>tag</ut> inside</Seg></Tuv>
+<Tuv Lang="EN-US">Text with <ut>tag</ut> inside</Tuv>
 </Tu>
 </Raw>
 </Body>
@@ -67,7 +70,10 @@ func TestReadSimpleTTX(t *testing.T) {
 	assert.Equal(t, "Au revoir", blocks[1].TargetText("FR-FR"))
 }
 
-// okapi: TTXFilterTest#testMatchPercent — MatchPercent attribute is extracted as block property.
+// neokapi-only: the <Tu MatchPercent="N"> attribute is surfaced as a Block
+// property. Okapi reads MatchPercent into an AltTranslationsAnnotation
+// (TTXFilterTest#testTUInfo), which the native reader does not model; this test
+// covers the property mapping the native reader provides instead.
 func TestReadMatchPercent(t *testing.T) {
 	ctx := t.Context()
 	reader := ttx.NewReader()
@@ -82,7 +88,11 @@ func TestReadMatchPercent(t *testing.T) {
 	assert.Equal(t, "100", blocks[1].Properties["match-percent"])
 }
 
-// okapi: TTXFilterTest#testSourceOnly — TU with only source (no target) is extracted correctly.
+// neokapi-only: a <Tu> with only a source <Tuv> (no target) extracts to a
+// Block with source text and no target entry. Okapi's nearest case
+// (TTXFilterTest#testOutputWithOriginalWithoutTraget) is output-side and copies
+// the source into a synthesized target — behavior the native writer does not
+// reproduce — so this exercises the native read mapping only.
 func TestReadSourceOnly(t *testing.T) {
 	ctx := t.Context()
 	reader := ttx.NewReader()
@@ -110,7 +120,9 @@ func TestReadInlineTags(t *testing.T) {
 	assert.Equal(t, "Text with tag inside", blocks[0].SourceText())
 }
 
-// okapi: TTXFilterTest#testStartDocument — verifies LayerStart/LayerEnd wraps TTX content.
+// neokapi-only: the streaming reader wraps content in PartLayerStart /
+// PartLayerEnd parts. This is a neokapi content-model concern with no Okapi
+// TTXFilterTest equivalent.
 func TestReadLayerStartEnd(t *testing.T) {
 	ctx := t.Context()
 	reader := ttx.NewReader()
@@ -128,7 +140,9 @@ func TestReadLayerStartEnd(t *testing.T) {
 	assert.Equal(t, "ttx", layer.Format)
 }
 
-// okapi: TTXFilterTest#testDefaultInfo — verifies TTX MIME type and file signature.
+// neokapi-only: verifies the native format signature (MIME type, extension,
+// and the <TRADOStag sniff). Format detection is a neokapi registry concern
+// with no Okapi TTXFilterTest equivalent.
 func TestReaderSignature(t *testing.T) {
 	reader := ttx.NewReader()
 	sig := reader.Signature()

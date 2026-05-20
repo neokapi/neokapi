@@ -151,7 +151,10 @@ func (w *Writer) writeFromSkeleton() error {
 				}
 			}
 
-			if _, err := io.WriteString(w.Output, xmlEscape(text)); err != nil {
+			// Honor the EscapeGT option on the skeleton-fill path too, so a
+			// non-translating round-trip preserves the source's `>` bytes
+			// (Okapi only escapes `>` when EscapeGT is set).
+			if _, err := io.WriteString(w.Output, xmlEscapeWith(text, w.cfg.EscapeGT)); err != nil {
 				return err
 			}
 		}
@@ -198,12 +201,14 @@ func (w *Writer) writeBlock(part *model.Part) error {
 	if _, err := fmt.Fprintf(w.Output, `<Tu MatchPercent="%s">`+"\n", escape(matchPercent)); err != nil {
 		return err
 	}
-	if _, err := fmt.Fprintf(w.Output, `<Tuv Lang="%s"><Seg>%s</Seg></Tuv>`+"\n", escape(sourceLang), escape(sourceText)); err != nil {
+	// Real TTX (TRADOStag) places translatable text directly inside <Tuv>;
+	// there is no <Seg> wrapper element in the format.
+	if _, err := fmt.Fprintf(w.Output, `<Tuv Lang="%s">%s</Tuv>`+"\n", escape(sourceLang), escape(sourceText)); err != nil {
 		return err
 	}
 
 	if targetText != "" && targetLang != "" {
-		if _, err := fmt.Fprintf(w.Output, `<Tuv Lang="%s"><Seg>%s</Seg></Tuv>`+"\n", escape(targetLang), escape(targetText)); err != nil {
+		if _, err := fmt.Fprintf(w.Output, `<Tuv Lang="%s">%s</Tuv>`+"\n", escape(targetLang), escape(targetText)); err != nil {
 			return err
 		}
 	}
@@ -237,9 +242,4 @@ func xmlEscapeWith(s string, escapeGT bool) string {
 		}
 	}
 	return string(buf)
-}
-
-// xmlEscape escapes XML special characters (always escapes >).
-func xmlEscape(s string) string {
-	return xmlEscapeWith(s, true)
 }

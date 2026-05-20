@@ -46,8 +46,8 @@ func TestSkeletonStore_ByteExact_SimpleTTX(t *testing.T) {
 <Body>
 <Raw>
 <Tu MatchPercent="0">
-<Tuv Lang="EN-US"><Seg>Hello world</Seg></Tuv>
-<Tuv Lang="FR-FR"><Seg>Bonjour le monde</Seg></Tuv>
+<Tuv Lang="EN-US">Hello world</Tuv>
+<Tuv Lang="FR-FR">Bonjour le monde</Tuv>
 </Tu>
 </Raw>
 </Body>
@@ -62,7 +62,7 @@ func TestSkeletonStore_ByteExact_SourceOnly(t *testing.T) {
 <Body>
 <Raw>
 <Tu MatchPercent="0">
-<Tuv Lang="EN-US"><Seg>Source only text</Seg></Tuv>
+<Tuv Lang="EN-US">Source only text</Tuv>
 </Tu>
 </Raw>
 </Body>
@@ -77,12 +77,12 @@ func TestSkeletonStore_ByteExact_MultipleTUs(t *testing.T) {
 <Body>
 <Raw>
 <Tu MatchPercent="0">
-<Tuv Lang="EN-US"><Seg>Hello world</Seg></Tuv>
-<Tuv Lang="FR-FR"><Seg>Bonjour le monde</Seg></Tuv>
+<Tuv Lang="EN-US">Hello world</Tuv>
+<Tuv Lang="FR-FR">Bonjour le monde</Tuv>
 </Tu>
 <Tu MatchPercent="100">
-<Tuv Lang="EN-US"><Seg>Goodbye</Seg></Tuv>
-<Tuv Lang="FR-FR"><Seg>Au revoir</Seg></Tuv>
+<Tuv Lang="EN-US">Goodbye</Tuv>
+<Tuv Lang="FR-FR">Au revoir</Tuv>
 </Tu>
 </Raw>
 </Body>
@@ -97,8 +97,8 @@ func TestSkeletonStore_WithTranslation(t *testing.T) {
 <Body>
 <Raw>
 <Tu MatchPercent="0">
-<Tuv Lang="EN-US"><Seg>Hello</Seg></Tuv>
-<Tuv Lang="FR-FR"><Seg>Bonjour</Seg></Tuv>
+<Tuv Lang="EN-US">Hello</Tuv>
+<Tuv Lang="FR-FR">Bonjour</Tuv>
 </Tu>
 </Raw>
 </Body>
@@ -141,8 +141,8 @@ func TestSkeletonStore_WithTranslation(t *testing.T) {
 <Body>
 <Raw>
 <Tu MatchPercent="0">
-<Tuv Lang="EN-US"><Seg>Hello</Seg></Tuv>
-<Tuv Lang="FR-FR"><Seg>Salut</Seg></Tuv>
+<Tuv Lang="EN-US">Hello</Tuv>
+<Tuv Lang="FR-FR">Salut</Tuv>
 </Tu>
 </Raw>
 </Body>
@@ -156,8 +156,8 @@ func TestSkeletonStore_WithTranslation_Escaping(t *testing.T) {
 <Body>
 <Raw>
 <Tu MatchPercent="0">
-<Tuv Lang="EN-US"><Seg>Hello</Seg></Tuv>
-<Tuv Lang="FR-FR"><Seg>Bonjour</Seg></Tuv>
+<Tuv Lang="EN-US">Hello</Tuv>
+<Tuv Lang="FR-FR">Bonjour</Tuv>
 </Tu>
 </Raw>
 </Body>
@@ -193,7 +193,7 @@ func TestSkeletonStore_WithTranslation_Escaping(t *testing.T) {
 	require.NoError(t, writer.Write(ctx, ch))
 	writer.Close()
 
-	assert.Contains(t, buf.String(), "<Seg>A &amp; B &lt; C</Seg>")
+	assert.Contains(t, buf.String(), "A &amp; B &lt; C")
 }
 
 func TestSkeletonStore_ByteExact_XmlEntities(t *testing.T) {
@@ -202,7 +202,7 @@ func TestSkeletonStore_ByteExact_XmlEntities(t *testing.T) {
 <Body>
 <Raw>
 <Tu MatchPercent="0">
-<Tuv Lang="EN-US"><Seg>A &amp; B &lt; C</Seg></Tuv>
+<Tuv Lang="EN-US">A &amp; B &lt; C</Tuv>
 </Tu>
 </Raw>
 </Body>
