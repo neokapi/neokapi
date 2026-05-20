@@ -1,6 +1,7 @@
 package flow
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"fmt"
@@ -203,7 +204,23 @@ func (r *FileRunner) RunFileWithReaderWriter(ctx context.Context, flowName strin
 		return fmt.Errorf("create output dir: %w", err)
 	}
 
-	if err := writer.SetOutput(outputPath); err != nil {
+	// Open the output file here and hand the writer a buffered io.Writer
+	// rather than letting it open the file directly (#608, S4). Skeleton-
+	// driven writers emit one (often tiny) write per skeleton entry; an
+	// unbuffered *os.File turns each into a syscall. A 64 KiB buffer
+	// coalesces them. The buffer is flushed AFTER writer.Close() returns —
+	// some writers (e.g. the KLF writer) only emit their payload in Close,
+	// so the buffer must outlive Close. Output bytes are unchanged.
+	outFile, err := os.Create(outputPath)
+	if err != nil {
+		if skeletonStore != nil {
+			skeletonStore.Close()
+		}
+		return fmt.Errorf("set output: %w", err)
+	}
+	bw := bufio.NewWriterSize(outFile, 64*1024)
+	if err := writer.SetOutputWriter(bw); err != nil {
+		_ = outFile.Close()
 		if skeletonStore != nil {
 			skeletonStore.Close()
 		}
@@ -226,12 +243,35 @@ func (r *FileRunner) RunFileWithReaderWriter(ctx context.Context, flowName strin
 	close(ch)
 
 	if err := writer.Write(ctx, ch); err != nil {
+		_ = outFile.Close()
 		if skeletonStore != nil {
 			skeletonStore.Close()
 		}
 		return fmt.Errorf("write %q: %w", filepath.Base(outputPath), err)
 	}
-	writer.Close()
+	// Close the writer first (lets writers that emit on Close, like KLF,
+	// finish writing into the buffer), then flush the buffer to the file,
+	// then close the file. Any flush/close error is surfaced.
+	if cerr := writer.Close(); cerr != nil {
+		_ = outFile.Close()
+		if skeletonStore != nil {
+			skeletonStore.Close()
+		}
+		return fmt.Errorf("close writer %q: %w", filepath.Base(outputPath), cerr)
+	}
+	if ferr := bw.Flush(); ferr != nil {
+		_ = outFile.Close()
+		if skeletonStore != nil {
+			skeletonStore.Close()
+		}
+		return fmt.Errorf("flush %q: %w", filepath.Base(outputPath), ferr)
+	}
+	if ferr := outFile.Close(); ferr != nil {
+		if skeletonStore != nil {
+			skeletonStore.Close()
+		}
+		return fmt.Errorf("close %q: %w", filepath.Base(outputPath), ferr)
+	}
 
 	if skeletonStore != nil {
 		skeletonStore.Close()
