@@ -177,88 +177,6 @@ func emitEmptyRunAfterAltContentPostImageBoundary(data []byte) []byte {
 		data, []byte(`</mc:AlternateContent></w:r><w:r></w:r>$1`))
 }
 
-// bareFldCharEndAfterTextThenBareTextRunRE matches a bare
-// `<w:r><w:t ...>...</w:t></w:r>` envelope (display text from an
-// extractable complex field) IMMEDIATELY followed by a bare
-// `<w:r><w:fldChar w:fldCharType="end"/></w:r>` envelope and then a
-// bare `<w:r><w:t [attrs]>content</w:t></w:r>` envelope. All three
-// envelopes must lack `<w:rPr>` so the fuse is rPr-equivalent.
-// Captures:
-//
-//	$1 = the preceding text run verbatim (preserved unchanged)
-//	$2 = the fldChar-end element verbatim (self-closing or open/close form)
-//	$3 = the trailing t element verbatim (open tag + body + close tag)
-//
-// The replacement keeps the preceding text run as-is and collapses the
-// fldChar-end + trailing text pair into a single `<w:r>` carrying both
-// children. The leading-text gate distinguishes EXTRACTABLE fields
-// (whose display text upstream emits as RunText body chunks subject to
-// RunMerger fusion) from NON-EXTRACTABLE fields like XE index markers
-// (whose preceding sibling is `<w:instrText>` rather than `<w:t>`, and
-// whose fldChar-end + trailing text upstream keeps split per
-// canMergeWith's containsComplexFields gate at RunMerger.java:147-149).
-// Used by fuseBareFldCharEndAndTextRuns; see the call site for the
-// upstream Okapi RunMerger citation and the 830-4.docx vs docxtest.docx
-// fixture pair rationale.
-//
-// The fldChar match accepts both self-closing
-// (`<w:fldChar .../>`) and open/close (`<w:fldChar ...></w:fldChar>`)
-// shapes — encoding/xml may re-emit either form depending on payload
-// provenance.
-var bareFldCharEndAfterTextThenBareTextRunRE = regexp.MustCompile(
-	`(<w:r><w:t\b[^>]*>[^<]*</w:t></w:r>)<w:r>(<w:fldChar\b[^>]*\bw:fldCharType="end"[^>]*(?:/>|></w:fldChar>))</w:r><w:r>(<w:t\b[^>]*>[^<]*</w:t>)</w:r>`)
-
-// fuseBareFldCharEndAndTextRuns collapses adjacent bare
-// `<w:r><w:fldChar fldCharType="end"/></w:r>` + `<w:r><w:t>…</w:t></w:r>`
-// envelopes into one `<w:r>` envelope carrying both children, but ONLY
-// when the fldChar-end run is itself preceded by another bare
-// `<w:r><w:t>…</w:t></w:r>` envelope (the field's extracted display
-// text). All three envelopes must lack `<w:rPr>` so the fuse is
-// rPr-equivalent — when any side carries an `<w:rPr>` the structural
-// fldChar-end + text merge path inside writeWMLBlock (see the
-// inFieldEndRun branch around the `case r.Text != nil:` arm) handles
-// the join with full effective-rPr comparison.
-//
-// Mirrors upstream Okapi RunMerger.mergeRunBodyChunks
-// (RunMerger.java:402-441) fusing a Markup chunk (the fldChar-end)
-// followed by a RunText chunk (the trailing text) when the containing
-// source runs share rPr per canRunPropertiesBeMerged
-// (RunMerger.java:156-229). Per ECMA-376-1 §17.3.2.1 (CT_R) a single
-// `<w:r>` may carry both `<w:fldChar>` and `<w:t>` children, and per
-// §17.16.5 (Complex Fields) the fldChar elements bookend a single
-// semantic run regardless of intervening syntactic-run boundaries.
-//
-// The leading-text gate exists because non-extractable complex fields
-// (e.g. XE index markers) flow through parseComplexField's non-
-// extractable branch (RunParser.java:501-507) which adds the entire
-// field — including the fldChar-end — to a single RunBuilder's markup
-// chunk; the trailing text is a SEPARATE RunBuilder whose merge with
-// the field run is blocked by canMergeWith's containsComplexFields
-// gate (RunMerger.java:147-149). For these the source emits an
-// `<w:instrText>` run immediately before the fldChar-end run, so the
-// regex's `<w:t>` precondition naturally filters them out. Fixture
-// pair: 830-4.docx (extractable COMMENTS field — fuse) vs
-// docxtest.docx (non-extractable XE field — keep split).
-//
-// 830-4.docx is the canonical fuse fixture: a COMMENTS field
-// straddling multiple paragraphs ends with a bare-rPr fldChar-end run
-// immediately followed by a bare-rPr "." text run; upstream merges
-// them into one `<w:r>` while native's per-run skeleton emit preserves
-// the source envelope split. The structural inFieldEndRun fast path
-// doesn't fire here because the fldChar-end Ph payload arrives via
-// the skeleton reconstruction (writeWMLBlock isn't called for this
-// block since the surrounding paragraph is non-translatable apart
-// from the field's stripped display text), so the fix is applied at
-// the post-pass layer where the per-run emit has already produced the
-// envelope triplet.
-func fuseBareFldCharEndAndTextRuns(data []byte) []byte {
-	if !bytes.Contains(data, []byte(`<w:r><w:fldChar`)) {
-		return data
-	}
-	return bareFldCharEndAfterTextThenBareTextRunRE.ReplaceAll(
-		data, []byte(`$1<w:r>$2$3</w:r>`))
-}
-
 // stripFldCharBeginRunRPrWhenInheritedFromFollowingRun elides the
 // `<w:rPr>` from a `<w:r ...><w:rPr>X</w:rPr><w:fldChar
 // w:fldCharType="begin"/></w:r>` envelope when the IMMEDIATELY-following
@@ -572,154 +490,6 @@ func stripFldCharBeginRunRPrWhenInheritedFromFollowingRun(data []byte) []byte {
 		}
 	}
 	return out
-}
-
-// bareTextThenBarePTabRunRE matches a bare `<w:r><w:t [attrs]>content</w:t></w:r>`
-// envelope IMMEDIATELY followed by a bare `<w:r><w:ptab .../></w:r>` envelope.
-// Both envelopes must lack `<w:rPr>` so the fuse is rPr-equivalent. The ptab
-// element is logically empty per ECMA-376-1 §17.3.3.27 (CT_PTab) and is
-// matched in both self-closing and open/close (re-emitted by encoding/xml)
-// shapes. Captures:
-//
-//	$1 = the t element verbatim (open tag + body + close tag)
-//	$2 = the ptab element verbatim (self-closing or open/close form)
-//
-// Used by fuseBareTextAndPTabRuns; see the call site for the upstream Okapi
-// RunMerger citation and the OpenXML_text_reference_v1_2.docx fixture
-// rationale.
-var bareTextThenBarePTabRunRE = regexp.MustCompile(
-	`<w:r>(<w:t\b[^>]*>[^<]*</w:t>)</w:r><w:r>(<w:ptab\b[^>]*(?:/>|></w:ptab>))</w:r>`)
-
-// barePTabThenBareTextRunRE matches a bare `<w:r><w:ptab .../></w:r>`
-// envelope IMMEDIATELY followed by a bare `<w:r><w:t [attrs]>content</w:t></w:r>`
-// envelope. Both envelopes must lack `<w:rPr>` so the fuse is rPr-equivalent.
-// Captures:
-//
-//	$1 = the ptab element verbatim (self-closing or open/close form)
-//	$2 = the t element verbatim (open tag + body + close tag)
-//
-// Used by fuseBareTextAndPTabRuns to handle the reverse adjacency (ptab
-// followed by text) once the leading-text-then-ptab fuse has folded the
-// first ptab into the leading text envelope.
-var barePTabThenBareTextRunRE = regexp.MustCompile(
-	`<w:r>(<w:ptab\b[^>]*(?:/>|></w:ptab>))</w:r><w:r>(<w:t\b[^>]*>[^<]*</w:t>)</w:r>`)
-
-// bareTextPTabEnvelopePairRE matches a `<w:r>` envelope whose body is a
-// sequence of one or more bare `<w:t>` and `<w:ptab/>` children (no rPr)
-// immediately followed by another `<w:r>` envelope of the same shape.
-// Both envelopes must lack `<w:rPr>` so the fuse is rPr-equivalent. The
-// first envelope is the already-fused leading chunk produced by the
-// initial t+ptab fold; this iterative regex absorbs adjacent same-shape
-// envelopes into the same `<w:r>`. Captures:
-//
-//	$1 = the leading envelope body (one or more t and/or ptab children)
-//	$2 = the trailing envelope body (one or more t and/or ptab children)
-//
-// Used by fuseBareTextAndPTabRuns to walk a t/ptab/t/ptab/t alternation
-// (or any superset) into a single envelope.
-var bareTextPTabEnvelopePairRE = regexp.MustCompile(
-	`<w:r>((?:<w:t\b[^>]*>[^<]*</w:t>|<w:ptab\b[^>]*(?:/>|></w:ptab>))+)</w:r>` +
-		`<w:r>((?:<w:t\b[^>]*>[^<]*</w:t>|<w:ptab\b[^>]*(?:/>|></w:ptab>))+)</w:r>`)
-
-// sameRPrAnnotationRefThenTextRunRE matches a `<w:r><w:rPr>…</w:rPr>
-// <w:annotationRef/></w:r>` envelope immediately followed by a
-// `<w:r><w:rPr>…</w:rPr><w:t [attrs]>content</w:t></w:r>` envelope
-// where both `<w:rPr>` bodies match a single rStyle pointing at the
-// CommentReference style (the canonical comment-marker rPr per
-// ECMA-376-1 §17.13.4.1 / §17.13.4.5). Both rStyle inner elements may
-// appear in self-closing (`<w:rStyle .../>`) or open/close
-// (`<w:rStyle ...></w:rStyle>`) form — encoding/xml may re-emit either
-// shape depending on the captured rawMarkup provenance, but per
-// ECMA-376-1 §17.7.4.5 (CT_String) the element is logically empty in
-// both. Captures:
-//
-//	$1 = the leading run's rPr/rStyle val attribute (re-emitted verbatim)
-//	$2 = the trailing t element verbatim (open tag + body + close tag)
-//
-// The replacement fuses the two runs by emitting one `<w:r>` envelope
-// carrying the canonical self-closing rStyle inside the rPr, followed
-// by `<w:annotationRef/>` and the captured `<w:t>` child. Per
-// ECMA-376-1 §17.3.2.1 (CT_R) a single `<w:r>` may carry both
-// `<w:annotationRef>` and `<w:t>` children alongside one shared
-// `<w:rPr>`.
-//
-// Used by fuseSameRPrAnnotationRefAndTextRuns; see the call site for
-// the upstream Okapi RunMerger citation and the
-// OpenXML_text_reference_v1_2.docx (comments.xml) fixture rationale.
-var sameRPrAnnotationRefThenTextRunRE = regexp.MustCompile(
-	`<w:r><w:rPr><w:rStyle w:val="CommentReference"(?:/>|></w:rStyle>)</w:rPr><w:annotationRef/></w:r>` +
-		`<w:r><w:rPr><w:rStyle w:val="CommentReference"(?:/>|></w:rStyle>)</w:rPr>(<w:t\b[^>]*>[^<]*</w:t>)</w:r>`)
-
-// fuseSameRPrAnnotationRefAndTextRuns collapses an
-// `<w:r><w:rPr><w:rStyle w:val="CommentReference"/></w:rPr><w:annotationRef/></w:r>`
-// envelope followed by an
-// `<w:r><w:rPr><w:rStyle w:val="CommentReference"/></w:rPr><w:t>…</w:t></w:r>`
-// envelope into a single `<w:r>` carrying the rPr, the annotationRef
-// and the t children together. Mirrors upstream Okapi RunMerger
-// (RunMerger.java:402-441 fusing a Markup + RunText body chunk pair
-// when the containing runs share rPr per canRunPropertiesBeMerged at
-// 156-229). The two source rPrs are equal modulo `<w:rStyle>` self-close
-// vs open/close form — the regex accepts either shape, and the
-// replacement always emits the canonical self-closing form.
-//
-// Per ECMA-376-1 §17.13.4.1 (annotation comment body) every
-// `<w:comment>` body opens with a marker run carrying the
-// CommentReference rStyle plus an `<w:annotationRef/>` child. The
-// comment's display text appears in the immediately-following same-rPr
-// run; bridge's RunMerger fuses these two source runs into one
-// envelope, while native's per-run skeleton emit preserves the source's
-// envelope split. OpenXML_text_reference_v1_2.docx (comments.xml) is
-// the canonical fixture exercising this path.
-func fuseSameRPrAnnotationRefAndTextRuns(data []byte) []byte {
-	if !bytes.Contains(data, []byte(`<w:annotationRef/>`)) {
-		return data
-	}
-	return sameRPrAnnotationRefThenTextRunRE.ReplaceAll(data,
-		[]byte(`<w:r><w:rPr><w:rStyle w:val="CommentReference"/></w:rPr><w:annotationRef/>$1</w:r>`))
-}
-
-// fuseBareTextAndPTabRuns collapses adjacent bare `<w:r><w:t>…</w:t></w:r>`
-// and `<w:r><w:ptab/></w:r>` envelopes into a single `<w:r>` envelope
-// carrying all `<w:t>` and `<w:ptab/>` children side-by-side. All source
-// envelopes must lack `<w:rPr>` so the fuse is rPr-equivalent. Mirrors
-// upstream Okapi RunMerger.mergeRunBodyChunks (RunMerger.java:402-441)
-// fusing adjacent same-rPr runs: a sequence of bare `<w:r>` envelopes
-// with matching (here: empty) RunProperties merges into one RunBuilder
-// whose body chunks list intersperses RunText (the <w:t>) and Markup
-// (the <w:ptab/>) chunks. Per ECMA-376-1 §17.3.2.1 (CT_R) a single
-// `<w:r>` may carry both `<w:t>` and `<w:ptab>` children alongside one
-// shared `<w:rPr>` (here: empty / absent). Per §17.3.3.27 (CT_PTab) the
-// positional-tab element's attrs (alignment/leader/relativeTo) are
-// independent of the run's text bytes, so preserving the captured ptab
-// tag verbatim survives the round-trip.
-//
-// OpenXML_text_reference_v1_2.docx (header2.xml) is the canonical
-// fixture: a header paragraph with the alternation
-// `<w:r><w:t>left</w:t></w:r><w:r><w:ptab center/></w:r><w:r><w:t>center</w:t></w:r><w:r><w:ptab right/></w:r><w:r><w:t>right</w:t></w:r>`
-// where bridge's RunMerger fuses the five runs into one envelope while
-// native's per-run skeleton emit keeps them split. The fuse runs in
-// postNonWSOForName (after skeleton reconstruction + WSO) so it sees the
-// post-WSO wire shape where the rPr-less envelopes have already been
-// emitted.
-//
-// The fuse is applied iteratively (loop until no further change) so a
-// long alternation like t/ptab/t/ptab/t collapses into a single envelope
-// in one call. The two regexes handle either starting adjacency
-// (text-first or ptab-first) and the iterative version absorbs the next
-// bare text run into the growing envelope.
-func fuseBareTextAndPTabRuns(data []byte) []byte {
-	if !bytes.Contains(data, []byte(`<w:ptab`)) {
-		return data
-	}
-	for {
-		next := bareTextThenBarePTabRunRE.ReplaceAll(data, []byte(`<w:r>$1$2</w:r>`))
-		next = barePTabThenBareTextRunRE.ReplaceAll(next, []byte(`<w:r>$1$2</w:r>`))
-		next = bareTextPTabEnvelopePairRE.ReplaceAll(next, []byte(`<w:r>$1$2</w:r>`))
-		if bytes.Equal(next, data) {
-			return data
-		}
-		data = next
-	}
 }
 
 // fuseBarePictAndRPrTextRuns collapses an adjacent
@@ -2258,32 +2028,32 @@ func (w *Writer) writeFromSkeleton(origZR *zip.Reader, zw *zip.Writer, buf *byte
 		// Fuse a bare `<w:r><w:fldChar fldCharType="end"/></w:r>`
 		// envelope with the IMMEDIATELY-following bare
 		// `<w:r><w:t ...>…</w:t></w:r>` envelope into a single `<w:r>`
-		// carrying both children. See fuseBareFldCharEndAndTextRuns
+		// carrying both children. See fuseFldCharEndText (run_merge.go)
 		// for the upstream Okapi RunMerger citation and the 830-4.docx
 		// fixture rationale. Both source envelopes must lack `<w:rPr>`
 		// so the fuse is rPr-equivalent.
 		if bytes.Contains(data, []byte(`fldCharType="end"`)) {
-			data = fuseBareFldCharEndAndTextRuns(data)
+			data = fuseFldCharEndText(data)
 		}
 		// Fuse an alternation of bare `<w:r><w:t>…</w:t></w:r>` and
 		// `<w:r><w:ptab/></w:r>` envelopes into a single `<w:r>`
 		// envelope carrying all the t and ptab children side by side.
 		// All source envelopes must lack `<w:rPr>` so the fuse is
-		// rPr-equivalent. See fuseBareTextAndPTabRuns for the upstream
+		// rPr-equivalent. See fuseTextPtabEnvelopes (run_merge.go) for the upstream
 		// Okapi RunMerger citation and the
 		// OpenXML_text_reference_v1_2.docx (header2.xml) fixture
 		// rationale.
 		if bytes.Contains(data, []byte(`<w:ptab`)) {
-			data = fuseBareTextAndPTabRuns(data)
+			data = fuseTextPtabEnvelopes(data)
 		}
 		// Fuse the `<w:r>` envelope carrying the comment-body marker
 		// (`<w:annotationRef/>` with CommentReference rStyle) with the
 		// immediately-following same-rPr text run. See
-		// fuseSameRPrAnnotationRefAndTextRuns for the upstream Okapi
+		// fuseAnnotationRefText (run_merge.go) for the upstream Okapi
 		// RunMerger citation and the OpenXML_text_reference_v1_2.docx
 		// (comments.xml) fixture rationale.
 		if bytes.Contains(data, []byte(`<w:annotationRef/>`)) {
-			data = fuseSameRPrAnnotationRefAndTextRuns(data)
+			data = fuseAnnotationRefText(data)
 		}
 		return data
 	}
