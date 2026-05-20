@@ -662,6 +662,53 @@ func TestSkeletonRoundtrip_LangUnrelatedLocalePreserved(t *testing.T) {
 	assert.Contains(t, output, `lang="de"`, "unrelated locale 'de' should be preserved")
 }
 
+// TestReparseRoundtrip_LangRewrittenStructurally guards the #604 change: the
+// re-parse (DOM) writer path rewrites lang/xml:lang to the target locale by
+// setting the attribute on the html.Node tree before html.Render, not via a
+// post-serialization regex. Covers the root <html> element, a nested element,
+// and the xml:lang variant, plus an unrelated locale that must be preserved.
+func TestReparseRoundtrip_LangRewrittenStructurally(t *testing.T) {
+	input := `<html lang="en-US"><body>` +
+		`<p lang="en-US">Hello world</p>` +
+		`<div xml:lang="en-US">Nested</div>` +
+		`<p lang="de">German</p>` +
+		`</body></html>`
+	ctx := t.Context()
+	source := model.LocaleID("en-US")
+	target := model.LocaleID("fr-FR")
+
+	reader := htmlfmt.NewReader()
+	err := reader.Open(ctx, testutil.RawDocFromString(input, source))
+	require.NoError(t, err)
+	parts := testutil.CollectParts(t, reader.Read(ctx))
+	reader.Close()
+
+	// Re-parse (DOM) mode: original content set, no skeleton store.
+	var buf bytes.Buffer
+	writer := htmlfmt.NewWriter()
+	writer.SetOriginalContent([]byte(input))
+	writer.SetLocale(target)
+	err = writer.SetOutputWriter(&buf)
+	require.NoError(t, err)
+
+	ch := testutil.PartsToChannel(parts)
+	err = writer.Write(ctx, ch)
+	require.NoError(t, err)
+	writer.Close()
+
+	output := buf.String()
+	assert.Contains(t, output, `lang="fr-FR"`,
+		"root and nested lang should be retargeted on the DOM")
+	assert.Contains(t, output, `xml:lang="fr-FR"`,
+		"xml:lang should be retargeted on the DOM")
+	assert.NotContains(t, output, `lang="en-US"`,
+		"source locale should be fully replaced (root + nested)")
+	assert.NotContains(t, output, `xml:lang="en-US"`,
+		"source locale should be fully replaced on xml:lang")
+	assert.Contains(t, output, `lang="de"`,
+		"unrelated locale should be preserved")
+}
+
 // --- Buffer Exhaustion Regression Test (#151) ---
 
 func TestSkeletonRoundtrip_LargeElementBeforeContainer(t *testing.T) {
