@@ -1974,6 +1974,21 @@ func blockPerRunSourceHadRPrFlags(block *model.Block) []bool {
 // authoring tools emit both halves of the pair only when the
 // inherited chain has them ON, so the pairing is a faithful proxy.
 // Fixture 1311.docx (Heading2 → bCs/) is the canonical case.
+//
+// #607 KEEP (confirmed): reimplementing canBeSkipped against the real
+// resolved style chain (docDefaults ∪ pStyle basedOn-walk ∪ rStyle, which
+// styles.go already computes) showed ZERO divergence from this heuristic
+// across all 185 fixtures. A structural chain-resolver is NOT viable here:
+// (a) the symmetric WSO common-rPr strip (stripToggleMirrorsFromCommon,
+// style_optimization.go) is a byte post-pass with no model/styleMap access
+// by design and must agree with this path; (b) it would regress
+// 1341-textbox-with-a-hyperlink.docx, whose latent "Hyperlink" rStyle is
+// absent from styles.xml (Okapi's preCombined includes latent-style props;
+// a styleMap lookup resolves absent→"" and would wrongly strip); and (c)
+// the outer text gate must stay at WRITE time — it inspects post-translation
+// run text, so AI-translation into Arabic/Hebrew injects complex-script
+// content a read-time decision would miss. This is the sanctioned
+// faithful-Okapi-reproduction exception, not write-side compensation.
 func stripToggleMirrorChildren(s string) string {
 	if s == "" {
 		return s
