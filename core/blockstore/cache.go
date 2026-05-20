@@ -40,7 +40,7 @@ type cacheStore struct {
 }
 
 func (k *cacheStore) Capabilities() Capabilities {
-	return Capabilities{RandomAccess: true, Concurrent: true, Writable: true}
+	return Capabilities{RandomAccess: true, Concurrent: true, Writable: true, Persistent: true}
 }
 
 func (k *cacheStore) Begin(ctx context.Context) (Session, error) {

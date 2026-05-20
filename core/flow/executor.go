@@ -252,8 +252,17 @@ func (e *DefaultExecutor) processItemCollect(ctx context.Context, f *Flow, item 
 }
 
 // runTool dispatches a tool invocation through the right contract —
-// SessionTool.SessionProcess when the tool opts in, otherwise the
-// legacy streaming Tool.Process.
+// SessionTool.SessionProcess when the tool opts in AND the store is
+// persistent, otherwise the plain streaming Tool.Process.
+//
+// SessionProcess exists to cache per-block work (e.g. pseudo/AI/MT
+// targets) as overlays so a later run against the SAME store can skip
+// it. That payoff only materializes when the store survives the run.
+// For the default ephemeral in-memory store (one-shot CLI invocations,
+// tests), the overlay cache is discarded at process exit, so the
+// per-block GetOverlay/PutOverlay round-trips and JSON (un)marshaling
+// are pure overhead. Routing those through Tool.Process produces
+// identical output with none of that bookkeeping (#608, S5).
 func runTool(
 	ctx context.Context,
 	t tool.Tool,
@@ -261,7 +270,7 @@ func runTool(
 	in <-chan *model.Part,
 	out chan<- *model.Part,
 ) error {
-	if st, ok := t.(tool.SessionTool); ok {
+	if st, ok := t.(tool.SessionTool); ok && session.Capabilities().Persistent {
 		return st.SessionProcess(ctx, session, in, out)
 	}
 	return t.Process(ctx, in, out)

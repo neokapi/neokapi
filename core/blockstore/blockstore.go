@@ -49,6 +49,14 @@ type Capabilities struct {
 	Remote bool
 	// Writable: PutBlock / PutOverlay are allowed.
 	Writable bool
+	// Persistent: the store survives the process and reuses its state
+	// across runs (SQLite cache, remote ContentStore). The default
+	// in-memory store is NOT persistent — its overlay cache is discarded
+	// when the process exits, so writing overlays during a one-shot run
+	// is wasted work. Executors use this to route one-shot runs through
+	// the plain streaming Tool.Process path instead of SessionTool's
+	// overlay-caching SessionProcess. memory: no. cache/remote: yes.
+	Persistent bool
 }
 
 // Store is the top-level provider handle. A Store is opened once per

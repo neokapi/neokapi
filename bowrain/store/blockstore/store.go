@@ -82,6 +82,7 @@ func (s *store) Capabilities() blockstore.Capabilities {
 		Concurrent:   true,
 		Remote:       false,
 		Writable:     true,
+		Persistent:   true,
 	}
 }
 
@@ -117,6 +118,7 @@ func (s *session) Capabilities() blockstore.Capabilities {
 		Concurrent:   true,
 		Remote:       false,
 		Writable:     true,
+		Persistent:   true,
 	}
 }
 
