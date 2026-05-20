@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/neokapi/neokapi/core/format"
@@ -109,12 +109,12 @@ func (w *Writer) writeFromSkeleton(blocks map[string]*model.Block) error {
 		case format.SkeletonRef:
 			if block, ok := blocks[string(entry.Data)]; ok {
 				text := w.blockText(block)
-				// Reconstruct using block name for headers
+				// Reconstruct header lines from the delimiter layout
+				// captured at read time (level + exact spacing), not by
+				// re-parsing a stored raw source line.
 				if block.Name == "header" {
-					raw := block.Properties["raw"]
-					if raw != "" {
-						// Extract header level from raw line
-						if err := w.writeHeaderFromRaw(text, raw); err != nil {
+					if line, ok := w.headerLine(block, text); ok {
+						if _, err := io.WriteString(w.Output, line); err != nil {
 							return err
 						}
 						continue
@@ -129,19 +129,45 @@ func (w *Writer) writeFromSkeleton(blocks map[string]*model.Block) error {
 	return nil
 }
 
-// writeHeaderFromRaw reconstructs a wiki header line from the original raw line.
-func (w *Writer) writeHeaderFromRaw(text, raw string) error {
-	// Extract the = delimiters from the raw line
-	m := mediaWikiHeaderReWriter.FindStringSubmatch(raw)
-	if m == nil {
-		_, err := io.WriteString(w.Output, text)
-		return err
+// headerLine rebuilds a wiki header line from the delimiter layout the
+// reader captured (level + surrounding whitespace + closing delimiters)
+// and the supplied (possibly translated) title text. It returns false if
+// the block carries no header-level metadata, in which case the caller
+// falls back to writing the plain text.
+//
+// The layout is reconstructed byte-for-byte: leading "=" run of the
+// recorded level, the recorded whitespace before the title, the title,
+// the recorded whitespace after the title, the recorded closing "=" run,
+// and any recorded trailing whitespace. storeHeaderLayout stamps every key
+// together, so once headerLevel is present the whitespace captures are
+// used verbatim — including empty strings (e.g. "==No Spacing==").
+func (w *Writer) headerLine(block *model.Block, text string) (string, bool) {
+	levelStr, ok := block.Properties[headerLevelKey]
+	if !ok {
+		return "", false
 	}
-	_, err := fmt.Fprintf(w.Output, "%s %s %s", m[1], text, m[3])
-	return err
-}
+	level, err := strconv.Atoi(levelStr)
+	if err != nil || level < 1 {
+		return "", false
+	}
 
-var mediaWikiHeaderReWriter = regexp.MustCompile(`^(={2,6})\s*(.+?)\s*(={2,6})\s*$`)
+	// closeRun falls back to a matching "=" run only if the key is
+	// genuinely absent; an empty value cannot occur since the recognizer
+	// requires 2-6 closing delimiters.
+	closeRun, ok := block.Properties[headerCloseKey]
+	if !ok || closeRun == "" {
+		closeRun = strings.Repeat("=", level)
+	}
+
+	var b strings.Builder
+	b.WriteString(strings.Repeat("=", level))
+	b.WriteString(block.Properties[headerPrefixWS]) // verbatim, may be ""
+	b.WriteString(text)
+	b.WriteString(block.Properties[headerSuffixWS]) // verbatim, may be ""
+	b.WriteString(closeRun)
+	b.WriteString(block.Properties[headerTrailerWS]) // verbatim, may be ""
+	return b.String(), true
+}
 
 // blockText returns target or source text for a block, splicing inline
 // PlaceholderRun / PcOpen / PcClose data back into the stream so
@@ -199,6 +225,10 @@ func (w *Writer) writeBlock(part *model.Part) error {
 	// Reconstruct wiki markup based on block name
 	switch block.Name {
 	case "header":
+		if line, ok := w.headerLine(block, text); ok {
+			_, err := io.WriteString(w.Output, line)
+			return err
+		}
 		_, err := fmt.Fprintf(w.Output, "== %s ==", text)
 		return err
 	case "table-header":

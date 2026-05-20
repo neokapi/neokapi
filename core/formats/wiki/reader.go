@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/neokapi/neokapi/core/format"
@@ -19,6 +20,57 @@ var mediaWikiHeaderRe = regexp.MustCompile(`^(={2,6})\s*(.+?)\s*(={2,6})\s*$`)
 
 // DokuWiki header pattern: same syntax as MediaWiki (= delimiters)
 var dokuWikiHeaderRe = regexp.MustCompile(`^(={2,6})\s*(.+?)\s*(={2,6})\s*$`)
+
+// headerLayoutRe decomposes a matched header line into its byte-exact
+// layout: leading `=` delimiters, the whitespace around the title, the
+// trailing `=` delimiters, and any whitespace after them. Captured at
+// read time and stamped onto the block via storeHeaderLayout so the
+// writer can rebuild the line without re-parsing the stored raw source.
+//
+//	group 1: leading `=` run    (e.g. "===")
+//	group 2: whitespace before title
+//	group 3: whitespace after title
+//	group 4: trailing `=` run   (e.g. "===")
+//	group 5: trailing whitespace after the closing delimiters
+var headerLayoutRe = regexp.MustCompile(`^(={2,6})(\s*)\S.*?(\s*)(={2,6})(\s*)$`)
+
+// Header layout property keys. headerLevel records the leading delimiter
+// length (number of `=`); the *Pre / *Post keys preserve the exact
+// surrounding whitespace and the trailing delimiter run so headers
+// round-trip byte-for-byte without re-parsing the raw source line.
+const (
+	headerLevelKey  = "headerLevel"  // leading "=" count, e.g. "3"
+	headerPrefixWS  = "headerPreWS"  // whitespace between leading "=" and title
+	headerSuffixWS  = "headerPostWS" // whitespace between title and trailing "="
+	headerCloseKey  = "headerClose"  // trailing "=" run, e.g. "==="
+	headerTrailerWS = "headerEndWS"  // whitespace after the trailing "=" run
+)
+
+// storeHeaderLayout records the byte-exact delimiter layout of a matched
+// header line on the block. The whitespace captures default to a single
+// space when absent so reconstruction always produces well-formed markup,
+// matching the layout of the canonical "== Title ==" form.
+func storeHeaderLayout(block *model.Block, line string) {
+	m := headerLayoutRe.FindStringSubmatch(line)
+	if m == nil {
+		// Defensive fallback: a line that matched the header recognizer
+		// but not the layout decomposer (should not happen). Reconstruct
+		// from the recognizer's delimiter groups so output stays valid.
+		if hm := mediaWikiHeaderRe.FindStringSubmatch(line); hm != nil {
+			block.Properties[headerLevelKey] = strconv.Itoa(len(hm[1]))
+			block.Properties[headerPrefixWS] = " "
+			block.Properties[headerSuffixWS] = " "
+			block.Properties[headerCloseKey] = hm[3]
+			block.Properties[headerTrailerWS] = ""
+		}
+		return
+	}
+	block.Properties[headerLevelKey] = strconv.Itoa(len(m[1]))
+	block.Properties[headerPrefixWS] = m[2]
+	block.Properties[headerSuffixWS] = m[3]
+	block.Properties[headerCloseKey] = m[4]
+	block.Properties[headerTrailerWS] = m[5]
+}
 
 // DokuWiki inline placeholder patterns. These mirror Okapi's WikiPatterns
 // (LINK_START, NAMED_LINK_*, IMAGE_*, plus the paired BOLD / ITALIC /
@@ -164,7 +216,7 @@ var dokuWikiListItemRe = regexp.MustCompile(`^( {2,}[\*-] )(.+)$`)
 // upstream).
 //
 // We anchor each opener with `^\s*` so quoted / escaped occurrences
-// inside paragraph prose (e.g. `''%%<code>%%'' or ''%%<file>%%''`)
+// inside paragraph prose (e.g. `”%%<code>%%” or ”%%<file>%%”`)
 // don't mis-trigger the block. Okapi sidesteps this by running
 // TEMP_EXTRACT first — which pulls `%%...%%`, `<nowiki>...</nowiki>`,
 // and other non-interpreted spans out of the stream before block
@@ -959,6 +1011,7 @@ func (r *Reader) readMediaWiki(ctx context.Context, ch chan<- model.PartResult,
 			ps.blockID++
 			block := model.NewBlock(fmt.Sprintf("tu%d", ps.blockID), strings.TrimSpace(m[2]))
 			block.Name = "header"
+			storeHeaderLayout(block, line)
 			if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
 				return
 			}
@@ -1079,7 +1132,7 @@ func (r *Reader) readMediaWikiLines(ctx context.Context, ch chan<- model.PartRes
 			r.skelText(rl.lineEnding)
 			block := model.NewBlock(blockID, strings.TrimSpace(m[2]))
 			block.Name = "header"
-			block.Properties["raw"] = line
+			storeHeaderLayout(block, line)
 			if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
 				return
 			}
@@ -1400,7 +1453,7 @@ func (r *Reader) readMediaWikiLinesNoInfobox(ctx context.Context, ch chan<- mode
 			r.skelText(rl.lineEnding)
 			block := model.NewBlock(blockID, strings.TrimSpace(m[2]))
 			block.Name = "header"
-			block.Properties["raw"] = line
+			storeHeaderLayout(block, line)
 			if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
 				return
 			}
@@ -1544,6 +1597,7 @@ func (r *Reader) readDokuWiki(ctx context.Context, ch chan<- model.PartResult,
 			ps.blockID++
 			block := model.NewBlock(fmt.Sprintf("tu%d", ps.blockID), strings.TrimSpace(m[2]))
 			block.Name = "header"
+			storeHeaderLayout(block, line)
 			if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
 				return
 			}
@@ -1698,7 +1752,7 @@ func (r *Reader) readDokuWikiLines(ctx context.Context, ch chan<- model.PartResu
 			r.skelText(rl.lineEnding)
 			block := model.NewBlock(blockID, strings.TrimSpace(m[2]))
 			block.Name = "header"
-			block.Properties["raw"] = line
+			storeHeaderLayout(block, line)
 			if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
 				return
 			}
