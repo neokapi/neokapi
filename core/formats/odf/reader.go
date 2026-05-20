@@ -979,16 +979,6 @@ func docTypeString(dt odfDocType) string {
 	}
 }
 
-// getAttr returns the value of an attribute with the given namespace and local name.
-func getAttr(el xml.StartElement, space, local string) string {
-	for _, a := range el.Attr {
-		if a.Name.Space == space && a.Name.Local == local {
-			return a.Value
-		}
-	}
-	return ""
-}
-
 func (r *Reader) emit(ctx context.Context, ch chan<- model.PartResult, part *model.Part) bool {
 	select {
 	case ch <- model.PartResult{Part: part}:

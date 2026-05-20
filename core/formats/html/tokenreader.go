@@ -1808,13 +1808,6 @@ func (s *tokenReaderState) writeStartTagSkeleton(raw []byte, transAttrs []transA
 	_ = s.store.WriteText(raw[pos:])
 }
 
-// writeMultiAttrRefSkeleton writes a tag's raw bytes to skeleton, replacing
-// multiple attribute values with block references. Thin wrapper over
-// writeStartTagSkeleton with no language splice.
-func (s *tokenReaderState) writeMultiAttrRefSkeleton(raw []byte, attrs []transAttrEntry) {
-	s.writeStartTagSkeleton(raw, attrs, "")
-}
-
 // findAttrValueRange returns the byte offset and length of an attribute's value
 // in raw tag bytes (i.e., the slice raw[off:off+length] is the original
 // undecoded attribute-value text between the surrounding quotes, or the bare

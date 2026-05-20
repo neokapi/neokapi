@@ -561,7 +561,7 @@ func isMergeableBareRPrRFonts(rPrInner []byte) bool {
 	default:
 		return false
 	}
-	asciiMatch := rFontsAsciiRE.FindSubmatch(tag)
+	asciiMatch := rFontsASCIIRE.FindSubmatch(tag)
 	hAnsiMatch := rFontsHAnsiRE.FindSubmatch(tag)
 	if asciiMatch == nil || hAnsiMatch == nil {
 		return false
@@ -600,7 +600,7 @@ func minifyRunRFontsHAnsi(rPrBody []byte) []byte {
 	tagEnd += rFontsStart
 	tag := rPrBody[rFontsStart : tagEnd+1]
 	// Match `w:ascii="X"` and `w:hAnsi="X"` and drop the hAnsi.
-	asciiMatch := rFontsAsciiRE.FindSubmatch(tag)
+	asciiMatch := rFontsASCIIRE.FindSubmatch(tag)
 	if asciiMatch == nil {
 		return rPrBody
 	}
@@ -624,7 +624,7 @@ func minifyRunRFontsHAnsi(rPrBody []byte) []byte {
 // RunFonts.canBeMerged. Compiled once at package init rather than per
 // call (the originals re-MustCompile'd on every fuse).
 var (
-	rFontsAsciiRE = regexp.MustCompile(`w:ascii="([^"]+)"`)
+	rFontsASCIIRE = regexp.MustCompile(`w:ascii="([^"]+)"`)
 	rFontsHAnsiRE = regexp.MustCompile(`w:hAnsi="([^"]+)"`)
 	rFontsAttrRE  = regexp.MustCompile(`\bw:[A-Za-z]+="`)
 )
