@@ -148,8 +148,8 @@ const (
 	// `<w:r><w:rPr/><w:t>N</w:t><w:drawing>...</w:drawing></w:r>` — the
 	// drawing carries SubTypeImageInline so the writer keeps it inside
 	// the open <w:r> next to the "N" text.
-	SubTypeImageInline = "openxml:drawing:inline"
-	SubTypeFootnoteRef   = "openxml:footnoteRef"
+	SubTypeImageInline       = "openxml:drawing:inline"
+	SubTypeFootnoteRef       = "openxml:footnoteRef"
 	SubTypeBookmarkStart     = "openxml:bookmarkStart"
 	SubTypeBookmarkEnd       = "openxml:bookmarkEnd"
 	SubTypeCommentRangeStart = "openxml:commentRangeStart"

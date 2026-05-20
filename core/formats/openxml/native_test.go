@@ -3,6 +3,7 @@ package openxml
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/neokapi/neokapi/core/internal/testutil"
@@ -441,20 +442,24 @@ func testdataDir(t *testing.T) string {
 	entries, err := os.ReadDir(baseDir)
 	require.NoError(t, err)
 
+	// Fixtures live at <version>/okapi/filters/openxml/src/test/resources/,
+	// matching the upstream Okapi source tree captured by the okapi-testdata
+	// release (same layout used by the txml/xliff2 native tests).
+	const rel = "okapi/filters/openxml/src/test/resources"
 	var latest string
 	for _, e := range entries {
 		if e.IsDir() {
-			if _, serr := os.Stat(filepath.Join(baseDir, e.Name(), "okf_openxml")); serr == nil {
+			if _, serr := os.Stat(filepath.Join(baseDir, e.Name(), rel)); serr == nil {
 				latest = e.Name()
 			}
 		}
 	}
 	if latest == "" {
-		t.Skip("no okapi-testdata version found with okf_openxml/")
+		t.Skip("no okapi-testdata version found with okf_openxml fixtures")
 		return ""
 	}
 
-	return filepath.Join(baseDir, latest, "okf_openxml")
+	return filepath.Join(baseDir, latest, rel)
 }
 
 func readFile(t *testing.T, path string) []*model.Part {
@@ -706,50 +711,89 @@ func TestNative_DocxIgnoreDocProperties(t *testing.T) {
 // okapi: OpenXMLTest#extractsInStrictMode
 func TestNative_DocxStrictMode(t *testing.T) {
 	dir := testdataDir(t)
-	path := filepath.Join(dir, "strict.docx")
-	if _, err := os.Stat(path); os.IsNotExist(err) {
-		t.Skip("strict.docx not in testdata")
-	}
-	parts := readFile(t, path)
-	require.NotEmpty(t, parts)
-	assert.Equal(t, model.PartLayerStart, parts[0].Type)
+	// 858.docx is the OOXML-Strict DOCX from the upstream extractsInStrictMode
+	// test. Upstream extracts exactly the body sentence plus the doc-property
+	// author ("User"). The Strict namespace must be parsed the same as the
+	// standard transitional namespace. (The upstream setTranslatePowerpointMasters
+	// toggle is a no-op for a DOCX; slide-master extraction is off by default.)
+	parts := readFile(t, filepath.Join(dir, "858.docx"))
+	texts := blockTexts(translatableBlocks(parts))
+	assert.Equal(t, []string{
+		"Saving as OOXML Strict in MS Office 2013.",
+		"User",
+	}, texts, "Strict-mode DOCX should extract body text + doc-property author")
 }
 
 // okapi: OpenXMLTest#complexFieldsMultipleInstructionsHandled
 func TestNative_DocxComplexFields(t *testing.T) {
 	dir := testdataDir(t)
-	// 1083 test files contain hyperlinks and complex fields
-	path := filepath.Join(dir, "1083-hyperlink-date-complex-fields.docx")
-	if _, err := os.Stat(path); os.IsNotExist(err) {
-		t.Skip("test file not found")
+	// The four 1083-*-instructions.docx fixtures carry a paragraph with multiple
+	// complex-field instructions (hyperlink/date/empty in different orders). Upstream
+	// merges them into a single text unit with inline codes; the native reader
+	// segments around the field boundaries (see #591 for the structural-fidelity gap
+	// on write-back). Either way every literal text token must survive extraction —
+	// the field instructions ("HYPERLINK", "DATE") must NOT leak into the source.
+	for _, f := range []string{
+		"1083-hyperlink-and-empty-instructions.docx",
+		"1083-empty-and-hyperlink-instructions.docx",
+		"1083-hyperlink-and-date-instructions.docx",
+		"1083-date-and-hyperlink-instructions.docx",
+	} {
+		parts := readFile(t, filepath.Join(dir, f))
+		blocks := translatableBlocks(parts)
+		require.NotEmpty(t, blocks, "%s: complex-field doc should produce blocks", f)
+
+		joined := ""
+		for _, b := range blocks {
+			joined += b.SourceText() + "\n"
+		}
+		assert.Contains(t, joined, "A Text", "%s: literal field-prefix text must survive", f)
+		assert.Contains(t, joined, "text.", "%s: literal trailing text must survive", f)
+		assert.NotContains(t, joined, "HYPERLINK", "%s: field instruction must not leak into source", f)
+		assert.NotContains(t, joined, "MERGEFORMAT", "%s: field switch must not leak into source", f)
+		// Doc-property author is the last extracted unit, as upstream.
+		assert.Equal(t, "User", blocks[len(blocks)-1].SourceText(), "%s: last block should be doc-property author", f)
 	}
-	parts := readFile(t, path)
-	blocks := translatableBlocks(parts)
-	require.NotEmpty(t, blocks)
 }
 
 // okapi: OpenXMLTest#extractsStructuralDocumentTagsAsRunContainers
 func TestNative_DocxStructuralDocumentTags(t *testing.T) {
 	dir := testdataDir(t)
-	path := filepath.Join(dir, "1318-structural-document-tags.docx")
-	if _, err := os.Stat(path); os.IsNotExist(err) {
-		t.Skip("test file not found")
-	}
-	parts := readFile(t, path)
+	// 834.docx is the upstream fixture: structural document tags (<w:sdt>) act as
+	// run containers, so their text content is extracted inline within the
+	// surrounding paragraph/footnote rather than as separate units.
+	parts := readFile(t, filepath.Join(dir, "834.docx"))
 	require.NotEmpty(t, parts)
 	assert.Equal(t, model.PartLayerStart, parts[0].Type)
+
+	texts := blockTexts(translatableBlocks(parts))
+	require.NotEmpty(t, texts)
+	// The plain body paragraphs and the doc-property author come through verbatim;
+	// the sdt-bearing footnote text is flattened into its host unit.
+	assert.Contains(t, texts, "Text 1.")
+	assert.Contains(t, texts, "Text 2.")
+	assert.Contains(t, texts, "User")
+	joined := ""
+	for _, x := range texts {
+		joined += x + "\n"
+	}
+	assert.Contains(t, joined, "sdt 1", "sdt content should be extracted as inline run content")
+	assert.Contains(t, joined, "sdt 2", "nested sdt content should be extracted inline")
+	assert.Contains(t, joined, "footnote", "footnote text hosting the sdt should be extracted")
 }
 
 // okapi: OpenXMLTest#documentsWithAbsentSharedStringsProcessed
 func TestNative_XlsxAbsentSharedStrings(t *testing.T) {
 	dir := testdataDir(t)
-	path := filepath.Join(dir, "no-shared-strings.xlsx")
-	if _, err := os.Stat(path); os.IsNotExist(err) {
-		t.Skip("test file not found")
-	}
-	parts := readFile(t, path)
+	// 850.xlsx has no sharedStrings.xml part. The workbook must still be parsed
+	// without error; upstream extracts only the doc-property author ("User").
+	parts := readFile(t, filepath.Join(dir, "850.xlsx"))
 	require.NotEmpty(t, parts)
 	assert.Equal(t, model.PartLayerStart, parts[0].Type)
+
+	texts := blockTexts(translatableBlocks(parts))
+	assert.Equal(t, []string{"User"}, texts,
+		"XLSX without sharedStrings should still yield the doc-property author")
 }
 
 // okapi: OpenXMLTest#testXLSXOnlyExtractStringsNotNumbers
@@ -894,16 +938,22 @@ func TestNative_XlsxSharedStrings(t *testing.T) {
 	require.NotEmpty(t, blocks, "XLSX with shared strings should produce blocks")
 }
 
-// okapi: OpenXmlXlsxTest#mergedCellsAsMetadataMarked
+// okapi-skip: OpenXmlXlsxTest#mergedCellsAsMetadataMarked — upstream asserts an
+// XLIFFContextGroup annotation carrying the merged-cell range (e.g. "A6:B7") on a
+// specific group event, driven by the Java WorksheetConfigurations API. The native
+// model has no XLIFF-context-group annotation and no per-worksheet configuration
+// surface, so the merged-cell-metadata contract is not applicable to the native
+// reader. The fixture is still exercised below for parse fidelity (it must extract
+// cleanly), but the metadata assertion is intentionally not claimed.
 func TestNative_XlsxMergedCells(t *testing.T) {
 	dir := testdataDir(t)
-	path := filepath.Join(dir, "merged-cells.xlsx")
-	if _, err := os.Stat(path); os.IsNotExist(err) {
-		t.Skip("test file not found")
-	}
-	parts := readFile(t, path)
+	// 1062-2.xlsx is the upstream merged-cell fixture; verify it parses and yields
+	// cell text without error (the native reader treats merged cells as their
+	// anchor-cell text, with no separate metadata marker).
+	parts := readFile(t, filepath.Join(dir, "1062-2.xlsx"))
 	require.NotEmpty(t, parts)
 	assert.Equal(t, model.PartLayerStart, parts[0].Type)
+	assert.NotEmpty(t, translatableBlocks(parts), "merged-cell XLSX should still extract cell text")
 }
 
 // --- PPTX tests ---
@@ -1700,3 +1750,213 @@ func TestNative_XlsxCommentsEnabled(t *testing.T) {
 	assert.GreaterOrEqual(t, layersEnabled, layersDefault,
 		"enabling comments should produce at least as many layers")
 }
+
+// --- Worklist completion: remaining OpenXMLTest / config / roundtrip mappings ---
+
+// okapi: OpenXMLConfigurationTest#testStartDocument
+func TestNative_StartDocument(t *testing.T) {
+	dir := testdataDir(t)
+	// Upstream FilterTestDriver.testStartDocument opens BoldWorld.docx and verifies
+	// the filter emits a well-formed StartDocument event. The native equivalent: the
+	// reader opens without error, the first part is a layer-start (document root), and
+	// the document yields translatable content.
+	parts := readFile(t, filepath.Join(dir, "BoldWorld.docx"))
+	require.NotEmpty(t, parts, "BoldWorld.docx should produce parts")
+	assert.Equal(t, model.PartLayerStart, parts[0].Type, "first part should open the document layer")
+
+	texts := blockTexts(translatableBlocks(parts))
+	assert.Contains(t, texts, "Hello bold world.", "body text should be extracted")
+}
+
+// okapi: OpenXMLTest#testTabAsTag
+func TestNative_TabAsTag(t *testing.T) {
+	dir := testdataDir(t)
+	// Upstream: setAddTabAsCharacter(false) + setTranslateDocProperties(false) over
+	// Document-with-tabs.docx yields a single TU whose coded text is "Beforeafter."
+	// i.e. the <w:tab/> is represented as an inline code (tag), not a tab character,
+	// so it does not appear in the extracted text.
+	parts := readFileWithConfig(t, filepath.Join(dir, "Document-with-tabs.docx"), func(cfg *Config) {
+		cfg.TabAsCharacter = false
+		cfg.TranslateDocProperties = false
+	})
+	texts := blockTexts(translatableBlocks(parts))
+	require.Len(t, texts, 1, "single body paragraph, doc properties excluded")
+	assert.Equal(t, "Beforeafter.", texts[0],
+		"tab-as-tag mode should keep the tab out of the extracted text")
+}
+
+// okapi: OpenXMLTest#breakReplacementsInFieldsWithParagraphsExtracted
+func TestNative_DocxFieldBreakReplacements(t *testing.T) {
+	dir := testdataDir(t)
+	// 1172.docx: a hyperlink complex field spanning paragraph breaks. Upstream extracts
+	// "<tags1/>A hyperlink<tags2/>\n<tags3/>\nwith details<tags4/>" plus the author.
+	// The native reader keeps the literal text ("A hyperlink", "with details") and the
+	// doc-property author; field markup never leaks into the source text.
+	parts := readFile(t, filepath.Join(dir, "1172.docx"))
+	texts := blockTexts(translatableBlocks(parts))
+	require.NotEmpty(t, texts)
+
+	joined := strings.Join(texts, "\n")
+	assert.Contains(t, joined, "A hyperlink")
+	assert.Contains(t, joined, "with details")
+	assert.NotContains(t, joined, "HYPERLINK", "field instruction must not leak into source")
+	assert.Equal(t, "User", texts[len(texts)-1], "last block should be the doc-property author")
+}
+
+// okapi: OpenXMLTest#emptyStructuralDocumentTagContentHandled
+func TestNative_DocxEmptySdtContent(t *testing.T) {
+	dir := testdataDir(t)
+	// 1085.docx has an sdt with empty content. Upstream extracts exactly the surrounding
+	// label plus the doc-property author, with no spurious empty unit for the sdt.
+	parts := readFile(t, filepath.Join(dir, "1085.docx"))
+	texts := blockTexts(translatableBlocks(parts))
+	assert.Equal(t, []string{"Empty sdt content:", "User"}, texts,
+		"empty sdt content should not produce a spurious unit")
+}
+
+// okapi: OpenXMLTest#extractsComplexFieldsWithRefinedBoundaries
+func TestNative_DocxComplexFieldBoundaries(t *testing.T) {
+	dir := testdataDir(t)
+	// 830-1: a paragraph wrapping a complex field around "Paragraph 1." plus a second
+	// plain paragraph. 830-2: a separate-field result "Field character: separate".
+	// Upstream merges the field runs into one TU with inline codes; the native reader
+	// reproduces the same literal text content (codes stripped from SourceText).
+	t.Run("830-1", func(t *testing.T) {
+		texts := blockTexts(translatableBlocks(readFile(t, filepath.Join(dir, "830-1.docx"))))
+		assert.Equal(t, []string{"Paragraph 1.", "Paragraph 2.", "User"}, texts)
+	})
+	t.Run("830-2", func(t *testing.T) {
+		texts := blockTexts(translatableBlocks(readFile(t, filepath.Join(dir, "830-2.docx"))))
+		assert.Equal(t, []string{"Field character: separate", "Some content.", "User"}, texts)
+	})
+}
+
+// okapi: OpenXMLTest#extractsComplexFieldsWithRefinedBoundariesFromMinifiedDocument
+func TestNative_DocxComplexFieldBoundariesMinified(t *testing.T) {
+	dir := testdataDir(t)
+	// 830-6 is the minified (single-line XML) variant. Boundary detection must not
+	// depend on insignificant whitespace between tags. Upstream extracts the body
+	// paragraphs, the hyperlink field result, the author and the comments.
+	texts := blockTexts(translatableBlocks(readFile(t, filepath.Join(dir, "830-6.docx"))))
+	assert.Equal(t, []string{"Text 1.", "Hyperlink 1", "Text 2.", "User", "comments"}, texts)
+}
+
+// okapi: OpenXMLTest#extractsNestedComplexFieldsWithRefinedBoundaries
+func TestNative_DocxNestedComplexFieldBoundaries(t *testing.T) {
+	dir := testdataDir(t)
+	// 830-3/4/5 nest complex fields (a field inside another field's result). The native
+	// reader keeps every literal text token and never leaks field instructions; the
+	// doc-property author and comments come through as separate units.
+	t.Run("830-3", func(t *testing.T) {
+		texts := blockTexts(translatableBlocks(readFile(t, filepath.Join(dir, "830-3.docx"))))
+		assert.Equal(t, []string{
+			"Field character: separate with nested () complex field",
+			"Some content.", "User", "comments",
+		}, texts)
+	})
+	t.Run("830-4", func(t *testing.T) {
+		texts := blockTexts(translatableBlocks(readFile(t, filepath.Join(dir, "830-4.docx"))))
+		joined := strings.Join(texts, "\n")
+		assert.Contains(t, joined, "Nested f")
+		assert.Contains(t, joined, "ield character:")
+		assert.Contains(t, joined, "hyperlink")
+		assert.Contains(t, texts, "Some content.")
+		assert.Contains(t, texts, "User")
+		assert.Contains(t, texts, "Comments across some paragraphs")
+		assert.NotContains(t, joined, "HYPERLINK")
+	})
+	t.Run("830-5", func(t *testing.T) {
+		texts := blockTexts(translatableBlocks(readFile(t, filepath.Join(dir, "830-5.docx"))))
+		assert.Equal(t, []string{
+			"Nested field character: hyperlink",
+			"Some content.", "User", "Comments across some paragraphs",
+		}, texts)
+	})
+}
+
+// okapi: OpenXMLTest#extractsWithRunFontsHintRespect
+func TestNative_DocxRunFontsHintRespect(t *testing.T) {
+	dir := testdataDir(t)
+	// 851.docx mixes East-Asian and special symbols across runs with differing
+	// rFonts hints. Run boundaries differ from the native model (which strips
+	// codes from SourceText), but the full Unicode text content — CJK ideographs,
+	// the Ohm sign (U+2126), section/pilcrow signs, the n-ary summation, the
+	// ideographic full stop — must survive intact and in order. The symbol cluster
+	// is built from explicit runes so the test is unambiguous about which Unicode
+	// code points the rFonts-hinted runs must preserve.
+	const ohm = "Ω" // OHM SIGN — distinct from Greek capital Omega (U+03A9)
+	symbols := "(国际" + ohm + " §¶∑商。)."
+	texts := blockTexts(translatableBlocks(readFile(t, filepath.Join(dir, "851.docx"))))
+	assert.Equal(t, []string{
+		"East-Asian and special symbols 1 " + symbols,
+		"East-Asian and special symbols 2 " + symbols,
+		"User",
+	}, texts)
+}
+
+// okapi: OpenXmlRoundtripPageBreakTest#testPageBreakWithLineSeparatorOption
+func TestNative_PageBreakRoundtripLineSeparator(t *testing.T) {
+	dir := testdataDir(t)
+	// Upstream roundtrips PageBreak.docx with addTabAsCharacter(true) and
+	// addLineSeparatorCharacter(true), diffing the rewritten package against a gold
+	// copy. The native equivalent verifies the skeleton roundtrip preserves the
+	// extracted block texts with tab-as-character enabled.
+	original, err := os.ReadFile(filepath.Join(dir, "PageBreak.docx"))
+	require.NoError(t, err)
+	assertSkeletonRoundtripConfig(t, original, "PageBreak.docx", func(cfg *Config) {
+		cfg.TabAsCharacter = true
+		cfg.ReplaceLineSeparator = true
+	})
+}
+
+// okapi: OpenXmlRoundtripPageBreakTest#testPageBreakWithoutLineSeparatorOption
+func TestNative_PageBreakRoundtripNoLineSeparator(t *testing.T) {
+	dir := testdataDir(t)
+	// Same fixture, addLineSeparatorCharacter(false): the page break stays a tag and
+	// the roundtrip must still preserve the extracted block texts.
+	original, err := os.ReadFile(filepath.Join(dir, "PageBreak.docx"))
+	require.NoError(t, err)
+	assertSkeletonRoundtripConfig(t, original, "PageBreak.docx", func(cfg *Config) {
+		cfg.TabAsCharacter = true
+		cfg.ReplaceLineSeparator = false
+	})
+}
+
+// okapi: OpenXmlRoundtripSoftLineBreaksDoNotTranslateTest#test
+func TestNative_SoftLineBreaksDoNotTranslateRoundtrip(t *testing.T) {
+	dir := testdataDir(t)
+	// Upstream roundtrips two fixtures (paragraph-style and character-style variants)
+	// with addLineSeparatorCharacter(true) and the "tw4winExternal" style excluded
+	// from translation, asserting the rewritten package matches the gold copy. The
+	// native equivalent uses ExcludeStyles (= tsExcludeWordStyles) and verifies the
+	// skeleton roundtrip preserves the translatable block texts.
+	for _, f := range []string{
+		"OpenXmlRoundtripSoftLineBreaksDoNotTranslateTestParagraphStyle.docx",
+		"OpenXmlRoundtripSoftLineBreaksDoNotTranslateTestCharacterStyle.docx",
+	} {
+		t.Run(f, func(t *testing.T) {
+			original, err := os.ReadFile(filepath.Join(dir, f))
+			require.NoError(t, err)
+			assertSkeletonRoundtripConfig(t, original, f, func(cfg *Config) {
+				cfg.ReplaceLineSeparator = true
+				cfg.ExcludeStyles = []string{"tw4winExternal"}
+			})
+		})
+	}
+}
+
+// okapi-skip: OpenXmlRoundtripPptxMastersTest#test — upstream roundtrips
+// textbox-on-master.pptx with setTranslatePowerpointMasters(true) AND
+// setIgnorePlaceholdersInPowerpointMasters(true). The native reader has no
+// ignore-placeholders-in-masters surface, so with masters enabled it extracts the
+// repeated master/layout placeholder boilerplate ("Titelmasterformat …") that the
+// upstream toggle suppresses; the skeleton roundtrip is not text-stable for that
+// boilerplate (148 → 64 blocks). This is a PPTX-master placeholder-handling gap, not
+// a behaviour the native reader/writer currently models. Tracked under #555.
+
+// okapi-skip: OpenXmlRoundtripPptxRemoveEmbeddedTest#test — upstream roundtrips
+// chartEx_with_cache.pptx with setRemoveEmbeddedExcel(true) plus
+// setTranslatePowerpointCachedChartStrings/Numbers(true), and asserts the embedded
+// Excel package is removed from the rewritten archive. The native reader/writer
+// implements none of these PPTX chart-cache / embedded-Excel-removal options, so the
+// remove-embedded contract is not applicable to the native implementation.

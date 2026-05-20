@@ -821,14 +821,14 @@ func paragraphAllContentRevisionWrapped(src []byte) bool {
 	// These are revision/annotation markers that surround content
 	// without participating in WSO's commonRunPropertiesOf.
 	transparentChildNames := map[string]bool{
-		"bookmarkStart":      true,
-		"bookmarkEnd":        true,
-		"commentRangeStart":  true,
-		"commentRangeEnd":    true,
-		"commentReference":   true,
-		"proofErr":           true,
-		"permStart":          true,
-		"permEnd":            true,
+		"bookmarkStart":     true,
+		"bookmarkEnd":       true,
+		"commentRangeStart": true,
+		"commentRangeEnd":   true,
+		"commentReference":  true,
+		"proofErr":          true,
+		"permStart":         true,
+		"permEnd":           true,
 	}
 	sawRevWrapper := false
 	depth := 0
@@ -4766,7 +4766,9 @@ func styleBasedOn(stylesXML []byte, styleID string) string {
 // refuses to strip.
 //
 // Fixture 992.docx: docDefaults declares
-//   <w:bCs w:val="0"/><w:iCs w:val="0"/>
+//
+//	<w:bCs w:val="0"/><w:iCs w:val="0"/>
+//
 // against which every run that authors a bare `<w:bCs/>` / `<w:iCs/>`
 // must preserve the toggle mirror on the per-run rPr AND on any
 // synthesised paragraph style's lift.
