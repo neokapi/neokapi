@@ -1481,44 +1481,17 @@ func shouldStripWMLLang(name string) bool {
 	return false
 }
 
-// wmlLangValAttrRE matches the w:val attribute on a <w:lang ...> or
-// <w:themeFontLang ...> element and captures the existing value.
-// Submatches: 1=tag name (lang|themeFontLang), 2=quote char, 3=value.
+// retargetSkeletonLang implements the consumption contract for SkeletonLang
+// entries spliced out of a WordprocessingML settings part by the reader (the
+// `w:val` value of a `<w:themeFontLang>` element). It is the structural
+// successor to the retired write-side rewriteWMLLangVal regex.
 //
-// The match is anchored on the opening "<w:lang" or "<w:themeFontLang"
-// followed by a word boundary (so it doesn't accept "<w:langfoo>"), then
-// scans up to the element terminator (`>` or `/>`) for any w:val=
-// attribute. Single and double quotes are both supported. The character
-// class for the value side excludes the quote so we don't cross attribute
-// boundaries.
-var wmlLangValAttrRE = regexp.MustCompile(
-	`(<w:(lang|themeFontLang)\b[^>]*?\bw:val=)(["'])([^"']*)(["'])`,
-)
-
-// shouldRewriteWMLLangVal reports whether the given ZIP entry path is a
-// WordprocessingML XML part where okapi rewrites <w:lang>/<w:themeFontLang>
-// w:val attributes from the source locale to the target locale on
-// round-trip (mirroring GenericSkeletonWriter's Property.LANGUAGE
-// rewriting; see writer.go SetSourceLocale godoc).
-//
-// The set is the strip set plus settings.xml — okapi's
-// RUN_PROPERTY_LANGUAGE skippable list strips <w:lang/> from rPr in
-// document/styles/footnotes/endnotes/comments/header/footer parts (so any
-// surviving <w:lang> there must have been outside an rPr and is rewritten
-// in the same way), while <w:themeFontLang/> sits in settings.xml only and
-// is preserved by okapi but with its w:val retargeted.
-func shouldRewriteWMLLangVal(name string) bool {
-	if name == "word/settings.xml" || name == "word/glossary/settings.xml" {
-		return true
-	}
-	return shouldStripWMLLang(name)
-}
-
-// rewriteWMLLangVal rewrites the w:val attribute on every <w:lang> and
-// <w:themeFontLang> element when its existing value's primary language
-// matches the source locale's primary language. The replacement value
-// is the target locale string verbatim (okapi uses LocaleId#toString,
-// which is the BCP-47 form).
+// When the writer targets an output locale and the stored value's primary
+// language matches the source locale's primary language, the value is
+// retargeted to the output locale verbatim (okapi uses LocaleId#toString,
+// the BCP-47 form). Otherwise — no target locale, or a value whose language
+// differs from the source (e.g. ru-RU in an en->fr document) — the stored
+// value is returned unchanged so output stays byte-exact.
 //
 // This mirrors okapi/core/src/main/java/net/sf/okapi/common/skeleton/
 // GenericSkeletonWriter.java lines 808-816:
@@ -1531,56 +1504,27 @@ func shouldRewriteWMLLangVal(name string) bool {
 //	}
 //
 // in combination with okapi/filters/openxml/src/main/java/net/sf/okapi/
-// filters/openxml/ContentFilter.java lines 527-537, where the openxml
-// filter normalizes the attribute name on <w:lang> and <w:themeFontLang>
-// to Property.LANGUAGE so the writer's retargeting kicks in.
-//
-// Returns the original slice if no eligible attribute was found (so the
-// caller can avoid recompressing pass-through entries).
-func rewriteWMLLangVal(data []byte, sourceLocale, targetLocale model.LocaleID) []byte {
-	if targetLocale.IsEmpty() {
-		return data
+// filters/openxml/ContentFilter.java lines 527-537, where the openxml filter
+// normalizes the `<w:themeFontLang>` attribute name to Property.LANGUAGE so
+// the writer's retargeting kicks in. The strict-OOXML guard is applied at the
+// reader, which only splices a SkeletonLang entry for transitional parts —
+// strict settings parts flow through as verbatim SkeletonText and never reach
+// this method, matching upstream (its rewrite is QName-keyed to the
+// transitional URI and never fires on strict parts).
+func (w *Writer) retargetSkeletonLang(value string) string {
+	if w.Locale.IsEmpty() {
+		return value
 	}
-	// Strict OOXML namespace: upstream's QName-keyed Property.LANGUAGE
-	// rewrite does NOT match elements bound to the strict URI
-	// "http://purl.oclc.org/ooxml/wordprocessingml/main" — the rewrite
-	// hook lives on ContentFilter (lines 527-537) and only fires when
-	// the openxml filter has classified the element as a
-	// Property.LANGUAGE-carrying WordProcessingML element, which is
-	// QName-keyed by the transitional URI (Namespaces.java:26). 858.docx
-	// reference output keeps <w:lang w:val="en-US"/> through round-trip
-	// even with target=fr, so the native rewrite must also skip strict
-	// parts.
-	if bytes.Contains(data, []byte(wmlStrictNamespace)) {
-		return data
-	}
-	src := primaryLangOf(sourceLocale)
+	src := primaryLangOf(w.sourceLocale)
 	if src == "" {
 		// Default to "en" — matches okapi OpenXMLFilter's behaviour when
 		// no source locale was supplied via setOptions.
 		src = "en"
 	}
-	if !bytes.Contains(data, []byte("<w:lang")) && !bytes.Contains(data, []byte("<w:themeFontLang")) {
-		return data
+	if primaryLangOf(model.LocaleID(value)) != src {
+		return value
 	}
-	tgt := []byte(string(targetLocale))
-	return wmlLangValAttrRE.ReplaceAllFunc(data, func(match []byte) []byte {
-		sub := wmlLangValAttrRE.FindSubmatch(match)
-		if sub == nil {
-			return match
-		}
-		// sub[1]=prefix incl. "w:val=", sub[3]=open quote, sub[4]=value, sub[5]=close quote
-		existing := string(sub[4])
-		if primaryLangOf(model.LocaleID(existing)) != src {
-			return match
-		}
-		out := make([]byte, 0, len(sub[1])+len(sub[3])+len(tgt)+len(sub[5]))
-		out = append(out, sub[1]...)
-		out = append(out, sub[3]...)
-		out = append(out, tgt...)
-		out = append(out, sub[5]...)
-		return out
-	})
+	return string(w.Locale)
 }
 
 // primaryLangOf returns the lower-cased primary language subtag of a
@@ -1603,9 +1547,9 @@ type Writer struct {
 
 	// sourceLocale records the input/source locale supplied to the writer
 	// (defaults to "en" — okapi's LocaleId.EMPTY default for OpenXMLFilter).
-	// Used by the WordprocessingML lang-attribute rewriter to decide whether
-	// an existing <w:lang>/<w:themeFontLang> w:val matches the source
-	// language and should be retargeted to w.Locale.
+	// Used by retargetSkeletonLang to decide whether a SkeletonLang entry's
+	// value (the <w:themeFontLang> w:val spliced out by the reader) matches
+	// the source language and should be retargeted to w.Locale.
 	sourceLocale model.LocaleID
 
 	// mediaReplacements maps ZIP entry paths (e.g., "word/media/image1.png")
@@ -1658,12 +1602,11 @@ func (w *Writer) SetOriginalContent(content []byte) {
 	w.originalContent = content
 }
 
-// SetSourceLocale records the source/input locale. Used by the
-// WordprocessingML lang-attribute rewriter (mirrors okapi's
-// GenericSkeletonWriter behavior at lines 808-816 of okapi/core/src/
-// main/java/net/sf/okapi/common/skeleton/GenericSkeletonWriter.java
-// which retargets Property.LANGUAGE-named attributes from inputLoc to
-// outputLoc when sameLanguageAs(inputLoc) holds).
+// SetSourceLocale records the source/input locale. Used by
+// retargetSkeletonLang (mirrors okapi's GenericSkeletonWriter behavior at
+// lines 808-816 of okapi/core/src/main/java/net/sf/okapi/common/skeleton/
+// GenericSkeletonWriter.java which retargets Property.LANGUAGE-named
+// attributes from inputLoc to outputLoc when sameLanguageAs(inputLoc) holds).
 func (w *Writer) SetSourceLocale(locale model.LocaleID) {
 	w.sourceLocale = locale
 }
@@ -1798,6 +1741,22 @@ func (w *Writer) writeFromSkeleton(origZR *zip.Reader, zw *zip.Writer, buf *byte
 				if block, ok := blocks[refID]; ok {
 					currentBuf.WriteString(w.renderBlock(block, info.docType))
 				}
+			}
+
+		case format.SkeletonLang:
+			// A language-attribute value spliced out by the reader (the
+			// `w:val` of a `<w:themeFontLang>` in a settings part). On a
+			// translation round-trip, retarget it to the output locale when
+			// its primary language matches the source locale's primary
+			// language — mirroring upstream okapi's GenericSkeletonWriter
+			// Property.LANGUAGE rewrite (LocaleId.sameLanguageAs comparison;
+			// region/script ignored). When there is no target locale, or the
+			// value's language differs from the source (e.g. ru-RU in an
+			// en->fr document), the stored value is emitted verbatim so output
+			// stays byte-exact. Structural successor to the retired
+			// rewriteWMLLangVal regex.
+			if currentPart != "" {
+				currentBuf.WriteString(w.retargetSkeletonLang(string(entry.Data)))
 			}
 		}
 	}
@@ -2130,21 +2089,12 @@ func (w *Writer) writeFromSkeleton(origZR *zip.Reader, zw *zip.Writer, buf *byte
 				if shouldStripWMLLang(name) {
 					data = stripWMLSkippableElements(data)
 				}
-				if shouldRewriteWMLLangVal(name) {
-					data = rewriteWMLLangVal(data, w.sourceLocale, w.Locale)
-				}
-			} else if shouldStripWMLLang(name) || shouldRewriteWMLLangVal(name) {
+			} else if shouldStripWMLLang(name) {
 				raw, err := readZipFile(f)
 				if err != nil {
 					continue
 				}
-				data = raw
-				if shouldStripWMLLang(name) {
-					data = stripWMLSkippableElements(data)
-				}
-				if shouldRewriteWMLLangVal(name) {
-					data = rewriteWMLLangVal(data, w.sourceLocale, w.Locale)
-				}
+				data = stripWMLSkippableElements(raw)
 			} else {
 				continue
 			}
@@ -2169,12 +2119,13 @@ func (w *Writer) writeFromSkeleton(origZR *zip.Reader, zw *zip.Writer, buf *byte
 
 	for _, f := range origZR.File {
 		if content, ok := partContents[f.Name]; ok && len(content) > 0 {
-			// Replace with skeleton-reconstructed content
+			// Replace with skeleton-reconstructed content. The
+			// <w:themeFontLang> w:val in a settings part has already been
+			// retargeted structurally during skeleton reconstruction (the
+			// reader spliced it as a SkeletonLang entry — #607), so there is
+			// no write-side lang rewrite here.
 			if isDOCX && shouldStripWMLLang(f.Name) {
 				content = stripWMLSkippableElements(content)
-			}
-			if isDOCX && shouldRewriteWMLLangVal(f.Name) {
-				content = rewriteWMLLangVal(content, w.sourceLocale, w.Locale)
 			}
 			content = postWML(f.Name, content)
 			fh := f.FileHeader
@@ -2204,21 +2155,21 @@ func (w *Writer) writeFromSkeleton(origZR *zip.Reader, zw *zip.Writer, buf *byte
 			if _, err := fw.Write(replacement); err != nil {
 				return err
 			}
-		} else if isDOCX && (shouldStripWMLLang(f.Name) || shouldRewriteWMLLangVal(f.Name)) {
-			// Pass-through WordprocessingML part (e.g. word/styles.xml,
-			// word/settings.xml) that needs okapi-style lang/bidiVisual
-			// stripping and/or <w:lang>/<w:themeFontLang> w:val
-			// retargeting. Read, transform, re-emit with a recompressed
-			// header.
+		} else if isDOCX && shouldStripWMLLang(f.Name) {
+			// Pass-through WordprocessingML part (e.g. word/styles.xml) that
+			// needs okapi-style lang/bidiVisual stripping but carries no
+			// translatable content (so it isn't in partContents). Settings
+			// parts that carry <w:themeFontLang> are NOT handled here — the
+			// reader splices their lang value into the skeleton, so they
+			// arrive via the partContents branch above with the value already
+			// retargeted structurally (#607). Read, transform, re-emit with a
+			// recompressed header.
 			data, err := readZipFile(f)
 			if err != nil {
 				return err
 			}
 			if shouldStripWMLLang(f.Name) {
 				data = stripWMLSkippableElements(data)
-			}
-			if shouldRewriteWMLLangVal(f.Name) {
-				data = rewriteWMLLangVal(data, w.sourceLocale, w.Locale)
 			}
 			data = postWML(f.Name, data)
 			// Defer styles.xml emission until all paragraph parts have

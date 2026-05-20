@@ -12,10 +12,28 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
+)
+
+// wmlThemeFontLangValRE matches a `<w:themeFontLang ... w:val="VALUE" ...>`
+// element and captures the prefix up to and including the opening quote in
+// group 1 and the VALUE (the bytes between the surrounding quotes) in group
+// 2. The reader uses the group-2 byte range to splice the source-locale
+// language value out as a typed SkeletonLang entry; the surrounding bytes
+// (including the closing quote and any other attributes such as w:eastAsia)
+// are preserved verbatim. The value character class excludes both quote
+// characters so the match cannot cross an attribute boundary. This is the
+// structural successor to the retired write-side rewriteWMLLangVal regex —
+// it targets only `<w:themeFontLang>`'s w:val because that is the only
+// language declaration that survives into a settings part (run-property
+// `<w:lang>` is stripped by stripWMLSkippableElements before it could be
+// retargeted).
+var wmlThemeFontLangValRE = regexp.MustCompile(
+	`(<w:themeFontLang\b[^>]*?\bw:val=["'])([^"']*)`,
 )
 
 // Reader implements DataFormatReader for OpenXML files (DOCX, PPTX, XLSX).
@@ -292,8 +310,77 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		r.emit(ctx, ch, &model.Part{Type: model.PartLayerEnd, Resource: childLayer})
 	}
 
+	// Settings parts (word/settings.xml, word/glossary/settings.xml) are
+	// non-translatable, so they don't appear in the loop above — but they
+	// carry the document's `<w:themeFontLang w:val="...">` declaration,
+	// whose value the writer retargets from the source to the target
+	// locale on a translation round-trip (mirroring okapi's Property.LANGUAGE
+	// rewrite — see Writer.SetSourceLocale). To make that retarget
+	// structural rather than a write-side regex over assembled bytes (#607),
+	// the reader splices the `w:val` value out of each settings part as a
+	// typed SkeletonLang entry surrounded by the verbatim part bytes, so the
+	// writer reconstructs the part from skeleton and consumes the lang value
+	// structurally. Only emitted when a skeleton store is wired and the doc
+	// is WordprocessingML.
+	if r.skeletonStore != nil && info.docType == docTypeDOCX {
+		r.emitSettingsLangSkeleton(zr, "word/settings.xml")
+		r.emitSettingsLangSkeleton(zr, "word/glossary/settings.xml")
+	}
+
 	// End root layer
 	r.emit(ctx, ch, &model.Part{Type: model.PartLayerEnd, Resource: rootLayer})
+}
+
+// emitSettingsLangSkeleton emits a skeleton segment for a WordprocessingML
+// settings part, splicing the `w:val` value of each `<w:themeFontLang>`
+// element out as a typed SkeletonLang entry between verbatim text segments.
+// Everything else in the part — including the element's other attributes
+// (e.g. w:eastAsia) — is preserved byte-for-byte as SkeletonText, so a
+// no-retarget round-trip is byte-exact and a retargeting round-trip only
+// substitutes the spliced w:val.
+//
+// Strict OOXML parts are emitted as a single verbatim SkeletonText segment
+// (no splice): upstream okapi's Property.LANGUAGE rewrite is QName-keyed to
+// the transitional WordProcessingML URI and never fires on strict parts, so
+// their themeFontLang must round-trip unchanged. Mirrors the strict-namespace
+// guard the retired rewriteWMLLangVal regex applied.
+//
+// The part is skipped entirely when it is absent from the ZIP — settings
+// parts that don't exist need no skeleton segment; the writer leaves them to
+// the verbatim ZIP copy path.
+func (r *Reader) emitSettingsLangSkeleton(zr *zip.Reader, partPath string) {
+	zf := zipFileByName(zr, partPath)
+	if zf == nil {
+		return
+	}
+	data, err := readZipFile(zf)
+	if err != nil {
+		return
+	}
+
+	r.skelPartStart(partPath)
+	defer r.skelPartEnd(partPath)
+
+	strict := bytes.Contains(data, []byte(wmlStrictNamespace))
+	if strict || !bytes.Contains(data, []byte("<w:themeFontLang")) {
+		_ = r.skeletonStore.WriteText(data)
+		return
+	}
+
+	// Splice each <w:themeFontLang ... w:val="VALUE" ...> value range out as
+	// a SkeletonLang entry. wmlThemeFontLangValRE captures the prefix up to
+	// and including the open quote (sub[1]), the value (sub[2]), so the
+	// match end minus one byte is the close quote. We emit verbatim bytes up
+	// to the value, the SkeletonLang(value) entry, then continue after it.
+	pos := 0
+	for _, loc := range wmlThemeFontLangValRE.FindAllSubmatchIndex(data, -1) {
+		// loc: [matchStart matchEnd, g1Start g1End, g2Start g2End]
+		valStart, valEnd := loc[4], loc[5]
+		_ = r.skeletonStore.WriteText(data[pos:valStart])
+		_ = r.skeletonStore.WriteLang(string(data[valStart:valEnd]))
+		pos = valEnd
+	}
+	_ = r.skeletonStore.WriteText(data[pos:])
 }
 
 // Skeleton part-boundary markers. The writer uses these to split the
