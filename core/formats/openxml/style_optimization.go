@@ -1379,6 +1379,17 @@ func optimizeParagraph(
 			if e.hasRPr && runIsDrawingOnly(src[r.start:r.end]) {
 				e.props = stripWMLNamesFromProps(e.props, "b", "i")
 			}
+			// NOTE: the fldChar-begin-only toggle strip is applied ONLY
+			// in the emit phase below (NOT here). The outer begin run's
+			// FULL rPr — toggles included — must participate in
+			// commonRunPropertiesOf so that a toggle which IS common
+			// across the field's text runs gets lifted into the synth
+			// pStyle (1341-textbox-with-a-hyperlink.docx: `<w:b/>` is
+			// common across the bold HYPERLINK display runs and upstream
+			// Okapi lifts it into NF974E24F-Normal1). Whatever survives
+			// on the begin run after the common lift is render-neutral
+			// (the begin chunk has no text) and is dropped at emit time —
+			// see runIsFldCharBeginOnly + Practice2.docx rationale.
 		}
 		// Mark break-only runs so they're excluded from common-rPr
 		// computation downstream (matches upstream Okapi WSO's
@@ -1902,6 +1913,31 @@ func optimizeParagraph(
 				if len(stripNames) == 0 {
 					stripNames = make(map[string]bool, 4)
 				} else if !e.csOnlyText {
+					orig := stripNames
+					stripNames = make(map[string]bool, len(orig)+4)
+					for k, v := range orig {
+						stripNames[k] = v
+					}
+				}
+				stripNames["b"] = true
+				stripNames["bCs"] = true
+				stripNames["i"] = true
+				stripNames["iCs"] = true
+			}
+			// Symmetric fldChar-begin-only emit strip: the outer field
+			// begin run carries no text, so its toggle properties are
+			// render-neutral. After the common lift removes the shared
+			// {rFonts,sz,szCs} from the begin run, the leftover {b}/{i}
+			// must ALSO be dropped from the emitted per-run rPr so the
+			// begin run serialises with no rPr — byte-matching upstream
+			// Okapi's `<w:r><w:fldChar begin/></w:r>`. The instrText /
+			// separate body chunks are fieldContentRun and keep their
+			// captured rPr verbatim (handled by the !fieldContentRun
+			// guard above). See runIsFldCharBeginOnly + Practice2.docx.
+			if runIsFldCharBeginOnly(src[e.runStart:e.runEnd]) {
+				if len(stripNames) == 0 {
+					stripNames = make(map[string]bool, 4)
+				} else {
 					orig := stripNames
 					stripNames = make(map[string]bool, len(orig)+4)
 					for k, v := range orig {
@@ -4013,6 +4049,56 @@ func runIsBreakOnly(runSrc []byte) bool {
 	// Reject runs that ALSO carry text or opaque content — the br is
 	// then a sibling chunk of text in the SAME source <w:r>, and its
 	// rPr is the rPr of the text-bearing run too.
+	if extractRunTextSkippingOpaque(runSrc) != "" {
+		return false
+	}
+	if bytes.Contains(runSrc, []byte("<w:drawing")) ||
+		bytes.Contains(runSrc, []byte("<w:pict")) ||
+		bytes.Contains(runSrc, []byte("<w:object")) ||
+		bytes.Contains(runSrc, []byte("<mc:AlternateContent")) {
+		return false
+	}
+	return true
+}
+
+// runIsFldCharBeginOnly reports whether runSrc is a complex-field
+// outer-begin run: it carries exactly one `<w:fldChar
+// w:fldCharType="begin"/>` and no text-rendering content (no `<w:t>`,
+// `<w:instrText>`, drawing, etc). This is the "outer Run" that owns a
+// complex field in upstream Okapi's RunParser.parseComplexField model
+// (RunParser.java:461-542): the begin fldChar is the only Markup chunk
+// the outer Run carries directly, and it renders no text.
+//
+// Per ECMA-376-1 §17.3.2.1 (CT_R) toggle properties (`<w:b>`, `<w:i>`
+// and their complex-script mirrors `<w:bCs>`/`<w:iCs>`) apply to a
+// run's text children; a fldChar-only run renders no text, so those
+// toggles are no-ops at render time. Upstream Okapi's WordStyleOptimisation
+// emits the merged field's begin chunk with the toggle stripped (it
+// only re-renders the outer Run's NON-toggle direct properties, after
+// the common lift), while the instrText / separate body chunks preserve
+// their captured rPr verbatim as Markup. This mirrors the existing
+// runIsDrawingOnly toggle-strip treatment for the same render-neutral
+// reason.
+//
+// The classifier is used ONLY for the outer begin run (fieldDepth==0
+// when encountered, i.e. NOT a fieldContentRun); the separate/end and
+// nested-field begin runs are body chunks of the outer Run and already
+// flow through the fieldContentRun verbatim path.
+//
+// Practice2.docx footer2.xml / footer3.xml is the canonical fixture:
+// the source begin run carries rPr `{rFonts,b,sz,szCs}`; WSO lifts the
+// common `{rFonts,sz,szCs}` into the synth pStyle and this strip drops
+// the leftover render-neutral `<w:b/>`, so the begin run emits with no
+// rPr — byte-matching upstream's `<w:r><w:fldChar begin/></w:r>`.
+func runIsFldCharBeginOnly(runSrc []byte) bool {
+	if !bytes.Contains(runSrc, []byte(`<w:fldChar w:fldCharType="begin"`)) {
+		return false
+	}
+	// A begin run that also carries instrText/text/opaque content is
+	// not a bare outer-begin chunk; leave it to the verbatim path.
+	if bytes.Contains(runSrc, []byte("<w:instrText")) {
+		return false
+	}
 	if extractRunTextSkippingOpaque(runSrc) != "" {
 		return false
 	}
