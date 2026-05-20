@@ -1737,10 +1737,12 @@ func runsHaveInlineCodes(runs []model.Run) bool {
 // captured bytes of self-closed inline placeholders that already
 // flushed) do not by themselves trigger promotion: the canonical
 // Android-style fixture
-//   <resources>
-//     <!-- note -->
-//     <string>...</string>
-//   </resources>
+//
+//	<resources>
+//	  <!-- note -->
+//	  <string>...</string>
+//	</resources>
+//
 // must keep <string> as its own block. Only PcOpen counts as a
 // "we are inside translatable mixed content" marker.
 func runsHaveNonWhitespaceText(runs []model.Run) bool {
