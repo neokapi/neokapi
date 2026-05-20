@@ -76,47 +76,53 @@ func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
 	}
 done:
 
-	// If a target locale is set and differs from source, buffer output
-	// so we can rewrite lang/xml:lang attributes to the target locale.
+	// A lang rewrite is needed when a target locale is set and differs from
+	// the document's declared source locale.
 	needsLangRewrite := !w.Locale.IsEmpty() && !sourceLocale.IsEmpty() && w.Locale != sourceLocale
-	var langBuf bytes.Buffer
-	origOutput := w.Output
-	if needsLangRewrite {
-		w.Output = &langBuf
-	}
 
 	// Mode 1: Skeleton store (optimal, byte-exact).
-	var writeErr error
+	//
+	// The skeleton path stores lang/xml:lang attribute declarations as
+	// opaque bytes inside SkeletonText segments, so the writer has no typed
+	// access to them and must rewrite the assembled output bytes with a
+	// regex (rewriteLangAttrs). Promoting lang attributes to typed skeleton
+	// entries is a follow-up (#604); until then the regex is scoped to this
+	// path only — output is buffered so it can be post-processed.
 	if w.skeletonStore != nil {
 		if err := w.skeletonStore.Flush(); err != nil {
 			return fmt.Errorf("html writer: flush skeleton: %w", err)
 		}
-		writeErr = w.writeFromSkeleton(w.skeletonStore, blocks)
-	} else if content, err := w.loadOriginalContent(); err != nil {
-		return err
-	} else if content != nil {
-		// Mode 2: Re-parse original content.
-		writeErr = w.writeReparse(content, blocks)
-	} else {
-		// Mode 3: Block-only output (minimal fallback).
-		writeErr = w.writeFallback(blocks)
-	}
 
-	if writeErr != nil {
-		if needsLangRewrite {
-			w.Output = origOutput
+		if !needsLangRewrite {
+			return w.writeFromSkeleton(w.skeletonStore, blocks)
 		}
-		return writeErr
-	}
 
-	// Post-process: rewrite lang attributes from source to target locale.
-	if needsLangRewrite {
+		var langBuf bytes.Buffer
+		origOutput := w.Output
+		w.Output = &langBuf
+		writeErr := w.writeFromSkeleton(w.skeletonStore, blocks)
 		w.Output = origOutput
+		if writeErr != nil {
+			return writeErr
+		}
 		result := rewriteLangAttrs(langBuf.Bytes(), sourceLocale, w.Locale)
 		_, err := w.Output.Write(result)
 		return err
 	}
-	return nil
+
+	// Modes 2 and 3 build a golang.org/x/net/html node tree (or render
+	// blocks directly), so they rewrite lang/xml:lang structurally on the
+	// DOM before html.Render — no post-serialization regex, no buffering.
+	if content, err := w.loadOriginalContent(); err != nil {
+		return err
+	} else if content != nil {
+		// Mode 2: Re-parse original content. Lang attributes are rewritten
+		// structurally on the DOM (see writerVisitor.onData).
+		return w.writeReparse(content, blocks, sourceLocale)
+	}
+	// Mode 3: Block-only output (minimal fallback). No lang attributes are
+	// emitted here, so no rewrite is needed.
+	return w.writeFallback(blocks)
 }
 
 // loadOriginalContent returns original content bytes, or nil if unavailable.
@@ -344,13 +350,18 @@ func encodeForAttributeValue(s string) string {
 }
 
 // writeReparse re-parses the original HTML, patches translations, and renders.
-func (w *Writer) writeReparse(content []byte, blocks map[string]*model.Block) error {
+//
+// sourceLocale is the document's declared source locale (may be empty). When
+// the writer targets a different locale, lang/xml:lang attributes carrying the
+// source locale are rewritten to the target locale structurally on the DOM
+// (see writerVisitor.onData) before html.Render — no post-serialization regex.
+func (w *Writer) writeReparse(content []byte, blocks map[string]*model.Block, sourceLocale model.LocaleID) error {
 	doc, err := html.Parse(strings.NewReader(string(content)))
 	if err != nil {
 		return fmt.Errorf("html writer: parse original: %w", err)
 	}
 
-	visitor := &writerVisitor{writer: w, blocks: blocks}
+	visitor := &writerVisitor{writer: w, blocks: blocks, sourceLocale: sourceLocale}
 	walker := newDOMWalker(w.cfg, visitor)
 	walker.walk(doc)
 
@@ -360,12 +371,43 @@ func (w *Writer) writeReparse(content []byte, blocks map[string]*model.Block) er
 // writerVisitor implements walkVisitor for the writer, patching DOM nodes
 // with translated content.
 type writerVisitor struct {
-	writer *Writer
-	blocks map[string]*model.Block
+	writer       *Writer
+	blocks       map[string]*model.Block
+	sourceLocale model.LocaleID
 }
 
 func (v *writerVisitor) onData(dataID string, n *html.Node, dataName string, props map[string]string) {
-	// No-op: structural elements are preserved as-is in the DOM.
+	// lang/xml:lang declarations surface here with props["language"] set
+	// (see domWalker.extractLangAttribute). When retargeting to a different
+	// locale, rewrite the declaration structurally on the node so the
+	// rendered document reports the output language — mirroring okapi's
+	// behaviour without touching serialized bytes.
+	if props != nil && props["language"] != "" {
+		v.retargetLangAttr(n)
+	}
+	// Other structural elements (doctype, comment, script/style, meta) are
+	// preserved as-is in the DOM.
+}
+
+// retargetLangAttr rewrites lang/xml:lang attribute values on n from the
+// source locale to the writer's target locale. It mirrors rewriteLangAttrs:
+// only attributes whose value equals the source locale (case-insensitively)
+// are rewritten, so unrelated declarations (e.g. lang="de" in an en→fr
+// document) are preserved.
+func (v *writerVisitor) retargetLangAttr(n *html.Node) {
+	tgt := v.writer.Locale
+	src := v.sourceLocale
+	if tgt.IsEmpty() || src.IsEmpty() || tgt == src {
+		return
+	}
+	for i, attr := range n.Attr {
+		if attr.Key != "lang" && attr.Key != "xml:lang" {
+			continue
+		}
+		if strings.EqualFold(attr.Val, src.String()) {
+			n.Attr[i].Val = tgt.String()
+		}
+	}
 }
 
 func (v *writerVisitor) onTextBlock(blockID string, n *html.Node) {
