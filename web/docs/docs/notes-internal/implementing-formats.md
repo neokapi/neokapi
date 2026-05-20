@@ -293,6 +293,46 @@ func (w *Writer) writeFromSkeleton(
 }
 ```
 
+### Write-side post-processing: the no-regex convention
+
+A format writer MUST NOT regex- or byte-rewrite its already-serialized
+output to compensate for a modeling gap. That post-processing is brittle
+(it pattern-matches serialized markup), couples to emission ordering, and
+hides the fact that the model is missing a primitive. The unified pattern
+that every writer follows instead:
+
+1. **Skeleton-store emission.** The reader stores non-translatable bytes
+   verbatim; the writer replays them and splices only translated slots, so
+   the writer introduces no structural divergence to "fix up" afterward.
+2. **Symmetric compare-time canonicalization.** Cosmetic differences between
+   two writers (attribute order, namespace decls, self-closing vs
+   open/close, insignificant whitespace) are cancelled by the shared
+   `XMLCanonical` normalizer (`cli/parity/roundtrip/normalizers.go`), applied
+   to **both** `got` and `ref`. Reaching the `canon` tier — not `byte` — is
+   the norm and is sufficient.
+3. **Structural merges as canonicalization, not write-side rewriting.**
+   "Merge adjacent equivalent elements" belongs in the normalizer (applied
+   symmetrically to both sides), not in the writer (applied to one side via
+   regex). idml's `MergeAdjacentCSRs` is the template.
+
+Per-value **escaping of text content before its first emission** (backslash
+/ quote / newline / delimiter encoding) is not post-processing and is fine.
+
+**The one sanctioned exception** is faithfully reproducing a transform that
+Okapi *itself* performs on serialized bytes — e.g. openxml's
+`AllowWordStyleOptimisation` (WSO) style synthesis and `RunProperties.minified()`
+toggle collapse. These are reproduction, not compensation: the reference
+output already contains them, so they cannot be moved to a symmetric
+normalizer. When a writer keeps such a transform it MUST document the Okapi
+class/method it mirrors, so a reader can tell reproduction from compensation.
+
+Formats already converted to this convention: html (DOM `setAttr` instead of
+lang regex), the regex format (prefix/capture/suffix assembly), wiki (stored
+header level), and openxml (structural `<w:r>` envelope emission + byte-splice
+run merges replacing the post-serialization fuse regexes). When a structural
+fix is genuinely impractical, prefer a documented `div`-tier divergence or a
+tracked follow-up issue over a new write-side regex.
+
 ## Skeleton Store Integration
 
 The SkeletonStore (`core/format/skeleton.go`) enables byte-exact roundtrip of
@@ -488,6 +528,7 @@ Before submitting a new format:
 - [ ] Reader emits `PartLayerStart` → blocks/data → `PartLayerEnd`
 - [ ] Skeleton store: coalescing buffer in reader, `writeFromSkeleton` in writer
 - [ ] Writer fallback chain (skeleton → re-parse or build-from-blocks)
+- [ ] No write-side regex/byte post-processing of serialized output (see [the no-regex convention](#write-side-post-processing-the-no-regex-convention)); any Okapi-reproduction exception documents the mirrored class/method
 - [ ] Registered in `core/formats/register.go`
 - [ ] Byte-exact roundtrip tests (with and without skeleton store)
 - [ ] Translation roundtrip tests
