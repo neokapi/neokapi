@@ -156,11 +156,15 @@ func (w *Writer) writeFromSkeleton() error {
 			}
 		case format.SkeletonRef:
 			refID := string(entry.Data)
-			text, ok := w.lookupRef(refID)
+			// lookupRef returns content already serialized as TXML
+			// inner XML (text escaped, <ut> inline codes reconstructed),
+			// so it must be written verbatim — re-escaping here would
+			// double-escape entities and destroy the <ut> markup.
+			xml, ok := w.lookupRef(refID)
 			if !ok {
 				continue
 			}
-			if _, err := io.WriteString(w.Output, xmlEscape(text)); err != nil {
+			if _, err := io.WriteString(w.Output, xml); err != nil {
 				return err
 			}
 		}
@@ -168,8 +172,10 @@ func (w *Writer) writeFromSkeleton() error {
 	return nil
 }
 
-// lookupRef resolves a "blockIdx:segIdx:elemType" ref to the text
-// that should be spliced back into the document at that position.
+// lookupRef resolves a "blockIdx:segIdx:elemType" ref to the TXML
+// inner XML that should be spliced back into the document at that
+// position. The returned string is already escaped and carries any
+// reconstructed <ut> inline codes, so the caller writes it verbatim.
 func (w *Writer) lookupRef(refID string) (string, bool) {
 	first, rest, ok := strings.Cut(refID, ":")
 	if !ok {
@@ -195,7 +201,7 @@ func (w *Writer) lookupRef(refID string) (string, bool) {
 			return "", false
 		}
 		seg := block.Source[segIdx]
-		return model.RenderRunsWithData(seg.Runs), true
+		return renderTXMLInline(seg.Runs), true
 	case "target":
 		// Try the recorded targetlocale first; fall back to the
 		// writer's configured locale, then any available target.
@@ -203,13 +209,13 @@ func (w *Writer) lookupRef(refID string) (string, bool) {
 		if !targetLocale.IsEmpty() && block.HasTarget(targetLocale) {
 			segs := block.Targets[targetLocale]
 			if segIdx < len(segs) {
-				return model.RenderRunsWithData(segs[segIdx].Runs), true
+				return renderTXMLInline(segs[segIdx].Runs), true
 			}
 		}
 		if !w.Locale.IsEmpty() && block.HasTarget(w.Locale) {
 			segs := block.Targets[w.Locale]
 			if segIdx < len(segs) {
-				return model.RenderRunsWithData(segs[segIdx].Runs), true
+				return renderTXMLInline(segs[segIdx].Runs), true
 			}
 		}
 		for locale, segs := range block.Targets {
@@ -217,13 +223,13 @@ func (w *Writer) lookupRef(refID string) (string, bool) {
 				continue
 			}
 			if segIdx < len(segs) {
-				return model.RenderRunsWithData(segs[segIdx].Runs), true
+				return renderTXMLInline(segs[segIdx].Runs), true
 			}
 		}
 		// No target available — preserve the source as a fallback so
 		// the document stays well-formed.
 		if segIdx < len(block.Source) {
-			return model.RenderRunsWithData(block.Source[segIdx].Runs), true
+			return renderTXMLInline(block.Source[segIdx].Runs), true
 		}
 		return "", true
 	}
@@ -289,18 +295,20 @@ func (w *Writer) writeBlock(part *model.Part) error {
 		if _, err := fmt.Fprintf(w.Output, "<segment segmentId=\"%s\">", xmlEscape(segID)); err != nil {
 			return err
 		}
-		sourceText := model.RenderRunsWithData(srcSeg.Runs)
-		if _, err := fmt.Fprintf(w.Output, "<source>%s</source>", xmlEscape(sourceText)); err != nil {
+		// renderTXMLInline already escapes text and reconstructs <ut>
+		// inline codes, so the result is written verbatim.
+		sourceXML := renderTXMLInline(srcSeg.Runs)
+		if _, err := fmt.Fprintf(w.Output, "<source>%s</source>", sourceXML); err != nil {
 			return err
 		}
-		var targetText string
+		var targetXML string
 		hasTarget := false
 		if i < len(targetSegs) {
-			targetText = model.RenderRunsWithData(targetSegs[i].Runs)
-			hasTarget = targetText != ""
+			targetXML = renderTXMLInline(targetSegs[i].Runs)
+			hasTarget = targetXML != ""
 		}
 		if hasTarget {
-			if _, err := fmt.Fprintf(w.Output, "<target>%s</target>", xmlEscape(targetText)); err != nil {
+			if _, err := fmt.Fprintf(w.Output, "<target>%s</target>", targetXML); err != nil {
 				return err
 			}
 		} else if w.cfg.AllowEmptyOutputTarget {
@@ -313,6 +321,48 @@ func (w *Writer) writeBlock(part *model.Part) error {
 		}
 	}
 	return nil
+}
+
+// renderTXMLInline serializes a Run sequence to TXML inner-XML form
+// for splicing inside a <source> or <target> element. TextRun content
+// is XML-escaped; PlaceholderRun (inline-code) runs are reconstructed
+// as <ut x="..." type="...">escaped-data</ut> elements, mirroring how
+// Wordfast Pro and Okapi's TXMLFilter store inline markup.
+//
+// The reader stores the *inner* text of each <ut> in PlaceholderRun.Data
+// (entity-decoded by the XML parser). Re-emitting the <ut> wrapper here
+// is what lets inline codes survive a read → write → read cycle; without
+// it the codes would collapse into plain (re-escaped) text on rewrite —
+// see TestRoundTripPreservesInlineCodes.
+func renderTXMLInline(runs []model.Run) string {
+	var b strings.Builder
+	for _, r := range runs {
+		switch {
+		case r.Text != nil:
+			b.WriteString(xmlEscape(r.Text.Text))
+		case r.Ph != nil:
+			b.WriteString("<ut")
+			if r.Ph.ID != "" {
+				b.WriteString(` x="`)
+				b.WriteString(xmlEscape(r.Ph.ID))
+				b.WriteString(`"`)
+			}
+			if r.Ph.Type != "" {
+				b.WriteString(` type="`)
+				b.WriteString(xmlEscape(r.Ph.Type))
+				b.WriteString(`"`)
+			}
+			b.WriteString(">")
+			b.WriteString(xmlEscape(r.Ph.Data))
+			b.WriteString("</ut>")
+		default:
+			// Other run kinds (paired codes, plural/select, sub) are not
+			// produced by the TXML reader; fall back to the generic
+			// data-preserving rendering, escaped, to stay well-formed.
+			b.WriteString(xmlEscape(model.RenderRunsWithData([]model.Run{r})))
+		}
+	}
+	return b.String()
 }
 
 // xmlEscape escapes XML special characters.
