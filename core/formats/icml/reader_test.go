@@ -3,6 +3,7 @@ package icml_test
 import (
 	"bytes"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/neokapi/neokapi/core/formats/icml"
@@ -436,6 +437,59 @@ func TestRoundTripWCML(t *testing.T) {
 	assert.Contains(t, output, "with bold")
 	assert.Contains(t, output, "Second paragraph text")
 	assert.Contains(t, output, "Third paragraph")
+}
+
+// TestRoundTripWCMLMultiContentTranslation translates a block that aggregates
+// multiple <Content> elements ("First paragraph with bold"), forcing the legacy
+// (non-skeleton) writer down the replaceSequential path. This exercises the N3
+// forward-walk splice rewrite and verifies it preserves untranslated content
+// while applying the multi-Content replacement.
+func TestRoundTripWCMLMultiContentTranslation(t *testing.T) {
+	ctx := t.Context()
+
+	f, err := os.Open("testdata/Test01.wcml")
+	require.NoError(t, err)
+	reader := icml.NewReader()
+	err = reader.Open(ctx, testutil.RawDocFromReader(f, "testdata/Test01.wcml", model.LocaleEnglish))
+	require.NoError(t, err)
+
+	parts := testutil.CollectParts(t, reader.Read(ctx))
+	reader.Close()
+
+	// Translate ONLY the multi-Content block. With no single-Content block
+	// translated, the per-Content pass applies nothing and the writer falls
+	// through to replaceSequential, which aggregates the two <Content> elements
+	// of "First paragraph with bold" into one replacement span.
+	for _, p := range parts {
+		if p.Type != model.PartBlock {
+			continue
+		}
+		block := p.Resource.(*model.Block)
+		if block.SourceText() == "First paragraph with bold" {
+			block.SetTargetText(model.LocaleFrench, "Premier paragraphe en gras")
+		}
+	}
+
+	var buf bytes.Buffer
+	writer := icml.NewWriter()
+	err = writer.SetOutputWriter(&buf)
+	require.NoError(t, err)
+	writer.SetLocale(model.LocaleFrench)
+
+	ch := testutil.PartsToChannel(parts)
+	err = writer.Write(ctx, ch)
+	require.NoError(t, err)
+	writer.Close()
+
+	output := buf.String()
+	// Multi-Content block translation applied (replaceSequential path).
+	assert.Contains(t, output, "Premier paragraphe en gras")
+	// Untranslated blocks left intact.
+	assert.Contains(t, output, "Second paragraph text")
+	assert.Contains(t, output, "Third paragraph")
+	// Output must remain well-formed: a single forward pass should leave no
+	// duplicated or dropped document scaffolding.
+	assert.Equal(t, 1, strings.Count(output, "</Document>"))
 }
 
 // TestWriterMinimalICML verifies the writer can generate ICML without a skeleton.

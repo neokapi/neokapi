@@ -790,6 +790,130 @@ func TestWriterRequiresOriginalContent(t *testing.T) {
 	assert.Contains(t, err.Error(), "requires original content")
 }
 
+// roundtripIDML reads the IDML bytes with a skeleton store, then writes them
+// back out (no translation) and returns the reconstructed output bytes. This
+// exercises the streaming writer path (zip.NewWriter(w.Output)) end to end.
+func roundtripIDML(t *testing.T, data []byte) []byte {
+	t.Helper()
+	ctx := t.Context()
+
+	skelStore, err := format.NewSkeletonStore()
+	require.NoError(t, err)
+	defer skelStore.Close()
+
+	reader := NewReader()
+	reader.SetSkeletonStore(skelStore)
+	doc := &model.RawDocument{
+		URI:          "test.idml",
+		SourceLocale: model.LocaleEnglish,
+		Encoding:     "UTF-8",
+		MimeType:     "application/vnd.adobe.indesign-idml-package",
+		Reader:       io.NopCloser(bytes.NewReader(data)),
+	}
+	require.NoError(t, reader.Open(ctx, doc))
+	parts := testutil.CollectParts(t, reader.Read(ctx))
+	reader.Close()
+
+	var buf bytes.Buffer
+	writer := NewWriter()
+	writer.SetSkeletonStore(skelStore)
+	writer.SetOriginalContent(data)
+	require.NoError(t, writer.SetOutputWriter(&buf))
+	writer.SetLocale(model.LocaleEnglish)
+
+	require.NoError(t, writer.Write(ctx, testutil.PartsToChannel(parts)))
+	return buf.Bytes()
+}
+
+// TestRoundTripStreamingDeterministic verifies the streaming output writer
+// (writing the ZIP straight to w.Output) is deterministic and preserves the
+// original ZIP entry order across single- and multi-story packages. This guards
+// the M2 memory fix against byte-level regressions in the output package.
+func TestRoundTripStreamingDeterministic(t *testing.T) {
+	cases := map[string]map[string]string{
+		"single": {
+			"Story_u1.xml": `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<idPkg:Story xmlns:idPkg="http://ns.adobe.com/AdobeInDesign/idml/1.0/packaging">
+  <Story Self="u1">
+    <ParagraphStyleRange AppliedParagraphStyle="ParagraphStyle/$ID/NormalParagraphStyle">
+      <CharacterStyleRange AppliedCharacterStyle="CharacterStyle/$ID/[No character style]">
+        <Content>Hello World!</Content>
+      </CharacterStyleRange>
+    </ParagraphStyleRange>
+  </Story>
+</idPkg:Story>`,
+		},
+		"multi": {
+			"Story_u1.xml": `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<idPkg:Story xmlns:idPkg="http://ns.adobe.com/AdobeInDesign/idml/1.0/packaging">
+  <Story Self="u1">
+    <ParagraphStyleRange AppliedParagraphStyle="ParagraphStyle/$ID/NormalParagraphStyle">
+      <CharacterStyleRange AppliedCharacterStyle="CharacterStyle/$ID/[No character style]">
+        <Content>First story.</Content>
+      </CharacterStyleRange>
+    </ParagraphStyleRange>
+  </Story>
+</idPkg:Story>`,
+			"Story_u2.xml": `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<idPkg:Story xmlns:idPkg="http://ns.adobe.com/AdobeInDesign/idml/1.0/packaging">
+  <Story Self="u2">
+    <ParagraphStyleRange AppliedParagraphStyle="ParagraphStyle/$ID/NormalParagraphStyle">
+      <CharacterStyleRange AppliedCharacterStyle="CharacterStyle/$ID/[No character style]">
+        <Content>Second story.</Content>
+      </CharacterStyleRange>
+    </ParagraphStyleRange>
+  </Story>
+</idPkg:Story>`,
+		},
+	}
+
+	for name, stories := range cases {
+		t.Run(name, func(t *testing.T) {
+			data := createIDML(t, stories)
+
+			out1 := roundtripIDML(t, data)
+			out2 := roundtripIDML(t, data)
+
+			// Streaming output must be deterministic byte-for-byte.
+			require.NotEmpty(t, out1)
+			assert.Equal(t, out1, out2, "streamed output must be deterministic")
+
+			// Output ZIP entry order must match the original package order.
+			origZR, err := zip.NewReader(bytes.NewReader(data), int64(len(data)))
+			require.NoError(t, err)
+			outZR, err := zip.NewReader(bytes.NewReader(out1), int64(len(out1)))
+			require.NoError(t, err)
+
+			require.Len(t, outZR.File, len(origZR.File))
+			for i := range origZR.File {
+				assert.Equal(t, origZR.File[i].Name, outZR.File[i].Name,
+					"entry %d name/order must be preserved", i)
+			}
+
+			// Non-story entries must be copied through byte-for-byte.
+			origByName := map[string]*zip.File{}
+			for _, f := range origZR.File {
+				origByName[f.Name] = f
+			}
+			for _, f := range outZR.File {
+				if strings.HasPrefix(f.Name, "Stories/") {
+					content, err := readZipFile(f)
+					require.NoError(t, err)
+					assert.Contains(t, string(content), "<Content",
+						"reconstructed story should retain Content elements")
+					continue
+				}
+				gotContent, err := readZipFile(f)
+				require.NoError(t, err)
+				wantContent, err := readZipFile(origByName[f.Name])
+				require.NoError(t, err)
+				assert.Equal(t, wantContent, gotContent,
+					"non-story entry %s must be copied unchanged", f.Name)
+			}
+		})
+	}
+}
+
 func TestConfig(t *testing.T) {
 	cfg := &Config{}
 	cfg.Reset()

@@ -72,9 +72,10 @@ func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
 		return fmt.Errorf("idml: invalid original ZIP: %w", err)
 	}
 
-	// Create output ZIP
-	var buf bytes.Buffer
-	zw := zip.NewWriter(&buf)
+	// Stream the output ZIP straight to w.Output rather than buffering the
+	// entire reconstructed package in memory first. zip.Writer produces
+	// byte-identical output regardless of the underlying writer.
+	zw := zip.NewWriter(w.Output)
 
 	// If we have a skeleton store, use skeleton-based reconstruction
 	if w.skeletonStore != nil {
@@ -84,32 +85,35 @@ func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
 		if err := w.writeFromSkeleton(origZR, zw, blocks); err != nil {
 			return err
 		}
-		if err := zw.Close(); err != nil {
-			return err
-		}
-		_, err = w.Output.Write(buf.Bytes())
-		return err
+		return zw.Close()
 	}
 
 	// Fallback: copy original unchanged
 	if err := w.writeOriginal(origZR, zw); err != nil {
 		return err
 	}
-	if err := zw.Close(); err != nil {
-		return err
-	}
-	_, err = w.Output.Write(buf.Bytes())
-	return err
+	return zw.Close()
 }
 
 // writeFromSkeleton reconstructs translatable story XML parts using the skeleton store.
+//
+// The skeleton stream emits each story bounded by part-start/part-end markers,
+// with all of that story's text and block refs arriving in between. The output
+// ZIP, however, must preserve the original entry order (origZR.File), in which
+// story files are interleaved with non-story entries. Because that order
+// differs from the skeleton emission order, reconstructed stories are collected
+// into partContents keyed by ZIP entry name, then emitted in ZIP order below.
+//
+// Each story is reconstructed into its own buffer so the stored slice is never
+// aliased or reused for a later story — that lets partContents hold the buffer
+// bytes directly without a defensive copy.
 func (w *Writer) writeFromSkeleton(origZR *zip.Reader, zw *zip.Writer,
 	blocks map[string]*model.Block) error {
 
 	// Read all skeleton entries, splitting by part-boundary markers
 	partContents := make(map[string][]byte)
 	var currentPart string
-	var currentBuf bytes.Buffer
+	var currentBuf *bytes.Buffer
 
 	for {
 		entry, err := w.skeletonStore.Next()
@@ -132,16 +136,18 @@ func (w *Writer) writeFromSkeleton(origZR *zip.Reader, zw *zip.Writer,
 			// Check for part-boundary markers
 			if strings.HasPrefix(refID, skelPartStartPrefix) {
 				currentPart = strings.TrimPrefix(refID, skelPartStartPrefix)
-				currentBuf.Reset()
+				// Fresh buffer per part: its backing array is handed off to
+				// partContents at part-end and never reused, so no copy is needed.
+				currentBuf = &bytes.Buffer{}
 				continue
 			}
 			if strings.HasPrefix(refID, skelPartEndPrefix) {
 				partPath := strings.TrimPrefix(refID, skelPartEndPrefix)
-				if currentBuf.Len() > 0 {
-					partContents[partPath] = append([]byte{}, currentBuf.Bytes()...)
+				if currentBuf != nil && currentBuf.Len() > 0 {
+					partContents[partPath] = currentBuf.Bytes()
 				}
 				currentPart = ""
-				currentBuf.Reset()
+				currentBuf = nil
 				continue
 			}
 

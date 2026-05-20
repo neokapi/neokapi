@@ -192,18 +192,25 @@ func (w *Writer) writeFromSkeleton(blocks []*model.Block) error {
 		_ = offset
 	}
 
-	// Build the output by walking the original content and replacing each
-	// Content text range. Process in reverse order so earlier offsets stay
-	// valid as we splice replacements into later positions.
-	output := w.docContent
-	for i := len(ranges) - 1; i >= 0; i-- {
-		cr := ranges[i]
-		// Check if we have a translation for text that contains this range.
-		// We need to match accumulated paragraph text to individual Content texts.
+	// Build the output by walking the original content forward once, copying
+	// the spans between Content ranges verbatim and substituting translations
+	// where available. Ranges are collected in increasing offset order and do
+	// not overlap, so a single forward pass via strings.Builder is O(docLen)
+	// rather than the O(ranges x docLen) of repeated string splicing.
+	var sb strings.Builder
+	sb.Grow(len(w.docContent))
+	cursor := 0
+	for _, cr := range ranges {
+		sb.WriteString(w.docContent[cursor:cr.textStart])
 		if replacement, ok := translations[cr.text]; ok {
-			output = output[:cr.textStart] + xmlEscape(replacement) + output[cr.textEnd:]
+			sb.WriteString(xmlEscape(replacement))
+		} else {
+			sb.WriteString(w.docContent[cr.textStart:cr.textEnd])
 		}
+		cursor = cr.textEnd
 	}
+	sb.WriteString(w.docContent[cursor:])
+	output := sb.String()
 
 	// If simple per-Content replacement didn't work (because blocks aggregate
 	// multiple Content elements), try block-sequential replacement.
@@ -295,7 +302,6 @@ func (w *Writer) replaceSequential(blocks []*model.Block) string {
 	// Now match blocks to content texts sequentially.
 	// Each block's source text should be the concatenation of one or more
 	// sequential Content texts.
-	output := w.docContent
 	blockIdx := 0
 	contentIdx := 0
 
@@ -340,14 +346,21 @@ func (w *Writer) replaceSequential(blocks []*model.Block) string {
 		blockIdx++
 	}
 
-	// Apply replacements in reverse.
-	for i := len(replacements) - 1; i >= 0; i-- {
-		r := replacements[i]
-		output = output[:r.start] + r.text + output[r.end:]
+	// Apply replacements in a single forward pass. Replacements are appended in
+	// document order with non-overlapping, increasing offsets, so building the
+	// output via strings.Builder is O(docLen) instead of O(replacements x docLen).
+	var sb strings.Builder
+	sb.Grow(len(w.docContent))
+	cursor := 0
+	for _, r := range replacements {
+		sb.WriteString(w.docContent[cursor:r.start])
+		sb.WriteString(r.text)
+		cursor = r.end
 	}
+	sb.WriteString(w.docContent[cursor:])
 
 	_ = contentIndex
-	return output
+	return sb.String()
 }
 
 // writeMinimalICML generates a minimal ICML document from blocks only.
