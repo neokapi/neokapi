@@ -1,6 +1,10 @@
 package openxml
 
-import "bytes"
+import (
+	"bytes"
+	"fmt"
+	"regexp"
+)
 
 // run_merge.go — production cross-source run-envelope fusion (#602/#603).
 //
@@ -8,7 +12,7 @@ import "bytes"
 // emitRunEnvelopes). Okapi's RunMerger additionally fuses ADJACENT source
 // runs whose RunProperties are mergeable. emitRunEnvelopes covers the
 // same-source split and the br→text cross-source case structurally; the
-// three remaining cross-source fusions — handled here — arise in the
+// four remaining cross-source fusions — handled here — arise in the
 // skeleton path where the runs flow through skeleton reconstruction rather
 // than writeWMLBlock and so reach the post-pass as separate envelopes:
 //
@@ -20,6 +24,19 @@ import "bytes"
 //     runs collapses into one envelope. RunMerger.java:402-441.
 //  3. fuseAnnotationRefText      — a CommentReference-rPr <w:annotationRef/>
 //     run fuses with the following same-rPr text run. RunMerger.java:402-441.
+//  4. fuseBarePictAndRPrTextRuns — a bare (rPr-less) <w:pict> run fuses with
+//     the FOLLOWING rFonts-only text run, carrying the text run's minified
+//     rPr. RunMerger.java:402-441 + RunFonts.canBeMerged (RunFonts.java:
+//     190-247).
+//
+// All four are applied PRE-WSO (the writer routes the part bytes through
+// postNonWSOForName BEFORE optimizeWMLPartWithSource), so WordStyleOptimisation
+// sees the SAME fused run shape and count upstream Okapi's RunMerger produces
+// before its own WSO pass — the shared IdGenerator/styleId stream stays
+// byte-identical. The bare-pict run carries no rPr (a drawing-only Markup
+// chunk), so it is invisible to upstream's commonRunPropertiesOf either way;
+// folding it into the following run's RunProperties pre-WSO is what upstream
+// does, not a perturbation of WSO's view.
 //
 // These replace the equivalent post-serialization REGEXES (retired): the
 // matchers below reproduce ReplaceAll's left-to-right, non-overlapping
@@ -348,3 +365,266 @@ func fuseAnnotationRefText(data []byte) []byte {
 	}
 	return out
 }
+
+// fuseBarePictAndRPrTextRuns collapses an adjacent
+// `<w:r><w:pict>…</w:pict></w:r><w:r><w:rPr>…</w:rPr><w:t …>…</w:t></w:r>`
+// pair into a single `<w:r>` envelope carrying the second run's rPr,
+// followed by the pict and t children: `<w:r><w:rPr>X</w:rPr>
+// <w:pict>…</w:pict><w:t …>…</w:t></w:r>`.
+//
+// The first run must be a bare `<w:r><w:pict>` envelope (no rPr) and
+// the second must be a `<w:r><w:rPr>X</w:rPr><w:t>…</w:t></w:r>`
+// envelope. The fuse is rPr-equivalent on the first slot (empty rPr →
+// inherited from pPr), and the post-fuse `<w:rPr>X</w:rPr>` is the
+// rPr X from the second slot, minified (see below).
+//
+// Mirrors upstream Okapi RunMerger.mergeRunBodyChunks
+// (RunMerger.java:402-441) fusing adjacent runs whose rPr's are
+// "compatible" per canRunPropertiesBeMerged (RunMerger.java:156-229):
+// an empty rPr is treated as compatible with any other rPr, and the
+// merged run carries the non-empty rPr. The result is a single
+// `<w:r>` carrying both a Markup body chunk (the pict) and a RunText
+// body chunk (the t) under one shared RunProperties — per ECMA-376-1
+// §17.3.2.1 (CT_R) a single `<w:r>` may carry both `<w:pict>` and
+// `<w:t>` children alongside one `<w:rPr>`.
+//
+// In addition to the structural fuse, this strips the `w:hAnsi="…"`
+// attribute from the fused rPr's `<w:rFonts>` when the rFonts element
+// carries `w:ascii` with the SAME value. This mirrors upstream Okapi's
+// RunProperties.minified() collapse of redundant rFonts attributes
+// against the pPr.rPr-inherited rFonts context: when the paragraph
+// mark's rFonts already declares hAnsi at the same value, the run's
+// hAnsi is redundant and is dropped, leaving only the ascii attribute
+// on the run-level rFonts (which Okapi retains as the "primary" Latin
+// font marker). Fixture: Hangs.docx document.xml, where a bare pict run
+// wrapping the s1059 shape is followed by a text run carrying
+// `<w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/>` and
+// the reference output emits the fused run with
+// `<w:rFonts w:ascii="Times New Roman"/>` only.
+//
+// The walker (not a regex — pict bodies hold heavy textbox/imagedata/
+// OLEObject markup whose non-greedy regex walk over megabytes of XML
+// would be slow) pairs each `<w:r><w:pict>` open with the NEAREST
+// `</w:pict></w:r>`; nested `<w:pict>` does not occur in the OOXML
+// fixture corpus (VML pict bodies hold shape/textbox children but never
+// another `<w:pict>` per ECMA-376-1 §17.3.3.9 / §M.6.2).
+//
+// The leading-bare-r gate (`<w:r><w:pict>`, no rPr) distinguishes pict
+// runs that already share rPr with neighbors (where emitRunEnvelopes'
+// same-source join handles the merge) from the SKELETON-EMITTED case
+// where the source's rPr-less pict run is re-emitted verbatim through
+// the runToXML path. Hangs.docx exercises the skeleton path: the
+// surrounding paragraph is non-translatable apart from a short text
+// run, so the runs flow through skeleton reconstruction and arrive here
+// as the un-fused envelope pair. Applied pre-WSO (postNonWSOForName) so
+// WordStyleOptimisation sees the same fused run upstream's RunMerger
+// produced before its own WSO pass — see the run_merge.go header.
+func fuseBarePictAndRPrTextRuns(data []byte) []byte {
+	if !bytes.Contains(data, []byte(`<w:r><w:pict>`)) {
+		return data
+	}
+	out := make([]byte, 0, len(data))
+	const openSeq = "<w:r><w:pict>"
+	const closeSeq = "</w:pict></w:r>"
+	const rprOpen = "<w:r><w:rPr>"
+	const rprClose = "</w:rPr>"
+	const tOpen = "<w:t"
+	const tClose = "</w:t></w:r>"
+	pos := 0
+	for pos < len(data) {
+		idx := bytes.Index(data[pos:], []byte(openSeq))
+		if idx < 0 {
+			out = append(out, data[pos:]...)
+			break
+		}
+		// Copy bytes up to the open of `<w:r>`.
+		openAt := pos + idx
+		out = append(out, data[pos:openAt]...)
+		// Locate matching `</w:pict></w:r>` (first occurrence — no
+		// nested pict in OOXML).
+		bodyStart := openAt + len(openSeq)
+		closeRel := bytes.Index(data[bodyStart:], []byte(closeSeq))
+		if closeRel < 0 {
+			// Malformed — emit verbatim and bail.
+			out = append(out, data[openAt:]...)
+			break
+		}
+		closeAt := bodyStart + closeRel
+		afterPict := closeAt + len(closeSeq)
+		// Check if the immediately-following bytes are
+		// `<w:r><w:rPr>…</w:rPr><w:t …>…</w:t></w:r>`.
+		if !bytes.HasPrefix(data[afterPict:], []byte(rprOpen)) {
+			out = append(out, data[openAt:afterPict]...)
+			pos = afterPict
+			continue
+		}
+		rPrBodyStart := afterPict + len(rprOpen)
+		rPrCloseRel := bytes.Index(data[rPrBodyStart:], []byte(rprClose))
+		if rPrCloseRel < 0 {
+			out = append(out, data[openAt:afterPict]...)
+			pos = afterPict
+			continue
+		}
+		rPrCloseAt := rPrBodyStart + rPrCloseRel
+		afterRPr := rPrCloseAt + len(rprClose)
+		if !bytes.HasPrefix(data[afterRPr:], []byte(tOpen)) {
+			out = append(out, data[openAt:afterPict]...)
+			pos = afterPict
+			continue
+		}
+		tCloseRel := bytes.Index(data[afterRPr:], []byte(tClose))
+		if tCloseRel < 0 {
+			out = append(out, data[openAt:afterPict]...)
+			pos = afterPict
+			continue
+		}
+		tEndAt := afterRPr + tCloseRel + len(tClose)
+		// Reject if the t body contains nested `<w:t>` (defensive —
+		// the walker assumes a single text leaf).
+		tBody := data[afterRPr:tEndAt]
+		if bytes.Count(tBody, []byte("<w:t>")) > 0 || bytes.Count(tBody, []byte("<w:t ")) > 1 {
+			out = append(out, data[openAt:afterPict]...)
+			pos = afterPict
+			continue
+		}
+		// Only fuse when the second run's rPr is EXACTLY a single
+		// <w:rFonts ... /> element carrying the ascii+hAnsi attribute
+		// pair with the SAME value. Mirrors upstream Okapi's
+		// canRunPropertiesBeMerged + RunFonts.canBeMerged
+		// (RunMerger.java:156-229 + RunFonts.java:190-247): a bare
+		// (rPr-less) pict run merges with a following text run ONLY
+		// when the text-run rPr is reducible to a rFonts-only
+		// signature whose attributes are the merge-compatible
+		// ascii=hAnsi pair. Text runs carrying additional rPr
+		// children (sz, color, b, …) fail the merge — bridge keeps
+		// them split. Fixture: Hangs.docx document.xml s1059 (rPr =
+		// rFonts ascii+hAnsi only → fuse) vs s1062 (rPr = rFonts +
+		// sz → keep split).
+		rPrInner := data[rPrBodyStart:rPrCloseAt]
+		if !isMergeableBareRPrRFonts(rPrInner) {
+			out = append(out, data[openAt:afterPict]...)
+			pos = afterPict
+			continue
+		}
+		// Build the fused envelope. The rPr body is taken from the
+		// second run, then minified by stripping `w:hAnsi="X"` when
+		// `w:ascii="X"` is present with the same value (see function
+		// comment for the rationale).
+		rPrBody := minifyRunRFontsHAnsi(rPrInner)
+		pictBody := data[bodyStart:closeAt]
+		out = append(out, []byte("<w:r><w:rPr>")...)
+		out = append(out, rPrBody...)
+		out = append(out, []byte("</w:rPr><w:pict>")...)
+		out = append(out, pictBody...)
+		out = append(out, []byte("</w:pict>")...)
+		// Emit the t element verbatim (between afterRPr and tEndAt
+		// minus the closing `</w:r>` so we can wrap it in our own).
+		// tClose is `</w:t></w:r>`; we need to keep `</w:t>` but drop
+		// the `</w:r>` since we append our own.
+		tBodyEnd := tEndAt - len("</w:r>")
+		out = append(out, data[afterRPr:tBodyEnd]...)
+		out = append(out, []byte("</w:r>")...)
+		pos = tEndAt
+	}
+	return out
+}
+
+// isMergeableBareRPrRFonts reports whether an rPr inner body
+// (the bytes BETWEEN `<w:rPr>` and `</w:rPr>`) consists of EXACTLY one
+// `<w:rFonts …/>` element carrying `w:ascii="X"` and `w:hAnsi="X"` for
+// the SAME value X, with no other attributes and no sibling rPr
+// children. Used by fuseBarePictAndRPrTextRuns to gate the fuse — see
+// the call site for the upstream Okapi canRunPropertiesBeMerged
+// rationale.
+func isMergeableBareRPrRFonts(rPrInner []byte) bool {
+	trimmed := bytes.TrimSpace(rPrInner)
+	if !bytes.HasPrefix(trimmed, []byte("<w:rFonts")) {
+		return false
+	}
+	// Accept both self-closing and open/close empty forms.
+	var tag []byte
+	switch {
+	case bytes.HasSuffix(trimmed, []byte("/>")):
+		tag = trimmed
+	case bytes.HasSuffix(trimmed, []byte("</w:rFonts>")):
+		// Open + close form — extract the open tag and verify the
+		// body is empty.
+		openEnd := bytes.IndexByte(trimmed, '>')
+		if openEnd < 0 {
+			return false
+		}
+		body := trimmed[openEnd+1 : len(trimmed)-len("</w:rFonts>")]
+		if len(bytes.TrimSpace(body)) != 0 {
+			return false
+		}
+		tag = trimmed[:openEnd+1]
+	default:
+		return false
+	}
+	asciiMatch := rFontsAsciiRE.FindSubmatch(tag)
+	hAnsiMatch := rFontsHAnsiRE.FindSubmatch(tag)
+	if asciiMatch == nil || hAnsiMatch == nil {
+		return false
+	}
+	if !bytes.Equal(asciiMatch[1], hAnsiMatch[1]) {
+		return false
+	}
+	// Reject if there are extra attributes beyond ascii+hAnsi (e.g.
+	// hint="eastAsia", cs, eastAsia, etc.). Counting attributes:
+	// the rFonts element must have exactly 2 attributes.
+	return len(rFontsAttrRE.FindAll(tag, -1)) == 2
+}
+
+// minifyRunRFontsHAnsi strips a redundant `w:hAnsi="X"` attribute from
+// the FIRST `<w:rFonts …/>` element inside an rPr body when the same
+// element also carries `w:ascii="X"` with the same value. Mirrors
+// upstream Okapi RunProperties.minified() collapse of inherited
+// rFonts attributes — see fuseBarePictAndRPrTextRuns for the citation
+// and Hangs.docx fixture rationale.
+//
+// Conservative match: only fires when the rFonts element carries
+// EXACTLY `w:ascii="X"` and `w:hAnsi="X"` for the SAME value X, with
+// no other attribute between them or that would make the merge
+// unsafe. Returns the input unchanged when the pattern doesn't match.
+func minifyRunRFontsHAnsi(rPrBody []byte) []byte {
+	rFontsStart := bytes.Index(rPrBody, []byte("<w:rFonts"))
+	if rFontsStart < 0 {
+		return rPrBody
+	}
+	// Locate the rFonts element end (self-closing `/>` or open-tag
+	// `>`).
+	tagEnd := bytes.IndexAny(rPrBody[rFontsStart:], ">")
+	if tagEnd < 0 {
+		return rPrBody
+	}
+	tagEnd += rFontsStart
+	tag := rPrBody[rFontsStart : tagEnd+1]
+	// Match `w:ascii="X"` and `w:hAnsi="X"` and drop the hAnsi.
+	asciiMatch := rFontsAsciiRE.FindSubmatch(tag)
+	if asciiMatch == nil {
+		return rPrBody
+	}
+	asciiVal := asciiMatch[1]
+	hAnsiPattern := []byte(fmt.Sprintf(` w:hAnsi="%s"`, asciiVal))
+	if !bytes.Contains(tag, hAnsiPattern) {
+		return rPrBody
+	}
+	// Strip the hAnsi attribute (including the preceding space).
+	newTag := bytes.Replace(tag, hAnsiPattern, nil, 1)
+	out := make([]byte, 0, len(rPrBody))
+	out = append(out, rPrBody[:rFontsStart]...)
+	out = append(out, newTag...)
+	out = append(out, rPrBody[tagEnd+1:]...)
+	return out
+}
+
+// rFonts attribute matchers used by the bare-pict + text run fuse to
+// gate (isMergeableBareRPrRFonts) and minify (minifyRunRFontsHAnsi) the
+// fused run's `<w:rFonts>` per upstream Okapi RunProperties.minified() +
+// RunFonts.canBeMerged. Compiled once at package init rather than per
+// call (the originals re-MustCompile'd on every fuse).
+var (
+	rFontsAsciiRE = regexp.MustCompile(`w:ascii="([^"]+)"`)
+	rFontsHAnsiRE = regexp.MustCompile(`w:hAnsi="([^"]+)"`)
+	rFontsAttrRE  = regexp.MustCompile(`\bw:[A-Za-z]+="`)
+)
