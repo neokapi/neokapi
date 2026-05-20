@@ -18,7 +18,12 @@ COPY bowrain/core/go.mod bowrain/core/go.sum ./bowrain/core/
 COPY bowrain/cli/go.mod bowrain/cli/go.sum ./bowrain/cli/
 COPY bowrain/plugin/go.mod bowrain/plugin/go.sum ./bowrain/plugin/
 COPY bowrain/plugin/schema/go.mod bowrain/plugin/schema/go.sum ./bowrain/plugin/schema/
-RUN go mod download \
+# GOWORK=off: download per-module deps without the workspace. go.work lists
+# scripts/* modules whose go.mod isn't copied into this layer, so a workspace
+# `go mod download` would fail loading them (#610). The build step below keeps
+# the workspace (all modules present after `COPY . .`).
+RUN export GOWORK=off \
+    && go mod download \
     && cd cli && go mod download \
     && cd ../kapi && go mod download \
     && cd ../bowrain && go mod download \
