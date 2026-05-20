@@ -100,6 +100,21 @@ func roundtripMediaWiki(t *testing.T, input string) string {
 
 // ---- WikiFilterTest ----
 
+// okapi: WikiFilterTest#testDefaultInfo
+// Okapi's testDefaultInfo asserts the filter exposes a non-null name, a
+// non-null display name, and a non-empty configuration list. The native
+// analog: the reader reports a non-empty Name and DisplayName, and its
+// Signature advertises at least one extension and one MIME type (the
+// equivalent of okapi's filter configurations).
+func TestDefaultInfo(t *testing.T) {
+	reader := wiki.NewReader()
+	assert.NotEmpty(t, reader.Name())
+	assert.NotEmpty(t, reader.DisplayName())
+	sig := reader.Signature()
+	assert.NotEmpty(t, sig.Extensions, "wiki should advertise at least one extension")
+	assert.NotEmpty(t, sig.MIMETypes, "wiki should advertise at least one MIME type")
+}
+
 // okapi: WikiFilterTest#testStartDocument
 func TestExtract_StartDocument(t *testing.T) {
 	parts := readDefault(t, "== Title ==\nSimple text.")

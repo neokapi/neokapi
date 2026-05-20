@@ -1140,6 +1140,106 @@ func TestExtract_SegmentedTarget(t *testing.T) {
 	assert.True(t, b.HasTarget("fr"))
 }
 
+// okapi: XLIFFFilterTest#testSegmentedEntry
+// XLIFF 1.2 <seg-source> with two <mrk mtype="seg"> markers splits the
+// translation unit's source into two segments. Okapi asserts count==2 with
+// segment texts "t1." and "t2"; the native reader produces the same segments,
+// keyed by the mrk mid.
+func TestExtract_SegmentedEntry(t *testing.T) {
+	t.Parallel()
+	xlf := wrapXLIFFNoNS(`<trans-unit id="1">` +
+		`<source>t1. t2</source>` +
+		`<seg-source><mrk mid="1" mtype="seg">t1.</mrk> <mrk mid="2" mtype="seg">t2</mrk></seg-source>` +
+		`<target xml:lang="fr">t1. t2</target>` +
+		`</trans-unit>`)
+	blocks := readXLIFFBlocks(t, xlf)
+	require.NotEmpty(t, blocks)
+	require.Len(t, blocks[0].Source, 2)
+	assert.Equal(t, "t1.", blocks[0].Source[0].Text())
+	assert.Equal(t, "t2", blocks[0].Source[1].Text())
+}
+
+// okapi: XLIFFFilterTest#testSegmentedSource1
+// Same as testSegmentedEntry but with no <target>: the <seg-source>
+// segmentation still yields two source segments "t1." and "t2".
+func TestExtract_SegmentedSource1(t *testing.T) {
+	t.Parallel()
+	xlf := wrapXLIFFNoNS(`<trans-unit id="1">` +
+		`<source>t1. t2</source>` +
+		`<seg-source><mrk mid="1" mtype="seg">t1.</mrk> <mrk mid="2" mtype="seg">t2</mrk></seg-source>` +
+		`</trans-unit>`)
+	blocks := readXLIFFBlocks(t, xlf)
+	require.NotEmpty(t, blocks)
+	require.Len(t, blocks[0].Source, 2)
+	assert.Equal(t, "t1.", blocks[0].Source[0].Text())
+	assert.Equal(t, "t2", blocks[0].Source[1].Text())
+}
+
+// okapi: XLIFFFilterTest#testSegmentedEntryWithDifferences
+// When the joined <seg-source> content disagrees with <source> (here the
+// source carries an extra "x"), Okapi logs a warning and discards the
+// inconsistent segmentation, falling back to the single un-segmented source
+// segment "[t1. x t2]". The native reader mirrors this under okapi-compat
+// (XLIFFFilter.java:2278): one source segment whose text is the full source.
+func TestExtract_SegmentedEntryWithDifferences(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+	xlf := wrapXLIFFNoNS(`<trans-unit id="1withWarning">` +
+		`<source>t1. x t2</source>` +
+		`<seg-source><mrk mid="1" mtype="seg">t1.</mrk> <mrk mid="2" mtype="seg">t2</mrk></seg-source>` +
+		`<target xml:lang="fr">t1. t2</target>` +
+		`</trans-unit>`)
+	reader := xliff.NewReader()
+	reader.Config().(*xliff.Config).OkapiCompat.UnwrapSingleSegMrk = true
+	require.NoError(t, reader.Open(ctx, testutil.RawDocFromString(xlf, model.LocaleEnglish)))
+	defer reader.Close()
+	blocks := testutil.FilterBlocks(testutil.CollectParts(t, reader.Read(ctx)))
+	require.NotEmpty(t, blocks)
+	require.Len(t, blocks[0].Source, 1, "divergent seg-source must collapse to one source segment")
+	assert.Equal(t, "t1. x t2", blocks[0].Source[0].Text())
+}
+
+// okapi: XLIFFFilterTest#testSegmentedEntryOutput
+// Okapi reads a trans-unit with a segmented <seg-source> and a matching
+// segmented <target>, then regenerates the document byte-for-byte (no
+// translation applied), preserving every <mrk mtype="seg"> wrapper. The
+// native analog reads the source into "[t1.] [t2]" and the target into
+// "[tt1.] [tt2]", and a skeleton-store roundtrip reproduces the segmented
+// structure exactly.
+func TestExtract_SegmentedEntryOutput(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+	input := `<?xml version="1.0" encoding="UTF-8"?>` +
+		`<xliff version="1.2">` +
+		`<file source-language="en" target-language="fr" datatype="x-test" original="file.ext">` +
+		`<body>` +
+		`<trans-unit id="1"><!--comment-->` +
+		`<source>t1. t2</source>` +
+		`<seg-source><mrk mid="1" mtype="seg">t1.</mrk> <mrk mid="2" mtype="seg">t2</mrk></seg-source>` +
+		`<target xml:lang="fr"><mrk mid="1" mtype="seg">tt1.</mrk> <mrk mid="2" mtype="seg">tt2</mrk></target>` +
+		`</trans-unit>` +
+		`</body></file></xliff>`
+
+	// Extraction: two source segments and two target segments.
+	reader := xliff.NewReader()
+	require.NoError(t, reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish)))
+	blocks := testutil.FilterBlocks(testutil.CollectParts(t, reader.Read(ctx)))
+	reader.Close()
+	require.NotEmpty(t, blocks)
+	require.Len(t, blocks[0].Source, 2)
+	assert.Equal(t, "t1.", blocks[0].Source[0].Text())
+	assert.Equal(t, "t2", blocks[0].Source[1].Text())
+	require.True(t, blocks[0].HasTarget("fr"))
+	frSegs := blocks[0].Targets["fr"]
+	require.Len(t, frSegs, 2)
+	assert.Equal(t, "tt1.", frSegs[0].Text())
+	assert.Equal(t, "tt2", frSegs[1].Text())
+
+	// Output: a skeleton-store roundtrip preserves the segmented structure
+	// byte-for-byte (the mrk wrappers in both seg-source and target survive).
+	require.Equal(t, input, snippetRoundtripWithSkeleton(t, input))
+}
+
 // okapi: XLIFFFilterTest#testIgnoredSegmentedTarget
 func TestExtract_IgnoredSegmentedTarget(t *testing.T) {
 	t.Parallel()

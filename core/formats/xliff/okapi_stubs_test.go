@@ -155,10 +155,10 @@ func inlineEquivs(runs []model.Run) []string {
 // (Covered natively with inline snippets in TestExtract_TranslateNo)
 
 // ---- XLIFFFilterTest (segmented files — require testdata) ----
-// Extraction behavior covered natively with inline snippets in:
-//   TestExtract_Segmentation, TestExtract_ThreeSegments,
-//   TestExtract_SegmentedEntry, TestExtract_SegmentedEntryOutput,
-//   TestExtract_SegmentedEntryWithDifferences, TestExtract_SegmentedSource1
+// Extraction behavior covered natively with inline snippets in
+// reader_test.go: TestExtract_Segmentation, TestExtract_ThreeSegments,
+// TestExtract_SegmentedEntry, TestExtract_SegmentedEntryOutput,
+// TestExtract_SegmentedEntryWithDifferences, TestExtract_SegmentedSource1.
 
 // ---- XLIFFFilterCtypeTest (9 tests — ctype extraction + roundtrip) ----
 // Extraction of ctype values is verified below. Roundtrip preservation

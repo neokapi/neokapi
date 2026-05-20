@@ -1100,3 +1100,89 @@ func TestContextCancellation(t *testing.T) {
 		// drain
 	}
 }
+
+// roundTripRules reads input with the given rules then writes it back out
+// (no translation) and returns the reconstructed document. With no targets,
+// each block's source is re-emitted via prefix+source+suffix assembly, so a
+// faithful reader/writer must reproduce the input byte-for-byte.
+func roundTripRules(t *testing.T, input string, rules []regex.Rule) string {
+	t.Helper()
+	ctx := t.Context()
+
+	reader := regex.NewReader()
+	reader.Config().(*regex.Config).Rules = rules
+	require.NoError(t, reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish)))
+	parts := testutil.CollectParts(t, reader.Read(ctx))
+	reader.Close()
+
+	var buf bytes.Buffer
+	writer := regex.NewWriter()
+	require.NoError(t, writer.SetOutputWriter(&buf))
+	writer.SetLocale(model.LocaleEnglish)
+	require.NoError(t, writer.Write(ctx, testutil.PartsToChannel(parts)))
+	writer.Close()
+	return buf.String()
+}
+
+// okapi: RegexFilterTest#testDoubleExtraction
+// Okapi's testDoubleExtraction runs a RoundTripComparison over a corpus of
+// fixtures driven by distinct .fprm rule sets (SRT, StringInfo, INI, and the
+// TestRules01..06 custom configs), asserting each file roundtrips identically.
+// The native analog is the same observable contract: for each representative
+// rule configuration, read → write with no translation must reproduce the
+// source byte-for-byte. We exercise several rule shapes the corpus covers —
+// content-with-note (SRT-like), comma-delimited StringInfo, key=value INI, and
+// quoted Mac .strings — rather than re-importing Okapi's .fprm files.
+func TestDoubleExtractionRoundTrip(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name  string
+		input string
+		rules []regex.Rule
+	}{
+		{
+			name:  "macStrings quoted key=value",
+			input: "\"key1\" = \"Hello\";\n\"key2\" = \"World\";\n",
+			rules: macStringsRules(),
+		},
+		{
+			name:  "ini key=value",
+			input: "key1=Hello\nkey2=World\n",
+			rules: iniRules(),
+		},
+		{
+			name:  "stringinfo comma-delimited translatable flag",
+			input: "STR1,Hello,1\nSTR2,World,1\nSTR3,NoTranslate,0\n",
+			rules: []regex.Rule{{Pattern: `(?m)^(\w+),([^,]+),1$`, SourceGroup: 2, IDGroup: 1}},
+		},
+		{
+			name: "srt content rule with note group",
+			input: "1\n00:00:12,000 --> 00:00:15,123\nThis is the first subtitle\n\n" +
+				"2\n00:00:20,000 --> 00:00:22,000\nAnother subtitle.\n\n",
+			rules: []regex.Rule{{
+				Pattern:     `(?s)(\d\d:\d\d:\d\d.*?)\n(.*?)(\n\n+|\z)`,
+				SourceGroup: 2,
+				NoteGroup:   1,
+			}},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			got := roundTripRules(t, tt.input, tt.rules)
+			assert.Equal(t, tt.input, got, "no-translation roundtrip must be byte-exact")
+		})
+	}
+}
+
+// The remaining RegexFilterTest methods exercise Okapi-only Rule features that
+// the native regex format does not model (#611). The native regex.Rule
+// supports only Pattern + SourceGroup/IDGroup/NoteGroup; it has no
+// collapseNewline option, no MetaRule/GenericAnnotations, and no subfilter
+// recursion. These are deliberate-design gaps in the native reader, not bugs,
+// so they are skip-classified rather than fake-passed.
+//
+// okapi-skip: RegexFilterTest#testCollapseNewline — native regex.Rule has no collapseNewline option to fold internal newlines in the captured source to a space
+// okapi-skip: RegexFilterTest#testMeta — native regex.Rule has no MetaRule/GenericAnnotations support; only NoteGroup notes are extracted
+// okapi-skip: RegexFilterTest#testSubFiltering — native regex format does not support subfilter recursion (re-parsing a captured group with another filter)
+// okapi-skip: RegexFilterTest#testNoteWithSubfilter — native regex format has no subFilter; cannot re-parse the source group through okf_regex@TestRules02

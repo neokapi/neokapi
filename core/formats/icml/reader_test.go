@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/formats/icml"
 	"github.com/neokapi/neokapi/core/internal/testutil"
 	"github.com/neokapi/neokapi/core/model"
@@ -120,11 +121,32 @@ func TestCustomConfig(t *testing.T) {
 }
 
 // okapi: ICMLFilterTest#getName_ThenReturnName
+// okapi: ICMLFilterTest#getDisplayName_ThenReturnDisplayName
+// Okapi asserts getName()=="okf_icml" and getDisplayName()=="ICML Filter".
+// neokapi's native format uses its own intuitive id ("icml") and human name
+// ("ICML (Adobe InCopy)"); the verified contract is that the format exposes a
+// stable name and a non-empty human-readable display name.
 func TestReaderMetadata(t *testing.T) {
 	reader := icml.NewReader()
 	assert.Equal(t, "icml", reader.Name())
 	assert.Equal(t, "ICML (Adobe InCopy)", reader.DisplayName())
 }
+
+// okapi: ICMLFilterTest#createFilterWriter_ThenReturnICMLFilterWriter
+// Okapi asserts ICMLFilter.createFilterWriter() returns a non-null
+// ICMLFilterWriter. The native analog: icml.NewWriter() returns a non-nil
+// writer that implements the format.DataFormatWriter contract for the icml
+// format.
+func TestCreateFilterWriter(t *testing.T) {
+	var w format.DataFormatWriter = icml.NewWriter()
+	require.NotNil(t, w)
+}
+
+// ICMLFilterTest also covers two Okapi-internal filter-architecture surfaces
+// that neokapi's reader/writer model does not expose (#611):
+//
+// okapi-skip: ICMLFilterTest#createSkeletonWriter_ThenReturnNull — Okapi's ISkeletonWriter abstraction (ICML returns null to opt out) has no neokapi analog; the native ICML format uses the byte-exact SkeletonStore mechanism instead
+// okapi-skip: ICMLFilterTest#getEncoderManager_ThenReturnEncoderManager — Okapi's EncoderManager encoding/escaping subsystem is not part of neokapi's format model
 
 // okapi: ICMLFilterTest#getMimeType_ThenReturnMimeType
 func TestReaderMIMEType(t *testing.T) {
