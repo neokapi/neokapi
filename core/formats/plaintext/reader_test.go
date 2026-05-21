@@ -208,6 +208,12 @@ func TestRead_StartDocument(t *testing.T) {
 }
 
 // okapi: PlainTextFilterTest#testDoubleExtraction
+// The extract→write→re-extract roundtrip over real test-data files below is
+// the same contract Okapi's integration-test suite enforces over its plain
+// text file corpus and gold XLIFF:
+// okapi: RoundTripPlainTextIT#plainTextFiles
+// okapi: PlainTextXliffCompareIT#plainTextXliffCompareFiles
+// okapi-skip: RoundTripPlainTextIT#plainTextSerializedFiles — Okapi serialized-skeleton roundtrip variant; native uses its own skeleton store (no serialized-skeleton mode)
 func TestRoundTrip_DoubleExtraction(t *testing.T) {
 	// Double extraction: read -> write -> read -> compare.
 	// Verifies roundtrip fidelity for all test data files.
@@ -907,8 +913,12 @@ func TestRead_CRLineEndings(t *testing.T) {
 // okapi-skip: RegexPlainTextFilterTest#testFiles — okf_plaintext_regex variant: asserts 4 TUs from u0085/u2028/u2029 fixtures by splitting on Unicode NEL/LS/PS separators, which the native reader intentionally does not treat as line terminators (verified: such input yields a single block).
 
 // ---- RoundTripPlainTextIT ----
+// The RoundTripPlainTextIT#plainTextFiles and
+// PlainTextXliffCompareIT#plainTextXliffCompareFiles contracts are mapped to
+// TestRoundTrip_DoubleExtraction above (extract→write→re-extract over the
+// test-data corpus). The native roundtrip tests below cover the same fidelity
+// at finer granularity.
 
-// okapi: RoundTripPlainTextIT
 func TestRoundTrip_Native(t *testing.T) {
 	// Native roundtrip: read then write and verify blocks survive.
 	input := "Hello world\nThis is a test."
@@ -932,7 +942,8 @@ func TestRoundTrip_Native(t *testing.T) {
 	assert.Equal(t, input, buf.String())
 }
 
-// neokapi-only: RoundTripPlainTextIT#testPlainTextFiles — no such Okapi IT class in v1.48.0; upstream roundtrip is PlainTextFilterTest#testDoubleExtraction (already mapped above).
+// Extra native file-corpus coverage; the RoundTripPlainTextIT#plainTextFiles
+// contract itself is mapped to TestRoundTrip_DoubleExtraction above.
 func TestRoundTrip_TestFiles(t *testing.T) {
 	tests := []struct {
 		name string
@@ -972,7 +983,9 @@ func TestRoundTrip_TestFiles(t *testing.T) {
 	}
 }
 
-// neokapi-only: RoundTripPlainTextIT#testPlainTextFiles (line ending variants) — no such Okapi IT class in v1.48.0; upstream roundtrip is PlainTextFilterTest#testDoubleExtraction (already mapped above).
+// Extra native coverage for line-ending variants; the
+// RoundTripPlainTextIT#plainTextFiles contract is mapped to
+// TestRoundTrip_DoubleExtraction above.
 func TestRoundTrip_LineEndings(t *testing.T) {
 	tests := []struct {
 		name  string
@@ -1007,7 +1020,9 @@ func TestRoundTrip_LineEndings(t *testing.T) {
 	}
 }
 
-// neokapi-only: RoundTripPlainTextIT#testPlainTextFiles (paragraph mode) — no such Okapi IT class in v1.48.0; upstream roundtrip is PlainTextFilterTest#testDoubleExtraction (already mapped above).
+// Extra native coverage for paragraph mode; the
+// RoundTripPlainTextIT#plainTextFiles contract is mapped to
+// TestRoundTrip_DoubleExtraction above.
 func TestRoundTrip_ParagraphMode(t *testing.T) {
 	tests := []struct {
 		name  string

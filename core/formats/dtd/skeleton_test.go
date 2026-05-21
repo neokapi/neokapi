@@ -142,6 +142,12 @@ func TestSkeletonStore_ByteExact_SimpleFile(t *testing.T) {
 // reader resolves to the literal text "&test1;" and the writer re-escapes to
 // `&amp;test1;` (rather than silently re-emitting the bare, semantically
 // different reference `&test1;`).
+//
+// The same extract→write→re-extract idempotency is the contract Okapi's
+// integration-test suite enforces over its DTD file corpus and gold XLIFF:
+// okapi: RoundTripDtdIT#dtdFiles
+// okapi: DtdXliffCompareIT#dtdXliffCompareFiles
+// okapi-skip: RoundTripDtdIT#dtdFilesSerialized — Okapi serialized-skeleton roundtrip variant; native uses its own skeleton store (no serialized-skeleton mode)
 func TestDoubleExtraction(t *testing.T) {
 	t.Parallel()
 	for _, name := range []string{"testdata/Test01.dtd", "testdata/Test02.dtd"} {

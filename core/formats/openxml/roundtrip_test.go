@@ -141,6 +141,17 @@ func TestRoundtripWithTranslation(t *testing.T) {
 // whose write-back fidelity is tracked separately and excluded below. They are
 // genuine known native gaps (not test artefacts); each maps to its tracking
 // issue so the contract audit doesn't claim a behaviour we don't yet honour.
+//
+// This extract→write→extract roundtrip over the real upstream OpenXML corpus is
+// also the contract Okapi's integration-test suite enforces over its /openxml/
+// file corpus and gold XLIFF. RoundTripOpenXmlIT#openXmlFiles runs
+// setSerializedOutput(false) + realTestFiles (extract → re-extract event
+// stability); OpenXmXliffCompareIT#openXmlXliffCompareFiles extracts to XLIFF
+// and compares against gold. The native test reads the same upstream fixtures
+// and t.Skip()s when okapi-testdata is absent (CI shows pending):
+// okapi: RoundTripOpenXmlIT#openXmlFiles
+// okapi: OpenXmXliffCompareIT#openXmlXliffCompareFiles
+// okapi-skip: RoundTripOpenXmlIT#openXmlSerializedFiles — Okapi serialized-skeleton roundtrip variant (setSerializedOutput(true)); native uses its own skeleton store (no serialized-skeleton mode)
 func TestRoundTrip_Docx(t *testing.T) {
 	dir := testdataDir(t)
 	roundTripTestFiles(t, dir, "*.docx",

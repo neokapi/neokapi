@@ -354,6 +354,18 @@ func assertRoundTripStable(t *testing.T, fixtureName string, cfg *Config) {
 }
 
 // okapi: RoundTripTest#documentsWithDefaultParameters
+// The extract→write→re-extract roundtrip over the real upstream IDML fixture
+// below (926.idml, default parameters) is the same contract Okapi's
+// integration-test suite enforces over its /idml/ file corpus and gold XLIFF.
+// RoundTripIdmlIT#idmlFiles runs setSerializedOutput(false) + realTestFiles
+// with an EventComparator (extract→re-extract event stability over the corpus);
+// IdmlXliffCompareIT#idmlFiles extracts to XLIFF and compares against gold. The
+// native double-extraction here exercises the same reader+writer end-to-end on
+// the same upstream binary fixture and asserts the translatable surface is
+// preserved. It t.Skip()s when okapi-testdata is absent (CI shows pending):
+// okapi: RoundTripIdmlIT#idmlFiles
+// okapi: IdmlXliffCompareIT#idmlFiles
+// okapi-skip: RoundTripIdmlIT#idmlSerializedFiles — Okapi serialized-skeleton roundtrip variant (setSerializedOutput(true)); native uses its own skeleton store (no serialized-skeleton mode)
 func TestRoundTrip_DocumentsWithDefaultParameters(t *testing.T) {
 	assertRoundTripStable(t, "926.idml", nil)
 }

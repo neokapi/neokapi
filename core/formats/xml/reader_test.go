@@ -2292,7 +2292,12 @@ func TestPropertyXml_AsSnippetWithCdata(t *testing.T) {
 // Roundtrip integration test
 // ---------------------------------------------------------------------------
 
-// okapi: RoundTripXmlStreamIT
+// okapi: RoundTripXmlIT#xmlFiles
+// okapi: RoundTripXmlStreamIT#xmlStreamFiles
+// okapi-skip: RoundTripXmlIT#xmlSerializedFiles — Okapi serialized-skeleton roundtrip variant; native uses its own skeleton store (no serialized-skeleton mode)
+// okapi-skip: RoundTripXmlStreamIT#xmlStreamSerializedFiles — Okapi serialized-skeleton roundtrip variant; native uses its own skeleton store
+// okapi-skip: RoundTripXmlIT#issue591Resolved — exercises Okapi's custom okf_xml@ibxlf1 named config (IBM XLIFF1 regression); native has no equivalent named custom-config registry
+// okapi-skip: RoundTripXmlIT#issue1384Resolved — exercises Okapi's custom okf_xml@translatable-and-untranslatable named config; native has no equivalent named custom-config registry
 func TestRoundTrip_Integration(t *testing.T) {
 	inputs := []string{
 		`<?xml version="1.0" encoding="UTF-8"?><root><text>Hello world</text></root>`,

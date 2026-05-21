@@ -985,6 +985,9 @@ func TestSnippet_NilDocument(t *testing.T) {
 }
 
 // TestSnippet_Roundtrip verifies full roundtrip.
+//
+// okapi: RoundTripTsIT#tsFiles — native extract→write over a real .ts snippet, asserting source/translation/context survive; Okapi's tsFiles does extract→merge→compare-events over a .ts corpus.
+// okapi-skip: RoundTripTsIT#tsSerializedFiles — Okapi serialized-skeleton variant; native uses its own skeleton store, not Okapi's serialized event/skeleton format.
 func TestSnippet_Roundtrip(t *testing.T) {
 	t.Parallel()
 	snippet := `<?xml version="1.0" encoding="utf-8"?>
@@ -1017,6 +1020,8 @@ func TestSnippet_Roundtrip(t *testing.T) {
 }
 
 // TestSnippet_DoubleExtraction verifies reading twice produces same results.
+//
+// okapi: TsXliffCompareIT#tsXliffCompareFiles — re-extraction yields identical translatable content, verifying extraction is stable; Okapi's tsXliffCompareFiles extracts to XLIFF and compares against a gold XLIFF corpus.
 func TestSnippet_DoubleExtraction(t *testing.T) {
 	t.Parallel()
 	snippet := `<?xml version="1.0" encoding="utf-8"?>

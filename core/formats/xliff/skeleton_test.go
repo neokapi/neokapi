@@ -82,6 +82,13 @@ func TestSkeletonStore_ByteExact_MultipleTransUnits(t *testing.T) {
 	assert.Equal(t, input, output, "multiple trans-units XLIFF roundtrip should be byte-exact")
 }
 
+// okapi: RoundTripXliffIT#xliffFiles
+// RoundTripXliffIT#xliffFiles extracts each .xlf/.xliff in the corpus, merges,
+// and re-extracts, asserting the events match (extract→merge→re-extract). The
+// native byte-exact file roundtrip over testdata/simple.xlf is strictly
+// stronger: it reads a real XLIFF file through the skeleton store and asserts
+// the rendered output equals the input byte-for-byte, so no event/content can
+// drift across the read→write cycle.
 func TestSkeletonStore_ByteExact_SimpleFile(t *testing.T) {
 	t.Parallel()
 	data, err := os.ReadFile("testdata/simple.xlf")

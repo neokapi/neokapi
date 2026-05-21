@@ -40,6 +40,7 @@ func snippetRoundtripWithSkeleton(t *testing.T, input string) string {
 	return buf.String()
 }
 
+// okapi: RoundTripTtxIT#ttxFiles
 func TestSkeletonStore_ByteExact_SimpleTTX(t *testing.T) {
 	input := `<?xml version="1.0" encoding="utf-8"?>
 <TRADOStag Version="2.0">

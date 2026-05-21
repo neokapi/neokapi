@@ -106,6 +106,17 @@ func TestStartDocumentRootLayer(t *testing.T) {
 // reader exercises the same extraction+reconstruction contract over the
 // full package (it cannot consume bare inner XML), so we drive the genuine
 // .odt/.ods packages and assert the re-read block count is stable.
+//
+// This is also the contract Okapi's integration-test suite enforces over its
+// /openoffice/ ODF package corpus and gold XLIFF. RoundTripOpenOfficeIT#
+// openOfficeFiles runs setSerializedOutput(false) + realTestFiles with an
+// EventComparator (extract → re-extract event stability); OpenOfficeXliffCompareIT#
+// openOfficeXliffCompareFiles extracts to XLIFF and compares against gold. The
+// native test reads the same upstream packages and t.Skip()s when okapi-testdata
+// is absent (CI shows pending):
+// okapi: RoundTripOpenOfficeIT#openOfficeFiles
+// okapi: OpenOfficeXliffCompareIT#openOfficeXliffCompareFiles
+// okapi-skip: RoundTripOpenOfficeIT#openOfficeSerializedFiles — Okapi serialized-skeleton roundtrip variant (setSerializedOutput(true)); native uses its own skeleton store (no serialized-skeleton mode)
 func TestDoubleExtractionUpstream(t *testing.T) {
 	ctx := t.Context()
 	for _, name := range []string{"TestDocument01.odt", "TestDocument02.odt", "TestSpreadsheet01.ods"} {

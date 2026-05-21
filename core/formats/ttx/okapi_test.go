@@ -327,3 +327,4 @@ func TestOutputTwoTU(t *testing.T) {
 // okapi-skip: TTXFilterTest#testOutputWithOriginalWithoutTraget — Okapi copies source→target when a <Tu> has only a source <Tuv>; native does not synthesize a target.
 // okapi-skip: TTXFilterTest#testOutputWithPINoTUWithSegmentation — requires forced segmentation of free text after a procinstr <ut>; not implemented natively.
 // okapi-skip: TTXFilterTest#textDoubleExtractionOriginalAllSegmented — byte-exact round-trip of a real all-segmented TTX file requires preserving inline <ut>/<df> codes inside <Tuv>; native strips them, so the round-trip is not byte-identical.
+// okapi-skip: RoundTripTtxIT#ttxSerializedFiles — Okapi serialized-skeleton variant; native uses its own skeleton store

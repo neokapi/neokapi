@@ -1133,6 +1133,12 @@ func roundTripRules(t *testing.T, input string, rules []regex.Rule) string {
 // source byte-for-byte. We exercise several rule shapes the corpus covers —
 // content-with-note (SRT-like), comma-delimited StringInfo, key=value INI, and
 // quoted Mac .strings — rather than re-importing Okapi's .fprm files.
+//
+// This is the same extract→write→re-extract roundtrip contract Okapi's
+// integration-test suite enforces over its regex file corpus and gold XLIFF:
+// okapi: RoundTripRegexIT#regexFiles
+// okapi: RegexXliffCompareIT#regexXliffCompareFiles
+// okapi-skip: RoundTripRegexIT#regexSerializedFiles — Okapi serialized-skeleton roundtrip variant; native uses its own skeleton store (no serialized-skeleton mode)
 func TestDoubleExtractionRoundTrip(t *testing.T) {
 	t.Parallel()
 	tests := []struct {

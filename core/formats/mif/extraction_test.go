@@ -28,9 +28,11 @@ package mif_test
 import (
 	"bytes"
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/neokapi/neokapi/core/format"
+	"github.com/neokapi/neokapi/core/format/spec"
 	"github.com/neokapi/neokapi/core/formats/mif"
 	"github.com/neokapi/neokapi/core/internal/testutil"
 	"github.com/neokapi/neokapi/core/model"
@@ -38,14 +40,18 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const okapiResDir = "/Users/asgeirf/src/okapi/Okapi/okapi/filters/mif/src/test/resources"
-
-// openFixture opens an upstream okapi MIF fixture, skipping the test (per
-// the repo convention used by idml/transtable/wiki ports) when the okapi
-// checkout is not present on this machine.
+// openFixture opens an upstream okapi MIF fixture from the version-pinned
+// okapi-testdata tree, skipping the test (per the repo convention used by
+// the idml/odf/tex ports) when okapi-testdata is not present (e.g. in CI,
+// which does not fetch it). Resolved via spec.FindOkapiTestdataRoot so the
+// path is portable rather than hardcoded to one machine.
 func openFixture(t *testing.T, name string) *os.File {
 	t.Helper()
-	f, err := os.Open(okapiResDir + "/" + name)
+	root, err := spec.FindOkapiTestdataRoot()
+	if err != nil {
+		t.Skipf("okapi-testdata not present: %v", err)
+	}
+	f, err := os.Open(filepath.Join(root, "okapi", "filters", "mif", "src", "test", "resources", name))
 	if err != nil {
 		t.Skipf("upstream okapi MIF fixture not present (%s): %v", name, err)
 	}
@@ -496,6 +502,36 @@ func TestTabsEncodedOnExtractionAndHardReturnsEncodedOnMerge(t *testing.T) {
 func TestHardReturnsAsNonTextualRoundTripped(t *testing.T) {
 	t.Skip("TODO(#558): native round-trip of 987/990* fixtures is not byte-exact")
 }
+
+// ---------------------------------------------------------------------------
+// Integration-test (Failsafe) roundtrip contracts — honest classification.
+//
+// RoundTripMifIT#mifFiles runs setSerializedOutput(false) + realTestFiles over
+// the WHOLE /mif/ file corpus with an EventComparator (extract → re-extract,
+// asserting the event/TextUnit stream is stable). Unlike the idml/icml/openxml
+// native roundtrips, the native MIF reader+writer genuinely CANNOT satisfy this
+// contract across the real corpus today:
+//
+//   - Event instability: the native per-inline-code Block split model (#558,
+//     #509 — Okapi emits one paragraph TextUnit with inline codes; native
+//     splits a paragraph into multiple Blocks at every code boundary) makes the
+//     extract → write → re-extract block sequence diverge on real fixtures
+//     (e.g. 990-marker.mif extracts 222 blocks but re-extracts 219).
+//   - Reader robustness: re-reading the writer's output for 990-marker.mif
+//     crashes the native reader (findStringPositions, reader.go: index out of
+//     range when a non-first <String> in a merged ParaLine has no preceding
+//     recorded String position). A roundtrip cannot pass while re-extraction
+//     panics on writer output.
+//
+// These are real native gaps tracked by #558/#509, not test artefacts, so the
+// contract is recorded as a reviewed unmapped gap rather than a false // okapi:
+// claim or a fabricated passing test. The byte-exactness / event-stability of
+// the curated fixtures the surefire RoundTripTest exercises is covered by
+// TestRoundTrip / TestRoundTripNonSkeletonDeepNesting (reader_test.go) and the
+// #558 pending markers above.
+//
+// okapi-unmapped: RoundTripMifIT#mifFiles — native MIF roundtrip is event-unstable over the real /mif/ corpus (per-inline-code Block split, #558/#509) and the native reader panics re-reading writer output for 990-marker.mif; full-corpus event-stable roundtrip is a tracked native gap, not yet satisfiable
+// okapi-skip: RoundTripMifIT#mifSerializedFiles — Okapi serialized-skeleton roundtrip variant (setSerializedOutput(true)); native uses its own skeleton store (no serialized-skeleton mode), and the same #558/#509 event-stability gap as mifFiles applies
 
 // Ensure helpers stay referenced even though most fixture-backed bodies are
 // currently TODO skips; this keeps the readFileBlocksCommon path compiled

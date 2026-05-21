@@ -165,6 +165,21 @@ func inlineEquivs(runs []model.Run) []string {
 // (writing ctype back to XLIFF output) requires native writer inline code
 // support which is not yet implemented.
 
+// ---- Integration-test (Failsafe) contracts ----
+// RoundTripXliffIT (roundtrip.integration) and XliffXliffCompareIT
+// (xliffcompare.integration) in integration-tests/okapi. The plain-XLIFF
+// rows (xliffFiles / xliffXliffCompareFiles) map to native roundtrip tests
+// (see TestSkeletonStore_ByteExact_SimpleFile and TestRoundTrip_MultipleUnits);
+// the variants below are not applicable to the native reader.
+//
+// okapi-skip: RoundTripXliffIT#xliffSerialized — Okapi serialized-skeleton variant (writes events to a .ser/.json blob then merges); native uses its own byte-exact skeleton store, not Okapi's serialized event format
+// okapi-skip: XliffXliffCompareIT#sdlXliffXliffCompareFiles — SDL Trados sdlxliff dialect (okf_xliff-sdl) over .sdlxliff testdata; proprietary vendor variant handled by the okapi-bridge, no native reader
+// okapi-skip: XliffXliffCompareIT#worldserverXliffXLiffCompareFiles — WorldServer iwsxliff dialect (okf_xliff-iws) over .iwsxliff testdata; proprietary vendor variant handled by the okapi-bridge, no native reader
+// okapi-skip: RoundTripXliffIT#sdlXliff — SDL Trados sdlxliff dialect (okf_xliff-sdl) over .sdlxliff testdata; proprietary vendor variant handled by the okapi-bridge, no native reader
+// okapi-skip: RoundTripXliffIT#sdlXliffSerialized — SDL sdlxliff dialect plus Okapi serialized-skeleton variant; vendor + serialized, both bridge-only
+// okapi-skip: RoundTripXliffIT#worldserverXliff — WorldServer iwsxliff dialect (okf_xliff-iws) over .iwsxliff testdata; proprietary vendor variant handled by the okapi-bridge, no native reader
+// okapi-skip: RoundTripXliffIT#worldserverXliffSerialized — WorldServer iwsxliff dialect plus Okapi serialized-skeleton variant; vendor + serialized, both bridge-only
+
 // okapi: XLIFFFilterCtypeTest#testKeepCtypeG
 func TestCtype_KeepCtypeG(t *testing.T) {
 	t.Parallel()

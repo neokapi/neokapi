@@ -286,7 +286,8 @@ func TestReadSimpleFile(t *testing.T) {
 	assert.False(t, blocks[2].HasTarget(model.LocaleFrench))
 }
 
-// okapi: RoundTripPoIT
+// okapi: RoundTripPoIT#poFiles — native extract→write→compare roundtrip over real PO; Okapi's poFiles does extract→merge→compare-events over a .po corpus.
+// okapi-skip: RoundTripPoIT#poSerializedFiles — Okapi serialized-skeleton variant; native uses its own skeleton store, not Okapi's serialized event/skeleton format.
 func TestRoundTrip(t *testing.T) {
 	t.Parallel()
 	input := `msgid ""
@@ -447,6 +448,7 @@ func TestRead_DefaultInfo(t *testing.T) {
 }
 
 // okapi: POFilterTest#testDoubleExtraction
+// okapi: PoXliffCompareIT#poXliffCompareFiles — native extract→write→re-extract verifies extracted content is stable; Okapi's poXliffCompareFiles extracts to XLIFF and compares against a gold XLIFF corpus.
 func TestRoundTrip_DoubleExtraction(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()

@@ -344,8 +344,10 @@ func TestConfigApplyMapWrongType(t *testing.T) {
 	assert.Contains(t, err.Error(), "expected bool")
 }
 
-// okapi: RoundTripIcmlIT
-// Roundtrip test: read ICML, write back, verify content is preserved.
+// Native writer-validation roundtrip on a synthetic fixture: read ICML, write
+// back, verify content is preserved. The real-corpus roundtrip contract
+// (RoundTripIcmlIT / IcmlXliffCompareIT) is mapped on the upstream fixtures in
+// TestRoundTrip_UpstreamCorpus (upstream_test.go).
 func TestRoundTrip(t *testing.T) {
 	ctx := t.Context()
 
@@ -375,8 +377,9 @@ func TestRoundTrip(t *testing.T) {
 	assert.Contains(t, output, "Story")
 }
 
-// okapi: RoundTripIcmlIT (with translation)
-// Roundtrip test with target translation.
+// Native writer-validation roundtrip with a target translation on a synthetic
+// fixture. The real-corpus roundtrip contract is mapped in
+// TestRoundTrip_UpstreamCorpus (upstream_test.go).
 func TestRoundTripWithTargetLocale(t *testing.T) {
 	ctx := t.Context()
 

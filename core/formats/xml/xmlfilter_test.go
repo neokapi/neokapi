@@ -198,6 +198,8 @@ func xmlRoundtrip(t *testing.T, input string) string {
 // ---------------------------------------------------------------------------
 
 // okapi: XMLFilterTest#testSeveralUnits
+// okapi: XmlXliffCompareIT#xmlXliffCompareFiles
+// okapi: XmlStreamXliffCompareIT#xmlStreamXliffCompareFiles
 func TestXMLFilter_SeveralUnits(t *testing.T) {
 	blocks := xmlFilterBlocks(t,
 		`<?xml version="1.0"?>`+"\n"+

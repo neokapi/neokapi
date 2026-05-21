@@ -1,10 +1,10 @@
 package yaml_test
 
 // ---- File-based roundtrip iteration tests ----
-// RoundTripYamlIT iterates over all .yaml/.yml test resource files using EventComparator.
-// The native implementation covers roundtrip via TestExtract_RoundtripFiles,
-// TestExtract_RoundTripSubFilterProcessLiteralAsBlock, individual double-extraction tests,
-// and the skeleton_test.go byte-exact roundtrip suite.
-
-// okapi-deferred: RoundTripYamlIT — iterates all okf_yaml/*.yaml files; native roundtrip covered by double-extraction tests and skeleton_test.go
-// okapi-deferred: RoundTripYamlIT (yml extension) — iterates all okf_yaml/*.yml files; native roundtrip covered by double-extraction tests and skeleton_test.go
+// RoundTripYamlIT iterates over all .yaml/.yml test resource files using
+// EventComparator. The native equivalent is TestRoundTrip_YamlIT in
+// skeleton_test.go (extract→write→re-extract text-unit stability over a
+// representative corpus), which carries the RoundTripYamlIT#yamlFiles and
+// YamlXliffCompareIT#yamlXliffCompareFiles contract annotations. The
+// per-construct double-extraction tests in reader_test.go and the byte-exact
+// skeleton roundtrip suite cover the same fidelity at finer granularity.

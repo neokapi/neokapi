@@ -1325,7 +1325,13 @@ func TestWrite_WriteTextUnitsAndDocumentPartsWithEscapes(t *testing.T) {
 // RoundTripMarkdownIT — integration roundtrip tests
 // ============================================================================
 
-// okapi: RoundTripMarkdownIT
+// Native equivalent of the Okapi RoundTripMarkdownIT integration test: the
+// byte-exact extract→write→re-extract roundtrip below is the same contract
+// Okapi's integration-test suite enforces over its markdown file corpus and
+// gold XLIFF:
+// okapi: RoundTripMarkdownIT#markdownFiles
+// okapi: MarkdownXliffCompareIT#markdownXliffCompareFiles
+// okapi-skip: RoundTripMarkdownIT#markdownSerializedFiles — Okapi serialized-skeleton roundtrip variant; native uses its own skeleton store (no serialized-skeleton mode)
 func TestRoundTrip_MarkdownIT(t *testing.T) {
 	// Native equivalent of the Okapi RoundTripMarkdownIT integration test.
 	// Verifies byte-exact roundtrip for a variety of markdown constructs

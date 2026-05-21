@@ -127,6 +127,9 @@ func TestRead_SpecialCharsInKey(t *testing.T) {
 }
 
 // okapi: PropertiesFilterTest#testDoubleExtraction
+// okapi: RoundTripPropertyIT#propertiesFiles — native extract→write→re-extract over real .properties inputs; Okapi's propertiesFiles does extract→merge→compare-events over a corpus.
+// okapi: PropertyXliffCompareIT#propertiesXliffCompareFiles — same double-extraction verifies extracted content is stable; Okapi's propertiesXliffCompareFiles extracts to XLIFF and compares against a gold XLIFF corpus.
+// okapi-skip: RoundTripPropertyIT#propertiesSerializedFiles — Okapi serialized-skeleton variant; native uses its own skeleton store, not Okapi's serialized event/skeleton format.
 func TestRoundTrip_DoubleExtraction(t *testing.T) {
 	// Double-extraction roundtrip: read → write → read → compare.
 	tests := []struct {

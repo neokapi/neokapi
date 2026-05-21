@@ -13,6 +13,7 @@ import (
 )
 
 // okapi: TTMLFilterTest#testProcessTextUnit
+// okapi-skip: TTMLFilterTest#testCodeFinder — Okapi Java regex code-finder; the native ttml reader has no regex code-finder (inline markup is preserved verbatim, not carved into Ph codes)
 // Verifies basic <p> element extraction: two subtitles with <br/> line breaks
 // produce two text units with <br/> removed (default escapeBR=true).
 func TestTextUnitExtraction(t *testing.T) {
@@ -416,7 +417,9 @@ func TestXMLIDAsBlockName(t *testing.T) {
 	assert.Equal(t, "myCaption", blocks[0].Name)
 }
 
-// neokapi-only: RoundTripTtmlIT#ttmlFiles — no such Okapi IT class in v1.48.0 and no roundtrip @Test in TTMLFilterTest (extraction-only); native roundtrip is neokapi's own coverage.
+// okapi: RoundTripTtmlIT#ttmlFiles
+// okapi: TtmlXliffCompareIT#ttmlXliffCompareFiles
+// okapi-skip: RoundTripTtmlIT#ttmlSerializedFiles — Okapi serialized-skeleton variant; native uses its own skeleton store
 // Roundtrip test for a simple TTML file.
 func TestRoundTrip(t *testing.T) {
 	ctx := t.Context()

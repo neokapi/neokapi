@@ -39,6 +39,14 @@ import (
 // Failures here mean either the reader silently dropped data the writer
 // can't reconstruct, or the writer emits non-idempotent output that
 // re-reading would interpret differently. Both are real bugs.
+//
+// okapi: RoundTripXliff2IT#xliff2Files
+// RoundTripXliff2IT#xliff2Files (roundtrip.integration) extracts→merges→
+// re-extracts every .xlf/.xliff/.xlf2 in the xliff2 corpus and asserts the
+// events match. This native test runs the same upstream xliff2 corpus
+// (lib-xliff2 unit fixtures plus integration-tests/okapi/.../xliff2/) through
+// a two-pass read→write→read→write round-trip and asserts byte-equal idempotent
+// output — the native analogue of the Okapi event-compare double extraction.
 func TestRoundTrip_AllFixtures(t *testing.T) {
 	fixtures := collectXliff2Fixtures(t)
 	if len(fixtures) == 0 {
@@ -46,11 +54,11 @@ func TestRoundTrip_AllFixtures(t *testing.T) {
 	}
 
 	type result struct {
-		name    string
-		pass    bool
-		reason  string
-		bytes1  int
-		bytes2  int
+		name   string
+		pass   bool
+		reason string
+		bytes1 int
+		bytes2 int
 	}
 	var results []result
 

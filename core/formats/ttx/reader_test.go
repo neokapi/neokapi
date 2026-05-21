@@ -180,6 +180,7 @@ func TestReadEmpty(t *testing.T) {
 }
 
 // okapi: TTXFilterTest#testDoubleExtraction — roundtrip read/write preserves TTX content.
+// okapi: TtxXliffCompareIT#ttxXliffCompareFiles
 func TestRoundTrip(t *testing.T) {
 	ctx := t.Context()
 

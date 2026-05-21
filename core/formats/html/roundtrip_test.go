@@ -404,6 +404,7 @@ func roundtripWithSkeleton(t *testing.T, input string) string {
 	return buf.String()
 }
 
+// okapi: RoundTripHtmlIT#htmlFiles
 func TestSkeletonRoundtrip_ByteExact(t *testing.T) {
 	// Mirror okapi's HtmlFilter: when a <head> exists with no
 	// <meta charset> / <meta http-equiv="content-type">, the writer

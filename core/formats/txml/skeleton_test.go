@@ -41,6 +41,8 @@ func snippetRoundtripWithSkeleton(t *testing.T, input string) string {
 	return buf.String()
 }
 
+// okapi: RoundTripTxmlIT#txmlFiles
+// okapi-skip: RoundTripTxmlIT#txmlSerializedFiles — Okapi serialized-skeleton variant; native uses its own skeleton store
 func TestSkeletonStore_ByteExact_SimpleTranslatable(t *testing.T) {
 	input := `<?xml version="1.0" encoding="UTF-8"?>
 <txml locale="en" version="1.0" datatype="regexp" targetlocale="fr">
@@ -220,6 +222,7 @@ func TestRoundTripPreservesInlineCodes(t *testing.T) {
 }
 
 // okapi: TXMLFilterTest#testDoubleExtraction
+// okapi: TxmlXliffCompareIT#txmlXliffCompareFiles
 // Okapi's RoundTripComparison extracts each fixture, writes it, re-extracts
 // the output, and asserts the two event streams match. The native
 // equivalent here reads each real Wordfast Pro fixture (Test01.docx.txml,

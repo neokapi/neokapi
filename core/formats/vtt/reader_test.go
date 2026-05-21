@@ -484,7 +484,7 @@ func TestWriter_WrongParameters(t *testing.T) {
 // RoundTripVttIT (2 @Test methods)
 // ---------------------------------------------------------------------------
 
-// neokapi-only: RoundTripVttIT#vttFiles — no such Okapi IT class in v1.48.0 and no roundtrip @Test in VTTFilterTest (extraction-only); native roundtrip is neokapi's own coverage.
+// okapi: RoundTripVttIT#vttFiles
 func TestRoundTrip_VTTFiles(t *testing.T) {
 	// The Java RoundTripVttIT iterates over .vtt test files using
 	// EventComparator for semantic comparison. We verify roundtrip
@@ -503,7 +503,7 @@ func TestRoundTrip_VTTFiles(t *testing.T) {
 	assert.Contains(t, output, "I am so excited")
 }
 
-// neokapi-only: RoundTripVttIT#vttSerializedFiles — no such Okapi IT class in v1.48.0; serialized roundtrip is Okapi-specific and has no VTTFilterTest unit @Test; native double-roundtrip is neokapi's own coverage.
+// okapi-skip: RoundTripVttIT#vttSerializedFiles — Okapi serialized-skeleton variant; native uses its own skeleton store
 func TestRoundTrip_SerializedFiles(t *testing.T) {
 	// The Java vttSerializedFiles test runs roundtrip with serializedOutput=true.
 	// In the native format, serialization is transparent. We verify roundtrip
@@ -523,7 +523,7 @@ func TestRoundTrip_SerializedFiles(t *testing.T) {
 // VttXliffCompareIT (1 @Test method)
 // ---------------------------------------------------------------------------
 
-// neokapi-only: VttXliffCompareIT#vttXliffCompareFiles — no such Okapi IT class in v1.48.0; the VTT-to-XLIFF compare is an integration test with no VTTFilterTest unit @Test; native double-extraction stability is neokapi's own coverage.
+// okapi: VttXliffCompareIT#vttXliffCompareFiles
 func TestRoundTrip_DoubleExtraction(t *testing.T) {
 	// The Java VttXliffCompareIT re-reads roundtrip output and compares
 	// events. We test double-extraction stability: reading the output
@@ -545,22 +545,6 @@ func TestRoundTrip_DoubleExtraction(t *testing.T) {
 			"block %d source text should match after double extraction", i)
 	}
 }
-
-// ---------------------------------------------------------------------------
-// TTML tests — the bridge subtitles/ directory covers both VTT and TTML.
-// Native VTT format only covers VTT, so all TTML bridge tests are unmapped.
-// ---------------------------------------------------------------------------
-
-// neokapi-only: RoundTripTtmlIT#ttmlFiles — no such Okapi IT class in v1.48.0; TTML format, not VTT
-// neokapi-only: RoundTripTtmlIT#ttmlSerializedFiles — no such Okapi IT class in v1.48.0; TTML format, not VTT
-// okapi-unmapped: TTMLFilterTest#testCodeFinder — TTML format, not VTT
-// okapi-unmapped: TTMLFilterTest#testDontMergeCaptions — TTML format, not VTT
-// okapi-unmapped: TTMLFilterTest#testEmptyCaptions — TTML format, not VTT
-// okapi-unmapped: TTMLFilterTest#testMergeCaptions — TTML format, not VTT
-// okapi-unmapped: TTMLFilterTest#testProcessTextUnit — TTML format, not VTT
-// okapi-unmapped: TTMLFilterTest#testProcessTextUnitNonEscapeBrMode — TTML format, not VTT
-// okapi-unmapped: TTMLFilterTest#testQuoteCaptions — TTML format, not VTT
-// okapi-unmapped: TTMLFilterTest#testReadMaxCharMaxLine — TTML format, not VTT
 
 // ---------------------------------------------------------------------------
 // Existing native tests (no Okapi equivalent)

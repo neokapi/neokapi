@@ -1192,7 +1192,8 @@ Body.
 	assert.Contains(t, output, "Body")
 }
 
-// neokapi-only: native roundtrip over the neokapi sample fixtures.
+// okapi: RoundTripTexIT#texFiles — native extract→write over the .tex fixture corpus, asserting extracted block content survives; Okapi's texFiles does extract→merge→compare-events over a .tex corpus.
+// okapi-skip: RoundTripTexIT#texSerializedFiles — Okapi serialized-skeleton variant; native uses its own skeleton store, not Okapi's serialized event/skeleton format.
 func TestRoundTrip_Files(t *testing.T) {
 	tests := []struct {
 		name string
@@ -1289,7 +1290,8 @@ Hello world.
 	assert.Contains(t, output, "Bonjour le monde")
 }
 
-// neokapi-only: native double-extraction (roundtrip of a roundtrip) is
+// okapi: TexXliffCompareIT#texXliffCompareFiles — native double-extraction (roundtrip of a roundtrip) verifies extracted content is stable; Okapi's texXliffCompareFiles extracts to XLIFF and compares against a gold XLIFF corpus.
+// neokapi note: native double-extraction (roundtrip of a roundtrip) is
 // stable for section + paragraph content.
 func TestRoundTrip_DoubleExtraction(t *testing.T) {
 	input := `\begin{document}

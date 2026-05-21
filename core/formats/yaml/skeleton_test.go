@@ -244,3 +244,42 @@ func TestSkeletonStore_RailsStyle(t *testing.T) {
 	output := snippetRoundtripWithSkeleton(t, input)
 	assert.Equal(t, input, output, "Rails-style YAML should roundtrip byte-exact")
 }
+
+// Native equivalent of Okapi's RoundTripYamlIT: it iterates the okf_yaml file
+// corpus through an EventComparator, asserting the extracted text units are
+// stable across an extract→merge→re-extract roundtrip. This test reproduces the
+// same observable contract over a representative set of YAML constructs: read,
+// write back through the skeleton store with no translation, re-extract, and
+// assert the source text units are identical.
+//
+// okapi: RoundTripYamlIT#yamlFiles
+// okapi: YamlXliffCompareIT#yamlXliffCompareFiles
+// okapi-skip: RoundTripYamlIT#yamlSerializedFiles — Okapi serialized-skeleton roundtrip variant; native uses its own skeleton store (no serialized-skeleton mode)
+func TestRoundTrip_YamlIT(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		name  string
+		input string
+	}{
+		{"simple", "title: Hello\ndescription: World\n"},
+		{"nested", "en:\n  title: My Rails Website\n  greeting: Hello\n"},
+		{"deep_nesting", "root:\n  level1:\n    level2: deep value\n"},
+		{"sequence", "items:\n  - First\n  - Second\n  - Third\n"},
+		{"quoted_escapes", "key1: \"Hello\\tWorld\"\nkey2: \"Line1\\nLine2\"\n"},
+		{"literal_block", "description: |\n  This is a literal\n  block scalar.\n"},
+		{"folded_block", "description: >\n  This is a folded\n  block scalar.\n"},
+		{"inline_comment", "key: value # inline comment\n"},
+		{"multi_document", "---\ntitle: Document One\n---\ntitle: Document Two\n"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			merged := snippetRoundtripWithSkeleton(t, tc.input)
+			first := blockTexts(readYAML(t, tc.input))
+			second := blockTexts(readYAML(t, merged))
+			require.NotEmpty(t, first, "%s should produce translatable blocks", tc.name)
+			assert.Equal(t, first, second,
+				"%s text units must be stable across an extract→write→re-extract roundtrip", tc.name)
+		})
+	}
+}

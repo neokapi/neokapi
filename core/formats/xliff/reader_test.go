@@ -2224,6 +2224,13 @@ func TestRoundTrip_InlineCodes(t *testing.T) {
 	assert.Contains(t, out, "here")
 }
 
+// okapi: XliffXliffCompareIT#xliffXliffCompareFiles
+// XliffXliffCompareIT#xliffXliffCompareFiles extracts every corpus .xlf to
+// XLIFF and diffs the result against a frozen previous-release XLIFF baseline
+// (an extraction-output stability check). For the xliff filter, "extract to
+// XLIFF" is the writer round-trip itself; this native test verifies multiple
+// trans-units survive the read→write cycle unchanged, which is the same
+// extraction-stability contract on multi-unit content.
 func TestRoundTrip_MultipleUnits(t *testing.T) {
 	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1">

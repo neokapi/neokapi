@@ -11,10 +11,16 @@ package tmx_test
 // okapi-deferred: TmxFilterTest (file-based extraction of Paragraph_TM.tmx) — requires okf_tmx/Paragraph_TM.tmx; paragraph TU behavior covered by TestSegTypePara
 // okapi-deferred: TmxFilterTest (file-based extraction of small_complete.tmx) — requires okf_tmx/small_complete.tmx; inline codes covered by TestBptEptPair, TestPhPlaceholder, TestItIsolatedBeginEnd, TestHiHighlight
 //
-// --- File-based roundtrip iteration tests ---
+// --- Integration-test (Failsafe) roundtrip contracts ---
 //
-// neokapi-only: RoundTripTmxIT#tmxFiles — no such Okapi IT class in v1.48.0; upstream roundtrip lives in TmxFilterTest#testDoubleExtraction (already mapped below); native roundtrip covered by TestRoundTrip_SimpleFile, TestRoundTrip_MultipleUnits, and skeleton_test.go
-// okapi-deferred: TmxXliffCompareIT (sampleTMX2.tmx) — requires okf_tmx/sampleTMX2.tmx; inline code roundtrip covered by TestRoundTrip_InlineCodes
+// RoundTripTmxIT (roundtrip.integration) and TmxXliffCompareIT
+// (xliffcompare.integration) in integration-tests/okapi. The plain-TMX rows
+// map to native roundtrip tests below: RoundTripTmxIT#tmxFiles →
+// TestRoundTrip_SimpleFile (real testdata/simple.tmx read→write) and
+// TmxXliffCompareIT#tmxXliffCompareFiles → TestRoundTrip_InlineCodes
+// (inline-code extraction stability). The serialized variant is not applicable:
+//
+// okapi-skip: RoundTripTmxIT#tmxSerializedFiles — Okapi serialized-skeleton variant (events written to a .ser/.json blob then merged); native uses its own skeleton store, not Okapi's serialized event format
 
 import (
 	"bytes"
@@ -1413,7 +1419,11 @@ func TestParametersFromMap(t *testing.T) {
 
 // --- Roundtrip tests ---
 
-// neokapi-only: RoundTripTmxIT#tmxFiles (roundtrip with testdata/simple.tmx) — no such Okapi IT class in v1.48.0; upstream roundtrip behavior is TmxFilterTest#testDoubleExtraction (already mapped)
+// okapi: RoundTripTmxIT#tmxFiles
+// RoundTripTmxIT#tmxFiles (roundtrip.integration) extracts→merges→re-extracts
+// every .tmx in the corpus and asserts the events match. This native test reads
+// a real TMX file (testdata/simple.tmx) through the reader and writes it back,
+// asserting source/target content survives the read→write cycle.
 func TestRoundTrip_SimpleFile(t *testing.T) {
 	ctx := t.Context()
 
@@ -1446,7 +1456,9 @@ func TestRoundTrip_SimpleFile(t *testing.T) {
 	assert.Contains(t, output, "Auf Wiedersehen")
 }
 
-// okapi: RoundTripTmxIT (roundtrip reread consistency)
+// Additional native roundtrip coverage for RoundTripTmxIT#tmxFiles
+// (reread consistency); the IT contract itself is mapped on
+// TestRoundTrip_SimpleFile above.
 func TestRoundTrip_Reread(t *testing.T) {
 	input := `<?xml version="1.0" encoding="UTF-8"?>
 <tmx version="1.4">
@@ -1465,7 +1477,11 @@ func TestRoundTrip_Reread(t *testing.T) {
 	assert.Equal(t, "Bonjour", blocks[0].TargetText("fr"))
 }
 
-// okapi: TmxXliffCompareIT (roundtrip with inline codes)
+// okapi: TmxXliffCompareIT#tmxXliffCompareFiles
+// TmxXliffCompareIT#tmxXliffCompareFiles (xliffcompare.integration) extracts
+// each corpus .tmx to XLIFF and diffs against a frozen previous-release XLIFF
+// baseline (extraction-output stability). The native equivalent verifies that
+// inline-code-bearing TMX content extracts stably across the read cycle.
 func TestRoundTrip_InlineCodes(t *testing.T) {
 	input := `<?xml version="1.0"?>
 <tmx version="1.4">
@@ -1488,7 +1504,9 @@ func TestRoundTrip_InlineCodes(t *testing.T) {
 	assert.Contains(t, blocks[0].SourceText(), "Click here")
 }
 
-// neokapi-only: RoundTripTmxIT#tmxFiles (roundtrip with multiple TUs) — no such Okapi IT class in v1.48.0; upstream roundtrip behavior is TmxFilterTest#testDoubleExtraction (already mapped)
+// Additional native roundtrip coverage for RoundTripTmxIT#tmxFiles
+// (multiple TUs); the IT contract itself is mapped on
+// TestRoundTrip_SimpleFile above.
 func TestRoundTrip_MultipleUnits(t *testing.T) {
 	input := wrapTMX(`
     <tu>

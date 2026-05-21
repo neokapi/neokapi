@@ -112,3 +112,19 @@ package messageformat_test
 // keeps such markup as literal segment text.
 //
 // okapi-skip: MessageFormatFilterTest#testInlineCodes — UseCodeFinder/inline HTML code detection not implemented; native reader keeps markup as literal text
+
+// --- Integration-test (Failsafe) contracts: RoundTrip{JSON,YAML}MessageFormatIT ---
+// Both IT classes (roundtrip.integration) run the okf_json / okf_yaml filters
+// over the /messageformat corpus, i.e. they exercise ICU MessageFormat as a
+// SUBFILTER embedded inside JSON/YAML container documents, with the Okapi
+// subfilter normalization applied (see the subfilter skips above). The native
+// messageformat package is a standalone .mf extraction reader/writer: it parses
+// an inline ICU pattern and reconstructs it byte-exact (verified by
+// skeleton_test.go TestSkeletonStore_ByteExact_* and reader_test.go TestRoundTrip),
+// but it has no JSON/YAML container reader and no subfilter normalization, so it
+// cannot verify the container-driven corpus roundtrip these ITs assert.
+//
+// okapi-skip: RoundTripJSONMessageFormatIT#messageFiles — okf_json subfilter over the /messageformat JSON corpus (container roundtrip with subfilter normalization); native messageformat reader is standalone .mf, has no JSON container or subfilter wiring
+// okapi-skip: RoundTripJSONMessageFormatIT#messageSerializedFiles — okf_json subfilter corpus plus Okapi serialized-skeleton variant; container/subfilter wiring + serialized event format, both unavailable to the standalone native reader
+// okapi-skip: RoundTripYAMLMessageFormatIT#messageFiles — okf_yaml subfilter over the /messageformat YAML corpus (container roundtrip with subfilter normalization); native messageformat reader is standalone .mf, has no YAML container or subfilter wiring
+// okapi-skip: RoundTripYAMLMessageFormatIT#messageSerializedFiles — okf_yaml subfilter corpus plus Okapi serialized-skeleton variant; container/subfilter wiring + serialized event format, both unavailable to the standalone native reader
