@@ -203,28 +203,11 @@ func (w *Writer) lookupRef(refID string) (string, bool) {
 		seg := block.Source[segIdx]
 		return renderTXMLInline(seg.Runs), true
 	case "target":
-		// Try the recorded targetlocale first; fall back to the
-		// writer's configured locale, then any available target.
-		targetLocale := model.LocaleID(w.targetLocale)
-		if !targetLocale.IsEmpty() && block.HasTarget(targetLocale) {
-			segs := block.Targets[targetLocale]
-			if segIdx < len(segs) {
-				return renderTXMLInline(segs[segIdx].Runs), true
-			}
-		}
-		if !w.Locale.IsEmpty() && block.HasTarget(w.Locale) {
-			segs := block.Targets[w.Locale]
-			if segIdx < len(segs) {
-				return renderTXMLInline(segs[segIdx].Runs), true
-			}
-		}
-		for locale, segs := range block.Targets {
-			if !block.HasTarget(locale) {
-				continue
-			}
-			if segIdx < len(segs) {
-				return renderTXMLInline(segs[segIdx].Runs), true
-			}
+		// Replacing the content of an existing <target> element. Try the
+		// recorded targetlocale first; fall back to the writer's
+		// configured locale, then any available target.
+		if inner, ok := w.targetInnerXML(block, segIdx); ok {
+			return inner, true
 		}
 		// No target available — preserve the source as a fallback so
 		// the document stays well-formed.
@@ -232,6 +215,49 @@ func (w *Writer) lookupRef(refID string) (string, bool) {
 			return renderTXMLInline(block.Source[segIdx].Runs), true
 		}
 		return "", true
+	case "target-insert":
+		// Zero-width splice point for a segment that had no original
+		// <target>. Emit a full <target>…</target> only when the block
+		// carries a translated target segment for this index, matching
+		// Okapi's TXMLSkeletonWriter (which writes <target> iff
+		// trgSeg != null for the output locale —
+		// TXMLSkeletonWriter.java:167-176). When there is no translation
+		// we emit nothing, preserving the source-only segment verbatim
+		// and honoring allowEmptyOutputTarget=true (no empty <target/>).
+		if inner, ok := w.targetInnerXML(block, segIdx); ok {
+			return "<target>" + inner + "</target>", true
+		}
+		return "", true
+	}
+	return "", false
+}
+
+// targetInnerXML resolves the translated target segment for the given
+// segment index, returning its rendered TXML inner XML. It prefers the
+// recorded targetlocale, then the writer's configured locale, then any
+// available target locale. Returns ok=false when the block carries no
+// target segment for this index in any locale.
+func (w *Writer) targetInnerXML(block *model.Block, segIdx int) (string, bool) {
+	targetLocale := model.LocaleID(w.targetLocale)
+	if !targetLocale.IsEmpty() && block.HasTarget(targetLocale) {
+		segs := block.Targets[targetLocale]
+		if segIdx < len(segs) {
+			return renderTXMLInline(segs[segIdx].Runs), true
+		}
+	}
+	if !w.Locale.IsEmpty() && block.HasTarget(w.Locale) {
+		segs := block.Targets[w.Locale]
+		if segIdx < len(segs) {
+			return renderTXMLInline(segs[segIdx].Runs), true
+		}
+	}
+	for locale, segs := range block.Targets {
+		if !block.HasTarget(locale) {
+			continue
+		}
+		if segIdx < len(segs) {
+			return renderTXMLInline(segs[segIdx].Runs), true
+		}
 	}
 	return "", false
 }
