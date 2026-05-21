@@ -12,20 +12,74 @@ import (
 // the parameter shape the okapi-bridge daemon's CommaSeparatedValuesFilter
 // (okf_commaseparatedvalues) expects.
 //
-// One responsibility: rename/transform per-key. e.g. separator →
-// fieldDelimiter, hasHeader true → columnNamesLineNum=1 +
-// valuesStartLineNum=2 + sendHeaderMode=0, translatableColumns
-// ([0,1] 0-based) → sourceColumns ("1,2" 1-based string).
+// The upstream okf_table family (csv/tsv/fwc) reads its behaviour from
+// the public fields of its Okapi `Parameters` object
+// (`net.sf.okapi.filters.table.csv.Parameters` extending
+// `…table.base.Parameters`). Those fields are populated ONLY by
+// `Parameters.load(buffer)`, which runs inside `fromString(...)`. The
+// bridge's per-key `params.setString("sourceColumns", "1")` path writes
+// the StringParameters buffer but never re-runs `load()`, so the public
+// field stays stale and the filter ignores the override (see #530 and
+// the identical quirk documented in fixedwidth_bridge_config.go).
 //
-// Spec examples that depend on default behaviour MUST set explicit
-// config:; the translator does not synthesise convergence forces. This
-// matches the parity contract "same semantic config → same results"
-// — implicit defaults are permitted to differ between native and
-// bridge; explicit config must converge.
+// To sidestep this, the translator renders the ENTIRE configuration as
+// a single Okapi `#v1` ParametersString blob and ships it under the
+// reserved `fprmContent` key. The bridge calls
+// `filterParameters.fromString(fprmContent)` once, which clears the
+// buffer and re-runs `load()` — syncing every field in one shot. All
+// per-feature convergence forces collapse into that single payload.
+//
+// The blob always carries the neokapi-canonical CSV defaults (comma
+// delimiter, double-quote qualifier, header on row 1 + data on row 2 +
+// header not extracted, every column translatable, no trim); the spec
+// config overrides individual fields on top. This matches the parity
+// contract "same semantic config → same results": examples that depend
+// on neokapi defaults MUST set explicit config (they do).
+//
+// Field/value mappings (verified against
+// net.sf.okapi.filters.table.{base,csv}.Parameters):
+//
+//	separator (string)            → fieldDelimiter (string, verbatim)
+//	textQualifier (string)        → textQualifier (string, verbatim)
+//	hasHeader=true (bool)         → columnNamesLineNum=1, valuesStartLineNum=2,
+//	                                sendHeaderMode=0 (SEND_HEADER_NONE)
+//	hasHeader=false               → columnNamesLineNum=0, valuesStartLineNum=1,
+//	                                sendHeaderMode=0
+//	columnNamesRow (int)          → columnNamesLineNum (1-based, verbatim)
+//	valuesStartRow (int)          → valuesStartLineNum (1-based, verbatim)
+//	translatableColumns ([]int0)  → sourceColumns ("1,3" 1-based CSV) +
+//	                                sendColumnsMode=1 (SEND_COLUMNS_LISTED)
+//	keyColumns ([]int0)           → sourceIdColumns ("1,2" 1-based CSV)
+//	commentColumns ([]int0)       → commentColumns ("2" 1-based CSV)
+//	trimValues=true (bool)        → trimMode=2 (TRIM_ALL) + trimLeading/
+//	                                trimTrailing=true
+//	trimValues=false              → trimMode=0 (TRIM_NONE)
+//
+// targetColumns is forced empty: the upstream default ("2") would treat
+// the second column as a localised target (multilingual mode) rather
+// than translatable source, which neokapi has no notion of.
 //
 // The translator never mutates its input; it returns a fresh map.
 func csvBridgeConfig(cfg map[string]any) (map[string]any, error) {
-	out := make(map[string]any, len(cfg))
+	// Defaults mirror neokapi's CSV semantics (see core/formats/csv/
+	// config.go Reset()): comma delimiter, double-quote qualifier,
+	// header present (row 1, data row 2, header not extracted), every
+	// column translatable, no trim.
+	p := csvParams{
+		fieldDelimiter:     ",",
+		textQualifier:      "\"",
+		removeQualifiers:   true,
+		escapingMode:       1, // ESCAPING_MODE_DUPLICATION
+		columnNamesLineNum: 1, // header on row 1
+		valuesStartLineNum: 2, // data on row 2
+		sendHeaderMode:     0, // SEND_HEADER_NONE — header is skeleton, not a Block
+		sendColumnsMode:    2, // SEND_COLUMNS_ALL — every cell is source
+		trimMode:           0, // TRIM_NONE
+		trimLeading:        false,
+		trimTrailing:       false,
+		preserveWS:         true,
+		useCodeFinder:      false,
+	}
 
 	for key, val := range cfg {
 		switch key {
@@ -34,10 +88,14 @@ func csvBridgeConfig(cfg map[string]any) (map[string]any, error) {
 			if !ok {
 				return nil, fmt.Errorf("csvBridgeConfig: separator: expected string, got %T", val)
 			}
-			out["fieldDelimiter"] = s
+			p.fieldDelimiter = s
 
 		case "textQualifier":
-			out["textQualifier"] = val
+			s, ok := val.(string)
+			if !ok {
+				return nil, fmt.Errorf("csvBridgeConfig: textQualifier: expected string, got %T", val)
+			}
+			p.textQualifier = s
 
 		case "hasHeader":
 			b, ok := val.(bool)
@@ -45,55 +103,49 @@ func csvBridgeConfig(cfg map[string]any) (map[string]any, error) {
 				return nil, fmt.Errorf("csvBridgeConfig: hasHeader: expected bool, got %T", val)
 			}
 			if b {
-				// Header present → row 1 is header, data starts row 2,
-				// header skipped from extraction (neokapi semantics).
-				out["columnNamesLineNum"] = 1
-				out["valuesStartLineNum"] = 2
-				out["sendHeaderMode"] = 0
+				p.columnNamesLineNum = 1
+				p.valuesStartLineNum = 2
 			} else {
-				// No header → no column names row, data starts row 1.
-				out["columnNamesLineNum"] = 0
-				out["valuesStartLineNum"] = 1
-				out["sendHeaderMode"] = 0
+				p.columnNamesLineNum = 0
+				p.valuesStartLineNum = 1
 			}
+			p.sendHeaderMode = 0
 
 		case "columnNamesRow":
 			n, err := asInt(val, "columnNamesRow")
 			if err != nil {
 				return nil, err
 			}
-			out["columnNamesLineNum"] = n
+			p.columnNamesLineNum = n
 
 		case "valuesStartRow":
 			n, err := asInt(val, "valuesStartRow")
 			if err != nil {
 				return nil, err
 			}
-			// neokapi spec uses 1-based row number directly; bridge
-			// uses 1-based valuesStartLineNum. Pass through.
-			out["valuesStartLineNum"] = n
+			p.valuesStartLineNum = n
 
 		case "translatableColumns":
 			cols, err := intSliceToOneBasedCSV(val)
 			if err != nil {
 				return nil, fmt.Errorf("csvBridgeConfig: translatableColumns: %w", err)
 			}
-			out["sourceColumns"] = cols
-			out["sendColumnsMode"] = 1 // listed columns only
+			p.sourceColumns = cols
+			p.sendColumnsMode = 1 // SEND_COLUMNS_LISTED — only listed columns
 
 		case "keyColumns":
 			cols, err := intSliceToOneBasedCSV(val)
 			if err != nil {
 				return nil, fmt.Errorf("csvBridgeConfig: keyColumns: %w", err)
 			}
-			out["sourceIdColumns"] = cols
+			p.sourceIDColumns = cols
 
 		case "commentColumns":
 			cols, err := intSliceToOneBasedCSV(val)
 			if err != nil {
 				return nil, fmt.Errorf("csvBridgeConfig: commentColumns: %w", err)
 			}
-			out["commentColumns"] = cols
+			p.commentColumns = cols
 
 		case "trimValues":
 			b, ok := val.(bool)
@@ -101,24 +153,79 @@ func csvBridgeConfig(cfg map[string]any) (map[string]any, error) {
 				return nil, fmt.Errorf("csvBridgeConfig: trimValues: expected bool, got %T", val)
 			}
 			if b {
-				out["trimMode"] = 1
-				out["trimLeading"] = true
-				out["trimTrailing"] = true
+				p.trimMode = 2 // TRIM_ALL — trim qualified + non-qualified
+				p.trimLeading = true
+				p.trimTrailing = true
 			} else {
-				out["trimMode"] = 0
-				out["trimLeading"] = false
-				out["trimTrailing"] = false
+				p.trimMode = 0
+				p.trimLeading = false
+				p.trimTrailing = false
 			}
 
-		case "useCodeFinder", "codeFinderRules":
-			out[key] = val // bridge uses the same key names
+		case "useCodeFinder":
+			b, ok := val.(bool)
+			if !ok {
+				return nil, fmt.Errorf("csvBridgeConfig: useCodeFinder: expected bool, got %T", val)
+			}
+			p.useCodeFinder = b
 
 		default:
 			return nil, fmt.Errorf("csvBridgeConfig: unknown spec key %q", key)
 		}
 	}
 
-	return out, nil
+	return map[string]any{"fprmContent": p.toFprm()}, nil
+}
+
+// csvParams is the in-translator view of the bridge filter's CSV
+// Parameters object. Mirrors the public-field names of
+// net.sf.okapi.filters.table.csv.Parameters (and its base classes).
+type csvParams struct {
+	fieldDelimiter     string
+	textQualifier      string
+	removeQualifiers   bool
+	escapingMode       int
+	columnNamesLineNum int
+	valuesStartLineNum int
+	sendHeaderMode     int
+	sendColumnsMode    int
+	trimMode           int
+	trimLeading        bool
+	trimTrailing       bool
+	preserveWS         bool
+	useCodeFinder      bool
+	sourceColumns      string
+	sourceIDColumns    string
+	commentColumns     string
+}
+
+// toFprm renders the params as an Okapi ParametersString `#v1` blob.
+// targetColumns is forced empty so the upstream filter does not enter
+// multilingual (source/target) mode.
+func (p csvParams) toFprm() string {
+	var b strings.Builder
+	b.WriteString("#v1\n")
+	// plaintext base + table base booleans / ints.
+	fmt.Fprintf(&b, "preserveWS.b=%t\n", p.preserveWS)
+	fmt.Fprintf(&b, "useCodeFinder.b=%t\n", p.useCodeFinder)
+	fmt.Fprintf(&b, "trimLeading.b=%t\n", p.trimLeading)
+	fmt.Fprintf(&b, "trimTrailing.b=%t\n", p.trimTrailing)
+	fmt.Fprintf(&b, "columnNamesLineNum.i=%d\n", p.columnNamesLineNum)
+	fmt.Fprintf(&b, "valuesStartLineNum.i=%d\n", p.valuesStartLineNum)
+	fmt.Fprintf(&b, "sendHeaderMode.i=%d\n", p.sendHeaderMode)
+	fmt.Fprintf(&b, "sendColumnsMode.i=%d\n", p.sendColumnsMode)
+	fmt.Fprintf(&b, "trimMode.i=%d\n", p.trimMode)
+	fmt.Fprintf(&b, "sourceColumns=%s\n", p.sourceColumns)
+	fmt.Fprintf(&b, "sourceIdColumns=%s\n", p.sourceIDColumns)
+	fmt.Fprintf(&b, "commentColumns=%s\n", p.commentColumns)
+	b.WriteString("targetColumns=\n")
+	// csv subclass fields.
+	fmt.Fprintf(&b, "fieldDelimiter=%s\n", p.fieldDelimiter)
+	fmt.Fprintf(&b, "textQualifier=%s\n", p.textQualifier)
+	fmt.Fprintf(&b, "removeQualifiers.b=%t\n", p.removeQualifiers)
+	fmt.Fprintf(&b, "escapingMode.i=%d\n", p.escapingMode)
+	b.WriteString("parametersClass=net.sf.okapi.filters.table.csv.Parameters\n")
+	return b.String()
 }
 
 // intSliceToOneBasedCSV converts a 0-based int column list (from the

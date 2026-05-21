@@ -25,8 +25,9 @@ func TestParityXmlstreamSpec(t *testing.T) {
 		t.Fatalf("load spec %s: %v", specPath, err)
 	}
 	r := &parityspec.ParityRunner{
-		Spec:      s,
-		NewReader: func(_ string) format.DataFormatReader { return xmlfmt.NewReader() },
+		Spec:         s,
+		NewReader:    func(_ string) format.DataFormatReader { return xmlfmt.NewReader() },
+		BridgeConfig: xmlstreamBridgeConfig,
 	}
 	r.Run(t)
 }

@@ -1534,31 +1534,73 @@ func computeCoverageFromRows(okapi *filterResult, rows []testCaseMatch) *coverag
 // the static bridgeFilterAliases handles the few formats with no spec
 // (php↔phpcontent).
 func lookupParity(bridgeByFilter map[string]*bridgeRows, nativeToParityKey map[string]string, name string) (*bridgeRows, bool) {
-	if r, ok := bridgeByFilter[name]; ok {
-		return r, true
-	}
+	// A native format can be exercised under more than one parity key when
+	// neokapi unifies sibling Okapi filters: e.g. native `xml` covers both
+	// okf_xml (fixtures) and okf_xmlstream (the spec contract). Returning the
+	// first match alone would drop the others' rows — so collect every
+	// candidate key and merge their parity rows into one view.
+	keys := []string{name}
 	// Native dir → parity key from the spec format id (csv →
-	// commaseparatedvalues, fixedwidth → fixedwidthcolumns, …).
+	// commaseparatedvalues, xml → xmlstream, fixedwidth → fixedwidthcolumns).
 	if pk, ok := nativeToParityKey[name]; ok && pk != name {
-		if r, ok := bridgeByFilter[pk]; ok {
-			return r, true
-		}
+		keys = append(keys, pk)
 	}
 	if alias, ok := bridgeFilterAliases[name]; ok {
-		if r, ok := bridgeByFilter[alias]; ok {
-			return r, true
-		}
+		keys = append(keys, alias)
 	}
 	// Reverse: a few filters key by the surefire short id but the parity
 	// row uses the longer alias (e.g. surefire `php` → parity `phpcontent`).
 	for k, v := range bridgeFilterAliases {
 		if v == name {
-			if r, ok := bridgeByFilter[k]; ok {
-				return r, true
+			keys = append(keys, k)
+		}
+	}
+	merged := &bridgeRows{}
+	found := false
+	seen := map[string]bool{}
+	for _, k := range keys {
+		if seen[k] {
+			continue
+		}
+		seen[k] = true
+		if r, ok := bridgeByFilter[k]; ok {
+			mergeBridgeRows(merged, r)
+			found = true
+		}
+	}
+	if !found {
+		return nil, false
+	}
+	return merged, true
+}
+
+// mergeBridgeRows folds src into dst: the single-valued head-to-head rows
+// take the first non-nil contributor, fixtures union by ref, and spec rows
+// concatenate (distinct parity keys carry disjoint examples).
+func mergeBridgeRows(dst, src *bridgeRows) {
+	if src == nil {
+		return
+	}
+	if dst.Read == nil {
+		dst.Read = src.Read
+	}
+	if dst.RoundTrip == nil {
+		dst.RoundTrip = src.RoundTrip
+	}
+	if dst.Tikal == nil {
+		dst.Tikal = src.Tikal
+	}
+	if len(src.Fixtures) > 0 {
+		if dst.Fixtures == nil {
+			dst.Fixtures = map[string]*parityRow{}
+		}
+		for k, v := range src.Fixtures {
+			if _, ok := dst.Fixtures[k]; !ok {
+				dst.Fixtures[k] = v
 			}
 		}
 	}
-	return nil, false
+	dst.Spec = append(dst.Spec, src.Spec...)
 }
 
 // parityToFilterResult turns the parity rows for one filter into a
