@@ -112,6 +112,49 @@ func TestReadTJArray(t *testing.T) {
 	assert.Contains(t, text, "World")
 }
 
+// TestReadEscapedParens covers ISO 32000-1 §7.3.4.2 literal-string escapes:
+// escaped parens (`\(`, `\)`), escaped backslash (`\\`), and an octal byte
+// (`\101` → 'A'). The earlier regex `\(([^)]*)\)` stopped at the first `)` and
+// dropped the whole run; the tokenizer walks to the balanced closing paren.
+func TestReadEscapedParens(t *testing.T) {
+	ctx := t.Context()
+	data, err := os.ReadFile("testdata/special.pdf")
+	require.NoError(t, err)
+
+	reader := pdf.NewReader()
+	require.NoError(t, reader.Open(ctx, rawDocFromBytes(data, model.LocaleEnglish)))
+	defer reader.Close()
+
+	blocks := testutil.CollectBlocks(t, reader.Read(ctx))
+	require.Len(t, blocks, 1)
+	assert.Equal(t, "Cost: (US$50) \\ AOK", blocks[0].SourceText())
+}
+
+// TestReadCompressedRealWorldPDF guards the FlateDecode regression: PDF
+// FlateDecode streams are zlib/RFC 1950 (a two-byte header plus Adler-32
+// trailer), not bare RFC 1951 DEFLATE. The reader must inflate them with
+// compress/zlib; using compress/flate alone silently dropped every compressed
+// stream and yielded zero blocks (#510 / #616). PALC_2011_LT.pdf's body text
+// is in ordinary literal/array strings, so it must extract once inflated.
+func TestReadCompressedRealWorldPDF(t *testing.T) {
+	ctx := t.Context()
+	const fixture = "testdata/TAUS-QualityDashboard-September.pdf"
+	data, err := os.ReadFile(fixture)
+	require.NoError(t, err)
+
+	reader := pdf.NewReader()
+	require.NoError(t, reader.Open(ctx, rawDocFromBytes(data, model.LocaleEnglish)))
+	defer reader.Close()
+
+	blocks := testutil.CollectBlocks(t, reader.Read(ctx))
+	require.NotEmpty(t, blocks, "compressed PDF must inflate and extract text")
+	var all string
+	for _, b := range blocks {
+		all += b.SourceText() + " "
+	}
+	assert.Contains(t, all, "TAUS")
+}
+
 func TestReadLayerStartEnd(t *testing.T) {
 	ctx := t.Context()
 	reader := pdf.NewReader()
@@ -188,10 +231,9 @@ func TestDefaultInfo(t *testing.T) {
 // Okapi's testStartDocument opens a real-world PDF (OmegaT_documentation_en.PDF)
 // and asserts a well-formed StartDocument event. The native analog opens a real
 // PDF fixture and asserts the reader emits a well-formed document layer-start
-// (Format "pdf") with no read error. NOTE: the native PDF reader is a
-// regex-based text extractor with known limits (#510) and does not recover
-// translatable text from this font-encoded, compressed document — but opening
-// and starting the document is well-defined and is what this contract checks.
+// (Format "pdf") with no read error. The reader inflates this document's
+// FlateDecode (zlib) streams and recovers its literal-string text; this
+// contract checks only that opening and starting the document is well-defined.
 func TestStartDocument(t *testing.T) {
 	ctx := t.Context()
 	data, err := os.ReadFile("testdata/TAUS-QualityDashboard-September.pdf")
@@ -211,15 +253,15 @@ func TestStartDocument(t *testing.T) {
 // firstTextUnit and firstParagraphTextUnit assert exact extracted text from
 // three real-world PDFs (e.g. the first unit equals "TAUS Quality Dashboard",
 // the third paragraph starts with "Abstract: In large computer-aided
-// translation"). neokapi's native PDF reader is a regex-based text extractor
-// (#510) that handles uncompressed text streams only; it recovers zero text
-// units from these font-encoded/compressed documents (verified: 0 blocks
-// extracted), and it has no lineSeparator/paragraphSeparator parameters. These
-// contracts are honest gaps in the native reader, skip-classified rather than
-// fake-passed:
+// translation"). The native reader now inflates FlateDecode (zlib) streams and
+// recovers literal-string text, but it emits one Block per page (no paragraph
+// segmentation) and has no lineSeparator/paragraphSeparator config, and it does
+// not decode CID/Type0 glyph-index runs through a /ToUnicode CMap (#617). It
+// therefore cannot assert these contracts' exact first-unit / nth-paragraph
+// text. These are honest gaps, skip-classified rather than fake-passed:
 //
-// okapi-skip: PdfFilterTest#firstTextUnit — native regex-based PDF reader (#510) extracts no text from these compressed/font-encoded real-world PDFs; cannot assert the first text unit's content
-// okapi-skip: PdfFilterTest#firstParagraphTextUnit — native regex-based PDF reader (#510) extracts no paragraphs from these compressed real-world PDFs, and has no lineSeparator/paragraphSeparator config to drive paragraph segmentation
+// okapi-skip: PdfFilterTest#firstTextUnit — native PDF reader emits one Block per page (no paragraph segmentation) and skips CID/Type0 glyph-index runs (#617), so it cannot assert the exact first text unit's content
+// okapi-skip: PdfFilterTest#firstParagraphTextUnit — native PDF reader has no paragraph segmentation and no lineSeparator/paragraphSeparator config, so it cannot assert the nth paragraph TextUnit
 
 func TestReadNilDocument(t *testing.T) {
 	ctx := t.Context()

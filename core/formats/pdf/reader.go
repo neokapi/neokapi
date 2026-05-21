@@ -3,11 +3,11 @@ package pdf
 import (
 	"bytes"
 	"compress/flate"
+	"compress/zlib"
 	"context"
 	"errors"
 	"fmt"
 	"io"
-	"regexp"
 	"strconv"
 	"strings"
 
@@ -188,11 +188,7 @@ func extractStreams(data []byte) [][]byte {
 		header := string(data[headerStart-lookback : headerStart])
 
 		if strings.Contains(header, "FlateDecode") {
-			// Try to decompress
-			reader := flate.NewReader(bytes.NewReader(streamData))
-			decoded, err := io.ReadAll(reader)
-			reader.Close()
-			if err == nil {
+			if decoded, ok := flateDecode(streamData); ok {
 				streams = append(streams, decoded)
 			}
 		} else {
@@ -206,17 +202,32 @@ func extractStreams(data []byte) [][]byte {
 	return streams
 }
 
-// Regex patterns for PDF text operators
-var (
-	// Matches (text) Tj operator
-	tjPattern = regexp.MustCompile(`\(([^)]*)\)\s*Tj`)
-	// Matches (text) ' operator (move to next line and show text)
-	tickPattern = regexp.MustCompile(`\(([^)]*)\)\s*'`)
-	// Matches TJ array operator: [(text) num (text) ...] TJ
-	tjArrayPattern = regexp.MustCompile(`\[([^\]]*)\]\s*TJ`)
-	// Matches individual strings within TJ arrays
-	tjArrayString = regexp.MustCompile(`\(([^)]*)\)`)
-)
+// flateDecode inflates a FlateDecode stream. Per ISO 32000-1 §7.4.4.2 a
+// FlateDecode stream is the zlib/deflate compressed-data format described in
+// RFC 1950 and RFC 1951 — i.e. raw DEFLATE wrapped in a zlib container (a
+// two-byte header plus an Adler-32 trailer). zlib.NewReader honours that
+// container; compress/flate alone does not, so a zlib stream fed to
+// flate.NewReader fails to inflate (the historic native bug behind #510 /
+// #616 that dropped every compressed PDF stream). A small minority of broken
+// producers emit bare RFC 1951 DEFLATE with no zlib wrapper, so fall back to
+// flate.NewReader when the zlib header is absent.
+func flateDecode(data []byte) ([]byte, bool) {
+	if zr, err := zlib.NewReader(bytes.NewReader(data)); err == nil {
+		decoded, rerr := io.ReadAll(zr)
+		zr.Close()
+		if rerr == nil {
+			return decoded, true
+		}
+	}
+	// Fallback: bare DEFLATE (RFC 1951) with no zlib wrapper.
+	fr := flate.NewReader(bytes.NewReader(data))
+	decoded, err := io.ReadAll(fr)
+	fr.Close()
+	if err == nil {
+		return decoded, true
+	}
+	return nil, false
+}
 
 // extractTextFromStream extracts text from a PDF content stream.
 func extractTextFromStream(stream []byte) string {
@@ -251,46 +262,167 @@ func extractTextFromStream(stream []byte) string {
 	return strings.Join(allText, " ")
 }
 
-// extractTextOps extracts text strings from PDF text operators within a BT/ET block.
+// extractTextOps extracts the text shown by the text-showing operators (Tj,
+// TJ, ', ") inside a BT/ET block.
+//
+// It walks the block as a PDF token stream rather than matching regexes, so it
+// honours the literal-string grammar from ISO 32000-1 §7.3.4.2: a string runs
+// from the opening "(" to its balanced closing ")", where "\(", "\)" and "\\"
+// are escaped delimiters and unescaped parens nest. The earlier regex
+// (`\(([^)]*)\)`) stopped at the first ")" — escaped or not — so a literal like
+// `(Cost: \(US\$50\) \\ \101OK)` never matched and the run was dropped (#510 /
+// #616). The scanner instead collects every string literal (and hex string)
+// and flushes the pending operands when it reaches a text-showing operator,
+// which covers both the standalone `(text) Tj` form and the `[(t) num (t)] TJ`
+// kerning-array form uniformly.
 func extractTextOps(block string) []string {
 	var texts []string
+	var pending strings.Builder // accumulates strings until an operator flushes them
 
-	// Handle Tj operator: (text) Tj
-	for _, match := range tjPattern.FindAllStringSubmatch(block, -1) {
-		if len(match) > 1 {
-			text := decodePDFString(match[1])
-			if text != "" {
-				texts = append(texts, text)
-			}
+	flush := func() {
+		if pending.Len() > 0 {
+			texts = append(texts, pending.String())
+			pending.Reset()
 		}
 	}
 
-	// Handle ' operator: (text) '
-	for _, match := range tickPattern.FindAllStringSubmatch(block, -1) {
-		if len(match) > 1 {
-			text := decodePDFString(match[1])
-			if text != "" {
-				texts = append(texts, text)
-			}
+	i := 0
+	n := len(block)
+	for i < n {
+		c := block[i]
+		switch {
+		case c == '(':
+			// Literal string: scan to the balanced closing paren.
+			lit, next := scanLiteralString(block, i)
+			pending.WriteString(decodePDFString(lit))
+			i = next
+		case c == '<' && i+1 < n && block[i+1] != '<':
+			// Hex string: <48656C6C6F>. (Skip "<<" dictionary openers.)
+			hexVal, next := scanHexString(block, i)
+			pending.WriteString(hexVal)
+			i = next
+		case c == 'T' && i+1 < n && block[i+1] == 'j':
+			// Tj — show string.
+			flush()
+			i += 2
+		case c == 'T' && i+1 < n && block[i+1] == 'J':
+			// TJ — show array of strings with kerning.
+			flush()
+			i += 2
+		case c == '\'':
+			// ' — move to next line and show string.
+			flush()
+			i++
+		case c == '"':
+			// " — set spacing, move to next line, show string.
+			flush()
+			i++
+		default:
+			i++
 		}
 	}
+	flush()
 
-	// Handle TJ array operator: [(text) num (text)] TJ
-	for _, match := range tjArrayPattern.FindAllStringSubmatch(block, -1) {
-		if len(match) > 1 {
-			arrayContent := match[1]
-			for _, strMatch := range tjArrayString.FindAllStringSubmatch(arrayContent, -1) {
-				if len(strMatch) > 1 {
-					text := decodePDFString(strMatch[1])
-					if text != "" {
-						texts = append(texts, text)
-					}
-				}
-			}
-		}
+	if len(texts) == 0 {
+		return nil
 	}
-
 	return texts
+}
+
+// scanLiteralString parses a PDF literal string starting at the "(" at start.
+// It returns the raw inner bytes (escapes still encoded) and the index just
+// past the closing ")". Per ISO 32000-1 §7.3.4.2: "\(", "\)" and "\\" are
+// escaped and unescaped parentheses must balance. If the string is unbalanced
+// (truncated stream) it consumes to the end of the block.
+func scanLiteralString(s string, start int) (string, int) {
+	var buf strings.Builder
+	depth := 0
+	i := start
+	for i < len(s) {
+		c := s[i]
+		switch c {
+		case '\\':
+			// Keep the backslash and the escaped byte verbatim; decodePDFString
+			// resolves the escape later.
+			buf.WriteByte(c)
+			if i+1 < len(s) {
+				buf.WriteByte(s[i+1])
+				i += 2
+			} else {
+				i++
+			}
+			continue
+		case '(':
+			depth++
+			if depth > 1 {
+				buf.WriteByte(c)
+			}
+		case ')':
+			depth--
+			if depth == 0 {
+				return buf.String(), i + 1
+			}
+			buf.WriteByte(c)
+		default:
+			buf.WriteByte(c)
+		}
+		i++
+	}
+	return buf.String(), i
+}
+
+// scanHexString parses a PDF hexadecimal string starting at the "<" at start
+// (ISO 32000-1 §7.3.4.3). Each pair of hex digits is one byte; a trailing odd
+// digit is padded with 0. Whitespace inside the angle brackets is ignored. It
+// returns the decoded bytes as a string and the index just past the closing
+// ">". These bytes are font-code units, not necessarily Unicode — without a
+// ToUnicode CMap they are only meaningful for single-byte ASCII fonts, so the
+// result is filtered to printable characters to avoid surfacing glyph-index
+// garbage.
+func scanHexString(s string, start int) (string, int) {
+	i := start + 1
+	var hexDigits []byte
+	for i < len(s) && s[i] != '>' {
+		c := s[i]
+		if isHexDigit(c) {
+			hexDigits = append(hexDigits, c)
+		}
+		i++
+	}
+	if i < len(s) {
+		i++ // consume '>'
+	}
+	if len(hexDigits)%2 == 1 {
+		hexDigits = append(hexDigits, '0')
+	}
+	var buf strings.Builder
+	for j := 0; j+1 < len(hexDigits); j += 2 {
+		hi := hexValue(hexDigits[j])
+		lo := hexValue(hexDigits[j+1])
+		b := hi<<4 | lo
+		// Only keep printable ASCII / common whitespace; glyph-index bytes
+		// from CID fonts are not Unicode and would be garbage here.
+		if b == '\t' || b == '\n' || b == '\r' || (b >= 0x20 && b < 0x7f) {
+			buf.WriteByte(b)
+		}
+	}
+	return buf.String(), i
+}
+
+func isHexDigit(c byte) bool {
+	return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')
+}
+
+func hexValue(c byte) byte {
+	switch {
+	case c >= '0' && c <= '9':
+		return c - '0'
+	case c >= 'a' && c <= 'f':
+		return c - 'a' + 10
+	case c >= 'A' && c <= 'F':
+		return c - 'A' + 10
+	}
+	return 0
 }
 
 // decodePDFString decodes a PDF string, handling common escape sequences.
