@@ -303,7 +303,12 @@ var formatSpecs = []FormatSpec{
 			return r
 		},
 		Inputs: []FormatInput{
-			{Name: "docbook", Content: ttext(`<?xml version="1.0"?><article><para>Hello <emphasis>world</emphasis>.</para></article>`)},
+			// DocBook 5 default namespace so Okapi's db:-namespaced selectors
+			// match (native matches by local name). Plain para text — inline
+			// elements (emphasis) render codes differently per side and are
+			// covered natively in presets_test.go vs the gold XLIFF; the
+			// head-to-head contract here is base para extraction.
+			{Name: "docbook", Content: ttext(`<?xml version="1.0"?><article xmlns="http://docbook.org/ns/docbook"><para>Hello world.</para></article>`)},
 		},
 	},
 	{
