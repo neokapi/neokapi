@@ -36,7 +36,20 @@ const config: Config = {
   // Architecture docs and implementation notes were absorbed into the
   // main docs tree (issue #425 followup). The `ad` and `notes` plugin
   // instances are no longer needed.
-  plugins: [],
+  plugins: [
+    [
+      "@docusaurus/plugin-client-redirects",
+      {
+        // The developer/* concept pages were merged into their features/*
+        // counterparts. Keep the old URLs alive.
+        redirects: [
+          { from: "/developer/terminology", to: "/features/terminology" },
+          { from: "/developer/translation-memory", to: "/features/translation-memory" },
+          { from: "/developer/brand-voice", to: "/features/brand-voice" },
+        ],
+      },
+    ],
+  ],
 
   presets: [
     [
@@ -68,9 +81,44 @@ const config: Config = {
       items: [
         {
           type: "docSidebar",
-          sidebarId: "neokapiSidebar",
-          label: "Documentation",
+          sidebarId: "gettingStartedSidebar",
+          label: "Get Started",
           position: "left",
+        },
+        {
+          type: "docSidebar",
+          sidebarId: "cliSidebar",
+          label: "CLI",
+          position: "left",
+        },
+        {
+          type: "docSidebar",
+          sidebarId: "reactSidebar",
+          label: "React",
+          position: "left",
+        },
+        {
+          type: "docSidebar",
+          sidebarId: "desktopSidebar",
+          label: "Desktop",
+          position: "left",
+        },
+        {
+          type: "docSidebar",
+          sidebarId: "frameworkSidebar",
+          label: "Framework",
+          position: "left",
+        },
+        {
+          type: "dropdown",
+          label: "Reference",
+          position: "left",
+          items: [
+            { label: "Format Reference", to: "/formats" },
+            { label: "Benchmarks", to: "/pseudobench" },
+            { label: "Parity", to: "/parity" },
+            { label: "Test Results", to: "/test-comparison" },
+          ],
         },
         {
           href: "https://github.com/neokapi/neokapi",
@@ -83,19 +131,27 @@ const config: Config = {
       style: "dark",
       links: [
         {
-          title: "Neokapi",
+          title: "Documentation",
           items: [
             {
-              label: "Getting Started",
+              label: "Get Started",
               to: "/getting-started/introduction",
             },
             {
-              label: "Kapi CLI",
+              label: "CLI",
               to: "/kapi-cli/overview",
+            },
+            {
+              label: "React",
+              to: "/kapi-react/introduction",
             },
             {
               label: "Framework",
               to: "/developer/architecture",
+            },
+            {
+              label: "Format Reference",
+              to: "/formats",
             },
           ],
         },

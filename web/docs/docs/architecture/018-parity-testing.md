@@ -24,8 +24,8 @@ Go-port refactors can silently diverge from the Java reference.
 
 The codebase has two independent stacks that must agree on output:
 
-- **neokapi (Go)** — native readers and writers for ~40 formats and
-  ~30 tools, embedded in the kapi binary.
+- **neokapi (Go)** — native readers, writers, and tools embedded in the kapi
+  binary.
 - **okapi-bridge** — a Java plugin distributed as `okapi-bridge`, built
   from the Okapi Framework JARs. Spawned as a Mode-C daemon on demand,
   speaks gRPC over a Unix socket.

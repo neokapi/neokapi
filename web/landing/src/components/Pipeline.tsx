@@ -27,7 +27,7 @@ export function Pipeline() {
       <div className="mx-auto max-w-6xl">
         <div className="mb-16 text-center">
           <h2 className="font-display text-3xl font-bold tracking-tight text-white sm:text-4xl">
-            Powerful{' '}
+            A concurrent{' '}
             <span className="bg-gradient-to-r from-accent-cyan to-brand-400 bg-clip-text text-transparent">
               streaming architecture
             </span>

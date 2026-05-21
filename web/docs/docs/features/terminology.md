@@ -1,56 +1,64 @@
 ---
-sidebar_position: 4
-title: Terminology Management
+title: Terminology
 ---
 
-# Terminology Management
+# Terminology
 
-neokapi includes a built-in terminology management system inspired by the TBX (TermBase eXchange) standard. It supports concept-oriented term management with multi-locale terms, lifecycle statuses, and domain classification.
+neokapi manages terminology with a concept-oriented model inspired by the TBX
+(TermBase eXchange) standard: language-neutral concepts group multi-locale
+terms, each carrying a lifecycle status and optional grammatical metadata. The
+same model backs the `kapi termbase` commands, the `term-lookup` and
+`term-enforce` pipeline tools, and the `termbase/` Go library.
 
-## Data Model
+## Concept-oriented model
 
-Terminology in neokapi follows a **concept-oriented** model:
+A **concept** is a language-neutral knowledge unit. It carries a domain and a
+definition, and groups **terms** across locales. Each term has a lifecycle
+status, and a locale may hold several terms (a preferred form plus admitted
+variants).
 
 ```
 Concept (e.g., "cloud storage")
 ├── Domain: "infrastructure"
 ├── Definition: "Remote file storage accessed via internet"
-├── Term: "cloud storage" (en, preferred)
-├── Term: "stockage cloud" (fr, preferred)
+├── Term: "cloud storage"     (en, preferred)
+├── Term: "stockage cloud"    (fr, preferred)
 ├── Term: "stockage en nuage" (fr, admitted)
-├── Term: "Cloud-Speicher" (de, preferred)
-└── Term: "クラウドストレージ" (ja, preferred)
+├── Term: "Cloud-Speicher"    (de, preferred)
+└── Term: "クラウドストレージ"   (ja, preferred)
 ```
 
-A **concept** groups related terms across languages. Each concept can have:
+This differs from a flat glossary (source→target pairs) and is what enables
+multiple terms per locale, status-driven enforcement, and rich metadata
+attached to a single language-neutral concept.
 
-- **Domain**: Subject area classification (e.g., "security", "ui", "marketing")
-- **Definition**: Clear description of the concept
-- **Terms**: Multiple terms per locale, each with a lifecycle status
+### Term lifecycle statuses
 
-### Term Lifecycle Statuses
+| Status       | Meaning                       | Usage                           |
+| ------------ | ----------------------------- | ------------------------------- |
+| `preferred`  | The recommended term          | Always suggest to translators   |
+| `approved`   | Accepted for use              | Valid alternative               |
+| `admitted`   | Allowed but not recommended   | Show with lower priority        |
+| `deprecated` | Being phased out              | Warn when found in translations |
+| `proposed`   | Under review, not yet approved | Show as suggestion with caveat |
+| `forbidden`  | Must not be used              | Flag as error in QA             |
 
-| Status       | Meaning                             |
-| ------------ | ----------------------------------- |
-| `preferred`  | The recommended term to use         |
-| `approved`   | Accepted for use                    |
-| `admitted`   | Allowed but not recommended         |
-| `deprecated` | Should be avoided; being phased out |
-| `proposed`   | Under review, not yet approved      |
-| `forbidden`  | Must not be used                    |
+## Storage backends
 
-## Storage Backends
+Two backends ship in the `termbase/` package, both thread-safe
+(RWMutex-protected) and implementing the full `TermBase` interface:
 
-Two storage tiers ship with the framework:
+1. **In-memory** (`termbase.NewInMemoryTermBase`) — fast and ephemeral, used
+   for session-scoped batch processing.
+2. **SQLite** (`termbase.NewSQLiteTermBase`) — persistent file-based storage
+   for CLI workflows, with fuzzy matching via SQL-based Levenshtein distance.
 
-1. **In-memory** (`core/termbase/`) — fast, ephemeral. Used for session-scoped batch processing.
-2. **SQLite** (`cli/storage/termbase/`) — persistent file-based storage for CLI tools. Designed for single-user, file-based workflows.
+The `TermBase` interface also accommodates server-side backends for multi-user
+deployments with project scoping, terminology streams, and workspace isolation.
 
-The `TermBase` interface supports server-side backends for multi-user deployments with project scoping, terminology streams, and workspace isolation.
+## CLI usage
 
-## CLI Usage
-
-### Resource Location
+### Resource location
 
 All termbase commands (except `list`) accept these mutually exclusive flags:
 
@@ -63,91 +71,159 @@ All termbase commands (except `list`) accept these mutually exclusive flags:
 
 Databases are created on demand if they don't exist.
 
-### Import Terms
-
 ```bash
-# Import into a named termbase in KAPI_HOME
+# Import terms (CSV or JSON)
 kapi termbase import terms.csv --name project-terms --format csv -s en -t fr
-
-# Import into default local termbase (./termbase.db)
-kapi termbase import terms.csv --format csv -s en -t fr --domain general
-
-# Import from JSON
 kapi termbase import terms.json --format json
 
-# Import into a specific file
-kapi termbase import terms.csv --file /shared/glossary.db --format csv -s en -t fr
-```
-
-### Export Terms
-
-```bash
+# Export terms
 kapi termbase export --name project-terms --format csv -o terms.csv -s en -t fr
-kapi termbase export --format json -o terms.json
-```
 
-### Look Up Terms
-
-```bash
-# Exact lookup using a named termbase
+# Look up a term (exact, or --fuzzy)
 kapi termbase lookup "encryption" --name project-terms -s en -t fr
-
-# Fuzzy lookup
 kapi termbase lookup "authenticating users" -s en -t fr --fuzzy
-```
 
-### Search Concepts
-
-```bash
-kapi termbase search "encryption" --name project-terms -s en
+# Search concepts, view statistics, list named termbases
 kapi termbase search "auth" -s en --limit 50
-```
-
-### View Statistics
-
-```bash
 kapi termbase stats --name project-terms
-kapi termbase stats                          # uses ./termbase.db
-```
-
-### List Named Termbases
-
-```bash
 kapi termbase list
 ```
 
-## Pipeline Integration
+## Pipeline integration
 
-Two pipeline tools integrate terminology into the translation workflow:
+Two pipeline tools bring terminology into the translation flow:
 
-### Term Lookup Tool
+- **`term-lookup`** scans each Block's source text and attaches matched
+  terminology as `TermAnnotation` entries (source term, target suggestions,
+  positions, status). It can also power per-block suggestions in an editor.
+- **`term-enforce`** checks that translated blocks use the expected
+  terminology. Violations are reported as block properties
+  (`term-enforce-errors`, `term-enforce-violations`) and as annotations with
+  expected-vs-actual detail.
 
-The `term-lookup` tool scans source text in each Block and annotates it with matched terminology. Matched terms are attached as `TermAnnotation` entries on the Block, providing source term, target suggestions, positions, and status information.
+## Go library
 
-### Term Enforce Tool
+### Interface
 
-The `term-enforce` tool checks that translated blocks use the correct terminology.
-
-Violations are reported as block properties (`term-enforce-errors`, `term-enforce-violations`) and as annotations with details about expected vs. actual term usage.
-
-## Import/Export Formats
-
-### CSV Format
-
-Simple two-column format for quick import/export:
-
-```csv
-source,target,domain
-cloud storage,stockage cloud,infrastructure
-encryption,chiffrement,security
-authentication,authentification,security
+```go
+type TermBase interface {
+    AddConcept(concept Concept) error
+    GetConcept(id string) (Concept, bool)
+    DeleteConcept(id string) error
+    Lookup(sourceText string, opts LookupOptions) []TermMatch
+    LookupAll(sourceText string, opts LookupOptions) []TermMatch
+    Search(query string, sourceLocale, targetLocale string, offset, limit int) ([]Concept, int)
+    Count() int
+    Concepts() []Concept
+    Close() error
+}
 ```
 
-Options: `--delimiter` (default `,`), `--has-header`, `--domain`, `-s` (source locale), `-t` (target locale).
+`Lookup` finds the best match for a single term. `LookupAll` scans running text
+and returns every term occurrence with positions — this is what powers the
+`term-lookup` tool and editor suggestions. By default `LookupAll` matches
+case-insensitively (terminology should be recognized regardless of
+capitalization); set `CaseSensitive` to override.
 
-### JSON Format
+### Key types
 
-Full concept-oriented format preserving all metadata:
+```go
+type Concept struct {
+    ID         string
+    Domain     string            // subject area (security, ui, marketing)
+    Definition string            // language-neutral description
+    Terms      []Term
+    Properties map[string]string // extensible metadata
+    CreatedAt  time.Time
+    UpdatedAt  time.Time
+}
+
+type Term struct {
+    Text         string
+    Locale       model.LocaleID
+    Status       model.TermStatus // preferred, approved, admitted, deprecated, proposed, forbidden
+    PartOfSpeech string
+    Gender       string
+    Note         string
+}
+
+type TermMatch struct {
+    Concept   Concept
+    Term      Term                // the matched source term
+    Score     float64             // 0.0-1.0
+    MatchType model.MatchStrategy // exact, normalized, fuzzy
+    Position  model.TextRange     // position in source text
+}
+
+type LookupOptions struct {
+    SourceLocale  model.LocaleID
+    TargetLocale  model.LocaleID
+    CaseSensitive bool
+    MinScore      float64             // minimum fuzzy score (default 0.8)
+    MatchModes    []model.MatchStrategy
+    Domains       []string            // restrict to specific domains
+    StatusFilter  []model.TermStatus  // only return terms with these statuses
+}
+```
+
+`Concept` helpers: `SourceTerm(locale)`, `TargetTerms(locale)`,
+`PreferredTerm(locale)`.
+
+### Example
+
+```go
+package main
+
+import (
+    "fmt"
+
+    "github.com/neokapi/neokapi/core/model"
+    "github.com/neokapi/neokapi/termbase"
+)
+
+func main() {
+    tb := termbase.NewInMemoryTermBase()
+    defer tb.Close()
+
+    tb.AddConcept(termbase.Concept{
+        ID:         "c1",
+        Domain:     "security",
+        Definition: "Process of encoding information",
+        Terms: []termbase.Term{
+            {Text: "encryption", Locale: "en", Status: model.TermPreferred},
+            {Text: "chiffrement", Locale: "fr", Status: model.TermPreferred},
+        },
+    })
+
+    matches := tb.LookupAll(
+        "The encryption module handles end-to-end encryption",
+        termbase.LookupOptions{SourceLocale: "en", TargetLocale: "fr"},
+    )
+    for _, m := range matches {
+        fmt.Printf("Found %q at [%d:%d] → %s (%s)\n",
+            m.Term.Text, m.Position.Start, m.Position.End,
+            m.Concept.TargetTerms("fr")[0].Text, m.Term.Status)
+    }
+}
+```
+
+### Import / export
+
+```go
+// JSON preserves the full concept-oriented structure
+count, err := termbase.ImportJSON(tb, reader)
+err = termbase.ExportJSON(tb, writer, "My Termbase")
+
+// CSV is a flat source/target form with optional metadata
+opts := termbase.CSVImportOptions{
+    SourceLocale: "en", TargetLocale: "fr", Domain: "general", HasHeader: true,
+}
+count, err = termbase.ImportCSV(tb, reader, opts)
+err = termbase.ExportCSV(tb, writer, "en", "fr", true)
+```
+
+CSV columns are `source,target,domain` (domain optional). JSON carries the full
+concept structure:
 
 ```json
 {
@@ -167,26 +243,14 @@ Full concept-oriented format preserving all metadata:
 }
 ```
 
-## Design Decisions
+## Terminology and translation memory
 
-### Concept-Oriented vs. Flat Glossary
+Terminology and [translation memory](/features/translation-memory) are
+deliberately separate systems because they answer different questions:
 
-neokapi uses a concept-oriented model (inspired by TBX) rather than flat source→target pairs. This enables:
+- **TM** — "How was this sentence translated before?" (segment pairs).
+- **Terminology** — "What is the correct term for this concept?" (multi-locale
+  knowledge units).
 
-- **Multiple terms per locale**: A concept can have preferred and admitted terms in the same language
-- **Lifecycle management**: Terms go through statuses (proposed → approved → preferred → deprecated)
-- **Rich metadata**: Domain classification, definitions, usage notes, and grammatical information
-- **Multi-locale**: Terms in any number of languages belong to the same concept
-
-### In-Text Discovery
-
-The `LookupAll` function scans running text to find all term occurrences. This powers the pipeline `term-lookup` tool and can be used by editors to show per-block terminology suggestions. Case-insensitive matching is used by default with exact string matching for maximum precision.
-
-### Separate from TM
-
-Terminology and translation memory are separate systems because they serve different purposes:
-
-- **TM** answers: "How was this sentence translated before?"
-- **Terminology** answers: "What is the correct term for this concept?"
-
-Both integrate through the Block's annotation system, making them available to any downstream tool or editor.
+They share the `Block` annotation system as their integration point, so both
+TM matches and term matches are available to any downstream tool or editor.

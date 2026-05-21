@@ -6,64 +6,64 @@ import {
 const FEATURES = [
   {
     icon: FileText,
-    title: 'Wide File Format Support',
-    description: 'HTML, XLIFF, JSON, YAML, PO, Markdown, SRT, VTT, and more built-in. Plus 40+ Okapi Framework filters via plugin for Office, EPUB, PDF, IDML.',
+    title: 'Wide file-format support',
+    description: 'HTML, XLIFF, JSON, YAML, PO, Markdown, SRT, VTT and more built in, with the Okapi bridge plugin adding the Java filters for Office, EPUB, PDF, and IDML.',
     accent: 'text-brand-400',
     bg: 'bg-brand-500/8',
     border: 'border-brand-500/15',
   },
   {
     icon: Brain,
-    title: 'AI-Native Translation',
-    description: 'LLM translation, QA, and terminology extraction are composable pipeline tools. Use Anthropic Claude, OpenAI, or run local models with Ollama.',
+    title: 'AI-native translation',
+    description: 'LLM translation, QA, and terminology extraction are pipeline tools. Use Anthropic Claude, OpenAI, or run local models with Ollama.',
     accent: 'text-accent-amber',
     bg: 'bg-accent-amber/8',
     border: 'border-accent-amber/15',
   },
   {
     icon: Workflow,
-    title: 'Concurrent Pipeline',
-    description: 'Channel-based streaming architecture. Each tool runs in its own goroutine with automatic backpressure. Processes large files and batches without configuration.',
+    title: 'Concurrent pipeline',
+    description: 'A channel-based streaming architecture: each tool runs in its own goroutine with backpressure, processing large files and batches without tuning.',
     accent: 'text-accent-cyan',
     bg: 'bg-accent-cyan/8',
     border: 'border-accent-cyan/15',
   },
 {
     icon: BookOpen,
-    title: 'TM + Terminology',
-    description: 'Built-in translation memory with entity-aware fuzzy matching. Concept-oriented termbase with lifecycle statuses and domain classification.',
+    title: 'TM + terminology',
+    description: 'Built-in translation memory with entity-aware fuzzy matching, and a concept-oriented termbase with lifecycle statuses and domain classification.',
     accent: 'text-forest-400',
     bg: 'bg-forest-400/8',
     border: 'border-forest-400/15',
   },
   {
     icon: Puzzle,
-    title: 'Plugin System',
-    description: 'Extend with gRPC plugins in any language. Crash-isolated processes ensure stability. The Okapi bridge alone adds 40+ production-proven Java filters.',
+    title: 'Plugin system',
+    description: 'Extend with gRPC plugins in any language, each running as a crash-isolated process. The Okapi bridge adds the Java filters from the Okapi Framework.',
     accent: 'text-accent-rose',
     bg: 'bg-accent-rose/8',
     border: 'border-accent-rose/15',
   },
   {
     icon: Zap,
-    title: 'Zero Configuration',
-    description: 'Process files instantly with kapi. No project directory, no server, no YAML to write. Automatic format detection. Just point and go.',
+    title: 'No configuration required',
+    description: 'kapi processes files directly — no project directory, server, or YAML to write. Formats are detected from extension, MIME type, or content.',
     accent: 'text-brand-400',
     bg: 'bg-brand-500/8',
     border: 'border-brand-500/15',
   },
   {
     icon: Shield,
-    title: 'Quality Assurance',
-    description: 'Rule-based QA checks plus AI-powered review. Catch terminology violations, formatting errors, and fluency issues before they ship.',
+    title: 'Quality assurance',
+    description: 'Rule-based QA checks alongside AI review, flagging terminology violations, formatting errors, and fluency issues during the pipeline.',
     accent: 'text-accent-amber',
     bg: 'bg-accent-amber/8',
     border: 'border-accent-amber/15',
   },
   {
     icon: Globe,
-    title: 'Progressive Complexity',
-    description: 'Start with a single CLI command. Grow into tools, flows and CI pipelines. The same composable tools work at every scale.',
+    title: 'Progressive complexity',
+    description: 'Start with a single CLI command and grow into tools, flows, and CI pipelines — the same building blocks work at every scale.',
     accent: 'text-accent-cyan',
     bg: 'bg-accent-cyan/8',
     border: 'border-accent-cyan/15',
@@ -76,13 +76,13 @@ export function Features() {
       <div className="mx-auto max-w-6xl">
         <div className="mb-16 text-center">
           <h2 className="font-display text-3xl font-bold tracking-tight text-white sm:text-4xl">
-            Everything you need to{' '}
+            One toolkit, from a single command to a{' '}
             <span className="bg-gradient-to-r from-brand-400 to-brand-300 bg-clip-text text-transparent">
-              localize at scale
+              full pipeline
             </span>
           </h2>
           <p className="mx-auto mt-4 max-w-2xl text-lg text-neutral-400">
-            A composable toolkit where every piece works standalone and composes into powerful workflows.
+            Each tool runs on its own and chains into a flow — the same building blocks at every scale.
           </p>
         </div>
 

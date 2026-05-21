@@ -11,13 +11,13 @@ neokapi uses [HashiCorp go-plugin](https://github.com/hashicorp/go-plugin) with 
 
 Plugins are classified into three main types:
 
-- **Bundle** — a collection of formats and/or tools distributed as a single unit (e.g., the Okapi bridge with 40+ format filters)
+- **Bundle** — a collection of formats and/or tools distributed as a single unit (e.g., the Okapi bridge with its Java format filters)
 - **Format** — a standalone format reader/writer plugin implementing `DataFormatReaderPlugin` and/or `DataFormatWriterPlugin` gRPC services
 - **Tool** — a standalone tool plugin implementing `ToolPlugin` gRPC service
 
 ### Bundles
 
-A bundle packages multiple formats and tools into one installable plugin. The Okapi bridge is the canonical example — it provides 40+ format filters (DOCX, XLSX, EPUB, HTML, etc.) and processing tools via a single bridge subprocess.
+A bundle packages multiple formats and tools into one installable plugin. The Okapi bridge is the canonical example — it provides many format filters (DOCX, XLSX, EPUB, HTML, etc.) and processing tools via a single bridge subprocess.
 
 Bundles are declared with `plugin_type: "bundle"` in the registry manifest and list their capabilities explicitly. This allows the CLI to search and filter by contained capability type:
 

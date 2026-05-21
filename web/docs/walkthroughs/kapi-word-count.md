@@ -16,7 +16,7 @@ scenes:
 ## Story
 
 You need to estimate the cost of a translation before kicking off a vendor
-job. `kapi word-count` reads any of the 41+ formats and outputs a quick
+job. `kapi word-count` reads any supported format and outputs a quick
 breakdown so you can put a number on the bill.
 
 ## Scene 1 — word-count (terminal)

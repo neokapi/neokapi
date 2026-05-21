@@ -60,8 +60,9 @@ to all stages. See [AD-001](/architecture/001-vision-and-modules) and
 ```
 neokapi/
 ├── go.mod                           # module github.com/neokapi/neokapi
+├── go.work                          # coordinates the framework + CLI + app modules
 │
-├── core/                            # All framework Go packages
+├── core/                            # Platform-agnostic framework packages
 │   ├── model/                       # Part, Block, Layer, Fragment, Span, Data, Media
 │   ├── format/                      # DataFormatReader/Writer interfaces, detection
 │   ├── tool/                        # Tool interface, BaseTool dispatch
@@ -71,30 +72,36 @@ neokapi/
 │   ├── locale/                      # BCP-47 locale handling
 │   ├── editor/                      # Block index serialization and preview generation
 │   ├── version/                     # Build version info
-│   │
-│   ├── formats/                     # 15 built-in format implementations
-│   │   ├── html/                    # Each has reader.go, writer.go, config.go
-│   │   ├── xml/, xliff/, xliff2/, json/, yaml/, po/
-│   │   ├── properties/, plaintext/, markdown/, csv/
-│   │   ├── srt/, vtt/, tmx/
-│   │   └── register.go              # init() registration
-│   │
-│   ├── ai/                          # AI/LLM integration (providers + tools)
-│   ├── mt/                          # Machine translation (providers + tools)
-│   ├── sievepen/                    # Translation memory (interface + in-memory)
-│   ├── termbase/                    # Terminology management (interface + in-memory)
-│   ├── tools/                       # Utility tools (wordcount, pseudo, segmentation, etc.)
+│   ├── formats/                     # Built-in format implementations
+│   │   └── …                        # one package each (reader.go, writer.go, config.go)
+│   ├── ai/                          # AI pipeline tools, NER, prompt assembly
+│   ├── mt/                          # Machine-translation pipeline tools
+│   ├── brand/                       # Brand voice profiles, scoring, starter packs
+│   ├── tools/                       # Utility tools (wordcount, pseudo, segmentation, …)
+│   ├── storage/                     # Shared SQLite infrastructure (Open, Migrate)
+│   ├── project/                     # .kapi project file format (Load, Save, Validate)
 │   ├── plugin/                      # Plugin system (gRPC, loader, bridge, registry)
 │   └── testutil/                    # Shared test helpers
 │
+├── sievepen/                        # Translation memory (interface, in-memory, SQLite)
+├── termbase/                        # Terminology (interface, in-memory, SQLite)
+├── providers/
+│   ├── ai/                          # package aiprovider — LLM backends
+│   └── mt/                          # package mtprovider — MT backends
+│
+├── cli/                             # Shared CLI base (module: …/cli)
+├── kapi/                            # Kapi standalone CLI (module: …/kapi)
+├── apps/kapi-desktop/               # Kapi Desktop (Wails v3; module: …/kapi-desktop)
 ├── packages/
 │   ├── ui/                          # @neokapi/ui-primitives — shared shadcn/ui primitives
 │   └── flow-editor/                 # @neokapi/flow-editor — shared React flow editor
-├── package.json                     # Root npm workspace coordinating all frontend packages
-├── cli/                             # Shared CLI base (Cobra, Viper)
-├── kapi/                            # Kapi standalone CLI
 └── docs/                            # Architecture decisions, notes
 ```
+
+The framework module (repo root) stays platform-agnostic. `sievepen/`,
+`termbase/`, and `providers/` are top-level framework packages — not nested
+under `core/` — and the CLI, desktop, and bowrain modules attach via the plugin
+registries rather than direct imports.
 
 ## Content Model
 
