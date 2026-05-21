@@ -71,10 +71,10 @@ func inlineEquivs(runs []model.Run) []string {
 // okapi-unmapped: XLIFFFilterTest#testAddedCloneCode — Java clone API
 // (Extraction portion covered natively in TestExtract_AddedCloneCode)
 
-// okapi-unmapped: XLIFFFilterTest#testBlockSkeleton — skeleton is bridge-only
+// neokapi-only: XLIFFFilterTest#testBlockSkeleton — no such method in v1.48.0 XLIFFFilterTest; skeleton is bridge-only
 // (Bridge reader generates skeleton parts; native reader does not)
 
-// okapi-unmapped: XLIFFFilterTest#testDataIsReferent — bridge skeleton referent flag
+// neokapi-only: XLIFFFilterTest#testDataIsReferent — no such method in v1.48.0 XLIFFFilterTest; bridge skeleton referent flag
 
 // okapi-unmapped: XLIFFFilterTest#testEmptyTgtLangAttribute — requires testdata file
 // (Bridge test uses okf_xliff/empty-tgt-lang.xlf)

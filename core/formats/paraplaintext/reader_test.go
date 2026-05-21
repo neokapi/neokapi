@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// okapi: ParagraphPlainTextFilterTest#testSingleParagraph
+// neokapi-only: ParagraphPlainTextFilterTest#testSingleParagraph
 func TestSingleParagraph(t *testing.T) {
 	ctx := t.Context()
 	reader := paraplaintext.NewReader()
@@ -28,7 +28,7 @@ func TestSingleParagraph(t *testing.T) {
 	assert.Equal(t, "Hello world", blocks[0].SourceText())
 }
 
-// okapi: ParagraphPlainTextFilterTest#testMultipleParagraphs
+// neokapi-only: ParagraphPlainTextFilterTest#testMultipleParagraphs
 func TestMultipleParagraphs(t *testing.T) {
 	ctx := t.Context()
 	reader := paraplaintext.NewReader()
@@ -44,7 +44,7 @@ func TestMultipleParagraphs(t *testing.T) {
 	assert.Equal(t, "Second paragraph.", blocks[1].SourceText())
 }
 
-// okapi: ParagraphPlainTextFilterTest#testMultiLineParagraph
+// neokapi-only: ParagraphPlainTextFilterTest#testMultiLineParagraph
 func TestMultiLineParagraph(t *testing.T) {
 	ctx := t.Context()
 	reader := paraplaintext.NewReader()
@@ -59,7 +59,7 @@ func TestMultiLineParagraph(t *testing.T) {
 	assert.Equal(t, "Line one.\nLine two.\nLine three.", blocks[0].SourceText())
 }
 
-// okapi: ParagraphPlainTextFilterTest#testThreeParagraphs
+// neokapi-only: ParagraphPlainTextFilterTest#testThreeParagraphs
 func TestThreeParagraphs(t *testing.T) {
 	ctx := t.Context()
 	reader := paraplaintext.NewReader()
@@ -155,7 +155,7 @@ func TestConfigApplyMapEmpty(t *testing.T) {
 	require.NoError(t, err)
 }
 
-// okapi: ParagraphPlainTextFilterTest#testPreserveNewlines
+// neokapi-only: ParagraphPlainTextFilterTest#testPreserveNewlines
 func TestPreserveNewlinesInParagraph(t *testing.T) {
 	ctx := t.Context()
 	reader := paraplaintext.NewReader()

@@ -598,7 +598,7 @@ func TestRoundTrip_WikiFormatting(t *testing.T) {
 	}
 }
 
-// okapi: RoundTripWikiIT#testWikiFiles (*.wiki files)
+// neokapi-only: RoundTripWikiIT#testWikiFiles (*.wiki files) — no such Okapi IT class in v1.48.0; upstream roundtrip is WikiFilterTest#testDoubleExtraction (already mapped above).
 //
 // `.wiki` files are MediaWiki markup. Pinned to MediaWiki under #496.
 func TestRoundTrip_WikiFiles(t *testing.T) {
@@ -636,7 +636,7 @@ func TestRoundTrip_WikiFiles(t *testing.T) {
 	}
 }
 
-// okapi: RoundTripWikiIT#testWikiFiles (*.txt DokuWiki files)
+// neokapi-only: RoundTripWikiIT#testWikiFiles (*.txt DokuWiki files) — no such Okapi IT class in v1.48.0; upstream DokuWiki roundtrip is WikiFilterTest#testDoubleExtraction (already mapped above).
 func TestRoundTrip_DokuWikiTxtFiles(t *testing.T) {
 	ctx := t.Context()
 	f, err := os.Open("testdata/dokuwiki.txt")

@@ -13,7 +13,7 @@ package tmx_test
 //
 // --- File-based roundtrip iteration tests ---
 //
-// okapi-deferred: RoundTripTmxIT#tmxFiles — iterates all okf_tmx/*.tmx files; native roundtrip covered by TestRoundTrip_SimpleFile, TestRoundTrip_MultipleUnits, and skeleton_test.go
+// neokapi-only: RoundTripTmxIT#tmxFiles — no such Okapi IT class in v1.48.0; upstream roundtrip lives in TmxFilterTest#testDoubleExtraction (already mapped below); native roundtrip covered by TestRoundTrip_SimpleFile, TestRoundTrip_MultipleUnits, and skeleton_test.go
 // okapi-deferred: TmxXliffCompareIT (sampleTMX2.tmx) — requires okf_tmx/sampleTMX2.tmx; inline code roundtrip covered by TestRoundTrip_InlineCodes
 
 import (
@@ -1289,7 +1289,7 @@ func TestInvalidElementInPlaceholder(t *testing.T) {
 
 // --- Output tests ---
 
-// okapi-skip: TmxFilterTest#testOutputBasic_Comment — upstream @Test is commented out (disabled)
+// neokapi-only: TmxFilterTest#testOutputBasic_Comment — upstream @Test is commented out (disabled)
 //
 //	in v1.48.0, so there is no live Okapi case to map against. This native test still exercises
 //	genuine behavior: a document-level XML comment must survive a read/write round-trip.
@@ -1413,7 +1413,7 @@ func TestParametersFromMap(t *testing.T) {
 
 // --- Roundtrip tests ---
 
-// okapi: RoundTripTmxIT#tmxFiles (roundtrip with testdata/simple.tmx)
+// neokapi-only: RoundTripTmxIT#tmxFiles (roundtrip with testdata/simple.tmx) — no such Okapi IT class in v1.48.0; upstream roundtrip behavior is TmxFilterTest#testDoubleExtraction (already mapped)
 func TestRoundTrip_SimpleFile(t *testing.T) {
 	ctx := t.Context()
 
@@ -1488,7 +1488,7 @@ func TestRoundTrip_InlineCodes(t *testing.T) {
 	assert.Contains(t, blocks[0].SourceText(), "Click here")
 }
 
-// okapi: RoundTripTmxIT#tmxFiles (roundtrip with multiple TUs)
+// neokapi-only: RoundTripTmxIT#tmxFiles (roundtrip with multiple TUs) — no such Okapi IT class in v1.48.0; upstream roundtrip behavior is TmxFilterTest#testDoubleExtraction (already mapped)
 func TestRoundTrip_MultipleUnits(t *testing.T) {
 	input := wrapTMX(`
     <tu>

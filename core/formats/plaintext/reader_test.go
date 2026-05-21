@@ -932,7 +932,7 @@ func TestRoundTrip_Native(t *testing.T) {
 	assert.Equal(t, input, buf.String())
 }
 
-// okapi: RoundTripPlainTextIT#testPlainTextFiles
+// neokapi-only: RoundTripPlainTextIT#testPlainTextFiles — no such Okapi IT class in v1.48.0; upstream roundtrip is PlainTextFilterTest#testDoubleExtraction (already mapped above).
 func TestRoundTrip_TestFiles(t *testing.T) {
 	tests := []struct {
 		name string
@@ -972,7 +972,7 @@ func TestRoundTrip_TestFiles(t *testing.T) {
 	}
 }
 
-// okapi: RoundTripPlainTextIT#testPlainTextFiles (line ending variants)
+// neokapi-only: RoundTripPlainTextIT#testPlainTextFiles (line ending variants) — no such Okapi IT class in v1.48.0; upstream roundtrip is PlainTextFilterTest#testDoubleExtraction (already mapped above).
 func TestRoundTrip_LineEndings(t *testing.T) {
 	tests := []struct {
 		name  string
@@ -1007,7 +1007,7 @@ func TestRoundTrip_LineEndings(t *testing.T) {
 	}
 }
 
-// okapi: RoundTripPlainTextIT#testPlainTextFiles (paragraph mode)
+// neokapi-only: RoundTripPlainTextIT#testPlainTextFiles (paragraph mode) — no such Okapi IT class in v1.48.0; upstream roundtrip is PlainTextFilterTest#testDoubleExtraction (already mapped above).
 func TestRoundTrip_ParagraphMode(t *testing.T) {
 	tests := []struct {
 		name  string
@@ -1041,7 +1041,7 @@ func TestRoundTrip_ParagraphMode(t *testing.T) {
 	}
 }
 
-// okapi-unmapped: RoundTripPlainTextIT#testPlainTextFiles (spliced mode) — spliced lines filter variant, no native equivalent
+// neokapi-only: RoundTripPlainTextIT#testPlainTextFiles (spliced mode) — no such Okapi IT class in v1.48.0; spliced lines filter variant, no native equivalent
 
 // ---- SplicedLinesFilterTest — Java okf_plaintext_spliced variant ----
 // SplicedLinesFilter is a distinct Java filter subclass (config id

@@ -395,10 +395,11 @@ func scanScalarEnd(content []byte, start int, style yamlv3.Style, value string) 
 // at start does not begin with `!`.
 //
 // Examples (ret = bytes consumed):
-//   "! 'value'"        → 2 ("! ")
-//   "!str 'value'"     → 5 ("!str ")
-//   "!!str 'value'"    → 6 ("!!str ")
-//   "!<verbatim> v"    → 12 ("!<verbatim> ")
+//
+//	"! 'value'"        → 2 ("! ")
+//	"!str 'value'"     → 5 ("!str ")
+//	"!!str 'value'"    → 6 ("!!str ")
+//	"!<verbatim> v"    → 12 ("!<verbatim> ")
 func scanTagPrefix(content []byte, start int) int {
 	if start >= len(content) || content[start] != '!' {
 		return 0

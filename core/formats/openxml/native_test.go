@@ -274,11 +274,11 @@ import (
 // okapi-unmapped: OpenXMLRoundTripTest#wpmlTogglePropertiesHandlingAlignedWithToolsBehaviour — covered by roundtrip glob
 // okapi-unmapped: OpenXMLRoundtripAddTabAsCharTest#test — covered by roundtrip glob
 // okapi-unmapped: OpenXMLRoundtripLineSeparatorReplacementTest#test — covered by roundtrip glob
-// okapi-unmapped: OpenXmlRoundtripPageBreakTest#roundTripsPageBreakWithReplacementSetting — covered by roundtrip glob
-// okapi-unmapped: OpenXmlRoundtripPageBreakTest#roundTripsPageBreakWithoutReplacementSetting — covered by roundtrip glob
-// okapi-unmapped: OpenXmlRoundtripPptxMastersTest#roundTripsWithSlideMastersEnabled — covered by roundtrip glob
-// okapi-unmapped: OpenXmlRoundtripPptxRemoveEmbeddedTest#roundTripsWithEmbeddedExcelPackageRemoved — covered by roundtrip glob
-// okapi-unmapped: OpenXmlRoundtripSoftLineBreaksDoNotTranslateTest#roundTripsWithSoftLineBreaksDoNotTranslate — covered by roundtrip glob
+// neokapi-only: OpenXmlRoundtripPageBreakTest#roundTripsPageBreakWithReplacementSetting — stale method name (v1.48.0 method is testPageBreakWithLineSeparatorOption, already mapped to TestNative_PageBreakRoundtripLineSeparator); covered by roundtrip glob
+// neokapi-only: OpenXmlRoundtripPageBreakTest#roundTripsPageBreakWithoutReplacementSetting — stale method name (v1.48.0 method is testPageBreakWithoutLineSeparatorOption, already mapped to TestNative_PageBreakRoundtripNoLineSeparator); covered by roundtrip glob
+// neokapi-only: OpenXmlRoundtripPptxMastersTest#roundTripsWithSlideMastersEnabled — stale method name (v1.48.0 method is OpenXmlRoundtripPptxMastersTest#test, already mapped); covered by roundtrip glob
+// neokapi-only: OpenXmlRoundtripPptxRemoveEmbeddedTest#roundTripsWithEmbeddedExcelPackageRemoved — stale method name (v1.48.0 method is OpenXmlRoundtripPptxRemoveEmbeddedTest#test, already mapped); covered by roundtrip glob
+// neokapi-only: OpenXmlRoundtripSoftLineBreaksDoNotTranslateTest#roundTripsWithSoftLineBreaksDoNotTranslate — stale method name (v1.48.0 method is OpenXmlRoundtripSoftLineBreaksDoNotTranslateTest#test, already mapped to TestNative_SoftLineBreaksDoNotTranslateRoundtrip); covered by roundtrip glob
 //
 // --- Extraction tests not applicable to native (Okapi-specific features) ---
 //
@@ -494,7 +494,7 @@ func readFileWithConfig(t *testing.T, path string, configure func(*Config)) []*m
 
 // --- DOCX tests mirroring Okapi extraction tests ---
 
-// okapi: OpenXMLTest#testWordDocuments
+// neokapi-only: OpenXMLTest#testWordDocuments — no such method in v1.48.0 OpenXMLTest; general DOCX extraction is OpenXMLTest#extractsNestedContentInTheExpectedOrder (already mapped to TestNative_DocxNotes). This native test is additional neokapi DOCX-extraction coverage.
 func TestNative_SimpleDocx(t *testing.T) {
 	dir := testdataDir(t)
 	parts := readFile(t, filepath.Join(dir, "948-1.docx"))
@@ -569,7 +569,7 @@ func TestNative_DocxSoftLineBreaks(t *testing.T) {
 	require.NotEmpty(t, blocks, "DOCX with soft line breaks should produce blocks")
 }
 
-// okapi: OpenXMLTest#testTextBoxes
+// neokapi-only: OpenXMLTest#testTextBoxes — no such method in v1.48.0 OpenXMLTest (textbox content is exercised within extractsNestedContentInTheExpectedOrder); native textbox extraction is neokapi's own coverage.
 func TestNative_DocxTextBoxes(t *testing.T) {
 	dir := testdataDir(t)
 	parts := readFile(t, filepath.Join(dir, "TextBoxes.docx"))
@@ -602,7 +602,7 @@ func TestNative_DocxWatermark(t *testing.T) {
 	assert.True(t, hasLayerStart, "watermark DOCX should have layer structure")
 }
 
-// okapi: OpenXMLTest#testSpecialCharsAndLinebreaks
+// neokapi-only: OpenXMLTest#testSpecialCharsAndLinebreaks — no such method in v1.48.0 OpenXMLTest; line-break behavior is OpenXMLTest#testLineBreakAsCharacter (already mapped to TestNative_DocxSoftLineBreaks) and smart-quote/special-char behavior is OpenXMLTest#testSmartQuotes; native special-char extraction is neokapi's own coverage.
 func TestNative_DocxSpecialChars(t *testing.T) {
 	dir := testdataDir(t)
 	parts := readFile(t, filepath.Join(dir, "special-chars-and-linebreaks.docx"))
@@ -904,7 +904,7 @@ func TestNative_XlsxMultiLayer(t *testing.T) {
 	assert.Greater(t, layerStartCount, 1, "XLSX should produce multiple layers")
 }
 
-// okapi: OpenXmlXlsxTest#testInlineStrings
+// neokapi-only: OpenXmlXlsxTest#testInlineStrings — stale method name; the v1.48.0 method is OpenXmlXlsxTest#inlineStringsExtracted (mapped on the next line).
 // okapi: OpenXmlXlsxTest#inlineStringsExtracted
 func TestNative_XlsxInlineStrings(t *testing.T) {
 	dir := testdataDir(t)
@@ -1327,7 +1327,7 @@ func TestNative_PptxLineBreaksAsTags(t *testing.T) {
 
 // --- XLSX cross-sheet references ---
 
-// okapi: OpenXmlXlsxTest#crossSheetsReferences
+// neokapi-only: OpenXmlXlsxTest#crossSheetsReferences — no such method in v1.48.0 OpenXmlXlsxTest; the 1051-cross-sheets fixtures are exercised upstream only by OpenXMLRoundTripTest#sheetNamesSyncedWithTranslations (roundtrip); native cross-sheet extraction is neokapi's own coverage.
 func TestNative_XlsxCrossSheetReferences(t *testing.T) {
 	dir := testdataDir(t)
 

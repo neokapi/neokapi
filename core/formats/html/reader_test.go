@@ -244,6 +244,7 @@ func TestReaderMetadata(t *testing.T) {
 	assert.Equal(t, "html", reader.Name())
 	assert.Equal(t, "HTML", reader.DisplayName())
 }
+
 // TestReadBareTextLeadingSpacePreservedAfterInline asserts that when a
 // container's content gets split across the bare-text top-level path
 // (e.g. an `<li>` whose content makes forwardScanForBlockChildren

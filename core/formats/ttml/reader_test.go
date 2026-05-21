@@ -416,7 +416,7 @@ func TestXMLIDAsBlockName(t *testing.T) {
 	assert.Equal(t, "myCaption", blocks[0].Name)
 }
 
-// okapi: RoundTripTtmlIT#ttmlFiles
+// neokapi-only: RoundTripTtmlIT#ttmlFiles — no such Okapi IT class in v1.48.0 and no roundtrip @Test in TTMLFilterTest (extraction-only); native roundtrip is neokapi's own coverage.
 // Roundtrip test for a simple TTML file.
 func TestRoundTrip(t *testing.T) {
 	ctx := t.Context()
