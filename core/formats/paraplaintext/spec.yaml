@@ -16,9 +16,13 @@
 # with native on the core paragraph-extraction contract exercised here.
 #
 # Authoring notes:
-#   - okapi_refs target net.sf.okapi.filters.plaintext.paragraphs.
-#     ParagraphPlainTextFilterTest, the upstream test class for this
-#     filter (Okapi 1.48.0).
+#   - okapi_refs target net.sf.okapi.filters.plaintext.
+#     ParaPlainTextFilterTest, the upstream test class for this
+#     filter (Okapi 1.48.0). Paragraph extraction (one Block per
+#     blank-line-separated paragraph, inner line breaks preserved) is
+#     asserted by `testParagraphs` (extractParagraphs=true, wrapMode=
+#     NONE → "Line 1\nLine 2" / "Line 3\nLine 4\nLine 5"); the fixture
+#     suite `testFiles` drives the cr/crlf/crlfcrlf corpus.
 #   - The cross-platform line-ending example uses an upstream
 #     okapi-testdata fixture per #515.
 
@@ -48,7 +52,7 @@ features:
         block_count: 1
         first_block_text: "Hello, world."
     okapi_refs:
-      - ParagraphPlainTextFilterTest#testSingleParagraph
+      - ParaPlainTextFilterTest#testParagraphs
     native_refs:
       - paraplaintext.TestSingleParagraph
 
@@ -77,8 +81,7 @@ features:
           - "Second"
           - "Third"
     okapi_refs:
-      - ParagraphPlainTextFilterTest#testMultipleParagraphs
-      - ParagraphPlainTextFilterTest#testThreeParagraphs
+      - ParaPlainTextFilterTest#testParagraphs
     native_refs:
       - paraplaintext.TestMultipleParagraphs
       - paraplaintext.TestThreeParagraphs
@@ -106,7 +109,7 @@ features:
           - "Line 1\nLine 2\nLine 3"
           - "Next paragraph"
     okapi_refs:
-      - ParagraphPlainTextFilterTest#testMultiLineParagraph
+      - ParaPlainTextFilterTest#testParagraphs
     native_refs:
       - paraplaintext.TestMultiLineParagraph
       - paraplaintext.TestPreserveNewlinesInParagraph
@@ -133,6 +136,9 @@ features:
           - "Line 3"
           - "Line 4"
     okapi_refs:
-      - ParagraphPlainTextFilterTest#testMultipleParagraphs
+      # testFiles drives the cr/crlf/crlfcrlf fixture corpus, including
+      # testFile("crlfcrlf.txt", ...) — the same Windows-style blank-line
+      # separator this feature exercises.
+      - ParaPlainTextFilterTest#testFiles
     native_refs:
       - paraplaintext.TestMultipleParagraphs

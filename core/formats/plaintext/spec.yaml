@@ -23,11 +23,14 @@
 # note at the bottom of this file.
 #
 # Authoring notes:
-#   - okapi_refs target the four upstream test classes that the plaintext
-#     surefire module exposes (PlainTextFilterTest, ParaPlainTextFilterTest,
-#     RegexPlainTextFilterTest, SplicedLinesFilterTest). Drift detection
-#     asserts each ref still exists in the bridge's pinned Okapi 1.47.0
-#     surefire output.
+#   - okapi_refs target PlainTextFilterTest only. The plaintext native
+#     format aggregates the line-based PlainTextFilterTest and
+#     RegexPlainTextFilterTest classes; the paragraph- and splice-mode
+#     classes (ParaPlainTextFilterTest, SplicedLinesFilterTest) route to
+#     the separate okf_paraplaintext / okf_splicedlines native formats
+#     and are referenced from those specs instead. Drift detection
+#     asserts each ref still exists in the pinned Okapi v1.48.0 surefire
+#     output for this filter.
 #   - The native reader splits lines via nextPlainLine, which recognises
 #     LF, CRLF and bare CR (\r) as line terminators — matching upstream
 #     Okapi's AbstractLineFilter (BufferedReader.readLine()). The bare-CR
@@ -65,7 +68,6 @@ features:
         block_count: 0
     okapi_refs:
       - PlainTextFilterTest#testEmptyInput
-      - ParaPlainTextFilterTest#testEmptyInput
     native_refs:
       - plaintext.TestReadEmpty
       - plaintext.TestPara_EmptyInput
@@ -187,7 +189,6 @@ features:
           - "Line 3"
     okapi_refs:
       - PlainTextFilterTest#testFiles
-      - ParaPlainTextFilterTest#testFiles
     native_refs:
       - plaintext.TestRead_CRLFLineEndings
       - plaintext.TestRead_CRLineEndings
@@ -212,7 +213,6 @@ features:
           - "こんにちは世界"
     okapi_refs:
       - PlainTextFilterTest#testFiles
-      - SplicedLinesFilterTest#testCombinedLines
     native_refs:
       - plaintext.TestReadUnicode
       - plaintext.TestRoundTrip
