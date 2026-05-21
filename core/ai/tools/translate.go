@@ -49,20 +49,20 @@ const (
 // Fields are exposed as CLI flags via schema tags and as flow config
 // via json tags.
 type AITranslateConfig struct {
-	SourceLocale     model.LocaleID    `json:"sourceLocale,omitempty" schema:"-"`
-	TargetLocale     model.LocaleID    `json:"targetLocale,omitempty" schema:"-"`
-	Provider         string            `json:"provider,omitempty"     schema:"title=AI Provider,description=AI provider,default=anthropic,group=provider"`
-	APIKey           string            `json:"apiKey,omitempty"       schema:"title=API Key,description=API key for the AI provider,group=provider"`
-	Model            string            `json:"model,omitempty"        schema:"title=Model,description=AI model name,group=provider"`
-	Glossary         map[string]string `json:"glossary,omitempty"     schema:"-"`
+	SourceLocale model.LocaleID    `json:"sourceLocale,omitempty" schema:"-"`
+	TargetLocale model.LocaleID    `json:"targetLocale,omitempty" schema:"-"`
+	Provider     string            `json:"provider,omitempty"     schema:"title=AI Provider,description=AI provider,default=anthropic,group=provider"`
+	APIKey       string            `json:"apiKey,omitempty"       schema:"title=API Key,description=API key for the AI provider,group=provider"`
+	Model        string            `json:"model,omitempty"        schema:"title=Model,description=AI model name,group=provider"`
+	Glossary     map[string]string `json:"glossary,omitempty"     schema:"-"`
 	// Profile is an optional brand voice profile. When set, its guidance is
 	// injected into the translation prompt so output is on-brand at generation
 	// time. Not serializable via the schema/CLI; supplied programmatically or
 	// via the .kapi brand binding.
 	Profile          *brand.VoiceProfile `json:"-" schema:"-"`
 	SkipMatched      bool                `json:"skipMatched,omitempty"  schema:"title=Skip Matched,description=Skip blocks that already have a target translation"`
-	BatchSize        int               `json:"batchSize,omitempty"    schema:"title=Batch Size,description=Number of blocks per LLM call,default=100,min=1"`
-	BatchConcurrency int               `json:"batchConcurrency,omitempty" schema:"title=Batch Concurrency,description=Number of concurrent batch calls (0 or 1 = sequential),default=1,min=1"`
+	BatchSize        int                 `json:"batchSize,omitempty"    schema:"title=Batch Size,description=Number of blocks per LLM call,default=100,min=1"`
+	BatchConcurrency int                 `json:"batchConcurrency,omitempty" schema:"title=Batch Concurrency,description=Number of concurrent batch calls (0 or 1 = sequential),default=1,min=1"`
 
 	// OnProgress is called for each block during translation. It receives
 	// live thinking summaries when the provider supports streaming.

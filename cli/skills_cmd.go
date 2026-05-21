@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -74,9 +75,7 @@ Pass skill names to install a subset; omit to install all.`,
 				return err
 			}
 			out := output.SkillsInstallOutput{Target: target, Dir: base}
-			for _, p := range written {
-				out.Installed = append(out.Installed, p)
-			}
+			out.Installed = append(out.Installed, written...)
 			out.Total = len(written)
 			return output.Print(cmd, out)
 		},
@@ -125,7 +124,7 @@ func (a *App) newSkillsExportCmd() *cobra.Command {
 		Hidden: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if dir == "" {
-				return fmt.Errorf("--dir is required")
+				return errors.New("--dir is required")
 			}
 			written, err := skills.InstallTo(dir, nil)
 			if err != nil {

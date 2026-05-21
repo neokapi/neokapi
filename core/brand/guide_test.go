@@ -34,7 +34,7 @@ func sampleProfile() *VoiceProfile {
 func TestRenderVoiceGuideDeterministic(t *testing.T) {
 	p := sampleProfile()
 	first := RenderVoiceGuide(p)
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		if got := RenderVoiceGuide(p); got != first {
 			t.Fatalf("RenderVoiceGuide not deterministic on run %d", i)
 		}

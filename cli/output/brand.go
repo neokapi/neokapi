@@ -23,13 +23,13 @@ func (o BrandGuideOutput) FormatText(w io.Writer) error {
 // BrandCheckOutput is the result of `kapi brand check` — a brand compliance
 // score plus the findings that produced it.
 type BrandCheckOutput struct {
-	Profile    string                     `json:"profile"`
-	Score      int                        `json:"score"`
-	Passed     bool                       `json:"passed"`
-	MinScore   *int                       `json:"min_score,omitempty"`
-	AIChecked  bool                       `json:"ai_checked"`
-	Dimensions []brand.DimensionScore     `json:"dimensions"`
-	Findings   []brand.BrandVoiceFinding  `json:"findings"`
+	Profile    string                    `json:"profile"`
+	Score      int                       `json:"score"`
+	Passed     bool                      `json:"passed"`
+	MinScore   *int                      `json:"min_score,omitempty"`
+	AIChecked  bool                      `json:"ai_checked"`
+	Dimensions []brand.DimensionScore    `json:"dimensions"`
+	Findings   []brand.BrandVoiceFinding `json:"findings"`
 }
 
 // FormatText renders a compact human-readable scorecard.
