@@ -63,10 +63,22 @@ For 175 of 185 fixtures: yes. The remaining 10:
   the next run on the wire, losing character-kerning per
   ECMA-376-1 §17.3.2.35. Source-of-fusion still under
   investigation (sidecar is aligned; merge happens elsewhere).
-- **1 fixture** (`830-7`): native preserves more text than before
-  the pre-fldChar fix, still byte-divergent because the
-  in-same-`<w:r>` writer-side fusion is missing (text and fldChar
-  emit as separate `<w:r>` elements instead of one).
+- **1 fixture** (`830-7`): the pre-fldChar body text in a
+  field-OPENING run is now preserved AND emitted fused inside one
+  `<w:r>` alongside the fldChar-begin (#598 reader fix —
+  `preFieldBody` guard in `parseRunWithFieldState` /
+  `dropTextRuns`; the writer's existing `emitRunEnvelopes`
+  same-source join produces the single envelope once the text is
+  not dropped, so no separate writer-side fuse is needed). Two
+  independent gaps keep it byte-divergent: (1) text authored
+  BETWEEN a `<w:fldChar end/>` and a following `<w:fldChar begin/>`
+  in one source run is still captured opaquely (untranslated)
+  because eager raw-capture engages on field-active run entry; and
+  (2) native drops the run-level redundant `<w:color w:val=
+  "000000"/>` (`rPrOmittedWithBlack`) while Okapi preserves it for
+  this fixture (830-7's docDefaults declares no `<w:color>`, so the
+  run's color is NOT a precombined duplicate). Both touch global
+  reader/WSO machinery with the cascade risk documented below.
 
 ### 3. Does Okapi match the spec where it differs from native?
 
@@ -96,7 +108,7 @@ Mostly yes — Okapi's choices are typically spec-compliant
 | Byte-equal to Okapi (parity tier) | 175/185 | as above |
 | More-correct than Okapi | 3 | `956`, `N_001`, `neverendingloop` |
 | Cosmetic divergence (spec-compliant, both OK) | 5 | `847-3`, `851`, `multiple_tabs`, `br2`, `StartsWithLineSeparator` |
-| Real bugs needing fix | 2 | `delTextAmp` (kerning), `830-7` (partial — writer-side fuse missing) |
+| Real bugs needing fix | 2 | `delTextAmp` (kerning), `830-7` (#598 pre-fldChar text + fusion DONE; residual = end+begin same-run opaque text + redundant color strip) |
 
 The parity tier counter is **not** the right success metric for
 the residual gap — it's the right metric for the bulk fixtures
@@ -118,7 +130,10 @@ compliance. Per ECMA-376 (ISO/IEC 29500) analysis:
 - **Spec-correctness**: native is correct on **183 of 185**
   fixtures. Two real data-loss bugs remain — `delTextAmp` (drops
   `<w:spacing w:val="-2"/>` per ECMA-376-1 §17.3.2.35) and
-  partial `830-7` (drops one of three pre-fldChar text runs).
+  `830-7` (#598 fixed the field-OPENING run's pre-begin body text;
+  the residual data loss is the body text authored between a
+  `<w:fldChar end/>` and a following `<w:fldChar begin/>` in one
+  source run, still captured opaquely/untranslated).
 - **Byte-equality vs Okapi after canonicalization**: 175 of 185.
   The 5 cosmetic divergences (`847-3`, `851`,
   `StartsWithLineSeparator`, `br2`, `multiple_tabs`) preserve
@@ -214,7 +229,7 @@ targeted fix attempted in 2026-05-16 cascaded into 2-3 regressions:
 
 | Fixture | Δbytes | Root area | Cascade-safe fix needs |
 |---|---:|---|---|
-| `830-7.docx` | +820 | Pre-fldChar text in same `<w:r>` | Writer-side fuse of text + fldChar-begin sentinel into one `<w:r>` |
+| `830-7.docx` | +882 | Pre-fldChar text DONE (#598); residual = (a) end+begin same-run body text captured opaquely, (b) redundant `<w:color w:val="000000"/>` strip | (a) split the field-active eager-capture so a run that closes one field and opens another extracts the body text in between; (b) make `rPrOmittedWithBlack` respect whether docDefaults actually declares a color (cascade-prone — affects 1335-doc-properties.docx) |
 | `847-3.docx` | +1042 | Cross-paragraph field continuation | Cross-paragraph field-depth tracking in WSO (must not perturb synth ID counter for unrelated paragraphs) |
 | `851.docx` | +900 | East-Asian segment rFonts inheritance | Faithful RunFonts.canContentCategoriesBeMerged port (RunFonts.java:211-230) |
 | `StartsWithLineSeparator.docx` | +61 | Bare run rFonts strip + synth on hAnsi remainder | Same as #851 + docDefaults rFonts overlay into synth style |

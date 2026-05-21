@@ -117,6 +117,22 @@ type textRun struct {
 	// NO source rPr (e.g. 1172.docx P2's bare `<w:r><w:t>...</w:t></w:r>`
 	// runs) stay without an rPr wrapper.
 	sourceHadRPr bool
+	// preFieldBody is true when this textRun is translatable body content
+	// (a `<w:t>` RunText chunk, or `<w:tab/>` markup) authored in the SAME
+	// source `<w:r>` BEFORE a `<w:fldChar w:fldCharType="begin"/>` that
+	// OPENS a complex field — i.e. the field was NOT yet active when this
+	// run started parsing. Upstream Okapi processes such text as a RunText
+	// body chunk of the field-opening run (RunParser.parse loop +
+	// parseContent at RunParser.java:537) BEFORE transitioning to
+	// parseComplexField on the begin (RunParser.java:259), so the text
+	// stays a translatable body chunk and is NOT suppressed by the field's
+	// begin→separate markup-only window. Per ECMA-376-1 §17.3.2.1 (CT_R)
+	// every run child applies to the run; pre-begin body text must survive
+	// extraction. The caller's field-aware dropTextRuns keeps runs with
+	// this flag set (see parseParagraph). Fixture: 830-7.docx
+	// (`<w:r><w:rPr>…</w:rPr><w:t>, humans exiled…; the </w:t>
+	// <w:fldChar w:fldCharType="begin"/></w:r>`).
+	preFieldBody bool
 }
 
 // complexFieldState tracks the state machine for complex field (fldChar) parsing.
@@ -3593,7 +3609,31 @@ func (p *wmlParser) parseRunWithFieldState(d *xml.Decoder, cfs *complexFieldStat
 				// preserving the source `</w:r><w:r>` boundaries —
 				// they do NOT pass through RunMerger.canMergeWith).
 				inField := cfs.active && cfs.extractable && cfs.atResult
-				runs = append(runs, textRun{text: text, props: props, inFieldDisplay: inField, sourceHadRPr: hasProps})
+				// preFieldBody marks `<w:t>` text decoded as a REAL
+				// translatable run (rawCaptured==false, so it is NOT also
+				// mirrored into the opaque field sentinel's rawBuf) while NO
+				// complex field is open (cfs.active==false). This is the
+				// 830-7.docx shape `<w:r><w:rPr>…</w:rPr><w:t>, humans
+				// exiled…; the </w:t><w:fldChar w:fldCharType="begin"/></w:r>`
+				// — body text authored BEFORE a begin marker that opens a
+				// field in the SAME source `<w:r>`. The run is returned as
+				// `[text…, fldChar-sentinel]`; without the flag the caller's
+				// field-aware dropTextRuns discards the text because cfs is
+				// active on return. Upstream Okapi accumulates this as a
+				// RunText body chunk of the field-opening run before
+				// transitioning to parseComplexField (RunParser.java:259,
+				// 537), so the text is translatable body content, not
+				// suppressed field markup.
+				//
+				// The rawCaptured guard avoids double emission: when raw
+				// capture is already engaged (the field was active at run
+				// entry — e.g. a run that CLOSES one field with `<w:fldChar
+				// end/>`, authors text, then opens another with `<w:fldChar
+				// begin/>`), the text is already mirrored verbatim into the
+				// opaque sentinel payload, so re-surfacing it as a translatable
+				// run would duplicate it on the wire. See textRun.preFieldBody.
+				preField := !cfs.active && !rawCaptured
+				runs = append(runs, textRun{text: text, props: props, inFieldDisplay: inField, sourceHadRPr: hasProps, preFieldBody: preField})
 
 			case "br":
 				// Capture the break element verbatim (including any
@@ -5712,10 +5752,18 @@ func filterFieldRuns(runs []textRun, _ *complexFieldState) []textRun {
 // to runBuilder.addToMarkup (preserved as opaque markup) rather than
 // to the run text. Translatable text alongside the field markup never
 // reaches the block, but the field markup itself does.
+//
+// Exception: a textRun tagged preFieldBody is translatable body content
+// authored in the SAME source `<w:r>` BEFORE the begin marker that opened
+// the field (the field was inactive when the run started). Upstream Okapi
+// keeps this as a RunText body chunk of the field-opening run
+// (RunParser.java:259, 537) \u2014 it is NOT inside the suppressed
+// begin\u2192separate window \u2014 so dropTextRuns retains it. See
+// textRun.preFieldBody and the 830-7.docx fixture rationale.
 func dropTextRuns(runs []textRun) []textRun {
 	out := runs[:0]
 	for _, r := range runs {
-		if isSentinel(r.text) {
+		if isSentinel(r.text) || r.preFieldBody {
 			out = append(out, r)
 		}
 	}

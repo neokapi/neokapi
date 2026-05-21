@@ -27,8 +27,8 @@ fixtures:
   830-7.docx:
     severity: bug
     issue: 598
-    summary: "Pre-fldChar translatable text now preserved (bfed80d3); writer-side fuse of text + fldChar-begin sentinel into one <w:r> still pending."
-    spec_ref: "ECMA-376-1 §17.16.5 (complex fields)"
+    summary: "Pre-fldChar body text in the field-OPENING run is now preserved AND emitted fused inside one <w:r> with the fldChar-begin (#598 reader fix: preFieldBody guard in parseRunWithFieldState/dropTextRuns). Two independent gaps keep it divergent: (1) text authored BETWEEN a <w:fldChar end/> and a following <w:fldChar begin/> in one source run is still captured opaquely (English, untranslated) because eager raw-capture engages on field-active entry; (2) native drops run-level <w:color w:val=\"000000\"/> as a redundant docDefault (rPrOmittedWithBlack) while Okapi preserves it here (830-7 docDefaults declares no color). Both are global/cascade-risk per PARITY_NOTES."
+    spec_ref: "ECMA-376-1 §17.3.2.1 (CT_R), §17.16.5 (complex fields), §17.3.2.6 (w:color)"
     notes_anchor: residual-7-divergent-fixtures
 
   847-3.docx:
