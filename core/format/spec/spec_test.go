@@ -128,6 +128,48 @@ func TestOriginAndSpecRefsRoundTrip(t *testing.T) {
 	}
 }
 
+// TestDivergenceKindRoundTrip verifies the optional divergence_kind
+// override survives a YAML marshal/unmarshal cycle and stays empty when
+// omitted (so contract-audit falls back to its detail-text heuristic).
+func TestDivergenceKindRoundTrip(t *testing.T) {
+	original := Spec{
+		Format: "okf_demo",
+		Features: []Feature{
+			{
+				ID: "f",
+				Examples: []Example{
+					{
+						Name:           "explicit",
+						InputXML:       "x",
+						ExpectedFail:   "bridge != native (bytewise)",
+						DivergenceKind: "okapi-bug",
+						Assertions:     Assertions{BlockCount: IntPtr(1)},
+					},
+					{
+						Name:       "implicit",
+						InputXML:   "y",
+						Assertions: Assertions{BlockCount: IntPtr(1)},
+					},
+				},
+			},
+		},
+	}
+	data, err := yaml.Marshal(&original)
+	if err != nil {
+		t.Fatalf("yaml.Marshal: %v", err)
+	}
+	var rt Spec
+	if err := yaml.Unmarshal(data, &rt); err != nil {
+		t.Fatalf("yaml.Unmarshal: %v", err)
+	}
+	if got := rt.Features[0].Examples[0].DivergenceKind; got != "okapi-bug" {
+		t.Errorf("DivergenceKind round-trip: got %q, want okapi-bug (yaml=%s)", got, data)
+	}
+	if got := rt.Features[0].Examples[1].DivergenceKind; got != "" {
+		t.Errorf("DivergenceKind omitted: got %q, want empty", got)
+	}
+}
+
 // TestOriginAndSpecRefsAreOptional confirms that omitting both new
 // fields keeps a spec valid — existing specs without them still load.
 func TestOriginAndSpecRefsAreOptional(t *testing.T) {

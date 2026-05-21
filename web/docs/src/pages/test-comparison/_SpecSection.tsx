@@ -1,9 +1,16 @@
+import type { ReactNode } from "react";
 import type {
+  DivergenceKind,
   SpecConfigDriftEntry,
   SpecDriftEntry,
   SpecExample,
   SpecExampleStatus,
   SpecSummary,
+} from "./_types";
+import {
+  divergenceColors,
+  divergenceDescriptions,
+  divergenceLabels,
 } from "./_types";
 import styles from "./_index.module.css";
 
@@ -13,41 +20,58 @@ interface Props {
   configDrift?: SpecConfigDriftEntry[];
 }
 
-const statusBadge: Record<SpecExampleStatus, { label: string; className: string }> = {
+const statusBadge: Record<
+  SpecExampleStatus,
+  { label: string; className: string }
+> = {
   pass: { label: "pass", className: "badge badge--success" },
   fail: { label: "fail", className: "badge badge--danger" },
   skip: { label: "skip", className: "badge badge--secondary" },
-  expected_fail: { label: "xfail", className: "badge badge--warning" },
-  parity_warn: { label: "parity warn", className: "badge badge--warning" },
+  // xfail / parity_warn are documented divergences, not alarms — render the
+  // status badge neutral and let the per-example divergence chip carry the
+  // severity (only `native-bug` is colored as danger).
+  expected_fail: { label: "xfail", className: "badge badge--info" },
+  parity_warn: { label: "parity warn", className: "badge badge--info" },
 };
 
 function totalExamples(spec: SpecSummary): number {
-  return spec.pass + spec.fail + spec.skip + spec.expectedFail + spec.parityWarn;
+  return (
+    spec.pass + spec.fail + spec.skip + spec.expectedFail + spec.parityWarn
+  );
 }
 
 /** SpecSection renders the per-feature outcomes inside an expanded
  * filter card. Features are listed in author-declared order; each row
- * shows the feature id, an example status badge per example, and the
- * expected_fail / parity_warn detail when present.
+ * shows the feature id, an example status badge per example, a fault
+ * attribution chip for divergences, and the full divergence reason.
  */
 export default function SpecSection({ spec, drift, configDrift }: Props) {
   const total = totalExamples(spec);
   const hasFeatures = spec.features.length > 0;
   const totalDrift = (drift?.length ?? 0) + (configDrift?.length ?? 0);
+  const hasDivergences = spec.expectedFail > 0 || spec.parityWarn > 0;
   return (
     <div className={styles.specSection}>
       <h4 className={styles.specHeading}>
         Spec features
         <span className={styles.specSummaryBadges}>
-          {spec.pass > 0 && <span className="badge badge--success">{spec.pass} pass</span>}
-          {spec.fail > 0 && <span className="badge badge--danger">{spec.fail} fail</span>}
+          {spec.pass > 0 && (
+            <span className="badge badge--success">{spec.pass} pass</span>
+          )}
+          {spec.fail > 0 && (
+            <span className="badge badge--danger">{spec.fail} fail</span>
+          )}
           {spec.parityWarn > 0 && (
-            <span className="badge badge--warning">{spec.parityWarn} parity warn</span>
+            <span className="badge badge--info">
+              {spec.parityWarn} parity warn
+            </span>
           )}
           {spec.expectedFail > 0 && (
-            <span className="badge badge--warning">{spec.expectedFail} xfail</span>
+            <span className="badge badge--info">{spec.expectedFail} xfail</span>
           )}
-          {spec.skip > 0 && <span className="badge badge--secondary">{spec.skip} skip</span>}
+          {spec.skip > 0 && (
+            <span className="badge badge--secondary">{spec.skip} skip</span>
+          )}
           {totalDrift > 0 && (
             <span
               className="badge badge--warning"
@@ -56,9 +80,12 @@ export default function SpecSection({ spec, drift, configDrift }: Props) {
               {totalDrift} drift
             </span>
           )}
-          {hasFeatures && <span className={styles.specSummaryTotal}>({total} total)</span>}
+          {hasFeatures && (
+            <span className={styles.specSummaryTotal}>({total} total)</span>
+          )}
         </span>
       </h4>
+      {hasFeatures && hasDivergences && <DivergenceLegend />}
       {hasFeatures && (
         <table className={styles.specTable}>
           <thead>
@@ -73,15 +100,66 @@ export default function SpecSection({ spec, drift, configDrift }: Props) {
           <tbody>
             {spec.features.flatMap((f) =>
               f.examples.map((ex, i) => (
-                <ExampleRow key={`${f.id}-${ex.name}`} feature={f.id} ex={ex} first={i === 0} />
+                <ExampleRow
+                  key={`${f.id}-${ex.name}`}
+                  feature={f.id}
+                  ex={ex}
+                  first={i === 0}
+                />
               )),
             )}
           </tbody>
         </table>
       )}
       {drift && drift.length > 0 && <DriftBlock drift={drift} />}
-      {configDrift && configDrift.length > 0 && <ConfigDriftBlock drift={configDrift} />}
+      {configDrift && configDrift.length > 0 && (
+        <ConfigDriftBlock drift={configDrift} />
+      )}
     </div>
+  );
+}
+
+/** Categories shown in the legend, in display order. */
+const legendOrder: DivergenceKind[] = [
+  "native-bug",
+  "bridge-gap",
+  "okapi-bug",
+  "default-diff",
+  "scope-diff",
+  "missing-filter",
+  "fixture",
+  "contract",
+];
+
+/** Short explainer above the spec table: what an xfail means and how to
+ * read the fault-attribution chips. */
+function DivergenceLegend() {
+  return (
+    <div className={styles.specLegend}>
+      <span className={styles.specLegendTitle}>
+        xfail = a documented divergence from Okapi.
+      </span>{" "}
+      The category chip shows which side differs and why. neokapi is the correct
+      side except where marked <DivergenceChip kind="native-bug" />.
+      <div className={styles.specLegendChips}>
+        {legendOrder.map((k) => (
+          <DivergenceChip key={k} kind={k} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** A single colored fault-attribution chip with a descriptive tooltip. */
+function DivergenceChip({ kind }: { kind: DivergenceKind }) {
+  return (
+    <span
+      className={styles.divergenceChip}
+      style={{ backgroundColor: divergenceColors[kind] }}
+      title={divergenceDescriptions[kind]}
+    >
+      {divergenceLabels[kind]}
+    </span>
   );
 }
 
@@ -130,8 +208,18 @@ function ConfigDriftBlock({ drift }: { drift: SpecConfigDriftEntry[] }) {
   );
 }
 
-function ExampleRow({ feature, ex, first }: { feature: string; ex: SpecExample; first: boolean }) {
+function ExampleRow({
+  feature,
+  ex,
+  first,
+}: {
+  feature: string;
+  ex: SpecExample;
+  first: boolean;
+}) {
   const badge = statusBadge[ex.status] ?? statusBadge.pass;
+  const isDivergence =
+    ex.status === "expected_fail" || ex.status === "parity_warn";
   return (
     <tr>
       <td className={styles.specFeatureCell}>{first ? feature : ""}</td>
@@ -141,14 +229,56 @@ function ExampleRow({ feature, ex, first }: { feature: string; ex: SpecExample; 
         <span className={badge.className}>{badge.label}</span>
       </td>
       <td className={styles.specDetailCell}>
-        {ex.detail ? <span title={ex.detail}>{truncate(ex.detail, 80)}</span> : ""}
+        {isDivergence ? (
+          <div className={styles.specDetailRow}>
+            {ex.divergence && <DivergenceChip kind={ex.divergence} />}
+            {ex.detail && (
+              <span className={styles.specDetailFull}>
+                {linkifyIssues(ex.detail)}
+              </span>
+            )}
+          </div>
+        ) : ex.detail ? (
+          <span className={styles.specDetailFull}>
+            {linkifyIssues(ex.detail)}
+          </span>
+        ) : (
+          ""
+        )}
       </td>
     </tr>
   );
 }
 
-function truncate(s: string, n: number): string {
-  const flat = s.replace(/\n/g, " ").trim();
-  if (flat.length <= n) return flat;
-  return flat.slice(0, n - 1) + "…";
+const issueRefRE = /#(\d+)/g;
+
+/** Linkify any `#NNN` issue reference in a detail string to the neokapi
+ * GitHub issue, returning a mix of text and anchor nodes. */
+function linkifyIssues(detail: string): ReactNode[] {
+  const nodes: ReactNode[] = [];
+  let lastIndex = 0;
+  let key = 0;
+  for (const match of detail.matchAll(issueRefRE)) {
+    const start = match.index ?? 0;
+    if (start > lastIndex) {
+      nodes.push(detail.slice(lastIndex, start));
+    }
+    const issueNo = match[1];
+    nodes.push(
+      <a
+        key={`issue-${issueNo}-${key++}`}
+        className={styles.issueLink}
+        href={`https://github.com/neokapi/neokapi/issues/${issueNo}`}
+        target="_blank"
+        rel="noreferrer"
+      >
+        #{issueNo}
+      </a>,
+    );
+    lastIndex = start + match[0].length;
+  }
+  if (lastIndex < detail.length) {
+    nodes.push(detail.slice(lastIndex));
+  }
+  return nodes;
 }

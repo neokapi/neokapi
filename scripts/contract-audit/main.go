@@ -137,8 +137,21 @@ type summary struct {
 }
 
 type filterComparison struct {
-	FilterName       string `json:"filterName"`
+	// FilterName is the canonical row id: the neokapi native format
+	// directory name (e.g. "csv", "fixedwidth", "plaintext"). Rows are
+	// keyed by native format so each format gets exactly one row, with
+	// the Okapi filter id(s) carried as a sublabel in OkapiFilterIDs.
+	FilterName string `json:"filterName"`
+	// NativeFilterName mirrors FilterName when it differs from the row id
+	// for backward compat; it now equals FilterName and is kept only so
+	// older dashboard JSON consumers don't break.
 	NativeFilterName string `json:"nativeFilterName,omitempty"`
+	// OkapiFilterIDs lists the Okapi filter package id(s) whose @Test
+	// classes route to this native format (e.g. csv ← ["table"]). Shown
+	// as a secondary label so a user can navigate the Okapi side. Empty
+	// for genuinely neokapi-only formats (jsx, mo, exec, formats,
+	// memorytest, versifiedtext — no Okapi equivalent).
+	OkapiFilterIDs []string `json:"okapiFilterIds,omitempty"`
 	// SpecKind mirrors spec.Spec.Kind. Empty for filters with no
 	// spec.yaml; "top_level" or "subfilter" for filters that have one.
 	// The dashboard groups subfilters (layer formats) into their own
@@ -198,6 +211,14 @@ type specExample struct {
 	Status string `json:"status"`
 	Mode   string `json:"mode,omitempty"`
 	Detail string `json:"detail,omitempty"`
+	// Divergence attributes which side is at fault for an
+	// expected_fail / parity_warn example so the dashboard can colour by
+	// severity. One of: native-bug, bridge-gap, okapi-bug, scope-diff,
+	// default-diff, missing-filter, fixture, contract. Empty for
+	// pass/skip examples. Computed by classifyDivergence from the detail
+	// text, or taken verbatim from the spec.yaml example's
+	// divergence_kind when the author set one (the override wins).
+	Divergence string `json:"divergence,omitempty"`
 }
 
 type testCaseMatch struct {
@@ -286,7 +307,7 @@ func main() {
 		die("must set -okapi-surefire")
 	}
 
-	okapiByFilter, err := parseSurefireDir(*surefireDir)
+	okapiByFilter, okapiIDsByNative, err := parseSurefireDir(*surefireDir)
 	if err != nil {
 		die("parse surefire: %v", err)
 	}
@@ -302,11 +323,12 @@ func main() {
 	// package, since the IT package is roundtrip.integration /
 	// xliffcompare.integration).
 	if *failsafeDir != "" {
-		itByFilter, err := parseFailsafeDir(*failsafeDir)
+		itByFilter, itOkapiIDs, err := parseFailsafeDir(*failsafeDir)
 		if err != nil {
 			die("parse failsafe: %v", err)
 		}
 		mergeOkapiResults(okapiByFilter, itByFilter)
+		mergeOkapiIDs(okapiIDsByNative, itOkapiIDs)
 	}
 
 	var nativeByFilter map[string]*filterResult
@@ -367,7 +389,7 @@ func main() {
 		}
 	}
 
-	doc := buildDoc(okapiByFilter, nativeByFilter, bridgeByFilter, specByFilter, bridgeSchemaProps, nativeAnnotations, nativeFuncIndex, *okapiVersion, *okapiTag, *goCommit)
+	doc := buildDoc(okapiByFilter, nativeByFilter, bridgeByFilter, specByFilter, bridgeSchemaProps, nativeAnnotations, nativeFuncIndex, okapiIDsByNative, *okapiVersion, *okapiTag, *goCommit)
 
 	body, err := json.MarshalIndent(doc, "", "  ")
 	if err != nil {
@@ -433,18 +455,94 @@ func main() {
 	}
 }
 
-// nativeFilterAliases maps an Okapi filter id to the neokapi package
-// name when they differ. The dashboard then surfaces both names so a
-// reviewer can navigate either side. Only one direction is needed
-// because the generator keys all maps by Okapi filter id.
+// nativeFilterAliases maps an Okapi filter package id to the neokapi
+// native package name when a whole Okapi package maps 1:1 to a single
+// neokapi format under a different name. The dashboard then surfaces
+// both names so a reviewer can navigate either side.
+//
+// This handles the SINGLE-format case (one Okapi package → one native
+// format). Okapi packages that bundle SEVERAL filters which neokapi
+// splits into separate native formats (table, plaintext) are routed at
+// the test-CLASS level by classToNativeFormat instead, so each native
+// format gets exactly one row.
 var nativeFilterAliases = map[string]string{
 	"php":        "phpcontent",
 	"xmlstream":  "xml",
-	"table":      "csv",
 	"openoffice": "odf", // Okapi's openoffice module (ODF + legacy OpenOffice) ↔ neokapi odf reader
 	// neokapi splits Okapi's `subtitles` filter into `vtt`+`ttml`+`srt`.
 	// We keep the per-format Okapi ids and rely on the per-class join
 	// in scanAnnotations to match them.
+}
+
+// classToNativeFormat routes an individual Okapi *Test class (short name)
+// to the neokapi native format that implements it. This is the
+// CLASS-LEVEL split for Okapi packages that bundle several distinct
+// filters under one Maven module:
+//
+//   - net.sf.okapi.filters.table holds the comma/tab/fixed-width/generic
+//     table filters; neokapi splits the fixed-width filter into its own
+//     `fixedwidth` reader while the comma/tab/generic table cases are all
+//     handled by the `csv` reader (which reads TSV via a delimiter
+//     config and the generic table base behaviour).
+//   - net.sf.okapi.filters.plaintext holds the base/regex/para/spliced
+//     plaintext filters; neokapi keeps the base + regex modes in
+//     `plaintext` but splits the paragraph and spliced-line variants into
+//     their own `paraplaintext` and `splicedlines` readers.
+//
+// Without this map every class in such a package buckets into one row
+// (keyed by the package name), which left native `fixedwidth`,
+// `paraplaintext`, and `splicedlines` as 0-okapi phantom rows and folded
+// their Okapi contract tests into the wrong format's row (#616). Classes
+// not listed here fall through to package-level aliasing.
+var classToNativeFormat = map[string]string{
+	// net.sf.okapi.filters.table
+	"CommaSeparatedValuesFilterTest": "csv",
+	"TabSeparatedValuesFilterTest":   "csv", // csv reader handles TSV via delimiter config
+	"TableFilterTest":                "csv", // generic table base filter → csv reader
+	"FixedWidthColumnsFilterTest":    "fixedwidth",
+	// net.sf.okapi.filters.plaintext
+	"PlainTextFilterTest":      "plaintext",
+	"RegexPlainTextFilterTest": "plaintext", // regex mode of the plaintext reader
+	"ParaPlainTextFilterTest":  "paraplaintext",
+	"SplicedLinesFilterTest":   "splicedlines",
+}
+
+// multiFilterPackages names Okapi Maven modules that bundle several
+// filters which neokapi splits into separate native formats. Suites from
+// these packages are routed by classToNativeFormat (test-class level);
+// a class with no explicit entry falls back to packageDefaultNative.
+var multiFilterPackages = map[string]bool{
+	"table":     true,
+	"plaintext": true,
+}
+
+// packageDefaultNative is the native format an unlisted class from a
+// multi-filter package routes to (the "generic" reader for that family).
+var packageDefaultNative = map[string]string{
+	"table":     "csv",
+	"plaintext": "plaintext",
+}
+
+// okapiFilterForNative is the reverse of the canonical mapping: the
+// Okapi filter package id(s) whose @Test classes route to a given native
+// format. Computed once at startup from nativeFilterAliases and
+// classToNativeFormat so the dashboard can show the Okapi filter id(s) as
+// a sublabel on each row (users navigate either side). A native format
+// may aggregate more than one Okapi package (none do today, but csv
+// aggregates classes from the single `table` package).
+func resolveNativeFormat(okapiPkg, shortClass string) string {
+	if multiFilterPackages[okapiPkg] {
+		if nf, ok := classToNativeFormat[shortClass]; ok {
+			return nf
+		}
+		if def, ok := packageDefaultNative[okapiPkg]; ok {
+			return def
+		}
+	}
+	if alias, ok := nativeFilterAliases[okapiPkg]; ok {
+		return alias
+	}
+	return okapiPkg
 }
 
 // noNativeFilters lists Okapi filters that neokapi deliberately does not
@@ -490,11 +588,21 @@ func noNativeCategory(filter string) string {
 }
 
 // parseSurefireDir walks surefireDir and returns one filterResult per
-// Okapi filter (e.g. "html", "json"). The filter name is derived from
-// the package prefix net.sf.okapi.filters.<name>.*.
-func parseSurefireDir(surefireDir string) (map[string]*filterResult, error) {
+// neokapi NATIVE format, plus a side map recording the Okapi filter
+// package id(s) each native format aggregates (for the dashboard's
+// "Okapi filter" sublabel).
+//
+// Each Surefire XML maps to one Okapi @Test class. The class is routed
+// to its canonical native format via resolveNativeFormat: most Okapi
+// packages map 1:1 to a native format (possibly under an alias), but the
+// multi-filter `table` and `plaintext` packages split per class so each
+// native format (csv, fixedwidth, plaintext, paraplaintext, splicedlines)
+// gets exactly one row instead of leaving phantom 0-okapi duplicates
+// (#616).
+func parseSurefireDir(surefireDir string) (map[string]*filterResult, map[string]map[string]bool, error) {
 	pkgRE := regexp.MustCompile(`^net\.sf\.okapi\.filters\.([^.]+)`)
 	out := map[string]*filterResult{}
+	okapiIDs := map[string]map[string]bool{}
 	err := filepath.WalkDir(surefireDir, func(path string, d os.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			return walkErr
@@ -514,16 +622,29 @@ func parseSurefireDir(surefireDir string) (map[string]*filterResult, error) {
 		if m == nil {
 			return nil // not a per-filter suite (could be a core/* test); skip
 		}
-		filterName := m[1]
+		okapiPkg := m[1]
+		filterName := resolveNativeFormat(okapiPkg, shortClass(ts.Name))
 		fr, ok := out[filterName]
 		if !ok {
 			fr = &filterResult{}
 			out[filterName] = fr
 		}
 		addSuiteToResult(fr, collapseSuite(ts))
+		recordOkapiID(okapiIDs, filterName, okapiPkg)
 		return nil
 	})
-	return out, err
+	return out, okapiIDs, err
+}
+
+// recordOkapiID notes that native format `native` aggregates @Test
+// classes from Okapi filter package `okapiPkg`.
+func recordOkapiID(m map[string]map[string]bool, native, okapiPkg string) {
+	set := m[native]
+	if set == nil {
+		set = map[string]bool{}
+		m[native] = set
+	}
+	set[okapiPkg] = true
 }
 
 // collapseSuite turns one parsed JUnit test-suite XML into a testSuite,
@@ -617,12 +738,17 @@ func addSuiteToResult(fr *filterResult, suite testSuite) {
 }
 
 // parseFailsafeDir walks a Maven Failsafe report directory and returns one
-// filterResult per filter, keyed by the *IT class name (the integration
-// tests live in net.sf.okapi.{roundtrip,xliffcompare}.integration, so the
-// package prefix can't be used). Unmappable IT suites (memory-leak,
-// pipeline, conversion) are skipped.
-func parseFailsafeDir(dir string) (map[string]*filterResult, error) {
+// filterResult per neokapi NATIVE format, plus a side map of the Okapi
+// filter id(s) each native format aggregates. The integration tests live
+// in net.sf.okapi.{roundtrip,xliffcompare}.integration, so the package
+// prefix can't be used — itClassToFilter derives the Okapi filter id from
+// the IT class stem, then resolveNativeFormat routes it to the canonical
+// native format (so RoundTripTableIT joins the `csv` row, not a `table`
+// one). Unmappable IT suites (memory-leak, pipeline, conversion) are
+// skipped.
+func parseFailsafeDir(dir string) (map[string]*filterResult, map[string]map[string]bool, error) {
 	out := map[string]*filterResult{}
+	okapiIDs := map[string]map[string]bool{}
 	err := filepath.WalkDir(dir, func(path string, d os.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			return walkErr
@@ -647,10 +773,11 @@ func parseFailsafeDir(dir string) (map[string]*filterResult, error) {
 			!strings.HasPrefix(ts.Name, "net.sf.okapi.xliffcompare.integration.") {
 			return nil
 		}
-		filterName := itClassToFilter(shortClass(ts.Name))
-		if filterName == "" {
+		okapiFilter := itClassToFilter(shortClass(ts.Name))
+		if okapiFilter == "" {
 			return nil
 		}
+		filterName := resolveNativeFormat(okapiFilter, shortClass(ts.Name))
 		suite := collapseSuite(ts)
 		dropDebugTests(&suite) // debug/debug2 @Test methods are dev helpers, not contracts
 		if suite.Total == 0 {
@@ -662,9 +789,10 @@ func parseFailsafeDir(dir string) (map[string]*filterResult, error) {
 			out[filterName] = fr
 		}
 		addSuiteToResult(fr, suite)
+		recordOkapiID(okapiIDs, filterName, okapiFilter)
 		return nil
 	})
-	return out, err
+	return out, okapiIDs, err
 }
 
 // dropDebugTests removes the "debug"/"debug2" helper @Test methods some
@@ -690,6 +818,17 @@ func dropDebugTests(suite *testSuite) {
 		}
 	}
 	suite.Tests = kept
+}
+
+// mergeOkapiIDs folds the per-native-format Okapi-id sets from src into
+// dst so the Failsafe IT contracts contribute their Okapi filter ids to
+// the same native-format sublabel the Surefire unit tests produced.
+func mergeOkapiIDs(dst, src map[string]map[string]bool) {
+	for native, set := range src {
+		for okapiPkg := range set {
+			recordOkapiID(dst, native, okapiPkg)
+		}
+	}
 }
 
 // mergeOkapiResults folds the per-filter results from src into dst,
@@ -971,7 +1110,7 @@ var bridgeFilterAliases = map[string]string{
 // buildDoc joins the per-filter Okapi and native maps with the
 // scanned annotations into a single dashboard document, deterministic
 // in iteration order.
-func buildDoc(okapiByFilter, nativeByFilter map[string]*filterResult, bridgeByFilter map[string]*bridgeRows, specByFilter map[string]*spec.Spec, bridgeSchemaProps map[string]map[string]bool, annotations []annotation, nativeFuncIndex map[string]funcLoc, okapiVersion, okapiTag, goCommit string) testComparisonData {
+func buildDoc(okapiByFilter, nativeByFilter map[string]*filterResult, bridgeByFilter map[string]*bridgeRows, specByFilter map[string]*spec.Spec, bridgeSchemaProps map[string]map[string]bool, annotations []annotation, nativeFuncIndex map[string]funcLoc, okapiIDsByNative map[string]map[string]bool, okapiVersion, okapiTag, goCommit string) testComparisonData {
 	// Index annotations by Java FQN#method for O(1) joins.
 	annByOkapi := map[string]annotation{}
 	for _, a := range annotations {
@@ -987,6 +1126,15 @@ func buildDoc(okapiByFilter, nativeByFilter map[string]*filterResult, bridgeByFi
 			for _, tc := range suite.Tests {
 				nativeStatus[tc.Name] = tc.Status
 			}
+		}
+	}
+	// native format dir → parity-report key (the spec's okf_<id> with the
+	// prefix stripped). The parity report keys by the spec format id, which
+	// can diverge from the native dir name (csv → commaseparatedvalues).
+	nativeToParityKey := map[string]string{}
+	for native, s := range specByFilter {
+		if pk := strings.TrimPrefix(s.Format, "okf_"); pk != "" {
+			nativeToParityKey[native] = pk
 		}
 	}
 
@@ -1018,16 +1166,18 @@ func buildDoc(okapiByFilter, nativeByFilter map[string]*filterResult, bridgeByFi
 			sum.TotalFiltersOkapi++
 			sum.TotalTestsOkapi += r.Total
 		}
-		// Native lookup — try the Okapi id first, then the alias.
-		nativeName := name
-		if alias, ok := nativeFilterAliases[name]; ok {
-			if _, present := nativeByFilter[alias]; present {
-				nativeName = alias
-				fc.NativeFilterName = alias
-			}
+		// Okapi-side sublabel: the Okapi filter package id(s) whose @Test
+		// classes route to this native format (e.g. csv ← table). Empty
+		// for native-only formats with no Okapi equivalent.
+		if ids := sortedKeys(okapiIDsByNative[name]); len(ids) > 0 {
+			fc.OkapiFilterIDs = ids
 		}
-		if r := nativeByFilter[nativeName]; r != nil {
+		// Native lookup — the row is keyed by the canonical native format
+		// id, so nativeByFilter joins directly on `name`. NativeFilterName
+		// is set to the same id for backward compat with older consumers.
+		if r := nativeByFilter[name]; r != nil {
 			fc.Native = r
+			fc.NativeFilterName = name
 			sum.TotalFiltersNative++
 			sum.TotalTestsNative += r.Total
 		}
@@ -1039,7 +1189,7 @@ func buildDoc(okapiByFilter, nativeByFilter map[string]*filterResult, bridgeByFi
 		// bridge granularity flows separately into testCaseMatch.Bridge*
 		// fields below via fixture rows in the parity report.
 		var brEntry *bridgeRows
-		if br, ok := lookupParity(bridgeByFilter, name); ok {
+		if br, ok := lookupParity(bridgeByFilter, nativeToParityKey, name); ok {
 			brEntry = br
 			fc.Bridge = parityToFilterResult(br)
 			sum.TotalFiltersBridge++
@@ -1075,7 +1225,7 @@ func buildDoc(okapiByFilter, nativeByFilter map[string]*filterResult, bridgeByFi
 		// Spec features (when the filter has a spec.yaml driving the
 		// parity runner): group rows by feature, tally totals.
 		if brEntry != nil && len(brEntry.Spec) > 0 {
-			fc.Spec = buildSpecSummary(brEntry.Spec)
+			fc.Spec = buildSpecSummary(brEntry.Spec, specByFilter[name])
 		}
 		// Spec ref drift: each spec.yaml feature.okapi_refs entry must
 		// resolve against the pinned Okapi @Test set. Mismatches surface
@@ -1211,11 +1361,17 @@ func buildRows(okapi *filterResult, annByOkapi map[string]annotation, nativeStat
 
 // buildSpecSummary groups raw spec rows by feature (preserving the
 // order they appeared in the parity report so spec authors see their
-// declared sequence) and tallies status totals across all examples.
-func buildSpecSummary(rows []*specRow) *specSummary {
+// declared sequence) and tallies status totals across all examples. For
+// each expected_fail / parity_warn example it attributes a divergence
+// category: an explicit divergence_kind on the matching spec.yaml example
+// wins; otherwise the kind is inferred from the detail text by
+// classifyDivergence. `s` is the loaded spec for this filter (may be nil
+// when only the parity report carries the rows).
+func buildSpecSummary(rows []*specRow, s *spec.Spec) *specSummary {
 	if len(rows) == 0 {
 		return nil
 	}
+	overrides := divergenceOverrides(s)
 	out := &specSummary{}
 	byFeature := map[string]int{} // feature id → index into out.Features
 	for _, r := range rows {
@@ -1225,11 +1381,20 @@ func buildSpecSummary(rows []*specRow) *specSummary {
 			idx = len(out.Features) - 1
 			byFeature[r.FeatureID] = idx
 		}
+		var divergence string
+		if r.Status == "expected_fail" || r.Status == "parity_warn" {
+			if k, ok := overrides[r.FeatureID+"\x00"+r.Example]; ok && k != "" {
+				divergence = k // explicit author override wins
+			} else {
+				divergence = classifyDivergence(r.Detail)
+			}
+		}
 		out.Features[idx].Examples = append(out.Features[idx].Examples, specExample{
-			Name:   r.Example,
-			Status: r.Status,
-			Mode:   r.Mode,
-			Detail: r.Detail,
+			Name:       r.Example,
+			Status:     r.Status,
+			Mode:       r.Mode,
+			Detail:     r.Detail,
+			Divergence: divergence,
 		})
 		switch r.Status {
 		case "pass":
@@ -1245,6 +1410,102 @@ func buildSpecSummary(rows []*specRow) *specSummary {
 		}
 	}
 	return out
+}
+
+// divergenceOverrides indexes the explicit divergence_kind set on each
+// spec.yaml example by "featureID\x00exampleName" so buildSpecSummary can
+// let an author-set kind win over the detail-text heuristic.
+func divergenceOverrides(s *spec.Spec) map[string]string {
+	if s == nil {
+		return nil
+	}
+	out := map[string]string{}
+	for _, f := range s.Features {
+		for _, ex := range f.Examples {
+			if ex.DivergenceKind != "" {
+				out[f.ID+"\x00"+ex.Name] = ex.DivergenceKind
+			}
+		}
+	}
+	return out
+}
+
+// classifyDivergence infers a divergence category from an expected_fail /
+// parity_warn detail string using deterministic keyword rules. The
+// reasons authored across the spec corpus consistently open with a small
+// set of phrases; the ordering below matters (most specific first). When
+// nothing matches, the example is attributed "scope-diff" — a neutral,
+// native-is-correct default — rather than the alarming "native-bug".
+func classifyDivergence(detail string) string {
+	d := strings.ToLower(detail)
+	switch {
+	case d == "":
+		return "scope-diff"
+	// native-bug FIRST so a "native bug" phrase isn't shadowed by the
+	// broader "bridge"/"bug" checks below.
+	case strings.Contains(d, "native bug"), strings.Contains(d, "native-bug"):
+		return "native-bug"
+	case strings.Contains(d, "does not ship the okf_"),
+		strings.Contains(d, "doesn't ship the okf_"),
+		strings.Contains(d, "missing filter"),
+		strings.Contains(d, "no okf_"):
+		return "missing-filter"
+	case strings.Contains(d, "synthetic-fixture"),
+		strings.Contains(d, "synthetic fixture"),
+		strings.Contains(d, "test-infra"),
+		strings.Contains(d, "fixture artefact"),
+		strings.Contains(d, "fixture artifact"):
+		return "fixture"
+	case strings.Contains(d, "parse error"),
+		strings.Contains(d, "parse-error"),
+		strings.Contains(d, "no blocks"),
+		strings.Contains(d, "by design"),
+		strings.Contains(d, "by-design"):
+		return "contract"
+	case strings.Contains(d, "default-config"),
+		strings.Contains(d, "default config"),
+		strings.Contains(d, "bridge default"),
+		strings.Contains(d, "default differs"),
+		strings.Contains(d, "differing default"):
+		return "default-diff"
+	case strings.Contains(d, "transport gap"),
+		strings.Contains(d, "transport-gap"),
+		strings.Contains(d, "bridge config"),
+		strings.Contains(d, "config divergence"),
+		strings.Contains(d, "over grpc"),
+		strings.Contains(d, "cannot receive"),
+		strings.Contains(d, "can't receive"),
+		strings.Contains(d, "bridge gap"),
+		strings.Contains(d, "bridge-gap"),
+		// Bridge runtime failures: the okapi-bridge daemon couldn't
+		// instantiate/run the filter or receive the input over gRPC.
+		// The native reader handles the input correctly.
+		strings.Contains(d, "bridge error"),
+		strings.Contains(d, "cannot instantiate filter"),
+		strings.Contains(d, "cannot invoke"),
+		strings.Contains(d, "drain stream"),
+		strings.Contains(d, "daemon emits 0"),
+		strings.Contains(d, "daemon emits zero"),
+		strings.Contains(d, "emits zero blocks"):
+		return "bridge-gap"
+	case strings.Contains(d, "okapi bug"),
+		strings.Contains(d, "okapi-bug"),
+		strings.Contains(d, "upstream bug"),
+		strings.Contains(d, "bridge bug"):
+		// "bridge bug" here means the bridge/upstream Okapi filter is
+		// wrong (native is correct), distinct from a neokapi native bug.
+		return "okapi-bug"
+	case strings.Contains(d, "feature difference"),
+		strings.Contains(d, "feature-difference"),
+		strings.Contains(d, "different feature scope"),
+		strings.Contains(d, "feature scope"),
+		strings.Contains(d, "trados"):
+		return "scope-diff"
+	default:
+		// Unmatched divergences are correct-by-design until proven a bug
+		// — default to the neutral scope-diff, never native-bug.
+		return "scope-diff"
+	}
 }
 
 func computeCoverageFromRows(okapi *filterResult, rows []testCaseMatch) *coverage {
@@ -1266,12 +1527,22 @@ func computeCoverageFromRows(okapi *filterResult, rows []testCaseMatch) *coverag
 	return c
 }
 
-// lookupParity finds the parity rows for a filter, falling back to the
-// alias map for the small set of names that diverge between the parity
-// id space (`okf_<id>`) and the surefire-derived names.
-func lookupParity(bridgeByFilter map[string]*bridgeRows, name string) (*bridgeRows, bool) {
+// lookupParity finds the parity rows for a native format. The parity
+// report keys rows by the spec's `okf_<format-id>` (e.g. csv declares
+// okf_commaseparatedvalues), which can diverge from the native directory
+// name. nativeToParityKey (built from the loaded specs) bridges that gap;
+// the static bridgeFilterAliases handles the few formats with no spec
+// (php↔phpcontent).
+func lookupParity(bridgeByFilter map[string]*bridgeRows, nativeToParityKey map[string]string, name string) (*bridgeRows, bool) {
 	if r, ok := bridgeByFilter[name]; ok {
 		return r, true
+	}
+	// Native dir → parity key from the spec format id (csv →
+	// commaseparatedvalues, fixedwidth → fixedwidthcolumns, …).
+	if pk, ok := nativeToParityKey[name]; ok && pk != name {
+		if r, ok := bridgeByFilter[pk]; ok {
+			return r, true
+		}
 	}
 	if alias, ok := bridgeFilterAliases[name]; ok {
 		if r, ok := bridgeByFilter[alias]; ok {
@@ -1349,10 +1620,14 @@ func appendParityCase(suite *testSuite, fr *filterResult, r *parityRow, label st
 // ── Spec loading & drift detection ──────────────────────────────────────────
 
 // loadSpecsForFilters walks formatsDir for `<filter>/spec.yaml` files
-// and returns one Spec per filter, keyed by the filter id with any
-// `okf_` prefix stripped (so the key joins against the rest of the
-// generator's filter-name space). Directories without a spec.yaml are
-// skipped silently — the spec model is opt-in per format.
+// and returns one Spec per filter, keyed by the NATIVE format directory
+// name (e.g. "csv", "fixedwidth") so it joins directly against the
+// canonical native-format row keys the rest of the generator uses.
+// (The spec's own `format:` id can diverge from the dir name —
+// core/formats/csv declares okf_commaseparatedvalues — so keying by the
+// format id would miss the row; the bridge-schema lookup still uses
+// s.Format internally.) Directories without a spec.yaml are skipped
+// silently — the spec model is opt-in per format.
 func loadSpecsForFilters(formatsDir string) (map[string]*spec.Spec, error) {
 	out := map[string]*spec.Spec{}
 	entries, err := os.ReadDir(formatsDir)
@@ -1375,11 +1650,7 @@ func loadSpecsForFilters(formatsDir string) (map[string]*spec.Spec, error) {
 		if err != nil {
 			return nil, fmt.Errorf("load %s: %w", path, err)
 		}
-		key := strings.TrimPrefix(s.Format, "okf_")
-		if key == "" {
-			key = e.Name()
-		}
-		out[key] = s
+		out[e.Name()] = s
 	}
 	return out, nil
 }
@@ -1983,6 +2254,19 @@ func statusFromGo(s string) string {
 
 func round1(v float64) float64 {
 	return float64(int(v*10+0.5)) / 10
+}
+
+// sortedKeys returns the keys of a set, sorted, for deterministic output.
+func sortedKeys(set map[string]bool) []string {
+	if len(set) == 0 {
+		return nil
+	}
+	out := make([]string, 0, len(set))
+	for k := range set {
+		out = append(out, k)
+	}
+	sort.Strings(out)
+	return out
 }
 
 func die(format string, args ...any) {
