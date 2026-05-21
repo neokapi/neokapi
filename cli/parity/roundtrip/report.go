@@ -218,21 +218,22 @@ func FlushParityReport(w io.Writer) error {
 // isFaithfulDivergence reports whether a divergent outcome is one where
 // native is *at least as spec-faithful as okapi*, so it counts toward
 // faithful parity even though the comparator couldn't fold it to canon:
-//   - cosmetic           — both producers spec-compliant, render identically
-//                          (e.g. native preserves a moot attribute okapi
-//                          strips; only the comparator's text-driven
-//                          content-category resolution is missing)
+//   - cosmetic            — both producers spec-compliant, render identically
+//                           (e.g. native preserves a moot attribute okapi
+//                           strips; only the comparator's text-driven
+//                           content-category resolution is missing)
 //   - native-more-correct — native is strictly more spec-correct than okapi
-//   - okapi-bug          — okapi is wrong; native is right
 //
-// A `bug` (native defect) or an unannotated divergence does NOT count —
-// conservative, so faithful% can only under-state, never over-state.
+// A `bug` (native defect), `fixture-bug` (broken fixture), or an
+// unannotated divergence does NOT count — conservative, so faithful% can
+// only under-state, never over-state. Severities are the closed set pinned
+// by TestAnnotations_SeveritiesValid.
 func isFaithfulDivergence(a *Annotation) bool {
 	if a == nil {
 		return false
 	}
 	switch a.Severity {
-	case "cosmetic", "native-more-correct", "okapi-bug":
+	case "cosmetic", "native-more-correct":
 		return true
 	}
 	return false
