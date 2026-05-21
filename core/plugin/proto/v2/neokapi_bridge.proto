@@ -377,6 +377,13 @@ message ProcessHeader {
   repeated InlineStep inline_steps = 11; // Optional steps to run between filter and writer.
                                           // Steps are applied in order to each filter event
                                           // before it is streamed to Go or written to output.
+  string config_id = 12;             // Optional named Okapi filter configuration to apply
+                                     // before opening (e.g. "okf_xmlstream-dita",
+                                     // "okf_xml-docbook", "okf_xml-resx"). The bridge loads
+                                     // the config's built-in parameters (.fprm) and applies
+                                     // them; explicit filter_params override on top. Lets a
+                                     // config-preset format (DITA/DocBook/ResX) run
+                                     // head-to-head against its native xml-config preset.
 }
 
 // ProcessReadDone signals that all parts have been read from the document.

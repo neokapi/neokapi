@@ -140,6 +140,18 @@ type FormatSpec struct {
 	Skip          string
 	SkipRoundTrip string
 	SkipTikal     string
+
+	// BridgeFilterClass overrides the FilterClass sent to the bridge when it
+	// differs from ID. Config-preset formats use the manifest id as ID (e.g.
+	// "okf_dita") for the dashboard join, but dispatch to the base filter on
+	// the bridge (e.g. "okf_xmlstream") plus ConfigId. Empty = use ID.
+	BridgeFilterClass string
+
+	// ConfigId names a built-in Okapi filter configuration the bridge loads
+	// before opening (e.g. "okf_xmlstream-dita"). Native side configures via
+	// NewReader+SetConfig; the bridge applies the same named config so the
+	// comparison is head-to-head. Empty = filter defaults.
+	ConfigId string
 	TikalExt      string // file extension passed to tikal (e.g. ".properties"); empty disables tikal.
 	TikalConfig   string // optional -fc filter id (e.g. "okf_properties").
 
@@ -157,6 +169,15 @@ type FormatSpec struct {
 }
 
 func ttext(s string) []byte { return []byte(s) }
+
+// bridgeClass is the FilterClass sent to the bridge: BridgeFilterClass when
+// set (config-preset formats dispatch to a base filter), else the spec ID.
+func bridgeClass(s FormatSpec) string {
+	if s.BridgeFilterClass != "" {
+		return s.BridgeFilterClass
+	}
+	return s.ID
+}
 
 // mergeInputs concatenates curated fixtures with one or more
 // auto-generated batches. Lets each FormatSpec list its hand-curated
@@ -251,15 +272,17 @@ var formatSpecs = []FormatSpec{
 			{Name: "dita-like", Content: ttext(`<?xml version="1.0"?><topic><title>Hi</title><body>Hello.</body></topic>`)},
 		},
 	},
-	// okf_xml / okf_xmlstream config-preset formats. The native side runs the
-	// xml reader with the Go config preset (DitaConfig/DocBookConfig/ResXConfig
-	// in core/formats/xml/presets.go); head-to-head is gated on okapi-bridge
-	// config-by-name support (SKIP_BRIDGE_CONFIG). Native behaviour is
-	// regression-tested in core/formats/xml/presets_test.go against the
-	// upstream gold XLIFF.
+	// okf_xml / okf_xmlstream config-preset formats. Native runs the xml
+	// reader with the Go config preset (DitaConfig/DocBookConfig/ResXConfig in
+	// core/formats/xml/presets.go); the bridge runs the base filter with the
+	// matching built-in Okapi config via ConfigId (#613) — head-to-head. The
+	// dashboard joins on the okf_<id> manifest id. Native behaviour is also
+	// regression-tested in core/formats/xml/presets_test.go vs the gold XLIFF.
 	{
-		ID:       "okf_xmlstream-dita",
-		MimeType: "text/xml",
+		ID:                "okf_dita",
+		BridgeFilterClass: "okf_xmlstream",
+		ConfigId:          "okf_xmlstream-dita",
+		MimeType:          "text/xml",
 		NewReader: func() format.DataFormatReader {
 			r := xmlfmt.NewReader()
 			_ = r.SetConfig(xmlfmt.DitaConfig())
@@ -268,11 +291,12 @@ var formatSpecs = []FormatSpec{
 		Inputs: []FormatInput{
 			{Name: "dita", Content: ttext(`<?xml version="1.0"?><concept id="c"><title>Hi</title><conbody><p>Hello.</p></conbody></concept>`)},
 		},
-		Skip: SKIP_BRIDGE_CONFIG,
 	},
 	{
-		ID:       "okf_xml-docbook",
-		MimeType: "text/xml",
+		ID:                "okf_docbook",
+		BridgeFilterClass: "okf_xml",
+		ConfigId:          "okf_xml-docbook",
+		MimeType:          "text/xml",
 		NewReader: func() format.DataFormatReader {
 			r := xmlfmt.NewReader()
 			_ = r.SetConfig(xmlfmt.DocBookConfig())
@@ -281,11 +305,12 @@ var formatSpecs = []FormatSpec{
 		Inputs: []FormatInput{
 			{Name: "docbook", Content: ttext(`<?xml version="1.0"?><article><para>Hello <emphasis>world</emphasis>.</para></article>`)},
 		},
-		Skip: SKIP_BRIDGE_CONFIG,
 	},
 	{
-		ID:       "okf_xml-resx",
-		MimeType: "text/xml",
+		ID:                "okf_resx",
+		BridgeFilterClass: "okf_xml",
+		ConfigId:          "okf_xml-resx",
+		MimeType:          "text/xml",
 		NewReader: func() format.DataFormatReader {
 			r := xmlfmt.NewReader()
 			_ = r.SetConfig(xmlfmt.ResXConfig())
@@ -294,7 +319,6 @@ var formatSpecs = []FormatSpec{
 		Inputs: []FormatInput{
 			{Name: "resx", Content: ttext(`<?xml version="1.0"?><root><data name="greeting"><value>Hello world.</value></data></root>`)},
 		},
-		Skip: SKIP_BRIDGE_CONFIG,
 	},
 	{
 		ID:        "okf_dtd",

@@ -76,7 +76,8 @@ func runFormatSpec(t *testing.T, spec FormatSpec) {
 				}()
 			}
 			bridgeReq := parity.BridgeRequest{
-				FilterClass:  spec.ID,
+				FilterClass:  bridgeClass(spec),
+				ConfigId:     spec.ConfigId,
 				InputBytes:   in.Content,
 				MimeType:     spec.MimeType,
 				FilterParams: parity.StringifyParams(spec.Params),
@@ -260,7 +261,8 @@ func runRoundTripSpec(t *testing.T, spec FormatSpec) {
 					Params:     spec.Params,
 				})
 				bridge := parity.RunBridgeRoundTrip(t, parity.BridgeRequest{
-					FilterClass:  spec.ID,
+					FilterClass:  bridgeClass(spec),
+					ConfigId:     spec.ConfigId,
 					InputBytes:   in.Content,
 					MimeType:     spec.MimeType,
 					FilterParams: parity.StringifyParams(spec.Params),
