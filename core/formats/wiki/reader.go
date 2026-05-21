@@ -237,11 +237,16 @@ var dokuWikiUntranslatableBlocks = []struct {
 	tag     string
 	startRe *regexp.Regexp
 	endRe   *regexp.Regexp
+	// anyRe matches the opener anywhere in the line (not just at the
+	// start). Mirrors okapi's WikiPatterns CODE_TAG / FILE / HTML / PHP
+	// FOO_START regex, which the PrefixSuffixTokenizer applies at any
+	// position when splitting a block into sub-blocks.
+	anyRe *regexp.Regexp
 }{
-	{tag: "code", startRe: regexp.MustCompile(`(?i)^\s*<code\b[^>]*>`), endRe: regexp.MustCompile(`(?i)</code>`)},
-	{tag: "file", startRe: regexp.MustCompile(`(?i)^\s*<file\b[^>]*>`), endRe: regexp.MustCompile(`(?i)</file>`)},
-	{tag: "html", startRe: regexp.MustCompile(`(?i)^\s*<html\b[^>]*>`), endRe: regexp.MustCompile(`(?i)</html>`)},
-	{tag: "php", startRe: regexp.MustCompile(`(?i)^\s*<php\b[^>]*>`), endRe: regexp.MustCompile(`(?i)</php>`)},
+	{tag: "code", startRe: regexp.MustCompile(`(?i)^\s*<code\b[^>]*>`), endRe: regexp.MustCompile(`(?i)</code>`), anyRe: regexp.MustCompile(`(?i)<code\b[^>]*>`)},
+	{tag: "file", startRe: regexp.MustCompile(`(?i)^\s*<file\b[^>]*>`), endRe: regexp.MustCompile(`(?i)</file>`), anyRe: regexp.MustCompile(`(?i)<file\b[^>]*>`)},
+	{tag: "html", startRe: regexp.MustCompile(`(?i)^\s*<html\b[^>]*>`), endRe: regexp.MustCompile(`(?i)</html>`), anyRe: regexp.MustCompile(`(?i)<html\b[^>]*>`)},
+	{tag: "php", startRe: regexp.MustCompile(`(?i)^\s*<php\b[^>]*>`), endRe: regexp.MustCompile(`(?i)</php>`), anyRe: regexp.MustCompile(`(?i)<php\b[^>]*>`)},
 }
 
 // matchDokuWikiUntranslatableOpener reports whether `line` opens an
@@ -256,6 +261,62 @@ func matchDokuWikiUntranslatableOpener(line string) (closeRe *regexp.Regexp, tag
 		}
 	}
 	return nil, ""
+}
+
+// findDokuWikiUntranslatableInLine locates the earliest mid-line
+// untranslatable block opener (`<code>` / `<file>` / `<html>` / `<php>`)
+// within a regular text line. It returns the byte offset where the
+// opener begins (`start`), the matching close pattern, and ok=true when
+// a real DokuWiki block tag is present.
+//
+// This mirrors upstream okapi: an untranslatable block delimiter such as
+// `<file>` cuts off the surrounding text unit even when it appears in the
+// middle of a line. The text before the opener becomes its own TU; the
+// opener and everything after it (until the matching closer, or EOF for
+// an unclosed block) is non-translatable skeleton — exactly the shape
+// WikiFilter.parseBlocks produces for an `@Untranslatable` block.
+// Compare WikiFilterTest#testSimilarHtmlTags: `This is <file> a test.`
+// yields the TU "This is" while `<files>` (not a real tag, defeated by
+// the `\b` word boundary) passes through untouched.
+//
+// Occurrences inside okapi's TEMP_EXTRACT-protected spans
+// (`%%…%%`, `<nowiki>…</nowiki>`, `[[…]]`, `{{…}}`) are skipped, matching
+// the upstream behaviour of pulling those spans out before block
+// tokenisation so an escaped `%%<file>%%` does not trigger a block.
+func findDokuWikiUntranslatableInLine(line string) (start int, closeRe *regexp.Regexp, ok bool) {
+	bestStart := -1
+	var bestClose *regexp.Regexp
+	for _, b := range dokuWikiUntranslatableBlocks {
+		loc := b.anyRe.FindStringIndex(line)
+		if loc == nil {
+			continue
+		}
+		if dokuWikiPositionProtected(line, loc[0]) {
+			continue
+		}
+		if bestStart < 0 || loc[0] < bestStart {
+			bestStart = loc[0]
+			bestClose = b.endRe
+		}
+	}
+	if bestStart < 0 {
+		return 0, nil, false
+	}
+	return bestStart, bestClose, true
+}
+
+// dokuWikiPositionProtected reports whether the byte offset pos in line
+// falls inside a TEMP_EXTRACT-protected span (`%%…%%`,
+// `<nowiki>…</nowiki>`, `[[…]]`, `{{…}}`). Such spans are pulled out of
+// the stream by okapi before block tokenisation, so an opener inside one
+// must not be treated as a block delimiter.
+func dokuWikiPositionProtected(line string, pos int) bool {
+	for _, loc := range mediaWikiTempExtractRe.FindAllStringIndex(line, -1) {
+		if pos >= loc[0] && pos < loc[1] {
+			return true
+		}
+	}
+	return false
 }
 
 // MediaWiki image/file link: [[File:...|...|caption]] or [[Image:...|...|caption]]
@@ -1583,6 +1644,69 @@ func (r *Reader) readMediaWikiLinesNoInfobox(ctx context.Context, ch chan<- mode
 	ps.flushParagraph(ctx, r, ch, rLines)
 }
 
+// handleMidLineUntranslatable handles a regular-text line that contains
+// an untranslatable block opener (`<file>` / `<code>` / `<html>` /
+// `<php>`) somewhere after its first column. The text before the opener
+// is appended to the current paragraph and the paragraph is flushed as a
+// translatable Block; the opener and everything after it on this line is
+// non-translatable. If the matching closer is also present after the
+// opener on the same line the block is closed immediately; otherwise the
+// caller enters verbatim mode (signalled by a non-nil returned close
+// pattern) until the closer is seen on a later line.
+//
+// `lineEnding` is the source line ending (skeleton mode only; "" for the
+// no-skeleton scanner path). It returns the pattern that closes the block
+// (nil when the block closed inline) and ok=false only when emission was
+// cancelled.
+func (r *Reader) handleMidLineUntranslatable(
+	ctx context.Context, ch chan<- model.PartResult, ps *parseState,
+	line, lineEnding string, start int, closeRe *regexp.Regexp, rLines []rawLine,
+) (open *regexp.Regexp, ok bool) {
+	before := line[:start]
+	rest := line[start:]
+
+	// Append the leading text to the current paragraph and flush so the
+	// pre-tag prose becomes its own translatable Block (mirrors okapi's
+	// parseTextUnits over the first DelimiterTokenizer token, which trims
+	// the boundary whitespace adjacent to the cut). The whitespace that
+	// abutted the tag is dropped from the source so `This is <file>…`
+	// yields the TU "This is" rather than "This is ".
+	if trimmedBefore := strings.TrimRight(before, " \t"); trimmedBefore != "" {
+		ps.paraLines = append(ps.paraLines, trimmedBefore)
+		if r.skeletonStore != nil {
+			ps.paraLineIdxes = append(ps.paraLineIdxes, len(rLines)) // sentinel: no own line ending
+		}
+		// In skeleton mode the trimmed-off boundary whitespace must still
+		// reach the writer so the line round-trips byte-for-byte; prepend
+		// it to the non-translatable remainder below.
+		if r.skeletonStore != nil {
+			rest = before[len(trimmedBefore):] + rest
+		}
+	} else if r.skeletonStore != nil && before != "" {
+		// All-whitespace prefix (e.g. leading indent) — keep it verbatim.
+		rest = before + rest
+	}
+	if !ps.flushParagraph(ctx, r, ch, rLines) {
+		return nil, false
+	}
+
+	// The opener and the remainder of the line are non-translatable. In
+	// skeleton mode they must be reproduced verbatim; in the no-skeleton
+	// mode a single Data part marks the structural separator.
+	if r.skeletonStore != nil {
+		r.skelText(rest + lineEnding)
+	}
+	if !ps.emitData(ctx, r, ch) {
+		return nil, false
+	}
+
+	// Closed inline on the same line? Then no block stays open.
+	if closeRe.MatchString(rest) {
+		return nil, true
+	}
+	return closeRe, true
+}
+
 func (r *Reader) readDokuWiki(ctx context.Context, ch chan<- model.PartResult,
 	scanner *bufio.Scanner, ps *parseState) {
 
@@ -1731,6 +1855,17 @@ func (r *Reader) readDokuWiki(ctx context.Context, ch chan<- model.PartResult,
 			if !ps.emitData(ctx, r, ch) {
 				return
 			}
+			continue
+		}
+
+		// Mid-line untranslatable block opener (`<file>` / `<code>` /
+		// `<html>` / `<php>`): cut the text unit off at the opener.
+		if start, closeRe, ok := findDokuWikiUntranslatableInLine(line); ok {
+			open, cont := r.handleMidLineUntranslatable(ctx, ch, ps, line, "", start, closeRe, nil)
+			if !cont {
+				return
+			}
+			untranslatableEnd = open
 			continue
 		}
 
@@ -1917,6 +2052,19 @@ func (r *Reader) readDokuWikiLines(ctx context.Context, ch chan<- model.PartResu
 			if !ps.emitData(ctx, r, ch) {
 				return
 			}
+			continue
+		}
+
+		// Mid-line untranslatable block opener — see readDokuWiki. The
+		// pre-tag prose becomes a ref; the opener + remainder of the line
+		// (plus its line ending) goes to skeleton verbatim so the
+		// round-trip writer reproduces the block bytes exactly.
+		if start, closeRe, ok := findDokuWikiUntranslatableInLine(line); ok {
+			open, cont := r.handleMidLineUntranslatable(ctx, ch, ps, line, rl.lineEnding, start, closeRe, rLines)
+			if !cont {
+				return
+			}
+			untranslatableEnd = open
 			continue
 		}
 

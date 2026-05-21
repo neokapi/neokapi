@@ -118,10 +118,16 @@ func TestDoubleExtraction(t *testing.T) {
 // in for Okapi's pseudo-XLIFF code handling.
 // ---------------------------------------------------------------------------
 
-// neokapi-only: counterpart to Okapi testEscapedG. Where Okapi throws an
-// EmptyStackException parsing pseudo-XLIFF, the native plain-text reader must
-// read the line verbatim without error.
-func TestEscapedGReadAsPlainText(t *testing.T) {
+// neokapi-only: counterpart to Okapi testEscapedG. Okapi entity-decodes
+// "&lt;g&gt;a&lt;/g&gt;" to "<g>a</g>", then its <g> open/close parser pops an
+// empty stack on the unmatched </g> and throws EmptyStackException. The native
+// Moses InlineText reader performs the same entity decoding, but its code
+// parser has no stack to underflow: the bare "<g>" (no id attribute) is not a
+// valid opening code, and the unmatched "</g>" is captured as a closing code
+// run. The reader therefore accepts the input without error — the decoded
+// translatable text is "<g>a" (the "</g>" code contributing nothing to the
+// flattened source).
+func TestEscapedGDecodesWithoutError(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
 	reader := mosestext.NewReader()
@@ -131,8 +137,20 @@ func TestEscapedGReadAsPlainText(t *testing.T) {
 
 	blocks := testutil.CollectBlocks(t, reader.Read(ctx))
 	require.Len(t, blocks, 1)
-	// No entity decoding, no <g> parsing: the line is preserved verbatim.
-	assert.Equal(t, snippet, blocks[0].SourceText())
+	// Entities decode to "<g>a</g>"; the unmatched "</g>" parses as a closing
+	// code run, leaving "<g>a" as the translatable text.
+	assert.Equal(t, "<g>a", blocks[0].SourceText())
+
+	// The unmatched closing code is captured as a PcClose run (no panic, no
+	// error) — the native parser gracefully tolerates the imbalance.
+	var hasClose bool
+	for _, r := range blocks[0].SourceRuns() {
+		if r.PcClose != nil {
+			hasClose = true
+			assert.Equal(t, "</g>", r.PcClose.Data)
+		}
+	}
+	assert.True(t, hasClose, "unmatched </g> should be captured as a closing code run")
 }
 
 // neokapi-only: native analogue of Okapi testCode1 / testCode4. With the code

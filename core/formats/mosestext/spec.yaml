@@ -20,23 +20,26 @@
 # corpora for statistical MT — and matches what every line-based
 # consumer of Moses files expects.
 #
-# Upstream Okapi MosesTextFilter additionally treats Moses InlineText
-# *markup* as a structured XLIFF-flavoured surface:
-#   - `<g id="N">…</g>`, `<x id="N"/>`, `<bx id="N"/>`, `<ex id="N"/>`
-#     parse into inline Codes; only the surrounding text reaches the
-#     extracted Block source
+# The native reader also implements Okapi's Moses InlineText *markup*
+# decoding, treating each entry as a structured XLIFF-flavoured surface
+# (a direct port of MosesTextFilter.fromPseudoXLIFF + the entry-grouping
+# loop in next()):
+#   - `<g id="N">…</g>` parse into paired inline codes (PcOpen/PcClose);
+#     `<x id="N"/>` into a placeholder; `<bx id="N"/>` / `<ex id="N"/>`
+#     into paired open/close codes. Only the surrounding text reaches
+#     the flattened Block source
 #   - `<lb/>` decodes to a literal newline inside the Block source
 #   - XML entities (`&lt;`, `&gt;`, `&amp;`, `&quot;`, `&apos;`,
 #     `&#NN;`, `&#xNN;`) decode to their character values
-#   - `<mrk mtype="seg">…</mrk>` annotations split a single line into
-#     multiple TextUnits, one per `<mrk>` body and one for any
-#     surrounding text
-# The native reader does NONE of this — it preserves all such markup
-# and entities verbatim in the Block source. The features below
-# capture each divergence as an `expected_fail` example so the parity
-# dashboard surfaces the gap clearly. A future native iteration that
-# adds Moses InlineText markup support will simply remove the
-# expected_fail tags as the assertions begin to pass on both sides.
+#   - `<mrk mtype="seg">…</mrk>` annotations are recognised: the entry
+#     body is the text between the markers (which may span several
+#     physical lines, joined with newlines), and the markers themselves
+#     are skeleton, not translatable content
+# On write, the native writer re-encodes the decoded body back to the
+# pseudo-XLIFF surface (mirroring Okapi's MosesTextEncoder), keeping a
+# read → write round trip byte-exact. The format-agnostic code finder
+# (`useCodeFinder` / `codeFinderRules`) remains available as an opt-in,
+# verbatim-preservation alternative that bypasses InlineText decoding.
 #
 # Authoring notes:
 #   - okapi_refs target the upstream `MosesTextFilterTest` and
@@ -322,43 +325,32 @@ features:
 
   # ── Inline `<g>` / `<x>` / `<bx>` / `<ex>` codes ──────────────────
   #
-  # Native reader does not parse Moses InlineText markup — it treats
-  # `<g id="N">…</g>` and friends as literal text. Upstream
-  # MosesTextFilter parses them into TextFragment Codes, leaving only
-  # the surrounding text in the Block source. Tagged as expected_fail
-  # so the parity runner records the divergence without breaking CI.
-  - id: inline_g_codes_divergent
-    name: "Inline `<g>` paired codes (Okapi parses, native preserves)"
+  # The native reader parses Moses InlineText markup the same way as
+  # upstream MosesTextFilter.fromPseudoXLIFF: `<g id="N">…</g>` become
+  # paired inline codes, `<x id="N"/>` a placeholder, `<bx>`/`<ex>` a
+  # paired open/close. Only the surrounding text reaches the flattened
+  # Block source.
+  - id: inline_g_codes
+    name: "Inline `<g>` paired codes parse into inline codes"
     description: |
       Moses InlineText uses `<g id="N">…</g>` for paired inline codes
-      (bold, italic, etc.). The Okapi MosesTextFilter recognises the
-      pattern via `<g id="...">…</g>` regex and emits opening /
-      closing TextFragment Codes; the Block source carries only the
-      surrounding plain text. The native reader has no XML-style code
-      parser and emits the entire `<g>…</g>` literal as part of the
-      line's source text. Bridge contract is the canonical Moses
-      InlineText behaviour; native is a known under-implementation.
+      (bold, italic, etc.). Both the Okapi MosesTextFilter and the
+      native reader recognise the pattern via the `<g id="...">…</g>`
+      regex and emit opening / closing codes; the Block source carries
+      only the surrounding plain text. Self-closing `<x id="N"/>`
+      placeholders are likewise carved out of the translatable text.
     spec_refs:
       - "Okapi Moses Text Filter (https://okapiframework.org/wiki/index.php/Moses_Text_Filter) — inline codes <g id=\"N\">, <x id=\"N\"/>, <bx id=\"N\"/>, <ex id=\"N\"/>"
     examples:
       - name: paired_g_with_text
         origin: "authored: paired <g> wrapping inline text plus a self-closing <x> placeholder"
-        # native gap — bridge correctly parses `<g id="2">Text</g>` into
-        # an inline Code wrapping plain "Text" per Okapi MosesTextFilter
-        # testCode2. Native emits the literal markup as part of the
-        # source. Tagged here so the dashboard surfaces the gap; tracked
-        # separately as a native-reader follow-up to add Moses
-        # InlineText markup parsing.
-        expected_fail: |
-          native reader does not parse Moses InlineText `<g>` markup —
-          upstream Okapi MosesTextFilter (testCode2) extracts only the
-          surrounding text and emits `<g>` as inline Codes. Native
-          treats `<g id="2">Text</g> <x id="1"/>` as literal text in
-          the Block source. Tracked as a native-reader follow-up.
+        # `<g id="2">Text</g>` parses into a paired inline code wrapping
+        # plain "Text" per Okapi MosesTextFilter testCode2; the trailing
+        # `<x id="1"/>` is an isolated placeholder. Only the surrounding
+        # text ("Text" plus the literal space) is translatable.
         input_xml: "<g id=\"2\">Text</g> <x id=\"1\"/>"
         block_count: 1
-        # Bridge: "Text " (text outside the <g> and standalone <x>).
-        # Native: full literal.
+        # Text outside the <g> and standalone <x>: "Text" + the space.
         first_block_text: "Text "
     okapi_refs:
       - MosesTextFilterTest#testCode1
@@ -366,96 +358,79 @@ features:
       - MosesTextFilterTest#testCode3
       - MosesTextFilterTest#testCode4
     native_refs:
-      - mosestext.TestNoSpansForPlainText
+      - mosestext.TestSpec
 
   # ── `<lb/>` line-break-within-entry ───────────────────────────────
-  - id: lb_linebreak_divergent
-    name: "`<lb/>` line-break (Okapi decodes to LF, native preserves literal)"
+  - id: lb_linebreak
+    name: "`<lb/>` line-break decodes to a literal newline"
     description: |
       Moses InlineText uses `<lb/>` to encode a hard line break inside
       a single entry — a way to express "this multi-line paragraph is
-      one TextUnit". The Okapi filter decodes `<lb/>` to a literal
-      newline character in the Block source; the native reader emits
-      the literal `<lb/>` markup as part of the line's source text.
+      one TextUnit". Both the Okapi filter and the native reader decode
+      `<lb/>` to a literal newline character in the Block source. The
+      native writer re-encodes the newline back to `<lb/>` on output, so
+      a read → write round trip is byte-exact.
     spec_refs:
       - "Okapi Moses Text Filter (https://okapiframework.org/wiki/index.php/Moses_Text_Filter) — <lb/> line-break decoded to literal newline"
     examples:
       - name: spans_three_lines
         origin: "authored: single entry containing two <lb/> markers to exercise in-entry line-break decoding"
-        # native gap — bridge correctly decodes `<lb/>` to "\n" per
-        # Okapi MosesTextFilter testFromFile (Test02.txt third entry).
-        # Native preserves the literal markup. Tracked as a
-        # native-reader follow-up to add Moses InlineText markup
-        # parsing.
-        expected_fail: |
-          native reader does not decode Moses InlineText `<lb/>` —
-          upstream Okapi MosesTextFilter (testFromFile, Test01/Test02
-          fixtures) decodes `<lb/>` to a literal newline inside the
-          Block source. Native preserves the literal `<lb/>` markup.
-          Tracked as a native-reader follow-up.
+        # `<lb/>` decodes to "\n" per Okapi MosesTextFilter testFromFile
+        # (Test02.txt third entry). The two markers split the entry into
+        # three newline-joined lines within one Block.
         input_xml: "Text of the second entry<lb/>which spans<lb/>several lines\n"
         block_count: 1
         first_block_text: "Text of the second entry\nwhich spans\nseveral lines"
     okapi_refs:
       - MosesTextFilterTest#testFromFile
     native_refs:
-      - mosestext.TestFromFile
+      - mosestext.TestSpec
+      - mosestext.TestDoubleExtraction
 
   # ── XML entity decoding ───────────────────────────────────────────
-  - id: xml_entities_divergent
-    name: XML entities (Okapi decodes, native preserves literal)
+  - id: xml_entities
+    name: XML entities decode to their character values
     description: |
       Moses InlineText follows XLIFF-flavoured entity conventions:
       `&lt;`, `&gt;`, `&amp;`, `&quot;`, `&apos;` decode to their
-      literal characters; numeric character references (`&#NN;`,
-      `&#xNN;`) decode to the codepoint. Native reader does no entity
-      decoding — `&lt;` reaches the Block source as the literal four
-      characters `&lt;`.
+      literal characters; the carriage-return numeric references
+      (`&#13;`, `&#xD;`) decode to U+000D. Both the Okapi filter and the
+      native reader decode these on read; the native writer re-encodes
+      `<`/`&`/`\r` back to entities on output so the round trip is
+      byte-exact.
     spec_refs:
       - "XML 1.0 §4.6 Predefined Entities (https://www.w3.org/TR/xml/#sec-predefined-ent)"
     examples:
       - name: basic_entities
         origin: "authored: line containing &lt;/&gt;/&amp; XML entities to exercise decoding"
-        # native gap — bridge decodes `&lt;`/`&gt;`/`&amp;` per Okapi
-        # MosesTextFilter testLiterals; native preserves them literally.
-        # Tracked as a native-reader follow-up.
-        expected_fail: |
-          native reader does not decode XML entities — upstream
-          MosesTextFilter (testLiterals) decodes `&lt;`/`&gt;`/`&amp;`
-          to `<`/`>`/`&`. Native preserves the literal `&lt;` etc.
-          Tracked as a native-reader follow-up.
+        # `&lt;`/`&gt;`/`&amp;` decode to `<`/`>`/`&` per Okapi
+        # MosesTextFilter testLiterals.
         input_xml: "&lt;=lt &gt;=gt &amp;=amp"
         block_count: 1
         first_block_text: "<=lt >=gt &=amp"
     okapi_refs:
       - MosesTextFilterTest#testLiterals
     native_refs:
-      - mosestext.TestLiterals
+      - mosestext.TestSpec
+      - mosestext.TestDoubleExtraction
 
   # ── `<mrk mtype="seg">` segmentation ──────────────────────────────
-  - id: mrk_segmentation_divergent
-    name: '`<mrk mtype="seg">` annotations (Okapi splits to multiple TUs, native preserves literal)'
+  - id: mrk_segmentation
+    name: '`<mrk mtype="seg">` annotations extract only the body text'
     description: |
-      Moses InlineText uses `<mrk mtype="seg">…</mrk>` to annotate
-      segment boundaries inside a single line. The Okapi filter
-      treats each `<mrk>` body as its own TextUnit — a single line
-      with two `<mrk>` blocks plus surrounding text yields three
-      TextUnits. The native reader has no `<mrk>` awareness and
-      emits the entire line (including the literal `<mrk>` markup)
-      as one Block.
+      Moses InlineText uses `<mrk mtype="seg">…</mrk>` to annotate a
+      segment boundary. Both the Okapi filter and the native reader
+      treat the `<mrk>` body as the entry's translatable content — the
+      `<mrk …>` and `</mrk>` markers are skeleton, not source text. A
+      segment body may span several physical lines (the markers don't
+      have to close on the same line); the body lines are joined with
+      newlines, matching MosesTextFilter.next().
     examples:
       - name: single_mrk_in_line
         origin: "authored: single line wrapped in <mrk mtype=\"seg\"> to exercise XLIFF-style segment annotation"
-        # native gap — bridge extracts only the `<mrk>` body, dropping
-        # the literal tags per Okapi MosesTextFilter testWhiteSpaces.
-        # Native emits the full line literally. Tracked as a
-        # native-reader follow-up.
-        expected_fail: |
-          native reader does not parse `<mrk mtype="seg">` annotations
-          — upstream MosesTextFilter (testWhiteSpaces) extracts only
-          the body and emits the `<mrk>` tags as skeleton. Native
-          emits the full line literally. Tracked as a native-reader
-          follow-up.
+        # Only the `<mrk>` body is translatable; the literal tags are
+        # dropped (held as skeleton) per Okapi MosesTextFilter
+        # testWhiteSpaces.
         input_xml: "<mrk mtype=\"seg\">Inside marker</mrk>"
         block_count: 1
         first_block_text: "Inside marker"
@@ -463,6 +438,7 @@ features:
       - MosesTextFilterTest#testWhiteSpaces
       - MosesTextFilterTest#testFromFile
     native_refs:
+      - mosestext.TestSpec
       - mosestext.TestFromFileMultiline
 
 # ── Intentionally under-specified ──────────────────────────────────
@@ -484,12 +460,15 @@ features:
 #
 # `testEscapedG` upstream throws `EmptyStackException` deliberately
 # (the input is malformed: `&lt;g&gt;a&lt;/g&gt;` decodes to `<g>a</g>`
-# without an `id` attribute, which the parser cannot stack-balance).
-# The native reader has no `<g>` parser and would silently accept the
-# decoded text. Both behaviours are correct for their respective
-# reader designs; the divergence is captured implicitly by the
-# `xml_entities_divergent` and `inline_g_codes_divergent` features
-# above. No standalone Feature is added here.
+# where the bare `<g>` lacks an `id` attribute, so the parser cannot
+# stack-balance the trailing `</g>`). The native reader entity-decodes
+# the same way, but its code parser has no stack to underflow — the bare
+# `<g>` is not a valid opening code and the unmatched `</g>` is captured
+# as a closing code run, so the native reader accepts the input without
+# error. This divergence (Okapi throws, native tolerates) is verified by
+# the native-only `mosestext.TestEscapedGDecodesWithoutError` test and is
+# implicit in the `xml_entities` and `inline_g_codes` features above. No
+# standalone Feature is added here.
 #
 # `testDefaultInfo` and `testStartDocument` upstream are upstream
 # API-shape / harness tests rather than user-observable extraction

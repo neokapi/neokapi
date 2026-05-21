@@ -27,6 +27,19 @@ func readDefault(t *testing.T, input string) []*model.Part {
 	return testutil.CollectParts(t, reader.Read(ctx))
 }
 
+func readWithConfig(t *testing.T, input string, cfg map[string]any) []*model.Part {
+	t.Helper()
+	ctx := t.Context()
+	reader := po.NewReader()
+	require.NoError(t, reader.Config().ApplyMap(cfg))
+	doc := testutil.RawDocFromString(input, model.LocaleEnglish)
+	doc.TargetLocale = model.LocaleFrench
+	err := reader.Open(ctx, doc)
+	require.NoError(t, err)
+	t.Cleanup(func() { reader.Close() })
+	return testutil.CollectParts(t, reader.Read(ctx))
+}
+
 func translatableBlocks(parts []*model.Part) []*model.Block {
 	return testutil.FilterBlocks(parts)
 }
@@ -948,23 +961,80 @@ func TestRead_TUPluralEntryDefaultSingular(t *testing.T) {
 }
 
 // okapi: POFilterTest#testThreePlurals
+//
+// Russian declares nplurals=3, so the reader must surface one text unit
+// per msgstr[N] (three forms), matching Okapi's testThreePlurals: form 0
+// carries the singular msgid, forms 1 and 2 carry the msgid_plural, and
+// each form's target is the corresponding msgstr[N].
 func TestRead_ThreePlurals(t *testing.T) {
 	t.Parallel()
-	// A PO file with nplurals=3 (e.g. Russian: one, few, many).
-	input := "msgid \"\"\nmsgstr \"\"\n\"Plural-Forms: nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2);\\n\"\n\nmsgid \"1 day\"\nmsgid_plural \"%d days\"\nmsgstr[0] \"1 den\"\nmsgstr[1] \"%d dne\"\nmsgstr[2] \"%d dni\"\n"
+	input := "msgid \"\"\nmsgstr \"\"\n\"Plural-Forms: nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2);\\n\"\n\nmsgid \"day\"\nmsgid_plural \"days\"\nmsgstr[0] \"день\"\nmsgstr[1] \"дня\"\nmsgstr[2] \"дней\"\n"
+	parts := readWithConfig(t, input, map[string]any{}) // default config; reader follows the header's nplurals
+
+	blocks := translatableBlocks(parts)
+	require.Len(t, blocks, 3, "nplurals=3 should yield three text units")
+
+	// Sources: msgid for form 0, msgid_plural for the rest.
+	assert.Equal(t, "day", blocks[0].SourceText())
+	assert.Equal(t, "days", blocks[1].SourceText())
+	assert.Equal(t, "days", blocks[2].SourceText())
+
+	// Targets: msgstr[0..2] in order.
+	assert.Equal(t, "день", blocks[0].TargetText(model.LocaleFrench))
+	assert.Equal(t, "дня", blocks[1].TargetText(model.LocaleFrench))
+	assert.Equal(t, "дней", blocks[2].TargetText(model.LocaleFrench))
+
+	// plural-form property: singular for form 0, plural for the rest.
+	assert.Equal(t, "singular", blocks[0].Properties["plural-form"])
+	assert.Equal(t, "plural", blocks[1].Properties["plural-form"])
+	assert.Equal(t, "plural", blocks[2].Properties["plural-form"])
+
+	// One GroupStart wraps the plural entry.
+	assert.Equal(t, 1, countPartsByType(parts, model.PartGroupStart))
+}
+
+// A plural entry with no header keeps the default of two plural forms
+// (Germanic languages), matching Okapi's DEFAULT_NPLURALS = 2.
+func TestRead_PluralFormsDefaultTwoFormsNoHeader(t *testing.T) {
+	t.Parallel()
+	input := "msgid \"1 day\"\nmsgid_plural \"%d days\"\nmsgstr[0] \"\"\nmsgstr[1] \"\"\nmsgstr[2] \"\"\n"
 	parts := readDefault(t, input)
 
 	blocks := translatableBlocks(parts)
-	require.NotEmpty(t, blocks)
+	require.Len(t, blocks, 2, "no nplurals header should default to two forms")
+	assert.Equal(t, "1 day", blocks[0].SourceText())
+	assert.Equal(t, "%d days", blocks[1].SourceText())
+}
 
-	found := false
-	for _, b := range blocks {
-		if strings.Contains(b.SourceText(), "day") {
-			found = true
-			break
-		}
-	}
-	assert.True(t, found, "should find day/days plural entry")
+// Monolingual mode (bilingualMode=false) treats the msgid as an
+// identifier and the msgstr as the source text — Okapi's
+// okf_po-monolingual configuration (testDoubleExtraction loads
+// TestMonoLingual_*.po with okf_po@Monolingual.fprm).
+func TestRead_MonolingualMode(t *testing.T) {
+	t.Parallel()
+	input := "msgid \"key1\"\nmsgstr \"Hello\"\n"
+	parts := readWithConfig(t, input, map[string]any{"bilingualMode": false})
+
+	blocks := translatableBlocks(parts)
+	require.Len(t, blocks, 1)
+	// Source is the msgstr value; the msgid stays as the Block name.
+	assert.Equal(t, "Hello", blocks[0].SourceText())
+	assert.Equal(t, "key1", blocks[0].Name)
+	// No target is assigned in monolingual mode.
+	assert.False(t, blocks[0].HasTarget(model.LocaleFrench))
+}
+
+// In bilingual mode (the default) the msgid is the source and the
+// msgstr is the target — the contrast case for TestRead_MonolingualMode.
+func TestRead_BilingualModeDefault(t *testing.T) {
+	t.Parallel()
+	input := "msgid \"key1\"\nmsgstr \"Hello\"\n"
+	parts := readDefault(t, input)
+
+	blocks := translatableBlocks(parts)
+	require.Len(t, blocks, 1)
+	assert.Equal(t, "key1", blocks[0].SourceText())
+	assert.Equal(t, "Hello", blocks[0].TargetText(model.LocaleFrench))
 }
 
 // okapi: POFilterTest#testTrailingSkeleton

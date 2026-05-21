@@ -35,7 +35,11 @@
 .statCardActive {
   border-color: var(--ifm-color-primary);
   box-shadow: 0 0 0 2px var(--ifm-color-primary);
-  background: color-mix(in srgb, var(--ifm-color-primary) 5%, var(--ifm-card-background-color));
+  background: color-mix(
+    in srgb,
+    var(--ifm-color-primary) 5%,
+    var(--ifm-card-background-color)
+  );
 }
 
 .statValue {
@@ -254,7 +258,11 @@
 .activeFilterBanner {
   padding: 0.5rem 1rem;
   margin-bottom: 1rem;
-  background: color-mix(in srgb, var(--ifm-color-primary) 8%, var(--ifm-background-color));
+  background: color-mix(
+    in srgb,
+    var(--ifm-color-primary) 8%,
+    var(--ifm-background-color)
+  );
   border: 1px solid var(--ifm-color-primary);
   border-radius: var(--ifm-global-radius);
   font-size: 0.85rem;
@@ -838,6 +846,67 @@
 .specDriftFeature {
   color: var(--ifm-color-content-secondary);
   margin-right: 0.4rem;
+}
+
+/* Short explainer above the spec table describing what an xfail means. */
+.specLegend {
+  margin: 0 0 0.6rem 0;
+  padding: 0.5rem 0.65rem;
+  font-size: 0.8rem;
+  line-height: 1.4;
+  color: var(--ifm-color-content-secondary);
+  background: var(--ifm-color-emphasis-0, #fff);
+  border: 1px solid var(--ifm-color-emphasis-200);
+  border-radius: 0.25rem;
+}
+
+.specLegendTitle {
+  font-weight: 600;
+  color: var(--ifm-color-content);
+}
+
+.specLegendChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0.4rem;
+}
+
+/* Colored category chip per xfail / parity_warn example. */
+.divergenceChip {
+  display: inline-block;
+  padding: 0.05rem 0.4rem;
+  border-radius: 0.6rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  line-height: 1.5;
+  color: #fff;
+  white-space: nowrap;
+  cursor: help;
+}
+
+/* The full reason text wraps legibly instead of truncating to a tooltip. */
+.specDetailFull {
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+.specDetailRow {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+/* Linkified #NNN issue reference inside a detail. */
+.issueLink {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.specDetailCell {
+  max-width: 52ch;
 }
 
 .subfilterHeading {

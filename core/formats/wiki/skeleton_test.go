@@ -77,6 +77,15 @@ func TestSkeletonStore_ByteExact_EmptyInput(t *testing.T) {
 	assert.Equal(t, input, output, "empty input should produce empty output")
 }
 
+// A mid-line `<file>` opener truncates the translatable text unit at the
+// tag while the opener and the rest of the line stay in the skeleton, so
+// the line still round-trips byte-for-byte.
+func TestSkeletonStore_ByteExact_MidLineFileTag(t *testing.T) {
+	input := "This is <file> a test."
+	output := snippetRoundtripWithSkeleton(t, input)
+	assert.Equal(t, input, output, "mid-line <file> tag should round-trip byte-exact")
+}
+
 func TestSkeletonStore_ByteExact_BlankLines(t *testing.T) {
 	input := "First\n\n\nSecond"
 	output := snippetRoundtripWithSkeleton(t, input)

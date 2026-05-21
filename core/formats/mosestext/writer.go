@@ -155,20 +155,29 @@ func (w *Writer) writeFromSkeleton(blocks map[string]*model.Block) error {
 }
 
 func (w *Writer) blockText(block *model.Block) string {
-	// RenderRunsWithData splices Ph-run Data back into the text
-	// stream — required when the reader's codeFinder split the line
-	// into TextRun + Ph runs. Plain SourceText/TargetText drops Ph
-	// runs so the inline codes would vanish on round-trip.
+	// Moses InlineText-decoded blocks (the reader's default mode) carry
+	// the encode marker: their bodies were decoded from pseudo-XLIFF
+	// (entities, <lb/>, <g>/<x> codes) on read, so the writer re-encodes
+	// them to pseudo-XLIFF for a byte-exact round trip, exactly as
+	// Okapi's MosesTextEncoder does. Code-finder blocks omit the marker
+	// and are rendered verbatim via RenderRunsWithData (which splices
+	// Ph-run Data back in) — plain SourceText/TargetText drops Ph runs so
+	// the inline codes would otherwise vanish on round-trip.
+	render := model.RenderRunsWithData
+	if block.Properties[propEncode] == encodeInlineTextValue {
+		render = encodeInlineText
+	}
+
 	if !w.Locale.IsEmpty() && block.HasTarget(w.Locale) {
 		var b strings.Builder
 		for _, seg := range block.Targets[w.Locale] {
-			b.WriteString(model.RenderRunsWithData(seg.Runs))
+			b.WriteString(render(seg.Runs))
 		}
 		return b.String()
 	}
 	var b strings.Builder
 	for _, seg := range block.Source {
-		b.WriteString(model.RenderRunsWithData(seg.Runs))
+		b.WriteString(render(seg.Runs))
 	}
 	return b.String()
 }

@@ -8,10 +8,18 @@
 # Authoring notes:
 #   - Inline `input_xml:` snippets carry the test data (the field is
 #     named for XML historically; just raw text bytes).
-#   - okapi_refs target net.sf.okapi.filters.plaintext.spliced.
-#     SplicedLinesFilterTest. The bridge ships the okf_splicedlines
-#     filter but with no top-level configurable knobs in the v3
-#     composite schema — defaults converge for the cases here.
+#   - okapi_refs target net.sf.okapi.filters.plaintext.
+#     SplicedLinesFilterTest (Okapi v1.48.0). That class has a single
+#     behavioural extraction test, `testCombinedLines`, which exercises
+#     the whole splice contract at once: a chained splice across three
+#     physical lines collapses to one logical line ("Line 1 Line 2
+#     Line 3") and an unspliced trailing line stays standalone
+#     ("Line 4"). Every splice feature below maps to it; the remaining
+#     class methods (testSkeleton/2/3, testDoubleExtraction) assert
+#     byte-identical round-trip rather than block text. The bridge
+#     ships the okf_splicedlines filter but with no top-level
+#     configurable knobs in the v3 composite schema — defaults converge
+#     for the cases here.
 
 format: okf_splicedlines
 kind: top_level
@@ -38,7 +46,9 @@ features:
         block_count: 1
         first_block_text: "Hello world"
     okapi_refs:
-      - SplicedLinesFilterTest#testSingleLine
+      # testCombinedLines emits "Line 4" as a standalone TextUnit — a
+      # single unspliced logical line, the case this feature asserts.
+      - SplicedLinesFilterTest#testCombinedLines
     native_refs:
       - splicedlines.TestSingleLine
 
@@ -62,7 +72,10 @@ features:
         block_count: 1
         first_block_text: "Hello \nworld"
     okapi_refs:
-      - SplicedLinesFilterTest#testContinuationLine
+      # testCombinedLines splices "Line 1 \" + "Line 2 \" + "Line 3"
+      # into a single TextUnit — the trailing-backslash continuation
+      # this feature asserts.
+      - SplicedLinesFilterTest#testCombinedLines
     native_refs:
       - splicedlines.TestContinuationLine
 
@@ -84,7 +97,10 @@ features:
         block_count: 1
         first_block_text: "Line1 \nLine2 \nLine3"
     okapi_refs:
-      - SplicedLinesFilterTest#testMultipleContinuations
+      # testCombinedLines chains two splices across three physical lines
+      # ("Line 1 Line 2 Line 3") into one logical line / TextUnit — the
+      # multiple-continuation collapse this feature asserts.
+      - SplicedLinesFilterTest#testCombinedLines
     native_refs:
       - splicedlines.TestMultipleContinuations
 
@@ -110,6 +126,10 @@ features:
           - "Continued \nline"
           - "Another single"
     okapi_refs:
-      - SplicedLinesFilterTest#testMixedLines
+      # testCombinedLines interleaves a spliced logical line ("Line 1
+      # Line 2 Line 3") with an independent line ("Line 4") in the same
+      # document — exactly the mixed-line interleaving this feature
+      # asserts.
+      - SplicedLinesFilterTest#testCombinedLines
     native_refs:
       - splicedlines.TestMixedLines

@@ -169,6 +169,28 @@ type Example struct {
 	// (the divergence has been fixed — remove this tag).
 	ExpectedFail string `yaml:"expected_fail,omitempty"`
 
+	// DivergenceKind optionally attributes WHICH side is at fault for an
+	// ExpectedFail / parity_warn divergence, so the dashboard can colour
+	// the example by severity (only "native-bug" is alarming; everything
+	// else is correct-by-design or an upstream/transport issue). When
+	// empty, contract-audit infers the kind heuristically from the
+	// ExpectedFail reason text; an explicit value here always wins over
+	// the heuristic. Recognised values:
+	//
+	//   native-bug     — the neokapi reader is wrong (should be ~0).
+	//   bridge-gap     — okapi-bridge can't receive neokapi's config/rules
+	//                    over gRPC; native is correct.
+	//   okapi-bug      — upstream Okapi is wrong; native is correct.
+	//   scope-diff     — the Okapi filter has a different feature scope
+	//                    (e.g. Trados-tagged RTF only); native is correct.
+	//   default-diff   — Okapi's default config differs; same semantic
+	//                    config → same result; native is correct.
+	//   missing-filter — the bridge doesn't ship the okf_ filter; native
+	//                    is correct.
+	//   fixture        — a test-infra / synthetic-fixture artefact.
+	//   contract       — a parse-error-by-design (no blocks).
+	DivergenceKind string `yaml:"divergence_kind,omitempty"`
+
 	// ParityStrict promotes bridge↔native bytewise mismatch to a
 	// hard failure, even when both sides individually satisfy the
 	// spec assertions. Default false — divergent representations

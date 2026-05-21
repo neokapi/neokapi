@@ -23,9 +23,9 @@
 #     tests (TestExtract_Table, TestExtract_ImageCaption with
 #     `[[File:`-style markup, TestRoundTrip_WikiFiles, ...).
 #   - Per-feature divergences are surfaced as targeted `expected_fail:`
-#     blocks. Currently only `<file>` / `<code>` block-tag handling
-#     (#523) remains divergent — paragraph soft-break collapse (#522)
-#     and DokuWiki `{{image|caption}}` recognition (#521) are now
+#     blocks; this spec currently has none. `<file>` / `<code>`
+#     block-tag handling (#523), paragraph soft-break collapse (#522)
+#     and DokuWiki `{{image|caption}}` recognition (#521) are all
 #     aligned with the upstream WikiFilter contract.
 #   - okapi_refs target the four upstream test classes the wiki module
 #     exposes (WikiFilterTest, WikiWriterTest, plus RoundTripWikiIT
@@ -276,9 +276,10 @@ features:
       flow through as part of the surrounding paragraph's source text;
       the filter does not strip the tags or treat them as inline codes
       by default. Recognised DokuWiki tags such as `<file>` / `<code>`
-      block out their own non-translatable region — the bridge omits
-      `<file>` content from extraction even when followed by other
-      text on the same line.
+      block out their own non-translatable region — both the native
+      reader and the bridge cut the text unit off at `<file>` even when
+      it appears mid-line, so only the prose before the tag is
+      extracted.
     spec_refs:
       - "Okapi WikiFilter — Limitations: embedded HTML not extracted (https://okapiframework.org/wiki/index.php/Wiki_Filter)"
     examples:
@@ -290,23 +291,21 @@ features:
       - name: file_tag_truncates_extraction
         origin: "okapi-fixture: WikiFilterTest#testSimilarHtmlTags (`This is <file> a test.`)"
         input_xml: "This is <file> a test."
-        # Bridge recognises `<file>` as a DokuWiki code-block tag and
-        # treats everything from `<file>` onward as non-translatable,
-        # so only "This is" survives extraction. Native has no
-        # DokuWiki tag table and treats the entire line as plain text.
-        expected_fail: |
-          native bug — wiki reader does not honour the DokuWiki
-          `<file>` / `<code>` block tags, so it surfaces the entire
-          line `"This is <file> a test."` as a single Block. Bridge
-          correctly truncates extraction at `<file>` and emits only
-          `"This is"`. Tracked as a native bug (DokuWiki block-tag
-          recognition; tracked under #523).
+        # `<file>` is a real DokuWiki untranslatable block tag
+        # (WikiPatterns.FILE_START, `(?i)<file\b[^>]*>`). The native
+        # reader cuts the text unit off at the opener — even mid-line —
+        # so only "This is" is extracted; the `<file>` opener and the
+        # rest of the line are non-translatable. The sibling `<files>`
+        # case in the upstream test is defeated by the `\b` word
+        # boundary and passes through as plain text (see the
+        # bold_and_break_passthrough example for the passthrough shape).
         block_count: 1
         first_block_text: "This is"
     okapi_refs:
       - WikiFilterTest#testSimilarHtmlTags
     native_refs:
       - wiki.TestExtract_SimilarHtmlTags
+      - wiki.TestExtract_FileTagTruncatesExtraction
 
   # ── Empty / whitespace-only input ─────────────────────────────────
   - id: empty_input

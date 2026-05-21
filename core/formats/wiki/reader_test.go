@@ -260,6 +260,45 @@ func TestExtract_SimilarHtmlTags(t *testing.T) {
 	assert.True(t, found, "should extract text containing 'bold'")
 }
 
+// okapi: WikiFilterTest#testSimilarHtmlTags
+// Mirrors the upstream assertion that a real `<file>` block tag cuts the
+// surrounding text unit off at the opener (yielding "This is"), even
+// mid-line, while a near-miss `<files>` is not a tag and passes through.
+func TestExtract_FileTagTruncatesExtraction(t *testing.T) {
+	// `<file>` is a DokuWiki untranslatable block tag: extraction stops
+	// at the opener, so only the leading prose is translatable.
+	parts := readDefault(t, "This is <file> a test.")
+	blocks := testutil.FilterBlocks(parts)
+	require.Len(t, blocks, 1)
+	assert.Equal(t, "This is", blocks[0].SourceText())
+
+	// `<files>` is defeated by the `\b` word boundary in the opener
+	// pattern, so it is treated as plain text and flows through whole.
+	parts = readDefault(t, "This is <files> a test.")
+	blocks = testutil.FilterBlocks(parts)
+	require.Len(t, blocks, 1)
+	assert.Equal(t, "This is <files> a test.", blocks[0].SourceText())
+
+	// A `<code>` opener behaves identically.
+	parts = readDefault(t, "Before <code> after.")
+	blocks = testutil.FilterBlocks(parts)
+	require.Len(t, blocks, 1)
+	assert.Equal(t, "Before", blocks[0].SourceText())
+}
+
+// A mid-line `<file>…</file>` pair that closes on the same line leaves
+// only the prose before the opener translatable, and — crucially — the
+// block does not stay open, so the following line is extracted normally.
+// The remainder of the opener line (the bracketed region and any text
+// after the closer) is treated as the block's non-translatable content.
+func TestExtract_FileTagClosedInline(t *testing.T) {
+	parts := readDefault(t, "Lead <file>x = 1;</file>\nNext line.")
+	blocks := testutil.FilterBlocks(parts)
+	require.Len(t, blocks, 2)
+	assert.Equal(t, "Lead", blocks[0].SourceText())
+	assert.Equal(t, "Next line.", blocks[1].SourceText())
+}
+
 // okapi: WikiFilterTest#testComplexSeparatingWhitespace
 func TestExtract_ComplexSeparatingWhitespace(t *testing.T) {
 	wikiText := "First paragraph.\n\n\nSecond paragraph."

@@ -6,7 +6,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"strings"
 	"unicode/utf8"
 
@@ -282,21 +281,13 @@ func (r *Reader) readLogicalLines() []logicalLine {
 	inContinuation := false
 
 	for {
-		rawLine, err := br.ReadString('\n')
-		if rawLine == "" && err != nil {
+		content, lineEnding, eof := readPhysicalLine(br)
+		if content == "" && lineEnding == "" && eof {
 			break
 		}
-
-		// Split content from line ending
-		content := rawLine
-		lineEnding := ""
-		if strings.HasSuffix(content, "\r\n") {
-			content = content[:len(content)-2]
-			lineEnding = "\r\n"
-		} else if strings.HasSuffix(content, "\n") {
-			content = content[:len(content)-1]
-			lineEnding = "\n"
-		}
+		// The trailing physical line of the file (no terminator) is
+		// signalled by an empty lineEnding; the loop must still process
+		// its content before stopping on the next iteration.
 
 		if inContinuation {
 			contRawLines = append(contRawLines, content)
@@ -317,7 +308,7 @@ func (r *Reader) readLogicalLines() []logicalLine {
 				contRawLines = nil
 				contLineEndings = nil
 			}
-			if err != nil {
+			if eof {
 				break
 			}
 			continue
@@ -330,7 +321,7 @@ func (r *Reader) readLogicalLines() []logicalLine {
 				rawLines:    []string{content},
 				lineEndings: []string{lineEnding},
 			})
-			if err != nil {
+			if eof {
 				break
 			}
 			continue
@@ -345,7 +336,7 @@ func (r *Reader) readLogicalLines() []logicalLine {
 				rawLines:    []string{content},
 				lineEndings: []string{lineEnding},
 			})
-			if err != nil {
+			if eof {
 				break
 			}
 			continue
@@ -365,7 +356,7 @@ func (r *Reader) readLogicalLines() []logicalLine {
 			})
 		}
 
-		if err == io.EOF {
+		if eof {
 			break
 		}
 	}
@@ -380,6 +371,47 @@ func (r *Reader) readLogicalLines() []logicalLine {
 	}
 
 	return lines
+}
+
+// readPhysicalLine reads one physical line from br, recognising LF ("\n"),
+// CR ("\r") and CRLF ("\r\n") as line terminators — matching upstream
+// Okapi's PropertiesFilter, which reads via BufferedReader.readLine()
+// (LF/CR/CRLF per the Java contract). It returns the line content (without
+// the terminator), the terminator bytes that followed it (or "" for the
+// final unterminated line), and eof=true once no further bytes remain.
+//
+// Using bufio.ReadString('\n') alone would collapse bare-CR-separated
+// lines (classic-Mac / Java Properties \r terminators) into one logical
+// line; this byte-level scan splits them correctly while preserving the
+// exact terminator for byte-faithful skeleton reconstruction.
+func readPhysicalLine(br *bufio.Reader) (content, ending string, eof bool) {
+	var buf strings.Builder
+	for {
+		b, err := br.ReadByte()
+		if err != nil {
+			// EOF (or read error): whatever we have is the final line.
+			return buf.String(), "", true
+		}
+		switch b {
+		case '\n':
+			return buf.String(), "\n", false
+		case '\r':
+			// Peek for a following LF to recognise CRLF; otherwise the
+			// CR alone terminates the line.
+			next, err := br.ReadByte()
+			if err != nil {
+				return buf.String(), "\r", true
+			}
+			if next == '\n' {
+				return buf.String(), "\r\n", false
+			}
+			// Not part of a CRLF — push the byte back for the next read.
+			_ = br.UnreadByte()
+			return buf.String(), "\r", false
+		default:
+			buf.WriteByte(b)
+		}
+	}
 }
 
 // hasContinuation checks if a line ends with an odd number of backslashes

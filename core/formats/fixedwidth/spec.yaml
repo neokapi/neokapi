@@ -23,12 +23,14 @@
 #     translatable column indices). The translation lives in
 #     `cli/parity/formats/fixedwidth_bridge_config.go` so spec.yaml
 #     stays neokapi-canonical.
-#   - okapi_refs target the `net.sf.okapi.filters.table.fwc.
-#     FixedWidthColumnsFilterTest` class; the v3 test suite layout in
-#     Okapi 1.48.0 keeps the assertions inside `BaseTableFilterTest`
-#     and `CommaSeparatedValuesFilterTest`, so for the fwc-only paths
-#     (e.g. `fwc_test4`) the references point at the test fixture
-#     filename used by the upstream filter test.
+#   - okapi_refs target the `net.sf.okapi.filters.table.
+#     FixedWidthColumnsFilterTest` class (Okapi v1.48.0). The
+#     extraction contracts are exercised by the `testListedColumns*`
+#     family (listed source/target columns with explicit
+#     start/end positions) and `testHeader`; `testListedColumns4` /
+#     `testListedColumns5` drive the `fwc_test4.txt` / `fwc_test5.txt`
+#     fixtures. Trim and Unicode-rune behaviours have no dedicated
+#     upstream @Test, so those features carry native_refs only.
 #   - `trimMode` defaults differ: native `trimValues=false` (preserve
 #     pad whitespace); bridge `trimMode=2` + `trimLeading=true` /
 #     `trimTrailing=true` (trim both sides). The translator flips
@@ -161,8 +163,8 @@ features:
           - "Foo Bar        "
           - "Baz Qux        "
     okapi_refs:
-      - FixedWidthColumnsFilterTest#testBasicRead
-      - FixedWidthColumnsFilterTest#testMultipleRows
+      - FixedWidthColumnsFilterTest#testListedColumns
+      - FixedWidthColumnsFilterTest#testListedColumns2
     native_refs:
       - fixedwidth.TestFW_BasicRead
       - fixedwidth.TestFW_MultipleRows
@@ -192,7 +194,7 @@ features:
         no_block_with_text:
           - "Text"
     okapi_refs:
-      - FixedWidthColumnsFilterTest#testWithHeader
+      - FixedWidthColumnsFilterTest#testHeader
     native_refs:
       - fixedwidth.TestFW_WithHeader
 
@@ -219,8 +221,11 @@ features:
         block_texts:
           - "Hello World"
           - "Goodbye World"
-    okapi_refs:
-      - FixedWidthColumnsFilterTest#testBasicReadTrimmed
+    # No okapi_ref: FixedWidthColumnsFilterTest in Okapi v1.48.0 has no
+    # @Test asserting trim-on-extraction behaviour (trimMode is exercised
+    # only indirectly via the skeleton round-trip suites, which assert
+    # byte-identical output rather than trimmed cell text). The native
+    # trimValues=true contract is covered by native_refs only.
     native_refs:
       - fixedwidth.TestFW_BasicReadTrimmed
 
@@ -253,7 +258,7 @@ features:
             - {name: "second", start: 5, width: 5, translatable: false}
         block_count: 0
     okapi_refs:
-      - FixedWidthColumnsFilterTest#testAllTranslatable
+      - FixedWidthColumnsFilterTest#testListedColumns
     native_refs:
       - fixedwidth.TestFW_AllTranslatable
       - fixedwidth.TestFW_AllNonTranslatable
@@ -308,8 +313,8 @@ features:
           - "s3                 "
           - "s4                 "
     okapi_refs:
-      - FixedWidthColumnsFilterTest#testFwcTest4
-      - FixedWidthColumnsFilterTest#testFwcTest5
+      - FixedWidthColumnsFilterTest#testListedColumns4
+      - FixedWidthColumnsFilterTest#testListedColumns5
 
   # ── Short / under-specified lines ────────────────────────────────
   - id: short_lines
@@ -349,7 +354,12 @@ features:
           column) behavior.
         block_count: 0
     okapi_refs:
-      - FixedWidthColumnsFilterTest#testShortLine
+      # testListedColumns2 exercises the short-line case directly: line 4
+      # of csv_testa.txt is shorter than the column layout, so the second
+      # source column yields no TextUnit ("No 2-nd TU because the line 4
+      # is shorter, no src2"). Cells beyond the physical line end are
+      # tolerated and skipped — the same contract this feature asserts.
+      - FixedWidthColumnsFilterTest#testListedColumns2
     native_refs:
       - fixedwidth.TestFW_ShortLine
       - fixedwidth.TestFW_ColumnBeyondLineLength
@@ -372,8 +382,10 @@ features:
             - {name: "text", start: 0, width: 10, translatable: true}
         block_count: 1
         first_block_text: "Helloworld"
-    okapi_refs:
-      - FixedWidthColumnsFilterTest#testUnicodeContent
+    # No okapi_ref: FixedWidthColumnsFilterTest in Okapi v1.48.0 has no
+    # @Test that asserts Unicode-rune extraction for the fixed-width
+    # filter specifically. Rune-counted column extraction is a native
+    # contract covered by native_refs only.
     native_refs:
       - fixedwidth.TestFW_UnicodeContent
 

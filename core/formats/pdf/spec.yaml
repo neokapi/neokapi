@@ -10,20 +10,20 @@
 # round-trip through the filter does not preserve the original PDF
 # layout.
 #
-# The native Go reader at `core/formats/pdf/` is a regex-based content-
-# stream walker: it locates `stream`/`endstream` pairs in the raw PDF
-# bytes, decompresses FlateDecode segments, then runs four regex
-# patterns (`(text) Tj`, `(text) '`, `[(t) num (t)] TJ`, plus its
-# tokenizer for escape sequences inside the string literals) over
-# everything between `BT` and `ET` markers. It does not consult the
-# document's font dictionary, so PDFs whose strings are encoded as
-# glyph indices through a `ToUnicode` CMap surface as garbage or
-# nothing at all; it does not handle escaped parentheses inside string
-# literals because the capture group is `[^)]*`; and it has no
-# paragraph segmentation — every text run inside a page becomes one
-# Block joined with single spaces. These limitations are inherent to
-# the regex approach and are documented as `expected_fail` blocks on
-# the affected examples below.
+# The native Go reader at `core/formats/pdf/` is a content-stream
+# walker: it locates `stream`/`endstream` pairs in the raw PDF bytes,
+# inflates FlateDecode segments (zlib/RFC 1950 container, per ISO
+# 32000-1 §7.4.4.2, with a bare-DEFLATE fallback), then tokenises
+# everything between `BT` and `ET` markers, collecting the literal
+# (`(...)`) and hex (`<...>`) strings shown by the text-showing
+# operators `Tj`, `TJ`, `'`, `"`. The literal-string scanner honours
+# the full §7.3.4.2 grammar — `\(`, `\)`, `\\`, octal escapes, and
+# balanced nested parens. It does not consult the document's font
+# dictionary, so the minority of strings encoded as glyph indices
+# through a `ToUnicode` CMap (CID/Type0 fonts) are filtered out rather
+# than surfaced as garbage; and it has no paragraph segmentation —
+# every text run inside a page becomes one Block joined with single
+# spaces.
 #
 # ── Native vs bridge divergence (#461) ─────────────────────────────────
 # The two implementations share the same goal (extract text from PDF
@@ -40,20 +40,22 @@
 #     for either segmentation strategy and the bytewise difference
 #     surfaces as a parity_warn instead of a hard fail.
 #
-#   - Escape handling. The native regex `\(([^)]*)\)` doesn't recurse
-#     into balanced parens inside string literals, so PDFs with
-#     escaped parens (`\(`, `\)`) extract as zero blocks because the
-#     capture group never closes. PDFBox handles the PDF string
-#     grammar correctly (ISO 32000-1 §7.3.4.2 Literal Strings).
+#   - Escape handling. Both implementations now decode the full PDF
+#     literal-string grammar — `\(`, `\)`, `\\`, octal escapes, and
+#     balanced nested parens (ISO 32000-1 §7.3.4.2 Literal Strings).
+#     The native reader's string scanner walks the literal to its
+#     balanced closing paren rather than stopping at the first `)`.
 #
 #   - Glyph/CMap decoding. Real PDFs from word processors and
-#     ghostscript encode strings as glyph indices that map back to
-#     Unicode via a `ToUnicode` CMap. PDFBox consults the font and
-#     produces Unicode text; the native reader returns the raw byte
-#     contents of the string literal (often unprintable garbage).
-#     This means real-world fixtures (`okapi-testdata/.../*.pdf`)
-#     extract cleanly through the bridge but produce zero or garbled
-#     text through the native reader.
+#     ghostscript may encode some strings as glyph indices that map
+#     back to Unicode via a `ToUnicode` CMap (typically CID/Type0
+#     fonts shown as hex strings). PDFBox consults the font and
+#     produces Unicode text; the native reader does not parse the
+#     font's `ToUnicode` CMap, so those glyph-index runs are dropped
+#     (filtered to printable ASCII) rather than surfaced as garbage.
+#     Documents whose body text is in ordinary literal/array strings
+#     (the common case, including the PALC_2011 baseline) extract on
+#     both sides; the residual CMap gap is tracked separately.
 #
 #   - Configuration surface. The native reader's Config struct is
 #     empty — `ApplyMap` rejects every parameter with
@@ -77,13 +79,13 @@
 #   - Per the binary-format fixture rule (#515 / #461), the spec also
 #     exercises the upstream `okapi:okapi/filters/pdf/src/test/
 #     resources/PALC_2011_LT.pdf` baseline (see the
-#     `realworld_baseline_native_bridge_divergence` example below).
-#     The per-feature synth PDFs are kept here because the native
-#     regex reader can only consume PDFs without ToUnicode CMaps —
-#     the upstream files come from real authoring tools and use
-#     glyph-indexed strings that surface as garbage through the
-#     native reader (#510). Once #510 lands, the synth fixtures can
-#     be migrated to upstream where each feature has an equivalent.
+#     `real_world_compressed_pdf` feature below). After the FlateDecode
+#     (zlib) and balanced-paren fixes the native reader extracts this
+#     document's body text, which lives in ordinary literal/array
+#     strings. The per-feature synth PDFs are kept here because they
+#     pin individual operators precisely; fully glyph-indexed PDFs
+#     (strings shown through a font's `/ToUnicode` CMap) still need
+#     CMap parsing the native reader lacks — tracked as #617.
 #   - There is no public spec for "PDF text extraction" — the relevant
 #     normative reference is ISO 32000-1:2008 (the PDF reference, also
 #     republished as Adobe PDF 1.7 Reference). The text-showing
@@ -333,26 +335,17 @@ features:
       PDF string literals use `\(` and `\)` to embed parentheses
       inside the `(...)` delimiters. ISO 32000-1 §7.3.4.2 also
       defines `\\` (backslash), `\n`/`\r`/`\t`/`\b`/`\f` (control
-      characters), and `\nnn` (octal byte). The bridge's PDFBox
-      backend handles the full grammar; the native reader's regex
-      `\(([^)]*)\)` does not recurse into escaped delimiters and
-      misses any string containing `\(` or `\)`.
+      characters), and `\nnn` (octal byte). Both implementations
+      decode the full grammar: the bridge's PDFBox backend and the
+      native reader's literal-string scanner, which walks to the
+      balanced closing paren and resolves each escape rather than
+      stopping at the first `)`.
     spec_refs:
       - "ISO 32000-1:2008 §7.3.4.2 Literal Strings (escape sequences for parens, backslash, octal) — open-access copy at opensource.adobe.com/dc-acrobat-sdk-docs/pdfstandards/PDF32000_2008.pdf"
     examples:
       - name: cost_with_escaped_parens
         origin: "authored: testdata/special.pdf — Tj operator with escaped parens, escaped backslash, and octal escape (\\101 → 'A')"
         input_file: testdata/special.pdf
-        expected_fail: |
-          native bug — the regex `\(([^)]*)\)\s*Tj` in
-          core/formats/pdf/reader.go does not allow escaped `\)` in
-          the capture group, so a string like `(Cost: \(US\$50\) \\
-          \101OK)` never matches and the block is dropped entirely
-          (zero blocks extracted). PDFBox correctly decodes the
-          string per ISO 32000-1 §7.3.4.2. Tracked as #510 (native
-          bug filed alongside this spec) — fixing it requires
-          replacing the regex tokenizer with a small PDF
-          string-literal parser.
         block_count: 1
         first_block_text: "Cost: (US$50) \\ AOK"
     okapi_refs:
@@ -386,14 +379,18 @@ features:
     name: Real PDF with compressed streams and ToUnicode CMap
     description: |
       Real-world PDFs (produced by word processors, ghostscript, or
-      desktop publishing tools) compress content streams via
-      FlateDecode and encode strings as glyph indices that map back
-      to Unicode through a `ToUnicode` CMap on the font dictionary.
-      The bridge's PDFBox backend honours the CMap and produces
-      Unicode text; the native reader walks string literals as raw
-      bytes without consulting the font, so glyph-index strings
-      surface as garbage or — when the entire stream uses
-      glyph-index encoding — as zero blocks.
+      desktop publishing tools) compress their content streams with
+      FlateDecode. The native reader inflates them using the zlib/
+      RFC 1950 container PDF mandates for FlateDecode (ISO 32000-1
+      §7.4.4.2) — the earlier code used bare RFC 1951 DEFLATE and so
+      silently dropped every compressed stream. With inflation fixed,
+      documents whose body text is shown via ordinary literal/array
+      strings (the PALC_2011 baseline) extract on both the native
+      reader and the bridge. Some real PDFs additionally encode runs
+      as glyph indices that map back to Unicode through a `/ToUnicode`
+      CMap on a CID/Type0 font; the bridge's PDFBox backend honours
+      the CMap, while the native reader does not yet parse it and
+      filters those glyph-index runs out (tracked as #617).
     spec_refs:
       - "ISO 32000-1:2008 §9.10.3 ToUnicode CMaps (mapping character codes to Unicode) — open-access copy at opensource.adobe.com/dc-acrobat-sdk-docs/pdfstandards/PDF32000_2008.pdf"
       - "ISO 32000-1:2008 §7.4.4 LZWDecode and FlateDecode Filters (compressed content streams) — open-access copy at opensource.adobe.com/dc-acrobat-sdk-docs/pdfstandards/PDF32000_2008.pdf"
@@ -401,14 +398,16 @@ features:
       - name: palc_2011
         origin: "okapi-fixture: okapi:okapi/filters/pdf/src/test/resources/PALC_2011_LT.pdf (real-world 11-page conference paper, ghostscript-produced)"
         input_file: okapi:okapi/filters/pdf/src/test/resources/PALC_2011_LT.pdf
-        expected_fail: |
-          native bug — the regex content-stream walker in
-          core/formats/pdf/reader.go cannot decode glyph-index strings
-          via a font's ToUnicode CMap (it has no font handling at
-          all), so this 11-page paper extracts zero Blocks instead of
-          the body text the bridge recovers. Tracked as #510 (native
-          bug filed alongside this spec) along with the escape-paren
-          gap. PDFBox handles both correctly.
+        # The native reader now inflates this document's FlateDecode
+        # streams correctly (zlib/RFC 1950 container, not bare RFC 1951
+        # DEFLATE — see core/formats/pdf/reader.go flateDecode) and the
+        # body text lives in printable literal/array strings, so it
+        # recovers Blocks. block_count_min keeps the contract
+        # segmentation-agnostic (native = one Block/page, bridge =
+        # one Block/paragraph). The few CID-font glyph-index runs
+        # encoded as hex strings still need a ToUnicode CMap the native
+        # reader does not consult, but they are a small minority of this
+        # document's text and do not affect block presence.
         block_count_min: 1
     okapi_refs:
       - PdfFilterTest#firstTextUnit
