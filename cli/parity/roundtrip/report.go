@@ -465,25 +465,25 @@ type fixturesJSON struct {
 // Status values:
 //
 //   - "covered"        — bridge + native + round-trip fixtures present
-//                        AND the suite actually exercises them.
+//     AND the suite actually exercises them.
 //   - "scan-missing"   — bridge + native present, upstream Okapi has
-//                        fixtures for this format (.odt files for odf,
-//                        .pdf for pdf, …), but our cli/parity/roundtrip
-//                        coverageScans() doesn't include it. Adding a
-//                        scan entry is the work.
+//     fixtures for this format (.odt files for odf,
+//     .pdf for pdf, …), but our cli/parity/roundtrip
+//     coverageScans() doesn't include it. Adding a
+//     scan entry is the work.
 //   - "no-upstream"    — bridge + native present, and upstream Okapi
-//                        truly has no test corpus to run. Either no
-//                        upstream pipeline produces a usable reference
-//                        (rtf has only tradosrtf; txml NPEs on merge)
-//                        or the scan needs special setup the harness
-//                        can't autodetect (srt needs .fprm rules).
+//     truly has no test corpus to run. Either no
+//     upstream pipeline produces a usable reference
+//     (rtf has only tradosrtf; txml NPEs on merge)
+//     or the scan needs special setup the harness
+//     can't autodetect (srt needs .fprm rules).
 //   - "bridge-only"    — bridge filter exists, no Go port yet. Typically
-//                        binary-corpus formats (pdf, rtf, archive,
-//                        sdlpackage, pensieve, …) where neokapi hasn't
-//                        built a native reader/writer.
+//     binary-corpus formats (pdf, rtf, archive,
+//     sdlpackage, pensieve, …) where neokapi hasn't
+//     built a native reader/writer.
 //   - "native-only"    — Go port exists, no bridge filter. neokapi-only
-//                        formats (jsx, klf, versifiedtext, messageformat) —
-//                        no Okapi reference to compare against.
+//     formats (jsx, klf, versifiedtext, messageformat) —
+//     no Okapi reference to compare against.
 type coverageMapEntry struct {
 	ID                string `json:"id"`
 	BridgeFilter      string `json:"bridge_filter,omitempty"`
