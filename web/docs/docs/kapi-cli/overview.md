@@ -13,8 +13,9 @@ Kapi is a standalone localization toolkit that:
 
 - Processes files directly (no project initialization needed)
 - Runs translation flows with AI, MT, TM, and QA tools
-- Supports 15+ file formats with automatic detection
-- Extends via gRPC plugins (including 40+ Okapi bridge filters)
+- Reads and writes many file formats with automatic detection (see the
+  [Format Reference](/formats))
+- Extends via gRPC plugins, including the Okapi bridge to the Java filters
 
 ## Key Commands
 

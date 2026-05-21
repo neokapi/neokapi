@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils'
 const CLI_METHODS = [
   {
     label: 'Homebrew',
-    command: 'brew install neokapi/tap/kapi-cli',
+    command: 'brew install neokapi/tap/kapi',
   },
   {
     label: 'Binary',
@@ -19,8 +19,8 @@ kapi pseudo-translate messages.json --target-lang qps -o messages_qps.json
 # Count words for cost estimation
 kapi word-count messages.json
 
-# Translate with AI
-kapi run translate -i input.html -o output.html \\
+# Translate with AI, then run a QA check
+kapi run ai-translate-qa -i input.html -o output.html \\
   --source-lang en --target-lang fr
 
 # Explore what's available

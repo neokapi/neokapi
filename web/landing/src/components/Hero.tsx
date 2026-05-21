@@ -3,19 +3,18 @@ import { ChevronRight } from 'lucide-react'
 
 const COMMANDS = [
   {
-    cmd: 'kapi run translate -i app.json -o out/ --target-lang fr,de,ja',
+    cmd: 'kapi run ai-translate-qa -i app.json -o app.fr.json --source-lang en --target-lang fr',
     lines: [
       { text: 'Reading app.json (JSON format detected)', color: 'text-neutral-500' },
-      { text: 'Flow: translate (3 tools)', color: 'text-neutral-500' },
-      { text: '  [1/3] terminology-lookup    23 terms matched', color: 'text-brand-400' },
-      { text: '  [2/3] ai-translate           claude-sonnet-4-5', color: 'text-brand-400' },
-      { text: '  [3/3] qa-check              0 issues', color: 'text-brand-400' },
-      { text: 'Written: out/app_fr.json, out/app_de.json, out/app_ja.json', color: 'text-brand-300' },
+      { text: 'Flow: ai-translate-qa (ai-translate → ai-qa)', color: 'text-neutral-500' },
+      { text: '  [1/2] ai-translate    provider: anthropic', color: 'text-brand-400' },
+      { text: '  [2/2] ai-qa           0 issues', color: 'text-brand-400' },
+      { text: 'Written: app.fr.json', color: 'text-brand-300' },
       { text: '142 segments translated in 3.2s', color: 'text-accent-amber' },
     ],
   },
   {
-    cmd: 'kapi pseudo-translate src/messages.json --target-lang qps',
+    cmd: 'kapi pseudo-translate src/messages.json --target-lang qps -o src/messages_qps.json',
     lines: [
       { text: 'Reading src/messages.json (JSON format detected)', color: 'text-neutral-500' },
       { text: '"Welcome back"  ->  "[Wëlçömë ƀäçk]"', color: 'text-brand-400' },
@@ -26,7 +25,7 @@ const COMMANDS = [
     ],
   },
   {
-    cmd: 'kapi word-count docs/**/*.md --format table',
+    cmd: 'kapi word-count docs/*.md',
     lines: [
       { text: 'Scanning 24 files (Markdown format detected)', color: 'text-neutral-500' },
       { text: 'File                Words    Segments', color: 'text-neutral-600' },
@@ -108,13 +107,11 @@ export function Hero() {
             className="h-28 w-28 animate-float drop-shadow-[0_0_30px_rgba(37,194,160,0.2)]"
           />
           <h1 className="font-display text-4xl font-extrabold leading-[1.1] tracking-tight text-white sm:text-5xl md:text-6xl lg:text-7xl">
-            Localization{' '}
+            Localization pipelines,{' '}
             <br className="hidden sm:block" />
             <span className="bg-gradient-to-r from-brand-400 via-brand-300 to-forest-400 bg-clip-text text-transparent text-glow">
-              Plumbing and Glue
+              composable in Go.
             </span>
-            <br className="hidden sm:block" />
-            for people and agents.
           </h1>
         </div>
 

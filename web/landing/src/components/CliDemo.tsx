@@ -4,8 +4,8 @@ import { cn } from '@/lib/utils'
 const TABS = [
   {
     label: 'AI Translate',
-    cmd: 'kapi ai-translate -i src/en.json \\\n  --target-lang fr,de,ja,ko \\\n  --source-lang en \\\n  -o translations/',
-    description: 'Translate files into multiple languages with a single command. Uses AI models with terminology lookup and QA built into the flow.',
+    cmd: 'kapi ai-translate -i src/en.json \\\n  --source-lang en \\\n  --target-lang fr \\\n  -o src/fr.json',
+    description: 'Translate a file with an AI model. Compose it into a flow with terminology lookup and QA, or run it on its own.',
   },
   {
     label: 'Pseudo',
@@ -14,18 +14,18 @@ const TABS = [
   },
   {
     label: 'Word Count',
-    cmd: 'kapi word-count "docs/**/*.md" \\\n  --format json',
+    cmd: 'kapi word-count "docs/**/*.md" --json',
     description: 'Count translatable words and segments across any file format. Get cost estimates before sending content for translation.',
   },
   {
     label: 'Terminology',
-    cmd: 'kapi termbase import glossary.csv \\\n  --format csv \\\n  --source-lang en \\\n  --target-lang fr,de',
-    description: 'Import terminology from CSV, JSON, or TBX. Enforce consistent terminology across all translations automatically.',
+    cmd: 'kapi termbase import glossary.csv \\\n  --format csv \\\n  -s en \\\n  -t fr',
+    description: 'Import terminology from CSV, TSV, or JSON. Enforce consistent terminology across translations with the term-enforce tool.',
   },
   {
     label: 'Formats',
-    cmd: 'kapi formats\n\n# 42 formats supported:\n# HTML, XML, XLIFF 1.2, XLIFF 2.0, JSON,\n# YAML, PO, Properties, Markdown, CSV,\n# SRT, VTT, TMX, Plaintext, ...\n# + 40 more via Okapi bridge plugin',
-    description: 'Explore all supported file formats. Neokapi auto-detects formats by extension, MIME type, or content sniffing.',
+    cmd: 'kapi formats\n\n# built-in readers and writers:\n# HTML, XML, XLIFF 1.2, XLIFF 2.0, JSON,\n# YAML, PO, Properties, Markdown, CSV,\n# SRT, VTT, TMX, Plaintext, ...\n# more via the Okapi bridge plugin',
+    description: 'Explore the supported file formats. Neokapi detects formats by extension, MIME type, or content sniffing.',
   },
 ]
 

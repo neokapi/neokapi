@@ -5,7 +5,7 @@ title: Okapi Bridge
 
 # Okapi Bridge
 
-The Okapi bridge provides access to all 40+ Okapi Framework filters without rewriting them in Go. It works by running a subprocess that hosts an adapter translating between neokapi's Part model and Okapi's Event model. The current implementation runs a JVM, but the bridge protocol is gRPC-based and language-agnostic.
+The Okapi bridge provides access to the Okapi Framework filters without rewriting them in Go. It works by running a subprocess that hosts an adapter translating between neokapi's Part model and Okapi's Event model. The current implementation runs a JVM, but the bridge protocol is gRPC-based and language-agnostic.
 
 ## How It Works
 

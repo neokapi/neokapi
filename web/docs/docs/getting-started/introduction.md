@@ -10,9 +10,8 @@ neokapi is an open-source localization framework in Go. It provides format-aware
 
 ## What is neokapi?
 
-neokapi consists of two products:
-
-- **Neokapi Framework + Kapi CLI** — open-source localization engine and command-line tool for file processing
+neokapi is an open-source localization engine (a Go framework) together with
+**kapi**, a command-line tool that exposes the engine for file-based work.
 
 ## Kapi CLI
 
@@ -37,15 +36,21 @@ kapi termbase import terms.csv --format csv -s en -t fr
 
 No project initialization, server, or configuration required — kapi operates directly on files.
 
-## Key Features
+## Capabilities
 
-- **15+ formats** — HTML, XML, XLIFF, XLIFF 2, JSON, YAML, PO, Properties, Plaintext, Markdown, CSV, SRT, VTT, TMX
-- **Channel-based pipeline** — Concurrent streaming with goroutines, buffered channels, and automatic backpressure
-- **AI-native tools** — LLM integration with Anthropic, OpenAI, Google Gemini, and Ollama, plus 5 MT services (DeepL, Google, Microsoft, ModernMT, MyMemory)
-- **Translation memory** — Built-in Sievepen TM with Levenshtein fuzzy matching and TMX import/export
-- **Terminology management** — Concept-oriented termbase with pipeline enforcement tools
-- **Plugin system** — Crash-isolated gRPC plugins in any language, plus the Okapi bridge for 40+ additional filters
-- **Quality assurance** — Rule-based and AI-powered QA checks
+neokapi reads and writes localization, document, data, subtitle, and office
+formats, detecting the format from extension, MIME type, or content (see the
+[Format Reference](/formats) for the current set). Content moves through a
+channel-based pipeline in which each tool runs in its own goroutine, connected
+by buffered channels with backpressure.
+
+The processing tools include LLM-assisted translation, QA, and review (Anthropic,
+OpenAI, Google Gemini, and Ollama), machine-translation backends (DeepL, Google,
+Microsoft, ModernMT, MyMemory), a content-aware translation memory
+([Sievepen](/features/translation-memory)) with TMX import/export, and
+concept-oriented [terminology](/features/terminology) with pipeline enforcement.
+The format and tool sets extend through crash-isolated gRPC plugins and a bridge
+to the Java Okapi filters.
 
 ## Architecture Overview
 

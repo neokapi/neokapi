@@ -143,7 +143,7 @@ core/
     editor/           Block index serialization and preview generation
     id/               Short base62 ID generation
     version/          Build version info
-    formats/          Built-in format implementations (15 formats)
+    formats/          Built-in format implementations
     tools/            Built-in utility tools
     plugin/           Plugin system: gRPC host, Java bridge, loader, registry
     storage/          Shared SQLite DB infrastructure
@@ -231,8 +231,9 @@ their boundaries so invalid codes never propagate silently.
   force kapi or kapi-desktop rebuilds of unrelated code.
 - Framework packages are organized under `core/`, `sievepen/`, `termbase/`,
   `providers/`, giving a clean separation of concerns at the directory level.
-- Four `go.mod` files need maintenance, but `go.work` makes daily development
-  seamless and GoReleaser handles multi-module release builds.
+- Four `go.mod` files need maintenance, but `go.work` resolves cross-module
+  imports during daily development and GoReleaser handles multi-module release
+  builds.
 - License-clean: Apache-2.0 framework modules never accidentally pull AGPL
   code, enforced by import-path topology.
 - The shared CLI base lets kapi and kapi-desktop expose identical commands

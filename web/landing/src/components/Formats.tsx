@@ -1,19 +1,19 @@
 const FORMAT_GROUPS = [
   {
     category: 'Localization',
-    formats: ['XLIFF 1.2', 'XLIFF 2.0', 'PO/POT', 'TMX', 'TBX', 'Properties', 'RESX'],
+    formats: ['XLIFF 1.2', 'XLIFF 2.0', 'PO/POT', 'TMX', 'Qt TS', 'Properties'],
   },
   {
     category: 'Data',
-    formats: ['JSON', 'YAML', 'CSV', 'XML'],
+    formats: ['JSON', 'YAML', 'CSV', 'TSV', 'XML'],
   },
   {
     category: 'Content',
-    formats: ['HTML', 'Markdown', 'Plaintext', 'SRT', 'VTT'],
+    formats: ['HTML', 'Markdown', 'Plaintext', 'SRT', 'VTT', 'DTD'],
   },
   {
-    category: 'Via Okapi Bridge',
-    formats: ['DOCX', 'XLSX', 'PPTX', 'EPUB', 'PDF', 'IDML', 'DTD', 'PHP', 'TS', '...40+'],
+    category: 'Office & publishing',
+    formats: ['DOCX', 'XLSX', 'PPTX', 'ODF', 'EPUB', 'PDF', 'IDML', 'MIF'],
   },
 ]
 
@@ -23,11 +23,12 @@ export function Formats() {
       <div className="mx-auto max-w-6xl">
         <div className="mb-12 text-center">
           <h2 className="font-display text-3xl font-bold tracking-tight text-white sm:text-4xl">
-            Every format your team uses
+            The formats your content lives in
           </h2>
           <p className="mx-auto mt-4 max-w-2xl text-lg text-neutral-400">
-            Built-in support for major localization, data, and document formats.
-            Auto-detection by extension, MIME type, or content sniffing.
+            Native readers and writers for localization, data, content, and
+            office formats, detected by extension, MIME type, or content. The
+            Okapi bridge plugin adds further Java filters.
           </p>
         </div>
 

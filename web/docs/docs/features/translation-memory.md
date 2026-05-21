@@ -1,40 +1,51 @@
 ---
-sidebar_position: 3
 title: Translation Memory
 ---
 
 # Translation Memory
 
-neokapi includes **Sievepen**, a built-in content-aware translation memory (TM) system with tiered matching, fuzzy matching, and TMX import/export.
+neokapi's translation memory is **Sievepen** (`sievepen/`). Unlike traditional
+TMs that store plain strings, Sievepen works with the full content model — it
+stores `Fragment` objects (coded text with inline markup) and matches them in
+three tiers with entity-aware adaptation. The same engine backs the `kapi tm`
+commands, the `tm-leverage` pipeline tool, and the Go library.
 
-## Content-Aware Matching
+## Content-aware matching
 
-Unlike traditional TMs that store plain strings, Sievepen works with the full content model. It stores `Fragment` objects (coded text with inline markup) and supports three matching tiers, tried in order:
+Each entry is indexed under three keys, tried in order, so the highest-quality
+match is returned first:
 
-| Tier | Match Type      | Description                                                                                                                                                                                  |
-| ---- | --------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1    | **Generalized** | Entity-aware: named entities (people, products, dates) are replaced with typed placeholders. Matches segments with different entity values (e.g., "Welcome, John" matches "Welcome, Alice"). |
-| 2    | **Structural**  | Inline-code-aware: inline markup (`<b>`, `<a href>`, etc.) is normalized. Matches segments with different formatting.                                                                        |
-| 3    | **Plain**       | Text-only: standard Levenshtein fuzzy matching on plain text.                                                                                                                                |
+| Tier | Match type      | Normalizes                          | Example                                    |
+| ---- | --------------- | ----------------------------------- | ------------------------------------------ |
+| 1    | **Generalized** | Named entities → typed placeholders | "Welcome, John" → "Welcome, \{PERSON\}"    |
+| 2    | **Structural**  | Inline markup → normalized codes    | "Click **here**" → "Click \{1\}here\{/1\}" |
+| 3    | **Plain**       | Nothing (raw text)                  | Levenshtein fuzzy matching                 |
 
-Each tier can produce exact (100%) or fuzzy matches. When a generalized exact match is found, entity values from the current source are adapted into the stored target.
+Each tier yields exact (100%) or fuzzy matches. When a generalized exact match
+is found, entity values from the current source are adapted into the stored
+target — so "Welcome, Bob" → "Bienvenue, Bob" adapts to "Welcome, Alice" →
+"Bienvenue, Alice" at 100%. This ordering mirrors how a translator evaluates
+matches: entity differences matter less than structural ones, which matter less
+than textual changes.
 
-## Storage Backends
+## Storage backends
 
-Two storage tiers ship with the framework:
+Two backends ship in the `sievepen/` package, both implementing the
+`TranslationMemory` interface with full tier support:
 
-1. **In-memory** (`core/sievepen/`) — fast, ephemeral. Used for session-scoped batch processing.
-2. **SQLite** (`cli/storage/sievepen/`) — persistent file-based storage for CLI tools. Designed for single-user, file-based workflows.
+1. **In-memory** (`sievepen.NewInMemoryTM`) — fast and ephemeral, used for
+   session-scoped batch processing.
+2. **SQLite** (`sievepen.NewSQLiteTM`) — persistent file-based storage for CLI
+   workflows.
 
-All backends implement the same `TranslationMemory` interface and support all matching tiers. The interface supports server-side backends for multi-user deployments with project scoping, streams, and workspace isolation.
+The interface also accommodates server-side backends for multi-user
+deployments with project scoping, streams, and workspace isolation. Fuzzy
+matching uses Levenshtein edit distance with a configurable threshold (default
+0.70); results are sorted by score and then by tier.
 
-## Fuzzy Matching
+## CLI usage
 
-Sievepen uses Levenshtein edit distance with a configurable threshold (default 70%). Results are sorted by score (highest first) and by match tier (generalized > structural > plain).
-
-## CLI Usage
-
-### Resource Location
+### Resource location
 
 All TM commands (except `list`) accept these mutually exclusive flags:
 
@@ -47,43 +58,25 @@ All TM commands (except `list`) accept these mutually exclusive flags:
 
 Databases are created on demand if they don't exist.
 
-### Commands
-
 ```bash
-# Import TMX
 kapi tm import translations.tmx --name project-tm -s en -t fr
-
-# Export TMX
 kapi tm export --name project-tm -s en -t fr -o output.tmx
-
-# Look up text
 kapi tm lookup "Welcome to our platform" --name project-tm -s en -t fr
-
-# Search entries
 kapi tm search "welcome" --name project-tm -s en
-
-# Statistics
 kapi tm stats --name project-tm
-
-# List named TMs
 kapi tm list
 ```
 
-## Pipeline Integration
+## Pipeline integration
 
-The `tm-leverage` tool queries the TM for each Block's source segments and applies matches:
+The `tm-leverage` tool queries the TM for each Block's source segments and
+applies matches. Exact matches skip AI translation, reducing cost and latency;
+fuzzy matches are attached as `AltTranslation` annotations for translator
+review.
 
 ```bash
-# Use a named TM from KAPI_HOME
-kapi ai-translate -i input.html -o output.html -s en -t fr \
-  --tm project-tm
-
-# TM leverage is automatic when --tm is specified
+kapi ai-translate -i input.html -o output.html -s en -t fr --tm project-tm
 ```
-
-TM exact matches skip AI translation, reducing cost and latency. Fuzzy matches are attached as `AltTranslation` annotations for translator review.
-
-## Configuration
 
 ```yaml
 tools:
@@ -92,11 +85,111 @@ tools:
     max_results: 10 # maximum matches per block
 ```
 
-## Design Decision: Separate TM and Termbase
+## Go library
 
-TM and terminology are **separate systems** in neokapi with fundamentally different data shapes:
+### Interface
 
-- **TM entries** are segment pairs (source fragment → target fragment) with inline markup preservation
-- **Termbase concepts** are multi-term, multi-locale knowledge units with lifecycle statuses
+```go
+type TranslationMemory interface {
+    Add(entry TMEntry) error
+    Lookup(source *model.Block, sourceLocale, targetLocale model.LocaleID,
+        opts LookupOptions) ([]TMMatch, error)
+    LookupText(source string, sourceLocale, targetLocale model.LocaleID,
+        opts LookupOptions) ([]TMMatch, error)
+    Delete(id string) error
+    Count() int
+    Close() error
+}
+```
 
-The `Block` annotation system serves as the integration point: both TM matches and term matches are attached as annotations during pipeline processing, making them available to any downstream tool or editor.
+`Lookup` takes a full `*model.Block` and uses its `Fragment` for tiered
+matching; `LookupText` takes a plain string and performs plain-tier matching
+only. Both SQLite and in-memory backends also implement `EntryProvider`
+(`Entries()` and paginated `SearchEntries(...)`) for export and browsing.
+
+### Key types
+
+```go
+type TMEntry struct {
+    ID           string
+    Source       *model.Fragment // coded text + inline spans
+    Target       *model.Fragment
+    SourceLocale model.LocaleID
+    TargetLocale model.LocaleID
+    Entities     []EntityMapping // entity placeholders
+    Annotations  map[string]model.Annotation
+    Properties   map[string]string
+    CreatedAt    time.Time
+    UpdatedAt    time.Time
+}
+
+type TMMatch struct {
+    Entry             TMEntry
+    Score             float64 // 0.0-1.0
+    MatchType         MatchType
+    EntityAdaptations []EntityAdaptation // entity value substitutions
+}
+
+type LookupOptions struct {
+    MinScore   float64     // minimum match score (default 0.7)
+    MaxResults int         // max results to return (default 10)
+    MatchModes []MatchMode // which tiers to use (default: all)
+}
+```
+
+`MatchType` ranges from `generalized-exact` (highest reuse) through
+`structural-exact`, `exact`, the corresponding fuzzy variants, down to `fuzzy`.
+`TMEntry` helpers: `SourceText()`, `TargetText()`, `SourceStructural()`,
+`SourceGeneralized()`. The `EntityAdaptations` field on a match lists each
+substitution with its position so consumers can apply adaptations precisely.
+
+### Example
+
+```go
+package main
+
+import (
+    "fmt"
+
+    "github.com/neokapi/neokapi/core/model"
+    "github.com/neokapi/neokapi/sievepen"
+)
+
+func main() {
+    tm := sievepen.NewInMemoryTM()
+    defer tm.Close()
+
+    tm.Add(sievepen.TMEntry{
+        ID:           "e1",
+        Source:       model.NewFragment("Welcome to our platform"),
+        Target:       model.NewFragment("Bienvenue sur notre plateforme"),
+        SourceLocale: "en",
+        TargetLocale: "fr",
+    })
+
+    block := model.NewBlock("b1", "Welcome to our platform")
+    matches, err := tm.Lookup(block, "en", "fr", sievepen.DefaultLookupOptions())
+    if err != nil {
+        panic(err)
+    }
+    for _, m := range matches {
+        fmt.Printf("Score: %.0f%% Type: %s Target: %s\n",
+            m.Score*100, m.MatchType, m.Entry.TargetText())
+    }
+}
+```
+
+### TMX import / export
+
+```go
+count, err := sievepen.ImportTMX(tm, reader, "en", "fr")
+err = sievepen.ExportTMX(tm, writer, "en", "fr") // requires EntryProvider
+```
+
+## Translation memory and terminology
+
+TM and [terminology](/features/terminology) are deliberately separate systems
+with different data shapes — TM stores segment pairs, terminology stores
+multi-locale concepts. They share the `Block` annotation system as their
+integration point, so both kinds of match are available to any downstream tool
+or editor.

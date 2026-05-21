@@ -34,23 +34,23 @@ type ProductItem = {
 
 const NeokapiFeatures: ProductItem[] = [
   {
-    title: "41+ Formats & Plugins",
+    title: "Formats & plugins",
     description:
-      "HTML, XML, XLIFF, JSON, YAML, PO, Markdown, OpenXML, InDesign, and more. Crash-isolated gRPC plugins in any language. Java bridge for 40+ Okapi filters.",
+      "Readers and writers for localization, document, data, subtitle, and office formats, extended by crash-isolated gRPC plugins and a bridge to the Java Okapi filters.",
     link: "/features/formats",
     linkText: "Formats",
   },
   {
-    title: "AI-native Tools",
+    title: "AI-native tools",
     description:
-      "LLM-powered translation, QA, terminology, and review. Anthropic, OpenAI, Ollama, plus 5 MT services compose in the same pipeline.",
+      "LLM-assisted translation, QA, terminology, and review compose in the same pipeline as machine-translation backends and rule-based checks.",
     link: "/features/ai-translation",
-    linkText: "AI Translation",
+    linkText: "AI translation",
   },
   {
-    title: "Streaming Pipeline",
+    title: "Streaming pipeline",
     description:
-      "Concurrent processing with goroutines and buffered channels. Automatic backpressure and context cancellation. Low memory, high throughput.",
+      "Each tool runs in its own goroutine, connected by buffered channels with backpressure and context cancellation.",
     link: "/developer/architecture",
     linkText: "Architecture",
   },

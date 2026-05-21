@@ -17,7 +17,7 @@ kapi plugins <command> [flags]
 
 ### Plugins vs Bundles
 
-A **plugin** is a standalone format reader/writer or processing tool. A **bundle** is a collection of formats and/or tools distributed as a single installable unit. The Okapi bridge is the canonical bundle — it provides 40+ format filters in one package.
+A **plugin** is a standalone format reader/writer or processing tool. A **bundle** is a collection of formats and/or tools distributed as a single installable unit. The Okapi bridge is the canonical bundle — it provides many format filters in one package.
 
 When you install a bundle, its individual capabilities (formats, tools) are registered separately. You can reference individual formats from a bundle (e.g., `okapi-html`) in flows and commands without knowing they came from a bundle.
 
@@ -94,7 +94,7 @@ Plugins are stored in `~/.config/kapi/plugins/`. Multiple versions can be instal
 
 ## Okapi Bridge Bundle
 
-The Okapi bridge bundle provides access to 40+ Okapi format filters:
+The Okapi bridge bundle provides access to the Okapi format filters:
 
 ```bash
 kapi plugins install okapi

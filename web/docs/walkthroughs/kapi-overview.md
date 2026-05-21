@@ -22,7 +22,7 @@ thing someone sees on the kapi docs landing page.
 ## Scene 1 — overview (terminal)
 
 Run `kapi --help` to see the top-level commands, then `kapi formats` to enumerate
-the 41+ format readers, then `kapi tools` for the processing tools registry.
+the available format readers, then `kapi tools` for the processing tools registry.
 The recording paces through each command with enough sleep to read the output.
 
 ## Closing
