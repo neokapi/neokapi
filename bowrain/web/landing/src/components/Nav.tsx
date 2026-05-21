@@ -1,5 +1,6 @@
-import { Github, Terminal, Menu, X } from 'lucide-react'
+import { Terminal, Menu, X } from 'lucide-react'
 import { useState } from 'react'
+import { GithubIcon } from './GithubIcon'
 
 export function Nav() {
   const [open, setOpen] = useState(false)
@@ -27,7 +28,7 @@ export function Nav() {
             rel="noopener"
             className="flex items-center gap-2 rounded-lg border border-neutral-700 px-3 py-1.5 text-sm text-neutral-300 transition hover:border-neutral-500 hover:text-white"
           >
-            <Github className="h-4 w-4" />
+            <GithubIcon className="h-4 w-4" />
             GitHub
           </a>
           <a

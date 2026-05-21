@@ -1,4 +1,5 @@
-import { Terminal, Github, MessageSquare } from 'lucide-react'
+import { Terminal, MessageSquare } from 'lucide-react'
+import { GithubIcon } from './GithubIcon'
 
 export function CTA() {
   return (
@@ -34,7 +35,7 @@ export function CTA() {
           href="#open-source"
           className="group rounded-xl border border-neutral-800 bg-neutral-900/30 p-8 transition hover:border-brand-500/50 hover:bg-brand-500/5"
         >
-          <Github className="mb-4 h-8 w-8 text-brand-400" />
+          <GithubIcon className="mb-4 h-8 w-8 text-brand-400" />
           <h3 className="text-xl font-semibold text-white group-hover:text-brand-400 transition">See the open-source foundation</h3>
           <p className="mt-2 text-sm text-neutral-400">
             Apache 2.0 framework. Self-host under AGPL or a commercial license.
@@ -50,7 +51,7 @@ export function CTA() {
           rel="noopener"
           className="flex items-center gap-2 rounded-lg border border-neutral-700 px-4 py-2 text-sm text-neutral-300 transition hover:border-neutral-500 hover:text-white"
         >
-          <Github className="h-4 w-4" />
+          <GithubIcon className="h-4 w-4" />
           View on GitHub
         </a>
         <a
