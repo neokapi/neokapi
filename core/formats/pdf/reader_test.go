@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"io"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/neokapi/neokapi/core/formats/pdf"
@@ -148,11 +149,11 @@ func TestReadCompressedRealWorldPDF(t *testing.T) {
 
 	blocks := testutil.CollectBlocks(t, reader.Read(ctx))
 	require.NotEmpty(t, blocks, "compressed PDF must inflate and extract text")
-	var all string
-	for _, b := range blocks {
-		all += b.SourceText() + " "
+	texts := make([]string, len(blocks))
+	for i, b := range blocks {
+		texts[i] = b.SourceText()
 	}
-	assert.Contains(t, all, "TAUS")
+	assert.Contains(t, strings.Join(texts, " "), "TAUS")
 }
 
 func TestReadLayerStartEnd(t *testing.T) {
