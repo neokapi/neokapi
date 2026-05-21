@@ -187,54 +187,17 @@ func (t *BrandVoiceCheckTool) handleBlock(part *model.Part) (*model.Part, error)
 	return part, nil
 }
 
-// buildPrompt constructs the LLM prompt from the voice profile and text.
+// buildPrompt constructs the LLM prompt from the voice profile and text. The
+// guidelines section is rendered by brand.RenderVoiceGuide — the single source
+// of truth shared with the translate prompt and the bowrain MCP voice guide.
 func (t *BrandVoiceCheckTool) buildPrompt(text string) string {
 	var b strings.Builder
 
 	b.WriteString("You are a brand voice compliance checker. Analyze the following text against brand voice guidelines and report any issues.\n\n")
 
 	if t.profile != nil {
-		b.WriteString("## Brand Voice Guidelines\n\n")
-
-		// Tone
-		if len(t.profile.Tone.Personality) > 0 {
-			b.WriteString(fmt.Sprintf("Personality: %s\n", strings.Join(t.profile.Tone.Personality, ", ")))
-		}
-		if t.profile.Tone.Formality != "" {
-			b.WriteString(fmt.Sprintf("Formality: %s\n", t.profile.Tone.Formality))
-		}
-		if t.profile.Tone.Emotion != "" {
-			b.WriteString(fmt.Sprintf("Emotion: %s\n", t.profile.Tone.Emotion))
-		}
-		if t.profile.Tone.Guidelines != "" {
-			b.WriteString(fmt.Sprintf("Tone guidelines: %s\n", t.profile.Tone.Guidelines))
-		}
-
-		// Style
-		if t.profile.Style.ActiveVoice {
-			b.WriteString("Style: prefer active voice\n")
-		}
-		if t.profile.Style.SentenceLength != "" {
-			b.WriteString(fmt.Sprintf("Sentence length: %s\n", t.profile.Style.SentenceLength))
-		}
-		if t.profile.Style.PersonPOV != "" {
-			b.WriteString(fmt.Sprintf("Point of view: %s\n", t.profile.Style.PersonPOV))
-		}
-		if t.profile.Style.Contractions != "" {
-			b.WriteString(fmt.Sprintf("Contractions: %s\n", t.profile.Style.Contractions))
-		}
-
-		// Examples as few-shot demonstrations
-		if len(t.profile.Examples) > 0 {
-			b.WriteString("\n## Examples\n\n")
-			for _, ex := range t.profile.Examples {
-				b.WriteString(fmt.Sprintf("Before: %s\nAfter: %s\n", ex.Before, ex.After))
-				if ex.Explanation != "" {
-					b.WriteString(fmt.Sprintf("Why: %s\n", ex.Explanation))
-				}
-				b.WriteString("\n")
-			}
-		}
+		b.WriteString(brand.RenderVoiceGuide(t.profile))
+		b.WriteString("\n")
 	}
 
 	b.WriteString(fmt.Sprintf("## Text to check\n\n%s\n\n", text))

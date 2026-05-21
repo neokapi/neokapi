@@ -1,13 +1,12 @@
 package packs
 
 import (
+	"bytes"
 	"embed"
 	"fmt"
 	"io/fs"
 	"path/filepath"
 	"strings"
-
-	"gopkg.in/yaml.v3"
 
 	"github.com/neokapi/neokapi/core/brand"
 )
@@ -37,11 +36,11 @@ func Load(name string) (*brand.VoiceProfile, error) {
 	if err != nil {
 		return nil, fmt.Errorf("reading pack %q: %w", name, err)
 	}
-	var profile brand.VoiceProfile
-	if err := yaml.Unmarshal(data, &profile); err != nil {
-		return nil, fmt.Errorf("parsing pack %q: %w", name, err)
+	profile, err := brand.LoadProfileYAML(bytes.NewReader(data))
+	if err != nil {
+		return nil, fmt.Errorf("pack %q: %w", name, err)
 	}
-	return &profile, nil
+	return profile, nil
 }
 
 // LoadAll loads all starter packs.

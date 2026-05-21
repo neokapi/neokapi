@@ -128,99 +128,11 @@ func (s *MCPServer) handleGetVoiceGuide(ctx context.Context, req *mcp.CallToolRe
 	return nil, getVoiceGuideOutput{Guide: guide}, nil
 }
 
-// formatVoiceGuide produces a markdown-formatted voice guide optimized for LLM consumption.
+// formatVoiceGuide produces a markdown-formatted voice guide optimized for LLM
+// consumption. It delegates to corebrand.RenderVoiceGuide, the single source of
+// truth shared with the kapi CLI and the AI translate prompt.
 func formatVoiceGuide(p *corebrand.VoiceProfile) string {
-	var b strings.Builder
-
-	fmt.Fprintf(&b, "# Brand Voice Guide: %s\n\n", p.Name)
-	if p.Description != "" {
-		fmt.Fprintf(&b, "%s\n\n", p.Description)
-	}
-
-	// Tone
-	b.WriteString("## Tone\n")
-	if len(p.Tone.Personality) > 0 {
-		fmt.Fprintf(&b, "- Personality: %s\n", strings.Join(p.Tone.Personality, ", "))
-	}
-	fmt.Fprintf(&b, "- Formality: %s\n", p.Tone.Formality)
-	fmt.Fprintf(&b, "- Emotion: %s\n", p.Tone.Emotion)
-	fmt.Fprintf(&b, "- Humor: %s\n", p.Tone.Humor)
-	if p.Tone.Guidelines != "" {
-		fmt.Fprintf(&b, "- Guidelines: %s\n", p.Tone.Guidelines)
-	}
-	b.WriteString("\n")
-
-	// Style
-	b.WriteString("## Style Rules\n")
-	if p.Style.ActiveVoice {
-		b.WriteString("- Use active voice\n")
-	}
-	fmt.Fprintf(&b, "- Sentence length: %s\n", p.Style.SentenceLength)
-	fmt.Fprintf(&b, "- Point of view: %s\n", p.Style.PersonPOV)
-	fmt.Fprintf(&b, "- Contractions: %s\n", p.Style.Contractions)
-	if len(p.Style.ProhibitedPatterns) > 0 {
-		b.WriteString("- Prohibited patterns:\n")
-		for _, pat := range p.Style.ProhibitedPatterns {
-			fmt.Fprintf(&b, "  - %s (severity: %s)\n", pat.Description, pat.Severity)
-		}
-	}
-	b.WriteString("\n")
-
-	// Vocabulary
-	b.WriteString("## Vocabulary\n")
-	if len(p.Vocabulary.PreferredTerms) > 0 {
-		b.WriteString("### Preferred Terms\n")
-		for _, t := range p.Vocabulary.PreferredTerms {
-			if t.Note != "" {
-				fmt.Fprintf(&b, "- **%s**: %s\n", t.Term, t.Note)
-			} else {
-				fmt.Fprintf(&b, "- **%s**\n", t.Term)
-			}
-		}
-		b.WriteString("\n")
-	}
-	if len(p.Vocabulary.ForbiddenTerms) > 0 {
-		b.WriteString("### Forbidden Terms\n")
-		for _, t := range p.Vocabulary.ForbiddenTerms {
-			line := fmt.Sprintf("- ~~%s~~", t.Term)
-			if t.Replacement != "" {
-				line += fmt.Sprintf(" → use **%s**", t.Replacement)
-			}
-			b.WriteString(line + "\n")
-		}
-		b.WriteString("\n")
-	}
-	if len(p.Vocabulary.CompetitorTerms) > 0 {
-		b.WriteString("### Competitor Terms (avoid)\n")
-		for _, t := range p.Vocabulary.CompetitorTerms {
-			line := fmt.Sprintf("- ~~%s~~", t.Term)
-			if t.Replacement != "" {
-				line += fmt.Sprintf(" → use **%s**", t.Replacement)
-			}
-			b.WriteString(line + "\n")
-		}
-		b.WriteString("\n")
-	}
-
-	// Examples
-	if len(p.Examples) > 0 {
-		b.WriteString("## Examples\n")
-		for i, ex := range p.Examples {
-			fmt.Fprintf(&b, "### Example %d", i+1)
-			if ex.Category != "" {
-				fmt.Fprintf(&b, " (%s)", ex.Category)
-			}
-			b.WriteString("\n")
-			fmt.Fprintf(&b, "- Before: %q\n", ex.Before)
-			fmt.Fprintf(&b, "- After: %q\n", ex.After)
-			if ex.Explanation != "" {
-				fmt.Fprintf(&b, "- Why: %s\n", ex.Explanation)
-			}
-			b.WriteString("\n")
-		}
-	}
-
-	return b.String()
+	return corebrand.RenderVoiceGuide(p)
 }
 
 // checkVocab runs rule-based vocabulary checks against a brand voice profile.

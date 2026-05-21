@@ -1,8 +1,27 @@
 package brand
 
 import (
+	"fmt"
+	"io"
 	"time"
+
+	"gopkg.in/yaml.v3"
 )
+
+// LoadProfileYAML decodes a VoiceProfile from a YAML stream. This is the canonical
+// loader for standalone, git-shareable `profile.yaml` files and for the embedded
+// starter packs, so a brand profile works with or without a backing store.
+func LoadProfileYAML(r io.Reader) (*VoiceProfile, error) {
+	data, err := io.ReadAll(r)
+	if err != nil {
+		return nil, fmt.Errorf("read profile: %w", err)
+	}
+	var p VoiceProfile
+	if err := yaml.Unmarshal(data, &p); err != nil {
+		return nil, fmt.Errorf("parse profile: %w", err)
+	}
+	return &p, nil
+}
 
 // VoiceProfile defines a brand voice configuration with tone, style, and vocabulary rules.
 type VoiceProfile struct {

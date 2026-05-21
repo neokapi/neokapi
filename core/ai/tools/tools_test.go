@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/neokapi/neokapi/core/ai/tools"
+	"github.com/neokapi/neokapi/core/brand"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/providers/ai"
 	"github.com/stretchr/testify/assert"
@@ -132,6 +133,41 @@ func TestAITranslateToolWithGlossary(t *testing.T) {
 	<-out
 
 	assert.Equal(t, glossary, capturedReq.Glossary)
+}
+
+func TestAITranslateToolInjectsBrandVoice(t *testing.T) {
+	mock := aiprovider.NewMockProvider()
+	var capturedReq aiprovider.TranslateRequest
+	mock.TranslateFunc = func(ctx context.Context, req aiprovider.TranslateRequest) (*aiprovider.TranslateResponse, error) {
+		capturedReq = req
+		return &aiprovider.TranslateResponse{Translation: "Bonjour", Confidence: 0.9, Model: "test"}, nil
+	}
+
+	profile := &brand.VoiceProfile{
+		Name: "Friendly",
+		Tone: brand.ToneProfile{Personality: []string{"warm"}, Formality: "casual"},
+		Vocabulary: brand.VocabularyRules{
+			ForbiddenTerms: []brand.TermRule{{Term: "utilize", Replacement: "use"}},
+		},
+	}
+	tool := tools.NewAITranslateTool(mock, tools.AITranslateConfig{
+		SourceLocale: model.LocaleEnglish,
+		TargetLocale: model.LocaleFrench,
+		Profile:      profile,
+	})
+
+	ctx := t.Context()
+	in := make(chan *model.Part, 1)
+	out := make(chan *model.Part, 1)
+	in <- &model.Part{Type: model.PartBlock, Resource: model.NewBlock("tu1", "Hello")}
+	close(in)
+	require.NoError(t, tool.Process(ctx, in, out))
+	<-out
+
+	require.NotEmpty(t, capturedReq.VoiceGuide, "voice guide must reach the provider request")
+	assert.Contains(t, capturedReq.VoiceGuide, "warm")
+	// Directives() must surface the forbidden-term swap to the model.
+	assert.Contains(t, capturedReq.Directives(), `"utilize" → "use"`)
 }
 
 func TestAITranslateToolSetsAnnotation(t *testing.T) {

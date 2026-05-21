@@ -37,7 +37,7 @@ func (p *OllamaProvider) Translate(ctx context.Context, req TranslateRequest) (*
 	prompt := fmt.Sprintf(
 		"Translate the following text from %s to %s. Return ONLY the translation, no explanation.\n\nText: %s",
 		req.SourceLanguage, req.TargetLocale, req.Source,
-	)
+	) + req.Directives()
 
 	resp, err := p.Chat(ctx, []Message{
 		{Role: "user", Content: prompt},

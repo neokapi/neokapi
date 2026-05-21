@@ -10,6 +10,7 @@ import (
 	"sync/atomic"
 
 	"github.com/neokapi/neokapi/core/blockstore"
+	"github.com/neokapi/neokapi/core/brand"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/schema"
 	"github.com/neokapi/neokapi/core/tool"
@@ -28,6 +29,7 @@ type AITranslateTool struct {
 	sourceLocale model.LocaleID
 	targetLocale model.LocaleID
 	glossary     map[string]string
+	voiceGuide   string // compact brand voice guidance injected into every prompt
 	skipMatched  bool
 	batchSize    int
 	concurrency  int
@@ -53,7 +55,12 @@ type AITranslateConfig struct {
 	APIKey           string            `json:"apiKey,omitempty"       schema:"title=API Key,description=API key for the AI provider,group=provider"`
 	Model            string            `json:"model,omitempty"        schema:"title=Model,description=AI model name,group=provider"`
 	Glossary         map[string]string `json:"glossary,omitempty"     schema:"-"`
-	SkipMatched      bool              `json:"skipMatched,omitempty"  schema:"title=Skip Matched,description=Skip blocks that already have a target translation"`
+	// Profile is an optional brand voice profile. When set, its guidance is
+	// injected into the translation prompt so output is on-brand at generation
+	// time. Not serializable via the schema/CLI; supplied programmatically or
+	// via the .kapi brand binding.
+	Profile          *brand.VoiceProfile `json:"-" schema:"-"`
+	SkipMatched      bool                `json:"skipMatched,omitempty"  schema:"title=Skip Matched,description=Skip blocks that already have a target translation"`
 	BatchSize        int               `json:"batchSize,omitempty"    schema:"title=Batch Size,description=Number of blocks per LLM call,default=100,min=1"`
 	BatchConcurrency int               `json:"batchConcurrency,omitempty" schema:"title=Batch Concurrency,description=Number of concurrent batch calls (0 or 1 = sequential),default=1,min=1"`
 
@@ -125,12 +132,18 @@ func NewAITranslateFromConfig(config map[string]any, targetLang string) (tool.To
 		onProgress = fn
 		delete(config, "onProgress")
 	}
+	var profile *brand.VoiceProfile
+	if pf, ok := config["profile"].(*brand.VoiceProfile); ok {
+		profile = pf
+		delete(config, "profile")
+	}
 
 	var cfg AITranslateConfig
 	if err := schema.ApplyConfig(config, &cfg); err != nil {
 		return nil, fmt.Errorf("ai-translate config: %w", err)
 	}
 	cfg.OnProgress = onProgress
+	cfg.Profile = profile
 
 	if targetLang != "" {
 		cfg.TargetLocale = model.LocaleID(targetLang)
@@ -151,6 +164,7 @@ func NewAITranslateTool(p aiprovider.LLMProvider, cfg AITranslateConfig) *AITran
 		sourceLocale: cfg.SourceLocale,
 		targetLocale: cfg.TargetLocale,
 		glossary:     cfg.Glossary,
+		voiceGuide:   brand.RenderVoiceGuideCompact(cfg.Profile),
 		skipMatched:  cfg.SkipMatched,
 		batchSize:    cfg.BatchSize,
 		concurrency:  cfg.BatchConcurrency,
@@ -436,6 +450,7 @@ func (t *AITranslateTool) handleBlock(part *model.Part) (*model.Part, error) {
 		SourceLanguage: t.sourceLocale,
 		TargetLocale:   t.targetLocale,
 		Glossary:       t.glossary,
+		VoiceGuide:     t.voiceGuide,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("ai-translate: %w", err)
@@ -463,13 +478,7 @@ func (t *AITranslateTool) translateBlock(ctx context.Context, req aiprovider.Tra
 		"Translate the following text from %s to %s. Return ONLY the translation, no explanation.\n\nText: %s",
 		req.SourceLanguage, req.TargetLocale, req.Source,
 	))
-
-	if len(req.Glossary) > 0 {
-		prompt.WriteString("\n\nGlossary:\n")
-		for term, translation := range req.Glossary {
-			prompt.WriteString(fmt.Sprintf("- %s → %s\n", term, translation))
-		}
-	}
+	prompt.WriteString(req.Directives())
 
 	resp, err := t.streaming.ChatStream(ctx, []aiprovider.Message{
 		{Role: "user", Content: prompt.String()},
@@ -507,6 +516,7 @@ func (t *AITranslateTool) handleBlockWithInlineCodes(part *model.Part, block *mo
 		SourceLanguage: t.sourceLocale,
 		TargetLocale:   t.targetLocale,
 		Glossary:       t.glossary,
+		VoiceGuide:     t.voiceGuide,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("ai-translate: %w", err)
@@ -723,17 +733,15 @@ func (t *AITranslateTool) translateBatch(ctx context.Context, entries []blockEnt
 	var prompt strings.Builder
 	fmt.Fprintf(&prompt,
 		"Translate each numbered segment from %s to %s.\n"+
-			"Preserve any XML/HTML tags exactly as they appear.\n\n",
+			"Preserve any XML/HTML tags exactly as they appear.",
 		t.sourceLocale, t.targetLocale,
 	)
-
-	if len(t.glossary) > 0 {
-		prompt.WriteString("Glossary:\n")
-		for term, translation := range t.glossary {
-			fmt.Fprintf(&prompt, "- %s → %s\n", term, translation)
-		}
-		prompt.WriteByte('\n')
-	}
+	// Inject deterministic brand-voice + glossary directives.
+	prompt.WriteString(aiprovider.TranslateRequest{
+		Glossary:   t.glossary,
+		VoiceGuide: t.voiceGuide,
+	}.Directives())
+	prompt.WriteString("\n\n")
 
 	for i, entry := range entries {
 		fmt.Fprintf(&prompt, "[%d] %s\n", i+1, entry.sourceText)
