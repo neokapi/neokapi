@@ -15,6 +15,12 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 )
 
+// defaultNPlurals is the plural-form count assumed when the header
+// declares none (or declares an unparseable one). Mirrors Okapi's
+// POFilter.DEFAULT_NPLURALS = 2 ("Germanic languages" per the gettext
+// docs: a singular form and a plural form).
+const defaultNPlurals = 2
+
 // Reader implements DataFormatReader for PO (gettext) files.
 type Reader struct {
 	format.BaseFormatReader
@@ -23,6 +29,7 @@ type Reader struct {
 	skelBuf         bytes.Buffer // coalesces skeleton text between refs
 	hadUTF8BOM      bool         // input started with EF BB BF
 	crlfLineEndings bool         // input used \r\n (Windows / okapi-emitted) line endings
+	nPlurals        int          // plural-form count from the header's Plural-Forms (default 2)
 }
 
 // HadUTF8BOM reports whether the input started with a UTF-8 BOM. The
@@ -133,6 +140,9 @@ type poEntry struct {
 }
 
 func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
+	// Default plural-form count until a header declares otherwise.
+	r.nPlurals = defaultNPlurals
+
 	locale := r.Doc.SourceLocale
 	if locale.IsEmpty() {
 		locale = model.LocaleEnglish
@@ -174,6 +184,9 @@ func (r *Reader) readContentNormal(ctx context.Context, ch chan<- model.PartResu
 	for _, entry := range entries {
 		// Header entry: empty msgid
 		if entry.msgid == "" {
+			// The header's Plural-Forms declaration drives how many
+			// plural blocks subsequent plural entries expose.
+			r.nPlurals = pluralFormsFromHeader(entry.msgstr)
 			dataID++
 			data := &model.Data{
 				ID:   fmt.Sprintf("d%d", dataID),
@@ -234,7 +247,11 @@ func (r *Reader) readContentNormal(ctx context.Context, ch chan<- model.PartResu
 		}
 
 		if entry.isPlural {
-			// Plural forms: emit as a group with multiple blocks
+			// Plural forms: emit as a group with one block per plural
+			// form declared by the header's nplurals (default 2).
+			// Okapi's POFilter surfaces a text unit for every msgstr[N]
+			// up to nplurals — form 0 carries the singular msgid, every
+			// later form carries the msgid_plural (see testThreePlurals).
 			blockID++
 			groupID := fmt.Sprintf("g%d", blockID)
 			gs := &model.GroupStart{
@@ -246,42 +263,11 @@ func (r *Reader) readContentNormal(ctx context.Context, ch chan<- model.PartResu
 				return
 			}
 
-			// Singular block
-			singularBlock := model.NewBlock(fmt.Sprintf("tu%d-singular", blockID), entry.msgid)
-			singularBlock.Name = entry.msgid
-			if entry.msgctxt != "" {
-				singularBlock.Properties["context"] = entry.msgctxt
-			}
-			singularBlock.Properties["plural-form"] = "singular"
-			if entry.msgstrPlurals != nil {
-				if val, ok := entry.msgstrPlurals[0]; ok && val != "" && !targetLocale.IsEmpty() {
-					singularBlock.SetTargetText(targetLocale, val)
+			for _, pf := range r.pluralForms(entry, blockID) {
+				block := r.newPluralBlock(entry, pf, targetLocale)
+				if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
+					return
 				}
-			}
-			if r.cfg.UseCodeFinder {
-				r.applyCodeFinder(singularBlock)
-			}
-			if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: singularBlock}) {
-				return
-			}
-
-			// Plural block
-			pluralBlock := model.NewBlock(fmt.Sprintf("tu%d-plural", blockID), entry.msgidPlural)
-			pluralBlock.Name = entry.msgidPlural
-			if entry.msgctxt != "" {
-				pluralBlock.Properties["context"] = entry.msgctxt
-			}
-			pluralBlock.Properties["plural-form"] = "plural"
-			if entry.msgstrPlurals != nil {
-				if val, ok := entry.msgstrPlurals[1]; ok && val != "" && !targetLocale.IsEmpty() {
-					pluralBlock.SetTargetText(targetLocale, val)
-				}
-			}
-			if r.cfg.UseCodeFinder {
-				r.applyCodeFinder(pluralBlock)
-			}
-			if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: pluralBlock}) {
-				return
 			}
 
 			ge := &model.GroupEnd{ID: groupID}
@@ -291,13 +277,21 @@ func (r *Reader) readContentNormal(ctx context.Context, ch chan<- model.PartResu
 		} else {
 			// Regular entry
 			blockID++
-			block := model.NewBlock(fmt.Sprintf("tu%d", blockID), entry.msgid)
+			source := entry.msgid
+			target := entry.msgstr
+			// Monolingual mode: msgid is an identifier, msgstr supplies
+			// the source text (Okapi's okf_po-monolingual configuration).
+			if !r.cfg.BilingualMode {
+				source = entry.msgstr
+				target = ""
+			}
+			block := model.NewBlock(fmt.Sprintf("tu%d", blockID), source)
 			block.Name = entry.msgid
 			if entry.msgctxt != "" {
 				block.Properties["context"] = entry.msgctxt
 			}
-			if entry.msgstr != "" && !targetLocale.IsEmpty() {
-				block.SetTargetText(targetLocale, entry.msgstr)
+			if target != "" && !targetLocale.IsEmpty() {
+				block.SetTargetText(targetLocale, target)
 			}
 			if r.cfg.UseCodeFinder {
 				r.applyCodeFinder(block)
@@ -307,6 +301,78 @@ func (r *Reader) readContentNormal(ctx context.Context, ch chan<- model.PartResu
 			}
 		}
 	}
+}
+
+// pluralForm describes one plural-form block to emit for a plural entry.
+type pluralForm struct {
+	index    int    // msgstr[N] index
+	id       string // block ID
+	source   string // source text (msgid for index 0, msgid_plural otherwise)
+	formName string // "singular" or "plural" — the plural-form property value
+}
+
+// pluralBlockID returns the deterministic block/skeleton-ref ID for the
+// plural form at msgstr index idx within entry blockID. Index 0 is the
+// singular form; later indices are plural forms (the second form keeps
+// the legacy `-plural` suffix, further forms add their index so IDs stay
+// unique for languages declaring more than two forms, e.g. Russian).
+func pluralBlockID(blockID, idx int) string {
+	if idx == 0 {
+		return fmt.Sprintf("tu%d-singular", blockID)
+	}
+	if idx == 1 {
+		return fmt.Sprintf("tu%d-plural", blockID)
+	}
+	return fmt.Sprintf("tu%d-plural%d", blockID, idx)
+}
+
+// pluralForms enumerates the plural-form blocks for a plural entry,
+// one per plural form declared by the header's nplurals (default 2).
+// Form 0 carries the singular msgid; every later form carries the
+// msgid_plural — matching Okapi's POFilter, which sets the source to
+// msgID for plural index 0 and to msgIDPlural for index > 0.
+func (r *Reader) pluralForms(entry *poEntry, blockID int) []pluralForm {
+	n := r.nPlurals
+	if n < 1 {
+		n = defaultNPlurals
+	}
+	forms := make([]pluralForm, 0, n)
+	for i := range n {
+		source := entry.msgidPlural
+		formName := "plural"
+		if i == 0 {
+			source = entry.msgid
+			formName = "singular"
+		}
+		forms = append(forms, pluralForm{
+			index:    i,
+			id:       pluralBlockID(blockID, i),
+			source:   source,
+			formName: formName,
+		})
+	}
+	return forms
+}
+
+// newPluralBlock builds the Block for one plural form. The target for
+// form N is msgstr[N]; the block carries its plural-form name and
+// msgctxt context (when present).
+func (r *Reader) newPluralBlock(entry *poEntry, pf pluralForm, targetLocale model.LocaleID) *model.Block {
+	block := model.NewBlock(pf.id, pf.source)
+	block.Name = pf.source
+	if entry.msgctxt != "" {
+		block.Properties["context"] = entry.msgctxt
+	}
+	block.Properties["plural-form"] = pf.formName
+	if entry.msgstrPlurals != nil {
+		if val, ok := entry.msgstrPlurals[pf.index]; ok && val != "" && !targetLocale.IsEmpty() {
+			block.SetTargetText(targetLocale, val)
+		}
+	}
+	if r.cfg.UseCodeFinder {
+		r.applyCodeFinder(block)
+	}
+	return block
 }
 
 // readContentSkeleton does a single-pass parse of the PO file, simultaneously
@@ -552,6 +618,9 @@ func (r *Reader) readContentSkeleton(ctx context.Context, ch chan<- model.PartRe
 		// no real msgstr (e.g. obsolete-only fixtures whose entire
 		// content is `#~` lines) fall through to the verbatim path.
 		if entry.msgid == "" && entry.msgstr != "" {
+			// The header's Plural-Forms declaration drives how many
+			// plural blocks subsequent plural entries expose.
+			r.nPlurals = pluralFormsFromHeader(entry.msgstr)
 			for i, line := range re.lines {
 				if re.isMsgstr[i] {
 					continue
@@ -611,11 +680,7 @@ func (r *Reader) readContentSkeleton(ctx context.Context, ch chan<- model.PartRe
 				if !inRef || msIdx != lastMsgstrIdx {
 					var refID string
 					if entry.isPlural {
-						if msIdx == 0 {
-							refID = fmt.Sprintf("tu%d-singular", entryBlockID)
-						} else {
-							refID = fmt.Sprintf("tu%d-plural", entryBlockID)
-						}
+						refID = pluralBlockID(entryBlockID, msIdx)
 					} else {
 						refID = fmt.Sprintf("tu%d", entryBlockID)
 					}
@@ -697,42 +762,14 @@ func (r *Reader) readContentSkeleton(ctx context.Context, ch chan<- model.PartRe
 				return
 			}
 
-			singularBlock := model.NewBlock(fmt.Sprintf("tu%d-singular", entryBlockID), entry.msgid)
-			singularBlock.Name = entry.msgid
-			if entry.msgctxt != "" {
-				singularBlock.Properties["context"] = entry.msgctxt
-			}
-			singularBlock.Properties["plural-form"] = "singular"
-			singularBlock.Properties["raw-msgstr"] = buildRawMsgstr(0)
-			if entry.msgstrPlurals != nil {
-				if val, ok := entry.msgstrPlurals[0]; ok && val != "" && !targetLocale.IsEmpty() {
-					singularBlock.SetTargetText(targetLocale, val)
+			// One block per plural form declared by the header's
+			// nplurals (default 2), matching Okapi's testThreePlurals.
+			for _, pf := range r.pluralForms(entry, entryBlockID) {
+				block := r.newPluralBlock(entry, pf, targetLocale)
+				block.Properties["raw-msgstr"] = buildRawMsgstr(pf.index)
+				if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
+					return
 				}
-			}
-			if r.cfg.UseCodeFinder {
-				r.applyCodeFinder(singularBlock)
-			}
-			if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: singularBlock}) {
-				return
-			}
-
-			pluralBlock := model.NewBlock(fmt.Sprintf("tu%d-plural", entryBlockID), entry.msgidPlural)
-			pluralBlock.Name = entry.msgidPlural
-			if entry.msgctxt != "" {
-				pluralBlock.Properties["context"] = entry.msgctxt
-			}
-			pluralBlock.Properties["plural-form"] = "plural"
-			pluralBlock.Properties["raw-msgstr"] = buildRawMsgstr(1)
-			if entry.msgstrPlurals != nil {
-				if val, ok := entry.msgstrPlurals[1]; ok && val != "" && !targetLocale.IsEmpty() {
-					pluralBlock.SetTargetText(targetLocale, val)
-				}
-			}
-			if r.cfg.UseCodeFinder {
-				r.applyCodeFinder(pluralBlock)
-			}
-			if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: pluralBlock}) {
-				return
 			}
 
 			ge := &model.GroupEnd{ID: groupID}
@@ -740,14 +777,22 @@ func (r *Reader) readContentSkeleton(ctx context.Context, ch chan<- model.PartRe
 				return
 			}
 		} else {
-			block := model.NewBlock(fmt.Sprintf("tu%d", entryBlockID), entry.msgid)
+			source := entry.msgid
+			target := entry.msgstr
+			// Monolingual mode: msgid is an identifier, msgstr supplies
+			// the source text (Okapi's okf_po-monolingual configuration).
+			if !r.cfg.BilingualMode {
+				source = entry.msgstr
+				target = ""
+			}
+			block := model.NewBlock(fmt.Sprintf("tu%d", entryBlockID), source)
 			block.Name = entry.msgid
 			if entry.msgctxt != "" {
 				block.Properties["context"] = entry.msgctxt
 			}
 			block.Properties["raw-msgstr"] = buildRawMsgstr(-1)
-			if entry.msgstr != "" && !targetLocale.IsEmpty() {
-				block.SetTargetText(targetLocale, entry.msgstr)
+			if target != "" && !targetLocale.IsEmpty() {
+				block.SetTargetText(targetLocale, target)
 			}
 			if r.cfg.UseCodeFinder {
 				r.applyCodeFinder(block)
@@ -904,6 +949,26 @@ var charsetHeaderRE = regexp.MustCompile(`(?i)(charset=)[^\s\\]+`)
 
 // charsetValueRE captures only the charset value (no `charset=` prefix).
 var charsetValueRE = regexp.MustCompile(`(?i)charset=([A-Za-z0-9_\-:.]+)`)
+
+// npluralsRE captures the integer in a `Plural-Forms: nplurals=N; ...`
+// header. Mirrors Okapi's npluralsPattern
+// (`nplurals(\s*)(=)(\s*)(\d*)(;|\\n|\z)`); we capture the digits only.
+var npluralsRE = regexp.MustCompile(`(?i)nplurals\s*=\s*(\d+)`)
+
+// pluralFormsFromHeader extracts the declared nplurals count from a PO
+// header msgstr value. Returns defaultNPlurals when the header has no
+// (or an unparseable) nplurals field, matching Okapi's fallback.
+func pluralFormsFromHeader(header string) int {
+	m := npluralsRE.FindStringSubmatch(header)
+	if m == nil {
+		return defaultNPlurals
+	}
+	n := 0
+	if _, err := fmt.Sscanf(m[1], "%d", &n); err != nil || n < 1 {
+		return defaultNPlurals
+	}
+	return n
+}
 
 // detectHeaderCharset peeks at raw PO bytes for a `Content-Type:
 // charset=<name>` declaration and returns the charset value, or an

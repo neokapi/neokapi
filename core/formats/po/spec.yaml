@@ -309,8 +309,11 @@ features:
       Plural entries declare a singular `msgid` and a `msgid_plural`,
       then list translations as `msgstr[0]`, `msgstr[1]`, …
       according to the locale's nplurals. The reader emits a
-      GroupStart wrapping one Block per plural form; English source
-      always exposes 2 forms (singular + plural).
+      GroupStart wrapping one Block per plural form declared by the
+      header's `Plural-Forms: nplurals=N` (default 2 when absent).
+      Form 0 carries the singular `msgid`; every later form carries
+      the `msgid_plural`, and each form's target is the matching
+      `msgstr[N]` — the TU-per-msgstr[N] shape Okapi's POFilter uses.
     spec_refs:
       - "GNU gettext PO format: msgid_plural / msgstr[N] plural forms (https://www.gnu.org/software/gettext/manual/html_node/PO-Files.html)"
     examples:
@@ -346,12 +349,12 @@ features:
       - name: russian_three_forms
         origin: "authored: Russian nplurals=3 header + msgstr[0..2]"
         description: |
-          Russian declares nplurals=3. The Okapi contract is to
-          surface all three msgstr targets as their own text units;
-          the native reader currently exposes only the
-          singular+plural pair (msgstr[0] and msgstr[1]) and ignores
-          msgstr[2]. Tracked here until the native reader honors
-          the source's nplurals.
+          Russian declares nplurals=3. The reader honors the header's
+          nplurals and surfaces one text unit per plural form: form 0
+          carries the singular msgid ("%d day"), forms 1 and 2 carry
+          the msgid_plural ("%d days"), and each form's target is the
+          corresponding msgstr[N]. Matches Okapi's testThreePlurals,
+          which expects three text units from this entry.
         input_xml: |
           msgid ""
           msgstr ""
@@ -362,12 +365,11 @@ features:
           msgstr[0] "день"
           msgstr[1] "дня"
           msgstr[2] "дней"
-        expected_fail: |
-          Native reader exposes 2 plural forms (singular + plural)
-          regardless of nplurals; Okapi's testThreePlurals expects
-          one text unit per msgstr[N]. Update reader to enumerate
-          all msgstr[N] entries, then drop this expected_fail.
         block_count: 3
+        block_texts:
+          - "%d day"
+          - "%d days"
+          - "%d days"
     okapi_refs:
       - POFilterTest#testTUPluralEntry_DefaultGroup
       - POFilterTest#testTUPluralEntry_DefaultSingular
@@ -531,8 +533,9 @@ features:
       identifier and the msgstr value supplies the source text —
       the shape used by catalogues that ship message IDs rather
       than English strings. Drives Okapi's `okf_po-monolingual`
-      configuration; the native reader stores the flag for
-      configuration parity but does not yet invert source/target.
+      configuration; the native reader inverts source/target so the
+      Block source is the msgstr value and the msgid becomes the
+      Block name.
     # Monolingual catalogues are a usage convention; the gettext PO
     # spec itself describes only the bilingual shape — no spec_refs.
     config:
@@ -541,18 +544,14 @@ features:
       - name: msgstr_as_source
         origin: "authored: monolingual catalogue (msgid is an ID, msgstr carries source)"
         description: |
-          In monolingual mode the source should be the msgstr value
-          ("Hello"), not the msgid ("key1"). The native reader
-          currently still extracts msgid as source — tracked until
-          monolingual extraction is wired through the reader.
+          In monolingual mode the source is the msgstr value
+          ("Hello"), not the msgid ("key1"). The reader honors
+          `bilingualMode: false` by extracting the msgstr as the
+          Block source and keeping the msgid as the Block name —
+          matching Okapi's `okf_po-monolingual` configuration.
         input_xml: |
           msgid "key1"
           msgstr "Hello"
-        expected_fail: |
-          Native reader does not yet act on bilingualMode=false; it
-          continues to treat msgid as source. Okapi's monolingual
-          configuration uses msgstr as source. Update reader to
-          honor the flag, then drop this expected_fail.
         block_count: 1
         first_block_text: "Hello"
     okapi_refs:

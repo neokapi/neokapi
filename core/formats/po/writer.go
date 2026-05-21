@@ -135,12 +135,23 @@ func (w *Writer) writeFromSkeleton(blocks map[string]*model.Block) error {
 // original value, the raw bytes are output verbatim for byte-exact roundtrip.
 // Otherwise, the value is re-serialized using writeMultilineField.
 func (w *Writer) writeBlockAsMsgstr(blocks map[string]*model.Block, refID string) error {
-	// Determine the field name based on the refID
+	// Determine the field name based on the refID. Plural refs encode
+	// their msgstr[N] index: `-singular` is form 0, `-plural` is form 1,
+	// and `-pl4N` (e.g. `-plural2`) is form N for languages with more
+	// than two plural forms.
 	fieldName := "msgstr"
-	if strings.HasSuffix(refID, "-singular") {
+	switch {
+	case strings.HasSuffix(refID, "-singular"):
 		fieldName = "msgstr[0]"
-	} else if strings.HasSuffix(refID, "-plural") {
+	case strings.HasSuffix(refID, "-plural"):
 		fieldName = "msgstr[1]"
+	default:
+		if idx := strings.LastIndex(refID, "-plural"); idx >= 0 {
+			n := 0
+			if _, err := fmt.Sscanf(refID[idx+len("-plural"):], "%d", &n); err == nil && n > 0 {
+				fieldName = fmt.Sprintf("msgstr[%d]", n)
+			}
+		}
 	}
 
 	block, ok := blocks[refID]
@@ -358,21 +369,16 @@ func (w *Writer) writePluralGroup() error {
 		return err
 	}
 
-	// Write msgstr[0] and msgstr[1]
-	singularTarget := ""
-	if !w.Locale.IsEmpty() && singular.HasTarget(w.Locale) {
-		singularTarget = renderTarget(singular, w.Locale)
-	}
-	if err := w.writeMultilineField("msgstr[0]", singularTarget); err != nil {
-		return err
-	}
-
-	pluralTarget := ""
-	if !w.Locale.IsEmpty() && plural.HasTarget(w.Locale) {
-		pluralTarget = renderTarget(plural, w.Locale)
-	}
-	if err := w.writeMultilineField("msgstr[1]", pluralTarget); err != nil {
-		return err
+	// Write one msgstr[N] per plural form in the group. Languages with
+	// more than two forms (e.g. Russian nplurals=3) carry extra blocks.
+	for i, block := range w.pluralGroup {
+		target := ""
+		if !w.Locale.IsEmpty() && block.HasTarget(w.Locale) {
+			target = renderTarget(block, w.Locale)
+		}
+		if err := w.writeMultilineField(fmt.Sprintf("msgstr[%d]", i), target); err != nil {
+			return err
+		}
 	}
 
 	return nil
