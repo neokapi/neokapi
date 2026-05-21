@@ -105,6 +105,18 @@ func (w *Writer) writeFromSkeleton(store *format.SkeletonStore, blocks map[strin
 					indicator := block.Properties["yaml.indicator"]
 					indent := block.Properties["yaml.indent"]
 					encoded := encodeYAMLScalarWithIndicatorIndent(text, style, indicator, indent)
+					// The scalar encoders emit bare LF for multi-line
+					// bodies (block scalars, multi-line quoted strings).
+					// When the source uses CRLF the surrounding skeleton
+					// already carries CRLF, so a re-encoded scalar emitting
+					// LF would mix conventions within one document. Rewrite
+					// to the source's dominant line ending — mirroring
+					// Okapi's YamlSkeletonWriter, which normalises to LF then
+					// replays getLineBreak() on every break. Empty / "\n"
+					// eol leaves the LF-source common case untouched.
+					if eol := block.Properties["yaml.eol"]; eol == "\r\n" {
+						encoded = applyEOL(encoded, eol)
+					}
 					if _, err := io.WriteString(w.Output, encoded); err != nil {
 						return err
 					}
@@ -357,6 +369,21 @@ func encodeFoldedBlockWithIndicatorIndent(s, indicator, indent string) string {
 		prevNonEmptyIdx = i
 	}
 	return b.String()
+}
+
+// applyEOL rewrites every line break in s to the given line-ending
+// convention. It first normalises any CR / CRLF to LF, then replaces
+// each LF with eol — the same ordered normalise-then-replay sequence
+// Okapi's YamlSkeletonWriter uses (replaceAll "\r\n"→"\n", "\r"→"\n",
+// "\n"→getLineBreak()). The pre-normalisation makes it idempotent: a
+// scalar that already carries the target EOL is left unchanged.
+func applyEOL(s, eol string) string {
+	if eol == "" || eol == "\n" {
+		return s
+	}
+	s = strings.ReplaceAll(s, "\r\n", "\n")
+	s = strings.ReplaceAll(s, "\r", "\n")
+	return strings.ReplaceAll(s, "\n", eol)
 }
 
 // indentPad converts a decimal indent string (e.g. "12") to a space
