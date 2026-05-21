@@ -112,11 +112,18 @@ type elementFrame struct {
 	// `name` keeps the legacy local-name-only form used by every
 	// existing predicate to avoid touching the (substantial) call
 	// sites in this file.
-	localName  string
-	nsURI      string
-	attrs      map[string]string
-	isInline   bool
-	isExcluded bool
+	localName string
+	nsURI     string
+	attrs     map[string]string
+	// parentAttrs / parentName hold the enclosing element's attributes and
+	// local name, captured at element-start so rules and pointers that
+	// reference the parent (Condition.Parent, ElementRule.ParentElement,
+	// ElementRule.ParentIDAttr, Config.ParentLocNoteElement) can be
+	// evaluated at flush time after the frame is popped.
+	parentAttrs map[string]string
+	parentName  string
+	isInline    bool
+	isExcluded  bool
 	// strongExclude is set when the exclusion comes from an ITS
 	// `translate="no"` attribute. Strong exclusion propagates to every
 	// descendant and drops their text on the floor regardless of
@@ -455,10 +462,17 @@ func (s *xmlParseState) elemPath() string {
 // isTranslatable checks if the given frame's content is translatable.
 func (s *xmlParseState) isTranslatable(frame *elementFrame) bool {
 	cfg := s.reader.cfg
-	if cfg.ExcludeByDefault {
-		return cfg.isIncludedElement(frame.name, frame.attrs)
+	ctx := elementCtx{
+		local:       frame.name,
+		nsURI:       frame.nsURI,
+		attrs:       frame.attrs,
+		parentName:  frame.parentName,
+		parentAttrs: frame.parentAttrs,
 	}
-	if cfg.isExcludedElement(frame.name, frame.attrs) {
+	if cfg.ExcludeByDefault {
+		return cfg.isIncludedElementCtx(ctx)
+	}
+	if cfg.isExcludedElementCtx(ctx) {
 		return false
 	}
 	if len(cfg.TranslatableElements) > 0 {
@@ -565,6 +579,15 @@ func (s *xmlParseState) flushBlock(frame *elementFrame, path string, endTagOffse
 	idVal := s.reader.cfg.getIDAttribute(frame.name, frame.attrs)
 	if idVal != "" {
 		block.Name = idVal
+	}
+
+	// itsx:idValue="../@name": take the id from a parent attribute when a
+	// matching element rule declares ParentIDAttr (e.g. ResX <value> takes
+	// its id from the enclosing <data>/@name).
+	if parentIDAttr := s.reader.cfg.parentIDAttr(frame.name, frame.nsURI, frame.parentName); parentIDAttr != "" {
+		if v, ok := frame.parentAttrs[parentIDAttr]; ok && v != "" {
+			block.Name = v
+		}
 	}
 
 	// Set block type
@@ -821,16 +844,35 @@ func (s *xmlParseState) handleStartElement(t xml.StartElement, tokOffset int) {
 		s.reader.emit(s.ctx, s.ch, &model.Part{Type: model.PartData, Resource: data})
 	}
 
-	isInline := s.reader.cfg.isInlineElement(t.Name.Local)
-	isExcluded := s.reader.cfg.isExcludedElement(t.Name.Local, attrs)
+	// Parent element's name + attributes, for namespace-/parent-scoped
+	// rules and conditions that target the ancestor — e.g. the ResX
+	// selector //data[not(@type)]/value tests the <data> parent while
+	// <value> is the unit, and the DocBook inline rules are scoped to the
+	// DocBook namespace.
+	var parentAttrs map[string]string
+	var parentName string
+	if len(s.stack) > 0 {
+		parentAttrs = s.stack[len(s.stack)-1].attrs
+		parentName = s.stack[len(s.stack)-1].name
+	}
+	elemCtx := elementCtx{
+		local:       t.Name.Local,
+		nsURI:       t.Name.Space,
+		attrs:       attrs,
+		parentName:  parentName,
+		parentAttrs: parentAttrs,
+	}
+
+	isInline := s.reader.cfg.isInlineElementNS(t.Name.Local, t.Name.Space, parentName)
+	isExcluded := s.reader.cfg.isExcludedElementCtx(elemCtx)
 
 	// Check excludeByDefault
-	if s.reader.cfg.ExcludeByDefault && !s.reader.cfg.isIncludedElement(t.Name.Local, attrs) {
+	if s.reader.cfg.ExcludeByDefault && !s.reader.cfg.isIncludedElementCtx(elemCtx) {
 		isExcluded = true
 	}
 
 	// An INCLUDE inside an excluded parent overrides
-	if s.isInExcludedScope() && s.reader.cfg.isIncludedElement(t.Name.Local, attrs) {
+	if s.isInExcludedScope() && s.reader.cfg.isIncludedElementCtx(elemCtx) {
 		isExcluded = false
 	}
 
@@ -906,7 +948,7 @@ func (s *xmlParseState) handleStartElement(t xml.StartElement, tokOffset int) {
 	//     pass the gate as well so <para>here is <icon/> some text</para>
 	//     keeps <icon> as an inline placeholder rather than splitting
 	//     the parent.
-	if !isInline && !isExcluded && resolved.WithinText == its.Unset && !s.reader.cfg.isInlineElement(t.Name.Local) {
+	if !isInline && !isExcluded && resolved.WithinText == its.Unset && !s.reader.cfg.isInlineElementNS(t.Name.Local, t.Name.Space, parentName) {
 		if parent := s.findTextFrame(); parent != nil && parent.hasRuns && !parent.isExcluded && s.isTranslatable(parent) {
 			if runsHaveNonWhitespaceText(parent.runs) && elementContentStartsWithText(s.content, contentStart) {
 				isInline = true
@@ -923,6 +965,8 @@ func (s *xmlParseState) handleStartElement(t xml.StartElement, tokOffset int) {
 		localName:        t.Name.Local,
 		nsURI:            t.Name.Space,
 		attrs:            attrs,
+		parentAttrs:      parentAttrs,
+		parentName:       parentName,
 		isInline:         isInline,
 		isExcluded:       isExcluded || inlineExcluded,
 		strongExclude:    strongExclude,
@@ -1228,8 +1272,14 @@ func (s *xmlParseState) handleCharData(t xml.CharData) {
 		return
 	}
 
-	// No parent frame — standalone text (shouldn't normally happen with well-formed XML)
-	trimmed := strings.TrimSpace(text)
+	// No parent frame — standalone text (shouldn't normally happen with
+	// well-formed XML). A leading UTF-8 BOM (U+FEFF) decoded by Go's
+	// encoding/xml surfaces here as a standalone text node before the
+	// root element; it is document encoding metadata, not content, so we
+	// trim it (alongside ordinary whitespace) and never emit it as a
+	// block. This matters for BOM-prefixed files like .NET ResX, whose
+	// real content lives entirely inside the root.
+	trimmed := strings.TrimSpace(strings.TrimPrefix(text, "\uFEFF"))
 	if trimmed == "" {
 		return
 	}
