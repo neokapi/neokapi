@@ -219,10 +219,11 @@ features:
       extraction to that set — text inside any other element is
       skipped. Lets a single config focus extraction on a vocabulary
       (e.g. `<title>` and `<description>`) without exhaustively
-      excluding everything else. The bridge does not honor this
-      shorthand and expects the equivalent long-form `elements:` map
-      with per-name `ruleTypes: [TEXTUNIT]`; native ApplyMap accepts
-      both forms.
+      excluding everything else. native ApplyMap accepts the shorthand
+      directly; the upstream Okapi XmlStreamFilter expresses the same
+      opt-in whitelist as `exclude_by_default: true` plus an INCLUDE
+      rule per listed element. The parity bridge runner translates the
+      shorthand into that long-form so both sides converge head-to-head.
     spec_refs:
       - "W3C XML 1.0 §2.4 Character Data and Markup"
     config:
@@ -233,14 +234,6 @@ features:
       - name: filter_to_title_description
         origin: "authored: opt-in extraction of <title> + <description> only"
         input_xml: '<?xml version="1.0"?><root><title>Hello</title><id>123</id><description>World</description></root>'
-        expected_fail: |
-          bridge does not recognise the top-level `translatableElements`
-          array — Okapi XmlStreamFilter expects the equivalent rule
-          to be declared as `elements: { title: { ruleTypes: [TEXTUNIT] }, description: { ruleTypes: [TEXTUNIT] } }`,
-          so the bridge surfaces all three text nodes (title, id,
-          description) as Blocks. Native treats the shorthand as a
-          first-class extraction filter. Both legitimate; spec
-          asserts native behavior.
         block_count: 2
         block_texts:
           - "Hello"
@@ -288,9 +281,10 @@ features:
       include `INCLUDE`. Conditions on the INCLUDE rule (e.g.
       `[translate, EQUALS, y]`) further narrow the inclusion to
       elements whose attribute values match. Native accepts the
-      `excludeByDefault` flat key; the bridge expects the equivalent
-      `exclude_by_default` underscore spelling and the long-form
-      `elements:` map.
+      `excludeByDefault` flat key; the upstream Okapi XmlStreamFilter
+      uses the equivalent `exclude_by_default` underscore spelling.
+      The parity bridge runner translates the camelCase key (and merges
+      the long-form `elements:` map) so both sides converge head-to-head.
     spec_refs:
       - "W3C XML 1.0 §3 Logical Structures"
     config:
@@ -313,16 +307,6 @@ features:
             <item translate="n">skip me</item>
             <item>also skip — no condition match</item>
           </root>
-        expected_fail: |
-          bridge does not accept the camelCase `excludeByDefault` key
-          — it expects `exclude_by_default` (with underscores) per the
-          Okapi YAML parameter naming convention. Without the flag
-          the bridge falls back to default-include policy and
-          surfaces every <item>'s text. Native ApplyMap accepts the
-          camelCase spelling. Both legitimate; spec asserts native
-          behavior. A matching variant of this example using the
-          underscore key is left for a future authoring pass once
-          the spec runner supports per-side config aliases.
         block_count: 1
         first_block_text: "extract me"
         no_block_with_text: ["skip me", "also skip"]
@@ -459,6 +443,10 @@ features:
       Setting the global `preserveWhitespace` (or `parser.preserveWhitespace`)
       to true keeps text content verbatim — runs of whitespace and
       newlines are preserved exactly as they appear in the source.
+      native ApplyMap accepts the flat `preserveWhitespace` spelling;
+      the upstream Okapi XmlStreamFilter uses the YAML key
+      `preserve_whitespace`. The parity bridge runner translates the
+      flat spelling so both sides converge head-to-head.
     spec_refs:
       - "W3C XML 1.0 §2.10 White Space Handling"
     config:
@@ -467,15 +455,6 @@ features:
       - name: keep_inner_whitespace
         origin: "authored: same input as collapse case but with global preserveWhitespace"
         input_xml: "<?xml version=\"1.0\"?><doc><p>  foo   bar  </p></doc>"
-        expected_fail: |
-          bridge expects `parser.preserveWhitespace=true` (or
-          `preserve_whitespace: true` in YAML), not a top-level
-          `preserveWhitespace` boolean — the bridge composite schema
-          flattens the parser group via x-flattenPath but the daemon
-          does not synthesise the parser wrapper from the flat
-          spelling, so the bridge falls back to the default collapse
-          rule. Native ApplyMap accepts the flat spelling as a
-          convenience. Both legitimate; spec asserts native behavior.
         block_count: 1
         first_block_text: "  foo   bar  "
     okapi_refs:

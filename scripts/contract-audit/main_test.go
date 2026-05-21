@@ -312,3 +312,27 @@ func TestDocumentingSkip(t *testing.T) {}
 		t.Errorf("okapi-skip above TestDocumentingSkip wrong: %+v ok=%v", a, ok)
 	}
 }
+
+// TestLookupParityMergesSiblingKeys guards the case where one native
+// format is exercised under more than one parity key — native `xml` covers
+// okf_xml fixtures AND the okf_xmlstream spec. lookupParity must merge
+// them, not return the first match, or the spec rows are dropped.
+func TestLookupParityMergesSiblingKeys(t *testing.T) {
+	bridgeByFilter := map[string]*bridgeRows{
+		"xml": {Read: &parityRow{Status: "pass"}}, // okf_xml fixtures, no spec
+		"xmlstream": {Spec: []*specRow{
+			{FeatureID: "f", Example: "e", Status: "pass"},
+		}},
+	}
+	nativeToParityKey := map[string]string{"xml": "xmlstream"} // from spec format id
+	got, ok := lookupParity(bridgeByFilter, nativeToParityKey, "xml")
+	if !ok {
+		t.Fatal("lookupParity(xml) not found")
+	}
+	if got.Read == nil {
+		t.Error("merged result lost the okf_xml Read row")
+	}
+	if len(got.Spec) != 1 {
+		t.Errorf("merged result should carry the okf_xmlstream spec row, got %d", len(got.Spec))
+	}
+}
