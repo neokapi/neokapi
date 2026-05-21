@@ -449,21 +449,17 @@ features:
     name: Carriage-return-only line endings
     description: |
       Java Properties accepts `\r` alone as a line terminator. The
-      Okapi filter splits on `\r` and yields one entry per line;
-      the native reader currently treats `\r` as part of the value
-      and produces a single block containing the unsplit content.
-      Documented divergence — pinned via expected_fail until the
-      native reader handles bare CR.
+      native reader's physical-line scanner (readPhysicalLine)
+      recognises LF, CR and CRLF as line terminators — matching upstream
+      Okapi's PropertiesFilter, which reads lines via
+      BufferedReader.readLine(). A bare-CR-separated pair therefore
+      yields one entry per line and round-trips byte-for-byte.
     spec_refs:
       - "Java SE Properties spec — line terminators (LF / CR / CRLF) (https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/Properties.html)"
     examples:
       - name: cr_terminated_pair
         origin: "authored: two key=value lines separated by bare \\r"
         input_xml: "Key1=Text1\rKey2=Text2\r"
-        expected_fail: |
-          Native bufio reader splits on `\n` only, so `\r` lines
-          collapse into a single logical line. Okapi yields two
-          entries; native yields one. Tracked.
         block_count: 2
         block_texts:
           - "Text1"

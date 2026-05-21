@@ -28,10 +28,10 @@
 #     RegexPlainTextFilterTest, SplicedLinesFilterTest). Drift detection
 #     asserts each ref still exists in the bridge's pinned Okapi 1.47.0
 #     surefire output.
-#   - The native reader uses bufio.ReadString('\n'); bare CR (\r) is NOT
-#     treated as a line separator. The bridge (BasePlainTextFilter) does
-#     split on CR. The bare-CR feature below records this divergence
-#     explicitly via `expected_fail`.
+#   - The native reader splits lines via nextPlainLine, which recognises
+#     LF, CRLF and bare CR (\r) as line terminators — matching upstream
+#     Okapi's AbstractLineFilter (BufferedReader.readLine()). The bare-CR
+#     feature below verifies this parity.
 
 format: okf_plaintext
 mime_type: text/plain
@@ -157,13 +157,14 @@ features:
 
   # ── Line ending variants ───────────────────────────────────────────
   - id: line_endings
-    name: CRLF and LF line endings
+    name: CRLF, LF and bare CR line endings
     description: |
-      The reader handles CRLF (Windows) and LF (Unix) line endings
-      uniformly: both terminate a line and are consumed as skeleton.
-      A bare CR (legacy classic-Mac) is NOT a line separator on the
-      native side — the upstream BasePlainTextFilter treats it as one,
-      so this case is recorded as an expected divergence here.
+      The reader handles CRLF (Windows), LF (Unix) and bare CR
+      (classic-Mac) line endings uniformly: each terminates a line and
+      is consumed as skeleton. This matches upstream Okapi's
+      AbstractLineFilter, which reads lines via BufferedReader.readLine()
+      — per the Java contract that recognises LF, CR and CRLF as line
+      terminators.
     examples:
       - name: crlf_three_lines
         origin: "authored: three CRLF-terminated lines (Windows convention)"
@@ -176,14 +177,9 @@ features:
       - name: bare_cr_three_lines
         origin: "authored: three bare-CR-separated lines (classic Mac convention)"
         input_xml: "Line 1\rLine 2\rLine 3"
-        # Native bufio.ReadString('\n') does not split on bare CR; the
-        # whole input is a single Block with embedded \r characters.
-        # The bridge splits on CR and would yield 3 Blocks. Tracked
-        # as a known divergence rather than papered over.
-        expected_fail: |
-          Native reader does not treat bare CR as a line separator;
-          upstream BasePlainTextFilter does. Roundtrip via the
-          bowrain bridge would yield 3 blocks; native yields 1.
+        # nextPlainLine recognises bare CR as a line terminator, matching
+        # Okapi's BufferedReader.readLine() semantics, so each CR-separated
+        # segment becomes its own Block.
         block_count: 3
         block_texts:
           - "Line 1"

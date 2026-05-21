@@ -130,6 +130,14 @@ func TestSkeletonStore_ByteExact_CRLF(t *testing.T) {
 	assert.Equal(t, input, output, "CRLF line endings should be preserved byte-exact")
 }
 
+// Mirrors Okapi PropertiesFilterTest#testLineBreaks_CR: a bare-CR-separated
+// pair extracts as two entries and round-trips byte-for-byte.
+func TestSkeletonStore_ByteExact_CR(t *testing.T) {
+	input := "key1=value1\rkey2=value2\r"
+	output := skelRoundtrip(t, input)
+	assert.Equal(t, input, output, "bare CR line endings should be preserved byte-exact")
+}
+
 func TestSkeletonStore_ByteExact_EmptyInput(t *testing.T) {
 	input := ""
 	output := skelRoundtrip(t, input)

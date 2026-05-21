@@ -45,7 +45,10 @@ func TestRead_StartDocument(t *testing.T) {
 
 // okapi: PropertiesFilterTest#testLineBreaks_CR
 func TestRead_LineBreaksCr(t *testing.T) {
-	// Verifies that CR-only line breaks produce separate entries.
+	// Verifies that bare-CR line breaks produce separate entries, matching
+	// Okapi's PropertiesFilter (BufferedReader.readLine() recognises LF, CR
+	// and CRLF). readPhysicalLine splits on bare CR so each line is its own
+	// entry rather than collapsing into a single logical line.
 	ctx := t.Context()
 	reader := properties.NewReader()
 	input := "Key1=Text1\rKey2=Text2"
@@ -54,10 +57,11 @@ func TestRead_LineBreaksCr(t *testing.T) {
 	defer reader.Close()
 
 	blocks := testutil.CollectBlocks(t, reader.Read(ctx))
-	// bufio.Scanner splits on \n by default; CR-only produces a single line.
-	// The native reader treats \r as part of the content, not a line separator.
-	// This is a behavioral difference from the Java implementation.
-	require.NotEmpty(t, blocks)
+	require.Len(t, blocks, 2)
+	assert.Equal(t, "Key1", blocks[0].Name)
+	assert.Equal(t, "Text1", blocks[0].SourceText())
+	assert.Equal(t, "Key2", blocks[1].Name)
+	assert.Equal(t, "Text2", blocks[1].SourceText())
 }
 
 // okapi: PropertiesFilterTest#testineBreaks_CRLF
