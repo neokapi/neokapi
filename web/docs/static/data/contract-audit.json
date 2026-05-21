@@ -1,8 +1,8 @@
 {
-  "generatedAt": "2026-05-21T15:08:59Z",
+  "generatedAt": "2026-05-21T16:22:50Z",
   "okapiVersion": "v1.48.0",
   "neokapiVersion": "main",
-  "goCommitSHA": "ea58730c",
+  "goCommitSHA": "865a98a0",
   "okapiTag": "v1.48.0",
   "filters": [
     {
@@ -3857,17 +3857,13 @@
             "examples": [
               {
                 "name": "source_only_three_column",
-                "status": "expected_fail",
-                "mode": "head-to-head",
-                "detail": "bridge config divergence — neokapi config key\n`translatableColumns` is not recognised by the upstream Okapi\nfilter (which uses `sourceColumns` as a comma-separated\nstring of 1-based indices); the bridge therefore extracts\nevery column, yielding 6 Blocks (Source text 1 / Target text\n1 / third column data1 / Source text 2 / Target text 2 /\nthird column data2). Native correctly restricts extraction\nto column 0 and yields 2 Blocks. Tracked under #530 (config-key alias rollout).\n",
-                "divergence": "bridge-gap"
+                "status": "pass",
+                "mode": "head-to-head"
               },
               {
                 "name": "two_source_columns",
-                "status": "expected_fail",
-                "mode": "head-to-head",
-                "detail": "bridge config divergence — same as `source_only_three_column`:\nthe bridge does not recognise `translatableColumns`, falls\nback to extracting every column, and yields 10 Blocks\n(every source + target + data cell from both rows). Native\ncorrectly extracts only columns 0 and 3 and yields 4 Blocks.\nTracked under #530 (config-key alias rollout).\n",
-                "divergence": "bridge-gap"
+                "status": "pass",
+                "mode": "head-to-head"
               }
             ]
           },
@@ -3876,10 +3872,8 @@
             "examples": [
               {
                 "name": "single_comment_column",
-                "status": "expected_fail",
-                "mode": "head-to-head",
-                "detail": "bridge config divergence — neokapi config keys\n`translatableColumns` and `commentColumns` are not recognised\nby the upstream Okapi filter (which uses `sourceColumns` and\n`commentColumns` with 1-based indices and a comma-separated\nstring format); the bridge falls back to extracting every\ncolumn. Native correctly extracts columns 0 and 2 and\nattaches column 1 as comment metadata, yielding 4 Blocks.\nTracked under #530 (config-key alias rollout).\n",
-                "divergence": "bridge-gap"
+                "status": "pass",
+                "mode": "head-to-head"
               }
             ]
           },
@@ -3888,17 +3882,13 @@
             "examples": [
               {
                 "name": "semicolon_delimiter",
-                "status": "expected_fail",
-                "mode": "head-to-head",
-                "detail": "bridge config divergence — same as `tab_delimiter`: the\nneokapi `separator` key is not recognised by the upstream\nOkapi filter (which expects `fieldDelimiter`), so the bridge\nfalls back to `,` and reads each `;`-joined row as a single\ncolumn. Native correctly reads three `;`-delimited columns\nand yields 3 Blocks. Tracked under #530 (config-key alias rollout).\n",
-                "divergence": "bridge-gap"
+                "status": "pass",
+                "mode": "head-to-head"
               },
               {
                 "name": "tab_delimiter",
-                "status": "expected_fail",
-                "mode": "head-to-head",
-                "detail": "bridge config divergence — neokapi config key `separator` is\nnot recognised by the upstream Okapi filter (which expects\n`fieldDelimiter`); the bridge therefore reads the input with\nthe default `,` delimiter, treats the entire `name\\tdescription`\nrow as a single header column, and yields one Block per data\nrow instead of one Block per cell. Native correctly reads two\ntab-delimited columns and yields 2 Blocks. Tracked under #530\n(config-key alias rollout).\n",
-                "divergence": "bridge-gap"
+                "status": "pass",
+                "mode": "head-to-head"
               }
             ]
           },
@@ -3926,10 +3916,8 @@
             "examples": [
               {
                 "name": "empty_lines_inside_cell",
-                "status": "parity_warn",
-                "mode": "head-to-head",
-                "detail": "bridge != native (bytewise) — both pass spec assertions independently",
-                "divergence": "scope-diff"
+                "status": "pass",
+                "mode": "head-to-head"
               },
               {
                 "name": "newline_inside_quoted_field",
@@ -3971,17 +3959,13 @@
             "examples": [
               {
                 "name": "multiple_key_columns",
-                "status": "expected_fail",
-                "mode": "head-to-head",
-                "detail": "bridge config divergence — same as `single_key_column`:\n`translatableColumns` and `keyColumns` are not recognised by\nthe upstream Okapi filter, so the bridge extracts every cell.\nNative correctly composes Block IDs from columns 0+1 and\nextracts only column 2, yielding 2 Blocks (\"Save\", \"Cancel\").\nTracked under #530 (config-key alias rollout).\n",
-                "divergence": "bridge-gap"
+                "status": "pass",
+                "mode": "head-to-head"
               },
               {
                 "name": "single_key_column",
-                "status": "expected_fail",
-                "mode": "head-to-head",
-                "detail": "bridge config divergence — neokapi config keys\n`translatableColumns` and `keyColumns` are not recognised by\nthe upstream Okapi filter (which uses `sourceColumns` and\n`sourceIdColumns`); the bridge falls back to extracting every\ncolumn, so the id column values (01, 02, 03) appear as\nBlocks alongside the value column. Native correctly restricts\nextraction to column 1 and uses column 0 for the Block ID,\nyielding 3 Blocks. Tracked under #530 (config-key alias rollout).\n",
-                "divergence": "bridge-gap"
+                "status": "pass",
+                "mode": "head-to-head"
               }
             ]
           },
@@ -3990,10 +3974,8 @@
             "examples": [
               {
                 "name": "two_rows_no_header",
-                "status": "expected_fail",
-                "mode": "head-to-head",
-                "detail": "bridge config divergence — neokapi config key `hasHeader` is\nnot recognised by the upstream Okapi filter (which uses\n`columnNamesLineNum=0` to mean \"no header\"); the bridge\ntherefore keeps the default `columnNamesLineNum=1` and treats\nrow 1 (`Widget,A useful widget`) as the header row, yielding\nonly 2 Blocks (Gadget, A cool gadget). Native correctly\nextracts all 4 cells as Blocks. Tracked under #530 (config-key alias rollout).\n",
-                "divergence": "bridge-gap"
+                "status": "pass",
+                "mode": "head-to-head"
               }
             ]
           },
@@ -4036,11 +4018,11 @@
             ]
           }
         ],
-        "pass": 0,
+        "pass": 9,
         "fail": 0,
         "skip": 0,
-        "parityWarn": 1,
-        "expectedFail": 21
+        "parityWarn": 0,
+        "expectedFail": 13
       }
     },
     {
@@ -29878,6 +29860,118 @@
         "nativeMapped": 14,
         "nativePassing": 13,
         "coveragePct": 93.3
+      },
+      "spec": {
+        "features": [
+          {
+            "id": "document_boundary_events",
+            "examples": [
+              {
+                "name": "minimal_layer_wrap_odt",
+                "status": "pass",
+                "mode": "head-to-head"
+              }
+            ]
+          },
+          {
+            "id": "extraction_repeatability",
+            "examples": [
+              {
+                "name": "testdocument02_repeatable",
+                "status": "pass",
+                "mode": "head-to-head"
+              }
+            ]
+          },
+          {
+            "id": "odg_text_frame_extraction",
+            "examples": [
+              {
+                "name": "testdrawing01",
+                "status": "pass",
+                "mode": "head-to-head"
+              }
+            ]
+          },
+          {
+            "id": "odp_slide_text_extraction",
+            "examples": [
+              {
+                "name": "testpresentation01",
+                "status": "pass",
+                "mode": "head-to-head"
+              }
+            ]
+          },
+          {
+            "id": "ods_cell_value_extraction",
+            "examples": [
+              {
+                "name": "testspreadsheet01",
+                "status": "parity_warn",
+                "mode": "head-to-head",
+                "detail": "bridge != native (bytewise) — both pass spec assertions independently",
+                "divergence": "scope-diff"
+              }
+            ]
+          },
+          {
+            "id": "ods_formula_results",
+            "examples": [
+              {
+                "name": "formula_results_workbook",
+                "status": "parity_warn",
+                "mode": "head-to-head",
+                "detail": "bridge != native (bytewise) — both pass spec assertions independently",
+                "divergence": "scope-diff"
+              }
+            ]
+          },
+          {
+            "id": "odt_body_paragraph_extraction",
+            "examples": [
+              {
+                "name": "testdocument01_baseline",
+                "status": "parity_warn",
+                "mode": "head-to-head",
+                "detail": "bridge != native (bytewise) — both pass spec assertions independently",
+                "divergence": "scope-diff"
+              },
+              {
+                "name": "testdocument06_simple",
+                "status": "pass",
+                "mode": "head-to-head"
+              }
+            ]
+          },
+          {
+            "id": "odt_headings_and_lists",
+            "examples": [
+              {
+                "name": "testdocument06_heading_and_list",
+                "status": "pass",
+                "mode": "head-to-head"
+              }
+            ]
+          },
+          {
+            "id": "odt_inline_formatting",
+            "examples": [
+              {
+                "name": "testdocument01_inline",
+                "status": "parity_warn",
+                "mode": "head-to-head",
+                "detail": "bridge != native (bytewise) — both pass spec assertions independently",
+                "divergence": "scope-diff"
+              }
+            ]
+          }
+        ],
+        "pass": 6,
+        "fail": 0,
+        "skip": 0,
+        "parityWarn": 4,
+        "expectedFail": 0
       }
     },
     {
@@ -45501,7 +45595,7 @@
               {
                 "name": "TestReadCompressedRealWorldPDF",
                 "status": "pass",
-                "durationMs": 0
+                "durationMs": 10
               },
               {
                 "name": "TestReadEmptyPDF",
@@ -45546,7 +45640,7 @@
               {
                 "name": "TestSpec",
                 "status": "pass",
-                "durationMs": 20
+                "durationMs": 30
               },
               {
                 "name": "TestSpec/empty_document",
@@ -45611,12 +45705,12 @@
               {
                 "name": "TestSpec/real_world_compressed_pdf",
                 "status": "pass",
-                "durationMs": 20
+                "durationMs": 30
               },
               {
                 "name": "TestSpec/real_world_compressed_pdf/palc_2011",
                 "status": "pass",
-                "durationMs": 20
+                "durationMs": 30
               },
               {
                 "name": "TestSpec/single_page_text_extraction",
@@ -45641,7 +45735,7 @@
               {
                 "name": "TestStartDocument",
                 "status": "pass",
-                "durationMs": 0
+                "durationMs": 10
               },
               {
                 "name": "TestWriterName",
@@ -45676,7 +45770,7 @@
           "nativeTest": "TestStartDocument",
           "nativeStatus": "pass",
           "nativeFile": "reader_test.go",
-          "nativeLine": 237,
+          "nativeLine": 238,
           "testState": "implemented"
         },
         {
@@ -45686,7 +45780,7 @@
           "nativeTest": "TestDefaultInfo",
           "nativeStatus": "pass",
           "nativeFile": "reader_test.go",
-          "nativeLine": 221,
+          "nativeLine": 222,
           "testState": "implemented"
         },
         {
@@ -45695,7 +45789,7 @@
           "okapiStatus": "pass",
           "nativeTest": "TestReadNilDocument",
           "nativeFile": "reader_test.go",
-          "nativeLine": 266,
+          "nativeLine": 267,
           "skipReason": "native PDF reader emits one Block per page (no paragraph segmentation) and skips CID/Type0 glyph-index runs (#617), so it cannot assert the exact first text unit's content",
           "testState": "skipped",
           "skipCategory": "other"
@@ -45706,7 +45800,7 @@
           "okapiStatus": "pass",
           "nativeTest": "TestReadNilDocument",
           "nativeFile": "reader_test.go",
-          "nativeLine": 266,
+          "nativeLine": 267,
           "skipReason": "native PDF reader has no paragraph segmentation and no lineSeparator/paragraphSeparator config, so it cannot assert the nth paragraph TextUnit",
           "testState": "skipped",
           "skipCategory": "config"
@@ -76703,7 +76797,7 @@
               {
                 "name": "TestDitaConfig_RoundTripStable",
                 "status": "pass",
-                "durationMs": 0
+                "durationMs": 10
               },
               {
                 "name": "TestDitaConfig_RoundTripStable/changingtheoil.dita",
@@ -76713,7 +76807,7 @@
               {
                 "name": "TestDitaConfig_RoundTripStable/derbyadmin.ditamap",
                 "status": "pass",
-                "durationMs": 0
+                "durationMs": 10
               },
               {
                 "name": "TestDitaConfig_TranslateNoExclusion",
@@ -76758,7 +76852,7 @@
               {
                 "name": "TestDocBookConfig_RoundTripStable",
                 "status": "pass",
-                "durationMs": 0
+                "durationMs": 10
               },
               {
                 "name": "TestDocBookConfig_RoundTripStable/docbook-sample.xml",
@@ -76768,7 +76862,7 @@
               {
                 "name": "TestDocBookConfig_RoundTripStable/stdf_manual.xml",
                 "status": "pass",
-                "durationMs": 0
+                "durationMs": 10
               },
               {
                 "name": "TestDocBookConfig_VerbatimExcluded",
@@ -77113,7 +77207,7 @@
               {
                 "name": "TestResXConfig_RoundTripStable",
                 "status": "pass",
-                "durationMs": 0
+                "durationMs": 10
               },
               {
                 "name": "TestResXConfig_RoundTripStable/HelloWorld.en.resx",
@@ -80127,6 +80221,180 @@
         "nativeMapped": 140,
         "nativePassing": 136,
         "coveragePct": 58.8
+      },
+      "spec": {
+        "features": [
+          {
+            "id": "cdata_section",
+            "examples": [
+              {
+                "name": "cdata_with_markup_chars",
+                "status": "pass",
+                "mode": "head-to-head"
+              }
+            ]
+          },
+          {
+            "id": "comments_skipped",
+            "examples": [
+              {
+                "name": "comment_between_elements",
+                "status": "pass",
+                "mode": "head-to-head"
+              }
+            ]
+          },
+          {
+            "id": "exclude_by_default_with_include",
+            "examples": [
+              {
+                "name": "include_marked_items",
+                "status": "pass",
+                "mode": "head-to-head"
+              }
+            ]
+          },
+          {
+            "id": "excluded_elements",
+            "examples": [
+              {
+                "name": "skip_pre_keep_p",
+                "status": "pass",
+                "mode": "head-to-head"
+              }
+            ]
+          },
+          {
+            "id": "id_attributes",
+            "examples": [
+              {
+                "name": "name_attr_used_as_id",
+                "status": "pass",
+                "mode": "head-to-head"
+              }
+            ]
+          },
+          {
+            "id": "inline_elements",
+            "examples": [
+              {
+                "name": "bold_anchor_in_paragraph",
+                "status": "pass",
+                "mode": "head-to-head"
+              }
+            ]
+          },
+          {
+            "id": "namespaced_elements",
+            "examples": [
+              {
+                "name": "default_namespace_on_root",
+                "status": "pass",
+                "mode": "head-to-head"
+              }
+            ]
+          },
+          {
+            "id": "predefined_xml_entities",
+            "examples": [
+              {
+                "name": "amp_lt_gt_apos_quot",
+                "status": "pass",
+                "mode": "head-to-head"
+              }
+            ]
+          },
+          {
+            "id": "preserve_whitespace_global",
+            "examples": [
+              {
+                "name": "keep_inner_whitespace",
+                "status": "pass",
+                "mode": "head-to-head"
+              }
+            ]
+          },
+          {
+            "id": "preserve_whitespace_per_element",
+            "examples": [
+              {
+                "name": "pre_preserved_p_collapsed",
+                "status": "pass",
+                "mode": "head-to-head"
+              }
+            ]
+          },
+          {
+            "id": "processing_instructions_skipped",
+            "examples": [
+              {
+                "name": "pi_between_elements",
+                "status": "pass",
+                "mode": "head-to-head"
+              }
+            ]
+          },
+          {
+            "id": "text_content_extraction",
+            "examples": [
+              {
+                "name": "simple_xml_file",
+                "status": "pass",
+                "mode": "head-to-head"
+              },
+              {
+                "name": "single_element",
+                "status": "pass",
+                "mode": "head-to-head"
+              }
+            ]
+          },
+          {
+            "id": "translatable_attributes",
+            "examples": [
+              {
+                "name": "title_on_p",
+                "status": "pass",
+                "mode": "head-to-head"
+              }
+            ]
+          },
+          {
+            "id": "translatable_elements_filter",
+            "examples": [
+              {
+                "name": "filter_to_title_description",
+                "status": "pass",
+                "mode": "head-to-head"
+              }
+            ]
+          },
+          {
+            "id": "whitespace_collapse_default",
+            "examples": [
+              {
+                "name": "collapse_inner_whitespace",
+                "status": "pass",
+                "mode": "head-to-head"
+              }
+            ]
+          },
+          {
+            "id": "xml_lang_recognition",
+            "examples": [
+              {
+                "name": "xml_lang_on_element",
+                "status": "pass",
+                "mode": "head-to-head"
+              }
+            ]
+          }
+        ],
+        "pass": 17,
+        "fail": 0,
+        "skip": 0,
+        "parityWarn": 0,
+        "expectedFail": 0
       }
     },
     {
