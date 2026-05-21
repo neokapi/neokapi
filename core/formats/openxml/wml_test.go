@@ -495,6 +495,88 @@ func TestComplexFieldExtraction(t *testing.T) {
 	})
 }
 
+// TestComplexFieldPreFldCharBodyText covers the 830-7.docx shape where a
+// source `<w:r>` authors translatable body text BEFORE the
+// `<w:fldChar w:fldCharType="begin"/>` that opens a complex field in the
+// SAME run:
+//
+//	<w:r><w:rPr>…</w:rPr><w:t>pre-field text</w:t>
+//	  <w:fldChar w:fldCharType="begin"/></w:r>
+//
+// Per ECMA-376-1 §17.3.2.1 (CT_R) every run child applies to the run, and
+// upstream Okapi's RunParser processes the `<w:t>` as a RunText body chunk
+// of the field-opening run before transitioning to parseComplexField
+// (RunParser.java:259, 537). The text must be EXTRACTED (translatable),
+// not suppressed by the field's begin→separate markup-only window — the
+// regression that this guards against dropped it entirely.
+//
+// The negative case confirms text that genuinely sits INSIDE the
+// begin→separate suppressed window (in its own interior run) is still
+// dropped: only the body text authored before the begin in the
+// field-OPENING run survives.
+func TestComplexFieldPreFldCharBodyText(t *testing.T) {
+	// document.xml fragment: a HYPERLINK field whose begin marker shares a
+	// <w:r> with leading body text, plus an interior suppressed text run
+	// (between begin and separate) that must NOT be extracted.
+	docXML := `<?xml version="1.0" encoding="UTF-8"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+<w:body>
+<w:p>
+  <w:r><w:rPr><w:b/></w:rPr><w:t xml:space="preserve">pre-field body </w:t><w:fldChar w:fldCharType="begin"/></w:r>
+  <w:r><w:instrText xml:space="preserve"> SUPPRESSED INTERIOR </w:instrText></w:r>
+  <w:r><w:fldChar w:fldCharType="separate"/></w:r>
+  <w:r><w:t>display</w:t></w:r>
+  <w:r><w:fldChar w:fldCharType="end"/></w:r>
+  <w:r><w:t> trailing</w:t></w:r>
+</w:p>
+</w:body>
+</w:document>`
+
+	t.Run("pre-fldChar body text in field-opening run is extracted", func(t *testing.T) {
+		cfg := &Config{}
+		cfg.Reset()
+		cfg.ComplexFieldDefinitionsToExtract = []string{"HYPERLINK"}
+
+		blocks := parseDocXML(t, docXML, cfg)
+		require.Len(t, blocks, 1)
+		text := blocks[0].Source[0].Text()
+		// The body text authored before the begin marker must survive.
+		assert.Contains(t, text, "pre-field body ",
+			"pre-fldChar body text must be extracted, not dropped by the field window")
+		assert.Contains(t, text, " trailing", "post-field text must survive")
+	})
+
+	t.Run("interior suppressed text between begin and separate is dropped", func(t *testing.T) {
+		// A field whose suppressed begin→separate window holds a stray
+		// <w:t> in its own interior run. That run starts while the field
+		// is already active, so the text is field-internal markup and must
+		// not be extracted as translatable.
+		interiorXML := `<?xml version="1.0" encoding="UTF-8"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+<w:body>
+<w:p>
+  <w:r><w:fldChar w:fldCharType="begin"/></w:r>
+  <w:r><w:t>interior suppressed</w:t></w:r>
+  <w:r><w:instrText xml:space="preserve"> HYPERLINK "x" </w:instrText></w:r>
+  <w:r><w:fldChar w:fldCharType="separate"/></w:r>
+  <w:r><w:t>display</w:t></w:r>
+  <w:r><w:fldChar w:fldCharType="end"/></w:r>
+</w:p>
+</w:body>
+</w:document>`
+		cfg := &Config{}
+		cfg.Reset()
+		cfg.ComplexFieldDefinitionsToExtract = []string{"HYPERLINK"}
+
+		blocks := parseDocXML(t, interiorXML, cfg)
+		require.Len(t, blocks, 1)
+		text := blocks[0].Source[0].Text()
+		assert.NotContains(t, text, "interior suppressed",
+			"text inside the begin→separate window must NOT be extracted")
+		assert.Contains(t, text, "display", "the field's display text is extractable")
+	})
+}
+
 func TestComplexFieldNested(t *testing.T) {
 	// A paragraph with a TOC field containing nested PAGEREF fields
 	docXML := `<?xml version="1.0" encoding="UTF-8"?>
