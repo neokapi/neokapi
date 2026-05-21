@@ -261,3 +261,104 @@ func TestSkeletonStore_WithTranslation_Escaping(t *testing.T) {
 	expected := "<!ENTITY greeting \"A &amp; B &lt; C\">\n"
 	assert.Equal(t, expected, buf.String())
 }
+
+// TestCodeFinderMarkupEscapedOnWrite reproduces the Test01.dtd parity
+// divergence: with the code finder enabled (okapi's DTDFilter default),
+// HTML markup inside an entity value is lifted into inline-code runs, but
+// those codes still carry literal `<` and `"` bytes. The writer MUST
+// entity-escape them so the round-tripped entity value remains valid DTD —
+// a bare `"` would prematurely close the quoted value (XML 1.0 §2.3
+// EntityValue, §4.2). Mirrors okapi's DTDFilter.java:297-305, which
+// re-encodes each code-finder code via encoder.encode(..., TEXT).
+func TestCodeFinderMarkupEscapedOnWrite(t *testing.T) {
+	// Source entity already escapes the markup (`&lt;`, `&quot;`); the
+	// reader decodes it to literal `<`/`"`, then the code finder captures
+	// the resulting tags as inline codes. Round-trip must re-escape.
+	input := `<!ENTITY test3 "Text with &lt;i>HTML&lt;/i> &lt;a name=&quot;aaa&quot;>codes&lt;/a>.">` + "\n"
+	ctx := t.Context()
+
+	reader := dtd.NewReader()
+	writer := dtd.NewWriter()
+
+	// okapi's DTDFilter default: useCodeFinder=true with the HTML-tag rule.
+	require.NoError(t, reader.Config().ApplyMap(map[string]any{
+		"useCodeFinder": true,
+		"codeFinderRules": []any{
+			`</?([A-Z0-9a-z]*)\b[^>]*>`,
+		},
+	}))
+
+	store, err := format.NewSkeletonStore()
+	require.NoError(t, err)
+	defer store.Close()
+	reader.SetSkeletonStore(store)
+	writer.SetSkeletonStore(store)
+
+	err = reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
+	require.NoError(t, err)
+	parts := testutil.CollectParts(t, reader.Read(ctx))
+	reader.Close()
+
+	var buf bytes.Buffer
+	writer.SetLocale(model.LocaleEnglish)
+	require.NoError(t, writer.SetOutputWriter(&buf))
+
+	ch := testutil.PartsToChannel(parts)
+	require.NoError(t, writer.Write(ctx, ch))
+	writer.Close()
+
+	out := buf.String()
+	// The markup must be re-escaped, byte-identical to the source.
+	assert.Equal(t, input, out)
+	// Explicit guards against the regression: no raw markup leaks into the
+	// quoted entity value.
+	assert.NotContains(t, out, `<i>`, "raw `<i>` markup must be escaped")
+	assert.NotContains(t, out, `name="aaa"`, "raw attribute quotes must be escaped")
+	assert.Contains(t, out, `&lt;i>`)
+	assert.Contains(t, out, `name=&quot;aaa&quot;`)
+}
+
+// TestCodeFinderMarkupVsStructuralRefs verifies the writer keeps the two
+// inline-code categories distinct: code-finder markup is escaped, while a
+// structural named-entity reference (`&test1;`) — which the reader also
+// captures as an inline code — is emitted verbatim, not double-escaped.
+func TestCodeFinderMarkupVsStructuralRefs(t *testing.T) {
+	input := `<!ENTITY mixed "See &lt;b>&test1;&lt;/b>">` + "\n"
+	ctx := t.Context()
+
+	reader := dtd.NewReader()
+	writer := dtd.NewWriter()
+
+	require.NoError(t, reader.Config().ApplyMap(map[string]any{
+		"useCodeFinder": true,
+		"codeFinderRules": []any{
+			`</?([A-Z0-9a-z]*)\b[^>]*>`,
+		},
+	}))
+
+	store, err := format.NewSkeletonStore()
+	require.NoError(t, err)
+	defer store.Close()
+	reader.SetSkeletonStore(store)
+	writer.SetSkeletonStore(store)
+
+	err = reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
+	require.NoError(t, err)
+	parts := testutil.CollectParts(t, reader.Read(ctx))
+	reader.Close()
+
+	var buf bytes.Buffer
+	writer.SetLocale(model.LocaleEnglish)
+	require.NoError(t, writer.SetOutputWriter(&buf))
+
+	ch := testutil.PartsToChannel(parts)
+	require.NoError(t, writer.Write(ctx, ch))
+	writer.Close()
+
+	out := buf.String()
+	// Markup `<b>`/`</b>` escaped; structural ref `&test1;` left verbatim
+	// (NOT `&amp;test1;`).
+	assert.Equal(t, input, out)
+	assert.Contains(t, out, `&test1;`)
+	assert.NotContains(t, out, `&amp;test1;`)
+}
