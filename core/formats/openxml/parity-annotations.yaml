@@ -25,10 +25,9 @@
 format: openxml
 fixtures:
   830-7.docx:
-    severity: bug
-    issue: 598
-    summary: "Two data-loss gaps in the reader's complex-field state machine are now FIXED: (a) pre-fldChar body text in the field-OPENING run (#598 preFieldBody guard) and (b) #598a — translatable body text authored BETWEEN a <w:fldChar end/> and a following <w:fldChar begin/> (or after an end with no trailing begin) in one source <w:r> is now SPLIT out as a translatable run while the field markers stay opaque (parseRunWithFieldState flushOpaqueSegment/reengageRawCapture; the writer's detectFldCharEnd/BeginForMerge re-fuse the split into the original single <w:r>). Confirmed via TestComplexFieldEndTextBeginBodyText + round-trip re-read byte-identity. Residual byte-divergence is now WSO-only: native drops run-level <w:color w:val=\"000000\"/> as a redundant docDefault (rPrOmittedWithBlack) while Okapi preserves it here (830-7 docDefaults declares no color) — a global/cascade-risk WSO attr-strip, resolved separately by the faithful-writer (WSO-off) keystone change."
-    spec_ref: "ECMA-376-1 §17.3.2.1 (CT_R), §17.16.5 (complex fields), §17.3.2.6 (w:color)"
+    severity: cosmetic
+    summary: "#598 RESOLVED. Both complex-field data-loss gaps are fixed: (a) pre-fldChar body text in the field-OPENING run (#598 preFieldBody guard), and (b) #598a — translatable body text BETWEEN a <w:fldChar end/> and a following <w:fldChar begin/> in one source <w:r> is split out as a translatable run while field markers stay opaque (parseRunWithFieldState flushOpaqueSegment/reengageRawCapture; the writer re-fuses into the original single <w:r>; confirmed via TestComplexFieldEndTextBeginBodyText + round-trip byte-identity). The #598b run-level <w:color w:val=\"000000\"/> strip is also gone (faithful-writer default preserves source rPr). Only residual byte-divergence is the §17.3.2.26 content-category class shared by the other cosmetic fixtures: native faithfully preserves moot complex-script rFonts attrs (e.g. cs=\"Arial\" on a run with no complex-script text) that Okapi clarifies away — both render identically; not reconstructable symmetrically in the comparator without the deferred RunFonts content-category port."
+    spec_ref: "ECMA-376-1 §17.3.2.1 (CT_R), §17.16.5 (complex fields), §17.3.2.26 (rFonts content categories)"
     notes_anchor: residual-7-divergent-fixtures
 
   # 847-3.docx is now CANON: the faithful-writer default (OptimiseWordStyles

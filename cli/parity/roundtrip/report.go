@@ -215,9 +215,32 @@ func FlushParityReport(w io.Writer) error {
 // / sem / div / skip counts and the byte-equal percentage. This is the
 // "did anything regress vs last run?" view — the per-format table tells
 // you where the gaps are; this tells you whether they grew or shrank.
+// isFaithfulDivergence reports whether a divergent outcome is one where
+// native is *at least as spec-faithful as okapi*, so it counts toward
+// faithful parity even though the comparator couldn't fold it to canon:
+//   - cosmetic           — both producers spec-compliant, render identically
+//                          (e.g. native preserves a moot attribute okapi
+//                          strips; only the comparator's text-driven
+//                          content-category resolution is missing)
+//   - native-more-correct — native is strictly more spec-correct than okapi
+//   - okapi-bug          — okapi is wrong; native is right
+//
+// A `bug` (native defect) or an unannotated divergence does NOT count —
+// conservative, so faithful% can only under-state, never over-state.
+func isFaithfulDivergence(a *Annotation) bool {
+	if a == nil {
+		return false
+	}
+	switch a.Severity {
+	case "cosmetic", "native-more-correct", "okapi-bug":
+		return true
+	}
+	return false
+}
+
 func writeEngineTotals(w io.Writer, records []parityRecord) error {
 	type tot struct {
-		Total, Byte, Canon, CanonFaithful, CanonCloseable, Sem, Div, Skip int
+		Total, Byte, Canon, CanonFaithful, CanonCloseable, Sem, Div, DivFaithful, Skip int
 	}
 	totals := map[string]*tot{}
 	var engines []string
@@ -246,6 +269,9 @@ func writeEngineTotals(w io.Writer, records []parityRecord) error {
 			v.Sem++
 		default:
 			v.Div++
+			if isFaithfulDivergence(r.Annotation) {
+				v.DivFaithful++
+			}
 		}
 	}
 	sort.Strings(engines)
@@ -275,10 +301,10 @@ func writeEngineTotals(w io.Writer, records []parityRecord) error {
 		var pct, faithfulPct float64
 		if asserted > 0 {
 			pct = 100 * float64(v.Byte) / float64(asserted)
-			faithfulPct = 100 * float64(v.Byte+v.CanonFaithful) / float64(asserted)
+			faithfulPct = 100 * float64(v.Byte+v.CanonFaithful+v.DivFaithful) / float64(asserted)
 		}
-		if _, err := fmt.Fprintf(w, "| %s | %d | %d | %d (%d/%d) | %d | %d | %d | %.1f%% | %.1f%% |\n",
-			e, v.Total, v.Byte, v.Canon, v.CanonFaithful, v.CanonCloseable, v.Sem, v.Div, v.Skip, pct, faithfulPct); err != nil {
+		if _, err := fmt.Fprintf(w, "| %s | %d | %d | %d (%d/%d) | %d | %d (%d faith) | %d | %.1f%% | %.1f%% |\n",
+			e, v.Total, v.Byte, v.Canon, v.CanonFaithful, v.CanonCloseable, v.Sem, v.Div, v.DivFaithful, v.Skip, pct, faithfulPct); err != nil {
 			return err
 		}
 	}
@@ -512,16 +538,22 @@ type engineTotals struct {
 	// don't chase); closeable = native loses source info (real work).
 	// Unclassified canon falls into neither and only ever under-states
 	// faithful parity.
-	CanonFaithful  int     `json:"canon_faithful"`
-	CanonCloseable int     `json:"canon_closeable"`
-	Sem            int     `json:"sem"`
-	Div            int     `json:"div"`
-	Skip           int     `json:"skip"`
-	BytePct        float64 `json:"byte_pct"`
-	// FaithfulPct = (byte + canon_faithful) / asserted. The honest
-	// headline: how much of the corpus native handles at least as
-	// faithfully as okapi (byte-identical, or canonically-equal because
-	// okapi re-serialized).
+	CanonFaithful  int `json:"canon_faithful"`
+	CanonCloseable int `json:"canon_closeable"`
+	Sem            int `json:"sem"`
+	Div            int `json:"div"`
+	// DivFaithful counts divergent fixtures annotated cosmetic /
+	// native-more-correct / okapi-bug — native is at least as spec-faithful
+	// as okapi, the case is only divergent (not canon) because the
+	// comparator can't fold a text-driven difference (e.g. content-category
+	// attribute stripping). Counted toward faithful parity.
+	DivFaithful int     `json:"div_faithful"`
+	Skip        int     `json:"skip"`
+	BytePct     float64 `json:"byte_pct"`
+	// FaithfulPct = (byte + canon_faithful + div_faithful) / asserted. The
+	// honest headline: how much of the corpus native handles at least as
+	// faithfully as okapi — byte-identical, canonically-equal because okapi
+	// re-serialized, or divergent-but-native-is-at-least-as-correct.
 	FaithfulPct float64 `json:"faithful_pct"`
 }
 
@@ -613,7 +645,7 @@ func FlushParityFixturesJSON(w io.Writer) error {
 
 	// Engine totals.
 	type engTot struct {
-		Total, Byte, Canon, CanonFaithful, CanonCloseable, Sem, Div, Skip int
+		Total, Byte, Canon, CanonFaithful, CanonCloseable, Sem, Div, DivFaithful, Skip int
 	}
 	engines := map[string]*engTot{}
 	for _, r := range records {
@@ -640,6 +672,9 @@ func FlushParityFixturesJSON(w io.Writer) error {
 			v.Sem++
 		default:
 			v.Div++
+			if isFaithfulDivergence(r.Annotation) {
+				v.DivFaithful++
+			}
 		}
 	}
 	for name, v := range engines {
@@ -647,7 +682,7 @@ func FlushParityFixturesJSON(w io.Writer) error {
 		var pct, faithfulPct float64
 		if asserted > 0 {
 			pct = 100 * float64(v.Byte) / float64(asserted)
-			faithfulPct = 100 * float64(v.Byte+v.CanonFaithful) / float64(asserted)
+			faithfulPct = 100 * float64(v.Byte+v.CanonFaithful+v.DivFaithful) / float64(asserted)
 		}
 		out.Engines[name] = engineTotals{
 			Total:          v.Total,
@@ -657,6 +692,7 @@ func FlushParityFixturesJSON(w io.Writer) error {
 			CanonCloseable: v.CanonCloseable,
 			Sem:            v.Sem,
 			Div:            v.Div,
+			DivFaithful:    v.DivFaithful,
 			Skip:           v.Skip,
 			BytePct:        pct,
 			FaithfulPct:    faithfulPct,
