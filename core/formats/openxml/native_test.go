@@ -743,10 +743,12 @@ func TestNative_DocxComplexFields(t *testing.T) {
 		blocks := translatableBlocks(parts)
 		require.NotEmpty(t, blocks, "%s: complex-field doc should produce blocks", f)
 
-		joined := ""
+		var sb strings.Builder
 		for _, b := range blocks {
-			joined += b.SourceText() + "\n"
+			sb.WriteString(b.SourceText())
+			sb.WriteByte('\n')
 		}
+		joined := sb.String()
 		assert.Contains(t, joined, "A Text", "%s: literal field-prefix text must survive", f)
 		assert.Contains(t, joined, "text.", "%s: literal trailing text must survive", f)
 		assert.NotContains(t, joined, "HYPERLINK", "%s: field instruction must not leak into source", f)
@@ -773,10 +775,7 @@ func TestNative_DocxStructuralDocumentTags(t *testing.T) {
 	assert.Contains(t, texts, "Text 1.")
 	assert.Contains(t, texts, "Text 2.")
 	assert.Contains(t, texts, "User")
-	joined := ""
-	for _, x := range texts {
-		joined += x + "\n"
-	}
+	joined := strings.Join(texts, "\n") + "\n"
 	assert.Contains(t, joined, "sdt 1", "sdt content should be extracted as inline run content")
 	assert.Contains(t, joined, "sdt 2", "nested sdt content should be extracted inline")
 	assert.Contains(t, joined, "footnote", "footnote text hosting the sdt should be extracted")
