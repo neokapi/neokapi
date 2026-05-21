@@ -1,6 +1,15 @@
 {
   "extends": "@docusaurus/tsconfig",
   "compilerOptions": {
-    "baseUrl": "."
-  }
+    // baseUrl must be set here (not only in the extended config) so the
+    // inherited "@site/*" path mapping resolves against the project root
+    // rather than the base config's node_modules directory.
+    "baseUrl": ".",
+    "paths": {
+      "@site/*": ["./*"]
+    },
+    "resolveJsonModule": true,
+    "ignoreDeprecations": "6.0"
+  },
+  "exclude": ["build", ".docusaurus", "node_modules"]
 }

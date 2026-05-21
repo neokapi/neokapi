@@ -49,6 +49,21 @@ const config: Config = {
         ],
       },
     ],
+    // Silence the benign "Critical dependency" webpack warning emitted by
+    // langium's UMD bundle, pulled in transitively via @docusaurus/theme-mermaid.
+    function ignoreWebpackWarnings() {
+      return {
+        name: "ignore-webpack-warnings",
+        configureWebpack() {
+          return {
+            ignoreWarnings: [
+              (warning: { message?: string }) =>
+                /Critical dependency: require function is used/.test(warning.message ?? ""),
+            ],
+          };
+        },
+      };
+    },
   ],
 
   presets: [

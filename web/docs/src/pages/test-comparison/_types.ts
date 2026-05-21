@@ -327,7 +327,6 @@ export interface TestCaseMatch {
   bridgeSubtests?: number;
   nativeSubtests?: number;
   skipCategory?: SkipCategory;
-  params?: number;
   coveredByTest?: string;
   coveredByFile?: string;
   coveredByLine?: number;
