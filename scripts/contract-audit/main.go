@@ -260,6 +260,7 @@ type coverage struct {
 
 func main() {
 	surefireDir := flag.String("okapi-surefire", "", "Directory containing surefire-reports/ (walked recursively)")
+	failsafeDir := flag.String("okapi-failsafe", "", "Directory containing Maven Failsafe reports for Okapi *IT integration tests (e.g. integration-tests/okapi/target/failsafe-reports). Walked recursively. Optional — when set, RoundTrip*IT / *XliffCompareIT contracts join their filter's rows.")
 	nativeJSON := flag.String("native-gotest", "", "go test -json output for native side (optional)")
 	nativeSrc := flag.String("native-src", "", "Comma-separated list of native test source dirs to scan for // okapi: annotations")
 	parityReport := flag.String("parity-report", "", "Path to .parity/test-comparison.json (optional). Populates the per-filter Bridge column with the head-to-head parity outcome.")
@@ -282,6 +283,21 @@ func main() {
 	}
 	if len(okapiByFilter) == 0 {
 		die("no surefire XMLs found under %s", *surefireDir)
+	}
+
+	// Failsafe (*IT integration tests). Okapi's roundtrip and xliff-compare
+	// integration tests live in the integration-tests/okapi module and run
+	// under Maven Failsafe, not Surefire — so they're absent from the
+	// per-filter surefire-reports. Scan them separately and merge each IT
+	// class into its filter's contract rows (keyed by class name, not
+	// package, since the IT package is roundtrip.integration /
+	// xliffcompare.integration).
+	if *failsafeDir != "" {
+		itByFilter, err := parseFailsafeDir(*failsafeDir)
+		if err != nil {
+			die("parse failsafe: %v", err)
+		}
+		mergeOkapiResults(okapiByFilter, itByFilter)
 	}
 
 	var nativeByFilter map[string]*filterResult
@@ -431,6 +447,9 @@ var noNativeFilters = map[string]string{
 	"archive":         "no native reader — generic archive (zip) container is bridge-only",
 	"abstractmarkup":  "abstract base class — behaviour exercised via concrete html/xml/odf native readers",
 	"its":             "no native ITS filter — ITS global-rule processing is bridge-only (inline ITS in HTML/XML is handled by the html/xml readers)",
+	// NOTE: dita/docbook/resx are now NATIVE (config presets on the xml
+	// reader — see core/formats/xml/presets.go), so they are intentionally
+	// NOT listed here; their IT contracts map to the preset tests.
 }
 
 // noNativeCategory bins a no-native filter into a skip category for the
@@ -477,94 +496,232 @@ func parseSurefireDir(surefireDir string) (map[string]*filterResult, error) {
 			fr = &filterResult{}
 			out[filterName] = fr
 		}
-		suite := testSuite{
-			Name:       ts.Name,
-			DurationMS: parseSecondsToMs(ts.Time),
-		}
-		// Collapse JUnit parameterized invocations (method[0: a], method[1: b], …)
-		// into one logical contract row per base method. Each @Test method is
-		// one behavioural contract regardless of how many fixtures it iterates,
-		// so the dashboard counts methods, not fixture×method cells (#611).
-		// Status aggregates pessimistically: fail dominates error dominates pass
-		// dominates skip, mirroring "the method passes for every parameter".
-		type acc struct {
-			className                string
-			anyFail, anyErr, anyPass bool
-			allSkip                  bool
-			dur                      int64
-			params                   int
-		}
-		order := make([]string, 0, len(ts.TestCase))
-		byBase := map[string]*acc{}
-		for _, tc := range ts.TestCase {
-			base := stripParamSuffix(tc.Name)
-			a := byBase[base]
-			if a == nil {
-				a = &acc{className: tc.ClassName, allSkip: true}
-				byBase[base] = a
-				order = append(order, base)
-			}
-			a.params++
-			a.dur += parseSecondsToMs(tc.Time)
-			switch {
-			case tc.Failure != nil:
-				a.anyFail = true
-				a.allSkip = false
-			case tc.Error != nil:
-				a.anyErr = true
-				a.allSkip = false
-			case tc.Skipped != nil:
-				// keep allSkip
-			default:
-				a.anyPass = true
-				a.allSkip = false
-			}
-		}
-		for _, base := range order {
-			a := byBase[base]
-			status := "skip"
-			switch {
-			case a.anyFail:
-				status = "fail"
-			case a.anyErr:
-				status = "error"
-			case a.anyPass:
-				status = "pass"
-			case a.allSkip:
-				status = "skip"
-			}
-			params := 0
-			if a.params > 1 {
-				params = a.params
-			}
-			suite.Tests = append(suite.Tests, testCase{
-				Name:       base,
-				ClassName:  a.className,
-				Status:     status,
-				DurationMS: a.dur,
-				Params:     params,
-			})
-			suite.Total++
-			fr.Total++
-			switch status {
-			case "pass":
-				suite.Passed++
-				fr.Passed++
-			case "fail":
-				suite.Failed++
-				fr.Failed++
-			case "skip":
-				suite.Skipped++
-				fr.Skipped++
-			case "error":
-				suite.Errors++
-				fr.Errors++
-			}
-		}
-		fr.Suites = append(fr.Suites, suite)
+		addSuiteToResult(fr, collapseSuite(ts))
 		return nil
 	})
 	return out, err
+}
+
+// collapseSuite turns one parsed JUnit test-suite XML into a testSuite,
+// collapsing JUnit parameterized invocations (method[0: a], method[1: b], …)
+// into one logical contract row per base method. Each @Test method is one
+// behavioural contract regardless of how many fixtures it iterates, so the
+// dashboard counts methods, not fixture×method cells (#611). Status
+// aggregates pessimistically: fail dominates error dominates pass dominates
+// skip, mirroring "the method passes for every parameter".
+func collapseSuite(ts sfTestSuite) testSuite {
+	suite := testSuite{Name: ts.Name, DurationMS: parseSecondsToMs(ts.Time)}
+	type acc struct {
+		className                string
+		anyFail, anyErr, anyPass bool
+		allSkip                  bool
+		dur                      int64
+		params                   int
+	}
+	order := make([]string, 0, len(ts.TestCase))
+	byBase := map[string]*acc{}
+	for _, tc := range ts.TestCase {
+		base := stripParamSuffix(tc.Name)
+		a := byBase[base]
+		if a == nil {
+			a = &acc{className: tc.ClassName, allSkip: true}
+			byBase[base] = a
+			order = append(order, base)
+		}
+		a.params++
+		a.dur += parseSecondsToMs(tc.Time)
+		switch {
+		case tc.Failure != nil:
+			a.anyFail = true
+			a.allSkip = false
+		case tc.Error != nil:
+			a.anyErr = true
+			a.allSkip = false
+		case tc.Skipped != nil:
+			// keep allSkip
+		default:
+			a.anyPass = true
+			a.allSkip = false
+		}
+	}
+	for _, base := range order {
+		a := byBase[base]
+		status := "skip"
+		switch {
+		case a.anyFail:
+			status = "fail"
+		case a.anyErr:
+			status = "error"
+		case a.anyPass:
+			status = "pass"
+		}
+		params := 0
+		if a.params > 1 {
+			params = a.params
+		}
+		suite.Tests = append(suite.Tests, testCase{
+			Name:       base,
+			ClassName:  a.className,
+			Status:     status,
+			DurationMS: a.dur,
+			Params:     params,
+		})
+		suite.Total++
+		switch status {
+		case "pass":
+			suite.Passed++
+		case "fail":
+			suite.Failed++
+		case "skip":
+			suite.Skipped++
+		case "error":
+			suite.Errors++
+		}
+	}
+	return suite
+}
+
+// addSuiteToResult appends a suite to a filterResult and rolls its
+// per-status counts into the result totals.
+func addSuiteToResult(fr *filterResult, suite testSuite) {
+	fr.Suites = append(fr.Suites, suite)
+	fr.Total += suite.Total
+	fr.Passed += suite.Passed
+	fr.Failed += suite.Failed
+	fr.Skipped += suite.Skipped
+	fr.Errors += suite.Errors
+}
+
+// parseFailsafeDir walks a Maven Failsafe report directory and returns one
+// filterResult per filter, keyed by the *IT class name (the integration
+// tests live in net.sf.okapi.{roundtrip,xliffcompare}.integration, so the
+// package prefix can't be used). Unmappable IT suites (memory-leak,
+// pipeline, conversion) are skipped.
+func parseFailsafeDir(dir string) (map[string]*filterResult, error) {
+	out := map[string]*filterResult{}
+	err := filepath.WalkDir(dir, func(path string, d os.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if d.IsDir() || !strings.HasPrefix(filepath.Base(path), "TEST-") || !strings.HasSuffix(path, ".xml") {
+			return nil
+		}
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return fmt.Errorf("read %s: %w", path, err)
+		}
+		var ts sfTestSuite
+		if err := xml.Unmarshal(data, &ts); err != nil {
+			return fmt.Errorf("parse %s: %w", path, err)
+		}
+		// Only the per-filter IT families map to a filter contract: the
+		// roundtrip (extract→merge over a file corpus) and xliff-compare
+		// (extract→XLIFF vs gold) integration tests. The simplifier,
+		// memory-leak, pipeline, and conversion IT suites are not filter
+		// contracts and are skipped.
+		if !strings.HasPrefix(ts.Name, "net.sf.okapi.roundtrip.integration.") &&
+			!strings.HasPrefix(ts.Name, "net.sf.okapi.xliffcompare.integration.") {
+			return nil
+		}
+		filterName := itClassToFilter(shortClass(ts.Name))
+		if filterName == "" {
+			return nil
+		}
+		suite := collapseSuite(ts)
+		dropDebugTests(&suite) // debug/debug2 @Test methods are dev helpers, not contracts
+		if suite.Total == 0 {
+			return nil
+		}
+		fr, ok := out[filterName]
+		if !ok {
+			fr = &filterResult{}
+			out[filterName] = fr
+		}
+		addSuiteToResult(fr, suite)
+		return nil
+	})
+	return out, err
+}
+
+// dropDebugTests removes the "debug"/"debug2" helper @Test methods some
+// Okapi roundtrip IT classes carry — they aren't behavioural contracts.
+func dropDebugTests(suite *testSuite) {
+	kept := suite.Tests[:0]
+	suite.Total, suite.Passed, suite.Failed, suite.Skipped, suite.Errors = 0, 0, 0, 0, 0
+	for _, tc := range suite.Tests {
+		if tc.Name == "debug" || tc.Name == "debug2" {
+			continue
+		}
+		kept = append(kept, tc)
+		suite.Total++
+		switch tc.Status {
+		case "pass":
+			suite.Passed++
+		case "fail":
+			suite.Failed++
+		case "skip":
+			suite.Skipped++
+		case "error":
+			suite.Errors++
+		}
+	}
+	suite.Tests = kept
+}
+
+// mergeOkapiResults folds the per-filter results from src into dst,
+// appending suites and summing totals so Failsafe IT contracts join the
+// same filter rows the Surefire unit tests produced.
+func mergeOkapiResults(dst, src map[string]*filterResult) {
+	for name, sfr := range src {
+		dfr, ok := dst[name]
+		if !ok {
+			dfr = &filterResult{}
+			dst[name] = dfr
+		}
+		for _, suite := range sfr.Suites {
+			addSuiteToResult(dfr, suite)
+		}
+	}
+}
+
+// itClassToFilter maps an Okapi integration-test class (short name) to the
+// filter id it exercises. Recognises the two filter-scoped IT families:
+//
+//	RoundTrip<Name>IT      → <name>   (roundtrip.integration)
+//	<Name>XliffCompareIT   → <name>   (xliffcompare.integration)
+//
+// Returns "" for IT classes that don't map to a single filter (memory-leak,
+// pipeline, conversion). The PascalCase <Name> is normalised to the filter
+// id, with the same aliases the rest of the audit uses.
+func itClassToFilter(short string) string {
+	var name string
+	switch {
+	case strings.HasPrefix(short, "RoundTrip") && strings.HasSuffix(short, "IT"):
+		name = strings.TrimSuffix(strings.TrimPrefix(short, "RoundTrip"), "IT")
+	case strings.HasSuffix(short, "XliffCompareIT"):
+		name = strings.TrimSuffix(short, "XliffCompareIT")
+	default:
+		return ""
+	}
+	if name == "" {
+		return ""
+	}
+	if alias, ok := itFilterAliases[strings.ToLower(name)]; ok {
+		return alias
+	}
+	return strings.ToLower(name)
+}
+
+// itFilterAliases normalises IT class-name stems whose lower-cased form
+// doesn't equal the filter id.
+var itFilterAliases = map[string]string{
+	"openxm":            "openxml",
+	"wik":               "wiki",
+	"property":          "properties",
+	"jsonmessageformat": "messageformat",
+	"yamlmessageformat": "messageformat",
+	"htmlits":           "its",
+	"openoffice":        "openoffice",
 }
 
 // parseGoTestJSON consumes a go test -json stream and returns one
