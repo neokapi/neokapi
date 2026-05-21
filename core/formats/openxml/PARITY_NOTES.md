@@ -116,7 +116,62 @@ where both engines should agree, but it conflates "we lost data"
 with "we made a different valid choice". The two-bug count (or
 the 184/185 spec-compliance metric) is the more meaningful one.
 
-## Status (2026-05-16)
+## Status (2026-05-22) — faithful-writer keystone landed
+
+The writer is now **faithful by default**: `OptimiseWordStyles=false`
+(config.go). Native preserves source `rPr` inline — no synthesised
+paragraph styles, no attribute stripping, no global synth-ID counter.
+WSO is retained behind the flag (not yet deleted; that is a follow-up).
+
+Equivalence-with-Okapi is proved in the **comparator**, not the producer,
+by a new parity-only effective-rPr normalizer
+(`cli/parity/roundtrip/normalizers_openxml.go`, `OpenXMLEffectiveRPr`)
+that resolves ECMA-376-1 §17.7 style indirection on BOTH sides:
+docDefaults → pStyle chain (`basedOn`) → rStyle chain → direct `rPr`
+(combined by Okapi's `combineDistinct` replace-by-name rule), inlining the
+resolved effective rPr onto each run and dropping the now-redundant
+`<w:pStyle>`/`<w:rStyle>` refs + the style defs in `styles.xml`. It also
+folds two clean spec equivalences: `<w:color w:val="auto">`≡`000000`
+(§17.3.2.6) and toggle off-form≡absent / on-form-normalised (§17.3.2.1
+CT_OnOff).
+
+| Engine | Total | byte | canon | sem | div |
+|---|---:|---:|---:|---:|---:|
+| bridge (okapi-bridge) | 185 | 185 | 0 | 0 | 0 |
+| native — WSO ON (old default) | 185 | 0 | 175 | 0 | 10 |
+| native — WSO OFF, no normalizer | 185 | 0 | 109 | 0 | 76 |
+| native — WSO OFF + effective-rPr normalizer | 185 | 0 | **149** | 0 | **36** |
+
+**Style indirection is fully resolved**: the normalizer recovered 40
+fixtures (109→149 canon), and EVERY pure style-indirection fixture
+(pStyle/rStyle/docDefaults → effective rPr) now reaches canon — verified
+by confirming no divergent fixture retains a `<w:pStyle>`/`<w:rStyle>`
+formatting reference. The previously "architectural blocker" 847-3 is now
+CANON (no synth-ID counter to cascade).
+
+**#597 (delTextAmp) is RESOLVED** by the faithful default: the source
+`<w:spacing w:val="-2"/>` is preserved verbatim and no `commonRFonts`
+docDefaults overlay injects `<w:rFonts w:cs="Helvetica"/>` (verified:
+source spacing count 1 → output 1; source rFonts cs=Helvetica count 1 →
+output 1). Reclassified bug→cosmetic in parity-annotations.yaml.
+
+**The residual 36 are NOT style indirection.** They are Okapi's
+§17.3.2.26 **content-category** clarification (dropping complex-script
+`bCs`/`iCs`/`szCs`/`rFonts cs=` on runs whose text has no complex-script
+characters, and the non-complex `b`/`i`/`sz` mirror), plus highlight=white
+and theme-color clarifications, plus a few genuine semantic divergences
+(`HiddenExcluded` hidden-text extraction; `859` Okapi auto-`noProof` on
+drawings; the `956`/`N_001`/`neverendingloop` native-more-correct trio).
+The content-category drop is a text-driven RunFonts decision Okapi applies
+BEFORE building its synth styles; it cannot be reconstructed symmetrically
+in the comparator without dropping properties Okapi keeps as genuine
+overrides (every approximation tried — preCombined-gated and
+effective-set-unconditional — proved net-regressive against the WSO-off
+baseline). It is the documented "RunFonts content-category port" residual
+class (multi-day work; see the design note). All 36 are annotated in
+parity-annotations.yaml; the fail-new gate is green.
+
+## Earlier status (2026-05-16, WSO ON — pre-keystone)
 
 | Engine | Total | byte | canon | sem | div |
 |---|---:|---:|---:|---:|---:|
