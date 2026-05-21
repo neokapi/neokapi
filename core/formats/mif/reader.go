@@ -466,6 +466,19 @@ type stringRef struct {
 	endOffset   int // byte offset of the String value content end (before quote)
 	blockIdx    int // which block (0-based)
 	stringIdx   int // which string within the block (0-based)
+	// runOrdinal selects WHICH translatable text-group of the (possibly
+	// multi-run) paragraph block this `<String>` slot renders. Since #615
+	// composes a whole Para as ONE Block whose runs interleave text and
+	// structural inline-code (Ph) placeholders for the `<Font>`/`<AFrame>`/…
+	// statements that physically separate the source `<String>` tags, the
+	// writer must split the block's text back at those structural boundaries
+	// and write each text-group into its own `<String>` slot — mirroring
+	// okapi, which serializes one TextUnit across multiple output `<String>`
+	// statements with the code data (the `<Font …>` bytes) between them
+	// (MIFFilter.processPara, MIFFilter.java:636-811). A value of -1 means
+	// "render the whole block" (used by single-value items: VariableDef,
+	// PgfNumFormat, TextLine String, MText).
+	runOrdinal int
 }
 
 // elisionRange records a raw byte range that should be dropped from the
@@ -734,7 +747,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 				start: sr.startOffset,
 				end:   sr.endOffset,
 				kind:  opRef,
-				refID: fmt.Sprintf("%d:%d", sr.blockIdx, sr.stringIdx),
+				refID: fmt.Sprintf("%d:%d:%d", sr.blockIdx, sr.stringIdx, sr.runOrdinal),
 			})
 		}
 		for _, e := range elisions {
@@ -841,6 +854,23 @@ func (r *Reader) findStringPositions(rawText string, stmts []*mifStatement) ([]s
 		// through processPgfCatalog with decoded values today; bridging
 		// them to rawValue is a separate cluster.
 		stringsAreRaw bool
+		// runOrdinal: for "String" items that belong to a multi-run Para
+		// block, the 0-based index of this run's text-group within the
+		// block (so the writer renders only that group's text into the
+		// `<String>` slot). -1 = render the whole block (single-value
+		// items: VariableDef / PgfNumFormat / TextLine / MText, and Para
+		// blocks that contain exactly one translatable run).
+		runOrdinal int
+		// literalSkeleton marks a "String" item for a NON-extractable run
+		// (whitespace / building-block-only): it owns no translatable block,
+		// but okapi still serializes the run's pieces into ONE skeleton
+		// `<String>` via toMIFString (MIFFilter.java:789) — adjacent
+		// `<String>`s merge and inlined `<Char>` glyphs fold in. The first
+		// slot's value is rewritten to literalText (source, not translated)
+		// rather than referenced to a block; the rest of the merge/inline
+		// elisions fire exactly as for an extractable run.
+		literalSkeleton bool
+		literalText     string // merged source content for literalSkeleton items
 	}
 	var items []itemInfo
 	var rewrites []charRewrite
@@ -868,9 +898,23 @@ func (r *Reader) findStringPositions(rawText string, stmts []*mifStatement) ([]s
 					}
 					for _, ggc := range gc.children {
 						if ggc.tag == "PgfNumFormat" && ggc.value != "" {
-							pgfBlockIdxs = append(pgfBlockIdxs, blockIdx)
-							pgfValues = append(pgfValues, ggc.value)
-							blockIdx++
+							// Mirror processContainer's pgf-inline emit gate:
+							// split on hard returns, run CodeFinder (+ the
+							// ^[A-Z]: prefix rule), simplify, and emit only when
+							// non-whitespace text survives. A PgfNumFormat of
+							// only building blocks (the 896 autonumber catalog
+							// row: `<n><a><$volnum>…`) yields no block on the
+							// emit side, so it must get no item/blockIdx here —
+							// otherwise the next `<String>` slot is handed the
+							// wrong block and emptied.
+							for _, seg := range r.splitFormatValueOnHardReturns(ggc.value) {
+								if !r.formatValueEmitsBlock(seg, true) {
+									continue
+								}
+								pgfBlockIdxs = append(pgfBlockIdxs, blockIdx)
+								pgfValues = append(pgfValues, seg)
+								blockIdx++
+							}
 						}
 					}
 				}
@@ -904,23 +948,61 @@ func (r *Reader) findStringPositions(rawText string, stmts []*mifStatement) ([]s
 				// the Para in source order).
 				for i, v := range pgfValues {
 					items = append(items, itemInfo{
-						blockIdx:  pgfBlockIdxs[i],
-						strings:   []string{v},
-						searchTag: "PgfNumFormat",
+						blockIdx:   pgfBlockIdxs[i],
+						strings:    []string{v},
+						searchTag:  "PgfNumFormat",
+						runOrdinal: -1,
 					})
 				}
-				// Pre-assign blockIdx for each run in EMIT order
-				// (matches processContainer's runs loop). Char-only runs
-				// also get a blockIdx because processContainer emits a
-				// Block for any run with non-empty text.
-				runBlockIdxs := make([]int, len(runs))
-				for i, run := range runs {
-					if run.text == "" {
-						runBlockIdxs[i] = -1
+				// Pre-assign blockIdx for each run, matched to the BLOCK
+				// processContainer actually emits for this Para.
+				//
+				// REGRESSION FIX (regressed by 5bacf636, #615): #615 switched
+				// processContainer/emitStatements to the inline-code model —
+				// one Block per buildParaRuns *unit* (a whole Para, or a
+				// hard-return-delimited segment of it), gated by
+				// blockHasText() after the CodeFinder + CodeSimplifier run
+				// (MIFFilter.processPara, MIFFilter.java:636-811 + tf.hasText()
+				// at 781). findStringPositions, however, still assigned ONE
+				// blockIdx per extractParaRuns *run* (split at every inline-code
+				// boundary) and counted any run with non-empty text — including
+				// whitespace-only runs (a lone `\n` from a HardReturn glyph) and
+				// code-only runs (e.g. `<String `<$paratext\>'>` whose only
+				// content is the `<\$.*?>` building-block code, Parameters.java:
+				// 202). Those phantom blockIdxs drift the two manifests apart,
+				// so the writer's `w.blocks[blockIdx]` lookup is off-by-N and the
+				// translated text lands in the wrong (or no) `<String>` slot.
+				//
+				// The fix: count blockIdx the way emitStatements does — one per
+				// EMITTED buildParaRuns unit. paraRunBlockIdxs groups the
+				// extractParaRuns runs into the same hard-return segments
+				// buildParaRuns uses and assigns each text-bearing run the
+				// blockIdx of its segment's emitted unit (or -1 when the unit is
+				// gated out / whitespace-only). All runs of one unit therefore
+				// share a single blockIdx, and their `<String>` values coalesce
+				// into that one Block's text on output (writer fills the first
+				// text slot, elides the rest) — restoring the byte-faithful
+				// round-trip while preserving #615's one-TextUnit-per-Para
+				// extraction.
+				var runBlockIdxs []int
+				runBlockIdxs, blockIdx = r.paraRunBlockIdxs(child, runs, blockIdx)
+				// runOrdinalOf[ri] = the 0-based index of run ri among the
+				// text-bearing runs that share its blockIdx — i.e. which
+				// text-group of the merged Para block this run becomes. The
+				// writer uses it to render only that group's text into this
+				// run's `<String>` slot (multi-run paras serialize one
+				// TextUnit across several `<String>` statements, okapi
+				// MIFFilter.processPara).
+				runOrdinalOf := make([]int, len(runs))
+				blockRunCount := map[int]int{}
+				for ri := range runs {
+					bi := runBlockIdxs[ri]
+					if bi < 0 {
+						runOrdinalOf[ri] = -1
 						continue
 					}
-					runBlockIdxs[i] = blockIdx
-					blockIdx++
+					runOrdinalOf[ri] = blockRunCount[bi]
+					blockRunCount[bi]++
 				}
 				// Pre-build the run -> strings mapping AND collect
 				// inline Char info per run.
@@ -1136,51 +1218,97 @@ func (r *Reader) findStringPositions(rawText string, stmts []*mifStatement) ([]s
 									strings:       []string{markerTextRawValue(lc)},
 									searchTag:     "MText",
 									stringsAreRaw: true,
+									runOrdinal:    -1,
 								})
 							}
 						case "String":
 							ri, ok := stringToRun[stringPosCursor]
 							stringPosCursor++
-							if !ok || runEmitted[ri] || runBlockIdxs[ri] < 0 {
+							if !ok || runEmitted[ri] {
 								continue
 							}
-							runEmitted[ri] = true
 							strs := runStrings[ri]
 							if len(strs) == 0 {
 								// Shouldn't happen for a String-driven
 								// run, but keep defensive.
 								continue
 							}
+							if runBlockIdxs[ri] < 0 {
+								// Non-extractable run (whitespace / building-
+								// block-only). okapi still merges its pieces
+								// into ONE skeleton `<String>` (toMIFString,
+								// MIFFilter.java:789): adjacent `<String>`s
+								// coalesce and inlined `<Char>` glyphs fold in.
+								// Emit a literal-skeleton item only when there
+								// IS something to merge (>1 String, or an inline
+								// Char glyph); a lone untouched `<String>` stays
+								// verbatim with no item.
+								if len(strs) <= 1 && len(runInlineChars[ri]) == 0 {
+									continue
+								}
+								runEmitted[ri] = true
+								items = append(items, itemInfo{
+									blockIdx:        -1,
+									strings:         strs,
+									searchTag:       "String",
+									inlineChars:     runInlineChars[ri],
+									stringsAreRaw:   true,
+									runOrdinal:      -1,
+									literalSkeleton: true,
+									literalText:     runs[ri].text,
+								})
+								continue
+							}
+							runEmitted[ri] = true
 							items = append(items, itemInfo{
 								blockIdx:      runBlockIdxs[ri],
 								strings:       strs,
 								searchTag:     "String",
 								inlineChars:   runInlineChars[ri],
 								stringsAreRaw: true,
+								runOrdinal:    runOrdinalOf[ri],
 							})
 						case "Char":
 							owner := charOwnerRun[charPosCursor]
 							charPosCursor++
-							if owner < 0 || runEmitted[owner] || runBlockIdxs[owner] < 0 {
+							if owner < 0 || runEmitted[owner] {
 								continue
 							}
-							runEmitted[owner] = true
 							strs := runStrings[owner]
 							if len(strs) == 0 {
-								// Char-only run -- emit a CharRewrite
-								// item.
+								// Char-only run -- emit a CharRewrite item.
+								// This is a pure skeleton rewrite (a whitespace
+								// glyph like <Char HardReturn>/<Char Tab>
+								// becomes its own `<String '\n'>` /
+								// `<String '\t'>`), so it fires even when the
+								// run owns NO translatable block (runBlockIdxs
+								// == -1). okapi routes such whitespace-only
+								// fragments to the skeleton via toMIFString
+								// (MIFFilter.java:789); the rewrite reproduces
+								// that without an extracted TextUnit.
+								if len(runCharRewrites[owner]) == 0 {
+									continue
+								}
+								runEmitted[owner] = true
 								items = append(items, itemInfo{
 									blockIdx:        runBlockIdxs[owner],
 									searchTag:       "CharRewrite",
 									paraCharRewrite: runCharRewrites[owner],
+									runOrdinal:      -1,
 								})
+							} else if runBlockIdxs[owner] < 0 {
+								// A text-bearing run that emits no block (gated
+								// out): nothing to rewrite or reference.
+								continue
 							} else {
+								runEmitted[owner] = true
 								items = append(items, itemInfo{
 									blockIdx:      runBlockIdxs[owner],
 									strings:       strs,
 									searchTag:     "String",
 									inlineChars:   runInlineChars[owner],
 									stringsAreRaw: true,
+									runOrdinal:    runOrdinalOf[owner],
 								})
 							}
 						}
@@ -1208,9 +1336,10 @@ func (r *Reader) findStringPositions(rawText string, stmts []*mifStatement) ([]s
 				continue
 			}
 			items = append(items, itemInfo{
-				blockIdx:  blockIdx,
-				strings:   []string{defStmt.value},
-				searchTag: "VariableDef",
+				blockIdx:   blockIdx,
+				strings:    []string{defStmt.value},
+				searchTag:  "VariableDef",
+				runOrdinal: -1,
 			})
 			blockIdx++
 		}
@@ -1239,8 +1368,22 @@ func (r *Reader) findStringPositions(rawText string, stmts []*mifStatement) ([]s
 				if gc.tag != "PgfNumFormat" || gc.value == "" {
 					continue
 				}
-				items = append(items, itemInfo{blockIdx: blockIdx, strings: []string{gc.value}, searchTag: "PgfNumFormat"})
-				blockIdx++
+				// Mirror processPgfCatalog's emit gate: split on hard
+				// returns, run the CodeFinder (+ the ^[A-Z]: prefix rule),
+				// simplify, and emit a block only when non-whitespace text
+				// survives (blockHasText). A PgfNumFormat that is only
+				// building-block codes (e.g. `<$lastpagenum>`) yields no
+				// block on the emit side, so it must get no item/blockIdx
+				// here either — otherwise the catalog blockIdx counter
+				// drifts and scrambles every later VariableDef/String slot
+				// (the Test01 PgfNumFormat regression).
+				for _, seg := range r.splitFormatValueOnHardReturns(gc.value) {
+					if !r.formatValueEmitsBlock(seg, true) {
+						continue
+					}
+					items = append(items, itemInfo{blockIdx: blockIdx, strings: []string{seg}, searchTag: "PgfNumFormat", runOrdinal: -1})
+					blockIdx++
+				}
 			}
 		}
 	}
@@ -1256,17 +1399,30 @@ func (r *Reader) findStringPositions(rawText string, stmts []*mifStatement) ([]s
 		for _, child := range stmt.children {
 			switch child.tag {
 			case "Frame":
+				// Mirror processFramesAndTextLines' body-page scope gate
+				// (Extracts.frameExtractable) so blockIdx tracks the emit side.
+				if !r.scope.frameInScope(child.firstLiteral("Unique")) {
+					continue
+				}
 				walkFramesAndTextLines(child)
 			case "TextLine":
-				val, ok := firstStringRawValue(child)
+				rawVal, ok := firstStringRawValue(child)
 				if !ok {
+					continue
+				}
+				decVal, _ := firstStringValue(child)
+				// Mirror processTextLine's emit gate: CodeFinder +
+				// blockHasText. A TextLine String of only building-block
+				// codes / whitespace yields no block, so no item/blockIdx.
+				if !r.formatValueEmitsBlock(decVal, false) {
 					continue
 				}
 				items = append(items, itemInfo{
 					blockIdx:      blockIdx,
-					strings:       []string{val},
+					strings:       []string{rawVal},
 					searchTag:     "String",
 					stringsAreRaw: true,
+					runOrdinal:    -1,
 				})
 				blockIdx++
 			}
@@ -1404,14 +1560,27 @@ func (r *Reader) findStringPositions(rawText string, stmts []*mifStatement) ([]s
 			stringPositions = append(stringPositions, [2]int{absIdx, valEnd})
 			searchFrom = valEnd
 
-			if stringInItemIdx == 0 {
+			if stringInItemIdx == 0 && it.literalSkeleton {
+				// Non-extractable run merged into ONE skeleton `<String>`:
+				// rewrite the first slot's value to the merged SOURCE content
+				// (re-encoded) rather than referencing a translatable block.
+				// The secondary-String elisions + inlined-Char elisions below
+				// then collapse the run's remaining `<String>`/`<Char>` lines.
+				rewrites = append(rewrites, charRewrite{
+					startOffset: valStart,
+					endOffset:   valEnd,
+					text:        escapeMIFForSearch(it.literalText),
+				})
+			} else if stringInItemIdx == 0 {
 				// First String in the item -- write the rendered text
-				// into the value slot.
+				// into the value slot. runOrdinal selects which text-group
+				// of the (possibly multi-run) Para block this slot renders.
 				refs = append(refs, stringRef{
 					startOffset: valStart,
 					endOffset:   valEnd,
 					blockIdx:    it.blockIdx,
 					stringIdx:   0,
+					runOrdinal:  it.runOrdinal,
 				})
 			} else if it.searchTag == "String" {
 				// Non-first String in the same Para item -- the writer
@@ -2820,6 +2989,18 @@ func blockHasText(block *model.Block) bool {
 	return false
 }
 
+// simplifyBlockTrim is the property key under which simplifyBlockCodes
+// records, before it discards them, the rendered leading and trailing
+// content it removes from the block's first segment (joined by a NUL).
+// okapi routes such boundary codes/whitespace into the surrounding
+// skeleton (CodeSimplifier folds leading/trailing placeholder codes out of
+// the TextUnit, MIFFilter.java:935-963) so they STILL appear in the output
+// `<String>` — they are non-translatable, so the writer re-wraps the
+// translated core with them on round-trip. Without this the trimmed bytes
+// (e.g. a leading `<Char Tab>` glyph, or a trailing `<$paratext>` building
+// block) would vanish from the output, breaking byte-faithful round-trip.
+const simplifyBlockTrim = "mif_simplify_trim"
+
 func simplifyBlockCodes(block *model.Block) {
 	if block == nil || len(block.Source) == 0 {
 		return
@@ -2854,6 +3035,7 @@ func simplifyBlockCodes(block *model.Block) {
 		}
 		toks = append(toks, tok{isCode: true, run: run})
 	}
+	origToks := append([]tok(nil), toks...)
 
 	// Whitespace per Java's Character.isWhitespace, which okapi
 	// CodeSimplifier uses: spaces, tabs, and line breaks all count. A hard
@@ -2917,6 +3099,92 @@ func simplifyBlockCodes(block *model.Block) {
 		if len(toks) == 0 {
 			break
 		}
+	}
+
+	// Capture the leading/trailing tokens that were removed so the writer
+	// can re-wrap the translated core with them on round-trip (they are
+	// non-translatable boundary whitespace/codes that okapi keeps in the
+	// output `<String>`). The surviving `toks` is a contiguous middle slice
+	// of origToks; everything before/after it was trimmed.
+	renderToks := func(ts []tok) string {
+		var b strings.Builder
+		for _, t := range ts {
+			if t.isCode {
+				if t.run.Ph != nil {
+					b.WriteString(t.run.Ph.Data)
+				}
+				continue
+			}
+			b.WriteString(t.text)
+		}
+		return b.String()
+	}
+	leadCount := 0
+	if len(toks) > 0 {
+		// Find the start index of the surviving slice within origToks by
+		// locating the first surviving token. Because trimming only removes
+		// from the ends, len(origToks)-len(toks) split between lead and tail.
+		// Reconstruct lead length: scan origToks for the position where the
+		// surviving middle begins (the trimming loop removed a prefix then a
+		// suffix iteratively, so the survivors are origToks[lead:lead+len(toks)]).
+		// We recompute lead by matching the surviving content length.
+		for leadCount <= len(origToks)-len(toks) {
+			match := true
+			for k := range toks {
+				o := origToks[leadCount+k]
+				s := toks[k]
+				if o.isCode != s.isCode || o.text != s.text {
+					match = false
+					break
+				}
+			}
+			if match {
+				break
+			}
+			leadCount++
+		}
+	} else {
+		leadCount = len(origToks)
+	}
+	isStructuralPh := func(t tok) bool {
+		return t.isCode && t.run.Ph != nil && t.run.Ph.Data == ""
+	}
+	// The trimmed leading region is origToks[:leadCount]. Anything before
+	// the LAST structural inline-code (empty-Data Ph, i.e. a <Font>/<AFrame>
+	// boundary) in that region belongs to an EARLIER text-group — a separate
+	// output `<String>` slot (or a whitespace-only run handled by a Char
+	// rewrite). Only the bytes AFTER that boundary are this surviving group's
+	// own leading content that the writer must restore. Without this bound a
+	// leading `<Char HardReturn>`-derived `\n` (which becomes its own
+	// `<String '\n'>` via paraCharRewrite) would also be duplicated into the
+	// next group's String (the 1188_crlf cluster).
+	leadFrom := 0
+	for i := range leadCount {
+		if isStructuralPh(origToks[i]) {
+			leadFrom = i + 1
+		}
+	}
+	leadStr := renderToks(origToks[leadFrom:leadCount])
+
+	trailStart := leadCount + len(toks)
+	if trailStart > len(origToks) {
+		trailStart = len(origToks)
+	}
+	// Symmetric: the trailing trim stops at the FIRST structural inline-code
+	// in the trailing region; content at/after it belongs to a later group.
+	trailEnd := len(origToks)
+	for i := trailStart; i < len(origToks); i++ {
+		if isStructuralPh(origToks[i]) {
+			trailEnd = i
+			break
+		}
+	}
+	trailStr := renderToks(origToks[trailStart:trailEnd])
+	if leadStr != "" || trailStr != "" {
+		if block.Properties == nil {
+			block.Properties = map[string]string{}
+		}
+		block.Properties[simplifyBlockTrim] = leadStr + "\x00" + trailStr
 	}
 
 	// Rebuild runs, coalescing consecutive text tokens.
@@ -3384,6 +3652,152 @@ type inlineCodeOrdinal struct {
 func (o *inlineCodeOrdinal) next() int {
 	o.n++
 	return o.n
+}
+
+// paraRunBlockIdxs assigns each extractParaRuns run the blockIdx of the
+// Block that processContainer/emitStatements actually emits for it, and
+// returns the advanced blockIdx counter. It is the skeleton-side mirror of
+// processContainer's emit loop (reader.go processContainer + buildParaRuns):
+// one block per EMITTED buildParaRuns unit, where a unit is a Para (or, when
+// ExtractHardReturnsAsText is false, a hard-return-delimited segment of it)
+// whose source survives the CodeFinder + CodeSimplifier and still carries
+// non-whitespace text (okapi tf.hasText() gate, MIFFilter.java:781).
+//
+// Runs that fall in a unit that emits no block (whitespace-only, or only
+// inline-code building blocks like `<$paratext>` / `<n+>`) get -1: they
+// produce no skeleton ref, so their original `<String>` bytes stay in the
+// skeleton verbatim — matching okapi, which routes such fragments to the
+// skeleton via toMIFString (MIFFilter.java:789) rather than extracting them.
+//
+// extractParaRuns splits at every inline-code boundary; buildParaRuns merges
+// across those boundaries and only splits at hard returns. So consecutive
+// runs map to ONE shared blockIdx (the merged unit) until a hard-return
+// boundary starts the next unit — keeping blockIdx in lock-step with the
+// emit side and preventing the off-by-N drift introduced by 5bacf636 (#615).
+// formatValueEmitsBlock reports whether a single (already hard-return-split)
+// format value — a <PgfNumFormat> or <TextLine>'s <String> — would survive
+// the emit-side gate and produce a translatable Block. It mirrors the
+// processPgfCatalog / processTextLine pipeline: CodeFinder (plus the ^[A-Z]:
+// PgfNumFormat prefix rule when withPgfPrefix is set) → simplifyBlockCodes →
+// blockHasText (okapi tf.hasText() after CodeSimplifier). Used by
+// findStringPositions so its catalog/textline blockIdx counter skips
+// building-block-only values exactly as emitStatements does.
+func (r *Reader) formatValueEmitsBlock(value string, withPgfPrefix bool) bool {
+	block := model.NewBlock("probe", value)
+	if withPgfPrefix {
+		r.applyCodeFinderWithExtras(block, []*regexp.Regexp{pgfNumFormatLeadingPrefix})
+	} else {
+		r.applyCodeFinder(block)
+	}
+	simplifyBlockCodes(block)
+	return blockHasText(block)
+}
+
+func (r *Reader) paraRunBlockIdxs(para *mifStatement, runs []paraTextRun, blockIdx int) ([]int, int) {
+	hardReturnsAsText := r.cfg.ExtractHardReturnsAsText
+	out := make([]int, len(runs))
+	for i := range out {
+		out[i] = -1
+	}
+
+	// Assign each run to a hard-return segment index. When
+	// hardReturnsAsText is true (the default) there are no splits, so every
+	// run belongs to segment 0. When false, a run whose text contains a
+	// '\n' (a HardReturn / hard-return escape that buildParaRuns splits on)
+	// closes the current segment AFTER that run, mirroring buildParaRuns'
+	// split-on-'\n' behaviour.
+	runSeg := make([]int, len(runs))
+	seg := 0
+	for i, run := range runs {
+		runSeg[i] = seg
+		if !hardReturnsAsText && strings.Contains(run.text, "\n") {
+			seg++
+		}
+	}
+
+	// Determine, per segment, whether processContainer emits a block — by
+	// running the exact same gate (buildParaRuns → CodeFinder → simplify →
+	// blockHasText). buildParaRuns returns one result per segment that has
+	// non-whitespace text, in source order; we re-apply the CodeFinder gate
+	// to discover which of those actually survive (e.g. a `<$paratext>`-only
+	// unit yields a buildParaRuns result but is dropped by blockHasText).
+	units := buildParaRuns(para, hardReturnsAsText)
+	emits := make([]bool, len(units))
+	for ui, pr := range units {
+		block := model.NewRunsBlock("probe", pr.runs)
+		leadingCode := len(pr.runs) > 0 && pr.runs[0].Ph != nil
+		r.applyCodeFinderCtx(block, codeFinderCtx{suppressLeadingAnchored: leadingCode})
+		simplifyBlockCodes(block)
+		emits[ui] = blockHasText(block)
+	}
+
+	// buildParaRuns only yields a result for segments that contain
+	// non-whitespace text; whitespace-only segments are skipped entirely.
+	// Walk the segments in order and pair each text-bearing segment with the
+	// next buildParaRuns unit so segment→unit indices line up.
+	segHasText := map[int]bool{}
+	for i, run := range runs {
+		if hasNonWhitespace(run.text) {
+			segHasText[runSeg[i]] = true
+		}
+	}
+	maxSeg := 0
+	for _, s := range runSeg {
+		if s > maxSeg {
+			maxSeg = s
+		}
+	}
+	segBlockIdx := make(map[int]int)
+	unitCursor := 0
+	for s := 0; s <= maxSeg; s++ {
+		if !segHasText[s] {
+			segBlockIdx[s] = -1
+			continue
+		}
+		if unitCursor >= len(units) {
+			segBlockIdx[s] = -1
+			continue
+		}
+		if emits[unitCursor] {
+			segBlockIdx[s] = blockIdx
+			blockIdx++
+		} else {
+			segBlockIdx[s] = -1
+		}
+		unitCursor++
+	}
+
+	for i, run := range runs {
+		// A run only gets a ref if it carries non-whitespace text that
+		// SURVIVES the CodeFinder AND its segment emits a block. A run whose
+		// only content is building-block codes (e.g. a `<String '<$pagenum>'>`
+		// run between Fonts) collapses to codes-only after applyCodeFinder, so
+		// it owns no output text-group — its `<String>` must stay in the
+		// skeleton verbatim (okapi keeps `<$pagenum>` unchanged). Using plain
+		// hasNonWhitespace here would mis-count `<$pagenum>` as text (the `<`,
+		// letters, `>` are non-space) and hand it a phantom run-group, emptying
+		// the slot (the 893 `<$pagenum>` / `<$paratext>` cluster).
+		if !r.runHasExtractableText(run.text) {
+			out[i] = -1
+			continue
+		}
+		out[i] = segBlockIdx[runSeg[i]]
+	}
+	return out, blockIdx
+}
+
+// runHasExtractableText reports whether a single text run, after the
+// CodeFinder masks FrameMaker building blocks into inline codes, still
+// carries non-whitespace text. Mirrors the per-run contribution to okapi's
+// tf.hasText() gate: a run of only `<$pagenum>`/`<n+>`-style codes (and
+// whitespace) contributes no extractable text.
+func (r *Reader) runHasExtractableText(text string) bool {
+	if !hasNonWhitespace(text) {
+		return false
+	}
+	block := model.NewBlock("probe", text)
+	r.applyCodeFinder(block)
+	return blockHasText(block)
 }
 
 // buildParaRuns walks a Para's ParaLines and produces ONE ordered Run

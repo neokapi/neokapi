@@ -91,6 +91,53 @@ func TestSkeletonStore_ByteExact_SimpleFile(t *testing.T) {
 	assert.Equal(t, input, output, "simple.mif file roundtrip should be byte-exact")
 }
 
+// TestSkeletonStore_ByteExact_InlineCodeParagraph pins the round-trip
+// fidelity that regressed with 5bacf636 (#615). #615 switched the reader to
+// the inline-code paragraph model — a whole Para becomes ONE Block whose runs
+// interleave text and inline-code (Ph) placeholders — but the writer-side
+// skeleton-ref machinery (findStringPositions + writeFromSkeleton) still
+// assigned one blockIdx per source `<String>`. The two manifests drifted, so
+// the writer's block lookup landed off-by-N and scrambled / dropped output.
+//
+// This paragraph exercises the clusters the fix touches in one document:
+//   - a `<Font>` statement BETWEEN two translatable `<String>`s (one Block,
+//     two output text-groups distributed across two `<String>` slots), and
+//   - a `<String>` whose only content is a building-block code `<$paratext>`
+//     (Parameters.java:202 `<\$.*?>`), which must stay in the skeleton
+//     verbatim — NOT be extracted or emptied.
+//
+// With NO translation applied the output must be byte-identical to the input:
+// the Fonts stay between their Strings, each String keeps its own value, and
+// the building-block-only String is left untouched. Before the fix the writer
+// scrambled these slots (blockIdx drift) — emptying the `<$paratext>` String
+// and mis-routing the `world` text.
+func TestSkeletonStore_ByteExact_InlineCodeParagraph(t *testing.T) {
+	input := `<MIFFile 2015>
+<TextFlow
+ <Para
+  <PgfTag ` + "`Body'>" + `
+  <ParaLine
+   <String ` + "`Hello '>" + `
+   <Font
+    <FTag ` + "`'>" + `
+    <FWeight ` + "`Bold'>" + `
+   > # end of Font
+   <String ` + "`world'>" + `
+  >
+ >
+ <Para
+  <PgfTag ` + "`Body'>" + `
+  <ParaLine
+   <String ` + "`<$paratext\\>'>" + `
+  >
+ >
+>
+`
+	output := snippetRoundtripWithSkeleton(t, input)
+	assert.Equal(t, input, output,
+		"inline-code paragraph (Font between two Strings + building-block-only String) must round-trip byte-exact")
+}
+
 func TestSkeletonStore_WithTranslation(t *testing.T) {
 	input := `<MIFFile 2015>
 <TextFlow

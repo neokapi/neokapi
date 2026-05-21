@@ -93,19 +93,28 @@ func (w *Writer) writeFromSkeleton() error {
 				return err
 			}
 		case format.SkeletonRef:
-			// Ref ID is "blockIdx:stringIdx"
+			// Ref ID is "blockIdx:stringIdx:runOrdinal".
 			refID := string(entry.Data)
-			idxStr, refSuffix, ok := strings.Cut(refID, ":")
-			if !ok {
+			parts := strings.SplitN(refID, ":", 3)
+			if len(parts) < 2 {
 				continue
 			}
-			blockIdx, err := strconv.Atoi(idxStr)
+			blockIdx, err := strconv.Atoi(parts[0])
 			if err != nil || blockIdx < 0 || blockIdx >= len(w.blocks) {
 				continue
 			}
-			stringIdx, err := strconv.Atoi(refSuffix)
+			stringIdx, err := strconv.Atoi(parts[1])
 			if err != nil {
 				continue
+			}
+			// runOrdinal selects which text-group of a multi-run Para block
+			// to render into this `<String>` slot. -1 (or a missing third
+			// field, for older single-value items) renders the whole block.
+			runOrdinal := -1
+			if len(parts) == 3 {
+				if ro, err := strconv.Atoi(parts[2]); err == nil {
+					runOrdinal = ro
+				}
 			}
 
 			block := w.blocks[blockIdx]
@@ -113,22 +122,51 @@ func (w *Writer) writeFromSkeleton() error {
 			if !w.Locale.IsEmpty() && block.HasTarget(w.Locale) {
 				segs = block.Targets[w.Locale]
 			}
-			text := renderSegments(segs)
 
-			// For skeleton roundtrip, each String in the para is a separate ref.
-			// If this is the only string (stringIdx==0 and it's the full text),
-			// just write the text. For multi-string paras, we need to split.
-			// Since the original strings were concatenated, and we only have the
-			// combined text, for roundtrip we write the original text at stringIdx==0
-			// and empty for others. For translated content, put all text in first string.
-			if stringIdx == 0 {
-				if _, err := io.WriteString(w.Output, escapeMIF(text)); err != nil {
-					return err
+			// stringIdx>0 entries are the secondary `<String>`s of a single
+			// run whose values were merged into the run's first `<String>`
+			// (the wrapper bytes between them are elided by the reader). They
+			// emit no text — the run's whole text-group lives in slot 0.
+			if stringIdx != 0 {
+				continue
+			}
+
+			// A Para is composed as ONE Block whose runs interleave text and
+			// structural inline-code (Ph) placeholders for the `<Font>` /
+			// `<AFrame>` / … statements that physically separate the source
+			// `<String>` tags. The reader emits one ref per text-group with
+			// its runOrdinal so we render only that group's text here, leaving
+			// the structural statements in the skeleton between slots —
+			// mirroring okapi, which serializes one TextUnit across several
+			// `<String>` outputs (MIFFilter.processPara, MIFFilter.java:636-811).
+			var text string
+			if runOrdinal < 0 {
+				text = renderSegments(segs)
+			} else {
+				text = renderRunGroup(segs, runOrdinal)
+			}
+			// Re-wrap with the leading/trailing boundary content that
+			// simplifyBlockCodes trimmed from the extracted unit (it is
+			// non-translatable and okapi keeps it in the output `<String>`).
+			// The lead attaches to the first text-group; the trail to the
+			// last. For whole-block (-1) renders both attach to the one slot.
+			lead, trail := blockTrim(block)
+			if lead != "" || trail != "" {
+				lastGroup := runGroupCount(segs) - 1
+				if runOrdinal < 0 {
+					text = lead + text + trail
+				} else {
+					if runOrdinal == 0 {
+						text = lead + text
+					}
+					if runOrdinal == lastGroup {
+						text += trail
+					}
 				}
 			}
-			// For stringIdx > 0, write nothing (the text was combined into block text)
-			// This preserves byte-exactness for single-string paras (the common case)
-			// and puts translated text in the first string for multi-string paras.
+			if _, err := io.WriteString(w.Output, escapeMIF(text)); err != nil {
+				return err
+			}
 		}
 	}
 	return nil
@@ -227,6 +265,104 @@ func renderSegments(segs []*model.Segment) string {
 		sb.WriteString(model.RenderRunsWithData(seg.Runs))
 	}
 	return sb.String()
+}
+
+// blockTrim returns the leading and trailing boundary content that
+// simplifyBlockCodes removed from the block during extraction (recorded in
+// block.Properties[simplifyBlockTrim] as "lead\x00trail"). These are
+// non-translatable bytes (boundary whitespace + leading/trailing inline-code
+// building blocks) that okapi keeps in the output `<String>`; the writer
+// re-wraps the translated core with them so the round-trip stays byte-exact.
+func blockTrim(block *model.Block) (lead, trail string) {
+	if block == nil || block.Properties == nil {
+		return "", ""
+	}
+	v, ok := block.Properties[simplifyBlockTrim]
+	if !ok {
+		return "", ""
+	}
+	l, t, _ := strings.Cut(v, "\x00")
+	return l, t
+}
+
+// paraGroup is the rendered content of one structural text-group of a Para
+// block (the runs between two STRUCTURAL empty-Data inline-code boundaries),
+// plus whether that group carries extractable (non-whitespace) text.
+type paraGroup struct {
+	text        string
+	extractable bool
+}
+
+// paraGroups splits a Para block's runs into structural text-groups. A
+// STRUCTURAL inline-code (empty-Data Ph, synthesized by buildParaRuns for the
+// `<Font>`/`<AFrame>`/`<Marker>`/… statements that physically separate source
+// `<String>` tags) is a group boundary; the statement bytes stay in the
+// skeleton. Building-block inline codes (Ph with Data, from the CodeFinder)
+// belong INSIDE the group's `<String>` value, so their Data is rendered.
+//
+// A group is "extractable" when it carries non-whitespace text — those are
+// the groups that received a translatable ref (runOrdinal). Whitespace-only
+// or building-block-only groups are non-extractable: they own no ref (their
+// `<String>` stays in the skeleton or is rewritten from a Char glyph), so the
+// reader's runOrdinal numbering skips them. renderRunGroup therefore indexes
+// into the EXTRACTABLE groups only, keeping the writer's group numbering in
+// lock-step with the reader's runOrdinal (which counts ref-producing runs).
+func paraGroups(segs []*model.Segment) []paraGroup {
+	var groups []paraGroup
+	cur := paraGroup{}
+	flush := func() {
+		groups = append(groups, cur)
+		cur = paraGroup{}
+	}
+	for _, seg := range segs {
+		if seg == nil {
+			continue
+		}
+		for _, run := range seg.Runs {
+			if run.Ph != nil && run.Ph.Data == "" {
+				flush()
+				continue
+			}
+			switch {
+			case run.Text != nil:
+				cur.text += run.Text.Text
+				if hasNonWhitespace(run.Text.Text) {
+					cur.extractable = true
+				}
+			case run.Ph != nil:
+				cur.text += run.Ph.Data
+			}
+		}
+	}
+	flush()
+	return groups
+}
+
+// runGroupCount returns the number of EXTRACTABLE text-groups in a block.
+func runGroupCount(segs []*model.Segment) int {
+	n := 0
+	for _, g := range paraGroups(segs) {
+		if g.extractable {
+			n++
+		}
+	}
+	return n
+}
+
+// renderRunGroup renders the ordinal-th EXTRACTABLE text-group of a Para
+// block (text + building-block code Data; structural boundaries excluded).
+func renderRunGroup(segs []*model.Segment, ordinal int) string {
+	idx := 0
+	for _, g := range paraGroups(segs) {
+		if !g.extractable {
+			continue
+		}
+		if idx == ordinal {
+			return g.text
+		}
+		idx++
+	}
+	return ""
 }
 
 // escapeMIF escapes special characters for MIF string values.
