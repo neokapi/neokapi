@@ -2500,7 +2500,7 @@ func TestExtract_MaxwidthSizeUnit(t *testing.T) {
 
 // --- Disabled tests (matching Java disabled) ---
 
-// okapi: XLIFFFilterTest#disabled_testMisOrderedCodes
+// okapi-skip: XLIFFFilterTest#disabled_testMisOrderedCodes — disabled upstream in Okapi (the @Test is named disabled_*, not a maintained contract; mis-ordered inline codes have no asserted expected output to port)
 func TestExtract_DisabledTestMisOrderedCodes(t *testing.T) {
 	t.Parallel()
 	t.Skip("disabled in Java: testMisOrderedCodes")
