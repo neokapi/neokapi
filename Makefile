@@ -424,6 +424,13 @@ build-bowrain-plugin: ## Build the kapi-bowrain plugin binary (manifest-driven)
 	@mkdir -p $(BIN_DIR)
 	cd bowrain/cli && $(GOBUILD) $(LDFLAGS) -o $(BIN_DIR)/kapi-bowrain ./cmd/kapi-bowrain
 
+PLUGIN_DIR := packages/kapi-claude-plugin
+plugin-bundle: build ## Regenerate the Claude Code plugin skills/ from the embedded source (byte-identical to the CLI)
+	@rm -rf $(PLUGIN_DIR)/skills
+	@mkdir -p $(PLUGIN_DIR)/skills
+	./$(BIN_DIR)/kapi skills export --dir $(PLUGIN_DIR)/skills >/dev/null
+	@echo "Regenerated $(PLUGIN_DIR)/skills from embedded skills"
+
 build-all: ## Build all Go binaries
 	@mkdir -p $(BIN_DIR)
 	cd kapi && $(GOBUILD) $(LDFLAGS) -o $(BIN_DIR)/kapi ./cmd/kapi

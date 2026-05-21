@@ -1,0 +1,18 @@
+{
+  "name": "neokapi",
+  "owner": {
+    "name": "neokapi",
+    "url": "https://github.com/neokapi/neokapi"
+  },
+  "metadata": {
+    "description": "On-brand, terminologically-consistent, multilingual content for AI coding assistants.",
+    "version": "0.1.0"
+  },
+  "plugins": [
+    {
+      "name": "kapi",
+      "source": "./",
+      "description": "Keep AI output on-brand and consistent, and publish in every language and format — kapi CLI (offline) + Bowrain (governed)."
+    }
+  ]
+}
