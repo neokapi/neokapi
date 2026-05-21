@@ -49,16 +49,23 @@ const config: Config = {
         ],
       },
     ],
-    // Silence the benign "Critical dependency" webpack warning emitted by
-    // langium's UMD bundle, pulled in transitively via @docusaurus/theme-mermaid.
+    // Silence the benign "Critical dependency" webpack warning emitted by the
+    // UMD wrapper in vscode-languageserver-types (pulled in transitively via
+    // @docusaurus/theme-mermaid → mermaid → langium). The `require` it flags is
+    // the module's CommonJS/AMD format detection, not a missing dependency.
+    // Scoped to that module's path so an equivalent warning from our own code
+    // is NOT suppressed.
     function ignoreWebpackWarnings() {
       return {
         name: "ignore-webpack-warnings",
         configureWebpack() {
           return {
             ignoreWarnings: [
-              (warning: { message?: string }) =>
-                /Critical dependency: require function is used/.test(warning.message ?? ""),
+              (warning: { message?: string; module?: { resource?: string } }) =>
+                /Critical dependency: require function is used/.test(warning.message ?? "") &&
+                /[\\/]node_modules[\\/]vscode-languageserver-types[\\/]/.test(
+                  warning.module?.resource ?? "",
+                ),
             ],
           };
         },
