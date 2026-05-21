@@ -124,6 +124,12 @@ func (c *Config) Reset() {
 			// VariableDef / paragraph text.
 			`^[A-Z]:`,
 			`\x{2022}`,
+			// Two distinct tab rules mirror okapi Parameters.java:198-199.
+			// `\t` (a literal TAB) protects tabs that appear inside <String>
+			// values ("for strings"); `\\t` (backslash-t) protects the
+			// escaped form that appears inside format strings like
+			// <PgfNumFormat>/<VariableDef> ("for formats").
+			`\t`,
 			`\\t`,
 			`<[naArR ]{1}[+]*>`,
 			`<[naArR]{1}=[0-9]+>`,

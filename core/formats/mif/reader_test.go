@@ -126,7 +126,13 @@ func TestReadMIFMultipleParaLines(t *testing.T) {
 	assert.Equal(t, "First part second part.", blocks[0].SourceText())
 }
 
-// okapi: ExtractionTest#testTabs — verifies tab characters are preserved in extracted text.
+// okapi: ExtractionTest#testTabs — a <Char Tab> glyph between two strings
+// is represented as an INLINE CODE, not literal text. The glyph maps to a
+// tab character (CharLiteralToken.java), which the default `\t` codeFinder
+// rule (Parameters.java:198, "for strings") then converts to a placeholder
+// code (#509). The extracted unit therefore holds the two String values as
+// text plus a tab Ph between them: SourceText() (text-only) is
+// "Before tabafter tab." and the segment carries one inline code.
 func TestReadMIFSpecialCharacters(t *testing.T) {
 	ctx := t.Context()
 	reader := mif.NewReader()
@@ -148,9 +154,18 @@ func TestReadMIFSpecialCharacters(t *testing.T) {
 
 	blocks := testutil.CollectBlocks(t, reader.Read(ctx))
 	require.Len(t, blocks, 1)
-	assert.Contains(t, blocks[0].SourceText(), "Before tab")
-	assert.Contains(t, blocks[0].SourceText(), "\t")
-	assert.Contains(t, blocks[0].SourceText(), "after tab.")
+	// Tab is an inline code, so text-only SourceText excludes it.
+	assert.Equal(t, "Before tabafter tab.", blocks[0].SourceText())
+	// The tab survives as a Ph (placeholder) run carrying the tab literal,
+	// positioned between the two String values.
+	require.True(t, blocks[0].FirstSegment().HasInlineCodes(), "tab must be an inline code")
+	var tabData string
+	for _, run := range blocks[0].SourceRuns() {
+		if run.Ph != nil {
+			tabData = run.Ph.Data
+		}
+	}
+	assert.Equal(t, "\t", tabData, "the inline code data must be the tab literal")
 }
 
 // okapi: ExtractionTest#testStartDocument — verifies LayerStart/LayerEnd structure wraps MIF content.

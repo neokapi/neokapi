@@ -10,7 +10,9 @@ import (
 	"io"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
+	"unicode"
 
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
@@ -22,6 +24,7 @@ type Reader struct {
 	cfg           *Config
 	skeletonStore *format.SkeletonStore
 	skelBuf       bytes.Buffer // coalesces skeleton text between refs
+	scope         extractScope // body-page extraction scope (set per Read)
 }
 
 // Ensure Reader implements SkeletonStoreEmitter.
@@ -98,6 +101,363 @@ type mifStatement struct {
 	// form -- a tab in memory always serializes to `\t`, a LF always to
 	// `\n`, regardless of how the source encoded them).
 	rawValue string
+}
+
+// statementsWith returns the direct children of s whose tag equals
+// identity. Mirrors okapi Statement.statementsWith (Statement.java:72-78).
+func (s *mifStatement) statementsWith(identity string) []*mifStatement {
+	if s == nil {
+		return nil
+	}
+	var out []*mifStatement
+	for _, c := range s.children {
+		if c.tag == identity {
+			out = append(out, c)
+		}
+	}
+	return out
+}
+
+// firstStatementWith returns the first direct child of s whose tag equals
+// identity, or nil. Mirrors okapi Statement.firstStatementWith
+// (Statement.java:65-69).
+func (s *mifStatement) firstStatementWith(identity string) *mifStatement {
+	for _, c := range s.statementsWith(identity) {
+		return c
+	}
+	return nil
+}
+
+// firstLiteral returns the literal value of the first direct child with
+// the given tag (its decoded `value`), or "". Used to read scoping keys
+// like <ID 8>, <TextRectID 8>, <Unique 12>, <TblID 5>, <PageType BodyPage>.
+func (s *mifStatement) firstLiteral(identity string) string {
+	if c := s.firstStatementWith(identity); c != nil {
+		return c.value
+	}
+	return ""
+}
+
+// extractScope holds the body-page extraction scope computed from a MIF
+// document, mirroring okapi's Extracts collector (Extracts.java). It
+// records which TextFlows (by 1-based order number), tables (by TblID) and
+// anchored frames (by Unique) are reachable from extractable pages.
+//
+// When pagesSpecified is false the document has no <Page> statements
+// (snippet tests, hand-built fixtures); okapi then extracts ALL TextFlows
+// and referent tables by default (Extracts.java:208-212), which the reader
+// signals by leaving `unscoped` true so emission falls back to extracting
+// every container.
+type extractScope struct {
+	unscoped  bool            // true → extract everything (no pages found)
+	textFlows map[string]bool // extractable TextFlow order numbers ("1", "2", …)
+	tables    map[string]bool // extractable table ids (TblID)
+	frames    map[string]bool // extractable anchored-frame ids (Unique)
+}
+
+// pageTypeExtractable mirrors okapi Extracts.pageTypeExtractable
+// (Extracts.java:127-132): a page type is in scope iff its category's
+// Extract* flag is enabled.
+func (r *Reader) pageTypeExtractable(pageType string) bool {
+	switch pageType {
+	case "LeftMasterPage", "RightMasterPage", "OtherMasterPage":
+		return r.cfg.ExtractMasterPages
+	case "ReferencePage":
+		return r.cfg.ExtractReferencePages
+	case "BodyPage":
+		return r.cfg.ExtractBodyPages
+	case "HiddenPage":
+		return r.cfg.ExtractHiddenPages
+	}
+	return false
+}
+
+// textRectIDsFrom collects the <TextRect><ID> values of the given
+// statements, recursing into nested <Frame> children. Mirrors okapi
+// Extracts.textRectsFrom (Extracts.java:230-252).
+func textRectIDsFrom(stmts []*mifStatement, into map[string]bool) {
+	var innerFrames []*mifStatement
+	for _, s := range stmts {
+		for _, tr := range s.statementsWith("TextRect") {
+			if id := tr.firstLiteral("ID"); id != "" {
+				into[id] = true
+			}
+		}
+		innerFrames = append(innerFrames, s.statementsWith("Frame")...)
+	}
+	if len(innerFrames) > 0 {
+		textRectIDsFrom(innerFrames, into)
+	}
+}
+
+// frameUniquesFrom collects the <Unique> ids of the given frame statements,
+// recursing into nested <Frame> children. Mirrors okapi
+// Extracts.addExtractableFrames (Extracts.java:292-308).
+func frameUniquesFrom(frames []*mifStatement, into map[string]bool) {
+	var inner []*mifStatement
+	for _, f := range frames {
+		if u := f.firstLiteral("Unique"); u != "" {
+			into[u] = true
+		}
+		inner = append(inner, f.statementsWith("Frame")...)
+	}
+	if len(inner) > 0 {
+		frameUniquesFrom(inner, into)
+	}
+}
+
+// anchoredFrameTextRects maps each anchored frame's <ID> to the set of
+// <TextRect><ID>s it (and its nested frames) owns. Mirrors okapi
+// Extracts.anchoredFrameTextRects (Extracts.java:254-275).
+func anchoredFrameTextRects(anchoredFrames []*mifStatement) map[string]map[string]bool {
+	out := map[string]map[string]bool{}
+	for _, f := range anchoredFrames {
+		rects := map[string]bool{}
+		for _, tr := range f.statementsWith("TextRect") {
+			if id := tr.firstLiteral("ID"); id != "" {
+				rects[id] = true
+			}
+		}
+		if inner := f.statementsWith("Frame"); len(inner) > 0 {
+			textRectIDsFrom(inner, rects)
+		}
+		if id := f.firstLiteral("ID"); id != "" {
+			out[id] = rects
+		}
+	}
+	return out
+}
+
+// paraLineReferences collects, across all <Para><ParaLine> of the content
+// flows, the literal values of the given inline reference tag (e.g.
+// "AFrame", "ATbl"). Mirrors okapi Extracts.anchoredReferences
+// (Extracts.java:410-420).
+func paraLineReferences(contentFlows []*mifStatement, referenceName string) map[string]bool {
+	out := map[string]bool{}
+	for _, flow := range contentFlows {
+		for _, para := range flow.statementsWith("Para") {
+			for _, pl := range para.statementsWith("ParaLine") {
+				for _, ref := range pl.statementsWith(referenceName) {
+					// The reference value is the first literal child OR the
+					// inline value of the statement itself (e.g. <AFrame 12>).
+					if ref.value != "" {
+						out[ref.value] = true
+					}
+				}
+			}
+		}
+	}
+	return out
+}
+
+// tableContentFlows gathers the content flows of the given tables that
+// hold translatable Paras: the title content, header cells, and body
+// cells. Mirrors okapi Extracts.tableTitleContentFlows +
+// tableContentFlowsOf (Extracts.java:377-397).
+func tableContentFlows(tables []*mifStatement) []*mifStatement {
+	var out []*mifStatement
+	for _, tbl := range tables {
+		// TblTitle > TblTitleContent
+		for _, title := range tbl.statementsWith("TblTitle") {
+			out = append(out, title.statementsWith("TblTitleContent")...)
+		}
+		// TblH/TblBody > Row > Cell > CellContent
+		for _, root := range []string{"TblH", "TblBody"} {
+			for _, section := range tbl.statementsWith(root) {
+				for _, row := range section.statementsWith("Row") {
+					for _, cell := range row.statementsWith("Cell") {
+						out = append(out, cell.statementsWith("CellContent")...)
+					}
+				}
+			}
+		}
+	}
+	return out
+}
+
+// tableReferences gathers AFrame/ATbl references appearing inside the
+// content flows of the given tables. Mirrors okapi
+// Extracts.tableReferencesOf (Extracts.java:366-375).
+func tableReferences(tables []*mifStatement, referenceName string) map[string]bool {
+	return paraLineReferences(tableContentFlows(tables), referenceName)
+}
+
+// computeExtractScope mirrors okapi Extracts.from (Extracts.java:154-221):
+// it scans the document for Pages, AFrames, Tbls and TextFlows, then
+// resolves which TextFlows / tables / frames are reachable from the
+// extractable (body/master/reference/hidden, per config) pages.
+func (r *Reader) computeExtractScope(stmts []*mifStatement) extractScope {
+	scope := extractScope{
+		textFlows: map[string]bool{},
+		tables:    map[string]bool{},
+		frames:    map[string]bool{},
+	}
+
+	var pages []*mifStatement
+	bodyTextRects := map[string]bool{}
+	var anchoredFrames []*mifStatement
+	var allTables []*mifStatement
+	textFlows := map[string]*mifStatement{}
+	pagesSpecified := false
+	textFlowNumber := 0
+
+	for _, s := range stmts {
+		switch s.tag {
+		case "Page":
+			pagesSpecified = true
+			pt := s.firstLiteral("PageType")
+			if r.pageTypeExtractable(pt) {
+				pages = append(pages, s)
+				textRectIDsFrom([]*mifStatement{s}, bodyTextRects)
+			}
+		case "AFrames":
+			anchoredFrames = append(anchoredFrames, s.statementsWith("Frame")...)
+		case "Tbls":
+			allTables = append(allTables, s.statementsWith("Tbl")...)
+		case "TextFlow":
+			textFlowNumber++
+			textFlows[strconv.Itoa(textFlowNumber)] = s
+		}
+	}
+
+	// Index anchored tables by TblID.
+	anchoredTables := map[string]*mifStatement{}
+	for _, tbl := range allTables {
+		if id := tbl.firstLiteral("TblID"); id != "" {
+			anchoredTables[id] = tbl
+		}
+	}
+
+	if !pagesSpecified {
+		// No page information at all: extract every TextFlow plus referent
+		// tables. Snippet documents and hand-built fixtures land here.
+		scope.unscoped = true
+		return scope
+	}
+
+	// Extractable frames are those directly on extractable pages.
+	var pageFrames []*mifStatement
+	for _, p := range pages {
+		pageFrames = append(pageFrames, p.statementsWith("Frame")...)
+	}
+	frameUniquesFrom(pageFrames, scope.frames)
+
+	// Resolve referent TextFlows/tables/frames by walking the TextRect →
+	// TextFlow → AFrame reference chain, mirroring okapi
+	// scanForExtractableTextFlowsTablesAndFrames (Extracts.java:310-334).
+	r.scanReferents(textFlows, bodyTextRects, anchoredFrames, anchoredTables, &scope)
+	return scope
+}
+
+// scanReferents iteratively resolves the set of extractable TextFlows,
+// tables and anchored frames given the current body TextRect set, mirroring
+// okapi Extracts.scanForExtractableTextFlowsTablesAndFrames
+// (Extracts.java:310-334). It loops (rather than recursing) until no new
+// referent text rects appear.
+func (r *Reader) scanReferents(
+	textFlows map[string]*mifStatement,
+	textRects map[string]bool,
+	anchoredFrames []*mifStatement,
+	anchoredTables map[string]*mifStatement,
+	scope *extractScope,
+) {
+	afTextRects := anchoredFrameTextRects(anchoredFrames)
+	seenTextRects := map[string]bool{}
+	for k := range textRects {
+		seenTextRects[k] = true
+	}
+	work := textRects
+	for len(work) > 0 {
+		// Referent TextFlows: those whose ParaLine has a TextRectID in work.
+		referentFlows := map[string]*mifStatement{}
+		for num, flow := range textFlows {
+			if scope.textFlows[num] {
+				continue
+			}
+			if textFlowReferencesRect(flow, work) {
+				referentFlows[num] = flow
+				scope.textFlows[num] = true
+			}
+		}
+		// Referent tables: anchored tables referenced (ATbl) by the referent
+		// flows.
+		var referentFlowList []*mifStatement
+		for _, f := range referentFlows {
+			referentFlowList = append(referentFlowList, f)
+		}
+		tblRefs := paraLineReferences(referentFlowList, "ATbl")
+		var referentTables []*mifStatement
+		for id := range tblRefs {
+			if tbl, ok := anchoredTables[id]; ok && !scope.tables[id] {
+				scope.tables[id] = true
+				referentTables = append(referentTables, tbl)
+			}
+		}
+		// Tables referenced from within referent tables (nested ATbl).
+		for id := range tableReferences(referentTables, "ATbl") {
+			if tbl, ok := anchoredTables[id]; ok && !scope.tables[id] {
+				scope.tables[id] = true
+				referentTables = append(referentTables, tbl)
+			}
+		}
+		// Anchored frames referenced (AFrame) by the referent flows + tables.
+		frameRefs := paraLineReferences(referentFlowList, "AFrame")
+		for id := range tableReferences(referentTables, "AFrame") {
+			frameRefs[id] = true
+		}
+		var newFrames []*mifStatement
+		for _, f := range anchoredFrames {
+			if frameRefs[f.firstLiteral("ID")] {
+				newFrames = append(newFrames, f)
+			}
+		}
+		frameUniquesFrom(newFrames, scope.frames)
+
+		// The referent frames expose new TextRects; loop on any unseen ones.
+		next := map[string]bool{}
+		for id := range frameRefs {
+			for tr := range afTextRects[id] {
+				if !seenTextRects[tr] {
+					seenTextRects[tr] = true
+					next[tr] = true
+				}
+			}
+		}
+		work = next
+	}
+}
+
+// textFlowInScope reports whether the TextFlow with the given 1-based
+// order number is in extraction scope. An unscoped document (no Page
+// statements) extracts every TextFlow (okapi's no-page default,
+// Extracts.java:208-212).
+func (s extractScope) textFlowInScope(num int) bool {
+	return s.unscoped || s.textFlows[strconv.Itoa(num)]
+}
+
+// tableInScope reports whether the table with the given TblID is in scope.
+func (s extractScope) tableInScope(tblID string) bool {
+	return s.unscoped || s.tables[tblID]
+}
+
+// frameInScope reports whether the anchored frame with the given Unique id
+// is in scope.
+func (s extractScope) frameInScope(unique string) bool {
+	return s.unscoped || s.frames[unique]
+}
+
+// textFlowReferencesRect reports whether any of the TextFlow's
+// Para/ParaLine carries a <TextRectID> in the given set. Mirrors okapi
+// Extracts.referentTextFlows (Extracts.java:346-354).
+func textFlowReferencesRect(flow *mifStatement, rects map[string]bool) bool {
+	for _, para := range flow.statementsWith("Para") {
+		for _, pl := range para.statementsWith("ParaLine") {
+			if id := pl.firstLiteral("TextRectID"); id != "" && rects[id] {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // stringRef records the byte position of a String value and its block association.
@@ -198,6 +558,65 @@ func charLiteral(name string, hardReturnsAsText bool) (string, bool) {
 	return v, ok
 }
 
+// mifVersionPattern matches the leading decimal of a MIF version
+// string, mirroring okapi's Document.Version PATTERN
+// `^(\d+\.?\d{0,2})` (Document.java:117). The captured group is the
+// numeric prefix used for the >= 8.0 comparison.
+var mifVersionPattern = regexp.MustCompile(`^(\d+\.?\d{0,2})`)
+
+// minSupportedMIFVersion mirrors okapi Document.Version
+// MIN_SUPPORTED_VERSION (Document.java:118): FrameMaker 8.0 is the
+// oldest structure/encoding the filter supports.
+const minSupportedMIFVersion = 8.0
+
+// mifFileVersion returns the value of the top-level <MIFFile NN> header,
+// and whether one was present. The header is always the first top-level
+// statement in a well-formed MIF document.
+func mifFileVersion(stmts []*mifStatement) (string, bool) {
+	for _, s := range stmts {
+		if s.tag == "MIFFile" {
+			return s.value, true
+		}
+	}
+	return "", false
+}
+
+// validateMIFVersion rejects unsupported MIF document versions, mirroring
+// okapi Document.Version.validate (Document.java:125-133). The version
+// must start with a decimal number and that number must be >= 8.0;
+// otherwise an error matching okapi's OkapiBadFilterInputException message
+// ("Unsupported document version: <value>") is returned.
+func validateMIFVersion(value string) error {
+	const prefix = "mif: Unsupported document version: "
+	m := mifVersionPattern.FindString(value)
+	if m == "" {
+		return errors.New(prefix + value)
+	}
+	// okapi parses the FULL value string with Double.valueOf, not just the
+	// matched prefix, so a year form like "2015" yields 2015.0. Mirror that
+	// by parsing the whole value; fall back to the matched prefix only when
+	// the full value isn't a clean float (matching Java's tolerant
+	// behaviour where the year forms are clean numbers).
+	n, err := parseLeadingFloat(value)
+	if err != nil {
+		n, err = parseLeadingFloat(m)
+		if err != nil {
+			return errors.New(prefix + value)
+		}
+	}
+	if n < minSupportedMIFVersion {
+		return errors.New(prefix + value)
+	}
+	return nil
+}
+
+// parseLeadingFloat parses s as a float, mirroring Java's Double.valueOf
+// for the clean numeric version strings MIF uses (`8.00`, `9.00`, `10.0`,
+// `2015`). Returns an error for non-numeric input.
+func parseLeadingFloat(s string) (float64, error) {
+	return strconv.ParseFloat(strings.TrimSpace(s), 64)
+}
+
 // alwaysSkipTags are top-level MIF tags whose content is always non-translatable.
 //
 // Mirrors okapi MIFFilter.java:54 (TOPSTATEMENTSTOSKIP). AFrames and Page are
@@ -251,6 +670,40 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		locale = model.LocaleEnglish
 	}
 
+	data, err := io.ReadAll(r.Doc.Reader)
+	if err != nil {
+		r.emitErr(ctx, ch, fmt.Errorf("mif: read error: %w", err))
+		return
+	}
+	rawText := string(data)
+
+	stmts := parseMIF(rawText)
+
+	// Version validation. Mirrors okapi Document.Version.validate
+	// (Document.java:111-134): the <MIFFile NN.NN> header must parse to a
+	// leading decimal that is >= 8.0. FrameMaker 7 and earlier (`7.00`,
+	// `6.00`, …) use an encoding/structure the filter does not support, so
+	// okapi throws OkapiBadFilterInputException("Unsupported document
+	// version: <value>"). The bare-header snippet tests (e.g.
+	// processesSupportedVersions / doesNotProcessUnsupportedVersions) and
+	// every fixture pass through here. Newer FrameMaker uses the year form
+	// (`2015`), which parses to 2015.0 and is accepted. The check runs
+	// before any Part is emitted so an unsupported document yields a single
+	// error result (matching okapi throwing during open()).
+	if v, ok := mifFileVersion(stmts); ok {
+		if err := validateMIFVersion(v); err != nil {
+			r.emitErr(ctx, ch, err)
+			return
+		}
+	}
+
+	// Compute the body-page extraction scope (okapi Extracts.from): which
+	// TextFlows / tables / anchored frames are reachable from the
+	// extractable pages. Done once per document; emitStatements and
+	// findStringPositions both consult r.scope so block emission and the
+	// skeleton-ref scheme stay in lock-step.
+	r.scope = r.computeExtractScope(stmts)
+
 	layer := &model.Layer{
 		ID:       "doc1",
 		Name:     r.Doc.URI,
@@ -263,14 +716,6 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		return
 	}
 
-	data, err := io.ReadAll(r.Doc.Reader)
-	if err != nil {
-		r.emitErr(ctx, ch, fmt.Errorf("mif: read error: %w", err))
-		return
-	}
-	rawText := string(data)
-
-	stmts := parseMIF(rawText)
 	r.emitStatements(ctx, ch, stmts)
 
 	// Build skeleton if needed. We always emit the skeleton (even with no
@@ -1881,6 +2326,20 @@ func escapeMIFForSearch(s string) string {
 func (r *Reader) emitStatements(ctx context.Context, ch chan<- model.PartResult, stmts []*mifStatement) {
 	blockCounter := 0
 	dataCounter := 0
+	textFlowNumber := 0
+
+	emitData := func(stmt *mifStatement) bool {
+		dataCounter++
+		d := &model.Data{
+			ID:   fmt.Sprintf("d%d", dataCounter),
+			Name: "mif." + stmt.tag,
+			Properties: map[string]string{
+				"tag": stmt.tag,
+				"raw": stmt.raw,
+			},
+		}
+		return r.emit(ctx, ch, &model.Part{Type: model.PartData, Resource: d})
+	}
 
 	for _, stmt := range stmts {
 		// PgfCatalog is walked first to emit translatable
@@ -1924,8 +2383,26 @@ func (r *Reader) emitStatements(ctx context.Context, ch chan<- model.PartResult,
 			continue
 		}
 
-		if stmt.tag == "TextFlow" || stmt.tag == "Tbls" || stmt.tag == "Notes" {
-			// Process translatable content inside these containers.
+		if stmt.tag == "TextFlow" {
+			// Body-page scoping (okapi Extracts.textFlowExtractable,
+			// MIFFilter.java:568-577): a TextFlow is extracted only when its
+			// 1-based order number is reachable from an extractable page. Out
+			// of scope → emit as non-translatable Data so the writer can
+			// reproduce it verbatim.
+			textFlowNumber++
+			if !r.scope.textFlowInScope(textFlowNumber) {
+				if !emitData(stmt) {
+					return
+				}
+				continue
+			}
+			blockCounter, dataCounter = r.processContainer(ctx, ch, stmt, blockCounter, dataCounter)
+			continue
+		}
+
+		if stmt.tag == "Tbls" || stmt.tag == "Notes" {
+			// Process translatable content inside these containers. Tbls
+			// children (Tbl) are filtered per-TblID inside processContainer.
 			blockCounter, dataCounter = r.processContainer(ctx, ch, stmt, blockCounter, dataCounter)
 			continue
 		}
@@ -2062,20 +2539,31 @@ func (r *Reader) processPgfCatalog(ctx context.Context, ch chan<- model.PartResu
 			if gc.tag != "PgfNumFormat" || gc.value == "" {
 				continue
 			}
-			blockCounter++
-			block := model.NewBlock(fmt.Sprintf("tu%d", blockCounter), gc.value)
-			block.Name = fmt.Sprintf("pgf_num_format.%d", blockCounter)
-			block.Properties["pgf_tag"] = pgfTag
-			// PgfNumFormat values get the additional ^[A-Z]: rule
-			// (pgfNumFormatLeadingPrefix). This protects auto-number type
-			// prefixes like `T:`, `C:`, `H:` while leaving regular
-			// <String>-context text alone. Both rule sets are applied in
-			// a single pass so the global codeFinder placeholders (e.g.
-			// `<n+>`, `<$lastpagenum>`) coexist with the leading prefix
-			// placeholder without one pass discarding the other.
-			r.applyCodeFinderWithExtras(block, []*regexp.Regexp{pgfNumFormatLeadingPrefix})
-			if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
-				return blockCounter
+			// Hard-return splitting (okapi processFormats / processPara for
+			// the inPgfCatalog case): with ExtractHardReturnsAsText off a
+			// '\n' in the catalog PgfNumFormat starts a new TextUnit.
+			for _, seg := range r.splitFormatValueOnHardReturns(gc.value) {
+				blockCounter++
+				block := model.NewBlock(fmt.Sprintf("tu%d", blockCounter), seg)
+				block.Name = fmt.Sprintf("pgf_num_format.%d", blockCounter)
+				block.Properties["pgf_tag"] = pgfTag
+				// PgfNumFormat values get the additional ^[A-Z]: rule
+				// (pgfNumFormatLeadingPrefix). This protects auto-number type
+				// prefixes like `T:`, `C:`, `H:` while leaving regular
+				// <String>-context text alone. Both rule sets are applied in
+				// a single pass so the global codeFinder placeholders (e.g.
+				// `<n+>`, `<$lastpagenum>`) coexist with the leading prefix
+				// placeholder without one pass discarding the other.
+				r.applyCodeFinderWithExtras(block, []*regexp.Regexp{pgfNumFormatLeadingPrefix})
+				simplifyBlockCodes(block)
+				if !blockHasText(block) {
+					// All building-block codes / whitespace: okapi yields no
+					// TextUnit for this PgfNumFormat (tf.hasText() gate).
+					continue
+				}
+				if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
+					return blockCounter
+				}
 			}
 		}
 	}
@@ -2146,18 +2634,36 @@ func (r *Reader) processFramesAndTextLines(ctx context.Context, ch chan<- model.
 	for _, child := range stmt.children {
 		switch child.tag {
 		case "Frame":
+			// Body-page scoping (okapi processFrame +
+			// Extracts.frameExtractable, MIFFilter.java:1646-1661): an
+			// anchored <Frame> is walked only when its <Unique> id is in the
+			// reachable-frame set. Page-direct frames are added to that set
+			// in computeExtractScope, so body-page frames pass; anchored
+			// frames not referenced from extractable content are skipped.
+			if !r.scope.frameInScope(child.firstLiteral("Unique")) {
+				continue
+			}
 			blockCounter, dataCounter = r.processFramesAndTextLines(ctx, ch, child, blockCounter, dataCounter)
 		case "TextLine":
 			val, ok := firstStringValue(child)
 			if !ok {
 				continue
 			}
-			blockCounter++
-			block := model.NewBlock(fmt.Sprintf("tu%d", blockCounter), val)
-			block.Name = fmt.Sprintf("textline.%d", blockCounter)
-			r.applyCodeFinder(block)
-			if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
-				return blockCounter, dataCounter
+			// Hard-return splitting (okapi processTextLine,
+			// MIFFilter.java:1683-1714): with ExtractHardReturnsAsText off, a
+			// '\n' inside the TextLine string starts a new TextUnit.
+			for _, seg := range r.splitFormatValueOnHardReturns(val) {
+				blockCounter++
+				block := model.NewBlock(fmt.Sprintf("tu%d", blockCounter), seg)
+				block.Name = fmt.Sprintf("textline.%d", blockCounter)
+				r.applyCodeFinder(block)
+				simplifyBlockCodes(block)
+				if !blockHasText(block) {
+					continue
+				}
+				if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
+					return blockCounter, dataCounter
+				}
 			}
 		}
 	}
@@ -2287,6 +2793,156 @@ func (r *Reader) processVariableFormats(ctx context.Context, ch chan<- model.Par
 // extractedReferent / inPgfCatalog branch.
 var pgfNumFormatLeadingPrefix = regexp.MustCompile(`^[A-Z]:`)
 
+// simplifyBlockCodes removes leading and trailing inline-code (Ph) runs
+// from the block's first source segment, then strips whitespace that
+// becomes leading/trailing once those boundary codes are gone. Mirrors
+// okapi's CodeSimplifier / TextUnitSimplification (MIFFilter.java:237-239,
+// 935-963) which pulls leading/trailing placeholder codes out of every
+// extracted TextUnit (their data is folded into the surrounding skeleton).
+//
+// This is what reduces a PgfNumFormat referent like `T:Table <n+>: ` to
+// "Table <code>:" — the leading auto-number type-prefix code (`T:`,
+// matched by the ^[A-Z]: rule) and the trailing `\t`/space are simplified
+// away, leaving only the interior building-block code.
+// blockHasText reports whether the block's source carries at least one
+// non-whitespace text character (inline codes don't count). Mirrors okapi
+// tf.hasText() applied after CodeSimplifier: a unit that simplifies to only
+// codes / whitespace is not emitted.
+func blockHasText(block *model.Block) bool {
+	if block == nil {
+		return false
+	}
+	for _, run := range block.SourceRuns() {
+		if run.Text != nil && hasNonWhitespace(run.Text.Text) {
+			return true
+		}
+	}
+	return false
+}
+
+func simplifyBlockCodes(block *model.Block) {
+	if block == nil || len(block.Source) == 0 {
+		return
+	}
+	seg := block.Source[0]
+	if seg == nil {
+		return
+	}
+	// Work on a flattened rune+code stream so the iterative leading/
+	// trailing simplification mirrors okapi CodeSimplifier.removeLeadingTrailingCodes
+	// exactly: on iteration 1 a boundary whitespace is only removable when it
+	// is adjacent to a boundary code that is also being removed; from
+	// iteration 2 onward (only reached when iteration 1 removed something)
+	// boundary whitespace is removable on its own. This keeps "Custom: "
+	// (no code → no iteration 2 → trailing space kept) distinct from
+	// "Table <code>: " (leading T: code removed → iteration 2 → trailing
+	// space trimmed).
+	type tok struct {
+		isCode bool
+		text   string // for non-code: a single whitespace run boundary handled char-by-char
+		run    model.Run
+	}
+	// Flatten into per-rune text tokens and per-code tokens so boundary
+	// whitespace can be removed one char at a time.
+	var toks []tok
+	for _, run := range seg.Runs {
+		if run.Text != nil {
+			for _, r := range run.Text.Text {
+				toks = append(toks, tok{text: string(r)})
+			}
+			continue
+		}
+		toks = append(toks, tok{isCode: true, run: run})
+	}
+
+	// Whitespace per Java's Character.isWhitespace, which okapi
+	// CodeSimplifier uses: spaces, tabs, and line breaks all count. A hard
+	// return that becomes leading/trailing once a boundary code is removed
+	// is therefore simplified away too (the 1188_crlf "Pa<tab>ra\n 2." case).
+	isWS := func(s string) bool {
+		return s == " " || s == "\t" || s == "\n" || s == "\r"
+	}
+
+	iteration := 0
+	for {
+		iteration++
+		removed := false
+
+		// Leading: collect leading codes; whitespace only after a code on
+		// iteration 1, freely from iteration 2.
+		lead := 0
+		sawCode := false
+		for lead < len(toks) {
+			t := toks[lead]
+			if t.isCode {
+				sawCode = true
+				lead++
+				continue
+			}
+			if isWS(t.text) && (sawCode || iteration > 1) {
+				lead++
+				continue
+			}
+			break
+		}
+		if lead > 0 {
+			toks = toks[lead:]
+			removed = true
+		}
+
+		// Trailing: symmetric.
+		tail := len(toks)
+		sawCode = false
+		for tail > 0 {
+			t := toks[tail-1]
+			if t.isCode {
+				sawCode = true
+				tail--
+				continue
+			}
+			if isWS(t.text) && (sawCode || iteration > 1) {
+				tail--
+				continue
+			}
+			break
+		}
+		if tail < len(toks) {
+			toks = toks[:tail]
+			removed = true
+		}
+
+		if !removed {
+			break
+		}
+		if len(toks) == 0 {
+			break
+		}
+	}
+
+	// Rebuild runs, coalescing consecutive text tokens.
+	var out []model.Run
+	var buf strings.Builder
+	flush := func() {
+		if buf.Len() > 0 {
+			out = append(out, model.Run{Text: &model.TextRun{Text: buf.String()}})
+			buf.Reset()
+		}
+	}
+	for _, t := range toks {
+		if t.isCode {
+			flush()
+			out = append(out, t.run)
+			continue
+		}
+		buf.WriteString(t.text)
+	}
+	flush()
+	if len(out) == 0 {
+		out = []model.Run{{Text: &model.TextRun{Text: ""}}}
+	}
+	seg.Runs = out
+}
+
 // applyCodeFinder splits each TextRun in the block into text +
 // placeholder runs whenever a CodeFinder pattern matches. This keeps
 // FrameMaker building blocks (`<$lastpagenum\>`, `<n+\>`, `<$tblsheetnum\>`,
@@ -2310,6 +2966,19 @@ func (r *Reader) applyCodeFinder(block *model.Block) {
 // gating must be applied explicitly via this flag.
 type codeFinderCtx struct {
 	suppressLeadingAnchored bool
+}
+
+// splitFormatValueOnHardReturns splits a format/PgfNumFormat value into
+// hard-return-delimited segments. When ExtractHardReturnsAsText is true (or
+// the value has no newline) the whole value is one segment; otherwise each
+// '\n' starts a new segment, mirroring okapi's per-'\n' TextUnit flushing
+// for PgfNumFormat referents (MIFFilter.java:1578-1607). Empty segments are
+// kept here (the caller drops blocks that simplify to no text).
+func (r *Reader) splitFormatValueOnHardReturns(value string) []string {
+	if r.cfg.ExtractHardReturnsAsText || !strings.Contains(value, "\n") {
+		return []string{value}
+	}
+	return strings.Split(value, "\n")
 }
 
 func (r *Reader) applyCodeFinderCtx(block *model.Block, ctx codeFinderCtx) {
@@ -2350,49 +3019,60 @@ func applyCodeFinderToSegments(segs []*model.Segment, patterns []*regexp.Regexp)
 		if seg == nil || len(seg.Runs) == 0 {
 			continue
 		}
-		text := seg.Text()
-		var matches [][2]int
-		for _, re := range patterns {
-			for _, loc := range re.FindAllStringIndex(text, -1) {
-				matches = append(matches, [2]int{loc[0], loc[1]})
-			}
-		}
-		if len(matches) == 0 {
-			continue
-		}
-		// Sort matches by start, drop overlaps (keep the earlier match).
-		for i := 1; i < len(matches); i++ {
-			for j := i; j > 0 && matches[j][0] < matches[j-1][0]; j-- {
-				matches[j], matches[j-1] = matches[j-1], matches[j]
-			}
-		}
-		merged := matches[:0]
-		for _, m := range matches {
-			if len(merged) > 0 && m[0] < merged[len(merged)-1][1] {
+		// Process per-run so existing inline-code (Ph) runs produced by
+		// buildParaRuns survive: only TextRun content is split. spanID is
+		// shared across the whole segment so generated placeholder ids stay
+		// unique.
+		spanID := 1
+		var out []model.Run
+		for _, run := range seg.Runs {
+			if run.Text == nil {
+				out = append(out, run)
 				continue
 			}
-			merged = append(merged, m)
-		}
-		matches = merged
-
-		var runs []model.Run
-		lastEnd := 0
-		spanID := 1
-		for _, m := range matches {
-			if m[0] > lastEnd {
-				runs = append(runs, model.Run{Text: &model.TextRun{Text: text[lastEnd:m[0]]}})
+			text := run.Text.Text
+			var matches [][2]int
+			for _, re := range patterns {
+				for _, loc := range re.FindAllStringIndex(text, -1) {
+					matches = append(matches, [2]int{loc[0], loc[1]})
+				}
 			}
-			runs = append(runs, model.Run{Ph: &model.PlaceholderRun{
-				ID:   fmt.Sprintf("c%d", spanID),
-				Data: text[m[0]:m[1]],
-			}})
-			spanID++
-			lastEnd = m[1]
+			if len(matches) == 0 {
+				out = append(out, run)
+				continue
+			}
+			// Sort matches by start, drop overlaps (keep the earlier match).
+			for i := 1; i < len(matches); i++ {
+				for j := i; j > 0 && matches[j][0] < matches[j-1][0]; j-- {
+					matches[j], matches[j-1] = matches[j-1], matches[j]
+				}
+			}
+			merged := matches[:0]
+			for _, m := range matches {
+				if len(merged) > 0 && m[0] < merged[len(merged)-1][1] {
+					continue
+				}
+				merged = append(merged, m)
+			}
+			matches = merged
+
+			lastEnd := 0
+			for _, m := range matches {
+				if m[0] > lastEnd {
+					out = append(out, model.Run{Text: &model.TextRun{Text: text[lastEnd:m[0]]}})
+				}
+				out = append(out, model.Run{Ph: &model.PlaceholderRun{
+					ID:   fmt.Sprintf("c%d", spanID),
+					Data: text[m[0]:m[1]],
+				}})
+				spanID++
+				lastEnd = m[1]
+			}
+			if lastEnd < len(text) {
+				out = append(out, model.Run{Text: &model.TextRun{Text: text[lastEnd:]}})
+			}
 		}
-		if lastEnd < len(text) {
-			runs = append(runs, model.Run{Text: &model.TextRun{Text: text[lastEnd:]}})
-		}
-		seg.Runs = runs
+		seg.Runs = out
 	}
 }
 
@@ -2416,12 +3096,21 @@ func (r *Reader) processContainer(ctx context.Context, ch chan<- model.PartResul
 					if ggc.tag != "PgfNumFormat" || ggc.value == "" {
 						continue
 					}
-					blockCounter++
-					b := model.NewBlock(fmt.Sprintf("tu%d", blockCounter), ggc.value)
-					b.Name = fmt.Sprintf("pgf_num_format_inline.%d", blockCounter)
-					r.applyCodeFinderWithExtras(b, []*regexp.Regexp{pgfNumFormatLeadingPrefix})
-					if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: b}) {
-						return blockCounter, dataCounter
+					// Hard-return splitting: when ExtractHardReturnsAsText is
+					// false a '\n' in the PgfNumFormat referent starts a new
+					// TextUnit (okapi MIFFilter.java:1578-1607).
+					for _, seg := range r.splitFormatValueOnHardReturns(ggc.value) {
+						blockCounter++
+						b := model.NewBlock(fmt.Sprintf("tu%d", blockCounter), seg)
+						b.Name = fmt.Sprintf("pgf_num_format_inline.%d", blockCounter)
+						r.applyCodeFinderWithExtras(b, []*regexp.Regexp{pgfNumFormatLeadingPrefix})
+						simplifyBlockCodes(b)
+						if !blockHasText(b) {
+							continue
+						}
+						if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: b}) {
+							return blockCounter, dataCounter
+						}
 					}
 				}
 			}
@@ -2450,27 +3139,36 @@ func (r *Reader) processContainer(ctx context.Context, ch chan<- model.PartResul
 					if mt == "" {
 						continue
 					}
-					blockCounter++
-					b := model.NewBlock(fmt.Sprintf("tu%d", blockCounter), mt)
-					b.Name = fmt.Sprintf("marker.%d", blockCounter)
-					r.applyCodeFinder(b)
-					if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: b}) {
-						return blockCounter, dataCounter
+					// Hard-return splitting (okapi addReferentTextUnits,
+					// MIFFilter.java:893-921): with ExtractHardReturnsAsText
+					// off a '\n' in the marker text starts a new referent unit.
+					for _, seg := range r.splitFormatValueOnHardReturns(mt) {
+						blockCounter++
+						b := model.NewBlock(fmt.Sprintf("tu%d", blockCounter), seg)
+						b.Name = fmt.Sprintf("marker.%d", blockCounter)
+						r.applyCodeFinder(b)
+						simplifyBlockCodes(b)
+						if !blockHasText(b) {
+							continue
+						}
+						if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: b}) {
+							return blockCounter, dataCounter
+						}
 					}
 				}
 			}
 
-			// Split the para's text into runs at inline-code boundaries
-			// (Font, Marker, AFrame, XRef, …). Each non-empty run becomes
-			// its own translatable Block so the writer can emit the
-			// `<String '...'><Font ...><String '...'>` interleaving that
-			// okapi's writeParagraph reconstructs from the per-Para
-			// TextFragment + inline codes (MIFFilter.java:636-805).
-			//
-			// Single-run paras (no inline codes between strings) are
-			// emitted as before — one Block per Para — so the existing
-			// 17 byte-equal MIF fixtures remain unchanged.
-			runs := extractParaRuns(child, r.cfg.ExtractHardReturnsAsText)
+			// Build the paragraph as ONE translatable Block whose source
+			// runs interleave text and inline-code (Ph) runs, mirroring
+			// okapi's processPara which composes a single TextFragment per
+			// paragraph with inline Codes (MIFFilter.java:636-811). A
+			// paragraph with no non-whitespace text (only codes / glyph
+			// whitespace) yields no Block — okapi's tf.hasText() gate
+			// (MIFFilter.java:781).
+			units := buildParaRuns(child, r.cfg.ExtractHardReturnsAsText)
+			if len(units) == 0 {
+				continue
+			}
 			var pgfTag string
 			for _, gc := range child.children {
 				if gc.tag == "PgfTag" {
@@ -2478,23 +3176,38 @@ func (r *Reader) processContainer(ctx context.Context, ch chan<- model.PartResul
 					break
 				}
 			}
-			for runIdx, run := range runs {
-				if run.text == "" {
-					continue
-				}
+			for _, pr := range units {
 				blockCounter++
-				block := model.NewBlock(fmt.Sprintf("tu%d", blockCounter), run.text)
-				block.Name = fmt.Sprintf("para.%d.%d", blockCounter, runIdx)
+				block := model.NewRunsBlock(fmt.Sprintf("tu%d", blockCounter), pr.runs)
+				block.Name = fmt.Sprintf("para.%d", blockCounter)
 				if pgfTag != "" {
 					block.Properties["pgf_tag"] = pgfTag
 				}
+				// The leading-anchored codeFinder rules (`^[A-Z]:`) only
+				// match when the paragraph's first run is text. Okapi gates
+				// the same way: a leading inline Code pushes the `^` anchor
+				// past offset 0, so when the first run is a Ph code we
+				// suppress those rules.
+				leadingCode := len(pr.runs) > 0 && pr.runs[0].Ph != nil
 				r.applyCodeFinderCtx(block, codeFinderCtx{
-					suppressLeadingAnchored: run.precededByInlineCode,
+					suppressLeadingAnchored: leadingCode,
 				})
+				simplifyBlockCodes(block)
+				if !blockHasText(block) {
+					continue
+				}
 				if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
 					return blockCounter, dataCounter
 				}
 			}
+		} else if child.tag == "Tbl" {
+			// Body-page scoping (okapi Extracts.tableExtractable,
+			// MIFFilter.java:543-559): a table is walked only when its TblID
+			// is referenced from an extractable text flow / table chain.
+			if !r.scope.tableInScope(child.firstLiteral("TblID")) {
+				continue
+			}
+			blockCounter, dataCounter = r.processContainer(ctx, ch, child, blockCounter, dataCounter)
 		} else if isMIFContainer(child.tag) {
 			blockCounter, dataCounter = r.processContainer(ctx, ch, child, blockCounter, dataCounter)
 		}
@@ -2628,6 +3341,216 @@ func extractParaRuns(para *mifStatement, hardReturnsAsText bool) []paraTextRun {
 	}
 	flush()
 	return runs
+}
+
+// hasNonWhitespace reports whether s contains at least one non-whitespace
+// rune. Mirrors okapi TextFragment.hasText() (TextFragment.java:1194-1212),
+// which decides whether a paragraph fragment yields a TextUnit: inline
+// codes never count, and whitespace-only text (a lone Tab/ThinSpace glyph)
+// does not either.
+func hasNonWhitespace(s string) bool {
+	for _, r := range s {
+		if r == '\u00a0' {
+			// NBSP (FrameMaker HardSpace): Java's Character.isWhitespace treats
+			// U+00A0 as whitespace, but unicode.IsSpace does not, so handle it
+			// explicitly to match okapi's hasText() classification.
+			continue
+		}
+		if !unicode.IsSpace(r) {
+			return true
+		}
+	}
+	return false
+}
+
+// paraRunsResult is the output of buildParaRuns: the trimmed ordered run
+// sequence for one paragraph plus whether it carries extractable text.
+type paraRunsResult struct {
+	runs    []model.Run // text + Ph runs, leading/trailing codes & whitespace trimmed
+	hasText bool        // true when the paragraph yields a TextUnit
+}
+
+// inlineCodeOrdinal is a monotonic id generator shared across the inline
+// codes of a single paragraph. Okapi's GenericContent renders codes as
+// <1/>, <2/>, … by their assigned id; the id is consumed even when a
+// leading code is later trimmed (e.g. testEmptyFTag's leading <AFrame 1>
+// is dropped but the next kept code still renders as <2/>). buildParaRuns
+// assigns ids in source order so the rendered placeholder numbers match
+// okapi.
+type inlineCodeOrdinal struct {
+	n int
+}
+
+func (o *inlineCodeOrdinal) next() int {
+	o.n++
+	return o.n
+}
+
+// buildParaRuns walks a Para's ParaLines and produces ONE ordered Run
+// sequence for the whole paragraph, mirroring okapi's processPara which
+// builds a single TextFragment per paragraph with interspersed inline
+// Codes (MIFFilter.java:636-811). This is the inline-code model: a
+// paragraph is ONE translatable unit, not one-unit-per-text-run.
+//
+// Rules, grounded in processPara + readUntilText (MIFFilter.java:1027-1175):
+//   - <String> values append to the current text run.
+//   - glyph <Char> (Tab→"\t", ThinSpace→" ", HardSpace→" ", …)
+//     append to the current text run as TEXT, not as a code
+//     (CharLiteralToken.java). SoftHyphen and unknown glyphs contribute
+//     nothing.
+//   - any other ParaLine child statement (Font, AFrame, Dummy, Var, …) is
+//     an inline code: it flushes the current text run and becomes a Ph run.
+//   - leading codes and leading whitespace-only text are dropped (okapi
+//     routes them to the skeleton via the `first` branch + paraSkelBuf,
+//     MIFFilter.java:693-711).
+//   - trailing codes and trailing whitespace-only text are dropped (okapi
+//     leaves them in paraCodeBuf/paraSkelBuf at loop end → skeleton,
+//     MIFFilter.java:800-805).
+//   - within <XRef>…<XRefEnd> ALL content is part of the XRef code; no
+//     text accumulates.
+//   - if no non-whitespace text survives, the paragraph yields no unit
+//     (okapi's tf.hasText() gate at MIFFilter.java:781).
+//
+// When hardReturnsAsText is false, a hard return ("\n", produced by a
+// <Char HardReturn> or a `\x09`/`\n` escape) splits the paragraph into
+// SEPARATE units at each newline, mirroring okapi's processPara
+// (MIFFilter.java:739-766) which flushes the current TextFragment as its
+// own TextUnit at every '\n'. The result is therefore a slice: one entry
+// per hard-return-delimited segment (whitespace-only segments dropped).
+func buildParaRuns(para *mifStatement, hardReturnsAsText bool) []paraRunsResult {
+	// First pass: emit raw runs in source order (text and code), trimming
+	// only the XRef-internal content.
+	type rawRun struct {
+		text   string // non-empty for a text run
+		isCode bool
+		ord    int // inline-code ordinal for code runs
+	}
+	var raw []rawRun
+	var ord inlineCodeOrdinal
+	inXRef := false
+
+	appendText := func(s string) {
+		if s == "" {
+			return
+		}
+		if len(raw) > 0 && !raw[len(raw)-1].isCode {
+			raw[len(raw)-1].text += s
+			return
+		}
+		raw = append(raw, rawRun{text: s})
+	}
+
+	for _, child := range para.children {
+		if child.tag != "ParaLine" {
+			continue
+		}
+		for _, lc := range child.children {
+			switch {
+			case lc.tag == "String":
+				if inXRef {
+					continue
+				}
+				appendText(lc.value)
+			case lc.tag == "Char":
+				if inXRef {
+					continue
+				}
+				if lit, ok := charLiteral(lc.value, hardReturnsAsText); ok {
+					appendText(lit)
+				}
+			default:
+				// Inline code. The XRef…XRefEnd span is a single code in
+				// okapi (the whole reference is opaque); emit one code at
+				// XRef entry and swallow everything until XRefEnd.
+				if lc.tag == "XRef" {
+					if !inXRef {
+						raw = append(raw, rawRun{isCode: true, ord: ord.next()})
+					}
+					inXRef = true
+					continue
+				}
+				if lc.tag == "XRefEnd" {
+					inXRef = false
+					continue
+				}
+				if inXRef {
+					continue
+				}
+				raw = append(raw, rawRun{isCode: true, ord: ord.next()})
+			}
+		}
+	}
+
+	// Split the raw run list into hard-return-delimited segments. When
+	// hardReturnsAsText is true there is exactly one segment (newlines stay
+	// as text); when false, each '\n' inside a text run starts a new
+	// segment (okapi processPara, MIFFilter.java:739-766).
+	type segRun struct {
+		isCode bool
+		ord    int
+		text   string
+	}
+	var segments [][]segRun
+	cur := []segRun{}
+	for _, rr := range raw {
+		if rr.isCode {
+			cur = append(cur, segRun{isCode: true, ord: rr.ord})
+			continue
+		}
+		if hardReturnsAsText || !strings.Contains(rr.text, "\n") {
+			cur = append(cur, segRun{text: rr.text})
+			continue
+		}
+		parts := strings.Split(rr.text, "\n")
+		for i, p := range parts {
+			if p != "" {
+				cur = append(cur, segRun{text: p})
+			}
+			if i < len(parts)-1 {
+				// Newline boundary: close the current segment.
+				segments = append(segments, cur)
+				cur = []segRun{}
+			}
+		}
+	}
+	segments = append(segments, cur)
+
+	// Build one paraRunsResult per segment that has non-whitespace text.
+	var results []paraRunsResult
+	for _, seg := range segments {
+		anyText := false
+		for _, sr := range seg {
+			if !sr.isCode && hasNonWhitespace(sr.text) {
+				anyText = true
+				break
+			}
+		}
+		if !anyText {
+			continue
+		}
+		// Emit runs in source order. Leading/trailing code + adjacent-
+		// whitespace trimming happens afterwards in simplifyBlockCodes,
+		// matching okapi's order (codeFinder + CodeSimplifier run AFTER the
+		// TextFragment is composed). Trimming here would discard codes
+		// before their ordinals are assigned and over-trim whitespace okapi
+		// keeps (e.g. the trailing space in "1000 Main Street ").
+		var runs []model.Run
+		for _, sr := range seg {
+			if sr.isCode {
+				runs = append(runs, model.Run{Ph: &model.PlaceholderRun{
+					ID:    strconv.Itoa(sr.ord),
+					Equiv: fmt.Sprintf("<%d/>", sr.ord),
+				}})
+				continue
+			}
+			if sr.text == "" {
+				continue
+			}
+			runs = append(runs, model.Run{Text: &model.TextRun{Text: sr.text}})
+		}
+		results = append(results, paraRunsResult{runs: runs, hasText: true})
+	}
+	return results
 }
 
 // parseMIF parses a MIF document into a list of top-level statements.
