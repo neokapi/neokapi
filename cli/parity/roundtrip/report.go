@@ -34,6 +34,11 @@ type parityRecord struct {
 	NormDiffOffset int // -1 when canonical-equal or normalizer absent
 	Normalizer     string
 
+	// CanonClass classifies a canonical-equal outcome as faithful (native
+	// preserves source; okapi re-serializes) or closeable (native loses
+	// source info). Meaningful only when Achieved == TierCanonicalEqual.
+	CanonClass CanonClass
+
 	// Annotation, when non-nil, carries the per-fixture metadata loaded
 	// from core/formats/<format>/parity-annotations.yaml. nil = no
 	// annotation declared for this fixture. The harness fills this in
@@ -212,7 +217,7 @@ func FlushParityReport(w io.Writer) error {
 // you where the gaps are; this tells you whether they grew or shrank.
 func writeEngineTotals(w io.Writer, records []parityRecord) error {
 	type tot struct {
-		Total, Byte, Canon, Sem, Div, Skip int
+		Total, Byte, Canon, CanonFaithful, CanonCloseable, Sem, Div, Skip int
 	}
 	totals := map[string]*tot{}
 	var engines []string
@@ -231,6 +236,12 @@ func writeEngineTotals(w io.Writer, records []parityRecord) error {
 			v.Byte++
 		case r.Achieved == TierCanonicalEqual:
 			v.Canon++
+			switch r.CanonClass {
+			case CanonFaithful:
+				v.CanonFaithful++
+			case CanonCloseable:
+				v.CanonCloseable++
+			}
 		case r.Achieved == TierSemanticEqual:
 			v.Sem++
 		default:
@@ -245,24 +256,29 @@ func writeEngineTotals(w io.Writer, records []parityRecord) error {
 	if _, err := fmt.Fprintln(w); err != nil {
 		return err
 	}
-	if _, err := fmt.Fprintln(w, "| Engine | Total | byte | canon | sem | div | skip | byte% |"); err != nil {
+	// `canon` splits into faithful (native preserves source, okapi
+	// re-serializes — expected) + closeable (native loses source info —
+	// real work). `byte%` is byte-equal alone; `faithful%` adds faithful
+	// canon — the honest "as faithful as okapi or better" figure.
+	if _, err := fmt.Fprintln(w, "| Engine | Total | byte | canon (faith/close) | sem | div | skip | byte% | faithful% |"); err != nil {
 		return err
 	}
-	if _, err := fmt.Fprintln(w, "|---|---:|---:|---:|---:|---:|---:|---:|"); err != nil {
+	if _, err := fmt.Fprintln(w, "|---|---:|---:|---:|---:|---:|---:|---:|---:|"); err != nil {
 		return err
 	}
 	for _, e := range engines {
 		v := totals[e]
 		// Percentage is byte-equal divided by asserted (total minus skipped) —
 		// skipped fixtures don't represent failures, so they shouldn't drag the
-		// percentage down.
+		// percentage down. faithful% adds faithful canon to the numerator.
 		asserted := v.Total - v.Skip
-		var pct float64
+		var pct, faithfulPct float64
 		if asserted > 0 {
 			pct = 100 * float64(v.Byte) / float64(asserted)
+			faithfulPct = 100 * float64(v.Byte+v.CanonFaithful) / float64(asserted)
 		}
-		if _, err := fmt.Fprintf(w, "| %s | %d | %d | %d | %d | %d | %d | %.1f%% |\n",
-			e, v.Total, v.Byte, v.Canon, v.Sem, v.Div, v.Skip, pct); err != nil {
+		if _, err := fmt.Fprintf(w, "| %s | %d | %d | %d (%d/%d) | %d | %d | %d | %.1f%% | %.1f%% |\n",
+			e, v.Total, v.Byte, v.Canon, v.CanonFaithful, v.CanonCloseable, v.Sem, v.Div, v.Skip, pct, faithfulPct); err != nil {
 			return err
 		}
 	}
@@ -272,13 +288,15 @@ func writeEngineTotals(w io.Writer, records []parityRecord) error {
 type aggKey struct{ Format, Engine string }
 
 type aggVal struct {
-	Total       int
-	Byte        int
-	Canonical   int
-	Semantic    int
-	Divergent   int
-	Skipped     int
-	WorstSample string
+	Total          int
+	Byte           int
+	Canonical      int
+	CanonFaithful  int
+	CanonCloseable int
+	Semantic       int
+	Divergent      int
+	Skipped        int
+	WorstSample    string
 }
 
 func aggregate(records []parityRecord) (map[aggKey]*aggVal, []aggKey) {
@@ -298,6 +316,12 @@ func aggregate(records []parityRecord) (map[aggKey]*aggVal, []aggKey) {
 			v.Byte++
 		case r.Achieved == TierCanonicalEqual:
 			v.Canonical++
+			switch r.CanonClass {
+			case CanonFaithful:
+				v.CanonFaithful++
+			case CanonCloseable:
+				v.CanonCloseable++
+			}
 		case r.Achieved == TierSemanticEqual:
 			v.Semantic++
 		default:
@@ -480,24 +504,38 @@ type coverageMapEntry struct {
 }
 
 type engineTotals struct {
-	Total   int     `json:"total"`
-	Byte    int     `json:"byte"`
-	Canon   int     `json:"canon"`
-	Sem     int     `json:"sem"`
-	Div     int     `json:"div"`
-	Skip    int     `json:"skip"`
-	BytePct float64 `json:"byte_pct"`
+	Total int `json:"total"`
+	Byte  int `json:"byte"`
+	Canon int `json:"canon"`
+	// CanonFaithful / CanonCloseable partition Canon by CanonClass:
+	// faithful = native preserves source, okapi re-serializes (expected,
+	// don't chase); closeable = native loses source info (real work).
+	// Unclassified canon falls into neither and only ever under-states
+	// faithful parity.
+	CanonFaithful  int     `json:"canon_faithful"`
+	CanonCloseable int     `json:"canon_closeable"`
+	Sem            int     `json:"sem"`
+	Div            int     `json:"div"`
+	Skip           int     `json:"skip"`
+	BytePct        float64 `json:"byte_pct"`
+	// FaithfulPct = (byte + canon_faithful) / asserted. The honest
+	// headline: how much of the corpus native handles at least as
+	// faithfully as okapi (byte-identical, or canonically-equal because
+	// okapi re-serialized).
+	FaithfulPct float64 `json:"faithful_pct"`
 }
 
 type formatBreakdown struct {
-	Format string `json:"format"`
-	Engine string `json:"engine"`
-	Total  int    `json:"total"`
-	Byte   int    `json:"byte"`
-	Canon  int    `json:"canon"`
-	Sem    int    `json:"sem"`
-	Div    int    `json:"div"`
-	Skip   int    `json:"skip"`
+	Format         string `json:"format"`
+	Engine         string `json:"engine"`
+	Total          int    `json:"total"`
+	Byte           int    `json:"byte"`
+	Canon          int    `json:"canon"`
+	CanonFaithful  int    `json:"canon_faithful"`
+	CanonCloseable int    `json:"canon_closeable"`
+	Sem            int    `json:"sem"`
+	Div            int    `json:"div"`
+	Skip           int    `json:"skip"`
 	// Fixtures lists every per-fixture entry that didn't reach byte-equal
 	// — canonical-equal, semantic-equal, and divergent rows are all
 	// included so the dashboard can drill into "remaining work toward
@@ -574,7 +612,9 @@ func FlushParityFixturesJSON(w io.Writer) error {
 	}
 
 	// Engine totals.
-	type engTot struct{ Total, Byte, Canon, Sem, Div, Skip int }
+	type engTot struct {
+		Total, Byte, Canon, CanonFaithful, CanonCloseable, Sem, Div, Skip int
+	}
 	engines := map[string]*engTot{}
 	for _, r := range records {
 		v, ok := engines[r.Engine]
@@ -590,6 +630,12 @@ func FlushParityFixturesJSON(w io.Writer) error {
 			v.Byte++
 		case r.Achieved == TierCanonicalEqual:
 			v.Canon++
+			switch r.CanonClass {
+			case CanonFaithful:
+				v.CanonFaithful++
+			case CanonCloseable:
+				v.CanonCloseable++
+			}
 		case r.Achieved == TierSemanticEqual:
 			v.Sem++
 		default:
@@ -598,18 +644,22 @@ func FlushParityFixturesJSON(w io.Writer) error {
 	}
 	for name, v := range engines {
 		asserted := v.Total - v.Skip
-		var pct float64
+		var pct, faithfulPct float64
 		if asserted > 0 {
 			pct = 100 * float64(v.Byte) / float64(asserted)
+			faithfulPct = 100 * float64(v.Byte+v.CanonFaithful) / float64(asserted)
 		}
 		out.Engines[name] = engineTotals{
-			Total:   v.Total,
-			Byte:    v.Byte,
-			Canon:   v.Canon,
-			Sem:     v.Sem,
-			Div:     v.Div,
-			Skip:    v.Skip,
-			BytePct: pct,
+			Total:          v.Total,
+			Byte:           v.Byte,
+			Canon:          v.Canon,
+			CanonFaithful:  v.CanonFaithful,
+			CanonCloseable: v.CanonCloseable,
+			Sem:            v.Sem,
+			Div:            v.Div,
+			Skip:           v.Skip,
+			BytePct:        pct,
+			FaithfulPct:    faithfulPct,
 		}
 	}
 
@@ -643,14 +693,16 @@ func FlushParityFixturesJSON(w io.Writer) error {
 	for _, k := range keys {
 		v := aggs[k]
 		fb := formatBreakdown{
-			Format: k.Format,
-			Engine: k.Engine,
-			Total:  v.Total,
-			Byte:   v.Byte,
-			Canon:  v.Canonical,
-			Sem:    v.Semantic,
-			Div:    v.Divergent,
-			Skip:   v.Skipped,
+			Format:         k.Format,
+			Engine:         k.Engine,
+			Total:          v.Total,
+			Byte:           v.Byte,
+			Canon:          v.Canonical,
+			CanonFaithful:  v.CanonFaithful,
+			CanonCloseable: v.CanonCloseable,
+			Sem:            v.Semantic,
+			Div:            v.Divergent,
+			Skip:           v.Skipped,
 		}
 		if dets, ok := groups[detailKey{k.Format, k.Engine}]; ok {
 			sort.Slice(dets, func(i, j int) bool {

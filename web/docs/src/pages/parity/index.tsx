@@ -47,10 +47,17 @@ interface EngineTotals {
   total: number;
   byte: number;
   canon: number;
+  // canon split: faithful = native preserves source, okapi re-serializes
+  // (expected, don't chase); closeable = native loses source info (real work).
+  canon_faithful: number;
+  canon_closeable: number;
   sem: number;
   div: number;
   skip: number;
   byte_pct: number;
+  // faithful_pct = (byte + canon_faithful) / asserted — the honest "as
+  // faithful as okapi or better" headline.
+  faithful_pct: number;
 }
 
 type Severity = "bug" | "cosmetic" | "native-more-correct" | "fixture-bug" | "unknown";
@@ -84,6 +91,8 @@ interface FormatBreakdown {
   total: number;
   byte: number;
   canon: number;
+  canon_faithful: number;
+  canon_closeable: number;
   sem: number;
   div: number;
   skip: number;
@@ -913,8 +922,17 @@ export default function ParityFixturesDashboard() {
             <div key={eng} className={styles.totalCard}>
               <h2>{eng}</h2>
               <div className={styles.headline}>
-                {t.byte} / {t.total - t.skip}{" "}
-                <span className={styles.headlineSuffix}>byte-equal ({t.byte_pct.toFixed(1)}%)</span>
+                {t.byte + t.canon_faithful} / {t.total - t.skip}{" "}
+                <span className={styles.headlineSuffix}>
+                  faithful ({t.faithful_pct.toFixed(1)}%)
+                </span>
+              </div>
+              <div className={styles.headlineSub}>
+                {t.byte} byte-equal ({t.byte_pct.toFixed(1)}%) + {t.canon_faithful} faithful-canon
+                {" "}
+                <span title="canon where native preserves the source and okapi re-serializes — driving these to byte-equal would regress native fidelity">
+                  ⓘ
+                </span>
               </div>
               <ul className={styles.totalBreakdown}>
                 <li>
@@ -922,6 +940,13 @@ export default function ParityFixturesDashboard() {
                 </li>
                 <li>
                   <span className={`${styles.tierBadge} ${styles.tierCanon}`}>canon</span> {t.canon}
+                  {t.canon > 0 && (
+                    <span className={styles.canonSplit}>
+                      {" "}
+                      ({t.canon_faithful} faithful
+                      {t.canon_closeable > 0 && `, ${t.canon_closeable} closeable`})
+                    </span>
+                  )}
                 </li>
                 {t.sem > 0 && (
                   <li>

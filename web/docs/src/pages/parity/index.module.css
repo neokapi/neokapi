@@ -38,6 +38,19 @@
   color: var(--ifm-color-emphasis-600);
 }
 
+.headlineSub {
+  font-size: 0.8rem;
+  font-weight: 400;
+  color: var(--ifm-color-emphasis-600);
+  margin-bottom: 0.5rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.canonSplit {
+  color: var(--ifm-color-emphasis-600);
+  font-variant-numeric: tabular-nums;
+}
+
 .totalBreakdown {
   list-style: none;
   padding: 0;

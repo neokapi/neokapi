@@ -95,6 +95,18 @@ type formatScan struct {
 	// "must reach canonical-equal" while still surfacing actual
 	// achievement in the report.
 	minTier map[string]roundtrip.Tier
+
+	// canonClass classifies this format's canonical-equal outcomes for the
+	// parity report. CanonFaithful = native writes byte-exact from the
+	// source skeleton and the only gap vs okapi is okapi's own
+	// re-serialization (attribute reordering, declaration rewrite, line-
+	// ending/whitespace normalization) — native is the more faithful side,
+	// so these are *expected* canon, not a backlog. CanonCloseable = native
+	// itself loses source information it could preserve — real remaining
+	// work. Leave zero (CanonUnclassified) when undecided; unclassified
+	// canon never inflates the faithful-parity figure. See the per-scan
+	// normalizer comments for the direction evidence behind each setting.
+	canonClass roundtrip.CanonClass
 }
 
 func TestRoundTrip_Coverage(t *testing.T) {
@@ -280,6 +292,7 @@ func runOneFixture(t *testing.T, scan formatScan, abs string, okapiCache *roundt
 		SkipReason:      reason,
 		Normalizer:      scan.normalizer,
 		MinTier:         scan.minTier,
+		CanonClass:      resolveCanonClass(string(scan.formatID), scan.canonClass),
 	},
 		&roundtrip.NativeEngine{
 			FormatID:      scan.formatID,
@@ -354,6 +367,68 @@ func discoverCompanions(t *testing.T, inputAbs string) map[string][]byte {
 // after running the suite and triaging divergences. Each entry needs a
 // one-line reason describing what actually diverges, so the next reader
 // can tell engine bug vs harness limitation.
+// canonClassByFormat is the single source of truth for how each format's
+// canonical-equal outcomes are classified in the parity report. The
+// evidence behind each entry lives in the corresponding scan's normalizer
+// comment in coverageScans() below.
+//
+//   - CanonFaithful: native writes byte-exact from the source skeleton and
+//     the only gap vs okapi is okapi re-serializing on round-trip —
+//     reordering attributes, rewriting the XML declaration, stripping
+//     revision IDs, alphabetizing container children, normalizing line
+//     endings (CRLF→LF), reflowing/word-wrapping whitespace, appending a
+//     trailing newline, etc. Native is the *more faithful* side; driving
+//     these to byte-equal would regress source fidelity. Confirmed per
+//     format by inspecting the source fixture bytes against the live diff
+//     (e.g. wiki/properties/markdown sources have no trailing newline and
+//     okapi adds one; php/tex sources are CRLF and okapi normalizes to LF;
+//     the XML/zip family re-serializes through okapi's own XML writer).
+//   - CanonCloseable: native itself loses source information it could
+//     preserve. yaml mixes CRLF and LF within a CRLF source on the
+//     re-serialized scalar lines — a genuine fidelity gap worth closing.
+//
+// Formats not listed default to CanonUnclassified, which never inflates the
+// faithful-parity figure (conservative — under-claims rather than over-claims).
+var canonClassByFormat = map[string]roundtrip.CanonClass{
+	// XML / zip family — skeleton-exact native vs okapi XML re-serialization.
+	"openxml": roundtrip.CanonFaithful,
+	"idml":    roundtrip.CanonFaithful,
+	"odf":     roundtrip.CanonFaithful,
+	"xliff":   roundtrip.CanonFaithful,
+	"xliff2":  roundtrip.CanonFaithful,
+	"xml":     roundtrip.CanonFaithful,
+	"tmx":     roundtrip.CanonFaithful,
+	"ts":      roundtrip.CanonFaithful,
+	"icml":    roundtrip.CanonFaithful,
+	"html":    roundtrip.CanonFaithful,
+	// Text formats — native preserves source bytes; okapi normalizes line
+	// endings, adds trailing newlines, reflows whitespace, or re-parses.
+	"wiki":       roundtrip.CanonFaithful,
+	"properties": roundtrip.CanonFaithful,
+	"markdown":   roundtrip.CanonFaithful,
+	"vtt":        roundtrip.CanonFaithful,
+	"phpcontent": roundtrip.CanonFaithful,
+	"tex":        roundtrip.CanonFaithful,
+	"dtd":        roundtrip.CanonFaithful,
+	"doxygen":    roundtrip.CanonFaithful,
+	"po":         roundtrip.CanonFaithful,
+	// Closeable — native loses source line-ending consistency.
+	"yaml": roundtrip.CanonCloseable,
+	// json left unclassified pending a direction check on its escape/
+	// whitespace canon (\/ escaping, key spacing).
+}
+
+// resolveCanonClass returns the per-scan override when set, otherwise the
+// central per-format default. CanonUnclassified (the zero value) means "no
+// override", so a scan can opt into a classification without one being able
+// to silently erase the map default.
+func resolveCanonClass(format string, override roundtrip.CanonClass) roundtrip.CanonClass {
+	if override != roundtrip.CanonUnclassified {
+		return override
+	}
+	return canonClassByFormat[format]
+}
+
 func coverageScans() []formatScan {
 	return []formatScan{
 		// ── Plain-text family ─────────────────────────────────────
