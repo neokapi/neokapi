@@ -17,22 +17,29 @@
 #   - okapi_refs target net.sf.okapi.filters.table.csv.
 #     CommaSeparatedValuesFilterTest, the single upstream test class for
 #     this filter (Okapi 1.48.0).
-#   - native vs bridge default-config divergence is structural and
-#     pervasive (#530): native skips the header row and treats every
-#     cell as one Block, while the upstream Okapi filter extracts the
-#     header AND emits one TextUnit per row (only the configured
-#     `sourceColumns` cell). Most examples in this spec carry an
-#     `expected_fail:` block pointing to #530 with the bridge's actual
-#     output recorded. Spec assertions reflect native behavior — the
-#     authoritative neokapi contract — and the divergence resolves
-#     once the config-key alias map lands.
+#   - native vs bridge DEFAULT-config divergence is structural and
+#     pervasive (#530): with no config block, native skips the header
+#     row and treats every cell as one Block, while the upstream Okapi
+#     filter extracts the header AND emits one TextUnit per row (only
+#     the configured `sourceColumns` cell). The no-config examples carry
+#     an `expected_fail:` block pointing to #530 with the bridge's actual
+#     output recorded — these are legitimate default differences (the
+#     parity contract is "same semantic config → same results", not
+#     "same defaults"). Spec assertions reflect native behavior — the
+#     authoritative neokapi contract.
 #   - The native reader uses neokapi-style camelCase config keys
 #     (`separator`, `hasHeader`, `translatableColumns`, `keyColumns`,
 #     `commentColumns`) while the upstream Okapi filter uses
 #     `fieldDelimiter`, `columnNamesLineNum`, `sourceColumns`, etc.
 #     The `okapi_param:` field on each ConfigKey records the upstream
-#     name for drift detection. Adding aliases to native ApplyMap is
-#     #530's chosen remedy.
+#     name for drift detection. Examples that set an EXPLICIT config
+#     block converge head-to-head: the parity bridge runner
+#     (cli/parity/formats/csv_bridge_config.go) translates the
+#     neokapi-keyed config into a single Okapi ParametersString
+#     (`fprmContent`) blob the upstream filter loads via fromString,
+#     so a tab/semicolon delimiter, hasHeader=false, translatableColumns,
+#     keyColumns, commentColumns, etc. all produce identical Blocks on
+#     both sides.
 
 format: okf_commaseparatedvalues
 kind: top_level
@@ -395,15 +402,6 @@ features:
         block_texts:
           - "Widget"
           - "A useful widget"
-        expected_fail: |
-          bridge config divergence — neokapi config key `separator` is
-          not recognised by the upstream Okapi filter (which expects
-          `fieldDelimiter`); the bridge therefore reads the input with
-          the default `,` delimiter, treats the entire `name\tdescription`
-          row as a single header column, and yields one Block per data
-          row instead of one Block per cell. Native correctly reads two
-          tab-delimited columns and yields 2 Blocks. Tracked under #530
-          (config-key alias rollout).
       - name: semicolon_delimiter
         origin: "authored: `;` European-style CSV via separator config"
         input_xml: "Col1;Col2;Col3\nR1C1;R1C2;R1C3\n"
@@ -414,13 +412,6 @@ features:
           - "R1C1"
           - "R1C2"
           - "R1C3"
-        expected_fail: |
-          bridge config divergence — same as `tab_delimiter`: the
-          neokapi `separator` key is not recognised by the upstream
-          Okapi filter (which expects `fieldDelimiter`), so the bridge
-          falls back to `,` and reads each `;`-joined row as a single
-          column. Native correctly reads three `;`-delimited columns
-          and yields 3 Blocks. Tracked under #530 (config-key alias rollout).
     okapi_refs:
       - CommaSeparatedValuesFilterTest#testTabDelimited2Column
       - CommaSeparatedValuesFilterTest#testTabDelimited2ColumnRoundTrip
@@ -452,14 +443,6 @@ features:
           - "A useful widget"
           - "Gadget"
           - "A cool gadget"
-        expected_fail: |
-          bridge config divergence — neokapi config key `hasHeader` is
-          not recognised by the upstream Okapi filter (which uses
-          `columnNamesLineNum=0` to mean "no header"); the bridge
-          therefore keeps the default `columnNamesLineNum=1` and treats
-          row 1 (`Widget,A useful widget`) as the header row, yielding
-          only 2 Blocks (Gadget, A cool gadget). Native correctly
-          extracts all 4 cells as Blocks. Tracked under #530 (config-key alias rollout).
     okapi_refs:
       - CommaSeparatedValuesFilterTest#testFileEvents
     native_refs:
@@ -488,15 +471,6 @@ features:
         no_block_with_text:
           - "Target text 1"
           - "third column data1"
-        expected_fail: |
-          bridge config divergence — neokapi config key
-          `translatableColumns` is not recognised by the upstream Okapi
-          filter (which uses `sourceColumns` as a comma-separated
-          string of 1-based indices); the bridge therefore extracts
-          every column, yielding 6 Blocks (Source text 1 / Target text
-          1 / third column data1 / Source text 2 / Target text 2 /
-          third column data2). Native correctly restricts extraction
-          to column 0 and yields 2 Blocks. Tracked under #530 (config-key alias rollout).
       - name: two_source_columns
         origin: "okapi-fixture: okapi:okapi/filters/table/src/test/resources/CSVTest_97.txt — two source/target column pairs"
         input_file: okapi:okapi/filters/table/src/test/resources/CSVTest_97.txt
@@ -511,13 +485,6 @@ features:
         no_block_with_text:
           - "Target text 1"
           - "TargetB1"
-        expected_fail: |
-          bridge config divergence — same as `source_only_three_column`:
-          the bridge does not recognise `translatableColumns`, falls
-          back to extracting every column, and yields 10 Blocks
-          (every source + target + data cell from both rows). Native
-          correctly extracts only columns 0 and 3 and yields 4 Blocks.
-          Tracked under #530 (config-key alias rollout).
     okapi_refs:
       - CommaSeparatedValuesFilterTest#testThreeColumnsSrcTrgData
       - CommaSeparatedValuesFilterTest#testFileEvents96
@@ -554,15 +521,6 @@ features:
           - "01"
           - "02"
           - "03"
-        expected_fail: |
-          bridge config divergence — neokapi config keys
-          `translatableColumns` and `keyColumns` are not recognised by
-          the upstream Okapi filter (which uses `sourceColumns` and
-          `sourceIdColumns`); the bridge falls back to extracting every
-          column, so the id column values (01, 02, 03) appear as
-          Blocks alongside the value column. Native correctly restricts
-          extraction to column 1 and uses column 0 for the Block ID,
-          yielding 3 Blocks. Tracked under #530 (config-key alias rollout).
       - name: multiple_key_columns
         origin: "authored: two key columns concatenate with `.` separator"
         input_xml: "group,key,text\nui,btn.save,Save\nui,btn.cancel,Cancel\n"
@@ -576,13 +534,6 @@ features:
         no_block_with_text:
           - "ui"
           - "btn.save"
-        expected_fail: |
-          bridge config divergence — same as `single_key_column`:
-          `translatableColumns` and `keyColumns` are not recognised by
-          the upstream Okapi filter, so the bridge extracts every cell.
-          Native correctly composes Block IDs from columns 0+1 and
-          extracts only column 2, yielding 2 Blocks ("Save", "Cancel").
-          Tracked under #530 (config-key alias rollout).
     okapi_refs:
       - CommaSeparatedValuesFilterTest#testFileEvents106
       - CommaSeparatedValuesFilterTest#testSourceId
@@ -617,15 +568,6 @@ features:
         no_block_with_text:
           - "greeting note"
           - "farewell note"
-        expected_fail: |
-          bridge config divergence — neokapi config keys
-          `translatableColumns` and `commentColumns` are not recognised
-          by the upstream Okapi filter (which uses `sourceColumns` and
-          `commentColumns` with 1-based indices and a comma-separated
-          string format); the bridge falls back to extracting every
-          column. Native correctly extracts columns 0 and 2 and
-          attaches column 1 as comment metadata, yielding 4 Blocks.
-          Tracked under #530 (config-key alias rollout).
     okapi_refs:
       - CommaSeparatedValuesFilterTest#testCommentColumnsAsMetadata
     native_refs:
