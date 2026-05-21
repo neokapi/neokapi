@@ -215,6 +215,12 @@ export interface TestCaseRow {
   skipCategory?: SkipCategory;
   /** >1 when this row collapses N JUnit parameterized invocations (fixtures). */
   params?: number;
+  /** For a not-applicable row whose reason claims the behavior is covered
+   * elsewhere: the native Go test that verifies it, with a source link, so
+   * the claim is verifiable rather than asserted. */
+  coveredByTest?: string;
+  coveredByFile?: string;
+  coveredByLine?: number;
 }
 
 /** Wire format from the Go testcompare tool (annotation-based). */
@@ -237,6 +243,10 @@ export interface TestCaseMatch {
   bridgeSubtests?: number;
   nativeSubtests?: number;
   skipCategory?: SkipCategory;
+  params?: number;
+  coveredByTest?: string;
+  coveredByFile?: string;
+  coveredByLine?: number;
 }
 
 export interface CoverageStats {
@@ -311,6 +321,9 @@ function convertAnnotatedRows(matches: TestCaseMatch[]): TestCaseRow[] {
     nativeSubtests: m.nativeSubtests,
     skipCategory: m.skipCategory,
     params: m.params,
+    coveredByTest: m.coveredByTest,
+    coveredByFile: m.coveredByFile,
+    coveredByLine: m.coveredByLine,
   }));
 }
 

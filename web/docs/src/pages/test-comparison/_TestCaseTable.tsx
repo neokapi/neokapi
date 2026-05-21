@@ -460,6 +460,20 @@ export default function TestCaseTable({
                             {tc.skipCategory && <CategoryBadge category={tc.skipCategory} />}
                           </div>
                         )}
+                        {tc.coveredByTest && (
+                          <div className={styles.detailItem}>
+                            <span className={styles.detailLabel}>Covered by:</span>
+                            <a
+                              href={`https://github.com/neokapi/neokapi/blob/${goCommitSHA || "main"}/${tc.coveredByFile}${
+                                tc.coveredByLine ? `#L${tc.coveredByLine}` : ""
+                              }`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              {tc.coveredByTest} ↗
+                            </a>
+                          </div>
+                        )}
                         {!tc.okapiStatus &&
                           !tc.bridgeTest &&
                           !tc.bridgeStatus &&
