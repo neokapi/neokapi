@@ -1,8 +1,8 @@
 {
-  "generatedAt": "2026-05-21T09:18:41Z",
+  "generatedAt": "2026-05-21T11:20:31Z",
   "okapiVersion": "v1.48.0",
   "neokapiVersion": "main",
-  "goCommitSHA": "a40b1c47",
+  "goCommitSHA": "b56e3af8",
   "okapiTag": "v1.48.0",
   "filters": [
     {
@@ -1907,7 +1907,7 @@
               {
                 "name": "TestRoundTrip_UpstreamTableCorpus",
                 "status": "pass",
-                "durationMs": 10
+                "durationMs": 0
               },
               {
                 "name": "TestRoundTrip_UpstreamTableCorpus/computer_science_article.csv",
@@ -2568,7 +2568,31 @@
         "skipped": 0,
         "errors": 0
       },
-      "bridge": null,
+      "bridge": {
+        "suites": [
+          {
+            "name": "bridge parity",
+            "tests": [
+              {
+                "name": "read",
+                "status": "pass",
+                "durationMs": 0
+              }
+            ],
+            "total": 1,
+            "passed": 1,
+            "failed": 0,
+            "skipped": 0,
+            "errors": 0,
+            "durationMs": 0
+          }
+        ],
+        "total": 1,
+        "passed": 1,
+        "failed": 0,
+        "skipped": 0,
+        "errors": 0
+      },
       "native": null,
       "testCases": [
         {
@@ -2663,7 +2687,31 @@
         "skipped": 0,
         "errors": 0
       },
-      "bridge": null,
+      "bridge": {
+        "suites": [
+          {
+            "name": "bridge parity",
+            "tests": [
+              {
+                "name": "read",
+                "status": "pass",
+                "durationMs": 0
+              }
+            ],
+            "total": 1,
+            "passed": 1,
+            "failed": 0,
+            "skipped": 0,
+            "errors": 0,
+            "durationMs": 0
+          }
+        ],
+        "total": 1,
+        "passed": 1,
+        "failed": 0,
+        "skipped": 0,
+        "errors": 0
+      },
       "native": null,
       "testCases": [
         {
@@ -12359,7 +12407,7 @@
           "nativeTest": "TestSimpleEntry",
           "nativeStatus": "pass",
           "nativeFile": "extraction_test.go",
-          "nativeLine": 159,
+          "nativeLine": 246,
           "testState": "implemented"
         },
         {
@@ -12413,7 +12461,7 @@
           "nativeTest": "TestReadLayerStartEnd",
           "nativeStatus": "pass",
           "nativeFile": "reader_test.go",
-          "nativeLine": 157,
+          "nativeLine": 172,
           "testState": "implemented"
         },
         {
@@ -12466,7 +12514,7 @@
           "nativeTest": "TestReaderSignature",
           "nativeStatus": "pass",
           "nativeFile": "reader_test.go",
-          "nativeLine": 185,
+          "nativeLine": 200,
           "testState": "implemented"
         },
         {
@@ -24876,17 +24924,17 @@
             "tests": [
               {
                 "name": "TestBodyOnlyNoVariables",
-                "status": "skip",
+                "status": "pass",
                 "durationMs": 0
               },
               {
                 "name": "TestCharOnly",
-                "status": "skip",
+                "status": "pass",
                 "durationMs": 0
               },
               {
                 "name": "TestCodeAtTheFront",
-                "status": "skip",
+                "status": "pass",
                 "durationMs": 0
               },
               {
@@ -24926,27 +24974,57 @@
               },
               {
                 "name": "TestConsequentialEmptyParaLinesMerged",
-                "status": "skip",
+                "status": "pass",
                 "durationMs": 0
               },
               {
                 "name": "TestDoesNotProcessUnsupportedVersions",
-                "status": "skip",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestDoesNotProcessUnsupportedVersions/fm10_accepted",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestDoesNotProcessUnsupportedVersions/fm6_rejected",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestDoesNotProcessUnsupportedVersions/fm7_rejected",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestDoesNotProcessUnsupportedVersions/fm8_accepted",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestDoesNotProcessUnsupportedVersions/fm9_accepted",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestDoesNotProcessUnsupportedVersions/year-form_accepted",
+                "status": "pass",
                 "durationMs": 0
               },
               {
                 "name": "TestDummyBeforeChar",
-                "status": "skip",
+                "status": "pass",
                 "durationMs": 0
               },
               {
                 "name": "TestDummyCharString",
-                "status": "skip",
+                "status": "pass",
                 "durationMs": 0
               },
               {
                 "name": "TestEmptyFTag",
-                "status": "skip",
+                "status": "pass",
                 "durationMs": 0
               },
               {
@@ -24956,7 +25034,7 @@
               },
               {
                 "name": "TestEmptyString",
-                "status": "skip",
+                "status": "pass",
                 "durationMs": 0
               },
               {
@@ -24966,7 +25044,7 @@
               },
               {
                 "name": "TestEndsInCharAndCode",
-                "status": "skip",
+                "status": "pass",
                 "durationMs": 0
               },
               {
@@ -24976,12 +25054,12 @@
               },
               {
                 "name": "TestExtractIndexMarkers",
-                "status": "skip",
+                "status": "pass",
                 "durationMs": 0
               },
               {
                 "name": "TestExtractLinks",
-                "status": "skip",
+                "status": "pass",
                 "durationMs": 0
               },
               {
@@ -24991,32 +25069,32 @@
               },
               {
                 "name": "TestExtractsAnchoredFramesContent",
-                "status": "skip",
-                "durationMs": 0
+                "status": "pass",
+                "durationMs": 10
               },
               {
                 "name": "TestExtractsBodyPageRelatedInformationOnly",
-                "status": "skip",
-                "durationMs": 0
+                "status": "pass",
+                "durationMs": 10
               },
               {
                 "name": "TestExtractsMultipleTextFramesPerPage",
-                "status": "skip",
+                "status": "pass",
                 "durationMs": 0
               },
               {
                 "name": "TestExtractsNestedAnchoredFrames",
-                "status": "skip",
-                "durationMs": 0
+                "status": "pass",
+                "durationMs": 10
               },
               {
                 "name": "TestExtractsNumberedParagraphFormatInTableCells",
-                "status": "skip",
+                "status": "pass",
                 "durationMs": 0
               },
               {
                 "name": "TestExtractsNumberedParagraphFormats",
-                "status": "skip",
+                "status": "pass",
                 "durationMs": 0
               },
               {
@@ -25031,7 +25109,7 @@
               },
               {
                 "name": "TestNestedTextFramesExtracted",
-                "status": "skip",
+                "status": "pass",
                 "durationMs": 0
               },
               {
@@ -25126,7 +25204,7 @@
               },
               {
                 "name": "TestSequentialParagraphFormatsExtracted",
-                "status": "skip",
+                "status": "pass",
                 "durationMs": 0
               },
               {
@@ -25256,7 +25334,7 @@
               },
               {
                 "name": "TestTabsAndCodes",
-                "status": "skip",
+                "status": "pass",
                 "durationMs": 0
               },
               {
@@ -25266,17 +25344,17 @@
               },
               {
                 "name": "TestTabsRepresentedAsCodesAndHardReturnsAsText",
-                "status": "skip",
+                "status": "pass",
                 "durationMs": 0
               },
               {
                 "name": "TestTabsRepresentedAsCodesAndNewTextualUnitsFormedOnHardReturnsAppearance",
-                "status": "skip",
+                "status": "pass",
                 "durationMs": 0
               },
               {
                 "name": "TestTextLinesExtracted",
-                "status": "skip",
+                "status": "pass",
                 "durationMs": 0
               },
               {
@@ -25295,18 +25373,18 @@
                 "durationMs": 10
               }
             ],
-            "total": 84,
-            "passed": 54,
+            "total": 90,
+            "passed": 84,
             "failed": 0,
-            "skipped": 30,
+            "skipped": 6,
             "errors": 0,
             "durationMs": 0
           }
         ],
-        "total": 84,
-        "passed": 54,
+        "total": 90,
+        "passed": 84,
         "failed": 0,
-        "skipped": 30,
+        "skipped": 6,
         "errors": 0
       },
       "testCases": [
@@ -25316,7 +25394,7 @@
           "okapiStatus": "pass",
           "nativeTest": "TestCharOnly",
           "nativeFile": "extraction_test.go",
-          "nativeLine": 262,
+          "nativeLine": 348,
           "skipReason": "exercises okapi's internal Document/Statements statement-iterator API (verbatim re-serialization of every parsed statement). The native reader has no public statement-stream type; it parses to the content model and reconstructs source via the SkeletonStore, so there is no equivalent surface to assert against.",
           "testState": "skipped",
           "skipCategory": "other"
@@ -25327,7 +25405,7 @@
           "okapiStatus": "pass",
           "nativeTest": "TestCharOnly",
           "nativeFile": "extraction_test.go",
-          "nativeLine": 262,
+          "nativeLine": 348,
           "skipReason": "same internal Document/Statements API, run over every fixture; the native reader has no statement-iterator surface, but the equivalent verbatim re-serialization (byte-exact file reconstruction via the SkeletonStore) is covered by TestSkeletonStore_ByteExact_SimpleFile.",
           "testState": "skipped",
           "skipCategory": "other",
@@ -25350,10 +25428,10 @@
           "javaMethod": "testCharOnly",
           "okapiStatus": "pass",
           "nativeTest": "TestCharOnly",
-          "nativeStatus": "skip",
+          "nativeStatus": "pass",
           "nativeFile": "extraction_test.go",
-          "nativeLine": 262,
-          "testState": "pending"
+          "nativeLine": 348,
+          "testState": "implemented"
         },
         {
           "javaClass": "net.sf.okapi.filters.mif.ExtractionTest",
@@ -25362,7 +25440,7 @@
           "nativeTest": "TestSimpleEntry",
           "nativeStatus": "pass",
           "nativeFile": "extraction_test.go",
-          "nativeLine": 159,
+          "nativeLine": 246,
           "testState": "implemented"
         },
         {
@@ -25372,7 +25450,7 @@
           "nativeTest": "TestNormalFont",
           "nativeStatus": "pass",
           "nativeFile": "extraction_test.go",
-          "nativeLine": 208,
+          "nativeLine": 295,
           "testState": "implemented"
         },
         {
@@ -25380,10 +25458,11 @@
           "javaMethod": "hardReturnsFormNewTransUnits",
           "okapiStatus": "pass",
           "nativeTest": "TestHardReturnsFormNewTransUnits",
-          "nativeStatus": "skip",
           "nativeFile": "extraction_test.go",
-          "nativeLine": 440,
-          "testState": "pending"
+          "nativeLine": 657,
+          "skipReason": "this single okapi test asserts ExtractHardReturnsAsText=false hard-return unit splitting over SEVEN fixtures: 987, 990-marker, 990-pgf-num-format-1, 990-pgf-num-format-2, 990-text-line (all NOW correctly extracted by the native reader — the hard-return-as-new-TextUnit split #558 is implemented across the Para, PgfNumFormat, PgfCatalog, Marker and TextLine paths and is verified in isolation by readFixtureCommonCoded probes matching okapi exactly) AND 990-ref-format-1 / 990-ref-format-2 with setExtractReferenceFormats(true). The two ref-format fixtures require okapi's XRef reference-format REFERENT extraction (inline \u003cXRef\u003e…\u003cXRefEnd\u003e resolving an XRefFormat \u003cXRefDef\u003e into a referent TextUnit whose FrameMaker building blocks become per-block codes), a distinct sub-feature not yet modeled. Because the test bundles all seven fixtures into one assertion, it cannot pass until the XRef ref-format referent chain is implemented; the hard-return split itself (the test's titular behaviour) IS implemented. Same XRef sub-feature blocks referenceFormatsConditionallyExtracted.",
+          "testState": "skipped",
+          "skipCategory": "format"
         },
         {
           "javaClass": "net.sf.okapi.filters.mif.ExtractionTest",
@@ -25392,7 +25471,7 @@
           "nativeTest": "TestTrimFontInFront",
           "nativeStatus": "pass",
           "nativeFile": "extraction_test.go",
-          "nativeLine": 189,
+          "nativeLine": 276,
           "testState": "implemented"
         },
         {
@@ -25400,30 +25479,30 @@
           "javaMethod": "extractsAnchoredFramesContent",
           "okapiStatus": "pass",
           "nativeTest": "TestExtractsAnchoredFramesContent",
-          "nativeStatus": "skip",
+          "nativeStatus": "pass",
           "nativeFile": "extraction_test.go",
-          "nativeLine": 390,
-          "testState": "pending"
+          "nativeLine": 561,
+          "testState": "implemented"
         },
         {
           "javaClass": "net.sf.okapi.filters.mif.ExtractionTest",
           "javaMethod": "sequentialParagraphFormatsExtracted",
           "okapiStatus": "pass",
           "nativeTest": "TestSequentialParagraphFormatsExtracted",
-          "nativeStatus": "skip",
+          "nativeStatus": "pass",
           "nativeFile": "extraction_test.go",
-          "nativeLine": 406,
-          "testState": "pending"
+          "nativeLine": 604,
+          "testState": "implemented"
         },
         {
           "javaClass": "net.sf.okapi.filters.mif.ExtractionTest",
           "javaMethod": "tabsRepresentedAsCodesAndHardReturnsAsText",
           "okapiStatus": "pass",
           "nativeTest": "TestTabsRepresentedAsCodesAndHardReturnsAsText",
-          "nativeStatus": "skip",
+          "nativeStatus": "pass",
           "nativeFile": "extraction_test.go",
-          "nativeLine": 467,
-          "testState": "pending"
+          "nativeLine": 699,
+          "testState": "implemented"
         },
         {
           "javaClass": "net.sf.okapi.filters.mif.ExtractionTest",
@@ -25432,7 +25511,7 @@
           "nativeTest": "TestReadLayerStartEnd",
           "nativeStatus": "pass",
           "nativeFile": "reader_test.go",
-          "nativeLine": 157,
+          "nativeLine": 172,
           "testState": "implemented"
         },
         {
@@ -25440,30 +25519,30 @@
           "javaMethod": "testCodeAtTheFront",
           "okapiStatus": "pass",
           "nativeTest": "TestCodeAtTheFront",
-          "nativeStatus": "skip",
+          "nativeStatus": "pass",
           "nativeFile": "extraction_test.go",
-          "nativeLine": 301,
-          "testState": "pending"
+          "nativeLine": 399,
+          "testState": "implemented"
         },
         {
           "javaClass": "net.sf.okapi.filters.mif.ExtractionTest",
           "javaMethod": "nestedTextFramesExtracted",
           "okapiStatus": "pass",
           "nativeTest": "TestNestedTextFramesExtracted",
-          "nativeStatus": "skip",
+          "nativeStatus": "pass",
           "nativeFile": "extraction_test.go",
-          "nativeLine": 431,
-          "testState": "pending"
+          "nativeLine": 646,
+          "testState": "implemented"
         },
         {
           "javaClass": "net.sf.okapi.filters.mif.ExtractionTest",
           "javaMethod": "testExtractIndexMarkers",
           "okapiStatus": "pass",
           "nativeTest": "TestExtractIndexMarkers",
-          "nativeStatus": "skip",
+          "nativeStatus": "pass",
           "nativeFile": "extraction_test.go",
-          "nativeLine": 449,
-          "testState": "pending"
+          "nativeLine": 665,
+          "testState": "implemented"
         },
         {
           "javaClass": "net.sf.okapi.filters.mif.ExtractionTest",
@@ -25472,7 +25551,7 @@
           "nativeTest": "TestSoftHyphen",
           "nativeStatus": "pass",
           "nativeFile": "extraction_test.go",
-          "nativeLine": 218,
+          "nativeLine": 305,
           "testState": "implemented"
         },
         {
@@ -25482,7 +25561,7 @@
           "nativeTest": "TestReadMIFSpecialCharacters",
           "nativeStatus": "pass",
           "nativeFile": "reader_test.go",
-          "nativeLine": 130,
+          "nativeLine": 136,
           "testState": "implemented"
         },
         {
@@ -25492,7 +25571,7 @@
           "nativeTest": "TestReaderSignature",
           "nativeStatus": "pass",
           "nativeFile": "reader_test.go",
-          "nativeLine": 185,
+          "nativeLine": 200,
           "testState": "implemented"
         },
         {
@@ -25502,7 +25581,7 @@
           "nativeTest": "TestV10IsUsingV9Encoding",
           "nativeStatus": "pass",
           "nativeFile": "extraction_test.go",
-          "nativeLine": 135,
+          "nativeLine": 222,
           "testState": "implemented"
         },
         {
@@ -25510,60 +25589,63 @@
           "javaMethod": "testEmptyFTag",
           "okapiStatus": "pass",
           "nativeTest": "TestEmptyFTag",
-          "nativeStatus": "skip",
+          "nativeStatus": "pass",
           "nativeFile": "extraction_test.go",
-          "nativeLine": 316,
-          "testState": "pending"
+          "nativeLine": 419,
+          "testState": "implemented"
         },
         {
           "javaClass": "net.sf.okapi.filters.mif.ExtractionTest",
           "javaMethod": "tabsRepresentedAsCodesAndNewTextualUnitsFormedOnHardReturnsAppearance",
           "okapiStatus": "pass",
           "nativeTest": "TestTabsRepresentedAsCodesAndNewTextualUnitsFormedOnHardReturnsAppearance",
-          "nativeStatus": "skip",
+          "nativeStatus": "pass",
           "nativeFile": "extraction_test.go",
-          "nativeLine": 476,
-          "testState": "pending"
+          "nativeLine": 712,
+          "testState": "implemented"
         },
         {
           "javaClass": "net.sf.okapi.filters.mif.ExtractionTest",
           "javaMethod": "referenceFormatsConditionallyExtracted",
           "okapiStatus": "pass",
           "nativeTest": "TestReferenceFormatsConditionallyExtracted",
-          "nativeStatus": "skip",
           "nativeFile": "extraction_test.go",
-          "nativeLine": 415,
-          "testState": "pending"
+          "nativeLine": 614,
+          "skipReason": "asserts okapi's XRefFormats reference-format extraction (XRefDef → XRef building blocks rendered as referent codes) gated by ExtractReferenceFormats over 938-1/938-2/1052.mif. The native reader implements body-page scoping (the 938 fixtures' \"Para 1./2./3.\" extract correctly) but does not yet model the XRefDef→referent building-block code chain that produces okapi's \"\u003cbb\u003e Refer to...\" / \"page \u003cbb\u003e\" reference-format units; this is a distinct unimplemented sub-feature (XRef reference-format referents), not a body-page-scoping gap. Tracked for follow-up.",
+          "testState": "skipped",
+          "skipCategory": "format"
         },
         {
           "javaClass": "net.sf.okapi.filters.mif.ExtractionTest",
           "javaMethod": "testEndsInCharAndCode",
           "okapiStatus": "pass",
           "nativeTest": "TestEndsInCharAndCode",
-          "nativeStatus": "skip",
+          "nativeStatus": "pass",
           "nativeFile": "extraction_test.go",
-          "nativeLine": 270,
-          "testState": "pending"
+          "nativeLine": 358,
+          "testState": "implemented"
         },
         {
           "javaClass": "net.sf.okapi.filters.mif.ExtractionTest",
           "javaMethod": "testSlashCodesOutput",
           "okapiStatus": "pass",
           "nativeTest": "TestSlashCodesOutput",
-          "nativeStatus": "skip",
           "nativeFile": "extraction_test.go",
-          "nativeLine": 331,
-          "testState": "pending"
+          "nativeLine": 432,
+          "skipReason": "the MERGE counterpart of testSlashCodes: it asserts okapi's byte-exact re-encoding of the same VariableDef whose extracted form depends on the okapi-internal Hexadecimal ILC code-LIST ordering described above (testSlashCodes). The writer cannot reproduce okapi's exact byte stream without first reproducing that internal code ordering on extraction, so this shares the same airtight skip reason.",
+          "testState": "skipped",
+          "skipCategory": "other"
         },
         {
           "javaClass": "net.sf.okapi.filters.mif.ExtractionTest",
           "javaMethod": "testSlashCodes",
           "okapiStatus": "pass",
           "nativeTest": "TestSlashCodes",
-          "nativeStatus": "skip",
           "nativeFile": "extraction_test.go",
-          "nativeLine": 324,
-          "testState": "pending"
+          "nativeLine": 427,
+          "skipReason": "asserts okapi's internal coded-text ordering of Hexadecimal ILC-wrapped building-block codes in a VariableDef: the expected \"\u003czBold\u003e\u003c1/\u003e\u003cDefault Z Font\u003e ‍\u003c3/\u003e\u003c2/\u003e\" places the \\x0b code (#3) AFTER the \u003c$paratext\u003e code (#2). That ordering is the index a code receives in okapi's TextFragment code LIST (assigned during processILC, MIFFilter.java:989-1018 + Hexadecimal.toString ILC_START/END wrapping, Hexadecimal.java:60-67), which is independent of textual appearance order. The native model assigns inline-code ids in appearance order (a code's id reflects where it occurs in the text), so it would render the same VariableDef as \"\u003czBold\u003e\u003c1/\u003e\u003cDefault Z Font\u003e ‍\u003c2/\u003e\u003c3/\u003e\". This is an okapi-internal code-index/coded-text representation with no faithful behavioural analogue at the coded-byte level; the building blocks themselves ARE modeled as codes (the \u003c$paranum\u003e/\u003c$paratext\u003e tokens and the \\x14/\\x05 hex literals decode correctly) — only okapi's code-LIST index ordering differs.",
+          "testState": "skipped",
+          "skipCategory": "other"
         },
         {
           "javaClass": "net.sf.okapi.filters.mif.ExtractionTest",
@@ -25580,10 +25662,10 @@
           "javaMethod": "extractsNumberedParagraphFormatInTableCells",
           "okapiStatus": "pass",
           "nativeTest": "TestExtractsNumberedParagraphFormatInTableCells",
-          "nativeStatus": "skip",
+          "nativeStatus": "pass",
           "nativeFile": "extraction_test.go",
-          "nativeLine": 382,
-          "testState": "pending"
+          "nativeLine": 535,
+          "testState": "implemented"
         },
         {
           "javaClass": "net.sf.okapi.filters.mif.ExtractionTest",
@@ -25592,7 +25674,7 @@
           "nativeTest": "TestEmptyParaLine",
           "nativeStatus": "pass",
           "nativeFile": "extraction_test.go",
-          "nativeLine": 227,
+          "nativeLine": 314,
           "testState": "implemented"
         },
         {
@@ -25600,40 +25682,40 @@
           "javaMethod": "testTabsAndCodes",
           "okapiStatus": "pass",
           "nativeTest": "TestTabsAndCodes",
-          "nativeStatus": "skip",
+          "nativeStatus": "pass",
           "nativeFile": "extraction_test.go",
-          "nativeLine": 285,
-          "testState": "pending"
+          "nativeLine": 379,
+          "testState": "implemented"
         },
         {
           "javaClass": "net.sf.okapi.filters.mif.ExtractionTest",
           "javaMethod": "testDummyBeforeChar",
           "okapiStatus": "pass",
           "nativeTest": "TestDummyBeforeChar",
-          "nativeStatus": "skip",
+          "nativeStatus": "pass",
           "nativeFile": "extraction_test.go",
-          "nativeLine": 309,
-          "testState": "pending"
+          "nativeLine": 409,
+          "testState": "implemented"
         },
         {
           "javaClass": "net.sf.okapi.filters.mif.ExtractionTest",
           "javaMethod": "testEmptyString",
           "okapiStatus": "pass",
           "nativeTest": "TestEmptyString",
-          "nativeStatus": "skip",
+          "nativeStatus": "pass",
           "nativeFile": "extraction_test.go",
-          "nativeLine": 293,
-          "testState": "pending"
+          "nativeLine": 389,
+          "testState": "implemented"
         },
         {
           "javaClass": "net.sf.okapi.filters.mif.ExtractionTest",
           "javaMethod": "testDummyCharString",
           "okapiStatus": "pass",
           "nativeTest": "TestDummyCharString",
-          "nativeStatus": "skip",
+          "nativeStatus": "pass",
           "nativeFile": "extraction_test.go",
-          "nativeLine": 278,
-          "testState": "pending"
+          "nativeLine": 369,
+          "testState": "implemented"
         },
         {
           "javaClass": "net.sf.okapi.filters.mif.ExtractionTest",
@@ -25642,7 +25724,7 @@
           "nativeTest": "TestTwoPartsEntry",
           "nativeStatus": "pass",
           "nativeFile": "extraction_test.go",
-          "nativeLine": 235,
+          "nativeLine": 322,
           "testState": "implemented"
         },
         {
@@ -25650,20 +25732,20 @@
           "javaMethod": "extractsMultipleTextFramesPerPage",
           "okapiStatus": "pass",
           "nativeTest": "TestExtractsMultipleTextFramesPerPage",
-          "nativeStatus": "skip",
+          "nativeStatus": "pass",
           "nativeFile": "extraction_test.go",
-          "nativeLine": 365,
-          "testState": "pending"
+          "nativeLine": 500,
+          "testState": "implemented"
         },
         {
           "javaClass": "net.sf.okapi.filters.mif.ExtractionTest",
           "javaMethod": "doesNotProcessUnsupportedVersions",
           "okapiStatus": "pass",
           "nativeTest": "TestDoesNotProcessUnsupportedVersions",
-          "nativeStatus": "skip",
+          "nativeStatus": "pass",
           "nativeFile": "extraction_test.go",
-          "nativeLine": 340,
-          "testState": "pending"
+          "nativeLine": 443,
+          "testState": "implemented"
         },
         {
           "javaClass": "net.sf.okapi.filters.mif.ExtractionTest",
@@ -25672,7 +25754,7 @@
           "nativeTest": "TestEmptyStringInFront",
           "nativeStatus": "pass",
           "nativeFile": "extraction_test.go",
-          "nativeLine": 198,
+          "nativeLine": 285,
           "testState": "implemented"
         },
         {
@@ -25680,20 +25762,20 @@
           "javaMethod": "extractsBodyPageRelatedInformationOnly",
           "okapiStatus": "pass",
           "nativeTest": "TestExtractsBodyPageRelatedInformationOnly",
-          "nativeStatus": "skip",
+          "nativeStatus": "pass",
           "nativeFile": "extraction_test.go",
-          "nativeLine": 357,
-          "testState": "pending"
+          "nativeLine": 492,
+          "testState": "implemented"
         },
         {
           "javaClass": "net.sf.okapi.filters.mif.ExtractionTest",
           "javaMethod": "testExtractLinks",
           "okapiStatus": "pass",
           "nativeTest": "TestExtractLinks",
-          "nativeStatus": "skip",
+          "nativeStatus": "pass",
           "nativeFile": "extraction_test.go",
-          "nativeLine": 458,
-          "testState": "pending"
+          "nativeLine": 681,
+          "testState": "implemented"
         },
         {
           "javaClass": "net.sf.okapi.filters.mif.ExtractionTest",
@@ -25702,7 +25784,7 @@
           "nativeTest": "TestProcessesSupportedVersions",
           "nativeStatus": "pass",
           "nativeFile": "extraction_test.go",
-          "nativeLine": 112,
+          "nativeLine": 199,
           "testState": "implemented"
         },
         {
@@ -25710,40 +25792,40 @@
           "javaMethod": "extractsNestedAnchoredFrames",
           "okapiStatus": "pass",
           "nativeTest": "TestExtractsNestedAnchoredFrames",
-          "nativeStatus": "skip",
+          "nativeStatus": "pass",
           "nativeFile": "extraction_test.go",
-          "nativeLine": 398,
-          "testState": "pending"
+          "nativeLine": 581,
+          "testState": "implemented"
         },
         {
           "javaClass": "net.sf.okapi.filters.mif.ExtractionTest",
           "javaMethod": "textLinesExtracted",
           "okapiStatus": "pass",
           "nativeTest": "TestTextLinesExtracted",
-          "nativeStatus": "skip",
+          "nativeStatus": "pass",
           "nativeFile": "extraction_test.go",
-          "nativeLine": 423,
-          "testState": "pending"
+          "nativeLine": 620,
+          "testState": "implemented"
         },
         {
           "javaClass": "net.sf.okapi.filters.mif.ExtractionTest",
           "javaMethod": "extractsNumberedParagraphFormats",
           "okapiStatus": "pass",
           "nativeTest": "TestExtractsNumberedParagraphFormats",
-          "nativeStatus": "skip",
+          "nativeStatus": "pass",
           "nativeFile": "extraction_test.go",
-          "nativeLine": 374,
-          "testState": "pending"
+          "nativeLine": 518,
+          "testState": "implemented"
         },
         {
           "javaClass": "net.sf.okapi.filters.mif.ExtractionTest",
           "javaMethod": "testBodyOnlyNoVariables",
           "okapiStatus": "pass",
           "nativeTest": "TestBodyOnlyNoVariables",
-          "nativeStatus": "skip",
+          "nativeStatus": "pass",
           "nativeFile": "extraction_test.go",
-          "nativeLine": 349,
-          "testState": "pending"
+          "nativeLine": 482,
+          "testState": "implemented"
         },
         {
           "javaClass": "net.sf.okapi.filters.mif.ExtractionTest",
@@ -25761,7 +25843,7 @@
           "okapiStatus": "pass",
           "nativeTest": "TestCharOnly",
           "nativeFile": "extraction_test.go",
-          "nativeLine": 262,
+          "nativeLine": 348,
           "skipReason": "exercises okapi's internal Extracts + FontTags collector classes against every fixture. The native reader has no analogue of these standalone helper types; extraction is verified through the public Read() block stream.",
           "testState": "skipped",
           "skipCategory": "other"
@@ -25771,31 +25853,39 @@
           "javaMethod": "consequentialEmptyParaLinesMerged",
           "okapiStatus": "pass",
           "nativeTest": "TestConsequentialEmptyParaLinesMerged",
-          "nativeStatus": "skip",
+          "nativeStatus": "pass",
           "nativeFile": "extraction_test.go",
-          "nativeLine": 484,
-          "testState": "pending"
+          "nativeLine": 730,
+          "testState": "implemented"
         },
         {
           "javaClass": "net.sf.okapi.filters.mif.RoundTripTest",
           "javaMethod": "tabsEncodedOnExtractionAndHardReturnsEncodedOnMerge",
           "okapiStatus": "pass",
           "nativeTest": "TestTabsEncodedOnExtractionAndHardReturnsEncodedOnMerge",
-          "nativeStatus": "skip",
           "nativeFile": "extraction_test.go",
-          "nativeLine": 493,
-          "testState": "pending"
+          "nativeLine": 795,
+          "skipReason": "the EXTRACTION half of this fixture is fully implemented and verified by TestTabsRepresentedAsCodesAndHardReturnsAsText / TestTabsRepresentedAsCodesAndNewTextualUnitsFormedOnHardReturnsAppearance (both directions of ExtractHardReturnsAsText, with tabs as inline codes #509 and hard-return unit splitting #558). The MERGE/round-trip half is not event-stable on 1188_crlf.mif: the writer's skeleton-store path (findStringPositions in reader.go) assigns one skeleton ref per inline-code run, while the reader now emits one Block per paragraph (the #558 inline-code model), so a paragraph carrying inline tab codes round-trips with a different Block count (orig 3 → re-extract 2). Making the per-run byte-offset skeleton machine paragraph-aware is a contained but separate reader/writer rework that risks the 6 byte-exact skeleton tests; tracked as the remaining round-trip gap rather than asserted falsely.",
+          "testState": "skipped",
+          "skipCategory": "roundtrip",
+          "coveredByTest": "TestTabsRepresentedAsCodesAndHardReturnsAsText",
+          "coveredByFile": "extraction_test.go",
+          "coveredByLine": 699
         },
         {
           "javaClass": "net.sf.okapi.filters.mif.RoundTripTest",
           "javaMethod": "hardReturnsAsNonTextualRoundTripped",
           "okapiStatus": "pass",
           "nativeTest": "TestHardReturnsAsNonTextualRoundTripped",
-          "nativeStatus": "skip",
           "nativeFile": "extraction_test.go",
-          "nativeLine": 502,
-          "testState": "pending",
-          "params": 7
+          "nativeLine": 800,
+          "skipReason": "the EXTRACTION half (ExtractHardReturnsAsText=false hard-return unit splitting across Para/PgfNumFormat/PgfCatalog/Marker/TextLine, #558) is implemented and verified by TestHardReturnsFormNewTransUnits for 987/990-marker/990-pgf-num-format-1/2/990-text-line; round-trip of 1187_crlf.mif is verified event-stable by TestConsequentialEmptyParaLinesMerged. The full 987/990* round-trip is NOT event-stable for fixtures whose paragraphs carry inline codes/markers: the per-inline-code-run skeleton machine (findStringPositions) and the per-paragraph Block emission (#558) disagree on Block count after extract→write→re-extract (e.g. 990-marker orig 218 → re-extract 215). Same per-paragraph skeleton-store rework as above; tracked rather than asserted falsely.",
+          "testState": "skipped",
+          "skipCategory": "roundtrip",
+          "params": 7,
+          "coveredByTest": "TestHardReturnsFormNewTransUnits",
+          "coveredByFile": "extraction_test.go",
+          "coveredByLine": 657
         },
         {
           "javaClass": "net.sf.okapi.filters.mif.RoundTripTest",
@@ -25804,7 +25894,7 @@
           "nativeTest": "TestRoundTrip",
           "nativeStatus": "pass",
           "nativeFile": "reader_test.go",
-          "nativeLine": 253,
+          "nativeLine": 268,
           "testState": "implemented",
           "params": 29
         },
@@ -25814,7 +25904,7 @@
           "okapiStatus": "pass",
           "nativeTest": "TestReadFixtureSmoke",
           "nativeFile": "extraction_test.go",
-          "nativeLine": 539,
+          "nativeLine": 837,
           "skipReason": "Okapi serialized-skeleton roundtrip variant (setSerializedOutput(true)); native uses its own skeleton store (no serialized-skeleton mode), and the same #558/#509 event-stability gap as mifFiles applies",
           "testState": "skipped",
           "skipCategory": "roundtrip"
@@ -25825,7 +25915,7 @@
           "okapiStatus": "pass",
           "nativeTest": "TestReadFixtureSmoke",
           "nativeFile": "extraction_test.go",
-          "nativeLine": 539,
+          "nativeLine": 837,
           "skipReason": "native MIF roundtrip is event-unstable over the real /mif/ corpus (per-inline-code Block split, #558/#509) and the native reader panics re-reading writer output for 990-marker.mif; full-corpus event-stable roundtrip is a tracked native gap, not yet satisfiable",
           "testState": "skipped",
           "skipCategory": "roundtrip"
@@ -25836,7 +25926,7 @@
         "bridgeMapped": 0,
         "bridgePassing": 0,
         "nativeMapped": 51,
-        "nativePassing": 16,
+        "nativePassing": 40,
         "coveragePct": 100
       },
       "spec": {
@@ -52436,7 +52526,31 @@
         "skipped": 0,
         "errors": 0
       },
-      "bridge": null,
+      "bridge": {
+        "suites": [
+          {
+            "name": "bridge parity",
+            "tests": [
+              {
+                "name": "read",
+                "status": "pass",
+                "durationMs": 0
+              }
+            ],
+            "total": 1,
+            "passed": 1,
+            "failed": 0,
+            "skipped": 0,
+            "errors": 0,
+            "durationMs": 0
+          }
+        ],
+        "total": 1,
+        "passed": 1,
+        "failed": 0,
+        "skipped": 0,
+        "errors": 0
+      },
       "native": null,
       "testCases": [
         {
@@ -54998,7 +55112,7 @@
               {
                 "name": "TestRoundTrip_UpstreamTableCorpus",
                 "status": "pass",
-                "durationMs": 10
+                "durationMs": 0
               },
               {
                 "name": "TestRoundTrip_UpstreamTableCorpus/computer_science_article.csv",
@@ -55971,10 +56085,11 @@
           "javaMethod": "testDoubleExtraction",
           "okapiStatus": "skip",
           "nativeTest": "TestCSV_DoubleExtraction",
-          "nativeStatus": "skip",
           "nativeFile": "reader_test.go",
-          "nativeLine": 1201,
-          "testState": "pending"
+          "nativeLine": 1200,
+          "skipReason": "Okapi skips this test in its own surefire run (Property Types difference); not a live contract to port",
+          "testState": "skipped",
+          "skipCategory": "other"
         },
         {
           "javaClass": "net.sf.okapi.filters.table.CommaSeparatedValuesFilterTest",
@@ -56171,7 +56286,7 @@
           "javaMethod": "testEmptyInput",
           "okapiStatus": "pass",
           "nativeFile": "reader_test.go",
-          "nativeLine": 1994,
+          "nativeLine": 1993,
           "skipReason": "FWC is bridge-only",
           "testState": "skipped",
           "skipCategory": "acknowledged"
@@ -56181,7 +56296,7 @@
           "javaMethod": "testSkelRefs",
           "okapiStatus": "pass",
           "nativeFile": "reader_test.go",
-          "nativeLine": 2001,
+          "nativeLine": 2000,
           "skipReason": "FWC is bridge-only",
           "testState": "skipped",
           "skipCategory": "acknowledged"
@@ -56191,7 +56306,7 @@
           "javaMethod": "testSkeleton",
           "okapiStatus": "pass",
           "nativeFile": "reader_test.go",
-          "nativeLine": 1998,
+          "nativeLine": 1997,
           "skipReason": "FWC is bridge-only",
           "testState": "skipped",
           "skipCategory": "acknowledged"
@@ -56201,7 +56316,7 @@
           "javaMethod": "testSkeleton2",
           "okapiStatus": "pass",
           "nativeFile": "reader_test.go",
-          "nativeLine": 1999,
+          "nativeLine": 1998,
           "skipReason": "FWC is bridge-only",
           "testState": "skipped",
           "skipCategory": "acknowledged"
@@ -56211,7 +56326,7 @@
           "javaMethod": "testSkeleton3",
           "okapiStatus": "pass",
           "nativeFile": "reader_test.go",
-          "nativeLine": 2000,
+          "nativeLine": 1999,
           "skipReason": "FWC is bridge-only",
           "testState": "skipped",
           "skipCategory": "acknowledged"
@@ -56221,7 +56336,7 @@
           "javaMethod": "testListedColumns2",
           "okapiStatus": "pass",
           "nativeFile": "reader_test.go",
-          "nativeLine": 2004,
+          "nativeLine": 2003,
           "skipReason": "FWC is bridge-only",
           "testState": "skipped",
           "skipCategory": "acknowledged"
@@ -56231,7 +56346,7 @@
           "javaMethod": "testListedColumns3",
           "okapiStatus": "pass",
           "nativeFile": "reader_test.go",
-          "nativeLine": 2005,
+          "nativeLine": 2004,
           "skipReason": "FWC is bridge-only",
           "testState": "skipped",
           "skipCategory": "acknowledged"
@@ -56241,7 +56356,7 @@
           "javaMethod": "testListedColumns4",
           "okapiStatus": "pass",
           "nativeFile": "reader_test.go",
-          "nativeLine": 2006,
+          "nativeLine": 2005,
           "skipReason": "FWC is bridge-only",
           "testState": "skipped",
           "skipCategory": "acknowledged"
@@ -56251,7 +56366,7 @@
           "javaMethod": "testListedColumns5",
           "okapiStatus": "pass",
           "nativeFile": "reader_test.go",
-          "nativeLine": 2007,
+          "nativeLine": 2006,
           "skipReason": "FWC is bridge-only",
           "testState": "skipped",
           "skipCategory": "acknowledged"
@@ -56261,7 +56376,7 @@
           "javaMethod": "testParameters",
           "okapiStatus": "pass",
           "nativeFile": "reader_test.go",
-          "nativeLine": 1995,
+          "nativeLine": 1994,
           "skipReason": "FWC is bridge-only",
           "testState": "skipped",
           "skipCategory": "acknowledged"
@@ -56271,7 +56386,7 @@
           "javaMethod": "testDoubleExtraction",
           "okapiStatus": "pass",
           "nativeFile": "reader_test.go",
-          "nativeLine": 1997,
+          "nativeLine": 1996,
           "skipReason": "FWC is bridge-only",
           "testState": "skipped",
           "skipCategory": "acknowledged"
@@ -56281,7 +56396,7 @@
           "javaMethod": "testNameAndMimeType",
           "okapiStatus": "pass",
           "nativeFile": "reader_test.go",
-          "nativeLine": 1993,
+          "nativeLine": 1992,
           "skipReason": "FWC is bridge-only",
           "testState": "skipped",
           "skipCategory": "acknowledged"
@@ -56291,7 +56406,7 @@
           "javaMethod": "testFileEvents",
           "okapiStatus": "pass",
           "nativeFile": "reader_test.go",
-          "nativeLine": 1996,
+          "nativeLine": 1995,
           "skipReason": "FWC is bridge-only",
           "testState": "skipped",
           "skipCategory": "acknowledged"
@@ -56301,7 +56416,7 @@
           "javaMethod": "testHeader",
           "okapiStatus": "pass",
           "nativeFile": "reader_test.go",
-          "nativeLine": 2002,
+          "nativeLine": 2001,
           "skipReason": "FWC is bridge-only",
           "testState": "skipped",
           "skipCategory": "acknowledged"
@@ -56311,7 +56426,7 @@
           "javaMethod": "testListedColumns",
           "okapiStatus": "pass",
           "nativeFile": "reader_test.go",
-          "nativeLine": 2003,
+          "nativeLine": 2002,
           "skipReason": "FWC is bridge-only",
           "testState": "skipped",
           "skipCategory": "acknowledged"
@@ -56323,7 +56438,7 @@
           "nativeTest": "TestTSV_Skeleton",
           "nativeStatus": "pass",
           "nativeFile": "reader_test.go",
-          "nativeLine": 1251,
+          "nativeLine": 1250,
           "testState": "implemented"
         },
         {
@@ -56333,7 +56448,7 @@
           "nativeTest": "TestTSV_Skeleton2",
           "nativeStatus": "pass",
           "nativeFile": "reader_test.go",
-          "nativeLine": 1264,
+          "nativeLine": 1263,
           "testState": "implemented"
         },
         {
@@ -56343,7 +56458,7 @@
           "nativeTest": "TestTSV_FileEvents2",
           "nativeStatus": "pass",
           "nativeFile": "reader_test.go",
-          "nativeLine": 1229,
+          "nativeLine": 1228,
           "testState": "implemented"
         },
         {
@@ -56353,7 +56468,7 @@
           "nativeTest": "TestTSV_DoubleExtraction",
           "nativeStatus": "pass",
           "nativeFile": "reader_test.go",
-          "nativeLine": 1276,
+          "nativeLine": 1275,
           "testState": "implemented"
         },
         {
@@ -56363,7 +56478,7 @@
           "nativeTest": "TestTSV_FileEvents",
           "nativeStatus": "pass",
           "nativeFile": "reader_test.go",
-          "nativeLine": 1209,
+          "nativeLine": 1208,
           "testState": "implemented"
         },
         {
@@ -56373,7 +56488,7 @@
           "nativeTest": "TestTable_TrimMode",
           "nativeStatus": "pass",
           "nativeFile": "reader_test.go",
-          "nativeLine": 1452,
+          "nativeLine": 1451,
           "testState": "implemented"
         },
         {
@@ -56383,7 +56498,7 @@
           "nativeTest": "TestTable_EmptyInput",
           "nativeStatus": "pass",
           "nativeFile": "reader_test.go",
-          "nativeLine": 1313,
+          "nativeLine": 1312,
           "testState": "implemented"
         },
         {
@@ -56393,7 +56508,7 @@
           "nativeTest": "TestTable_ColumnDefinedLocales",
           "nativeStatus": "pass",
           "nativeFile": "reader_test.go",
-          "nativeLine": 1324,
+          "nativeLine": 1323,
           "testState": "implemented"
         },
         {
@@ -56403,7 +56518,7 @@
           "nativeTest": "TestTable_MultilineColNames",
           "nativeStatus": "pass",
           "nativeFile": "reader_test.go",
-          "nativeLine": 1371,
+          "nativeLine": 1370,
           "testState": "implemented"
         },
         {
@@ -56413,7 +56528,7 @@
           "nativeTest": "TestTable_Skeleton",
           "nativeStatus": "pass",
           "nativeFile": "reader_test.go",
-          "nativeLine": 1383,
+          "nativeLine": 1382,
           "testState": "implemented"
         },
         {
@@ -56423,7 +56538,7 @@
           "nativeTest": "TestTable_ColumnDefinedSource",
           "nativeStatus": "pass",
           "nativeFile": "reader_test.go",
-          "nativeLine": 1341,
+          "nativeLine": 1340,
           "testState": "implemented"
         },
         {
@@ -56433,7 +56548,7 @@
           "nativeTest": "TestTable_ColumnDefinedTarget",
           "nativeStatus": "pass",
           "nativeFile": "reader_test.go",
-          "nativeLine": 1356,
+          "nativeLine": 1355,
           "testState": "implemented"
         },
         {
@@ -56443,7 +56558,7 @@
           "nativeTest": "TestTable_Skeleton3",
           "nativeStatus": "pass",
           "nativeFile": "reader_test.go",
-          "nativeLine": 1396,
+          "nativeLine": 1395,
           "testState": "implemented"
         },
         {
@@ -56453,7 +56568,7 @@
           "nativeTest": "TestTable_FileEvents2",
           "nativeStatus": "pass",
           "nativeFile": "reader_test.go",
-          "nativeLine": 1420,
+          "nativeLine": 1419,
           "testState": "implemented"
         },
         {
@@ -56461,13 +56576,13 @@
           "javaMethod": "testDoubleExtraction",
           "okapiStatus": "pass",
           "nativeFile": "reader_test.go",
-          "nativeLine": 1991,
+          "nativeLine": 1990,
           "skipReason": "tested via TestTable_DoubleExtraction",
           "testState": "skipped",
           "skipCategory": "acknowledged",
           "coveredByTest": "TestTable_DoubleExtraction",
           "coveredByFile": "reader_test.go",
-          "coveredByLine": 1440
+          "coveredByLine": 1439
         },
         {
           "javaClass": "net.sf.okapi.filters.table.TableFilterTest",
@@ -56476,7 +56591,7 @@
           "nativeTest": "TestTable_NameAndMimeType",
           "nativeStatus": "pass",
           "nativeFile": "reader_test.go",
-          "nativeLine": 1298,
+          "nativeLine": 1297,
           "testState": "implemented"
         },
         {
@@ -56486,7 +56601,7 @@
           "nativeTest": "TestTable_FileEvents",
           "nativeStatus": "pass",
           "nativeFile": "reader_test.go",
-          "nativeLine": 1406,
+          "nativeLine": 1405,
           "testState": "implemented"
         },
         {
@@ -56496,7 +56611,7 @@
           "nativeTest": "TestTable_Issue1128",
           "nativeStatus": "pass",
           "nativeFile": "reader_test.go",
-          "nativeLine": 1484,
+          "nativeLine": 1483,
           "testState": "implemented"
         },
         {
@@ -56506,7 +56621,7 @@
           "nativeTest": "TestTable_Synchronization",
           "nativeStatus": "pass",
           "nativeFile": "reader_test.go",
-          "nativeLine": 1471,
+          "nativeLine": 1470,
           "testState": "implemented"
         },
         {
@@ -56516,7 +56631,7 @@
           "nativeTest": "TestTable_Issue124",
           "nativeStatus": "pass",
           "nativeFile": "reader_test.go",
-          "nativeLine": 1515,
+          "nativeLine": 1514,
           "testState": "implemented"
         },
         {
@@ -72727,10 +72842,11 @@
           "bridgeTest": "TestParityFormats/xliff/gen-disabled_testMisOrderedCodes",
           "bridgeStatus": "fail",
           "nativeTest": "TestExtract_DisabledTestMisOrderedCodes",
-          "nativeStatus": "skip",
           "nativeFile": "reader_test.go",
           "nativeLine": 2504,
-          "testState": "pending"
+          "skipReason": "disabled upstream in Okapi (the @Test is named disabled_*, not a maintained contract; mis-ordered inline codes have no asserted expected output to port",
+          "testState": "skipped",
+          "skipCategory": "other"
         },
         {
           "javaClass": "net.sf.okapi.filters.xliff.XLIFFFilterTest",
@@ -85200,12 +85316,12 @@
   ],
   "summary": {
     "totalFiltersOkapi": 50,
-    "totalFiltersBridge": 45,
+    "totalFiltersBridge": 48,
     "totalFiltersNative": 49,
     "totalFiltersBoth": 37,
     "totalTestsOkapi": 2596,
     "totalTestsBridge": 468,
-    "totalTestsNative": 6264,
-    "coveragePct": 56.7
+    "totalTestsNative": 6270,
+    "coveragePct": 57.7
   }
 }

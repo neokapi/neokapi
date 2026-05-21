@@ -1196,8 +1196,7 @@ func TestCSV_Issue_1153(t *testing.T) {
 
 // --- Double Extraction ---
 
-// okapi: CommaSeparatedValuesFilterTest#testDoubleExtraction
-// okapi-unmapped: Skipped in Java — Property Types difference
+// okapi-skip: CommaSeparatedValuesFilterTest#testDoubleExtraction — Okapi skips this test in its own surefire run (Property Types difference); not a live contract to port
 func TestCSV_DoubleExtraction(t *testing.T) {
 	t.Parallel()
 	t.Skip("Skipped in Java surefire: Property Types difference")
