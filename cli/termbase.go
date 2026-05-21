@@ -61,7 +61,7 @@ func (a *App) openTermbaseSQLite(cmd *cobra.Command) (termbase.TermBase, string,
 func (a *App) newTermbaseImportCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "import [file]",
-		Short: "Import terms from CSV or JSON into a termbase",
+		Short: "Import terms from CSV, JSON, or TBX into a termbase",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			format, _ := cmd.Flags().GetString("format")
@@ -100,8 +100,12 @@ func (a *App) newTermbaseImportCmd() *cobra.Command {
 				count, err = termbase.ImportCSV(tb, f, opts)
 			case "json":
 				count, err = termbase.ImportJSON(tb, f)
+			case "tbx":
+				count, err = termbase.ImportTBX(tb, f, termbase.TBXImportOptions{
+					Domain: domain,
+				})
 			default:
-				return fmt.Errorf("unsupported format: %s (use csv, tsv, or json)", format)
+				return fmt.Errorf("unsupported format: %s (use csv, tsv, json, or tbx)", format)
 			}
 
 			if err != nil {
@@ -119,7 +123,7 @@ func (a *App) newTermbaseImportCmd() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().String("format", "csv", "import format (csv, tsv, json)")
+	cmd.Flags().String("format", "csv", "import format (csv, tsv, json, tbx)")
 	cmd.Flags().StringP("source-locale", "s", "en", "source locale for CSV import")
 	cmd.Flags().StringP("target-locale", "t", "", "target locale for CSV import")
 	cmd.Flags().String("domain", "", "domain to assign to imported concepts")
@@ -132,7 +136,7 @@ func (a *App) newTermbaseImportCmd() *cobra.Command {
 func (a *App) newTermbaseExportCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "export",
-		Short: "Export termbase to CSV or JSON",
+		Short: "Export termbase to CSV, JSON, or TBX",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			format, _ := cmd.Flags().GetString("format")
 			outputPath, _ := cmd.Flags().GetString("output")
@@ -163,8 +167,12 @@ func (a *App) newTermbaseExportCmd() *cobra.Command {
 					tbName = dbPath
 				}
 				err = termbase.ExportJSON(tb, w, tbName)
+			case "tbx":
+				err = termbase.ExportTBX(tb, w, termbase.TBXExportOptions{
+					SourceLocale: model.LocaleID(srcLocale),
+				})
 			default:
-				return fmt.Errorf("unsupported format: %s (use csv or json)", format)
+				return fmt.Errorf("unsupported format: %s (use csv, json, or tbx)", format)
 			}
 
 			if err != nil {
@@ -182,7 +190,7 @@ func (a *App) newTermbaseExportCmd() *cobra.Command {
 	}
 
 	cmd.Flags().StringP("output", "o", "", "output file (default: stdout)")
-	cmd.Flags().String("format", "json", "export format (csv, json)")
+	cmd.Flags().String("format", "json", "export format (csv, json, tbx)")
 	cmd.Flags().StringP("source-locale", "s", "en", "source locale for CSV export")
 	cmd.Flags().StringP("target-locale", "t", "", "target locale for CSV export")
 	cmd.Flags().String("export-name", "", "termbase name for JSON export")
