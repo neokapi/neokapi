@@ -16,33 +16,53 @@
 # ────────────────────────────────────────────────────
 # Okapi's RegexFilter is rule-driven: with no rules configured both the
 # Java filter (Parameters.reset() leaves `rules = new ArrayList<>()`)
-# and the native reader emit no Blocks. The bridge composite schema
-# for okf_regex (v14, Okapi 1.47.0) only exposes the surrounding
-# extraction knobs (`startString`, `endString`, `regexOptions`,
-# `useBSlashEscape`, `useDoubleCharEscape`, `oneLevelGroups`, …) at
-# the top level — the `rules` array is nested inside Okapi's
+# and the native reader emit no Blocks. Okapi's `rules` ArrayList<Rule>
+# is not a flat-string parameter — it serialises through the
 # StringParameters preset format (`ruleCount`, `rule0.expr`,
-# `rule0.groupSource`, `rule0.ruleType`, …) which is not expressible
-# through the gRPC `FilterParams` map<string,string> the parity
-# bridge runner uses. Concretely, this means:
+# `rule0.ruleType`, `rule0.groupSource`, …), which the bridge's gRPC
+# `FilterParams` map<string,string> transport cannot carry directly.
 #
-#   * No-rules examples (the degenerate default) parity-pass: bridge
-#     and native both emit zero Blocks.
+# Rules transport (neokapi#616, Track 3 Stage B):
+#   The parity layer ships the rule list as a JSON array under a single
+#   reserved bridge parameter, `regexRulesJson` (mirroring the
+#   `fprmContent` reserved-key pattern). The okapi-bridge daemon parses
+#   it and rebuilds real net.sf.okapi.filters.regex.Rule objects
+#   (setExpression / setRuleType / setSourceGroup / setNameGroup /
+#   setNoteGroup) on the RegexFilter Parameters, then compileRules().
+#   The translator (cli/parity/formats/regex_bridge_config.go) also
+#   forces two convergences so the bridge matches native RE2 semantics:
+#     * regexOptions=0 — native compiles each pattern verbatim (no
+#       global DOTALL/MULTILINE); inline (?m)/(?s) in the patterns drive
+#       behaviour. (Okapi defaults regexOptions=40 = DOTALL|MULTILINE.)
+#     * ruleType=RULETYPE_CONTENT (1) + empty startString/endString —
+#       CONTENT emits the source group verbatim. STRING (the macStrings
+#       preset shape) instead treats the source group as a delimited
+#       string and strips start/end delimiters, requiring the group to
+#       capture the surrounding quotes; with neokapi's inner-capture
+#       groups STRING extracts zero Blocks.
+#   With this transport the rule-driven extraction examples (mac
+#   strings, id+text, note, INI, multiple rules) parity-pass
+#   head-to-head: bridge and native emit identical Blocks.
 #
-#   * Rule-driven examples are inherently bridge-incompatible through
-#     the parity transport. They are tagged with `expected_fail`
-#     explaining the surface gap; the native runner still asserts the
-#     full extraction contract.
+# Escape modes remain a divergence (NOT a transport gap):
+#   neokapi's escapeType discriminator decodes escapes (`\"`→`"`,
+#   `\n`→LF, `""`→`"`) inside the EXTRACTED source text. Okapi's
+#   useBSlashEscape / useDoubleCharEscape apply only inside its
+#   STRING-type delimiter scan and (verified against 1.48.0) on the
+#   write/merge path — the extracted source TextUnit keeps the raw
+#   escapes; under CONTENT-type extraction Okapi decodes nothing. The
+#   two escape examples therefore stay `expected_fail` with
+#   `divergence_kind: bridge-gap`: a genuine extraction-layer semantic
+#   difference, not the transport limitation.
 #
 # The spec.config surface declares the three native ApplyMap keys
 # (`rules`, `escapeType`, `escapeChar`) so feature/example config blocks
-# validate. `rules` carries no `okapi_param:` because there is no
-# corresponding flat-string bridge parameter — its provenance is the
-# Okapi `Parameters.rules` ArrayList<Rule> field, accessed
-# programmatically rather than through StringParameters serialisation.
-# `escapeType`/`escapeChar` are native-side conveniences that fold the
-# bridge's `useBSlashEscape` + `useDoubleCharEscape` booleans into a
-# single discriminator (`backslash` / `doublechar` / `none`).
+# validate. `rules` carries no `okapi_param:` because it has no
+# flat-string bridge parameter — it rides through `regexRulesJson` as
+# described above. `escapeType`/`escapeChar` are native-side
+# conveniences that fold the bridge's `useBSlashEscape` +
+# `useDoubleCharEscape` booleans into a single discriminator
+# (`backslash` / `doublechar` / `none`).
 
 format: okf_regex
 mime_type: text/x-regex
@@ -68,10 +88,10 @@ config:
       (capture group for translator note; 0 = none). Rules are tried
       in order on the full input; once a match is taken its bytes are
       consumed and later rules cannot re-match the same span. The
-      bridge filter expresses the same data through Okapi's nested
-      StringParameters preset format (`ruleCount`, `rule0.expr`,
-      `rule0.ruleType`, `rule0.groupSource`, …) which is not passable
-      through the gRPC FilterParams transport — see the file header.
+      parity bridge carries this list as a JSON array under the
+      reserved `regexRulesJson` parameter; the okapi-bridge daemon
+      rebuilds Okapi `Rule` objects (ruleType=RULETYPE_CONTENT) and
+      compiles them — see the file header.
 
   - key: escapeType
     type: string
@@ -138,10 +158,10 @@ features:
       Block.Name, group 2 becomes the source text. The rule pattern
       uses Go regex syntax (RE2 grammar — no backreferences or
       lookaround); the equivalent Okapi rule uses Java regex syntax
-      with the same capture topology. Bridge cannot accept the rule
-      list through flat FilterParams (see file header), so all
-      examples here record an expected_fail on the parity side; the
-      native runner verifies the full extraction.
+      with the same capture topology. The rule list rides the bridge
+      through the reserved `regexRulesJson` parameter (see file
+      header), so these examples parity-pass head-to-head: bridge and
+      native emit identical Blocks.
     spec_refs:
       - "Java SE Properties spec — Pattern syntax (Java) (https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/regex/Pattern.html)"
       - "Go regexp/syntax — RE2 grammar (https://pkg.go.dev/regexp/syntax)"
@@ -153,28 +173,16 @@ features:
     examples:
       - name: single_entry
         origin: "authored: minimal Mac .strings entry"
-        expected_fail: |
-          Bridge transport gap — the okf_regex rules list is not
-          expressible through gRPC FilterParams (map<string,string>),
-          so the bridge runs with its default empty rules and emits
-          zero Blocks. Native correctly extracts the entry. Tracked
-          as a transport-level limitation, not an Okapi semantic
-          divergence — see the file header.
         input_xml: "\"key1\" = \"Hello World\";"
         block_count: 1
         first_block_text: "Hello World"
       - name: three_entries
         origin: "okapi-fixture: RegexFilterTest#testConfigurations (macStrings preset)"
-        expected_fail: |
-          Bridge transport gap — same as single_entry. Native extracts
-          three Blocks; bridge emits zero.
         input_xml: "\"File\" = \"File\";\n\"Edit\" = \"Edit\";\n\"Help\" = \"Help\";\n"
         block_count: 3
         block_texts: ["File", "Edit", "Help"]
       - name: semicolon_in_value
         origin: "okapi-fixture: RegexFilterTest#testSemicolonInData — verifies non-greedy match honours embedded semicolon"
-        expected_fail: |
-          Bridge transport gap — same as single_entry.
         input_xml: "\"item1\" = \"Text1;Text2\";\n\"item2\" = \"Simple\";\n"
         block_count: 2
         block_texts: ["Text1;Text2", "Simple"]
@@ -204,10 +212,6 @@ features:
     examples:
       - name: two_entries
         origin: "okapi-fixture: RegexFilterTest#testIDAndText"
-        expected_fail: |
-          Bridge transport gap — the rules list isn't passable through
-          flat FilterParams, so the bridge emits zero Blocks. Native
-          extracts the two entries with their ids.
         input_xml: "[ID1]\tFirst text\n[ID2]\tSecond text\n"
         block_count: 2
         block_texts: ["First text", "Second text"]
@@ -234,11 +238,6 @@ features:
     examples:
       - name: comment_then_entry
         origin: "okapi-fixture: RegexFilterTest#testNoteExtraction"
-        expected_fail: |
-          Bridge transport gap — bridge emits zero Blocks without a
-          rule list. Native extracts the entry; the note is asserted
-          by the native unit test (regex.TestNoteExtraction) rather
-          than by the BlockTexts assertion vocabulary used here.
         input_xml: "/* Menu item */\n\"File\" = \"File\";\n"
         block_count: 1
         first_block_text: "File"
@@ -264,17 +263,11 @@ features:
     examples:
       - name: section_with_two_keys
         origin: "okapi-fixture: RegexFilterTest#testConfigurations (INI preset)"
-        expected_fail: |
-          Bridge transport gap — bridge emits zero Blocks without a
-          rule list. Native extracts the two key=value pairs and
-          discards the section header / comments as Data.
         input_xml: "[Section1]\nkey1=Hello World\nkey2=Goodbye\n"
         block_count: 2
         block_texts: ["Hello World", "Goodbye"]
       - name: comments_skipped
         origin: "authored: comments and blank lines should not become Blocks"
-        expected_fail: |
-          Bridge transport gap — same as section_with_two_keys.
         input_xml: "# Comment line\nkey1=Value1\n\n# Another comment\nkey2=Value2\n"
         block_count: 2
         block_texts: ["Value1", "Value2"]
@@ -305,16 +298,26 @@ features:
       - name: escaped_quotes
         origin: "okapi-fixture: RegexFilterTest#testBackslashEscapeHandling — escaped quote inside string"
         expected_fail: |
-          Bridge transport gap — bridge emits zero Blocks without a
-          rule list. Native decodes \\\" to a literal quote.
+          Escape decoding divergence — the rule list now rides the
+          bridge (regexRulesJson), so the bridge DOES extract the Block,
+          but with the escape undecoded: it emits the raw `Hello
+          \"World\"`. Okapi's useBSlashEscape only fires inside its
+          STRING-type delimiter scan and on the write/merge path, not
+          when emitting the extracted source TextUnit (verified
+          head-to-head against Okapi 1.48.0). Native decodes \\\" to a
+          literal quote at extraction. An extraction-layer semantic
+          difference, not the rules-transport limitation.
+        divergence_kind: bridge-gap
         input_xml: "\"Hello \\\"World\\\"\""
         block_count: 1
         first_block_text: "Hello \"World\""
       - name: escaped_newline_and_tab
         origin: "okapi-fixture: RegexFilterTest#testBackslashEscapeHandling — \\n and \\t"
         expected_fail: |
-          Bridge transport gap — same as escaped_quotes. Native decodes
-          \\n → LF and \\t → TAB inside captured text.
+          Escape decoding divergence — same as escaped_quotes. The
+          bridge extracts both Blocks but leaves `\\n` / `\\t` literal;
+          native decodes \\n → LF and \\t → TAB inside captured text.
+        divergence_kind: bridge-gap
         input_xml: "\"Line1\\nLine2\"\n\"Tab\\there\""
         block_count: 2
         block_texts:
@@ -347,8 +350,15 @@ features:
       - name: doubled_quotes
         origin: "okapi-fixture: RegexFilterTest#testEscapeDoubleChar"
         expected_fail: |
-          Bridge transport gap — bridge emits zero Blocks without a
-          rule list. Native decodes "" → ".
+          Escape decoding divergence — the rule list rides the bridge
+          (regexRulesJson) so the bridge extracts both Blocks, but
+          leaves the doubled quotes literal (`Hello ""World""`). Okapi's
+          useDoubleCharEscape decodes only inside its STRING-type
+          delimiter scan / write path, not at extraction; under
+          CONTENT-type extraction it decodes nothing. Native collapses
+          "" → " at extraction. An extraction-layer semantic
+          difference, not the rules-transport limitation.
+        divergence_kind: bridge-gap
         input_xml: "\"Hello \"\"World\"\"\"\n\"Simple text\"\n"
         block_count: 2
         block_texts:
@@ -381,10 +391,6 @@ features:
     examples:
       - name: key_value_and_label
         origin: "authored: mixed rule set covering both key=value and LABEL \"text\""
-        expected_fail: |
-          Bridge transport gap — bridge emits zero Blocks without rules.
-          Native picks up `title=Hello`, `LABEL "World"`, `desc=Goodbye`
-          via the two rules in order.
         input_xml: "title=Hello\nLABEL \"World\"\ndesc=Goodbye\n"
         block_count: 3
         block_texts: ["Hello", "World", "Goodbye"]
