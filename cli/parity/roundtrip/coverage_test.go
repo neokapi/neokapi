@@ -403,6 +403,7 @@ var canonClassByFormat = map[string]roundtrip.CanonClass{
 	"ts":      roundtrip.CanonFaithful,
 	"icml":    roundtrip.CanonFaithful,
 	"html":    roundtrip.CanonFaithful,
+	"ttx":     roundtrip.CanonFaithful,
 	// Text formats — native preserves source bytes; okapi normalizes line
 	// endings, adds trailing newlines, reflows whitespace, or re-parses.
 	"wiki":       roundtrip.CanonFaithful,
