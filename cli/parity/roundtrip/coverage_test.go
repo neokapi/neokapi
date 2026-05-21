@@ -866,9 +866,14 @@ func coverageScans() []formatScan {
 		},
 		{
 			// TXML bilingual XML — 3 fixtures: Test01.docx.txml,
-			// Test02.html.txml, Test03.mif.txml. Native lowercases
-			// targetlocale and drops <target> elements present in the
-			// source; documented in core/formats/txml/parity-annotations.yaml.
+			// Test02.html.txml, Test03.mif.txml. All three are
+			// structurally identical to the Okapi reference after XML
+			// canonicalization; the residual byte diffs are Okapi
+			// normalizing source metadata that Wordfast (and native)
+			// preserve verbatim — targetlocale FR→fr, and dropped
+			// modified/unconfirmed attrs + recomputed gtmt on the
+			// regenerated <segment> tag. native-more-correct, documented
+			// in core/formats/txml/parity-annotations.yaml.
 			formatID:    "txml",
 			filterClass: "okf_txml",
 			sources:     []string{"okapi/filters/txml/src/test/resources"},

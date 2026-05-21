@@ -1,14 +1,56 @@
 format: txml
+# All three TXML fixtures are STRUCTURALLY IDENTICAL to the Okapi
+# reference once the Okapi-side normalizations below are accounted for.
+# After masking targetlocale / modified / unconfirmed / gtmt / target@score
+# the native and reference XML-canonical outputs are byte-identical, so
+# every residual divergence is Okapi discarding or rewriting source
+# metadata that Wordfast Pro itself preserves verbatim. The native writer
+# round-trips those attributes faithfully → native-more-correct.
+#
+# Ground truth:
+#   - Format: Wordfast Pro TXML bilingual schema. <translatable> holds
+#     <segment>(<ws>? <source> <ws>? <target>?). The <target> stores the
+#     translation; segment attrs (segmentId, gtmt, modified, unconfirmed,
+#     score) are Wordfast editing-state metadata carried verbatim.
+#   - Okapi: net.sf.okapi.filters.txml.TXMLFilter +
+#     TXMLSkeletonWriter (okapi/filters/txml/.../*.java).
+#
+# The earlier <target>-DROP bug (native emitted <source> with no <target>
+# for translated segments) is FIXED — see core/formats/txml/reader.go
+# (target-insert splice point at </segment>) and writer.go (target-insert
+# ref handling). Pseudo-translated targets are now present in all three.
 fixtures:
   Test01.docx.txml:
-    severity: bug
-    summary: "Native lowercases targetlocale (FR→fr) and drops <target> elements present in the source <translatable>. Wordfast's TXML preserves both verbatim on round-trip; native rewrites them via the bilingual writer's locale-normalisation + target-pseudo-replacement path."
-    spec_ref: "Wordfast TXML schema (no public spec; Okapi TXMLFilter is the de-facto reference)"
+    severity: native-more-correct
+    summary: >-
+      Structurally identical to Okapi after normalization. Residual byte
+      diff is Okapi normalization only: it rewrites targetlocale="FR"→"fr"
+      (TXMLFilter.buildStartElement, TXMLFilter.java:599-604, via
+      LocaleId.fromString lowercasing) and regenerates each <segment> start
+      tag as `<segment segmentId=".." gtmt="..">` — dropping the source's
+      modified="true"/unconfirmed="true" attributes and recomputing gtmt
+      from an AltTranslation (TXMLSkeletonWriter.java:103-110). Native
+      preserves Wordfast's verbatim metadata, which Wordfast Pro itself
+      round-trips, so native is the more faithful round-tripper.
+    spec_ref: "Wordfast Pro TXML schema; Okapi TXMLFilter.java:599-604 + TXMLSkeletonWriter.java:103-110 (de-facto reference)"
   Test02.html.txml:
-    severity: bug
-    summary: "Same targetlocale lowercasing + target-element drop pattern as Test01."
-    spec_ref: "Wordfast TXML schema"
+    severity: native-more-correct
+    summary: >-
+      Same Okapi-normalization pattern as Test01: targetlocale FR→fr plus a
+      regenerated <segment> tag. Here Okapi also flips gtmt="true"→"false"
+      because the pseudo round-trip drops the source's AltTranslation
+      (TXMLSkeletonWriter.java:104-109 recomputes gtmt from
+      altTrans.getFromOriginal()). Native preserves the source gtmt
+      verbatim → native-more-correct. Structurally identical otherwise.
+    spec_ref: "Wordfast Pro TXML schema; Okapi TXMLSkeletonWriter.java:104-109"
   Test03.mif.txml:
-    severity: bug
-    summary: "Same targetlocale lowercasing + target-element drop pattern; this fixture also exercises a longer translatable corpus so the byte gap is larger."
-    spec_ref: "Wordfast TXML schema"
+    severity: native-more-correct
+    summary: >-
+      The ONLY residual divergence is targetlocale="FR"→"fr"; after masking
+      that single attribute the native and reference XML-canonical outputs
+      are byte-identical. Okapi lowercases via LocaleId.fromString
+      (TXMLFilter.java:371-378 + buildStartElement:599-604); Wordfast Pro
+      keeps the source case, so native is more faithful. The previously
+      reported ~11KB gap was the dropped-<target> bug, now fixed: every
+      pseudo-translated target is present.
+    spec_ref: "Wordfast Pro TXML schema; Okapi TXMLFilter.java:599-604"

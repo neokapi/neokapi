@@ -106,7 +106,17 @@ type elemPosition struct {
 	endOffset   int    // byte offset before end tag
 	blockIdx    int    // which translatable block (0-based)
 	segIdx      int    // which segment within the block (0-based)
-	elemType    string // "source" or "target"
+	elemType    string // "source", "target", or "target-insert"
+	// insert marks a zero-width splice point (startOffset == endOffset)
+	// rather than a content region to replace. It is emitted for segments
+	// that have NO original <target> child: the writer injects a fresh
+	// <target>…</target> element here when the block carries a translated
+	// target segment, mirroring Okapi's TXMLSkeletonWriter which always
+	// regenerates the <target> from the TextUnit when one exists for the
+	// output locale (TXMLSkeletonWriter.java:167-176). Without it, a
+	// pseudo-translated/translated target would be silently dropped on
+	// write-back for any segment that arrived target-less.
+	insert bool
 }
 
 func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
@@ -210,7 +220,14 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 			if ep.startOffset > skelPos {
 				r.skelText(rawText[skelPos:ep.startOffset])
 			}
-			refID := fmt.Sprintf("%d:%d:%s", ep.blockIdx, ep.segIdx, ep.elemType)
+			elemType := ep.elemType
+			if ep.insert {
+				// Mark target-insertion refs so the writer emits the full
+				// <target>…</target> wrapper (the splice point is zero-width
+				// and carries no original tags) only when a target exists.
+				elemType = "target-insert"
+			}
+			refID := fmt.Sprintf("%d:%d:%s", ep.blockIdx, ep.segIdx, elemType)
 			r.skelRef(refID)
 			skelPos = ep.endOffset
 		}
@@ -316,6 +333,7 @@ func (r *Reader) parseSegment(
 ) (*model.Segment, *model.Segment, error) {
 	srcSeg := &model.Segment{}
 	var trgSeg *model.Segment
+	sawTarget := false
 
 	for {
 		tok, err := decoder.Token()
@@ -357,6 +375,7 @@ func (r *Reader) parseSegment(
 					return nil, nil, err
 				}
 				trgSeg = &model.Segment{Runs: runs}
+				sawTarget = true
 				if r.skeletonStore != nil {
 					endOff := decoder.InputOffset()
 					endPos := int(endOff) - len("</target>")
@@ -385,6 +404,29 @@ func (r *Reader) parseSegment(
 
 		case xml.EndElement:
 			if t.Name.Local == "segment" {
+				// If this segment had no original <target>, record a
+				// zero-width splice point just before </segment> so the
+				// writer can inject a fresh <target> when the block
+				// carries a translated target for this segment. The XSD
+				// content model is (ws?, source, ws? target), so the
+				// target always sits last, immediately before </segment>
+				// (TXMLSkeletonWriter.java:167-176, and the trailing-<ws>
+				// case at :135-165). decoder.InputOffset() here is the
+				// offset just after the closing ">" of </segment>.
+				if r.skeletonStore != nil && !sawTarget {
+					insertPos := int(decoder.InputOffset()) - len("</segment>")
+					if insertPos < 0 {
+						insertPos = 0
+					}
+					*positions = append(*positions, elemPosition{
+						startOffset: insertPos,
+						endOffset:   insertPos,
+						blockIdx:    blockIdx,
+						segIdx:      segIdx,
+						elemType:    "target",
+						insert:      true,
+					})
+				}
 				return srcSeg, trgSeg, nil
 			}
 		}
