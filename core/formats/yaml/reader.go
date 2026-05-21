@@ -22,6 +22,7 @@ type Reader struct {
 	cfg           *Config
 	skeletonStore *format.SkeletonStore
 	skelBuf       bytes.Buffer // coalesces skeleton text between refs
+	eol           string       // detected dominant line ending ("\n" or "\r\n")
 }
 
 // Ensure Reader implements SkeletonStoreEmitter.
@@ -125,6 +126,15 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		return
 	}
 
+	// Detect the source's dominant line-ending convention so the writer
+	// can re-emit re-encoded (translated) multi-line scalars with the
+	// same convention. This mirrors Okapi's YamlFilter, which records the
+	// BOMNewlineEncodingDetector's newline type on open and replays it via
+	// getEncoderManager().getLineBreak() in YamlSkeletonWriter — every
+	// emitted line break follows the source's convention, never a mix.
+	r.eol = detectDominantEOL(content)
+	layer.Properties["yaml.eol"] = r.eol
+
 	blockCounter := 0
 
 	// Use a Decoder to support multi-document YAML (--- separators).
@@ -173,6 +183,32 @@ type scalarRange struct {
 	end     int    // byte offset past the scalar
 	blockID string // block ID (e.g. "tu1")
 	style   yamlv3.Style
+}
+
+// detectDominantEOL inspects the raw content and returns the source's
+// dominant line-ending convention: "\r\n" when CRLF breaks outnumber
+// bare LF breaks, otherwise "\n". A file with no line breaks (or pure
+// LF) yields "\n", so the LF-source common case is never rewritten.
+//
+// This mirrors Okapi's BOMNewlineEncodingDetector.getNewlineType(),
+// which classifies the whole document by the first / dominant break and
+// then YamlSkeletonWriter replays that single convention on every line.
+func detectDominantEOL(data []byte) string {
+	crlf := 0
+	lf := 0
+	for i := range data {
+		if data[i] == '\n' {
+			if i > 0 && data[i-1] == '\r' {
+				crlf++
+			} else {
+				lf++
+			}
+		}
+	}
+	if crlf > lf {
+		return "\r\n"
+	}
+	return "\n"
 }
 
 // buildLineOffsets returns a slice where lineOffsets[i] is the byte offset of
@@ -315,6 +351,13 @@ func (r *Reader) collectScalarRange(ctx context.Context, ch chan<- model.PartRes
 	// when no translation is applied.
 	if start >= 0 && end <= len(content) && start < end {
 		block.Properties["yaml.raw"] = string(content[start:end])
+	}
+	// Record the source's dominant line ending so the writer re-emits
+	// multi-line re-encoded (translated) block scalars with the same
+	// convention instead of yaml.v3's hardcoded LF. Only set when CRLF;
+	// the LF default needs no rewrite and keeps Properties lean.
+	if r.eol == "\r\n" {
+		block.Properties["yaml.eol"] = r.eol
 	}
 	// For block scalars (literal `|`, folded `>`), capture the indicator
 	// line (`|`, `|-`, `|+`, `|2`, `>-`, …) so the writer can preserve
@@ -539,10 +582,22 @@ func scanPlainScalarEnd(content []byte, start int, value string) int {
 		lineEnd++
 	}
 
+	// A trailing carriage return is part of the CRLF line break, not the
+	// scalar value (YAML 1.2 §5.4: a CR immediately preceding the LF is
+	// consumed as the line break and never appears in the parsed value).
+	// Excluding it here keeps the `\r` in the skeleton so the writer
+	// reproduces the source's CRLF around the (possibly translated)
+	// scalar, instead of smuggling the CR into the scalar range where it
+	// is lost the moment the scalar is re-encoded.
+	commentScanEnd := lineEnd
+	if commentScanEnd > i && content[commentScanEnd-1] == '\r' {
+		commentScanEnd--
+	}
+
 	// Trim trailing comment: find " #" pattern
-	effectiveEnd := lineEnd
-	for j := i; j < lineEnd; j++ {
-		if j+1 < lineEnd && content[j] == ' ' && content[j+1] == '#' {
+	effectiveEnd := commentScanEnd
+	for j := i; j < commentScanEnd; j++ {
+		if j+1 < commentScanEnd && content[j] == ' ' && content[j+1] == '#' {
 			effectiveEnd = j
 			break
 		}
