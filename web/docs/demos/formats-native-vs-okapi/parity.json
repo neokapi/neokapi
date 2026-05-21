@@ -1,0 +1,14 @@
+{
+  "asset": "fixtures/page.html",
+  "native": {
+    "reader": "html",
+    "word_count": 14
+  },
+  "okapi": {
+    "reader": "okf_html",
+    "word_count": 0,
+    "status": "bridge unavailable in this environment"
+  },
+  "parity": false,
+  "note": "Authoritative native\u2194okapi parity across 30+ formats: see cli/parity (`make parity`)."
+}
