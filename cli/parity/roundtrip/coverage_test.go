@@ -384,8 +384,10 @@ func discoverCompanions(t *testing.T, inputAbs string) map[string][]byte {
 //     okapi adds one; php/tex sources are CRLF and okapi normalizes to LF;
 //     the XML/zip family re-serializes through okapi's own XML writer).
 //   - CanonCloseable: native itself loses source information it could
-//     preserve. yaml mixes CRLF and LF within a CRLF source on the
-//     re-serialized scalar lines — a genuine fidelity gap worth closing.
+//     preserve (e.g. a writer that drops a trailing newline the source had,
+//     or normalizes the source's line-ending convention). Driving these to
+//     byte-equal is a genuine fidelity improvement. None currently — the one
+//     case we found (yaml mixing CRLF/LF on re-encoded scalars) is fixed.
 //
 // Formats not listed default to CanonUnclassified, which never inflates the
 // faithful-parity figure (conservative — under-claims rather than over-claims).
@@ -412,8 +414,14 @@ var canonClassByFormat = map[string]roundtrip.CanonClass{
 	"dtd":        roundtrip.CanonFaithful,
 	"doxygen":    roundtrip.CanonFaithful,
 	"po":         roundtrip.CanonFaithful,
-	// Closeable — native loses source line-ending consistency.
-	"yaml": roundtrip.CanonCloseable,
+	// yaml: the genuine closeable case (Test01.yml mixing CRLF/LF on
+	// re-encoded scalars) is now fixed to byte-equal. The residual canon
+	// (big_config.yml, folded_literal_examples.yml — both pure-LF) is
+	// yaml.v3-vs-snakeyaml block-folding/quote-style on the re-encoded
+	// translated scalar, with native preserving the surrounding source
+	// skeleton byte-for-byte — the same "library re-serialization, native
+	// is faithful" story as the XML family.
+	"yaml": roundtrip.CanonFaithful,
 	// json left unclassified pending a direction check on its escape/
 	// whitespace canon (\/ escaping, key spacing).
 }
