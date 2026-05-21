@@ -3,9 +3,9 @@ import { ChevronRight, WifiOff, Sparkles, Globe } from 'lucide-react'
 
 const COMMANDS = [
   {
-    cmd: 'kapi brand check --profile acme.yaml --text "Leverage our solution to drive synergy."',
+    cmd: 'kapi brand check --profile-file acme.yaml --text "Leverage our solution to drive synergy."',
     lines: [
-      { text: 'Brand: Acme Corp  (profile: acme.yaml)', color: 'text-neutral-500' },
+      { text: 'Brand: Acme Corp  (profile-file: acme.yaml)', color: 'text-neutral-500' },
       { text: 'Score: 71/100   tone 84 · style 70 · vocab 55 · clarity 78', color: 'text-accent-amber' },
       { text: '  major   forbidden term "leverage"  →  "use"', color: 'text-accent-rose' },
       { text: '  minor   tone too formal for friendly-dtc voice', color: 'text-neutral-400' },
@@ -14,12 +14,12 @@ const COMMANDS = [
     ],
   },
   {
-    cmd: 'kapi ai-translate -i app.json --target-lang de --brand-profile acme.yaml',
+    cmd: 'kapi run ai-translate-qa -i app.json -o app.de.json --target-lang de',
     lines: [
       { text: 'Reading app.json (JSON detected) · brand voice: Acme Corp', color: 'text-neutral-500' },
-      { text: 'Profile injected into translation prompt — on-brand at generation', color: 'text-neutral-500' },
-      { text: '  ai-translate    provider: anthropic   142 segments', color: 'text-brand-400' },
-      { text: '  brand-voice     94/100  · 0 forbidden terms', color: 'text-brand-400' },
+      { text: 'Flow: ai-translate-qa  (profile bound on the recipe)', color: 'text-neutral-500' },
+      { text: '  [1/2] ai-translate    provider: anthropic   142 segments', color: 'text-brand-400' },
+      { text: '  [2/2] brand-voice     94/100  · 0 forbidden terms', color: 'text-brand-400' },
       { text: 'Written: app.de.json', color: 'text-brand-300' },
       { text: 'On-brand, terminology-consistent, in 3.2s — locally', color: 'text-accent-amber' },
     ],

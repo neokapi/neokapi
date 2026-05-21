@@ -13,18 +13,18 @@ const CLI_METHODS = [
   },
 ]
 
-const QUICK_START = `# Start from a built-in brand voice pack (or bring your own)
-kapi brand guide --pack friendly-dtc > brand.yaml
+const QUICK_START = `# Print a brand voice guide to inject into your AI assistant
+kapi brand guide --pack friendly-dtc
 
-# Score content against the profile (CI-gate with --min-score)
-kapi brand check --profile brand.yaml --min-score 80 release-notes.md
+# Score content against a profile; --min-score gates CI (exit 3)
+kapi brand check --profile-file brand.yaml --min-score 80 release-notes.md
 
-# Rewrite off-voice content to fix it
-kapi brand rewrite --profile brand.yaml --text "Leverage our solution"
+# Rewrite off-voice content to fix forbidden/competitor terms
+kapi brand rewrite --profile-file brand.yaml --text "Leverage our solution"
 
-# Translate — brand-voice-aware — into every language
-kapi ai-translate -i app.json --target-lang de \\
-  --brand-profile brand.yaml -o app.de.json
+# Translate — brand-voice-aware via a flow — into every language
+kapi run ai-translate-qa -i app.json -o app.de.json \\
+  --source-lang en --target-lang de
 
 # Serve brand + terminology tools to your AI assistant over MCP
 kapi mcp`
@@ -45,8 +45,8 @@ jobs:
 
       - uses: neokapi/kapi-action@v1
         with:
-          # Fails the PR if any file scores below 80
-          command: brand check --profile brand.yaml --min-score 80 content/`
+          # Fails the PR when the file scores below 80
+          command: brand check --profile-file brand.yaml --min-score 80 content/release-notes.md`
 
 export function GetStarted() {
   const [tab, setTab] = useState<'cli' | 'desktop' | 'actions'>('cli')

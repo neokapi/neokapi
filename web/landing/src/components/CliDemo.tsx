@@ -4,18 +4,18 @@ import { cn } from '@/lib/utils'
 const TABS = [
   {
     label: 'Brand Check',
-    cmd: 'kapi brand check \\\n  --profile acme.yaml \\\n  --json release-notes.md \\\n  --min-score 80',
+    cmd: 'kapi brand check \\\n  --profile-file acme.yaml \\\n  --min-score 80 \\\n  release-notes.md',
     description: 'Score text 0–100 across tone, style, vocabulary, clarity, and compliance. --min-score gates CI and exits 3 below the threshold.',
   },
   {
     label: 'Brand Rewrite',
-    cmd: 'kapi brand rewrite \\\n  --profile acme.yaml \\\n  --text "Leverage our solution"',
+    cmd: 'kapi brand rewrite \\\n  --profile-file acme.yaml \\\n  --text "Leverage our solution"',
     description: 'Rewrite content to remove forbidden and competitor terms and bring it back on-voice — keeping meaning intact.',
   },
   {
     label: 'AI Translate',
-    cmd: 'kapi ai-translate -i src/en.json \\\n  --source-lang en --target-lang fr \\\n  --brand-profile acme.yaml \\\n  -o src/fr.json',
-    description: 'Brand-voice-aware translation: the bound profile is injected into the prompt, so output is on-brand at generation, not just checked after.',
+    cmd: 'kapi run ai-translate-qa \\\n  -i src/en.json -o src/fr.json \\\n  --source-lang en --target-lang fr',
+    description: 'Brand-voice-aware translation: a profile bound on the flow is injected into the prompt, so output is on-brand at generation, not just checked after.',
   },
   {
     label: 'Terminology',

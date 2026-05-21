@@ -5,7 +5,8 @@ title: Installation
 
 # Installation
 
-Install the `kapi` CLI for standalone file processing.
+Install the `kapi` CLI to keep AI output on-brand and localize content — a
+single self-contained binary that runs offline by default.
 
 ## Homebrew (macOS/Linux)
 

@@ -49,7 +49,7 @@ const STEPS = [
     n: '05',
     icon: Globe,
     title: 'Publish',
-    cmd: 'kapi ai-translate --brand-profile …',
+    cmd: 'kapi run ai-translate-qa …',
     description:
       'Translate into every locale — brand-voice-aware, terminology-enforced, with TM leverage — and write back into the same 30+ native formats (plus 57 Okapi-bridge filters).',
     accent: 'text-forest-400',

@@ -43,17 +43,21 @@ Three axes that no single competitor spans:
 ## Brand voice with the kapi CLI
 
 ```bash
-# Start from a built-in brand voice pack (or bring your own)
-kapi brand guide --pack friendly-dtc > brand.yaml
+# Print a brand voice guide to inject into your AI assistant's context.
+# Use a built-in starter pack, a profile in the local store, or a YAML file:
+#   --pack <name> | --profile <name> | --profile-file <path>
+kapi brand guide --pack friendly-dtc
 
-# Score content against the profile; --min-score gates CI (exit code 3)
-kapi brand check --profile brand.yaml --min-score 80 release-notes.md
+# Score content against a profile; --min-score gates CI (exit code 3).
+# Input comes from a file argument, --text, or stdin.
+kapi brand check --profile-file brand.yaml --min-score 80 release-notes.md
 
 # Rewrite off-voice content to fix forbidden/competitor terms
-kapi brand rewrite --profile brand.yaml --text "Leverage our solution"
+kapi brand rewrite --profile-file brand.yaml --text "Leverage our solution"
 
-# Translate — brand-voice-aware — into any language
-kapi ai-translate -i app.json --target-lang de --brand-profile brand.yaml
+# Translate — brand-voice-aware via a flow — into any language.
+# Bind the profile on the flow/recipe; the guide is injected into the prompt.
+kapi run ai-translate-qa -i app.json -o app.de.json --source-lang en --target-lang de
 
 # Serve brand + terminology tools to your AI assistant over MCP
 kapi mcp

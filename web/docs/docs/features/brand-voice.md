@@ -11,6 +11,34 @@ captures a brand voice as a machine-readable profile, scores content against it
 (0–100), and enforces it through the same pipeline and `Block` annotation system
 used for terminology. The Go library lives in `core/brand/`.
 
+This is how neokapi keeps your AI coding assistant on-brand: load the profile
+into context (or expose it over [MCP](/kapi-cli/mcp)) so generated copy, docs,
+and UI strings are on-voice from the first draft — then score and rewrite
+anything that drifts, and carry the same voice through every translation.
+
+## Brand voice with the CLI
+
+The `kapi brand` command group works against a profile from a built-in starter
+pack (`--pack`), the local brand store (`--profile`), or a standalone
+git-shareable YAML file (`--profile-file`):
+
+```bash
+# Print the rendered guide (paste into an assistant, or pipe to a file)
+kapi brand guide --pack friendly-dtc
+
+# Score text: file argument, --text, or stdin. --min-score gates CI (exit 3).
+kapi brand check --profile-file brand.yaml --min-score 80 release-notes.md
+
+# Rewrite off-voice content (add --ai for tone/style as well as vocabulary)
+kapi brand rewrite --profile-file brand.yaml --text "Leverage our solution"
+
+# Manage profiles in the local store
+kapi brand profiles
+```
+
+Both `check` and `rewrite` run a fast, offline rule-based vocabulary pass by
+default; pass `--ai` to add an LLM analysis of tone, style, and clarity.
+
 ## Voice profiles
 
 A profile captures tone, style, and vocabulary as rules:

@@ -11,7 +11,8 @@ const baseUrl = process.env.DOCS_BASE_URL ?? "/web/neokapi/docs/";
 
 const config: Config = {
   title: "neokapi",
-  tagline: "Open, AI-native localization platform in Go",
+  tagline:
+    "Keep your AI on-brand and consistent — ship it in every language and format. Offline by default, governed when you need it.",
   favicon: "img/favicon.png",
 
   url: "https://neokapi.github.io",
