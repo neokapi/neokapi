@@ -663,6 +663,90 @@ func TestSkeletonRoundtrip_LangUnrelatedLocalePreserved(t *testing.T) {
 	assert.Contains(t, output, `lang="de"`, "unrelated locale 'de' should be preserved")
 }
 
+// skeletonRoundtripRetargeted reads input via the skeleton path with the
+// given source locale, then writes it back targeting target. No blocks are
+// translated; the test focuses on language-declaration retargeting in the
+// skeleton (lang/xml:lang/meta-content-language) entries.
+func skeletonRoundtripRetargeted(t *testing.T, input string, source, target model.LocaleID) string {
+	t.Helper()
+	ctx := t.Context()
+
+	reader := htmlfmt.NewReader()
+	writer := htmlfmt.NewWriter()
+
+	store, err := format.NewSkeletonStore()
+	require.NoError(t, err)
+	defer store.Close()
+	reader.SetSkeletonStore(store)
+	writer.SetSkeletonStore(store)
+
+	err = reader.Open(ctx, testutil.RawDocFromString(input, source))
+	require.NoError(t, err)
+	parts := testutil.CollectParts(t, reader.Read(ctx))
+	reader.Close()
+
+	var buf bytes.Buffer
+	writer.SetLocale(target)
+	require.NoError(t, writer.SetOutputWriter(&buf))
+
+	ch := testutil.PartsToChannel(parts)
+	require.NoError(t, writer.Write(ctx, ch))
+	writer.Close()
+
+	return buf.String()
+}
+
+// TestSkeletonRoundtrip_BothLangAndXMLLangRetargeted is the regression guard
+// for the W3CHTMHLTest1 parity divergence: an XHTML root element carrying BOTH
+// xml:lang and lang (HTML5 §3.2.6.1 allows both with the same value) must have
+// BOTH declarations retargeted on translation. Previously only the bare lang
+// was spliced/retargeted, leaving a stale xml:lang="en" beside lang="fr".
+// Okapi normalizes both to Property.LANGUAGE (HtmlFilter.normalizeAttributeName)
+// and GenericSkeletonWriter retargets every language property to the output
+// locale.
+func TestSkeletonRoundtrip_BothLangAndXMLLangRetargeted(t *testing.T) {
+	input := `<html xml:lang="en" lang="en"><body><p>Hello</p></body></html>`
+	output := skeletonRoundtripRetargeted(t, input, model.LocaleEnglish, model.LocaleFrench)
+
+	assert.Contains(t, output, `xml:lang="fr"`, "xml:lang must be retargeted")
+	assert.Contains(t, output, `lang="fr"`, "lang must be retargeted")
+	assert.NotContains(t, output, `lang="en"`,
+		"no source-locale language declaration should remain (covers both lang and xml:lang)")
+}
+
+// TestSkeletonRoundtrip_LangRegionInsensitiveMatch guards the language-only
+// (region/script-insensitive) comparison that mirrors Okapi's
+// LocaleId.sameLanguageAs: a document-language declaration of "en-US" in an
+// en→fr roundtrip is the document's own language and is retargeted, while a
+// foreign-language inline declaration ("ja") is left untouched.
+func TestSkeletonRoundtrip_LangRegionInsensitiveMatch(t *testing.T) {
+	input := `<html xml:lang="en-US" lang="en-US"><body>` +
+		`<p>English</p><span lang="ja">日本語</span></body></html>`
+	output := skeletonRoundtripRetargeted(t, input, model.LocaleEnglish, model.LocaleFrench)
+
+	assert.Contains(t, output, `xml:lang="fr"`,
+		"xml:lang=en-US is the document language and must be retargeted to fr")
+	assert.Contains(t, output, `lang="fr"`,
+		"lang=en-US is the document language and must be retargeted to fr")
+	assert.NotContains(t, output, `en-US`, "no source-language declaration should remain")
+	assert.Contains(t, output, `lang="ja"`,
+		"foreign-language inline declaration must be preserved")
+}
+
+// TestSkeletonRoundtrip_MetaContentLanguageRetargeted guards retargeting of the
+// <meta http-equiv="Content-Language" content="…"> declaration, which Okapi
+// also normalizes to Property.LANGUAGE and retargets to the output locale.
+func TestSkeletonRoundtrip_MetaContentLanguageRetargeted(t *testing.T) {
+	input := `<html><head>` +
+		`<meta http-equiv="Content-Language" content="en"/>` +
+		`</head><body><p>Hello</p></body></html>`
+	output := skeletonRoundtripRetargeted(t, input, model.LocaleEnglish, model.LocaleFrench)
+
+	assert.Contains(t, output, `content="fr"`,
+		"meta Content-Language must be retargeted to the output locale")
+	assert.NotContains(t, output, `content="en"`, "source locale should be replaced")
+}
+
 // TestReparseRoundtrip_LangRewrittenStructurally guards the #604 change: the
 // re-parse (DOM) writer path rewrites lang/xml:lang to the target locale by
 // setting the attribute on the html.Node tree before html.Render, not via a

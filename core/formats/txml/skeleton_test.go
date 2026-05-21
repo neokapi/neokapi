@@ -133,6 +133,110 @@ func TestSkeletonStore_WithTranslation(t *testing.T) {
 	assert.Equal(t, expected, buf.String())
 }
 
+// Regression for the dropped-<target> bug. A source-only <segment> (no
+// original <target> child) that acquires a translated target on
+// write-back must emit a fresh <target>…</target> just before
+// </segment>. Previously the reader recorded byte positions only for
+// <source>/<target> regions that already existed, so a translated
+// target had nowhere to be spliced and was silently dropped — exactly
+// the parity gap against Okapi's TXMLSkeletonWriter, which always
+// regenerates <target> when the TextUnit has one for the output locale
+// (TXMLSkeletonWriter.java:167-176).
+func TestSkeletonStore_InjectsTargetIntoSourceOnlySegment(t *testing.T) {
+	input := `<?xml version="1.0" encoding="UTF-8"?>
+<txml locale="en" version="1.0" datatype="regexp" targetlocale="fr">
+<translatable blockId="b1" datatype="html"><segment segmentId="s1"><source>Hello</source></segment></translatable>
+</txml>
+`
+	ctx := t.Context()
+
+	reader := txml.NewReader()
+	writer := txml.NewWriter()
+
+	store, err := format.NewSkeletonStore()
+	require.NoError(t, err)
+	defer store.Close()
+	reader.SetSkeletonStore(store)
+	writer.SetSkeletonStore(store)
+
+	err = reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
+	require.NoError(t, err)
+	parts := testutil.CollectParts(t, reader.Read(ctx))
+	reader.Close()
+
+	// The source had no <target>; add one for fr, as a pseudo/MT step would.
+	for _, p := range parts {
+		if p.Type == model.PartBlock {
+			b := p.Resource.(*model.Block)
+			b.Targets[model.LocaleID("fr")] = []*model.Segment{{ID: "s1", Runs: []model.Run{{Text: &model.TextRun{Text: "Bonjour"}}}}}
+		}
+	}
+
+	var buf bytes.Buffer
+	require.NoError(t, writer.SetOutputWriter(&buf))
+	ch := testutil.PartsToChannel(parts)
+	require.NoError(t, writer.Write(ctx, ch))
+	writer.Close()
+
+	expected := `<?xml version="1.0" encoding="UTF-8"?>
+<txml locale="en" version="1.0" datatype="regexp" targetlocale="fr">
+<translatable blockId="b1" datatype="html"><segment segmentId="s1"><source>Hello</source><target>Bonjour</target></segment></translatable>
+</txml>
+`
+	assert.Equal(t, expected, buf.String(),
+		"a translated target must be injected before </segment> for a source-only segment")
+}
+
+// Companion to the injection regression: the new <target> must be
+// placed AFTER any trailing <ws> element (the XSD content model is
+// (ws?, source, ws? target), so the target is always last, immediately
+// before </segment> — TXMLSkeletonWriter.java:135-176). A source-only
+// segment with a trailing <ws> must still get the target spliced in the
+// correct slot, leaving the <ws> untouched.
+func TestSkeletonStore_InjectsTargetAfterTrailingWS(t *testing.T) {
+	input := `<?xml version="1.0" encoding="UTF-8"?>
+<txml locale="en" version="1.0" datatype="regexp" targetlocale="fr">
+<translatable blockId="b1" datatype="html"><segment segmentId="s1"><source>Hello</source><ws> </ws></segment></translatable>
+</txml>
+`
+	ctx := t.Context()
+
+	reader := txml.NewReader()
+	writer := txml.NewWriter()
+
+	store, err := format.NewSkeletonStore()
+	require.NoError(t, err)
+	defer store.Close()
+	reader.SetSkeletonStore(store)
+	writer.SetSkeletonStore(store)
+
+	err = reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
+	require.NoError(t, err)
+	parts := testutil.CollectParts(t, reader.Read(ctx))
+	reader.Close()
+
+	for _, p := range parts {
+		if p.Type == model.PartBlock {
+			b := p.Resource.(*model.Block)
+			b.Targets[model.LocaleID("fr")] = []*model.Segment{{ID: "s1", Runs: []model.Run{{Text: &model.TextRun{Text: "Bonjour"}}}}}
+		}
+	}
+
+	var buf bytes.Buffer
+	require.NoError(t, writer.SetOutputWriter(&buf))
+	ch := testutil.PartsToChannel(parts)
+	require.NoError(t, writer.Write(ctx, ch))
+	writer.Close()
+
+	expected := `<?xml version="1.0" encoding="UTF-8"?>
+<txml locale="en" version="1.0" datatype="regexp" targetlocale="fr">
+<translatable blockId="b1" datatype="html"><segment segmentId="s1"><source>Hello</source><ws> </ws><target>Bonjour</target></segment></translatable>
+</txml>
+`
+	assert.Equal(t, expected, buf.String(),
+		"the injected target must follow a trailing <ws>, just before </segment>")
+}
+
 func TestSkeletonStore_WithTranslation_Escaping(t *testing.T) {
 	input := `<?xml version="1.0" encoding="UTF-8"?>
 <txml locale="en" version="1.0" datatype="regexp" targetlocale="fr">

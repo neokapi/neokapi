@@ -62,6 +62,13 @@ type Case struct {
 	// contract while still surfacing actual achievement (byte vs
 	// canonical) in the parity report.
 	MinTier map[string]Tier
+
+	// CanonClass classifies any canonical-equal outcome for this case as
+	// "faithful" (native preserves source; okapi re-serializes — expected,
+	// don't chase) or "closeable" (native loses source info — real work).
+	// Defaults to CanonUnclassified, which never inflates the
+	// faithful-parity figure. Declared per-format on the coverage scan.
+	CanonClass CanonClass
 }
 
 // RunThreeWay runs the okapi engine end-to-end to obtain the live
@@ -172,6 +179,7 @@ func RunThreeWay(t *testing.T, c Case, native *NativeEngine, bridge *BridgeEngin
 				RawDiffOffset:  result.RawDiffOffset,
 				NormDiffOffset: result.NormDiffOffset,
 				Normalizer:     result.Normalizer,
+				CanonClass:     c.CanonClass,
 				Annotation:     ann,
 			})
 			if result.Achieved > required {

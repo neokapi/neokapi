@@ -128,10 +128,11 @@ func (w *Writer) loadOriginalContent() ([]byte, error) {
 // sourceLocale is the document's declared source locale; needsLangRewrite is
 // true when the writer targets a different locale. SkeletonLang entries carry
 // the original source-locale lang value: when retargeting and the stored
-// value matches the source locale (case-insensitively, mirroring
-// writerVisitor.retargetLangAttr), the target locale is emitted; otherwise
-// the stored value is emitted verbatim so unrelated declarations
-// (e.g. lang="de" in an en→fr document) and the no-target case stay byte-exact.
+// value is the same LANGUAGE as the source locale (region/script-insensitive,
+// mirroring writerVisitor.retargetLangAttr and Okapi's sameLanguageAs), the
+// target locale is emitted; otherwise the stored value is emitted verbatim so
+// unrelated declarations (e.g. lang="de" in an en→fr document) and the
+// no-target case stay byte-exact.
 func (w *Writer) writeFromSkeleton(store *format.SkeletonStore, blocks map[string]*model.Block, sourceLocale model.LocaleID, needsLangRewrite bool) error {
 	for {
 		entry, err := store.Next()
@@ -157,7 +158,7 @@ func (w *Writer) writeFromSkeleton(store *format.SkeletonStore, blocks map[strin
 			}
 		case format.SkeletonLang:
 			lang := string(entry.Data)
-			if needsLangRewrite && strings.EqualFold(lang, sourceLocale.String()) {
+			if needsLangRewrite && sameLanguage(lang, sourceLocale.String()) {
 				lang = w.Locale.String()
 			}
 			if _, err := io.WriteString(w.Output, lang); err != nil {
@@ -389,9 +390,9 @@ func (v *writerVisitor) onData(dataID string, n *html.Node, dataName string, pro
 
 // retargetLangAttr rewrites lang/xml:lang attribute values on n from the
 // source locale to the writer's target locale. As in the skeleton path's
-// SkeletonLang handling, only attributes whose value equals the source
-// locale (case-insensitively) are rewritten, so unrelated declarations
-// (e.g. lang="de" in an en→fr document) are preserved.
+// SkeletonLang handling, only attributes whose value is the same LANGUAGE as
+// the source locale are rewritten, so unrelated declarations (e.g. lang="de"
+// in an en→fr document) are preserved.
 func (v *writerVisitor) retargetLangAttr(n *html.Node) {
 	tgt := v.writer.Locale
 	src := v.sourceLocale
@@ -402,10 +403,30 @@ func (v *writerVisitor) retargetLangAttr(n *html.Node) {
 		if attr.Key != "lang" && attr.Key != "xml:lang" {
 			continue
 		}
-		if strings.EqualFold(attr.Val, src.String()) {
+		if sameLanguage(attr.Val, src.String()) {
 			n.Attr[i].Val = tgt.String()
 		}
 	}
+}
+
+// sameLanguage reports whether two BCP-47 tags share the same primary
+// language subtag, ignoring region/script and case. It mirrors Okapi's
+// LocaleId.sameLanguageAs, which GenericSkeletonWriter uses to decide whether
+// a Property.LANGUAGE value is the document's own (input) language and should
+// be retargeted to the output locale. A document-language declaration of
+// "en-US" in an en→fr roundtrip is therefore retargeted, while a foreign-
+// language inline declaration ("ja") is left untouched.
+func sameLanguage(a, b string) bool {
+	return strings.EqualFold(primaryLanguageSubtag(a), primaryLanguageSubtag(b))
+}
+
+// primaryLanguageSubtag returns the primary language subtag of a BCP-47 tag —
+// the portion before the first '-' or '_' separator (BCP-47 §2.2.1).
+func primaryLanguageSubtag(tag string) string {
+	if i := strings.IndexAny(tag, "-_"); i >= 0 {
+		return tag[:i]
+	}
+	return tag
 }
 
 func (v *writerVisitor) onTextBlock(blockID string, n *html.Node) {

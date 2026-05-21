@@ -164,14 +164,24 @@ func (w *Writer) writeBlock(part *model.Part) error {
 }
 
 // escapedBlockValue renders the block's value (target if translated, else
-// source) with DTD escaping applied per-run. Literal text runs get their `&`,
-// `<`, and `"` escaped, while inline-code runs (Ph/Pc/Sub — e.g. structural
-// `&entityref;` or `%param;` references the reader captured verbatim) are
-// emitted byte-for-byte. This preserves the reader's run-level distinction
-// between a decoded literal `&` (from `&amp;`) and a structural entity
-// reference: a value like `Text of &amp;test1;` is read as the literal text
-// "Text of &test1;" and must be re-escaped to `&amp;test1;`, not left as the
-// bare (and semantically different) reference `&test1;`.
+// source) with DTD escaping applied per-run.
+//
+// Three run categories are handled distinctly, matching okapi's DTDFilter
+// (filters/dtd/DTDFilter.java lines 297-305) and DTDEncoder:
+//
+//   - Literal text runs get their `&`, `<`, and `"` escaped. This preserves
+//     the reader's distinction between a decoded literal `&` (from `&amp;`)
+//     and a structural reference: `Text of &amp;test1;` reads as the literal
+//     "Text of &test1;" and must re-escape to `&amp;test1;`.
+//   - Code-finder runs (SubType=="regxph") carry markup the configurable code
+//     finder lifted out of the value verbatim (e.g. `<i>`, `<a name="aaa">`).
+//     Their `<`, `&`, and `"` MUST be entity-escaped — emitting them raw would
+//     produce invalid DTD (a bare `"` prematurely closes the quoted entity
+//     value; XML 1.0 §2.3 EntityValue and §4.2). okapi re-encodes exactly
+//     these codes via encoder.encode(code.getData(), EncoderContext.TEXT).
+//   - Structural reference runs (named-entity / parameter-entity refs the
+//     reader captured as Ph codes, e.g. `&test1;`, `%name;`) are emitted
+//     byte-for-byte — they are real references, not literal markup.
 func (w *Writer) escapedBlockValue(block *model.Block) string {
 	segs := block.Source
 	if !w.Locale.IsEmpty() && block.HasTarget(w.Locale) {
@@ -187,8 +197,14 @@ func (w *Writer) escapedBlockValue(block *model.Block) string {
 				b.WriteString(escapeEntityLiteral(r.Text.Text))
 				continue
 			}
-			// Inline-code runs carry their original DTD bytes (entity or
-			// parameter references) in Data — emit verbatim.
+			// Code-finder-extracted markup (HTML tags etc.) must be
+			// entity-escaped so the resulting entity value stays valid DTD.
+			if r.Ph != nil && r.Ph.SubType == codeFinderTagType {
+				b.WriteString(escapeEntityLiteral(r.Ph.Data))
+				continue
+			}
+			// Structural entity / parameter references carry their original
+			// DTD bytes in Data — emit verbatim.
 			b.WriteString(model.RenderRunsWithData([]model.Run{r}))
 		}
 	}

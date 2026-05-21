@@ -575,7 +575,7 @@ func (s *tokenReaderState) processTokenStream(tokenizer *html.Tokenizer, ctx con
 				// translate="no": no translatable attributes are extracted,
 				// but the language declaration is still spliced out as a
 				// typed SkeletonLang entry so the writer can retarget it.
-				s.writeStartTagSkeleton(raw, nil, langAttrKey(attrs))
+				s.writeStartTagSkeleton(raw, nil, langAttrKeys(attrs))
 			}
 		}
 	}
@@ -630,7 +630,7 @@ func (s *tokenReaderState) processStartTag(tokenizer *html.Tokenizer, raw []byte
 		if !info.translateNo {
 			s.extractTokenAttrs(raw, tag, a, attrs, ctx, ch)
 		} else {
-			s.writeStartTagSkeleton(raw, nil, langAttrKey(attrs))
+			s.writeStartTagSkeleton(raw, nil, langAttrKeys(attrs))
 		}
 		return
 	}
@@ -647,7 +647,7 @@ func (s *tokenReaderState) processStartTag(tokenizer *html.Tokenizer, raw []byte
 		if !info.translateNo {
 			s.extractTokenAttrs(raw, tag, a, attrs, ctx, ch)
 		} else {
-			s.writeStartTagSkeleton(raw, nil, langAttrKey(attrs))
+			s.writeStartTagSkeleton(raw, nil, langAttrKeys(attrs))
 		}
 
 		if a == atom.Head && s.needsCharsetMeta {
@@ -705,7 +705,7 @@ func (s *tokenReaderState) processStartTag(tokenizer *html.Tokenizer, raw []byte
 	if !info.translateNo {
 		s.extractTokenAttrs(raw, tag, a, attrs, ctx, ch)
 	} else {
-		s.writeStartTagSkeleton(raw, nil, langAttrKey(attrs))
+		s.writeStartTagSkeleton(raw, nil, langAttrKeys(attrs))
 	}
 	*stack = append(*stack, info)
 	*translateNo = info.translateNo
@@ -1431,7 +1431,14 @@ func (s *tokenReaderState) handleMetaToken(raw []byte, attrs []html.Attribute, c
 	}
 
 	if httpEquiv == "content-language" && content != "" {
-		_ = s.store.WriteText(raw)
+		// `<meta http-equiv="Content-Language" content="en">` declares the
+		// document language exactly like lang/xml:lang. Okapi's HTML filter
+		// normalizes this content attribute to Property.LANGUAGE
+		// (HtmlFilter.normalizeAttributeName) and GenericSkeletonWriter
+		// retargets it to the output locale, so splice the content value out
+		// as a SkeletonLang entry rather than writing it verbatim — otherwise
+		// the declaration would keep the stale source locale on translation.
+		s.writeStartTagSkeleton(raw, nil, []string{"content"})
 		s.reader.emit(ctx, ch, &model.Part{
 			Type: model.PartData,
 			Resource: &model.Data{
@@ -1483,7 +1490,7 @@ func (s *tokenReaderState) handleMetaToken(raw []byte, attrs []html.Attribute, c
 // part carrying the declared language. The skeleton write for the start tag
 // happens elsewhere (extractTokenAttrs / writeStartTagSkeleton); those paths
 // splice the lang value out as a typed SkeletonLang entry so the writer can
-// retarget the document language structurally — see langAttrKey.
+// retarget the document language structurally — see langAttrKeys.
 func (s *tokenReaderState) extractLangFromToken(raw []byte, tag string, attrs []html.Attribute, ctx context.Context, ch chan<- model.PartResult) {
 	lang := getTokenAttr(attrs, "lang")
 	if lang == "" {
@@ -1501,20 +1508,29 @@ func (s *tokenReaderState) extractLangFromToken(raw []byte, tag string, attrs []
 	}
 }
 
-// langAttrKey returns the literal attribute key form ("lang" or "xml:lang")
-// of a language declaration carrying a non-empty value, or "" when none is
-// present. The returned key is the form that appears in the raw start-tag
-// bytes, so writeStartTagSkeleton can locate it with findAttrValueRange and
-// splice the value out as a SkeletonLang entry. A bare lang= takes
-// precedence over xml:lang= (matching extractLangFromToken's preference).
-func langAttrKey(attrs []html.Attribute) string {
+// langAttrKeys returns the literal attribute key forms ("lang" and/or
+// "xml:lang") of language declarations carrying a non-empty value on a tag,
+// or nil when none is present. Each returned key is the form that appears in
+// the raw start-tag bytes, so writeStartTagSkeleton can locate it with
+// findAttrValueRange and splice the value out as a SkeletonLang entry.
+//
+// An XHTML element may legitimately carry BOTH lang= and xml:lang= (HTML5
+// §3.2.6.1: "the lang and xml:lang attributes [...] in a conforming document
+// have the same value"). Both must be spliced and retargeted together; the
+// upstream Okapi HTML filter normalizes both to the single Property.LANGUAGE
+// (HtmlFilter.normalizeAttributeName), and GenericSkeletonWriter retargets
+// every language property to the output locale, so omitting one would leave a
+// stale source-locale declaration (the W3CHTMHLTest1 divergence: native
+// emitted xml:lang="en" lang="fr").
+func langAttrKeys(attrs []html.Attribute) []string {
+	var keys []string
 	if getTokenAttr(attrs, "lang") != "" {
-		return "lang"
+		keys = append(keys, "lang")
 	}
 	if getTokenAttrNS(attrs, "xml", "lang") != "" {
-		return "xml:lang"
+		keys = append(keys, "xml:lang")
 	}
-	return ""
+	return keys
 }
 
 // extractTokenAttrs extracts translatable attributes (title, alt, etc.) from a token.
@@ -1596,7 +1612,7 @@ func (s *tokenReaderState) extractTokenAttrs(raw []byte, tag string, a atom.Atom
 	// a single offset-sorted pass, so the writer can retarget the document
 	// language structurally instead of rewriting serialized bytes (#604).
 	if raw != nil {
-		s.writeStartTagSkeleton(raw, transAttrs, langAttrKey(attrs))
+		s.writeStartTagSkeleton(raw, transAttrs, langAttrKeys(attrs))
 	}
 }
 
@@ -1773,17 +1789,19 @@ type skelSplice struct {
 // them structurally. Both splice kinds share a single offset-sorted pass so
 // that lang and translatable attributes on the SAME tag interleave correctly.
 //
-// langKey is "" when no lang/xml:lang declaration is present (most tags); pass
-// the literal key form returned by langAttrKey otherwise.
-func (s *tokenReaderState) writeStartTagSkeleton(raw []byte, transAttrs []transAttrEntry, langKey string) {
-	splices := make([]skelSplice, 0, len(transAttrs)+1)
+// langKeys is nil when no lang/xml:lang declaration is present (most tags);
+// pass the literal key forms returned by langAttrKeys otherwise. When an
+// element carries both lang= and xml:lang= (XHTML), both are spliced so the
+// writer retargets every language declaration consistently.
+func (s *tokenReaderState) writeStartTagSkeleton(raw []byte, transAttrs []transAttrEntry, langKeys []string) {
+	splices := make([]skelSplice, 0, len(transAttrs)+len(langKeys))
 	for _, a := range transAttrs {
 		offset, length := findAttrValueRange(raw, a.key)
 		if offset >= 0 {
 			splices = append(splices, skelSplice{offset, length, spliceRef, a.blockID})
 		}
 	}
-	if langKey != "" {
+	for _, langKey := range langKeys {
 		offset, length := findAttrValueRange(raw, langKey)
 		if offset >= 0 {
 			splices = append(splices, skelSplice{offset, length, spliceLang, string(raw[offset : offset+length])})

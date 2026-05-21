@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"regexp"
 	"strconv"
 	"strings"
 	"unicode/utf8"
@@ -13,6 +14,12 @@ import (
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
 )
+
+// codeFinderTagType marks Ph runs extracted by the configurable
+// code-finder (e.g. HTML tags inside an entity value), mirroring
+// okapi's InlineCodeFinder.TAGTYPE constant ("regxph"). The writer
+// uses it to decide which inline-code runs must be entity-escaped.
+const codeFinderTagType = "regxph"
 
 // Reader implements DataFormatReader for DTD files.
 type Reader struct {
@@ -525,56 +532,86 @@ func indexCloseAngleQuoted(s string) int {
 	return -1
 }
 
-// applyCodeFinder splits each source segment's text on configured
-// code-finder regex matches, replacing the matched substrings with Ph
-// runs so they survive pseudo-translation as opaque inline codes.
+// applyCodeFinder splits the literal-text portions of each source
+// segment on configured code-finder regex matches, replacing matched
+// substrings with Ph runs so they survive pseudo-translation as opaque
+// inline codes. It operates per-TextRun and leaves any existing inline-
+// code runs (structural `&entity;` / `%param;` references already lifted
+// by buildEntityValueRuns) untouched — mirroring okapi's DTDFilter, which
+// calls codeFinder.process(tf) on a TextFragment whose structural refs are
+// already codes, so the finder only converts the remaining plain text.
 func (r *Reader) applyCodeFinder(block *model.Block) {
 	patterns := r.cfg.GetCodeFinderPatterns()
 	if len(patterns) == 0 {
 		return
 	}
+	spanID := 1
 	for _, seg := range block.Source {
 		if len(seg.Runs) == 0 {
 			continue
 		}
-		text := seg.Text()
-
-		type matchRange struct{ start, end int }
-		var matches []matchRange
-		for _, re := range patterns {
-			for _, loc := range re.FindAllStringIndex(text, -1) {
-				matches = append(matches, matchRange{loc[0], loc[1]})
-			}
-		}
-		if len(matches) == 0 {
-			continue
-		}
-		// Insertion sort by start; tiny lists in practice.
-		for i := 1; i < len(matches); i++ {
-			for j := i; j > 0 && matches[j].start < matches[j-1].start; j-- {
-				matches[j], matches[j-1] = matches[j-1], matches[j]
-			}
-		}
 		var runs []model.Run
-		lastEnd, spanID := 0, 1
-		for _, m := range matches {
-			if m.start < lastEnd {
-				continue // overlap with prior match
+		for _, run := range seg.Runs {
+			if run.Text == nil {
+				// Preserve non-text runs (structural references) verbatim.
+				runs = append(runs, run)
+				continue
 			}
-			if m.start > lastEnd {
-				runs = append(runs, model.Run{Text: &model.TextRun{Text: text[lastEnd:m.start]}})
-			}
-			runs = append(runs, model.Run{Ph: &model.PlaceholderRun{
-				ID:   fmt.Sprintf("c%d", spanID),
-				Type: "code",
-				Data: text[m.start:m.end],
-			}})
-			lastEnd = m.end
-			spanID++
-		}
-		if lastEnd < len(text) {
-			runs = append(runs, model.Run{Text: &model.TextRun{Text: text[lastEnd:]}})
+			split, used := splitTextRunOnCodeFinder(run.Text.Text, patterns, spanID)
+			runs = append(runs, split...)
+			spanID += used
 		}
 		seg.SetRuns(runs)
 	}
+}
+
+// splitTextRunOnCodeFinder breaks a single literal-text string into a Run
+// sequence: spans matched by any code-finder pattern become Ph runs (tagged
+// with codeFinderTagType), the rest stays as TextRuns. Returns the runs and
+// the number of Ph ids consumed (starting at startID).
+func splitTextRunOnCodeFinder(text string, patterns []*regexp.Regexp, startID int) ([]model.Run, int) {
+	type matchRange struct{ start, end int }
+	var matches []matchRange
+	for _, re := range patterns {
+		for _, loc := range re.FindAllStringIndex(text, -1) {
+			matches = append(matches, matchRange{loc[0], loc[1]})
+		}
+	}
+	if len(matches) == 0 {
+		return []model.Run{{Text: &model.TextRun{Text: text}}}, 0
+	}
+	// Insertion sort by start; tiny lists in practice.
+	for i := 1; i < len(matches); i++ {
+		for j := i; j > 0 && matches[j].start < matches[j-1].start; j-- {
+			matches[j], matches[j-1] = matches[j-1], matches[j]
+		}
+	}
+	var runs []model.Run
+	lastEnd, used := 0, 0
+	for _, m := range matches {
+		if m.start < lastEnd {
+			continue // overlap with prior match
+		}
+		if m.start > lastEnd {
+			runs = append(runs, model.Run{Text: &model.TextRun{Text: text[lastEnd:m.start]}})
+		}
+		runs = append(runs, model.Run{Ph: &model.PlaceholderRun{
+			ID: fmt.Sprintf("c%d", startID+used),
+			// SubType mirrors okapi's InlineCodeFinder.TAGTYPE
+			// ("regxph"). The writer uses it to tell codeFinder-
+			// extracted markup (which must be entity-escaped on
+			// write — okapi's DTDFilter re-encodes these via
+			// encoder.encode(..., TEXT)) apart from structural
+			// entity/parameter references (emitted verbatim).
+			Type:    "code",
+			SubType: codeFinderTagType,
+			Data:    text[m.start:m.end],
+		}})
+		lastEnd = m.end
+		used++
+	}
+	if lastEnd < len(text) {
+		runs = append(runs, model.Run{Text: &model.TextRun{Text: text[lastEnd:]}})
+	}
+	return runs, used
 }

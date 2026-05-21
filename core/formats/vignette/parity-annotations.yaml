@@ -1,6 +1,14 @@
 format: vignette
-fixtures:
-  Test01.xml:
-    severity: bug
-    summary: "Native pseudo-translates the content inside <valueCLOB><![CDATA[...]]></valueCLOB> elements; Okapi VignetteFilter passes the CDATA body through unchanged. Vignette CMS treats CLOB content as opaque payload — native should treat <valueCLOB> as non-translatable wrapper around CDATA."
-    spec_ref: "Okapi VignetteFilter — okapi/filters/vignette"
+# Test01.xml is now byte-equal with the upstream okapi reference on both
+# engines. Okapi's VignetteFilter is locale-pair-driven: processList()
+# (filters/vignette/.../VignetteFilter.java:663-694) extracts a block only
+# when its LOCALE_ID equals the requested target locale
+# (trgLoc.toPOSIXLocaleId(), LocaleId.java:457) AND a matching source-locale
+# partner exists; every other instance is emitted as opaque skeleton.
+# The harness drives src=en/tgt=fr and Test01.xml carries only
+# en_US/es_ES/zh_CN instances, so Okapi extracts nothing and emits the file
+# unchanged. The native reader previously ignored the requested target
+# locale and pseudo-translated the en_US source-side instances; it now
+# applies the same target-locale gate (reader.go emitBlocks bilingual path),
+# matching Okapi. No outstanding native divergences.
+fixtures: {}
