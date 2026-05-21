@@ -85,7 +85,7 @@ func TestWriter_OutputJavadocComment(t *testing.T) {
 // behaviors the native filter does not model (#611):
 //
 // okapi-skip: DoxygenWriterTest#testOutputMultilineComment — okapi extracts and merges trailing `///` comments that follow code on the same line (`foo foo foo /// This is`); the native reader only extracts leading `///` and `///<` trailing comments, so it emits no translatable text for this layout and cannot reproduce okapi's multi-line `///` reflow
-// okapi-skip: DoxygenFilterTest#testDoubleExtractionLists — okapi's RoundTripComparison over lists.h is event-stable; the native reader/writer reflow of HTML (`<ul>/<li>`) and `-#`/`.` doxygen lists is not roundtrip-idempotent for lists.h (paragraph-break and list structure shift on re-extraction), so a faithful roundtrip cannot be asserted. Simpler fixtures (sample.h, qt-style.h, javadoc-style.h) do roundtrip and are covered by other native tests
+// okapi-skip: DoxygenFilterTest#testDoubleExtractionLists — okapi's RoundTripComparison over lists.h is event-stable; the native reader/writer reflow of HTML (`<ul>/<li>`) and `-#`/`.` doxygen lists is not roundtrip-idempotent for lists.h (paragraph-break and list structure shift on re-extraction), so a faithful roundtrip cannot be asserted. Simpler fixtures (sample.h, qt-style.h, javadoc-style.h) do roundtrip and are covered by TestDoubleExtraction_Sample, TestDoubleExtraction_QtStyle, and TestDoubleExtraction_JavadocStyle
 
 func TestSkeletonStore_ByteExact_JavadocSingleLine(t *testing.T) {
 	input := "/** A Javadoc comment */\n"

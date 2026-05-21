@@ -46,6 +46,11 @@ type BridgeRequest struct {
 	// schema metadata.
 	FilterParams map[string]string
 
+	// ConfigId names a built-in Okapi filter configuration to apply before
+	// opening (e.g. "okf_xmlstream-dita"). The bridge loads that config's
+	// parameters; FilterParams override on top. Empty = filter defaults.
+	ConfigId string
+
 	// SubscribeParts narrows which PartType values flow back over the
 	// RPC. Empty (the default) streams every event.
 	SubscribeParts []int32
@@ -103,6 +108,7 @@ func TryRunBridge(t *testing.T, req BridgeRequest) ([]*model.Part, error) {
 		Encoding:       defaultStr(req.Encoding, "UTF-8"),
 		MimeType:       req.MimeType,
 		FilterParams:   req.FilterParams,
+		ConfigId:       req.ConfigId,
 		SubscribeParts: req.SubscribeParts,
 	}
 	if req.InputPath != "" {
@@ -166,6 +172,7 @@ func RunBridgeRoundTrip(t *testing.T, req BridgeRequest) BridgeRoundTripResult {
 		Encoding:       defaultStr(req.Encoding, "UTF-8"),
 		MimeType:       req.MimeType,
 		FilterParams:   req.FilterParams,
+		ConfigId:       req.ConfigId,
 		SubscribeParts: req.SubscribeParts,
 		Output:         &pb.OutputRef{Destination: &pb.OutputRef_Path{Path: outPath}},
 	}

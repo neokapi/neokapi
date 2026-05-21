@@ -1,8 +1,8 @@
 {
-  "generatedAt": "2026-05-21T05:53:05Z",
+  "generatedAt": "2026-05-21T09:18:41Z",
   "okapiVersion": "v1.48.0",
   "neokapiVersion": "main",
-  "goCommitSHA": "089509c5",
+  "goCommitSHA": "a40b1c47",
   "okapiTag": "v1.48.0",
   "filters": [
     {
@@ -376,7 +376,7 @@
           "javaClass": "net.sf.okapi.filters.abstractmarkup.SimplifierRulesTest",
           "javaMethod": "testCodeWithGandXCodes",
           "okapiStatus": "pass",
-          "skipReason": "abstract base class — behaviour exercised via concrete html/xml/odf native readers",
+          "skipReason": "Okapi CodeSimplifier (inline-code merge/reduce) — no native code simplifier; neokapi preserves inline codes verbatim",
           "testState": "skipped",
           "skipCategory": "abstract"
         },
@@ -384,7 +384,7 @@
           "javaClass": "net.sf.okapi.filters.abstractmarkup.SimplifierRulesTest",
           "javaMethod": "testCodeReduction01",
           "okapiStatus": "pass",
-          "skipReason": "abstract base class — behaviour exercised via concrete html/xml/odf native readers",
+          "skipReason": "Okapi CodeSimplifier (inline-code merge/reduce) — no native code simplifier; neokapi preserves inline codes verbatim",
           "testState": "skipped",
           "skipCategory": "abstract"
         },
@@ -392,7 +392,7 @@
           "javaClass": "net.sf.okapi.filters.abstractmarkup.SimplifierRulesTest",
           "javaMethod": "testCodeReduction02",
           "okapiStatus": "pass",
-          "skipReason": "abstract base class — behaviour exercised via concrete html/xml/odf native readers",
+          "skipReason": "Okapi CodeSimplifier (inline-code merge/reduce) — no native code simplifier; neokapi preserves inline codes verbatim",
           "testState": "skipped",
           "skipCategory": "abstract"
         },
@@ -400,7 +400,7 @@
           "javaClass": "net.sf.okapi.filters.abstractmarkup.SimplifierRulesTest",
           "javaMethod": "testCodeReduction03",
           "okapiStatus": "pass",
-          "skipReason": "abstract base class — behaviour exercised via concrete html/xml/odf native readers",
+          "skipReason": "Okapi CodeSimplifier (inline-code merge/reduce) — no native code simplifier; neokapi preserves inline codes verbatim",
           "testState": "skipped",
           "skipCategory": "abstract"
         },
@@ -408,7 +408,7 @@
           "javaClass": "net.sf.okapi.filters.abstractmarkup.SimplifierRulesTest",
           "javaMethod": "testCodeReduction04",
           "okapiStatus": "pass",
-          "skipReason": "abstract base class — behaviour exercised via concrete html/xml/odf native readers",
+          "skipReason": "Okapi CodeSimplifier (inline-code merge/reduce) — no native code simplifier; neokapi preserves inline codes verbatim",
           "testState": "skipped",
           "skipCategory": "abstract"
         },
@@ -416,7 +416,7 @@
           "javaClass": "net.sf.okapi.filters.abstractmarkup.SimplifierRulesTest",
           "javaMethod": "testCodeReduction05",
           "okapiStatus": "pass",
-          "skipReason": "abstract base class — behaviour exercised via concrete html/xml/odf native readers",
+          "skipReason": "Okapi CodeSimplifier (inline-code merge/reduce) — no native code simplifier; neokapi preserves inline codes verbatim",
           "testState": "skipped",
           "skipCategory": "abstract"
         },
@@ -424,7 +424,7 @@
           "javaClass": "net.sf.okapi.filters.abstractmarkup.SimplifierRulesTest",
           "javaMethod": "testCodeReduction06",
           "okapiStatus": "pass",
-          "skipReason": "abstract base class — behaviour exercised via concrete html/xml/odf native readers",
+          "skipReason": "Okapi CodeSimplifier (inline-code merge/reduce) — no native code simplifier; neokapi preserves inline codes verbatim",
           "testState": "skipped",
           "skipCategory": "abstract"
         },
@@ -432,7 +432,7 @@
           "javaClass": "net.sf.okapi.filters.abstractmarkup.SimplifierRulesTest",
           "javaMethod": "testCodeReduction07",
           "okapiStatus": "pass",
-          "skipReason": "abstract base class — behaviour exercised via concrete html/xml/odf native readers",
+          "skipReason": "Okapi CodeSimplifier (inline-code merge/reduce) — no native code simplifier; neokapi preserves inline codes verbatim",
           "testState": "skipped",
           "skipCategory": "abstract"
         },
@@ -440,7 +440,7 @@
           "javaClass": "net.sf.okapi.filters.abstractmarkup.SimplifierRulesTest",
           "javaMethod": "testCodeReduction08",
           "okapiStatus": "pass",
-          "skipReason": "abstract base class — behaviour exercised via concrete html/xml/odf native readers",
+          "skipReason": "Okapi CodeSimplifier (inline-code merge/reduce) — no native code simplifier; neokapi preserves inline codes verbatim",
           "testState": "skipped",
           "skipCategory": "abstract"
         },
@@ -448,7 +448,7 @@
           "javaClass": "net.sf.okapi.filters.abstractmarkup.SimplifierRulesTest",
           "javaMethod": "testCodeReduction09",
           "okapiStatus": "pass",
-          "skipReason": "abstract base class — behaviour exercised via concrete html/xml/odf native readers",
+          "skipReason": "Okapi CodeSimplifier (inline-code merge/reduce) — no native code simplifier; neokapi preserves inline codes verbatim",
           "testState": "skipped",
           "skipCategory": "abstract"
         },
@@ -456,7 +456,7 @@
           "javaClass": "net.sf.okapi.filters.abstractmarkup.SimplifierRulesTest",
           "javaMethod": "testCodeReduction10",
           "okapiStatus": "pass",
-          "skipReason": "abstract base class — behaviour exercised via concrete html/xml/odf native readers",
+          "skipReason": "Okapi CodeSimplifier (inline-code merge/reduce) — no native code simplifier; neokapi preserves inline codes verbatim",
           "testState": "skipped",
           "skipCategory": "abstract"
         },
@@ -464,7 +464,7 @@
           "javaClass": "net.sf.okapi.filters.abstractmarkup.SimplifierRulesTest",
           "javaMethod": "testCodeReduction11",
           "okapiStatus": "pass",
-          "skipReason": "abstract base class — behaviour exercised via concrete html/xml/odf native readers",
+          "skipReason": "Okapi CodeSimplifier (inline-code merge/reduce) — no native code simplifier; neokapi preserves inline codes verbatim",
           "testState": "skipped",
           "skipCategory": "abstract"
         },
@@ -472,7 +472,7 @@
           "javaClass": "net.sf.okapi.filters.abstractmarkup.SimplifierRulesTest",
           "javaMethod": "testCodeReduction12",
           "okapiStatus": "pass",
-          "skipReason": "abstract base class — behaviour exercised via concrete html/xml/odf native readers",
+          "skipReason": "Okapi CodeSimplifier (inline-code merge/reduce) — no native code simplifier; neokapi preserves inline codes verbatim",
           "testState": "skipped",
           "skipCategory": "abstract"
         },
@@ -480,7 +480,7 @@
           "javaClass": "net.sf.okapi.filters.abstractmarkup.SimplifierRulesTest",
           "javaMethod": "testCodeReduction13",
           "okapiStatus": "pass",
-          "skipReason": "abstract base class — behaviour exercised via concrete html/xml/odf native readers",
+          "skipReason": "Okapi CodeSimplifier (inline-code merge/reduce) — no native code simplifier; neokapi preserves inline codes verbatim",
           "testState": "skipped",
           "skipCategory": "abstract"
         },
@@ -488,7 +488,7 @@
           "javaClass": "net.sf.okapi.filters.abstractmarkup.SimplifierRulesTest",
           "javaMethod": "testCodeReduction14",
           "okapiStatus": "pass",
-          "skipReason": "abstract base class — behaviour exercised via concrete html/xml/odf native readers",
+          "skipReason": "Okapi CodeSimplifier (inline-code merge/reduce) — no native code simplifier; neokapi preserves inline codes verbatim",
           "testState": "skipped",
           "skipCategory": "abstract"
         },
@@ -496,7 +496,7 @@
           "javaClass": "net.sf.okapi.filters.abstractmarkup.SimplifierRulesTest",
           "javaMethod": "testCodeReduction15",
           "okapiStatus": "pass",
-          "skipReason": "abstract base class — behaviour exercised via concrete html/xml/odf native readers",
+          "skipReason": "Okapi CodeSimplifier (inline-code merge/reduce) — no native code simplifier; neokapi preserves inline codes verbatim",
           "testState": "skipped",
           "skipCategory": "abstract"
         },
@@ -504,7 +504,7 @@
           "javaClass": "net.sf.okapi.filters.abstractmarkup.SimplifierRulesTest",
           "javaMethod": "testCodeReduction16",
           "okapiStatus": "pass",
-          "skipReason": "abstract base class — behaviour exercised via concrete html/xml/odf native readers",
+          "skipReason": "Okapi CodeSimplifier (inline-code merge/reduce) — no native code simplifier; neokapi preserves inline codes verbatim",
           "testState": "skipped",
           "skipCategory": "abstract"
         },
@@ -512,7 +512,7 @@
           "javaClass": "net.sf.okapi.filters.abstractmarkup.SimplifierRulesTest",
           "javaMethod": "testCodeReduction17",
           "okapiStatus": "pass",
-          "skipReason": "abstract base class — behaviour exercised via concrete html/xml/odf native readers",
+          "skipReason": "Okapi CodeSimplifier (inline-code merge/reduce) — no native code simplifier; neokapi preserves inline codes verbatim",
           "testState": "skipped",
           "skipCategory": "abstract"
         },
@@ -520,7 +520,7 @@
           "javaClass": "net.sf.okapi.filters.abstractmarkup.SimplifierRulesTest",
           "javaMethod": "testCodeReduction18",
           "okapiStatus": "pass",
-          "skipReason": "abstract base class — behaviour exercised via concrete html/xml/odf native readers",
+          "skipReason": "Okapi CodeSimplifier (inline-code merge/reduce) — no native code simplifier; neokapi preserves inline codes verbatim",
           "testState": "skipped",
           "skipCategory": "abstract"
         },
@@ -528,7 +528,7 @@
           "javaClass": "net.sf.okapi.filters.abstractmarkup.SimplifierRulesTest",
           "javaMethod": "testCodeReduction19",
           "okapiStatus": "pass",
-          "skipReason": "abstract base class — behaviour exercised via concrete html/xml/odf native readers",
+          "skipReason": "Okapi CodeSimplifier (inline-code merge/reduce) — no native code simplifier; neokapi preserves inline codes verbatim",
           "testState": "skipped",
           "skipCategory": "abstract"
         },
@@ -536,7 +536,7 @@
           "javaClass": "net.sf.okapi.filters.abstractmarkup.SimplifierRulesTest",
           "javaMethod": "testCodeReduction20",
           "okapiStatus": "pass",
-          "skipReason": "abstract base class — behaviour exercised via concrete html/xml/odf native readers",
+          "skipReason": "Okapi CodeSimplifier (inline-code merge/reduce) — no native code simplifier; neokapi preserves inline codes verbatim",
           "testState": "skipped",
           "skipCategory": "abstract"
         },
@@ -544,7 +544,7 @@
           "javaClass": "net.sf.okapi.filters.abstractmarkup.SimplifierRulesTest",
           "javaMethod": "testCodeReduction21",
           "okapiStatus": "pass",
-          "skipReason": "abstract base class — behaviour exercised via concrete html/xml/odf native readers",
+          "skipReason": "Okapi CodeSimplifier (inline-code merge/reduce) — no native code simplifier; neokapi preserves inline codes verbatim",
           "testState": "skipped",
           "skipCategory": "abstract"
         },
@@ -552,7 +552,7 @@
           "javaClass": "net.sf.okapi.filters.abstractmarkup.SimplifierRulesTest",
           "javaMethod": "testCodeReduction22",
           "okapiStatus": "pass",
-          "skipReason": "abstract base class — behaviour exercised via concrete html/xml/odf native readers",
+          "skipReason": "Okapi CodeSimplifier (inline-code merge/reduce) — no native code simplifier; neokapi preserves inline codes verbatim",
           "testState": "skipped",
           "skipCategory": "abstract"
         },
@@ -560,7 +560,7 @@
           "javaClass": "net.sf.okapi.filters.abstractmarkup.SimplifierRulesTest",
           "javaMethod": "testCodeReduction23",
           "okapiStatus": "pass",
-          "skipReason": "abstract base class — behaviour exercised via concrete html/xml/odf native readers",
+          "skipReason": "Okapi CodeSimplifier (inline-code merge/reduce) — no native code simplifier; neokapi preserves inline codes verbatim",
           "testState": "skipped",
           "skipCategory": "abstract"
         },
@@ -568,7 +568,7 @@
           "javaClass": "net.sf.okapi.filters.abstractmarkup.SimplifierRulesTest",
           "javaMethod": "testCodeReduction24",
           "okapiStatus": "pass",
-          "skipReason": "abstract base class — behaviour exercised via concrete html/xml/odf native readers",
+          "skipReason": "Okapi CodeSimplifier (inline-code merge/reduce) — no native code simplifier; neokapi preserves inline codes verbatim",
           "testState": "skipped",
           "skipCategory": "abstract"
         },
@@ -576,7 +576,7 @@
           "javaClass": "net.sf.okapi.filters.abstractmarkup.SimplifierRulesTest",
           "javaMethod": "testCodeReduction25",
           "okapiStatus": "pass",
-          "skipReason": "abstract base class — behaviour exercised via concrete html/xml/odf native readers",
+          "skipReason": "Okapi CodeSimplifier (inline-code merge/reduce) — no native code simplifier; neokapi preserves inline codes verbatim",
           "testState": "skipped",
           "skipCategory": "abstract"
         },
@@ -584,7 +584,7 @@
           "javaClass": "net.sf.okapi.filters.abstractmarkup.SimplifierRulesTest",
           "javaMethod": "testCodeReduction26",
           "okapiStatus": "pass",
-          "skipReason": "abstract base class — behaviour exercised via concrete html/xml/odf native readers",
+          "skipReason": "Okapi CodeSimplifier (inline-code merge/reduce) — no native code simplifier; neokapi preserves inline codes verbatim",
           "testState": "skipped",
           "skipCategory": "abstract"
         },
@@ -592,7 +592,7 @@
           "javaClass": "net.sf.okapi.filters.abstractmarkup.SimplifierRulesTest",
           "javaMethod": "testCodeReduction27",
           "okapiStatus": "pass",
-          "skipReason": "abstract base class — behaviour exercised via concrete html/xml/odf native readers",
+          "skipReason": "Okapi CodeSimplifier (inline-code merge/reduce) — no native code simplifier; neokapi preserves inline codes verbatim",
           "testState": "skipped",
           "skipCategory": "abstract"
         },
@@ -600,7 +600,7 @@
           "javaClass": "net.sf.okapi.filters.abstractmarkup.SimplifierRulesTest",
           "javaMethod": "testCodeReduction28",
           "okapiStatus": "pass",
-          "skipReason": "abstract base class — behaviour exercised via concrete html/xml/odf native readers",
+          "skipReason": "Okapi CodeSimplifier (inline-code merge/reduce) — no native code simplifier; neokapi preserves inline codes verbatim",
           "testState": "skipped",
           "skipCategory": "abstract"
         },
@@ -608,7 +608,7 @@
           "javaClass": "net.sf.okapi.filters.abstractmarkup.SimplifierRulesTest",
           "javaMethod": "testCodeReduction29",
           "okapiStatus": "pass",
-          "skipReason": "abstract base class — behaviour exercised via concrete html/xml/odf native readers",
+          "skipReason": "Okapi CodeSimplifier (inline-code merge/reduce) — no native code simplifier; neokapi preserves inline codes verbatim",
           "testState": "skipped",
           "skipCategory": "abstract"
         },
@@ -616,7 +616,7 @@
           "javaClass": "net.sf.okapi.filters.abstractmarkup.SimplifierRulesTest",
           "javaMethod": "testCodeReduction30",
           "okapiStatus": "pass",
-          "skipReason": "abstract base class — behaviour exercised via concrete html/xml/odf native readers",
+          "skipReason": "Okapi CodeSimplifier (inline-code merge/reduce) — no native code simplifier; neokapi preserves inline codes verbatim",
           "testState": "skipped",
           "skipCategory": "abstract"
         },
@@ -624,7 +624,7 @@
           "javaClass": "net.sf.okapi.filters.abstractmarkup.SimplifierRulesTest",
           "javaMethod": "testCodeReduction31",
           "okapiStatus": "pass",
-          "skipReason": "abstract base class — behaviour exercised via concrete html/xml/odf native readers",
+          "skipReason": "Okapi CodeSimplifier (inline-code merge/reduce) — no native code simplifier; neokapi preserves inline codes verbatim",
           "testState": "skipped",
           "skipCategory": "abstract"
         },
@@ -632,7 +632,7 @@
           "javaClass": "net.sf.okapi.filters.abstractmarkup.SimplifierRulesTest",
           "javaMethod": "testCodeReduction32",
           "okapiStatus": "pass",
-          "skipReason": "abstract base class — behaviour exercised via concrete html/xml/odf native readers",
+          "skipReason": "Okapi CodeSimplifier (inline-code merge/reduce) — no native code simplifier; neokapi preserves inline codes verbatim",
           "testState": "skipped",
           "skipCategory": "abstract"
         },
@@ -640,7 +640,7 @@
           "javaClass": "net.sf.okapi.filters.abstractmarkup.SimplifierRulesTest",
           "javaMethod": "testCodeReduction33",
           "okapiStatus": "pass",
-          "skipReason": "abstract base class — behaviour exercised via concrete html/xml/odf native readers",
+          "skipReason": "Okapi CodeSimplifier (inline-code merge/reduce) — no native code simplifier; neokapi preserves inline codes verbatim",
           "testState": "skipped",
           "skipCategory": "abstract"
         },
@@ -648,7 +648,7 @@
           "javaClass": "net.sf.okapi.filters.abstractmarkup.SimplifierRulesTest",
           "javaMethod": "testCodeReduction34",
           "okapiStatus": "pass",
-          "skipReason": "abstract base class — behaviour exercised via concrete html/xml/odf native readers",
+          "skipReason": "Okapi CodeSimplifier (inline-code merge/reduce) — no native code simplifier; neokapi preserves inline codes verbatim",
           "testState": "skipped",
           "skipCategory": "abstract"
         },
@@ -656,7 +656,7 @@
           "javaClass": "net.sf.okapi.filters.abstractmarkup.SimplifierRulesTest",
           "javaMethod": "testCodeReduction35",
           "okapiStatus": "pass",
-          "skipReason": "abstract base class — behaviour exercised via concrete html/xml/odf native readers",
+          "skipReason": "Okapi CodeSimplifier (inline-code merge/reduce) — no native code simplifier; neokapi preserves inline codes verbatim",
           "testState": "skipped",
           "skipCategory": "abstract"
         },
@@ -664,7 +664,7 @@
           "javaClass": "net.sf.okapi.filters.abstractmarkup.SimplifierRulesTest",
           "javaMethod": "testCodeReduction36",
           "okapiStatus": "pass",
-          "skipReason": "abstract base class — behaviour exercised via concrete html/xml/odf native readers",
+          "skipReason": "Okapi CodeSimplifier (inline-code merge/reduce) — no native code simplifier; neokapi preserves inline codes verbatim",
           "testState": "skipped",
           "skipCategory": "abstract"
         },
@@ -672,7 +672,7 @@
           "javaClass": "net.sf.okapi.filters.abstractmarkup.SimplifierRulesTest",
           "javaMethod": "testCodeReduction37",
           "okapiStatus": "pass",
-          "skipReason": "abstract base class — behaviour exercised via concrete html/xml/odf native readers",
+          "skipReason": "Okapi CodeSimplifier (inline-code merge/reduce) — no native code simplifier; neokapi preserves inline codes verbatim",
           "testState": "skipped",
           "skipCategory": "abstract"
         },
@@ -680,7 +680,7 @@
           "javaClass": "net.sf.okapi.filters.abstractmarkup.SimplifierRulesTest",
           "javaMethod": "testCodeReduction38",
           "okapiStatus": "pass",
-          "skipReason": "abstract base class — behaviour exercised via concrete html/xml/odf native readers",
+          "skipReason": "Okapi CodeSimplifier (inline-code merge/reduce) — no native code simplifier; neokapi preserves inline codes verbatim",
           "testState": "skipped",
           "skipCategory": "abstract"
         },
@@ -688,7 +688,7 @@
           "javaClass": "net.sf.okapi.filters.abstractmarkup.SimplifierRulesTest",
           "javaMethod": "testCodeReduction39",
           "okapiStatus": "pass",
-          "skipReason": "abstract base class — behaviour exercised via concrete html/xml/odf native readers",
+          "skipReason": "Okapi CodeSimplifier (inline-code merge/reduce) — no native code simplifier; neokapi preserves inline codes verbatim",
           "testState": "skipped",
           "skipCategory": "abstract"
         },
@@ -696,7 +696,7 @@
           "javaClass": "net.sf.okapi.filters.abstractmarkup.SimplifierRulesTest",
           "javaMethod": "testCodeReduction40",
           "okapiStatus": "pass",
-          "skipReason": "abstract base class — behaviour exercised via concrete html/xml/odf native readers",
+          "skipReason": "Okapi CodeSimplifier (inline-code merge/reduce) — no native code simplifier; neokapi preserves inline codes verbatim",
           "testState": "skipped",
           "skipCategory": "abstract"
         },
@@ -704,7 +704,7 @@
           "javaClass": "net.sf.okapi.filters.abstractmarkup.SimplifierRulesTest",
           "javaMethod": "testCodeReduction41",
           "okapiStatus": "pass",
-          "skipReason": "abstract base class — behaviour exercised via concrete html/xml/odf native readers",
+          "skipReason": "Okapi CodeSimplifier (inline-code merge/reduce) — no native code simplifier; neokapi preserves inline codes verbatim",
           "testState": "skipped",
           "skipCategory": "abstract"
         },
@@ -712,7 +712,7 @@
           "javaClass": "net.sf.okapi.filters.abstractmarkup.SimplifierRulesTest",
           "javaMethod": "testCodeReduction42",
           "okapiStatus": "pass",
-          "skipReason": "abstract base class — behaviour exercised via concrete html/xml/odf native readers",
+          "skipReason": "Okapi CodeSimplifier (inline-code merge/reduce) — no native code simplifier; neokapi preserves inline codes verbatim",
           "testState": "skipped",
           "skipCategory": "abstract"
         },
@@ -720,7 +720,7 @@
           "javaClass": "net.sf.okapi.filters.abstractmarkup.SimplifierRulesTest",
           "javaMethod": "testCodeReduction43",
           "okapiStatus": "pass",
-          "skipReason": "abstract base class — behaviour exercised via concrete html/xml/odf native readers",
+          "skipReason": "Okapi CodeSimplifier (inline-code merge/reduce) — no native code simplifier; neokapi preserves inline codes verbatim",
           "testState": "skipped",
           "skipCategory": "abstract"
         },
@@ -728,7 +728,7 @@
           "javaClass": "net.sf.okapi.filters.abstractmarkup.SimplifierRulesTest",
           "javaMethod": "testCodeReduction44",
           "okapiStatus": "pass",
-          "skipReason": "abstract base class — behaviour exercised via concrete html/xml/odf native readers",
+          "skipReason": "Okapi CodeSimplifier (inline-code merge/reduce) — no native code simplifier; neokapi preserves inline codes verbatim",
           "testState": "skipped",
           "skipCategory": "abstract"
         },
@@ -736,7 +736,7 @@
           "javaClass": "net.sf.okapi.filters.abstractmarkup.SimplifierRulesTest",
           "javaMethod": "testCodeReduction45",
           "okapiStatus": "pass",
-          "skipReason": "abstract base class — behaviour exercised via concrete html/xml/odf native readers",
+          "skipReason": "Okapi CodeSimplifier (inline-code merge/reduce) — no native code simplifier; neokapi preserves inline codes verbatim",
           "testState": "skipped",
           "skipCategory": "abstract"
         },
@@ -744,7 +744,7 @@
           "javaClass": "net.sf.okapi.filters.abstractmarkup.SimplifierRulesTest",
           "javaMethod": "testCodeReduction46",
           "okapiStatus": "pass",
-          "skipReason": "abstract base class — behaviour exercised via concrete html/xml/odf native readers",
+          "skipReason": "Okapi CodeSimplifier (inline-code merge/reduce) — no native code simplifier; neokapi preserves inline codes verbatim",
           "testState": "skipped",
           "skipCategory": "abstract"
         },
@@ -752,7 +752,7 @@
           "javaClass": "net.sf.okapi.filters.abstractmarkup.SimplifierRulesTest",
           "javaMethod": "testCodeReduction47",
           "okapiStatus": "pass",
-          "skipReason": "abstract base class — behaviour exercised via concrete html/xml/odf native readers",
+          "skipReason": "Okapi CodeSimplifier (inline-code merge/reduce) — no native code simplifier; neokapi preserves inline codes verbatim",
           "testState": "skipped",
           "skipCategory": "abstract"
         },
@@ -760,7 +760,7 @@
           "javaClass": "net.sf.okapi.filters.abstractmarkup.SimplifierRulesTest",
           "javaMethod": "testCodeReduction48",
           "okapiStatus": "pass",
-          "skipReason": "abstract base class — behaviour exercised via concrete html/xml/odf native readers",
+          "skipReason": "Okapi CodeSimplifier (inline-code merge/reduce) — no native code simplifier; neokapi preserves inline codes verbatim",
           "testState": "skipped",
           "skipCategory": "abstract"
         },
@@ -768,7 +768,7 @@
           "javaClass": "net.sf.okapi.filters.abstractmarkup.SimplifierRulesTest",
           "javaMethod": "testCodeReduction49",
           "okapiStatus": "pass",
-          "skipReason": "abstract base class — behaviour exercised via concrete html/xml/odf native readers",
+          "skipReason": "Okapi CodeSimplifier (inline-code merge/reduce) — no native code simplifier; neokapi preserves inline codes verbatim",
           "testState": "skipped",
           "skipCategory": "abstract"
         },
@@ -776,7 +776,7 @@
           "javaClass": "net.sf.okapi.filters.abstractmarkup.SimplifierRulesTest",
           "javaMethod": "testCodeReduction50",
           "okapiStatus": "pass",
-          "skipReason": "abstract base class — behaviour exercised via concrete html/xml/odf native readers",
+          "skipReason": "Okapi CodeSimplifier (inline-code merge/reduce) — no native code simplifier; neokapi preserves inline codes verbatim",
           "testState": "skipped",
           "skipCategory": "abstract"
         },
@@ -784,7 +784,7 @@
           "javaClass": "net.sf.okapi.filters.abstractmarkup.SimplifierRulesTest",
           "javaMethod": "testCodeReduction51",
           "okapiStatus": "pass",
-          "skipReason": "abstract base class — behaviour exercised via concrete html/xml/odf native readers",
+          "skipReason": "Okapi CodeSimplifier (inline-code merge/reduce) — no native code simplifier; neokapi preserves inline codes verbatim",
           "testState": "skipped",
           "skipCategory": "abstract"
         },
@@ -792,7 +792,7 @@
           "javaClass": "net.sf.okapi.filters.abstractmarkup.SimplifierRulesTest",
           "javaMethod": "testCodeReduction52",
           "okapiStatus": "pass",
-          "skipReason": "abstract base class — behaviour exercised via concrete html/xml/odf native readers",
+          "skipReason": "Okapi CodeSimplifier (inline-code merge/reduce) — no native code simplifier; neokapi preserves inline codes verbatim",
           "testState": "skipped",
           "skipCategory": "abstract"
         },
@@ -800,7 +800,7 @@
           "javaClass": "net.sf.okapi.filters.abstractmarkup.SimplifierRulesTest",
           "javaMethod": "testCodeReduction53",
           "okapiStatus": "pass",
-          "skipReason": "abstract base class — behaviour exercised via concrete html/xml/odf native readers",
+          "skipReason": "Okapi CodeSimplifier (inline-code merge/reduce) — no native code simplifier; neokapi preserves inline codes verbatim",
           "testState": "skipped",
           "skipCategory": "abstract"
         },
@@ -808,7 +808,7 @@
           "javaClass": "net.sf.okapi.filters.abstractmarkup.SimplifierRulesTest",
           "javaMethod": "testCodeReduction54",
           "okapiStatus": "pass",
-          "skipReason": "abstract base class — behaviour exercised via concrete html/xml/odf native readers",
+          "skipReason": "Okapi CodeSimplifier (inline-code merge/reduce) — no native code simplifier; neokapi preserves inline codes verbatim",
           "testState": "skipped",
           "skipCategory": "abstract"
         },
@@ -816,7 +816,7 @@
           "javaClass": "net.sf.okapi.filters.abstractmarkup.SimplifierRulesTest",
           "javaMethod": "testCodeReduction55",
           "okapiStatus": "pass",
-          "skipReason": "abstract base class — behaviour exercised via concrete html/xml/odf native readers",
+          "skipReason": "Okapi CodeSimplifier (inline-code merge/reduce) — no native code simplifier; neokapi preserves inline codes verbatim",
           "testState": "skipped",
           "skipCategory": "abstract"
         },
@@ -824,7 +824,7 @@
           "javaClass": "net.sf.okapi.filters.abstractmarkup.SimplifierRulesTest",
           "javaMethod": "testCodeReduction56",
           "okapiStatus": "pass",
-          "skipReason": "abstract base class — behaviour exercised via concrete html/xml/odf native readers",
+          "skipReason": "Okapi CodeSimplifier (inline-code merge/reduce) — no native code simplifier; neokapi preserves inline codes verbatim",
           "testState": "skipped",
           "skipCategory": "abstract"
         }
@@ -3675,9 +3675,12 @@
           "nativeTest": "TestSkeletonStore_ByteExact_JavadocSingleLine",
           "nativeFile": "skeleton_test.go",
           "nativeLine": 90,
-          "skipReason": "okapi's RoundTripComparison over lists.h is event-stable; the native reader/writer reflow of HTML (`\u003cul\u003e/\u003cli\u003e`) and `-#`/`.` doxygen lists is not roundtrip-idempotent for lists.h (paragraph-break and list structure shift on re-extraction), so a faithful roundtrip cannot be asserted. Simpler fixtures (sample.h, qt-style.h, javadoc-style.h) do roundtrip and are covered by other native tests",
+          "skipReason": "okapi's RoundTripComparison over lists.h is event-stable; the native reader/writer reflow of HTML (`\u003cul\u003e/\u003cli\u003e`) and `-#`/`.` doxygen lists is not roundtrip-idempotent for lists.h (paragraph-break and list structure shift on re-extraction), so a faithful roundtrip cannot be asserted. Simpler fixtures (sample.h, qt-style.h, javadoc-style.h) do roundtrip and are covered by TestDoubleExtraction_Sample, TestDoubleExtraction_QtStyle, and TestDoubleExtraction_JavadocStyle",
           "testState": "skipped",
-          "skipCategory": "roundtrip"
+          "skipCategory": "roundtrip",
+          "coveredByTest": "TestDoubleExtraction_Sample",
+          "coveredByFile": "reader_test.go",
+          "coveredByLine": 382
         },
         {
           "javaClass": "net.sf.okapi.filters.doxygen.DoxygenFilterTest",
@@ -9000,7 +9003,10 @@
           "nativeLine": 1779,
           "skipReason": "Okapi's inline code finder regex applies during extraction. Config acceptance tested in TestConfig_CodeFinderRules.",
           "testState": "skipped",
-          "skipCategory": "regex"
+          "skipCategory": "regex",
+          "coveredByTest": "TestConfig_CodeFinderRules",
+          "coveredByFile": "snippets_test.go",
+          "coveredByLine": 1509
         },
         {
           "javaClass": "net.sf.okapi.filters.html.HtmlSnippetsTest",
@@ -9292,9 +9298,12 @@
           "nativeTest": "TestRoundtrip_Simple",
           "nativeFile": "snippets_test.go",
           "nativeLine": 1779,
-          "skipReason": "duplicate of HtmlEventTest#testLang, already covered above.",
+          "skipReason": "same lang-attribute handling as HtmlEventTest#testLang, covered by TestEvents_Lang.",
           "testState": "skipped",
-          "skipCategory": "acknowledged"
+          "skipCategory": "acknowledged",
+          "coveredByTest": "TestEvents_Lang",
+          "coveredByFile": "snippets_test.go",
+          "coveredByLine": 633
         },
         {
           "javaClass": "net.sf.okapi.filters.html.HtmlSnippetsTest",
@@ -10055,9 +10064,12 @@
           "nativeTest": "TestRoundtrip_Simple",
           "nativeFile": "snippets_test.go",
           "nativeLine": 1779,
-          "skipReason": "duplicate of HtmlEventTest#testPWithAttributes, already covered above.",
+          "skipReason": "same `\u003cp title=\"my title\" dir=\"rtl\"\u003eText of p\u003c/p\u003e` snippet as HtmlEventTest#testPWithAttributes, covered by TestEvents_PWithAttributes.",
           "testState": "skipped",
-          "skipCategory": "acknowledged"
+          "skipCategory": "acknowledged",
+          "coveredByTest": "TestEvents_PWithAttributes",
+          "coveredByFile": "snippets_test.go",
+          "coveredByLine": 597
         },
         {
           "javaClass": "net.sf.okapi.filters.html.HtmlSnippetsTest",
@@ -10219,9 +10231,12 @@
           "nativeTest": "TestRoundtrip_Simple",
           "nativeFile": "snippets_test.go",
           "nativeLine": 1779,
-          "skipReason": "file reconstruction is covered by roundtrip tests.",
+          "skipReason": "skeleton-writer file reconstruction (read → skeleton-write → byte-exact, including the Content-Type meta injection) is covered by TestSkeletonRoundtrip_ByteExact.",
           "testState": "skipped",
-          "skipCategory": "roundtrip"
+          "skipCategory": "roundtrip",
+          "coveredByTest": "TestSkeletonRoundtrip_ByteExact",
+          "coveredByFile": "roundtrip_test.go",
+          "coveredByLine": 408
         },
         {
           "javaClass": "net.sf.okapi.filters.html.integration.ExtractionComparisionTest",
@@ -13837,7 +13852,7 @@
           "javaClass": "net.sf.okapi.filters.its.ParametersTest",
           "javaMethod": "customValuesNotWrittenAsString",
           "okapiStatus": "pass",
-          "skipReason": "no native ITS filter — ITS global-rule processing is bridge-only (inline ITS in HTML/XML is handled by the html/xml readers)",
+          "skipReason": "no standalone native ITS filter — inline ITS attributes are honored by the xml/html readers (core/its), but ITS global-rule (.fprm) processing is bridge-only",
           "testState": "skipped",
           "skipCategory": "no-native"
         },
@@ -13845,7 +13860,7 @@
           "javaClass": "net.sf.okapi.filters.its.ParametersTest",
           "javaMethod": "defaultValuesWrittenAsString",
           "okapiStatus": "pass",
-          "skipReason": "no native ITS filter — ITS global-rule processing is bridge-only (inline ITS in HTML/XML is handled by the html/xml readers)",
+          "skipReason": "no standalone native ITS filter — inline ITS attributes are honored by the xml/html readers (core/its), but ITS global-rule (.fprm) processing is bridge-only",
           "testState": "skipped",
           "skipCategory": "no-native"
         },
@@ -13853,7 +13868,7 @@
           "javaClass": "net.sf.okapi.filters.its.ParametersTest",
           "javaMethod": "codesSimplificationParametersReadFromString",
           "okapiStatus": "pass",
-          "skipReason": "no native ITS filter — ITS global-rule processing is bridge-only (inline ITS in HTML/XML is handled by the html/xml readers)",
+          "skipReason": "no standalone native ITS filter — inline ITS attributes are honored by the xml/html readers (core/its), but ITS global-rule (.fprm) processing is bridge-only",
           "testState": "skipped",
           "skipCategory": "no-native"
         },
@@ -13861,7 +13876,7 @@
           "javaClass": "net.sf.okapi.filters.its.html5.HTML5DefaultsTest",
           "javaMethod": "testTranslateOverrides",
           "okapiStatus": "skip",
-          "skipReason": "no native ITS filter — ITS global-rule processing is bridge-only (inline ITS in HTML/XML is handled by the html/xml readers)",
+          "skipReason": "no standalone native ITS filter — inline ITS attributes are honored by the xml/html readers (core/its), but ITS global-rule (.fprm) processing is bridge-only",
           "testState": "skipped",
           "skipCategory": "no-native"
         },
@@ -13869,7 +13884,7 @@
           "javaClass": "net.sf.okapi.filters.its.html5.HTML5DefaultsTest",
           "javaMethod": "testWinthinText",
           "okapiStatus": "pass",
-          "skipReason": "no native ITS filter — ITS global-rule processing is bridge-only (inline ITS in HTML/XML is handled by the html/xml readers)",
+          "skipReason": "no standalone native ITS filter — inline ITS attributes are honored by the xml/html readers (core/its), but ITS global-rule (.fprm) processing is bridge-only",
           "testState": "skipped",
           "skipCategory": "no-native"
         },
@@ -13877,7 +13892,7 @@
           "javaClass": "net.sf.okapi.filters.its.html5.HTML5FilterTest",
           "javaMethod": "testSimpleRead",
           "okapiStatus": "pass",
-          "skipReason": "no native ITS filter — ITS global-rule processing is bridge-only (inline ITS in HTML/XML is handled by the html/xml readers)",
+          "skipReason": "no standalone native ITS filter — inline ITS attributes are honored by the xml/html readers (core/its), but ITS global-rule (.fprm) processing is bridge-only",
           "testState": "skipped",
           "skipCategory": "no-native"
         },
@@ -13885,7 +13900,7 @@
           "javaClass": "net.sf.okapi.filters.its.html5.HTML5FilterTest",
           "javaMethod": "testOpenTwice",
           "okapiStatus": "pass",
-          "skipReason": "no native ITS filter — ITS global-rule processing is bridge-only (inline ITS in HTML/XML is handled by the html/xml readers)",
+          "skipReason": "no standalone native ITS filter — inline ITS attributes are honored by the xml/html readers (core/its), but ITS global-rule (.fprm) processing is bridge-only",
           "testState": "skipped",
           "skipCategory": "no-native"
         },
@@ -13893,7 +13908,7 @@
           "javaClass": "net.sf.okapi.filters.its.html5.HTML5FilterTest",
           "javaMethod": "testTranslateLocally",
           "okapiStatus": "pass",
-          "skipReason": "no native ITS filter — ITS global-rule processing is bridge-only (inline ITS in HTML/XML is handled by the html/xml readers)",
+          "skipReason": "no standalone native ITS filter — inline ITS attributes are honored by the xml/html readers (core/its), but ITS global-rule (.fprm) processing is bridge-only",
           "testState": "skipped",
           "skipCategory": "no-native"
         },
@@ -13901,7 +13916,7 @@
           "javaClass": "net.sf.okapi.filters.its.html5.HTML5FilterTest",
           "javaMethod": "testProvenanceStandoff",
           "okapiStatus": "pass",
-          "skipReason": "no native ITS filter — ITS global-rule processing is bridge-only (inline ITS in HTML/XML is handled by the html/xml readers)",
+          "skipReason": "no standalone native ITS filter — inline ITS attributes are honored by the xml/html readers (core/its), but ITS global-rule (.fprm) processing is bridge-only",
           "testState": "skipped",
           "skipCategory": "no-native"
         },
@@ -13909,7 +13924,7 @@
           "javaClass": "net.sf.okapi.filters.its.html5.HTML5FilterTest",
           "javaMethod": "testPreserveSpace",
           "okapiStatus": "pass",
-          "skipReason": "no native ITS filter — ITS global-rule processing is bridge-only (inline ITS in HTML/XML is handled by the html/xml readers)",
+          "skipReason": "no standalone native ITS filter — inline ITS attributes are honored by the xml/html readers (core/its), but ITS global-rule (.fprm) processing is bridge-only",
           "testState": "skipped",
           "skipCategory": "no-native"
         },
@@ -13917,7 +13932,7 @@
           "javaClass": "net.sf.okapi.filters.its.html5.HTML5FilterTest",
           "javaMethod": "testStandofftLocQualityIssues",
           "okapiStatus": "pass",
-          "skipReason": "no native ITS filter — ITS global-rule processing is bridge-only (inline ITS in HTML/XML is handled by the html/xml readers)",
+          "skipReason": "no standalone native ITS filter — inline ITS attributes are honored by the xml/html readers (core/its), but ITS global-rule (.fprm) processing is bridge-only",
           "testState": "skipped",
           "skipCategory": "no-native"
         },
@@ -13925,7 +13940,7 @@
           "javaClass": "net.sf.okapi.filters.its.html5.HTML5FilterTest",
           "javaMethod": "testWhiteSpaces",
           "okapiStatus": "pass",
-          "skipReason": "no native ITS filter — ITS global-rule processing is bridge-only (inline ITS in HTML/XML is handled by the html/xml readers)",
+          "skipReason": "no standalone native ITS filter — inline ITS attributes are honored by the xml/html readers (core/its), but ITS global-rule (.fprm) processing is bridge-only",
           "testState": "skipped",
           "skipCategory": "no-native"
         },
@@ -13933,7 +13948,7 @@
           "javaClass": "net.sf.okapi.filters.its.html5.HTML5FilterTest",
           "javaMethod": "testTranslateOnAttribute",
           "okapiStatus": "pass",
-          "skipReason": "no native ITS filter — ITS global-rule processing is bridge-only (inline ITS in HTML/XML is handled by the html/xml readers)",
+          "skipReason": "no standalone native ITS filter — inline ITS attributes are honored by the xml/html readers (core/its), but ITS global-rule (.fprm) processing is bridge-only",
           "testState": "skipped",
           "skipCategory": "no-native"
         },
@@ -13941,7 +13956,7 @@
           "javaClass": "net.sf.okapi.filters.its.html5.HTML5FilterTest",
           "javaMethod": "testStorageSizeLocal",
           "okapiStatus": "pass",
-          "skipReason": "no native ITS filter — ITS global-rule processing is bridge-only (inline ITS in HTML/XML is handled by the html/xml readers)",
+          "skipReason": "no standalone native ITS filter — inline ITS attributes are honored by the xml/html readers (core/its), but ITS global-rule (.fprm) processing is bridge-only",
           "testState": "skipped",
           "skipCategory": "no-native"
         },
@@ -13949,7 +13964,7 @@
           "javaClass": "net.sf.okapi.filters.its.html5.HTML5FilterTest",
           "javaMethod": "testLink",
           "okapiStatus": "pass",
-          "skipReason": "no native ITS filter — ITS global-rule processing is bridge-only (inline ITS in HTML/XML is handled by the html/xml readers)",
+          "skipReason": "no standalone native ITS filter — inline ITS attributes are honored by the xml/html readers (core/its), but ITS global-rule (.fprm) processing is bridge-only",
           "testState": "skipped",
           "skipCategory": "no-native"
         },
@@ -13957,7 +13972,7 @@
           "javaClass": "net.sf.okapi.filters.its.html5.HTML5FilterTest",
           "javaMethod": "testRulesInScripts",
           "okapiStatus": "pass",
-          "skipReason": "no native ITS filter — ITS global-rule processing is bridge-only (inline ITS in HTML/XML is handled by the html/xml readers)",
+          "skipReason": "no standalone native ITS filter — inline ITS attributes are honored by the xml/html readers (core/its), but ITS global-rule (.fprm) processing is bridge-only",
           "testState": "skipped",
           "skipCategory": "no-native"
         },
@@ -13965,7 +13980,7 @@
           "javaClass": "net.sf.okapi.filters.its.html5.HTML5FilterTest",
           "javaMethod": "testWithinTextLocal",
           "okapiStatus": "pass",
-          "skipReason": "no native ITS filter — ITS global-rule processing is bridge-only (inline ITS in HTML/XML is handled by the html/xml readers)",
+          "skipReason": "no standalone native ITS filter — inline ITS attributes are honored by the xml/html readers (core/its), but ITS global-rule (.fprm) processing is bridge-only",
           "testState": "skipped",
           "skipCategory": "no-native"
         },
@@ -13973,7 +13988,7 @@
           "javaClass": "net.sf.okapi.filters.its.html5.HTML5FilterTest",
           "javaMethod": "testExternalResources",
           "okapiStatus": "pass",
-          "skipReason": "no native ITS filter — ITS global-rule processing is bridge-only (inline ITS in HTML/XML is handled by the html/xml readers)",
+          "skipReason": "no standalone native ITS filter — inline ITS attributes are honored by the xml/html readers (core/its), but ITS global-rule (.fprm) processing is bridge-only",
           "testState": "skipped",
           "skipCategory": "no-native"
         },
@@ -13981,7 +13996,7 @@
           "javaClass": "net.sf.okapi.filters.its.html5.HTML5FilterTest",
           "javaMethod": "testMinimalHTMLWithStandoff",
           "okapiStatus": "pass",
-          "skipReason": "no native ITS filter — ITS global-rule processing is bridge-only (inline ITS in HTML/XML is handled by the html/xml readers)",
+          "skipReason": "no standalone native ITS filter — inline ITS attributes are honored by the xml/html readers (core/its), but ITS global-rule (.fprm) processing is bridge-only",
           "testState": "skipped",
           "skipCategory": "no-native"
         },
@@ -13989,7 +14004,7 @@
           "javaClass": "net.sf.okapi.filters.its.html5.HTML5FilterTest",
           "javaMethod": "testAddITSAnnotations1",
           "okapiStatus": "pass",
-          "skipReason": "no native ITS filter — ITS global-rule processing is bridge-only (inline ITS in HTML/XML is handled by the html/xml readers)",
+          "skipReason": "no standalone native ITS filter — inline ITS attributes are honored by the xml/html readers (core/its), but ITS global-rule (.fprm) processing is bridge-only",
           "testState": "skipped",
           "skipCategory": "no-native"
         },
@@ -13997,7 +14012,7 @@
           "javaClass": "net.sf.okapi.filters.its.html5.HTML5FilterTest",
           "javaMethod": "testAddITSAnnotations2",
           "okapiStatus": "pass",
-          "skipReason": "no native ITS filter — ITS global-rule processing is bridge-only (inline ITS in HTML/XML is handled by the html/xml readers)",
+          "skipReason": "no standalone native ITS filter — inline ITS attributes are honored by the xml/html readers (core/its), but ITS global-rule (.fprm) processing is bridge-only",
           "testState": "skipped",
           "skipCategory": "no-native"
         },
@@ -14005,7 +14020,7 @@
           "javaClass": "net.sf.okapi.filters.its.html5.HTML5FilterTest",
           "javaMethod": "testAddITSAnnotations3",
           "okapiStatus": "pass",
-          "skipReason": "no native ITS filter — ITS global-rule processing is bridge-only (inline ITS in HTML/XML is handled by the html/xml readers)",
+          "skipReason": "no standalone native ITS filter — inline ITS attributes are honored by the xml/html readers (core/its), but ITS global-rule (.fprm) processing is bridge-only",
           "testState": "skipped",
           "skipCategory": "no-native"
         },
@@ -14013,7 +14028,7 @@
           "javaClass": "net.sf.okapi.filters.its.html5.HTML5FilterTest",
           "javaMethod": "testSimpleOutput",
           "okapiStatus": "pass",
-          "skipReason": "no native ITS filter — ITS global-rule processing is bridge-only (inline ITS in HTML/XML is handled by the html/xml readers)",
+          "skipReason": "no standalone native ITS filter — inline ITS attributes are honored by the xml/html readers (core/its), but ITS global-rule (.fprm) processing is bridge-only",
           "testState": "skipped",
           "skipCategory": "no-native"
         },
@@ -14021,7 +14036,7 @@
           "javaClass": "net.sf.okapi.filters.its.html5.HTML5FilterTest",
           "javaMethod": "testMinimalHTML5Output",
           "okapiStatus": "pass",
-          "skipReason": "no native ITS filter — ITS global-rule processing is bridge-only (inline ITS in HTML/XML is handled by the html/xml readers)",
+          "skipReason": "no standalone native ITS filter — inline ITS attributes are honored by the xml/html readers (core/its), but ITS global-rule (.fprm) processing is bridge-only",
           "testState": "skipped",
           "skipCategory": "no-native"
         },
@@ -14029,7 +14044,7 @@
           "javaClass": "net.sf.okapi.filters.its.html5.HTML5FilterTest",
           "javaMethod": "testStorageSizeOnAttribute",
           "okapiStatus": "pass",
-          "skipReason": "no native ITS filter — ITS global-rule processing is bridge-only (inline ITS in HTML/XML is handled by the html/xml readers)",
+          "skipReason": "no standalone native ITS filter — inline ITS attributes are honored by the xml/html readers (core/its), but ITS global-rule (.fprm) processing is bridge-only",
           "testState": "skipped",
           "skipCategory": "no-native"
         },
@@ -14037,7 +14052,7 @@
           "javaClass": "net.sf.okapi.filters.its.html5.HTML5FilterTest",
           "javaMethod": "testLocalLocQualityIssues",
           "okapiStatus": "pass",
-          "skipReason": "no native ITS filter — ITS global-rule processing is bridge-only (inline ITS in HTML/XML is handled by the html/xml readers)",
+          "skipReason": "no standalone native ITS filter — inline ITS attributes are honored by the xml/html readers (core/its), but ITS global-rule (.fprm) processing is bridge-only",
           "testState": "skipped",
           "skipCategory": "no-native"
         },
@@ -14045,7 +14060,7 @@
           "javaClass": "net.sf.okapi.filters.its.html5.HTML5FilterTest",
           "javaMethod": "testTranslateAttribute",
           "okapiStatus": "pass",
-          "skipReason": "no native ITS filter — ITS global-rule processing is bridge-only (inline ITS in HTML/XML is handled by the html/xml readers)",
+          "skipReason": "no standalone native ITS filter — inline ITS attributes are honored by the xml/html readers (core/its), but ITS global-rule (.fprm) processing is bridge-only",
           "testState": "skipped",
           "skipCategory": "no-native"
         },
@@ -14053,7 +14068,7 @@
           "javaClass": "net.sf.okapi.filters.its.html5.HTML5FilterTest",
           "javaMethod": "testTextDirectionClarification",
           "okapiStatus": "pass",
-          "skipReason": "no native ITS filter — ITS global-rule processing is bridge-only (inline ITS in HTML/XML is handled by the html/xml readers)",
+          "skipReason": "no standalone native ITS filter — inline ITS attributes are honored by the xml/html readers (core/its), but ITS global-rule (.fprm) processing is bridge-only",
           "testState": "skipped",
           "skipCategory": "no-native",
           "params": 7
@@ -14062,7 +14077,7 @@
           "javaClass": "net.sf.okapi.filters.its.html5.HTML5FilterTest",
           "javaMethod": "testEmptyElements2",
           "okapiStatus": "pass",
-          "skipReason": "no native ITS filter — ITS global-rule processing is bridge-only (inline ITS in HTML/XML is handled by the html/xml readers)",
+          "skipReason": "no standalone native ITS filter — inline ITS attributes are honored by the xml/html readers (core/its), but ITS global-rule (.fprm) processing is bridge-only",
           "testState": "skipped",
           "skipCategory": "no-native"
         },
@@ -14070,7 +14085,7 @@
           "javaClass": "net.sf.okapi.filters.its.html5.HTML5FilterTest",
           "javaMethod": "testAllowedChars",
           "okapiStatus": "pass",
-          "skipReason": "no native ITS filter — ITS global-rule processing is bridge-only (inline ITS in HTML/XML is handled by the html/xml readers)",
+          "skipReason": "no standalone native ITS filter — inline ITS attributes are honored by the xml/html readers (core/its), but ITS global-rule (.fprm) processing is bridge-only",
           "testState": "skipped",
           "skipCategory": "no-native"
         },
@@ -14078,7 +14093,7 @@
           "javaClass": "net.sf.okapi.filters.its.html5.HTML5FilterTest",
           "javaMethod": "testLocQualityIssuesExternalXMLStandoff",
           "okapiStatus": "pass",
-          "skipReason": "no native ITS filter — ITS global-rule processing is bridge-only (inline ITS in HTML/XML is handled by the html/xml readers)",
+          "skipReason": "no standalone native ITS filter — inline ITS attributes are honored by the xml/html readers (core/its), but ITS global-rule (.fprm) processing is bridge-only",
           "testState": "skipped",
           "skipCategory": "no-native"
         },
@@ -14086,7 +14101,7 @@
           "javaClass": "net.sf.okapi.filters.its.html5.HTML5FilterTest",
           "javaMethod": "testDATAContentOutput",
           "okapiStatus": "pass",
-          "skipReason": "no native ITS filter — ITS global-rule processing is bridge-only (inline ITS in HTML/XML is handled by the html/xml readers)",
+          "skipReason": "no standalone native ITS filter — inline ITS attributes are honored by the xml/html readers (core/its), but ITS global-rule (.fprm) processing is bridge-only",
           "testState": "skipped",
           "skipCategory": "no-native"
         },
@@ -14094,7 +14109,7 @@
           "javaClass": "net.sf.okapi.filters.its.html5.HTML5FilterTest",
           "javaMethod": "testGlobalLocQualityIssues",
           "okapiStatus": "pass",
-          "skipReason": "no native ITS filter — ITS global-rule processing is bridge-only (inline ITS in HTML/XML is handled by the html/xml readers)",
+          "skipReason": "no standalone native ITS filter — inline ITS attributes are honored by the xml/html readers (core/its), but ITS global-rule (.fprm) processing is bridge-only",
           "testState": "skipped",
           "skipCategory": "no-native"
         },
@@ -14102,7 +14117,7 @@
           "javaClass": "net.sf.okapi.filters.its.html5.HTML5FilterTest",
           "javaMethod": "testLQRLocal",
           "okapiStatus": "pass",
-          "skipReason": "no native ITS filter — ITS global-rule processing is bridge-only (inline ITS in HTML/XML is handled by the html/xml readers)",
+          "skipReason": "no standalone native ITS filter — inline ITS attributes are honored by the xml/html readers (core/its), but ITS global-rule (.fprm) processing is bridge-only",
           "testState": "skipped",
           "skipCategory": "no-native"
         },
@@ -14110,7 +14125,7 @@
           "javaClass": "net.sf.okapi.filters.its.html5.HTML5FilterTest",
           "javaMethod": "testDomain",
           "okapiStatus": "pass",
-          "skipReason": "no native ITS filter — ITS global-rule processing is bridge-only (inline ITS in HTML/XML is handled by the html/xml readers)",
+          "skipReason": "no standalone native ITS filter — inline ITS attributes are honored by the xml/html readers (core/its), but ITS global-rule (.fprm) processing is bridge-only",
           "testState": "skipped",
           "skipCategory": "no-native"
         },
@@ -14118,7 +14133,7 @@
           "javaClass": "net.sf.okapi.filters.its.html5.HTML5FilterTest",
           "javaMethod": "testTerminologyLocal",
           "okapiStatus": "pass",
-          "skipReason": "no native ITS filter — ITS global-rule processing is bridge-only (inline ITS in HTML/XML is handled by the html/xml readers)",
+          "skipReason": "no standalone native ITS filter — inline ITS attributes are honored by the xml/html readers (core/its), but ITS global-rule (.fprm) processing is bridge-only",
           "testState": "skipped",
           "skipCategory": "no-native"
         },
@@ -14126,7 +14141,7 @@
           "javaClass": "net.sf.okapi.filters.its.html5.HTML5FilterTest",
           "javaMethod": "testTranslateOverridenByRule",
           "okapiStatus": "pass",
-          "skipReason": "no native ITS filter — ITS global-rule processing is bridge-only (inline ITS in HTML/XML is handled by the html/xml readers)",
+          "skipReason": "no standalone native ITS filter — inline ITS attributes are honored by the xml/html readers (core/its), but ITS global-rule (.fprm) processing is bridge-only",
           "testState": "skipped",
           "skipCategory": "no-native"
         },
@@ -14134,7 +14149,7 @@
           "javaClass": "net.sf.okapi.filters.its.html5.HTML5FilterTest",
           "javaMethod": "testLocNoteLocal",
           "okapiStatus": "pass",
-          "skipReason": "no native ITS filter — ITS global-rule processing is bridge-only (inline ITS in HTML/XML is handled by the html/xml readers)",
+          "skipReason": "no standalone native ITS filter — inline ITS attributes are honored by the xml/html readers (core/its), but ITS global-rule (.fprm) processing is bridge-only",
           "testState": "skipped",
           "skipCategory": "no-native"
         },
@@ -14142,7 +14157,7 @@
           "javaClass": "net.sf.okapi.filters.its.html5.HTML5FilterTest",
           "javaMethod": "testLocaleFilterLocal",
           "okapiStatus": "pass",
-          "skipReason": "no native ITS filter — ITS global-rule processing is bridge-only (inline ITS in HTML/XML is handled by the html/xml readers)",
+          "skipReason": "no standalone native ITS filter — inline ITS attributes are honored by the xml/html readers (core/its), but ITS global-rule (.fprm) processing is bridge-only",
           "testState": "skipped",
           "skipCategory": "no-native"
         },
@@ -14150,7 +14165,7 @@
           "javaClass": "net.sf.okapi.filters.its.html5.HTML5FilterTest",
           "javaMethod": "testIdValueLocal",
           "okapiStatus": "pass",
-          "skipReason": "no native ITS filter — ITS global-rule processing is bridge-only (inline ITS in HTML/XML is handled by the html/xml readers)",
+          "skipReason": "no standalone native ITS filter — inline ITS attributes are honored by the xml/html readers (core/its), but ITS global-rule (.fprm) processing is bridge-only",
           "testState": "skipped",
           "skipCategory": "no-native"
         },
@@ -14158,7 +14173,7 @@
           "javaClass": "net.sf.okapi.roundtrip.integration.RoundTripHtmlItsIT",
           "javaMethod": "itsHtmlFiles",
           "okapiStatus": "pass",
-          "skipReason": "no native ITS filter — ITS global-rule processing is bridge-only (inline ITS in HTML/XML is handled by the html/xml readers)",
+          "skipReason": "no standalone native ITS filter — inline ITS attributes are honored by the xml/html readers (core/its), but ITS global-rule (.fprm) processing is bridge-only",
           "testState": "skipped",
           "skipCategory": "no-native"
         },
@@ -14166,7 +14181,7 @@
           "javaClass": "net.sf.okapi.roundtrip.integration.RoundTripHtmlItsIT",
           "javaMethod": "itsHtmlFilesSerialized",
           "okapiStatus": "pass",
-          "skipReason": "no native ITS filter — ITS global-rule processing is bridge-only (inline ITS in HTML/XML is handled by the html/xml readers)",
+          "skipReason": "no standalone native ITS filter — inline ITS attributes are honored by the xml/html readers (core/its), but ITS global-rule (.fprm) processing is bridge-only",
           "testState": "skipped",
           "skipCategory": "no-native"
         },
@@ -14174,7 +14189,7 @@
           "javaClass": "net.sf.okapi.roundtrip.integration.RoundTripItsIT",
           "javaMethod": "itsXmlSerializedFiles",
           "okapiStatus": "pass",
-          "skipReason": "no native ITS filter — ITS global-rule processing is bridge-only (inline ITS in HTML/XML is handled by the html/xml readers)",
+          "skipReason": "no standalone native ITS filter — inline ITS attributes are honored by the xml/html readers (core/its), but ITS global-rule (.fprm) processing is bridge-only",
           "testState": "skipped",
           "skipCategory": "no-native"
         },
@@ -14182,7 +14197,7 @@
           "javaClass": "net.sf.okapi.roundtrip.integration.RoundTripItsIT",
           "javaMethod": "itsXmlFiles",
           "okapiStatus": "pass",
-          "skipReason": "no native ITS filter — ITS global-rule processing is bridge-only (inline ITS in HTML/XML is handled by the html/xml readers)",
+          "skipReason": "no standalone native ITS filter — inline ITS attributes are honored by the xml/html readers (core/its), but ITS global-rule (.fprm) processing is bridge-only",
           "testState": "skipped",
           "skipCategory": "no-native"
         },
@@ -14190,7 +14205,7 @@
           "javaClass": "net.sf.okapi.xliffcompare.integration.HtmlItsXliffCompareIT",
           "javaMethod": "itsHtmlXliffCompareFiles",
           "okapiStatus": "pass",
-          "skipReason": "no native ITS filter — ITS global-rule processing is bridge-only (inline ITS in HTML/XML is handled by the html/xml readers)",
+          "skipReason": "no standalone native ITS filter — inline ITS attributes are honored by the xml/html readers (core/its), but ITS global-rule (.fprm) processing is bridge-only",
           "testState": "skipped",
           "skipCategory": "no-native"
         },
@@ -14198,7 +14213,7 @@
           "javaClass": "net.sf.okapi.xliffcompare.integration.ItsXliffCompareIT",
           "javaMethod": "itsXmlXliffCompareFiles",
           "okapiStatus": "pass",
-          "skipReason": "no native ITS filter — ITS global-rule processing is bridge-only (inline ITS in HTML/XML is handled by the html/xml readers)",
+          "skipReason": "no standalone native ITS filter — inline ITS attributes are honored by the xml/html readers (core/its), but ITS global-rule (.fprm) processing is bridge-only",
           "testState": "skipped",
           "skipCategory": "no-native"
         }
@@ -25313,9 +25328,12 @@
           "nativeTest": "TestCharOnly",
           "nativeFile": "extraction_test.go",
           "nativeLine": 262,
-          "skipReason": "same internal Document/Statements API, run over every fixture; no native equivalent (the native round-trip is exercised by the SkeletonStore byte-exact tests in skeleton_test.go instead).",
+          "skipReason": "same internal Document/Statements API, run over every fixture; the native reader has no statement-iterator surface, but the equivalent verbatim re-serialization (byte-exact file reconstruction via the SkeletonStore) is covered by TestSkeletonStore_ByteExact_SimpleFile.",
           "testState": "skipped",
-          "skipCategory": "roundtrip"
+          "skipCategory": "other",
+          "coveredByTest": "TestSkeletonStore_ByteExact_SimpleFile",
+          "coveredByFile": "skeleton_test.go",
+          "coveredByLine": 124
         },
         {
           "javaClass": "net.sf.okapi.filters.mif.ExtractionTest",
@@ -27319,7 +27337,7 @@
               {
                 "name": "TestSpec",
                 "status": "pass",
-                "durationMs": 20
+                "durationMs": 30
               },
               {
                 "name": "TestSpec/document_boundary_events",
@@ -27384,7 +27402,7 @@
               {
                 "name": "TestSpec/odt_body_paragraph_extraction",
                 "status": "pass",
-                "durationMs": 0
+                "durationMs": 10
               },
               {
                 "name": "TestSpec/odt_body_paragraph_extraction/testdocument01_baseline",
@@ -27827,7 +27845,7 @@
               {
                 "name": "TestSpec",
                 "status": "pass",
-                "durationMs": 20
+                "durationMs": 30
               },
               {
                 "name": "TestSpec/document_boundary_events",
@@ -27892,7 +27910,7 @@
               {
                 "name": "TestSpec/odt_body_paragraph_extraction",
                 "status": "pass",
-                "durationMs": 0
+                "durationMs": 10
               },
               {
                 "name": "TestSpec/odt_body_paragraph_extraction/testdocument01_baseline",
@@ -38791,9 +38809,12 @@
           "okapiStatus": "pass",
           "nativeFile": "native_test.go",
           "nativeLine": 205,
-          "skipReason": "covered by roundtrip glob",
+          "skipReason": "DOCX corpus roundtrip covered by TestRoundTrip_Docx",
           "testState": "skipped",
-          "skipCategory": "roundtrip"
+          "skipCategory": "roundtrip",
+          "coveredByTest": "TestRoundTrip_Docx",
+          "coveredByFile": "roundtrip_test.go",
+          "coveredByLine": 155
         },
         {
           "javaClass": "net.sf.okapi.filters.openxml.OpenXMLRoundTripTest",
@@ -38801,9 +38822,12 @@
           "okapiStatus": "pass",
           "nativeFile": "native_test.go",
           "nativeLine": 203,
-          "skipReason": "covered by roundtrip glob",
+          "skipReason": "DOCX corpus roundtrip covered by TestRoundTrip_Docx",
           "testState": "skipped",
-          "skipCategory": "roundtrip"
+          "skipCategory": "roundtrip",
+          "coveredByTest": "TestRoundTrip_Docx",
+          "coveredByFile": "roundtrip_test.go",
+          "coveredByLine": 155
         },
         {
           "javaClass": "net.sf.okapi.filters.openxml.OpenXMLRoundTripTest",
@@ -38811,9 +38835,12 @@
           "okapiStatus": "pass",
           "nativeFile": "native_test.go",
           "nativeLine": 161,
-          "skipReason": "covered by roundtrip glob",
+          "skipReason": "DOCX corpus roundtrip covered by TestRoundTrip_Docx",
           "testState": "skipped",
-          "skipCategory": "roundtrip"
+          "skipCategory": "roundtrip",
+          "coveredByTest": "TestRoundTrip_Docx",
+          "coveredByFile": "roundtrip_test.go",
+          "coveredByLine": 155
         },
         {
           "javaClass": "net.sf.okapi.filters.openxml.OpenXMLRoundTripTest",
@@ -38821,9 +38848,12 @@
           "okapiStatus": "pass",
           "nativeFile": "native_test.go",
           "nativeLine": 234,
-          "skipReason": "covered by roundtrip glob",
+          "skipReason": "XLSX corpus roundtrip covered by TestRoundTrip_Xlsx",
           "testState": "skipped",
-          "skipCategory": "roundtrip"
+          "skipCategory": "roundtrip",
+          "coveredByTest": "TestRoundTrip_Xlsx",
+          "coveredByFile": "roundtrip_test.go",
+          "coveredByLine": 183
         },
         {
           "javaClass": "net.sf.okapi.filters.openxml.OpenXMLRoundTripTest",
@@ -38831,9 +38861,12 @@
           "okapiStatus": "pass",
           "nativeFile": "native_test.go",
           "nativeLine": 174,
-          "skipReason": "covered by roundtrip glob",
+          "skipReason": "XLSX corpus roundtrip covered by TestRoundTrip_Xlsx",
           "testState": "skipped",
-          "skipCategory": "roundtrip"
+          "skipCategory": "roundtrip",
+          "coveredByTest": "TestRoundTrip_Xlsx",
+          "coveredByFile": "roundtrip_test.go",
+          "coveredByLine": 183
         },
         {
           "javaClass": "net.sf.okapi.filters.openxml.OpenXMLRoundTripTest",
@@ -38841,9 +38874,12 @@
           "okapiStatus": "pass",
           "nativeFile": "native_test.go",
           "nativeLine": 190,
-          "skipReason": "covered by roundtrip glob",
+          "skipReason": "OpenXML corpus roundtrip covered by TestRoundTrip_Docx/TestRoundTrip_Xlsx/TestRoundTrip_Pptx (hidden drawing-object filtering",
           "testState": "skipped",
-          "skipCategory": "roundtrip"
+          "skipCategory": "roundtrip",
+          "coveredByTest": "TestRoundTrip_Docx",
+          "coveredByFile": "roundtrip_test.go",
+          "coveredByLine": 155
         },
         {
           "javaClass": "net.sf.okapi.filters.openxml.OpenXMLRoundTripTest",
@@ -38851,9 +38887,12 @@
           "okapiStatus": "pass",
           "nativeFile": "native_test.go",
           "nativeLine": 271,
-          "skipReason": "covered by roundtrip glob",
+          "skipReason": "XLSX corpus roundtrip covered by TestRoundTrip_Xlsx",
           "testState": "skipped",
-          "skipCategory": "roundtrip"
+          "skipCategory": "roundtrip",
+          "coveredByTest": "TestRoundTrip_Xlsx",
+          "coveredByFile": "roundtrip_test.go",
+          "coveredByLine": 183
         },
         {
           "javaClass": "net.sf.okapi.filters.openxml.OpenXMLRoundTripTest",
@@ -38861,9 +38900,12 @@
           "okapiStatus": "pass",
           "nativeFile": "native_test.go",
           "nativeLine": 272,
-          "skipReason": "covered by roundtrip glob",
+          "skipReason": "DOCX corpus roundtrip covered by TestRoundTrip_Docx",
           "testState": "skipped",
-          "skipCategory": "roundtrip"
+          "skipCategory": "roundtrip",
+          "coveredByTest": "TestRoundTrip_Docx",
+          "coveredByFile": "roundtrip_test.go",
+          "coveredByLine": 155
         },
         {
           "javaClass": "net.sf.okapi.filters.openxml.OpenXMLRoundTripTest",
@@ -38871,9 +38913,12 @@
           "okapiStatus": "pass",
           "nativeFile": "native_test.go",
           "nativeLine": 247,
-          "skipReason": "covered by roundtrip glob",
+          "skipReason": "XLSX corpus roundtrip covered by TestRoundTrip_Xlsx",
           "testState": "skipped",
-          "skipCategory": "roundtrip"
+          "skipCategory": "roundtrip",
+          "coveredByTest": "TestRoundTrip_Xlsx",
+          "coveredByFile": "roundtrip_test.go",
+          "coveredByLine": 183
         },
         {
           "javaClass": "net.sf.okapi.filters.openxml.OpenXMLRoundTripTest",
@@ -38891,9 +38936,12 @@
           "okapiStatus": "pass",
           "nativeFile": "native_test.go",
           "nativeLine": 171,
-          "skipReason": "covered by roundtrip glob",
+          "skipReason": "DOCX corpus roundtrip covered by TestRoundTrip_Docx",
           "testState": "skipped",
-          "skipCategory": "roundtrip"
+          "skipCategory": "roundtrip",
+          "coveredByTest": "TestRoundTrip_Docx",
+          "coveredByFile": "roundtrip_test.go",
+          "coveredByLine": 155
         },
         {
           "javaClass": "net.sf.okapi.filters.openxml.OpenXMLRoundTripTest",
@@ -38901,9 +38949,12 @@
           "okapiStatus": "pass",
           "nativeFile": "native_test.go",
           "nativeLine": 166,
-          "skipReason": "covered by roundtrip glob",
+          "skipReason": "no native equivalent: code-finder escaped-HTML-tag preservation across an XLIFF merge is a merge-time code-finder behaviour; native code-finder support is exercised at extraction by TestNative_CodeFinderExtraction, but the merge-time HTML-escape preservation is not asserted natively",
           "testState": "skipped",
-          "skipCategory": "roundtrip"
+          "skipCategory": "acknowledged",
+          "coveredByTest": "TestNative_CodeFinderExtraction",
+          "coveredByFile": "native_test.go",
+          "coveredByLine": 1463
         },
         {
           "javaClass": "net.sf.okapi.filters.openxml.OpenXMLRoundTripTest",
@@ -38911,9 +38962,12 @@
           "okapiStatus": "pass",
           "nativeFile": "native_test.go",
           "nativeLine": 252,
-          "skipReason": "covered by roundtrip glob",
+          "skipReason": "XLSX corpus roundtrip covered by TestRoundTrip_Xlsx",
           "testState": "skipped",
-          "skipCategory": "roundtrip"
+          "skipCategory": "roundtrip",
+          "coveredByTest": "TestRoundTrip_Xlsx",
+          "coveredByFile": "roundtrip_test.go",
+          "coveredByLine": 183
         },
         {
           "javaClass": "net.sf.okapi.filters.openxml.OpenXMLRoundTripTest",
@@ -38921,9 +38975,12 @@
           "okapiStatus": "pass",
           "nativeFile": "native_test.go",
           "nativeLine": 222,
-          "skipReason": "covered by roundtrip glob",
+          "skipReason": "DOCX corpus roundtrip covered by TestRoundTrip_Docx",
           "testState": "skipped",
-          "skipCategory": "roundtrip"
+          "skipCategory": "roundtrip",
+          "coveredByTest": "TestRoundTrip_Docx",
+          "coveredByFile": "roundtrip_test.go",
+          "coveredByLine": 155
         },
         {
           "javaClass": "net.sf.okapi.filters.openxml.OpenXMLRoundTripTest",
@@ -38931,9 +38988,12 @@
           "okapiStatus": "pass",
           "nativeFile": "native_test.go",
           "nativeLine": 226,
-          "skipReason": "covered by roundtrip glob",
+          "skipReason": "PPTX corpus roundtrip covered by TestRoundTrip_Pptx",
           "testState": "skipped",
-          "skipCategory": "roundtrip"
+          "skipCategory": "roundtrip",
+          "coveredByTest": "TestRoundTrip_Pptx",
+          "coveredByFile": "roundtrip_test.go",
+          "coveredByLine": 189
         },
         {
           "javaClass": "net.sf.okapi.filters.openxml.OpenXMLRoundTripTest",
@@ -38941,9 +39001,12 @@
           "okapiStatus": "pass",
           "nativeFile": "native_test.go",
           "nativeLine": 172,
-          "skipReason": "covered by roundtrip glob",
+          "skipReason": "DOCX corpus roundtrip covered by TestRoundTrip_Docx",
           "testState": "skipped",
-          "skipCategory": "roundtrip"
+          "skipCategory": "roundtrip",
+          "coveredByTest": "TestRoundTrip_Docx",
+          "coveredByFile": "roundtrip_test.go",
+          "coveredByLine": 155
         },
         {
           "javaClass": "net.sf.okapi.filters.openxml.OpenXMLRoundTripTest",
@@ -38951,9 +39014,12 @@
           "okapiStatus": "pass",
           "nativeFile": "native_test.go",
           "nativeLine": 273,
-          "skipReason": "covered by roundtrip glob",
+          "skipReason": "DOCX corpus roundtrip covered by TestRoundTrip_Docx",
           "testState": "skipped",
-          "skipCategory": "roundtrip"
+          "skipCategory": "roundtrip",
+          "coveredByTest": "TestRoundTrip_Docx",
+          "coveredByFile": "roundtrip_test.go",
+          "coveredByLine": 155
         },
         {
           "javaClass": "net.sf.okapi.filters.openxml.OpenXMLRoundTripTest",
@@ -38961,9 +39027,12 @@
           "okapiStatus": "pass",
           "nativeFile": "native_test.go",
           "nativeLine": 208,
-          "skipReason": "covered by roundtrip glob",
+          "skipReason": "DOCX corpus roundtrip covered by TestRoundTrip_Docx",
           "testState": "skipped",
-          "skipCategory": "roundtrip"
+          "skipCategory": "roundtrip",
+          "coveredByTest": "TestRoundTrip_Docx",
+          "coveredByFile": "roundtrip_test.go",
+          "coveredByLine": 155
         },
         {
           "javaClass": "net.sf.okapi.filters.openxml.OpenXMLRoundTripTest",
@@ -38971,9 +39040,12 @@
           "okapiStatus": "pass",
           "nativeFile": "native_test.go",
           "nativeLine": 236,
-          "skipReason": "covered by roundtrip glob",
+          "skipReason": "XLSX corpus roundtrip covered by TestRoundTrip_Xlsx",
           "testState": "skipped",
-          "skipCategory": "roundtrip"
+          "skipCategory": "roundtrip",
+          "coveredByTest": "TestRoundTrip_Xlsx",
+          "coveredByFile": "roundtrip_test.go",
+          "coveredByLine": 183
         },
         {
           "javaClass": "net.sf.okapi.filters.openxml.OpenXMLRoundTripTest",
@@ -38981,9 +39053,12 @@
           "okapiStatus": "pass",
           "nativeFile": "native_test.go",
           "nativeLine": 177,
-          "skipReason": "covered by roundtrip glob",
+          "skipReason": "DOCX corpus roundtrip covered by TestRoundTrip_Docx",
           "testState": "skipped",
-          "skipCategory": "roundtrip"
+          "skipCategory": "roundtrip",
+          "coveredByTest": "TestRoundTrip_Docx",
+          "coveredByFile": "roundtrip_test.go",
+          "coveredByLine": 155
         },
         {
           "javaClass": "net.sf.okapi.filters.openxml.OpenXMLRoundTripTest",
@@ -38991,9 +39066,12 @@
           "okapiStatus": "pass",
           "nativeFile": "native_test.go",
           "nativeLine": 213,
-          "skipReason": "covered by roundtrip glob",
+          "skipReason": "DOCX corpus roundtrip covered by TestRoundTrip_Docx",
           "testState": "skipped",
-          "skipCategory": "roundtrip"
+          "skipCategory": "roundtrip",
+          "coveredByTest": "TestRoundTrip_Docx",
+          "coveredByFile": "roundtrip_test.go",
+          "coveredByLine": 155
         },
         {
           "javaClass": "net.sf.okapi.filters.openxml.OpenXMLRoundTripTest",
@@ -39001,9 +39079,12 @@
           "okapiStatus": "pass",
           "nativeFile": "native_test.go",
           "nativeLine": 169,
-          "skipReason": "covered by roundtrip glob",
+          "skipReason": "DOCX corpus roundtrip covered by TestRoundTrip_Docx",
           "testState": "skipped",
-          "skipCategory": "roundtrip"
+          "skipCategory": "roundtrip",
+          "coveredByTest": "TestRoundTrip_Docx",
+          "coveredByFile": "roundtrip_test.go",
+          "coveredByLine": 155
         },
         {
           "javaClass": "net.sf.okapi.filters.openxml.OpenXMLRoundTripTest",
@@ -39011,9 +39092,12 @@
           "okapiStatus": "pass",
           "nativeFile": "native_test.go",
           "nativeLine": 186,
-          "skipReason": "covered by roundtrip glob",
+          "skipReason": "XLSX corpus roundtrip covered by TestRoundTrip_Xlsx",
           "testState": "skipped",
-          "skipCategory": "roundtrip"
+          "skipCategory": "roundtrip",
+          "coveredByTest": "TestRoundTrip_Xlsx",
+          "coveredByFile": "roundtrip_test.go",
+          "coveredByLine": 183
         },
         {
           "javaClass": "net.sf.okapi.filters.openxml.OpenXMLRoundTripTest",
@@ -39021,9 +39105,12 @@
           "okapiStatus": "pass",
           "nativeFile": "native_test.go",
           "nativeLine": 215,
-          "skipReason": "covered by roundtrip glob",
+          "skipReason": "PPTX corpus roundtrip covered by TestRoundTrip_Pptx",
           "testState": "skipped",
-          "skipCategory": "roundtrip"
+          "skipCategory": "roundtrip",
+          "coveredByTest": "TestRoundTrip_Pptx",
+          "coveredByFile": "roundtrip_test.go",
+          "coveredByLine": 189
         },
         {
           "javaClass": "net.sf.okapi.filters.openxml.OpenXMLRoundTripTest",
@@ -39031,9 +39118,12 @@
           "okapiStatus": "pass",
           "nativeFile": "native_test.go",
           "nativeLine": 249,
-          "skipReason": "covered by roundtrip glob",
+          "skipReason": "XLSX corpus roundtrip covered by TestRoundTrip_Xlsx",
           "testState": "skipped",
-          "skipCategory": "roundtrip"
+          "skipCategory": "roundtrip",
+          "coveredByTest": "TestRoundTrip_Xlsx",
+          "coveredByFile": "roundtrip_test.go",
+          "coveredByLine": 183
         },
         {
           "javaClass": "net.sf.okapi.filters.openxml.OpenXMLRoundTripTest",
@@ -39041,9 +39131,12 @@
           "okapiStatus": "pass",
           "nativeFile": "native_test.go",
           "nativeLine": 200,
-          "skipReason": "covered by roundtrip glob",
+          "skipReason": "DOCX corpus roundtrip covered by TestRoundTrip_Docx",
           "testState": "skipped",
-          "skipCategory": "roundtrip"
+          "skipCategory": "roundtrip",
+          "coveredByTest": "TestRoundTrip_Docx",
+          "coveredByFile": "roundtrip_test.go",
+          "coveredByLine": 155
         },
         {
           "javaClass": "net.sf.okapi.filters.openxml.OpenXMLRoundTripTest",
@@ -39051,9 +39144,12 @@
           "okapiStatus": "pass",
           "nativeFile": "native_test.go",
           "nativeLine": 241,
-          "skipReason": "covered by roundtrip glob",
+          "skipReason": "XLSX corpus roundtrip covered by TestRoundTrip_Xlsx",
           "testState": "skipped",
-          "skipCategory": "roundtrip"
+          "skipCategory": "roundtrip",
+          "coveredByTest": "TestRoundTrip_Xlsx",
+          "coveredByFile": "roundtrip_test.go",
+          "coveredByLine": 183
         },
         {
           "javaClass": "net.sf.okapi.filters.openxml.OpenXMLRoundTripTest",
@@ -39061,9 +39157,12 @@
           "okapiStatus": "pass",
           "nativeFile": "native_test.go",
           "nativeLine": 210,
-          "skipReason": "covered by roundtrip glob",
+          "skipReason": "DOCX/XLSX/PPTX corpus roundtrip covered by TestRoundTrip_Docx/TestRoundTrip_Xlsx/TestRoundTrip_Pptx",
           "testState": "skipped",
-          "skipCategory": "roundtrip"
+          "skipCategory": "roundtrip",
+          "coveredByTest": "TestRoundTrip_Docx",
+          "coveredByFile": "roundtrip_test.go",
+          "coveredByLine": 155
         },
         {
           "javaClass": "net.sf.okapi.filters.openxml.OpenXMLRoundTripTest",
@@ -39071,9 +39170,12 @@
           "okapiStatus": "pass",
           "nativeFile": "native_test.go",
           "nativeLine": 160,
-          "skipReason": "covered by roundtrip glob",
+          "skipReason": "DOCX corpus roundtrip covered by TestRoundTrip_Docx",
           "testState": "skipped",
-          "skipCategory": "roundtrip"
+          "skipCategory": "roundtrip",
+          "coveredByTest": "TestRoundTrip_Docx",
+          "coveredByFile": "roundtrip_test.go",
+          "coveredByLine": 155
         },
         {
           "javaClass": "net.sf.okapi.filters.openxml.OpenXMLRoundTripTest",
@@ -39081,9 +39183,12 @@
           "okapiStatus": "pass",
           "nativeFile": "native_test.go",
           "nativeLine": 201,
-          "skipReason": "covered by roundtrip glob",
+          "skipReason": "DOCX corpus roundtrip covered by TestRoundTrip_Docx",
           "testState": "skipped",
-          "skipCategory": "roundtrip"
+          "skipCategory": "roundtrip",
+          "coveredByTest": "TestRoundTrip_Docx",
+          "coveredByFile": "roundtrip_test.go",
+          "coveredByLine": 155
         },
         {
           "javaClass": "net.sf.okapi.filters.openxml.OpenXMLRoundTripTest",
@@ -39091,9 +39196,12 @@
           "okapiStatus": "pass",
           "nativeFile": "native_test.go",
           "nativeLine": 270,
-          "skipReason": "covered by roundtrip glob",
+          "skipReason": "PPTX corpus roundtrip covered by TestRoundTrip_Pptx",
           "testState": "skipped",
-          "skipCategory": "roundtrip"
+          "skipCategory": "roundtrip",
+          "coveredByTest": "TestRoundTrip_Pptx",
+          "coveredByFile": "roundtrip_test.go",
+          "coveredByLine": 189
         },
         {
           "javaClass": "net.sf.okapi.filters.openxml.OpenXMLRoundTripTest",
@@ -39101,9 +39209,12 @@
           "okapiStatus": "pass",
           "nativeFile": "native_test.go",
           "nativeLine": 211,
-          "skipReason": "covered by roundtrip glob",
+          "skipReason": "XLSX corpus roundtrip covered by TestRoundTrip_Xlsx",
           "testState": "skipped",
-          "skipCategory": "roundtrip"
+          "skipCategory": "roundtrip",
+          "coveredByTest": "TestRoundTrip_Xlsx",
+          "coveredByFile": "roundtrip_test.go",
+          "coveredByLine": 183
         },
         {
           "javaClass": "net.sf.okapi.filters.openxml.OpenXMLRoundTripTest",
@@ -39111,9 +39222,12 @@
           "okapiStatus": "pass",
           "nativeFile": "native_test.go",
           "nativeLine": 230,
-          "skipReason": "covered by roundtrip glob",
+          "skipReason": "DOCX corpus roundtrip covered by TestRoundTrip_Docx",
           "testState": "skipped",
-          "skipCategory": "roundtrip"
+          "skipCategory": "roundtrip",
+          "coveredByTest": "TestRoundTrip_Docx",
+          "coveredByFile": "roundtrip_test.go",
+          "coveredByLine": 155
         },
         {
           "javaClass": "net.sf.okapi.filters.openxml.OpenXMLRoundTripTest",
@@ -39121,9 +39235,12 @@
           "okapiStatus": "pass",
           "nativeFile": "native_test.go",
           "nativeLine": 204,
-          "skipReason": "covered by roundtrip glob",
+          "skipReason": "DOCX corpus roundtrip covered by TestRoundTrip_Docx",
           "testState": "skipped",
-          "skipCategory": "roundtrip"
+          "skipCategory": "roundtrip",
+          "coveredByTest": "TestRoundTrip_Docx",
+          "coveredByFile": "roundtrip_test.go",
+          "coveredByLine": 155
         },
         {
           "javaClass": "net.sf.okapi.filters.openxml.OpenXMLRoundTripTest",
@@ -39131,9 +39248,12 @@
           "okapiStatus": "pass",
           "nativeFile": "native_test.go",
           "nativeLine": 239,
-          "skipReason": "covered by roundtrip glob",
+          "skipReason": "DOCX corpus roundtrip covered by TestRoundTrip_Docx",
           "testState": "skipped",
-          "skipCategory": "roundtrip"
+          "skipCategory": "roundtrip",
+          "coveredByTest": "TestRoundTrip_Docx",
+          "coveredByFile": "roundtrip_test.go",
+          "coveredByLine": 155
         },
         {
           "javaClass": "net.sf.okapi.filters.openxml.OpenXMLRoundTripTest",
@@ -39141,9 +39261,12 @@
           "okapiStatus": "pass",
           "nativeFile": "native_test.go",
           "nativeLine": 242,
-          "skipReason": "covered by roundtrip glob",
+          "skipReason": "DOCX corpus roundtrip covered by TestRoundTrip_Docx",
           "testState": "skipped",
-          "skipCategory": "roundtrip"
+          "skipCategory": "roundtrip",
+          "coveredByTest": "TestRoundTrip_Docx",
+          "coveredByFile": "roundtrip_test.go",
+          "coveredByLine": 155
         },
         {
           "javaClass": "net.sf.okapi.filters.openxml.OpenXMLRoundTripTest",
@@ -39151,9 +39274,12 @@
           "okapiStatus": "pass",
           "nativeFile": "native_test.go",
           "nativeLine": 217,
-          "skipReason": "covered by roundtrip glob",
+          "skipReason": "PPTX corpus roundtrip covered by TestRoundTrip_Pptx",
           "testState": "skipped",
-          "skipCategory": "roundtrip"
+          "skipCategory": "roundtrip",
+          "coveredByTest": "TestRoundTrip_Pptx",
+          "coveredByFile": "roundtrip_test.go",
+          "coveredByLine": 189
         },
         {
           "javaClass": "net.sf.okapi.filters.openxml.OpenXMLRoundTripTest",
@@ -39161,9 +39287,12 @@
           "okapiStatus": "pass",
           "nativeFile": "native_test.go",
           "nativeLine": 232,
-          "skipReason": "covered by roundtrip glob",
+          "skipReason": "DOCX corpus roundtrip covered by TestRoundTrip_Docx",
           "testState": "skipped",
-          "skipCategory": "roundtrip"
+          "skipCategory": "roundtrip",
+          "coveredByTest": "TestRoundTrip_Docx",
+          "coveredByFile": "roundtrip_test.go",
+          "coveredByLine": 155
         },
         {
           "javaClass": "net.sf.okapi.filters.openxml.OpenXMLRoundTripTest",
@@ -39171,9 +39300,12 @@
           "okapiStatus": "pass",
           "nativeFile": "native_test.go",
           "nativeLine": 240,
-          "skipReason": "covered by roundtrip glob",
+          "skipReason": "XLSX corpus roundtrip covered by TestRoundTrip_Xlsx",
           "testState": "skipped",
-          "skipCategory": "roundtrip"
+          "skipCategory": "roundtrip",
+          "coveredByTest": "TestRoundTrip_Xlsx",
+          "coveredByFile": "roundtrip_test.go",
+          "coveredByLine": 183
         },
         {
           "javaClass": "net.sf.okapi.filters.openxml.OpenXMLRoundTripTest",
@@ -39181,9 +39313,12 @@
           "okapiStatus": "pass",
           "nativeFile": "native_test.go",
           "nativeLine": 173,
-          "skipReason": "covered by roundtrip glob",
+          "skipReason": "DOCX corpus roundtrip covered by TestRoundTrip_Docx",
           "testState": "skipped",
-          "skipCategory": "roundtrip"
+          "skipCategory": "roundtrip",
+          "coveredByTest": "TestRoundTrip_Docx",
+          "coveredByFile": "roundtrip_test.go",
+          "coveredByLine": 155
         },
         {
           "javaClass": "net.sf.okapi.filters.openxml.OpenXMLRoundTripTest",
@@ -39191,9 +39326,12 @@
           "okapiStatus": "pass",
           "nativeFile": "native_test.go",
           "nativeLine": 264,
-          "skipReason": "covered by roundtrip glob",
+          "skipReason": "XLSX corpus roundtrip covered by TestRoundTrip_Xlsx",
           "testState": "skipped",
-          "skipCategory": "roundtrip"
+          "skipCategory": "roundtrip",
+          "coveredByTest": "TestRoundTrip_Xlsx",
+          "coveredByFile": "roundtrip_test.go",
+          "coveredByLine": 183
         },
         {
           "javaClass": "net.sf.okapi.filters.openxml.OpenXMLRoundTripTest",
@@ -39201,9 +39339,12 @@
           "okapiStatus": "pass",
           "nativeFile": "native_test.go",
           "nativeLine": 223,
-          "skipReason": "covered by roundtrip glob",
+          "skipReason": "DOCX corpus roundtrip covered by TestRoundTrip_Docx",
           "testState": "skipped",
-          "skipCategory": "roundtrip"
+          "skipCategory": "roundtrip",
+          "coveredByTest": "TestRoundTrip_Docx",
+          "coveredByFile": "roundtrip_test.go",
+          "coveredByLine": 155
         },
         {
           "javaClass": "net.sf.okapi.filters.openxml.OpenXMLRoundTripTest",
@@ -39211,9 +39352,12 @@
           "okapiStatus": "pass",
           "nativeFile": "native_test.go",
           "nativeLine": 233,
-          "skipReason": "covered by roundtrip glob",
+          "skipReason": "DOCX/PPTX corpus roundtrip covered by TestRoundTrip_Docx/TestRoundTrip_Pptx",
           "testState": "skipped",
-          "skipCategory": "roundtrip"
+          "skipCategory": "roundtrip",
+          "coveredByTest": "TestRoundTrip_Docx",
+          "coveredByFile": "roundtrip_test.go",
+          "coveredByLine": 155
         },
         {
           "javaClass": "net.sf.okapi.filters.openxml.OpenXMLRoundTripTest",
@@ -39221,9 +39365,12 @@
           "okapiStatus": "pass",
           "nativeFile": "native_test.go",
           "nativeLine": 191,
-          "skipReason": "covered by roundtrip glob",
+          "skipReason": "DOCX corpus roundtrip covered by TestRoundTrip_Docx",
           "testState": "skipped",
-          "skipCategory": "roundtrip"
+          "skipCategory": "roundtrip",
+          "coveredByTest": "TestRoundTrip_Docx",
+          "coveredByFile": "roundtrip_test.go",
+          "coveredByLine": 155
         },
         {
           "javaClass": "net.sf.okapi.filters.openxml.OpenXMLRoundTripTest",
@@ -39231,9 +39378,12 @@
           "okapiStatus": "pass",
           "nativeFile": "native_test.go",
           "nativeLine": 181,
-          "skipReason": "covered by roundtrip glob",
+          "skipReason": "PPTX corpus roundtrip covered by TestRoundTrip_Pptx",
           "testState": "skipped",
-          "skipCategory": "roundtrip"
+          "skipCategory": "roundtrip",
+          "coveredByTest": "TestRoundTrip_Pptx",
+          "coveredByFile": "roundtrip_test.go",
+          "coveredByLine": 189
         },
         {
           "javaClass": "net.sf.okapi.filters.openxml.OpenXMLRoundTripTest",
@@ -39241,9 +39391,12 @@
           "okapiStatus": "pass",
           "nativeFile": "native_test.go",
           "nativeLine": 256,
-          "skipReason": "covered by roundtrip glob",
+          "skipReason": "PPTX corpus roundtrip covered by TestRoundTrip_Pptx",
           "testState": "skipped",
-          "skipCategory": "roundtrip"
+          "skipCategory": "roundtrip",
+          "coveredByTest": "TestRoundTrip_Pptx",
+          "coveredByFile": "roundtrip_test.go",
+          "coveredByLine": 189
         },
         {
           "javaClass": "net.sf.okapi.filters.openxml.OpenXMLRoundTripTest",
@@ -39251,9 +39404,12 @@
           "okapiStatus": "pass",
           "nativeFile": "native_test.go",
           "nativeLine": 167,
-          "skipReason": "covered by roundtrip glob",
+          "skipReason": "no native equivalent: code-finder escaped-HTML-tag preservation in XLSX sharedStrings is a merge-time code-finder behaviour; native code-finder support is exercised at extraction by TestNative_CodeFinderExtraction, but the merge-time HTML-escape preservation is not asserted natively",
           "testState": "skipped",
-          "skipCategory": "roundtrip"
+          "skipCategory": "acknowledged",
+          "coveredByTest": "TestNative_CodeFinderExtraction",
+          "coveredByFile": "native_test.go",
+          "coveredByLine": 1463
         },
         {
           "javaClass": "net.sf.okapi.filters.openxml.OpenXMLRoundTripTest",
@@ -39261,9 +39417,12 @@
           "okapiStatus": "pass",
           "nativeFile": "native_test.go",
           "nativeLine": 221,
-          "skipReason": "covered by roundtrip glob",
+          "skipReason": "DOCX corpus roundtrip covered by TestRoundTrip_Docx",
           "testState": "skipped",
-          "skipCategory": "roundtrip"
+          "skipCategory": "roundtrip",
+          "coveredByTest": "TestRoundTrip_Docx",
+          "coveredByFile": "roundtrip_test.go",
+          "coveredByLine": 155
         },
         {
           "javaClass": "net.sf.okapi.filters.openxml.OpenXMLRoundTripTest",
@@ -39271,9 +39430,12 @@
           "okapiStatus": "pass",
           "nativeFile": "native_test.go",
           "nativeLine": 265,
-          "skipReason": "covered by roundtrip glob",
+          "skipReason": "XLSX corpus roundtrip covered by TestRoundTrip_Xlsx",
           "testState": "skipped",
-          "skipCategory": "roundtrip"
+          "skipCategory": "roundtrip",
+          "coveredByTest": "TestRoundTrip_Xlsx",
+          "coveredByFile": "roundtrip_test.go",
+          "coveredByLine": 183
         },
         {
           "javaClass": "net.sf.okapi.filters.openxml.OpenXMLRoundTripTest",
@@ -39281,9 +39443,12 @@
           "okapiStatus": "pass",
           "nativeFile": "native_test.go",
           "nativeLine": 182,
-          "skipReason": "covered by roundtrip glob",
+          "skipReason": "XLSX corpus roundtrip covered by TestRoundTrip_Xlsx",
           "testState": "skipped",
-          "skipCategory": "roundtrip"
+          "skipCategory": "roundtrip",
+          "coveredByTest": "TestRoundTrip_Xlsx",
+          "coveredByFile": "roundtrip_test.go",
+          "coveredByLine": 183
         },
         {
           "javaClass": "net.sf.okapi.filters.openxml.OpenXMLRoundTripTest",
@@ -39291,9 +39456,12 @@
           "okapiStatus": "pass",
           "nativeFile": "native_test.go",
           "nativeLine": 225,
-          "skipReason": "covered by roundtrip glob",
+          "skipReason": "DOCX corpus roundtrip covered by TestRoundTrip_Docx",
           "testState": "skipped",
-          "skipCategory": "roundtrip"
+          "skipCategory": "roundtrip",
+          "coveredByTest": "TestRoundTrip_Docx",
+          "coveredByFile": "roundtrip_test.go",
+          "coveredByLine": 155
         },
         {
           "javaClass": "net.sf.okapi.filters.openxml.OpenXMLRoundTripTest",
@@ -39301,9 +39469,12 @@
           "okapiStatus": "pass",
           "nativeFile": "native_test.go",
           "nativeLine": 248,
-          "skipReason": "covered by roundtrip glob",
+          "skipReason": "XLSX corpus roundtrip covered by TestRoundTrip_Xlsx",
           "testState": "skipped",
-          "skipCategory": "roundtrip"
+          "skipCategory": "roundtrip",
+          "coveredByTest": "TestRoundTrip_Xlsx",
+          "coveredByFile": "roundtrip_test.go",
+          "coveredByLine": 183
         },
         {
           "javaClass": "net.sf.okapi.filters.openxml.OpenXMLRoundTripTest",
@@ -39311,9 +39482,12 @@
           "okapiStatus": "pass",
           "nativeFile": "native_test.go",
           "nativeLine": 231,
-          "skipReason": "covered by roundtrip glob",
+          "skipReason": "DOCX/PPTX corpus roundtrip covered by TestRoundTrip_Docx/TestRoundTrip_Pptx",
           "testState": "skipped",
-          "skipCategory": "roundtrip"
+          "skipCategory": "roundtrip",
+          "coveredByTest": "TestRoundTrip_Docx",
+          "coveredByFile": "roundtrip_test.go",
+          "coveredByLine": 155
         },
         {
           "javaClass": "net.sf.okapi.filters.openxml.OpenXMLRoundTripTest",
@@ -39321,9 +39495,12 @@
           "okapiStatus": "pass",
           "nativeFile": "native_test.go",
           "nativeLine": 170,
-          "skipReason": "covered by roundtrip glob",
+          "skipReason": "DOCX corpus roundtrip covered by TestRoundTrip_Docx",
           "testState": "skipped",
-          "skipCategory": "roundtrip"
+          "skipCategory": "roundtrip",
+          "coveredByTest": "TestRoundTrip_Docx",
+          "coveredByFile": "roundtrip_test.go",
+          "coveredByLine": 155
         },
         {
           "javaClass": "net.sf.okapi.filters.openxml.OpenXMLRoundTripTest",
@@ -39331,9 +39508,12 @@
           "okapiStatus": "pass",
           "nativeFile": "native_test.go",
           "nativeLine": 206,
-          "skipReason": "covered by roundtrip glob",
+          "skipReason": "DOCX corpus roundtrip covered by TestRoundTrip_Docx",
           "testState": "skipped",
-          "skipCategory": "roundtrip"
+          "skipCategory": "roundtrip",
+          "coveredByTest": "TestRoundTrip_Docx",
+          "coveredByFile": "roundtrip_test.go",
+          "coveredByLine": 155
         },
         {
           "javaClass": "net.sf.okapi.filters.openxml.OpenXMLRoundTripTest",
@@ -39341,9 +39521,12 @@
           "okapiStatus": "pass",
           "nativeFile": "native_test.go",
           "nativeLine": 254,
-          "skipReason": "covered by roundtrip glob",
+          "skipReason": "XLSX corpus roundtrip covered by TestRoundTrip_Xlsx",
           "testState": "skipped",
-          "skipCategory": "roundtrip"
+          "skipCategory": "roundtrip",
+          "coveredByTest": "TestRoundTrip_Xlsx",
+          "coveredByFile": "roundtrip_test.go",
+          "coveredByLine": 183
         },
         {
           "javaClass": "net.sf.okapi.filters.openxml.OpenXMLRoundTripTest",
@@ -39351,9 +39534,12 @@
           "okapiStatus": "pass",
           "nativeFile": "native_test.go",
           "nativeLine": 227,
-          "skipReason": "covered by roundtrip glob",
+          "skipReason": "DOCX corpus roundtrip covered by TestRoundTrip_Docx",
           "testState": "skipped",
-          "skipCategory": "roundtrip"
+          "skipCategory": "roundtrip",
+          "coveredByTest": "TestRoundTrip_Docx",
+          "coveredByFile": "roundtrip_test.go",
+          "coveredByLine": 155
         },
         {
           "javaClass": "net.sf.okapi.filters.openxml.OpenXMLRoundTripTest",
@@ -39361,9 +39547,12 @@
           "okapiStatus": "pass",
           "nativeFile": "native_test.go",
           "nativeLine": 257,
-          "skipReason": "covered by roundtrip glob",
+          "skipReason": "XLSX corpus roundtrip covered by TestRoundTrip_Xlsx (Excel joined source/target columns",
           "testState": "skipped",
-          "skipCategory": "roundtrip"
+          "skipCategory": "roundtrip",
+          "coveredByTest": "TestRoundTrip_Xlsx",
+          "coveredByFile": "roundtrip_test.go",
+          "coveredByLine": 183
         },
         {
           "javaClass": "net.sf.okapi.filters.openxml.OpenXMLRoundTripTest",
@@ -39371,9 +39560,12 @@
           "okapiStatus": "pass",
           "nativeFile": "native_test.go",
           "nativeLine": 168,
-          "skipReason": "covered by roundtrip glob",
+          "skipReason": "DOCX/XLSX/PPTX corpus roundtrip covered by TestRoundTrip_Docx/TestRoundTrip_Xlsx/TestRoundTrip_Pptx",
           "testState": "skipped",
-          "skipCategory": "roundtrip"
+          "skipCategory": "roundtrip",
+          "coveredByTest": "TestRoundTrip_Docx",
+          "coveredByFile": "roundtrip_test.go",
+          "coveredByLine": 155
         },
         {
           "javaClass": "net.sf.okapi.filters.openxml.OpenXMLRoundTripTest",
@@ -39381,9 +39573,12 @@
           "okapiStatus": "pass",
           "nativeFile": "native_test.go",
           "nativeLine": 212,
-          "skipReason": "covered by roundtrip glob",
+          "skipReason": "DOCX corpus roundtrip covered by TestRoundTrip_Docx",
           "testState": "skipped",
-          "skipCategory": "roundtrip"
+          "skipCategory": "roundtrip",
+          "coveredByTest": "TestRoundTrip_Docx",
+          "coveredByFile": "roundtrip_test.go",
+          "coveredByLine": 155
         },
         {
           "javaClass": "net.sf.okapi.filters.openxml.OpenXMLRoundTripTest",
@@ -39391,9 +39586,12 @@
           "okapiStatus": "pass",
           "nativeFile": "native_test.go",
           "nativeLine": 187,
-          "skipReason": "covered by roundtrip glob",
+          "skipReason": "XLSX corpus roundtrip covered by TestRoundTrip_Xlsx",
           "testState": "skipped",
-          "skipCategory": "roundtrip"
+          "skipCategory": "roundtrip",
+          "coveredByTest": "TestRoundTrip_Xlsx",
+          "coveredByFile": "roundtrip_test.go",
+          "coveredByLine": 183
         },
         {
           "javaClass": "net.sf.okapi.filters.openxml.OpenXMLRoundTripTest",
@@ -39401,9 +39599,12 @@
           "okapiStatus": "pass",
           "nativeFile": "native_test.go",
           "nativeLine": 243,
-          "skipReason": "covered by roundtrip glob",
+          "skipReason": "XLSX corpus roundtrip covered by TestRoundTrip_Xlsx",
           "testState": "skipped",
-          "skipCategory": "roundtrip"
+          "skipCategory": "roundtrip",
+          "coveredByTest": "TestRoundTrip_Xlsx",
+          "coveredByFile": "roundtrip_test.go",
+          "coveredByLine": 183
         },
         {
           "javaClass": "net.sf.okapi.filters.openxml.OpenXMLRoundTripTest",
@@ -39411,9 +39612,12 @@
           "okapiStatus": "pass",
           "nativeFile": "native_test.go",
           "nativeLine": 202,
-          "skipReason": "covered by roundtrip glob",
+          "skipReason": "PPTX corpus roundtrip covered by TestRoundTrip_Pptx",
           "testState": "skipped",
-          "skipCategory": "roundtrip"
+          "skipCategory": "roundtrip",
+          "coveredByTest": "TestRoundTrip_Pptx",
+          "coveredByFile": "roundtrip_test.go",
+          "coveredByLine": 189
         },
         {
           "javaClass": "net.sf.okapi.filters.openxml.OpenXMLRoundTripTest",
@@ -39421,9 +39625,12 @@
           "okapiStatus": "pass",
           "nativeFile": "native_test.go",
           "nativeLine": 179,
-          "skipReason": "covered by roundtrip glob",
+          "skipReason": "PPTX corpus roundtrip covered by TestRoundTrip_Pptx",
           "testState": "skipped",
-          "skipCategory": "roundtrip"
+          "skipCategory": "roundtrip",
+          "coveredByTest": "TestRoundTrip_Pptx",
+          "coveredByFile": "roundtrip_test.go",
+          "coveredByLine": 189
         },
         {
           "javaClass": "net.sf.okapi.filters.openxml.OpenXMLRoundTripTest",
@@ -39431,9 +39638,12 @@
           "okapiStatus": "pass",
           "nativeFile": "native_test.go",
           "nativeLine": 268,
-          "skipReason": "covered by roundtrip glob",
+          "skipReason": "XLSX corpus roundtrip covered by TestRoundTrip_Xlsx",
           "testState": "skipped",
-          "skipCategory": "roundtrip"
+          "skipCategory": "roundtrip",
+          "coveredByTest": "TestRoundTrip_Xlsx",
+          "coveredByFile": "roundtrip_test.go",
+          "coveredByLine": 183
         },
         {
           "javaClass": "net.sf.okapi.filters.openxml.OpenXMLRoundTripTest",
@@ -39441,9 +39651,12 @@
           "okapiStatus": "pass",
           "nativeFile": "native_test.go",
           "nativeLine": 196,
-          "skipReason": "covered by roundtrip glob",
+          "skipReason": "XLSX corpus roundtrip covered by TestRoundTrip_Xlsx",
           "testState": "skipped",
-          "skipCategory": "roundtrip"
+          "skipCategory": "roundtrip",
+          "coveredByTest": "TestRoundTrip_Xlsx",
+          "coveredByFile": "roundtrip_test.go",
+          "coveredByLine": 183
         },
         {
           "javaClass": "net.sf.okapi.filters.openxml.OpenXMLRoundTripTest",
@@ -39451,9 +39664,12 @@
           "okapiStatus": "pass",
           "nativeFile": "native_test.go",
           "nativeLine": 184,
-          "skipReason": "covered by roundtrip glob",
+          "skipReason": "DOCX corpus roundtrip covered by TestRoundTrip_Docx",
           "testState": "skipped",
-          "skipCategory": "roundtrip"
+          "skipCategory": "roundtrip",
+          "coveredByTest": "TestRoundTrip_Docx",
+          "coveredByFile": "roundtrip_test.go",
+          "coveredByLine": 155
         },
         {
           "javaClass": "net.sf.okapi.filters.openxml.OpenXMLRoundTripTest",
@@ -39461,9 +39677,12 @@
           "okapiStatus": "pass",
           "nativeFile": "native_test.go",
           "nativeLine": 159,
-          "skipReason": "covered by roundtrip glob",
+          "skipReason": "DOCX corpus roundtrip covered by TestRoundTrip_Docx",
           "testState": "skipped",
-          "skipCategory": "roundtrip"
+          "skipCategory": "roundtrip",
+          "coveredByTest": "TestRoundTrip_Docx",
+          "coveredByFile": "roundtrip_test.go",
+          "coveredByLine": 155
         },
         {
           "javaClass": "net.sf.okapi.filters.openxml.OpenXMLRoundTripTest",
@@ -39471,9 +39690,12 @@
           "okapiStatus": "pass",
           "nativeFile": "native_test.go",
           "nativeLine": 197,
-          "skipReason": "covered by roundtrip glob",
+          "skipReason": "DOCX corpus roundtrip covered by TestRoundTrip_Docx",
           "testState": "skipped",
-          "skipCategory": "roundtrip"
+          "skipCategory": "roundtrip",
+          "coveredByTest": "TestRoundTrip_Docx",
+          "coveredByFile": "roundtrip_test.go",
+          "coveredByLine": 155
         },
         {
           "javaClass": "net.sf.okapi.filters.openxml.OpenXMLRoundTripTest",
@@ -39481,9 +39703,12 @@
           "okapiStatus": "pass",
           "nativeFile": "native_test.go",
           "nativeLine": 245,
-          "skipReason": "covered by roundtrip glob",
+          "skipReason": "DOCX corpus roundtrip covered by TestRoundTrip_Docx",
           "testState": "skipped",
-          "skipCategory": "roundtrip"
+          "skipCategory": "roundtrip",
+          "coveredByTest": "TestRoundTrip_Docx",
+          "coveredByFile": "roundtrip_test.go",
+          "coveredByLine": 155
         },
         {
           "javaClass": "net.sf.okapi.filters.openxml.OpenXMLRoundTripTest",
@@ -39491,9 +39716,12 @@
           "okapiStatus": "pass",
           "nativeFile": "native_test.go",
           "nativeLine": 260,
-          "skipReason": "covered by roundtrip glob",
+          "skipReason": "XLSX corpus roundtrip covered by TestRoundTrip_Xlsx",
           "testState": "skipped",
-          "skipCategory": "roundtrip"
+          "skipCategory": "roundtrip",
+          "coveredByTest": "TestRoundTrip_Xlsx",
+          "coveredByFile": "roundtrip_test.go",
+          "coveredByLine": 183
         },
         {
           "javaClass": "net.sf.okapi.filters.openxml.OpenXMLRoundTripTest",
@@ -39501,9 +39729,12 @@
           "okapiStatus": "pass",
           "nativeFile": "native_test.go",
           "nativeLine": 188,
-          "skipReason": "covered by roundtrip glob",
+          "skipReason": "DOCX corpus roundtrip covered by TestRoundTrip_Docx",
           "testState": "skipped",
-          "skipCategory": "roundtrip"
+          "skipCategory": "roundtrip",
+          "coveredByTest": "TestRoundTrip_Docx",
+          "coveredByFile": "roundtrip_test.go",
+          "coveredByLine": 155
         },
         {
           "javaClass": "net.sf.okapi.filters.openxml.OpenXMLRoundTripTest",
@@ -39511,9 +39742,12 @@
           "okapiStatus": "pass",
           "nativeFile": "native_test.go",
           "nativeLine": 224,
-          "skipReason": "covered by roundtrip glob",
+          "skipReason": "DOCX corpus roundtrip covered by TestRoundTrip_Docx",
           "testState": "skipped",
-          "skipCategory": "roundtrip"
+          "skipCategory": "roundtrip",
+          "coveredByTest": "TestRoundTrip_Docx",
+          "coveredByFile": "roundtrip_test.go",
+          "coveredByLine": 155
         },
         {
           "javaClass": "net.sf.okapi.filters.openxml.OpenXMLRoundTripTest",
@@ -39521,9 +39755,12 @@
           "okapiStatus": "pass",
           "nativeFile": "native_test.go",
           "nativeLine": 238,
-          "skipReason": "covered by roundtrip glob",
+          "skipReason": "DOCX corpus roundtrip covered by TestRoundTrip_Docx",
           "testState": "skipped",
-          "skipCategory": "roundtrip"
+          "skipCategory": "roundtrip",
+          "coveredByTest": "TestRoundTrip_Docx",
+          "coveredByFile": "roundtrip_test.go",
+          "coveredByLine": 155
         },
         {
           "javaClass": "net.sf.okapi.filters.openxml.OpenXMLRoundTripTest",
@@ -39531,9 +39768,12 @@
           "okapiStatus": "pass",
           "nativeFile": "native_test.go",
           "nativeLine": 185,
-          "skipReason": "covered by roundtrip glob",
+          "skipReason": "XLSX corpus roundtrip covered by TestRoundTrip_Xlsx (Excel joined source/target columns",
           "testState": "skipped",
-          "skipCategory": "roundtrip"
+          "skipCategory": "roundtrip",
+          "coveredByTest": "TestRoundTrip_Xlsx",
+          "coveredByFile": "roundtrip_test.go",
+          "coveredByLine": 183
         },
         {
           "javaClass": "net.sf.okapi.filters.openxml.OpenXMLRoundTripTest",
@@ -39541,9 +39781,12 @@
           "okapiStatus": "pass",
           "nativeFile": "native_test.go",
           "nativeLine": 195,
-          "skipReason": "covered by roundtrip glob",
+          "skipReason": "XLSX corpus roundtrip covered by TestRoundTrip_Xlsx",
           "testState": "skipped",
-          "skipCategory": "roundtrip"
+          "skipCategory": "roundtrip",
+          "coveredByTest": "TestRoundTrip_Xlsx",
+          "coveredByFile": "roundtrip_test.go",
+          "coveredByLine": 183
         },
         {
           "javaClass": "net.sf.okapi.filters.openxml.OpenXMLRoundTripTest",
@@ -39551,9 +39794,12 @@
           "okapiStatus": "pass",
           "nativeFile": "native_test.go",
           "nativeLine": 269,
-          "skipReason": "covered by roundtrip glob",
+          "skipReason": "PPTX corpus roundtrip covered by TestRoundTrip_Pptx",
           "testState": "skipped",
-          "skipCategory": "roundtrip"
+          "skipCategory": "roundtrip",
+          "coveredByTest": "TestRoundTrip_Pptx",
+          "coveredByFile": "roundtrip_test.go",
+          "coveredByLine": 189
         },
         {
           "javaClass": "net.sf.okapi.filters.openxml.OpenXMLRoundTripTest",
@@ -39561,9 +39807,12 @@
           "okapiStatus": "pass",
           "nativeFile": "native_test.go",
           "nativeLine": 164,
-          "skipReason": "covered by roundtrip glob",
+          "skipReason": "XLSX corpus roundtrip covered by TestRoundTrip_Xlsx",
           "testState": "skipped",
-          "skipCategory": "roundtrip"
+          "skipCategory": "roundtrip",
+          "coveredByTest": "TestRoundTrip_Xlsx",
+          "coveredByFile": "roundtrip_test.go",
+          "coveredByLine": 183
         },
         {
           "javaClass": "net.sf.okapi.filters.openxml.OpenXMLRoundTripTest",
@@ -39571,9 +39820,12 @@
           "okapiStatus": "pass",
           "nativeFile": "native_test.go",
           "nativeLine": 228,
-          "skipReason": "covered by roundtrip glob",
+          "skipReason": "DOCX/PPTX corpus roundtrip covered by TestRoundTrip_Docx/TestRoundTrip_Pptx",
           "testState": "skipped",
-          "skipCategory": "roundtrip"
+          "skipCategory": "roundtrip",
+          "coveredByTest": "TestRoundTrip_Docx",
+          "coveredByFile": "roundtrip_test.go",
+          "coveredByLine": 155
         },
         {
           "javaClass": "net.sf.okapi.filters.openxml.OpenXMLRoundTripTest",
@@ -39581,9 +39833,12 @@
           "okapiStatus": "pass",
           "nativeFile": "native_test.go",
           "nativeLine": 267,
-          "skipReason": "covered by roundtrip glob",
+          "skipReason": "XLSX corpus roundtrip covered by TestRoundTrip_Xlsx",
           "testState": "skipped",
-          "skipCategory": "roundtrip"
+          "skipCategory": "roundtrip",
+          "coveredByTest": "TestRoundTrip_Xlsx",
+          "coveredByFile": "roundtrip_test.go",
+          "coveredByLine": 183
         },
         {
           "javaClass": "net.sf.okapi.filters.openxml.OpenXMLRoundTripTest",
@@ -39591,9 +39846,12 @@
           "okapiStatus": "pass",
           "nativeFile": "native_test.go",
           "nativeLine": 229,
-          "skipReason": "covered by roundtrip glob",
+          "skipReason": "DOCX corpus roundtrip covered by TestRoundTrip_Docx",
           "testState": "skipped",
-          "skipCategory": "roundtrip"
+          "skipCategory": "roundtrip",
+          "coveredByTest": "TestRoundTrip_Docx",
+          "coveredByFile": "roundtrip_test.go",
+          "coveredByLine": 155
         },
         {
           "javaClass": "net.sf.okapi.filters.openxml.OpenXMLRoundTripTest",
@@ -39601,9 +39859,12 @@
           "okapiStatus": "pass",
           "nativeFile": "native_test.go",
           "nativeLine": 251,
-          "skipReason": "covered by roundtrip glob",
+          "skipReason": "XLSX corpus roundtrip covered by TestRoundTrip_Xlsx",
           "testState": "skipped",
-          "skipCategory": "roundtrip"
+          "skipCategory": "roundtrip",
+          "coveredByTest": "TestRoundTrip_Xlsx",
+          "coveredByFile": "roundtrip_test.go",
+          "coveredByLine": 183
         },
         {
           "javaClass": "net.sf.okapi.filters.openxml.OpenXMLRoundTripTest",
@@ -39611,7 +39872,7 @@
           "okapiStatus": "pass",
           "nativeFile": "native_test.go",
           "nativeLine": 261,
-          "skipReason": "covered by roundtrip glob",
+          "skipReason": "no native equivalent: exercises macro-enabled (.docm/.pptm) and template (.dotx/.dotm/.ppsx) document-type variants the native reader does not handle and the .docx/.xlsx/.pptx roundtrip globs do not match",
           "testState": "skipped",
           "skipCategory": "roundtrip"
         },
@@ -39621,9 +39882,12 @@
           "okapiStatus": "pass",
           "nativeFile": "native_test.go",
           "nativeLine": 244,
-          "skipReason": "covered by roundtrip glob",
+          "skipReason": "DOCX corpus roundtrip covered by TestRoundTrip_Docx",
           "testState": "skipped",
-          "skipCategory": "roundtrip"
+          "skipCategory": "roundtrip",
+          "coveredByTest": "TestRoundTrip_Docx",
+          "coveredByFile": "roundtrip_test.go",
+          "coveredByLine": 155
         },
         {
           "javaClass": "net.sf.okapi.filters.openxml.OpenXMLRoundTripTest",
@@ -39631,9 +39895,12 @@
           "okapiStatus": "pass",
           "nativeFile": "native_test.go",
           "nativeLine": 189,
-          "skipReason": "covered by roundtrip glob",
+          "skipReason": "DOCX corpus roundtrip covered by TestRoundTrip_Docx",
           "testState": "skipped",
-          "skipCategory": "roundtrip"
+          "skipCategory": "roundtrip",
+          "coveredByTest": "TestRoundTrip_Docx",
+          "coveredByFile": "roundtrip_test.go",
+          "coveredByLine": 155
         },
         {
           "javaClass": "net.sf.okapi.filters.openxml.OpenXMLRoundTripTest",
@@ -39641,9 +39908,12 @@
           "okapiStatus": "pass",
           "nativeFile": "native_test.go",
           "nativeLine": 253,
-          "skipReason": "covered by roundtrip glob",
+          "skipReason": "XLSX corpus roundtrip covered by TestRoundTrip_Xlsx",
           "testState": "skipped",
-          "skipCategory": "roundtrip"
+          "skipCategory": "roundtrip",
+          "coveredByTest": "TestRoundTrip_Xlsx",
+          "coveredByFile": "roundtrip_test.go",
+          "coveredByLine": 183
         },
         {
           "javaClass": "net.sf.okapi.filters.openxml.OpenXMLRoundTripTest",
@@ -39651,9 +39921,12 @@
           "okapiStatus": "pass",
           "nativeFile": "native_test.go",
           "nativeLine": 198,
-          "skipReason": "covered by roundtrip glob",
+          "skipReason": "PPTX corpus roundtrip covered by TestRoundTrip_Pptx",
           "testState": "skipped",
-          "skipCategory": "roundtrip"
+          "skipCategory": "roundtrip",
+          "coveredByTest": "TestRoundTrip_Pptx",
+          "coveredByFile": "roundtrip_test.go",
+          "coveredByLine": 189
         },
         {
           "javaClass": "net.sf.okapi.filters.openxml.OpenXMLRoundTripTest",
@@ -39661,9 +39934,12 @@
           "okapiStatus": "pass",
           "nativeFile": "native_test.go",
           "nativeLine": 165,
-          "skipReason": "covered by roundtrip glob",
+          "skipReason": "XLSX corpus roundtrip covered by TestRoundTrip_Xlsx",
           "testState": "skipped",
-          "skipCategory": "roundtrip"
+          "skipCategory": "roundtrip",
+          "coveredByTest": "TestRoundTrip_Xlsx",
+          "coveredByFile": "roundtrip_test.go",
+          "coveredByLine": 183
         },
         {
           "javaClass": "net.sf.okapi.filters.openxml.OpenXMLRoundTripTest",
@@ -39671,9 +39947,12 @@
           "okapiStatus": "pass",
           "nativeFile": "native_test.go",
           "nativeLine": 258,
-          "skipReason": "covered by roundtrip glob",
+          "skipReason": "XLSX corpus roundtrip covered by TestRoundTrip_Xlsx",
           "testState": "skipped",
-          "skipCategory": "roundtrip"
+          "skipCategory": "roundtrip",
+          "coveredByTest": "TestRoundTrip_Xlsx",
+          "coveredByFile": "roundtrip_test.go",
+          "coveredByLine": 183
         },
         {
           "javaClass": "net.sf.okapi.filters.openxml.OpenXMLRoundTripTest",
@@ -39681,9 +39960,12 @@
           "okapiStatus": "pass",
           "nativeFile": "native_test.go",
           "nativeLine": 219,
-          "skipReason": "covered by roundtrip glob",
+          "skipReason": "DOCX corpus roundtrip covered by TestRoundTrip_Docx",
           "testState": "skipped",
-          "skipCategory": "roundtrip"
+          "skipCategory": "roundtrip",
+          "coveredByTest": "TestRoundTrip_Docx",
+          "coveredByFile": "roundtrip_test.go",
+          "coveredByLine": 155
         },
         {
           "javaClass": "net.sf.okapi.filters.openxml.OpenXMLRoundTripTest",
@@ -39691,9 +39973,12 @@
           "okapiStatus": "pass",
           "nativeFile": "native_test.go",
           "nativeLine": 255,
-          "skipReason": "covered by roundtrip glob",
+          "skipReason": "DOCX corpus roundtrip covered by TestRoundTrip_Docx",
           "testState": "skipped",
-          "skipCategory": "roundtrip"
+          "skipCategory": "roundtrip",
+          "coveredByTest": "TestRoundTrip_Docx",
+          "coveredByFile": "roundtrip_test.go",
+          "coveredByLine": 155
         },
         {
           "javaClass": "net.sf.okapi.filters.openxml.OpenXMLRoundTripTest",
@@ -39701,9 +39986,12 @@
           "okapiStatus": "pass",
           "nativeFile": "native_test.go",
           "nativeLine": 178,
-          "skipReason": "covered by roundtrip glob",
+          "skipReason": "DOCX corpus roundtrip covered by TestRoundTrip_Docx",
           "testState": "skipped",
-          "skipCategory": "roundtrip"
+          "skipCategory": "roundtrip",
+          "coveredByTest": "TestRoundTrip_Docx",
+          "coveredByFile": "roundtrip_test.go",
+          "coveredByLine": 155
         },
         {
           "javaClass": "net.sf.okapi.filters.openxml.OpenXMLRoundTripTest",
@@ -39711,9 +39999,12 @@
           "okapiStatus": "pass",
           "nativeFile": "native_test.go",
           "nativeLine": 214,
-          "skipReason": "covered by roundtrip glob",
+          "skipReason": "PPTX corpus roundtrip covered by TestRoundTrip_Pptx",
           "testState": "skipped",
-          "skipCategory": "roundtrip"
+          "skipCategory": "roundtrip",
+          "coveredByTest": "TestRoundTrip_Pptx",
+          "coveredByFile": "roundtrip_test.go",
+          "coveredByLine": 189
         },
         {
           "javaClass": "net.sf.okapi.filters.openxml.OpenXMLRoundTripTest",
@@ -39721,9 +40012,12 @@
           "okapiStatus": "pass",
           "nativeFile": "native_test.go",
           "nativeLine": 194,
-          "skipReason": "covered by roundtrip glob",
+          "skipReason": "DOCX corpus roundtrip covered by TestRoundTrip_Docx",
           "testState": "skipped",
-          "skipCategory": "roundtrip"
+          "skipCategory": "roundtrip",
+          "coveredByTest": "TestRoundTrip_Docx",
+          "coveredByFile": "roundtrip_test.go",
+          "coveredByLine": 155
         },
         {
           "javaClass": "net.sf.okapi.filters.openxml.OpenXMLRoundTripTest",
@@ -39731,9 +40025,12 @@
           "okapiStatus": "pass",
           "nativeFile": "native_test.go",
           "nativeLine": 180,
-          "skipReason": "covered by roundtrip glob",
+          "skipReason": "PPTX corpus roundtrip covered by TestRoundTrip_Pptx",
           "testState": "skipped",
-          "skipCategory": "roundtrip"
+          "skipCategory": "roundtrip",
+          "coveredByTest": "TestRoundTrip_Pptx",
+          "coveredByFile": "roundtrip_test.go",
+          "coveredByLine": 189
         },
         {
           "javaClass": "net.sf.okapi.filters.openxml.OpenXMLRoundTripTest",
@@ -39741,9 +40038,12 @@
           "okapiStatus": "pass",
           "nativeFile": "native_test.go",
           "nativeLine": 207,
-          "skipReason": "covered by roundtrip glob",
+          "skipReason": "DOCX corpus roundtrip covered by TestRoundTrip_Docx",
           "testState": "skipped",
-          "skipCategory": "roundtrip"
+          "skipCategory": "roundtrip",
+          "coveredByTest": "TestRoundTrip_Docx",
+          "coveredByFile": "roundtrip_test.go",
+          "coveredByLine": 155
         },
         {
           "javaClass": "net.sf.okapi.filters.openxml.OpenXMLRoundTripTest",
@@ -39751,9 +40051,12 @@
           "okapiStatus": "pass",
           "nativeFile": "native_test.go",
           "nativeLine": 263,
-          "skipReason": "covered by roundtrip glob",
+          "skipReason": "DOCX/XLSX/PPTX corpus roundtrip covered by TestRoundTrip_Docx/TestRoundTrip_Xlsx/TestRoundTrip_Pptx",
           "testState": "skipped",
-          "skipCategory": "roundtrip"
+          "skipCategory": "roundtrip",
+          "coveredByTest": "TestRoundTrip_Docx",
+          "coveredByFile": "roundtrip_test.go",
+          "coveredByLine": 155
         },
         {
           "javaClass": "net.sf.okapi.filters.openxml.OpenXMLRoundTripTest",
@@ -39761,9 +40064,12 @@
           "okapiStatus": "pass",
           "nativeFile": "native_test.go",
           "nativeLine": 199,
-          "skipReason": "covered by roundtrip glob",
+          "skipReason": "DOCX/PPTX corpus roundtrip covered by TestRoundTrip_Docx/TestRoundTrip_Pptx",
           "testState": "skipped",
-          "skipCategory": "roundtrip"
+          "skipCategory": "roundtrip",
+          "coveredByTest": "TestRoundTrip_Docx",
+          "coveredByFile": "roundtrip_test.go",
+          "coveredByLine": 155
         },
         {
           "javaClass": "net.sf.okapi.filters.openxml.OpenXMLRoundTripTest",
@@ -39771,9 +40077,12 @@
           "okapiStatus": "pass",
           "nativeFile": "native_test.go",
           "nativeLine": 220,
-          "skipReason": "covered by roundtrip glob",
+          "skipReason": "DOCX corpus roundtrip covered by TestRoundTrip_Docx",
           "testState": "skipped",
-          "skipCategory": "roundtrip"
+          "skipCategory": "roundtrip",
+          "coveredByTest": "TestRoundTrip_Docx",
+          "coveredByFile": "roundtrip_test.go",
+          "coveredByLine": 155
         },
         {
           "javaClass": "net.sf.okapi.filters.openxml.OpenXMLRoundTripTest",
@@ -39781,9 +40090,12 @@
           "okapiStatus": "pass",
           "nativeFile": "native_test.go",
           "nativeLine": 266,
-          "skipReason": "covered by roundtrip glob",
+          "skipReason": "XLSX corpus roundtrip covered by TestRoundTrip_Xlsx",
           "testState": "skipped",
-          "skipCategory": "roundtrip"
+          "skipCategory": "roundtrip",
+          "coveredByTest": "TestRoundTrip_Xlsx",
+          "coveredByFile": "roundtrip_test.go",
+          "coveredByLine": 183
         },
         {
           "javaClass": "net.sf.okapi.filters.openxml.OpenXMLRoundTripTest",
@@ -39791,9 +40103,12 @@
           "okapiStatus": "pass",
           "nativeFile": "native_test.go",
           "nativeLine": 163,
-          "skipReason": "covered by roundtrip glob",
+          "skipReason": "PPTX corpus roundtrip covered by TestRoundTrip_Pptx",
           "testState": "skipped",
-          "skipCategory": "roundtrip"
+          "skipCategory": "roundtrip",
+          "coveredByTest": "TestRoundTrip_Pptx",
+          "coveredByFile": "roundtrip_test.go",
+          "coveredByLine": 189
         },
         {
           "javaClass": "net.sf.okapi.filters.openxml.OpenXMLRoundTripTest",
@@ -39801,9 +40116,12 @@
           "okapiStatus": "pass",
           "nativeFile": "native_test.go",
           "nativeLine": 246,
-          "skipReason": "covered by roundtrip glob",
+          "skipReason": "PPTX corpus roundtrip covered by TestRoundTrip_Pptx",
           "testState": "skipped",
-          "skipCategory": "roundtrip"
+          "skipCategory": "roundtrip",
+          "coveredByTest": "TestRoundTrip_Pptx",
+          "coveredByFile": "roundtrip_test.go",
+          "coveredByLine": 189
         },
         {
           "javaClass": "net.sf.okapi.filters.openxml.OpenXMLRoundTripTest",
@@ -39811,9 +40129,12 @@
           "okapiStatus": "pass",
           "nativeFile": "native_test.go",
           "nativeLine": 216,
-          "skipReason": "covered by roundtrip glob",
+          "skipReason": "PPTX corpus roundtrip covered by TestRoundTrip_Pptx",
           "testState": "skipped",
-          "skipCategory": "roundtrip"
+          "skipCategory": "roundtrip",
+          "coveredByTest": "TestRoundTrip_Pptx",
+          "coveredByFile": "roundtrip_test.go",
+          "coveredByLine": 189
         },
         {
           "javaClass": "net.sf.okapi.filters.openxml.OpenXMLRoundTripTest",
@@ -39821,9 +40142,12 @@
           "okapiStatus": "pass",
           "nativeFile": "native_test.go",
           "nativeLine": 262,
-          "skipReason": "covered by roundtrip glob",
+          "skipReason": "XLSX/PPTX corpus roundtrip covered by TestRoundTrip_Xlsx/TestRoundTrip_Pptx",
           "testState": "skipped",
-          "skipCategory": "roundtrip"
+          "skipCategory": "roundtrip",
+          "coveredByTest": "TestRoundTrip_Xlsx",
+          "coveredByFile": "roundtrip_test.go",
+          "coveredByLine": 183
         },
         {
           "javaClass": "net.sf.okapi.filters.openxml.OpenXMLRoundTripTest",
@@ -39831,9 +40155,12 @@
           "okapiStatus": "pass",
           "nativeFile": "native_test.go",
           "nativeLine": 218,
-          "skipReason": "covered by roundtrip glob",
+          "skipReason": "PPTX corpus roundtrip covered by TestRoundTrip_Pptx",
           "testState": "skipped",
-          "skipCategory": "roundtrip"
+          "skipCategory": "roundtrip",
+          "coveredByTest": "TestRoundTrip_Pptx",
+          "coveredByFile": "roundtrip_test.go",
+          "coveredByLine": 189
         },
         {
           "javaClass": "net.sf.okapi.filters.openxml.OpenXMLRoundTripTest",
@@ -39841,9 +40168,12 @@
           "okapiStatus": "pass",
           "nativeFile": "native_test.go",
           "nativeLine": 259,
-          "skipReason": "covered by roundtrip glob",
+          "skipReason": "PPTX corpus roundtrip covered by TestRoundTrip_Pptx",
           "testState": "skipped",
-          "skipCategory": "roundtrip"
+          "skipCategory": "roundtrip",
+          "coveredByTest": "TestRoundTrip_Pptx",
+          "coveredByFile": "roundtrip_test.go",
+          "coveredByLine": 189
         },
         {
           "javaClass": "net.sf.okapi.filters.openxml.OpenXMLRoundTripTest",
@@ -39851,9 +40181,12 @@
           "okapiStatus": "pass",
           "nativeFile": "native_test.go",
           "nativeLine": 175,
-          "skipReason": "covered by roundtrip glob",
+          "skipReason": "XLSX corpus roundtrip covered by TestRoundTrip_Xlsx",
           "testState": "skipped",
-          "skipCategory": "roundtrip"
+          "skipCategory": "roundtrip",
+          "coveredByTest": "TestRoundTrip_Xlsx",
+          "coveredByFile": "roundtrip_test.go",
+          "coveredByLine": 183
         },
         {
           "javaClass": "net.sf.okapi.filters.openxml.OpenXMLRoundTripTest",
@@ -39861,9 +40194,12 @@
           "okapiStatus": "pass",
           "nativeFile": "native_test.go",
           "nativeLine": 158,
-          "skipReason": "covered by roundtrip glob",
+          "skipReason": "DOCX corpus roundtrip covered by TestRoundTrip_Docx",
           "testState": "skipped",
-          "skipCategory": "roundtrip"
+          "skipCategory": "roundtrip",
+          "coveredByTest": "TestRoundTrip_Docx",
+          "coveredByFile": "roundtrip_test.go",
+          "coveredByLine": 155
         },
         {
           "javaClass": "net.sf.okapi.filters.openxml.OpenXMLRoundTripTest",
@@ -39871,9 +40207,12 @@
           "okapiStatus": "pass",
           "nativeFile": "native_test.go",
           "nativeLine": 274,
-          "skipReason": "covered by roundtrip glob",
+          "skipReason": "DOCX corpus roundtrip covered by TestRoundTrip_Docx",
           "testState": "skipped",
-          "skipCategory": "roundtrip"
+          "skipCategory": "roundtrip",
+          "coveredByTest": "TestRoundTrip_Docx",
+          "coveredByFile": "roundtrip_test.go",
+          "coveredByLine": 155
         },
         {
           "javaClass": "net.sf.okapi.filters.openxml.OpenXMLRoundTripTest",
@@ -39881,9 +40220,12 @@
           "okapiStatus": "pass",
           "nativeFile": "native_test.go",
           "nativeLine": 209,
-          "skipReason": "covered by roundtrip glob",
+          "skipReason": "PPTX corpus roundtrip covered by TestRoundTrip_Pptx",
           "testState": "skipped",
-          "skipCategory": "roundtrip"
+          "skipCategory": "roundtrip",
+          "coveredByTest": "TestRoundTrip_Pptx",
+          "coveredByFile": "roundtrip_test.go",
+          "coveredByLine": 189
         },
         {
           "javaClass": "net.sf.okapi.filters.openxml.OpenXMLRoundTripTest",
@@ -39891,9 +40233,12 @@
           "okapiStatus": "pass",
           "nativeFile": "native_test.go",
           "nativeLine": 183,
-          "skipReason": "covered by roundtrip glob",
+          "skipReason": "DOCX corpus roundtrip covered by TestRoundTrip_Docx (wordprocessing styles.xml font element",
           "testState": "skipped",
-          "skipCategory": "roundtrip"
+          "skipCategory": "roundtrip",
+          "coveredByTest": "TestRoundTrip_Docx",
+          "coveredByFile": "roundtrip_test.go",
+          "coveredByLine": 155
         },
         {
           "javaClass": "net.sf.okapi.filters.openxml.OpenXMLRoundTripTest",
@@ -39901,9 +40246,12 @@
           "okapiStatus": "pass",
           "nativeFile": "native_test.go",
           "nativeLine": 237,
-          "skipReason": "covered by roundtrip glob",
+          "skipReason": "DOCX/PPTX corpus roundtrip covered by TestRoundTrip_Docx/TestRoundTrip_Pptx",
           "testState": "skipped",
-          "skipCategory": "roundtrip"
+          "skipCategory": "roundtrip",
+          "coveredByTest": "TestRoundTrip_Docx",
+          "coveredByFile": "roundtrip_test.go",
+          "coveredByLine": 155
         },
         {
           "javaClass": "net.sf.okapi.filters.openxml.OpenXMLRoundTripTest",
@@ -39911,9 +40259,12 @@
           "okapiStatus": "pass",
           "nativeFile": "native_test.go",
           "nativeLine": 193,
-          "skipReason": "covered by roundtrip glob",
+          "skipReason": "XLSX corpus roundtrip covered by TestRoundTrip_Xlsx",
           "testState": "skipped",
-          "skipCategory": "roundtrip"
+          "skipCategory": "roundtrip",
+          "coveredByTest": "TestRoundTrip_Xlsx",
+          "coveredByFile": "roundtrip_test.go",
+          "coveredByLine": 183
         },
         {
           "javaClass": "net.sf.okapi.filters.openxml.OpenXMLRoundTripTest",
@@ -39921,9 +40272,12 @@
           "okapiStatus": "pass",
           "nativeFile": "native_test.go",
           "nativeLine": 162,
-          "skipReason": "covered by roundtrip glob",
+          "skipReason": "DOCX corpus roundtrip covered by TestRoundTrip_Docx",
           "testState": "skipped",
-          "skipCategory": "roundtrip"
+          "skipCategory": "roundtrip",
+          "coveredByTest": "TestRoundTrip_Docx",
+          "coveredByFile": "roundtrip_test.go",
+          "coveredByLine": 155
         },
         {
           "javaClass": "net.sf.okapi.filters.openxml.OpenXMLRoundTripTest",
@@ -39931,9 +40285,12 @@
           "okapiStatus": "pass",
           "nativeFile": "native_test.go",
           "nativeLine": 250,
-          "skipReason": "covered by roundtrip glob",
+          "skipReason": "XLSX corpus roundtrip covered by TestRoundTrip_Xlsx",
           "testState": "skipped",
-          "skipCategory": "roundtrip"
+          "skipCategory": "roundtrip",
+          "coveredByTest": "TestRoundTrip_Xlsx",
+          "coveredByFile": "roundtrip_test.go",
+          "coveredByLine": 183
         },
         {
           "javaClass": "net.sf.okapi.filters.openxml.OpenXMLRoundTripTest",
@@ -39941,9 +40298,12 @@
           "okapiStatus": "pass",
           "nativeFile": "native_test.go",
           "nativeLine": 192,
-          "skipReason": "covered by roundtrip glob",
+          "skipReason": "PPTX corpus roundtrip covered by TestRoundTrip_Pptx",
           "testState": "skipped",
-          "skipCategory": "roundtrip"
+          "skipCategory": "roundtrip",
+          "coveredByTest": "TestRoundTrip_Pptx",
+          "coveredByFile": "roundtrip_test.go",
+          "coveredByLine": 189
         },
         {
           "javaClass": "net.sf.okapi.filters.openxml.OpenXMLRoundTripTest",
@@ -39951,9 +40311,12 @@
           "okapiStatus": "pass",
           "nativeFile": "native_test.go",
           "nativeLine": 176,
-          "skipReason": "covered by roundtrip glob",
+          "skipReason": "DOCX corpus roundtrip covered by TestRoundTrip_Docx",
           "testState": "skipped",
-          "skipCategory": "roundtrip"
+          "skipCategory": "roundtrip",
+          "coveredByTest": "TestRoundTrip_Docx",
+          "coveredByFile": "roundtrip_test.go",
+          "coveredByLine": 155
         },
         {
           "javaClass": "net.sf.okapi.filters.openxml.OpenXMLRoundtripAddTabAsCharTest",
@@ -39961,10 +40324,13 @@
           "okapiStatus": "pass",
           "nativeFile": "native_test.go",
           "nativeLine": 275,
-          "skipReason": "covered by roundtrip glob",
+          "skipReason": "tab-as-character roundtrip (setAddTabAsCharacter(true)) covered by TestNative_PageBreakRoundtripLineSeparator, which roundtrips with TabAsCharacter enabled",
           "testState": "skipped",
           "skipCategory": "roundtrip",
-          "params": 16
+          "params": 16,
+          "coveredByTest": "TestNative_PageBreakRoundtripLineSeparator",
+          "coveredByFile": "native_test.go",
+          "coveredByLine": 1897
         },
         {
           "javaClass": "net.sf.okapi.filters.openxml.OpenXMLRoundtripLineSeparatorReplacementTest",
@@ -39972,10 +40338,13 @@
           "okapiStatus": "pass",
           "nativeFile": "native_test.go",
           "nativeLine": 276,
-          "skipReason": "covered by roundtrip glob",
+          "skipReason": "line-separator-replacement roundtrip (setAddLineSeparatorCharacter(true)) covered by TestNative_PageBreakRoundtripLineSeparator, which roundtrips with ReplaceLineSeparator enabled",
           "testState": "skipped",
           "skipCategory": "roundtrip",
-          "params": 2
+          "params": 2,
+          "coveredByTest": "TestNative_PageBreakRoundtripLineSeparator",
+          "coveredByFile": "native_test.go",
+          "coveredByLine": 1897
         },
         {
           "javaClass": "net.sf.okapi.filters.openxml.OpenXMLSnippetsTest",
@@ -47553,7 +47922,10 @@
           "nativeLine": 922,
           "skipReason": "okf_plaintext_regex variant: RoundTripComparison over a fixture corpus (cr/lf/mixture/u0085/u2028/u2029) that depends on regex-driven extraction and Unicode LS/NEL/PS line splitting the native reader does not implement; native roundtrip fidelity is covered by TestRoundTrip_DoubleExtraction.",
           "testState": "skipped",
-          "skipCategory": "roundtrip"
+          "skipCategory": "roundtrip",
+          "coveredByTest": "TestRoundTrip_DoubleExtraction",
+          "coveredByFile": "reader_test.go",
+          "coveredByLine": 217
         },
         {
           "javaClass": "net.sf.okapi.filters.plaintext.RegexPlainTextFilterTest",
@@ -47618,7 +47990,10 @@
           "nativeLine": 633,
           "skipReason": "okf_plaintext_spliced variant: asserts backslash line-continuation splicing (\"Line 1 \\\"+\"Line 2 \\\"+\"Line 3\" -\u003e one TU \"Line 1 Line 2 Line 3\"); the native reader has no line-splicing mode so this exact behaviour is not reproducible. TestRead_CombinedLines below remains a native multi-line extraction test (no Okapi counterpart).",
           "testState": "skipped",
-          "skipCategory": "other"
+          "skipCategory": "other",
+          "coveredByTest": "TestRead_CombinedLines",
+          "coveredByFile": "reader_test.go",
+          "coveredByLine": 633
         },
         {
           "javaClass": "net.sf.okapi.filters.plaintext.SplicedLinesFilterTest",
@@ -50600,7 +50975,10 @@
           "nativeLine": 417,
           "skipReason": "escapeExtendedChars output is exercised natively in TestWrite_EscapeExtendedChars; this case is subfilter-coupled (okf_html), not native reader behavior",
           "testState": "skipped",
-          "skipCategory": "subfilter"
+          "skipCategory": "subfilter",
+          "coveredByTest": "TestWrite_EscapeExtendedChars",
+          "coveredByFile": "okapi_stubs_test.go",
+          "coveredByLine": 480
         },
         {
           "javaClass": "net.sf.okapi.filters.properties.PropertiesFilterTest",
@@ -50663,7 +51041,10 @@
           "nativeLine": 417,
           "skipReason": "escapeExtendedChars=false output is exercised natively in TestWrite_DoNotEscapeExtendedChars; this case is subfilter-coupled (okf_html), not native reader behavior",
           "testState": "skipped",
-          "skipCategory": "subfilter"
+          "skipCategory": "subfilter",
+          "coveredByTest": "TestWrite_DoNotEscapeExtendedChars",
+          "coveredByFile": "okapi_stubs_test.go",
+          "coveredByLine": 490
         },
         {
           "javaClass": "net.sf.okapi.filters.properties.PropertiesFilterTest",
@@ -56083,7 +56464,10 @@
           "nativeLine": 1991,
           "skipReason": "tested via TestTable_DoubleExtraction",
           "testState": "skipped",
-          "skipCategory": "acknowledged"
+          "skipCategory": "acknowledged",
+          "coveredByTest": "TestTable_DoubleExtraction",
+          "coveredByFile": "reader_test.go",
+          "coveredByLine": 1440
         },
         {
           "javaClass": "net.sf.okapi.filters.table.TableFilterTest",
@@ -78296,7 +78680,10 @@
           "nativeLine": 86,
           "skipReason": "exercises Okapi IFilter.open()/close() reopen lifecycle on a file fixture; covered for the native reader by TestReopen",
           "testState": "skipped",
-          "skipCategory": "other"
+          "skipCategory": "other",
+          "coveredByTest": "TestReopen",
+          "coveredByFile": "reader_test.go",
+          "coveredByLine": 1635
         },
         {
           "javaClass": "net.sf.okapi.filters.xml.XMLFilterTest",

@@ -1729,8 +1729,8 @@ func TestBom_DetectAndRemoveBom(t *testing.T) {
 // okapi-unmapped: HtmlSnippetsTest#testAddingMETAinHTML — Okapi adds META charset declarations during output; native writer preserves original structure.
 // okapi-unmapped: HtmlSnippetsTest#testAddingMETAinXHTML — XHTML META injection is Okapi-specific output behavior.
 // okapi-unmapped: HtmlSnippetsTest#testAddingMETAinXML — XML-flavor META injection is Okapi-specific output behavior.
-// okapi-unmapped: HtmlSnippetsTest#testPWithAttributes — duplicate of HtmlEventTest#testPWithAttributes, already covered above.
-// okapi-unmapped: HtmlSnippetsTest#testLang — duplicate of HtmlEventTest#testLang, already covered above.
+// okapi-unmapped: HtmlSnippetsTest#testPWithAttributes — same `<p title="my title" dir="rtl">Text of p</p>` snippet as HtmlEventTest#testPWithAttributes, covered by TestEvents_PWithAttributes.
+// okapi-unmapped: HtmlSnippetsTest#testLang — same lang-attribute handling as HtmlEventTest#testLang, covered by TestEvents_Lang.
 // okapi-unmapped: HtmlSnippetsTest#testLangUpdate — lang attribute update in output is an Okapi-specific writer feature (locale-aware attribute rewriting).
 // okapi-unmapped: HtmlSnippetsTest#testMultilangUpdate — multiple lang attribute updates in output are Okapi-specific writer behavior.
 // okapi-unmapped: HtmlSnippetsTest#testComplexEmptyElement — tests Okapi's ATTRIBUTES_ONLY element rule with write/readonly/trans attribute classification. Not supported in native config.
@@ -1772,7 +1772,7 @@ func TestBom_DetectAndRemoveBom(t *testing.T) {
 // okapi-skip: RoundTripHtmlIT#htmlFilesSerialized — Okapi serialized-skeleton variant; native uses its own skeleton store
 // okapi-unmapped: RoundTripSimplifyHtmlIT — simplifier integration test requires Okapi simplifier step.
 // okapi-unmapped: HtmlMemoryLeakTestIT — memory leak test is a Java-specific concern.
-// okapi-unmapped: ExtractionComparisionTest#testReconstructFile — file reconstruction is covered by roundtrip tests.
+// okapi-unmapped: ExtractionComparisionTest#testReconstructFile — skeleton-writer file reconstruction (read → skeleton-write → byte-exact, including the Content-Type meta injection) is covered by TestSkeletonRoundtrip_ByteExact.
 
 // --- Roundtrip Tests ---
 

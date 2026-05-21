@@ -217,6 +217,15 @@ type testCaseMatch struct {
 	TestState    string `json:"testState,omitempty"` // implemented | pending | skipped | unmapped
 	SkipCategory string `json:"skipCategory,omitempty"`
 	Params       int    `json:"params,omitempty"` // >1 when this @Test collapses N JUnit parameterized invocations
+	// CoveredBy* link a not-applicable / skipped row to the native Go test
+	// that actually verifies the equivalent behaviour, when the skip reason
+	// names one (e.g. "… covered by TestRoundTrip_DoubleExtraction"). This
+	// makes a "covered elsewhere" claim verifiable on the dashboard rather
+	// than an unprovable assertion (#611). Empty when the reason makes no
+	// coverage claim (genuinely not-implemented).
+	CoveredByTest string `json:"coveredByTest,omitempty"`
+	CoveredByFile string `json:"coveredByFile,omitempty"`
+	CoveredByLine int    `json:"coveredByLine,omitempty"`
 }
 
 type filterResult struct {
@@ -309,6 +318,7 @@ func main() {
 	}
 
 	var nativeAnnotations []annotation
+	nativeFuncIndex := map[string]funcLoc{}
 	if *nativeSrc != "" {
 		for _, dir := range strings.Split(*nativeSrc, ",") {
 			dir = strings.TrimSpace(dir)
@@ -320,6 +330,15 @@ func main() {
 				die("scan annotations in %s: %v", dir, err)
 			}
 			nativeAnnotations = append(nativeAnnotations, anns...)
+			funcs, err := scanTestFuncs(dir)
+			if err != nil {
+				die("scan test funcs in %s: %v", dir, err)
+			}
+			for name, loc := range funcs {
+				if _, seen := nativeFuncIndex[name]; !seen {
+					nativeFuncIndex[name] = loc
+				}
+			}
 		}
 	}
 
@@ -348,7 +367,7 @@ func main() {
 		}
 	}
 
-	doc := buildDoc(okapiByFilter, nativeByFilter, bridgeByFilter, specByFilter, bridgeSchemaProps, nativeAnnotations, *okapiVersion, *okapiTag, *goCommit)
+	doc := buildDoc(okapiByFilter, nativeByFilter, bridgeByFilter, specByFilter, bridgeSchemaProps, nativeAnnotations, nativeFuncIndex, *okapiVersion, *okapiTag, *goCommit)
 
 	body, err := json.MarshalIndent(doc, "", "  ")
 	if err != nil {
@@ -445,8 +464,13 @@ var noNativeFilters = map[string]string{
 	"multiparsers":    "no native reader — Okapi multi-parsers composite filter is bridge-only",
 	"cascadingfilter": "no native reader — Okapi cascading composite filter is bridge-only",
 	"archive":         "no native reader — generic archive (zip) container is bridge-only",
-	"abstractmarkup":  "abstract base class — behaviour exercised via concrete html/xml/odf native readers",
-	"its":             "no native ITS filter — ITS global-rule processing is bridge-only (inline ITS in HTML/XML is handled by the html/xml readers)",
+	// abstractmarkup's tests are SimplifierRulesTest, which exercises Okapi's
+	// CodeSimplifier (an inline-code merge/reduce utility) — NOT the markup
+	// readers. neokapi has no native code simplifier (it preserves inline
+	// codes verbatim), so this is a genuine not-implemented, not coverage
+	// "exercised via concrete readers" (that earlier claim was false, #611).
+	"abstractmarkup": "Okapi CodeSimplifier (inline-code merge/reduce) — no native code simplifier; neokapi preserves inline codes verbatim",
+	"its":            "no standalone native ITS filter — inline ITS attributes are honored by the xml/html readers (core/its), but ITS global-rule (.fprm) processing is bridge-only",
 	// NOTE: dita/docbook/resx are now NATIVE (config presets on the xml
 	// reader — see core/formats/xml/presets.go), so they are intentionally
 	// NOT listed here; their IT contracts map to the preset tests.
@@ -947,7 +971,7 @@ var bridgeFilterAliases = map[string]string{
 // buildDoc joins the per-filter Okapi and native maps with the
 // scanned annotations into a single dashboard document, deterministic
 // in iteration order.
-func buildDoc(okapiByFilter, nativeByFilter map[string]*filterResult, bridgeByFilter map[string]*bridgeRows, specByFilter map[string]*spec.Spec, bridgeSchemaProps map[string]map[string]bool, annotations []annotation, okapiVersion, okapiTag, goCommit string) testComparisonData {
+func buildDoc(okapiByFilter, nativeByFilter map[string]*filterResult, bridgeByFilter map[string]*bridgeRows, specByFilter map[string]*spec.Spec, bridgeSchemaProps map[string]map[string]bool, annotations []annotation, nativeFuncIndex map[string]funcLoc, okapiVersion, okapiTag, goCommit string) testComparisonData {
 	// Index annotations by Java FQN#method for O(1) joins.
 	annByOkapi := map[string]annotation{}
 	for _, a := range annotations {
@@ -1022,7 +1046,7 @@ func buildDoc(okapiByFilter, nativeByFilter map[string]*filterResult, bridgeByFi
 		}
 		// Build one row per Okapi @Test method, joined with annotations
 		// and per-fixture bridge outcomes.
-		fc.TestCases = buildRows(fc.Okapi, annByOkapi, nativeStatus, brEntry)
+		fc.TestCases = buildRows(fc.Okapi, annByOkapi, nativeStatus, brEntry, nativeFuncIndex)
 		// No-native classification: for filters neokapi deliberately does
 		// not implement natively, mark every still-bare-unmapped row
 		// not-applicable (bridge-only) with an honest reason, so they are
@@ -1101,7 +1125,7 @@ func buildDoc(okapiByFilter, nativeByFilter map[string]*filterResult, bridgeByFi
 // buildRows produces one TestCaseMatch per Okapi @Test method, joining
 // against annotations, native go-test status, and per-fixture bridge
 // outcomes from the parity report.
-func buildRows(okapi *filterResult, annByOkapi map[string]annotation, nativeStatus map[string]string, br *bridgeRows) []testCaseMatch {
+func buildRows(okapi *filterResult, annByOkapi map[string]annotation, nativeStatus map[string]string, br *bridgeRows, nativeFuncIndex map[string]funcLoc) []testCaseMatch {
 	rows := []testCaseMatch{}
 	if okapi == nil {
 		return rows
@@ -1151,6 +1175,14 @@ func buildRows(okapi *filterResult, annByOkapi map[string]annotation, nativeStat
 				row.NativeTest = ann.GoFunc
 				row.NativeFile = ann.File
 				row.NativeLine = ann.Line
+				// If the reason claims the behaviour is covered by a named
+				// native test, resolve it to a verifiable source link so the
+				// "covered elsewhere" claim isn't just an assertion (#611).
+				if name, loc, ok := resolveCover(ann.Reason, nativeFuncIndex); ok {
+					row.CoveredByTest = name
+					row.CoveredByFile = loc.File
+					row.CoveredByLine = loc.Line
+				}
 			default:
 				row.NativeTest = ann.GoFunc
 				row.NativeFile = ann.File
@@ -1756,6 +1788,67 @@ func scanAnnotations(dir string) ([]annotation, error) {
 		return nil
 	})
 	return out, err
+}
+
+// funcLoc is the source location of a Go test function.
+type funcLoc struct {
+	File string // repo-relative
+	Line int    // 1-based line of the func declaration
+}
+
+// coverFuncDeclRE matches a top-level test/helper func declaration so the
+// cover-link index can record its location.
+var coverFuncDeclRE = regexp.MustCompile(`^func\s+(Test\w+)\s*\(`)
+
+// scanTestFuncs walks dir and indexes every `func TestXxx` → its source
+// location, so a skip reason that names a covering native test (e.g.
+// "… covered by TestRoundTrip_DoubleExtraction") can be turned into a
+// verifiable source link on the dashboard. On duplicate names across
+// packages the first seen wins (collisions are rare and the per-filter
+// reason text disambiguates in practice).
+func scanTestFuncs(dir string) (map[string]funcLoc, error) {
+	out := map[string]funcLoc{}
+	err := filepath.WalkDir(dir, func(path string, d os.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if d.IsDir() || !strings.HasSuffix(path, "_test.go") {
+			return nil
+		}
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return fmt.Errorf("read %s: %w", path, err)
+		}
+		rel := relPath(path)
+		for i, line := range strings.Split(string(data), "\n") {
+			if m := coverFuncDeclRE.FindStringSubmatch(line); m != nil {
+				if _, seen := out[m[1]]; !seen {
+					out[m[1]] = funcLoc{File: rel, Line: i + 1}
+				}
+			}
+		}
+		return nil
+	})
+	return out, err
+}
+
+// coverRefRE extracts candidate native test-function names from a skip
+// reason. Only names present in the native-func index become links, so Java
+// references like "PropertiesFilterTest#testFoo" never resolve here.
+var coverRefRE = regexp.MustCompile(`\bTest[A-Za-z0-9_]+`)
+
+// resolveCover finds the first native test func named in reason that exists
+// in the index, returning its name + location for a "covered by" link.
+func resolveCover(reason string, index map[string]funcLoc) (name string, loc funcLoc, ok bool) {
+	if index == nil || reason == "" {
+		return "", funcLoc{}, false
+	}
+	for _, ref := range coverRefRE.FindAllString(reason, -1) {
+		if loc, found := index[ref]; found {
+			return ref, loc, true
+		}
+	}
+	return "", funcLoc{}, false
 }
 
 func scanFile(path string) ([]annotation, error) {
