@@ -14,21 +14,57 @@ import (
 // Writer implements DataFormatWriter for Java Properties files.
 type Writer struct {
 	format.BaseFormatWriter
+	cfg           *Config
 	skeletonStore *format.SkeletonStore
 	firstLine     bool
 }
 
-// Ensure Writer implements SkeletonStoreConsumer.
-var _ format.SkeletonStoreConsumer = (*Writer)(nil)
+// Ensure Writer implements SkeletonStoreConsumer and WriterConfigurable.
+var (
+	_ format.SkeletonStoreConsumer = (*Writer)(nil)
+	_ format.WriterConfigurable    = (*Writer)(nil)
+)
 
 // NewWriter creates a new Properties writer.
 func NewWriter() *Writer {
+	cfg := &Config{}
+	cfg.Reset()
 	return &Writer{
 		BaseFormatWriter: format.BaseFormatWriter{
 			FormatName: "properties",
 		},
+		cfg:       cfg,
 		firstLine: true,
 	}
+}
+
+// SetConfig replaces the writer's config — used to apply serialization
+// knobs such as escapeExtendedChars from parity tests, CLI introspection,
+// and .kapi recipe loading.
+func (w *Writer) SetConfig(cfg *Config) {
+	if cfg != nil {
+		w.cfg = cfg
+	}
+}
+
+// WriterConfig implements format.WriterConfigurable, exposing the writer's
+// Config so the flow/CLI plumbing can apply parameters (escapeExtendedChars)
+// via ApplyMap.
+func (w *Writer) WriterConfig() format.DataFormatConfig {
+	if w.cfg == nil {
+		w.cfg = &Config{}
+		w.cfg.Reset()
+	}
+	return w.cfg
+}
+
+// escapeExtended reports whether non-ASCII characters should be encoded as
+// \uXXXX on output. Defaults to true (ISO-8859-1-safe) when no config set.
+func (w *Writer) escapeExtended() bool {
+	if w.cfg == nil {
+		return true
+	}
+	return w.cfg.EscapeExtendedChars
 }
 
 // SetSkeletonStore sets the skeleton store for byte-exact output.
@@ -119,12 +155,12 @@ func (w *Writer) writeFromSkeleton(blocks map[string]*model.Block) error {
 // RenderRunsWithData; plain TargetText/SourceText would drop them.
 func (w *Writer) blockValue(block *model.Block) string {
 	if !w.Locale.IsEmpty() && block.HasTarget(w.Locale) {
-		return encodePropertyValue(renderRunsText(block.Targets[w.Locale]))
+		return encodePropertyValue(renderRunsText(block.Targets[w.Locale]), w.escapeExtended())
 	}
 	if raw, ok := block.Properties["rawValue"]; ok {
 		return raw
 	}
-	return encodePropertyValue(renderRunsText(block.Source))
+	return encodePropertyValue(renderRunsText(block.Source), w.escapeExtended())
 }
 
 func renderRunsText(segs []*model.Segment) string {
@@ -166,7 +202,7 @@ func (w *Writer) writeBlock(part *model.Part) error {
 	}
 
 	// Encode unicode escapes for non-ASCII characters
-	text = encodePropertyValue(text)
+	text = encodePropertyValue(text, w.escapeExtended())
 
 	sep := "="
 	if s, ok := block.Properties["separator"]; ok && s != "" {
@@ -206,10 +242,15 @@ func (w *Writer) writeLine() {
 }
 
 // encodePropertyValue encodes special characters in a property value:
-// non-ASCII -> \uXXXX, newline -> \n, tab -> \t, CR -> \r, backslash -> \\.
-// Leading `:` / `=` are escaped because the Java properties parser would
-// otherwise treat them as a second separator marker (okapi mirrors this).
-func encodePropertyValue(s string) string {
+// non-ASCII -> \uXXXX (when escapeExtended), newline -> \n, tab -> \t,
+// CR -> \r, backslash -> \\. Leading `:` / `=` are escaped because the
+// Java properties parser would otherwise treat them as a second separator
+// marker (okapi mirrors this).
+//
+// When escapeExtended is false, non-ASCII characters are emitted verbatim
+// (the output is no longer ISO-8859-1 safe but preserves the raw bytes),
+// matching Okapi's setEscapeExtendedChars(false).
+func encodePropertyValue(s string, escapeExtended bool) string {
 	var buf strings.Builder
 	for i, r := range s {
 		switch {
@@ -221,7 +262,7 @@ func encodePropertyValue(s string) string {
 			buf.WriteString("\\t")
 		case r == '\r':
 			buf.WriteString("\\r")
-		case r > 127:
+		case r > 127 && escapeExtended:
 			buf.WriteString(fmt.Sprintf("\\u%04x", r))
 		case (r == ':' || r == '=') && i == 0:
 			buf.WriteByte('\\')

@@ -1078,7 +1078,7 @@ func (r *Reader) buildDocstringLayout(cb *commentBlock) string {
 	// Okapi convention: indented docstrings get a blank line + column-0
 	// closing `"""`. Non-indented docstrings keep the closing as-is.
 	if indent != "" {
-		entries = append(entries, "S:")     // blank line
+		entries = append(entries, "S:")       // blank line
 		entries = append(entries, "S:"+`"""`) // closing at column 0
 	} else {
 		entries = append(entries, "S:"+closingLine)
@@ -1203,7 +1203,20 @@ func (r *Reader) buildBlockLayout(cb *commentBlock) string {
 		//     is translated.
 		// Encoded as B:<prefix>\x02<suffix>; the writer splits on
 		// \x02 and emits prefix + text + suffix.
+		//
+		// Pure trailing whitespace on an ordinary prose line is NOT
+		// significant: okapi's WHITESPACE_COLLAPSE folds the trailing
+		// space of a continuation line when joinProseLines merges it
+		// into the anchor (` * This is \n * a test.` → `This is a
+		// test.`, no trailing space). Only preserve a whitespace-only
+		// suffix on a doxygen list-end marker (` *     . ` on lists.h
+		// line 21), whose `.` row okapi keeps standalone (see
+		// isListEndMarker / joinProseLines), and any non-whitespace
+		// suffix (e.g. `\image …  "My app" width=10cm`).
 		suffix := raw[idxT+len(tl.text):]
+		if strings.TrimRight(suffix, " \t") == "" && !isListEndMarker(tl.text) {
+			suffix = ""
+		}
 		if suffix != "" {
 			entries = append(entries, "B:"+prefix+"\x02"+suffix)
 		} else {

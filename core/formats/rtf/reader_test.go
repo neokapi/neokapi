@@ -3,6 +3,7 @@ package rtf_test
 import (
 	"bytes"
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/neokapi/neokapi/core/formats/rtf"
@@ -383,4 +384,34 @@ func TestConfigApplyMap(t *testing.T) {
 
 	err = cfg.ApplyMap(map[string]any{})
 	require.NoError(t, err)
+}
+
+// okapi: RtfFullFileTest#testAllExternalFiles
+// Okapi's testAllExternalFiles opens every external .rtf fixture in the test
+// resources directory and drains all events, asserting the filter parses real
+// documents without throwing. The native analog opens every .rtf fixture
+// under testdata/ (the upstream Test01/Test02/AddComments fixtures plus
+// simple.rtf) and reads every Part, asserting no read error surfaces and that
+// at least one translatable block is produced from the real-world documents.
+func TestAllExternalFiles(t *testing.T) {
+	files, err := filepath.Glob("testdata/*.rtf")
+	require.NoError(t, err)
+	require.NotEmpty(t, files, "expected at least one .rtf fixture under testdata/")
+
+	for _, f := range files {
+		t.Run(filepath.Base(f), func(t *testing.T) {
+			ctx := t.Context()
+			fh, err := os.Open(f)
+			require.NoError(t, err)
+			reader := rtf.NewReader()
+			doc := testutil.RawDocFromReader(fh, f, model.LocaleEnglish)
+			doc.Encoding = "windows-1252"
+			doc.TargetLocale = model.LocaleFrench
+			require.NoError(t, reader.Open(ctx, doc))
+			defer reader.Close()
+
+			blocks := testutil.CollectBlocks(t, reader.Read(ctx))
+			assert.NotEmpty(t, blocks, "%s should yield at least one translatable block", f)
+		})
+	}
 }

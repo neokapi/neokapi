@@ -53,7 +53,7 @@ func roundTripTSVLocale(t *testing.T, input string, locale model.LocaleID) strin
 
 // --- TSV Reader Tests ---
 
-// okapi: TableFilterTest#testTSV
+// neokapi-only: TableFilterTest#testTSV — no such method in v1.48.0 TableFilterTest (no TSV-specific @Test); native tab-separated reading is neokapi's own coverage.
 func TestTSV_BasicRead(t *testing.T) {
 	t.Parallel()
 	input := "name\tvalue\ngreeting\tHello\nfarewell\tGoodbye\n"

@@ -722,3 +722,52 @@ func TestConfig(t *testing.T) {
 	assert.Equal(t, "Doxygen Comments", s.Title)
 	assert.Equal(t, "doxygen", s.FormatMeta.ID)
 }
+
+// ---------------------------------------------------------------------------
+// RoundTrip integration contract
+// ---------------------------------------------------------------------------
+
+// Native equivalent of Okapi's RoundTripDoxygenIT: it runs RoundTripComparison
+// over a corpus of real .h files, asserting the extracted text units are stable
+// across an extract→merge→re-extract roundtrip. This test reproduces the same
+// observable contract over the representative fixtures that roundtrip cleanly
+// (sample.h, qt-style.h, javadoc-style.h — lists.h is excluded for the reasons
+// documented in skeleton_test.go): read each file, write it back through the
+// skeleton store with no translation, re-extract, and assert the same number of
+// text units with identical prose.
+//
+// Trailing whitespace is trimmed before comparison: the native reader collapses
+// a multi-line `/** */` / `///` comment into one text unit whose SourceText
+// carries a trailing newline, which the merge round folds away on re-extraction
+// (the WhitespaceAdjustingEventBuilder reflow okapi performs). The prose content
+// is byte-stable; only that trailing newline differs, so it is the one
+// normalization applied — the body of every unit must still match exactly.
+//
+// okapi: RoundTripDoxygenIT#doxygenFiles
+// okapi: DoxygenXliffCompareIT#doxygenXliffCompareFiles
+// okapi-skip: RoundTripDoxygenIT#doxygenFilesSerialized — Okapi serialized-skeleton roundtrip variant; native uses its own skeleton store (no serialized-skeleton mode)
+func TestRoundTrip_DoxygenIT(t *testing.T) {
+	trimTrailing := func(texts []string) []string {
+		out := make([]string, len(texts))
+		for i, s := range texts {
+			out[i] = strings.TrimRight(s, "\n")
+		}
+		return out
+	}
+	for _, name := range []string{"testdata/sample.h", "testdata/qt-style.h", "testdata/javadoc-style.h"} {
+		t.Run(name, func(t *testing.T) {
+			content, err := os.ReadFile(name)
+			require.NoError(t, err)
+
+			// Extract → write (no translation) via the skeleton store.
+			merged := snippetRoundtripWithSkeleton(t, string(content))
+
+			// Re-extract the merged output and compare source text units.
+			first := blockTexts(collectBlocks(readDoxygen(t, string(content))))
+			second := blockTexts(collectBlocks(readDoxygen(t, merged)))
+			require.NotEmpty(t, first, "%s should produce translatable blocks", name)
+			assert.Equal(t, trimTrailing(first), trimTrailing(second),
+				"%s text units must be stable across an extract→write→re-extract roundtrip", name)
+		})
+	}
+}

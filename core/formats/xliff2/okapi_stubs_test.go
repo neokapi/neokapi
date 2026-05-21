@@ -539,9 +539,23 @@ func TestRead_UpdateTarget(t *testing.T) {
 
 // okapi-unmapped: Xliff2FilterWriterTest#testWriteHTMLAsXliff2 -- cross-format HTML-to-XLIFF2 conversion is a Java bridge concept with no native equivalent
 
-// ---- RoundTripXliff2IT ----
+// ---- Integration-test (Failsafe) contracts ----
+// RoundTripXliff2IT (roundtrip.integration) and Xliff2XliffCompareIT
+// (xliffcompare.integration) in integration-tests/okapi.
+//
+// xliff2Files (the plain corpus double-extraction) maps to the corpus-driven
+// TestRoundTrip_AllFixtures in roundtrip_test.go. The variants below are not
+// applicable to the native reader:
+//
+// okapi-skip: RoundTripXliff2IT#xliff2SerializedFiles — Okapi serialized-skeleton variant (events written to a .ser/.json blob then merged); native uses its own byte-exact skeleton store, not Okapi's serialized event format
+// okapi-skip: RoundTripXliff2IT#deepenXliff2 — okf_xliff2@deepen-segmentation config over the .deepen_xlf corpus; depends on Okapi's deepen-segmentation pipeline step (re-segmentation), which the native reader does not implement
+// okapi-skip: RoundTripXliff2IT#debug4 — single-file dev harness for the okf_xliff2@json.fprm JSON subfilter (subfilter_json/subfilter_json.xlf); JSON-subfilter wiring is a bridge concept, the native reader keeps embedded content as raw inner XML
 
-// okapi: RoundTripXliff2IT
+// Xliff2XliffCompareIT#xliff2XliffCompareFiles extracts each corpus file to
+// XLIFF and diffs the result against a frozen previous-release XLIFF baseline
+// (extraction-output stability). The native equivalent verifies representative
+// XLIFF 2.0 snippets survive read→write and a second extraction is stable.
+// okapi: Xliff2XliffCompareIT#xliff2XliffCompareFiles
 func TestRoundTrip_NativeFiles(t *testing.T) {
 	// Native equivalent of the Java RoundTripXliff2IT, which verifies that
 	// XLIFF 2.0 files survive a read-write roundtrip. We use representative

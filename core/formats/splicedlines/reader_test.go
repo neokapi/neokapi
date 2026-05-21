@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// okapi: SplicedLinesFilterTest#testSingleLine
+// neokapi-only: SplicedLinesFilterTest#testSingleLine — no upstream @Test (SplicedLinesFilterTest exposes only testCombinedLines for splicing); single-line passthrough is neokapi coverage
 func TestSingleLine(t *testing.T) {
 	ctx := t.Context()
 	reader := splicedlines.NewReader()
@@ -28,7 +28,7 @@ func TestSingleLine(t *testing.T) {
 	assert.Equal(t, "Hello world", blocks[0].SourceText())
 }
 
-// okapi: SplicedLinesFilterTest#testContinuationLine
+// neokapi-only: SplicedLinesFilterTest#testContinuationLine — upstream covers backslash continuation in testCombinedLines (already mapped in plaintext); this granular case is neokapi coverage
 func TestContinuationLine(t *testing.T) {
 	ctx := t.Context()
 	reader := splicedlines.NewReader()
@@ -43,7 +43,7 @@ func TestContinuationLine(t *testing.T) {
 	assert.Equal(t, "Hello \nworld", blocks[0].SourceText())
 }
 
-// okapi: SplicedLinesFilterTest#testMultipleContinuations
+// neokapi-only: SplicedLinesFilterTest#testMultipleContinuations — upstream covers multi-line splicing in testCombinedLines (already mapped in plaintext); neokapi coverage
 func TestMultipleContinuations(t *testing.T) {
 	ctx := t.Context()
 	reader := splicedlines.NewReader()
@@ -58,7 +58,7 @@ func TestMultipleContinuations(t *testing.T) {
 	assert.Equal(t, "Line1 \nLine2 \nLine3", blocks[0].SourceText())
 }
 
-// okapi: SplicedLinesFilterTest#testMixedLines
+// neokapi-only: SplicedLinesFilterTest#testMixedLines — upstream covers mixed plain/continued lines in testCombinedLines (already mapped in plaintext); neokapi coverage
 func TestMixedLines(t *testing.T) {
 	ctx := t.Context()
 	reader := splicedlines.NewReader()
@@ -154,7 +154,7 @@ func TestConfigApplyMapEmpty(t *testing.T) {
 	require.NoError(t, err)
 }
 
-// okapi: SplicedLinesFilterTest#testTrailingBackslash
+// neokapi-only: SplicedLinesFilterTest#testTrailingBackslash — no upstream @Test for trailing-backslash-at-EOF; testCombinedLines covers splicing; neokapi coverage
 func TestTrailingBackslashAtEnd(t *testing.T) {
 	ctx := t.Context()
 	reader := splicedlines.NewReader()
@@ -171,7 +171,7 @@ func TestTrailingBackslashAtEnd(t *testing.T) {
 	assert.Equal(t, "Hello ", blocks[0].SourceText())
 }
 
-// okapi: SplicedLinesFilterTest#testBackslashNotAtEnd
+// neokapi-only: SplicedLinesFilterTest#testBackslashNotAtEnd — no upstream @Test for non-terminal backslash; neokapi coverage
 func TestBackslashNotAtEnd(t *testing.T) {
 	ctx := t.Context()
 	reader := splicedlines.NewReader()
@@ -286,7 +286,7 @@ func TestWriterContextCancellation(t *testing.T) {
 	assert.ErrorIs(t, err, context.Canceled)
 }
 
-// okapi: SplicedLinesFilterTest#testEmptyLines
+// neokapi-only: SplicedLinesFilterTest#testEmptyLines — no upstream @Test for blank-line-as-data; neokapi coverage
 func TestEmptyLinesAsData(t *testing.T) {
 	ctx := t.Context()
 	reader := splicedlines.NewReader()

@@ -100,6 +100,21 @@ func roundtripMediaWiki(t *testing.T, input string) string {
 
 // ---- WikiFilterTest ----
 
+// okapi: WikiFilterTest#testDefaultInfo
+// Okapi's testDefaultInfo asserts the filter exposes a non-null name, a
+// non-null display name, and a non-empty configuration list. The native
+// analog: the reader reports a non-empty Name and DisplayName, and its
+// Signature advertises at least one extension and one MIME type (the
+// equivalent of okapi's filter configurations).
+func TestDefaultInfo(t *testing.T) {
+	reader := wiki.NewReader()
+	assert.NotEmpty(t, reader.Name())
+	assert.NotEmpty(t, reader.DisplayName())
+	sig := reader.Signature()
+	assert.NotEmpty(t, sig.Extensions, "wiki should advertise at least one extension")
+	assert.NotEmpty(t, sig.MIMETypes, "wiki should advertise at least one MIME type")
+}
+
 // okapi: WikiFilterTest#testStartDocument
 func TestExtract_StartDocument(t *testing.T) {
 	parts := readDefault(t, "== Title ==\nSimple text.")
@@ -269,6 +284,7 @@ func TestExtract_ComplexSeparatingWhitespace(t *testing.T) {
 }
 
 // okapi: WikiFilterTest#testDoubleExtraction
+// okapi: WikXliffCompareIT#wikiXliffCompareFiles — native extract→write→re-extract verifies extracted content is stable; Okapi's wikiXliffCompareFiles extracts to XLIFF and compares against a gold XLIFF corpus.
 func TestExtract_DoubleExtraction(t *testing.T) {
 	input := "== Title ==\nSome text.\n\nAnother paragraph."
 	ctx := t.Context()
@@ -583,7 +599,8 @@ func TestRoundTrip_WikiFormatting(t *testing.T) {
 	}
 }
 
-// okapi: RoundTripWikiIT#testWikiFiles (*.wiki files)
+// okapi: RoundTripWikiIT#wikiFiles — native extract→write over the .wiki fixture corpus; Okapi's wikiFiles does extract→merge→compare-events over a wiki corpus.
+// okapi-skip: RoundTripWikiIT#wikiSerializedFiles — Okapi serialized-skeleton variant; native uses its own skeleton store, not Okapi's serialized event/skeleton format.
 //
 // `.wiki` files are MediaWiki markup. Pinned to MediaWiki under #496.
 func TestRoundTrip_WikiFiles(t *testing.T) {
@@ -621,7 +638,8 @@ func TestRoundTrip_WikiFiles(t *testing.T) {
 	}
 }
 
-// okapi: RoundTripWikiIT#testWikiFiles (*.txt DokuWiki files)
+// neokapi note: DokuWiki .txt roundtrip companion to TestRoundTrip_WikiFiles
+// (which carries the RoundTripWikiIT#wikiFiles mapping for the .wiki corpus).
 func TestRoundTrip_DokuWikiTxtFiles(t *testing.T) {
 	ctx := t.Context()
 	f, err := os.Open("testdata/dokuwiki.txt")

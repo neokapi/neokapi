@@ -5,30 +5,27 @@ package tmx_test
 // This file contains native Go tests for the TMX format reader/writer,
 // mapped to the Java Okapi TmxFilterTest and ParametersTest test methods.
 //
-// --- Java-internal API tests (not applicable to native Go implementation) ---
-//
-// okapi-unmapped: TmxFilterTest#testCancel — Java filter cancellation mid-stream; native reader uses context cancellation
-// okapi-unmapped: TmxFilterTest#testStartDocument — Java StartDocument event; native uses PartLayerStart
-// okapi-unmapped: TmxFilterTest#testStartDocumentFromList — Java StartDocument from config list; native uses PartLayerStart
-// okapi-unmapped: TmxFilterTest#testOpenInvalidInputStream — Java InputStream API; native uses io.Reader
-// okapi-unmapped: TmxFilterTest#testOpenInvalidUri — Java URI API; native uses io.Reader
-// okapi-unmapped: ParametersTest#testToString — Java parameter serialization
-// okapi-unmapped: ParametersTest#testFromString — Java parameter deserialization
-//
 // --- File-based extraction tests (require Okapi test resource files) ---
 //
 // okapi-deferred: TmxFilterTest (file-based extraction of sampleTMX2.tmx) — requires okf_tmx/sampleTMX2.tmx; behavior covered by TestSpecialChars and TestMultipleTargets
 // okapi-deferred: TmxFilterTest (file-based extraction of Paragraph_TM.tmx) — requires okf_tmx/Paragraph_TM.tmx; paragraph TU behavior covered by TestSegTypePara
 // okapi-deferred: TmxFilterTest (file-based extraction of small_complete.tmx) — requires okf_tmx/small_complete.tmx; inline codes covered by TestBptEptPair, TestPhPlaceholder, TestItIsolatedBeginEnd, TestHiHighlight
 //
-// --- File-based roundtrip iteration tests ---
+// --- Integration-test (Failsafe) roundtrip contracts ---
 //
-// okapi-deferred: RoundTripTmxIT#tmxFiles — iterates all okf_tmx/*.tmx files; native roundtrip covered by TestRoundTrip_SimpleFile, TestRoundTrip_MultipleUnits, and skeleton_test.go
-// okapi-deferred: TmxXliffCompareIT (sampleTMX2.tmx) — requires okf_tmx/sampleTMX2.tmx; inline code roundtrip covered by TestRoundTrip_InlineCodes
+// RoundTripTmxIT (roundtrip.integration) and TmxXliffCompareIT
+// (xliffcompare.integration) in integration-tests/okapi. The plain-TMX rows
+// map to native roundtrip tests below: RoundTripTmxIT#tmxFiles →
+// TestRoundTrip_SimpleFile (real testdata/simple.tmx read→write) and
+// TmxXliffCompareIT#tmxXliffCompareFiles → TestRoundTrip_InlineCodes
+// (inline-code extraction stability). The serialized variant is not applicable:
+//
+// okapi-skip: RoundTripTmxIT#tmxSerializedFiles — Okapi serialized-skeleton variant (events written to a .ser/.json blob then merged); native uses its own skeleton store, not Okapi's serialized event format
 
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -40,6 +37,12 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// errReader is an io.Reader that always fails, modelling an input that cannot
+// be read (the native analogue of Java's "open an invalid URI").
+type errReader struct{}
+
+func (errReader) Read([]byte) (int, error) { return 0, errors.New("simulated read failure") }
 
 // --- Helpers ---
 
@@ -411,7 +414,11 @@ func TestXmlLangOverLang(t *testing.T) {
 	assert.False(t, blocks[0].HasTarget("de"))
 }
 
-// okapi: TmxFilterTest#testRelaxLanguageMatching (bridge-only, tested natively below)
+// okapi: TmxFilterTest#testRelaxLanguageMatching
+// Native langMatches() implements relaxed BCP-47 matching: a bare primary
+// subtag ("en") matches a regioned variant ("en-US"). TMX 1.4 keys TUVs by
+// xml:lang, and Okapi's newer relax-matching lets srclang="en" select an
+// en-US <tuv> as the source.
 func TestRelaxLanguageMatching(t *testing.T) {
 	// en should match en-US with relaxed matching.
 	input := `<?xml version="1.0"?>
@@ -431,7 +438,9 @@ func TestRelaxLanguageMatching(t *testing.T) {
 	assert.Equal(t, "US English", blocks[0].SourceText())
 }
 
-// okapi: TmxFilterTest#testRelaxLanguageMatchingInTheOtherDirection (bridge-only, tested natively)
+// okapi: TmxFilterTest#testRelaxLanguageMatchingInTheOtherDirection
+// Relaxed matching is symmetric: srclang="en-US" also selects a bare "en"
+// <tuv> as the source, mirroring Okapi's reverse-direction relax test.
 func TestRelaxLanguageMatchingReverse(t *testing.T) {
 	// en-US srclang should match en TUV.
 	input := `<?xml version="1.0"?>
@@ -452,7 +461,10 @@ func TestRelaxLanguageMatchingReverse(t *testing.T) {
 	assert.True(t, blocks[0].HasTarget("fr"))
 }
 
-// okapi: TmxFilterTest#testRelaxLanguageMatchingStillDisallowsRegionMismatches (bridge-only, tested natively)
+// okapi: TmxFilterTest#testRelaxLanguageMatchingStillDisallowsRegionMismatches
+// Relaxed matching still rejects region mismatches: srclang="en-US" must NOT
+// select an "en-GB" <tuv>. Here neither <tuv> matches the source language, so
+// the reader falls back to the first <tuv> ("en-GB") as the source.
 func TestRelaxLanguageRegionMismatch(t *testing.T) {
 	// en-US should NOT match en-GB even with relaxed matching.
 	input := `<?xml version="1.0"?>
@@ -469,9 +481,14 @@ func TestRelaxLanguageRegionMismatch(t *testing.T) {
 </tmx>`
 	blocks := readTMXBlocks(t, input)
 	require.NotEmpty(t, blocks)
-	// en-US should NOT match en-GB, so source falls back to first TUV
-	// and en-GB content becomes the source (first TUV)
+	// en-US does NOT relax-match en-GB (region mismatch), so no <tuv> is the
+	// source by language. The reader falls back to the first <tuv> (en-GB) for
+	// the source content. Because en-GB never matched the source language, it
+	// is ALSO retained as an en-GB target — i.e. the region mismatch is real,
+	// not silently coalesced into the source.
 	assert.Equal(t, "British English", blocks[0].SourceText())
+	assert.True(t, blocks[0].HasTarget("en-GB"), "en-GB must remain a distinct target, not match en-US source")
+	assert.True(t, blocks[0].HasTarget("fr"))
 }
 
 // --- Target attributes ---
@@ -592,7 +609,10 @@ func TestPropAndNoteInStartDocument(t *testing.T) {
 
 // --- Layer start/end ---
 
-// okapi: TmxFilterTest#testStartDocument (adapted: checks LayerStart)
+// okapi: TmxFilterTest#testStartDocument
+// Java asserts the filter emits a StartDocument event. The native equivalent
+// is the PartLayerStart that opens every TMX stream (and the matching
+// PartLayerEnd that closes it).
 func TestLayerStartEnd(t *testing.T) {
 	input := wrapTMX(`
     <tu>
@@ -607,6 +627,32 @@ func TestLayerStartEnd(t *testing.T) {
 	layer := parts[0].Resource.(*model.Layer)
 	assert.Equal(t, "tmx", layer.Format)
 	assert.True(t, layer.IsMultilingual)
+}
+
+// okapi: TmxFilterTest#testStartDocumentFromList
+// Java asserts the StartDocument resource carries non-nil encoding, type,
+// mimetype, locale and a "\r" line-break. The native StartDocument equivalent
+// is the opening Layer: it carries Format ("type"), Encoding, MimeType and
+// Locale. (Line-break sniffing is a Java filter concern with no native field
+// the reader populates, so it is intentionally not asserted here.)
+func TestStartDocumentFromList(t *testing.T) {
+	input := wrapTMX(`
+    <tu>
+      <tuv xml:lang="en"><seg>Hello World!</seg></tuv>
+      <tuv xml:lang="fr"><seg>Bonjour le monde!</seg></tuv>
+    </tu>`)
+	parts := readTMX(t, input)
+	require.NotEmpty(t, parts)
+	require.Equal(t, model.PartLayerStart, parts[0].Type)
+
+	layer, ok := parts[0].Resource.(*model.Layer)
+	require.True(t, ok, "first part must be a Layer")
+	assert.NotEmpty(t, layer.Format, "Format (the native 'type') must be set")
+	assert.NotEmpty(t, layer.Encoding, "Encoding must be set")
+	assert.NotEmpty(t, layer.MimeType, "MimeType must be set")
+	assert.NotEmpty(t, layer.Locale, "Locale must be set")
+	assert.Equal(t, "application/x-tmx+xml", layer.MimeType)
+	assert.Equal(t, model.LocaleEnglish, layer.Locale)
 }
 
 // --- DTD handling ---
@@ -1044,7 +1090,10 @@ func TestInputStream(t *testing.T) {
 
 // --- Cancel ---
 
-// okapi: TmxFilterTest#testCancel (adapted: tests context cancellation)
+// okapi: TmxFilterTest#testCancel
+// Java calls filter.cancel() mid-stream and expects an EventType.CANCELED.
+// The native reader cancels via context: a cancelled ctx makes Read() drain
+// and close the channel without hanging or panicking.
 func TestCancel(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	reader := tmx.NewReader()
@@ -1246,7 +1295,10 @@ func TestInvalidElementInPlaceholder(t *testing.T) {
 
 // --- Output tests ---
 
-// okapi: TmxFilterTest#testOutputBasic_Comment
+// neokapi-only: TmxFilterTest#testOutputBasic_Comment — upstream @Test is commented out (disabled)
+//
+//	in v1.48.0, so there is no live Okapi case to map against. This native test still exercises
+//	genuine behavior: a document-level XML comment must survive a read/write round-trip.
 func TestOutputBasic_Comment(t *testing.T) {
 	input := `<?xml version="1.0"?>
 <!-- Example of TMX document -->
@@ -1305,23 +1357,73 @@ func TestDoubleExtractionCompKit(t *testing.T) {
 
 // --- Parameters tests ---
 
+// okapi-skip: ParametersTest#testToString — Java StringParameters serializes config to a
+//
+//	"#v1\nkey.b=value" line format; neokapi config is YAML/map driven (Config.ApplyMap) and
+//	has no string-serialization round-trip, so toString has no native counterpart.
+//
 // okapi: ParametersTest#testParameters
+// Java asserts the documented defaults (escapeGT=false, processAllTargets=true,
+// exitOnInvalid=false). The native Config exposes the same three knobs; the
+// Java-only segType/consolidateDpSkeleton defaults have no native field.
 func TestParameters(t *testing.T) {
-	cfg := tmx.Config{}
+	cfg := &tmx.Config{}
+	cfg.Reset()
 	assert.Equal(t, "tmx", cfg.FormatName())
 	require.NoError(t, cfg.Validate())
+	assert.False(t, cfg.EscapeGT, "escapeGT should default to false")
+	assert.True(t, cfg.ProcessAllTargets, "processAllTargets should default to true")
+	assert.False(t, cfg.ExitOnInvalid, "exitOnInvalid should default to false")
 }
 
 // okapi: ParametersTest#testReset
+// Java mutates every parameter then asserts reset() restores defaults. Native
+// Reset() must likewise restore the documented defaults from a mutated state.
 func TestParametersReset(t *testing.T) {
-	cfg := tmx.Config{}
+	cfg := &tmx.Config{
+		EscapeGT:          true,
+		ProcessAllTargets: false,
+		ExitOnInvalid:     true,
+		UseCodeFinder:     true,
+	}
 	cfg.Reset()
 	require.NoError(t, cfg.Validate())
+	assert.False(t, cfg.EscapeGT, "escapeGT should reset to false")
+	assert.True(t, cfg.ProcessAllTargets, "processAllTargets should reset to true")
+	assert.False(t, cfg.ExitOnInvalid, "exitOnInvalid should reset to false")
+	assert.False(t, cfg.UseCodeFinder, "useCodeFinder should reset to false")
+}
+
+// okapi: ParametersTest#testFromString
+// Java's fromString() deserializes a "#v1\nkey.b=value" parameter string into
+// the filter's getters. The native equivalent is Config.ApplyMap, which loads
+// config values from the recipe map. This asserts the three knobs with native
+// counterparts (escapeGT, processAllTargets, exitOnInvalid) round-trip from a
+// map; the Java-only segType/consolidateDpSkeleton keys have no native field.
+func TestParametersFromMap(t *testing.T) {
+	cfg := &tmx.Config{}
+	cfg.Reset()
+	err := cfg.ApplyMap(map[string]any{
+		"escapeGT":          true,
+		"processAllTargets": false,
+		"exitOnInvalid":     true,
+	})
+	require.NoError(t, err)
+	assert.True(t, cfg.EscapeGT, "escapeGT should be true")
+	assert.False(t, cfg.ProcessAllTargets, "processAllTargets should be false")
+	assert.True(t, cfg.ExitOnInvalid, "exitOnInvalid should be true")
+
+	// Unknown keys are rejected, mirroring Java's strict parameter parsing.
+	require.Error(t, cfg.ApplyMap(map[string]any{"noSuchParam": true}))
 }
 
 // --- Roundtrip tests ---
 
-// okapi: RoundTripTmxIT#tmxFiles (roundtrip with testdata/simple.tmx)
+// okapi: RoundTripTmxIT#tmxFiles
+// RoundTripTmxIT#tmxFiles (roundtrip.integration) extracts→merges→re-extracts
+// every .tmx in the corpus and asserts the events match. This native test reads
+// a real TMX file (testdata/simple.tmx) through the reader and writes it back,
+// asserting source/target content survives the read→write cycle.
 func TestRoundTrip_SimpleFile(t *testing.T) {
 	ctx := t.Context()
 
@@ -1354,7 +1456,9 @@ func TestRoundTrip_SimpleFile(t *testing.T) {
 	assert.Contains(t, output, "Auf Wiedersehen")
 }
 
-// okapi: RoundTripTmxIT (roundtrip reread consistency)
+// Additional native roundtrip coverage for RoundTripTmxIT#tmxFiles
+// (reread consistency); the IT contract itself is mapped on
+// TestRoundTrip_SimpleFile above.
 func TestRoundTrip_Reread(t *testing.T) {
 	input := `<?xml version="1.0" encoding="UTF-8"?>
 <tmx version="1.4">
@@ -1373,7 +1477,11 @@ func TestRoundTrip_Reread(t *testing.T) {
 	assert.Equal(t, "Bonjour", blocks[0].TargetText("fr"))
 }
 
-// okapi: TmxXliffCompareIT (roundtrip with inline codes)
+// okapi: TmxXliffCompareIT#tmxXliffCompareFiles
+// TmxXliffCompareIT#tmxXliffCompareFiles (xliffcompare.integration) extracts
+// each corpus .tmx to XLIFF and diffs against a frozen previous-release XLIFF
+// baseline (extraction-output stability). The native equivalent verifies that
+// inline-code-bearing TMX content extracts stably across the read cycle.
 func TestRoundTrip_InlineCodes(t *testing.T) {
 	input := `<?xml version="1.0"?>
 <tmx version="1.4">
@@ -1396,7 +1504,9 @@ func TestRoundTrip_InlineCodes(t *testing.T) {
 	assert.Contains(t, blocks[0].SourceText(), "Click here")
 }
 
-// okapi: RoundTripTmxIT#tmxFiles (roundtrip with multiple TUs)
+// Additional native roundtrip coverage for RoundTripTmxIT#tmxFiles
+// (multiple TUs); the IT contract itself is mapped on
+// TestRoundTrip_SimpleFile above.
 func TestRoundTrip_MultipleUnits(t *testing.T) {
 	input := wrapTMX(`
     <tu>
@@ -1430,11 +1540,46 @@ func TestEmptyBody(t *testing.T) {
 	assert.Empty(t, blocks)
 }
 
+// okapi: TmxFilterTest#testOpenInvalidInputStream
+// Java opens the filter with a null InputStream and expects an
+// IllegalArgumentException. The native equivalent of an invalid/absent input
+// is opening with a nil document (or nil reader): Open returns an error
+// instead of panicking.
 func TestNilDocument(t *testing.T) {
 	ctx := t.Context()
 	reader := tmx.NewReader()
 	err := reader.Open(ctx, nil)
 	require.Error(t, err)
+
+	// A document with a nil Reader is likewise rejected at Open time.
+	err = reader.Open(ctx, &model.RawDocument{URI: "test://input", SourceLocale: model.LocaleEnglish})
+	require.Error(t, err)
+}
+
+// okapi: TmxFilterTest#testOpenInvalidUri
+// Java opens a non-existent file URI and expects an OkapiIOException while
+// processing. The native reader consumes an io.Reader rather than resolving a
+// URI, so the equivalent failure is an underlying input that cannot be read:
+// the reader must surface that as a PartResult.Error (not panic, not silently
+// drop content).
+func TestOpenInvalidUri(t *testing.T) {
+	ctx := t.Context()
+	reader := tmx.NewReader()
+	err := reader.Open(ctx, testutil.RawDocFromReader(errReader{}, "test://invalid", model.LocaleEnglish))
+	require.NoError(t, err, "Open succeeds; the failure must surface during Read")
+	defer reader.Close()
+
+	var readErr error
+	var parts int
+	for pr := range reader.Read(ctx) {
+		if pr.Error != nil {
+			readErr = pr.Error
+			continue
+		}
+		parts++
+	}
+	require.Error(t, readErr, "an unreadable input must surface a PartResult error")
+	assert.Contains(t, readErr.Error(), "reading")
 }
 
 func TestVersionDetection(t *testing.T) {

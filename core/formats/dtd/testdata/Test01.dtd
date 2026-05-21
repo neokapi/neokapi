@@ -1,0 +1,47 @@
+<!ENTITY test1 "Text of &amp;test1;">
+<!ENTITY test2 "Text of test 1 = &test1;">
+<!ENTITY test3 "Text with &lt;i>HTML&lt;/i> &lt;a name=&quot;aaa&quot;>codes&lt;/a>.">
+
+<!--Comments-->
+<!ENTITY findWindow.title "Find Files">
+<!ENTITY fileMenu.label "File">
+<!ENTITY editMenu.label "Edit">
+<!ENTITY fileMenu.accesskey "f">
+<!ENTITY editMenu.accesskey "e">
+<!ENTITY openCmd.label "Open Search...">
+<!ENTITY saveCmd.label "Save Search...">
+<!ENTITY closeCmd.label "Close">
+<!ENTITY openCmd.accesskey "o">
+<!ENTITY saveCmd.accesskey "s">
+<!ENTITY closeCmd.accesskey "c">
+<!ENTITY cutCmd.label "Cut">
+<!ENTITY copyCmd.label "Copy">
+<!ENTITY pasteCmd.label "Paste">
+<!ENTITY cutCmd.accesskey "t">
+<!ENTITY copyCmd.accesskey "c">
+<!ENTITY pasteCmd.accesskey "p">
+<!ENTITY cutCmd.commandkey "X">
+<!ENTITY copyCmd.commandkey "C">
+<!ENTITY pasteCmd.commandkey "V">
+<!ENTITY openCmdToolbar.label "Open">
+<!ENTITY saveCmdToolbar.label "Save">
+<!ENTITY searchTab "Search">
+<!ENTITY optionsTab "Options">
+<!ENTITY findDescription "Enter your search criteria below and select the Find button to begin the search.">
+<!ENTITY findCriteria "Search Criteria">
+<!ENTITY type.name "Name">
+<!ENTITY test.withCodes "This is a text <code>with codes</code> that should work.">
+<!ENTITY type.size "Size">
+<!ENTITY type.date "Date Modified">
+<!ENTITY mode.is "Is">
+<!ENTITY mode.isnot "Is Not">
+<!ENTITY casesensitive "Case Sensitive Search">
+<!ENTITY matchfilename "Match Entire Filename">
+<!ENTITY results.filename "Filename">
+<!ENTITY results.location "Location">
+<!ENTITY results.size "Size">
+<!ENTITY bytes.before "">
+<!ENTITY bytes.after "bytes">
+<!ENTITY button.find "Find">
+<!ENTITY button.cancel "Cancel">
+

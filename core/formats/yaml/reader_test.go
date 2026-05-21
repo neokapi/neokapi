@@ -1427,5 +1427,5 @@ func TestReadYAMLWithTags(t *testing.T) {
 	assert.Equal(t, "12345", blocks[0].SourceText())
 }
 
-// okapi-unmapped: YamlParserTest#singleMixedQuote — parser-internal test, verified via extraction
-// okapi-unmapped: YamlParserTest#singleObject — parser-internal test, verified via extraction
+// neokapi-only: YamlParserTest#singleMixedQuote — no such method in v1.48.0 YamlParserTest; parser-internal scalar handling, verified via extraction
+// neokapi-only: YamlParserTest#singleObject — no such method in v1.48.0 YamlParserTest; parser-internal scalar handling, verified via extraction

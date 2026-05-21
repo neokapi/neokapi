@@ -2,10 +2,14 @@ package vignette_test
 
 import (
 	"bytes"
+	"context"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/neokapi/neokapi/core/format"
+	"github.com/neokapi/neokapi/core/format/spec"
 	"github.com/neokapi/neokapi/core/formats/vignette"
 	"github.com/neokapi/neokapi/core/internal/testutil"
 	"github.com/neokapi/neokapi/core/model"
@@ -134,4 +138,132 @@ func TestSkeletonStore_NoSkeleton_FallbackWritesPayloadsOnly(t *testing.T) {
 	output := buf.String()
 	// Fallback mode: just block payloads, one per line.
 	assert.Equal(t, "hello", strings.TrimSpace(output))
+}
+
+// okapi-skip: VignetteFilterTest#testSimpleEntryOutput — the native
+// writer uses the framework's generic SkeletonStore round-trip: it
+// rewrites each extracted Block back into ITS OWN source-side region
+// (the en_US instance) and passes every non-referenced region (including
+// the es_ES target instance) through verbatim. Okapi's VignetteFilter
+// writer, by contrast, is target-locale aware (setOptions(es_ES)): it
+// writes the translation into the es_ES target instance as CDATA and the
+// source into the en_US instance escaped. The native part/skeleton model
+// has no analog of "copy the translation into a sibling target-locale
+// instance", so the byte-exact output differs by design rather than by
+// bug. The reader-side behavior IS verified by
+// TestReadSimpleBilingualPair (==VignetteFilterTest#testSimpleEntry); the
+// native writer's actual round-trip contract is asserted below.
+//
+// TestWriteSimpleEntryOutput is a neokapi-only test pinning the native
+// writer's real contract for the simple bilingual document:
+//   - the source-side (en_US) okf_html CLOB is re-wrapped in <p> and
+//     CDATA-encoded ("<![CDATA[<p>ENtext</p>]]>"),
+//   - the non-referenced es_ES instance is preserved byte-for-byte
+//     (its original entity-escaped "&lt;p&gt;ES&lt;/p&gt;"),
+//   - the XML declaration, namespaced packageBody envelope and the
+//     interleaved <stuff/> element all round-trip verbatim.
+func TestWriteSimpleEntryOutput(t *testing.T) {
+	output := vignetteSkeletonRoundtrip(t, simpleBilingualPair)
+
+	// Source-side (en_US) instance: okf_html payload re-wrapped + CDATA.
+	assert.Contains(t, output, "<![CDATA[<p>ENtext</p>]]>")
+	// Target-side (es_ES) instance: untouched, original escaped payload.
+	assert.Contains(t, output, "<valueCLOB>&lt;p&gt;ES&lt;/p&gt;</valueCLOB>")
+	// Envelope + interleaved non-instance element preserved verbatim.
+	assert.True(t, strings.HasPrefix(output, `<?xml version="1.0" encoding="UTF-8"?>`))
+	assert.Contains(t, output, `<packageBody xmlns="http://www.vignette.com/xmlschemas/importexport">`)
+	assert.Contains(t, output, "<stuff/>", "non-instance element passes through untouched")
+	assert.True(t, strings.HasSuffix(output, "</importProject></packageBody>"))
+}
+
+// okapi-skip: VignetteFilterTest#testComplexEntryOutput — same writer-model
+// divergence as testSimpleEntryOutput: the native skeleton writer rewrites
+// each Block into its own source-side (en_US) region and passes the es_ES
+// target instances through verbatim, whereas Okapi writes the translation
+// into the target-locale instances. The byte-exact output therefore
+// differs by design. Reader ordering/extraction IS verified by
+// TestReadComplexTwoPairs (==VignetteFilterTest#testComplexEntry); the
+// native writer's actual contract is asserted below.
+//
+// TestWriteComplexEntryOutput is a neokapi-only test pinning the native
+// writer's real contract for the complex document: both en_US source-side
+// CLOBs are re-emitted as CDATA in place; both es_ES instances pass
+// through with their original plain payloads ("ES-id1", "ES-id2").
+func TestWriteComplexEntryOutput(t *testing.T) {
+	output := vignetteSkeletonRoundtrip(t, complexTwoPair)
+
+	// Source-side (en_US) instances re-emitted as CDATA.
+	assert.Contains(t, output, "<![CDATA[EN-id1]]>")
+	assert.Contains(t, output, "<![CDATA[EN-id2]]>")
+	// Target-side (es_ES) instances preserved verbatim.
+	assert.Contains(t, output, "<valueCLOB>ES-id1</valueCLOB>")
+	assert.Contains(t, output, "<valueCLOB>ES-id2</valueCLOB>")
+	// Envelope preserved.
+	assert.Contains(t, output, `<packageBody xmlns="http://www.vignette.com/xmlschemas/importexport">`)
+	assert.True(t, strings.HasSuffix(output, "</importProject></packageBody>"))
+}
+
+// okapi: VignetteFilterTest#testDoubleExtraction
+// Upstream runs RoundTripComparison on Test01.xml: extract → write →
+// re-extract → assert the two event streams are identical. The native
+// equivalent reads Test01.xml through the skeleton-backed reader/writer,
+// writes it back, then re-reads the output and asserts the same number of
+// Blocks with identical source text (and identical key Block properties).
+// This pins the native reader/writer round-trip fidelity on the real
+// upstream fixture. Skips cleanly when the okapi-testdata corpus is
+// absent.
+func TestDoubleExtraction(t *testing.T) {
+	root, err := spec.FindOkapiTestdataRoot()
+	if err != nil {
+		t.Skipf("okapi-testdata not available: %v", err)
+	}
+	path := filepath.Join(root, "okapi", "filters", "vignette", "src", "test", "resources", "Test01.xml")
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Skipf("Test01.xml not available: %v", err)
+	}
+	input := string(data)
+
+	ctx := context.Background()
+
+	// First extraction (with skeleton) + write.
+	reader := vignette.NewReader()
+	store, err := format.NewSkeletonStore()
+	require.NoError(t, err)
+	defer store.Close()
+	reader.SetSkeletonStore(store)
+
+	require.NoError(t, reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish)))
+	parts := testutil.CollectParts(t, reader.Read(ctx))
+	reader.Close()
+	blocks1 := testutil.FilterBlocks(parts)
+	require.NotEmpty(t, blocks1, "Test01.xml must extract at least one Block")
+
+	writer := vignette.NewWriter()
+	writer.SetSkeletonStore(store)
+	var buf bytes.Buffer
+	require.NoError(t, writer.SetOutputWriter(&buf))
+	require.NoError(t, writer.Write(ctx, testutil.PartsToChannel(parts)))
+	writer.Close()
+
+	// Second extraction from the written output.
+	reader2 := vignette.NewReader()
+	store2, err := format.NewSkeletonStore()
+	require.NoError(t, err)
+	defer store2.Close()
+	reader2.SetSkeletonStore(store2)
+	require.NoError(t, reader2.Open(ctx, testutil.RawDocFromString(buf.String(), model.LocaleEnglish)))
+	blocks2 := testutil.CollectBlocks(t, reader2.Read(ctx))
+	reader2.Close()
+
+	// The two extractions must be equivalent.
+	require.Len(t, blocks2, len(blocks1), "re-extraction must yield the same number of Blocks")
+	for i := range blocks1 {
+		assert.Equal(t, blocks1[i].SourceText(), blocks2[i].SourceText(),
+			"Block %d source text must survive the round-trip", i)
+		assert.Equal(t, blocks1[i].Properties["attribute"], blocks2[i].Properties["attribute"],
+			"Block %d attribute name must survive the round-trip", i)
+		assert.Equal(t, blocks1[i].Properties["localeId"], blocks2[i].Properties["localeId"],
+			"Block %d locale id must survive the round-trip", i)
+	}
 }

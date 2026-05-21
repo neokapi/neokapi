@@ -91,7 +91,7 @@ var threeTranslatableCols = []fixedwidth.ColumnDef{
 
 // --- Reader Tests ---
 
-// okapi: FixedWidthFilterTest#testBasicRead
+// neokapi-only: FixedWidthFilterTest#testBasicRead
 func TestFW_BasicRead(t *testing.T) {
 	// 5 chars for id, 15 chars for text
 	input := "id001Hello World    \nid002Goodbye World  \n"
@@ -103,7 +103,7 @@ func TestFW_BasicRead(t *testing.T) {
 	assert.Contains(t, texts, "Goodbye World  ")
 }
 
-// okapi: FixedWidthFilterTest#testBasicReadTrimmed
+// neokapi-only: FixedWidthFilterTest#testBasicReadTrimmed
 func TestFW_BasicReadTrimmed(t *testing.T) {
 	input := "id001Hello World    \nid002Goodbye World  \n"
 	parts := readFWWithConfig(t, input, twoCols, func(cfg *fixedwidth.Config) {
@@ -377,7 +377,7 @@ func TestFW_WriterMetadata(t *testing.T) {
 	assert.Equal(t, "fixedwidth", writer.Name())
 }
 
-// okapi: FixedWidthFilterTest#testRoundTrip
+// neokapi-only: FixedWidthFilterTest#testRoundTrip
 func TestFW_RoundTrip(t *testing.T) {
 	input := "id001Hello World    \nid002Goodbye World  \n"
 	output := roundTripFW(t, input, twoCols, nil)

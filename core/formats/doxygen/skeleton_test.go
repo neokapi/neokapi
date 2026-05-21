@@ -67,6 +67,26 @@ func TestSkeletonStore_OkapiPattern_MultiLineComment(t *testing.T) {
 	assert.Equal(t, expected, output, "consecutive /// prose lines collapse to one line with bare-marker padding (okapi parity)")
 }
 
+// okapi: DoxygenWriterTest#testOutputJavadocComment
+// Okapi's writer collapses a multi-line Javadoc comment into a single fluid
+// TextUnit and re-emits the prose on the first body line, padding the
+// remaining body lines with bare ` * ` markers and preserving the closing
+// ` */`. The native skeleton writer reproduces the same layout byte-for-byte,
+// including okapi's WHITESPACE_COLLAPSE folding the trailing space of " * This
+// is " into the joined "This is a test." (no trailing space).
+func TestWriter_OutputJavadocComment(t *testing.T) {
+	input := "/**\n * This is \n * a test.\n */\nbaz baz baz"
+	expected := "/**\n * This is a test.\n * \n */\nbaz baz baz\n"
+	assert.Equal(t, expected, snippetRoundtripWithSkeleton(t, input))
+}
+
+// DoxygenWriterTest#testOutputMultilineComment and
+// DoxygenFilterTest#testDoubleExtractionLists exercise doxygen reader/writer
+// behaviors the native filter does not model (#611):
+//
+// okapi-skip: DoxygenWriterTest#testOutputMultilineComment — okapi extracts and merges trailing `///` comments that follow code on the same line (`foo foo foo /// This is`); the native reader only extracts leading `///` and `///<` trailing comments, so it emits no translatable text for this layout and cannot reproduce okapi's multi-line `///` reflow
+// okapi-skip: DoxygenFilterTest#testDoubleExtractionLists — okapi's RoundTripComparison over lists.h is event-stable; the native reader/writer reflow of HTML (`<ul>/<li>`) and `-#`/`.` doxygen lists is not roundtrip-idempotent for lists.h (paragraph-break and list structure shift on re-extraction), so a faithful roundtrip cannot be asserted. Simpler fixtures (sample.h, qt-style.h, javadoc-style.h) do roundtrip and are covered by other native tests
+
 func TestSkeletonStore_ByteExact_JavadocSingleLine(t *testing.T) {
 	input := "/** A Javadoc comment */\n"
 	output := snippetRoundtripWithSkeleton(t, input)

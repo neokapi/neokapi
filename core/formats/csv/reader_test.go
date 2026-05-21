@@ -1989,7 +1989,7 @@ func TestCSV_Schema(t *testing.T) {
 // --- Java-internal API tests ---
 //
 // okapi-unmapped: TableFilterTest#testDoubleExtraction — tested via TestTable_DoubleExtraction
-// okapi-unmapped: FixedWidthColumnsFilterTest#* — FWC is bridge-only, not applicable to native CSV
+// neokapi-only: FixedWidthColumnsFilterTest#* — wildcard placeholder, not a real v1.48.0 method (per-method FixedWidthColumnsFilterTest entries are mapped below); FWC is bridge-only, not applicable to native CSV
 // okapi-unmapped: FixedWidthColumnsFilterTest#testNameAndMimeType — FWC is bridge-only
 // okapi-unmapped: FixedWidthColumnsFilterTest#testEmptyInput — FWC is bridge-only
 // okapi-unmapped: FixedWidthColumnsFilterTest#testParameters — FWC is bridge-only

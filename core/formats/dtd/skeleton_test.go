@@ -129,6 +129,57 @@ func TestSkeletonStore_ByteExact_SimpleFile(t *testing.T) {
 	assert.Equal(t, input, output, "simple file roundtrip should be byte-exact")
 }
 
+// okapi: DTDFilterTest#testDoubleExtraction
+// Okapi's testDoubleExtraction runs RoundTripComparison over Test01.dtd and
+// Test02.dtd (the upstream fixtures, no translation). RoundTripComparison
+// asserts EVENT stability — it extracts, regenerates, re-extracts, and
+// compares the text units — not byte equality (okapi's DTDEncoder, like the
+// native writer, escapes `<`/`&`/`"` in entity values, so the regenerated
+// bytes legitimately differ from a source that used bare `<` or `&amp;`).
+// The native analog asserts the same idempotency: re-extracting the
+// skeleton-store output yields the same source text units. Test01.dtd in
+// particular exercises the escaped-ampersand case `&amp;test1;`, which the
+// reader resolves to the literal text "&test1;" and the writer re-escapes to
+// `&amp;test1;` (rather than silently re-emitting the bare, semantically
+// different reference `&test1;`).
+//
+// The same extract→write→re-extract idempotency is the contract Okapi's
+// integration-test suite enforces over its DTD file corpus and gold XLIFF:
+// okapi: RoundTripDtdIT#dtdFiles
+// okapi: DtdXliffCompareIT#dtdXliffCompareFiles
+// okapi-skip: RoundTripDtdIT#dtdFilesSerialized — Okapi serialized-skeleton roundtrip variant; native uses its own skeleton store (no serialized-skeleton mode)
+func TestDoubleExtraction(t *testing.T) {
+	t.Parallel()
+	for _, name := range []string{"testdata/Test01.dtd", "testdata/Test02.dtd"} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			data, err := os.ReadFile(name)
+			require.NoError(t, err)
+			input := string(data)
+			first := dtdSourceTexts(t, input)
+			output := snippetRoundtripWithSkeleton(t, input)
+			second := dtdSourceTexts(t, output)
+			assert.Equal(t, first, second,
+				"%s text units must be stable across an extract→write→re-extract roundtrip", name)
+		})
+	}
+}
+
+// dtdSourceTexts reads the DTD content and returns the source text of every
+// translatable block, in order.
+func dtdSourceTexts(t *testing.T, input string) []string {
+	t.Helper()
+	ctx := t.Context()
+	reader := dtd.NewReader()
+	require.NoError(t, reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish)))
+	defer reader.Close()
+	var out []string
+	for _, b := range testutil.FilterBlocks(testutil.CollectParts(t, reader.Read(ctx))) {
+		out = append(out, b.SourceText())
+	}
+	return out
+}
+
 func TestSkeletonStore_WithTranslation(t *testing.T) {
 	input := "<!ENTITY greeting \"Hello\">\n<!ENTITY farewell \"Goodbye\">\n"
 	ctx := t.Context()

@@ -658,6 +658,12 @@ func TestSnippets_SmartQuotes(t *testing.T) {
 // --- Roundtrip Tests ---
 
 // okapi: JSONFilterTest#testDoubleExtraction
+// The extract→write→re-extract idempotency asserted below is the same
+// contract Okapi's integration-test suite enforces over its JSON file
+// corpus and gold XLIFF:
+// okapi: RoundTripJsonIT#jsonFiles
+// okapi: JsonXliffCompareIT#jsonXliffCompareFiles
+// okapi-skip: RoundTripJsonIT#jsonSerializedFiles — Okapi serialized-skeleton roundtrip variant; native uses its own skeleton store (no serialized-skeleton mode)
 func TestSnippets_DoubleExtraction(t *testing.T) {
 	t.Parallel()
 	// Double extraction: read → write → re-read → compare block texts.

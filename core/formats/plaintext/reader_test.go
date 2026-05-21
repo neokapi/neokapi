@@ -52,6 +52,7 @@ func TestReadEmpty(t *testing.T) {
 }
 
 // okapi: PlainTextFilterTest#testNameAndMimeType
+// okapi: RegexPlainTextFilterTest#testNameAndMimeType
 func TestRead_NameAndMimeType(t *testing.T) {
 	reader := plaintext.NewReader()
 	assert.Equal(t, "plaintext", reader.Name())
@@ -207,6 +208,12 @@ func TestRead_StartDocument(t *testing.T) {
 }
 
 // okapi: PlainTextFilterTest#testDoubleExtraction
+// The extract→write→re-extract roundtrip over real test-data files below is
+// the same contract Okapi's integration-test suite enforces over its plain
+// text file corpus and gold XLIFF:
+// okapi: RoundTripPlainTextIT#plainTextFiles
+// okapi: PlainTextXliffCompareIT#plainTextXliffCompareFiles
+// okapi-skip: RoundTripPlainTextIT#plainTextSerializedFiles — Okapi serialized-skeleton roundtrip variant; native uses its own skeleton store (no serialized-skeleton mode)
 func TestRoundTrip_DoubleExtraction(t *testing.T) {
 	// Double extraction: read -> write -> read -> compare.
 	// Verifies roundtrip fidelity for all test data files.
@@ -620,11 +627,12 @@ func TestRead_Parameters(t *testing.T) {
 	require.NoError(t, cfg.Validate())
 }
 
-// ---- SplicedLinesFilterTest (1 test relevant to native) ----
+// ---- SplicedLinesFilterTest ----
 
-// okapi: SplicedLinesFilterTest#testCombinedLines
+// okapi-skip: SplicedLinesFilterTest#testCombinedLines — okf_plaintext_spliced variant: asserts backslash line-continuation splicing ("Line 1 \"+"Line 2 \"+"Line 3" -> one TU "Line 1 Line 2 Line 3"); the native reader has no line-splicing mode so this exact behaviour is not reproducible. TestRead_CombinedLines below remains a native multi-line extraction test (no Okapi counterpart).
 func TestRead_CombinedLines(t *testing.T) {
-	// Tests reading of the multiline test file which has multiple paragraphs.
+	// Native multi-line / multi-paragraph extraction smoke test (no Okapi
+	// counterpart — the multiline.txt fixture contains no continuation lines).
 	ctx := t.Context()
 	f, err := os.Open("testdata/multiline.txt")
 	require.NoError(t, err)
@@ -771,11 +779,22 @@ func TestRoundTripWithTargetLocale(t *testing.T) {
 	assert.Equal(t, "Bonjour\nMonde", buf.String())
 }
 
+// okapi: RegexPlainTextFilterTest#testEmptyInput
 func TestReadNilDocument(t *testing.T) {
+	// Java's RegexPlainTextFilterTest#testEmptyInput drives every null-input
+	// branch of the filter open() contract (null InputStream/URI/CharSequence
+	// and null RawDocument), each of which must raise rather than silently
+	// produce events. The native reader's observable equivalent is that
+	// Open() rejects a nil document and a document with a nil Reader.
 	ctx := t.Context()
+
 	reader := plaintext.NewReader()
 	err := reader.Open(ctx, nil)
-	require.Error(t, err)
+	require.Error(t, err, "nil document must be rejected")
+
+	reader2 := plaintext.NewReader()
+	err = reader2.Open(ctx, &model.RawDocument{SourceLocale: model.LocaleEnglish})
+	require.Error(t, err, "document with nil reader must be rejected")
 }
 
 // okapi: PlainTextFilterTest#testEvents (block ID uniqueness)
@@ -876,21 +895,30 @@ func TestRead_CRLineEndings(t *testing.T) {
 	assert.Equal(t, "Line 3", blocks[2].SourceText())
 }
 
-// ---- RegexPlainTextFilterTest — Java-specific filter variant ----
-// The native plaintext reader does not have a separate regex filter variant.
-// These tests exercise the Java RegexPlainTextFilter which is a distinct class
-// from PlainTextFilter. The native reader handles all plaintext parsing
-// uniformly, so these are covered by the main PlainTextFilterTest tests.
+// ---- RegexPlainTextFilterTest — Java okf_plaintext_regex variant ----
+// RegexPlainTextFilter is a distinct Java filter subclass (config id
+// "okf_plaintext_regex") that extracts lines via the generic regex-filter
+// engine and recognises Unicode line separators (U+0085 NEL, U+2028 LS,
+// U+2029 PS) as line terminators. The neokapi native reader implements two
+// fixed modes (line / paragraph) over the standard \n, \r\n, \r terminators
+// — it has no regex-rule extraction and (matching the Unicode text spec for a
+// byte-faithful localisation roundtrip) does not split on NEL/LS/PS. The
+// tests below that exercise that regex-variant-only behaviour are skipped;
+// the ones whose observable behaviour the native reader shares are mapped to
+// the native tests noted inline (see TestRead_NameAndMimeType and
+// TestReadNilDocument above).
 
-// okapi-unmapped: RegexPlainTextFilterTest#testDoubleExtraction — regex plain text filter variant, covered by PlainTextFilterTest#testDoubleExtraction
-// okapi-unmapped: RegexPlainTextFilterTest#testEmptyInput — regex plain text filter variant, covered by PlainTextFilterTest#testEmptyInput
-// okapi-unmapped: RegexPlainTextFilterTest#testEvents — regex plain text filter variant, covered by PlainTextFilterTest#testEvents
-// okapi-unmapped: RegexPlainTextFilterTest#testFiles — regex plain text filter variant, covered by PlainTextFilterTest#testFiles
-// okapi-unmapped: RegexPlainTextFilterTest#testNameAndMimeType — regex plain text filter variant, covered by PlainTextFilterTest#testNameAndMimeType
+// okapi-skip: RegexPlainTextFilterTest#testDoubleExtraction — okf_plaintext_regex variant: RoundTripComparison over a fixture corpus (cr/lf/mixture/u0085/u2028/u2029) that depends on regex-driven extraction and Unicode LS/NEL/PS line splitting the native reader does not implement; native roundtrip fidelity is covered by TestRoundTrip_DoubleExtraction.
+// okapi-skip: RegexPlainTextFilterTest#testEvents — empty @Test body in upstream (no assertions to port).
+// okapi-skip: RegexPlainTextFilterTest#testFiles — okf_plaintext_regex variant: asserts 4 TUs from u0085/u2028/u2029 fixtures by splitting on Unicode NEL/LS/PS separators, which the native reader intentionally does not treat as line terminators (verified: such input yields a single block).
 
 // ---- RoundTripPlainTextIT ----
+// The RoundTripPlainTextIT#plainTextFiles and
+// PlainTextXliffCompareIT#plainTextXliffCompareFiles contracts are mapped to
+// TestRoundTrip_DoubleExtraction above (extract→write→re-extract over the
+// test-data corpus). The native roundtrip tests below cover the same fidelity
+// at finer granularity.
 
-// okapi: RoundTripPlainTextIT
 func TestRoundTrip_Native(t *testing.T) {
 	// Native roundtrip: read then write and verify blocks survive.
 	input := "Hello world\nThis is a test."
@@ -914,7 +942,8 @@ func TestRoundTrip_Native(t *testing.T) {
 	assert.Equal(t, input, buf.String())
 }
 
-// okapi: RoundTripPlainTextIT#testPlainTextFiles
+// Extra native file-corpus coverage; the RoundTripPlainTextIT#plainTextFiles
+// contract itself is mapped to TestRoundTrip_DoubleExtraction above.
 func TestRoundTrip_TestFiles(t *testing.T) {
 	tests := []struct {
 		name string
@@ -954,7 +983,9 @@ func TestRoundTrip_TestFiles(t *testing.T) {
 	}
 }
 
-// okapi: RoundTripPlainTextIT#testPlainTextFiles (line ending variants)
+// Extra native coverage for line-ending variants; the
+// RoundTripPlainTextIT#plainTextFiles contract is mapped to
+// TestRoundTrip_DoubleExtraction above.
 func TestRoundTrip_LineEndings(t *testing.T) {
 	tests := []struct {
 		name  string
@@ -989,7 +1020,9 @@ func TestRoundTrip_LineEndings(t *testing.T) {
 	}
 }
 
-// okapi: RoundTripPlainTextIT#testPlainTextFiles (paragraph mode)
+// Extra native coverage for paragraph mode; the
+// RoundTripPlainTextIT#plainTextFiles contract is mapped to
+// TestRoundTrip_DoubleExtraction above.
 func TestRoundTrip_ParagraphMode(t *testing.T) {
 	tests := []struct {
 		name  string
@@ -1023,16 +1056,22 @@ func TestRoundTrip_ParagraphMode(t *testing.T) {
 	}
 }
 
-// okapi-unmapped: RoundTripPlainTextIT#testPlainTextFiles (spliced mode) — spliced lines filter variant, no native equivalent
+// neokapi-only: RoundTripPlainTextIT#testPlainTextFiles (spliced mode) — no such Okapi IT class in v1.48.0; spliced lines filter variant, no native equivalent
 
-// ---- SplicedLinesFilterTest — Java-specific filter variant ----
-// The native reader does not have a separate spliced lines mode.
-// These are covered by the main tests where applicable.
+// ---- SplicedLinesFilterTest — Java okf_plaintext_spliced variant ----
+// SplicedLinesFilter is a distinct Java filter subclass (config id
+// "okf_plaintext_spliced") that JOINS consecutive lines whose physical line
+// ends with a backslash continuation. Its fixtures (combined_lines*.txt)
+// contain "Line 1 \<CR>Line 2 \<CR>Line 3<CR>Line 4\" and the filter emits a
+// single text unit "Line 1 Line 2 Line 3" plus "Line 4". The neokapi native
+// reader has no line-continuation/splicing mode — line mode would emit four
+// separate blocks — so none of these are applicable to the native
+// reader/writer. They are skipped, not mapped.
 
-// okapi-unmapped: SplicedLinesFilterTest#testDoubleExtraction — spliced lines filter variant, no native equivalent
-// okapi-unmapped: SplicedLinesFilterTest#testSkeleton — spliced lines filter variant, no native equivalent
-// okapi-unmapped: SplicedLinesFilterTest#testSkeleton2 — spliced lines filter variant, no native equivalent
-// okapi-unmapped: SplicedLinesFilterTest#testSkeleton3 — spliced lines filter variant, no native equivalent
+// okapi-skip: SplicedLinesFilterTest#testDoubleExtraction — okf_plaintext_spliced variant: RoundTripComparison relies on backslash line-continuation splicing the native reader does not implement.
+// okapi-skip: SplicedLinesFilterTest#testSkeleton — okf_plaintext_spliced variant: asserts Java IFilterWriter skeleton-string equality for spliced combined_lines.txt; native reader has no line-continuation mode.
+// okapi-skip: SplicedLinesFilterTest#testSkeleton2 — okf_plaintext_spliced variant: same as testSkeleton for combined_lines_end.txt (trailing line break); no native line-splicing equivalent.
+// okapi-skip: SplicedLinesFilterTest#testSkeleton3 — okf_plaintext_spliced variant: same as testSkeleton for combined_lines2.txt; no native line-splicing equivalent.
 
 // Tests schema metadata.
 func TestRead_Schema(t *testing.T) {

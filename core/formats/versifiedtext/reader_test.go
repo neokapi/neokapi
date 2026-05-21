@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// okapi: VersifiedTextFilterTest#testSingleVerse
+// neokapi-only: VersifiedTextFilterTest#testSingleVerse
 func TestSingleVerse(t *testing.T) {
 	ctx := t.Context()
 	reader := versifiedtext.NewReader()
@@ -30,7 +30,7 @@ func TestSingleVerse(t *testing.T) {
 	assert.Equal(t, "verse.1", blocks[0].Name)
 }
 
-// okapi: VersifiedTextFilterTest#testMultipleVerses
+// neokapi-only: VersifiedTextFilterTest#testMultipleVerses
 func TestMultipleVerses(t *testing.T) {
 	ctx := t.Context()
 	reader := versifiedtext.NewReader()
@@ -48,7 +48,7 @@ func TestMultipleVerses(t *testing.T) {
 	assert.Equal(t, "2", blocks[1].Properties["verse"])
 }
 
-// okapi: VersifiedTextFilterTest#testVerseWithSpace
+// neokapi-only: VersifiedTextFilterTest#testVerseWithSpace
 func TestVerseWithSpace(t *testing.T) {
 	ctx := t.Context()
 	reader := versifiedtext.NewReader()
@@ -64,7 +64,7 @@ func TestVerseWithSpace(t *testing.T) {
 	assert.Equal(t, "1", blocks[0].Properties["verse"])
 }
 
-// okapi: VersifiedTextFilterTest#testNumericVerseMarker
+// neokapi-only: VersifiedTextFilterTest#testNumericVerseMarker
 func TestNumericVerseMarker(t *testing.T) {
 	ctx := t.Context()
 	reader := versifiedtext.NewReader()
@@ -80,7 +80,7 @@ func TestNumericVerseMarker(t *testing.T) {
 	assert.Equal(t, "1", blocks[0].Properties["verse"])
 }
 
-// okapi: VersifiedTextFilterTest#testNumericSpaceMarker
+// neokapi-only: VersifiedTextFilterTest#testNumericSpaceMarker
 func TestNumericSpaceMarker(t *testing.T) {
 	ctx := t.Context()
 	reader := versifiedtext.NewReader()
@@ -96,7 +96,7 @@ func TestNumericSpaceMarker(t *testing.T) {
 	assert.Equal(t, "3", blocks[0].Properties["verse"])
 }
 
-// okapi: VersifiedTextFilterTest#testStanzaBreak
+// neokapi-only: VersifiedTextFilterTest#testStanzaBreak
 func TestStanzaBreak(t *testing.T) {
 	ctx := t.Context()
 	reader := versifiedtext.NewReader()
@@ -119,7 +119,7 @@ func TestStanzaBreak(t *testing.T) {
 	assert.GreaterOrEqual(t, dataCount, 1, "stanza break should emit Data")
 }
 
-// okapi: VersifiedTextFilterTest#testNonVerseLine
+// neokapi-only: VersifiedTextFilterTest#testNonVerseLine
 func TestNonVerseLine(t *testing.T) {
 	ctx := t.Context()
 	reader := versifiedtext.NewReader()
@@ -314,7 +314,7 @@ func TestWriterContextCancellation(t *testing.T) {
 	assert.ErrorIs(t, err, context.Canceled)
 }
 
-// okapi: VersifiedTextFilterTest#testMixedContent
+// neokapi-only: VersifiedTextFilterTest#testMixedContent
 func TestMixedContent(t *testing.T) {
 	ctx := t.Context()
 	reader := versifiedtext.NewReader()
@@ -332,7 +332,7 @@ func TestMixedContent(t *testing.T) {
 	assert.Equal(t, "1", blocks[1].Properties["verse"])
 }
 
-// okapi: VersifiedTextFilterTest#testMultiDigitVerse
+// neokapi-only: VersifiedTextFilterTest#testMultiDigitVerse
 func TestMultiDigitVerse(t *testing.T) {
 	ctx := t.Context()
 	reader := versifiedtext.NewReader()
@@ -348,7 +348,7 @@ func TestMultiDigitVerse(t *testing.T) {
 	assert.Equal(t, "12", blocks[0].Properties["verse"])
 }
 
-// okapi: VersifiedTextFilterTest#testMultipleStanzas
+// neokapi-only: VersifiedTextFilterTest#testMultipleStanzas
 func TestMultipleStanzas(t *testing.T) {
 	ctx := t.Context()
 	reader := versifiedtext.NewReader()

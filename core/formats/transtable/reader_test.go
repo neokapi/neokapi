@@ -302,6 +302,9 @@ func TestConfigApplyMapAllowSegmentsBadType(t *testing.T) {
 // the same locale and verify the rendered rows preserve the source +
 // target cells (not necessarily byte-exact — that's covered by the
 // skeleton-store tests).
+//
+// okapi: RoundTripTranstableIT#transtableFiles — native extract→write over a real TransTable document, asserting source+target cells survive; Okapi's transtableFiles does extract→merge→compare over a corpus.
+// okapi-skip: RoundTripTranstableIT#transtableSerializedFiles — Okapi serialized-skeleton variant; native uses its own skeleton store, not Okapi's serialized event/skeleton format.
 func TestRoundTripWithTargetLocale(t *testing.T) {
 	ctx := t.Context()
 
@@ -380,6 +383,8 @@ func TestWriterContextCancellation(t *testing.T) {
 // okapi-testdata and verify the six text units come through with the
 // expected sources and no targets. Skips cleanly when the corpus
 // hasn't been fetched.
+//
+// okapi: TranstableXliffCompareIT#transtableXliffCompareFiles — extracts the actual upstream Okapi transtable fixture and asserts the text units match the expected sources; Okapi's transtableXliffCompareFiles extracts to XLIFF and compares against a gold XLIFF corpus. Corpus-gated: t.Skip()s (→ pending) when okapi-testdata is unfetched.
 func TestReadOkapiTest01Fixture(t *testing.T) {
 	ctx := t.Context()
 	root, err := spec.FindOkapiTestdataRoot()

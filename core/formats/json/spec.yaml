@@ -229,6 +229,6 @@ features:
         first_block_text: "Hi"
         no_block_with_text: ["skip me"]
     okapi_refs:
-      - JSONFilterTest#testAllWithKeyAndException
+      - JSONFilterTest#testAllWithKeyWithException
     native_refs:
       - json.TestSnippets_AllWithKeyWithException

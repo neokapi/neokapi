@@ -161,11 +161,40 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 	decoder.Strict = false
 
 	blockCounter := 0
-	tuCount := 0
+	// emitIndex is the 0-based position of the next emitted Block in the
+	// stream. The writer collects every emitted Block (unsegmented runs +
+	// <Tu> units) into one slice in this same order, so skeleton refs must
+	// key off this emission index — not a <Tu>-only counter — or the writer
+	// would fill the wrong segment when unsegmented runs are interleaved.
+	emitIndex := 0
 	inRaw := false
 
 	var segPositions []segPosition
 	var unsegmentedText strings.Builder
+
+	// flushUnsegmented emits a Block for any pending unsegmented text run.
+	// Unsegmented runs are not skeleton-referenced: their original bytes are
+	// retained verbatim in the skeleton, so a non-translating round-trip is
+	// byte-exact. (Forced segmentation of unsegmented text — Okapi's
+	// generateOutput behavior — is not implemented here.)
+	flushUnsegmented := func() bool {
+		if !includeUnsegmented {
+			return true
+		}
+		text := strings.TrimSpace(unsegmentedText.String())
+		if text != "" {
+			blockCounter++
+			block := model.NewBlock(fmt.Sprintf("tu%d", blockCounter), text)
+			block.Name = fmt.Sprintf("tu%d", blockCounter)
+			block.Properties["unsegmented"] = "true"
+			if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
+				return false
+			}
+			emitIndex++
+		}
+		unsegmentedText.Reset()
+		return true
+	}
 
 	for {
 		tok, err := decoder.Token()
@@ -183,48 +212,28 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 			case "Raw":
 				inRaw = true
 			case "Tu":
-				// Flush any unsegmented text before a Tu
-				if includeUnsegmented && inRaw {
-					text := strings.TrimSpace(unsegmentedText.String())
-					if text != "" {
-						blockCounter++
-						block := model.NewBlock(fmt.Sprintf("tu%d", blockCounter), text)
-						block.Name = fmt.Sprintf("tu%d", blockCounter)
-						block.Properties["unsegmented"] = "true"
-						if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
-							return
-						}
-					}
-					unsegmentedText.Reset()
+				// Flush any unsegmented text before a Tu.
+				if !flushUnsegmented() {
+					return
 				}
 
 				blockCounter++
 				matchPercent := attrVal(t.Attr, "MatchPercent")
 				var segs []segPosition
-				block := r.parseTransUnitWithSkeleton(decoder, locale, blockCounter, matchPercent, tuCount, &segs)
+				block := r.parseTransUnitWithSkeleton(decoder, locale, blockCounter, matchPercent, emitIndex, &segs)
 				segPositions = append(segPositions, segs...)
-				tuCount++
 				if block != nil {
 					if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
 						return
 					}
+					emitIndex++
 				}
 			}
 		case xml.EndElement:
 			if t.Name.Local == "Raw" {
-				// Flush trailing unsegmented text
-				if includeUnsegmented {
-					text := strings.TrimSpace(unsegmentedText.String())
-					if text != "" {
-						blockCounter++
-						block := model.NewBlock(fmt.Sprintf("tu%d", blockCounter), text)
-						block.Name = fmt.Sprintf("tu%d", blockCounter)
-						block.Properties["unsegmented"] = "true"
-						if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
-							return
-						}
-					}
-					unsegmentedText.Reset()
+				// Flush trailing unsegmented text.
+				if !flushUnsegmented() {
+					return
 				}
 				inRaw = false
 			}
@@ -275,7 +284,12 @@ func (r *Reader) parseTransUnitWithSkeleton(decoder *xml.Decoder, sourceLocale m
 			depth++
 			if t.Name.Local == "Tuv" {
 				lang := model.LocaleID(attrVal(t.Attr, "Lang"))
-				segText := r.parseTuvWithSkeleton(decoder, tuIdx, tuvIdx, segs)
+				// The decoder offset is now positioned just after the
+				// <Tuv ...> start tag, which is where the translatable
+				// content begins in real TTX (the text lives directly in
+				// <Tuv>, there is no <Seg> wrapper in the TRADOStag format).
+				tuvStartOff := decoder.InputOffset()
+				segText := r.parseTuvWithSkeleton(decoder, tuIdx, tuvIdx, tuvStartOff, segs)
 				depth-- // parseTuv consumed end element
 
 				if sourceLang.IsEmpty() {
@@ -312,67 +326,61 @@ func (r *Reader) parseTransUnitWithSkeleton(decoder *xml.Decoder, sourceLocale m
 	return block
 }
 
-// parseTuvWithSkeleton parses a <Tuv> element, recording seg positions.
-func (r *Reader) parseTuvWithSkeleton(decoder *xml.Decoder, tuIdx, tuvIdx int, segs *[]segPosition) string {
-	depth := 1
-	var segText string
-
-	for depth > 0 {
-		tok, err := decoder.Token()
-		if err != nil {
-			return ""
-		}
-
-		switch t := tok.(type) {
-		case xml.StartElement:
-			depth++
-			if t.Name.Local == "Seg" {
-				segStartOff := decoder.InputOffset()
-				segText = readSegContent(decoder)
-				depth-- // readSegContent consumed end element
-
-				if r.skeletonStore != nil {
-					endOff := decoder.InputOffset()
-					segEndTag := "</Seg>"
-					segEndPos := int(endOff) - len(segEndTag)
-					if segEndPos < 0 {
-						segEndPos = 0
-					}
-					*segs = append(*segs, segPosition{
-						startOffset: int(segStartOff),
-						endOffset:   segEndPos,
-						tuIdx:       tuIdx,
-						tuvIdx:      tuvIdx,
-					})
-				}
-			}
-		case xml.EndElement:
-			depth--
-		}
-	}
-
-	return segText
-}
-
-// readSegContent reads the text content of a <Seg> element, handling inline tags.
-func readSegContent(decoder *xml.Decoder) string {
+// parseTuvWithSkeleton reads the translatable content of a <Tuv> element.
+//
+// In the TRADOStag (.ttx) format the segment text lives directly inside
+// <Tuv> — there is no <Seg> wrapper (no real Trados file uses one, and
+// Okapi's TTXFilter reads <Tuv> content directly). Inline markup codes
+// (<ut>, <df>, <it>) are not preserved as Spans by this reader; their text
+// content is concatenated into the plain segment text. A <Seg> element, if
+// present in a hand-authored file, is descended through transparently.
+//
+// tuvStartOff is the byte offset just after the <Tuv ...> start tag, used to
+// anchor the skeleton content region for byte-exact round-trips.
+func (r *Reader) parseTuvWithSkeleton(decoder *xml.Decoder, tuIdx, tuvIdx int, tuvStartOff int64, segs *[]segPosition) string {
 	var buf strings.Builder
 	depth := 1
+	endOff := tuvStartOff // offset just before the </Tuv> end tag
+
 	for depth > 0 {
+		// Capture the offset before reading the next token; when the next
+		// token is the </Tuv> end element this records the content end.
+		preOff := decoder.InputOffset()
 		tok, err := decoder.Token()
 		if err != nil {
-			break
+			return buf.String()
 		}
+
 		switch t := tok.(type) {
 		case xml.StartElement:
 			depth++
-			// Skip inline elements like <ut>, <df>, <it> — just read their text content
+			// Inline elements (<ut>, <df>, <it>, <Seg>) are descended into;
+			// their text content contributes to the segment text but the
+			// markup itself is dropped.
 		case xml.EndElement:
 			depth--
+			if depth == 0 {
+				endOff = preOff
+			}
 		case xml.CharData:
 			buf.Write(t)
 		}
 	}
+
+	if r.skeletonStore != nil {
+		startOff := int(tuvStartOff)
+		end := int(endOff)
+		if end < startOff {
+			end = startOff
+		}
+		*segs = append(*segs, segPosition{
+			startOffset: startOff,
+			endOffset:   end,
+			tuIdx:       tuIdx,
+			tuvIdx:      tuvIdx,
+		})
+	}
+
 	return buf.String()
 }
 

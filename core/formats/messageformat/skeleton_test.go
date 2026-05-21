@@ -82,6 +82,21 @@ func TestSkeletonStore_ByteExact_EmptyLines(t *testing.T) {
 	assert.Equal(t, input, output, "empty lines should be preserved")
 }
 
+// okapi: MessageFormatFilterTest#testDeepEmbeddedSubfilterJson
+// okapi: MessageFormatFilterTest#testDeepEmbeddedSubfilterYaml
+func TestSkeletonStore_ByteExact_DeepEmbedded(t *testing.T) {
+	// Okapi's testDeepEmbeddedSubfilterJson/Yaml run this deeply-nested
+	// select→plural→plural pattern through the messageformat subfilter and
+	// assert byte-exact identity roundtrip (no translation). The JSON/YAML
+	// wrapper is the parent filter's concern; the messageformat-specific
+	// behavior under test is that this pattern roundtrips unchanged. The
+	// native analog feeds the inline pattern directly and checks byte-exact
+	// skeleton roundtrip.
+	input := "{gender, select, male {{num_apples, plural, one {He has {num_oranges, plural, one {an orange} other {# oranges}}} other {He has # apples}}} female {{num_apples, plural, one {She has an apple} other {She has # apples}}} other {{num_apples, plural, one {They have an apple} other {They have # apples}}}}"
+	output := snippetRoundtripWithSkeleton(t, input)
+	assert.Equal(t, input, output, "deeply nested select/plural pattern should roundtrip byte-exact")
+}
+
 func TestSkeletonStore_WithTranslation(t *testing.T) {
 	input := "Hello World\nGoodbye"
 	ctx := t.Context()

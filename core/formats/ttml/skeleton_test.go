@@ -13,6 +13,27 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// Okapi's TTMLSkeletonWriterTest exercises net.sf.okapi.filters.ttml.TTMLSkeletonWriter,
+// a caption-resplitting skeleton writer that, per <p> caption, re-wraps the
+// translated text to a configured max chars/line and max lines/caption,
+// re-inserts <br/> separators (escaped or literal per escapeBrMode),
+// optionally splits words, and redistributes the begin/end timecodes across
+// the resulting overflow captions. neokapi's native TTML writer is by design a
+// content-replacement skeleton writer (byte-exact roundtrip; it only swaps the
+// inner text of each <p> with the translated block text). It has no caption
+// model, no line/caption wrapping, no word-splitting, and no timecode
+// redistribution — the splitting config fields exist but are not consumed by
+// the writer. These contracts are therefore not applicable to the native
+// reader/writer and are skip-classified rather than fake-passed (#611).
+//
+// okapi-skip: TTMLSkeletonWriterTest#testProcessTextUnit — native TTML writer is content-replacement only; no caption-resplitting skeleton writer
+// okapi-skip: TTMLSkeletonWriterTest#testProcessTextUnitNonEscapeBrMode — writer does not re-insert <br/> separators (escaped or literal) when wrapping captions
+// okapi-skip: TTMLSkeletonWriterTest#testProcessTextUnitSplitLines — writer does not wrap caption text to maxCharsPerLine with <br/>
+// okapi-skip: TTMLSkeletonWriterTest#testProcessTextUnitSplitCaptionsLines — writer does not split a caption into multiple <p> on line overflow
+// okapi-skip: TTMLSkeletonWriterTest#testProcessTextUnitSplitCaptionsLineOverflow — writer does not split words/lines or redistribute timecodes on overflow
+// okapi-skip: TTMLSkeletonWriterTest#testProcessTextUnitSplitCaptionsCaptionOverflow — writer does not redistribute begin/end timecodes across overflow captions
+// okapi-skip: TTMLSkeletonWriterTest#testProcessTextUnitWithCodes — writer has no InlineCodeFinder-based code re-emission during caption resplitting
+
 func snippetRoundtripWithSkeleton(t *testing.T, input string) string {
 	t.Helper()
 	ctx := t.Context()

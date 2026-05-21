@@ -362,10 +362,10 @@ func (w *Writer) writeFromSkeleton() error {
 type fileTagInjector struct {
 	out        io.Writer
 	targetLang string
-	done       bool         // true once the first <file ...> tag has been processed
-	inTag      bool         // currently buffering bytes inside <file ...
-	buf        []byte       // pending bytes once inTag
-	tail       [10]byte     // sliding window of recent bytes (looking for "<file")
+	done       bool     // true once the first <file ...> tag has been processed
+	inTag      bool     // currently buffering bytes inside <file ...
+	buf        []byte   // pending bytes once inTag
+	tail       [10]byte // sliding window of recent bytes (looking for "<file")
 	tailLen    int
 }
 

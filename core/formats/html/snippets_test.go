@@ -1608,6 +1608,7 @@ func TestExtraction_DoubleExtractionSingle(t *testing.T) {
 }
 
 // okapi: ExtractionComparisionTest#testDoubleExtraction
+// okapi: HtmlXliffCompareIT#htmlXliffCompareFiles
 func TestExtraction_DoubleExtraction(t *testing.T) {
 	cases := []string{
 		`<html><body><p>Simple</p></body></html>`,
@@ -1768,11 +1769,7 @@ func TestBom_DetectAndRemoveBom(t *testing.T) {
 // okapi-unmapped: HtmlFullFileTest#testEncodingShouldBeFound — requires testdata file withEncoding.html with windows-1252 encoding.
 // okapi-unmapped: HtmlFullFileTest#testEncodingShouldBeFound2 — requires testdata file W3CHTMHLTest1.html.
 // okapi-unmapped: HtmlFullFileTest#testOkapiIntro — requires testdata file okapi_intro_test.html.
-// okapi-unmapped: RoundTripHtmlIT#htmlFiles — integration roundtrip over 83 testdata files requires okapi-testdata release.
-// okapi-unmapped: RoundTripHtmlIT#htmlFiles (htm extension) — integration roundtrip over .htm testdata files requires okapi-testdata release.
-// okapi-unmapped: RoundTripHtmlIT#htmlFiles (xhtml extension) — integration roundtrip over .xhtml testdata files requires okapi-testdata release.
-// okapi-unmapped: RoundTripHtmlIT#htmlFilesSerialized — serialized roundtrip is Okapi-specific.
-// okapi-unmapped: HtmlXliffCompareIT — XLIFF comparison requires bridge infrastructure.
+// okapi-skip: RoundTripHtmlIT#htmlFilesSerialized — Okapi serialized-skeleton variant; native uses its own skeleton store
 // okapi-unmapped: RoundTripSimplifyHtmlIT — simplifier integration test requires Okapi simplifier step.
 // okapi-unmapped: HtmlMemoryLeakTestIT — memory leak test is a Java-specific concern.
 // okapi-unmapped: ExtractionComparisionTest#testReconstructFile — file reconstruction is covered by roundtrip tests.

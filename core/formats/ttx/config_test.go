@@ -81,7 +81,7 @@ func TestSegmentModeAll(t *testing.T) {
 <Raw>
 Some unsegmented text before
 <Tu MatchPercent="0">
-<Tuv Lang="EN-US"><Seg>Segmented text</Seg></Tuv>
+<Tuv Lang="EN-US">Segmented text</Tuv>
 </Tu>
 More unsegmented text after
 </Raw>
@@ -123,7 +123,7 @@ func TestSegmentModeExistingOnly(t *testing.T) {
 <Raw>
 Some unsegmented text
 <Tu MatchPercent="0">
-<Tuv Lang="EN-US"><Seg>Segmented text</Seg></Tuv>
+<Tuv Lang="EN-US">Segmented text</Tuv>
 </Tu>
 </Raw>
 </Body>
@@ -150,7 +150,7 @@ func TestEscapeGTWriter(t *testing.T) {
 <Body>
 <Raw>
 <Tu MatchPercent="0">
-<Tuv Lang="EN-US"><Seg>a &gt; b</Seg></Tuv>
+<Tuv Lang="EN-US">a &gt; b</Tuv>
 </Tu>
 </Raw>
 </Body>
@@ -190,7 +190,7 @@ func TestEscapeGTWriterEnabled(t *testing.T) {
 <Body>
 <Raw>
 <Tu MatchPercent="0">
-<Tuv Lang="EN-US"><Seg>a &gt; b</Seg></Tuv>
+<Tuv Lang="EN-US">a &gt; b</Tuv>
 </Tu>
 </Raw>
 </Body>

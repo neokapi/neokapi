@@ -100,8 +100,7 @@ func (w *Writer) writeFromSkeleton(blocks map[string]*model.Block) error {
 			}
 		case format.SkeletonRef:
 			if block, ok := blocks[string(entry.Data)]; ok {
-				text := w.blockText(block)
-				escaped := escapeEntityValue(text)
+				escaped := w.escapedBlockValue(block)
 				if _, err := io.WriteString(w.Output, escaped); err != nil {
 					return err
 				}
@@ -109,27 +108,6 @@ func (w *Writer) writeFromSkeleton(blocks map[string]*model.Block) error {
 		}
 	}
 	return nil
-}
-
-func (w *Writer) blockText(block *model.Block) string {
-	// Render via RenderRunsWithData so codeFinder-extracted Ph runs
-	// (e.g. `&entityref;`, HTML markup) round-trip with their original
-	// Data verbatim instead of being dropped by SourceText / TargetText.
-	if !w.Locale.IsEmpty() && block.HasTarget(w.Locale) {
-		return renderSegments(block.Targets[w.Locale])
-	}
-	return renderSegments(block.Source)
-}
-
-func renderSegments(segs []*model.Segment) string {
-	var b strings.Builder
-	for _, seg := range segs {
-		if seg == nil {
-			continue
-		}
-		b.WriteString(model.RenderRunsWithData(seg.Runs))
-	}
-	return b.String()
 }
 
 func (w *Writer) writePart(part *model.Part) error {
@@ -145,11 +123,6 @@ func (w *Writer) writeBlock(part *model.Part) error {
 	block, ok := part.Resource.(*model.Block)
 	if !ok {
 		return errors.New("dtd writer: expected Block resource")
-	}
-
-	text := renderSegments(block.Source)
-	if !w.Locale.IsEmpty() && block.HasTarget(w.Locale) {
-		text = renderSegments(block.Targets[w.Locale])
 	}
 
 	name := block.Name
@@ -173,7 +146,7 @@ func (w *Writer) writeBlock(part *model.Part) error {
 	}
 
 	// Escape the value for DTD output
-	escaped := escapeEntityValue(text)
+	escaped := w.escapedBlockValue(block)
 
 	if w.firstEntry {
 		w.firstEntry = false
@@ -190,98 +163,58 @@ func (w *Writer) writeBlock(part *model.Part) error {
 	return nil
 }
 
-// escapeEntityValue escapes characters that need encoding in DTD entity
-// values. Pre-existing entity references (named, numeric/hex, parameter)
-// pass through unchanged — their `&` (or `%`) is part of a syntactic
-// reference, not a literal that needs escaping. Bare `&` not followed by
-// a valid reference still gets escaped to `&amp;`.
-func escapeEntityValue(s string) string {
-	var buf strings.Builder
-	i := 0
-	for i < len(s) {
-		c := s[i]
-		switch c {
-		case '&':
-			// Look ahead for a closing `;` within reasonable distance.
-			// Accept if the chars between form a valid entity-name or
-			// numeric/hex reference. Otherwise escape the `&` itself.
-			if end := indexByteUpTo(s[i+1:], ';', 64); end >= 0 {
-				ref := s[i+1 : i+1+end]
-				if isValidEntityRef(ref) {
-					buf.WriteString(s[i : i+1+end+1])
-					i += 1 + end + 1
-					continue
-				}
+// escapedBlockValue renders the block's value (target if translated, else
+// source) with DTD escaping applied per-run. Literal text runs get their `&`,
+// `<`, and `"` escaped, while inline-code runs (Ph/Pc/Sub — e.g. structural
+// `&entityref;` or `%param;` references the reader captured verbatim) are
+// emitted byte-for-byte. This preserves the reader's run-level distinction
+// between a decoded literal `&` (from `&amp;`) and a structural entity
+// reference: a value like `Text of &amp;test1;` is read as the literal text
+// "Text of &test1;" and must be re-escaped to `&amp;test1;`, not left as the
+// bare (and semantically different) reference `&test1;`.
+func (w *Writer) escapedBlockValue(block *model.Block) string {
+	segs := block.Source
+	if !w.Locale.IsEmpty() && block.HasTarget(w.Locale) {
+		segs = block.Targets[w.Locale]
+	}
+	var b strings.Builder
+	for _, seg := range segs {
+		if seg == nil {
+			continue
+		}
+		for _, r := range seg.Runs {
+			if r.Text != nil {
+				b.WriteString(escapeEntityLiteral(r.Text.Text))
+				continue
 			}
+			// Inline-code runs carry their original DTD bytes (entity or
+			// parameter references) in Data — emit verbatim.
+			b.WriteString(model.RenderRunsWithData([]model.Run{r}))
+		}
+	}
+	return b.String()
+}
+
+// escapeEntityLiteral escapes the characters in literal entity-value text that
+// must be encoded in a DTD: every `&` becomes `&amp;` (it is a literal
+// ampersand, never a reference, because structural references are carried as
+// inline-code runs), `<` becomes `&lt;`, and `"` becomes `&quot;`. `>` is left
+// bare — it does not terminate a quoted entity value (matching okapi's
+// DTDFilter and the XML 1.0 allowed-character set).
+func escapeEntityLiteral(s string) string {
+	var buf strings.Builder
+	buf.Grow(len(s))
+	for i := range len(s) {
+		switch s[i] {
+		case '&':
 			buf.WriteString("&amp;")
-			i++
-		case '"':
-			buf.WriteString("&quot;")
-			i++
 		case '<':
 			buf.WriteString("&lt;")
-			i++
-		// `>` is intentionally not escaped — it doesn't terminate a
-		// quoted entity value, so leaving it bare matches okapi's
-		// DTDFilter output (and the spec's allowed-character set).
+		case '"':
+			buf.WriteString("&quot;")
 		default:
-			buf.WriteByte(c)
-			i++
+			buf.WriteByte(s[i])
 		}
 	}
 	return buf.String()
-}
-
-// indexByteUpTo returns the index of c in s within the first n bytes,
-// or -1 if not found.
-func indexByteUpTo(s string, c byte, n int) int {
-	if n > len(s) {
-		n = len(s)
-	}
-	for i := range n {
-		if s[i] == c {
-			return i
-		}
-	}
-	return -1
-}
-
-// isValidEntityRef reports whether s (the content between `&` and `;`)
-// is a syntactically valid entity reference: a Name (per XML 1.0 §2.3),
-// a decimal NCR (`#NNN`), or a hex NCR (`#xHH`).
-func isValidEntityRef(s string) bool {
-	if s == "" {
-		return false
-	}
-	if s[0] == '#' {
-		// Numeric character reference.
-		if len(s) > 2 && (s[1] == 'x' || s[1] == 'X') {
-			for _, c := range s[2:] {
-				if !(c >= '0' && c <= '9' || c >= 'a' && c <= 'f' || c >= 'A' && c <= 'F') {
-					return false
-				}
-			}
-			return len(s) > 2
-		}
-		for _, c := range s[1:] {
-			if c < '0' || c > '9' {
-				return false
-			}
-		}
-		return len(s) > 1
-	}
-	// Named reference: NameStartChar followed by NameChar*. Use the
-	// ASCII-safe subset (covers all common entity names).
-	c := s[0]
-	if !(c == '_' || c == ':' || (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z')) {
-		return false
-	}
-	for i := 1; i < len(s); i++ {
-		c := s[i]
-		if !(c == '_' || c == ':' || c == '-' || c == '.' ||
-			(c >= '0' && c <= '9') || (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z')) {
-			return false
-		}
-	}
-	return true
 }

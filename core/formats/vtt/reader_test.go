@@ -503,7 +503,7 @@ func TestRoundTrip_VTTFiles(t *testing.T) {
 	assert.Contains(t, output, "I am so excited")
 }
 
-// okapi: RoundTripVttIT#vttSerializedFiles
+// okapi-skip: RoundTripVttIT#vttSerializedFiles — Okapi serialized-skeleton variant; native uses its own skeleton store
 func TestRoundTrip_SerializedFiles(t *testing.T) {
 	// The Java vttSerializedFiles test runs roundtrip with serializedOutput=true.
 	// In the native format, serialization is transparent. We verify roundtrip
@@ -545,22 +545,6 @@ func TestRoundTrip_DoubleExtraction(t *testing.T) {
 			"block %d source text should match after double extraction", i)
 	}
 }
-
-// ---------------------------------------------------------------------------
-// TTML tests — the bridge subtitles/ directory covers both VTT and TTML.
-// Native VTT format only covers VTT, so all TTML bridge tests are unmapped.
-// ---------------------------------------------------------------------------
-
-// okapi-unmapped: RoundTripTtmlIT#ttmlFiles — TTML format, not VTT
-// okapi-unmapped: RoundTripTtmlIT#ttmlSerializedFiles — TTML format, not VTT
-// okapi-unmapped: TTMLFilterTest#testCodeFinder — TTML format, not VTT
-// okapi-unmapped: TTMLFilterTest#testDontMergeCaptions — TTML format, not VTT
-// okapi-unmapped: TTMLFilterTest#testEmptyCaptions — TTML format, not VTT
-// okapi-unmapped: TTMLFilterTest#testMergeCaptions — TTML format, not VTT
-// okapi-unmapped: TTMLFilterTest#testProcessTextUnit — TTML format, not VTT
-// okapi-unmapped: TTMLFilterTest#testProcessTextUnitNonEscapeBrMode — TTML format, not VTT
-// okapi-unmapped: TTMLFilterTest#testQuoteCaptions — TTML format, not VTT
-// okapi-unmapped: TTMLFilterTest#testReadMaxCharMaxLine — TTML format, not VTT
 
 // ---------------------------------------------------------------------------
 // Existing native tests (no Okapi equivalent)

@@ -27,20 +27,47 @@ const (
 type ConditionOp string
 
 const (
-	ConditionEquals  ConditionOp = "EQUALS"
-	ConditionMatches ConditionOp = "MATCHES"
+	ConditionEquals        ConditionOp = "EQUALS"
+	ConditionMatches       ConditionOp = "MATCHES"
+	ConditionNotEquals     ConditionOp = "NOT_EQUALS"
+	ConditionExists        ConditionOp = "EXISTS"
+	ConditionNotExists     ConditionOp = "NOT_EXISTS"
+	ConditionStartsWith    ConditionOp = "STARTS_WITH"
+	ConditionNotStartsWith ConditionOp = "NOT_STARTS_WITH"
+	ConditionEndsWith      ConditionOp = "ENDS_WITH"
 )
 
 // Condition represents an attribute-based condition for element rules.
+//
+// When Parent is true, the condition is evaluated against the *parent*
+// element's attributes rather than the element's own. This expresses
+// XPath predicates that the upstream Okapi ITS rules place on an ancestor
+// (e.g. the ResX selector //data[not(@type)]/value tests <data> while the
+// translatable unit is the <value> child).
 type Condition struct {
 	Attribute string
 	Op        ConditionOp
 	Value     string
+	Parent    bool
 }
 
 // Evaluate tests whether the condition holds for the given attribute map.
+// Existence operators (EXISTS/NOT_EXISTS) reason about presence; the
+// remaining string operators only fire when the attribute is present.
 func (c *Condition) Evaluate(attrs map[string]string) bool {
 	attrVal, exists := attrs[c.Attribute]
+	switch c.Op {
+	case ConditionExists:
+		return exists
+	case ConditionNotExists:
+		return !exists
+	case ConditionNotEquals:
+		// not(@a='v') is true when absent or differing.
+		return !exists || attrVal != c.Value
+	case ConditionNotStartsWith:
+		// not(starts-with(@a,'v')) is true when absent or not prefixed.
+		return !exists || !strings.HasPrefix(attrVal, c.Value)
+	}
 	if !exists {
 		return false
 	}
@@ -50,6 +77,10 @@ func (c *Condition) Evaluate(attrs map[string]string) bool {
 	case ConditionMatches:
 		matched, _ := regexp.MatchString("^"+c.Value+"$", attrVal)
 		return matched
+	case ConditionStartsWith:
+		return strings.HasPrefix(attrVal, c.Value)
+	case ConditionEndsWith:
+		return strings.HasSuffix(attrVal, c.Value)
 	default:
 		return false
 	}
@@ -72,8 +103,35 @@ type ElementRule struct {
 	// Condition is an optional attribute condition for this rule.
 	Condition *Condition
 
+	// Conditions is an optional set of conditions, all of which must hold
+	// (AND) for the rule to apply. When both Condition and Conditions are
+	// set, Condition is treated as one additional AND term. Conditions may
+	// reference the parent element's attributes via Condition.Parent.
+	Conditions []Condition
+
 	// IDAttributes lists attribute names used as block IDs.
 	IDAttributes []string
+
+	// ParentIDAttr names an attribute on the *parent* element whose value
+	// is used as this element's block id. Mirrors the upstream ITS
+	// itsx:idValue="../@name" pointer (e.g. ResX <value> takes its id from
+	// the enclosing <data>/@name).
+	ParentIDAttr string
+
+	// Namespace optionally scopes this rule to elements in a specific XML
+	// namespace URI. Empty matches any namespace (the default). Non-empty
+	// matches only elements whose namespace URI equals it — this mirrors
+	// the upstream DocBook ITS rules, whose selectors are scoped to the
+	// DocBook namespace (db:, http://docbook.org/ns/docbook), so an
+	// unprefixed (no-namespace) element of the same local name does NOT
+	// match the inline rule.
+	Namespace string
+
+	// ParentElement optionally scopes this rule to elements whose direct
+	// parent has this local name. Mirrors XPath selectors that constrain
+	// the parent axis (e.g. the ResX selector //data/value requires the
+	// <value>'s parent to be <data>, not <resheader>).
+	ParentElement string
 
 	// TranslatableAttributes maps attribute names to optional conditions.
 	TranslatableAttributes map[string]*TranslatableAttrCondition
@@ -84,7 +142,8 @@ type ElementRule struct {
 	compiled *regexp.Regexp
 }
 
-// Matches returns true if this rule matches the given element name.
+// Matches returns true if this rule matches the given element name
+// (local name only, any namespace, any parent).
 func (r *ElementRule) Matches(elemName string) bool {
 	if r.isRegex {
 		if r.compiled == nil {
@@ -95,6 +154,23 @@ func (r *ElementRule) Matches(elemName string) bool {
 	return r.Name == elemName
 }
 
+// matchesCtx reports whether the rule matches an element given its local
+// name, namespace URI and parent local name, honoring the optional
+// Namespace and ParentElement scoping. Empty Namespace / ParentElement
+// match anything.
+func (r *ElementRule) matchesCtx(local, nsURI, parentName string) bool {
+	if !r.Matches(local) {
+		return false
+	}
+	if r.Namespace != "" && r.Namespace != nsURI {
+		return false
+	}
+	if r.ParentElement != "" && r.ParentElement != parentName {
+		return false
+	}
+	return true
+}
+
 // HasRule returns true if the rule set includes the given rule type.
 func (r *ElementRule) HasRule(rt RuleType) bool {
 	for _, t := range r.RuleTypes {
@@ -103,6 +179,59 @@ func (r *ElementRule) HasRule(rt RuleType) bool {
 		}
 	}
 	return false
+}
+
+// conditionsHold evaluates the rule's conditions against the element's
+// own attributes (ownAttrs) and its parent's attributes (parentAttrs).
+// All conditions must hold (AND). A nil parentAttrs is treated as an
+// empty map so parent-targeted existence checks behave sensibly at the
+// document root. Returns true when the rule carries no conditions.
+func (r *ElementRule) conditionsHold(ownAttrs, parentAttrs map[string]string) bool {
+	check := func(c *Condition) bool {
+		if c.Parent {
+			return c.Evaluate(parentAttrs)
+		}
+		return c.Evaluate(ownAttrs)
+	}
+	if r.Condition != nil && !check(r.Condition) {
+		return false
+	}
+	for i := range r.Conditions {
+		if !check(&r.Conditions[i]) {
+			return false
+		}
+	}
+	return true
+}
+
+// compileElementRules compiles regex names on element and attribute rules
+// that were constructed programmatically (e.g. by the bundled presets in
+// presets.go) rather than parsed from a config map. Names wrapped in
+// single quotes are treated as anchored regular expressions, matching the
+// behavior of parseElementRules. Safe to call multiple times.
+func (c *Config) compileElementRules() {
+	for _, r := range c.ElementRules {
+		if r == nil || r.compiled != nil {
+			continue
+		}
+		if len(r.Name) >= 2 && r.Name[0] == '\'' && r.Name[len(r.Name)-1] == '\'' {
+			r.isRegex = true
+			if compiled, err := regexp.Compile("^" + r.Name[1:len(r.Name)-1] + "$"); err == nil {
+				r.compiled = compiled
+			}
+		}
+	}
+	for _, r := range c.AttributeRules {
+		if r == nil || r.compiled != nil {
+			continue
+		}
+		if len(r.Name) >= 2 && r.Name[0] == '\'' && r.Name[len(r.Name)-1] == '\'' {
+			r.isRegex = true
+			if compiled, err := regexp.Compile("^" + r.Name[1:len(r.Name)-1] + "$"); err == nil {
+				r.compiled = compiled
+			}
+		}
+	}
 }
 
 // AttributeRule defines processing rules for an XML attribute.
@@ -657,8 +786,10 @@ func parseAttributeRules(val any) ([]*AttributeRule, error) {
 	return rules, nil
 }
 
-// isInlineElement checks whether the given element is configured as inline.
-func (c *Config) isInlineElement(name string) bool {
+// isInlineElementNS checks whether the given element is configured as
+// inline, with the element's namespace URI and parent local name
+// available for namespace-/parent-scoped rules.
+func (c *Config) isInlineElementNS(name, nsURI, parentName string) bool {
 	for _, e := range c.InlineElements {
 		if e == name {
 			return true
@@ -666,25 +797,40 @@ func (c *Config) isInlineElement(name string) bool {
 	}
 	// Check element rules
 	for _, r := range c.ElementRules {
-		if r.Matches(name) && r.HasRule(RuleInline) {
+		if r.matchesCtx(name, nsURI, parentName) && r.HasRule(RuleInline) {
 			return true
 		}
 	}
 	return false
 }
 
-// isExcludedElement checks whether the given element is excluded.
-func (c *Config) isExcludedElement(name string, attrs map[string]string) bool {
+// elementCtx carries the contextual identity of an element needed to
+// evaluate namespace-/parent-scoped rules and parent-targeted conditions.
+type elementCtx struct {
+	local       string
+	nsURI       string
+	attrs       map[string]string
+	parentName  string
+	parentAttrs map[string]string
+}
+
+// isExcludedElementCtx checks whether the given element is excluded, with
+// the surrounding context (namespace URI, parent name and parent
+// attributes) available for namespace-/parent-scoped rules and
+// parent-targeted conditions.
+func (c *Config) isExcludedElementCtx(ctx elementCtx) bool {
 	for _, e := range c.ExcludedElements {
-		if e == name {
+		if e == ctx.local {
 			return true
 		}
 	}
 	for _, r := range c.ElementRules {
-		if r.Matches(name) && r.HasRule(RuleExclude) {
-			// Check condition
-			if r.Condition != nil {
-				return r.Condition.Evaluate(attrs)
+		if r.matchesCtx(ctx.local, ctx.nsURI, ctx.parentName) && r.HasRule(RuleExclude) {
+			if r.Condition != nil || len(r.Conditions) > 0 {
+				if r.conditionsHold(ctx.attrs, ctx.parentAttrs) {
+					return true
+				}
+				continue
 			}
 			return true
 		}
@@ -692,12 +838,17 @@ func (c *Config) isExcludedElement(name string, attrs map[string]string) bool {
 	return false
 }
 
-// isIncludedElement checks whether the given element is explicitly included.
-func (c *Config) isIncludedElement(name string, attrs map[string]string) bool {
+// isIncludedElementCtx checks whether the given element is explicitly
+// included, with the surrounding context available for namespace-/
+// parent-scoped rules and parent-targeted conditions.
+func (c *Config) isIncludedElementCtx(ctx elementCtx) bool {
 	for _, r := range c.ElementRules {
-		if r.Matches(name) && r.HasRule(RuleInclude) {
-			if r.Condition != nil {
-				return r.Condition.Evaluate(attrs)
+		if r.matchesCtx(ctx.local, ctx.nsURI, ctx.parentName) && r.HasRule(RuleInclude) {
+			if r.Condition != nil || len(r.Conditions) > 0 {
+				if r.conditionsHold(ctx.attrs, ctx.parentAttrs) {
+					return true
+				}
+				continue
 			}
 			return true
 		}
@@ -754,6 +905,19 @@ func (c *Config) getIDAttribute(elemName string, attrs map[string]string) string
 	// Fallback: check for "id" attribute
 	if v, ok := attrs["id"]; ok {
 		return v
+	}
+	return ""
+}
+
+// parentIDAttr returns the parent-attribute name that supplies the block
+// id for the given element, from the first matching element rule that
+// declares ParentIDAttr (empty when none). Namespace and parent-element
+// scoping on the rule are honored.
+func (c *Config) parentIDAttr(local, nsURI, parentName string) string {
+	for _, r := range c.ElementRules {
+		if r.matchesCtx(local, nsURI, parentName) && r.ParentIDAttr != "" {
+			return r.ParentIDAttr
+		}
 	}
 	return ""
 }

@@ -82,6 +82,15 @@ const SKIP_DIVERGENCE_453 = "documented divergence — see #453"
 // on a valid input. The first one filed is okf_ttml (NPE in Jericho).
 const SKIP_BRIDGE_BUG_452 = "bridge crash — see #452"
 
+// SKIP_BRIDGE_CONFIG marks the okf_xml/okf_xmlstream config-preset formats
+// (DITA, DocBook, ResX) whose native side is wired (xml reader + the Go
+// config preset) but whose bridge side can't yet load the equivalent named
+// Okapi config: the okapi-bridge okf_xml/okf_xmlstream schema exposes no
+// configId/rules parameter, so a head-to-head comparison would run the
+// bridge with default rules against the native preset (a false divergence).
+// Head-to-head enables once okapi-bridge gains config-by-name support (#613).
+const SKIP_BRIDGE_CONFIG = "native xml config preset wired; bridge config-by-name not yet supported — see okapi-bridge #613"
+
 // FormatInput is one named sample input.
 //
 // OkapiTest is optional. When set ("ClassName#methodName", short class
@@ -241,6 +250,51 @@ var formatSpecs = []FormatSpec{
 		Inputs: []FormatInput{
 			{Name: "dita-like", Content: ttext(`<?xml version="1.0"?><topic><title>Hi</title><body>Hello.</body></topic>`)},
 		},
+	},
+	// okf_xml / okf_xmlstream config-preset formats. The native side runs the
+	// xml reader with the Go config preset (DitaConfig/DocBookConfig/ResXConfig
+	// in core/formats/xml/presets.go); head-to-head is gated on okapi-bridge
+	// config-by-name support (SKIP_BRIDGE_CONFIG). Native behaviour is
+	// regression-tested in core/formats/xml/presets_test.go against the
+	// upstream gold XLIFF.
+	{
+		ID:       "okf_xmlstream-dita",
+		MimeType: "text/xml",
+		NewReader: func() format.DataFormatReader {
+			r := xmlfmt.NewReader()
+			_ = r.SetConfig(xmlfmt.DitaConfig())
+			return r
+		},
+		Inputs: []FormatInput{
+			{Name: "dita", Content: ttext(`<?xml version="1.0"?><concept id="c"><title>Hi</title><conbody><p>Hello.</p></conbody></concept>`)},
+		},
+		Skip: SKIP_BRIDGE_CONFIG,
+	},
+	{
+		ID:       "okf_xml-docbook",
+		MimeType: "text/xml",
+		NewReader: func() format.DataFormatReader {
+			r := xmlfmt.NewReader()
+			_ = r.SetConfig(xmlfmt.DocBookConfig())
+			return r
+		},
+		Inputs: []FormatInput{
+			{Name: "docbook", Content: ttext(`<?xml version="1.0"?><article><para>Hello <emphasis>world</emphasis>.</para></article>`)},
+		},
+		Skip: SKIP_BRIDGE_CONFIG,
+	},
+	{
+		ID:       "okf_xml-resx",
+		MimeType: "text/xml",
+		NewReader: func() format.DataFormatReader {
+			r := xmlfmt.NewReader()
+			_ = r.SetConfig(xmlfmt.ResXConfig())
+			return r
+		},
+		Inputs: []FormatInput{
+			{Name: "resx", Content: ttext(`<?xml version="1.0"?><root><data name="greeting"><value>Hello world.</value></data></root>`)},
+		},
+		Skip: SKIP_BRIDGE_CONFIG,
 	},
 	{
 		ID:        "okf_dtd",

@@ -419,30 +419,25 @@ features:
     description: |
       Special comment markers `#_skip`, `#_text`, `#_bskip` /
       `#_eskip`, `#_btext` / `#_etext` toggle extraction of the
-      entries that follow. The Okapi filter honors these in its
-      default-distributed fprm configurations; the native reader
-      currently ignores them and extracts every entry regardless.
-      Tracked here as a documented divergence.
+      entries that follow. The native reader honors these by default,
+      matching Okapi (LocalizationDirectives.reset() enables useLD):
+      single-entry `#_skip` / `#_text` affect exactly the next entry,
+      while block `#_bskip` / `#_btext` push a scope closed by the
+      matching `#_eskip` / `#_etext`.
     # Localization directives are an Okapi-side extraction policy
     # using comment syntax; not part of the Java Properties spec.
     examples:
       - name: skip_single_entry
         origin: "okapi-fixture: PropertiesFilterTest#testLocDirectives_Skip"
         input_xml: "#_skip\nKey1:Text1\nKey2:Text2"
-        # Okapi: Key1 skipped, only Text2 extracted (block_count=1).
-        # Native: directives ignored, both extracted.
-        expected_fail: |
-          Native reader does not honour Okapi localization
-          directives. Tracked until useLd support lands; until then
-          the spec asserts the Okapi-correct outcome and the native
-          runner records expected_fail.
+        # Key1 skipped by the single-entry #_skip; only Text2 extracted.
         block_count: 1
         first_block_text: "Text2"
       - name: bskip_blocks_extraction
         origin: "okapi-fixture: PropertiesFilterTest#testLocDirectives_Group"
         input_xml: "#_bskip\nKey1:Text1\n#_text\nKey2:Text2\nKey2:Text3"
-        expected_fail: |
-          Same divergence as skip_single_entry — directives ignored.
+        # #_bskip opens a skip block; #_text overrides for exactly the
+        # next entry (Text2); Text3 falls back to the skip block.
         block_count: 1
         first_block_text: "Text2"
     okapi_refs:

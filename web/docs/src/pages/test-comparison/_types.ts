@@ -131,6 +131,10 @@ export type SkipCategory =
   | "dita"
   | "feature"
   | "not-implemented"
+  | "no-native"
+  | "abstract"
+  | "deferred"
+  | "acknowledged"
   | "other";
 
 /** Human-readable labels for skip categories. */
@@ -146,6 +150,10 @@ export const skipCategoryLabels: Record<SkipCategory, string> = {
   dita: "DITA",
   feature: "Feature",
   "not-implemented": "Not Implemented",
+  "no-native": "No Native Reader (bridge-only)",
+  abstract: "Abstract Base Class",
+  deferred: "Covered Indirectly",
+  acknowledged: "Reviewed Gap",
   other: "Other",
 };
 
@@ -162,6 +170,10 @@ export const skipCategoryColors: Record<SkipCategory, string> = {
   dita: "#a855f7",
   feature: "#3b82f6",
   "not-implemented": "#64748b",
+  "no-native": "#0ea5e9",
+  abstract: "#7c3aed",
+  deferred: "#22d3ee",
+  acknowledged: "#a8a29e",
   other: "#94a3b8",
 };
 
@@ -201,12 +213,15 @@ export interface TestCaseRow {
   nativeSubtests?: number;
   /** Auto-classified skip category. */
   skipCategory?: SkipCategory;
+  /** >1 when this row collapses N JUnit parameterized invocations (fixtures). */
+  params?: number;
 }
 
 /** Wire format from the Go testcompare tool (annotation-based). */
 export interface TestCaseMatch {
   javaClass: string;
   javaMethod: string;
+  params?: number;
   okapiStatus: string;
   okapiFile?: string;
   bridgeTest: string;
@@ -295,6 +310,7 @@ function convertAnnotatedRows(matches: TestCaseMatch[]): TestCaseRow[] {
     bridgeSubtests: m.bridgeSubtests,
     nativeSubtests: m.nativeSubtests,
     skipCategory: m.skipCategory,
+    params: m.params,
   }));
 }
 
