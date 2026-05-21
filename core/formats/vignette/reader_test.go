@@ -2,8 +2,10 @@ package vignette_test
 
 import (
 	"context"
+	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/neokapi/neokapi/core/format/spec"
@@ -13,6 +15,20 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// rawDocWithLocales builds a RawDocument carrying both a source and a
+// target locale, which the testutil helpers don't expose. Used to pin
+// the Vignette reader's locale-pair-driven extraction (it must honour
+// the requested target locale, like Okapi's VignetteFilter).
+func rawDocWithLocales(content string, src, tgt model.LocaleID) *model.RawDocument {
+	return &model.RawDocument{
+		URI:          "test://input",
+		SourceLocale: src,
+		TargetLocale: tgt,
+		Encoding:     "UTF-8",
+		Reader:       io.NopCloser(strings.NewReader(content)),
+	}
+}
 
 // minimalEmptyDoc is a namespaced packageBody with one empty
 // importProject and no content instances. The smallest valid VGNXML
@@ -149,6 +165,44 @@ func TestReadComplexTwoPairs(t *testing.T) {
 	// getTextUnit(events,2)=="EN-id2" — assert the same exact ordering here.
 	assert.Equal(t, "EN-id1", blocks[0].SourceText(), "first Block == source-side payload of the first encountered pair (id1)")
 	assert.Equal(t, "EN-id2", blocks[1].SourceText(), "second Block == source-side payload of the second pair (id2)")
+}
+
+// okapi: VignetteFilterTest#testSimpleEntry (locENUS → locESES)
+// When a target locale is supplied, the native reader mirrors Okapi's
+// VignetteFilter.processList(): only the target-locale (es_ES) instance
+// drives extraction, drawing the Block source text from its source-locale
+// (en_US) partner. The simple pair (en_US source + es_ES target) therefore
+// still extracts the en_US body "ENtext" when target=es-ES.
+func TestReadBilingualPairWithMatchingTargetLocale(t *testing.T) {
+	ctx := t.Context()
+	reader := vignette.NewReader()
+	doc := rawDocWithLocales(simpleBilingualPair, model.LocaleID("en-US"), model.LocaleID("es-ES"))
+	err := reader.Open(ctx, doc)
+	require.NoError(t, err)
+	defer reader.Close()
+
+	blocks := testutil.CollectBlocks(t, reader.Read(ctx))
+	require.Len(t, blocks, 1, "es-ES target with an en-US source → one Block (the source-side body)")
+	assert.Equal(t, "ENtext", blocks[0].SourceText())
+	assert.Equal(t, "en_US", blocks[0].Properties["localeId"])
+}
+
+// Okapi's VignetteFilter extracts a block only when its LOCALE_ID equals
+// the requested target locale. The simple pair carries only en_US/es_ES
+// instances, so a target of fr (no LOCALE_ID == fr) yields zero
+// extractions — the file passes through unchanged. This is the exact
+// situation in the upstream Test01.xml parity fixture (harness drives
+// src=en/tgt=fr).
+func TestReadBilingualPairWithNonMatchingTargetLocale(t *testing.T) {
+	ctx := t.Context()
+	reader := vignette.NewReader()
+	doc := rawDocWithLocales(simpleBilingualPair, model.LocaleID("en-US"), model.LocaleID("fr"))
+	err := reader.Open(ctx, doc)
+	require.NoError(t, err)
+	defer reader.Close()
+
+	blocks := testutil.CollectBlocks(t, reader.Read(ctx))
+	assert.Empty(t, blocks, "no instance has LOCALE_ID == fr → nothing extracted (matches Okapi)")
 }
 
 func TestReadPlainPayloadBilingualPair(t *testing.T) {

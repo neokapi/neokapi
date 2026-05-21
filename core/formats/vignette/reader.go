@@ -226,6 +226,22 @@ func (r *Reader) emitBlocks(ctx context.Context, ch chan<- model.PartResult, ins
 		bySourceLink[inst.sourceID] = append(bySourceLink[inst.sourceID], i)
 	}
 
+	// Determine the requested source / target locales in Vignette's
+	// POSIX LOCALE_ID shape (language lowercase + "_" + region UPPERCASE,
+	// e.g. "es-es" → "es_ES"). This mirrors Okapi VignetteFilter, whose
+	// processList() (filters/vignette VignetteFilter.java:663-694) extracts
+	// a block ONLY when its LOCALE_ID equals trgLoc.toPOSIXLocaleId() AND
+	// a matching source-locale partner exists; the extracted source text
+	// is drawn from that source-locale partner. Source-locale (and any
+	// other-locale) blocks are emitted as opaque skeleton, untranslated.
+	//
+	// When no target locale is supplied we fall back to the locale-blind
+	// pairing (extract the source-side instance keyed by CONTENT-ID ==
+	// SOURCE_ID), which keeps standalone callers working when they don't
+	// declare a target. Okapi itself requires a target locale.
+	srcPOSIX := posixLocaleID(string(r.Doc.SourceLocale))
+	trgPOSIX := posixLocaleID(string(r.Doc.TargetLocale))
+
 	processedGroups := make(map[string]bool)
 	// Walk in document order so the spec's "target-driven" ordering is
 	// preserved (one extraction per SOURCE_ID group, taken from the
@@ -237,12 +253,53 @@ func (r *Reader) emitBlocks(ctx context.Context, ch chan<- model.PartResult, ins
 		if processedGroups[inst.sourceID] {
 			continue
 		}
+
+		if trgPOSIX != "" {
+			// Okapi-faithful path: only target-locale instances drive
+			// extraction. Skip non-target instances entirely (they become
+			// skeleton).
+			if inst.localeID != trgPOSIX {
+				continue
+			}
+			group := bySourceLink[inst.sourceID]
+			// Find the source-locale partner in the same SOURCE_ID group.
+			sourceInst := -1
+			for _, gi := range group {
+				if instances[gi].localeID == srcPOSIX {
+					sourceInst = gi
+					break
+				}
+			}
+			if sourceInst < 0 {
+				// Target with no corresponding source: skipped with no
+				// extraction (Okapi treats it as a document part).
+				continue
+			}
+			processedGroups[inst.sourceID] = true
+
+			// Emit one Block per extracted attribute, taking the
+			// source-locale payload as the Block source text. The byte
+			// region replaced on write is the source-locale instance's
+			// value region (where the translated content is filled in).
+			src := instances[sourceInst]
+			for _, attr := range src.attributes {
+				if _, ok := parts[attr.name]; !ok {
+					continue
+				}
+				if !emit(src, attr, "") {
+					return regions
+				}
+			}
+			continue
+		}
+
 		group := bySourceLink[inst.sourceID]
 		if len(group) < 2 {
 			// No partner — skip with no extraction in bilingual mode.
 			continue
 		}
-		// Identify the "source-side" instance: prefer the one whose
+		// Locale-blind fallback (no target locale supplied): identify the
+		// "source-side" instance, preferring the one whose
 		// SMCCONTENT-CONTENT-ID attribute matches the SOURCE_ID value
 		// (the upstream pairing rule). Fall back to "the other instance
 		// in the group" otherwise.
@@ -283,6 +340,25 @@ func (r *Reader) emitBlocks(ctx context.Context, ch chan<- model.PartResult, ins
 		}
 	}
 	return regions
+}
+
+// posixLocaleID renders a BCP-47 locale tag in the Vignette LOCALE_ID
+// POSIX shape: language lowercase, region UPPERCASE, joined by "_"
+// (e.g. "es-es" → "es_ES", "en-US" → "en_US", "fr" → "fr"). This
+// mirrors Okapi LocaleId.toPOSIXLocaleId() (common LocaleId.java:457),
+// which the VignetteFilter uses to compare a requested locale against
+// each block's LOCALE_ID attribute value. An empty input yields "".
+func posixLocaleID(tag string) string {
+	if tag == "" {
+		return ""
+	}
+	tag = strings.ReplaceAll(tag, "-", "_")
+	parts := strings.SplitN(tag, "_", 2)
+	lang := strings.ToLower(parts[0])
+	if len(parts) == 1 || parts[1] == "" {
+		return lang
+	}
+	return lang + "_" + strings.ToUpper(parts[1])
 }
 
 // writeSkeleton writes byte-exact skeleton: copies everything between

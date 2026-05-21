@@ -957,17 +957,20 @@ func coverageScans() []formatScan {
 		{
 			// Vignette CMS XML — 1 fixture (Test01.xml). XML extension
 			// shared with many formats; cherry-pick via explicitFiles
-			// to keep this scan tight. Native pseudo-translates
-			// <valueCLOB><![CDATA[...]]></valueCLOB> contents which
-			// upstream VignetteFilter treats as opaque payload;
-			// documented in core/formats/vignette/parity-annotations.yaml.
+			// to keep this scan tight. The harness drives src=en/tgt=fr;
+			// Test01.xml carries only en_US/es_ES/zh_CN locale instances,
+			// so Okapi's locale-pair-driven VignetteFilter extracts
+			// nothing (no LOCALE_ID == fr) and emits the file unchanged.
+			// Native now honours the requested target locale the same way
+			// (reader.go emitBlocks bilingual gate), so both engines are
+			// byte-equal to the reference.
 			formatID:      "vignette",
 			filterClass:   "okf_vignette",
 			explicitFiles: []string{"okapi/filters/vignette/src/test/resources/Test01.xml"},
 			normalizer:    roundtrip.XMLCanonical{SortAttrs: true},
 			minTier: map[string]roundtrip.Tier{
-				"native": roundtrip.TierDivergent,
-				"bridge": roundtrip.TierDivergent,
+				"native": roundtrip.TierByteEqual,
+				"bridge": roundtrip.TierByteEqual,
 			},
 		},
 
