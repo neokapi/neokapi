@@ -8,6 +8,7 @@ import (
 
 	"github.com/neokapi/neokapi/core/brand"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/schema"
 	"github.com/neokapi/neokapi/core/tool"
 	"github.com/neokapi/neokapi/providers/ai"
 )
@@ -25,12 +26,76 @@ type BrandVoiceCheckTool struct {
 
 // BrandVoiceCheckConfig holds configuration for the brand voice check tool.
 type BrandVoiceCheckConfig struct {
-	Profile *brand.VoiceProfile `schema:"description=Brand voice profile containing tone and style guidelines"`
+	Provider  string `json:"provider,omitempty"  schema:"title=AI Provider,description=AI provider,default=anthropic,group=provider"`
+	APIKey    string `json:"apiKey,omitempty"    schema:"title=API Key,description=API key for the AI provider,group=provider"`
+	Model     string `json:"model,omitempty"     schema:"title=Model,description=AI model name,group=provider"`
+	ProfileID string `json:"profileId,omitempty" schema:"title=Profile ID,description=Brand voice profile to resolve from the store"`
+	// Profile is the resolved voice profile, supplied programmatically (e.g. by
+	// the kapi brand command or a .kapi brand binding). Not serialized.
+	Profile *brand.VoiceProfile `json:"-" schema:"-"`
 }
 
 func (c *BrandVoiceCheckConfig) ToolName() string { return "brand-voice-check" }
 func (c *BrandVoiceCheckConfig) Reset()           {}
 func (c *BrandVoiceCheckConfig) Validate() error  { return nil }
+
+// BrandVoiceCheckSchema returns the auto-generated schema for the tool.
+func BrandVoiceCheckSchema() *schema.ComponentSchema {
+	s := schema.FromStruct(&BrandVoiceCheckConfig{}, schema.ToolMeta{
+		ID:                    "brand-voice-check",
+		Category:              schema.CategoryQuality,
+		DisplayName:           "AI Brand Voice Check",
+		Description:           "Check text against a brand voice profile using an LLM provider",
+		Inputs:                []string{schema.PartTypeBlock},
+		Tags:                  []string{"ai-powered", "brand"},
+		DefaultParallelBlocks: 5,
+		Requires:              []string{schema.RequiresCredentials},
+		Cardinality:           schema.Monolingual,
+		Produces:              []schema.AnnotationType{schema.AnnotationBrandVoice},
+		SideEffects:           []schema.SideEffect{schema.SideEffectAPICall},
+	})
+	injectProviderOptions(s)
+	return s
+}
+
+// NewBrandVoiceCheckFromConfig creates a brand voice check tool from a config map.
+// The map may carry a non-serializable "profile" (*brand.VoiceProfile) — already
+// resolved by the caller — or a "profileResolver" (brand.ProfileResolver) plus
+// "resolveContext" (brand.ResolveContext) for lazy hierarchical resolution.
+func NewBrandVoiceCheckFromConfig(config map[string]any, _ string) (tool.Tool, error) {
+	var profile *brand.VoiceProfile
+	if pf, ok := config["profile"].(*brand.VoiceProfile); ok {
+		profile = pf
+		delete(config, "profile")
+	}
+	var resolver brand.ProfileResolver
+	if r, ok := config["profileResolver"].(brand.ProfileResolver); ok {
+		resolver = r
+		delete(config, "profileResolver")
+	}
+	var rc brand.ResolveContext
+	if c, ok := config["resolveContext"].(brand.ResolveContext); ok {
+		rc = c
+		delete(config, "resolveContext")
+	}
+
+	var cfg BrandVoiceCheckConfig
+	if err := schema.ApplyConfig(config, &cfg); err != nil {
+		return nil, fmt.Errorf("brand-voice-check config: %w", err)
+	}
+
+	p, err := ProviderFromConfig(cfg.Provider, aiprovider.Config{APIKey: cfg.APIKey, Model: cfg.Model})
+	if err != nil {
+		return nil, err
+	}
+	if resolver != nil {
+		return NewBrandVoiceCheckToolWithResolver(p, resolver, rc), nil
+	}
+	if profile == nil {
+		profile = cfg.Profile
+	}
+	return NewBrandVoiceCheckTool(p, profile), nil
+}
 
 // NewBrandVoiceCheckTool creates a new LLM-based brand voice check tool.
 func NewBrandVoiceCheckTool(p aiprovider.LLMProvider, profile *brand.VoiceProfile) *BrandVoiceCheckTool {
