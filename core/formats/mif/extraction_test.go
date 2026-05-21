@@ -244,7 +244,7 @@ func TestTwoPartsEntry(t *testing.T) {
 // =====================================================================
 
 // okapi-skip: DocumentTest#iteratesThroughTheStatementsOfASample — exercises okapi's internal Document/Statements statement-iterator API (verbatim re-serialization of every parsed statement). The native reader has no public statement-stream type; it parses to the content model and reconstructs source via the SkeletonStore, so there is no equivalent surface to assert against.
-// okapi-skip: DocumentTest#iteratesThroughTheStatementsOfEveryResourceUnderTest — same internal Document/Statements API, run over every fixture; no native equivalent (the native round-trip is exercised by the SkeletonStore byte-exact tests in skeleton_test.go instead).
+// okapi-skip: DocumentTest#iteratesThroughTheStatementsOfEveryResourceUnderTest — same internal Document/Statements API, run over every fixture; the native reader has no statement-iterator surface, but the equivalent verbatim re-serialization (byte-exact file reconstruction via the SkeletonStore) is covered by TestSkeletonStore_ByteExact_SimpleFile.
 // okapi-skip: ExtractsTest#gathersExtractsFromEveryResourceUnderTest — exercises okapi's internal Extracts + FontTags collector classes against every fixture. The native reader has no analogue of these standalone helper types; extraction is verified through the public Read() block stream.
 
 // =====================================================================
