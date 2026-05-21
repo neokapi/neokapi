@@ -1,8 +1,8 @@
 {
-  "generatedAt": "2026-05-21T16:22:50Z",
+  "generatedAt": "2026-05-21T17:06:56Z",
   "okapiVersion": "v1.48.0",
   "neokapiVersion": "main",
-  "goCommitSHA": "865a98a0",
+  "goCommitSHA": "a98fe30f",
   "okapiTag": "v1.48.0",
   "filters": [
     {
@@ -2412,7 +2412,7 @@
               {
                 "name": "TestRoundTrip_UpstreamTableCorpus",
                 "status": "pass",
-                "durationMs": 10
+                "durationMs": 20
               },
               {
                 "name": "TestRoundTrip_UpstreamTableCorpus/computer_science_article.csv",
@@ -2422,7 +2422,7 @@
               {
                 "name": "TestRoundTrip_UpstreamTableCorpus/field_delimiter_comma.csv",
                 "status": "pass",
-                "durationMs": 0
+                "durationMs": 10
               },
               {
                 "name": "TestRoundTrip_UpstreamTableCorpus/some_blank_cells.csv",
@@ -2557,7 +2557,7 @@
               {
                 "name": "TestSpec",
                 "status": "pass",
-                "durationMs": 0
+                "durationMs": 10
               },
               {
                 "name": "TestSpec/baseline_extraction",
@@ -53076,14 +53076,14 @@
                 "name": "escaped_newline_and_tab",
                 "status": "expected_fail",
                 "mode": "head-to-head",
-                "detail": "Bridge transport gap — same as escaped_quotes. Native decodes\n\\\\n → LF and \\\\t → TAB inside captured text.\n",
+                "detail": "Escape decoding divergence — same as escaped_quotes. The\nbridge extracts both Blocks but leaves `\\\\n` / `\\\\t` literal;\nnative decodes \\\\n → LF and \\\\t → TAB inside captured text.\n",
                 "divergence": "bridge-gap"
               },
               {
                 "name": "escaped_quotes",
                 "status": "expected_fail",
                 "mode": "head-to-head",
-                "detail": "Bridge transport gap — bridge emits zero Blocks without a\nrule list. Native decodes \\\\\\\" to a literal quote.\n",
+                "detail": "Escape decoding divergence — the rule list now rides the\nbridge (regexRulesJson), so the bridge DOES extract the Block,\nbut with the escape undecoded: it emits the raw `Hello\n\\\"World\\\"`. Okapi's useBSlashEscape only fires inside its\nSTRING-type delimiter scan and on the write/merge path, not\nwhen emitting the extracted source TextUnit (verified\nhead-to-head against Okapi 1.48.0). Native decodes \\\\\\\" to a\nliteral quote at extraction. An extraction-layer semantic\ndifference, not the rules-transport limitation.\n",
                 "divergence": "bridge-gap"
               }
             ]
@@ -53095,7 +53095,7 @@
                 "name": "doubled_quotes",
                 "status": "expected_fail",
                 "mode": "head-to-head",
-                "detail": "Bridge transport gap — bridge emits zero Blocks without a\nrule list. Native decodes \"\" → \".\n",
+                "detail": "Escape decoding divergence — the rule list rides the bridge\n(regexRulesJson) so the bridge extracts both Blocks, but\nleaves the doubled quotes literal (`Hello \"\"World\"\"`). Okapi's\nuseDoubleCharEscape decodes only inside its STRING-type\ndelimiter scan / write path, not at extraction; under\nCONTENT-type extraction it decodes nothing. Native collapses\n\"\" → \" at extraction. An extraction-layer semantic\ndifference, not the rules-transport limitation.\n",
                 "divergence": "bridge-gap"
               }
             ]
@@ -53105,10 +53105,8 @@
             "examples": [
               {
                 "name": "two_entries",
-                "status": "expected_fail",
-                "mode": "head-to-head",
-                "detail": "Bridge transport gap — the rules list isn't passable through\nflat FilterParams, so the bridge emits zero Blocks. Native\nextracts the two entries with their ids.\n",
-                "divergence": "bridge-gap"
+                "status": "pass",
+                "mode": "head-to-head"
               }
             ]
           },
@@ -53117,17 +53115,13 @@
             "examples": [
               {
                 "name": "comments_skipped",
-                "status": "expected_fail",
-                "mode": "head-to-head",
-                "detail": "Bridge transport gap — same as section_with_two_keys.\n",
-                "divergence": "bridge-gap"
+                "status": "pass",
+                "mode": "head-to-head"
               },
               {
                 "name": "section_with_two_keys",
-                "status": "expected_fail",
-                "mode": "head-to-head",
-                "detail": "Bridge transport gap — bridge emits zero Blocks without a\nrule list. Native extracts the two key=value pairs and\ndiscards the section header / comments as Data.\n",
-                "divergence": "bridge-gap"
+                "status": "pass",
+                "mode": "head-to-head"
               }
             ]
           },
@@ -53136,24 +53130,18 @@
             "examples": [
               {
                 "name": "semicolon_in_value",
-                "status": "expected_fail",
-                "mode": "head-to-head",
-                "detail": "Bridge transport gap — same as single_entry.\n",
-                "divergence": "bridge-gap"
+                "status": "pass",
+                "mode": "head-to-head"
               },
               {
                 "name": "single_entry",
-                "status": "expected_fail",
-                "mode": "head-to-head",
-                "detail": "Bridge transport gap — the okf_regex rules list is not\nexpressible through gRPC FilterParams (map\u003cstring,string\u003e),\nso the bridge runs with its default empty rules and emits\nzero Blocks. Native correctly extracts the entry. Tracked\nas a transport-level limitation, not an Okapi semantic\ndivergence — see the file header.\n",
-                "divergence": "bridge-gap"
+                "status": "pass",
+                "mode": "head-to-head"
               },
               {
                 "name": "three_entries",
-                "status": "expected_fail",
-                "mode": "head-to-head",
-                "detail": "Bridge transport gap — same as single_entry. Native extracts\nthree Blocks; bridge emits zero.\n",
-                "divergence": "bridge-gap"
+                "status": "pass",
+                "mode": "head-to-head"
               }
             ]
           },
@@ -53162,10 +53150,8 @@
             "examples": [
               {
                 "name": "key_value_and_label",
-                "status": "expected_fail",
-                "mode": "head-to-head",
-                "detail": "Bridge transport gap — bridge emits zero Blocks without rules.\nNative picks up `title=Hello`, `LABEL \"World\"`, `desc=Goodbye`\nvia the two rules in order.\n",
-                "divergence": "bridge-gap"
+                "status": "pass",
+                "mode": "head-to-head"
               }
             ]
           },
@@ -53194,19 +53180,17 @@
             "examples": [
               {
                 "name": "comment_then_entry",
-                "status": "expected_fail",
-                "mode": "head-to-head",
-                "detail": "Bridge transport gap — bridge emits zero Blocks without a\nrule list. Native extracts the entry; the note is asserted\nby the native unit test (regex.TestNoteExtraction) rather\nthan by the BlockTexts assertion vocabulary used here.\n",
-                "divergence": "bridge-gap"
+                "status": "pass",
+                "mode": "head-to-head"
               }
             ]
           }
         ],
-        "pass": 3,
+        "pass": 11,
         "fail": 0,
         "skip": 0,
         "parityWarn": 0,
-        "expectedFail": 11
+        "expectedFail": 3
       }
     },
     {
@@ -73750,7 +73734,7 @@
               {
                 "name": "TestRoundTrip_AllFixtures",
                 "status": "pass",
-                "durationMs": 20
+                "durationMs": 30
               },
               {
                 "name": "TestRoundTrip_AllFixtures/integration-tests/okapi/src/test/resources/xliff2/Project_Playground_09-11-2020.xlf2",
@@ -73790,7 +73774,7 @@
               {
                 "name": "TestRoundTrip_AllFixtures/integration-tests/okapi/src/test/resources/xliff2/debug/small_many_inline_codes.xlf",
                 "status": "pass",
-                "durationMs": 0
+                "durationMs": 10
               },
               {
                 "name": "TestRoundTrip_AllFixtures/integration-tests/okapi/src/test/resources/xliff2/debug/subtype.xlf",
@@ -76787,7 +76771,7 @@
               {
                 "name": "TestDitaConfig_AttributeExtraction",
                 "status": "pass",
-                "durationMs": 0
+                "durationMs": 10
               },
               {
                 "name": "TestDitaConfig_Extraction",

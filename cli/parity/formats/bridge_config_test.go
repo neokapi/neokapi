@@ -3,6 +3,7 @@
 package formats
 
 import (
+	"encoding/json"
 	"strings"
 	"testing"
 
@@ -219,6 +220,163 @@ func TestXmlstreamBridgeConfig(t *testing.T) {
 		_, err := xmlstreamBridgeConfig(map[string]any{"preserveWhitespace": "yes"})
 		require.Error(t, err)
 	})
+}
+
+// TestRegexBridgeConfig pins the neokapi→Okapi okf_regex config
+// translation: the rule list is serialised to the reserved
+// `regexRulesJson` parameter, the escape discriminator folds into the
+// two bridge booleans, and regexOptions is forced to 0 (RE2-equivalent,
+// no global DOTALL/MULTILINE).
+func TestRegexBridgeConfig(t *testing.T) {
+	t.Run("no_rules_forces_re2_defaults", func(t *testing.T) {
+		out, err := regexBridgeConfig(map[string]any{})
+		require.NoError(t, err)
+		assert.Equal(t, 0, out["regexOptions"])
+		assert.Equal(t, false, out["useBSlashEscape"])
+		assert.Equal(t, false, out["useDoubleCharEscape"])
+		_, hasRules := out["regexRulesJson"]
+		assert.False(t, hasRules, "no rules → no regexRulesJson key")
+	})
+
+	t.Run("source_and_id_rule", func(t *testing.T) {
+		out, err := regexBridgeConfig(map[string]any{
+			"rules": []any{
+				map[string]any{
+					"pattern":     `"([^"]*?)"\s*=\s*"(.*?)"\s*;`,
+					"sourceGroup": 2,
+					"idGroup":     1,
+				},
+			},
+		})
+		require.NoError(t, err)
+		rules := requireRegexRules(t, out)
+		require.Len(t, rules, 1)
+		assert.Equal(t, `"([^"]*?)"\s*=\s*"(.*?)"\s*;`, rules[0].Expr)
+		assert.Equal(t, 1, rules[0].RuleType) // RULETYPE_CONTENT
+		assert.Equal(t, 2, rules[0].SourceGroup)
+		assert.Equal(t, 1, rules[0].NameGroup)
+		assert.Equal(t, -1, rules[0].NoteGroup) // unset → Okapi sentinel
+	})
+
+	t.Run("note_group_maps_to_okapi_minus_one_sentinel", func(t *testing.T) {
+		out, err := regexBridgeConfig(map[string]any{
+			"rules": []any{
+				map[string]any{
+					"pattern":     `/\*(.*?)\*/\s*"([^"]*?)"\s*=\s*"(.*?)"\s*;`,
+					"sourceGroup": 3,
+					"idGroup":     2,
+					"noteGroup":   1,
+				},
+			},
+		})
+		require.NoError(t, err)
+		rules := requireRegexRules(t, out)
+		require.Len(t, rules, 1)
+		assert.Equal(t, 3, rules[0].SourceGroup)
+		assert.Equal(t, 2, rules[0].NameGroup)
+		assert.Equal(t, 1, rules[0].NoteGroup)
+	})
+
+	t.Run("source_only_rule_uses_minus_one_for_name_and_note", func(t *testing.T) {
+		out, err := regexBridgeConfig(map[string]any{
+			"rules": []any{
+				map[string]any{"pattern": `"(.*?)"`, "sourceGroup": 1},
+			},
+		})
+		require.NoError(t, err)
+		rules := requireRegexRules(t, out)
+		require.Len(t, rules, 1)
+		assert.Equal(t, 1, rules[0].SourceGroup)
+		assert.Equal(t, -1, rules[0].NameGroup)
+		assert.Equal(t, -1, rules[0].NoteGroup)
+	})
+
+	t.Run("multiple_rules_preserve_order", func(t *testing.T) {
+		out, err := regexBridgeConfig(map[string]any{
+			"rules": []any{
+				map[string]any{"pattern": `(?m)^(\w+)=(.+)$`, "sourceGroup": 2, "idGroup": 1},
+				map[string]any{"pattern": `LABEL\s+"([^"]+)"`, "sourceGroup": 1},
+			},
+		})
+		require.NoError(t, err)
+		rules := requireRegexRules(t, out)
+		require.Len(t, rules, 2)
+		assert.Equal(t, `(?m)^(\w+)=(.+)$`, rules[0].Expr)
+		assert.Equal(t, 1, rules[0].NameGroup)
+		assert.Equal(t, `LABEL\s+"([^"]+)"`, rules[1].Expr)
+		assert.Equal(t, -1, rules[1].NameGroup)
+	})
+
+	t.Run("escape_backslash", func(t *testing.T) {
+		out, err := regexBridgeConfig(map[string]any{
+			"rules":      []any{map[string]any{"pattern": `"(.*?)"`, "sourceGroup": 1}},
+			"escapeType": "backslash",
+		})
+		require.NoError(t, err)
+		assert.Equal(t, true, out["useBSlashEscape"])
+		assert.Equal(t, false, out["useDoubleCharEscape"])
+	})
+
+	t.Run("escape_doublechar_with_escapechar", func(t *testing.T) {
+		out, err := regexBridgeConfig(map[string]any{
+			"rules":      []any{map[string]any{"pattern": `"((?:[^"]|"")*)"`, "sourceGroup": 1}},
+			"escapeType": "doublechar",
+			"escapeChar": `"`,
+		})
+		require.NoError(t, err)
+		assert.Equal(t, false, out["useBSlashEscape"])
+		assert.Equal(t, true, out["useDoubleCharEscape"])
+	})
+
+	t.Run("escape_none_explicit", func(t *testing.T) {
+		out, err := regexBridgeConfig(map[string]any{
+			"rules":      []any{map[string]any{"pattern": `"(.*?)"`, "sourceGroup": 1}},
+			"escapeType": "none",
+		})
+		require.NoError(t, err)
+		assert.Equal(t, false, out["useBSlashEscape"])
+		assert.Equal(t, false, out["useDoubleCharEscape"])
+	})
+
+	t.Run("missing_pattern_errors", func(t *testing.T) {
+		_, err := regexBridgeConfig(map[string]any{
+			"rules": []any{map[string]any{"sourceGroup": 1}},
+		})
+		require.Error(t, err)
+	})
+
+	t.Run("sourceGroup_below_one_errors", func(t *testing.T) {
+		_, err := regexBridgeConfig(map[string]any{
+			"rules": []any{map[string]any{"pattern": `(.*)`, "sourceGroup": 0}},
+		})
+		require.Error(t, err)
+	})
+
+	t.Run("unknown_key_errors", func(t *testing.T) {
+		_, err := regexBridgeConfig(map[string]any{"bogus": true})
+		require.Error(t, err)
+	})
+
+	t.Run("unknown_escape_type_errors", func(t *testing.T) {
+		_, err := regexBridgeConfig(map[string]any{
+			"rules":      []any{map[string]any{"pattern": `(.*)`, "sourceGroup": 1}},
+			"escapeType": "rot13",
+		})
+		require.Error(t, err)
+	})
+}
+
+// requireRegexRules decodes the regexRulesJson reserved param into the
+// Okapi-shaped rule slice, failing the test if it's missing or malformed.
+func requireRegexRules(t *testing.T, out map[string]any) []okapiRegexRule {
+	t.Helper()
+	v, ok := out["regexRulesJson"]
+	require.True(t, ok, "regexRulesJson key present")
+	s, ok := v.(string)
+	require.True(t, ok, "regexRulesJson is a JSON string")
+	var rules []okapiRegexRule
+	require.NoError(t, json.Unmarshal([]byte(s), &rules))
+	return rules
 }
 
 // requireFprm extracts the single fprmContent string the csv translator
