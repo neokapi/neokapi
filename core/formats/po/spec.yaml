@@ -351,25 +351,30 @@ features:
         description: |
           Russian declares nplurals=3. The reader honors the header's
           nplurals and surfaces one text unit per plural form: form 0
-          carries the singular msgid ("%d day"), forms 1 and 2 carry
-          the msgid_plural ("%d days"), and each form's target is the
+          carries the singular msgid ("one day"), forms 1 and 2 carry
+          the msgid_plural ("many days"), and each form's target is the
           corresponding msgstr[N]. Matches Okapi's testThreePlurals,
-          which expects three text units from this entry.
+          which expects three text units from this entry. The source
+          text is placeholder-free so the contract validates the
+          plural-form COUNT head-to-head (both native and the Okapi
+          bridge emit three forms); the orthogonal printf-placeholder
+          divergence is covered separately by `with_translations` and
+          `percent_codes_in_msgid`.
         input_xml: |
           msgid ""
           msgstr ""
           "Plural-Forms: nplurals=3; plural=n%10==1 && n%100!=11 ? 0 : n%10>=2 && n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2;\n"
 
-          msgid "%d day"
-          msgid_plural "%d days"
+          msgid "one day"
+          msgid_plural "many days"
           msgstr[0] "день"
           msgstr[1] "дня"
           msgstr[2] "дней"
         block_count: 3
         block_texts:
-          - "%d day"
-          - "%d days"
-          - "%d days"
+          - "one day"
+          - "many days"
+          - "many days"
     okapi_refs:
       - POFilterTest#testTUPluralEntry_DefaultGroup
       - POFilterTest#testTUPluralEntry_DefaultSingular
