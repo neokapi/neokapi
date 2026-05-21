@@ -121,6 +121,21 @@ func (w *Writer) writeFromSkeleton() error {
 			}
 		case format.SkeletonRef:
 			refID := string(entry.Data)
+			if rest, ok := strings.CutPrefix(refID, "u"); ok {
+				// Unsegmented run: wrap the (translated) text in a fresh
+				// <Tu MatchPercent="0">…</Tu>, mirroring Okapi's
+				// TTXSkeletonWriter.processSegment (the source's bare text
+				// becomes a Tu segment on output). The surrounding markup
+				// stayed verbatim in the skeleton text entries.
+				tuIdx, err := strconv.Atoi(rest)
+				if err != nil || tuIdx < 0 || tuIdx >= len(w.blocks) {
+					continue
+				}
+				if err := w.writeUnsegmentedTu(w.blocks[tuIdx]); err != nil {
+					return err
+				}
+				continue
+			}
 			// Ref ID is "tuIdx:tuvIdx"
 			idxStr, refSuffix, ok := strings.Cut(refID, ":")
 			if !ok {
@@ -158,6 +173,41 @@ func (w *Writer) writeFromSkeleton() error {
 				return err
 			}
 		}
+	}
+	return nil
+}
+
+// writeUnsegmentedTu emits a fresh <Tu> wrapping an unsegmented run's source
+// and translated target. Okapi's TTXSkeletonWriter.processSegment writes
+// `<Tu MatchPercent="0"><Tuv Lang="SRC">src</Tuv><Tuv Lang="TRG">trg</Tuv></Tu>`
+// (TTXSkeletonWriter.java:143-157); the source text the reader captured keeps
+// its trailing whitespace, which lands inside the <Tuv>.
+func (w *Writer) writeUnsegmentedTu(block *model.Block) error {
+	escape := func(s string) string { return xmlEscapeWith(s, w.cfg.EscapeGT) }
+
+	sourceLang := block.Properties["source-lang"]
+	if sourceLang == "" {
+		sourceLang = "EN-US"
+	}
+
+	sourceText := block.SourceText()
+	targetText := sourceText // fall back to source if no translation
+	for locale := range block.Targets {
+		if block.HasTarget(locale) {
+			targetText = block.TargetText(locale)
+			break
+		}
+	}
+	// Okapi uppercases the target language code (TTXFilter.open:
+	// trgLangCode = trgLoc.toString().toUpperCase()).
+	targetLang := strings.ToUpper(string(w.Locale))
+	if targetLang == "" {
+		targetLang = sourceLang
+	}
+
+	if _, err := fmt.Fprintf(w.Output, `<Tu MatchPercent="0"><Tuv Lang="%s">%s</Tuv><Tuv Lang="%s">%s</Tuv></Tu>`,
+		escape(sourceLang), escape(sourceText), escape(targetLang), escape(targetText)); err != nil {
+		return err
 	}
 	return nil
 }
@@ -220,7 +270,17 @@ func (w *Writer) writeBlock(part *model.Part) error {
 	return nil
 }
 
-// xmlEscapeWith escapes XML special characters, optionally escaping >.
+// xmlEscapeWith escapes XML special characters in element character data,
+// optionally escaping >.
+//
+// The literal sequence "]]>" is always escaped (the `>` is emitted as `&gt;`)
+// even when escapeGT is false: XML 1.0 §2.4 forbids the literal string "]]>"
+// appearing in character data outside a CDATA section ("the string \"]]>\"
+// MUST NOT appear in content unless used to mark the end of a CDATA section").
+// Some TTX source text — e.g. a JavaScript "//]]>" CDATA-close marker carried
+// as content — contains it, and emitting it raw produces XML that no conformant
+// parser will read. Okapi avoids this by keeping such markers inside inline
+// codes; native escapes the `>` of "]]>" to stay well-formed.
 func xmlEscapeWith(s string, escapeGT bool) string {
 	var buf []byte
 	for i := range len(s) {
@@ -230,7 +290,10 @@ func xmlEscapeWith(s string, escapeGT bool) string {
 		case '<':
 			buf = append(buf, []byte("&lt;")...)
 		case '>':
-			if escapeGT {
+			// Escape `>` when EscapeGT is set, or when it closes a "]]>"
+			// run (i >= 2 && previous two bytes are "]]") to keep the
+			// output well-formed per XML 1.0 §2.4.
+			if escapeGT || (i >= 2 && s[i-1] == ']' && s[i-2] == ']') {
 				buf = append(buf, []byte("&gt;")...)
 			} else {
 				buf = append(buf, '>')
