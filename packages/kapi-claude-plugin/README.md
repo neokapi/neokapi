@@ -32,4 +32,6 @@ skills additionally need the `kapi-bowrain` plugin and a Bowrain account.
 
 The `skills/` directory is generated from the kapi binary
 (`kapi skills export --dir skills`) so it stays byte-identical with the CLI's
-embedded copies. Run `make plugin-bundle` at the repo root to regenerate.
+embedded copies (the canonical source, `cli/skills/data/`). It is **gitignored**
+and produced at release time — run `make plugin-bundle` at the repo root to
+generate it locally.

@@ -425,11 +425,15 @@ build-bowrain-plugin: ## Build the kapi-bowrain plugin binary (manifest-driven)
 	cd bowrain/cli && $(GOBUILD) $(LDFLAGS) -o $(BIN_DIR)/kapi-bowrain ./cmd/kapi-bowrain
 
 PLUGIN_DIR := packages/kapi-claude-plugin
-plugin-bundle: build ## Regenerate the Claude Code plugin skills/ from the embedded source (byte-identical to the CLI)
+plugin-bundle: build ## Generate the Claude Code plugin skills/ from the embedded source (gitignored; built for release)
 	@rm -rf $(PLUGIN_DIR)/skills
 	@mkdir -p $(PLUGIN_DIR)/skills
-	./$(BIN_DIR)/kapi skills export --dir $(PLUGIN_DIR)/skills >/dev/null
-	@echo "Regenerated $(PLUGIN_DIR)/skills from embedded skills"
+	$(BIN_DIR)/kapi skills export --dir $(PLUGIN_DIR)/skills >/dev/null
+	@echo "Generated $(PLUGIN_DIR)/skills from the embedded skills (cli/skills/data)"
+
+dev-skills: build ## Install kapi/bowrain skills into ./.claude/skills for in-repo dogfooding (gitignored)
+	$(BIN_DIR)/kapi skills install --target project >/dev/null
+	@echo "Installed kapi/bowrain skills into .claude/skills (gitignored; canonical source is cli/skills/data)"
 
 build-all: ## Build all Go binaries
 	@mkdir -p $(BIN_DIR)
@@ -707,6 +711,7 @@ help: ## Show this help
         ci-test-bowrain-cli ci-test-bowrain ci-test-kapi-desktop ci-test-all \
         verify-isolation \
         build build-all build-server build-worker build-kapi-bowrain-plugin build-bowrain-plugin build-bowrain build-headless \
+        plugin-bundle dev-skills \
         install install-kapi-bowrain-plugin \
         frontend-check-all \
         build-kapi-desktop kapi-desktop-dev kapi-desktop-test \
