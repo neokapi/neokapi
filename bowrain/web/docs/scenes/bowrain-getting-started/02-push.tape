@@ -19,7 +19,7 @@ Type "# Push changes to server"
 Enter
 Sleep 500ms
 
-Type "bowrain push"
+Type "kapi push"
 Enter
 Sleep 3s
 
@@ -27,7 +27,7 @@ Type ""
 Enter
 Sleep 500ms
 
-Type "bowrain status"
+Type "kapi status"
 Enter
 Sleep 2s
 

@@ -358,7 +358,7 @@ GET    /api/v1/projects/:id/assets/:aid/variants
 
 ### Change Log Integration
 
-Asset mutations appear in the existing change log so `bowrain pull`
+Asset mutations appear in the existing change log so `kapi pull`
 fetches only changed assets since the last cursor:
 
 ```

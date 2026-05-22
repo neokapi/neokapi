@@ -53,15 +53,15 @@ generates authentic issue history.
 
 | Category                 | Filed By       | Example                                                     |
 | ------------------------ | -------------- | ----------------------------------------------------------- |
-| **Bug: CLI**             | Developer      | "bowrain push fails with BOM-encoded JSON files"            |
+| **Bug: CLI**             | Developer      | "kapi push fails with BOM-encoded JSON files"            |
 | **Bug: API**             | Translator, PM | "listTasks returns 500 when filtering by assignee + status" |
 | **Bug: Web UI**          | Brand Manager  | "Brand profile tone slider resets to 0 after save"          |
 | **Bug: Format**          | Developer, QA  | "Markdown reader strips frontmatter during round-trip"      |
-| **Feature: CLI**         | Developer      | "Add --dry-run flag to bowrain push"                        |
+| **Feature: CLI**         | Developer      | "Add --dry-run flag to kapi push"                        |
 | **Feature: API**         | PM             | "Batch task creation endpoint (create N tasks in one call)" |
 | **Feature: Translation** | Translator     | "Show TM match percentage in task list view"                |
 | **Feature: Brand**       | Brand Manager  | "Export brand profile as shareable template"                |
-| **Improvement: DX**      | Developer      | "bowrain status should show per-language completion %"      |
+| **Improvement: DX**      | Developer      | "kapi status should show per-language completion %"      |
 | **Improvement: UX**      | Translator     | "Keyboard shortcut to accept AI translation and advance"    |
 
 **Labels:** Agents apply appropriate labels (`bug`, `enhancement`, `ux`, `cli`, `api`, `format`).
@@ -475,7 +475,7 @@ gh issue list --repo neokapi/agent-feedback --search "BOM-encoded JSON" --json n
 
 # File a bug report
 gh issue create --repo neokapi/agent-feedback \
-  --title "[Bug] cli: bowrain push fails with BOM-encoded JSON files" \
+  --title "[Bug] cli: kapi push fails with BOM-encoded JSON files" \
   --body "..." \
   --label bug,cli
 

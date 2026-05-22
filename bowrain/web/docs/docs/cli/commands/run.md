@@ -3,61 +3,61 @@ sidebar_position: 6
 title: run
 ---
 
-# bowrain run
+# kapi run
 
-Run composed multi-tool flows or custom project flows. For single built-in tools, use the top-level tool commands directly (e.g., `bowrain ai-translate`, `bowrain qa-check`).
+Run composed multi-tool flows or custom project flows. For single built-in tools, use the top-level tool commands directly (e.g., `kapi ai-translate`, `kapi qa-check`).
 
 ## Synopsis
 
 ```bash
-bowrain run <flow-name> [flags]
-bowrain flows
+kapi run <flow-name> [flags]
+kapi flows
 ```
 
 ## Description
 
-The `bowrain run` command executes a named multi-step processing pipeline. Documents are read, streamed through each tool in the flow, and written to the output. Multiple input files can be processed in parallel.
+The `kapi run` command executes a named multi-step processing pipeline. Documents are read, streamed through each tool in the flow, and written to the output. Multiple input files can be processed in parallel.
 
 **Project-based flows**: If a `.kapi` project exists (a `*.kapi` recipe found by walking up the tree), flows are loaded from inline `flows:` on the recipe and from `.kapi/flows/*.yaml`. This is the primary mode for Bowrain CLI.
 
 **Built-in composed flows**: Multi-tool pipelines like `ai-translate-qa` are available as built-in flows.
 
-**Single tools as top-level commands**: Individual tools run directly as top-level commands — `bowrain ai-translate`, `bowrain pseudo-translate`, `bowrain qa-check`, `bowrain tm-leverage`, etc.
+**Single tools as top-level commands**: Individual tools run directly as top-level commands — `kapi ai-translate`, `kapi pseudo-translate`, `kapi qa-check`, `kapi tm-leverage`, etc.
 
-Use `bowrain flows` to see available flows, or `bowrain tools` to see available tools.
+Use `kapi flows` to see available flows, or `kapi tools` to see available tools.
 
 ## Examples
 
 ```bash
 # Translate with AI (top-level tool command)
-bowrain ai-translate -i input.html -o output.html --source-lang en --target-lang fr
+kapi ai-translate -i input.html -o output.html --source-lang en --target-lang fr
 
 # Translate then quality-check (composed flow)
-bowrain run ai-translate-qa -i input.html -o output.html --source-lang en --target-lang fr
+kapi run ai-translate-qa -i input.html -o output.html --source-lang en --target-lang fr
 
 # Pseudo-translate for testing (top-level tool command)
-bowrain pseudo-translate -i input.html -o output.html --target-lang fr
+kapi pseudo-translate -i input.html -o output.html --target-lang fr
 
 # Process multiple files in parallel (top-level tool command)
-bowrain ai-translate -i file1.html -i file2.html --source-lang en --target-lang fr -j 4
+kapi ai-translate -i file1.html -i file2.html --source-lang en --target-lang fr -j 4
 
 # Leverage translation memory (top-level tool command)
-bowrain tm-leverage -i input.html -o output.html --source-lang en --target-lang fr
+kapi tm-leverage -i input.html -o output.html --source-lang en --target-lang fr
 
 # Run quality checks (top-level tool command)
-bowrain qa-check -i translations.html -o qa-report.html --target-lang fr
+kapi qa-check -i translations.html -o qa-report.html --target-lang fr
 
 # Run a custom project flow
-bowrain run translate-review
+kapi run translate-review
 
 # List available flows
-bowrain flows
+kapi flows
 
 # List available tools
-bowrain tools
+kapi tools
 ```
 
-## Flags (bowrain run)
+## Flags (kapi run)
 
 | Flag            | Short | Description                                                  |
 | --------------- | ----- | ------------------------------------------------------------ |
@@ -74,12 +74,12 @@ bowrain tools
 
 :::note
 The `--format`, `--encoding`, `--source-lang`, and `--target-lang` flags are
-specific to `bowrain run` and tool commands. They are not global flags.
+specific to `kapi run` and tool commands. They are not global flags.
 :::
 
 ## Project-Based Flows
 
-If you've initialized a Bowrain project with `bowrain init`, create custom flows in `.kapi/flows/`:
+If you've initialized a Bowrain project with `kapi init`, create custom flows in `.kapi/flows/`:
 
 ```yaml
 # .kapi/flows/translate-review.yaml
@@ -108,7 +108,7 @@ steps:
 Run with:
 
 ```bash
-bowrain run translate-review
+kapi run translate-review
 ```
 
 Project flows automatically use the recipe's content collections and locale defaults.
@@ -119,7 +119,7 @@ No need to specify `--input`, `--output`, `--source-lang`, or `--target-lang`.
 Without a `.kapi` project, you can use built-in composed flows with explicit flags:
 
 ```bash
-bowrain run ai-translate-qa -i input.html -o output.html --source-lang en --target-lang fr
+kapi run ai-translate-qa -i input.html -o output.html --source-lang en --target-lang fr
 ```
 
 Available built-in composed flows:
@@ -135,13 +135,13 @@ Single tools run directly as top-level commands:
 
 | Command                    | Description                                   |
 | -------------------------- | --------------------------------------------- |
-| `bowrain ai-translate`     | Translate content using AI/LLM                |
-| `bowrain pseudo-translate` | Generate pseudo-translations for testing      |
-| `bowrain qa-check`         | Run rule-based quality checks on translations |
-| `bowrain tm-leverage`      | Pre-fill translations from translation memory |
+| `kapi ai-translate`     | Translate content using AI/LLM                |
+| `kapi pseudo-translate` | Generate pseudo-translations for testing      |
+| `kapi qa-check`         | Run rule-based quality checks on translations |
+| `kapi tm-leverage`      | Pre-fill translations from translation memory |
 
 ## Listing Available Tools
 
 ```bash
-bowrain tools
+kapi tools
 ```

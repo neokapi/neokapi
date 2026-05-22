@@ -14,7 +14,7 @@ Type "# List workspaces via the REST API"
 Enter
 Sleep 500ms
 
-Type "bowrain workspace list"
+Type "kapi workspace list"
 Enter
 Sleep 2s
 
@@ -26,7 +26,7 @@ Type "# Create a workspace"
 Enter
 Sleep 500ms
 
-Type "bowrain workspace create --name 'Demo Workspace'"
+Type "kapi workspace create --name 'Demo Workspace'"
 Enter
 Sleep 2s
 
@@ -34,7 +34,7 @@ Type ""
 Enter
 Sleep 500ms
 
-Type "bowrain workspace list"
+Type "kapi workspace list"
 Enter
 Sleep 2s
 

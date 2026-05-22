@@ -37,12 +37,12 @@ automations:
 
 | Trigger     | Fires When                                           |
 | ----------- | ---------------------------------------------------- |
-| `pre-push`  | Before `bowrain push` sends blocks to the server     |
-| `post-push` | After `bowrain push` completes successfully          |
-| `pre-pull`  | Before `bowrain pull` fetches blocks from the server |
-| `post-pull` | After `bowrain pull` writes files locally            |
-| `pre-flow`  | Before `bowrain run` executes a flow                 |
-| `post-flow` | After `bowrain run` completes                        |
+| `pre-push`  | Before `kapi push` sends blocks to the server     |
+| `post-push` | After `kapi push` completes successfully          |
+| `pre-pull`  | Before `kapi pull` fetches blocks from the server |
+| `post-pull` | After `kapi pull` writes files locally            |
+| `pre-flow`  | Before `kapi run` executes a flow                 |
+| `post-flow` | After `kapi run` completes                        |
 
 ### Local Action Types
 
@@ -85,7 +85,7 @@ automations:
       - type: pull
 ```
 
-This effectively makes `bowrain push` behave like `bowrain sync`.
+This effectively makes `kapi push` behave like `kapi sync`.
 
 ## Server-Side Automation
 
@@ -265,6 +265,6 @@ This prevents infinite loops caused by circular automation rules (e.g., a push t
 
 Both local and server-side automations maintain execution history:
 
-- **Local**: `bowrain status --automations` shows recent local automation runs
+- **Local**: `kapi status --automations` shows recent local automation runs
 - **Server**: The web UI provides an execution log under **Project Settings > Automation > History**
 - **API**: `GET /api/v1/automations/:id/executions` returns execution records with status, duration, and error details

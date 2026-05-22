@@ -3,7 +3,7 @@ title: diff
 sidebar_position: 3
 ---
 
-# bowrain diff
+# kapi diff
 
 Show detailed differences between local files and Bowrain Server content. Displays
 block-level changes with source and target text diffs.
@@ -11,26 +11,26 @@ block-level changes with source and target text diffs.
 ## Usage
 
 ```bash
-bowrain diff [paths...] [flags]
+kapi diff [paths...] [flags]
 ```
 
 ## Examples
 
 ```bash
 # Show all differences in the project
-bowrain diff
+kapi diff
 
 # Show differences for specific files
-bowrain diff src/locales/en/messages.json
+kapi diff src/locales/en/messages.json
 
 # Show differences for a directory
-bowrain diff src/locales/
+kapi diff src/locales/
 
 # Show only added/removed blocks (no modified)
-bowrain diff --status added,removed
+kapi diff --status added,removed
 
 # Use unified diff format (like git diff)
-bowrain diff --format unified
+kapi diff --format unified
 
 # Example output:
 # diff --bowrain a/ui/strings/messages b/ui/strings/messages
@@ -120,7 +120,7 @@ FILE: src/locales/en/buttons.json <-> ui/strings/buttons
 
 ## How It Works
 
-`bowrain diff` compares block-level content between local files and server state:
+`kapi diff` compares block-level content between local files and server state:
 
 1. **Read local files** via FormatRegistry (respecting the recipe's `content:` collections)
 2. **Fetch remote content** via `POST /api/v1/.../diff` server endpoint
@@ -148,7 +148,7 @@ This enables efficient incremental sync — only changed blocks transfer over th
 
 :::warning Work in Progress
 
-`bowrain diff` is currently a **placeholder**. Full implementation requires:
+`kapi diff` is currently a **placeholder**. Full implementation requires:
 
 - Server API endpoint: `POST /api/v1/workspaces/:ws/projects/:id/diff`
 - Block-level content comparison
@@ -161,15 +161,15 @@ Current behavior: prints a message indicating the feature is not yet implemented
 
 ## Related Commands
 
-- [`bowrain status`](/cli/commands/status) — Show which files changed (summary)
-- [`bowrain pull`](/cli/commands/pull) — Fetch remote changes
-- [`bowrain push`](/cli/commands/push) — Send local changes
+- [`kapi status`](/cli/commands/status) — Show which files changed (summary)
+- [`kapi pull`](/cli/commands/pull) — Fetch remote changes
+- [`kapi push`](/cli/commands/push) — Send local changes
 
 ## When to Use
 
-Use `bowrain diff` to:
+Use `kapi diff` to:
 
 - **Review changes** before pushing to the server
 - **Understand conflicts** when both local and remote changed
 - **Generate reports** for translation review (JSON output)
-- **Debug sync issues** when `bowrain status` shows unexpected state
+- **Debug sync issues** when `kapi status` shows unexpected state

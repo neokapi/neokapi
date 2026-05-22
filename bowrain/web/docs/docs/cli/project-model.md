@@ -20,7 +20,7 @@ my-app/
 │   │   └── pseudo.yaml
 │   └── cache/              # all regenerable caches under one roof
 │       ├── blocks.db        # block store (SQLite)
-│       ├── sync-cache.json  # bowrain push/pull state
+│       ├── sync-cache.json  # kapi push/pull state
 │       ├── extractions/
 │       └── collections/
 └── src/
@@ -34,7 +34,7 @@ my-app/
 Three ownership zones at the project root:
 
 - **`<dir-name>.kapi`** — hand-edited, committed to git. The recipe is the single source of truth for project configuration.
-- **`.kapi/cache/`** — CLI-owned, gitignored. Contains everything that's cheaply regenerable: the block store, the bowrain sync cache, extraction intermediates, overlay layers. Safe to delete at any time.
+- **`.kapi/cache/`** — CLI-owned, gitignored. Contains everything that's cheaply regenerable: the block store, the kapi sync cache, extraction intermediates, overlay layers. Safe to delete at any time.
 - **`.kapi/tm.db`, `.kapi/termbase.db`, `.kapi/manifest.yaml`** — kapi-owned, authoritative. Gitignored by default; opt in to commit the TM/termbase when cross-clone reproducibility matters.
 - **`.kapi/flows/*.yaml`** — optional file-per-flow definitions, hand-edited, committed. Bowrain reads these in addition to inline `flows:` declared on the recipe.
 
@@ -243,7 +243,7 @@ Bowrain CLI searches for a `*.kapi` recipe by walking up the directory tree (lik
 
 ```bash
 cd my-app/src/locales/fr/
-bowrain status  # finds my-app.kapi at ../../../my-app.kapi
+kapi status  # finds my-app.kapi at ../../../my-app.kapi
 ```
 
 All commands work from any subdirectory within the project. If a directory contains multiple `*.kapi` files, pass `-p <path>` explicitly.
@@ -257,7 +257,7 @@ All commands work from any subdirectory within the project. If a directory conta
 
 ### Do NOT commit
 
-The whole `.kapi/` directory is gitignored by default by `bowrain init`:
+The whole `.kapi/` directory is gitignored by default by `kapi init`:
 
 - `.kapi/cache/` — block store, sync cache, extraction intermediates
 - `.kapi/manifest.yaml` — regenerable bookkeeping
@@ -269,25 +269,25 @@ Create a new bowrain project:
 
 ```bash
 cd my-app/
-bowrain init
+kapi init
 ```
 
-In interactive mode (default when stdin is a terminal), `bowrain init` presents a guided setup wizard where you can sign in, choose a workspace, and configure your project.
+In interactive mode (default when stdin is a terminal), `kapi init` presents a guided setup wizard where you can sign in, choose a workspace, and configure your project.
 
 For non-interactive usage (e.g. CI/CD), use flags:
 
 ```bash
 # Local-only project (no server: block written)
-bowrain init --source en-US --targets fr-FR,de-DE,ja-JP
+kapi init --source en-US --targets fr-FR,de-DE,ja-JP
 
 # Connect to a server (anonymous claim)
-bowrain init --server https://bowrain.example.com --anonymous
+kapi init --server https://bowrain.example.com --anonymous
 
 # Apply a framework preset
-bowrain init --preset nextjs
+kapi init --preset nextjs
 
 # Connect to an existing project
-bowrain init --server https://bowrain.example.com --project abc123
+kapi init --server https://bowrain.example.com --project abc123
 ```
 
 ### Init flags
@@ -303,7 +303,7 @@ bowrain init --server https://bowrain.example.com --project abc123
 | `--email`     | Create a project and email a link to claim it                     |
 | `--preset`    | Apply a framework preset (e.g. `nextjs`, `react-intl`, `angular`) |
 
-`bowrain init` writes:
+`kapi init` writes:
 
 1. `<dir-name>.kapi` recipe at the project root (with a `server:` block when a server was supplied)
 2. `.kapi/` state directory
@@ -328,9 +328,9 @@ server:
 Once connected, you can sync with the server:
 
 ```bash
-bowrain push    # Upload local source blocks to server
-bowrain pull    # Fetch translated blocks from server
-bowrain status  # Show sync state (pending push/pull)
+kapi push    # Upload local source blocks to server
+kapi pull    # Fetch translated blocks from server
+kapi status  # Show sync state (pending push/pull)
 ```
 
 The active server URL is resolved from (first match wins):
@@ -338,7 +338,7 @@ The active server URL is resolved from (first match wins):
 1. `server.url` field on the recipe
 2. `--server` flag
 3. `BOWRAIN_SERVER_URL` environment variable / `server.url` in `~/.config/bowrain/bowrain.yaml`
-4. Existing auth state (from `bowrain auth login`)
+4. Existing auth state (from `kapi auth login`)
 5. Built-in default (`http://localhost:8080`)
 
 ## Next Steps

@@ -33,11 +33,11 @@ Each agent persona maps to a real role in a localization team. Agents interact w
 
 **Key Workflows:**
 
-1. **Initial setup:** Fork project → `bowrain init` → `bowrain add` → `bowrain push`
+1. **Initial setup:** Fork project → `kapi init` → `kapi add` → `kapi push`
 2. **Release tracking:** Detect new upstream release → merge → push updated content
 3. **Stream management:** Create streams for major versions, merge when stable
 4. **CI integration:** Configure GitHub Actions for automated sync
-5. **Troubleshooting:** Check `bowrain status`, review sync logs, debug format issues
+5. **Troubleshooting:** Check `kapi status`, review sync logs, debug format issues
 
 **Prompt Template:**
 
@@ -273,7 +273,7 @@ Your task today: {task_description}
 
 **Capabilities:**
 
-- Run QA checks (`bowrain qa-check`)
+- Run QA checks (`kapi qa-check`)
 - Brand compliance checking (API)
 - Placeholder verification
 - Character limit checks

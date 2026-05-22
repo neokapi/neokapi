@@ -25,13 +25,13 @@ Run quality checks directly on source files without any server connection:
 
 ```bash
 # Run QA checks on source content
-bowrain qa-check -i src/locales/en/ --source-lang en
+kapi qa-check -i src/locales/en/ --source-lang en
 
 # Check terminology consistency
-bowrain term-check -i src/locales/en/ --termbase glossary.tbx
+kapi term-check -i src/locales/en/ --termbase glossary.tbx
 
 # Validate XML/HTML structure in source strings
-bowrain xml-validation -i src/locales/en/
+kapi xml-validation -i src/locales/en/
 ```
 
 ### Built-In QA Rules
@@ -80,7 +80,7 @@ steps:
 Run it:
 
 ```bash
-bowrain run source-qa
+kapi run source-qa
 ```
 
 ### Scoping and Word Count
@@ -89,13 +89,13 @@ Before starting a translation project, analyze the source content:
 
 ```bash
 # Word count across all source files
-bowrain word-count -i src/locales/en/
+kapi word-count -i src/locales/en/
 
 # Detailed scoping report
-bowrain scoping-report -i src/locales/en/
+kapi scoping-report -i src/locales/en/
 
 # Repetition analysis (find reusable segments)
-bowrain repetition-analysis -i src/locales/en/
+kapi repetition-analysis -i src/locales/en/
 ```
 
 ### Source Cleanup
@@ -163,10 +163,10 @@ jobs:
           token: ${{ secrets.NEOKAPI_REGISTRY_TOKEN }}
 
       - name: Run source QA
-        run: bowrain run source-qa
+        run: kapi run source-qa
 
       - name: Word count report
-        run: bowrain word-count -i src/locales/en/ --json
+        run: kapi word-count -i src/locales/en/ --json
 ```
 
 This catches source-language issues at the PR stage, before they propagate to translations.

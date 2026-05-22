@@ -262,26 +262,26 @@ rules.
 
 ```bash
 # Auto-detect stream (default behavior, no changes needed):
-bowrain push                          # stream = $auto → git branch
-bowrain pull                          # stream = $auto → git branch
+kapi push                          # stream = $auto → git branch
+kapi pull                          # stream = $auto → git branch
 
 # Explicit stream:
-bowrain push --stream v2.0
-bowrain pull --stream v2.0
+kapi push --stream v2.0
+kapi pull --stream v2.0
 
 # CI with env var:
-BOWRAIN_STREAM=pr/142 bowrain push
+BOWRAIN_STREAM=pr/142 kapi push
 
 # Stream management:
-bowrain stream list                        # List streams for this project
-bowrain stream create v2.0                 # Create stream (branches from main)
-bowrain stream create hotfix --from v1.0   # Branch from specific stream
-bowrain stream merge v2.0                  # Merge v2.0 into its parent
-bowrain stream diff v2.0                   # Show changes vs parent
-bowrain stream archive v2.0                # Archive (soft delete)
+kapi stream list                        # List streams for this project
+kapi stream create v2.0                 # Create stream (branches from main)
+kapi stream create hotfix --from v1.0   # Branch from specific stream
+kapi stream merge v2.0                  # Merge v2.0 into its parent
+kapi stream diff v2.0                   # Show changes vs parent
+kapi stream archive v2.0                # Archive (soft delete)
 
 # Status shows current stream:
-bowrain status
+kapi status
 # → Stream: feature/new-ui (auto-detected from git branch)
 # → Modified: src/locales/en.json
 ```

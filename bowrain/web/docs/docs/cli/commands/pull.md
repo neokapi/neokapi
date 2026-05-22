@@ -3,7 +3,7 @@ title: pull
 sidebar_position: 4
 ---
 
-# bowrain pull
+# kapi pull
 
 Fetch changes from Bowrain Server. Uses cursor-based incremental sync to
 transfer only blocks that changed since the last pull.
@@ -11,26 +11,26 @@ transfer only blocks that changed since the last pull.
 ## Usage
 
 ```bash
-bowrain pull [flags]
+kapi pull [flags]
 ```
 
 ## Examples
 
 ```bash
 # Pull all changes from server
-bowrain pull
+kapi pull
 
 # Pull only French translations
-bowrain pull --locale fr-FR
+kapi pull --locale fr-FR
 
 # Pull multiple locales
-bowrain pull --locale fr-FR --locale de-DE
+kapi pull --locale fr-FR --locale de-DE
 
 # Show what would be pulled without making changes
-bowrain pull --dry-run
+kapi pull --dry-run
 
 # Force pull from beginning (ignore sync cursor)
-bowrain pull --force
+kapi pull --force
 
 # Example output:
 # Pulled 12 blocks for 2 locales
@@ -59,10 +59,10 @@ without downloading everything:
 
 ```bash
 # Only French
-bowrain pull --locale fr-FR
+kapi pull --locale fr-FR
 
 # French and German
-bowrain pull --locale fr-FR --locale de-DE
+kapi pull --locale fr-FR --locale de-DE
 ```
 
 This is efficient because the server's change log is indexed by locale.
@@ -74,9 +74,9 @@ This is efficient because the server's change log is indexed by locale.
 
 ## Related Commands
 
-- [`bowrain push`](/cli/commands/push) — Send local changes to server
-- [`bowrain status`](/cli/commands/status) — Show sync state
-- [`bowrain diff`](/cli/commands/diff) — Show detailed changes
+- [`kapi push`](/cli/commands/push) — Send local changes to server
+- [`kapi status`](/cli/commands/status) — Show sync state
+- [`kapi diff`](/cli/commands/diff) — Show detailed changes
 
 ## When to Use
 

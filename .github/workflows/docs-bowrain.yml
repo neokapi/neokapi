@@ -33,6 +33,19 @@ jobs:
       - name: Build kapi + kapi-bowrain plugin
         run: make build build-kapi-bowrain-plugin
 
+      # Bowrain commands run as `kapi <cmd>` via the kapi-bowrain plugin (the
+      # standalone `bowrain` binary is retired). kapi discovers plugins by a
+      # manifest.json sidecar under a plugins dir, so place the built binary +
+      # its manifest where kapi looks; otherwise the tapes' `kapi push`/`kapi
+      # status`/… would print "unknown command".
+      - name: Install kapi-bowrain plugin into kapi's discovery path
+        run: |
+          PLUGIN_DIR="$HOME/.local/share/kapi/plugins/bowrain"
+          mkdir -p "$PLUGIN_DIR"
+          cp bin/kapi-bowrain "$PLUGIN_DIR/kapi-bowrain"
+          cp bowrain/cli/cmd/kapi-bowrain/manifest.json "$PLUGIN_DIR/manifest.json"
+          bin/kapi plugins list || true
+
       - name: Install VHS + Xvfb
         run: |
           sudo apt-get update -qq

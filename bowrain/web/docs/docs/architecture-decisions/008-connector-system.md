@@ -166,7 +166,7 @@ type ContentItem struct {
 
 `Status()` provides a lightweight check without performing a full
 Fetch/Pull, powering the sync indicators in the connector management UI
-and the `bowrain status` command.
+and the `kapi status` command.
 
 ### Bowrain CLI as the File Connector
 

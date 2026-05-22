@@ -8,10 +8,18 @@ slug: /installation
 
 ## Bowrain CLI
 
+Bowrain's CLI is the **`kapi-bowrain` plugin** for the [`kapi`](https://neokapi.github.io/web/neokapi/docs/getting-started/installation) CLI — there is no separate `bowrain` binary. Once installed, run every bowrain command as `kapi <command>` (e.g. `kapi init`, `kapi push`, `kapi status`). The Homebrew formula below depends on `kapi` and registers the plugin for you.
+
 ### Homebrew (macOS/Linux)
 
 ```bash
 brew install neokapi/tap/bowrain-cli
+```
+
+### With kapi already installed
+
+```bash
+kapi plugins install bowrain
 ```
 
 ### Binary Downloads
@@ -22,16 +30,10 @@ Pre-built binaries for all platforms are available on the [GitHub Releases](http
 - macOS (amd64, arm64)
 - Windows (amd64, arm64)
 
-### Go Install
-
-```bash
-go install github.com/neokapi/neokapi/bowrain-cli/cmd/bowrain@latest
-```
-
 ### Verify
 
 ```bash
-bowrain version
+kapi version
 ```
 
 ## Bowrain Desktop
@@ -66,9 +68,10 @@ For production deployments, see [Self-Hosting](/server/self-hosting).
 ```bash
 git clone https://github.com/neokapi/neokapi.git
 cd neokapi
-make build-bowrain      # Bowrain CLI → bin/bowrain
-make build-server      # Bowrain Server → bin/bowrain-server
-make build-all         # All binaries
+make build                   # kapi CLI → bin/kapi
+make build-bowrain-plugin    # kapi-bowrain plugin → bin/kapi-bowrain
+make build-server            # Bowrain Server → bin/bowrain-server
+make build-all               # All binaries
 ```
 
 ## Kapi CLI (Standalone)

@@ -138,7 +138,7 @@ A typical end-to-end flow involving CLI push, server-side translation, and CLI p
 ```
 Developer                    Bowrain Server                      Translator
     |                              |                                 |
-    |  bowrain push                |                                 |
+    |  kapi push                |                                 |
     |----------------------------->|                                 |
     |                              | Event: connector.push.completed |
     |                              |                                 |
@@ -156,7 +156,7 @@ Developer                    Bowrain Server                      Translator
     |                              | Event: flow.completed           |
     |                              |   → quality.gate.pass           |
     |                              |                                 |
-    |  bowrain pull                |                                 |
+    |  kapi pull                |                                 |
     |<-----------------------------|                                 |
     |                              |                                 |
     |                              |  Open editor, review, approve   |
@@ -195,4 +195,4 @@ This is managed automatically by the automation system. Loop prevention ensures 
 
 - [Automation](/server/automation) — event-driven automation rules
 - [Translation Flows (CLI)](/cli/flows/overview) — local flow execution
-- [bowrain sync](/cli/commands/sync) — push + wait + pull in one command
+- [kapi sync](/cli/commands/sync) — push + wait + pull in one command

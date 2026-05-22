@@ -40,17 +40,17 @@ Bowrain CLI includes several built-in flows:
 
 ```bash
 # List available tools and flows
-bowrain tools
-bowrain flows
+kapi tools
+kapi flows
 
 # Run a tool directly (top-level command)
-bowrain ai-translate
+kapi ai-translate
 
 # Standalone mode (without a .kapi project)
-bowrain ai-translate -i input.html -o output.html --source-lang en --target-lang fr
+kapi ai-translate -i input.html -o output.html --source-lang en --target-lang fr
 
 # Run a composed flow
-bowrain run ai-translate-qa -i input.html -o output.html --source-lang en --target-lang fr
+kapi run ai-translate-qa -i input.html -o output.html --source-lang en --target-lang fr
 ```
 
 ## Custom Flows
@@ -93,7 +93,7 @@ steps:
 Run with:
 
 ```bash
-bowrain run translate-with-qa
+kapi run translate-with-qa
 ```
 
 ## Tool Catalog (46+ Tools)

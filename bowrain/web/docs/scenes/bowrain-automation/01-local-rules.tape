@@ -30,7 +30,7 @@ Type "# Push triggers pre-push QA automatically"
 Enter
 Sleep 500ms
 
-Type "bowrain push"
+Type "kapi push"
 Enter
 Sleep 5s
 

@@ -9,7 +9,7 @@ Hooks are automatic tool chains that run before/after sync operations to enforce
 
 ## What Are Hooks?
 
-Hooks are flows that run automatically during `bowrain push` and `bowrain pull`:
+Hooks are flows that run automatically during `kapi push` and `kapi pull`:
 
 - **pre-push**: Run before uploading to server (quality gates)
 - **post-pull**: Run after fetching from server (post-processing)
@@ -29,7 +29,7 @@ hooks:
 
 ## Pre-Push Hooks
 
-Pre-push hooks run **before** `bowrain push` uploads content to Bowrain Server.
+Pre-push hooks run **before** `kapi push` uploads content to Bowrain Server.
 
 ### Use Cases
 
@@ -49,10 +49,10 @@ hooks:
     - term-enforce
 ```
 
-When you run `bowrain push`, these tools run on local content:
+When you run `kapi push`, these tools run on local content:
 
 ```bash
-$ bowrain push -m "Translate new features"
+$ kapi push -m "Translate new features"
 
 Running pre-push hooks: [qa-check, term-enforce]
 ok qa-check: 0 issues found
@@ -97,7 +97,7 @@ hooks:
 
 ## Post-Pull Hooks
 
-Post-pull hooks run **after** `bowrain pull` fetches content from the server.
+Post-pull hooks run **after** `kapi pull` fetches content from the server.
 
 ### Use Cases
 
@@ -117,10 +117,10 @@ hooks:
     - term-lookup
 ```
 
-When you run `bowrain pull`:
+When you run `kapi pull`:
 
 ```bash
-$ bowrain pull
+$ kapi pull
 
 Pulling from: https://bowrain.example.com
 Project: abc123
@@ -141,10 +141,10 @@ Skip hooks with `--no-hooks`:
 
 ```bash
 # Skip all hooks
-bowrain push --no-hooks
+kapi push --no-hooks
 
 # Use --force to bypass quality gates but still run hooks
-bowrain push --force
+kapi push --force
 ```
 
 **Difference:**
@@ -222,7 +222,7 @@ Use different hooks per environment:
 
 ```bash
 # Development: lenient
-bowrain push --no-hooks
+kapi push --no-hooks
 
 # Staging: medium
 # Recipe has qa-check only
@@ -234,8 +234,8 @@ bowrain push --no-hooks
 Or use environment-specific recipes (committed alongside the canonical one) and pass them with `-p`:
 
 ```bash
-bowrain push -p my-app.dev.kapi    # lenient
-bowrain push -p my-app.prod.kapi   # strict
+kapi push -p my-app.dev.kapi    # lenient
+kapi push -p my-app.prod.kapi   # strict
 ```
 
 ## Implementation Status

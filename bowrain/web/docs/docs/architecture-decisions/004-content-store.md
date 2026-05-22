@@ -366,8 +366,8 @@ Source System (CMS, Design Tool, Code Repo, File system)
 
 The bowrain CLI does not access the ContentStore directly. It is a REST
 API client that syncs local files against the store via the sync protocol
-— see [AD-009: Sync Protocol](009-sync-protocol.md). `bowrain push` sends
-blocks to the store; `bowrain pull` fetches changes from the store.
+— see [AD-009: Sync Protocol](009-sync-protocol.md). `kapi push` sends
+blocks to the store; `kapi pull` fetches changes from the store.
 
 ### Deduplication Across Sources
 

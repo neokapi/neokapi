@@ -9,7 +9,7 @@ Set Height 600
 Set Theme "Dracula"
 Set Padding 20
 
-Type "bowrain auth --help"
+Type "kapi auth --help"
 Enter
 Sleep 3s
 
@@ -17,7 +17,7 @@ Type ""
 Enter
 Sleep 500ms
 
-Type "bowrain auth status"
+Type "kapi auth status"
 Enter
 Sleep 2s
 

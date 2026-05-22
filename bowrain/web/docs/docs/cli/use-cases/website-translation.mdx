@@ -21,10 +21,10 @@ Create a Bowrain project in your website repository:
 ```bash
 # Initialize project with source and target locales
 cd my-website/
-bowrain init --name "Website Translation" --source en-US --targets fr-FR,de-DE,ja-JP
+kapi init --name "Website Translation" --source en-US --targets fr-FR,de-DE,ja-JP
 
 # Check word count for cost estimation
-bowrain word-count content/**/*.md
+kapi word-count content/**/*.md
 
 # Configure content collections in my-website.kapi
 # Edit to map your local files to formats and target paths
@@ -54,11 +54,11 @@ Execute translation workflows from the CLI:
 
 ```bash
 # List available tools and flows
-bowrain tools
-bowrain flows
+kapi tools
+kapi flows
 
 # Run AI translation (top-level tool command)
-bowrain ai-translate
+kapi ai-translate
 
 # Or create a custom flow with QA checks
 # .kapi/flows/translate-website.yaml:
@@ -72,17 +72,17 @@ bowrain ai-translate
 #   - tool: qa-check
 #   - tool: term-enforce
 
-bowrain run translate-website
+kapi run translate-website
 ```
 
 ### Tools and Flows
 
 Bowrain CLI tools and flows are composable pipelines that run on your local files:
 
-- **`bowrain ai-translate`**: Use LLMs (Anthropic, OpenAI, Ollama) for machine translation
-- **`bowrain tm-leverage`**: Pre-fill translations from translation memory
-- **`bowrain qa-check`**: Rule-based quality checks (whitespace, punctuation, placeholders)
-- **`bowrain run <flow>`**: Execute a composed or custom multi-tool flow
+- **`kapi ai-translate`**: Use LLMs (Anthropic, OpenAI, Ollama) for machine translation
+- **`kapi tm-leverage`**: Pre-fill translations from translation memory
+- **`kapi qa-check`**: Rule-based quality checks (whitespace, punctuation, placeholders)
+- **`kapi run <flow>`**: Execute a composed or custom multi-tool flow
 
 Tools and flows automatically process all files matching your recipe's `content:` collections.
 
@@ -95,7 +95,7 @@ For visual review and manual edits, open your project in the Bowrain desktop app
 open -a Bowrain .
 
 # Option 2: Start local web server
-bowrain serve
+kapi serve
 ```
 
 ### Editor Views
@@ -121,44 +121,44 @@ For team collaboration, connect your project to a Bowrain Server instance:
 
 ```bash
 # Connect to server
-bowrain init --server https://bowrain.example.com --project abc123
+kapi init --server https://bowrain.example.com --project abc123
 
 # Check sync status
-bowrain status
+kapi status
 
 # Push translations to server
-bowrain push -m "Translate landing page content"
+kapi push -m "Translate landing page content"
 
 # Pull translations from teammates
-bowrain pull
+kapi pull
 ```
 
 The push/pull workflow is similar to git:
 
 | Git          | Bowrain CLI      |
 | ------------ | ---------------- |
-| `git status` | `bowrain status` |
-| `git diff`   | `bowrain diff`   |
-| `git pull`   | `bowrain pull`   |
-| `git push`   | `bowrain push`   |
+| `git status` | `kapi status` |
+| `git diff`   | `kapi diff`   |
+| `git pull`   | `kapi pull`   |
+| `git push`   | `kapi push`   |
 
 Bowrain CLI uses content-addressed blocks for efficient incremental sync — only changed blocks transfer over the network.
 
 ## Tips
 
-- **Initialize projects with `bowrain init`** to write a `<dir-name>.kapi` recipe and `.kapi/` state directory
+- **Initialize projects with `kapi init`** to write a `<dir-name>.kapi` recipe and `.kapi/` state directory
 - **Define custom flows** in `.kapi/flows/` for your specific translation workflow
-- **Use `bowrain tm-leverage`** to auto-fill translations from translation memory
+- **Use `kapi tm-leverage`** to auto-fill translations from translation memory
 - **Import terminology** into the project termbase at `.kapi/termbase.db` and add `term-lookup` to your flow
-- **Run `bowrain pseudo-translate`** first to identify potential UI truncation issues
+- **Run `kapi pseudo-translate`** first to identify potential UI truncation issues
 - **Use pre-push hooks** to enforce quality gates before pushing to server
 - **Commit `<dir-name>.kapi`** to git; the whole `.kapi/` state directory is gitignored by default
-- **Check `bowrain status`** before pushing to see what changed
+- **Check `kapi status`** before pushing to see what changed
 
 ## Related
 
 - [Walkthrough](/walkthroughs/bowrain-getting-started)
-- [bowrain init](/cli/commands/init)
-- [bowrain run](/cli/commands/run)
-- [bowrain push](/cli/commands/push) and [bowrain pull](/cli/commands/pull)
+- [kapi init](/cli/commands/init)
+- [kapi run](/cli/commands/run)
+- [kapi push](/cli/commands/push) and [kapi pull](/cli/commands/pull)
 - [Bowrain Walkthroughs](/desktop/walkthroughs)

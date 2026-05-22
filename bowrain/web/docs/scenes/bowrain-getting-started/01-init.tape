@@ -26,7 +26,7 @@ Type "# Initialize a bowrain project"
 Enter
 Sleep 500ms
 
-Type "bowrain init"
+Type "kapi init"
 Enter
 Sleep 3s
 

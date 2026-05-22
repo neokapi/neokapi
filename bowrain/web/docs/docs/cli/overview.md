@@ -7,6 +7,10 @@ title: Overview
 
 Bowrain CLI is the project companion CLI for the Bowrain localization platform. It manages `.kapi` projects in your repository and syncs with Bowrain Server for team collaboration.
 
+:::note
+Bowrain's CLI ships as the **`kapi-bowrain` plugin** for the `kapi` CLI — there is no standalone `bowrain` binary. Every command below is invoked as `kapi <command>` (e.g. `kapi init`, `kapi push`). See [Installation](/installation) to set it up.
+:::
+
 ## What is Bowrain CLI?
 
 Bowrain CLI is to Bowrain Server as **git is to GitHub** — a local-first project management tool that:
@@ -29,18 +33,18 @@ A bowrain project is a kapi project with a `server:` block on its recipe:
 
 ### Translation Tools and Flows
 
-Built-in tools run as top-level commands, and composed flows run via `bowrain run`:
+Built-in tools run as top-level commands, and composed flows run via `kapi run`:
 
 ```bash
 # Run built-in AI translation tool
-bowrain ai-translate
+kapi ai-translate
 
 # Run a composed multi-tool flow
-bowrain run ai-translate-qa
+kapi run ai-translate-qa
 
 # Create custom flows in .kapi/flows/my-flow.yaml
 # Run custom flow
-bowrain run my-flow
+kapi run my-flow
 ```
 
 Tools and flows automatically process all files matching the recipe's `content:` collections.
@@ -50,10 +54,10 @@ Tools and flows automatically process all files matching the recipe's `content:`
 Push/pull workflow similar to git:
 
 ```bash
-bowrain status    # Show local changes
-bowrain diff      # Compare local vs. server
-bowrain pull      # Fetch from server
-bowrain push -m "message"  # Upload to server
+kapi status    # Show local changes
+kapi diff      # Compare local vs. server
+kapi pull      # Fetch from server
+kapi push -m "message"  # Upload to server
 ```
 
 Only changed blocks transfer (content-addressed sync).
@@ -63,9 +67,9 @@ Only changed blocks transfer (content-addressed sync).
 View or set project and global configuration values:
 
 ```bash
-bowrain config name              # Print project name
-bowrain config name "My App"     # Set project name
-bowrain config --global server.url https://bowrain.example.com  # Set global server URL
+kapi config name              # Print project name
+kapi config name "My App"     # Set project name
+kapi config --global server.url https://bowrain.example.com  # Set global server URL
 ```
 
 ## When to Use Bowrain CLI
@@ -103,13 +107,13 @@ brew install neokapi/tap/bowrain-cli
 ```bash
 # Initialize project
 cd my-app/
-bowrain init --name "My App" --source en-US --targets fr-FR,de-DE
+kapi init --name "My App" --source en-US --targets fr-FR,de-DE
 
 # Run AI translation
-bowrain ai-translate
+kapi ai-translate
 
 # Check status
-bowrain status
+kapi status
 ```
 
 ## Next Steps

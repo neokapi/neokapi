@@ -13,7 +13,7 @@ Get started with the Bowrain CLI in 5 minutes.
 Create a `.kapi` project — a `<dir-name>.kapi` recipe at the project root with a sibling `.kapi/` state directory (like `.git` for localization):
 
 ```bash
-bowrain init
+kapi init
 ```
 
 The interactive wizard guides you through setup:
@@ -26,7 +26,7 @@ The interactive wizard guides you through setup:
 Or skip the wizard with flags:
 
 ```bash
-bowrain init --name "My Project" --source en-US --targets fr-FR,de-DE
+kapi init --name "My Project" --source en-US --targets fr-FR,de-DE
 ```
 
 This writes `<dir-name>.kapi` (the recipe) and `.kapi/` (state, including `flows/`).
@@ -36,7 +36,7 @@ This writes `<dir-name>.kapi` (the recipe) and `.kapi/` (state, including `flows
 Run the built-in AI translation tool:
 
 ```bash
-bowrain ai-translate
+kapi ai-translate
 ```
 
 Bowrain CLI automatically:
@@ -50,19 +50,19 @@ Bowrain CLI automatically:
 Push translations to the server for team collaboration:
 
 ```bash
-bowrain push -m "Translate UI strings"
+kapi push -m "Translate UI strings"
 ```
 
 Pull translations from teammates:
 
 ```bash
-bowrain pull
+kapi pull
 ```
 
 Check sync status:
 
 ```bash
-bowrain status
+kapi status
 ```
 
 ## Create a Custom Flow
@@ -81,29 +81,29 @@ steps:
 Run it:
 
 ```bash
-bowrain run my-flow
+kapi run my-flow
 ```
 
 ## Key Commands
 
 | Command                    | Description                       |
 | -------------------------- | --------------------------------- |
-| `bowrain init`             | Initialize a project              |
-| `bowrain status`           | Show sync state                   |
-| `bowrain ai-translate`     | Translate with AI                 |
-| `bowrain pseudo-translate` | Generate pseudo-translations      |
-| `bowrain qa-check`         | Run quality checks                |
-| `bowrain run <flow>`       | Execute a composed or custom flow |
-| `bowrain flows`            | List available flows              |
-| `bowrain tools`            | List available tools              |
-| `bowrain push`             | Upload to server                  |
-| `bowrain pull`             | Fetch from server                 |
-| `bowrain config`           | View or set configuration         |
-| `bowrain serve`            | Open local web editor             |
+| `kapi init`             | Initialize a project              |
+| `kapi status`           | Show sync state                   |
+| `kapi ai-translate`     | Translate with AI                 |
+| `kapi pseudo-translate` | Generate pseudo-translations      |
+| `kapi qa-check`         | Run quality checks                |
+| `kapi run <flow>`       | Execute a composed or custom flow |
+| `kapi flows`            | List available flows              |
+| `kapi tools`            | List available tools              |
+| `kapi push`             | Upload to server                  |
+| `kapi pull`             | Fetch from server                 |
+| `kapi config`           | View or set configuration         |
+| `kapi serve`            | Open local web editor             |
 
 ## Next Steps
 
 - **Full walkthrough**: See [Walkthrough](/walkthroughs/bowrain-getting-started)
-- **Connect to server**: Use interactive `bowrain init` and choose "Sign in to Bowrain"
-- **Explore flows and tools**: `bowrain flows` and `bowrain tools`
+- **Connect to server**: Use interactive `kapi init` and choose "Sign in to Bowrain"
+- **Explore flows and tools**: `kapi flows` and `kapi tools`
 - **CLI reference**: [Bowrain CLI](/cli/commands/init)

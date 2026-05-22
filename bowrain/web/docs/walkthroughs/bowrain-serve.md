@@ -9,18 +9,18 @@ scenes:
     duration_budget_seconds: 10
     fixtures: []
     smoke_contract:
-      - bowrain serve --help
+      - kapi serve --help
 ---
 
 ## Story
 
-`bowrain serve` starts a local web dashboard for your project — handy for
+`kapi serve` starts a local web dashboard for your project — handy for
 manually inspecting translations or running a UI review without leaving
 the CLI.
 
 ## Scene 1 — serve (terminal)
 
-`bowrain serve --help` shows the port and bind flags.
+`kapi serve --help` shows the port and bind flags.
 
 ## Closing
 

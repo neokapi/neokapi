@@ -12,7 +12,7 @@ Bowrain CLI exposes project management capabilities as an [MCP](https://modelcon
 Start the MCP server:
 
 ```bash
-bowrain mcp
+kapi mcp
 ```
 
 This launches a JSON-RPC server on stdio. You don't run it manually — your AI tool starts it as a subprocess. The server requires a `.kapi` project (it walks upward looking for a `*.kapi` recipe, like git).
@@ -251,7 +251,7 @@ No parameters.
 
 Bowrain CLI MCP uses the same infrastructure as the CLI commands — `project.FindProject()` for project discovery, `NewSourceConnector()` for server sync, and `NewLocalConnector()` for local file operations. The MCP server simply exposes these as typed, discoverable tools over the [Model Context Protocol](https://modelcontextprotocol.io/) stdio transport.
 
-No server process, ports, or authentication needed. Your AI tool launches `bowrain mcp` as a child process, communicates over stdin/stdout, and shuts it down when the session ends.
+No server process, ports, or authentication needed. Your AI tool launches `kapi mcp` as a child process, communicates over stdin/stdout, and shuts it down when the session ends.
 
 ## Related
 

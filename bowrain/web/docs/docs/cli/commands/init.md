@@ -3,21 +3,21 @@ title: init
 sidebar_position: 1
 ---
 
-# bowrain init
+# kapi init
 
 Initialize a new Bowrain project in the current directory. Creates a `<dir-name>.kapi` recipe at the project root and a sibling `.kapi/` state directory for the block store, sync cache, TM, and termbase.
 
 ## Usage
 
 ```bash
-bowrain init [flags]
+kapi init [flags]
 ```
 
 ## Interactive Mode
 
-When run in a terminal without flags, `bowrain init` presents an interactive wizard.
+When run in a terminal without flags, `kapi init` presents an interactive wizard.
 
-**If you are already signed in** (via `bowrain auth login`), the wizard goes straight
+**If you are already signed in** (via `kapi auth login`), the wizard goes straight
 to workspace selection, then project name and source locale.
 
 **If you are not signed in**, the wizard offers four paths:
@@ -39,19 +39,19 @@ existing workspace or create a new one.
 
 ```bash
 # Interactive mode (recommended)
-bowrain init
+kapi init
 
 # Non-interactive: local project with locales
-bowrain init --name "My App" --source en-US --targets fr-FR,de-DE,ja-JP
+kapi init --name "My App" --source en-US --targets fr-FR,de-DE,ja-JP
 
 # Non-interactive: anonymous project (prints claim URL)
-bowrain init --anonymous --name "My App" --source en
+kapi init --anonymous --name "My App" --source en
 
 # Non-interactive: anonymous project with email claim
-bowrain init --name "My App" --email alex@example.com
+kapi init --name "My App" --email alex@example.com
 
 # Non-interactive: connect to existing server project
-bowrain init --server https://bowrain.example.com --project abc123
+kapi init --server https://bowrain.example.com --project abc123
 ```
 
 ## What Happens
@@ -63,8 +63,8 @@ bowrain init --server https://bowrain.example.com --project abc123
 5. Adds a `.gitignore` entry to exclude `.kapi/` from version control
 6. Optionally creates a project on the Bowrain Server and writes the `server:` block to the recipe
 
-After initialization, the directory becomes a Bowrain project. You can run `bowrain status`,
-`bowrain ai-translate`, `bowrain run <flow>`, and other commands from anywhere within the project tree.
+After initialization, the directory becomes a Bowrain project. You can run `kapi status`,
+`kapi ai-translate`, `kapi run <flow>`, and other commands from anywhere within the project tree.
 
 ## Options
 
@@ -85,7 +85,7 @@ After initialization, the directory becomes a Bowrain project. You can run `bowr
 Use `--json` for machine-readable output (useful in CI/CD):
 
 ```bash
-bowrain init --anonymous --name "My App" --source en --json
+kapi init --anonymous --name "My App" --source en --json
 ```
 
 ```json
@@ -102,7 +102,7 @@ bowrain init --anonymous --name "My App" --source en --json
 
 ## Recipe File
 
-`bowrain init` creates `<dir-name>.kapi` at the project root with this structure:
+`kapi init` creates `<dir-name>.kapi` at the project root with this structure:
 
 ```yaml
 version: v1
@@ -138,13 +138,13 @@ The server URL is resolved from (first match wins):
 1. `--server` flag
 2. `BOWRAIN_SERVER_URL` environment variable
 3. `server.url` in global config (`~/.config/kapi/kapi.yaml`)
-4. Existing auth state (from `bowrain auth login`)
+4. Existing auth state (from `kapi auth login`)
 5. Built-in default (`http://localhost:8080`)
 
 Set it once globally with:
 
 ```bash
-bowrain config --global server.url https://bowrain.example.com
+kapi config --global server.url https://bowrain.example.com
 ```
 
 ## Project Discovery
@@ -154,7 +154,7 @@ Once initialized, Bowrain CLI searches for a `*.kapi` recipe by walking up the d
 
 ```bash
 cd my-project/src/locales/
-bowrain status  # finds my-project.kapi up the tree
+kapi status  # finds my-project.kapi up the tree
 ```
 
 ## Version Control
@@ -172,7 +172,7 @@ bowrain status  # finds my-project.kapi up the tree
 
 Auth tokens are never written to the project. They live in the OS keychain (keys `bowrain-auth:<server-url>` and `bowrain-refresh:<server-url>`); non-secret metadata sits at `~/.config/bowrain/auth.json`.
 
-`bowrain init` automatically adds `.kapi/` to `.gitignore`.
+`kapi init` automatically adds `.kapi/` to `.gitignore`.
 
 ## Next Steps
 
@@ -180,5 +180,5 @@ After initialization:
 
 1. **Edit content collections** in `<dir-name>.kapi` to match your file structure
 2. **Create flows** in `.kapi/flows/` for your translation workflows
-3. **Run tools and flows**: `bowrain tools`, `bowrain flows`, `bowrain ai-translate`, `bowrain run <flow-name>`
-4. **Connect to server**: `bowrain pull` and `bowrain push` (if `server:` block is set)
+3. **Run tools and flows**: `kapi tools`, `kapi flows`, `kapi ai-translate`, `kapi run <flow-name>`
+4. **Connect to server**: `kapi pull` and `kapi push` (if `server:` block is set)

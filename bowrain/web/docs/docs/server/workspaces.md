@@ -35,7 +35,7 @@ Each workspace member has a role that determines their permissions:
 
 ### Personal Workspace
 
-In the Bowrain desktop app and `bowrain serve`, a "Personal" workspace is created
+In the Bowrain desktop app and `kapi serve`, a "Personal" workspace is created
 automatically. This is your default workspace for local, single-user work. No
 server connection is needed.
 

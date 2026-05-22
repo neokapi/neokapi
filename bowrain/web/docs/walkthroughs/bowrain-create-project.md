@@ -28,4 +28,4 @@ diacritics so UI bugs are visible immediately.
 
 ## Closing
 
-For an actual project workflow, run `bowrain init` and see [Getting started](/getting-started/walkthrough).
+For an actual project workflow, run `kapi init` and see [Getting started](/getting-started/walkthrough).

@@ -801,7 +801,7 @@ No TypeScript, no Go, no compilation. The agent runtime (ZeroClaw) and tools (Bo
 2. Clone into `forks/project-name`
 3. Create `config/projects/project-name.yaml` with content paths and languages
 4. Update agent SOUL.md files to include the new project
-5. Run `bowrain init` in the fork (one-time setup)
+5. Run `kapi init` in the fork (one-time setup)
 
 ## Model Provider Strategy
 

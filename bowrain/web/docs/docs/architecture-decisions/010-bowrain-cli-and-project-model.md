@@ -140,7 +140,7 @@ my-app/
 │   │   └── pseudo.yaml
 │   └── cache/          # all regenerable caches under one roof
 │       ├── blocks.db        # block store
-│       ├── sync-cache.json  # bowrain push/pull state (only with server: block)
+│       ├── sync-cache.json  # kapi push/pull state (only with server: block)
 │       ├── extractions/
 │       └── collections/
 └── src/
@@ -154,7 +154,7 @@ Ownership:
 - **`{name}.kapi`** — hand-edited, committed to git. The single source of
   truth for project configuration.
 - **`.kapi/cache/`** — CLI-owned, gitignored. Contains everything that's
-  cheaply regenerable: the block store, the bowrain sync cache, extraction
+  cheaply regenerable: the block store, the kapi sync cache, extraction
   intermediates, overlay layers.
 - **`.kapi/tm.db`, `.kapi/termbase.db`, `.kapi/manifest.yaml`** — kapi-owned,
   authoritative. Gitignored by default; opt in to commit the TM/termbase
@@ -282,20 +282,20 @@ rather than user-scoped.
 ### Workflow
 
 ```bash
-bowrain init                # create my-app.kapi + .kapi/, populate server: block
-bowrain auth login          # OAuth login → tokens to keychain, metadata to ~/.config/bowrain/auth.json
-bowrain status              # show what's pending push / pull
-bowrain push [--dry-run]    # scan local files, diff against cache, upload changed blocks
-bowrain pull [--locale fr]  # fetch translations from server, write to local files
-bowrain sync                # push → wait_translate → pull (orchestrated)
-bowrain ls                  # list tracked files with stats
-bowrain add <path>          # append a content entry to the recipe
-bowrain rm <path>           # remove or exclude a content entry
-bowrain serve               # local dashboard (web UI)
-bowrain mcp                 # stdio MCP server exposing project tools
+kapi init                # create my-app.kapi + .kapi/, populate server: block
+kapi auth login          # OAuth login → tokens to keychain, metadata to ~/.config/bowrain/auth.json
+kapi status              # show what's pending push / pull
+kapi push [--dry-run]    # scan local files, diff against cache, upload changed blocks
+kapi pull [--locale fr]  # fetch translations from server, write to local files
+kapi sync                # push → wait_translate → pull (orchestrated)
+kapi ls                  # list tracked files with stats
+kapi add <path>          # append a content entry to the recipe
+kapi rm <path>           # remove or exclude a content entry
+kapi serve               # local dashboard (web UI)
+kapi mcp                 # stdio MCP server exposing project tools
 ```
 
-`bowrain init` writes a `<dir-name>.kapi` recipe by default. The recipe
+`kapi init` writes a `<dir-name>.kapi` recipe by default. The recipe
 lands at the project root; the sibling `.kapi/` state dir is created
 empty (caches populate as commands run). No `.bowrain/` directory is
 ever created.

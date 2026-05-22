@@ -10,7 +10,7 @@ scenes:
     duration_budget_seconds: 30
     fixtures: []
     smoke_contract:
-      - bowrain workspace list
+      - kapi workspace list
 ---
 
 ## Story

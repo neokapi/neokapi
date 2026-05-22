@@ -3,7 +3,7 @@ title: push
 sidebar_position: 5
 ---
 
-# bowrain push
+# kapi push
 
 Send local file changes to Bowrain Server. Only transfers modified blocks
 (incremental sync using content hashing).
@@ -11,23 +11,23 @@ Send local file changes to Bowrain Server. Only transfers modified blocks
 ## Usage
 
 ```bash
-bowrain push [paths...] [flags]
+kapi push [paths...] [flags]
 ```
 
 ## Examples
 
 ```bash
 # Push all local changes to server
-bowrain push
+kapi push
 
 # Push specific files
-bowrain push src/locales/en/
+kapi push src/locales/en/
 
 # Show what would be pushed without uploading
-bowrain push --dry-run
+kapi push --dry-run
 
 # Force re-push all blocks (ignoring sync cache)
-bowrain push --force
+kapi push --force
 
 # Example output:
 # Pushed 47 blocks (scanned 12 files)
@@ -94,9 +94,9 @@ The sync cache can be safely deleted — it will be regenerated on the next push
 
 ## Related Commands
 
-- [`bowrain pull`](/cli/commands/pull) — Fetch changes from server
-- [`bowrain status`](/cli/commands/status) — Show what will be pushed
-- [`bowrain diff`](/cli/commands/diff) — Show detailed changes
+- [`kapi pull`](/cli/commands/pull) — Fetch changes from server
+- [`kapi status`](/cli/commands/status) — Show what will be pushed
+- [`kapi diff`](/cli/commands/diff) — Show detailed changes
 
 ## When to Use
 
@@ -111,6 +111,6 @@ Think of it as `git push` for localization content.
 
 ## Best Practices
 
-1. **Run `bowrain status`** before pushing to see what changed
+1. **Run `kapi status`** before pushing to see what changed
 2. **Pull first** if working with a team to avoid conflicts
 3. **Use `--dry-run`** when unsure about what will be uploaded

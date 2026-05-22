@@ -3,33 +3,33 @@ title: sync
 sidebar_position: 7
 ---
 
-# bowrain sync
+# kapi sync
 
-Push local changes, wait for translations, and pull results — all in one command. This is the flagship workflow command for Bowrain CLI, combining `bowrain push`, server-side processing, and `bowrain pull` into a single invocation.
+Push local changes, wait for translations, and pull results — all in one command. This is the flagship workflow command for Bowrain CLI, combining `kapi push`, server-side processing, and `kapi pull` into a single invocation.
 
 ## Usage
 
 ```bash
-bowrain sync [paths...] [flags]
+kapi sync [paths...] [flags]
 ```
 
 ## Examples
 
 ```bash
 # Full sync: push, wait for translations, pull
-bowrain sync
+kapi sync
 
 # Sync specific paths
-bowrain sync src/locales/en/
+kapi sync src/locales/en/
 
 # Push only (don't wait or pull)
-bowrain sync --no-wait
+kapi sync --no-wait
 
 # Set a custom timeout for the wait phase
-bowrain sync --timeout 10m
+kapi sync --timeout 10m
 
 # Sync only specific locales
-bowrain sync --locale fr-FR --locale de-DE
+kapi sync --locale fr-FR --locale de-DE
 
 # Example output:
 # ── Push ──────────────────────────────────
@@ -65,7 +65,7 @@ bowrain sync --locale fr-FR --locale de-DE
 
 ### Phase 1: Push
 
-Identical to [`bowrain push`](/cli/commands/push). Sends changed blocks to the server using content-addressed incremental sync. Only modified blocks are transferred.
+Identical to [`kapi push`](/cli/commands/push). Sends changed blocks to the server using content-addressed incremental sync. Only modified blocks are transferred.
 
 ### Phase 2: Wait
 
@@ -82,7 +82,7 @@ Use `--no-wait` to skip this phase entirely — useful when you want to push and
 
 ### Phase 3: Pull
 
-Identical to [`bowrain pull`](/cli/commands/pull). Fetches translated blocks from the server and writes them to local files. Use `--locale` to pull only specific target locales.
+Identical to [`kapi pull`](/cli/commands/pull). Fetches translated blocks from the server and writes them to local files. Use `--locale` to pull only specific target locales.
 
 ## PushID Tracking
 
@@ -95,7 +95,7 @@ Push (PushID: abc123)
     → Automation: run qa-check (linked to abc123)
 ```
 
-The wait phase polls `GET /api/v1/projects/:id/sync/push/:pushId/status` until all linked flows complete or the timeout expires. This ensures that `bowrain sync` only pulls translations that result from _this_ push, not from unrelated server activity.
+The wait phase polls `GET /api/v1/projects/:id/sync/push/:pushId/status` until all linked flows complete or the timeout expires. This ensures that `kapi sync` only pulls translations that result from _this_ push, not from unrelated server activity.
 
 ## Exit Codes
 
@@ -106,16 +106,16 @@ The wait phase polls `GET /api/v1/projects/:id/sync/push/:pushId/status` until a
 
 ## Related Commands
 
-- [`bowrain push`](/cli/commands/push) — Push phase only
-- [`bowrain pull`](/cli/commands/pull) — Pull phase only
-- [`bowrain status`](/cli/commands/status) — Show what will be pushed
+- [`kapi push`](/cli/commands/push) — Push phase only
+- [`kapi pull`](/cli/commands/pull) — Pull phase only
+- [`kapi status`](/cli/commands/status) — Show what will be pushed
 
 ## When to Use
 
-Use `bowrain sync` when you want the complete round-trip workflow in a single command:
+Use `kapi sync` when you want the complete round-trip workflow in a single command:
 
 - **CI/CD pipelines** — push source strings, wait for AI translation, pull results, commit
 - **Developer workflows** — update source content, get translations back immediately
 - **Pre-release checks** — ensure all translations are up to date before shipping
 
-For more granular control, use `bowrain push` and `bowrain pull` separately.
+For more granular control, use `kapi push` and `kapi pull` separately.

@@ -73,7 +73,7 @@ kapi
 +-- mcp              # Start MCP server for AI agent integration
 ```
 
-## `bowrain init` Workflows
+## `kapi init` Workflows
 
 ### Interactive Mode (default when stdin is a terminal)
 
@@ -94,7 +94,7 @@ kapi
 
 All paths support `--json` output for CI/CD integration.
 
-## `bowrain pull` Algorithm
+## `kapi pull` Algorithm
 
 1. Read the recipe (`server.url`, content collections)
 2. Verify auth token (keychain `bowrain-auth:<server-url>` or `BOWRAIN_AUTH_TOKEN`)
@@ -110,7 +110,7 @@ All paths support `--json` output for CI/CD integration.
 - By default, pull fails if local files have uncommitted changes
 - `--force` overwrites local changes
 
-## `bowrain push` Algorithm
+## `kapi push` Algorithm
 
 1. Read the recipe (content collections)
 2. Run `pre-push` hooks (qa-check, term-enforce, etc.)
@@ -282,16 +282,16 @@ gRPC and REST are multiplexed on the same port via h2c (HTTP/2 cleartext). gRPC 
 ```yaml
 # GitHub Actions example
 - name: Pull latest translations
-  run: bowrain pull
+  run: kapi pull
   env:
     BOWRAIN_AUTH_TOKEN: $\{{ secrets.BOWRAIN_TOKEN }}
     BOWRAIN_SERVER_URL: $\{{ secrets.BOWRAIN_SERVER }}
 
 - name: Run pseudo-translation
-  run: bowrain pseudo-translate
+  run: kapi pseudo-translate
 
 - name: Push changes if tests pass
-  run: bowrain push
+  run: kapi push
   env:
     BOWRAIN_AUTH_TOKEN: $\{{ secrets.BOWRAIN_TOKEN }}
     BOWRAIN_SERVER_URL: $\{{ secrets.BOWRAIN_SERVER }}

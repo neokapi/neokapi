@@ -227,13 +227,13 @@ Use environment variables in flow configs:
 
 ```bash
 # List all flows (built-in + custom)
-bowrain flows
+kapi flows
 
 # Run your custom flow
-bowrain run my-flow
+kapi run my-flow
 
 # Run with verbose output
-bowrain run my-flow --verbose
+kapi run my-flow --verbose
 ```
 
 ## Best Practices

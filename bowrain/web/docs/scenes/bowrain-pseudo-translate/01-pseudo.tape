@@ -18,7 +18,7 @@ Type "# Run pseudo-translation flow"
 Enter
 Sleep 500ms
 
-Type "bowrain pseudo-translate"
+Type "kapi pseudo-translate"
 Enter
 Sleep 3s
 
@@ -26,7 +26,7 @@ Type ""
 Enter
 Sleep 500ms
 
-Type "bowrain status"
+Type "kapi status"
 Enter
 Sleep 3s
 

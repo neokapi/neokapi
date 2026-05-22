@@ -3,7 +3,7 @@ title: status
 sidebar_position: 2
 ---
 
-# bowrain status
+# kapi status
 
 Show the sync state between local files and Bowrain Server. Displays local block
 count, pending changes, and last sync timestamp.
@@ -11,14 +11,14 @@ count, pending changes, and last sync timestamp.
 ## Usage
 
 ```bash
-bowrain status
+kapi status
 ```
 
 ## Examples
 
 ```bash
 # Show current project status
-bowrain status
+kapi status
 
 # Example output (connected to server):
 # Project root: /Users/me/my-project
@@ -75,7 +75,7 @@ until the next sync re-establishes the baseline.
 
 ## How It Works
 
-`bowrain status` performs:
+`kapi status` performs:
 
 1. **Scan local files** via FormatRegistry (using the recipe's `content:` collections)
 2. **Extract blocks** and compute content hashes
@@ -89,13 +89,13 @@ until the next sync re-establishes the baseline.
 
 ## Related Commands
 
-- [`bowrain diff`](/cli/commands/diff) — Show detailed line-by-line changes
-- [`bowrain pull`](/cli/commands/pull) — Fetch changes from server
-- [`bowrain push`](/cli/commands/push) — Send local changes to server
+- [`kapi diff`](/cli/commands/diff) — Show detailed line-by-line changes
+- [`kapi pull`](/cli/commands/pull) — Fetch changes from server
+- [`kapi push`](/cli/commands/push) — Send local changes to server
 
 ## When to Use
 
-Run `bowrain status` to:
+Run `kapi status` to:
 
 - **Check before push** to see what will be uploaded
 - **Check after pull** to verify sync succeeded

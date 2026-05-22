@@ -22,7 +22,7 @@ Bowrain has two layers of automation: **local rules** declared on the `.kapi` re
   }}
 />
 
-Inspect the project's `<dir-name>.kapi` recipe for top-level `hooks:` and `automations:` blocks. Run `bowrain push` and watch the pre-push QA hook fire automatically before the actual push happens.
+Inspect the project's `<dir-name>.kapi` recipe for top-level `hooks:` and `automations:` blocks. Run `kapi push` and watch the pre-push QA hook fire automatically before the actual push happens.
 
 ## Scene 2 — GitHub Actions
 
@@ -33,7 +33,7 @@ Inspect the project's `<dir-name>.kapi` recipe for top-level `hooks:` and `autom
   }}
 />
 
-Show the `.github/workflows/bowrain-sync.yml` that runs `bowrain sync` on every push to main. This is the CI/CD half of the automation.
+Show the `.github/workflows/bowrain-sync.yml` that runs `kapi sync` on every push to main. This is the CI/CD half of the automation.
 
 ## Next
 

@@ -10,20 +10,20 @@ scenes:
     duration_budget_seconds: 20
     fixtures: []
     smoke_contract:
-      - bowrain pseudo-translate
-      - bowrain status
+      - kapi pseudo-translate
+      - kapi status
 ---
 
 ## Story
 
-`bowrain pseudo-translate` runs the pseudo-translation flow on your
+`kapi pseudo-translate` runs the pseudo-translation flow on your
 project — the same flow you'd use to catch UI truncation early, but
 integrated with the project's source content and `.kapi` recipe.
 
 ## Scene 1 — pseudo (terminal)
 
-Run `bowrain pseudo-translate` from inside the project directory.
-`bowrain status` shows the resulting state.
+Run `kapi pseudo-translate` from inside the project directory.
+`kapi status` shows the resulting state.
 
 ## Closing
 

@@ -3,14 +3,14 @@ sidebar_position: 6
 title: plugins
 ---
 
-# bowrain plugins
+# kapi plugins
 
 Manage plugins and bundles for additional formats and tools.
 
 ## Synopsis
 
 ```bash
-bowrain plugins <command> [flags]
+kapi plugins <command> [flags]
 ```
 
 ## Concepts
@@ -26,21 +26,21 @@ When you install a bundle, its individual capabilities (formats, tools) are regi
 ### List installed plugins
 
 ```bash
-bowrain plugins list
-bowrain plugins list -a              # show all available (installed + registry)
+kapi plugins list
+kapi plugins list -a              # show all available (installed + registry)
 ```
 
 ### Search for plugins and bundles
 
 ```bash
-bowrain plugins search <query>            # search by name or description
-bowrain plugins search --bundle           # list all bundles
-bowrain plugins search --format           # list format plugins (including bundles with formats)
-bowrain plugins search --tool             # list tool plugins (including bundles with tools)
-bowrain plugins search --bundle --format  # bundles that contain format capabilities
-bowrain plugins search --ext .docx        # find plugins that handle .docx files
-bowrain plugins search --mime text/html   # find plugins that handle HTML
-bowrain plugins search --type format      # filter by capability type
+kapi plugins search <query>            # search by name or description
+kapi plugins search --bundle           # list all bundles
+kapi plugins search --format           # list format plugins (including bundles with formats)
+kapi plugins search --tool             # list tool plugins (including bundles with tools)
+kapi plugins search --bundle --format  # bundles that contain format capabilities
+kapi plugins search --ext .docx        # find plugins that handle .docx files
+kapi plugins search --mime text/html   # find plugins that handle HTML
+kapi plugins search --type format      # filter by capability type
 ```
 
 All filter flags are combined with AND logic.
@@ -48,22 +48,22 @@ All filter flags are combined with AND logic.
 ### Install a plugin or bundle
 
 ```bash
-bowrain plugins install <name>                  # install latest version
-bowrain plugins install <name>@<version>        # install specific version
+kapi plugins install <name>                  # install latest version
+kapi plugins install <name>@<version>        # install specific version
 ```
 
 ### Update a plugin or bundle
 
 ```bash
-bowrain plugins update <name>       # update specific plugin
-bowrain plugins update              # check and update all plugins
+kapi plugins update <name>       # update specific plugin
+kapi plugins update              # check and update all plugins
 ```
 
 ### Remove a plugin or bundle
 
 ```bash
-bowrain plugins remove <name>@<version>   # remove a specific version
-bowrain plugins remove <name>             # remove all versions
+kapi plugins remove <name>@<version>   # remove a specific version
+kapi plugins remove <name>             # remove all versions
 ```
 
 ## Search Flags
@@ -97,10 +97,10 @@ Plugins are stored in `~/.config/kapi/plugins/`. Multiple versions can be instal
 The Okapi bridge bundle provides access to 40+ Okapi format filters:
 
 ```bash
-bowrain plugins install okapi
+kapi plugins install okapi
 ```
 
-Once installed, additional formats (DOCX, XLSX, EPUB, etc.) appear in `bowrain formats`.
+Once installed, additional formats (DOCX, XLSX, EPUB, etc.) appear in `kapi formats`.
 
 ## Version Pinning
 

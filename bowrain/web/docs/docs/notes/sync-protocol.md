@@ -168,7 +168,7 @@ Collections are sent with each block during push via the `collection` field in `
 
 - **`sync_cursor`** -- Monotonic sequence number from the server's change log. Used by `pull` to request only changes since the last sync (`WHERE seq > cursor`). This follows the Contentful sync token / CouchDB sequence ID pattern.
 - **`last_sync`** -- Timestamp of the last successful push or pull.
-- **`claim_token`** -- Claim token for anonymous projects. Stored here (gitignored) rather than in the recipe to avoid accidentally committing credentials to version control. Cleared after `bowrain auth claim` transfers ownership.
+- **`claim_token`** -- Claim token for anonymous projects. Stored here (gitignored) rather than in the recipe to avoid accidentally committing credentials to version control. Cleared after `kapi auth claim` transfers ownership.
 - **`files`** -- Per-file entries keyed by relative path. Each entry tracks the file's mtime, size, and a map of block ID → content hash (SHA-256). Used by `push` to diff local blocks against the last known server state and send only changed blocks.
 - **`server_meta`** -- Cached project metadata from the server, including target locales. Updated on each push/pull. Used to resolve dynamic target languages when `defaults.target_languages` is empty.
 
@@ -277,4 +277,4 @@ Workspace-scoped equivalents are also available at `/api/v1/workspaces/:ws/proje
 
 The server maintains an append-only change log (`change_log` table) that records every mutation to a project's blocks. Each entry has a monotonic sequence number (`seq`). Sync queries are O(changes) via indexed cursor lookup -- the server never needs to diff entire version snapshots.
 
-Authentication uses the token from `bowrain auth login` stored at `~/.config/bowrain/auth.json` ([AD-002](/architecture-decisions/002-authentication-and-workspaces)).
+Authentication uses the token from `kapi auth login` stored at `~/.config/bowrain/auth.json` ([AD-002](/architecture-decisions/002-authentication-and-workspaces)).

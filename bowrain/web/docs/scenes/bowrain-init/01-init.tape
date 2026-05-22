@@ -9,7 +9,7 @@ Set Height 600
 Set Theme "Dracula"
 Set Padding 20
 
-Type "bowrain init --help"
+Type "kapi init --help"
 Enter
 Sleep 3s
 

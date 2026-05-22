@@ -9,19 +9,19 @@ scenes:
     duration_budget_seconds: 10
     fixtures: []
     smoke_contract:
-      - bowrain init --help
+      - kapi init --help
 ---
 
 ## Story
 
-`bowrain init` scaffolds a `.kapi` project in your repo (the bowrain
+`kapi init` scaffolds a `.kapi` project in your repo (the bowrain
 equivalent of `git init`): a `<dir-name>.kapi` recipe at the project
 root with a `server:` block, plus a sibling `.kapi/` state directory
 that holds the block store, sync cache, and TM/termbase.
 
 ## Scene 1 — init (terminal)
 
-`bowrain init --help` shows the available flags for project bootstrap.
+`kapi init --help` shows the available flags for project bootstrap.
 
 ## Closing
 

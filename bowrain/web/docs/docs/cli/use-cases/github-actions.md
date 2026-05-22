@@ -48,7 +48,7 @@ The action downloads the correct binary for the runner platform (Linux, macOS, o
 The simplest CI pattern uses two actions together:
 
 - [`neokapi/setup-bowrain`](https://github.com/neokapi/setup-bowrain) — installs the Bowrain CLI
-- [`neokapi/bowrain-action`](https://github.com/neokapi/bowrain-action) — runs `bowrain sync` and commits translations
+- [`neokapi/bowrain-action`](https://github.com/neokapi/bowrain-action) — runs `kapi sync` and commits translations
 
 ```yaml
 name: Sync Translations
@@ -83,7 +83,7 @@ jobs:
         run: echo "Translations committed at ${{ steps.sync.outputs.commit-sha }}"
 ```
 
-The `bowrain-action` runs `bowrain sync` (push → wait → pull), checks for changes, commits, and pushes. It sets outputs you can use in subsequent steps:
+The `bowrain-action` runs `kapi sync` (push → wait → pull), checks for changes, commits, and pushes. It sets outputs you can use in subsequent steps:
 
 | Output       | Description                          |
 | ------------ | ------------------------------------ |
@@ -134,10 +134,10 @@ jobs:
       - name: Run translation flow
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-        run: bowrain ai-translate
+        run: kapi ai-translate
 
       - name: Run QA checks
-        run: bowrain qa-check
+        run: kapi qa-check
 ```
 
 ## Example: Server Sync on Push to Main
@@ -166,7 +166,7 @@ jobs:
           server: https://dev.bowrain.cloud
 
       - name: Push to Bowrain Cloud
-        run: bowrain push -m "Sync from CI (${GITHUB_SHA::7})"
+        run: kapi push -m "Sync from CI (${GITHUB_SHA::7})"
 ```
 
 The `auth-token` and `server` inputs export `BOWRAIN_AUTH_TOKEN` and `BOWRAIN_SERVER_URL` as environment variables, which the CLI picks up automatically.
@@ -195,7 +195,7 @@ jobs:
       - name: Run translation flow
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-        run: bowrain ai-translate
+        run: kapi ai-translate
 
       - name: Commit translations
         run: |
@@ -231,7 +231,7 @@ jobs:
           server: https://dev.bowrain.cloud
 
       - name: Pull from Bowrain Cloud
-        run: bowrain pull
+        run: kapi pull
 
       - name: Create PR if changed
         env:
@@ -257,7 +257,7 @@ The Bowrain CLI supports two authentication methods in CI:
 | Method                   | How                                    | Best For                                |
 | ------------------------ | -------------------------------------- | --------------------------------------- |
 | **Environment variable** | Set `BOWRAIN_AUTH_TOKEN`               | GitHub Actions (via `auth-token` input) |
-| **Device flow**          | Run `bowrain auth login` interactively | Local development                       |
+| **Device flow**          | Run `kapi auth login` interactively | Local development                       |
 
 The `auth-token` input on the setup action is the simplest approach — it exports the token as `BOWRAIN_AUTH_TOKEN`, which the CLI checks before looking for stored credentials.
 
@@ -266,8 +266,8 @@ The `auth-token` input on the setup action is the simplest approach — it expor
 Create an API token using the Bowrain CLI:
 
 ```bash
-bowrain auth login                               # authenticate with Bowrain Cloud
-bowrain auth token create --name "CI" --expire-days 90
+kapi auth login                               # authenticate with Bowrain Cloud
+kapi auth token create --name "CI" --expire-days 90
 ```
 
 The token (`bwt_...`) is shown once — store it immediately as a GitHub Actions secret:
@@ -276,7 +276,7 @@ The token (`bwt_...`) is shown once — store it immediately as a GitHub Actions
 gh secret set BOWRAIN_AUTH_TOKEN --repo your-org/your-repo
 ```
 
-You can list and revoke tokens with `bowrain auth token list` and `bowrain auth token delete`.
+You can list and revoke tokens with `kapi auth token list` and `kapi auth token delete`.
 
 ## Plugins
 
@@ -310,7 +310,7 @@ Use `latest` (the default) for workflows where you always want the newest releas
 
 - [Bowrain CLI Overview](/cli/overview)
 - [Flow Hooks](/cli/flows/hooks)
-- [bowrain sync](/cli/commands/sync) — push + wait + pull in one command
-- [bowrain push](/cli/commands/push) and [bowrain pull](/cli/commands/pull)
-- [bowrain auth](/cli/commands/auth)
+- [kapi sync](/cli/commands/sync) — push + wait + pull in one command
+- [kapi push](/cli/commands/push) and [kapi pull](/cli/commands/pull)
+- [kapi auth](/cli/commands/auth)
 - [Source Language Preparation](/cli/use-cases/source-prep) — QA on source content in CI

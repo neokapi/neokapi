@@ -26,7 +26,7 @@ Type ""
 Enter
 Sleep 500ms
 
-Type "# Every push to main runs bowrain sync"
+Type "# Every push to main runs kapi sync"
 Enter
 Sleep 500ms
 

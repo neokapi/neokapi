@@ -3,7 +3,7 @@ title: auth
 sidebar_position: 9
 ---
 
-# bowrain auth
+# kapi auth
 
 Authenticate the CLI against a deployed `bowrain-server` instance. This enables
 CLI commands to access workspace-scoped resources on a remote server.
@@ -15,7 +15,7 @@ CLI commands to access workspace-scoped resources on a remote server.
 Start an interactive login using the OAuth device flow:
 
 ```bash
-bowrain auth login --server https://neokapi.example.com
+kapi auth login --server https://neokapi.example.com
 ```
 
 The CLI will display a URL and a one-time code. Open the URL in your browser,
@@ -23,7 +23,7 @@ enter the code, and authorize the application. The CLI polls automatically and
 stores your token on success.
 
 ```
-$ bowrain auth login --server https://neokapi.example.com
+$ kapi auth login --server https://neokapi.example.com
 Open https://neokapi.example.com/auth/device and enter code: ABCD-1234
 Waiting for authorization...
 Logged in as translator@example.com
@@ -37,7 +37,7 @@ automatically by other CLI commands.
 Check the current authentication state:
 
 ```bash
-bowrain auth status
+kapi auth status
 ```
 
 Output:
@@ -54,7 +54,7 @@ Expires: 2026-02-11 14:30:00
 Remove the stored token:
 
 ```bash
-bowrain auth logout
+kapi auth logout
 ```
 
 ## How It Works
@@ -96,10 +96,10 @@ Tokens are stored in `~/.config/bowrain/auth.json`:
 ## Server Modes
 
 Authentication is only required when connecting to a `bowrain-server` running in
-multi-user mode. When using `bowrain serve` for local project editing, no
+multi-user mode. When using `kapi serve` for local project editing, no
 authentication is needed — the local server runs on localhost without auth.
 
 | Mode             | Auth Required | Description                           |
 | ---------------- | ------------- | ------------------------------------- |
-| `bowrain serve`  | No            | Local project server, localhost only  |
+| `kapi serve`  | No            | Local project server, localhost only  |
 | `bowrain-server` | Yes           | Multi-user deployment with workspaces |

@@ -5,7 +5,7 @@
  * Generated from bowrain/web/docs/walkthroughs/bowrain-web-claim-project.md.
  *
  * Records the unauthenticated ClaimPage state — the entry point for a
- * developer who pushed an anonymous project via `bowrain push` and then
+ * developer who pushed an anonymous project via `kapi push` and then
  * opens the returned claim URL in a browser before signing in.
  *
  * Seeding: creates an anonymous project via REST against BOWRAIN_BACKEND_URL.
@@ -42,7 +42,7 @@ test.describe("walkthrough: bowrain-web-claim-project", () => {
     const claimToken = await createAnonymousProject();
 
     // Navigate to the claim URL — same path a real user would follow
-    // from the link printed by `bowrain push` against an anonymous project.
+    // from the link printed by `kapi push` against an anonymous project.
     await page.goto(`${BACKEND_URL}/claim/${claimToken}`);
 
     // Unauthenticated state: the ClaimPage card renders.

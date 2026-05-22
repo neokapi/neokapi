@@ -11,7 +11,7 @@ This guide walks you through first login, workspace creation, and translating yo
 
 You need a running Bowrain Server. Choose one of:
 
-- **Local mode**: Run `bowrain serve` for single-user, no-auth local development
+- **Local mode**: Run `kapi serve` for single-user, no-auth local development
 - **Server mode**: Deploy Bowrain Server with Docker Compose (see [Installation](./installation.md))
 
 ## Starting the Server
@@ -19,7 +19,7 @@ You need a running Bowrain Server. Choose one of:
 ### Local Mode
 
 ```bash
-bowrain serve
+kapi serve
 ```
 
 Open `http://localhost:8080` in your browser. No authentication is required — you are automatically signed in as a local user with a pre-created workspace.
@@ -145,7 +145,7 @@ invites, see usage counts, and revoke invites that are no longer needed.
 Connect the Bowrain CLI to your server for command-line workflows:
 
 ```bash
-bowrain auth login --server http://localhost:8080
+kapi auth login --server http://localhost:8080
 ```
 
 This starts a [device authorization flow](https://www.rfc-editor.org/rfc/rfc8628):
@@ -159,11 +159,11 @@ After login, CLI commands automatically authenticate with the server.
 
 ### Claiming Anonymous Projects
 
-If you started with `bowrain init` locally (without a server connection), you
+If you started with `kapi init` locally (without a server connection), you
 can claim that project into your server workspace:
 
 ```bash
-bowrain auth claim
+kapi auth claim
 ```
 
 This transfers the anonymous local project into your personal workspace on

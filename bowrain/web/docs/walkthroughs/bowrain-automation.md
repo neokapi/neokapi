@@ -10,7 +10,7 @@ scenes:
     duration_budget_seconds: 30
     fixtures: []
     smoke_contract:
-      - bowrain push
+      - kapi push
   - id: gh-actions
     kind: terminal
     binary: bowrain
@@ -31,12 +31,12 @@ automated — code lands, translations follow.
 ## Scene 1 — local-rules (terminal)
 
 Inspect the project's `<dir-name>.kapi` recipe for top-level `hooks:`
-and `automations:` blocks. Run `bowrain push` and watch the pre-push
+and `automations:` blocks. Run `kapi push` and watch the pre-push
 QA hook fire automatically before the actual push happens.
 
 ## Scene 2 — gh-actions (terminal)
 
-Show the `.github/workflows/bowrain-sync.yml` that runs `bowrain sync`
+Show the `.github/workflows/bowrain-sync.yml` that runs `kapi sync`
 on every push to main. This is the CI/CD half of the automation.
 
 ## Closing

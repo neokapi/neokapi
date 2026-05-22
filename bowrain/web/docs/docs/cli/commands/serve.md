@@ -3,7 +3,7 @@ title: serve
 sidebar_position: 10
 ---
 
-# bowrain serve
+# kapi serve
 
 Start a local web-based project editor — like `jupyter notebook` for translation
 projects. No authentication or server setup required.
@@ -11,20 +11,20 @@ projects. No authentication or server setup required.
 ## Usage
 
 ```bash
-bowrain serve [directory] [flags]
+kapi serve [directory] [flags]
 ```
 
 ## Examples
 
 ```bash
 # Open a project directory
-bowrain serve ./my-project/
+kapi serve ./my-project/
 
 # Use a custom port
-bowrain serve ./my-project/ --port 4000
+kapi serve ./my-project/ --port 4000
 
 # Don't auto-open the browser
-bowrain serve ./my-project/ --no-open
+kapi serve ./my-project/ --no-open
 ```
 
 ## What Happens
@@ -44,7 +44,7 @@ bowrain serve ./my-project/ --no-open
 
 ## When to Use
 
-`bowrain serve` is ideal for:
+`kapi serve` is ideal for:
 
 - **Quick edits** to a translation project without installing Bowrain
 - **Remote editing** via SSH port forwarding
@@ -56,7 +56,7 @@ For full multi-user collaboration with workspaces and access control, use
 
 ## Comparison
 
-| Feature       | `bowrain serve`     | `bowrain-server`       |
+| Feature       | `kapi serve`     | `bowrain-server`       |
 | ------------- | ------------------- | ---------------------- |
 | Auth required | No                  | Yes (SSO)              |
 | Workspaces    | No (single project) | Yes (multi-workspace)  |

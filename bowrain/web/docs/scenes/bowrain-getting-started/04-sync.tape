@@ -18,7 +18,7 @@ Type "# One command to push, translate, and pull"
 Enter
 Sleep 500ms
 
-Type "bowrain sync --timeout 2m"
+Type "kapi sync --timeout 2m"
 Enter
 Sleep 8s
 

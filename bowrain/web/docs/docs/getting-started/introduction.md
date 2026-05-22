@@ -11,16 +11,16 @@ Bowrain is a full-stack localization platform that turns your source content int
 ## One Command, Full Cycle
 
 ```bash
-bowrain sync
+kapi sync
 ```
 
-Push your source content, wait for AI translation and QA, pull back the results. One command, zero context switching. Under the hood, `bowrain sync` runs three phases (push, wait-for-translation, pull) so you can go from code change to translated files in a single terminal invocation.
+Push your source content, wait for AI translation and QA, pull back the results. One command, zero context switching. Under the hood, `kapi sync` runs three phases (push, wait-for-translation, pull) so you can go from code change to translated files in a single terminal invocation.
 
 ## Five Pillars
 
-### 1. One Command, Full Cycle — `bowrain sync`
+### 1. One Command, Full Cycle — `kapi sync`
 
-The [`bowrain sync`](/cli/commands/sync) command pushes changed content to the server, waits for all triggered flows (translation, QA, terminology) to complete, and pulls back the results. In CI, this means a single step replaces a multi-job pipeline. Locally, it means you type one command and get translations back.
+The [`kapi sync`](/cli/commands/sync) command pushes changed content to the server, waits for all triggered flows (translation, QA, terminology) to complete, and pulls back the results. In CI, this means a single step replaces a multi-job pipeline. Locally, it means you type one command and get translations back.
 
 ### 2. Format Intelligence — 41+ Formats
 
@@ -55,14 +55,14 @@ LLM-powered translation (Anthropic, OpenAI, Ollama) and five MT services (DeepL,
 ```
 Developer (Bowrain CLI)          Translator (Web/Desktop)
      |                              |
-     |  bowrain sync                |  Open editor
+     |  kapi sync                |  Open editor
      |----------------------------->|----------------------------->
      |               Bowrain Server |
      |  push → translate → pull     |  Review, approve, save
      |<-----------------------------|<-----------------------------
 ```
 
-The developer initializes a `.kapi` project, runs `bowrain sync` to push source content and pull back translations. Translators work in the web app or desktop app with a visual editor, translation memory, and terminology support. Automation rules on the server orchestrate the processing between push and pull.
+The developer initializes a `.kapi` project, runs `kapi sync` to push source content and pull back translations. Translators work in the web app or desktop app with a visual editor, translation memory, and terminology support. Automation rules on the server orchestrate the processing between push and pull.
 
 ## Components
 
@@ -76,7 +76,7 @@ The developer initializes a `.kapi` project, runs `bowrain sync` to push source 
 - [Installation](/installation) — install Bowrain CLI, Bowrain Desktop, or Bowrain Server
 - [Quick Start](/quickstart) — initialize a project and sync with Bowrain
 - [Walkthrough](/walkthroughs/bowrain-getting-started) — complete guide from init to automated CI/CD
-- [`bowrain sync` command](/cli/commands/sync) — the flagship one-command workflow
+- [`kapi sync` command](/cli/commands/sync) — the flagship one-command workflow
 
 ## Standalone File Processing
 

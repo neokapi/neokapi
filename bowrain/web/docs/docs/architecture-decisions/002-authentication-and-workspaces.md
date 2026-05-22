@@ -210,7 +210,7 @@ connecting to the server.
 The `bowrain` CLI uses OAuth 2.0 Device Authorization Grant (RFC 8628), which
 is terminal-friendly and works over SSH:
 
-1. `bowrain auth login --server <url>` calls
+1. `kapi auth login --server <url>` calls
    `POST /api/v1/auth/device/code`.
 2. Server returns `{ device_code, user_code, verification_url }`.
 3. The CLI prints the user code and verification URL, offers to open the
@@ -224,7 +224,7 @@ theme as the rest of Bowrain.
 
 ### Server Modes
 
-| Feature    | `bowrain-server`              | `bowrain serve` (standalone)       |
+| Feature    | `bowrain-server`              | `kapi serve` (standalone)       |
 | ---------- | ----------------------------- | ---------------------------------- |
 | Binding    | `0.0.0.0` (configurable)      | `127.0.0.1`                        |
 | Auth       | OIDC + JWT                    | None                               |
@@ -329,7 +329,7 @@ its owning workspace.
 | `bowrain/auth/`               | `AuthStore` interface + SQLite / PostgreSQL implementations, OIDC helpers |
 | `bowrain/server/`             | REST/gRPC server, auth middleware chain, workspace handlers, gRPC auth interceptors |
 | `bowrain/service/auth.go`     | `AuthService` business logic                                  |
-| `bowrain/cli/cmd/bowrain/auth.go` | `bowrain auth login | logout | status`                    |
+| `bowrain/cli/cmd/bowrain/auth.go` | `kapi auth login | logout | status`                    |
 
 ## Consequences
 
@@ -347,7 +347,7 @@ its owning workspace.
 - The admin realm is fully separated from the customer realm, so admin
   access cannot leak into customer identity and vice versa.
 - An OIDC provider is a deployment dependency for multi-user mode but not
-  for `bowrain serve` standalone local use.
+  for `kapi serve` standalone local use.
 
 ## Related
 
