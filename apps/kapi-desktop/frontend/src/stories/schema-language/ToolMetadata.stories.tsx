@@ -8,7 +8,7 @@ import { useState } from "react";
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { SchemaForm } from "@neokapi/ui-primitives";
 import type { ComponentSchema } from "@neokapi/ui-primitives";
-import toolSchemas from "../fixtures/tool-schemas.json";
+import { toolSchemas } from "../_lib/reference-data";
 
 function SchemaStory({ schema, description }: { schema: ComponentSchema; description?: string }) {
   const [values, setValues] = useState<Record<string, unknown>>({});
@@ -119,9 +119,7 @@ export const RealBuiltInTool: Story = {
   name: "Real Example: Built-in pseudo-translate",
   args: {
     description: "A real built-in tool schema from the neokapi Go codebase.",
-    schema: (toolSchemas.builtIn.find(
-      (t: Record<string, unknown>) => t["x-name"] === "pseudo-translate",
-    ) ?? {
+    schema: (toolSchemas.builtIn.find((t) => t["x-name"] === "pseudo-translate") ?? {
       title: "pseudo-translate (not found)",
       type: "object",
       properties: {},
@@ -133,9 +131,7 @@ export const RealBridgeTool: Story = {
   name: "Real Example: Okapi Bridge search-and-replace",
   args: {
     description: "A real Okapi bridge tool schema with toolMeta derived from step-metadata.json.",
-    schema: (toolSchemas.bridge.find(
-      (t: Record<string, unknown>) => t["x-name"] === "search-and-replace",
-    ) ?? {
+    schema: (toolSchemas.bridge.find((t) => t["x-name"] === "search-and-replace") ?? {
       title: "search-and-replace (not found)",
       type: "object",
       properties: {},

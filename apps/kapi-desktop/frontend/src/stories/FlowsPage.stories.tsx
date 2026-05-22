@@ -6,9 +6,9 @@ import type { FlowSpec, FlowInfo } from "../types/api";
 import { FlowEditor } from "@neokapi/flow-editor";
 import type { ToolInfo } from "@neokapi/flow-editor";
 import { FlowsPage, type FlowListItem } from "../components/FlowsPage";
-import toolsData from "./fixtures/tools-metadata.json";
+import { toolsMetadata } from "./_lib/reference-data";
 
-const tools = toolsData as ToolInfo[];
+const tools = toolsMetadata as ToolInfo[];
 
 const SAMPLE_FLOWS: Record<string, FlowSpec> = {
   "translate-and-qa": {

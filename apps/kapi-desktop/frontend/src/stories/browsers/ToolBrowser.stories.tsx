@@ -8,8 +8,7 @@ import { useState, useMemo } from "react";
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { SchemaForm, Button, Card, Input } from "@neokapi/ui-primitives";
 import type { ComponentSchema } from "@neokapi/ui-primitives";
-import toolSchemas from "../fixtures/tool-schemas.json";
-import toolList from "../fixtures/tool-list.json";
+import { toolSchemas, toolList } from "../_lib/reference-data";
 
 const allSchemas = toolSchemas.all as unknown as ComponentSchema[];
 

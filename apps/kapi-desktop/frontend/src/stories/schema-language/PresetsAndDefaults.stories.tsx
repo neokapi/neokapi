@@ -8,7 +8,7 @@ import { useState } from "react";
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { SchemaForm } from "@neokapi/ui-primitives";
 import type { ComponentSchema } from "@neokapi/ui-primitives";
-import presets from "../fixtures/presets.json";
+import { presets } from "../_lib/reference-data";
 
 function PresetStory({
   schema,

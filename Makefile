@@ -502,9 +502,6 @@ kapi-i18n-pseudo-translate: kapi-i18n-generate bin/kapi ## Pseudo-translate buil
 
 kapi-i18n-translations: kapi-i18n-pseudo-translate ## Regenerate + pseudo-translate builtin metadata → MO
 
-storybook-fixtures: ## Generate Storybook fixtures from real format/tool data
-	@./scripts/gen-storybook-fixtures.sh
-
 flow-editor-deps: ## Install flow-editor dependencies
 	cd packages/flow-editor && vp install
 

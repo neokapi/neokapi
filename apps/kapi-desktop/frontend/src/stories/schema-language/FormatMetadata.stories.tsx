@@ -8,7 +8,7 @@ import { useState } from "react";
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { FormatConfigEditor } from "../../components/FormatConfigEditor";
 import type { ComponentSchema } from "@neokapi/ui-primitives";
-import formatSchemas from "../fixtures/format-schemas.json";
+import { formatSchemas } from "../_lib/reference-data";
 
 function SchemaStory({ schema, description }: { schema: ComponentSchema; description?: string }) {
   const [values, setValues] = useState<Record<string, unknown>>({});
@@ -76,7 +76,7 @@ export const RealBuiltInFormat: Story = {
   args: {
     description:
       "A real built-in format schema generated from the neokapi Go codebase. Shows how the actual schema renders.",
-    schema: (formatSchemas.builtIn.find((f: Record<string, unknown>) => f["x-name"] === "json") ?? {
+    schema: (formatSchemas.builtIn.find((f) => f["x-name"] === "json") ?? {
       title: "JSON (not found)",
       type: "object",
       properties: {},
@@ -89,9 +89,7 @@ export const RealBridgeFormat: Story = {
   args: {
     description:
       "A real Okapi bridge format schema with formatMeta, ui:widget hints, and complex nested properties.",
-    schema: (formatSchemas.bridge.find(
-      (f: Record<string, unknown>) => f["x-name"] === "okf_html",
-    ) ?? {
+    schema: (formatSchemas.bridge.find((f) => f["x-name"] === "okf_html") ?? {
       title: "HTML (not found)",
       type: "object",
       properties: {},
