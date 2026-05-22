@@ -1470,19 +1470,6 @@ func TestNative_CodeFinderExtraction(t *testing.T) {
 	require.NotEmpty(t, blocks)
 }
 
-// --- Style optimization tests ---
-
-// okapi: OpenXMLTest#defaultWordRunFormattingConditionallyOptimisedForWordDocuments
-// okapi: OpenXMLTest#extractsWithOptimisedWordStyles
-func TestNative_StyleOptimizationExtraction(t *testing.T) {
-	parts := readFileWithConfig(t, "testdata/formatted.docx", func(cfg *Config) {
-		cfg.OptimiseWordStyles = true
-	})
-
-	blocks := translatableBlocks(parts)
-	require.NotEmpty(t, blocks)
-}
-
 // --- Font mapping tests ---
 
 func TestNative_FontMappingExtraction(t *testing.T) {

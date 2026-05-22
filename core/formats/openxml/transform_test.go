@@ -107,7 +107,6 @@ func TestOkapiOpenXMLTransform_AdvancedParams(t *testing.T) {
 	assert.Equal(t, true, result["translateDocProperties"])
 	assert.Equal(t, "HYPERLINK", result["complexFieldDefinitionsToExtract"]) // renamed from ts-prefixed
 	assert.Equal(t, "some-mapping", result["fontMappings"])                  // passed through
-	assert.Equal(t, true, result["optimiseWordStyles"])                      // passed through
 	assert.Equal(t, true, result["extractRunFontsInfo"])                     // passed through
 
 	// codeFinder composite object → extracted into flat params
@@ -117,6 +116,9 @@ func TestOkapiOpenXMLTransform_AdvancedParams(t *testing.T) {
 
 	// Dropped (Okapi-only, no native equivalent)
 	assert.Nil(t, result["translateExcelDrawings"])
+	// Word Style Optimisation was removed (native is faithful); the Okapi
+	// param is dropped silently rather than passed through.
+	assert.Nil(t, result["optimiseWordStyles"])
 
 	// Renamed keys should not appear under old names
 	assert.Nil(t, result["tsComplexFieldDefinitionsToExtract"])

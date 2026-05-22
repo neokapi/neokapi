@@ -1,8 +1,16 @@
 // Package openxml — DrawingML paragraph-default-run style optimisation.
 //
 // Implements upstream Okapi's StyleOptimisation.Default for DrawingML
-// paragraphs (`<a:p>`), the analogue of the WordprocessingML pass
-// implemented in style_optimization.go.
+// paragraphs (`<a:p>`).
+//
+// Unlike the WordprocessingML side — where native is FAITHFUL and does
+// NOT synthesise paragraph styles (the former WSO post-pass was deleted;
+// equivalence with Okapi's compact form is proved in the parity
+// comparator) — DrawingML payloads are captured as opaque XML by the WML
+// reader and replayed verbatim, so the only place to reproduce Okapi's
+// `<a:defRPr>` hoist is here, during the always-on post-skeleton flush.
+// This pass therefore runs unconditionally on every captured drawing,
+// regardless of any writer style-optimisation setting.
 //
 // Per ECMA-376-1 §21.1.2.2.6 (DrawingML CT_TextParagraph) a paragraph
 // may carry a single `<a:pPr>` whose `<a:defRPr>` child holds the

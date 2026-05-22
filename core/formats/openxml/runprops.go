@@ -1469,10 +1469,9 @@ func parseRunProps(d *xml.Decoder, aggressive bool, styleChainNames map[string]b
 			//   - RUN_PROPERTY_NO_SPELLING_OR_GRAMMAR (<w:noProof>)
 			//   - RUN_PROPERTIES_CHANGE        (<w:rPrChange>) — revision
 			//
-			// Without this skip, a paragraph whose only rPr difference is
-			// <w:lang/> would get a synthesised pStyle by the WSO post-pass
-			// even though Okapi keeps the paragraph rPr-less (the lang is
-			// stripped by the writer's stripWMLSkippableElements). #592.
+			// Without this skip, <w:lang/> would leak into the per-run
+			// rPr the writer emits even though Okapi strips it (the lang
+			// is removed by the writer's stripWMLSkippableElements). #592.
 			//
 			// The lang skip is GATED on the transitional WPML namespace.
 			// Upstream's RUN_PROPERTY_LANGUAGE QName binds to
@@ -1483,11 +1482,10 @@ func parseRunProps(d *xml.Decoder, aggressive bool, styleChainNames map[string]b
 			// 858.docx — Word's "Save As → Strict Open XML Document"
 			// output), the QName does NOT match upstream's skippable
 			// set, so <w:lang> is preserved in run rPr. Keeping it in
-			// rPrChildren lets the WSO post-pass lift it into the
-			// synthesised paragraph style — matching the upstream emit
-			// shape for 858.docx where the common run-rPr lang is
-			// promoted into the new <w:style>'s rPr and stripped from
-			// each <w:r><w:rPr>. ECMA-376-1 / ISO/IEC 29500-1 §A.1.
+			// rPrChildren lets the faithful writer re-emit it on each
+			// <w:r><w:rPr>; upstream Okapi additionally promotes the
+			// common run-rPr lang into a synthesised <w:style>, which the
+			// parity comparator resolves. ECMA-376-1 / ISO/IEC 29500-1 §A.1.
 			if local == "lang" && t.Name.Space != wmlStrictNamespace {
 				skip = true
 			}

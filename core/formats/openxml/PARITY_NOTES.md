@@ -116,12 +116,54 @@ where both engines should agree, but it conflates "we lost data"
 with "we made a different valid choice". The two-bug count (or
 the 184/185 spec-compliance metric) is the more meaningful one.
 
-## Status (2026-05-22) — faithful-writer keystone landed
+## Status (2026-05-22) — WSO subsystem DELETED (capstone)
 
-The writer is now **faithful by default**: `OptimiseWordStyles=false`
-(config.go). Native preserves source `rPr` inline — no synthesised
-paragraph styles, no attribute stripping, no global synth-ID counter.
-WSO is retained behind the flag (not yet deleted; that is a follow-up).
+The Word Style Optimisation (WSO) subsystem has been **removed**. The
+writer is now unconditionally **faithful**: it preserves source `rPr`
+inline — no synthesised paragraph styles, no attribute stripping, no
+global synth-ID counter. There is no `OptimiseWordStyles` config knob
+anymore.
+
+This is the net-simplification capstone of the faithful-writer design
+(see `docs/internals/research/openxml-faithful-writer-design.md` §5).
+Once the faithful default shipped (`OptimiseWordStyles=false`), WSO was
+dead code in production — never invoked. Deleting it changed **nothing**
+in the output: the openxml native parity tier stayed byte-identical at
+**0 byte / 149 canon / 36 div** (same divergent set, same first-divergent
+fixture `1311.docx`), and all faithful-path + parity tests stayed green.
+
+**Deleted:**
+
+- `style_optimization.go` (the WML synth-style machinery — `optimizeWMLPart*`,
+  `optimizeParagraph`, `optimizeNestedParagraphs`, `commonRFonts`,
+  `commonProps`, `styleHashRoot`, the synth-style ID stream, the
+  `current{RTLChainStyles,SourceParagraphStyles,DefaultCharacterStyleToggles}`
+  globals + their extractors, etc.) and its test file.
+- The `OptimiseWordStyles` config field (`config.go`) + the writer's WSO
+  plumbing in `Write` (synth-ID counter, WSO pre-pass, `wsoOptimised`,
+  `pendingStyles`/late-emit, `shouldOptimiseWMLPart`, `wsoPartOrder`).
+- The reader's `OptimiseWordStyles`-gated `parseStyles` call (the reader
+  no longer subtracts style-inherited formatting; runs travel through
+  with their direct `rPr`). `parseStyles` + `formatRPrChildXML` (its
+  sole helper) were removed from `styles.go` as now-dead.
+
+**Kept (shared / faithful / comparator):**
+
+- `source_rpr.go`'s `commonRPrChildren` / `perRunRPrFragments` + the
+  per-run rPr sidecar — the FAITHFUL writer uses these via `effectiveRPr`.
+  `rfontsAttr` + `parseRFontsAttrs` moved here (shared with `runprops.go`).
+- `dml_style_optimization.go` (`optimiseDMLBlockProperties`) — NOT WSO; it
+  runs unconditionally during the always-on post-skeleton flush
+  (`postNonWSOForName` → `stripDMLRunPropertyAttrs`) for captured DrawingML.
+- `extractDocDefaultsToggleExplicitOff` + the two `currentDocDefaults*ExplicitOff`
+  globals — moved to `writer.go`; the faithful `stripToggleMirrorChildren` /
+  `stripBCsBlockedByPairing` consume them.
+- The `styleMap` resolution methods (`effectiveProps`, `resolveProps`,
+  `effectiveRPrChild*`, `mergeProps`, `subtractProps`, …) — still used by
+  `wml.go`/`runprops.go` when a styleMap is supplied, and by unit tests.
+- `cli/parity/roundtrip/normalizers_openxml.go` (the effective-rPr parity
+  normalizer) — the COMPARATOR, untouched. It proves equivalence with
+  Okapi's synth-pStyle form on both sides.
 
 Equivalence-with-Okapi is proved in the **comparator**, not the producer,
 by a new parity-only effective-rPr normalizer

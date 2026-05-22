@@ -167,11 +167,15 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		}
 	}
 
-	// Parse styles.xml for style optimization if configured
+	// Native is faithful: source rPr is preserved inline and the writer
+	// does no style synthesis (Word Style Optimisation was removed). The
+	// reader therefore does NOT resolve the style chain to subtract
+	// style-inherited formatting — every run's direct rPr travels through
+	// to the writer via the per-run rPr sidecar. styles stays nil; the
+	// wmlParser handles a nil styleMap (no subtraction). The styleMap /
+	// parseStyles machinery is retained for the parity comparator's
+	// effective-rPr resolution and unit tests.
 	var styles *styleMap
-	if r.cfg.OptimiseWordStyles && info.docType == docTypeDOCX {
-		styles = parseStyles(zr)
-	}
 
 	// Process each translatable part
 	for _, partPath := range info.translatableParts {

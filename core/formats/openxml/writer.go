@@ -1073,10 +1073,7 @@ func (w *Writer) writeFromSkeleton(origZR *zip.Reader, zw *zip.Writer,
 	// and a run authors a bare-on `<w:bCs/>`, upstream's
 	// RunParser.canBeSkipped (RunParser.java:240-250) refuses the strip
 	// because pcrp.equals(rp) is false. Native must mirror that gate
-	// at write time. Mirrors the WSO pre-pass below (lines ~1159+)
-	// which sets the same vars for the post-pass; the docDefaults
-	// detection itself is style-set-invariant, so both passes consult
-	// the same single source-of-truth.
+	// at write time.
 	for _, f := range origZR.File {
 		if f.Name == "word/styles.xml" {
 			data, err := readZipFile(f)
@@ -1156,117 +1153,18 @@ func (w *Writer) writeFromSkeleton(origZR *zip.Reader, zw *zip.Writer,
 	// and substitute locale-variant media files (Bowrain AD-007).
 	isDOCX := info.docType == docTypeDOCX
 
-	// AllowWordStyleOptimisation post-pass: applied per WML part that
-	// participates in style synthesis. Styles synthesised across all
-	// parts are accumulated in a single map keyed by styleId, then
-	// injected into word/styles.xml at the end. This mirrors Okapi's
-	// single-IdGenerator-per-filter-invocation scope (see
-	// WordStyleDefinitions.readWith line 114).
-	var (
-		synthesised             map[string]synthesisedStyle
-		orderedIDs              []string
-		idCounter               int
-		existingIDs             map[string]bool
-		defaultParagraphStyleID string
-		pendingStyles           map[string]pendingStylesEntry
-		// hasStylesPart records whether word/styles.xml exists in the
-		// source ZIP. When it does NOT, upstream Okapi instantiates
-		// `StyleDefinitions.Empty` for the missing styles part
-		// (WordDocument.java:115-119, calling styleDefinitions(EMPTY)
-		// → new StyleDefinitions.Empty()). The optimiser still runs —
-		// inserting <w:pStyle> in pPr and stripping common rPr props
-		// from runs — but Empty.place(…) is a no-op and Empty.placedId()
-		// returns null (StyleDefinitions.java:53-59), so the inserted
-		// pStyle carries an empty w:val and no <w:style> is appended to
-		// a styles part (none exists to append to). Per ECMA-376-1
-		// §17.7.4, when no styles part is present no style hierarchy
-		// exists; the empty-val pStyle is upstream's surfaced form of
-		// "synthesis ran but produced no id."
-		hasStylesPart bool
-	)
-	if isDOCX && w.cfg.OptimiseWordStyles {
-		synthesised = make(map[string]synthesisedStyle)
-		// Pre-load existing styleIds AND the default paragraph styleId
-		// from the source styles.xml so generated NF974E24F-* ids don't
-		// collide AND so synthesised styles' basedOn (and id parent
-		// fragment) point at the document's actual default paragraph
-		// style — mirroring upstream WordStyleDefinitions.Ids.defaultBased
-		// (WordStyleDefinitions.java:485-491).
-		for _, f := range origZR.File {
-			if f.Name == "word/styles.xml" {
-				hasStylesPart = true
-				data, err := readZipFile(f)
-				if err == nil {
-					existingIDs = extractExistingStyleIDs(data)
-					defaultParagraphStyleID = extractDefaultParagraphStyleID(data)
-					// Hand the rtl-bearing chain set off to the WSO
-					// strip pass via the package-level
-					// currentRTLChainStyles. Consumed by
-					// stripToggleMirrorsFromCommon's `case "rtl":` —
-					// see style_optimization.go for the 899.docx-vs-
-					// 830-2.docx rationale.
-					currentRTLChainStyles = extractRTLChainStyleIDs(data)
-					// Detect docDefaults' explicit-off bCs/iCs so the
-					// WSO common-rPr strip + the per-run sidecar's
-					// stripToggleMirrorChildren preserve a run's bCs/
-					// iCs when upstream's canBeSkipped (RunParser.java:
-					// 240-250) would refuse the strip due to a
-					// preCombined-vs-run value disagreement.
-					currentDocDefaultsBCsExplicitOff = extractDocDefaultsToggleExplicitOff(data, "bCs")
-					currentDocDefaultsICsExplicitOff = extractDocDefaultsToggleExplicitOff(data, "iCs")
-					// Capture the default character style's bare-on
-					// toggles so the WSO common-rPr lift can drop
-					// duplicates per ECMA-376-1 §17.7.4 (default
-					// character style applies implicitly to runs
-					// without rStyle). document-style-definitions
-					// fixture: Emphasis is the default character style
-					// with `<w:i/>` — runs that author `<w:i/>` have
-					// it dropped from the synthesised pStyle's rPr
-					// because the implicit Emphasis chain already
-					// supplies it.
-					currentDefaultCharacterStyleToggles = extractDefaultCharacterStyleToggles(data)
-					// Hand the source paragraph style set off to the
-					// WSO matcher via currentSourceParagraphStyles.
-					// Consumed by findMatchingStyle to mirror upstream
-					// WordStyleDefinitions.Ids.parentBased
-					// (WordStyleDefinitions.java:462-475) which walks
-					// BOTH source and in-pass synthesised styles when
-					// looking for a re-use candidate.
-					currentSourceParagraphStyles = extractSourceParagraphStyles(data)
-				}
-				break
-			}
-		}
-		if existingIDs == nil {
-			existingIDs = make(map[string]bool)
-		}
-		// Reset the rtl-chain handoff after the WSO pass below so it
-		// doesn't leak into another Writer's invocation. Tests that
-		// invoke optimizeWMLPart directly leave currentRTLChainStyles
-		// nil — preserving the pre-fix drop behaviour for fixtures
-		// whose chain has no rtl-bearing styles.
-		defer func() {
-			currentRTLChainStyles = nil
-			currentSourceParagraphStyles = nil
-			currentDocDefaultsBCsExplicitOff = false
-			currentDocDefaultsICsExplicitOff = false
-			currentDefaultCharacterStyleToggles = nil
-		}()
-	}
+	// Reset the docDefaults toggle flags after this Write so they don't
+	// leak into another Writer's invocation. They are loaded from
+	// word/styles.xml above (before the per-block render loop) and
+	// consumed by stripToggleMirrorChildren / stripBCsBlockedByPairing.
+	defer func() {
+		currentDocDefaultsBCsExplicitOff = false
+		currentDocDefaultsICsExplicitOff = false
+	}()
 
-	// wsoOptimised stashes the WSO-rewritten bytes for each
-	// shouldOptimiseWMLPart part (keyed by ZIP entry name). It is
-	// populated in the WSO PRE-PASS below, in canonical Okapi processing
-	// order (mainPart first, then headers/footers/footnotes/endnotes/
-	// comments — see ZipEntryComparator + reorderedPartPaths in
-	// WordDocument.java:74-97). The shared idCounter ticks in that order
-	// so the synthesised styleId sequence (NF974E24F-{parent}{N}) lines
-	// up with the upstream filter's IdGenerator stream.
-	wsoOptimised := map[string][]byte{}
 	// decompressedParts memoizes readZipFile(f) per ZIP entry name so a
-	// part is decompressed at most once even when both the WSO pre-pass
-	// (which reads the part as the strip source AND as the WSO source)
-	// and the emit loop need its raw bytes (#608, O3). The bytes are
+	// part is decompressed at most once even when both a strip pass and
+	// the emit loop need its raw bytes (#608, O3). The bytes are
 	// returned read-only; callers must not mutate the slice in place.
 	decompressedParts := map[string][]byte{}
 	readZipFileCached := func(f *zip.File) ([]byte, error) {
@@ -1283,10 +1181,8 @@ func (w *Writer) writeFromSkeleton(origZR *zip.Reader, zw *zip.Writer,
 	// strippedParts memoizes stripWMLSkippableElements(<part bytes>) per
 	// ZIP entry name. stripWMLSkippableElements is deterministic for a
 	// given input and its empty-container fixpoint loop reallocates the
-	// full buffer each iteration, so running it once per part (instead of
-	// once in the WSO pre-pass and again in the emit loop) is a large
-	// win on big documents (#608, O3). The cached slice is returned
-	// read-only.
+	// full buffer each iteration, so caching the result is a large win on
+	// big documents (#608, O3). The cached slice is returned read-only.
 	strippedParts := map[string][]byte{}
 	stripWMLSkippableElementsCached := func(name string, data []byte) []byte {
 		if b, ok := strippedParts[name]; ok {
@@ -1297,10 +1193,12 @@ func (w *Writer) writeFromSkeleton(origZR *zip.Reader, zw *zip.Writer,
 		return b
 	}
 	// Helper: post-process a WML XML payload (after lang strip + lang
-	// retargeting, before recompression). WSO is applied in a separate
-	// pre-pass — postNonWSOForName runs the field-marker reversal that
-	// must always happen, then defers to wsoOptimised when the part has
-	// already been WSO'd.
+	// retargeting, before recompression). Native is FAITHFUL — there is
+	// no Word Style Optimisation pass; postNonWSOForName runs the
+	// field-marker reversal and the cross-source run fusions that must
+	// always happen. (The name is retained for stability with the
+	// faithful-writer design note; "non-WSO" now describes the whole
+	// flush path.)
 	postNonWSOForName := func(data []byte) []byte {
 		if !isDOCX {
 			return data
@@ -1392,8 +1290,8 @@ func (w *Writer) writeFromSkeleton(origZR *zip.Reader, zw *zip.Writer,
 		// `<w:br/>` and `<w:t>` children.
 		//
 		// The fuse runs in postNonWSOForName (after skeleton
-		// reconstruction + WSO) so it sees the post-WSO wire shape
-		// where the rPr-less envelopes have already been emitted.
+		// reconstruction) so it sees the wire shape where the rPr-less
+		// envelopes have already been emitted.
 		// The skeleton path's `runToXML` (wml.go) emits each
 		// source `<w:r>` envelope verbatim, so the source's
 		// `<w:r><w:br type="page"/></w:r><w:r><w:t> </w:t></w:r>`
@@ -1440,105 +1338,28 @@ func (w *Writer) writeFromSkeleton(origZR *zip.Reader, zw *zip.Writer,
 		}
 		// Fuse a bare `<w:r><w:pict>…</w:pict></w:r>` envelope with the
 		// IMMEDIATELY-following bare-rPr text run envelope, alongside the
-		// other cross-source RunMerger fusions above. This runs pre-WSO
-		// (postNonWSOForName is applied to the part bytes BEFORE
-		// optimizeWMLPartWithSource): the bare-pict run carries no rPr
-		// and is a drawing-only Markup chunk that upstream Okapi's
-		// RunMerger folds into the FOLLOWING same-context text run's
-		// RunProperties (RunMerger.java:402-441 + canRunPropertiesBeMerged
-		// at 156-229) — so the run upstream's WordStyleOptimisation sees
-		// is ALREADY the fused single run carrying the text run's rPr.
-		// Fusing here (rather than post-WSO) therefore presents WSO with
-		// the same run shape and count as upstream, keeping the shared
-		// IdGenerator/styleId stream byte-identical. See
-		// fuseBarePictAndRPrTextRuns for the rFonts minified() reproduction
-		// and the Hangs.docx (document.xml s1059 shape) fixture rationale.
+		// other cross-source RunMerger fusions above. The bare-pict run
+		// carries no rPr and is a drawing-only Markup chunk that upstream
+		// Okapi's RunMerger folds into the FOLLOWING same-context text
+		// run's RunProperties (RunMerger.java:402-441 +
+		// canRunPropertiesBeMerged at 156-229) — so the run shape and
+		// count match upstream's fused single run carrying the text run's
+		// rPr. See fuseBarePictAndRPrTextRuns for the rFonts minified()
+		// reproduction and the Hangs.docx (document.xml s1059 shape)
+		// fixture rationale.
 		if bytes.Contains(data, []byte(`<w:r><w:pict>`)) {
 			data = fuseBarePictAndRPrTextRuns(data)
 		}
 		return data
 	}
-	postWML := func(name string, data []byte) []byte {
-		data = postNonWSOForName(data)
-		if isDOCX && w.cfg.OptimiseWordStyles && shouldOptimiseWMLPart(name) {
-			if optimised, ok := wsoOptimised[name]; ok {
-				data = optimised
-			}
-		}
-		// The complex-field begin run's redundant rPr is now elided
-		// STRUCTURALLY at WSO time: the outer fldChar-begin run renders
-		// no text, so optimizeParagraph drops its render-neutral toggle
-		// properties (b/i/bCs/iCs) from the emitted per-run rPr after
-		// the common lift, leaving `<w:r><w:fldChar begin/></w:r>` with
-		// no rPr — byte-matching upstream Okapi's RunMerger +
-		// RunProperties.minified() collapse. See runIsFldCharBeginOnly
-		// in style_optimization.go and the Practice2.docx (footer2.xml /
-		// footer3.xml) fixture rationale. No post-WSO byte rewrite is
-		// needed (the former
-		// stripFldCharBeginRunRPrWhenInheritedFromFollowingRun #607).
-		// The bare-pict + text run fuse is now applied pre-WSO inside
-		// postNonWSOForName (see the call there) so WSO sees the same
-		// fused run upstream's RunMerger produced — no post-WSO byte
-		// rewrite is needed.
-		// The empty placeholder run between an `<mc:AlternateContent>`
-		// host run and an immediately-following standalone-br run is now
-		// emitted STRUCTURALLY (as a self-closing `<w:r/>`) by
-		// renderWMLBlock at the post-image boundary — see
-		// runIsAltContentImageHost and its call site in the TypeBreak
-		// case. Emitting it before WSO (rather than via a post-WSO
-		// regex) keeps the placeholder out of WSO's findRuns scan, so
-		// the IdGenerator counter stays in lockstep with the bridge.
-		return data
-	}
-
-	// WSO pre-pass: visit WSO-eligible parts in the order Okapi's
-	// ZipEntryComparator produces (mainPart first; see Okapi
-	// WordDocument.java:74-90 / ZipEntryComparator.java:39-44). For each
-	// part, fetch the same bytes the file-emit loop would feed to postWML
-	// (skeleton-reconstructed content if present, otherwise the raw ZIP
-	// content with strip-lang and lang-retarget applied), apply the
-	// non-WSO post-processing, and run optimizeWMLPart with the SHARED
-	// idCounter so styleId sequence numbers stay in lockstep with the
-	// upstream IdGenerator stream.
-	if isDOCX && w.cfg.OptimiseWordStyles {
-		wsoNames := wsoPartOrder(origZR, info)
-		for _, name := range wsoNames {
-			f := zipFileByName(origZR, name)
-			if f == nil {
-				continue
-			}
-			var data []byte
-			if content, ok := partContents[name]; ok && len(content) > 0 {
-				data = content
-				if shouldStripWMLLang(name) {
-					data = stripWMLSkippableElementsCached(name, data)
-				}
-			} else if shouldStripWMLLang(name) {
-				raw, err := readZipFileCached(f)
-				if err != nil {
-					continue
-				}
-				data = stripWMLSkippableElementsCached(name, raw)
-			} else {
-				continue
-			}
-			data = postNonWSOForName(data)
-			partStrict := bytes.Contains(data, []byte(wmlStrictNamespace))
-			// Read the SOURCE bytes (pre-read, pre-strip) so optimizeWMLPart
-			// can bypass paragraphs whose ENTIRE content was inside
-			// tracked-revision wrappers (<w:ins>/<w:del>/<w:moveTo>/
-			// <w:moveFrom>) before the auto-accept-revisions unwrap at
-			// READ time removed the wrappers. See the
-			// optimizeWMLPartWithSource docstring + 847-3.docx fixture.
-			// readZipFile failure is non-fatal: fall back to source-less
-			// WSO (preserves pre-fix behaviour).
-			var srcXML []byte
-			if rawSrc, err := readZipFileCached(f); err == nil {
-				srcXML = rawSrc
-			}
-			data = optimizeWMLPartWithSource(data, srcXML, existingIDs, defaultParagraphStyleID, hasStylesPart, partStrict, &idCounter, synthesised, &orderedIDs)
-			wsoOptimised[name] = data
-		}
+	// postWML is the per-part post-processing applied to every WML XML
+	// payload after skeleton reconstruction + lang strip/retarget. Native
+	// is FAITHFUL by default — there is no Word Style Optimisation pass;
+	// the only post-processing is the field-marker reversal + cross-source
+	// run fusions in postNonWSOForName. The name argument is retained for
+	// call-site symmetry (it was previously the WSO part gate).
+	postWML := func(_ string, data []byte) []byte {
+		return postNonWSOForName(data)
 	}
 
 	for _, f := range origZR.File {
@@ -1596,17 +1417,6 @@ func (w *Writer) writeFromSkeleton(origZR *zip.Reader, zw *zip.Writer,
 				data = stripWMLSkippableElementsCached(f.Name, data)
 			}
 			data = postWML(f.Name, data)
-			// Defer styles.xml emission until all paragraph parts have
-			// been visited so we know the synthesised set. We instead
-			// stash the post-strip bytes in a sentinel map that's
-			// flushed after the loop.
-			if w.cfg.OptimiseWordStyles && isDOCX && f.Name == "word/styles.xml" {
-				if pendingStyles == nil {
-					pendingStyles = map[string]pendingStylesEntry{}
-				}
-				pendingStyles[f.Name] = pendingStylesEntry{header: f.FileHeader, data: data}
-				continue
-			}
 			fh := f.FileHeader
 			fh.Method = zip.Deflate
 			fh.CompressedSize64 = 0
@@ -1627,91 +1437,7 @@ func (w *Writer) writeFromSkeleton(origZR *zip.Reader, zw *zip.Writer,
 		}
 	}
 
-	// Late-emit styles.xml with synthesised <w:style> entries appended.
-	if w.cfg.OptimiseWordStyles && isDOCX && pendingStyles != nil {
-		for name, ps := range pendingStyles {
-			data := ps.data
-			if name == "word/styles.xml" && len(orderedIDs) > 0 {
-				data = injectSynthesisedStyles(data, synthesised, orderedIDs)
-			}
-			fh := ps.header
-			fh.Method = zip.Deflate
-			fh.CompressedSize64 = 0
-			fh.UncompressedSize64 = 0
-			fh.CRC32 = 0
-			fw, err := zw.CreateHeader(&fh)
-			if err != nil {
-				return err
-			}
-			if _, err := fw.Write(data); err != nil {
-				return err
-			}
-		}
-	}
-
 	return zw.Close()
-}
-
-// pendingStylesEntry holds a WML part (currently only styles.xml) that
-// must be deferred until after all other parts have been post-processed
-// — the synthesised-style set isn't complete until then.
-type pendingStylesEntry struct {
-	header zip.FileHeader
-	data   []byte
-}
-
-// wsoPartOrder returns the ordered list of WSO-eligible part paths,
-// in the canonical order Okapi's ZipEntryComparator produces (see
-// WordDocument.java:74-97 / ZipEntryComparator.java:39-44 — main
-// document part comes first; the rest in original ZIP order).
-//
-// The shared idCounter must increment in this order so that the
-// synthesised styleIds (NF974E24F-{parent}{N}) match upstream's
-// IdGenerator stream — otherwise headers/footers that come before
-// document.xml in raw ZIP order would consume the low sequence numbers
-// the upstream filter assigns to document.xml first.
-func wsoPartOrder(origZR *zip.Reader, info *containerInfo) []string {
-	var out []string
-	seen := make(map[string]struct{})
-	// Main part first (Okapi reorderedPartPaths places mainPartPath
-	// after relsPath, which is not WSO-eligible — so mainPart is the
-	// first WSO target after the early non-WSO entries).
-	if info.mainDocumentPart != "" && shouldOptimiseWMLPart(info.mainDocumentPart) {
-		out = append(out, info.mainDocumentPart)
-		seen[info.mainDocumentPart] = struct{}{}
-	}
-	// Then everything else in ZIP order.
-	for _, f := range origZR.File {
-		if _, dup := seen[f.Name]; dup {
-			continue
-		}
-		if shouldOptimiseWMLPart(f.Name) {
-			out = append(out, f.Name)
-			seen[f.Name] = struct{}{}
-		}
-	}
-	return out
-}
-
-// shouldOptimiseWMLPart reports whether a WML XML part participates in
-// AllowWordStyleOptimisation (paragraphs are walked, common rPr is
-// extracted into synthesised paragraph styles). Mirrors the set of
-// parts Okapi's openxml filter routes through WordPart processing.
-func shouldOptimiseWMLPart(name string) bool {
-	if !strings.HasPrefix(name, "word/") || !strings.HasSuffix(name, ".xml") {
-		return false
-	}
-	switch {
-	case name == "word/document.xml",
-		name == "word/footnotes.xml",
-		name == "word/endnotes.xml",
-		name == "word/comments.xml":
-		return true
-	case strings.HasPrefix(name, "word/header") && strings.HasSuffix(name, ".xml"),
-		strings.HasPrefix(name, "word/footer") && strings.HasSuffix(name, ".xml"):
-		return true
-	}
-	return false
 }
 
 // writeFromReparse copies the original ZIP, substituting locale-variant media (Bowrain AD-007).
@@ -1773,9 +1499,8 @@ func (w *Writer) renderBlock(block *model.Block, dt docType) string {
 	// per-paragraph common rPr children under
 	// openxmlSourceRPrAnnotationKey when the source had at least one
 	// non-toggle rPr child; the writer prepends this XML to every
-	// emitted <w:r>'s <w:rPr>. The WSO post-pass (style_optimization.go)
-	// then lifts the redundant rPr into a synthesised paragraph style
-	// when the optimisation conditions hold.
+	// emitted <w:r>'s <w:rPr>. Native is faithful — the rPr is preserved
+	// inline rather than lifted into a synthesised paragraph style.
 	sourceRPr := blockSourceRPrXML(block)
 
 	// Per-text-run rPr sidecar (Phase 2 of the per-run rPr work — see
@@ -1971,6 +1696,99 @@ func blockPerRunSourceHadRPrFlags(block *model.Block) []bool {
 	return v
 }
 
+// currentDocDefaultsBCsExplicitOff reports whether the source
+// styles.xml docDefaults rPr authors `<w:bCs w:val="0"/>` (or
+// "false" / "off"). Consulted by stripToggleMirrorChildren /
+// stripBCsBlockedByPairing to decide whether a run-level bare-on
+// `<w:bCs/>` must be preserved (because preCombined's bCs value
+// differs from the run's, so upstream RunParser.canBeSkipped at
+// RunParser.java:240-250 refuses the strip).
+//
+// Module-level state instead of a threaded parameter to keep the
+// renderBlock → adjustRPrForRunText → stripToggleMirrorChildren
+// signature chain stable; it is loaded once per Write from
+// word/styles.xml before the per-block render loop.
+var currentDocDefaultsBCsExplicitOff bool
+
+// currentDocDefaultsICsExplicitOff is the iCs counterpart of
+// currentDocDefaultsBCsExplicitOff. See its doc for the rationale.
+var currentDocDefaultsICsExplicitOff bool
+
+// extractDocDefaultsToggleExplicitOff reports whether
+// <w:docDefaults><w:rPrDefault><w:rPr> in stylesXML authors an
+// explicit-off form of `<w:NAME w:val="0"/>` (or "false" / "off").
+// Used by the writer to populate currentDocDefaultsBCsExplicitOff /
+// currentDocDefaultsICsExplicitOff — consulted by the per-run sidecar
+// strip (stripToggleMirrorChildren / stripBCsBlockedByPairing) to
+// decide whether a bare-on `<w:bCs/>` / `<w:iCs/>` must be preserved
+// on the run (because the run-side value differs from the preCombined
+// value coming from docDefaults, blocking upstream's
+// RunParser.canBeSkipped strip).
+//
+// Per ECMA-376-1 §17.7.5.5 (CT_DocDefaults) the docDefaults rPr
+// applies to every run unless overridden by a paragraph style /
+// rStyle / direct formatting. A `<w:bCs w:val="0"/>` in docDefaults
+// means the inherited bCs is "off"; a run's bare `<w:bCs/>` (val
+// implicit true) is then a clearing-vs-bare-on disagreement that
+// RunParser.canBeSkipped (RunParser.java:240-250) detects and
+// refuses to strip.
+//
+// Fixture 992.docx: docDefaults declares
+//
+//	<w:bCs w:val="0"/><w:iCs w:val="0"/>
+//
+// against which every run that authors a bare `<w:bCs/>` / `<w:iCs/>`
+// must preserve the toggle mirror on the per-run rPr.
+//
+// large-attribute.docx counter-example: docDefaults has NO bCs/iCs,
+// so upstream's canBeSkipped takes the `else { v = true; }` branch
+// and bCs/iCs ARE stripped — the docDefaults-flag-false path
+// preserves that behaviour.
+func extractDocDefaultsToggleExplicitOff(stylesXML []byte, name string) bool {
+	if len(stylesXML) == 0 {
+		return false
+	}
+	// Locate <w:docDefaults>...<w:rPrDefault>...<w:rPr>...</w:rPr>
+	docDefaultsStart := bytes.Index(stylesXML, []byte("<w:docDefaults"))
+	if docDefaultsStart < 0 {
+		return false
+	}
+	docDefaultsEnd := bytes.Index(stylesXML[docDefaultsStart:], []byte("</w:docDefaults>"))
+	if docDefaultsEnd < 0 {
+		return false
+	}
+	body := stylesXML[docDefaultsStart : docDefaultsStart+docDefaultsEnd]
+	rPrDefaultStart := bytes.Index(body, []byte("<w:rPrDefault"))
+	if rPrDefaultStart < 0 {
+		return false
+	}
+	rPrDefaultEnd := bytes.Index(body[rPrDefaultStart:], []byte("</w:rPrDefault>"))
+	if rPrDefaultEnd < 0 {
+		return false
+	}
+	rPrBody := body[rPrDefaultStart : rPrDefaultStart+rPrDefaultEnd]
+	// Find <w:NAME ... w:val="..."/> with val ∈ {0, false, off}.
+	prefix := []byte("<w:" + name + " ")
+	for cursor := 0; cursor < len(rPrBody); {
+		i := bytes.Index(rPrBody[cursor:], prefix)
+		if i < 0 {
+			return false
+		}
+		start := cursor + i
+		end := bytes.IndexAny(rPrBody[start:], "/>")
+		if end < 0 {
+			return false
+		}
+		elem := string(rPrBody[start : start+end])
+		// Check val attribute.
+		if strings.Contains(elem, `w:val="0"`) || strings.Contains(elem, `w:val="false"`) || strings.Contains(elem, `w:val="off"`) {
+			return true
+		}
+		cursor = start + end + 1
+	}
+	return false
+}
+
 // stripToggleMirrorChildren removes <w:bCs/> and <w:iCs/> elements
 // (with or without attributes) from an rPr children-only XML
 // fragment. These are complex-script toggle mirrors that upstream
@@ -2008,16 +1826,14 @@ func blockPerRunSourceHadRPrFlags(block *model.Block) []bool {
 // resolved style chain (docDefaults ∪ pStyle basedOn-walk ∪ rStyle, which
 // styles.go already computes) showed ZERO divergence from this heuristic
 // across all 185 fixtures. A structural chain-resolver is NOT viable here:
-// (a) the symmetric WSO common-rPr strip (stripToggleMirrorsFromCommon,
-// style_optimization.go) is a byte post-pass with no model/styleMap access
-// by design and must agree with this path; (b) it would regress
-// 1341-textbox-with-a-hyperlink.docx, whose latent "Hyperlink" rStyle is
-// absent from styles.xml (Okapi's preCombined includes latent-style props;
-// a styleMap lookup resolves absent→"" and would wrongly strip); and (c)
-// the outer text gate must stay at WRITE time — it inspects post-translation
-// run text, so AI-translation into Arabic/Hebrew injects complex-script
-// content a read-time decision would miss. This is the sanctioned
-// faithful-Okapi-reproduction exception, not write-side compensation.
+// (a) it would regress 1341-textbox-with-a-hyperlink.docx, whose latent
+// "Hyperlink" rStyle is absent from styles.xml (Okapi's preCombined
+// includes latent-style props; a styleMap lookup resolves absent→"" and
+// would wrongly strip); and (b) the outer text gate must stay at WRITE
+// time — it inspects post-translation run text, so AI-translation into
+// Arabic/Hebrew injects complex-script content a read-time decision would
+// miss. This is the sanctioned faithful-Okapi-reproduction exception, not
+// write-side compensation.
 func stripToggleMirrorChildren(s string) string {
 	if s == "" {
 		return s
@@ -2040,8 +1856,8 @@ func stripToggleMirrorChildren(s string) string {
 	//
 	// Native consults two signals:
 	//   - The pairing in the rPr itself (always available).
-	//   - currentDocDefaultsBCsExplicitOff / *ICsExplicitOff set by
-	//     the writer's WSO pre-pass from styles.xml.
+	//   - currentDocDefaultsBCsExplicitOff / *ICsExplicitOff loaded by
+	//     the writer from styles.xml before the render loop.
 	//
 	// Bare-on pair only preserves when docDefaults has the explicit-
 	// off form — otherwise the strip is correct (large-attribute.docx
@@ -2303,9 +2119,8 @@ func countTextRuns(runs []model.Run) int {
 // sourceRPr is the per-paragraph common rPr children XML stashed by
 // the reader (#592). When non-empty it is prepended on every emitted
 // <w:r>'s <w:rPr>, mirroring upstream Okapi RunBuilder.java which
-// keeps the source's full rPr per run, and giving the WSO post-pass
-// (style_optimization.go) material to lift into a synthesised
-// paragraph style.
+// keeps the source's full rPr per run. Native is faithful — the rPr
+// stays inline; it is not lifted into a synthesised paragraph style.
 //
 // perRunRPr is the per-text-run rPr fragments sidecar (Phase 2 of
 // the per-run rPr work — see PARITY_NOTES.md "1083-*" cluster).
@@ -3382,20 +3197,11 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 				// host run (a complex-image envelope), upstream Okapi's
 				// RunBuilder.flushRunStart/flushRunEnd cycle punctuates the
 				// image→br boundary with an empty placeholder run. Emit a
-				// SELF-CLOSING `<w:r/>` here — structurally, BEFORE WSO —
-				// rather than via a post-WSO regex. The self-closing form
-				// is invisible to WSO's findRuns (which skips `<w:r/>`,
-				// style_optimization.go:2124-2128), so the IdGenerator
-				// counter and per-run rPr strip stay in lockstep with the
-				// bridge reference; an open/close `<w:r></w:r>` would be
-				// counted as a (rPr-less) run and collapse the paragraph's
-				// commonRunProperties intersection, perturbing style
-				// synthesis. okapi emits the placeholder self-closing too
+				// SELF-CLOSING `<w:r/>` here — structurally — matching the
+				// self-closing form okapi emits for the placeholder
 				// (`</mc:AlternateContent></w:r><w:r/><w:r><w:br/>…`).
 				// graphicdata.docx (document.xml) is the canonical fixture.
-				// See runIsAltContentImageHost for the ECMA-376-1 citation;
-				// this replaces the retired post-WSO regex
-				// (emitEmptyRunAfterAltContentPostImageBoundary).
+				// See runIsAltContentImageHost for the ECMA-376-1 citation.
 				if r.Ph.SubType == SubTypeBreakStandalone &&
 					runIdx > 0 && runIsAltContentImageHost(runs[runIdx-1]) {
 					closeRun() // belt-and-braces; closeRun was already invoked above
@@ -3901,8 +3707,8 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 func pullLeadingFldCharEndIntoPrevParagraph(data []byte) []byte {
 	// The `<w:r>` envelope around a fld-end may carry rsid* /
 	// rsidDel / rsidR / rsidRPr attributes that survive into the
-	// post-WSO output (the rsid strip is only applied by the
-	// canonical normalizer, not by stripWMLSkippableElements).
+	// output (the rsid strip is only applied by the canonical
+	// normalizer, not by stripWMLSkippableElements).
 	// Use a regex that accepts any `<w:r ...>` open tag and either
 	// the paired `<w:fldChar.../></w:fldChar>` or the empty
 	// self-closing `<w:fldChar.../>` body. Per ECMA-376-1

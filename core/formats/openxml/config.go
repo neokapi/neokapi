@@ -44,9 +44,6 @@ type Config struct {
 	// --- Complex fields ---
 	ComplexFieldDefinitionsToExtract []string // Field instruction prefixes to extract (e.g., "HYPERLINK", "REF")
 
-	// --- Style optimization ---
-	OptimiseWordStyles bool // Resolve style inheritance and strip redundant run properties
-
 	// --- Font mappings ---
 	FontMappings map[string]string // Font name → script group (e.g., "MS Gothic": "ja")
 
@@ -115,35 +112,23 @@ func (c *Config) Reset() {
 	// anchor still present (a real semantic divergence on every
 	// HYPERLINK fixture, e.g. 768.docx).
 	c.ComplexFieldDefinitionsToExtract = []string{"HYPERLINK"}
-	// Native is FAITHFUL by default: source rPr is preserved inline, no
-	// synthesised paragraph styles, no attribute stripping. Word Style
-	// Optimisation (WSO) is a clean, opt-in post-pass that mimics Okapi's
-	// compact output (synthesising `NF…-Normal` pStyles from common run
-	// properties, stripping "moot" attributes, renaming font subsets) —
-	// nothing ECMA-376 / ISO/IEC 29500 requires. The faithful pre-WSO
-	// output (`renderWMLBlock` + `postNonWSOForName`) is already a valid
-	// OOXML producer that renders identically; Okapi's compact form and
-	// the faithful inline form are equally spec-valid (§17.3.2.1 CT_R +
-	// §17.7 style resolution — direct and style-based formatting resolve
-	// to the same effective formatting).
-	//
-	// Defaulting WSO off (a) closes #597 (no rPr rewrite → source
-	// `<w:spacing>` is preserved; no docDefaults `rFonts` overlay → no
-	// injected `<w:rFonts w:cs="Helvetica"/>`) and #598b (no attr strip →
-	// source `<w:color>` preserved), and (b) removes WSO's global,
-	// order-coupled synth-style ID counter (the 847-3 "architectural
-	// blocker"). Equivalence with Okapi's synth-pStyle form is proved in
-	// the parity comparator by an effective-rPr normalizer that resolves
-	// the style indirection on both sides (cli/parity/roundtrip), not in
-	// the writer. This mirrors the established xliff "faithful default +
-	// opt-in okapi-compat" pattern. See the OpenXML faithful-writer design
-	// note (docs/internals/research/openxml-faithful-writer-design.md).
-	//
-	// Okapi's AllowWordStyleOptimisation parameter defaults to true
-	// (upstream ConditionalParameters.java line 813); we deliberately
-	// diverge from that default here because byte-matching Okapi is the
-	// comparator's job, not the producer's.
-	c.OptimiseWordStyles = false
+	// Native is FAITHFUL: source rPr is preserved inline, with no
+	// synthesised paragraph styles and no attribute stripping. Word Style
+	// Optimisation (WSO) — the post-pass that mimicked Okapi's compact
+	// output by synthesising `NF…-Normal` pStyles from common run
+	// properties, stripping "moot" attributes, and renaming font subsets
+	// — has been DELETED (it was dead code once the faithful default
+	// shipped). The faithful flush path (`renderWMLBlock` +
+	// `postNonWSOForName`) is a valid ECMA-376 / ISO/IEC 29500 producer
+	// that renders identically to Okapi's compact form; the two are
+	// equally spec-valid (§17.3.2.1 CT_R + §17.7 style resolution —
+	// direct and style-based formatting resolve to the same effective
+	// formatting). Equivalence with Okapi's synth-pStyle form is proved
+	// in the parity comparator by an effective-rPr normalizer that
+	// resolves the style indirection on both sides (cli/parity/roundtrip),
+	// not in the writer. This mirrors the established xliff "faithful
+	// default" pattern. See the OpenXML faithful-writer design note
+	// (docs/internals/research/openxml-faithful-writer-design.md).
 	c.FontMappings = nil
 	c.ExtractRunFontsInfo = false
 	c.ReplaceLineSeparator = false
@@ -193,8 +178,6 @@ func (c *Config) ApplyMap(values map[string]any) error {
 			c.TranslateSharedStrings = toBool(val)
 		case "useCodeFinder":
 			c.UseCodeFinder = toBool(val)
-		case "optimiseWordStyles":
-			c.OptimiseWordStyles = toBool(val)
 		case "extractMedia":
 			c.ExtractMedia = toBool(val)
 		case "extractRunFontsInfo":

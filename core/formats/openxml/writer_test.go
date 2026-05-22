@@ -47,9 +47,11 @@ func TestWriterBasic(t *testing.T) {
 	assert.Equal(t, byte(0x4B), buf.Bytes()[1])
 }
 
-// skeletonWriteOnce reads original with a fresh skeleton store (so WSO's
-// pre-pass + emit-loop double path runs over document.xml/styles.xml) and
-// returns the recompiled .docx bytes.
+// skeletonWriteOnce reads original with a fresh skeleton store and returns
+// the recompiled .docx bytes. Native is faithful (Word Style Optimisation
+// removed), so this exercises the faithful flush path: skeleton
+// reconstruction + lang strip/retarget + postNonWSOForName + the O3
+// per-part strip/decompress caches.
 func skeletonWriteOnce(t *testing.T, original []byte, uri string) []byte {
 	t.Helper()
 
@@ -58,10 +60,6 @@ func skeletonWriteOnce(t *testing.T, original []byte, uri string) []byte {
 	defer skelStore.Close()
 
 	reader := NewReader()
-	// WSO is OFF by default (native is faithful — see config.go). This
-	// test exercises the WSO part-strip/decompress caches, so enable it
-	// explicitly on both reader and writer.
-	reader.cfg.OptimiseWordStyles = true
 	reader.SetSkeletonStore(skelStore)
 	doc := &model.RawDocument{
 		URI:          uri,
@@ -75,7 +73,6 @@ func skeletonWriteOnce(t *testing.T, original []byte, uri string) []byte {
 
 	var buf bytes.Buffer
 	writer := NewWriter()
-	writer.cfg.OptimiseWordStyles = true
 	writer.SetOriginalContent(original)
 	writer.SetSkeletonStore(skelStore)
 	require.NoError(t, writer.SetOutputWriter(&buf))
@@ -85,15 +82,14 @@ func skeletonWriteOnce(t *testing.T, original []byte, uri string) []byte {
 	return append([]byte(nil), buf.Bytes()...)
 }
 
-// TestWriterWSOPartCachingDeterministic guards the O3 per-part strip and
-// decompress caches (#608). WSO is now OFF by default (native is faithful),
-// so skeletonWriteOnce enables OptimiseWordStyles explicitly: document.xml
-// is then stripped + WSO-optimised in the pre-pass and the cached result is
-// reused in the emit loop. The caches hand out shared slices, so a stray
-// in-place mutation would corrupt a later read of the same part. Two
-// independent writes of the same input must therefore produce
-// byte-identical output.
-func TestWriterWSOPartCachingDeterministic(t *testing.T) {
+// TestWriterPartCachingDeterministic guards the O3 per-part strip and
+// decompress caches (#608) on the faithful flush path: word/*.xml parts
+// are stripped (stripWMLSkippableElementsCached) and decompressed
+// (readZipFileCached) at most once, and the cached slices are handed out
+// read-only to both the strip and emit steps. A stray in-place mutation
+// would corrupt a later read of the same part, so two independent writes
+// of the same input must produce byte-identical output.
+func TestWriterPartCachingDeterministic(t *testing.T) {
 	for _, name := range []string{"simple.docx", "formatted.docx"} {
 		t.Run(name, func(t *testing.T) {
 			original, err := os.ReadFile("testdata/" + name)
