@@ -1,0 +1,93 @@
+# Native reference doc for the built-in `encoding-convert` tool.
+# Schema source: core/tools/encodingconvert.go (EncodingConvertConfig).
+description: Normalize text through a target character encoding and unescape escape sequences on input.
+overview: |
+  The **Encoding Convert** tool validates and normalizes block text against a
+  target character encoding. It round-trips the text — encoding to the target
+  charset and decoding back to UTF-8 — which surfaces and replaces characters
+  the target cannot represent. The chosen encoding name is recorded in a block
+  property so a downstream writer can emit the document in that encoding.
+
+  Before converting, the tool can decode escape sequences found in the input —
+  numeric character references, HTML character entity references, and
+  Java-style `\uXXXX` escapes — so that the real characters are evaluated
+  against the target encoding. A target encoding name is required, and a target
+  locale is required when applying to the target.
+parameters:
+  targetEncoding:
+    description: The character encoding to normalize text through.
+    help: |
+      An IANA encoding name such as `utf-8`, `iso-8859-1`, or `shift-jis`. The
+      text is encoded to this charset and decoded back to UTF-8, replacing any
+      characters the encoding cannot represent. The name is stored on the block
+      for downstream writers. Unknown encodings are rejected.
+    values: "IANA encoding name (required)"
+  applySource:
+    description: Convert source text.
+    help: When enabled, the source text is normalized through the target encoding.
+    values: "`true` / `false` (default `false`)"
+  applyTarget:
+    description: Convert target text.
+    help: |
+      When enabled, the target text is normalized through the target encoding
+      for the configured locale. Only existing targets are touched.
+    values: "`true` / `false` (default `true`)"
+    dependsOn:
+      - property: targetLocale
+        condition: required when applyTarget is enabled
+  targetLocale:
+    description: Target locale for processing.
+    help: |
+      The locale whose target text is converted. Required when `applyTarget` is
+      enabled.
+    values: "BCP-47 locale"
+    dependsOn:
+      - property: applyTarget
+        condition: must be enabled for this to take effect
+  unescapeNCR:
+    description: Decode numeric character references on input.
+    help: |
+      When enabled, numeric character references such as `&#xE1;` or `&#225;`
+      are decoded to their characters before the text is converted.
+    values: "`true` / `false` (default `true`)"
+  unescapeCER:
+    description: Decode HTML character entity references on input.
+    help: |
+      When enabled, named HTML character entity references such as `&aacute;`
+      are decoded to their characters before conversion.
+    values: "`true` / `false` (default `true`)"
+  unescapeJava:
+    description: Decode Java-style escape sequences on input.
+    help: |
+      When enabled, Java-style `\uXXXX` escape sequences are decoded to their
+      characters before conversion.
+    values: "`true` / `false` (default `true`)"
+  escapeAll:
+    description: Escape all extended (non-ASCII) characters in output.
+    help: |
+      When enabled, extended (non-ASCII) characters are escaped in the output
+      rather than emitted directly.
+    values: "`true` / `false` (default `false`)"
+  reportUnsupported:
+    description: Report characters the target encoding cannot represent.
+    help: |
+      When enabled, characters that the target encoding does not support are
+      reported, so unmappable content can be reviewed.
+    values: "`true` / `false` (default `true`)"
+limitations:
+  - Conversion validates representability by round-tripping through the encoding; characters the encoding cannot represent are replaced.
+processingNotes:
+  - Operates on translatable blocks only; non-translatable blocks pass through unchanged.
+  - The target encoding name is written to a block property for downstream writers.
+examples:
+  - title: Normalize targets to ISO-8859-1
+    description: Validate target text against Latin-1 before writing.
+    config: |
+      targetEncoding: iso-8859-1
+      targetLocale: fr-FR
+  - title: Decode entities, then normalize to Shift-JIS
+    description: Unescape HTML entities in input and convert to a Japanese encoding.
+    config: |
+      targetEncoding: shift-jis
+      targetLocale: ja-JP
+      unescapeCER: true

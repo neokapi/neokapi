@@ -1,0 +1,30 @@
+# Native reference doc for the built-in `txml` format.
+# Schema source: core/formats/txml/{reader.go,writer.go,config.go,spec.yaml}.
+# Upstream analogue: Okapi TXMLFilter (net.sf.okapi.filters.txml.TXMLFilter),
+# which implements the Wordfast Pro TXML schema. The native reader has no JSON
+# Schema (Config does not implement SchemaProvider), so no
+# `parameters`/`examples` blocks are authored.
+description: Read and write TXML bilingual documents (the Wordfast Pro XML format).
+overview: |
+  TXML is the XML-based bilingual format used by Wordfast Pro and supported by
+  several other tools. There is no official public TXML specification. A TXML
+  document has a top-level `<txml>` root carrying `locale` and `targetlocale`
+  attributes, optional `<skeleton>` wrappers holding original markup, and
+  `<translatable>` blocks whose `<segment>` children each hold a
+  `<source>`/`<target>` pair.
+
+  neokapi reads and writes TXML. Each `<translatable>` element becomes one
+  Block, with one segment per `<segment>` child, preserving existing
+  translations on read. The surrounding markup is kept as skeleton. By default
+  the writer permits empty target segments — emitting an empty target element
+  for an untranslated segment rather than omitting it — matching the upstream
+  Okapi TXML filter. The native reader applies this default but does not
+  expose it as a configurable JSON schema in this reference.
+limitations:
+  - There is no official public TXML specification; behaviour follows the schema the upstream Okapi filter implements.
+  - The empty-target output toggle matches the upstream Okapi TXML filter but is not surfaced as a configurable schema property in this reference.
+processingNotes:
+  - One Block per `<translatable>` element, with one segment per `<segment>` child.
+  - Existing `<source>`/`<target>` translations are preserved on read; surrounding markup is kept as skeleton.
+  - By default an untranslated segment writes an empty target element rather than omitting it.
+wikiUrl: "https://www.wordfast.com/"

@@ -168,6 +168,24 @@ export interface TabInfo {
   path: string;
 }
 
+/** A single file-dialog filter handed to BrowsePath (matches the Go BrowsePathFilter). */
+export interface BrowsePathFilter {
+  name: string;
+  /** Space-delimited glob list, e.g. "*.tmx" or "*.html *.htm". */
+  extensions: string;
+}
+
+/** Generic browse request the schema-form PathPicker hands to the host (matches Go BrowsePathRequest). */
+export interface BrowsePathRequest {
+  kind: "file" | "directory";
+  field: string;
+  currentValue?: string;
+  title?: string;
+  forSaveAs?: boolean;
+  filters?: BrowsePathFilter[];
+  accepts?: string[];
+}
+
 // Schema types — re-exported from the flow-editor package (single source of truth)
 export type {
   ComponentSchema,

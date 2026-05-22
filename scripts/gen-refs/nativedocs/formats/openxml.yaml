@@ -1,0 +1,307 @@
+# Native reference doc for the built-in `openxml` format.
+# Schema source: core/formats/openxml/config.go (Config).
+# Behaviour grounded in core/formats/openxml/reader.go, writer.go and spec.yaml,
+# mirroring Okapi's OpenXML filter (okf_openxml) and ECMA-376 / ISO/IEC 29500.
+displayName: OpenXML (Office)
+description: Extract and write translatable text from Word, Excel, and PowerPoint Office Open XML files.
+overview: |
+  The OpenXML format handles Microsoft Office Open XML documents — Word
+  (`.docx`), Excel (`.xlsx`), and PowerPoint (`.pptx`). All three share a
+  ZIP-and-XML package, so one filter serves them and auto-detects the
+  variant from the package contents, per ECMA-376 / ISO/IEC 29500.
+
+  Extraction is selective: by default the reader pulls the main body text
+  plus the parts that are normally user-visible — document properties,
+  headers and footers, footnotes, comments, and hyperlink text in Word;
+  shared strings in Excel; and speaker notes in PowerPoint — while leaving
+  hidden, structural, or rarely translated content out unless you opt in.
+  A set of style and colour filters lets you include or exclude runs by
+  paragraph/character style or highlight colour. This mirrors Okapi's
+  OpenXML filter, including its default of accepting tracked changes
+  before extraction.
+parameters:
+  # ── Word options ──────────────────────────────────────────────────
+  translateDocProperties:
+    description: Extract document properties (title, subject, keywords).
+    help: |
+      When enabled (the default), the metadata in `docProps/core.xml` —
+      title, subject, keywords — is extracted for translation. Disable it
+      to leave document properties untouched.
+    values: "`true` / `false` (default `true`)"
+  translateHiddenText:
+    description: Extract text marked with the hidden (vanish) property.
+    help: |
+      When enabled, runs carrying the `w:vanish` (hidden) property are
+      extracted. When disabled (the default), hidden text is skipped.
+    values: "`true` / `false` (default `false`)"
+  translateHeadersFooters:
+    description: Extract text from headers and footers.
+    help: |
+      When enabled (the default), header and footer text in Word documents
+      is extracted. Disable it to leave headers and footers untranslated.
+    values: "`true` / `false` (default `true`)"
+  translateFootnotes:
+    description: Extract footnotes and endnotes.
+    help: |
+      When enabled (the default), footnote and endnote text in Word
+      documents is extracted. Disable it to skip them.
+    values: "`true` / `false` (default `true`)"
+  translateComments:
+    description: Extract comment text from Word documents.
+    help: |
+      When enabled (the default), the text of Word review comments is
+      extracted. This matches Okapi, which treats `word/comments.xml` as a
+      styled-text part alongside the main document. Disable it to leave
+      comments untranslated.
+    values: "`true` / `false` (default `true`)"
+  translateHyperlinks:
+    description: Extract the display text of hyperlinks.
+    help: |
+      When enabled (the default), the visible anchor text of hyperlinks is
+      extracted for translation. Disable it to leave hyperlink text
+      untouched. (The HYPERLINK field's cached display text is governed
+      separately by `complexFieldDefinitionsToExtract`.)
+    values: "`true` / `false` (default `true`)"
+  automaticallyAcceptRevisions:
+    description: Accept tracked changes before extracting text.
+    help: |
+      When enabled (the default, matching Okapi), tracked changes are
+      accepted before extraction: inserted runs are kept and deleted runs
+      are dropped; table rows marked `<w:trPr><w:del/>` (ECMA-376
+      §17.13.5.13) are removed entirely and rows marked
+      `<w:trPr><w:ins/>` (§17.13.5.16) are kept. Disable it to extract the
+      document as authored, with revision markup intact.
+    values: "`true` / `false` (default `true`)"
+  # ── Excel options ─────────────────────────────────────────────────
+  translateSharedStrings:
+    description: Extract shared strings from Excel workbooks.
+    help: |
+      When enabled (the default), the cell text held in the workbook's
+      shared-strings table is extracted — this is where most Excel text
+      lives. Disable it to skip cell content.
+    values: "`true` / `false` (default `true`)"
+  translateSheetNames:
+    description: Extract worksheet (tab) names.
+    help: |
+      When enabled, worksheet names are extracted for translation. When
+      disabled (the default), sheet names are left as-is.
+    values: "`true` / `false` (default `false`)"
+  excludedSheets:
+    description: Worksheet names to exclude from extraction.
+    help: |
+      A list of worksheet names whose content is skipped entirely. Use it
+      to leave reference or data sheets untranslated.
+    values: "Array of sheet-name strings"
+    examples:
+      - "`[\"Data\", \"Lookups\"]`"
+  excludedColumns:
+    description: Column letters to exclude from extraction.
+    help: |
+      A list of column letters whose cells are skipped. Use it to leave
+      identifier or numeric columns untranslated.
+    values: "Array of column-letter strings (e.g. `A`, `C`, `AA`)"
+    examples:
+      - "`[\"A\", \"C\"]`"
+  # ── PowerPoint options ────────────────────────────────────────────
+  translateSlideNotes:
+    description: Extract speaker notes from PowerPoint presentations.
+    help: |
+      When enabled (the default), the speaker-notes text of slides is
+      extracted. Disable it to leave notes untranslated.
+    values: "`true` / `false` (default `true`)"
+  translateSlideMasters:
+    description: Extract text from slide masters.
+    help: |
+      When enabled, text held on slide masters and layouts is extracted.
+      When disabled (the default), master-slide text is skipped.
+    values: "`true` / `false` (default `false`)"
+  translateHiddenSlides:
+    description: Extract content from hidden slides.
+    help: |
+      When enabled, the content of slides marked hidden is extracted. When
+      disabled (the default), hidden slides are skipped.
+    values: "`true` / `false` (default `false`)"
+  translateCharts:
+    description: Extract text from embedded charts.
+    help: |
+      When enabled, strings inside embedded charts (titles, axis labels,
+      data labels) are extracted. When disabled (the default), chart text
+      is skipped.
+    values: "`true` / `false` (default `false`)"
+  translateDiagrams:
+    description: Extract text from SmartArt diagrams.
+    help: |
+      When enabled, the text held in SmartArt diagram data is extracted.
+      When disabled (the default), diagram text is skipped.
+    values: "`true` / `false` (default `false`)"
+  includedSlides:
+    description: Restrict extraction to specific slide numbers.
+    help: |
+      When non-empty, only the listed slide numbers (1-based) are
+      extracted; all other slides are skipped. Leave it empty (the default)
+      to extract every slide.
+    values: "Array of 1-based slide numbers (default: all slides)"
+    examples:
+      - "`[1, 2, 5]`"
+  # ── General ───────────────────────────────────────────────────────
+  aggressiveCleanup:
+    description: Strip revision ids and proofing noise before merging runs.
+    help: |
+      When enabled (the default), noise such as revision ids (`w:rsid*`),
+      proofing-error markers, and last-rendered page breaks is stripped
+      before adjacent runs are merged, which yields cleaner, fewer inline
+      codes. Disable it to keep that markup.
+    values: "`true` / `false` (default `true`)"
+  tabAsCharacter:
+    description: Treat tab elements as tab characters instead of placeholder spans.
+    help: |
+      When enabled, `<w:tab/>` elements are extracted as literal tab
+      characters in the text. When disabled (the default), they are
+      represented as inline placeholder spans.
+    values: "`true` / `false` (default `false`)"
+  ignoreSoftHyphenTag:
+    description: Ignore soft-hyphen tags in the document.
+    help: |
+      When enabled, soft-hyphen tags are ignored during extraction. When
+      disabled (the default), they are retained.
+    values: "`true` / `false` (default `false`)"
+  replaceNoBreakHyphenTag:
+    description: Replace no-break hyphen tags with the non-breaking hyphen character.
+    help: |
+      When enabled, no-break hyphen tags are replaced with the actual
+      non-breaking hyphen character in the text. When disabled (the
+      default), the tag representation is kept.
+    values: "`true` / `false` (default `false`)"
+  # ── Style & colour filtering ──────────────────────────────────────
+  excludeColors:
+    description: Font colours to exclude from extraction.
+    help: |
+      A list of font colours (hex RGB) whose runs are skipped. Use it to
+      leave text in a particular colour (for example, internal annotations)
+      untranslated.
+    values: "Array of hex-RGB strings (e.g. `FF0000` for red)"
+    examples:
+      - "`[\"FF0000\"]`"
+  excludeHighlightColors:
+    description: Highlight colours to exclude from extraction.
+    help: |
+      A list of highlight colour names whose runs are skipped. Use it to
+      leave highlighted text untranslated.
+    values: "Array of highlight-colour names (e.g. `yellow`, `red`)"
+    examples:
+      - "`[\"yellow\"]`"
+  includeHighlightColors:
+    description: Restrict extraction to text with these highlight colours.
+    help: |
+      When non-empty, only runs with one of the listed highlight colours
+      are extracted; all other text is skipped. Leave it empty (the
+      default) to apply no highlight-based restriction.
+    values: "Array of highlight-colour names (default: no restriction)"
+    examples:
+      - "`[\"green\"]`"
+  excludeStyles:
+    description: Paragraph or character styles to exclude from extraction.
+    help: |
+      A list of paragraph or character style names whose text is skipped.
+      Use it to leave code, caption, or reference styles untranslated.
+    values: "Array of style-name strings"
+    examples:
+      - "`[\"Code\", \"Caption\"]`"
+  includeStyles:
+    description: Restrict extraction to text in these styles.
+    help: |
+      When non-empty, only text in one of the listed styles is extracted;
+      all other text is skipped. Leave it empty (the default) to apply no
+      style-based restriction.
+    values: "Array of style-name strings (default: no restriction)"
+    examples:
+      - "`[\"Heading 1\", \"Normal\"]`"
+  # ── Inline codes ──────────────────────────────────────────────────
+  useCodeFinder:
+    description: Detect inline codes inside text using regular expressions.
+    help: |
+      Enables pattern-based detection of inline codes (placeholders,
+      variables, tags) within extracted text, using the patterns in
+      `codeFinderRules`. When disabled (the default), no pattern-based
+      inline codes are detected.
+    values: "`true` / `false` (default `false`)"
+  codeFinderRules:
+    description: Regular-expression patterns that match inline codes in text.
+    help: |
+      A list of regular expressions; each match within translatable text is
+      protected as an inline code rather than translated. Only takes effect
+      when `useCodeFinder` is enabled.
+    values: "Array of regular-expression strings"
+    examples:
+      - "`\\{[0-9]+\\}` — protect numbered placeholders like `{0}`"
+    dependsOn:
+      - property: useCodeFinder
+        condition: must be enabled for the rules to take effect
+  # ── Advanced ──────────────────────────────────────────────────────
+  complexFieldDefinitionsToExtract:
+    description: Field-instruction prefixes whose cached display text is extracted.
+    help: |
+      A list of complex-field instruction prefixes whose cached display
+      text is extracted for translation. The default is `["HYPERLINK"]`,
+      matching Okapi — without it the user-visible anchor text of HYPERLINK
+      fields would round-trip in the source language. Add prefixes such as
+      `REF` to translate the display text of other field types.
+    values: "Array of field-prefix strings (default `[\"HYPERLINK\"]`)"
+    examples:
+      - "`[\"HYPERLINK\", \"REF\"]`"
+  fontMappings:
+    description: Map font names to script groups.
+    help: |
+      A map from font name to script group, used to associate runs with a
+      script for downstream handling. Empty by default.
+    values: "Object mapping font name to script-group code"
+    examples:
+      - "`{\"MS Gothic\": \"ja\"}`"
+  extractRunFontsInfo:
+    description: Emit font metadata as annotations on blocks.
+    help: |
+      When enabled, font information for each run is attached to the
+      extracted block as annotations. When disabled (the default), no font
+      metadata is emitted.
+    values: "`true` / `false` (default `false`)"
+  replaceLineSeparator:
+    description: Replace the Unicode line separator (U+2028) in output.
+    help: |
+      When enabled, the Unicode line-separator character (U+2028) is
+      replaced in the output by `lineSeparatorReplacement`. When disabled
+      (the default), it is left as-is.
+    values: "`true` / `false` (default `false`)"
+  lineSeparatorReplacement:
+    description: The replacement string for line-separator characters.
+    help: |
+      The string substituted for the Unicode line separator when
+      `replaceLineSeparator` is enabled. The default is a newline (`\n`).
+    values: "String (default `\\n`)"
+    dependsOn:
+      - property: replaceLineSeparator
+        condition: applied only when line-separator replacement is enabled
+limitations:
+  - One filter covers Word, Excel, and PowerPoint; some options apply only to the relevant variant (for example, the slide options affect PowerPoint only).
+processingNotes:
+  - The document variant (Word / Excel / PowerPoint) is auto-detected from the package contents.
+  - The writer is faithful by default — source run properties are preserved inline rather than rewritten into synthesised styles.
+examples:
+  - title: Translate everything in a Word document
+    description: Include comments, hidden text, and slide masters that are off by default.
+    config: |
+      translateHiddenText: true
+      translateComments: true
+  - title: Limit an Excel workbook to selected sheets
+    description: Skip data and lookup sheets during extraction.
+    config: |
+      excludedSheets:
+        - Data
+        - Lookups
+  - title: Extract only specific PowerPoint slides
+    description: Translate slides 1, 2, and 5 and skip the rest.
+    config: |
+      includedSlides:
+        - 1
+        - 2
+        - 5
+wikiUrl: https://www.ecma-international.org/publications-and-standards/standards/ecma-376/

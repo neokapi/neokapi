@@ -1,0 +1,79 @@
+# Native reference doc for the built-in `search-replace` tool.
+# Schema source: core/tools/searchreplace.go (SearchReplaceConfig).
+description: Find and replace text in blocks, with optional regular-expression matching and flags.
+overview: |
+  The **Search and Replace** tool performs find-and-replace on block text. The
+  search/replace pairs themselves are supplied programmatically or by the
+  configured command; the schema-visible options here control matching
+  behaviour — literal versus regular-expression mode, case sensitivity, and
+  whether the replacement scans source, target, or both.
+
+  When regular-expression mode is on, the case, dot-all, and multiline flags are
+  applied to every pattern. By default the tool replaces all matches in target
+  text only.
+parameters:
+  regEx:
+    description: Treat search patterns as regular expressions.
+    help: |
+      When enabled, every search pattern is compiled as a regular expression
+      and the case, dot-all, and multiline flags below apply.
+    values: "`true` / `false` (default `false`)"
+  ignoreCase:
+    description: Match case-insensitively.
+    help: |
+      When enabled, matching ignores letter case. In regex mode this adds the
+      case-insensitive flag to each pattern.
+    values: "`true` / `false` (default `false`)"
+  dotAll:
+    description: Let the dot metacharacter match line feeds.
+    help: |
+      When enabled (regex mode), the `.` metacharacter also matches newline
+      characters, so a pattern can span lines.
+    values: "`true` / `false` (default `false`)"
+    dependsOn:
+      - property: regEx
+        condition: applies in regular-expression mode
+  multiLine:
+    description: Make anchors match at each line boundary.
+    help: |
+      When enabled (regex mode), `^` and `$` match at the start and end of each
+      line rather than only the whole text.
+    values: "`true` / `false` (default `false`)"
+    dependsOn:
+      - property: regEx
+        condition: applies in regular-expression mode
+  source:
+    description: Apply replacements to source content.
+    help: When enabled, search and replace runs over the block's source text.
+    values: "`true` / `false` (default `false`)"
+  target:
+    description: Apply replacements to target content.
+    help: |
+      When enabled, search and replace runs over the target text of the
+      configured locale.
+    values: "`true` / `false` (default `true`)"
+  replaceAll:
+    description: Replace every match rather than only the first.
+    help: |
+      When enabled, all occurrences of a pattern are replaced. When disabled,
+      only the first match in each text is replaced.
+    values: "`true` / `false` (default `true`)"
+limitations:
+  - Regular expressions use Go's RE2 syntax, which does not support backreferences or lookaround.
+  - The search/replace pairs are supplied programmatically; only the matching options appear in the schema.
+processingNotes:
+  - Operates on translatable blocks only; non-translatable blocks pass through unchanged.
+  - When neither source nor target is set, the tool applies to both for backward compatibility.
+examples:
+  - title: Replace a literal string in targets
+    description: Use literal matching on target text only.
+    config: |
+      target: true
+      ignoreCase: false
+  - title: Case-insensitive regex over both scopes
+    description: Enable regex mode with case folding across source and target.
+    config: |
+      regEx: true
+      ignoreCase: true
+      source: true
+      target: true

@@ -18,6 +18,7 @@ import type {
   PluginDocsSummary,
   FilterDoc,
   StepDoc,
+  BrowsePathRequest,
 } from "../types/api";
 
 type Backend = Record<string, (...args: unknown[]) => Promise<unknown>>;
@@ -253,6 +254,9 @@ export const api = {
     call<string>("CopyFileToProject", tabID, srcPath, destDir),
   addFilesDialog: (tabID: string, destDir: string) =>
     call<string[]>("AddFilesDialog", tabID, destDir),
+  // Generic file/folder browse used by schema-form path widgets.
+  // Returns the chosen path, "" when the user cancels, or null outside Wails.
+  browsePath: (req: BrowsePathRequest) => call<string>("BrowsePath", req),
 
   // Recent files
   listRecentFiles: () =>

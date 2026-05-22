@@ -1,0 +1,33 @@
+# Native reference doc for the built-in `versifiedtext` format.
+# Source: core/formats/versifiedtext/{reader.go,writer.go,config.go,spec.yaml}.
+# Native-only: the okapi-bridge ships no okf_versifiedtext counterpart. No configurable parameters.
+description: Read and write verse-numbered plain text (scripture, poetry, lyrics), one block per verse.
+overview: |
+  Versified text is a line-oriented format for verse-numbered content
+  such as scripture, poetry, and lyrics. Each line opens with a verse
+  marker — either USFM-style (`\v 1` or `\v1`) or a plain numeric
+  prefix (`1.` or `1 `). The marker is consumed and the rest of the
+  line becomes one translatable block; the verse number is kept in the
+  block's `verse` property so the writer can re-emit the original
+  numbering.
+
+  Lines with no recognised marker are still extracted as blocks (with
+  an empty `verse` property), so non-numbered material is not lost.
+  Blank lines act as stanza breaks: they are preserved as
+  non-translatable structure and never translated.
+limitations:
+  - Recognised markers are USFM `\v` (with or without a space) and a leading positive integer followed by `.` or a space; other numbering schemes are treated as ordinary lines.
+  - This is a native-only format; the okapi-bridge daemon ships no equivalent filter.
+processingNotes:
+  - One block per line; the verse number rides along in the block's `verse` property and the block name follows `verse.<N>`.
+  - Blank lines between verses emit a stanza-break Data part and round-trip as skeleton.
+  - With a skeleton store active, the verse marker prefix and line endings are stored as skeleton text for byte-exact round-trips.
+examples:
+  - title: Translate verse-numbered text
+    description: |
+      No configuration is required. Declare the format to extract one
+      block per verse while preserving verse numbers and stanza breaks.
+    config: |
+      format:
+        name: versifiedtext
+wikiUrl: https://ubsicap.github.io/usfm/

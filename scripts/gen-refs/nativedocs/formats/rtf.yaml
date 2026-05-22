@@ -1,0 +1,31 @@
+# Native reference doc for the built-in `rtf` format.
+# Schema source: core/formats/rtf/{reader.go,writer.go,config.go,spec.yaml}.
+# Upstream analogue: Okapi RTFFilter (Trados-tagged RTF). The upstream filter
+# exposes no parameters; neokapi adds extraction toggles but does not expose a
+# JSON Schema (Config does not implement SchemaProvider), so no
+# `parameters`/`examples` blocks are authored.
+description: Extract translatable text from Rich Text Format documents.
+overview: |
+  RTF (Rich Text Format) is Microsoft's text-based document interchange
+  format, structured as a stream of control words and groups. It is also the
+  carrier for Trados-tagged bilingual RTF. neokapi walks the RTF token stream,
+  extracts text from paragraph runs as translatable Blocks, and skips
+  non-translatable destinations — font, colour, and stylesheet tables,
+  document info, pictures, and fields.
+
+  neokapi reads and writes RTF. It decodes the common RTF escapes on read —
+  `\uN` Unicode escapes, `\'HH` hex escapes, and special-character control
+  words such as `\par`, `\tab`, `\emdash`, and the smart-quote words — and
+  preserves non-translatable structure as skeleton. By default it does not
+  extract header and footer text, annotation (comment) text, or bookmark text;
+  the upstream Okapi RTF filter exposes no parameters, and these neokapi-side
+  extraction toggles are not surfaced as a configurable JSON schema in this
+  reference.
+limitations:
+  - Header/footer, annotation (comment), and bookmark text are not extracted by default.
+  - The neokapi extraction toggles have no upstream Okapi parameter and are not surfaced as configurable schema properties in this reference.
+processingNotes:
+  - Translatable text comes from paragraph runs; control tables, info, pictures, and fields are skipped.
+  - "Decodes `\\uN` Unicode escapes, `\\'HH` hex escapes, and special-character control words (`\\par`, `\\tab`, `\\emdash`, smart quotes)."
+  - Non-translatable destinations are preserved as skeleton for round-trips.
+wikiUrl: "https://www.microsoft.com/en-us/download/details.aspx?id=10725"

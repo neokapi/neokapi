@@ -1,0 +1,95 @@
+# Native reference doc for the built-in `ttml` format.
+# Schema source: core/formats/ttml/config.go (Config).
+# Behaviour grounded in core/formats/ttml/reader.go, writer.go and spec.yaml,
+# mirroring Okapi's TTML subtitle filter (okf_ttml), per W3C TTML2.
+displayName: TTML
+description: Read and write W3C Timed Text Markup Language subtitle and caption files.
+overview: |
+  TTML (Timed Text Markup Language) is the W3C XML standard for timed
+  text — subtitles and captions — also distributed as `.dfxp`. A TTML
+  document carries its captions inside a `<body>`/`<div>`/`<p>` hierarchy
+  in the `http://www.w3.org/ns/ttml` namespace, with timing and
+  positioning expressed as attributes (`begin`, `end`, `dur`, `region`,
+  `textAlign`).
+
+  The reader walks the `<p>` hierarchy and emits one translatable block
+  per non-empty `<p>`. The timing and positioning attributes are kept on
+  the block's properties and written back unchanged. Inline styling such
+  as `<span>` is unwrapped into the block's text; `<br/>` handling is
+  controlled by `escapeBR`. This mirrors Okapi's TTML filter, with the
+  native default of one block per `<p>`.
+parameters:
+  mergeAdjacentCaptions:
+    description: Merge consecutive captions that continue a sentence into one block.
+    help: |
+      When enabled, an adjacent `<p>` caption is merged into the previous
+      block when the previous text ends with a continuation punctuation
+      mark (a comma or semicolon). This produces fewer, sentence-level
+      blocks. When disabled (the default), every non-empty `<p>` becomes
+      its own block.
+    values: "`true` / `false` (default `false`)"
+  escapeBR:
+    description: Control whether `<br/>` line breaks are collapsed or kept as literal text.
+    help: |
+      Governs how `<br/>` elements inside a caption are extracted. When
+      enabled (the default), `<br/>` is removed and the surrounding text is
+      joined with a single space, so the block holds one flowing line of
+      text. When disabled, `<br/>` is preserved as the literal string
+      `<br/>` inside the block's source text, keeping the in-caption line
+      breaks visible to the translator.
+    values: "`true` / `false` (default `true`)"
+  maxCharsPerLine:
+    description: Maximum characters per line of caption text on output.
+    help: |
+      Caps the line length of written caption text. `0` (the default)
+      means no limit. This is an output-side parameter modelled on Okapi's
+      TTML writer; it does not affect extraction, and the native writer
+      accepts it for configuration parity without currently rewrapping
+      caption text.
+    values: "Integer (default `0`, meaning no limit)"
+  maxLinesPerCaption:
+    description: Maximum number of text lines per caption on output.
+    help: |
+      Caps how many lines a single caption may occupy. `0` (the default)
+      means no limit. Output-side; does not affect extraction. Accepted
+      for parity with Okapi's TTML writer; the native writer does not
+      currently enforce it.
+    values: "Integer (default `0`, meaning no limit)"
+  cjkCharsPerLine:
+    description: Maximum characters per line for CJK languages.
+    help: |
+      A separate per-line character cap for CJK text, where each character
+      is visually wider. `0` (the default) falls back to `maxCharsPerLine`.
+      Output-side; does not affect extraction. Accepted for parity with
+      Okapi's TTML writer; the native writer does not currently enforce it.
+    values: "Integer (default `0`, falls back to maxCharsPerLine)"
+    dependsOn:
+      - property: maxCharsPerLine
+        condition: used as the fallback when cjkCharsPerLine is 0
+  splitWords:
+    description: Allow splitting words to keep within the character limit.
+    help: |
+      When enabled, words may be broken across lines to honour the
+      per-line character cap; when disabled, line breaks fall on word
+      boundaries only. Takes effect only alongside a non-zero character
+      limit. Accepted for parity with Okapi's TTML writer; the native
+      writer does not currently rewrap text.
+    values: "`true` / `false` (default `false`)"
+    dependsOn:
+      - property: maxCharsPerLine
+        condition: only relevant when a character limit is set
+limitations:
+  - The output line-wrapping parameters (maxCharsPerLine, maxLinesPerCaption, cjkCharsPerLine, splitWords) are accepted for parity with Okapi but are not yet enforced by the native writer; caption text is written as supplied.
+processingNotes:
+  - One block is emitted per non-empty `<p>`; timing and positioning attributes (begin, end, dur, region, textAlign) are preserved on block properties.
+  - Inline styling such as `<span>` is unwrapped into the block's source text.
+examples:
+  - title: Keep in-caption line breaks
+    description: Preserve `<br/>` as literal text so the translator can see line breaks.
+    config: |
+      escapeBR: false
+  - title: Merge sentence-spanning captions
+    description: Combine adjacent captions that continue a sentence into one block.
+    config: |
+      mergeAdjacentCaptions: true
+wikiUrl: https://www.w3.org/TR/ttml2/

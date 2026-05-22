@@ -1,0 +1,55 @@
+# Native reference doc for the built-in `remove-target` tool.
+# Schema source: core/tools/removetarget.go (RemoveTargetConfig).
+description: Remove target segments from blocks, by locale or by selected text-unit IDs.
+overview: |
+  The **Remove Target** tool deletes target segments from blocks. With a target
+  locale set, it removes only that locale's targets; with no locale, it removes
+  all targets. It is useful for resetting translations before a fresh run, or
+  for clearing targets in a specific locale.
+
+  Removal can be scoped to specific text units by ID, which restricts the
+  operation to a comma-separated list of block IDs. Optionally, a block whose
+  targets are all removed can itself be dropped from the stream.
+parameters:
+  targetLocale:
+    description: The locale whose targets to remove.
+    help: |
+      The locale to clear. When empty, the targets for every locale on the
+      block are removed.
+    values: "BCP-47 locale (empty = remove all targets)"
+  textUnitIDs:
+    description: Comma-separated text-unit IDs to restrict removal to.
+    help: |
+      A comma-delimited list of block (text-unit) IDs. When set and ID
+      filtering is enabled, only blocks whose ID appears in the list have their
+      targets removed. Leave empty to remove targets from all blocks.
+    values: "comma-separated string"
+    dependsOn:
+      - property: filterByIDs
+        condition: ID filtering must be enabled for this list to apply
+  filterByIDs:
+    description: Filter text units by ID rather than by locale alone.
+    help: |
+      When enabled, removal is restricted to the blocks listed in
+      `textUnitIDs`. When disabled, removal is driven by the target locale
+      across all blocks.
+    values: "`true` / `false` (default `true`)"
+  removeBlockIfEmpty:
+    description: Drop a block when it has no targets left.
+    help: |
+      When enabled, a block that has no remaining target segments after removal
+      is dropped from the stream entirely. When disabled, the now-empty block is
+      kept.
+    values: "`true` / `false` (default `false`)"
+processingNotes:
+  - Operates on translatable blocks only; non-translatable blocks pass through unchanged.
+examples:
+  - title: Clear one locale's targets
+    description: Remove the French targets from every block.
+    config: |
+      targetLocale: fr-FR
+  - title: Remove targets for selected text units
+    description: Restrict removal to specific block IDs.
+    config: |
+      filterByIDs: true
+      textUnitIDs: "intro.title, intro.body"

@@ -1,0 +1,30 @@
+# Native reference doc for the built-in `idml` format.
+# Schema source: core/formats/idml/{reader.go,writer.go,config.go,spec.yaml}.
+# Upstream analogue: Okapi IDMLFilter (net.sf.okapi.filters.idml.IDMLFilter).
+# The native reader has no JSON Schema (Config does not implement
+# SchemaProvider), so no `parameters`/`examples` blocks are authored.
+description: Extract translatable text from Adobe InDesign IDML packages.
+overview: |
+  IDML (InDesign Markup Language) is the XML-based interchange format Adobe
+  InDesign produces. An `.idml` file is a ZIP package (UCF) containing a
+  `designmap.xml` index plus one or more `Stories/Story_*.xml` sub-documents.
+  neokapi walks each story in spread order, extracting translatable text from
+  `<Content>` runs while preserving the surrounding XML — paragraph and
+  character style ranges, hyperlink sources, and the package structure — as
+  skeleton.
+
+  neokapi reads and writes IDML, round-tripping the package so the translated
+  output remains a valid InDesign document. By default it extracts text from
+  master spreads but skips footnote and endnote text, content on hidden
+  InDesign layers, and items hidden on the pasteboard; soft (discretionary)
+  hyphens are kept. These choices mirror the upstream Okapi IDML filter
+  defaults. The native reader applies the same defaults but does not expose
+  them as a configurable JSON schema in this reference.
+limitations:
+  - Footnote and endnote text, hidden-layer stories, and hidden pasteboard items are not extracted by default.
+  - Extraction toggles match the upstream Okapi IDML filter but are not surfaced as configurable schema properties in this reference.
+processingNotes:
+  - Stories are gathered from `<TextFrame>` / `<TextPath>` elements in spread order; each sub-document is treated independently.
+  - Master-spread text is extracted by default; the surrounding XML is preserved as skeleton for round-trips.
+  - "On writing, `HyperlinkTextSource` content is always reconstructed as inline elements in the story XML."
+wikiUrl: "https://www.adobe.com/devnet/indesign/documentation.html"

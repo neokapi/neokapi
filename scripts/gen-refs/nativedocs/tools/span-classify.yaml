@@ -1,0 +1,22 @@
+# Native reference doc for the built-in `span-classify` tool.
+# Schema source: core/tools/span_classify.go (SpanClassifyConfig — no parameters).
+description: Reclassify generic markup inline codes into semantic vocabulary types.
+overview: |
+  The **Span Classify** tool reclassifies generic `code:markup` inline codes —
+  placeholders and paired open/close codes — into proper semantic vocabulary
+  types such as bold, italic, hyperlink, or image. It is designed to run after
+  readers that emit generic markup codes (for example bridge XLIFF or Okapi
+  readers), so that later tools and editors see meaningful inline-code types
+  rather than opaque markup.
+
+  Classification uses two strategies: a map of known Okapi code sub-types, and,
+  failing that, the HTML element name parsed from the code's raw data. When a
+  semantic type is resolved, the tool also applies the vocabulary's display
+  form, equivalence text, and editing constraints. Codes it cannot classify are
+  left as they are. The tool has no configurable parameters.
+limitations:
+  - Classification covers known Okapi sub-types and common HTML elements; unrecognized codes are left unchanged.
+  - Has no configurable parameters.
+processingNotes:
+  - Operates on inline-code runs in both source and target segments.
+  - Recurses into plural and select constructs so codes inside them are classified as well.

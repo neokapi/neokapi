@@ -1,0 +1,45 @@
+# Native reference doc for the built-in `transtable` format.
+# Source: core/formats/transtable/{reader.go,writer.go,config.go,spec.yaml}.
+# Mirrors Okapi's TransTable filter (okf_transtable). Configurable via .kapi config (allowSegments);
+# no JSON schema is published, so the config is documented in prose here.
+description: Read and write Okapi's TransTable v1 tab-separated bilingual exchange table.
+overview: |
+  TransTable v1 is the tab-separated bilingual exchange table that
+  Okapi's generic writer produces for its "Translation Table" output.
+  The first line is a header declaring the signature (`TransTableV1`)
+  and the source and target locales as three tab-separated cells. Each
+  following line is a context crumb (`okpCtx:tu=<id>`) followed by a
+  source cell and an optional target cell.
+
+  The reader extracts one translatable block per text unit, pairing the
+  source and target cells. Cells may be wrapped in double quotes, which
+  are stripped on read; the literal sequences `\t` and `\n` inside a
+  cell are unescaped to tab and newline. Whitespace-only lines are
+  skipped. A crumb may carry a segment suffix (`:s=<seg-id>`); rows that
+  share the same `tu=<id>` and carry segment suffixes are merged into a
+  single segmented text unit. A missing or malformed header aborts the
+  read.
+
+  Configuration is supplied on the collection's `format:` block in a
+  `.kapi` project. The one key is `allowSegments` (default true): when
+  enabled, `:s=<seg-id>` suffixes are honoured and rows sharing a
+  `tu=<id>` merge into one segmented unit; when disabled, every row is
+  its own text unit regardless of any segment suffix. It mirrors
+  Okapi's `allowSegments` parameter.
+limitations:
+  - The header must be a valid `TransTableV1` signature line; otherwise the read fails.
+  - Only the v1 table shape is supported.
+processingNotes:
+  - One block per text unit; source and target cells pair into source and target segments.
+  - Surrounding double quotes are stripped and `\t` / `\n` escapes are decoded on read.
+  - With `allowSegments` enabled, rows sharing a `tu=<id>` and carrying `:s=<seg-id>` suffixes merge into one segmented block.
+examples:
+  - title: Read a bilingual table without segment grouping
+    description: |
+      Disable segment grouping so each row becomes its own text unit,
+      regardless of any `:s=<seg-id>` suffix on the crumb.
+    config: |
+      format:
+        name: transtable
+        config:
+          allowSegments: false

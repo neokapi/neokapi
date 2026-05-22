@@ -1,0 +1,42 @@
+# Native reference doc for the built-in `linebreak-convert` tool.
+# Schema source: core/tools/linebreakconvert.go (LineBreakConvertConfig).
+description: Normalize line endings in block text to LF, CRLF, or CR.
+overview: |
+  The **Line Break Convert** tool normalizes line endings in block text to a
+  chosen style. It first collapses every line ending (`\r\n` and `\r`) to `\n`,
+  then rewrites them to the target style. Use it to make output consistent for
+  a platform that expects a particular convention — for example CRLF on
+  Windows-targeted files.
+
+  By default both the source and every target locale are converted.
+parameters:
+  mode:
+    description: The target line-ending style.
+    help: |
+      `lf` produces Unix line feeds (`\n`), `crlf` produces Windows carriage
+      return + line feed (`\r\n`), and `cr` produces classic carriage returns
+      (`\r`).
+    values: "`lf` / `crlf` / `cr` (default `lf`)"
+  applySource:
+    description: Convert source text.
+    help: When enabled, line endings in the source text are normalized.
+    values: "`true` / `false` (default `true`)"
+  applyTarget:
+    description: Convert target text.
+    help: |
+      When enabled, line endings are normalized in the target text of every
+      target locale present on the block.
+    values: "`true` / `false` (default `true`)"
+processingNotes:
+  - Operates on translatable blocks only; non-translatable blocks pass through unchanged.
+  - Target conversion applies to all target locales present, not a single configured locale.
+examples:
+  - title: Convert to Windows line endings
+    description: Rewrite all line endings to CRLF for source and targets.
+    config: |
+      mode: crlf
+  - title: Normalize only the source
+    description: Convert source line endings to LF, leaving targets untouched.
+    config: |
+      mode: lf
+      applyTarget: false

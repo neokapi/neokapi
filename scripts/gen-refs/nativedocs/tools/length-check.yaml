@@ -1,0 +1,107 @@
+# Native reference doc for the built-in `length-check` tool.
+# Schema source: core/tools/lengthcheck.go (LengthCheckConfig).
+description: Validate target length against absolute limits and source/target ratio thresholds.
+overview: |
+  The **Length Check** tool verifies that each translation stays within
+  configured length constraints and records any findings on the block's
+  properties as QA issues. It supports three kinds of limit: absolute caps on
+  character or word count; a simple maximum/minimum percentage of source length;
+  and a long/short ratio model that applies different percentage thresholds
+  depending on whether the source text is above or below a character breakpoint.
+  A target locale is required; blocks without a translation are skipped.
+
+  Each limit can be enabled independently, and any limit set to `0` is disabled.
+  The long/short ratio model mirrors the length-checker defaults used by the
+  Okapi Framework bridge, so its thresholds line up with the equivalent bridge
+  step.
+parameters:
+  maxChars:
+    description: Absolute maximum character count for the target.
+    help: |
+      Flags the target as an error when it exceeds this many characters. Set to
+      `0` to disable the absolute character cap.
+    values: "integer ≥ 0 (default `0`, disabled)"
+  maxWords:
+    description: Absolute maximum word count for the target.
+    help: |
+      Flags the target as an error when it exceeds this many words. Set to `0` to
+      disable the absolute word cap.
+    values: "integer ≥ 0 (default `0`, disabled)"
+  maxPercentage:
+    description: Maximum target/source length ratio, as a percentage.
+    help: |
+      Flags the target when its character length exceeds this percentage of the
+      source length. Set to `0` to disable.
+    values: "number ≥ 0 (default `0`, disabled)"
+  minPercentage:
+    description: Minimum target/source length ratio, as a percentage.
+    help: |
+      Flags the target when its character length falls below this percentage of
+      the source length. Set to `0` to disable.
+    values: "number ≥ 0 (default `0`, disabled)"
+  checkMaxCharLength:
+    description: Enable the maximum length-ratio check (long/short model).
+    help: |
+      When enabled, the target is flagged if it exceeds a percentage of the source
+      length, where the percentage depends on whether the source is long or short.
+    values: "`true` / `false` (default `true`)"
+  maxCharLengthBreak:
+    description: Character threshold dividing short from long text (max check).
+    help: |
+      Source text longer than this many characters is treated as long for the
+      maximum-ratio check; shorter text is treated as short.
+    values: "integer ≥ 0 (default `20`)"
+  maxCharLengthAbove:
+    description: Maximum percentage of source length allowed for long text.
+    help: |
+      The maximum target/source ratio applied when the source is long (longer than
+      the maximum breakpoint).
+    values: "integer ≥ 0 (default `200`)"
+  maxCharLengthBelow:
+    description: Maximum percentage of source length allowed for short text.
+    help: |
+      The maximum target/source ratio applied when the source is short (at or below
+      the maximum breakpoint). Short strings allow a higher ratio because small
+      length differences are proportionally large.
+    values: "integer ≥ 0 (default `350`)"
+  checkMinCharLength:
+    description: Enable the minimum length-ratio check (long/short model).
+    help: |
+      When enabled, the target is flagged if it falls below a percentage of the
+      source length, where the percentage depends on whether the source is long or
+      short.
+    values: "`true` / `false` (default `true`)"
+  minCharLengthBreak:
+    description: Character threshold dividing short from long text (min check).
+    help: |
+      Source text longer than this many characters is treated as long for the
+      minimum-ratio check; shorter text is treated as short.
+    values: "integer ≥ 0 (default `20`)"
+  minCharLengthAbove:
+    description: Minimum percentage of source length required for long text.
+    help: |
+      The minimum target/source ratio applied when the source is long (longer than
+      the minimum breakpoint).
+    values: "integer ≥ 0 (default `45`)"
+  minCharLengthBelow:
+    description: Minimum percentage of source length required for short text.
+    help: |
+      The minimum target/source ratio applied when the source is short (at or below
+      the minimum breakpoint).
+    values: "integer ≥ 0 (default `30`)"
+limitations:
+  - Percentage and ratio checks compare character lengths only when the source is non-empty.
+  - Requires a configured target locale; blocks without a translation for it are skipped.
+processingNotes:
+  - Operates on translatable blocks; non-translatable structure passes through unchanged.
+  - Findings are stored on the block as a JSON array of QA issues.
+examples:
+  - title: Cap absolute character length
+    description: Flag any translation longer than 80 characters, useful for fixed-width UI strings.
+    config: |
+      maxChars: 80
+  - title: Constrain target/source ratio
+    description: Require the target to be between 30% and 200% of the source length.
+    config: |
+      minPercentage: 30
+      maxPercentage: 200

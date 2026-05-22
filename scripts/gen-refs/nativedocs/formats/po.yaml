@@ -1,0 +1,90 @@
+# Native reference doc for the built-in `po` format.
+# Schema source: core/formats/po/config.go (Config).
+# Behaviour grounded in core/formats/po/reader.go, writer.go and spec.yaml,
+# mirroring Okapi's PO filter (okf_po) and the GNU gettext PO format.
+description: Read and write GNU gettext PO and POT catalogues, extracting each message as a translatable block.
+overview: |
+  PO (Portable Object) is the GNU gettext catalogue format. A `.po` file
+  pairs `msgid` source strings with `msgstr` translations, optionally
+  disambiguated by `msgctxt`, with plural forms via `msgid_plural` and
+  `msgstr[N]`, translator and extracted comments, source references, and
+  `#, fuzzy` flags. `.pot` templates carry the same structure with empty
+  translations.
+
+  The reader emits one translatable block per message: in the default
+  bilingual mode the `msgid` is the source text and the `msgstr` is the
+  target. In monolingual mode the `msgid` is treated purely as an
+  identifier and the `msgstr` provides the source text instead — the
+  shape used by catalogues that ship message IDs rather than English
+  strings. Comments, context, and references are preserved on the block
+  and written back. This mirrors Okapi's PO filter.
+parameters:
+  bilingualMode:
+    description: Treat msgid as the source text and msgstr as the target.
+    help: |
+      When enabled (the default), each message is read bilingually: the
+      `msgid` is the source text and the `msgstr` is the target
+      translation. When disabled (monolingual mode), the `msgid` is used
+      only as an identifier and the `msgstr` is taken as the source text —
+      the layout used by catalogues whose message IDs are symbolic rather
+      than English.
+    values: "`true` / `false` (default `true`)"
+  preserveUntranslated:
+    description: Emit blocks for messages that have an empty msgstr.
+    help: |
+      Controls whether messages with an empty `msgstr` (untranslated
+      entries) are emitted as blocks. When enabled (the default), they are
+      kept so the full catalogue is visible for translation. When
+      disabled, untranslated entries are skipped.
+    values: "`true` / `false` (default `true`)"
+  wrapContent:
+    description: Wrap long content lines in the output catalogue.
+    help: |
+      A writer-side option. When enabled (the default), long `msgid` and
+      `msgstr` values are wrapped across multiple lines at roughly 80
+      characters, matching conventional gettext formatting. When disabled,
+      each value is written on a single line. The reader ignores this
+      setting.
+    values: "`true` / `false` (default `true`)"
+  allowEmptyOutputTarget:
+    description: Write an empty target when no translation is available.
+    help: |
+      A writer-side option. When enabled, a message with no available
+      translation is written with an empty `msgstr` rather than being
+      dropped or filled with the source. When disabled (the default),
+      empty targets are not emitted.
+    values: "`true` / `false` (default `false`)"
+  useCodeFinder:
+    description: Detect inline codes inside message text using regular expressions.
+    help: |
+      Enables regex-based detection of inline codes (placeholders,
+      variables, format specifiers) within the message text, using the
+      patterns in `codeFinderRules`. When disabled (the default), no
+      pattern-based inline codes are extracted.
+    values: "`true` / `false` (default `false`)"
+  codeFinderRules:
+    description: Regular-expression patterns that match inline codes in message text.
+    help: |
+      A list of regular expressions; each match within a translatable
+      block is protected as an inline code rather than translated. Used to
+      shield gettext placeholders or format specifiers. Only takes effect
+      when `useCodeFinder` is enabled; invalid patterns are skipped.
+    values: "Array of regular-expression strings"
+    examples:
+      - "`%[0-9]*[sd]` — protect `printf`-style format specifiers"
+      - "`\\{[0-9]+\\}` — protect numbered placeholders like `{0}`"
+    dependsOn:
+      - property: useCodeFinder
+        condition: must be enabled for the rules to take effect
+processingNotes:
+  - One block is emitted per message; `msgctxt` is stored on the block context, and comments and references are preserved.
+  - Plural forms (`msgid_plural` / `msgstr[N]`) and `#, fuzzy` flags are recognised and round-tripped.
+examples:
+  - title: Monolingual catalogue
+    description: Treat msgid as an identifier and msgstr as the source text.
+    config: |
+      bilingualMode: false
+  - title: Skip untranslated entries
+    description: Extract only messages that already carry a translation.
+    config: |
+      preserveUntranslated: false

@@ -1,0 +1,76 @@
+# Native reference doc for the built-in `chars-check` tool.
+# Schema source: core/tools/charscheck.go (CharsCheckConfig).
+description: Check target text for forbidden, missing, out-of-charset, or corrupted characters.
+overview: |
+  The **Characters Check** tool inspects each translation for character-level
+  problems and records findings on the block's properties as QA issues. It can
+  flag forbidden characters that must not appear in the target, required
+  characters that are present in the source but missing from the target, and
+  characters that cannot be encoded in a named character set. It also detects
+  common corruption: mojibake (UTF-8 misread as Latin-1), the Unicode replacement
+  character, and control characters. A target locale is required.
+
+  Corruption checking is on by default. The forbidden, required, and charset
+  checks are opt-in: the forbidden and required checks activate when their
+  character lists are supplied, and the charset check activates when explicitly
+  enabled.
+parameters:
+  checkCorrupted:
+    description: Check for common corruption patterns such as mojibake.
+    help: |
+      When enabled, the target is scanned for sequences that indicate encoding
+      corruption — common mojibake pairs, the Unicode replacement character
+      (U+FFFD), and control characters other than tab, newline, and carriage
+      return.
+    values: "`true` / `false` (default `true`)"
+  forbiddenChars:
+    description: Characters that must not appear in the target.
+    help: |
+      A string whose characters are each treated as forbidden. The target is
+      flagged with an error for every forbidden character it contains. Leave empty
+      to skip this check.
+    values: "string (e.g. `{}[]`)"
+  requiredChars:
+    description: Characters that must appear in the target if present in the source.
+    help: |
+      A string whose characters must appear in the target whenever they appear in
+      the source. A warning is raised for each such character missing from the
+      target. Leave empty to skip this check.
+    values: "string (e.g. terminal punctuation)"
+  checkCharset:
+    description: Check target characters against a named character set encoding.
+    help: |
+      When enabled, every target character is tested for encodability in the
+      character set named by `charset`; characters that cannot be encoded are
+      flagged with a warning.
+    values: "`true` / `false` (default `false`)"
+    dependsOn:
+      - property: charset
+        condition: names the character set used when this check is enabled
+  charset:
+    description: Name of the character set encoding to check against.
+    help: |
+      The IANA character set name used by the charset check (for example
+      `ISO-8859-1`). An unknown name produces a warning rather than failing the
+      run.
+    values: "string (default `ISO-8859-1`)"
+    dependsOn:
+      - property: checkCharset
+        condition: must be enabled for this to take effect
+limitations:
+  - Forbidden and required character lists are matched per character, not as substrings or patterns.
+  - Corruption detection covers a fixed set of common mojibake patterns plus replacement and control characters.
+  - Requires a configured target locale; blocks without a translation for it are skipped.
+processingNotes:
+  - Operates on translatable blocks; non-translatable structure passes through unchanged.
+  - Findings are stored on the block as a JSON array of QA issues.
+examples:
+  - title: Forbid specific characters
+    description: Flag any target containing curly braces or square brackets.
+    config: |
+      forbiddenChars: "{}[]"
+  - title: Restrict to a legacy encoding
+    description: Warn about characters that cannot be encoded in ISO-8859-1.
+    config: |
+      checkCharset: true
+      charset: ISO-8859-1

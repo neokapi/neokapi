@@ -1,0 +1,42 @@
+# Native reference doc for the built-in `wiki` format.
+# Schema source: core/formats/wiki/config.go (Config) + schema.go.
+# Mirrors the Okapi okf_wiki filter (DokuWiki-targeted upstream).
+description: Extract and reinsert translatable text from wiki markup (DokuWiki or MediaWiki).
+overview: |
+  The **Wiki** format reads wiki markup, extracts prose as translatable
+  blocks, and writes the translations back while preserving the markup
+  structure — headings, lists, tables, links, and formatting. Inline markup is
+  exposed as inline codes so the surrounding syntax survives translation.
+
+  Two markup dialects are supported: DokuWiki and MediaWiki. The default is
+  DokuWiki, matching the upstream `okf_wiki` filter, whose documentation states
+  DokuWiki is the supported markup style; set `variant` to `mediawiki` to read
+  MediaWiki markup instead.
+parameters:
+  variant:
+    description: Wiki markup dialect.
+    help: |
+      Selects the markup dialect to parse: `dokuwiki` or `mediawiki`. The
+      default is `dokuwiki` to match the upstream `okf_wiki` bridge contract;
+      choose `mediawiki` for MediaWiki-flavoured markup.
+    values: "`dokuwiki` / `mediawiki` (default `dokuwiki`)"
+  preserveWhitespace:
+    description: Preserve original whitespace in the markup.
+    help: |
+      When enabled, original whitespace in the wiki markup is preserved rather
+      than normalized during extraction. By default whitespace is normalized.
+    values: "`true` / `false` (default `false`)"
+limitations:
+  - The two dialects share one extraction engine; markup specific to one dialect is recognized only under the matching `variant`.
+processingNotes:
+  - Headings, lists, tables, and formatting markers form the non-translatable skeleton; prose runs become translatable blocks.
+  - Inline formatting and links within a run are exposed as inline codes so they survive translation.
+examples:
+  - title: Read MediaWiki markup
+    description: Parse a MediaWiki-flavoured document instead of the default DokuWiki.
+    config: |
+      variant: mediawiki
+  - title: Preserve whitespace
+    description: Keep original spacing in the markup instead of normalizing it.
+    config: |
+      preserveWhitespace: true

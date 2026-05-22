@@ -86,6 +86,51 @@
         }
       }
     },
+    "ai-terminology": {
+      "displayName": "AI Terminology Extraction",
+      "description": "Extract candidate terminology from content using an LLM provider",
+      "category": "analysis",
+      "properties": {
+        "apiKey": {
+          "title": "API Key",
+          "description": "API key for the AI provider"
+        },
+        "domain": {
+          "title": "Domain",
+          "description": "Subject domain for terminology extraction (e.g. medical legal technology)"
+        },
+        "model": {
+          "title": "Model",
+          "description": "AI model name"
+        },
+        "provider": {
+          "title": "AI Provider",
+          "description": "AI provider",
+          "options": {
+            "anthropic": {
+              "label": "Anthropic"
+            },
+            "azureopenai": {
+              "label": "Azure OpenAI"
+            },
+            "gemini": {
+              "label": "Gemini"
+            },
+            "ollama": {
+              "label": "Ollama"
+            },
+            "openai": {
+              "label": "OpenAI"
+            }
+          }
+        }
+      },
+      "groups": {
+        "provider": {
+          "label": "Provider"
+        }
+      }
+    },
     "ai-translate": {
       "displayName": "AI Translate",
       "description": "Translate content using an LLM provider",
@@ -131,6 +176,51 @@
         "skipMatched": {
           "title": "Skip Matched",
           "description": "Skip blocks that already have a target translation"
+        }
+      },
+      "groups": {
+        "provider": {
+          "label": "Provider"
+        }
+      }
+    },
+    "brand-voice-check": {
+      "displayName": "AI Brand Voice Check",
+      "description": "Check text against a brand voice profile using an LLM provider",
+      "category": "quality",
+      "properties": {
+        "apiKey": {
+          "title": "API Key",
+          "description": "API key for the AI provider"
+        },
+        "model": {
+          "title": "Model",
+          "description": "AI model name"
+        },
+        "profileId": {
+          "title": "Profile ID",
+          "description": "Brand voice profile to resolve from the store"
+        },
+        "provider": {
+          "title": "AI Provider",
+          "description": "AI provider",
+          "options": {
+            "anthropic": {
+              "label": "Anthropic"
+            },
+            "azureopenai": {
+              "label": "Azure OpenAI"
+            },
+            "gemini": {
+              "label": "Gemini"
+            },
+            "ollama": {
+              "label": "Ollama"
+            },
+            "openai": {
+              "label": "OpenAI"
+            }
+          }
         }
       },
       "groups": {
@@ -1093,7 +1183,7 @@
         },
         "automaticallyAcceptRevisions": {
           "title": "Accept revisions automatically",
-          "description": "Automatically accept tracked changes before extraction."
+          "description": "Automatically accept tracked changes before extraction. When true (default, matching Okapi), inserted runs are kept and deleted runs are dropped; rows marked with \u003cw:trPr\u003e\u003cw:del/\u003e (ECMA-376 §17.13.5.13) are removed entirely; rows marked with \u003cw:trPr\u003e\u003cw:ins/\u003e (§17.13.5.16) are kept."
         },
         "codeFinderRules": {
           "title": "Code Finder Rules",
@@ -1150,10 +1240,6 @@
         "lineSeparatorReplacement": {
           "title": "Line separator replacement string",
           "description": "Replacement string for line separator characters."
-        },
-        "optimiseWordStyles": {
-          "title": "Allow style optimization",
-          "description": "Resolve style inheritance and strip redundant run properties."
         },
         "replaceLineSeparator": {
           "title": "Add line separator as character",
@@ -1523,14 +1609,7 @@
       ]
     },
     "vignette": {
-      "displayName": "R Vignette",
-      "extensions": [
-        ".Rmd",
-        ".Rnw"
-      ],
-      "mimeTypes": [
-        "text/x-r-markdown"
-      ]
+      "displayName": "Vignette CMS Export"
     },
     "vtt": {
       "displayName": "WebVTT",

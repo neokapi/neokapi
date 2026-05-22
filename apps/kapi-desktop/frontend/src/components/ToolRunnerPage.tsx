@@ -32,6 +32,7 @@ import {
 } from "@neokapi/ui-primitives";
 import { t } from "@neokapi/kapi-react/runtime";
 import { api } from "../hooks/useApi";
+import { useSchemaFormHost } from "../hooks/useSchemaFormHost";
 import { useError } from "./ErrorBanner";
 
 // Category metadata for visual treatment. Labels resolve through `t()`
@@ -331,6 +332,10 @@ function ToolDetail({ tool, docs }: { tool: ToolInfo; docs: PluginDocs | null })
   const meta = categoryMeta(cat);
   const Icon = meta.icon;
 
+  // Native file/folder dialogs + credential vault for schema-form path /
+  // credential widgets.
+  const schemaHost = useSchemaFormHost();
+
   // Fetch step doc on demand if not pre-loaded
   useEffect(() => {
     setStepDoc(resolveStepDoc(tool.name, docs));
@@ -445,6 +450,7 @@ function ToolDetail({ tool, docs }: { tool: ToolInfo; docs: PluginDocs | null })
                 values={config}
                 onChange={setConfig}
                 paramDocs={stepDoc?.parameters}
+                host={schemaHost}
               />
             </CardContent>
           </Card>

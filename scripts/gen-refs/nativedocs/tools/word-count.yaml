@@ -1,0 +1,52 @@
+# Native reference doc for the built-in `word-count` tool.
+# Schema source: core/tools/wordcount.go (WordCountConfig).
+description: Count the words in each block's source and target text for scoping and pricing.
+overview: |
+  The **Word Count** tool tallies the number of words in every translatable
+  block, reporting per-block counts and a document total. It is the standard
+  way to scope a localization job — how much text needs translating — and to
+  drive word-based pricing.
+
+  Counting runs over the segmented text. By default both the source and the
+  target locale are counted, so you can compare untranslated versus translated
+  volume. Inline codes (placeholders, tags, variables) are excluded from the
+  count unless you opt in, because they are markup rather than translatable
+  words.
+parameters:
+  countSource:
+    description: Count words in the source text.
+    help: |
+      When enabled, the words in each block's **source** segments are counted.
+      Disable it if you only need target-side volume (for example, to measure
+      translated output).
+    values: "`true` / `false` (default `true`)"
+  countTarget:
+    description: Count words in the target text.
+    help: |
+      When enabled, the words in each block's **target** segments are counted
+      for every target locale present. On untranslated content the target
+      count is zero, which makes this a quick way to see remaining work.
+    values: "`true` / `false` (default `true`)"
+  countInline:
+    description: Include inline-code content in the word counts.
+    help: |
+      By default, inline codes — placeholders, variables, and tag content
+      represented as coded text — are **excluded** from the count, since they
+      are not translatable words. Enable this only when you specifically want
+      inline-code text reflected in the totals.
+    values: "`true` / `false` (default `false`)"
+limitations:
+  - Counting follows the active segmentation; results depend on how the text was segmented.
+processingNotes:
+  - Operates on translatable blocks; non-translatable structure passes through unchanged.
+  - Target counts are reported per target locale.
+examples:
+  - title: Count source words only
+    description: Scope a job by source volume, ignoring any existing translations.
+    config: |
+      countSource: true
+      countTarget: false
+  - title: Include inline codes
+    description: Reflect placeholder and tag text in the totals.
+    config: |
+      countInline: true

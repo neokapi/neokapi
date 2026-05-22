@@ -351,7 +351,7 @@ export {
 } from "./components/ui/code-finder-editor";
 
 // Schema-driven form (canonical form renderer for filters, tools, formats)
-export { SchemaForm } from "./components/schema-form";
+export { SchemaForm, SchemaFormHostProvider, useSchemaFormHost } from "./components/schema-form";
 export type {
   SchemaFormProps,
   ComponentSchema,
@@ -363,6 +363,10 @@ export type {
   ToolMeta,
   ToolDoc,
   ToolDocParam,
+  SchemaFormHost,
+  SchemaFormBrowseRequest,
+  SchemaFormFileFilter,
+  SchemaFormCredential,
 } from "./components/schema-form";
 
 // Filter config editor (legacy — prefer SchemaForm)

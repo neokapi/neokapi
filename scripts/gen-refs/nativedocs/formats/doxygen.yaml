@@ -1,0 +1,65 @@
+# Native reference doc for the built-in `doxygen` format.
+# Schema source: core/formats/doxygen/config.go (Config).
+# Behaviour grounded in core/formats/doxygen/reader.go and spec.yaml,
+# mirroring Okapi's Doxygen filter (okf_doxygen).
+description: Extract translatable prose from Doxygen and Javadoc documentation comments in source code.
+overview: |
+  The Doxygen format extracts the documentation prose from API comments
+  embedded in C, C++, Objective-C, Java, and Python source files. It
+  recognises the standard Doxygen comment styles — `///`, `//!`,
+  `/** */`, `/*! */`, and the trailing `///<` and `/*!< */` variants —
+  and leaves the surrounding code, command markers, and code or verbatim
+  blocks as non-translatable skeleton, so the file round-trips after
+  merge.
+
+  It understands the Doxygen command vocabulary: metadata commands such
+  as `\class` or `\file` are skipped, while description commands such as
+  `\brief`, `\param`, and `\return` contribute their description text as
+  translatable blocks. This mirrors Okapi's Doxygen filter and lets you
+  translate inline documentation without touching the code it documents.
+parameters:
+  preserveWhitespace:
+    description: Keep the original whitespace inside extracted comment text.
+    help: |
+      When disabled (the default), extracted comment text is trimmed and
+      its internal whitespace is normalised so translators see clean
+      prose. Enable it for code samples or pre-formatted paragraphs inside
+      comments where indentation and spacing are meaningful and must be
+      preserved verbatim.
+    values: "`true` / `false` (default `false`)"
+  useCodeFinder:
+    description: Detect inline codes inside comment text using regular expressions.
+    help: |
+      Enables regex-based detection of inline codes (placeholders,
+      variables, tags) within the extracted comment text. The patterns are
+      supplied in `codeFinderRules`. When disabled (the default), no
+      pattern-based inline codes are extracted.
+    values: "`true` / `false` (default `false`)"
+  codeFinderRules:
+    description: Regular-expression patterns that match inline codes in comment text.
+    help: |
+      A list of regular expressions; each match within a translatable
+      block is protected as an inline code rather than translated. Used to
+      shield format specifiers or markup embedded in comments. Only takes
+      effect when `useCodeFinder` is enabled; invalid patterns are skipped.
+    values: "Array of regular-expression strings"
+    examples:
+      - "`%[ds]` — protect `printf`-style format specifiers"
+      - "`\\\\ref [A-Za-z_]+` — protect Doxygen cross-references"
+    dependsOn:
+      - property: useCodeFinder
+        condition: must be enabled for the rules to take effect
+processingNotes:
+  - Metadata commands (e.g. `\class`, `\file`) are skipped; description commands (e.g. `\brief`, `\param`, `\return`) extract their description text.
+  - Code and verbatim blocks within comments are preserved as non-translatable skeleton.
+examples:
+  - title: Preserve comment whitespace
+    description: Keep indentation and spacing in pre-formatted comment text.
+    config: |
+      preserveWhitespace: true
+  - title: Protect format specifiers
+    description: Treat printf-style specifiers as inline codes instead of translating them.
+    config: |
+      useCodeFinder: true
+      codeFinderRules:
+        - "%[ds]"

@@ -1,0 +1,97 @@
+# Native reference doc for the built-in `xliff2` format.
+# Schema source: core/formats/xliff2/config.go (Config).
+# Behaviour grounded in core/formats/xliff2/reader.go, writer.go and spec.yaml,
+# mirroring Okapi's XLIFF 2 filter (okf_xliff2) and the OASIS XLIFF 2.x standard.
+displayName: XLIFF 2.x
+description: Read and write OASIS XLIFF 2.0, 2.1, and 2.2 bilingual exchange documents.
+overview: |
+  XLIFF 2.x is the modern OASIS Localization Interchange File Format. It
+  replaces the 1.2 element soup with an explicit `<unit>`/`<segment>`
+  structure, file-scoped notes, a small set of inline tag elements
+  (`ph`, `pc`, `sc`/`ec`, `mrk`), and per-segment translation states. The
+  reader accepts the 2.0, 2.1, and 2.2 namespaces as one compatible
+  family.
+
+  The reader emits one block per translatable unit and preserves inline
+  markup as raw inner XML so unmodified content round-trips byte-for-byte.
+  The writer can emit any 2.x version: by default it preserves the input
+  document's version on round-trip and falls back to 2.2 for content
+  extracted from a non-XLIFF source. This mirrors Okapi's XLIFF 2 filter.
+parameters:
+  version:
+    description: The XLIFF 2.x version to emit.
+    help: |
+      Selects the output XLIFF version. Leave it empty (the default) to
+      preserve the input document's version on round-trip and to fall back
+      to 2.2 for content with no source version. Set `2.0`, `2.1`, or `2.2`
+      to force a specific version; 2.0 and 2.1 share the
+      `urn:oasis:names:tc:xliff:document:2.0` namespace, while 2.2
+      introduces `urn:oasis:names:tc:xliff:document:2.2`.
+    values: "`\"\"` (auto) / `2.0` / `2.1` / `2.2` (default `\"\"`)"
+    examples:
+      - "`` — auto: preserve input version, default 2.2"
+      - "`2.0` — force XLIFF 2.0 output"
+  writeOriginalData:
+    description: Include original data in the output when available.
+    help: |
+      When enabled (the default), the `<originalData>` carried by inline
+      tags is written to the output, preserving the original markup that
+      placeholders stand in for. When disabled, original data is omitted
+      from the output.
+    values: "`true` / `false` (default `true`)"
+  forceUniqueIds:
+    description: Ensure inline tag ids are unique within each unit.
+    help: |
+      When enabled, inline tag `id` values are rewritten so each is unique
+      within its `<unit>`. When disabled (the default), ids are left as-is.
+      Enable it for inputs whose inline ids may collide and where strict
+      validators require per-unit uniqueness.
+    values: "`true` / `false` (default `false`)"
+  ignoreTagTypeMatch:
+    description: Ignore tag-type mismatches between source and target segments.
+    help: |
+      When enabled, a mismatch between the inline tag types in the source
+      and the target segment is tolerated rather than treated as an error.
+      When disabled (the default), the tag types are expected to match.
+    values: "`true` / `false` (default `false`)"
+  discardInvalidTargets:
+    description: Discard targets that fail validation instead of rejecting the file.
+    help: |
+      When enabled, a `<target>` that fails validation is dropped while the
+      rest of the file is still processed. When disabled (the default), an
+      invalid target rejects the file. Enable it to salvage usable content
+      from partially invalid input.
+    values: "`true` / `false` (default `false`)"
+  useCodeFinder:
+    description: Detect inline codes inside content using regular expressions.
+    help: |
+      Enables regex-based detection of inline codes in translatable text,
+      using the patterns in `codeFinderRules`. This supplements the native
+      XLIFF 2 inline tag elements. When disabled (the default), only the
+      native inline elements are recognised.
+    values: "`true` / `false` (default `false`)"
+  codeFinderRules:
+    description: Regular-expression patterns that match inline codes in content.
+    help: |
+      A list of regular expressions; each match within translatable text is
+      protected as an inline code rather than translated. Only takes effect
+      when `useCodeFinder` is enabled; invalid patterns are skipped.
+    values: "Array of regular-expression strings"
+    examples:
+      - "`%[0-9]*[sd]` — protect `printf`-style format specifiers"
+    dependsOn:
+      - property: useCodeFinder
+        condition: must be enabled for the rules to take effect
+processingNotes:
+  - One block is emitted per translatable unit; inline markup is preserved as raw inner XML for byte-faithful round-trips.
+  - The 2.0, 2.1, and 2.2 namespaces are accepted as a compatible family on read.
+examples:
+  - title: Force XLIFF 2.0 output
+    description: Emit 2.0 regardless of the input document version.
+    config: |
+      version: "2.0"
+  - title: Tolerate invalid targets
+    description: Drop targets that fail validation rather than rejecting the file.
+    config: |
+      discardInvalidTargets: true
+wikiUrl: https://docs.oasis-open.org/xliff/xliff-core/v2.1/os/xliff-core-v2.1-os.html

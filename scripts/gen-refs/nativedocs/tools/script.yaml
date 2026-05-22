@@ -1,0 +1,60 @@
+# Native reference doc for the built-in `script` tool.
+# Schema source: core/tools/script.go (ScriptConfig).
+description: Run a user-supplied ES5 JavaScript script over each part to inspect or modify block text.
+overview: |
+  The **Script** tool runs a user-provided ES5 JavaScript program for every
+  part in the stream. The script receives the current part as a `part` object
+  and can read and modify block source and target text. It is an escape hatch
+  for bespoke transformations that no built-in tool covers.
+
+  Inside the script, `part.type` identifies the part and `part.block` exposes
+  the block (with `id`, `translatable`, `source`, and `targets`). Helper
+  functions are available: `emit(part)` forwards a part, `skip()` drops the
+  current part, and `log(msg)` writes a message to standard error. When the
+  script neither emits nor skips, the part passes through with any in-place
+  text edits applied. The script is provided inline or read from a `.js` file.
+parameters:
+  source:
+    description: Where the script comes from.
+    help: |
+      `inline` runs the script supplied in the `code` field; `file` loads the
+      script from the path in `scriptFile`.
+    values: "`inline` / `file` (default `inline`)"
+  code:
+    description: Inline ES5 JavaScript source.
+    help: |
+      The script body, used when `source` is `inline`. Required in that mode.
+    values: "string"
+    dependsOn:
+      - property: source
+        condition: used when source is `inline`
+  scriptFile:
+    description: Path to a JavaScript file.
+    help: |
+      Path to a `.js` file to load and run, used when `source` is `file`.
+      Required in that mode.
+    values: "file path"
+    dependsOn:
+      - property: source
+        condition: used when source is `file`
+limitations:
+  - The engine supports ES5 JavaScript only.
+  - Only block source and target text changes are applied back; other modifications to the part are not persisted.
+processingNotes:
+  - Each tool instance owns its own runtime and runs single-threaded over its input.
+  - A part passes through unchanged when the script neither emits a part nor calls skip.
+examples:
+  - title: Trim trailing whitespace from source text
+    description: Modify source text in place with an inline script.
+    config: |
+      source: inline
+      code: |
+        if (part.type === 'block') {
+          var s = part.block.source[0].content.text;
+          part.block.source[0].content.text = s.replace(/\s+$/, '');
+        }
+  - title: Load a script from a file
+    description: Run a script stored alongside the project.
+    config: |
+      source: file
+      scriptFile: ./scripts/transform.js

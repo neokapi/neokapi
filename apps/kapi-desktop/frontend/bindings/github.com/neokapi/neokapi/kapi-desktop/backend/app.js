@@ -118,6 +118,19 @@ export function ApplyTemplate(tabID, template) {
 }
 
 /**
+ * BrowsePath shows a native file/folder dialog for a schema-form path field and
+ * returns the chosen path (empty string when the user cancels). It is the
+ * host-side implementation of the shared schema-form PathPicker widget's
+ * `onBrowse` capability: kapi-desktop maps the generic browse request onto the
+ * same Wails dialog API that powers OpenProjectDialog / AddFilesDialog.
+ * @param {$models.BrowsePathRequest} req
+ * @returns {$CancellablePromise<string>}
+ */
+export function BrowsePath(req) {
+    return $Call.ByID(4238036065, req);
+}
+
+/**
  * BrowseProjectLocation shows a native directory picker and returns the selected path.
  * Used during "New Project" to choose where to save the project.
  * @returns {$CancellablePromise<string>}
@@ -135,7 +148,9 @@ export function CancelRun() {
 }
 
 /**
- * CheckPluginUpdates checks for available updates.
+ * CheckPluginUpdates compares installed plugins against the registry
+ * index. A plugin has an update when the registry's latest version
+ * (across the plugin's channels) is newer than the installed one.
  * @returns {$CancellablePromise<$models.PluginUpdate[]>}
  */
 export function CheckPluginUpdates() {
@@ -444,8 +459,9 @@ export function GetConcept(handle, conceptID) {
 }
 
 /**
- * GetFilterDoc returns documentation for a single filter by ID (e.g. "okf_json").
- * The loader handles alias resolution. Returns nil if not found.
+ * GetFilterDoc returns documentation for a single filter by ID. The
+ * manifest plugin model does not currently surface docs, so this
+ * always returns nil.
  * @param {string} filterID
  * @returns {$CancellablePromise<{ [_ in string]?: any }>}
  */
@@ -511,9 +527,10 @@ export function GetLastTrace() {
 }
 
 /**
- * GetPluginDocs returns a summary of available documentation.
- * Returns filter/step ID lists and metadata — individual docs are fetched
- * via GetFilterDoc/GetStepDoc to avoid loading the full corpus.
+ * GetPluginDocs returns a summary of available plugin-contributed
+ * documentation. The manifest plugin model does not currently surface
+ * docs through the host, so this always returns nil — the frontend
+ * degrades to "no docs available" gracefully.
  * @returns {$CancellablePromise<{ [_ in string]?: any }>}
  */
 export function GetPluginDocs() {
@@ -556,7 +573,7 @@ export function GetProjectPath(tabID) {
 /**
  * GetProjectStatus returns the current per-collection state for a
  * project tab. Under the new model, rich coverage/block-count data
- * flows from a blockstore.Session against the project's cache.db —
+ * flows from a blockstore.Session against the project's cache/blocks.db —
  * that's wired up in a follow-up. For now the status surface is
  * intentionally sparse: recipe identity + the list of declared
  * collections + their declared target languages. The frontend uses
@@ -622,8 +639,9 @@ export function GetSettings() {
 }
 
 /**
- * GetStepDoc returns documentation for a single pipeline step by ID
- * (e.g. "batch-translation"). Returns nil if not found.
+ * GetStepDoc returns documentation for a single pipeline step. The
+ * manifest plugin model does not currently surface docs, so this
+ * always returns nil.
  * @param {string} stepID
  * @returns {$CancellablePromise<{ [_ in string]?: any }>}
  */
@@ -840,8 +858,8 @@ export function ImportTermbaseJSONDialog(handle) {
 }
 
 /**
- * InstallPlugin installs a plugin by name from the remote registry.
- * Runs in the background and emits "plugin-installed" or "plugin-error" events.
+ * InstallPlugin downloads and installs a plugin asynchronously, emitting
+ * "plugin-installing" / "plugin-installed" / "plugin-error" events.
  * @param {string} name
  * @returns {$CancellablePromise<void>}
  */
@@ -871,7 +889,7 @@ export function ListAllFormatPresets(formatName) {
 }
 
 /**
- * ListAvailablePlugins returns all plugins from the remote registry.
+ * ListAvailablePlugins returns every plugin in the registry index.
  * @returns {$CancellablePromise<$models.AvailablePlugin[]>}
  */
 export function ListAvailablePlugins() {
@@ -932,7 +950,8 @@ export function ListNamedTermbases() {
 }
 
 /**
- * ListPlugins returns installed plugins with full metadata.
+ * ListPlugins returns installed manifest-driven plugins with metadata.
+ * Plugins are sourced from the pluginhost (populated by LoadPlugins).
  * @returns {$CancellablePromise<$models.PluginInfo[]>}
  */
 export function ListPlugins() {
@@ -1061,7 +1080,9 @@ export function ListUserFlows() {
 }
 
 /**
- * LoadPlugins scans and loads plugins in the background.
+ * LoadPlugins discovers manifest-driven plugins and registers their
+ * schema extensions on the app's registries. Runs in the foreground —
+ * callers needing async startup wrap with a goroutine.
  * @returns {$CancellablePromise<void>}
  */
 export function LoadPlugins() {
@@ -1201,7 +1222,7 @@ export function RecoverResource(path) {
 }
 
 /**
- * RemovePlugin uninstalls a plugin.
+ * RemovePlugin uninstalls a plugin from the configured plugin directory.
  * @param {string} name
  * @returns {$CancellablePromise<void>}
  */
@@ -1386,7 +1407,8 @@ export function SaveUserFlow(req) {
 }
 
 /**
- * SearchPlugins searches the remote registry for plugins matching the query.
+ * SearchPlugins searches the registry index for plugins whose name or
+ * description matches the query (substring, case-sensitive).
  * @param {string} query
  * @returns {$CancellablePromise<$models.AvailablePlugin[]>}
  */

@@ -1,0 +1,90 @@
+# Native reference doc for the built-in `tm-leverage` tool.
+# Schema source: core/tools/tmleverage.go (TMLeverageConfig).
+description: Pre-fill translations from a translation memory using exact and fuzzy matching.
+overview: |
+  The **TM Leverage** tool queries a translation memory (TM) for each block's
+  source text and pre-fills the target with the best match. It tries an exact
+  match first, then a fuzzy match above a configurable threshold, recording the
+  match score and type (`exact` or `fuzzy`) on the block. It requires a target
+  language and a TM provider; without a TM the tool has nothing to leverage.
+
+  Whether a match is written into the target is governed by a fill threshold
+  and an "only if empty" option, so high-confidence matches can be applied while
+  weaker ones are recorded but left for review. A no-query threshold lets the
+  tool skip the TM lookup when an existing candidate already scores high enough.
+  Optionally, all leveraged matches can be written to a TMX file.
+parameters:
+  fuzzyThreshold:
+    description: Minimum score for a fuzzy match to be considered.
+    help: |
+      The lowest fuzzy-match score (0-100) the TM lookup will return. Matches
+      below this score are ignored.
+    values: "integer 0-100 (default `70`)"
+  fillTarget:
+    description: Copy the best match into the target.
+    help: |
+      When enabled, the best qualifying match is written into the block's
+      target content. When disabled, matches are scored and recorded but the
+      target is not filled.
+    values: "`true` / `false` (default `true`)"
+  fillTargetThreshold:
+    description: Minimum match score required to fill the target.
+    help: |
+      A match must score at least this value to be written into the target.
+      Matches between the fuzzy threshold and this value are recorded but not
+      filled.
+    values: "integer 0-100 (default `95`)"
+    dependsOn:
+      - property: fillTarget
+        condition: filling must be enabled for this threshold to apply
+  fillIfTargetIsEmpty:
+    description: Only fill the target when it has no existing content.
+    help: |
+      When enabled, a match is written only if the block's target is currently
+      empty, so existing translations are never overwritten.
+    values: "`true` / `false` (default `false`)"
+  noQueryThreshold:
+    description: Skip the TM query when an existing candidate scores high enough.
+    help: |
+      If the block already carries a match score at or above this value, the TM
+      lookup is skipped. The default of 101 means the TM is always queried.
+    values: "integer 0-101 (default `101`)"
+  makeTmx:
+    description: Generate a TMX document of leveraged matches.
+    help: |
+      When enabled, all leveraged matches are written to a TMX file at the
+      configured output path.
+    values: "`true` / `false` (default `false`)"
+    dependsOn:
+      - property: tmxPath
+        condition: set the output path when generating TMX
+  tmxPath:
+    description: Output path for the generated TMX document.
+    help: File path where the TMX document is written when TMX generation is enabled.
+    values: "file path"
+    dependsOn:
+      - property: makeTmx
+        condition: TMX generation must be enabled
+  downgradeIdenticalBestMatches:
+    description: Reduce the score when multiple identical exact matches exist.
+    help: |
+      When enabled, an exact match is scored 99 instead of 100 if the TM returns
+      multiple identical best matches, flagging the ambiguity for review.
+    values: "`true` / `false` (default `false`)"
+limitations:
+  - Requires a target language and a TM provider; with no TM there is nothing to leverage.
+processingNotes:
+  - Operates on translatable blocks with a non-empty source; other parts pass through unchanged.
+  - Exact matches are tried before fuzzy matches; the match score and type are recorded as block properties.
+examples:
+  - title: Apply only high-confidence matches
+    description: Fill the target from matches scoring 95 or above.
+    config: |
+      fillTarget: true
+      fillTargetThreshold: 95
+  - title: Leverage and export to TMX
+    description: Lower the fuzzy threshold and write matches to a TMX file.
+    config: |
+      fuzzyThreshold: 60
+      makeTmx: true
+      tmxPath: ./leverage.tmx

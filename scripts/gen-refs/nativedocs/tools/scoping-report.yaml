@@ -1,0 +1,26 @@
+# Native reference doc for the built-in `scoping-report` tool.
+# Schema source: core/tools/scopingreport.go (ScopingReportConfig — no exposed parameters).
+description: Classify each block into a scoping category from upstream repetition and match status.
+overview: |
+  The **Scoping Report** tool assigns each translatable block a scoping category
+  and records it on the block's properties. The category is derived from
+  properties set by upstream analysis tools: a block flagged as a repetition by
+  repetition analysis becomes a repetition; blocks marked unchanged or leveraged
+  by diff-leverage become an exact match or a fuzzy match respectively; everything
+  else is classified as new.
+
+  Because it reads properties produced earlier in the pipeline, scoping report is
+  meant to run after repetition analysis and any leverage step. The classification
+  underpins word-count breakdowns and pricing that distinguish new text from
+  reused or partially matched text.
+limitations:
+  - Relies on properties set by upstream tools (repetition analysis, diff-leverage); without them, blocks are classified as new.
+  - Produces a per-block category, not an aggregated cross-document summary by itself.
+processingNotes:
+  - Operates on translatable blocks; non-translatable structure passes through unchanged.
+  - Run after repetition analysis and leverage steps so their status properties are available.
+examples:
+  - title: Classify blocks after repetition analysis
+    description: The tool takes no parameters; place it downstream of repetition analysis in a flow.
+    config: |
+      {}

@@ -1,0 +1,32 @@
+# Native reference doc for the built-in `batch` tool.
+# Schema source: core/tools/batch.go (BatchConfig).
+description: Collect blocks into fixed-size batches before forwarding them downstream.
+overview: |
+  The **Batch Collector** buffers translatable blocks and forwards them in
+  groups of a configured size, instead of one at a time. It exists so that a
+  downstream tool which is cheaper to call in bulk — for example a batch
+  translation request — can receive several blocks together rather than block
+  by block.
+
+  Non-block parts (layer markers, data, media) pass through immediately and are
+  never buffered. Blocks accumulate until the batch reaches the configured size
+  and are then released in order; any remaining blocks are flushed when the
+  input stream ends. Stream order is preserved.
+parameters:
+  size:
+    description: Number of blocks to collect before forwarding a batch.
+    help: |
+      The tool buffers blocks until this many have accumulated, then forwards
+      them as a group. A larger size means fewer, larger handoffs to the next
+      tool; a size of `1` effectively forwards each block as soon as it arrives.
+    values: "integer ≥ 1 (default `10`)"
+limitations:
+  - Only blocks are batched; all other part types pass through without buffering.
+processingNotes:
+  - Remaining buffered blocks are flushed when the input stream closes.
+  - Block order within and across batches is preserved.
+examples:
+  - title: Collect blocks in groups of 50
+    description: Buffer 50 blocks per handoff for a bulk-friendly downstream tool.
+    config: |
+      size: 50

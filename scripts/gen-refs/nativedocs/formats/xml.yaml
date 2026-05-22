@@ -1,0 +1,173 @@
+# Native reference doc for the built-in `xml` format.
+# Schema source: core/formats/xml/config.go (Config) + schema.go.
+# Mirrors the Okapi okf_xml filter (generic XML, ITS-style rules).
+description: Extract and reinsert translatable text from generic XML, controlled by element and attribute rules.
+overview: |
+  The **XML** format reads generic XML documents, extracts the text of
+  configured elements and attributes as translatable blocks, and writes the
+  translations back while preserving the surrounding markup. Inline elements
+  become inline codes within a block, so formatting tags survive translation.
+
+  Extraction is rule-driven. The simple lists — `translatableElements`,
+  `translatableAttributes`, `inlineElements`, `excludedElements` — cover most
+  cases. The advanced `elements` and `attributes` maps express richer,
+  ITS-style rules with attribute conditions, ID and translatable-attribute
+  mappings, and explicit include/exclude behaviour. When no translatable
+  elements are listed, all text content is treated as translatable; set
+  `excludeByDefault` to invert that and include only what rules opt in.
+parameters:
+  translatableElements:
+    description: Element names whose text content is translatable.
+    help: |
+      A list of element names whose text content is extracted as translatable.
+      When empty, all text content is treated as translatable.
+    values: Array of element names (default empty — all text translatable)
+    examples:
+      - "`[title, para]` — extract the text of `title` and `para` elements"
+  translatableAttributes:
+    description: Attribute names that are translatable across all elements.
+    help: |
+      A list of attribute names whose values are extracted as translatable,
+      on any element that carries them.
+    values: Array of attribute names (default empty)
+    examples:
+      - "`[title, alt]` — extract `title` and `alt` attribute values"
+  excludeByDefault:
+    description: Exclude all elements unless a rule includes them.
+    help: |
+      When enabled, all elements are excluded from extraction unless an element
+      rule explicitly includes them with an `INCLUDE` rule type. This inverts
+      the default, where text content is translatable unless excluded.
+    values: "`true` / `false` (default `false`)"
+  inlineElements:
+    description: Element names treated as inline spans.
+    help: |
+      A list of element names treated as inline — represented as inline codes
+      within the surrounding text block rather than as block boundaries.
+    values: Array of element names (default empty)
+    examples:
+      - "`[b, i, span]` — treat these as inline formatting within text"
+  excludedElements:
+    description: Element names whose content is excluded.
+    help: |
+      A list of element names whose content is not extracted, even when their
+      text would otherwise be translatable.
+    values: Array of element names (default empty)
+    examples:
+      - "`[script, style]` — never extract the content of these elements"
+  preserveWhitespaceElements:
+    description: Element names that always preserve whitespace.
+    help: |
+      A list of element names whose text content keeps its original whitespace
+      regardless of the global `preserveWhitespace` setting.
+    values: Array of element names (default empty)
+    examples:
+      - "`[pre, code]` — preserve whitespace inside these elements"
+  groupElements:
+    description: Element names that produce group/layer boundaries.
+    help: |
+      A list of element names that create group (layer) boundaries in the
+      output, grouping the blocks they contain.
+    values: Array of element names (default empty)
+  idAttributes:
+    description: Attribute names used to derive block IDs.
+    help: |
+      A list of attribute names consulted, in order, to obtain a block's ID
+      from the enclosing element. When none match, the `id` attribute is used
+      as a fallback.
+    values: Array of attribute names (default empty)
+    examples:
+      - "`[name, key]` — use a `name` or `key` attribute as the block ID"
+  preserveWhitespace:
+    description: Preserve whitespace globally instead of collapsing it.
+    help: |
+      When enabled, whitespace in text content is preserved as-is. By default
+      runs of whitespace are collapsed to a single space and trimmed.
+    values: "`true` / `false` (default `false`)"
+  elements:
+    description: Advanced element-specific rules.
+    help: |
+      A map of element name (or a single-quoted regex pattern) to a rule
+      object. A rule may carry `ruleTypes` (`TEXTUNIT`, `INLINE`, `EXCLUDE`,
+      `INCLUDE`, `PRESERVE_WHITESPACE`, …), an attribute `conditions` triplet,
+      `idAttributes`, and a `translatableAttributes` map. Conditions let a rule
+      fire only when an attribute matches, mirroring ITS-style selectors.
+    values: "Map of element name → rule object (default empty)"
+    examples:
+      - "`{ p: { ruleTypes: [TEXTUNIT] } }` — extract `p` element text"
+  attributes:
+    description: Advanced attribute-specific rules.
+    help: |
+      A map of attribute name (or a single-quoted regex pattern) to a rule
+      object. A rule may carry `ruleTypes` (such as `ATTRIBUTE_TRANS`,
+      `ATTRIBUTE_ID`, `ATTRIBUTE_WRITABLE`) and an element scope via
+      `onlyTheseElements` or `allElementsExcept`.
+    values: "Map of attribute name → rule object (default empty)"
+    examples:
+      - "`{ alt: { ruleTypes: [ATTRIBUTE_TRANS], onlyTheseElements: [img] } }`"
+  blockTypeMap:
+    description: Map element names to semantic block-type strings.
+    help: |
+      A map from element name to a block-type string, annotating the resulting
+      blocks with a semantic type for downstream tools.
+    values: "Map of element name → type string (default empty)"
+  subfilters:
+    description: Per-pattern subfilter mappings for embedded content.
+    help: |
+      An array of `{pattern, format}` objects routing the text content of
+      matching element paths to another format reader. Patterns use
+      dot-separated element paths with glob support. Each mapping requires a
+      non-empty `pattern` and `format`.
+    values: "Array of `{pattern, format}` objects (default empty)"
+    examples:
+      - "`[{pattern: 'root.body', format: html}]` — parse `body` content as HTML"
+  useCodeFinder:
+    description: Enable regex-based inline-code detection.
+    help: |
+      Enables regex-based detection of inline codes within translatable text.
+      The patterns are supplied via `codeFinderRules`.
+    values: "`true` / `false` (default `false`)"
+  codeFinderRules:
+    description: Regex patterns that match inline codes within text.
+    help: |
+      An array of regular expressions; text matching any of them is treated
+      as an inline code rather than translatable words. Only used when
+      `useCodeFinder` is enabled.
+    values: Array of regular expressions (default empty)
+    dependsOn:
+      - property: useCodeFinder
+        condition: must be enabled for these patterns to apply
+limitations:
+  - This is a generic XML reader; for specific XML dialects (such as RESX) start from a tailored rule set rather than the bare defaults.
+  - Element and attribute names in advanced rules wrapped in single quotes are treated as anchored regular expressions.
+processingNotes:
+  - Inline elements become inline codes within blocks; block-level elements form the surrounding structure.
+  - Element rules with `INCLUDE`/`EXCLUDE` combine with `excludeByDefault` to give fine control over which content is extracted.
+examples:
+  - title: Extract specific elements
+    description: Translate only title and para text, treating b and i as inline.
+    config: |
+      translatableElements:
+        - title
+        - para
+      inlineElements:
+        - b
+        - i
+  - title: Translatable attributes
+    description: Extract title and alt attribute values across all elements.
+    config: |
+      translatableAttributes:
+        - title
+        - alt
+  - title: Conditional extraction with rules
+    description: Include only div elements whose translate attribute is yes.
+    config: |
+      excludeByDefault: true
+      elements:
+        div:
+          ruleTypes:
+            - INCLUDE
+          conditions:
+            - translate
+            - EQUALS
+            - "yes"

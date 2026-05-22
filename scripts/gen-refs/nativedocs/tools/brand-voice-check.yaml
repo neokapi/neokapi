@@ -1,0 +1,57 @@
+# Native reference doc for the built-in `brand-voice-check` tool.
+# Schema source: core/ai/tools/brandvoice.go (BrandVoiceCheckConfig).
+description: Check text against a brand voice profile using an LLM and score brand compliance.
+overview: |
+  The **AI Brand Voice Check** tool evaluates each block's source text against a
+  brand voice profile using a configured LLM provider. The model returns
+  findings across voice dimensions — tone, style, clarity, and brand compliance —
+  each with a severity, message, and suggestion. The tool computes an overall
+  brand-compliance score, records the score and any findings on the block's
+  properties, and attaches a brand-voice annotation to the block. Blocks with
+  empty source text are skipped.
+
+  Provider credentials are required, since the tool makes an external API call per
+  block. The voice profile that defines the brand's guidelines is supplied by a
+  profile identifier resolved from the store, or programmatically by the host
+  (for example the brand command or a project's brand binding). This is the
+  LLM-based companion to the rule-based brand vocabulary check.
+parameters:
+  provider:
+    description: The LLM provider backend to use.
+    help: |
+      Selects which model backend performs the brand voice check.
+    values: "`anthropic` (default), `openai`, `gemini`, `azureopenai`, `ollama`"
+  apiKey:
+    description: API key for the AI provider.
+    help: |
+      Credential for the selected provider. Local providers such as Ollama may not
+      require a key. Prefer the credential store or environment over committing
+      keys to a recipe.
+    values: "string"
+  model:
+    description: The model name to request from the provider.
+    help: |
+      The provider-specific model identifier. When omitted, the provider's default
+      model is used.
+    values: "string"
+  profileId:
+    description: Brand voice profile to resolve from the store.
+    help: |
+      The identifier of the voice profile whose guidelines the text is checked
+      against. The profile may instead be supplied programmatically by the host,
+      in which case this field is not needed.
+    values: "string"
+limitations:
+  - Requires AI provider credentials; makes an external API call per block.
+  - Without a resolved voice profile, the prompt has no brand guidelines to check against.
+  - Evaluates source text; findings are model output and reflect the chosen model's judgement.
+processingNotes:
+  - Operates on blocks; blocks with empty source text are skipped.
+  - Blocks are processed in parallel by default for throughput.
+  - A brand-voice score and findings are stored on the block, and a brand-voice annotation is attached.
+examples:
+  - title: Check against a stored profile
+    description: Resolve a named brand voice profile and evaluate text against it.
+    config: |
+      provider: anthropic
+      profileId: acme-marketing

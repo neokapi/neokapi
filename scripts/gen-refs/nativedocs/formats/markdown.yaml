@@ -1,0 +1,104 @@
+# Native reference doc for the built-in `markdown` format.
+# Schema source: core/formats/markdown/config.go (Config) + schema.go.
+# Mirrors the Okapi okf_markdown filter; CommonMark structural model.
+description: Extract and reinsert translatable text from Markdown, keeping headings, lists, links, and code intact.
+overview: |
+  The **Markdown** format reads Markdown documents, extracts prose as
+  translatable blocks, and writes the translations back while preserving the
+  document's structure — headings, lists, emphasis, links, and code. Inline
+  markup (bold, italic, links, inline code) is exposed as inline codes inside
+  each block so the surrounding syntax survives translation.
+
+  By default paragraphs, headings, list items, blockquotes, and image alt text
+  are translatable, while code blocks, YAML front matter, raw HTML blocks, and
+  link/image URLs are emitted as non-translatable structure. Each of those
+  categories can be toggled, and embedded HTML can be routed to a subfilter.
+parameters:
+  translateCodeBlocks:
+    description: Make fenced and indented code blocks translatable.
+    help: |
+      When enabled, fenced and indented code blocks are extracted as
+      translatable content. By default they are emitted as non-translatable
+      data, since code is rarely localized.
+    values: "`true` / `false` (default `false`)"
+  translateFrontMatter:
+    description: Make YAML front matter values translatable.
+    help: |
+      When enabled, values in the document's YAML front matter are extracted
+      as translatable content. By default front matter is emitted as
+      non-translatable data.
+    values: "`true` / `false` (default `false`)"
+  translateImageAlt:
+    description: Include image alt text in translatable content.
+    help: |
+      When enabled (the default), the alt text of images is included in the
+      translatable content of the block that contains the image.
+    values: "`true` / `false` (default `true`)"
+  translateURLs:
+    description: Make link and image URLs translatable.
+    help: |
+      When enabled, the URLs of links and images are extracted as translatable
+      content (useful when localized assets or pages live at different paths).
+      By default URLs are left untranslated.
+    values: "`true` / `false` (default `false`)"
+  translateBlockQuotes:
+    description: Make blockquote content translatable.
+    help: |
+      When enabled (the default), the prose inside blockquotes is translatable.
+      Disable it to leave quoted material untranslated.
+    values: "`true` / `false` (default `true`)"
+  translateHTMLBlocks:
+    description: Make raw HTML blocks translatable.
+    help: |
+      When enabled, raw HTML blocks embedded in the Markdown are extracted as
+      translatable content. By default they are emitted as non-translatable
+      data; route them to a subfilter via `subfilter` for structured HTML
+      handling instead.
+    values: "`true` / `false` (default `false`)"
+  unescapeBackslashCharacters:
+    description: Parse backslash-escaped punctuation in the source.
+    help: |
+      When enabled, backslash-escaped punctuation in the source document (for
+      example `\*`) is parsed as escaped characters rather than literal
+      backslash sequences.
+    values: "`true` / `false` (default `false`)"
+  subfilter:
+    description: Subfilter format for HTML content within Markdown.
+    help: |
+      The name of a format used as a subfilter (for example `html`) to parse
+      HTML content embedded in the Markdown, so HTML markup is handled
+      structurally instead of as opaque text.
+    values: Format name (default empty)
+    examples:
+      - "`html` — parse embedded HTML through the HTML format"
+  useCodeFinder:
+    description: Enable regex-based inline-code detection.
+    help: |
+      Enables regex-based detection of additional inline codes within
+      translatable text, beyond the Markdown inline markup already recognized.
+      The patterns are supplied via `codeFinderRules`.
+    values: "`true` / `false` (default `false`)"
+  codeFinderRules:
+    description: Regex patterns that match inline codes within text.
+    help: |
+      An array of regular expressions; text matching any of them is treated
+      as an inline code rather than translatable words. Only used when
+      `useCodeFinder` is enabled.
+    values: Array of regular expressions (default empty)
+    dependsOn:
+      - property: useCodeFinder
+        condition: must be enabled for these patterns to apply
+limitations:
+  - Code blocks, front matter, raw HTML blocks, and URLs are non-translatable by default; enable the corresponding option to extract them.
+processingNotes:
+  - Inline markup (emphasis, links, inline code) becomes inline codes within blocks, so it survives translation unchanged.
+  - Structural elements (fences, list markers, heading prefixes) form the non-translatable skeleton.
+examples:
+  - title: Translate front matter too
+    description: Include YAML front matter values alongside the prose.
+    config: |
+      translateFrontMatter: true
+  - title: Handle embedded HTML structurally
+    description: Route inline and block HTML through the HTML subfilter.
+    config: |
+      subfilter: html

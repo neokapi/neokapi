@@ -1,0 +1,95 @@
+# Native reference doc for the built-in `whitespace-correct` tool.
+# Schema source: core/tools/whitespacecorrect.go (WhitespaceCorrectConfig).
+description: Normalize and fix whitespace issues in target translations, including punctuation spacing.
+overview: |
+  The **Whitespace Correct** tool cleans up whitespace in target translations.
+  It can collapse repeated spaces, trim leading and trailing whitespace, match
+  the source's leading/trailing whitespace onto the target, remove zero-width
+  characters, and remove whitespace after specific punctuation marks. The last
+  is particularly useful when translating from a space-delimited language into a
+  non-space-delimited one such as Chinese or Japanese.
+
+  The tool operates only on the target text, so a target locale is required, and
+  only blocks that already have a target for that locale are processed.
+parameters:
+  targetLocale:
+    description: Target locale for processing.
+    help: |
+      The locale whose target text is corrected. Required; only blocks with an
+      existing target for this locale are touched.
+    values: "BCP-47 locale (required)"
+  normalizeSpaces:
+    description: Collapse runs of multiple spaces to one.
+    help: When enabled, consecutive spaces are reduced to a single space.
+    values: "`true` / `false` (default `true`)"
+  trimLeading:
+    description: Remove leading whitespace from the target.
+    help: When enabled, whitespace at the start of the target text is removed.
+    values: "`true` / `false` (default `false`)"
+  trimTrailing:
+    description: Remove trailing whitespace from the target.
+    help: When enabled, whitespace at the end of the target text is removed.
+    values: "`true` / `false` (default `false`)"
+  matchSourceWhitespace:
+    description: Copy the source's leading/trailing whitespace to the target.
+    help: |
+      When enabled, the target's existing leading and trailing whitespace is
+      stripped and replaced with the source's, so the target mirrors the
+      source's edge whitespace.
+    values: "`true` / `false` (default `true`)"
+  removeZeroWidthChars:
+    description: Remove zero-width spaces and joiners.
+    help: |
+      When enabled, zero-width spaces and joiners (and the zero-width no-break
+      space) are removed from the target.
+    values: "`true` / `false` (default `true`)"
+  correctFullStop:
+    description: Correct whitespace after full stops.
+    help: |
+      When enabled, whitespace following a full stop (ASCII `.` or full-width
+      `．`) is removed, per the included whitespace types.
+    values: "`true` / `false` (default `true`)"
+  correctComma:
+    description: Correct whitespace after commas.
+    help: |
+      When enabled, whitespace following a comma (ASCII `,` or full-width `，`)
+      is removed, per the included whitespace types.
+    values: "`true` / `false` (default `true`)"
+  correctExclamation:
+    description: Correct whitespace after exclamation marks.
+    help: |
+      When enabled, whitespace following an exclamation mark (ASCII `!` or
+      full-width `！`) is removed, per the included whitespace types.
+    values: "`true` / `false` (default `true`)"
+  correctQuestion:
+    description: Correct whitespace after question marks.
+    help: |
+      When enabled, whitespace following a question mark (ASCII `?` or
+      full-width `？`) is removed, per the included whitespace types.
+    values: "`true` / `false` (default `true`)"
+  includeVerticalWS:
+    description: Include vertical whitespace in corrections.
+    help: |
+      When enabled, vertical whitespace — line feeds and carriage returns — is
+      treated as removable after punctuation.
+    values: "`true` / `false` (default `true`)"
+  includeHorizontalWS:
+    description: Include horizontal tabs in corrections.
+    help: |
+      When enabled, horizontal tab characters are treated as removable after
+      punctuation.
+    values: "`true` / `false` (default `true`)"
+processingNotes:
+  - Operates on the target text only; a target locale is required and only existing targets are processed.
+  - Punctuation correction removes the whitespace that immediately follows each enabled punctuation mark, limited to the included whitespace types.
+examples:
+  - title: Normalize spacing for a locale
+    description: Apply the default whitespace cleanup to a target.
+    config: |
+      targetLocale: fr-FR
+  - title: Tidy CJK punctuation spacing
+    description: Remove spaces after punctuation for a non-space-delimited target.
+    config: |
+      targetLocale: zh-CN
+      correctFullStop: true
+      correctComma: true

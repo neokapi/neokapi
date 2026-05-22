@@ -1,0 +1,53 @@
+# Native reference doc for the built-in `uri-convert` tool.
+# Schema source: core/tools/uriconvert.go (URIConvertConfig).
+description: Encode or decode URI percent-escape sequences in block text.
+overview: |
+  The **URI Convert** tool encodes or decodes URI percent-escape sequences in
+  block text. Decoding turns `%XX` escapes back into their characters; encoding
+  replaces reserved characters with percent escapes. Use it to make URL-encoded
+  content readable for translation, or to re-encode it for output.
+
+  By default the tool decodes the target text for the configured locale; a
+  target locale is required when applying to the target.
+parameters:
+  mode:
+    description: The conversion direction.
+    help: |
+      `decode` converts `%XX` escape sequences back to their characters;
+      `encode` replaces reserved characters with percent escapes.
+    values: "`encode` / `decode` (default `decode`)"
+  applySource:
+    description: Apply the conversion to source text.
+    help: When enabled, the source text is encoded or decoded.
+    values: "`true` / `false` (default `false`)"
+  applyTarget:
+    description: Apply the conversion to target text.
+    help: |
+      When enabled, the target text is converted for the configured locale.
+      Only existing targets are touched.
+    values: "`true` / `false` (default `true`)"
+    dependsOn:
+      - property: targetLocale
+        condition: required when applyTarget is enabled
+  targetLocale:
+    description: Target locale for processing.
+    help: The locale whose target text is converted. Required when `applyTarget` is enabled.
+    values: "BCP-47 locale"
+    dependsOn:
+      - property: applyTarget
+        condition: must be enabled for this to take effect
+processingNotes:
+  - Operates on translatable blocks only; non-translatable blocks pass through unchanged.
+  - Conversion uses path-style escaping; decoding malformed escape sequences fails the run.
+examples:
+  - title: Decode percent escapes in the target
+    description: Make URL-encoded target text readable.
+    config: |
+      mode: decode
+      applyTarget: true
+      targetLocale: fr-FR
+  - title: Encode source text
+    description: Percent-encode reserved characters in the source.
+    config: |
+      mode: encode
+      applySource: true

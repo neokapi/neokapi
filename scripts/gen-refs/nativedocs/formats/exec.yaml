@@ -1,0 +1,47 @@
+# Native reference doc for the built-in `exec` format.
+# Source: core/formats/exec/{format.go,reader.go}.
+# Declarative subprocess extractor; configured in a .kapi project, not used as a per-file reader.
+description: Run an external subprocess as a custom extractor that streams blocks as NDJSON.
+overview: |
+  The exec format is a declarative wrapper around an external
+  extractor. Instead of parsing a file format itself, it launches a
+  subprocess you name, feeds it the matched file paths on standard
+  input (NUL-separated), and reads back translatable blocks as
+  newline-delimited JSON (NDJSON) on standard output. Each output line
+  is a record of the form `{"type":"block","document":"<path>",
+  "block":{ … }}`; lines that are not JSON objects are treated as noise
+  (progress or log output) and ignored. A non-zero exit status surfaces
+  as an error with the subprocess's captured stderr attached.
+
+  Use exec when a format has no built-in reader but you can extract its
+  strings with a script or tool in any language — for example a
+  project-specific source-code extractor. The protocol is transparent
+  to inspect (plain JSON) and carries no kapi-specific schema beyond the
+  block shape the subprocess emits.
+
+  The exec format is opt-in per project: it has no file extensions or
+  MIME types and is never auto-detected by file type. It is declared on
+  a collection's `format:` block in a `.kapi` project and run via
+  `kapi extract -p project.kapi`, which spawns the declared command once
+  per collection with every matched path on stdin. It is not usable as a
+  per-file reader; opening a file directly with this format returns an
+  error pointing at the project-driven path.
+limitations:
+  - Not usable as a standalone per-file reader; it only runs through the project extraction path (`kapi extract -p`).
+  - The subprocess must implement the NUL-separated-paths-in, NDJSON-blocks-out protocol; no other transport is supported.
+  - There is no built-in writer; exec covers extraction only.
+processingNotes:
+  - The subprocess receives matched file paths on stdin as a NUL-separated list and emits one `block` record per translatable unit on stdout.
+  - The launch command, working directory, and an optional timeout are taken from the collection's format configuration in the `.kapi` project.
+  - Output lines that are not JSON objects are skipped, so the subprocess may interleave progress text on stdout.
+examples:
+  - title: Wrap a custom extractor
+    description: |
+      Declare an external command on a collection. `kapi extract` runs
+      it once per collection, passing matched paths on stdin and reading
+      NDJSON block records from stdout.
+    config: |
+      format:
+        name: exec
+        config:
+          command: "vp kapi-react extract --stream"

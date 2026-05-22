@@ -9,6 +9,10 @@
       "@site/*": ["./*"]
     },
     "resolveJsonModule": true,
+    // The reference pages import workspace packages (@neokapi/ui-primitives,
+    // flow-editor) whose source uses explicit `.ts` import specifiers. Allow
+    // them so typecheck can follow the import graph.
+    "allowImportingTsExtensions": true,
     "ignoreDeprecations": "6.0"
   },
   "exclude": ["build", ".docusaurus", "node_modules"]

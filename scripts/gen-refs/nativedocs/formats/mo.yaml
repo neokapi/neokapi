@@ -1,0 +1,35 @@
+# Native reference doc for the built-in `mo` format.
+# Schema source: core/formats/mo/{config.go,schema.go,reader.go,writer.go}.
+# Upstream analogue: gettext PO/MO tooling (msgfmt). The MO catalog is the
+# compiled runtime form of a PO file.
+description: Write compiled GNU gettext MO catalogs — the binary runtime form of a PO file.
+overview: |
+  MO (Machine Object) is the compiled binary catalog that GNU gettext loads
+  at runtime. It stores one entry per `(msgctxt, msgid)` pair together with
+  its translation, indexed for lookup by gettext libraries. Where a PO file
+  is the editable source catalog, the MO file is the artifact an application
+  ships and reads.
+
+  neokapi provides MO as a **writer only**. The pipeline consumes translatable
+  Blocks and emits a binary catalog for a single target locale. `msgctxt` is
+  resolved from each Block in order: `Properties["context"]`, then `Name`, then
+  `ID` — so Blocks produced by the PO reader (which set the context property)
+  and Blocks produced by the JSON reader with full key paths (which set the
+  Block name) both compile to MO without extra configuration. Untranslated
+  entries are dropped, since a runtime catalog is expected to carry only
+  translations, and the required empty-`msgid` metadata header entry is always
+  written.
+
+  MO cannot be read back through the pipeline. Although the format registers a
+  reader so that `.mo` is recognised for output routing and extension
+  detection, opening an MO file as a source returns an error directing you to
+  load compiled catalogs with a gettext runtime library instead.
+limitations:
+  - Write-only in the pipeline; MO files cannot be parsed as a translation source.
+  - Emits a catalog for a single target locale; untranslated entries are omitted.
+  - The output is a binary catalog, not the editable PO source — keep the PO file as the editable form.
+processingNotes:
+  - One MO entry is emitted per translated Block, keyed by `(msgctxt, msgid)`.
+  - "`msgctxt` is taken from `Block.Properties[\"context\"]`, falling back to `Block.Name`, then `Block.ID`."
+  - The empty-`msgid` metadata header entry is always written.
+wikiUrl: "https://www.gnu.org/software/gettext/manual/html_node/MO-Files.html"

@@ -1,8 +1,7 @@
 import { cn } from "../../lib/utils";
-import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Switch } from "../ui/switch";
-import { FormToggle, FormInputAction } from "../ui/form";
+import { FormToggle } from "../ui/form";
 import type { PropertySchema, ToolDocParam } from "./types";
 import { evaluateCondition } from "./hooks/useConditionalVisibility";
 import { useFieldEnabled } from "./hooks/useFieldEnabled";
@@ -17,6 +16,9 @@ import { MapEditor } from "./widgets/MapEditor";
 import { ArrayEditor } from "./widgets/ArrayEditor";
 import { NestedObjectEditor } from "./widgets/NestedObjectEditor";
 import { JsonEditor } from "./widgets/JsonEditor";
+import { NumberListEditor } from "./widgets/NumberListEditor";
+import { PathPicker } from "./widgets/PathPicker";
+import { CredentialPicker } from "./widgets/CredentialPicker";
 
 export function PropertyField({
   name,
@@ -84,12 +86,6 @@ export function PropertyField({
 
   const editor = schema["ui:widget-options"] as
     | {
-        path?: {
-          browseTitle?: string;
-          forSaveAs?: boolean;
-          filters?: Array<{ name: string; extensions: string }>;
-        };
-        folder?: { browseTitle?: string };
         text?: { height?: number };
       }
     | undefined;
@@ -275,21 +271,17 @@ export function PropertyField({
         disabled={disabled}
         error={error}
       >
-        <Input
+        <NumberListEditor
           value={String(resolved ?? "")}
-          placeholder={schema["ui:placeholder"] || "1, 2, 3, ..."}
+          placeholder={schema["ui:placeholder"]}
           disabled={disabled}
-          className="text-xs h-8"
-          onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-            onChange(e.target.value || undefined)
-          }
+          onChange={onChange}
         />
       </FieldWrapper>
     );
   }
 
-  if (widget === "path" || widget === "file-picker") {
-    const pathMeta = editor?.path;
+  if (widget === "credential-picker") {
     return (
       <FieldWrapper
         label={showLabel ? label : ""}
@@ -301,53 +293,24 @@ export function PropertyField({
         disabled={disabled}
         error={error}
       >
-        <FormInputAction>
-          <Input
-            value={String(resolved ?? "")}
-            placeholder={schema["ui:placeholder"] || pathMeta?.browseTitle || "/path/to/file..."}
-            disabled={disabled}
-            className="flex-1 font-mono text-xs h-8"
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-              onChange(e.target.value || undefined)
-            }
-          />
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            disabled={disabled}
-            className="h-8 text-xs shrink-0"
-            onClick={() => {
-              const input = document.createElement("input");
-              input.type = "file";
-              if (pathMeta?.filters?.length) {
-                const exts = pathMeta.filters
-                  .map((f) => f.extensions.replace(/\*\./g, ".").replace(/\*/g, ""))
-                  .filter((e) => e && e !== ".")
-                  .join(",");
-                if (exts) input.accept = exts;
-              }
-              input.onchange = () => {
-                const file = input.files?.[0];
-                if (file) onChange(file.name);
-              };
-              input.click();
-            }}
-          >
-            Browse
-          </Button>
-        </FormInputAction>
-        {pathMeta?.filters && pathMeta.filters.length > 0 && (
-          <p className="text-xs text-muted-foreground mt-0.5">
-            {pathMeta.filters.map((f) => f.name).join(", ")}
-          </p>
-        )}
+        <CredentialPicker
+          schema={schema}
+          value={String(resolved ?? "")}
+          placeholder={schema["ui:placeholder"]}
+          disabled={disabled}
+          onChange={onChange}
+        />
       </FieldWrapper>
     );
   }
 
-  if (widget === "folder") {
-    const folderMeta = editor?.folder;
+  if (
+    widget === "path" ||
+    widget === "file-picker" ||
+    widget === "folder" ||
+    widget === "folder-picker"
+  ) {
+    const kind = widget === "folder" || widget === "folder-picker" ? "directory" : "file";
     return (
       <FieldWrapper
         label={showLabel ? label : ""}
@@ -359,28 +322,15 @@ export function PropertyField({
         disabled={disabled}
         error={error}
       >
-        <FormInputAction>
-          <Input
-            value={String(resolved ?? "")}
-            placeholder={
-              schema["ui:placeholder"] || folderMeta?.browseTitle || "/path/to/folder..."
-            }
-            disabled={disabled}
-            className="flex-1 font-mono text-xs h-8"
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-              onChange(e.target.value || undefined)
-            }
-          />
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            disabled={disabled}
-            className="h-8 text-xs shrink-0"
-          >
-            Browse
-          </Button>
-        </FormInputAction>
+        <PathPicker
+          kind={kind}
+          name={name}
+          schema={schema}
+          value={String(resolved ?? "")}
+          placeholder={schema["ui:placeholder"]}
+          disabled={disabled}
+          onChange={onChange}
+        />
       </FieldWrapper>
     );
   }

@@ -1,0 +1,72 @@
+# Native reference doc for the built-in `translation-comparison` tool.
+# Schema source: core/tools/translationcomparison.go (TranslationComparisonConfig).
+description: Compare two target translations of the same source and report whether they match.
+overview: |
+  The **Translation Comparison** tool compares the translations of a block in two
+  target locales (or two versions) and records the result on the block's
+  properties: a status — identical, different, or one of the missing-translation
+  cases — and a human-readable diff description. When a translation is absent for
+  one or both locales, the status reflects which side is missing.
+
+  Comparison sensitivity is configurable: case, whitespace, and punctuation can
+  each be ignored so that cosmetic differences do not register as a mismatch. The
+  two locales being compared are supplied programmatically; the parameters below
+  control how the comparison is performed and how the translations are labelled
+  in the report.
+parameters:
+  caseSensitive:
+    description: Take case differences into account when comparing.
+    help: |
+      When enabled, translations that differ only in letter case count as
+      different. Disable it to compare case-insensitively.
+    values: "`true` / `false` (default `true`)"
+  whitespaceSensitive:
+    description: Take whitespace differences into account when comparing.
+    help: |
+      When enabled, differences in whitespace count as a mismatch. When disabled,
+      runs of whitespace are collapsed to a single space and trimmed before
+      comparison, so spacing differences are ignored.
+    values: "`true` / `false` (default `true`)"
+  punctuationSensitive:
+    description: Take punctuation differences into account when comparing.
+    help: |
+      When enabled, punctuation differences count as a mismatch. When disabled,
+      punctuation characters are stripped from both sides before comparison.
+    values: "`true` / `false` (default `true`)"
+  document1Label:
+    description: Label for the first translation in reports.
+    help: |
+      The name used to identify the first translation in the diff description. If
+      left empty, the first locale's identifier is used instead.
+    values: "string (default `Trans1`)"
+  document2Label:
+    description: Label for the second translation in reports.
+    help: |
+      The name used to identify the second translation in the diff description. If
+      left empty, the second locale's identifier is used instead.
+    values: "string (default `Trans2`)"
+  genericCodes:
+    description: Use generic numbered tags instead of original inline codes in reports.
+    help: |
+      When enabled, inline codes are represented in the report as generic numbered
+      tags (for example `<1>...</1>`) rather than their original markup, which
+      keeps the diff readable.
+    values: "`true` / `false` (default `true`)"
+limitations:
+  - Compares two target locales of the same block; it does not compare against an external reference file.
+  - A block is only compared when it carries translations for the configured locales; otherwise a missing-translation status is recorded.
+processingNotes:
+  - Operates on translatable blocks; non-translatable structure passes through unchanged.
+  - The two locales to compare are configured programmatically, not through the parameters above.
+examples:
+  - title: Ignore cosmetic differences
+    description: Treat translations that differ only in case, whitespace, or punctuation as identical.
+    config: |
+      caseSensitive: false
+      whitespaceSensitive: false
+      punctuationSensitive: false
+  - title: Label the compared translations
+    description: Use meaningful labels for the two translations in the diff output.
+    config: |
+      document1Label: Vendor A
+      document2Label: Vendor B

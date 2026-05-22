@@ -1,0 +1,69 @@
+# Native reference doc for the built-in `vtt` format.
+# Schema source: core/formats/vtt/config.go (Config).
+# Behaviour grounded in core/formats/vtt/reader.go, writer.go, transform.go
+# and spec.yaml, mirroring Okapi's WebVTT subtitle filter (okf_vtt).
+description: Read and write WebVTT subtitle files, extracting one block per cue.
+overview: |
+  WebVTT (Web Video Text Tracks) is the W3C subtitle and caption format
+  used by HTML5 `<track>` elements. A `.vtt` file opens with a `WEBVTT`
+  header and then lists cues: an optional cue identifier, a timecode line
+  (`HH:MM:SS.mmm --> HH:MM:SS.mmm` plus optional positioning settings),
+  and one or more lines of cue text.
+
+  The reader emits the `WEBVTT` header as a non-translatable data part,
+  each cue identifier as its own data part, and one translatable block per
+  cue. The timecode (including any cue settings) is preserved on the
+  block's `timecode` property and written back verbatim, so the timing
+  survives the round-trip. Cues are kept separate — captions are not
+  merged by sentence — so each cue is translated independently.
+parameters:
+  maxCharsPerLine:
+    description: Maximum characters per line of cue text on output.
+    help: |
+      Caps the line length of written cue text. `0` (the default) means no
+      limit. This is an output-side parameter modelled on Okapi's WebVTT
+      writer; the native writer accepts it for configuration parity but
+      does not currently rewrap cue text — lines are written as supplied
+      by the block.
+    values: "Integer (default `0`, meaning no limit)"
+  maxLinesPerCaption:
+    description: Maximum number of text lines per cue on output.
+    help: |
+      Caps how many lines a single cue may occupy. `0` (the default) means
+      no limit. Accepted for parity with Okapi's WebVTT writer; the native
+      writer does not currently enforce it.
+    values: "Integer (default `0`, meaning no limit)"
+  cjkCharsPerLine:
+    description: Maximum characters per line for CJK languages.
+    help: |
+      A separate per-line character cap applied to CJK text, where each
+      character is visually wider. `0` (the default) falls back to
+      `maxCharsPerLine`. Accepted for parity with Okapi's WebVTT writer;
+      the native writer does not currently enforce it.
+    values: "Integer (default `0`, falls back to maxCharsPerLine)"
+    dependsOn:
+      - property: maxCharsPerLine
+        condition: used as the fallback when cjkCharsPerLine is 0
+  splitWords:
+    description: Allow splitting words to keep within the character limit.
+    help: |
+      When enabled, words may be broken across lines to honour the
+      per-line character cap; when disabled, line breaks fall on word
+      boundaries only. Takes effect only alongside a non-zero character
+      limit. Accepted for parity with Okapi's WebVTT writer; the native
+      writer does not currently rewrap text.
+    values: "`true` / `false` (default `false`)"
+    dependsOn:
+      - property: maxCharsPerLine
+        condition: only relevant when a character limit is set
+limitations:
+  - The output line-wrapping parameters (maxCharsPerLine, maxLinesPerCaption, cjkCharsPerLine, splitWords) are accepted for parity with Okapi but are not yet enforced by the native writer; cue text is written as supplied.
+  - Cues are never merged by sentence; each cue is a separate block.
+processingNotes:
+  - The WEBVTT header is emitted as a data part; cue identifiers become their own data parts.
+  - The cue timecode and its settings are preserved on the block `timecode` property and written back unchanged.
+examples:
+  - title: Default extraction
+    description: Read each cue as a translatable block with no output line limits.
+    config: |
+      {}

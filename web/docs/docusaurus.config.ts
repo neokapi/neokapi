@@ -80,6 +80,21 @@ const config: Config = {
         },
       };
     },
+    // Run Tailwind v4 through Docusaurus's PostCSS pipeline so the reference
+    // pages (/formats, /tools) can render the shared ui-primitives SchemaForm.
+    // The tailwind.css customCss entry imports Tailwind WITHOUT preflight and
+    // scopes color tokens to `.kapi-reference`, leaving Infima/normal docs
+    // pages untouched.
+    function tailwindPostCss() {
+      return {
+        name: "tailwind-postcss",
+        configurePostCss(postcssOptions: { plugins: unknown[] }) {
+          // eslint-disable-next-line @typescript-eslint/no-require-imports
+          postcssOptions.plugins.push(require("@tailwindcss/postcss"));
+          return postcssOptions;
+        },
+      };
+    },
   ],
 
   presets: [
@@ -96,7 +111,7 @@ const config: Config = {
         },
         blog: false,
         theme: {
-          customCss: "./src/css/custom.css",
+          customCss: ["./src/css/custom.css", "./src/css/tailwind.css"],
         },
       } satisfies Preset.Options,
     ],
@@ -152,6 +167,7 @@ const config: Config = {
           position: "left",
           items: [
             { label: "Format Reference", to: "/formats" },
+            { label: "Tool Reference", to: "/tools" },
             { label: "Benchmarks", to: "/pseudobench" },
             { label: "Parity", to: "/parity" },
             { label: "Test Results", to: "/test-comparison" },

@@ -1,0 +1,54 @@
+# Native reference doc for the built-in `create-target` tool.
+# Schema source: core/tools/createtarget.go (CreateTargetConfig).
+description: Create target segment containers for a locale, optionally seeded with the source text.
+overview: |
+  The **Create Target** tool ensures every block has a target segment for a
+  given locale. It is the standard first step when preparing content for
+  translation: it creates the empty (or source-seeded) target containers that
+  later tools — translation, leverage, QA — fill and check.
+
+  A target locale is required. By default existing targets are left untouched;
+  enable overwriting to replace them. Targets can be created for
+  non-translatable blocks as well, which keeps bilingual structure complete
+  across an entire document.
+parameters:
+  targetLocale:
+    description: The locale to create a target for.
+    help: |
+      The BCP-47 locale identifier for the target to create (for example
+      `fr-FR`). On the CLI and in flows this is typically supplied by the
+      `--target-lang` value.
+    values: "BCP-47 locale (required)"
+  copySource:
+    description: Seed the new target with the source text.
+    help: |
+      When enabled, the source text is copied into the new target segment so it
+      starts as a duplicate of the source. When disabled, the target is created
+      empty.
+    values: "`true` / `false` (default `false`)"
+  overwrite:
+    description: Replace targets that already exist.
+    help: |
+      By default a block that already has a target for the locale is left
+      unchanged. Enable this to overwrite the existing target with a new
+      (empty or source-seeded) one.
+    values: "`true` / `false` (default `false`)"
+  createOnNonTranslatable:
+    description: Also create targets on non-translatable blocks.
+    help: |
+      When enabled, target containers are created even for blocks marked
+      non-translatable, keeping the bilingual structure complete. Disable it to
+      skip non-translatable blocks entirely.
+    values: "`true` / `false` (default `true`)"
+processingNotes:
+  - Existing targets are skipped unless overwrite is enabled.
+examples:
+  - title: Create empty targets for a locale
+    description: Prepare empty target containers ready for translation.
+    config: |
+      targetLocale: fr-FR
+  - title: Pre-fill targets with the source
+    description: Seed targets with source text as a starting draft.
+    config: |
+      targetLocale: de-DE
+      copySource: true

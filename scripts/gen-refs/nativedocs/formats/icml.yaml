@@ -1,0 +1,27 @@
+# Native reference doc for the built-in `icml` format.
+# Schema source: core/formats/icml/{reader.go,writer.go,config.go,spec.yaml}.
+# Upstream analogue: Okapi ICMLFilter (net.sf.okapi.filters.icml.ICMLFilter).
+# The native reader has no JSON Schema (Config does not implement
+# SchemaProvider), so no `parameters`/`examples` blocks are authored.
+description: Extract translatable text from Adobe InCopy ICML and WCML documents.
+overview: |
+  ICML (InCopy Markup Language) is the XML-based format Adobe InDesign and
+  InCopy use for editorial workflows. Unlike its IDML sibling, an `.icml` (or
+  `.wcml`) file is a single XML document rather than a ZIP package. The reader
+  descends Story → ParagraphStyleRange → CharacterStyleRange → Content runs,
+  emitting one translatable Block per visible text payload.
+
+  neokapi reads and writes ICML/WCML, preserving the surrounding style ranges
+  and document structure as skeleton. By default it does not extract note
+  content, and it groups paragraph text rather than starting a new translation
+  unit at each line break — both matching the upstream Okapi ICML filter
+  defaults. The native reader applies the same defaults but does not expose
+  them as a configurable JSON schema in this reference.
+limitations:
+  - Note content is not extracted by default.
+  - Extraction and segmentation toggles match the upstream Okapi ICML filter but are not surfaced as configurable schema properties in this reference.
+processingNotes:
+  - One translatable Block per visible Content run, walking Story → ParagraphStyleRange → CharacterStyleRange.
+  - Style ranges and the document structure are preserved as skeleton for round-trips.
+  - Handles both `.icml` and `.wcml` extensions.
+wikiUrl: "https://www.adobe.com/devnet/indesign/documentation.html"

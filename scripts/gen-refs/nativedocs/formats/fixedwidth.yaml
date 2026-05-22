@@ -1,0 +1,47 @@
+# Native reference doc for the built-in `fixedwidth` format.
+# Source: core/formats/fixedwidth/{reader.go,writer.go,config.go,spec.yaml}.
+# Mirrors Okapi's Table filter, fixed-width-columns variant (okf_fixedwidthcolumns).
+# Configurable via .kapi config (columns, hasHeader, trimValues); no JSON schema is published,
+# so the config is documented in prose here.
+description: Read and write fixed-width column text files, extracting the columns you mark as translatable.
+overview: |
+  Fixed-width column files are tabular text where every record shares
+  the same column layout: each column begins at a fixed character
+  offset and spans a fixed width, padded with whitespace to fill its
+  slot. Records are separated by line breaks.
+
+  The reader splits each line at the configured column boundaries and
+  emits one translatable block per non-empty cell in a column you have
+  marked translatable. Non-translatable cells are preserved as
+  structure so the writer can rebuild the original layout. There is no
+  auto-detection of the layout — you must declare the columns.
+
+  Configuration is supplied on the collection's `format:` block in a
+  `.kapi` project. The keys are: `columns` — an ordered list of
+  `{ name, start, width, translatable }` records, where `start` is the
+  0-based character offset, `width` is the column width in characters,
+  and `translatable` marks the column for extraction (at least one
+  column is required, each with a non-empty name, a positive width, and
+  a non-negative start); `hasHeader` — when true, treat the first row
+  as a header; and `trimValues` — when true, trim leading and trailing
+  whitespace from each cell's value.
+limitations:
+  - The column layout must be declared explicitly; there is no auto-detection of column boundaries.
+  - Offsets and widths are counted in characters (runes); multibyte characters occupy one position each, which may differ from byte-oriented layouts.
+processingNotes:
+  - One block per non-empty translatable cell; non-translatable cells are emitted as Data so the layout round-trips.
+  - With `hasHeader` enabled the first row is treated as a header rather than data.
+  - Padding whitespace is preserved by default; set `trimValues` to strip it from extracted values.
+examples:
+  - title: Extract a translatable column
+    description: |
+      A two-column layout where only the second column (the label) is
+      translatable; the first column is an identifier.
+    config: |
+      format:
+        name: fixedwidth
+        config:
+          columns:
+            - { name: id, start: 0, width: 8, translatable: false }
+            - { name: label, start: 8, width: 40, translatable: true }
+          trimValues: true

@@ -1,0 +1,42 @@
+# Native reference doc for the built-in `phpcontent` format.
+# Schema source: core/formats/phpcontent/config.go (Config + Schema()).
+# Mirrors the Okapi okf_phpcontent filter.
+description: Extract translatable text from PHP source files, optionally scoped by inline localization directives.
+overview: |
+  The **PHP Content** format reads PHP source files and extracts the
+  translatable text they contain — the text outside PHP code, and text within
+  regions marked by localization directives. It is intended for PHP templates
+  and content files where prose is interleaved with code.
+
+  Extraction can be scoped with `//okapi:` directives embedded as comments in
+  the source, which turn extraction on (`text`) and off (`skip`) for regions
+  of the file. By default these directives are honored, and text outside the
+  directive-controlled regions is also extracted.
+parameters:
+  useDirectives:
+    description: Honor inline localization directives.
+    help: |
+      When enabled (the default), `//okapi:` directives in the PHP source —
+      `skip` and `text` — control which regions of the file are extracted.
+      Disable it to ignore the directives entirely.
+    values: "`true` / `false` (default `true`)"
+  extractOutsideDirectives:
+    description: Extract text outside directive-controlled regions.
+    help: |
+      When enabled (the default), translatable text found outside the regions
+      governed by directives is still extracted. Disable it to extract only
+      the regions explicitly marked by directives.
+    values: "`true` / `false` (default `true`)"
+    dependsOn:
+      - property: useDirectives
+        condition: only relevant when directives are honored
+limitations:
+  - Directive scoping relies on `//okapi:` comments in the source; files without them are extracted according to `extractOutsideDirectives`.
+processingNotes:
+  - Translatable text becomes blocks; PHP code and structure form the non-translatable skeleton.
+examples:
+  - title: Only directive-marked regions
+    description: Extract just the regions a translator has marked with directives.
+    config: |
+      useDirectives: true
+      extractOutsideDirectives: false

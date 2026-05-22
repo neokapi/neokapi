@@ -1,0 +1,54 @@
+# Native reference doc for the built-in `char-count` tool.
+# Schema source: core/tools/charcount.go (CharCountConfig).
+description: Count the characters in each block's source and target text, with and without spaces.
+overview: |
+  The **Character Count** tool tallies the number of Unicode characters in every
+  translatable block. For each scope it records two figures: the total character
+  count and a count that excludes spaces. The results are stored on the block's
+  properties so downstream tools and reports can read them.
+
+  Counts are taken over the block's segmented text. By default both the source
+  and the active target locale are counted; the target is only counted when a
+  target locale is set and the block has a translation for it. Character counting
+  is useful for length budgeting (for example, UI strings with a fixed width) and
+  for character-based pricing.
+parameters:
+  countSource:
+    description: Count characters in the source text.
+    help: |
+      When enabled, the characters in each block's **source** text are counted,
+      both including and excluding spaces. When neither source nor target is
+      explicitly requested, the tool counts both.
+    values: "`true` / `false` (default `true`)"
+  countTarget:
+    description: Count characters in the target text.
+    help: |
+      When enabled, the characters in each block's **target** text are counted
+      for the active target locale, both including and excluding spaces. The
+      target count is only recorded when a target locale is configured and the
+      block has a translation for it.
+    values: "`true` / `false` (default `true`)"
+  countInline:
+    description: Include inline-code content in the character counts.
+    help: |
+      By default, inline codes — placeholders, variables, and tag content
+      represented as coded text — are **excluded** from the count, since they are
+      markup rather than translatable characters. Enable this only when you want
+      inline-code text reflected in the totals.
+    values: "`true` / `false` (default `false`)"
+limitations:
+  - Counting follows the active segmentation; results depend on how the text was segmented.
+  - Target counts require a configured target locale and an existing translation for the block.
+processingNotes:
+  - Operates on translatable blocks; non-translatable structure passes through unchanged.
+  - For each counted scope, both a total and a no-space character count are recorded on the block.
+examples:
+  - title: Count source characters only
+    description: Measure source-side character volume, ignoring any existing translations.
+    config: |
+      countSource: true
+      countTarget: false
+  - title: Include inline codes
+    description: Reflect placeholder and tag text in the character totals.
+    config: |
+      countInline: true

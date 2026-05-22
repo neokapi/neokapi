@@ -1,0 +1,54 @@
+# Native reference doc for the built-in `regex` format.
+# Source: core/formats/regex/{reader.go,writer.go,config.go,spec.yaml}.
+# Mirrors Okapi's Regex filter (okf_regex). Configurable via .kapi config (rules, escapeType, escapeChar);
+# no JSON schema is published, so the config is documented in prose here.
+description: Extract translatable strings from arbitrary text formats using configurable regular-expression rules.
+overview: |
+  The regex format is a configurable extractor for text formats that
+  have no dedicated reader — Mac `.strings`, INI files, StringInfo, and
+  similar key/value or delimited text. You supply a list of rules; each
+  rule is a regular expression with capture groups that identify the
+  translatable source text and, optionally, an identifier and a note.
+
+  Rules are applied across the input left to right. Where rules would
+  overlap, the earliest match wins. Each match produces one translatable
+  block whose source is the configured capture group; the text on either
+  side of the captured value is preserved verbatim so the writer can
+  rebuild the line by assembling prefix, translated value, and suffix.
+  Content that no rule matches is preserved as non-translatable
+  structure. With no rules configured, nothing is extracted and the
+  whole input is preserved.
+
+  Configuration is supplied on the collection's `format:` block in a
+  `.kapi` project. The keys are: `rules` — a list of
+  `{ pattern, sourceGroup, idGroup, noteGroup }` records, where
+  `sourceGroup` is the 1-based capture group holding the source text
+  (required, must be at least 1), `idGroup` names the block
+  (`0` auto-generates IDs), and `noteGroup` captures a translator note
+  (`0` for none); `escapeType` — how to decode escapes inside the
+  extracted text, one of `none` (the default), `backslash` (`\"`, `\\`,
+  `\n`, `\t`, …), or `doublechar` (a character escaped by doubling it);
+  and `escapeChar` — the character used for `doublechar` mode (default
+  `"`).
+limitations:
+  - Patterns use Go's RE2 regular-expression syntax, which does not support backreferences or lookarounds.
+  - Where matches overlap, only the first match is kept; later overlapping matches are discarded.
+  - Escape decoding (`escapeType`) applies to the extracted source text, which can differ from how a delimiter-scanning filter would handle the same escapes.
+processingNotes:
+  - One block per rule match; non-matching spans become non-translatable Data so the output round-trips.
+  - The raw text surrounding the captured source group is stored on the block so the writer reassembles output by `prefix + value + suffix`.
+  - The optional `idGroup` and `noteGroup` captures populate the block name and a translator note respectively.
+examples:
+  - title: Extract Mac .strings entries
+    description: |
+      A single rule capturing the value of a `"key" = "value";` line.
+      Group 1 is the source text; group 2 supplies the block ID.
+    config: |
+      format:
+        name: regex
+        config:
+          rules:
+            - pattern: '"([^"]*)"\s*=\s*"([^"]*)";'
+              sourceGroup: 2
+              idGroup: 1
+          escapeType: backslash

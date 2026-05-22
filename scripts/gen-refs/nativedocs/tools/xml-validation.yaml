@@ -1,0 +1,63 @@
+# Native reference doc for the built-in `xml-validation` tool.
+# Schema source: core/tools/xmlvalidation.go (XMLValidationConfig).
+description: Check that the source and/or target text of each block is well-formed XML.
+overview: |
+  The **XML Validation** tool checks the source and, optionally, target text of
+  each translatable block for XML well-formedness and records the result on the
+  block's properties: a validity flag and, when invalid, an error message
+  identifying whether the source or target failed and why. Empty text is treated
+  as valid.
+
+  Source validation is on by default. To validate the target as well, enable the
+  target check and supply a target locale. Because block text is often an XML
+  fragment rather than a complete document, the tool can wrap the text in a root
+  element before parsing so a fragment with multiple top-level nodes still
+  validates.
+parameters:
+  checkSource:
+    description: Validate source text for XML well-formedness.
+    help: |
+      When enabled, each block's source text is parsed as XML and any
+      well-formedness error is reported.
+    values: "`true` / `false` (default `true`)"
+  checkTarget:
+    description: Validate target text for XML well-formedness.
+    help: |
+      When enabled, the target translation is parsed as XML in addition to the
+      source. A target locale must be supplied when this is enabled.
+    values: "`true` / `false` (default `false`)"
+    dependsOn:
+      - property: locale
+        condition: a target locale is required when target checking is enabled
+  locale:
+    description: Target locale to validate.
+    help: |
+      The locale whose translation is validated when target checking is enabled.
+      Required when `checkTarget` is on; ignored otherwise.
+    values: "BCP-47 locale (e.g. `fr-FR`)"
+    dependsOn:
+      - property: checkTarget
+        condition: only used when target checking is enabled
+  wrapRoot:
+    description: Wrap text in a root element before validating.
+    help: |
+      When enabled, the text is wrapped in a synthetic root element before
+      parsing, so a fragment with several top-level nodes (which is not a valid
+      standalone document) still validates. Disable it to require a single
+      well-formed document.
+    values: "`true` / `false` (default `true`)"
+limitations:
+  - Checks well-formedness only; it does not validate against a DTD or schema.
+  - Empty source or target text is treated as valid.
+processingNotes:
+  - Operates on translatable blocks; non-translatable structure passes through unchanged.
+examples:
+  - title: Validate source only
+    description: Confirm the source text of each block parses as XML.
+    config: |
+      checkSource: true
+  - title: Validate target as well
+    description: Also validate the French translation, treating each block as a fragment.
+    config: |
+      checkTarget: true
+      locale: fr-FR

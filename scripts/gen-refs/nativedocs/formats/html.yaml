@@ -1,0 +1,80 @@
+# Native reference doc for the built-in `html` format.
+# Schema source: core/formats/html/config.go (Config) + schema.go.
+# Mirrors the Okapi okf_html filter; element/attribute rule model.
+description: Extract and reinsert translatable text from HTML, with element and attribute extraction rules.
+overview: |
+  The **HTML** format reads HTML documents, extracts translatable text and
+  localizable attributes, and writes the translations back while preserving
+  the surrounding markup. Inline elements (such as `b`, `i`, `a`) become inline
+  codes within a block, so formatting and links survive translation.
+
+  The reader ships with sensible defaults for which elements hold translatable
+  text, which are inline, and which attributes (such as `alt` and `title`) are
+  localizable. The `elements` and `attributes` maps let you override or extend
+  those rules per element and per attribute, mirroring the okf_html bridge
+  configuration. Parser behaviour (whitespace handling) is grouped under
+  `parser`.
+parameters:
+  parser.preserveWhitespace:
+    description: Preserve whitespace in extracted text instead of collapsing it.
+    help: |
+      When enabled, original whitespace in text content is preserved. By
+      default whitespace is collapsed, matching how browsers render HTML.
+      Grouped under the `parser` object in the config.
+    values: "`true` / `false` (default `false`)"
+  elements:
+    description: Per-element extraction rules.
+    help: |
+      A map from element name to a rule object that controls how the element
+      is treated. A rule may carry `ruleTypes` (`TEXTUNIT`, `INLINE`,
+      `EXCLUDE`, `INCLUDE`, `ATTRIBUTES_ONLY`, `PRESERVE_WHITESPACE`, `GROUP`),
+      a `conditions` triplet, `idAttributes`, and a `translatableAttributes`
+      mapping. These override or extend the built-in element handling.
+    values: "Map of element name → rule object (default: built-in rules)"
+    examples:
+      - "`{ summary: { ruleTypes: [TEXTUNIT] } }` — extract `summary` element text"
+  attributes:
+    description: Per-attribute extraction rules.
+    help: |
+      A map from attribute name to a rule object. A rule may carry `ruleTypes`
+      (`ATTRIBUTE_TRANS`, `ATTRIBUTE_ID`, `ATTRIBUTE_WRITABLE`,
+      `ATTRIBUTE_READONLY`), an element scope via `onlyTheseElements` or
+      `allElementsExcept`, and a `conditions` triplet.
+    values: "Map of attribute name → rule object (default: built-in rules)"
+    examples:
+      - "`{ alt: { ruleTypes: [ATTRIBUTE_TRANS] } }` — extract all `alt` values"
+  useCodeFinder:
+    description: Enable regex-based inline-code detection.
+    help: |
+      Enables regex-based detection of inline codes (placeholders, variables,
+      tags) within translatable text, beyond the inline HTML elements already
+      recognized. The patterns are supplied via `codeFinderRules`.
+    values: "`true` / `false` (default `false`)"
+  codeFinderRules:
+    description: Regex patterns that match inline codes within text.
+    help: |
+      An array of regular expressions; text matching any of them is treated
+      as an inline code rather than translatable words. Only used when
+      `useCodeFinder` is enabled.
+    values: Array of regular expressions (default empty)
+    dependsOn:
+      - property: useCodeFinder
+        condition: must be enabled for these patterns to apply
+limitations:
+  - The reader applies built-in element/attribute defaults; the `elements` and `attributes` maps adjust them rather than replacing the entire rule set.
+processingNotes:
+  - Inline elements become inline codes within blocks; block-level elements form the surrounding structure.
+  - Localizable attributes (such as `alt` and `title`) are extracted as their own translatable units.
+examples:
+  - title: Preserve whitespace
+    description: Keep significant whitespace in text nodes instead of collapsing it.
+    config: |
+      parser:
+        preserveWhitespace: true
+  - title: Make a custom element translatable
+    description: Extract the text of a custom <summary> element.
+    config: |
+      elements:
+        summary:
+          ruleTypes:
+            - TEXTUNIT

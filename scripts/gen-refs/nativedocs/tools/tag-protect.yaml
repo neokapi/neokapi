@@ -1,0 +1,42 @@
+# Native reference doc for the built-in `tag-protect` tool.
+# Schema source: core/tools/tagprotect.go (TagProtectConfig).
+description: Identify tags and placeholders in source text and mark them for downstream protection.
+overview: |
+  The **Tag Protect** tool finds tags and placeholders in source text using
+  regular-expression patterns and records them as an annotation on the block,
+  along with a count property. Downstream tools — for example an MT or AI
+  translation step — can then read the annotation to preserve those tokens
+  rather than translating or reformatting them.
+
+  When no patterns are configured, a built-in default set is used, covering
+  HTML/XML tags, curly-brace placeholders (ICU, Java, .NET), printf-style
+  placeholders, and `${...}` template expressions. The tool records what it
+  found; preserving the matches is the job of the consuming tool.
+parameters:
+  patterns:
+    description: Regular-expression patterns for tags and placeholders to protect.
+    help: |
+      A list of regular expressions; any substring of the source matching a
+      pattern is recorded as a protected tag. When the list is empty, a
+      built-in default set is used (HTML/XML tags, curly-brace placeholders,
+      printf-style placeholders, and `${...}` template expressions).
+    values: "array of regular expressions (default: built-in set)"
+    examples:
+      - "`<[^>]+>` — matches HTML/XML tags"
+      - "`\\{[^}]+\\}` — matches curly-brace placeholders"
+limitations:
+  - Patterns use Go's RE2 syntax, which does not support backreferences or lookaround.
+  - The tool records protected matches as an annotation; it does not itself prevent their modification.
+processingNotes:
+  - Operates on translatable blocks only; non-translatable blocks pass through unchanged.
+  - Matches are recorded as a block annotation and the match count as a block property; matches are deduplicated and ordered by offset.
+examples:
+  - title: Protect the default token set
+    description: Use built-in patterns for tags and common placeholders.
+    config: |
+      patterns: []
+  - title: Protect only HTML tags
+    description: Restrict protection to markup tags.
+    config: |
+      patterns:
+        - "<[^>]+>"

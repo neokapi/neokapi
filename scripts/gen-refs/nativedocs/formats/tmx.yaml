@@ -1,0 +1,79 @@
+# Native reference doc for the built-in `tmx` format.
+# Schema source: core/formats/tmx/config.go (Config).
+# Behaviour grounded in core/formats/tmx/reader.go, writer.go and spec.yaml,
+# mirroring Okapi's TMX filter (okf_tmx) and the LISA TMX 1.4 standard.
+description: Read and write TMX translation-memory exchange files, one block per translation unit.
+overview: |
+  TMX (Translation Memory eXchange) is the XML interchange format for
+  translation memories. A TMX document holds a header declaring the
+  source language (`srclang`) and a body of `<tu>` translation units;
+  each unit carries one `<tuv>` translation-unit variant per language,
+  with optional unit- and header-level `<note>` and `<prop>` metadata.
+
+  The reader emits one translatable block per `<tu>`: the source segment
+  matches the header `srclang` and a target segment is produced for each
+  other-language `<tuv>`. The header attributes and any header-level note
+  or property are surfaced as a single non-translatable data part ahead
+  of the blocks, while unit-level notes and properties attach to the
+  block. This makes TMX usable both as an input for review or alignment
+  and as an output for exporting a memory. It mirrors Okapi's TMX filter.
+parameters:
+  processAllTargets:
+    description: Read every target-language variant in each translation unit.
+    help: |
+      When enabled (the default), all non-source `<tuv>` variants of a
+      `<tu>` are read, producing a target segment for each language. When
+      disabled, only the first non-source variant is read and the rest are
+      skipped — useful when a multilingual memory should be reduced to a
+      single target language.
+    values: "`true` / `false` (default `true`)"
+  exitOnInvalid:
+    description: Stop processing when an invalid translation unit is encountered.
+    help: |
+      Governs error handling for malformed `<tu>` elements. When disabled
+      (the default), invalid units are skipped silently and parsing
+      continues. When enabled, the first invalid unit aborts processing —
+      use it to fail fast on corrupt or non-conformant input.
+    values: "`true` / `false` (default `false`)"
+  escapeGT:
+    description: Escape the greater-than character as `&gt;` in output XML.
+    help: |
+      A writer-side option. When enabled, the `>` character is written as
+      the `&gt;` entity. When disabled (the default), `>` is written
+      literally, which is valid XML outside of a CDATA close sequence.
+      Enable it for stricter downstream tools that expect `>` escaped.
+    values: "`true` / `false` (default `false`)"
+  useCodeFinder:
+    description: Detect inline codes inside segment text using regular expressions.
+    help: |
+      Enables regex-based detection of inline codes (placeholders,
+      variables, tags) within translatable text, using the patterns in
+      `codeFinderRules`. When disabled (the default), no pattern-based
+      inline codes are extracted.
+    values: "`true` / `false` (default `false`)"
+  codeFinderRules:
+    description: Regular-expression patterns that match inline codes in segment text.
+    help: |
+      A list of regular expressions; each match within a translatable
+      block is protected as an inline code rather than translated. Used to
+      shield placeholders or markup carried inside TM segments. Only takes
+      effect when `useCodeFinder` is enabled; invalid patterns are skipped.
+    values: "Array of regular-expression strings"
+    examples:
+      - "`\\{[0-9]+\\}` — protect numbered placeholders like `{0}`"
+    dependsOn:
+      - property: useCodeFinder
+        condition: must be enabled for the rules to take effect
+processingNotes:
+  - The source segment matches the header `srclang`; one target segment is produced per other-language `<tuv>`.
+  - Header attributes and header-level notes and properties are emitted as a single non-translatable data part ahead of the blocks; unit-level notes and properties attach to the block.
+examples:
+  - title: Read only the first target
+    description: Reduce a multilingual memory to a single target language.
+    config: |
+      processAllTargets: false
+  - title: Fail fast on invalid units
+    description: Abort processing when a malformed translation unit is found.
+    config: |
+      exitOnInvalid: true
+wikiUrl: https://www.gala-global.org/tmx-14b
