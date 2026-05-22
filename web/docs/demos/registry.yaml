@@ -23,7 +23,7 @@ demos:
     reader: both
     signal: high
     status: done
-    note: native extraction verified (14 words); okapi via okf_html — see cli/parity for the authoritative head-to-head.
+    note: both readers round-trip the asset (native 14 words; okapi okf_html 18 — okapi also localizes button/anchor text). Normalized native↔okapi parity is the cli/parity suite.
 
   # ── Planned cells (fan out one agent per row) ──────────────────────────────
   - { id: pptx-brandrewrite-marketing,  kind: brand,     asset_type: pptx,       loop_stage: brand-rewrite,        domain: marketing,      reader: native, signal: high, status: planned }

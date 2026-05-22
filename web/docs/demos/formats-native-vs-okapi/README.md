@@ -9,20 +9,23 @@ KAPI=./bin/kapi ./run.sh
 ```
 
 `run.sh` extracts the translatable word count with each reader and pseudo-
-translates the asset (offline, no LLM), writing `parity.json`.
+translates the asset (offline, no LLM), writing `parity.json` and two round-trip
+outputs under `out/`.
 
 ## What this proves
 
 kapi is the localization Swiss-army-knife: 30+ native format readers/writers
-**plus** 57+ okapi-bridge filters, selectable per file with `--map`. The
-authoritative head-to-head native↔okapi comparison across every shared format is
-the **parity suite** (`cli/parity`, `make parity`), run continuously in CI — see
-the parity dashboard for per-format faithfulness.
+**plus** 57+ okapi-bridge filters, selectable per file with `--map`. Both readers
+extract and round-trip the same asset (`both_ok: true`). They segment HTML
+slightly differently — in this demo the okapi `okf_html` filter also localizes
+the `<button>` and `<a>` text (18 words) that the native reader leaves alone
+(14 words), which you can see in `out/page.native.html` vs `out/page.okapi.html`.
+The authoritative, normalized head-to-head native↔okapi comparison across every
+shared format is the **parity suite** (`cli/parity`, `make parity`), run
+continuously in CI.
 
-## Environment note
+## Requirements
 
-`parity.json` records the okapi side's `status`. The okapi-bridge requires the
-plugin to be installed and a working JRE; in environments where the bridge is not
-healthy, the native numbers are still produced and the okapi side reports
-`bridge unavailable`. The cell is correct and regenerates both sides on any host
-with a healthy okapi-bridge.
+The okapi side needs the `okapi-bridge` plugin (`kapi plugin install okapi-bridge`)
+and a JRE. When the bridge is absent, `run.sh` still produces the native side and
+records the okapi `status`.

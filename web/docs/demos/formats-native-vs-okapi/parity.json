@@ -2,13 +2,15 @@
   "asset": "fixtures/page.html",
   "native": {
     "reader": "html",
-    "word_count": 14
+    "word_count": 14,
+    "round_trip": true
   },
   "okapi": {
     "reader": "okf_html",
-    "word_count": 0,
-    "status": "bridge unavailable in this environment"
+    "word_count": 18,
+    "round_trip": true,
+    "status": "ok"
   },
-  "parity": false,
-  "note": "Authoritative native\u2194okapi parity across 30+ formats: see cli/parity (`make parity`)."
+  "both_ok": true,
+  "note": "Word counts differ by reader segmentation; the normalized native\u2194okapi parity across 30+ formats is verified by cli/parity (`make parity`)."
 }
