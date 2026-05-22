@@ -58,6 +58,60 @@ func TestInitCmd_scaffoldsProject(t *testing.T) {
 	assert.Contains(t, string(recipeData), "fr")
 }
 
+func TestInitCmd_framework(t *testing.T) {
+	app := newAppForTest(t)
+	dir := t.TempDir()
+
+	cmd := app.NewInitCmd()
+	var out bytes.Buffer
+	cmd.SetOut(&out)
+	cmd.SetErr(&out)
+	cmd.SetArgs([]string{"--dir", dir, "--name", "demo", "--framework", "flutter", "--target-locale", "fr"})
+	require.NoError(t, cmd.Execute())
+
+	recipe := filepath.Join(dir, "demo.kapi")
+	// The scaffolded recipe must parse and carry the framework's content mapping.
+	p, err := project.Load(recipe)
+	require.NoError(t, err)
+	require.Len(t, p.Content, 1)
+
+	items := p.Content[0].EffectiveItems()
+	require.Len(t, items, 1)
+	assert.Equal(t, "lib/l10n/app_en.arb", items[0].Path)
+	require.NotNil(t, items[0].Format)
+	assert.Equal(t, "json", items[0].Format.Name)
+	assert.Equal(t, "lib/l10n/app_{lang}.arb", items[0].Target)
+}
+
+func TestInitCmd_frameworkKapiReactRejected(t *testing.T) {
+	app := newAppForTest(t)
+	dir := t.TempDir()
+
+	cmd := app.NewInitCmd()
+	cmd.SetOut(&bytes.Buffer{})
+	cmd.SetErr(&bytes.Buffer{})
+	cmd.SetArgs([]string{"--dir", dir, "--framework", "kapi-react"})
+	err := cmd.Execute()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "kapi-react")
+	// No recipe should have been written.
+	_, statErr := os.Stat(filepath.Join(dir, filepath.Base(dir)+".kapi"))
+	assert.True(t, os.IsNotExist(statErr))
+}
+
+func TestInitCmd_frameworkUnknown(t *testing.T) {
+	app := newAppForTest(t)
+	dir := t.TempDir()
+
+	cmd := app.NewInitCmd()
+	cmd.SetOut(&bytes.Buffer{})
+	cmd.SetErr(&bytes.Buffer{})
+	cmd.SetArgs([]string{"--dir", dir, "--framework", "nope"})
+	err := cmd.Execute()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "unknown framework")
+}
+
 func TestInitCmd_refusesExistingRecipe(t *testing.T) {
 	app := newAppForTest(t)
 	dir := t.TempDir()
