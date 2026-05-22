@@ -11,8 +11,8 @@ func TestListEmbedsAllSkills(t *testing.T) {
 	if err != nil {
 		t.Fatalf("List: %v", err)
 	}
-	if len(all) < 9 {
-		t.Fatalf("expected at least 9 skills, got %d", len(all))
+	if len(all) < 4 {
+		t.Fatalf("expected at least 4 skills, got %d", len(all))
 	}
 	var kapi, bowrain int
 	for _, s := range all {
@@ -34,15 +34,25 @@ func TestListEmbedsAllSkills(t *testing.T) {
 }
 
 func TestGetKnownSkill(t *testing.T) {
-	s, err := Get("kapi-brand-check")
+	s, err := Get("kapi-brand")
 	if err != nil {
 		t.Fatalf("Get: %v", err)
 	}
-	if s.Name != "kapi-brand-check" {
+	if s.Name != "kapi-brand" {
 		t.Errorf("name = %q", s.Name)
 	}
 	if s.Family != "kapi" {
 		t.Errorf("family = %q", s.Family)
+	}
+}
+
+func TestBowrainSkillFamily(t *testing.T) {
+	s, err := Get("bowrain")
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	if s.Family != "bowrain" {
+		t.Errorf("bowrain skill family = %q, want bowrain", s.Family)
 	}
 }
 
@@ -52,12 +62,12 @@ func TestInstallToWritesByteIdentical(t *testing.T) {
 	if err != nil {
 		t.Fatalf("InstallTo: %v", err)
 	}
-	if len(written) < 9 {
-		t.Fatalf("expected >=9 files written, got %d", len(written))
+	if len(written) < 4 {
+		t.Fatalf("expected >=4 files written, got %d", len(written))
 	}
 	// Each installed file must equal the embedded content byte-for-byte.
-	s, _ := Get("kapi-brand-check")
-	got, err := os.ReadFile(filepath.Join(dir, "kapi-brand-check", "SKILL.md"))
+	s, _ := Get("kapi-brand")
+	got, err := os.ReadFile(filepath.Join(dir, "kapi-brand", "SKILL.md"))
 	if err != nil {
 		t.Fatalf("read installed: %v", err)
 	}
@@ -68,7 +78,7 @@ func TestInstallToWritesByteIdentical(t *testing.T) {
 
 func TestInstallSubset(t *testing.T) {
 	dir := t.TempDir()
-	written, err := InstallTo(dir, []string{"kapi-brand-check"})
+	written, err := InstallTo(dir, []string{"kapi-brand"})
 	if err != nil {
 		t.Fatalf("InstallTo subset: %v", err)
 	}

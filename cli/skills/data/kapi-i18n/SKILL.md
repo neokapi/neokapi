@@ -107,6 +107,6 @@ the project. (`kapi-react` is rejected here — it uses Path A's bundler workflo
 ## How to apply
 
 - Keep the **English source text** as the key — don't introduce artificial message IDs.
-- Bind a brand voice profile + termbase so translations are on-brand and consistent (see `kapi-translate`).
+- Bind a brand voice profile + termbase so translations are on-brand and consistent (see `kapi-localize`).
 - For repeatable runs (CI, many locales), wrap the commands in a `.kapi` project flow; for a one-off, the per-file commands above are enough.
 - Verify by building/running the app in the target locale; `kapi pseudo-translate` is the fast pre-flight.

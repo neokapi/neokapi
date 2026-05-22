@@ -56,7 +56,7 @@ func Get(name string) (Skill, error) {
 	content := string(data)
 	fm := parseFrontmatter(content)
 	family := "kapi"
-	if strings.HasPrefix(name, "bowrain-") {
+	if name == "bowrain" || strings.HasPrefix(name, "bowrain-") {
 		family = "bowrain"
 	}
 	skillName := fm["name"]

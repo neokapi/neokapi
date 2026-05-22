@@ -10,23 +10,18 @@ This plugin bundles Agent Skills that teach Claude Code to use kapi across the f
 
 **kapi skills** (local CLI, offline):
 
-- `kapi-brand-context` — load a brand voice guide into context before writing.
-- `kapi-brand-check` — score text against a brand voice profile (0–100 + findings).
-- `kapi-brand-fix` — rewrite text to fix forbidden/competitor terms and tone.
-- `kapi-terminology` — build/look up/enforce a glossary (CSV/JSON/TBX).
-- `kapi-translate` — brand-aware multilingual translation across many formats.
-- `kapi-publish` — round-trip localization deliverables (DOCX/XLSX/PPTX/…).
+- `kapi-brand` — keep content on-brand: load the voice guide, score a draft (0–100 + findings), rewrite what drifts.
+- `kapi-localize` — translate, enforce terminology, and round-trip into other languages and formats.
+- `kapi-i18n` — add i18n to a project (the kapi-react stack, or a stack's existing catalogs).
 
-**bowrain skills** (governed platform):
+**bowrain skill** (governed platform):
 
-- `bowrain-brand-governance` — shared, versioned brand profiles + compliance scoring.
-- `bowrain-project` — push/pull/sync content with a Bowrain server.
-- `bowrain-terminology` — shared termbase with a review workflow.
+- `bowrain` — project sync, shared/versioned brand profiles with compliance scoring, and a reviewed termbase.
 
 ## Prerequisites
 
-Install the `kapi` CLI (e.g. `brew install neokapi/tap/kapi`). The `bowrain-*`
-skills additionally need the `kapi-bowrain` plugin and a Bowrain account.
+Install the `kapi` CLI (e.g. `brew install neokapi/tap/kapi`). The `bowrain`
+skill additionally needs the `kapi-bowrain` plugin and a bowrain account.
 
 ## Generated, not hand-edited
 

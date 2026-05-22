@@ -38,22 +38,18 @@ skill when a task fits its description. You don't call skills by name.
 
 ## What the skills do
 
-The `kapi-*` skills drive the local CLI and follow one loop — know the brand,
-generate, check, fix, publish, govern:
+The `kapi-*` skills drive the local CLI. Each is one coherent capability with a
+distinct trigger; together they cover the loop — know the brand, generate, check,
+fix, publish:
 
 | Skill | When Claude uses it | What it runs |
 | --- | --- | --- |
-| `kapi-brand-context` | before writing on-brand content | `kapi brand guide` |
-| `kapi-brand-check` | after drafting text | `kapi brand check` |
-| `kapi-brand-fix` | to correct flagged text | `kapi brand rewrite` |
-| `kapi-terminology` | to keep terms consistent | `kapi termbase` lookup/import/enforce |
-| `kapi-translate` | to localize content | `kapi ai-translate`, `kapi run ai-translate-qa` |
-| `kapi-publish` | to produce localized deliverables | `kapi extract` / `kapi merge`, format round-trip |
-| `kapi-i18n` | to add i18n to a project | the kapi-react stack, or a stack's existing catalogs |
+| `kapi-brand` | keep content on-brand: load the voice guide, score a draft, rewrite what drifts | `kapi brand guide` / `check` / `rewrite` |
+| `kapi-localize` | translate, enforce terminology, and round-trip into other languages and formats | `kapi run ai-translate-qa`, `kapi termbase`, `kapi extract` / `merge` |
+| `kapi-i18n` | add i18n to a project | the kapi-react stack, or a stack's existing catalogs |
 
-The `bowrain-*` skills cover the governed platform workflow — shared brand
-profiles, project sync, and a reviewed termbase — for teams using the bowrain
-platform.
+The `bowrain` skill covers the governed platform workflow — shared brand profiles,
+project sync, and a reviewed termbase — for teams using the bowrain platform.
 
 ## A worked session
 
