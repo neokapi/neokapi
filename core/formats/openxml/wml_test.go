@@ -823,33 +823,7 @@ func TestComplexFieldNested(t *testing.T) {
 	})
 }
 
-// --- Style optimization tests ---
-
-func TestStyleOptimization(t *testing.T) {
-	// Document with bold text where bold is inherited from style
-	docXML := `<?xml version="1.0" encoding="UTF-8"?>
-<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
-<w:body>
-<w:p>
-  <w:pPr><w:pStyle w:val="BoldStyle"/></w:pPr>
-  <w:r><w:rPr><w:b/></w:rPr><w:t>Bold text</w:t></w:r>
-</w:p>
-</w:body>
-</w:document>`
-
-	styles := &styleMap{styles: map[string]*styleEntry{
-		"BoldStyle": {id: "BoldStyle", props: runProps{bold: true}},
-	}}
-
-	cfg := &Config{}
-	cfg.Reset()
-	cfg.OptimiseWordStyles = true
-
-	blocks := parseDocXMLWithStyles(t, docXML, cfg, styles)
-	require.Len(t, blocks, 1)
-	// Bold should be subtracted (inherited from style) → no spans
-	assert.False(t, blocks[0].Source[0].HasInlineCodes())
-}
+// --- Style resolution tests ---
 
 func TestStyleOptimizationWithInheritance(t *testing.T) {
 	styles := &styleMap{styles: map[string]*styleEntry{

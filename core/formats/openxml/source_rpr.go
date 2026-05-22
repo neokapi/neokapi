@@ -10,16 +10,16 @@
 //
 // To match Okapi's behaviour (which preserves the full <w:rPr>
 // verbatim per source run — see RunBuilder.java in
-// okapi/filters/openxml — and then lets WordStyleOptimisation lift
-// common rPr into a synthesised paragraph style — see
-// StyleOptimisation.java lines 96-129), we capture each source
-// run's rPr child elements during parsing (parseRunProps populates
+// okapi/filters/openxml), we capture each source run's rPr child
+// elements during parsing (parseRunProps populates
 // runProps.rPrChildren), compute the per-paragraph intersection
 // (commonRPrChildren), stash the intersection's serialisation in a
 // Block annotation (openxmlSourceRPrAnnotationKey), and re-emit it
-// from the writer on every <w:r> for the block. The WSO post-pass
-// then lifts those redundant rPr into a paragraph style, exactly as
-// upstream does.
+// from the writer on every <w:r> for the block. Native is FAITHFUL:
+// the rPr is preserved inline. Upstream Okapi additionally runs
+// WordStyleOptimisation to lift common rPr into a synthesised
+// paragraph style (StyleOptimisation.java lines 96-129); native does
+// not — the equivalence is proved in the parity comparator instead.
 //
 // References:
 //   - ECMA-376-1 §17.3.2.30  <w:rPr> Run Properties.
@@ -30,9 +30,11 @@
 //     so multi-run paragraphs surface heterogeneous rPr to the
 //     writer rather than collapsing to a single rPr-less <w:r>.
 //   - okapi/filters/openxml/StyleOptimisation.java lines 96-129,
-//     204-237 — common rPr across runs is lifted into a synthesised
-//     paragraph style (mirrored by style_optimization.go in this
-//     package).
+//     204-237 — upstream Okapi lifts common rPr across runs into a
+//     synthesised paragraph style. Native does NOT: it is faithful and
+//     keeps the rPr inline. Equivalence with Okapi's synth-pStyle form
+//     is proved in the parity comparator's effective-rPr normalizer
+//     (cli/parity/roundtrip/normalizers_openxml.go), not in the writer.
 
 package openxml
 
@@ -588,7 +590,7 @@ func mergeRFontsAcrossRuns(runs []textRun) (string, bool) {
 			kept = append(kept, a)
 		}
 	}
-	_ = allRunAttrs // kept for symmetry with commonRFonts; not used.
+	_ = allRunAttrs // retained for the per-category emit pass below; not read here.
 	// Inject per-category emit attributes, preserving the first run's
 	// attribute order where possible, then appending later-run-only
 	// attributes (e.g. asciiTheme from R3 when R1 had only ascii).
@@ -835,4 +837,79 @@ func removeBareOnByName(children []rPrChild, name string) []rPrChild {
 		return out
 	}
 	return children
+}
+
+// rfontsAttr is one attribute of a `<w:rFonts ...>` element (a prefixed
+// name, its unescaped value, and the quote byte that delimited it in
+// source). Used by the per-run rPr sidecar's content-category rFonts
+// intersection (see commonRunFontsXML) and by runprops.go's rFonts
+// theme-pair resolution. Per ECMA-376-1 §17.3.2.26 an `<w:rFonts>`
+// carries any subset of the {ascii, hAnsi, cs, eastAsia, *Theme, hint}
+// attributes.
+type rfontsAttr struct {
+	name  string // prefixed name as in source, e.g. "w:ascii"
+	value string // unescaped value (quotes stripped)
+	quote byte
+}
+
+// parseRFontsAttrs parses attributes of a self-closing or open-form
+// <w:rFonts ...> element. Returns the attribute list in source order.
+// Returns false if the element is malformed.
+func parseRFontsAttrs(xmlStr string) ([]rfontsAttr, bool) {
+	if len(xmlStr) < 2 || xmlStr[0] != '<' {
+		return nil, false
+	}
+	// Skip element name.
+	nameEnd := strings.IndexAny(xmlStr[1:], " \t\n\r/>")
+	if nameEnd < 0 {
+		return nil, false
+	}
+	rest := xmlStr[1+nameEnd:]
+	// Find end of start-tag.
+	tagEnd := strings.IndexByte(rest, '>')
+	if tagEnd < 0 {
+		return nil, false
+	}
+	body := rest[:tagEnd]
+	if len(body) > 0 && body[len(body)-1] == '/' {
+		body = body[:len(body)-1]
+	}
+	var attrs []rfontsAttr
+	i := 0
+	for i < len(body) {
+		// Skip whitespace.
+		for i < len(body) && (body[i] == ' ' || body[i] == '\t' || body[i] == '\n' || body[i] == '\r') {
+			i++
+		}
+		if i >= len(body) {
+			break
+		}
+		// Read name up to '='.
+		eq := strings.IndexByte(body[i:], '=')
+		if eq < 0 {
+			return nil, false
+		}
+		name := strings.TrimRight(body[i:i+eq], " \t\n\r")
+		i += eq + 1
+		// Skip whitespace.
+		for i < len(body) && (body[i] == ' ' || body[i] == '\t' || body[i] == '\n' || body[i] == '\r') {
+			i++
+		}
+		if i >= len(body) {
+			return nil, false
+		}
+		q := body[i]
+		if q != '"' && q != '\'' {
+			return nil, false
+		}
+		i++
+		end := strings.IndexByte(body[i:], q)
+		if end < 0 {
+			return nil, false
+		}
+		val := body[i : i+end]
+		i += end + 1
+		attrs = append(attrs, rfontsAttr{name: name, value: val, quote: q})
+	}
+	return attrs, true
 }

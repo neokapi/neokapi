@@ -65,7 +65,6 @@ func (okapiOpenXMLTransformer) Transform(spec map[string]any) (map[string]any, e
 			"useCodeFinder",
 			"codeFinderRules",
 			"fontMappings",
-			"optimiseWordStyles",
 			"complexFieldDefinitionsToExtract":
 			result[key] = val
 
@@ -118,6 +117,12 @@ func (okapiOpenXMLTransformer) Transform(spec map[string]any) (map[string]any, e
 
 		// Okapi-only params — drop silently
 		case "translateExcelDrawings":
+			continue
+		// Word Style Optimisation was removed (native is faithful by
+		// design — see config.go / the faithful-writer design note). Okapi
+		// specs may still carry AllowWordStyleOptimisation → drop it
+		// silently rather than erroring in Config.ApplyMap.
+		case "optimiseWordStyles", "AllowWordStyleOptimisation":
 			continue
 
 		default:

@@ -2547,10 +2547,9 @@ func (p *wmlParser) parseParagraph(d *xml.Decoder, partPath string, emitBlock fu
 				// (StyleOptimisation.java lines 204-237) — the set of
 				// rPr child elements present and equal across every
 				// translatable text run in the paragraph. The writer
-				// emits these on every <w:r> for the block (#592), and
-				// the WSO post-pass then lifts them into a synthesised
-				// paragraph style when the threshold conditions are
-				// met (#589 / style_optimization.go).
+				// emits these on every <w:r> for the block (#592). Native
+				// is faithful: the rPr stays inline (no synthesised
+				// paragraph style).
 				commonRPr := commonRPrChildren(runs)
 				commonRPrXML := joinRPrChildren(commonRPr)
 
@@ -3784,12 +3783,12 @@ func (p *wmlParser) parseRunWithFieldState(d *xml.Decoder, cfs *complexFieldStat
 				// <w:tab/>). Without this, a vanish-bearing page-break
 				// run loses its hidden marker on read; the writer's
 				// runToXML uses serializeFullRPrXML(r.props) to emit
-				// the rPr so the upstream WSO post-pass sees vanish
-				// and lifts it into the synthesised paragraph style
+				// the rPr so the vanish round-trips faithfully
 				// (PageBreak.docx — `<w:r><w:rPr><w:vanish/></w:rPr>
-				// <w:br w:type="page"/></w:r>` must round-trip with
-				// the vanish in place; both reference and native then
-				// promote it into NF974E24F-Standard1).
+				// <w:br w:type="page"/></w:r>` must round-trip with the
+				// vanish in place; upstream Okapi additionally promotes
+				// it into a synthesised pStyle, which the parity
+				// comparator resolves).
 				runs = append(runs, textRun{
 					text:  "\n",
 					props: props,
@@ -3832,11 +3831,10 @@ func (p *wmlParser) parseRunWithFieldState(d *xml.Decoder, cfs *complexFieldStat
 				// <w:cr/>, which has two side effects: the source
 				// <w:r> wrapper that bracketed the cr disappears
 				// (textRun boundary lost), and the subsequent text
-				// run loses its source-run identity. The WSO post-pass
-				// then mis-promotes the surviving run's rPr into a
-				// synthesised pStyle (see MissingPara.docx fixture
-				// where `<w:r><w:rPr><w:rStyle val="DONOTTRANSLATE"/>
-				// </w:rPr><w:cr/></w:r>` was being dropped, taking the
+				// run loses its source-run identity, dropping its rPr
+				// (see MissingPara.docx fixture where
+				// `<w:r><w:rPr><w:rStyle val="DONOTTRANSLATE"/></w:rPr>
+				// <w:cr/></w:r>` was being dropped, taking the
 				// DONOTTRANSLATE rStyle with it).
 				//
 				// We piggy-back on the U+E10D raw-run-markup sentinel
@@ -5650,11 +5648,12 @@ func (p *wmlParser) buildBlock(id string, runs []textRun, partPath, commonRPrXML
 	}
 
 	// Stash the common per-source-run rPr children for the writer (#592).
-	// The writer prepends this XML to every emitted <w:r>'s <w:rPr>; the
-	// WSO post-pass then lifts it into a synthesised paragraph style when
-	// the optimisation conditions are met (mirroring upstream Okapi
-	// StyleOptimisation.Default.applyTo, see StyleOptimisation.java
-	// lines 96-129 of okapi-filter-openxml).
+	// The writer prepends this XML to every emitted <w:r>'s <w:rPr>.
+	// Native is faithful — the rPr stays inline. Upstream Okapi
+	// additionally lifts it into a synthesised paragraph style
+	// (StyleOptimisation.Default.applyTo, StyleOptimisation.java lines
+	// 96-129); native does not — the equivalence is folded by the parity
+	// comparator's effective-rPr normalizer instead.
 	if commonRPrXML != "" {
 		block.Annotations[openxmlSourceRPrAnnotationKey] = &model.GenericAnnotation{
 			Kind:   openxmlSourceRPrAnnotationKey,
@@ -6074,16 +6073,14 @@ func runToXML(r textRun) string {
 	// (rStyle, color, sz, szCs, lang, noProof, …). Previously this
 	// path only emitted toggles, dropping rStyle and other non-toggle
 	// children on whitespace-only / empty-text runs that route through
-	// the skeleton emit path (parseParagraph isEmptyRuns branch). The
-	// downstream WSO post-pass then sees a stripped-down `<w:rPr>` and
-	// silently synthesises a paragraph style from the surviving toggle
-	// (e.g. lang.docx's editform-styled space run: source rPr was
-	// `<w:rStyle w:val="editform"/><w:b/><w:vanish w:val="0"/>...`,
-	// stripped to just `<w:b/>` here, then WSO lifts the `<w:b/>` into
-	// a synthesised pStyle). Per ECMA-376-1 §17.3.2.1 (CT_R) every
-	// rPr child applies to the run regardless of the run's payload
-	// (text vs whitespace vs drawing); upstream Okapi RunBuilder
-	// materialises the full source RunProperties on every emitted run.
+	// the skeleton emit path (parseParagraph isEmptyRuns branch),
+	// losing distinctive formatting (e.g. lang.docx's editform-styled
+	// space run: source rPr `<w:rStyle w:val="editform"/><w:b/>
+	// <w:vanish w:val="0"/>...` was being stripped to just `<w:b/>`
+	// here). Per ECMA-376-1 §17.3.2.1 (CT_R) every rPr child applies to
+	// the run regardless of the run's payload (text vs whitespace vs
+	// drawing); upstream Okapi RunBuilder materialises the full source
+	// RunProperties on every emitted run.
 	buf.WriteString(serializeFullRPrXML(r.props))
 	switch {
 	case strings.HasPrefix(r.text, ""):

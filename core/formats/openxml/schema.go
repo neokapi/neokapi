@@ -78,7 +78,7 @@ func (c *Config) Schema() *schema.FormatSchema {
 				Label:     "Advanced",
 				Collapsed: true,
 				Fields: []string{
-					"complexFieldDefinitionsToExtract", "optimiseWordStyles",
+					"complexFieldDefinitionsToExtract",
 					"fontMappings", "extractRunFontsInfo",
 					"replaceLineSeparator", "lineSeparatorReplacement",
 				},
@@ -261,12 +261,6 @@ func (c *Config) Schema() *schema.FormatSchema {
 				Type:        "array",
 				Title:       "Complex field definitions to extract",
 				Description: "Field instruction prefixes to extract (e.g., \"HYPERLINK\", \"REF\").",
-			}),
-			"optimiseWordStyles": schema.Prop(coreschema.PropertySchema{
-				Type:        "boolean",
-				Title:       "Allow style optimization",
-				Default:     false,
-				Description: "Resolve style inheritance and strip redundant run properties.",
 			}),
 			"fontMappings": schema.Prop(coreschema.PropertySchema{
 				Type:        "object",

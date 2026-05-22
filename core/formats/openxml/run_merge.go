@@ -29,14 +29,11 @@ import (
 //     rPr. RunMerger.java:402-441 + RunFonts.canBeMerged (RunFonts.java:
 //     190-247).
 //
-// All four are applied PRE-WSO (the writer routes the part bytes through
-// postNonWSOForName BEFORE optimizeWMLPartWithSource), so WordStyleOptimisation
-// sees the SAME fused run shape and count upstream Okapi's RunMerger produces
-// before its own WSO pass — the shared IdGenerator/styleId stream stays
-// byte-identical. The bare-pict run carries no rPr (a drawing-only Markup
-// chunk), so it is invisible to upstream's commonRunPropertiesOf either way;
-// folding it into the following run's RunProperties pre-WSO is what upstream
-// does, not a perturbation of WSO's view.
+// All four are applied during the faithful flush (the writer routes the
+// part bytes through postNonWSOForName), reproducing the run shape and
+// count upstream Okapi's RunMerger produces. The bare-pict run carries no
+// rPr (a drawing-only Markup chunk); folding it into the following run's
+// RunProperties is what upstream Okapi's RunMerger does.
 //
 // These replace the equivalent post-serialization REGEXES (retired): the
 // matchers below reproduce ReplaceAll's left-to-right, non-overlapping
