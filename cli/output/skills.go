@@ -8,7 +8,6 @@ import (
 // SkillEntry is one row in `kapi skills list`.
 type SkillEntry struct {
 	Name        string `json:"name"`
-	Family      string `json:"family"`
 	Description string `json:"description"`
 }
 
@@ -18,20 +17,10 @@ type SkillsListOutput struct {
 	Total  int          `json:"total"`
 }
 
-// FormatText prints a grouped skill list.
+// FormatText prints the skill list.
 func (o SkillsListOutput) FormatText(w io.Writer) error {
-	for _, fam := range []string{"kapi", "bowrain"} {
-		first := true
-		for _, s := range o.Skills {
-			if s.Family != fam {
-				continue
-			}
-			if first {
-				fmt.Fprintf(w, "\n%s skills:\n", fam)
-				first = false
-			}
-			fmt.Fprintf(w, "  %-26s %s\n", s.Name, truncate(s.Description, 80))
-		}
+	for _, s := range o.Skills {
+		fmt.Fprintf(w, "  %-16s %s\n", s.Name, truncate(s.Description, 90))
 	}
 	fmt.Fprintf(w, "\n%d skill(s). Install with: kapi skills install\n", o.Total)
 	return nil

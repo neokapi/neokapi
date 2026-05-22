@@ -6,83 +6,81 @@ import (
 	"testing"
 )
 
-func TestListEmbedsAllSkills(t *testing.T) {
+func TestListEmbedsKapiSkill(t *testing.T) {
 	all, err := List()
 	if err != nil {
 		t.Fatalf("List: %v", err)
 	}
-	if len(all) < 4 {
-		t.Fatalf("expected at least 4 skills, got %d", len(all))
+	if len(all) == 0 {
+		t.Fatal("expected at least one embedded skill")
 	}
-	var kapi, bowrain int
+	var found bool
 	for _, s := range all {
 		if s.Name == "" || s.Description == "" {
 			t.Errorf("skill %q missing name or description", s.Name)
 		}
-		switch s.Family {
-		case "kapi":
-			kapi++
-		case "bowrain":
-			bowrain++
-		default:
-			t.Errorf("skill %q has unexpected family %q", s.Name, s.Family)
+		if s.Name == "kapi" {
+			found = true
 		}
 	}
-	if kapi == 0 || bowrain == 0 {
-		t.Errorf("expected both kapi and bowrain skills, got kapi=%d bowrain=%d", kapi, bowrain)
+	if !found {
+		t.Error("expected a skill named kapi")
 	}
 }
 
-func TestGetKnownSkill(t *testing.T) {
-	s, err := Get("kapi-brand")
+func TestGetKapiSkill(t *testing.T) {
+	s, err := Get("kapi")
 	if err != nil {
 		t.Fatalf("Get: %v", err)
 	}
-	if s.Name != "kapi-brand" {
+	if s.Name != "kapi" {
 		t.Errorf("name = %q", s.Name)
 	}
-	if s.Family != "kapi" {
-		t.Errorf("family = %q", s.Family)
+	if s.Description == "" {
+		t.Error("description is empty")
 	}
 }
 
-func TestBowrainSkillFamily(t *testing.T) {
-	s, err := Get("bowrain")
-	if err != nil {
-		t.Fatalf("Get: %v", err)
-	}
-	if s.Family != "bowrain" {
-		t.Errorf("bowrain skill family = %q, want bowrain", s.Family)
-	}
-}
-
-func TestInstallToWritesByteIdentical(t *testing.T) {
+// InstallTo must copy the whole skill tree — the SKILL.md router and the
+// progressive-disclosure reference files — byte-identically.
+func TestInstallToCopiesTreeByteIdentical(t *testing.T) {
 	dir := t.TempDir()
 	written, err := InstallTo(dir, nil)
 	if err != nil {
 		t.Fatalf("InstallTo: %v", err)
 	}
-	if len(written) < 4 {
-		t.Fatalf("expected >=4 files written, got %d", len(written))
+	if len(written) < 2 {
+		t.Fatalf("expected the router + reference files, got %d", len(written))
 	}
-	// Each installed file must equal the embedded content byte-for-byte.
-	s, _ := Get("kapi-brand")
-	got, err := os.ReadFile(filepath.Join(dir, "kapi-brand", "SKILL.md"))
+
+	// SKILL.md is byte-identical to the embedded source.
+	s, _ := Get("kapi")
+	got, err := os.ReadFile(filepath.Join(dir, "kapi", "SKILL.md"))
 	if err != nil {
-		t.Fatalf("read installed: %v", err)
+		t.Fatalf("read installed SKILL.md: %v", err)
 	}
 	if string(got) != s.Content {
 		t.Error("installed SKILL.md is not byte-identical to embedded source")
+	}
+
+	// A reference file shipped too.
+	for _, ref := range []string{"brand", "localize", "i18n", "bowrain"} {
+		p := filepath.Join(dir, "kapi", "references", ref+".md")
+		if _, err := os.Stat(p); err != nil {
+			t.Errorf("expected reference file %s: %v", p, err)
+		}
 	}
 }
 
 func TestInstallSubset(t *testing.T) {
 	dir := t.TempDir()
-	written, err := InstallTo(dir, []string{"kapi-brand"})
-	if err != nil {
+	if _, err := InstallTo(dir, []string{"kapi"}); err != nil {
 		t.Fatalf("InstallTo subset: %v", err)
 	}
-	if len(written) != 1 {
-		t.Fatalf("expected 1 file, got %d", len(written))
+	if _, err := os.Stat(filepath.Join(dir, "kapi", "SKILL.md")); err != nil {
+		t.Fatalf("kapi/SKILL.md not installed: %v", err)
+	}
+	if _, err := InstallTo(dir, []string{"does-not-exist"}); err == nil {
+		t.Error("expected error for unknown skill name")
 	}
 }

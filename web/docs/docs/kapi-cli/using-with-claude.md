@@ -23,33 +23,31 @@ This page covers the skills path. The two can be used together.
 - For LLM-backed checks and translation, a saved AI provider credential
   (`kapi credentials add`). The rule-based checks need no credential.
 
-## Install the skills
+## Install the skill
 
-List the bundled skills and install them into a project:
+Install the `kapi` skill into a project (or your user account):
 
 ```bash
-kapi skills list
-kapi skills install                 # writes ./.claude/skills/<name>/SKILL.md
-kapi skills install --target user   # ~/.claude/skills, for every project
+kapi skills install                 # writes ./.claude/skills/kapi/
+kapi skills install --target user   # ~/.claude/skills/kapi/, for every project
 ```
 
-Claude Code discovers the files in `.claude/skills/` and invokes the matching
-skill when a task fits its description. You don't call skills by name.
+Claude Code discovers the skill in `.claude/skills/` and invokes it when a task
+fits its description — you don't call it by name. The skill is one router that
+loads the relevant section on demand (progressive disclosure), so it covers the
+whole workflow without bloating context.
 
-## What the skills do
+## What it does
 
-The `kapi-*` skills drive the local CLI. Each is one coherent capability with a
-distinct trigger; together they cover the loop — know the brand, generate, check,
-fix, publish:
+The `kapi` skill drives the local CLI across the loop — know the brand, generate,
+check, fix, publish:
 
-| Skill | When Claude uses it | What it runs |
+| Capability | When Claude uses it | What it runs |
 | --- | --- | --- |
-| `kapi-brand` | keep content on-brand: load the voice guide, score a draft, rewrite what drifts | `kapi brand guide` / `check` / `rewrite` |
-| `kapi-localize` | translate, enforce terminology, and round-trip into other languages and formats | `kapi run ai-translate-qa`, `kapi termbase`, `kapi extract` / `merge` |
-| `kapi-i18n` | add i18n to a project | the kapi-react stack, or a stack's existing catalogs |
-
-The `bowrain` skill covers the governed platform workflow — shared brand profiles,
-project sync, and a reviewed termbase — for teams using the bowrain platform.
+| Brand voice | keep content on-brand: load the voice guide, score a draft, rewrite what drifts | `kapi brand guide` / `check` / `rewrite` |
+| Localize | translate, enforce terminology, and round-trip into other languages and formats | `kapi run ai-translate-qa`, `kapi termbase`, `kapi extract` / `merge` |
+| i18n setup | add i18n to a project | the kapi-react stack, or a stack's existing catalogs |
+| Cloud governance (optional) | shared brand profiles, project sync, a reviewed termbase | the bowrain platform, one option for teams |
 
 ## A worked session
 

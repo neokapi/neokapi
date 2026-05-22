@@ -43,7 +43,7 @@ func (a *App) newSkillsListCmd() *cobra.Command {
 			out := output.SkillsListOutput{}
 			for _, s := range all {
 				out.Skills = append(out.Skills, output.SkillEntry{
-					Name: s.Name, Family: s.Family, Description: s.Description,
+					Name: s.Name, Description: s.Description,
 				})
 			}
 			out.Total = len(out.Skills)

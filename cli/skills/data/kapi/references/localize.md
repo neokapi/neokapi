@@ -1,19 +1,14 @@
----
-name: kapi-localize
-description: Translate and publish content in other languages — on-brand and with consistent terminology — across many file formats (JSON, PO, properties, XLIFF, Markdown, HTML, DOCX/XLSX/PPTX, ODF, subtitles). Includes building and enforcing a glossary/termbase. Use to ship content in additional languages, localize an app/site/document, produce a localized deliverable, or keep terminology consistent. Triggers on "translate", "localize to fr/de/ja", "add Spanish", "multilingual", "publish in N languages", "export the translated docx/pptx", "glossary", "terminology", "TBX".
----
+# Translate, enforce terminology, publish
 
-# kapi-localize
-
-Translates content, enforces terminology, and round-trips the result back into
-its original format with the local `kapi` CLI.
+Translate content, enforce terminology, and round-trip the result back into its
+original format with the local `kapi` CLI.
 
 ## Prerequisites
 
-- A saved AI provider credential (`kapi credentials add`) or `--api-key` for
-  AI translation. The format and terminology steps need no credential.
-- Optional but recommended: a brand voice profile (see `kapi-brand`) and a
-  termbase, so output is on-brand and terminologically consistent.
+- A saved AI provider credential (`kapi credentials add`) or `--api-key` for AI
+  translation. The format and terminology steps need no credential.
+- Optional but recommended: a brand voice profile (see [brand.md](brand.md)) and
+  a termbase, so output is on-brand and terminologically consistent.
 
 ## Translate
 

@@ -12,7 +12,7 @@
     {
       "name": "kapi",
       "source": "./",
-      "description": "Keep AI output on-brand and consistent, and publish in every language and format. kapi skills use the local CLI; bowrain skills use the bowrain platform."
+      "description": "Keep AI output on-brand and consistent, and publish in every language and format. One kapi skill driving the local CLI; bowrain is one option for cloud governance."
     }
   ]
 }
