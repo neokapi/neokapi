@@ -59,17 +59,37 @@ func DisplayName(id model.LocaleID) string {
 	return name
 }
 
-// wellKnown is the curated list of common locales for UI dropdowns.
+// wellKnown is the curated list of common locales for UI dropdowns. It targets
+// broad global coverage for a worldwide consumer + developer audience, not a
+// niche or heritage set: the major world languages, the commercial regional
+// variants localization teams actually request (Latin American Spanish,
+// Canadian French, British English, Brazilian/European Portuguese, Simplified/
+// Traditional Chinese), and the high-population languages that are commonly
+// under-served (Filipino, Punjabi, Amharic, Burmese, Khmer, Sinhala, …).
+//
+// This is a convenience list only — Parse accepts any valid BCP-47 tag, so the
+// long tail is always reachable by typing a code directly.
 var wellKnown = []struct {
 	code string
 }{
-	{"af"}, {"ar"}, {"bg"}, {"bn"}, {"ca"}, {"cs"}, {"da"}, {"de"},
-	{"el"}, {"en"}, {"es"}, {"et"}, {"fa"}, {"fi"}, {"fr"}, {"gu"},
-	{"he"}, {"hi"}, {"hr"}, {"hu"}, {"id"}, {"it"}, {"ja"}, {"kn"},
-	{"ko"}, {"lt"}, {"lv"}, {"ml"}, {"mr"}, {"ms"}, {"nb"}, {"nl"},
-	{"pl"}, {"pt"}, {"pt-BR"}, {"ro"}, {"ru"}, {"sk"}, {"sl"}, {"sr"},
-	{"sv"}, {"sw"}, {"ta"}, {"te"}, {"th"}, {"tr"}, {"uk"}, {"ur"},
-	{"vi"}, {"zh"}, {"zh-Hans"}, {"zh-Hant"},
+	// Western European
+	{"ca"}, {"cy"}, {"da"}, {"de"}, {"en"}, {"en-GB"}, {"es"}, {"es-419"},
+	{"eu"}, {"fi"}, {"fr"}, {"fr-CA"}, {"ga"}, {"gl"}, {"is"}, {"it"},
+	{"nb"}, {"nl"}, {"nn"}, {"pt"}, {"pt-BR"}, {"sv"},
+	// Central / Eastern European
+	{"bg"}, {"bs"}, {"cs"}, {"el"}, {"et"}, {"hr"}, {"hu"}, {"lt"}, {"lv"},
+	{"mk"}, {"pl"}, {"ro"}, {"ru"}, {"sk"}, {"sl"}, {"sq"}, {"sr"}, {"uk"},
+	// Middle East / Central Asia / Caucasus
+	{"ar"}, {"az"}, {"fa"}, {"he"}, {"hy"}, {"ka"}, {"kk"}, {"tr"}, {"uz"},
+	// South Asia
+	{"bn"}, {"gu"}, {"hi"}, {"kn"}, {"ml"}, {"mr"}, {"ne"}, {"pa"}, {"si"},
+	{"ta"}, {"te"}, {"ur"},
+	// Southeast Asia
+	{"fil"}, {"id"}, {"km"}, {"lo"}, {"ms"}, {"my"}, {"th"}, {"vi"},
+	// East Asia
+	{"ja"}, {"ko"}, {"mn"}, {"zh"}, {"zh-Hans"}, {"zh-Hant"},
+	// Africa
+	{"af"}, {"am"}, {"sw"},
 }
 
 // WellKnownLocales returns a curated list of common BCP-47 locales with

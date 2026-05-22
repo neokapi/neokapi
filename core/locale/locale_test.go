@@ -82,9 +82,16 @@ func TestWellKnownLocales(t *testing.T) {
 	t.Parallel()
 	locales := WellKnownLocales()
 
-	// Should have a reasonable number of locales
-	assert.GreaterOrEqual(t, len(locales), 40)
-	assert.LessOrEqual(t, len(locales), 60)
+	// Should have a reasonable number of locales (broad global coverage).
+	assert.GreaterOrEqual(t, len(locales), 60)
+	assert.LessOrEqual(t, len(locales), 120)
+
+	// No duplicate codes.
+	seen := make(map[string]bool, len(locales))
+	for _, l := range locales {
+		assert.Falsef(t, seen[l.Code], "duplicate locale code %q", l.Code)
+		seen[l.Code] = true
+	}
 
 	// Should be sorted by display name
 	for i := 1; i < len(locales); i++ {
@@ -104,6 +111,13 @@ func TestWellKnownLocales(t *testing.T) {
 	assert.True(t, codeSet["de"], "should contain German")
 	assert.True(t, codeSet["ja"], "should contain Japanese")
 	assert.True(t, codeSet["pt-BR"], "should contain Brazilian Portuguese")
+	// Commercial regional variants localization teams request.
+	assert.True(t, codeSet["es-419"], "should contain Latin American Spanish")
+	assert.True(t, codeSet["fr-CA"], "should contain Canadian French")
+	assert.True(t, codeSet["en-GB"], "should contain British English")
+	// High-population languages that are commonly under-served.
+	assert.True(t, codeSet["fil"], "should contain Filipino")
+	assert.True(t, codeSet["pa"], "should contain Punjabi")
 }
 
 func TestToPosix(t *testing.T) {
