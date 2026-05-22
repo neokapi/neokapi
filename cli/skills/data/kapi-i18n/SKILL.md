@@ -64,7 +64,21 @@ the [kapi-react quickstart](https://neokapi.github.io/web/neokapi/docs/kapi-reac
 ## Path B — plug kapi into an existing stack's catalogs
 
 kapi is the translation pipeline; it reads and writes the catalog format the
-stack already uses. No project recipe needed — translate per file.
+stack already uses.
+
+**One-command project setup** (recommended for repeatable runs / CI): scaffold a
+`.kapi` project pre-wired for the detected stack —
+
+```bash
+kapi init --framework flutter --target-locale fr --target-locale de
+# writes a recipe mapping lib/l10n/app_en.arb → lib/l10n/app_{lang}.arb
+```
+
+Supported: `react-i18next`, `react-intl`, `nextjs`, `vue-i18n`, `flutter`,
+`angular` (`kapi presets list --framework`). Then run a translate flow against
+the project. (`kapi-react` is rejected here — it uses Path A's bundler workflow.)
+
+**Or translate per file** (no project needed):
 
 1. Find the catalogs (`kapi presets show <stack>` gives the layout), e.g.:
    - react-i18next / i18next → `public/locales/{lng}/translation.json`
