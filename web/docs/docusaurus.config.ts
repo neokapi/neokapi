@@ -52,6 +52,9 @@ const config: Config = {
           { from: "/developer/terminology", to: "/features/terminology" },
           { from: "/developer/translation-memory", to: "/features/translation-memory" },
           { from: "/developer/brand-voice", to: "/features/brand-voice" },
+          // The standalone "Demos" page was superseded by the Walkthroughs
+          // gallery (its videos used a recording pipeline that no longer exists).
+          { from: "/kapi-cli/demo-videos", to: "/walkthroughs" },
         ],
       },
     ],
@@ -135,6 +138,12 @@ const config: Config = {
           type: "docSidebar",
           sidebarId: "frameworkSidebar",
           label: "Framework",
+          position: "left",
+        },
+        {
+          type: "docSidebar",
+          sidebarId: "walkthroughsSidebar",
+          label: "Walkthroughs",
           position: "left",
         },
         {

@@ -1,4 +1,5 @@
-import BrowserOnly from "@docusaurus/BrowserOnly";
+import useBaseUrl from "@docusaurus/useBaseUrl";
+import "./ThemedVideo.css";
 
 interface ThemedVideoProps {
   sources: {
@@ -8,31 +9,56 @@ interface ThemedVideoProps {
   maxWidth?: string;
 }
 
-function ThemedVideoInner({ sources, maxWidth = "800px" }: ThemedVideoProps) {
-  // Lazy-import inside BrowserOnly so the hook only runs in the browser
-  // (Docusaurus context isn't available during SSG for node_modules consumers).
-  const { useColorMode } = require("@docusaurus/theme-common") as {
-    useColorMode: () => { colorMode: "light" | "dark" };
-  };
-  const { colorMode } = useColorMode();
-  const src = colorMode === "dark" ? sources.dark : sources.light;
+// A theme-aware <video>. Both variants are emitted into the DOM and toggled
+// with CSS keyed off Docusaurus's `data-theme` attribute, rather than reading
+// the color mode through useColorMode(). That hook lives in
+// @docusaurus/theme-common, which resolves to a *different* module instance for
+// workspace-package consumers like this one — so calling it threw
+// "ReactContextError: Hook is called outside the <ColorModeProvider>" and blanked
+// the whole page. CSS toggling has no React-context dependency, renders during
+// SSG, and avoids a flash on theme switch.
+//
+// Source paths run through useBaseUrl so they respect the site's baseUrl
+// (e.g. /web/neokapi/docs/) instead of resolving against the domain root, which
+// is why the recorded scenes 404'd despite being deployed.
+//
+// When both variants are the same file (theme-agnostic terminal recordings) a
+// single element is emitted to avoid a duplicate download.
+export default function ThemedVideo({ sources, maxWidth = "800px" }: ThemedVideoProps) {
+  const light = useBaseUrl(sources.light);
+  const dark = useBaseUrl(sources.dark);
 
-  return (
-    <video controls width="100%" style={{ maxWidth }} key={src}>
-      <source src={src} type="video/webm" />
-      Your browser does not support the video tag.
-    </video>
-  );
-}
-
-export default function ThemedVideo(props: ThemedVideoProps) {
-  return (
-    <BrowserOnly fallback={
-      <video controls width="100%" style={{ maxWidth: props.maxWidth ?? "800px" }}>
-        <source src={props.sources.light} type="video/webm" />
+  if (light === dark) {
+    return (
+      <video controls width="100%" style={{ maxWidth }}>
+        <source src={light} type="video/webm" />
+        Your browser does not support the video tag.
       </video>
-    }>
-      {() => <ThemedVideoInner {...props} />}
-    </BrowserOnly>
+    );
+  }
+
+  return (
+    <>
+      <video
+        className="themed-video themed-video--light"
+        controls
+        width="100%"
+        style={{ maxWidth }}
+        preload="metadata"
+      >
+        <source src={light} type="video/webm" />
+        Your browser does not support the video tag.
+      </video>
+      <video
+        className="themed-video themed-video--dark"
+        controls
+        width="100%"
+        style={{ maxWidth }}
+        preload="metadata"
+      >
+        <source src={dark} type="video/webm" />
+        Your browser does not support the video tag.
+      </video>
+    </>
   );
 }

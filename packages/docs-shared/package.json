@@ -11,11 +11,9 @@
     "./package.json": "./package.json"
   },
   "peerDependencies": {
-    "@docusaurus/theme-common": "^3.10.1",
     "react": "^19.0.0"
   },
   "devDependencies": {
-    "@docusaurus/theme-common": "^3.10.1",
     "@types/react": "^19.0.0",
     "react": "^19.2.4",
     "typescript": "^6.0.3"

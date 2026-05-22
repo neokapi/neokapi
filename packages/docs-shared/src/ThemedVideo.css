@@ -1,0 +1,16 @@
+/* Theme-aware <video> toggling for ThemedVideo. Docusaurus sets data-theme on
+   <html>; default (and light) shows the light variant, dark shows the dark one.
+   Only emitted when the light/dark sources differ. */
+.themed-video--dark {
+  display: none;
+}
+.themed-video--light {
+  display: block;
+}
+
+[data-theme="dark"] .themed-video--light {
+  display: none;
+}
+[data-theme="dark"] .themed-video--dark {
+  display: block;
+}

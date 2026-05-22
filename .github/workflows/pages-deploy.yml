@@ -78,8 +78,27 @@ jobs:
         env:
           IS_PR: ${{ github.event.workflow_run.event == 'pull_request' }}
           PR_NUMBER: ${{ github.event.workflow_run.pull_requests[0].number }}
+          HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
         run: |
-          if [ "$IS_PR" = "true" ] && [ -n "$PR_NUMBER" ]; then
+          # github.event.workflow_run.pull_requests is unreliable — it is
+          # frequently empty even for same-repo PRs. The build workflow keys its
+          # baseUrl off the PR number (/web/prs/<N>/neokapi/docs/), so if we let
+          # an empty PR_NUMBER fall through to the production path we deploy a
+          # preview build — whose JS points at /web/prs/<N>/... — on top of
+          # production, 404-ing every script and blanking the live docs until
+          # the next push-to-main deploy. So: production is reachable ONLY when
+          # the upstream build was not a PR; for PR builds we resolve the number
+          # from the head branch and fail loudly rather than ever clobber prod.
+          if [ "$IS_PR" = "true" ]; then
+            if [ -z "$PR_NUMBER" ] && [ -n "$HEAD_BRANCH" ]; then
+              PR_NUMBER="$(gh pr list --head "$HEAD_BRANCH" --state open --json number --jq '.[0].number // empty')"
+            fi
+            if [ -z "$PR_NUMBER" ]; then
+              echo "::error::PR build (head=${HEAD_BRANCH}) but could not resolve a PR number; refusing to deploy a preview build to production."
+              exit 1
+            fi
             {
               echo "kapi_app_dest=web/prs/${PR_NUMBER}/neokapi"
               echo "bowrain_app_dest=web/prs/${PR_NUMBER}/bowrain"

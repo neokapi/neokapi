@@ -27,6 +27,7 @@ export function Nav() {
           <a href="#cli" className="text-sm text-neutral-400 transition hover:text-brand-400">CLI</a>
           <a href="#formats" className="text-sm text-neutral-400 transition hover:text-brand-400">Formats</a>
           <a href="#get-started" className="text-sm text-neutral-400 transition hover:text-brand-400">Get Started</a>
+          <a href="https://neokapi.github.io/web/neokapi/docs/" target="_blank" rel="noopener" className="text-sm text-neutral-400 transition hover:text-brand-400">Docs</a>
         </div>
 
         <div className="hidden items-center gap-3 md:flex">
@@ -61,6 +62,7 @@ export function Nav() {
             <a href="#cli" onClick={() => setOpen(false)} className="text-sm text-neutral-400">CLI</a>
             <a href="#formats" onClick={() => setOpen(false)} className="text-sm text-neutral-400">Formats</a>
             <a href="#get-started" onClick={() => setOpen(false)} className="text-sm text-neutral-400">Get Started</a>
+            <a href="https://neokapi.github.io/web/neokapi/docs/" target="_blank" rel="noopener" onClick={() => setOpen(false)} className="text-sm text-neutral-400">Docs</a>
             <div className="mt-2 flex items-center gap-3">
               <a href="https://github.com/neokapi/neokapi" target="_blank" rel="noopener" className="text-sm text-neutral-400">GitHub</a>
             </div>

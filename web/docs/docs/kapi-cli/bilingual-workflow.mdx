@@ -3,6 +3,8 @@ sidebar_position: 2
 title: Bilingual Workflow
 ---
 
+import { ThemedVideo } from "@neokapi/docs-shared";
+
 # Bilingual Workflow: Extract → Translate → Merge
 
 Most serious localization projects run on bilingual exchange formats
@@ -17,9 +19,13 @@ This guide walks the full round-trip. For architectural context and
 design decisions see [AD-017: Bilingual Format
 Interop](/architecture/017-bilingual-format-interop).
 
-<video controls autoPlay loop muted width="100%" style={{ maxWidth: "900px" }}>
-  <source src="/video/kapi/bilingual-workflow.webm" type="video/webm" />
-</video>
+<ThemedVideo
+  sources={{
+    light: "/video/kapi/01-bilingual-workflow.webm",
+    dark: "/video/kapi/01-bilingual-workflow.webm",
+  }}
+  maxWidth="900px"
+/>
 
 ## TM in the loop
 
