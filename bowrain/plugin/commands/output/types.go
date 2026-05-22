@@ -653,3 +653,51 @@ func (o StreamArchiveOutput) FormatText(w io.Writer) error {
 	fmt.Fprintf(w, "Archived stream %q\n", o.Stream)
 	return nil
 }
+
+// WorkspaceItem is a single workspace in WorkspaceListOutput.
+type WorkspaceItem struct {
+	ID   string `json:"id,omitempty"`
+	Name string `json:"name"`
+	Slug string `json:"slug"`
+	Type string `json:"type,omitempty"`
+}
+
+// WorkspaceListOutput lists the workspaces a user can access.
+type WorkspaceListOutput struct {
+	Server     string          `json:"server,omitempty"`
+	Workspaces []WorkspaceItem `json:"workspaces"`
+}
+
+func (o WorkspaceListOutput) FormatText(w io.Writer) error {
+	if len(o.Workspaces) == 0 {
+		fmt.Fprintln(w, "No workspaces found.")
+		return nil
+	}
+	for _, ws := range o.Workspaces {
+		line := ws.Slug
+		if ws.Name != "" && ws.Name != ws.Slug {
+			line = fmt.Sprintf("%s (%s)", ws.Slug, ws.Name)
+		}
+		if ws.Type == "personal" {
+			line += " [personal]"
+		}
+		fmt.Fprintln(w, line)
+	}
+	return nil
+}
+
+// WorkspaceCreateOutput represents the result of bowrain workspace create.
+type WorkspaceCreateOutput struct {
+	ID   string `json:"id,omitempty"`
+	Name string `json:"name"`
+	Slug string `json:"slug"`
+}
+
+func (o WorkspaceCreateOutput) FormatText(w io.Writer) error {
+	fmt.Fprintf(w, "Workspace created: %s", o.Slug)
+	if o.Name != "" && o.Name != o.Slug {
+		fmt.Fprintf(w, " (%s)", o.Name)
+	}
+	fmt.Fprintln(w)
+	return nil
+}

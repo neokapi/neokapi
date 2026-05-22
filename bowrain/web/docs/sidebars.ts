@@ -32,6 +32,7 @@ const sidebars: SidebarsConfig = {
             "cli/commands/run",
             "cli/commands/serve",
             "cli/commands/auth",
+            "cli/commands/workspace",
             "cli/commands/plugins",
           ],
         },
