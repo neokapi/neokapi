@@ -109,9 +109,22 @@ jobs:
         run: npm install --no-audit --no-fund
         working-directory: web/docs
 
+      - name: Determine base URL (production vs PR preview)
+        id: base
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ] && [ -n "$PR_NUMBER" ]; then
+            echo "docs_base=/web/prs/${PR_NUMBER}/neokapi/docs/" >> "$GITHUB_OUTPUT"
+          else
+            echo "docs_base=/web/neokapi/docs/" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Build kapi Docusaurus site
         run: npm run build
         working-directory: web/docs
+        env:
+          DOCS_BASE_URL: ${{ steps.base.outputs.docs_base }}
 
       - name: Upload kapi site artifact
         uses: actions/upload-artifact@v7

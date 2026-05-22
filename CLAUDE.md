@@ -447,6 +447,17 @@ Before committing any UI-related change:
 5. All recordings regenerated and copied to `web/docs/static/video/`
 6. Go build succeeds (`make build build-server`)
 
+## Writing & Brand Communication
+
+When writing or editing user-facing prose (docs site, landing pages, READMEs,
+release notes, CLI help, UI copy), follow
+[docs/internals/brand-communication.md](docs/internals/brand-communication.md).
+In short: use an academic, restrained register (no marketing superlatives or
+emoji); never hardcode counts that the code controls (formats, tools,
+providers, filters) — name categories and link to generated references; state
+each topic once and cross-link rather than duplicate; and verify every command,
+flag, import path, and flow name against the code before publishing.
+
 ## Architecture Decisions
 
 ADs live in `docs/ad/`. They are organized by architectural concern (content model, plugin system, Java bridge, etc.), not by chronological order. Each AD should describe the current state of its subsystem as a self-contained document. When a subsystem evolves, update the existing AD in place rather than appending a new one. Only create a new AD when a genuinely new architectural concern is introduced.

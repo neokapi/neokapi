@@ -2,15 +2,20 @@ import { themes as prismThemes } from "prism-react-renderer";
 import type { Config } from "@docusaurus/types";
 import type * as Preset from "@docusaurus/preset-classic";
 
+// The neokapi-web Vite app sits at /web/neokapi/; this Docusaurus instance
+// lives one level deeper at /web/neokapi/docs/. PR previews are served from
+// /web/prs/<N>/neokapi/docs/ instead, so the deploy workflow overrides the
+// base path via DOCS_BASE_URL — without it, internal links would carry the
+// production prefix and navigate out of the preview.
+const baseUrl = process.env.DOCS_BASE_URL ?? "/web/neokapi/docs/";
+
 const config: Config = {
   title: "neokapi",
   tagline: "Open, AI-native localization platform in Go",
   favicon: "img/favicon.png",
 
   url: "https://neokapi.github.io",
-  // The neokapi-web Vite app sits at /web/neokapi/; this Docusaurus
-  // instance lives one level deeper at /web/neokapi/docs/.
-  baseUrl: "/web/neokapi/docs/",
+  baseUrl,
 
   organizationName: "neokapi",
   projectName: "neokapi",
