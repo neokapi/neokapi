@@ -1,0 +1,50 @@
+{
+  "profile": "Marketing Blog",
+  "score": 95,
+  "passed": true,
+  "ai_checked": false,
+  "dimensions": [
+    {
+      "dimension": "tone",
+      "score": 100,
+      "penalty": 0,
+      "issues": 0
+    },
+    {
+      "dimension": "style",
+      "score": 100,
+      "penalty": 0,
+      "issues": 0
+    },
+    {
+      "dimension": "vocabulary",
+      "score": 95,
+      "penalty": 5,
+      "issues": 1
+    },
+    {
+      "dimension": "clarity",
+      "score": 100,
+      "penalty": 0,
+      "issues": 0
+    },
+    {
+      "dimension": "brand_compliance",
+      "score": 100,
+      "penalty": 0,
+      "issues": 0
+    }
+  ],
+  "findings": [
+    {
+      "dimension": "vocabulary",
+      "severity": "major",
+      "message": "Forbidden term \"it goes without saying\" found",
+      "position": {
+        "Start": 60,
+        "End": 82
+      },
+      "original_text": "it goes without saying"
+    }
+  ]
+}

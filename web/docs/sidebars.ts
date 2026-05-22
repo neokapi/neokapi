@@ -12,6 +12,7 @@ const sidebars: SidebarsConfig = {
 
   cliSidebar: [
     "kapi-cli/overview",
+    "kapi-cli/using-with-claude",
     "kapi-cli/bilingual-workflow",
     {
       type: "category",

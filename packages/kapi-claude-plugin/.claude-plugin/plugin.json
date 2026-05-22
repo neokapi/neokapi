@@ -1,0 +1,19 @@
+{
+  "name": "kapi",
+  "version": "0.1.0",
+  "description": "Keep your AI coding assistant on-brand and terminologically consistent, and publish content in every language and format. One kapi skill driving the local CLI; bowrain is one option for cloud governance.",
+  "author": {
+    "name": "neokapi",
+    "url": "https://github.com/neokapi/neokapi"
+  },
+  "homepage": "https://github.com/neokapi/neokapi",
+  "license": "Apache-2.0",
+  "keywords": [
+    "brand-voice",
+    "terminology",
+    "localization",
+    "translation",
+    "i18n",
+    "content-governance"
+  ]
+}

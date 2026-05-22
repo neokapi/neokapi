@@ -1,11 +1,13 @@
 ---
 sidebar_position: 5
-title: MCP Server
+title: MCP server
 ---
 
-# Using Kapi with AI Assistants
+# MCP server
 
-Kapi exposes its file-processing capabilities as an [MCP](https://modelcontextprotocol.io/) (Model Context Protocol) server. This lets AI tools like Claude, GitHub Copilot, Cursor, Windsurf, and other MCP-compatible agents parse files, count words, run translation flows, and more — all through structured tool calls.
+kapi exposes its file-processing capabilities as an [MCP](https://modelcontextprotocol.io/) (Model Context Protocol) server. This lets AI tools like Claude, GitHub Copilot, Cursor, Windsurf, and other MCP-compatible agents parse files, count words, run translation flows, check brand voice, and look up terminology — all through structured tool calls.
+
+For the agent-skills path (Claude Code calling the `kapi` CLI), see [using kapi with Claude](/kapi-cli/using-with-claude). The two can be used together.
 
 ## Quick Start
 
@@ -131,6 +133,11 @@ Once connected, your AI assistant can call these tools:
 | `pseudo_translate` | Pseudo-translate a file for localization QA                      |
 | `list_flows`       | List available processing flows                                  |
 | `list_tools`       | List available processing tools                                  |
+| `brand_guide`      | Render a brand voice guide from a starter pack or profile YAML   |
+| `brand_check`      | Score text against a brand voice profile (rule-based)            |
+| `brand_rewrite`    | Rewrite text to fix forbidden/competitor terms                   |
+| `term_lookup`      | Look up a term in a local termbase                               |
+| `tm_search`        | Search a local translation memory                                |
 
 ## Example Conversations
 
@@ -221,11 +228,12 @@ Kapi MCP uses the same infrastructure as the CLI commands — `FormatRegistry` f
 No server process, ports, or authentication needed. Your AI tool launches `kapi mcp` as a child process, communicates over stdin/stdout, and shuts it down when the session ends.
 
 :::note
-AI-powered tools like `ai-translate` require API keys and are not available through MCP. Use the CLI directly for those: `kapi ai-translate -i file.json --target-lang fr`.
+LLM-backed tools like `ai-translate` need API keys and run from the CLI, not over MCP: `kapi ai-translate -i file.json --target-lang fr`. The `brand_check`, `brand_rewrite`, `term_lookup`, and `tm_search` tools above are rule-based and need no key.
 :::
 
 ## Related
 
-- [Kapi CLI Overview](/kapi-cli/overview)
-- [Run Command](/kapi-cli/commands/flow)
+- [Using kapi with Claude](/kapi-cli/using-with-claude) — the agent-skills path.
+- [kapi CLI overview](/kapi-cli/overview)
+- [Run command](/kapi-cli/commands/flow)
 - [Formats](/kapi-cli/commands/formats)

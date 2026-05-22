@@ -4,46 +4,39 @@ import (
 	"testing"
 
 	"github.com/neokapi/neokapi/core/preset"
-	"github.com/neokapi/neokapi/core/registry"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func TestRegisterBuiltins(t *testing.T) {
-	reg := preset.NewPresetRegistry()
-	RegisterBuiltins(reg)
+// kapi/preset.RegisterBuiltins is a deprecated shim over core/preset. These
+// tests verify it delegates faithfully; the authoritative preset contents are
+// owned and tested by core/preset (see core/preset/builtins_test.go), so we do
+// not re-assert the (evolving) list here.
 
-	// nextjs
-	fp := reg.GetFrameworkPreset("nextjs")
-	require.NotNil(t, fp)
-	assert.Equal(t, "Next.js App Router with next-intl", fp.Description)
-	assert.Len(t, fp.Mappings, 1)
-	assert.Equal(t, "messages/*.json", fp.Mappings[0].Local)
-	assert.Contains(t, fp.Exclude, "node_modules/**")
-	assert.Contains(t, fp.Exclude, ".next/**")
-	assert.Equal(t, registry.SourceBuiltIn, fp.Source)
+func TestRegisterBuiltinsDelegatesToCore(t *testing.T) {
+	viaShim := preset.NewPresetRegistry()
+	RegisterBuiltins(viaShim)
 
-	// react-intl
-	fp = reg.GetFrameworkPreset("react-intl")
-	require.NotNil(t, fp)
-	assert.Equal(t, "React with react-intl (FormatJS)", fp.Description)
+	viaCore := preset.NewPresetRegistry()
+	preset.RegisterBuiltins(viaCore)
 
-	// angular
-	fp = reg.GetFrameworkPreset("angular")
-	require.NotNil(t, fp)
-	assert.Equal(t, "Angular with @angular/localize", fp.Description)
-	assert.Len(t, fp.Mappings, 1)
-	assert.Equal(t, "xliff", fp.Mappings[0].Format)
+	assert.Equal(t, frameworkNames(viaCore), frameworkNames(viaShim),
+		"shim must register the same framework presets as core/preset")
+	assert.NotEmpty(t, frameworkNames(viaShim))
 }
 
-func TestBuiltinPresetsList(t *testing.T) {
+func TestRegisterBuiltinsRegistersCommonStacks(t *testing.T) {
 	reg := preset.NewPresetRegistry()
 	RegisterBuiltins(reg)
+	for _, name := range []string{"nextjs", "react-intl", "angular"} {
+		require.NotNilf(t, reg.GetFrameworkPreset(name), "preset %q should be registered", name)
+	}
+}
 
-	presets := reg.ListFrameworkPresets()
-	assert.Len(t, presets, 3)
-	// Should be sorted by name
-	assert.Equal(t, "angular", presets[0].Name)
-	assert.Equal(t, "nextjs", presets[1].Name)
-	assert.Equal(t, "react-intl", presets[2].Name)
+func frameworkNames(reg *preset.PresetRegistry) []string {
+	var names []string
+	for _, p := range reg.ListFrameworkPresets() {
+		names = append(names, p.Name)
+	}
+	return names
 }

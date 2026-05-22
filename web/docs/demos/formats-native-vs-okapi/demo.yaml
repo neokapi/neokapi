@@ -1,0 +1,13 @@
+id: formats-native-vs-okapi
+kind: formats
+asset_type: html
+loop_stage: multilingual-publish
+domain: technical-docs
+reader: both
+signal: high
+summary: >-
+  The same HTML asset is extracted and round-tripped two ways — through kapi's
+  built-in native reader and through the okapi-bridge okf_html filter. Same
+  translatable content; kapi reads and writes the format either way.
+expect:
+  both_ok: true   # each reader extracts content and round-trips the asset

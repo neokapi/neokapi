@@ -6,16 +6,69 @@ slug: /getting-started/introduction
 
 # Introduction
 
-neokapi is an open-source localization framework in Go. It provides format-aware document parsing, composable processing tools, and a concurrent streaming pipeline for translation workflows.
+neokapi is the open engine that keeps your AI coding assistant **on-brand and
+terminologically consistent** — and ships the result in **every language and
+every format**. It is **open source** and **offline by default**.
 
-## What is neokapi?
+## Two jobs, one engine
 
-neokapi is an open-source localization engine (a Go framework) together with
-**kapi**, a command-line tool that exposes the engine for file-based work.
+**1. Keep AI output on-brand.** Plug `kapi` into your AI coding assistant
+(Claude Code, Cursor, Windsurf, or any MCP client) so the strings, docs, and
+copy it generates stay on-voice and use the right terminology. Load a
+machine-readable brand voice profile, score any text 0–100 across five
+dimensions, and rewrite content that drifts off-brand — locally, without sending
+your content anywhere unless you choose to.
 
-## Kapi CLI
+**2. Localize anything.** neokapi is a format-aware localization toolkit. It
+reads and writes localization, document, data, subtitle, and office formats
+natively, with more available through the okapi-bridge (see the
+[format reference](/formats)), plus AI translation, MT backends, translation
+memory, terminology enforcement, and QA — composable into concurrent pipelines.
 
-Kapi is a standalone command-line tool for file-based localization tasks:
+Both jobs share the same model and enforcement path, so the words your AI writes
+stay on-brand and consistent through every language.
+
+## What sets it apart
+
+Three axes that no single competitor spans:
+
+- **Offline / local-first.** A single self-contained binary with SQLite-backed
+  TM and termbase. Run entirely offline with local models (Ollama), or opt into
+  a cloud LLM and a governance server — your choice, not a default.
+- **Brand + terminology + localization, unified.** Voice scoring, term
+  enforcement, and translation are one engine on one model — not a prompt-only
+  brand skill, and not a string-and-key localization MCP.
+- **Any asset format.** Round-trip DOCX, XLSX, PPTX, HTML, Markdown, JSON, YAML,
+  XML, PO, subtitles, InDesign and more — in place, not just JSON keys.
+
+## Brand voice with the kapi CLI
+
+```bash
+# Print a brand voice guide to inject into your AI assistant's context.
+# Use a built-in starter pack, a profile in the local store, or a YAML file:
+#   --pack <name> | --profile <name> | --profile-file <path>
+kapi brand guide --pack friendly-dtc
+
+# Score content against a profile; --min-score gates CI (exit code 3).
+# Input comes from a file argument, --text, or stdin.
+kapi brand check --profile-file brand.yaml --min-score 80 release-notes.md
+
+# Rewrite off-voice content to fix forbidden/competitor terms
+kapi brand rewrite --profile-file brand.yaml --text "Leverage our solution"
+
+# Translate — brand-voice-aware via a flow — into any language.
+# Bind the profile on the flow/recipe; the guide is injected into the prompt.
+kapi run ai-translate-qa -i app.json -o app.de.json --source-lang en --target-lang de
+
+# Serve brand + terminology tools to your AI assistant over MCP
+kapi mcp
+```
+
+Five starter packs ship built in: `professional-b2b`, `friendly-dtc`,
+`technical-docs`, `marketing-blog`, and `customer-support`. See
+[Brand Voice](/features/brand-voice) for the profile schema and scoring model.
+
+## Localization with the kapi CLI
 
 ```bash
 # Pseudo-translate a file for UI testing
@@ -24,17 +77,29 @@ kapi pseudo-translate messages.json --target-lang qps
 # Count words for cost estimation
 kapi word-count content/*.md
 
-# Translate with AI
-kapi ai-translate -i input.html -o output.html --source-lang en --target-lang fr
+# Translate with AI, then run a QA check
+kapi run ai-translate-qa -i input.html -o output.html --source-lang en --target-lang fr
 
-# List supported formats
+# List supported formats, tools, and flows
 kapi formats
+kapi tools
+kapi flows
 
-# Manage terminology
+# Manage terminology and translation memory
 kapi termbase import terms.csv --format csv -s en -t fr
+kapi tm import translations.tmx --name project-tm -s en -t fr
 ```
 
-No project initialization, server, or configuration required — kapi operates directly on files.
+No project initialization, server, or configuration required — `kapi` operates
+directly on files.
+
+## Inside your AI assistant (MCP)
+
+`kapi mcp` exposes `brand_guide`, `brand_check`, `brand_rewrite`, `term_lookup`,
+and `tm_search` to any [MCP](https://modelcontextprotocol.io/) client. Your AI
+assistant can consult the brand profile and terminology *while it writes*, so
+content is on-brand at generation time — not flagged afterward. See
+[Using Kapi with AI Assistants](/kapi-cli/mcp).
 
 ## Capabilities
 
@@ -44,13 +109,22 @@ formats, detecting the format from extension, MIME type, or content (see the
 channel-based pipeline in which each tool runs in its own goroutine, connected
 by buffered channels with backpressure.
 
-The processing tools include LLM-assisted translation, QA, and review (Anthropic,
-OpenAI, Google Gemini, and Ollama), machine-translation backends (DeepL, Google,
-Microsoft, ModernMT, MyMemory), a content-aware translation memory
-([Sievepen](/features/translation-memory)) with TMX import/export, and
-concept-oriented [terminology](/features/terminology) with pipeline enforcement.
-The format and tool sets extend through crash-isolated gRPC plugins and a bridge
-to the Java Okapi filters.
+The processing tools include brand voice scoring and rewriting, LLM-assisted
+translation, QA, and review (Anthropic, OpenAI, Google Gemini, and Ollama),
+machine-translation backends (DeepL, Google, Microsoft, ModernMT, MyMemory), a
+content-aware translation memory ([Sievepen](/features/translation-memory)) with
+TMX import/export, and concept-oriented [terminology](/features/terminology) with
+pipeline enforcement. The format and tool sets extend through crash-isolated
+gRPC plugins and a bridge to the Java Okapi filters.
+
+## Scale from solo to a team
+
+Governance is built in and open: gate brand compliance in CI with
+`kapi brand check --min-score`, and share brand profiles and termbases as
+version-controlled files. When a team needs shared score trends, CMS connectors,
+and automation, connect a server — self-host it, or use a managed platform such
+as [Bowrain](https://bowrain.cloud). neokapi is the open-source framework and
+community home; a hosted platform is one option, never a requirement.
 
 ## Architecture Overview
 
@@ -62,7 +136,8 @@ Input File → DataFormatReader → [Tool 1] → [Tool 2] → ... → DataFormat
                               chan *Part    chan *Part
 ```
 
-Each tool runs in its own goroutine. Buffered channels provide backpressure. Context cancellation propagates to all stages.
+Each tool runs in its own goroutine. Buffered channels provide backpressure.
+Context cancellation propagates to all stages.
 
 ## Terminology
 
@@ -84,4 +159,6 @@ If you're familiar with the Okapi Framework, here's how concepts map:
 ## Next Steps
 
 - [Installation](/getting-started/installation) — install kapi CLI
-- [Quick Start](/getting-started/quickstart) — process your first file
+- [Quick Start](/getting-started/quickstart) — keep AI output on-brand, then localize it
+- [Brand Voice](/features/brand-voice) — profiles, scoring, and enforcement
+- [Using Kapi with AI Assistants](/kapi-cli/mcp) — wire kapi into Claude Code, Cursor, and more

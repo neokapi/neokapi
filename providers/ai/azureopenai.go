@@ -77,14 +77,8 @@ func (p *AzureOpenAIProvider) Translate(ctx context.Context, req TranslateReques
 	)
 
 	var user strings.Builder
-	if len(req.Glossary) > 0 {
-		user.WriteString("Glossary:\n")
-		for term, translation := range req.Glossary {
-			user.WriteString(fmt.Sprintf("- %s → %s\n", term, translation))
-		}
-		user.WriteString("\n")
-	}
 	user.WriteString(req.Source)
+	user.WriteString(req.Directives())
 
 	resp, err := p.Chat(ctx, []Message{
 		{Role: "system", Content: system},

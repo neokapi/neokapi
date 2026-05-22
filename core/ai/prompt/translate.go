@@ -2,6 +2,7 @@ package prompt
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/neokapi/neokapi/core/model"
@@ -14,6 +15,24 @@ type TranslatePrompt struct {
 	Format       string // e.g., "html", "plain", "markdown"
 	Glossary     map[string]string
 	Context      string // Additional context for the translation
+	VoiceGuide   string // brand voice guidance to apply during translation
+}
+
+// sortedGlossaryLines renders glossary entries deterministically (sorted by term).
+func sortedGlossaryLines(glossary map[string]string) string {
+	if len(glossary) == 0 {
+		return ""
+	}
+	keys := make([]string, 0, len(glossary))
+	for k := range glossary {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	var b strings.Builder
+	for _, k := range keys {
+		fmt.Fprintf(&b, "- %s → %s\n", k, glossary[k])
+	}
+	return b.String()
 }
 
 // Build creates a system message and user message for translation.
@@ -35,11 +54,15 @@ func (p *TranslatePrompt) Build(sourceText string) (string, string) {
 		userBuilder.WriteString(fmt.Sprintf("Context: %s\n\n", p.Context))
 	}
 
-	if len(p.Glossary) > 0 {
+	if g := strings.TrimSpace(p.VoiceGuide); g != "" {
+		userBuilder.WriteString("Brand voice (apply when translating):\n")
+		userBuilder.WriteString(g)
+		userBuilder.WriteString("\n\n")
+	}
+
+	if lines := sortedGlossaryLines(p.Glossary); lines != "" {
 		userBuilder.WriteString("Glossary (use these translations for the given terms):\n")
-		for term, translation := range p.Glossary {
-			userBuilder.WriteString(fmt.Sprintf("- %s → %s\n", term, translation))
-		}
+		userBuilder.WriteString(lines)
 		userBuilder.WriteString("\n")
 	}
 
@@ -61,11 +84,14 @@ func (p *TranslatePrompt) BuildBatch(texts []string) (string, string) {
 	system := sysBuilder.String()
 
 	var userBuilder strings.Builder
-	if len(p.Glossary) > 0 {
+	if g := strings.TrimSpace(p.VoiceGuide); g != "" {
+		userBuilder.WriteString("Brand voice (apply when translating):\n")
+		userBuilder.WriteString(g)
+		userBuilder.WriteString("\n\n")
+	}
+	if lines := sortedGlossaryLines(p.Glossary); lines != "" {
 		userBuilder.WriteString("Glossary:\n")
-		for term, translation := range p.Glossary {
-			userBuilder.WriteString(fmt.Sprintf("- %s → %s\n", term, translation))
-		}
+		userBuilder.WriteString(lines)
 		userBuilder.WriteString("\n")
 	}
 

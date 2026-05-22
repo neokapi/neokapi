@@ -22,10 +22,10 @@ export function Nav() {
         </a>
 
         <div className="hidden items-center gap-8 md:flex">
+          <a href="#brand-loop" className="text-sm text-neutral-400 transition hover:text-brand-400">How it works</a>
           <a href="#features" className="text-sm text-neutral-400 transition hover:text-brand-400">Features</a>
           <a href="#cli" className="text-sm text-neutral-400 transition hover:text-brand-400">CLI</a>
-          <a href="#desktop" className="text-sm text-neutral-400 transition hover:text-brand-400">Desktop</a>
-          <a href="#pipeline" className="text-sm text-neutral-400 transition hover:text-brand-400">Architecture</a>
+          <a href="#formats" className="text-sm text-neutral-400 transition hover:text-brand-400">Formats</a>
           <a href="#get-started" className="text-sm text-neutral-400 transition hover:text-brand-400">Get Started</a>
         </div>
 
@@ -56,10 +56,10 @@ export function Nav() {
       {open && (
         <div className="border-t border-surface-700 bg-surface-950/95 px-6 py-4 md:hidden">
           <div className="flex flex-col gap-3">
+            <a href="#brand-loop" onClick={() => setOpen(false)} className="text-sm text-neutral-400">How it works</a>
             <a href="#features" onClick={() => setOpen(false)} className="text-sm text-neutral-400">Features</a>
             <a href="#cli" onClick={() => setOpen(false)} className="text-sm text-neutral-400">CLI</a>
-            <a href="#desktop" onClick={() => setOpen(false)} className="text-sm text-neutral-400">Desktop</a>
-            <a href="#pipeline" onClick={() => setOpen(false)} className="text-sm text-neutral-400">Architecture</a>
+            <a href="#formats" onClick={() => setOpen(false)} className="text-sm text-neutral-400">Formats</a>
             <a href="#get-started" onClick={() => setOpen(false)} className="text-sm text-neutral-400">Get Started</a>
             <div className="mt-2 flex items-center gap-3">
               <a href="https://github.com/neokapi/neokapi" target="_blank" rel="noopener" className="text-sm text-neutral-400">GitHub</a>

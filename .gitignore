@@ -133,3 +133,11 @@ platform/docker/traefik/certs
 .playwright-mcp/
 .parity/
 .contract-audit/
+
+# Generated kapi/bowrain skill copies. The canonical source is cli/skills/data/
+# (embedded in the binary). Regenerate the dogfood copies with `make dev-skills`
+# and the Claude Code plugin bundle with `make plugin-bundle`. Hand-authored
+# skills (e.g. .claude/skills/walkthrough-*) stay committed and are not ignored.
+/.claude/skills/kapi-*/
+/.claude/skills/bowrain-*/
+/packages/kapi-claude-plugin/skills/

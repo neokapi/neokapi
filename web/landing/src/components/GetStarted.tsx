@@ -13,37 +13,40 @@ const CLI_METHODS = [
   },
 ]
 
-const QUICK_START = `# Pseudo-translate to test your UI
-kapi pseudo-translate messages.json --target-lang qps -o messages_qps.json
+const QUICK_START = `# Print a brand voice guide to inject into your AI assistant
+kapi brand guide --pack friendly-dtc
 
-# Count words for cost estimation
-kapi word-count messages.json
+# Score content against a profile; --min-score gates CI (exit 3)
+kapi brand check --profile-file brand.yaml --min-score 80 release-notes.md
 
-# Translate with AI, then run a QA check
-kapi run ai-translate-qa -i input.html -o output.html \\
-  --source-lang en --target-lang fr
+# Rewrite off-voice content to fix forbidden/competitor terms
+kapi brand rewrite --profile-file brand.yaml --text "Leverage our solution"
 
-# Explore what's available
-kapi formats          # List supported formats
-kapi tools            # List available tools
-kapi flows            # List available flows`
+# Translate — brand-voice-aware via a flow — into every language
+kapi run ai-translate-qa -i app.json -o app.de.json \\
+  --source-lang en --target-lang de
 
-const ACTIONS_YAML = `name: QA Check Translations
+# Serve brand + terminology tools to your AI assistant over MCP
+kapi mcp`
+
+const ACTIONS_YAML = `name: Brand Voice Gate
 
 on:
-  push:
+  pull_request:
     paths:
-      - 'docs/translations/**'
+      - 'content/**'
+      - 'src/locales/**'
 
 jobs:
-  qa-check:
+  brand-check:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
 
       - uses: neokapi/kapi-action@v1
         with:
-          command: run qa-check docs/translations/`
+          # Fails the PR when the file scores below 80
+          command: brand check --profile-file brand.yaml --min-score 80 content/release-notes.md`
 
 export function GetStarted() {
   const [tab, setTab] = useState<'cli' | 'desktop' | 'actions'>('cli')
@@ -67,7 +70,9 @@ export function GetStarted() {
             </span>
           </h2>
           <p className="mx-auto mt-4 max-w-xl text-lg text-neutral-400">
-            Choose the CLI for automation and scripting, or the Desktop app for a visual workflow. No account required.
+            One binary, offline by default. Use the CLI for automation and CI, the
+            MCP server inside your AI assistant, or the Desktop app for a visual
+            workflow. No account required.
           </p>
         </div>
 

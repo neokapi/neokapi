@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/schema"
 	"github.com/neokapi/neokapi/core/tool"
 	"github.com/neokapi/neokapi/providers/ai"
 )
@@ -22,8 +23,43 @@ type AITerminologyTool struct {
 
 // AITerminologyConfig holds configuration for the terminology tool.
 type AITerminologyConfig struct {
-	Locale model.LocaleID `schema:"description=Locale of the source content"`
-	Domain string         `schema:"description=Subject domain for terminology extraction (e.g. medical legal technology)"`
+	Locale   model.LocaleID `json:"locale,omitempty"   schema:"-"`
+	Domain   string         `json:"domain,omitempty"   schema:"title=Domain,description=Subject domain for terminology extraction (e.g. medical legal technology)"`
+	Provider string         `json:"provider,omitempty" schema:"title=AI Provider,description=AI provider,default=anthropic,group=provider"`
+	APIKey   string         `json:"apiKey,omitempty"   schema:"title=API Key,description=API key for the AI provider,group=provider"`
+	Model    string         `json:"model,omitempty"    schema:"title=Model,description=AI model name,group=provider"`
+}
+
+// AITerminologySchema returns the auto-generated schema for the tool.
+func AITerminologySchema() *schema.ComponentSchema {
+	s := schema.FromStruct(&AITerminologyConfig{}, schema.ToolMeta{
+		ID:                    "ai-terminology",
+		Category:              schema.CategoryAnalysis,
+		DisplayName:           "AI Terminology Extraction",
+		Description:           "Extract candidate terminology from content using an LLM provider",
+		Inputs:                []string{schema.PartTypeBlock},
+		Tags:                  []string{"ai-powered", "terminology"},
+		DefaultParallelBlocks: 5,
+		Requires:              []string{schema.RequiresCredentials},
+		Cardinality:           schema.Monolingual,
+		Produces:              []schema.AnnotationType{schema.AnnotationTerms},
+		SideEffects:           []schema.SideEffect{schema.SideEffectAPICall},
+	})
+	injectProviderOptions(s)
+	return s
+}
+
+// NewAITerminologyFromConfig creates an AI terminology tool from a config map.
+func NewAITerminologyFromConfig(config map[string]any, _ string) (tool.Tool, error) {
+	var cfg AITerminologyConfig
+	if err := schema.ApplyConfig(config, &cfg); err != nil {
+		return nil, fmt.Errorf("ai-terminology config: %w", err)
+	}
+	p, err := ProviderFromConfig(cfg.Provider, aiprovider.Config{APIKey: cfg.APIKey, Model: cfg.Model})
+	if err != nil {
+		return nil, err
+	}
+	return NewAITerminologyTool(p, cfg), nil
 }
 
 // NewAITerminologyTool creates a new AI terminology extraction tool.

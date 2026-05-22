@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/neokapi/neokapi/core/model"
@@ -53,6 +54,34 @@ type TranslateRequest struct {
 	Context        string            `json:"context,omitempty"`
 	Glossary       map[string]string `json:"glossary,omitempty"`
 	Format         string            `json:"format,omitempty"` // e.g., "html", "plain"
+	// VoiceGuide is brand voice guidance (rendered from a VoiceProfile) that the
+	// model should apply while translating, so output is on-brand at generation
+	// time rather than only checked afterwards. Empty when no profile is bound.
+	VoiceGuide string `json:"voice_guide,omitempty"`
+}
+
+// Directives returns the deterministic brand-voice + glossary block appended to
+// translation prompts. Glossary terms are sorted so the same request always
+// yields byte-identical prompt text. Returns "" when neither is set.
+func (req TranslateRequest) Directives() string {
+	var b strings.Builder
+	if g := strings.TrimSpace(req.VoiceGuide); g != "" {
+		b.WriteString("\n\nBrand voice (apply when translating):\n")
+		b.WriteString(g)
+		b.WriteString("\n")
+	}
+	if len(req.Glossary) > 0 {
+		b.WriteString("\n\nGlossary:\n")
+		keys := make([]string, 0, len(req.Glossary))
+		for k := range req.Glossary {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		for _, k := range keys {
+			fmt.Fprintf(&b, "- %s → %s\n", k, req.Glossary[k])
+		}
+	}
+	return b.String()
 }
 
 // TokenUsage holds token consumption data from an AI provider call.

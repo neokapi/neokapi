@@ -45,12 +45,7 @@ func (p *AnthropicProvider) Translate(ctx context.Context, req TranslateRequest)
 		req.SourceLanguage, req.TargetLocale, req.Source,
 	))
 
-	if len(req.Glossary) > 0 {
-		prompt.WriteString("\n\nGlossary:\n")
-		for term, translation := range req.Glossary {
-			prompt.WriteString(fmt.Sprintf("- %s → %s\n", term, translation))
-		}
-	}
+	prompt.WriteString(req.Directives())
 
 	resp, err := p.Chat(ctx, []Message{
 		{Role: "user", Content: prompt.String()},

@@ -5,21 +5,43 @@ title: Overview
 
 # Kapi CLI
 
-Kapi is a standalone command-line tool for file-based localization tasks — format conversion, pseudo-translation, word counting, quality checks, and AI translation. It operates directly on files without requiring a project, server, or configuration.
+Kapi is a standalone command-line tool that keeps content **on-brand and
+terminologically consistent**, then **localizes it into every language and
+format**. It operates directly on files without requiring a project, server, or
+configuration, and runs offline by default.
 
 ## What is Kapi?
 
-Kapi is a standalone localization toolkit that:
+Kapi does two jobs from one engine:
 
-- Processes files directly (no project initialization needed)
-- Runs translation flows with AI, MT, TM, and QA tools
-- Reads and writes many file formats with automatic detection (see the
-  [Format Reference](/formats))
-- Extends via gRPC plugins, including the Okapi bridge to the Java filters
+- **Brand governance for AI output** — load a brand voice profile, score text
+  0–100, and rewrite content that drifts off-voice. Wire it into your AI coding
+  assistant over [MCP](/kapi-cli/mcp) so generation stays on-brand.
+- **Format-aware localization** — AI translation, MT, TM leverage, terminology
+  enforcement, QA, and pseudo-translation across native localization, document,
+  data, subtitle, and office formats, with more through the okapi-bridge and
+  automatic format detection (see the [format reference](/formats)).
+
+It processes files directly (no project initialization needed) and extends via
+crash-isolated gRPC plugins, including the Okapi bridge to the Java filters.
 
 ## Key Commands
 
 ```bash
+# --- Brand voice ---
+# Print a brand voice guide to inject into your AI assistant
+kapi brand guide --pack friendly-dtc
+
+# Score text against a profile; --min-score gates CI (exit code 3)
+kapi brand check --profile-file brand.yaml --min-score 80 release-notes.md
+
+# Rewrite off-voice content
+kapi brand rewrite --profile-file brand.yaml --text "Leverage our solution"
+
+# Serve brand + terminology tools to your AI assistant over MCP
+kapi mcp
+
+# --- Localization ---
 # List supported formats
 kapi formats
 
@@ -32,7 +54,7 @@ kapi pseudo-translate messages.json --target-lang fr
 # Translate with AI
 kapi ai-translate -i input.html -o output.html --source-lang en --target-lang fr
 
-# Run a composed multi-tool flow
+# Run a composed multi-tool flow (brand-voice-aware when a profile is bound)
 kapi run ai-translate-qa -i input.html -o output.html --source-lang en --target-lang fr
 
 # List available tools and flows
@@ -47,10 +69,8 @@ kapi termbase lookup "authentication module" -s en -t fr
 kapi tm import translations.tmx --name project-tm -s en -t fr
 kapi tm lookup "Welcome to our platform" -s en -t fr
 
-# List presets
+# List presets and plugins
 kapi presets list
-
-# Manage plugins
 kapi plugins list
 ```
 
@@ -58,10 +78,11 @@ kapi plugins list
 
 Use Kapi CLI when you:
 
-- **Process individual files** — translate, pseudo-translate, count words
+- **Keep AI output on-brand** — score and fix content against a voice profile
+- **Localize content** — translate, pseudo-translate, count words, run QA
 - **Need quick results** without project setup or configuration
-- **Run in CI/CD** for automated file processing
-- **Evaluate formats** — list supported formats, check file compatibility
+- **Run in CI/CD** — gate a build on a brand score or QA check
+- **Work offline** — a single binary with embedded TM and termbase
 
 For a visual interface, use [Kapi](/kapi-desktop/overview) — the GUI companion for building flows, managing plugins, and running tools with live progress.
 
@@ -109,6 +130,8 @@ brew install --cask neokapi/tap/kapi-desktop
 
 ## Next Steps
 
+- [Brand Voice](/features/brand-voice) — profiles, scoring, and enforcement
+- [Using Kapi with AI Assistants](/kapi-cli/mcp) — wire kapi into Claude Code, Cursor, and more
 - [Formats](/kapi-cli/commands/formats)
 - [Run Command](/kapi-cli/commands/flow)
 - [Pseudo-Translation](/kapi-cli/commands/pseudo-translate)

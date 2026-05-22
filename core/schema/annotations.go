@@ -46,6 +46,7 @@ const (
 	AnnotationScopingReport  AnnotationType = "analysis.scoping-report"
 	AnnotationRepetition     AnnotationType = "analysis.repetition"
 	AnnotationTranslation    AnnotationType = "translation.output"
+	AnnotationBrandVoice     AnnotationType = "quality.brand-voice"
 )
 
 // SideEffect identifies an external system interaction performed by a tool.
@@ -135,6 +136,7 @@ func (r *AnnotationRegistry) RegisterBuiltIns() {
 		{AnnotationScopingReport, "Scoping Report", "Detailed scoping analysis", sourceBuiltIn},
 		{AnnotationRepetition, "Repetition", "Repeated segment analysis", sourceBuiltIn},
 		{AnnotationTranslation, "Translation", "Translated target content", sourceBuiltIn},
+		{AnnotationBrandVoice, "Brand Voice", "Brand voice compliance score and findings", sourceBuiltIn},
 	}
 	for _, info := range builtins {
 		r.Register(info)

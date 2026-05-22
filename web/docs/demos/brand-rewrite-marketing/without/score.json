@@ -1,0 +1,105 @@
+{
+  "profile": "Marketing Blog",
+  "score": 70,
+  "passed": true,
+  "ai_checked": false,
+  "dimensions": [
+    {
+      "dimension": "tone",
+      "score": 100,
+      "penalty": 0,
+      "issues": 0
+    },
+    {
+      "dimension": "style",
+      "score": 100,
+      "penalty": 0,
+      "issues": 0
+    },
+    {
+      "dimension": "vocabulary",
+      "score": 70,
+      "penalty": 30,
+      "issues": 6
+    },
+    {
+      "dimension": "clarity",
+      "score": 100,
+      "penalty": 0,
+      "issues": 0
+    },
+    {
+      "dimension": "brand_compliance",
+      "score": 100,
+      "penalty": 0,
+      "issues": 0
+    }
+  ],
+  "findings": [
+    {
+      "dimension": "vocabulary",
+      "severity": "major",
+      "message": "Forbidden term \"in order to\" found",
+      "suggestion": "Use \"to\" instead",
+      "position": {
+        "Start": 33,
+        "End": 44
+      },
+      "original_text": "In order to"
+    },
+    {
+      "dimension": "vocabulary",
+      "severity": "major",
+      "message": "Forbidden term \"in order to\" found",
+      "suggestion": "Use \"to\" instead",
+      "position": {
+        "Start": 229,
+        "End": 240
+      },
+      "original_text": "In order to"
+    },
+    {
+      "dimension": "vocabulary",
+      "severity": "major",
+      "message": "Forbidden term \"in order to\" found",
+      "suggestion": "Use \"to\" instead",
+      "position": {
+        "Start": 356,
+        "End": 367
+      },
+      "original_text": "in order to"
+    },
+    {
+      "dimension": "vocabulary",
+      "severity": "major",
+      "message": "Forbidden term \"at the end of the day\" found",
+      "suggestion": "Use \"ultimately\" instead",
+      "position": {
+        "Start": 128,
+        "End": 149
+      },
+      "original_text": "At the end of the day"
+    },
+    {
+      "dimension": "vocabulary",
+      "severity": "major",
+      "message": "Forbidden term \"it goes without saying\" found",
+      "position": {
+        "Start": 69,
+        "End": 91
+      },
+      "original_text": "it goes without saying"
+    },
+    {
+      "dimension": "vocabulary",
+      "severity": "major",
+      "message": "Forbidden term \"thought leader\" found",
+      "suggestion": "Use \"expert\" instead",
+      "position": {
+        "Start": 190,
+        "End": 204
+      },
+      "original_text": "thought leader"
+    }
+  ]
+}

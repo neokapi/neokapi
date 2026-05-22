@@ -3,24 +3,29 @@ import { cn } from '@/lib/utils'
 
 const TABS = [
   {
+    label: 'Brand Check',
+    cmd: 'kapi brand check \\\n  --profile-file acme.yaml \\\n  --min-score 80 \\\n  release-notes.md',
+    description: 'Score text 0–100 across tone, style, vocabulary, clarity, and compliance. --min-score gates CI and exits 3 below the threshold.',
+  },
+  {
+    label: 'Brand Rewrite',
+    cmd: 'kapi brand rewrite \\\n  --profile-file acme.yaml \\\n  --text "Leverage our solution"',
+    description: 'Rewrite content to remove forbidden and competitor terms and bring it back on-voice — keeping meaning intact.',
+  },
+  {
     label: 'AI Translate',
-    cmd: 'kapi ai-translate -i src/en.json \\\n  --source-lang en \\\n  --target-lang fr \\\n  -o src/fr.json',
-    description: 'Translate a file with an AI model. Compose it into a flow with terminology lookup and QA, or run it on its own.',
-  },
-  {
-    label: 'Pseudo',
-    cmd: 'kapi pseudo-translate src/messages.json \\\n  --target-lang qps \\\n  -o src/messages_qps.json',
-    description: 'Generate pseudo-translations to test your UI for hardcoded strings, truncation, character encoding, and layout issues.',
-  },
-  {
-    label: 'Word Count',
-    cmd: 'kapi word-count "docs/**/*.md" --json',
-    description: 'Count translatable words and segments across any file format. Get cost estimates before sending content for translation.',
+    cmd: 'kapi run ai-translate-qa \\\n  -i src/en.json -o src/fr.json \\\n  --source-lang en --target-lang fr',
+    description: 'Brand-voice-aware translation: a profile bound on the flow is injected into the prompt, so output is on-brand at generation, not just checked after.',
   },
   {
     label: 'Terminology',
     cmd: 'kapi termbase import glossary.csv \\\n  --format csv \\\n  -s en \\\n  -t fr',
-    description: 'Import terminology from CSV, TSV, or JSON. Enforce consistent terminology across translations with the term-enforce tool.',
+    description: 'Import terminology from CSV, JSON, or TBX. Enforce preferred and forbidden terms across every translation with term-enforce.',
+  },
+  {
+    label: 'MCP',
+    cmd: 'kapi mcp\n\n# exposes to any MCP client:\n#   brand_guide   brand_check   brand_rewrite\n#   term_lookup   tm_search\n# Claude Code · Cursor · Windsurf · ...',
+    description: 'Serve brand and terminology tools to your AI assistant over MCP, so generation stays on-brand inside the editor.',
   },
   {
     label: 'Formats',
@@ -42,7 +47,8 @@ export function CliDemo() {
             {' '}CLI
           </h2>
           <p className="mx-auto mt-4 max-w-2xl text-lg text-neutral-400">
-            Process files directly. No project setup, no server, no configuration needed.
+            Govern brand voice, enforce terminology, and localize files directly.
+            No project setup, no server, no configuration needed.
           </p>
         </div>
 

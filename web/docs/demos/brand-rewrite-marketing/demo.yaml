@@ -1,0 +1,16 @@
+id: brand-rewrite-marketing
+kind: brand
+asset_type: markdown
+loop_stage: brand-rewrite
+domain: marketing
+brand_pack: marketing-blog
+reader: native
+signal: high
+summary: >-
+  A generic AI draft for a marketing blog drifts off-voice — wordy filler ("in
+  order to", "at the end of the day", "thought leader"). kapi rewrites it to the
+  marketing-blog voice and the brand compliance score jumps.
+expect:
+  without_overall_max: 99
+  with_overall_min: 99
+  delta_min: 1

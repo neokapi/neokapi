@@ -28,4 +28,16 @@ func RegisterAll(reg *registry.ToolRegistry) {
 		return NewAIReviewTool(aiprovider.NewMockProvider(), AIReviewConfig{})
 	}, AIReviewSchema())
 	reg.SetConfigFactory("ai-review", NewAIReviewFromConfig)
+
+	// AI Brand Voice Check — score/flag text against a brand voice profile.
+	reg.RegisterWithSchema("brand-voice-check", func() tool.Tool {
+		return NewBrandVoiceCheckTool(aiprovider.NewMockProvider(), nil)
+	}, BrandVoiceCheckSchema())
+	reg.SetConfigFactory("brand-voice-check", NewBrandVoiceCheckFromConfig)
+
+	// AI Terminology — extract candidate terminology from content.
+	reg.RegisterWithSchema("ai-terminology", func() tool.Tool {
+		return NewAITerminologyTool(aiprovider.NewMockProvider(), AITerminologyConfig{})
+	}, AITerminologySchema())
+	reg.SetConfigFactory("ai-terminology", NewAITerminologyFromConfig)
 }
