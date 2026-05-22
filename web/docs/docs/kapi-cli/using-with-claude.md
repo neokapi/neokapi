@@ -44,7 +44,7 @@ check, fix, publish:
 
 | Capability | When Claude uses it | What it runs |
 | --- | --- | --- |
-| Brand voice | keep content on-brand: load the voice guide, score a draft, rewrite what drifts | `kapi brand guide` / `check` / `rewrite` |
+| Brand voice | create a profile (from what you know, samples, or a linked website), then keep content on-brand: load the guide, score a draft, rewrite what drifts | `kapi brand new` / `guide` / `check` / `rewrite` |
 | Localize | translate, enforce terminology, and round-trip into other languages and formats | `kapi run ai-translate-qa`, `kapi termbase`, `kapi extract` / `merge` |
 | i18n setup | add i18n to a project | the kapi-react stack, or a stack's existing catalogs |
 | Cloud governance (optional) | shared brand profiles, project sync, a reviewed termbase | the bowrain platform, one option for teams |

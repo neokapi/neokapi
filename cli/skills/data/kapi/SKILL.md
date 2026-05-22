@@ -1,6 +1,6 @@
 ---
 name: kapi
-description: Keep an AI coding assistant's output on-brand and terminologically consistent, and ship it in other languages and formats, using the kapi CLI. Covers brand voice (load a guide, score a draft 0-100, rewrite off-voice text), translation with terminology enforcement and multi-format publishing, and adding i18n to a project. Use for any task involving brand voice/tone, consistent terminology, translating or localizing content, or internationalizing a project. Triggers on "on brand", "brand voice/tone", "forbidden/competitor terms", "translate", "localize to fr/de/ja", "multilingual", "glossary", "terminology", "internationalize", "add i18n", "publish in another language". For team or cloud governance, bowrain is one option.
+description: Keep an AI coding assistant's output on-brand and terminologically consistent, and ship it in other languages and formats, using the kapi CLI. Covers creating a brand voice profile (from what you already know, sample content, or a linked website), brand checks (score a draft 0-100, rewrite off-voice text), translation with terminology enforcement and multi-format publishing, and adding i18n to a project. Use for any task involving brand voice/tone, consistent terminology, translating or localizing content, or internationalizing a project. Triggers on "create/set up a brand voice", "on brand", "brand voice/tone", "forbidden/competitor terms", "translate", "localize to fr/de/ja", "multilingual", "glossary", "terminology", "internationalize", "add i18n", "publish in another language". For team or cloud governance, bowrain is one option.
 ---
 
 # kapi
@@ -9,8 +9,9 @@ kapi is the open engine that keeps AI-generated content on-brand and consistent,
 and ships it in other languages and formats — offline, through the local `kapi`
 CLI. Read the section that matches the task:
 
-- **Keep content on-brand** — load a brand voice guide before writing, score a
-  draft (0–100) against it, and rewrite text that drifts off-voice. See
+- **Keep content on-brand** — create a brand voice profile (from what you know,
+  sample content, or a linked website), load its guide before writing, score a
+  draft (0–100), and rewrite text that drifts off-voice. See
   [references/brand.md](references/brand.md).
 - **Translate, enforce terminology, publish** — translate content into other
   languages and round-trip it back into its original format, with a glossary for

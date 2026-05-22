@@ -22,6 +22,7 @@ import (
 	coretools "github.com/neokapi/neokapi/core/tools"
 	aiprovider "github.com/neokapi/neokapi/providers/ai"
 	"github.com/spf13/cobra"
+	"gopkg.in/yaml.v3"
 )
 
 // localWorkspace is the workspace ID used for profiles in the local CLI brand store.
@@ -49,6 +50,7 @@ omitted or set to "-".`,
 	}
 
 	cmd.AddCommand(
+		a.newBrandNewCmd(),
 		a.newBrandGuideCmd(),
 		a.newBrandCheckCmd(),
 		a.newBrandRewriteCmd(),
@@ -268,6 +270,97 @@ func (a *App) newBrandProfilesCmd() *cobra.Command {
 	}
 	AddResourceFlags(cmd)
 	output.AddFlags(cmd)
+	return cmd
+}
+
+// brandProfileTemplate is a commented, schema-valid VoiceProfile starting point
+// emitted by `kapi brand new`. It parses via brand.LoadProfileYAML (guarded by a
+// test), so an AI assistant or a human can fill it in and import it directly.
+const brandProfileTemplate = `# Brand voice profile. Fill in the fields, then:
+#   kapi brand import brand.yaml                     # save to the local store
+#   kapi brand guide --profile-file brand.yaml       # render the guide
+#   echo "draft" | kapi brand check --profile-file brand.yaml --json
+# Only 'name' is required; every other field is optional. The English source
+# text always stays the key — do not invent message IDs.
+
+name: My Brand
+description: One line on who this voice is for and the impression it should leave.
+
+tone:
+  personality: [clear, confident, friendly]   # 2-4 adjectives
+  formality: neutral        # casual | neutral | formal | technical
+  emotion: warm             # warm | neutral | authoritative
+  humor: light              # none | light | frequent
+  guidelines: Address the reader as "you". Lead with the benefit.
+
+style:
+  active_voice: true
+  sentence_length: varied   # short | medium | varied
+  person_pov: second        # first_plural | second | third
+  contractions: always      # always | sometimes | never
+  prohibited_patterns:
+    - regex: "\\b(synergy|leverage)\\b"
+      description: Corporate jargon
+      severity: minor        # minor | major | critical
+
+vocabulary:
+  preferred_terms:
+    - term: sign in
+      note: not "log in"
+  forbidden_terms:
+    - term: utilize
+      replacement: use
+      severity: minor
+  competitor_terms:
+    - term: Globex
+      replacement: our platform
+      severity: major
+
+examples:
+  - before: We utilize cutting-edge technology to facilitate outcomes.
+    after: We help you ship faster.
+    explanation: Cut the jargon; speak to the reader.
+    category: tone           # tone | style | vocabulary
+`
+
+func (a *App) newBrandNewCmd() *cobra.Command {
+	var pack, out string
+	cmd := &cobra.Command{
+		Use:   "new",
+		Short: "Scaffold a brand voice profile YAML to fill in (optionally seeded from a starter pack)",
+		Long: `Write a brand voice profile YAML to fill in.
+
+With no flags, emits a commented template. With --pack, emits an existing
+starter pack as an editable base. An AI assistant can fill this in from what it
+already knows about the product, from sample content, or from a linked website,
+then ` + "`kapi brand import`" + ` it.`,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			data := []byte(brandProfileTemplate)
+			if pack != "" {
+				p, err := packs.Load(pack)
+				if err != nil {
+					return err
+				}
+				p.ID = "" // let import derive the id from the (edited) name
+				b, err := yaml.Marshal(p)
+				if err != nil {
+					return fmt.Errorf("marshal pack %q: %w", pack, err)
+				}
+				data = append([]byte("# Seeded from the "+pack+" starter pack — edit to taste, then `kapi brand import`.\n"), b...)
+			}
+			if out != "" {
+				if err := os.WriteFile(out, data, 0o644); err != nil {
+					return fmt.Errorf("write %s: %w", out, err)
+				}
+				fmt.Fprintf(cmd.ErrOrStderr(), "Wrote %s — fill it in, then: kapi brand import %s\n", out, out)
+				return nil
+			}
+			_, err := cmd.OutOrStdout().Write(data)
+			return err
+		},
+	}
+	cmd.Flags().StringVar(&pack, "pack", "", "seed from a starter pack (see 'kapi brand profiles')")
+	cmd.Flags().StringVarP(&out, "out", "o", "", "write to a file instead of stdout")
 	return cmd
 }
 

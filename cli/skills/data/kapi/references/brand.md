@@ -11,6 +11,41 @@ YAML (`--profile-file`), or the local store (`--profile`). List options with
 `kapi brand profiles`. Packs: `professional-b2b`, `friendly-dtc`,
 `technical-docs`, `marketing-blog`, `customer-support`.
 
+## Create a profile
+
+If the user has no profile yet, draft one for them — you (the assistant) do the
+analysis; the CLI gives you the schema and stores the result.
+
+```bash
+kapi brand new -o brand.yaml                         # commented template to fill in
+kapi brand new --pack marketing-blog -o brand.yaml   # or start from a close pack
+```
+
+Fill in `brand.yaml` from whatever signal is available:
+
+- **What you already know** about the product/company from this conversation or
+  the repo (README, marketing copy, existing UI strings) — infer personality,
+  formality, and preferred/forbidden terms.
+- **Samples** the user pastes or points at (a few on-brand paragraphs, past
+  emails, docs) — derive tone and vocabulary, and turn weak→strong pairs into
+  `examples` (before / after).
+- **A website** the user links — fetch a page or two (your web tool, or `curl`),
+  read the live copy, and capture its voice. For a saved page, `kapi word-count
+  page.html` / `kapi extract` pulls the translatable text to analyze.
+
+Keep it concrete: 2–4 personality adjectives, a handful of forbidden/competitor
+terms with replacements, and 2–3 before/after examples beat a long abstract
+description. Then save and verify:
+
+```bash
+kapi brand import brand.yaml                 # into the local store
+kapi brand guide --profile-file brand.yaml   # confirm it renders as intended
+echo "We utilize synergies." | kapi brand check --profile-file brand.yaml --json
+```
+
+Show the user the rendered guide and a check on one of their own samples, then
+refine the YAML from their feedback.
+
 ## 1. Load the guide before writing
 
 ```bash

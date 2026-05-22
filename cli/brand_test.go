@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/neokapi/neokapi/cli/output"
@@ -52,6 +53,26 @@ func TestRuleRewrite(t *testing.T) {
 	}
 	if utilize == nil || utilize.Count != 2 {
 		t.Errorf("expected utilize change count 2, got %+v", utilize)
+	}
+}
+
+func TestBrandProfileTemplateParses(t *testing.T) {
+	p, err := brand.LoadProfileYAML(strings.NewReader(brandProfileTemplate))
+	if err != nil {
+		t.Fatalf("brand new template must parse as a VoiceProfile: %v", err)
+	}
+	if p.Name == "" {
+		t.Error("template profile has no name")
+	}
+	// The template's forbidden-term example must round-trip into a usable rule.
+	var hasUtilize bool
+	for _, r := range p.Vocabulary.ForbiddenTerms {
+		if r.Term == "utilize" && r.Replacement == "use" {
+			hasUtilize = true
+		}
+	}
+	if !hasUtilize {
+		t.Errorf("template forbidden terms missing utilize→use: %+v", p.Vocabulary.ForbiddenTerms)
 	}
 }
 
