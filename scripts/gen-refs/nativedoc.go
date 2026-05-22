@@ -106,7 +106,7 @@ func applyNativeDoc(e *Entry, ndf *nativeDocFile) {
 				SeeAlso:      p.SeeAlso,
 			}
 			for _, d := range p.DependsOn {
-				dp.DependsOn = append(dp.DependsOn, DocDepends{Property: d.Property, Condition: d.Condition})
+				dp.DependsOn = append(dp.DependsOn, DocDepends(d))
 			}
 			doc.Parameters[name] = dp
 		}

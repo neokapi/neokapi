@@ -508,7 +508,11 @@ jobs:
           verify: false
           version: v2.9.0
           working-directory: .
-          only-new-issues: ${{ github.event_name == 'pull_request' }}
+          # Full lint on PRs too: the GitHub patch API the action uses for
+          # only-new-issues filtering 406s on diffs over 20000 lines (large
+          # generated artifacts / lockfile churn). Push to main already lints
+          # in full and is the clean gate, so PRs lint identically.
+          only-new-issues: false
           args: --timeout=5m ./...
 
       - name: Lint cli
@@ -518,7 +522,11 @@ jobs:
           verify: false
           version: v2.9.0
           working-directory: cli
-          only-new-issues: ${{ github.event_name == 'pull_request' }}
+          # Full lint on PRs too: the GitHub patch API the action uses for
+          # only-new-issues filtering 406s on diffs over 20000 lines (large
+          # generated artifacts / lockfile churn). Push to main already lints
+          # in full and is the clean gate, so PRs lint identically.
+          only-new-issues: false
           args: --timeout=5m ./...
 
       - name: Lint kapi
@@ -528,7 +536,11 @@ jobs:
           verify: false
           version: v2.9.0
           working-directory: kapi
-          only-new-issues: ${{ github.event_name == 'pull_request' }}
+          # Full lint on PRs too: the GitHub patch API the action uses for
+          # only-new-issues filtering 406s on diffs over 20000 lines (large
+          # generated artifacts / lockfile churn). Push to main already lints
+          # in full and is the clean gate, so PRs lint identically.
+          only-new-issues: false
           args: --timeout=5m ./...
 
   lint-platform:
@@ -559,7 +571,11 @@ jobs:
           verify: false
           version: v2.9.0
           working-directory: bowrain/core
-          only-new-issues: ${{ github.event_name == 'pull_request' }}
+          # Full lint on PRs too: the GitHub patch API the action uses for
+          # only-new-issues filtering 406s on diffs over 20000 lines (large
+          # generated artifacts / lockfile churn). Push to main already lints
+          # in full and is the clean gate, so PRs lint identically.
+          only-new-issues: false
           args: --timeout=5m ./...
 
       - name: Lint Bowrain CLI
@@ -569,7 +585,11 @@ jobs:
           verify: false
           version: v2.9.0
           working-directory: bowrain/cli
-          only-new-issues: ${{ github.event_name == 'pull_request' }}
+          # Full lint on PRs too: the GitHub patch API the action uses for
+          # only-new-issues filtering 406s on diffs over 20000 lines (large
+          # generated artifacts / lockfile churn). Push to main already lints
+          # in full and is the clean gate, so PRs lint identically.
+          only-new-issues: false
           args: --timeout=5m ./...
 
       - name: Install Linux dependencies for Wails
@@ -585,7 +605,11 @@ jobs:
           verify: false
           version: v2.9.0
           working-directory: bowrain
-          only-new-issues: ${{ github.event_name == 'pull_request' }}
+          # Full lint on PRs too: the GitHub patch API the action uses for
+          # only-new-issues filtering 406s on diffs over 20000 lines (large
+          # generated artifacts / lockfile churn). Push to main already lints
+          # in full and is the clean gate, so PRs lint identically.
+          only-new-issues: false
           args: --timeout=5m ./...
 
   # ── GitHub Actions Lint ──────────────────────────────────────────────────
