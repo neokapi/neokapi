@@ -1,0 +1,6 @@
+format: html
+fixtures:
+  France_Culture_fr.html:
+    severity: cosmetic
+    summary: "Non-deterministic html-canonical divergence, PRE-EXISTING and unrelated to the openxml faithful-writer work (html reader/writer + html-canonical normalizer untouched). The fixture flips between canonical-equal and divergent across identical-code runs: when divergent, native emits ~837 extra bytes around the document's Open Graph <meta property=\"…\"> tags (e.g. article:publisher) in word/head reconstruction. The difference is document metadata only — it renders identically — so it is cosmetic. The non-determinism (native html-writer head/meta emission ordering) is a separate test-stability issue to investigate; annotated here so the dashboard documents it whichever way the flake lands."
+    spec_ref: "HTML5 §4.2.5 (the meta element); §13 (parsing)"

@@ -115,12 +115,35 @@ func (c *Config) Reset() {
 	// anchor still present (a real semantic divergence on every
 	// HYPERLINK fixture, e.g. 768.docx).
 	c.ComplexFieldDefinitionsToExtract = []string{"HYPERLINK"}
-	// Okapi's AllowWordStyleOptimisation parameter defaults to true (see
-	// upstream ConditionalParameters.java line 813:
-	// AllowWordStyleOptimisation=true). Mirroring the default keeps the
-	// native filter byte-equal with the bridge for fixtures that rely on
-	// synthesised paragraph styles.
-	c.OptimiseWordStyles = true
+	// Native is FAITHFUL by default: source rPr is preserved inline, no
+	// synthesised paragraph styles, no attribute stripping. Word Style
+	// Optimisation (WSO) is a clean, opt-in post-pass that mimics Okapi's
+	// compact output (synthesising `NF…-Normal` pStyles from common run
+	// properties, stripping "moot" attributes, renaming font subsets) —
+	// nothing ECMA-376 / ISO/IEC 29500 requires. The faithful pre-WSO
+	// output (`renderWMLBlock` + `postNonWSOForName`) is already a valid
+	// OOXML producer that renders identically; Okapi's compact form and
+	// the faithful inline form are equally spec-valid (§17.3.2.1 CT_R +
+	// §17.7 style resolution — direct and style-based formatting resolve
+	// to the same effective formatting).
+	//
+	// Defaulting WSO off (a) closes #597 (no rPr rewrite → source
+	// `<w:spacing>` is preserved; no docDefaults `rFonts` overlay → no
+	// injected `<w:rFonts w:cs="Helvetica"/>`) and #598b (no attr strip →
+	// source `<w:color>` preserved), and (b) removes WSO's global,
+	// order-coupled synth-style ID counter (the 847-3 "architectural
+	// blocker"). Equivalence with Okapi's synth-pStyle form is proved in
+	// the parity comparator by an effective-rPr normalizer that resolves
+	// the style indirection on both sides (cli/parity/roundtrip), not in
+	// the writer. This mirrors the established xliff "faithful default +
+	// opt-in okapi-compat" pattern. See the OpenXML faithful-writer design
+	// note (docs/internals/research/openxml-faithful-writer-design.md).
+	//
+	// Okapi's AllowWordStyleOptimisation parameter defaults to true
+	// (upstream ConditionalParameters.java line 813); we deliberately
+	// diverge from that default here because byte-matching Okapi is the
+	// comparator's job, not the producer's.
+	c.OptimiseWordStyles = false
 	c.FontMappings = nil
 	c.ExtractRunFontsInfo = false
 	c.ReplaceLineSeparator = false

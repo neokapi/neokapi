@@ -53,10 +53,14 @@ interface EngineTotals {
   canon_closeable: number;
   sem: number;
   div: number;
+  // div_faithful = divergent fixtures annotated cosmetic / native-more-correct
+  // / okapi-bug — native is at least as spec-faithful as okapi; divergent only
+  // because the comparator can't fold a text-driven difference.
+  div_faithful: number;
   skip: number;
   byte_pct: number;
-  // faithful_pct = (byte + canon_faithful) / asserted — the honest "as
-  // faithful as okapi or better" headline.
+  // faithful_pct = (byte + canon_faithful + div_faithful) / asserted — the
+  // honest "as faithful as okapi or better" headline.
   faithful_pct: number;
 }
 
@@ -922,15 +926,16 @@ export default function ParityFixturesDashboard() {
             <div key={eng} className={styles.totalCard}>
               <h2>{eng}</h2>
               <div className={styles.headline}>
-                {t.byte + t.canon_faithful} / {t.total - t.skip}{" "}
+                {t.byte + t.canon_faithful + t.div_faithful} / {t.total - t.skip}{" "}
                 <span className={styles.headlineSuffix}>
                   faithful ({t.faithful_pct.toFixed(1)}%)
                 </span>
               </div>
               <div className={styles.headlineSub}>
                 {t.byte} byte-equal ({t.byte_pct.toFixed(1)}%) + {t.canon_faithful} faithful-canon
+                {t.div_faithful > 0 && <> + {t.div_faithful} faithful-div</>}
                 {" "}
-                <span title="canon where native preserves the source and okapi re-serializes — driving these to byte-equal would regress native fidelity">
+                <span title="native is at least as spec-faithful as okapi: byte-identical, canonically-equal because okapi re-serializes, or divergent-but-native-is-at-least-as-correct (cosmetic / native-more-correct / okapi-bug). Excludes genuine native bugs.">
                   ⓘ
                 </span>
               </div>

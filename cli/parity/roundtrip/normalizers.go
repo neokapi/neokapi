@@ -1521,10 +1521,14 @@ func sortXMLChildElements(children []xmlChild) []xmlChild {
 }
 
 // stripXMLNSAttrs removes xmlns="..." and xmlns:foo="..." attribute
-// occurrences from rendered XML bytes. Cheap regexp-based pass — the
-// encoder we use double-quotes attribute values, so the pattern is
-// stable. Used by XMLCanonical{StripNamespaceDecls:true}.
-var xmlnsAttrRE = regexp.MustCompile(` xmlns(:[A-Za-z_][A-Za-z0-9._-]*)?="[^"]*"`)
+// occurrences from rendered XML bytes, plus the `_xmlns:foo="..."` form
+// encoding/xml synthesises when a source namespace prefix collides with
+// the reserved `xmlns` pseudo-namespace (e.g. round-tripping a doc that
+// declares `xmlns:w` whose URI is also the element default namespace —
+// the WordprocessingML case). Cheap regexp-based pass — the encoder we
+// use double-quotes attribute values, so the pattern is stable. Used by
+// XMLCanonical{StripNamespaceDecls:true}.
+var xmlnsAttrRE = regexp.MustCompile(` _?xmlns(:[A-Za-z_][A-Za-z0-9._-]*)?="[^"]*"`)
 
 func stripXMLNSAttrs(b []byte) []byte {
 	return xmlnsAttrRE.ReplaceAll(b, nil)

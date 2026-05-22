@@ -1199,20 +1199,65 @@ mergeCaptions.b=false
 			// Chain XMLCanonical with the openxml-specific options so
 			// both engines re-emit through the same encoding/xml
 			// pipeline — the structural noise cancels and the
-			// underlying content compares cleanly. Most fixtures still
-			// diverge on real semantic differences (lang attribute
-			// translation, dropped pPrDefault, mc:AlternateContent
-			// rewrites) that are openxml writer bugs, not normalisation
-			// concerns; surfacing those past the noise is the goal.
-			normalizer: roundtrip.ZipEntryNormalizer{Inner: roundtrip.Chain{Steps: []roundtrip.Normalizer{
-				roundtrip.StripXMLDeclaration{},
-				roundtrip.XMLCanonical{
-					SortAttrs:             true,
-					SortChildElements:     true,
-					StripRevisionIDs:      true,
-					StripXMLSpacePreserve: true,
-				},
-			}}},
+			// underlying content compares cleanly.
+			//
+			// Native ships FAITHFUL output (OptimiseWordStyles=false):
+			// each run keeps its source rPr inline. Okapi ships a
+			// compact form: it lifts paragraph-common run properties
+			// into a synthesised paragraph style (<w:pStyle
+			// w:val="NF…-Normal"> + a <w:style> def in word/styles.xml).
+			// ECMA-376-1 §17.7 makes the two equivalent — a conforming
+			// consumer resolves docDefaults → style chain → pStyle →
+			// rStyle → direct rPr to the same effective per-run
+			// formatting. OpenXMLEffectiveRPr runs FIRST, on the raw zip
+			// bytes, and applies that §17.7 resolution symmetrically to
+			// BOTH sides: it inlines each run's resolved effective rPr,
+			// drops the now-redundant pStyle/rStyle references, and
+			// strips the (now-redundant) style defs from styles.xml.
+			// After it runs, native's inline rPr and Okapi's
+			// synth-style-resolved rPr canonicalise to the same tree.
+			//
+			// The remaining XMLCanonical pass then absorbs the residual
+			// structural noise:
+			//   - encoding/xml always emits explicit close tags
+			//     (`<w:sz w:val="28"></w:sz>`) while okapi self-closes
+			//     empty elements (`<w:sz w:val="28"/>`).
+			//   - native preserves the source's multi-line xmlns
+			//     declarations (one per line) while okapi inlines them.
+			//   - native always emits `xml:space="preserve"` on every
+			//     `<w:t>` text run; okapi only emits it when leading/
+			//     trailing whitespace actually needs preserving.
+			//   - okapi strips revision-tracking IDs (`w:rsidR`,
+			//     `w14:paraId`, …) on round-trip; native preserves
+			//     whatever was authored.
+			//   - okapi alphabetises sibling order in `<docDefaults>`
+			//     and other containers; native preserves source order.
+			// Residual divergences past the noise are real semantic
+			// differences (reader/writer bugs or native-more-correct
+			// extraction), which is the goal.
+			normalizer: roundtrip.Chain{Steps: []roundtrip.Normalizer{
+				roundtrip.OpenXMLEffectiveRPr{},
+				roundtrip.ZipEntryNormalizer{Inner: roundtrip.Chain{Steps: []roundtrip.Normalizer{
+					roundtrip.StripXMLDeclaration{},
+					roundtrip.XMLCanonical{
+						SortAttrs:             true,
+						SortChildElements:     true,
+						StripRevisionIDs:      true,
+						StripXMLSpacePreserve: true,
+						// OpenXMLEffectiveRPr re-encodes the WML content
+						// parts through encoding/xml, which relocates the
+						// source's namespace declarations (and synthesises
+						// `_xmlns:main` artifacts when the WML prefix
+						// collides with the default namespace). The
+						// namespace is already encoded in each element's
+						// Name.Space, so the explicit decls are redundant
+						// for the structural comparison; stripping them on
+						// both sides cancels the re-encode's placement
+						// noise. Same rationale as xliff/odf.
+						StripNamespaceDecls: true,
+					},
+				}}},
+			}},
 		},
 		{
 			// Bridge passes ~2 of 41 fixtures; the rest are flagged

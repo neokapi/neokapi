@@ -16,22 +16,28 @@ import (
 // The annotation system replaces the legacy fileSkip map and powers the
 // /parity/fixtures dashboard's severity badges + issue links, so a
 // loader regression would silently make the dashboard incomplete. This
-// test pins the contract: severity classifies the divergence, issue
-// links a GitHub follow-up, summary explains why.
+// test pins the contract: severity classifies the divergence and the
+// summary explains why.
+//
+// delTextAmp.docx is the canonical openxml example. #597 (its
+// <w:spacing> drop) is RESOLVED by the faithful-writer default — the
+// fixture is now a §17.3.2.26 content-category cosmetic divergence
+// (native preserves moot complex-script attrs Okapi clarifies; renders
+// identically). The assertions track that resolved state.
 func TestAnnotations_LoaderFindsOpenxml(t *testing.T) {
 	roundtrip.ResetAnnotations()
 	ann, ok := roundtrip.LookupAnnotation("openxml", "delTextAmp.docx")
 	if !ok {
 		t.Fatal("expected annotation for openxml/delTextAmp.docx")
 	}
-	if ann.Severity != "bug" {
-		t.Errorf("severity: got %q want %q", ann.Severity, "bug")
-	}
-	if ann.Issue != 597 {
-		t.Errorf("issue: got %d want 597", ann.Issue)
+	if ann.Severity != "cosmetic" {
+		t.Errorf("severity: got %q want %q", ann.Severity, "cosmetic")
 	}
 	if !strings.Contains(ann.Summary, "spacing") {
 		t.Errorf("summary doesn't mention spacing: %q", ann.Summary)
+	}
+	if !strings.Contains(ann.Summary, "597") {
+		t.Errorf("summary doesn't reference #597: %q", ann.Summary)
 	}
 }
 

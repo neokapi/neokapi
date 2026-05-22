@@ -1,11 +1,15 @@
 package openxml
 
 import (
+	"archive/zip"
 	"bytes"
 	"encoding/xml"
+	"os"
 	"strings"
 	"testing"
 
+	"github.com/neokapi/neokapi/core/format"
+	"github.com/neokapi/neokapi/core/internal/testutil"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -577,6 +581,206 @@ func TestComplexFieldPreFldCharBodyText(t *testing.T) {
 	})
 }
 
+// TestComplexFieldEndTextBeginBodyText covers the #598a data-loss window
+// (fixture 830-7.docx): translatable body text authored in a SINGLE source
+// `<w:r>` that CLOSES one complex field with `<w:fldChar end/>`, authors
+// body text, then OPENS another with `<w:fldChar begin/>`:
+//
+//	<w:r><w:rPr>…</w:rPr><w:fldChar w:fldCharType="end"/>
+//	  <w:t>, a race of </w:t><w:fldChar w:fldCharType="begin"/></w:r>
+//
+// The run is field-active at entry (a field opened in a prior run/paragraph),
+// so eager opaque raw-capture used to swallow the WHOLE run — silently
+// losing the body text. Per ECMA-376-1 §17.3.2.1 (CT_R) run children apply
+// in document order; text after an `end` marker and before the next `begin`
+// is ordinary translatable body text, NOT field markup. Upstream Okapi
+// RETURNS from parseComplexField on the matching `end` (RunParser.java:472-
+// 479) back to the parse() loop, which routes the following `<w:t>` through
+// parseContent as a RunText body chunk (RunParser.java:537) until the next
+// begin re-enters parseComplexField (RunParser.java:259, 494-499).
+//
+// parseRunWithFieldState now SPLITS such a run at the field-marker
+// boundaries: the `end` markup + the `begin` markup stay opaque
+// SubTypeFieldChar sentinels, while the in-between body text surfaces as a
+// translatable run.
+func TestComplexFieldEndTextBeginBodyText(t *testing.T) {
+	// A HYPERLINK field is non-extractable by default. The middle run
+	// `<w:fldChar end/><w:t>, a race of </w:t><w:fldChar begin/>` closes
+	// the first field, authors body text, and opens the second.
+	docXML := `<?xml version="1.0" encoding="UTF-8"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+<w:body>
+<w:p>
+  <w:r><w:t xml:space="preserve">the </w:t></w:r>
+  <w:r><w:fldChar w:fldCharType="begin"/></w:r>
+  <w:r><w:instrText xml:space="preserve"> HYPERLINK "http://x" </w:instrText></w:r>
+  <w:r><w:fldChar w:fldCharType="separate"/></w:r>
+  <w:r><w:t>Zerg</w:t></w:r>
+  <w:r><w:rPr><w:b/></w:rPr><w:fldChar w:fldCharType="end"/><w:t xml:space="preserve">, a race of </w:t><w:fldChar w:fldCharType="begin"/></w:r>
+  <w:r><w:instrText xml:space="preserve"> HYPERLINK "http://y" </w:instrText></w:r>
+  <w:r><w:fldChar w:fldCharType="separate"/></w:r>
+  <w:r><w:t>insectoid</w:t></w:r>
+  <w:r><w:fldChar w:fldCharType="end"/><w:t xml:space="preserve"> aliens</w:t></w:r>
+</w:p>
+</w:body>
+</w:document>`
+
+	t.Run("end->text->begin body text is extracted", func(t *testing.T) {
+		cfg := &Config{}
+		cfg.Reset()
+		// HYPERLINK NOT in the extract list → non-extractable; the field
+		// display text ("Zerg", "insectoid") is suppressed but the body
+		// text between fields must NOT be.
+		cfg.ComplexFieldDefinitionsToExtract = nil
+
+		blocks := parseDocXML(t, docXML, cfg)
+		require.Len(t, blocks, 1)
+		text := blocks[0].Source[0].Text()
+
+		// The body text in the `end → text → begin` window must survive.
+		assert.Contains(t, text, ", a race of ",
+			"#598a: body text between fldChar-end and the next fldChar-begin "+
+				"in one source run must be extracted, not captured opaquely")
+		// The `end → text` tail (last run, no trailing begin) must also
+		// survive.
+		assert.Contains(t, text, " aliens",
+			"#598a: body text after a fldChar-end (no trailing begin) in one "+
+				"source run must be extracted")
+		// Plain body text outside any field is unaffected.
+		assert.Contains(t, text, "the ")
+		// Negative: the non-extractable field's display text (between
+		// separate and end) stays suppressed.
+		assert.NotContains(t, text, "Zerg",
+			"non-extractable field display text must remain suppressed")
+		assert.NotContains(t, text, "insectoid",
+			"non-extractable field display text must remain suppressed")
+		// Negative: the field instruction (formula) is never body text.
+		assert.NotContains(t, text, "HYPERLINK",
+			"instrText field code is markup, never translatable body text")
+	})
+
+	t.Run("round-trips: body text becomes <w:t>, field markers stay opaque", func(t *testing.T) {
+		// The reader splits the run into [end-sentinel, body-text,
+		// begin-sentinel]; the writer's detectFldCharEndForMerge /
+		// detectFldCharBeginForMerge fuse them back into one `<w:r>` whose
+		// children are `<w:fldChar end/><w:t>…</w:t><w:fldChar begin/>`.
+		cfg := &Config{}
+		cfg.Reset()
+		cfg.ComplexFieldDefinitionsToExtract = nil
+
+		out := renderParaRoundtrip(t, docXML, cfg)
+		// Field markers survive verbatim as opaque skeleton.
+		assert.Contains(t, out, `w:fldCharType="end"`)
+		assert.Contains(t, out, `w:fldCharType="begin"`)
+		assert.Contains(t, out, `w:fldCharType="separate"`)
+		// instrText field code survives as opaque markup.
+		assert.Contains(t, out, "HYPERLINK")
+		// The recovered body text is emitted as a real translatable
+		// `<w:t>` (not buried inside an opaque field payload only).
+		assert.Contains(t, out, ", a race of ")
+		assert.Contains(t, out, " aliens")
+	})
+}
+
+// TestComplexFieldInteriorTextStaysOpaque is the negative companion to
+// TestComplexFieldEndTextBeginBodyText: a `<w:t>` that genuinely sits
+// INSIDE the field-active span (between begin and separate, or between
+// separate and end of a non-extractable field) is field-internal content
+// and must NOT be surfaced as translatable body text by the run-splitting
+// path. The split only triggers AFTER an `end` drops the field inactive.
+func TestComplexFieldInteriorTextStaysOpaque(t *testing.T) {
+	// A single source `<w:r>` that OPENS a field, authors interior text
+	// (between begin and instrText/separate), all while the field is
+	// ACTIVE — none of it is body text.
+	docXML := `<?xml version="1.0" encoding="UTF-8"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+<w:body>
+<w:p>
+  <w:r><w:t xml:space="preserve">real body </w:t></w:r>
+  <w:r><w:fldChar w:fldCharType="begin"/><w:t>interior begin-window text</w:t></w:r>
+  <w:r><w:instrText xml:space="preserve"> HYPERLINK "x" </w:instrText></w:r>
+  <w:r><w:fldChar w:fldCharType="separate"/></w:r>
+  <w:r><w:t>display</w:t></w:r>
+  <w:r><w:fldChar w:fldCharType="end"/></w:r>
+</w:p>
+</w:body>
+</w:document>`
+
+	cfg := &Config{}
+	cfg.Reset()
+	cfg.ComplexFieldDefinitionsToExtract = nil
+
+	blocks := parseDocXML(t, docXML, cfg)
+	require.Len(t, blocks, 1)
+	text := blocks[0].Source[0].Text()
+	// Plain body text outside the field is extracted.
+	assert.Contains(t, text, "real body ")
+	// Text authored after a begin (field still active) is suppressed
+	// field-internal content, not body text.
+	assert.NotContains(t, text, "interior begin-window text",
+		"text inside the begin→separate window (field active) must NOT be "+
+			"extracted by the end→text→begin split path")
+	// And the non-extractable field's display text stays suppressed too.
+	assert.NotContains(t, text, "display",
+		"non-extractable field display text must remain suppressed")
+}
+
+// TestComplexFieldEndTextBeginCrossParagraph verifies the #598a split works
+// when the complex field SPANS paragraphs (fixture 847-3 class). The field
+// state machine carries across `<w:p>` boundaries via wmlParser.partCfs
+// (ECMA-376-1 §17.16.5 — a complex field's scope is its begin/end pair
+// regardless of the enclosing block structure; upstream Okapi's
+// parseComplexField consumes events past `<w:p>`/`</w:p>` until the matching
+// end). Here the field opens in P1, and the `end → text → begin` run lives
+// in P2 — the body text between the fields must still be extracted, and the
+// straddle handling must not be perturbed.
+func TestComplexFieldEndTextBeginCrossParagraph(t *testing.T) {
+	docXML := `<?xml version="1.0" encoding="UTF-8"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+<w:body>
+<w:p>
+  <w:r><w:t xml:space="preserve">P1 lead </w:t></w:r>
+  <w:r><w:fldChar w:fldCharType="begin"/></w:r>
+  <w:r><w:instrText xml:space="preserve"> HYPERLINK "http://x" </w:instrText></w:r>
+  <w:r><w:fldChar w:fldCharType="separate"/></w:r>
+  <w:r><w:t>display1</w:t></w:r>
+</w:p>
+<w:p>
+  <w:r><w:fldChar w:fldCharType="end"/><w:t xml:space="preserve">P2 between </w:t><w:fldChar w:fldCharType="begin"/></w:r>
+  <w:r><w:instrText xml:space="preserve"> HYPERLINK "http://y" </w:instrText></w:r>
+  <w:r><w:fldChar w:fldCharType="separate"/></w:r>
+  <w:r><w:t>display2</w:t></w:r>
+  <w:r><w:fldChar w:fldCharType="end"/><w:t xml:space="preserve"> P2 tail</w:t></w:r>
+</w:p>
+</w:body>
+</w:document>`
+
+	cfg := &Config{}
+	cfg.Reset()
+	cfg.ComplexFieldDefinitionsToExtract = nil
+
+	blocks := parseDocXML(t, docXML, cfg)
+	require.NotEmpty(t, blocks)
+	var sb strings.Builder
+	for _, b := range blocks {
+		sb.WriteString(b.Source[0].Text())
+	}
+	text := sb.String()
+	// The `end → text → begin` body text in P2 (with the field opened in
+	// P1) must be extracted across the paragraph boundary.
+	assert.Contains(t, text, "P2 between ",
+		"#598a cross-paragraph: body text between a cross-paragraph "+
+			"fldChar-end and the next fldChar-begin must be extracted")
+	// The `end → text` tail in P2 must be extracted.
+	assert.Contains(t, text, " P2 tail",
+		"#598a cross-paragraph: body text after a fldChar-end must be extracted")
+	// Plain body text outside the field is unaffected.
+	assert.Contains(t, text, "P1 lead ")
+	// Non-extractable display text from both fields stays suppressed.
+	assert.NotContains(t, text, "display1")
+	assert.NotContains(t, text, "display2")
+}
+
 func TestComplexFieldNested(t *testing.T) {
 	// A paragraph with a TOC field containing nested PAGEREF fields
 	docXML := `<?xml version="1.0" encoding="UTF-8"?>
@@ -798,6 +1002,79 @@ func TestCollectFonts(t *testing.T) {
 func parseDocXML(t *testing.T, docXML string, cfg *Config) []*model.Block {
 	t.Helper()
 	return parseDocXMLWithStyles(t, docXML, cfg, nil)
+}
+
+// docxWithDocumentXML clones testdata/simple.docx and overwrites
+// word/document.xml with the supplied body, producing a minimal but
+// well-formed DOCX package suitable for a full Reader→Writer round-trip.
+func docxWithDocumentXML(t *testing.T, documentXML string) []byte {
+	t.Helper()
+	src, err := os.ReadFile("testdata/simple.docx")
+	require.NoError(t, err)
+
+	zr, err := zip.NewReader(bytes.NewReader(src), int64(len(src)))
+	require.NoError(t, err)
+
+	var out bytes.Buffer
+	zw := zip.NewWriter(&out)
+	for _, f := range zr.File {
+		if f.Name == "word/document.xml" {
+			continue
+		}
+		require.NoError(t, zw.Copy(f))
+	}
+	w, err := zw.Create("word/document.xml")
+	require.NoError(t, err)
+	_, err = w.Write([]byte(documentXML))
+	require.NoError(t, err)
+	require.NoError(t, zw.Close())
+	return out.Bytes()
+}
+
+// renderParaRoundtrip reads documentXML inside a minimal DOCX using cfg,
+// writes it back via the skeleton-reconstruction writer, and returns the
+// written word/document.xml. Used to assert that reader-side run splitting
+// (#598a) round-trips: the writer's fldChar merge machinery re-fuses the
+// split `[end-sentinel, body-text, begin-sentinel]` runs into the original
+// single `<w:r>` with the body text emitted as a real `<w:t>`.
+func renderParaRoundtrip(t *testing.T, documentXML string, cfg *Config) string {
+	t.Helper()
+	input := docxWithDocumentXML(t, documentXML)
+
+	skelStore, err := format.NewSkeletonStore()
+	require.NoError(t, err)
+	defer skelStore.Close()
+
+	reader := NewReader()
+	if cfg != nil {
+		*reader.cfg = *cfg
+	}
+	reader.SetSkeletonStore(skelStore)
+	doc := &model.RawDocument{
+		URI:          "test.docx",
+		SourceLocale: model.LocaleEnglish,
+		Encoding:     "UTF-8",
+		Reader:       readCloserFromBytes(input),
+	}
+	require.NoError(t, reader.Open(t.Context(), doc))
+	parts := testutil.CollectParts(t, reader.Read(t.Context()))
+	reader.Close()
+
+	var buf bytes.Buffer
+	writer := NewWriter()
+	writer.SetOriginalContent(input)
+	writer.SetSkeletonStore(skelStore)
+	require.NoError(t, writer.SetOutputWriter(&buf))
+	require.NoError(t, writer.Write(t.Context(), testutil.PartsToChannel(parts)))
+	writer.Close()
+
+	zr, err := zip.NewReader(bytes.NewReader(buf.Bytes()), int64(buf.Len()))
+	require.NoError(t, err)
+	zf := zipFileByName(zr, "word/document.xml")
+	require.NotNil(t, zf, "output should contain word/document.xml")
+	data, err := readZipFile(zf)
+	require.NoError(t, err)
+	return string(data)
 }
 
 func parseDocXMLWithStyles(t *testing.T, docXML string, cfg *Config, styles *styleMap) []*model.Block {

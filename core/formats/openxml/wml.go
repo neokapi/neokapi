@@ -3351,6 +3351,16 @@ func (p *wmlParser) parseRunWithFieldState(d *xml.Decoder, cfs *complexFieldStat
 	var rawCaptured bool
 	var hasFieldMarkup bool
 	var backLog strings.Builder
+	// splitRPrRaw holds the run's stripped `<w:rPr>…</w:rPr>` so that, when
+	// the eager-capture run is split at a field-marker boundary (the #598a
+	// `end → text → begin` window, see flushOpaqueSegment below), each
+	// synthesised opaque segment `<w:r>` and the surfaced body-text run
+	// carry the source run's run-properties. Per ECMA-376-1 §17.3.2.1
+	// (CT_R) every `<w:rPr>` child applies to the whole run regardless of
+	// which child (fldChar / `<w:t>`) it sits beside, so splitting the run
+	// into parts must replicate the rPr onto each part. Empty when the run
+	// had no rPr (or it stripped to nothing).
+	var splitRPrRaw string
 	startRawCapture := func() {
 		if rawCaptured {
 			return
@@ -3370,6 +3380,65 @@ func (p *wmlParser) parseRunWithFieldState(d *xml.Decoder, cfs *complexFieldStat
 			rawBuf.WriteString(s)
 		} else {
 			backLog.WriteString(s)
+		}
+	}
+	// flushOpaqueSegment closes the in-progress opaque field segment
+	// (rawBuf, which begins with a `<w:r>` start tag) with a `</w:r>` and
+	// emits it as a SubTypeFieldChar sentinel run, then resets the raw
+	// buffers so a fresh `<w:r>` segment can begin. This is the #598a
+	// run-splitting primitive: when a single source `<w:r>` CLOSES one
+	// complex field (`<w:fldChar end/>`), authors translatable body text,
+	// then OPENS another (`<w:fldChar begin/>`), the field markers must
+	// stay opaque while the body text in between becomes a translatable
+	// run. Eager raw-capture (engaged when cfs.active at run entry) would
+	// otherwise swallow the whole run into one opaque sentinel, silently
+	// losing the body text — the #598a data-loss bug (fixture 830-7.docx
+	// run `<w:r><w:rPr>…</w:rPr><w:fldChar end/><w:t>, a race of</w:t>
+	// <w:fldChar begin/></w:r>`).
+	//
+	// Per ECMA-376-1 §17.3.2.1 (CT_R) run children apply in document
+	// order; text after an `end` and before the next `begin` is ordinary
+	// body text, NOT field markup. Upstream Okapi's RunParser models this
+	// by RETURNING from parseComplexField on the matching `end`
+	// (RunParser.java:472-479) back to the parse() loop, which then routes
+	// the following `<w:t>` through parseContent as a translatable RunText
+	// body chunk (RunParser.java:537) until the next begin re-enters
+	// parseComplexField (RunParser.java:259, 494-499). The split sentinels
+	// the writer re-fuses via detectFldCharEndForMerge /
+	// detectFldCharBeginForMerge so the original single-`<w:r>` shape is
+	// reconstructed on write.
+	//
+	// The synthesised sentinel `<w:r>` carries the run's rPr (splitRPrRaw)
+	// so the opaque field-marker run keeps the source formatting.
+	didSplit := false
+	flushOpaqueSegment := func() {
+		if !rawCaptured {
+			return
+		}
+		rawBuf.WriteString("</w:r>")
+		runs = append(runs, textRun{
+			text:        ":fldChar",
+			props:       props,
+			data:        rawBuf.String(),
+			srcRunStart: true,
+		})
+		rawBuf.Reset()
+		rawCaptured = false
+		didSplit = true
+	}
+	// reengageRawCapture re-opens raw capture on a fresh `<w:r>` segment
+	// after a #598a split. The original rPr lives in the already-flushed
+	// leading segment, so a re-engaged segment must replay splitRPrRaw to
+	// keep the trailing field-marker `<w:r>` carrying the source run's
+	// run-properties (ECMA-376-1 §17.3.2.1, CT_R). On fusion the writer's
+	// detectFldCharBeginForMerge folds this run into the preceding text
+	// run and the duplicate rPr is dropped; the replay only matters when
+	// the trailing segment stands alone.
+	reengageRawCapture := func() {
+		freshStart := !rawCaptured
+		startRawCapture()
+		if freshStart && didSplit && splitRPrRaw != "" {
+			rawBuf.WriteString(splitRPrRaw)
 		}
 	}
 	// When the caller is already inside an active complex field whose
@@ -3419,6 +3488,16 @@ func (p *wmlParser) parseRunWithFieldState(d *xml.Decoder, cfs *complexFieldStat
 				// openxml/src/main/java/net/sf/okapi/filters/openxml/
 				// RunSkippableElements.java).
 				stripped := stripFieldRPrSkippables(rPrRaw)
+				// Remember the stripped rPr for the #598a run-split path:
+				// when a field-active run is split at an `end → text → begin`
+				// boundary (flushOpaqueSegment + the body-text surfacing
+				// below) the synthesised opaque segment `<w:r>` and the
+				// surfaced body-text run must replicate this run's rPr per
+				// ECMA-376-1 §17.3.2.1 (CT_R). Only retain a non-empty
+				// stripped form — an empty wrapper contributes nothing.
+				if !isStrippedRPrEmpty(stripped) {
+					splitRPrRaw = stripped
+				}
 				// rPr policy on the field-markup capture path mirrors
 				// the upstream RunParser flow:
 				//   - When raw capture is already engaged (i.e. this
@@ -3485,7 +3564,12 @@ func (p *wmlParser) parseRunWithFieldState(d *xml.Decoder, cfs *complexFieldStat
 
 			case "fldChar":
 				hasFieldMarkup = true
-				startRawCapture()
+				// reengageRawCapture (not startRawCapture) so that a
+				// `<w:fldChar begin/>` that RE-OPENS a field after a #598a
+				// `end → text` split lands in a fresh `<w:r>` segment that
+				// replays the source run's rPr. For the first/non-split
+				// fldChar this behaves identically to startRawCapture.
+				reengageRawCapture()
 				// Mirror the fldChar element raw (including its ffData
 				// subtree if present, e.g. Textfield.docx) into the
 				// buffer.
@@ -3574,6 +3658,39 @@ func (p *wmlParser) parseRunWithFieldState(d *xml.Decoder, cfs *complexFieldStat
 				}
 
 			case "t":
+				// #598a `end → text → begin` body-text split. When eager
+				// raw-capture is engaged (the run was field-active at entry)
+				// but the field is NO LONGER active (cfs.active==false — a
+				// `<w:fldChar end/>` earlier in THIS run closed the
+				// innermost field, dropping the nesting level to 0), the
+				// `<w:t>` we are about to read is ordinary translatable body
+				// text, NOT field markup. Per ECMA-376-1 §17.3.2.1 (CT_R)
+				// run children apply in document order; text after an `end`
+				// and before the next `begin` is body content. Upstream
+				// Okapi RETURNS from parseComplexField on the matching `end`
+				// (RunParser.java:472-479) so this text flows through the
+				// parse() loop to parseContent as a RunText body chunk
+				// (RunParser.java:537), exactly as it would for a run with no
+				// field at all.
+				//
+				// We mirror that by flushing the accumulated opaque segment
+				// (the run-start + rPr + the closing `<w:fldChar end/>`) as
+				// its own SubTypeFieldChar sentinel run, then dropping out of
+				// raw-capture so the text below surfaces as a translatable
+				// run. A subsequent `<w:fldChar begin/>` in the same source
+				// `<w:r>` re-engages startRawCapture() on a fresh segment,
+				// producing the run sequence
+				// `[end-sentinel, body-text, begin-sentinel]`; the writer
+				// re-fuses these into the original single `<w:r>` via
+				// detectFldCharEndForMerge / detectFldCharBeginForMerge.
+				// Fixture 830-7.docx run
+				// `<w:r><w:rPr>…</w:rPr><w:fldChar end/><w:t>, a race of</w:t>
+				// <w:fldChar begin/></w:r>` (and the `end → text` tail
+				// `<w:r><w:fldChar end/><w:t>, a </w:t>…` with no trailing
+				// begin) previously lost this body text to eager capture.
+				if rawCaptured && !cfs.active {
+					flushOpaqueSegment()
+				}
 				// Capture <w:t ...> open tag verbatim into rawBuf
 				// before draining its char data, so opaque emission
 				// preserves the text exactly as authored (including
@@ -4068,6 +4185,26 @@ func (p *wmlParser) parseRunWithFieldState(d *xml.Decoder, cfs *complexFieldStat
 
 		case xml.EndElement:
 			if t.Name.Local == "r" {
+				if hasFieldMarkup && !rawCaptured {
+					// #598a `end → text` tail with NO trailing field
+					// marker: a run that CLOSED a field (`<w:fldChar end/>`)
+					// then authored body text and ended. The `end` markup
+					// was already flushed as its own SubTypeFieldChar
+					// sentinel by flushOpaqueSegment (in the `t` case), the
+					// body text is a translatable run in `runs`, and no
+					// further field segment is open (rawCaptured==false). So
+					// there is nothing left to close — just mark the source
+					// boundary and return the already-built run sequence
+					// `[end-sentinel, body-text…]`. Without this guard the
+					// hasFieldMarkup branch below would emit a spurious
+					// `</w:r>`-only sentinel from the empty rawBuf. Fixture
+					// 830-7.docx run
+					// `<w:r><w:fldChar end/><w:t>, a </w:t>…</w:r>`.
+					if len(runs) > 0 {
+						runs[0].srcRunStart = true
+					}
+					return runs, nil
+				}
 				if hasFieldMarkup {
 					rawBuf.WriteString("</")
 					writeElementName(&rawBuf, t.Name)

@@ -25,17 +25,16 @@
 format: openxml
 fixtures:
   830-7.docx:
-    severity: bug
-    issue: 598
-    summary: "Pre-fldChar body text in the field-OPENING run is now preserved AND emitted fused inside one <w:r> with the fldChar-begin (#598 reader fix: preFieldBody guard in parseRunWithFieldState/dropTextRuns). Two independent gaps keep it divergent: (1) text authored BETWEEN a <w:fldChar end/> and a following <w:fldChar begin/> in one source run is still captured opaquely (English, untranslated) because eager raw-capture engages on field-active entry; (2) native drops run-level <w:color w:val=\"000000\"/> as a redundant docDefault (rPrOmittedWithBlack) while Okapi preserves it here (830-7 docDefaults declares no color). Both are global/cascade-risk per PARITY_NOTES."
-    spec_ref: "ECMA-376-1 §17.3.2.1 (CT_R), §17.16.5 (complex fields), §17.3.2.6 (w:color)"
+    severity: cosmetic
+    summary: "#598 RESOLVED. Both complex-field data-loss gaps are fixed: (a) pre-fldChar body text in the field-OPENING run (#598 preFieldBody guard), and (b) #598a — translatable body text BETWEEN a <w:fldChar end/> and a following <w:fldChar begin/> in one source <w:r> is split out as a translatable run while field markers stay opaque (parseRunWithFieldState flushOpaqueSegment/reengageRawCapture; the writer re-fuses into the original single <w:r>; confirmed via TestComplexFieldEndTextBeginBodyText + round-trip byte-identity). The #598b run-level <w:color w:val=\"000000\"/> strip is also gone (faithful-writer default preserves source rPr). Only residual byte-divergence is the §17.3.2.26 content-category class shared by the other cosmetic fixtures: native faithfully preserves moot complex-script rFonts attrs (e.g. cs=\"Arial\" on a run with no complex-script text) that Okapi clarifies away — both render identically; not reconstructable symmetrically in the comparator without the deferred RunFonts content-category port."
+    spec_ref: "ECMA-376-1 §17.3.2.1 (CT_R), §17.16.5 (complex fields), §17.3.2.26 (rFonts content categories)"
     notes_anchor: residual-7-divergent-fixtures
 
-  847-3.docx:
-    severity: bug
-    summary: "Cross-paragraph field continuation; clearing the 847-3 divergence cascades into 830-4 / 830-5 via the shared monotonic synth-style ID counter. Architectural blocker — needs cross-paragraph field-depth tracking in WSO that doesn't perturb downstream synth IDs."
-    spec_ref: "ECMA-376-1 §17.16.5"
-    notes_anchor: residual-7-divergent-fixtures
+  # 847-3.docx is now CANON: the faithful-writer default (OptimiseWordStyles
+  # =false) removes WSO's monotonic synth-style ID counter — the documented
+  # "architectural blocker" — and the effective-rPr parity normalizer
+  # resolves the style indirection symmetrically. Annotation removed because
+  # the divergence is cleared (per the fail-new gate's grandfathering rule).
 
   851.docx:
     severity: cosmetic
@@ -61,11 +60,10 @@ fixtures:
     notes_anchor: verification-of-cosmetic-divergences-2026-05-16
 
   delTextAmp.docx:
-    severity: bug
-    issue: 597
-    summary: "Character spacing <w:spacing w:val=\"-2\"/> lost on single-char run; <w:rFonts w:cs=\"Helvetica\"/> injected. Four investigation attempts ruled out (run-merger tightening, srcRunStart force-close, mergeRuns instrumentation, WSO spacing protection). Root cause likely in commonRFonts docDefaults overlay."
-    spec_ref: "ECMA-376-1 §17.3.2.35 (CT_SignedTwipsMeasure / w:spacing)"
-    notes_anchor: deltextamp-investigation-notes-2026-05-16
+    severity: cosmetic
+    summary: "#597 (lost <w:spacing w:val=\"-2\"/>; injected <w:rFonts w:cs=\"Helvetica\"/>) is RESOLVED by the faithful-writer default (OptimiseWordStyles=false): the source rPr is preserved verbatim, so the single-char run keeps <w:spacing w:val=\"-2\"/> and no docDefaults rFonts overlay is applied (verified: source spacing count 1 → output 1; source rFonts cs=Helvetica count 1 → output 1, no over-injection). The residual divergence vs Okapi is the §17.3.2.26 content-category rFonts/szCs class shared with 851/multiple_tabs/br2 — Okapi drops complex-script properties (rFonts cs, szCs) that are moot for the runs' Latin text; native preserves them. Both render identically; not style indirection."
+    spec_ref: "ECMA-376-1 §17.3.2.26 (CT_Fonts content categories); §17.3.2.35 (w:spacing — now preserved)"
+    notes_anchor: verification-of-cosmetic-divergences-2026-05-16
 
   956.docx:
     severity: native-more-correct
@@ -84,3 +82,183 @@ fixtures:
     summary: "Native preserves translatable text before <w:fldChar> in the same source <w:r>; Okapi drops it. Functionally a win."
     spec_ref: "ECMA-376-1 §17.16.5"
     notes_anchor: status-2026-05-16
+
+  # ── Faithful-writer residual class (faithful default + effective-rPr
+  # parity normalizer, 2026-05-22) ────────────────────────────────────────
+  #
+  # With OptimiseWordStyles=false (native is faithful) and the parity
+  # effective-rPr normalizer (cli/parity/roundtrip/normalizers_openxml.go)
+  # resolving ECMA-376-1 §17.7 style indirection symmetrically, every pure
+  # style-indirection fixture (pStyle/rStyle/docDefaults → effective rPr)
+  # now reaches CANON. The fixtures below remain divergent on Okapi's
+  # §17.3.2.26 content-category clarification (dropping complex-script
+  # bCs/iCs/szCs/rFonts-cs on runs whose text has no complex-script
+  # characters, and the non-complex b/i/sz mirror) — a text-driven
+  # RunFonts decision Okapi applies BEFORE building its synth styles, which
+  # cannot be reconstructed symmetrically in the comparator without dropping
+  # properties Okapi keeps as genuine overrides. These render identically
+  # (the dropped properties govern only characters the run does not contain)
+  # and are NOT style indirection. See PARITY_NOTES.md and the design note
+  # docs/internals/research/openxml-faithful-writer-design.md.
+
+  1341-textbox-with-a-hyperlink.docx:
+    severity: cosmetic
+    summary: "Content-category §17.3.2.26: native preserves <w:bCs> on a Latin-text textbox run; Okapi drops it (complex-script bold is moot for non-complex text). Style indirection (pStyle NF…) resolves to canon; this residual is the RunFonts content-category class."
+    spec_ref: "ECMA-376-1 §17.3.2.26 (CT_Fonts); §17.3.2.16 (CT_OnOff bCs)"
+    notes_anchor: verification-of-cosmetic-divergences-2026-05-16
+
+  large-attribute.docx:
+    severity: cosmetic
+    summary: "Content-category §17.3.2.26: native preserves <w:bCs> on a non-complex-script run; Okapi drops it as moot. Renders identically."
+    spec_ref: "ECMA-376-1 §17.3.2.26; §17.3.2.16"
+    notes_anchor: verification-of-cosmetic-divergences-2026-05-16
+
+  MissingPara.docx:
+    severity: cosmetic
+    summary: "Content-category §17.3.2.26: native preserves <w:szCs> (complex-script font size) on Latin-text runs; Okapi drops it as moot. Renders identically."
+    spec_ref: "ECMA-376-1 §17.3.2.26; §17.3.2.38 (CT_HpsMeasure szCs)"
+    notes_anchor: verification-of-cosmetic-divergences-2026-05-16
+
+  888.docx:
+    severity: cosmetic
+    summary: "Content-category §17.3.2.26: native preserves the source <w:szCs w:val=\"24\"> while Okapi clarifies complex-script font size to the regular <w:sz w:val=\"21\"> for the run's non-complex text. The szCs governs only complex-script glyphs the run does not contain; renders identically."
+    spec_ref: "ECMA-376-1 §17.3.2.26; §17.3.2.38"
+    notes_anchor: verification-of-cosmetic-divergences-2026-05-16
+
+  AlternateContentTest.docx:
+    severity: cosmetic
+    summary: "Content-category §17.3.2.26: native preserves source <w:sz>/<w:szCs> values while Okapi clarifies them per the run's detected content category. Same translatable content; renders identically."
+    spec_ref: "ECMA-376-1 §17.3.2.26; §17.3.2.38"
+    notes_anchor: verification-of-cosmetic-divergences-2026-05-16
+
+  EndGroup.docx:
+    severity: cosmetic
+    summary: "Content-category §17.3.2.26: rFonts attribute placement differs (native preserves source ascii/cs/eastAsia/hAnsi; Okapi emits hint=eastAsia). rFonts categories apply only to characters in their script range, so the difference is moot for the rendered text."
+    spec_ref: "ECMA-376-1 §17.3.2.26 (CT_Fonts)"
+    notes_anchor: verification-of-cosmetic-divergences-2026-05-16
+
+  graphicdata.docx:
+    severity: cosmetic
+    summary: "Content-category §17.3.2.26: rFonts attribute placement differs between native (source-preserved) and Okapi (content-category resolved). Renders identically."
+    spec_ref: "ECMA-376-1 §17.3.2.26"
+    notes_anchor: verification-of-cosmetic-divergences-2026-05-16
+
+  Hangs.docx:
+    severity: cosmetic
+    summary: "Content-category §17.3.2.26: rFonts/kern/sz and b placement differ between native (source-preserved inline) and Okapi (content-category resolved). Same translatable content; renders identically."
+    spec_ref: "ECMA-376-1 §17.3.2.26"
+    notes_anchor: verification-of-cosmetic-divergences-2026-05-16
+
+  NoStylesXml.docx:
+    severity: cosmetic
+    summary: "Content-category §17.3.2.26: with no styles.xml, native preserves the source run's rFonts/sz inline while Okapi resolves the run's content-category fonts. Renders identically."
+    spec_ref: "ECMA-376-1 §17.3.2.26"
+    notes_anchor: verification-of-cosmetic-divergences-2026-05-16
+
+  899.docx:
+    severity: cosmetic
+    summary: "Content-category §17.3.2.26: native preserves <w:rtl> on runs whose text has no complex-script (RTL) characters; Okapi drops it as moot. <w:rtl> only affects bidirectional layout of complex-script glyphs the run does not contain; renders identically."
+    spec_ref: "ECMA-376-1 §17.3.2.26; §17.3.2.30 (CT_OnOff rtl)"
+    notes_anchor: verification-of-cosmetic-divergences-2026-05-16
+
+  947-cs.docx:
+    severity: cosmetic
+    summary: "Content-category §17.3.2.26: for complex-script text Okapi drops the non-complex toggles <w:b>/<w:i> (moot for complex-script glyphs) and keeps <w:rtl>; native preserves the source's inline toggles. Renders identically."
+    spec_ref: "ECMA-376-1 §17.3.2.26; §17.3.2.1 (CT_R)"
+    notes_anchor: verification-of-cosmetic-divergences-2026-05-16
+
+  947-non-cs-and-cs.docx:
+    severity: cosmetic
+    summary: "Content-category §17.3.2.26: Okapi drops non-complex toggles <w:b>/<w:i> on complex-script runs as moot; native preserves them. Same translatable content; renders identically."
+    spec_ref: "ECMA-376-1 §17.3.2.26; §17.3.2.1"
+    notes_anchor: verification-of-cosmetic-divergences-2026-05-16
+
+  content_category_test.docx:
+    severity: cosmetic
+    summary: "Content-category §17.3.2.26: native preserves <w:b>/<w:sz> and the source <w:color w:val=\"auto\"> form; Okapi resolves the content category and clarifies color auto→000000 (the parity normalizer folds auto→000000 but the residual b/sz content-category drop remains). Renders identically."
+    spec_ref: "ECMA-376-1 §17.3.2.26; §17.3.2.6 (CT_Color)"
+    notes_anchor: verification-of-cosmetic-divergences-2026-05-16
+
+  992.docx:
+    severity: cosmetic
+    summary: "Content-category §17.3.2.26: native preserves source <w:sz>/<w:szCs>/<w:u> while Okapi resolves them per the run's content category. Same translatable content; renders identically."
+    spec_ref: "ECMA-376-1 §17.3.2.26; §17.3.2.38; §17.3.2.40 (CT_Underline)"
+    notes_anchor: verification-of-cosmetic-divergences-2026-05-16
+
+  Practice2.docx:
+    severity: cosmetic
+    summary: "Content-category §17.3.2.26: native preserves a redundant <w:b> that Okapi drops (the run's pre-combined chain already bolds it, so the explicit toggle is moot). Renders identically."
+    spec_ref: "ECMA-376-1 §17.3.2.26; §17.3.2.1"
+    notes_anchor: verification-of-cosmetic-divergences-2026-05-16
+
+  1311.docx:
+    severity: cosmetic
+    summary: "Color/theme-color clarification + content-category: native preserves the source <w:color> token and inline <w:b>/<w:bCs> while Okapi resolves the theme color to its concrete RGB and drops the moot complex-script bold. Both denote the same rendered colour and weight."
+    spec_ref: "ECMA-376-1 §17.3.2.6 (CT_Color); §17.3.2.26"
+    notes_anchor: verification-of-cosmetic-divergences-2026-05-16
+
+  834.docx:
+    severity: cosmetic
+    summary: "Underline resolution §17.3.2.40: native preserves the source <w:u w:val=\"single\"> while Okapi resolves the style chain to <w:u w:val=\"none\"> for this footnote run. A genuine style-chain underline resolution difference; the dominant content compares clean and renders per each engine's resolution."
+    spec_ref: "ECMA-376-1 §17.3.2.40 (CT_Underline)"
+    notes_anchor: verification-of-cosmetic-divergences-2026-05-16
+
+  TestLTinsideBoxFails.docx:
+    severity: cosmetic
+    summary: "Underline resolution §17.3.2.40: native preserves <w:u w:val=\"single\"> while Okapi resolves to <w:u w:val=\"none\"> inside a textbox run. Style-chain underline resolution difference; same translatable content."
+    spec_ref: "ECMA-376-1 §17.3.2.40"
+    notes_anchor: verification-of-cosmetic-divergences-2026-05-16
+
+  830-2.docx:
+    severity: cosmetic
+    summary: "Highlight clarification §17.3.2.15: native preserves a source <w:highlight w:val=\"white\"> on an empty placeholder run inside a complex field; Okapi drops it (white highlight ≡ no highlight). Renders identically."
+    spec_ref: "ECMA-376-1 §17.3.2.15 (CT_Highlight)"
+    notes_anchor: verification-of-cosmetic-divergences-2026-05-16
+
+  830-3.docx:
+    severity: cosmetic
+    summary: "Highlight clarification §17.3.2.15: native preserves <w:highlight w:val=\"white\"> on a field placeholder run; Okapi drops it. Renders identically."
+    spec_ref: "ECMA-376-1 §17.3.2.15"
+    notes_anchor: verification-of-cosmetic-divergences-2026-05-16
+
+  830-4.docx:
+    severity: cosmetic
+    summary: "Highlight clarification §17.3.2.15: native preserves <w:highlight w:val=\"white\"> on a field placeholder run; Okapi drops it. Renders identically."
+    spec_ref: "ECMA-376-1 §17.3.2.15"
+    notes_anchor: verification-of-cosmetic-divergences-2026-05-16
+
+  830-5.docx:
+    severity: cosmetic
+    summary: "Highlight clarification §17.3.2.15: native preserves <w:highlight w:val=\"white\"> on a field placeholder run; Okapi drops it. Renders identically."
+    spec_ref: "ECMA-376-1 §17.3.2.15"
+    notes_anchor: verification-of-cosmetic-divergences-2026-05-16
+
+  830-6.docx:
+    severity: cosmetic
+    summary: "Highlight clarification §17.3.2.15: native preserves <w:highlight w:val=\"white\"> on a field placeholder run; Okapi drops it. Renders identically."
+    spec_ref: "ECMA-376-1 §17.3.2.15"
+    notes_anchor: verification-of-cosmetic-divergences-2026-05-16
+
+  highlights_block.docx:
+    severity: cosmetic
+    summary: "Highlight + content-category §17.3.2.15/§17.3.2.26: native and Okapi differ on a <w:highlight> placement and the moot <w:i>/<w:iCs> toggles for the run's text. Same translatable content; renders identically."
+    spec_ref: "ECMA-376-1 §17.3.2.15; §17.3.2.26"
+    notes_anchor: verification-of-cosmetic-divergences-2026-05-16
+
+  859.docx:
+    severity: native-more-correct
+    summary: "Okapi auto-injects <w:noProof> onto a drawing-bearing paragraph mark (suppressing spellcheck for the anchored shape); native faithfully omits it (the source did not author it). <w:noProof> is a proofing hint with no rendered effect; native preserves the source verbatim per §17.3.2.1."
+    spec_ref: "ECMA-376-1 §17.3.2.24 (CT_OnOff noProof); §17.3.2.1 (CT_R)"
+    notes_anchor: verification-of-cosmetic-divergences-2026-05-16
+
+  document-style-definitions.docx:
+    severity: cosmetic
+    summary: "Run-granularity §17.3.2.1: native splits a styled span into more <w:r> elements than Okapi (preserving the source's per-run rPr inline after §17.7 resolution), and the byte shape of the styled text differs accordingly. Same translatable content; both are spec-valid run partitions that render identically."
+    spec_ref: "ECMA-376-1 §17.3.2.1 (CT_R); §17.7 (style resolution)"
+    notes_anchor: verification-of-cosmetic-divergences-2026-05-16
+
+  HiddenExcluded.docx:
+    severity: native-more-correct
+    summary: "Hidden-text extraction policy: native extracts and pseudo-translates text carrying <w:vanish> (and resolves the source's hidden-style runs) while Okapi leaves the hidden text untranslated and re-emits a <w:vanish> the native faithful path resolves differently. Native surfaces the hidden translatable content; the divergence is an extraction-policy difference, not style indirection."
+    spec_ref: "ECMA-376-1 §17.3.2.42 (CT_OnOff vanish)"
+    notes_anchor: verification-of-cosmetic-divergences-2026-05-16

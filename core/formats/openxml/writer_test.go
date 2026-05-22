@@ -58,6 +58,10 @@ func skeletonWriteOnce(t *testing.T, original []byte, uri string) []byte {
 	defer skelStore.Close()
 
 	reader := NewReader()
+	// WSO is OFF by default (native is faithful — see config.go). This
+	// test exercises the WSO part-strip/decompress caches, so enable it
+	// explicitly on both reader and writer.
+	reader.cfg.OptimiseWordStyles = true
 	reader.SetSkeletonStore(skelStore)
 	doc := &model.RawDocument{
 		URI:          uri,
@@ -71,6 +75,7 @@ func skeletonWriteOnce(t *testing.T, original []byte, uri string) []byte {
 
 	var buf bytes.Buffer
 	writer := NewWriter()
+	writer.cfg.OptimiseWordStyles = true
 	writer.SetOriginalContent(original)
 	writer.SetSkeletonStore(skelStore)
 	require.NoError(t, writer.SetOutputWriter(&buf))
@@ -81,21 +86,18 @@ func skeletonWriteOnce(t *testing.T, original []byte, uri string) []byte {
 }
 
 // TestWriterWSOPartCachingDeterministic guards the O3 per-part strip and
-// decompress caches (#608). WSO is enabled by default, so document.xml is
-// stripped + WSO-optimised in the pre-pass and the cached result is reused
-// in the emit loop. The caches hand out shared slices, so a stray in-place
-// mutation would corrupt a later read of the same part. Two independent
-// writes of the same input must therefore produce byte-identical output.
+// decompress caches (#608). WSO is now OFF by default (native is faithful),
+// so skeletonWriteOnce enables OptimiseWordStyles explicitly: document.xml
+// is then stripped + WSO-optimised in the pre-pass and the cached result is
+// reused in the emit loop. The caches hand out shared slices, so a stray
+// in-place mutation would corrupt a later read of the same part. Two
+// independent writes of the same input must therefore produce
+// byte-identical output.
 func TestWriterWSOPartCachingDeterministic(t *testing.T) {
 	for _, name := range []string{"simple.docx", "formatted.docx"} {
 		t.Run(name, func(t *testing.T) {
 			original, err := os.ReadFile("testdata/" + name)
 			require.NoError(t, err)
-
-			// WSO is on by default; assert it so the test exercises the
-			// double pre-pass/emit path the caches dedupe.
-			require.True(t, NewWriter().cfg.OptimiseWordStyles,
-				"OptimiseWordStyles must be enabled to exercise the WSO part caches")
 
 			out1 := skeletonWriteOnce(t, original, name)
 			out2 := skeletonWriteOnce(t, original, name)
