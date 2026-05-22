@@ -44,7 +44,7 @@ jobs:
           mkdir -p "$PLUGIN_DIR"
           cp bin/kapi-bowrain "$PLUGIN_DIR/kapi-bowrain"
           cp bowrain/cli/cmd/kapi-bowrain/manifest.json "$PLUGIN_DIR/manifest.json"
-          bin/kapi plugins list || true
+          bin/kapi plugin list || true
 
       - name: Install VHS + Xvfb
         run: |

@@ -3,14 +3,14 @@ sidebar_position: 6
 title: plugins
 ---
 
-# kapi plugins
+# kapi plugin
 
 Manage plugins and bundles for additional formats and tools.
 
 ## Synopsis
 
 ```bash
-kapi plugins <command> [flags]
+kapi plugin <command> [flags]
 ```
 
 ## Concepts
@@ -26,21 +26,21 @@ When you install a bundle, its individual capabilities (formats, tools) are regi
 ### List installed plugins
 
 ```bash
-kapi plugins list
-kapi plugins list -a              # show all available (installed + registry)
+kapi plugin list
+kapi plugin list -a              # show all available (installed + registry)
 ```
 
 ### Search for plugins and bundles
 
 ```bash
-kapi plugins search <query>            # search by name or description
-kapi plugins search --bundle           # list all bundles
-kapi plugins search --format           # list format plugins (including bundles with formats)
-kapi plugins search --tool             # list tool plugins (including bundles with tools)
-kapi plugins search --bundle --format  # bundles that contain format capabilities
-kapi plugins search --ext .docx        # find plugins that handle .docx files
-kapi plugins search --mime text/html   # find plugins that handle HTML
-kapi plugins search --type format      # filter by capability type
+kapi plugin search <query>            # search by name or description
+kapi plugin search --bundle           # list all bundles
+kapi plugin search --format           # list format plugins (including bundles with formats)
+kapi plugin search --tool             # list tool plugins (including bundles with tools)
+kapi plugin search --bundle --format  # bundles that contain format capabilities
+kapi plugin search --ext .docx        # find plugins that handle .docx files
+kapi plugin search --mime text/html   # find plugins that handle HTML
+kapi plugin search --type format      # filter by capability type
 ```
 
 All filter flags are combined with AND logic.
@@ -48,22 +48,22 @@ All filter flags are combined with AND logic.
 ### Install a plugin or bundle
 
 ```bash
-kapi plugins install <name>                  # install latest version
-kapi plugins install <name>@<version>        # install specific version
+kapi plugin install <name>                  # install latest version
+kapi plugin install <name>@<version>        # install specific version
 ```
 
 ### Update a plugin or bundle
 
 ```bash
-kapi plugins update <name>       # update specific plugin
-kapi plugins update              # check and update all plugins
+kapi plugin update <name>       # update specific plugin
+kapi plugin update              # check and update all plugins
 ```
 
 ### Remove a plugin or bundle
 
 ```bash
-kapi plugins remove <name>@<version>   # remove a specific version
-kapi plugins remove <name>             # remove all versions
+kapi plugin remove <name>@<version>   # remove a specific version
+kapi plugin remove <name>             # remove all versions
 ```
 
 ## Search Flags
@@ -97,7 +97,7 @@ Plugins are stored in `~/.config/kapi/plugins/`. Multiple versions can be instal
 The Okapi bridge bundle provides access to 40+ Okapi format filters:
 
 ```bash
-kapi plugins install okapi
+kapi plugin install okapi
 ```
 
 Once installed, additional formats (DOCX, XLSX, EPUB, etc.) appear in `kapi formats`.

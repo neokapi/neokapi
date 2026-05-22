@@ -19,7 +19,7 @@ brew install neokapi/tap/bowrain-cli
 ### With kapi already installed
 
 ```bash
-kapi plugins install bowrain
+kapi plugin install bowrain
 ```
 
 ### Binary Downloads
