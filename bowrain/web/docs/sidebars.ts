@@ -50,7 +50,6 @@ const sidebars: SidebarsConfig = {
           ],
         },
         "cli/mcp",
-        "cli/demo-videos",
       ],
     },
     {
@@ -63,7 +62,6 @@ const sidebars: SidebarsConfig = {
         "desktop/projects",
         "desktop/workspaces",
         "desktop/connectors",
-        "desktop/demo-videos",
       ],
     },
     {
@@ -81,7 +79,6 @@ const sidebars: SidebarsConfig = {
         "server/connectors",
         "server/automation",
         "server/flows",
-        "server/demo-videos",
       ],
     },
     {

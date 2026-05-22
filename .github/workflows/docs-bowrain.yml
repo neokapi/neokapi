@@ -106,9 +106,23 @@ jobs:
       - name: Stage walkthrough scene .webm into static/video/bowrain/
         run: bash bowrain/web/docs/scripts/stage-scenes.sh
 
+      - name: Determine base URL (production vs PR preview)
+        id: base
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          if [ "$EVENT_NAME" = "pull_request" ] && [ -n "$PR_NUMBER" ]; then
+            echo "docs_base=/web/prs/${PR_NUMBER}/bowrain/docs/" >> "$GITHUB_OUTPUT"
+          else
+            echo "docs_base=/web/bowrain/docs/" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Build bowrain Docusaurus site
         run: npm run build
         working-directory: bowrain/web/docs
+        env:
+          DOCS_BASE_URL: ${{ steps.base.outputs.docs_base }}
 
       - name: Upload bowrain site artifact
         uses: actions/upload-artifact@v7

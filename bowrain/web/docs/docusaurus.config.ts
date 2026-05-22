@@ -13,9 +13,12 @@ const config: Config = {
   favicon: "img/favicon.png",
 
   url: "https://neokapi.github.io",
-  // The bowrain-web Vite app sits at /web/bowrain/; this Docusaurus
-  // instance lives one level deeper at /web/bowrain/docs/.
-  baseUrl: "/web/bowrain/docs/",
+  // The bowrain-web Vite app sits at /web/bowrain/; this Docusaurus instance
+  // lives one level deeper at /web/bowrain/docs/. PR previews are served from
+  // /web/prs/<N>/bowrain/docs/ instead, so the deploy workflow overrides the
+  // base path via DOCS_BASE_URL — without it, a preview build would bake the
+  // production prefix and 404 every asset (mirrors the kapi docs site).
+  baseUrl: process.env.DOCS_BASE_URL ?? "/web/bowrain/docs/",
 
   organizationName: "neokapi",
   projectName: "neokapi",

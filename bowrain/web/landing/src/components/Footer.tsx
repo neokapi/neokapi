@@ -8,7 +8,7 @@ export function Footer() {
         </div>
         <div className="flex gap-6 text-xs text-neutral-600">
           <a href="https://github.com/neokapi" target="_blank" rel="noopener" className="transition hover:text-neutral-400">GitHub</a>
-          <a href="https://neokapi.github.io/web/bowrain/docs/getting-started/introduction" className="transition hover:text-neutral-400">Docs</a>
+          <a href="https://neokapi.github.io/web/bowrain/docs/" className="transition hover:text-neutral-400">Docs</a>
           <a href="mailto:hello@bowrain.com" className="transition hover:text-neutral-400">Contact</a>
         </div>
         <div className="text-xs text-neutral-700">
