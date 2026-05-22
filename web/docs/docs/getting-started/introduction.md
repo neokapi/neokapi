@@ -8,7 +8,7 @@ slug: /getting-started/introduction
 
 neokapi is the open engine that keeps your AI coding assistant **on-brand and
 terminologically consistent** — and ships the result in **every language and
-every format**. It is **offline by default** and **governed when you need it**.
+every format**. It is **open source** and **offline by default**.
 
 ## Two jobs, one engine
 
@@ -116,11 +116,14 @@ TMX import/export, and concept-oriented [terminology](/features/terminology) wit
 pipeline enforcement. The format and tool sets extend through crash-isolated
 gRPC plugins and a bridge to the Java Okapi filters.
 
-## Governed when you need it
+## Scale from solo to a team
 
-Start solo and local. When a team needs oversight — shared brand profiles, score
-trends, CMS connectors, automation — attach **Bowrain**, the governance
-platform, without giving up local-first control of your content.
+Governance is built in and open: gate brand compliance in CI with
+`kapi brand check --min-score`, and share brand profiles and termbases as
+version-controlled files. When a team needs shared score trends, CMS connectors,
+and automation, connect a server — self-host it, or use a managed platform such
+as [Bowrain](https://bowrain.cloud). neokapi is the open-source framework and
+community home; a hosted platform is one option, never a requirement.
 
 ## Architecture Overview
 

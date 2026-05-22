@@ -69,9 +69,9 @@ const FEATURES = [
   },
   {
     icon: Workflow,
-    title: 'Governed when you need it',
+    title: 'Governance you own',
     description:
-      'Start solo and local. Attach Bowrain for shared profiles, score trends, connectors, and automation — without trading away local-first control of your content.',
+      'Gate brand compliance in CI with `kapi brand check --min-score`, share profiles and termbases as version-controlled files, and connect a server when a team needs shared trends and automation — self-hosted or a managed platform. Open core, no lock-in.',
     accent: 'text-forest-400',
     bg: 'bg-forest-400/8',
     border: 'border-forest-400/15',

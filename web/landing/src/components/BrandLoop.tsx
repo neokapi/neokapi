@@ -60,9 +60,9 @@ const STEPS = [
     n: '06',
     icon: ShieldCheck,
     title: 'Govern',
-    cmd: 'with Bowrain',
+    cmd: 'kapi brand check --min-score',
     description:
-      'When a team needs oversight, attach Bowrain for shared profiles, score trends, connectors, and automation — without giving up local-first control.',
+      'Gate brand compliance in CI and share profiles as version-controlled YAML. When a team needs shared trends, connectors, and automation, connect a server — self-hosted or a managed platform.',
     accent: 'text-brand-400',
     bg: 'bg-brand-500/8',
     border: 'border-brand-500/15',

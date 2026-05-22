@@ -12,7 +12,7 @@ const baseUrl = process.env.DOCS_BASE_URL ?? "/web/neokapi/docs/";
 const config: Config = {
   title: "neokapi",
   tagline:
-    "Keep your AI on-brand and consistent — ship it in every language and format. Offline by default, governed when you need it.",
+    "Keep your AI on-brand and consistent — ship it in every language and format. Open source, offline by default.",
   favicon: "img/favicon.png",
 
   url: "https://neokapi.github.io",

@@ -101,7 +101,7 @@ export function Hero() {
           <span className="h-1.5 w-1.5 rounded-full bg-brand-400 animate-pulse-glow" />
           <span className="text-brand-300">Open-source engine</span>
           <span className="text-neutral-500">|</span>
-          <span className="text-neutral-400">Offline-first · governed when you need it</span>
+          <span className="text-neutral-400">Offline-first · no lock-in</span>
         </div>
 
         {/* Headline with mascot */}
@@ -125,7 +125,7 @@ export function Hero() {
         <p className="animate-fade-in-up-delay-2 mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-neutral-400 md:text-xl">
           The open engine that keeps your AI coding assistant terminologically
           consistent and on-voice — then ships the result in every language and
-          every format. <span className="text-neutral-300">Offline by default, governed when you need it.</span>
+          every format. <span className="text-neutral-300">Open source and offline by default — your content stays yours.</span>
         </p>
 
         {/* Three axes */}
