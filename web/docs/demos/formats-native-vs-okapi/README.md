@@ -14,9 +14,10 @@ outputs under `out/`.
 
 ## What this proves
 
-kapi is the localization Swiss-army-knife: 30+ native format readers/writers
-**plus** 57+ okapi-bridge filters, selectable per file with `--map`. Both readers
-extract and round-trip the same asset (`both_ok: true`). They segment HTML
+kapi has native readers and writers for localization, document, data, subtitle,
+and office formats, plus more through the okapi-bridge — selectable per file with
+`--map`. Both readers extract and round-trip the same asset (`both_ok: true`).
+They segment HTML
 slightly differently — in this demo the okapi `okf_html` filter also localizes
 the `<button>` and `<a>` text (18 words) that the native reader leaves alone
 (14 words), which you can see in `out/page.native.html` vs `out/page.okapi.html`.

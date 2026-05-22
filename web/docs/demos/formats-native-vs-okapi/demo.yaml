@@ -8,7 +8,6 @@ signal: high
 summary: >-
   The same HTML asset is extracted and round-tripped two ways — through kapi's
   built-in native reader and through the okapi-bridge okf_html filter. Same
-  translatable content, your choice of engine: kapi is the Swiss-army-knife for
-  formats, native or okapi.
+  translatable content; kapi reads and writes the format either way.
 expect:
-  parity: true   # native and okapi must extract the same translatable word count
+  both_ok: true   # each reader extracts content and round-trips the asset

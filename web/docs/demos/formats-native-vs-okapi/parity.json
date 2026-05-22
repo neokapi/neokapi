@@ -12,5 +12,5 @@
     "status": "ok"
   },
   "both_ok": true,
-  "note": "Word counts differ by reader segmentation; the normalized native\u2194okapi parity across 30+ formats is verified by cli/parity (`make parity`)."
+  "note": "Word counts differ by reader segmentation; the normalized native\u2194okapi parity across the shared formats is verified by cli/parity (`make parity`)."
 }

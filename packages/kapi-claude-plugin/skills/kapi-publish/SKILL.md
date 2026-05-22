@@ -5,7 +5,7 @@ description: Produce localized deliverables by round-tripping content through fo
 
 # kapi-publish
 
-Handles the format mechanics of multilingual publishing: extract → (translate) → merge back, keeping the original structure, markup, and placeholders intact. Built on neokapi's 30+ native format readers/writers plus 57+ okapi-bridge filters.
+Handles the format mechanics of multilingual publishing: extract → (translate) → merge back, keeping the original structure, markup, and placeholders intact. Built on neokapi's native format readers/writers, with more available through the okapi-bridge.
 
 ## When to use
 

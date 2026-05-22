@@ -30,7 +30,7 @@ kapi ai-translate ./deck.pptx --target-lang ja -o ./out/deck.ja.pptx
 kapi run translate -p myproject.kapi --target-lang fr
 ```
 
-The format is detected from the extension and the same format is written back (round-trip), preserving structure, tags, and placeholders. Native formats include JSON/YAML/XML, PO/.properties/.strings, XLIFF, Markdown/HTML, CSV, DOCX/XLSX/PPTX, ODF, subtitles; 57+ more via the okapi-bridge plugin.
+The format is detected from the extension and the same format is written back (round-trip), preserving structure, tags, and placeholders. Native formats include JSON/YAML/XML, PO/.properties/.strings, XLIFF, Markdown/HTML, CSV, DOCX/XLSX/PPTX, ODF, subtitles; more are available via the okapi-bridge plugin.
 
 ## Output
 

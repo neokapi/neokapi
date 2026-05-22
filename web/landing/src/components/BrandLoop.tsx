@@ -51,7 +51,7 @@ const STEPS = [
     title: 'Publish',
     cmd: 'kapi run ai-translate-qa …',
     description:
-      'Translate into every locale — brand-voice-aware, terminology-enforced, with TM leverage — and write back into the same 30+ native formats (plus 57 Okapi-bridge filters).',
+      'Translate into every locale — brand-voice-aware, terminology-enforced, with TM leverage — and write back into the same native formats (with more through the okapi-bridge).',
     accent: 'text-forest-400',
     bg: 'bg-forest-400/8',
     border: 'border-forest-400/15',

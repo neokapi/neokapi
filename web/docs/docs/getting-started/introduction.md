@@ -19,10 +19,11 @@ machine-readable brand voice profile, score any text 0–100 across five
 dimensions, and rewrite content that drifts off-brand — locally, without sending
 your content anywhere unless you choose to.
 
-**2. Localize anything.** neokapi remains a powerful, format-aware localization
-toolkit: 30+ native formats plus 57+ Okapi-bridge filters, AI translation, MT
-backends, translation memory, terminology enforcement, and QA — composable into
-concurrent pipelines.
+**2. Localize anything.** neokapi is a format-aware localization toolkit. It
+reads and writes localization, document, data, subtitle, and office formats
+natively, with more available through the okapi-bridge (see the
+[format reference](/formats)), plus AI translation, MT backends, translation
+memory, terminology enforcement, and QA — composable into concurrent pipelines.
 
 Both jobs share the same model and enforcement path, so the words your AI writes
 stay on-brand and consistent through every language.

@@ -51,9 +51,9 @@ const FEATURES = [
   },
   {
     icon: FileText,
-    title: '30+ formats, natively',
+    title: 'Formats, natively',
     description:
-      'HTML, Markdown, JSON, YAML, XML, PO, properties, .strings, XLIFF, TMX, subtitles and more — read and write in place, with 57+ Okapi-bridge filters for Office, EPUB, PDF, and InDesign.',
+      'Read and write localization, data, content, subtitle, and office formats in place — HTML, Markdown, JSON, YAML, XML, PO, .strings, XLIFF, TMX, DOCX, XLSX, PPTX, EPUB, PDF, IDML — with more available through the okapi-bridge.',
     accent: 'text-brand-400',
     bg: 'bg-brand-500/8',
     border: 'border-brand-500/15',

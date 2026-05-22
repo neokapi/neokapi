@@ -1,7 +1,7 @@
 {
   "name": "kapi",
   "version": "0.1.0",
-  "description": "Keep your AI coding assistant on-brand and terminologically consistent, and publish content in every language and format — powered by the kapi CLI (offline) and the Bowrain platform (governed).",
+  "description": "Keep your AI coding assistant on-brand and terminologically consistent, and publish content in every language and format. kapi skills use the local CLI; bowrain skills use the bowrain platform.",
   "author": {
     "name": "neokapi",
     "url": "https://github.com/neokapi/neokapi"

@@ -1,6 +1,6 @@
 # kapi — Claude Code plugin
 
-Keep your AI coding assistant **on-brand** and **terminologically consistent**, and **publish content in every language and format** — powered by the [kapi](https://github.com/neokapi/neokapi) CLI (offline) and the Bowrain platform (governed).
+Keep your AI coding assistant on-brand and terminologically consistent, and publish content in every language and format. The kapi skills use the local [kapi](https://github.com/neokapi/neokapi) CLI; the bowrain skills use the bowrain platform.
 
 ## What's inside
 
@@ -14,7 +14,7 @@ This plugin bundles Agent Skills that teach Claude Code to use kapi across the f
 - `kapi-brand-check` — score text against a brand voice profile (0–100 + findings).
 - `kapi-brand-fix` — rewrite text to fix forbidden/competitor terms and tone.
 - `kapi-terminology` — build/look up/enforce a glossary (CSV/JSON/TBX).
-- `kapi-translate` — brand-aware multilingual translation across 30+ formats.
+- `kapi-translate` — brand-aware multilingual translation across many formats.
 - `kapi-publish` — round-trip localization deliverables (DOCX/XLSX/PPTX/…).
 
 **bowrain skills** (governed platform):

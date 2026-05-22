@@ -12,7 +12,7 @@
     {
       "name": "kapi",
       "source": "./",
-      "description": "Keep AI output on-brand and consistent, and publish in every language and format — kapi CLI (offline) + Bowrain (governed)."
+      "description": "Keep AI output on-brand and consistent, and publish in every language and format. kapi skills use the local CLI; bowrain skills use the bowrain platform."
     }
   ]
 }

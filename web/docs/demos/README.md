@@ -14,7 +14,7 @@ self-contained directory; `run.sh` regenerates its artifacts against the real
 | Cell | Shows | Delta |
 |---|---|---|
 | [`brand-rewrite-marketing`](./brand-rewrite-marketing/) | A generic marketing draft scores **70/100** on brand compliance; `kapi brand rewrite` lifts it to **95/100**. | **+25** |
-| [`formats-native-vs-okapi`](./formats-native-vs-okapi/) | The same HTML asset extracted via the built-in **native** reader and the **okapi-bridge** filter — kapi is the Swiss-army-knife for formats. | parity |
+| [`formats-native-vs-okapi`](./formats-native-vs-okapi/) | The same HTML asset extracted via the built-in **native** reader and the **okapi-bridge** filter — kapi reads and writes formats either way. | parity |
 
 ## Run a cell
 
@@ -30,5 +30,6 @@ required. Cells that opt into `--ai` document the credential they need.
 ## Native and okapi
 
 Format cells exercise both kapi's native readers/writers and the okapi-bridge
-filters. The authoritative head-to-head native↔okapi comparison across 30+
-formats is the parity suite (`cli/parity`, `make parity`), run continuously in CI.
+filters. The authoritative head-to-head native↔okapi comparison across the
+shared formats is the parity suite (`cli/parity`, `make parity`), run
+continuously in CI.

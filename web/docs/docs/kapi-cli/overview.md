@@ -18,9 +18,9 @@ Kapi does two jobs from one engine:
   0–100, and rewrite content that drifts off-voice. Wire it into your AI coding
   assistant over [MCP](/kapi-cli/mcp) so generation stays on-brand.
 - **Format-aware localization** — AI translation, MT, TM leverage, terminology
-  enforcement, QA, and pseudo-translation across 30+ native formats plus the
-  Okapi bridge filters, with automatic format detection (see the
-  [Format Reference](/formats)).
+  enforcement, QA, and pseudo-translation across native localization, document,
+  data, subtitle, and office formats, with more through the okapi-bridge and
+  automatic format detection (see the [format reference](/formats)).
 
 It processes files directly (no project initialization needed) and extends via
 crash-isolated gRPC plugins, including the Okapi bridge to the Java filters.

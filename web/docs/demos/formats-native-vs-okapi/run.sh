@@ -4,7 +4,7 @@
 # (pseudo-translate; no LLM). Readers are selected explicitly with --map so the
 # comparison is unambiguous.
 #
-# Head-to-head native↔okapi parity across 30+ formats is verified continuously
+# Head-to-head native↔okapi parity across the shared formats is verified continuously
 # by the parity suite (cli/parity, `make parity`); this cell is the human-facing
 # illustration of that capability.
 set -euo pipefail
@@ -46,7 +46,7 @@ print(json.dumps({
     "native": {"reader": "html",     "word_count": native, "round_trip": nrt},
     "okapi":  {"reader": "okf_html",  "word_count": okapi,  "round_trip": ort, "status": status},
     "both_ok": (native > 0 and nrt) and (okapi > 0 and ort),
-    "note": "Word counts differ by reader segmentation; the normalized native↔okapi parity across 30+ formats is verified by cli/parity (`make parity`).",
+    "note": "Word counts differ by reader segmentation; the normalized native↔okapi parity across the shared formats is verified by cli/parity (`make parity`).",
 }, indent=2))
 PY
 echo "parity:"; cat parity.json

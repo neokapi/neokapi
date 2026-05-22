@@ -23,7 +23,7 @@ const AXES = [
     icon: Boxes,
     title: 'Any asset format',
     description:
-      '30+ native formats plus 57 Okapi-bridge filters — DOCX, XLSX, PPTX, HTML, Markdown, JSON, YAML, XML, PO, subtitles, InDesign. Round-trip, not string-and-key extraction.',
+      'Native readers and writers for localization, document, data, subtitle, and office formats — DOCX, XLSX, PPTX, HTML, Markdown, JSON, YAML, XML, PO, subtitles, InDesign — with more through the okapi-bridge. Round-trip, not string-and-key extraction.',
     contrast: 'String-centric tools stop at JSON keys and PO files.',
     accent: 'text-forest-400',
     glow: 'from-forest-500/20',
