@@ -1,0 +1,24 @@
+# Native reference doc for the built-in `encoding-detect` tool.
+# Schema source: core/tools/encodingdetect.go (EncodingDetectConfig — no parameters).
+description: Classify the source text of each block as ASCII, UTF-8, or unknown.
+overview: |
+  The **Encoding Detect** tool inspects the source text of every translatable
+  block and records its encoding characteristics on the block's properties: a
+  detected label (`ascii`, `utf-8`, or `unknown`) plus boolean flags for whether
+  the text is valid UTF-8 and whether it is ASCII-only. Text that is ASCII-only is
+  labelled `ascii`; otherwise valid UTF-8 is labelled `utf-8`; anything else is
+  `unknown`.
+
+  The tool takes no configuration. It is useful for spotting non-ASCII content
+  that may need particular care in downstream formats or fonts, and for
+  confirming that text is well-formed UTF-8.
+limitations:
+  - Examines source text only; target translations are not classified.
+  - Detection is limited to ASCII / UTF-8 validity, not a full charset-detection heuristic.
+processingNotes:
+  - Operates on translatable blocks; non-translatable structure passes through unchanged.
+examples:
+  - title: Detect source encoding
+    description: The tool takes no parameters; add it to a flow with an empty configuration.
+    config: |
+      {}

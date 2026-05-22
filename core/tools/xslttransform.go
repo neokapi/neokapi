@@ -15,12 +15,9 @@ import (
 type XSLTTransformConfig struct {
 	Rules []TransformRule `json:"rules,omitempty" schema:"title=Transformation Rules,description=Regex-based tag and text transformation rules"`
 
-	// Template configuration (compatible with bridge xsl-transform schema).
-	XSLTPath     string `json:"xsltPath,omitempty"     schema:"title=XSLT Template Path,description=Path to an XSLT stylesheet file to apply"`
-	ParamList    string `json:"paramList,omitempty"     schema:"title=Template Parameters,description=Parameters passed to the XSLT template (one per line as name=value)"`
-	ApplySource  bool   `json:"applySource,omitempty"   schema:"title=Apply to Source,description=Apply transformation to source text,default=true"`
-	ApplyTarget  bool   `json:"applyTarget,omitempty"   schema:"title=Apply to Target,description=Apply transformation to target text"`
-	PassOnOutput bool   `json:"passOnOutput,omitempty"  schema:"title=Pass Output to Next Step,description=Pass the transformation output to subsequent pipeline steps,default=true"`
+	ApplySource  bool `json:"applySource,omitempty"   schema:"title=Apply to Source,description=Apply transformation to source text,default=true"`
+	ApplyTarget  bool `json:"applyTarget,omitempty"   schema:"title=Apply to Target,description=Apply transformation to target text"`
+	PassOnOutput bool `json:"passOnOutput,omitempty"  schema:"title=Pass Output to Next Step,description=Pass the transformation output to subsequent pipeline steps,default=true"`
 }
 
 // TransformRule defines a single tag or text transformation rule.
@@ -35,8 +32,6 @@ func (c *XSLTTransformConfig) ToolName() string { return "xslt-transform" }
 // Reset restores default values.
 func (c *XSLTTransformConfig) Reset() {
 	c.Rules = nil
-	c.XSLTPath = ""
-	c.ParamList = ""
 	c.ApplySource = true
 	c.ApplyTarget = false
 	c.PassOnOutput = true

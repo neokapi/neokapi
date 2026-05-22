@@ -1,6 +1,8 @@
 // Schema-form types — shared across all consumers.
 // Canonical definitions for the schema language used by filters, tools, and formats.
 
+import type { SchemaFormHost } from "./host";
+
 export interface ComponentSchema {
   $id?: string;
   $version?: string;
@@ -94,6 +96,7 @@ export interface PropertySchema {
     resourceKind?: string;
     accepts?: string[];
     browseTitle?: string;
+    forSaveAs?: boolean;
     filters?: Array<{ name: string; extensions: string }>;
   };
 
@@ -140,4 +143,11 @@ export interface SchemaFormProps {
   readOnly?: boolean;
   /** Hide the schema title/description header (useful when the parent already shows it). */
   hideHeader?: boolean;
+  /**
+   * Host-injected capabilities for widgets that cannot assume a runtime
+   * environment — file/folder browsing and credential lookup. Provided by the
+   * embedding app (e.g. kapi-desktop wires Wails dialogs); omitted on the docs
+   * website, where the affected widgets degrade to plain text inputs.
+   */
+  host?: SchemaFormHost;
 }

@@ -1,0 +1,30 @@
+# Native reference doc for the built-in `ttx` format.
+# Schema source: core/formats/ttx/{reader.go,writer.go,config.go,spec.yaml}.
+# Upstream analogue: Okapi TTXFilter (net.sf.okapi.filters.ttx.TTXFilter).
+# The native reader has no JSON Schema (Config does not implement
+# SchemaProvider), so no `parameters`/`examples` blocks are authored.
+description: Read and write Trados TagEditor TTX bilingual documents.
+overview: |
+  TTX is the XML-based bilingual format produced by Trados TagEditor and read
+  by several other translation tools. There is no official public TTX
+  specification. The format stores source and target text as translation
+  units, carries existing segmentation, and records match percentages and
+  translation annotations.
+
+  neokapi reads and writes TTX. It walks the XML once, collects segment text
+  inside the `<Tu>`/`<Tuv>` translation-unit elements, and emits one Block per
+  translation unit — the first translation-unit variant as the source and the
+  second as the target. The surrounding XML is preserved as skeleton. By
+  default the reader auto-detects segmentation (extracting existing segments
+  when present, otherwise all text), and the writer does not escape
+  greater-than characters. These choices track the upstream Okapi TTX filter;
+  the native reader does not expose them as a configurable JSON schema in this
+  reference.
+limitations:
+  - There is no official public TTX specification; behaviour follows the conventions Trados tools write.
+  - Segmentation mode and output-escaping toggles match the upstream Okapi TTX filter but are not surfaced as configurable schema properties in this reference.
+processingNotes:
+  - One Block per `<Tu>`; the first `<Tuv>` becomes the source and the second the target.
+  - Segmentation is auto-detected by default — existing segments are extracted when present, otherwise all text.
+  - The surrounding XML is preserved as skeleton for round-trips.
+wikiUrl: "https://www.gala-global.org/knowledge-center/professional-development/articles/trados-ttx-files"

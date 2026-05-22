@@ -1,0 +1,33 @@
+# Native reference doc for the built-in `repetition-analysis` tool.
+# Schema source: core/tools/repetitionanalysis.go (RepetitionAnalysisConfig).
+description: Identify repeated source segments across blocks for translation-memory leverage.
+overview: |
+  The **Repetition Analysis** tool tracks source text as blocks stream through
+  the pipeline and tags each block according to whether its source has been seen
+  before. The first time a given source text appears it is marked as a
+  first occurrence; subsequent identical occurrences are marked as repetitions.
+  Each block also records a group key linking equal segments, the running count
+  of occurrences, and its 1-based index within the group.
+
+  Source text is trimmed of surrounding whitespace before comparison. The output
+  feeds scoping and pricing: repeated segments can be translated once and reused,
+  so identifying them quantifies the leverage available from repetition.
+parameters:
+  caseSensitive:
+    description: Whether source comparison is case-sensitive.
+    help: |
+      When enabled, segments that differ only in letter case are treated as
+      distinct. Disable it to fold case differences together, so that, for
+      example, `Save` and `save` count as the same segment.
+    values: "`true` / `false` (default `true`)"
+limitations:
+  - Matches exact (trimmed) source text only; near-duplicates and fuzzy matches are not detected here.
+  - Repetition state is tracked across the whole run; ordering of occurrences depends on block order in the pipeline.
+processingNotes:
+  - Operates on translatable blocks; non-translatable structure passes through unchanged.
+  - Counts the source side only.
+examples:
+  - title: Case-insensitive repetition
+    description: Treat segments that differ only in case as repetitions.
+    config: |
+      caseSensitive: false

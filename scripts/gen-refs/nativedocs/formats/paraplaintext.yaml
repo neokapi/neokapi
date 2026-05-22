@@ -1,0 +1,29 @@
+# Native reference doc for the built-in `paraplaintext` format.
+# Source: core/formats/paraplaintext/{reader.go,writer.go,config.go}.
+# Mirrors Okapi's plain-text Paragraphs variant. No configurable parameters.
+description: Read and write plain text split into paragraphs at blank lines.
+overview: |
+  Paragraph plain text treats a `.txt` document as a sequence of
+  paragraphs separated by blank lines (a double newline). Each
+  paragraph becomes one translatable block; the blank-line separators
+  between paragraphs are preserved as non-translatable structure.
+
+  This is the right reader when the natural translation unit is a whole
+  paragraph rather than a single line — prose, descriptions, or release
+  notes where a sentence may wrap across several physical lines. Line
+  breaks inside a paragraph are kept in the block text, so internal
+  wrapping survives the round-trip.
+limitations:
+  - No sub-paragraph segmentation; the entire paragraph is a single block. Apply a segmentation tool downstream if sentence-level units are needed.
+  - There are no configurable parameters; the paragraph boundary is always the blank line.
+processingNotes:
+  - Paragraphs are split on a blank line (double newline); CRLF and LF endings are both recognised.
+  - With a skeleton store active, original line endings and blank-line separators are preserved for byte-exact round-trips; leading and trailing blank lines round-trip as skeleton.
+examples:
+  - title: Translate prose paragraphs
+    description: |
+      No configuration is required. Declare the format to extract each
+      blank-line-separated paragraph as one block.
+    config: |
+      format:
+        name: paraplaintext

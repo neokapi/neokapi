@@ -8,7 +8,9 @@
     "packages/flow-editor",
     "packages/storybook-config",
     "packages/docs-shared",
+    "packages/reference-data",
     "storybook",
+    "web/docs",
     "apps/kapi-desktop/frontend",
     "web/landing",
     "bowrain/packages/ui",
@@ -31,7 +33,8 @@
       "vite": "^6.0.0 || ^7.0.0 || ^8.0.0"
     },
     "@tanstack/react-query": "5.94.5",
-    "vite": "^8.0.0"
+    "vite": "^8.0.0",
+    "webpackbar": "^7.0.0"
   },
   "packageManager": "npm@11.12.1"
 }

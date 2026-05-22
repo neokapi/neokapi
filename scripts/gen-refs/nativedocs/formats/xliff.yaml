@@ -1,0 +1,171 @@
+# Native reference doc for the built-in `xliff` format.
+# Schema source: core/formats/xliff/config.go (Config).
+# Behaviour grounded in core/formats/xliff/reader.go, writer.go and spec.yaml,
+# mirroring Okapi's XLIFF filter (okf_xliff) and the OASIS XLIFF 1.2 standard.
+displayName: XLIFF 1.2
+description: Read and write OASIS XLIFF 1.2 bilingual exchange documents.
+overview: |
+  XLIFF 1.2 is the OASIS XML Localisation Interchange File Format — the
+  bilingual exchange format that translation tools and TMS platforms use
+  to move content between extraction and translation. A document groups
+  `<trans-unit>` elements under `<file>` containers, each unit holding a
+  `<source>` and an optional `<target>`, with inline markup represented
+  through paired (`bpt`/`ept`, `g`) or standalone (`x`, `ph`) code
+  elements and segmentation expressed via `<seg-source>` and
+  `<mrk mtype="seg">`.
+
+  The reader emits one block per translatable `<trans-unit>`, carrying
+  the source, any existing target, segmentation, alt-trans matches, and
+  unit metadata. The writer updates targets and, by default, the target
+  `state` attribute, so a round-tripped file reflects translation
+  progress. This mirrors Okapi's XLIFF 1.2 filter.
+parameters:
+  preserveSpaceByDefault:
+    description: Treat all content as `xml:space="preserve"` unless overridden.
+    help: |
+      When enabled, every element is treated as whitespace-preserving
+      regardless of an explicit `xml:space` attribute. When disabled (the
+      default), the reader honours per-element `xml:space` only, collapsing
+      insignificant whitespace elsewhere.
+    values: "`true` / `false` (default `false`)"
+  includeExtensions:
+    description: Include non-standard namespace extension elements in extracted content.
+    help: |
+      When enabled (the default), elements from non-XLIFF namespaces
+      (vendor or tool extensions) found within content are kept in the
+      extracted block. When disabled, such extension elements are dropped
+      from the extracted content.
+    values: "`true` / `false` (default `true`)"
+  includeIts:
+    description: Include ITS (Internationalization Tag Set) markup in extracted content.
+    help: |
+      When enabled (the default), ITS markup carried in the XLIFF (e.g.
+      translate, locale-filter, or terminology annotations) is preserved
+      in the extracted content. When disabled, ITS markup is omitted.
+    values: "`true` / `false` (default `true`)"
+  ignoreInputSegmentation:
+    description: Treat the full source as one segment, ignoring input segmentation.
+    help: |
+      When enabled, `<seg-source>`/`<mrk mtype="seg">` segmentation in the
+      input is ignored and the whole `<source>` is treated as a single
+      segment. When disabled (the default), the existing segmentation is
+      honoured and each `<mrk>` segment becomes its own segment in the
+      block.
+    values: "`true` / `false` (default `false`)"
+  fallbackToID:
+    description: Use the trans-unit id as the block name when no resname is present.
+    help: |
+      When enabled, a `<trans-unit>` with no `resname` attribute takes its
+      `id` attribute as the block name, so the block still has a
+      human-meaningful identifier. When disabled (the default), the block
+      name is left empty when `resname` is absent.
+    values: "`true` / `false` (default `false`)"
+  forceUniqueIds:
+    description: Rewrite trans-unit ids to enforce uniqueness across the file.
+    help: |
+      When enabled, duplicate `<trans-unit>` `id` values are rewritten so
+      every id is unique across the file. When disabled (the default), ids
+      are left as-is. Enable it for inputs whose ids are not guaranteed
+      unique and where downstream tooling requires uniqueness.
+    values: "`true` / `false` (default `false`)"
+  useTranslationTargetState:
+    description: Update the target `state` attribute when writing translated XLIFF.
+    help: |
+      When enabled (the default), the writer sets the `state` attribute on
+      `<target>` elements to reflect translation status, using
+      `targetStateValue`. When disabled, the existing `state` is left
+      untouched.
+    values: "`true` / `false` (default `true`)"
+  targetStateValue:
+    description: The state value written to target elements.
+    help: |
+      The XLIFF state value applied to `<target>` elements when
+      `useTranslationTargetState` is enabled. The default is
+      `needs-translation`. Set it to a standard XLIFF 1.2 state such as
+      `translated`, `needs-review-translation`, or `final` to match your
+      workflow.
+    values: "String (default `needs-translation`)"
+    examples:
+      - "`translated`"
+      - "`final`"
+    dependsOn:
+      - property: useTranslationTargetState
+        condition: applied only when target state updating is enabled
+  editAltTrans:
+    description: Allow editing of existing alt-trans elements.
+    help: |
+      When enabled, existing `<alt-trans>` (alternative translation /
+      match) elements may be modified on write. When disabled (the
+      default), they are preserved unchanged.
+    values: "`true` / `false` (default `false`)"
+  addAltTrans:
+    description: Allow new alt-trans elements to be added.
+    help: |
+      When enabled, new `<alt-trans>` elements (for example, machine or
+      memory matches) may be written into units. When disabled (the
+      default), no new alt-trans elements are added.
+    values: "`true` / `false` (default `false`)"
+  addTargetLanguage:
+    description: Add the target-language attribute to file elements if missing.
+    help: |
+      When enabled (the default), the `target-language` attribute is added
+      to `<file>` elements that lack one, using the pipeline target locale.
+      When disabled, the attribute is left as found in the input.
+    values: "`true` / `false` (default `true`)"
+  overrideTargetLanguage:
+    description: Replace the target-language attribute with the pipeline target locale.
+    help: |
+      When enabled, the `target-language` attribute in the output is
+      overwritten with the pipeline's target locale even if the input
+      already declared one. When disabled (the default), an existing
+      `target-language` is preserved.
+    values: "`true` / `false` (default `false`)"
+  allowEmptyTargets:
+    description: Allow target elements with empty content to be written.
+    help: |
+      When enabled, `<target>` elements may be written with empty content.
+      When disabled (the default), empty targets are not emitted. Enable it
+      when downstream tooling expects a `<target>` placeholder to exist
+      even before translation.
+    values: "`true` / `false` (default `false`)"
+  alwaysAddTargets:
+    description: Add target elements for monolingual XLIFF that has none.
+    help: |
+      When enabled, `<target>` elements are added for monolingual XLIFF
+      inputs that contain only sources. When disabled (the default), no
+      targets are synthesised for source-only files.
+    values: "`true` / `false` (default `false`)"
+  useCodeFinder:
+    description: Detect inline codes inside content using regular expressions.
+    help: |
+      Enables regex-based detection of inline codes in translatable text,
+      using the patterns in `codeFinderRules`. This supplements the native
+      XLIFF inline elements. When disabled (the default), only the XLIFF
+      inline elements are recognised.
+    values: "`true` / `false` (default `false`)"
+  codeFinderRules:
+    description: Regular-expression patterns that match inline codes in content.
+    help: |
+      A list of regular expressions; each match within translatable text is
+      protected as an inline code rather than translated. Only takes effect
+      when `useCodeFinder` is enabled; invalid patterns are skipped.
+    values: "Array of regular-expression strings"
+    examples:
+      - "`%[0-9]*[sd]` — protect `printf`-style format specifiers"
+    dependsOn:
+      - property: useCodeFinder
+        condition: must be enabled for the rules to take effect
+processingNotes:
+  - One block is emitted per translatable `<trans-unit>`; units marked `translate="no"` are passed through as non-translatable.
+  - Inline markup (`bpt`/`ept`, `g`, `x`, `ph`) and `<seg-source>`/`<mrk mtype="seg">` segmentation are read into the block.
+examples:
+  - title: Mark targets as translated
+    description: Write a final target state instead of the default needs-translation.
+    config: |
+      useTranslationTargetState: true
+      targetStateValue: translated
+  - title: Flatten input segmentation
+    description: Treat each source as one segment, ignoring seg-source markers.
+    config: |
+      ignoreInputSegmentation: true
+wikiUrl: https://docs.oasis-open.org/xliff/v1.2/os/xliff-core.html

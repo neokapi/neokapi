@@ -9,8 +9,7 @@ import type { Meta, StoryObj } from "@storybook/react-vite";
 import { Button, Input } from "@neokapi/ui-primitives";
 import { FormatConfigEditor } from "../../components/FormatConfigEditor";
 import type { ComponentSchema } from "@neokapi/ui-primitives";
-import formatSchemas from "../fixtures/format-schemas.json";
-import formatList from "../fixtures/format-list.json";
+import { formatSchemas, formatList } from "../_lib/reference-data";
 const allSchemas = formatSchemas.all as unknown as ComponentSchema[];
 
 interface FormatEntry {

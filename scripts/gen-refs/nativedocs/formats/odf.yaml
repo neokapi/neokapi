@@ -1,0 +1,29 @@
+# Native reference doc for the built-in `odf` format.
+# Schema source: core/formats/odf/{reader.go,writer.go,config.go,spec.yaml}.
+# Upstream analogue: Okapi OpenOffice/ODF filters (okf_openoffice wraps the
+# ZIP; okf_odf is the inner content.xml filter). The native reader has no
+# JSON Schema (Config does not implement SchemaProvider), so no
+# `parameters`/`examples` blocks are authored.
+description: Extract translatable text from OpenDocument Format files (ODT, ODS, ODP, ODG).
+overview: |
+  ODF (OpenDocument Format) is the OASIS standard used by LibreOffice,
+  OpenOffice, and compatible suites. neokapi handles the text (`.odt`),
+  spreadsheet (`.ods`), presentation (`.odp`), and graphics (`.odg`) variants,
+  auto-detecting the variant from the package's `mimetype` entry. Each file is
+  a ZIP archive containing a `content.xml` payload plus styles and metadata
+  sub-documents; the reader extracts translatable text from the content while
+  preserving the surrounding XML and the package structure as skeleton.
+
+  neokapi reads and writes ODF, round-tripping the archive so the translated
+  output remains a valid OpenDocument file. By default it extracts
+  presentation notes but skips hidden content — matching the upstream Okapi
+  OpenOffice filter behaviour. The native reader applies these defaults but
+  does not expose them as a configurable JSON schema in this reference.
+limitations:
+  - Hidden content is not extracted by default.
+  - Extraction toggles match the upstream Okapi OpenOffice filter but are not surfaced as configurable schema properties in this reference.
+processingNotes:
+  - The ODF variant (text, spreadsheet, presentation, graphics) is auto-detected from the package `mimetype` entry.
+  - Presentation notes are extracted by default; the surrounding XML and package structure are preserved as skeleton.
+  - Each sub-document inside the ZIP archive is processed independently.
+wikiUrl: "https://docs.oasis-open.org/office/OpenDocument/v1.3/os/part1-introduction/OpenDocument-v1.3-os-part1-introduction.html"

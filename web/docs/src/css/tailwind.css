@@ -1,0 +1,137 @@
+/*
+ * Tailwind v4 for the Docusaurus reference pages (/formats, /tools).
+ *
+ * Docusaurus ships Infima as its global stylesheet. A full Tailwind preflight
+ * reset would clobber Infima's element styles and break every docs page, so we
+ * deliberately import Tailwind WITHOUT the `base` (preflight) layer — only the
+ * `theme` (custom properties) and `utilities` layers. Components that use
+ * `@neokapi/ui-primitives` (SchemaForm) render inside `.kapi-reference` scopes
+ * on the reference pages only, so Tailwind utilities never touch ordinary docs.
+ */
+
+@layer theme, base, components, utilities;
+
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
+@import "tw-animate-css";
+
+/* Structural token mapping (--color-* → --background, …) plus the @source glob
+ * for @neokapi/ui-primitives/src so Tailwind scans those components. */
+@import "@neokapi/ui-primitives/styles/theme-tokens.css";
+/* @source glob for @neokapi/flow-editor/src. */
+@import "@neokapi/flow-editor/styles/sources.css";
+
+/* Scan our reference pages + components for utility classes. */
+@source "../pages/formats";
+@source "../pages/tools";
+@source "../components/reference";
+
+/* Map the ui-primitives `dark:` variant onto Docusaurus's data-theme switch. */
+@custom-variant dark (&:is([data-theme="dark"] *));
+
+/*
+ * Color values. theme-tokens.css only maps --color-* → --background etc.;
+ * the concrete color values live in each app's own CSS. We supply the neokapi
+ * "Sandstone" palette here, scoped to the reference page wrappers so they do
+ * not leak into Infima-styled docs content. Light values on the wrapper, dark
+ * values when Docusaurus sets data-theme="dark".
+ */
+.kapi-reference {
+  --background: oklch(0.9789 0.0013 106.4235);
+  --foreground: oklch(0.23 0.0038 106.6929);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.23 0.0038 106.6929);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.23 0.0038 106.6929);
+  --primary: oklch(0.2931 0 0);
+  --primary-foreground: oklch(0.9789 0.0013 106.4235);
+  --secondary: oklch(0.9688 0.0066 106.5223);
+  --secondary-foreground: oklch(0.3583 0.0084 106.8176);
+  --muted: oklch(0.9651 0.0074 80.721);
+  --muted-foreground: oklch(0.5363 0.0092 106.7047);
+  --accent: oklch(0.8778 0.1383 86.192);
+  --accent-foreground: oklch(0.2931 0 0);
+  --destructive: oklch(0.5904 0.2 26.1033);
+  --destructive-foreground: oklch(1 0 0);
+  --success: oklch(0.59 0.16 145);
+  --success-foreground: oklch(1 0 0);
+  --warning: oklch(0.75 0.16 70);
+  --warning-foreground: oklch(0.25 0.02 70);
+  --info: oklch(0.62 0.14 250);
+  --info-foreground: oklch(1 0 0);
+  --border: oklch(0.9193 0.0099 87.474);
+  --input: oklch(0.9193 0.0099 87.474);
+  --ring: oklch(0.8778 0.1383 86.192);
+  --radius: 0.375rem;
+  --chart-1: oklch(0.8778 0.1383 86.192);
+  --chart-2: oklch(0.641 0.0117 106.7247);
+  --chart-3: oklch(0.7509 0.0853 67.088);
+  --chart-4: oklch(0.4693 0.0095 106.759);
+  --chart-5: oklch(0.7539 0.1519 80.8048);
+  --sidebar: oklch(0.9041 0.0058 84.5675);
+  --sidebar-foreground: oklch(0.23 0.0038 106.6929);
+  --sidebar-primary: oklch(0.23 0.0038 106.6929);
+  --sidebar-primary-foreground: oklch(0.9789 0.0013 106.4235);
+  --sidebar-accent: oklch(0.9193 0.0099 87.474);
+  --sidebar-accent-foreground: oklch(0.23 0.0038 106.6929);
+  --sidebar-border: oklch(0.9193 0.0099 87.474);
+  --sidebar-ring: oklch(0.8778 0.1383 86.192);
+}
+
+[data-theme="dark"] .kapi-reference {
+  --background: oklch(0.2174 0.0019 106.5582);
+  --foreground: oklch(0.9486 0.0027 106.45);
+  --card: oklch(0.2213 0.0038 106.707);
+  --card-foreground: oklch(0.9486 0.0027 106.45);
+  --popover: oklch(0.2213 0.0038 106.707);
+  --popover-foreground: oklch(0.9486 0.0027 106.45);
+  --primary: oklch(0.9486 0.0027 106.45);
+  --primary-foreground: oklch(0.2174 0.0019 106.5582);
+  --secondary: oklch(0.272 0.0036 106.6382);
+  --secondary-foreground: oklch(0.7903 0.0083 106.5888);
+  --muted: oklch(0.272 0.0036 106.6382);
+  --muted-foreground: oklch(0.641 0.0117 106.7247);
+  --accent: oklch(0.7007 0.1304 84.635);
+  --accent-foreground: oklch(1 0 0);
+  --destructive: oklch(0.6091 0.1931 24.9679);
+  --destructive-foreground: oklch(1 0 0);
+  --success: oklch(0.64 0.16 145);
+  --success-foreground: oklch(1 0 0);
+  --warning: oklch(0.78 0.14 70);
+  --warning-foreground: oklch(0.2 0.02 70);
+  --info: oklch(0.68 0.14 250);
+  --info-foreground: oklch(1 0 0);
+  --border: oklch(0.3001 0.0053 106.7146);
+  --input: oklch(0.3001 0.0053 106.7146);
+  --ring: oklch(0.7007 0.1304 84.635);
+  --chart-1: oklch(0.7007 0.1304 84.635);
+  --chart-2: oklch(0.641 0.0117 106.7247);
+  --chart-3: oklch(0.7509 0.0853 67.088);
+  --chart-4: oklch(0.7903 0.0083 106.5888);
+  --chart-5: oklch(0.7902 0.1311 87.655);
+  --sidebar: oklch(0.2174 0.0019 106.5582);
+  --sidebar-foreground: oklch(0.9486 0.0027 106.45);
+  --sidebar-primary: oklch(0.9486 0.0027 106.45);
+  --sidebar-primary-foreground: oklch(0.2174 0.0019 106.5582);
+  --sidebar-accent: oklch(0.272 0.0036 106.6382);
+  --sidebar-accent-foreground: oklch(0.9486 0.0027 106.45);
+  --sidebar-border: oklch(0.3001 0.0053 106.7146);
+  --sidebar-ring: oklch(0.7007 0.1304 84.635);
+}
+
+/*
+ * Tailwind v4 dropped the implicit cursor:pointer on interactive elements.
+ * Restore it for controls inside the reference pages only.
+ */
+@layer base {
+  .kapi-reference a,
+  .kapi-reference button,
+  .kapi-reference select,
+  .kapi-reference summary,
+  .kapi-reference [role="button"],
+  .kapi-reference [type="button"],
+  .kapi-reference [type="submit"],
+  .kapi-reference [type="reset"] {
+    cursor: pointer;
+  }
+}

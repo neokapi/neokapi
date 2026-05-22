@@ -1,0 +1,59 @@
+# Native reference doc for the built-in `ai-terminology` tool.
+# Schema source: core/ai/tools/terminology.go (AITerminologyConfig).
+description: Extract candidate terminology from source text using an LLM provider.
+overview: |
+  The **AI Terminology Extraction** tool sends each block's source text to a
+  configured LLM provider and asks it to return notable terms, each with a short
+  definition and domain. The extracted entries are recorded on the block's
+  properties as a terminology list. Blocks whose source is empty are skipped, and
+  blocks with no terms found are left unchanged.
+
+  Because the tool calls an external model, it requires provider credentials. An
+  optional subject domain can be supplied to bias extraction toward that field
+  (for example medical, legal, or technology terminology). The results are
+  candidate terms intended for review and curation into a termbase, not an
+  authoritative glossary.
+parameters:
+  provider:
+    description: The LLM provider backend to use.
+    help: |
+      Selects which model backend performs the extraction.
+    values: "`anthropic` (default), `openai`, `gemini`, `azureopenai`, `ollama`"
+  apiKey:
+    description: API key for the AI provider.
+    help: |
+      Credential for the selected provider. Local providers such as Ollama may
+      not require a key. Prefer supplying credentials through the credential store
+      or environment rather than committing them to a recipe.
+    values: "string"
+  model:
+    description: The model name to request from the provider.
+    help: |
+      The provider-specific model identifier. When omitted, the provider's
+      default model is used.
+    values: "string"
+  domain:
+    description: Subject domain to bias terminology extraction.
+    help: |
+      An optional hint naming the subject area (for example `medical`, `legal`, or
+      `technology`). When set, it is included in the prompt so the model favours
+      terms relevant to that domain.
+    values: "string"
+limitations:
+  - Requires AI provider credentials and makes an external API call per block.
+  - Extracted terms are model output and should be reviewed before being treated as authoritative.
+  - Operates on source text only.
+processingNotes:
+  - Operates on blocks; blocks with empty source text are skipped.
+  - Blocks are processed in parallel by default for throughput.
+examples:
+  - title: Extract domain-specific terminology
+    description: Bias extraction toward a particular subject area.
+    config: |
+      provider: anthropic
+      domain: medical
+  - title: Use a local Ollama model
+    description: Run extraction against a locally hosted model.
+    config: |
+      provider: ollama
+      model: llama3

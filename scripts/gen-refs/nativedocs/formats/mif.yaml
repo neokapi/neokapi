@@ -1,0 +1,32 @@
+# Native reference doc for the built-in `mif` format.
+# Schema source: core/formats/mif/{reader.go,writer.go,config.go,spec.yaml}.
+# Upstream analogue: Okapi MIFFilter (net.sf.okapi.filters.mif.MIFFilter).
+# The native reader has no JSON Schema (Config does not implement
+# SchemaProvider), so no `parameters`/`examples` blocks are authored.
+description: Extract translatable text from Adobe FrameMaker Maker Interchange Format (MIF) documents.
+overview: |
+  MIF (Maker Interchange Format) is Adobe FrameMaker's text-based interchange
+  format. A MIF file is a brace-delimited, SGML-flavoured statement tree
+  introduced by a version header line (`<MIFFile 2015>`, `<MIFFile 9.00>`, …);
+  translatable text lives inside `<String \`…'>` values nested under `<Para>`
+  paragraphs that hang off text-flow, table, and note containers.
+
+  neokapi reads MIF and writes it back, preserving the surrounding statement
+  structure as skeleton so untranslated markup round-trips unchanged. By
+  default it extracts paragraph text from body, master, reference, and hidden
+  pages, along with variable definitions and index-marker text. Hyperlink
+  text, cross-reference format strings, and paragraph-numbering format strings
+  are left out by default. A regex-based code finder protects FrameMaker
+  auto-numbering prefixes and Asian numbering format names from being altered
+  during processing such as pseudo-translation. These extraction toggles
+  mirror the upstream Okapi MIF filter parameters; the native reader applies
+  the same defaults but does not expose them as a configurable JSON schema in
+  this reference.
+limitations:
+  - Hyperlink text, cross-reference format strings, and paragraph-numbering format strings are not extracted by default.
+  - Extraction toggles match the upstream Okapi MIF filter but are not surfaced as configurable schema properties in this reference.
+processingNotes:
+  - Body, master, reference, and hidden page content is extracted by default; variables and index markers are also extracted.
+  - Non-translatable MIF statements are preserved as skeleton for byte-faithful round-trips.
+  - "A code finder protects FrameMaker auto-numbering prefixes (`H:`, `T:`, …) and Asian numbering format names from being treated as translatable text."
+wikiUrl: "https://help.adobe.com/en_US/framemaker/2015/mif_reference/mif_reference.pdf"

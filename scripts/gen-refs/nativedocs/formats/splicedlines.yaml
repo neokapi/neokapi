@@ -1,0 +1,31 @@
+# Native reference doc for the built-in `splicedlines` format.
+# Source: core/formats/splicedlines/{reader.go,writer.go,config.go,spec.yaml}.
+# Mirrors Okapi's plain-text SplicedLines filter (okf_splicedlines). No configurable parameters.
+description: Read and write plain text where a trailing backslash splices the next line onto the current one.
+overview: |
+  Spliced-lines plain text is a line-oriented text format in which a
+  trailing backslash (`\`) at the end of a physical line continues the
+  logical line onto the next one. The reader joins adjacent physical
+  lines wherever the previous line ends in `\`, and emits one
+  translatable block per logical line. The splice marker is consumed;
+  the line break between spliced lines is kept inside the block text.
+
+  Use it for line-continuation conventions common in configuration and
+  scripting files, where a long value is wrapped across several
+  physical lines with a backslash. Lines without a trailing backslash
+  stand on their own as one block each.
+limitations:
+  - The splice marker is fixed to the backslash character; it is not configurable.
+  - Blank or whitespace-only logical lines are treated as non-translatable structure (skeleton), not extracted.
+processingNotes:
+  - One block per logical line; spliced physical lines are joined with their original line breaks preserved in the block text.
+  - A document that ends mid-continuation (a final line still ending in `\`) round-trips the trailing backslash, matching Okapi's `SplicedLinesFilter` behaviour.
+  - With a skeleton store active, line endings and continuation markers are tracked so output is byte-exact.
+examples:
+  - title: Extract continuation-joined lines
+    description: |
+      No configuration is required. Declare the format to join
+      backslash-continued lines into single blocks.
+    config: |
+      format:
+        name: splicedlines

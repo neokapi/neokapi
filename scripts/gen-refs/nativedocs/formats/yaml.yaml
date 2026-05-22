@@ -1,0 +1,71 @@
+# Native reference doc for the built-in `yaml` format.
+# Schema source: core/formats/yaml/config.go (Config) + schema.go.
+# Mirrors the Okapi okf_yaml filter.
+description: Extract and reinsert translatable scalar values from YAML files, with key-path filtering and subfilters.
+overview: |
+  The **YAML** format reads YAML documents, extracts scalar string values as
+  translatable blocks, and writes the translations back while preserving the
+  surrounding structure, comments, and ordering. It suits Rails locale files,
+  application configuration, and other key/value catalogues expressed in YAML.
+
+  By default only string scalars are extracted. You can also extract
+  non-string scalars, restrict extraction to specific key paths with
+  glob-style patterns, detect inline codes, and route values containing
+  embedded markup (such as HTML) to a subfilter.
+parameters:
+  extractNonStrings:
+    description: Extract non-string scalar values.
+    help: |
+      When enabled, non-string scalars — booleans, numbers, and nulls — are
+      also extracted as translatable blocks. By default only string scalars
+      are extracted.
+    values: "`true` / `false` (default `false`)"
+  keyPathPatterns:
+    description: Glob patterns selecting which key paths are extracted.
+    help: |
+      An array of glob-style key-path patterns. When non-empty, only keys
+      matching one of the patterns are extracted. `*` matches a single key
+      segment; `**` matches any number of segments at any depth.
+    values: Array of glob patterns (default empty — all keys extracted)
+    examples:
+      - "`en.**` — extract only keys nested under the top-level `en` key"
+      - "`*.title` — extract the `title` key directly under any top-level key"
+  subfilter:
+    description: Subfilter format applied to scalar values.
+    help: |
+      The name of a format used as a subfilter (for example `html`) to parse
+      embedded markup inside extracted scalar values, so the markup is exposed
+      as inline codes rather than translated as literal text.
+    values: Format name (default empty)
+    examples:
+      - "`html` — parse HTML inside YAML scalar values"
+  useCodeFinder:
+    description: Enable regex-based inline-code detection.
+    help: |
+      Enables regex-based detection of inline codes within string values. The
+      patterns are supplied via `codeFinderRules`.
+    values: "`true` / `false` (default `false`)"
+  codeFinderRules:
+    description: Regex patterns that match inline codes within values.
+    help: |
+      An array of regular expressions; text matching any of them is treated
+      as an inline code rather than translatable words. Only used when
+      `useCodeFinder` is enabled.
+    values: Array of regular expressions (default empty)
+    dependsOn:
+      - property: useCodeFinder
+        condition: must be enabled for these patterns to apply
+limitations:
+  - Only scalar values are translatable; mapping keys and sequence structure form the non-translatable skeleton.
+processingNotes:
+  - Document structure, key order, and comments are preserved across the read/write roundtrip.
+examples:
+  - title: Extract a single locale subtree
+    description: Translate only the keys under the en branch of a Rails-style locale file.
+    config: |
+      keyPathPatterns:
+        - "en.**"
+  - title: HTML inside values
+    description: Parse HTML markup within YAML scalar values.
+    config: |
+      subfilter: html

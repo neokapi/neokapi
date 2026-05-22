@@ -1,0 +1,43 @@
+# Native reference doc for the built-in `chars-listing` tool.
+# Schema source: core/tools/charslisting.go (CharsListingConfig).
+description: Collect the distinct characters used across source and target text, with their frequencies.
+overview: |
+  The **Characters Listing** tool scans translatable blocks and accumulates the
+  set of distinct characters used, together with how often each one occurs. It
+  also records the number of unique characters per block on the block's
+  properties. The accumulated character set is typically used for font subsetting
+  — determining which glyphs a font must provide for a given body of content.
+
+  By default both source and target text are scanned. When target text is
+  included, a target locale must be supplied so the tool knows which translation
+  to read.
+parameters:
+  includeSource:
+    description: Include source text when collecting characters.
+    help: |
+      When enabled, every character in each block's **source** text is added to
+      the character set and its frequency tally. At least one of source or target
+      must be included.
+    values: "`true` / `false` (default `true`)"
+  includeTarget:
+    description: Include target text when collecting characters.
+    help: |
+      When enabled, characters from each block's **target** text are added to the
+      set for the active target locale. A target locale is required when this is
+      enabled.
+    values: "`true` / `false` (default `true`)"
+    dependsOn:
+      - property: includeTarget
+        condition: requires a configured target locale when enabled
+limitations:
+  - At least one of source or target inclusion must be enabled.
+  - Including target text requires a configured target locale.
+processingNotes:
+  - Operates on translatable blocks; non-translatable structure passes through unchanged.
+  - Frequencies are accumulated across all blocks; the per-block unique-character count is recorded on each block.
+examples:
+  - title: List source characters only
+    description: Build the character set from source text alone, for example before any translation exists.
+    config: |
+      includeSource: true
+      includeTarget: false

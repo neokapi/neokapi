@@ -1,0 +1,30 @@
+# Native reference doc for the built-in `epub` format.
+# Schema source: core/formats/epub/{reader.go,writer.go,config.go,spec.yaml}.
+# Upstream analogue: Okapi EPUBFilter (electronic publication). The
+# okapi-bridge ships no okf_epub filter, so this is a native-only format.
+# Config is empty (no schema), so no `parameters`/`examples` blocks.
+description: Extract translatable text from EPUB e-books by walking the reading-order spine.
+overview: |
+  EPUB is the open e-book format: a ZIP container (OCF) packaging XHTML and
+  SVG content documents alongside a Package Document (OPF) that lists the
+  manifest and the reading-order spine. neokapi reads the
+  `META-INF/container.xml` entry to locate the OPF, parses the OPF to resolve
+  the spine, and walks each spine item as a child layer of the document.
+
+  neokapi reads and writes EPUB, round-tripping the container so the
+  translated output remains a valid e-book. Content documents are parsed as
+  embedded XHTML: when an HTML sub-format reader is wired, each spine item is
+  delegated to it; otherwise neokapi falls back to a direct XHTML walk that
+  treats common block elements (paragraphs, headings, list items, table cells,
+  figure and table captions, blockquotes, and the document title) as
+  translatable. The OPF, container metadata, and non-content resources are
+  preserved as skeleton. This format has no configurable JSON schema in this
+  reference.
+limitations:
+  - The fallback XHTML walk extracts a fixed set of block elements; richer extraction depends on an HTML sub-format reader being wired into the pipeline.
+  - Spine items not listed in the OPF reading order are not walked for translatable text.
+processingNotes:
+  - The OPF is located via `META-INF/container.xml`; spine items are walked in reading order, each as a child layer.
+  - Content documents are processed as embedded XHTML, either through an HTML sub-format reader or a direct token walk.
+  - The container structure, OPF, and non-content resources are preserved as skeleton for round-trips.
+wikiUrl: "https://www.w3.org/TR/epub-33/"

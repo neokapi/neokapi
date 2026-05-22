@@ -1,0 +1,31 @@
+# Native reference doc for the built-in `brand-vocab-check` tool.
+# Schema source: core/tools/brandvocab.go (BrandVocabConfig — profile/termbase set programmatically).
+description: Flag forbidden, competitor, and preferred-term violations from a brand voice profile.
+overview: |
+  The **Brand Vocabulary Check** tool scans each block's source text for
+  vocabulary violations defined by a brand voice profile. Forbidden terms are
+  flagged at major severity, competitor terms at critical severity, and where a
+  forbidden term has a preferred replacement, the finding includes that
+  suggestion. When a termbase is provided, the tool also looks up brand-vocabulary
+  terms in it, flagging competitor and forbidden entries it finds. Matches are
+  case-insensitive.
+
+  Findings are recorded on the block's properties and an overall brand-voice score
+  is attached as an annotation. This is a rule-based check that needs no LLM
+  credentials, and it is designed to run before the LLM-based brand voice check.
+  The voice profile and termbase are supplied programmatically rather than as
+  schema parameters; the profile can also be resolved lazily from an
+  organizational context hierarchy.
+limitations:
+  - The voice profile and termbase are configured programmatically; they are not exposed as schema parameters.
+  - Term matching is case-insensitive substring matching; it does not account for inflection or morphology.
+  - Evaluates source text.
+processingNotes:
+  - Operates on blocks; blocks with empty source text are skipped.
+  - Without a resolved profile or termbase, no findings are produced.
+  - Findings are stored on the block and a brand-voice annotation with an overall score is attached.
+examples:
+  - title: Add to a flow
+    description: The voice profile and termbase are supplied programmatically; reference the tool with an empty configuration.
+    config: |
+      {}

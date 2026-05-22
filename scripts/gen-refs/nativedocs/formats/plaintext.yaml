@@ -1,0 +1,38 @@
+# Native reference doc for the built-in `plaintext` format.
+# Schema source: core/formats/plaintext/config.go (Config).
+# Behaviour grounded in core/formats/plaintext/reader.go and spec.yaml,
+# mirroring Okapi's BasePlainTextFilter (okf_plaintext).
+description: Extract translatable text from plain `.txt` files, one block per line or per paragraph.
+overview: |
+  The plain text format reads generic `.txt` documents and emits the
+  text content as translatable blocks. It is the fallback for files that
+  carry no markup or structure of their own — release notes, prompts,
+  word lists, or any free-form text that needs translating.
+
+  By default the reader segments by line: each non-empty line becomes one
+  block, and blank lines and the original line endings (LF, CRLF, or bare
+  CR) are preserved as skeleton so the document round-trips after merge.
+  Switching to paragraph mode groups runs of lines separated by blank
+  lines into a single block, which suits prose where sentences span
+  several wrapped lines. This mirrors Okapi's plain-text filter.
+parameters:
+  segmentByLine:
+    description: Treat each line as a block, rather than each paragraph.
+    help: |
+      When enabled (the default), every non-empty line of the input
+      becomes its own block. Blank lines and line terminators are kept as
+      skeleton and are not extracted.
+
+      When disabled, the reader groups consecutive lines into paragraphs —
+      a block ends at a blank line. Use paragraph mode for prose that wraps
+      across multiple physical lines, where a sentence should stay in one
+      block rather than being split per line.
+    values: "`true` / `false` (default `true`)"
+processingNotes:
+  - LF, CRLF, and bare CR are all recognised as line terminators and preserved.
+  - Blank lines emit a non-translatable data part; they are never extracted as blocks.
+examples:
+  - title: Paragraph mode
+    description: Group wrapped lines into paragraph blocks instead of one block per line.
+    config: |
+      segmentByLine: false

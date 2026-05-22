@@ -1,0 +1,45 @@
+# Native reference doc for the built-in `diff-leverage` tool.
+# Schema source: core/tools/diffleverage.go (DiffLeverageConfig).
+description: Reuse translations from a previous document version for unchanged source blocks.
+overview: |
+  The **Diff Leverage** tool compares each block's source against the same
+  block in a previous version of the document and carries forward the previous
+  translation when the source is unchanged. It avoids re-translating content
+  that has not changed between versions, and tags each block with its diff
+  status — `new`, `unchanged`, `modified`, or `leveraged`. A target language is
+  required.
+
+  The previous version's source and target texts are supplied programmatically
+  (keyed by block ID); they are not part of the declarative schema. The two
+  schema-visible options control how the source comparison is performed.
+parameters:
+  caseSensitive:
+    description: Compare source texts case-sensitively.
+    help: |
+      When enabled, two sources must match exactly, including letter case, to
+      count as unchanged. When disabled, the comparison ignores case.
+    values: "`true` / `false` (default `true`)"
+  fuzzyMatch:
+    description: Carry forward translations for closely similar sources.
+    help: |
+      When enabled, a changed source that is sufficiently similar to the
+      previous version (above an internal similarity threshold) still reuses the
+      previous translation and is tagged `leveraged` with a similarity score.
+      When disabled, only exact matches are reused.
+    values: "`true` / `false` (default `false`)"
+limitations:
+  - Requires a target language and a previous-version corpus (supplied programmatically); the previous texts are not configurable via the schema.
+  - Fuzzy matching uses a fixed internal similarity threshold.
+processingNotes:
+  - Operates on translatable blocks only; non-translatable blocks pass through unchanged.
+  - Each block is tagged with a diff-status property; leveraged fuzzy matches also record a similarity score.
+examples:
+  - title: Reuse exact matches only
+    description: Carry forward translations where the source is identical.
+    config: |
+      caseSensitive: true
+  - title: Allow fuzzy leverage
+    description: Also reuse translations for closely similar sources.
+    config: |
+      fuzzyMatch: true
+      caseSensitive: false

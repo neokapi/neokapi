@@ -1,0 +1,38 @@
+# Native reference doc for the built-in `bom-convert` tool.
+# Schema source: core/tools/bomconvert.go (BOMConvertConfig).
+description: Add or remove the Unicode byte-order mark (BOM) on document layers.
+overview: |
+  The **BOM Convert** tool controls whether the output document carries a
+  Unicode byte-order mark. It operates on layer-start parts: when a layer
+  begins, the tool sets that layer's `HasBOM` flag, and the writer honours it
+  when serializing the document.
+
+  Use it to add a BOM where a downstream consumer expects one, or to strip a
+  BOM that would otherwise interfere with parsing. The tool changes only the
+  BOM flag on layers; it does not alter block text.
+parameters:
+  addBOM:
+    description: Add the BOM when true; remove it when false.
+    help: |
+      When enabled, the document layer is marked to be written with a Unicode
+      BOM. When disabled, the layer is marked to be written without one.
+    values: "`true` / `false` (default `false`)"
+  alsoNonUTF8:
+    description: Also handle the BOM on UTF-16 documents, not only UTF-8.
+    help: |
+      By default the BOM handling targets UTF-8 documents. Enable this to also
+      apply the BOM setting to UTF-16 encoded files.
+    values: "`true` / `false` (default `false`)"
+processingNotes:
+  - Operates on layer-start parts; the layer's BOM flag is set and the writer applies it.
+  - Block, data, and media parts pass through unchanged.
+examples:
+  - title: Remove the BOM
+    description: Mark the document to be written without a byte-order mark.
+    config: |
+      addBOM: false
+  - title: Add a BOM, including UTF-16
+    description: Ensure a BOM is present on both UTF-8 and UTF-16 output.
+    config: |
+      addBOM: true
+      alsoNonUTF8: true

@@ -7,22 +7,19 @@
  * a `ToolConfig` / `ConfigEditor`, and a side-by-side compare panel.
  */
 import { useState } from "react";
-import { SchemaForm, Button, type ComponentSchema } from "@neokapi/ui-primitives";
+import { SchemaForm, Button } from "@neokapi/ui-primitives";
 
-import formatSchemas from "../fixtures/format-schemas.json";
-import toolSchemas from "../fixtures/tool-schemas.json";
+import { formatSchemas, toolSchemas, type SchemaEntry } from "./reference-data";
 
 export type SchemaSource = "builtIn" | "bridge";
 
-type SchemaEntry = ComponentSchema & { "x-name": string; "x-source": string };
-
 const tools = {
-  builtIn: toolSchemas.builtIn as unknown as SchemaEntry[],
-  bridge: toolSchemas.bridge as unknown as SchemaEntry[],
+  builtIn: toolSchemas.builtIn,
+  bridge: toolSchemas.bridge,
 };
 const formats = {
-  builtIn: formatSchemas.builtIn as unknown as SchemaEntry[],
-  bridge: formatSchemas.bridge as unknown as SchemaEntry[],
+  builtIn: formatSchemas.builtIn,
+  bridge: formatSchemas.bridge,
 };
 
 function findIn(pool: SchemaEntry[], name: string): SchemaEntry | undefined {

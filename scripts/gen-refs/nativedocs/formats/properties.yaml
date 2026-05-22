@@ -1,0 +1,111 @@
+# Native reference doc for the built-in `properties` format.
+# Schema source: core/formats/properties/config.go (Config) + schema.go.
+# Mirrors the Okapi okf_properties filter.
+description: Extract and reinsert translatable values from Java .properties files, with key filtering and escape handling.
+overview: |
+  The **Java Properties** format reads `.properties` resource bundles,
+  extracts the value of each entry as a translatable block, and writes the
+  translations back while preserving keys, comments, and layout. It is the
+  standard format for Java application and library localization.
+
+  Each line is a `key=value` (or `key:value`) entry; comment lines begin with
+  `#` or `!`. By default every value is extracted. You can restrict extraction
+  to entries whose keys match a pattern, treat comments as translator notes,
+  retain or resolve Java escape sequences, and control non-ASCII escaping in
+  the output.
+parameters:
+  separator:
+    description: Key/value separator character.
+    help: |
+      The character separating a key from its value, typically `=` or `:`.
+      Whitespace is permitted around the separator per the properties format.
+    values: Single character (default `=`)
+  useKeyCondition:
+    description: Enable key-based extraction filtering.
+    help: |
+      When enabled, entries are filtered for extraction based on the
+      `keyCondition` regular expression and the `extractOnlyMatchingKey`
+      direction. When disabled (the default), every entry is extracted.
+    values: "`true` / `false` (default `false`)"
+  keyCondition:
+    description: Regex tested against property keys.
+    help: |
+      A regular expression matched against entry keys. Combined with
+      `extractOnlyMatchingKey` to decide which entries are extracted. Only
+      consulted when `useKeyCondition` is enabled.
+    values: "Regular expression (default `.*text.*`)"
+    dependsOn:
+      - property: useKeyCondition
+        condition: only consulted when key filtering is enabled
+    examples:
+      - "`.*text.*` — match keys containing the substring `text`"
+  extractOnlyMatchingKey:
+    description: Direction of the key filter.
+    help: |
+      When enabled (the default), only entries whose keys match `keyCondition`
+      are extracted. When disabled, matching keys are excluded and all others
+      are extracted.
+    values: "`true` / `false` (default `true`)"
+    dependsOn:
+      - property: useKeyCondition
+        condition: only consulted when key filtering is enabled
+  extraComments:
+    description: Recognize additional comment markers.
+    help: |
+      When enabled, semicolon (`;`) and double-slash (`//`) comment styles are
+      recognized in addition to the standard `#` and `!` markers.
+    values: "`true` / `false` (default `false`)"
+  commentsAreNotes:
+    description: Treat comments as translator notes.
+    help: |
+      When enabled (the default), a comment is attached as a translator note
+      to the entry that follows it. Disable it to keep comments purely as
+      non-translatable skeleton.
+    values: "`true` / `false` (default `true`)"
+  useJavaEscapes:
+    description: Retain Java escape sequences in extracted text.
+    help: |
+      When enabled, Java property escape sequences (`\:`, `\=`, `\#`, `\!`)
+      are kept verbatim in the extracted text instead of being resolved to
+      their literal characters. By default they are resolved.
+    values: "`true` / `false` (default `false`)"
+  escapeExtendedChars:
+    description: Escape non-ASCII characters in output.
+    help: |
+      When enabled (the default), non-ASCII characters are written using
+      `\uXXXX` notation, matching the historically ASCII-only `.properties`
+      encoding. Disable it to emit characters literally (for UTF-8 bundles).
+    values: "`true` / `false` (default `true`)"
+  useCodeFinder:
+    description: Enable regex-based inline-code detection.
+    help: |
+      Enables regex-based detection of inline codes within property values.
+      The patterns are supplied via `codeFinderRules`.
+    values: "`true` / `false` (default `false`)"
+  codeFinderRules:
+    description: Regex patterns that match inline codes within values.
+    help: |
+      An array of regular expressions; text matching any of them is treated
+      as an inline code (for example a `{0}`-style message-format argument)
+      rather than translatable words. Only used when `useCodeFinder` is
+      enabled.
+    values: Array of regular expressions (default empty)
+    dependsOn:
+      - property: useCodeFinder
+        condition: must be enabled for these patterns to apply
+limitations:
+  - The key filter is a single regex applied to each key; there is no per-pattern routing of values to different handlers.
+processingNotes:
+  - Each entry's value becomes a translatable block; keys, separators, and comments form the non-translatable skeleton.
+  - Multi-line values continued with a trailing backslash are joined per the properties format.
+examples:
+  - title: Translate only label keys
+    description: Extract only entries whose keys contain "label".
+    config: |
+      useKeyCondition: true
+      keyCondition: ".*label.*"
+      extractOnlyMatchingKey: true
+  - title: UTF-8 output
+    description: Emit characters literally instead of \uXXXX escapes.
+    config: |
+      escapeExtendedChars: false

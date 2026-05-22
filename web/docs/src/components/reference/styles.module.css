@@ -1,0 +1,507 @@
+/* Reference pages (/formats, /tools). Card chrome uses Infima variables so it
+ * blends with the docs theme; the interactive SchemaForm inside renders with
+ * its own Tailwind tokens (scoped via the .kapi-reference wrapper). */
+
+/* ── Toolbar ───────────────────────────────────────────────── */
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.search {
+  flex: 1 1 240px;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--ifm-color-emphasis-300);
+  border-radius: var(--ifm-global-radius);
+  background: var(--ifm-background-color);
+  color: var(--ifm-font-color-base);
+  font-size: 0.9rem;
+}
+
+.filterGroup {
+  display: inline-flex;
+  border: 1px solid var(--ifm-color-emphasis-300);
+  border-radius: var(--ifm-global-radius);
+  overflow: hidden;
+}
+
+.filterButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.45rem 0.75rem;
+  border: none;
+  border-right: 1px solid var(--ifm-color-emphasis-200);
+  background: var(--ifm-background-color);
+  color: var(--ifm-color-emphasis-700);
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.filterButton:last-child {
+  border-right: none;
+}
+
+.filterButton:hover {
+  background: var(--ifm-color-emphasis-100);
+}
+
+.filterButtonActive {
+  background: var(--ifm-color-primary);
+  color: var(--ifm-color-primary-contrast-foreground, #fff);
+}
+
+.filterCount {
+  font-size: 0.72rem;
+  padding: 0.05rem 0.35rem;
+  border-radius: 999px;
+  background: var(--ifm-color-emphasis-200);
+  color: var(--ifm-color-emphasis-700);
+}
+
+.filterButtonActive .filterCount {
+  background: rgba(255, 255, 255, 0.25);
+  color: #fff;
+}
+
+.resultCount {
+  font-size: 0.82rem;
+  color: var(--ifm-color-emphasis-500);
+  margin-bottom: 1rem;
+}
+
+/* ── List & categories ─────────────────────────────────────── */
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.categorySection {
+  margin-bottom: 1.5rem;
+}
+
+.categoryHeading {
+  font-size: 0.9rem;
+  text-transform: capitalize;
+  letter-spacing: 0.02em;
+  color: var(--ifm-color-emphasis-700);
+  border-bottom: 1px solid var(--ifm-color-emphasis-200);
+  padding-bottom: 0.4rem;
+  margin-bottom: 0.75rem;
+}
+
+.empty {
+  font-size: 0.9rem;
+  color: var(--ifm-color-emphasis-500);
+  font-style: italic;
+}
+
+/* ── Card ──────────────────────────────────────────────────── */
+.card {
+  border: 1px solid var(--ifm-color-emphasis-200);
+  border-radius: var(--ifm-card-border-radius);
+  background: var(--ifm-card-background-color);
+  overflow: hidden;
+  transition: border-color 0.15s;
+}
+
+.card:hover {
+  border-color: var(--ifm-color-emphasis-300);
+}
+
+.cardExpanded {
+  border-color: var(--ifm-color-primary);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border: none;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  color: var(--ifm-font-color-base);
+  font: inherit;
+}
+
+.header:hover {
+  background: var(--ifm-color-emphasis-100);
+}
+
+.chevron {
+  color: var(--ifm-color-emphasis-400);
+  font-size: 0.7rem;
+  flex-shrink: 0;
+  width: 12px;
+  text-align: center;
+  transition: transform 0.15s;
+}
+
+.chevronOpen {
+  transform: rotate(90deg);
+}
+
+.name {
+  font-weight: 600;
+  font-size: 1rem;
+  min-width: 130px;
+  flex-shrink: 0;
+}
+
+.meta {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  flex: 1;
+}
+
+.paramCount {
+  font-size: 0.75rem;
+  color: var(--ifm-color-emphasis-400);
+  margin-left: auto;
+  white-space: nowrap;
+}
+
+/* Badges */
+.sourceBadge {
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  padding: 0.12rem 0.4rem;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.sourceBuiltin {
+  background: color-mix(in srgb, var(--ifm-color-primary) 14%, transparent);
+  color: var(--ifm-color-primary-darker);
+}
+
+.sourceOkapi {
+  background: color-mix(in srgb, #8b5cf6 16%, transparent);
+  color: #6d28d9;
+}
+
+[data-theme="dark"] .sourceBuiltin {
+  color: var(--ifm-color-primary-lighter);
+}
+
+[data-theme="dark"] .sourceOkapi {
+  background: color-mix(in srgb, #a78bfa 22%, transparent);
+  color: #c4b5fd;
+}
+
+.tag {
+  font-family: var(--ifm-font-family-monospace);
+  font-size: 0.74rem;
+  padding: 0.1rem 0.4rem;
+  border-radius: 3px;
+  background: var(--ifm-color-emphasis-100);
+  color: var(--ifm-color-emphasis-700);
+}
+
+.cap {
+  font-size: 0.68rem;
+  padding: 0.1rem 0.35rem;
+  border-radius: 3px;
+  text-transform: uppercase;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+}
+
+.capReader {
+  background: color-mix(in srgb, var(--ifm-color-primary) 15%, transparent);
+  color: var(--ifm-color-primary-darker);
+}
+
+.capWriter {
+  background: color-mix(in srgb, #6366f1 15%, transparent);
+  color: #4f46e5;
+}
+
+[data-theme="dark"] .capReader {
+  color: var(--ifm-color-primary-lighter);
+}
+
+[data-theme="dark"] .capWriter {
+  background: color-mix(in srgb, #818cf8 20%, transparent);
+  color: #a5b4fc;
+}
+
+.category {
+  font-size: 0.74rem;
+  text-transform: capitalize;
+  padding: 0.1rem 0.45rem;
+  border-radius: 3px;
+  background: var(--ifm-color-emphasis-100);
+  color: var(--ifm-color-emphasis-700);
+}
+
+.io {
+  font-family: var(--ifm-font-family-monospace);
+  font-size: 0.74rem;
+  color: var(--ifm-color-emphasis-600);
+}
+
+/* ── Card body ─────────────────────────────────────────────── */
+.body {
+  padding: 0.75rem 1rem 1rem;
+  border-top: 1px solid var(--ifm-color-emphasis-100);
+}
+
+.description {
+  font-size: 0.9rem;
+  color: var(--ifm-color-emphasis-700);
+  margin: 0 0 0.75rem;
+}
+
+.metaGrid {
+  display: flex;
+  gap: 2rem;
+  flex-wrap: wrap;
+  margin: 0.75rem 0 1rem;
+}
+
+.metaItem {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.metaLabel {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--ifm-color-emphasis-500);
+}
+
+.metaValue {
+  font-size: 0.82rem;
+  color: var(--ifm-color-emphasis-700);
+}
+
+.metaValueMono {
+  font-family: var(--ifm-font-family-monospace);
+  font-size: 0.82rem;
+  color: var(--ifm-color-emphasis-700);
+}
+
+.sectionTitle {
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--ifm-color-emphasis-500);
+  margin-bottom: 0.5rem;
+}
+
+/* Presets */
+.presetSection {
+  margin-bottom: 1rem;
+}
+
+.presetButtons {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.presetButton {
+  font-size: 0.8rem;
+  padding: 0.3rem 0.6rem;
+  border: 1px solid var(--ifm-color-emphasis-300);
+  border-radius: var(--ifm-global-radius);
+  background: var(--ifm-background-color);
+  color: var(--ifm-font-color-base);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.presetButton:hover {
+  border-color: var(--ifm-color-primary);
+  color: var(--ifm-color-primary);
+}
+
+.presetButtonActive {
+  border-color: var(--ifm-color-primary);
+  background: color-mix(in srgb, var(--ifm-color-primary) 10%, transparent);
+  color: var(--ifm-color-primary);
+  font-weight: 600;
+}
+
+/* Form section */
+.formSection {
+  margin-bottom: 1rem;
+}
+
+.form {
+  border: 1px solid var(--ifm-color-emphasis-200);
+  border-radius: var(--ifm-global-radius);
+  padding: 0.85rem 1rem;
+  background: var(--ifm-background-surface-color);
+  margin-bottom: 0.75rem;
+}
+
+.formFallback {
+  font-size: 0.85rem;
+  color: var(--ifm-color-emphasis-500);
+  padding: 0.5rem 0;
+}
+
+.outputHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+}
+
+.outputActions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.copyButton,
+.resetButton {
+  font-size: 0.75rem;
+  padding: 0.2rem 0.55rem;
+  border: 1px solid var(--ifm-color-emphasis-300);
+  border-radius: var(--ifm-global-radius);
+  background: var(--ifm-background-color);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.copyButton {
+  color: var(--ifm-font-color-base);
+}
+
+.copyButton:hover {
+  border-color: var(--ifm-color-primary);
+  color: var(--ifm-color-primary);
+}
+
+.resetButton {
+  color: var(--ifm-color-emphasis-600);
+}
+
+.resetButton:hover {
+  border-color: var(--ifm-color-danger);
+  color: var(--ifm-color-danger);
+}
+
+.yaml {
+  background: var(--ifm-color-emphasis-100);
+  border-radius: var(--ifm-global-radius);
+  padding: 0.75rem 1rem;
+  font-family: var(--ifm-font-family-monospace);
+  font-size: 0.8rem;
+  line-height: 1.5;
+  overflow-x: auto;
+  white-space: pre;
+  color: var(--ifm-font-color-base);
+  margin: 0;
+}
+
+.noConfig {
+  font-size: 0.85rem;
+  color: var(--ifm-color-emphasis-400);
+  font-style: italic;
+  padding: 0.25rem 0 0.75rem;
+}
+
+/* Doc sections */
+.docSection {
+  margin-top: 1rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--ifm-color-emphasis-100);
+}
+
+.example {
+  margin-bottom: 0.85rem;
+}
+
+.exampleTitle {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--ifm-font-color-base);
+  margin-bottom: 0.3rem;
+}
+
+.noteList {
+  margin: 0;
+  padding-left: 1.1rem;
+  font-size: 0.86rem;
+  color: var(--ifm-color-emphasis-700);
+}
+
+.noteList li {
+  margin-bottom: 0.3rem;
+}
+
+.wikiLink {
+  margin-top: 1rem;
+  font-size: 0.85rem;
+}
+
+/* Inline markdown (overview, help, descriptions) */
+.markdown {
+  font-size: 0.9rem;
+  color: var(--ifm-color-emphasis-800);
+  line-height: 1.55;
+}
+
+.markdown p {
+  margin: 0 0 0.6rem;
+}
+
+.markdown p:last-child {
+  margin-bottom: 0;
+}
+
+.markdown code {
+  font-family: var(--ifm-font-family-monospace);
+  font-size: 0.85em;
+  background: var(--ifm-color-emphasis-100);
+  padding: 0.08rem 0.3rem;
+  border-radius: 3px;
+}
+
+.markdown ul,
+.markdown ol {
+  margin: 0 0 0.6rem;
+  padding-left: 1.2rem;
+}
+
+.markdown a {
+  color: var(--ifm-link-color);
+}
+
+/* ── Responsive ────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .header {
+    flex-wrap: wrap;
+  }
+
+  .name {
+    min-width: auto;
+  }
+
+  .paramCount {
+    margin-left: 0;
+  }
+
+  .metaGrid {
+    gap: 1rem;
+  }
+}

@@ -1,0 +1,71 @@
+# Native reference doc for the built-in `fullwidth-convert` tool.
+# Schema source: core/tools/fullwidthconvert.go (FullWidthConvertConfig).
+description: Convert between half-width and full-width Latin characters and punctuation for CJK content.
+overview: |
+  The **Full Width Convert** tool maps characters between their half-width and
+  full-width forms. In CJK text, ASCII letters, digits, and punctuation are
+  often written in full-width forms so they align visually with ideographs;
+  this tool converts in either direction. The core mapping covers ASCII
+  printable characters (`!`–`~`, full-width range `！`–`～`) and the space
+  (regular space ↔ ideographic space).
+parameters:
+  mode:
+    description: The conversion direction.
+    help: |
+      `to-half` converts full-width characters to their half-width (ASCII)
+      forms; `to-full` converts half-width characters to full-width forms.
+    values: "`to-half` / `to-full` (default `to-half`)"
+  applySource:
+    description: Apply the conversion to source text.
+    help: When enabled, the source text is converted.
+    values: "`true` / `false` (default `false`)"
+  applyTarget:
+    description: Apply the conversion to target text.
+    help: |
+      When enabled, the target text is converted for the configured locale.
+      Only existing targets are touched.
+    values: "`true` / `false` (default `true`)"
+    dependsOn:
+      - property: targetLocale
+        condition: required when applyTarget is enabled
+  targetLocale:
+    description: Target locale for processing.
+    help: The locale whose target text is converted. Required when `applyTarget` is enabled.
+    values: "BCP-47 locale"
+    dependsOn:
+      - property: applyTarget
+        condition: must be enabled for this to take effect
+  includeSLA:
+    description: Also convert Squared Latin Abbreviations.
+    help: |
+      When enabled, Squared Latin Abbreviations from the CJK Compatibility
+      block are also converted to non-CJK character sequences.
+    values: "`true` / `false` (default `false`)"
+  includeLLS:
+    description: Also convert Letter-Like Symbols.
+    help: |
+      When enabled, characters from the Letter-Like Symbols block are also
+      converted to character sequences.
+    values: "`true` / `false` (default `false`)"
+  includeKatakana:
+    description: Also convert Japanese Katakana.
+    help: |
+      When enabled, Japanese Katakana and associated punctuation are also
+      converted to their half-width forms.
+    values: "`true` / `false` (default `false`)"
+processingNotes:
+  - Operates on translatable blocks only; non-translatable blocks pass through unchanged.
+  - The core mapping covers ASCII printable characters and the space; the extended-block toggles add further character ranges.
+examples:
+  - title: Convert full-width to half-width
+    description: Normalize full-width Latin characters in the target to ASCII.
+    config: |
+      mode: to-half
+      applyTarget: true
+      targetLocale: ja-JP
+  - title: Convert half-width to full-width
+    description: Render ASCII characters in their full-width forms.
+    config: |
+      mode: to-full
+      applyTarget: true
+      targetLocale: ja-JP

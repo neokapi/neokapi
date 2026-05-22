@@ -1,0 +1,54 @@
+# Native reference doc for the built-in `xslt-transform` tool.
+# Schema source: core/tools/xslttransform.go (XSLTTransformConfig).
+description: Apply regex-based tag and text transformation rules to block text.
+overview: |
+  The **XSLT Transform** tool applies a sequence of regular-expression
+  transformation rules to block text. Each rule has a pattern and a replacement
+  (with `$1`, `$2` backreference support), and the rules are applied in order.
+  Since Go has no built-in XSLT engine, this provides a lightweight,
+  regex-based equivalent for tag and text rewriting. It does not execute XSLT
+  stylesheets; for stylesheet-based transforms use the okapi-bridge transform
+  step.
+
+  By default the rules are applied to source text. When the rules list is
+  empty, blocks pass through unchanged.
+parameters:
+  rules:
+    description: The regex transformation rules to apply, in order.
+    help: |
+      A list of rules, each with a `pattern` (a regular expression) and a
+      `replace` string supporting `$1`, `$2` backreferences. Rules are applied
+      sequentially to the text.
+    values: "array of {pattern, replace} objects"
+  applySource:
+    description: Apply the transformation to source text.
+    help: |
+      When enabled, the rules are applied to the source text. If neither source
+      nor target is set, source is used by default.
+    values: "`true` / `false` (default `true`)"
+  applyTarget:
+    description: Apply the transformation to target text.
+    help: |
+      When enabled, the rules are applied to the target text of every target
+      locale present on the block.
+    values: "`true` / `false` (default `false`)"
+  passOnOutput:
+    description: Pass the transformed output to subsequent pipeline steps.
+    help: |
+      When enabled, the transformation output is forwarded to later steps in
+      the pipeline.
+    values: "`true` / `false` (default `true`)"
+limitations:
+  - Transformation is regex-based; full XSLT stylesheets are not executed.
+  - Patterns use Go's RE2 syntax, which does not support backreferences or lookaround within the match.
+processingNotes:
+  - Operates on translatable blocks only; non-translatable blocks pass through unchanged.
+  - With no rules configured, blocks pass through unchanged.
+examples:
+  - title: Rewrite a tag in source text
+    description: Replace one element name with another using a regex rule.
+    config: |
+      applySource: true
+      rules:
+        - pattern: "<b>(.*?)</b>"
+          replace: "<strong>$1</strong>"

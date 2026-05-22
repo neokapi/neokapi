@@ -1,0 +1,31 @@
+# Native reference doc for the built-in `mosestext` format.
+# Schema source: core/formats/mosestext/{reader.go,writer.go,inlinetext.go,config.go,spec.yaml}.
+# Upstream analogue: Okapi MosesTextFilter (InlineText). The upstream filter
+# ships an empty parameter set and the native Config exposes no JSON Schema
+# (Config does not implement SchemaProvider), so no `parameters`/`examples`
+# blocks are authored.
+description: Read and write Moses InlineText files — line-aligned corpora for statistical MT.
+overview: |
+  Moses InlineText is the line-oriented format used by the Moses statistical
+  machine-translation system. Each line in the file is one text unit, which
+  makes the format a natural fit for line-aligned source/target corpora.
+  Inline codes are represented with XLIFF-flavoured markup: `<g>` paired tags,
+  `<x/>` placeholders, `<bx/>`/`<ex/>` paired open/close codes (all carrying
+  numeric ids), and `<lb/>` for line breaks within an entry.
+
+  neokapi reads and writes Moses InlineText. The reader walks the input
+  line by line — carriage return, line feed, and CRLF all act as line
+  separators — and emits each non-empty line as one translatable Block with
+  whitespace preserved; empty lines flow through as non-translatable data. It
+  also decodes the Moses inline markup, parsing `<g>`/`<x/>`/`<bx/>`/`<ex/>`
+  into inline codes and `<lb/>` into line breaks so the surrounding text
+  reaches the Block as translatable content while the markup survives as
+  opaque codes. This format has no configurable JSON schema in this reference.
+limitations:
+  - Each line is treated as an independent text unit; there is no document-level structure beyond line ordering.
+  - Empty lines carry no translatable content and pass through as data.
+processingNotes:
+  - One translatable Block per non-empty line; CR, LF, and CRLF all act as line separators and whitespace is preserved.
+  - "Decodes Moses inline markup — `<g>`, `<x/>`, `<bx/>`, `<ex/>` into inline codes and `<lb/>` into line breaks."
+  - Empty lines flow through as non-translatable data.
+wikiUrl: "https://www.statmt.org/moses/"

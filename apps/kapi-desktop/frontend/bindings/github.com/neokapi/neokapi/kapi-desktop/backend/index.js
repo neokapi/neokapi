@@ -14,6 +14,8 @@ export {
     AnnotateResult,
     AppSettings,
     AvailablePlugin,
+    BrowsePathFilter,
+    BrowsePathRequest,
     CollectionStatus,
     ConceptDTO,
     CustomLocale,

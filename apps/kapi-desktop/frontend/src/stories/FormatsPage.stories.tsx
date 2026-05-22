@@ -1,9 +1,11 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { FormatsPage } from "../components/FormatsPage";
-import pluginDocs from "./fixtures/plugin-docs.json";
-import formatList from "./fixtures/format-list.json";
-import formatSchemas from "./fixtures/format-schemas.json";
-import presetsData from "./fixtures/presets.json";
+import {
+  pluginDocs,
+  formatList,
+  formatSchemas,
+  presets as presetsData,
+} from "./_lib/reference-data";
 import type { FormatInfo, PluginDocs } from "../types/api";
 import type { ComponentSchema } from "@neokapi/ui-primitives";
 
@@ -11,11 +13,10 @@ const docs = pluginDocs as unknown as PluginDocs;
 const formats = [
   ...formatList.builtIn,
   ...formatList.bridge.map((f) => ({ ...f, source: "okapi-bridge" })),
-] as FormatInfo[];
+] as unknown as FormatInfo[];
 
 // Build schema lookup by format name
-type SE = ComponentSchema & { "x-name": string };
-const allSchemas = [...formatSchemas.builtIn, ...formatSchemas.bridge] as unknown as SE[];
+const allSchemas = [...formatSchemas.builtIn, ...formatSchemas.bridge];
 const schemas: Record<string, ComponentSchema> = {};
 for (const s of allSchemas) {
   schemas[s["x-name"]] = s;
@@ -79,7 +80,7 @@ export const Default: Story = {
 export const BuiltInOnly: Story = {
   name: "Built-in Only",
   args: {
-    formats: formatList.builtIn as FormatInfo[],
+    formats: formatList.builtIn as unknown as FormatInfo[],
     schemas,
     presets,
   },

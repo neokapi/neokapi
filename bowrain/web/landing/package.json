@@ -4,10 +4,12 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc -b && vite build",
-    "lint": "eslint .",
-    "preview": "vite preview"
+    "dev": "vp dev",
+    "build": "vpx tsc && vp build",
+    "preview": "vp preview",
+    "lint": "vp lint",
+    "check": "vp check",
+    "fmt": "vp fmt"
   },
   "dependencies": {
     "lucide-react": "^1.14.0",
@@ -15,19 +17,13 @@
     "react-dom": "^19.2.4"
   },
   "devDependencies": {
-    "@eslint/js": "^10.0.1",
     "@tailwindcss/vite": "^4.2.2",
     "@types/node": "^25.6.0",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.1",
-    "eslint": "^9.39.4",
-    "eslint-plugin-react-hooks": "^7.0.1",
-    "eslint-plugin-react-refresh": "^0.5.2",
-    "globals": "^17.6.0",
     "tailwindcss": "^4.2.2",
     "typescript": "~5.9.3",
-    "typescript-eslint": "^8.59.2",
-    "vite": "^8.0.10"
+    "vite-plus": "^0.1.20"
   }
 }

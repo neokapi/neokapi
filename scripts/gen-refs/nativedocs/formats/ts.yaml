@@ -1,0 +1,38 @@
+# Native reference doc for the built-in `ts` format.
+# Source: core/formats/ts/{reader.go,writer.go,config.go,spec.yaml}.
+# Mirrors Okapi's TS filter (okf_ts). No configurable parameters today.
+description: Read and write Qt Linguist TS (.ts) files, the bilingual XML used by Qt's lupdate and lrelease.
+overview: |
+  Qt Linguist TS is the bilingual XML format used by Qt's `lupdate` and
+  `lrelease` tools to carry UI translations. A `<TS>` document groups
+  one or more `<context>` elements; each context groups `<message>`
+  entries with a `<source>` and a `<translation>`. Translation state is
+  encoded on the `<translation>` element's `type` attribute — no type
+  means approved, `unfinished` means pending review, and `obsolete`
+  means the entry is unused. Plural messages (`numerus="yes"`) carry one
+  `<numerusform>` per locale plural form. Inline non-XML bytes appear as
+  `<byte value="…"/>` elements.
+
+  The reader extracts each message's source as a translatable block,
+  matched with its existing translation, and preserves the context and
+  message structure for the writer. The format is detected by sniffing
+  for a `<TS>` … `</TS>` document rather than by the `.ts` extension,
+  which collides with TypeScript.
+limitations:
+  - The format is not auto-detected by the `.ts` file extension (it conflicts with TypeScript); detection relies on sniffing the `<TS>` root element or an explicit format declaration.
+  - Non-XML bytes (`<byte value="…"/>` elements) are surfaced as inline placeholder runs and preserved through exchange; they are not decoded to their raw character equivalents on read.
+  - There are no configurable parameters; behaviour follows the default contract.
+processingNotes:
+  - One translatable block per `<message>`; context and message structure round-trip as skeleton.
+  - Plural messages carry one `<numerusform>` per locale plural form.
+  - Translation state (approved / unfinished / obsolete) is read from the `<translation>` `type` attribute.
+examples:
+  - title: Translate a Qt UI catalogue
+    description: |
+      No configuration is required. Declare the format to extract each
+      `<message>` source and merge translations back into the `.ts`
+      document.
+    config: |
+      format:
+        name: ts
+wikiUrl: https://doc.qt.io/qt-6/linguist-ts-file-format.html

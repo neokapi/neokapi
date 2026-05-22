@@ -1,0 +1,50 @@
+# Annotated template for a native reference doc sidecar.
+# Copy to formats/<id>.yaml or tools/<id>.yaml and fill in. Delete unused keys.
+# Every statement must be grounded in the code/spec — see README.md.
+
+# Optional. Overrides the registry display name on the card.
+displayName: ""
+
+# One-line summary shown on the card and matched in search. Required for parity.
+description: ""
+
+# Markdown. The lead explainer: what the format/tool is, what it extracts or
+# does, and when to reach for it. A paragraph or two.
+overview: |
+  ...
+
+# Per-parameter docs. Keys are schema property paths (dotted for nested
+# objects, e.g. `inlineCodes.enabled`). `help` is rendered as paramDocs in the
+# live config form.
+parameters:
+  exampleParam:
+    description: One-line description of the parameter.
+    help: |
+      Markdown explanation: what it controls, the effect of each value,
+      and any gotchas.
+    values: "`true` / `false` (default `false`)" # allowed values / default
+    notes:
+      - Optional caveat or warning.
+    examples:
+      - "`foo` — matches ..."
+    dependsOn:
+      - property: otherParam
+        condition: must be enabled for this to take effect
+
+# Known limitations, one bullet each.
+limitations:
+  - ...
+
+# Behavioural notes (segmentation, part types handled, ordering).
+processingNotes:
+  - ...
+
+# Worked configuration examples. `config` is a fenced YAML snippet.
+examples:
+  - title: Short title
+    description: What this example demonstrates.
+    config: |
+      exampleParam: true
+
+# Optional upstream spec / reference link.
+wikiUrl: ""

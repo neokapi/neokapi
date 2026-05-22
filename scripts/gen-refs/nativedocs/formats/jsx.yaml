@@ -1,0 +1,38 @@
+# Native reference doc for the built-in `jsx` format.
+# Source: core/formats/jsx/{jsx.go,spec.yaml}; KLF wire schema in core/klf/README.md.
+# Native-only: reads/writes the Kapi Localization Format (.klf). No configurable parameters.
+description: Read and write the Kapi Localization Format (.klf), the JSON envelope for strings extracted from source code.
+overview: |
+  This format reads and writes the Kapi Localization Format (`.klf`), a
+  structured JSON envelope for translatable strings extracted from
+  source code such as JSX / React components. A KLF document is a
+  `kind: kapi-localization-format` envelope holding one or more
+  documents, each carrying blocks. Every block has a structured run
+  sequence — text plus placeholders, paired inline codes, plurals, and
+  selects.
+
+  On read, each KLF block becomes one translatable block. Its source
+  text is the flattened run sequence: placeholders contribute their
+  equivalent (wrapped in braces), paired codes elide their wrappers, and
+  plural forms collapse to the `other` branch. The block ID is carried
+  verbatim, and the full structured run graph travels alongside in an
+  annotation so the writer can reassemble the original document. The
+  writer reverses the process; a block that arrives without that
+  annotation (for example one inserted by an intermediate tool) is
+  written as a minimal text-only run sequence so the file stays
+  well-formed.
+limitations:
+  - This is a neokapi-specific exchange format; the okapi-bridge daemon ships no equivalent filter.
+  - Blocks that lose their structured-run annotation in the pipeline are written back as plain text, without the original placeholder or paired-code structure.
+processingNotes:
+  - One translatable block per KLF block; the block ID is preserved verbatim.
+  - Source text is the flattened run sequence — placeholders become brace-wrapped equivalents, paired codes elide their wrappers, plurals collapse to the `other` branch.
+  - Translator-facing context (file, component, element, JSX path, line, notes) and the structured runs travel in a block annotation for faithful round-tripping.
+examples:
+  - title: Round-trip a KLF document
+    description: |
+      No configuration is required. Declare the format to read a `.klf`
+      envelope and write it back after translation.
+    config: |
+      format:
+        name: jsx

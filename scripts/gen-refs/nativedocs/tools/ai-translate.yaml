@@ -1,0 +1,74 @@
+# Native reference doc for the built-in `ai-translate` tool.
+# Schema source: core/ai/tools/translate.go (AITranslateConfig).
+description: Translate block content using a configured LLM provider.
+overview: |
+  The **AI Translate** tool translates untranslated block content with a large
+  language model. It supports several providers (Anthropic, OpenAI, Gemini,
+  Azure OpenAI, Ollama) and writes the result as the target text, recording an
+  alternate-translation annotation with the originating provider. A target
+  language is required, and provider credentials are required for hosted
+  providers.
+
+  Blocks that contain inline codes are sent through a placeholder-preserving
+  prompt so tags survive translation, then reconstructed from the response.
+  Blocks can be translated one at a time or grouped into batches sent in a
+  single structured call; batches can run concurrently. When run with a session
+  cache, already-translated targets are reused and fresh translations are
+  written back, so repeat runs skip work already done.
+parameters:
+  provider:
+    description: The LLM provider to use.
+    help: |
+      Selects the backend. Hosted providers require an API key and a model;
+      Ollama runs locally. The available options are populated from the
+      provider registry.
+    values: "`anthropic` / `openai` / `gemini` / `azureopenai` / `ollama` (default `anthropic`)"
+  apiKey:
+    description: API key for the provider.
+    help: |
+      Credential for the chosen hosted provider. Required for hosted providers;
+      not needed for a local Ollama backend.
+    values: "string"
+  model:
+    description: The model name to request.
+    help: |
+      The provider-specific model identifier. When omitted, the provider's
+      default model is used.
+    values: "string"
+  skipMatched:
+    description: Skip blocks that already have a target translation.
+    help: |
+      When enabled, a block that already has a target for the locale is left
+      untouched, so only untranslated content is sent to the model.
+    values: "`true` / `false` (default `false`)"
+  batchSize:
+    description: Number of blocks per LLM call.
+    help: |
+      Blocks are grouped into batches of this size and translated in a single
+      structured call per batch. A value of 1 translates block by block.
+    values: "integer ≥ 1 (default `100`)"
+  batchConcurrency:
+    description: Number of batch calls to run in parallel.
+    help: |
+      How many batches are translated concurrently. A value of 0 or 1 runs
+      batches sequentially.
+    values: "integer ≥ 1 (default `1`)"
+limitations:
+  - Requires a target language and, for hosted providers, valid credentials.
+  - Hosted providers make network API calls; cost and latency scale with content volume.
+  - Session-cache reuse applies on the block-by-block path; the batched path writes overlays on output but does not pre-skip via the per-block cache.
+processingNotes:
+  - Operates on translatable blocks with non-empty source; other parts pass through unchanged.
+  - Blocks with inline codes are translated through a placeholder-preserving prompt and reconstructed from the response.
+  - Each translation is recorded as an alternate-translation annotation tagged with the provider.
+examples:
+  - title: Translate with Anthropic
+    description: Translate untranslated blocks using an Anthropic model.
+    config: |
+      provider: anthropic
+      model: claude-sonnet-4-5
+  - title: Translate only new content
+    description: Skip blocks that already have a translation.
+    config: |
+      provider: openai
+      skipMatched: true

@@ -1,0 +1,44 @@
+# Native reference doc for the built-in `properties-set` tool.
+# Schema source: core/tools/propertiesset.go (PropertiesSetConfig).
+description: Set or modify key-value properties on blocks.
+overview: |
+  The **Properties Set** tool writes a fixed set of key-value properties onto
+  blocks. Properties are metadata that travel with a block and can influence
+  downstream tools and writers. Use it to tag content — for example marking a
+  set of blocks with a workflow status or a routing hint.
+
+  At least one property must be configured. By default the tool overwrites
+  existing properties with the same key and applies only to translatable
+  blocks.
+parameters:
+  properties:
+    description: The key-value pairs to set on each block.
+    help: |
+      A map of property names to values. Every listed property is written onto
+      each processed block. At least one entry is required.
+    values: "object of string keys to string values (required)"
+  overwrite:
+    description: Overwrite existing properties with the same key.
+    help: |
+      When enabled, a property whose key already exists on the block is
+      replaced. When disabled, existing properties are kept and only missing
+      keys are added.
+    values: "`true` / `false` (default `true`)"
+  onlyTranslatable:
+    description: Only set properties on translatable blocks.
+    help: |
+      When enabled, non-translatable blocks are skipped. Disable it to set
+      properties on every block regardless of translatability.
+    values: "`true` / `false` (default `true`)"
+examples:
+  - title: Tag blocks with a status
+    description: Set a workflow property on every translatable block.
+    config: |
+      properties:
+        status: review
+  - title: Add metadata without overwriting
+    description: Only add a key when the block does not already have it.
+    config: |
+      properties:
+        origin: import
+      overwrite: false

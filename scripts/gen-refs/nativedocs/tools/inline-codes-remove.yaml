@@ -1,0 +1,65 @@
+# Native reference doc for the built-in `inline-codes-remove` tool.
+# Schema source: core/tools/inlinecodesremove.go (InlineCodesRemoveConfig).
+description: Strip inline-code runs (placeholders and paired codes) from segments, leaving plain text.
+overview: |
+  The **Inline Codes Remove** tool removes inline-code runs — placeholders and
+  paired open/close codes — from segment content, leaving the surrounding plain
+  text. It is useful when a downstream consumer wants the textual content
+  without markup, for example to build a plain-text reference or to feed a tool
+  that cannot handle coded text.
+
+  Removal recurses into structured plural and select constructs so inline codes
+  inside them are also stripped. By default it applies to the target (a target
+  locale is required) and includes non-translatable blocks. Line-break codes
+  can optionally be replaced with a space so adjacent words do not run together.
+parameters:
+  applySource:
+    description: Strip inline codes from source segments.
+    help: When enabled, inline-code runs are removed from the source segments.
+    values: "`true` / `false` (default `false`)"
+  applyTarget:
+    description: Strip inline codes from target segments.
+    help: |
+      When enabled, inline-code runs are removed from the target segments of the
+      configured locale.
+    values: "`true` / `false` (default `true`)"
+    dependsOn:
+      - property: targetLocale
+        condition: required when applyTarget is enabled
+  targetLocale:
+    description: Target locale for processing.
+    help: The locale whose target segments are processed. Required when `applyTarget` is enabled.
+    values: "BCP-47 locale"
+    dependsOn:
+      - property: applyTarget
+        condition: must be enabled for this to take effect
+  includeNonTranslatable:
+    description: Also strip codes from non-translatable blocks.
+    help: |
+      When enabled, the removal also applies to blocks marked non-translatable.
+      Disable it to leave non-translatable blocks untouched.
+    values: "`true` / `false` (default `true`)"
+  replaceWithSpace:
+    description: Replace line-break codes with a space instead of removing them.
+    help: |
+      When enabled, line-break-style placeholder codes are replaced with a
+      single space so that, for example, `foo<br/>bar` becomes `foo bar` rather
+      than `foobar`. Other inline codes are still removed entirely.
+    values: "`true` / `false` (default `false`)"
+limitations:
+  - At least one of applySource or applyTarget must be enabled.
+processingNotes:
+  - Removal recurses into plural and select constructs so codes inside them are stripped as well.
+  - Paired open/close codes are dropped while their inner text content is retained.
+examples:
+  - title: Strip codes from the target
+    description: Produce plain target text for a locale.
+    config: |
+      applyTarget: true
+      targetLocale: fr-FR
+  - title: Keep word boundaries at line breaks
+    description: Replace line-break codes with a space when stripping.
+    config: |
+      applyTarget: true
+      targetLocale: fr-FR
+      replaceWithSpace: true

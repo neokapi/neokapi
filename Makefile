@@ -502,9 +502,6 @@ kapi-i18n-pseudo-translate: kapi-i18n-generate bin/kapi ## Pseudo-translate buil
 
 kapi-i18n-translations: kapi-i18n-pseudo-translate ## Regenerate + pseudo-translate builtin metadata → MO
 
-storybook-fixtures: ## Generate Storybook fixtures from real format/tool data
-	@./scripts/gen-storybook-fixtures.sh
-
 flow-editor-deps: ## Install flow-editor dependencies
 	cd packages/flow-editor && vp install
 
@@ -644,8 +641,16 @@ fetch-docs-assets: ## Download legacy docs assets (transitional, until walkthrou
 
 # ── Generate (scripts at root) ──────────────────────────────────────────────
 
-generate-format-docs: ## Generate format reference JSON for the website
-	$(GO) run ./scripts/gen-format-docs
+# okapi-bridge plugin dir feeding the reference dataset. Override with
+# BRIDGE_PLUGIN=/path. Falls back to built-in-only when the dir is absent
+# (the generator warns rather than fails).
+BRIDGE_PLUGIN ?= $(ROOT_DIR)/../okapi-bridge/dist/plugin
+
+generate-reference-docs: ## Generate the unified format + tool reference dataset (built-in + okapi-bridge) → packages/reference-data/data
+	$(GO) run ./scripts/gen-refs $(if $(wildcard $(BRIDGE_PLUGIN)),-bridge $(BRIDGE_PLUGIN),)
+
+# Superseded by generate-reference-docs; kept as an alias for existing callers.
+generate-format-docs: generate-reference-docs
 
 # ── Documentation Site ──────────────────────────────────────────────────────
 
@@ -724,7 +729,7 @@ help: ## Show this help
         cover test-e2e test-e2e-kapi test-e2e-bowrain test-e2e-cloud test-e2e-dev \
         bench bench-build bench-generate bench-run bench-run-collection bench-run-all bench-versions \
         fetch-docs-assets \
-        generate-format-docs \
+        generate-format-docs generate-reference-docs \
         docs-deps docs-dev docs-build docs-serve \
         tools setup-remote gha-lint clean \
         _fw-fmt _fw-test _fw-test-fast _fw-test-unit _fw-test-race _fw-test-verbose _fw-test-integration \

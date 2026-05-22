@@ -1,0 +1,109 @@
+# Native reference doc for the built-in `csv` format.
+# Schema source: core/formats/csv/config.go (Config) + schema.go.
+# Mirrors the Okapi okf_table_csv filter (Table filter, CSV mode).
+description: Extract and reinsert translatable cells from CSV files, with column-based selection and quoting control.
+overview: |
+  The **CSV** format reads comma-separated value files, extracts selected
+  columns as translatable blocks, and writes the translations back into the
+  same rows. It handles quoted fields containing delimiters or newlines and
+  optional header rows. The same implementation backs the tab-separated TSV
+  format with a tab delimiter.
+
+  By default the first row is treated as a header and every data column is
+  translatable. You can restrict extraction to specific columns, designate key
+  columns that supply each block's ID, mark comment columns whose values
+  become notes, and tune the delimiter, quote character, and row offsets.
+parameters:
+  separator:
+    description: Field delimiter character.
+    help: |
+      The character separating fields — a comma for CSV, a tab for TSV.
+    values: Single character (default `,`)
+  textQualifier:
+    description: Quote character for fields with delimiters or newlines.
+    help: |
+      The character used to quote field values that contain the delimiter, a
+      newline, or the quote character itself.
+    values: Single character (default `"`)
+  hasHeader:
+    description: Treat the first row as a non-translatable header.
+    help: |
+      When enabled (the default), the first row is treated as column headers
+      and is not extracted. Disable it for files whose data begins on the
+      first row.
+    values: "`true` / `false` (default `true`)"
+  columnNamesRow:
+    description: 1-based row number containing column names.
+    help: |
+      The 1-based row that holds the column names. `0` means auto-detect: row
+      1 is used when `hasHeader` is enabled.
+    values: Integer; `0` = auto-detect (default `0`)
+  valuesStartRow:
+    description: 1-based row where data values begin.
+    help: |
+      The 1-based row from which data values are read. `0` means auto-detect:
+      the row after the header, or row 1 when there is no header.
+    values: Integer; `0` = auto-detect (default `0`)
+  translatableColumns:
+    description: 0-based indices of columns to extract.
+    help: |
+      The 0-based column indices whose cells are extracted as translatable
+      content. When empty, every column is treated as translatable.
+    values: Array of 0-based integers (default empty — all columns)
+    examples:
+      - "`[1, 2]` — extract the second and third columns"
+  keyColumns:
+    description: 0-based indices of columns providing the block ID.
+    help: |
+      The 0-based column indices whose values supply each block's ID
+      (source/record identifier). When several are given, their values are
+      joined with `.`. When empty, row-based IDs are used.
+    values: Array of 0-based integers (default empty — row-based IDs)
+    examples:
+      - "`[0]` — use the first column as the record ID"
+  commentColumns:
+    description: 0-based indices of columns holding comments or notes.
+    help: |
+      The 0-based column indices whose values are recorded as notes on the
+      row's translatable blocks rather than extracted as content.
+    values: Array of 0-based integers (default empty)
+  trimValues:
+    description: Strip surrounding whitespace from cell values.
+    help: |
+      When enabled, leading and trailing whitespace is removed from each cell
+      value before extraction.
+    values: "`true` / `false` (default `false`)"
+  useCodeFinder:
+    description: Enable regex-based inline-code detection.
+    help: |
+      Enables regex-based detection of inline codes within cell values. The
+      patterns are supplied via `codeFinderRules`.
+    values: "`true` / `false` (default `false`)"
+  codeFinderRules:
+    description: Regex patterns that match inline codes within cells.
+    help: |
+      An array of regular expressions; text matching any of them is treated
+      as an inline code rather than translatable words. Only used when
+      `useCodeFinder` is enabled.
+    values: Array of regular expressions (default empty)
+    dependsOn:
+      - property: useCodeFinder
+        condition: must be enabled for these patterns to apply
+limitations:
+  - Column selection is index-based; columns are not addressed by header name.
+processingNotes:
+  - Each selected cell becomes a translatable block; row structure, delimiters, and quoting form the non-translatable skeleton.
+  - Key columns supply IDs and comment columns supply notes; they are not themselves extracted as translatable content.
+examples:
+  - title: Translate one column, keyed by another
+    description: Extract column 2, using column 0 as the record ID.
+    config: |
+      translatableColumns:
+        - 2
+      keyColumns:
+        - 0
+  - title: Headerless semicolon-delimited file
+    description: Read a file with no header row and a semicolon delimiter.
+    config: |
+      separator: ";"
+      hasHeader: false

@@ -1,0 +1,67 @@
+# Native reference doc for the built-in `inconsistency-check` tool.
+# Schema source: core/tools/inconsistencycheck.go (InconsistencyCheckConfig).
+description: Flag identical source strings translated differently, or different sources sharing one translation.
+overview: |
+  The **Inconsistency Check** tool tracks the mapping between source text and its
+  translation across blocks and flags inconsistencies. By default it reports
+  target inconsistency: the same source string translated more than one way.
+  Optionally it can also report source inconsistency: distinct source strings that
+  share a single translation. Each block records a status (consistent or
+  inconsistent), the inconsistency type, and the alternative translations or
+  sources observed.
+
+  Source and target text are trimmed before comparison, and comparison can be
+  made case-insensitive. By default the tool compares segments across all input
+  documents; per-file mode resets its tracking state at the start of each document
+  so consistency is judged within a single file. A target locale is required.
+parameters:
+  caseSensitive:
+    description: Whether comparison is case-sensitive.
+    help: |
+      When enabled, strings that differ only in letter case are treated as
+      distinct. Disable it to fold case differences together when judging
+      consistency.
+    values: "`true` / `false` (default `true`)"
+  checkTargetInconsistency:
+    description: Flag when the same source has different translations.
+    help: |
+      When enabled, a block is flagged when its source text has been translated
+      differently elsewhere. This is the primary inconsistency check.
+    values: "`true` / `false` (default `true`)"
+  checkSourceInconsistency:
+    description: Flag when different sources share the same translation.
+    help: |
+      When enabled, a block is flagged when its translation is also used for a
+      different source string. This catches cases where distinct meanings collapse
+      to one translation.
+    values: "`true` / `false` (default `false`)"
+  checkPerFile:
+    description: Judge consistency within each file rather than across all documents.
+    help: |
+      When enabled, the tool clears its source/target tracking at the start of
+      each document, so a string is only compared against others in the same file.
+      When disabled, comparison spans all input documents.
+    values: "`true` / `false` (default `false`)"
+  displayOption:
+    description: How inline codes are represented in the report.
+    help: |
+      Controls the rendering of inline codes when reporting alternatives:
+      `original` keeps the original code markup, `generic` uses numbered markers,
+      and `plain` strips codes to plain text.
+    values: "`original` / `generic` / `plain` (default `generic`)"
+limitations:
+  - Compares exact (trimmed) text; near-duplicate sources or translations are not detected.
+  - Requires a configured target locale; blocks without a translation for it are skipped.
+processingNotes:
+  - Operates on translatable blocks; non-translatable structure passes through unchanged.
+  - Tracking state is global by default and reset per document only when per-file checking is enabled.
+examples:
+  - title: Check both directions of inconsistency
+    description: Flag both differing translations of one source and shared translations of different sources.
+    config: |
+      checkTargetInconsistency: true
+      checkSourceInconsistency: true
+  - title: Per-file consistency
+    description: Judge consistency within each document independently.
+    config: |
+      checkPerFile: true

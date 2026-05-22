@@ -1,0 +1,20 @@
+# Native reference doc for the built-in `layer-processor` tool.
+# Schema source: core/tools/layerprocessor.go (LayerProcessorConfig — programmatic only).
+description: Apply format-specific tool chains to embedded child layers within a document.
+overview: |
+  The **Layer Processor** intercepts embedded child layers — content of one
+  format nested inside another, such as HTML inside a JSON value — and runs a
+  format-specific tool chain over the parts of each child layer before emitting
+  them. It maps a child layer's format name to the chain of tools that should
+  process that layer's content.
+
+  When a child layer's format has no configured chain, its parts pass through
+  unchanged; non-child-layer parts always pass through. This tool is configured
+  programmatically: the pipeline-per-format mapping is supplied in Go code, so
+  it exposes no declarative parameters in flow or CLI configuration.
+limitations:
+  - Configured programmatically only; the format-to-pipeline mapping is not expressible via flow or CLI config.
+  - Only embedded child layers are intercepted; top-level layers and their parts pass through.
+processingNotes:
+  - Parts of a child layer are buffered until the layer ends, then processed through the matching tool chain and re-emitted in order.
+  - Child layers whose format has no configured pipeline pass through unchanged.

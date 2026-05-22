@@ -4,6 +4,7 @@ import type { ParameterGroup, PropertySchema, SchemaFormProps } from "./types";
 import { PropertyField } from "./PropertyField";
 import { FieldGroup } from "./FieldGroup";
 import { RetryPolicySection } from "./widgets/RetryPolicy";
+import { SchemaFormHostProvider } from "./host";
 
 export function SchemaForm({
   schema,
@@ -14,6 +15,7 @@ export function SchemaForm({
   paramDocs,
   readOnly,
   hideHeader = false,
+  host,
 }: SchemaFormProps) {
   const { properties, groups, ungrouped } = useMemo(() => {
     const props = schema.properties || {};
@@ -88,41 +90,43 @@ export function SchemaForm({
     };
 
     return (
-      <div className="flex flex-col">
-        {/* Breadcrumb */}
-        <div className="flex items-center gap-1 flex-wrap mb-2.5">
-          <button
-            type="button"
-            onClick={() => setDrillInto(null)}
-            className="text-xs text-muted-foreground hover:text-foreground"
-          >
-            Root
-          </button>
-          <span className="text-xs text-muted-foreground">&rsaquo;</span>
-          <span className="text-xs font-semibold">{drillInto.label}</span>
-        </div>
+      <SchemaFormHostProvider host={host}>
+        <div className="flex flex-col">
+          {/* Breadcrumb */}
+          <div className="flex items-center gap-1 flex-wrap mb-2.5">
+            <button
+              type="button"
+              onClick={() => setDrillInto(null)}
+              className="text-xs text-muted-foreground hover:text-foreground"
+            >
+              Root
+            </button>
+            <span className="text-xs text-muted-foreground">&rsaquo;</span>
+            <span className="text-xs font-semibold">{drillInto.label}</span>
+          </div>
 
-        {targetSchema.description && (
-          <p className="text-xs text-muted-foreground mb-1.5">{targetSchema.description}</p>
-        )}
+          {targetSchema.description && (
+            <p className="text-xs text-muted-foreground mb-1.5">{targetSchema.description}</p>
+          )}
 
-        <div className={cn("flex flex-col", compact ? "gap-0.5" : "gap-1.5")}>
-          {drillKeys.map((key) => (
-            <PropertyField
-              key={key}
-              name={key}
-              schema={drillProperties[key]}
-              value={targetValue[key]}
-              onChange={(v) => handleDrillFieldChange(key, v)}
-              compact={compact}
-              allValues={targetValue}
-              allProperties={drillProperties}
-              depth={0}
-              onDrillDown={handleDrillDown}
-            />
-          ))}
+          <div className={cn("flex flex-col", compact ? "gap-0.5" : "gap-1.5")}>
+            {drillKeys.map((key) => (
+              <PropertyField
+                key={key}
+                name={key}
+                schema={drillProperties[key]}
+                value={targetValue[key]}
+                onChange={(v) => handleDrillFieldChange(key, v)}
+                compact={compact}
+                allValues={targetValue}
+                allProperties={drillProperties}
+                depth={0}
+                onDrillDown={handleDrillDown}
+              />
+            ))}
+          </div>
         </div>
-      </div>
+      </SchemaFormHostProvider>
     );
   }
 
@@ -130,89 +134,91 @@ export function SchemaForm({
   const toolMeta = schema.toolMeta;
 
   return (
-    <div className="flex flex-col">
-      {/* Format/tool header */}
-      {!hideHeader && (schema.title || formatMeta || toolMeta) && (
-        <div className="pb-3 mb-3 border-b border-border/40">
-          {schema.title && (
-            <h3 className="text-sm font-semibold text-foreground">{schema.title}</h3>
-          )}
-          {schema.description && (
-            <p className="mt-1 text-xs text-muted-foreground">{schema.description}</p>
-          )}
-          {formatMeta && (formatMeta.extensions?.length || formatMeta.mimeTypes?.length) && (
-            <div className="mt-2 flex flex-wrap gap-1.5">
-              {formatMeta.extensions?.map((ext: string) => (
-                <span
-                  key={ext}
-                  className="rounded bg-secondary px-1.5 py-0.5 text-[10px] font-medium text-secondary-foreground"
-                >
-                  {ext}
-                </span>
-              ))}
-              {formatMeta.mimeTypes?.slice(0, 2).map((mt: string) => (
-                <span
-                  key={mt}
-                  className="rounded bg-accent px-1.5 py-0.5 text-[10px] text-muted-foreground"
-                >
-                  {mt}
-                </span>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Grouped fields */}
-      {groups.map((group: ParameterGroup, groupIndex: number) => (
-        <FieldGroup
-          key={group.id}
-          group={group}
-          groupIndex={groupIndex}
-          properties={properties}
-          values={values}
-          onChange={handleChange}
-          compact={compact}
-          onDrillDown={handleDrillDown}
-          presetValues={presetValues}
-          paramDocs={paramDocs}
-        />
-      ))}
-
-      {/* Ungrouped fields */}
-      {ungrouped.length > 0 && (
-        <div className={cn(groups.length > 0 && "mt-5")}>
-          {groups.length > 0 && ungrouped.length > 0 && (
-            <div className="flex items-center pb-1.5 mb-2.5 border-b">
-              <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
-                Other
-              </span>
-            </div>
-          )}
-          <div className={cn("flex flex-col", compact ? "gap-0.5" : "gap-1.5")}>
-            {ungrouped.map((key: string) => (
-              <PropertyField
-                key={key}
-                name={key}
-                schema={properties[key]}
-                value={values[key]}
-                onChange={(v) => handleChange(key, v)}
-                compact={compact}
-                allValues={values}
-                allProperties={properties}
-                onDrillDown={handleDrillDown}
-                presetValues={presetValues}
-                docParam={paramDocs?.[key]}
-              />
-            ))}
+    <SchemaFormHostProvider host={host}>
+      <div className="flex flex-col">
+        {/* Format/tool header */}
+        {!hideHeader && (schema.title || formatMeta || toolMeta) && (
+          <div className="pb-3 mb-3 border-b border-border/40">
+            {schema.title && (
+              <h3 className="text-sm font-semibold text-foreground">{schema.title}</h3>
+            )}
+            {schema.description && (
+              <p className="mt-1 text-xs text-muted-foreground">{schema.description}</p>
+            )}
+            {formatMeta && (formatMeta.extensions?.length || formatMeta.mimeTypes?.length) && (
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {formatMeta.extensions?.map((ext: string) => (
+                  <span
+                    key={ext}
+                    className="rounded bg-secondary px-1.5 py-0.5 text-[10px] font-medium text-secondary-foreground"
+                  >
+                    {ext}
+                  </span>
+                ))}
+                {formatMeta.mimeTypes?.slice(0, 2).map((mt: string) => (
+                  <span
+                    key={mt}
+                    className="rounded bg-accent px-1.5 py-0.5 text-[10px] text-muted-foreground"
+                  >
+                    {mt}
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Retry Policy */}
-      {schema.toolMeta?.requires?.includes("retryable") && (
-        <RetryPolicySection values={values} onChange={onChange} compact={compact} />
-      )}
-    </div>
+        {/* Grouped fields */}
+        {groups.map((group: ParameterGroup, groupIndex: number) => (
+          <FieldGroup
+            key={group.id}
+            group={group}
+            groupIndex={groupIndex}
+            properties={properties}
+            values={values}
+            onChange={handleChange}
+            compact={compact}
+            onDrillDown={handleDrillDown}
+            presetValues={presetValues}
+            paramDocs={paramDocs}
+          />
+        ))}
+
+        {/* Ungrouped fields */}
+        {ungrouped.length > 0 && (
+          <div className={cn(groups.length > 0 && "mt-5")}>
+            {groups.length > 0 && ungrouped.length > 0 && (
+              <div className="flex items-center pb-1.5 mb-2.5 border-b">
+                <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                  Other
+                </span>
+              </div>
+            )}
+            <div className={cn("flex flex-col", compact ? "gap-0.5" : "gap-1.5")}>
+              {ungrouped.map((key: string) => (
+                <PropertyField
+                  key={key}
+                  name={key}
+                  schema={properties[key]}
+                  value={values[key]}
+                  onChange={(v) => handleChange(key, v)}
+                  compact={compact}
+                  allValues={values}
+                  allProperties={properties}
+                  onDrillDown={handleDrillDown}
+                  presetValues={presetValues}
+                  docParam={paramDocs?.[key]}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Retry Policy */}
+        {schema.toolMeta?.requires?.includes("retryable") && (
+          <RetryPolicySection values={values} onChange={onChange} compact={compact} />
+        )}
+      </div>
+    </SchemaFormHostProvider>
   );
 }

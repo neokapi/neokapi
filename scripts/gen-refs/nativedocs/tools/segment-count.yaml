@@ -1,0 +1,22 @@
+# Native reference doc for the built-in `segment-count` tool.
+# Schema source: core/tools/segcount.go (SegCountConfig — no exposed parameters).
+description: Count the source and target segments in each translatable block.
+overview: |
+  The **Segment Count** tool records how many segments each translatable block
+  contains. The source segment count is always recorded on the block's
+  properties. When a target locale is configured and the block has a translation
+  for it, the number of target segments is recorded as well.
+
+  Counting segments — rather than words or characters — measures the granularity
+  of a block after segmentation, which is useful for verifying that source and
+  target segmentation line up and for segment-based scoping.
+limitations:
+  - Target segment counts require a configured target locale and an existing translation for the block.
+  - Counts follow the active segmentation; results depend on how the text was segmented.
+processingNotes:
+  - Operates on translatable blocks; non-translatable structure passes through unchanged.
+examples:
+  - title: Count segments
+    description: The tool takes no parameters; add it to a flow with an empty configuration.
+    config: |
+      {}

@@ -11,3 +11,10 @@ export type {
   ToolDoc,
   ToolDocParam,
 } from "./types";
+export { SchemaFormHostProvider, useSchemaFormHost } from "./host";
+export type {
+  SchemaFormHost,
+  SchemaFormBrowseRequest,
+  SchemaFormFileFilter,
+  SchemaFormCredential,
+} from "./host";

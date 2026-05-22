@@ -1,0 +1,31 @@
+# Native reference doc for the built-in `dtd` format.
+# Schema source: core/formats/dtd/{reader.go,writer.go,config.go,spec.yaml}.
+# Upstream analogue: Okapi DTDFilter (net.sf.okapi.filters.dtd.DTDFilter).
+# The native reader has no JSON Schema (Config does not implement
+# SchemaProvider), so no `parameters`/`examples` blocks are authored.
+description: Extract translatable text from entity declarations in XML DTD files.
+overview: |
+  A DTD (Document Type Definition) declares the structure and entities of an
+  XML vocabulary. This reader targets DTDs used for user-interface
+  localization — most notably the Mozilla DTD files referenced by XUL
+  documents — where translatable strings are stored as general entity
+  declarations.
+
+  neokapi reads and writes DTD files. Each general (non-parameter)
+  `<!ENTITY>` declaration becomes one translatable Block whose source is the
+  decoded entity value and whose name is the entity identifier. A comment
+  immediately preceding an entity rides along as a note annotation on that
+  Block. Everything else — `<!ELEMENT>` and `<!ATTLIST>` declarations,
+  processing instructions, parameter entities, and external entities — is
+  preserved as skeleton and is not extracted. Standard XML entities and
+  numeric character references inside values are decoded on read and
+  re-encoded on write. This mirrors the upstream Okapi DTD filter; the native
+  reader exposes no configurable JSON schema in this reference.
+limitations:
+  - Only general entity declarations are translatable; element, attribute-list, and parameter/external entity declarations are skeleton-only.
+  - Inline-code (code finder) handling that the upstream filter exposes is not surfaced as a configurable schema property in this reference.
+processingNotes:
+  - One translatable Block per general `<!ENTITY>` declaration; the entity name becomes the Block name.
+  - A comment directly preceding an entity is attached to that Block as a note.
+  - Standard XML entities and numeric character references in values are decoded on read and re-encoded on write.
+wikiUrl: "https://www.w3.org/TR/xml/#dt-doctype"

@@ -1,0 +1,74 @@
+# Native reference doc for the built-in `segmentation` tool.
+# Schema source: core/tools/segmentation.go (SegmentationConfig).
+description: Split block text into sentence-level segments using SRX-style rules.
+overview: |
+  The **Segmentation** tool splits a block's text into sentence-level segments.
+  Segmentation determines the unit of translation and of translation-memory
+  matching, so consistent segmentation is important for leverage and review.
+  By default the tool segments source text using built-in SRX-style rules that
+  handle common sentence boundaries and abbreviations; rules can also be loaded
+  from an SRX file.
+
+  The number of segments produced is recorded on each block. Already-segmented
+  text is left alone unless re-segmentation is requested. Target text can be
+  segmented independently, with its own rules file.
+parameters:
+  segmentSource:
+    description: Segment the source text.
+    help: |
+      When enabled, the source text is split into segments using the source
+      rules. If neither source nor target segmentation is enabled, source
+      segmentation is applied by default.
+    values: "`true` / `false` (default `true`)"
+  segmentTarget:
+    description: Segment existing target text.
+    help: |
+      When enabled, existing target text for the configured locale is split
+      into segments using the target rules.
+    values: "`true` / `false` (default `false`)"
+  sourceSrxPath:
+    description: Path to an SRX rules file for the source.
+    help: |
+      Path to an SRX segmentation rules file used for the source text. When
+      empty, the built-in default rules are used.
+    values: "file path"
+  targetSrxPath:
+    description: Path to an SRX rules file for the target.
+    help: |
+      Path to an SRX segmentation rules file used for the target text. When
+      empty, the built-in default rules are used.
+    values: "file path"
+  overwriteSegmentation:
+    description: Re-segment already-segmented text.
+    help: |
+      By default text that already has more than one segment is left untouched.
+      Enable this to discard the existing segmentation and re-segment.
+    values: "`true` / `false` (default `false`)"
+  treatIsolatedCodesAsWhitespace:
+    description: Treat isolated inline codes as whitespace while segmenting.
+    help: |
+      When enabled, an isolated inline code is treated like whitespace for the
+      purpose of finding segment boundaries.
+    values: "`true` / `false` (default `false`)"
+  renumberCodes:
+    description: Renumber inline-code IDs within each segment.
+    help: |
+      When enabled, inline-code IDs are renumbered to start at 1 within each
+      resulting segment.
+    values: "`true` / `false` (default `false`)"
+limitations:
+  - The built-in rule set targets common Latin-script sentence boundaries; non-Latin scripts may need a custom SRX file.
+processingNotes:
+  - Operates on translatable blocks only; non-translatable blocks pass through unchanged.
+  - The resulting segment count is written to a block property.
+examples:
+  - title: Segment source text with default rules
+    description: Split source into sentences using the built-in rules.
+    config: |
+      segmentSource: true
+  - title: Re-segment with a custom SRX file
+    description: Replace existing segmentation using project-specific rules.
+    config: |
+      segmentSource: true
+      overwriteSegmentation: true
+      sourceSrxPath: ./rules/segmentation.srx

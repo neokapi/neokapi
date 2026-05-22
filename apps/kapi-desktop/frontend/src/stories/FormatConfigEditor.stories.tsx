@@ -3,10 +3,10 @@ import type { Meta, StoryObj } from "@storybook/react-vite";
 import { Card } from "@neokapi/ui-primitives";
 import { FormatConfigEditor } from "../components/FormatConfigEditor";
 import type { ComponentSchema } from "../types/api";
-import okapiData from "./fixtures/okapi-metadata.json";
+import { okapiMetadata } from "./_lib/reference-data";
 
 // Extract a few representative filter schemas for stories
-const filterSchemas = okapiData.filters as unknown as ComponentSchema[];
+const filterSchemas = okapiMetadata.filters as unknown as ComponentSchema[];
 
 function findFilter(idFragment: string): ComponentSchema | undefined {
   return filterSchemas.find(

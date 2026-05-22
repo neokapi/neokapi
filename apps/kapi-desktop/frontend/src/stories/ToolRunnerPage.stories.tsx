@@ -1,12 +1,11 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { ToolRunnerPage } from "../components/ToolRunnerPage";
 import { ErrorProvider } from "../components/ErrorBanner";
-import pluginDocs from "./fixtures/plugin-docs.json";
-import toolsData from "./fixtures/tools-metadata.json";
+import { pluginDocs, toolsMetadata } from "./_lib/reference-data";
 import type { PluginDocs, ToolInfo } from "../types/api";
 
 const docs = pluginDocs as unknown as PluginDocs;
-const tools = toolsData as unknown as ToolInfo[];
+const tools = toolsMetadata as unknown as ToolInfo[];
 
 // Add some Okapi step tools that match docs
 const okapiTools: ToolInfo[] = Object.entries(docs.steps).map(([name, doc]) => ({

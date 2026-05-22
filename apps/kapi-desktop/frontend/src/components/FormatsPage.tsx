@@ -35,6 +35,7 @@ import {
   ItemCard,
 } from "@neokapi/ui-primitives";
 import { api } from "../hooks/useApi";
+import { useSchemaFormHost } from "../hooks/useSchemaFormHost";
 import { useError } from "./ErrorBanner";
 import { DocsPanel } from "./DocsPanel";
 
@@ -375,6 +376,10 @@ function FormatDetail({
   const [filterDoc, setFilterDoc] = useState<FilterDoc | undefined>(() =>
     resolveFilterDoc(formatName, docs),
   );
+
+  // Native file/folder dialogs + credential vault for schema-form path /
+  // credential widgets.
+  const schemaHost = useSchemaFormHost();
 
   const { showError } = useError();
 
@@ -723,6 +728,7 @@ function FormatDetail({
                       values={config}
                       onChange={setConfig}
                       presetValues={presetValues}
+                      host={schemaHost}
                     />
                   </CardContent>
                 </Card>

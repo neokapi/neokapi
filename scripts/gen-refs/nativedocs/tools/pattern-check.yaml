@@ -1,0 +1,27 @@
+# Native reference doc for the built-in `pattern-check` tool.
+# Schema source: core/tools/patterncheck.go (PatternCheckConfig — patterns set programmatically).
+description: Verify that configured regex patterns are preserved or absent in target text.
+overview: |
+  The **Pattern Check** tool validates target translations against a set of regex
+  rules and records findings on the block's properties as QA issues. Each rule
+  either requires a pattern to be preserved — the number of matches in the target
+  must equal the number in the source — or forbids a pattern from appearing in the
+  target at all. Preserved-pattern rules are typically used for placeholders,
+  variables, and format specifiers; forbidden-pattern rules catch markup or text
+  that must not survive into the translation.
+
+  A target locale is required. The set of patterns is supplied programmatically
+  rather than through the schema fields, so this tool is most often configured by
+  the host application or a flow definition that provides the rules.
+limitations:
+  - The pattern rules themselves are configured programmatically; they are not exposed as schema parameters.
+  - Requires a configured target locale; a block with no translation passes with no issues recorded.
+  - A rule cannot both require and forbid the same pattern.
+processingNotes:
+  - Operates on translatable blocks; non-translatable structure passes through unchanged.
+  - Preserved-pattern rules compare match counts between source and target; forbidden-pattern rules check for any match in the target.
+examples:
+  - title: Add to a flow
+    description: The pattern rules are supplied programmatically; reference the tool with an empty configuration and provide rules from the host.
+    config: |
+      {}

@@ -1,0 +1,31 @@
+# Native reference doc for the built-in `tex` format.
+# Schema source: core/formats/tex/{reader.go,writer.go,config.go,spec.yaml}.
+# Upstream analogue: Okapi TEXFilter (net.sf.okapi.filters.tex.TEXFilter).
+# Config is empty (no schema), so no `parameters`/`examples` blocks are
+# authored.
+description: Extract translatable text from TeX and LaTeX documents.
+overview: |
+  TeX/LaTeX is a markup-based typesetting language. neokapi reads the LaTeX2e
+  document syntax — preamble, body, command sequences, environments, math
+  mode, and comments — and extracts the prose that should be translated while
+  leaving the command structure intact.
+
+  neokapi reads and writes TeX/LaTeX. Body paragraphs inside
+  `\begin{document}` … `\end{document}` become translatable Blocks, one per
+  paragraph (paragraphs are separated by blank lines; a soft line break inside
+  a paragraph collapses to a space). Visible-text header commands such as
+  `\title`, `\author`, and `\date`, and paragraph-level commands such as
+  `\section`, `\chapter`, and `\caption`, are translatable. Inline formatting
+  commands such as `\textbf`, `\emph`, and `\footnote` fold into the
+  surrounding paragraph. Structural commands (`\label`, `\ref`, `\cite`,
+  `\usepackage`, `\documentclass`), comments, math (inline and environment),
+  and verbatim/listing environments are non-translatable and preserved as
+  skeleton. This format has no configurable JSON schema in this reference.
+limitations:
+  - Math (inline and environment) and verbatim/listing environments are not extracted.
+  - Comments and structural commands are non-translatable.
+processingNotes:
+  - Body paragraphs inside the document environment become one translatable Block each; blank lines separate paragraphs.
+  - "Header and sectioning commands (`\\title`, `\\section`, `\\caption`, …) are translatable; inline commands fold into the surrounding paragraph."
+  - Structural commands, comments, math, and verbatim environments are preserved as skeleton for round-trips.
+wikiUrl: "https://www.latex-project.org/help/documentation/"

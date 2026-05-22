@@ -1,0 +1,52 @@
+# Native reference doc for the built-in `pseudo-translate` tool.
+# Schema source: core/tools/pseudo.go (PseudoConfig).
+description: Generate deterministic pseudo-translations for localization-readiness testing.
+overview: |
+  The **Pseudo Translate** tool produces fake translations that exercise a
+  product's localization without a real translator. It replaces ASCII letters
+  with accented look-alikes, wraps each segment in marker characters, and can
+  pad the text to simulate the length growth of a real translation. The result
+  reveals hard-coded strings, clipped layouts, and encoding problems before
+  translation begins. A target language is required (the conventional pseudo
+  locale is `qps`).
+
+  Inline codes and placeholders are protected: text inside `{...}` markers and
+  non-text runs are passed through unchanged so the runtime can still substitute
+  parameters. The transform is deterministic, so the same input always yields
+  the same output.
+parameters:
+  prefix:
+    description: Characters prepended to each translated segment.
+    help: |
+      A marker placed before the pseudo-translated text. The default shade
+      marker makes the segment boundary visible so untranslated, concatenated,
+      or clipped strings stand out.
+    values: "string (default `▒ `)"
+  suffix:
+    description: Characters appended to each translated segment.
+    help: |
+      A marker placed after the pseudo-translated text, mirroring the prefix.
+    values: "string (default ` ▒`)"
+  expansionPercent:
+    description: Extra padding to simulate translation expansion.
+    help: |
+      Adds padding characters proportional to the text length, so the output is
+      longer than the source — a common effect of real translation. A value of
+      0 adds no padding.
+    values: "integer ≥ 0 (default `0`)"
+limitations:
+  - Only ASCII letters are accented; other characters and content inside `{...}` placeholder markers are passed through unchanged.
+processingNotes:
+  - Operates on translatable blocks with a non-empty source; other parts pass through unchanged.
+  - Inline codes and placeholders are preserved; the prefix/suffix wrap the whole segment once.
+  - With a session cache, already-pseudo-translated targets are reused and fresh results are written back.
+examples:
+  - title: Standard pseudo-translation
+    description: Pseudo-translate to the conventional qps locale.
+    config: |
+      prefix: "▒ "
+      suffix: " ▒"
+  - title: Simulate 30% expansion
+    description: Pad output to surface layout clipping.
+    config: |
+      expansionPercent: 30

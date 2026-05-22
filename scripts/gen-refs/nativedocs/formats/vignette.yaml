@@ -1,0 +1,57 @@
+# Native reference doc for the built-in `vignette` format.
+# Source: core/formats/vignette/{reader.go,writer.go,config.go,spec.yaml}; register.go (display name "Vignette CMS Export").
+# Mirrors Okapi's Vignette filter (okf_vignette). Configurable via .kapi config
+# (partsNames, partsConfigurations, sourceId, localeId, monolingual, useCDATA);
+# no JSON schema is published, so the config is documented in prose here.
+description: Read and write Vignette CMS export/import XML (the output of the vgnexport tool).
+overview: |
+  This format reads and writes the export/import XML produced by the
+  Vignette content management system's `vgnexport` tool. A document
+  contains one or more `<importContentInstance>` blocks, each holding a
+  set of `<attribute name="…">` payloads for one content item in one
+  locale. The reader walks every instance and extracts the payloads
+  whose attribute names are listed in the parts configuration; the
+  remaining XML structure is preserved.
+
+  By default the reader works bilingually: source and target instances
+  are paired through the value of the source-id attribute, and only
+  paired instances reach the translatable stream. In monolingual mode
+  every instance is extracted independently. Encoding is forced to
+  UTF-8 on read and write, matching the upstream filter. A payload may
+  itself contain HTML; for attributes configured with the `okf_html`
+  sub-filter the reader decodes HTML entities and strips an outer `<p>`
+  wrapper, while every other configuration treats the payload as a
+  single literal block.
+
+  Configuration is supplied on the collection's `format:` block in a
+  `.kapi` project, with keys that mirror the Okapi parameter names:
+  `partsNames` — a comma-separated list of attribute names to extract
+  (defaults to the standard SMC attribute set); `partsConfigurations` —
+  a comma-separated list of sub-filter ids paired by index with
+  `partsNames`, where `okf_html` decodes HTML and any other value
+  (including `default`) means no sub-filtering; `sourceId` — the
+  attribute name holding the source-id used to pair instances (default
+  `SOURCE_ID`); `localeId` — the attribute name holding the locale
+  identifier (default `LOCALE_ID`); `monolingual` — when true, extract
+  every instance independently instead of pairing; and `useCDATA` —
+  when true, wrap written payloads in a CDATA section (write-side only).
+limitations:
+  - In bilingual mode (the default), only instances that pair through the source-id attribute are extracted; unpaired instances are skipped.
+  - The parts configuration recognises only `okf_html` as a sub-filter; every other value, including `default`, is treated as no sub-filtering.
+  - Input and output encoding are forced to UTF-8.
+processingNotes:
+  - One block per extracted attribute payload; `partsNames` and `partsConfigurations` are paired by list index.
+  - Source and target instances pair via the `sourceId` attribute value unless `monolingual` is enabled.
+  - The `useCDATA` option affects only the writer; it wraps emitted payloads in a CDATA section and has no effect on reading.
+examples:
+  - title: Extract specific attributes monolingually
+    description: |
+      Override the parts list and extract every instance independently,
+      decoding the body attribute as HTML.
+    config: |
+      format:
+        name: vignette
+        config:
+          partsNames: "SMCCONTENT-TITLE, SMCCONTENT-BODY"
+          partsConfigurations: "default, okf_html"
+          monolingual: true

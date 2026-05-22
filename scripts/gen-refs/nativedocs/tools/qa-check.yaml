@@ -1,0 +1,209 @@
+# Native reference doc for the built-in `qa-check` tool.
+# Schema source: core/tools/qacheck.go (QACheckConfig).
+description: Run a suite of rule-based quality checks comparing source and target text.
+overview: |
+  The **QA Check** tool runs a battery of rule-based checks over each
+  translation and records the findings on the block's properties as a JSON array
+  of QA issues, along with a pass/fail flag. The checks span several categories:
+  general text issues (empty target, whitespace mismatches, double spaces,
+  doubled words, target identical to source, corrupted characters), inline-code
+  consistency, span constraint violations, regex pattern preservation, and length
+  ratios. A target locale is required; when a block has no translation, only the
+  empty-target check applies.
+
+  Every check can be toggled independently, and the length checks share the
+  long/short ratio model used by the dedicated length-check tool. This tool is
+  the rule-based counterpart to the LLM-based AI QA check: it is deterministic and
+  needs no credentials.
+parameters:
+  checkLeadingWhitespace:
+    description: Check for leading-whitespace mismatches between source and target.
+    help: |
+      Flags a warning when the leading whitespace of the target differs from that
+      of the source.
+    values: "`true` / `false` (default `true`)"
+  checkTrailingWhitespace:
+    description: Check for trailing-whitespace mismatches between source and target.
+    help: |
+      Flags a warning when the trailing whitespace of the target differs from that
+      of the source.
+    values: "`true` / `false` (default `true`)"
+  checkEmptyTarget:
+    description: Warn when the target is empty but the source has content.
+    help: |
+      Flags an error when a block has source content but no (or empty) target
+      text. This is the one check that still applies when a block has no
+      translation at all.
+    values: "`true` / `false` (default `true`)"
+  checkEmptySource:
+    description: Warn when the target is non-empty but the source is empty.
+    help: |
+      Flags a warning when the target has content but the source is empty.
+    values: "`true` / `false` (default `true`)"
+  checkTargetSameAsSource:
+    description: Warn when the target is identical to the source.
+    help: |
+      Flags a warning when the target text equals the source text and contains at
+      least one letter or digit. Number-only segments are governed by
+      `targetSameAsSourceWithNumbers`.
+    values: "`true` / `false` (default `true`)"
+  targetSameAsSourceWithCodes:
+    description: Include inline codes when comparing source and target for identity.
+    help: |
+      Controls whether inline codes are taken into account in the
+      same-as-source comparison.
+    values: "`true` / `false` (default `true`)"
+  targetSameAsSourceWithNumbers:
+    description: Include number-only segments in the same-as-source comparison.
+    help: |
+      When enabled, segments containing only numbers (and punctuation) are
+      included in the target-same-as-source check. Disable it to ignore
+      number-only segments, which are often legitimately identical.
+    values: "`true` / `false` (default `true`)"
+  checkDoubleSpaces:
+    description: Check for double spaces in the target.
+    help: |
+      Flags a warning when the target contains two consecutive spaces.
+    values: "`true` / `false` (default `true`)"
+  checkDoubledWord:
+    description: Check for consecutive repeated words in the target.
+    help: |
+      Flags a warning when the same word appears twice in a row in the target,
+      unless the word is listed in `doubledWordExceptions`.
+    values: "`true` / `false` (default `true`)"
+  doubledWordExceptions:
+    description: Words allowed to repeat consecutively.
+    help: |
+      A semicolon-separated list of words that may legitimately appear twice in a
+      row (for example certain pronouns), so they are not flagged by the
+      doubled-word check.
+    values: "string (default `sie;vous;nous`)"
+    dependsOn:
+      - property: checkDoubledWord
+        condition: only consulted when the doubled-word check is enabled
+  checkTerminology:
+    description: Enable terminology checks.
+    help: |
+      Enables terminology verification within QA check. Disabled by default.
+    values: "`true` / `false` (default `false`)"
+  checkSpanConstraints:
+    description: Check non-deletable and non-cloneable span constraint violations.
+    help: |
+      Flags an error when a non-deletable inline code is missing from the target,
+      or a non-cloneable inline code is duplicated in the target, according to the
+      per-code constraints carried on the source runs.
+    values: "`true` / `false` (default `true`)"
+  checkCodeDifference:
+    description: Verify that the target has the same inline codes as the source.
+    help: |
+      Flags warnings when inline codes are missing from or extra in the target
+      compared with the source, counted by code type.
+    values: "`true` / `false` (default `true`)"
+  strictCodeOrder:
+    description: Flag differences when codes appear in a different order.
+    help: |
+      When enabled, and no count differences were found, the target is flagged if
+      its inline codes appear in a different order than in the source.
+    values: "`true` / `false` (default `false`)"
+    dependsOn:
+      - property: checkCodeDifference
+        condition: the order check runs alongside code-difference checking
+  checkPatterns:
+    description: Verify that source patterns have expected corresponding content in the target.
+    help: |
+      When enabled, configured source/target regex pattern pairs are checked so
+      that patterns found in the source are preserved in the target. The pattern
+      pairs themselves are supplied programmatically.
+    values: "`true` / `false` (default `true`)"
+  checkCorruptedCharacters:
+    description: Check for patterns indicating encoding corruption.
+    help: |
+      Flags a warning when the target contains characters that suggest encoding
+      corruption (for example UTF-8 misread as ISO-8859-1, signalled by the
+      Unicode replacement character).
+    values: "`true` / `false` (default `true`)"
+  checkMaxCharLength:
+    description: Flag targets longer than a percentage of source character length.
+    help: |
+      Enables the maximum length-ratio check, using a long/short model: the
+      allowed percentage depends on whether the source is above or below the
+      maximum breakpoint.
+    values: "`true` / `false` (default `true`)"
+  maxCharLengthBreak:
+    description: Character count above which text is considered long (max check).
+    help: |
+      Source text longer than this is treated as long for the maximum-ratio check;
+      shorter text is treated as short.
+    values: "integer (default `20`)"
+  maxCharLengthAbove:
+    description: Maximum allowed percentage of source length for long text.
+    help: |
+      The maximum target/source ratio applied when the source is long.
+    values: "integer (default `200`)"
+  maxCharLengthBelow:
+    description: Maximum allowed percentage of source length for short text.
+    help: |
+      The maximum target/source ratio applied when the source is short.
+    values: "integer (default `350`)"
+  checkMinCharLength:
+    description: Flag targets shorter than a percentage of source character length.
+    help: |
+      Enables the minimum length-ratio check, using a long/short model: the
+      required percentage depends on whether the source is above or below the
+      minimum breakpoint.
+    values: "`true` / `false` (default `true`)"
+  minCharLengthBreak:
+    description: Character count above which text is considered long (min check).
+    help: |
+      Source text longer than this is treated as long for the minimum-ratio check;
+      shorter text is treated as short.
+    values: "integer (default `20`)"
+  minCharLengthAbove:
+    description: Minimum required percentage of source length for long text.
+    help: |
+      The minimum target/source ratio applied when the source is long.
+    values: "integer (default `45`)"
+  minCharLengthBelow:
+    description: Minimum required percentage of source length for short text.
+    help: |
+      The minimum target/source ratio applied when the source is short.
+    values: "integer (default `30`)"
+  checkAbsoluteMaxCharLength:
+    description: Flag target segments that exceed an absolute character count limit.
+    help: |
+      When enabled, the target is flagged when it exceeds the absolute character
+      count given by `absoluteMaxCharLength`, independent of source length.
+    values: "`true` / `false` (default `false`)"
+    dependsOn:
+      - property: absoluteMaxCharLength
+        condition: sets the limit applied when this check is enabled
+  absoluteMaxCharLength:
+    description: Maximum number of characters allowed in any target segment.
+    help: |
+      The absolute character cap used by the absolute-maximum-length check.
+    values: "integer (default `255`)"
+    dependsOn:
+      - property: checkAbsoluteMaxCharLength
+        condition: must be enabled for this limit to take effect
+limitations:
+  - Length and ratio checks compare character lengths only when source and target are both non-empty.
+  - The regex pattern pairs used by `checkPatterns` are supplied programmatically, not as schema parameters.
+  - Requires a configured target locale.
+processingNotes:
+  - Operates on translatable blocks; non-translatable structure passes through unchanged.
+  - When a block has no translation, only the empty-target check applies.
+  - Findings are stored on the block as a JSON array of QA issues with a pass/fail flag.
+examples:
+  - title: Inline-code and whitespace checks only
+    description: Focus on code preservation and whitespace, disabling the length-ratio checks.
+    config: |
+      checkCodeDifference: true
+      checkLeadingWhitespace: true
+      checkTrailingWhitespace: true
+      checkMaxCharLength: false
+      checkMinCharLength: false
+  - title: Enforce an absolute character cap
+    description: Flag any target segment longer than 200 characters.
+    config: |
+      checkAbsoluteMaxCharLength: true
+      absoluteMaxCharLength: 200

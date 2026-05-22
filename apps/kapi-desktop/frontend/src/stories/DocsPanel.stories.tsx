@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { DocsPanel, ParamHelp } from "../components/DocsPanel";
-import pluginDocs from "./fixtures/plugin-docs.json";
+import { pluginDocs } from "./_lib/reference-data";
 import type { FilterDoc, StepDoc, PluginDocs } from "../types/api";
 
 const docs = pluginDocs as unknown as PluginDocs;

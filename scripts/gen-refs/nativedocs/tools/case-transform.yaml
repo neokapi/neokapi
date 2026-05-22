@@ -1,0 +1,48 @@
+# Native reference doc for the built-in `case-transform` tool.
+# Schema source: core/tools/casetransform.go (CaseTransformConfig).
+description: Change the letter case of source and/or target text to upper, lower, or title case.
+overview: |
+  The **Case Transform** tool rewrites the case of text in translatable blocks.
+  It can uppercase, lowercase, or title-case the source text, the target text,
+  or both. It is useful for normalizing display strings — for example forcing
+  UI labels to upper case — or for preparing case-insensitive comparisons.
+
+  When applying to the target, a target locale must be set; the tool only
+  transforms locales that already have a target. Non-translatable blocks pass
+  through unchanged.
+parameters:
+  mode:
+    description: The case transformation to apply.
+    help: |
+      Selects the transformation. `upper` converts text to upper case, `lower`
+      to lower case, and `title` to title case (every letter uppercased, using
+      the Unicode title-case mapping).
+    values: "`upper` / `lower` / `title` (default `upper`)"
+  applySource:
+    description: Apply the transformation to source text.
+    help: |
+      When enabled, the source text of each translatable block is transformed.
+    values: "`true` / `false` (default `true`)"
+  applyTarget:
+    description: Apply the transformation to target text.
+    help: |
+      When enabled, the target text is transformed for the configured target
+      locale. A target locale must be set; only existing targets are touched.
+    values: "`true` / `false` (default `false`)"
+limitations:
+  - Title case uses the Unicode title-case mapping applied to every letter, not word-initial capitalization.
+processingNotes:
+  - Operates on translatable blocks only; non-translatable blocks pass through unchanged.
+  - Target transformation requires a target locale and only affects locales that already have a target.
+examples:
+  - title: Uppercase source text
+    description: Force all source strings to upper case.
+    config: |
+      mode: upper
+      applySource: true
+  - title: Lowercase the target translation
+    description: Normalize target text to lower case for a locale.
+    config: |
+      mode: lower
+      applySource: false
+      applyTarget: true

@@ -1,0 +1,40 @@
+# Native reference doc for the built-in `messageformat` format.
+# Source: core/formats/messageformat/{reader.go,writer.go,parser.go,config.go,spec.yaml}.
+# Mirrors Okapi's MessageFormat filter (okf_messageformat). No configurable parameters today.
+description: Read and write ICU MessageFormat patterns, extracting each branch of plural and select pickers separately.
+overview: |
+  ICU MessageFormat is the pattern syntax used by ICU and many i18n
+  libraries to express messages with placeholders and grammatical
+  variation. This format treats each input line as one independent
+  MessageFormat pattern.
+
+  A plain-text pattern extracts as a single translatable block. A
+  pattern with simple placeholders — `{0}`, `{name}`, `{name, type}`,
+  `{name, type, style}` — also extracts as a single block, with the
+  placeholders carried as inline runs around the literal text so they
+  cannot be accidentally translated or reordered. A pattern with a
+  plural, select, or selectordinal picker splits into one block per
+  branch body, so each grammatical form can be translated independently;
+  the picker scaffolding (`{count, plural, …}`, `{gender, select, …}`)
+  and any text outside the picker is preserved through the skeleton
+  rather than extracted. ICU quoting is decoded before extraction: `''`
+  becomes a literal apostrophe and `'{…}'` protects a literal-brace
+  passage. Java's deprecated `choice` format is rejected with an error.
+limitations:
+  - Each line is parsed as a self-contained pattern; a single pattern spanning multiple lines is not supported.
+  - The deprecated ICU `choice` format is not supported and is reported as an error.
+  - There are no configurable parameters; upstream output options such as plural-form expansion or pretty-printing are not exposed.
+processingNotes:
+  - Plain and simple-placeholder patterns extract as one block per line; plural / select / selectordinal patterns extract one block per branch body.
+  - Placeholders are represented as inline runs (`icu:argument`, `icu:number` for `#`) so they survive translation intact.
+  - Blank lines and trailing newlines round-trip as skeleton; with a skeleton store active, output is byte-exact.
+examples:
+  - title: Translate ICU patterns
+    description: |
+      No configuration is required. Declare the format to extract each
+      line as a pattern, splitting plural and select branches into
+      separate blocks.
+    config: |
+      format:
+        name: messageformat
+wikiUrl: https://unicode-org.github.io/icu/userguide/format_parse/messages/

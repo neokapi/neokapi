@@ -1,0 +1,80 @@
+# Native reference doc for the built-in `external-command` tool.
+# Schema source: core/tools/externalcommand.go (ExternalCommandConfig).
+description: Run an external command-line program on block text and use its stdout as the result.
+overview: |
+  The **External Command** tool pipes each block's text through an external
+  command-line program and captures the program's standard output as the new
+  text. It lets a pipeline reuse an existing CLI filter — a custom normalizer,
+  a spell-fixer, a transliterator — without writing a native tool.
+
+  Text can be sent to the command on standard input or substituted into the
+  argument list via the `${source}` and `${target}` placeholders. A command is
+  required, and a target locale is required when applying to the target. Each
+  invocation has a timeout; the exit code is recorded on the block, and a
+  non-zero exit leaves the text unchanged and records the error.
+parameters:
+  command:
+    description: The executable to run.
+    help: |
+      Path or name of the command-line program to execute for each block. Its
+      standard output replaces the block text.
+    values: "string (required)"
+  args:
+    description: Arguments passed to the command.
+    help: |
+      The argument list for the command. Use `${source}` and `${target}` as
+      placeholders; both are replaced with the text being processed.
+    values: "array of strings"
+  applySource:
+    description: Process source text.
+    help: When enabled, the source text is sent through the command.
+    values: "`true` / `false` (default `false`)"
+  applyTarget:
+    description: Process target text.
+    help: |
+      When enabled, the target text is sent through the command for the
+      configured locale. Only existing targets are touched.
+    values: "`true` / `false` (default `true`)"
+    dependsOn:
+      - property: targetLocale
+        condition: required when applyTarget is enabled
+  targetLocale:
+    description: Target locale for processing.
+    help: The locale whose target text is processed. Required when `applyTarget` is enabled.
+    values: "BCP-47 locale"
+    dependsOn:
+      - property: applyTarget
+        condition: must be enabled for this to take effect
+  sendAsStdin:
+    description: Send the text on standard input rather than as an argument.
+    help: |
+      When enabled, the text is written to the command's standard input. When
+      disabled, the text reaches the command only through the `${source}` /
+      `${target}` argument placeholders.
+    values: "`true` / `false` (default `true`)"
+  timeout:
+    description: Per-invocation timeout in seconds.
+    help: |
+      Maximum time to wait for the command to finish for a single block. The
+      command is cancelled when the timeout elapses.
+    values: "integer ≥ 1 (default `30`)"
+limitations:
+  - A non-zero exit code leaves the text unchanged and records the exit code and error message as block properties.
+  - The command runs once per block per scope (source and/or target), which can be slow for large documents.
+processingNotes:
+  - Operates on translatable blocks only; non-translatable blocks pass through unchanged.
+  - Trailing newlines are trimmed from the captured output.
+examples:
+  - title: Pipe target text through a formatter
+    description: Run an external program on the target, sending text on stdin.
+    config: |
+      command: my-formatter
+      applyTarget: true
+      targetLocale: fr-FR
+  - title: Pass text as an argument
+    description: Substitute the text into the argument list instead of stdin.
+    config: |
+      command: transform
+      args: ["--text", "${source}"]
+      applySource: true
+      sendAsStdin: false

@@ -1,0 +1,33 @@
+# Native reference doc for the built-in `srt` format.
+# Source: core/formats/srt/{reader.go,writer.go,config.go,schema.go}.
+# Mirrors Okapi's SubRip filter (okf_subrip). No configurable parameters.
+description: Read and write SubRip (.srt) subtitle files, extracting each cue's text for translation.
+overview: |
+  SubRip (`.srt`) is the line-oriented subtitle format used by most
+  video players. A file is a sequence of cues, each made of a sequence
+  number, a timecode range (`00:00:01,000 --> 00:00:04,000`), and one
+  or more lines of subtitle text, separated by a blank line.
+
+  The reader extracts each cue's subtitle text as a translatable block
+  and keeps the sequence number and timecode as block properties so the
+  writer can reconstruct the cue. Sequence numbers, timecodes, and the
+  blank-line separators are non-translatable structure: they are
+  carried in the skeleton and round-trip unchanged. Multi-line cues
+  preserve their internal line breaks in the block text, so a wrapped
+  caption stays wrapped.
+limitations:
+  - Timecodes are preserved verbatim, not adjusted; retiming for a longer or shorter translation is out of scope.
+  - SubRip styling tags inside cue text (for example `<i>…</i>` or `{\an8}`) are carried as part of the block text rather than parsed into inline codes.
+processingNotes:
+  - One translatable block per cue; the sequence number and timecode ride along as block properties (`sequence`, `timecode`).
+  - With a skeleton store active, sequence numbers, timecodes, and separators are stored as skeleton text for byte-exact round-trips, including the original LF / CRLF line endings.
+examples:
+  - title: Translate subtitles
+    description: |
+      SubRip needs no configuration. Declare the format on a collection
+      to extract every cue's text; the cue numbering and timecodes are
+      preserved automatically.
+    config: |
+      format:
+        name: srt
+wikiUrl: https://en.wikipedia.org/wiki/SubRip

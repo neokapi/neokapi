@@ -7,7 +7,7 @@
 import { useState, useMemo } from "react";
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { Button, Input } from "@neokapi/ui-primitives";
-import presets from "../fixtures/presets.json";
+import { presets } from "../_lib/reference-data";
 
 const allPresets = presets as Record<string, Record<string, Record<string, unknown> | null>>;
 

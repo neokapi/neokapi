@@ -1,5 +1,6 @@
 import { SchemaForm } from "@neokapi/ui-primitives";
 import type { ComponentSchema } from "../types/api";
+import { useSchemaFormHost } from "../hooks/useSchemaFormHost";
 
 interface FormatConfigEditorProps {
   /** Schema for the format's configuration parameters. */
@@ -31,6 +32,10 @@ export function FormatConfigEditor({
   const filterMeta = schema.formatMeta;
   const extensions = filterMeta?.extensions || [];
   const mimeTypes = filterMeta?.mimeTypes || [];
+
+  // Native file/folder dialogs + credential vault for schema-form path /
+  // credential widgets (degrades to text inputs outside Wails, e.g. Storybook).
+  const host = useSchemaFormHost();
 
   return (
     <div className="flex flex-col gap-3">
@@ -65,7 +70,13 @@ export function FormatConfigEditor({
       </div>
 
       {/* Schema form */}
-      <SchemaForm schema={schema} values={values} onChange={onChange} presetValues={presetValues} />
+      <SchemaForm
+        schema={schema}
+        values={values}
+        onChange={onChange}
+        presetValues={presetValues}
+        host={host}
+      />
     </div>
   );
 }
