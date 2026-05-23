@@ -1,0 +1,9 @@
+{
+  "@@locale": "fr",
+  "appTitle": "Galerie Flutter",
+  "greeting": "Bonjour, {name} !",
+  "quote": "Elle a dit \"bonjour\" à tous.",
+  "itemCount": "{count, plural, =0{Aucun élément} =1{1 élément} other{{count} éléments}}",
+  "path": "Chemin : C:\\Users\\test",
+  "emptyMessage": ""
+}

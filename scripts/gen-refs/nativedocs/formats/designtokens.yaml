@@ -1,0 +1,33 @@
+# Native reference doc for the built-in `designtokens` format.
+# Schema source: core/formats/designtokens/config.go (Config) + schema.go.
+# Built on the json format; extracts only $description documentation.
+description: Extract and update human-readable $description documentation in W3C DTCG design token files.
+overview: |
+  The **Design Tokens (DTCG)** format reads W3C Design Tokens Community Group
+  token files (`.tokens` / `.tokens.json`) — the JSON interchange format used
+  by Style Dictionary, Tokens Studio, and similar tooling.
+
+  Token values are typed design data (colors, dimensions, font families,
+  aliases), not natural language, so the format extracts only the
+  human-readable `$description` documentation on tokens and groups as
+  translatable content; every token `$value`, `$type`, `$extensions`, and the
+  surrounding structure passes through untouched. Detection claims the unique
+  `.tokens` extension and sniffs DTCG content (`$value` + `$type`); `.tokens.json`
+  files resolve to the JSON format by extension unless `-f designtokens` is
+  given. Round-trip is byte-faithful, inherited from the JSON reader/writer.
+parameters:
+  extractDescriptions:
+    description: Extract $description documentation as translatable content.
+    help: |
+      When enabled (the default), `$description` fields on tokens and groups
+      are extracted as translatable blocks. When disabled, the file yields no
+      translatable content.
+    values: "`true` / `false` (default `true`)"
+processingNotes:
+  - Only `$description` is extracted; token values and structure are non-translatable passthrough.
+  - A token file with no `$description` yields zero translatable blocks — expected for machine-generated token sets.
+examples:
+  - title: Disable description extraction
+    description: Treat the file as fully non-translatable.
+    config: |
+      extractDescriptions: false

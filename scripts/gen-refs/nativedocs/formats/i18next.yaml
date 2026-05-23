@@ -1,0 +1,35 @@
+# Native reference doc for the built-in `i18next` format.
+# Schema source: core/formats/i18next/config.go (Config) + schema.go.
+# Built on the json format; selected explicitly (-f i18next), not auto-detected.
+description: Extract and update translatable values in i18next / react-i18next JSON resource bundles.
+overview: |
+  The **i18next JSON** format reads i18next / react-i18next resource bundles —
+  the conventions of the dominant web i18n library. It is built on the JSON
+  format and selected explicitly (`-f i18next`), because i18next files use the
+  generic `.json` extension owned by the JSON format and cannot be reliably
+  auto-distinguished.
+
+  Beyond plain JSON extraction, it protects `{{interpolation}}`,
+  `{{var, format}}`, and `$t()` nesting as inline codes; annotates v4 CLDR
+  plural sibling keys (`key_zero`/`key_one`/…/`key_other`, plus legacy
+  `key_plural` and `key_0`/`key_1`) with their base key and plural category;
+  annotates context keys (`key_male`/`key_female`); and names blocks by their
+  full namespace key path. Round-trip is byte-faithful.
+parameters:
+  subfilterHTMLValues:
+    description: Route values whose key ends in _html through the HTML subfilter.
+    help: |
+      When enabled, values under keys ending in `_html` are parsed by the HTML
+      subfilter for tag protection. Disabled by default because the HTML
+      subfilter normalises bare markup fragments, which would break byte-faithful
+      round-trip; enable it only for tag-protection workflows.
+    values: "`true` / `false` (default `false`)"
+processingNotes:
+  - "Plural sibling keys stay 1:1 blocks (preserving byte-faithful round-trip) but are annotated with base key + CLDR category."
+  - "`{{interpolation}}` and `$t()` nesting are protected as inline codes."
+  - Block names use the full namespace key path for nested objects.
+examples:
+  - title: Protect HTML in _html values
+    description: Enable the HTML subfilter for keys ending in _html.
+    config: |
+      subfilterHTMLValues: true

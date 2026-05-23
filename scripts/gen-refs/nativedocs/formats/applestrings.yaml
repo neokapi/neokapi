@@ -1,0 +1,40 @@
+# Native reference doc for the built-in `applestrings` format.
+# Schema source: core/formats/applestrings/config.go (Config) + schema.go.
+# Legacy Apple localization; .xcstrings (see xcstrings) is the modern successor.
+description: Extract and update translations in legacy Apple .strings and .stringsdict localization files.
+overview: |
+  The **Apple Strings** format reads both legacy Apple localization file
+  types in one format: the line-based `.strings` key/value tables and the
+  `.stringsdict` plist-XML plural dictionaries (locale by `.lproj` directory).
+
+  In `.strings`, a comment preceding an entry becomes a translator note and
+  printf specifiers (`%@`, `%lld`, `%1$@`) are protected as inline codes. In
+  `.stringsdict`, each `NSStringLocalizedFormatKey` and every CLDR plural
+  category (`zero`/`one`/`two`/`few`/`many`/`other`) is modeled as a block,
+  with `%#@var@` tokens protected. Writes are byte-faithful — only changed
+  values are spliced back — and UTF-8 and UTF-16 (LE/BE) encodings are
+  preserved. The modern `.xcstrings` String Catalog is handled by the
+  separate `xcstrings` format.
+parameters:
+  extractComments:
+    description: Attach a preceding comment as a translator note (.strings).
+    help: |
+      When enabled (the default), a `/* … */` or `// …` comment preceding a
+      `.strings` entry is attached to the block as a translator note.
+    values: "`true` / `false` (default `true`)"
+  protectPlaceholders:
+    description: Protect printf and %#@var@ tokens as inline codes.
+    help: |
+      When enabled (the default), printf specifiers (`%@`, `%lld`, `%1$@`)
+      and `.stringsdict` `%#@var@` substitution tokens are lifted into opaque
+      inline codes so they are never altered by translation.
+    values: "`true` / `false` (default `true`)"
+processingNotes:
+  - "`.strings` and `.stringsdict` are detected by their extensions; a stream without one is classified by content."
+  - "`.stringsdict` plural categories are modeled as separate blocks, like the String Catalog."
+  - Binary-plist `.strings` is out of scope; UTF-8 and UTF-16 text encodings are preserved on round-trip.
+examples:
+  - title: Leave placeholders inline
+    description: Do not protect printf/%#@var@ tokens as codes.
+    config: |
+      protectPlaceholders: false

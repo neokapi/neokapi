@@ -1,0 +1,7 @@
+{
+  "key": "{{count}} item",
+  "key_plural": "{{count}} items",
+  "keyWithCount_0": "no items",
+  "keyWithCount_1": "one item",
+  "keyWithCount_2": "{{count}} items"
+}

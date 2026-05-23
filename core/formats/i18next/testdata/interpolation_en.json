@@ -1,0 +1,7 @@
+{
+  "welcome": "Welcome {{name}}, you have {{count}} new messages",
+  "formatted": "Total: {{value, currency}} as of {{date, datetime}}",
+  "nested": "$t(welcome) Please review $t(common:terms).",
+  "mixed": "Hi {{user}} — see $t(home.footer) for details",
+  "noVars": "A plain sentence with no interpolation."
+}

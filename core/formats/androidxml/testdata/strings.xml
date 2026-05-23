@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Sample Android string resources covering the common l10n surface.
+     Modeled on AOSP and signalapp/Signal-Android values/strings.xml. -->
+<resources xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
+
+    <!-- Shown on the welcome screen. -->
+    <string name="app_name">My Application</string>
+
+    <string name="greeting">Hello, world!</string>
+
+    <!-- The user's display name is inserted at runtime. -->
+    <string name="welcome_user">Welcome back, %1$s!</string>
+
+    <string name="items_in_cart">You have %1$d items (%2$.2f total)</string>
+
+    <string name="percent_complete">%1$d%% complete</string>
+
+    <string name="escaped_text">It\'s a \"quoted\" word with a tab\tand newline\n</string>
+
+    <string name="entities">Fish &amp; Chips &lt;tasty&gt;</string>
+
+    <string name="do_not_translate" translatable="false">DEBUG_BUILD_MARKER</string>
+
+    <string name="alias_ref">@string/app_name</string>
+
+    <string name="file_size">Used <xliff:g id="size" example="1.2 GB">%1$s</xliff:g> of <xliff:g id="total" example="5 GB">%2$s</xliff:g></string>
+
+    <string name="rich_html"><![CDATA[Read our <a href="https://example.com">terms &amp; conditions</a> first.]]></string>
+
+    <!-- Plurals for the cart badge. -->
+    <plurals name="cart_items">
+        <item quantity="one">%1$d item</item>
+        <item quantity="other">%1$d items</item>
+    </plurals>
+
+    <!-- A list of weekday names. -->
+    <string-array name="weekdays">
+        <item>Monday</item>
+        <item>Tuesday</item>
+        <item>Wednesday</item>
+    </string-array>
+
+    <string-array name="config_values" translatable="false">
+        <item>internal_flag_a</item>
+        <item>internal_flag_b</item>
+    </string-array>
+
+</resources>

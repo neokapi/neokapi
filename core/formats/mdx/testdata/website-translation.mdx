@@ -1,0 +1,164 @@
+---
+title: Website Translation
+sidebar_label: Website Translation
+---
+
+# Use Case: Translating a Website
+
+This guide walks through a complete workflow for translating website content using the Bowrain CLI and Bowrain's visual editor.
+
+## Overview
+
+1. **CLI**: Initialize a Bowrain project and configure file mappings
+2. **CLI**: Run translation flows (AI, TM, QA)
+3. **Bowrain**: Open local project in visual editor for manual review
+4. **CLI**: Push to Bowrain Server for team collaboration (optional)
+
+## Step 1: Initialize Project
+
+Create a Bowrain project in your website repository:
+
+```bash
+# Initialize project with source and target locales
+cd my-website/
+kapi init --name "Website Translation" --source en-US --targets fr-FR,de-DE,ja-JP
+
+# Check word count for cost estimation
+kapi word-count content/**/*.md
+
+# Configure content collections in my-website.kapi
+# Edit to map your local files to formats and target paths
+```
+
+Example `my-website.kapi`:
+
+```yaml
+version: v1
+name: Website Translation
+
+defaults:
+  source_language: en-US
+  target_languages: [fr-FR, de-DE, ja-JP]
+
+content:
+  - path: content/**/*.md
+    format: markdown
+    target: i18n/{lang}/{path}/{filename}
+  - path: src/locales/**/*.json
+    format: json
+```
+
+## Step 2: Run Translation Tools and Flows
+
+Execute translation workflows from the CLI:
+
+```bash
+# List available tools and flows
+kapi tools
+kapi flows
+
+# Run AI translation (top-level tool command)
+kapi ai-translate
+
+# Or create a custom flow with QA checks
+# .kapi/flows/translate-website.yaml:
+# name: translate-website
+# description: Translate website content with AI and QA
+# steps:
+#   - tool: ai-translate
+#     config:
+#       provider: anthropic
+#       model: claude-sonnet-4.5
+#   - tool: qa-check
+#   - tool: term-enforce
+
+kapi run translate-website
+```
+
+### Tools and Flows
+
+Bowrain CLI tools and flows are composable pipelines that run on your local files:
+
+- **`kapi ai-translate`**: Use LLMs (Anthropic, OpenAI, Ollama) for machine translation
+- **`kapi tm-leverage`**: Pre-fill translations from translation memory
+- **`kapi qa-check`**: Rule-based quality checks (whitespace, punctuation, placeholders)
+- **`kapi run <flow>`**: Execute a composed or custom multi-tool flow
+
+Tools and flows automatically process all files matching your recipe's `content:` collections.
+
+## Step 3: Review in Bowrain (Optional)
+
+For visual review and manual edits, open your project in the Bowrain desktop app or web UI.
+
+```bash
+# Option 1: Launch Bowrain desktop app (if installed)
+open -a Bowrain .
+
+# Option 2: Start local web server
+kapi serve
+```
+
+### Editor Views
+
+Bowrain offers multiple views for different translation tasks:
+
+| View              | Best For                                          |
+| ----------------- | ------------------------------------------------- |
+| **Grid View**     | Overview, batch operations                        |
+| **Split Preview** | Context-sensitive translation with live rendering |
+| **Focus View**    | Distraction-free, segment-by-segment work         |
+
+### Using Terminology
+
+1. Import a termbase (TBX, CSV, JSON) — it's stored at `.kapi/termbase.db`
+2. Add `term-lookup` to your flow to show terminology suggestions
+3. Add `term-enforce` to validate required terms are used correctly
+4. The Context panel in Bowrain shows matched terms per block
+
+## Step 4: Sync with Bowrain Server (Optional)
+
+For team collaboration, connect your project to a Bowrain Server instance:
+
+```bash
+# Connect to server
+kapi init --server https://bowrain.example.com --project abc123
+
+# Check sync status
+kapi status
+
+# Push translations to server
+kapi push -m "Translate landing page content"
+
+# Pull translations from teammates
+kapi pull
+```
+
+The push/pull workflow is similar to git:
+
+| Git          | Bowrain CLI      |
+| ------------ | ---------------- |
+| `git status` | `kapi status` |
+| `git diff`   | `kapi diff`   |
+| `git pull`   | `kapi pull`   |
+| `git push`   | `kapi push`   |
+
+Bowrain CLI uses content-addressed blocks for efficient incremental sync — only changed blocks transfer over the network.
+
+## Tips
+
+- **Initialize projects with `kapi init`** to write a `<dir-name>.kapi` recipe and `.kapi/` state directory
+- **Define custom flows** in `.kapi/flows/` for your specific translation workflow
+- **Use `kapi tm-leverage`** to auto-fill translations from translation memory
+- **Import terminology** into the project termbase at `.kapi/termbase.db` and add `term-lookup` to your flow
+- **Run `kapi pseudo-translate`** first to identify potential UI truncation issues
+- **Use pre-push hooks** to enforce quality gates before pushing to server
+- **Commit `<dir-name>.kapi`** to git; the whole `.kapi/` state directory is gitignored by default
+- **Check `kapi status`** before pushing to see what changed
+
+## Related
+
+- [Walkthrough](/walkthroughs/bowrain-getting-started)
+- [kapi init](/cli/commands/init)
+- [kapi run](/cli/commands/run)
+- [kapi push](/cli/commands/push) and [kapi pull](/cli/commands/pull)
+- [Bowrain Walkthroughs](/desktop/walkthroughs)

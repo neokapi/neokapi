@@ -1,0 +1,37 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "%1$@ has %2$lld photos in %3$@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "substitutions" : {
+              "photo_count" : {
+                "argNum" : 2,
+                "formatSpecifier" : "lld",
+                "variations" : {
+                  "plural" : {
+                    "one" : {
+                      "stringUnit" : {
+                        "state" : "translated",
+                        "value" : "%1$@ has %arg photo in %3$@"
+                      }
+                    },
+                    "other" : {
+                      "stringUnit" : {
+                        "state" : "translated",
+                        "value" : "%1$@ has %arg photos in %3$@"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "version" : "1.0"
+}

@@ -65,7 +65,7 @@ func TestReaderSignature(t *testing.T) {
 	reader := regex.NewReader()
 	sig := reader.Signature()
 	assert.Contains(t, sig.MIMETypes, "text/x-regex")
-	assert.Contains(t, sig.Extensions, ".strings")
+	assert.Contains(t, sig.Extensions, ".ini")
 }
 
 func TestReadNilDocument(t *testing.T) {
