@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-23T06:29:38Z",
+  "generatedAt": "2026-05-23T11:30:45Z",
   "kind": "tool",
   "entries": [
     {
@@ -147,6 +147,123 @@
             "config": "provider: anthropic\nprofileId: acme-marketing\n"
           }
         ]
+      }
+    },
+    {
+      "id": "ai-entity-extract",
+      "source": "built-in",
+      "kind": "tool",
+      "displayName": "AI Entity Extract",
+      "description": "Detect named entities (people, organizations, products, locations) using an LLM",
+      "category": "analysis",
+      "inputs": [
+        "block"
+      ],
+      "tags": [
+        "ai-powered"
+      ],
+      "requires": [
+        "credentials"
+      ],
+      "cardinality": "monolingual",
+      "schema": {
+        "$id": "ai-entity-extract",
+        "title": "AI Entity Extract",
+        "description": "Detect named entities (people, organizations, products, locations) using an LLM",
+        "type": "object",
+        "toolMeta": {
+          "id": "ai-entity-extract",
+          "category": "analysis",
+          "displayName": "AI Entity Extract",
+          "description": "Detect named entities (people, organizations, products, locations) using an LLM",
+          "inputs": [
+            "block"
+          ],
+          "tags": [
+            "ai-powered"
+          ],
+          "requires": [
+            "credentials"
+          ],
+          "cardinality": "monolingual",
+          "sideEffects": [
+            "api-call"
+          ]
+        },
+        "ui:groups": [
+          {
+            "id": "provider",
+            "label": "Provider",
+            "fields": [
+              "provider",
+              "apiKey",
+              "model"
+            ]
+          }
+        ],
+        "properties": {
+          "apiKey": {
+            "type": "string",
+            "title": "API Key",
+            "description": "API key for the AI provider"
+          },
+          "batchConcurrency": {
+            "type": "integer",
+            "description": "Number of concurrent batch calls (0 or 1 = sequential)",
+            "default": 1,
+            "minimum": 1
+          },
+          "batchSize": {
+            "type": "integer",
+            "description": "Number of blocks per LLM call (0 or 1 = one block per call)",
+            "default": 1,
+            "minimum": 1
+          },
+          "knownTerms": {
+            "type": "array",
+            "description": "Terms to exclude from extraction (already in termbase)",
+            "items": {
+              "type": "string"
+            }
+          },
+          "locale": {
+            "type": "string",
+            "description": "Locale of the source content"
+          },
+          "model": {
+            "type": "string",
+            "title": "Model",
+            "description": "AI model name"
+          },
+          "provider": {
+            "type": "string",
+            "title": "AI Provider",
+            "description": "AI provider",
+            "default": "anthropic",
+            "options": [
+              {
+                "value": "anthropic",
+                "label": "Anthropic"
+              },
+              {
+                "value": "openai",
+                "label": "OpenAI"
+              },
+              {
+                "value": "gemini",
+                "label": "Gemini"
+              },
+              {
+                "value": "azureopenai",
+                "label": "Azure OpenAI"
+              },
+              {
+                "value": "ollama",
+                "label": "Ollama"
+              }
+            ]
+          }
+        }
       }
     },
     {
@@ -2462,6 +2579,103 @@
     },
     {
       "id": "create-target",
+      "source": "built-in",
+      "kind": "tool",
+      "displayName": "Create Target",
+      "description": "Create target segment containers for a locale, optionally seeded with the source text.",
+      "category": "text-processing",
+      "inputs": [
+        "block"
+      ],
+      "requires": [
+        "target-language"
+      ],
+      "cardinality": "bilingual",
+      "schema": {
+        "$id": "create-target",
+        "title": "Create Target",
+        "type": "object",
+        "toolMeta": {
+          "id": "create-target",
+          "category": "text-processing",
+          "displayName": "Create Target",
+          "inputs": [
+            "block"
+          ],
+          "requires": [
+            "target-language"
+          ],
+          "cardinality": "bilingual"
+        },
+        "properties": {
+          "copySource": {
+            "type": "boolean",
+            "title": "Copy Source",
+            "description": "Copy source text to the new target segment",
+            "default": false
+          },
+          "createOnNonTranslatable": {
+            "type": "boolean",
+            "title": "Create on Non-Translatable",
+            "description": "Create a target container even for non-translatable text units",
+            "default": true
+          },
+          "overwrite": {
+            "type": "boolean",
+            "title": "Overwrite Existing",
+            "description": "Overwrite existing target segments if they already exist",
+            "default": false
+          },
+          "targetLocale": {
+            "type": "string",
+            "title": "Target Locale",
+            "description": "Target locale to create"
+          }
+        }
+      },
+      "doc": {
+        "overview": "The **Create Target** tool ensures every block has a target segment for a\ngiven locale. It is the standard first step when preparing content for\ntranslation: it creates the empty (or source-seeded) target containers that\nlater tools — translation, leverage, QA — fill and check.\n\nA target locale is required. By default existing targets are left untouched;\nenable overwriting to replace them. Targets can be created for\nnon-translatable blocks as well, which keeps bilingual structure complete\nacross an entire document.\n",
+        "parameters": {
+          "copySource": {
+            "description": "Seed the new target with the source text.",
+            "help": "When enabled, the source text is copied into the new target segment so it\nstarts as a duplicate of the source. When disabled, the target is created\nempty.\n",
+            "values": "`true` / `false` (default `false`)"
+          },
+          "createOnNonTranslatable": {
+            "description": "Also create targets on non-translatable blocks.",
+            "help": "When enabled, target containers are created even for blocks marked\nnon-translatable, keeping the bilingual structure complete. Disable it to\nskip non-translatable blocks entirely.\n",
+            "values": "`true` / `false` (default `true`)"
+          },
+          "overwrite": {
+            "description": "Replace targets that already exist.",
+            "help": "By default a block that already has a target for the locale is left\nunchanged. Enable this to overwrite the existing target with a new\n(empty or source-seeded) one.\n",
+            "values": "`true` / `false` (default `false`)"
+          },
+          "targetLocale": {
+            "description": "The locale to create a target for.",
+            "help": "The BCP-47 locale identifier for the target to create (for example\n`fr-FR`). On the CLI and in flows this is typically supplied by the\n`--target-lang` value.\n",
+            "values": "BCP-47 locale (required)"
+          }
+        },
+        "processingNotes": [
+          "Existing targets are skipped unless overwrite is enabled."
+        ],
+        "examples": [
+          {
+            "title": "Create empty targets for a locale",
+            "description": "Prepare empty target containers ready for translation.",
+            "config": "targetLocale: fr-FR\n"
+          },
+          {
+            "title": "Pre-fill targets with the source",
+            "description": "Seed targets with source text as a starting draft.",
+            "config": "targetLocale: de-DE\ncopySource: true\n"
+          }
+        ]
+      }
+    },
+    {
+      "id": "create-target",
       "source": "okapi",
       "kind": "tool",
       "displayName": "Create Target",
@@ -2583,103 +2797,6 @@
           }
         ],
         "wikiUrl": "https://okapiframework.org/wiki/index.php/Create_Target_Step"
-      }
-    },
-    {
-      "id": "create-target",
-      "source": "built-in",
-      "kind": "tool",
-      "displayName": "Create Target",
-      "description": "Create target segment containers for a locale, optionally seeded with the source text.",
-      "category": "text-processing",
-      "inputs": [
-        "block"
-      ],
-      "requires": [
-        "target-language"
-      ],
-      "cardinality": "bilingual",
-      "schema": {
-        "$id": "create-target",
-        "title": "Create Target",
-        "type": "object",
-        "toolMeta": {
-          "id": "create-target",
-          "category": "text-processing",
-          "displayName": "Create Target",
-          "inputs": [
-            "block"
-          ],
-          "requires": [
-            "target-language"
-          ],
-          "cardinality": "bilingual"
-        },
-        "properties": {
-          "copySource": {
-            "type": "boolean",
-            "title": "Copy Source",
-            "description": "Copy source text to the new target segment",
-            "default": false
-          },
-          "createOnNonTranslatable": {
-            "type": "boolean",
-            "title": "Create on Non-Translatable",
-            "description": "Create a target container even for non-translatable text units",
-            "default": true
-          },
-          "overwrite": {
-            "type": "boolean",
-            "title": "Overwrite Existing",
-            "description": "Overwrite existing target segments if they already exist",
-            "default": false
-          },
-          "targetLocale": {
-            "type": "string",
-            "title": "Target Locale",
-            "description": "Target locale to create"
-          }
-        }
-      },
-      "doc": {
-        "overview": "The **Create Target** tool ensures every block has a target segment for a\ngiven locale. It is the standard first step when preparing content for\ntranslation: it creates the empty (or source-seeded) target containers that\nlater tools — translation, leverage, QA — fill and check.\n\nA target locale is required. By default existing targets are left untouched;\nenable overwriting to replace them. Targets can be created for\nnon-translatable blocks as well, which keeps bilingual structure complete\nacross an entire document.\n",
-        "parameters": {
-          "copySource": {
-            "description": "Seed the new target with the source text.",
-            "help": "When enabled, the source text is copied into the new target segment so it\nstarts as a duplicate of the source. When disabled, the target is created\nempty.\n",
-            "values": "`true` / `false` (default `false`)"
-          },
-          "createOnNonTranslatable": {
-            "description": "Also create targets on non-translatable blocks.",
-            "help": "When enabled, target containers are created even for blocks marked\nnon-translatable, keeping the bilingual structure complete. Disable it to\nskip non-translatable blocks entirely.\n",
-            "values": "`true` / `false` (default `true`)"
-          },
-          "overwrite": {
-            "description": "Replace targets that already exist.",
-            "help": "By default a block that already has a target for the locale is left\nunchanged. Enable this to overwrite the existing target with a new\n(empty or source-seeded) one.\n",
-            "values": "`true` / `false` (default `false`)"
-          },
-          "targetLocale": {
-            "description": "The locale to create a target for.",
-            "help": "The BCP-47 locale identifier for the target to create (for example\n`fr-FR`). On the CLI and in flows this is typically supplied by the\n`--target-lang` value.\n",
-            "values": "BCP-47 locale (required)"
-          }
-        },
-        "processingNotes": [
-          "Existing targets are skipped unless overwrite is enabled."
-        ],
-        "examples": [
-          {
-            "title": "Create empty targets for a locale",
-            "description": "Prepare empty target containers ready for translation.",
-            "config": "targetLocale: fr-FR\n"
-          },
-          {
-            "title": "Pre-fill targets with the source",
-            "description": "Seed targets with source text as a starting draft.",
-            "config": "targetLocale: de-DE\ncopySource: true\n"
-          }
-        ]
       }
     },
     {
@@ -4539,99 +4656,6 @@
     },
     {
       "id": "external-command",
-      "source": "okapi",
-      "kind": "tool",
-      "displayName": "External Command",
-      "description": "Execute an external command line.",
-      "category": "pipeline",
-      "inputs": [
-        "block"
-      ],
-      "outputs": [
-        "data"
-      ],
-      "requires": [
-        "target-language",
-        "source-language"
-      ],
-      "schema": {
-        "$id": "external-command",
-        "title": "External Command",
-        "type": "object",
-        "description": "Execute an external command line.",
-        "properties": {
-          "command": {
-            "type": "string",
-            "default": "",
-            "title": "Command line",
-            "description": "Command path to execute",
-            "ui:widget": "text",
-            "ui:layout": {
-              "vertical": true
-            }
-          },
-          "timeout": {
-            "type": "integer",
-            "default": -1,
-            "title": "Timeout",
-            "description": "Timeout in seconds after which the command is cancelled (use -1 for no timeout)",
-            "ui:widget": "text"
-          }
-        },
-        "toolMeta": {
-          "displayName": "External Command",
-          "category": "pipeline",
-          "description": "Execute an external command line.",
-          "outputs": [
-            "data"
-          ],
-          "requires": [
-            "target-language",
-            "source-language"
-          ],
-          "inputs": [
-            "block"
-          ]
-        }
-      },
-      "doc": {
-        "overview": "This step runs a given external command on a raw document. It takes a raw document as input, executes the specified command line (with variable substitution for paths and locale information), and sends the resulting raw document downstream. The command must reference `${inputPath}` and `${outputPath}` to read and write the document.",
-        "parameters": {
-          "command": {
-            "help": "The command line to execute. Must reference `${inputPath}` and `${outputPath}` so the step knows where to read and write the document.\n\nAvailable variables (case-sensitive):\n\n| Variable | Description | Example |\n|---|---|---|\n| `${inputPath}` | Full path of the input document | |\n| `${outputPath}` | Full path of the output document | |\n| `${srcLangName}` | English name of source language | `de-ch` → `German` |\n| `${trgLangName}` | English name of target language | `ja-jp` → `Japanese` |\n| `${srcLang}` | Language code of source locale | `de-ch` → `de` |\n| `${trgLang}` | Language code of target locale | `ja-jp` → `ja` |\n| `${srcBCP47}` | BCP-47 tag of source locale | `de-CH` → `de-CH` |\n| `${trgBCP47}` | BCP-47 tag of target locale | `ja-JP` → `ja-JP` |\n| `${rootDir}` | Root directory for the project/batch | In Rainbow: the parameters folder |",
-            "values": "A shell command string with `${variable}` placeholders. Variable names are **case-sensitive**.",
-            "notes": [
-              "The command **must** use `${inputPath}` and `${outputPath}` to correctly read input and produce output.",
-              "Variable names are case-sensitive — `${inputpath}` will not work."
-            ],
-            "examples": [
-              "`cmd /C \"sort ${inputPath} /O ${outputPath}\"` — Windows command that sorts the input file and writes the result to the output path"
-            ]
-          },
-          "timeout": {
-            "help": "Number of seconds to wait for the command to complete before cancelling it. Use `-1` to let the command run indefinitely.",
-            "values": "Integer seconds, or `-1` for no timeout."
-          }
-        },
-        "limitations": [
-          "None known."
-        ],
-        "processingNotes": [
-          "The step operates on **raw documents** — it does not parse or segment content. The external command receives the file as-is and must produce a complete output file.",
-          "The `${srcBCP47}` and `${trgBCP47}` variables were introduced in milestone M37."
-        ],
-        "examples": [
-          {
-            "title": "Sort file contents (Windows)",
-            "description": "Uses the Windows `sort` command to sort the lines of the input document and write the sorted result to the output path.",
-            "config": "```yaml\ncommand: 'cmd /C \"sort ${inputPath} /O ${outputPath}\"'\ntimeout: -1\n```"
-          }
-        ],
-        "wikiUrl": "https://okapiframework.org/wiki/index.php/External_Command_Step"
-      }
-    },
-    {
-      "id": "external-command",
       "source": "built-in",
       "kind": "tool",
       "displayName": "External Command",
@@ -4781,6 +4805,99 @@
             "config": "command: transform\nargs: [\"--text\", \"${source}\"]\napplySource: true\nsendAsStdin: false\n"
           }
         ]
+      }
+    },
+    {
+      "id": "external-command",
+      "source": "okapi",
+      "kind": "tool",
+      "displayName": "External Command",
+      "description": "Execute an external command line.",
+      "category": "pipeline",
+      "inputs": [
+        "block"
+      ],
+      "outputs": [
+        "data"
+      ],
+      "requires": [
+        "target-language",
+        "source-language"
+      ],
+      "schema": {
+        "$id": "external-command",
+        "title": "External Command",
+        "type": "object",
+        "description": "Execute an external command line.",
+        "properties": {
+          "command": {
+            "type": "string",
+            "default": "",
+            "title": "Command line",
+            "description": "Command path to execute",
+            "ui:widget": "text",
+            "ui:layout": {
+              "vertical": true
+            }
+          },
+          "timeout": {
+            "type": "integer",
+            "default": -1,
+            "title": "Timeout",
+            "description": "Timeout in seconds after which the command is cancelled (use -1 for no timeout)",
+            "ui:widget": "text"
+          }
+        },
+        "toolMeta": {
+          "displayName": "External Command",
+          "category": "pipeline",
+          "description": "Execute an external command line.",
+          "outputs": [
+            "data"
+          ],
+          "requires": [
+            "target-language",
+            "source-language"
+          ],
+          "inputs": [
+            "block"
+          ]
+        }
+      },
+      "doc": {
+        "overview": "This step runs a given external command on a raw document. It takes a raw document as input, executes the specified command line (with variable substitution for paths and locale information), and sends the resulting raw document downstream. The command must reference `${inputPath}` and `${outputPath}` to read and write the document.",
+        "parameters": {
+          "command": {
+            "help": "The command line to execute. Must reference `${inputPath}` and `${outputPath}` so the step knows where to read and write the document.\n\nAvailable variables (case-sensitive):\n\n| Variable | Description | Example |\n|---|---|---|\n| `${inputPath}` | Full path of the input document | |\n| `${outputPath}` | Full path of the output document | |\n| `${srcLangName}` | English name of source language | `de-ch` → `German` |\n| `${trgLangName}` | English name of target language | `ja-jp` → `Japanese` |\n| `${srcLang}` | Language code of source locale | `de-ch` → `de` |\n| `${trgLang}` | Language code of target locale | `ja-jp` → `ja` |\n| `${srcBCP47}` | BCP-47 tag of source locale | `de-CH` → `de-CH` |\n| `${trgBCP47}` | BCP-47 tag of target locale | `ja-JP` → `ja-JP` |\n| `${rootDir}` | Root directory for the project/batch | In Rainbow: the parameters folder |",
+            "values": "A shell command string with `${variable}` placeholders. Variable names are **case-sensitive**.",
+            "notes": [
+              "The command **must** use `${inputPath}` and `${outputPath}` to correctly read input and produce output.",
+              "Variable names are case-sensitive — `${inputpath}` will not work."
+            ],
+            "examples": [
+              "`cmd /C \"sort ${inputPath} /O ${outputPath}\"` — Windows command that sorts the input file and writes the result to the output path"
+            ]
+          },
+          "timeout": {
+            "help": "Number of seconds to wait for the command to complete before cancelling it. Use `-1` to let the command run indefinitely.",
+            "values": "Integer seconds, or `-1` for no timeout."
+          }
+        },
+        "limitations": [
+          "None known."
+        ],
+        "processingNotes": [
+          "The step operates on **raw documents** — it does not parse or segment content. The external command receives the file as-is and must produce a complete output file.",
+          "The `${srcBCP47}` and `${trgBCP47}` variables were introduced in milestone M37."
+        ],
+        "examples": [
+          {
+            "title": "Sort file contents (Windows)",
+            "description": "Uses the Windows `sort` command to sort the lines of the input document and write the sorted result to the output path.",
+            "config": "```yaml\ncommand: 'cmd /C \"sort ${inputPath} /O ${outputPath}\"'\ntimeout: -1\n```"
+          }
+        ],
+        "wikiUrl": "https://okapiframework.org/wiki/index.php/External_Command_Step"
       }
     },
     {
@@ -12760,105 +12877,67 @@
       }
     },
     {
-      "id": "remove-target",
+      "id": "redact",
       "source": "built-in",
       "kind": "tool",
-      "displayName": "Remove Target",
-      "description": "Remove target segments from blocks, by locale or by selected text-unit IDs.",
+      "displayName": "Redact",
+      "description": "Replace sensitive spans with protected placeholders before processing",
       "category": "text-processing",
       "inputs": [
         "block"
       ],
-      "requires": [
-        "target-language"
+      "tags": [
+        "security",
+        "redaction"
       ],
-      "cardinality": "bilingual",
+      "cardinality": "monolingual",
       "schema": {
-        "$id": "remove-target",
-        "title": "Remove Target",
+        "$id": "redact",
+        "title": "Redact",
+        "description": "Replace sensitive spans with protected placeholders before processing",
         "type": "object",
         "toolMeta": {
-          "id": "remove-target",
+          "id": "redact",
           "category": "text-processing",
-          "displayName": "Remove Target",
+          "displayName": "Redact",
+          "description": "Replace sensitive spans with protected placeholders before processing",
           "inputs": [
             "block"
           ],
-          "requires": [
-            "target-language"
+          "tags": [
+            "security",
+            "redaction"
           ],
-          "cardinality": "bilingual"
+          "cardinality": "monolingual"
         },
         "properties": {
-          "filterByIDs": {
-            "type": "boolean",
-            "title": "Filter by IDs",
-            "description": "When true filter text units by ID; when false filter by target locale",
-            "default": true
+          "detectors": {
+            "type": "array",
+            "title": "Detectors",
+            "description": "Detection backends to run: rules and/or entities",
+            "items": {
+              "type": "string"
+            }
           },
-          "removeBlockIfEmpty": {
-            "type": "boolean",
-            "title": "Remove Empty Text Units",
-            "description": "Remove the text unit entirely if it has no remaining targets after removal",
-            "default": false
+          "entityTypes": {
+            "type": "array",
+            "title": "Entity Categories",
+            "description": "Entity categories to redact when 'entities' detection is enabled",
+            "items": {
+              "type": "string"
+            }
           },
-          "targetLocale": {
+          "placeholder": {
             "type": "string",
-            "title": "Target Locale",
-            "description": "Target locale to remove (if empty all targets are removed)"
+            "title": "Placeholder Template",
+            "description": "Visible stand-in template; supports {category} and {n}"
           },
-          "textUnitIDs": {
+          "rulesPath": {
             "type": "string",
-            "title": "Text Unit IDs for Removal",
-            "description": "Comma-delimited list of text unit IDs whose targets should be removed; empty removes all targets"
+            "title": "Rules File",
+            "description": "Path to a redaction rules YAML file"
           }
         }
-      },
-      "doc": {
-        "overview": "The **Remove Target** tool deletes target segments from blocks. With a target\nlocale set, it removes only that locale's targets; with no locale, it removes\nall targets. It is useful for resetting translations before a fresh run, or\nfor clearing targets in a specific locale.\n\nRemoval can be scoped to specific text units by ID, which restricts the\noperation to a comma-separated list of block IDs. Optionally, a block whose\ntargets are all removed can itself be dropped from the stream.\n",
-        "parameters": {
-          "filterByIDs": {
-            "description": "Filter text units by ID rather than by locale alone.",
-            "help": "When enabled, removal is restricted to the blocks listed in\n`textUnitIDs`. When disabled, removal is driven by the target locale\nacross all blocks.\n",
-            "values": "`true` / `false` (default `true`)"
-          },
-          "removeBlockIfEmpty": {
-            "description": "Drop a block when it has no targets left.",
-            "help": "When enabled, a block that has no remaining target segments after removal\nis dropped from the stream entirely. When disabled, the now-empty block is\nkept.\n",
-            "values": "`true` / `false` (default `false`)"
-          },
-          "targetLocale": {
-            "description": "The locale whose targets to remove.",
-            "help": "The locale to clear. When empty, the targets for every locale on the\nblock are removed.\n",
-            "values": "BCP-47 locale (empty = remove all targets)"
-          },
-          "textUnitIDs": {
-            "description": "Comma-separated text-unit IDs to restrict removal to.",
-            "help": "A comma-delimited list of block (text-unit) IDs. When set and ID\nfiltering is enabled, only blocks whose ID appears in the list have their\ntargets removed. Leave empty to remove targets from all blocks.\n",
-            "values": "comma-separated string",
-            "dependsOn": [
-              {
-                "property": "filterByIDs",
-                "condition": "ID filtering must be enabled for this list to apply"
-              }
-            ]
-          }
-        },
-        "processingNotes": [
-          "Operates on translatable blocks only; non-translatable blocks pass through unchanged."
-        ],
-        "examples": [
-          {
-            "title": "Clear one locale's targets",
-            "description": "Remove the French targets from every block.",
-            "config": "targetLocale: fr-FR\n"
-          },
-          {
-            "title": "Remove targets for selected text units",
-            "description": "Restrict removal to specific block IDs.",
-            "config": "filterByIDs: true\ntextUnitIDs: \"intro.title, intro.body\"\n"
-          }
-        ]
       }
     },
     {
@@ -13011,6 +13090,161 @@
       }
     },
     {
+      "id": "remove-target",
+      "source": "built-in",
+      "kind": "tool",
+      "displayName": "Remove Target",
+      "description": "Remove target segments from blocks, by locale or by selected text-unit IDs.",
+      "category": "text-processing",
+      "inputs": [
+        "block"
+      ],
+      "requires": [
+        "target-language"
+      ],
+      "cardinality": "bilingual",
+      "schema": {
+        "$id": "remove-target",
+        "title": "Remove Target",
+        "type": "object",
+        "toolMeta": {
+          "id": "remove-target",
+          "category": "text-processing",
+          "displayName": "Remove Target",
+          "inputs": [
+            "block"
+          ],
+          "requires": [
+            "target-language"
+          ],
+          "cardinality": "bilingual"
+        },
+        "properties": {
+          "filterByIDs": {
+            "type": "boolean",
+            "title": "Filter by IDs",
+            "description": "When true filter text units by ID; when false filter by target locale",
+            "default": true
+          },
+          "removeBlockIfEmpty": {
+            "type": "boolean",
+            "title": "Remove Empty Text Units",
+            "description": "Remove the text unit entirely if it has no remaining targets after removal",
+            "default": false
+          },
+          "targetLocale": {
+            "type": "string",
+            "title": "Target Locale",
+            "description": "Target locale to remove (if empty all targets are removed)"
+          },
+          "textUnitIDs": {
+            "type": "string",
+            "title": "Text Unit IDs for Removal",
+            "description": "Comma-delimited list of text unit IDs whose targets should be removed; empty removes all targets"
+          }
+        }
+      },
+      "doc": {
+        "overview": "The **Remove Target** tool deletes target segments from blocks. With a target\nlocale set, it removes only that locale's targets; with no locale, it removes\nall targets. It is useful for resetting translations before a fresh run, or\nfor clearing targets in a specific locale.\n\nRemoval can be scoped to specific text units by ID, which restricts the\noperation to a comma-separated list of block IDs. Optionally, a block whose\ntargets are all removed can itself be dropped from the stream.\n",
+        "parameters": {
+          "filterByIDs": {
+            "description": "Filter text units by ID rather than by locale alone.",
+            "help": "When enabled, removal is restricted to the blocks listed in\n`textUnitIDs`. When disabled, removal is driven by the target locale\nacross all blocks.\n",
+            "values": "`true` / `false` (default `true`)"
+          },
+          "removeBlockIfEmpty": {
+            "description": "Drop a block when it has no targets left.",
+            "help": "When enabled, a block that has no remaining target segments after removal\nis dropped from the stream entirely. When disabled, the now-empty block is\nkept.\n",
+            "values": "`true` / `false` (default `false`)"
+          },
+          "targetLocale": {
+            "description": "The locale whose targets to remove.",
+            "help": "The locale to clear. When empty, the targets for every locale on the\nblock are removed.\n",
+            "values": "BCP-47 locale (empty = remove all targets)"
+          },
+          "textUnitIDs": {
+            "description": "Comma-separated text-unit IDs to restrict removal to.",
+            "help": "A comma-delimited list of block (text-unit) IDs. When set and ID\nfiltering is enabled, only blocks whose ID appears in the list have their\ntargets removed. Leave empty to remove targets from all blocks.\n",
+            "values": "comma-separated string",
+            "dependsOn": [
+              {
+                "property": "filterByIDs",
+                "condition": "ID filtering must be enabled for this list to apply"
+              }
+            ]
+          }
+        },
+        "processingNotes": [
+          "Operates on translatable blocks only; non-translatable blocks pass through unchanged."
+        ],
+        "examples": [
+          {
+            "title": "Clear one locale's targets",
+            "description": "Remove the French targets from every block.",
+            "config": "targetLocale: fr-FR\n"
+          },
+          {
+            "title": "Remove targets for selected text units",
+            "description": "Restrict removal to specific block IDs.",
+            "config": "filterByIDs: true\ntextUnitIDs: \"intro.title, intro.body\"\n"
+          }
+        ]
+      }
+    },
+    {
+      "id": "repetition-analysis",
+      "source": "okapi",
+      "kind": "tool",
+      "displayName": "Repetition Analysis",
+      "description": "Analyzes repetitions in input documents. Adds AltTranslationsAnnotation and RepetitiveSegmentAnnotation to a repetitive segment. Expects: filter events. Sends back: filter events.",
+      "category": "translate",
+      "inputs": [
+        "block"
+      ],
+      "tags": [
+        "translation",
+        "text-processing"
+      ],
+      "requires": [
+        "target-language",
+        "source-language"
+      ],
+      "schema": {
+        "$id": "repetition-analysis",
+        "title": "Repetition Analysis",
+        "type": "object",
+        "description": "Analyzes repetitions in input documents. Adds AltTranslationsAnnotation and RepetitiveSegmentAnnotation to a repetitive segment. Expects: filter events. Sends back: filter events.",
+        "toolMeta": {
+          "displayName": "Repetition Analysis",
+          "category": "translate",
+          "inputs": [
+            "block"
+          ],
+          "tags": [
+            "translation",
+            "text-processing"
+          ],
+          "description": "Analyzes repetitions in input documents. Adds AltTranslationsAnnotation and RepetitiveSegmentAnnotation to a repetitive segment. Expects: filter events. Sends back: filter events.",
+          "requires": [
+            "target-language",
+            "source-language"
+          ]
+        }
+      },
+      "doc": {
+        "overview": "Analyzes repetitions across input documents, performing either exact or configurable fuzzy matching on source segments. For each group of repetitive segments, it attaches `RepetitiveSegmentAnnotation` to the source and `AltTranslationsAnnotation` to the corresponding target, enabling downstream steps (like leveraging or counting) to act on repeated content.",
+        "limitations": [
+          "No known limitations per the Okapi documentation."
+        ],
+        "processingNotes": [
+          "Two annotation types are created: **RepetitiveSegmentAnnotation** (on the repetitive source segment) and **AltTranslationsAnnotation** (on the corresponding target segment).",
+          "The first segment in a repetition group does **not** receive an `AltTranslationsAnnotation` — this prevents counting steps from double-counting it as repetitive with itself.",
+          "Fuzzy threshold controls whether matching is exact (100) or fuzzy (lower values). Leave at 100 for exact repetitions only."
+        ],
+        "wikiUrl": "https://okapiframework.org/wiki/index.php/Repetition_Analysis_Step"
+      }
+    },
+    {
       "id": "repetition-analysis",
       "source": "built-in",
       "kind": "tool",
@@ -13076,59 +13310,6 @@
             "config": "caseSensitive: false\n"
           }
         ]
-      }
-    },
-    {
-      "id": "repetition-analysis",
-      "source": "okapi",
-      "kind": "tool",
-      "displayName": "Repetition Analysis",
-      "description": "Analyzes repetitions in input documents. Adds AltTranslationsAnnotation and RepetitiveSegmentAnnotation to a repetitive segment. Expects: filter events. Sends back: filter events.",
-      "category": "translate",
-      "inputs": [
-        "block"
-      ],
-      "tags": [
-        "translation",
-        "text-processing"
-      ],
-      "requires": [
-        "target-language",
-        "source-language"
-      ],
-      "schema": {
-        "$id": "repetition-analysis",
-        "title": "Repetition Analysis",
-        "type": "object",
-        "description": "Analyzes repetitions in input documents. Adds AltTranslationsAnnotation and RepetitiveSegmentAnnotation to a repetitive segment. Expects: filter events. Sends back: filter events.",
-        "toolMeta": {
-          "displayName": "Repetition Analysis",
-          "category": "translate",
-          "inputs": [
-            "block"
-          ],
-          "tags": [
-            "translation",
-            "text-processing"
-          ],
-          "description": "Analyzes repetitions in input documents. Adds AltTranslationsAnnotation and RepetitiveSegmentAnnotation to a repetitive segment. Expects: filter events. Sends back: filter events.",
-          "requires": [
-            "target-language",
-            "source-language"
-          ]
-        }
-      },
-      "doc": {
-        "overview": "Analyzes repetitions across input documents, performing either exact or configurable fuzzy matching on source segments. For each group of repetitive segments, it attaches `RepetitiveSegmentAnnotation` to the source and `AltTranslationsAnnotation` to the corresponding target, enabling downstream steps (like leveraging or counting) to act on repeated content.",
-        "limitations": [
-          "No known limitations per the Okapi documentation."
-        ],
-        "processingNotes": [
-          "Two annotation types are created: **RepetitiveSegmentAnnotation** (on the repetitive source segment) and **AltTranslationsAnnotation** (on the corresponding target segment).",
-          "The first segment in a repetition group does **not** receive an `AltTranslationsAnnotation` — this prevents counting steps from double-counting it as repetitive with itself.",
-          "Fuzzy threshold controls whether matching is exact (100) or fuzzy (lower values). Leave at 100 for exact repetitions only."
-        ],
-        "wikiUrl": "https://okapiframework.org/wiki/index.php/Repetition_Analysis_Step"
       }
     },
     {
@@ -17585,6 +17766,42 @@
           }
         ],
         "wikiUrl": "https://okapiframework.org/wiki/index.php/TTX_Splitter_Step"
+      }
+    },
+    {
+      "id": "unredact",
+      "source": "built-in",
+      "kind": "tool",
+      "displayName": "Unredact",
+      "description": "Restore original values into redacted content after processing",
+      "category": "text-processing",
+      "inputs": [
+        "block"
+      ],
+      "tags": [
+        "security",
+        "redaction"
+      ],
+      "cardinality": "monolingual",
+      "schema": {
+        "$id": "unredact",
+        "title": "Unredact",
+        "description": "Restore original values into redacted content after processing",
+        "type": "object",
+        "toolMeta": {
+          "id": "unredact",
+          "category": "text-processing",
+          "displayName": "Unredact",
+          "description": "Restore original values into redacted content after processing",
+          "inputs": [
+            "block"
+          ],
+          "tags": [
+            "security",
+            "redaction"
+          ],
+          "cardinality": "monolingual"
+        }
       }
     },
     {
