@@ -681,6 +681,12 @@ web-wasm-demo: ## Build the in-browser playground wasm + JS glue → web/docs/st
 	@cp "$$($(GO) env GOROOT)/lib/wasm/wasm_exec.js" $(WASM_DEMO_DIR)/wasm_exec.js
 	@ls -lh $(WASM_DEMO_DIR)/kapi.wasm | awk '{print "  built",$$NF,$$5}'
 
+web-wasm-cli: ## Build the in-browser kapi CLI (wasm) → web/docs/static/wasm/kapi-cli.wasm
+	@mkdir -p $(WASM_DEMO_DIR)
+	cd kapi && GOOS=js GOARCH=wasm $(GO) build -o $(CURDIR)/$(WASM_DEMO_DIR)/kapi-cli.wasm ./cmd/kapi-wasm-cli
+	@cp "$$($(GO) env GOROOT)/lib/wasm/wasm_exec.js" $(WASM_DEMO_DIR)/wasm_exec.js
+	@ls -lh $(WASM_DEMO_DIR)/kapi-cli.wasm | awk '{print "  built",$$NF,$$5}'
+
 # ── Tools ────────────────────────────────────────────────────────────────────
 
 tools: ## Install development tools

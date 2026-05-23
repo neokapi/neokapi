@@ -23,8 +23,6 @@ import (
 	"github.com/neokapi/neokapi/core/preset"
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/tool"
-	"github.com/vbauerster/mpb/v8"
-	"github.com/vbauerster/mpb/v8/decor"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -118,25 +116,11 @@ func (a *App) RunToolOnFiles(ctx context.Context, cfg ToolRunConfig) error {
 		showProgress = true
 	}
 
-	var bar *mpb.Bar
-	var progress *mpb.Progress
+	var bar progressBar
+	var progress progressGroup
 	var active atomic.Int64
 	if showProgress {
-		progress = mpb.New(mpb.WithOutput(os.Stderr))
-		bar = progress.New(int64(len(files)),
-			mpb.BarStyle().Lbound("[").Filler("=").Tip(">").Padding(" ").Rbound("]"),
-			mpb.PrependDecorators(decor.Elapsed(decor.ET_STYLE_GO)),
-			mpb.AppendDecorators(
-				decor.CountersNoUnit("[%d/%d]"),
-				decor.Any(func(s decor.Statistics) string {
-					n := active.Load()
-					if n > 0 {
-						return fmt.Sprintf(" (%d active)", n)
-					}
-					return ""
-				}),
-			),
-		)
+		progress, bar = newProgress(len(files), &active)
 	}
 
 	// Batch trace mode: when --trace is set without a {name} placeholder
@@ -261,7 +245,7 @@ type batchTraceInfo struct {
 	lane    int
 }
 
-func (a *App) processOneFile(ctx context.Context, cfg ToolRunConfig, filePath string, collector flow.Collector, commonDir string, progress *mpb.Progress, batchInfo *batchTraceInfo) error {
+func (a *App) processOneFile(ctx context.Context, cfg ToolRunConfig, filePath string, collector flow.Collector, commonDir string, progress progressGroup, batchInfo *batchTraceInfo) error {
 	// Resolve format: mapping > global -f flag > auto-detect by extension.
 	fmtName := matchFormatMapping(filePath, cfg.FormatMappings)
 	if fmtName == "" {
@@ -716,7 +700,7 @@ func expandOutputPath(tmpl, filePath, commonDir, lang string) string {
 	return result
 }
 
-func warnf(progress *mpb.Progress, format string, args ...any) {
+func warnf(progress progressGroup, format string, args ...any) {
 	msg := fmt.Sprintf(format, args...)
 	if progress != nil {
 		fmt.Fprint(progress, msg)
