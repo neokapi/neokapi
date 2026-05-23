@@ -32,6 +32,16 @@ jobs:
       - name: Build kapi binary
         run: make build
 
+      - name: Build playground wasm
+        run: make web-wasm-demo
+
+      - name: Upload playground wasm
+        uses: actions/upload-artifact@v7
+        with:
+          name: kapi-wasm
+          path: web/docs/static/wasm
+          retention-days: 7
+
       - name: Install VHS + Xvfb
         run: |
           sudo apt-get update -qq
@@ -92,6 +102,12 @@ jobs:
         with:
           name: kapi-scenes
           path: web/docs/static/video/kapi
+
+      - name: Download playground wasm
+        uses: actions/download-artifact@v8
+        with:
+          name: kapi-wasm
+          path: web/docs/static/wasm
 
       - name: Stub test-comparison.json
         # CI's test-comparison job uploads the real artifact; this stub keeps

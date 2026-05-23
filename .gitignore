@@ -101,6 +101,9 @@ docker/traefik/certs/
 
 # Docusaurus
 web/landing/dist/
+
+# In-browser playground wasm artifacts (built by `make web-wasm-demo` / CI)
+web/docs/static/wasm/
 bowrain/web/landing/dist/
 
 web/docs/build/

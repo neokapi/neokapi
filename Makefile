@@ -672,6 +672,15 @@ docs-dev: ; cd web/docs && vp run start
 docs-build: ; cd web/docs && vp run build
 docs-serve: ; cd web/docs && vp run serve
 
+# Output dir for the in-browser playground (gitignored; built locally or in CI).
+WASM_DEMO_DIR := web/docs/static/wasm
+
+web-wasm-demo: ## Build the in-browser playground wasm + JS glue → web/docs/static/wasm/
+	@mkdir -p $(WASM_DEMO_DIR)
+	GOOS=js GOARCH=wasm $(GO) build -o $(WASM_DEMO_DIR)/kapi.wasm ./cmd/kapi-wasm
+	@cp "$$($(GO) env GOROOT)/lib/wasm/wasm_exec.js" $(WASM_DEMO_DIR)/wasm_exec.js
+	@ls -lh $(WASM_DEMO_DIR)/kapi.wasm | awk '{print "  built",$$NF,$$5}'
+
 # ── Tools ────────────────────────────────────────────────────────────────────
 
 tools: ## Install development tools
