@@ -1,10 +1,10 @@
 import { describe, it } from "vitest";
-import { ruleTester } from "./rule-tester.ts";
+import { run } from "./rule-tester.ts";
 import { rule } from "../src/rules/no-ternary-literals-in-jsx-child.ts";
 
 describe("no-ternary-literals-in-jsx-child", () => {
   it("valid + invalid cases", () => {
-    ruleTester.run("no-ternary-literals-in-jsx-child", rule, {
+    run("no-ternary-literals-in-jsx-child", rule, {
       valid: [
         // Not a ternary at all.
         { code: `<p>Hello</p>` },

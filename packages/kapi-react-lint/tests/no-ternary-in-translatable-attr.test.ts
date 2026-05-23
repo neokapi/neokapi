@@ -1,10 +1,10 @@
 import { describe, it } from "vitest";
-import { ruleTester } from "./rule-tester.ts";
+import { run } from "./rule-tester.ts";
 import { rule } from "../src/rules/no-ternary-in-translatable-attr.ts";
 
 describe("no-ternary-in-translatable-attr", () => {
   it("valid + invalid cases", () => {
-    ruleTester.run("no-ternary-in-translatable-attr", rule, {
+    run("no-ternary-in-translatable-attr", rule, {
       valid: [
         // All-literal branches — extractor handles these.
         { code: `<PageHeader title={cond ? "A" : "B"} />` },

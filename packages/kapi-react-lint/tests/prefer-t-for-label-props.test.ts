@@ -1,10 +1,10 @@
 import { describe, it } from "vitest";
-import { ruleTester } from "./rule-tester.ts";
+import { run } from "./rule-tester.ts";
 import { rule } from "../src/rules/prefer-t-for-label-props.ts";
 
 describe("prefer-t-for-label-props", () => {
   it("valid + invalid cases", () => {
-    ruleTester.run("prefer-t-for-label-props", rule, {
+    run("prefer-t-for-label-props", rule, {
       valid: [
         // Non-label keys — ignored even with string literals.
         { code: `const X = [{ id: 'light', value: 'light' }];` },

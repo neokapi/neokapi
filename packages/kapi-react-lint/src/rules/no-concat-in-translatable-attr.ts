@@ -1,4 +1,4 @@
-import type { Rule } from "eslint";
+import type { Rule, Node } from "@oxlint/plugins";
 import { TRANSLATABLE_ATTRS } from "../shared/translatable-attrs.ts";
 
 /**
@@ -7,7 +7,7 @@ import { TRANSLATABLE_ATTRS } from "../shared/translatable-attrs.ts";
  * extracted as source strings, so dynamic concatenation produces
  * either missing or broken translations.
  */
-export const rule: Rule.RuleModule = {
+export const rule: Rule = {
   meta: {
     type: "problem",
     docs: {
@@ -25,7 +25,7 @@ export const rule: Rule.RuleModule = {
   },
   create(context) {
     return {
-      JSXAttribute(node: Rule.Node) {
+      JSXAttribute(node: Node) {
         const attr = node as unknown as {
           name: { type: string; name?: string };
           value: unknown;
@@ -50,7 +50,7 @@ export const rule: Rule.RuleModule = {
         if (!expr) return;
         if (expr.type === "BinaryExpression" && expr.operator === "+" && isStringish(expr)) {
           context.report({
-            node: node as unknown as Rule.Node,
+            node: node as unknown as Node,
             messageId: "concat",
             data: { attr: attrName },
           });
@@ -58,7 +58,7 @@ export const rule: Rule.RuleModule = {
         }
         if (expr.type === "TemplateLiteral" && (expr.expressions?.length ?? 0) > 0) {
           context.report({
-            node: node as unknown as Rule.Node,
+            node: node as unknown as Node,
             messageId: "template",
             data: { attr: attrName },
           });

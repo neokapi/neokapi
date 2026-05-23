@@ -1,12 +1,12 @@
 import { describe, it } from "vitest";
-import { ruleTester } from "./rule-tester.ts";
+import { run } from "./rule-tester.ts";
 import { rule } from "../src/rules/t-literal-first-arg.ts";
 
 const IMPORT = `import { t } from '@neokapi/kapi-react/runtime';\n`;
 
 describe("t-literal-first-arg", () => {
   it("valid + invalid cases", () => {
-    ruleTester.run("t-literal-first-arg", rule, {
+    run("t-literal-first-arg", rule, {
       valid: [
         { code: `${IMPORT}t('Hello');` },
         { code: `${IMPORT}t('Hello', 'UI Language');` },

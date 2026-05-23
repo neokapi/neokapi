@@ -1,4 +1,4 @@
-import type { Rule } from "eslint";
+import type { Rule, Node } from "@oxlint/plugins";
 import { LIKELY_LABEL_KEYS } from "../shared/translatable-attrs.ts";
 import { hasTranslateNoAncestor } from "../shared/translate-no.ts";
 
@@ -19,7 +19,7 @@ import { hasTranslateNoAncestor } from "../shared/translate-no.ts";
  * Fix guidance in the message: wrap the source string with `t()` in
  * the data array, or use an explicit `t(key)` lookup here.
  */
-export const rule: Rule.RuleModule = {
+export const rule: Rule = {
   meta: {
     type: "problem",
     docs: {
@@ -45,7 +45,7 @@ export const rule: Rule.RuleModule = {
     const opts = (context.options[0] ?? {}) as { keys?: string[] };
     const keys = opts.keys ? new Set(opts.keys) : LIKELY_LABEL_KEYS;
     return {
-      JSXExpressionContainer(node: Rule.Node) {
+      JSXExpressionContainer(node: Node) {
         const container = node as unknown as {
           parent: unknown;
           expression: { type: string };
@@ -68,7 +68,7 @@ export const rule: Rule.RuleModule = {
         if (hasTranslateNoAncestor(container.parent)) return;
 
         context.report({
-          node: node as unknown as Rule.Node,
+          node: node as unknown as Node,
           messageId: "dynLabel",
           data: { expr: match.display, key: match.key },
         });

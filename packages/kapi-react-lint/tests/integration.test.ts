@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
 import { Linter } from "eslint";
+import type { ESLint } from "eslint";
 import { describe, expect, it } from "vitest";
 import { plugin } from "../src/index.ts";
 import { recommendedStrict } from "../src/configs/recommended-strict.ts";
@@ -28,7 +29,9 @@ describe("integration: recommended-strict fires on every mistake", () => {
           sourceType: "module",
           parserOptions: { ecmaFeatures: { jsx: true } },
         },
-        plugins: { "kapi-react": plugin },
+        // Rules are authored against @oxlint/plugins types; bridge to
+        // ESLint's plugin type at this ESLint-path test boundary.
+        plugins: { "kapi-react": plugin as unknown as ESLint.Plugin },
         rules: recommendedStrict.rules,
       },
     ]);

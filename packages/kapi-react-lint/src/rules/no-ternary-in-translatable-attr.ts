@@ -1,4 +1,4 @@
-import type { Rule } from "eslint";
+import type { Rule, Node } from "@oxlint/plugins";
 import { TRANSLATABLE_ATTRS } from "../shared/translatable-attrs.ts";
 import { hasTranslateNoAncestor } from "../shared/translate-no.ts";
 
@@ -16,7 +16,7 @@ import { hasTranslateNoAncestor } from "../shared/translate-no.ts";
  * The guidance is to lift the strings to be the direct branch values
  * (so the extractor can see them) or use `t()` explicitly.
  */
-export const rule: Rule.RuleModule = {
+export const rule: Rule = {
   meta: {
     type: "problem",
     docs: {
@@ -32,7 +32,7 @@ export const rule: Rule.RuleModule = {
   },
   create(context) {
     return {
-      JSXAttribute(node: Rule.Node) {
+      JSXAttribute(node: Node) {
         const attr = node as unknown as {
           name: { type: string; name?: string };
           value: unknown;
@@ -64,7 +64,7 @@ export const rule: Rule.RuleModule = {
         if (hasTranslateNoAncestor(attr.parent)) return;
 
         context.report({
-          node: node as unknown as Rule.Node,
+          node: node as unknown as Node,
           messageId: "mixed",
           data: { attr: attrName },
         });

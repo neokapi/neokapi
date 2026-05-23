@@ -1,10 +1,10 @@
 import { describe, it } from "vitest";
-import { ruleTester } from "./rule-tester.ts";
+import { run } from "./rule-tester.ts";
 import { rule } from "../src/rules/no-concat-in-translatable-attr.ts";
 
 describe("no-concat-in-translatable-attr", () => {
   it("valid + invalid cases", () => {
-    ruleTester.run("no-concat-in-translatable-attr", rule, {
+    run("no-concat-in-translatable-attr", rule, {
       valid: [
         // Literal attribute value — fine.
         { code: `const x = <img alt="Logo" />;` },

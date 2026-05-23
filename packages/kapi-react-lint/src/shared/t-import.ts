@@ -1,5 +1,5 @@
-import type { Rule } from "eslint";
-import type { ImportDeclaration, Node } from "estree";
+import type { Context } from "@oxlint/plugins";
+import type { ImportDeclaration, Node, Program } from "estree";
 
 /**
  * Walks an ESTree program and returns the set of local identifier
@@ -12,9 +12,11 @@ import type { ImportDeclaration, Node } from "estree";
  * Returns a Set because a file could in principle import `t` twice
  * under different aliases, and we want to catch all of them.
  */
-export function collectTLocalNames(context: Rule.RuleContext): Set<string> {
+export function collectTLocalNames(context: Context): Set<string> {
   const names = new Set<string>();
-  const program = context.sourceCode.ast;
+  // Both ESLint and oxlint hand JS rules an ESTree-shaped AST at runtime.
+  // The oxlint types model the oxc AST, so bridge to ESTree node types here.
+  const program = context.sourceCode.ast as unknown as Program;
   for (const stmt of program.body) {
     if (!isRuntimeImport(stmt)) continue;
     for (const spec of stmt.specifiers) {
