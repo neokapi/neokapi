@@ -339,17 +339,52 @@
   font-weight: 600;
 }
 
-/* Form section */
-.formSection {
-  margin-bottom: 1rem;
+/* Config: a form panel beside a sticky output panel — symmetric cards, each
+ * with its title in a header bar so the two columns line up. */
+.configGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 380px);
+  gap: 1.25rem;
+  align-items: start;
+  margin: 0.5rem 0 1rem;
 }
 
-.form {
+/* Shared card chrome for the configuration + output panels. */
+.panel {
+  min-width: 0;
   border: 1px solid var(--ifm-color-emphasis-200);
-  border-radius: var(--ifm-global-radius);
-  padding: 0.85rem 1rem;
-  background: var(--ifm-background-surface-color);
-  margin-bottom: 0.75rem;
+  border-radius: var(--ifm-card-border-radius);
+  background: var(--ifm-card-background-color);
+  overflow: hidden;
+}
+
+.outputPanel {
+  position: sticky;
+  top: 0;
+  align-self: start;
+}
+
+.panelHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  min-height: 2.4rem;
+  padding: 0.4rem 0.85rem;
+  background: var(--ifm-color-emphasis-100);
+  border-bottom: 1px solid var(--ifm-color-emphasis-200);
+}
+
+.panelTitle {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--ifm-color-emphasis-600);
+}
+
+.panelBody {
+  padding: 0.85rem;
 }
 
 .formFallback {
@@ -358,31 +393,15 @@
   padding: 0.5rem 0;
 }
 
-.outputHeader {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 0.5rem;
-}
-
-.outputActions {
-  display: flex;
-  gap: 0.5rem;
-}
-
-.copyButton,
-.resetButton {
+.copyButton {
   font-size: 0.75rem;
   padding: 0.2rem 0.55rem;
   border: 1px solid var(--ifm-color-emphasis-300);
   border-radius: var(--ifm-global-radius);
   background: var(--ifm-background-color);
+  color: var(--ifm-font-color-base);
   cursor: pointer;
   transition: all 0.15s;
-}
-
-.copyButton {
-  color: var(--ifm-font-color-base);
 }
 
 .copyButton:hover {
@@ -390,11 +409,56 @@
   color: var(--ifm-color-primary);
 }
 
-.resetButton {
-  color: var(--ifm-color-emphasis-600);
+/* Dirty-state status row */
+.outputStatus {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.5rem;
 }
 
-.resetButton:hover {
+.baselineChip {
+  font-size: 0.7rem;
+  font-family: var(--ifm-font-family-monospace);
+  padding: 0.1rem 0.4rem;
+  border-radius: 3px;
+  background: var(--ifm-color-emphasis-200);
+  color: var(--ifm-color-emphasis-700);
+}
+
+.dirtyBadge {
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 0.1rem 0.4rem;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--ifm-color-warning) 22%, transparent);
+  color: var(--ifm-color-warning-darker);
+}
+
+[data-theme="dark"] .dirtyBadge {
+  color: var(--ifm-color-warning-lighter);
+}
+
+.cleanNote {
+  font-size: 0.7rem;
+  color: var(--ifm-color-emphasis-500);
+  font-style: italic;
+}
+
+.revertButton {
+  font-size: 0.72rem;
+  padding: 0.15rem 0.5rem;
+  margin-left: auto;
+  border: 1px solid var(--ifm-color-emphasis-300);
+  border-radius: var(--ifm-global-radius);
+  background: var(--ifm-background-color);
+  color: var(--ifm-color-emphasis-600);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.revertButton:hover {
   border-color: var(--ifm-color-danger);
   color: var(--ifm-color-danger);
 }
@@ -410,6 +474,14 @@
   white-space: pre;
   color: var(--ifm-font-color-base);
   margin: 0;
+}
+
+/* A YAML output line the user changed relative to the active baseline. */
+.yamlLineDirty {
+  margin-left: -1rem;
+  padding-left: calc(1rem - 3px);
+  border-left: 3px solid var(--ifm-color-warning);
+  background: color-mix(in srgb, var(--ifm-color-warning) 14%, transparent);
 }
 
 .noConfig {
@@ -504,7 +576,7 @@
   display: flex;
   flex-direction: column;
   width: 100%;
-  max-width: 880px;
+  max-width: 1140px;
   max-height: 92vh;
   /* --ifm-background-color is transparent at :root in Infima; the surface
    * token is opaque and theme-aware, so the panel actually covers the page. */
@@ -587,6 +659,18 @@
 }
 
 /* ── Responsive ────────────────────────────────────────────── */
+/* Below this width the form + output panel no longer fit side by side;
+ * stack them and let the output flow inline rather than stick. */
+@media (max-width: 996px) {
+  .configGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .outputPanel {
+    position: static;
+  }
+}
+
 @media (max-width: 768px) {
   .grid {
     grid-template-columns: 1fr;

@@ -64,49 +64,70 @@ function scalarYaml(val: unknown): string {
   return JSON.stringify(val);
 }
 
-function emitValue(key: string, val: unknown, indent: string, lines: string[]): void {
+/**
+ * One rendered YAML line, tagged with the top-level config key it belongs to
+ * (null for structural/header lines), so the output panel can highlight the
+ * lines a user has changed relative to the active baseline.
+ */
+export interface YamlLine {
+  text: string;
+  key: string | null;
+}
+
+function emitValue(
+  key: string,
+  val: unknown,
+  indent: string,
+  owner: string | null,
+  lines: YamlLine[],
+): void {
   if (Array.isArray(val)) {
-    lines.push(`${indent}${key}:`);
+    lines.push({ text: `${indent}${key}:`, key: owner });
     for (const item of val) {
-      lines.push(`${indent}  - ${scalarYaml(item)}`);
+      lines.push({ text: `${indent}  - ${scalarYaml(item)}`, key: owner });
     }
     return;
   }
   if (val && typeof val === "object") {
-    lines.push(`${indent}${key}:`);
+    lines.push({ text: `${indent}${key}:`, key: owner });
     for (const [k, v] of Object.entries(val as Record<string, unknown>)) {
       if (isEmpty(v)) continue;
-      emitValue(k, v, `${indent}  `, lines);
+      emitValue(k, v, `${indent}  `, owner, lines);
     }
     return;
   }
-  lines.push(`${indent}${key}: ${scalarYaml(val)}`);
+  lines.push({ text: `${indent}${key}: ${scalarYaml(val)}`, key: owner });
+}
+
+/** Join rendered YAML lines into a copyable string. */
+export function yamlText(lines: YamlLine[]): string {
+  return lines.map((l) => l.text).join("\n");
 }
 
 /**
- * Build a copyable YAML config for a format. Only values that differ from
- * their schema default (and are non-empty) are emitted.
+ * Build a copyable YAML config for a format, as tagged lines. Only values that
+ * differ from their schema default (and are non-empty) are emitted.
  */
-export function buildFormatYaml(
+export function buildFormatYamlLines(
   formatId: string,
   values: Record<string, unknown>,
   schema: ComponentSchema | undefined,
-): string {
+): YamlLine[] {
   const props = schema?.properties ?? {};
-  const lines = [
-    "apiVersion: neokapi/v1",
-    `kind: ${pascalCase(formatId)}FormatConfig`,
-    "metadata:",
-    `  name: ${formatId}`,
-    "spec:",
+  const lines: YamlLine[] = [
+    { text: "apiVersion: neokapi/v1", key: null },
+    { text: `kind: ${pascalCase(formatId)}FormatConfig`, key: null },
+    { text: "metadata:", key: null },
+    { text: `  name: ${formatId}`, key: null },
+    { text: "spec:", key: null },
   ];
   const entries = changedEntries(values, props);
   if (entries.length === 0) {
-    lines.push("  # (default configuration)");
-    return lines.join("\n");
+    lines.push({ text: "  # (default configuration)", key: null });
+    return lines;
   }
-  for (const [key, val] of entries) emitValue(key, val, "  ", lines);
-  return lines.join("\n");
+  for (const [key, val] of entries) emitValue(key, val, "  ", key, lines);
+  return lines;
 }
 
 /**
@@ -114,16 +135,16 @@ export function buildFormatYaml(
  * non-default parameter values, matching how tool configs appear inline in a
  * flow step.
  */
-export function buildToolYaml(
+export function buildToolYamlLines(
   values: Record<string, unknown>,
   schema: ComponentSchema | undefined,
-): string {
+): YamlLine[] {
   const props = schema?.properties ?? {};
   const entries = changedEntries(values, props);
-  if (entries.length === 0) return "# (default configuration)";
-  const lines: string[] = [];
-  for (const [key, val] of entries) emitValue(key, val, "", lines);
-  return lines.join("\n");
+  if (entries.length === 0) return [{ text: "# (default configuration)", key: null }];
+  const lines: YamlLine[] = [];
+  for (const [key, val] of entries) emitValue(key, val, "", key, lines);
+  return lines;
 }
 
 function changedEntries(
