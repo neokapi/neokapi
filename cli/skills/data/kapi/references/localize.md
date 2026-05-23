@@ -1,26 +1,41 @@
 # Translate, enforce terminology, publish
 
 Translate content, enforce terminology, and round-trip the result back into its
-original format with the local `kapi` CLI.
+original format with the local `kapi` CLI. For ongoing work, bind the locales,
+brand voice, and glossary in a project first — see [project.md](project.md).
 
-## Prerequisites
+## Translate the content yourself (within kapi's guardrails)
 
-- A saved AI provider credential (`kapi credentials add`) or `--api-key` for AI
-  translation. The format and terminology steps need no credential.
-- Optional but recommended: a brand voice profile (see [brand.md](brand.md)) and
-  a termbase, so output is on-brand and terminologically consistent.
+You are a capable translator; kapi doesn't need a separate model. Let kapi handle
+the format and the guardrails while you do the translating:
 
-## Translate
+```bash
+kapi extract --target-lang fr        # bilingual file with source + empty targets (out/*.xliff)
+kapi brand guide                     # the voice to follow (no flag inside a project)
+kapi termbase lookup "<term>" -t fr  # the approved wording
+```
+
+Fill each unit's `<target>` following the brand guide and glossary, preserving
+placeholders; reuse any TM-prefilled targets. Then merge and verify:
+
+```bash
+kapi merge -i out/*.xliff            # write translations back into the target files + TM
+kapi term-check ./locales/fr.json    # confirm terminology; fix anything flagged
+```
+
+## Or have kapi call a provider (unattended / CI)
+
+When no assistant is in the loop, kapi can translate via a configured provider.
+This needs a saved credential (`kapi credentials add`) or `--api-key`:
 
 ```bash
 kapi run ai-translate-qa -i ./locales/en.json --target-lang fr --json   # translate + QA
 kapi ai-translate ./deck.pptx --target-lang ja -o ./out/deck.ja.pptx
 ```
 
-`--target-lang` is single-valued, so run one command per locale. When a brand
-profile is bound on the flow, translation is on-brand at generation time. Format
-is detected from the extension and written back unchanged (round-trip),
-preserving structure, tags, and placeholders.
+`--target-lang` is single-valued, so run one command per locale. A bound brand
+profile and termbase still apply. Format is detected from the extension and
+written back unchanged (round-trip), preserving structure, tags, and placeholders.
 
 ## Keep terminology consistent
 

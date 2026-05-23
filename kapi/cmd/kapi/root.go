@@ -51,6 +51,7 @@ func init() {
 	rootCmd.AddCommand(runCmd)
 	rootCmd.AddCommand(app.NewExtractCmd(cli.ExtractCmdOptions{}))
 	rootCmd.AddCommand(app.NewMergeCmd(cli.MergeCmdOptions{}))
+	rootCmd.AddCommand(app.NewVerifyCmd())
 	rootCmd.AddCommand(app.NewInitCmd())
 
 	// Management commands.
