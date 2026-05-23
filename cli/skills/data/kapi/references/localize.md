@@ -49,8 +49,14 @@ kapi extract -p project.kapi --target-lang fr --format xliff2          # emit XL
 kapi merge -i ./out/*.fr.xlf -p project.kapi                          # merge back
 ```
 
-Native readers/writers cover localization, document, data, and office formats;
-more are available through the okapi-bridge (select with `--map '*.idml=okf_idml'`).
+Native readers/writers cover localization, document, data, and office formats —
+offline, with no plugin. This includes mobile/app catalogs (Apple String Catalog
+`.xcstrings`, `.strings`/`.stringsdict`, Android `strings.xml`, Flutter `.arb`,
+i18next JSON, `.resx`) and content formats like Markdown and MDX. A few
+specialized or legacy formats are available through the okapi-bridge (select
+with `--map '*.sdlppx=okf_sdlpackage'`). When the bridge is installed it can
+shadow a shared extension (e.g. `.strings`, `.xml`, `.resx`); pass
+`--format <name>` to force the native reader.
 
 ## How to apply
 
