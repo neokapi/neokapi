@@ -151,11 +151,11 @@ var authClaimCmd = &cobra.Command{
 
 If no token is given, it is read from the project's sync cache
 (<project>/.kapi/cache/sync-cache.json).
-Requires authentication (run 'bowrain auth login' first).`,
+Requires authentication (run 'kapi auth login' first).`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		stored, err := loadAuth()
 		if err != nil {
-			return errors.New("not authenticated — run: bowrain auth login")
+			return errors.New("not authenticated — run: kapi auth login")
 		}
 
 		var claimToken string

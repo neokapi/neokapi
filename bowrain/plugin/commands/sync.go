@@ -22,7 +22,7 @@ var syncCmd = &cobra.Command{
 	Long: `Push local content to the server, wait for auto-triggered translations
 to complete, then pull translated files back.
 
-Equivalent to running: bowrain push && <wait for translations> && bowrain pull
+Equivalent to running: kapi push && <wait for translations> && kapi pull
 
 Use --no-wait to push without waiting for translations.`,
 	RunE: runSync,

@@ -35,11 +35,11 @@ Project keys (no --global):
   preset
 
 Examples:
-  bowrain config project.name                       # Print project name
-  bowrain config project.name "My Project"          # Set project name
-  bowrain config server.url                         # Print project server URL
-  bowrain config --global server.url                # Print global server URL
-  bowrain config --global server.url https://bowrain.example.com  # Set global server URL`,
+  kapi config project.name                       # Print project name
+  kapi config project.name "My Project"          # Set project name
+  kapi config server.url                         # Print project server URL
+  kapi config --global server.url                # Print global server URL
+  kapi config --global server.url https://bowrain.example.com  # Set global server URL`,
 	Args: cobra.MaximumNArgs(2),
 	RunE: runConfig,
 }
@@ -90,7 +90,7 @@ func runConfigGlobal(cmd *cobra.Command, args []string) error {
 func runConfigProject(cmd *cobra.Command, args []string) error {
 	proj, err := project.FindProject("")
 	if err != nil {
-		return errors.New("no kapi project found (run 'bowrain init' first, or use --global)")
+		return errors.New("no kapi project found (run 'kapi init' first, or use --global)")
 	}
 
 	recipePath := proj.RecipePath()

@@ -8,6 +8,8 @@ coverage/
 /bowrain/cli/kapi-bowrain
 /bowrain/cli/cmd/kapi-bowrain/kapi-bowrain
 /gen-format-docs
+# Default kapi DB created when running outside a project dir.
+.neokapi.db
 
 # IDE
 .idea/

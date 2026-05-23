@@ -15,17 +15,17 @@ var rmCmd = &cobra.Command{
 	Short: "Remove files from the project",
 	Long: `Stop tracking files that match the given patterns.
 
-If the pattern matches one you added with 'bowrain add', it is removed entirely.
+If the pattern matches one you added with 'kapi add', it is removed entirely.
 Otherwise the pattern is added to the exclude list so those files are skipped.
 
 Examples:
-  bowrain rm "src/**/*.html"          # removes the mapping
-  bowrain rm "src/legacy/*.html"      # excludes files matching the pattern`,
+  kapi rm "src/**/*.html"          # removes the mapping
+  kapi rm "src/legacy/*.html"      # excludes files matching the pattern`,
 	Args: cobra.MinimumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		proj, err := project.FindProject("")
 		if err != nil {
-			return fmt.Errorf("no kapi project found (run 'bowrain init' first): %w", err)
+			return fmt.Errorf("no kapi project found (run 'kapi init' first): %w", err)
 		}
 
 		var result output.RmOutput

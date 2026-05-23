@@ -294,7 +294,7 @@ function OnboardingView({
         <PathwayCard
           icon={<FolderOpen className="w-5 h-5 text-primary" />}
           title="From your repo"
-          description="Track translation files in your codebase with bowrain init. Sync changes automatically."
+          description="Track translation files in your codebase with kapi init. Sync changes automatically."
           action="Create project"
           onClick={onStartCreate}
           glow="violet"

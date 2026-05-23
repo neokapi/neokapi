@@ -890,9 +890,9 @@ func editorGetWordCount(ctx context.Context, cs store.ContentStore, projectID, s
 
 // editorExportTranslatedFile is no longer supported server-side.
 // Source bytes are no longer stored in the Item model. Use the CLI
-// ('bowrain pull') for translated file export.
+// ('kapi pull') for translated file export.
 func editorExportTranslatedFile(_ context.Context, _ store.ContentStore, _ *registry.FormatRegistry, _, _, itemName, _, _ string) (string, error) {
-	return "", fmt.Errorf("server-side export not available for %q: use 'bowrain pull' for translated file export", itemName)
+	return "", fmt.Errorf("server-side export not available for %q: use 'kapi pull' for translated file export", itemName)
 }
 
 // editorLookupTMForBlock looks up TM matches for a specific block.

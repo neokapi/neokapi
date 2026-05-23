@@ -208,7 +208,7 @@ export function ExportTermsJSON(projectID, name) {
 /**
  * ExportTranslatedItem is no longer supported in the desktop app.
  * Source bytes are no longer stored in the Item model. Use the CLI
- * ('bowrain pull') for translated file export.
+ * ('kapi pull') for translated file export.
  * @param {string} $0
  * @param {string} itemName
  * @param {string} $2

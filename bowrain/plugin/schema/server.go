@@ -19,8 +19,8 @@ import (
 
 // ServerSpec captures the optional bowrain-server connection details for a
 // project recipe. A recipe with no Server is a pure local project; a recipe
-// with Server is bowrain-connected and can be operated by `bowrain push`,
-// `bowrain pull`, etc.
+// with Server is bowrain-connected and can be operated by `kapi push`,
+// `kapi pull`, etc.
 //
 // Only the connection coordinates live here. Lifecycle policy (hooks,
 // automations) and content/governance features (assets, brand voice) are

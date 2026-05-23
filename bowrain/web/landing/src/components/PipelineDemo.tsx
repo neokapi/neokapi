@@ -23,11 +23,11 @@ type FlowVariant = 'translate' | 'pseudo' | 'qa'
 
 const FLOW_COMMANDS: Record<FlowVariant, { cmd: string; steps: FlowStep[] }> = {
   translate: {
-    cmd: 'bowrain flow run ai-translate-qa --target-lang de',
+    cmd: 'kapi run ai-translate-qa --target-lang de',
     steps: INITIAL_STEPS,
   },
   pseudo: {
-    cmd: 'bowrain run pseudo',
+    cmd: 'kapi run pseudo',
     steps: [
       { label: 'Reader', detail: 'src/**/*.json → 6 files, 183 blocks', status: 'pending' },
       { label: 'Segmenter', detail: '183 strings → 891 sentences', status: 'pending' },

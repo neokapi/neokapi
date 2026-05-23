@@ -1,14 +1,16 @@
 ---
 id: plugin-model
-title: "Note: Plugin model — extending kapi at build time"
+title: "Note: Plugin model — the in-process registry contract"
 sidebar_position: 50
 ---
 
-# Plugin model — extending kapi at build time
+# Plugin model — the in-process registry contract
 
-This implementation note covers the in-process plugin mechanism used to compose kapi with extensions like bowrain. Plugins are Go packages blank-imported by the host binary; their `init()` functions register features against process-global registries. Direct function calls, no gRPC, no dynamic loading.
+This implementation note covers the **in-process registry mechanism** a plugin binary uses to wire its features into the shared `cli.App`. Plugin packages are blank-imported by a plugin binary's `main`; their `init()` functions register features against process-global registries via direct function calls — no gRPC, no dynamic loading inside the binary.
 
-This note is the reference for: how the registries work, how to write a new plugin, when to use the schema-only registry vs. the heavier ones, and how build tags gate optional plugins.
+This is one half of the plugin story: how the Go code _inside_ a plugin binary is composed. How `kapi` then **discovers** that binary on disk and **dispatches** to it at runtime (the `manifest.json` model and the A/B/C transport modes) lives in [AD-007: Plugin System](../architecture/007-plugin-system). The `kapi` binary itself links no vendor plugins; the registries below populate inside the plugin binary — for bowrain, that's `kapi-bowrain` (built from `bowrain/cli/cmd/kapi-bowrain/`).
+
+This note is the reference for: how the registries work, how to write the Go side of a new plugin, and when to use the schema-only registry vs. the heavier ones.
 
 ## When to use which registry
 
@@ -53,7 +55,7 @@ func HasExtensionGroup(group string) bool
 
 Re-registering the same `(Scope, Name)` pair panics — competing init functions are almost always a bug. Pure-name matches across scopes don't conflict (`collection` at `ScopeItem` and `ScopeDefaults` are distinct).
 
-`Group` lets a recipe declare `requires: [bowrain]` and have validation fail when no extension under that group has been registered. Use this when a recipe is meaningless without the platform's behavior — bowrain push/pull won't work without bowrain commands linked in, so a `.kapi` recipe with `server:` typically declares `requires: [bowrain]`.
+`Group` lets a recipe declare `requires: [bowrain]` and have validation fail when no extension under that group has been registered. Use this when a recipe is meaningless without the platform's behavior — `kapi push`/`kapi pull` won't work without the bowrain plugin installed, so a `.kapi` recipe with `server:` typically declares `requires: [bowrain]`.
 
 `HasExtensionGroup` is consulted by `KapiProject.Validate()` to enforce `requires:`. Plugins typically don't need to call it directly.
 
@@ -73,11 +75,11 @@ func RegisterAppInitializer(f AppInitializer)
 func RegisterMCPToolFactory(f MCPToolFactory)
 ```
 
-`CommandFactory` is invoked by the host binary once after the built-in command tree is constructed:
+`CommandFactory` is invoked by the plugin binary once after the built-in command tree is constructed. For bowrain that happens inside `kapi-bowrain`, which builds its `command` subtree from the registered factories:
 
 ```go
-// kapi/cmd/kapi/root.go
-cli.ApplyCommandFactories(rootCmd, app)
+// bowrain/cli/cmd/kapi-bowrain/main.go
+cli.ApplyCommandFactories(cmd, app)
 ```
 
 Plugins typically register one factory per command file, e.g. `bowrain/plugin/commands/push.go`:
@@ -176,7 +178,7 @@ content:
     format: json
 ```
 
-When loaded by a kapi binary that blank-imports `gitlab-plugin/schema`, the recipe validates. When loaded by a kapi binary without the plugin (e.g. `kapi-pure`), the recipe fails at parse time:
+When loaded by a binary that links `gitlab-plugin/schema` (the plugin binary, or a desktop app that blank-imports the schema for validation), the recipe validates. When loaded by a `kapi` with no gitlab plugin installed, the recipe fails at parse time:
 
 ```
 recipe requires extension group "gitlab" but no matching extension is registered
@@ -212,45 +214,20 @@ func buildGitLabPushCmd(a *cli.App) *cobra.Command {
 }
 ```
 
-To enable the plugin in kapi, add a blank import — typically gated by a build tag:
+To ship the plugin, build it as its own binary that blank-imports the anchor, alongside a `manifest.json` declaring the `gitlab-push` command (and any formats/tools/connectors). `kapi` discovers the binary and dispatches to it:
 
 ```go
-//go:build !pure
+// gitlab-plugin/cmd/kapi-gitlab/main.go
 package main
 
 import _ "example.com/gitlab-plugin"
 ```
 
-## Build tags and license boundary
+## Packaging and the license boundary
 
-Build tags gate optional plugins so binaries with different distributions can be produced from one source tree. The current convention:
+A plugin ships as its own binary plus a `manifest.json`, installed into a kapi plugin directory rather than linked into `kapi`. Because the plugin runs as a separate process, its license is independent of `kapi`'s: the `kapi` binary stays Apache-2.0 and links no vendor-plugin code, while the bowrain plugin binary (`kapi-bowrain`) carries the bowrain packages. There is no `-tags pure` / `kapi-pure` split — `kapi` is always plugin-free, and bowrain is something you install into it.
 
-- Default build (no extra tags) — full kapi with bowrain plugin linked. Distributed under AGPL-3.0.
-- `-tags pure` — the kapi binary skips the bowrain plugin. Distributed under Apache-2.0.
-
-Implementation in `kapi/cmd/kapi/`:
-
-```go
-// plugins.go
-//go:build !pure
-package main
-
-import _ "github.com/neokapi/neokapi/bowrain/plugin"
-```
-
-```go
-// plugins_pure.go
-//go:build pure
-package main
-// (intentionally empty)
-```
-
-The Makefile exposes both:
-
-```
-make build       # default kapi (with bowrain plugin)
-make build-pure  # kapi-pure (no bowrain)
-```
+See [AD-007: Plugin System](../architecture/007-plugin-system) for the manifest schema, discovery precedence, install paths (`kapi plugins install <name>`, Homebrew), and the A/B/C transport modes.
 
 ## Initialization order
 
@@ -284,18 +261,8 @@ func TestGitLabServerDecodes(t *testing.T) {
 
 Tests that mutate the global registries should call `coreproj.ResetExtensionsForTest()` and `cli.ResetPluginRegistriesForTest()` in setup so they don't leak state across tests.
 
-## Comparison with the gRPC plugin system
+## Relationship to runtime dispatch
 
-The framework still has a separate gRPC-based plugin system at `core/plugin/` for **format readers/writers and tools** loaded out-of-process (e.g. the Java Okapi bridge). That system is appropriate when:
+The registries on this page are purely in-process: they assemble the command tree, MCP tools, and recipe schema _inside_ a single plugin binary. They say nothing about how that binary is found or invoked — that is the runtime concern owned by [AD-007: Plugin System](../architecture/007-plugin-system): `manifest.json` discovery and the A/B/C transport modes (one-shot command exec, an MCP-over-stdio session, and the gRPC daemon used by formats/tools/source connectors, including the Java Okapi bridge).
 
-- The plugin is written in another language (Java, etc.)
-- The plugin needs process isolation (different runtime, sandboxing)
-- The plugin is dynamically discovered at runtime (per-project or per-user)
-
-The build-time plugin model documented here is appropriate when:
-
-- The plugin is Go and ships as part of a binary distribution
-- Direct function calls and shared in-memory state are acceptable
-- The license / branding story benefits from a clean compile-time link
-
-Both systems coexist; the bowrain plugin uses the build-time model for commands and the gRPC system for any third-party formats it bundles.
+In short: this note is the contract for the Go _inside_ a plugin; AD-007 is the contract for the process _around_ it.

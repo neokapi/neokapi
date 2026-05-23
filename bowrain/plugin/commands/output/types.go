@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-// AddEntry represents a single pattern added by bowrain add.
+// AddEntry represents a single pattern added by kapi add.
 type AddEntry struct {
 	Pattern string `json:"pattern"`
 	Format  string `json:"format,omitempty"`
@@ -14,7 +14,7 @@ type AddEntry struct {
 	Skipped bool   `json:"skipped,omitempty"`
 }
 
-// AddOutput represents the result of bowrain add.
+// AddOutput represents the result of kapi add.
 type AddOutput struct {
 	Added []AddEntry `json:"added"`
 }
@@ -34,7 +34,7 @@ func (o AddOutput) FormatText(w io.Writer) error {
 	return nil
 }
 
-// RmEntry represents a single pattern processed by bowrain rm.
+// RmEntry represents a single pattern processed by kapi rm.
 type RmEntry struct {
 	Pattern string `json:"pattern"`
 	Action  string `json:"action"`           // "removed", "excluded", "already_excluded"
@@ -42,7 +42,7 @@ type RmEntry struct {
 	Files   int    `json:"files,omitempty"`  // only for "excluded"
 }
 
-// RmOutput represents the result of bowrain rm.
+// RmOutput represents the result of kapi rm.
 type RmOutput struct {
 	Entries []RmEntry `json:"entries"`
 }
@@ -95,7 +95,7 @@ func (s StatusOutput) FormatText(w io.Writer) error {
 
 	if s.Project.Server == "" {
 		fmt.Fprintln(w, "\nNot connected to a server.")
-		fmt.Fprintln(w, "  Run 'bowrain init' with a server, or add a `server:` block to the recipe.")
+		fmt.Fprintln(w, "  Run 'kapi init' with a server, or add a `server:` block to the recipe.")
 		return nil
 	}
 
@@ -154,7 +154,7 @@ func (a AuthStatusOutput) FormatText(w io.Writer) error {
 	return nil
 }
 
-// InitOutput represents the result of bowrain init.
+// InitOutput represents the result of kapi init.
 type InitOutput struct {
 	Root       string `json:"root"`
 	ConfigDir  string `json:"config_dir"` // path to the new .kapi recipe file
@@ -185,7 +185,7 @@ func (o InitOutput) FormatText(w io.Writer) error {
 	fmt.Fprintln(w)
 	if o.Server != "" {
 		fmt.Fprintln(w, "Next steps:")
-		fmt.Fprintln(w, "  1. Run: bowrain push    — upload content to the server")
+		fmt.Fprintln(w, "  1. Run: kapi push    — upload content to the server")
 		if o.ClaimEmail != "" {
 			fmt.Fprintln(w, "  2. Check your email for the claim link to take ownership")
 			fmt.Fprintln(w, "  3. Invite translators from the web dashboard")
@@ -199,8 +199,8 @@ func (o InitOutput) FormatText(w io.Writer) error {
 		fmt.Fprintln(w, "Next steps:")
 		fmt.Fprintln(w, "  1. Edit the .kapi recipe to configure your project")
 		fmt.Fprintln(w, "  2. Add file mappings to sync with Bowrain Server")
-		fmt.Fprintln(w, "  3. Run: bowrain auth login")
-		fmt.Fprintln(w, "  4. Run: bowrain pull to sync translations")
+		fmt.Fprintln(w, "  3. Run: kapi auth login")
+		fmt.Fprintln(w, "  4. Run: kapi pull to sync translations")
 	}
 
 	return nil
@@ -215,7 +215,7 @@ type LsEntry struct {
 	Dirty  int    `json:"dirty,omitempty"`
 }
 
-// LsOutput represents the result of bowrain ls.
+// LsOutput represents the result of kapi ls.
 type LsOutput struct {
 	Files    []LsEntry `json:"files"`
 	Total    int       `json:"total"`
@@ -285,7 +285,7 @@ func (o LsOutput) FormatText(w io.Writer) error {
 	return nil
 }
 
-// PullOutput represents the result of bowrain pull.
+// PullOutput represents the result of kapi pull.
 type PullOutput struct {
 	BlocksPulled int    `json:"blocks_pulled"`
 	LocalesCount int    `json:"locales_count"`
@@ -314,7 +314,7 @@ func (o PullOutput) FormatText(w io.Writer) error {
 	return nil
 }
 
-// PushOutput represents the result of bowrain push.
+// PushOutput represents the result of kapi push.
 type PushOutput struct {
 	BlocksPushed int    `json:"blocks_pushed"`
 	WordCount    int    `json:"word_count"`
@@ -340,7 +340,7 @@ func (o PushOutput) FormatText(w io.Writer) error {
 	return nil
 }
 
-// ConfigOutput represents the result of bowrain config.
+// ConfigOutput represents the result of kapi config.
 type ConfigOutput struct {
 	Path   string `json:"path,omitempty"`
 	Key    string `json:"key,omitempty"`
@@ -360,7 +360,7 @@ func (o ConfigOutput) FormatText(w io.Writer) error {
 	return nil
 }
 
-// AuthLoginOutput represents the result of bowrain auth login.
+// AuthLoginOutput represents the result of kapi auth login.
 type AuthLoginOutput struct {
 	Server string `json:"server"`
 	User   string `json:"user,omitempty"`
@@ -375,7 +375,7 @@ func (o AuthLoginOutput) FormatText(w io.Writer) error {
 	return nil
 }
 
-// AuthLogoutOutput represents the result of bowrain auth logout.
+// AuthLogoutOutput represents the result of kapi auth logout.
 type AuthLogoutOutput struct {
 	WasLoggedIn bool `json:"was_logged_in"`
 }
@@ -389,7 +389,7 @@ func (o AuthLogoutOutput) FormatText(w io.Writer) error {
 	return nil
 }
 
-// AuthClaimOutput represents the result of bowrain auth claim.
+// AuthClaimOutput represents the result of kapi auth claim.
 type AuthClaimOutput struct {
 	ProjectID     string `json:"project_id"`
 	WorkspaceSlug string `json:"workspace_slug"`
@@ -401,7 +401,7 @@ func (o AuthClaimOutput) FormatText(w io.Writer) error {
 	return nil
 }
 
-// TokenCreateOutput represents the result of bowrain auth token create.
+// TokenCreateOutput represents the result of kapi auth token create.
 type TokenCreateOutput struct {
 	ID          string     `json:"id"`
 	Name        string     `json:"name"`
@@ -422,7 +422,7 @@ func (o TokenCreateOutput) FormatText(w io.Writer) error {
 	return nil
 }
 
-// TokenListOutput represents the result of bowrain auth token list.
+// TokenListOutput represents the result of kapi auth token list.
 type TokenListOutput struct {
 	Tokens []TokenEntry `json:"tokens"`
 }
@@ -470,7 +470,7 @@ func (o TokenListOutput) FormatText(w io.Writer) error {
 	return nil
 }
 
-// TokenDeleteOutput represents the result of bowrain auth token delete.
+// TokenDeleteOutput represents the result of kapi auth token delete.
 type TokenDeleteOutput struct {
 	ID string `json:"id"`
 }
@@ -512,7 +512,7 @@ type StreamEntry struct {
 	Active      bool   `json:"active,omitempty"`
 }
 
-// StreamListOutput represents the result of bowrain stream list.
+// StreamListOutput represents the result of kapi stream list.
 type StreamListOutput struct {
 	Streams []StreamEntry `json:"streams"`
 }
@@ -554,7 +554,7 @@ func (o StreamListOutput) FormatText(w io.Writer) error {
 	return nil
 }
 
-// StreamCreateOutput represents the result of bowrain stream create.
+// StreamCreateOutput represents the result of kapi stream create.
 type StreamCreateOutput struct {
 	Name        string `json:"name"`
 	Parent      string `json:"parent"`
@@ -567,7 +567,7 @@ func (o StreamCreateOutput) FormatText(w io.Writer) error {
 	if o.Description != "" {
 		fmt.Fprintf(w, "Description: %s\n", o.Description)
 	}
-	fmt.Fprintf(w, "\nSwitch to it with: bowrain push --stream %s\n", o.Name)
+	fmt.Fprintf(w, "\nSwitch to it with: kapi push --stream %s\n", o.Name)
 	return nil
 }
 
@@ -577,7 +577,7 @@ type DiffChangeEntry struct {
 	ChangeType string `json:"change_type"`
 }
 
-// StreamDiffOutput represents the result of bowrain stream diff.
+// StreamDiffOutput represents the result of kapi stream diff.
 type StreamDiffOutput struct {
 	Stream  string            `json:"stream"`
 	Parent  string            `json:"parent"`
@@ -622,7 +622,7 @@ func (o StreamDiffOutput) FormatText(w io.Writer) error {
 	return nil
 }
 
-// StreamMergeOutput represents the result of bowrain stream merge.
+// StreamMergeOutput represents the result of kapi stream merge.
 type StreamMergeOutput struct {
 	Stream         string `json:"stream"`
 	MergedBlocks   int    `json:"merged_blocks"`
@@ -644,7 +644,7 @@ func (o StreamMergeOutput) FormatText(w io.Writer) error {
 	return nil
 }
 
-// StreamArchiveOutput represents the result of bowrain stream archive.
+// StreamArchiveOutput represents the result of kapi stream archive.
 type StreamArchiveOutput struct {
 	Stream string `json:"stream"`
 }
@@ -686,7 +686,7 @@ func (o WorkspaceListOutput) FormatText(w io.Writer) error {
 	return nil
 }
 
-// WorkspaceCreateOutput represents the result of bowrain workspace create.
+// WorkspaceCreateOutput represents the result of kapi workspace create.
 type WorkspaceCreateOutput struct {
 	ID   string `json:"id,omitempty"`
 	Name string `json:"name"`

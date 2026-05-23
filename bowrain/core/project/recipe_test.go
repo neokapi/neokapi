@@ -216,8 +216,8 @@ func TestFrameworkLoad_PreservesUnknownExtras(t *testing.T) {
 	// coreproj.Load (without the bowrain Recipe wrapper) must preserve
 	// unknown top-level keys via KapiProject.Extras and round-trip them
 	// through coreproj.Save unchanged. This is the contract that lets a
-	// kapi-pure binary load and re-save a bowrain recipe without
-	// dropping bowrain-specific blocks.
+	// kapi binary without the bowrain plugin load and re-save a bowrain
+	// recipe without dropping bowrain-specific blocks.
 	//
 	// (When loaded via the bowrain Recipe wrapper, yaml.v3's inline-
 	// catchall propagation through embedded structs is limited — typed

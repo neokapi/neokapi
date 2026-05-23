@@ -24,7 +24,7 @@ var SourceConnectorOpsClaimed = []string{"push", "pull", "status", "ls"}
 //
 // The dispatcher discovers the project root by walking up from the
 // current working directory looking for any *.kapi recipe — same logic
-// as `bowrain status`. Recipe parsing is the daemon's job.
+// as `kapi status`. Recipe parsing is the daemon's job.
 type genericSourceConnectorDispatcher struct {
 	pluginName string
 }

@@ -243,7 +243,7 @@ my-app/
 │   │   └── pseudo.yaml
 │   └── cache/              # all regenerable caches under one roof
 │       ├── blocks.db        # block store
-│       ├── sync-cache.json  # bowrain push/pull state
+│       ├── sync-cache.json  # kapi push/pull state
 │       ├── extractions/
 │       └── collections/
 ├── src/
@@ -254,18 +254,18 @@ my-app/
 
 A bowrain project is just a kapi project whose recipe declares a `server:` block (compound URL, optional `stream`). Top-level recipe fields cover `defaults`, `content`, `plugins` (map form), `flows`, `hooks`, `automations`, `assets`, `brand_voice`. Auth tokens live in the OS keychain (`bowrain-auth:<server-url>`, `bowrain-refresh:<server-url>`); non-secret metadata sits at `~/.config/bowrain/auth.json`. `BOWRAIN_AUTH_TOKEN` env var works in CI.
 
-**Key Bowrain CLI commands:**
+**Key bowrain plugin commands (run via `kapi` once the `kapi-bowrain` plugin is installed):**
 
 ```bash
-bowrain init                    # Write <dir-name>.kapi + .kapi/ state dir
-bowrain status                  # Show sync state (like git status)
-bowrain pull                    # Fetch from Bowrain Server → update local files
-bowrain push                    # Send local files → update Bowrain Server
-bowrain run <flow-name>         # Execute flow (inline on recipe or .kapi/flows/)
-bowrain serve                   # Start local dashboard (web UI)
+kapi init                       # Write <dir-name>.kapi + .kapi/ state dir
+kapi status                     # Show sync state (like git status)
+kapi pull                       # Fetch from Bowrain Server → update local files
+kapi push                       # Send local files → update Bowrain Server
+kapi run <flow-name>            # Execute flow (inline on recipe or .kapi/flows/)
+kapi serve                      # Start local dashboard (web UI)
 ```
 
-**All `bowrain` commands require a `.kapi` project with a `server:` block.** The CLI searches upward from the current directory (like git) to find the recipe.
+**All bowrain plugin commands require a `.kapi` project with a `server:` block.** The CLI searches upward from the current directory (like git) to find the recipe.
 
 **Key kapi CLI commands (standalone, no project needed):**
 

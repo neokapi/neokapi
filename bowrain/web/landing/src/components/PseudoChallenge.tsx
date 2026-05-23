@@ -143,10 +143,10 @@ export function PseudoChallenge() {
           <div className="flex items-center gap-2 text-neutral-400">
             <span className="text-suggestion">$</span>
             <span>
-              {level === 1 && 'bowrain run pseudo'}
-              {level === 2 && 'bowrain run pseudo --protect-terms'}
-              {level === 3 && 'bowrain run pseudo --protect-terms --expand'}
-              {level === 4 && 'bowrain flow run ai-translate --target-lang de'}
+              {level === 1 && 'kapi run pseudo'}
+              {level === 2 && 'kapi run pseudo --protect-terms'}
+              {level === 3 && 'kapi run pseudo --protect-terms --expand'}
+              {level === 4 && 'kapi run ai-translate --target-lang de'}
             </span>
             {!running && results.length === 0 && <span className="cursor-blink text-brand-400">▋</span>}
           </div>

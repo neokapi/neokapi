@@ -97,7 +97,7 @@ export function Hero() {
             <div className="h-2.5 w-2.5 rounded-full bg-yellow-500/60" />
             <div className="h-2.5 w-2.5 rounded-full bg-green-500/60" />
             <span className="ml-2 text-xs text-neutral-600 font-mono">
-              {slide === 0 ? 'bowrain run pseudo' : 'bowrain run brand-check'}
+              {slide === 0 ? 'kapi run pseudo' : 'kapi run brand-check'}
             </span>
           </div>
 
@@ -150,7 +150,7 @@ function PseudoPreview({ active }: { active: boolean }) {
     <div className="font-mono text-sm">
       <div className="flex items-center gap-2 text-neutral-400">
         <span className="text-suggestion">$</span>
-        <span>bowrain run pseudo</span>
+        <span>kapi run pseudo</span>
       </div>
 
       <div className="mt-4 space-y-3">
