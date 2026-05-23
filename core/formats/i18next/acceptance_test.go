@@ -13,18 +13,24 @@
 //
 // i18next has no official JSON Schema (it is defined by library convention),
 // so the vendored schema is a faithful de-facto structural schema: a recursive
-// object of string | nested-object | array-of-string. Every external call is
-// gated on exec.LookPath; the test t.Skips (not fails) when the tool is missing
-// or the machine is offline (npx --yes provisions ajv-cli on demand).
+// object of string | nested-object | array-of-string. ajv runs via a real
+// `ajv` on PATH when present (CI installs ajv-cli@5 globally), else
+// `npx --yes ajv-cli@5`. Every external call is gated on exec.LookPath; the
+// test t.Skips (not fails) when the tool is missing, offline, or otherwise
+// unable to execute (e.g. a non-executable npx-cached bin) — a tooling failure,
+// not a kapi failure. A tool that RUNS and rejects the output FAILs the test.
 //
 // Run with: go test -tags acceptance ./core/formats/i18next/
 package i18next_test
 
 import (
+	"bytes"
 	"context"
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -53,6 +59,75 @@ func runCmd(t *testing.T, dir, name string, args ...string) ([]byte, error) {
 	cmd.Dir = dir
 	out, err := cmd.CombinedOutput()
 	return out, err
+}
+
+// ajvCommand returns the program and leading args for running ajv. When a real
+// `ajv` executable is on PATH (e.g. `npm install -g ajv-cli@5` in CI), it is
+// invoked directly; otherwise we fall back to provisioning ajv-cli@5 via npx.
+// The returned slice is the prefix; callers append the subcommand and its args.
+func ajvCommand() (name string, prefix []string) {
+	if p, err := exec.LookPath("ajv"); err == nil {
+		return p, nil
+	}
+	return "npx", []string{"--yes", "ajv-cli@5"}
+}
+
+// isLikelyOffline heuristically detects npm/npx network failures so the schema
+// validation can be skipped (rather than failed) when ajv-cli cannot be fetched.
+func isLikelyOffline(output []byte) bool {
+	s := strings.ToLower(string(bytes.TrimSpace(output)))
+	for _, marker := range []string{
+		"network", "etarget", "enotfound", "getaddrinfo", "registry.npmjs",
+		"econnrefused", "etimedout", "could not resolve", "offline",
+		"unable to resolve", "eai_again", "fetch failed",
+	} {
+		if strings.Contains(s, marker) {
+			return true
+		}
+	}
+	return false
+}
+
+// toolCouldNotRun reports whether an external tool FAILED TO EXECUTE rather than
+// ran and rejected kapi's output. The acceptance contract is to SKIP (not FAIL)
+// when the validator itself is broken/unavailable: a non-executable npx-cached
+// bin (exit 126 "Permission denied"), a missing binary (exit 127 "command not
+// found"/ENOENT), or an npm/npx provisioning/network failure. A tool that runs
+// and reports a validation error (e.g. ajv exit 1) is NOT covered here, so the
+// suite still FAILs on genuine rejections.
+func toolCouldNotRun(err error, combinedOutput string) bool {
+	if err == nil {
+		return false
+	}
+	var ee *exec.ExitError
+	if errors.As(err, &ee) {
+		switch ee.ExitCode() {
+		case 126, 127:
+			return true
+		}
+	}
+	if errors.Is(err, exec.ErrNotFound) {
+		return true
+	}
+	if isLikelyOffline([]byte(combinedOutput)) {
+		return true
+	}
+	s := strings.ToLower(combinedOutput)
+	for _, marker := range []string{
+		"permission denied",
+		"command not found",
+		"enoent",
+		"no such file or directory",
+		"npm error",
+		"could not determine executable to run",
+		"cannot find module",
+		"npx canceled due to missing packages",
+	} {
+		if strings.Contains(s, marker) {
+			return true
+		}
+	}
+	return false
 }
 
 // writeI18nOutput reads a fixture, translates a couple of values to fr-FR, and
@@ -103,6 +178,9 @@ func TestAcceptanceJQWellFormed(t *testing.T) {
 		t.Run(fixture, func(t *testing.T) {
 			out := writeI18nOutput(t, fixture, tr)
 			res, err := runCmd(t, t.TempDir(), jq, ".", out)
+			if err != nil && toolCouldNotRun(err, string(res)) {
+				t.Skipf("jq could not run (tooling/environment, not a kapi failure):\n%s", res)
+			}
 			require.NoError(t, err, "jq rejected the i18next output as malformed JSON:\n%s", res)
 		})
 	}
@@ -117,6 +195,9 @@ func TestAcceptanceJQWellFormed(t *testing.T) {
 			tmp := filepath.Join(t.TempDir(), "out.json")
 			require.NoError(t, os.WriteFile(tmp, out, 0o644))
 			res, err := runCmd(t, t.TempDir(), jq, ".", tmp)
+			if err != nil && toolCouldNotRun(err, string(res)) {
+				t.Skipf("jq could not run (tooling/environment, not a kapi failure):\n%s", res)
+			}
 			require.NoError(t, err, "jq rejected corpus output as malformed JSON:\n%s", res)
 		})
 	}
@@ -126,8 +207,13 @@ func TestAcceptanceJQWellFormed(t *testing.T) {
 // against the vendored structural i18next JSON Schema using ajv-cli. Gated on
 // node/npx (and network, since npx --yes provisions ajv-cli on first run).
 func TestAcceptanceSchemaValid(t *testing.T) {
-	lookPath(t, "node")
-	npx := lookPath(t, "npx")
+	// Prefer a real `ajv` on PATH; otherwise fall back to provisioning
+	// ajv-cli@5 via npx (which requires node).
+	if _, err := exec.LookPath("ajv"); err != nil {
+		lookPath(t, "node")
+		lookPath(t, "npx")
+	}
+	ajvName, ajvPrefix := ajvCommand()
 
 	schema := filepath.Join("testdata", "schema", "i18next.schema.json")
 	abs, err := filepath.Abs(schema)
@@ -136,15 +222,21 @@ func TestAcceptanceSchemaValid(t *testing.T) {
 		t.Fatalf("vendored i18next schema missing: %v", err)
 	}
 
-	// Probe that ajv-cli can be provisioned; skip (offline) rather than fail.
-	if _, err := runCmd(t, ".", npx, "--yes", "ajv-cli@5", "help"); err != nil {
-		t.Skip("ajv-cli not provisionable (offline?); skipping schema validation")
+	// Probe that ajv can run (and that npx can provision ajv-cli when used);
+	// skip rather than fail when it cannot execute.
+	probeArgs := append(append([]string{}, ajvPrefix...), "help")
+	if out, err := runCmd(t, ".", ajvName, probeArgs...); err != nil && toolCouldNotRun(err, string(out)) {
+		t.Skipf("ajv could not run (tooling/environment, not a kapi failure):\n%s", out)
 	}
 
 	validate := func(t *testing.T, outPath string) {
 		t.Helper()
-		res, err := runCmd(t, ".", npx, "--yes", "ajv-cli@5", "validate",
+		args := append(append([]string{}, ajvPrefix...), "validate",
 			"--strict=false", "-s", abs, "-d", outPath)
+		res, err := runCmd(t, ".", ajvName, args...)
+		if err != nil && toolCouldNotRun(err, string(res)) {
+			t.Skipf("ajv could not run (tooling/environment, not a kapi failure):\n%s", res)
+		}
 		// ajv prints "<file> valid" on success; surface output on failure.
 		require.NoError(t, err,
 			"ajv rejected the i18next output against the structural schema:\n%s", res)

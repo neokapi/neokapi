@@ -2,8 +2,8 @@ name: Format acceptance
 
 # Verifies that translated output from the native formats is accepted by the
 # REAL downstream consumer toolchains — not just by our own reader. Each check
-# is gated on tool availability (t.Skip), so a missing tool degrades gracefully
-# instead of failing the job.
+# is gated on tool availability: if a validator is absent OR cannot execute, the
+# subtest skips; it fails only when the validator runs and rejects kapi output.
 #
 #   plutil          Apple .strings / .stringsdict lint
 #   resgen (mono)   .NET RESX -> .resources compile (the real .resx consumer)
@@ -12,8 +12,7 @@ name: Format acceptance
 #   ajv             JSON Schema validation (xcstrings, arb, i18next, DTCG tokens)
 #
 # Runs on macOS because plutil/xcrun are macOS-only; the cross-platform checks
-# (xmllint, node, mono/resgen) also run here, giving the widest coverage in one
-# job. aapt2 (Android) and flutter are not installed and self-skip.
+# (xmllint, node, mono/resgen, ajv) also run here. aapt2/flutter self-skip.
 
 on:
   push:
@@ -52,20 +51,24 @@ jobs:
           go-version-file: go.mod
 
       - name: Set up Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: "20"
 
+      - name: Install ajv-cli
+        # A real `ajv` on PATH (npm global bins are reliably executable) — the
+        # schema checks prefer it over `npx`, whose cached bin can be
+        # non-executable on the runner ("Permission denied"). Best-effort: if it
+        # fails the checks fall back to npx and self-skip when that can't run.
+        run: npm install -g ajv-cli@5 || true
+
       - name: Install consumer toolchains
-        # mono provides `resgen` for the .NET RESX compile check. Best-effort:
-        # if it does not install, the resgen subtest self-skips and xmllint
-        # still validates the RESX output. plutil/xmllint are preinstalled on
-        # macOS; ajv/@mdx-js are fetched on demand via `npx --yes`.
+        # mono provides `resgen` for the .NET RESX compile check. Best-effort.
         run: brew install mono || true
 
       - name: Report available validators
         run: |
-          for t in plutil resgen xmllint node npx; do
+          for t in plutil resgen xmllint node npx ajv; do
             printf '%-8s ' "$t"; command -v "$t" || echo '(missing — will self-skip)'
           done
 

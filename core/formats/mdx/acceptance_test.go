@@ -13,15 +13,19 @@
 //
 // Provisioning. The test creates a temp npm project and installs
 // `@mdx-js/mdx@3` into it, then compiles each MDX file with a small ESM script.
-// Every step is gated: the test t.Skips (not fails) when node/npx are missing
-// or the install fails (offline). When it DOES run, a failure to compile is a
-// real writer bug.
+// Every step is gated: the test t.Skips (not fails) when node/npm are missing,
+// the install fails (offline), or node itself cannot execute (e.g. a
+// non-executable bin) — those are tooling/environment failures, not kapi
+// failures. When the compiler DOES run and reports MDX_COMPILE_FAIL, that is a
+// real writer bug and the test FAILs.
 //
 // Run with: go test -tags acceptance ./core/formats/mdx/
 package mdx
 
 import (
+	"bytes"
 	"context"
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -32,6 +36,64 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/stretchr/testify/require"
 )
+
+// isLikelyOffline heuristically detects npm/npx network failures so the MDX
+// compiler provisioning can be skipped (rather than failed) when @mdx-js/mdx
+// cannot be installed.
+func isLikelyOffline(output []byte) bool {
+	s := strings.ToLower(string(bytes.TrimSpace(output)))
+	for _, marker := range []string{
+		"network", "etarget", "enotfound", "getaddrinfo", "registry.npmjs",
+		"econnrefused", "etimedout", "could not resolve", "offline",
+		"unable to resolve", "eai_again", "fetch failed",
+	} {
+		if strings.Contains(s, marker) {
+			return true
+		}
+	}
+	return false
+}
+
+// toolCouldNotRun reports whether an external tool FAILED TO EXECUTE rather than
+// ran and rejected kapi's output. The acceptance contract is to SKIP (not FAIL)
+// when the tool itself is broken/unavailable: a non-executable bin (exit 126
+// "Permission denied"), a missing binary (exit 127 "command not found"/ENOENT),
+// or an npm provisioning/network failure. A node run that reaches the MDX
+// compiler and reports a syntax error (MDX_COMPILE_FAIL, exit 2) is NOT covered
+// here, so the suite still FAILs on genuine compiler rejections.
+func toolCouldNotRun(err error, combinedOutput string) bool {
+	if err == nil {
+		return false
+	}
+	var ee *exec.ExitError
+	if errors.As(err, &ee) {
+		switch ee.ExitCode() {
+		case 126, 127:
+			return true
+		}
+	}
+	if errors.Is(err, exec.ErrNotFound) {
+		return true
+	}
+	if isLikelyOffline([]byte(combinedOutput)) {
+		return true
+	}
+	s := strings.ToLower(combinedOutput)
+	for _, marker := range []string{
+		"permission denied",
+		"command not found",
+		"enoent",
+		"no such file or directory",
+		"npm error",
+		"could not determine executable to run",
+		"cannot find module",
+	} {
+		if strings.Contains(s, marker) {
+			return true
+		}
+	}
+	return false
+}
 
 // compileScript is the ESM driver that compiles an MDX file with the real
 // compiler and prints a sentinel on success. It is written into the temp
@@ -69,10 +131,12 @@ func runCmd(t *testing.T, dir string, timeout time.Duration, name string, args .
 }
 
 // mdxCompiler provisions @mdx-js/mdx@3 into a temp npm project once per test and
-// returns a closure that compiles an MDX file and reports (ok, output). The
-// closure compiles via `node <script> <file>`; ok is true only when the real
-// compiler accepts the file.
-func mdxCompiler(t *testing.T) func(t *testing.T, mdxPath string) (bool, []byte) {
+// returns a closure that compiles an MDX file and reports (ran, ok, output).
+// The closure compiles via `node <script> <file>`. `ran` is false when node
+// itself could not execute (tooling failure → callers SKIP); when `ran` is
+// true, `ok` is the genuine compiler verdict (MDX_COMPILE_OK on success,
+// MDX_COMPILE_FAIL on a real syntax error).
+func mdxCompiler(t *testing.T) func(t *testing.T, mdxPath string) (ran, ok bool, output []byte) {
 	t.Helper()
 	node := lookPath(t, "node")
 	npm := lookPath(t, "npm")
@@ -83,23 +147,27 @@ func mdxCompiler(t *testing.T) func(t *testing.T, mdxPath string) (bool, []byte)
 		[]byte(`{"name":"mdx-acceptance","version":"0.0.0","private":true,"type":"module"}`), 0o644))
 	require.NoError(t, os.WriteFile(filepath.Join(proj, "compile.mjs"), []byte(compileScript), 0o644))
 
-	// Install the real MDX compiler. Skip (offline) rather than fail if it can't
-	// be provisioned.
+	// Install the real MDX compiler. Provisioning failures (offline, npm error,
+	// non-executable npm) are tooling failures, not kapi failures — skip.
 	if out, err := runCmd(t, proj, 300*time.Second, npm, "install", "--no-audit", "--no-fund", "@mdx-js/mdx@3"); err != nil {
-		t.Skipf("could not provision @mdx-js/mdx@3 (offline?); skipping MDX compiler acceptance:\n%s", out)
+		t.Skipf("could not provision @mdx-js/mdx@3 (tooling/environment, not a kapi failure):\n%s", out)
 	}
 	if _, err := os.Stat(filepath.Join(proj, "node_modules", "@mdx-js", "mdx")); err != nil {
 		t.Skip("@mdx-js/mdx not installed (offline?); skipping MDX compiler acceptance")
 	}
 
-	return func(t *testing.T, mdxPath string) (bool, []byte) {
+	return func(t *testing.T, mdxPath string) (ran, ok bool, output []byte) {
 		t.Helper()
 		// The compiler runs from the temp project dir, so resolve to an absolute
 		// path regardless of the caller's cwd.
 		abs, err := filepath.Abs(mdxPath)
 		require.NoError(t, err)
 		out, err := runCmd(t, proj, 120*time.Second, node, "compile.mjs", abs)
-		return err == nil && strings.Contains(string(out), "MDX_COMPILE_OK"), out
+		// node itself could not run (e.g. non-executable bin) → not a kapi signal.
+		if err != nil && !strings.Contains(string(out), "MDX_COMPILE_FAIL") && toolCouldNotRun(err, string(out)) {
+			return false, false, out
+		}
+		return true, err == nil && strings.Contains(string(out), "MDX_COMPILE_OK"), out
 	}
 }
 
@@ -117,7 +185,10 @@ func TestAcceptanceTranslatedMDXCompiles(t *testing.T) {
 			require.NoError(t, err)
 
 			// Sanity: the SOURCE compiles (precondition for a meaningful check).
-			srcOK, srcOut := compile(t, path)
+			srcRan, srcOK, srcOut := compile(t, path)
+			if !srcRan {
+				t.Skipf("MDX compiler could not run (tooling/environment, not a kapi failure):\n%s", srcOut)
+			}
 			require.True(t, srcOK, "precondition: source MDX must compile:\n%s", srcOut)
 
 			// Pseudo-translate the prose and write the output.
@@ -135,7 +206,10 @@ func TestAcceptanceTranslatedMDXCompiles(t *testing.T) {
 			outPath := filepath.Join(t.TempDir(), "translated.mdx")
 			require.NoError(t, os.WriteFile(outPath, out, 0o644))
 
-			ok, res := compile(t, outPath)
+			ran, ok, res := compile(t, outPath)
+			if !ran {
+				t.Skipf("MDX compiler could not run (tooling/environment, not a kapi failure):\n%s", res)
+			}
 			require.True(t, ok,
 				"the real @mdx-js/mdx compiler rejected kapi's translated MDX output for %s:\n%s",
 				filepath.Base(path), res)
@@ -156,7 +230,10 @@ func TestAcceptanceUntranslatedRoundTripCompiles(t *testing.T) {
 			out := roundTrip(t, src)
 			outPath := filepath.Join(t.TempDir(), "roundtrip.mdx")
 			require.NoError(t, os.WriteFile(outPath, out, 0o644))
-			ok, res := compile(t, outPath)
+			ran, ok, res := compile(t, outPath)
+			if !ran {
+				t.Skipf("MDX compiler could not run (tooling/environment, not a kapi failure):\n%s", res)
+			}
 			require.True(t, ok,
 				"the real @mdx-js/mdx compiler rejected kapi's round-trip MDX output for %s:\n%s",
 				filepath.Base(path), res)
