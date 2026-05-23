@@ -4,6 +4,22 @@ Translate content, enforce terminology, and round-trip the result back into its
 original format with the local `kapi` CLI. For ongoing work, bind the locales,
 brand voice, and glossary in a project first — see [project.md](project.md).
 
+## Commands at a glance (use these exact forms)
+
+Run these as written — don't guess flags. When in doubt, `kapi <cmd> --help`.
+
+```bash
+kapi extract --target-lang fr                  # → out/<name>.en-to-fr.xliff (one --target-lang)
+kapi merge -i out/*.xliff                       # -i is REQUIRED and repeatable; positional paths are ignored
+kapi verify --json                              # the gate: brand + terminology + QA in one shot (prefer this)
+kapi term-check ./locales/fr.json --target-lang fr   # file is POSITIONAL; there is no --source/--target
+kapi termbase lookup "board" -t fr              # approved wording; termbase uses -s/-t, not --*-lang
+kapi brand guide                                # the voice to follow (no flag inside a project)
+```
+
+Inside a project, prefer `kapi verify` over running `term-check`/QA by hand — it
+runs every bound gate together and pairs source↔target for you.
+
 ## Translate the content yourself, through kapi (don't hand-translate files)
 
 You are a capable translator, so kapi doesn't call a separate model — but route the
