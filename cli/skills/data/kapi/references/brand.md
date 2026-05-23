@@ -85,6 +85,10 @@ Offline, this substitutes forbidden/competitor terms and reports the `changes`.
 With `--ai` it rewrites tone and style holistically — diff `original` vs
 `rewritten`. Re-run the check to confirm the score improved.
 
+When the off-voice text is a file the user owns, **rewrite it in place** — git records
+the change and is how they review and undo it. Don't leave a `.fixed` copy behind. If
+the file has uncommitted edits, say so before overwriting, so unsaved work isn't lost.
+
 ## CI / quality gate
 
 `--min-score` makes `check` exit non-zero (code `3`, distinct from an operational

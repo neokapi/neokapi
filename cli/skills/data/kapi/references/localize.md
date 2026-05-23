@@ -4,10 +4,15 @@ Translate content, enforce terminology, and round-trip the result back into its
 original format with the local `kapi` CLI. For ongoing work, bind the locales,
 brand voice, and glossary in a project first — see [project.md](project.md).
 
-## Translate the content yourself (within kapi's guardrails)
+## Translate the content yourself, through kapi (don't hand-translate files)
 
-You are a capable translator; kapi doesn't need a separate model. Let kapi handle
-the format and the guardrails while you do the translating:
+You are a capable translator, so kapi doesn't call a separate model — but route the
+translation **through kapi** so the guardrails actually apply. Don't read the source
+file, translate it in your head, and write the target file directly: that quietly
+skips terminology, placeholder and format integrity, and the brand voice — the very
+things kapi exists to enforce, and the things a human reviewer will later hold you to.
+Instead, let kapi pull out the text and the rules, do the translating, and let kapi
+write it back:
 
 ```bash
 kapi extract --target-lang fr        # bilingual file with source + empty targets (out/*.xliff)
@@ -16,12 +21,19 @@ kapi termbase lookup "<term>" -t fr  # the approved wording
 ```
 
 Fill each unit's `<target>` following the brand guide and glossary, preserving
-placeholders; reuse any TM-prefilled targets. Then merge and verify:
+placeholders; reuse any TM-prefilled targets. Then merge it back, and treat the task
+as unfinished until kapi confirms the result:
 
 ```bash
 kapi merge -i out/*.xliff            # write translations back into the target files + TM
-kapi term-check ./locales/fr.json    # confirm terminology; fix anything flagged
+kapi verify --json                   # in a project: brand + terminology + QA in one gate
+kapi term-check ./locales/fr.json    # one-off, no project: terminology check on the file
 ```
+
+`kapi verify` is the gate inside a project — read its findings, fix them, and re-run
+until it passes. For a one-off file with no project, `kapi term-check` (plus the QA in
+`kapi run ai-translate-qa`) plays the same role. Either way, a clean result, not a
+written file, is the finish line.
 
 ## Or have kapi call a provider (unattended / CI)
 

@@ -14,6 +14,16 @@ demand (progressive disclosure) — covering the loop:
 - **i18n setup** — add i18n to a project (the kapi-react stack, or a stack's existing catalogs).
 - **Cloud governance (optional)** — shared brand profiles, project sync, and a reviewed termbase; the bowrain platform is one option for teams.
 
+## The verify hook
+
+The plugin also registers a `Stop` hook (`hooks/hooks.json` → `kapi hook stop`).
+Inside a `.kapi` project, it runs the project's `kapi verify` gates — brand
+voice, terminology, and translation QA — when the assistant tries to finish. If
+a gate is failing it keeps the assistant working, with the findings to fix,
+rather than letting it stop on off-brand or broken output. It fails open: outside
+a project, or if verify cannot run, the assistant stops normally. The skill makes
+the verify loop the default; this hook makes it a guarantee.
+
 ## Prerequisites
 
 Install the `kapi` CLI (e.g. `brew install neokapi/tap/kapi`). The optional
