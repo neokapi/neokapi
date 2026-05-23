@@ -332,7 +332,11 @@ func TestTranslationEscaping(t *testing.T) {
 	}
 
 	out := string(writeParts(t, parts, "fr"))
-	assert.Contains(t, out, "<string name=\"greeting\">Fish &amp; &lt;chips&gt;</string>")
+	// '&' and '<' are entity-encoded; '>' is left bare, which is well-formed XML
+	// (XML 1.0 §2.4 requires escaping '>' only inside the "]]>" sequence). Keeping
+	// '>' bare is what makes genuine Android values like "Do NOT check ->"
+	// round-trip byte-faithfully.
+	assert.Contains(t, out, "<string name=\"greeting\">Fish &amp; &lt;chips></string>")
 }
 
 // TestWriteFromScratch verifies that, with no original, the writer produces a

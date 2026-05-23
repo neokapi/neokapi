@@ -277,11 +277,22 @@ func (r *Reader) isReferenceValue(innerToks []token) bool {
 }
 
 // emitString emits one Block for a <string> entry.
+//
+// Android allows two <string> entries to share a @name when they carry distinct
+// @product qualifiers (e.g. product="tablet" vs product="default"); the build
+// selects one at packaging time. To keep such siblings addressable and
+// byte-faithful, a product-qualified entry's Block.Name is suffixed "name@product"
+// (mirroring how plurals/arrays use name[quantity]/name[index]), and the product
+// is recorded in Properties so the writer can match the exact element.
 func (r *Reader) emitString(ctx context.Context, ch chan<- model.PartResult,
 	start token, innerToks []token, comment string, counter int) bool {
 
 	name, _ := start.attrValue("name")
-	block := r.newBlock(counter, name, buildRuns(innerToks))
+	blockName := name
+	if product, ok := start.attrValue("product"); ok && product != "" {
+		blockName = name + "@" + product
+	}
+	block := r.newBlock(counter, blockName, buildRuns(innerToks))
 	r.applyEntryProps(block, start, "string")
 	r.applyComment(block, comment)
 	return r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
@@ -370,11 +381,16 @@ func (r *Reader) newBlock(counter int, name string, runs []model.Run) *model.Blo
 }
 
 // applyEntryProps records the entry kind on the Block so the writer and tooling
-// can identify it.
+// can identify it. The raw @name and any @product qualifier are stored so the
+// writer can match the exact source element (two same-@name entries are
+// distinguished by @product — see emitString).
 func (r *Reader) applyEntryProps(b *model.Block, start token, kind string) {
 	b.Properties["androidxml.kind"] = kind
 	if name, ok := start.attrValue("name"); ok {
 		b.Properties["androidxml.name"] = name
+	}
+	if product, ok := start.attrValue("product"); ok && product != "" {
+		b.Properties["androidxml.product"] = product
 	}
 }
 

@@ -75,24 +75,33 @@ func decodeEntities(s string) string {
 	return b.String()
 }
 
-// encodeText escapes a string for XML element character data: '&', '<', and '>'
-// become entities. Double and single quotes are legal bare in element content
-// (Android escaping handles their string-literal meaning separately) and are
-// left as-is. This is used only when a translation changes a value; unchanged
-// values round-trip via their original bytes.
+// encodeText escapes a string for XML element character data. Per the XML 1.0
+// spec (§2.4), only '&' and '<' must be escaped in character data; a bare '>'
+// is legal and Android resource files routinely carry one (e.g. "Do NOT check
+// ->"). To stay byte-faithful with such genuine source content, '>' is left bare
+// EXCEPT where it would close a CDATA section ("]]>"), the one place §2.4
+// requires escaping it. Double and single quotes are legal bare in element
+// content (Android's backslash-escape layer governs their string-literal meaning
+// separately) and are left as-is. This runs only when a translation changes a
+// value; unchanged values round-trip via their original bytes.
 func encodeText(s string) string {
 	var b strings.Builder
 	b.Grow(len(s) + 8)
-	for _, r := range s {
-		switch r {
+	for i := range len(s) {
+		switch s[i] {
 		case '&':
 			b.WriteString("&amp;")
 		case '<':
 			b.WriteString("&lt;")
 		case '>':
-			b.WriteString("&gt;")
+			// Escape '>' only when it terminates a "]]>" sequence.
+			if i >= 2 && s[i-1] == ']' && s[i-2] == ']' {
+				b.WriteString("&gt;")
+			} else {
+				b.WriteByte('>')
+			}
 		default:
-			b.WriteRune(r)
+			b.WriteByte(s[i])
 		}
 	}
 	return b.String()

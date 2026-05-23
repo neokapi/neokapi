@@ -45,6 +45,7 @@ func (w *Writer) Config() *Config { return w.cfg }
 type valueKey struct {
 	kind     string // "string", "string-array", "plurals"
 	name     string // entry @name
+	product  string // entry @product qualifier (disambiguates same-@name <string>s)
 	index    int    // string-array item index (0 for others)
 	quantity string // plurals item quantity (empty for others)
 }
@@ -54,7 +55,14 @@ func keyFromBlock(b *model.Block) (valueKey, bool) {
 	kind := b.Properties["androidxml.kind"]
 	switch kind {
 	case "string":
-		return valueKey{kind: kind, name: b.Name}, true
+		// Use the raw @name (the Block.Name may carry a "@product" suffix to keep
+		// same-@name siblings distinct) plus the @product qualifier so the writer
+		// matches the exact source element.
+		name := b.Properties["androidxml.name"]
+		if name == "" {
+			name = b.Name
+		}
+		return valueKey{kind: kind, name: name, product: b.Properties["androidxml.product"]}, true
 	case "string-array":
 		name := b.Properties["androidxml.arrayName"]
 		idx, _ := strconv.Atoi(b.Properties["androidxml.index"])
@@ -69,8 +77,15 @@ func keyFromBlock(b *model.Block) (valueKey, bool) {
 // Write consumes Parts and writes the reconstructed resources document.
 func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
 	var original []byte
-	byKey := make(map[valueKey]string)
-	// orderedStrings preserves emission order for the from-scratch path.
+	// overrides holds only entries the writer should splice over the original:
+	// blocks carrying a real target translation for the writer's locale. Entries
+	// without such a target are never spliced, so an unchanged document — and any
+	// unchanged entry within a partially-translated one — round-trips
+	// byte-for-byte regardless of how its source bytes were originally escaped.
+	overrides := make(map[valueKey]string)
+	// scratch holds every block's resolved value (target if present, else source)
+	// for the from-scratch path, where there is no original to preserve.
+	scratch := make(map[valueKey]string)
 	var order []valueKey
 
 	for {
@@ -94,24 +109,29 @@ func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
 					if !ok {
 						continue
 					}
-					if _, seen := byKey[key]; !seen {
+					if _, seen := scratch[key]; !seen {
 						order = append(order, key)
 					}
-					byKey[key] = w.resolveValue(block)
+					scratch[key] = w.resolveValue(block)
+					// Only a real target for the writer's locale becomes a splice
+					// override against the preserved original.
+					if !w.Locale.IsEmpty() && block.HasTarget(w.Locale) {
+						overrides[key] = renderRunsToXML(block.TargetRuns(w.Locale))
+					}
 				}
 			}
 		}
 	}
 done:
 	if original != nil {
-		out, err := w.rewrite(original, byKey)
+		out, err := w.rewrite(original, overrides)
 		if err != nil {
 			return err
 		}
 		_, werr := w.Output.Write(out)
 		return werr
 	}
-	return w.writeFromScratch(order, byKey)
+	return w.writeFromScratch(order, scratch)
 }
 
 // resolveValue returns the encoded XML element content for a Block: the target
@@ -181,7 +201,8 @@ func (w *Writer) rewrite(original []byte, byKey map[valueKey]string) ([]byte, er
 			}
 			entry := toks[i : end+1]
 			name, _ := t.attrValue("name")
-			if newVal, ok := byKey[valueKey{kind: "string", name: name}]; ok {
+			product, _ := t.attrValue("product")
+			if newVal, ok := byKey[valueKey{kind: "string", name: name, product: product}]; ok {
 				out.WriteString(rewriteElementInner(entry, newVal))
 			} else {
 				writeAll(&out, entry)
@@ -323,7 +344,13 @@ func (w *Writer) writeFromScratch(order []valueKey, byKey map[valueKey]string) e
 		case "string":
 			b.WriteString("    <string name=\"")
 			b.WriteString(encodeAttr(key.name))
-			b.WriteString("\">")
+			b.WriteString("\"")
+			if key.product != "" {
+				b.WriteString(" product=\"")
+				b.WriteString(encodeAttr(key.product))
+				b.WriteString("\"")
+			}
+			b.WriteString(">")
 			b.WriteString(byKey[key])
 			b.WriteString("</string>\n")
 		case "string-array":
