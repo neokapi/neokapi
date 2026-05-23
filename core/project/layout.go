@@ -62,6 +62,17 @@ func (l Layout) CollectionsDir() string {
 	return filepath.Join(l.CacheDir(), CollectionsDirName)
 }
 
+// RedactionDirName is the cache subdirectory holding per-batch redaction
+// vault sidecars. These contain original sensitive values and must never
+// be committed — they live under the gitignored cache root.
+const RedactionDirName = "redaction"
+
+// RedactionSidecarPath returns the absolute path of the redaction vault
+// sidecar for an extraction batch.
+func (l Layout) RedactionSidecarPath(batchID string) string {
+	return filepath.Join(l.CacheDir(), RedactionDirName, batchID+".json")
+}
+
 // ResolveLayout walks up from `start` looking for a kapi project.
 // The recognised shape is exactly one `*.kapi` file at a directory
 // level plus an adjacent `.kapi/` subdirectory. Multiple `.kapi`

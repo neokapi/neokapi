@@ -217,6 +217,16 @@ func RegisterAll(reg *registry.ToolRegistry) {
 	}, toolSchema(&TagProtectConfig{}, toolMeta("tag-protect", "Tag Protect", schema.CategoryTextProcessing,
 		withInputs(B), withTags("regex", "configurable"), withCardinality(schema.Monolingual))))
 
+	reg.RegisterWithSchema("redact", func() tool.Tool {
+		t, _ := NewRedactTool(&RedactConfig{Detectors: []string{DetectRules}})
+		return t
+	}, RedactSchema())
+
+	reg.RegisterWithSchema("unredact", func() tool.Tool {
+		t, _ := NewUnredactTool(&UnredactConfig{})
+		return t
+	}, UnredactSchema())
+
 	reg.RegisterWithSchema("xslt-transform", func() tool.Tool {
 		cfg := &XSLTTransformConfig{}
 		cfg.Reset()
@@ -335,6 +345,8 @@ func registerConfigFactories(reg *registry.ToolRegistry) {
 	reg.SetConfigFactory("translation-comparison", NewTranslationComparisonFromConfig)
 	reg.SetConfigFactory("encoding-detect", NewEncodingDetectFromConfig)
 	reg.SetConfigFactory("pseudo-translate", NewPseudoTranslateFromConfig)
+	reg.SetConfigFactory("redact", NewRedactFromConfig)
+	reg.SetConfigFactory("unredact", NewUnredactFromConfig)
 	reg.SetConfigFactory("search-replace", NewSearchReplaceFromConfig)
 	reg.SetConfigFactory("case-transform", NewCaseTransformFromConfig)
 	reg.SetConfigFactory("segmentation", NewSegmentationFromConfig)
