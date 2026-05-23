@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-23T11:30:45Z",
+  "generatedAt": "2026-05-23T12:08:05Z",
   "kind": "tool",
   "entries": [
     {
@@ -7582,6 +7582,143 @@
     },
     {
       "id": "inconsistency-check",
+      "source": "built-in",
+      "kind": "tool",
+      "displayName": "Inconsistency Check",
+      "description": "Flag identical source strings translated differently, or different sources sharing one translation.",
+      "category": "quality",
+      "inputs": [
+        "block"
+      ],
+      "tags": [
+        "quality"
+      ],
+      "requires": [
+        "target-language"
+      ],
+      "cardinality": "bilingual",
+      "schema": {
+        "$id": "inconsistency-check",
+        "title": "Inconsistency Check",
+        "type": "object",
+        "toolMeta": {
+          "id": "inconsistency-check",
+          "category": "quality",
+          "displayName": "Inconsistency Check",
+          "inputs": [
+            "block"
+          ],
+          "tags": [
+            "quality"
+          ],
+          "requires": [
+            "target-language"
+          ],
+          "cardinality": "bilingual",
+          "produces": [
+            "quality.qa-issues"
+          ]
+        },
+        "properties": {
+          "caseSensitive": {
+            "type": "boolean",
+            "title": "Case Sensitive",
+            "description": "Whether comparison is case-sensitive",
+            "default": true
+          },
+          "checkPerFile": {
+            "type": "boolean",
+            "title": "Per-File Checking",
+            "description": "Process each input file individually instead of comparing segments across all documents",
+            "default": false
+          },
+          "checkSourceInconsistency": {
+            "type": "boolean",
+            "title": "Check Source Inconsistency",
+            "description": "Flag when different sources share the same translation",
+            "default": false
+          },
+          "checkTargetInconsistency": {
+            "type": "boolean",
+            "title": "Check Target Inconsistency",
+            "description": "Flag when the same source has different translations",
+            "default": true
+          },
+          "displayOption": {
+            "type": "string",
+            "title": "Inline Code Display",
+            "description": "Controls how inline codes are represented: original codes or generic markers or plain text",
+            "default": "generic",
+            "options": [
+              {
+                "value": "original",
+                "label": "original"
+              },
+              {
+                "value": "generic",
+                "label": "generic"
+              },
+              {
+                "value": "plain",
+                "label": "plain"
+              }
+            ]
+          }
+        }
+      },
+      "doc": {
+        "overview": "The **Inconsistency Check** tool tracks the mapping between source text and its\ntranslation across blocks and flags inconsistencies. By default it reports\ntarget inconsistency: the same source string translated more than one way.\nOptionally it can also report source inconsistency: distinct source strings that\nshare a single translation. Each block records a status (consistent or\ninconsistent), the inconsistency type, and the alternative translations or\nsources observed.\n\nSource and target text are trimmed before comparison, and comparison can be\nmade case-insensitive. By default the tool compares segments across all input\ndocuments; per-file mode resets its tracking state at the start of each document\nso consistency is judged within a single file. A target locale is required.\n",
+        "parameters": {
+          "caseSensitive": {
+            "description": "Whether comparison is case-sensitive.",
+            "help": "When enabled, strings that differ only in letter case are treated as\ndistinct. Disable it to fold case differences together when judging\nconsistency.\n",
+            "values": "`true` / `false` (default `true`)"
+          },
+          "checkPerFile": {
+            "description": "Judge consistency within each file rather than across all documents.",
+            "help": "When enabled, the tool clears its source/target tracking at the start of\neach document, so a string is only compared against others in the same file.\nWhen disabled, comparison spans all input documents.\n",
+            "values": "`true` / `false` (default `false`)"
+          },
+          "checkSourceInconsistency": {
+            "description": "Flag when different sources share the same translation.",
+            "help": "When enabled, a block is flagged when its translation is also used for a\ndifferent source string. This catches cases where distinct meanings collapse\nto one translation.\n",
+            "values": "`true` / `false` (default `false`)"
+          },
+          "checkTargetInconsistency": {
+            "description": "Flag when the same source has different translations.",
+            "help": "When enabled, a block is flagged when its source text has been translated\ndifferently elsewhere. This is the primary inconsistency check.\n",
+            "values": "`true` / `false` (default `true`)"
+          },
+          "displayOption": {
+            "description": "How inline codes are represented in the report.",
+            "help": "Controls the rendering of inline codes when reporting alternatives:\n`original` keeps the original code markup, `generic` uses numbered markers,\nand `plain` strips codes to plain text.\n",
+            "values": "`original` / `generic` / `plain` (default `generic`)"
+          }
+        },
+        "limitations": [
+          "Compares exact (trimmed) text; near-duplicate sources or translations are not detected.",
+          "Requires a configured target locale; blocks without a translation for it are skipped."
+        ],
+        "processingNotes": [
+          "Operates on translatable blocks; non-translatable structure passes through unchanged.",
+          "Tracking state is global by default and reset per document only when per-file checking is enabled."
+        ],
+        "examples": [
+          {
+            "title": "Check both directions of inconsistency",
+            "description": "Flag both differing translations of one source and shared translations of different sources.",
+            "config": "checkTargetInconsistency: true\ncheckSourceInconsistency: true\n"
+          },
+          {
+            "title": "Per-file consistency",
+            "description": "Judge consistency within each document independently.",
+            "config": "checkPerFile: true\n"
+          }
+        ]
+      }
+    },
+    {
+      "id": "inconsistency-check",
       "source": "okapi",
       "kind": "tool",
       "displayName": "Inconsistency Check",
@@ -7779,143 +7916,6 @@
           }
         ],
         "wikiUrl": "https://okapiframework.org/wiki/index.php/Inconsistency_Check_Step"
-      }
-    },
-    {
-      "id": "inconsistency-check",
-      "source": "built-in",
-      "kind": "tool",
-      "displayName": "Inconsistency Check",
-      "description": "Flag identical source strings translated differently, or different sources sharing one translation.",
-      "category": "quality",
-      "inputs": [
-        "block"
-      ],
-      "tags": [
-        "quality"
-      ],
-      "requires": [
-        "target-language"
-      ],
-      "cardinality": "bilingual",
-      "schema": {
-        "$id": "inconsistency-check",
-        "title": "Inconsistency Check",
-        "type": "object",
-        "toolMeta": {
-          "id": "inconsistency-check",
-          "category": "quality",
-          "displayName": "Inconsistency Check",
-          "inputs": [
-            "block"
-          ],
-          "tags": [
-            "quality"
-          ],
-          "requires": [
-            "target-language"
-          ],
-          "cardinality": "bilingual",
-          "produces": [
-            "quality.qa-issues"
-          ]
-        },
-        "properties": {
-          "caseSensitive": {
-            "type": "boolean",
-            "title": "Case Sensitive",
-            "description": "Whether comparison is case-sensitive",
-            "default": true
-          },
-          "checkPerFile": {
-            "type": "boolean",
-            "title": "Per-File Checking",
-            "description": "Process each input file individually instead of comparing segments across all documents",
-            "default": false
-          },
-          "checkSourceInconsistency": {
-            "type": "boolean",
-            "title": "Check Source Inconsistency",
-            "description": "Flag when different sources share the same translation",
-            "default": false
-          },
-          "checkTargetInconsistency": {
-            "type": "boolean",
-            "title": "Check Target Inconsistency",
-            "description": "Flag when the same source has different translations",
-            "default": true
-          },
-          "displayOption": {
-            "type": "string",
-            "title": "Inline Code Display",
-            "description": "Controls how inline codes are represented: original codes or generic markers or plain text",
-            "default": "generic",
-            "options": [
-              {
-                "value": "original",
-                "label": "original"
-              },
-              {
-                "value": "generic",
-                "label": "generic"
-              },
-              {
-                "value": "plain",
-                "label": "plain"
-              }
-            ]
-          }
-        }
-      },
-      "doc": {
-        "overview": "The **Inconsistency Check** tool tracks the mapping between source text and its\ntranslation across blocks and flags inconsistencies. By default it reports\ntarget inconsistency: the same source string translated more than one way.\nOptionally it can also report source inconsistency: distinct source strings that\nshare a single translation. Each block records a status (consistent or\ninconsistent), the inconsistency type, and the alternative translations or\nsources observed.\n\nSource and target text are trimmed before comparison, and comparison can be\nmade case-insensitive. By default the tool compares segments across all input\ndocuments; per-file mode resets its tracking state at the start of each document\nso consistency is judged within a single file. A target locale is required.\n",
-        "parameters": {
-          "caseSensitive": {
-            "description": "Whether comparison is case-sensitive.",
-            "help": "When enabled, strings that differ only in letter case are treated as\ndistinct. Disable it to fold case differences together when judging\nconsistency.\n",
-            "values": "`true` / `false` (default `true`)"
-          },
-          "checkPerFile": {
-            "description": "Judge consistency within each file rather than across all documents.",
-            "help": "When enabled, the tool clears its source/target tracking at the start of\neach document, so a string is only compared against others in the same file.\nWhen disabled, comparison spans all input documents.\n",
-            "values": "`true` / `false` (default `false`)"
-          },
-          "checkSourceInconsistency": {
-            "description": "Flag when different sources share the same translation.",
-            "help": "When enabled, a block is flagged when its translation is also used for a\ndifferent source string. This catches cases where distinct meanings collapse\nto one translation.\n",
-            "values": "`true` / `false` (default `false`)"
-          },
-          "checkTargetInconsistency": {
-            "description": "Flag when the same source has different translations.",
-            "help": "When enabled, a block is flagged when its source text has been translated\ndifferently elsewhere. This is the primary inconsistency check.\n",
-            "values": "`true` / `false` (default `true`)"
-          },
-          "displayOption": {
-            "description": "How inline codes are represented in the report.",
-            "help": "Controls the rendering of inline codes when reporting alternatives:\n`original` keeps the original code markup, `generic` uses numbered markers,\nand `plain` strips codes to plain text.\n",
-            "values": "`original` / `generic` / `plain` (default `generic`)"
-          }
-        },
-        "limitations": [
-          "Compares exact (trimmed) text; near-duplicate sources or translations are not detected.",
-          "Requires a configured target locale; blocks without a translation for it are skipped."
-        ],
-        "processingNotes": [
-          "Operates on translatable blocks; non-translatable structure passes through unchanged.",
-          "Tracking state is global by default and reset per document only when per-file checking is enabled."
-        ],
-        "examples": [
-          {
-            "title": "Check both directions of inconsistency",
-            "description": "Flag both differing translations of one source and shared translations of different sources.",
-            "config": "checkTargetInconsistency: true\ncheckSourceInconsistency: true\n"
-          },
-          {
-            "title": "Per-file consistency",
-            "description": "Judge consistency within each document independently.",
-            "config": "checkPerFile: true\n"
-          }
-        ]
       }
     },
     {
@@ -12942,6 +12942,108 @@
     },
     {
       "id": "remove-target",
+      "source": "built-in",
+      "kind": "tool",
+      "displayName": "Remove Target",
+      "description": "Remove target segments from blocks, by locale or by selected text-unit IDs.",
+      "category": "text-processing",
+      "inputs": [
+        "block"
+      ],
+      "requires": [
+        "target-language"
+      ],
+      "cardinality": "bilingual",
+      "schema": {
+        "$id": "remove-target",
+        "title": "Remove Target",
+        "type": "object",
+        "toolMeta": {
+          "id": "remove-target",
+          "category": "text-processing",
+          "displayName": "Remove Target",
+          "inputs": [
+            "block"
+          ],
+          "requires": [
+            "target-language"
+          ],
+          "cardinality": "bilingual"
+        },
+        "properties": {
+          "filterByIDs": {
+            "type": "boolean",
+            "title": "Filter by IDs",
+            "description": "When true filter text units by ID; when false filter by target locale",
+            "default": true
+          },
+          "removeBlockIfEmpty": {
+            "type": "boolean",
+            "title": "Remove Empty Text Units",
+            "description": "Remove the text unit entirely if it has no remaining targets after removal",
+            "default": false
+          },
+          "targetLocale": {
+            "type": "string",
+            "title": "Target Locale",
+            "description": "Target locale to remove (if empty all targets are removed)"
+          },
+          "textUnitIDs": {
+            "type": "string",
+            "title": "Text Unit IDs for Removal",
+            "description": "Comma-delimited list of text unit IDs whose targets should be removed; empty removes all targets"
+          }
+        }
+      },
+      "doc": {
+        "overview": "The **Remove Target** tool deletes target segments from blocks. With a target\nlocale set, it removes only that locale's targets; with no locale, it removes\nall targets. It is useful for resetting translations before a fresh run, or\nfor clearing targets in a specific locale.\n\nRemoval can be scoped to specific text units by ID, which restricts the\noperation to a comma-separated list of block IDs. Optionally, a block whose\ntargets are all removed can itself be dropped from the stream.\n",
+        "parameters": {
+          "filterByIDs": {
+            "description": "Filter text units by ID rather than by locale alone.",
+            "help": "When enabled, removal is restricted to the blocks listed in\n`textUnitIDs`. When disabled, removal is driven by the target locale\nacross all blocks.\n",
+            "values": "`true` / `false` (default `true`)"
+          },
+          "removeBlockIfEmpty": {
+            "description": "Drop a block when it has no targets left.",
+            "help": "When enabled, a block that has no remaining target segments after removal\nis dropped from the stream entirely. When disabled, the now-empty block is\nkept.\n",
+            "values": "`true` / `false` (default `false`)"
+          },
+          "targetLocale": {
+            "description": "The locale whose targets to remove.",
+            "help": "The locale to clear. When empty, the targets for every locale on the\nblock are removed.\n",
+            "values": "BCP-47 locale (empty = remove all targets)"
+          },
+          "textUnitIDs": {
+            "description": "Comma-separated text-unit IDs to restrict removal to.",
+            "help": "A comma-delimited list of block (text-unit) IDs. When set and ID\nfiltering is enabled, only blocks whose ID appears in the list have their\ntargets removed. Leave empty to remove targets from all blocks.\n",
+            "values": "comma-separated string",
+            "dependsOn": [
+              {
+                "property": "filterByIDs",
+                "condition": "ID filtering must be enabled for this list to apply"
+              }
+            ]
+          }
+        },
+        "processingNotes": [
+          "Operates on translatable blocks only; non-translatable blocks pass through unchanged."
+        ],
+        "examples": [
+          {
+            "title": "Clear one locale's targets",
+            "description": "Remove the French targets from every block.",
+            "config": "targetLocale: fr-FR\n"
+          },
+          {
+            "title": "Remove targets for selected text units",
+            "description": "Restrict removal to specific block IDs.",
+            "config": "filterByIDs: true\ntextUnitIDs: \"intro.title, intro.body\"\n"
+          }
+        ]
+      }
+    },
+    {
+      "id": "remove-target",
       "source": "okapi",
       "kind": "tool",
       "displayName": "Remove Target",
@@ -13090,161 +13192,6 @@
       }
     },
     {
-      "id": "remove-target",
-      "source": "built-in",
-      "kind": "tool",
-      "displayName": "Remove Target",
-      "description": "Remove target segments from blocks, by locale or by selected text-unit IDs.",
-      "category": "text-processing",
-      "inputs": [
-        "block"
-      ],
-      "requires": [
-        "target-language"
-      ],
-      "cardinality": "bilingual",
-      "schema": {
-        "$id": "remove-target",
-        "title": "Remove Target",
-        "type": "object",
-        "toolMeta": {
-          "id": "remove-target",
-          "category": "text-processing",
-          "displayName": "Remove Target",
-          "inputs": [
-            "block"
-          ],
-          "requires": [
-            "target-language"
-          ],
-          "cardinality": "bilingual"
-        },
-        "properties": {
-          "filterByIDs": {
-            "type": "boolean",
-            "title": "Filter by IDs",
-            "description": "When true filter text units by ID; when false filter by target locale",
-            "default": true
-          },
-          "removeBlockIfEmpty": {
-            "type": "boolean",
-            "title": "Remove Empty Text Units",
-            "description": "Remove the text unit entirely if it has no remaining targets after removal",
-            "default": false
-          },
-          "targetLocale": {
-            "type": "string",
-            "title": "Target Locale",
-            "description": "Target locale to remove (if empty all targets are removed)"
-          },
-          "textUnitIDs": {
-            "type": "string",
-            "title": "Text Unit IDs for Removal",
-            "description": "Comma-delimited list of text unit IDs whose targets should be removed; empty removes all targets"
-          }
-        }
-      },
-      "doc": {
-        "overview": "The **Remove Target** tool deletes target segments from blocks. With a target\nlocale set, it removes only that locale's targets; with no locale, it removes\nall targets. It is useful for resetting translations before a fresh run, or\nfor clearing targets in a specific locale.\n\nRemoval can be scoped to specific text units by ID, which restricts the\noperation to a comma-separated list of block IDs. Optionally, a block whose\ntargets are all removed can itself be dropped from the stream.\n",
-        "parameters": {
-          "filterByIDs": {
-            "description": "Filter text units by ID rather than by locale alone.",
-            "help": "When enabled, removal is restricted to the blocks listed in\n`textUnitIDs`. When disabled, removal is driven by the target locale\nacross all blocks.\n",
-            "values": "`true` / `false` (default `true`)"
-          },
-          "removeBlockIfEmpty": {
-            "description": "Drop a block when it has no targets left.",
-            "help": "When enabled, a block that has no remaining target segments after removal\nis dropped from the stream entirely. When disabled, the now-empty block is\nkept.\n",
-            "values": "`true` / `false` (default `false`)"
-          },
-          "targetLocale": {
-            "description": "The locale whose targets to remove.",
-            "help": "The locale to clear. When empty, the targets for every locale on the\nblock are removed.\n",
-            "values": "BCP-47 locale (empty = remove all targets)"
-          },
-          "textUnitIDs": {
-            "description": "Comma-separated text-unit IDs to restrict removal to.",
-            "help": "A comma-delimited list of block (text-unit) IDs. When set and ID\nfiltering is enabled, only blocks whose ID appears in the list have their\ntargets removed. Leave empty to remove targets from all blocks.\n",
-            "values": "comma-separated string",
-            "dependsOn": [
-              {
-                "property": "filterByIDs",
-                "condition": "ID filtering must be enabled for this list to apply"
-              }
-            ]
-          }
-        },
-        "processingNotes": [
-          "Operates on translatable blocks only; non-translatable blocks pass through unchanged."
-        ],
-        "examples": [
-          {
-            "title": "Clear one locale's targets",
-            "description": "Remove the French targets from every block.",
-            "config": "targetLocale: fr-FR\n"
-          },
-          {
-            "title": "Remove targets for selected text units",
-            "description": "Restrict removal to specific block IDs.",
-            "config": "filterByIDs: true\ntextUnitIDs: \"intro.title, intro.body\"\n"
-          }
-        ]
-      }
-    },
-    {
-      "id": "repetition-analysis",
-      "source": "okapi",
-      "kind": "tool",
-      "displayName": "Repetition Analysis",
-      "description": "Analyzes repetitions in input documents. Adds AltTranslationsAnnotation and RepetitiveSegmentAnnotation to a repetitive segment. Expects: filter events. Sends back: filter events.",
-      "category": "translate",
-      "inputs": [
-        "block"
-      ],
-      "tags": [
-        "translation",
-        "text-processing"
-      ],
-      "requires": [
-        "target-language",
-        "source-language"
-      ],
-      "schema": {
-        "$id": "repetition-analysis",
-        "title": "Repetition Analysis",
-        "type": "object",
-        "description": "Analyzes repetitions in input documents. Adds AltTranslationsAnnotation and RepetitiveSegmentAnnotation to a repetitive segment. Expects: filter events. Sends back: filter events.",
-        "toolMeta": {
-          "displayName": "Repetition Analysis",
-          "category": "translate",
-          "inputs": [
-            "block"
-          ],
-          "tags": [
-            "translation",
-            "text-processing"
-          ],
-          "description": "Analyzes repetitions in input documents. Adds AltTranslationsAnnotation and RepetitiveSegmentAnnotation to a repetitive segment. Expects: filter events. Sends back: filter events.",
-          "requires": [
-            "target-language",
-            "source-language"
-          ]
-        }
-      },
-      "doc": {
-        "overview": "Analyzes repetitions across input documents, performing either exact or configurable fuzzy matching on source segments. For each group of repetitive segments, it attaches `RepetitiveSegmentAnnotation` to the source and `AltTranslationsAnnotation` to the corresponding target, enabling downstream steps (like leveraging or counting) to act on repeated content.",
-        "limitations": [
-          "No known limitations per the Okapi documentation."
-        ],
-        "processingNotes": [
-          "Two annotation types are created: **RepetitiveSegmentAnnotation** (on the repetitive source segment) and **AltTranslationsAnnotation** (on the corresponding target segment).",
-          "The first segment in a repetition group does **not** receive an `AltTranslationsAnnotation` — this prevents counting steps from double-counting it as repetitive with itself.",
-          "Fuzzy threshold controls whether matching is exact (100) or fuzzy (lower values). Leave at 100 for exact repetitions only."
-        ],
-        "wikiUrl": "https://okapiframework.org/wiki/index.php/Repetition_Analysis_Step"
-      }
-    },
-    {
       "id": "repetition-analysis",
       "source": "built-in",
       "kind": "tool",
@@ -13310,6 +13257,59 @@
             "config": "caseSensitive: false\n"
           }
         ]
+      }
+    },
+    {
+      "id": "repetition-analysis",
+      "source": "okapi",
+      "kind": "tool",
+      "displayName": "Repetition Analysis",
+      "description": "Analyzes repetitions in input documents. Adds AltTranslationsAnnotation and RepetitiveSegmentAnnotation to a repetitive segment. Expects: filter events. Sends back: filter events.",
+      "category": "translate",
+      "inputs": [
+        "block"
+      ],
+      "tags": [
+        "translation",
+        "text-processing"
+      ],
+      "requires": [
+        "target-language",
+        "source-language"
+      ],
+      "schema": {
+        "$id": "repetition-analysis",
+        "title": "Repetition Analysis",
+        "type": "object",
+        "description": "Analyzes repetitions in input documents. Adds AltTranslationsAnnotation and RepetitiveSegmentAnnotation to a repetitive segment. Expects: filter events. Sends back: filter events.",
+        "toolMeta": {
+          "displayName": "Repetition Analysis",
+          "category": "translate",
+          "inputs": [
+            "block"
+          ],
+          "tags": [
+            "translation",
+            "text-processing"
+          ],
+          "description": "Analyzes repetitions in input documents. Adds AltTranslationsAnnotation and RepetitiveSegmentAnnotation to a repetitive segment. Expects: filter events. Sends back: filter events.",
+          "requires": [
+            "target-language",
+            "source-language"
+          ]
+        }
+      },
+      "doc": {
+        "overview": "Analyzes repetitions across input documents, performing either exact or configurable fuzzy matching on source segments. For each group of repetitive segments, it attaches `RepetitiveSegmentAnnotation` to the source and `AltTranslationsAnnotation` to the corresponding target, enabling downstream steps (like leveraging or counting) to act on repeated content.",
+        "limitations": [
+          "No known limitations per the Okapi documentation."
+        ],
+        "processingNotes": [
+          "Two annotation types are created: **RepetitiveSegmentAnnotation** (on the repetitive source segment) and **AltTranslationsAnnotation** (on the corresponding target segment).",
+          "The first segment in a repetition group does **not** receive an `AltTranslationsAnnotation` — this prevents counting steps from double-counting it as repetitive with itself.",
+          "Fuzzy threshold controls whether matching is exact (100) or fuzzy (lower values). Leave at 100 for exact repetitions only."
+        ],
+        "wikiUrl": "https://okapiframework.org/wiki/index.php/Repetition_Analysis_Step"
       }
     },
     {
@@ -17072,6 +17072,140 @@
     },
     {
       "id": "translation-comparison",
+      "source": "built-in",
+      "kind": "tool",
+      "displayName": "Translation Comparison",
+      "description": "Compare two target translations of the same source and report whether they match.",
+      "category": "analysis",
+      "inputs": [
+        "block"
+      ],
+      "tags": [
+        "quality"
+      ],
+      "requires": [
+        "target-language"
+      ],
+      "cardinality": "bilingual",
+      "schema": {
+        "$id": "translation-comparison",
+        "title": "Translation Comparison",
+        "type": "object",
+        "toolMeta": {
+          "id": "translation-comparison",
+          "category": "analysis",
+          "displayName": "Translation Comparison",
+          "inputs": [
+            "block"
+          ],
+          "tags": [
+            "quality"
+          ],
+          "requires": [
+            "target-language"
+          ],
+          "cardinality": "bilingual",
+          "produces": [
+            "analysis.comparison"
+          ]
+        },
+        "properties": {
+          "caseSensitive": {
+            "type": "boolean",
+            "title": "Case Sensitive",
+            "description": "Take case differences into account when comparing",
+            "default": true
+          },
+          "document1Label": {
+            "type": "string",
+            "title": "Document 1 Label",
+            "description": "Label for the first translation in reports",
+            "default": "Trans1"
+          },
+          "document2Label": {
+            "type": "string",
+            "title": "Document 2 Label",
+            "description": "Label for the second translation in reports",
+            "default": "Trans2"
+          },
+          "genericCodes": {
+            "type": "boolean",
+            "title": "Use Generic Codes",
+            "description": "Use generic numbered tags (e.g. \u003c1\u003e...\u003c/1\u003e) instead of original inline codes in reports",
+            "default": true
+          },
+          "punctuationSensitive": {
+            "type": "boolean",
+            "title": "Punctuation Sensitive",
+            "description": "Take punctuation differences into account when comparing",
+            "default": true
+          },
+          "whitespaceSensitive": {
+            "type": "boolean",
+            "title": "Whitespace Sensitive",
+            "description": "Take whitespace differences into account when comparing",
+            "default": true
+          }
+        }
+      },
+      "doc": {
+        "overview": "The **Translation Comparison** tool compares the translations of a block in two\ntarget locales (or two versions) and records the result on the block's\nproperties: a status — identical, different, or one of the missing-translation\ncases — and a human-readable diff description. When a translation is absent for\none or both locales, the status reflects which side is missing.\n\nComparison sensitivity is configurable: case, whitespace, and punctuation can\neach be ignored so that cosmetic differences do not register as a mismatch. The\ntwo locales being compared are supplied programmatically; the parameters below\ncontrol how the comparison is performed and how the translations are labelled\nin the report.\n",
+        "parameters": {
+          "caseSensitive": {
+            "description": "Take case differences into account when comparing.",
+            "help": "When enabled, translations that differ only in letter case count as\ndifferent. Disable it to compare case-insensitively.\n",
+            "values": "`true` / `false` (default `true`)"
+          },
+          "document1Label": {
+            "description": "Label for the first translation in reports.",
+            "help": "The name used to identify the first translation in the diff description. If\nleft empty, the first locale's identifier is used instead.\n",
+            "values": "string (default `Trans1`)"
+          },
+          "document2Label": {
+            "description": "Label for the second translation in reports.",
+            "help": "The name used to identify the second translation in the diff description. If\nleft empty, the second locale's identifier is used instead.\n",
+            "values": "string (default `Trans2`)"
+          },
+          "genericCodes": {
+            "description": "Use generic numbered tags instead of original inline codes in reports.",
+            "help": "When enabled, inline codes are represented in the report as generic numbered\ntags (for example `\u003c1\u003e...\u003c/1\u003e`) rather than their original markup, which\nkeeps the diff readable.\n",
+            "values": "`true` / `false` (default `true`)"
+          },
+          "punctuationSensitive": {
+            "description": "Take punctuation differences into account when comparing.",
+            "help": "When enabled, punctuation differences count as a mismatch. When disabled,\npunctuation characters are stripped from both sides before comparison.\n",
+            "values": "`true` / `false` (default `true`)"
+          },
+          "whitespaceSensitive": {
+            "description": "Take whitespace differences into account when comparing.",
+            "help": "When enabled, differences in whitespace count as a mismatch. When disabled,\nruns of whitespace are collapsed to a single space and trimmed before\ncomparison, so spacing differences are ignored.\n",
+            "values": "`true` / `false` (default `true`)"
+          }
+        },
+        "limitations": [
+          "Compares two target locales of the same block; it does not compare against an external reference file.",
+          "A block is only compared when it carries translations for the configured locales; otherwise a missing-translation status is recorded."
+        ],
+        "processingNotes": [
+          "Operates on translatable blocks; non-translatable structure passes through unchanged.",
+          "The two locales to compare are configured programmatically, not through the parameters above."
+        ],
+        "examples": [
+          {
+            "title": "Ignore cosmetic differences",
+            "description": "Treat translations that differ only in case, whitespace, or punctuation as identical.",
+            "config": "caseSensitive: false\nwhitespaceSensitive: false\npunctuationSensitive: false\n"
+          },
+          {
+            "title": "Label the compared translations",
+            "description": "Use meaningful labels for the two translations in the diff output.",
+            "config": "document1Label: Vendor A\ndocument2Label: Vendor B\n"
+          }
+        ]
+      }
+    },
+    {
+      "id": "translation-comparison",
       "source": "okapi",
       "kind": "tool",
       "displayName": "Translation Comparison",
@@ -17467,140 +17601,6 @@
           }
         ],
         "wikiUrl": "https://okapiframework.org/wiki/index.php/Translation_Comparison_Step"
-      }
-    },
-    {
-      "id": "translation-comparison",
-      "source": "built-in",
-      "kind": "tool",
-      "displayName": "Translation Comparison",
-      "description": "Compare two target translations of the same source and report whether they match.",
-      "category": "analysis",
-      "inputs": [
-        "block"
-      ],
-      "tags": [
-        "quality"
-      ],
-      "requires": [
-        "target-language"
-      ],
-      "cardinality": "bilingual",
-      "schema": {
-        "$id": "translation-comparison",
-        "title": "Translation Comparison",
-        "type": "object",
-        "toolMeta": {
-          "id": "translation-comparison",
-          "category": "analysis",
-          "displayName": "Translation Comparison",
-          "inputs": [
-            "block"
-          ],
-          "tags": [
-            "quality"
-          ],
-          "requires": [
-            "target-language"
-          ],
-          "cardinality": "bilingual",
-          "produces": [
-            "analysis.comparison"
-          ]
-        },
-        "properties": {
-          "caseSensitive": {
-            "type": "boolean",
-            "title": "Case Sensitive",
-            "description": "Take case differences into account when comparing",
-            "default": true
-          },
-          "document1Label": {
-            "type": "string",
-            "title": "Document 1 Label",
-            "description": "Label for the first translation in reports",
-            "default": "Trans1"
-          },
-          "document2Label": {
-            "type": "string",
-            "title": "Document 2 Label",
-            "description": "Label for the second translation in reports",
-            "default": "Trans2"
-          },
-          "genericCodes": {
-            "type": "boolean",
-            "title": "Use Generic Codes",
-            "description": "Use generic numbered tags (e.g. \u003c1\u003e...\u003c/1\u003e) instead of original inline codes in reports",
-            "default": true
-          },
-          "punctuationSensitive": {
-            "type": "boolean",
-            "title": "Punctuation Sensitive",
-            "description": "Take punctuation differences into account when comparing",
-            "default": true
-          },
-          "whitespaceSensitive": {
-            "type": "boolean",
-            "title": "Whitespace Sensitive",
-            "description": "Take whitespace differences into account when comparing",
-            "default": true
-          }
-        }
-      },
-      "doc": {
-        "overview": "The **Translation Comparison** tool compares the translations of a block in two\ntarget locales (or two versions) and records the result on the block's\nproperties: a status — identical, different, or one of the missing-translation\ncases — and a human-readable diff description. When a translation is absent for\none or both locales, the status reflects which side is missing.\n\nComparison sensitivity is configurable: case, whitespace, and punctuation can\neach be ignored so that cosmetic differences do not register as a mismatch. The\ntwo locales being compared are supplied programmatically; the parameters below\ncontrol how the comparison is performed and how the translations are labelled\nin the report.\n",
-        "parameters": {
-          "caseSensitive": {
-            "description": "Take case differences into account when comparing.",
-            "help": "When enabled, translations that differ only in letter case count as\ndifferent. Disable it to compare case-insensitively.\n",
-            "values": "`true` / `false` (default `true`)"
-          },
-          "document1Label": {
-            "description": "Label for the first translation in reports.",
-            "help": "The name used to identify the first translation in the diff description. If\nleft empty, the first locale's identifier is used instead.\n",
-            "values": "string (default `Trans1`)"
-          },
-          "document2Label": {
-            "description": "Label for the second translation in reports.",
-            "help": "The name used to identify the second translation in the diff description. If\nleft empty, the second locale's identifier is used instead.\n",
-            "values": "string (default `Trans2`)"
-          },
-          "genericCodes": {
-            "description": "Use generic numbered tags instead of original inline codes in reports.",
-            "help": "When enabled, inline codes are represented in the report as generic numbered\ntags (for example `\u003c1\u003e...\u003c/1\u003e`) rather than their original markup, which\nkeeps the diff readable.\n",
-            "values": "`true` / `false` (default `true`)"
-          },
-          "punctuationSensitive": {
-            "description": "Take punctuation differences into account when comparing.",
-            "help": "When enabled, punctuation differences count as a mismatch. When disabled,\npunctuation characters are stripped from both sides before comparison.\n",
-            "values": "`true` / `false` (default `true`)"
-          },
-          "whitespaceSensitive": {
-            "description": "Take whitespace differences into account when comparing.",
-            "help": "When enabled, differences in whitespace count as a mismatch. When disabled,\nruns of whitespace are collapsed to a single space and trimmed before\ncomparison, so spacing differences are ignored.\n",
-            "values": "`true` / `false` (default `true`)"
-          }
-        },
-        "limitations": [
-          "Compares two target locales of the same block; it does not compare against an external reference file.",
-          "A block is only compared when it carries translations for the configured locales; otherwise a missing-translation status is recorded."
-        ],
-        "processingNotes": [
-          "Operates on translatable blocks; non-translatable structure passes through unchanged.",
-          "The two locales to compare are configured programmatically, not through the parameters above."
-        ],
-        "examples": [
-          {
-            "title": "Ignore cosmetic differences",
-            "description": "Treat translations that differ only in case, whitespace, or punctuation as identical.",
-            "config": "caseSensitive: false\nwhitespaceSensitive: false\npunctuationSensitive: false\n"
-          },
-          {
-            "title": "Label the compared translations",
-            "description": "Use meaningful labels for the two translations in the diff output.",
-            "config": "document1Label: Vendor A\ndocument2Label: Vendor B\n"
-          }
-        ]
       }
     },
     {
@@ -18550,6 +18550,106 @@
     },
     {
       "id": "word-count",
+      "source": "built-in",
+      "kind": "tool",
+      "displayName": "Word Count",
+      "description": "Count the words in each block's source and target text for scoping and pricing.",
+      "category": "analysis",
+      "inputs": [
+        "block"
+      ],
+      "tags": [
+        "analysis"
+      ],
+      "cardinality": "monolingual",
+      "aliases": [
+        "wc"
+      ],
+      "schema": {
+        "$id": "word-count",
+        "title": "Word Count",
+        "type": "object",
+        "toolMeta": {
+          "id": "word-count",
+          "category": "analysis",
+          "displayName": "Word Count",
+          "inputs": [
+            "block"
+          ],
+          "tags": [
+            "analysis"
+          ],
+          "cardinality": "monolingual",
+          "produces": [
+            "analysis.word-count"
+          ],
+          "aliases": [
+            "wc"
+          ]
+        },
+        "properties": {
+          "countInline": {
+            "type": "boolean",
+            "title": "Count Inline Codes",
+            "description": "Include inline code content in word counts",
+            "default": false
+          },
+          "countSource": {
+            "type": "boolean",
+            "title": "Count Source",
+            "description": "Count words in source text",
+            "default": true
+          },
+          "countTarget": {
+            "type": "boolean",
+            "title": "Count Target",
+            "description": "Count words in target text",
+            "default": true
+          }
+        }
+      },
+      "doc": {
+        "overview": "The **Word Count** tool tallies the number of words in every translatable\nblock, reporting per-block counts and a document total. It is the standard\nway to scope a localization job — how much text needs translating — and to\ndrive word-based pricing.\n\nCounting runs over the segmented text. By default both the source and the\ntarget locale are counted, so you can compare untranslated versus translated\nvolume. Inline codes (placeholders, tags, variables) are excluded from the\ncount unless you opt in, because they are markup rather than translatable\nwords.\n",
+        "parameters": {
+          "countInline": {
+            "description": "Include inline-code content in the word counts.",
+            "help": "By default, inline codes — placeholders, variables, and tag content\nrepresented as coded text — are **excluded** from the count, since they\nare not translatable words. Enable this only when you specifically want\ninline-code text reflected in the totals.\n",
+            "values": "`true` / `false` (default `false`)"
+          },
+          "countSource": {
+            "description": "Count words in the source text.",
+            "help": "When enabled, the words in each block's **source** segments are counted.\nDisable it if you only need target-side volume (for example, to measure\ntranslated output).\n",
+            "values": "`true` / `false` (default `true`)"
+          },
+          "countTarget": {
+            "description": "Count words in the target text.",
+            "help": "When enabled, the words in each block's **target** segments are counted\nfor every target locale present. On untranslated content the target\ncount is zero, which makes this a quick way to see remaining work.\n",
+            "values": "`true` / `false` (default `true`)"
+          }
+        },
+        "limitations": [
+          "Counting follows the active segmentation; results depend on how the text was segmented."
+        ],
+        "processingNotes": [
+          "Operates on translatable blocks; non-translatable structure passes through unchanged.",
+          "Target counts are reported per target locale."
+        ],
+        "examples": [
+          {
+            "title": "Count source words only",
+            "description": "Scope a job by source volume, ignoring any existing translations.",
+            "config": "countSource: true\ncountTarget: false\n"
+          },
+          {
+            "title": "Include inline codes",
+            "description": "Reflect placeholder and tag text in the totals.",
+            "config": "countInline: true\n"
+          }
+        ]
+      }
+    },
+    {
+      "id": "word-count",
       "source": "okapi",
       "kind": "tool",
       "displayName": "Word Count",
@@ -18712,106 +18812,6 @@
           }
         ],
         "wikiUrl": "https://okapiframework.org/wiki/index.php/Word_Count_Step"
-      }
-    },
-    {
-      "id": "word-count",
-      "source": "built-in",
-      "kind": "tool",
-      "displayName": "Word Count",
-      "description": "Count the words in each block's source and target text for scoping and pricing.",
-      "category": "analysis",
-      "inputs": [
-        "block"
-      ],
-      "tags": [
-        "analysis"
-      ],
-      "cardinality": "monolingual",
-      "aliases": [
-        "wc"
-      ],
-      "schema": {
-        "$id": "word-count",
-        "title": "Word Count",
-        "type": "object",
-        "toolMeta": {
-          "id": "word-count",
-          "category": "analysis",
-          "displayName": "Word Count",
-          "inputs": [
-            "block"
-          ],
-          "tags": [
-            "analysis"
-          ],
-          "cardinality": "monolingual",
-          "produces": [
-            "analysis.word-count"
-          ],
-          "aliases": [
-            "wc"
-          ]
-        },
-        "properties": {
-          "countInline": {
-            "type": "boolean",
-            "title": "Count Inline Codes",
-            "description": "Include inline code content in word counts",
-            "default": false
-          },
-          "countSource": {
-            "type": "boolean",
-            "title": "Count Source",
-            "description": "Count words in source text",
-            "default": true
-          },
-          "countTarget": {
-            "type": "boolean",
-            "title": "Count Target",
-            "description": "Count words in target text",
-            "default": true
-          }
-        }
-      },
-      "doc": {
-        "overview": "The **Word Count** tool tallies the number of words in every translatable\nblock, reporting per-block counts and a document total. It is the standard\nway to scope a localization job — how much text needs translating — and to\ndrive word-based pricing.\n\nCounting runs over the segmented text. By default both the source and the\ntarget locale are counted, so you can compare untranslated versus translated\nvolume. Inline codes (placeholders, tags, variables) are excluded from the\ncount unless you opt in, because they are markup rather than translatable\nwords.\n",
-        "parameters": {
-          "countInline": {
-            "description": "Include inline-code content in the word counts.",
-            "help": "By default, inline codes — placeholders, variables, and tag content\nrepresented as coded text — are **excluded** from the count, since they\nare not translatable words. Enable this only when you specifically want\ninline-code text reflected in the totals.\n",
-            "values": "`true` / `false` (default `false`)"
-          },
-          "countSource": {
-            "description": "Count words in the source text.",
-            "help": "When enabled, the words in each block's **source** segments are counted.\nDisable it if you only need target-side volume (for example, to measure\ntranslated output).\n",
-            "values": "`true` / `false` (default `true`)"
-          },
-          "countTarget": {
-            "description": "Count words in the target text.",
-            "help": "When enabled, the words in each block's **target** segments are counted\nfor every target locale present. On untranslated content the target\ncount is zero, which makes this a quick way to see remaining work.\n",
-            "values": "`true` / `false` (default `true`)"
-          }
-        },
-        "limitations": [
-          "Counting follows the active segmentation; results depend on how the text was segmented."
-        ],
-        "processingNotes": [
-          "Operates on translatable blocks; non-translatable structure passes through unchanged.",
-          "Target counts are reported per target locale."
-        ],
-        "examples": [
-          {
-            "title": "Count source words only",
-            "description": "Scope a job by source volume, ignoring any existing translations.",
-            "config": "countSource: true\ncountTarget: false\n"
-          },
-          {
-            "title": "Include inline codes",
-            "description": "Reflect placeholder and tag text in the totals.",
-            "config": "countInline: true\n"
-          }
-        ]
       }
     },
     {
