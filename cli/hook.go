@@ -92,7 +92,13 @@ func (a *App) runHookStop(cmd *cobra.Command) error {
 		}
 	}
 
+	// A Stop hook's only channel is the decision JSON on stdout; anything the
+	// assistant sees on stderr is treated as a hook error. Reading content may
+	// start the okapi-bridge subprocess, which logs to stderr — silence it (and
+	// any other gate chatter) so a clean gate failure never looks like a crash.
+	restore := silenceStderr()
 	out, err := a.computeVerify(a.NewVerifyCmd(), nil)
+	restore()
 	if err != nil {
 		// No .kapi project here, or an operational error — nothing to gate on.
 		// Don't trap the assistant; let it stop.
@@ -106,6 +112,23 @@ func (a *App) runHookStop(cmd *cobra.Command) error {
 	enc := json.NewEncoder(cmd.OutOrStdout())
 	enc.SetEscapeHTML(false)
 	return enc.Encode(dec)
+}
+
+// silenceStderr redirects os.Stderr to /dev/null and returns a function that
+// restores it. Subprocesses launched while it is in effect (the okapi-bridge,
+// via cmd.Stderr = os.Stderr) inherit the null stderr for their lifetime, so
+// their logging never reaches the assistant as hook-error output.
+func silenceStderr() func() {
+	orig := os.Stderr
+	devnull, err := os.OpenFile(os.DevNull, os.O_WRONLY, 0)
+	if err != nil {
+		return func() {}
+	}
+	os.Stderr = devnull
+	return func() {
+		os.Stderr = orig
+		_ = devnull.Close()
+	}
 }
 
 // readStopHookInput parses the Stop-hook JSON from r. Missing or malformed
