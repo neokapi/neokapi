@@ -499,3 +499,72 @@ func TestSchema(t *testing.T) {
 	assert.Contains(t, s.Properties, "subfilterHtmlValues")
 	assert.Contains(t, s.Properties, "legacyPluralForms")
 }
+
+// TestMalformedJSON verifies that malformed JSON input surfaces a clean error
+// through the read channel (delegated from the inner JSON reader) rather than
+// panicking. An unterminated string is invalid even under the inner reader's
+// lenient JSON5 mode.
+func TestMalformedJSON(t *testing.T) {
+	r := i18next.NewReader()
+	malformed := []byte(`{"key": "unterminated`)
+	doc := &model.RawDocument{
+		URI:          "malformed.json",
+		SourceLocale: "en-US",
+		Encoding:     "UTF-8",
+		Reader:       &nopCloser{bytes.NewReader(malformed)},
+	}
+	require.NoError(t, r.Open(t.Context(), doc))
+	defer r.Close()
+
+	var foundError bool
+	require.NotPanics(t, func() {
+		for pr := range r.Read(t.Context()) {
+			if pr.Error != nil {
+				foundError = true
+			}
+		}
+	})
+	assert.True(t, foundError, "expected a clean error for malformed JSON, no panic")
+}
+
+// TestPlainJSONBaseline documents the delegation boundary: feeding an ordinary
+// (non-i18next) JSON object reads sanely as plain key/value blocks, with no
+// plural/context grouping applied because there are no plural or context
+// sibling keys to recognise. This is exactly the generic JSON behavior the
+// i18next layer delegates to; the i18next-specific annotations are simply
+// absent.
+func TestPlainJSONBaseline(t *testing.T) {
+	input := []byte(`{"title": "Welcome", "subtitle": "A plain resource bundle", "nested": {"greeting": "Hello"}}`)
+	r := i18next.NewReader()
+	doc := &model.RawDocument{
+		URI:          "plain.json",
+		SourceLocale: "en-US",
+		Encoding:     "UTF-8",
+		Reader:       &nopCloser{bytes.NewReader(input)},
+	}
+	require.NoError(t, r.Open(t.Context(), doc))
+	defer r.Close()
+
+	parts := testutil.CollectParts(t, r.Read(t.Context()))
+	byName := blocksByName(collectBlocks(parts))
+
+	// Every string value is extracted as a plain translatable block, including
+	// the nested one (full key-path names from the inner JSON reader).
+	require.Len(t, byName, 3, "all three string values read as plain blocks")
+	assert.Equal(t, "Welcome", byName["/title"].SourceText())
+	assert.Equal(t, "A plain resource bundle", byName["/subtitle"].SourceText())
+	assert.Equal(t, "Hello", byName["/nested/greeting"].SourceText())
+
+	// No i18next plural/context grouping is applied — none of the keys are
+	// plural or context siblings, so those annotations are simply absent.
+	for name, b := range byName {
+		assert.NotContains(t, b.Properties, "i18next.pluralCategory",
+			"plain JSON key %s must not gain a plural category", name)
+		assert.NotContains(t, b.Properties, "i18next.pluralGroup",
+			"plain JSON key %s must not gain a plural group", name)
+		assert.NotContains(t, b.Properties, "i18next.context",
+			"plain JSON key %s must not gain a context", name)
+		assert.NotContains(t, b.Properties, "i18next.baseKey",
+			"plain JSON key %s must not gain a base key", name)
+	}
+}

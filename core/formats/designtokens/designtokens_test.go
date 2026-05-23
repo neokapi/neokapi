@@ -298,3 +298,62 @@ func TestSchema(t *testing.T) {
 	assert.Empty(t, s.FormatMeta.MimeTypes)
 	assert.Contains(t, s.Properties, "extractDescriptions")
 }
+
+// TestMalformedJSON verifies that malformed input surfaces a clean error
+// through the read channel (delegated from the inner JSON reader) rather than
+// panicking. An unterminated string is invalid even under the inner reader's
+// lenient JSON5 mode.
+func TestMalformedJSON(t *testing.T) {
+	r := designtokens.NewReader()
+	malformed := []byte(`{"color": {"$type": "color", "$value": "unterminated`)
+	doc := &model.RawDocument{
+		URI:          "malformed.tokens.json",
+		SourceLocale: "en-US",
+		Encoding:     "UTF-8",
+		Reader:       &nopCloser{bytes.NewReader(malformed)},
+	}
+	require.NoError(t, r.Open(t.Context(), doc))
+	defer r.Close()
+
+	var foundError bool
+	require.NotPanics(t, func() {
+		for pr := range r.Read(t.Context()) {
+			if pr.Error != nil {
+				foundError = true
+			}
+		}
+	})
+	assert.True(t, foundError, "expected a clean error for malformed JSON, no panic")
+}
+
+// TestNonTokensFileReadsAsStructure documents the delegation boundary for a
+// well-formed but non-DTCG JSON file (a plain resource bundle). Because the
+// design-tokens preset extracts ONLY $description values, a plain JSON file
+// that has no $description keys yields zero translatable blocks while still
+// round-tripping faithfully — the reader treats every non-$description string
+// as non-translatable structure.
+func TestNonTokensFileReadsAsStructure(t *testing.T) {
+	parts, original := readParts(t, filepath.Join("testdata", "plain.json"))
+	assert.Empty(t, collectBlocks(parts),
+		"a plain (non-DTCG) JSON file has no $description keys, so no translatable surface")
+
+	out := writeParts(t, parts, "")
+	assert.Equal(t, string(original), string(out),
+		"a non-tokens JSON file still round-trips byte-for-byte")
+}
+
+// TestSniffNegativePlainJSON documents the NEGATIVE sniff contract directly:
+// a well-formed but plain (non-DTCG) JSON resource bundle — containing
+// "description"/"value" keys WITHOUT the DTCG "$description"/"$value"/"$type"
+// markers — is not claimed as design tokens. (TestSniff covers this via the
+// plain.json fixture and inline cases; this is an explicit, self-contained
+// guard against the sniff drifting onto arbitrary JSON.)
+func TestSniffNegativePlainJSON(t *testing.T) {
+	plain := []byte(`{
+  "title": "Welcome",
+  "description": "A plain JSON resource bundle, not design tokens.",
+  "items": [{"label": "First", "value": 1}]
+}`)
+	assert.False(t, designtokens.Sniff(plain),
+		"plain JSON with description/value keys but no DTCG $-markers must not sniff as DTCG")
+}

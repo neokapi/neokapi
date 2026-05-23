@@ -387,3 +387,77 @@ func TestConfigRejectsUnknownKey(t *testing.T) {
 	err := cfg.ApplyMap(map[string]any{"notARealParam": true})
 	assert.Error(t, err)
 }
+
+// TestMalformedMDXGracefulOpaque verifies that malformed MDX — an unbalanced
+// JSX tag (no closing </Box>) and an unterminated `{expression}` (no closing
+// brace) — does NOT panic and still round-trips byte-for-byte. The scanner's
+// balanced-block / JSX-depth tracking consumes such unterminated regions
+// through EOF (see scanBalancedBlock / scanJSX), so the malformed region is
+// preserved verbatim as an opaque region rather than corrupted. We assert
+// graceful opaque passthrough (the PRIMARY acceptance bar — byte faithfulness)
+// rather than requiring an error.
+func TestMalformedMDXGracefulOpaque(t *testing.T) {
+	cases := map[string][]byte{
+		"unbalanced JSX tag": []byte(`# Title
+
+<Box prop="x">
+  unterminated children, no closing tag
+`),
+		"unterminated expression": []byte(`# Title
+
+{ someValue without a closing brace
+
+after
+`),
+		"unbalanced JSX with prose before": []byte(`Intro prose.
+
+<Outer>
+  <Inner>
+  still open
+`),
+		"unterminated ESM import": []byte(`import { A, B
+from "x"
+`),
+		"both malformed JSX and expression": []byte(`<Broken attr={oops
+
+{ alsoBroken
+`),
+	}
+
+	for name, src := range cases {
+		t.Run(name, func(t *testing.T) {
+			var out []byte
+			require.NotPanics(t, func() {
+				out = roundTrip(t, src)
+			}, "malformed MDX must not panic")
+			assert.Equal(t, string(src), string(out),
+				"malformed MDX must round-trip byte-for-byte via the opaque fallback")
+		})
+	}
+}
+
+// TestMalformedMDXNoTranslatableLeak verifies that for malformed MDX the
+// unterminated JSX/expression bytes are preserved as opaque Data (or simply
+// kept verbatim) and never leak into a translatable Block — the malformed
+// construct must not be mistaken for translatable prose.
+func TestMalformedMDXNoTranslatableLeak(t *testing.T) {
+	src := []byte(`# Heading
+
+<Widget prop="value">
+  child text with no closing tag
+
+{ brokenExpr
+`)
+	parts, store := readParts(t, src)
+
+	for _, p := range parts {
+		if p.Type == model.PartBlock {
+			txt := p.Resource.(*model.Block).Source[0].Text()
+			assert.NotContains(t, txt, "Widget", "malformed JSX component name leaked into a block")
+			assert.NotContains(t, txt, "brokenExpr", "malformed expression leaked into a block")
+		}
+	}
+
+	out := writeParts(t, parts, store, "")
+	assert.Equal(t, string(src), string(out), "malformed MDX must round-trip verbatim")
+}
