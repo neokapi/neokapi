@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/mattn/go-isatty"
+	"github.com/neokapi/neokapi/cli/output"
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/tool"
@@ -115,6 +116,8 @@ func (a *App) NewToolCommands() []*cobra.Command {
 			Args:    cobra.MinimumNArgs(1),
 			RunE: func(cmd *cobra.Command, args []string) error {
 				jsonOut, _ := cmd.Flags().GetBool("json")
+				jqFilter, _ := cmd.Flags().GetString("jq")
+				jsonOut = jsonOut || jqFilter != "" // --jq implies JSON
 				conc, _ := cmd.Flags().GetInt("concurrency")
 				failUnknown, _ := cmd.Flags().GetBool("fail-on-unknown")
 				strict, _ := cmd.Flags().GetBool("strict")
@@ -198,6 +201,8 @@ func (a *App) NewToolCommands() []*cobra.Command {
 					FormatMappings: mappings,
 					Concurrency:    conc,
 					JSONOutput:     jsonOut,
+					JQ:             jqFilter,
+					Colorize:       output.Colorize(cmd),
 					FailOnUnknown:  failUnknown,
 					NoWarn:         noWarn,
 					Progress:       progress,

@@ -29,10 +29,30 @@ jobs:
           go-version: "1.26.0"
           cache: true
 
+      # The kapi binary is only needed to drive the VHS terminal recordings,
+      # which we skip on PRs (see below) — so skip building it there too.
       - name: Build kapi binary
+        if: github.event_name != 'pull_request'
         run: make build
 
+      - name: Build playground wasm
+        run: make web-wasm-demo
+
+      - name: Build CLI playground wasm
+        run: make web-wasm-cli
+
+      - name: Upload playground wasm
+        uses: actions/upload-artifact@v7
+        with:
+          name: kapi-wasm
+          path: web/docs/static/wasm
+          retention-days: 7
+
+      # Terminal scene recording (VHS) takes ~10 min. Skip it on PRs so docs
+      # previews build fast; it still runs on push to main / workflow_dispatch
+      # so the published docs videos stay fresh.
       - name: Install VHS + Xvfb
+        if: github.event_name != 'pull_request'
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y -qq ffmpeg ttyd xvfb
@@ -40,6 +60,7 @@ jobs:
           sudo dpkg -i /tmp/vhs.deb
 
       - name: Record terminal scenes
+        if: github.event_name != 'pull_request'
         env:
           DISPLAY: ":99"
         run: |
@@ -57,6 +78,7 @@ jobs:
           fi
 
       - name: Stage recorded assets under static/video/kapi/
+        if: github.event_name != 'pull_request'
         run: |
           mkdir -p web/docs/static/video/kapi
           if [ -d web/docs/scenes ]; then
@@ -67,6 +89,7 @@ jobs:
           fi
 
       - name: Upload recorded scenes
+        if: github.event_name != 'pull_request'
         uses: actions/upload-artifact@v7
         with:
           name: kapi-scenes
@@ -87,11 +110,20 @@ jobs:
       - name: Install workspace dependencies
         run: vp install
 
+      # Scenes are only recorded/uploaded off-PR (see record-scenes); skip the
+      # download on PRs where the artifact doesn't exist.
       - name: Download recorded scenes
+        if: github.event_name != 'pull_request'
         uses: actions/download-artifact@v8
         with:
           name: kapi-scenes
           path: web/docs/static/video/kapi
+
+      - name: Download playground wasm
+        uses: actions/download-artifact@v8
+        with:
+          name: kapi-wasm
+          path: web/docs/static/wasm
 
       - name: Stub test-comparison.json
         # CI's test-comparison job uploads the real artifact; this stub keeps

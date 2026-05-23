@@ -2,11 +2,16 @@
 package output
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
 	"os"
+	"strconv"
+	"strings"
 
+	"github.com/itchyny/gojq"
+	"github.com/mattn/go-isatty"
 	"github.com/spf13/cobra"
 )
 
@@ -39,6 +44,8 @@ func AddFlags(cmd *cobra.Command) {
 	cmd.Flags().Bool("json", false, "Output in JSON format")
 	cmd.Flags().Bool("text", false, "Output in text format (default)")
 	cmd.Flags().String("output-format", "", "Output format: json, text")
+	cmd.Flags().String("jq", "", "filter JSON output through a jq expression (implies --json)")
+	cmd.Flags().String("color", "auto", "colorize JSON output: auto, always, never")
 }
 
 // AddPersistentFlags registers output format flags as persistent flags.
@@ -47,6 +54,8 @@ func AddPersistentFlags(cmd *cobra.Command) {
 	cmd.PersistentFlags().Bool("json", false, "Output in JSON format")
 	cmd.PersistentFlags().Bool("text", false, "Output in text format (default)")
 	cmd.PersistentFlags().String("output-format", "", "Output format: json, text")
+	cmd.PersistentFlags().String("jq", "", "filter JSON output through a jq expression (implies --json)")
+	cmd.PersistentFlags().String("color", "auto", "colorize JSON output: auto, always, never")
 }
 
 // Format resolves the output format from command flags.
@@ -58,6 +67,10 @@ func GetFormat(cmd *cobra.Command) Format { return ResolveFormat(cmd) }
 // ResolveFormat resolves the output format from command flags.
 // Precedence: --json > --text > --output-format > default (text)
 func ResolveFormat(cmd *cobra.Command) Format {
+	// --jq filters JSON, so it implies JSON output.
+	if jq, _ := cmd.Flags().GetString("jq"); jq != "" {
+		return FormatJSON
+	}
 	if jsonFlag, _ := cmd.Flags().GetBool("json"); jsonFlag {
 		return FormatJSON
 	}
@@ -75,9 +88,33 @@ func ResolveFormat(cmd *cobra.Command) Format {
 	return FormatText
 }
 
-// Print outputs data in the format specified by command flags.
+// Print outputs data in the format specified by command flags. In JSON mode
+// it honors --jq (filter) and --color.
 func Print(cmd *cobra.Command, data any) error {
-	return PrintTo(os.Stdout, ResolveFormat(cmd), data)
+	if ResolveFormat(cmd) == FormatJSON {
+		filter, _ := cmd.Flags().GetString("jq")
+		return RenderJSON(os.Stdout, data, filter, Colorize(cmd))
+	}
+	return printText(os.Stdout, data)
+}
+
+// Colorize decides whether JSON output should be ANSI-colored. Precedence:
+// --color always/never, then NO_COLOR / CLICOLOR_FORCE env, then whether
+// stdout is a terminal.
+func Colorize(cmd *cobra.Command) bool {
+	switch c, _ := cmd.Flags().GetString("color"); c {
+	case "always", "force":
+		return true
+	case "never", "none":
+		return false
+	}
+	if os.Getenv("NO_COLOR") != "" {
+		return false
+	}
+	if os.Getenv("CLICOLOR_FORCE") != "" {
+		return true
+	}
+	return isatty.IsTerminal(os.Stdout.Fd())
 }
 
 // PrintTo outputs data in the specified format to the given writer.
@@ -130,25 +167,191 @@ func PrintError(cmd *cobra.Command, err error, code string) {
 	}
 }
 
-// FormatCollectorResult writes a collector result to stdout.
-// In JSON mode it marshals result data; in text mode it calls FormatTable
-// if available, falling back to JSON.
-func FormatCollectorResult(jsonMode bool, data any) error {
-	if jsonMode {
-		enc := json.NewEncoder(os.Stdout)
-		enc.SetIndent("", "  ")
-		return enc.Encode(data)
+// FormatCollectorResult writes a collector result to stdout. In JSON mode (or
+// when a --jq filter is given) it renders JSON, honoring the filter and color;
+// in text mode it calls FormatTable if available, falling back to JSON.
+func FormatCollectorResult(jsonMode bool, filter string, color bool, data any) error {
+	if jsonMode || filter != "" {
+		return RenderJSON(os.Stdout, data, filter, color)
 	}
-
 	if ft, ok := data.(TableFormattable); ok {
 		ft.FormatTable(os.Stdout)
 		return nil
 	}
+	return RenderJSON(os.Stdout, data, "", color)
+}
 
-	out, err := json.MarshalIndent(data, "", "  ")
+// RenderJSON writes data as JSON to w. When filter is non-empty it is applied
+// as a jq expression (gojq); when color is true the output is ANSI-colored.
+// With no filter the original key order is preserved.
+func RenderJSON(w io.Writer, data any, filter string, color bool) error {
+	if filter == "" || filter == "." {
+		raw, err := json.MarshalIndent(data, "", "  ")
+		if err != nil {
+			return fmt.Errorf("marshal result: %w", err)
+		}
+		return writeJSONResult(w, raw, color)
+	}
+
+	raw, err := json.Marshal(data)
 	if err != nil {
 		return fmt.Errorf("marshal result: %w", err)
 	}
-	fmt.Println(string(out))
+	var v any
+	if err := json.Unmarshal(raw, &v); err != nil {
+		return err
+	}
+	query, err := gojq.Parse(filter)
+	if err != nil {
+		return fmt.Errorf("invalid --jq filter %q: %w", filter, err)
+	}
+	iter := query.Run(v)
+	for {
+		out, ok := iter.Next()
+		if !ok {
+			break
+		}
+		if e, ok := out.(error); ok {
+			return fmt.Errorf("jq: %w", e)
+		}
+		rb, err := json.MarshalIndent(out, "", "  ")
+		if err != nil {
+			return err
+		}
+		if err := writeJSONResult(w, rb, color); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func writeJSONResult(w io.Writer, raw []byte, color bool) error {
+	if !color {
+		_, err := w.Write(append(raw, '\n'))
+		return err
+	}
+	s, err := colorizeJSON(raw)
+	if err != nil { // fall back to plain on any tokenizer hiccup
+		_, werr := w.Write(append(raw, '\n'))
+		return werr
+	}
+	_, err = io.WriteString(w, s+"\n")
+	return err
+}
+
+// jq-like ANSI colors: bold-blue keys, green strings, yellow numbers, cyan
+// booleans, gray null.
+const (
+	cKey   = "\x1b[1;34m"
+	cStr   = "\x1b[32m"
+	cNum   = "\x1b[33m"
+	cBool  = "\x1b[36m"
+	cNull  = "\x1b[90m"
+	cReset = "\x1b[0m"
+)
+
+// colorizeJSON re-emits already-marshaled JSON with ANSI colors and 2-space
+// indentation, preserving the original key order via the streaming tokenizer.
+func colorizeJSON(raw []byte) (string, error) {
+	dec := json.NewDecoder(bytes.NewReader(raw))
+	dec.UseNumber()
+	var b strings.Builder
+	if err := writeColoredValue(&b, dec, 0); err != nil {
+		return "", err
+	}
+	return b.String(), nil
+}
+
+func col(b *strings.Builder, code, s string) {
+	b.WriteString(code)
+	b.WriteString(s)
+	b.WriteString(cReset)
+}
+
+func jsonIndent(n int) string { return strings.Repeat("  ", n) }
+
+func jsonQuote(s string) string {
+	bs, _ := json.Marshal(s)
+	return string(bs)
+}
+
+func writeColoredValue(b *strings.Builder, dec *json.Decoder, depth int) error {
+	t, err := dec.Token()
+	if err != nil {
+		return err
+	}
+	switch v := t.(type) {
+	case json.Delim:
+		if v == '{' {
+			return writeColoredObject(b, dec, depth)
+		}
+		if v == '[' {
+			return writeColoredArray(b, dec, depth)
+		}
+	case string:
+		col(b, cStr, jsonQuote(v))
+	case json.Number:
+		col(b, cNum, v.String())
+	case bool:
+		col(b, cBool, strconv.FormatBool(v))
+	case nil:
+		col(b, cNull, "null")
+	}
+	return nil
+}
+
+func writeColoredObject(b *strings.Builder, dec *json.Decoder, depth int) error {
+	if !dec.More() {
+		_, _ = dec.Token() // consume '}'
+		b.WriteString("{}")
+		return nil
+	}
+	b.WriteString("{\n")
+	first := true
+	for dec.More() {
+		if !first {
+			b.WriteString(",\n")
+		}
+		first = false
+		b.WriteString(jsonIndent(depth + 1))
+		kt, err := dec.Token()
+		if err != nil {
+			return err
+		}
+		col(b, cKey, jsonQuote(kt.(string)))
+		b.WriteString(": ")
+		if err := writeColoredValue(b, dec, depth+1); err != nil {
+			return err
+		}
+	}
+	_, _ = dec.Token() // consume '}'
+	b.WriteString("\n")
+	b.WriteString(jsonIndent(depth))
+	b.WriteString("}")
+	return nil
+}
+
+func writeColoredArray(b *strings.Builder, dec *json.Decoder, depth int) error {
+	if !dec.More() {
+		_, _ = dec.Token() // consume ']'
+		b.WriteString("[]")
+		return nil
+	}
+	b.WriteString("[\n")
+	first := true
+	for dec.More() {
+		if !first {
+			b.WriteString(",\n")
+		}
+		first = false
+		b.WriteString(jsonIndent(depth + 1))
+		if err := writeColoredValue(b, dec, depth+1); err != nil {
+			return err
+		}
+	}
+	_, _ = dec.Token() // consume ']'
+	b.WriteString("\n")
+	b.WriteString(jsonIndent(depth))
+	b.WriteString("]")
 	return nil
 }

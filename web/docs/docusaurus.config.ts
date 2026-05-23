@@ -162,6 +162,15 @@ const config: Config = {
         },
         {
           type: "dropdown",
+          label: "Playground",
+          position: "left",
+          items: [
+            { label: "CLI Playground", to: "/playground-cli" },
+            { label: "Tool Playground", to: "/playground" },
+          ],
+        },
+        {
+          type: "dropdown",
           label: "Reference",
           position: "left",
           items: [
