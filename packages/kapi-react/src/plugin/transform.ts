@@ -374,7 +374,13 @@ export function transform(
 
   if (needsT || needsTx) {
     const imports = [needsT ? "__t" : "", needsTx ? "__tx" : ""].filter(Boolean).join(", ");
-    result = `import { ${imports} } from '@neokapi/kapi-react/runtime';\n${result}`;
+    const importLine = `import { ${imports} } from '@neokapi/kapi-react/runtime';`;
+    const directiveMatch = result.match(/^(["']use (?:client|server)["']\s*;?\s*\n)/);
+    if (directiveMatch) {
+      result = directiveMatch[1] + importLine + "\n" + result.slice(directiveMatch[1].length);
+    } else {
+      result = importLine + "\n" + result;
+    }
   }
 
   return { code: result, hashes: Array.from(hashes) };
