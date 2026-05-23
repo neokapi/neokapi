@@ -1,23 +1,24 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
+import BrowserOnly from "@docusaurus/BrowserOnly";
 
 const STORAGE_KEY = "neokapi-banner-dismissed";
 
 function ExperimentalBanner() {
-  const [dismissed, setDismissed] = useState(true); // Start hidden to avoid flash
+  // Rendered only on the client (via BrowserOnly), after hydration completes,
+  // so it never participates in hydration — reading localStorage in the state
+  // initializer is safe and there is no server markup to mismatch. (Revealing
+  // the banner from a useEffect during hydration tripped React 19's recoverable
+  // hydration error #418 in production.)
+  const [dismissed, setDismissed] = useState(() => localStorage.getItem(STORAGE_KEY) === "true");
 
-  useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    setDismissed(stored === "true");
-  }, []);
+  if (dismissed) {
+    return null;
+  }
 
   const handleDismiss = () => {
     localStorage.setItem(STORAGE_KEY, "true");
     setDismissed(true);
   };
-
-  if (dismissed) {
-    return null;
-  }
 
   return (
     <div
@@ -60,7 +61,7 @@ function ExperimentalBanner() {
 export default function Root({ children }: { children: React.ReactNode }) {
   return (
     <>
-      <ExperimentalBanner />
+      <BrowserOnly>{() => <ExperimentalBanner />}</BrowserOnly>
       {children}
     </>
   );
