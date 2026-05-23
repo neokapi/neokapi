@@ -3,7 +3,7 @@ module github.com/neokapi/neokapi/kapi
 go 1.26.0
 
 require (
-	github.com/modelcontextprotocol/go-sdk v1.6.0
+	github.com/modelcontextprotocol/go-sdk v1.6.1
 	github.com/neokapi/neokapi v0.0.0
 	github.com/neokapi/neokapi/cli v0.0.0
 	github.com/spf13/cobra v1.10.2
