@@ -31,11 +31,28 @@ function parseArgv(line: string): string[] {
   return out;
 }
 
+function longestCommonPrefix(items: string[]): string {
+  if (items.length === 0) return "";
+  let p = items[0];
+  for (const s of items) {
+    while (!s.startsWith(p)) p = p.slice(0, -1);
+    if (!p) break;
+  }
+  return p;
+}
+
+function join(dir: string, name: string): string {
+  return dir.replace(/\/$/, "") + "/" + name;
+}
+
+const BUILTINS = ["help", "clear", "ls", "cd", "cat", "pwd", "rm", "kapi"];
+
 const HELP = [
   "kapi browser terminal — the kapi CLI compiled to WebAssembly.",
   "",
   "  kapi <command> …   run a kapi command (e.g. kapi formats list)",
   "  <command> …        the leading 'kapi' is optional",
+  "  Tab                complete commands, flags, and filenames",
   "",
   "Shell builtins (run in the browser, not kapi):",
   "  ls [dir]   pwd   cd <dir>   cat <file>   rm <file>   clear   help",
@@ -63,19 +80,95 @@ export default function KapiTerminal({ cli, onFsChange }: { cli: KapiCli; onFsCh
     term.open(ref.current!);
     try { fit.fit(); } catch { /* layout not ready */ }
 
-    setSinks((s) => term.write(s), (s) => term.write(`\x1b[31m${s}\x1b[0m`));
+    const writeOut = (s: string) => term.write(s);
+    const writeErr = (s: string) => term.write(`\x1b[31m${s}\x1b[0m`);
+    setSinks(writeOut, writeErr);
 
     let line = "";
     const history: string[] = [];
     let histIdx = 0;
     let running = false;
+    let topCommands: string[] | null = null; // cached kapi top-level command names
 
-    const prompt = () => term.write(`\r\n\x1b[32m${cli.cwd()}\x1b[0m $ `);
+    const promptStr = () => `\x1b[32m${cli.cwd()}\x1b[0m $ `;
+    const prompt = () => term.write(`\r\n${promptStr()}`);
 
     function resolveDir(arg: string): string {
       if (!arg || arg === ".") return cli.cwd();
       if (arg.startsWith("/")) return arg;
-      return cli.cwd().replace(/\/$/, "") + "/" + arg;
+      return join(cli.cwd(), arg);
+    }
+
+    // Run cobra's hidden __complete with output captured (not echoed to the
+    // terminal). Returns the candidate values and the ShellCompDirective.
+    async function runComplete(args: string[]): Promise<{ candidates: string[]; directive: number }> {
+      let buf = "";
+      setSinks((s) => { buf += s; }, () => {});
+      try {
+        await cli.run(["__complete", ...args]);
+      } finally {
+        setSinks(writeOut, writeErr);
+      }
+      const candidates: string[] = [];
+      let directive = 0;
+      for (const ln of buf.split("\n")) {
+        if (ln.startsWith(":")) directive = parseInt(ln.slice(1), 10) || 0;
+        else if (ln.length) candidates.push(ln.split("\t")[0]);
+      }
+      return { candidates, directive };
+    }
+
+    async function complete() {
+      const rawWord = (line.match(/(\S*)$/) || ["", ""])[1];
+      const head = line.slice(0, line.length - rawWord.length);
+      const headTokens = parseArgv(head);
+      const afterKapi = headTokens[0] === "kapi" ? headTokens.slice(1) : headTokens;
+      const completingCommand = afterKapi.length === 0;
+
+      let cands: string[] = [];
+      let allowFiles = false;
+
+      if (completingCommand) {
+        if (topCommands === null) topCommands = (await runComplete([""])).candidates;
+        cands = [...BUILTINS, ...topCommands].filter((c) => c.startsWith(rawWord));
+      } else {
+        const res = await runComplete([...afterKapi, rawWord]);
+        cands = res.candidates.slice();
+        allowFiles = (res.directive & 4) === 0; // 4 = ShellCompDirectiveNoFileComp
+      }
+
+      if (allowFiles) {
+        try {
+          for (const name of cli.vol.readdir(cli.cwd())) {
+            if (name.startsWith(rawWord)) cands.push(name);
+          }
+        } catch { /* not a dir */ }
+      }
+
+      cands = Array.from(new Set(cands)).sort();
+      if (cands.length === 0) { term.write("\x07"); return; }
+
+      if (cands.length === 1) {
+        const c = cands[0];
+        const suffix = c.slice(rawWord.length);
+        line += suffix;
+        term.write(suffix);
+        const isDir = !completingCommand && cli.vol.exists(join(cli.cwd(), c)) && cli.vol.isDir(join(cli.cwd(), c));
+        line += isDir ? "/" : " ";
+        term.write(isDir ? "/" : " ");
+        return;
+      }
+
+      const lcp = longestCommonPrefix(cands);
+      if (lcp.length > rawWord.length) {
+        const suffix = lcp.slice(rawWord.length);
+        line += suffix;
+        term.write(suffix);
+      } else {
+        term.write("\r\n" + cands.join("  "));
+        prompt();
+        term.write(line);
+      }
     }
 
     async function execute(cmdLine: string) {
@@ -97,7 +190,7 @@ export default function KapiTerminal({ cli, onFsChange }: { cli: KapiCli; onFsCh
           try {
             const dir = resolveDir(argv[1] || ".");
             const names = cli.vol.readdir(dir);
-            term.write(names.map((n) => (cli.vol.isDir(dir.replace(/\/$/, "") + "/" + n) ? `\x1b[34m${n}/\x1b[0m` : n)).join("  "));
+            term.write(names.map((n) => (cli.vol.isDir(join(dir, n)) ? `\x1b[34m${n}/\x1b[0m` : n)).join("  "));
           } catch (e: any) {
             term.write(`ls: ${e.message || e}`);
           }
@@ -109,12 +202,8 @@ export default function KapiTerminal({ cli, onFsChange }: { cli: KapiCli; onFsCh
           return;
         }
         case "cat": {
-          try {
-            const data = cli.vol.readFile(resolveDir(argv[1]));
-            term.write(new TextDecoder().decode(data));
-          } catch (e: any) {
-            term.write(`cat: ${e.message || e}`);
-          }
+          try { term.write(new TextDecoder().decode(cli.vol.readFile(resolveDir(argv[1])))); }
+          catch (e: any) { term.write(`cat: ${e.message || e}`); }
           return;
         }
         case "rm": {
@@ -123,37 +212,37 @@ export default function KapiTerminal({ cli, onFsChange }: { cli: KapiCli; onFsCh
           return;
         }
         default: {
-          // Pass to the kapi CLI. Strip a leading literal "kapi".
-          const cmdArgv = cmd === "kapi" ? argv.slice(1) : argv;
-          if (cmdArgv.length === 0) return;
-          await cli.run(cmdArgv);
+          // Pass to the kapi CLI. Strip a leading literal "kapi"; a bare
+          // "kapi" (empty rest) runs the root command, which prints help.
+          await cli.run(cmd === "kapi" ? argv.slice(1) : argv);
         }
       }
     }
 
+    function redrawLine() {
+      term.write("\r\x1b[K" + promptStr() + line);
+    }
+
     const onKey = async (data: string) => {
       if (running) return;
-      // Handle the common escape sequences (arrows) first.
+
       if (data === "\x1b[A") { // up
-        if (history.length && histIdx > 0) {
-          histIdx--;
-          term.write("\r\x1b[K" + `\x1b[32m${cli.cwd()}\x1b[0m $ ` + history[histIdx]);
-          line = history[histIdx];
-        }
+        if (history.length && histIdx > 0) { histIdx--; line = history[histIdx]; redrawLine(); }
         return;
       }
       if (data === "\x1b[B") { // down
-        if (histIdx < history.length - 1) {
-          histIdx++;
-          term.write("\r\x1b[K" + `\x1b[32m${cli.cwd()}\x1b[0m $ ` + history[histIdx]);
-          line = history[histIdx];
-        } else {
-          histIdx = history.length;
-          term.write("\r\x1b[K" + `\x1b[32m${cli.cwd()}\x1b[0m $ `);
-          line = "";
-        }
+        if (histIdx < history.length - 1) { histIdx++; line = history[histIdx]; }
+        else { histIdx = history.length; line = ""; }
+        redrawLine();
         return;
       }
+      if (data === "\t") {
+        running = true;
+        try { await complete(); } catch { /* ignore */ }
+        running = false;
+        return;
+      }
+
       for (const ch of data) {
         const code = ch.charCodeAt(0);
         if (ch === "\r") {
@@ -182,15 +271,17 @@ export default function KapiTerminal({ cli, onFsChange }: { cli: KapiCli; onFsCh
       }
     };
 
-    term.writeln("\x1b[1mkapi\x1b[0m browser terminal — the kapi CLI, in WebAssembly. Type \x1b[33mhelp\x1b[0m.");
+    term.writeln("\x1b[1mkapi\x1b[0m browser terminal — the kapi CLI, in WebAssembly. Type \x1b[33mhelp\x1b[0m, or \x1b[33mTab\x1b[0m to complete.");
     prompt();
     const disp = term.onData(onKey);
 
-    const onResize = () => { try { fit.fit(); } catch { /* noop */ } };
-    window.addEventListener("resize", onResize);
+    // Refit whenever the container resizes — covers window resize, the files
+    // panel reflow, and the maximize/fullscreen toggle.
+    const ro = new ResizeObserver(() => { try { fit.fit(); } catch { /* noop */ } });
+    if (ref.current) ro.observe(ref.current);
 
     return () => {
-      window.removeEventListener("resize", onResize);
+      ro.disconnect();
       disp.dispose();
       term.dispose();
     };

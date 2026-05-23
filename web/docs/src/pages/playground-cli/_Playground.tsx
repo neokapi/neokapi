@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import useBaseUrl from "@docusaurus/useBaseUrl";
 import { bootKapiCli } from "./_wasmCli";
 import type { KapiCli } from "./_wasmCli";
@@ -19,7 +19,21 @@ export default function Playground(): React.ReactElement {
   const [cli, setCli] = useState<KapiCli | null>(null);
   const [error, setError] = useState<string>("");
   const [refreshKey, setRefreshKey] = useState(0);
+  const [maximized, setMaximized] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const wrapperRef = useRef<HTMLDivElement>(null);
   const bump = useCallback(() => setRefreshKey((k) => k + 1), []);
+
+  useEffect(() => {
+    const onFsChange = () => setIsFullscreen(Boolean(document.fullscreenElement));
+    document.addEventListener("fullscreenchange", onFsChange);
+    return () => document.removeEventListener("fullscreenchange", onFsChange);
+  }, []);
+
+  const toggleFullscreen = useCallback(() => {
+    if (document.fullscreenElement) document.exitFullscreen();
+    else wrapperRef.current?.requestFullscreen?.();
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -55,12 +69,23 @@ export default function Playground(): React.ReactElement {
   }
 
   return (
-    <div className={styles.layout}>
-      <div className={styles.termPane}>
-        <KapiTerminal cli={cli} onFsChange={bump} />
+    <div ref={wrapperRef} className={`${styles.wrapper} ${maximized ? styles.maximized : ""}`}>
+      <div className={styles.toolbar}>
+        <span className={styles.toolbarTitle}>kapi terminal</span>
+        <button type="button" className="button button--sm button--secondary" onClick={() => setMaximized((m) => !m)}>
+          {maximized ? "Restore" : "Maximize"}
+        </button>
+        <button type="button" className="button button--sm button--secondary" onClick={toggleFullscreen}>
+          {isFullscreen ? "Exit full screen" : "Full screen"}
+        </button>
       </div>
-      <div className={styles.filesPane}>
-        <FilesPanel cli={cli} refreshKey={refreshKey} onChange={bump} />
+      <div className={styles.layout}>
+        <div className={styles.termPane}>
+          <KapiTerminal cli={cli} onFsChange={bump} />
+        </div>
+        <div className={styles.filesPane}>
+          <FilesPanel cli={cli} refreshKey={refreshKey} onChange={bump} />
+        </div>
       </div>
     </div>
   );
