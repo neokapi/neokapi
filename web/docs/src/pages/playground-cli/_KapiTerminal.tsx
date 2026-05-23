@@ -85,6 +85,7 @@ export default function KapiTerminal({ cli, onFsChange }: { cli: KapiCli; onFsCh
     setSinks(writeOut, writeErr);
 
     let line = "";
+    let cursor = 0; // insertion point within `line`
     const history: string[] = [];
     let histIdx = 0;
     let running = false;
@@ -150,24 +151,21 @@ export default function KapiTerminal({ cli, onFsChange }: { cli: KapiCli; onFsCh
 
       if (cands.length === 1) {
         const c = cands[0];
-        const suffix = c.slice(rawWord.length);
-        line += suffix;
-        term.write(suffix);
         const isDir = !completingCommand && cli.vol.exists(join(cli.cwd(), c)) && cli.vol.isDir(join(cli.cwd(), c));
-        line += isDir ? "/" : " ";
-        term.write(isDir ? "/" : " ");
+        line += c.slice(rawWord.length) + (isDir ? "/" : " ");
+        cursor = line.length;
+        render();
         return;
       }
 
       const lcp = longestCommonPrefix(cands);
       if (lcp.length > rawWord.length) {
-        const suffix = lcp.slice(rawWord.length);
-        line += suffix;
-        term.write(suffix);
+        line += lcp.slice(rawWord.length);
+        cursor = line.length;
+        render();
       } else {
-        term.write("\r\n" + cands.join("  "));
-        prompt();
-        term.write(line);
+        term.write("\r\n" + cands.join("  ") + "\r\n" + promptStr() + line);
+        cursor = line.length;
       }
     }
 
@@ -219,36 +217,61 @@ export default function KapiTerminal({ cli, onFsChange }: { cli: KapiCli; onFsCh
       }
     }
 
-    function redrawLine() {
+    // Redraw the current input line and place the terminal cursor at `cursor`.
+    // Assumes the prompt + line fit on one row (true for typical commands).
+    function render() {
       term.write("\r\x1b[K" + promptStr() + line);
+      const back = line.length - cursor;
+      if (back > 0) term.write(`\x1b[${back}D`);
+    }
+
+    function setLine(next: string) {
+      line = next;
+      cursor = next.length;
+      render();
     }
 
     const onKey = async (data: string) => {
       if (running) return;
 
-      if (data === "\x1b[A") { // up
-        if (history.length && histIdx > 0) { histIdx--; line = history[histIdx]; redrawLine(); }
-        return;
+      // Multi-byte sequences: arrows, Home/End, Delete, Tab.
+      switch (data) {
+        case "\x1b[D": // left
+          if (cursor > 0) { cursor--; term.write("\x1b[D"); }
+          return;
+        case "\x1b[C": // right
+          if (cursor < line.length) { cursor++; term.write("\x1b[C"); }
+          return;
+        case "\x1b[A": // up — history back
+          if (history.length && histIdx > 0) { histIdx--; setLine(history[histIdx]); }
+          return;
+        case "\x1b[B": // down — history forward
+          if (histIdx < history.length - 1) { histIdx++; setLine(history[histIdx]); }
+          else { histIdx = history.length; setLine(""); }
+          return;
+        case "\x1b[H": case "\x1bOH": case "\x1b[1~": // home
+          cursor = 0; render(); return;
+        case "\x1b[F": case "\x1bOF": case "\x1b[4~": // end
+          cursor = line.length; render(); return;
+        case "\x1b[3~": // delete (forward)
+          if (cursor < line.length) { line = line.slice(0, cursor) + line.slice(cursor + 1); render(); }
+          return;
+        case "\t":
+          running = true;
+          try { await complete(); } catch { /* ignore */ }
+          running = false;
+          return;
       }
-      if (data === "\x1b[B") { // down
-        if (histIdx < history.length - 1) { histIdx++; line = history[histIdx]; }
-        else { histIdx = history.length; line = ""; }
-        redrawLine();
-        return;
-      }
-      if (data === "\t") {
-        running = true;
-        try { await complete(); } catch { /* ignore */ }
-        running = false;
-        return;
-      }
+
+      // Swallow any other escape sequence so it doesn't echo as literal text.
+      if (data.charCodeAt(0) === 27) return;
 
       for (const ch of data) {
         const code = ch.charCodeAt(0);
-        if (ch === "\r") {
+        if (ch === "\r" || ch === "\n") {
           const cmdLine = line.trim();
           term.write("\r\n");
-          line = "";
+          line = ""; cursor = 0;
           if (cmdLine) { history.push(cmdLine); histIdx = history.length; }
           if (cmdLine) {
             running = true;
@@ -258,15 +281,27 @@ export default function KapiTerminal({ cli, onFsChange }: { cli: KapiCli; onFsCh
             onFsChange();
           }
           prompt();
-        } else if (code === 127) { // backspace
-          if (line.length > 0) { line = line.slice(0, -1); term.write("\b \b"); }
+        } else if (code === 127 || code === 8) { // backspace
+          if (cursor > 0) {
+            line = line.slice(0, cursor - 1) + line.slice(cursor);
+            cursor--;
+            render();
+          }
         } else if (ch === "\x03") { // Ctrl-C
           term.write("^C");
-          line = "";
+          line = ""; cursor = 0;
           prompt();
+        } else if (ch === "\x01") { // Ctrl-A — start of line
+          cursor = 0; render();
+        } else if (ch === "\x05") { // Ctrl-E — end of line
+          cursor = line.length; render();
+        } else if (ch === "\x15") { // Ctrl-U — clear line
+          line = ""; cursor = 0; render();
         } else if (code >= 32) {
-          line += ch;
-          term.write(ch);
+          line = line.slice(0, cursor) + ch + line.slice(cursor);
+          cursor++;
+          if (cursor === line.length) term.write(ch); // fast path: append at end
+          else render();
         }
       }
     };
