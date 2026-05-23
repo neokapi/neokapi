@@ -94,6 +94,9 @@ test-integration: ## Run integration tests
 	@$(MAKE) --no-print-directory _fw-test-integration
 	@$(MAKE) -C bowrain test-integration
 
+format-acceptance: ## Run native-format consumer-toolchain acceptance tests (plutil/resgen/xmllint/node; each check auto-skips if its tool is absent)
+	$(GO) test -tags acceptance -count=1 ./core/formats/...
+
 fmt: ## Format Go source files
 	$(GOFMT) -w -s .
 

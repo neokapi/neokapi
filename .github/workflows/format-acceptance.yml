@@ -1,0 +1,73 @@
+name: Format acceptance
+
+# Verifies that translated output from the native formats is accepted by the
+# REAL downstream consumer toolchains — not just by our own reader. Each check
+# is gated on tool availability (t.Skip), so a missing tool degrades gracefully
+# instead of failing the job.
+#
+#   plutil          Apple .strings / .stringsdict lint
+#   resgen (mono)   .NET RESX -> .resources compile (the real .resx consumer)
+#   xmllint         XML well-formedness (RESX, Android strings.xml)
+#   @mdx-js/mdx     compile translated MDX
+#   ajv             JSON Schema validation (xcstrings, arb, i18next, DTCG tokens)
+#
+# Runs on macOS because plutil/xcrun are macOS-only; the cross-platform checks
+# (xmllint, node, mono/resgen) also run here, giving the widest coverage in one
+# job. aapt2 (Android) and flutter are not installed and self-skip.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "core/formats/**"
+      - "go.mod"
+      - "go.sum"
+      - "Makefile"
+      - ".github/workflows/format-acceptance.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "core/formats/**"
+      - "go.mod"
+      - "go.sum"
+      - "Makefile"
+      - ".github/workflows/format-acceptance.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  format-acceptance:
+    name: format-acceptance
+    runs-on: macos-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install consumer toolchains
+        # mono provides `resgen` for the .NET RESX compile check. Best-effort:
+        # if it does not install, the resgen subtest self-skips and xmllint
+        # still validates the RESX output. plutil/xmllint are preinstalled on
+        # macOS; ajv/@mdx-js are fetched on demand via `npx --yes`.
+        run: brew install mono || true
+
+      - name: Report available validators
+        run: |
+          for t in plutil resgen xmllint node npx; do
+            printf '%-8s ' "$t"; command -v "$t" || echo '(missing — will self-skip)'
+          done
+
+      - name: Run format acceptance tests
+        run: make format-acceptance

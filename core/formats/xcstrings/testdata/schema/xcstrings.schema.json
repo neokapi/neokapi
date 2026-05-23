@@ -1,0 +1,118 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://neokapi.dev/schema/xcstrings.schema.json",
+  "title": "Apple Xcode String Catalog (.xcstrings)",
+  "description": "De-facto schema for Apple String Catalog files. Apple has not published an official JSON Schema (the format is Xcode-managed), so this is reconstructed faithfully from the documented structure: a top-level object with sourceLanguage, version, and a strings map of entries; each entry carries an optional comment / extractionState / shouldTranslate plus a localizations map keyed by BCP-47 language; each localization is either a stringUnit or a variations subtree (plural / device / substitutions), arbitrarily nestable.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["sourceLanguage", "strings"],
+  "properties": {
+    "sourceLanguage": {
+      "type": "string",
+      "minLength": 1,
+      "description": "BCP-47 language identifier of the development (source) language."
+    },
+    "version": {
+      "type": "string",
+      "description": "Catalog format version, e.g. \"1.0\" or \"1.1\"."
+    },
+    "strings": {
+      "type": "object",
+      "description": "Map of string key to entry. The key is also the development-language value for keys not explicitly localized.",
+      "additionalProperties": { "$ref": "#/definitions/entry" }
+    }
+  },
+  "definitions": {
+    "entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "comment": { "type": "string" },
+        "extractionState": {
+          "type": "string",
+          "enum": ["manual", "extracted_with_value", "migrated", "stale", "extracted"]
+        },
+        "shouldTranslate": { "type": "boolean" },
+        "localizations": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/definitions/localization" }
+        }
+      }
+    },
+    "localization": {
+      "type": "object",
+      "additionalProperties": false,
+      "minProperties": 1,
+      "properties": {
+        "stringUnit": { "$ref": "#/definitions/stringUnit" },
+        "variations": { "$ref": "#/definitions/variations" }
+      }
+    },
+    "stringUnit": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["state", "value"],
+      "properties": {
+        "state": {
+          "type": "string",
+          "enum": ["new", "needs_review", "translated", "stale"]
+        },
+        "value": { "type": "string" }
+      }
+    },
+    "variations": {
+      "type": "object",
+      "additionalProperties": false,
+      "minProperties": 1,
+      "properties": {
+        "plural": { "$ref": "#/definitions/pluralMap" },
+        "device": { "$ref": "#/definitions/deviceMap" },
+        "substitutions": { "$ref": "#/definitions/substitutions" }
+      }
+    },
+    "pluralMap": {
+      "type": "object",
+      "description": "CLDR plural-category map. Each branch is itself a localization (stringUnit or a nested variations subtree).",
+      "additionalProperties": false,
+      "minProperties": 1,
+      "properties": {
+        "zero": { "$ref": "#/definitions/localization" },
+        "one": { "$ref": "#/definitions/localization" },
+        "two": { "$ref": "#/definitions/localization" },
+        "few": { "$ref": "#/definitions/localization" },
+        "many": { "$ref": "#/definitions/localization" },
+        "other": { "$ref": "#/definitions/localization" }
+      }
+    },
+    "deviceMap": {
+      "type": "object",
+      "description": "Device-class variation map. Each branch is itself a localization.",
+      "additionalProperties": false,
+      "minProperties": 1,
+      "properties": {
+        "iphone": { "$ref": "#/definitions/localization" },
+        "ipad": { "$ref": "#/definitions/localization" },
+        "ipod": { "$ref": "#/definitions/localization" },
+        "mac": { "$ref": "#/definitions/localization" },
+        "applewatch": { "$ref": "#/definitions/localization" },
+        "appletv": { "$ref": "#/definitions/localization" },
+        "applevision": { "$ref": "#/definitions/localization" },
+        "other": { "$ref": "#/definitions/localization" }
+      }
+    },
+    "substitutions": {
+      "type": "object",
+      "description": "Named substitution arguments, each carrying its own argNum/formatSpecifier and a variations subtree.",
+      "additionalProperties": { "$ref": "#/definitions/substitution" }
+    },
+    "substitution": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "argNum": { "type": "integer" },
+        "formatSpecifier": { "type": "string" },
+        "variations": { "$ref": "#/definitions/variations" }
+      }
+    }
+  }
+}
