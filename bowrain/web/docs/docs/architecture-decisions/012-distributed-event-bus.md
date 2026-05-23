@@ -20,7 +20,7 @@ election.
 
 Bowrain's automation engine ([AD-013](013-automation-engine.md)),
 activity recorder, notification dispatcher, push-completion tracker,
-audit logger, and queue sinks all react to platform events. Running
+and audit logger all react to platform events. Running
 multiple server replicas — behind a load balancer, across zones, or in
 a worker pool — requires a broker that delivers each event to exactly
 one member of each consumer group and retains messages across replica
@@ -120,8 +120,7 @@ Topic: bowrain-events
   ├── Subscription: push-tracker       → PushCompletionTracker
   ├── Subscription: progress-tracker   → ProgressTracker
   ├── Subscription: audit-logger       → AuditLogger
-  ├── Subscription: graph-syncer       → GraphSyncer
-  └── Subscription: queue-sink         → QueueSink
+  └── Subscription: graph-syncer       → GraphSyncer
 ```
 
 Subscription settings: max delivery 5, lock duration 30s, dead-letter
@@ -142,8 +141,7 @@ Stream: EVENTS (subjects: EVENTS.>)
   ├── Consumer: push-tracker
   ├── Consumer: progress-tracker
   ├── Consumer: audit-logger
-  ├── Consumer: graph-syncer
-  └── Consumer: queue-sink
+  └── Consumer: graph-syncer
 ```
 
 `Publish` writes to `EVENTS.<event_type>`. `Subscribe` creates a

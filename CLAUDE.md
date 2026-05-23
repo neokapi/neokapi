@@ -225,7 +225,6 @@ neokapi/
 │   ── Non-Go Assets ─────────────────────
 ├── docs/                  # Architecture decisions, implementation notes
 ├── web/docs/               # Docusaurus site
-├── agentic/               # Agentic fleet configurations
 └── Makefile               # Multi-module build targets
 ```
 

@@ -68,7 +68,7 @@ DOCKER_WEB_IMAGE      := ghcr.io/neokapi/bowrain-web
 DOCKER_KEYCLOAK_IMAGE := ghcr.io/neokapi/bowrain-keycloak
 
 .PHONY: all help \
-        build-server build-worker build-agentic-server build-kapi-bowrain-plugin build-bowrain build-headless install-kapi-bowrain-plugin \
+        build-server build-worker build-kapi-bowrain-plugin build-bowrain build-headless install-kapi-bowrain-plugin \
         ui-deps ui-build ui-check storybook storybook-dev storybook-build \
         frontend-deps frontend-dev frontend-build frontend-check build-ui \
         web-deps web-build web-check \
@@ -107,10 +107,6 @@ build-server: ## Build the Bowrain REST server
 build-worker: ## Build the Bowrain worker
 	@mkdir -p $(BIN_DIR)
 	$(GOBUILD) $(LDFLAGS) -o $(BIN_DIR)/bowrain-worker ./cmd/bowrain-worker
-
-build-agentic-server: ## Build the Agentic Testing server
-	@mkdir -p $(BIN_DIR)
-	$(GOBUILD) $(LDFLAGS) -o $(BIN_DIR)/agentic-server ./agentic-testing/cmd/agentic-server
 
 build-kapi-bowrain-plugin: ## Build the kapi-bowrain plugin binary (manifest-driven)
 	@mkdir -p $(BIN_DIR)
