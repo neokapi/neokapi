@@ -481,8 +481,8 @@ func TestConfigApplyMap(t *testing.T) {
 	assert.True(t, c.SubfilterHTMLValues)
 	assert.False(t, c.LegacyPluralForms)
 
-	assert.Error(t, c.ApplyMap(map[string]any{"protectInterpolation": "nope"}))
-	assert.Error(t, c.ApplyMap(map[string]any{"unknownKey": true}))
+	require.Error(t, c.ApplyMap(map[string]any{"protectInterpolation": "nope"}))
+	require.Error(t, c.ApplyMap(map[string]any{"unknownKey": true}))
 }
 
 // TestSchema verifies the format exposes a schema with the i18next identity and

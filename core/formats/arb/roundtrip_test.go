@@ -395,9 +395,9 @@ func TestConfigApplyMap(t *testing.T) {
 	assert.False(t, cfg.DescriptionNotes)
 
 	// Wrong type and unknown key are rejected.
-	assert.Error(t, cfg.ApplyMap(map[string]any{"descriptionNotes": "nope"}))
-	assert.Error(t, cfg.ApplyMap(map[string]any{"unknown": true}))
+	require.Error(t, cfg.ApplyMap(map[string]any{"descriptionNotes": "nope"}))
+	require.Error(t, cfg.ApplyMap(map[string]any{"unknown": true}))
 
-	assert.NoError(t, cfg.Validate())
+	require.NoError(t, cfg.Validate())
 	assert.Equal(t, "arb", cfg.FormatName())
 }

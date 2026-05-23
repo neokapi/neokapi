@@ -282,8 +282,8 @@ func TestConfigApplyMap(t *testing.T) {
 	require.NoError(t, c.ApplyMap(map[string]any{"extractDescriptions": false}))
 	assert.False(t, c.ExtractDescriptions)
 
-	assert.Error(t, c.ApplyMap(map[string]any{"extractDescriptions": "nope"}))
-	assert.Error(t, c.ApplyMap(map[string]any{"unknownKey": true}))
+	require.Error(t, c.ApplyMap(map[string]any{"extractDescriptions": "nope"}))
+	require.Error(t, c.ApplyMap(map[string]any{"unknownKey": true}))
 }
 
 // TestSchema verifies the format exposes a schema with the design-tokens

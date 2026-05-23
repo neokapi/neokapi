@@ -180,7 +180,7 @@ func blockKeyPath(block *model.Block) string {
 // helper avoids importing strings just for one byte substitution.
 func replaceAll(s string, old, new byte) string {
 	var changed bool
-	for i := 0; i < len(s); i++ {
+	for i := range len(s) {
 		if s[i] == old {
 			changed = true
 			break

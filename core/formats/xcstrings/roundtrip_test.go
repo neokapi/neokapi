@@ -25,7 +25,7 @@ func readParts(t *testing.T, path string) ([]*model.Part, []byte) {
 		URI:          path,
 		SourceLocale: "",
 		Encoding:     "UTF-8",
-		Reader:       io_NopCloser(data),
+		Reader:       ioNopCloser(data),
 	}
 	require.NoError(t, r.Open(t.Context(), doc))
 	defer r.Close()
@@ -33,8 +33,8 @@ func readParts(t *testing.T, path string) ([]*model.Part, []byte) {
 	return parts, data
 }
 
-// io_NopCloser wraps bytes in a ReadCloser.
-func io_NopCloser(data []byte) *nopCloser {
+// ioNopCloser wraps bytes in a ReadCloser.
+func ioNopCloser(data []byte) *nopCloser {
 	return &nopCloser{Reader: bytes.NewReader(data)}
 }
 
@@ -246,7 +246,7 @@ func TestTranslationUpdate(t *testing.T) {
 	// The output must still parse.
 	r := xcstrings.NewReader()
 	require.NoError(t, r.Open(t.Context(), &model.RawDocument{
-		URI: "out", Encoding: "UTF-8", Reader: io_NopCloser(out),
+		URI: "out", Encoding: "UTF-8", Reader: ioNopCloser(out),
 	}))
 	defer r.Close()
 	_ = testutil.CollectParts(t, r.Read(t.Context()))
@@ -336,7 +336,7 @@ func TestWriteFromScratch(t *testing.T) {
 	// Re-read.
 	r := xcstrings.NewReader()
 	require.NoError(t, r.Open(t.Context(), &model.RawDocument{
-		URI: "out", Encoding: "UTF-8", Reader: io_NopCloser(out),
+		URI: "out", Encoding: "UTF-8", Reader: ioNopCloser(out),
 	}))
 	defer r.Close()
 	blocks := testutil.CollectBlocks(t, r.Read(t.Context()))
