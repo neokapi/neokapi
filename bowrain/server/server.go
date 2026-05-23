@@ -21,7 +21,7 @@ import (
 	"github.com/redis/go-redis/v9"
 	slogecho "github.com/samber/slog-echo"
 	"golang.org/x/net/http2"
-	"golang.org/x/net/http2/h2c"
+	"golang.org/x/net/http2/h2c" //nolint:staticcheck // SA1019: h2c migration to http.Server.Protocols deferred (gRPC-over-h2c multiplexing needs integration testing)
 	"google.golang.org/grpc"
 
 	corebrand "github.com/neokapi/neokapi/core/brand"
@@ -1239,7 +1239,7 @@ func (s *Server) Start(addr string) error {
 	h2s := &http2.Server{}
 	srv := &http.Server{
 		Addr:    addr,
-		Handler: h2c.NewHandler(handler, h2s),
+		Handler: h2c.NewHandler(handler, h2s), //nolint:staticcheck // SA1019: see h2c import note
 	}
 	s.httpServer = srv
 	slog.Info("starting Bowrain server", "addr", addr, "mode", "HTTP+gRPC")

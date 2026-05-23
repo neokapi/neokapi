@@ -4,11 +4,10 @@ package xcstrings_test
 
 import (
 	"bytes"
+	"errors"
 	"os/exec"
 	"strings"
 	"testing"
-
-	"github.com/stretchr/testify/assert"
 )
 
 // lookTool reports the absolute path of an external tool and whether it is on
@@ -21,13 +20,30 @@ func lookTool(name string) (string, bool) {
 	return p, true
 }
 
-// runValidator runs an external validator and asserts it exits cleanly,
-// surfacing combined output on failure.
+// ajvCommand returns the program and leading args for running ajv. When a real
+// `ajv` executable is on PATH (e.g. `npm install -g ajv-cli@5` in CI), it is
+// invoked directly; otherwise we fall back to provisioning ajv-cli@5 via npx.
+// The returned slice is the prefix; callers append the subcommand and its args.
+func ajvCommand() (name string, prefix []string) {
+	if p, err := exec.LookPath("ajv"); err == nil {
+		return p, nil
+	}
+	return "npx", []string{"--yes", "ajv-cli@5"}
+}
+
+// runValidator runs an external validator. It FAILs only when the tool RUNS and
+// REJECTS kapi's output; when the tool itself could not execute (missing,
+// non-executable, provisioning/network failure), it SKIPs instead.
 func runValidator(t *testing.T, label, path string, args []string) {
 	t.Helper()
 	cmd := exec.CommandContext(t.Context(), path, args...)
 	out, err := cmd.CombinedOutput()
-	assert.NoErrorf(t, err, "%s must accept kapi output: %s", label, out)
+	if err != nil && toolCouldNotRun(err, string(out)) {
+		t.Skipf("%s could not run (tooling/environment, not a kapi failure): %s", label, out)
+	}
+	if err != nil {
+		t.Errorf("%s must accept kapi output: %s", label, out)
+	}
 }
 
 // isLikelyOffline heuristically detects npm/npx network failures so the schema
@@ -38,6 +54,51 @@ func isLikelyOffline(output []byte) bool {
 		"network", "etarget", "enotfound", "getaddrinfo", "registry.npmjs",
 		"econnrefused", "etimedout", "could not resolve", "offline",
 		"unable to resolve", "eai_again", "fetch failed",
+	} {
+		if strings.Contains(s, marker) {
+			return true
+		}
+	}
+	return false
+}
+
+// toolCouldNotRun reports whether an external tool FAILED TO EXECUTE rather than
+// ran and rejected kapi's output. The acceptance contract is to SKIP (not FAIL)
+// when the validator itself is broken/unavailable: a non-executable npx-cached
+// bin (exit 126 "Permission denied"), a missing binary (exit 127 "command not
+// found"/ENOENT), or an npm/npx provisioning/network failure. A tool that runs
+// and reports a validation error (e.g. ajv exit 1) is NOT covered here, so the
+// suite still FAILs on genuine rejections.
+func toolCouldNotRun(err error, combinedOutput string) bool {
+	if err == nil {
+		return false
+	}
+	// Exit 126 (not executable) / 127 (command not found) indicate the tool
+	// could not be launched, not that it judged the input.
+	var ee *exec.ExitError
+	if errors.As(err, &ee) {
+		switch ee.ExitCode() {
+		case 126, 127:
+			return true
+		}
+	}
+	// exec.LookPath / start failures (binary vanished mid-run, ENOENT, etc.).
+	if errors.Is(err, exec.ErrNotFound) {
+		return true
+	}
+	if isLikelyOffline([]byte(combinedOutput)) {
+		return true
+	}
+	s := strings.ToLower(combinedOutput)
+	for _, marker := range []string{
+		"permission denied",
+		"command not found",
+		"enoent",
+		"no such file or directory",
+		"npm error",
+		"could not determine executable to run",
+		"cannot find module",
+		"npx canceled due to missing packages",
 	} {
 		if strings.Contains(s, marker) {
 			return true

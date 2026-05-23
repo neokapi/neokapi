@@ -15,19 +15,26 @@ import (
 // TestAcceptanceTranslatedOutputValidatesAgainstSchema writes a translated ARB
 // document and runs the REAL consumer-side validators against it:
 //   - `jq .` confirms the output is well-formed JSON.
-//   - `npx ajv-cli@5 validate` confirms it conforms to the de-facto ARB JSON
-//     Schema (testdata/schema/arb.schema.json), which captures the Flutter
-//     gen_l10n / ARB structure (message keys, "@<id>" attribute objects,
-//     "@@<global>" metadata).
+//   - `ajv validate` (a real `ajv` on PATH, else `npx --yes ajv-cli@5 validate`)
+//     confirms it conforms to the de-facto ARB JSON Schema
+//     (testdata/schema/arb.schema.json), which captures the Flutter gen_l10n /
+//     ARB structure (message keys, "@<id>" attribute objects, "@@<global>"
+//     metadata).
 //
-// If a validator rejects kapi's output, that is a spec-compliance bug in the
-// writer. Each external tool is gated on presence and skipped (not failed) when
-// unavailable or offline.
+// If a validator RUNS and rejects kapi's output, that is a spec-compliance bug
+// in the writer and the test FAILs. Each external tool is gated on presence and
+// SKIPPED (not failed) when it is unavailable, offline, or otherwise unable to
+// execute (e.g. a non-executable npx-cached bin) — that is a tooling failure,
+// not a kapi failure.
 func TestAcceptanceTranslatedOutputValidatesAgainstSchema(t *testing.T) {
 	jqPath, haveJq := lookTool("jq")
-	npxPath, haveNpx := lookTool("npx")
-	if !haveJq && !haveNpx {
-		t.Skip("neither jq nor npx available")
+	// Prefer a real `ajv` on PATH (CI installs ajv-cli@5 globally); otherwise
+	// provision it on demand via npx --yes ajv-cli@5.
+	_, haveAjv := lookTool("ajv")
+	_, haveNpx := lookTool("npx")
+	haveAjvRunner := haveAjv || haveNpx
+	if !haveJq && !haveAjvRunner {
+		t.Skip("neither jq nor an ajv runner (ajv/npx) available")
 	}
 
 	inputs := []string{
@@ -50,21 +57,28 @@ func TestAcceptanceTranslatedOutputValidatesAgainstSchema(t *testing.T) {
 			if haveJq {
 				cmd := exec.CommandContext(t.Context(), jqPath, ".", outPath)
 				combined, err := cmd.CombinedOutput()
+				if err != nil && toolCouldNotRun(err, string(combined)) {
+					t.Skipf("jq could not run (tooling/environment, not a kapi failure): %s", combined)
+				}
 				require.NoErrorf(t, err, "jq must accept kapi's ARB output as well-formed JSON: %s", combined)
 			} else {
 				t.Log("jq not available; skipped well-formedness check")
 			}
 
-			if haveNpx {
-				cmd := exec.CommandContext(t.Context(), npxPath, "--yes", "ajv-cli@5",
+			if haveAjvRunner {
+				// Prefer a real `ajv` executable on PATH; fall back to npx
+				// provisioning ajv-cli@5 on demand.
+				name, prefix := ajvCommand()
+				args := append(append([]string{}, prefix...),
 					"validate", "-s", schema, "-d", outPath)
+				cmd := exec.CommandContext(t.Context(), name, args...)
 				combined, err := cmd.CombinedOutput()
-				if err != nil && isLikelyOffline(combined) {
-					t.Skipf("ajv-cli unavailable (offline?): %s", combined)
+				if err != nil && toolCouldNotRun(err, string(combined)) {
+					t.Skipf("ajv could not run (tooling/environment, not a kapi failure): %s", combined)
 				}
 				require.NoErrorf(t, err, "ajv must accept kapi's ARB output: %s", combined)
 			} else {
-				t.Log("npx not available; skipped schema validation")
+				t.Log("ajv runner not available; skipped schema validation")
 			}
 		})
 	}
