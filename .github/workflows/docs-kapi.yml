@@ -7,11 +7,13 @@ on:
     paths:
       - "web/docs/**"
       - "packages/docs-shared/**"
+      - "packages/reference-data/**"
       - ".github/workflows/docs-kapi.yml"
   pull_request:
     paths:
       - "web/docs/**"
       - "packages/docs-shared/**"
+      - "packages/reference-data/**"
       - ".github/workflows/docs-kapi.yml"
 
 permissions:
