@@ -128,6 +128,66 @@ func TestMergeCredentials_PreservesExplicitProvider(t *testing.T) {
 	assert.Equal(t, "openai", result["provider"], "explicit provider should be preserved")
 }
 
+// TestProviderInferenceFromCredential covers issue #637: when --credential is
+// given without an explicit --provider, the provider must be inferred from the
+// credential's provider_type rather than defaulting to "anthropic".
+//
+// The fix is in the callers (toolcmds.go, flow.go): they drop the schema/flag
+// default "anthropic" from the config when a credential name is given and
+// --provider was not explicitly changed. These tests verify the resulting
+// mergeCredentials behaviour once the default has been stripped.
+func TestProviderInferenceFromCredential(t *testing.T) {
+	tests := []struct {
+		name             string
+		config           map[string]any // config as the CLI hands it to mergeCredentials
+		credProviderType string
+		wantProvider     string
+		desc             string
+	}{
+		{
+			name:             "no provider in config uses credential provider",
+			config:           map[string]any{"credential": "harness-gemini"},
+			credProviderType: "gemini",
+			wantProvider:     "gemini",
+			desc:             "credential provider_type must win when --provider is absent",
+		},
+		{
+			name:             "explicit provider overrides credential provider",
+			config:           map[string]any{"credential": "harness-gemini", "provider": "openai"},
+			credProviderType: "gemini",
+			wantProvider:     "openai",
+			desc:             "explicit --provider must override the credential's provider_type",
+		},
+		{
+			name:             "no credential falls back to default anthropic",
+			config:           map[string]any{"provider": "anthropic"},
+			credProviderType: "anthropic",
+			wantProvider:     "anthropic",
+			desc:             "without a credential, provider from config is preserved unchanged",
+		},
+		{
+			name:             "credential with empty provider in config uses credential",
+			config:           map[string]any{"credential": "my-cred", "provider": ""},
+			credProviderType: "openai",
+			wantProvider:     "openai",
+			desc:             "empty provider string treated as unset",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			cred := &ProviderConfigWithKey{
+				ProviderConfig: ProviderConfig{
+					ProviderType: tc.credProviderType,
+				},
+				APIKey: "sk-test",
+			}
+			result := mergeCredentials(tc.config, cred)
+			assert.Equal(t, tc.wantProvider, result["provider"], tc.desc)
+		})
+	}
+}
+
 func TestGetByName(t *testing.T) {
 	store := newTestStore(t)
 	store.Upsert(ProviderConfig{Name: "My Key", ProviderType: "anthropic"})

@@ -209,6 +209,36 @@ func TestHandleRunFlow(t *testing.T) {
 	assert.NotEmpty(t, content)
 }
 
+// TestHandlePseudoTranslateAutoOutput verifies that pseudo_translate works
+// when no explicit output_path is given (MCP default path — issue #636).
+// The handler must compute the output path as <base>_<lang><ext> sibling
+// to the input file and successfully write it.
+func TestHandlePseudoTranslateAutoOutput(t *testing.T) {
+	a := testApp()
+	ctx := t.Context()
+
+	// Write a small JSON file into a temp dir so the auto-generated sibling
+	// output lands there too (avoids polluting the source tree).
+	tmpDir := t.TempDir()
+	inputPath := filepath.Join(tmpDir, "content.json")
+	require.NoError(t, os.WriteFile(inputPath, []byte(`{"hero.title":"Plan less. Ship more.","cta.start":"Start for free"}`), 0o644))
+
+	// No output_path — handler must auto-generate it.
+	_, out, err := handlePseudoTranslate(ctx, a, PseudoTranslateInput{
+		Path:       inputPath,
+		TargetLang: "qps",
+	})
+	require.NoError(t, err, "pseudo_translate must succeed without explicit output_path (issue #636)")
+	assert.Equal(t, "pseudo-translate", out.FlowName)
+	assert.Equal(t, inputPath, out.InputPath)
+	assert.Equal(t, filepath.Join(tmpDir, "content_qps.json"), out.OutputPath)
+
+	// Output file must exist and contain pseudo-translated content.
+	content, err := os.ReadFile(out.OutputPath)
+	require.NoError(t, err)
+	assert.NotEmpty(t, content)
+}
+
 func TestHandleRunFlowUnknown(t *testing.T) {
 	a := testApp()
 	ctx := t.Context()

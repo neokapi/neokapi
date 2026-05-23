@@ -684,8 +684,13 @@ func (a *App) buildFlowTools(flowName string, cmd ...*cobra.Command) ([]tool.Too
 		if v, _ := cmd[0].Flags().GetString("credential"); v != "" {
 			config["credential"] = v
 		}
-		if v, _ := cmd[0].Flags().GetString("provider"); v != "" {
-			config["provider"] = v
+		// Only inject --provider when the user explicitly passed it; the flag
+		// has a default of "anthropic" which must not shadow a named
+		// credential's provider_type (fixes #637).
+		if cmd[0].Flags().Changed("provider") {
+			if v, _ := cmd[0].Flags().GetString("provider"); v != "" {
+				config["provider"] = v
+			}
 		}
 		if v, _ := cmd[0].Flags().GetString("api-key"); v != "" {
 			config["apiKey"] = v

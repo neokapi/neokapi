@@ -193,7 +193,14 @@ func (f *fakeBridge) Process(stream pb.BridgeService_ProcessServer) error {
 	// Read-only mode: complete immediately when the client closes its
 	// send side. Read-write mode: drain client parts first so we exercise
 	// the bidirectional path.
-	hasOutput := header.Header.Output != nil
+	//
+	// Mirror the Java BridgeServiceImpl write-enabled check:
+	//   writeEnabled = header.hasOutput() || !header.getOutputLocale().isEmpty()
+	// Previously write mode was detected solely via OutputRef presence, but
+	// issue #636 fixed the Go client to omit OutputRef in inline-write mode
+	// (sending OutputRef{path:""} caused FileNotFoundException on the real
+	// Java daemon). Now write mode is also enabled when output_locale is set.
+	hasOutput := header.Header.Output != nil || header.Header.OutputLocale != ""
 	for {
 		req, err := stream.Recv()
 		if err != nil {
