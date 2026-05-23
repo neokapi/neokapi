@@ -75,10 +75,13 @@ translation QA (placeholders preserved, nothing left untranslated) — and repor
 the exact findings:
 
 ```bash
-kapi verify --json                   # exit 0 = green; exit 3 = findings to fix
+kapi verify --json --no-fail         # report: read `pass` + findings; always exits 0
 ```
 
-Read the findings, fix them, and run it again — loop until it passes. This is the
+Exit 3 from `kapi verify` means "not on-spec yet", not a crash — it's the gate giving
+you findings to act on. While you're iterating, pass `--no-fail` so it always exits 0
+and you read the `pass` field; drop `--no-fail` in CI, where the non-zero exit blocks
+the build. Read the findings, fix them, and run it again — loop until it passes. This is the
 gate that makes the result trustworthy regardless of how you produced it.
 
 For unattended runs (CI, no assistant), `kapi ai-translate` / `kapi run ai-translate-qa`

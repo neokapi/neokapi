@@ -170,6 +170,29 @@ func TestVerify_FailingProject(t *testing.T) {
 	assert.Positive(t, out.Summary.Failed)
 }
 
+// TestVerify_NoFailReportsButExitsZero asserts that --no-fail keeps the verdict in
+// the output (pass:false with findings) while exiting 0 — report mode for an assistant
+// loop, where a not-yet-passing gate is expected feedback, not a failure.
+func TestVerify_NoFailReportsButExitsZero(t *testing.T) {
+	root, _ := writeVerifyProject(t)
+	t.Chdir(root)
+
+	a := &App{}
+	cmd := a.NewVerifyCmd()
+	require.NoError(t, cmd.Flags().Set("json", "true"))
+	require.NoError(t, cmd.Flags().Set("no-fail", "true"))
+
+	out, runErr := captureStdout(t, func() error { return a.runVerify(cmd, nil) })
+
+	require.NoError(t, runErr, "--no-fail must not return the gate sentinel (exit 0)")
+	assert.Equal(t, ExitOK, ExitCode(nil, runErr), "--no-fail maps to exit 0 even on gate failure")
+
+	var parsed VerifyOutput
+	require.NoError(t, json.Unmarshal([]byte(out), &parsed))
+	assert.False(t, parsed.Pass, "the verdict (pass:false) is still reported in the output")
+	assert.Positive(t, parsed.Summary.Failed, "findings are still reported")
+}
+
 // TestVerify_PassingAfterFix asserts that fixing the brand, terminology, and
 // placeholder violations makes verify pass with a zero exit code.
 func TestVerify_PassingAfterFix(t *testing.T) {
