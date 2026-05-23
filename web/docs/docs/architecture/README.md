@@ -62,3 +62,4 @@ pseudocode) are separated into [Implementation Notes](/notes-internal/index).
 | --------------------------------------- | ------------------------- | ------------------------------------------------------- |
 | [015](015-testing-and-documentation.md) | Testing and Documentation | Test pyramid, Docusaurus, screenshots, recordings       |
 | [016](016-metadata-i18n.md)             | Metadata i18n             | Tool/format/plugin metadata translation via MO catalogs |
+| [020](020-redaction.md)                 | Content Redaction         | Placeholder model, local vault, rule/entity detection, secure-translate, extract/merge |

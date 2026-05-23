@@ -9,6 +9,7 @@ import (
 
 	"github.com/neokapi/neokapi/core/ai/ner"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/schema"
 	"github.com/neokapi/neokapi/core/tool"
 	"github.com/neokapi/neokapi/providers/ai"
 )
@@ -29,10 +30,45 @@ type AIEntityExtractTool struct {
 
 // AIEntityExtractConfig holds configuration for the entity extraction tool.
 type AIEntityExtractConfig struct {
-	Locale      model.LocaleID `schema:"description=Locale of the source content"`
-	KnownTerms  []string       `schema:"description=Terms to exclude from extraction (already in termbase)"`                      // terms to exclude from extraction (already in termbase)
-	BatchSize   int            `schema:"description=Number of blocks per LLM call (0 or 1 = one block per call),default=1,min=1"` // Blocks per LLM call. 0 or 1 = one block per call.
-	Concurrency int            `schema:"description=Number of concurrent batch calls (0 or 1 = sequential),default=1,min=1"`      // Concurrent batch calls. 0 or 1 = sequential.
+	Provider    string         `json:"provider,omitempty" schema:"title=AI Provider,description=AI provider,default=anthropic,group=provider"`
+	APIKey      string         `json:"apiKey,omitempty" schema:"title=API Key,description=API key for the AI provider,group=provider"`
+	Model       string         `json:"model,omitempty" schema:"title=Model,description=AI model name,group=provider"`
+	Locale      model.LocaleID `json:"locale,omitempty" schema:"description=Locale of the source content"`
+	KnownTerms  []string       `json:"knownTerms,omitempty" schema:"description=Terms to exclude from extraction (already in termbase)"`                       // terms to exclude from extraction (already in termbase)
+	BatchSize   int            `json:"batchSize,omitempty" schema:"description=Number of blocks per LLM call (0 or 1 = one block per call),default=1,min=1"`   // Blocks per LLM call. 0 or 1 = one block per call.
+	Concurrency int            `json:"batchConcurrency,omitempty" schema:"description=Number of concurrent batch calls (0 or 1 = sequential),default=1,min=1"` // Concurrent batch calls. 0 or 1 = sequential.
+}
+
+// AIEntityExtractSchema returns the auto-generated schema for the
+// ai-entity-extract tool.
+func AIEntityExtractSchema() *schema.ComponentSchema {
+	s := schema.FromStruct(&AIEntityExtractConfig{}, schema.ToolMeta{
+		ID:          "ai-entity-extract",
+		Category:    schema.CategoryAnalysis,
+		DisplayName: "AI Entity Extract",
+		Description: "Detect named entities (people, organizations, products, locations) using an LLM",
+		Inputs:      []string{schema.PartTypeBlock},
+		Tags:        []string{"ai-powered"},
+		Requires:    []string{schema.RequiresCredentials},
+		Cardinality: schema.Monolingual,
+		SideEffects: []schema.SideEffect{schema.SideEffectAPICall},
+	})
+	injectProviderOptions(s)
+	return s
+}
+
+// NewAIEntityExtractFromConfig creates an entity-extraction tool from a config
+// map, resolving the LLM provider the same way ai-translate does.
+func NewAIEntityExtractFromConfig(config map[string]any, _ string) (tool.Tool, error) {
+	var cfg AIEntityExtractConfig
+	if err := schema.ApplyConfig(config, &cfg); err != nil {
+		return nil, fmt.Errorf("ai-entity-extract config: %w", err)
+	}
+	p, err := ProviderFromConfig(cfg.Provider, aiprovider.Config{APIKey: cfg.APIKey, Model: cfg.Model})
+	if err != nil {
+		return nil, err
+	}
+	return NewAIEntityExtractTool(p, nil, cfg), nil
 }
 
 // NewAIEntityExtractTool creates a new entity/term extraction tool.

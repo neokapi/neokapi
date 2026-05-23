@@ -1,12 +1,12 @@
 import { describe, it } from "vitest";
-import { ruleTester } from "./rule-tester.ts";
+import { run } from "./rule-tester.ts";
 import { rule } from "../src/rules/t-no-concat.ts";
 
 const IMPORT = `import { t } from '@neokapi/kapi-react/runtime';\n`;
 
 describe("t-no-concat", () => {
   it("valid + invalid cases", () => {
-    ruleTester.run("t-no-concat", rule, {
+    run("t-no-concat", rule, {
       valid: [
         { code: `${IMPORT}t('Hello {name}');` },
         // Template with no expressions — fine.

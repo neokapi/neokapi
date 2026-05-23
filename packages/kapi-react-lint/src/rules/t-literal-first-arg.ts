@@ -1,4 +1,4 @@
-import type { Rule } from "eslint";
+import type { Rule } from "@oxlint/plugins";
 import { collectTLocalNames } from "../shared/t-import.ts";
 
 /**
@@ -9,7 +9,7 @@ import { collectTLocalNames } from "../shared/t-import.ts";
  * (`t(\`Hello world\`)` is fine; `t(\`Hello ${name}\`)` is not — that
  * case is caught by `t-no-concat`).
  */
-export const rule: Rule.RuleModule = {
+export const rule: Rule = {
   meta: {
     type: "problem",
     docs: {

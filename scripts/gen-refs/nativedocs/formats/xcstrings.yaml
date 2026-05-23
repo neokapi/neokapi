@@ -1,0 +1,50 @@
+# Native reference doc for the built-in `xcstrings` format.
+# Schema source: core/formats/xcstrings/config.go (Config) + schema.go.
+# No Okapi equivalent — Apple String Catalogs postdate the Okapi filter set.
+description: Extract and update translations in Apple String Catalog (.xcstrings) files used by Xcode 15+ projects.
+overview: |
+  The **Apple String Catalog** format reads `.xcstrings` files — the default
+  localization container for iOS, macOS, and other Apple-platform projects
+  since Xcode 15. Unlike legacy `.strings`/`.stringsdict`, a single catalog
+  holds the source language and every translation in one JSON document,
+  carrying per-localization state (`new`, `translated`, `needs_review`),
+  developer comments, and plural / device / substitution variations.
+
+  Each translatable leaf value becomes a block. The source string (or the
+  entry key, when no source-language localization is present) is the source;
+  per-locale `stringUnit` values are the targets. Developer `comment`s surface
+  as translator notes, and `printf` specifiers (`%@`, `%lld`, `%1$@`, and
+  Apple's `%arg` substitution token) are protected as inline placeholders so
+  they are never altered. Writing back is byte-faithful: only changed values
+  and states are rewritten, leaving the rest of the catalog untouched.
+parameters:
+  extractStale:
+    description: Extract entries whose extractionState is "stale".
+    help: |
+      When enabled (the default), entries marked `stale` by Xcode (the source
+      string no longer appears in the code base) are still emitted as
+      translatable blocks, since they remain localizable until removed.
+      Disable to skip stale entries.
+    values: "`true` / `false` (default `true`)"
+  markTranslatedState:
+    description: State written when a previously untranslated locale is populated.
+    help: |
+      The `state` value written into a localization's `stringUnit` when a
+      target translation is produced for a locale that had no entry. Apple
+      uses `translated`. Existing states are preserved verbatim on
+      round-trip; this only governs newly populated localizations.
+    values: "String (default `translated`)"
+processingNotes:
+  - A catalog is multilingual — one file carries the source language and all targets, so reading yields blocks with a source plus multiple target locales.
+  - Plural (CLDR categories), device (iphone/ipad/mac/…), and substitution variations each expand into their own leaf blocks, keyed by the variation path.
+  - printf specifiers and Apple's substitution `%arg` token are extracted as inline placeholders and must not be translated.
+  - "Output is byte-faithful: an unchanged catalog round-trips exactly; only modified values and states are rewritten."
+examples:
+  - title: Skip stale entries
+    description: Do not emit entries Xcode has flagged as stale.
+    config: |
+      extractStale: false
+  - title: Mark new translations for review
+    description: Write a needs_review state for newly populated localizations instead of translated.
+    config: |
+      markTranslatedState: needs_review

@@ -1,0 +1,17 @@
+{
+  "color": {
+    "$type": "color",
+    "primary": {
+      "$value": "#0d6efd"
+    },
+    "secondary": {
+      "$value": "#6c757d"
+    }
+  },
+  "border": {
+    "radius": {
+      "$type": "dimension",
+      "$value": "4px"
+    }
+  }
+}

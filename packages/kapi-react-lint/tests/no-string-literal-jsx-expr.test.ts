@@ -1,10 +1,10 @@
 import { describe, it } from "vitest";
-import { ruleTester } from "./rule-tester.ts";
+import { run } from "./rule-tester.ts";
 import { rule } from "../src/rules/no-string-literal-jsx-expr.ts";
 
 describe("no-string-literal-jsx-expr", () => {
   it("valid + invalid cases", () => {
-    ruleTester.run("no-string-literal-jsx-expr", rule, {
+    run("no-string-literal-jsx-expr", rule, {
       valid: [
         { code: `const x = <p>Hello</p>;` },
         { code: `const x = <p>{name}</p>;` },

@@ -13,10 +13,55 @@ import (
 	"github.com/neokapi/neokapi/core/formats/xliff2"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/core/redaction"
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/sievepen"
 	"github.com/spf13/cobra"
 )
+
+// restoreRedactedBlocks restores redacted originals into the incoming
+// translated blocks using the batch's vault sidecar, if one exists. A missing
+// sidecar (batch wasn't redacted) is a no-op.
+//
+// The incoming source is ALWAYS restored: the per-block staleness check in
+// merge compares the XLIFF source text against the (unredacted) re-read source
+// file, so the placeholders must be reverted for that comparison to hold. The
+// translated target is restored only when restoreTarget is set — passing
+// false (the --no-restore flag) leaves placeholders in the merged output.
+func restoreRedactedBlocks(layout project.Layout, batchID string, blocks []*model.Block, targetLocale model.LocaleID, restoreTarget bool) error {
+	sidecar := layout.RedactionSidecarPath(batchID)
+	if _, err := os.Stat(sidecar); err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return err
+	}
+	vault, err := redaction.OpenFileVault(sidecar)
+	if err != nil {
+		return err
+	}
+	for _, b := range blocks {
+		get := func(token string) (string, bool) {
+			v, ok := vault.Get(b.ID, token)
+			return v.Original, ok
+		}
+		entries := redaction.ValuesForBlock(vault, b.ID)
+		restore := func(runs []model.Run) ([]model.Run, int) {
+			runs, n1 := redaction.Restore(runs, get)
+			runs, n2 := redaction.RestoreText(runs, entries)
+			return runs, n1 + n2
+		}
+		if sr, n := restore(b.SourceRuns()); n > 0 {
+			b.SetSourceRuns(sr)
+		}
+		if restoreTarget {
+			if tr, n := restore(b.TargetRuns(targetLocale)); n > 0 {
+				b.SetTargetRuns(targetLocale, tr)
+			}
+		}
+	}
+	return nil
+}
 
 // MergeCmdOptions exists so bowrain/kapi callers can inject hooks later;
 // nothing is needed today.
@@ -55,6 +100,7 @@ Examples:
 	AddProjectFlag(cmd)
 	cmd.Flags().StringArrayP("input", "i", nil, "input XLIFF file, glob, or directory (repeatable)")
 	cmd.Flags().Bool("no-tm-update", false, "skip TM write-back")
+	cmd.Flags().Bool("no-restore", false, "skip restoring redacted originals from the batch vault")
 	return cmd
 }
 
@@ -88,6 +134,7 @@ func (a *App) runMerge(cmd *cobra.Command) error {
 	}
 
 	noTMUpdate, _ := cmd.Flags().GetBool("no-tm-update")
+	noRestore, _ := cmd.Flags().GetBool("no-restore")
 
 	var tm *sievepen.SQLiteTM
 	if !noTMUpdate {
@@ -109,12 +156,13 @@ func (a *App) runMerge(cmd *cobra.Command) error {
 	for _, in := range expanded {
 		fmt.Fprintf(cmd.OutOrStdout(), "Merging %s\n", relOrAbs(layout.Root, in))
 		stats, err := a.mergeOne(cmd.Context(), mergeTask{
-			layout:  layout,
-			ctx:     ctx,
-			input:   in,
-			policy:  policy,
-			tm:      tm,
-			project: proj,
+			layout:    layout,
+			ctx:       ctx,
+			input:     in,
+			policy:    policy,
+			tm:        tm,
+			project:   proj,
+			noRestore: noRestore,
 		})
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "merge: %s: %v\n", relOrAbs(layout.Root, in), err)
@@ -144,6 +192,9 @@ type mergeTask struct {
 	policy  string
 	tm      *sievepen.SQLiteTM
 	project *project.KapiProject
+
+	// noRestore disables restoring redacted originals from the batch vault.
+	noRestore bool
 }
 
 type mergeStats struct {
@@ -242,6 +293,15 @@ func (a *App) mergeOneXLIFF(ctx context.Context, task mergeTask) (mergeStats, er
 		return stats, fmt.Errorf("merge: source %q / target %q not found in batch %s", srcRel, targetLocale, batchID)
 	}
 	_ = pair
+
+	// Restore redacted originals: if this batch was extracted with --redact,
+	// a vault sidecar maps each placeholder token back to its original. We
+	// restore both the incoming source (so the staleness comparison sees the
+	// original text, matching the re-read source file) and the translated
+	// target before applying it. The originals never left the machine.
+	if err := restoreRedactedBlocks(task.layout, batchID, translatedBlocks, targetLocale, !task.noRestore); err != nil {
+		return stats, fmt.Errorf("merge: restore redaction for batch %s: %w", batchID, err)
+	}
 
 	// 4. Re-read the current source (for per-block staleness detection).
 	sourceAbs := filepath.Join(task.layout.Root, entry.Source)

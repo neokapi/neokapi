@@ -1,0 +1,29 @@
+---
+id: bowrain-create-project
+title: "Pseudo-translate an HTML page"
+sidebar_label: "Create project"
+description: "Take an existing HTML page, run kapi pseudo-translate, inspect the output."
+---
+
+import { ThemedVideo } from "@neokapi/docs-shared";
+
+# Pseudo-translate an HTML page
+
+> Generated from [`walkthroughs/bowrain-create-project.md`](https://github.com/neokapi/neokapi/blob/main/bowrain/web/docs/walkthroughs/bowrain-create-project.md). Do not edit by hand — change the prompt and regenerate.
+
+A small example showing how to take an existing HTML page, run a pseudo-translation pass with `kapi`, and inspect the result. Useful as a "can I see what the platform does" exercise before you commit to setting up a full Bowrain project.
+
+## Scene 1 — create-project
+
+<ThemedVideo
+  sources={{
+    light: "/video/bowrain-cli/01-create-project.webm",
+    dark: "/video/bowrain-cli/01-create-project.webm",
+  }}
+/>
+
+Inspect a landing-page HTML, run `kapi pseudo-translate` against it, read back the output. The pseudo-translation expands strings with diacritics so UI bugs are visible immediately.
+
+## Next
+
+For an actual project workflow, run `kapi init` and see [Getting started](/walkthroughs/bowrain-getting-started).

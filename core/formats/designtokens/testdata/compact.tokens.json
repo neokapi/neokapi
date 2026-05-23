@@ -1,0 +1,1 @@
+{"color":{"$type":"color","accent":{"$value":"#ff5722","$description":"Accent colour for highlights and badges."}},"size":{"$type":"dimension","gutter":{"$value":"12px"}}}

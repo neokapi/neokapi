@@ -40,4 +40,11 @@ func RegisterAll(reg *registry.ToolRegistry) {
 		return NewAITerminologyTool(aiprovider.NewMockProvider(), AITerminologyConfig{})
 	}, AITerminologySchema())
 	reg.SetConfigFactory("ai-terminology", NewAITerminologyFromConfig)
+
+	// AI Entity Extract — detect named entities (feeds redaction's
+	// "entities" detector and terminology workflows).
+	reg.RegisterWithSchema("ai-entity-extract", func() tool.Tool {
+		return NewAIEntityExtractTool(aiprovider.NewMockProvider(), nil, AIEntityExtractConfig{})
+	}, AIEntityExtractSchema())
+	reg.SetConfigFactory("ai-entity-extract", NewAIEntityExtractFromConfig)
 }

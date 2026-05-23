@@ -1,0 +1,178 @@
+---
+sidebar_position: 1
+title: Overview
+---
+
+import ThemedImage from "@theme/ThemedImage";
+
+# Web Application
+
+The neokapi web application is a browser-based translation workbench that provides the same powerful editing experience as the [Bowrain desktop app](/desktop/overview), accessible from any modern browser. It runs as part of `bowrain-server` for multi-user SaaS deployments, or as part of `kapi serve` for local single-user workflows.
+
+## Screenshots
+
+### Login
+
+Server mode authenticates through your identity provider. Depending on configuration, sign-in options include GitHub, Google, LDAP, or other OIDC-compatible providers.
+
+<ThemedImage
+  alt="Login page with identity provider options"
+  sources={{
+    light: "/img/web-app/light/login.png",
+    dark: "/img/web-app/dark/login.png",
+  }}
+/>
+
+### Workspace Selector
+
+In server mode, the workspace rail on the left lets you switch between workspaces. Each workspace is an isolated environment with its own projects, translation memory, and terminology.
+
+<ThemedImage
+  alt="Workspace rail with multiple workspaces"
+  sources={{
+    light: "/img/web-app/light/workspace-rail.png",
+    dark: "/img/web-app/dark/workspace-rail.png",
+  }}
+/>
+
+### Project Dashboard
+
+The dashboard shows all projects in the active workspace. Each card displays the project name, source and target languages, and file count. Create new projects or open existing ones from here.
+
+<ThemedImage
+  alt="Project dashboard with project cards"
+  sources={{
+    light: "/img/web-app/light/dashboard.png",
+    dark: "/img/web-app/dark/dashboard.png",
+  }}
+/>
+
+### Project View
+
+The project view shows files in the selected project with format detection, word counts, and block counts. Upload new files by dragging them onto the drop zone, or click "Add Files" to browse. Access Translation Memory and Terminology from the header buttons.
+
+<ThemedImage
+  alt="Project view with file list and upload zone"
+  sources={{
+    light: "/img/web-app/light/project-view.png",
+    dark: "/img/web-app/dark/project-view.png",
+  }}
+/>
+
+### Translation Editor
+
+The editor shows source and target text side by side with a toolbar for translation actions. Four layout modes are available: Grid (table view), Focus (single-block editing), Split Horizontal, and Split Vertical. A color-coded progress bar shows translation status across not-started, draft, translated, and reviewed states.
+
+<ThemedImage
+  alt="Translation editor in grid layout"
+  sources={{
+    light: "/img/web-app/light/editor.png",
+    dark: "/img/web-app/dark/editor.png",
+  }}
+/>
+
+### Editor Focus View
+
+Focus mode provides a single-block deep editing experience with full-width source and target panels. Navigate between blocks with keyboard shortcuts or the previous/next buttons.
+
+<ThemedImage
+  alt="Focus view with single-block editing"
+  sources={{
+    light: "/img/web-app/light/editor-focus.png",
+    dark: "/img/web-app/dark/editor-focus.png",
+  }}
+/>
+
+### Context Panel
+
+The context panel provides instant per-block linguistic resources. TM matches show source, target, score percentage, and match type with one-click apply. Terminology matches show source terms, target suggestions, domain, and lifecycle status.
+
+<ThemedImage
+  alt="Context panel showing TM matches and terminology"
+  sources={{
+    light: "/img/web-app/light/context-panel.png",
+    dark: "/img/web-app/dark/context-panel.png",
+  }}
+/>
+
+### Translation Memory Explorer
+
+The TM Explorer provides full access to the workspace translation memory. Browse, search, add, edit, and delete entries. Filter by source or target locale.
+
+<ThemedImage
+  alt="TM Explorer with search and filtering"
+  sources={{
+    light: "/img/web-app/light/tm-explorer.png",
+    dark: "/img/web-app/dark/tm-explorer.png",
+  }}
+/>
+
+### Terminology Explorer
+
+The terminology panel provides concept-oriented term management. Browse, search, add, edit, and delete concepts with multi-locale terms. Import from CSV or JSON, export the full termbase. Each term has a lifecycle status and domain classification.
+
+<ThemedImage
+  alt="Terminology explorer with concept browser"
+  sources={{
+    light: "/img/web-app/light/term-explorer.png",
+    dark: "/img/web-app/dark/term-explorer.png",
+  }}
+/>
+
+### Settings
+
+View workspace information including name, slug, description, and your role.
+
+<ThemedImage
+  alt="Settings page with workspace information"
+  sources={{
+    light: "/img/web-app/light/settings.png",
+    dark: "/img/web-app/dark/settings.png",
+  }}
+/>
+
+## Features
+
+- **Translation editor** with four layout modes (grid, focus, split-h, split-v), inline tag support, block status tracking, and keyboard navigation
+- **Context panel** with per-block TM matches and terminology suggestions, one-click apply
+- **Terminology management** with concept-oriented termbases, multi-locale terms, lifecycle statuses, CSV/JSON import/export
+- **Translation Memory** with content-aware tiered matching (generalized, structural, plain), fuzzy matching, and TM explorer
+- **AI translation** using configurable providers (Anthropic, OpenAI, Ollama)
+- **Machine translation** via DeepL, Google, Microsoft, ModernMT, or MyMemory
+- **Pseudo-translation** for layout testing and QA
+- **Multi-workspace** environments with role-based access control
+- **Single sign-on (SSO)** via GitHub, Google, LDAP, and other identity providers
+- **Format-agnostic** editing supporting HTML, XML, JSON, YAML, PO, Properties, Markdown, CSV, XLIFF, SRT, VTT, and more
+- **File export** in original format with translations applied
+- **Drag-and-drop** file upload with format auto-detection
+
+## Deployment Modes
+
+| Mode       | Command          | Auth               | Workspaces           | Use Case                        |
+| ---------- | ---------------- | ------------------ | -------------------- | ------------------------------- |
+| **Server** | `bowrain-server` | SSO                | Multiple, multi-user | Team/SaaS deployments           |
+| **Local**  | `kapi serve`  | None (single user) | Single, auto-created | Local development, personal use |
+
+In **local mode**, authentication is bypassed and a single workspace is created automatically. The workspace rail is hidden, giving you a streamlined single-workspace experience.
+
+In **server mode**, users authenticate through your identity provider and can belong to multiple workspaces with different roles. See [Self-Hosting](./self-hosting.md) for deployment instructions.
+
+## Comparison with Bowrain
+
+The web application and [Bowrain desktop app](/desktop/overview) share the same core components (translation editor, TM explorer, terminology explorer) through the `@neokapi/ui` shared package. Key differences:
+
+| Feature                    | Web App            | Bowrain Desktop    |
+| -------------------------- | ------------------ | ------------------ |
+| Translation editor         | Yes                | Yes                |
+| TM explorer                | Yes                | Yes                |
+| Terminology explorer       | Yes                | Yes                |
+| Context panel (TM + terms) | Yes                | Yes                |
+| AI/MT translation          | Yes                | Yes                |
+| Flow editor                | No                 | Yes                |
+| Document preview           | No                 | Yes (live preview) |
+| File open from disk        | Upload via browser | Native file dialog |
+| Multi-user                 | Yes (server mode)  | No (single user)   |
+| OIDC authentication        | Yes (server mode)  | No                 |
+| Multiple workspaces        | Yes (server mode)  | No                 |
+| Local project storage      | No                 | Yes                |
+| Offline use                | No                 | Yes                |

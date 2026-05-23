@@ -1,9 +1,10 @@
 # @neokapi/kapi-react-lint
 
 Authoring-time lint rules for [kapi-react](../kapi-react/README.md). The same
-rule objects run under **ESLint** and **oxlint** — oxlint's plugin API is
-ESLint v9 compatible, so you install one package and wire it into whichever
-linter you already use.
+rule objects run under **oxlint** (the primary target — rules are authored
+against `@oxlint/plugins` types) and **ESLint** (8.57+, 9, and 10). oxlint's
+plugin API is a strict subset of ESLint v9's, so you install one package and
+wire it into whichever linter you already use.
 
 kapi-react's build-time transform catches a lot, but some authoring mistakes
 only show up _after_ extraction:
@@ -36,6 +37,8 @@ vp install -D @neokapi/kapi-react-lint
 ```
 
 ## ESLint (flat config)
+
+Supported ESLint versions: **8.57+, 9, and 10** (flat config).
 
 ```js title="eslint.config.js"
 import { recommended } from "@neokapi/kapi-react-lint/eslint";

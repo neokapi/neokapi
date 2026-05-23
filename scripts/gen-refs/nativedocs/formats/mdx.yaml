@@ -1,0 +1,24 @@
+# Native reference doc for the built-in `mdx` format.
+# Schema source: core/formats/mdx/config.go (Config, forwards markdown params) + schema.go.
+# Reuses the markdown reader for prose; MDX-specific constructs are opaque.
+description: Extract and update translatable prose in MDX (.mdx) files while preserving JSX, ESM, and expressions.
+overview: |
+  The **MDX** format reads `.mdx` files — CommonMark Markdown extended with
+  JSX components, ESM `import`/`export` statements, and `{expression}` braces —
+  the authoring format of modern documentation and content sites (Docusaurus,
+  Next.js, Astro).
+
+  Translatable Markdown prose is extracted using the same machinery and
+  configuration as the Markdown format (paragraphs, headings, list items,
+  link/image text, inline emphasis). MDX-specific constructs — ESM statements,
+  JSX tags with their attributes and children, top-level `{expression}` blocks,
+  and GFM tables — are preserved byte-for-byte and never translated, with
+  component names, attribute values, import paths, and expressions left
+  untouched. Read→write reproduces real-world `.mdx` exactly when nothing is
+  translated; the reader self-verifies each prose region and falls back to
+  opaque preservation if a region would not round-trip byte-faithfully.
+parameters: {}
+processingNotes:
+  - Markdown prose is translatable; ESM, JSX (including children, in this version), expressions, and GFM tables are opaque and preserved verbatim.
+  - Configuration parameters mirror the Markdown format (e.g. frontmatter and code-block handling).
+  - Detection is by the unique `.mdx` extension.

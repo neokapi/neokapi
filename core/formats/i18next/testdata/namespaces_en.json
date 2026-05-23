@@ -1,0 +1,17 @@
+{
+  "common": {
+    "appName": "Acme Suite",
+    "actions": {
+      "save": "Save",
+      "cancel": "Cancel"
+    }
+  },
+  "home": {
+    "title": "Welcome to {{appName}}",
+    "greeting": "Hello, {{name}}!",
+    "lastLogin": "Last seen on {{date, datetime}}",
+    "footer": "$t(common.appName) — all rights reserved",
+    "body_html": "Read our <strong>terms</strong> before you continue.",
+    "tags": ["news", "updates"]
+  }
+}

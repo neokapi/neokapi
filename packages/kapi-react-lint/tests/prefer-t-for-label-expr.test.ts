@@ -1,10 +1,10 @@
 import { describe, it } from "vitest";
-import { ruleTester } from "./rule-tester.ts";
+import { run } from "./rule-tester.ts";
 import { rule } from "../src/rules/prefer-t-for-label-expr.ts";
 
 describe("prefer-t-for-label-expr", () => {
   it("valid + invalid cases", () => {
-    ruleTester.run("prefer-t-for-label-expr", rule, {
+    run("prefer-t-for-label-expr", rule, {
       valid: [
         // JSXText is extractable — no flag.
         { code: `const el = <div>Hello</div>;` },

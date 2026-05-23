@@ -1,4 +1,4 @@
-import type { Rule } from "eslint";
+import type { Rule, Node } from "@oxlint/plugins";
 
 /**
  * Flags `<p>{'Hello'}</p>` — a bare string literal inside a JSX
@@ -9,7 +9,7 @@ import type { Rule } from "eslint";
  * A developer who writes this usually meant `<p>Hello</p>` (trivially
  * extractable) or meant to interpolate with `t()` but forgot.
  */
-export const rule: Rule.RuleModule = {
+export const rule: Rule = {
   meta: {
     type: "problem",
     docs: {
@@ -26,7 +26,7 @@ export const rule: Rule.RuleModule = {
   },
   create(context) {
     return {
-      JSXExpressionContainer(node: Rule.Node) {
+      JSXExpressionContainer(node: Node) {
         const container = node as unknown as {
           parent: { type: string };
           expression: { type: string; value?: unknown; raw?: string };
@@ -41,7 +41,7 @@ export const rule: Rule.RuleModule = {
         if (typeof expr.value !== "string") return;
         if (expr.value.trim() === "") return;
         context.report({
-          node: node as unknown as Rule.Node,
+          node: node as unknown as Node,
           messageId: "bareLiteral",
           fix(fixer) {
             // Strip the quotes, keep the text. JSX text is literal

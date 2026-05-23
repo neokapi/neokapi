@@ -238,6 +238,25 @@ func BuiltInFlows() []FlowDefinition {
 				{ID: "e-tm-writer", Source: "tm-leverage", Target: "writer"},
 			},
 		},
+		{
+			ID:          "secure-translate",
+			Name:        "Secure Translate",
+			Description: "Redact sensitive content, AI-translate, then restore the originals locally",
+			Source:      registry.SourceBuiltIn,
+			Nodes: []FlowNode{
+				{ID: "reader", Type: NodeReader, Name: "auto", Label: "Input", Position: NodePosition{X: 0, Y: 100}},
+				{ID: "redact", Type: NodeTool, Name: "redact", Label: "Redact", Position: NodePosition{X: 250, Y: 100}},
+				{ID: "ai-translate", Type: NodeTool, Name: "ai-translate", Label: "AI Translate", Position: NodePosition{X: 500, Y: 100}},
+				{ID: "unredact", Type: NodeTool, Name: "unredact", Label: "Unredact", Position: NodePosition{X: 750, Y: 100}},
+				{ID: "writer", Type: NodeWriter, Name: "auto", Label: "Output", Position: NodePosition{X: 1000, Y: 100}},
+			},
+			Edges: []FlowEdge{
+				{ID: "e-reader-redact", Source: "reader", Target: "redact"},
+				{ID: "e-redact-translate", Source: "redact", Target: "ai-translate"},
+				{ID: "e-translate-unredact", Source: "ai-translate", Target: "unredact"},
+				{ID: "e-unredact-writer", Source: "unredact", Target: "writer"},
+			},
+		},
 	}
 }
 

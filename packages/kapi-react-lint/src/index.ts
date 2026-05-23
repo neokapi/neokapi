@@ -1,4 +1,4 @@
-import type { Rule } from "eslint";
+import type { Rule } from "@oxlint/plugins";
 import { rule as tLiteralFirstArg } from "./rules/t-literal-first-arg.ts";
 import { rule as tNoConcat } from "./rules/t-no-concat.ts";
 import { rule as noConcatInTranslatableAttr } from "./rules/no-concat-in-translatable-attr.ts";
@@ -30,7 +30,7 @@ export const plugin = {
     "no-ternary-literals-in-jsx-child": noTernaryLiteralsInJsxChild,
     "prefer-t-for-label-props": preferTForLabelProps,
     "prefer-t-for-label-expr": preferTForLabelExpr,
-  } satisfies Record<string, Rule.RuleModule>,
+  } satisfies Record<string, Rule>,
 } as const;
 
 export default plugin;

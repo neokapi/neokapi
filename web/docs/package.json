@@ -15,10 +15,10 @@
     "typecheck": "vpx tsc"
   },
   "dependencies": {
-    "@docusaurus/core": "3.10.0",
-    "@docusaurus/plugin-client-redirects": "3.10.0",
-    "@docusaurus/preset-classic": "3.10.0",
-    "@docusaurus/theme-mermaid": "3.10.0",
+    "@docusaurus/core": "3.10.1",
+    "@docusaurus/plugin-client-redirects": "3.10.1",
+    "@docusaurus/preset-classic": "3.10.1",
+    "@docusaurus/theme-mermaid": "3.10.1",
     "@mdx-js/react": "^3.1.1",
     "@neokapi/docs-shared": "file:../../packages/docs-shared",
     "@neokapi/flow-editor": "*",

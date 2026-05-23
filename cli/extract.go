@@ -65,7 +65,45 @@ Examples:
 	cmd.Flags().String("xliff-version", "", "XLIFF 2.x version to emit (2.0, 2.1, 2.2; default 2.2)")
 	cmd.Flags().Bool("no-tm", false, "skip TM pre-fill on extract")
 	cmd.Flags().String("out-dir", "out", "directory for emitted bilingual files (relative to project)")
+	cmd.Flags().Bool("redact", false, "replace sensitive content with placeholders; originals stay in a local vault for merge")
+	cmd.Flags().String("redact-rules", "", "path to a redaction rules YAML file (implies --redact)")
 	return cmd
+}
+
+// resolveRedaction determines the effective redaction spec for an extract
+// run, combining the project recipe's defaults with the --redact /
+// --redact-rules flags. Returns nil when redaction is off.
+func resolveRedaction(cmd *cobra.Command, ctx *project.ProjectContext, rootDir string) (*project.RedactionSpec, error) {
+	redactFlag, _ := cmd.Flags().GetBool("redact")
+	redactRules, _ := cmd.Flags().GetString("redact-rules")
+
+	var base *project.RedactionSpec
+	if ctx.Project != nil {
+		base = ctx.Project.Defaults.Redaction
+	}
+	enabled := redactFlag || redactRules != "" || (base != nil && base.Enabled)
+	if !enabled {
+		return nil, nil
+	}
+
+	eff := project.RedactionSpec{}
+	if base != nil {
+		eff = *base
+	}
+	eff.Enabled = true
+	if redactRules != "" {
+		eff.Rules = redactRules
+	}
+	if len(eff.Detectors) == 0 {
+		eff.Detectors = []string{"rules"}
+	}
+	if eff.Rules == "" {
+		return nil, errors.New("extract: redaction enabled but no rules file — set defaults.redaction.rules in the recipe or pass --redact-rules")
+	}
+	if !filepath.IsAbs(eff.Rules) {
+		eff.Rules = filepath.Join(rootDir, eff.Rules)
+	}
+	return &eff, nil
 }
 
 // Supported extract output formats (AD-017). PO is tracked as a
@@ -159,6 +197,17 @@ func (a *App) runExtract(cmd *cobra.Command) error {
 		return err
 	}
 
+	redactionSpec, err := resolveRedaction(cmd, ctx, layout.Root)
+	if err != nil {
+		return err
+	}
+	redactionVault := ""
+	if redactionSpec != nil {
+		redactionVault = layout.RedactionSidecarPath(batchID)
+		fmt.Fprintf(cmd.OutOrStdout(), "Redaction enabled (rules=%s) — originals stay in %s\n",
+			redactionSpec.Rules, redactionVault)
+	}
+
 	var tm sievepen.TranslationMemory
 	if !noTM {
 		tmPath := filepath.Join(layout.StateDir, "tm.db")
@@ -212,17 +261,19 @@ func (a *App) runExtract(cmd *cobra.Command) error {
 			}
 
 			ef, err := a.extractOne(cmd.Context(), extractTask{
-				ctx:          ctx,
-				layout:       layout,
-				source:       src,
-				sourceHash:   sourceHash,
-				targetLocale: tgt,
-				outputPath:   outPath,
-				batchDir:     batchDir,
-				batchID:      batchID,
-				format:       format,
-				xliffVersion: xliffVersion,
-				tm:           tm,
+				ctx:            ctx,
+				layout:         layout,
+				source:         src,
+				sourceHash:     sourceHash,
+				targetLocale:   tgt,
+				outputPath:     outPath,
+				batchDir:       batchDir,
+				batchID:        batchID,
+				format:         format,
+				xliffVersion:   xliffVersion,
+				tm:             tm,
+				redaction:      redactionSpec,
+				redactionVault: redactionVault,
 			})
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "extract: %s → %s: %v\n", src.Relative, tgt, err)
@@ -279,6 +330,11 @@ type extractTask struct {
 	format       string // xliff2 | po
 	xliffVersion string
 	tm           sievepen.TranslationMemory
+
+	// redaction, when non-nil, redacts source blocks before TM pre-fill and
+	// write; originals are persisted to redactionVault for merge.
+	redaction      *project.RedactionSpec
+	redactionVault string
 }
 
 // extractOne processes a single source file for a single target locale:
@@ -354,6 +410,17 @@ func (a *App) extractOne(ctx context.Context, task extractTask) (project.Extract
 	}
 	if skelStore != nil {
 		_ = skelStore.Close()
+	}
+
+	// Redaction: replace sensitive source spans with protected placeholders
+	// before TM pre-fill and write, persisting the originals to the batch
+	// vault sidecar. Running before TM keeps the redacted text out of TM
+	// lookups (and thus out of pre-filled targets), so nothing sensitive
+	// reaches the XLIFF.
+	if task.redaction != nil {
+		if err := applyRedaction(blocks, task.redaction, task.layout.Root, task.redactionVault, task.ctx.SourceLocale); err != nil {
+			return project.ExtractionFile{}, fmt.Errorf("redaction: %w", err)
+		}
 	}
 
 	// Segmentation overlay: when the recipe opts in, run the SRX tool
@@ -534,6 +601,42 @@ func applyTMPrefill(tm sievepen.TranslationMemory, block *model.Block, source, t
 // block's source — the overlay path from AD-017 / #417. The tool is a
 // regular kapi tool.Tool but we call its block handler directly here to
 // avoid wiring a one-stage channel pipeline into the extract flow.
+// applyRedaction runs the redact tool over the source blocks in external
+// mode, writing originals to the batch vault sidecar at vaultPath. Rule paths
+// in the spec are resolved relative to rootDir.
+func applyRedaction(blocks []*model.Block, spec *project.RedactionSpec, rootDir, vaultPath string, sourceLocale model.LocaleID) error {
+	cfg := &tools.RedactConfig{
+		Detectors:    spec.Detectors,
+		Placeholder:  spec.Placeholder,
+		VaultPath:    vaultPath,
+		SourceLocale: sourceLocale,
+	}
+	if len(cfg.Detectors) == 0 {
+		cfg.Detectors = []string{tools.DetectRules}
+	}
+	if spec.Rules != "" {
+		if filepath.IsAbs(spec.Rules) {
+			cfg.RulesPath = spec.Rules
+		} else {
+			cfg.RulesPath = filepath.Join(rootDir, spec.Rules)
+		}
+	}
+	rt, err := tools.NewRedactTool(cfg)
+	if err != nil {
+		return err
+	}
+	for _, b := range blocks {
+		if rt.HandleBlockFn == nil {
+			break
+		}
+		part := &model.Part{Type: model.PartBlock, Resource: b}
+		if _, err := rt.HandleBlockFn(part); err != nil {
+			return err
+		}
+	}
+	return rt.Flush()
+}
+
 func applySegmentation(blocks []*model.Block, conf project.SegmentationDefaults) error {
 	cfg := &tools.SegmentationConfig{
 		SegmentSource: true,

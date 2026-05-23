@@ -1,4 +1,4 @@
-import type { Rule } from "eslint";
+import type { Rule, Node } from "@oxlint/plugins";
 import { hasTranslateNoAncestor } from "../shared/translate-no.ts";
 
 /**
@@ -17,7 +17,7 @@ import { hasTranslateNoAncestor } from "../shared/translate-no.ts";
  *   (computed values, `t()` calls, React elements).
  * - Elements with `translate="no"` on any ancestor.
  */
-export const rule: Rule.RuleModule = {
+export const rule: Rule = {
   meta: {
     type: "problem",
     docs: {
@@ -33,7 +33,7 @@ export const rule: Rule.RuleModule = {
   },
   create(context) {
     return {
-      JSXExpressionContainer(node: Rule.Node) {
+      JSXExpressionContainer(node: Node) {
         const container = node as unknown as {
           parent: unknown;
           expression: { type: string; consequent?: unknown; alternate?: unknown };
@@ -63,7 +63,7 @@ export const rule: Rule.RuleModule = {
               : summary(expr.alternate);
 
         context.report({
-          node: node as unknown as Rule.Node,
+          node: node as unknown as Node,
           messageId: "literalBranch",
           data: { text: shown },
         });

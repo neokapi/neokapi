@@ -125,6 +125,11 @@ updates:
     schedule:
       interval: weekly
     labels: [dependencies, docker, bowrain]
+    ignore:
+      # Track Node LTS for the web-builder stage; skip Current-line majors
+      # until they reach LTS (e.g. Node 26 → LTS Oct 2026). See PR #584.
+      - dependency-name: node
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: docker
     directory: /bowrain/docker/keycloak

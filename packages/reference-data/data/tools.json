@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-22T20:30:23Z",
+  "generatedAt": "2026-05-23T06:29:38Z",
   "kind": "tool",
   "entries": [
     {
@@ -2057,6 +2057,25 @@
             "source-language"
           ]
         }
+      },
+      "doc": {
+        "overview": "The Characters Checker step inspects the target of each text unit for character-level problems. It can detect patterns that commonly indicate encoding corruption (for example a UTF-8 file decoded as ISO-8859-1) and can validate that every target character is representable in a chosen charset, with an optional regular expression listing additional characters to allow. It expects filter events and passes them through unchanged, attaching the detected issues for a downstream consumer to report. It is one of the granular quality checks that the aggregate Quality Check step combines into a single pass.",
+        "limitations": [
+          "Corrupted-character detection recognises only common patterns and will not catch every possible encoding fault."
+        ],
+        "processingNotes": [
+          "Operates on filter events; events are forwarded unchanged and the detected issues are accumulated per document.",
+          "Delegates to the verification library's `CharactersChecker`; its step parameters are a subset of the full Quality Check / CheckMate configuration.",
+          "Corrupted-character detection and the allowed-characters check are enabled by default, while the charset validation (`checkCharacters`) is disabled by default; the default charset is `ISO-8859-1` and the extra-characters regex is empty.",
+          "Requires source and target locales; these are supplied by the pipeline rather than configured on the step."
+        ],
+        "examples": [
+          {
+            "title": "Detect corrupted characters and restrict the target to a charset",
+            "description": "Leaves corrupted-character detection on (catching mojibake from encoding mismatches) and enables the allowed-character check so any target character outside ISO-8859-1 — apart from those listed in `extraCharsAllowed` — is reported.",
+            "config": "```yaml\ncorruptedCharacters: true\ncheckAllowedCharacters: true\ncharset: \"ISO-8859-1\"\nextraCharsAllowed: \"€\"\n```"
+          }
+        ]
       }
     },
     {
@@ -2182,13 +2201,7 @@
           },
           "keepCrNlIntact": {
             "description": "Preserve CR and NL characters instead of normalizing them to spaces.",
-            "help": "Preserves carriage return (CR) and newline (NL) characters as-is during whitespace normalization.\n\nBy default, the step normalizes all whitespace (including CR/NL) to ASCII spaces. Enable this to keep line breaks in the text while still normalizing spaces and tabs.",
-            "dependsOn": [
-              {
-                "property": "normalizeQuotes",
-                "condition": "only meaningful when whitespace normalization is active (which is always on by default)"
-              }
-            ]
+            "help": "Preserves carriage return (CR) and newline (NL) characters as-is during whitespace normalization.\n\nBy default, the step normalizes all whitespace (including CR/NL) to ASCII spaces. Enable this to keep line breaks in the text while still normalizing spaces and tabs."
           },
           "matchRegexExpressions": {
             "description": "Mark segments matching built-in regular expressions for removal. This option is not currently used.",
@@ -2226,6 +2239,18 @@
           "All whitespace is normalized before any further processing — multiple spaces, tabs, etc. are replaced with a single space instance.",
           "CR and NL characters are also normalized to spaces by default unless `keepCrNlIntact` is enabled.",
           "Text units are only actually removed when `pruneTextUnit` is enabled, even if other options flag them for removal."
+        ],
+        "examples": [
+          {
+            "title": "Normalize quotes and whitespace only",
+            "description": "Tidy typographic quotes and collapse whitespace without removing any text units. Disabling the removal-oriented options keeps every segment in place while still cleaning quotes and spacing.",
+            "config": "```yaml\nnormalizeQuotes: true\ncheckCharacters: false\nmatchUserRegex: false\npruneTextUnit: false\n```"
+          },
+          {
+            "title": "Drop placeholder-only segments",
+            "description": "Flag segments matching a user-supplied pattern and actually remove them. `matchUserRegex` only marks text units for removal; `pruneTextUnit` must also be enabled for the marked units to be deleted.",
+            "config": "```yaml\nmatchUserRegex: true\nuserRegex: \"^\\\\{\\\\{[A-Z_]+\\\\}\\\\}$\"\npruneTextUnit: true\n```"
+          }
         ],
         "wikiUrl": "https://okapiframework.org/wiki/index.php/Cleanup_Step"
       }
@@ -2269,6 +2294,20 @@
             "source-language"
           ]
         }
+      },
+      "doc": {
+        "overview": "Counts the characters in text units whose top alternate translation is a `CONCORDANCE` match — a translation-memory concordance or phrase hit, typically covering only a word or term rather than a full segment. It is the character-counting counterpart of the Concordance Word Count Step, differing only in that it tallies characters rather than words.",
+        "limitations": [
+          "The Okapi source notes that, as of its writing, no leveraging step yet annotates segments with the `CONCORDANCE` match type, so in practice this counter typically reports zero unless an upstream component supplies such matches."
+        ],
+        "processingNotes": [
+          "Operates per segment: it inspects the first (top-ranked) `AltTranslation` on each target segment's `AltTranslationsAnnotation` and counts a segment only when that match type is exactly `CONCORDANCE`.",
+          "Counting is performed on the **source** text, not the target — the character total reflects the source volume leveraged at this match level.",
+          "Uses the GMX-V character counter; the only behavioural difference from the word-count variant is words versus characters.",
+          "Counts only translatable text units; empty text units and non-translatable ones are skipped.",
+          "Results are stored as annotations on filter events and aggregated to the configured levels (text unit, group, document, sub-document, batch item, batch); the step produces no output document of its own.",
+          "Belongs to the `OKAPI_CHARACTER_COUNTS` category group. The `CategoryResolver` keeps only the highest-ranked matching category per segment — `CONCORDANCE` is the lowest-ranked of the leveraging match categories, below `MT` and all TM-derived categories."
+        ]
       }
     },
     {
@@ -2310,6 +2349,20 @@
             "source-language"
           ]
         }
+      },
+      "doc": {
+        "overview": "Counts the words in text units whose top alternate translation is a `CONCORDANCE` match — a translation-memory concordance or phrase hit, typically covering only a word or term rather than a full segment. The count is recorded as a word-count metric in a `MetricsAnnotation` so that scoping and pricing steps can report concordance-level leverage as its own, lowest-confidence category.",
+        "limitations": [
+          "The Okapi source notes that, as of its writing, no leveraging step yet annotates segments with the `CONCORDANCE` match type, so in practice this counter typically reports zero unless an upstream component supplies such matches."
+        ],
+        "processingNotes": [
+          "Operates per segment: it inspects the first (top-ranked) `AltTranslation` on each target segment's `AltTranslationsAnnotation` and counts a segment only when that match type is exactly `CONCORDANCE`.",
+          "Counting is performed on the **source** text, not the target — the word total reflects the source volume leveraged at this match level.",
+          "Words are counted with the GMX-V word counter; the parallel character-count variant counts characters instead.",
+          "Counts only translatable text units; empty text units and non-translatable ones are skipped.",
+          "Results are stored as annotations on filter events and aggregated to the configured levels (text unit, group, document, sub-document, batch item, batch); the step produces no output document of its own.",
+          "Belongs to the `OKAPI_WORD_COUNTS` category group. The `CategoryResolver` keeps only the highest-ranked matching category per segment — `CONCORDANCE` is the lowest-ranked of the leveraging match categories, below `MT` and all TM-derived categories."
+        ]
       }
     },
     {
@@ -2396,6 +2449,15 @@
             "source-language"
           ]
         }
+      },
+      "doc": {
+        "overview": "Copies the source content into the target of a text unit when that target is missing or has no text. For each text unit whose source contains text, the step creates the target from the source (preserving segmentation) if no target exists, or sets the target content from the source if the target exists but is empty. Text units whose source has no text are left untouched, and existing non-empty targets are never overwritten. It expects filter events and passes them through unchanged apart from the targets it populates.",
+        "processingNotes": [
+          "A target is considered empty when it is absent or contains no text (codes and whitespace alone do not count as text).",
+          "When the target is absent it is created from the source as a copy of the segmented content; when present but empty its content is set from the source as a string.",
+          "Text units whose source has no text are skipped, and targets that already contain text are preserved.",
+          "Requires the target locale, which is supplied by the pipeline rather than configured on the step."
+        ]
       }
     },
     {
@@ -2507,6 +2569,18 @@
         "processingNotes": [
           "Operates on filter events — must be placed after a filter step in the pipeline.",
           "Requires both source and target languages to be set in the pipeline context."
+        ],
+        "examples": [
+          {
+            "title": "Seed targets with source content",
+            "description": "Create a target for each text unit, pre-filled with the source text and its properties. This is the common preparation before machine translation or TM leveraging that expects an existing target to write into.",
+            "config": "```yaml\ncopyContent: true\ncopyProperties: true\n```"
+          },
+          {
+            "title": "Create empty targets, skip non-translatable units",
+            "description": "Create empty target containers for translatable units only, leaving non-translatable units without a target. Disable content and property copying when a later step supplies the target text from scratch.",
+            "config": "```yaml\ncopyContent: false\ncopyProperties: false\ncreateOnNonTranslatable: false\n```"
+          }
         ],
         "wikiUrl": "https://okapiframework.org/wiki/index.php/Create_Target_Step"
       }
@@ -2709,6 +2783,18 @@
         "processingNotes": [
           "Non-segmented entries are passed through untouched.",
           "Text units flagged as non-translatable are passed through untouched."
+        ],
+        "examples": [
+          {
+            "title": "Rejoin segments before writing output",
+            "description": "Join the source and target segments of each text unit back into single content. Run this after translation and any segment-level processing, so the output document is written with whole paragraphs rather than per-sentence segments.",
+            "config": "```yaml\ndesegmentSource: true\ndesegmentTarget: true\n```"
+          },
+          {
+            "title": "Desegment and restore original code IDs",
+            "description": "When the upstream Segmentation step renumbered inline-code IDs per segment, enable `renumberCodes` so the joined content is rebuilt with a single original ID sequence. This option is only meaningful when at least one of `desegmentSource`/`desegmentTarget` is enabled.",
+            "config": "```yaml\ndesegmentSource: true\ndesegmentTarget: true\nrenumberCodes: true\n```"
+          }
         ],
         "wikiUrl": "https://okapiframework.org/wiki/index.php/Desegmentation_Step"
       }
@@ -3460,6 +3546,18 @@
           "Annotations are mapped back to Okapi inline annotations that can be consumed by any downstream pipeline steps.",
           "Requires both `source-language` and `target-language` to be set in the pipeline."
         ],
+        "examples": [
+          {
+            "title": "Annotate with the default public service",
+            "description": "Use the public IJS demo endpoint with the default batch size. Suitable for small English or Slovenian documents where the demo service's language support is sufficient.",
+            "config": "```yaml\nbaseUrl: http://aidemo.ijs.si/mlw/\n```"
+          },
+          {
+            "title": "Point at a private endpoint with a smaller batch",
+            "description": "Send to a self-hosted Enrycher instance and reduce the number of events buffered per request. Lowering `maxEvents` trades throughput for lower memory use, which helps with large documents.",
+            "config": "```yaml\nbaseUrl: https://enrycher.internal.example.org/mlw/\nmaxEvents: 5\n```"
+          }
+        ],
         "wikiUrl": "https://okapiframework.org/wiki/index.php/Enrycher_Step"
       }
     },
@@ -3502,6 +3600,14 @@
             "source-language"
           ]
         }
+      },
+      "doc": {
+        "overview": "Tallies character counts for the text units whose leveraged top match was categorised as `EXACT_DOCUMENT_CONTEXT` — an exact match that originates from a repeated segment elsewhere in the same document (an internal repetition rather than a previous-version match; compare `EXACT_PREVIOUS_VERSION`). It reads the `AltTranslationsAnnotation` left by a leveraging step and, for each target segment or text container whose highest-ranked match is of this type, counts the characters in the corresponding source. The counts are stored as `EXACT_DOCUMENT_CONTEXT_CHARACTERS` metrics annotations on the segment, text container, and aggregate resources, and consumed downstream by the Scoping Report Step. This is the character-count variant; the word-count variant counts words instead of characters.",
+        "processingNotes": [
+          "Operates on the categorised top match only — the first entry of each segment's `AltTranslationsAnnotation` must have match type `EXACT_DOCUMENT_CONTEXT`.",
+          "Counts are computed over the source content; only translatable text units are counted.",
+          "Where a category group ranks several matches, the `CategoryResolver` keeps only the highest-ranked category and removes lower-ranked overlapping counts so totals are not double-counted."
+        ]
       }
     },
     {
@@ -3543,6 +3649,14 @@
             "source-language"
           ]
         }
+      },
+      "doc": {
+        "overview": "Tallies word counts for the text units whose leveraged top match was categorised as `EXACT_DOCUMENT_CONTEXT` — an exact match that originates from a repeated segment elsewhere in the same document (an internal repetition rather than a previous-version match; compare `EXACT_PREVIOUS_VERSION`). It reads the `AltTranslationsAnnotation` left by a leveraging step and, for each target segment or text container whose highest-ranked match is of this type, counts the words in the corresponding source. The counts are stored as `EXACT_DOCUMENT_CONTEXT` metrics annotations on the segment, text container, and aggregate resources, and consumed downstream by the Scoping Report Step. This is the word-count variant; the character-count variant counts characters instead of words.",
+        "processingNotes": [
+          "Operates on the categorised top match only — the first entry of each segment's `AltTranslationsAnnotation` must have match type `EXACT_DOCUMENT_CONTEXT`.",
+          "Counts are computed over the source content; only translatable text units are counted.",
+          "Where a category group ranks several matches, the `CategoryResolver` keeps only the highest-ranked category and removes lower-ranked overlapping counts so totals are not double-counted."
+        ]
       }
     },
     {
@@ -3584,6 +3698,14 @@
             "source-language"
           ]
         }
+      },
+      "doc": {
+        "overview": "Tallies character counts for the text units whose leveraged top match was categorised as `EXACT_LOCAL_CONTEXT` — an exact match in which a small number of segments immediately before and/or after the segment also match, so the surrounding local context is confirmed. It reads the `AltTranslationsAnnotation` left by a leveraging step and, for each target segment or text container whose highest-ranked match is of this type, counts the characters in the corresponding source. The counts are stored as `EXACT_LOCAL_CONTEXT_CHARACTERS` metrics annotations on the segment, text container, and aggregate resources, and consumed downstream by the Scoping Report Step. This is the character-count variant; the word-count variant counts words instead of characters.",
+        "processingNotes": [
+          "Operates on the categorised top match only — the first entry of each segment's `AltTranslationsAnnotation` must have match type `EXACT_LOCAL_CONTEXT`.",
+          "Counts are computed over the source content; only translatable text units are counted.",
+          "Where a category group ranks several matches, the `CategoryResolver` keeps only the highest-ranked category and removes lower-ranked overlapping counts so totals are not double-counted."
+        ]
       }
     },
     {
@@ -3625,6 +3747,14 @@
             "source-language"
           ]
         }
+      },
+      "doc": {
+        "overview": "Tallies word counts for the text units whose leveraged top match was categorised as `EXACT_LOCAL_CONTEXT` — an exact match in which a small number of segments immediately before and/or after the segment also match, so the surrounding local context is confirmed. It reads the `AltTranslationsAnnotation` left by a leveraging step and, for each target segment or text container whose highest-ranked match is of this type, counts the words in the corresponding source. The counts are stored as `EXACT_LOCAL_CONTEXT` metrics annotations on the segment, text container, and aggregate resources, and consumed downstream by the Scoping Report Step. This is the word-count variant; the character-count variant counts characters instead of words.",
+        "processingNotes": [
+          "Operates on the categorised top match only — the first entry of each segment's `AltTranslationsAnnotation` must have match type `EXACT_LOCAL_CONTEXT`.",
+          "Counts are computed over the source content; only translatable text units are counted.",
+          "Where a category group ranks several matches, the `CategoryResolver` keeps only the highest-ranked category and removes lower-ranked overlapping counts so totals are not double-counted."
+        ]
       }
     },
     {
@@ -3666,6 +3796,14 @@
             "source-language"
           ]
         }
+      },
+      "doc": {
+        "overview": "Tallies character counts for the text units whose leveraged top match was categorised as `EXACT` — text and inline codes matched exactly. It reads the `AltTranslationsAnnotation` left by a leveraging step (such as TM leveraging), and for each target segment or text container whose highest-ranked match is of this type it counts the characters in the corresponding source. The counts are stored as `EXACT_CHARACTERS` metrics annotations on the segment, text container, and aggregate resources, and consumed downstream by the Scoping Report Step. This is the character-count variant; the word-count variant counts words instead of characters.",
+        "processingNotes": [
+          "Operates on the categorised top match only — the first entry of each segment's `AltTranslationsAnnotation` must have match type `EXACT`.",
+          "Counts are computed over the source content; only translatable text units are counted.",
+          "Where a category group ranks several matches, the `CategoryResolver` keeps only the highest-ranked category and removes lower-ranked overlapping counts so totals are not double-counted."
+        ]
       }
     },
     {
@@ -3707,6 +3845,14 @@
             "source-language"
           ]
         }
+      },
+      "doc": {
+        "overview": "Tallies word counts for the text units whose leveraged top match was categorised as `EXACT` — text and inline codes matched exactly. It reads the `AltTranslationsAnnotation` left by a leveraging step (such as TM leveraging), and for each target segment or text container whose highest-ranked match is of this type it counts the words in the corresponding source. The counts are stored as `EXACT` metrics annotations on the segment, text container, and aggregate resources, and consumed downstream by the Scoping Report Step. This is the word-count variant; the character-count variant counts characters instead of words.",
+        "processingNotes": [
+          "Operates on the categorised top match only — the first entry of each segment's `AltTranslationsAnnotation` must have match type `EXACT`.",
+          "Counts are computed over the source content; only translatable text units are counted.",
+          "Where a category group ranks several matches, the `CategoryResolver` keeps only the highest-ranked category and removes lower-ranked overlapping counts so totals are not double-counted."
+        ]
       }
     },
     {
@@ -3748,6 +3894,14 @@
             "source-language"
           ]
         }
+      },
+      "doc": {
+        "overview": "Tallies character counts for the text units whose leveraged top match was categorised as `EXACT_PREVIOUS_VERSION` — an exact match originating specifically from the immediately preceding version of the same document (for example, when leveraging v4 the match must come from v3, not v2 or v1). It reads the `AltTranslationsAnnotation` left by a leveraging step and, for each target segment or text container whose highest-ranked match is of this type, counts the characters in the corresponding source. The counts are stored as `EXACT_PREVIOUS_VERSION_CHARACTERS` metrics annotations on the segment, text container, and aggregate resources, and consumed downstream by the Scoping Report Step. This is the character-count variant; the word-count variant counts words instead of characters.",
+        "processingNotes": [
+          "Operates on the categorised top match only — the first entry of each segment's `AltTranslationsAnnotation` must have match type `EXACT_PREVIOUS_VERSION`.",
+          "Counts are computed over the source content; only translatable text units are counted.",
+          "Where a category group ranks several matches, the `CategoryResolver` keeps only the highest-ranked category and removes lower-ranked overlapping counts so totals are not double-counted."
+        ]
       }
     },
     {
@@ -3789,6 +3943,14 @@
             "source-language"
           ]
         }
+      },
+      "doc": {
+        "overview": "Tallies word counts for the text units whose leveraged top match was categorised as `EXACT_PREVIOUS_VERSION` — an exact match originating specifically from the immediately preceding version of the same document (for example, when leveraging v4 the match must come from v3, not v2 or v1). It reads the `AltTranslationsAnnotation` left by a leveraging step and, for each target segment or text container whose highest-ranked match is of this type, counts the words in the corresponding source. The counts are stored as `EXACT_PREVIOUS_VERSION` metrics annotations on the segment, text container, and aggregate resources, and consumed downstream by the Scoping Report Step. This is the word-count variant; the character-count variant counts characters instead of words.",
+        "processingNotes": [
+          "Operates on the categorised top match only — the first entry of each segment's `AltTranslationsAnnotation` must have match type `EXACT_PREVIOUS_VERSION`.",
+          "Counts are computed over the source content; only translatable text units are counted.",
+          "Where a category group ranks several matches, the `CategoryResolver` keeps only the highest-ranked category and removes lower-ranked overlapping counts so totals are not double-counted."
+        ]
       }
     },
     {
@@ -3830,6 +3992,14 @@
             "source-language"
           ]
         }
+      },
+      "doc": {
+        "overview": "Tallies character counts for the text units whose leveraged top match was categorised as `EXACT_REPAIRED` — text and codes that match exactly only after some automated repair was applied to the candidate (for example number replacement, code repair, capitalisation, or punctuation adjustment). It reads the `AltTranslationsAnnotation` left by a leveraging step and, for each target segment or text container whose highest-ranked match is of this type, counts the characters in the corresponding source. The counts are stored as `EXACT_REPAIRED_CHARACTERS` metrics annotations on the segment, text container, and aggregate resources, and consumed downstream by the Scoping Report Step. This is the character-count variant; the word-count variant counts words instead of characters.",
+        "processingNotes": [
+          "Operates on the categorised top match only — the first entry of each segment's `AltTranslationsAnnotation` must have match type `EXACT_REPAIRED`.",
+          "Counts are computed over the source content; only translatable text units are counted.",
+          "Where a category group ranks several matches, the `CategoryResolver` keeps only the highest-ranked category and removes lower-ranked overlapping counts so totals are not double-counted."
+        ]
       }
     },
     {
@@ -3871,6 +4041,14 @@
             "source-language"
           ]
         }
+      },
+      "doc": {
+        "overview": "Tallies word counts for the text units whose leveraged top match was categorised as `EXACT_REPAIRED` — text and codes that match exactly only after some automated repair was applied to the candidate (for example number replacement, code repair, capitalisation, or punctuation adjustment). It reads the `AltTranslationsAnnotation` left by a leveraging step and, for each target segment or text container whose highest-ranked match is of this type, counts the words in the corresponding source. The counts are stored as `EXACT_REPAIRED` metrics annotations on the segment, text container, and aggregate resources, and consumed downstream by the Scoping Report Step. This is the word-count variant; the character-count variant counts characters instead of words.",
+        "processingNotes": [
+          "Operates on the categorised top match only — the first entry of each segment's `AltTranslationsAnnotation` must have match type `EXACT_REPAIRED`.",
+          "Counts are computed over the source content; only translatable text units are counted.",
+          "Where a category group ranks several matches, the `CategoryResolver` keeps only the highest-ranked category and removes lower-ranked overlapping counts so totals are not double-counted."
+        ]
       }
     },
     {
@@ -3912,6 +4090,14 @@
             "source-language"
           ]
         }
+      },
+      "doc": {
+        "overview": "Tallies character counts for the text units whose leveraged top match was categorised as `EXACT_STRUCTURAL` — an exact match in which the structural type of the segment (title, paragraph, list element, and so on) also matches that of the candidate. It reads the `AltTranslationsAnnotation` left by a leveraging step and, for each target segment or text container whose highest-ranked match is of this type, counts the characters in the corresponding source. The counts are stored as `EXACT_STRUCTURAL_CHARACTERS` metrics annotations on the segment, text container, and aggregate resources, and consumed downstream by the Scoping Report Step. This is the character-count variant; the word-count variant counts words instead of characters.",
+        "processingNotes": [
+          "Operates on the categorised top match only — the first entry of each segment's `AltTranslationsAnnotation` must have match type `EXACT_STRUCTURAL`.",
+          "Counts are computed over the source content; only translatable text units are counted.",
+          "Where a category group ranks several matches, the `CategoryResolver` keeps only the highest-ranked category and removes lower-ranked overlapping counts so totals are not double-counted."
+        ]
       }
     },
     {
@@ -3953,6 +4139,14 @@
             "source-language"
           ]
         }
+      },
+      "doc": {
+        "overview": "Tallies word counts for the text units whose leveraged top match was categorised as `EXACT_STRUCTURAL` — an exact match in which the structural type of the segment (title, paragraph, list element, and so on) also matches that of the candidate. It reads the `AltTranslationsAnnotation` left by a leveraging step and, for each target segment or text container whose highest-ranked match is of this type, counts the words in the corresponding source. The counts are stored as `EXACT_STRUCTURAL` metrics annotations on the segment, text container, and aggregate resources, and consumed downstream by the Scoping Report Step. This is the word-count variant; the character-count variant counts characters instead of words.",
+        "processingNotes": [
+          "Operates on the categorised top match only — the first entry of each segment's `AltTranslationsAnnotation` must have match type `EXACT_STRUCTURAL`.",
+          "Counts are computed over the source content; only translatable text units are counted.",
+          "Where a category group ranks several matches, the `CategoryResolver` keeps only the highest-ranked category and removes lower-ranked overlapping counts so totals are not double-counted."
+        ]
       }
     },
     {
@@ -3994,6 +4188,14 @@
             "source-language"
           ]
         }
+      },
+      "doc": {
+        "overview": "Tallies character counts for the text units whose leveraged top match was categorised as `EXACT_TEXT_ONLY` — the text matches exactly but one or more inline codes (and/or whitespace) differ, so the match holds on text alone rather than on text plus codes. It reads the `AltTranslationsAnnotation` left by a leveraging step and, for each target segment or text container whose highest-ranked match is of this type, counts the characters in the corresponding source. The counts are stored as `EXACT_TEXT_ONLY_CHARACTERS` metrics annotations on the segment, text container, and aggregate resources, and consumed downstream by the Scoping Report Step. This is the character-count variant; the word-count variant counts words instead of characters.",
+        "processingNotes": [
+          "Operates on the categorised top match only — the first entry of each segment's `AltTranslationsAnnotation` must have match type `EXACT_TEXT_ONLY`.",
+          "Counts are computed over the source content; only translatable text units are counted.",
+          "Where a category group ranks several matches, the `CategoryResolver` keeps only the highest-ranked category and removes lower-ranked overlapping counts so totals are not double-counted."
+        ]
       }
     },
     {
@@ -4035,6 +4237,14 @@
             "source-language"
           ]
         }
+      },
+      "doc": {
+        "overview": "Tallies word counts for the text units whose leveraged top match was categorised as `EXACT_TEXT_ONLY` — the text matches exactly but one or more inline codes (and/or whitespace) differ, so the match holds on text alone rather than on text plus codes. It reads the `AltTranslationsAnnotation` left by a leveraging step and, for each target segment or text container whose highest-ranked match is of this type, counts the words in the corresponding source. The counts are stored as `EXACT_TEXT_ONLY` metrics annotations on the segment, text container, and aggregate resources, and consumed downstream by the Scoping Report Step. This is the word-count variant; the character-count variant counts characters instead of words.",
+        "processingNotes": [
+          "Operates on the categorised top match only — the first entry of each segment's `AltTranslationsAnnotation` must have match type `EXACT_TEXT_ONLY`.",
+          "Counts are computed over the source content; only translatable text units are counted.",
+          "Where a category group ranks several matches, the `CategoryResolver` keeps only the highest-ranked category and removes lower-ranked overlapping counts so totals are not double-counted."
+        ]
       }
     },
     {
@@ -4076,6 +4286,14 @@
             "source-language"
           ]
         }
+      },
+      "doc": {
+        "overview": "Tallies character counts for the text units whose leveraged top match was categorised as `EXACT_TEXT_ONLY_PREVIOUS_VERSION` — an `EXACT_TEXT_ONLY` match (text matches exactly, codes may differ) that additionally comes from a previous version of the same document. It reads the `AltTranslationsAnnotation` left by a leveraging step and, for each target segment or text container whose highest-ranked match is of this type, counts the characters in the corresponding source. The counts are stored as `EXACT_TEXT_ONLY_PREVIOUS_VERSION_CHARACTERS` metrics annotations on the segment, text container, and aggregate resources, and consumed downstream by the Scoping Report Step. This is the character-count variant; the word-count variant counts words instead of characters.",
+        "processingNotes": [
+          "Operates on the categorised top match only — the first entry of each segment's `AltTranslationsAnnotation` must have match type `EXACT_TEXT_ONLY_PREVIOUS_VERSION`.",
+          "Counts are computed over the source content; only translatable text units are counted.",
+          "Where a category group ranks several matches, the `CategoryResolver` keeps only the highest-ranked category and removes lower-ranked overlapping counts so totals are not double-counted."
+        ]
       }
     },
     {
@@ -4117,6 +4335,14 @@
             "source-language"
           ]
         }
+      },
+      "doc": {
+        "overview": "Tallies word counts for the text units whose leveraged top match was categorised as `EXACT_TEXT_ONLY_PREVIOUS_VERSION` — an `EXACT_TEXT_ONLY` match (text matches exactly, codes may differ) that additionally comes from a previous version of the same document. It reads the `AltTranslationsAnnotation` left by a leveraging step and, for each target segment or text container whose highest-ranked match is of this type, counts the words in the corresponding source. The counts are stored as `EXACT_TEXT_ONLY_PREVIOUS_VERSION` metrics annotations on the segment, text container, and aggregate resources, and consumed downstream by the Scoping Report Step. This is the word-count variant; the character-count variant counts characters instead of words.",
+        "processingNotes": [
+          "Operates on the categorised top match only — the first entry of each segment's `AltTranslationsAnnotation` must have match type `EXACT_TEXT_ONLY_PREVIOUS_VERSION`.",
+          "Counts are computed over the source content; only translatable text units are counted.",
+          "Where a category group ranks several matches, the `CategoryResolver` keeps only the highest-ranked category and removes lower-ranked overlapping counts so totals are not double-counted."
+        ]
       }
     },
     {
@@ -4158,6 +4384,14 @@
             "source-language"
           ]
         }
+      },
+      "doc": {
+        "overview": "Tallies character counts for the text units whose leveraged top match was categorised as `EXACT_TEXT_ONLY_UNIQUE_ID` — an `EXACT_TEXT_ONLY` match (text matches exactly, codes may differ) that additionally matches on a unique identifier, confirming it is the same segment by id. It reads the `AltTranslationsAnnotation` left by a leveraging step and, for each target segment or text container whose highest-ranked match is of this type, counts the characters in the corresponding source. The counts are stored as `EXACT_TEXT_ONLY_UNIQUE_ID_CHARACTERS` metrics annotations on the segment, text container, and aggregate resources, and consumed downstream by the Scoping Report Step. This is the character-count variant; the word-count variant counts words instead of characters.",
+        "processingNotes": [
+          "Operates on the categorised top match only — the first entry of each segment's `AltTranslationsAnnotation` must have match type `EXACT_TEXT_ONLY_UNIQUE_ID`.",
+          "Counts are computed over the source content; only translatable text units are counted.",
+          "Where a category group ranks several matches, the `CategoryResolver` keeps only the highest-ranked category and removes lower-ranked overlapping counts so totals are not double-counted."
+        ]
       }
     },
     {
@@ -4199,6 +4433,14 @@
             "source-language"
           ]
         }
+      },
+      "doc": {
+        "overview": "Tallies word counts for the text units whose leveraged top match was categorised as `EXACT_TEXT_ONLY_UNIQUE_ID` — an `EXACT_TEXT_ONLY` match (text matches exactly, codes may differ) that additionally matches on a unique identifier, confirming it is the same segment by id. It reads the `AltTranslationsAnnotation` left by a leveraging step and, for each target segment or text container whose highest-ranked match is of this type, counts the words in the corresponding source. The counts are stored as `EXACT_TEXT_ONLY_UNIQUE_ID` metrics annotations on the segment, text container, and aggregate resources, and consumed downstream by the Scoping Report Step. This is the word-count variant; the character-count variant counts characters instead of words.",
+        "processingNotes": [
+          "Operates on the categorised top match only — the first entry of each segment's `AltTranslationsAnnotation` must have match type `EXACT_TEXT_ONLY_UNIQUE_ID`.",
+          "Counts are computed over the source content; only translatable text units are counted.",
+          "Where a category group ranks several matches, the `CategoryResolver` keeps only the highest-ranked category and removes lower-ranked overlapping counts so totals are not double-counted."
+        ]
       }
     },
     {
@@ -4238,6 +4480,14 @@
             "source-language"
           ]
         }
+      },
+      "doc": {
+        "overview": "Tallies character counts for the text units whose leveraged top match was categorised as `EXACT_UNIQUE_ID` — an `EXACT` match (text and codes match exactly) that additionally matches on a unique identifier, confirming it is the same segment by id. It reads the `AltTranslationsAnnotation` left by a leveraging step and, for each target segment or text container whose highest-ranked match is of this type, counts the characters in the corresponding source. The counts are stored as `EXACT_UNIQUE_ID_CHARACTERS` metrics annotations on the segment, text container, and aggregate resources, and consumed downstream by the Scoping Report Step. This is the character-count variant; the word-count variant counts words instead of characters.",
+        "processingNotes": [
+          "Operates on the categorised top match only — the first entry of each segment's `AltTranslationsAnnotation` must have match type `EXACT_UNIQUE_ID`.",
+          "Counts are computed over the source content; only translatable text units are counted.",
+          "Where a category group ranks several matches, the `CategoryResolver` keeps only the highest-ranked category and removes lower-ranked overlapping counts so totals are not double-counted."
+        ]
       }
     },
     {
@@ -4277,6 +4527,107 @@
             "source-language"
           ]
         }
+      },
+      "doc": {
+        "overview": "Tallies word counts for the text units whose leveraged top match was categorised as `EXACT_UNIQUE_ID` — an `EXACT` match (text and codes match exactly) that additionally matches on a unique identifier, confirming it is the same segment by id. It reads the `AltTranslationsAnnotation` left by a leveraging step and, for each target segment or text container whose highest-ranked match is of this type, counts the words in the corresponding source. The counts are stored as `EXACT_UNIQUE_ID` metrics annotations on the segment, text container, and aggregate resources, and consumed downstream by the Scoping Report Step. This is the word-count variant; the character-count variant counts characters instead of words.",
+        "processingNotes": [
+          "Operates on the categorised top match only — the first entry of each segment's `AltTranslationsAnnotation` must have match type `EXACT_UNIQUE_ID`.",
+          "Counts are computed over the source content; only translatable text units are counted.",
+          "Where a category group ranks several matches, the `CategoryResolver` keeps only the highest-ranked category and removes lower-ranked overlapping counts so totals are not double-counted."
+        ]
+      }
+    },
+    {
+      "id": "external-command",
+      "source": "okapi",
+      "kind": "tool",
+      "displayName": "External Command",
+      "description": "Execute an external command line.",
+      "category": "pipeline",
+      "inputs": [
+        "block"
+      ],
+      "outputs": [
+        "data"
+      ],
+      "requires": [
+        "target-language",
+        "source-language"
+      ],
+      "schema": {
+        "$id": "external-command",
+        "title": "External Command",
+        "type": "object",
+        "description": "Execute an external command line.",
+        "properties": {
+          "command": {
+            "type": "string",
+            "default": "",
+            "title": "Command line",
+            "description": "Command path to execute",
+            "ui:widget": "text",
+            "ui:layout": {
+              "vertical": true
+            }
+          },
+          "timeout": {
+            "type": "integer",
+            "default": -1,
+            "title": "Timeout",
+            "description": "Timeout in seconds after which the command is cancelled (use -1 for no timeout)",
+            "ui:widget": "text"
+          }
+        },
+        "toolMeta": {
+          "displayName": "External Command",
+          "category": "pipeline",
+          "description": "Execute an external command line.",
+          "outputs": [
+            "data"
+          ],
+          "requires": [
+            "target-language",
+            "source-language"
+          ],
+          "inputs": [
+            "block"
+          ]
+        }
+      },
+      "doc": {
+        "overview": "This step runs a given external command on a raw document. It takes a raw document as input, executes the specified command line (with variable substitution for paths and locale information), and sends the resulting raw document downstream. The command must reference `${inputPath}` and `${outputPath}` to read and write the document.",
+        "parameters": {
+          "command": {
+            "help": "The command line to execute. Must reference `${inputPath}` and `${outputPath}` so the step knows where to read and write the document.\n\nAvailable variables (case-sensitive):\n\n| Variable | Description | Example |\n|---|---|---|\n| `${inputPath}` | Full path of the input document | |\n| `${outputPath}` | Full path of the output document | |\n| `${srcLangName}` | English name of source language | `de-ch` → `German` |\n| `${trgLangName}` | English name of target language | `ja-jp` → `Japanese` |\n| `${srcLang}` | Language code of source locale | `de-ch` → `de` |\n| `${trgLang}` | Language code of target locale | `ja-jp` → `ja` |\n| `${srcBCP47}` | BCP-47 tag of source locale | `de-CH` → `de-CH` |\n| `${trgBCP47}` | BCP-47 tag of target locale | `ja-JP` → `ja-JP` |\n| `${rootDir}` | Root directory for the project/batch | In Rainbow: the parameters folder |",
+            "values": "A shell command string with `${variable}` placeholders. Variable names are **case-sensitive**.",
+            "notes": [
+              "The command **must** use `${inputPath}` and `${outputPath}` to correctly read input and produce output.",
+              "Variable names are case-sensitive — `${inputpath}` will not work."
+            ],
+            "examples": [
+              "`cmd /C \"sort ${inputPath} /O ${outputPath}\"` — Windows command that sorts the input file and writes the result to the output path"
+            ]
+          },
+          "timeout": {
+            "help": "Number of seconds to wait for the command to complete before cancelling it. Use `-1` to let the command run indefinitely.",
+            "values": "Integer seconds, or `-1` for no timeout."
+          }
+        },
+        "limitations": [
+          "None known."
+        ],
+        "processingNotes": [
+          "The step operates on **raw documents** — it does not parse or segment content. The external command receives the file as-is and must produce a complete output file.",
+          "The `${srcBCP47}` and `${trgBCP47}` variables were introduced in milestone M37."
+        ],
+        "examples": [
+          {
+            "title": "Sort file contents (Windows)",
+            "description": "Uses the Windows `sort` command to sort the lines of the input document and write the sorted result to the output path.",
+            "config": "```yaml\ncommand: 'cmd /C \"sort ${inputPath} /O ${outputPath}\"'\ntimeout: -1\n```"
+          }
+        ],
+        "wikiUrl": "https://okapiframework.org/wiki/index.php/External_Command_Step"
       }
     },
     {
@@ -4430,99 +4781,6 @@
             "config": "command: transform\nargs: [\"--text\", \"${source}\"]\napplySource: true\nsendAsStdin: false\n"
           }
         ]
-      }
-    },
-    {
-      "id": "external-command",
-      "source": "okapi",
-      "kind": "tool",
-      "displayName": "External Command",
-      "description": "Execute an external command line.",
-      "category": "pipeline",
-      "inputs": [
-        "block"
-      ],
-      "outputs": [
-        "data"
-      ],
-      "requires": [
-        "target-language",
-        "source-language"
-      ],
-      "schema": {
-        "$id": "external-command",
-        "title": "External Command",
-        "type": "object",
-        "description": "Execute an external command line.",
-        "properties": {
-          "command": {
-            "type": "string",
-            "default": "",
-            "title": "Command line",
-            "description": "Command path to execute",
-            "ui:widget": "text",
-            "ui:layout": {
-              "vertical": true
-            }
-          },
-          "timeout": {
-            "type": "integer",
-            "default": -1,
-            "title": "Timeout",
-            "description": "Timeout in seconds after which the command is cancelled (use -1 for no timeout)",
-            "ui:widget": "text"
-          }
-        },
-        "toolMeta": {
-          "displayName": "External Command",
-          "category": "pipeline",
-          "description": "Execute an external command line.",
-          "outputs": [
-            "data"
-          ],
-          "requires": [
-            "target-language",
-            "source-language"
-          ],
-          "inputs": [
-            "block"
-          ]
-        }
-      },
-      "doc": {
-        "overview": "This step runs a given external command on a raw document. It takes a raw document as input, executes the specified command line (with variable substitution for paths and locale information), and sends the resulting raw document downstream. The command must reference `${inputPath}` and `${outputPath}` to read and write the document.",
-        "parameters": {
-          "command": {
-            "help": "The command line to execute. Must reference `${inputPath}` and `${outputPath}` so the step knows where to read and write the document.\n\nAvailable variables (case-sensitive):\n\n| Variable | Description | Example |\n|---|---|---|\n| `${inputPath}` | Full path of the input document | |\n| `${outputPath}` | Full path of the output document | |\n| `${srcLangName}` | English name of source language | `de-ch` → `German` |\n| `${trgLangName}` | English name of target language | `ja-jp` → `Japanese` |\n| `${srcLang}` | Language code of source locale | `de-ch` → `de` |\n| `${trgLang}` | Language code of target locale | `ja-jp` → `ja` |\n| `${srcBCP47}` | BCP-47 tag of source locale | `de-CH` → `de-CH` |\n| `${trgBCP47}` | BCP-47 tag of target locale | `ja-JP` → `ja-JP` |\n| `${rootDir}` | Root directory for the project/batch | In Rainbow: the parameters folder |",
-            "values": "A shell command string with `${variable}` placeholders. Variable names are **case-sensitive**.",
-            "notes": [
-              "The command **must** use `${inputPath}` and `${outputPath}` to correctly read input and produce output.",
-              "Variable names are case-sensitive — `${inputpath}` will not work."
-            ],
-            "examples": [
-              "`cmd /C \"sort ${inputPath} /O ${outputPath}\"` — Windows command that sorts the input file and writes the result to the output path"
-            ]
-          },
-          "timeout": {
-            "help": "Number of seconds to wait for the command to complete before cancelling it. Use `-1` to let the command run indefinitely.",
-            "values": "Integer seconds, or `-1` for no timeout."
-          }
-        },
-        "limitations": [
-          "None known."
-        ],
-        "processingNotes": [
-          "The step operates on **raw documents** — it does not parse or segment content. The external command receives the file as-is and must produce a complete output file.",
-          "The `${srcBCP47}` and `${trgBCP47}` variables were introduced in milestone M37."
-        ],
-        "examples": [
-          {
-            "title": "Sort file contents (Windows)",
-            "description": "Uses the Windows `sort` command to sort the lines of the input document and write the sorted result to the output path.",
-            "config": "```yaml\ncommand: 'cmd /C \"sort ${inputPath} /O ${outputPath}\"'\ntimeout: -1\n```"
-          }
-        ],
-        "wikiUrl": "https://okapiframework.org/wiki/index.php/External_Command_Step"
       }
     },
     {
@@ -4789,6 +5047,15 @@
             "source-language"
           ]
         }
+      },
+      "doc": {
+        "overview": "The Filter Events Writer step turns a stream of filter events back into an output document or stream using a filter writer. It is the write counterpart of extraction: as start-document, text-unit, group, and other events flow past, the writer reconstructs the document in the original format, applying any translations carried on the events. Each event and its resource are forwarded to the next step so the pipeline can continue after the document has been written.",
+        "processingNotes": [
+          "On the start-document event the step obtains a filter writer — either a writer supplied to it directly, or one created from the filter configuration mapper and configuration id — and sets its target locale and output encoding.",
+          "Output is directed to a supplied output stream when present, otherwise to the path from the output URI; when writing to an existing file the step may prompt before overwriting unless prompting is suppressed by the execution context.",
+          "All event types between start-document and end-document are passed to the filter writer; on the end-document event the writer is closed.",
+          "Filter configuration, target locale, output encoding, output URI, and execution context are supplied by the pipeline rather than configured as step parameters."
+        ]
       }
     },
     {
@@ -5459,6 +5726,17 @@
             "source-language"
           ]
         }
+      },
+      "doc": {
+        "overview": "Counts the characters in text units whose top alternate translation is a plain fuzzy match — a `FUZZY` match type, where the leveraged result matches the source text and/or its inline codes only partially. The count is recorded as a character-count metric in a `MetricsAnnotation` so that scoping and pricing steps can report leveraged volume by match category. It is the character-counting counterpart of the Fuzzy Match Word Count Step, differing only in that it tallies characters rather than words.",
+        "processingNotes": [
+          "Operates per segment: it inspects the first (top-ranked) `AltTranslation` on each target segment's `AltTranslationsAnnotation` and counts a segment only when that match type is exactly `FUZZY`.",
+          "Counting is performed on the **source** text, not the target — the character total reflects the source volume that was leveraged at this match level.",
+          "Uses the GMX-V character counter; the only behavioural difference from the word-count variant is words versus characters.",
+          "Counts only translatable text units; empty text units and non-translatable ones are skipped.",
+          "Results are stored as annotations on filter events and aggregated to the configured levels (text unit, group, document, sub-document, batch item, batch); the step produces no output document of its own.",
+          "Belongs to the `OKAPI_CHARACTER_COUNTS` category group. When several categories in the same group match a segment, the `CategoryResolver` keeps only the highest-ranked one — `FUZZY` outranks `FUZZY_REPAIRED`, `PHRASE_ASSEMBLED`, `MT`, and `CONCORDANCE`, but is outranked by the unique-id, previous-version, and all exact categories."
+        ]
       }
     },
     {
@@ -5502,6 +5780,14 @@
             "source-language"
           ]
         }
+      },
+      "doc": {
+        "overview": "Tallies the [GMX-V 2.0](http://www.xtm-intl.com/manuals/gmx-v/GMX-V-2.0.html) `FuzzyMatchedCharacterCount` category — the character count for text units fuzzy matched against a leveraged translation memory database. It reads the `AltTranslationsAnnotation` left by a leveraging step and counts a target segment or text container only when its top match falls into the fuzzy band: `FUZZY`, `FUZZY_UNIQUE_ID`, `FUZZY_PREVIOUS_VERSION`, `FUZZY_REPAIRED`, or one of the text-only exact types (`EXACT_TEXT_ONLY`, `EXACT_TEXT_ONLY_UNIQUE_ID`, `EXACT_TEXT_ONLY_PREVIOUS_VERSION`, `EXACT_REPAIRED`). Characters are counted in the corresponding source in canonical form — whitespace and punctuation are excluded (hyphens and apostrophes inside words are kept) — and stored as GMX-V metrics annotations for downstream consumption (for example by the Scoping Report Step). This is the character-count counterpart of the fuzzy-match word-count step.",
+        "processingNotes": [
+          "Only the top-ranked alternate translation of each segment is examined; it qualifies when its match type is one of the fuzzy or text-only/repaired-exact types.",
+          "Counts are computed over the source content of qualifying units; only translatable text units are counted, and a target must be present.",
+          "Character counting excludes whitespace and punctuation per GMX-V, but retains hyphens and apostrophes that occur inside a word."
+        ]
       }
     },
     {
@@ -5543,6 +5829,17 @@
             "source-language"
           ]
         }
+      },
+      "doc": {
+        "overview": "Counts the words in text units whose top alternate translation is a plain fuzzy match — a `FUZZY` match type, where the leveraged result matches the source text and/or its inline codes only partially. The count is recorded as a word-count metric in a `MetricsAnnotation` so that scoping and pricing steps can report leveraged volume by match category. It is one of the categorized counters in the Word/Character Count family and is typically run after a leveraging step has annotated segments with their match types.",
+        "processingNotes": [
+          "Operates per segment: it inspects the first (top-ranked) `AltTranslation` on each target segment's `AltTranslationsAnnotation` and counts a segment only when that match type is exactly `FUZZY`.",
+          "Counting is performed on the **source** text, not the target — the word total reflects the source volume that was leveraged at this match level.",
+          "Words are counted with the GMX-V word counter; the parallel character-count variant counts characters instead.",
+          "Counts only translatable text units; empty text units and non-translatable ones are skipped.",
+          "Results are stored as annotations on filter events and aggregated to the configured levels (text unit, group, document, sub-document, batch item, batch); the step produces no output document of its own.",
+          "Belongs to the `OKAPI_WORD_COUNTS` category group. When several categories in the same group match a segment, the `CategoryResolver` keeps only the highest-ranked one — `FUZZY` outranks `FUZZY_REPAIRED`, `PHRASE_ASSEMBLED`, `MT`, and `CONCORDANCE`, but is outranked by the unique-id, previous-version, and all exact categories."
+        ]
       }
     },
     {
@@ -5586,6 +5883,14 @@
             "source-language"
           ]
         }
+      },
+      "doc": {
+        "overview": "Tallies the [GMX-V 2.0](http://www.xtm-intl.com/manuals/gmx-v/GMX-V-2.0.html) `FuzzyMatchedWordCount` category — the word count for text units fuzzy matched against a leveraged translation memory database. It reads the `AltTranslationsAnnotation` left by a leveraging step and counts a target segment or text container only when its top match falls into the fuzzy band: `FUZZY`, `FUZZY_UNIQUE_ID`, `FUZZY_PREVIOUS_VERSION`, `FUZZY_REPAIRED`, or one of the text-only exact types (`EXACT_TEXT_ONLY`, `EXACT_TEXT_ONLY_UNIQUE_ID`, `EXACT_TEXT_ONLY_PREVIOUS_VERSION`, `EXACT_REPAIRED`). The words in the corresponding source are counted and stored as GMX-V metrics annotations for downstream consumption (for example by the Scoping Report Step). This is the word-count variant; a companion step counts characters for the same category.",
+        "processingNotes": [
+          "Only the top-ranked alternate translation of each segment is examined; it qualifies when its match type is one of the fuzzy or text-only/repaired-exact types.",
+          "Counts are computed over the source content of qualifying units; only translatable text units are counted, and a target must be present.",
+          "Requires a prior leveraging step to have populated the alternate-translation annotations with categorised match types."
+        ]
       }
     },
     {
@@ -5625,6 +5930,17 @@
             "source-language"
           ]
         }
+      },
+      "doc": {
+        "overview": "Counts the characters in text units whose top alternate translation is a `FUZZY_PREVIOUS_VERSION` match — a fuzzy (partial) match that, in addition, comes from the immediately preceding version of the same document. The match must originate in the version directly before the one being leveraged (for example, when leveraging v4 the match comes from v3, not v2 or v1). It is the character-counting counterpart of the Fuzzy Previous Version Match Word Count Step, differing only in that it tallies characters rather than words.",
+        "processingNotes": [
+          "Operates per segment: it inspects the first (top-ranked) `AltTranslation` on each target segment's `AltTranslationsAnnotation` and counts a segment only when that match type is exactly `FUZZY_PREVIOUS_VERSION`.",
+          "Counting is performed on the **source** text, not the target — the character total reflects the source volume leveraged at this match level.",
+          "Uses the GMX-V character counter; the only behavioural difference from the word-count variant is words versus characters.",
+          "Counts only translatable text units; empty text units and non-translatable ones are skipped.",
+          "Results are stored as annotations on filter events and aggregated to the configured levels (text unit, group, document, sub-document, batch item, batch); the step produces no output document of its own.",
+          "Belongs to the `OKAPI_CHARACTER_COUNTS` category group. The `CategoryResolver` keeps only the highest-ranked matching category per segment — `FUZZY_PREVIOUS_VERSION` ranks above plain `FUZZY` but below `FUZZY_UNIQUE_ID` and all exact categories."
+        ]
       }
     },
     {
@@ -5664,6 +5980,17 @@
             "source-language"
           ]
         }
+      },
+      "doc": {
+        "overview": "Counts the words in text units whose top alternate translation is a `FUZZY_PREVIOUS_VERSION` match — a fuzzy (partial) match that, in addition, comes from the immediately preceding version of the same document. The match must originate in the version directly before the one being leveraged (for example, when leveraging v4 the match comes from v3, not v2 or v1). The count is recorded as a word-count metric in a `MetricsAnnotation` so that scoping and pricing steps can distinguish previous-version fuzzy leverage from ordinary fuzzy matches.",
+        "processingNotes": [
+          "Operates per segment: it inspects the first (top-ranked) `AltTranslation` on each target segment's `AltTranslationsAnnotation` and counts a segment only when that match type is exactly `FUZZY_PREVIOUS_VERSION`.",
+          "Counting is performed on the **source** text, not the target — the word total reflects the source volume leveraged at this match level.",
+          "Words are counted with the GMX-V word counter; the parallel character-count variant counts characters instead.",
+          "Counts only translatable text units; empty text units and non-translatable ones are skipped.",
+          "Results are stored as annotations on filter events and aggregated to the configured levels (text unit, group, document, sub-document, batch item, batch); the step produces no output document of its own.",
+          "Belongs to the `OKAPI_WORD_COUNTS` category group. The `CategoryResolver` keeps only the highest-ranked matching category per segment — `FUZZY_PREVIOUS_VERSION` ranks above plain `FUZZY` but below `FUZZY_UNIQUE_ID` and all exact categories."
+        ]
       }
     },
     {
@@ -5705,6 +6032,17 @@
             "source-language"
           ]
         }
+      },
+      "doc": {
+        "overview": "Counts the characters in text units whose top alternate translation is a `FUZZY_REPAIRED` match — a fuzzy (partial) match of text and/or codes to which some automated repair was then applied to the target, such as number replacement, code repair, capitalization, or punctuation adjustment. It is the character-counting counterpart of the Fuzzy Repaired Word Count Step, differing only in that it tallies characters rather than words.",
+        "processingNotes": [
+          "Operates per segment: it inspects the first (top-ranked) `AltTranslation` on each target segment's `AltTranslationsAnnotation` and counts a segment only when that match type is exactly `FUZZY_REPAIRED`.",
+          "Counting is performed on the **source** text, not the target — the character total reflects the source volume leveraged at this match level.",
+          "Uses the GMX-V character counter; the only behavioural difference from the word-count variant is words versus characters.",
+          "Counts only translatable text units; empty text units and non-translatable ones are skipped.",
+          "Results are stored as annotations on filter events and aggregated to the configured levels (text unit, group, document, sub-document, batch item, batch); the step produces no output document of its own.",
+          "Belongs to the `OKAPI_CHARACTER_COUNTS` category group. The `CategoryResolver` keeps only the highest-ranked matching category per segment — `FUZZY_REPAIRED` ranks below plain `FUZZY` and above `PHRASE_ASSEMBLED`, `MT`, and `CONCORDANCE`."
+        ]
       }
     },
     {
@@ -5746,6 +6084,17 @@
             "source-language"
           ]
         }
+      },
+      "doc": {
+        "overview": "Counts the words in text units whose top alternate translation is a `FUZZY_REPAIRED` match — a fuzzy (partial) match of text and/or codes to which some automated repair was then applied to the target, such as number replacement, code repair, capitalization, or punctuation adjustment. The count is recorded as a word-count metric in a `MetricsAnnotation` so that scoping and pricing steps can separate auto-repaired fuzzy leverage from raw fuzzy matches that received no post-processing.",
+        "processingNotes": [
+          "Operates per segment: it inspects the first (top-ranked) `AltTranslation` on each target segment's `AltTranslationsAnnotation` and counts a segment only when that match type is exactly `FUZZY_REPAIRED`.",
+          "Counting is performed on the **source** text, not the target — the word total reflects the source volume leveraged at this match level.",
+          "Words are counted with the GMX-V word counter; the parallel character-count variant counts characters instead.",
+          "Counts only translatable text units; empty text units and non-translatable ones are skipped.",
+          "Results are stored as annotations on filter events and aggregated to the configured levels (text unit, group, document, sub-document, batch item, batch); the step produces no output document of its own.",
+          "Belongs to the `OKAPI_WORD_COUNTS` category group. The `CategoryResolver` keeps only the highest-ranked matching category per segment — `FUZZY_REPAIRED` ranks below plain `FUZZY` and above `PHRASE_ASSEMBLED`, `MT`, and `CONCORDANCE`."
+        ]
       }
     },
     {
@@ -5785,6 +6134,17 @@
             "source-language"
           ]
         }
+      },
+      "doc": {
+        "overview": "Counts the characters in text units whose top alternate translation is a `FUZZY_UNIQUE_ID` match — a fuzzy (partial) match that additionally matches on a unique identifier, giving extra confidence that the leveraged segment corresponds to the same logical unit. It is the character-counting counterpart of the Fuzzy Unique Id Match Word Count Step, differing only in that it tallies characters rather than words.",
+        "processingNotes": [
+          "Operates per segment: it inspects the first (top-ranked) `AltTranslation` on each target segment's `AltTranslationsAnnotation` and counts a segment only when that match type is exactly `FUZZY_UNIQUE_ID`.",
+          "Counting is performed on the **source** text, not the target — the character total reflects the source volume leveraged at this match level.",
+          "Uses the GMX-V character counter; the only behavioural difference from the word-count variant is words versus characters.",
+          "Counts only translatable text units; empty text units and non-translatable ones are skipped.",
+          "Results are stored as annotations on filter events and aggregated to the configured levels (text unit, group, document, sub-document, batch item, batch); the step produces no output document of its own.",
+          "Belongs to the `OKAPI_CHARACTER_COUNTS` category group. The `CategoryResolver` keeps only the highest-ranked matching category per segment — `FUZZY_UNIQUE_ID` is the highest-ranked of the fuzzy categories, above `FUZZY_PREVIOUS_VERSION` and plain `FUZZY`, but ranks below all exact categories."
+        ]
       }
     },
     {
@@ -5824,6 +6184,17 @@
             "source-language"
           ]
         }
+      },
+      "doc": {
+        "overview": "Counts the words in text units whose top alternate translation is a `FUZZY_UNIQUE_ID` match — a fuzzy (partial) match that additionally matches on a unique identifier, giving extra confidence that the leveraged segment corresponds to the same logical unit. The count is recorded as a word-count metric in a `MetricsAnnotation` so that scoping and pricing steps can rate id-confirmed fuzzy leverage separately from plain fuzzy matches.",
+        "processingNotes": [
+          "Operates per segment: it inspects the first (top-ranked) `AltTranslation` on each target segment's `AltTranslationsAnnotation` and counts a segment only when that match type is exactly `FUZZY_UNIQUE_ID`.",
+          "Counting is performed on the **source** text, not the target — the word total reflects the source volume leveraged at this match level.",
+          "Words are counted with the GMX-V word counter; the parallel character-count variant counts characters instead.",
+          "Counts only translatable text units; empty text units and non-translatable ones are skipped.",
+          "Results are stored as annotations on filter events and aggregated to the configured levels (text unit, group, document, sub-document, batch item, batch); the step produces no output document of its own.",
+          "Belongs to the `OKAPI_WORD_COUNTS` category group. The `CategoryResolver` keeps only the highest-ranked matching category per segment — `FUZZY_UNIQUE_ID` is the highest-ranked of the fuzzy categories, above `FUZZY_PREVIOUS_VERSION` and plain `FUZZY`, but ranks below all exact categories."
+        ]
       }
     },
     {
@@ -5919,6 +6290,23 @@
             "source-language"
           ]
         }
+      },
+      "doc": {
+        "overview": "The General Checker step compares the source and target of each text unit and annotates segment-level issues that are not specific to inline codes, length, patterns, or character sets. It covers leading and trailing whitespace differences, empty source or empty target, target identical to source, and doubled (consecutively repeated) words in the target. It expects filter events and passes them through unchanged, attaching the issues it finds to the resources for a downstream consumer to report. It is one of the granular quality checks that the aggregate Quality Check step combines into a single pass.",
+        "processingNotes": [
+          "Operates on filter events; events are forwarded unchanged and the detected issues are accumulated per document.",
+          "Delegates to the verification library's `GeneralChecker`; its step parameters are a subset of the full Quality Check / CheckMate configuration.",
+          "By default all of its checks are enabled: leading whitespace, trailing whitespace, empty target, empty source, target-same-as-source (including the same-language and with-codes variants), and doubled words.",
+          "The doubled-word check ships with the default exception list `sie;vous;nous`, allowing those words to repeat without being flagged.",
+          "Requires source and target locales; these are supplied by the pipeline rather than configured on the step."
+        ],
+        "examples": [
+          {
+            "title": "Catch empty targets, untranslated segments, and doubled words",
+            "description": "Enables the core verifications. Empty or whitespace-only targets and targets identical to their source are flagged, and accidental doubled words are reported — except the listed function words (here French `sie`/`vous`/`nous`) that may legitimately repeat.",
+            "config": "```yaml\nemptyTarget: true\ntargetSameAsSource: true\ndoubledWord: true\ndoubledWordExceptions: \"sie;vous;nous\"\n```"
+          }
+        ]
       }
     },
     {
@@ -5960,6 +6348,14 @@
             "source-language"
           ]
         }
+      },
+      "doc": {
+        "overview": "Tallies the [GMX-V 2.0](http://www.xtm-intl.com/manuals/gmx-v/GMX-V-2.0.html) `AlphanumericOnlyTextUnitCharacterCount` category — the character count for text units that contain only alphanumeric words. Each text unit's source is tokenised and a unit qualifies only when every non-whitespace token is one of the recognised alphanumeric kinds (`ABBREVIATION`, `EMAIL`, `INTERNET`, `COMPANY`, `EMOTICON`, `MARKUP`); units mixing in any other token type contribute zero. Characters are counted in canonical form — whitespace and punctuation are excluded (hyphens and apostrophes inside words are kept) — and stored as GMX-V metrics annotations for downstream consumption (for example by the Scoping Report Step). This is the character-count counterpart of the alphanumeric-only word-count step.",
+        "processingNotes": [
+          "A text unit is counted only if all of its tokens are alphanumeric-kind tokens plus whitespace; otherwise the unit yields zero.",
+          "Counts are computed over the source content; only translatable text units are counted.",
+          "Character counting excludes whitespace and punctuation per GMX-V, but retains hyphens and apostrophes that occur inside a word."
+        ]
       }
     },
     {
@@ -6001,6 +6397,14 @@
             "source-language"
           ]
         }
+      },
+      "doc": {
+        "overview": "Tallies the [GMX-V 2.0](http://www.xtm-intl.com/manuals/gmx-v/GMX-V-2.0.html) `AlphanumericOnlyTextUnitWordCount` category — the word count for text units that contain only alphanumeric words. Each text unit's source is tokenised and a unit qualifies only when every non-whitespace token is one of the recognised alphanumeric kinds (`ABBREVIATION`, `EMAIL`, `INTERNET`, `COMPANY`, `EMOTICON`, `MARKUP`); units mixing in any other token type contribute zero. Counts are stored as GMX-V metrics annotations on segments, text containers, and aggregate resources for downstream consumption (for example by the Scoping Report Step). This is the word-count variant; a companion step counts characters for the same category.",
+        "processingNotes": [
+          "A text unit is counted only if all of its tokens are alphanumeric-kind tokens plus whitespace; otherwise the unit yields zero.",
+          "Counts are computed over the source content; only translatable text units are counted.",
+          "For locales the GMX-V spec treats as logographic, the word count is derived from the character count divided by the per-language factor rather than from token counts."
+        ]
       }
     },
     {
@@ -6044,6 +6448,14 @@
             "source-language"
           ]
         }
+      },
+      "doc": {
+        "overview": "Tallies the [GMX-V 2.0](http://www.xtm-intl.com/manuals/gmx-v/GMX-V-2.0.html) `ExactMatchedCharacterCount` category — the character count for text units matched unambiguously with a prior translation and thus requiring no translator input. It reads the `AltTranslationsAnnotation` left by a leveraging step and counts a target segment or text container only when its top match is of type `EXACT_UNIQUE_ID` or `EXACT_PREVIOUS_VERSION`, counting characters in the corresponding source. Characters are counted in canonical form — whitespace and punctuation are excluded (hyphens and apostrophes inside words are kept) — and stored as GMX-V metrics annotations for downstream consumption (for example by the Scoping Report Step). This is the character-count counterpart of the exact-matched word-count step.",
+        "processingNotes": [
+          "Only the top-ranked alternate translation of each segment is examined; it qualifies when its match type is `EXACT_UNIQUE_ID` or `EXACT_PREVIOUS_VERSION`.",
+          "Counts are computed over the source content of qualifying units; only translatable text units are counted, and a target must be present.",
+          "Character counting excludes whitespace and punctuation per GMX-V, but retains hyphens and apostrophes that occur inside a word."
+        ]
       }
     },
     {
@@ -6087,6 +6499,14 @@
             "source-language"
           ]
         }
+      },
+      "doc": {
+        "overview": "Tallies the [GMX-V 2.0](http://www.xtm-intl.com/manuals/gmx-v/GMX-V-2.0.html) `ExactMatchedWordCount` category — the word count for text units matched unambiguously with a prior translation and thus requiring no translator input. It reads the `AltTranslationsAnnotation` left by a leveraging step and counts a target segment or text container only when its top match is of type `EXACT_UNIQUE_ID` or `EXACT_PREVIOUS_VERSION`, counting the words in the corresponding source. Counts are stored as GMX-V metrics annotations on segments, targets, and aggregate resources for downstream consumption (for example by the Scoping Report Step). This is the word-count variant; a companion step counts characters for the same category.",
+        "processingNotes": [
+          "Only the top-ranked alternate translation of each segment is examined; it qualifies when its match type is `EXACT_UNIQUE_ID` or `EXACT_PREVIOUS_VERSION`.",
+          "Counts are computed over the source content of qualifying units; only translatable text units are counted, and a target must be present.",
+          "Requires a prior leveraging step to have populated the alternate-translation annotations with categorised match types."
+        ]
       }
     },
     {
@@ -6130,6 +6550,14 @@
             "source-language"
           ]
         }
+      },
+      "doc": {
+        "overview": "Tallies the [GMX-V 2.0](http://www.xtm-intl.com/manuals/gmx-v/GMX-V-2.0.html) `LeveragedMatchedCharacterCount` category — the character count for text units matched against a leveraged translation memory database. It reads the `AltTranslationsAnnotation` left by a leveraging step and counts a target segment or text container only when its top match is of type `EXACT`, `EXACT_LOCAL_CONTEXT`, or `EXACT_STRUCTURAL`, counting characters in the corresponding source. Characters are counted in canonical form — whitespace and punctuation are excluded (hyphens and apostrophes inside words are kept) — and stored as GMX-V metrics annotations for downstream consumption (for example by the Scoping Report Step). This is the character-count counterpart of the leveraged-matched word-count step.",
+        "processingNotes": [
+          "Only the top-ranked alternate translation of each segment is examined; it qualifies when its match type is `EXACT`, `EXACT_LOCAL_CONTEXT`, or `EXACT_STRUCTURAL`.",
+          "Counts are computed over the source content of qualifying units; only translatable text units are counted, and a target must be present.",
+          "Character counting excludes whitespace and punctuation per GMX-V, but retains hyphens and apostrophes that occur inside a word."
+        ]
       }
     },
     {
@@ -6173,6 +6601,14 @@
             "source-language"
           ]
         }
+      },
+      "doc": {
+        "overview": "Tallies the [GMX-V 2.0](http://www.xtm-intl.com/manuals/gmx-v/GMX-V-2.0.html) `LeveragedMatchedWordCount` category — the word count for text units matched against a leveraged translation memory database. It reads the `AltTranslationsAnnotation` left by a leveraging step and counts a target segment or text container only when its top match is of type `EXACT`, `EXACT_LOCAL_CONTEXT`, or `EXACT_STRUCTURAL`, counting the words in the corresponding source. Counts are stored as GMX-V metrics annotations on segments, targets, and aggregate resources for downstream consumption (for example by the Scoping Report Step). This is the word-count variant; a companion step counts characters for the same category.",
+        "processingNotes": [
+          "Only the top-ranked alternate translation of each segment is examined; it qualifies when its match type is `EXACT`, `EXACT_LOCAL_CONTEXT`, or `EXACT_STRUCTURAL`.",
+          "Counts are computed over the source content of qualifying units; only translatable text units are counted, and a target must be present.",
+          "Requires a prior leveraging step to have populated the alternate-translation annotations with categorised match types."
+        ]
       }
     },
     {
@@ -6214,6 +6650,14 @@
             "source-language"
           ]
         }
+      },
+      "doc": {
+        "overview": "Tallies the [GMX-V 2.0](http://www.xtm-intl.com/manuals/gmx-v/GMX-V-2.0.html) `MeasurementOnlyTextUnitCharacterCount` category — the character count from measurement-only text units. Each text unit's source is tokenised and a unit qualifies as measurement-only based on its `DATE`, `TIME`, and `CURRENCY` tokens; units that also contain other content contribute zero, after which characters are counted over the `DATE`, `TIME`, and `CURRENCY` tokens. Characters are counted in canonical form — whitespace and punctuation are excluded (hyphens and apostrophes inside words are kept) — and stored as GMX-V metrics annotations for downstream consumption (for example by the Scoping Report Step). This is the character-count counterpart of the measurement-only word-count step.",
+        "processingNotes": [
+          "Qualification keys on the `DATE`, `TIME`, and `CURRENCY` token kinds; a unit containing other non-whitespace content yields zero.",
+          "Counts are computed over the source content; only translatable text units are counted.",
+          "Character counting excludes whitespace and punctuation per GMX-V, but retains hyphens and apostrophes that occur inside a word."
+        ]
       }
     },
     {
@@ -6255,6 +6699,14 @@
             "source-language"
           ]
         }
+      },
+      "doc": {
+        "overview": "Tallies the [GMX-V 2.0](http://www.xtm-intl.com/manuals/gmx-v/GMX-V-2.0.html) `MeasurementOnlyTextUnitWordCount` category — the word count from measurement-only text units. Each text unit's source is tokenised and a unit qualifies as measurement-only based on its `DATE`, `TIME`, and `CURRENCY` tokens; units that also contain other content contribute zero, after which the count is taken over the `DATE`, `TIME`, and `CURRENCY` tokens. Counts are stored as GMX-V metrics annotations on segments, text containers, and aggregate resources for downstream consumption (for example by the Scoping Report Step). This is the word-count variant; a companion step counts characters for the same category.",
+        "processingNotes": [
+          "Qualification keys on the `DATE`, `TIME`, and `CURRENCY` token kinds; a unit containing other non-whitespace content yields zero.",
+          "Counts are computed over the source content; only translatable text units are counted.",
+          "For locales the GMX-V spec treats as logographic, the word count is derived from the character count divided by the per-language factor rather than from token counts."
+        ]
       }
     },
     {
@@ -6296,6 +6748,14 @@
             "source-language"
           ]
         }
+      },
+      "doc": {
+        "overview": "Tallies the [GMX-V 2.0](http://www.xtm-intl.com/manuals/gmx-v/GMX-V-2.0.html) `NumericOnlyTextUnitCharacterCount` category — the character count for text units that contain only numeric words. Each text unit's source is tokenised and a unit qualifies only when every non-whitespace token is a `NUMBER` token; units containing any other token type contribute zero. Characters are counted in canonical form — whitespace and punctuation are excluded (hyphens and apostrophes inside words are kept) — and stored as GMX-V metrics annotations for downstream consumption (for example by the Scoping Report Step). This is the character-count counterpart of the numeric-only word-count step.",
+        "processingNotes": [
+          "A text unit is counted only if all of its non-whitespace tokens are `NUMBER` tokens; otherwise the unit yields zero.",
+          "Counts are computed over the source content; only translatable text units are counted.",
+          "Character counting excludes whitespace and punctuation per GMX-V, but retains hyphens and apostrophes that occur inside a word."
+        ]
       }
     },
     {
@@ -6337,6 +6797,14 @@
             "source-language"
           ]
         }
+      },
+      "doc": {
+        "overview": "Tallies the [GMX-V 2.0](http://www.xtm-intl.com/manuals/gmx-v/GMX-V-2.0.html) `NumericOnlyTextUnitWordCount` category — the word count for text units that contain only numeric words. Each text unit's source is tokenised and a unit qualifies only when every non-whitespace token is a `NUMBER` token; units containing any other token type contribute zero. Counts are stored as GMX-V metrics annotations on segments, text containers, and aggregate resources for downstream consumption (for example by the Scoping Report Step). This is the word-count variant; a companion step counts characters for the same category.",
+        "processingNotes": [
+          "A text unit is counted only if all of its non-whitespace tokens are `NUMBER` tokens; otherwise the unit yields zero.",
+          "Counts are computed over the source content; only translatable text units are counted.",
+          "For locales the GMX-V spec treats as logographic, the word count is derived from the character count divided by the per-language factor rather than from token counts."
+        ]
       }
     },
     {
@@ -6380,6 +6848,14 @@
             "source-language"
           ]
         }
+      },
+      "doc": {
+        "overview": "Tallies the [GMX-V 2.0](http://www.xtm-intl.com/manuals/gmx-v/GMX-V-2.0.html) `ProtectedCharacterCount` category — the character count for text that has been marked as protected, or otherwise not translatable (for example XLIFF text enclosed in `\u003cmrk mtype=\"protected\"\u003e` elements). Unlike the match-based GMX steps, this step counts only the units flagged as non-translatable, counting characters in their source; for translatable units it removes any previously recorded protected metric. Characters are counted in canonical form — whitespace and punctuation are excluded (hyphens and apostrophes inside words are kept) — and stored as GMX-V metrics annotations for downstream consumption (for example by the Scoping Report Step). This is the character-count counterpart of the protected word-count step.",
+        "processingNotes": [
+          "Counts only text units marked non-translatable; this is the one GMX count step that does not restrict itself to translatable units.",
+          "For translatable units the step actively removes any existing protected metric from the segment, source, and text unit.",
+          "Character counting excludes whitespace and punctuation per GMX-V, but retains hyphens and apostrophes that occur inside a word."
+        ]
       }
     },
     {
@@ -6423,6 +6899,14 @@
             "source-language"
           ]
         }
+      },
+      "doc": {
+        "overview": "Tallies the [GMX-V 2.0](http://www.xtm-intl.com/manuals/gmx-v/GMX-V-2.0.html) `ProtectedWordCount` category — the word count for text that has been marked as protected, or otherwise not translatable (for example XLIFF text enclosed in `\u003cmrk mtype=\"protected\"\u003e` elements). Unlike the match-based GMX steps, this step counts only the units flagged as non-translatable, counting the words in their source; for translatable units it removes any previously recorded protected metric. Counts are stored as GMX-V metrics annotations on segments, text containers, and aggregate resources for downstream consumption (for example by the Scoping Report Step). This is the word-count variant; a companion step counts characters for the same category.",
+        "processingNotes": [
+          "Counts only text units marked non-translatable; this is the one GMX count step that does not restrict itself to translatable units.",
+          "For translatable units the step actively removes any existing protected metric from the segment, source, and text unit.",
+          "For locales the GMX-V spec treats as logographic, the word count is derived from the character count divided by the per-language factor."
+        ]
       }
     },
     {
@@ -6464,6 +6948,14 @@
             "source-language"
           ]
         }
+      },
+      "doc": {
+        "overview": "Tallies the [GMX-V 2.0](http://www.xtm-intl.com/manuals/gmx-v/GMX-V-2.0.html) `RepetitionMatchedCharacterCount` category — the character count for repeating text units that have not been matched in any other form, repetition matching taking precedence over fuzzy matching. It reads the `AltTranslationsAnnotation` left by a leveraging step and counts a target segment or text container only when its top match is of type `EXACT_DOCUMENT_CONTEXT`, counting characters in the corresponding source. Characters are counted in canonical form — whitespace and punctuation are excluded (hyphens and apostrophes inside words are kept) — and stored as GMX-V metrics annotations for downstream consumption (for example by the Scoping Report Step). This is the character-count counterpart of the repetition-matched word-count step.",
+        "processingNotes": [
+          "Only the top-ranked alternate translation of each segment is examined; it qualifies when its match type is `EXACT_DOCUMENT_CONTEXT`.",
+          "Counts are computed over the source content of qualifying units; only translatable text units are counted, and a target must be present.",
+          "Character counting excludes whitespace and punctuation per GMX-V, but retains hyphens and apostrophes that occur inside a word."
+        ]
       }
     },
     {
@@ -6505,6 +6997,14 @@
             "source-language"
           ]
         }
+      },
+      "doc": {
+        "overview": "Tallies the [GMX-V 2.0](http://www.xtm-intl.com/manuals/gmx-v/GMX-V-2.0.html) `RepetitionMatchedWordCount` category — the word count for repeating text units that have not been matched in any other form, repetition matching taking precedence over fuzzy matching. It reads the `AltTranslationsAnnotation` left by a leveraging step and counts a target segment or text container only when its top match is of type `EXACT_DOCUMENT_CONTEXT`, counting the words in the corresponding source. Counts are stored as GMX-V metrics annotations on segments, targets, and aggregate resources for downstream consumption (for example by the Scoping Report Step). This is the word-count variant; a companion step counts characters for the same category.",
+        "processingNotes": [
+          "Only the top-ranked alternate translation of each segment is examined; it qualifies when its match type is `EXACT_DOCUMENT_CONTEXT`.",
+          "Counts are computed over the source content of qualifying units; only translatable text units are counted, and a target must be present.",
+          "Requires a prior leveraging step to have populated the alternate-translation annotations with categorised match types."
+        ]
       }
     },
     {
@@ -6965,143 +7465,6 @@
     },
     {
       "id": "inconsistency-check",
-      "source": "built-in",
-      "kind": "tool",
-      "displayName": "Inconsistency Check",
-      "description": "Flag identical source strings translated differently, or different sources sharing one translation.",
-      "category": "quality",
-      "inputs": [
-        "block"
-      ],
-      "tags": [
-        "quality"
-      ],
-      "requires": [
-        "target-language"
-      ],
-      "cardinality": "bilingual",
-      "schema": {
-        "$id": "inconsistency-check",
-        "title": "Inconsistency Check",
-        "type": "object",
-        "toolMeta": {
-          "id": "inconsistency-check",
-          "category": "quality",
-          "displayName": "Inconsistency Check",
-          "inputs": [
-            "block"
-          ],
-          "tags": [
-            "quality"
-          ],
-          "requires": [
-            "target-language"
-          ],
-          "cardinality": "bilingual",
-          "produces": [
-            "quality.qa-issues"
-          ]
-        },
-        "properties": {
-          "caseSensitive": {
-            "type": "boolean",
-            "title": "Case Sensitive",
-            "description": "Whether comparison is case-sensitive",
-            "default": true
-          },
-          "checkPerFile": {
-            "type": "boolean",
-            "title": "Per-File Checking",
-            "description": "Process each input file individually instead of comparing segments across all documents",
-            "default": false
-          },
-          "checkSourceInconsistency": {
-            "type": "boolean",
-            "title": "Check Source Inconsistency",
-            "description": "Flag when different sources share the same translation",
-            "default": false
-          },
-          "checkTargetInconsistency": {
-            "type": "boolean",
-            "title": "Check Target Inconsistency",
-            "description": "Flag when the same source has different translations",
-            "default": true
-          },
-          "displayOption": {
-            "type": "string",
-            "title": "Inline Code Display",
-            "description": "Controls how inline codes are represented: original codes or generic markers or plain text",
-            "default": "generic",
-            "options": [
-              {
-                "value": "original",
-                "label": "original"
-              },
-              {
-                "value": "generic",
-                "label": "generic"
-              },
-              {
-                "value": "plain",
-                "label": "plain"
-              }
-            ]
-          }
-        }
-      },
-      "doc": {
-        "overview": "The **Inconsistency Check** tool tracks the mapping between source text and its\ntranslation across blocks and flags inconsistencies. By default it reports\ntarget inconsistency: the same source string translated more than one way.\nOptionally it can also report source inconsistency: distinct source strings that\nshare a single translation. Each block records a status (consistent or\ninconsistent), the inconsistency type, and the alternative translations or\nsources observed.\n\nSource and target text are trimmed before comparison, and comparison can be\nmade case-insensitive. By default the tool compares segments across all input\ndocuments; per-file mode resets its tracking state at the start of each document\nso consistency is judged within a single file. A target locale is required.\n",
-        "parameters": {
-          "caseSensitive": {
-            "description": "Whether comparison is case-sensitive.",
-            "help": "When enabled, strings that differ only in letter case are treated as\ndistinct. Disable it to fold case differences together when judging\nconsistency.\n",
-            "values": "`true` / `false` (default `true`)"
-          },
-          "checkPerFile": {
-            "description": "Judge consistency within each file rather than across all documents.",
-            "help": "When enabled, the tool clears its source/target tracking at the start of\neach document, so a string is only compared against others in the same file.\nWhen disabled, comparison spans all input documents.\n",
-            "values": "`true` / `false` (default `false`)"
-          },
-          "checkSourceInconsistency": {
-            "description": "Flag when different sources share the same translation.",
-            "help": "When enabled, a block is flagged when its translation is also used for a\ndifferent source string. This catches cases where distinct meanings collapse\nto one translation.\n",
-            "values": "`true` / `false` (default `false`)"
-          },
-          "checkTargetInconsistency": {
-            "description": "Flag when the same source has different translations.",
-            "help": "When enabled, a block is flagged when its source text has been translated\ndifferently elsewhere. This is the primary inconsistency check.\n",
-            "values": "`true` / `false` (default `true`)"
-          },
-          "displayOption": {
-            "description": "How inline codes are represented in the report.",
-            "help": "Controls the rendering of inline codes when reporting alternatives:\n`original` keeps the original code markup, `generic` uses numbered markers,\nand `plain` strips codes to plain text.\n",
-            "values": "`original` / `generic` / `plain` (default `generic`)"
-          }
-        },
-        "limitations": [
-          "Compares exact (trimmed) text; near-duplicate sources or translations are not detected.",
-          "Requires a configured target locale; blocks without a translation for it are skipped."
-        ],
-        "processingNotes": [
-          "Operates on translatable blocks; non-translatable structure passes through unchanged.",
-          "Tracking state is global by default and reset per document only when per-file checking is enabled."
-        ],
-        "examples": [
-          {
-            "title": "Check both directions of inconsistency",
-            "description": "Flag both differing translations of one source and shared translations of different sources.",
-            "config": "checkTargetInconsistency: true\ncheckSourceInconsistency: true\n"
-          },
-          {
-            "title": "Per-file consistency",
-            "description": "Judge consistency within each document independently.",
-            "config": "checkPerFile: true\n"
-          }
-        ]
-      }
-    },
-    {
-      "id": "inconsistency-check",
       "source": "okapi",
       "kind": "tool",
       "displayName": "Inconsistency Check",
@@ -7302,6 +7665,143 @@
       }
     },
     {
+      "id": "inconsistency-check",
+      "source": "built-in",
+      "kind": "tool",
+      "displayName": "Inconsistency Check",
+      "description": "Flag identical source strings translated differently, or different sources sharing one translation.",
+      "category": "quality",
+      "inputs": [
+        "block"
+      ],
+      "tags": [
+        "quality"
+      ],
+      "requires": [
+        "target-language"
+      ],
+      "cardinality": "bilingual",
+      "schema": {
+        "$id": "inconsistency-check",
+        "title": "Inconsistency Check",
+        "type": "object",
+        "toolMeta": {
+          "id": "inconsistency-check",
+          "category": "quality",
+          "displayName": "Inconsistency Check",
+          "inputs": [
+            "block"
+          ],
+          "tags": [
+            "quality"
+          ],
+          "requires": [
+            "target-language"
+          ],
+          "cardinality": "bilingual",
+          "produces": [
+            "quality.qa-issues"
+          ]
+        },
+        "properties": {
+          "caseSensitive": {
+            "type": "boolean",
+            "title": "Case Sensitive",
+            "description": "Whether comparison is case-sensitive",
+            "default": true
+          },
+          "checkPerFile": {
+            "type": "boolean",
+            "title": "Per-File Checking",
+            "description": "Process each input file individually instead of comparing segments across all documents",
+            "default": false
+          },
+          "checkSourceInconsistency": {
+            "type": "boolean",
+            "title": "Check Source Inconsistency",
+            "description": "Flag when different sources share the same translation",
+            "default": false
+          },
+          "checkTargetInconsistency": {
+            "type": "boolean",
+            "title": "Check Target Inconsistency",
+            "description": "Flag when the same source has different translations",
+            "default": true
+          },
+          "displayOption": {
+            "type": "string",
+            "title": "Inline Code Display",
+            "description": "Controls how inline codes are represented: original codes or generic markers or plain text",
+            "default": "generic",
+            "options": [
+              {
+                "value": "original",
+                "label": "original"
+              },
+              {
+                "value": "generic",
+                "label": "generic"
+              },
+              {
+                "value": "plain",
+                "label": "plain"
+              }
+            ]
+          }
+        }
+      },
+      "doc": {
+        "overview": "The **Inconsistency Check** tool tracks the mapping between source text and its\ntranslation across blocks and flags inconsistencies. By default it reports\ntarget inconsistency: the same source string translated more than one way.\nOptionally it can also report source inconsistency: distinct source strings that\nshare a single translation. Each block records a status (consistent or\ninconsistent), the inconsistency type, and the alternative translations or\nsources observed.\n\nSource and target text are trimmed before comparison, and comparison can be\nmade case-insensitive. By default the tool compares segments across all input\ndocuments; per-file mode resets its tracking state at the start of each document\nso consistency is judged within a single file. A target locale is required.\n",
+        "parameters": {
+          "caseSensitive": {
+            "description": "Whether comparison is case-sensitive.",
+            "help": "When enabled, strings that differ only in letter case are treated as\ndistinct. Disable it to fold case differences together when judging\nconsistency.\n",
+            "values": "`true` / `false` (default `true`)"
+          },
+          "checkPerFile": {
+            "description": "Judge consistency within each file rather than across all documents.",
+            "help": "When enabled, the tool clears its source/target tracking at the start of\neach document, so a string is only compared against others in the same file.\nWhen disabled, comparison spans all input documents.\n",
+            "values": "`true` / `false` (default `false`)"
+          },
+          "checkSourceInconsistency": {
+            "description": "Flag when different sources share the same translation.",
+            "help": "When enabled, a block is flagged when its translation is also used for a\ndifferent source string. This catches cases where distinct meanings collapse\nto one translation.\n",
+            "values": "`true` / `false` (default `false`)"
+          },
+          "checkTargetInconsistency": {
+            "description": "Flag when the same source has different translations.",
+            "help": "When enabled, a block is flagged when its source text has been translated\ndifferently elsewhere. This is the primary inconsistency check.\n",
+            "values": "`true` / `false` (default `true`)"
+          },
+          "displayOption": {
+            "description": "How inline codes are represented in the report.",
+            "help": "Controls the rendering of inline codes when reporting alternatives:\n`original` keeps the original code markup, `generic` uses numbered markers,\nand `plain` strips codes to plain text.\n",
+            "values": "`original` / `generic` / `plain` (default `generic`)"
+          }
+        },
+        "limitations": [
+          "Compares exact (trimmed) text; near-duplicate sources or translations are not detected.",
+          "Requires a configured target locale; blocks without a translation for it are skipped."
+        ],
+        "processingNotes": [
+          "Operates on translatable blocks; non-translatable structure passes through unchanged.",
+          "Tracking state is global by default and reset per document only when per-file checking is enabled."
+        ],
+        "examples": [
+          {
+            "title": "Check both directions of inconsistency",
+            "description": "Flag both differing translations of one source and shared translations of different sources.",
+            "config": "checkTargetInconsistency: true\ncheckSourceInconsistency: true\n"
+          },
+          {
+            "title": "Per-file consistency",
+            "description": "Judge consistency within each document independently.",
+            "config": "checkPerFile: true\n"
+          }
+        ]
+      }
+    },
+    {
       "id": "inline-codes-checker",
       "source": "okapi",
       "kind": "tool",
@@ -7370,6 +7870,24 @@
             "source-language"
           ]
         }
+      },
+      "doc": {
+        "overview": "The Inline Codes Checker step compares the inline codes of each source and target and annotates differences. It reports codes present in the source but missing from the target, and codes present in the target but not in the source. It expects filter events and passes them through unchanged, attaching the detected issues for a downstream consumer to report. It is one of the granular quality checks that the aggregate Quality Check step combines into a single pass.",
+        "processingNotes": [
+          "Operates on filter events; events are forwarded unchanged and the detected issues are accumulated per document.",
+          "Delegates to the verification library's `InlineCodesChecker`; its step parameters are a subset of the full Quality Check / CheckMate configuration.",
+          "Code difference checking (`codeDifference`) and opening/closing inference (`guessOpenClose`) are enabled by default.",
+          "Codes of the types listed in `typesToIgnore` are excluded from comparison; the default is `mrk;x-df-s;`.",
+          "`extraCodesAllowed` and `missingCodesAllowed` whitelist specific codes so that their presence or absence is not flagged.",
+          "Requires source and target locales; these are supplied by the pipeline rather than configured on the step."
+        ],
+        "examples": [
+          {
+            "title": "Verify inline codes are preserved between source and target",
+            "description": "Reports segments whose target adds or drops inline codes relative to the source, using open/close inference to pair tags. Annotation markers and the `x-df-s` type are ignored so they do not raise false positives.",
+            "config": "```yaml\ncodeDifference: true\nguessOpenClose: true\ntypesToIgnore: \"mrk;x-df-s;\"\n```"
+          }
+        ]
       }
     },
     {
@@ -7755,6 +8273,18 @@
           "Only source codes are affected — this step should be placed in the pipeline **before** any step that creates target content in text units.",
           "Leading/trailing code removal only works with `GenericSkeleton`-based content."
         ],
+        "examples": [
+          {
+            "title": "Merge adjacent codes, keep boundary codes in place",
+            "description": "Collapse runs of adjacent inline codes into a single code while leaving leading and trailing codes inside the text unit. Useful when the goal is only to reduce code clutter mid-segment without altering the skeleton.",
+            "config": "```yaml\nmergeCodes: true\nremoveLeadingTrailingCodes: false\n```"
+          },
+          {
+            "title": "Move boundary codes to the skeleton",
+            "description": "Apply the default behaviour: merge adjacent codes and push leading/trailing codes out of the text unit into the skeleton. Place this step before any target is created, since only source codes are affected and the skeleton must be `GenericSkeleton`-based.",
+            "config": "```yaml\nremoveLeadingTrailingCodes: true\nmergeCodes: true\n```"
+          }
+        ],
         "wikiUrl": "https://okapiframework.org/wiki/index.php/Inline_Codes_Simplifier_Step"
       }
     },
@@ -8103,6 +8633,27 @@
             "source-language"
           ]
         }
+      },
+      "doc": {
+        "overview": "The Length Checker step compares the length of the source and target of each text unit and annotates those whose ratio appears mismatched. It supports a maximum-length check and a minimum-length check, each expressed as a percentage of source length with separate thresholds for short and long text, an absolute maximum character count, and a storage-size check against limits declared by the document format. It expects filter events and passes them through unchanged, attaching the detected issues for a downstream consumer to report. It is one of the granular quality checks that the aggregate Quality Check step combines into a single pass.",
+        "limitations": [
+          "Length is measured in characters, so the percentage thresholds must be tuned per language pair to avoid false positives.",
+          "The storage-size check only applies to formats that declare a size limit (for example the XLIFF `maxwidth` attribute)."
+        ],
+        "processingNotes": [
+          "Operates on filter events; events are forwarded unchanged and the detected issues are accumulated per document.",
+          "Delegates to the verification library's `LengthChecker`; its step parameters are a subset of the full Quality Check / CheckMate configuration.",
+          "By default the maximum-length check, minimum-length check, and storage-size check are enabled, while the absolute maximum-length check is disabled.",
+          "The percentage thresholds switch at a source-length break of 20 characters: for the maximum-length check, a source of 20 characters or fewer allows the target up to 350% of its length, while a longer source allows up to 200%; for the minimum-length check, a short source requires the target to be at least 30% of its length and a longer source at least 45%. The absolute maximum-length check defaults to 255 characters.",
+          "Requires source and target locales; these are supplied by the pipeline rather than configured on the step."
+        ],
+        "examples": [
+          {
+            "title": "Flag over-long translations with a hard character cap",
+            "description": "Checks target length against source length: for sources up to 20 characters the target may reach 350% of the source, and for longer sources up to 200%; any target over 255 characters outright is also flagged.",
+            "config": "```yaml\ncheckMaxCharLength: true\nmaxCharLengthBreak: 20\nmaxCharLengthBelow: 350\nmaxCharLengthAbove: 200\ncheckAbsoluteMaxCharLength: true\nabsoluteMaxCharLength: 255\n```"
+          }
+        ]
       }
     },
     {
@@ -9091,6 +9642,17 @@
             "source-language"
           ]
         }
+      },
+      "doc": {
+        "overview": "Counts the characters in text units whose top alternate translation is an `MT` match — a translation produced by a machine-translation engine rather than retrieved from a translation memory. It is the character-counting counterpart of the MT Word Count Step, differing only in that it tallies characters rather than words.",
+        "processingNotes": [
+          "Operates per segment: it inspects the first (top-ranked) `AltTranslation` on each target segment's `AltTranslationsAnnotation` and counts a segment only when that match type is exactly `MT`.",
+          "Counting is performed on the **source** text, not the target — the character total reflects the source volume covered by machine translation.",
+          "Uses the GMX-V character counter; the only behavioural difference from the word-count variant is words versus characters.",
+          "Counts only translatable text units; empty text units and non-translatable ones are skipped.",
+          "Results are stored as annotations on filter events and aggregated to the configured levels (text unit, group, document, sub-document, batch item, batch); the step produces no output document of its own.",
+          "Belongs to the `OKAPI_CHARACTER_COUNTS` category group. The `CategoryResolver` keeps only the highest-ranked matching category per segment — `MT` ranks below all TM-derived categories (exact, fuzzy, phrase-assembled) and above `CONCORDANCE`."
+        ]
       }
     },
     {
@@ -9132,6 +9694,17 @@
             "source-language"
           ]
         }
+      },
+      "doc": {
+        "overview": "Counts the words in text units whose top alternate translation is an `MT` match — a translation produced by a machine-translation engine rather than retrieved from a translation memory. The count is recorded as a word-count metric in a `MetricsAnnotation` so that scoping and pricing steps can report machine-translated volume separately from TM-leveraged content, which is usually rated under different terms.",
+        "processingNotes": [
+          "Operates per segment: it inspects the first (top-ranked) `AltTranslation` on each target segment's `AltTranslationsAnnotation` and counts a segment only when that match type is exactly `MT`.",
+          "Counting is performed on the **source** text, not the target — the word total reflects the source volume covered by machine translation.",
+          "Words are counted with the GMX-V word counter; the parallel character-count variant counts characters instead.",
+          "Counts only translatable text units; empty text units and non-translatable ones are skipped.",
+          "Results are stored as annotations on filter events and aggregated to the configured levels (text unit, group, document, sub-document, batch item, batch); the step produces no output document of its own.",
+          "Belongs to the `OKAPI_WORD_COUNTS` category group. The `CategoryResolver` keeps only the highest-ranked matching category per segment — `MT` ranks below all TM-derived categories (exact, fuzzy, phrase-assembled) and above `CONCORDANCE`."
+        ]
       }
     },
     {
@@ -9218,6 +9791,18 @@
           "`ResourceSimplifier` is called internally to flatten events and expand TextUnits before alignment.",
           "A special `PIPELINE_PARAMETERS` event is sent downstream to inform subsequent steps (e.g., Sentence Aligner) that the target input has been consumed."
         ],
+        "examples": [
+          {
+            "title": "Keep only clean 1-to-1 paragraph pairs",
+            "description": "Emit only paragraphs that aligned to exactly one counterpart, dropping many-to-many groupings. This is the default and produces the cleaner pairs typically wanted before sentence alignment.",
+            "config": "```yaml\noutputOneToOneMatchesOnly: true\n```"
+          },
+          {
+            "title": "Use skeleton anchors for markup-rich input",
+            "description": "Enable the experimental skeleton alignment so structural markup (HTML/XML/DITA tags surrounding text) provides extra anchor points. This can reduce drift on long runs of paragraphs where length-based alignment alone is unreliable.",
+            "config": "```yaml\noutputOneToOneMatchesOnly: true\nuseSkeletonAlignment: true\n```"
+          }
+        ],
         "wikiUrl": "https://okapiframework.org/wiki/index.php/Paragraph_Alignment_Step"
       }
     },
@@ -9299,6 +9884,23 @@
             "source-language"
           ]
         }
+      },
+      "doc": {
+        "overview": "The Patterns Checker step verifies that content matching a configured regular-expression pattern in one side of a segment has its expected counterpart in the other side. Each pattern rule pairs a source regex with a target regex (or the `\u003csame\u003e` keyword, meaning the exact source match must reappear in the target), and a direction that decides which side is searched first. It expects filter events and passes them through unchanged, attaching the detected issues for a downstream consumer to report. It is one of the granular quality checks that the aggregate Quality Check step combines into a single pass.",
+        "processingNotes": [
+          "Operates on filter events; events are forwarded unchanged and the detected issues are accumulated per document.",
+          "Delegates to the verification library's `PatternsChecker`; its step parameters are a subset of the full Quality Check / CheckMate configuration.",
+          "Pattern checking is enabled by default and ships with a built-in rule set: opening parentheses, closing parentheses, other bracketing characters, email addresses, URLs, IP addresses, C-style printf codes, and tripled letters.",
+          "Each rule carries a severity (low, medium, or high); the built-in URL, email, IP and printf rules expect `\u003csame\u003e`, while the tripled-letter rule is checked from the target side rather than the source.",
+          "Requires source and target locales; these are supplied by the pipeline rather than configured on the step."
+        ],
+        "examples": [
+          {
+            "title": "Require numbers in the source to appear in the target",
+            "description": "Adds a custom rule alongside the built-in pattern set: every run of digits found in the source (`fromSource: true`) must also occur in the target, otherwise the segment is flagged at warning severity.",
+            "config": "```yaml\ncheckPatterns: true\npatterns:\n  - enabled: true\n    fromSource: true\n    source: \"\\\\d+\"\n    target: \"\\\\d+\"\n    severity: 1\n    description: \"Numbers must be preserved in the target\"\n```"
+          }
+        ]
       }
     },
     {
@@ -9402,6 +10004,20 @@
             "source-language"
           ]
         }
+      },
+      "doc": {
+        "overview": "Counts the characters in text units whose top alternate translation is a `PHRASE_ASSEMBLED` match — a result assembled from individual phrases held in the translation memory or other resources, rather than retrieved as a single stored segment. It is the character-counting counterpart of the Phrase Assembled Word Count Step, differing only in that it tallies characters rather than words.",
+        "limitations": [
+          "The Okapi source notes that, as of its writing, no leveraging step yet annotates segments with the `PHRASE_ASSEMBLED` match type, so in practice this counter typically reports zero unless an upstream component supplies such matches."
+        ],
+        "processingNotes": [
+          "Operates per segment: it inspects the first (top-ranked) `AltTranslation` on each target segment's `AltTranslationsAnnotation` and counts a segment only when that match type is exactly `PHRASE_ASSEMBLED`.",
+          "Counting is performed on the **source** text, not the target — the character total reflects the source volume leveraged at this match level.",
+          "Uses the GMX-V character counter; the only behavioural difference from the word-count variant is words versus characters.",
+          "Counts only translatable text units; empty text units and non-translatable ones are skipped.",
+          "Results are stored as annotations on filter events and aggregated to the configured levels (text unit, group, document, sub-document, batch item, batch); the step produces no output document of its own.",
+          "Belongs to the `OKAPI_CHARACTER_COUNTS` category group. The `CategoryResolver` keeps only the highest-ranked matching category per segment — `PHRASE_ASSEMBLED` ranks below all fuzzy categories and above `MT` and `CONCORDANCE`."
+        ]
       }
     },
     {
@@ -9443,6 +10059,20 @@
             "source-language"
           ]
         }
+      },
+      "doc": {
+        "overview": "Counts the words in text units whose top alternate translation is a `PHRASE_ASSEMBLED` match — a result assembled from individual phrases held in the translation memory or other resources, rather than retrieved as a single stored segment. The count is recorded as a word-count metric in a `MetricsAnnotation` so that scoping and pricing steps can report assembled-from-fragments volume as its own category, distinct from whole-segment fuzzy or exact matches.",
+        "limitations": [
+          "The Okapi source notes that, as of its writing, no leveraging step yet annotates segments with the `PHRASE_ASSEMBLED` match type, so in practice this counter typically reports zero unless an upstream component supplies such matches."
+        ],
+        "processingNotes": [
+          "Operates per segment: it inspects the first (top-ranked) `AltTranslation` on each target segment's `AltTranslationsAnnotation` and counts a segment only when that match type is exactly `PHRASE_ASSEMBLED`.",
+          "Counting is performed on the **source** text, not the target — the word total reflects the source volume leveraged at this match level.",
+          "Words are counted with the GMX-V word counter; the parallel character-count variant counts characters instead.",
+          "Counts only translatable text units; empty text units and non-translatable ones are skipped.",
+          "Results are stored as annotations on filter events and aggregated to the configured levels (text unit, group, document, sub-document, batch item, batch); the step produces no output document of its own.",
+          "Belongs to the `OKAPI_WORD_COUNTS` category group. The `CategoryResolver` keeps only the highest-ranked matching category per segment — `PHRASE_ASSEMBLED` ranks below all fuzzy categories and above `MT` and `CONCORDANCE`."
+        ]
       }
     },
     {
@@ -9535,6 +10165,18 @@
           "Original un-merged codes are saved as `okp:merged` attributes in the generated XLIFF file, enabling reversibility.",
           "Trimmed (leading/trailing) codes are written outside `mrk` elements in the XLIFF output.",
           "The step examines each linguistically distinct segment within a TextUnit independently."
+        ],
+        "examples": [
+          {
+            "title": "Simplify codes after segmentation",
+            "description": "Run after the Segmentation step to merge adjacent codes and move boundary codes out of each segment. Original codes are preserved as `okp:merged` attributes in the generated XLIFF, so the simplification is reversible on write-back.",
+            "config": "```yaml\nmergeCodes: true\nremoveLeadingTrailingCodes: true\n```"
+          },
+          {
+            "title": "Merge only, leave boundary codes in the segment",
+            "description": "Collapse adjacent codes within each segment but keep leading and trailing codes inside the `mrk` element. Use this when only intra-segment clutter needs reducing. Note that bilingual inputs (XLIFF, TMX, TTX) are not simplified, since their source and target codes must align by ID.",
+            "config": "```yaml\nmergeCodes: true\nremoveLeadingTrailingCodes: false\n```"
+          }
         ],
         "wikiUrl": "https://okapiframework.org/wiki/index.php/Post-segmentation_Inline_Codes_Removal_Step"
       }
@@ -12059,6 +12701,14 @@
             "block"
           ]
         }
+      },
+      "doc": {
+        "overview": "The Raw Document To Output Stream step copies the bytes of a raw document to a provided output stream. It is typically the last step in a pipeline that ends with a raw document and needs to be written somewhere other than a file on disk. After copying the content it consumes the raw-document event so nothing is forwarded to a following step.",
+        "processingNotes": [
+          "Copies the raw document's stream verbatim to the destination output stream without interpreting or transforming the content.",
+          "Consumes (eats) the raw-document event after writing and emits a no-op event, so it should normally be the final step in the pipeline.",
+          "The destination output stream is supplied programmatically rather than through step parameters."
+        ]
       }
     },
     {
@@ -12098,6 +12748,15 @@
             "block"
           ]
         }
+      },
+      "doc": {
+        "overview": "The Raw Document Writer step writes the bytes of a raw document to an output file. It is typically the last step in a pipeline that ends with a raw document and needs to produce a file on disk. The output location is taken from the pipeline's output URI; after copying the content it consumes the raw-document event so nothing is forwarded to a following step.",
+        "processingNotes": [
+          "Copies the raw document's stream verbatim to the output file without interpreting or transforming the content.",
+          "Creates any missing parent directories for the output path before writing.",
+          "Consumes (eats) the raw-document event after writing and emits a no-op event, so it should normally be the final step in the pipeline.",
+          "The output location is supplied by the pipeline as an output URI rather than through step parameters."
+        ]
       }
     },
     {
@@ -12652,6 +13311,59 @@
     },
     {
       "id": "scoping-report",
+      "source": "built-in",
+      "kind": "tool",
+      "displayName": "Scoping Report",
+      "description": "Classify each block into a scoping category from upstream repetition and match status.",
+      "category": "analysis",
+      "inputs": [
+        "block"
+      ],
+      "tags": [
+        "analysis"
+      ],
+      "cardinality": "monolingual",
+      "schema": {
+        "$id": "scoping-report",
+        "title": "Scoping Report",
+        "type": "object",
+        "toolMeta": {
+          "id": "scoping-report",
+          "category": "analysis",
+          "displayName": "Scoping Report",
+          "inputs": [
+            "block"
+          ],
+          "tags": [
+            "analysis"
+          ],
+          "cardinality": "monolingual",
+          "produces": [
+            "analysis.scoping-report"
+          ]
+        }
+      },
+      "doc": {
+        "overview": "The **Scoping Report** tool assigns each translatable block a scoping category\nand records it on the block's properties. The category is derived from\nproperties set by upstream analysis tools: a block flagged as a repetition by\nrepetition analysis becomes a repetition; blocks marked unchanged or leveraged\nby diff-leverage become an exact match or a fuzzy match respectively; everything\nelse is classified as new.\n\nBecause it reads properties produced earlier in the pipeline, scoping report is\nmeant to run after repetition analysis and any leverage step. The classification\nunderpins word-count breakdowns and pricing that distinguish new text from\nreused or partially matched text.\n",
+        "limitations": [
+          "Relies on properties set by upstream tools (repetition analysis, diff-leverage); without them, blocks are classified as new.",
+          "Produces a per-block category, not an aggregated cross-document summary by itself."
+        ],
+        "processingNotes": [
+          "Operates on translatable blocks; non-translatable structure passes through unchanged.",
+          "Run after repetition analysis and leverage steps so their status properties are available."
+        ],
+        "examples": [
+          {
+            "title": "Classify blocks after repetition analysis",
+            "description": "The tool takes no parameters; place it downstream of repetition analysis in a flow.",
+            "config": "{}\n"
+          }
+        ]
+      }
+    },
+    {
+      "id": "scoping-report",
       "source": "okapi",
       "kind": "tool",
       "displayName": "Scoping Report",
@@ -13039,59 +13751,6 @@
           }
         ],
         "wikiUrl": "https://okapiframework.org/wiki/index.php/Scoping_Report_Step"
-      }
-    },
-    {
-      "id": "scoping-report",
-      "source": "built-in",
-      "kind": "tool",
-      "displayName": "Scoping Report",
-      "description": "Classify each block into a scoping category from upstream repetition and match status.",
-      "category": "analysis",
-      "inputs": [
-        "block"
-      ],
-      "tags": [
-        "analysis"
-      ],
-      "cardinality": "monolingual",
-      "schema": {
-        "$id": "scoping-report",
-        "title": "Scoping Report",
-        "type": "object",
-        "toolMeta": {
-          "id": "scoping-report",
-          "category": "analysis",
-          "displayName": "Scoping Report",
-          "inputs": [
-            "block"
-          ],
-          "tags": [
-            "analysis"
-          ],
-          "cardinality": "monolingual",
-          "produces": [
-            "analysis.scoping-report"
-          ]
-        }
-      },
-      "doc": {
-        "overview": "The **Scoping Report** tool assigns each translatable block a scoping category\nand records it on the block's properties. The category is derived from\nproperties set by upstream analysis tools: a block flagged as a repetition by\nrepetition analysis becomes a repetition; blocks marked unchanged or leveraged\nby diff-leverage become an exact match or a fuzzy match respectively; everything\nelse is classified as new.\n\nBecause it reads properties produced earlier in the pipeline, scoping report is\nmeant to run after repetition analysis and any leverage step. The classification\nunderpins word-count breakdowns and pricing that distinguish new text from\nreused or partially matched text.\n",
-        "limitations": [
-          "Relies on properties set by upstream tools (repetition analysis, diff-leverage); without them, blocks are classified as new.",
-          "Produces a per-block category, not an aggregated cross-document summary by itself."
-        ],
-        "processingNotes": [
-          "Operates on translatable blocks; non-translatable structure passes through unchanged.",
-          "Run after repetition analysis and leverage steps so their status properties are available."
-        ],
-        "examples": [
-          {
-            "title": "Classify blocks after repetition analysis",
-            "description": "The tool takes no parameters; place it downstream of repetition analysis in a flow.",
-            "config": "{}\n"
-          }
-        ]
       }
     },
     {
@@ -13653,6 +14312,140 @@
     },
     {
       "id": "segmentation",
+      "source": "built-in",
+      "kind": "tool",
+      "displayName": "Segmentation",
+      "description": "Split block text into sentence-level segments using SRX-style rules.",
+      "category": "text-processing",
+      "inputs": [
+        "block"
+      ],
+      "tags": [
+        "text-processing"
+      ],
+      "cardinality": "monolingual",
+      "schema": {
+        "$id": "segmentation",
+        "title": "Segmentation",
+        "type": "object",
+        "toolMeta": {
+          "id": "segmentation",
+          "category": "text-processing",
+          "displayName": "Segmentation",
+          "inputs": [
+            "block"
+          ],
+          "tags": [
+            "text-processing"
+          ],
+          "cardinality": "monolingual",
+          "writesOutput": true
+        },
+        "properties": {
+          "overwriteSegmentation": {
+            "type": "boolean",
+            "title": "Overwrite Existing Segmentation",
+            "description": "Re-segment already-segmented text units replacing previous segmentation",
+            "default": false
+          },
+          "renumberCodes": {
+            "type": "boolean",
+            "title": "Renumber Code IDs",
+            "description": "Renumber inline code IDs in each segment to start at 1",
+            "default": false
+          },
+          "segmentSource": {
+            "type": "boolean",
+            "title": "Segment Source Text",
+            "description": "Segment the source text using SRX rules",
+            "default": true
+          },
+          "segmentTarget": {
+            "type": "boolean",
+            "title": "Segment Target Text",
+            "description": "Segment existing target text using SRX rules",
+            "default": false
+          },
+          "sourceSrxPath": {
+            "type": "string",
+            "title": "Source SRX Rules Path",
+            "description": "Path to SRX segmentation rules file for source text"
+          },
+          "targetSrxPath": {
+            "type": "string",
+            "title": "Target SRX Rules Path",
+            "description": "Path to SRX segmentation rules file for target text"
+          },
+          "treatIsolatedCodesAsWhitespace": {
+            "type": "boolean",
+            "title": "Treat Isolated Codes as Whitespace",
+            "description": "Treat isolated inline codes as whitespace during segmentation",
+            "default": false
+          }
+        }
+      },
+      "doc": {
+        "overview": "The **Segmentation** tool splits a block's text into sentence-level segments.\nSegmentation determines the unit of translation and of translation-memory\nmatching, so consistent segmentation is important for leverage and review.\nBy default the tool segments source text using built-in SRX-style rules that\nhandle common sentence boundaries and abbreviations; rules can also be loaded\nfrom an SRX file.\n\nThe number of segments produced is recorded on each block. Already-segmented\ntext is left alone unless re-segmentation is requested. Target text can be\nsegmented independently, with its own rules file.\n",
+        "parameters": {
+          "overwriteSegmentation": {
+            "description": "Re-segment already-segmented text.",
+            "help": "By default text that already has more than one segment is left untouched.\nEnable this to discard the existing segmentation and re-segment.\n",
+            "values": "`true` / `false` (default `false`)"
+          },
+          "renumberCodes": {
+            "description": "Renumber inline-code IDs within each segment.",
+            "help": "When enabled, inline-code IDs are renumbered to start at 1 within each\nresulting segment.\n",
+            "values": "`true` / `false` (default `false`)"
+          },
+          "segmentSource": {
+            "description": "Segment the source text.",
+            "help": "When enabled, the source text is split into segments using the source\nrules. If neither source nor target segmentation is enabled, source\nsegmentation is applied by default.\n",
+            "values": "`true` / `false` (default `true`)"
+          },
+          "segmentTarget": {
+            "description": "Segment existing target text.",
+            "help": "When enabled, existing target text for the configured locale is split\ninto segments using the target rules.\n",
+            "values": "`true` / `false` (default `false`)"
+          },
+          "sourceSrxPath": {
+            "description": "Path to an SRX rules file for the source.",
+            "help": "Path to an SRX segmentation rules file used for the source text. When\nempty, the built-in default rules are used.\n",
+            "values": "file path"
+          },
+          "targetSrxPath": {
+            "description": "Path to an SRX rules file for the target.",
+            "help": "Path to an SRX segmentation rules file used for the target text. When\nempty, the built-in default rules are used.\n",
+            "values": "file path"
+          },
+          "treatIsolatedCodesAsWhitespace": {
+            "description": "Treat isolated inline codes as whitespace while segmenting.",
+            "help": "When enabled, an isolated inline code is treated like whitespace for the\npurpose of finding segment boundaries.\n",
+            "values": "`true` / `false` (default `false`)"
+          }
+        },
+        "limitations": [
+          "The built-in rule set targets common Latin-script sentence boundaries; non-Latin scripts may need a custom SRX file."
+        ],
+        "processingNotes": [
+          "Operates on translatable blocks only; non-translatable blocks pass through unchanged.",
+          "The resulting segment count is written to a block property."
+        ],
+        "examples": [
+          {
+            "title": "Segment source text with default rules",
+            "description": "Split source into sentences using the built-in rules.",
+            "config": "segmentSource: true\n"
+          },
+          {
+            "title": "Re-segment with a custom SRX file",
+            "description": "Replace existing segmentation using project-specific rules.",
+            "config": "segmentSource: true\noverwriteSegmentation: true\nsourceSrxPath: ./rules/segmentation.srx\n"
+          }
+        ]
+      }
+    },
+    {
+      "id": "segmentation",
       "source": "okapi",
       "kind": "tool",
       "displayName": "Segmentation",
@@ -13904,140 +14697,6 @@
           }
         ],
         "wikiUrl": "https://okapiframework.org/wiki/index.php/Segmentation_Step"
-      }
-    },
-    {
-      "id": "segmentation",
-      "source": "built-in",
-      "kind": "tool",
-      "displayName": "Segmentation",
-      "description": "Split block text into sentence-level segments using SRX-style rules.",
-      "category": "text-processing",
-      "inputs": [
-        "block"
-      ],
-      "tags": [
-        "text-processing"
-      ],
-      "cardinality": "monolingual",
-      "schema": {
-        "$id": "segmentation",
-        "title": "Segmentation",
-        "type": "object",
-        "toolMeta": {
-          "id": "segmentation",
-          "category": "text-processing",
-          "displayName": "Segmentation",
-          "inputs": [
-            "block"
-          ],
-          "tags": [
-            "text-processing"
-          ],
-          "cardinality": "monolingual",
-          "writesOutput": true
-        },
-        "properties": {
-          "overwriteSegmentation": {
-            "type": "boolean",
-            "title": "Overwrite Existing Segmentation",
-            "description": "Re-segment already-segmented text units replacing previous segmentation",
-            "default": false
-          },
-          "renumberCodes": {
-            "type": "boolean",
-            "title": "Renumber Code IDs",
-            "description": "Renumber inline code IDs in each segment to start at 1",
-            "default": false
-          },
-          "segmentSource": {
-            "type": "boolean",
-            "title": "Segment Source Text",
-            "description": "Segment the source text using SRX rules",
-            "default": true
-          },
-          "segmentTarget": {
-            "type": "boolean",
-            "title": "Segment Target Text",
-            "description": "Segment existing target text using SRX rules",
-            "default": false
-          },
-          "sourceSrxPath": {
-            "type": "string",
-            "title": "Source SRX Rules Path",
-            "description": "Path to SRX segmentation rules file for source text"
-          },
-          "targetSrxPath": {
-            "type": "string",
-            "title": "Target SRX Rules Path",
-            "description": "Path to SRX segmentation rules file for target text"
-          },
-          "treatIsolatedCodesAsWhitespace": {
-            "type": "boolean",
-            "title": "Treat Isolated Codes as Whitespace",
-            "description": "Treat isolated inline codes as whitespace during segmentation",
-            "default": false
-          }
-        }
-      },
-      "doc": {
-        "overview": "The **Segmentation** tool splits a block's text into sentence-level segments.\nSegmentation determines the unit of translation and of translation-memory\nmatching, so consistent segmentation is important for leverage and review.\nBy default the tool segments source text using built-in SRX-style rules that\nhandle common sentence boundaries and abbreviations; rules can also be loaded\nfrom an SRX file.\n\nThe number of segments produced is recorded on each block. Already-segmented\ntext is left alone unless re-segmentation is requested. Target text can be\nsegmented independently, with its own rules file.\n",
-        "parameters": {
-          "overwriteSegmentation": {
-            "description": "Re-segment already-segmented text.",
-            "help": "By default text that already has more than one segment is left untouched.\nEnable this to discard the existing segmentation and re-segment.\n",
-            "values": "`true` / `false` (default `false`)"
-          },
-          "renumberCodes": {
-            "description": "Renumber inline-code IDs within each segment.",
-            "help": "When enabled, inline-code IDs are renumbered to start at 1 within each\nresulting segment.\n",
-            "values": "`true` / `false` (default `false`)"
-          },
-          "segmentSource": {
-            "description": "Segment the source text.",
-            "help": "When enabled, the source text is split into segments using the source\nrules. If neither source nor target segmentation is enabled, source\nsegmentation is applied by default.\n",
-            "values": "`true` / `false` (default `true`)"
-          },
-          "segmentTarget": {
-            "description": "Segment existing target text.",
-            "help": "When enabled, existing target text for the configured locale is split\ninto segments using the target rules.\n",
-            "values": "`true` / `false` (default `false`)"
-          },
-          "sourceSrxPath": {
-            "description": "Path to an SRX rules file for the source.",
-            "help": "Path to an SRX segmentation rules file used for the source text. When\nempty, the built-in default rules are used.\n",
-            "values": "file path"
-          },
-          "targetSrxPath": {
-            "description": "Path to an SRX rules file for the target.",
-            "help": "Path to an SRX segmentation rules file used for the target text. When\nempty, the built-in default rules are used.\n",
-            "values": "file path"
-          },
-          "treatIsolatedCodesAsWhitespace": {
-            "description": "Treat isolated inline codes as whitespace while segmenting.",
-            "help": "When enabled, an isolated inline code is treated like whitespace for the\npurpose of finding segment boundaries.\n",
-            "values": "`true` / `false` (default `false`)"
-          }
-        },
-        "limitations": [
-          "The built-in rule set targets common Latin-script sentence boundaries; non-Latin scripts may need a custom SRX file."
-        ],
-        "processingNotes": [
-          "Operates on translatable blocks only; non-translatable blocks pass through unchanged.",
-          "The resulting segment count is written to a block property."
-        ],
-        "examples": [
-          {
-            "title": "Segment source text with default rules",
-            "description": "Split source into sentences using the built-in rules.",
-            "config": "segmentSource: true\n"
-          },
-          {
-            "title": "Re-segment with a custom SRX file",
-            "description": "Replace existing segmentation using project-specific rules.",
-            "config": "segmentSource: true\noverwriteSegmentation: true\nsourceSrxPath: ./rules/segmentation.srx\n"
-          }
-        ]
       }
     },
     {
@@ -14425,6 +15084,18 @@
           "When processing bilingual documents (e.g., TMX, PO), use only a single input list.",
           "The default SRX segmentation rules are **hard-coded within the step** — they are not the rules from the `config` sub-directory of the installation directory."
         ],
+        "examples": [
+          {
+            "title": "Align and export a TMX",
+            "description": "Segment both sides with the built-in rules, align sentences, and write the aligned pairs to a TMX file. The original events pass through unchanged apart from re-segmentation; the aligned data goes only to the TMX.",
+            "config": "```yaml\ngenerateTMX: true\ntmxOutputPath: ./aligned.tmx\nsegmentSource: true\nsegmentTarget: true\n```"
+          },
+          {
+            "title": "High-confidence pairs with custom source rules",
+            "description": "Use a project-specific SRX file for the source, collapse inconsistent whitespace before aligning, and keep only 1-to-1 sentence matches. The custom-rules path only takes effect when both `segmentSource` and `useCustomSourceRules` are enabled.",
+            "config": "```yaml\ngenerateTMX: true\ntmxOutputPath: ./aligned.tmx\nsegmentSource: true\nuseCustomSourceRules: true\ncustomSourceRulesPath: ./rules/source.srx\ncollapseWhitespace: true\noutputOneTOneMatchesOnly: true\n```"
+          }
+        ],
         "wikiUrl": "https://okapiframework.org/wiki/index.php/Sentence_Alignment_Step"
       }
     },
@@ -14467,6 +15138,17 @@
             "source-language"
           ]
         }
+      },
+      "doc": {
+        "overview": "The Batch TM Leveraging step queries a translation-memory connector for matches, but sends text units in batches rather than one at a time. It accumulates text units, dispatches them to the connector's batch-leverage call once a fixed number have been collected (and again for any remainder at the end of each document), attaches the returned matches as alternate-translation annotations, and can fill the target with the best match above a threshold. It is a simpler and faster alternative to the per-segment Leveraging step for connectors that support batch queries.",
+        "processingNotes": [
+          "Text units are buffered and leveraged in batches; the buffer is flushed when it reaches the internal batch size and at the end of each document, so events are emitted as multi-events rather than strictly in place.",
+          "Non-translatable text units, entries with no source text, entries already approved (target `approved` property set to `yes`), and entries already handled by Diff Leveraging are skipped.",
+          "When target filling is enabled, the best match for a segment is copied into the target only if its combined score meets `fillTargetThreshold` and the existing target is eligible (per `fillIfTargetIsEmpty` / `fillIfTargetIsSameAsSource`).",
+          "When `copySourceOnNoText` is enabled, segments whose source has no text (codes/whitespace only) have their source copied into the corresponding target segment.",
+          "The connector is instantiated by class name and configured from the step's resource parameters; if it is a TM query it is opened with a fixed maximum of five hits per entry.",
+          "Requires source and target locales and the pipeline root directory; these are supplied by the pipeline rather than configured on the step."
+        ]
       }
     },
     {
@@ -15287,15 +15969,52 @@
       },
       "doc": {
         "overview": "This step leverages glossary terms into extracted text units by querying a terminology resource connector. It sends segment content to the resource, which returns matching glossary entries that are then annotated onto source and/or target segments. Non-translatable text units are automatically skipped. Requires both source and target languages to be set.",
+        "parameters": {
+          "annotateSource": {
+            "help": "Annotates the source segment text where a glossary term is found. The connector locates terms within the source content and the matching glossary entries are attached as inline annotations on the source.\n\nEnable this when downstream steps or output formats need source-side terminology markup."
+          },
+          "annotateTarget": {
+            "help": "Annotates the target segment text where a translation of a glossary term is found. Annotation is applied when the connector locates a known term translation within the target content.\n\nRequires a target to be present on the text unit; non-translatable units are skipped."
+          },
+          "connectorClassName": {
+            "help": "Fully qualified class name of the terminology resource connector to query. The connector must extend `BaseTerminologyConnector` or implement the `ITerminologyQuery` interface, and the class must be available on the runtime classpath.",
+            "examples": [
+              "`net.sf.okapi.connectors.example.GlossaryConnector`"
+            ]
+          },
+          "connectorParameters": {
+            "help": "Serialized parameter string passed to the connector named by `connectorClassName`. The format and meaning of the string are defined entirely by that connector (for example, endpoint URLs or credentials).",
+            "dependsOn": [
+              {
+                "property": "connectorClassName",
+                "condition": "interpreted by the connector named here"
+              }
+            ]
+          },
+          "leverage": {
+            "help": "Enables or disables terminology leveraging for the step. When disabled, the step is a no-op, which allows it to be left in a pipeline and toggled on or off without removing it.\n\nWhen enabled, segment content is sent to the configured connector and matching glossary entries are annotated onto the segments."
+          }
+        },
         "limitations": [
-          "It is **not** possible to chain several steps to leverage against multiple terminology resources.",
-          "The step has no configurable parameters exposed in the schema — all settings (leverage toggle, annotation options, connector class/params) are managed internally or through the Okapi UI only."
+          "It is **not** possible to chain several steps to leverage against multiple terminology resources."
         ],
         "processingNotes": [
           "Text units flagged as non-translatable are automatically skipped.",
           "Source annotation occurs when a glossary term is found within the source segment text.",
           "Target annotation occurs when a translation of a glossary term is found within the target segment text.",
           "The terminology resource connector defines its own strategy for generating glossary entry IDs and glossary translation IDs."
+        ],
+        "examples": [
+          {
+            "title": "Annotate source segments from a connector",
+            "description": "Enable leveraging and annotate source text where glossary terms are found, naming the terminology connector to query. The connector class must extend `BaseTerminologyConnector` or implement `ITerminologyQuery`.",
+            "config": "```yaml\nleverage: true\nannotateSource: true\nconnectorClassName: net.sf.okapi.connectors.example.GlossaryConnector\n```"
+          },
+          {
+            "title": "Annotate both sides with connector parameters",
+            "description": "Annotate source and target segments, passing the connector its own settings as a serialized parameter string. Target annotation is applied when a translation of a term is found in the target text.",
+            "config": "```yaml\nleverage: true\nannotateSource: true\nannotateTarget: true\nconnectorClassName: net.sf.okapi.connectors.example.GlossaryConnector\nconnectorParameters: \"endpoint=https://terms.example.org/api\"\n```"
+          }
         ],
         "wikiUrl": "https://okapiframework.org/wiki/index.php/Terminology_Leveraging_Step"
       }
@@ -15578,6 +16297,14 @@
             "source-language"
           ]
         }
+      },
+      "doc": {
+        "overview": "The Text Unit Filtering step applies a pluggable text-unit filter to each text unit and, by default, marks the accepted ones as non-translatable. The filter is supplied as a Java class name implementing the framework's text-unit filter interface, letting a pipeline exclude text units that match arbitrary criteria from later translation steps. It expects filter events and passes them through unchanged apart from clearing the translatable flag on matching text units.",
+        "processingNotes": [
+          "Each text unit is offered to the configured filter; accepted units have their translatable flag cleared (set non-translatable), while rejected units are passed through unmodified.",
+          "The filter is instantiated by class name (`tuFilterClassName`); if no class is configured the step fails at the start of the batch.",
+          "Subclasses can override the handling of accepted text units to do more than clear the translatable flag (for example drop the event or replace it), but the default behaviour is the non-translatable marking described above."
+        ]
       }
     },
     {
@@ -17606,106 +18333,6 @@
     },
     {
       "id": "word-count",
-      "source": "built-in",
-      "kind": "tool",
-      "displayName": "Word Count",
-      "description": "Count the words in each block's source and target text for scoping and pricing.",
-      "category": "analysis",
-      "inputs": [
-        "block"
-      ],
-      "tags": [
-        "analysis"
-      ],
-      "cardinality": "monolingual",
-      "aliases": [
-        "wc"
-      ],
-      "schema": {
-        "$id": "word-count",
-        "title": "Word Count",
-        "type": "object",
-        "toolMeta": {
-          "id": "word-count",
-          "category": "analysis",
-          "displayName": "Word Count",
-          "inputs": [
-            "block"
-          ],
-          "tags": [
-            "analysis"
-          ],
-          "cardinality": "monolingual",
-          "produces": [
-            "analysis.word-count"
-          ],
-          "aliases": [
-            "wc"
-          ]
-        },
-        "properties": {
-          "countInline": {
-            "type": "boolean",
-            "title": "Count Inline Codes",
-            "description": "Include inline code content in word counts",
-            "default": false
-          },
-          "countSource": {
-            "type": "boolean",
-            "title": "Count Source",
-            "description": "Count words in source text",
-            "default": true
-          },
-          "countTarget": {
-            "type": "boolean",
-            "title": "Count Target",
-            "description": "Count words in target text",
-            "default": true
-          }
-        }
-      },
-      "doc": {
-        "overview": "The **Word Count** tool tallies the number of words in every translatable\nblock, reporting per-block counts and a document total. It is the standard\nway to scope a localization job — how much text needs translating — and to\ndrive word-based pricing.\n\nCounting runs over the segmented text. By default both the source and the\ntarget locale are counted, so you can compare untranslated versus translated\nvolume. Inline codes (placeholders, tags, variables) are excluded from the\ncount unless you opt in, because they are markup rather than translatable\nwords.\n",
-        "parameters": {
-          "countInline": {
-            "description": "Include inline-code content in the word counts.",
-            "help": "By default, inline codes — placeholders, variables, and tag content\nrepresented as coded text — are **excluded** from the count, since they\nare not translatable words. Enable this only when you specifically want\ninline-code text reflected in the totals.\n",
-            "values": "`true` / `false` (default `false`)"
-          },
-          "countSource": {
-            "description": "Count words in the source text.",
-            "help": "When enabled, the words in each block's **source** segments are counted.\nDisable it if you only need target-side volume (for example, to measure\ntranslated output).\n",
-            "values": "`true` / `false` (default `true`)"
-          },
-          "countTarget": {
-            "description": "Count words in the target text.",
-            "help": "When enabled, the words in each block's **target** segments are counted\nfor every target locale present. On untranslated content the target\ncount is zero, which makes this a quick way to see remaining work.\n",
-            "values": "`true` / `false` (default `true`)"
-          }
-        },
-        "limitations": [
-          "Counting follows the active segmentation; results depend on how the text was segmented."
-        ],
-        "processingNotes": [
-          "Operates on translatable blocks; non-translatable structure passes through unchanged.",
-          "Target counts are reported per target locale."
-        ],
-        "examples": [
-          {
-            "title": "Count source words only",
-            "description": "Scope a job by source volume, ignoring any existing translations.",
-            "config": "countSource: true\ncountTarget: false\n"
-          },
-          {
-            "title": "Include inline codes",
-            "description": "Reflect placeholder and tag text in the totals.",
-            "config": "countInline: true\n"
-          }
-        ]
-      }
-    },
-    {
-      "id": "word-count",
       "source": "okapi",
       "kind": "tool",
       "displayName": "Word Count",
@@ -17868,6 +18495,106 @@
           }
         ],
         "wikiUrl": "https://okapiframework.org/wiki/index.php/Word_Count_Step"
+      }
+    },
+    {
+      "id": "word-count",
+      "source": "built-in",
+      "kind": "tool",
+      "displayName": "Word Count",
+      "description": "Count the words in each block's source and target text for scoping and pricing.",
+      "category": "analysis",
+      "inputs": [
+        "block"
+      ],
+      "tags": [
+        "analysis"
+      ],
+      "cardinality": "monolingual",
+      "aliases": [
+        "wc"
+      ],
+      "schema": {
+        "$id": "word-count",
+        "title": "Word Count",
+        "type": "object",
+        "toolMeta": {
+          "id": "word-count",
+          "category": "analysis",
+          "displayName": "Word Count",
+          "inputs": [
+            "block"
+          ],
+          "tags": [
+            "analysis"
+          ],
+          "cardinality": "monolingual",
+          "produces": [
+            "analysis.word-count"
+          ],
+          "aliases": [
+            "wc"
+          ]
+        },
+        "properties": {
+          "countInline": {
+            "type": "boolean",
+            "title": "Count Inline Codes",
+            "description": "Include inline code content in word counts",
+            "default": false
+          },
+          "countSource": {
+            "type": "boolean",
+            "title": "Count Source",
+            "description": "Count words in source text",
+            "default": true
+          },
+          "countTarget": {
+            "type": "boolean",
+            "title": "Count Target",
+            "description": "Count words in target text",
+            "default": true
+          }
+        }
+      },
+      "doc": {
+        "overview": "The **Word Count** tool tallies the number of words in every translatable\nblock, reporting per-block counts and a document total. It is the standard\nway to scope a localization job — how much text needs translating — and to\ndrive word-based pricing.\n\nCounting runs over the segmented text. By default both the source and the\ntarget locale are counted, so you can compare untranslated versus translated\nvolume. Inline codes (placeholders, tags, variables) are excluded from the\ncount unless you opt in, because they are markup rather than translatable\nwords.\n",
+        "parameters": {
+          "countInline": {
+            "description": "Include inline-code content in the word counts.",
+            "help": "By default, inline codes — placeholders, variables, and tag content\nrepresented as coded text — are **excluded** from the count, since they\nare not translatable words. Enable this only when you specifically want\ninline-code text reflected in the totals.\n",
+            "values": "`true` / `false` (default `false`)"
+          },
+          "countSource": {
+            "description": "Count words in the source text.",
+            "help": "When enabled, the words in each block's **source** segments are counted.\nDisable it if you only need target-side volume (for example, to measure\ntranslated output).\n",
+            "values": "`true` / `false` (default `true`)"
+          },
+          "countTarget": {
+            "description": "Count words in the target text.",
+            "help": "When enabled, the words in each block's **target** segments are counted\nfor every target locale present. On untranslated content the target\ncount is zero, which makes this a quick way to see remaining work.\n",
+            "values": "`true` / `false` (default `true`)"
+          }
+        },
+        "limitations": [
+          "Counting follows the active segmentation; results depend on how the text was segmented."
+        ],
+        "processingNotes": [
+          "Operates on translatable blocks; non-translatable structure passes through unchanged.",
+          "Target counts are reported per target locale."
+        ],
+        "examples": [
+          {
+            "title": "Count source words only",
+            "description": "Scope a job by source volume, ignoring any existing translations.",
+            "config": "countSource: true\ncountTarget: false\n"
+          },
+          {
+            "title": "Include inline codes",
+            "description": "Reflect placeholder and tag text in the totals.",
+            "config": "countInline: true\n"
+          }
+        ]
       }
     },
     {
@@ -18142,6 +18869,18 @@
           "All content outside `\u003cfile\u003e` elements (e.g. `\u003cheader\u003e`, processing instructions) is copied as-is to each split document.",
           "The default DOM-based parser requires the entire file to fit in memory; use **Process big file** for very large inputs."
         ],
+        "examples": [
+          {
+            "title": "Split into numbered parts",
+            "description": "Split a multi-`\u003cfile\u003e` XLIFF into one document per `\u003cfile\u003e`, using a custom marker in the output names. With `fileMarker: _chunk`, `document.xlf` produces `document_chunk1.xlf`, `document_chunk2.xlf`, and so on.",
+            "config": "```yaml\nfileMarker: _chunk\n```"
+          },
+          {
+            "title": "Stream a large file and stamp WorldServer status",
+            "description": "Use the stream-based parser for very large inputs and update the `\u003ciws:status\u003e` flags in each split document, which is specific to WorldServer XLIFF. Note that with `bigFile` enabled, XML parts between `\u003cfile\u003e` elements are not copied into the outputs.",
+            "config": "```yaml\nbigFile: true\nupdateSDLTranslationStatus: true\ntranslationTypeValue: machine_translation\ntranslationStatusValue: unfinished\n```"
+          }
+        ],
         "wikiUrl": "https://okapiframework.org/wiki/index.php/XLIFF_Splitter_Step"
       }
     },
@@ -18191,6 +18930,25 @@
             "block"
           ]
         }
+      },
+      "doc": {
+        "overview": "The XLIFF Word-Count Splitter step divides a single XLIFF 1.2 document into several smaller documents according to a source word-count threshold. It streams the input, tallies the source words of each trans-unit, and once the running count reaches the configured maximum it closes the current part and opens the next, reproducing the surrounding element structure so each part is a well-formed XLIFF file. It expects a raw document and passes it through, writing the numbered part files alongside the input.",
+        "limitations": [
+          "Supports XLIFF 1.2 input only, and the source must be a URI-backed raw document — in-memory raw documents are not accepted.",
+          "A split occurs only at a trans-unit boundary once the threshold is reached, so an individual part may exceed the threshold if a single trans-unit pushes the count past it."
+        ],
+        "processingNotes": [
+          "Word counting uses the source content of each trans-unit; trans-units marked `translate=\"no\"` and those with a `state-qualifier` of `x-numeric`, `x-alphanum`, or `x-punctuation` are excluded from the count.",
+          "Output parts are written as `\u003cinput\u003e_PART###.xlf` next to the input, each encoded as UTF-8 with a leading byte-order mark, and DTD processing is disabled on the XML reader for safety.",
+          "The source locale is taken from the incoming raw document rather than configured on the step."
+        ],
+        "examples": [
+          {
+            "title": "Split a large XLIFF into ~200,000-word parts",
+            "description": "Splits the input XLIFF 1.2 document at trans-unit boundaries into sequential `_PART###.xlf` files, starting a new part once the accumulated translatable word count crosses the threshold. Units marked `translate=\"no\"` and numeric/alphanumeric/punctuation-only units are excluded from the count.",
+            "config": "```yaml\nthreshold: 200000\n```"
+          }
+        ]
       }
     },
     {

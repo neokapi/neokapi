@@ -89,6 +89,7 @@ const sidebars: SidebarsConfig = {
         "features/mt-services",
         "features/qa-checks",
         "features/brand-voice",
+        "features/redaction",
       ],
     },
     {

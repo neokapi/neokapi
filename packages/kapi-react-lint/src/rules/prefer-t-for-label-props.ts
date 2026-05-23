@@ -1,4 +1,4 @@
-import type { Rule } from "eslint";
+import type { Rule, Node } from "@oxlint/plugins";
 import { LIKELY_LABEL_KEYS } from "../shared/translatable-attrs.ts";
 
 /**
@@ -24,7 +24,7 @@ import { LIKELY_LABEL_KEYS } from "../shared/translatable-attrs.ts";
  * etc.). A developer using those key names is almost always talking
  * about user-facing copy.
  */
-export const rule: Rule.RuleModule = {
+export const rule: Rule = {
   meta: {
     type: "suggestion",
     docs: {
@@ -49,7 +49,7 @@ export const rule: Rule.RuleModule = {
     const opts = (context.options[0] ?? {}) as { keys?: string[] };
     const keys = opts.keys ? new Set(opts.keys) : LIKELY_LABEL_KEYS;
     return {
-      Property(node: Rule.Node) {
+      Property(node: Node) {
         const prop = node as unknown as {
           key: { type: string; name?: string; value?: unknown };
           value: { type: string; value?: unknown };
@@ -62,7 +62,7 @@ export const rule: Rule.RuleModule = {
         if (prop.value.type !== "Literal" || typeof prop.value.value !== "string") return;
         if ((prop.value.value as string).trim() === "") return;
         context.report({
-          node: node as unknown as Rule.Node,
+          node: node as unknown as Node,
           messageId: "useT",
           data: { key: name },
         });

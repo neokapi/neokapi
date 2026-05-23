@@ -47,4 +47,12 @@ const (
 	TTX           registry.FormatID = "ttx"
 	TXML          registry.FormatID = "txml"
 	PDF           registry.FormatID = "pdf"
+	XCStrings     registry.FormatID = "xcstrings"
+	ARB           registry.FormatID = "arb"
+	RESX          registry.FormatID = "resx"
+	AndroidXML    registry.FormatID = "androidxml"
+	AppleStrings  registry.FormatID = "applestrings"
+	I18next       registry.FormatID = "i18next"
+	DesignTokens  registry.FormatID = "designtokens"
+	MDX           registry.FormatID = "mdx"
 )

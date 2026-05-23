@@ -1,4 +1,4 @@
-import type { Rule } from "eslint";
+import type { Rule } from "@oxlint/plugins";
 import { collectTLocalNames } from "../shared/t-import.ts";
 
 /**
@@ -9,7 +9,7 @@ import { collectTLocalNames } from "../shared/t-import.ts";
  * expressions, this one fires for concatenations that *look* like
  * strings but aren't a single literal.
  */
-export const rule: Rule.RuleModule = {
+export const rule: Rule = {
   meta: {
     type: "problem",
     docs: {
