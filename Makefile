@@ -95,7 +95,17 @@ test-integration: ## Run integration tests
 	@$(MAKE) -C bowrain test-integration
 
 format-acceptance: ## Run native-format consumer-toolchain acceptance tests (plutil/resgen/xmllint/node; each check auto-skips if its tool is absent)
-	$(GO) test -tags acceptance -count=1 ./core/formats/...
+	# Scoped to the formats that ship a //go:build acceptance suite — running
+	# ./core/formats/... would also pull in unrelated packages' fixture-dependent
+	# tests (e.g. xliff2's okapi byte-equal corpus). Add new formats here as they
+	# gain acceptance coverage.
+	# Clear NODE_OPTIONS so node/npx spawned by the JSON-schema + MDX checks do
+	# not inherit a flag the runner's node rejects (e.g. CI sets
+	# --experimental-strip-types, which Node 20 refuses). These checks need none.
+	NODE_OPTIONS= $(GO) test -tags acceptance -count=1 \
+		./core/formats/xcstrings/ ./core/formats/arb/ ./core/formats/resx/ \
+		./core/formats/androidxml/ ./core/formats/applestrings/ \
+		./core/formats/i18next/ ./core/formats/designtokens/ ./core/formats/mdx/
 
 fmt: ## Format Go source files
 	$(GOFMT) -w -s .
