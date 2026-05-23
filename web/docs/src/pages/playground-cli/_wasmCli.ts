@@ -6,9 +6,24 @@
 import { createMemFS } from "./_memfs";
 import type { MemVolume } from "./_memfs";
 
+export interface PreviewBlock {
+  id: string;
+  text: string;
+}
+
+export interface PreviewResult {
+  ok: boolean;
+  error?: string;
+  format?: string;
+  blocks?: PreviewBlock[];
+  total?: number;
+  bytes?: number;
+}
+
 export interface KapiCli {
   vol: MemVolume;
   run(argv: string[]): Promise<number>;
+  preview(path: string): Promise<PreviewResult>;
   cwd(): string;
   chdir(dir: string): void;
 }
@@ -76,6 +91,7 @@ export function bootKapiCli(wasmExecUrl: string, wasmUrl: string): Promise<KapiC
     return {
       vol: mem.vol,
       run: (argv: string[]) => g.kapiRun(argv) as Promise<number>,
+      preview: (path: string) => g.kapiPreview(path) as Promise<PreviewResult>,
       cwd: () => mem.vol.cwd(),
       chdir: (dir: string) => mem.process.chdir(dir),
     };

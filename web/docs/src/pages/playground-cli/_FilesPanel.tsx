@@ -1,5 +1,6 @@
-import React, { useRef } from "react";
+import React, { useRef, useState } from "react";
 import type { KapiCli } from "./_wasmCli";
+import FilePreview from "./_FilePreview";
 import styles from "./styles.module.css";
 
 function joinPath(dir: string, name: string): string {
@@ -16,6 +17,7 @@ export default function FilesPanel({
   onChange: () => void;
 }) {
   const fileInput = useRef<HTMLInputElement>(null);
+  const [previewPath, setPreviewPath] = useState<string | null>(null);
   const cwd = cli.cwd();
 
   // refreshKey is a dependency only to force re-render when the fs changes.
@@ -90,7 +92,9 @@ export default function FilesPanel({
                 </button>
               ) : (
                 <>
-                  <span className={styles.fileName}>{name}</span>
+                  <button type="button" className={styles.fileName} title="Preview with the kapi parser" onClick={() => setPreviewPath(joinPath(cwd, name))}>
+                    {name}
+                  </button>
                   <span className={styles.fileActions}>
                     <button type="button" className={styles.linkBtn} onClick={() => download(name)}>
                       download
@@ -105,6 +109,7 @@ export default function FilesPanel({
           );
         })}
       </ul>
+      {previewPath && <FilePreview cli={cli} path={previewPath} onClose={() => setPreviewPath(null)} />}
     </div>
   );
 }

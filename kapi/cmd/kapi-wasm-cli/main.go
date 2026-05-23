@@ -30,6 +30,7 @@ func main() {
 	app.InitRegistries()
 
 	js.Global().Set("kapiRun", js.FuncOf(kapiRun))
+	js.Global().Set("kapiPreview", js.FuncOf(kapiPreview))
 
 	if ready := js.Global().Get("__kapiCliReady"); ready.Type() == js.TypeFunction {
 		ready.Invoke()
