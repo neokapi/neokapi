@@ -11,6 +11,14 @@ YAML (`--profile-file`), or the local store (`--profile`). List options with
 `kapi brand profiles`. Packs: `professional-b2b`, `friendly-dtc`,
 `technical-docs`, `marketing-blog`, `customer-support`.
 
+**Inside a project, the profile is part of the context — don't pass a flag.** When
+the project binds a brand voice (a `defaults.brand_voice` recipe entry, or a
+`brand.yaml` / `.kapi/brand.yaml` at the project root), run `kapi brand check
+<file>`, `kapi brand rewrite <file>`, and `kapi brand guide` with **no**
+`--profile`/`--profile-file`/`--pack` — kapi resolves the project's voice. Pass a
+flag only for a one-off outside a project, or to override the bound profile. See
+[project.md](project.md).
+
 ## Create a profile
 
 If the user has no profile yet, draft one for them — you (the assistant) do the
