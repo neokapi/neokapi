@@ -92,9 +92,47 @@ type Defaults struct {
 	// applied on extract (AD-017).
 	Segmentation SegmentationDefaults `yaml:"segmentation,omitempty" json:"segmentation,omitempty"`
 
+	// Redaction governs replacing sensitive content with protected
+	// placeholders before processing and restoring it afterwards. nil means
+	// no redaction.
+	Redaction *RedactionSpec `yaml:"redaction,omitempty" json:"redaction,omitempty"`
+
 	// Extras captures unknown keys under `defaults:`. Platform layers decode
 	// their own defaults from this map.
 	Extras map[string]yaml.Node `yaml:",inline" json:"-"`
+}
+
+// RedactionSpec configures content redaction. The sensitive term list itself
+// lives in a dedicated rules file (so it can be gitignored) referenced by
+// Rules; this spec only points at it and selects detection backends. Declared
+// under defaults: project-wide and overridable per content item.
+type RedactionSpec struct {
+	// Enabled turns redaction on for extract/merge.
+	Enabled bool `yaml:"enabled,omitempty" json:"enabled,omitempty"`
+	// Rules is the path to a redaction rules YAML file.
+	Rules string `yaml:"rules,omitempty" json:"rules,omitempty"`
+	// Detectors selects detection backends: "rules" and/or "entities".
+	Detectors []string `yaml:"detectors,omitempty" json:"detectors,omitempty"`
+	// Placeholder overrides the visible stand-in template, e.g.
+	// "[REDACTED:{category}]".
+	Placeholder string `yaml:"placeholder,omitempty" json:"placeholder,omitempty"`
+}
+
+// validate checks the spec's detector names. Detector identifiers mirror the
+// redact tool's constants ("rules", "entities"); project keeps them as
+// literals to avoid depending on the tools package.
+func (r *RedactionSpec) validate() error {
+	if r == nil {
+		return nil
+	}
+	for _, d := range r.Detectors {
+		switch d {
+		case "rules", "entities":
+		default:
+			return fmt.Errorf("redaction: unknown detector %q (want \"rules\" or \"entities\")", d)
+		}
+	}
+	return nil
 }
 
 // FormatDefaults holds project-level default settings for a specific format.
@@ -274,6 +312,10 @@ type ContentItem struct {
 	Target          string           `yaml:"target,omitempty" json:"target,omitempty"`
 	SourceLanguage  model.LocaleID   `yaml:"source_language,omitempty" json:"source_language,omitempty"`
 	TargetLanguages []model.LocaleID `yaml:"target_languages,omitempty" json:"target_languages,omitempty"`
+
+	// Redaction overrides the project-wide redaction spec for this item.
+	// nil means inherit defaults.
+	Redaction *RedactionSpec `yaml:"redaction,omitempty" json:"redaction,omitempty"`
 
 	// Extras captures unknown keys at the per-item level. Platform layers
 	// decode their per-item fields from here.
@@ -467,6 +509,9 @@ func (p *KapiProject) validate(opts LoadOptions) error {
 	if err := p.Defaults.TM.validate(); err != nil {
 		return err
 	}
+	if err := p.Defaults.Redaction.validate(); err != nil {
+		return err
+	}
 	for i, c := range p.Content {
 		if c.IsBareEntry() {
 			if c.Path == "" {
@@ -486,6 +531,9 @@ func (p *KapiProject) validate(opts LoadOptions) error {
 			for j, item := range c.Items {
 				if item.Path == "" {
 					return fmt.Errorf("content[%d].items[%d]: path is required", i, j)
+				}
+				if err := item.Redaction.validate(); err != nil {
+					return fmt.Errorf("content[%d].items[%d]: %w", i, j, err)
 				}
 			}
 		}

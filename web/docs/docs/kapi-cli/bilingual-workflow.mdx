@@ -147,11 +147,17 @@ kapi extract --pattern 'src/**/*.json'         # extra glob
 kapi extract --xliff-version 2.0               # pin older namespace
 kapi extract --no-tm                           # skip pre-fill
 kapi extract --out-dir dist/bilingual          # alternate output dir
+kapi extract --redact-rules .kapi/redaction.yaml  # hide sensitive content
 ```
 
 Multi-target in one pass is the default. Omit `--target-lang` to use
 every locale in `defaults.target_languages`; pass a comma-separated
 subset to restrict.
+
+When extraction is redacted (`--redact`, `--redact-rules`, or
+`defaults.redaction` in the recipe), the emitted file carries only
+placeholders and the originals stay in a local vault; `kapi merge`
+restores them automatically. See [Redaction](/features/redaction).
 
 ## Day 2: translator work
 
