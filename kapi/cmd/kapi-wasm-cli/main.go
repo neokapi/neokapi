@@ -116,7 +116,6 @@ func buildRoot() *cobra.Command {
 	root.AddCommand(app.NewFormatsCmd())
 	root.AddCommand(app.NewPresetsCmd())
 	root.AddCommand(app.NewVersionCmd("kapi"))
-	root.AddCommand(newJqCmd())
 
 	// Top-level tool commands (pseudo-translate, word-count, …).
 	for _, c := range app.NewToolCommands() {

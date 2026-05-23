@@ -61,8 +61,8 @@ const HELP = [
   "  kapi formats list",
   "  kapi word-count messages.json",
   "  kapi pseudo-translate messages.json -o out.json --target-lang fr",
-  "  kapi jq out.json            # colorized, pretty JSON",
-  "  kapi jq '.greeting' out.json",
+  "  kapi word-count messages.json --json          # colored JSON",
+  "  kapi word-count messages.json --jq '.total_source_words'",
 ].join("\n");
 
 export default function KapiTerminal({ cli, onFsChange }: { cli: KapiCli; onFsChange: () => void }) {

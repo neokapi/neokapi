@@ -67,6 +67,8 @@ type ToolRunConfig struct {
 	FormatMappings []FormatMapping
 	Concurrency    int
 	JSONOutput     bool
+	JQ             string // optional jq filter for JSON output
+	Colorize       bool   // ANSI-color JSON output
 	FailOnUnknown  bool
 	NoWarn         bool
 	Progress       bool
@@ -231,7 +233,7 @@ func (a *App) RunToolOnFiles(ctx context.Context, cfg ToolRunConfig) error {
 	if err != nil {
 		return fmt.Errorf("collector result: %w", err)
 	}
-	return output.FormatCollectorResult(cfg.JSONOutput, result.Data)
+	return output.FormatCollectorResult(cfg.JSONOutput, cfg.JQ, cfg.Colorize, result.Data)
 }
 
 // batchTraceInfo holds per-file timing for the batch-trace assembler in

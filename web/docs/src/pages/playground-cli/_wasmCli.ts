@@ -74,6 +74,9 @@ export function bootKapiCli(wasmExecUrl: string, wasmUrl: string): Promise<KapiC
     if (!Go) throw new Error("wasm_exec.js did not define Go");
 
     const go = new Go();
+    // stdout isn't a TTY in the browser, so force color for JSON output
+    // (--json / --jq) — the terminal renders ANSI just fine.
+    go.env = { CLICOLOR_FORCE: "1" };
     const ready = new Promise<void>((res) => { g.__kapiCliReady = res; });
 
     let instance: WebAssembly.Instance;
