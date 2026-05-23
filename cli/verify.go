@@ -138,7 +138,9 @@ content item's target template and the project target languages.
 
 Pass file paths to verify just those files instead.
 
-Exit codes: 0 pass, 3 when any gate fails, 1 for operational errors.`,
+Exit codes: 0 pass, 3 when any gate fails, 1 for operational errors. Exit 3 means
+"not on-spec yet", not a crash — in an assistant fix-loop, read the findings and fix.
+Pass --no-fail to always exit 0 (report mode) when looping; omit it for CI gating.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return a.runVerify(cmd, args)
 		},
@@ -153,6 +155,7 @@ Exit codes: 0 pass, 3 when any gate fails, 1 for operational errors.`,
 	cmd.Flags().String("locale", "", "scope terminology and QA to a single target locale (e.g. fr)")
 	cmd.Flags().String("termbase", "", "named termbase or path to a glossary (defaults to the project termbase)")
 	cmd.Flags().Bool("json", false, "output the structured result as JSON")
+	cmd.Flags().Bool("no-fail", false, "report only: exit 0 even when a gate fails (verdict is in the output/--json). Use inside an assistant fix-loop; omit for CI gating.")
 	return cmd
 }
 
@@ -258,6 +261,13 @@ func (a *App) runVerify(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	if !out.Pass {
+		// Report mode: an assistant looping on verify reads `pass`/findings from the
+		// output and fixes them — a not-yet-passing gate is expected feedback, not a
+		// failure, so don't exit non-zero (which a shell or `set -e` treats as error).
+		// CI gating omits --no-fail and gets the non-zero exit.
+		if noFail, _ := cmd.Flags().GetBool("no-fail"); noFail {
+			return nil
+		}
 		return ErrQualityGate
 	}
 	return nil
