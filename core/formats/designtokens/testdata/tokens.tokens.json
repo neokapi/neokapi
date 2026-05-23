@@ -1,0 +1,61 @@
+{
+  "color": {
+    "$type": "color",
+    "$description": "Brand and semantic colours used across the product.",
+    "primary": {
+      "$value": "#0d6efd",
+      "$description": "Primary brand colour used for calls to action."
+    },
+    "secondary": {
+      "$value": "#6c757d",
+      "$description": "Muted secondary colour for supporting elements."
+    },
+    "background": {
+      "default": {
+        "$value": "#ffffff"
+      },
+      "elevated": {
+        "$value": "#f8f9fa",
+        "$description": "Surface colour for cards raised above the page."
+      }
+    }
+  },
+  "spacing": {
+    "$type": "dimension",
+    "small": {
+      "$value": "4px",
+      "$description": "Tight spacing for compact, dense layouts."
+    },
+    "medium": {
+      "$value": "8px"
+    },
+    "large": {
+      "$value": "16px"
+    }
+  },
+  "font": {
+    "$type": "fontFamily",
+    "body": {
+      "$value": ["Inter", "Helvetica Neue", "sans-serif"],
+      "$description": "Default reading typeface for body copy."
+    }
+  },
+  "button": {
+    "background": {
+      "$type": "color",
+      "$value": "{color.primary}",
+      "$description": "The button surface, aliasing the primary brand colour.",
+      "$extensions": {
+        "com.example.tooling": {
+          "figmaStyleId": "S:1234"
+        }
+      }
+    },
+    "padding": {
+      "$type": "dimension",
+      "$value": "{spacing.medium}",
+      "$deprecated": "Use the responsive padding scale instead.",
+      "$description": "Internal button padding."
+    }
+  }
+}

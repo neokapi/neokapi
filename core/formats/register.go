@@ -8,18 +8,24 @@ import (
 	"github.com/neokapi/neokapi/core/config"
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/format/schema"
+	"github.com/neokapi/neokapi/core/formats/androidxml"
+	"github.com/neokapi/neokapi/core/formats/applestrings"
+	"github.com/neokapi/neokapi/core/formats/arb"
 	csvfmt "github.com/neokapi/neokapi/core/formats/csv"
+	"github.com/neokapi/neokapi/core/formats/designtokens"
 	"github.com/neokapi/neokapi/core/formats/doxygen"
 	dtdfmt "github.com/neokapi/neokapi/core/formats/dtd"
 	"github.com/neokapi/neokapi/core/formats/epub"
 	execfmt "github.com/neokapi/neokapi/core/formats/exec"
 	"github.com/neokapi/neokapi/core/formats/fixedwidth"
 	"github.com/neokapi/neokapi/core/formats/html"
+	"github.com/neokapi/neokapi/core/formats/i18next"
 	"github.com/neokapi/neokapi/core/formats/icml"
 	"github.com/neokapi/neokapi/core/formats/idml"
 	"github.com/neokapi/neokapi/core/formats/json"
 	"github.com/neokapi/neokapi/core/formats/jsx"
 	"github.com/neokapi/neokapi/core/formats/markdown"
+	"github.com/neokapi/neokapi/core/formats/mdx"
 	"github.com/neokapi/neokapi/core/formats/messageformat"
 	"github.com/neokapi/neokapi/core/formats/mif"
 	"github.com/neokapi/neokapi/core/formats/mo"
@@ -33,6 +39,7 @@ import (
 	"github.com/neokapi/neokapi/core/formats/po"
 	"github.com/neokapi/neokapi/core/formats/properties"
 	regexfmt "github.com/neokapi/neokapi/core/formats/regex"
+	"github.com/neokapi/neokapi/core/formats/resx"
 	"github.com/neokapi/neokapi/core/formats/rtf"
 	"github.com/neokapi/neokapi/core/formats/splicedlines"
 	"github.com/neokapi/neokapi/core/formats/srt"
@@ -47,6 +54,7 @@ import (
 	"github.com/neokapi/neokapi/core/formats/vignette"
 	"github.com/neokapi/neokapi/core/formats/vtt"
 	"github.com/neokapi/neokapi/core/formats/wiki"
+	"github.com/neokapi/neokapi/core/formats/xcstrings"
 	"github.com/neokapi/neokapi/core/formats/xliff"
 	"github.com/neokapi/neokapi/core/formats/xliff2"
 	xmlfmt "github.com/neokapi/neokapi/core/formats/xml"
@@ -105,6 +113,21 @@ func RegisterAll(reg *registry.FormatRegistry, opts ...RegisterOptions) {
 	reg.RegisterWriter("xml", func() format.DataFormatWriter { return xmlfmt.NewWriter() })
 	registerSchemaAndDecoder(o, reg, "xml", func() format.DataFormatReader { return xmlfmt.NewReader() })
 
+	// .NET RESX / .resw (Microsoft ResX 2.0). The Sniff keys on the
+	// resmimetype resheader so RESX files routed without the .resx/.resw
+	// extension are not claimed by the generic XML reader.
+	reg.RegisterReader("resx",
+		func() format.DataFormatReader { return resx.NewReader() },
+		format.FormatSignature{
+			MIMETypes:  []string{"text/microsoft-resx"},
+			Extensions: []string{".resx", ".resw"},
+			Sniff: func(data []byte) bool {
+				return bytes.Contains(data, []byte("text/microsoft-resx"))
+			},
+		}, ".NET RESX")
+	reg.RegisterWriter("resx", func() format.DataFormatWriter { return resx.NewWriter() })
+	registerSchemaAndDecoder(o, reg, "resx", func() format.DataFormatReader { return resx.NewReader() })
+
 	// XLIFF 1.2
 	reg.RegisterReader("xliff",
 		func() format.DataFormatReader { return xliff.NewReader() },
@@ -160,6 +183,82 @@ func RegisterAll(reg *registry.FormatRegistry, opts ...RegisterOptions) {
 	reg.RegisterWriter("json", func() format.DataFormatWriter { return json.NewWriter() })
 	registerSchemaAndDecoder(o, reg, "json", func() format.DataFormatReader { return json.NewReader() })
 
+	// Apple String Catalog (.xcstrings) — Xcode 15+ JSON localization catalog.
+	// Detection is primarily by the unique .xcstrings extension; the Sniff
+	// disambiguates catalog content piped without an extension and avoids
+	// stealing generic .json files (which lack both markers).
+	reg.RegisterReader("xcstrings",
+		func() format.DataFormatReader { return xcstrings.NewReader() },
+		format.FormatSignature{
+			MIMETypes:  []string{"application/json"},
+			Extensions: []string{".xcstrings"},
+			Sniff: func(data []byte) bool {
+				return bytes.Contains(data, []byte(`"sourceLanguage"`)) &&
+					bytes.Contains(data, []byte(`"strings"`))
+			},
+		}, "Apple String Catalog")
+	reg.RegisterWriter("xcstrings", func() format.DataFormatWriter { return xcstrings.NewWriter() })
+	registerSchemaAndDecoder(o, reg, "xcstrings", func() format.DataFormatReader { return xcstrings.NewReader() })
+
+	// Flutter Application Resource Bundle (.arb) — Flutter/Dart gen-l10n JSON
+	// localization. Detection is by the unique .arb extension only; the
+	// shared application/json MIME is intentionally NOT advertised so MIME
+	// detection still resolves to the generic json format.
+	reg.RegisterReader("arb",
+		func() format.DataFormatReader { return arb.NewReader() },
+		format.FormatSignature{
+			Extensions: []string{".arb"},
+		}, "Flutter ARB")
+	reg.RegisterWriter("arb", func() format.DataFormatWriter { return arb.NewWriter() })
+	registerSchemaAndDecoder(o, reg, "arb", func() format.DataFormatReader { return arb.NewReader() })
+
+	// Apple Strings (.strings) + Stringsdict (.stringsdict) — legacy Apple
+	// localization; one package handles both file types. Detected by their
+	// unique extensions (the regex format relinquished .strings).
+	reg.RegisterReader("applestrings",
+		func() format.DataFormatReader { return applestrings.NewReader() },
+		format.FormatSignature{
+			Extensions: []string{".strings", ".stringsdict"},
+		}, "Apple Strings")
+	reg.RegisterWriter("applestrings", func() format.DataFormatWriter { return applestrings.NewWriter() })
+	registerSchemaAndDecoder(o, reg, "applestrings", func() format.DataFormatReader { return applestrings.NewReader() })
+
+	// i18next / react-i18next JSON. Selected explicitly (-f i18next): claims no
+	// extension or MIME because i18next files use the .json extension and
+	// application/json MIME owned by the json format and cannot be reliably
+	// auto-distinguished. Delegates to the json reader/writer with the i18next
+	// preset plus plural/context annotation.
+	reg.RegisterReader("i18next",
+		func() format.DataFormatReader { return i18next.NewReader() },
+		format.FormatSignature{}, "i18next JSON")
+	reg.RegisterWriter("i18next", func() format.DataFormatWriter { return i18next.NewWriter() })
+	registerSchemaAndDecoder(o, reg, "i18next", func() format.DataFormatReader { return i18next.NewReader() })
+
+	// Android String Resources (res/values/strings.xml). The .xml extension and
+	// XML MIME are owned by the generic xml format, so detection is Sniff-only:
+	// the file must have a <resources> root carrying at least one <string>,
+	// <string-array>, or <plurals>.
+	reg.RegisterReader("androidxml",
+		func() format.DataFormatReader { return androidxml.NewReader() },
+		format.FormatSignature{
+			Sniff: androidxml.Sniff,
+		}, "Android String Resources")
+	reg.RegisterWriter("androidxml", func() format.DataFormatWriter { return androidxml.NewWriter() })
+	registerSchemaAndDecoder(o, reg, "androidxml", func() format.DataFormatReader { return androidxml.NewReader() })
+
+	// W3C DTCG Design Tokens (.tokens / .tokens.json). Claims the unique
+	// .tokens extension and Sniffs DTCG content ($value + $type); does NOT
+	// claim .json or application/json (owned by the json format). Delegates to
+	// the json reader/writer, extracting only $description documentation.
+	reg.RegisterReader("designtokens",
+		func() format.DataFormatReader { return designtokens.NewReader() },
+		format.FormatSignature{
+			Extensions: []string{".tokens"},
+			Sniff:      designtokens.Sniff,
+		}, "Design Tokens (DTCG)")
+	reg.RegisterWriter("designtokens", func() format.DataFormatWriter { return designtokens.NewWriter() })
+	registerSchemaAndDecoder(o, reg, "designtokens", func() format.DataFormatReader { return designtokens.NewReader() })
+
 	// PO (GNU gettext)
 	reg.RegisterReader("po",
 		func() format.DataFormatReader { return po.NewReader() },
@@ -212,6 +311,18 @@ func RegisterAll(reg *registry.FormatRegistry, opts ...RegisterOptions) {
 		}, "Markdown")
 	reg.RegisterWriter("markdown", func() format.DataFormatWriter { return markdown.NewWriter() })
 	registerSchemaAndDecoder(o, reg, "markdown", func() format.DataFormatReader { return markdown.NewReader() })
+
+	// MDX (Markdown + JSX/ESM). Unique .mdx extension — no collision. Reuses
+	// the markdown reader for prose; ESM/JSX/expressions/tables are preserved
+	// byte-faithfully and never translated.
+	reg.RegisterReader("mdx",
+		func() format.DataFormatReader { return mdx.NewReader() },
+		format.FormatSignature{
+			MIMETypes:  []string{"text/mdx"},
+			Extensions: []string{".mdx"},
+		}, "MDX")
+	reg.RegisterWriter("mdx", func() format.DataFormatWriter { return mdx.NewWriter() })
+	registerSchemaAndDecoder(o, reg, "mdx", func() format.DataFormatReader { return mdx.NewReader() })
 
 	// CSV
 	reg.RegisterReader("csv",
@@ -340,7 +451,7 @@ func RegisterAll(reg *registry.FormatRegistry, opts ...RegisterOptions) {
 		func() format.DataFormatReader { return regexfmt.NewReader() },
 		format.FormatSignature{
 			MIMETypes:  []string{"text/x-regex"},
-			Extensions: []string{".strings", ".ini", ".info", ".rls"},
+			Extensions: []string{".ini", ".info", ".rls"},
 		}, "Regex Extraction")
 	reg.RegisterWriter("regex", func() format.DataFormatWriter { return regexfmt.NewWriter() })
 

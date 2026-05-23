@@ -1,0 +1,35 @@
+# Native reference doc for the built-in `arb` format.
+# Schema source: core/formats/arb/config.go (Config) + schema.go.
+# No Okapi equivalent — ARB is Flutter/Dart specific.
+description: Extract and update translatable messages in Flutter Application Resource Bundle (.arb) files.
+overview: |
+  The **Flutter ARB** format reads `.arb` files — the JSON localization
+  format used by Flutter's `gen-l10n` tooling and the Dart `intl` package.
+  Each file is monolingual: one locale (named by `@@locale`, or inferred from
+  the filename), where resource keys map to ICU MessageFormat message strings.
+
+  Each message becomes a translatable block. Sibling `@<id>` objects describe a
+  resource (its `description` and `placeholders`) and `@@<global>` keys hold
+  file metadata (`@@locale`, `@@last_modified`, `@@author`, `@@context`); both
+  are preserved verbatim and never extracted. ICU placeholders (`{name}`),
+  plurals (`{count, plural, …}`), and select/gender (`{g, select, …}`) are
+  protected as opaque inline codes so their syntax is never translated, and
+  `@description` is surfaced as a translator note. Output is byte-faithful:
+  key order, JSON escaping, and all `@`/`@@` metadata round-trip untouched.
+parameters:
+  descriptionNotes:
+    description: Surface each resource's @description as a translator note.
+    help: |
+      When enabled (the default), the `description` field of a message's
+      sibling `@<id>` attribute object is attached to the block as a
+      translator note. Disable to ignore descriptions.
+    values: "`true` / `false` (default `true`)"
+processingNotes:
+  - One file = one locale; the message value is the block's source content.
+  - "`@<id>` attribute objects and `@@<global>` metadata are preserved but not extracted as translatable content."
+  - ICU MessageFormat constructs (placeholders, plural, select, gender) are protected as inline codes, not translatable structure.
+examples:
+  - title: Ignore descriptions
+    description: Do not turn @description values into translator notes.
+    config: |
+      descriptionNotes: false

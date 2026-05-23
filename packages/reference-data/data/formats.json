@@ -1,7 +1,91 @@
 {
-  "generatedAt": "2026-05-23T06:29:38Z",
+  "generatedAt": "2026-05-23T10:08:01Z",
   "kind": "format",
   "entries": [
+    {
+      "id": "resx",
+      "source": "built-in",
+      "kind": "format",
+      "displayName": ".NET RESX",
+      "description": "Extract and update translatable strings in Microsoft .NET RESX 2.0 and .resw resource files.",
+      "extensions": [
+        ".resx",
+        ".resw"
+      ],
+      "mimeTypes": [
+        "text/microsoft-resx"
+      ],
+      "hasReader": true,
+      "hasWriter": true,
+      "schema": {
+        "$id": "",
+        "$version": "",
+        "title": ".NET RESX",
+        "description": "Configuration for the native .NET RESX / .resw (Microsoft ResX 2.0) reader/writer",
+        "type": "object",
+        "formatMeta": {
+          "id": "resx",
+          "extensions": [
+            ".resx",
+            ".resw"
+          ],
+          "mimeTypes": [
+            "text/microsoft-resx"
+          ]
+        },
+        "ui:groups": [
+          {
+            "id": "extraction",
+            "label": "Extraction",
+            "fields": [
+              "extractComments",
+              "skipNameDataReferences"
+            ]
+          }
+        ],
+        "properties": {
+          "extractComments": {
+            "type": "boolean",
+            "title": "Extract comments as notes",
+            "description": "Surface each string \u003cdata\u003e entry's sibling \u003ccomment\u003e element as a translator note on the emitted block. Comments always round-trip verbatim regardless of this setting.",
+            "default": true
+          },
+          "skipNameDataReferences": {
+            "type": "boolean",
+            "title": "Skip name-reference entries",
+            "description": "Exclude designer name-reference entries (those whose name starts with \"\u003e\", e.g. \"\u003e\u003econtrol.Name\") from extraction. These carry WinForms field names, not UI strings.",
+            "default": true
+          }
+        }
+      },
+      "doc": {
+        "overview": "The **.NET RESX** format reads Microsoft ResX 2.0 resource files and their\nstring-only `.resw` variant — the standard localization container for .NET\napplications (locale by satellite filename, e.g. `Strings.fr.resx`).\n\nString `\u003cdata\u003e` entries become translatable blocks: the `name` attribute is\nthe block name, `\u003cvalue\u003e` is the source, a sibling `\u003ccomment\u003e` becomes a\ntranslator note, and `xml:space=\"preserve\"` is honored. .NET composite-format\nplaceholders such as `{0}` and `{1:t}` are protected as inline codes. Typed\nand binary `\u003cdata\u003e` (those carrying `type`/`mimetype`), `\u003cmetadata\u003e`,\n`\u003cassembly\u003e`, name-reference entries, and the `\u003cresheader\u003e` boilerplate pass\nthrough untouched. Round-trips are byte-faithful — only changed `\u003cvalue\u003e`\ncontent is spliced back into the original document.\n",
+        "parameters": {
+          "extractComments": {
+            "description": "Attach each entry's \u003ccomment\u003e as a translator note.",
+            "help": "When enabled (the default), a string entry's sibling `\u003ccomment\u003e` element\nis attached to the block as a translator note. Disable to ignore\ncomments.\n",
+            "values": "`true` / `false` (default `true`)"
+          },
+          "skipNameDataReferences": {
+            "description": "Skip name-reference (\u003e\u003ename) data entries.",
+            "help": "When enabled (the default), `\u003cdata\u003e` entries whose name begins with `\u003e`\n(file/resource references rather than inline string values) are not\nextracted.\n",
+            "values": "`true` / `false` (default `true`)"
+          }
+        },
+        "processingNotes": [
+          "Only string `\u003cdata\u003e` entries are translatable; typed/binary data, metadata, assembly, and resheader entries pass through untouched.",
+          "`xml:space=\"preserve\"` on an entry sets the block's preserve-whitespace flag.",
+          ".NET composite-format placeholders (`{0}`, `{1:t}`) are protected as inline codes."
+        ],
+        "examples": [
+          {
+            "title": "Ignore comments",
+            "description": "Do not turn \u003ccomment\u003e elements into translator notes.",
+            "config": "extractComments: false\n"
+          }
+        ]
+      }
+    },
     {
       "id": "mif",
       "source": "built-in",
@@ -57,6 +141,267 @@
           "On writing, `HyperlinkTextSource` content is always reconstructed as inline elements in the story XML."
         ],
         "wikiUrl": "https://www.adobe.com/devnet/indesign/documentation.html"
+      }
+    },
+    {
+      "id": "androidxml",
+      "source": "built-in",
+      "kind": "format",
+      "displayName": "Android String Resources",
+      "description": "Extract and update translatable strings in Android string resource files (res/values/strings.xml).",
+      "extensions": [
+        ".xml"
+      ],
+      "hasReader": true,
+      "hasWriter": true,
+      "schema": {
+        "$id": "",
+        "$version": "",
+        "title": "Android String Resources",
+        "description": "Configuration for the native Android string-resources (res/values/strings.xml) reader/writer",
+        "type": "object",
+        "formatMeta": {
+          "id": "androidxml",
+          "extensions": [
+            ".xml"
+          ],
+          "mimeTypes": null
+        },
+        "ui:groups": [
+          {
+            "id": "extraction",
+            "label": "Extraction",
+            "fields": [
+              "extractComments",
+              "skipNonTranslatable",
+              "skipResourceReferences"
+            ]
+          }
+        ],
+        "properties": {
+          "extractComments": {
+            "type": "boolean",
+            "title": "Extract comments as notes",
+            "description": "Surface an XML comment immediately preceding an entry as a translator note on the emitted block. Comments always round-trip verbatim regardless of this setting.",
+            "default": true
+          },
+          "skipNonTranslatable": {
+            "type": "boolean",
+            "title": "Skip translatable=\"false\" entries",
+            "description": "Exclude \u003cstring\u003e/\u003cstring-array\u003e/\u003cplurals\u003e entries marked translatable=\"false\" from extraction. Such resources are developer-owned and round-trip verbatim.",
+            "default": true
+          },
+          "skipResourceReferences": {
+            "type": "boolean",
+            "title": "Skip resource references",
+            "description": "Exclude \u003cstring\u003e values that are a bare resource reference (e.g. @string/foo, ?attr/bar). A reference is an alias, not translatable UI text.",
+            "default": true
+          }
+        }
+      },
+      "doc": {
+        "overview": "The **Android String Resources** format reads `res/values/strings.xml`\nfiles with full localization awareness, rather than as generic XML. It\nextracts `\u003cstring\u003e`, `\u003cstring-array\u003e` items, and `\u003cplurals\u003e` items\n(by CLDR `quantity`) as translatable blocks.\n\nAndroid l10n semantics are honored: entries marked `translatable=\"false\"`\nand bare resource references (`@string/foo`, `?attr/bar`) are skipped;\npositional/printf arguments (`%1$s`, `%d`, `%%`), `\u003cxliff:g\u003e` do-not-translate\nspans, inline styling tags, and `\u003c![CDATA[…]]\u003e` sections are protected as\ninline codes; and a comment immediately preceding an entry becomes a\ntranslator note. Detection is content-based (a `\u003cresources\u003e` root with at\nleast one string/array/plurals element) so generic XML still routes to the\nXML format. Output is a byte-faithful splice of the original — only changed\nvalues are rewritten, preserving prolog, comments, whitespace, attribute\norder, entities, and Android backslash escapes.\n",
+        "parameters": {
+          "extractComments": {
+            "description": "Attach a preceding XML comment as a translator note.",
+            "help": "When enabled (the default), an XML `\u003c!-- comment --\u003e` immediately\npreceding an entry is attached to the block as a translator note.\n",
+            "values": "`true` / `false` (default `true`)"
+          },
+          "skipNonTranslatable": {
+            "description": "Skip entries marked translatable=\"false\".",
+            "help": "When enabled (the default), `\u003cstring\u003e`/`\u003cstring-array\u003e`/`\u003cplurals\u003e`\nentries carrying `translatable=\"false\"` are passed through untouched\nand not extracted.\n",
+            "values": "`true` / `false` (default `true`)"
+          },
+          "skipResourceReferences": {
+            "description": "Skip values that are bare resource references.",
+            "help": "When enabled (the default), values that are a single resource reference\n(`@string/foo`, `?attr/bar`) are not extracted as translatable text.\n",
+            "values": "`true` / `false` (default `true`)"
+          }
+        },
+        "processingNotes": [
+          "`\u003cstring\u003e`, `\u003cstring-array\u003e` items, and `\u003cplurals\u003e` items become translatable blocks; plural items are keyed by CLDR quantity.",
+          "Positional/printf args, `\u003cxliff:g\u003e`, inline styling, and CDATA are protected as inline codes; Android backslash escapes round-trip verbatim.",
+          "Detection is Sniff-based so plain XML documents are not claimed."
+        ],
+        "examples": [
+          {
+            "title": "Keep non-translatable entries in scope",
+            "description": "Extract even entries marked translatable=\"false\".",
+            "config": "skipNonTranslatable: false\n"
+          }
+        ]
+      }
+    },
+    {
+      "id": "xcstrings",
+      "source": "built-in",
+      "kind": "format",
+      "displayName": "Apple String Catalog",
+      "description": "Extract and update translations in Apple String Catalog (.xcstrings) files used by Xcode 15+ projects.",
+      "extensions": [
+        ".xcstrings"
+      ],
+      "mimeTypes": [
+        "application/json"
+      ],
+      "hasReader": true,
+      "hasWriter": true,
+      "schema": {
+        "$id": "",
+        "$version": "",
+        "title": "Apple String Catalog",
+        "description": "Configuration for the native Apple String Catalog (.xcstrings) reader/writer",
+        "type": "object",
+        "formatMeta": {
+          "id": "xcstrings",
+          "extensions": [
+            ".xcstrings"
+          ],
+          "mimeTypes": [
+            "application/json"
+          ]
+        },
+        "ui:groups": [
+          {
+            "id": "extraction",
+            "label": "Extraction",
+            "fields": [
+              "extractStale",
+              "markTranslatedState"
+            ]
+          }
+        ],
+        "properties": {
+          "extractStale": {
+            "type": "boolean",
+            "title": "Extract stale entries",
+            "description": "Emit entries whose extractionState is \"stale\" (the source string no longer appears in the code base) as translatable blocks.",
+            "default": true
+          },
+          "markTranslatedState": {
+            "type": "string",
+            "title": "State for new translations",
+            "description": "The stringUnit state value written for a localization populated for the first time. Existing states are preserved verbatim on round-trip.",
+            "default": "translated"
+          }
+        }
+      },
+      "doc": {
+        "overview": "The **Apple String Catalog** format reads `.xcstrings` files — the default\nlocalization container for iOS, macOS, and other Apple-platform projects\nsince Xcode 15. Unlike legacy `.strings`/`.stringsdict`, a single catalog\nholds the source language and every translation in one JSON document,\ncarrying per-localization state (`new`, `translated`, `needs_review`),\ndeveloper comments, and plural / device / substitution variations.\n\nEach translatable leaf value becomes a block. The source string (or the\nentry key, when no source-language localization is present) is the source;\nper-locale `stringUnit` values are the targets. Developer `comment`s surface\nas translator notes, and `printf` specifiers (`%@`, `%lld`, `%1$@`, and\nApple's `%arg` substitution token) are protected as inline placeholders so\nthey are never altered. Writing back is byte-faithful: only changed values\nand states are rewritten, leaving the rest of the catalog untouched.\n",
+        "parameters": {
+          "extractStale": {
+            "description": "Extract entries whose extractionState is \"stale\".",
+            "help": "When enabled (the default), entries marked `stale` by Xcode (the source\nstring no longer appears in the code base) are still emitted as\ntranslatable blocks, since they remain localizable until removed.\nDisable to skip stale entries.\n",
+            "values": "`true` / `false` (default `true`)"
+          },
+          "markTranslatedState": {
+            "description": "State written when a previously untranslated locale is populated.",
+            "help": "The `state` value written into a localization's `stringUnit` when a\ntarget translation is produced for a locale that had no entry. Apple\nuses `translated`. Existing states are preserved verbatim on\nround-trip; this only governs newly populated localizations.\n",
+            "values": "String (default `translated`)"
+          }
+        },
+        "processingNotes": [
+          "A catalog is multilingual — one file carries the source language and all targets, so reading yields blocks with a source plus multiple target locales.",
+          "Plural (CLDR categories), device (iphone/ipad/mac/…), and substitution variations each expand into their own leaf blocks, keyed by the variation path.",
+          "printf specifiers and Apple's substitution `%arg` token are extracted as inline placeholders and must not be translated.",
+          "Output is byte-faithful: an unchanged catalog round-trips exactly; only modified values and states are rewritten."
+        ],
+        "examples": [
+          {
+            "title": "Skip stale entries",
+            "description": "Do not emit entries Xcode has flagged as stale.",
+            "config": "extractStale: false\n"
+          },
+          {
+            "title": "Mark new translations for review",
+            "description": "Write a needs_review state for newly populated localizations instead of translated.",
+            "config": "markTranslatedState: needs_review\n"
+          }
+        ]
+      }
+    },
+    {
+      "id": "applestrings",
+      "source": "built-in",
+      "kind": "format",
+      "displayName": "Apple Strings",
+      "description": "Extract and update translations in legacy Apple .strings and .stringsdict localization files.",
+      "extensions": [
+        ".strings",
+        ".stringsdict"
+      ],
+      "mimeTypes": [
+        "text/plain"
+      ],
+      "hasReader": true,
+      "hasWriter": true,
+      "schema": {
+        "$id": "",
+        "$version": "",
+        "title": "Apple Strings",
+        "description": "Configuration for the native Apple Strings (.strings + .stringsdict) reader/writer",
+        "type": "object",
+        "formatMeta": {
+          "id": "applestrings",
+          "extensions": [
+            ".strings",
+            ".stringsdict"
+          ],
+          "mimeTypes": [
+            "text/plain"
+          ]
+        },
+        "ui:groups": [
+          {
+            "id": "extraction",
+            "label": "Extraction",
+            "fields": [
+              "extractComments",
+              "protectPlaceholders"
+            ]
+          }
+        ],
+        "properties": {
+          "extractComments": {
+            "type": "boolean",
+            "title": "Extract comments as notes",
+            "description": "Surface a /* ... */ or // ... comment preceding a .strings entry as a translator note on the emitted block.",
+            "default": true
+          },
+          "protectPlaceholders": {
+            "type": "boolean",
+            "title": "Protect format placeholders",
+            "description": "Lift printf-style specifiers (%@, %lld, %1$@) and .stringsdict %#@var@ tokens into inline codes so they are never translated.",
+            "default": true
+          }
+        }
+      },
+      "doc": {
+        "overview": "The **Apple Strings** format reads both legacy Apple localization file\ntypes in one format: the line-based `.strings` key/value tables and the\n`.stringsdict` plist-XML plural dictionaries (locale by `.lproj` directory).\n\nIn `.strings`, a comment preceding an entry becomes a translator note and\nprintf specifiers (`%@`, `%lld`, `%1$@`) are protected as inline codes. In\n`.stringsdict`, each `NSStringLocalizedFormatKey` and every CLDR plural\ncategory (`zero`/`one`/`two`/`few`/`many`/`other`) is modeled as a block,\nwith `%#@var@` tokens protected. Writes are byte-faithful — only changed\nvalues are spliced back — and UTF-8 and UTF-16 (LE/BE) encodings are\npreserved. The modern `.xcstrings` String Catalog is handled by the\nseparate `xcstrings` format.\n",
+        "parameters": {
+          "extractComments": {
+            "description": "Attach a preceding comment as a translator note (.strings).",
+            "help": "When enabled (the default), a `/* … */` or `// …` comment preceding a\n`.strings` entry is attached to the block as a translator note.\n",
+            "values": "`true` / `false` (default `true`)"
+          },
+          "protectPlaceholders": {
+            "description": "Protect printf and %#@var@ tokens as inline codes.",
+            "help": "When enabled (the default), printf specifiers (`%@`, `%lld`, `%1$@`)\nand `.stringsdict` `%#@var@` substitution tokens are lifted into opaque\ninline codes so they are never altered by translation.\n",
+            "values": "`true` / `false` (default `true`)"
+          }
+        },
+        "processingNotes": [
+          "`.strings` and `.stringsdict` are detected by their extensions; a stream without one is classified by content.",
+          "`.stringsdict` plural categories are modeled as separate blocks, like the String Catalog.",
+          "Binary-plist `.strings` is out of scope; UTF-8 and UTF-16 text encodings are preserved on round-trip."
+        ],
+        "examples": [
+          {
+            "title": "Leave placeholders inline",
+            "description": "Do not protect printf/%#@var@ tokens as codes.",
+            "config": "protectPlaceholders: false\n"
+          }
+        ]
       }
     },
     {
@@ -1264,6 +1609,70 @@
           "valuesStartLineNum": 1,
           "wrapMode": 0
         }
+      }
+    },
+    {
+      "id": "designtokens",
+      "source": "built-in",
+      "kind": "format",
+      "displayName": "Design Tokens (DTCG)",
+      "description": "Extract and update human-readable $description documentation in W3C DTCG design token files.",
+      "extensions": [
+        ".tokens"
+      ],
+      "hasReader": true,
+      "hasWriter": true,
+      "schema": {
+        "$id": "",
+        "$version": "",
+        "title": "Design Tokens (DTCG)",
+        "description": "Configuration for the W3C Design Tokens Community Group (DTCG) token format. Only $description documentation is translatable; token values and structure pass through untouched.",
+        "type": "object",
+        "formatMeta": {
+          "id": "designtokens",
+          "extensions": [
+            ".tokens"
+          ],
+          "mimeTypes": []
+        },
+        "ui:groups": [
+          {
+            "id": "extraction",
+            "label": "Extraction",
+            "fields": [
+              "extractDescriptions"
+            ]
+          }
+        ],
+        "properties": {
+          "extractDescriptions": {
+            "type": "boolean",
+            "title": "Extract $description documentation",
+            "description": "Extract $description values (human-readable token and group documentation) as translatable blocks. This is the only natural-language field in DTCG; $value is always a typed design value (colour, dimension, font name, …) and is never extracted. Disable to read the file as fully non-translatable structure.",
+            "default": true
+          }
+        }
+      },
+      "doc": {
+        "overview": "The **Design Tokens (DTCG)** format reads W3C Design Tokens Community Group\ntoken files (`.tokens` / `.tokens.json`) — the JSON interchange format used\nby Style Dictionary, Tokens Studio, and similar tooling.\n\nToken values are typed design data (colors, dimensions, font families,\naliases), not natural language, so the format extracts only the\nhuman-readable `$description` documentation on tokens and groups as\ntranslatable content; every token `$value`, `$type`, `$extensions`, and the\nsurrounding structure passes through untouched. Detection claims the unique\n`.tokens` extension and sniffs DTCG content (`$value` + `$type`); `.tokens.json`\nfiles resolve to the JSON format by extension unless `-f designtokens` is\ngiven. Round-trip is byte-faithful, inherited from the JSON reader/writer.\n",
+        "parameters": {
+          "extractDescriptions": {
+            "description": "Extract $description documentation as translatable content.",
+            "help": "When enabled (the default), `$description` fields on tokens and groups\nare extracted as translatable blocks. When disabled, the file yields no\ntranslatable content.\n",
+            "values": "`true` / `false` (default `true`)"
+          }
+        },
+        "processingNotes": [
+          "Only `$description` is extracted; token values and structure are non-translatable passthrough.",
+          "A token file with no `$description` yields zero translatable blocks — expected for machine-generated token sets."
+        ],
+        "examples": [
+          {
+            "title": "Disable description extraction",
+            "description": "Treat the file as fully non-translatable.",
+            "config": "extractDescriptions: false\n"
+          }
+        ]
       }
     },
     {
@@ -5493,6 +5902,76 @@
           "valuesStartLineNum": 2,
           "wrapMode": 0
         }
+      }
+    },
+    {
+      "id": "arb",
+      "source": "built-in",
+      "kind": "format",
+      "displayName": "Flutter ARB",
+      "description": "Extract and update translatable messages in Flutter Application Resource Bundle (.arb) files.",
+      "extensions": [
+        ".arb"
+      ],
+      "mimeTypes": [
+        "application/json"
+      ],
+      "hasReader": true,
+      "hasWriter": true,
+      "schema": {
+        "$id": "",
+        "$version": "",
+        "title": "Flutter ARB",
+        "description": "Configuration for the native Flutter Application Resource Bundle (.arb) reader/writer",
+        "type": "object",
+        "formatMeta": {
+          "id": "arb",
+          "extensions": [
+            ".arb"
+          ],
+          "mimeTypes": [
+            "application/json"
+          ]
+        },
+        "ui:groups": [
+          {
+            "id": "extraction",
+            "label": "Extraction",
+            "fields": [
+              "descriptionNotes"
+            ]
+          }
+        ],
+        "properties": {
+          "descriptionNotes": {
+            "type": "boolean",
+            "title": "Surface descriptions as notes",
+            "description": "Surface the \"description\" field of a resource's sibling \"@\u003cid\u003e\" attributes object as a translator note. The attributes object is always preserved byte-faithfully on round-trip regardless of this setting.",
+            "default": true
+          }
+        }
+      },
+      "doc": {
+        "overview": "The **Flutter ARB** format reads `.arb` files — the JSON localization\nformat used by Flutter's `gen-l10n` tooling and the Dart `intl` package.\nEach file is monolingual: one locale (named by `@@locale`, or inferred from\nthe filename), where resource keys map to ICU MessageFormat message strings.\n\nEach message becomes a translatable block. Sibling `@\u003cid\u003e` objects describe a\nresource (its `description` and `placeholders`) and `@@\u003cglobal\u003e` keys hold\nfile metadata (`@@locale`, `@@last_modified`, `@@author`, `@@context`); both\nare preserved verbatim and never extracted. ICU placeholders (`{name}`),\nplurals (`{count, plural, …}`), and select/gender (`{g, select, …}`) are\nprotected as opaque inline codes so their syntax is never translated, and\n`@description` is surfaced as a translator note. Output is byte-faithful:\nkey order, JSON escaping, and all `@`/`@@` metadata round-trip untouched.\n",
+        "parameters": {
+          "descriptionNotes": {
+            "description": "Surface each resource's @description as a translator note.",
+            "help": "When enabled (the default), the `description` field of a message's\nsibling `@\u003cid\u003e` attribute object is attached to the block as a\ntranslator note. Disable to ignore descriptions.\n",
+            "values": "`true` / `false` (default `true`)"
+          }
+        },
+        "processingNotes": [
+          "One file = one locale; the message value is the block's source content.",
+          "`@\u003cid\u003e` attribute objects and `@@\u003cglobal\u003e` metadata are preserved but not extracted as translatable content.",
+          "ICU MessageFormat constructs (placeholders, plural, select, gender) are protected as inline codes, not translatable structure."
+        ],
+        "examples": [
+          {
+            "title": "Ignore descriptions",
+            "description": "Do not turn @description values into translator notes.",
+            "config": "descriptionNotes: false\n"
+          }
+        ]
       }
     },
     {
@@ -10248,6 +10727,80 @@
       }
     },
     {
+      "id": "i18next",
+      "source": "built-in",
+      "kind": "format",
+      "displayName": "i18next JSON",
+      "description": "Extract and update translatable values in i18next / react-i18next JSON resource bundles.",
+      "hasReader": true,
+      "hasWriter": true,
+      "schema": {
+        "$id": "",
+        "$version": "",
+        "title": "i18next JSON",
+        "description": "Configuration for the i18next / react-i18next JSON localization format",
+        "type": "object",
+        "formatMeta": {
+          "id": "i18next",
+          "extensions": [],
+          "mimeTypes": []
+        },
+        "ui:groups": [
+          {
+            "id": "i18next",
+            "label": "i18next",
+            "fields": [
+              "protectInterpolation",
+              "subfilterHtmlValues",
+              "legacyPluralForms"
+            ]
+          }
+        ],
+        "properties": {
+          "legacyPluralForms": {
+            "type": "boolean",
+            "title": "Recognise legacy plural forms",
+            "description": "Recognise the legacy v1–v3 plural sibling keys (key_plural and the numeric key_0 / key_1 / key_2 … forms) in addition to the v4 CLDR suffixes (_zero / _one / _two / _few / _many / _other).",
+            "default": true
+          },
+          "protectInterpolation": {
+            "type": "boolean",
+            "title": "Protect interpolation and nesting",
+            "description": "Detect i18next interpolation ({{var}}, {{var, format}}) and nesting ($t(key)) and protect them as inline codes so they are never translated.",
+            "default": true
+          },
+          "subfilterHtmlValues": {
+            "type": "boolean",
+            "title": "Subfilter HTML values (_html keys)",
+            "description": "Hand values whose key ends in \"_html\" (the i18next convention for markup) to the HTML subfilter so tags are protected and text remains translatable. Off by default: the HTML subfilter is not byte-faithful for bare markup fragments.",
+            "default": false
+          }
+        }
+      },
+      "doc": {
+        "overview": "The **i18next JSON** format reads i18next / react-i18next resource bundles —\nthe conventions of the dominant web i18n library. It is built on the JSON\nformat and selected explicitly (`-f i18next`), because i18next files use the\ngeneric `.json` extension owned by the JSON format and cannot be reliably\nauto-distinguished.\n\nBeyond plain JSON extraction, it protects `{{interpolation}}`,\n`{{var, format}}`, and `$t()` nesting as inline codes; annotates v4 CLDR\nplural sibling keys (`key_zero`/`key_one`/…/`key_other`, plus legacy\n`key_plural` and `key_0`/`key_1`) with their base key and plural category;\nannotates context keys (`key_male`/`key_female`); and names blocks by their\nfull namespace key path. Round-trip is byte-faithful.\n",
+        "parameters": {
+          "subfilterHTMLValues": {
+            "description": "Route values whose key ends in _html through the HTML subfilter.",
+            "help": "When enabled, values under keys ending in `_html` are parsed by the HTML\nsubfilter for tag protection. Disabled by default because the HTML\nsubfilter normalises bare markup fragments, which would break byte-faithful\nround-trip; enable it only for tag-protection workflows.\n",
+            "values": "`true` / `false` (default `false`)"
+          }
+        },
+        "processingNotes": [
+          "Plural sibling keys stay 1:1 blocks (preserving byte-faithful round-trip) but are annotated with base key + CLDR category.",
+          "`{{interpolation}}` and `$t()` nesting are protected as inline codes.",
+          "Block names use the full namespace key path for nested objects."
+        ],
+        "examples": [
+          {
+            "title": "Protect HTML in _html values",
+            "description": "Enable the HTML subfilter for keys ending in _html.",
+            "config": "subfilterHTMLValues: true\n"
+          }
+        ]
+      }
+    },
+    {
       "id": "icml",
       "source": "built-in",
       "kind": "format",
@@ -12962,6 +13515,121 @@
       },
       "presets": {
         "okf_markdown": null
+      }
+    },
+    {
+      "id": "mdx",
+      "source": "built-in",
+      "kind": "format",
+      "displayName": "MDX",
+      "description": "Extract and update translatable prose in MDX (.mdx) files while preserving JSX, ESM, and expressions.",
+      "extensions": [
+        ".mdx"
+      ],
+      "mimeTypes": [
+        "text/mdx"
+      ],
+      "hasReader": true,
+      "hasWriter": true,
+      "schema": {
+        "$id": "",
+        "$version": "",
+        "title": "MDX Format",
+        "description": "Configuration for the MDX (.mdx) format reader/writer. MDX is CommonMark Markdown extended with ESM imports/exports, JSX components, and {expression} braces. Markdown prose is extracted using the same toggles as the Markdown format; ESM, JSX, and expressions are preserved verbatim and never translated.",
+        "type": "object",
+        "formatMeta": {
+          "id": "mdx",
+          "extensions": [
+            ".mdx"
+          ],
+          "mimeTypes": [
+            "text/mdx"
+          ]
+        },
+        "ui:groups": [
+          {
+            "id": "extraction",
+            "label": "Content Extraction",
+            "fields": [
+              "translateCodeBlocks",
+              "translateFrontMatter",
+              "translateImageAlt",
+              "translateURLs",
+              "translateBlockQuotes",
+              "translateHTMLBlocks"
+            ]
+          },
+          {
+            "id": "inlineCodes",
+            "label": "Inline Codes",
+            "fields": [
+              "useCodeFinder",
+              "codeFinderRules"
+            ]
+          }
+        ],
+        "properties": {
+          "codeFinderRules": {
+            "type": "array",
+            "title": "Code Finder Rules",
+            "description": "Regex patterns that match inline codes within translatable text.",
+            "ui:widget": "code-finder",
+            "ui:visible": {
+              "field": "useCodeFinder",
+              "eq": true
+            }
+          },
+          "translateBlockQuotes": {
+            "type": "boolean",
+            "title": "Translate Block Quotes",
+            "description": "If true, blockquote content is translatable.",
+            "default": true
+          },
+          "translateCodeBlocks": {
+            "type": "boolean",
+            "title": "Translate Code Blocks",
+            "description": "If true, fenced and indented code blocks are translatable. If false, emitted as non-translatable data.",
+            "default": false
+          },
+          "translateFrontMatter": {
+            "type": "boolean",
+            "title": "Translate YAML Front Matter",
+            "description": "If true, YAML front matter values are translatable. If false, emitted as non-translatable data.",
+            "default": false
+          },
+          "translateHTMLBlocks": {
+            "type": "boolean",
+            "title": "Translate HTML Blocks",
+            "description": "If true, raw HTML blocks are translatable. If false, emitted as non-translatable data.",
+            "default": false
+          },
+          "translateImageAlt": {
+            "type": "boolean",
+            "title": "Translate Image Alt Text",
+            "description": "If true, image alt text is included in translatable content.",
+            "default": true
+          },
+          "translateURLs": {
+            "type": "boolean",
+            "title": "Translate Hyperlink URLs",
+            "description": "If true, link and image URLs are translatable.",
+            "default": false
+          },
+          "useCodeFinder": {
+            "type": "boolean",
+            "title": "Enable Inline Code Detection",
+            "description": "Enable regex-based inline code detection within translatable text.",
+            "default": false
+          }
+        }
+      },
+      "doc": {
+        "overview": "The **MDX** format reads `.mdx` files — CommonMark Markdown extended with\nJSX components, ESM `import`/`export` statements, and `{expression}` braces —\nthe authoring format of modern documentation and content sites (Docusaurus,\nNext.js, Astro).\n\nTranslatable Markdown prose is extracted using the same machinery and\nconfiguration as the Markdown format (paragraphs, headings, list items,\nlink/image text, inline emphasis). MDX-specific constructs — ESM statements,\nJSX tags with their attributes and children, top-level `{expression}` blocks,\nand GFM tables — are preserved byte-for-byte and never translated, with\ncomponent names, attribute values, import paths, and expressions left\nuntouched. Read→write reproduces real-world `.mdx` exactly when nothing is\ntranslated; the reader self-verifies each prose region and falls back to\nopaque preservation if a region would not round-trip byte-faithfully.\n",
+        "processingNotes": [
+          "Markdown prose is translatable; ESM, JSX (including children, in this version), expressions, and GFM tables are opaque and preserved verbatim.",
+          "Configuration parameters mirror the Markdown format (e.g. frontmatter and code-block handling).",
+          "Detection is by the unique `.mdx` extension."
+        ]
       }
     },
     {
@@ -19397,7 +20065,6 @@
       "displayName": "Regex Extraction",
       "description": "Extract translatable strings from arbitrary text formats using configurable regular-expression rules.",
       "extensions": [
-        ".strings",
         ".ini",
         ".info",
         ".rls"

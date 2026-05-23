@@ -1,0 +1,11 @@
+{
+  "title": "Welcome",
+  "description": "A plain JSON resource bundle, not design tokens.",
+  "items": [
+    { "label": "First", "value": 1 },
+    { "label": "Second", "value": 2 }
+  ],
+  "nested": {
+    "greeting": "Hello, world"
+  }
+}

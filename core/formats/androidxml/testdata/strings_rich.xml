@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Rich Android string resources exercising CDATA, xliff:g do-not-translate
+     spans, inline styling, and comment-as-note extraction. Modeled on AOSP and
+     signalapp/Signal-Android values/strings.xml conventions. -->
+<resources xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
+
+    <!-- The privacy policy link is rendered as styled HTML. -->
+    <string name="privacy_policy"><![CDATA[Read our <a href="https://example.com/privacy">Privacy&nbsp;Policy</a> &amp; <b>Terms</b> before continuing.]]></string>
+
+    <!-- Filename is inserted verbatim and must not be translated. -->
+    <string name="downloading_file">Downloading <xliff:g id="filename" example="report.pdf">%1$s</xliff:g> now…</string>
+
+    <string name="formatted_body">You sent <b>%1$d</b> messages to <i><xliff:g id="recipient">%2$s</xliff:g></i></string>
+
+    <!-- A line break and a styled segment together. -->
+    <string name="multiline_note">First line<br/>Second line is <u>underlined</u></string>
+
+    <!-- Plurals with an embedded do-not-translate count. -->
+    <plurals name="new_messages">
+        <item quantity="one">You have <xliff:g id="count" example="1">%1$d</xliff:g> new message</item>
+        <item quantity="other">You have <xliff:g id="count" example="3">%1$d</xliff:g> new messages</item>
+    </plurals>
+
+</resources>

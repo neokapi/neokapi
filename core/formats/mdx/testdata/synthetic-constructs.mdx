@@ -1,0 +1,47 @@
+---
+title: "Synthetic MDX constructs"
+description: Exercises every MDX construct in one file.
+---
+
+import { Foo, Bar } from "@scope/pkg";
+import Default from "./local";
+export const meta = {
+  author: "Test",
+  tags: ["a", "b"],
+};
+
+# Heading One
+
+A paragraph with **bold**, _italic_, `code`, and a [link](https://example.com).
+It also has inline JSX like <Highlight color="yellow">marked</Highlight> text.
+
+<Callout type="warning">
+  This is block JSX with prose children that stays opaque in v1.
+</Callout>
+
+<ThemedVideo
+  sources={{
+    light: "/v.webm",
+    dark: "/v.webm",
+  }}
+/>
+
+{/* a top-level expression comment, kept verbatim */}
+
+Some prose between constructs.
+
+- list item one
+- list item two with `inline code`
+
+> A blockquote line.
+> Continuing the quote.
+
+```js
+const x = 1; // not translated
+```
+
+<>
+  Fragment children, also opaque.
+</>
+
+Final paragraph after a self-closing tag <br /> mid-text.
