@@ -78,7 +78,6 @@ func TestCorpusInvariantPseudoTranslationApplied(t *testing.T) {
 // produces) would trip this on a clean file.
 func TestCorpusInvariantNonTranslatableCatalogsPreserved(t *testing.T) {
 	for _, path := range corpusFiles(t) {
-		path := path
 		base := pathBase(path)
 		if _, gated := corpusMarkerSplitGap[base]; gated {
 			continue

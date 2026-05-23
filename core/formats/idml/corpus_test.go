@@ -104,7 +104,6 @@ func corpusWrite(t *testing.T, data []byte, parts []*model.Part, skel *format.Sk
 // business-card placeholder templates, and a layout-only template with no copy.
 func TestCorpusSemanticRoundTrip(t *testing.T) {
 	for _, path := range corpusFiles(t) {
-		path := path
 		t.Run(filepath.Base(path), func(t *testing.T) {
 			t.Parallel()
 			data, err := os.ReadFile(path)
@@ -145,7 +144,6 @@ func TestCorpusSemanticRoundTrip(t *testing.T) {
 // path on real, structurally varied packages.
 func TestCorpusOutputIsValidIDML(t *testing.T) {
 	for _, path := range corpusFiles(t) {
-		path := path
 		t.Run(filepath.Base(path), func(t *testing.T) {
 			t.Parallel()
 			data, err := os.ReadFile(path)

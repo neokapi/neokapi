@@ -86,7 +86,6 @@ func blockSourceTexts(parts []*model.Part) []string {
 // assertion.
 func TestCorpusSemanticRoundTrip(t *testing.T) {
 	for _, path := range corpusFiles(t) {
-		path := path
 		base := filepath.Base(path)
 		if _, gated := corpusMarkerSplitGap[base]; gated {
 			continue // covered by TestCorpusMarkerSplitExtractionStable
@@ -138,7 +137,6 @@ func TestCorpusSemanticRoundTrip(t *testing.T) {
 // precise citation rather than asserted falsely or silently dropped.
 func TestCorpusMarkerSplitExtractionStable(t *testing.T) {
 	for _, path := range corpusFiles(t) {
-		path := path
 		base := filepath.Base(path)
 		reason, gated := corpusMarkerSplitGap[base]
 		if !gated {

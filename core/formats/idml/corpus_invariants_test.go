@@ -38,7 +38,6 @@ func zipEntryNames(t *testing.T, data []byte) []string {
 func TestCorpusPseudoTranslationApplied(t *testing.T) {
 	const fr = model.LocaleID("fr-FR")
 	for _, path := range corpusFiles(t) {
-		path := path
 		base := filepath.Base(path)
 		if corpusZeroTranslatable[base] {
 			continue // nothing to translate
