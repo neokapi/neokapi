@@ -203,3 +203,60 @@ func TestDaemonReader_CloseIsNoop(t *testing.T) {
 	r := newDaemonReader(nil, nil, "x", format.FormatSignature{}, "X")
 	assert.NoError(t, r.Close())
 }
+
+// TestDaemonWriter_InlineModeOmitsOutputRef verifies that daemonWriter.Write
+// does NOT send an OutputRef when only an io.Writer (inline mode) is set
+// (issue #636). Previously it sent OutputRef{path:""} which the Java daemon
+// tried to open as a file → java.io.FileNotFoundException.
+//
+// The fakedaemon checks header.Output != nil to decide whether to include
+// output in the ProcessComplete response. Without the fix, the daemon would
+// see a non-nil OutputRef (with empty path) and try to open "". With the fix
+// the OutputRef is absent; the daemon returns inline bytes set via
+// FAKE_DAEMON_OUTPUT, which the writer must copy into the provided io.Writer.
+func TestDaemonWriter_InlineModeOmitsOutputRef(t *testing.T) {
+	bin := buildFakeDaemon(t)
+	plugin := makePluginWithBridge(t, "fmt-plugin", bin, "fakefmt", []string{".fakefmt"})
+
+	host := NewHost([]*Plugin{plugin}, nil)
+	pool := daemonPoolWithBridgeEnv(t)
+	t.Cleanup(pool.Shutdown)
+
+	// Tell the fakedaemon what bytes to return in ProcessComplete.output so
+	// we can assert the writer copies them into the io.Writer.
+	const fakeOutput = "pseudo-translated-output"
+	t.Setenv("FAKE_DAEMON_OUTPUT", fakeOutput)
+
+	reg := registry.NewFormatRegistry()
+	RegisterModeCFormats(host, pool, reg)
+
+	writer, err := reg.NewWriter("fakefmt")
+	require.NoError(t, err)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	// Set inline mode: provide an io.Writer but no output path.
+	var buf strings.Builder
+	require.NoError(t, writer.SetOutputWriter(&buf))
+
+	// Provide source content so the writer doesn't error on the
+	// "no source path or original content" guard.
+	if ocs, ok := writer.(format.OriginalContentSetter); ok {
+		ocs.SetOriginalContent([]byte("source content"))
+	}
+
+	writer.SetLocale(model.LocaleID("qps"))
+
+	// Drive the write with an empty parts channel — no actual blocks to
+	// translate, but the round-trip through the daemon must succeed.
+	parts := make(chan *model.Part)
+	close(parts)
+
+	require.NoError(t, writer.Write(ctx, parts),
+		"daemonWriter.Write must not error in inline mode (issue #636: was sending OutputRef{path:\"\"} which caused FileNotFoundException)")
+
+	// The fakedaemon returned fakeOutput bytes; the writer must copy them.
+	assert.Equal(t, fakeOutput, buf.String(),
+		"inline output bytes from ProcessComplete must be copied into the io.Writer")
+}

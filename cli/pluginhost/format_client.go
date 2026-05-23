@@ -280,10 +280,13 @@ func (w *daemonWriter) Write(ctx context.Context, parts <-chan *model.Part) erro
 	}
 	if w.outPath != "" {
 		header.Output = &pb.OutputRef{Destination: &pb.OutputRef_Path{Path: w.outPath}}
-	} else {
-		// Inline mode — the daemon returns bytes in ProcessComplete.
-		header.Output = &pb.OutputRef{Destination: &pb.OutputRef_Path{Path: ""}}
 	}
+	// Inline mode (outPath == ""): omit Output from the header entirely.
+	// The Java daemon checks writeEnabled = header.hasOutput() || !outputLocale.isEmpty().
+	// Since OutputLocale is always set above, write mode stays active; the daemon
+	// detects no OutputRef, falls back to a ByteArrayOutputStream, and returns
+	// the bytes in ProcessComplete.output for us to copy into outWriter.
+	// Sending OutputRef{path:""} caused java.io.FileNotFoundException on the daemon.
 	if err := stream.Send(&pb.ProcessRequest{Request: &pb.ProcessRequest_Header{Header: header}}); err != nil {
 		return fmt.Errorf("send header: %w", err)
 	}
