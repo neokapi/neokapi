@@ -155,6 +155,21 @@ func (a *App) NewToolCommands() []*cobra.Command {
 
 				newTool := func() (tool.Tool, error) {
 					config := ReadAllSchemaFlags(cmd, toolSchema)
+					// Tools that require a termbase (e.g. term-check) get the
+					// project's bound glossary injected when no glossary was
+					// supplied programmatically. This makes `kapi term-check
+					// fr.json` enforce the project termbase with no flag.
+					if toolRequires(toolSchema, "termbase") {
+						if _, ok := config["glossary"]; !ok {
+							glossary, gerr := a.resolveProjectGlossary(cmd, effectiveLang)
+							if gerr != nil {
+								return nil, gerr
+							}
+							if len(glossary) > 0 {
+								config["glossary"] = glossary
+							}
+						}
+					}
 					credName, _ := cmd.Flags().GetString("credential")
 					if credName != "" {
 						config["credential"] = credName
@@ -218,9 +233,11 @@ func (a *App) NewToolCommands() []*cobra.Command {
 		RegisterSchemaFlags(cmd, toolSchema)
 		if toolSchema.ToolMeta != nil {
 			for _, req := range toolSchema.ToolMeta.Requires {
-				if req == "credentials" {
+				switch req {
+				case "credentials":
 					cmd.Flags().String("credential", "", "saved credential name to use (see 'kapi credentials list')")
-					break
+				case "termbase":
+					cmd.Flags().String("termbase", "", "named termbase or path to a glossary (defaults to the project termbase)")
 				}
 			}
 		}

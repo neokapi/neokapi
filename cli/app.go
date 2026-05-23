@@ -75,6 +75,12 @@ type App struct {
 	// buildFlowTools for project-defined flows.
 	projectFlowTools []tool.Tool
 
+	// projectBindings carries the standing brand-voice + termbase context
+	// resolved from a .kapi project (defaults.brand_voice / defaults.termbase).
+	// Set temporarily by runFromProject so project-flow steps can be made
+	// brand- and terminology-aware with no flags. nil for ad-hoc runs.
+	projectBindings *projectBindings
+
 	// translator localizes tool/format/plugin metadata at API egress.
 	// Built during Init from --lang / KAPI_LANG / config / POSIX env.
 	// Never nil after Init — unresolved locales get a NoopTranslator

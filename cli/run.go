@@ -176,6 +176,15 @@ func (a *App) runFromProject(cmd *cobra.Command, flowName, projectPath string, o
 	a.projectContext = ctx
 	defer func() { a.projectContext = nil }()
 
+	// Resolve standing brand-voice + glossary bindings so project-flow steps
+	// honor them with no flags (defaults.brand_voice / defaults.termbase).
+	bindings, err := a.resolveProjectBindings(cmd, proj, projectPath)
+	if err != nil {
+		return err
+	}
+	a.projectBindings = bindings
+	defer func() { a.projectBindings = nil }()
+
 	// Build resource context from project file location.
 	absProjectPath, _ := filepath.Abs(projectPath)
 	rCtx := flow.ResourceContext{

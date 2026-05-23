@@ -17,12 +17,16 @@ import (
 
 	"github.com/mattn/go-isatty"
 	"github.com/neokapi/neokapi/cli/output"
+	"github.com/neokapi/neokapi/core/brand"
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/preset"
+	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/registry"
+	"github.com/neokapi/neokapi/core/schema"
 	"github.com/neokapi/neokapi/core/tool"
+	coretools "github.com/neokapi/neokapi/core/tools"
 	sqltm "github.com/neokapi/neokapi/sievepen"
 	sqltb "github.com/neokapi/neokapi/termbase"
 	"github.com/spf13/cobra"
@@ -679,6 +683,14 @@ func (a *App) buildFlowTools(flowName string, cmd ...*cobra.Command) ([]tool.Too
 		"target_locale": a.TargetLang,
 	}
 
+	// Inject the project's bound brand voice profile so built-in flows
+	// (e.g. ai-translate-qa) run on-brand when executed inside a project.
+	// ai-translate reads config["profile"]; tools that don't recognise it
+	// ignore the key.
+	if a.projectBindings != nil && a.projectBindings.profile != nil {
+		config["profile"] = a.projectBindings.profile
+	}
+
 	// Inject credential/provider flags from the command into the tool config.
 	if len(cmd) > 0 && cmd[0] != nil {
 		if v, _ := cmd[0].Flags().GetString("credential"); v != "" {
@@ -866,22 +878,38 @@ func (p *cliTMProvider) LookupFuzzy(source string, sourceLocale, targetLocale mo
 
 // openTermbase resolves the --termbase flag and opens a SQLite termbase.
 // The flag value can be a named resource (no path separators) which resolves
-// via KAPI_HOME, or an explicit file path.
-// Returns (nil, noop, nil) if no --termbase flag was provided.
+// via KAPI_HOME, or an explicit file path. When no flag is given but a .kapi
+// project is in scope with a bound termbase (defaults.termbase) or a
+// <root>/.kapi/termbase.db convention file, that project termbase is opened
+// instead, so term tools in built-in flows are project-aware flag-free.
+// Returns (nil, noop, nil) when neither a flag nor a project termbase exists.
 func (a *App) openTermbase(cmd ...*cobra.Command) (*sqltb.SQLiteTermBase, func(), error) {
 	noop := func() {}
 	if len(cmd) == 0 || cmd[0] == nil {
 		return nil, noop, nil
 	}
 	tbValue, _ := cmd[0].Flags().GetString("termbase")
-	if tbValue == "" {
-		return nil, noop, nil
-	}
+
 	var tbPath string
-	if strings.ContainsAny(tbValue, "/\\") || strings.HasSuffix(tbValue, ".db") {
+	switch {
+	case tbValue == "":
+		// No flag — fall back to the project's bound termbase.
+		p, err := a.resolveProjectTermbasePath(cmd[0])
+		if err != nil {
+			return nil, nil, err
+		}
+		if p == "" {
+			return nil, noop, nil
+		}
+		if _, statErr := os.Stat(p); statErr != nil {
+			// Bound but not yet created — nothing to enforce.
+			return nil, noop, nil
+		}
+		tbPath = p
+	case strings.ContainsAny(tbValue, "/\\") || strings.HasSuffix(tbValue, ".db"):
 		// Explicit file path.
 		tbPath = tbValue
-	} else {
+	default:
 		// Named resource.
 		var err error
 		tbPath, err = resolveNamedResource("termbases", tbValue)
@@ -891,9 +919,169 @@ func (a *App) openTermbase(cmd ...*cobra.Command) (*sqltb.SQLiteTermBase, func()
 	}
 	tb, err := sqltb.NewSQLiteTermBase(tbPath)
 	if err != nil {
-		return nil, nil, fmt.Errorf("open termbase %q: %w", tbValue, err)
+		return nil, nil, fmt.Errorf("open termbase %q: %w", tbPath, err)
 	}
 	return tb, func() { tb.Close() }, nil
+}
+
+// projectBindings holds the standing brand-voice + glossary context resolved
+// from a .kapi project, applied to project-flow steps that can honor them.
+type projectBindings struct {
+	// profile is the resolved brand voice profile (defaults.brand_voice),
+	// injected into translate steps as config["profile"]. nil when unbound.
+	profile *brand.VoiceProfile
+	// glossary is the source→target glossary built from the project termbase
+	// (defaults.termbase), injected into term-check steps. nil when unbound.
+	glossary []coretools.GlossaryEntry
+}
+
+// resolveProjectBindings resolves the standing brand-voice + glossary context
+// for a project flow run. The brand voice comes from defaults.brand_voice (or
+// a convention brand.yaml); the glossary comes from the project termbase
+// (defaults.termbase or <root>/.kapi/termbase.db). Returns nil when the
+// project carries neither, so ad-hoc behavior is unchanged.
+func (a *App) resolveProjectBindings(cmd *cobra.Command, proj *project.KapiProject, projectPath string) (*projectBindings, error) {
+	root := filepath.Dir(projectPath)
+
+	profile, _, _, err := a.loadBoundBrandProfile(cmd, proj, root)
+	if err != nil {
+		return nil, err
+	}
+	if profile == nil {
+		// Convention file fallback at the project root.
+		for _, conv := range []string{
+			filepath.Join(root, "brand.yaml"),
+			filepath.Join(root, project.StateDirName, "brand.yaml"),
+		} {
+			p, lerr := loadProfileFile(conv)
+			if lerr != nil {
+				return nil, lerr
+			}
+			if p != nil {
+				profile = p
+				break
+			}
+		}
+	}
+
+	glossary, err := a.resolveProjectGlossary(cmd, a.TargetLang)
+	if err != nil {
+		return nil, err
+	}
+
+	if profile == nil && len(glossary) == 0 {
+		return nil, nil
+	}
+	return &projectBindings{profile: profile, glossary: glossary}, nil
+}
+
+// toolRequires reports whether the tool schema declares the named requirement.
+func toolRequires(s *schema.ComponentSchema, req string) bool {
+	if s == nil || s.ToolMeta == nil {
+		return false
+	}
+	return slices.Contains(s.ToolMeta.Requires, req)
+}
+
+// resolveProjectTermbasePath returns the termbase path a project-aware tool
+// command should use, with no flag. Resolution order:
+//
+//  1. An explicit --termbase flag (named resource or path).
+//  2. defaults.termbase in the .kapi recipe (relative to the project root).
+//  3. <projectRoot>/.kapi/termbase.db when it exists.
+//
+// Returns "" (with nil error) when nothing resolves, so callers fall through
+// to the tool's default (no glossary).
+func (a *App) resolveProjectTermbasePath(cmd *cobra.Command) (string, error) {
+	if cmd != nil {
+		if tbValue, _ := cmd.Flags().GetString("termbase"); tbValue != "" {
+			if strings.ContainsAny(tbValue, "/\\") || strings.HasSuffix(tbValue, ".db") {
+				return tbValue, nil
+			}
+			path, err := resolveNamedResource("termbases", tbValue)
+			if err != nil {
+				return "", fmt.Errorf("resolve termbase %q: %w", tbValue, err)
+			}
+			return path, nil
+		}
+	}
+
+	projectPath, err := ResolveProjectPath(cmd)
+	if err != nil {
+		return "", err
+	}
+	if projectPath == "" {
+		return "", nil
+	}
+	root := filepath.Dir(projectPath)
+
+	proj, lerr := project.LoadWithOptions(projectPath, project.LoadOptions{SkipRequiresCheck: true})
+	if lerr != nil {
+		return "", fmt.Errorf("load project for termbase: %w", lerr)
+	}
+	if bound := proj.Defaults.Termbase; bound != "" {
+		if !filepath.IsAbs(bound) {
+			bound = filepath.Join(root, bound)
+		}
+		return bound, nil
+	}
+
+	// Convention: the project's authoritative termbase under .kapi/.
+	conv := filepath.Join(root, project.StateDirName, "termbase.db")
+	if _, statErr := os.Stat(conv); statErr == nil {
+		return conv, nil
+	}
+	return "", nil
+}
+
+// resolveProjectGlossary builds a source→target glossary from the project's
+// bound termbase (see resolveProjectTermbasePath), for the active source and
+// target locales. Returns nil when no termbase is in scope or it has no terms
+// for the locale pair. The result is suitable for injection into a
+// term-check tool config under the "glossary" key.
+func (a *App) resolveProjectGlossary(cmd *cobra.Command, targetLang string) ([]coretools.GlossaryEntry, error) {
+	tbPath, err := a.resolveProjectTermbasePath(cmd)
+	if err != nil {
+		return nil, err
+	}
+	if tbPath == "" {
+		return nil, nil
+	}
+	if _, statErr := os.Stat(tbPath); statErr != nil {
+		// A bound path that doesn't exist yet is not an error here — the
+		// project simply has no glossary to enforce.
+		return nil, nil
+	}
+
+	tb, err := sqltb.NewSQLiteTermBase(tbPath)
+	if err != nil {
+		return nil, fmt.Errorf("open termbase %q: %w", tbPath, err)
+	}
+	defer tb.Close()
+
+	source := model.LocaleID(a.SourceLang)
+	target := model.LocaleID(targetLang)
+	if target == "" {
+		target = model.LocaleID(a.TargetLang)
+	}
+
+	var glossary []coretools.GlossaryEntry
+	for _, c := range tb.Concepts() {
+		concept := c
+		src := concept.SourceTerm(source)
+		if src == nil || src.Text == "" {
+			continue
+		}
+		tgt := concept.PreferredTerm(target)
+		if tgt == nil || tgt.Text == "" {
+			continue
+		}
+		glossary = append(glossary, coretools.GlossaryEntry{
+			Source: src.Text,
+			Target: tgt.Text,
+		})
+	}
+	return glossary, nil
 }
 
 // runProjectSteps executes a flow defined in a .kapi project file.
@@ -946,6 +1134,7 @@ func (a *App) toolFromStep(step flow.FlowStep, cmd *cobra.Command, rCtx *flow.Re
 				return nil, fmt.Errorf("resolve config for %q: %w", step.Tool, err)
 			}
 		}
+		config = a.applyProjectBindings(step.Tool, toolSchema, config)
 		t, err := a.ToolReg.NewToolWithConfig(toolID, config, a.TargetLang)
 		if err == nil {
 			return t, nil
@@ -960,6 +1149,60 @@ func (a *App) toolFromStep(step flow.FlowStep, cmd *cobra.Command, rCtx *flow.Re
 		return nil, fmt.Errorf("tool %q: %w", step.Tool, err)
 	}
 	return t, nil
+}
+
+// applyProjectBindings injects the project's standing brand-voice and
+// glossary context into a step's config when the tool can honor them and the
+// step did not set them explicitly. Returns the (possibly cloned) config so
+// the recipe's in-memory step config is never mutated.
+func (a *App) applyProjectBindings(toolName string, s *schema.ComponentSchema, config map[string]any) map[string]any {
+	b := a.projectBindings
+	if b == nil {
+		return config
+	}
+
+	clone := func() {
+		next := make(map[string]any, len(config)+1)
+		for k, v := range config {
+			next[k] = v
+		}
+		config = next
+	}
+
+	// Brand voice → translate steps (ai-translate / its "translate" alias).
+	if b.profile != nil && isTranslateTool(toolName, s) {
+		if _, ok := config["profile"]; !ok {
+			clone()
+			config["profile"] = b.profile
+		}
+	}
+
+	// Glossary → termbase-requiring steps (term-check).
+	if len(b.glossary) > 0 && toolRequires(s, schema.RequiresTermbase) {
+		if _, ok := config["glossary"]; !ok {
+			clone()
+			config["glossary"] = b.glossary
+		}
+	}
+
+	return config
+}
+
+// isTranslateTool reports whether a step's tool is the AI translate tool,
+// which accepts a brand voice profile via config["profile"].
+func isTranslateTool(toolName string, s *schema.ComponentSchema) bool {
+	if toolName == "ai-translate" {
+		return true
+	}
+	if s != nil && s.ToolMeta != nil {
+		if s.ToolMeta.ID == "ai-translate" {
+			return true
+		}
+		if slices.Contains(s.ToolMeta.Aliases, "translate") && s.ToolMeta.ID == "ai-translate" {
+			return true
+		}
+	}
+	return false
 }
 
 // startStepProgress starts a 200ms ticker that renders a single-line pipeline
