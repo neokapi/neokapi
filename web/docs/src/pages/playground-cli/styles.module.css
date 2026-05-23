@@ -1,0 +1,128 @@
+.layout {
+  display: grid;
+  grid-template-columns: 1fr 280px;
+  gap: 1rem;
+  align-items: stretch;
+  min-height: 460px;
+}
+
+@media (max-width: 768px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.termPane {
+  background: #1e1e2e;
+  border-radius: var(--ifm-global-radius);
+  padding: 0.5rem;
+  overflow: hidden;
+  min-height: 460px;
+}
+
+.term {
+  width: 100%;
+  height: 100%;
+  min-height: 440px;
+}
+
+.filesPane {
+  border: 1px solid var(--ifm-color-emphasis-300);
+  border-radius: var(--ifm-global-radius);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.files {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.filesHeader {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 0.75rem;
+  border-bottom: 1px solid var(--ifm-color-emphasis-300);
+}
+
+.filesTitle {
+  font-weight: 700;
+  flex: 1;
+}
+
+.filesCwd {
+  font-family: var(--ifm-font-family-monospace);
+  font-size: 0.8rem;
+  color: var(--ifm-color-emphasis-700);
+  padding: 0.4rem 0.75rem;
+  border-bottom: 1px solid var(--ifm-color-emphasis-200);
+  word-break: break-all;
+}
+
+.fileList {
+  list-style: none;
+  margin: 0;
+  padding: 0.25rem 0;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.fileRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.3rem 0.75rem;
+  font-family: var(--ifm-font-family-monospace);
+  font-size: 0.85rem;
+}
+
+.fileRow:hover {
+  background: var(--ifm-color-emphasis-100);
+}
+
+.fileName {
+  flex: 1;
+  word-break: break-all;
+}
+
+.fileActions {
+  display: flex;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.linkBtn,
+.dirLink {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font: inherit;
+  color: var(--ifm-color-primary);
+}
+
+.dirLink {
+  font-weight: 600;
+}
+
+.linkBtn:hover,
+.dirLink:hover {
+  text-decoration: underline;
+}
+
+.empty {
+  padding: 0.5rem 0.75rem;
+  color: var(--ifm-color-emphasis-600);
+  font-size: 0.85rem;
+  font-style: italic;
+}
+
+.notice {
+  border: 1px solid var(--ifm-color-emphasis-300);
+  border-radius: var(--ifm-global-radius);
+  padding: 1rem 1.25rem;
+}

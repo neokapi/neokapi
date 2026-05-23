@@ -21,6 +21,8 @@
     "@docusaurus/theme-mermaid": "3.10.1",
     "@mdx-js/react": "^3.1.1",
     "@neokapi/docs-shared": "file:../../packages/docs-shared",
+    "@xterm/addon-fit": "^0.10.0",
+    "@xterm/xterm": "^5.5.0",
     "@neokapi/flow-editor": "*",
     "@neokapi/reference-data": "*",
     "@neokapi/ui-primitives": "*",
