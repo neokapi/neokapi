@@ -155,8 +155,16 @@ func (a *App) NewToolCommands() []*cobra.Command {
 
 				newTool := func() (tool.Tool, error) {
 					config := ReadAllSchemaFlags(cmd, toolSchema)
-					if credName, _ := cmd.Flags().GetString("credential"); credName != "" {
+					credName, _ := cmd.Flags().GetString("credential")
+					if credName != "" {
 						config["credential"] = credName
+						// When a named credential is given and --provider was not
+						// explicitly set by the user, drop the schema default so
+						// ResolveCredentials can inject the credential's own
+						// provider_type (fixes #637).
+						if !cmd.Flags().Changed("provider") {
+							delete(config, "provider")
+						}
 					}
 					if !jsonOut && isatty.IsTerminal(os.Stderr.Fd()) {
 						config["onProgress"] = aiProgressWriter(os.Stderr)
