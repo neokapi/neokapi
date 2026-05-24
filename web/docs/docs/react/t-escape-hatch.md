@@ -15,7 +15,7 @@ Use `t()` to mark them for extraction without leaving the translator's flow.
 ## The pattern
 
 ```tsx
-import { t } from "@neokapi/react/runtime";
+import { t } from "@neokapi/kapi-react/runtime";
 
 const UI_LANGUAGES = [
   { value: "en", label: t("English") },
@@ -33,7 +33,7 @@ function greet(user: User) {
 }
 ```
 
-At build time the plugin rewrites every `t("...")` call bound to `@neokapi/react/runtime` into a hash-based lookup:
+At build time the plugin rewrites every `t("...")` call bound to `@neokapi/kapi-react/runtime` into a hash-based lookup:
 
 ```ts
 // Input
@@ -87,10 +87,10 @@ Context mirrors gettext's `msgctxt` for teams familiar with the pattern.
 
 ## Import-name tracking
 
-The plugin only rewrites `t` identifiers bound to `@neokapi/react/runtime`. A local helper named `t` or a `t` imported from a different library is left alone:
+The plugin only rewrites `t` identifiers bound to `@neokapi/kapi-react/runtime`. A local helper named `t` or a `t` imported from a different library is left alone:
 
 ```tsx
-import { t } from "@neokapi/react/runtime";
+import { t } from "@neokapi/kapi-react/runtime";
 import { t as styled } from "styled-components"; // ← unrelated
 
 const Wrapper = styled.div`...`; // ← not rewritten
@@ -101,7 +101,7 @@ const label = t("Hello"); // ← rewritten to __t("hash", "Hello")
 Aliases work too:
 
 ```tsx
-import { t as tr } from "@neokapi/react/runtime";
+import { t as tr } from "@neokapi/kapi-react/runtime";
 
 const label = tr("Hello"); // ← rewritten
 ```

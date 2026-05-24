@@ -293,7 +293,7 @@ Exits non-zero if the extractor recorded any warning (`unknown-component`, `tern
 **Plugin (build-time):**
 
 ```ts title="vite.config.ts"
-import neokapi from "@neokapi/react/vite";
+import neokapi from "@neokapi/kapi-react/vite";
 
 export default {
   plugins: [neokapi({ warningsAsErrors: process.env.CI === "true" })],

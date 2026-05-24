@@ -31,7 +31,7 @@ brew install neokapi/tap/kapi
 ```ts
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
-import neokapi from "@neokapi/react/vite";
+import neokapi from "@neokapi/kapi-react/vite";
 
 export default defineConfig({
   plugins: [
@@ -84,16 +84,14 @@ npm run extract
 Output:
 
 ```
-i18n/ ← 3 block(s) across 1 document(s)
+Scanning 1 files...
+Extracted 3 blocks from 1 files → i18n/
 ```
 
-`i18n/` is a ZIP archive carrying one `.klf` document per source file plus a content-addressed manifest. The three blocks are "Welcome to Acme", the paragraph, and "Get started".
-
-Prefer per-file `.klf` on disk for inspection / git? Drop ``:
-
-```bash
-vp kapi-react extract   # writes i18n/src/App.klf
-```
+`i18n/` is a directory carrying one `.klf` document per source file, mirroring
+your source tree (e.g. `i18n/src/App.klf`). The three blocks are
+"Welcome to Acme", the paragraph, and "Get started". Each `.klf` is plain JSON —
+human-readable and git-diffable.
 
 ## 5. Pseudo-translate with `kapi`
 
@@ -124,7 +122,7 @@ The JSON is `{ "<hash>": "<flattened target text>" }`.
 Two lines in your app bootstrap:
 
 ```tsx title="src/main.tsx"
-import { loadTranslations } from "@neokapi/react/runtime";
+import { loadTranslations } from "@neokapi/kapi-react/runtime";
 import ReactDOM from "react-dom/client";
 import App from "./App";
 
@@ -143,7 +141,7 @@ void bootstrap();
 A 10-line language picker wired to `setTranslations` / `loadTranslations`:
 
 ```tsx
-import { loadTranslations, setTranslations, useNeokapi } from "@neokapi/react/runtime";
+import { loadTranslations, setTranslations, useNeokapi } from "@neokapi/kapi-react/runtime";
 
 export function LocaleSwitcher() {
   useNeokapi(); // subscribe so the component re-renders on locale change

@@ -193,7 +193,7 @@ Execute a processing flow on a file.
 
 | Parameter     | Type   | Required | Description                                                              |
 | ------------- | ------ | -------- | ------------------------------------------------------------------------ |
-| `flow_name`   | string | yes      | Flow name: `pseudo-translate`, `qa-check`, `segmentation`, `tm-leverage` |
+| `flow_name`   | string | yes      | Flow name: `pseudo-translate`, `qa-check`, `tm-leverage`, `ai-translate-qa` |
 | `path`        | string | yes      | Input file path                                                          |
 | `source_lang` | string | no       | Source language (default: `en`)                                          |
 | `target_lang` | string | yes\*    | Target language (\*optional for `pseudo-translate`, defaults to `qps`)   |

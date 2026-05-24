@@ -93,10 +93,12 @@ For full authoring-time coverage, pair this with [`@neokapi/kapi-react-lint`](./
 
 ### What's in the KLF directory
 
-A ZIP archive with:
+A directory of per-file `.klf` JSON documents, mirroring your source tree
+(e.g. `src/App.tsx` → `i18n/src/App.klf`). Each `.klf` is a self-contained KLF
+`File` carrying:
 
-- `manifest.json` — project, source/target locales, SHA-256 of each part.
-- `documents/<slug>.klf` — one file per source file, each carrying its `Block`s.
+- `project` — id, source locale, declared target locales.
+- `documents` — one document for the source file, holding its `Block`s.
 - Optional targets / skeleton / annotation overlays (added by translators).
 
 See [AD-008](/contribute/architecture/008-project-model) for the full schema.
@@ -147,7 +149,9 @@ kapi pseudo-translate i18n/ --target-lang qps
 
 The `.klf` is the exchange format. A translator's workflow might be:
 
-1.2. Translate every block, leveraging their existing TM. 3. Save back to the same `i18n/`.
+1. Open the `i18n/` archive (or the individual `.klf` files) in their CAT tool.
+2. Translate every block, leveraging their existing TM.
+3. Save back to the same `i18n/`.
 
 Structural context (the `jsxPath`, the translator note, the inline element tokens) renders as rich context in modern CAT tools.
 
@@ -257,7 +261,7 @@ dist/translations/
 Hashes shared across chunks are duplicated into each subset so every chunk file is independently loadable. Runtime wiring is a one-line addition to each lazy route:
 
 ```tsx
-import { loadTranslationChunk } from "@neokapi/react/runtime";
+import { loadTranslationChunk } from "@neokapi/kapi-react/runtime";
 
 const routes = [
   {

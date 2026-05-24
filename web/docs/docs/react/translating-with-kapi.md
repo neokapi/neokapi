@@ -143,12 +143,6 @@ Then pass `i18n-pre/` to `kapi ai-translate`, which respects the pre-translated 
 
 See [Terminology](/framework/terminology).
 
-klf` directly:
-
-```bash
-# …translators work in the web editor…
-```
-
 ## Putting it together
 
 A complete Makefile / package-scripts setup for a multi-locale app:

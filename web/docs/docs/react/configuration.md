@@ -12,7 +12,7 @@ The `neokapi(...)` plugin options, the `kapi-react` CLI flags, and the ecosystem
 ## Plugin options
 
 ```ts
-import neokapi from "@neokapi/react/vite";
+import neokapi from "@neokapi/kapi-react/vite";
 
 neokapi({
   mode: "runtime",
@@ -225,11 +225,11 @@ Keep the Vite config and `i18n.config.json` in sync — both sides need the same
 
 ## Storybook integration
 
-`@neokapi/react/storybook` exports a decorator and toolbar entry for switching locales inside Storybook:
+`@neokapi/kapi-react/storybook` exports a decorator and toolbar entry for switching locales inside Storybook:
 
 ```ts title=".storybook/preview.ts"
 import type { Preview } from "@storybook/react-vite";
-import { neokapiDecorator, neokapiGlobalType } from "@neokapi/react/storybook";
+import { neokapiDecorator, neokapiGlobalType } from "@neokapi/kapi-react/storybook";
 
 const i18n = {
   locales: [
@@ -252,7 +252,7 @@ export default preview;
 And in `.storybook/main.ts`, enable the plugin so stories get the runtime transform:
 
 ```ts title=".storybook/main.ts"
-import neokapi from "@neokapi/react/vite";
+import neokapi from "@neokapi/kapi-react/vite";
 
 export default {
   stories: ["../src/**/*.stories.tsx"],
@@ -288,7 +288,7 @@ Your `index.html` renders with whatever `lang` you hard-code, typically `en`. Wh
 If your app manages `<html lang>` itself (SSR with preset lang, framework-owned locale routing, multi-locale surfaces on one page), pass `syncDocumentLocale: false`:
 
 ```ts
-import { setTranslations } from "@neokapi/react/runtime";
+import { setTranslations } from "@neokapi/kapi-react/runtime";
 
 setTranslations("ja-JP", dict, { syncDocumentLocale: false });
 // or:
@@ -304,7 +304,7 @@ SSR is handled automatically — the option defaults to `true` when `document` i
 When you need to push locale state without swapping the dict (e.g. your app has the dict inlined and you only want to set `<html lang>`), use `syncDocumentLocale` directly:
 
 ```ts
-import { syncDocumentLocale } from "@neokapi/react/runtime";
+import { syncDocumentLocale } from "@neokapi/kapi-react/runtime";
 
 syncDocumentLocale("fr-FR");
 ```

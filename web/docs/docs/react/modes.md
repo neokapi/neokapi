@@ -39,7 +39,7 @@ The runtime is ~2 kB gzipped; it holds the active dict and a subscriber set. Whe
 ### Load once, subscribe to changes
 
 ```tsx
-import { loadTranslations, setTranslations, useNeokapi } from "@neokapi/react/runtime";
+import { loadTranslations, setTranslations, useNeokapi } from "@neokapi/kapi-react/runtime";
 
 async function bootstrap() {
   const locale = navigator.language.split("-")[0];
@@ -73,7 +73,7 @@ For larger apps, the single-catalog-per-locale model downloads every string even
 Wire it into a React Router lazy route:
 
 ```tsx
-import { loadTranslationChunk } from "@neokapi/react/runtime";
+import { loadTranslationChunk } from "@neokapi/kapi-react/runtime";
 
 const routes = [
   {
@@ -109,7 +109,7 @@ If `merge: true` is passed to `setTranslations` or `loadTranslations`, the incom
 Runtime mode can apply pseudo-translation **on the fly**, no build step, no catalog — useful for dev ergonomics, layout QA, and debugging which strings flow through the translation system:
 
 ```tsx
-import { setPseudoMode } from "@neokapi/react/runtime/pseudo";
+import { setPseudoMode } from "@neokapi/kapi-react/runtime/pseudo";
 
 // Turn on with defaults (▒-wrapped, accented)
 setPseudoMode({});
@@ -119,7 +119,7 @@ setPseudoMode({
   prefix: "« ",
   suffix: " »",
   expansion: 30, // +30% padding to test layout
-  accent: true, // ASCII → accented variants
+  alphabet: "accented", // ASCII → accented variants (the default)
 });
 
 // Off
@@ -133,7 +133,7 @@ The transform stacks on top of whatever's in the runtime dict — so you can loa
 If you want pseudo to be the default in dev, wire it at the top of `main.tsx` guarded on `import.meta.env.DEV`, then keep the dev console handle available for tuning:
 
 ```tsx
-import { setPseudoMode } from "@neokapi/react/runtime/pseudo";
+import { setPseudoMode } from "@neokapi/kapi-react/runtime/pseudo";
 
 if (import.meta.env.DEV) {
   setPseudoMode({ expansion: 30 });
@@ -142,7 +142,7 @@ if (import.meta.env.DEV) {
 }
 ```
 
-The pseudo module lives at a separate subpath (`@neokapi/react/runtime/pseudo`) so importing it is opt-in — the main runtime stays ~2 kB. Internally it uses `setStringTransform`, a general post-lookup hook also exported from the main runtime for custom transforms (debug markers, letter-spacing audits, etc.).
+The pseudo module lives at a separate subpath (`@neokapi/kapi-react/runtime/pseudo`) so importing it is opt-in — the main runtime stays ~2 kB. Internally it uses `setStringTransform`, a general post-lookup hook also exported from the main runtime for custom transforms (debug markers, letter-spacing audits, etc.).
 
 ## Inline mode
 

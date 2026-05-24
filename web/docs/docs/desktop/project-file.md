@@ -15,12 +15,6 @@ A Kapi project file is a YAML document that captures a localization workflow. It
 version: v1
 name: My App Localization
 
-source_language: en-US
-target_languages:
-  - fr-FR
-  - de-DE
-  - ja-JP
-
 content:
   - path: "src/locales/en/*.json"
     format: json
@@ -28,7 +22,7 @@ content:
 
 preset: nextjs
 plugins:
-  - okapi@1.47.0
+  okapi: "^1.47.0"
 
 flows:
   translate:
@@ -52,6 +46,11 @@ flows:
           expansion_rate: 1.3
 
 defaults:
+  source_language: en-US
+  target_languages:
+    - fr-FR
+    - de-DE
+    - ja-JP
   concurrency: 4
   parallel_blocks: 3
   encoding: utf-8
@@ -70,13 +69,11 @@ defaults:
 
 | Field              | Type           | Description                                          |
 | ------------------ | -------------- | ---------------------------------------------------- |
-| `source_language`  | string         | BCP-47 source locale (e.g., `en-US`)                 |
-| `target_languages` | string[]       | BCP-47 target locales                                |
 | `content`          | ContentEntry[] | File patterns to process                             |
 | `preset`           | string         | Framework preset name (e.g., `nextjs`, `react-intl`) |
-| `plugins`          | string[]       | Plugin requirements (e.g., `okapi@1.47.0`)           |
+| `plugins`          | map            | Plugin requirements keyed by name (e.g., `okapi: "^1.47.0"`) |
 | `flows`            | map            | Named flow definitions                               |
-| `defaults`         | Defaults       | Processing defaults                                  |
+| `defaults`         | Defaults       | Processing defaults (source/target languages live here) |
 
 ### ContentEntry
 
@@ -88,11 +85,13 @@ defaults:
 
 ### Defaults
 
-| Field             | Type   | Description                            |
-| ----------------- | ------ | -------------------------------------- |
-| `concurrency`     | int    | Number of files to process in parallel |
-| `parallel_blocks` | int    | Goroutine fan-out for block processing |
-| `encoding`        | string | Input file encoding (default: `utf-8`) |
+| Field              | Type     | Description                            |
+| ------------------ | -------- | -------------------------------------- |
+| `source_language`  | string   | BCP-47 source locale (e.g., `en-US`)   |
+| `target_languages` | string[] | BCP-47 target locales                  |
+| `concurrency`      | int      | Number of files to process in parallel |
+| `parallel_blocks`  | int      | Goroutine fan-out for block processing |
+| `encoding`         | string   | Input file encoding (default: `utf-8`) |
 
 ### Flow Steps
 

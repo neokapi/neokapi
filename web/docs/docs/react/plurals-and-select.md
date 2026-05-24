@@ -12,7 +12,7 @@ Count-aware and choice-based text, authored in React with per-form children. No 
 ## Plurals — the authoring form
 
 ```tsx
-import { Plural, Zero, One, Two, Few, Many, Other } from "@neokapi/react/runtime";
+import { Plural, Zero, One, Two, Few, Many, Other } from "@neokapi/kapi-react/runtime";
 
 <p>
   <Plural count={n}>
@@ -28,7 +28,7 @@ At render time, `<Plural>` consults `Intl.PluralRules` for the active locale and
 ## Select — choice-based text
 
 ```tsx
-import { Select, Case, Other } from "@neokapi/react/runtime";
+import { Select, Case, Other } from "@neokapi/kapi-react/runtime";
 
 <p>
   <Select value={role}>

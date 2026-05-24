@@ -100,7 +100,7 @@ locales, and any optional recipe sections. Then seed the project TM
 from existing memory, if you have any:
 
 ```bash
-kapi tm import ./corporate-en-fr.tmx -p app.kapi
+kapi tm import ./corporate-en-fr.tmx --file .kapi/tm.db
 ```
 
 ## Day 1: first extraction
@@ -118,10 +118,10 @@ Which writes:
   - `out/src-locales-en-app.en-US-to-fr-FR.xliff`
   - `out/src-locales-en-app.en-US-to-de-DE.xliff`
   - `out/src-locales-en-app.en-US-to-es-ES.xliff`
-- A manifest under `.kapi/extractions/<batch-id>/manifest.yaml`
+- A manifest under `.kapi/cache/extractions/<batch-id>/manifest.yaml`
   recording the source→output mapping, per-file SHA-256, and TM
   leverage counts
-- Per-source skeletons under `.kapi/extractions/<batch-id>/skel-<hash>.bin`
+- Per-source skeletons under `.kapi/cache/extractions/<batch-id>/skel-<hash>.bin`
   so `kapi merge` can rewrite the source byte-exactly from the
   translator's return
 - A file-level `<note category="kapi">` on each XLIFF stamping the
@@ -135,7 +135,7 @@ Extracting batch 6f2e8a1c... (format=xliff2, targets=[fr-FR de-DE es-ES], source
   de-DE: 1 files, 412 blocks, TM exact=0 fuzzy=0 new=412
   es-ES: 1 files, 412 blocks, TM exact=0 fuzzy=0 new=412
 
-Batch 6f2e8a1c... complete. Manifest: .kapi/extractions/6f2e8a1c.../manifest.yaml
+Batch 6f2e8a1c... complete. Manifest: .kapi/cache/extractions/6f2e8a1c.../manifest.yaml
 Aggregate TM leverage: exact=108 fuzzy=67 new=1061 (total=1236)
 ```
 
@@ -260,7 +260,7 @@ sentence-level segmentation.
   matching tiers, TM schema, `LookupSegment` for sentence-level
   leverage
 - [AD-008: Project Model](/contribute/architecture/008-project-model) —
-  `.kapi/extractions/<id>/` layout and `merge.conflict_policy` recipe
+  `.kapi/cache/extractions/<id>/` layout and `merge.conflict_policy` recipe
   shape
 - [AD-013: Kapi CLI](/contribute/architecture/013-kapi-cli) — command tree and
   auto-discovery semantics

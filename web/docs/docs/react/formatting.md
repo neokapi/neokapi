@@ -14,7 +14,7 @@ kapi-react is strictly a translation layer — it gives you translated strings. 
 Every locale-aware library on the platform takes a BCP-47 locale string — the same shape kapi-react tracks internally. Pull it out reactively via `useNeokapi()`:
 
 ```tsx
-import { useNeokapi } from "@neokapi/react/runtime";
+import { useNeokapi } from "@neokapi/kapi-react/runtime";
 
 function Price({ amount, currency }: { amount: number; currency: string }) {
   const { locale } = useNeokapi();
@@ -80,7 +80,7 @@ Re-creating formatters on every render is fine (they're cheap), but memoizing is
 
 ```tsx
 import { useMemo } from "react";
-import { useNeokapi } from "@neokapi/react/runtime";
+import { useNeokapi } from "@neokapi/kapi-react/runtime";
 
 export function useCurrency(currency: string) {
   const { locale } = useNeokapi();
@@ -186,7 +186,7 @@ FormatJS is a full-featured ICU MessageFormat stack. If you're already on it, ka
 
 ```tsx
 import { IntlProvider } from "react-intl";
-import { useNeokapi } from "@neokapi/react/runtime";
+import { useNeokapi } from "@neokapi/kapi-react/runtime";
 
 function I18nRoot({ children }) {
   const { locale } = useNeokapi();
