@@ -7,7 +7,13 @@
  * ANSI colors stay consistent.
  */
 
-.kapi-pg-wrapper {
+/* Design tokens live on :root so they reach BOTH the inline embed and the
+   modal — the modal is portaled to <body>, i.e. an ancestor of
+   .kapi-pg-wrapper, so wrapper-scoped vars never reached it (that's what left
+   the modal chrome transparent). They alias Infima vars with neutral fallbacks
+   for non-Docusaurus hosts. NB: --kpg-surface uses --ifm-background-surface-color
+   (solid in both themes), NOT --ifm-background-color (transparent in light). */
+:root {
   --kpg-radius: var(--ifm-global-radius, 8px);
   --kpg-border: var(--ifm-color-emphasis-300, rgba(0, 0, 0, 0.12));
   --kpg-border-soft: var(--ifm-color-emphasis-200, rgba(0, 0, 0, 0.08));
@@ -18,7 +24,9 @@
   --kpg-hover: var(--ifm-color-emphasis-100, rgba(0, 0, 0, 0.04));
   --kpg-danger: var(--ifm-color-danger, #e5484d);
   --kpg-mono: var(--ifm-font-family-monospace, ui-monospace, SFMono-Regular, Menlo, monospace);
+}
 
+.kapi-pg-wrapper {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
@@ -495,8 +503,11 @@
 }
 
 .kapi-pg-modal {
-  background: var(--ifm-background-color, #fff);
-  color: var(--ifm-font-color-base, #1c1e21);
+  /* Use the kit surface var (solid in both themes) — NOT --ifm-background-color,
+     which Infima leaves transparent (#0000) in light mode, making the modal
+     chrome see-through. */
+  background: var(--kpg-surface);
+  color: var(--kpg-fg);
   border-radius: var(--ifm-global-radius, 10px);
   width: min(1200px, 100%);
   height: min(800px, 92vh);
