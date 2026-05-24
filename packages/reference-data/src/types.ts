@@ -250,6 +250,18 @@ export interface CommandEntry {
    * SQLite (cgo), or a running server.
    */
   offlineCapable: boolean;
+  /**
+   * True when the command is present in the kapi-wasm-cli buildRoot and can
+   * actually run in the browser playground — offline commands directly, AI/MT
+   * commands via the demo provider. Gates the ▸ Run affordance.
+   */
+  runnableInBrowser: boolean;
+  /**
+   * True for commands that run in-browser only via the deterministic demo
+   * provider (AI/MT). Their output is illustrative, not from a real model — the
+   * UI labels these "Demo".
+   */
+  demoMode: boolean;
 }
 
 /** Top-level document for commands.json. */

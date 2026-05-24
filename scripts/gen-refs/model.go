@@ -130,9 +130,16 @@ type CommandEntry struct {
 	Flags []CommandFlag `json:"flags,omitempty"`
 	// Examples is the cobra Example string, split into individual lines.
 	Examples []string `json:"examples,omitempty"`
-	// OfflineCapable is true when this command can run in the browser WASM build.
-	// Derived from the wasm buildRoot allowlist and a curated override map.
+	// OfflineCapable is true when this command needs no network (editorial
+	// "run here vs watch" signal). Derived from a curated override map + heuristic.
 	OfflineCapable bool `json:"offlineCapable"`
+	// RunnableInBrowser is true when the command is present in the kapi-wasm-cli
+	// buildRoot and can actually execute in the playground — offline commands
+	// directly, and AI/MT commands via the demo provider. This gates the Run button.
+	RunnableInBrowser bool `json:"runnableInBrowser"`
+	// DemoMode is true for commands that run in-browser only via the deterministic
+	// demo provider (AI/MT): their output is illustrative, not from a real model.
+	DemoMode bool `json:"demoMode"`
 }
 
 // CommandDataset is the top-level JSON document for commands.json.

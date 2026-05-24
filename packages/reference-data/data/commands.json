@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-24T09:08:14Z",
+  "generatedAt": "2026-05-24T10:30:45Z",
   "commands": [
     {
       "id": "ai-entity-extract",
@@ -108,7 +108,7 @@
         },
         {
           "name": "provider",
-          "usage": "AI provider (Anthropic, OpenAI, Gemini, Azure OpenAI, Ollama)",
+          "usage": "AI provider (Anthropic, OpenAI, Gemini, Azure OpenAI, Ollama, Demo (illustrative))",
           "default": "anthropic",
           "type": "string"
         },
@@ -135,7 +135,9 @@
           "type": "string"
         }
       ],
-      "offlineCapable": false
+      "offlineCapable": false,
+      "runnableInBrowser": true,
+      "demoMode": true
     },
     {
       "id": "ai-qa",
@@ -233,7 +235,7 @@
         },
         {
           "name": "provider",
-          "usage": "AI provider (Anthropic, OpenAI, Gemini, Azure OpenAI, Ollama)",
+          "usage": "AI provider (Anthropic, OpenAI, Gemini, Azure OpenAI, Ollama, Demo (illustrative))",
           "default": "anthropic",
           "type": "string"
         },
@@ -260,7 +262,13 @@
           "type": "string"
         }
       ],
-      "offlineCapable": false
+      "examples": [
+        "kapi ai-qa app.xliff --target-lang fr",
+        "kapi ai-qa app.xliff --target-lang de"
+      ],
+      "offlineCapable": false,
+      "runnableInBrowser": true,
+      "demoMode": true
     },
     {
       "id": "ai-review",
@@ -352,7 +360,7 @@
         },
         {
           "name": "provider",
-          "usage": "AI provider (Anthropic, OpenAI, Gemini, Azure OpenAI, Ollama)",
+          "usage": "AI provider (Anthropic, OpenAI, Gemini, Azure OpenAI, Ollama, Demo (illustrative))",
           "default": "anthropic",
           "type": "string"
         },
@@ -379,7 +387,13 @@
           "type": "string"
         }
       ],
-      "offlineCapable": false
+      "examples": [
+        "kapi ai-review app.xliff --target-lang fr",
+        "kapi ai-review messages.json --target-lang de"
+      ],
+      "offlineCapable": false,
+      "runnableInBrowser": true,
+      "demoMode": true
     },
     {
       "id": "ai-terminology",
@@ -470,7 +484,7 @@
         },
         {
           "name": "provider",
-          "usage": "AI provider (Anthropic, OpenAI, Gemini, Azure OpenAI, Ollama)",
+          "usage": "AI provider (Anthropic, OpenAI, Gemini, Azure OpenAI, Ollama, Demo (illustrative))",
           "default": "anthropic",
           "type": "string"
         },
@@ -497,7 +511,9 @@
           "type": "string"
         }
       ],
-      "offlineCapable": false
+      "offlineCapable": false,
+      "runnableInBrowser": true,
+      "demoMode": true
     },
     {
       "id": "ai-translate",
@@ -604,7 +620,7 @@
         },
         {
           "name": "provider",
-          "usage": "AI provider (Anthropic, OpenAI, Gemini, Azure OpenAI, Ollama)",
+          "usage": "AI provider (Anthropic, OpenAI, Gemini, Azure OpenAI, Ollama, Demo (illustrative))",
           "default": "anthropic",
           "type": "string"
         },
@@ -637,7 +653,13 @@
           "type": "string"
         }
       ],
-      "offlineCapable": false
+      "examples": [
+        "kapi ai-translate messages.json --target-lang fr",
+        "kapi ai-translate app.xliff --target-lang de -o app.de.xliff"
+      ],
+      "offlineCapable": false,
+      "runnableInBrowser": true,
+      "demoMode": true
     },
     {
       "id": "brand",
@@ -648,7 +670,9 @@
       "short": "Keep AI-generated content on brand (voice, tone, terminology)",
       "long": "Check, rewrite, and govern content against a brand voice profile.\n\nProfile source (mutually exclusive):\n  --profile \u003cname\u003e       Profile in the local brand store (see 'kapi brand profiles')\n  --profile-file \u003cpath\u003e  Standalone profile YAML (git-shareable, no store needed)\n  --pack \u003cname\u003e          Built-in starter pack (professional-b2b, friendly-dtc,\n                         technical-docs, marketing-blog, customer-support)\n\nText input for check/rewrite is read from --text, or from stdin when --text is\nomitted or set to \"-\".",
       "groupID": "management",
-      "offlineCapable": false
+      "offlineCapable": false,
+      "runnableInBrowser": false,
+      "demoMode": false
     },
     {
       "id": "brand.check",
@@ -745,7 +769,9 @@
           "type": "string"
         }
       ],
-      "offlineCapable": false
+      "offlineCapable": false,
+      "runnableInBrowser": false,
+      "demoMode": false
     },
     {
       "id": "brand.guide",
@@ -832,7 +858,9 @@
           "type": "bool"
         }
       ],
-      "offlineCapable": false
+      "offlineCapable": false,
+      "runnableInBrowser": false,
+      "demoMode": false
     },
     {
       "id": "brand.import",
@@ -888,7 +916,9 @@
           "type": "bool"
         }
       ],
-      "offlineCapable": false
+      "offlineCapable": false,
+      "runnableInBrowser": false,
+      "demoMode": false
     },
     {
       "id": "brand.new",
@@ -912,7 +942,9 @@
           "type": "string"
         }
       ],
-      "offlineCapable": false
+      "offlineCapable": false,
+      "runnableInBrowser": false,
+      "demoMode": false
     },
     {
       "id": "brand.pack",
@@ -968,7 +1000,9 @@
           "type": "bool"
         }
       ],
-      "offlineCapable": false
+      "offlineCapable": false,
+      "runnableInBrowser": false,
+      "demoMode": false
     },
     {
       "id": "brand.profiles",
@@ -1024,7 +1058,9 @@
           "type": "bool"
         }
       ],
-      "offlineCapable": false
+      "offlineCapable": false,
+      "runnableInBrowser": false,
+      "demoMode": false
     },
     {
       "id": "brand.rewrite",
@@ -1115,7 +1151,9 @@
           "type": "string"
         }
       ],
-      "offlineCapable": false
+      "offlineCapable": false,
+      "runnableInBrowser": false,
+      "demoMode": false
     },
     {
       "id": "brand.show",
@@ -1202,7 +1240,9 @@
           "type": "bool"
         }
       ],
-      "offlineCapable": false
+      "offlineCapable": false,
+      "runnableInBrowser": false,
+      "demoMode": false
     },
     {
       "id": "brand-voice-check",
@@ -1293,7 +1333,7 @@
         },
         {
           "name": "provider",
-          "usage": "AI provider (Anthropic, OpenAI, Gemini, Azure OpenAI, Ollama)",
+          "usage": "AI provider (Anthropic, OpenAI, Gemini, Azure OpenAI, Ollama, Demo (illustrative))",
           "default": "anthropic",
           "type": "string"
         },
@@ -1320,7 +1360,13 @@
           "type": "string"
         }
       ],
-      "offlineCapable": false
+      "examples": [
+        "kapi brand-voice-check messages.json --target-lang fr",
+        "kapi brand-voice-check app.xliff --target-lang de"
+      ],
+      "offlineCapable": false,
+      "runnableInBrowser": true,
+      "demoMode": true
     },
     {
       "id": "case-transform",
@@ -1436,7 +1482,13 @@
           "type": "string"
         }
       ],
-      "offlineCapable": true
+      "examples": [
+        "kapi case-transform messages.json --mode upper",
+        "kapi case-transform messages.json --mode lower"
+      ],
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
     },
     {
       "id": "char-count",
@@ -1546,7 +1598,13 @@
           "type": "string"
         }
       ],
-      "offlineCapable": true
+      "examples": [
+        "kapi char-count messages.json",
+        "kapi char-count page.html"
+      ],
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
     },
     {
       "id": "chars-check",
@@ -1666,7 +1724,13 @@
           "type": "string"
         }
       ],
-      "offlineCapable": true
+      "examples": [
+        "kapi chars-check app.xliff --target-lang fr",
+        "kapi chars-check app.xliff --target-lang zh"
+      ],
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
     },
     {
       "id": "chars-listing",
@@ -1770,7 +1834,9 @@
           "type": "string"
         }
       ],
-      "offlineCapable": true
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
     },
     {
       "id": "completion",
@@ -1780,7 +1846,9 @@
       "use": "completion [bash|zsh|fish|powershell]",
       "short": "Generate shell completion script",
       "long": "Generate a shell completion script for the specified shell.\n\nTo load completions:\n\nBash:\n  $ source \u003c(kapi completion bash)\n  # Or install permanently:\n  $ kapi completion bash \u003e /etc/bash_completion.d/kapi\n\nZsh:\n  $ source \u003c(kapi completion zsh)\n  # Or install permanently:\n  $ kapi completion zsh \u003e \"${fpath[1]}/_kapi\"\n\nFish:\n  $ kapi completion fish | source\n  # Or install permanently:\n  $ kapi completion fish \u003e ~/.config/fish/completions/kapi.fish\n\nPowerShell:\n  PS\u003e kapi completion powershell | Out-String | Invoke-Expression",
-      "offlineCapable": true
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
     },
     {
       "id": "credentials",
@@ -1793,7 +1861,9 @@
         "creds"
       ],
       "groupID": "management",
-      "offlineCapable": false
+      "offlineCapable": false,
+      "runnableInBrowser": false,
+      "demoMode": false
     },
     {
       "id": "credentials.add",
@@ -1826,7 +1896,9 @@
           "type": "string"
         }
       ],
-      "offlineCapable": false
+      "offlineCapable": false,
+      "runnableInBrowser": false,
+      "demoMode": false
     },
     {
       "id": "credentials.list",
@@ -1836,7 +1908,9 @@
       ],
       "use": "list",
       "short": "List saved credentials",
-      "offlineCapable": false
+      "offlineCapable": false,
+      "runnableInBrowser": false,
+      "demoMode": false
     },
     {
       "id": "credentials.remove",
@@ -1846,7 +1920,9 @@
       ],
       "use": "remove \u003cname\u003e",
       "short": "Remove a saved credential",
-      "offlineCapable": false
+      "offlineCapable": false,
+      "runnableInBrowser": false,
+      "demoMode": false
     },
     {
       "id": "credentials.test",
@@ -1856,7 +1932,9 @@
       ],
       "use": "test \u003cname\u003e",
       "short": "Test that a credential's API key is accessible",
-      "offlineCapable": false
+      "offlineCapable": false,
+      "runnableInBrowser": false,
+      "demoMode": false
     },
     {
       "id": "diff-leverage",
@@ -1966,7 +2044,9 @@
           "type": "string"
         }
       ],
-      "offlineCapable": true
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
     },
     {
       "id": "encoding-detect",
@@ -2058,7 +2138,9 @@
           "type": "string"
         }
       ],
-      "offlineCapable": true
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
     },
     {
       "id": "extract",
@@ -2067,7 +2149,7 @@
       ],
       "use": "extract",
       "short": "Emit XLIFF 2.x (or PO) bilingual files for a translator",
-      "long": "Emit bilingual XLIFF 2.x (default) or PO files for each target locale\ndeclared in a .kapi project, pre-filled from the project's translation\nmemory (AD-017).\n\nEach invocation writes one batch of outputs under .kapi/cache/extractions/\u003cbatch-id\u003e/\nplus one bilingual file per source → target pair in --out-dir (default \"out/\").\n\nExamples:\n\n  kapi extract                                    # all target locales from the recipe\n  kapi extract --target-lang fr                   # single target\n  kapi extract --target-lang fr,de,es             # subset (comma-separated)\n  kapi extract --only mobile                      # only the 'mobile' collection\n  kapi extract --pattern 'src/**/*.json'          # custom pattern\n  kapi extract --xliff-version 2.0                # pin an older XLIFF version\n  kapi extract --no-tm                            # skip TM pre-fill",
+      "long": "Emit bilingual XLIFF 2.x (default) or PO files for each target locale\ndeclared in a .kapi project, pre-filled from the project's translation\nmemory (AD-017).\n\nEach invocation writes one batch of outputs under .kapi/cache/extractions/\u003cbatch-id\u003e/\nplus one bilingual file per source → target pair in --out-dir (default \"out/\").",
       "groupID": "content",
       "flags": [
         {
@@ -2126,7 +2208,14 @@
           "type": "string"
         }
       ],
-      "offlineCapable": true
+      "examples": [
+        "kapi extract -p app.kapi --no-tm",
+        "kapi extract -p app.kapi --target-lang fr",
+        "kapi extract -p app.kapi --target-lang fr,de,es"
+      ],
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
     },
     {
       "id": "flows",
@@ -2136,7 +2225,12 @@
       "use": "flows",
       "short": "List available flows",
       "groupID": "management",
-      "offlineCapable": true
+      "examples": [
+        "kapi flows"
+      ],
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
     },
     {
       "id": "flows.list",
@@ -2146,7 +2240,12 @@
       ],
       "use": "list",
       "short": "List available flows",
-      "offlineCapable": true
+      "examples": [
+        "kapi flows list"
+      ],
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
     },
     {
       "id": "formats",
@@ -2169,7 +2268,14 @@
           "type": "string"
         }
       ],
-      "offlineCapable": true
+      "examples": [
+        "kapi formats",
+        "kapi formats --ext .json",
+        "kapi formats --mime text/html"
+      ],
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
     },
     {
       "id": "formats.info",
@@ -2179,7 +2285,13 @@
       ],
       "use": "info \u003cformat\u003e",
       "short": "Show detailed information about a format",
-      "offlineCapable": true
+      "examples": [
+        "kapi formats info json",
+        "kapi formats info okf_html"
+      ],
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
     },
     {
       "id": "formats.schema",
@@ -2189,7 +2301,13 @@
       ],
       "use": "schema \u003cformat\u003e",
       "short": "Output JSON Schema for a format",
-      "offlineCapable": true
+      "examples": [
+        "kapi formats schema json",
+        "kapi formats schema okf_html"
+      ],
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
     },
     {
       "id": "inconsistency-check",
@@ -2311,7 +2429,13 @@
           "type": "string"
         }
       ],
-      "offlineCapable": true
+      "examples": [
+        "kapi inconsistency-check app.xliff --target-lang fr",
+        "kapi inconsistency-check app.xliff --target-lang de"
+      ],
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
     },
     {
       "id": "init",
@@ -2351,7 +2475,9 @@
           "type": "stringSlice"
         }
       ],
-      "offlineCapable": false
+      "offlineCapable": false,
+      "runnableInBrowser": false,
+      "demoMode": false
     },
     {
       "id": "length-check",
@@ -2515,7 +2641,13 @@
           "type": "string"
         }
       ],
-      "offlineCapable": true
+      "examples": [
+        "kapi length-check app.xliff --target-lang fr",
+        "kapi length-check app.xliff --target-lang ja"
+      ],
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
     },
     {
       "id": "mcp",
@@ -2525,7 +2657,9 @@
       "use": "mcp",
       "short": "Start MCP server (stdio) exposing project tools",
       "groupID": "processing",
-      "offlineCapable": false
+      "offlineCapable": false,
+      "runnableInBrowser": false,
+      "demoMode": false
     },
     {
       "id": "merge",
@@ -2534,7 +2668,7 @@
       ],
       "use": "merge",
       "short": "Apply a translator's XLIFF back onto the project source",
-      "long": "Apply one or more bilingual files returned by a translator back onto\nthe project's source locales, using the skeleton captured by kapi\nextract (AD-017).\n\nEach input carries the extraction batch id in a file-level \u003cnote\u003e, so\nmerge finds the right extraction manifest without guessing from the\nfilename. Mixed target locales in one batch are fine — merge handles\neach input independently.\n\nExamples:\n\n  kapi merge -i out/app.en-US-to-fr-FR.xliff\n  kapi merge -i file1.xliff -i file2.xliff\n  kapi merge -i 'vendor-return/*.xliff'\n  kapi merge -i vendor-return/\n  kapi merge -i ... --no-tm-update",
+      "long": "Apply one or more bilingual files returned by a translator back onto\nthe project's source locales, using the skeleton captured by kapi\nextract (AD-017).\n\nEach input carries the extraction batch id in a file-level \u003cnote\u003e, so\nmerge finds the right extraction manifest without guessing from the\nfilename. Mixed target locales in one batch are fine — merge handles\neach input independently.",
       "groupID": "content",
       "flags": [
         {
@@ -2563,7 +2697,14 @@
           "type": "string"
         }
       ],
-      "offlineCapable": true
+      "examples": [
+        "kapi merge -i out/app.en-US-to-fr-FR.xliff",
+        "kapi merge -i file1.xliff -i file2.xliff",
+        "kapi merge -i vendor-return/ --no-tm-update"
+      ],
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
     },
     {
       "id": "pattern-check",
@@ -2655,7 +2796,13 @@
           "type": "string"
         }
       ],
-      "offlineCapable": true
+      "examples": [
+        "kapi pattern-check app.xliff --target-lang fr",
+        "kapi pattern-check app.xliff --target-lang de"
+      ],
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
     },
     {
       "id": "plugin",
@@ -2668,7 +2815,9 @@
         "plugins"
       ],
       "groupID": "management",
-      "offlineCapable": true
+      "offlineCapable": true,
+      "runnableInBrowser": false,
+      "demoMode": false
     },
     {
       "id": "plugin.info",
@@ -2678,7 +2827,9 @@
       ],
       "use": "info \u003cname\u003e",
       "short": "Show details for an installed plugin",
-      "offlineCapable": true
+      "offlineCapable": true,
+      "runnableInBrowser": false,
+      "demoMode": false
     },
     {
       "id": "plugin.install",
@@ -2708,7 +2859,9 @@
           "type": "bool"
         }
       ],
-      "offlineCapable": false
+      "offlineCapable": false,
+      "runnableInBrowser": false,
+      "demoMode": false
     },
     {
       "id": "plugin.list",
@@ -2718,7 +2871,9 @@
       ],
       "use": "list",
       "short": "List installed plugins",
-      "offlineCapable": true
+      "offlineCapable": true,
+      "runnableInBrowser": false,
+      "demoMode": false
     },
     {
       "id": "plugin.rebuild-cache",
@@ -2728,7 +2883,9 @@
       ],
       "use": "rebuild-cache",
       "short": "Force a rebuild of the plugin dispatch cache",
-      "offlineCapable": true
+      "offlineCapable": true,
+      "runnableInBrowser": false,
+      "demoMode": false
     },
     {
       "id": "plugin.remove",
@@ -2738,7 +2895,9 @@
       ],
       "use": "remove \u003cname\u003e",
       "short": "Remove an installed plugin",
-      "offlineCapable": false
+      "offlineCapable": false,
+      "runnableInBrowser": false,
+      "demoMode": false
     },
     {
       "id": "plugin.search",
@@ -2755,7 +2914,9 @@
           "type": "string"
         }
       ],
-      "offlineCapable": false
+      "offlineCapable": false,
+      "runnableInBrowser": false,
+      "demoMode": false
     },
     {
       "id": "plugin.update",
@@ -2789,7 +2950,9 @@
           "type": "bool"
         }
       ],
-      "offlineCapable": false
+      "offlineCapable": false,
+      "runnableInBrowser": false,
+      "demoMode": false
     },
     {
       "id": "plugin.update-index",
@@ -2806,7 +2969,9 @@
           "type": "string"
         }
       ],
-      "offlineCapable": false
+      "offlineCapable": false,
+      "runnableInBrowser": false,
+      "demoMode": false
     },
     {
       "id": "plugin.verify",
@@ -2816,7 +2981,9 @@
       ],
       "use": "verify \u003cname\u003e",
       "short": "Re-verify an installed plugin's manifest and binary",
-      "offlineCapable": true
+      "offlineCapable": true,
+      "runnableInBrowser": false,
+      "demoMode": false
     },
     {
       "id": "presets",
@@ -2826,7 +2993,13 @@
       "use": "presets",
       "short": "Manage format and framework presets",
       "groupID": "management",
-      "offlineCapable": true
+      "examples": [
+        "kapi presets list",
+        "kapi presets show AndroidStrings"
+      ],
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
     },
     {
       "id": "presets.list",
@@ -2849,7 +3022,13 @@
           "type": "bool"
         }
       ],
-      "offlineCapable": true
+      "examples": [
+        "kapi presets list",
+        "kapi presets list --format okf_xml"
+      ],
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
     },
     {
       "id": "presets.show",
@@ -2860,7 +3039,13 @@
       "use": "show [preset-name]",
       "short": "Show preset details",
       "long": "Show detailed configuration for a preset.\n\nAccepts a bare preset name (searched across all formats) or the\nqualified format:preset syntax (e.g. okf_xml:AndroidStrings).",
-      "offlineCapable": true
+      "examples": [
+        "kapi presets show AndroidStrings",
+        "kapi presets show okf_xml:AndroidStrings"
+      ],
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
     },
     {
       "id": "pseudo-translate",
@@ -2979,7 +3164,13 @@
           "type": "string"
         }
       ],
-      "offlineCapable": true
+      "examples": [
+        "kapi pseudo-translate messages.json -o messages.pseudo.json",
+        "kapi pseudo-translate app.xliff -o app.pseudo.xliff --target-lang qps"
+      ],
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
     },
     {
       "id": "qa-check",
@@ -3236,7 +3427,13 @@
           "type": "string"
         }
       ],
-      "offlineCapable": true
+      "examples": [
+        "kapi qa-check app.xliff --target-lang fr",
+        "kapi qa-check app.xliff --target-lang de --json"
+      ],
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
     },
     {
       "id": "redact",
@@ -3350,7 +3547,9 @@
           "type": "string"
         }
       ],
-      "offlineCapable": true
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
     },
     {
       "id": "registry",
@@ -3360,7 +3559,9 @@
       "use": "registry",
       "short": "Manage plugin registries",
       "groupID": "management",
-      "offlineCapable": false
+      "offlineCapable": false,
+      "runnableInBrowser": false,
+      "demoMode": false
     },
     {
       "id": "registry.add",
@@ -3377,7 +3578,9 @@
           "type": "string"
         }
       ],
-      "offlineCapable": false
+      "offlineCapable": false,
+      "runnableInBrowser": false,
+      "demoMode": false
     },
     {
       "id": "registry.list",
@@ -3387,7 +3590,9 @@
       ],
       "use": "list",
       "short": "List configured registries",
-      "offlineCapable": false
+      "offlineCapable": false,
+      "runnableInBrowser": false,
+      "demoMode": false
     },
     {
       "id": "registry.remove",
@@ -3397,7 +3602,9 @@
       ],
       "use": "remove \u003cname\u003e",
       "short": "Remove a registry from global config",
-      "offlineCapable": false
+      "offlineCapable": false,
+      "runnableInBrowser": false,
+      "demoMode": false
     },
     {
       "id": "repetition-analysis",
@@ -3495,7 +3702,13 @@
           "type": "string"
         }
       ],
-      "offlineCapable": true
+      "examples": [
+        "kapi repetition-analysis messages.json",
+        "kapi repetition-analysis app.xliff"
+      ],
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
     },
     {
       "id": "run",
@@ -3606,7 +3819,13 @@
           "type": "string"
         }
       ],
-      "offlineCapable": true
+      "examples": [
+        "kapi run ai-translate-qa -i app.xliff --target-lang fr",
+        "kapi run ai-translate-qa -i messages.json --target-lang de"
+      ],
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
     },
     {
       "id": "scoping-report",
@@ -3698,7 +3917,13 @@
           "type": "string"
         }
       ],
-      "offlineCapable": true
+      "examples": [
+        "kapi scoping-report messages.json",
+        "kapi scoping-report app.xliff --json"
+      ],
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
     },
     {
       "id": "script",
@@ -3812,7 +4037,9 @@
           "type": "string"
         }
       ],
-      "offlineCapable": true
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
     },
     {
       "id": "search-replace",
@@ -3952,7 +4179,13 @@
           "type": "string"
         }
       ],
-      "offlineCapable": true
+      "examples": [
+        "kapi search-replace messages.json --find \"foo\" --replace \"bar\"",
+        "kapi search-replace page.html --find \"colour\" --replace \"color\""
+      ],
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
     },
     {
       "id": "segment-count",
@@ -4044,7 +4277,13 @@
           "type": "string"
         }
       ],
-      "offlineCapable": true
+      "examples": [
+        "kapi segment-count messages.json",
+        "kapi segment-count app.xliff"
+      ],
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
     },
     {
       "id": "segmentation",
@@ -4182,7 +4421,13 @@
           "type": "bool"
         }
       ],
-      "offlineCapable": true
+      "examples": [
+        "kapi segmentation messages.json",
+        "kapi segmentation app.xliff"
+      ],
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
     },
     {
       "id": "skills",
@@ -4193,7 +4438,9 @@
       "short": "Install Agent Skills that plug kapi into your AI coding assistant",
       "long": "Manage the bundled Agent Skills.\n\nThese SKILL.md definitions teach an AI coding assistant (Claude Code, etc.) how\nto use kapi to keep generated content on-brand, terminologically consistent, and\nto publish multilingually. The kapi-* skills drive the local CLI; the bowrain-*\nskills drive the governed Bowrain platform.",
       "groupID": "management",
-      "offlineCapable": false
+      "offlineCapable": false,
+      "runnableInBrowser": false,
+      "demoMode": false
     },
     {
       "id": "skills.export",
@@ -4238,7 +4485,9 @@
           "type": "bool"
         }
       ],
-      "offlineCapable": false
+      "offlineCapable": false,
+      "runnableInBrowser": false,
+      "demoMode": false
     },
     {
       "id": "skills.install",
@@ -4285,7 +4534,9 @@
           "type": "bool"
         }
       ],
-      "offlineCapable": false
+      "offlineCapable": false,
+      "runnableInBrowser": false,
+      "demoMode": false
     },
     {
       "id": "skills.list",
@@ -4325,7 +4576,9 @@
           "type": "bool"
         }
       ],
-      "offlineCapable": false
+      "offlineCapable": false,
+      "runnableInBrowser": false,
+      "demoMode": false
     },
     {
       "id": "skills.uninstall",
@@ -4371,7 +4624,9 @@
           "type": "bool"
         }
       ],
-      "offlineCapable": false
+      "offlineCapable": false,
+      "runnableInBrowser": false,
+      "demoMode": false
     },
     {
       "id": "term-check",
@@ -4474,7 +4729,13 @@
           "type": "string"
         }
       ],
-      "offlineCapable": true
+      "examples": [
+        "kapi term-check app.xliff --source-lang en --target-lang fr",
+        "kapi term-check messages.json --source-lang en --target-lang fr"
+      ],
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
     },
     {
       "id": "termbase",
@@ -4485,7 +4746,14 @@
       "short": "Manage terminology",
       "long": "Manage project terminology.\n\nA termbase is a glossary of approved terms stored as a SQLite database.\nUse these commands to import, export, look up, and manage terms.\n\nResource location (mutually exclusive):\n  --name \u003cn\u003e      Named termbase in KAPI_HOME (~/.config/kapi/termbases/\u003cn\u003e.db)\n  --local         Termbase in current directory (./termbase.db)\n  --file \u003cpath\u003e   Explicit file path\n\nDefault (no flag): same as --local (uses ./termbase.db).",
       "groupID": "management",
-      "offlineCapable": true
+      "examples": [
+        "kapi termbase stats",
+        "kapi termbase lookup \"dashboard\" -s en -t fr",
+        "kapi termbase import glossary.csv -s en -t fr"
+      ],
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
     },
     {
       "id": "termbase.export",
@@ -4543,7 +4811,9 @@
           "type": "string"
         }
       ],
-      "offlineCapable": true
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
     },
     {
       "id": "termbase.import",
@@ -4606,7 +4876,13 @@
           "type": "string"
         }
       ],
-      "offlineCapable": true
+      "examples": [
+        "kapi termbase import glossary.csv -s en -t fr --header",
+        "kapi termbase import terms.tbx --format tbx"
+      ],
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
     },
     {
       "id": "termbase.list",
@@ -4616,7 +4892,9 @@
       ],
       "use": "list",
       "short": "List named termbases in KAPI_HOME",
-      "offlineCapable": true
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
     },
     {
       "id": "termbase.lookup",
@@ -4668,7 +4946,13 @@
           "type": "string"
         }
       ],
-      "offlineCapable": true
+      "examples": [
+        "kapi termbase lookup \"dashboard\" -s en -t fr",
+        "kapi termbase lookup \"settings\" -s en -t de --fuzzy"
+      ],
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
     },
     {
       "id": "termbase.search",
@@ -4714,7 +4998,13 @@
           "type": "string"
         }
       ],
-      "offlineCapable": true
+      "examples": [
+        "kapi termbase search \"encrypt\" -s en",
+        "kapi termbase search \"log in\" -s en -t fr"
+      ],
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
     },
     {
       "id": "termbase.stats",
@@ -4742,7 +5032,13 @@
           "type": "string"
         }
       ],
-      "offlineCapable": true
+      "examples": [
+        "kapi termbase stats",
+        "kapi termbase stats --name product-terms"
+      ],
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
     },
     {
       "id": "tm",
@@ -4753,7 +5049,14 @@
       "short": "Manage translation memory",
       "long": "Manage translation memory.\n\nA translation memory (TM) stores previously translated segments as a SQLite\ndatabase. Use these commands to import/export TMX, look up matches, and manage\nTM entries.\n\nResource location (mutually exclusive):\n  --name \u003cn\u003e      Named TM in KAPI_HOME (~/.config/kapi/tm/\u003cn\u003e.db)\n  --local         TM in current directory (./tm.db)\n  --file \u003cpath\u003e   Explicit file path\n\nDefault (no flag): same as --local (uses ./tm.db).",
       "groupID": "management",
-      "offlineCapable": true
+      "examples": [
+        "kapi tm stats",
+        "kapi tm lookup \"welcome back\" -s en -t fr",
+        "kapi tm import corpus.tmx -s en -t fr"
+      ],
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
     },
     {
       "id": "tm.audit",
@@ -4793,7 +5096,9 @@
           "type": "string"
         }
       ],
-      "offlineCapable": true
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
     },
     {
       "id": "tm.export",
@@ -4833,7 +5138,9 @@
           "type": "string"
         }
       ],
-      "offlineCapable": true
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
     },
     {
       "id": "tm.import",
@@ -4886,7 +5193,13 @@
           "type": "string"
         }
       ],
-      "offlineCapable": true
+      "examples": [
+        "kapi tm import corpus.tmx -s en -t fr",
+        "kapi tm import corpus.tmx --all-pairs --locales en,fr,de --name my-tm"
+      ],
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
     },
     {
       "id": "tm.import-dir",
@@ -4952,7 +5265,9 @@
           "type": "string"
         }
       ],
-      "offlineCapable": true
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
     },
     {
       "id": "tm.list",
@@ -4962,7 +5277,9 @@
       ],
       "use": "list",
       "short": "List named TMs in KAPI_HOME",
-      "offlineCapable": true
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
     },
     {
       "id": "tm.lookup",
@@ -5015,7 +5332,13 @@
           "type": "string"
         }
       ],
-      "offlineCapable": true
+      "examples": [
+        "kapi tm lookup \"welcome back\" -s en -t fr",
+        "kapi tm lookup \"save\" -s en -t de --min-score 0.8"
+      ],
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
     },
     {
       "id": "tm.search",
@@ -5061,7 +5384,13 @@
           "type": "string"
         }
       ],
-      "offlineCapable": true
+      "examples": [
+        "kapi tm search \"dashboard\" -s en -t fr",
+        "kapi tm search \"settings\" --limit 5"
+      ],
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
     },
     {
       "id": "tm.sessions",
@@ -5072,7 +5401,9 @@
       "use": "sessions",
       "short": "Manage TMX import sessions",
       "long": "An import session is created every time a TMX file is imported.\nEach session records the file's SHA-256 hash, TMX header metadata, and the\nnumber of entries imported. Origins on TM entries point back to the session\nthat added them so you can filter the TM by import source.",
-      "offlineCapable": true
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
     },
     {
       "id": "tm.sessions.delete",
@@ -5101,7 +5432,9 @@
           "type": "string"
         }
       ],
-      "offlineCapable": true
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
     },
     {
       "id": "tm.sessions.list",
@@ -5130,7 +5463,9 @@
           "type": "string"
         }
       ],
-      "offlineCapable": true
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
     },
     {
       "id": "tm.sessions.show",
@@ -5159,7 +5494,9 @@
           "type": "string"
         }
       ],
-      "offlineCapable": true
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
     },
     {
       "id": "tm.stats",
@@ -5187,7 +5524,13 @@
           "type": "string"
         }
       ],
-      "offlineCapable": true
+      "examples": [
+        "kapi tm stats",
+        "kapi tm stats --name my-tm"
+      ],
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
     },
     {
       "id": "tm-leverage",
@@ -5332,7 +5675,13 @@
           "type": "string"
         }
       ],
-      "offlineCapable": true
+      "examples": [
+        "kapi tm-leverage app.xliff --target-lang fr",
+        "kapi tm-leverage messages.json --target-lang de"
+      ],
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
     },
     {
       "id": "tools",
@@ -5342,7 +5691,13 @@
       "use": "tools",
       "short": "List available processing tools",
       "groupID": "management",
-      "offlineCapable": true
+      "examples": [
+        "kapi tools",
+        "kapi tools list"
+      ],
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
     },
     {
       "id": "tools.list",
@@ -5352,7 +5707,12 @@
       ],
       "use": "list",
       "short": "List available processing tools",
-      "offlineCapable": true
+      "examples": [
+        "kapi tools list"
+      ],
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
     },
     {
       "id": "tools.schema",
@@ -5362,7 +5722,13 @@
       ],
       "use": "schema [tool-name]",
       "short": "Print the JSON Schema for a tool's parameters",
-      "offlineCapable": true
+      "examples": [
+        "kapi tools schema word-count",
+        "kapi tools schema pseudo-translate"
+      ],
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
     },
     {
       "id": "translation-comparison",
@@ -5490,7 +5856,9 @@
           "type": "bool"
         }
       ],
-      "offlineCapable": true
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
     },
     {
       "id": "unredact",
@@ -5582,7 +5950,9 @@
           "type": "string"
         }
       ],
-      "offlineCapable": true
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
     },
     {
       "id": "verify",
@@ -5652,7 +6022,9 @@
           "type": "bool"
         }
       ],
-      "offlineCapable": false
+      "offlineCapable": false,
+      "runnableInBrowser": false,
+      "demoMode": false
     },
     {
       "id": "version",
@@ -5662,7 +6034,12 @@
       "use": "version",
       "short": "Show version information",
       "groupID": "management",
-      "offlineCapable": true
+      "examples": [
+        "kapi version"
+      ],
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
     },
     {
       "id": "word-count",
@@ -5775,7 +6152,13 @@
           "type": "string"
         }
       ],
-      "offlineCapable": true
+      "examples": [
+        "kapi word-count messages.json",
+        "kapi word-count app.xliff --json"
+      ],
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
     }
   ]
 }

@@ -120,7 +120,19 @@ var wasmAllowlist = map[string]bool{
 //
 // This mirrors kapi/cmd/kapi/root.go init() but skips InitPluginHost() and
 // config loading since we only need the static command/flag metadata.
-func buildKapiRoot() *cobra.Command {
+// wasmRunnableTop is the set of top-level framework commands wired into the
+// kapi-wasm-cli buildRoot (run/extract/merge + flows/tools/formats/presets/
+// version/completion + tm/termbase). Tool commands are runnable too and are
+// detected separately (they're enumerated from the registry). Everything else
+// (plugin, registry, credentials, mcp, brand, skills, init, verify) is not in
+// the wasm build → not runnable in the browser.
+var wasmRunnableTop = map[string]bool{
+	"run": true, "extract": true, "merge": true, "flows": true, "tools": true,
+	"formats": true, "presets": true, "version": true, "completion": true,
+	"tm": true, "termbase": true,
+}
+
+func buildKapiRoot() (*cobra.Command, map[string]bool) {
 	app := &cli.App{}
 	// InitRegistries populates FormatReg/ToolReg so NewToolCommands and
 	// NewFormatsCmd / NewToolsCmd can enumerate their subcommands correctly.
@@ -164,8 +176,11 @@ translate with AI, and run quality checks across a wide range of file types.`,
 	root.AddCommand(app.NewVersionCmd("kapi"))
 	root.AddCommand(app.NewCompletionCmd())
 
-	// Top-level tool commands (pseudo-translate, word-count, …).
+	// Top-level tool commands (pseudo-translate, word-count, …). These are all
+	// present in the wasm build; AI/MT ones run there via the demo provider.
+	toolNames := map[string]bool{}
 	for _, c := range app.NewToolCommands() {
+		toolNames[c.Name()] = true
 		root.AddCommand(c)
 	}
 
@@ -173,14 +188,14 @@ translate with AI, and run quality checks across a wide range of file types.`,
 	mcpCmd.GroupID = "processing"
 	root.AddCommand(mcpCmd)
 
-	return root
+	return root, toolNames
 }
 
 // collectCommands walks the cobra command tree rooted at root and returns a
 // flat slice of CommandEntry values. parentPath is the dot-joined path to the
 // parent command (empty for root's direct children). The root itself ("kapi")
 // is not emitted — only its descendants are.
-func collectCommands(cmd *cobra.Command, parentPath []string) []CommandEntry {
+func collectCommands(cmd *cobra.Command, parentPath []string, toolNames map[string]bool) []CommandEntry {
 	var out []CommandEntry
 
 	for _, sub := range cmd.Commands() {
@@ -205,9 +220,17 @@ func collectCommands(cmd *cobra.Command, parentPath []string) []CommandEntry {
 			OfflineCapable: isOfflineCapableCmd(dotPath, sub),
 		}
 
+		// Runnable-in-browser = present in the wasm buildRoot: a framework
+		// command (or descendant of one) or a tool command. AI/MT tool commands
+		// (those with a --credential flag) run there via the demo provider.
+		top := path[0]
+		isTool := toolNames[top]
+		entry.RunnableInBrowser = wasmRunnableTop[top] || isTool
+		entry.DemoMode = isTool && sub.Flags().Lookup("credential") != nil
+
 		out = append(out, entry)
 		// Recurse into subcommands.
-		out = append(out, collectCommands(sub, path)...)
+		out = append(out, collectCommands(sub, path, toolNames)...)
 	}
 	return out
 }
@@ -298,8 +321,8 @@ func nonEmptyStrings(ss []string) []string {
 // collectCommandDataset builds the full kapi command tree and returns a
 // CommandDataset ready for JSON serialisation.
 func collectCommandDataset(now string) CommandDataset {
-	root := buildKapiRoot()
-	entries := collectCommands(root, nil)
+	root, toolNames := buildKapiRoot()
+	entries := collectCommands(root, nil, toolNames)
 	return CommandDataset{
 		GeneratedAt: now,
 		Commands:    entries,
