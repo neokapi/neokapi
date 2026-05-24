@@ -1,0 +1,228 @@
+import React, { useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
+import { Maximize2, Minimize2 } from "lucide-react";
+import KapiTerminal from "./KapiTerminal";
+import type { KapiTerminalHandle } from "./KapiTerminal";
+import FilesPanel from "./FilesPanel";
+import { bootKapiRuntime, isBooted } from "./runtime";
+import type { KapiRuntime } from "./runtime";
+import { getFixture } from "./fixtures";
+
+/** Run parameters shared by the initial mount and later imperative opens. */
+export interface KapiRunRequest {
+  /** Fixture names to ensure exist in the session cwd before the command runs. */
+  seed?: string[];
+  /** A command to type/run once booted and seeded. */
+  cmd?: string;
+  /** Additional commands to run in sequence after `cmd`. */
+  steps?: string[];
+  /** Run `cmd`/`steps` automatically (vs. leaving them ready at the prompt). */
+  autoRun?: boolean;
+}
+
+export interface KapiEmbedHandle {
+  /** Seed new fixtures and run a command against the warm session. */
+  openWith(req: KapiRunRequest): void;
+  /** Reset the session: wipe the cwd, reseed, and clear the terminal. */
+  reset(seed?: string[]): void;
+}
+
+export interface KapiEmbedProps extends KapiRunRequest {
+  /** URL of the Go `wasm_exec.js` glue (must be loadable as a <script>). */
+  wasmExecUrl: string;
+  /**
+   * URL of the kapi-cli wasm. The runtime also probes `${wasmUrl}.gz` and
+   * inflates it via DecompressionStream when available.
+   */
+  wasmUrl: string;
+  /** Show the maximize toggle (the modal supplies its own chrome). */
+  showToolbar?: boolean;
+  /** Render to fill its container (used inside the modal). */
+  fill?: boolean;
+  ref?: React.Ref<KapiEmbedHandle>;
+}
+
+/**
+ * Write the named fixtures into the session cwd if they are not already
+ * present. Existing files (including ones the reader edited) are preserved —
+ * we only fill gaps. Returns the cwd-relative names that now exist.
+ */
+function ensureSeed(runtime: KapiRuntime, names: string[] | undefined): void {
+  if (!names || names.length === 0) return;
+  const cwd = runtime.cwd();
+  const enc = new TextEncoder();
+  for (const name of names) {
+    const fx = getFixture(name);
+    if (!fx) continue;
+    const path = cwd.replace(/\/$/, "") + "/" + fx.name;
+    if (!runtime.vol.exists(path)) {
+      runtime.vol.writeFile(path, enc.encode(fx.content));
+    }
+  }
+}
+
+/**
+ * The shared two-pane embed: the xterm terminal beside the files panel, backed
+ * by the singleton KapiRuntime. This is the heavy, browser-only payload — it
+ * is dynamically imported by the modal and rendered directly on the full-bleed
+ * playground page.
+ */
+export default function KapiEmbed({
+  wasmExecUrl,
+  wasmUrl,
+  seed,
+  cmd,
+  steps,
+  autoRun = true,
+  showToolbar = true,
+  fill = false,
+  ref,
+}: KapiEmbedProps): React.ReactElement {
+  const [runtime, setRuntime] = useState<KapiRuntime | null>(null);
+  const [error, setError] = useState<string>("");
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [maximized, setMaximized] = useState(false);
+  const termRef = useRef<KapiTerminalHandle>(null);
+  const bump = useCallback(() => setRefreshKey((k) => k + 1), []);
+  // Was the runtime already warm when this embed mounted? If so, skip the
+  // "Loading (~13 MB)" copy — there is no fetch on a re-open.
+  const wasWarm = useRef(isBooted());
+
+  // Drive a run request against a ready terminal: seed fixtures, then type/run
+  // the command(s). For autoRun, submit them with a small stagger so each
+  // command's output settles; otherwise leave the first at the prompt.
+  const drive = useCallback(
+    (rt: KapiRuntime, req: KapiRunRequest) => {
+      const h = termRef.current;
+      if (!h) return;
+      ensureSeed(rt, req.seed);
+      bump();
+      const queue: string[] = [];
+      if (req.cmd) queue.push(req.cmd);
+      if (req.steps) queue.push(...req.steps);
+      if (queue.length === 0) {
+        h.focus();
+        return;
+      }
+      if (req.autoRun === false) {
+        h.runCommand(queue[0], false);
+        return;
+      }
+      let i = 0;
+      const tick = () => {
+        if (i >= queue.length) {
+          h.focus();
+          return;
+        }
+        h.runCommand(queue[i], true);
+        i++;
+        window.setTimeout(tick, 350);
+      };
+      tick();
+    },
+    [bump],
+  );
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      openWith: (req: KapiRunRequest) => {
+        if (runtime) drive(runtime, req);
+      },
+      reset: (resetSeed?: string[]) => {
+        if (!runtime) return;
+        const cwd = runtime.cwd();
+        try {
+          for (const name of runtime.vol.readdir(cwd)) {
+            runtime.vol.remove(cwd.replace(/\/$/, "") + "/" + name);
+          }
+        } catch {
+          /* nothing to clear */
+        }
+        ensureSeed(runtime, resetSeed);
+        bump();
+      },
+    }),
+    [runtime, drive, bump],
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    bootKapiRuntime(wasmExecUrl, wasmUrl)
+      .then((rt) => {
+        if (cancelled) return;
+        ensureSeed(rt, seed);
+        setRuntime(rt);
+      })
+      .catch((e) => {
+        if (!cancelled) setError(e instanceof Error ? e.message : String(e));
+      });
+    return () => {
+      cancelled = true;
+    };
+    // Boot once per mount; the initial seed is applied above.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [wasmExecUrl, wasmUrl]);
+
+  // Once the terminal is mounted and the runtime is ready, drive the initial
+  // command (the one supplied at mount time).
+  useEffect(() => {
+    if (!runtime) return;
+    drive(runtime, { cmd, steps, autoRun, seed: undefined });
+    // Run the initial command once per (runtime) — seed already applied above.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [runtime]);
+
+  if (error) {
+    return (
+      <div className="kapi-pg-notice">
+        <strong>Could not load the kapi CLI.</strong>
+        <p>{error}</p>
+        <p>
+          The module is built by <code>make web-wasm-cli</code> and served from{" "}
+          <code>{wasmUrl}</code>.
+        </p>
+      </div>
+    );
+  }
+
+  if (!runtime) {
+    return (
+      <p className="kapi-pg-notice" aria-live="polite">
+        {wasWarm.current ? "Starting the kapi CLI…" : "Loading the kapi CLI (WebAssembly, ~13 MB)…"}
+      </p>
+    );
+  }
+
+  return (
+    <div
+      className={`kapi-pg-wrapper${maximized ? " kapi-pg-wrapper--maximized" : ""}${fill ? " kapi-pg-wrapper--fill" : ""}`}
+    >
+      {showToolbar && (
+        <div className="kapi-pg-toolbar">
+          <span className="kapi-pg-toolbar-title">kapi terminal</span>
+          <button
+            type="button"
+            className="kapi-pg-icon-btn"
+            onClick={() => setMaximized((m) => !m)}
+            aria-label={maximized ? "Restore size" : "Maximize"}
+            title={maximized ? "Restore" : "Maximize"}
+          >
+            {maximized ? (
+              <Minimize2 size={16} aria-hidden="true" />
+            ) : (
+              <Maximize2 size={16} aria-hidden="true" />
+            )}
+          </button>
+        </div>
+      )}
+      <div className="kapi-pg-layout">
+        <div className="kapi-pg-term-pane">
+          <KapiTerminal ref={termRef} runtime={runtime} onFsChange={bump} />
+        </div>
+        <div className="kapi-pg-files-pane">
+          <FilesPanel runtime={runtime} refreshKey={refreshKey} onChange={bump} />
+        </div>
+      </div>
+    </div>
+  );
+}

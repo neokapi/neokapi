@@ -177,7 +177,12 @@ export function createMemFS(opts: MemFSOptions = {}): MemFS {
         }
         const append = (flags & O.O_APPEND) !== 0;
         const fd = nextFd++;
-        fds.set(fd, { node, path: joinAbs(parts), pos: append && node.content ? node.content.length : 0, append });
+        fds.set(fd, {
+          node,
+          path: joinAbs(parts),
+          pos: append && node.content ? node.content.length : 0,
+          append,
+        });
         cb(null, fd);
       } catch (e) {
         cb(e);
@@ -189,7 +194,14 @@ export function createMemFS(opts: MemFSOptions = {}): MemFS {
       cb(null);
     },
 
-    read(fd: number, buffer: Uint8Array, offset: number, length: number, position: number | null, cb: Function) {
+    read(
+      fd: number,
+      buffer: Uint8Array,
+      offset: number,
+      length: number,
+      position: number | null,
+      cb: Function,
+    ) {
       const e = fds.get(fd);
       if (!e) return cb(err("EBADF"));
       if (e.node.kind === "dir") return cb(err("EISDIR"));
@@ -201,7 +213,14 @@ export function createMemFS(opts: MemFSOptions = {}): MemFS {
       cb(null, slice.length, buffer);
     },
 
-    write(fd: number, buffer: Uint8Array, offset: number, length: number, position: number | null, cb: Function) {
+    write(
+      fd: number,
+      buffer: Uint8Array,
+      offset: number,
+      length: number,
+      position: number | null,
+      cb: Function,
+    ) {
       if (fd === 1 || fd === 2) {
         const chunk = buffer.subarray(offset, offset + length);
         (fd === 1 ? opts.onStdout : opts.onStderr)?.(chunk);
@@ -210,7 +229,12 @@ export function createMemFS(opts: MemFSOptions = {}): MemFS {
       const e = fds.get(fd);
       if (!e) return cb(err("EBADF"));
       const data = buffer.subarray(offset, offset + length);
-      const pos = position === null || position === undefined ? (e.append ? e.node.content!.length : e.pos) : position;
+      const pos =
+        position === null || position === undefined
+          ? e.append
+            ? e.node.content!.length
+            : e.pos
+          : position;
       const cur = e.node.content!;
       const end = pos + data.length;
       if (end > cur.length) {

@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import BrowserOnly from "@docusaurus/BrowserOnly";
+import KapiModalMount from "@site/src/components/KapiPlayground/KapiModalMount";
 
 const STORAGE_KEY = "neokapi-banner-dismissed";
 
@@ -63,6 +64,10 @@ export default function Root({ children }: { children: React.ReactNode }) {
     <>
       <BrowserOnly>{() => <ExperimentalBanner />}</BrowserOnly>
       {children}
+      {/* One shared kapi playground modal for the whole site. Opened
+          imperatively via openKapi(...) from <RunnableSnippet> and elsewhere.
+          Code-split + client-only: no wasm is fetched until first opened. */}
+      <KapiModalMount />
     </>
   );
 }

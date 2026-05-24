@@ -8,6 +8,7 @@ const sidebars: SidebarsConfig = {
     "getting-started/introduction",
     "getting-started/installation",
     "getting-started/quickstart",
+    "getting-started/try-it",
   ],
 
   cliSidebar: [
@@ -34,10 +35,7 @@ const sidebars: SidebarsConfig = {
     {
       type: "category",
       label: "Use Cases",
-      items: [
-        "kapi-cli/use-cases/terminology-qa",
-        "kapi-cli/use-cases/terminology-pretranslation",
-      ],
+      items: ["kapi-cli/use-cases/terminology-qa", "kapi-cli/use-cases/terminology-pretranslation"],
     },
     "kapi-cli/mcp",
   ],

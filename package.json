@@ -8,6 +8,7 @@
     "packages/flow-editor",
     "packages/storybook-config",
     "packages/docs-shared",
+    "packages/kapi-playground",
     "packages/reference-data",
     "storybook",
     "web/docs",

@@ -685,7 +685,12 @@ web-wasm-cli: ## Build the in-browser kapi CLI (wasm) → web/docs/static/wasm/k
 	@mkdir -p $(WASM_DEMO_DIR)
 	cd kapi && GOOS=js GOARCH=wasm $(GO) build -o $(CURDIR)/$(WASM_DEMO_DIR)/kapi-cli.wasm ./cmd/kapi-wasm-cli
 	@cp "$$($(GO) env GOROOT)/lib/wasm/wasm_exec.js" $(WASM_DEMO_DIR)/wasm_exec.js
+	@# Precompress for the browser: the kit prefers kapi-cli.wasm.gz and inflates
+	@# it via DecompressionStream('gzip'), so this works without the host having
+	@# to set Content-Encoding (GitHub Pages / Docusaurus static serving do not).
+	@gzip -9 -f -k -c $(WASM_DEMO_DIR)/kapi-cli.wasm > $(WASM_DEMO_DIR)/kapi-cli.wasm.gz
 	@ls -lh $(WASM_DEMO_DIR)/kapi-cli.wasm | awk '{print "  built",$$NF,$$5}'
+	@ls -lh $(WASM_DEMO_DIR)/kapi-cli.wasm.gz | awk '{print "  built",$$NF,$$5}'
 
 # ── Tools ────────────────────────────────────────────────────────────────────
 

@@ -1,0 +1,571 @@
+/*
+ * kapi-playground styles. Plain (non-module) CSS with a `kapi-pg-` prefix so it
+ * is portable across Docusaurus, a plain React page, and Storybook. Colors are
+ * driven by CSS custom properties that fall back to Infima variables when the
+ * host is Docusaurus, and to neutral defaults otherwise. The terminal keeps the
+ * Catppuccin Mocha palette (#1e1e2e / #cdd6f4) in both light and dark so its
+ * ANSI colors stay consistent.
+ */
+
+.kapi-pg-wrapper {
+  --kpg-radius: var(--ifm-global-radius, 8px);
+  --kpg-border: var(--ifm-color-emphasis-300, rgba(0, 0, 0, 0.12));
+  --kpg-border-soft: var(--ifm-color-emphasis-200, rgba(0, 0, 0, 0.08));
+  --kpg-surface: var(--ifm-background-surface-color, #fff);
+  --kpg-fg: var(--ifm-font-color-base, #1c1e21);
+  --kpg-muted: var(--ifm-color-emphasis-600, #606770);
+  --kpg-accent: var(--ifm-color-primary, #2e8555);
+  --kpg-hover: var(--ifm-color-emphasis-100, rgba(0, 0, 0, 0.04));
+  --kpg-danger: var(--ifm-color-danger, #e5484d);
+  --kpg-mono: var(--ifm-font-family-monospace, ui-monospace, SFMono-Regular, Menlo, monospace);
+
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.kapi-pg-wrapper--fill {
+  height: 100%;
+  min-height: 0;
+}
+
+.kapi-pg-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.kapi-pg-toolbar-title {
+  flex: 1;
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+.kapi-pg-wrapper--maximized {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  background: var(--ifm-background-color, #fff);
+  padding: 0.75rem;
+  gap: 0.75rem;
+}
+
+.kapi-pg-wrapper--maximized .kapi-pg-layout {
+  flex: 1;
+  min-height: 0;
+}
+
+.kapi-pg-layout {
+  display: grid;
+  grid-template-columns: 1fr 280px;
+  gap: 1rem;
+  align-items: stretch;
+  min-height: 460px;
+}
+
+.kapi-pg-wrapper--fill .kapi-pg-layout {
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+}
+
+@media (max-width: 768px) {
+  .kapi-pg-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.kapi-pg-term-pane {
+  background: #1e1e2e;
+  border-radius: var(--kpg-radius);
+  padding: 0.5rem;
+  overflow: hidden;
+  min-height: 460px;
+}
+
+.kapi-pg-wrapper--fill .kapi-pg-term-pane {
+  min-height: 0;
+}
+
+.kapi-pg-term {
+  width: 100%;
+  height: 100%;
+  min-height: 440px;
+}
+
+.kapi-pg-wrapper--fill .kapi-pg-term {
+  min-height: 0;
+}
+
+/* ── Files panel ────────────────────────────────────────────────────────── */
+
+.kapi-pg-files-pane {
+  border: 1px solid var(--kpg-border);
+  border-radius: var(--kpg-radius);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--kpg-surface);
+}
+
+.kapi-pg-files {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.kapi-pg-files-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.55rem 0.6rem 0.55rem 0.75rem;
+  border-bottom: 1px solid var(--kpg-border);
+}
+
+.kapi-pg-files-title {
+  font-weight: 700;
+  font-size: 0.9rem;
+  flex: 1;
+  letter-spacing: 0.01em;
+}
+
+.kapi-pg-files-cwd {
+  font-family: var(--kpg-mono);
+  font-size: 0.78rem;
+  color: var(--kpg-muted);
+  padding: 0.4rem 0.75rem;
+  border-bottom: 1px solid var(--kpg-border-soft);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.kapi-pg-file-list {
+  list-style: none;
+  margin: 0;
+  padding: 0.25rem 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  flex: 1;
+  min-height: 0;
+}
+
+.kapi-pg-file-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem;
+  padding: 0.15rem 0.5rem 0.15rem 0.75rem;
+  font-family: var(--kpg-mono);
+  font-size: 0.84rem;
+  min-height: 32px;
+  border-radius: 6px;
+  margin: 0 0.25rem;
+}
+
+.kapi-pg-file-row:hover {
+  background: var(--kpg-hover);
+}
+
+.kapi-pg-file-name,
+.kapi-pg-dir-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex: 1;
+  min-width: 0;
+  background: none;
+  border: none;
+  padding: 0.2rem 0;
+  margin: 0;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  color: var(--kpg-fg);
+  border-radius: 4px;
+}
+
+.kapi-pg-file-icon {
+  color: var(--kpg-muted);
+  flex-shrink: 0;
+}
+
+.kapi-pg-file-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.kapi-pg-file-name:hover .kapi-pg-file-label {
+  color: var(--kpg-accent);
+  text-decoration: underline;
+}
+
+.kapi-pg-file-name:hover .kapi-pg-file-icon {
+  color: var(--kpg-accent);
+}
+
+.kapi-pg-dir-link {
+  font-weight: 600;
+  color: var(--kpg-accent);
+}
+
+.kapi-pg-dir-link:hover {
+  text-decoration: underline;
+}
+
+.kapi-pg-file-actions {
+  display: flex;
+  gap: 0.15rem;
+  flex-shrink: 0;
+  /* Reveal actions on row hover/focus to keep the list calm. */
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+
+.kapi-pg-file-row:hover .kapi-pg-file-actions,
+.kapi-pg-file-row:focus-within .kapi-pg-file-actions {
+  opacity: 1;
+}
+
+@media (hover: none) {
+  /* Touch devices have no hover — always show the actions. */
+  .kapi-pg-file-actions {
+    opacity: 1;
+  }
+}
+
+.kapi-pg-empty {
+  padding: 0.5rem 0.75rem;
+  color: var(--kpg-muted);
+  font-size: 0.82rem;
+  font-style: italic;
+}
+
+/* ── Icon buttons (download / delete / upload / close / maximize) ─────────── */
+
+.kapi-pg-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--kpg-muted);
+  cursor: pointer;
+  touch-action: manipulation;
+  transition:
+    background 0.12s ease,
+    color 0.12s ease;
+}
+
+.kapi-pg-icon-btn:hover {
+  background: var(--kpg-hover);
+  color: var(--kpg-fg);
+}
+
+.kapi-pg-icon-btn:focus-visible {
+  outline: 2px solid var(--kpg-accent);
+  outline-offset: 1px;
+}
+
+.kapi-pg-icon-btn--accent:hover {
+  color: var(--kpg-accent);
+}
+
+.kapi-pg-icon-btn--danger:hover {
+  color: var(--kpg-danger);
+  background: color-mix(in srgb, var(--kpg-danger) 12%, transparent);
+}
+
+/* ── Generic small buttons (Raw/Blocks toggle, Reset) ─────────────────────── */
+
+.kapi-pg-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border: 1px solid var(--kpg-border);
+  border-radius: 6px;
+  background: var(--kpg-surface);
+  color: var(--kpg-fg);
+  padding: 0.3rem 0.7rem;
+  font: inherit;
+  font-size: 0.82rem;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition:
+    background 0.12s ease,
+    border-color 0.12s ease;
+}
+
+.kapi-pg-btn:hover {
+  background: var(--kpg-hover);
+  border-color: var(--kpg-muted);
+}
+
+.kapi-pg-btn:focus-visible {
+  outline: 2px solid var(--kpg-accent);
+  outline-offset: 1px;
+}
+
+.kapi-pg-btn--sm {
+  padding: 0.25rem 0.55rem;
+  font-size: 0.8rem;
+}
+
+.kapi-pg-notice {
+  border: 1px solid var(--ifm-color-emphasis-300, rgba(0, 0, 0, 0.12));
+  border-radius: var(--ifm-global-radius, 8px);
+  padding: 1rem 1.25rem;
+}
+
+/* ── File preview dialog ──────────────────────────────────────────────────── */
+
+.kapi-pg-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 3000;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+}
+
+.kapi-pg-preview {
+  background: var(--ifm-background-surface-color, #fff);
+  color: var(--ifm-font-color-base, #1c1e21);
+  border-radius: var(--ifm-global-radius, 8px);
+  width: min(900px, 100%);
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.35);
+}
+
+.kapi-pg-preview-header {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--ifm-color-emphasis-300, rgba(0, 0, 0, 0.12));
+}
+
+.kapi-pg-preview-title {
+  flex: 1;
+  font-weight: 700;
+  font-family: var(--ifm-font-family-monospace, ui-monospace, monospace);
+  word-break: break-all;
+}
+
+.kapi-pg-badge {
+  font-size: 0.75rem;
+  font-family: var(--ifm-font-family-monospace, ui-monospace, monospace);
+  background: var(--ifm-color-emphasis-200, rgba(0, 0, 0, 0.08));
+  border-radius: 999px;
+  padding: 0.1rem 0.6rem;
+}
+
+.kapi-pg-preview-body {
+  padding: 1rem;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+.kapi-pg-preview-meta {
+  font-size: 0.85rem;
+  color: var(--ifm-color-emphasis-700, #555);
+  margin-bottom: 0.5rem;
+}
+
+.kapi-pg-preview-error {
+  color: var(--ifm-color-danger, #e5484d);
+}
+
+.kapi-pg-preview-table {
+  display: table;
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.kapi-pg-preview-table th,
+.kapi-pg-preview-table td {
+  border: 1px solid var(--ifm-color-emphasis-300, rgba(0, 0, 0, 0.12));
+  padding: 0.4rem 0.6rem;
+  text-align: left;
+  vertical-align: top;
+}
+
+.kapi-pg-preview-table th {
+  background: var(--ifm-color-emphasis-100, rgba(0, 0, 0, 0.04));
+}
+
+.kapi-pg-raw {
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 65vh;
+  overflow: auto;
+}
+
+/* ── The shared near-fullscreen modal ─────────────────────────────────────── */
+
+.kapi-pg-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2500;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(0.5rem, 3vw, 2.5rem);
+  animation: kapi-pg-fade 0.14s ease;
+}
+
+/* !important so the closed state always wins: the CSS minifier may merge this
+   into a grouped display:none rule and reorder it ahead of the base overlay
+   rule, which would otherwise let `display: flex` win on equal specificity. */
+.kapi-pg-modal-overlay--hidden {
+  display: none !important;
+}
+
+@keyframes kapi-pg-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.kapi-pg-modal {
+  background: var(--ifm-background-color, #fff);
+  color: var(--ifm-font-color-base, #1c1e21);
+  border-radius: var(--ifm-global-radius, 10px);
+  width: min(1200px, 100%);
+  height: min(800px, 92vh);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
+}
+
+.kapi-pg-modal-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.6rem 0.75rem 0.6rem 1rem;
+  border-bottom: 1px solid var(--ifm-color-emphasis-200, rgba(0, 0, 0, 0.08));
+}
+
+.kapi-pg-modal-title {
+  font-weight: 700;
+  font-size: 0.95rem;
+}
+
+.kapi-pg-modal-hint {
+  flex: 1;
+  font-size: 0.78rem;
+  color: var(--ifm-color-emphasis-600, #606770);
+}
+
+.kapi-pg-modal-body {
+  flex: 1;
+  min-height: 0;
+  padding: 0.75rem;
+  display: flex;
+  overscroll-behavior: contain;
+}
+
+.kapi-pg-modal-body > * {
+  flex: 1;
+  min-height: 0;
+}
+
+/* ── Inline runnable snippet ──────────────────────────────────────────────── */
+
+.kapi-pg-snippet {
+  margin: 0 0 1rem;
+}
+
+.kapi-pg-snippet-row {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  border: 1px solid var(--ifm-color-emphasis-300, rgba(0, 0, 0, 0.12));
+  border-radius: var(--ifm-global-radius, 8px);
+  overflow: hidden;
+  background: var(--ifm-code-background, var(--ifm-color-emphasis-100, #f6f7f8));
+}
+
+.kapi-pg-snippet-code {
+  flex: 1;
+  min-width: 0;
+  padding: 0.6rem 0.9rem;
+  font-family: var(--ifm-font-family-monospace, ui-monospace, monospace);
+  font-size: 0.9rem;
+  background: transparent;
+  border: none;
+  white-space: pre-wrap;
+  word-break: break-word;
+  align-self: center;
+}
+
+.kapi-pg-snippet-prompt {
+  color: var(--ifm-color-emphasis-500, #898d92);
+  user-select: none;
+}
+
+.kapi-pg-run-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-shrink: 0;
+  border: none;
+  border-left: 1px solid var(--ifm-color-emphasis-300, rgba(0, 0, 0, 0.12));
+  background: var(--ifm-color-primary, #2e8555);
+  color: #fff;
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 0 1rem;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: background 0.12s ease;
+}
+
+.kapi-pg-run-btn:hover {
+  background: var(--ifm-color-primary-dark, #29784c);
+}
+
+.kapi-pg-run-btn:focus-visible {
+  outline: 2px solid var(--ifm-color-primary, #2e8555);
+  outline-offset: 2px;
+}
+
+.kapi-pg-snippet-expected {
+  margin: 0.5rem 0 0;
+  padding: 0.6rem 0.9rem;
+  font-size: 0.82rem;
+  border-radius: var(--ifm-global-radius, 8px);
+  background: var(--ifm-color-emphasis-100, #f6f7f8);
+  border: 1px solid var(--ifm-color-emphasis-200, rgba(0, 0, 0, 0.08));
+  overflow-x: auto;
+}
+
+/* Respect reduced-motion: drop the fade and the hover/reveal transitions. */
+@media (prefers-reduced-motion: reduce) {
+  .kapi-pg-modal-overlay {
+    animation: none;
+  }
+  .kapi-pg-file-actions,
+  .kapi-pg-icon-btn,
+  .kapi-pg-btn,
+  .kapi-pg-run-btn {
+    transition: none;
+  }
+}
