@@ -106,6 +106,6 @@ Windsurf setup.
 
 - [Brand Voice](/features/brand-voice) — profiles, scoring, and enforcement
 - [Kapi CLI Overview](/kapi-cli/overview) — full command reference
-- [Formats](/kapi-cli/commands/formats) — supported file formats
-- [Run Command](/kapi-cli/commands/flow) — composed flows and tool commands
+- [Formats](/commands?id=formats) — supported file formats
+- [Run Command](/commands?id=run) — composed flows and tool commands
 - [Features](/features/formats) — detailed feature documentation

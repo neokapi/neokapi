@@ -26,7 +26,7 @@ it always reflects the formats and parameters in the current build.
 
 ## Okapi bridge formats
 
-With the [Okapi bridge plugin](/kapi-cli/commands/plugins) installed, kapi can
+With the [Okapi bridge plugin](/commands?id=plugin) installed, kapi can
 also dispatch to the Java-based filters of the Okapi Framework — covering
 additional formats such as DITA that the native readers do not — without
 rewriting them in Go.

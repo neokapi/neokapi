@@ -1,0 +1,160 @@
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import type { CommandEntry } from "@neokapi/reference-data";
+import RunnableSnippet from "@site/src/components/KapiPlayground/RunnableSnippet";
+import { commandName, commandSummary, runnableCommand, seedFor } from "./commandHelpers";
+import styles from "./styles.module.css";
+
+interface Props {
+  cmd: CommandEntry;
+}
+
+/**
+ * The full reference body for one command: synopsis, description, a runnable
+ * snippet (offline) or a network/watch note (online), a flags table, and any
+ * authored examples. Rendered inside {@link CommandModal}; kept separate so the
+ * card grid stays lightweight.
+ */
+export default function CommandDetail({ cmd }: Props) {
+  const name = commandName(cmd);
+  const summary = commandSummary(cmd);
+  const flags = cmd.flags ?? [];
+
+  // TODO(#666): gate Run on `offlineCapable` for now. Decision #666 may add a
+  // precise `runnableInBrowser` flag that distinguishes "compiled into the wasm
+  // build" from "produces meaningful output without network/keychain/server".
+  const canRun = cmd.offlineCapable;
+
+  const runCmd = runnableCommand(cmd);
+  const seed = seedFor(cmd, runCmd);
+
+  return (
+    <div className={styles.body}>
+      {/* Synopsis (cobra `use`, prefixed with the binary name) */}
+      <code className={styles.synopsis}>
+        <span className={styles.synopsisPrompt} aria-hidden="true">
+          $
+        </span>{" "}
+        kapi {cmd.use}
+      </code>
+
+      {/* Description: long body when present, else the one-line summary */}
+      {cmd.long ? (
+        <div className={styles.markdown}>
+          <ReactMarkdown remarkPlugins={[remarkGfm]}>{cmd.long}</ReactMarkdown>
+        </div>
+      ) : (
+        summary && <p className={styles.description}>{summary}</p>
+      )}
+
+      {/* Metadata */}
+      <div className={styles.metaGrid}>
+        <Meta label="Command" value={name} mono />
+        {cmd.groupID && <Meta label="Group" value={cmd.groupID} />}
+        {cmd.aliases && cmd.aliases.length > 0 && (
+          <Meta label="Aliases" value={cmd.aliases.join(", ")} mono />
+        )}
+      </div>
+
+      {/* Run / Watch */}
+      <div className={styles.docSection}>
+        <div className={styles.sectionTitle}>{canRun ? "Try it" : "Watch it"}</div>
+        {canRun ? (
+          <>
+            <p className={styles.runHint}>
+              Runs in your browser against a small sample file. Edit the command before running, or
+              press Run to execute it as shown.
+            </p>
+            <RunnableSnippet cmd={runCmd} seed={seed.length > 0 ? seed : undefined} editable />
+          </>
+        ) : (
+          <div className={styles.networkNote}>
+            <span>
+              <strong>{name}</strong> needs network access, a saved credential, or a running Bowrain
+              server, so it cannot run in the browser playground.
+            </span>
+            <span>
+              See the <a href="/walkthroughs">walkthroughs</a> for a recorded run, or try it locally
+              with the <a href="/getting-started/installation">installed CLI</a>.
+            </span>
+          </div>
+        )}
+      </div>
+
+      {/* Flags */}
+      <div className={styles.docSection}>
+        <div className={styles.sectionTitle}>Flags</div>
+        {flags.length === 0 ? (
+          <p className={styles.noFlags}>This command has no local flags.</p>
+        ) : (
+          <table className={styles.flagTable}>
+            <thead>
+              <tr>
+                <th>Flag</th>
+                <th>Type</th>
+                <th>Default</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              {flags.map((f) => (
+                <tr key={f.name}>
+                  <td className={styles.flagName}>
+                    --{f.name}
+                    {f.shorthand ? `, -${f.shorthand}` : ""}
+                  </td>
+                  <td className={styles.flagType}>{f.type ?? ""}</td>
+                  <td className={styles.flagDefault}>{formatDefault(f.default, f.type)}</td>
+                  <td className={styles.flagUsage}>{f.usage ?? ""}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      {/* Examples (when the binary supplies any) */}
+      {cmd.examples && cmd.examples.length > 0 && (
+        <div className={styles.docSection}>
+          <div className={styles.sectionTitle}>Examples</div>
+          <div className={styles.exampleList}>
+            {cmd.examples.map((ex, i) =>
+              canRun && ex.trim().startsWith("kapi") ? (
+                <RunnableSnippet
+                  key={i}
+                  cmd={ex.trim()}
+                  seed={(() => {
+                    const s = seedFor(cmd, ex.trim());
+                    return s.length > 0 ? s : undefined;
+                  })()}
+                  editable
+                />
+              ) : (
+                <code key={i} className={styles.synopsis}>
+                  {ex.trim()}
+                </code>
+              ),
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Render a flag default, collapsing the empty-default and slice cases. */
+function formatDefault(def: string | undefined, type: string | undefined): string {
+  if (def === undefined || def === "") return "";
+  // pflag renders empty slices as "[]"; that is noise in a reference table.
+  if ((type === "stringSlice" || type === "stringArray") && def === "[]") return "";
+  return def;
+}
+
+function Meta({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
+  return (
+    <div className={styles.metaItem}>
+      <span className={styles.metaLabel}>{label}</span>
+      <span className={mono ? styles.metaValueMono : styles.metaValue}>{value}</span>
+    </div>
+  );
+}
