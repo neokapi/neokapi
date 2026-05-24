@@ -3,6 +3,7 @@ import path from "node:path";
 import { chromium, type Browser } from "playwright";
 import type { ArtifactSpec, CapturedArtifact, DemoManifest } from "../types.ts";
 import { captureDir, demoFixturesDir, ensureDir, kapiIsolationEnv, publicDemoDir, REPO_ROOT } from "../lib/paths.ts";
+import { spawn } from "node:child_process";
 import { sh, sleep } from "../lib/exec.ts";
 import { renderReport, renderMarkdownDoc, renderCode, renderDocxHtml } from "./report.ts";
 
@@ -156,21 +157,34 @@ async function captureOne(
       fs.writeFileSync(tmpHtml, html);
       await shot(browser, "file://" + tmpHtml, outPng, w, h);
     } else if (spec.source === "url") {
-      // Best-effort: start a static server in the snapshot, screenshot, tear down.
+      // Best-effort: start a server in the snapshot, screenshot, tear down. Spawn
+      // detached (own process group) so teardown can kill the WHOLE tree: `npm run
+      // dev` forks next-server + render workers, and killing only the port listener
+      // leaves them alive — back-to-back url artifacts then stack multiple dev
+      // servers and exhaust memory (OOM). process.kill(-pid) signals the group.
       const port = spec.port ?? 4599;
       const serveCmd = spec.serve ?? `python3 -m http.server ${port}`;
-      const server = sh(serveCmd, {
+      const server = spawn("/bin/sh", ["-c", serveCmd], {
         cwd: snap,
         env: { ...process.env, PATH: `${path.join(REPO_ROOT, "bin")}:${process.env.PATH}` },
+        detached: true,
+        stdio: "ignore",
       });
+      server.on("error", () => {});
       const ready = await waitForServer(`http://localhost:${port}/`, spec.serveTimeoutMs ?? 180_000);
       if (!ready) console.warn(`    artifact ${spec.id}: server on :${port} not ready in time, screenshotting anyway`);
       try {
         await shot(browser, `http://localhost:${port}${spec.path ?? "/"}`, outPng, w, h, spec.settleMs ?? 500);
       } finally {
-        // Kill whatever is on the port.
+        // Kill the whole process group (npm → next → workers), then sweep the port.
+        if (server.pid) {
+          try {
+            process.kill(-server.pid, "SIGKILL");
+          } catch {
+            /* group already gone */
+          }
+        }
         await sh(`lsof -ti tcp:${port} | xargs kill -9 2>/dev/null || true`);
-        server.catch(() => {});
       }
       if (!fs.existsSync(outPng)) {
         console.warn(`    skip artifact ${spec.id}: url capture produced nothing`);
