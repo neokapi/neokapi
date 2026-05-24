@@ -1,0 +1,74 @@
+---
+id: bilingual-workflow
+title: "Run a bilingual round-trip"
+sidebar_label: "Bilingual round-trip"
+sidebar_position: 4
+description: "The extract → translate → merge round-trip via XLIFF: per-locale outputs, a translator fills the targets, merge writes back with full TM provenance."
+hide_table_of_contents: true
+---
+
+import KapiGuidedEmbed from "@site/src/components/KapiPlayground/KapiGuidedEmbed";
+import { ThemedVideo } from "@neokapi/docs-shared";
+
+# Run a bilingual round-trip
+
+**Goal:** send source content out for translation and get it back in, without
+losing track of what changed. The **extract → translate → merge** round-trip
+through XLIFF is the canonical way to do this: extract emits one bilingual XLIFF
+per target locale (pre-filled from your TM), a translator or CAT tool fills the
+`<target>` elements, and merge applies them back onto the source files while
+recording every new pair in the TM with full provenance.
+
+## The full round-trip
+
+```text
+seed TM → kapi extract → translator fills <target> → kapi merge → kapi tm audit
+```
+
+The complete loop is shown below: seed the TM from a corporate TMX, extract
+per-locale XLIFFs, simulate a translator filling them in, merge back, and trace
+the result with `kapi tm audit`. The translator step is an external editor
+action and `tm audit` reads the SQLite TM, so the full loop runs against the
+native binary rather than the in-browser build.
+
+<ThemedVideo
+  sources={{
+    light: "/video/kapi/01-bilingual-workflow.webm",
+    dark: "/video/kapi/01-bilingual-workflow.webm",
+  }}
+/>
+
+## Steps
+
+1. **Seed the TM** (one-time) so extract can pre-fill known matches:
+   `kapi tm import corporate.tmx --file .kapi/tm.db --all-pairs`.
+2. **Extract** one bilingual XLIFF per target locale: `kapi extract -p app.kapi`.
+3. **Translate** — a person or CAT tool fills each `<target>`, preserving the
+   kapi batch IDs the merge relies on.
+4. **Merge** the returned XLIFFs back onto the source: `kapi merge -i out/`.
+5. **Audit** what the merge wrote: `kapi tm audit --batch <id>`.
+
+## Try the extract step
+
+`kapi extract` runs entirely in the browser. A small recipe (`app.kapi`) and a
+source catalogue are already in the in-browser project folder. Run the step,
+then open the emitted XLIFF under `out/` in the files pane.
+
+<KapiGuidedEmbed id="kapi-bilingual-workflow" />
+
+Extract emits one bilingual XLIFF per configured target locale, each carrying
+the kapi batch IDs that `kapi merge` later uses to write translations back onto
+the source.
+
+> The interactive embed and the recorded video both come from
+> [`walkthroughs/kapi-bilingual-workflow.scene.yaml`](https://github.com/neokapi/neokapi/blob/main/web/docs/walkthroughs/kapi-bilingual-workflow.scene.yaml).
+> Change the scene spec and regenerate; don't edit the generated output by hand.
+
+## Next
+
+- [`kapi extract`](/reference/commands/extract) and
+  [`kapi merge`](/reference/commands/merge) — the round-trip command references.
+- [`kapi tm audit`](/reference/commands/tm) is the receipt: every merge is
+  provenance-tagged, so you can prove what came from which translator return.
+- See the [Bilingual Workflow](/cli/bilingual-workflow) page for a deeper walk
+  through recipes and the merge model.

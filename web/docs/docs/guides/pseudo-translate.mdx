@@ -1,0 +1,68 @@
+---
+id: pseudo-translate
+title: "Catch UI truncation early"
+sidebar_label: "Pseudo-translate"
+sidebar_position: 3
+description: "Generate locale-shaped pseudo-translations with kapi to surface UI truncation and missing-string bugs before real translation arrives."
+hide_table_of_contents: true
+---
+
+import KapiGuidedEmbed from "@site/src/components/KapiPlayground/KapiGuidedEmbed";
+import { DualExample } from "@site/src/components/curated";
+
+# Catch UI truncation early
+
+**Goal:** surface UI truncation and missing-string bugs _before_ real
+translations arrive. Pseudo-translation rewrites every extracted string with
+locale-shaped accented characters and padding, so layout problems show up the
+moment the UI re-renders — no API key, no waiting, no cost.
+
+## Steps
+
+1. Run `kapi pseudo-translate` on your source catalogue.
+2. Load the pseudo-translated file into your UI.
+3. Look for clipped labels, overflowing buttons, and any string that _didn't_
+   get accented — an un-accented string is one your code hard-coded instead of
+   pulling from the catalogue.
+
+Pseudo-translation defaults to the **`qps`** pseudo-locale (the BCP-47
+private-use locale reserved for pseudo-translation), so you don't need a real
+target language. The output path is just a name you choose with `-o`. Source in,
+pseudo-translated out:
+
+<DualExample
+  command="kapi pseudo-translate messages.json -o messages.pseudo.json"
+  seed={["messages.json"]}
+  result={{
+    kind: "before-after",
+    sample: "messages.json",
+    command: "kapi pseudo-translate messages.json -o messages.pseudo.json",
+    outputPath: "messages.pseudo.json",
+    beforeLabel: "Source",
+    afterLabel: "Pseudo-translated",
+    caption: "Every value is accented and wrapped in markers — un-accented text is hard-coded.",
+  }}
+/>
+
+Each value is bracketed with markers and expanded with diacritics. Tune the
+shape with `--prefix`, `--suffix`, and `--expansion-percent` (extra padding to
+simulate how much longer real translations tend to run).
+
+## Try it
+
+`messages.json` is in the in-browser project folder. Run the step, then open the
+emitted file in the files pane to see the expansion.
+
+<KapiGuidedEmbed id="kapi-pseudo-translate" />
+
+> The interactive embed and the recorded video both come from
+> [`walkthroughs/kapi-pseudo-translate.scene.yaml`](https://github.com/neokapi/neokapi/blob/main/web/docs/walkthroughs/kapi-pseudo-translate.scene.yaml).
+> Change the scene spec and regenerate; don't edit the generated output by hand.
+
+## Next
+
+- [`kapi pseudo-translate`](/reference/commands/pseudo-translate) — full command
+  reference, including `--prefix`, `--suffix`, and `--expansion-percent`.
+- For broader checks, see [Quality checks](/framework/qa-checks).
+- To run pseudo-translation as the gap-filler after a TM-leverage step, see
+  [Pre-translate with TM + termbase](/guides/pre-translate-with-tm).

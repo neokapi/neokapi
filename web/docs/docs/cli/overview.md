@@ -142,5 +142,5 @@ brew install --cask neokapi/tap/kapi-desktop
 
 ### Use Cases
 
-- [Terminology QA](/guides/use-case-terminology-qa) — catch terminology mistakes in translated files
-- [Pre-Translation with Terminology](/guides/use-case-terminology-pretranslation) — combine TM, AI, and your glossary for consistent translations
+- [Terminology QA](/guides/terminology-qa) — catch terminology mistakes in translated files
+- [Pre-translate with TM](/guides/pre-translate-with-tm) — combine TM and your glossary for consistent translations
