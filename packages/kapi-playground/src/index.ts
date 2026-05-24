@@ -20,7 +20,7 @@ import "./styles.css";
 export { default as RunnableSnippet } from "./RunnableSnippet";
 export type { RunnableSnippetProps } from "./RunnableSnippet";
 export { openKapi } from "./store";
-export type { OpenKapiOptions } from "./store";
+export type { OpenKapiOptions, KapiFile } from "./store";
 
 // Provider for injected asset URLs.
 export { KapiPlaygroundProvider, useKapiConfig } from "./provider";

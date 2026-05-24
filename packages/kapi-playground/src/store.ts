@@ -3,6 +3,16 @@
 // `openKapi(...)` from anywhere fires the listener the modal registered; the
 // modal then code-splits in its xterm/wasm payload.
 
+/**
+ * An inline file to seed into the session cwd: dynamic content that isn't a
+ * bundled fixture (e.g. a generated project.kapi, or a scene's glossary/TMX).
+ * `path` may be relative (resolved against the session cwd) or absolute.
+ */
+export interface KapiFile {
+  path: string;
+  content: string;
+}
+
 /** Arguments to open the shared kapi modal. */
 export interface OpenKapiOptions {
   /**
@@ -12,6 +22,12 @@ export interface OpenKapiOptions {
   cmd?: string;
   /** Fixture names (see fixtures.ts) to ensure exist in the session cwd. */
   seed?: string[];
+  /**
+   * Inline files (dynamic content not covered by a bundled fixture) to write
+   * into the session cwd before the command runs. Like `seed`, existing files
+   * are preserved — seeding only fills gaps.
+   */
+  files?: KapiFile[];
   /**
    * Optional scripted steps run in sequence after seeding. Each is a command
    * line. Forward-looking for W3's scene model; `cmd` is the common case.

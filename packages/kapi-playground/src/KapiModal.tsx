@@ -159,6 +159,7 @@ export default function KapiModal(): React.ReactElement | null {
             wasmExecUrl={wasmExecUrl}
             wasmUrl={wasmUrl}
             seed={initialReq.seed}
+            files={initialReq.files}
             cmd={initialReq.cmd}
             steps={initialReq.steps}
             autoRun={initialReq.autoRun}
