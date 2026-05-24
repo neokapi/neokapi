@@ -30,8 +30,7 @@ neokapi ships built-in readers and writers spanning several families:
 - **Office & desktop publishing** — Office Open XML, OpenDocument, Adobe
   ICML/IDML, FrameMaker MIF, EPUB, PDF.
 - **Subtitles** — SubRip (SRT), WebVTT, TTML/DFXP.
-- **Plain text variants and containers** — paragraph, Moses, versified, and
-  spliced-line text, plus glob-filtered ZIP archives.
+- **Plain text variants** — paragraph, Moses, versified, and spliced-line text.
 
 Each format exposes its own configuration (extraction rules, segmentation,
 inline-code handling). Rather than maintain a list by hand, the

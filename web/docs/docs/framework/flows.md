@@ -39,8 +39,8 @@ The `Builder` provides a fluent API for assembling one in Go:
 ```go
 f, err := flow.NewFlow("translate").
     AddTool(tools.NewTMLeverageTool(tmCfg)).
-    AddTool(tools.NewTermLookupTool(termCfg)).
-    AddTool(aitools.NewAITranslateTool(translateCfg)).
+    AddTool(termbase.NewTermLookupTool(tb, termCfg)).
+    AddTool(aitools.NewAITranslateTool(provider, translateCfg)).
     AddTool(tools.NewQACheckTool(qaCfg)).
     Build()
 ```

@@ -1,17 +1,18 @@
 ---
 sidebar_position: 9
 title: Translation Memory
-description: Sievepen is neokapi's built-in translation memory. It stores full Fragment objects with inline markup and matches them in three tiers — plain, structural, and source-entity — so high-quality matches are returned first.
-keywords: [translation memory, Sievepen, TM leverage, fuzzy matching, Fragment, inline markup, SQLite]
+description: Sievepen is neokapi's built-in translation memory. It stores multilingual entries as Run sequences with inline markup and matches them in three tiers — plain, structural, and source-entity — so high-quality matches are returned first.
+keywords: [translation memory, Sievepen, TM leverage, fuzzy matching, runs, inline markup, SQLite]
 ---
 
 # Translation Memory
 
 neokapi's translation memory is **Sievepen** (`sievepen/`). Unlike traditional
-TMs that store plain strings, Sievepen works with the full content model — it
-stores `Fragment` objects (coded text with inline markup) and matches them in
-three tiers with entity-aware adaptation. The same engine backs the `kapi tm`
-commands, the `tm-leverage` pipeline tool, and the Go library.
+TMs that store plain strings, Sievepen works with the full content model — each
+entry holds multilingual variants as `Run` sequences (text plus inline markup)
+and matches them in three tiers with entity-aware adaptation. The same engine
+backs the `kapi tm` commands, the `tm-leverage` pipeline tool, and the Go
+library.
 
 ## Content-aware matching
 
@@ -82,10 +83,12 @@ kapi ai-translate -i input.html -o output.html -s en -t fr --tm project-tm
 ```
 
 ```yaml
-tools:
-  tm-leverage:
-    threshold: 0.70 # minimum match score (0.0-1.0)
-    max_results: 10 # maximum matches per block
+steps:
+  - tool: tm-leverage
+    config:
+      fuzzyThreshold: 70 # minimum score for fuzzy matches (0-100)
+      fillTarget: true # copy the best candidate into the target
+      fillTargetThreshold: 95 # minimum score required to fill the target
 ```
 
 ## Go library
@@ -105,46 +108,55 @@ type TranslationMemory interface {
 }
 ```
 
-`Lookup` takes a full `*model.Block` and uses its `Fragment` for tiered
-matching; `LookupText` takes a plain string and performs plain-tier matching
-only. Both SQLite and in-memory backends also implement `EntryProvider`
-(`Entries()` and paginated `SearchEntries(...)`) for export and browsing.
+`Lookup` takes a full `*model.Block` and uses its Run content (and entity
+annotations) for tiered matching; `LookupText` takes a plain string and
+performs plain-tier matching only. `LookupSegment` matches a single segment of
+a block for sentence-level leverage. Both SQLite and in-memory backends also
+implement `EntryProvider` (`Entries()` and paginated `SearchEntries(...)`) for
+export and browsing.
 
 ### Key types
 
 ```go
 type TMEntry struct {
-    ID           string
-    Source       *model.Fragment // coded text + inline spans
-    Target       *model.Fragment
-    SourceLocale model.LocaleID
-    TargetLocale model.LocaleID
-    Entities     []EntityMapping // entity placeholders
-    Annotations  map[string]model.Annotation
-    Properties   map[string]string
-    CreatedAt    time.Time
-    UpdatedAt    time.Time
+    ID          string
+    ProjectID   string
+    Variants    map[model.LocaleID][]model.Run // peer language variants
+    HintSrcLang model.LocaleID                 // locale the author treated as canonical
+    Entities    []EntityMapping                // entity placeholders
+    Properties  map[string]string
+    Origins     []Origin
+    Note        string
+    CreatedAt   time.Time
+    UpdatedAt   time.Time
 }
 
 type TMMatch struct {
     Entry             TMEntry
     Score             float64 // 0.0-1.0
     MatchType         MatchType
+    ProjectID         string             // provenance of the matched entry
     EntityAdaptations []EntityAdaptation // entity value substitutions
 }
 
 type LookupOptions struct {
-    MinScore   float64     // minimum match score (default 0.7)
-    MaxResults int         // max results to return (default 10)
-    MatchModes []MatchMode // which tiers to use (default: all)
+    MinScore     float64      // minimum match score (default 0.7)
+    MaxResults   int          // max results to return (default 10)
+    MatchModes   []MatchMode  // which tiers to use (default: all)
+    ProjectID    string       // project context for scoring boost
+    ProjectScope ProjectScope // project filtering mode (default: all)
 }
 ```
 
-`MatchType` ranges from `generalized-exact` (highest reuse) through
-`structural-exact`, `exact`, the corresponding fuzzy variants, down to `fuzzy`.
-`TMEntry` helpers: `SourceText()`, `TargetText()`, `SourceStructural()`,
-`SourceGeneralized()`. The `EntityAdaptations` field on a match lists each
-substitution with its position so consumers can apply adaptations precisely.
+An entry is multilingual: there is no authoritative source at the persistence
+layer — each language is a peer `Variants[locale]` Run sequence, and the lookup
+direction is supplied at the call site. `MatchType` ranges from
+`generalized-exact` (highest reuse) through `structural-exact`, `exact`, the
+corresponding fuzzy variants, down to `fuzzy`. `TMEntry` helpers:
+`Variant(locale)`, `VariantText(locale)`, `VariantStructural(locale)`,
+`VariantGeneralized(locale)`. The `EntityAdaptations` field on a match lists
+each substitution with its position so consumers can apply adaptations
+precisely.
 
 ### Example
 
@@ -163,11 +175,12 @@ func main() {
     defer tm.Close()
 
     tm.Add(sievepen.TMEntry{
-        ID:           "e1",
-        Source:       model.NewFragment("Welcome to our platform"),
-        Target:       model.NewFragment("Bienvenue sur notre plateforme"),
-        SourceLocale: "en",
-        TargetLocale: "fr",
+        ID: "e1",
+        Variants: map[model.LocaleID][]model.Run{
+            "en": {{Text: &model.TextRun{Text: "Welcome to our platform"}}},
+            "fr": {{Text: &model.TextRun{Text: "Bienvenue sur notre plateforme"}}},
+        },
+        HintSrcLang: "en",
     })
 
     block := model.NewBlock("b1", "Welcome to our platform")
@@ -177,7 +190,7 @@ func main() {
     }
     for _, m := range matches {
         fmt.Printf("Score: %.0f%% Type: %s Target: %s\n",
-            m.Score*100, m.MatchType, m.Entry.TargetText())
+            m.Score*100, m.MatchType, m.Entry.VariantText("fr"))
     }
 }
 ```
@@ -186,7 +199,9 @@ func main() {
 
 ```go
 count, err := sievepen.ImportTMX(tm, reader, "en", "fr")
-err = sievepen.ExportTMX(tm, writer, "en", "fr") // requires EntryProvider
+err = sievepen.ExportTMXBilingual(tm, writer, "en", "fr") // src/tgt pair
+// or, for all locales in the TM:
+err = sievepen.ExportTMX(tm, writer, []model.LocaleID{"en", "fr", "de"})
 ```
 
 ## Translation memory and terminology

@@ -38,13 +38,22 @@ mt:
 
 ## Usage
 
-MT services are available as top-level tool commands. Configure the desired service in `kapi.yaml` and translate documents directly:
+Each MT service is exposed as its own [tool](/framework/tools), named
+`<provider>-translate` — `deepl-translate`, `google-translate`,
+`microsoft-translate`, `modernmt-translate`, `mymemory-translate`. They compose
+into [flows](/framework/flows) like any other stage. A typical production flow
+chains TM leverage, an MT pass, and AI refinement:
 
-```bash
-kapi ai-translate -i input.html -o output.html --source-lang en --target-lang de
+```yaml
+steps:
+  - tool: tm-leverage
+  - tool: deepl-translate
+  - tool: ai-review
+  - tool: qa-check
 ```
 
-The MT provider is selected based on your configuration.
+Switching providers is a configuration change — replace `deepl-translate` with
+`google-translate` (or `ai-translate`) and the rest of the flow is unchanged.
 
 ## Comparison with AI Translation
 

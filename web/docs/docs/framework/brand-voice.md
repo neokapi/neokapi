@@ -117,7 +117,7 @@ Reader → TM Leverage → Term Lookup → AI Translate → Brand Voice Check �
 
 It uses an LLM to analyze content against the profile and attaches compliance
 scores and findings to each Block as annotations. The faster, rule-based
-`brand-vocab-filter` tool checks forbidden and competitor terms without LLM
+`brand-vocab-check` tool checks forbidden and competitor terms without LLM
 calls. Brand vocabulary also flows through ordinary terminology tools —
 preferred terms surface in `term-lookup`, forbidden/competitor terms trigger
 `term-enforce` violations — so brand governance and terminology share one
@@ -202,7 +202,7 @@ import (
 checkTool := aitool.NewBrandVoiceCheckTool(llmProvider, profile)
 
 // Rule-based: fast forbidden/competitor-term enforcement, no LLM calls
-vocabTool := tools.NewBrandVocabFilterTool(profile)
+vocabTool := tools.NewBrandVocabCheckTool(profile, termBase)
 ```
 
 ### Starter packs

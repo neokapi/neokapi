@@ -15,6 +15,7 @@ neokapi provides first-class LLM integration for translation, quality assurance,
 | ----------------- | ------------------------------------------------------- |
 | **Anthropic**     | Claude models (recommended for quality)                 |
 | **OpenAI**        | GPT models                                              |
+| **Azure OpenAI**  | OpenAI models hosted on Azure                           |
 | **Google Gemini** | Gemini models with streaming and live thinking progress |
 | **Ollama**        | Local models (no API key needed)                        |
 
@@ -87,7 +88,7 @@ kapi run ai-translate-qa -i input.html -o output.html --source-lang en --target-
 
 ## Prompt Engineering
 
-Prompt templates in `ai/prompt/` are context-aware: they include surrounding Blocks, glossary constraints, TM matches, and format metadata. Templates are centralized for easy tuning.
+Prompt templates in `core/ai/prompt/` are context-aware: they include surrounding Blocks, glossary constraints, TM matches, and format metadata. Templates are centralized for easy tuning.
 
 ## Environment Variables
 
