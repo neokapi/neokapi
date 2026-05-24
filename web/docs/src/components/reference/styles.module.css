@@ -525,6 +525,117 @@
   font-size: 0.85rem;
 }
 
+/* ── Run this config ───────────────────────────────────────── */
+
+/* Container for the fixture picker + run button, shown at the bottom of the
+ * output panel body when the entry is offline-capable. */
+.runSection {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.85rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--ifm-color-emphasis-200);
+}
+
+/* Label + select on one row */
+.runRow {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.runLabel {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--ifm-color-emphasis-500);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.fixturePicker {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.78rem;
+  font-family: var(--ifm-font-family-monospace);
+  padding: 0.2rem 0.4rem;
+  border: 1px solid var(--ifm-color-emphasis-300);
+  border-radius: var(--ifm-global-radius);
+  background: var(--ifm-background-color);
+  color: var(--ifm-font-color-base);
+  cursor: pointer;
+}
+
+.fixturePicker:focus {
+  outline: 2px solid var(--ifm-color-primary);
+  outline-offset: 1px;
+}
+
+/* The primary action button */
+.runButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  width: 100%;
+  padding: 0.4rem 0.75rem;
+  border: 1px solid var(--ifm-color-primary);
+  border-radius: var(--ifm-global-radius);
+  background: var(--ifm-color-primary);
+  color: var(--ifm-color-primary-contrast-foreground, #fff);
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    border-color 0.15s,
+    box-shadow 0.15s;
+}
+
+.runButton:hover {
+  background: var(--ifm-color-primary-dark);
+  border-color: var(--ifm-color-primary-dark);
+  box-shadow: 0 1px 6px color-mix(in srgb, var(--ifm-color-primary) 30%, transparent);
+}
+
+.runButton:active {
+  background: var(--ifm-color-primary-darker);
+  border-color: var(--ifm-color-primary-darker);
+}
+
+.runIcon {
+  font-size: 0.7rem;
+  line-height: 1;
+}
+
+/* Standalone variant (outside the output panel, for param-less entries). */
+.runSectionStandalone {
+  max-width: 380px;
+  margin-top: 0.25rem;
+  padding-top: 0;
+  border-top: none;
+}
+
+.runButtonStandalone {
+  /* Align with the standalone context — slightly less wide */
+  width: auto;
+  align-self: flex-start;
+}
+
+/* Shown when the entry is not runnable in the browser playground. */
+.notRunnableHint {
+  margin: 0.75rem 0 0;
+  padding: 0.5rem 0.65rem;
+  font-size: 0.78rem;
+  color: var(--ifm-color-emphasis-600);
+  background: var(--ifm-color-emphasis-100);
+  border-radius: var(--ifm-global-radius);
+  border-left: 3px solid var(--ifm-color-emphasis-300);
+  line-height: 1.4;
+}
+
 /* Inline markdown (overview, help, descriptions) */
 .markdown {
   font-size: 0.9rem;

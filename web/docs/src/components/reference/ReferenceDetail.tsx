@@ -4,11 +4,23 @@ import type { ReferenceEntry } from "@neokapi/reference-data";
 import { SchemaForm } from "@neokapi/ui-primitives";
 import Markdown, { unfence } from "./Markdown";
 import { seedDefaults, buildFormatYamlLines, buildToolYamlLines, yamlText } from "./yaml";
+import { buildRunOptions, pickFixture, notRunnableReason } from "./run-config";
 import styles from "./styles.module.css";
 
 interface Props {
   entry: ReferenceEntry;
 }
+
+/** All available playground fixture names (must match fixtures.ts). */
+const ALL_FIXTURES = [
+  "messages.json",
+  "app.xliff",
+  "page.html",
+  "README.md",
+  "app.properties",
+  "strings.xml",
+  "Localizable.xcstrings",
+] as const;
 
 /**
  * The full, interactive reference body for one format/tool: overview,
@@ -85,6 +97,38 @@ export default function ReferenceDetail({ entry }: Props) {
     });
   }, [yamlLines]);
 
+  // "Run this config" — playground integration. `pickFixture` returns null
+  // for entries with no compatible sample; in that case `runOptions` is also
+  // null and the Run UI never renders, so the fixture state falls back to the
+  // first option purely to keep the <select> controlled.
+  const defaultFixture = useMemo(() => pickFixture(entry), [entry]);
+  const [selectedFixture, setSelectedFixture] = useState<string>(
+    defaultFixture ?? ALL_FIXTURES[0],
+  );
+  const runOptions = useMemo(
+    () => buildRunOptions(entry, values, schema),
+    [entry, values, schema],
+  );
+  const whyNotRunnable = useMemo(() => notRunnableReason(entry), [entry]);
+
+  const handleRunConfig = useCallback(() => {
+    if (!runOptions) return;
+    // Defer the heavy kit import to browser context (openKapi is SSR-clean but
+    // the dynamic import keeps the bundle split clean for SSR paths).
+    import("@neokapi/kapi-playground").then(({ openKapi }) => {
+      const opts = { ...runOptions };
+      // Ensure the user's selected fixture is seeded.
+      if (!opts.seed?.includes(selectedFixture)) {
+        opts.seed = [selectedFixture, ...(opts.seed ?? []).filter((s) => s !== defaultFixture)];
+      }
+      // Patch the fixture name in cmd when the user picked a different sample.
+      if (defaultFixture && selectedFixture !== defaultFixture && opts.cmd) {
+        opts.cmd = opts.cmd.replace(defaultFixture, selectedFixture);
+      }
+      openKapi(opts);
+    });
+  }, [runOptions, selectedFixture, defaultFixture]);
+
   const baselineLabel = activePreset ?? "defaults";
   const dirtyCount = dirtyKeys.size;
 
@@ -143,7 +187,48 @@ export default function ReferenceDetail({ entry }: Props) {
 
       {/* Interactive form beside a sticky output panel */}
       {paramCount === 0 ? (
-        <p className={styles.noConfig}>This {entry.kind} has no configurable parameters.</p>
+        <div>
+          <p className={styles.noConfig}>This {entry.kind} has no configurable parameters.</p>
+          {/* Still offer Run for param-less entries that are offline-capable. */}
+          <BrowserOnly>
+            {() =>
+              runOptions ? (
+                <div className={`${styles.runSection} ${styles.runSectionStandalone}`}>
+                  <div className={styles.runRow}>
+                    <label htmlFor={`fixture-solo-${entry.id}`} className={styles.runLabel}>
+                      Sample input
+                    </label>
+                    <select
+                      id={`fixture-solo-${entry.id}`}
+                      className={styles.fixturePicker}
+                      value={selectedFixture}
+                      onChange={(e) => setSelectedFixture(e.target.value)}
+                    >
+                      {ALL_FIXTURES.map((name) => (
+                        <option key={name} value={name}>
+                          {name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <button
+                    type="button"
+                    className={`${styles.runButton} ${styles.runButtonStandalone}`}
+                    onClick={handleRunConfig}
+                    title="Run this configuration in the playground"
+                  >
+                    <span className={styles.runIcon} aria-hidden="true">
+                      &#9654;
+                    </span>
+                    Run in playground
+                  </button>
+                </div>
+              ) : whyNotRunnable ? (
+                <p className={styles.notRunnableHint}>{whyNotRunnable}</p>
+              ) : null
+            }
+          </BrowserOnly>
+        </div>
       ) : (
         <div className={styles.configGrid}>
           <section className={styles.panel}>
@@ -202,10 +287,50 @@ export default function ReferenceDetail({ entry }: Props) {
                       line.key && dirtyKeys.has(line.key) ? styles.yamlLineDirty : undefined
                     }
                   >
-                    {line.text || " "}
+                    {line.text || " "}
                   </div>
                 ))}
               </pre>
+
+              {/* Run this config */}
+              <BrowserOnly>
+                {() =>
+                  runOptions ? (
+                    <div className={styles.runSection}>
+                      <div className={styles.runRow}>
+                        <label htmlFor={`fixture-${entry.id}`} className={styles.runLabel}>
+                          Sample input
+                        </label>
+                        <select
+                          id={`fixture-${entry.id}`}
+                          className={styles.fixturePicker}
+                          value={selectedFixture}
+                          onChange={(e) => setSelectedFixture(e.target.value)}
+                        >
+                          {ALL_FIXTURES.map((name) => (
+                            <option key={name} value={name}>
+                              {name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <button
+                        type="button"
+                        className={styles.runButton}
+                        onClick={handleRunConfig}
+                        title="Run this configuration in the playground"
+                      >
+                        <span className={styles.runIcon} aria-hidden="true">
+                          &#9654;
+                        </span>
+                        Run this config
+                      </button>
+                    </div>
+                  ) : whyNotRunnable ? (
+                    <p className={styles.notRunnableHint}>{whyNotRunnable}</p>
+                  ) : null
+                }
+              </BrowserOnly>
             </div>
           </aside>
         </div>
