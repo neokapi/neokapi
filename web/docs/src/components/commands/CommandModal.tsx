@@ -101,7 +101,7 @@ export default function CommandModal({ cmd, onClose }: Props) {
           <h2 id={titleId} className={styles.modalTitle}>
             kapi {commandName(cmd)}
           </h2>
-          <RunBadge offline={cmd.offlineCapable} />
+          <RunBadge cmd={cmd} />
           <div className={styles.modalActions}>
             <button
               type="button"

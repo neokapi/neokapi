@@ -15,17 +15,18 @@ export default function Commands() {
   return (
     <Layout
       title="Command Reference"
-      description="Interactive reference for every kapi CLI command — synopsis, flags, and examples generated from the binary, with a live Run button for commands that work offline."
+      description="Interactive reference for every kapi CLI command — synopsis, flags, and examples generated from the binary, with a live Run button for commands that work in the browser."
     >
       <main className="container margin-vert--lg">
         <h1>Command Reference</h1>
         <p>
           Every command in the kapi CLI, generated from the binary so the flags and synopses match
           the version you have installed. Select a command to read its description, flags, and
-          examples. Commands that work entirely offline carry a live Run button that executes them
-          in your browser against a small sample file; commands that need network access, a saved
-          credential, or a running Bowrain server point to a walkthrough instead. Each command has a
-          shareable link.
+          examples. Commands that run entirely in the browser carry a <strong>Run</strong> button
+          that executes them against a small sample file. AI and MT commands carry a{" "}
+          <strong>Demo</strong> badge and run via a built-in stub — the output is illustrative, not
+          from a real model. Commands that need network access, a saved credential, or a running
+          Bowrain server point to a walkthrough instead. Each command has a shareable link.
         </p>
 
         <CommandGrid commands={commands} />

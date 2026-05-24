@@ -2,7 +2,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { CommandEntry } from "@neokapi/reference-data";
 import RunnableSnippet from "@site/src/components/KapiPlayground/RunnableSnippet";
-import { commandName, commandSummary, runnableCommand, seedFor } from "./commandHelpers";
+import { commandName, commandSummary, firstRunnableExample, seedFor } from "./commandHelpers";
 import styles from "./styles.module.css";
 
 interface Props {
@@ -11,22 +11,31 @@ interface Props {
 
 /**
  * The full reference body for one command: synopsis, description, a runnable
- * snippet (offline) or a network/watch note (online), a flags table, and any
- * authored examples. Rendered inside {@link CommandModal}; kept separate so the
- * card grid stays lightweight.
+ * snippet or a network/watch note, a flags table, and any authored examples.
+ * Rendered inside {@link CommandModal}; kept separate so the card grid stays
+ * lightweight.
+ *
+ * Three states:
+ *   runnableInBrowser && !demoMode → primary green ▸ Run
+ *   runnableInBrowser && demoMode  → amber ▸ Run (demo) + honesty note
+ *   !runnableInBrowser             → Watch note (network/server required)
  */
 export default function CommandDetail({ cmd }: Props) {
   const name = commandName(cmd);
   const summary = commandSummary(cmd);
   const flags = cmd.flags ?? [];
 
-  // TODO(#666): gate Run on `offlineCapable` for now. Decision #666 may add a
-  // precise `runnableInBrowser` flag that distinguishes "compiled into the wasm
-  // build" from "produces meaningful output without network/keychain/server".
-  const canRun = cmd.offlineCapable;
+  const canRun = cmd.runnableInBrowser;
+  const isDemo = cmd.demoMode;
 
-  const runCmd = runnableCommand(cmd);
+  // Prefer the first authored example (already a complete invocation); fall
+  // back to a synthesized "kapi <name>" form.
+  const firstExample = firstRunnableExample(cmd);
+  const runCmd = firstExample ?? `kapi ${commandName(cmd)}`;
   const seed = seedFor(cmd, runCmd);
+
+  // Additional examples beyond the first (shown as a separate list below).
+  const remainingExamples = (cmd.examples ?? []).slice(firstExample != null ? 1 : 0);
 
   return (
     <div className={styles.body}>
@@ -56,15 +65,24 @@ export default function CommandDetail({ cmd }: Props) {
         )}
       </div>
 
-      {/* Run / Watch */}
+      {/* Run / Run (demo) / Watch */}
       <div className={styles.docSection}>
-        <div className={styles.sectionTitle}>{canRun ? "Try it" : "Watch it"}</div>
+        <div className={styles.sectionTitle}>
+          {canRun ? (isDemo ? "Try it (demo)" : "Try it") : "Watch it"}
+        </div>
         {canRun ? (
           <>
-            <p className={styles.runHint}>
-              Runs in your browser against a small sample file. Edit the command before running, or
-              press Run to execute it as shown.
-            </p>
+            {isDemo ? (
+              <p className={styles.demoNote}>
+                Demo mode — illustrative output from a built-in stub, not a real model. Install the
+                CLI to run with your own API key.
+              </p>
+            ) : (
+              <p className={styles.runHint}>
+                Runs in your browser against a small sample file. Edit the command before running,
+                or press Run to execute it as shown.
+              </p>
+            )}
             <RunnableSnippet cmd={runCmd} seed={seed.length > 0 ? seed : undefined} editable />
           </>
         ) : (
@@ -113,12 +131,12 @@ export default function CommandDetail({ cmd }: Props) {
         )}
       </div>
 
-      {/* Examples (when the binary supplies any) */}
-      {cmd.examples && cmd.examples.length > 0 && (
+      {/* Additional examples beyond the first (the first is already the Run snippet) */}
+      {remainingExamples.length > 0 && (
         <div className={styles.docSection}>
-          <div className={styles.sectionTitle}>Examples</div>
+          <div className={styles.sectionTitle}>More examples</div>
           <div className={styles.exampleList}>
-            {cmd.examples.map((ex, i) =>
+            {remainingExamples.map((ex, i) =>
               canRun && ex.trim().startsWith("kapi") ? (
                 <RunnableSnippet
                   key={i}

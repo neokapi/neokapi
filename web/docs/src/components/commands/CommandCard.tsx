@@ -8,13 +8,33 @@ interface Props {
   onSelect: (id: string) => void;
 }
 
-/** Green "Run" / purple "Watch" capability badge. */
-export function RunBadge({ offline }: { offline: boolean }) {
-  return offline ? (
-    <span className={`${styles.runBadge} ${styles.runOffline}`} title="Runs in your browser">
-      Run
-    </span>
-  ) : (
+/**
+ * Capability badge shown on the card and in the modal header.
+ *
+ * Three variants:
+ *   runnableInBrowser && !demoMode → green "Run"
+ *   runnableInBrowser && demoMode  → amber "Demo"
+ *   !runnableInBrowser             → purple "Watch"
+ */
+export function RunBadge({ cmd }: { cmd: Pick<CommandEntry, "runnableInBrowser" | "demoMode"> }) {
+  if (cmd.runnableInBrowser && cmd.demoMode) {
+    return (
+      <span
+        className={`${styles.runBadge} ${styles.runDemo}`}
+        title="Runs in your browser via a built-in stub — illustrative output, not a real model"
+      >
+        Demo
+      </span>
+    );
+  }
+  if (cmd.runnableInBrowser) {
+    return (
+      <span className={`${styles.runBadge} ${styles.runOffline}`} title="Runs in your browser">
+        Run
+      </span>
+    );
+  }
+  return (
     <span
       className={`${styles.runBadge} ${styles.runNetwork}`}
       title="Needs network or a running server — watch a walkthrough instead"
@@ -42,7 +62,7 @@ export default function CommandCard({ cmd, onSelect }: Props) {
     >
       <span className={styles.gridCardHead}>
         <span className={styles.gridCardName}>{commandName(cmd)}</span>
-        <RunBadge offline={cmd.offlineCapable} />
+        <RunBadge cmd={cmd} />
       </span>
 
       {summary && <span className={styles.gridCardDesc}>{summary}</span>}

@@ -31,11 +31,25 @@ export function commandSummary(cmd: CommandEntry): string {
  * "info <format>") which would not run, so for the synthesized form we use the
  * dotted path turned back into space-separated segments and append nothing —
  * the reader edits in their own arguments.
+ *
+ * @deprecated Prefer {@link firstRunnableExample} for the primary snippet;
+ * fall back to synthesizing `kapi ${commandName(cmd)}` inline.
  */
 export function runnableCommand(cmd: CommandEntry): string {
   const example = cmd.examples?.find((e) => e.trim().startsWith("kapi"));
   if (example) return example.trim();
   return `kapi ${commandName(cmd)}`;
+}
+
+/**
+ * Returns the first authored example that starts with "kapi", already trimmed,
+ * or `null` when `examples` is empty or contains no kapi invocations. Used by
+ * CommandDetail as the primary Run snippet (the real, runnable command from the
+ * binary's cobra Example string).
+ */
+export function firstRunnableExample(cmd: CommandEntry): string | null {
+  const example = cmd.examples?.find((e) => e.trim().startsWith("kapi"));
+  return example != null ? example.trim() : null;
 }
 
 // Fixture names provided by the playground kit (packages/kapi-playground

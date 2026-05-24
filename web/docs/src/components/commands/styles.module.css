@@ -199,6 +199,16 @@
   color: var(--ifm-color-success-lighter);
 }
 
+.runDemo {
+  background: color-mix(in srgb, #d97706 16%, transparent);
+  color: #92400e;
+}
+
+[data-theme="dark"] .runDemo {
+  background: color-mix(in srgb, #fbbf24 22%, transparent);
+  color: #fde68a;
+}
+
 .runNetwork {
   background: color-mix(in srgb, #8b5cf6 16%, transparent);
   color: #6d28d9;
@@ -300,6 +310,22 @@
   font-size: 0.82rem;
   color: var(--ifm-color-emphasis-600);
   margin: 0 0 0.6rem;
+}
+
+.demoNote {
+  font-size: 0.82rem;
+  color: #92400e;
+  background: color-mix(in srgb, #d97706 10%, transparent);
+  border: 1px solid color-mix(in srgb, #d97706 28%, transparent);
+  border-radius: var(--ifm-global-radius);
+  padding: 0.55rem 0.75rem;
+  margin: 0 0 0.6rem;
+}
+
+[data-theme="dark"] .demoNote {
+  color: #fde68a;
+  background: color-mix(in srgb, #fbbf24 12%, transparent);
+  border-color: color-mix(in srgb, #fbbf24 30%, transparent);
 }
 
 .networkNote {

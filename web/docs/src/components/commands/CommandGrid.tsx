@@ -6,7 +6,7 @@ import CommandModal from "./CommandModal";
 import { commandName, commandSummary } from "./commandHelpers";
 import styles from "./styles.module.css";
 
-type Filter = "all" | "runnable" | "network";
+type Filter = "all" | "runnable" | "demo" | "network";
 
 interface Props {
   commands: CommandEntry[];
@@ -82,15 +82,18 @@ export default function CommandGrid({ commands }: Props) {
   }, [history, location.search]);
 
   const counts = useMemo(() => {
-    const runnable = commands.filter((c) => c.offlineCapable).length;
-    return { all: commands.length, runnable, network: commands.length - runnable };
+    const runnable = commands.filter((c) => c.runnableInBrowser && !c.demoMode).length;
+    const demo = commands.filter((c) => c.runnableInBrowser && c.demoMode).length;
+    const network = commands.filter((c) => !c.runnableInBrowser).length;
+    return { all: commands.length, runnable, demo, network };
   }, [commands]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return commands.filter((c) => {
-      if (filter === "runnable" && !c.offlineCapable) return false;
-      if (filter === "network" && c.offlineCapable) return false;
+      if (filter === "runnable" && !(c.runnableInBrowser && !c.demoMode)) return false;
+      if (filter === "demo" && !(c.runnableInBrowser && c.demoMode)) return false;
+      if (filter === "network" && c.runnableInBrowser) return false;
       if (q && !matches(c, q)) return false;
       return true;
     });
@@ -136,7 +139,8 @@ export default function CommandGrid({ commands }: Props) {
         />
         <div className={styles.filterGroup} role="group" aria-label="Filter by runnability">
           {filterButton("all", "All")}
-          {filterButton("runnable", "Runnable")}
+          {filterButton("runnable", "Run")}
+          {filterButton("demo", "Demo")}
           {filterButton("network", "Needs network")}
         </div>
       </div>
