@@ -75,7 +75,7 @@ export default function FormatReferencePage({ id }: Props) {
           <ParametersTable schema={entry.schema} doc={doc} />
           <p className={styles.configHint}>
             Configure these parameters interactively and copy the YAML on the{" "}
-            <a href={`/formats?id=${encodeURIComponent(entry.id)}`}>Format Reference</a>.
+            <a href={`${formatsHref}?id=${encodeURIComponent(entry.id)}`}>Format Reference</a>.
           </p>
         </section>
       ) : (

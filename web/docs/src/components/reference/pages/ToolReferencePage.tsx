@@ -89,7 +89,7 @@ export default function ToolReferencePage({ id, source }: Props) {
           <ParametersTable schema={entry.schema} doc={doc} />
           <p className={styles.configHint}>
             Configure these parameters interactively and copy the flow-step YAML on the{" "}
-            <a href={`/tools?id=${encodeURIComponent(entry.id)}`}>Tool Reference</a>.
+            <a href={`${toolsHref}?id=${encodeURIComponent(entry.id)}`}>Tool Reference</a>.
           </p>
         </section>
       ) : (
