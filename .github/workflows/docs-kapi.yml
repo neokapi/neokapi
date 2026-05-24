@@ -132,7 +132,7 @@ jobs:
             for f in /tmp/da/video/kapi/claude-*.webm /tmp/da/video/kapi/claude-*.jpg; do
               [ -f "$f" ] && cp "$f" "web/docs/static/video/kapi/$(basename "$f")"
             done
-            echo "Staged explainer videos: $(ls web/docs/static/video/kapi/claude-* 2>/dev/null | wc -l) files"
+            echo "Staged explainer videos: $(find web/docs/static/video/kapi -name 'claude-*' 2>/dev/null | wc -l) files"
           else
             echo "::warning::docs-assets release unavailable; Claude explainer videos will be missing"
           fi
