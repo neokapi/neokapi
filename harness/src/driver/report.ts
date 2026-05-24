@@ -184,7 +184,41 @@ function renderCode(code: string, title: string, sub: string): string {
 
 export { renderCode };
 
-/** Two source files side by side (before | after) for a visual diff card. */
+/**
+ * Per-line status for a before/after pair via an LCS line diff. Lines present in
+ * both (trimmed-equal) are "same"; lines only in `before` are "removed"; lines only
+ * in `after` are "added". Lets the diff card tint exactly the lines kapi-react changed.
+ */
+function lineDiff(before: string[], after: string[]): { beforeStatus: string[]; afterStatus: string[] } {
+  const t = (s: string) => s.trim();
+  const n = before.length;
+  const m = after.length;
+  const dp: number[][] = Array.from({ length: n + 1 }, () => new Array(m + 1).fill(0));
+  for (let i = n - 1; i >= 0; i--) {
+    for (let j = m - 1; j >= 0; j--) {
+      dp[i][j] = t(before[i]) === t(after[j]) ? dp[i + 1][j + 1] + 1 : Math.max(dp[i + 1][j], dp[i][j + 1]);
+    }
+  }
+  const beforeStatus = new Array(n).fill("removed");
+  const afterStatus = new Array(m).fill("added");
+  let i = 0;
+  let j = 0;
+  while (i < n && j < m) {
+    if (t(before[i]) === t(after[j])) {
+      beforeStatus[i] = "same";
+      afterStatus[j] = "same";
+      i++;
+      j++;
+    } else if (dp[i + 1][j] >= dp[i][j + 1]) {
+      i++;
+    } else {
+      j++;
+    }
+  }
+  return { beforeStatus, afterStatus };
+}
+
+/** Two source files side by side (before | after) with changed lines highlighted. */
 function renderCodeDiff(
   before: string,
   after: string,
@@ -193,20 +227,36 @@ function renderCodeDiff(
   beforeLabel = "Before",
   afterLabel = "After",
 ): string {
-  const panel = (label: string, code: string, accent: string) =>
+  const beforeLines = before.replace(/\n$/, "").split("\n");
+  const afterLines = after.replace(/\n$/, "").split("\n");
+  const { beforeStatus, afterStatus } = lineDiff(beforeLines, afterLines);
+  // Render each line as its own row so changed lines can carry a tint + gutter bar.
+  const rows = (lines: string[], status: string[], changed: "added" | "removed") => {
+    const tint = changed === "added" ? "rgba(63,185,80,0.16)" : "rgba(248,81,73,0.15)";
+    const bar = changed === "added" ? "#3fb950" : "#f85149";
+    return lines
+      .map((line, k) => {
+        const hot = status[k] === changed;
+        return `<div style="padding:0 22px 0 19px;border-left:3px solid ${hot ? bar : "transparent"};${
+          hot ? `background:${tint}` : ""
+        }">${highlightCode(line) || "&nbsp;"}</div>`;
+      })
+      .join("");
+  };
+  const panel = (label: string, accent: string, body: string) =>
     `<div style="flex:1;min-width:0;background:#0d1117;border:1px solid rgba(255,255,255,0.10);border-radius:14px;overflow:hidden">
-       <div style="padding:11px 18px;border-bottom:1px solid rgba(255,255,255,0.08);color:${accent};
+       <div style="padding:11px 22px;border-bottom:1px solid rgba(255,255,255,0.08);color:${accent};
          font-family:ui-monospace,Menlo,monospace;font-size:14px;font-weight:600">${esc(label)}</div>
-       <pre style="padding:20px 22px;font-size:13px;line-height:1.7;color:#cdd6f4;white-space:pre-wrap;
-         word-break:break-word;margin:0">${highlightCode(code)}</pre>
+       <div style="padding:18px 0;font-family:ui-monospace,Menlo,monospace;font-size:13px;line-height:1.75;
+         color:#cdd6f4;white-space:pre-wrap;word-break:break-word">${body}</div>
      </div>`;
   return SHELL(
     title,
     `<style>.wrap{max-width:1720px}</style>
      <h1>${esc(title)}</h1>${sub ? `<div class="sub">${esc(sub)}</div>` : ""}
      <div style="display:flex;gap:20px;align-items:flex-start">
-       ${panel(beforeLabel, before, "#8c98b8")}
-       ${panel(afterLabel, after, "#8fe3a0")}
+       ${panel(beforeLabel, "#8c98b8", rows(beforeLines, beforeStatus, "removed"))}
+       ${panel(afterLabel, "#8fe3a0", rows(afterLines, afterStatus, "added"))}
      </div>`,
   );
 }
