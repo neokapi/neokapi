@@ -37,7 +37,7 @@ export function RunBadge({ cmd }: { cmd: Pick<CommandEntry, "runnableInBrowser" 
   return (
     <span
       className={`${styles.runBadge} ${styles.runNetwork}`}
-      title="Needs network or a running server — watch a walkthrough instead"
+      title="Runs outside the browser — watch a walkthrough instead"
     >
       Watch
     </span>

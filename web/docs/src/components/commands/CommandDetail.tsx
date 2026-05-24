@@ -88,8 +88,8 @@ export default function CommandDetail({ cmd }: Props) {
         ) : (
           <div className={styles.networkNote}>
             <span>
-              <strong>{name}</strong> needs network access, a saved credential, or a running Bowrain
-              server, so it cannot run in the browser playground.
+              <strong>{name}</strong> needs network access, an API key, or local system access, so
+              it can't run in the browser playground.
             </span>
             <span>
               See the <a href="/walkthroughs">walkthroughs</a> for a recorded run, or try it locally

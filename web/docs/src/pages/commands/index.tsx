@@ -25,8 +25,8 @@ export default function Commands() {
           examples. Commands that run entirely in the browser carry a <strong>Run</strong> button
           that executes them against a small sample file. AI and MT commands carry a{" "}
           <strong>Demo</strong> badge and run via a built-in stub — the output is illustrative, not
-          from a real model. Commands that need network access, a saved credential, or a running
-          Bowrain server point to a walkthrough instead. Each command has a shareable link.
+          from a real model. Commands that need network access, an API key, or local system access
+          point to a walkthrough instead. Each command has a shareable link.
         </p>
 
         <CommandGrid commands={commands} />

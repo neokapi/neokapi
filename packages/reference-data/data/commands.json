@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-24T10:30:45Z",
+  "generatedAt": "2026-05-24T10:52:51Z",
   "commands": [
     {
       "id": "ai-entity-extract",
@@ -2475,8 +2475,8 @@
           "type": "stringSlice"
         }
       ],
-      "offlineCapable": false,
-      "runnableInBrowser": false,
+      "offlineCapable": true,
+      "runnableInBrowser": true,
       "demoMode": false
     },
     {

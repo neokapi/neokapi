@@ -27,8 +27,9 @@ var offlineOverride = map[string]bool{
 	"mt-quality-check":   false,
 	"brand-voice-check":  false,
 	"brand-voice-review": false,
-	// Server / project sync — require a running Bowrain server.
-	"init":   false,
+	// verify is project-oriented and can invoke an AI-backed QA gate (needs a
+	// key); it is not wired into the browser build. (init is pure local
+	// scaffolding and IS runnable in the browser — see wasmRunnableTop.)
 	"verify": false,
 	// Credentials — require the OS keychain (cgo, subprocess).
 	"credentials":        false,
@@ -52,7 +53,7 @@ var offlineOverride = map[string]bool{
 	"registry.resolve": false,
 	// MCP server — requires a running process.
 	"mcp": false,
-	// Brand voice — requires Bowrain server or AI.
+	// Brand voice — the --ai path needs an AI provider/key.
 	"brand":             false,
 	"brand.voice":       false,
 	"brand.voice.apply": false,
@@ -121,15 +122,16 @@ var wasmAllowlist = map[string]bool{
 // This mirrors kapi/cmd/kapi/root.go init() but skips InitPluginHost() and
 // config loading since we only need the static command/flag metadata.
 // wasmRunnableTop is the set of top-level framework commands wired into the
-// kapi-wasm-cli buildRoot (run/extract/merge + flows/tools/formats/presets/
-// version/completion + tm/termbase). Tool commands are runnable too and are
-// detected separately (they're enumerated from the registry). Everything else
-// (plugin, registry, credentials, mcp, brand, skills, init, verify) is not in
-// the wasm build → not runnable in the browser.
+// kapi-wasm-cli buildRoot (run/extract/merge/init + flows/tools/formats/
+// presets/version/completion + tm/termbase). init is pure local scaffolding,
+// so it runs against the in-memory filesystem. Tool commands are runnable too
+// and are detected separately (enumerated from the registry). Everything else
+// (plugin, registry, credentials, mcp, brand, skills, verify) is not in the
+// wasm build → not runnable in the browser.
 var wasmRunnableTop = map[string]bool{
-	"run": true, "extract": true, "merge": true, "flows": true, "tools": true,
-	"formats": true, "presets": true, "version": true, "completion": true,
-	"tm": true, "termbase": true,
+	"run": true, "extract": true, "merge": true, "init": true, "flows": true,
+	"tools": true, "formats": true, "presets": true, "version": true,
+	"completion": true, "tm": true, "termbase": true,
 }
 
 func buildKapiRoot() (*cobra.Command, map[string]bool) {
