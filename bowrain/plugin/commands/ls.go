@@ -27,17 +27,17 @@ Without flags, shows file paths and detected formats. Use --stats for block
 and word counts, --dirty to show only files with local changes.
 
 Examples:
-  bowrain ls
-  bowrain ls src/
-  bowrain ls --stats
-  bowrain ls --dirty`,
+  kapi ls
+  kapi ls src/
+  kapi ls --stats
+  kapi ls --dirty`,
 	RunE: runLs,
 }
 
 func runLs(cmd *cobra.Command, args []string) error {
 	proj, err := project.FindProject("")
 	if err != nil {
-		return fmt.Errorf("no kapi project found (run 'bowrain init' first): %w", err)
+		return fmt.Errorf("no kapi project found (run 'kapi init' first): %w", err)
 	}
 
 	if lsStats || lsDirty {

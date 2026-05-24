@@ -11,8 +11,7 @@ const baseUrl = process.env.DOCS_BASE_URL ?? "/web/neokapi/docs/";
 
 const config: Config = {
   title: "neokapi",
-  tagline:
-    "Keep your AI on-brand and consistent — ship it in every language and format. Open source, offline by default.",
+  tagline: "Localization and brand-wrangling for people, elves, and agents",
   favicon: "img/favicon.png",
 
   url: "https://neokapi.github.io",
@@ -55,6 +54,20 @@ const config: Config = {
           // The standalone "Demos" page was superseded by the Walkthroughs
           // gallery (its videos used a recording pipeline that no longer exists).
           { from: "/kapi-cli/demo-videos", to: "/walkthroughs" },
+          // The hand-written per-command docs (/kapi-cli/commands/*) were
+          // retired in favor of the generated, runnable /commands reference
+          // (issue #660). Map each old path to its command's deep link.
+          { from: "/kapi-cli/commands/flow", to: "/commands?id=run" },
+          { from: "/kapi-cli/commands/extract", to: "/commands?id=extract" },
+          { from: "/kapi-cli/commands/merge", to: "/commands?id=merge" },
+          { from: "/kapi-cli/commands/formats", to: "/commands?id=formats" },
+          { from: "/kapi-cli/commands/tools", to: "/commands?id=tools" },
+          { from: "/kapi-cli/commands/plugins", to: "/commands?id=plugin" },
+          { from: "/kapi-cli/commands/presets", to: "/commands?id=presets" },
+          { from: "/kapi-cli/commands/pseudo-translate", to: "/commands?id=pseudo-translate" },
+          { from: "/kapi-cli/commands/termbase", to: "/commands?id=termbase" },
+          { from: "/kapi-cli/commands/tm", to: "/commands?id=tm" },
+          { from: "/kapi-cli/commands/word-count", to: "/commands?id=word-count" },
         ],
       },
     ],
@@ -163,9 +176,21 @@ const config: Config = {
         },
         {
           type: "dropdown",
+          label: "Try It",
+          position: "left",
+          items: [
+            // The runnable getting-started tour: inline ▸ Run snippets.
+            { label: "Try in Your Browser", to: "/getting-started/try-it" },
+            { label: "CLI Playground", to: "/playground-cli" },
+            { label: "Command Reference (runnable)", to: "/commands" },
+          ],
+        },
+        {
+          type: "dropdown",
           label: "Reference",
           position: "left",
           items: [
+            { label: "Command Reference", to: "/commands" },
             { label: "Format Reference", to: "/formats" },
             { label: "Tool Reference", to: "/tools" },
             { label: "Benchmarks", to: "/pseudobench" },
@@ -189,6 +214,10 @@ const config: Config = {
             {
               label: "Get Started",
               to: "/getting-started/introduction",
+            },
+            {
+              label: "Try in Your Browser",
+              to: "/getting-started/try-it",
             },
             {
               label: "CLI",

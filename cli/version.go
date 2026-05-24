@@ -12,6 +12,7 @@ func (a *App) NewVersionCmd(program string) *cobra.Command {
 		Use:     "version",
 		Short:   "Show version information",
 		GroupID: "management",
+		Example: "  kapi version",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			out := output.VersionOutput{
 				Program:   program,

@@ -15,6 +15,7 @@ func (a *App) NewPresetsCmd() *cobra.Command {
 		Use:     "presets",
 		Short:   "Manage format and framework presets",
 		GroupID: "management",
+		Example: "  kapi presets list\n  kapi presets show AndroidStrings",
 	}
 
 	var (
@@ -23,8 +24,9 @@ func (a *App) NewPresetsCmd() *cobra.Command {
 	)
 
 	listCmd := &cobra.Command{
-		Use:   "list",
-		Short: "List available presets",
+		Use:     "list",
+		Short:   "List available presets",
+		Example: "  kapi presets list\n  kapi presets list --format okf_xml",
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			reg := preset.NewPresetRegistry()
 			preset.RegisterBuiltins(reg)
@@ -57,7 +59,8 @@ func (a *App) NewPresetsCmd() *cobra.Command {
 
 Accepts a bare preset name (searched across all formats) or the
 qualified format:preset syntax (e.g. okf_xml:AndroidStrings).`,
-		Args: cobra.ExactArgs(1),
+		Example: "  kapi presets show AndroidStrings\n  kapi presets show okf_xml:AndroidStrings",
+		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			name := args[0]
 			reg := preset.NewPresetRegistry()

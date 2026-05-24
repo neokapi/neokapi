@@ -60,6 +60,8 @@ Custom flows can be defined in .kapi project files or .bowrain/flows/ as YAML fi
 
 Use -p to run a flow from a .kapi project file:
   kapi run translate -p myproject.kapi`,
+		Example: `  kapi run ai-translate-qa -i app.xliff --target-lang fr
+  kapi run ai-translate-qa -i messages.json --target-lang de`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			flowName := args[0]

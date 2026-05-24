@@ -46,7 +46,7 @@ wizard. Use flags for non-interactive CI/CD usage.
 The server URL is determined from (first match wins):
   1. --server flag
   2. BOWRAIN_SERVER_URL environment variable / server.url in ~/.config/bowrain/bowrain.yaml
-  3. Existing auth state (from bowrain auth login)
+  3. Existing auth state (from kapi auth login)
   4. Built-in default (http://localhost:8080)
 
 Use --anonymous to create a project without signing in.
@@ -110,9 +110,9 @@ func resolveServerURL() string {
 }
 
 const serverURLHelp = `Server URL not configured. Set it via one of:
-  bowrain config --global server.url https://bowrain.example.com
+  kapi config --global server.url https://bowrain.example.com
   export BOWRAIN_SERVER_URL=https://bowrain.example.com
-  bowrain init --server https://bowrain.example.com`
+  kapi init --server https://bowrain.example.com`
 
 // parseTargetLocales splits a comma-separated locale string into a slice.
 func parseTargetLocales(s string) []model.LocaleID {
@@ -172,7 +172,7 @@ func runInitNonInteractive(cwd string) (*output.InitOutput, error) {
 		}
 		auth, err := loadAuth()
 		if err != nil {
-			return nil, errors.New("not authenticated with server (run: bowrain auth login)")
+			return nil, errors.New("not authenticated with server (run: kapi auth login)")
 		}
 		if auth.ServerURL != serverURL {
 			return nil, fmt.Errorf("authenticated with different server (%s), please login to %s first", auth.ServerURL, serverURL)

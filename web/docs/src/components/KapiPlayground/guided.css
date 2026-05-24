@@ -1,0 +1,208 @@
+/*
+ * Styles for the docs-layer KapiGuidedEmbed (the walkthrough guided playground).
+ * Prefixed `kapi-guided-` so it never collides with the kit's `kapi-pg-`
+ * classes. Colors come from Infima variables (Docusaurus) with neutral
+ * fallbacks.
+ */
+
+/* ── Full-bleed outer shell ─────────────────────────────────────────────── */
+
+/*
+ * Break the guided embed out of the Docusaurus doc content column so the rail
+ * + terminal + files panel all have room on wide viewports.
+ *
+ * Technique: viewport-relative negative margins that push the box to the edges
+ * of the available viewport area, clamped to a sensible max-width, centered.
+ * We use `calc(50% - 50vw)` to push the left edge to the viewport left and
+ * symmetrically on the right. The `margin-left` and `width` are set together
+ * so the box is always centred on the viewport (not on the article column).
+ *
+ * 1200px cap: rail (320px) + 1rem gap + terminal (rest) + 260px files + 1rem
+ * gap fits comfortably at ≥960px. Above 1200px the layout stays centred within
+ * the cap so it does not span a 2560px ultrawide.
+ */
+.kapi-guided__bleed {
+  margin-left: max(calc(50% - 50vw), calc((100% - min(100vw, 1200px)) / 2));
+  width: min(100vw, 1200px);
+  padding: 0 1rem;
+  box-sizing: border-box;
+  margin-top: 1.25rem;
+  margin-bottom: 1.25rem;
+}
+
+.kapi-guided {
+  --kg-border: var(--ifm-color-emphasis-300, rgba(0, 0, 0, 0.12));
+  --kg-surface: var(--ifm-background-surface-color, #fff);
+  --kg-fg: var(--ifm-font-color-base, #1c1e21);
+  --kg-muted: var(--ifm-color-emphasis-600, #606770);
+  --kg-accent: var(--ifm-color-primary, #2e8555);
+  --kg-hover: var(--ifm-color-emphasis-100, rgba(0, 0, 0, 0.04));
+  --kg-mono: var(--ifm-font-family-monospace, ui-monospace, SFMono-Regular, Menlo, monospace);
+
+  display: grid;
+  /* Rail is a fixed 280px; terminal gets the bulk of the remaining space. */
+  grid-template-columns: 280px 1fr;
+  gap: 1rem;
+  align-items: start;
+}
+
+@media (max-width: 996px) {
+  .kapi-guided {
+    grid-template-columns: 1fr;
+  }
+
+  /* On small viewports remove the bleed — stay in the normal flow. */
+  .kapi-guided__bleed {
+    margin-left: 0;
+    width: auto;
+    padding: 0;
+  }
+}
+
+/* ── Guided steps rail ──────────────────────────────────────────────────── */
+
+.kapi-guided__rail {
+  border: 1px solid var(--kg-border);
+  border-radius: var(--ifm-global-radius, 8px);
+  background: var(--kg-surface);
+  overflow: hidden;
+}
+
+.kapi-guided__rail-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.6rem 0.75rem;
+  border-bottom: 1px solid var(--kg-border);
+}
+
+.kapi-guided__rail-title {
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+.kapi-guided__rail-actions {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.kapi-guided__btn {
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 0.25rem 0.6rem;
+  border-radius: var(--ifm-global-radius, 6px);
+  border: 1px solid var(--kg-accent);
+  background: var(--kg-accent);
+  color: #fff;
+  cursor: pointer;
+}
+
+.kapi-guided__btn:hover {
+  filter: brightness(1.05);
+}
+
+.kapi-guided__btn--ghost {
+  background: transparent;
+  color: var(--kg-muted);
+  border-color: var(--kg-border);
+}
+
+.kapi-guided__btn--ghost:hover {
+  background: var(--kg-hover);
+  filter: none;
+}
+
+.kapi-guided__steps {
+  list-style: none;
+  margin: 0;
+  padding: 0.5rem;
+  counter-reset: none;
+}
+
+.kapi-guided__step {
+  padding: 0.35rem 0;
+  border-bottom: 1px solid var(--ifm-color-emphasis-200, rgba(0, 0, 0, 0.06));
+}
+
+.kapi-guided__step:last-child {
+  border-bottom: none;
+}
+
+.kapi-guided__step-run {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: none;
+  padding: 0.25rem;
+  border-radius: var(--ifm-global-radius, 6px);
+  cursor: pointer;
+  color: var(--kg-fg);
+}
+
+.kapi-guided__step-run:hover {
+  background: var(--kg-hover);
+}
+
+.kapi-guided__step-num {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 50%;
+  font-size: 0.78rem;
+  font-weight: 700;
+  background: var(--ifm-color-emphasis-200, rgba(0, 0, 0, 0.08));
+  color: var(--kg-fg);
+}
+
+.kapi-guided__step--done .kapi-guided__step-num {
+  background: var(--kg-accent);
+  color: #fff;
+}
+
+.kapi-guided__step-cmd {
+  font-family: var(--kg-mono);
+  font-size: 0.8rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.kapi-guided__step-narration {
+  margin: 0.15rem 0 0 2.05rem;
+  font-size: 0.78rem;
+  color: var(--kg-muted);
+}
+
+/* ── Terminal column ────────────────────────────────────────────────────── */
+
+.kapi-guided__terminal {
+  min-width: 0;
+}
+
+/* ── "Open full screen" affordance ──────────────────────────────────────── */
+
+.kapi-guided__fullscreen-bar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 0.5rem;
+}
+
+.kapi-guided__btn--fullscreen {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.kapi-guided__notice {
+  border: 1px dashed var(--kg-border);
+  border-radius: var(--ifm-global-radius, 8px);
+  padding: 1rem;
+  color: var(--kg-muted);
+  font-size: 0.9rem;
+}

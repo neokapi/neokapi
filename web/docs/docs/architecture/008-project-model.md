@@ -54,7 +54,7 @@ my-app/
 │   │   └── <flow>.yaml
 │   └── cache/              ← all regenerable caches under one roof
 │       ├── blocks.db       ← block store (SQLite, was `.kapi/cache.db`)
-│       ├── sync-cache.json ← bowrain push/pull state (only with server: block)
+│       ├── sync-cache.json ← kapi push/pull state (only with server: block)
 │       ├── extractions/    ← per-extract batch state (AD-017)
 │       │   └── <batch-id>/
 │       │       ├── manifest.yaml         ← source→output pairs, leverage, hashes
@@ -201,8 +201,8 @@ a worked example — live in
 ### Optional bowrain-server connection
 
 A recipe with no `server:` block is a pure local project. Adding a `server:`
-block with a compound URL marks the project as bowrain-connected — `bowrain
-push`, `bowrain pull`, `bowrain status`, and friends operate against the
+block with a compound URL marks the project as bowrain-connected — `kapi
+push`, `kapi pull`, `kapi status`, and friends operate against the
 declared server. Kapi tools tolerate the `server:` block but ignore it.
 
 ```yaml

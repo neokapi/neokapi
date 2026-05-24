@@ -3,26 +3,24 @@ id: kapi-word-count
 title: "Estimate translation cost with word-count"
 sidebar_label: "Word count"
 description: "Quickly count words, characters, and segments in any of kapi's supported formats to estimate translation cost."
+hide_table_of_contents: true
 ---
 
-import { ThemedVideo } from "@neokapi/docs-shared";
+import KapiGuidedEmbed from "@site/src/components/KapiPlayground/KapiGuidedEmbed";
 
 # Estimate translation cost with word-count
 
-> Generated from [`walkthroughs/kapi-word-count.md`](https://github.com/neokapi/neokapi/blob/main/web/docs/walkthroughs/kapi-word-count.md). Do not edit by hand — change the prompt and regenerate.
+> Driven by [`walkthroughs/kapi-word-count.scene.yaml`](https://github.com/neokapi/neokapi/blob/main/web/docs/walkthroughs/kapi-word-count.scene.yaml) — one source generates both this interactive embed and the recorded video. Do not edit by hand; change the scene spec and regenerate.
 
 You need to estimate the cost of a translation before kicking off a vendor job. `kapi word-count` reads any supported format and outputs a quick breakdown so you can put a number on the bill.
 
-## Scene 1 — word-count
+## Try it
 
-<ThemedVideo
-  sources={{
-    light: "/video/kapi/01-word-count.webm",
-    dark: "/video/kapi/01-word-count.webm",
-  }}
-/>
+A sample `messages.json` is already in the in-browser project folder. Run the step below.
 
-Point `kapi word-count` at a JSON message catalog and watch it report words, characters, and segment counts. The output is the kind of number you paste into a quote.
+<KapiGuidedEmbed id="kapi-word-count" />
+
+Point `kapi word-count` at a JSON message catalog and watch it report blocks and source words. The output is the kind of number you paste into a quote.
 
 ## Next
 

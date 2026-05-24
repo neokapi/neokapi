@@ -8,36 +8,21 @@ const sidebars: SidebarsConfig = {
     "getting-started/introduction",
     "getting-started/installation",
     "getting-started/quickstart",
+    "getting-started/try-it",
   ],
 
   cliSidebar: [
     "kapi-cli/overview",
     "kapi-cli/using-with-claude",
     "kapi-cli/bilingual-workflow",
-    {
-      type: "category",
-      label: "Commands",
-      items: [
-        "kapi-cli/commands/flow",
-        "kapi-cli/commands/extract",
-        "kapi-cli/commands/merge",
-        "kapi-cli/commands/formats",
-        "kapi-cli/commands/tools",
-        "kapi-cli/commands/plugins",
-        "kapi-cli/commands/presets",
-        "kapi-cli/commands/pseudo-translate",
-        "kapi-cli/commands/termbase",
-        "kapi-cli/commands/tm",
-        "kapi-cli/commands/word-count",
-      ],
-    },
+    // The hand-written per-command pages were retired in favor of the generated,
+    // runnable /commands reference (issue #660). The navbar Reference dropdown
+    // links there; old /kapi-cli/commands/* URLs redirect via
+    // docusaurus.config.ts.
     {
       type: "category",
       label: "Use Cases",
-      items: [
-        "kapi-cli/use-cases/terminology-qa",
-        "kapi-cli/use-cases/terminology-pretranslation",
-      ],
+      items: ["kapi-cli/use-cases/terminology-qa", "kapi-cli/use-cases/terminology-pretranslation"],
     },
     "kapi-cli/mcp",
   ],

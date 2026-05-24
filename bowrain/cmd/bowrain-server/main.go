@@ -28,30 +28,6 @@ func main() {
 		os.Getenv("BOWRAIN_LOG_LEVEL"),
 	)
 
-	// Handle subcommands before flag parsing.
-	if len(os.Args) > 1 && os.Args[0] != "-" {
-		switch os.Args[1] {
-		case "seed-service-token":
-			dbURL := os.Getenv("BOWRAIN_DATABASE_URL")
-			dbAuth := os.Getenv("BOWRAIN_DATABASE_AUTH")
-			azureClientID := os.Getenv("AZURE_CLIENT_ID")
-			workspace := os.Getenv("BOWRAIN_SERVICE_WORKSPACE")
-			seedServiceToken(dbURL, dbAuth, azureClientID, workspace)
-			return
-		case "seed-project":
-			seedProject(seedProjectConfig{
-				DatabaseURL:     os.Getenv("BOWRAIN_DATABASE_URL"),
-				DatabaseAuth:    os.Getenv("BOWRAIN_DATABASE_AUTH"),
-				AzureClientID:   os.Getenv("AZURE_CLIENT_ID"),
-				WorkspaceSlug:   os.Getenv("BOWRAIN_SERVICE_WORKSPACE"),
-				ProjectName:     os.Getenv("BOWRAIN_PROJECT_NAME"),
-				SourceLanguage:  os.Getenv("BOWRAIN_SOURCE_LANGUAGE"),
-				TargetLanguages: os.Getenv("BOWRAIN_TARGET_LANGUAGES"),
-			})
-			return
-		}
-	}
-
 	if err := run(); err != nil {
 		slog.Error("server failed", "error", err)
 		os.Exit(1)

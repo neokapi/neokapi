@@ -83,16 +83,10 @@ extract (AD-017).
 Each input carries the extraction batch id in a file-level <note>, so
 merge finds the right extraction manifest without guessing from the
 filename. Mixed target locales in one batch are fine — merge handles
-each input independently.
-
-Examples:
-
-  kapi merge -i out/app.en-US-to-fr-FR.xliff
+each input independently.`,
+		Example: `  kapi merge -i out/app.en-US-to-fr-FR.xliff
   kapi merge -i file1.xliff -i file2.xliff
-  kapi merge -i 'vendor-return/*.xliff'
-  kapi merge -i vendor-return/
-  kapi merge -i ... --no-tm-update
-`,
+  kapi merge -i vendor-return/ --no-tm-update`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return a.runMerge(cmd)
 		},

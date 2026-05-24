@@ -241,19 +241,6 @@ review workflows, users create two rules:
 1. `push.automations.completed → create_source_review` (with `reviewer` config)
 2. `source.review.completed → create_review_tasks`
 
-## Agentic Testing MCP Tools
-
-**File:** `platform/agentic-testing/agenticmcp/tools_tasks.go`
-
-| Tool            | Method | Endpoint                                      |
-| --------------- | ------ | --------------------------------------------- |
-| `list_my_tasks` | GET    | `/api/v1/workspaces/:ws/my/tasks?status=open` |
-| `claim_task`    | POST   | `/api/v1/workspaces/:ws/tasks/:id/assign`     |
-| `complete_task` | POST   | `/api/v1/workspaces/:ws/tasks/:id/complete`   |
-
-Tools authenticate using the agent's API token (same as existing
-`list_blocks`/`update_block` tools).
-
 ## Implementation Phases
 
 ### Phase 1: Foundation (types only)
@@ -273,9 +260,3 @@ Tools authenticate using the agent's API token (same as existing
 - `platform/server/automation.go` — add actions + default rules
 - `platform/server/handlers_task.go` — source review hook
 - Tests
-
-### Phase 4: Agentic testing
-
-- `platform/agentic-testing/agenticmcp/tools_tasks.go` — new file
-- SOUL.md updates for task-driven personas
-- Excalidraw test round

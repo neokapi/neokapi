@@ -90,7 +90,14 @@ func run(bridgeDir, metaPath, nativeDocsDir, outDir string) error {
 		return err
 	}
 
-	fmt.Printf("wrote %s/{formats,tools,reference-gaps}.json — %d formats, %d tools\n", outDir, len(formatEntries), len(toolEntries))
+	// Generate the command reference dataset from the kapi cobra tree.
+	cmdDataset := collectCommandDataset(now)
+	if err := writeJSON(filepath.Join(outDir, "commands.json"), cmdDataset); err != nil {
+		return err
+	}
+
+	fmt.Printf("wrote %s/{formats,tools,reference-gaps,commands}.json — %d formats, %d tools, %d commands\n",
+		outDir, len(formatEntries), len(toolEntries), len(cmdDataset.Commands))
 	printGapSummary(report)
 	return nil
 }
@@ -110,14 +117,20 @@ func overlayNativeDocs(dir, kind string, entries []Entry) error {
 	return nil
 }
 
-// sortEntries orders entries by display name (case-insensitive) then id, so a
-// single source-filtered list reads alphabetically.
+// sortEntries orders entries by display name (case-insensitive), then id, then
+// source, so a single source-filtered list reads alphabetically. The source
+// tie-break is essential: a few names collide across sources (e.g. a built-in
+// and an okapi-bridge "Word Count"), and without it their relative order is
+// unstable across regenerations, producing spurious dataset diffs.
 func sortEntries(entries []Entry) {
 	slices.SortFunc(entries, func(a, b Entry) int {
 		if c := cmp.Compare(strings.ToLower(a.DisplayName), strings.ToLower(b.DisplayName)); c != 0 {
 			return c
 		}
-		return cmp.Compare(a.ID, b.ID)
+		if c := cmp.Compare(a.ID, b.ID); c != 0 {
+			return c
+		}
+		return cmp.Compare(a.Source, b.Source)
 	})
 }
 

@@ -69,7 +69,7 @@ func init() {
 func runStreamList(cmd *cobra.Command, args []string) error {
 	proj, err := project.FindProject("")
 	if err != nil {
-		return fmt.Errorf("find project: %w (run 'bowrain init' to create a project)", err)
+		return fmt.Errorf("find project: %w (run 'kapi init' to create a project)", err)
 	}
 	conn, err := bconn.NewSourceConnector(proj, app.FormatReg)
 	if err != nil {
@@ -106,7 +106,7 @@ func runStreamList(cmd *cobra.Command, args []string) error {
 func runStreamCreate(cmd *cobra.Command, args []string) error {
 	proj, err := project.FindProject("")
 	if err != nil {
-		return fmt.Errorf("find project: %w (run 'bowrain init' to create a project)", err)
+		return fmt.Errorf("find project: %w (run 'kapi init' to create a project)", err)
 	}
 	conn, err := bconn.NewSourceConnector(proj, app.FormatReg)
 	if err != nil {
@@ -140,7 +140,7 @@ func runStreamCreate(cmd *cobra.Command, args []string) error {
 func runStreamDiff(cmd *cobra.Command, args []string) error {
 	proj, err := project.FindProject("")
 	if err != nil {
-		return fmt.Errorf("find project: %w (run 'bowrain init' to create a project)", err)
+		return fmt.Errorf("find project: %w (run 'kapi init' to create a project)", err)
 	}
 	conn, err := bconn.NewSourceConnector(proj, app.FormatReg)
 	if err != nil {
@@ -172,7 +172,7 @@ func runStreamDiff(cmd *cobra.Command, args []string) error {
 func runStreamMerge(cmd *cobra.Command, args []string) error {
 	proj, err := project.FindProject("")
 	if err != nil {
-		return fmt.Errorf("find project: %w (run 'bowrain init' to create a project)", err)
+		return fmt.Errorf("find project: %w (run 'kapi init' to create a project)", err)
 	}
 	conn, err := bconn.NewSourceConnector(proj, app.FormatReg)
 	if err != nil {
@@ -200,7 +200,7 @@ func runStreamMerge(cmd *cobra.Command, args []string) error {
 func runStreamArchive(cmd *cobra.Command, args []string) error {
 	proj, err := project.FindProject("")
 	if err != nil {
-		return fmt.Errorf("find project: %w (run 'bowrain init' to create a project)", err)
+		return fmt.Errorf("find project: %w (run 'kapi init' to create a project)", err)
 	}
 	conn, err := bconn.NewSourceConnector(proj, app.FormatReg)
 	if err != nil {

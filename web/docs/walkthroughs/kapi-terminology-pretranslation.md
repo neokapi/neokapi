@@ -12,9 +12,8 @@ scenes:
       - project.tmx
       - messages_en.json
     smoke_contract:
-      - kapi termbase import fixtures/glossary.csv --name product-terms --format csv -s en -t fr --header
-      - kapi tm import fixtures/project.tmx --name project-tm -s en -t fr
-      - kapi tm-leverage -i fixtures/messages_en.json -o out/step1_tm.json --source-lang en --target-lang fr --tm project-tm
+      - kapi tm import project.tmx -s en -t fr
+      - kapi tm-leverage messages_en.json -o step1_tm.json --source-lang en --target-lang fr
 ---
 
 ## Story

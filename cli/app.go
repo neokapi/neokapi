@@ -21,6 +21,8 @@ import (
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/tool"
 	libtools "github.com/neokapi/neokapi/core/tools"
+	"github.com/neokapi/neokapi/sievepen"
+	"github.com/neokapi/neokapi/termbase"
 	"github.com/spf13/cobra"
 )
 
@@ -46,6 +48,17 @@ type App struct {
 	Encoding   string
 	SourceLang string
 	TargetLang string
+
+	// TMBackend, when non-nil, is returned by openTMSQLite instead of
+	// opening a SQLite database. Used by the WASM browser build to inject
+	// a pre-seeded InMemoryTM so the tm / extract commands work without cgo.
+	TMBackend sievepen.TMStore
+
+	// TBBackend, when non-nil, is returned by openTermbaseSQLite instead
+	// of opening a SQLite database. Used by the WASM browser build to
+	// inject a pre-seeded InMemoryTermBase so termbase / term-check work
+	// without cgo.
+	TBBackend termbase.TermBase
 
 	// Credentials is the shared credential store for AI provider keys.
 	Credentials *credentials.Store

@@ -97,12 +97,15 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		return
 	}
 
-	// Find story files
+	// Find story files. A valid IDML package may legitimately contain no
+	// Stories/ entries — e.g. a layout-only template (master spreads, styles,
+	// preferences) whose only "story" is the empty XML/BackingStory, or a
+	// document with no placed copy. Okapi's IDML filter tolerates this (it
+	// folds the BackingStory into its part-name list and simply yields no
+	// translatable units — DesignMapFragments.java:165,335-336); the native
+	// reader must likewise emit an empty (root-layer-only) document rather than
+	// hard-erroring, so the writer can still copy the package through verbatim.
 	storyFiles := r.findStoryFiles(zr)
-	if len(storyFiles) == 0 {
-		ch <- model.PartResult{Error: errors.New("idml: no story files found in archive")}
-		return
-	}
 
 	// Pre-scan visibility (designmap layers + spread/master TextFrames)
 	// to learn which stories should be skipped during extraction.

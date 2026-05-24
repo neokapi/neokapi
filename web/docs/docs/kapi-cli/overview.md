@@ -49,7 +49,7 @@ kapi formats
 kapi word-count messages.json
 
 # Pseudo-translate for UI testing
-kapi pseudo-translate messages.json --target-lang fr
+kapi pseudo-translate messages.json
 
 # Translate with AI
 kapi ai-translate -i input.html -o output.html --source-lang en --target-lang fr
@@ -132,13 +132,13 @@ brew install --cask neokapi/tap/kapi-desktop
 
 - [Brand Voice](/features/brand-voice) — profiles, scoring, and enforcement
 - [Using Kapi with AI Assistants](/kapi-cli/mcp) — wire kapi into Claude Code, Cursor, and more
-- [Formats](/kapi-cli/commands/formats)
-- [Run Command](/kapi-cli/commands/flow)
-- [Pseudo-Translation](/kapi-cli/commands/pseudo-translate)
-- [Word Count](/kapi-cli/commands/word-count)
-- [Terminology](/kapi-cli/commands/termbase)
-- [Translation Memory](/kapi-cli/commands/tm)
-- [Plugins](/kapi-cli/commands/plugins)
+- [Formats](/commands?id=formats)
+- [Run Command](/commands?id=run)
+- [Pseudo-Translation](/commands?id=pseudo-translate)
+- [Word Count](/commands?id=word-count)
+- [Terminology](/commands?id=termbase)
+- [Translation Memory](/commands?id=tm)
+- [Plugins](/commands?id=plugin)
 
 ### Use Cases
 

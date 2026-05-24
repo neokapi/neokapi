@@ -135,7 +135,7 @@ kapi termbase export --name product-terms --format json -o glossary-backup.json
 
 ## Related
 
-- [kapi termbase](/kapi-cli/commands/termbase) — full command reference
-- [kapi run](/kapi-cli/commands/flow) — run command reference
+- [kapi termbase](/commands?id=termbase) — full command reference
+- [kapi run](/commands?id=run) — run command reference
 - [Terminology Management](/features/terminology) — how the terminology system works
 - [Terminology-Assisted Pre-Translation](/kapi-cli/use-cases/terminology-pretranslation) — using your termbase to guide AI translation

@@ -684,6 +684,29 @@ docs-dev: ; cd web/docs && vp run start
 docs-build: ; cd web/docs && vp run build
 docs-serve: ; cd web/docs && vp run serve
 
+# Output dir for the in-browser playground (gitignored; built locally or in CI).
+WASM_DEMO_DIR := web/docs/static/wasm
+
+web-wasm-demo: ## Build the in-browser playground wasm + JS glue → web/docs/static/wasm/
+	@mkdir -p $(WASM_DEMO_DIR)
+	GOOS=js GOARCH=wasm $(GO) build -o $(WASM_DEMO_DIR)/kapi.wasm ./cmd/kapi-wasm
+	@cp "$$($(GO) env GOROOT)/lib/wasm/wasm_exec.js" $(WASM_DEMO_DIR)/wasm_exec.js
+	@ls -lh $(WASM_DEMO_DIR)/kapi.wasm | awk '{print "  built",$$NF,$$5}'
+
+web-wasm-cli: ## Build the in-browser kapi CLI (wasm) → web/docs/static/wasm/kapi-cli.wasm
+	@mkdir -p $(WASM_DEMO_DIR)
+	cd kapi && GOOS=js GOARCH=wasm $(GO) build -o $(CURDIR)/$(WASM_DEMO_DIR)/kapi-cli.wasm ./cmd/kapi-wasm-cli
+	@cp "$$($(GO) env GOROOT)/lib/wasm/wasm_exec.js" $(WASM_DEMO_DIR)/wasm_exec.js
+	@# Precompress for the browser: the kit prefers kapi-cli.wasm.gz and inflates
+	@# it via DecompressionStream('gzip'), so this works without the host having
+	@# to set Content-Encoding (GitHub Pages / Docusaurus static serving do not).
+	@gzip -9 -f -k -c $(WASM_DEMO_DIR)/kapi-cli.wasm > $(WASM_DEMO_DIR)/kapi-cli.wasm.gz
+	@ls -lh $(WASM_DEMO_DIR)/kapi-cli.wasm | awk '{print "  built",$$NF,$$5}'
+	@ls -lh $(WASM_DEMO_DIR)/kapi-cli.wasm.gz | awk '{print "  built",$$NF,$$5}'
+
+docs-verify-snippets: web-wasm-cli ## Verify every RunnableSnippet + scene smoke_contract runs green in wasm
+	node --experimental-strip-types scripts/verify-snippets/harness.ts
+
 # ── Tools ────────────────────────────────────────────────────────────────────
 
 tools: ## Install development tools

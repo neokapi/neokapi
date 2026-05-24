@@ -11,7 +11,7 @@ This subtree (`bowrain/`) is licensed AGPL-3.0. The neokapi framework at the rep
 ## Install
 
 ```bash
-brew install neokapi/tap/bowrain     # CLI
+brew install neokapi/tap/bowrain-cli      # CLI plugin (commands run as `kapi <cmd>`)
 brew install --cask neokapi/tap/bowrain   # Desktop app (macOS)
 ```
 
@@ -20,7 +20,7 @@ brew install --cask neokapi/tap/bowrain   # Desktop app (macOS)
 ```
 bowrain/
 ├── core/            Shared platform types (auth, store, connector, project, event)
-├── cli/             Bowrain CLI — `bowrain init/push/pull/sync/...`
+├── cli/             Bowrain CLI plugin (`kapi-bowrain`) — commands run as `kapi init/push/pull/sync/...`
 ├── auth/            OIDC + AuthStore + SQLite/PostgreSQL auth
 ├── server/          REST/gRPC server (Echo v4)
 ├── service/         Auth, project, connector, flow services

@@ -1,0 +1,54 @@
+name: Docs — Verify Snippets
+
+# CI gate: every <RunnableSnippet> (auto-run) and scene smoke_contract must
+# exit zero in the browser wasm. A broken example fails this job before it
+# ever reaches the reader.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "web/docs/docs/**"
+      - "web/docs/walkthroughs/**"
+      - "kapi/cmd/kapi-wasm-cli/**"
+      - "kapi/**/*.go"
+      - "cli/**/*.go"
+      - "core/**/*.go"
+      - "scripts/verify-snippets/**"
+      - ".github/workflows/docs-verify-snippets.yml"
+  pull_request:
+    paths:
+      - "web/docs/docs/**"
+      - "web/docs/walkthroughs/**"
+      - "kapi/cmd/kapi-wasm-cli/**"
+      - "kapi/**/*.go"
+      - "cli/**/*.go"
+      - "core/**/*.go"
+      - "scripts/verify-snippets/**"
+      - ".github/workflows/docs-verify-snippets.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  verify-snippets:
+    name: Verify docs snippets in wasm
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version: "1.26.0"
+          cache: true
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Build kapi CLI wasm
+        run: make web-wasm-cli
+
+      - name: Run snippet verifier
+        run: node --experimental-strip-types scripts/verify-snippets/harness.ts

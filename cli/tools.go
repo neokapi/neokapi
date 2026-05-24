@@ -17,23 +17,26 @@ func (a *App) NewToolsCmd() *cobra.Command {
 		Use:     "tools",
 		Short:   "List available processing tools",
 		GroupID: "management",
+		Example: "  kapi tools\n  kapi tools list",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return a.listTools(cmd)
 		},
 	}
 
 	listCmd := &cobra.Command{
-		Use:   "list",
-		Short: "List available processing tools",
+		Use:     "list",
+		Short:   "List available processing tools",
+		Example: "  kapi tools list",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return a.listTools(cmd)
 		},
 	}
 
 	schemaCmd := &cobra.Command{
-		Use:   "schema [tool-name]",
-		Short: "Print the JSON Schema for a tool's parameters",
-		Args:  cobra.ExactArgs(1),
+		Use:     "schema [tool-name]",
+		Short:   "Print the JSON Schema for a tool's parameters",
+		Example: "  kapi tools schema word-count\n  kapi tools schema pseudo-translate",
+		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return a.toolSchema(cmd, args[0])
 		},

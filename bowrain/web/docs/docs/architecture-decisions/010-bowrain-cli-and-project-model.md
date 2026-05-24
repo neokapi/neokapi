@@ -8,18 +8,24 @@ title: "AD-010: Bowrain CLI and Project Model"
 
 ## Summary
 
-Bowrain is a **build-time plugin to kapi**. The bowrain commands (`push`,
-`pull`, `sync`, `status`, `init`, `auth`, …), the source connector that
-implements push/pull against bowrain-server, the bowrain MCP tools, and
-the recipe-schema decoders that validate `server:`/`hooks:`/`automations:`
-all live in `bowrain/plugin/`. The kapi binary blank-imports
-`bowrain/plugin` by default, producing a single binary that runs both
-kapi and bowrain workflows. A `kapi-pure` build with `-tags pure` skips
-the import, producing an Apache-2.0 binary with framework-only commands.
+Bowrain ships as a **manifest-driven kapi plugin**, not as part of the
+`kapi` binary. The bowrain commands (`push`, `pull`, `sync`, `status`,
+`init`, `auth`, …), the source connector that implements push/pull against
+bowrain-server, the bowrain MCP tools, and the recipe-schema decoders that
+validate `server:`/`hooks:`/`automations:` all live in `bowrain/plugin/`
+and compile into a standalone plugin binary, `kapi-bowrain` (built from
+`bowrain/cli/cmd/kapi-bowrain/`).
 
-The `bowrain` binary still ships separately for branding / distribution;
-it's the same code path as `kapi` with the same plugin linked, just with
-`Use: "bowrain"` on the root command.
+The `kapi` binary contains **zero bowrain code**. It discovers the
+installed plugin at runtime by reading its `manifest.json`, then dispatches
+`kapi push`, `kapi pull`, … to `kapi-bowrain` as a subprocess. The
+discovery and dispatch mechanics are the framework's unified plugin model —
+see [AD-framework-007: Plugin System](https://neokapi.github.io/web/neokapi/docs/architecture/007-plugin-system).
+The legacy standalone `bowrain` binary, the build-time blank-import of
+`bowrain/plugin` into `kapi`, and the `-tags pure` / `kapi-pure` split are
+all retired: there is one user-facing CLI, `kapi`, and bowrain is something
+you install into it (`kapi plugins install bowrain`, or
+`brew install neokapi/tap/bowrain-cli`).
 
 A bowrain project is just a kapi project with a `server:` block on its
 recipe — same `*.kapi` recipe file, same `.kapi/` state directory, same
@@ -31,7 +37,8 @@ This is the only project model. Bowrain does not maintain a parallel
 project schema; the recipe loader, validator, layout discovery, sync
 cache, and content iteration all live in the framework's `core/project`
 package. Bowrain registers its extension schema, commands, MCP tools,
-and source connector via process-global registries at `init()` time.
+and source connector via process-global registries at `init()` time inside
+the `kapi-bowrain` binary.
 
 ## Context
 
@@ -53,11 +60,11 @@ block and a few top-level lifecycle/governance fields.
 
 ### The bowrain plugin
 
-Bowrain ships as a build-time Go plugin under `bowrain/plugin/`:
+Bowrain's behavior lives in Go packages under `bowrain/plugin/`:
 
 ```
 bowrain/plugin/
-├── plugin.go              ← anchor; blank-imports the four sub-packages
+├── plugin.go              ← anchor; blank-imports the three sub-packages
 ├── schema/                ← recipe schema decoders (no CLI deps)
 │   ├── server.go, hooks.go, assets.go, brand_voice.go, stream.go
 │   └── extension.go       ← init() RegisterExtensionGroup("bowrain", ...)
@@ -76,56 +83,79 @@ shared CLI registries:
   (project flow listing)
 - `mcp/tools.go` calls `cli.RegisterMCPToolFactory(...)`
 
-A host binary (kapi or the standalone `bowrain` CLI) blank-imports the
-plugin to enable everything:
+These registries are the framework's in-process plugin mechanism. The only
+binary that links them is `kapi-bowrain`, whose `main.go` blank-imports the
+anchor:
 
 ```go
 import _ "github.com/neokapi/neokapi/bowrain/plugin"
 ```
 
-The kapi binary does this by default (gated by `//go:build !pure`); a
-`-tags pure` build skips the import and produces a framework-only
-binary. The standalone `bowrain` CLI ships with the import always
-present.
+The `kapi` binary does **not** import `bowrain/plugin`. It loads bowrain at
+runtime as a separate process (next section), so the registries above
+populate inside `kapi-bowrain`, never inside `kapi`.
 
-### Binary distributions
+### Distribution and discovery
 
-Two binary artifacts are produced from one source tree:
+Two binaries are produced from this source tree:
 
-| Binary | Build | Imports | Distributed under |
-|---|---|---|---|
-| `kapi` (default) | `make build` | `bowrain/plugin` | AGPL-3.0 |
-| `kapi-pure` | `make build-pure` | `bowrain/plugin/schema` only | Apache-2.0 |
-| `bowrain` (CLI) | `make build-bowrain-cli` | `bowrain/plugin` | AGPL-3.0 |
+| Binary | Built from | Role |
+|---|---|---|
+| `kapi` | `kapi/cmd/kapi` | The single user-facing CLI. Framework-only; no bowrain code. |
+| `kapi-bowrain` | `bowrain/cli/cmd/kapi-bowrain` | The bowrain plugin binary. Carries a `manifest.json` declaring its commands, MCP tools, schema extensions, and source connector. |
 
-`kapi-pure` is the audit-friendly artifact for organizations that need
-an Apache-only binary; it loads recipes (rejecting `requires: [bowrain]`)
-but doesn't push, pull, or auth.
+`kapi-bowrain` is installed into a plugin directory rather than placed on
+`PATH`. `kapi` discovers it at runtime by scanning, in order,
+`$KAPI_PLUGINS_DIR`, `$XDG_DATA_HOME/kapi/plugins` (default
+`~/.local/share/kapi/plugins`), and the system plugin roots, looking for
+`<dir>/bowrain/{manifest.json, kapi-bowrain}`. Two paths install it there:
+
+```bash
+kapi plugins install bowrain          # via the plugin registry
+brew install neokapi/tap/bowrain-cli  # Homebrew (depends on the kapi formula)
+```
+
+Discovery and dispatch are not bowrain-specific — they are the framework's
+unified plugin model, shared with okapi-bridge and any other plugin. See
+[AD-framework-007: Plugin System](https://neokapi.github.io/web/neokapi/docs/architecture/007-plugin-system)
+for the manifest schema, discovery precedence, and the A/B/C transport
+modes referenced below.
 
 The Wails desktop apps (kapi-desktop, bowrain-desktop) blank-import
-`bowrain/plugin/schema` so they validate bowrain recipes when opened;
-push/pull is invoked by spawning the CLI binary today.
+`bowrain/plugin/schema` directly so they validate bowrain recipes when
+opened; push/pull is invoked by spawning `kapi-bowrain`.
 
 ### Available commands
 
-The default `kapi` binary has all of these via the plugin:
+With the plugin installed, `kapi` exposes:
 
-- Framework commands (kapi-only): `run`, `extract`, `merge`, `flows`,
-  `tools`, `formats`, `plugins`, `registry`, `presets`, `termbase`, `tm`,
-  `credentials`, `mcp`, `version`.
-- Bowrain commands (added by the plugin): `push`, `pull`, `sync`, `status`,
-  `auth`, `serve`, `ls`, `add`, `rm`, `diff`, `automation`, `stream`,
-  `config`, `init`.
+- Framework commands (built into `kapi`): `run`, `extract`, `merge`,
+  `flows`, `tools`, `formats`, `plugins`, `registry`, `presets`,
+  `termbase`, `tm`, `credentials`, `mcp`, `version`.
+- Bowrain commands (contributed by the `kapi-bowrain` manifest): `init`,
+  `push`, `pull`, `sync`, `status`, `ls`, `add`, `rm`, `diff`, `config`,
+  `auth`, `stream`, `serve`, `ui`, `workspace`.
 
-The `kapi-pure` binary has only the framework set. The standalone
-`bowrain` binary has the same set as default `kapi`, just with
-`Use: "bowrain"` branding.
+Each bowrain capability is dispatched according to its manifest entry:
 
-All bowrain server-sync commands require a `.kapi` recipe with a
-`server:` block. Discovery is identical to kapi: walk upward looking for
-a `*.kapi` recipe; the recipe must declare `server:` for push/pull/status
-to be meaningful. The shared `mcp` command exposes the union of kapi and
-bowrain MCP tools.
+- **Commands** run one-shot — `kapi push` forks `kapi-bowrain command push
+  …`, inheriting stdin/stdout/stderr and propagating the exit code (Mode A).
+- **MCP tools** (`project_status`, `project_pull`, `project_push`) are
+  served by a `kapi-bowrain mcp-server` session that the shared `kapi mcp`
+  command launches and proxies (Mode B).
+- **The source connector** (`bowrain-source`) runs inside a long-lived
+  `kapi-bowrain daemon` reached over a Unix-domain socket; `kapi` routes
+  push/pull/status through it so recipe parsing and sync state stay in the
+  plugin process (Mode C).
+
+Without the plugin, `kapi` is framework-only — a bowrain recipe still
+loads, but `kapi push`/`kapi pull` are unavailable and a recipe that
+declares `requires: [bowrain]` fails validation.
+
+All bowrain server-sync commands require a `.kapi` recipe with a `server:`
+block. Discovery is identical to kapi: walk upward looking for a `*.kapi`
+recipe; the recipe must declare `server:` for push/pull/status to be
+meaningful.
 
 ### Project layout
 
@@ -324,6 +354,7 @@ ever created.
 
 ## Related
 
+- [AD-framework-007: Plugin System](https://neokapi.github.io/web/neokapi/docs/architecture/007-plugin-system) — the manifest discovery and A/B/C dispatch model that loads `kapi-bowrain`
 - [AD-framework-008: Kapi Project Model](https://neokapi.github.io/web/neokapi/docs/architecture/008-project-model) — the recipe schema this AD layers `server:` onto
 - [AD-009: Sync Protocol](009-sync-protocol) — the on-the-wire contract used by push/pull
 - [AD-011: REST API](011-rest-api) — the bowrain-server endpoints consumed by the source connector

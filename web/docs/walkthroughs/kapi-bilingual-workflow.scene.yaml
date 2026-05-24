@@ -1,0 +1,81 @@
+# Unified scene spec (W3, issue #661). See kapi-overview.scene.yaml for the
+# full schema. Regenerate with:
+#   node --experimental-strip-types scripts/walkthrough-gen/gen.ts kapi-bilingual-workflow
+#
+# mode: video — the full round-trip (translator fills <target>s via a CAT tool,
+# then `merge` reconciles and `tm audit` traces provenance) is best shown as a
+# recording: the fill step is an external editor action that must preserve the
+# XLIFF batch IDs, and `tm audit` needs SQLite (absent in the wasm build).
+#
+# `kapi extract` DOES run in the wasm build, so the embed below is a focused,
+# offline "extract emits XLIFF" demo: it seeds an inline recipe + source file,
+# runs extract, and the reader inspects the emitted bilingual XLIFF in the
+# files pane. The interactive flag on individual steps controls whether each
+# command runs in the embed (offline: true) or only appears in the tape +
+# narration (offline: false).
+
+id: kapi-bilingual-workflow
+scene: bilingual-workflow
+mode: video
+
+# Steps the offline embed runs (extract only). The generator builds the embed
+# config from the steps marked `offline: true`.
+embed:
+  files:
+    - path: app.kapi
+      content: |
+        version: v1
+        name: Bilingual Demo
+        defaults:
+          source_language: en-US
+          target_languages: [fr-FR, de-DE]
+        content:
+          - path: src/locales/en/*.json
+            format: json
+            target: src/locales/{lang}/*.json
+    - path: src/locales/en/messages.json
+      content: |
+        {
+          "greeting": "Welcome back!",
+          "intro": "This is your dashboard. Everything you need is here.",
+          "save": "Save",
+          "cancel": "Cancel",
+          "settings": "Settings"
+        }
+
+tape:
+  width: 1000
+  height: 700
+  theme: Dracula
+  padding: 20
+  fontSize: 16
+
+seed: []
+files: []
+
+steps:
+  - comment: 1. Seed the project TM from a corporate TMX
+  - command: kapi tm import corporate.tmx --file .kapi/tm.db --all-pairs
+    narration: One-time setup — warm the TM so extract can pre-fill matches.
+    offline: false
+  - comment: 2. kapi extract — one XLIFF per target locale, with TM pre-fill
+  - command: kapi extract -p app.kapi --no-tm
+    narration: >-
+      Extract emits a bilingual XLIFF per target locale. This step runs live in
+      the embed below — inspect the emitted file in the files pane.
+    offline: true
+  - command: ls out/
+    narration: One XLIFF per configured target locale.
+    offline: false
+  - comment: 3. Simulate a translator filling the <target>s
+  - command: ./fake-translator.sh out/*.xliff
+    narration: A CAT tool fills each <target>, preserving the kapi batch IDs.
+    offline: false
+  - comment: 4. kapi merge — apply the returned XLIFFs back onto the source
+  - command: kapi merge -i out/
+    narration: Merge reconciles targets onto the source files with full provenance.
+    offline: false
+  - comment: 5. kapi tm audit — trace what this merge wrote into the TM
+  - command: kapi tm audit --file .kapi/tm.db --batch $(ls .kapi/extractions | head -1) --limit 10
+    narration: Every merge is provenance-tagged — proof of what came from which return.
+    offline: false

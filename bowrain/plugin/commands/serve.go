@@ -41,7 +41,7 @@ If no directory is given, the current directory is used.`,
 
 		proj, err := project.FindProject(absPath)
 		if err != nil {
-			return fmt.Errorf("no kapi project found in %s (run 'bowrain init' first)", absPath)
+			return fmt.Errorf("no kapi project found in %s (run 'kapi init' first)", absPath)
 		}
 
 		addr := fmt.Sprintf("localhost:%d", servePort)

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-23T10:08:01Z",
+  "generatedAt": "2026-05-23T12:08:05Z",
   "kind": "format",
   "entries": [
     {
@@ -5185,6 +5185,40 @@
             "description": "Rules for simplifying inline code representation",
             "title": "Simplifier Rules",
             "ui:widget": "simplifierRulesEditor"
+          },
+          "codeFinderRules": {
+            "type": "object",
+            "description": "Regular expressions in #v1 format defining patterns to treat as inline codes.",
+            "properties": {
+              "rules": {
+                "type": "array",
+                "description": "List of regex patterns to detect inline codes",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "pattern": {
+                      "type": "string",
+                      "description": "Regex pattern for inline code detection"
+                    }
+                  },
+                  "required": [
+                    "pattern"
+                  ]
+                }
+              },
+              "sample": {
+                "type": "string",
+                "description": "Sample text to test patterns against"
+              },
+              "useAllRulesWhenTesting": {
+                "type": "boolean",
+                "default": true,
+                "description": "Test all rules together or individually"
+              }
+            },
+            "title": "Code Finder Rules",
+            "x-okapi-format": "inlineCodeFinder",
+            "ui:widget": "codeFinderRules"
           }
         },
         "additionalProperties": false,
@@ -5204,8 +5238,8 @@
         "x-okapi-kind": "OkfDtdFilterConfig",
         "x-okapi-api-version": "v4",
         "x-okapi-base-version": 4,
-        "x-okapi-base-hash": "f11cfe564c78",
-        "x-okapi-composite-hash": "02a5dda78ec2",
+        "x-okapi-base-hash": "cc1b0df4098d",
+        "x-okapi-composite-hash": "2537c3da9a02",
         "ui:introduced-in": "1.47.0"
       },
       "doc": {

@@ -1,7 +1,0 @@
-# Heartbeat Check
-
-On each heartbeat cycle, perform these checks:
-
-1. {{HEARTBEAT_CHECK_1}}
-2. {{HEARTBEAT_CHECK_2}}
-3. {{HEARTBEAT_CHECK_3}}

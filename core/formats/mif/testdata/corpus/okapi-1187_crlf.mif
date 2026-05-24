@@ -1,0 +1,26 @@
+<MIFFile 9.0>
+<TextFlow
+ <TFTag `A'>
+ <TFAutoConnect Yes>
+ <FlowDir INHERITLTR>
+ <Notes
+ > # end of Notes
+ <Para
+  <Unique 998398>
+  <PgfTag `Body'>
+  <ParaLine
+   <String `ParaLine 1'>
+   <Char HardReturn>
+  > # end of ParaLine
+ > # end of Para
+ <Para
+  <Unique 998415>
+  <PgfTag `Body'>
+  <PgfNumString `(5)\t'>
+  <ParaLine
+  > # end of ParaLine
+  <ParaLine
+  > # end of ParaLine
+ > # end of Para
+> # end of TextFlow
+# End of MIFFile

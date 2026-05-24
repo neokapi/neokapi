@@ -287,7 +287,7 @@ func handleProjectPull(ctx context.Context, a *cli.App, input MCPPullInput) (*mc
 func handleProjectLs(ctx context.Context, a *cli.App, input MCPLsInput) (*mcp.CallToolResult, MCPLsOutput, error) {
 	proj, err := project.FindProject("")
 	if err != nil {
-		return nil, MCPLsOutput{}, fmt.Errorf("no kapi project found (run 'bowrain init' first): %w", err)
+		return nil, MCPLsOutput{}, fmt.Errorf("no kapi project found (run 'kapi init' first): %w", err)
 	}
 
 	if input.Stats || input.Dirty {

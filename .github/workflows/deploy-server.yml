@@ -14,7 +14,6 @@ on:
     branches: [main]
     paths:
       - "bowrain/**"
-      - "!bowrain/agentic-testing/**"
       - "!bowrain/apps/web/**"
       - "!bowrain/apps/keycloak-theme/**"
       - "!bowrain/cli/**"

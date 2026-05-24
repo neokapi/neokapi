@@ -22,6 +22,7 @@
     "@mdx-js/react": "^3.1.1",
     "@neokapi/docs-shared": "file:../../packages/docs-shared",
     "@neokapi/flow-editor": "*",
+    "@neokapi/kapi-playground": "*",
     "@neokapi/reference-data": "*",
     "@neokapi/ui-primitives": "*",
     "clsx": "^2.1.0",

@@ -148,8 +148,8 @@ For one-off translations of short documents, `kapi ai-translate` without a termb
 ## Related
 
 - [Terminology QA](/kapi-cli/use-cases/terminology-qa) — validating terminology compliance in translated files
-- [kapi termbase](/kapi-cli/commands/termbase) — full command reference
-- [kapi tm](/kapi-cli/commands/tm) — translation memory command reference
-- [kapi run](/kapi-cli/commands/flow) — run command reference
+- [kapi termbase](/commands?id=termbase) — full command reference
+- [kapi tm](/commands?id=tm) — translation memory command reference
+- [kapi run](/commands?id=run) — run command reference
 - [Terminology Management](/features/terminology) — how the terminology system works
 - [Translation Memory](/features/translation-memory) — how TM matching works

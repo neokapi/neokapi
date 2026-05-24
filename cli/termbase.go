@@ -28,6 +28,9 @@ Resource location (mutually exclusive):
   --file <path>   Explicit file path
 
 Default (no flag): same as --local (uses ./termbase.db).`,
+		Example: `  kapi termbase stats
+  kapi termbase lookup "dashboard" -s en -t fr
+  kapi termbase import glossary.csv -s en -t fr`,
 	}
 
 	importCmd := a.newTermbaseImportCmd()
@@ -47,6 +50,9 @@ Default (no flag): same as --local (uses ./termbase.db).`,
 }
 
 func (a *App) openTermbaseSQLite(cmd *cobra.Command) (termbase.TermBase, string, error) {
+	if a.TBBackend != nil {
+		return a.TBBackend, "(in-memory)", nil
+	}
 	dbPath, err := a.resolveTermbaseCmdPath(cmd)
 	if err != nil {
 		return nil, "", err
@@ -80,9 +86,10 @@ func (a *App) resolveTermbaseCmdPath(cmd *cobra.Command) (string, error) {
 
 func (a *App) newTermbaseImportCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "import [file]",
-		Short: "Import terms from CSV, JSON, or TBX into a termbase",
-		Args:  cobra.ExactArgs(1),
+		Use:     "import [file]",
+		Short:   "Import terms from CSV, JSON, or TBX into a termbase",
+		Example: "  kapi termbase import glossary.csv -s en -t fr --header\n  kapi termbase import terms.tbx --format tbx",
+		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			format, _ := cmd.Flags().GetString("format")
 			srcLocale, _ := cmd.Flags().GetString("source-locale")
@@ -220,9 +227,10 @@ func (a *App) newTermbaseExportCmd() *cobra.Command {
 
 func (a *App) newTermbaseLookupCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "lookup [term]",
-		Short: "Look up a term in the termbase",
-		Args:  cobra.ExactArgs(1),
+		Use:     "lookup [term]",
+		Short:   "Look up a term in the termbase",
+		Example: "  kapi termbase lookup \"dashboard\" -s en -t fr\n  kapi termbase lookup \"settings\" -s en -t de --fuzzy",
+		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			srcLocale, _ := cmd.Flags().GetString("source-locale")
 			tgtLocale, _ := cmd.Flags().GetString("target-locale")
@@ -298,9 +306,10 @@ func (a *App) newTermbaseLookupCmd() *cobra.Command {
 
 func (a *App) newTermbaseSearchCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "search [query]",
-		Short: "Search concepts in the termbase",
-		Args:  cobra.ExactArgs(1),
+		Use:     "search [query]",
+		Short:   "Search concepts in the termbase",
+		Example: "  kapi termbase search \"encrypt\" -s en\n  kapi termbase search \"log in\" -s en -t fr",
+		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			srcLocale, _ := cmd.Flags().GetString("source-locale")
 			tgtLocale, _ := cmd.Flags().GetString("target-locale")
@@ -348,8 +357,9 @@ func (a *App) newTermbaseSearchCmd() *cobra.Command {
 
 func (a *App) newTermbaseStatsCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   "stats",
-		Short: "Show termbase statistics",
+		Use:     "stats",
+		Short:   "Show termbase statistics",
+		Example: "  kapi termbase stats\n  kapi termbase stats --name product-terms",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			tb, dbPath, err := a.openTermbaseSQLite(cmd)
 			if err != nil {
