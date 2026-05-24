@@ -52,7 +52,10 @@ Default (no flag): same as --local (uses ./tm.db).`,
 	return tmCmd
 }
 
-func (a *App) openTMSQLite(cmd *cobra.Command) (*sievepen.SQLiteTM, string, error) {
+func (a *App) openTMSQLite(cmd *cobra.Command) (sievepen.TMStore, string, error) {
+	if a.TMBackend != nil {
+		return a.TMBackend, "(in-memory)", nil
+	}
 	dbPath, err := ResolveResourcePath(cmd, "tm", "tm.db")
 	if err != nil {
 		return nil, "", err
@@ -193,17 +196,21 @@ Examples:
 			// FTS5 inserts — they're the dominant cost on large
 			// corpora — and we restore text-search + fuzzy-match
 			// capability here once the bulk is done.
-			if !a.Quiet {
-				fmt.Fprintln(os.Stderr, "Rebuilding search index...")
-			}
-			if err := tm.RebuildSearchIndex(); err != nil {
-				fmt.Fprintf(os.Stderr, "warning: rebuild search index: %v\n", err)
-			}
-			if !a.Quiet {
-				fmt.Fprintln(os.Stderr, "Rebuilding fuzzy index...")
-			}
-			if err := tm.RebuildFuzzyIndex(); err != nil {
-				fmt.Fprintf(os.Stderr, "warning: rebuild fuzzy index: %v\n", err)
+			// RebuildSearchIndex/RebuildFuzzyIndex are SQLite-specific;
+			// in-memory backends skip this step (lookup stays live).
+			if sq, ok := tm.(*sievepen.SQLiteTM); ok {
+				if !a.Quiet {
+					fmt.Fprintln(os.Stderr, "Rebuilding search index...")
+				}
+				if err := sq.RebuildSearchIndex(); err != nil {
+					fmt.Fprintf(os.Stderr, "warning: rebuild search index: %v\n", err)
+				}
+				if !a.Quiet {
+					fmt.Fprintln(os.Stderr, "Rebuilding fuzzy index...")
+				}
+				if err := sq.RebuildFuzzyIndex(); err != nil {
+					fmt.Fprintf(os.Stderr, "warning: rebuild fuzzy index: %v\n", err)
+				}
 			}
 
 			if a.Quiet {
@@ -247,7 +254,7 @@ func parseLocaleList(raw string) []model.LocaleID {
 
 // importTMXFile imports a single TMX file (plain or .gz) into the TM.
 // Uses ImportTMXLocalePairs when allPairs is true, otherwise single-pair import.
-func importTMXFile(tm *sievepen.SQLiteTM, path, srcLocale, tgtLocale string, allPairs bool, locales []model.LocaleID) (int, error) {
+func importTMXFile(tm sievepen.TMStore, path, srcLocale, tgtLocale string, allPairs bool, locales []model.LocaleID) (int, error) {
 	f, err := os.Open(path)
 	if err != nil {
 		return 0, fmt.Errorf("open %s: %w", path, err)

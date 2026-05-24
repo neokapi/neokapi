@@ -1,0 +1,8 @@
+source,target,domain
+password,mot de passe,security
+username,nom d'utilisateur,security
+log in,se connecter,ui
+dashboard,tableau de bord,ui
+settings,paramètres,ui
+encryption,chiffrement,security
+file upload,téléversement de fichier,ui

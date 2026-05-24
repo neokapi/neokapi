@@ -7,9 +7,10 @@
 // standard error flow through os.Stdout/os.Stderr (i.e. globalThis.fs) so the
 // page can route them to the terminal exactly as a real shell would.
 //
-// Only the browser-safe command subset is wired here. Commands that need a
-// subprocess (plugins), the OS keychain (credentials), or SQLite (termbase,
-// tm) are intentionally omitted — they'd compile but fail at runtime.
+// The browser-safe command subset is wired here. Commands that need a
+// subprocess (plugins) or the OS keychain (credentials) are omitted.
+// tm and termbase are included: they use the in-memory backends seeded
+// from embedded fixtures (see wasm_backends.go) — no cgo or SQLite needed.
 package main
 
 import (
@@ -28,6 +29,10 @@ func main() {
 	// Populate format + tool registries once so command construction (which
 	// enumerates tools/formats) sees them. InitRegistries is idempotent.
 	app.InitRegistries()
+
+	// Seed in-memory TM and termbase from embedded fixture data so the tm,
+	// termbase, term-check, and extract commands work in the browser build.
+	seedBackends()
 
 	js.Global().Set("kapiRun", js.FuncOf(kapiRun))
 	js.Global().Set("kapiPreview", js.FuncOf(kapiPreview))
@@ -117,7 +122,12 @@ func buildRoot() *cobra.Command {
 	root.AddCommand(app.NewPresetsCmd())
 	root.AddCommand(app.NewVersionCmd("kapi"))
 
-	// Top-level tool commands (pseudo-translate, word-count, …).
+	// TM and termbase commands backed by the in-memory fixture data
+	// seeded in main() — no SQLite / cgo required in the browser build.
+	root.AddCommand(app.NewTMCmd())
+	root.AddCommand(app.NewTermbaseCmd())
+
+	// Top-level tool commands (pseudo-translate, word-count, term-check, …).
 	for _, c := range app.NewToolCommands() {
 		root.AddCommand(c)
 	}

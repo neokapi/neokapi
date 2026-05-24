@@ -36,25 +36,6 @@ var offlineOverride = map[string]bool{
 	"credentials.list":   false,
 	"credentials.remove": false,
 	"credentials.test":   false,
-	// TM / termbase — require SQLite (cgo, mattn/go-sqlite3).
-	"tm":              false,
-	"tm.import":       false,
-	"tm.import-dir":   false,
-	"tm.export":       false,
-	"tm.lookup":       false,
-	"tm.search":       false,
-	"tm.stats":        false,
-	"tm.audit":        false,
-	"tm.list":         false,
-	"tm.sessions":     false,
-	"termbase":        false,
-	"termbase.import": false,
-	"termbase.export": false,
-	"termbase.lookup": false,
-	"termbase.search": false,
-	"termbase.stats":  false,
-	"termbase.list":   false,
-	"term-check":      false,
 	// Plugin management — network-dependent operations.
 	// plugin.list / plugin.info / plugin.rebuild-cache / plugin.verify are
 	// local-only, so they remain offline (not overridden here).
@@ -77,11 +58,6 @@ var offlineOverride = map[string]bool{
 	"brand.voice.apply": false,
 	// Skills — requires network (download).
 	"skills": false,
-	// Extract / merge — require SQLite TM and project state.
-	// (extract and merge are browser-safe conceptually but the project
-	// integration path uses SQLite; the wasm build omits them.)
-	"extract": false,
-	"merge":   false,
 }
 
 // wasmAllowlist is the set of dot-joined command paths that are present in
@@ -109,6 +85,32 @@ var wasmAllowlist = map[string]bool{
 	"completion.zsh":        true,
 	"completion.fish":       true,
 	"completion.powershell": true,
+	// extract/merge are wired into buildRoot; TM-prefill uses the injected
+	// in-memory TM. tm/termbase run via in-memory backends seeded from
+	// embedded fixtures (#662); no SQLite in the wasm build.
+	"extract":            true,
+	"merge":              true,
+	"tm":                 true,
+	"tm.import":          true,
+	"tm.import-dir":      true,
+	"tm.export":          true,
+	"tm.lookup":          true,
+	"tm.search":          true,
+	"tm.stats":           true,
+	"tm.audit":           true,
+	"tm.list":            true,
+	"tm.sessions":        true,
+	"tm.sessions.list":   true,
+	"tm.sessions.show":   true,
+	"tm.sessions.delete": true,
+	"termbase":           true,
+	"termbase.import":    true,
+	"termbase.export":    true,
+	"termbase.lookup":    true,
+	"termbase.search":    true,
+	"termbase.stats":     true,
+	"termbase.list":      true,
+	"term-check":         true,
 }
 
 // buildKapiRoot constructs the full kapi cobra command tree exactly as the

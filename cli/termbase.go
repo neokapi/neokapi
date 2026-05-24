@@ -47,6 +47,9 @@ Default (no flag): same as --local (uses ./termbase.db).`,
 }
 
 func (a *App) openTermbaseSQLite(cmd *cobra.Command) (termbase.TermBase, string, error) {
+	if a.TBBackend != nil {
+		return a.TBBackend, "(in-memory)", nil
+	}
 	dbPath, err := ResolveResourcePath(cmd, "termbases", "termbase.db")
 	if err != nil {
 		return nil, "", err

@@ -210,13 +210,17 @@ func (a *App) runExtract(cmd *cobra.Command) error {
 
 	var tm sievepen.TranslationMemory
 	if !noTM {
-		tmPath := filepath.Join(layout.StateDir, "tm.db")
-		loaded, err := sievepen.NewSQLiteTM(tmPath)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Warning: extract: open project TM at %s: %v (continuing with no TM)\n", tmPath, err)
+		if a.TMBackend != nil {
+			tm = a.TMBackend
 		} else {
-			defer loaded.Close()
-			tm = loaded
+			tmPath := filepath.Join(layout.StateDir, "tm.db")
+			loaded, err := sievepen.NewSQLiteTM(tmPath)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Warning: extract: open project TM at %s: %v (continuing with no TM)\n", tmPath, err)
+			} else {
+				defer loaded.Close()
+				tm = loaded
+			}
 		}
 	}
 

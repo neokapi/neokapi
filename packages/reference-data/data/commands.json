@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-24T08:56:25Z",
+  "generatedAt": "2026-05-24T09:08:14Z",
   "commands": [
     {
       "id": "ai-entity-extract",
@@ -2126,7 +2126,7 @@
           "type": "string"
         }
       ],
-      "offlineCapable": false
+      "offlineCapable": true
     },
     {
       "id": "flows",
@@ -2563,7 +2563,7 @@
           "type": "string"
         }
       ],
-      "offlineCapable": false
+      "offlineCapable": true
     },
     {
       "id": "pattern-check",
@@ -4474,7 +4474,7 @@
           "type": "string"
         }
       ],
-      "offlineCapable": false
+      "offlineCapable": true
     },
     {
       "id": "termbase",
@@ -4485,7 +4485,7 @@
       "short": "Manage terminology",
       "long": "Manage project terminology.\n\nA termbase is a glossary of approved terms stored as a SQLite database.\nUse these commands to import, export, look up, and manage terms.\n\nResource location (mutually exclusive):\n  --name \u003cn\u003e      Named termbase in KAPI_HOME (~/.config/kapi/termbases/\u003cn\u003e.db)\n  --local         Termbase in current directory (./termbase.db)\n  --file \u003cpath\u003e   Explicit file path\n\nDefault (no flag): same as --local (uses ./termbase.db).",
       "groupID": "management",
-      "offlineCapable": false
+      "offlineCapable": true
     },
     {
       "id": "termbase.export",
@@ -4543,7 +4543,7 @@
           "type": "string"
         }
       ],
-      "offlineCapable": false
+      "offlineCapable": true
     },
     {
       "id": "termbase.import",
@@ -4606,7 +4606,7 @@
           "type": "string"
         }
       ],
-      "offlineCapable": false
+      "offlineCapable": true
     },
     {
       "id": "termbase.list",
@@ -4616,7 +4616,7 @@
       ],
       "use": "list",
       "short": "List named termbases in KAPI_HOME",
-      "offlineCapable": false
+      "offlineCapable": true
     },
     {
       "id": "termbase.lookup",
@@ -4668,7 +4668,7 @@
           "type": "string"
         }
       ],
-      "offlineCapable": false
+      "offlineCapable": true
     },
     {
       "id": "termbase.search",
@@ -4714,7 +4714,7 @@
           "type": "string"
         }
       ],
-      "offlineCapable": false
+      "offlineCapable": true
     },
     {
       "id": "termbase.stats",
@@ -4742,7 +4742,7 @@
           "type": "string"
         }
       ],
-      "offlineCapable": false
+      "offlineCapable": true
     },
     {
       "id": "tm",
@@ -4753,7 +4753,7 @@
       "short": "Manage translation memory",
       "long": "Manage translation memory.\n\nA translation memory (TM) stores previously translated segments as a SQLite\ndatabase. Use these commands to import/export TMX, look up matches, and manage\nTM entries.\n\nResource location (mutually exclusive):\n  --name \u003cn\u003e      Named TM in KAPI_HOME (~/.config/kapi/tm/\u003cn\u003e.db)\n  --local         TM in current directory (./tm.db)\n  --file \u003cpath\u003e   Explicit file path\n\nDefault (no flag): same as --local (uses ./tm.db).",
       "groupID": "management",
-      "offlineCapable": false
+      "offlineCapable": true
     },
     {
       "id": "tm.audit",
@@ -4793,7 +4793,7 @@
           "type": "string"
         }
       ],
-      "offlineCapable": false
+      "offlineCapable": true
     },
     {
       "id": "tm.export",
@@ -4833,7 +4833,7 @@
           "type": "string"
         }
       ],
-      "offlineCapable": false
+      "offlineCapable": true
     },
     {
       "id": "tm.import",
@@ -4886,7 +4886,7 @@
           "type": "string"
         }
       ],
-      "offlineCapable": false
+      "offlineCapable": true
     },
     {
       "id": "tm.import-dir",
@@ -4952,7 +4952,7 @@
           "type": "string"
         }
       ],
-      "offlineCapable": false
+      "offlineCapable": true
     },
     {
       "id": "tm.list",
@@ -4962,7 +4962,7 @@
       ],
       "use": "list",
       "short": "List named TMs in KAPI_HOME",
-      "offlineCapable": false
+      "offlineCapable": true
     },
     {
       "id": "tm.lookup",
@@ -5015,7 +5015,7 @@
           "type": "string"
         }
       ],
-      "offlineCapable": false
+      "offlineCapable": true
     },
     {
       "id": "tm.search",
@@ -5061,7 +5061,7 @@
           "type": "string"
         }
       ],
-      "offlineCapable": false
+      "offlineCapable": true
     },
     {
       "id": "tm.sessions",
@@ -5072,7 +5072,7 @@
       "use": "sessions",
       "short": "Manage TMX import sessions",
       "long": "An import session is created every time a TMX file is imported.\nEach session records the file's SHA-256 hash, TMX header metadata, and the\nnumber of entries imported. Origins on TM entries point back to the session\nthat added them so you can filter the TM by import source.",
-      "offlineCapable": false
+      "offlineCapable": true
     },
     {
       "id": "tm.sessions.delete",
@@ -5101,7 +5101,7 @@
           "type": "string"
         }
       ],
-      "offlineCapable": false
+      "offlineCapable": true
     },
     {
       "id": "tm.sessions.list",
@@ -5130,7 +5130,7 @@
           "type": "string"
         }
       ],
-      "offlineCapable": false
+      "offlineCapable": true
     },
     {
       "id": "tm.sessions.show",
@@ -5159,7 +5159,7 @@
           "type": "string"
         }
       ],
-      "offlineCapable": false
+      "offlineCapable": true
     },
     {
       "id": "tm.stats",
@@ -5187,7 +5187,7 @@
           "type": "string"
         }
       ],
-      "offlineCapable": false
+      "offlineCapable": true
     },
     {
       "id": "tm-leverage",
