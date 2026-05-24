@@ -64,7 +64,7 @@ Credentials live in your OS keychain. See the
 For a visual interface, install Kapi alongside the CLI:
 
 ```bash
-brew install --cask neokapi/tap/kapi-desktop
+brew install --cask neokapi/tap/kapi
 ```
 
 Or download the DMG/ZIP from [GitHub Releases](https://github.com/neokapi/neokapi/releases). See the [Kapi overview](/desktop/overview) for details.
