@@ -54,7 +54,7 @@ func TestDemoMTProvider_Deterministic(t *testing.T) {
 	req := TranslateRequest{Source: "Hello, save the file or cancel.", TargetLocale: "de"}
 	first, err := p.Translate(context.Background(), req)
 	require.NoError(t, err)
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		got, err := p.Translate(context.Background(), req)
 		require.NoError(t, err)
 		assert.Equal(t, first.Translation, got.Translation)
@@ -89,9 +89,9 @@ func TestDemoMTProvider_NoticeOnce(t *testing.T) {
 func TestDemoMTToolConfig(t *testing.T) {
 	c := &DemoToolConfig{}
 	assert.Equal(t, "demo-translate", c.ToolName())
-	assert.Error(t, c.Validate()) // missing target locale
+	require.Error(t, c.Validate()) // missing target locale
 	c.TargetLocale = "fr"
-	assert.NoError(t, c.Validate())
+	require.NoError(t, c.Validate())
 	c.Reset()
 	assert.True(t, c.TargetLocale.IsEmpty())
 }

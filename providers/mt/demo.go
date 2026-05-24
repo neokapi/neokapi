@@ -155,7 +155,7 @@ var demoLexicon = map[string]map[string]string{
 
 func demoBaseLang(loc model.LocaleID) string {
 	s := strings.ToLower(string(loc))
-	for i := 0; i < len(s); i++ {
+	for i := range len(s) {
 		if s[i] == '-' || s[i] == '_' {
 			return s[:i]
 		}

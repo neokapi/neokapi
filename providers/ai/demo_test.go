@@ -56,7 +56,7 @@ func TestDemoProvider_Deterministic(t *testing.T) {
 	req := TranslateRequest{Source: "Hello, save the file or cancel.", TargetLocale: "fr"}
 	first, err := p.Translate(context.Background(), req)
 	require.NoError(t, err)
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		got, err := p.Translate(context.Background(), req)
 		require.NoError(t, err)
 		assert.Equal(t, first.Translation, got.Translation)
