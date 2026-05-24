@@ -1,0 +1,69 @@
+id: 03-translate-docx
+title: Translate a document, structure intact
+subtitle: A Word announcement, translated into Japanese with kapi — headings, lists, and formatting preserved.
+kind: use-case
+publishAs: claude-translate-document
+aspects:
+  - document formats
+  - translation
+  - structure-preserving
+needsAi: true
+model: sonnet
+captureTimeoutSec: 240
+
+prompt: >
+  Can you translate announcement.docx into Japanese?
+
+artifacts:
+  - id: before
+    caption: "announcement.docx — the original English document"
+    source: docx
+    path: announcement.docx
+    from: fixture
+    reportTitle: "announcement.docx"
+    reportSub: "English — the original Word document"
+    width: 1100
+    height: 860
+  - id: after
+    caption: "announcement.ja.docx — translated, structure and formatting intact"
+    source: docx
+    path: announcement.ja.docx
+    reportTitle: "announcement.ja.docx"
+    reportSub: "kapi · Japanese, headings / lists / bold preserved"
+    width: 1100
+    height: 860
+
+narration:
+  - id: title
+    kind: title
+    text: >
+      A launch announcement, written in Word. The task: have it in Japanese, with the
+      document itself unchanged.
+  - id: prompt
+    kind: prompt
+    text: >
+      The developer just asks to translate the document — nothing about the file format or
+      how to keep the layout.
+  - id: work
+    kind: terminal
+    text: >
+      Claude hands the document to kapi, which reads the Word format directly. It translates
+      the text into Japanese and writes a new document back — a structured round-trip, the
+      same one command for any document or language.
+    caption: "kapi reads the .docx, translates the text, writes a new document"
+  - id: before
+    kind: artifact
+    artifact: before
+    text: >
+      Here's the original — headings, a bullet list, bold dates, a contact line.
+  - id: after
+    kind: artifact
+    artifact: after
+    text: >
+      And the Japanese version. The text is translated, but the headings, the list, the bold
+      dates, and the product name all come through exactly as they were.
+  - id: outro
+    kind: outro
+    text: >
+      One command, and the document speaks Japanese — its structure intact. The same approach
+      covers the office formats, mobile catalogs, and Markdown, all offline.

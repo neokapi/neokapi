@@ -1,0 +1,11 @@
+{
+  "auth.signIn": "Sign in to your workspace",
+  "auth.signOut": "Sign out",
+  "board.new": "Create a new board",
+  "board.empty": "This board has no cards yet",
+  "card.add": "Add a card",
+  "card.due": "Set a due date",
+  "settings.title": "Workspace settings",
+  "team.invite": "Invite a team member",
+  "team.role": "Choose a role for this team member"
+}

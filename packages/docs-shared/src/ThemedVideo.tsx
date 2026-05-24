@@ -24,13 +24,20 @@ interface ThemedVideoProps {
 //
 // When both variants are the same file (theme-agnostic terminal recordings) a
 // single element is emitted to avoid a duplicate download.
+//
+// A poster is derived from each source (`foo.webm` → `foo.jpg`) so the player
+// shows a content frame instead of a flat, blank first frame — which is
+// invisible once the video is theme-matched to the page background. A missing
+// poster simply falls back to the first frame.
 export default function ThemedVideo({ sources, maxWidth = "800px" }: ThemedVideoProps) {
   const light = useBaseUrl(sources.light);
   const dark = useBaseUrl(sources.dark);
+  const posterLight = useBaseUrl(sources.light.replace(/\.webm$/, ".jpg"));
+  const posterDark = useBaseUrl(sources.dark.replace(/\.webm$/, ".jpg"));
 
   if (light === dark) {
     return (
-      <video controls width="100%" style={{ maxWidth }}>
+      <video controls width="100%" style={{ maxWidth }} poster={posterLight} preload="metadata">
         <source src={light} type="video/webm" />
         Your browser does not support the video tag.
       </video>
@@ -44,6 +51,7 @@ export default function ThemedVideo({ sources, maxWidth = "800px" }: ThemedVideo
         controls
         width="100%"
         style={{ maxWidth }}
+        poster={posterLight}
         preload="metadata"
       >
         <source src={light} type="video/webm" />
@@ -54,6 +62,7 @@ export default function ThemedVideo({ sources, maxWidth = "800px" }: ThemedVideo
         controls
         width="100%"
         style={{ maxWidth }}
+        poster={posterDark}
         preload="metadata"
       >
         <source src={dark} type="video/webm" />

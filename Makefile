@@ -652,6 +652,18 @@ fetch-docs-assets: ## Download legacy docs assets (transitional, until walkthrou
 	@rm -f /tmp/docs-assets.tar.gz
 	@du -sh web/docs/static/img web/docs/static/video 2>/dev/null || true
 
+publish-docs-assets: ## Publish web/docs/static/{img,video} to the docs-assets release (merges, never drops)
+	@bash scripts/publish-docs-assets.sh
+
+# harness/ records kapi driven by Claude Code as narrated 1-min explainer videos
+# and publishes them theme-matched (light + dark) into the docs site. Built and
+# published from your desktop — no CI required. See harness/Makefile for details.
+harness-deps: ## Install the demo-video harness deps (node + Playwright)
+	$(MAKE) -C harness deps
+
+harness-videos: ## Render + convert the docs demo videos (light + dark) → web/docs/static/video/kapi/
+	$(MAKE) -C harness videos
+
 # ── Generate (scripts at root) ──────────────────────────────────────────────
 
 # okapi-bridge plugin dir feeding the reference dataset. Override with
@@ -741,7 +753,7 @@ help: ## Show this help
         kapi-storybook kapi-storybook-build bowrain-storybook bowrain-storybook-build \
         cover test-e2e test-e2e-kapi test-e2e-bowrain test-e2e-cloud test-e2e-dev \
         bench bench-build bench-generate bench-run bench-run-collection bench-run-all bench-versions \
-        fetch-docs-assets \
+        fetch-docs-assets publish-docs-assets harness-deps harness-videos \
         generate-format-docs generate-reference-docs \
         docs-deps docs-dev docs-build docs-serve \
         tools setup-remote gha-lint clean \

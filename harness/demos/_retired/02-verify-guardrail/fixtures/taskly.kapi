@@ -1,0 +1,12 @@
+version: v1
+name: taskly
+defaults:
+  source_language: en
+  target_languages: [fr]
+  brand_voice:
+    profile_file: brand.yaml
+  termbase: .kapi/termbase.db
+content:
+  - path: src/en.json
+    format: json
+    target: src/{lang}.json

@@ -1,0 +1,105 @@
+id: 02-nextjs-zero-to-i18n
+title: Zero to Japanese — i18n a Next.js app with kapi
+subtitle: A working English Next.js app. Claude wires up kapi-react and ships it in Japanese — same UI, translated.
+kind: framework
+publishAs: claude-app-i18n
+aspects:
+  - i18n setup
+  - kapi-react
+  - pseudo-translate
+  - multilingual
+needsAi: true
+model: sonnet
+captureTimeoutSec: 480
+
+# A complete English app with base deps installed, but kapi-react is NOT installed
+# or wired — Claude adopts it. @neokapi/kapi-react is served from a local registry
+# (.npmrc routes @neokapi → http://localhost:4873; run `npm run setup` to publish it),
+# so `npm install -D @neokapi/kapi-react` works cleanly (React stays a single peer copy).
+setup:
+  - npm install --no-audit --no-fund --loglevel=error
+
+prompt: >
+  We're taking Lumen Notes to Japan. Can you set up i18n with kapi-react and add a Japanese
+  translation?
+
+artifacts:
+  - id: english
+    caption: "The app today — English"
+    source: url
+    serve: "npm run dev -- -p 4599"
+    port: 4599
+    path: "/"
+    settleMs: 1000
+    serveTimeoutMs: 220000
+    width: 1200
+    height: 820
+  - id: source
+    caption: "Plain JSX — the English text in the markup is the source, no message IDs"
+    source: report
+    report: code
+    reportTitle: "src/app/page.tsx"
+    reportSub: "Zero-wrapper: kapi-react extracts these strings at build time"
+    path: src/app/page.tsx
+    width: 1100
+    height: 820
+  - id: japanese
+    caption: "The same app — Japanese, layout untouched, placeholders intact"
+    source: url
+    serve: "npm run dev -- -p 4600"
+    port: 4600
+    path: "/?lang=ja"
+    settleMs: 3500
+    serveTimeoutMs: 220000
+    width: 1200
+    height: 820
+
+narration:
+  - id: title
+    kind: title
+    text: >
+      A working Next.js notes app, in English, with no internationalization yet. The task:
+      ship it in Japanese.
+  - id: prompt
+    kind: prompt
+    text: >
+      The developer just asks Claude to set up i18n with kapi-react and add Japanese — no
+      mention of extraction, catalogs, or placeholders.
+  - id: work
+    kind: terminal
+    text: >
+      Claude wires up the kapi-react stack — the zero-wrapper approach, where the UI stays as
+      plain JSX — and pulls every translatable string out of the components into a catalog. It's
+      a structured step the project re-runs whenever the interface changes.
+    caption: "Claude adopts kapi-react and extracts the UI strings from the JSX"
+  - id: translate
+    kind: terminal
+    text: >
+      A pseudo-translation checks the app is ready to localize. Then kapi translates the
+      strings into Japanese — keeping the name placeholder exactly where the code expects it —
+      and compiles them into a dictionary the app loads at runtime.
+    caption: "Pseudo-translate for readiness, then translate to Japanese and compile"
+  - id: english
+    kind: artifact
+    artifact: english
+    text: >
+      Here's the app as it ships today — the real interface, in English.
+  - id: source
+    kind: artifact
+    artifact: source
+    text: >
+      And the source behind it: ordinary JSX, no message IDs, no wrappers. The text in the
+      markup is what kapi extracts and translates.
+  - id: japanese
+    kind: artifact
+    artifact: japanese
+    text: >
+      And the same app, running in Japanese. Every string is translated, the layout is
+      untouched, and the name placeholder is right where it belongs — Claude drove it, kapi
+      did the extraction and the round-trip.
+  - id: outro
+    kind: outro
+    text: >
+      From a working English app to one that speaks Japanese — one ordinary request, and kapi
+      did the part it does best: pulling the content out of the code and round-tripping the
+      translation back.

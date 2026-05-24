@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Account settings</title>
+    <style>
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+      body { font-family: -apple-system, "Segoe UI", Inter, system-ui, sans-serif; background: #eef1f7; display: grid; place-items: center; min-height: 100vh; padding: 40px; }
+      .dialog { width: 460px; background: #fff; border-radius: 18px; box-shadow: 0 30px 80px rgba(20,25,45,0.18); overflow: hidden; }
+      .head { padding: 24px 28px; border-bottom: 1px solid #eef1f7; }
+      .head h2 { font-size: 21px; }
+      .head p { color: #6b7488; font-size: 14px; margin-top: 4px; }
+      .body { padding: 24px 28px; display: flex; flex-direction: column; gap: 20px; }
+      .field label { display: block; font-weight: 600; font-size: 14px; margin-bottom: 7px; }
+      .field input, .field select { width: 100%; padding: 11px 13px; border: 1.5px solid #d7dce8; border-radius: 10px; font-size: 15px; }
+      .row { display: flex; align-items: center; gap: 10px; }
+      .row input { width: auto; }
+      .row span { font-size: 14px; color: #475069; }
+      .foot { display: flex; justify-content: flex-end; gap: 12px; padding: 20px 28px; background: #f7f9fc; border-top: 1px solid #eef1f7; }
+      .btn { padding: 11px 22px; border-radius: 10px; font-weight: 700; font-size: 14px; border: none; cursor: pointer; }
+      .btn.ghost { background: #fff; border: 1.5px solid #d7dce8; color: #1a1f2e; }
+      .btn.primary { background: #ff7a45; color: #fff; }
+      .danger { color: #c0392b; font-size: 13px; }
+    </style>
+  </head>
+  <body>
+    <div class="dialog">
+      <div class="head">
+        <h2>Account settings</h2>
+        <p>Manage how you sign in and get notified.</p>
+      </div>
+      <div class="body">
+        <div class="field">
+          <label>Display name</label>
+          <input value="Alex Morgan" />
+        </div>
+        <div class="field">
+          <label>Email address</label>
+          <input value="alex@example.com" />
+        </div>
+        <div class="field">
+          <label>Notification frequency</label>
+          <select>
+            <option>Send me a summary every morning</option>
+            <option>Only notify me about urgent items</option>
+          </select>
+        </div>
+        <div class="row">
+          <input type="checkbox" checked />
+          <span>Enable two-factor authentication for extra security</span>
+        </div>
+        <div class="danger">Deleting your account is permanent and cannot be undone.</div>
+      </div>
+      <div class="foot">
+        <button class="btn ghost">Cancel</button>
+        <button class="btn primary">Save changes</button>
+      </div>
+    </div>
+  </body>
+</html>

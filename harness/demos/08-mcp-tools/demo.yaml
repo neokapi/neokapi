@@ -1,0 +1,62 @@
+id: 08-mcp-tools
+title: Reach kapi over MCP
+subtitle: The same engine, exposed to the assistant as Model Context Protocol tools.
+kind: integration
+aspects:
+  - MCP integration
+  - extract & word-count
+  - pseudo-translate
+needsAi: false
+mcp: true
+model: sonnet
+captureTimeoutSec: 300
+
+prompt: >
+  Using kapi, take a look at content.json for me: what format is it, how many translatable
+  words does it have, and what could kapi do with it? Then show me a quick pseudo-translated
+  preview of the content.
+
+artifacts:
+  - id: wordcount
+    caption: "kapi word-count on content.json — the real figure"
+    source: command
+    command: kapi word-count content.json --json
+    report: word-count
+    width: 1000
+    height: 640
+
+narration:
+  - id: title
+    kind: title
+    text: >
+      There are two ways to give an assistant kapi's abilities. One is the skill. The other
+      is the Model Context Protocol: kapi runs as a server and exposes its work as tools.
+  - id: prompt
+    kind: prompt
+    text: >
+      The request is an ordinary one — what is this file, how big is it, what can we do with
+      it. In this session the shell is switched off, so the only way to reach kapi is its tools.
+  - id: tools
+    kind: terminal
+    text: >
+      Each step is a typed tool call with a structured result, not text scraped from a
+      console. Claude asks kapi to detect the format, extract the translatable content with a
+      word count, and list the flows it offers.
+    caption: "Typed kapi tool calls over MCP, each returning structured data"
+  - id: pseudo
+    kind: terminal
+    text: >
+      It runs a pseudo-translation through the same interface. This is how kapi plugs into
+      other MCP clients, such as Cursor or Windsurf — the same engine, a different doorway.
+    caption: "Pseudo-translate over MCP — the same engine, reached as a tool"
+  - id: wordcount
+    kind: artifact
+    artifact: wordcount
+    text: >
+      The figures came straight from the engine: the detected format, and the translatable
+      word and segment counts for the file. No guesswork.
+  - id: outro
+    kind: outro
+    text: >
+      Skill or MCP, the assistant calls a real localization engine — local, and the same
+      either way.

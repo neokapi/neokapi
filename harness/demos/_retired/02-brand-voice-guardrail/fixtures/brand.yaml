@@ -1,0 +1,59 @@
+name: Lumen Notes
+description: The calm, human voice of a note-taking app for people who think on paper.
+
+tone:
+  personality: [calm, clear, human, honest]
+  formality: casual
+  emotion: warm
+  humor: light
+  guidelines: Address the reader as "you". Lead with the benefit, never the buzzword. Plain words win.
+
+style:
+  active_voice: true
+  sentence_length: short
+  person_pov: second
+  contractions: always
+  prohibited_patterns:
+    - regex: "\\b(synergy|synergies|paradigm|paradigms)\\b"
+      description: Corporate jargon — say what you actually mean
+      severity: major
+    - regex: "\\b(game[- ]chang(er|ing)|revolutionary|disrupt(ive)?)\\b"
+      description: Hype words we never use
+      severity: major
+
+vocabulary:
+  preferred_terms:
+    - term: sign in
+      note: not "log in"
+    - term: notes
+      note: our core noun — not "content" or "assets"
+  forbidden_terms:
+    - term: utilize
+      replacement: use
+      severity: minor
+    - term: leverage
+      replacement: use
+      severity: major
+    - term: best-in-class
+      replacement: genuinely good
+      severity: major
+    - term: cutting-edge
+      replacement: modern
+      severity: minor
+    - term: seamless
+      replacement: simple
+      severity: minor
+  competitor_terms:
+    - term: Evernote
+      replacement: other note apps
+      severity: major
+
+examples:
+  - before: We utilize cutting-edge AI to leverage best-in-class synergies.
+    after: Lumen Notes helps you think clearly. That's it.
+    explanation: Cut every buzzword; speak plainly to the reader.
+    category: tone
+  - before: A revolutionary, game-changing, disruptive platform.
+    after: A calm place for your notes.
+    explanation: No hype. Describe the real benefit.
+    category: vocabulary

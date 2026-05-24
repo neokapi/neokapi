@@ -1,0 +1,8 @@
+{
+  "nav.boards": "Boards",
+  "board.new": "Create a new board",
+  "board.empty": "This board has no cards yet",
+  "card.assign": "Assign this card to a team member",
+  "greeting": "Welcome back, {{name}}",
+  "settings.title": "Workspace settings"
+}

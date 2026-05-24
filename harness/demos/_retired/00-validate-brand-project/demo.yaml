@@ -1,0 +1,71 @@
+id: 00-validate-brand-project
+title: On-brand, checked against the project's voice
+subtitle: A draft, a project that already knows the brand voice, and a request to fix it until it passes.
+kind: use-case
+aspects:
+  - brand voice
+  - project context
+  - verify loop
+needsAi: true
+model: sonnet
+captureTimeoutSec: 320
+
+# A real, git-tracked project, so fixing a file in place is safe (git is the undo).
+setup:
+  - git init -q && git add -A && git -c user.email=dev@example.com -c user.name=Dev commit -qm "initial project"
+
+prompt: >
+  Is RELEASE.md on brand for us? If it's off, fix it, and make sure it passes our brand
+  check before you call it done.
+
+artifacts:
+  - id: before
+    caption: "The draft, checked against the project's brand voice"
+    source: command
+    command: kapi brand check RELEASE.md --json
+    report: brand
+    from: fixture   # the original RELEASE.md, before the in-place fix
+    width: 1100
+    height: 760
+  - id: after
+    caption: "The same file after the fix, re-checked — green"
+    source: command
+    command: kapi brand check RELEASE.md --json
+    report: brand   # the snapshot's RELEASE.md, rewritten in place
+    width: 1100
+    height: 760
+
+narration:
+  - id: title
+    kind: title
+    text: >
+      A developer wants to know whether a release note sounds like their brand. This project
+      already has its brand voice set up, so kapi and Claude can handle it together.
+  - id: prompt
+    kind: prompt
+    text: >
+      The developer just asks, in plain words: is this on brand, and if it isn't, fix it.
+  - id: work
+    kind: terminal
+    text: >
+      Claude reads the draft and asks kapi to score it against the brand voice. kapi points
+      to the phrases that don't fit and suggests better ones. Claude rewrites them and asks
+      kapi to check again — and keeps going until kapi says it's on brand.
+    caption: "Claude rewrites; kapi keeps scoring against the brand voice until it passes"
+  - id: before
+    kind: artifact
+    artifact: before
+    text: >
+      Here's the original draft, scored against the brand voice. It comes in below the bar,
+      and kapi has flagged each phrase that's off, with a suggested replacement.
+  - id: after
+    kind: artifact
+    artifact: after
+    text: >
+      And here's the rewrite, checked the same way. It's on brand now — because kapi kept
+      checking until it was, not because the first try happened to be right.
+  - id: outro
+    kind: outro
+    text: >
+      The brand voice lives with the project, so a plain request is enough. kapi does the
+      checking, Claude does the writing, and together they get it on brand.

@@ -1,0 +1,10 @@
+version: v1
+name: taskly
+defaults:
+  source_language: en
+  target_languages: [fr]
+  termbase: .kapi/termbase.db
+content:
+  - path: src/en.json
+    format: json
+    target: src/{lang}.json
