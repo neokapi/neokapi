@@ -181,23 +181,29 @@ Four independent recording pipelines:
    `apps/desktop/frontend/e2e/recordings.spec.ts`, dark + light
    themes.
 2. **Kapi CLI** — [VHS](https://github.com/charmbracelet/vhs) terminal
-   recordings from `.tape` files in `web/docs/tapes/`. No server
-   required.
-   4.VHS tape files are declarative:
+   recordings from `.tape` files in `web/docs/scenes/`. No server
+   required. Each scene directory under `web/docs/scenes/` holds a
+   `01-<name>.tape` and any fixtures needed to run it. VHS tape files
+   are declarative:
 
 ```tape
-Output output/convert.webm
-Output output/convert.gif
+Output "01-pseudo-translate.webm"
 
 Set FontSize 16
-Set Width 900
-Set Height 500
+Set Width 1000
+Set Height 700
 Set Theme "Dracula"
+Set Padding 20
 
-Type "kapi convert -i samples/messages.json -o output.yaml"
+Type "kapi pseudo-translate messages.json -o messages.pseudo.json"
 Enter
 Sleep 1500ms
 ```
+
+The CI workflow records each tape from inside its scene directory and
+stages the resulting `.webm` files under `web/docs/static/video/kapi/`
+(filename = tape `Output` basename). Docs reference them as
+`/video/kapi/<output-name>.webm`.
 
 Playwright recordings use human-like interaction helpers:
 
@@ -206,12 +212,20 @@ Playwright recordings use human-like interaction helpers:
 - `pause()` — visual pauses between actions.
 - `injectWindowChrome()` — adds a window title bar for context.
 
-Videos embed in MDX via HTML5 video elements:
+Terminal scene videos embed in MDX via `ThemedVideo` from
+`@neokapi/docs-shared` for colour-scheme matching; pages that also carry
+an interactive `KapiGuidedEmbed` relegate the video to a secondary "Watch"
+section. Harness-rendered Claude-demo videos use the same component:
 
 ```mdx
-<video controls autoPlay loop muted width="100%">
-  <source src="/video/cli/convert.webm" type="video/webm" />
-</video>
+import { ThemedVideo } from "@neokapi/docs-shared";
+
+<ThemedVideo
+  sources={{
+    light: "/video/kapi/01-pseudo-translate.webm",
+    dark: "/video/kapi/01-pseudo-translate.webm",
+  }}
+/>
 ```
 
 WebM is preferred (smaller, better quality); GIFs are generated for

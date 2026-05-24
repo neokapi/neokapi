@@ -25,19 +25,6 @@ recording every new pair in the TM with full provenance.
 seed TM → kapi extract → translator fills <target> → kapi merge → kapi tm audit
 ```
 
-The complete loop is shown below: seed the TM from a corporate TMX, extract
-per-locale XLIFFs, simulate a translator filling them in, merge back, and trace
-the result with `kapi tm audit`. The translator step is an external editor
-action and `tm audit` reads the SQLite TM, so the full loop runs against the
-native binary rather than the in-browser build.
-
-<ThemedVideo
-  sources={{
-    light: "/video/kapi/01-bilingual-workflow.webm",
-    dark: "/video/kapi/01-bilingual-workflow.webm",
-  }}
-/>
-
 ## Steps
 
 1. **Seed the TM** (one-time) so extract can pre-fill known matches:
@@ -63,6 +50,20 @@ the source.
 > The interactive embed and the recorded video both come from
 > [`walkthroughs/kapi-bilingual-workflow.scene.yaml`](https://github.com/neokapi/neokapi/blob/main/web/docs/walkthroughs/kapi-bilingual-workflow.scene.yaml).
 > Change the scene spec and regenerate; don't edit the generated output by hand.
+
+## Watch the full round-trip
+
+The complete loop — seed the TM from a corporate TMX, extract per-locale XLIFFs,
+simulate a translator filling them in, merge back, and trace the result with
+`kapi tm audit`. The translator step and `tm audit` read the SQLite TM, so the
+full loop runs against the native binary rather than the in-browser build.
+
+<ThemedVideo
+  sources={{
+    light: "/video/kapi/01-bilingual-workflow.webm",
+    dark: "/video/kapi/01-bilingual-workflow.webm",
+  }}
+/>
 
 ## Next
 
