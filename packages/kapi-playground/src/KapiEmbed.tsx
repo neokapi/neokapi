@@ -171,7 +171,7 @@ export default function KapiEmbed({
   // the command(s). For autoRun, submit them with a small stagger so each
   // command's output settles; otherwise leave the first at the prompt.
   const drive = useCallback(
-    (rt: KapiRuntime, req: KapiRunRequest) => {
+    async (rt: KapiRuntime, req: KapiRunRequest) => {
       const h = termRef.current;
       if (!h) return;
       ensureSeed(rt, req.seed);
@@ -185,20 +185,16 @@ export default function KapiEmbed({
         return;
       }
       if (req.autoRun === false) {
-        h.runCommand(queue[0], false);
+        // Leave the (single) command at the prompt for the reader to run.
+        await h.runCommand(queue[0], false);
         return;
       }
-      let i = 0;
-      const tick = () => {
-        if (i >= queue.length) {
-          h.focus();
-          return;
-        }
-        h.runCommand(queue[i], true);
-        i++;
-        window.setTimeout(tick, 350);
-      };
-      tick();
+      // Run each command in sequence: await so the next one only begins after
+      // the previous has finished typing out and executing.
+      for (const c of queue) {
+        await h.runCommand(c, true);
+      }
+      h.focus();
     },
     [bump],
   );
@@ -207,7 +203,7 @@ export default function KapiEmbed({
     ref,
     () => ({
       openWith: (req: KapiRunRequest) => {
-        if (runtime) drive(runtime, req);
+        if (runtime) void drive(runtime, req);
       },
       reset: (resetSeed?: string[]) => {
         if (!runtime) return;
@@ -256,7 +252,7 @@ export default function KapiEmbed({
   // command (the one supplied at mount time).
   useEffect(() => {
     if (!runtime) return;
-    drive(runtime, { cmd, steps, autoRun, seed: undefined, files: undefined });
+    void drive(runtime, { cmd, steps, autoRun, seed: undefined, files: undefined });
     // Run the initial command once per (runtime) — seed already applied above.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [runtime]);
@@ -276,9 +272,15 @@ export default function KapiEmbed({
 
   if (!runtime) {
     return (
-      <p className="kapi-pg-notice" aria-live="polite">
-        {wasWarm.current ? "Starting the kapi CLI…" : "Loading the kapi CLI (WebAssembly, ~13 MB)…"}
-      </p>
+      <div className="kapi-pg-loading" role="status" aria-live="polite">
+        <span className="kapi-pg-spinner" aria-hidden="true" />
+        <span className="kapi-pg-loading-title">Getting things ready…</span>
+        <span className="kapi-pg-loading-sub">
+          {wasWarm.current
+            ? "Starting the kapi CLI…"
+            : "Loading the kapi CLI (WebAssembly, ~13 MB)…"}
+        </span>
+      </div>
     );
   }
 

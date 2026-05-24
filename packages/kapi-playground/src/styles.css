@@ -323,6 +323,48 @@
   padding: 1rem 1.25rem;
 }
 
+/* First-open loading state shown while the wasm downloads + boots. Fills the
+   modal body / embed so it reads as a deliberate "getting ready" screen rather
+   than a bare line of text. */
+.kapi-pg-loading {
+  height: 100%;
+  min-height: 240px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.7rem;
+  padding: 2rem;
+  text-align: center;
+}
+
+.kapi-pg-spinner {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 3px solid var(--ifm-color-emphasis-300, rgba(127, 127, 127, 0.3));
+  border-top-color: var(--ifm-color-primary, #4a7cf6);
+  animation: kapi-pg-spin 0.7s linear infinite;
+}
+
+.kapi-pg-loading-title {
+  font-weight: 600;
+  font-size: 1rem;
+  color: var(--ifm-font-color-base);
+}
+
+.kapi-pg-loading-sub {
+  font-size: 0.85rem;
+  max-width: 38ch;
+  color: var(--ifm-color-emphasis-600, #8a8a93);
+}
+
+@keyframes kapi-pg-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 /* ── File preview dialog ──────────────────────────────────────────────────── */
 
 .kapi-pg-overlay {
@@ -573,7 +615,8 @@
 /* Respect reduced-motion: drop the fade and the hover/reveal transitions. */
 @media (prefers-reduced-motion: reduce) {
   .kapi-pg-modal-overlay,
-  .kapi-pg-modal {
+  .kapi-pg-modal,
+  .kapi-pg-spinner {
     animation: none;
   }
   .kapi-pg-file-actions,

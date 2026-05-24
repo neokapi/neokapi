@@ -67,10 +67,14 @@ const HELP = [
   "  kapi word-count messages.json --jq '.total_source_words'",
 ].join("\n");
 
+// Small async sleep used to animate command "typing".
+const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
 /** Imperative handle so the modal can type/run a command from outside. */
 export interface KapiTerminalHandle {
-  /** Type a command into the prompt and (optionally) execute it. */
-  runCommand(cmd: string, autoRun?: boolean): void;
+  /** Type a command into the prompt and (optionally) execute it. Resolves when
+   * typing + execution finish, so callers can sequence multiple commands. */
+  runCommand(cmd: string, autoRun?: boolean): Promise<void>;
   /** Focus the terminal input. */
   focus(): void;
   /** The commands run so far, in order (for shareable-session capture). */
@@ -89,7 +93,7 @@ export default function KapiTerminal({ runtime, onFsChange, ref }: KapiTerminalP
   const driver = useRef<KapiTerminalHandle | null>(null);
 
   useImperativeHandle(ref, () => ({
-    runCommand: (cmd, autoRun) => driver.current?.runCommand(cmd, autoRun),
+    runCommand: (cmd, autoRun) => driver.current?.runCommand(cmd, autoRun) ?? Promise.resolve(),
     focus: () => driver.current?.focus(),
     history: () => driver.current?.history() ?? [],
   }));
@@ -439,22 +443,39 @@ export default function KapiTerminal({ runtime, onFsChange, ref }: KapiTerminalP
     // prompt; when autoRun (default) it submits immediately, otherwise it
     // leaves the line ready for the reader to press Enter.
     driver.current = {
-      runCommand: (cmd: string, autoRun = true) => {
+      runCommand: async (cmd: string, autoRun = true): Promise<void> => {
         if (running) return;
+        // Nothing to type/run — guard so an empty command can't leave the
+        // terminal stuck with running=true (submit() returns early on blanks).
+        if (!cmd.trim()) return;
         // Drop whatever is half-typed.
         if (line) {
           line = "";
           cursor = 0;
           render();
         }
-        if (autoRun) {
-          term.write(cmd);
-          term.write("\r\n");
-          void submit(cmd);
-        } else {
+        if (!autoRun) {
           setLine(cmd);
           term.focus();
+          return;
         }
+        // Type the command out like a person before running it, so an
+        // auto-launched example reads as a live session rather than a paste.
+        // running=true blocks keyboard input during the animation; submit()
+        // resets it. Honor prefers-reduced-motion by writing it at once.
+        running = true;
+        const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+        if (reduce) {
+          term.write(cmd);
+        } else {
+          for (const ch of cmd) {
+            term.write(ch);
+            await sleep(32 + Math.random() * 46);
+          }
+          await sleep(240); // a beat before "pressing Enter"
+        }
+        term.write("\r\n");
+        await submit(cmd);
       },
       focus: () => term.focus(),
       history: () => history.slice(),
