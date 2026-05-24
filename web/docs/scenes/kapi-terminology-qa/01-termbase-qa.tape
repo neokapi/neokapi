@@ -29,7 +29,7 @@ Type "# Pseudo-translate, then check terminology against the termbase"
 Enter
 Sleep 500ms
 
-Type "kapi pseudo-translate messages_en.json -o pseudo_fr.json --target-lang fr"
+Type "kapi pseudo-translate messages_en.json -o pseudo_fr.json"
 Enter
 Sleep 1500ms
 

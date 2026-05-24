@@ -10,7 +10,7 @@ const config: WalkthroughEmbedConfig = {
   files: [],
   steps: [
     {
-      command: "kapi pseudo-translate messages.json -o messages.fr.json --target-lang fr",
+      command: "kapi pseudo-translate messages.json -o messages.fr.json",
       narration:
         "Expands every string with locale-shaped accent characters so truncation and missing-string bugs surface immediately on screen.",
     },

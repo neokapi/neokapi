@@ -52,7 +52,7 @@ steps:
   - comment: Pseudo-translate, then check terminology against the termbase
   # pseudo-translate references messages_en.json, which W7 skip-lists — it stays
   # in smoke_contract (honestly skipped) and runs live in the embed.
-  - command: kapi pseudo-translate messages_en.json -o pseudo_fr.json --target-lang fr
+  - command: kapi pseudo-translate messages_en.json -o pseudo_fr.json
     narration: Produce a target file to QA.
   - command: kapi term-check pseudo_fr.json --source-lang en --target-lang fr
     narration: Flags target segments that violate the seeded terminology.

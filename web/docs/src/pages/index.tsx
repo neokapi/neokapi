@@ -17,7 +17,7 @@ import styles from "./index.module.css";
 // instantly legible "wow" — readable accented output, no API key, no input file
 // to find (the fixture is seeded). autoRun so the result appears the moment the
 // modal opens.
-const HERO_CMD = "kapi pseudo-translate messages.json --target-lang fr";
+const HERO_CMD = "kapi pseudo-translate messages.json";
 
 function tryItLive() {
   openKapi({ cmd: HERO_CMD, seed: ["messages.json"], autoRun: true });

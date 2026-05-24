@@ -25,6 +25,9 @@ func (a *App) NewFormatsCmd() *cobra.Command {
 		Long: `List all file formats that can be read and written.
 
 Use --mime or --ext to filter by MIME type or file extension.`,
+		Example: `  kapi formats
+  kapi formats --ext .json
+  kapi formats --mime text/html`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			infos := a.FormatReg.FormatInfos()
 
@@ -76,9 +79,10 @@ Use --mime or --ext to filter by MIME type or file extension.`,
 
 func (a *App) newFormatsInfoCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   "info <format>",
-		Short: "Show detailed information about a format",
-		Args:  cobra.ExactArgs(1),
+		Use:     "info <format>",
+		Short:   "Show detailed information about a format",
+		Example: "  kapi formats info json\n  kapi formats info okf_html",
+		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			filterID := args[0]
 			info := a.FormatReg.FormatInfo(registry.FormatID(filterID))
@@ -178,9 +182,10 @@ func (a *App) newFormatsInfoCmd() *cobra.Command {
 
 func (a *App) newFormatsSchemaCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   "schema <format>",
-		Short: "Output JSON Schema for a format",
-		Args:  cobra.ExactArgs(1),
+		Use:     "schema <format>",
+		Short:   "Output JSON Schema for a format",
+		Example: "  kapi formats schema json\n  kapi formats schema okf_html",
+		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			filterID := args[0]
 

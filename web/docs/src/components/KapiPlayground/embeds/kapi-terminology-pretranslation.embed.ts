@@ -30,7 +30,7 @@ const config: WalkthroughEmbedConfig = {
       narration: "Fill exact/fuzzy matches from the TM; the rest stay untranslated.",
     },
     {
-      command: "kapi pseudo-translate step1_tm.json -o step2_translated.json --target-lang fr",
+      command: "kapi pseudo-translate step1_tm.json -o step2_translated.json",
       narration: "Everything the TM did not cover gets a locale-shaped placeholder.",
     },
     {

@@ -49,7 +49,7 @@ kapi formats
 kapi word-count messages.json
 
 # Pseudo-translate for UI testing
-kapi pseudo-translate messages.json --target-lang fr
+kapi pseudo-translate messages.json
 
 # Translate with AI
 kapi ai-translate -i input.html -o output.html --source-lang en --target-lang fr

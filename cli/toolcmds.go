@@ -69,6 +69,66 @@ func aiProgressWriter(w *os.File) func(aiprovider.ProgressEvent) {
 	}
 }
 
+// toolExamples maps tool names to their cobra Example strings. Each entry is a
+// newline-separated list of representative, runnable commands using the bundled
+// playground fixtures (messages.json, app.xliff, page.html, etc.) so they work
+// in the wasm CLI playground with no uploads.
+//
+// AI/MT commands use demo mode (no --provider flag needed in the playground).
+var toolExamples = map[string]string{
+	// ── Analysis ────────────────────────────────────────────────────────
+	"word-count": `  kapi word-count messages.json
+  kapi word-count app.xliff --json`,
+	"char-count": `  kapi char-count messages.json
+  kapi char-count page.html`,
+	"segment-count": `  kapi segment-count messages.json
+  kapi segment-count app.xliff`,
+	"scoping-report": `  kapi scoping-report messages.json
+  kapi scoping-report app.xliff --json`,
+	"repetition-analysis": `  kapi repetition-analysis messages.json
+  kapi repetition-analysis app.xliff`,
+
+	// ── Quality ─────────────────────────────────────────────────────────
+	"qa-check": `  kapi qa-check app.xliff --target-lang fr
+  kapi qa-check app.xliff --target-lang de --json`,
+	"term-check": `  kapi term-check app.xliff --source-lang en --target-lang fr
+  kapi term-check messages.json --source-lang en --target-lang fr`,
+	"inconsistency-check": `  kapi inconsistency-check app.xliff --target-lang fr
+  kapi inconsistency-check app.xliff --target-lang de`,
+	"length-check": `  kapi length-check app.xliff --target-lang fr
+  kapi length-check app.xliff --target-lang ja`,
+	"chars-check": `  kapi chars-check app.xliff --target-lang fr
+  kapi chars-check app.xliff --target-lang zh`,
+	"pattern-check": `  kapi pattern-check app.xliff --target-lang fr
+  kapi pattern-check app.xliff --target-lang de`,
+	"brand-vocab-check": `  kapi brand-vocab-check app.xliff --target-lang fr
+  kapi brand-vocab-check messages.json --target-lang de`,
+
+	// ── Translation ─────────────────────────────────────────────────────
+	"pseudo-translate": `  kapi pseudo-translate messages.json -o messages.pseudo.json
+  kapi pseudo-translate app.xliff -o app.pseudo.xliff --target-lang qps`,
+	"ai-translate": `  kapi ai-translate messages.json --target-lang fr
+  kapi ai-translate app.xliff --target-lang de -o app.de.xliff`,
+	"tm-leverage": `  kapi tm-leverage app.xliff --target-lang fr
+  kapi tm-leverage messages.json --target-lang de`,
+
+	// ── Text Processing ─────────────────────────────────────────────────
+	"search-replace": `  kapi search-replace messages.json --find "foo" --replace "bar"
+  kapi search-replace page.html --find "colour" --replace "color"`,
+	"case-transform": `  kapi case-transform messages.json --mode upper
+  kapi case-transform messages.json --mode lower`,
+	"segmentation": `  kapi segmentation messages.json
+  kapi segmentation app.xliff`,
+
+	// ── AI Quality ───────────────────────────────────────────────────────
+	"ai-qa": `  kapi ai-qa app.xliff --target-lang fr
+  kapi ai-qa app.xliff --target-lang de`,
+	"ai-review": `  kapi ai-review app.xliff --target-lang fr
+  kapi ai-review messages.json --target-lang de`,
+	"brand-voice-check": `  kapi brand-voice-check messages.json --target-lang fr
+  kapi brand-voice-check app.xliff --target-lang de`,
+}
+
 // NewToolCommands creates cobra commands from all CLI-visible tools in the
 // ToolRegistry. This replaces the old hardcoded BuiltinToolCommands list —
 // the registry is the single source of truth for tool metadata.
@@ -113,6 +173,7 @@ func (a *App) NewToolCommands() []*cobra.Command {
 			Aliases: info.Aliases,
 			Short:   short,
 			GroupID: info.Category,
+			Example: toolExamples[toolName],
 			Args:    cobra.MinimumNArgs(1),
 			RunE: func(cmd *cobra.Command, args []string) error {
 				jsonOut, _ := cmd.Flags().GetBool("json")

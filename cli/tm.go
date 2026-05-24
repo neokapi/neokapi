@@ -32,6 +32,9 @@ Resource location (mutually exclusive):
   --file <path>   Explicit file path
 
 Default (no flag): same as --local (uses ./tm.db).`,
+		Example: `  kapi tm stats
+  kapi tm lookup "welcome back" -s en -t fr
+  kapi tm import corpus.tmx -s en -t fr`,
 	}
 
 	importCmd := a.newTMImportCmd()
@@ -82,6 +85,8 @@ pair set (e.g. --all-pairs --locales en-GB,fr-FR,de-DE).
 The importer auto-detects UTF-8/UTF-16 from the BOM, so Euramis exports work
 without pre-conversion. For web-crawl TMX sets (bitextor output) the per-TUV
 <prop type="source-document"> URL is recorded as Origin.Reference.`,
+		Example: `  kapi tm import corpus.tmx -s en -t fr
+  kapi tm import corpus.tmx --all-pairs --locales en,fr,de --name my-tm`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			srcLocale, _ := cmd.Flags().GetString("source-locale")
@@ -376,7 +381,9 @@ func (a *App) newTMLookupCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "lookup [text]",
 		Short: "Look up text in translation memory",
-		Args:  cobra.ExactArgs(1),
+		Example: `  kapi tm lookup "welcome back" -s en -t fr
+  kapi tm lookup "save" -s en -t de --min-score 0.8`,
+		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			srcLocale, _ := cmd.Flags().GetString("source-locale")
 			tgtLocale, _ := cmd.Flags().GetString("target-locale")
@@ -431,7 +438,9 @@ func (a *App) newTMSearchCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "search [query]",
 		Short: "Search translation memory entries",
-		Args:  cobra.ExactArgs(1),
+		Example: `  kapi tm search "dashboard" -s en -t fr
+  kapi tm search "settings" --limit 5`,
+		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			srcLocale, _ := cmd.Flags().GetString("source-locale")
 			tgtLocale, _ := cmd.Flags().GetString("target-locale")
@@ -488,8 +497,9 @@ func (a *App) newTMSearchCmd() *cobra.Command {
 
 func (a *App) newTMStatsCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   "stats",
-		Short: "Show translation memory statistics",
+		Use:     "stats",
+		Short:   "Show translation memory statistics",
+		Example: "  kapi tm stats\n  kapi tm stats --name my-tm",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			tm, dbPath, err := a.openTMSQLite(cmd)
 			if err != nil {

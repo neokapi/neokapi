@@ -59,7 +59,7 @@ steps:
   - command: kapi tm-leverage messages_en.json -o step1_tm.json --source-lang en --target-lang fr
     narration: Fill exact/fuzzy matches from the TM; the rest stay untranslated.
   - comment: Step 2 — pseudo-translate the remaining misses
-  - command: kapi pseudo-translate step1_tm.json -o step2_translated.json --target-lang fr
+  - command: kapi pseudo-translate step1_tm.json -o step2_translated.json
     narration: Everything the TM did not cover gets a locale-shaped placeholder.
     # smoke:false — consumes step1_tm.json from the previous step; W7 would run
     # it in isolation (no skip token on step1_tm.json) and fail.

@@ -13,7 +13,7 @@ Type "# Pseudo-translate to find UI truncation bugs early"
 Enter
 Sleep 500ms
 
-Type "kapi pseudo-translate messages.json -o messages.fr.json --target-lang fr"
+Type "kapi pseudo-translate messages.json -o messages.fr.json"
 Enter
 Sleep 1500ms
 

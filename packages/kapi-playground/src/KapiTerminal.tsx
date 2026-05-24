@@ -62,7 +62,7 @@ const HELP = [
   "Try:",
   "  kapi formats list",
   "  kapi word-count messages.json",
-  "  kapi pseudo-translate messages.json -o out.json --target-lang fr",
+  "  kapi pseudo-translate messages.json -o out.json",
   "  kapi word-count messages.json --json          # colored JSON",
   "  kapi word-count messages.json --jq '.total_source_words'",
 ].join("\n");

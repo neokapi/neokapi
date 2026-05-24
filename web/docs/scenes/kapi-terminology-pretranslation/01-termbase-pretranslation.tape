@@ -29,7 +29,7 @@ Type "# Step 2 — pseudo-translate the remaining misses"
 Enter
 Sleep 500ms
 
-Type "kapi pseudo-translate step1_tm.json -o step2_translated.json --target-lang fr"
+Type "kapi pseudo-translate step1_tm.json -o step2_translated.json"
 Enter
 Sleep 1500ms
 

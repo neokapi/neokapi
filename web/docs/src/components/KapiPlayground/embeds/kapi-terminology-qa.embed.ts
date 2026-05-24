@@ -33,7 +33,7 @@ const config: WalkthroughEmbedConfig = {
       narration: "Search across every concept in the termbase.",
     },
     {
-      command: "kapi pseudo-translate messages_en.json -o pseudo_fr.json --target-lang fr",
+      command: "kapi pseudo-translate messages_en.json -o pseudo_fr.json",
       narration: "Produce a target file to QA.",
     },
     {

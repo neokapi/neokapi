@@ -41,18 +41,10 @@ declared in a .kapi project, pre-filled from the project's translation
 memory (AD-017).
 
 Each invocation writes one batch of outputs under .kapi/cache/extractions/<batch-id>/
-plus one bilingual file per source → target pair in --out-dir (default "out/").
-
-Examples:
-
-  kapi extract                                    # all target locales from the recipe
-  kapi extract --target-lang fr                   # single target
-  kapi extract --target-lang fr,de,es             # subset (comma-separated)
-  kapi extract --only mobile                      # only the 'mobile' collection
-  kapi extract --pattern 'src/**/*.json'          # custom pattern
-  kapi extract --xliff-version 2.0                # pin an older XLIFF version
-  kapi extract --no-tm                            # skip TM pre-fill
-`,
+plus one bilingual file per source → target pair in --out-dir (default "out/").`,
+		Example: `  kapi extract -p app.kapi --no-tm
+  kapi extract -p app.kapi --target-lang fr
+  kapi extract -p app.kapi --target-lang fr,de,es`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return a.runExtract(cmd)
 		},

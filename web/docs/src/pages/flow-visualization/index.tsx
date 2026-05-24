@@ -28,7 +28,7 @@ export default function FlowVisualizationPage(): React.ReactElement {
             className="button button--primary"
             onClick={() =>
               openKapi({
-                cmd: "kapi pseudo-translate messages.json --target-lang fr",
+                cmd: "kapi pseudo-translate messages.json",
                 seed: ["messages.json"],
                 autoRun: true,
               })

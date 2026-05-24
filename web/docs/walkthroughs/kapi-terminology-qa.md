@@ -14,7 +14,7 @@ scenes:
       - kapi termbase stats
       - kapi termbase lookup password -s en -t fr
       - kapi termbase search encrypt -s en
-      - kapi pseudo-translate messages_en.json -o pseudo_fr.json --target-lang fr
+      - kapi pseudo-translate messages_en.json -o pseudo_fr.json
 ---
 
 ## Story
