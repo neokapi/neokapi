@@ -13,9 +13,17 @@ const THEMES: ThemeMode[] = ["dark", "light"];
  * tarball. ThemedVideo picks the light/dark file from the page's color mode.
  */
 async function toWebm(mp4: string, webm: string): Promise<void> {
+  // Remotion's mp4 is full-range (yuvj420p) tagged bt470bg with unknown
+  // primaries/transfer. Chrome's VP9 decoder (esp. the HW path) is strict about
+  // that and intermittently fails to render — Safari is lenient. Convert to
+  // limited-range and tag the standard HD colorspace (bt709) explicitly, and drop
+  // Remotion's leaked mp4 (isom) container metadata, so the WebM is unambiguous.
   const cmd =
     `ffmpeg -y -i ${JSON.stringify(mp4)} ` +
-    `-c:v libvpx-vp9 -b:v 0 -crf 34 -row-mt 1 -pix_fmt yuv420p ` +
+    `-vf "scale=in_range=full:out_range=tv,format=yuv420p" ` +
+    `-c:v libvpx-vp9 -b:v 0 -crf 34 -row-mt 1 -g 240 ` +
+    `-colorspace bt709 -color_primaries bt709 -color_trc bt709 -color_range tv ` +
+    `-map_metadata -1 ` +
     `-c:a libopus -b:a 96k ${JSON.stringify(webm)}`;
   const r = await sh(cmd, { timeoutMs: 600_000 });
   if (r.code !== 0) throw new Error(`ffmpeg failed (${r.code}) for ${path.basename(mp4)}:\n${r.stderr.slice(-500)}`);
