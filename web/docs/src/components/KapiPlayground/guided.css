@@ -5,6 +5,31 @@
  * fallbacks.
  */
 
+/* ── Full-bleed outer shell ─────────────────────────────────────────────── */
+
+/*
+ * Break the guided embed out of the Docusaurus doc content column so the rail
+ * + terminal + files panel all have room on wide viewports.
+ *
+ * Technique: viewport-relative negative margins that push the box to the edges
+ * of the available viewport area, clamped to a sensible max-width, centered.
+ * We use `calc(50% - 50vw)` to push the left edge to the viewport left and
+ * symmetrically on the right. The `margin-left` and `width` are set together
+ * so the box is always centred on the viewport (not on the article column).
+ *
+ * 1200px cap: rail (320px) + 1rem gap + terminal (rest) + 260px files + 1rem
+ * gap fits comfortably at ≥960px. Above 1200px the layout stays centred within
+ * the cap so it does not span a 2560px ultrawide.
+ */
+.kapi-guided__bleed {
+  margin-left: max(calc(50% - 50vw), calc((100% - min(100vw, 1200px)) / 2));
+  width: min(100vw, 1200px);
+  padding: 0 1rem;
+  box-sizing: border-box;
+  margin-top: 1.25rem;
+  margin-bottom: 1.25rem;
+}
+
 .kapi-guided {
   --kg-border: var(--ifm-color-emphasis-300, rgba(0, 0, 0, 0.12));
   --kg-surface: var(--ifm-background-surface-color, #fff);
@@ -15,15 +40,22 @@
   --kg-mono: var(--ifm-font-family-monospace, ui-monospace, SFMono-Regular, Menlo, monospace);
 
   display: grid;
-  grid-template-columns: 320px 1fr;
+  /* Rail is a fixed 280px; terminal gets the bulk of the remaining space. */
+  grid-template-columns: 280px 1fr;
   gap: 1rem;
   align-items: start;
-  margin: 1.25rem 0;
 }
 
 @media (max-width: 996px) {
   .kapi-guided {
     grid-template-columns: 1fr;
+  }
+
+  /* On small viewports remove the bleed — stay in the normal flow. */
+  .kapi-guided__bleed {
+    margin-left: 0;
+    width: auto;
+    padding: 0;
   }
 }
 
@@ -151,6 +183,20 @@
 
 .kapi-guided__terminal {
   min-width: 0;
+}
+
+/* ── "Open full screen" affordance ──────────────────────────────────────── */
+
+.kapi-guided__fullscreen-bar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 0.5rem;
+}
+
+.kapi-guided__btn--fullscreen {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
 }
 
 .kapi-guided__notice {

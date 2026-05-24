@@ -23,7 +23,8 @@ import "./guided.css";
 // KapiEmbedFullBleed / KapiModalMount, so a docs page renders zero wasm until
 // the guided embed first mounts in the browser.
 const LazyGuided = React.lazy(async () => {
-  const { KapiEmbed } = await import("@neokapi/kapi-playground");
+  const { KapiEmbed, openKapi } = await import("@neokapi/kapi-playground");
+  const { Maximize2 } = await import("lucide-react");
   type KapiEmbedHandle = import("@neokapi/kapi-playground").KapiEmbedHandle;
 
   function Guided({ config }: { config: WalkthroughEmbedConfig }): React.ReactElement {
@@ -64,59 +65,84 @@ const LazyGuided = React.lazy(async () => {
       setDone(0);
     }, [config]);
 
+    const openFullScreen = React.useCallback(() => {
+      openKapi({
+        seed: config.seed,
+        files: config.files,
+        cmd: config.steps[0]?.command,
+        steps: config.steps.slice(1).map((s) => s.command),
+        autoRun: true,
+      });
+    }, [config]);
+
     return (
-      <div className="kapi-guided">
-        <div className="kapi-guided__rail" aria-label="Guided steps">
-          <div className="kapi-guided__rail-head">
-            <span className="kapi-guided__rail-title">Run it yourself</span>
-            <div className="kapi-guided__rail-actions">
-              <button type="button" className="kapi-guided__btn" onClick={runAll}>
-                Run all
-              </button>
-              <button
-                type="button"
-                className="kapi-guided__btn kapi-guided__btn--ghost"
-                onClick={reset}
-              >
-                Reset
-              </button>
-            </div>
-          </div>
-          <ol className="kapi-guided__steps">
-            {config.steps.map((step, i) => (
-              <li
-                key={step.command}
-                className={`kapi-guided__step${i < done ? " kapi-guided__step--done" : ""}`}
-              >
+      <div className="kapi-guided__bleed">
+        <div className="kapi-guided__fullscreen-bar">
+          <button
+            type="button"
+            className="kapi-guided__btn kapi-guided__btn--fullscreen"
+            onClick={openFullScreen}
+            title="Open the full-screen playground and run all steps"
+          >
+            <Maximize2 size={13} aria-hidden="true" />
+            Open full screen
+          </button>
+        </div>
+        <div className="kapi-guided">
+          <div className="kapi-guided__rail" aria-label="Guided steps">
+            <div className="kapi-guided__rail-head">
+              <span className="kapi-guided__rail-title">Run it yourself</span>
+              <div className="kapi-guided__rail-actions">
+                <button type="button" className="kapi-guided__btn" onClick={runAll}>
+                  Run all
+                </button>
                 <button
                   type="button"
-                  className="kapi-guided__step-run"
-                  onClick={() => runStep(i)}
-                  aria-label={`Run step ${i + 1}: ${step.command}`}
+                  className="kapi-guided__btn kapi-guided__btn--ghost"
+                  onClick={reset}
                 >
-                  <span className="kapi-guided__step-num" aria-hidden="true">
-                    {i + 1}
-                  </span>
-                  <code className="kapi-guided__step-cmd">{step.command}</code>
+                  Reset
                 </button>
-                {step.narration && <p className="kapi-guided__step-narration">{step.narration}</p>}
-              </li>
-            ))}
-          </ol>
-        </div>
-        <div className="kapi-guided__terminal">
-          <KapiEmbed
-            ref={embedRef}
-            wasmExecUrl={pg.wasmExecUrl}
-            wasmUrl={pg.wasmUrl}
-            seed={config.seed}
-            files={config.files}
-            // Stage the session warm but idle — the first command is at the
-            // prompt; the reader drives the steps from the rail.
-            cmd={config.steps[0]?.command}
-            autoRun={false}
-            showToolbar
-          />
+              </div>
+            </div>
+            <ol className="kapi-guided__steps">
+              {config.steps.map((step, i) => (
+                <li
+                  key={step.command}
+                  className={`kapi-guided__step${i < done ? " kapi-guided__step--done" : ""}`}
+                >
+                  <button
+                    type="button"
+                    className="kapi-guided__step-run"
+                    onClick={() => runStep(i)}
+                    aria-label={`Run step ${i + 1}: ${step.command}`}
+                  >
+                    <span className="kapi-guided__step-num" aria-hidden="true">
+                      {i + 1}
+                    </span>
+                    <code className="kapi-guided__step-cmd">{step.command}</code>
+                  </button>
+                  {step.narration && (
+                    <p className="kapi-guided__step-narration">{step.narration}</p>
+                  )}
+                </li>
+              ))}
+            </ol>
+          </div>
+          <div className="kapi-guided__terminal">
+            <KapiEmbed
+              ref={embedRef}
+              wasmExecUrl={pg.wasmExecUrl}
+              wasmUrl={pg.wasmUrl}
+              seed={config.seed}
+              files={config.files}
+              // Stage the session warm but idle — the first command is at the
+              // prompt; the reader drives the steps from the rail.
+              cmd={config.steps[0]?.command}
+              autoRun={false}
+              showToolbar
+            />
+          </div>
         </div>
       </div>
     );
