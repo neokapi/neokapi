@@ -9,39 +9,41 @@ This guide covers how to create a tool with a parameter schema so that the UI an
 
 ## Tool basics
 
-Every tool embeds `tool.BaseTool` and sets handler functions for the Part types it processes. Parts you don't handle pass through unchanged.
+Every tool is built on `tool.BaseTool`, setting handler functions for the Part
+types it processes. Parts you don't handle pass through unchanged. A handler has
+the signature `func(part *model.Part) (*model.Part, error)`; it receives the
+streaming `Part` and type-asserts the resource it cares about (here, a `*Block`).
 
 ```go
 package mytool
 
 import (
-    "context"
     "strings"
 
     "github.com/neokapi/neokapi/core/model"
     "github.com/neokapi/neokapi/core/tool"
 )
 
-type MyTool struct {
-    tool.BaseTool
-}
-
-func NewMyTool(cfg *MyToolConfig) *MyTool {
-    t := &MyTool{}
-    t.BaseTool = tool.NewBaseTool("my-tool", "Does something useful")
-    t.Cfg = cfg
-    t.HandleBlockFn = t.handleBlock
-    return t
-}
-
-func (t *MyTool) handleBlock(ctx context.Context, block *model.Block) (*model.Block, error) {
-    cfg := t.Cfg.(*MyToolConfig)
-    text := block.SourceText()
-    if cfg.Uppercase {
-        text = strings.ToUpper(text)
+func NewMyTool(cfg *MyToolConfig) *tool.BaseTool {
+    t := &tool.BaseTool{
+        ToolName:        "my-tool",
+        ToolDescription: "Does something useful",
+        Cfg:             cfg,
     }
-    block.SetTargetText(model.LocaleID(cfg.TargetLocale), text)
-    return block, nil
+    t.HandleBlockFn = func(part *model.Part) (*model.Part, error) {
+        block, ok := part.Resource.(*model.Block)
+        if !ok || !block.Translatable {
+            return part, nil // pass through
+        }
+        conf := t.Cfg.(*MyToolConfig)
+        text := block.SourceText()
+        if conf.Uppercase {
+            text = strings.ToUpper(text)
+        }
+        block.SetTargetText(model.LocaleID(conf.TargetLocale), text)
+        return part, nil
+    }
+    return t
 }
 ```
 
@@ -159,7 +161,6 @@ Here is a complete example of a prefix/suffix wrapping tool with a parameter sch
 package wraptext
 
 import (
-    "context"
     "fmt"
 
     "github.com/neokapi/neokapi/core/model"
@@ -180,27 +181,27 @@ func (c *WrapTextConfig) ToolName() string { return "wrap-text" }
 func (c *WrapTextConfig) Reset()           { c.Prefix = "["; c.Suffix = "]" }
 
 // Tool
-type WrapTextTool struct {
-    tool.BaseTool
-}
-
-func NewWrapTextTool(cfg *WrapTextConfig) *WrapTextTool {
-    t := &WrapTextTool{}
-    t.BaseTool = tool.NewBaseTool("wrap-text", "Wraps segment text with prefix and suffix")
-    t.Cfg = cfg
-    t.HandleBlockFn = t.handleBlock
-    return t
-}
-
-func (t *WrapTextTool) handleBlock(ctx context.Context, block *model.Block) (*model.Block, error) {
-    cfg := t.Cfg.(*WrapTextConfig)
-    wrapped := fmt.Sprintf("%s%s%s", cfg.Prefix, block.SourceText(), cfg.Suffix)
-    if cfg.SourceOnly {
-        block.SetSourceText(wrapped)
-    } else {
-        block.SetTargetText(model.LocaleID(cfg.TargetLocale), wrapped)
+func NewWrapTextTool(cfg *WrapTextConfig) *tool.BaseTool {
+    t := &tool.BaseTool{
+        ToolName:        "wrap-text",
+        ToolDescription: "Wraps segment text with prefix and suffix",
+        Cfg:             cfg,
     }
-    return block, nil
+    t.HandleBlockFn = func(part *model.Part) (*model.Part, error) {
+        block, ok := part.Resource.(*model.Block)
+        if !ok {
+            return part, nil
+        }
+        conf := t.Cfg.(*WrapTextConfig)
+        wrapped := fmt.Sprintf("%s%s%s", conf.Prefix, block.SourceText(), conf.Suffix)
+        if conf.SourceOnly {
+            block.SetSourceText(wrapped)
+        } else {
+            block.SetTargetText(model.LocaleID(conf.TargetLocale), wrapped)
+        }
+        return part, nil
+    }
+    return t
 }
 
 // Registration

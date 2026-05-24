@@ -1,11 +1,30 @@
 ---
-sidebar_position: 7
+sidebar_position: 3
 title: Inline Formatting
 ---
+
+import { BlockPreview } from "@site/src/components/curated";
 
 # Working with Inline Formatting
 
 When documents are processed through the pipeline, neokapi preserves inline formatting like **bold**, _italic_, [links](https://example.com), and embedded values like variables and placeholders. This is handled through the Fragment and Span model, which normalizes format-specific markup into a format-independent representation.
+
+## Seeing inline codes in the content model
+
+When kapi reads a file with inline markup, the markup does not stay in the text.
+Each inline element is extracted into a **span** and replaced in the text by a
+positional marker. Below, kapi parses an HTML page; in the parsed source text
+the inline `<strong>` and `<a>` elements appear as span markers (rendered here as
+chips) rather than as literal tags:
+
+<BlockPreview
+  sample="page.html"
+  caption="kapi parsing HTML — inline elements become span markers in the source text."
+/>
+
+This is the same representation regardless of the source format: the markers
+mark _where_ inline formatting sits, while the original markup is held alongside
+in the span so the writer can reconstruct it exactly.
 
 ## How It Works
 

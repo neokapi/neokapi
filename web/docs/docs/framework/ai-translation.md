@@ -1,5 +1,5 @@
 ---
-sidebar_position: 4
+sidebar_position: 11
 title: AI Translation
 ---
 
@@ -56,12 +56,18 @@ Or via CLI flags: `--provider gemini --api-key $GEMINI_API_KEY`. The default mod
 
 ## AI Tools
 
+LLM-backed work is delivered as ordinary [tools](/framework/tools), so it
+composes into [flows](/framework/flows) like any other stage:
+
 | Tool             | Purpose                                               |
 | ---------------- | ----------------------------------------------------- |
-| `ai-translate`   | Translate untranslated Blocks using LLM               |
+| `ai-translate`   | Translate untranslated Blocks using an LLM            |
 | `ai-qa`          | Check translations for fluency, accuracy, terminology |
 | `ai-terminology` | Extract terminology from source Blocks                |
 | `ai-review`      | Review translations with explanations                 |
+
+The generated [Tool Reference](/tools) lists each AI tool with its current
+parameters.
 
 ## Usage
 

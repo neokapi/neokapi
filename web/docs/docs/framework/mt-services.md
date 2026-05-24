@@ -1,5 +1,5 @@
 ---
-sidebar_position: 5
+sidebar_position: 12
 title: Machine Translation Services
 ---
 
@@ -19,7 +19,7 @@ neokapi integrates with external machine translation (MT) services as an alterna
 
 ## Configuration
 
-Configure MT providers in `neokapi.yaml`:
+Configure MT providers in `kapi.yaml`:
 
 ```yaml
 mt:
@@ -36,7 +36,7 @@ mt:
 
 ## Usage
 
-MT services are available as top-level tool commands. Configure the desired service in `neokapi.yaml` and translate documents directly:
+MT services are available as top-level tool commands. Configure the desired service in `kapi.yaml` and translate documents directly:
 
 ```bash
 kapi ai-translate -i input.html -o output.html --source-lang en --target-lang de

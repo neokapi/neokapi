@@ -91,7 +91,7 @@ neokapi/
 │
 ├── cli/                             # Shared CLI base (module: …/cli)
 ├── kapi/                            # Kapi standalone CLI (module: …/kapi)
-├── apps/desktop/               # Kapi Desktop (Wails v3; module: …/kapi-desktop)
+├── apps/kapi-desktop/          # Kapi Desktop (Wails v3; module: …/kapi-desktop)
 ├── packages/
 │   ├── ui/                          # @neokapi/ui-primitives — shared shadcn/ui primitives
 │   └── flow-editor/                 # @neokapi/flow-editor — shared React flow editor
@@ -100,172 +100,31 @@ neokapi/
 
 The framework module (repo root) stays platform-agnostic. `sievepen/`,
 `termbase/`, and `providers/` are top-level framework packages — not nested
-under `core/` — and the CLI, desktop, and bowrain modules attach via the plugin
-registries rather than direct imports.
+under `core/`. Front-ends such as the CLI and the desktop app, and any other
+consumer, attach through the plugin and extension registries rather than by
+direct imports, so the framework never depends on a particular platform.
 
-## Content Model
+## The framework concepts
 
-```mermaid
-classDiagram
-    class Part {
-        +PartType Type
-        +Resource Resource
-    }
+The framework rests on a few concepts, each with its own page:
 
-    class Resource {
-        <<interface>>
-        +ResourceID() string
-    }
+- **[Content Model](/framework/content-model)** \u2014 the format-independent
+  representation. A document becomes a stream of `Part`s carrying layers, blocks,
+  fragments, spans, data, and media. Embedded content (HTML inside JSON, CDATA in
+  XML) is modeled as nested layers, each with its own format.
+- **[Formats](/framework/formats)** \u2014 paired readers and writers that produce and
+  consume the content model. The neokapi analogue of an Okapi _filter_.
+- **[Tools](/framework/tools)** \u2014 the processing units. Each reads Parts from a
+  channel, transforms them, and writes them out. The analogue of an Okapi _step_.
+- **[Flows](/framework/flows)** \u2014 named, ordered compositions of tools. The
+  analogue of an Okapi _pipeline_.
+- **[Pipeline](/framework/pipeline)** \u2014 the concurrent executor that runs a flow:
+  goroutines, buffered channels, and context-driven cancellation. The analogue of
+  the Okapi _PipelineDriver_.
 
-    class Layer {
-        +string ID
-        +string Name
-        +string Format
-        +Layer Parent
-        +Skeleton Skeleton
-    }
-
-    class Block {
-        +string ID
-        +string Name
-        +bool Translatable
-        +[]Segment Source
-        +map~LocaleID,[]Segment~ Targets
-        +Skeleton Skeleton
-    }
-
-    class Segment {
-        +string ID
-        +Fragment Content
-    }
-
-    class Fragment {
-        +string CodedText
-        +[]Span Spans
-        +Text() string
-        +HasSpans() bool
-    }
-
-    class Span {
-        +SpanType SpanType
-        +string Type
-        +string ID
-        +string Data
-    }
-
-    class Data {
-        +string ID
-        +Skeleton Skeleton
-    }
-
-    class Media {
-        +string ID
-        +string MimeType
-        +[]byte Data
-        +string URI
-    }
-
-    Part --> Resource
-    Layer ..|> Resource
-    Block ..|> Resource
-    Data ..|> Resource
-    Media ..|> Resource
-    Layer --> Layer : child Layers (embedded content)
-    Layer --> Block : contains
-    Layer --> Data : contains
-    Layer --> Media : contains
-    Block --> Segment : Source, Targets
-    Segment --> Fragment : Content
-    Fragment --> Span : Spans
-```
-
-Embedded content (HTML inside JSON, CDATA in XML) is modeled as nested
-Layers, each with its own DataFormat. See
-[AD-002](/contribute/architecture/002-content-model).
-
-### Inline Span Encoding
-
-Fragments use coded text: inline markup is replaced by Unicode PUA markers
-(U+E000-U+E0FF), with the actual markup stored in the Spans slice. This
-allows string operations on text without corrupting markup.
-
-```
-Source HTML: "Click <b>here</b> for info"
-
-Fragment:
-    CodedText: "Click \uE001here\uE002 for info"
-    Spans: [
-        {SpanType: SpanOpening, Type: "bold", Data: "<b>"},
-        {SpanType: SpanClosing, Type: "bold", Data: "</b>"},
-    ]
-```
-
-### Part Stream
-
-```
-DataFormatReader.Read(ctx) -> chan PartResult
-    -> PartLayerStart  (format="json")
-    -> PartBlock        (key: "title")
-    -> PartLayerStart  (format="html")        <- embedded child
-    -> PartBlock        ("Hello <b>world</b>") <- inside child
-    -> PartLayerEnd    (format="html")
-    -> PartBlock        (key: "footer")
-    -> PartLayerEnd    (format="json")
-    -> (channel closed)
-```
-
-## Terminology Mapping from Okapi
-
-| Okapi (Java)               | neokapi (Go)               |
-| -------------------------- | -------------------------- |
-| Filter                     | DataFormat (Reader/Writer) |
-| Step                       | Tool                       |
-| Pipeline                   | Flow                       |
-| PipelineDriver             | Executor                   |
-| Event                      | Part                       |
-| TextUnit                   | Block                      |
-| TextFragment               | Fragment                   |
-| Code                       | Span                       |
-| StartSubDocument/SubFilter | Child Layer                |
-| Tikal                      | kapi (CLI)                 |
-
-## Key Interfaces
-
-```go
-// Format layer
-type DataFormatReader interface {
-    Open(ctx context.Context, doc *RawDocument) error
-    Read(ctx context.Context) <-chan PartResult
-    Close() error
-}
-
-type DataFormatWriter interface {
-    SetOutput(path string) error
-    Write(ctx context.Context, parts <-chan *Part) error
-}
-
-// Tool layer
-type Tool interface {
-    Process(ctx context.Context, in <-chan *Part, out chan<- *Part) error
-}
-
-// Flow execution
-type Executor interface {
-    Execute(ctx context.Context, items []Item) error
-}
-
-// AI providers
-type LLMProvider interface {
-    Translate(ctx context.Context, req TranslateRequest) (*TranslateResponse, error)
-    Chat(ctx context.Context, messages []Message) (*Message, error)
-}
-
-// Streaming AI providers (optional extension)
-type StreamingLLMProvider interface {
-    LLMProvider
-    ChatStream(ctx context.Context, messages []Message) (<-chan StreamEvent, error)
-}
-```
+For the concrete Go interfaces and method signatures behind these concepts, see
+the [Interface Reference](/contribute/interfaces). For the design rationale, see
+the [Architecture Decisions](/contribute/architecture/001-vision-and-modules).
 
 ## Build and Distribution
 

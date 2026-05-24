@@ -1,73 +1,93 @@
 ---
-sidebar_position: 6
+sidebar_position: 13
 title: QA Checks
 ---
 
+import RunnableSnippet from "@site/src/components/KapiPlayground/RunnableSnippet";
+
 # Quality Assurance Checks
 
-Automated quality checks help ensure translation accuracy and consistency.
+Quality assurance in neokapi is a kind of [tool](/framework/tools): a QA check
+reads translated [blocks](/framework/content-model), inspects each one against a
+set of rules, and **reports findings without modifying the content**. Findings
+are attached to the block — recorded in its properties and surfaced to the CLI,
+an editor, or a downstream tool — so a QA pass slots into any
+[flow](/framework/flows) as an ordinary stage. neokapi offers two complementary
+approaches: fast, deterministic rule-based checks, and LLM-assisted review.
 
-## What Are QA Checks?
+## Rule-based checks
 
-QA checks are validation rules that run automatically on your translations to catch:
+The `qa-check` tool runs a battery of deterministic rules over each block,
+comparing source and target. It records each finding as a structured issue with a
+type and a severity (error or warning) and marks whether the block passed. The
+checks span several concerns:
 
-- **Formatting errors** — missing punctuation, whitespace issues
-- **Terminology violations** — incorrect or inconsistent terms
-- **Completeness issues** — untranslated segments
-- **Number mismatches** — different numbers in source vs target
-- **Tag mismatches** — missing or incorrect inline markup
+| Concern             | Examples of what it catches                                                      |
+| ------------------- | -------------------------------------------------------------------------------- |
+| **Whitespace**      | Leading/trailing whitespace mismatch, double spaces                              |
+| **Completeness**    | Empty target where the source has content, target identical to source           |
+| **Inline codes**    | Missing or extra inline codes, code order, non-deletable code dropped, non-cloneable code duplicated |
+| **Patterns**        | Source patterns (placeholders, numbers) without the expected target counterpart  |
+| **Characters**      | Corruption patterns (for example, UTF-8 text decoded as ISO-8859-1)              |
+| **Length**          | Target length outside an allowed ratio of the source, or over an absolute limit  |
+| **Repetition**      | Consecutive doubled words in the target                                          |
 
-## Running QA Checks
+Each check is individually configurable — every rule has a flag, and length
+checks have thresholds. Because the schema is declared on the tool's config
+struct, the available options and their defaults are generated into the
+[Tool Reference](/tools) rather than listed by hand here.
 
-### In Flows
+Run it from the CLI against a bilingual file. The command below parses an XLIFF
+file and reports its findings as JSON:
 
-Include the `qa-check` tool in your flows:
+<RunnableSnippet
+  cmd="kapi qa-check app.xliff --target-lang fr --json"
+  seed={["app.xliff"]}
+/>
+
+In a flow, `qa-check` is just another step after translation:
 
 ```yaml
-# flows/translate-and-check.yaml
-name: translate-and-check
-description: Translate with AI and run QA
-
 steps:
   - tool: ai-translate
-    config:
-      provider: anthropic
-      model: claude-sonnet-4.5
-
+    config: { provider: anthropic }
   - tool: qa-check
-    config:
-      fail_on_error: false
-      rules:
-        - missing-punctuation
-        - number-mismatch
-        - term-violation
+    label: Quality checks
 ```
 
-## Available QA Rules
+Related validation tools cover narrower jobs — `length-check` for length ratios,
+`chars-check` for forbidden or corrupted characters, `pattern-check` for regex
+patterns such as printf placeholders, `inconsistency-check` for the same source
+translated differently across a batch, and the terminology validators
+`term-enforce` and `term-check`. The full set is in the
+[Tool Reference](/tools).
 
-| Rule                  | Description                            | Example                                     |
-| --------------------- | -------------------------------------- | ------------------------------------------- |
-| `missing-punctuation` | Target missing punctuation from source | Source ends with `.`, target doesn't        |
-| `number-mismatch`     | Different numbers in source vs target  | Source: "5 items", Target: "3 items"        |
-| `term-violation`      | Incorrect terminology                  | Using "login" instead of required "sign in" |
-| `tag-mismatch`        | Missing or incorrect inline tags       | Source has `<b>`, target doesn't            |
-| `whitespace-mismatch` | Leading/trailing whitespace differs    | Source has trailing space, target doesn't   |
+## LLM-assisted review
 
-## Implementation Status
+Where rule-based checks catch the mechanical errors, the `ai-qa` tool uses an
+[LLM provider](/framework/ai-translation) to assess qualities a rule cannot
+easily express — fluency, accuracy against the source, and terminology
+appropriateness — and attaches its assessment to each block. It is the natural
+companion to `ai-translate`: the built-in `ai-translate-qa` flow runs translation
+and then this review in one pass.
 
-:::warning Work in Progress
+```bash
+kapi run ai-translate-qa -i app.xliff --target-lang fr
+```
 
-QA check framework is under development. Current status:
+## Findings travel with the block
 
-- ✅ QA check tool interface defined
-- ✅ Basic validation rules designed
-- 🚧 Rule execution engine (in progress)
-- 🚧 Integration with flows (in progress)
-- ❌ Custom rule plugins (planned)
+Both kinds of check use the [Block annotation system](/framework/content-model)
+rather than rewriting text. Rule-based findings are recorded in block properties;
+LLM findings are attached as an annotation. This is the same shared channel that
+[TM matches](/framework/translation-memory),
+[terminology](/framework/terminology), and [brand-voice](/framework/brand-voice)
+results use, so a single downstream consumer — a report, an editor view, a CI
+gate — can read every kind of finding from one place.
 
-:::
+## Related reading
 
-## Next Steps
-
-- [Terminology](/framework/terminology)
-- [Implementing a Tool](/contribute/tools)
+- [Tools](/framework/tools) — how a check fits the tool model.
+- [Tool Reference](/tools) — the generated list of QA tools and their parameters.
+- [Terminology](/framework/terminology) — terminology enforcement as a QA concern.
+- [Implementing a Tool](/contribute/tools) — writing a custom check.

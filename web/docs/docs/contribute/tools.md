@@ -9,36 +9,36 @@ Tools process Parts as they flow through a pipeline. Most tools only care about 
 
 ## Using BaseTool
 
-Create a type embedding `tool.BaseTool` and set handler function fields for the Part types you want to process. Parts you don't handle pass through unchanged.
+Build a `tool.BaseTool` and set handler function fields for the Part types you
+want to process. Parts you don't handle pass through unchanged. A handler has the
+signature `func(part *model.Part) (*model.Part, error)`: it receives the
+streaming Part and type-asserts the resource it cares about.
 
 ```go
 package mytool
 
 import (
-    "context"
     "strings"
-    "github.com/neokapi/neokapi/model"
-    "github.com/neokapi/neokapi/tool"
+
+    "github.com/neokapi/neokapi/core/model"
+    "github.com/neokapi/neokapi/core/tool"
 )
 
-type UppercaseTool struct {
-    tool.BaseTool
-}
-
-func NewUppercaseTool() *UppercaseTool {
-    t := &UppercaseTool{}
-    t.BaseTool = tool.NewBaseTool("uppercase", "Converts source text to uppercase")
-    t.HandleBlockFn = t.handleBlock
-    return t
-}
-
-func (t *UppercaseTool) handleBlock(ctx context.Context, block *model.Block) (*model.Block, error) {
-    if !block.Translatable {
-        return block, nil
+func NewUppercaseTool() *tool.BaseTool {
+    t := &tool.BaseTool{
+        ToolName:        "uppercase",
+        ToolDescription: "Converts source text to uppercase",
     }
-    text := strings.ToUpper(block.SourceText())
-    block.SetTargetText(model.LocaleEnglish, text)
-    return block, nil
+    t.HandleBlockFn = func(part *model.Part) (*model.Part, error) {
+        block, ok := part.Resource.(*model.Block)
+        if !ok || !block.Translatable {
+            return part, nil
+        }
+        text := strings.ToUpper(block.SourceText())
+        block.SetTargetText(model.LocaleEnglish, text)
+        return part, nil
+    }
+    return t
 }
 ```
 
@@ -53,9 +53,15 @@ func (t *UppercaseTool) handleBlock(ctx context.Context, block *model.Block) (*m
 
 ## Overriding Process
 
-If you need full control over the processing loop (e.g., accumulating state across multiple Parts), override `Process` directly:
+If you need full control over the processing loop (for example, to accumulate
+state across many Parts, or to emit more Parts than you consume), define a named
+type that embeds `tool.BaseTool` and override `Process` directly:
 
 ```go
+type MyTool struct {
+    tool.BaseTool
+}
+
 func (t *MyTool) Process(ctx context.Context, in <-chan *model.Part, out chan<- *model.Part) error {
     for {
         select {
@@ -74,35 +80,24 @@ func (t *MyTool) Process(ctx context.Context, in <-chan *model.Part, out chan<- 
 
 ## Registration
 
-Register your tool in the tool registry:
+Register your tool in a `ToolRegistry`, mapping a name to a factory:
 
 ```go
-registry.DefaultToolRegistry.Register("uppercase", func() tool.Tool {
+reg := registry.NewToolRegistry()
+reg.Register("uppercase", func() tool.Tool {
     return NewUppercaseTool()
 })
 ```
 
-## Testing
-
-```go
-func TestUppercaseTool(t *testing.T) {
-    tool := NewUppercaseTool()
-    parts := []*model.Part{
-        {Type: model.PartLayerStart, Resource: &model.Layer{ID: "doc1"}},
-        {Type: model.PartBlock, Resource: &model.Block{
-            ID: "b1", Translatable: true,
-            Source: []*model.Segment{{ID: "s1", Content: model.NewFragment("hello")}},
-        }},
-        {Type: model.PartLayerEnd, Resource: &model.Layer{ID: "doc1"}},
-    }
-
-    results := testutil.RunToolOnParts(t, tool, parts)
-    block := testutil.FindFirstBlock(results)
-    assert.Equal(t, "HELLO", block.TargetText(model.LocaleEnglish))
-}
-```
+Use `RegisterWithSchema` instead to attach a parameter schema — see
+[Tool Authoring](/contribute/tool-authoring).
 
 ## Built-in Tools
+
+The framework's built-in tools are registered with their parameter schemas; the
+authoritative, generated list of what ships in the current build is the
+[Tool Reference](/tools). The categories below are a way of thinking about the
+kinds of work tools do — see [Tools](/framework/tools) for the concept.
 
 ### Analysis & Reporting
 
@@ -187,45 +182,52 @@ All built-in tools use schema-driven CLI flags. Tool config structs use `schema:
 
 ### Registering Built-in Tools
 
-All built-in tools can be registered at once:
+All built-in tools can be registered into a registry at once, each with its
+parameter schema:
 
 ```go
-import "github.com/neokapi/neokapi/tools"
+import (
+    "github.com/neokapi/neokapi/core/registry"
+    "github.com/neokapi/neokapi/core/tools"
+)
 
 toolReg := registry.NewToolRegistry()
-tools.RegisterTools(toolReg)
+tools.RegisterAll(toolReg)
 ```
 
-Individual tools can also be created directly:
+Individual tools can also be constructed directly. Each takes a config struct
+(see the [Tool Reference](/tools) for every field):
 
 ```go
 // Segmentation with default SRX-like rules
 segTool := tools.NewSegmentationTool(&tools.SegmentationConfig{})
 
-// QA check with specific checks enabled
-qaTool := tools.NewQACheckTool(&tools.QACheckConfig{
-    TargetLocale: "fr",
-    Checks: []string{"missing-translation", "whitespace-mismatch", "number-mismatch"},
-})
+// QA check — configured via per-rule flags on QACheckConfig
+qaTool := tools.NewQACheckTool(tools.NewQACheckConfig(model.LocaleID("fr")))
 
-// TM leverage with custom threshold
+// TM leverage with a custom fuzzy threshold and a TM provider
 tmTool := tools.NewTMLeverageTool(&tools.TMLeverageConfig{
-    TargetLocale: "fr",
-    Threshold: 0.8,
-    TM: sievepenInstance,
+    TargetLocale:   "fr",
+    FuzzyThreshold: 80, // 0-100
+    Provider:       tmProvider,
 })
+```
 
-// Term lookup — scans source text for terminology matches
-termLookupTool := tools.NewTermLookupTool(&tools.TermLookupConfig{
+The terminology tools live in the `termbase` package and take a `TermBase`
+alongside their config:
+
+```go
+import "github.com/neokapi/neokapi/termbase"
+
+// Term lookup — scans source text and attaches terminology annotations
+termLookupTool := termbase.NewTermLookupTool(tb, termbase.TermLookupConfig{
     SourceLocale: "en",
     TargetLocale: "fr",
-    TB: termbaseInstance,
 })
 
-// Term enforce — validates translations use correct terminology
-termEnforceTool := tools.NewTermEnforceTool(&tools.TermEnforceConfig{
+// Term enforce — verifies translations use the preferred terminology
+termEnforceTool := termbase.NewTermEnforceTool(tb, termbase.TermEnforceConfig{
     SourceLocale: "en",
     TargetLocale: "fr",
-    TB: termbaseInstance,
 })
 ```
