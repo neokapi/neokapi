@@ -481,17 +481,22 @@ func (c *Config) Validate() error    { return nil }
 
 ## Registration
 
-Add your format to `core/formats/register.go`:
+Add your format inside `formats.RegisterAll()` in `core/formats/register.go`.
+`RegisterReader` takes the format name, a reader factory, a `FormatSignature`
+for detection, and a display name; `RegisterWriter` takes the name and a writer
+factory:
 
 ```go
-func init() {
-    registry.DefaultFormatRegistry.RegisterReader("myformat", func() format.DataFormatReader {
-        return myformat.NewReader()
-    })
-    registry.DefaultFormatRegistry.RegisterWriter("myformat", func() format.DataFormatWriter {
-        return myformat.NewWriter()
-    })
-}
+// In RegisterAll(reg *registry.FormatRegistry, opts ...RegisterOptions):
+reg.RegisterReader("myformat",
+    func() format.DataFormatReader { return myformat.NewReader() },
+    format.FormatSignature{
+        MIMETypes:  []string{"application/x-myformat"},
+        Extensions: []string{".myf"},
+    }, "My Format")
+reg.RegisterWriter("myformat", func() format.DataFormatWriter {
+    return myformat.NewWriter()
+})
 ```
 
 ---
@@ -583,7 +588,8 @@ func TestRoundTrip(t *testing.T) {
 
     ctx := context.Background()
     reader := NewReader()
-    err = reader.Open(ctx, testutil.RawDocFromFile("testdata/sample.myf", "en"))
+    err = reader.Open(ctx, testutil.RawDocFromReader(
+        bytes.NewReader(original), "testdata/sample.myf", model.LocaleEnglish))
     require.NoError(t, err)
     parts := testutil.CollectParts(t, reader.Read(ctx))
     reader.Close()

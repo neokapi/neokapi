@@ -108,7 +108,7 @@ type Reader struct {
 
 func NewReader() *Reader {
     vocab := model.NewVocabularyRegistry()
-    _ = vocab.LoadDefaults() // common-formatting + rich-html + code-tokens
+    _ = vocab.LoadDefaults() // common-formatting + rich-html + rich-jsx + code-tokens
     return &Reader{vocab: vocab}
 }
 ```
@@ -253,7 +253,8 @@ func TestMyVocabulary(t *testing.T) {
     assert.True(t, info.Constraints.Deletable)
 
     unknown := vocab.LookupOrFallback("custom:unknown")
-    assert.Equal(t, "generic", unknown.Category)
+    require.NotNil(t, unknown)
+    assert.True(t, unknown.Constraints.Deletable) // fallback rendering
 }
 ```
 

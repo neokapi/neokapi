@@ -177,7 +177,7 @@ List all available processing tools (built-in and plugin-provided).
     {
       "name": "word-count",
       "description": "Count translatable words in content",
-      "source": "builtin"
+      "source": "built-in"
     }
   ],
   "total": 12
@@ -185,6 +185,14 @@ List all available processing tools (built-in and plugin-provided).
 ```
 
 ---
+
+## Bowrain Plugin MCP Tools
+
+The project-aware tools below are contributed by the **bowrain plugin**
+(`bowrain/plugin/mcp/tools.go`), registered into the shared `mcp` server via
+`cli.RegisterMCPToolFactory`. They appear only when the `kapi-bowrain` plugin is
+installed and require a `.kapi` project. The kapi binary on its own does not
+expose them.
 
 ### `project_config`
 
@@ -340,9 +348,11 @@ Project-defined flows include a `steps` count. Built-in flows always have `sourc
 
 | File                              | Purpose                              |
 | --------------------------------- | ------------------------------------ |
-| `kapi/cmd/kapi/mcp_cmd.go`        | Cobra subcommand, server bootstrap   |
-| `kapi/cmd/kapi/mcp_tools.go`      | Tool handler implementations + input/output types |
+| `cli/mcp.go`                      | Shared `mcp` subcommand + server bootstrap (`NewMCPCmd`) |
+| `kapi/cmd/kapi/root.go`           | Wires the kapi root command, including `mcp`   |
+| `kapi/cmd/kapi/mcp_tools.go`      | kapi MCP tool handlers + input/output types (`list_formats`, `detect_format`, `extract_content`, `run_flow`, `list_flows`, `word_count`, `list_tools`, `pseudo_translate`) |
 | `kapi/cmd/kapi/mcp_tools_test.go` | Unit tests for kapi MCP handlers     |
+| `bowrain/plugin/mcp/tools.go`     | Bowrain-plugin MCP tools (`project_config`, `project_status`, `project_ls`, `project_push`, `project_pull`, project-aware `list_flows`), registered via `cli.RegisterMCPToolFactory` |
 
 ## Testing
 

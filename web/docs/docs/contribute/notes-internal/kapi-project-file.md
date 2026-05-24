@@ -15,27 +15,39 @@ The `.kapi` file is a YAML document parsed by `core/project.KapiProject`:
 
 ```go
 type KapiProject struct {
-    Version         string                     `yaml:"version"`
-    Name            string                     `yaml:"name"`
-    SourceLanguage  string                     `yaml:"source_language,omitempty"`
-    TargetLanguages []string                   `yaml:"target_languages,omitempty"`
-    Content         []ContentEntry             `yaml:"content,omitempty"`
-    Preset          string                     `yaml:"preset,omitempty"`
-    Plugins         []string                   `yaml:"plugins,omitempty"`
-    Flows           map[string]*flow.StepsSpec  `yaml:"flows,omitempty"`
-    Defaults        Defaults                   `yaml:"defaults,omitempty"`
+    Version  string                     `yaml:"version"`
+    Name     string                     `yaml:"name,omitempty"`
+    Plugins  map[string]PluginSpec      `yaml:"plugins,omitempty"`  // name → spec (scalar = version short form)
+    Defaults Defaults                   `yaml:"defaults,omitempty"` // project-wide defaults (locales live here)
+    Content  []ContentCollection        `yaml:"content,omitempty"`
+    Preset   string                     `yaml:"preset,omitempty"`
+    Flows    map[string]*flow.StepsSpec `yaml:"flows,omitempty"`
+    Requires RequiresMap                `yaml:"requires,omitempty"` // plugin name → semver constraint
+    Extras   map[string]yaml.Node       `yaml:",inline"`            // unknown keys (platform extensions)
 }
 
-type ContentEntry struct {
-    Path   string `yaml:"path"`             // glob pattern for source files
-    Format string `yaml:"format,omitempty"` // format ID; auto-detect if empty
-    Target string `yaml:"target,omitempty"` // output path with {lang} placeholder
-}
-
+// Defaults holds project-wide processing defaults — including locales.
 type Defaults struct {
-    Concurrency    int    `yaml:"concurrency,omitempty"`
-    ParallelBlocks int    `yaml:"parallel_blocks,omitempty"`
-    Encoding       string `yaml:"encoding,omitempty"`
+    SourceLanguage  model.LocaleID   `yaml:"source_language,omitempty"`
+    TargetLanguages []model.LocaleID `yaml:"target_languages,omitempty"`
+    Concurrency     int              `yaml:"concurrency,omitempty"`
+    ParallelBlocks  int              `yaml:"parallel_blocks,omitempty"`
+    Encoding        string           `yaml:"encoding,omitempty"`
+    // (also: locale_format, formats, exclude, merge, tm, segmentation,
+    //  redaction, brand_voice, termbase — see core/project/project.go)
+}
+
+// ContentCollection is either a bare entry (path/format/target) or a named
+// collection (name + items), and can carry its own source/target languages.
+type ContentCollection struct {
+    Name            string           `yaml:"name,omitempty"`
+    SourceLanguage  model.LocaleID   `yaml:"source_language,omitempty"`
+    TargetLanguages []model.LocaleID `yaml:"target_languages,omitempty"`
+    Items           []ContentItem    `yaml:"items,omitempty"`
+    // Bare-entry fields (short form):
+    Path   string      `yaml:"path,omitempty"`   // glob pattern for source files
+    Format *FormatSpec `yaml:"format,omitempty"` // format ID; auto-detect if empty
+    Target string      `yaml:"target,omitempty"` // output path with {lang} placeholder
 }
 ```
 
@@ -52,10 +64,11 @@ Flow definitions reuse `core/flow.StepsSpec` and `core/flow.FlowStep` (see [flow
 
 ## File Paths
 
-- `.kapi` files use `filepath.Glob` for content pattern matching
+- Content patterns are expanded via `core/project.ExpandGlob`, backed by
+  `github.com/bmatcuk/doublestar/v4` — recursive `**` directory matching is
+  supported (e.g. `src/**/*.json`), along with `exclude` glob patterns
 - Patterns are resolved relative to the `.kapi` file's parent directory
 - The `{lang}` placeholder in `target` is expanded with the target locale at runtime
-- No recursive globbing (`**`) — use `filepath.Glob` compatible patterns
 
 ## Credential Resolution
 
@@ -84,13 +97,13 @@ With `-p`:
 
 ## Desktop Integration
 
-Kapi at `framework/apps/desktop/`:
+Kapi Desktop at `apps/kapi-desktop/`:
 
 - Opens `.kapi` files as documents (File > Open, drag-and-drop, OS file association)
 - Edits flows inline (steps editor)
-- Resolves content patterns against the filesystem via `MatchContent(basePath)`
-- Stores recent files at `~/.config/desktop/recent.json`
-- Stores settings at `~/.config/desktop/settings.json`
+- Resolves content patterns against the filesystem via `App.MatchContent(tabID)`
+- Stores recent files at `~/.config/kapi-desktop/recent.json`
+- Stores settings at `~/.config/kapi-desktop/settings.json`
 
 ## Example Files
 
@@ -106,8 +119,10 @@ name: Quick Translate
 ```yaml
 version: v1
 name: Acme App Localization
-source_language: en-US
-target_languages: [fr-FR, de-DE, ja-JP]
+
+defaults:
+  source_language: en-US
+  target_languages: [fr-FR, de-DE, ja-JP]
 
 content:
   - path: "src/i18n/en/*.json"
@@ -117,7 +132,8 @@ content:
     format: markdown
 
 preset: nextjs
-plugins: [okapi@1.47.0]
+requires:
+  okapi-bridge: ">=1.47.0"
 
 flows:
   translate:

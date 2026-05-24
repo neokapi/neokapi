@@ -58,12 +58,12 @@ Tiers 4-6 (fuzzy matching) previously scanned all entries for a locale pair and 
 
 ### SQLite: FTS5 Trigram Tokenizer
 
-Two FTS5 virtual tables synced via INSERT/UPDATE/DELETE triggers:
+Two FTS5 virtual tables backed by the `tm_variants` table, kept in sync on write:
 
-- **`tm_trigram`**: `tokenize='trigram'` on source_plain, source_struct, source_general. Used for fuzzy candidate retrieval.
-- **`tm_search`**: `tokenize='unicode61'` on source_text, target_text. Used for ranked UI search with BM25.
+- **`tm_variant_trigram`**: `tokenize='trigram'` on `plain`, `struct_key`, `general_key`. Used for fuzzy candidate retrieval.
+- **`tm_variant_search`**: `tokenize='icu'` on `text`. Used for ranked UI search (FTS5 BM25).
 
-`buildTrigramQuery()` constructs the FTS5 MATCH expression:
+`BuildTrigramQuery()` constructs the FTS5 MATCH expression:
 
 - **Multi-word text** (Latin, etc.): OR of individual words ≥3 chars as quoted substrings.
 - **Single word / CJK**: Overlapping 4-character windows sampled at even intervals (max 6 windows).
@@ -104,4 +104,4 @@ The import/export layer maps between Fragment Spans and TMX inline elements:
 | `SpanOpening`     | `<bpt>`     |
 | `SpanClosing`     | `<ept>`     |
 
-Entity metadata is carried as `<prop>` elements on the TMX `<tu>`. Note that inline element mapping (`<ph>`, `<bpt>`, `<ept>`) is handled by the full TMX format reader (`core/formats/tmx/`), not by the sievepen TM import/export layer. The TM module's TMX import (`core/sievepen/tmx_import.go`) handles plain text and entity properties only. When importing legacy TMX files that contain only plain text (no inline codes), entries are stored with plain Fragments and no entity mappings. They participate in plain matching only.
+Entity metadata is carried as `<prop>` elements on the TMX `<tu>`. Note that inline element mapping (`<ph>`, `<bpt>`, `<ept>`) is handled by the full TMX format reader (`core/formats/tmx/`), not by the sievepen TM import/export layer. The TM module's TMX import (`sievepen/tmx_import.go`) handles plain text and entity properties only. When importing legacy TMX files that contain only plain text (no inline codes), entries are stored with plain Fragments and no entity mappings. They participate in plain matching only.

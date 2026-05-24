@@ -20,37 +20,30 @@ keywords: [testing, roundtrip, table-driven tests, parity, Okapi, testify, mock 
 
 ```
 neokapi/
-├── model/
-│   ├── block_test.go               # Block creation, segment management
-│   ├── layer_test.go               # Layer nesting, embedded content
-│   ├── fragment_test.go            # Fragment span encoding/decoding
-│   └── skeleton_test.go            # Skeleton reconstruction
-├── flow/
+├── core/model/
+│   ├── model_test.go               # Block creation, segment management
+│   ├── coded_text_test.go          # Fragment/Span coded-form encoding
+│   └── run_test.go                 # Run sequence (canonical inline content)
+├── core/flow/
 │   ├── executor_test.go            # Flow execution, error propagation
-│   └── builder_test.go             # Builder API
-│   └── tool/
-│       └── base_test.go            # BaseTool dispatch, pass-through
+│   └── steps_test.go               # StepsToGraph compilation
+├── core/tool/
+│   └── base_test.go                # BaseTool dispatch, pass-through
 │
-├── formats/
+├── core/formats/
 │   ├── html/
 │   │   ├── reader_test.go
 │   │   ├── writer_test.go
 │   │   └── testdata/               # Test fixtures
 │   └── ... (each format follows the same pattern)
 │
-├── ai/
-│   ├── tools/
-│   │   ├── translate_test.go       # Uses mock provider
-│   │   └── qualitycheck_test.go    # Uses mock provider
-│   └── provider/
-│       └── mock.go                 # Mock LLM provider
+├── core/ai/tools/
+│   └── translate_test.go           # Uses mock provider
+├── providers/ai/
+│   └── mock.go                     # Mock LLM provider
 │
-└── internal/
-    └── testutil/
-        ├── helpers.go               # Common test helpers
-        ├── mock_tool.go             # Mock Tool implementation
-        ├── mock_reader.go           # Mock DataFormatReader
-        └── assert_parts.go          # Custom Part assertions
+└── core/internal/testutil/
+    └── helpers.go                   # Common test helpers (RawDocFrom*, CollectParts/Blocks, PartsToChannel)
 ```
 
 ## Test Patterns
@@ -75,7 +68,8 @@ func TestRoundTrip(t *testing.T) {
             require.NoError(t, err)
 
             reader := NewReader()
-            err = reader.Open(ctx, testutil.RawDocFromFile(tt.file, "en"))
+            err = reader.Open(ctx, testutil.RawDocFromReader(
+                bytes.NewReader(original), tt.file, model.LocaleEnglish))
             require.NoError(t, err)
             parts := testutil.CollectParts(t, reader.Read(ctx))
             reader.Close()
@@ -98,8 +92,12 @@ Verify specific Blocks are extracted with correct content:
 
 ```go
 func TestExtraction(t *testing.T) {
+    data, err := os.ReadFile("testdata/sample.html")
+    require.NoError(t, err)
+
     reader := NewReader()
-    err := reader.Open(ctx, testutil.RawDocFromFile("testdata/sample.html", "en"))
+    err = reader.Open(ctx, testutil.RawDocFromReader(
+        bytes.NewReader(data), "testdata/sample.html", model.LocaleEnglish))
     require.NoError(t, err)
     defer reader.Close()
 
@@ -111,21 +109,36 @@ func TestExtraction(t *testing.T) {
 
 ### Flow Execution Test
 
+Build a tool by embedding `tool.BaseTool` and setting handler fields, assemble a
+flow with the `flow.NewFlow(...).AddTool(...).Build()` builder (which returns
+`(*Flow, error)`), and drive it with `ExecuteWithChannels` for channel-level
+control:
+
 ```go
 func TestFlowExecution(t *testing.T) {
-    uppercaseTool := testutil.NewMockTool("uppercase", func(part *model.Part) *model.Part {
-        if part.Type == model.PartBlock {
+    uppercase := &tool.BaseTool{
+        ToolName: "uppercase",
+        HandleBlockFn: func(part *model.Part) (*model.Part, error) {
             block := part.Resource.(*model.Block)
-            text := strings.ToUpper(block.SourceText())
-            block.SetTargetText(model.LocaleFrench, text)
-        }
-        return part
-    })
+            if block.Translatable {
+                block.SetTargetText(model.LocaleFrench, strings.ToUpper(block.SourceText()))
+            }
+            return part, nil
+        },
+    }
 
-    f := flow.NewFlow("test").AddTool(uppercaseTool).Build()
-    executor := flow.NewExecutor(reg)
-    err := executor.Execute(ctx, f, items)
+    f, err := flow.NewFlow("test").AddTool(uppercase).Build()
     require.NoError(t, err)
+
+    executor := flow.NewExecutor()
+    in, out, wait := executor.ExecuteWithChannels(t.Context(), f)
+
+    go func() {
+        in <- &model.Part{Type: model.PartBlock, Resource: model.NewBlock("tu1", "hello")}
+        close(in)
+    }()
+    for range out { /* drain */ }
+    require.NoError(t, wait())
 }
 ```
 
@@ -147,12 +160,13 @@ go test ./flow/ -run TestExecutorCancellation -v
 
 ## Test Tags
 
-| Tag           | Purpose                         | Command                                  |
-| ------------- | ------------------------------- | ---------------------------------------- |
-| (none)        | Unit tests only                 | `go test ./...`                          |
-| `integration` | + plugin and format integration | `go test ./... -tags=integration`        |
-| `java`        | + Java bridge tests             | `go test ./... -tags="integration java"` |
-| `ai`          | + real AI provider tests        | `go test ./... -tags="integration ai"`   |
+| Tag           | Purpose                                  | Command                            |
+| ------------- | ---------------------------------------- | ---------------------------------- |
+| (none)        | Unit tests only                          | `go test ./...`                    |
+| `integration` | + plugin and format integration          | `go test ./... -tags=integration`  |
+| `acceptance`  | + native-format consumer-toolchain tests | `go test ./... -tags=acceptance`   |
+| `parity`      | + Okapi parity comparison tests          | `go test ./... -tags=parity`       |
+| `e2e`         | + end-to-end tests                       | `go test ./... -tags=e2e`          |
 
 ## CI
 

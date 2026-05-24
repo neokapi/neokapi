@@ -194,18 +194,14 @@ steps:
 ### From the CLI
 
 ```bash
-# Run a built-in flow
-kapi run pseudo-translate-qa -i input.xliff --target-lang fr
+# Run a built-in composed flow
+kapi run ai-translate-qa -i input.xliff --target-lang fr
 
-# Run a YAML flow file
-kapi flow run my-flow.yaml -i input.json
+# Run a flow defined in a .kapi project file
+kapi run my-flow -p myproject.kapi -i input.json
 
 # List available flows
 kapi flows
-```
-
-```bash
-
 ```
 
 ### Programmatically

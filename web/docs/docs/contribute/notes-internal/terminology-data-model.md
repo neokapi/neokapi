@@ -47,7 +47,7 @@ type TermBase interface {
     DeleteConcept(id string) error
     Lookup(sourceText string, opts LookupOptions) []TermMatch
     LookupAll(sourceText string, opts LookupOptions) []TermMatch
-    Search(query string, sourceLocale, targetLocale string, offset, limit int) ([]Concept, int)
+    Search(query string, sourceLocale, targetLocale model.LocaleID, offset, limit int) ([]Concept, int)
     Count() int
     Concepts() []Concept
     Close() error
@@ -80,16 +80,17 @@ Two pipeline tools integrate terminology into the streaming pipeline ([AD-006](/
 
 **`term-enforce`** (Validate) -- Checks preferred term usage in target text. Reports forbidden terms, non-preferred variants, deprecated terms, and missing target counterparts.
 
-Additional tools planned but not yet implemented:
+Related AI and redaction tools (registered in `core/ai/tools/` and
+`core/tools/`):
 
-**`term-extract`** (Enrich, AI) -- LLM extraction of candidate terms with `status: proposed`. Uses AI provider from [AD-011](/contribute/architecture/011-ai-providers).
+**`ai-terminology`** (Enrich, AI) -- LLM extraction of candidate terms. Uses an AI provider from [AD-011](/contribute/architecture/011-ai-providers).
 
-**`entity-annotate`** (Enrich, AI) -- Named entity annotation (people, organizations, products, dates, locations). Serves multiple purposes: TM generalization in Sievepen ([AD-009](/contribute/architecture/009-translation-memory)), do-not-translate markers, localization hints, and terminology candidate discovery. Should run early in the pipeline -- before `tm-leverage`.
+**`ai-entity-extract`** (Enrich, AI) -- Named entity annotation (people, organizations, products, dates, locations). Serves multiple purposes: TM generalization in Sievepen ([AD-009](/contribute/architecture/009-translation-memory)), do-not-translate markers, localization hints, and terminology candidate discovery. Should run early in the pipeline -- before `tm-leverage`.
 
-**`redact`** (Transform) -- Privacy tool replacing entity values with typed placeholders (e.g., "John" -> `\{PERSON\}`) before external services. Orthogonal to TM generalization, which handles matching natively via derived keys ([AD-009](/contribute/architecture/009-translation-memory)).
+**`redact`** (Transform) -- Privacy tool replacing entity values with typed placeholders (e.g., "John" -> `\{PERSON\}`) before external services. See [AD-020](/contribute/architecture/020-redaction).
 
 **`unredact`** (Transform) -- Restores original entity values after external processing. Paired with `redact`:
-`reader -> entity-annotate -> redact -> [external MT] -> unredact -> writer`
+`reader -> ai-entity-extract -> redact -> [external MT] -> unredact -> writer`
 
 ## Concept Relations (Phase 2)
 

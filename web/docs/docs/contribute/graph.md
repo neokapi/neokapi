@@ -262,13 +262,13 @@ neighbors, _ := store.NeighborsScoped(ctx, "old-term", graph.Outgoing, scope, gr
 
 ### Cypher Queries (AGE Backend Only)
 
-The AGE backend implements a `CypherStore` sub-interface (`platform/graph/`) that adds Cypher query support on top of `GraphStore`:
+The AGE backend implements a `CypherStore` sub-interface (`bowrain/graph/`, server-side) that adds Cypher query support on top of `core/graph.GraphStore`:
 
 ```go
-// platform/graph/cypher.go
+// bowrain/graph/cypher.go
 type CypherStore interface {
-    graph.GraphStore
-    CypherQuery(ctx context.Context, query string, params map[string]any) ([]*graph.Node, error)
+    coreg.GraphStore // core/graph
+    CypherQuery(ctx context.Context, query string, params map[string]any) ([]*coreg.Node, error)
     CypherExec(ctx context.Context, query string, params map[string]any) error
 }
 ```
@@ -276,7 +276,7 @@ type CypherStore interface {
 Callers that need Cypher access type-assert at the call site:
 
 ```go
-if cs, ok := store.(graphstore.CypherStore); ok {
+if cs, ok := store.(bgraph.CypherStore); ok { // bowrain/graph
     nodes, _ := cs.CypherQuery(ctx,
         "MATCH (n:Concept)-[:BROADER*1..3]->(m:Concept {id: $root}) RETURN n",
         map[string]any{"root": "animal"})

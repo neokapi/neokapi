@@ -7,7 +7,7 @@ keywords: [script step, JavaScript, ES5, goja, pipeline, custom processing, Part
 
 # JavaScript Script Step
 
-The script step lets you run custom JavaScript (ES5) on each Part flowing through the pipeline. It uses the [goja](https://github.com/nicholasgasior/goja) ES5 runtime -- a pure Go JavaScript engine with no CGo dependency.
+The script step lets you run custom JavaScript (ES5) on each Part flowing through the pipeline. It uses the [goja](https://github.com/dop251/goja) ES5 runtime -- a pure Go JavaScript engine with no CGo dependency.
 
 ## How it works
 
@@ -203,12 +203,15 @@ if (part.type === "block") {
 
 ## Configuration reference
 
-| Property     | Type   | Description                  |
-| ------------ | ------ | ---------------------------- |
-| `code`       | string | Inline JavaScript code (ES5) |
-| `scriptFile` | string | Path to a `.js` file         |
+| Property     | Type   | Description                                        |
+| ------------ | ------ | -------------------------------------------------- |
+| `source`     | string | Mode selector: `inline` (default) or `file`        |
+| `code`       | string | Inline JavaScript code (ES5)                       |
+| `scriptFile` | string | Path to a `.js` file                               |
 
-The two properties are mutually exclusive. One of them must be provided.
+Provide either `code` or `scriptFile`. The optional `source` field selects the
+mode explicitly (`inline` or `file`) for UI and validation; when omitted, the
+mode is inferred from whichever of `code`/`scriptFile` is set.
 
 ## Notes
 

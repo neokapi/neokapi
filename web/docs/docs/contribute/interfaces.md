@@ -25,19 +25,19 @@ package model
 type PartType int
 
 const (
-    PartLayerStart  PartType = iota // Start of a structural layer
-    PartLayerEnd                    // End of a structural layer
-    PartGroupStart                  // Start of a structural group within a layer
-    PartGroupEnd                    // End of a structural group
-    PartBlock                       // Translatable content
-    PartData                        // Non-translatable document structure
-    PartMedia                       // Binary/media content
-    _                               // reserved
-    _                               // reserved
-    _                               // reserved
-    _                               // reserved
-    PartRawDocument                 // Unprocessed document
-    PartCustom                      // Custom extension
+    // Explicit integer values preserve wire compatibility (JSON plugin DTOs,
+    // protobuf PartMessage.part_type). Do NOT renumber existing constants.
+    PartTypeUnknown PartType = 0  // zero value (uninitialized)
+    PartLayerStart  PartType = 1  // Start of a structural layer
+    PartLayerEnd    PartType = 2  // End of a structural layer
+    PartGroupStart  PartType = 3  // Start of a structural group within a layer
+    PartGroupEnd    PartType = 4  // End of a structural group
+    PartBlock       PartType = 5  // Translatable content
+    PartData        PartType = 6  // Non-translatable document structure
+    PartMedia       PartType = 7  // Binary/media content
+    // 8-11 reserved (formerly batch part types)
+    PartRawDocument PartType = 12 // Unprocessed document
+    PartCustom      PartType = 13 // Custom extension
 )
 
 // Part is the fundamental unit of content flowing through a Flow.
@@ -101,16 +101,24 @@ type Block struct {
 
 func (b *Block) ResourceID() string { return b.ID }
 func (b *Block) SourceText() string { /* concatenate source segments */ }
-func (b *Block) FirstFragment() *Fragment { /* first source fragment */ }
+func (b *Block) FirstSegment() *Segment { /* first source segment */ }
 func (b *Block) SetSourceText(text string) { /* replace source */ }
 func (b *Block) HasTarget(locale LocaleID) bool { /* check target exists */ }
 func (b *Block) TargetText(locale LocaleID) string { /* concatenate target */ }
 func (b *Block) SetTargetText(locale LocaleID, text string) { /* set target */ }
+func (b *Block) SourceRuns() []Run { /* canonical inline content */ }
+func (b *Block) SetSourceRuns(runs []Run) { /* replace source runs */ }
+func (b *Block) TargetRuns(locale LocaleID) []Run { /* target inline content */ }
+func (b *Block) SetTargetRuns(locale LocaleID, runs []Run) { /* set target runs */ }
 
 // Segment is a single segment within a Block's source or target content.
+// Runs is the canonical inline-content representation (RFC 0001); the
+// Fragment/Span coded form is a legacy bridge for wire formats and tests.
 type Segment struct {
-    ID      string
-    Content *Fragment
+    ID          string
+    Runs        []Run
+    Properties  map[string]string
+    Annotations map[string]Annotation
 }
 ```
 
@@ -371,7 +379,7 @@ The `Builder` provides a fluent API for constructing flows:
 ```go
 f, err := flow.NewFlow("translate").
     AddTool(tools.NewTMLeverageTool(tmCfg)).
-    AddTool(aitools.NewAITranslateTool(translateCfg)).
+    AddTool(aitools.NewAITranslateTool(llmProvider, translateCfg)).
     Build()
 
 executor := flow.NewExecutor(
@@ -387,20 +395,24 @@ err = executor.Execute(ctx, f, items)
 ```go
 package registry
 
+// FormatID and ToolID are string-typed identifiers.
+type FormatID string
+type ToolID string
+
 // FormatRegistry manages available DataFormats and their configurations.
 type FormatRegistry struct { /* readers, writers, configs */ }
 
-func (r *FormatRegistry) RegisterReader(name string, factory FormatReaderFactory)
-func (r *FormatRegistry) RegisterWriter(name string, factory FormatWriterFactory)
-func (r *FormatRegistry) NewReader(name string) (format.DataFormatReader, error)
+func (r *FormatRegistry) RegisterReader(name FormatID, factory FormatReaderFactory, sig format.FormatSignature, displayName string)
+func (r *FormatRegistry) RegisterWriter(name FormatID, factory FormatWriterFactory)
+func (r *FormatRegistry) NewReader(name FormatID) (format.DataFormatReader, error)
 func (r *FormatRegistry) Detector() *format.Detector
 
 // ToolRegistry manages available Tools.
 type ToolRegistry struct { /* name → factory */ }
 
-func (r *ToolRegistry) Register(name string, factory ToolFactory)
-func (r *ToolRegistry) RegisterWithSchema(name string, factory ToolFactory, s *schema.ComponentSchema)
-func (r *ToolRegistry) NewTool(name string) (tool.Tool, error)
+func (r *ToolRegistry) Register(name ToolID, factory ToolFactory)
+func (r *ToolRegistry) RegisterWithSchema(name ToolID, factory ToolFactory, s *schema.ComponentSchema)
+func (r *ToolRegistry) NewTool(name ToolID) (tool.Tool, error)
 ```
 
 ## Plugin protocols

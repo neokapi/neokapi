@@ -33,8 +33,9 @@ a Mode-C capability, kapi launches the bridge as a daemon:
 
 Bridge-backed formats are registered into the standard `FormatRegistry`
 (see `cli/pluginhost/format_factory.go`) and are indistinguishable from native
-formats at the API level — flows and commands reference `okapi-html`, `okapi-xml`,
-and so on without knowing they come from a subprocess.
+formats at the API level — flows and commands reference the Okapi filter config
+IDs (`okf_html`, `okf_xml`, and so on, with versioned aliases like
+`okf_html@2.17.0`) without knowing they come from a subprocess.
 
 ## BridgeService
 

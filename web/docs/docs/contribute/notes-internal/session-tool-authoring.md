@@ -158,7 +158,7 @@ overlay-write at the **output**. Example:
 - `memory` — default when no store is declared. Snapshot-per-session,
   last-writer-wins on commit. Capabilities: RandomAccess + Concurrent
   - Writable.
-- `cache` — SQLite at `.kapi/cache.db`. The default for kapi
+- `cache` — SQLite at `.kapi/cache/blocks.db`. The default for kapi
   projects. Full ACID, persistent across runs.
 - `format-reader` — wraps a `format.DataFormatReader` as a read-only
   store. Useful for ad-hoc CLI flows (`kapi ai-translate -i

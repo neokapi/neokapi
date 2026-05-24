@@ -416,10 +416,16 @@ re-parse. Simpler formats may only need skeleton + build-from-blocks.
 Register the format in `core/formats/register.go`:
 
 ```go
-import "<name>fmt" "github.com/neokapi/neokapi/core/formats/<name>"
+import <name>fmt "github.com/neokapi/neokapi/core/formats/<name>"
 
-// In RegisterAll():
-reg.RegisterReader("<name>", func() format.DataFormatReader { return <name>fmt.NewReader() })
+// In RegisterAll(reg *registry.FormatRegistry, opts ...RegisterOptions):
+// RegisterReader takes (name, factory, FormatSignature, displayName).
+reg.RegisterReader("<name>",
+    func() format.DataFormatReader { return <name>fmt.NewReader() },
+    format.FormatSignature{
+        MIMETypes:  []string{"application/<name>"},
+        Extensions: []string{".<ext>"},
+    }, "<Display Name>")
 reg.RegisterWriter("<name>", func() format.DataFormatWriter { return <name>fmt.NewWriter() })
 ```
 

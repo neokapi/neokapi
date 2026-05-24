@@ -21,6 +21,9 @@ service BridgeService {
   // streaming. Supports read-only, read-write, and single-pass modes.
   rpc Process(stream ProcessRequest) returns (stream ProcessResponse);
 
+  // ProcessStep runs a single Okapi pipeline step over a stream of parts.
+  rpc ProcessStep(stream StepRequest) returns (stream StepResponse);
+
   // Shutdown gracefully shuts down the bridge server.
   rpc Shutdown(ShutdownRequest) returns (ShutdownResponse);
 }
@@ -238,7 +241,7 @@ blocks before waiting for translations.
 
 ## Plugin Parameters
 
-Plugin parameters are described by JSON Schema files bundled in the `schemas/` directory of each plugin version. The `FilterSchema` type (`core/format/schema/schema.go`) loads these schemas, which define available configuration options per filter.
+Plugin parameters are described by JSON Schema files bundled in the `schemas/` directory of each plugin version. The `FormatSchema` type (`core/format/schema/schema.go`) loads these schemas, which define available configuration options per filter.
 
 Parameters are passed as `map<string, string>` in `ProcessHeader.filter_params`. The Java bridge supports:
 
@@ -251,7 +254,7 @@ Parameters are passed as `map<string, string>` in `ProcessHeader.filter_params`.
 ## Multi-Version Directory Layout
 
 ```
-~/.config/kapi/plugins/
+~/.local/share/kapi/plugins/
   okapi/
     2.17.0/
       manifest.json
