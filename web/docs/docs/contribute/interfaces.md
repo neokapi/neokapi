@@ -405,29 +405,29 @@ func (r *ToolRegistry) NewTool(name string) (tool.Tool, error)
 
 ## Plugin protocols
 
-Out-of-process formats and tools are exposed over gRPC. The service definitions
-mirror the in-process interfaces:
+Out-of-process formats, tools, and source connectors run as Mode-C plugin
+daemons and are reached over a single gRPC `BridgeService`. A bidirectional
+`Process` stream carries the whole document lifecycle — its mode (read-only,
+read-write, or write-only) is selected by the header rather than by separate
+RPCs:
 
 ```protobuf
-service DataFormatReaderPlugin {
-    rpc Open(OpenRequest) returns (OpenResponse);
-    rpc Read(ReadRequest) returns (stream PartMessage);
-    rpc Close(CloseRequest) returns (CloseResponse);
-    rpc Info(InfoRequest) returns (FormatInfo);
-}
-
-service DataFormatWriterPlugin {
-    rpc Open(WriterOpenRequest) returns (WriterOpenResponse);
-    rpc Write(stream PartMessage) returns (WriteResponse);
-    rpc Close(CloseRequest) returns (CloseResponse);
-}
-
-service ToolPlugin {
-    rpc Process(stream PartMessage) returns (stream PartMessage);
-    rpc Info(InfoRequest) returns (ToolInfo);
+service BridgeService {
+    // Full document cycle. The ProcessHeader selects read-only,
+    // read-write, or write-only mode.
+    rpc Process(stream ProcessRequest) returns (stream ProcessResponse);
+    // Run a single Okapi pipeline step over a stream of parts.
+    rpc ProcessStep(stream StepRequest) returns (stream StepResponse);
+    // Gracefully stop the daemon.
+    rpc Shutdown(ShutdownRequest) returns (ShutdownResponse);
 }
 ```
 
-See [Plugin System](/contribute/plugins) and the
-[Plugin Bridge Protocol](/contribute/notes-internal/plugin-bridge-protocol) for
+The `ProcessRequest` / `ProcessResponse` payloads stream `PartMessage`s that map
+onto the in-process `Part` model via `core/plugin/protoconvert`. The full
+service is defined in `core/plugin/proto/v2/neokapi_bridge.proto`.
+
+See [Plugin System](/contribute/plugins),
+[Okapi Bridge](/contribute/java-bridge), and the
+[Okapi Bridge Protocol](/contribute/notes-internal/plugin-bridge-protocol) for
 the full protocol.

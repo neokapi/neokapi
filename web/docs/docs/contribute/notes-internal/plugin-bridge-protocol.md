@@ -1,8 +1,8 @@
 ---
 sidebar_position: 3
 title: "Okapi Bridge Protocol"
-description: Implementation note for AD-007 — the gRPC bridge protocol between neokapi and the Okapi Java subprocess, covering the BridgeService RPCs (ListFilters, Info, Open, Read, Write) and the Part-to-Event translation.
-keywords: [bridge protocol, gRPC, BridgeService, Okapi bridge, ListFilters, Part model, Event model, implementation note]
+description: Implementation note for AD-007 — the gRPC bridge protocol between neokapi and the Okapi Java subprocess, covering the BridgeService RPCs (Process, ProcessStep, Shutdown) and the Part-to-Event translation.
+keywords: [bridge protocol, gRPC, BridgeService, Okapi bridge, Process RPC, Part model, Event model, implementation note]
 ---
 
 # Bridge Protocol
@@ -11,7 +11,7 @@ This note provides implementation details for [AD-007](/contribute/architecture/
 
 ## gRPC Bridge Protocol
 
-The Okapi bridge is a subprocess (or daemon) that hosts Okapi Framework filters and exposes them via a gRPC service. The Go side (`core/plugin/bridge/`) manages the subprocess lifecycle, connects as a gRPC client, and translates between neokapi's Part model and Okapi's Event model.
+The Okapi bridge is a Mode-C plugin daemon that hosts Okapi Framework filters and exposes them via a gRPC service. The host side (`cli/pluginhost/`, with the format client in `format_client.go`) manages the daemon lifecycle, connects as a gRPC client, and translates between neokapi's Part model and Okapi's Event model via `core/plugin/protoconvert`.
 
 The protocol is defined in `core/plugin/proto/v2/neokapi_bridge.proto`:
 
@@ -102,11 +102,26 @@ message OutputRef {
 
 File paths are preferred over inline bytes — they allow Java to resolve relative references (ITS linked rules, XLIFF standoff, companion files) and avoid byte transfer overhead.
 
-### Subprocess Startup
+### Daemon Startup and Transport
 
-On launch, the bridge subprocess starts a gRPC server on a random port and prints the socket address to stdout. The Go side reads this address, connects as a gRPC client, and the bridge is ready. The `BridgeConfig.StartupTimeout` controls how long to wait.
+In daemon mode (`kapi-okapi-bridge daemon`) the bridge self-allocates a per-PID
+socket path under the JVM temp dir (`kapi-okapi-bridge-<pid>.sock`), unless
+`NEOKAPI_BRIDGE_SOCKET` overrides it. It binds that Unix-domain socket using
+Netty's **native transports — kqueue on macOS, epoll on Linux** — for
+kernel-level throughput, then prints the canonical handshake line on stdout:
 
-JVM heap defaults to 16GB (`-Xmx16g`), configurable via the `KAPI_BRIDGE_HEAP` environment variable.
+```json
+{"socket":"/tmp/kapi-okapi-bridge-12345.sock","version":"..."}
+```
+
+The host (`cli/pluginhost/daemon.go`) reads that line and dials the Unix socket
+as a gRPC client. The host dials Unix sockets only; it does not connect over TCP.
+
+The server also has a TCP fallback: when no socket path is set (a legacy,
+non-daemon path used by the old Go shim and by tests), it binds a localhost gRPC
+port and reports `tcp://localhost:<port>` instead. `createUnixSocketServer`
+throws `UnsupportedOperationException` on any OS that is neither macOS nor
+Linux, so the daemon transport is effectively POSIX-only today.
 
 ## Java Pipeline Architecture
 

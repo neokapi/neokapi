@@ -98,7 +98,7 @@ Commands fall into categories:
 - **Format operations** — `kapi formats`, `kapi extract`, `kapi merge`
 - **Tools** — `kapi pseudo-translate`, `kapi word-count`, `kapi ai-translate`,
   `kapi mt-translate`, `kapi run <flow>`
-- **Plugins** — `kapi plugins list/install/update`
+- **Plugins** — `kapi plugin list/install/update`
 - **Presets** — `kapi presets list`
 - **Terminology and TM** — `kapi termbase`, `kapi tm`
 

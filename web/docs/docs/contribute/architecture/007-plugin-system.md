@@ -160,9 +160,11 @@ serves gRPC on the socket:
 kapi opens a gRPC client to that socket and dispatches concurrent
 requests. The daemon stays alive until kapi exits or hits its
 idle timeout (per-manifest, default 5 min). Concurrent daemons are
-capped via `KAPI_MAX_DAEMONS` (default 8) with LRU eviction. Java's
-native `UnixDomainSocketAddress` (JDK 16+) makes this work on
-Windows 10+ as well as POSIX.
+capped via `KAPI_MAX_DAEMONS` (default 8) with LRU eviction. The
+daemon transport is a Unix-domain socket, dialed by kapi as a gRPC
+client over `unix`. Each plugin supplies its own socket server: the
+reference Okapi bridge serves it with Netty's native transports —
+kqueue on macOS, epoll on Linux — and is POSIX-only today.
 
 ### Lifecycle commands
 
@@ -280,10 +282,12 @@ Mode A + B with no third-party deps.
 Implemented and merged in #438 (phases 1-9). The legacy v1 plugin
 runtime — `core/plugin/{loader,host,server,shared,registry,cache}/`
 plus the `kapi plugins` (plural) command tree — has been deleted.
-`core/plugin/{bridge,manifest,proto}/` are kept: `bridge` for the
-in-process Java filter calls used by `core/flow/bridgerunner`,
-`manifest` for the v1 manifest types, `proto` for the gRPC service
-definitions consumed by Mode-C daemons.
+`core/plugin/{manifest,proto,protoconvert}/` are kept: `manifest`
+for the manifest types and embedded JSON Schema, `proto` for the gRPC
+service definitions consumed by Mode-C daemons, and `protoconvert`
+for Part↔proto translation. The host-side runtime — discovery,
+dispatch, the daemon pool, the registry client, cosign verification,
+and the bridge format client — lives in `cli/pluginhost/`.
 
 Native binaries ship for `linux/amd64`, `linux/arm64`,
 `darwin/arm64`, and `windows/amd64`. `darwin/amd64` (Intel Mac) is

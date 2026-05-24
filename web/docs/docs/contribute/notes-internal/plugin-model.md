@@ -229,7 +229,7 @@ import _ "example.com/gitlab-plugin"
 
 A plugin ships as its own binary plus a `manifest.json`, installed into a kapi plugin directory rather than linked into `kapi`. Because the plugin runs as a separate process, its license is independent of `kapi`'s: the `kapi` binary stays Apache-2.0 and links no vendor-plugin code, while the bowrain plugin binary (`kapi-bowrain`) carries the bowrain packages. There is no `-tags pure` / `kapi-pure` split — `kapi` is always plugin-free, and bowrain is something you install into it.
 
-See [AD-007: Plugin System](../architecture/007-plugin-system) for the manifest schema, discovery precedence, install paths (`kapi plugins install <name>`, Homebrew), and the A/B/C transport modes.
+See [AD-007: Plugin System](../architecture/007-plugin-system) for the manifest schema, discovery precedence, install paths (`kapi plugin install <name>`, Homebrew), and the A/B/C transport modes.
 
 ## Initialization order
 
