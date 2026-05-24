@@ -3,53 +3,40 @@
   "version": "0.1.1",
   "private": true,
   "description": "Canonical TypeScript schema for the Kapi Localization Format (KLF). Block/Run content model, reference Level-1 preview renderer, target validator, annotation overlay resolver. Mirrors core/klf in Go byte-for-byte against shared golden fixtures.",
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./block": "./src/block.ts",
+    "./vocabulary": "./src/vocabulary.ts",
+    "./preview": "./src/preview.ts",
+    "./annotation": "./src/annotation.ts",
+    "./klf": "./src/klf.ts",
+    "./target-plural": "./src/target-plural.ts",
+    "./package.json": "./package.json"
+  },
+  "publishConfig": {
+    "main": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "exports": {
+      ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" },
+      "./block": { "types": "./dist/block.d.ts", "default": "./dist/block.js" },
+      "./vocabulary": { "types": "./dist/vocabulary.d.ts", "default": "./dist/vocabulary.js" },
+      "./preview": { "types": "./dist/preview.d.ts", "default": "./dist/preview.js" },
+      "./annotation": { "types": "./dist/annotation.d.ts", "default": "./dist/annotation.js" },
+      "./klf": { "types": "./dist/klf.d.ts", "default": "./dist/klf.js" },
+      "./target-plural": { "types": "./dist/target-plural.d.ts", "default": "./dist/target-plural.js" },
+      "./package.json": "./package.json"
+    }
+  },
   "files": [
     "dist",
     "src"
   ],
-  "type": "module",
-  "main": "./dist/index.js",
-  "types": "./src/index.ts",
-  "exports": {
-    ".": {
-      "types": "./src/index.ts",
-      "node": "./dist/index.js",
-      "default": "./src/index.ts"
-    },
-    "./block": {
-      "types": "./src/block.ts",
-      "node": "./dist/block.js",
-      "default": "./src/block.ts"
-    },
-    "./vocabulary": {
-      "types": "./src/vocabulary.ts",
-      "node": "./dist/vocabulary.js",
-      "default": "./src/vocabulary.ts"
-    },
-    "./preview": {
-      "types": "./src/preview.ts",
-      "node": "./dist/preview.js",
-      "default": "./src/preview.ts"
-    },
-    "./annotation": {
-      "types": "./src/annotation.ts",
-      "node": "./dist/annotation.js",
-      "default": "./src/annotation.ts"
-    },
-    "./klf": {
-      "types": "./src/klf.ts",
-      "node": "./dist/klf.js",
-      "default": "./src/klf.ts"
-    },
-    "./target-plural": {
-      "types": "./src/target-plural.ts",
-      "node": "./dist/target-plural.js",
-      "default": "./src/target-plural.ts"
-    },
-    "./package.json": "./package.json"
-  },
   "scripts": {
     "build": "node build.mjs",
+    "prepack": "node build.mjs",
     "typecheck": "vpx tsc --noEmit",
     "validate": "node --experimental-strip-types examples/validate.ts",
     "test": "vitest run"
