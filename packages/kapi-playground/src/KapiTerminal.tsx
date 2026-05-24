@@ -50,7 +50,7 @@ function join(dir: string, name: string): string {
 const BUILTINS = ["help", "clear", "ls", "cd", "cat", "pwd", "rm", "kapi"];
 
 const HELP = [
-  "kapi browser terminal — the kapi CLI compiled to WebAssembly.",
+  "kapi — the localization toolkit, running right here in your browser.",
   "",
   "  kapi <command> …   run a kapi command (e.g. kapi formats list)",
   "  <command> …        the leading 'kapi' is optional",
@@ -434,7 +434,7 @@ export default function KapiTerminal({ runtime, onFsChange, ref }: KapiTerminalP
     };
 
     term.writeln(
-      "\x1b[1mkapi\x1b[0m browser terminal — the kapi CLI, in WebAssembly. Type \x1b[33mhelp\x1b[0m, or \x1b[33mTab\x1b[0m to complete.",
+      "\x1b[1mkapi\x1b[0m — running right here in your browser. Type \x1b[33mhelp\x1b[0m, or \x1b[33mTab\x1b[0m to complete.",
     );
     prompt();
     const disp = term.onData(onKey);

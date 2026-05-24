@@ -276,9 +276,7 @@ export default function KapiEmbed({
         <span className="kapi-pg-spinner" aria-hidden="true" />
         <span className="kapi-pg-loading-title">Getting things ready…</span>
         <span className="kapi-pg-loading-sub">
-          {wasWarm.current
-            ? "Starting the kapi CLI…"
-            : "Loading the kapi CLI (WebAssembly, ~13 MB)…"}
+          {wasWarm.current ? "Just a moment…" : "Starting kapi for the first time — just a moment."}
         </span>
       </div>
     );

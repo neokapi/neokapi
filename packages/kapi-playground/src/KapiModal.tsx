@@ -193,7 +193,7 @@ export default function KapiModal(): React.ReactElement | null {
       >
         <div className="kapi-pg-modal-bar">
           <span className="kapi-pg-modal-title">kapi playground</span>
-          <span className="kapi-pg-modal-hint">in-browser, no server · Esc to close</span>
+          <span className="kapi-pg-modal-hint">Press Esc to close</span>
           <button
             type="button"
             className="kapi-pg-btn kapi-pg-btn--sm"

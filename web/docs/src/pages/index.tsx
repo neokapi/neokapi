@@ -77,9 +77,8 @@ function HomepageHeader() {
             {siteConfig.title} &mdash; {siteConfig.tagline}
           </Heading>
           <p className={styles.heroSubtitle}>
-            Open, AI-native localization in Go. Try the real <code>kapi</code> CLI right here
-            &mdash; it is compiled to WebAssembly and runs entirely in your browser. No install, no
-            server, nothing leaves your machine.
+            Open, AI-native localization in Go. Try the real <code>kapi</code> CLI right here in
+            your browser &mdash; no install, no sign-up, and nothing leaves your machine.
           </p>
           <div className={styles.buttons}>
             <button
@@ -98,7 +97,7 @@ function HomepageHeader() {
             </Link>
           </div>
           <p className={styles.heroHint}>
-            No sign-up &middot; runs offline &middot; ~13&nbsp;MB WASM
+            No install &middot; no sign-up &middot; runs entirely on your device
           </p>
         </div>
         <div className={styles.heroAside}>
