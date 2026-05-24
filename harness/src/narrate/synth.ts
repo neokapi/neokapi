@@ -255,16 +255,26 @@ export async function narrateDemo(m: DemoManifest, opts: NarrateOptions = {}): P
     const outWav = path.join(audioDir, wavName);
     const text = spec.text?.trim() ?? "";
     if (text) {
+      const words = countWords(text);
       let attempt = 0;
+      let naturalDur = 0;
       // The Gemini preview TTS model is flaky: under load it intermittently returns a
-      // fast empty-audio 200 or a 500 INTERNAL. These misses are quick and random (~50%
-      // during a bad patch), so the winning strategy is many quick re-tries with only a
-      // gentle backoff — long exponential waits just burn time on what is effectively a
-      // coin flip. Budget/backoff overridable via NARRATION_TTS_RETRIES.
+      // fast empty-audio 200, a 500 INTERNAL, or — worse, because it looks like success —
+      // a pathological looped/garbled clip that's wildly too long for the text. These
+      // misses are quick and random (~50% during a bad patch), so the winning strategy is
+      // many quick re-tries with only a gentle backoff. Budget via NARRATION_TTS_RETRIES.
       const maxRetries = Math.max(1, Number(process.env.NARRATION_TTS_RETRIES) || 10);
       while (true) {
         try {
           await synthOne(backend, voice, text, outWav);
+          naturalDur = wavDurationSec(outWav);
+          // Reject pathological clips (the looped-audio failure mode): a real narrator
+          // lands ~1.5–4 w/s, so anything outside a generous 0.7–12 w/s band for a
+          // non-trivial line is a bad generation — re-roll it like any other miss.
+          const wps = naturalDur > 0 ? words / naturalDur : 0;
+          if (words >= 3 && (wps < 0.7 || wps > 12)) {
+            throw new Error(`implausible audio: ${naturalDur.toFixed(0)}s for ${words} words (${wps.toFixed(2)} w/s)`);
+          }
           break;
         } catch (e) {
           attempt++;
@@ -274,7 +284,7 @@ export async function narrateDemo(m: DemoManifest, opts: NarrateOptions = {}): P
           await new Promise((r) => setTimeout(r, backoff));
         }
       }
-      synthed.push({ spec, wavName, outWav, spoken: true, words: countWords(text), naturalDur: wavDurationSec(outWav) });
+      synthed.push({ spec, wavName, outWav, spoken: true, words, naturalDur });
     } else {
       synthed.push({ spec, wavName, outWav, spoken: false, words: 0, naturalDur: 0 });
     }
