@@ -1,5 +1,6 @@
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import useBaseUrl from "@docusaurus/useBaseUrl";
 import { commands as commandData } from "@neokapi/reference-data";
 import type { CommandEntry } from "@neokapi/reference-data";
 import RunnableSnippet from "@site/src/components/KapiPlayground/RunnableSnippet";
@@ -32,6 +33,9 @@ function formatDefault(def: string | undefined, type: string | undefined): strin
  * derives from the data so the page is never hand-authored prose.
  */
 export default function CommandReferencePage({ id }: Props) {
+  const guidesHref = useBaseUrl("/guides");
+  const installHref = useBaseUrl("/get-started/installation");
+  const commandsHref = useBaseUrl("/commands");
   const cmd: CommandEntry | undefined = commandData.commands.find((c) => c.id === id);
   if (!cmd) {
     return <p>Unknown command: {id}</p>;
@@ -103,8 +107,8 @@ export default function CommandReferencePage({ id }: Props) {
               it can&rsquo;t run in the browser playground.
             </span>
             <span>
-              See the <a href="/guides">guides</a> for a recorded run, or try it locally with the{" "}
-              <a href="/get-started/installation">installed CLI</a>.
+              See the <a href={guidesHref}>guides</a> for a recorded run, or try it locally with the{" "}
+              <a href={installHref}>installed CLI</a>.
             </span>
           </div>
         )}
@@ -169,7 +173,7 @@ export default function CommandReferencePage({ id }: Props) {
       )}
 
       <p className={styles.browseBack}>
-        &larr; Back to the <a href="/commands">Command Reference</a>
+        &larr; Back to the <a href={commandsHref}>Command Reference</a>
       </p>
     </div>
   );
