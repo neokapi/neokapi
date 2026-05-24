@@ -35,14 +35,13 @@ artifacts:
     width: 1200
     height: 820
   - id: source
-    caption: "Plain JSX — the English text in the markup is the source, no message IDs"
-    source: report
-    report: code
-    reportTitle: "src/app/page.tsx"
-    reportSub: "Zero-wrapper: kapi-react extracts these strings at build time"
+    caption: "Before / after — same JSX; kapi-react adds an import and wraps only the data strings"
+    source: codediff
+    reportTitle: "src/app/page.tsx — before and after kapi-react"
+    reportSub: "Plain JSX text is auto-extracted at build time; only strings that live in data get t()"
     path: src/app/page.tsx
-    width: 1100
-    height: 820
+    width: 1800
+    height: 1000
   - id: japanese
     caption: "The same app — Japanese, layout untouched, placeholders intact"
     source: url
@@ -58,12 +57,12 @@ narration:
   - id: title
     kind: title
     text: >
-      A working Next.js notes app, in English, with no internationalization yet. The task:
+      A working Next.js notes app, in English, not wired up for translation yet. The task:
       ship it in Japanese.
   - id: prompt
     kind: prompt
     text: >
-      The developer just asks Claude to set up i18n with kapi-react and add Japanese — no
+      The developer just asks Claude to set up kapi-react and add Japanese — no
       mention of extraction, catalogs, or placeholders.
   - id: work
     kind: terminal
@@ -88,17 +87,16 @@ narration:
     kind: artifact
     artifact: source
     text: >
-      And the source behind it: ordinary JSX, no message IDs, no wrappers. The text in the
-      markup is what kapi extracts and translates.
+      Here's the source, before and after. It's the same ordinary JSX — kapi-react adds one
+      import and wraps only the handful of strings that live in data rather than markup. No
+      message IDs, no rewrites; the text in the markup is what kapi extracts and translates.
   - id: japanese
     kind: artifact
     artifact: japanese
     text: >
-      And the same app, now in Japanese — layout untouched, the name placeholder right where
-      it belongs. In the interest of honesty: no human has reviewed a single word of this, so
-      a native speaker may well wince. But that's the cheap part to fix. The hard part —
-      lifting every string out of the code and round-tripping the translation back — kapi
-      already handled.
+      And the same app, now in Japanese — in this demo it is just AI generated Japanese, but
+      Kapi could just as well have looped this through human review and more advanced workflows
+      with automated compliance checks.
   - id: outro
     kind: outro
     text: >

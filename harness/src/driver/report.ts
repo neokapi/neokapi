@@ -184,6 +184,35 @@ function renderCode(code: string, title: string, sub: string): string {
 
 export { renderCode };
 
+/** Two source files side by side (before | after) for a visual diff card. */
+function renderCodeDiff(
+  before: string,
+  after: string,
+  title: string,
+  sub: string,
+  beforeLabel = "Before",
+  afterLabel = "After",
+): string {
+  const panel = (label: string, code: string, accent: string) =>
+    `<div style="flex:1;min-width:0;background:#0d1117;border:1px solid rgba(255,255,255,0.10);border-radius:14px;overflow:hidden">
+       <div style="padding:11px 18px;border-bottom:1px solid rgba(255,255,255,0.08);color:${accent};
+         font-family:ui-monospace,Menlo,monospace;font-size:14px;font-weight:600">${esc(label)}</div>
+       <pre style="padding:20px 22px;font-size:13px;line-height:1.7;color:#cdd6f4;white-space:pre-wrap;
+         word-break:break-word;margin:0">${highlightCode(code)}</pre>
+     </div>`;
+  return SHELL(
+    title,
+    `<style>.wrap{max-width:1720px}</style>
+     <h1>${esc(title)}</h1>${sub ? `<div class="sub">${esc(sub)}</div>` : ""}
+     <div style="display:flex;gap:20px;align-items:flex-start">
+       ${panel(beforeLabel, before, "#8c98b8")}
+       ${panel(afterLabel, after, "#8fe3a0")}
+     </div>`,
+  );
+}
+
+export { renderCodeDiff };
+
 /** Wrap a pandoc-produced HTML fragment (from a .docx) in a clean "document page" card. */
 export function renderDocxHtml(fragment: string, title: string, sub: string): string {
   return SHELL(

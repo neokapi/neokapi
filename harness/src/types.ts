@@ -63,8 +63,10 @@ export interface ArtifactSpec {
    * - "command": run a shell/kapi command in the sandbox snapshot and render its stdout
    *   as a report — REAL, deterministic kapi output, not a file Claude happened to save.
    * - "image": an image already present in the sandbox (copied as-is).
+   * - "codediff": render `path` from the pristine fixture (before) and the post-run
+   *   snapshot (after) side by side, for a before/after source comparison.
    */
-  source: "url" | "html" | "report" | "command" | "image" | "docx";
+  source: "url" | "html" | "report" | "command" | "image" | "docx" | "codediff";
   /** For url: the path to open; for html/report/image: a sandbox-relative file path. */
   path?: string;
   /** For "command": the command to run (kapi on PATH, isolated env). */

@@ -5,7 +5,7 @@ import type { ArtifactSpec, CapturedArtifact, DemoManifest } from "../types.ts";
 import { captureDir, demoFixturesDir, ensureDir, kapiIsolationEnv, publicDemoDir, REPO_ROOT } from "../lib/paths.ts";
 import { spawn } from "node:child_process";
 import { sh, sleep } from "../lib/exec.ts";
-import { renderReport, renderMarkdownDoc, renderCode, renderDocxHtml } from "./report.ts";
+import { renderReport, renderMarkdownDoc, renderCode, renderCodeDiff, renderDocxHtml } from "./report.ts";
 
 const DEFAULT_W = 1280;
 const DEFAULT_H = 800;
@@ -139,6 +139,25 @@ async function captureOne(
         }
         html = renderReport(spec.report ?? "json", json, { title: spec.reportTitle, sub: spec.reportSub });
       }
+      const tmpHtml = path.join(artDir, `${spec.id}.html`);
+      fs.writeFileSync(tmpHtml, html);
+      await shot(browser, "file://" + tmpHtml, outPng, w, h);
+    } else if (spec.source === "codediff") {
+      // Same file from the pristine fixture (before) and the post-run snapshot (after).
+      const beforeSrc = path.join(demoFixturesDir(m.id), spec.path ?? "");
+      const afterSrc = path.join(snap, spec.path ?? "");
+      if (!fs.existsSync(beforeSrc) || !fs.existsSync(afterSrc)) {
+        console.warn(`    skip artifact ${spec.id}: codediff source ${spec.path} missing (before/after)`);
+        return null;
+      }
+      const html = renderCodeDiff(
+        fs.readFileSync(beforeSrc, "utf8"),
+        fs.readFileSync(afterSrc, "utf8"),
+        spec.reportTitle ?? path.basename(spec.path ?? ""),
+        spec.reportSub ?? "",
+        "Before — plain JSX",
+        "After — kapi-react",
+      );
       const tmpHtml = path.join(artDir, `${spec.id}.html`);
       fs.writeFileSync(tmpHtml, html);
       await shot(browser, "file://" + tmpHtml, outPng, w, h);

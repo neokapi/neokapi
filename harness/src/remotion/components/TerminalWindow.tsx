@@ -82,10 +82,11 @@ export const TerminalWindow: React.FC<{ model: string; caption: string; children
             style={{
               maxWidth: 1500,
               padding: "16px 32px",
-              background: "rgba(8,11,19,0.7)",
-              border: `1px solid ${theme.panelBorder}`,
+              background: "rgba(8,11,19,0.9)",
+              border: "1px solid rgba(255,255,255,0.14)",
               borderRadius: 14,
-              color: theme.text,
+              // Always-dark lower-third → always-light text (theme.text flips dark in light mode).
+              color: "#f4f7ff",
               fontSize: 29,
               lineHeight: 1.3,
               fontWeight: 500,

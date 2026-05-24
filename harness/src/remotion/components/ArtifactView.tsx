@@ -39,10 +39,12 @@ export const ArtifactView: React.FC<{ demoId: string; artifact: CapturedArtifact
           position: "absolute",
           bottom: 70,
           padding: "16px 30px",
-          background: "rgba(12,16,32,0.82)",
-          border: `1px solid ${theme.panelBorder}`,
+          background: "rgba(10,14,28,0.9)",
+          border: "1px solid rgba(255,255,255,0.14)",
           borderRadius: 14,
-          color: theme.text,
+          // The lower-third box is always dark, so the text is always light —
+          // theme.text flips to dark in light mode and vanished into the box.
+          color: "#f4f7ff",
           fontSize: 28,
           fontWeight: 500,
           opacity: spring({ frame: frame - 10, fps, config: { damping: 200 } }),
