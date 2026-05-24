@@ -1,0 +1,37 @@
+{
+  "name": "kapi-claude-harness",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Test harness that demonstrates and records kapi driven by Claude Code as narrated videos.",
+  "scripts": {
+    "setup": "tsx src/cli/setup.ts",
+    "demo": "tsx src/cli/run.ts",
+    "capture": "tsx src/cli/run.ts --only=capture",
+    "artifacts": "tsx src/cli/run.ts --only=artifacts",
+    "narrate": "tsx src/cli/run.ts --only=narrate",
+    "render": "tsx src/cli/run.ts --only=render",
+    "studio": "remotion studio src/remotion/index.ts",
+    "list": "tsx src/cli/run.ts --list",
+    "audit": "tsx src/cli/audit.ts"
+  },
+  "dependencies": {
+    "@remotion/bundler": "^4.0.0",
+    "@remotion/cli": "^4.0.0",
+    "@remotion/renderer": "^4.0.0",
+    "@remotion/google-fonts": "^4.0.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "remotion": "^4.0.0",
+    "dotenv": "^16.4.5",
+    "yaml": "^2.5.0",
+    "playwright": "^1.48.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0"
+  }
+}

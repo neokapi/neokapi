@@ -53,7 +53,7 @@ func (a *App) openTermbaseSQLite(cmd *cobra.Command) (termbase.TermBase, string,
 	if a.TBBackend != nil {
 		return a.TBBackend, "(in-memory)", nil
 	}
-	dbPath, err := ResolveResourcePath(cmd, "termbases", "termbase.db")
+	dbPath, err := a.resolveTermbaseCmdPath(cmd)
 	if err != nil {
 		return nil, "", err
 	}
@@ -62,6 +62,26 @@ func (a *App) openTermbaseSQLite(cmd *cobra.Command) (termbase.TermBase, string,
 		return nil, dbPath, fmt.Errorf("open termbase: %w", err)
 	}
 	return tb, dbPath, nil
+}
+
+// resolveTermbaseCmdPath picks the SQLite termbase file a `kapi termbase`
+// subcommand operates on. An explicit --name/--file/--local flag always wins.
+// Otherwise, when run inside a .kapi project, it defaults to the project's bound
+// termbase (defaults.termbase, else <root>/.kapi/termbase.db) so that
+// `kapi termbase lookup`/`import` see the same glossary that `kapi verify` and
+// `kapi term-check` enforce — without it, a lookup inside a project silently
+// hit an empty ./termbase.db. Falls back to ./termbase.db outside a project.
+func (a *App) resolveTermbaseCmdPath(cmd *cobra.Command) (string, error) {
+	name, _ := cmd.Flags().GetString("name")
+	local, _ := cmd.Flags().GetBool("local")
+	file, _ := cmd.Flags().GetString("file")
+	if name != "" || file != "" || local {
+		return ResolveResourcePath(cmd, "termbases", "termbase.db")
+	}
+	if p, err := a.resolveProjectTermbasePath(cmd); err == nil && p != "" {
+		return p, nil
+	}
+	return ResolveResourcePath(cmd, "termbases", "termbase.db")
 }
 
 func (a *App) newTermbaseImportCmd() *cobra.Command {

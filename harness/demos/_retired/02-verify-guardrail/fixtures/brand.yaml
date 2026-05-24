@@ -1,0 +1,7 @@
+name: Taskly
+description: Friendly, plain-spoken voice for a team task-board app. Address the user directly and keep it concise.
+vocabulary:
+  forbidden_terms:
+    - term: utilize
+      replacement: use
+      severity: minor

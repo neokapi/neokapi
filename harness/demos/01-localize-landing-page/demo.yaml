@@ -1,0 +1,64 @@
+id: 01-localize-landing-page
+title: Translate a landing page to French
+subtitle: A plain request — translate this page — and the kapi skill drives the rest, keeping the HTML intact.
+kind: zero-to-hero
+aspects:
+  - AI translation
+  - HTML round-trip
+  - format-aware
+needsAi: true
+model: sonnet
+captureTimeoutSec: 300
+
+prompt: >
+  We're launching Lumen Notes in France next week. Can you translate our landing page,
+  index.html, into French? Save the French version as index.fr.html.
+
+artifacts:
+  - id: before
+    caption: "index.html — the English page"
+    source: html
+    path: index.html
+    width: 1280
+    height: 900
+  - id: after
+    caption: "index.fr.html — the same page, text in French"
+    source: html
+    path: index.fr.html
+    width: 1280
+    height: 900
+
+narration:
+  - id: title
+    kind: title
+    text: >
+      This is Claude Code with the kapi skill installed. The task is a translation job a
+      developer might hand off any week: take a landing page, and produce a French version.
+  - id: prompt
+    kind: prompt
+    text: >
+      Here is the whole request. It names the file and the language and where to save the
+      result. It says nothing about formats, parsing, or which command to run.
+  - id: work
+    kind: terminal
+    text: >
+      Claude reads the page, recognises a translation task, and calls kapi. kapi parses the
+      HTML, separates the readable text from the markup, sends the text to Gemini, and writes
+      the translation back into the same structure.
+    caption: "Claude calls kapi; kapi translates the text and writes it back into the HTML"
+  - id: before
+    kind: artifact
+    artifact: before
+    text: >
+      This is the original page: a hero, a call to action, and three feature cards, in English.
+  - id: after
+    kind: artifact
+    artifact: after
+    text: >
+      And the French version kapi produced. The structure, classes, and styling are the
+      same; only the text the visitor reads has changed.
+  - id: outro
+    kind: outro
+    text: >
+      kapi reads and writes the format. The skill is what let Claude reach for it from a
+      one-line request, without being told how.

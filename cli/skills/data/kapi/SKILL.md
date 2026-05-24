@@ -29,11 +29,14 @@ don't impose a project on a genuine one-off. See
 
 ## Verify before you call it done
 
-Don't trust a single pass of your own output. In a project, run `kapi verify` after
-writing or translating content: it checks the work against the project's gates —
-brand voice score, terminology, and translation QA (placeholders intact, nothing
-left untranslated) — and prints the specific findings. Fix what it flags and run it
-again, until it passes (exit 0). kapi is the gate; keep iterating until it's green.
+**The task is not done until `kapi verify` passes.** Writing or translating the
+files is not the finish line — a clean verify is. Don't trust a single pass of your
+own output: in a project, run `kapi verify` after writing or translating content. It
+checks the work against the project's gates — brand voice score, terminology, and
+translation QA (placeholders intact, nothing left untranslated) — and prints the
+specific findings. Fix what it flags and run it again, until it passes (exit 0). kapi
+is the gate; keep iterating until it's green. (The kapi Claude Code plugin also wires
+this in as a Stop hook, so a failing gate keeps you working automatically.)
 
 ```bash
 kapi verify --json        # whole project; or: kapi verify <files> [--brand|--terms|--qa]
@@ -46,9 +49,10 @@ kapi verify --json        # whole project; or: kapi verify <files> [--brand|--te
   [references/brand.md](references/brand.md).
 - **Translate, enforce terminology, publish** — translate content into other
   languages and round-trip it back into its original format, with a glossary for
-  consistency. You can translate the content yourself within kapi's guardrails
-  (extract → translate → merge); a provider is only needed for unattended runs.
-  See [references/localize.md](references/localize.md).
+  consistency. Translate it yourself, but route it **through kapi** (extract →
+  translate → merge) and then verify — don't hand-translate files and write them
+  back, or terminology, placeholders, and format go unchecked. A provider is only
+  needed for unattended runs. See [references/localize.md](references/localize.md).
 - **Add i18n to a project** — set up the kapi-react stack for React apps, or plug
   kapi into the catalogs another stack already uses. See
   [references/i18n.md](references/i18n.md).

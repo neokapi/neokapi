@@ -51,7 +51,9 @@ defaults:
 ## Translate within the project (you are the translator)
 
 You don't need a separate translation model — kapi extracts the text and the
-guardrails, you translate, kapi merges it back and checks it:
+guardrails, you translate, kapi merges it back and checks it. Route it through
+kapi rather than editing the target file by hand, so terminology, placeholders,
+and format stay enforced:
 
 ```bash
 kapi extract --target-lang fr        # writes out/<...>-to-fr.xliff (source + empty targets)

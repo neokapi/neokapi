@@ -1,5 +1,13 @@
+"use client";
+
 /**
  * @neokapi/kapi-react runtime — thin translation layer for OTA mode.
+ *
+ * The directive above marks this module client-only: it uses React client hooks
+ * (useSyncExternalStore) and a mutable store, so under React Server Components
+ * (e.g. Next.js App Router) it must run on the client. Without it, importing the
+ * runtime from a Server Component fails the build. Translated components that use
+ * the runtime must therefore be Client Components.
  *
  * ~2KB total. Only loaded when mode='runtime'. Inline mode needs no runtime at all.
  *

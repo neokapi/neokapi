@@ -189,18 +189,45 @@ func resolveGateSelection(cmd *cobra.Command) gateSelection {
 	return gateSelection{brand: b, terms: t, qa: q}
 }
 
-// runVerify orchestrates the verify gates and emits the structured result.
+// runVerify orchestrates the verify gates, emits the structured result, and
+// maps the verdict to an exit code (0 pass, 3 gate fail, unless --no-fail).
 func (a *App) runVerify(cmd *cobra.Command, args []string) error {
+	out, err := a.computeVerify(cmd, args)
+	if err != nil {
+		return err
+	}
+	if err := output.Print(cmd, out); err != nil {
+		return err
+	}
+	if !out.Pass {
+		// Report mode: an assistant looping on verify reads `pass`/findings from the
+		// output and fixes them — a not-yet-passing gate is expected feedback, not a
+		// failure, so don't exit non-zero (which a shell or `set -e` treats as error).
+		// CI gating omits --no-fail and gets the non-zero exit.
+		if noFail, _ := cmd.Flags().GetBool("no-fail"); noFail {
+			return nil
+		}
+		return ErrQualityGate
+	}
+	return nil
+}
+
+// computeVerify runs the selected gates and returns the structured result
+// without printing or mapping to an exit code. Both `kapi verify` and the
+// Claude Code stop hook (`kapi hook stop`) call this so they evaluate a project
+// identically. The returned error is operational (no project, load failure);
+// a failing gate is reported in VerifyOutput.Pass, not as an error.
+func (a *App) computeVerify(cmd *cobra.Command, args []string) (VerifyOutput, error) {
 	a.InitRegistries()
 
 	projectPath, err := RequireProjectPath(cmd)
 	if err != nil {
 		// Operational error (no project) → exit 1, the cobra default.
-		return err
+		return VerifyOutput{}, err
 	}
 	proj, err := project.LoadWithOptions(projectPath, project.LoadOptions{SkipRequiresCheck: true})
 	if err != nil {
-		return fmt.Errorf("load project: %w", err)
+		return VerifyOutput{}, fmt.Errorf("load project: %w", err)
 	}
 	root := filepath.Dir(projectPath)
 
@@ -224,7 +251,7 @@ func (a *App) runVerify(cmd *cobra.Command, args []string) error {
 	if sel.brand {
 		gate, err := a.verifyBrand(cmd, proj, root, args)
 		if err != nil {
-			return err
+			return VerifyOutput{}, err
 		}
 		if gate != nil {
 			gates = append(gates, *gate)
@@ -237,40 +264,26 @@ func (a *App) runVerify(cmd *cobra.Command, args []string) error {
 		// explicit file args, or the project's content × target languages.
 		units, err := a.resolveVerifyUnits(cmd, proj, root, args, localeFilter)
 		if err != nil {
-			return err
+			return VerifyOutput{}, err
 		}
 
 		if sel.terms {
 			termGate, err := a.verifyTerminology(cmd, units)
 			if err != nil {
-				return err
+				return VerifyOutput{}, err
 			}
 			gates = append(gates, termGate)
 		}
 		if sel.qa {
 			qaGate, err := a.verifyQA(cmdContext(cmd), units)
 			if err != nil {
-				return err
+				return VerifyOutput{}, err
 			}
 			gates = append(gates, qaGate)
 		}
 	}
 
-	out := buildVerifyOutput(gates)
-	if err := output.Print(cmd, out); err != nil {
-		return err
-	}
-	if !out.Pass {
-		// Report mode: an assistant looping on verify reads `pass`/findings from the
-		// output and fixes them — a not-yet-passing gate is expected feedback, not a
-		// failure, so don't exit non-zero (which a shell or `set -e` treats as error).
-		// CI gating omits --no-fail and gets the non-zero exit.
-		if noFail, _ := cmd.Flags().GetBool("no-fail"); noFail {
-			return nil
-		}
-		return ErrQualityGate
-	}
-	return nil
+	return buildVerifyOutput(gates), nil
 }
 
 // buildVerifyOutput aggregates per-gate results into the final structured

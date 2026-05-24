@@ -1,0 +1,67 @@
+id: 05-pseudo-translate-preflight
+title: Pseudo-translate to check localization readiness
+subtitle: A readiness check on a UI dialog, before any real translation. Offline.
+kind: use-case
+aspects:
+  - pseudo-translation
+  - localization QA
+  - offline
+needsAi: false
+model: sonnet
+captureTimeoutSec: 240
+
+prompt: >
+  Before we translate our account settings dialog (settings.html) for real, can you
+  pseudo-translate it so I can check it's ready for localization? Save it as settings.qps.html.
+
+artifacts:
+  - id: before
+    caption: "settings.html — the English dialog"
+    source: html
+    path: settings.html
+    width: 900
+    height: 760
+  - id: after
+    caption: "settings.qps.html — pseudo-translated"
+    source: html
+    path: settings.qps.html
+    width: 900
+    height: 760
+
+narration:
+  - id: title
+    kind: title
+    text: >
+      Pseudo-translation is a standard check before a real one: rewrite every translatable
+      string into an accented, padded version of itself, and see what breaks.
+  - id: prompt
+    kind: prompt
+    text: >
+      The request asks for a pseudo-translation of the dialog. It needs no AI and no
+      network — kapi does this transformation locally.
+  - id: work
+    kind: terminal
+    text: >
+      Claude runs kapi's pseudo-translation. kapi extracts the translatable strings, wraps
+      and lengthens each one, and writes the result back as HTML. Anything that doesn't
+      change was never extracted — a hardcoded string — and the extra length tests whether
+      the layout holds for wordier languages.
+    caption: "kapi pseudo-translates the dialog locally — no AI, no network"
+  - id: before
+    kind: artifact
+    artifact: before
+    text: >
+      The dialog in English: a name, an email, notification options, a two-factor toggle,
+      and a save button.
+  - id: after
+    kind: artifact
+    artifact: after
+    text: >
+      And pseudo-translated. Every label is wrapped and accented, so you can see at a glance
+      that all of it was extracted, and watch whether the longer text still fits — before
+      translation costs anything.
+  - id: outro
+    kind: outro
+    text: >
+      A readiness check is one offline command, and a habit worth running before each
+      translation pass.

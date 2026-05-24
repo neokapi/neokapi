@@ -1,0 +1,12 @@
+{
+  "onboarding.title": "Capture every idea",
+  "onboarding.subtitle": "Your notes, organized and always within reach.",
+  "onboarding.cta": "Get started",
+  "home.greeting": "Good morning, {{name}}",
+  "home.newNote": "New note",
+  "home.search": "Search your notes",
+  "sync.status": "All your notes are backed up and synced",
+  "paywall.headline": "Go Pro and unlock unlimited notes",
+  "paywall.price": "Just {{price}} per month",
+  "settings.signOut": "Sign out"
+}

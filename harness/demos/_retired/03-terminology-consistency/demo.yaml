@@ -1,0 +1,69 @@
+id: 03-terminology-consistency
+title: Translate with a glossary for terminology
+subtitle: Translate the UI, and keep the product's approved wording consistent.
+kind: use-case
+aspects:
+  - terminology
+  - glossary / termbase
+  - AI translation
+needsAi: true
+model: sonnet
+captureTimeoutSec: 320
+
+prompt: >
+  Translate our app's UI strings, src/en.json, into French. Please use the approved French
+  terms in glossary.csv so our wording stays consistent. Save the French strings as src/fr.json.
+
+artifacts:
+  - id: glossary
+    caption: "glossary.csv — the approved French term for each concept"
+    source: report
+    report: glossary
+    path: glossary.csv
+    width: 1000
+    height: 720
+  - id: catalog
+    caption: "src/fr.json — the translated UI"
+    source: report
+    report: catalog
+    reportTitle: "src/fr.json"
+    reportSub: "kapi · keys preserved, approved terms used"
+    path: src/fr.json
+    width: 1100
+    height: 760
+
+narration:
+  - id: title
+    kind: title
+    text: >
+      Inconsistent terminology is what makes a translated product feel machine-made. The
+      team keeps a glossary of approved terms and wants the translation to follow it.
+  - id: prompt
+    kind: prompt
+    text: >
+      The request gives the strings file, the glossary, and where to save the result. The
+      mechanics of loading and enforcing the glossary are left to the skill.
+  - id: work
+    kind: terminal
+    text: >
+      Claude imports the glossary into a kapi termbase — a small local database of approved
+      terms — and looks the key product terms up before translating, so it works from the
+      agreed wording rather than a synonym. Then it translates the catalog with Gemini,
+      keeping every JSON key in place.
+    caption: "Claude imports the glossary into a termbase, then translates the catalog"
+  - id: glossary
+    kind: artifact
+    artifact: glossary
+    text: >
+      These are the approved terms — the French wording the team signed off on for each concept.
+  - id: catalog
+    kind: artifact
+    artifact: catalog
+    text: >
+      And the translated interface. The keys are unchanged, and the product terms match the
+      glossary rather than whatever a general translation might pick.
+  - id: outro
+    kind: outro
+    text: >
+      Terminology is a project asset. A termbase keeps it in one place, and every later
+      translation can reuse it.
