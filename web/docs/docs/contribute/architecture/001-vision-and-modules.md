@@ -27,9 +27,9 @@ every binary to pull every dependency produces slow builds and bloated
 artifacts.
 
 At the same time, the framework is the Apache-licensed core of a broader
-0 platform) must
-build on framework interfaces without polluting the framework with
-platform-specific dependencies. The license boundary is structural, not
+ecosystem. Platforms layered on top of it (such as the AGPL-3.0 bowrain
+platform) must build on framework interfaces without polluting the framework
+with platform-specific dependencies. The license boundary is structural, not
 conventional: framework code never depends on AGPL code, and CI enforces it.
 
 ## Decision
@@ -74,7 +74,7 @@ at the repository root:
 | Framework    | `github.com/neokapi/neokapi`              | `.` (repo root)      | Content model, formats, tools, pipeline, plugin system, TM, termbase, AI/MT providers |
 | CLI          | `github.com/neokapi/neokapi/cli`          | `cli/`               | Shared CLI base: App struct, command factories, output formatting, app config         |
 | Kapi         | `github.com/neokapi/neokapi/kapi`         | `kapi/`              | Standalone CLI tool for local file processing                                         |
-| Kapi Desktop | `github.com/neokapi/neokapi/kapi-desktop` | `apps/desktop/` | Wails v3 desktop app for visual localization workflows                                |
+| Kapi Desktop | `github.com/neokapi/neokapi/kapi-desktop` | `apps/kapi-desktop/` | Wails v3 desktop app for visual localization workflows                                |
 
 The dependency graph is strictly hierarchical:
 
@@ -118,15 +118,17 @@ dependency declared in the module's `go.mod`.
 ### License boundary
 
 All four framework modules are Apache-2.0. The broader repository also hosts
-(content model, tools, flows, formats), but no framework module ever imports
-The license gradient is one-directional:
+the AGPL-3.0 bowrain platform, which builds on framework interfaces (content
+model, tools, flows, formats), but no framework module ever imports bowrain
+code. The license gradient is one-directional:
 
 ```
-
+Apache-2.0 framework  →  (consumed by)  →  AGPL-3.0 bowrain platform
 ```
 
 This is a structural property, not a convention. Because the framework
-accidental upward coupling is a compile error.
+modules never import bowrain packages, accidental upward coupling is a
+compile error.
 
 ### Framework package layout
 

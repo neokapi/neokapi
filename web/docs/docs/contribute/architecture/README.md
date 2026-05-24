@@ -15,8 +15,6 @@ shared CLI base (`github.com/neokapi/neokapi/cli`), the kapi CLI
 (`github.com/neokapi/neokapi/kapi`), and Kapi Desktop
 (`github.com/neokapi/neokapi/kapi-desktop`).
 
-the interfaces described here.
-
 Tactical implementation details (SQL schemas, wire protocols, algorithm
 pseudocode) are separated into [Implementation Notes](/contribute/notes-internal/index).
 
@@ -34,7 +32,7 @@ pseudocode) are separated into [Implementation Notes](/contribute/notes-internal
 | [004](004-processing-engine.md) | Processing Engine | Channel-based streaming, Executor, parallel block tools, collectors |
 | [005](005-format-system.md)     | Format System     | DataFormatReader/Writer, detection, registries, skeleton strategies |
 | [006](006-tool-system.md)       | Tool System       | BaseTool, locale cardinality, annotations, side effects, schemas    |
-| [007](007-plugin-system.md)     | Plugin System     | go-plugin + gRPC, plugin types, presets, Okapi bridge               |
+| [007](007-plugin-system.md)     | Plugin System     | manifest-driven out-of-process plugins, gRPC, presets, Okapi bridge |
 
 ## Project Model
 
@@ -57,6 +55,7 @@ pseudocode) are separated into [Implementation Notes](/contribute/notes-internal
 | -------------------------- | ------------ | ------------------------------------------------------------ |
 | [013](013-kapi-cli.md)     | Kapi CLI     | Standalone CLI, output formats, credential store, MCP server |
 | [014](014-kapi-desktop.md) | Kapi Desktop | Wails v3 app, flow editor, runner, plugin manager            |
+| [019](019-kapi-react.md)   | Kapi React   | React i18n runtime, build-time extraction, `__tx` re-attach  |
 
 ## Cross-Cutting
 
@@ -64,4 +63,6 @@ pseudocode) are separated into [Implementation Notes](/contribute/notes-internal
 | --------------------------------------- | ------------------------- | ------------------------------------------------------- |
 | [015](015-testing-and-documentation.md) | Testing and Documentation | Test pyramid, Docusaurus, screenshots, recordings       |
 | [016](016-metadata-i18n.md)             | Metadata i18n             | Tool/format/plugin metadata translation via MO catalogs |
+| [017](017-bilingual-format-interop.md)  | Bilingual Format Interop  | XLIFF/PO/TMX bilingual round-trip, target alignment     |
+| [018](018-parity-testing.md)            | Parity Testing            | Okapi parity harness, test-comparison dashboard, faithful% |
 | [020](020-redaction.md)                 | Content Redaction         | Placeholder model, local vault, rule/entity detection, secure-translate, extract/merge |

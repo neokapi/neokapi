@@ -12,9 +12,10 @@ keywords: [testing, documentation, testify, roundtrip, Playwright, E2E, architec
 
 neokapi follows a three-tier test pyramid (unit via testify, integration
 via format roundtrips and flow E2E, application E2E via Playwright for
-GUIs). Documentation is a Docusaurus 3 site with separate plugin
-notes. Screenshots and recordings are generated from real systems —
-regenerate on UI changes and land under `web/docs/static/`.
+GUIs). Documentation is a Docusaurus 3 site serving user docs, framework
+ADs, and implementation notes from one deployment. Screenshots and
+recordings are generated from real systems — regenerate on UI changes and
+land under `web/docs/static/`.
 
 ## Context
 
@@ -112,64 +113,55 @@ The site at `web/docs/` uses [Docusaurus](https://docusaurus.io/) 3 with
 React 19:
 
 ```
-website/
-├── docusaurus.config.ts     # site configuration
-├── sidebars.ts              # main docs sidebar
-├── sidebars-ad.ts           # framework AD sidebar
+web/docs/
+├── docusaurus.config.ts     # site configuration (single docs instance at "/")
+├── sidebars.ts              # docs sidebar
 ├── src/pages/               # custom React pages (landing)
-├── docs/                    # user and developer documentation
-│   ├── getting-started/
-│   ├── user-guide/
-│   ├── kapi-desktop/
-│   └── developer/
+├── docs/                    # all documentation, served at "/"
+│   ├── get-started/
+│   ├── framework/
+│   ├── guides/
+│   ├── reference/           # generated command/format/tool reference
+│   ├── cli/
+│   ├── react/
+│   ├── desktop/
+│   └── contribute/
+│       ├── architecture/    # framework ADs (this document)
+│       └── notes-internal/  # implementation notes
+├── scenes/                  # VHS tapes + Playwright specs for demo assets
 └── static/
     ├── img/                 # screenshots (by app and theme)
     └── video/               # demo videos
 ```
 
-The site uses multiple Docusaurus plugin instances to keep content
-sources separate while serving them from a single deployment:
+A single `@docusaurus/plugin-content-docs` instance serves all content
+from `web/docs/docs/` with `routeBasePath: "/"`. Audience separation is by
+top-level section rather than by separate plugin instances:
 
-- **Main docs** — `web/docs/docs/` at `/`.
-- **Framework ADs** — `docs/architecture-decisions/` at
-  `/architecture-decisions/`. Apache-2.0 framework scope.
-- **Notes** — `docs/notes/` at `/docs/notes/`. Implementation details
-  extracted from ADs.
-
-Example plugin configuration:
-
-```typescript
-plugins: [
-  ['@docusaurus/plugin-content-docs', {
-    id: 'architecture-decisions',
-    path: '../docs/architecture-decisions',
-    routeBasePath: 'architecture-decisions',
-    sidebarPath: './sidebars-ad.ts',
-  }],
-  ['@docusaurus/plugin-content-docs', {
-    id: 'notes',
-    path: '../docs/notes',
-    routeBasePath: 'docs/notes',
-  }],
-],
-```
+- **User-facing docs** — `get-started/`, `framework/`, `guides/`,
+  `reference/`, `cli/`, `react/`, `desktop/`.
+- **Contributor docs** — `contribute/architecture/` (framework ADs,
+  Apache-2.0 scope) and `contribute/notes-internal/` (implementation
+  notes extracted from ADs).
 
 ADs are organized by architectural concern and updated in place as
 subsystems evolve, rather than appended chronologically. Implementation
-notes live in `docs/notes/` for tactical details (schemas, algorithms,
-API routes) that would otherwise bloat the decision documents.
+notes live in `contribute/notes-internal/` for tactical details (schemas,
+algorithms, API routes) that would otherwise bloat the decision documents.
 
 Hosting is GitHub Pages, deployed via GitHub Actions on push to `main`.
 
 ### Screenshot systems
 
 Screenshots are captured via Playwright and written directly to
-`web/docs/static/img/`. Two systems:
+`web/docs/static/img/`:
 
 1. **Kapi Desktop screenshots** — in
-   `apps/desktop/frontend/e2e/screenshots.spec.ts`. Self-contained
+   `apps/kapi-desktop/frontend/e2e/screenshots.spec.ts`. Self-contained
    (auto-starts a Vite dev server). Output:
    `web/docs/static/img/desktop/{dark,light}/`.
+2. **Bowrain app screenshots** — captured against the real bowrain apps.
+   Output: `web/docs/static/img/bowrain/{dark,light}/` and
    `web/docs/static/img/web-app/{dark,light}/`.
 
 Each screenshot spec runs in dark and light themes. Test suites capture
@@ -180,7 +172,7 @@ multiple views per run.
 Four independent recording pipelines:
 
 1. **Kapi Desktop** — Playwright video capture in
-   `apps/desktop/frontend/e2e/recordings.spec.ts`, dark + light
+   `apps/kapi-desktop/frontend/e2e/recordings.spec.ts`, dark + light
    themes.
 2. **Kapi CLI** — [VHS](https://github.com/charmbracelet/vhs) terminal
    recordings from `.tape` files in `web/docs/scenes/`. No server
@@ -239,8 +231,9 @@ All screenshots and recordings run against real neokapi infrastructure:
 
 - **Authentication and identity** — the real Keycloak OIDC provider via
   `compose.yaml`. Never mock the auth flow.
-  mock API server.
-  creates one automatically).
+- **Server** — the real bowrain-server binary, never a mock API server.
+- **Database and storage** — a real SQLite database (the server creates
+  one automatically).
 - **External integrations** outside the scope of neokapi (third-party MT
   providers, external LLM APIs) may be mocked for isolation.
 
@@ -300,10 +293,12 @@ Before committing any UI-related change:
   release workflow.
 - The test pyramid enforces coverage at every level with appropriate
   speed and cost tradeoffs.
-  means breaking changes in auth or the server API cause recording
-  failures — a useful canary for integration regressions.
-  share the same testing and documentation stack) keeps the
-  documentation single-sourced and avoids duplicated infrastructure.
+- Recording against real systems means breaking changes in auth or the
+  server API cause recording failures — a useful canary for integration
+  regressions.
+- A single documentation stack shared across the CLI, desktop, and
+  platform keeps the documentation single-sourced and avoids duplicated
+  infrastructure.
 
 ## Related
 

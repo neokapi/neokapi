@@ -10,12 +10,13 @@ keywords: [Kapi Desktop, Wails v3, desktop app, flow editor, visual companion, a
 
 ## Summary
 
-Kapi Desktop is a Wails v3 desktop application at `apps/desktop/` that
+Kapi Desktop is a Wails v3 desktop application at `apps/kapi-desktop/` that
 provides a visual companion to the kapi CLI. It opens `.kapi` project files
 as documents, offers a flow editor with live runner progress, manages
 plugins, and surfaces the OS-keychain credential vault. The module depends
-reuses `@neokapi/ui-primitives` and `@neokapi/flow-editor` from the
-monorepo's npm workspaces.
+on the framework and the shared CLI base only, and reuses
+`@neokapi/ui-primitives` and `@neokapi/flow-editor` from the monorepo's npm
+workspaces.
 
 ## Context
 
@@ -49,16 +50,18 @@ on framework and shared CLI only.
 ### Module layout
 
 ```
-apps/desktop/
+apps/kapi-desktop/
 ├── go.mod                   # module github.com/neokapi/neokapi/kapi-desktop
 ├── main.go                  # Wails v3 entry point
-├── backend/                 # Go backend services
+├── backend/                 # Go backend services (flat package)
 │   ├── app.go               # service registry exposed to the frontend
-│   ├── project/             # .kapi open/save/edit
-│   ├── flows/               # flow CRUD
-│   ├── runner/              # flow execution with event streaming
-│   ├── credentials/         # OS keychain wrapper
-│   └── plugins/             # plugin search, install, update
+│   ├── files.go             # .kapi open/save/edit
+│   ├── flows.go             # flow CRUD
+│   ├── runner.go            # flow execution with event streaming
+│   ├── credentials.go       # OS keychain wrapper
+│   ├── plugins.go           # plugin search, install, update
+│   ├── tm.go / termbase.go  # TM and terminology operations
+│   └── sample/              # bundled sample project
 ├── frontend/                # React 19 + Vite + TailwindCSS
 │   ├── src/
 │   │   ├── views/           # Welcome, Project, FlowEditor, FlowRunner, Plugins, Credentials, Settings
@@ -137,8 +140,9 @@ re-implementing them:
   SQLite `cache` provider for persistent project state.
 - **Tool registry** — the same registry the CLI uses; the desktop
   surfaces it visually.
-- **Plugin system** — the same `go-plugin` + gRPC protocol.
-- **AI/MT providers** — the same provider interfaces and worker pool.
+- **Plugin system** — the same manifest-driven, out-of-process plugin
+  model ([AD-007](007-plugin-system.md)).
+- **AI/MT providers** — the same provider interfaces and pipeline tools.
 - **Flow executor** — the same streaming pipeline; the runner view is a
   consumer of the executor's event stream.
 
@@ -147,14 +151,15 @@ presentational (dynamic forms, event streaming, live progress).
 
 ### Shared frontend packages
 
-Storybook:
+Kapi Desktop consumes two shared workspace packages:
 
 - **`@neokapi/ui-primitives`** (`packages/ui/`) — shadcn/ui
   primitives (Button, Card, Badge, Label, Input, Tabs, ScrollArea, etc.)
   plus layout components (PageHeader, EmptyState, SkeletonCard,
   PanelHeader, LoadingSpinner).
 - **`@neokapi/flow-editor`** (`packages/flow-editor/`) — a React flow
-  editor component library built on xyflow, used by both kapi-desktop
+  editor component library built on xyflow, used by both kapi-desktop and
+  the bowrain apps.
 
 Both packages resolve via npm workspace symlinks; no path aliases are
 needed. `vp install` at the repo root installs the entire workspace.
@@ -162,9 +167,10 @@ needed. `vp install` at the repo root installs the entire workspace.
 ### Opening projects with different block stores
 
 Kapi Desktop opens any `.kapi` project, including projects that declare
-of the `BlockStore` interface by the project machinery, not by the
-desktop app directly. This keeps the desktop's dependency footprint
-without switching tools.
+different block stores. The store is resolved through the `BlockStore`
+interface by the project machinery, not by the desktop app directly. This
+keeps the desktop's dependency footprint small while letting it open
+projects backed by any store the framework supports.
 
 ### Distribution
 
@@ -177,13 +183,13 @@ without switching tools.
 
 ## Consequences
 
-- Kapi Desktop provides a visual GUI for every kapi CLI capability
+- Kapi Desktop provides a visual GUI for every kapi CLI capability.
 - `.kapi` files are shareable workflow documents — open, edit, save,
   commit to git; no hidden state travels with the document.
 - The OS keychain integration makes the desktop the preferred way for
   non-engineering users to configure AI and MT providers.
-  stack and frontend packages, reducing duplication and keeping
-  shadcn primitives consistent.
+- Sharing the framework, CLI base, and frontend packages reduces
+  duplication and keeps shadcn primitives consistent across apps.
 - Separate Go modules keep Wails and keyring dependencies out of the
   kapi CLI module, preserving cross-compilation and small CLI
   binaries.

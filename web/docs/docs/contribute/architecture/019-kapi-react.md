@@ -54,11 +54,11 @@ JSX.
 
 ### Build-time extraction
 
-A SWC-AST walker (`packages/react/src/extract/walker.ts`) descends
+A SWC-AST walker (`packages/kapi-react/src/extract/walker.ts`) descends
 each component module looking for translatable JSX. Translatability is
 determined by element vocabulary (`getTranslatability`,
 `inlineElements`) plus user-supplied `componentMap` and `rules`
-(`packages/react/src/plugin/defaults.ts`). For each translatable
+(`packages/kapi-react/src/plugin/defaults.ts`). For each translatable
 element the walker emits a Block whose `Segment.Runs` is built by the
 runs builder (`extract/runs.ts`).
 
@@ -181,7 +181,7 @@ Boundaries](002-content-model.md)).
 
 ### Runtime rendering
 
-`__tx` (`packages/react/src/runtime/index.ts`) resolves the hash to
+`__tx` (`packages/kapi-react/src/runtime/index.ts`) resolves the hash to
 the translation string, substitutes named-variable tokens (`{userName}`,
 `{count}`), and walks the remaining `{=m<N>}` / `{/=m<N>}` tokens
 interleaving React elements from the `elements` map.

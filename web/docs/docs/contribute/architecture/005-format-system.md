@@ -11,10 +11,11 @@ keywords: [format system, DataFormatReader, DataFormatWriter, pluggable formats,
 ## Summary
 
 Formats are pluggable readers and writers that convert between on-disk
-representations and the Part stream. The framework ships fifteen built-in
-formats under `core/formats/`, each implementing `DataFormatReader` and
-`DataFormatWriter` on top of shared `BaseFormatReader` / `BaseFormatWriter`
-embeds. A single `FormatRegistry` exposes a factory-based lookup that
+representations and the Part stream. The framework ships a broad set of
+built-in formats under `core/formats/`, each implementing `DataFormatReader`
+and `DataFormatWriter` on top of shared `BaseFormatReader` /
+`BaseFormatWriter` embeds. A single `FormatRegistry` exposes a factory-based
+lookup that
 serves native Go formats, plugin formats, and Okapi-bridge formats
 uniformly. Format detection cascades through MIME type, extension, magic
 bytes, and content sniffing. Roundtrip fidelity is supported by three
@@ -77,25 +78,21 @@ delegates lifecycle to the base embed.
 
 ### Built-in formats
 
-Fifteen formats ship in `core/formats/`:
+The built-in formats under `core/formats/` span several families:
 
-| Format          | Extensions                | Type                  |
-| --------------- | ------------------------- | --------------------- |
-| HTML            | `.html`, `.htm`           | Markup                |
-| XML             | `.xml`                    | Markup                |
-| XLIFF 1.2 / 2.0 | `.xliff`, `.xlf`          | Translation exchange  |
-| TMX             | `.tmx`                    | Translation memory    |
-| TBX             | `.tbx`                    | Terminology exchange  |
-| JSON            | `.json`                   | Structured            |
-| YAML            | `.yaml`, `.yml`           | Structured            |
-| Markdown        | `.md`, `.markdown`        | Markup                |
-| CSV             | `.csv`                    | Grid                  |
-| Java Properties | `.properties`             | Key-value             |
-| Gettext PO      | `.po`, `.pot`             | Key-value translation |
-| .NET resx       | `.resx`                   | Key-value             |
-| Android strings | `strings.xml`             | Key-value             |
-| iOS strings     | `.strings`                | Key-value             |
-| OpenXML         | `.docx`, `.xlsx`, `.pptx` | Markup (zipped)       |
+- **Markup** — HTML, XML, Markdown / MDX, and structured-document formats.
+- **Translation exchange** — XLIFF 1.2 / 2.0, TMX, TBX, Gettext PO/MO.
+- **Structured data** — JSON, YAML, CSV, and design-token / app-localization
+  variants (`xcstrings`, `arb`, `i18next`, `resx`, Android strings, iOS
+  strings, …).
+- **Office and publishing** — OpenXML (`.docx`, `.xlsx`, `.pptx`), ODF, IDML,
+  and related packaged formats.
+- **Subtitle / media** — SRT, VTT, TTML, and similar.
+
+The full, authoritative list of registered formats — with extensions, MIME
+types, and per-format options — is the generated
+[Format Reference](/reference/formats/html). It is derived from the live
+registry, so it never drifts from the code.
 
 Each format package under `core/formats/<name>/` contains `reader.go`,
 `writer.go`, and `config.go`. Formats register both the reader factory
@@ -121,10 +118,12 @@ indistinguishable to callers:
 
 1. **Native built-ins** — registered at program start via `init()` hooks
    in `core/formats/register.go`.
-2. **Plugin formats** — registered during `PluginLoader.ScanMetadata` by
-   reading plugin manifests from disk (no subprocess launched).
-3. **Bridge formats** — registered via `PluginLoader.LoadBridges` when
-   the Okapi bridge starts (see
+2. **Plugin formats** — registered from the `formats` capability declared
+   in each plugin's `manifest.json`, read from disk during plugin discovery
+   (`cli/pluginhost`) without launching a subprocess.
+3. **Bridge formats** — served by a Mode-C daemon plugin (the Okapi bridge)
+   over a Unix-socket gRPC connection; the host registers proxy factories
+   that dial the daemon on demand (see
    [AD-007: Plugin System and Okapi Bridge](007-plugin-system.md)).
 
 A format reference in user-facing configuration uses the syntax

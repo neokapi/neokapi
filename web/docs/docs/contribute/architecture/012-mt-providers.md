@@ -89,7 +89,7 @@ Each provider:
 ### Pipeline integration via MTTranslateTool
 
 Each provider is wrapped in an `MTTranslateTool`
-(`providers/mt/tools/translate.go`) that embeds `BaseTool`
+(`core/mt/tools/translate.go`) that embeds `BaseTool`
 ([AD-006: Tool System](006-tool-system.md)):
 
 ```go

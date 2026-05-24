@@ -12,9 +12,10 @@ keywords: [kapi CLI, standalone, file processing, project file, manifest, archit
 
 `kapi` is a standalone file-processing CLI that demonstrates the neokapi
 framework. Most commands are one-shot and require no project; the `-p` flag
-enables project mode with a `.kapi` recipe. Kapi shares a command base
-`~/.config/kapi/`, and uses an OS-keychain credential store. A `kapi mcp`
-subcommand exposes tools over stdio JSON-RPC for AI agents.
+enables project mode with a `.kapi` recipe. Kapi builds on the shared CLI
+base (`cli/`), stores config under `~/.config/kapi/`, and uses an
+OS-keychain credential store. A `kapi mcp` subcommand exposes tools over
+stdio JSON-RPC for AI agents.
 
 ## Context
 
@@ -33,9 +34,10 @@ differ in invocation style. A single binary with progressive complexity
 covers all three: run a tool directly, run a flow from a recipe, or
 expose the same tools over MCP.
 
-plugins, presets) but is project-sync-centric. The common surface lives in
-a shared CLI base; each CLI selects which commands to register and adds
-its own behavior.
+The bowrain plugin CLI shares much of the same surface (formats, tools,
+flows, plugins, presets) but is project-sync-centric. The common surface
+lives in a shared CLI base; each CLI selects which commands to register and
+adds its own behavior.
 
 ## Decision
 
@@ -43,6 +45,8 @@ its own behavior.
 
 `kapi` is a Go binary at `kapi/cmd/kapi/`, part of the `kapi` module. It
 depends on the framework and the shared CLI base (`cli/`). It has no
+dependency on any bowrain code; vendor plugins (bowrain, okapi-bridge) are
+discovered at runtime via their manifests rather than compiled in.
 
 ```
 kapi/
@@ -71,7 +75,7 @@ kapi
 ├── flows                    # list available flows
 ├── formats
 │   └── list                 # list available formats (built-in + plugin)
-├── plugins
+├── plugin                  # (alias: plugins)
 │   ├── list                 # list installed plugins
 │   ├── install              # install a plugin
 │   └── update               # update a plugin
@@ -215,6 +219,7 @@ structured objects:
 ### Credential store
 
 The credential store lives in `cli/credentials/` and is shared by kapi and
+kapi-desktop. Non-secret provider configs live as JSON at
 `~/.config/kapi/providers.json`; API keys are stored in the OS keychain
 under the service name `"kapi"`.
 
@@ -283,7 +288,7 @@ registerKapiTools(server, app)
 return server.Run(cmd.Context(), &mcp.StdioTransport{})
 ```
 
-`PersistentPreRun` initializes `app.FormatReg` and `app.PluginLoader`
+`PersistentPreRun` initializes `app.FormatReg` and `app.PluginHost`
 before the MCP server starts. Stdout belongs to the MCP transport; `Init`
 only writes to stderr.
 
@@ -314,9 +319,9 @@ build time; `make web-build` produces the assets before `make build`.
 ## Consequences
 
 - A single binary handles one-shot processing, project-based workflows,
-  and AI-agent integration without feature flags or separate builds.
-  commands for formats, tools, flows, plugins, presets, termbase,
-  version.
+  and AI-agent integration without feature flags or separate builds. The
+  shared CLI base contributes the common commands for formats, tools,
+  flows, plugins, presets, termbase, and version.
 - Output format consistency makes `jq`, `yq`, and language-specific
   parsers work uniformly across commands.
 - OS keychain storage keeps API keys out of environment variables,
@@ -336,7 +341,7 @@ build time; `make web-build` produces the assets before `make build`.
   behind `kapi run`
 - [AD-006: Tool System](006-tool-system.md) — Tool pattern exposed as
   top-level commands
-- [AD-007: Plugin System](007-plugin-system.md) — `kapi plugins`
+- [AD-007: Plugin System](007-plugin-system.md) — `kapi plugin`
 - [AD-008: Kapi Project Model](008-project-model.md) — `.kapi` recipe
   loaded by `-p`
 - [AD-011: AI Providers](011-ai-providers.md) — provider credentials

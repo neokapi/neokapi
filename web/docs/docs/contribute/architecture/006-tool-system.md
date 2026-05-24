@@ -452,7 +452,7 @@ AI and MT tools are instantiated on demand with a provider, not
 auto-registered. They use the same `Tool` interface and work identically
 in flows.
 
-**AI tools** (`providers/ai/tools/`):
+**AI tools** (`core/ai/tools/`):
 
 | Tool                | Description                                                        |
 | ------------------- | ------------------------------------------------------------------ |
@@ -462,7 +462,7 @@ in flows.
 | `ai-terminology`    | Extract terminology from blocks using an LLM                       |
 | `ai-entity-extract` | Extract named entities and term candidates using AI + optional NER |
 
-**MT tools** (`providers/mt/tools/`):
+**MT tools** (`core/mt/tools/`):
 
 | Tool                   | Description                                                                          |
 | ---------------------- | ------------------------------------------------------------------------------------ |

@@ -98,13 +98,14 @@ Import and export are standalone functions rather than interface methods:
 
 ### Backends
 
-- **In-memory** (`termbase/memory/`) — fast, ephemeral; session-scoped
+- **In-memory** (`termbase/memory.go`) — fast, ephemeral; session-scoped
   batch processing.
-- **SQLite** (`termbase/sqlite/`) — persistent file-based storage for CLI
+- **SQLite** (`termbase/sqlite.go`) — persistent file-based storage for CLI
   tools. Pure Go via `modernc.org/sqlite`.
 
-A PostgreSQL backend with workspace isolation, terminology streams, and
-the interface.
+A PostgreSQL backend with workspace isolation and terminology streams is
+provided by the bowrain platform (`bowrain/termbase`) behind the same
+`TermBase` interface.
 
 ### Tiered lookup
 
@@ -129,9 +130,10 @@ without changing the lookup pipeline.
 
 ### UI search
 
-Distinct from lookup, the Search method powers the termbase browser in
-tokenizer to support substring search ranked by match quality, rather
-than unranked `LIKE '%...%'` queries.
+Distinct from lookup, the `Search` method powers the termbase browser in
+the CLI and desktop UI. It uses an FTS5 tokenizer to support substring
+search ranked by match quality, rather than unranked `LIKE '%...%'`
+queries.
 
 ### Annotations
 
@@ -213,11 +215,13 @@ relations, term status, and context fields.
 - Terminology is a first-class pipeline citizen, not a bolt-on
   post-processing step.
 - Character-level annotation positions enable precise inline UI
+  highlighting without re-detecting term boundaries at render time.
 - Entity annotations drive both terminology extraction and TM
   generalization — a single annotation pass serves multiple consumers.
 - Concept relations give UIs a graph substrate for browsing terminology
   without requiring a separate graph database in the framework.
 - `CompetitorTerm` gives the framework a minimal hook for brand governance
+  without depending on the full brand module.
 - The same storage backends as TM (in-memory, SQLite) keep the CLI
   dependency footprint small and cross-compilation simple.
 

@@ -15,6 +15,7 @@ Sievepen is neokapi's built-in translation memory library, living in
 rather than plain strings, and uses a tiered matching pipeline (generalized
 exact, structural exact, plain exact, fuzzy) to maximize reuse. The framework
 ships in-memory and SQLite backends; a PostgreSQL backend is provided by the
+bowrain platform.
 
 ## Context
 
@@ -146,14 +147,16 @@ project's recipe sets `segmentation.source: true` (see
 
 The framework provides two tiers:
 
-- **In-memory** (`sievepen/memory/`) — fast, ephemeral; session-scoped
+- **In-memory** (`sievepen/memory.go`) — fast, ephemeral; session-scoped
   leverage during batch processing.
-- **SQLite** (`sievepen/sqlite/`) — persistent file-based storage for CLI
+- **SQLite** (`sievepen/sqlite.go`) — persistent file-based storage for CLI
   tools. Same matching algorithm as the in-memory tier, with FTS5 indexes
   for fuzzy candidate retrieval. Uses `modernc.org/sqlite` (pure Go, no CGo)
   for cross-compilation.
 
-A PostgreSQL backend with workspace-scoped isolation, project scoping, and
+A PostgreSQL backend with workspace-scoped isolation and project scoping is
+provided by the bowrain platform (`bowrain/sievepen`), reusing the same
+matching algorithm behind the same `TranslationMemory` interface.
 
 ### Fuzzy candidate retrieval
 

@@ -13,11 +13,11 @@ keywords: [metadata i18n, Go surfaces, localization, format metadata, tool schem
 The frontend packages ([AD-014](014-kapi-desktop.md)) are localized
 through the KLF pipeline: extract translatable blocks from source, run
 them through `kapi pseudo-translate` / `kapi ai-translate`, and compile
-per-locale runtime catalogs. The Go backends serving those frontends —
-metadata surface (tool / format / plugin `displayName`, `description`,
-parameter `title` / `description` / enum labels / group labels) and
-need matching localization, so the backend-sourced half of every
-screen lines up with the frontend.
+per-locale runtime catalogs. The Go backends serving those frontends emit
+a metadata surface (tool / format / plugin `displayName`, `description`,
+parameter `title` / `description` / enum labels / group labels) that also
+needs matching localization, so the backend-sourced half of every screen
+lines up with the frontend.
 
 This AD describes a **metadata Translator** that localizes tool,
 format, and plugin metadata at API egress, fed by the same extraction
@@ -57,7 +57,7 @@ stay stable when tools are added or removed.
 ### 3. KLF is the authoring format; gettext MO is the runtime format
 
 KLF is the platform's authoring / exchange format — rich, placeholder-
-It is the wrong shape for runtime lookup:
+aware, and segment-oriented. It is the wrong shape for runtime lookup.
 MO's binary hash-indexed catalog with `msgctxt` for disambiguation
 maps directly onto the `(scope, source)` lookup, and
 [`github.com/leonelquinteros/gotext`](https://github.com/leonelquinteros/gotext)
@@ -70,8 +70,8 @@ picks it up when the output path's extension says `.mo`.
 One pass at metadata egress — `i18n.LocalizeComponentSchema(s, t)` and
 `i18n.LocalizeCapability(c, t)` — centralizes translation instead of
 scattering `T(...)` calls through tool constructors. The surface is
-finite and centralized (CLI `tools` / `formats` / `plugins`, Wails
-reader.
+finite and centralized (CLI `tools` / `formats` / `plugins` listings and
+the Wails metadata readers), so one localization pass at egress covers it.
 
 ## End state
 
@@ -108,7 +108,7 @@ is built at startup from the locale precedence chain:
 
 Builtin MO catalogs are embedded via `//go:embed`; plugin catalogs are
 loaded from `<pluginDir>/<name>/<version>/i18n/<locale>.mo` at
-`ScanMetadata` time.
+plugin-discovery time (`cli/pluginhost`).
 
 ### Pipeline
 
@@ -158,7 +158,9 @@ many tools) stay isolated.
 ## Consequences
 
 - **Same authoring workflow for frontend and backend translators.**
-  Both sides ship `.po`-editable (via `msgunfmt` / Poedit) or
+  Both sides ship `.po`-editable catalogs (via `msgunfmt` / Poedit) or
+  the same English-source convention, so translators see one source
+  artifact across the stack.
 - **Adding a locale is one `make kapi-i18n-translations` run + commit.**
   No tool registration changes, no schema edits.
 - **Plugins contribute their own localizations.** The platform does

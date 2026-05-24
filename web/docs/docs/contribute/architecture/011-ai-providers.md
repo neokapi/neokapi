@@ -42,7 +42,7 @@ while giving tools a predictable contract.
 
 ```go
 type LLMProvider interface {
-    Name() string
+    Name() ProviderID
     Translate(ctx context.Context, req TranslateRequest) (*TranslateResponse, error)
     Chat(ctx context.Context, messages []Message) (*ChatResponse, error)
     ChatStructured(ctx context.Context, messages []Message,
@@ -86,17 +86,23 @@ providers that support them:
 ```go
 type StreamingLLMProvider interface {
     LLMProvider
-    ChatStream(ctx context.Context, messages []Message) (
-        <-chan ChatStreamEvent, error)
+    ChatStream(ctx context.Context, messages []Message,
+        onEvent func(ChatStreamEvent)) (*ChatResponse, error)
     ChatStructuredStream(ctx context.Context, messages []Message,
-        schema JSONSchema) (<-chan ChatStreamEvent, error)
+        schema JSONSchema, onEvent func(ChatStreamEvent)) (*ChatResponse, error)
 }
 
 type ChatStreamEvent struct {
     Type    StreamEventType // StreamEventThinking | StreamEventContent | StreamEventDone
-    Content string
+    Content string          // text chunk (thinking summary or output content)
+    Usage   TokenUsage      // cumulative usage; populated on StreamEventDone
+    Model   string          // model name; populated on StreamEventDone
 }
 ```
+
+The streaming methods deliver progress events through an `onEvent`
+callback and return the final aggregated `*ChatResponse`, rather than
+exposing a channel directly.
 
 UIs and CLI tools display live thinking progress from providers that
 support it (Anthropic extended thinking, Gemini `includeThoughts`). A
@@ -182,8 +188,8 @@ The `ai-translate` tool has two modes:
 
 Batch configuration:
 
-- `BatchSize` — Blocks per LLM call (default 20)
-- `Concurrency` — parallel batch calls (default 5)
+- `BatchSize` — Blocks per LLM call (default 100)
+- `BatchConcurrency` — parallel batch calls (default 1; 0 or 1 = sequential)
 
 Batch mode drains input Parts into memory, identifies translatable Blocks
 (skipping already-translated ones), groups them, processes batches
@@ -197,7 +203,7 @@ parallelizes Part dispatch within the pipeline.
 
 ### Prompt templates
 
-Prompt templates live in `providers/ai/prompt/` as versioned Go files
+Prompt templates live in `core/ai/prompt/` as versioned Go files
 using `text/template`:
 
 - `translate.go` — translation prompts with glossary and context
@@ -226,6 +232,8 @@ project files.
 The framework's responsibility ends at the provider interface, the
 worker pool, and the pipeline tools. Server-side asynchronous job
 queues, multi-tenant quota enforcement, and workspace-scale translation
+orchestration are the bowrain platform's concern, built on top of these
+framework primitives.
 
 ## Consequences
 
