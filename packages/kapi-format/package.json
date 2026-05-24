@@ -9,42 +9,42 @@
   ],
   "type": "module",
   "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
+  "types": "./src/index.ts",
   "exports": {
     ".": {
-      "development": "./src/index.ts",
-      "types": "./dist/index.d.ts",
-      "default": "./dist/index.js"
+      "types": "./src/index.ts",
+      "node": "./dist/index.js",
+      "default": "./src/index.ts"
     },
     "./block": {
-      "development": "./src/block.ts",
-      "types": "./dist/block.d.ts",
-      "default": "./dist/block.js"
+      "types": "./src/block.ts",
+      "node": "./dist/block.js",
+      "default": "./src/block.ts"
     },
     "./vocabulary": {
-      "development": "./src/vocabulary.ts",
-      "types": "./dist/vocabulary.d.ts",
-      "default": "./dist/vocabulary.js"
+      "types": "./src/vocabulary.ts",
+      "node": "./dist/vocabulary.js",
+      "default": "./src/vocabulary.ts"
     },
     "./preview": {
-      "development": "./src/preview.ts",
-      "types": "./dist/preview.d.ts",
-      "default": "./dist/preview.js"
+      "types": "./src/preview.ts",
+      "node": "./dist/preview.js",
+      "default": "./src/preview.ts"
     },
     "./annotation": {
-      "development": "./src/annotation.ts",
-      "types": "./dist/annotation.d.ts",
-      "default": "./dist/annotation.js"
+      "types": "./src/annotation.ts",
+      "node": "./dist/annotation.js",
+      "default": "./src/annotation.ts"
     },
     "./klf": {
-      "development": "./src/klf.ts",
-      "types": "./dist/klf.d.ts",
-      "default": "./dist/klf.js"
+      "types": "./src/klf.ts",
+      "node": "./dist/klf.js",
+      "default": "./src/klf.ts"
     },
     "./target-plural": {
-      "development": "./src/target-plural.ts",
-      "types": "./dist/target-plural.d.ts",
-      "default": "./dist/target-plural.js"
+      "types": "./src/target-plural.ts",
+      "node": "./dist/target-plural.js",
+      "default": "./src/target-plural.ts"
     },
     "./package.json": "./package.json"
   },
