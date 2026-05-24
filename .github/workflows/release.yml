@@ -107,6 +107,11 @@ jobs:
       - name: Install cosign (for kapi-bowrain plugin signing)
         uses: sigstore/cosign-installer@v3
 
+      - name: Install quill (macOS signing + notarization for CLI binaries)
+        run: |
+          curl -sSfL https://get.anchore.io/quill | sudo sh -s -- -b /usr/local/bin v0.7.1
+          quill version
+
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v7
         with:
@@ -115,6 +120,12 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          # quill: Developer ID signing + notarization of the macOS kapi binaries.
+          QUILL_SIGN_P12: ${{ secrets.APPLE_DEVELOPER_ID_P12_BASE64 }}
+          QUILL_SIGN_PASSWORD: ${{ secrets.APPLE_DEVELOPER_ID_P12_PASSWORD }}
+          QUILL_NOTARY_KEY: ${{ secrets.APPLE_API_KEY_P8_BASE64 }}
+          QUILL_NOTARY_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          QUILL_NOTARY_ISSUER: ${{ secrets.APPLE_API_ISSUER_ID }}
 
       # Push the new kapi-bowrain plugin version into the manifest-plugins
       # registry so `kapi plugin install bowrain` resolves to this build.
