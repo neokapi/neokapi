@@ -91,7 +91,7 @@ function HomepageHeader() {
             </button>
             <Link
               className="button button--secondary button--lg"
-              to="/getting-started/introduction"
+              to="/get-started/introduction"
             >
               Get Started
             </Link>
@@ -120,21 +120,21 @@ const NeokapiFeatures: ProductItem[] = [
     title: "Formats & plugins",
     description:
       "Readers and writers for localization, document, data, subtitle, and office formats, extended by crash-isolated gRPC plugins and a bridge to the Java Okapi filters.",
-    link: "/features/formats",
+    link: "/framework/formats",
     linkText: "Formats",
   },
   {
     title: "AI-native tools",
     description:
       "LLM-assisted translation, QA, terminology, and review compose in the same pipeline as machine-translation backends and rule-based checks.",
-    link: "/features/ai-translation",
+    link: "/framework/ai-translation",
     linkText: "AI translation",
   },
   {
     title: "Streaming pipeline",
     description:
       "Each tool runs in its own goroutine, connected by buffered channels with backpressure and context cancellation.",
-    link: "/developer/architecture",
+    link: "/framework/architecture",
     linkText: "Architecture",
   },
 ];
@@ -159,7 +159,7 @@ function HomepageFeatures() {
           Neokapi Framework
         </Heading>
         <p className="text--center margin-bottom--lg">
-          Open-source localization engine and <Link to="/kapi-cli/overview">kapi CLI</Link> for
+          Open-source localization engine and <Link to="/cli/overview">kapi CLI</Link> for
           standalone file processing.
         </p>
         <div className="row margin-bottom--xl">

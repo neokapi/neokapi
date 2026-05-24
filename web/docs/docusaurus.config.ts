@@ -38,39 +38,10 @@ const config: Config = {
 
   themes: ["@docusaurus/theme-mermaid"],
 
-  // Architecture docs and implementation notes were absorbed into the
-  // main docs tree (issue #425 followup). The `ad` and `notes` plugin
-  // instances are no longer needed.
+  // The framework-first IA restructure (issue #670) moved pages freely. The
+  // site is not yet live, so no client-side redirects are kept — old URLs are
+  // simply gone.
   plugins: [
-    [
-      "@docusaurus/plugin-client-redirects",
-      {
-        // The developer/* concept pages were merged into their features/*
-        // counterparts. Keep the old URLs alive.
-        redirects: [
-          { from: "/developer/terminology", to: "/features/terminology" },
-          { from: "/developer/translation-memory", to: "/features/translation-memory" },
-          { from: "/developer/brand-voice", to: "/features/brand-voice" },
-          // The standalone "Demos" page was superseded by the Walkthroughs
-          // gallery (its videos used a recording pipeline that no longer exists).
-          { from: "/kapi-cli/demo-videos", to: "/walkthroughs" },
-          // The hand-written per-command docs (/kapi-cli/commands/*) were
-          // retired in favor of the generated, runnable /commands reference
-          // (issue #660). Map each old path to its command's deep link.
-          { from: "/kapi-cli/commands/flow", to: "/commands?id=run" },
-          { from: "/kapi-cli/commands/extract", to: "/commands?id=extract" },
-          { from: "/kapi-cli/commands/merge", to: "/commands?id=merge" },
-          { from: "/kapi-cli/commands/formats", to: "/commands?id=formats" },
-          { from: "/kapi-cli/commands/tools", to: "/commands?id=tools" },
-          { from: "/kapi-cli/commands/plugins", to: "/commands?id=plugin" },
-          { from: "/kapi-cli/commands/presets", to: "/commands?id=presets" },
-          { from: "/kapi-cli/commands/pseudo-translate", to: "/commands?id=pseudo-translate" },
-          { from: "/kapi-cli/commands/termbase", to: "/commands?id=termbase" },
-          { from: "/kapi-cli/commands/tm", to: "/commands?id=tm" },
-          { from: "/kapi-cli/commands/word-count", to: "/commands?id=word-count" },
-        ],
-      },
-    ],
     // Silence the benign "Critical dependency" webpack warning emitted by the
     // UMD wrapper in vscode-languageserver-types (pulled in transitively via
     // @docusaurus/theme-mermaid → mermaid → langium). The `require` it flags is
@@ -84,7 +55,9 @@ const config: Config = {
           return {
             ignoreWarnings: [
               (warning: { message?: string; module?: { resource?: string } }) =>
-                /Critical dependency: require function is used/.test(warning.message ?? "") &&
+                /Critical dependency: require function is used/.test(
+                  warning.message ?? "",
+                ) &&
                 /[\\/]node_modules[\\/]vscode-languageserver-types[\\/]/.test(
                   warning.module?.resource ?? "",
                 ),
@@ -138,11 +111,43 @@ const config: Config = {
         src: "img/logo.png",
       },
       items: [
+        // Framework-first IA: the framework is the spine; CLI / React / Desktop
+        // are peer front-ends. Get Started and the home page lead with the
+        // framework + the AI-assistant pivot.
         {
           type: "docSidebar",
-          sidebarId: "gettingStartedSidebar",
+          sidebarId: "getStartedSidebar",
           label: "Get Started",
           position: "left",
+        },
+        {
+          type: "docSidebar",
+          sidebarId: "frameworkSidebar",
+          label: "Framework",
+          position: "left",
+        },
+        {
+          type: "docSidebar",
+          sidebarId: "guidesSidebar",
+          label: "Guides",
+          position: "left",
+        },
+        {
+          type: "dropdown",
+          label: "Reference",
+          position: "left",
+          items: [
+            // Generated, runnable references + interactive grids. R4 fills the
+            // per-entry pages under /reference/{commands,formats,tools}/.
+            { label: "Reference Overview", to: "/reference" },
+            { label: "Commands", to: "/commands" },
+            { label: "Formats", to: "/formats" },
+            { label: "Tools", to: "/tools" },
+            { label: "Flows", to: "/flow-visualization" },
+            { label: "Parity", to: "/parity" },
+            { label: "Benchmarks", to: "/pseudobench" },
+            { label: "Test Results", to: "/test-comparison" },
+          ],
         },
         {
           type: "docSidebar",
@@ -163,42 +168,6 @@ const config: Config = {
           position: "left",
         },
         {
-          type: "docSidebar",
-          sidebarId: "frameworkSidebar",
-          label: "Framework",
-          position: "left",
-        },
-        {
-          type: "docSidebar",
-          sidebarId: "walkthroughsSidebar",
-          label: "Walkthroughs",
-          position: "left",
-        },
-        {
-          type: "dropdown",
-          label: "Try It",
-          position: "left",
-          items: [
-            // The runnable getting-started tour: inline ▸ Run snippets.
-            { label: "Try in Your Browser", to: "/getting-started/try-it" },
-            { label: "CLI Playground", to: "/playground-cli" },
-            { label: "Command Reference (runnable)", to: "/commands" },
-          ],
-        },
-        {
-          type: "dropdown",
-          label: "Reference",
-          position: "left",
-          items: [
-            { label: "Command Reference", to: "/commands" },
-            { label: "Format Reference", to: "/formats" },
-            { label: "Tool Reference", to: "/tools" },
-            { label: "Benchmarks", to: "/pseudobench" },
-            { label: "Parity", to: "/parity" },
-            { label: "Test Results", to: "/test-comparison" },
-          ],
-        },
-        {
           href: "https://github.com/neokapi/neokapi",
           label: "GitHub",
           position: "right",
@@ -213,27 +182,31 @@ const config: Config = {
           items: [
             {
               label: "Get Started",
-              to: "/getting-started/introduction",
-            },
-            {
-              label: "Try in Your Browser",
-              to: "/getting-started/try-it",
-            },
-            {
-              label: "CLI",
-              to: "/kapi-cli/overview",
-            },
-            {
-              label: "React",
-              to: "/kapi-react/introduction",
+              to: "/get-started/introduction",
             },
             {
               label: "Framework",
-              to: "/developer/architecture",
+              to: "/framework/architecture",
+            },
+            {
+              label: "Guides",
+              to: "/guides",
+            },
+            {
+              label: "CLI",
+              to: "/cli/overview",
+            },
+            {
+              label: "React",
+              to: "/react/introduction",
             },
             {
               label: "Format Reference",
               to: "/formats",
+            },
+            {
+              label: "Contribute",
+              to: "/contribute/tool-authoring",
             },
           ],
         },

@@ -1,108 +1,99 @@
 import type { SidebarsConfig } from "@docusaurus/plugin-content-docs";
 
-// One sidebar per top-level navbar section. Each section is surfaced directly
-// in the navbar (see docusaurus.config.ts) so readers reach a context without
-// first opening a generic "Documentation" menu.
+// One sidebar per top-level navbar section. The framework is the spine
+// (explanation); CLI / React / Desktop are peer front-ends; Guides hold the
+// how-to material; Reference is reserved for generated per-entry pages and the
+// interactive grids; Contribute is the secondary, deep-dive section
+// (architecture decisions, extending the framework, implementation notes).
 const sidebars: SidebarsConfig = {
-  gettingStartedSidebar: [
-    "getting-started/introduction",
-    "getting-started/installation",
-    "getting-started/quickstart",
-    "getting-started/try-it",
-  ],
-
-  cliSidebar: [
-    "kapi-cli/overview",
-    "kapi-cli/using-with-claude",
-    "kapi-cli/bilingual-workflow",
-    // The hand-written per-command pages were retired in favor of the generated,
-    // runnable /commands reference (issue #660). The navbar Reference dropdown
-    // links there; old /kapi-cli/commands/* URLs redirect via
-    // docusaurus.config.ts.
-    {
-      type: "category",
-      label: "Use Cases",
-      items: ["kapi-cli/use-cases/terminology-qa", "kapi-cli/use-cases/terminology-pretranslation"],
-    },
-    "kapi-cli/mcp",
-  ],
-
-  walkthroughsSidebar: [
-    "walkthroughs/index",
-    "walkthroughs/kapi-overview",
-    "walkthroughs/kapi-word-count",
-    "walkthroughs/kapi-pseudo-translate",
-    "walkthroughs/kapi-bilingual-workflow",
-    "walkthroughs/kapi-terminology-qa",
-    "walkthroughs/kapi-terminology-pretranslation",
-  ],
-
-  reactSidebar: [
-    "kapi-react/introduction",
-    "kapi-react/quickstart",
-    "kapi-react/writing-components",
-    "kapi-react/t-escape-hatch",
-    "kapi-react/plurals-and-select",
-    "kapi-react/formatting",
-    "kapi-react/pipeline",
-    "kapi-react/modes",
-    "kapi-react/translating-with-kapi",
-    "kapi-react/linting",
-    "kapi-react/configuration",
-    "kapi-react/alternatives",
-  ],
-
-  desktopSidebar: [
-    "kapi-desktop/overview",
-    "kapi-desktop/getting-started",
-    "kapi-desktop/project-file",
+  getStartedSidebar: [
+    "get-started/introduction",
+    "get-started/installation",
+    "get-started/quickstart",
+    "get-started/try-it",
+    "get-started/use-with-claude",
   ],
 
   frameworkSidebar: [
-    "developer/architecture",
-    "developer/interfaces",
-    {
-      type: "category",
-      label: "Concepts",
-      items: [
-        "features/formats",
-        "features/inline-formatting",
-        "features/translation-memory",
-        "features/terminology",
-        "developer/vocabularies",
-        "features/ai-translation",
-        "features/mt-services",
-        "features/qa-checks",
-        "features/brand-voice",
-        "features/redaction",
-      ],
-    },
+    "framework/architecture",
+    "framework/content-model",
+    "framework/formats",
+    "framework/inline-formatting",
+    "framework/vocabularies",
+    "framework/translation-memory",
+    "framework/terminology",
+    "framework/ai-translation",
+    "framework/mt-services",
+    "framework/qa-checks",
+    "framework/brand-voice",
+    "framework/redaction",
+  ],
+
+  guidesSidebar: [
+    "guides/index",
+    "guides/kapi-overview",
+    "guides/kapi-word-count",
+    "guides/kapi-pseudo-translate",
+    "guides/kapi-bilingual-workflow",
+    "guides/kapi-terminology-qa",
+    "guides/kapi-terminology-pretranslation",
+    "guides/use-case-terminology-qa",
+    "guides/use-case-terminology-pretranslation",
+  ],
+
+  referenceSidebar: ["reference/index"],
+
+  cliSidebar: ["cli/overview", "cli/bilingual-workflow", "cli/mcp"],
+
+  reactSidebar: [
+    "react/introduction",
+    "react/quickstart",
+    "react/writing-components",
+    "react/t-escape-hatch",
+    "react/plurals-and-select",
+    "react/formatting",
+    "react/pipeline",
+    "react/modes",
+    "react/translating-with-kapi",
+    "react/linting",
+    "react/configuration",
+    "react/alternatives",
+  ],
+
+  desktopSidebar: [
+    "desktop/overview",
+    "desktop/getting-started",
+    "desktop/project-file",
+  ],
+
+  contributeSidebar: [
     {
       type: "category",
       label: "Extending the Framework",
+      collapsed: false,
       items: [
-        "guides/tool-authoring",
-        "guides/flow-authoring",
-        "guides/script-step",
-        "developer/formats",
-        "developer/tools",
-        "developer/plugins",
-        "developer/java-bridge",
-        "developer/testing",
-        "developer/graph",
+        "contribute/tool-authoring",
+        "contribute/flow-authoring",
+        "contribute/script-step",
+        "contribute/formats",
+        "contribute/tools",
+        "contribute/plugins",
+        "contribute/java-bridge",
+        "contribute/testing",
+        "contribute/graph",
       ],
     },
     {
       type: "category",
       label: "Architecture Decisions",
       collapsed: true,
-      items: [{ type: "autogenerated", dirName: "architecture" }],
+      items: [{ type: "autogenerated", dirName: "contribute/architecture" }],
     },
     {
       type: "category",
       label: "Implementation Notes",
       collapsed: true,
-      items: [{ type: "autogenerated", dirName: "notes-internal" }],
+      items: [{ type: "autogenerated", dirName: "contribute/notes-internal" }],
     },
   ],
 };
