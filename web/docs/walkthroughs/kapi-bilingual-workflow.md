@@ -10,9 +10,7 @@ scenes:
     fixtures:
       - bilingual-project
     smoke_contract:
-      - kapi tm import fixtures/bilingual-project/corporate.tmx --file fixtures/bilingual-project/.kapi/tm.db --all-pairs
-      - kapi extract --recipe fixtures/bilingual-project/app.kapi
-      - kapi merge -i fixtures/bilingual-project/out/
+      - kapi extract -p app.kapi --no-tm
 ---
 
 ## Story

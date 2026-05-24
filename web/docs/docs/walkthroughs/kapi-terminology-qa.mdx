@@ -1,29 +1,26 @@
 ---
 id: kapi-terminology-qa
-title: "Enforce terminology with kapi termbase + qa-check"
+title: "Enforce terminology with kapi termbase + term-check"
 sidebar_label: "Terminology QA"
 description: "Import a glossary, look up terms, and flag terminology drift in translated files before they ship."
 ---
 
-import { ThemedVideo } from "@neokapi/docs-shared";
+import KapiGuidedEmbed from "@site/src/components/KapiPlayground/KapiGuidedEmbed";
 
-# Enforce terminology with kapi termbase + qa-check
+# Enforce terminology with kapi termbase + term-check
 
-> Generated from [`walkthroughs/kapi-terminology-qa.md`](https://github.com/neokapi/neokapi/blob/main/web/docs/walkthroughs/kapi-terminology-qa.md). Do not edit by hand — change the prompt and regenerate.
+> Driven by [`walkthroughs/kapi-terminology-qa.scene.yaml`](https://github.com/neokapi/neokapi/blob/main/web/docs/walkthroughs/kapi-terminology-qa.scene.yaml) — one source generates both this interactive embed and the recorded video. Do not edit by hand; change the scene spec and regenerate.
 
-A glossary makes terminology consistent across your translations and across locales. `kapi termbase` ingests CSVs, exposes lookup/search, and feeds into `kapi qa-check` to flag terminology drift in target files before they ship.
+A glossary makes terminology consistent across your translations and across locales. `kapi termbase` exposes lookup/search, and `kapi term-check` flags terminology drift in target files before they ship.
 
-## Scene 1 — termbase-qa
+## Try it
 
-<ThemedVideo
-  sources={{
-    light: "/video/kapi/01-termbase-qa.webm",
-    dark: "/video/kapi/01-termbase-qa.webm",
-  }}
-/>
+The in-browser build pre-seeds a termbase from the project glossary (shown as `glossary.csv` in the files pane), so the termbase commands operate on a real backend. Step through the rail.
 
-Import a CSV glossary into a named termbase, inspect stats, look up a specific term, search for related ones, then run `kapi pseudo-translate` followed by `kapi qa-check --termbase ...` to see violations flagged in the output.
+<KapiGuidedEmbed id="kapi-terminology-qa" />
+
+Inspect the termbase stats, look up a single term, search across concepts, then pseudo-translate `messages_en.json` and run `kapi term-check` to see violations flagged against the seeded terminology.
 
 ## Next
 
-Hook the same termbase into a flow with `kapi run` so every push runs the QA check automatically.
+Hook the same termbase into a flow with `kapi run` so every push runs the terminology check automatically.

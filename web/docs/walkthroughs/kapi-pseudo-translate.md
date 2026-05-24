@@ -10,7 +10,7 @@ scenes:
     fixtures:
       - messages.json
     smoke_contract:
-      - kapi pseudo-translate samples/messages.json --target-lang fr
+      - kapi pseudo-translate messages.json -o messages.fr.json --target-lang fr
 ---
 
 ## Story

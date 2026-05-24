@@ -1,0 +1,61 @@
+# Unified scene spec (W3, issue #661). See kapi-overview.scene.yaml for the
+# full schema. Regenerate with:
+#   node --experimental-strip-types scripts/walkthrough-gen/gen.ts kapi-terminology-qa
+#
+# The browser (wasm) build pre-seeds an in-memory termbase from the same
+# glossary used here (kapi/cmd/kapi-wasm-cli/fixtures/glossary.csv), so the
+# termbase stats/lookup/search/import commands operate on a real backend with
+# no SQLite. The inline `files` below give the embed the source catalogue and a
+# visible copy of the glossary; `term-check` enforces the seeded termbase.
+
+id: kapi-terminology-qa
+scene: termbase-qa
+mode: interactive
+
+tape:
+  width: 1000
+  height: 650
+  theme: Dracula
+  padding: 20
+  fontSize: 16
+
+seed: []
+files:
+  - path: glossary.csv
+    content: |
+      source,target,domain
+      password,mot de passe,security
+      username,nom d'utilisateur,security
+      log in,se connecter,ui
+      dashboard,tableau de bord,ui
+      settings,paramètres,ui
+      encryption,chiffrement,security
+      file upload,téléversement de fichier,ui
+  - path: messages_en.json
+    content: |
+      {
+        "login_title": "Log in to your dashboard",
+        "login_prompt": "Enter your username and password",
+        "settings_label": "Settings",
+        "upload_heading": "File upload",
+        "encryption_note": "All files use encryption"
+      }
+
+steps:
+  - comment: A glossary keeps terminology consistent across locales
+  - command: kapi termbase stats
+    narration: The browser build pre-seeds a termbase from the project glossary.
+  - command: kapi termbase lookup password -s en -t fr
+    narration: Look up a single term and its approved translation.
+  - command: kapi termbase search encrypt -s en
+    narration: Search across every concept in the termbase.
+  - comment: Pseudo-translate, then check terminology against the termbase
+  # pseudo-translate references messages_en.json, which W7 skip-lists — it stays
+  # in smoke_contract (honestly skipped) and runs live in the embed.
+  - command: kapi pseudo-translate messages_en.json -o pseudo_fr.json --target-lang fr
+    narration: Produce a target file to QA.
+  - command: kapi term-check pseudo_fr.json --source-lang en --target-lang fr
+    narration: Flags target segments that violate the seeded terminology.
+    # smoke:false — consumes pseudo_fr.json from the previous step; W7 would run
+    # it in isolation (no skip token on pseudo_fr.json) and fail.
+    smoke: false

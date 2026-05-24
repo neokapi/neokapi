@@ -11,9 +11,10 @@ scenes:
       - glossary.csv
       - messages_en.json
     smoke_contract:
-      - kapi termbase import fixtures/glossary.csv --name product-terms --format csv -s en -t fr --header
-      - kapi termbase stats --name product-terms
-      - kapi termbase lookup password --name product-terms -s en -t fr
+      - kapi termbase stats
+      - kapi termbase lookup password -s en -t fr
+      - kapi termbase search encrypt -s en
+      - kapi pseudo-translate messages_en.json -o pseudo_fr.json --target-lang fr
 ---
 
 ## Story

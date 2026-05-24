@@ -1,0 +1,24 @@
+# Unified scene spec (W3, issue #661). See kapi-overview.scene.yaml for the
+# full schema. Regenerate with:
+#   node --experimental-strip-types scripts/walkthrough-gen/gen.ts kapi-word-count
+
+id: kapi-word-count
+scene: word-count
+mode: interactive
+
+tape:
+  width: 900
+  height: 400
+  theme: Dracula
+  padding: 20
+  fontSize: 16
+
+seed:
+  - messages.json
+files: []
+
+steps:
+  - comment: Count words in a JSON file
+  - command: kapi word-count messages.json
+    narration: Reports blocks and source words — the number you paste into a quote.
+  - comment: Word count helps estimate translation costs

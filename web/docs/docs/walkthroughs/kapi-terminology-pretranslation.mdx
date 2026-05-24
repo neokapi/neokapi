@@ -2,27 +2,24 @@
 id: kapi-terminology-pretranslation
 title: "Pre-translate with TM + termbase before any vendor sees content"
 sidebar_label: "Terminology pre-translation"
-description: "Three-step pipeline: TM leverage → pseudo-translate the misses → QA against the termbase. All deterministic, no API key."
+description: "Three-step pipeline: TM leverage → pseudo-translate the misses → terminology check. All deterministic, no API key."
 ---
 
-import { ThemedVideo } from "@neokapi/docs-shared";
+import KapiGuidedEmbed from "@site/src/components/KapiPlayground/KapiGuidedEmbed";
 
 # Pre-translate with TM + termbase before any vendor sees content
 
-> Generated from [`walkthroughs/kapi-terminology-pretranslation.md`](https://github.com/neokapi/neokapi/blob/main/web/docs/walkthroughs/kapi-terminology-pretranslation.md). Do not edit by hand — change the prompt and regenerate.
+> Driven by [`walkthroughs/kapi-terminology-pretranslation.scene.yaml`](https://github.com/neokapi/neokapi/blob/main/web/docs/walkthroughs/kapi-terminology-pretranslation.scene.yaml) — one source generates both this interactive embed and the recorded video. Do not edit by hand; change the scene spec and regenerate.
 
 Pre-translation is the cheap, deterministic phase that runs before any machine or human translator sees the content. Leverage existing TM, run pseudo-translation on the rest, and pre-flag any terminology violations — all in seconds, no API key required.
 
-## Scene 1 — termbase-pretranslation
+## Try it
 
-<ThemedVideo
-  sources={{
-    light: "/video/kapi/01-termbase-pretranslation.webm",
-    dark: "/video/kapi/01-termbase-pretranslation.webm",
-  }}
-/>
+The in-browser build pre-seeds a TM and a termbase; the rail tops up the TM from `project.tmx`, then runs the three-step pipeline. Open the intermediate `step1_tm.json` / `step2_translated.json` files in the pane to see the output of each step feed the next.
 
-Set up language assets (termbase + TM), then run the three-step pipeline: TM leverage → pseudo-translate the misses → QA check against the termbase. The output of each step is the input to the next.
+<KapiGuidedEmbed id="kapi-terminology-pretranslation" />
+
+TM leverage fills exact and fuzzy matches, pseudo-translation covers the misses, and `kapi term-check` pre-flags terminology violations.
 
 ## Next
 

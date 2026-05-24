@@ -1,0 +1,26 @@
+# Unified scene spec (W3, issue #661). See kapi-overview.scene.yaml for the
+# full schema. Regenerate with:
+#   node --experimental-strip-types scripts/walkthrough-gen/gen.ts kapi-pseudo-translate
+
+id: kapi-pseudo-translate
+scene: pseudo-translate
+mode: interactive
+
+tape:
+  width: 900
+  height: 550
+  theme: Dracula
+  padding: 20
+  fontSize: 16
+
+seed:
+  - messages.json
+files: []
+
+steps:
+  - comment: Pseudo-translate to find UI truncation bugs early
+  - command: kapi pseudo-translate messages.json -o messages.fr.json --target-lang fr
+    narration: >-
+      Expands every string with locale-shaped accent characters so truncation
+      and missing-string bugs surface immediately on screen.
+  - comment: Diacritics make missing or truncated strings visible at a glance

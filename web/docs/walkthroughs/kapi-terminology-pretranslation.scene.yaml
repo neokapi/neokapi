@@ -1,0 +1,71 @@
+# Unified scene spec (W3, issue #661). See kapi-overview.scene.yaml for the
+# full schema. Regenerate with:
+#   node --experimental-strip-types scripts/walkthrough-gen/gen.ts kapi-terminology-pretranslation
+#
+# The wasm build pre-seeds an in-memory TM (from project.tmx) and termbase
+# (from glossary.csv); the inline files below provide the source catalogue and
+# a visible TMX. The three-step pipeline — TM leverage, pseudo-translate the
+# misses, term-check — all run offline against those real in-memory backends.
+
+id: kapi-terminology-pretranslation
+scene: termbase-pretranslation
+mode: interactive
+
+tape:
+  width: 1000
+  height: 650
+  theme: Dracula
+  padding: 20
+  fontSize: 16
+
+seed: []
+files:
+  - path: project.tmx
+    content: |
+      <?xml version="1.0" encoding="UTF-8"?>
+      <tmx version="1.4">
+        <header creationtool="neokapi" creationtoolversion="1.0"
+                segtype="sentence" o-tmf="unknown" adminlang="en"
+                srclang="en" datatype="plaintext"/>
+        <body>
+          <tu>
+            <tuv xml:lang="en"><seg>Settings</seg></tuv>
+            <tuv xml:lang="fr"><seg>Paramètres</seg></tuv>
+          </tu>
+          <tu>
+            <tuv xml:lang="en"><seg>File upload</seg></tuv>
+            <tuv xml:lang="fr"><seg>Téléversement de fichier</seg></tuv>
+          </tu>
+        </body>
+      </tmx>
+  - path: messages_en.json
+    content: |
+      {
+        "login_title": "Log in to your dashboard",
+        "login_prompt": "Enter your username and password",
+        "settings_label": "Settings",
+        "upload_heading": "File upload",
+        "encryption_note": "All files use encryption"
+      }
+
+steps:
+  - comment: The wasm build pre-seeds a TM; top it up from a project TMX
+  # tm import / tm-leverage reference .tmx / messages_en.json fixtures, which W7
+  # skip-lists (native-binary only). They stay in smoke_contract so W7 keeps
+  # tracking them (honestly skipped), and run live in the embed.
+  - command: kapi tm import project.tmx -s en -t fr
+    narration: Load existing translation memory.
+  - comment: Step 1 — leverage translation memory
+  - command: kapi tm-leverage messages_en.json -o step1_tm.json --source-lang en --target-lang fr
+    narration: Fill exact/fuzzy matches from the TM; the rest stay untranslated.
+  - comment: Step 2 — pseudo-translate the remaining misses
+  - command: kapi pseudo-translate step1_tm.json -o step2_translated.json --target-lang fr
+    narration: Everything the TM did not cover gets a locale-shaped placeholder.
+    # smoke:false — consumes step1_tm.json from the previous step; W7 would run
+    # it in isolation (no skip token on step1_tm.json) and fail.
+    smoke: false
+  - comment: Step 3 — verify terminology compliance
+  - command: kapi term-check step2_translated.json --source-lang en --target-lang fr
+    narration: Pre-flag terminology violations before any vendor sees the content.
+    # smoke:false — consumes step2_translated.json from the previous step.
+    smoke: false
