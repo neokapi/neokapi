@@ -4,6 +4,26 @@ Translate content, enforce terminology, and round-trip the result back into its
 original format with the local `kapi` CLI. For ongoing work, bind the locales,
 brand voice, and glossary in a project first — see [project.md](project.md).
 
+## First decide: one-off file, or a project?
+
+**A single file you just need translated** — a document, a deck, one catalog —
+translate it directly. There is nothing to set up, and **do not run `kapi extract`**
+(that reads a *project's* content config; on a loose file it fails with "no .kapi
+project found"). Just round-trip it:
+
+```bash
+kapi pseudo-translate <file> --target-lang qps        # quick readiness pre-flight
+kapi ai-translate <file> --target-lang <lang> -o <out>  # reads the format, translates, writes it back
+```
+
+kapi preserves structure, tags, and placeholders (round-trip). Add `--credential
+<name>` when it needs a model provider. That's the whole task for a one-off file.
+
+**Ongoing / app localization, or translating it yourself under brand + terminology
+guardrails** — bind a project first (`kapi init`), then `kapi extract → fill the
+targets → kapi merge → kapi verify` (below). `kapi extract` and `kapi merge` operate
+on a project; run them inside one (or with `-p <recipe>`), never on a bare file path.
+
 ## Commands at a glance (use these exact forms)
 
 Run these as written — don't guess flags. When in doubt, `kapi <cmd> --help`.
