@@ -70,7 +70,7 @@
   },
   "dependencies": {
     "@neokapi/kapi-format": "*",
-    "@swc/core": "^1.15.33",
+    "@swc/core": "^1.15.40",
     "unplugin": "^3.0.0"
   },
   "devDependencies": {
