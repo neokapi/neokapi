@@ -3,9 +3,17 @@ sidebar_position: 3
 title: Quick Start
 ---
 
+import RunnableSnippet from "@site/src/components/KapiPlayground/RunnableSnippet";
+
 # Quick Start
 
 Get started with kapi in 2 minutes. No project setup or server needed.
+
+Several commands below carry a **▸ Run** button. Pressing it opens an in-browser
+terminal running the **real `kapi` binary** (compiled to WebAssembly) — no
+install, no server, nothing leaves your machine. The commands that need an API
+key or local files are shown as static blocks; run those after
+[installing](/getting-started/installation).
 
 ## Keep AI output on-brand
 
@@ -37,21 +45,23 @@ Five starter packs ship built in: `professional-b2b`, `friendly-dtc`,
 
 ## Pseudo-Translate a File
 
-Generate pseudo-translations to test your UI for truncation and layout issues:
+Generate pseudo-translations to test your UI for truncation and layout issues.
+Press **▸ Run** to try it now — it seeds a small `messages.json` and writes
+`messages-qps.json`, which you can then preview in the **Files** panel:
 
-```bash
-kapi pseudo-translate messages.json --target-lang qps -o messages-qps.json
-```
+<RunnableSnippet
+  cmd="kapi pseudo-translate messages.json --target-lang qps -o messages-qps.json"
+  seed={["messages.json"]}
+/>
 
-Output: accented text like `[!!! Hëëëröööö Tîîîtlëëë !!!]` that exposes untranslated strings and layout problems.
+The output is accented text like `[!!! Hëëëröööö Tîîîtlëëë !!!]` that exposes
+untranslated strings and layout problems.
 
 ## Count Words
 
 Estimate translation costs:
 
-```bash
-kapi word-count messages.json
-```
+<RunnableSnippet cmd="kapi word-count messages.json" seed={["messages.json"]} />
 
 ## Translate with AI
 
@@ -66,19 +76,15 @@ translation prompt — so output is on-brand at generation time.
 
 ## Explore Formats and Tools
 
-```bash
-# List all supported file formats
-kapi formats
+List every format kapi understands — no input file required:
 
-# List available processing tools
-kapi tools
+<RunnableSnippet cmd="kapi formats list" />
 
-# List available flows
-kapi flows
+List the available processing tools, composable flows, and presets:
 
-# List presets
-kapi presets list
-```
+<RunnableSnippet cmd="kapi tools" />
+<RunnableSnippet cmd="kapi flows" />
+<RunnableSnippet cmd="kapi presets list" />
 
 ## Manage Terminology
 

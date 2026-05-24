@@ -19,8 +19,8 @@ import "./styles.css";
 // Inline trigger + imperative API (light, SSR-clean — no xterm/wasm).
 export { default as RunnableSnippet } from "./RunnableSnippet";
 export type { RunnableSnippetProps } from "./RunnableSnippet";
-export { openKapi } from "./store";
-export type { OpenKapiOptions, KapiFile } from "./store";
+export { openKapi, serializeSession, deserializeSession } from "./store";
+export type { OpenKapiOptions, KapiFile, SessionState } from "./store";
 
 // Provider for injected asset URLs.
 export { KapiPlaygroundProvider, useKapiConfig } from "./provider";

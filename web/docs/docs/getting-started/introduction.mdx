@@ -4,6 +4,8 @@ title: Introduction
 slug: /getting-started/introduction
 ---
 
+import RunnableSnippet from "@site/src/components/KapiPlayground/RunnableSnippet";
+
 # Introduction
 
 neokapi is the open engine that keeps your AI coding assistant **on-brand and
@@ -93,11 +95,22 @@ kapi tm import translations.tmx --name project-tm -s en -t fr
 No project initialization, server, or configuration required — `kapi` operates
 directly on files.
 
+You don't even need to install it first. Press **▸ Run** to execute the real
+`kapi` binary in an in-browser terminal (compiled to WebAssembly, no server):
+
+<RunnableSnippet
+  cmd="kapi pseudo-translate messages.json --target-lang fr"
+  seed={["messages.json"]}
+/>
+
+See [Try It in Your Browser](/getting-started/try-it) for more runnable
+examples, or the [CLI Playground](/playground-cli) for a full terminal.
+
 ## Inside your AI assistant (MCP)
 
 `kapi mcp` exposes `brand_guide`, `brand_check`, `brand_rewrite`, `term_lookup`,
 and `tm_search` to any [MCP](https://modelcontextprotocol.io/) client. Your AI
-assistant can consult the brand profile and terminology *while it writes*, so
+assistant can consult the brand profile and terminology _while it writes_, so
 content is on-brand at generation time — not flagged afterward. See
 [Using Kapi with AI Assistants](/kapi-cli/mcp).
 

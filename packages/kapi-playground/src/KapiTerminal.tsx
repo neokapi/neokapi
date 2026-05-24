@@ -73,6 +73,8 @@ export interface KapiTerminalHandle {
   runCommand(cmd: string, autoRun?: boolean): void;
   /** Focus the terminal input. */
   focus(): void;
+  /** The commands run so far, in order (for shareable-session capture). */
+  history(): string[];
 }
 
 interface KapiTerminalProps {
@@ -89,6 +91,7 @@ export default function KapiTerminal({ runtime, onFsChange, ref }: KapiTerminalP
   useImperativeHandle(ref, () => ({
     runCommand: (cmd, autoRun) => driver.current?.runCommand(cmd, autoRun),
     focus: () => driver.current?.focus(),
+    history: () => driver.current?.history() ?? [],
   }));
 
   useEffect(() => {
@@ -454,6 +457,7 @@ export default function KapiTerminal({ runtime, onFsChange, ref }: KapiTerminalP
         }
       },
       focus: () => term.focus(),
+      history: () => history.slice(),
     };
 
     // Refit whenever the container resizes — covers window resize, the files

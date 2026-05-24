@@ -6,7 +6,7 @@ import FilesPanel from "./FilesPanel";
 import { bootKapiRuntime, isBooted } from "./runtime";
 import type { KapiRuntime } from "./runtime";
 import { getFixture } from "./fixtures";
-import type { KapiFile } from "./store";
+import type { KapiFile, SessionState } from "./store";
 
 /** Run parameters shared by the initial mount and later imperative opens. */
 export interface KapiRunRequest {
@@ -27,6 +27,12 @@ export interface KapiEmbedHandle {
   openWith(req: KapiRunRequest): void;
   /** Reset the session: wipe the cwd, reseed, and clear the terminal. */
   reset(seed?: string[]): void;
+  /**
+   * Capture the reproducible session state: the files currently in the cwd
+   * (as inline files, so reader edits and command outputs are preserved) and
+   * the commands run so far. Returns null if the runtime is not ready yet.
+   */
+  snapshot(): SessionState | null;
 }
 
 export interface KapiEmbedProps extends KapiRunRequest {
@@ -63,6 +69,55 @@ function ensureSeed(runtime: KapiRuntime, names: string[] | undefined): void {
   }
 }
 
+// Max files / bytes we will pack into a shareable ?s= token. A demo session is
+// a handful of small files; this cap keeps the URL from ballooning if a command
+// emitted something large.
+const SNAPSHOT_MAX_FILES = 24;
+const SNAPSHOT_MAX_BYTES = 256 * 1024;
+
+/**
+ * Collect the files under `dir` (recursively, relative to the session cwd) as
+ * inline KapiFiles for a shareable snapshot. Binary-ish files that don't decode
+ * as UTF-8 are skipped — the demo fixtures and their outputs are all text.
+ */
+function collectFiles(runtime: KapiRuntime): KapiFile[] {
+  const cwd = runtime.cwd().replace(/\/$/, "");
+  const dec = new TextDecoder("utf-8", { fatal: true });
+  const out: KapiFile[] = [];
+  let bytes = 0;
+
+  const walk = (rel: string) => {
+    const abs = rel ? cwd + "/" + rel : cwd;
+    let names: string[];
+    try {
+      names = runtime.vol.readdir(abs);
+    } catch {
+      return;
+    }
+    for (const name of names) {
+      if (out.length >= SNAPSHOT_MAX_FILES) return;
+      const childRel = rel ? rel + "/" + name : name;
+      const childAbs = cwd + "/" + childRel;
+      if (runtime.vol.isDir(childAbs)) {
+        walk(childRel);
+        continue;
+      }
+      try {
+        const raw = runtime.vol.readFile(childAbs);
+        if (bytes + raw.length > SNAPSHOT_MAX_BYTES) continue;
+        const content = dec.decode(raw);
+        out.push({ path: childRel, content });
+        bytes += raw.length;
+      } catch {
+        /* skip unreadable / non-UTF-8 files */
+      }
+    }
+  };
+
+  walk("");
+  return out;
+}
+
 /**
  * Write inline files into the session cwd, filling gaps (never clobbering an
  * existing/edited file). `path` may be relative (resolved against cwd) or
@@ -75,6 +130,10 @@ function ensureFiles(runtime: KapiRuntime, files: KapiFile[] | undefined): void 
   for (const f of files) {
     const path = f.path.startsWith("/") ? f.path : cwd + "/" + f.path;
     if (!runtime.vol.exists(path)) {
+      // Create parent directories for nested paths (e.g. a restored "out/foo")
+      // before writing — writeFile requires the parent dir to exist.
+      const slash = path.lastIndexOf("/");
+      if (slash > 0) runtime.vol.mkdirp(path.slice(0, slash));
       runtime.vol.writeFile(path, enc.encode(f.content));
     }
   }
@@ -162,6 +221,13 @@ export default function KapiEmbed({
         }
         ensureSeed(runtime, resetSeed);
         bump();
+      },
+      snapshot: (): SessionState | null => {
+        if (!runtime) return null;
+        return {
+          files: collectFiles(runtime),
+          steps: termRef.current?.history() ?? [],
+        };
       },
     }),
     [runtime, drive, bump],

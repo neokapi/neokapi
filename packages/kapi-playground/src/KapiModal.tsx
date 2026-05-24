@@ -1,11 +1,30 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { X, RotateCcw } from "lucide-react";
+import { X, RotateCcw, Share2, Check } from "lucide-react";
 import KapiEmbed from "./KapiEmbed";
 import type { KapiEmbedHandle } from "./KapiEmbed";
-import { registerKapiModal } from "./store";
+import { registerKapiModal, serializeSession, deserializeSession } from "./store";
 import type { OpenKapiOptions } from "./store";
 import { useKapiConfig } from "./provider";
+
+// URL query param carrying a shareable session token (see store.ts).
+const SHARE_PARAM = "s";
+
+/**
+ * If the current URL carries a `?s=` session token, decode it into an
+ * openKapi request that restores the files and replays the commands. Returns
+ * null when there is no token or it is malformed. Browser-only.
+ */
+function requestFromUrl(): OpenKapiOptions | null {
+  if (typeof window === "undefined") return null;
+  const token = new URLSearchParams(window.location.search).get(SHARE_PARAM);
+  if (!token) return null;
+  const session = deserializeSession(token);
+  if (!session) return null;
+  // Restore files first (no seed — the shared files ARE the state), then replay
+  // the recorded commands as steps.
+  return { files: session.files, steps: session.steps, autoRun: true };
+}
 
 // Selector for focusable descendants — used by the focus trap.
 const FOCUSABLE =
@@ -32,6 +51,9 @@ export default function KapiModal(): React.ReactElement | null {
   const [initialReq, setInitialReq] = useState<OpenKapiOptions>({});
   // Remember the most recent seed so Reset restores the right fixtures.
   const lastSeed = useRef<string[] | undefined>(undefined);
+  // Transient "Copied" / "Shared" feedback on the Share button.
+  const [shared, setShared] = useState(false);
+  const shareTimer = useRef<number | undefined>(undefined);
 
   const embedRef = useRef<KapiEmbedHandle>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
@@ -43,8 +65,35 @@ export default function KapiModal(): React.ReactElement | null {
     lastFocused.current?.focus?.();
   }, []);
 
+  // Capture the current session, encode it into a `?s=` URL, write it to the
+  // address bar, and copy it to the clipboard. Falls back gracefully when the
+  // clipboard API is unavailable (still updates the URL, which is shareable).
+  const share = useCallback(async () => {
+    const session = embedRef.current?.snapshot();
+    if (!session) return;
+    const token = serializeSession(session);
+    const url = new URL(window.location.href);
+    url.searchParams.set(SHARE_PARAM, token);
+    const href = url.toString();
+    try {
+      window.history.replaceState(null, "", href);
+    } catch {
+      /* ignore — sandboxed iframe */
+    }
+    try {
+      await navigator.clipboard?.writeText(href);
+    } catch {
+      /* clipboard blocked — the address bar still holds the link */
+    }
+    setShared(true);
+    window.clearTimeout(shareTimer.current);
+    shareTimer.current = window.setTimeout(() => setShared(false), 1800);
+  }, []);
+
+  useEffect(() => () => window.clearTimeout(shareTimer.current), []);
+
   useEffect(() => {
-    return registerKapiModal((opts: OpenKapiOptions) => {
+    const unsubscribe = registerKapiModal((opts: OpenKapiOptions) => {
       lastFocused.current = (document.activeElement as HTMLElement) ?? null;
       lastSeed.current = opts.seed;
       setOpen(true);
@@ -60,6 +109,18 @@ export default function KapiModal(): React.ReactElement | null {
         return true;
       });
     });
+
+    // Deep-link: if the page was opened with a `?s=` session token, restore it
+    // immediately (mounts the embed and replays the shared commands).
+    const fromUrl = requestFromUrl();
+    if (fromUrl) {
+      lastSeed.current = fromUrl.seed;
+      setOpen(true);
+      setInitialReq(fromUrl);
+      setMounted(true);
+    }
+
+    return unsubscribe;
   }, []);
 
   // Esc to close + focus trap while open.
@@ -133,6 +194,19 @@ export default function KapiModal(): React.ReactElement | null {
         <div className="kapi-pg-modal-bar">
           <span className="kapi-pg-modal-title">kapi playground</span>
           <span className="kapi-pg-modal-hint">in-browser, no server · Esc to close</span>
+          <button
+            type="button"
+            className="kapi-pg-btn kapi-pg-btn--sm"
+            onClick={share}
+            title="Copy a shareable link that restores these files and replays these commands"
+          >
+            {shared ? (
+              <Check size={14} aria-hidden="true" />
+            ) : (
+              <Share2 size={14} aria-hidden="true" />
+            )}
+            <span>{shared ? "Link copied" : "Share"}</span>
+          </button>
           <button
             type="button"
             className="kapi-pg-btn kapi-pg-btn--sm"
