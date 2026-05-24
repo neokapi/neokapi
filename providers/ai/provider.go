@@ -197,6 +197,10 @@ const (
 	Gemini      ProviderID = "gemini"
 	AzureOpenAI ProviderID = "azureopenai"
 	Ollama      ProviderID = "ollama"
+	// Demo is a deterministic, offline provider that returns illustrative
+	// (not real-model) output. Used by the browser playground so AI commands
+	// run with no API keys. See demo.go.
+	Demo ProviderID = "demo"
 )
 
 // ProviderFactory creates an LLMProvider from a Config.
@@ -232,6 +236,8 @@ func init() {
 		"azure_openai")
 	RegisterProvider(ProviderInfo{Name: Ollama, Label: "Ollama"},
 		func(cfg Config) LLMProvider { return NewOllamaProvider(cfg) })
+	RegisterProvider(ProviderInfo{Name: Demo, Label: "Demo (illustrative)"},
+		func(cfg Config) LLMProvider { return NewDemoProvider(cfg) })
 }
 
 // RegisterProvider registers a new AI provider factory. Plugins can call this

@@ -19,6 +19,8 @@ import (
 
 	"github.com/neokapi/neokapi/cli"
 	"github.com/neokapi/neokapi/cli/config"
+	aiprovider "github.com/neokapi/neokapi/providers/ai"
+	mtprovider "github.com/neokapi/neokapi/providers/mt"
 	"github.com/spf13/cobra"
 	"syscall/js"
 )
@@ -29,6 +31,17 @@ func main() {
 	// Populate format + tool registries once so command construction (which
 	// enumerates tools/formats) sees them. InitRegistries is idempotent.
 	app.InitRegistries()
+
+	// Register the demo MT translate tool so `mt-translate` is enumerated by
+	// NewToolCommands(). The AI tools (ai-translate, ai-qa, brand-voice-check,
+	// …) are already registered by InitRegistries; the demo provider is forced
+	// for them per command run via forceDemoProviders (see buildRoot).
+	registerDemoMT(app.ToolReg)
+
+	// Route the one-time "demo mode" honesty notice to stderr so it surfaces in
+	// the browser terminal exactly like a real provider's diagnostics.
+	aiprovider.SetDemoNoticeWriter(os.Stderr)
+	mtprovider.SetDemoNoticeWriter(os.Stderr)
 
 	// Seed in-memory TM and termbase from embedded fixture data so the tm,
 	// termbase, term-check, and extract commands work in the browser build.
@@ -105,6 +118,10 @@ func buildRoot() *cobra.Command {
 		PersistentPreRun: func(*cobra.Command, []string) {
 			app.Config = config.NewAppConfig()
 			app.Init()
+			// App.Init installs a credential-resolution preprocessor; in the
+			// browser there are no credentials or network, so override it to
+			// coerce AI provider selection to the deterministic demo provider.
+			forceDemoProviders(app.ToolReg)
 		},
 	}
 
