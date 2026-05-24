@@ -90,7 +90,14 @@ func run(bridgeDir, metaPath, nativeDocsDir, outDir string) error {
 		return err
 	}
 
-	fmt.Printf("wrote %s/{formats,tools,reference-gaps}.json — %d formats, %d tools\n", outDir, len(formatEntries), len(toolEntries))
+	// Generate the command reference dataset from the kapi cobra tree.
+	cmdDataset := collectCommandDataset(now)
+	if err := writeJSON(filepath.Join(outDir, "commands.json"), cmdDataset); err != nil {
+		return err
+	}
+
+	fmt.Printf("wrote %s/{formats,tools,reference-gaps,commands}.json — %d formats, %d tools, %d commands\n",
+		outDir, len(formatEntries), len(toolEntries), len(cmdDataset.Commands))
 	printGapSummary(report)
 	return nil
 }
