@@ -1,72 +1,95 @@
 ---
 sidebar_position: 6
 title: Okapi Bridge
-description: The Okapi bridge provides access to Okapi Framework Java filters from neokapi — running a JVM subprocess that adapts between neokapi's Part model and Okapi's Event model over a gRPC protocol.
-keywords: [Okapi bridge, Java filters, gRPC, JVM, BridgeService, Part model, Event model, neokapi]
+description: The Okapi bridge exposes the Okapi Framework's Java filters to neokapi as a Mode-C plugin daemon — a JVM subprocess that adapts between neokapi's Part model and Okapi's Event model over the gRPC BridgeService.
+keywords: [Okapi bridge, Java filters, gRPC, JVM, BridgeService, Process RPC, daemon, Part model, Event model, neokapi]
 ---
 
 # Okapi Bridge
 
-The Okapi bridge provides access to the Okapi Framework filters without rewriting them in Go. It works by running a subprocess that hosts an adapter translating between neokapi's Part model and Okapi's Event model. The current implementation runs a JVM, but the bridge protocol is gRPC-based and language-agnostic.
+The Okapi bridge provides access to the Okapi Framework's filters without
+rewriting them in Go. It is the canonical [Mode-C plugin](/contribute/plugins#three-transport-modes):
+a long-lived daemon subprocess that hosts an adapter translating between
+neokapi's `Part` model and Okapi's `Event` model. The current implementation
+runs a JVM, but the bridge protocol is gRPC-based and language-agnostic.
 
-## How It Works
+## How it works
 
-The bridge subprocess starts a gRPC server and prints its socket address to stdout. The Go side connects as a client and communicates via the `BridgeService` defined in `core/plugin/proto/v2/neokapi_bridge.proto`:
+The bridge is installed like any other plugin (`kapi plugin install okapi-bridge`)
+and declares its filters as `formats` in its `manifest.json`. Because formats are
+a Mode-C capability, kapi launches the bridge as a daemon:
 
-| RPC           | Direction        | Purpose                                  |
-| ------------- | ---------------- | ---------------------------------------- |
-| `ListFilters` | Unary            | Discover available filters at startup    |
-| `Info`        | Unary            | Get metadata for a specific filter       |
-| `Open`        | Unary            | Open a document with a filter            |
-| `Read`        | Server-streaming | Stream extracted Parts from the document |
-| `Write`       | Client-streaming | Send Parts to reconstruct the document   |
-| `Close`       | Unary            | Release filter resources                 |
-| `Shutdown`    | Unary            | Gracefully stop the bridge               |
+1. kapi runs `<binary> daemon`. The JVM starts once per kapi session.
+2. The daemon binds a Unix-domain socket and prints a one-line JSON handshake on
+   stdout: `{"socket":"…","version":"…"}`. The socket is served with Netty's
+   native transports — **kqueue on macOS, epoll on Linux** — for kernel-level
+   throughput. If no socket path is configured (a legacy, non-daemon fallback
+   used by tests), the bridge instead serves gRPC on a localhost TCP port and
+   reports it as `tcp://…`.
+3. kapi opens a gRPC client to that Unix socket and dispatches
+   document-processing requests against the `BridgeService` defined in
+   [`core/plugin/proto/v2/neokapi_bridge.proto`](https://github.com/neokapi/neokapi/blob/main/core/plugin/proto/v2/neokapi_bridge.proto).
+   The host (`cli/pluginhost/daemon.go`) dials Unix sockets only.
 
-`Read` and `Write` use gRPC streaming — content flows incrementally without buffering the entire document in memory, which is critical for large files (e.g., XLSX).
+Bridge-backed formats are registered into the standard `FormatRegistry`
+(see `cli/pluginhost/format_factory.go`) and are indistinguishable from native
+formats at the API level — flows and commands reference `okapi-html`, `okapi-xml`,
+and so on without knowing they come from a subprocess.
 
-Bridge-backed formats are registered into the standard `FormatRegistry` and are indistinguishable from native formats at the API level.
+## BridgeService
 
-## Global Bridge Pool
+A single bidirectional-streaming `Process` RPC handles the whole document
+lifecycle, replacing the per-step `Open`/`Read`/`Write`/`Close` RPCs of the v1
+protocol:
 
-A single process-wide `BridgePool` manages all bridge subprocess instances. The pool is keyed by process configuration (command + args), but the total number of running subprocesses never exceeds `maxSize` (default: `runtime.NumCPU()`).
+| RPC           | Shape                | Purpose                                                        |
+| ------------- | -------------------- | -------------------------------------------------------------- |
+| `Process`     | Bidirectional stream | Full read / read-write / write-only document cycle (see below) |
+| `ProcessStep` | Bidirectional stream | Run a single Okapi pipeline step over a stream of parts        |
+| `Shutdown`    | Unary                | Gracefully stop the bridge daemon                              |
 
-```go
-type BridgePool struct {
-    mu      sync.Mutex
-    cond    *sync.Cond
-    maxSize int
-    active  int                       // total running (idle + in-use)
-    closed  bool
-    logger  *log.Logger
-    idle    map[string][]*JavaBridge   // keyed by PoolKey
-}
-```
+The client opens a `Process` stream and sends a `ProcessHeader` first, which
+selects the mode:
 
-### Acquire Logic
+- **Read-only** (no output ref in the header) — Java reads the document and
+  streams `Part`s back; Go closes the send side when done receiving.
+- **Read-write** (output ref present) — Java reads and retains its `Event`s while
+  streaming parts; Go sends processed parts back concurrently; Java's write thread
+  applies translations to the retained `Event`s and writes the result.
+- **Write-only** — same as read-write, but Go ignores the read-phase parts and
+  drives the output entirely from the parts it sends.
 
-1. Return idle bridge for requested key (LIFO for cache warmth)
-2. If capacity available, create new bridge
-3. If at capacity but idle bridges exist for a different key, evict one
-4. If all bridges are in-use with none idle, block until one is released
+Streaming means content flows incrementally without buffering the whole document
+in memory — critical for large files (e.g. XLSX, IDML). The host-side client that
+drives these RPCs lives in
+[`cli/pluginhost/format_client.go`](https://github.com/neokapi/neokapi/blob/main/cli/pluginhost/format_client.go);
+`Part` ↔ proto conversion lives in
+[`core/plugin/protoconvert/`](https://github.com/neokapi/neokapi/tree/main/core/plugin/protoconvert).
 
-Bridges are health-checked on release to prevent stale subprocesses from causing hangs.
+## Daemon reuse and capacity
 
-## Bridge Descriptor
+kapi's daemon pool (`cli/pluginhost/daemon.go`) keeps the JVM warm across
+successive operations within a session, so the bridge's startup cost is paid once
+rather than per file. Idle daemons are shut down after the manifest's
+`idle_timeout_seconds` (default 5 min), and the number of concurrent daemons is
+capped via `KAPI_MAX_DAEMONS` (default 8) with LRU eviction.
 
-Each plugin version includes a `*.bridge.json` descriptor:
+## Packaging
 
-```json
-{
-  "jar": "neokapi-okapi-bridge.jar",
-  "jvmArgs": ["-Xmx512m"],
-  "filters": ["html", "xml", "docx", "xlsx", "epub"],
-  "timeout": "30s"
-}
-```
+The Okapi bridge is built with `jpackage` (no Go shim): each release produces a
+native launcher plus a bundled JRE per platform, cosign-signed via GitHub Actions
+keyless OIDC. Multiple versions can be installed side by side and pinned per
+recipe (`requires: { okapi-bridge: ">=1.47.0" }`).
 
-## Available Filters
+## Available filters
 
-Through the Okapi bridge, neokapi can access Okapi's full filter library including DOCX, XLSX, EPUB, IDML, PDF, DITA, FrameMaker, InDesign, and many more.
+Through the Okapi bridge, neokapi reaches Okapi's full filter library — including
+DOCX, XLSX, EPUB, IDML, DITA, FrameMaker, and many more. The authoritative list is
+the bridge's published `manifest.json`; see the
+[neokapi/okapi-bridge](https://github.com/neokapi/okapi-bridge) repository.
 
-See [AD-007](/contribute/architecture/007-plugin-system) for the complete design rationale.
+## See also
+
+- [Plugin System](/contribute/plugins) — how kapi discovers and dispatches to Mode-C daemons
+- [AD-007: Plugin System and Okapi Bridge](/contribute/architecture/007-plugin-system) — design rationale
+- [Okapi Bridge Protocol note](/contribute/notes-internal/plugin-bridge-protocol) — `Process` RPC details and Part↔Event translation

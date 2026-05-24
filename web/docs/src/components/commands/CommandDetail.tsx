@@ -1,5 +1,6 @@
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import useBaseUrl from "@docusaurus/useBaseUrl";
 import type { CommandEntry } from "@neokapi/reference-data";
 import RunnableSnippet from "@site/src/components/KapiPlayground/RunnableSnippet";
 import { commandName, commandSummary, firstRunnableExample, seedFor } from "./commandHelpers";
@@ -21,6 +22,8 @@ interface Props {
  *   !runnableInBrowser             → Watch note (network/server required)
  */
 export default function CommandDetail({ cmd }: Props) {
+  const guidesHref = useBaseUrl("/guides");
+  const installHref = useBaseUrl("/get-started/installation");
   const name = commandName(cmd);
   const summary = commandSummary(cmd);
   const flags = cmd.flags ?? [];
@@ -92,8 +95,8 @@ export default function CommandDetail({ cmd }: Props) {
               it can't run in the browser playground.
             </span>
             <span>
-              See the <a href="/guides">guides</a> for a recorded run, or try it locally
-              with the <a href="/get-started/installation">installed CLI</a>.
+              See the <a href={guidesHref}>guides</a> for a recorded run, or try it locally
+              with the <a href={installHref}>installed CLI</a>.
             </span>
           </div>
         )}

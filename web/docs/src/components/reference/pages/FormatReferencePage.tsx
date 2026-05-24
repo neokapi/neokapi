@@ -1,3 +1,4 @@
+import useBaseUrl from "@docusaurus/useBaseUrl";
 import { formats } from "@neokapi/reference-data";
 import type { ReferenceEntry } from "@neokapi/reference-data";
 import { BlockPreview } from "@site/src/components/curated";
@@ -19,6 +20,7 @@ interface Props {
  * page; all content derives from the data.
  */
 export default function FormatReferencePage({ id }: Props) {
+  const formatsHref = useBaseUrl("/formats");
   const entry: ReferenceEntry | undefined = formats.entries.find((e) => e.id === id);
   if (!entry) {
     return <p>Unknown format: {id}</p>;
@@ -132,7 +134,7 @@ export default function FormatReferencePage({ id }: Props) {
       )}
 
       <p className={styles.browseBack}>
-        &larr; Back to the <a href="/formats">Format Reference</a>
+        &larr; Back to the <a href={formatsHref}>Format Reference</a>
       </p>
     </div>
   );

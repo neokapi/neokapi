@@ -1,3 +1,4 @@
+import useBaseUrl from "@docusaurus/useBaseUrl";
 import { tools } from "@neokapi/reference-data";
 import type { ReferenceEntry, ReferenceSource } from "@neokapi/reference-data";
 import { BeforeAfter } from "@site/src/components/curated";
@@ -25,6 +26,7 @@ interface Props {
  * Imported by the generated MDX page; all content derives from the data.
  */
 export default function ToolReferencePage({ id, source }: Props) {
+  const toolsHref = useBaseUrl("/tools");
   const entry: ReferenceEntry | undefined = tools.entries.find(
     (e) => e.id === id && e.source === source,
   );
@@ -146,7 +148,7 @@ export default function ToolReferencePage({ id, source }: Props) {
       )}
 
       <p className={styles.browseBack}>
-        &larr; Back to the <a href="/tools">Tool Reference</a>
+        &larr; Back to the <a href={toolsHref}>Tool Reference</a>
       </p>
     </div>
   );

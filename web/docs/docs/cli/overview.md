@@ -73,7 +73,7 @@ kapi tm lookup "Welcome to our platform" -s en -t fr
 
 # List presets and plugins
 kapi presets list
-kapi plugins list
+kapi plugin list
 ```
 
 ## When to Use Kapi

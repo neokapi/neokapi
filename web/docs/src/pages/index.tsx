@@ -4,7 +4,7 @@ import useBaseUrl from "@docusaurus/useBaseUrl";
 import useDocusaurusContext from "@docusaurus/useDocusaurusContext";
 import Layout from "@theme/Layout";
 import Heading from "@theme/Heading";
-import { Play, Terminal } from "lucide-react";
+import { Play, Sparkles, Terminal } from "lucide-react";
 // Import from the SSR-clean ./store subpath, NOT the index barrel: the barrel
 // re-exports KapiModal/KapiEmbed, which pull in xterm + the wasm boot path.
 // openKapi is just the lightweight event bus, so the hero CTA fetches zero wasm
@@ -33,7 +33,7 @@ function HeroTerminal() {
       type="button"
       className={styles.heroTerminal}
       onClick={tryItLive}
-      aria-label="Try kapi in your browser — runs kapi pseudo-translate in an in-browser terminal, no install"
+      aria-label="Run kapi pseudo-translate in an in-browser terminal"
     >
       <span className={styles.heroTerminalBar} aria-hidden="true">
         <span className={styles.heroDot} data-tone="red" />
@@ -77,18 +77,18 @@ function HomepageHeader() {
             {siteConfig.title} &mdash; {siteConfig.tagline}
           </Heading>
           <p className={styles.heroSubtitle}>
-            Open, AI-native localization in Go. Try the real <code>kapi</code> CLI right here in
-            your browser &mdash; no install, no sign-up, and nothing leaves your machine.
+            An open-source engine in Go that parses localization, document, and data formats into a
+            faithful content model &mdash; then translates, enforces terminology, and keeps content
+            on-brand, whether a person or an agent wrote it.
           </p>
           <div className={styles.buttons}>
-            <button
-              type="button"
+            <Link
               className={clsx("button button--lg", styles.tryButton)}
-              onClick={tryItLive}
+              to="/get-started/use-with-claude"
             >
-              <Play size={18} aria-hidden="true" fill="currentColor" />
-              Try kapi in your browser
-            </button>
+              <Sparkles size={18} aria-hidden="true" />
+              Try Kapi with Claude
+            </Link>
             <Link
               className="button button--secondary button--lg"
               to="/get-started/introduction"
@@ -96,9 +96,6 @@ function HomepageHeader() {
               Get Started
             </Link>
           </div>
-          <p className={styles.heroHint}>
-            No install &middot; no sign-up &middot; runs entirely on your device
-          </p>
         </div>
         <div className={styles.heroAside}>
           <HeroTerminal />
@@ -155,13 +152,6 @@ function HomepageFeatures() {
   return (
     <section className={styles.features}>
       <div className="container">
-        <Heading as="h2" className="text--center margin-bottom--lg">
-          Neokapi Framework
-        </Heading>
-        <p className="text--center margin-bottom--lg">
-          Open-source localization engine and <Link to="/cli/overview">kapi CLI</Link> for
-          standalone file processing.
-        </p>
         <div className="row margin-bottom--xl">
           {NeokapiFeatures.map((props, idx) => (
             <ProductCard key={idx} {...props} />
