@@ -1,27 +1,31 @@
 {
   "name": "@neokapi/kapi-format",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "description": "Canonical TypeScript schema for the Kapi Localization Format (KLF). Block/Run content model, reference Level-1 preview renderer, target validator, annotation overlay resolver. Mirrors core/klf in Go byte-for-byte against shared golden fixtures.",
   "type": "module",
-  "main": "src/index.ts",
-  "types": "src/index.ts",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "exports": {
-    ".": "./src/index.ts",
-    "./block": "./src/block.ts",
-    "./vocabulary": "./src/vocabulary.ts",
-    "./preview": "./src/preview.ts",
-    "./annotation": "./src/annotation.ts",
-    "./klf": "./src/klf.ts",
-    "./target-plural": "./src/target-plural.ts",
+    ".": { "development": "./src/index.ts", "types": "./dist/index.d.ts", "default": "./dist/index.js" },
+    "./block": { "development": "./src/block.ts", "types": "./dist/block.d.ts", "default": "./dist/block.js" },
+    "./vocabulary": { "development": "./src/vocabulary.ts", "types": "./dist/vocabulary.d.ts", "default": "./dist/vocabulary.js" },
+    "./preview": { "development": "./src/preview.ts", "types": "./dist/preview.d.ts", "default": "./dist/preview.js" },
+    "./annotation": { "development": "./src/annotation.ts", "types": "./dist/annotation.d.ts", "default": "./dist/annotation.js" },
+    "./klf": { "development": "./src/klf.ts", "types": "./dist/klf.d.ts", "default": "./dist/klf.js" },
+    "./target-plural": { "development": "./src/target-plural.ts", "types": "./dist/target-plural.d.ts", "default": "./dist/target-plural.js" },
     "./package.json": "./package.json"
   },
+  "files": ["dist", "src"],
   "scripts": {
+    "build": "node build.mjs",
     "typecheck": "vpx tsc --noEmit",
     "validate": "node --experimental-strip-types examples/validate.ts",
     "test": "vitest run"
   },
   "devDependencies": {
+    "esbuild": "^0.28.0",
+    "typescript": "^6.0.3",
     "vitest": "^4.1.5"
   },
   "engines": {
