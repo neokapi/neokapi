@@ -1,14 +1,15 @@
 import fs from "node:fs";
 import path from "node:path";
 import { Buffer } from "node:buffer";
-import type { DemoManifest, NarrationManifest, NarrationScene } from "../types.ts";
+import type { DemoManifest, NarrationManifest, NarrationScene, NarrationSpec } from "../types.ts";
 import { ensureDir, publicDemoDir } from "../lib/paths.ts";
 import { run } from "../lib/exec.ts";
 
 /** Style directive prepended to every Gemini TTS request to get a clear English narrator. */
 const GEMINI_STYLE =
   "Read this aloud in a clear, warm, professional British-English documentary-narrator voice, " +
-  "at a measured, unhurried pace. Always pronounce the product name \"kapi\" as KAH-pee — two " +
+  "at a measured, unhurried, and consistent pace — keep the exact same tone, energy, and tempo " +
+  "from the first word to the last. Always pronounce the product name \"kapi\" as KAH-pee — two " +
   "syllables, stress on the first, the 'a' as in 'father' — never ka-PEE or kap-ee: ";
 
 type Backend = "gemini" | "elevenlabs" | "openai" | "say";
@@ -89,22 +90,41 @@ async function toWav(input: string, output: string): Promise<void> {
   if (r.code !== 0) throw new Error(`ffmpeg failed: ${r.stderr.slice(-400)}`);
 }
 
-/** Narration playback speed (atempo), pitch-preserving. Default 1.3 = noticeably brisker. */
+/** Narration playback speed (atempo), pitch-preserving. Default 1.3 = noticeably brisker.
+ *  This is the overall briskness target; per-scene pace is equalized around it (see
+ *  narrateDemo) so scenes don't drift faster/slower than one another. */
 function narrationSpeed(): number {
   const s = Number(process.env.NARRATION_SPEED);
   return Number.isFinite(s) && s > 0 ? s : 1.3;
 }
 
-/** Speed up a WAV in place by the configured atempo factor (no pitch change). */
-async function applySpeed(wav: string): Promise<void> {
-  const speed = narrationSpeed();
-  if (Math.abs(speed - 1) < 0.001) return;
+/** TTS sampling temperature. Lower = steadier tone/pace across the separate per-scene
+ *  calls. Default 0.4 ("stable" per Gemini's docs). Override with NARRATION_TEMPERATURE. */
+function geminiTemperature(): number {
+  const t = Number(process.env.NARRATION_TEMPERATURE);
+  return Number.isFinite(t) && t >= 0 ? t : 0.4;
+}
+
+/** Speed a WAV in place by an explicit atempo factor (pitch-preserving). */
+async function applyTempo(wav: string, factor: number): Promise<void> {
+  if (Math.abs(factor - 1) < 0.001) return;
   const tmp = wav + ".speed.wav";
-  const r = await run("ffmpeg", ["-y", "-i", wav, "-filter:a", `atempo=${speed.toFixed(3)}`, "-ar", "24000", "-ac", "1", "-c:a", "pcm_s16le", tmp], {
+  const r = await run("ffmpeg", ["-y", "-i", wav, "-filter:a", `atempo=${factor.toFixed(3)}`, "-ar", "24000", "-ac", "1", "-c:a", "pcm_s16le", tmp], {
     timeoutMs: 60_000,
   });
   if (r.code !== 0) throw new Error(`ffmpeg atempo failed: ${r.stderr.slice(-400)}`);
   fs.renameSync(tmp, wav);
+}
+
+function countWords(text: string): number {
+  return text.trim().split(/\s+/).filter(Boolean).length;
+}
+
+function median(nums: number[]): number {
+  if (nums.length === 0) return 0;
+  const s = [...nums].sort((a, b) => a - b);
+  const mid = Math.floor(s.length / 2);
+  return s.length % 2 ? s[mid] : (s[mid - 1] + s[mid]) / 2;
 }
 
 // ── Backends ────────────────────────────────────────────────────────────────
@@ -117,6 +137,11 @@ async function geminiTts(text: string, voice: string, outWav: string): Promise<v
     contents: [{ parts: [{ text: GEMINI_STYLE + text }] }],
     generationConfig: {
       responseModalities: ["AUDIO"],
+      // Lower temperature = steadier delivery between scenes. Each scene is a separate
+      // request, and this generative TTS model otherwise re-rolls its tone/energy per call;
+      // Gemini's docs put "stable" around 0.4 and "lively" at 0.7+. Pin it so the narrator
+      // doesn't shift voice/tone scene-to-scene. Override with NARRATION_TEMPERATURE.
+      temperature: geminiTemperature(),
       speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: voice } } },
     },
   };
@@ -212,18 +237,29 @@ export async function narrateDemo(m: DemoManifest, opts: NarrateOptions = {}): P
   const { backend, voice } = pickBackend();
   console.log(`  · narrating ${m.id} with ${backend} (${voice}), ${m.narration.length} scenes`);
 
-  const scenes: NarrationScene[] = [];
+  // Pass 1 — synthesize every spoken scene at the model's natural rate. We defer the
+  // tempo step so we can equalize pace across scenes afterwards: a flat per-scene
+  // multiplier preserves whatever rate each independent TTS call happened to choose,
+  // which is the main source of scene-to-scene "speed" drift.
+  interface Synthed {
+    spec: NarrationSpec;
+    wavName: string;
+    outWav: string;
+    spoken: boolean;
+    words: number;
+    naturalDur: number;
+  }
+  const synthed: Synthed[] = [];
   for (const spec of m.narration) {
     const wavName = `${spec.id}.wav`;
     const outWav = path.join(audioDir, wavName);
-    let durationSec = 0;
-    let audio: string | undefined;
-    if (spec.text?.trim()) {
+    const text = spec.text?.trim() ?? "";
+    if (text) {
       let attempt = 0;
       // Retry transient TTS errors a couple of times.
       while (true) {
         try {
-          await synthOne(backend, voice, spec.text.trim(), outWav);
+          await synthOne(backend, voice, text, outWav);
           break;
         } catch (e) {
           attempt++;
@@ -232,19 +268,42 @@ export async function narrateDemo(m: DemoManifest, opts: NarrateOptions = {}): P
           await new Promise((r) => setTimeout(r, 1500 * attempt));
         }
       }
-      await applySpeed(outWav);
-      durationSec = wavDurationSec(outWav);
-      audio = `audio/${wavName}`;
+      synthed.push({ spec, wavName, outWav, spoken: true, words: countWords(text), naturalDur: wavDurationSec(outWav) });
+    } else {
+      synthed.push({ spec, wavName, outWav, spoken: false, words: 0, naturalDur: 0 });
+    }
+  }
+
+  // Pass 2 — target one words-per-second pace for the whole video: the median natural
+  // pace scaled by NARRATION_SPEED. Each scene is nudged toward it (clamped to ±20–25%
+  // of the global speed so no clip is stretched into artefacts) so the narrator sounds
+  // equally brisk throughout instead of speeding up and slowing down between scenes.
+  const speed = narrationSpeed();
+  const naturalWps = synthed.filter((s) => s.spoken && s.naturalDur > 0).map((s) => s.words / s.naturalDur);
+  const targetWps = median(naturalWps) * speed;
+  const minF = speed * 0.8;
+  const maxF = speed * 1.25;
+
+  const scenes: NarrationScene[] = [];
+  for (const s of synthed) {
+    let durationSec = 0;
+    let audio: string | undefined;
+    if (s.spoken) {
+      const wps = s.naturalDur > 0 ? s.words / s.naturalDur : 0;
+      const factor = wps > 0 && targetWps > 0 ? Math.min(maxF, Math.max(minF, targetWps / wps)) : speed;
+      await applyTempo(s.outWav, factor);
+      durationSec = wavDurationSec(s.outWav);
+      audio = `audio/${s.wavName}`;
     }
     scenes.push({
-      id: spec.id,
-      kind: spec.kind,
-      text: spec.text.trim(),
-      caption: spec.caption?.trim() || captionFromText(spec.text),
-      artifact: spec.artifact,
+      id: s.spec.id,
+      kind: s.spec.kind,
+      text: s.spec.text.trim(),
+      caption: s.spec.caption?.trim() || captionFromText(s.spec.text),
+      artifact: s.spec.artifact,
       audio,
       durationSec,
-      holdSec: spec.holdSec ?? defaultHold(spec.kind),
+      holdSec: s.spec.holdSec ?? defaultHold(s.spec.kind),
     });
   }
 
