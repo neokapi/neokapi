@@ -5,143 +5,100 @@ slug: /get-started/introduction
 ---
 
 import RunnableSnippet from "@site/src/components/KapiPlayground/RunnableSnippet";
+import { DualExample } from "@site/src/components/curated";
 
 # Introduction
 
-neokapi is the open engine that keeps your AI coding assistant **on-brand and
-terminologically consistent** — and ships the result in **every language and
-every format**. It is **open source** and **offline by default**.
+neokapi is a **framework for format-aware localization**. At its core is a
+content model that represents translatable text independently of the file it
+came from, a set of format readers and writers that move documents in and out of
+that model, and processing tools — translation, QA, terminology enforcement,
+brand-voice checks — that compose into concurrent pipelines. It is **open
+source** and **offline by default**.
 
-## Two jobs, one engine
+The framework is the thing; the CLI is one surface onto it. The same engine is
+reachable from the command line (`kapi`), from React (`@neokapi/kapi-react`),
+from the desktop app, and as a Go library. This page introduces the model and
+shows a runnable taste from the CLI.
 
-**1. Keep AI output on-brand.** Plug `kapi` into your AI coding assistant
-(Claude Code, Cursor, Windsurf, or any MCP client) so the strings, docs, and
-copy it generates stay on-voice and use the right terminology. Load a
-machine-readable brand voice profile, score any text 0–100 across five
+## What the framework does
+
+A document — JSON, DOCX, Markdown, XLIFF, an Android `strings.xml`, an Apple
+`.xcstrings`, and [more](/formats) — is read into a **content model**: the
+translatable text is segmented into _blocks_, each with a stable id, while the
+surrounding structure and inline markup are held separately so a round-trip
+writes the file back faithfully. Tools transform blocks as they stream through;
+a writer reassembles the original format around the transformed text.
+
+Here is the same file seen two ways — the CLI command on the left, and the
+content model the framework parsed it into on the right:
+
+<DualExample
+  command="kapi word-count messages.json"
+  seed={["messages.json"]}
+  result={{
+    kind: "blocks",
+    sample: "messages.json",
+    title: "messages.json — parsed blocks",
+    caption: "How the framework sees the file: translatable blocks with stable ids.",
+  }}
+/>
+
+The block view is the framework's own representation. Everything else — word
+counts, pseudo-translation, AI translation, QA — is a tool operating on these
+blocks.
+
+## Two things you can do with it
+
+**Localize anything.** Read and write localization, document, data, subtitle,
+and office formats natively, with more available through the okapi-bridge (see
+the [Format Reference](/formats)), then translate with an LLM or MT backend,
+reuse a content-aware translation memory, enforce terminology, and run QA — all
+composable into [flows](/framework/architecture).
+
+**Keep AI output on-brand.** Plug `kapi` into your AI coding assistant (Claude
+Code, Cursor, Windsurf, or any [MCP](https://modelcontextprotocol.io/) client)
+so the strings, docs, and copy it generates stay on-voice and use the right
+terminology. Load a machine-readable brand-voice profile, score text across five
 dimensions, and rewrite content that drifts off-brand — locally, without sending
 your content anywhere unless you choose to.
 
-**2. Localize anything.** neokapi is a format-aware localization toolkit. It
-reads and writes localization, document, data, subtitle, and office formats
-natively, with more available through the okapi-bridge (see the
-[format reference](/formats)), plus AI translation, MT backends, translation
-memory, terminology enforcement, and QA — composable into concurrent pipelines.
+Both share the same content model and enforcement path, so the words your AI
+writes stay on-brand and consistent through every language.
 
-Both jobs share the same model and enforcement path, so the words your AI writes
-stay on-brand and consistent through every language.
+## A runnable taste
 
-## What sets it apart
-
-Three axes that no single competitor spans:
-
-- **Offline / local-first.** A single self-contained binary with SQLite-backed
-  TM and termbase. Run entirely offline with local models (Ollama), or opt into
-  a cloud LLM and a governance server — your choice, not a default.
-- **Brand + terminology + localization, unified.** Voice scoring, term
-  enforcement, and translation are one engine on one model — not a prompt-only
-  brand skill, and not a string-and-key localization MCP.
-- **Any asset format.** Round-trip DOCX, XLSX, PPTX, HTML, Markdown, JSON, YAML,
-  XML, PO, subtitles, InDesign and more — in place, not just JSON keys.
-
-## Brand voice with the kapi CLI
-
-```bash
-# Print a brand voice guide to inject into your AI assistant's context.
-# Use a built-in starter pack, a profile in the local store, or a YAML file:
-#   --pack <name> | --profile <name> | --profile-file <path>
-kapi brand guide --pack friendly-dtc
-
-# Score content against a profile; --min-score gates CI (exit code 3).
-# Input comes from a file argument, --text, or stdin.
-kapi brand check --profile-file brand.yaml --min-score 80 release-notes.md
-
-# Rewrite off-voice content to fix forbidden/competitor terms
-kapi brand rewrite --profile-file brand.yaml --text "Leverage our solution"
-
-# Translate — brand-voice-aware via a flow — into any language.
-# Bind the profile on the flow/recipe; the guide is injected into the prompt.
-kapi run ai-translate-qa -i app.json -o app.de.json --source-lang en --target-lang de
-
-# Serve brand + terminology tools to your AI assistant over MCP
-kapi mcp
-```
-
-Five starter packs ship built in: `professional-b2b`, `friendly-dtc`,
-`technical-docs`, `marketing-blog`, and `customer-support`. See
-[Brand Voice](/framework/brand-voice) for the profile schema and scoring model.
-
-## Localization with the kapi CLI
-
-```bash
-# Pseudo-translate a file for UI testing
-kapi pseudo-translate messages.json --target-lang qps
-
-# Count words for cost estimation
-kapi word-count content/*.md
-
-# Translate with AI, then run a QA check
-kapi run ai-translate-qa -i input.html -o output.html --source-lang en --target-lang fr
-
-# List supported formats, tools, and flows
-kapi formats
-kapi tools
-kapi flows
-
-# Manage terminology and translation memory
-kapi termbase import terms.csv --format csv -s en -t fr
-kapi tm import translations.tmx --name project-tm -s en -t fr
-```
-
-No project initialization, server, or configuration required — `kapi` operates
-directly on files.
-
-You don't even need to install it first. Press **▸ Run** to execute the real
-`kapi` binary, right here in your browser:
+You don't need to install anything to try it. The command below runs the **real
+`kapi` binary** compiled to WebAssembly, right here in your browser — press
+**▸ Run**. It seeds a small `messages.json`, pseudo-translates it, and writes
+`messages-qps.json`, which you can preview in the **Files** panel:
 
 <RunnableSnippet
-  cmd="kapi pseudo-translate messages.json"
+  cmd="kapi pseudo-translate messages.json -o messages-qps.json"
   seed={["messages.json"]}
 />
 
-See [Try It in Your Browser](/get-started/try-it) for more runnable
-examples, or the [CLI Playground](/playground-cli) for a full terminal.
+The accented output (`▒ Ĥéļļö, Ŵöŕļđ! ▒`) is the framework reading the file,
+streaming each block through the pseudo-translation tool, and writing the JSON
+back with structure intact. See [Try It in Your Browser](/get-started/try-it)
+for more runnable examples, or the [CLI Playground](/playground-cli) for a full
+terminal.
 
-## Inside your AI assistant (MCP)
+## Inside your AI assistant
 
-`kapi mcp` exposes `brand_guide`, `brand_check`, `brand_rewrite`, `term_lookup`,
-and `tm_search` to any [MCP](https://modelcontextprotocol.io/) client. Your AI
-assistant can consult the brand profile and terminology _while it writes_, so
-content is on-brand at generation time — not flagged afterward. See
-[Using Kapi with AI Assistants](/cli/mcp).
+`kapi mcp` exposes brand and terminology tools — `brand_guide`, `brand_check`,
+`brand_rewrite`, `term_lookup`, `tm_search` — to any MCP client. Your assistant
+can consult the brand profile and terminology _while it writes_, so content is
+on-brand at generation time rather than flagged afterward. See
+[Using Kapi with AI Assistants](/cli/mcp), or
+[Using kapi with Claude](/get-started/use-with-claude) for the skill-based
+workflow.
 
-## Capabilities
+## Architecture at a glance
 
-neokapi reads and writes localization, document, data, subtitle, and office
-formats, detecting the format from extension, MIME type, or content (see the
-[Format Reference](/formats) for the current set). Content moves through a
-channel-based pipeline in which each tool runs in its own goroutine, connected
-by buffered channels with backpressure.
-
-The processing tools include brand voice scoring and rewriting, LLM-assisted
-translation, QA, and review (Anthropic, OpenAI, Google Gemini, and Ollama),
-machine-translation backends (DeepL, Google, Microsoft, ModernMT, MyMemory), a
-content-aware translation memory ([Sievepen](/framework/translation-memory)) with
-TMX import/export, and concept-oriented [terminology](/framework/terminology) with
-pipeline enforcement. The format and tool sets extend through crash-isolated
-gRPC plugins and a bridge to the Java Okapi filters.
-
-## Scale from solo to a team
-
-Governance is built in and open: gate brand compliance in CI with
-`kapi brand check --min-score`, and share brand profiles and termbases as
-version-controlled files. When a team needs shared score trends, CMS connectors,
-and automation, connect a server — self-host it, or use a managed platform such
-as [Bowrain](https://bowrain.cloud). neokapi is the open-source framework and
-community home; a hosted platform is one option, never a requirement.
-
-## Architecture Overview
-
-Content flows through a concurrent streaming pipeline:
+Content flows through a channel-based concurrent pipeline. Each tool runs in its
+own goroutine, connected by buffered channels that provide backpressure;
+context cancellation propagates to every stage:
 
 ```
 Input File → DataFormatReader → [Tool 1] → [Tool 2] → ... → DataFormatWriter → Output File
@@ -149,8 +106,9 @@ Input File → DataFormatReader → [Tool 1] → [Tool 2] → ... → DataFormat
                               chan *Part    chan *Part
 ```
 
-Each tool runs in its own goroutine. Buffered channels provide backpressure.
-Context cancellation propagates to all stages.
+See [Architecture](/framework/architecture) for the streaming model and
+[Content Model](/framework/content-model) for blocks, fragments, and inline
+spans.
 
 ## Terminology
 
@@ -169,9 +127,11 @@ If you're familiar with the Okapi Framework, here's how concepts map:
 | StartSubDocument/SubFilter | Child Layer                |
 | Tikal                      | kapi (CLI)                 |
 
-## Next Steps
+## Next steps
 
-- [Installation](/get-started/installation) — install kapi CLI
-- [Quick Start](/get-started/quickstart) — keep AI output on-brand, then localize it
-- [Brand Voice](/framework/brand-voice) — profiles, scoring, and enforcement
-- [Using Kapi with AI Assistants](/cli/mcp) — wire kapi into Claude Code, Cursor, and more
+- [Try It in Your Browser](/get-started/try-it) — run real `kapi` in one click,
+  no install
+- [Quick Start](/get-started/quickstart) — runnable first steps
+- [Installation](/get-started/installation) — when you're ready to run locally
+- [Using kapi with Claude](/get-started/use-with-claude) — wire kapi into your
+  AI assistant

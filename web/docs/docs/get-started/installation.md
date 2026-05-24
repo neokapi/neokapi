@@ -1,12 +1,13 @@
 ---
-sidebar_position: 2
+sidebar_position: 4
 title: Installation
 ---
 
 # Installation
 
-Install the `kapi` CLI to keep AI output on-brand and localize content — a
-single self-contained binary that runs offline by default.
+Once you've [tried kapi in the browser](/get-started/try-it), install the `kapi`
+CLI to run it locally and against your own files — a single self-contained
+binary that runs offline by default.
 
 ## Homebrew (macOS/Linux)
 
@@ -41,6 +42,20 @@ make build       # Build kapi CLI → bin/kapi
 ```bash
 kapi version
 ```
+
+## Add a provider credential (optional)
+
+The rule-based commands — pseudo-translate, word-count, brand checks against a
+profile file — need no credential. For LLM-backed translation, QA, and review,
+save a provider key once under a name you'll reference in flows:
+
+```bash
+kapi credentials add my-openai --provider openai --api-key sk-…
+kapi credentials list       # see what's saved
+```
+
+Credentials live in your OS keychain. See the
+[Quick Start](/get-started/quickstart) for what to run next.
 
 ## Kapi
 

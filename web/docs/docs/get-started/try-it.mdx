@@ -1,5 +1,5 @@
 ---
-sidebar_position: 4
+sidebar_position: 2
 title: Try It in Your Browser
 ---
 
@@ -7,15 +7,16 @@ import RunnableSnippet from "@site/src/components/KapiPlayground/RunnableSnippet
 
 # Try It in Your Browser
 
-Every command on this page runs the **real `kapi` binary**, right here in your
-browser — nothing leaves your machine. Press **▸ Run** on any command to open
-the playground; the first run takes a moment to start, then it's instant.
+Every command on this page runs the **real `kapi` binary** — compiled to
+WebAssembly and executed right here, nothing leaves your machine. Press **▸ Run**
+on any command. The first run takes a moment to start; after that it's instant.
+No install required.
 
 ## Pseudo-translate a file
 
 Pseudo-translation replaces source text with accented look-alikes so you can
-spot untranslated strings and layout problems before real translation. The
-command seeds a small `messages.json` and writes `out.json`:
+spot untranslated strings and layout problems before real translation. This
+seeds a small `messages.json` and writes `out.json`:
 
 <RunnableSnippet
   cmd="kapi pseudo-translate messages.json -o out.json"
@@ -31,7 +32,7 @@ Estimate translation volume for the same file:
 
 <RunnableSnippet cmd="kapi word-count messages.json" seed={["messages.json"]} />
 
-## Explore the formats kapi understands
+## See what kapi understands
 
 This one needs no input file — it lists every registered format:
 
@@ -43,3 +44,9 @@ With `editable`, the command is placed at the prompt instead of running
 automatically — press **Enter** when you are ready, or tweak it first:
 
 <RunnableSnippet cmd="kapi word-count messages.json --json" seed={["messages.json"]} editable />
+
+## Where to go next
+
+- [Quick Start](/get-started/quickstart) — more runnable first steps
+- [Installation](/get-started/installation) — install the CLI to run locally
+- [CLI Playground](/playground-cli) — a full interactive terminal
