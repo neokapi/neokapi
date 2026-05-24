@@ -182,7 +182,6 @@ const config: Config = {
             // The runnable getting-started tour: inline ▸ Run snippets.
             { label: "Try in Your Browser", to: "/getting-started/try-it" },
             { label: "CLI Playground", to: "/playground-cli" },
-            { label: "Tool Playground", to: "/playground" },
             { label: "Command Reference (runnable)", to: "/commands" },
           ],
         },

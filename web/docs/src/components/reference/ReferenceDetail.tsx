@@ -102,13 +102,8 @@ export default function ReferenceDetail({ entry }: Props) {
   // null and the Run UI never renders, so the fixture state falls back to the
   // first option purely to keep the <select> controlled.
   const defaultFixture = useMemo(() => pickFixture(entry), [entry]);
-  const [selectedFixture, setSelectedFixture] = useState<string>(
-    defaultFixture ?? ALL_FIXTURES[0],
-  );
-  const runOptions = useMemo(
-    () => buildRunOptions(entry, values, schema),
-    [entry, values, schema],
-  );
+  const [selectedFixture, setSelectedFixture] = useState<string>(defaultFixture ?? ALL_FIXTURES[0]);
+  const runOptions = useMemo(() => buildRunOptions(entry, values, schema), [entry, values, schema]);
   const whyNotRunnable = useMemo(() => notRunnableReason(entry), [entry]);
 
   const handleRunConfig = useCallback(() => {
@@ -215,12 +210,12 @@ export default function ReferenceDetail({ entry }: Props) {
                     type="button"
                     className={`${styles.runButton} ${styles.runButtonStandalone}`}
                     onClick={handleRunConfig}
-                    title="Run this configuration in the playground"
+                    title="Configure and run this tool in your browser"
                   >
                     <span className={styles.runIcon} aria-hidden="true">
                       &#9654;
                     </span>
-                    Run in playground
+                    Configure and run in your browser
                   </button>
                 </div>
               ) : whyNotRunnable ? (
@@ -318,12 +313,12 @@ export default function ReferenceDetail({ entry }: Props) {
                         type="button"
                         className={styles.runButton}
                         onClick={handleRunConfig}
-                        title="Run this configuration in the playground"
+                        title="Configure and run this tool in your browser"
                       >
                         <span className={styles.runIcon} aria-hidden="true">
                           &#9654;
                         </span>
-                        Run this config
+                        Configure and run in your browser
                       </button>
                     </div>
                   ) : whyNotRunnable ? (
