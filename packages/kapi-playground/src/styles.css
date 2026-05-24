@@ -418,12 +418,17 @@
   position: fixed;
   inset: 0;
   z-index: 2500;
-  background: rgba(0, 0, 0, 0.55);
+  background: rgba(0, 0, 0, 0.62);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
   display: flex;
   align-items: center;
   justify-content: center;
   padding: clamp(0.5rem, 3vw, 2.5rem);
-  animation: kapi-pg-fade 0.14s ease;
+  /* Fade in only the scrim + blur. The modal panel has its own opacity-free
+     entrance (below), so the page never shows through a translucent modal
+     while the overlay is animating in. */
+  animation: kapi-pg-overlay-in 0.16s ease both;
 }
 
 /* !important so the closed state always wins: the CSS minifier may merge this
@@ -433,12 +438,17 @@
   display: none !important;
 }
 
-@keyframes kapi-pg-fade {
+@keyframes kapi-pg-overlay-in {
   from {
-    opacity: 0;
+    background: rgba(0, 0, 0, 0);
+    -webkit-backdrop-filter: blur(0);
+    backdrop-filter: blur(0);
   }
-  to {
-    opacity: 1;
+}
+
+@keyframes kapi-pg-modal-in {
+  from {
+    transform: translateY(10px) scale(0.985);
   }
 }
 
@@ -451,7 +461,10 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.55);
+  /* Opacity-free entrance: the panel is fully opaque throughout, so the dimmed
+     page behind never bleeds through the modal chrome (bar + body gaps). */
+  animation: kapi-pg-modal-in 0.18s ease both;
 }
 
 .kapi-pg-modal-bar {
@@ -559,7 +572,8 @@
 
 /* Respect reduced-motion: drop the fade and the hover/reveal transitions. */
 @media (prefers-reduced-motion: reduce) {
-  .kapi-pg-modal-overlay {
+  .kapi-pg-modal-overlay,
+  .kapi-pg-modal {
     animation: none;
   }
   .kapi-pg-file-actions,
