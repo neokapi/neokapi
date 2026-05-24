@@ -24,17 +24,20 @@ const CRED = "harness-gemini";
  * the demos exist to show that an ordinary prompt + the skill is enough.
  */
 function sandboxClaudeMd(m: DemoManifest): string {
+  // Environment facts only — NOT a kapi how-to. No "use kapi", no example commands;
+  // deciding to reach for kapi and how to drive it is the skill's job (that's what the
+  // demos prove). We state the available credential because it's setup the assistant
+  // can't discover, and that tooling is preinstalled so it doesn't waste a step.
   const ai = m.needsAi
-    ? `A saved kapi credential named \`${CRED}\` (Gemini) is configured. When a kapi ` +
-      `command needs a provider, pass \`--credential ${CRED}\` (e.g. ` +
-      `\`kapi ai-translate <input> --target-lang <lang> --credential ${CRED}\`).\n`
+    ? `\nA Gemini model credential named \`${CRED}\` is configured; use it (` +
+      `\`--credential ${CRED}\`) whenever a tool needs a model provider.`
     : ``;
-  const note = m.claudeNote ? `\n${m.claudeNote.trim()}\n` : ``;
-  return `# Project notes
+  const note = m.claudeNote ? `\n${m.claudeNote.trim()}` : ``;
+  return `# Environment
 
-This is a real project. The \`kapi\` and \`kapi-react\` CLIs are installed and on
-your PATH — no npm install is needed to use them.
-${ai}${note}Work in this directory and briefly say what you're doing as you go.
+This is a real project — work in this directory and briefly say what you're doing as
+you go. The command-line tooling is already installed and on your PATH; no \`npm install\`
+is needed to run it.${ai}${note}
 `;
 }
 
