@@ -664,6 +664,30 @@ harness-deps: ## Install the demo-video harness deps (node + Playwright)
 harness-videos: ## Render + convert the docs demo videos (light + dark) → web/docs/static/video/kapi/
 	$(MAKE) -C harness videos
 
+# Record the kapi docs scene tapes (VHS) on your desktop and stage them under
+# static/video/kapi/, then `make publish-docs-assets`. Done locally so CI doesn't
+# re-record on every build (docs-kapi.yml stages these from the docs-assets release).
+# Needs `vhs` (brew install vhs) and a built kapi (bin/kapi).
+kapi-scenes: ## Record kapi docs scene tapes (VHS, desktop) → web/docs/static/video/kapi/
+	@command -v vhs >/dev/null || { echo "vhs not found — run: brew install vhs"; exit 1; }
+	@test -x bin/kapi || $(MAKE) build
+	@mkdir -p web/docs/static/video/kapi
+	@for scene_dir in web/docs/scenes/*/; do \
+	  for tape in "$$scene_dir"*.tape; do \
+	    [ -f "$$tape" ] || continue; \
+	    echo "Recording $$tape"; \
+	    (cd "$$scene_dir" && PATH="$(CURDIR)/bin:$$PATH" vhs "$$(basename "$$tape")") || echo "  ! $$tape failed"; \
+	  done; \
+	done
+	@for webm in web/docs/scenes/*/*.webm; do \
+	  [ -f "$$webm" ] || continue; \
+	  out="web/docs/static/video/kapi/$$(basename "$$webm")"; \
+	  ffmpeg -y -i "$$webm" -an -c:v libvpx-vp9 -b:v 0 -crf 32 -row-mt 1 -pix_fmt yuv420p \
+	    -colorspace bt709 -color_primaries bt709 -color_trc bt709 -color_range tv -map_metadata -1 \
+	    "$$out" >/dev/null 2>&1 || cp "$$webm" "$$out"; \
+	done
+	@echo "Recorded $$(ls web/docs/static/video/kapi/01-*.webm 2>/dev/null | wc -l) scene(s) → web/docs/static/video/kapi/  (now: make publish-docs-assets)"
+
 # ── Generate (scripts at root) ──────────────────────────────────────────────
 
 # okapi-bridge plugin dir feeding the reference dataset. Override with

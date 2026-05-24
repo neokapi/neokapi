@@ -20,7 +20,7 @@ permissions:
   contents: read
 
 jobs:
-  record-scenes:
+  build-wasm:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -28,12 +28,6 @@ jobs:
         with:
           go-version: "1.26.0"
           cache: true
-
-      # The kapi binary is only needed to drive the VHS terminal recordings,
-      # which we skip on PRs (see below) — so skip building it there too.
-      - name: Build kapi binary
-        if: github.event_name != 'pull_request'
-        run: make build
 
       - name: Build playground wasm
         run: make web-wasm-demo
@@ -48,56 +42,8 @@ jobs:
           path: web/docs/static/wasm
           retention-days: 7
 
-      # Terminal scene recording (VHS) takes ~10 min. Skip it on PRs so docs
-      # previews build fast; it still runs on push to main / workflow_dispatch
-      # so the published docs videos stay fresh.
-      - name: Install VHS + Xvfb
-        if: github.event_name != 'pull_request'
-        run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq ffmpeg ttyd xvfb
-          curl -L "https://github.com/charmbracelet/vhs/releases/download/v0.9.0/vhs_0.9.0_amd64.deb" -o /tmp/vhs.deb
-          sudo dpkg -i /tmp/vhs.deb
-
-      - name: Record terminal scenes
-        if: github.event_name != 'pull_request'
-        env:
-          DISPLAY: ":99"
-        run: |
-          export PATH="$PWD/bin:$PATH"
-          Xvfb :99 -screen 0 1280x720x24 &
-          sleep 2
-          if [ -d web/docs/scenes ]; then
-            for scene_dir in web/docs/scenes/*/; do
-              for tape in "$scene_dir"*.tape; do
-                [ -f "$tape" ] || continue
-                echo "Recording $tape"
-                (cd "$scene_dir" && timeout 180 vhs "$(basename "$tape")") || echo "::warning::tape $tape failed"
-              done
-            done
-          fi
-
-      - name: Stage recorded assets under static/video/kapi/
-        if: github.event_name != 'pull_request'
-        run: |
-          mkdir -p web/docs/static/video/kapi
-          if [ -d web/docs/scenes ]; then
-            for webm in web/docs/scenes/*/*.webm; do
-              [ -f "$webm" ] || continue
-              cp "$webm" "web/docs/static/video/kapi/$(basename "$webm")"
-            done
-          fi
-
-      - name: Upload recorded scenes
-        if: github.event_name != 'pull_request'
-        uses: actions/upload-artifact@v7
-        with:
-          name: kapi-scenes
-          path: web/docs/static/video/kapi
-          retention-days: 7
-
   build:
-    needs: record-scenes
+    needs: build-wasm
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -110,31 +56,21 @@ jobs:
       - name: Install workspace dependencies
         run: vp install
 
-      # Scenes are only recorded/uploaded off-PR (see record-scenes); skip the
-      # download on PRs where the artifact doesn't exist.
-      - name: Download recorded scenes
-        if: github.event_name != 'pull_request'
-        uses: actions/download-artifact@v8
-        with:
-          name: kapi-scenes
-          path: web/docs/static/video/kapi
-
-      # The Claude explainer videos are rendered by the harness (not VHS scene
-      # tapes), so they are not in the kapi-scenes artifact. They are published
-      # to the docs-assets release; stage them here or they 404 on the live site.
-      - name: Stage explainer videos from docs-assets
+      # All docs videos — VHS scene tapes (01-*.webm) and the harness Claude
+      # explainer videos (claude-*) — are recorded on the desktop and published to
+      # the docs-assets release (make kapi-scenes / make harness-videos, then
+      # make publish-docs-assets). CI no longer records them; it stages them here.
+      - name: Stage docs videos from docs-assets
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          mkdir -p web/docs/static/video/kapi
+          mkdir -p web/docs/static/video
           if gh release download docs-assets -p docs-assets.tar.gz -D /tmp/da 2>/dev/null; then
             tar xzf /tmp/da/docs-assets.tar.gz -C /tmp/da
-            for f in /tmp/da/video/kapi/claude-*.webm /tmp/da/video/kapi/claude-*.jpg; do
-              [ -f "$f" ] && cp "$f" "web/docs/static/video/kapi/$(basename "$f")"
-            done
-            echo "Staged explainer videos: $(find web/docs/static/video/kapi -name 'claude-*' 2>/dev/null | wc -l) files"
+            [ -d /tmp/da/video ] && cp -R /tmp/da/video/. web/docs/static/video/
+            echo "Staged docs videos: $(find web/docs/static/video -name '*.webm' 2>/dev/null | wc -l) webm"
           else
-            echo "::warning::docs-assets release unavailable; Claude explainer videos will be missing"
+            echo "::warning::docs-assets release unavailable; docs videos will be missing"
           fi
 
       - name: Download playground wasm
