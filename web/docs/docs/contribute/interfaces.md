@@ -1,6 +1,8 @@
 ---
 sidebar_position: 2
 title: Interface Reference
+description: The concrete Go interfaces and types that form neokapi's implementation contract — DataFormatReader, DataFormatWriter, Tool, Executor, LLMProvider, MTProvider — with signatures for writing formats, tools, and plugins.
+keywords: [interface reference, DataFormatReader, DataFormatWriter, Tool, Executor, Go interfaces, neokapi]
 ---
 
 # Interface Reference

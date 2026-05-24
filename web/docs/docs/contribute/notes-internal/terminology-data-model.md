@@ -1,6 +1,8 @@
 ---
 sidebar_position: 5
 title: "Terminology Data Model"
+description: Implementation note for AD-010 — the Go struct layout for Concept, Term, and their context dimensions, plus the SQL schema for the SQLite termbase and the import pipeline from TBX and CSV sources.
+keywords: [terminology data model, Concept, Term, SQLite, TBX import, CSV, implementation note, neokapi]
 ---
 
 # Terminology Data Model

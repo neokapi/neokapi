@@ -1,6 +1,8 @@
 ---
 sidebar_position: 7
-title: Testing
+title: Testing Strategy
+description: neokapi's test strategy — roundtrip gold-standard tests for formats, table-driven tests, parity tests against Okapi Framework data, mock AI providers for CI, and integration tests for flows.
+keywords: [testing, roundtrip, table-driven tests, parity, Okapi, testify, mock providers, neokapi]
 ---
 
 # Test Strategy

@@ -1,6 +1,8 @@
 ---
 sidebar_position: 5
 title: Formats
+description: neokapi formats are paired readers and writers that convert documents to and from the Part stream. Built-in formats span localization, document, data, subtitle, and office families; more are available through the Okapi bridge plugin.
+keywords: [formats, format reader, format writer, XLIFF, JSON, DOCX, Markdown, localization formats, okapi bridge]
 ---
 
 import { BlockPreview } from "@site/src/components/curated";

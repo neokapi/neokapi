@@ -2,6 +2,8 @@
 id: 009-translation-memory
 sidebar_position: 9
 title: "AD-009: Translation Memory (Sievepen)"
+description: "Architecture decision: Sievepen is neokapi's TM library — it stores full Fragments with inline Spans and matches in three tiers (plain, structural, source-entity) to return the highest-quality match first."
+keywords: [Sievepen, translation memory, Fragment, matching tiers, SQLite, architecture decision, neokapi]
 ---
 
 # AD-009: Translation Memory (Sievepen)

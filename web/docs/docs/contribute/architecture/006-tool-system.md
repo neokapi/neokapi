@@ -2,6 +2,8 @@
 id: 006-tool-system
 sidebar_position: 6
 title: "AD-006: Tool System"
+description: "Architecture decision: a Tool is a single composable pipeline stage — it reads Parts from an input channel and writes Parts to an output channel. BaseTool provides default pass-through; handlers set only the types they care about."
+keywords: [tool system, BaseTool, pipeline stage, composable, architecture decision, neokapi]
 ---
 
 # AD-006: Tool System

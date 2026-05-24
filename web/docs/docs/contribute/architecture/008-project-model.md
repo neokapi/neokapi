@@ -2,6 +2,8 @@
 id: 008-project-model
 sidebar_position: 8
 title: "AD-008: Kapi Project Model"
+description: "Architecture decision: a kapi project is a folder with a {name}.kapi YAML recipe at its root and a .kapi/ state directory. The recipe captures workflow defaults; the state directory holds the TM, termbase, and sync caches."
+keywords: [kapi project, .kapi, YAML recipe, project model, state directory, architecture decision]
 ---
 
 # AD-008: Kapi Project Model

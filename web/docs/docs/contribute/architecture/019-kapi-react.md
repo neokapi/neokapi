@@ -2,6 +2,8 @@
 id: 019-kapi-react
 sidebar_position: 19
 title: "AD-019: kapi-react extraction model"
+description: "Architecture decision: kapi-react extracts translatable content from React/JSX source at Vite build time, producing Block records whose Segment.Runs are typed spans — the same content model as the rest of the framework."
+keywords: [kapi-react, extraction model, JSX, Vite plugin, Block, Segment, Runs, architecture decision]
 ---
 
 # AD-019: kapi-react extraction model

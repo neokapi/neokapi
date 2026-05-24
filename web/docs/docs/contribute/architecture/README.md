@@ -1,7 +1,9 @@
 ---
 sidebar_position: 0
-title: Overview
+title: Architecture Decisions Overview
 slug: index
+description: Index of Architecture Decisions for the neokapi open-source localization framework — covering the content model, processing engine, format and tool systems, plugin architecture, TM, terminology, AI providers, and more.
+keywords: [architecture decisions, neokapi, framework design, content model, plugin system, localization architecture]
 ---
 
 # Architecture Decisions — neokapi Framework

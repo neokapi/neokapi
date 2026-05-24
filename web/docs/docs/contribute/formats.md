@@ -1,6 +1,8 @@
 ---
 sidebar_position: 3
 title: Implementing a Format
+description: Step-by-step guide for adding a new document format to neokapi — reader and writer Go structs, inline code handling, roundtrip fidelity tests, and registration in the format registry.
+keywords: [format implementation, DataFormatReader, DataFormatWriter, neokapi, Go, format reader, roundtrip]
 ---
 
 # Implementing a New Format

@@ -1,6 +1,8 @@
 ---
 sidebar_position: 30
-title: SessionTool authoring guide
+title: SessionTool Authoring Guide
+description: Implementation note — how to implement a SessionTool that needs random access to the project's block state (lookups by hash, overlay reads and writes) on top of the standard streaming Tool contract.
+keywords: [SessionTool, block state, overlay, hash lookup, authoring, implementation note, neokapi]
 ---
 
 # SessionTool authoring guide

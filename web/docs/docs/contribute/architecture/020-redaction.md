@@ -2,6 +2,8 @@
 id: 020-redaction
 sidebar_position: 20
 title: "AD-020: Content Redaction"
+description: "Architecture decision: redaction replaces sensitive spans with protected placeholders before external translation (using dual ID+text restore and leak-prevention via RunsPlaceholderText), then restores originals via an unredact step."
+keywords: [redaction, sensitive content, placeholders, unredact, privacy, architecture decision, neokapi]
 ---
 
 # AD-020: Content Redaction

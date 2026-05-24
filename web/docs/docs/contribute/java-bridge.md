@@ -1,6 +1,8 @@
 ---
 sidebar_position: 6
 title: Okapi Bridge
+description: The Okapi bridge provides access to Okapi Framework Java filters from neokapi — running a JVM subprocess that adapts between neokapi's Part model and Okapi's Event model over a gRPC protocol.
+keywords: [Okapi bridge, Java filters, gRPC, JVM, BridgeService, Part model, Event model, neokapi]
 ---
 
 # Okapi Bridge

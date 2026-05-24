@@ -1,6 +1,8 @@
 ---
 sidebar_position: 9
-title: Translating with kapi
+title: Translating kapi-react Projects with kapi
+description: How to use the kapi CLI to translate a kapi-react KLF archive — pseudo-translation for QA, AI translation with Claude or GPT-4, and review and QA flows that write results back to the archive in place.
+keywords: [kapi, translate, KLF, pseudo-translate, AI translation, kapi-react, localization workflow]
 ---
 
 # Translating with `kapi`

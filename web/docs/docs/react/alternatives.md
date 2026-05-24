@@ -1,6 +1,8 @@
 ---
 sidebar_position: 12
-title: Alternatives
+title: kapi-react vs. Alternatives
+description: A comparison of kapi-react with react-i18next, LinguiJS, next-intl, and react-intl — covering source identifiers, JSX wrapping, extraction, format, and runtime tradeoffs.
+keywords: [react-i18next, LinguiJS, next-intl, react-intl, alternatives, i18n comparison, kapi-react]
 ---
 
 # Alternatives

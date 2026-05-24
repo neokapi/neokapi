@@ -1,6 +1,8 @@
 ---
 sidebar_position: 3
-title: Writing translatable components
+title: Writing Translatable React Components
+description: How to write React components for kapi-react extraction — what the plugin picks up automatically, which patterns require t(), how inline elements become paired markers, and what to avoid.
+keywords: [React components, JSX extraction, translatable, kapi-react, inline markers, componentMap, i18n patterns]
 ---
 
 # Writing translatable components

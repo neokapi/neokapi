@@ -1,6 +1,8 @@
 ---
 sidebar_position: 3
-title: "Bridge Protocol"
+title: "Okapi Bridge Protocol"
+description: Implementation note for AD-007 — the gRPC bridge protocol between neokapi and the Okapi Java subprocess, covering the BridgeService RPCs (ListFilters, Info, Open, Read, Write) and the Part-to-Event translation.
+keywords: [bridge protocol, gRPC, BridgeService, Okapi bridge, ListFilters, Part model, Event model, implementation note]
 ---
 
 # Bridge Protocol

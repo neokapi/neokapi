@@ -1,6 +1,8 @@
 ---
 sidebar_position: 3
 title: Inline Formatting
+description: How neokapi preserves bold, italic, links, and other inline markup through the pipeline. Inline elements become typed Spans so translations can reorder or omit them safely.
+keywords: [inline formatting, spans, bold, italic, links, placeholders, fragment, coded text]
 ---
 
 import { BlockPreview } from "@site/src/components/curated";

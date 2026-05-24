@@ -1,6 +1,8 @@
 ---
 sidebar_position: 13
 title: "MCP Tools Reference"
+description: Implementation note for AD-013 — the complete reference for the kapi MCP server's tool handlers, their JSON-RPC input and output schemas, and the file locations where each handler is implemented.
+keywords: [MCP tools, kapi mcp, tool handlers, JSON-RPC, MCP server reference, implementation note, neokapi]
 ---
 
 # MCP Tools Reference
@@ -339,7 +341,7 @@ Project-defined flows include a `steps` count. Built-in flows always have `sourc
 | File                              | Purpose                              |
 | --------------------------------- | ------------------------------------ |
 | `kapi/cmd/kapi/mcp_cmd.go`        | Cobra subcommand, server bootstrap   |
-| `kapi/cmd/kapi/mcp_tools.go`      | 8 tool handlers + input/output types |
+| `kapi/cmd/kapi/mcp_tools.go`      | Tool handler implementations + input/output types |
 | `kapi/cmd/kapi/mcp_tools_test.go` | Unit tests for kapi MCP handlers     |
 
 ## Testing

@@ -1,6 +1,8 @@
 ---
 sidebar_position: 5
-title: MCP server
+title: MCP Server
+description: kapi exposes its file-processing capabilities as an MCP server so AI tools — Claude, Cursor, GitHub Copilot, and other MCP-compatible agents — can parse files, count words, translate, check brand voice, and look up terminology.
+keywords: [MCP, Model Context Protocol, kapi mcp, AI tools, Claude, Cursor, brand voice, localization agent]
 ---
 
 # MCP server

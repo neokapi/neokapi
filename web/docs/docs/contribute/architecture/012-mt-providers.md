@@ -2,6 +2,8 @@
 id: 012-mt-providers
 sidebar_position: 12
 title: "AD-012: Machine Translation Providers"
+description: "Architecture decision: MT services plug in through an MTProvider interface in providers/mt/ with built-in backends for DeepL, Google Translate, Microsoft Translator, ModernMT, and MyMemory."
+keywords: [MT providers, MTProvider, DeepL, Google Translate, Microsoft Translator, architecture decision, neokapi]
 ---
 
 # AD-012: Machine Translation Providers

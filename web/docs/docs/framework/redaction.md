@@ -1,6 +1,8 @@
 ---
 sidebar_position: 15
 title: Redaction
+description: Redaction replaces sensitive spans — people, product names, internal roles, secrets — with protected placeholders before external translation, then restores originals afterward. Sensitive values never leave the local machine.
+keywords: [redaction, sensitive content, privacy, placeholders, translation, data protection]
 ---
 
 # Redaction

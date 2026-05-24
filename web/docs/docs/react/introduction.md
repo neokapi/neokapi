@@ -2,6 +2,8 @@
 sidebar_position: 1
 title: Introduction
 slug: /react/introduction
+description: kapi-react is a zero-toil i18n library for React — no key strings, no wrapping calls. The Vite plugin extracts translatable JSX at build time; kapi translates the KLF archive with AI, MT, or TM.
+keywords: [kapi-react, React i18n, internationalization, Vite plugin, JSX extraction, KLF, zero-toil]
 ---
 
 # kapi-react

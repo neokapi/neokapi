@@ -2,6 +2,8 @@
 id: 017-bilingual-format-interop
 sidebar_position: 17
 title: "AD-017: Bilingual Format Interop"
+description: "Architecture decision: kapi supports a full bilingual round-trip — extract emits XLIFF 2.2 or PO for CAT tools, merge applies translator changes back, and TM is updated on every merge for compounding leverage."
+keywords: [bilingual format, XLIFF, PO, CAT tool, extract, merge, TM, architecture decision, neokapi]
 ---
 
 # AD-017: Bilingual Format Interop

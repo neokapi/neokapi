@@ -1,6 +1,8 @@
 ---
 sidebar_position: 5
-title: Plurals and select
+title: Plurals and Select
+description: Count-aware and choice-based text in kapi-react — author plural forms and select expressions as React components (Plural, Zero, One, Other) without writing raw ICU strings.
+keywords: [plurals, select, Plural component, ICU, i18n, kapi-react, count-aware, React i18n]
 ---
 
 # Plurals and select

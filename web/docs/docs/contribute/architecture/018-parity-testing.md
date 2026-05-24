@@ -2,6 +2,8 @@
 id: 018-parity-testing
 sidebar_position: 18
 title: "AD-018: Parity testing against Okapi"
+description: "Architecture decision: a parity harness runs every neokapi format and tool against Okapi Framework reference outputs to surface divergences — categorizing results as faithful, okapi-faithful, divergent, or new."
+keywords: [parity testing, Okapi Framework, format parity, test harness, divergence, architecture decision, neokapi]
 ---
 
 # AD-018: Parity testing against Okapi

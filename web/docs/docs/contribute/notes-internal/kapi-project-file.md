@@ -1,3 +1,10 @@
+---
+sidebar_position: 7
+title: .kapi Project File Format
+description: Implementation note for AD-008 — the KapiProject YAML schema, ContentEntry and Defaults struct layouts, how extension extras are decoded, and how the .kapi recipe is loaded, validated, and saved.
+keywords: [kapi project file, KapiProject, YAML schema, ContentEntry, Defaults, project model, implementation note]
+---
+
 # .kapi Project File Format
 
 Implementation notes for the `.kapi` project file format. See [AD-008](/contribute/architecture/008-project-model) for the architectural decision.

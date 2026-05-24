@@ -1,6 +1,8 @@
 ---
 sidebar_position: 10
-title: Linting
+title: kapi-react Linting
+description: kapi-react-lint provides ESLint and oxlint rules that catch unextractable strings, unsafe patterns, and authoring mistakes before they reach the translator — with CI enforcement via --strict.
+keywords: [linting, kapi-react-lint, ESLint, oxlint, i18n lint rules, extraction, CI enforcement]
 ---
 
 # Linting

@@ -1,6 +1,8 @@
 ---
 sidebar_position: 2
 title: Quick start
+description: Add kapi-react to a Vite + React project in about five minutes — install the plugin, write plain JSX, run kapi pseudo-translate, and flip between locales from a toolbar.
+keywords: [kapi-react, quick start, Vite, React, install, pseudo-translate, i18n setup]
 ---
 
 # Quick start

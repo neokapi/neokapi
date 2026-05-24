@@ -2,6 +2,8 @@
 id: plugin-model
 title: "Note: Plugin model — the in-process registry contract"
 sidebar_position: 50
+description: Implementation note covering the in-process registry mechanism — how plugin packages blank-imported into a binary wire features into cli.App via init() registration (commands, MCP tools, recipe schema), and how kapi discovers and dispatches to plugin binaries.
+keywords: [plugin model, in-process registry, cli.App, init registration, blank import, kapi-bowrain, implementation note]
 ---
 
 # Plugin model — the in-process registry contract

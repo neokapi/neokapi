@@ -2,6 +2,8 @@
 id: 004-processing-engine
 sidebar_position: 4
 title: "AD-004: Processing Engine"
+description: "Architecture decision: the processing engine is a channel-based streaming pipeline where each tool runs in its own goroutine, connected by buffered channels, with errgroup for error propagation and context for cancellation."
+keywords: [processing engine, pipeline, goroutines, channels, errgroup, streaming, architecture decision]
 ---
 
 # AD-004: Processing Engine

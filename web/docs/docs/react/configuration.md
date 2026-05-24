@@ -1,6 +1,8 @@
 ---
 sidebar_position: 11
-title: Configuration
+title: kapi-react Configuration Reference
+description: Full reference for the kapi-react Vite plugin options — mode, locale, fallbackLocales, translationsDir, componentMap, Storybook integration, and CLI flags for extract and compile.
+keywords: [kapi-react, configuration, plugin options, Vite, locale, componentMap, CLI flags, Storybook]
 ---
 
 # Configuration

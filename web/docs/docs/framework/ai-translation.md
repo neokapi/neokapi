@@ -1,6 +1,8 @@
 ---
 sidebar_position: 11
 title: AI Translation
+description: neokapi integrates LLM-based translation, QA, and terminology extraction via a provider interface supporting Anthropic Claude, OpenAI, Google Gemini, Azure OpenAI, and Ollama for local models.
+keywords: [AI translation, LLM, Anthropic Claude, OpenAI, Gemini, Ollama, ai-translate, localization AI]
 ---
 
 # AI Translation

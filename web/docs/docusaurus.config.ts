@@ -11,7 +11,7 @@ const baseUrl = process.env.DOCS_BASE_URL ?? "/web/neokapi/docs/";
 
 const config: Config = {
   title: "neokapi",
-  tagline: "Localization and brand-wrangling for people, elves, and agents",
+  tagline: "Format-aware localization and brand governance for AI-assisted development",
   favicon: "img/favicon.png",
 
   url: "https://neokapi.github.io",
@@ -99,11 +99,34 @@ const config: Config = {
         theme: {
           customCss: ["./src/css/custom.css", "./src/css/tailwind.css"],
         },
+        // @docusaurus/plugin-sitemap is bundled in preset-classic. Explicit
+        // config here activates it and sets the change frequency hint that
+        // search-engine crawlers use when deciding how often to re-index pages.
+        sitemap: {
+          changefreq: "weekly",
+          priority: 0.5,
+          ignorePatterns: [],
+          filename: "sitemap.xml",
+        },
       } satisfies Preset.Options,
     ],
   ],
 
   themeConfig: {
+    // Open Graph + Twitter Card metadata for social sharing.
+    // The hero-logo.png is used as the default og:image — it is a wide,
+    // high-contrast image suitable for link previews. Individual pages can
+    // override this via their own frontmatter `image:` field.
+    image: "img/hero-logo.png",
+    metadata: [
+      { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:site", content: "@neokapi" },
+      {
+        name: "description",
+        content:
+          "neokapi is an open-source, format-aware localization framework in Go. It provides a concurrent streaming pipeline, content model, and composable tools for AI translation, TM leverage, terminology enforcement, and brand-voice governance.",
+      },
+    ],
     navbar: {
       title: "neokapi",
       logo: {

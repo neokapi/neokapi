@@ -1,6 +1,8 @@
 ---
 sidebar_position: 5
 title: Plugin System
+description: neokapi plugins are manifest-driven, out-of-process executables that communicate via gRPC. Plugin types include bundles (like the Okapi bridge), standalone format readers/writers, and standalone tools.
+keywords: [plugin system, gRPC, go-plugin, manifest, Okapi bridge, plugin bundle, neokapi plugins]
 ---
 
 # Plugin System

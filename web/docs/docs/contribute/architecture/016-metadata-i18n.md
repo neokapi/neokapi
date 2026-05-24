@@ -2,6 +2,8 @@
 id: 016-metadata-i18n
 sidebar_position: 16
 title: "AD-016: Metadata i18n for Go Surfaces"
+description: "Architecture decision: format and tool metadata (names, descriptions, parameter labels) is i18n-aware — stored in Go structs with locale fallback so CLI output, schema forms, and docs can be localized without runtime reflection."
+keywords: [metadata i18n, Go surfaces, localization, format metadata, tool schema, architecture decision, neokapi]
 ---
 
 # AD-016: Metadata i18n for Go Surfaces

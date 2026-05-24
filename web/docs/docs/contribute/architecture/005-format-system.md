@@ -2,6 +2,8 @@
 id: 005-format-system
 sidebar_position: 5
 title: "AD-005: Format System"
+description: "Architecture decision: formats are pluggable DataFormatReader/Writer pairs that convert between on-disk files and the Part stream. Built-in formats span localization, document, data, subtitle, and office families."
+keywords: [format system, DataFormatReader, DataFormatWriter, pluggable formats, architecture decision, neokapi]
 ---
 
 # AD-005: Format System

@@ -126,4 +126,3 @@ matter.
 - `useCuratedRuntime.ts` — lazy boot hook (one warm runtime per page).
 - `seed.ts` — fixture/inline seeding + `parseCommand` + `readText`.
 - `curated.css` — `kapi-cur-*` styles reusing the kit's `--kpg-*` tokens.
-- `CuratedDemo.tsx` — the demo gallery (rendered at the `/curated-demo` route).

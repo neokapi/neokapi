@@ -1,6 +1,8 @@
 ---
 sidebar_position: 3
-title: Getting Started
+title: Getting Started with Kapi Desktop
+description: A step-by-step walkthrough for creating your first localization project in Kapi — install, create a project, add content patterns, configure AI credentials, and run your first flow.
+keywords: [Kapi, getting started, desktop, localization project, flow, AI credentials, brew install]
 ---
 
 # Getting Started with Kapi

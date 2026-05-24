@@ -1,6 +1,8 @@
 ---
 sidebar_position: 2
 title: Content Model
+description: The neokapi content model — how documents are represented as a stream of Parts (Layer, Block, Fragment, Data, Media) so that tools and translations work independently of the source file format.
+keywords: [content model, Part, Block, Fragment, Layer, Span, localization, format-independent]
 ---
 
 import { BlockPreview } from "@site/src/components/curated";

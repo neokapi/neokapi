@@ -1,6 +1,8 @@
 ---
 sidebar_position: 4
-title: Flow Authoring
+title: YAML Flow Authoring
+description: How to write neokapi flows as YAML — the steps-based human-authored format, sequential and parallel branches, tool configuration, and how the YAML compiles to the internal nodes-and-edges graph.
+keywords: [flow authoring, YAML flows, steps format, parallel steps, pipeline YAML, neokapi, flow definition]
 ---
 
 # YAML Flow Authoring

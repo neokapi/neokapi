@@ -1,6 +1,8 @@
 ---
 sidebar_position: 6
 title: Authoring Vocabularies
+description: How to implement and extend neokapi vocabularies — the JSON type-definition format, category:name identifiers, rendering and display metadata, and registering a vocabulary with the framework.
+keywords: [vocabularies, authoring, inline codes, semantic types, JSON, vocabulary file, neokapi]
 ---
 
 # Authoring Vocabularies

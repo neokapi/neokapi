@@ -1,6 +1,8 @@
 ---
 sidebar_position: 14
 title: Skeleton Store and Streaming HTML
+description: Implementation note for AD-005 — details of the SkeletonStore temp-file-backed binary store and the tokenizer-based HTML reader/writer that uses skeleton entries to faithfully reconstruct documents.
+keywords: [SkeletonStore, streaming HTML, skeleton, tokenizer, HTML reader, implementation note, neokapi]
 ---
 
 # Skeleton Store and Streaming HTML

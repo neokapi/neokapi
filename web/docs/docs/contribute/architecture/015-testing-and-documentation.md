@@ -2,6 +2,8 @@
 id: 015-testing-and-documentation
 sidebar_position: 15
 title: "AD-015: Testing and Documentation"
+description: "Architecture decision: neokapi follows a three-tier test pyramid — unit via testify, integration via format roundtrips and flow E2E, application E2E via Playwright for the desktop app and the web UI."
+keywords: [testing, documentation, testify, roundtrip, Playwright, E2E, architecture decision, neokapi]
 ---
 
 # AD-015: Testing and Documentation

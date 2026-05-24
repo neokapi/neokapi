@@ -1,6 +1,8 @@
 ---
 sidebar_position: 5
-title: Script Step
+title: JavaScript Script Step
+description: The script step lets you run custom ES5 JavaScript on each Part flowing through a neokapi pipeline — using the goja pure-Go runtime, with access to emit(), skip(), and log() for controlling Part flow.
+keywords: [script step, JavaScript, ES5, goja, pipeline, custom processing, Part, neokapi]
 ---
 
 # JavaScript Script Step

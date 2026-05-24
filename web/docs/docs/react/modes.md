@@ -1,6 +1,8 @@
 ---
 sidebar_position: 8
-title: Runtime vs. inline mode
+title: Runtime vs. Inline Mode
+description: kapi-react has two production modes — runtime mode (one bundle, translations loaded at runtime via fetch) and inline mode (one bundle per locale, translations baked in at build time). Choose based on how you ship.
+keywords: [runtime mode, inline mode, bundle, kapi-react, production, i18n modes, code splitting]
 ---
 
 # Runtime vs. inline mode

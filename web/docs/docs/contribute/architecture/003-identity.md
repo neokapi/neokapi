@@ -2,6 +2,8 @@
 id: 003-identity
 sidebar_position: 3
 title: "AD-003: Identity"
+description: "Architecture decision: entity IDs are 8-character base62 strings from crypto/rand — short, URL-safe, and dependency-free. Blocks use a content-hash ID for TM stability; structural nodes use random IDs."
+keywords: [entity ID, base62, crypto/rand, Block ID, content hash, architecture decision, neokapi]
 ---
 
 # AD-003: Identity

@@ -1,6 +1,8 @@
 ---
 sidebar_position: 1
-title: Overview
+title: Kapi Desktop Overview
+description: Kapi is the visual desktop companion to the kapi CLI — a native app for building localization flows, running tools, managing plugins, and storing AI credentials without writing YAML or remembering flags.
+keywords: [Kapi, desktop app, Wails, flow editor, flow runner, plugin manager, credential vault, localization GUI]
 ---
 
 # Kapi

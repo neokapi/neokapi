@@ -2,6 +2,8 @@
 id: 010-terminology
 sidebar_position: 10
 title: "AD-010: Terminology"
+description: "Architecture decision: neokapi's terminology system is concept-oriented, grouping multi-locale terms under language-neutral Concepts with per-term lifecycle status, part-of-speech, and domain metadata."
+keywords: [terminology, Concept, TBX, termbase, concept-oriented, architecture decision, neokapi]
 ---
 
 # AD-010: Terminology

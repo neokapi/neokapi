@@ -1,6 +1,8 @@
 ---
 sidebar_position: 4
 title: "TM Matching Algorithm"
+description: Implementation note for AD-009 — the three derived matching keys (plain, structural, source-entity), how they are indexed in SQLite, and the fuzzy match scoring and adaptation pipeline in Sievepen.
+keywords: [TM matching, fuzzy match, Sievepen, plain key, structural key, source-entity, implementation note, neokapi]
 ---
 
 # TM Matching Algorithm

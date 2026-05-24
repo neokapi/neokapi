@@ -1,3 +1,10 @@
+---
+sidebar_position: 6
+title: Flow Steps Format
+description: Implementation note — the YAML steps-based flow format that compiles to the internal nodes-and-edges graph, including format detection rules, the FlowStep struct, and the StepsToGraph compilation algorithm.
+keywords: [flow steps format, YAML, steps, nodes, edges, StepsToGraph, flow compilation, implementation note]
+---
+
 # Flow Steps Format
 
 The steps-based flow format provides human-friendly YAML authoring that compiles to the internal nodes+edges graph representation.

@@ -2,6 +2,8 @@
 id: 002-content-model
 sidebar_position: 2
 title: "AD-002: Content Model"
+description: "Architecture decision: documents are represented as a stream of Part values (Layer, Block, Fragment, Data, Media) so that tools and translations work independently of source file format."
+keywords: [content model, Part, Block, Fragment, Layer, architecture decision, neokapi]
 ---
 
 # AD-002: Content Model

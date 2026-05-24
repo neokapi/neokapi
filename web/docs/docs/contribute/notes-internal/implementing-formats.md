@@ -1,6 +1,8 @@
 ---
 sidebar_position: 15
 title: Implementing Formats
+description: Implementation note for AD-005 — step-by-step instructions for writing new neokapi format readers and writers, or migrating Okapi Java filters, including terminology mapping from Okapi to neokapi concepts.
+keywords: [implementing formats, format reader, format writer, Okapi migration, DataFormatReader, neokapi]
 ---
 
 # Implementing Formats

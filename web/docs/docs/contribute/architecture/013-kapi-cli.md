@@ -2,6 +2,8 @@
 id: 013-kapi-cli
 sidebar_position: 13
 title: "AD-013: Kapi CLI"
+description: "Architecture decision: kapi is a standalone file-processing CLI and the primary neokapi binary — most commands require no project; the -p flag accepts a .kapi project file; plugins are discovered at runtime via manifest."
+keywords: [kapi CLI, standalone, file processing, project file, manifest, architecture decision, neokapi]
 ---
 
 # AD-013: Kapi CLI

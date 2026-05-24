@@ -1,6 +1,8 @@
 ---
 sidebar_position: 12
-title: Graph Store
+title: Graph Store Library
+description: The neokapi graph store library provides a backend-agnostic graph database abstraction for concept management, with a SQLite backend for local use and an Apache AGE (PostgreSQL) backend for production deployments.
+keywords: [graph store, SQLite, Apache AGE, PostgreSQL, concept management, GraphStore interface, neokapi]
 ---
 
 # Graph Store Library

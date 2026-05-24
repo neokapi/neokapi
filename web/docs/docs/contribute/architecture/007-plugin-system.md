@@ -2,6 +2,8 @@
 id: 007-plugin-system
 sidebar_position: 7
 title: "AD-007: Plugin System and Okapi Bridge"
+description: "Architecture decision: plugins are manifest-driven, signed, out-of-process executables — discovered via manifest.json, dispatched as subprocesses over gRPC. The Okapi bridge is the canonical bundle plugin providing Java filter access."
+keywords: [plugin system, manifest, gRPC, Okapi bridge, out-of-process, architecture decision, neokapi]
 ---
 
 # AD-007: Plugin System and Okapi Bridge

@@ -2,6 +2,8 @@
 id: 014-kapi-desktop
 sidebar_position: 14
 title: "AD-014: Kapi Desktop"
+description: "Architecture decision: Kapi Desktop is a Wails v3 app that provides a visual companion to the kapi CLI — opening .kapi project files, editing flows visually, running them with live progress, and managing plugins and credentials."
+keywords: [Kapi Desktop, Wails v3, desktop app, flow editor, visual companion, architecture decision, neokapi]
 ---
 
 # AD-014: Kapi Desktop

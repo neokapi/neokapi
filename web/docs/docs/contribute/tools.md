@@ -1,6 +1,8 @@
 ---
 sidebar_position: 4
 title: Implementing a Tool
+description: How to build a neokapi Tool — embedding BaseTool, setting handler functions for the Part types you care about, and passing unhandled Parts through the pipeline unchanged.
+keywords: [tool implementation, BaseTool, Part, handler, pipeline, Go, neokapi, processing]
 ---
 
 # Implementing a New Tool

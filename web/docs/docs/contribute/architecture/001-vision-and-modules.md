@@ -2,6 +2,8 @@
 id: 001-vision-and-modules
 sidebar_position: 1
 title: "AD-001: Vision and Module Architecture"
+description: "Architecture decision: neokapi is an open, AI-native Go localization framework distributed as four independent modules — framework, CLI, kapi CLI, and desktop — coordinated by a go.work workspace and enforced by GOWORK=off CI builds."
+keywords: [neokapi, architecture decision, Go modules, go.work, multi-module, Apache-2.0]
 ---
 
 # AD-001: Vision and Module Architecture

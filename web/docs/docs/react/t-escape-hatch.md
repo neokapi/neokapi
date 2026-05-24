@@ -1,7 +1,9 @@
 ---
 sidebar_position: 4
-title: The t() escape hatch
+title: The t() Escape Hatch
 sidebar_label: The t() escape hatch
+description: Use the t() function in kapi-react to mark strings for extraction when they live outside JSX — in arrays, reducers, refs, or any expression the plugin cannot walk statically.
+keywords: [t(), escape hatch, extraction, non-JSX strings, kapi-react, i18n, React]
 ---
 
 # The `t()` escape hatch

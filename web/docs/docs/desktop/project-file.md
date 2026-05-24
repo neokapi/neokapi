@@ -1,6 +1,8 @@
 ---
 sidebar_position: 2
 title: Kapi Project Files
+description: A Kapi project file (.kapi) is a portable YAML document that captures a localization workflow — source and target languages, content file patterns, tool pipelines, plugin requirements, and processing defaults.
+keywords: [kapi project file, .kapi, YAML, localization workflow, portability, project format]
 ---
 
 # Kapi Project Files

@@ -1,6 +1,8 @@
 ---
 sidebar_position: 7
-title: Extract → translate → compile
+title: Extract, Translate, Compile Pipeline
+description: The three-phase kapi-react pipeline — extract JSX to a KLF archive, translate it with kapi (AI, MT, or TM), compile locales back into runtime JSON. Includes an optional split phase for code-split apps.
+keywords: [extract, translate, compile, KLF, kapi-react pipeline, code splitting, localization pipeline]
 ---
 
 # The extract → translate → compile pipeline

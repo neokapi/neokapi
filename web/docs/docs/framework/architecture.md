@@ -1,6 +1,8 @@
 ---
 sidebar_position: 1
 title: Architecture
+description: An overview of the neokapi framework architecture — the streaming pipeline, content model, format readers and writers, composable tools, and the multi-module Go structure.
+keywords: [neokapi, architecture, streaming pipeline, content model, localization framework, go modules]
 ---
 
 # neokapi: Architecture

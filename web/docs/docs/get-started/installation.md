@@ -1,6 +1,8 @@
 ---
 sidebar_position: 4
 title: Installation
+description: Install the kapi CLI on macOS, Linux, or Windows via Homebrew, Go install, or direct binary download. Offline by default; no configuration needed to start.
+keywords: [kapi, install, homebrew, go install, binary download, macos, linux, windows]
 ---
 
 # Installation

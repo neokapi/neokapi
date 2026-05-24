@@ -1,6 +1,8 @@
 ---
 sidebar_position: 6
-title: Formatting dates, numbers, currency
+title: Formatting Dates, Numbers, and Currency
+description: How to combine kapi-react's locale with the platform Intl API and third-party formatters — date-fns, Luxon, Dinero — for locale-aware date, number, and currency display.
+keywords: [formatting, dates, numbers, currency, Intl API, date-fns, Luxon, locale, kapi-react]
 ---
 
 # Formatting dates, numbers, currency

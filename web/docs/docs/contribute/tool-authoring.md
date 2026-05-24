@@ -1,6 +1,8 @@
 ---
 sidebar_position: 3
-title: Tool Authoring
+title: Tool Authoring with Parameter Schemas
+description: How to build a neokapi tool with a JSON Schema parameter definition so the CLI and desktop UI can auto-generate configuration forms — embedding BaseTool, setting handler functions, and registering with the tool registry.
+keywords: [tool authoring, BaseTool, parameter schema, JSON Schema, Go, neokapi, pipeline stage]
 ---
 
 # Creating Tools with Parameter Schemas

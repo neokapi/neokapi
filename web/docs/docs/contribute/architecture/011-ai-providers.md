@@ -2,6 +2,8 @@
 id: 011-ai-providers
 sidebar_position: 11
 title: "AD-011: AI Providers"
+description: "Architecture decision: LLM capabilities plug in through an LLMProvider interface in providers/ai/ with built-in backends for Anthropic Claude, OpenAI, Google Gemini, Azure OpenAI, and Ollama."
+keywords: [AI providers, LLMProvider, Anthropic, OpenAI, Gemini, Ollama, architecture decision, neokapi]
 ---
 
 # AD-011: AI Providers

@@ -1,6 +1,8 @@
 ---
 sidebar_position: 14
 title: Brand Voice
+description: neokapi's brand voice governance scores content 0–100 against a machine-readable profile and enforces writing style through the same pipeline and Block annotation system used for terminology.
+keywords: [brand voice, brand governance, content scoring, writing style, MCP, AI assistant, on-brand]
 ---
 
 # Brand Voice
