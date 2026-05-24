@@ -692,6 +692,9 @@ web-wasm-cli: ## Build the in-browser kapi CLI (wasm) → web/docs/static/wasm/k
 	@ls -lh $(WASM_DEMO_DIR)/kapi-cli.wasm | awk '{print "  built",$$NF,$$5}'
 	@ls -lh $(WASM_DEMO_DIR)/kapi-cli.wasm.gz | awk '{print "  built",$$NF,$$5}'
 
+docs-verify-snippets: web-wasm-cli ## Verify every RunnableSnippet + scene smoke_contract runs green in wasm
+	node --experimental-strip-types scripts/verify-snippets/harness.ts
+
 # ── Tools ────────────────────────────────────────────────────────────────────
 
 tools: ## Install development tools
