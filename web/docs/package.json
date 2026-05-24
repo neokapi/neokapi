@@ -4,7 +4,10 @@
   "private": true,
   "scripts": {
     "docusaurus": "docusaurus",
+    "gen-reference": "node --no-warnings --experimental-strip-types scripts/gen-reference-pages.ts",
+    "prestart": "npm run gen-reference",
     "start": "docusaurus start",
+    "prebuild": "npm run gen-reference",
     "build": "docusaurus build",
     "swizzle": "docusaurus swizzle",
     "deploy": "docusaurus deploy",

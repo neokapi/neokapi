@@ -4,6 +4,7 @@ import type { CommandEntry } from "@neokapi/reference-data";
 import CommandCard from "./CommandCard";
 import CommandModal from "./CommandModal";
 import { commandName, commandSummary } from "./commandHelpers";
+import { commandHref } from "@site/src/components/reference/slugs";
 import styles from "./styles.module.css";
 
 type Filter = "all" | "runnable" | "demo" | "network";
@@ -154,7 +155,7 @@ export default function CommandGrid({ commands }: Props) {
           <h2 className={styles.groupHeading}>{group}</h2>
           <div className={styles.grid}>
             {items.map((cmd) => (
-              <CommandCard key={cmd.id} cmd={cmd} onSelect={select} />
+              <CommandCard key={cmd.id} cmd={cmd} href={commandHref(cmd)} onSelect={select} />
             ))}
           </div>
         </section>
@@ -162,7 +163,9 @@ export default function CommandGrid({ commands }: Props) {
 
       {filtered.length === 0 && <p className={styles.empty}>No commands match your search.</p>}
 
-      {selectedCmd && <CommandModal cmd={selectedCmd} onClose={close} />}
+      {selectedCmd && (
+        <CommandModal cmd={selectedCmd} href={commandHref(selectedCmd)} onClose={close} />
+      )}
     </>
   );
 }

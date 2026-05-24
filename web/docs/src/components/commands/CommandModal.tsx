@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import useBaseUrl from "@docusaurus/useBaseUrl";
 import type { CommandEntry } from "@neokapi/reference-data";
 import CommandDetail from "./CommandDetail";
 import { RunBadge } from "./CommandCard";
@@ -8,6 +9,8 @@ import styles from "./styles.module.css";
 
 interface Props {
   cmd: CommandEntry;
+  /** Canonical static page route, e.g. "/reference/commands/pseudo-translate". */
+  href: string;
   onClose: () => void;
 }
 
@@ -20,10 +23,11 @@ const FOCUSABLE =
  * affordances of the format/tool reference modal: focus trap, Escape, overlay
  * click, scroll lock, and focus restoration to the card that opened it.
  */
-export default function CommandModal({ cmd, onClose }: Props) {
+export default function CommandModal({ cmd, href, onClose }: Props) {
   const panelRef = useRef<HTMLDivElement>(null);
   const restoreFocusRef = useRef<Element | null>(null);
   const [linkCopied, setLinkCopied] = useState(false);
+  const pageHref = useBaseUrl(href);
 
   const copyLink = useCallback(() => {
     navigator.clipboard.writeText(window.location.href).then(() => {
@@ -103,6 +107,13 @@ export default function CommandModal({ cmd, onClose }: Props) {
           </h2>
           <RunBadge cmd={cmd} />
           <div className={styles.modalActions}>
+            <a
+              className={styles.copyButton}
+              href={pageHref}
+              title="Open the full, shareable reference page for this command"
+            >
+              View full page
+            </a>
             <button
               type="button"
               className={styles.copyButton}

@@ -116,6 +116,7 @@
   text-align: left;
   cursor: pointer;
   color: var(--ifm-font-color-base);
+  text-decoration: none;
   font: inherit;
   transition:
     border-color 0.15s,
@@ -127,6 +128,8 @@
   border-color: var(--ifm-color-primary);
   box-shadow: 0 2px 12px color-mix(in srgb, var(--ifm-color-primary) 14%, transparent);
   transform: translateY(-1px);
+  color: var(--ifm-font-color-base);
+  text-decoration: none;
 }
 
 .gridCard:focus-visible {

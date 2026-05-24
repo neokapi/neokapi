@@ -3,6 +3,7 @@ import { useHistory, useLocation } from "@docusaurus/router";
 import type { ReferenceEntry, ReferenceSource } from "@neokapi/reference-data";
 import ReferenceCard from "./ReferenceCard";
 import ReferenceModal from "./ReferenceModal";
+import { builtinToolIds, formatHref, toolHref } from "./slugs";
 import styles from "./styles.module.css";
 
 type Filter = "all" | ReferenceSource;
@@ -72,6 +73,15 @@ export default function ReferenceGrid({ entries, kind }: Props) {
     return { all: entries.length, "built-in": builtin, okapi };
   }, [entries]);
 
+  // Tool slugs need the built-in id set to disambiguate cross-source collisions
+  // (a built-in and an Okapi tool can share an id). Formats have unique ids.
+  const builtins = useMemo(() => builtinToolIds(entries), [entries]);
+  const hrefFor = useCallback(
+    (entry: ReferenceEntry) =>
+      kind === "format" ? formatHref(entry) : toolHref(entry, builtins),
+    [kind, builtins],
+  );
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return entries.filter((e) => {
@@ -137,7 +147,12 @@ export default function ReferenceGrid({ entries, kind }: Props) {
             <h2 className={styles.categoryHeading}>{cat}</h2>
             <div className={styles.grid}>
               {items.map((entry) => (
-                <ReferenceCard key={entry.id} entry={entry} onSelect={select} />
+                <ReferenceCard
+                  key={entry.id}
+                  entry={entry}
+                  href={hrefFor(entry)}
+                  onSelect={select}
+                />
               ))}
             </div>
           </section>
@@ -145,7 +160,7 @@ export default function ReferenceGrid({ entries, kind }: Props) {
       ) : (
         <div className={styles.grid}>
           {filtered.map((entry) => (
-            <ReferenceCard key={entry.id} entry={entry} onSelect={select} />
+            <ReferenceCard key={entry.id} entry={entry} href={hrefFor(entry)} onSelect={select} />
           ))}
         </div>
       )}
@@ -156,7 +171,9 @@ export default function ReferenceGrid({ entries, kind }: Props) {
         </p>
       )}
 
-      {selectedEntry && <ReferenceModal entry={selectedEntry} onClose={close} />}
+      {selectedEntry && (
+        <ReferenceModal entry={selectedEntry} href={hrefFor(selectedEntry)} onClose={close} />
+      )}
     </>
   );
 }

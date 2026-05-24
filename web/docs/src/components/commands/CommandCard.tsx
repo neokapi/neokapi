@@ -1,9 +1,16 @@
+import useBaseUrl from "@docusaurus/useBaseUrl";
 import type { CommandEntry } from "@neokapi/reference-data";
 import { commandName, commandSummary } from "./commandHelpers";
 import styles from "./styles.module.css";
 
 interface Props {
   cmd: CommandEntry;
+  /**
+   * Canonical static page route for this command (without baseUrl), e.g.
+   * "/reference/commands/pseudo-translate". The card is a real link to it for
+   * SEO + open-in-new-tab; a plain left-click opens the quick modal.
+   */
+  href: string;
   /** Opens the detail modal for this command (and writes ?id= to the URL). */
   onSelect: (id: string) => void;
 }
@@ -45,20 +52,26 @@ export function RunBadge({ cmd }: { cmd: Pick<CommandEntry, "runnableInBrowser" 
 }
 
 /**
- * A compact, clickable card in the command grid. Clicking opens the full
- * {@link CommandModal}; the detail body and any runnable snippet live there, so
- * the grid stays cheap to render across all commands.
+ * A compact card in the command grid. It is a real link to the command's
+ * static, shareable page (SEO + open-in-new-tab); a plain left-click instead
+ * opens the full {@link CommandModal} quick view, where the detail body and any
+ * runnable snippet live, so the grid stays cheap to render across all commands.
  */
-export default function CommandCard({ cmd, onSelect }: Props) {
+export default function CommandCard({ cmd, href, onSelect }: Props) {
   const flagCount = cmd.flags?.length ?? 0;
   const summary = commandSummary(cmd);
+  const resolvedHref = useBaseUrl(href);
 
   return (
-    <button
-      type="button"
+    <a
       className={styles.gridCard}
-      onClick={() => onSelect(cmd.id)}
-      aria-haspopup="dialog"
+      href={resolvedHref}
+      onClick={(e) => {
+        if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey)
+          return;
+        e.preventDefault();
+        onSelect(cmd.id);
+      }}
     >
       <span className={styles.gridCardHead}>
         <span className={styles.gridCardName}>{commandName(cmd)}</span>
@@ -79,6 +92,6 @@ export default function CommandCard({ cmd, onSelect }: Props) {
           </span>
         )}
       </span>
-    </button>
+    </a>
   );
 }

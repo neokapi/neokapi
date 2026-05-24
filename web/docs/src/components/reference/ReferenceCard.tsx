@@ -1,8 +1,16 @@
+import useBaseUrl from "@docusaurus/useBaseUrl";
 import type { ReferenceEntry, ReferenceSource } from "@neokapi/reference-data";
 import styles from "./styles.module.css";
 
 interface Props {
   entry: ReferenceEntry;
+  /**
+   * The canonical static page route for this entry (without the docs baseUrl),
+   * e.g. "/reference/formats/json". The card is a real link to this URL so it is
+   * crawlable + middle-clickable; a plain left-click opens the quick modal
+   * instead (see onSelect).
+   */
+  href: string;
   /** Opens the detail modal for this entry (and writes ?id= to the URL). */
   onSelect: (id: string) => void;
 }
@@ -20,20 +28,28 @@ function SourceBadge({ source }: { source: ReferenceSource }) {
 }
 
 /**
- * A compact, clickable card in the reference grid. Clicking opens the full
- * {@link ReferenceModal} for the entry; the heavy detail view and form state
- * live there, so the grid stays cheap to render even with hundreds of cards.
+ * A compact card in the reference grid. It is a real link to the entry's static,
+ * shareable page (good for SEO + open-in-new-tab); a plain left-click instead
+ * opens the in-page {@link ReferenceModal} quick view. The heavy detail/form
+ * state lives in the modal (and the static page), so the grid stays cheap.
  */
-export default function ReferenceCard({ entry, onSelect }: Props) {
+export default function ReferenceCard({ entry, href, onSelect }: Props) {
   const schema = entry.schema;
   const paramCount = Object.keys(schema?.properties ?? {}).length;
+  const resolvedHref = useBaseUrl(href);
 
   return (
-    <button
-      type="button"
+    <a
       className={styles.gridCard}
-      onClick={() => onSelect(entry.id)}
-      aria-haspopup="dialog"
+      href={resolvedHref}
+      onClick={(e) => {
+        // Let modifier-clicks / middle-clicks follow the real link (new tab,
+        // copy address, etc.); a plain left-click opens the quick modal.
+        if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey)
+          return;
+        e.preventDefault();
+        onSelect(entry.id);
+      }}
     >
       <span className={styles.gridCardHead}>
         <span className={styles.gridCardName}>{entry.displayName}</span>
@@ -65,6 +81,6 @@ export default function ReferenceCard({ entry, onSelect }: Props) {
           </span>
         )}
       </span>
-    </button>
+    </a>
   );
 }

@@ -111,6 +111,14 @@ bowrain/web/landing/dist/
 web/docs/build/
 web/docs/.docusaurus/
 
+# Generated per-entry reference pages (R4, #673). One MDX per command / format /
+# tool, produced by web/docs/scripts/gen-reference-pages.ts from
+# @neokapi/reference-data via the prebuild/prestart hooks. Regenerated, not
+# committed. The hand-written reference/index.mdx (R1) is kept.
+web/docs/docs/reference/commands/
+web/docs/docs/reference/formats/
+web/docs/docs/reference/tools/
+
 # Generated documentation assets (fetched from docs-assets release in CI)
 web/docs/static/img/bowrain/
 web/docs/static/img/web-app/

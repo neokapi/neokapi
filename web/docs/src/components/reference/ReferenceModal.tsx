@@ -1,11 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import useBaseUrl from "@docusaurus/useBaseUrl";
 import type { ReferenceEntry, ReferenceSource } from "@neokapi/reference-data";
 import ReferenceDetail from "./ReferenceDetail";
 import styles from "./styles.module.css";
 
 interface Props {
   entry: ReferenceEntry;
+  /** Canonical static page route for this entry, e.g. "/reference/formats/json". */
+  href: string;
   onClose: () => void;
 }
 
@@ -29,10 +32,11 @@ const FOCUSABLE =
  * dialog affordances: focus trap, Escape, overlay click, scroll lock, and
  * focus restoration to the card that opened it.
  */
-export default function ReferenceModal({ entry, onClose }: Props) {
+export default function ReferenceModal({ entry, href, onClose }: Props) {
   const panelRef = useRef<HTMLDivElement>(null);
   const restoreFocusRef = useRef<Element | null>(null);
   const [linkCopied, setLinkCopied] = useState(false);
+  const pageHref = useBaseUrl(href);
 
   const copyLink = useCallback(() => {
     navigator.clipboard.writeText(window.location.href).then(() => {
@@ -112,6 +116,13 @@ export default function ReferenceModal({ entry, onClose }: Props) {
           </h2>
           <SourceBadge source={entry.source} />
           <div className={styles.modalActions}>
+            <a
+              className={styles.copyButton}
+              href={pageHref}
+              title="Open the full, shareable reference page for this entry"
+            >
+              View full page
+            </a>
             <button
               type="button"
               className={styles.copyButton}

@@ -677,6 +677,9 @@ generate-reference-docs: ## Generate the unified format + tool reference dataset
 # Superseded by generate-reference-docs; kept as an alias for existing callers.
 generate-format-docs: generate-reference-docs
 
+generate-reference-pages: ## Generate static per-entry reference MDX pages (R4, #673) → web/docs/docs/reference/{commands,formats,tools}
+	cd web/docs && node --no-warnings --experimental-strip-types scripts/gen-reference-pages.ts
+
 # ── Documentation Site ──────────────────────────────────────────────────────
 
 docs-deps: ; cd web/docs && vp install --frozen-lockfile
@@ -777,7 +780,7 @@ help: ## Show this help
         cover test-e2e test-e2e-kapi test-e2e-bowrain test-e2e-cloud test-e2e-dev \
         bench bench-build bench-generate bench-run bench-run-collection bench-run-all bench-versions \
         fetch-docs-assets publish-docs-assets harness-deps harness-videos \
-        generate-format-docs generate-reference-docs \
+        generate-format-docs generate-reference-docs generate-reference-pages \
         docs-deps docs-dev docs-build docs-serve \
         tools setup-remote gha-lint clean \
         _fw-fmt _fw-test _fw-test-fast _fw-test-unit _fw-test-race _fw-test-verbose _fw-test-integration \
