@@ -256,16 +256,22 @@ export async function narrateDemo(m: DemoManifest, opts: NarrateOptions = {}): P
     const text = spec.text?.trim() ?? "";
     if (text) {
       let attempt = 0;
-      // Retry transient TTS errors a couple of times.
+      // The Gemini preview TTS model is flaky: under load it intermittently returns a
+      // fast empty-audio 200 or a 500 INTERNAL. These misses are quick and random (~50%
+      // during a bad patch), so the winning strategy is many quick re-tries with only a
+      // gentle backoff — long exponential waits just burn time on what is effectively a
+      // coin flip. Budget/backoff overridable via NARRATION_TTS_RETRIES.
+      const maxRetries = Math.max(1, Number(process.env.NARRATION_TTS_RETRIES) || 10);
       while (true) {
         try {
           await synthOne(backend, voice, text, outWav);
           break;
         } catch (e) {
           attempt++;
-          if (attempt >= 3) throw e;
-          console.warn(`    retry ${attempt} (${(e as Error).message.slice(0, 120)})`);
-          await new Promise((r) => setTimeout(r, 1500 * attempt));
+          if (attempt >= maxRetries) throw e;
+          const backoff = Math.min(12_000, 700 * 2 ** (attempt - 1));
+          console.warn(`    retry ${attempt}/${maxRetries} in ${(backoff / 1000).toFixed(1)}s (${(e as Error).message.slice(0, 100)})`);
+          await new Promise((r) => setTimeout(r, backoff));
         }
       }
       synthed.push({ spec, wavName, outWav, spoken: true, words: countWords(text), naturalDur: wavDurationSec(outWav) });
