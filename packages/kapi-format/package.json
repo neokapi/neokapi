@@ -3,20 +3,51 @@
   "version": "0.1.1",
   "private": true,
   "description": "Canonical TypeScript schema for the Kapi Localization Format (KLF). Block/Run content model, reference Level-1 preview renderer, target validator, annotation overlay resolver. Mirrors core/klf in Go byte-for-byte against shared golden fixtures.",
+  "files": [
+    "dist",
+    "src"
+  ],
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
-    ".": { "development": "./src/index.ts", "types": "./dist/index.d.ts", "default": "./dist/index.js" },
-    "./block": { "development": "./src/block.ts", "types": "./dist/block.d.ts", "default": "./dist/block.js" },
-    "./vocabulary": { "development": "./src/vocabulary.ts", "types": "./dist/vocabulary.d.ts", "default": "./dist/vocabulary.js" },
-    "./preview": { "development": "./src/preview.ts", "types": "./dist/preview.d.ts", "default": "./dist/preview.js" },
-    "./annotation": { "development": "./src/annotation.ts", "types": "./dist/annotation.d.ts", "default": "./dist/annotation.js" },
-    "./klf": { "development": "./src/klf.ts", "types": "./dist/klf.d.ts", "default": "./dist/klf.js" },
-    "./target-plural": { "development": "./src/target-plural.ts", "types": "./dist/target-plural.d.ts", "default": "./dist/target-plural.js" },
+    ".": {
+      "development": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./block": {
+      "development": "./src/block.ts",
+      "types": "./dist/block.d.ts",
+      "default": "./dist/block.js"
+    },
+    "./vocabulary": {
+      "development": "./src/vocabulary.ts",
+      "types": "./dist/vocabulary.d.ts",
+      "default": "./dist/vocabulary.js"
+    },
+    "./preview": {
+      "development": "./src/preview.ts",
+      "types": "./dist/preview.d.ts",
+      "default": "./dist/preview.js"
+    },
+    "./annotation": {
+      "development": "./src/annotation.ts",
+      "types": "./dist/annotation.d.ts",
+      "default": "./dist/annotation.js"
+    },
+    "./klf": {
+      "development": "./src/klf.ts",
+      "types": "./dist/klf.d.ts",
+      "default": "./dist/klf.js"
+    },
+    "./target-plural": {
+      "development": "./src/target-plural.ts",
+      "types": "./dist/target-plural.d.ts",
+      "default": "./dist/target-plural.js"
+    },
     "./package.json": "./package.json"
   },
-  "files": ["dist", "src"],
   "scripts": {
     "build": "node build.mjs",
     "typecheck": "vpx tsc --noEmit",
