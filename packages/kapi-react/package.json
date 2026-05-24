@@ -1,6 +1,6 @@
 {
   "name": "@neokapi/kapi-react",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "description": "Zero-config i18n for React. Transforms vanilla JSX at build time using W3C HTML5 translatability rules. Supports build-time inlining (zero runtime) and OTA dynamic loading. Extracts translatable content as Kapi Localization Format (KLF).",
   "keywords": [

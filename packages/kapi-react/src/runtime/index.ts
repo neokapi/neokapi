@@ -447,6 +447,33 @@ export function useNeokapi() {
   };
 }
 
+/**
+ * Makes runtime translations reactive for a whole subtree.
+ *
+ * The plugin rewrites JSX text and `t()` calls into plain `__t`/`__tx`
+ * lookups — fast, but they read the dict at render time and don't
+ * subscribe, so a `loadTranslations()` that resolves *after* the
+ * subtree first rendered (the common "load on mount, then switch
+ * locale" case) wouldn't repaint on its own. Wrap the app (or the
+ * localized subtree) in `<NeokapiProvider>` and a locale switch
+ * re-renders the subtree against the new dictionary:
+ *
+ *     <NeokapiProvider>
+ *       <App />
+ *     </NeokapiProvider>
+ *
+ * It subscribes to the store and keys its children on the active
+ * locale, so switching locale remounts the subtree (picking up the
+ * new dict) while same-locale chunk merges don't churn it. To also
+ * avoid a flash of the source language on first load, load the dict
+ * before first paint (see the Next.js gate pattern in the docs);
+ * the provider then simply makes subsequent switches reactive.
+ */
+export function NeokapiProvider({ children }: { children: ReactNode }): ReactNode {
+  useNeokapi(); // subscribe → re-render this provider when the store changes
+  return createElement(Fragment, { key: currentLocale }, children);
+}
+
 // ─── JS-context escape hatch ─────────────────────────────────
 
 /**
