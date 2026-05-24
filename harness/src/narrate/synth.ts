@@ -9,8 +9,9 @@ import { run } from "../lib/exec.ts";
 const GEMINI_STYLE =
   "Read this aloud in a clear, warm, professional British-English documentary-narrator voice, " +
   "at a measured, unhurried, and consistent pace — keep the exact same tone, energy, and tempo " +
-  "from the first word to the last. Always pronounce the product name \"kapi\" as KAH-pee — two " +
-  "syllables, stress on the first, the 'a' as in 'father' — never ka-PEE or kap-ee: ";
+  "from the first word to the last. Leave a clear pause between paragraphs. Always pronounce the " +
+  "product name \"kapi\" as KAH-pee — two syllables, stress on the first, the 'a' as in 'father' " +
+  "— never ka-PEE or kap-ee: ";
 
 type Backend = "gemini" | "elevenlabs" | "openai" | "say";
 
@@ -98,6 +99,15 @@ function narrationSpeed(): number {
   return Number.isFinite(s) && s > 0 ? s : 1.3;
 }
 
+/** Playback speed for the Live-session path. The Live model already reads at a
+ *  measured ~150 wpm, so it needs no acceleration (unlike the slower per-scene
+ *  :generateContent model, which gets NARRATION_SPEED=1.3). Default 1.0 = natural
+ *  pace; this only equalizes speed across scenes. Override with NARRATION_LIVE_SPEED. */
+function narrationLiveSpeed(): number {
+  const s = Number(process.env.NARRATION_LIVE_SPEED);
+  return Number.isFinite(s) && s > 0 ? s : 1.0;
+}
+
 /** TTS sampling temperature. Lower = steadier tone/pace across the separate per-scene
  *  calls. Default 0.4 ("stable" per Gemini's docs). Override with NARRATION_TEMPERATURE. */
 function geminiTemperature(): number {
@@ -131,7 +141,7 @@ function median(nums: number[]): number {
 
 async function geminiTts(text: string, voice: string, outWav: string): Promise<void> {
   const key = process.env.GEMINI_API_KEY!;
-  const model = process.env.GEMINI_TTS_MODEL || "gemini-2.5-flash-preview-tts";
+  const model = process.env.GEMINI_TTS_MODEL || "gemini-3.1-flash-tts-preview";
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
   const body = {
     contents: [{ parts: [{ text: GEMINI_STYLE + text }] }],
@@ -217,6 +227,124 @@ async function synthOne(backend: Backend, voice: string, text: string, outWav: s
   }
 }
 
+// ── Live-session narration ──────────────────────────────────────────────────
+
+/**
+ * System instruction that turns a conversational Live model into a strict verbatim
+ * narrator. Validated against the output transcript: the model reads each turn
+ * word-for-word rather than replying to it.
+ */
+const LIVE_NARRATOR_INSTRUCTION =
+  "You are a documentary narrator. Read the user's text aloud VERBATIM, word for word, " +
+  "in a clear, warm, measured British-English voice at a steady, unhurried pace. Do not " +
+  "reply, greet, comment, summarise, translate, or add or drop any words — narrate exactly " +
+  'what is given. Pronounce the product name "kapi" as KAH-pee (two syllables, stress on ' +
+  "the first, 'a' as in 'father'), never ka-PEE or kap-ee.";
+
+/**
+ * Narrate every scene in ONE Gemini Live (bidi) session. The model holds a single
+ * voice and persona across turns, so the narration can't drift scene-to-scene the way
+ * independent per-scene calls do — and there's no synthesize-then-split: one turn per
+ * scene yields one clip per scene, read verbatim. Writes each scene's WAV and resolves
+ * with the per-scene durations, in order. Rejects on protocol error / empty audio so
+ * the caller falls back to per-scene synthesis.
+ */
+function geminiLiveNarrate(
+  voice: string,
+  scenes: Array<{ text: string; outWav: string }>,
+  model: string,
+): Promise<number[]> {
+  const key = process.env.GEMINI_API_KEY;
+  if (!key) return Promise.reject(new Error("live: GEMINI_API_KEY unset"));
+  const url = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key=${key}`;
+
+  return new Promise<number[]>((resolve, reject) => {
+    const ws = new WebSocket(url);
+    ws.binaryType = "arraybuffer";
+    let idx = -1;
+    let rate = 24000;
+    let chunks: Buffer[] = [];
+    const durations: number[] = [];
+    let settled = false;
+
+    const finish = (fn: () => void) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      try {
+        ws.close();
+      } catch {
+        /* already closed */
+      }
+      fn();
+    };
+    const fail = (msg: string) => finish(() => reject(new Error(`live: ${msg}`)));
+    // Generous budget: setup + ~40s of generation per scene.
+    const timer = setTimeout(() => fail("session timeout"), 20_000 + scenes.length * 40_000);
+
+    const sendTurn = (i: number) =>
+      ws.send(JSON.stringify({ clientContent: { turns: [{ role: "user", parts: [{ text: scenes[i].text }] }], turnComplete: true } }));
+
+    ws.onopen = () =>
+      ws.send(
+        JSON.stringify({
+          setup: {
+            model: `models/${model}`,
+            generationConfig: { responseModalities: ["AUDIO"], speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: voice } } } },
+            systemInstruction: { parts: [{ text: LIVE_NARRATOR_INSTRUCTION }] },
+          },
+        }),
+      );
+
+    ws.onmessage = async (ev: MessageEvent) => {
+      let data: unknown = ev.data;
+      if (data instanceof ArrayBuffer) data = Buffer.from(data).toString("utf8");
+      else if (data instanceof Blob) data = await data.text();
+      let msg: {
+        setupComplete?: unknown;
+        serverContent?: {
+          modelTurn?: { parts?: Array<{ inlineData?: { data?: string; mimeType?: string } }> };
+          turnComplete?: boolean;
+        };
+      };
+      try {
+        msg = JSON.parse(data as string);
+      } catch {
+        return;
+      }
+      if (msg.setupComplete) {
+        idx = 0;
+        chunks = [];
+        sendTurn(0);
+        return;
+      }
+      const sc = msg.serverContent;
+      if (!sc) return;
+      for (const p of sc.modelTurn?.parts ?? []) {
+        if (p.inlineData?.data) {
+          const m = /rate=(\d+)/.exec(p.inlineData.mimeType ?? "");
+          if (m) rate = Number(m[1]);
+          chunks.push(Buffer.from(p.inlineData.data, "base64"));
+        }
+      }
+      if (sc.turnComplete) {
+        const pcm = Buffer.concat(chunks);
+        if (pcm.length === 0) return fail(`empty audio for scene ${idx}`);
+        fs.writeFileSync(scenes[idx].outWav, pcmToWav(pcm, rate));
+        durations.push(wavDurationSec(scenes[idx].outWav));
+        chunks = [];
+        idx++;
+        if (idx >= scenes.length) finish(() => resolve(durations));
+        else sendTurn(idx);
+      }
+    };
+    ws.onerror = () => fail("websocket error");
+    ws.onclose = (e: CloseEvent) => {
+      if (!settled) fail(`websocket closed (code ${e.code}${e.reason ? ` ${e.reason}` : ""})`);
+    };
+  });
+}
+
 // ── Orchestration ─────────────────────────────────────────────────────────────
 
 export interface NarrateOptions {
@@ -236,6 +364,58 @@ export async function narrateDemo(m: DemoManifest, opts: NarrateOptions = {}): P
 
   const { backend, voice } = pickBackend();
   console.log(`  · narrating ${m.id} with ${backend} (${voice}), ${m.narration.length} scenes`);
+
+  // Preferred path: narrate the whole video in ONE Gemini Live session — the model
+  // holds one voice/persona across turns (no scene-to-scene drift), one turn per scene
+  // gives clean per-scene clips, and it's read verbatim. Falls through to per-scene
+  // synthesis if the session fails. Gemini only — other backends are steady already.
+  const spoken = m.narration.filter((s) => s.text?.trim());
+  const useLive = (process.env.NARRATION_LIVE ?? "1") !== "0";
+  if (backend === "gemini" && useLive && spoken.length >= 1) {
+    try {
+      const liveModel = process.env.GEMINI_LIVE_MODEL || "gemini-3.1-flash-live-preview";
+      const inputs = spoken.map((s) => ({ text: s.text.trim(), outWav: path.join(audioDir, `${s.id}.wav`) }));
+      const rawDurs = await geminiLiveNarrate(voice, inputs, liveModel);
+
+      // The session already gives a consistent voice at a natural narrator pace; only
+      // equalize *speed* across scenes by nudging each clip toward the median
+      // words-per-second × NARRATION_LIVE_SPEED (default 1.0 — no acceleration).
+      const speed = narrationLiveSpeed();
+      const words = spoken.map((s) => countWords(s.text));
+      const naturalWps = rawDurs.map((d, i) => (d > 0 ? words[i] / d : 0)).filter((w) => w > 0);
+      const targetWps = median(naturalWps) * speed;
+      const minF = speed * 0.8;
+      const maxF = speed * 1.25;
+      const finalDur = new Map<string, number>();
+      for (let i = 0; i < spoken.length; i++) {
+        const wps = rawDurs[i] > 0 ? words[i] / rawDurs[i] : 0;
+        const factor = wps > 0 && targetWps > 0 ? Math.min(maxF, Math.max(minF, targetWps / wps)) : speed;
+        await applyTempo(inputs[i].outWav, factor);
+        finalDur.set(spoken[i].id, wavDurationSec(inputs[i].outWav));
+      }
+
+      const scenes: NarrationScene[] = m.narration.map((spec) => {
+        const text = spec.text?.trim() ?? "";
+        return {
+          id: spec.id,
+          kind: spec.kind,
+          text,
+          caption: spec.caption?.trim() || captionFromText(spec.text),
+          artifact: spec.artifact,
+          audio: text ? `audio/${spec.id}.wav` : undefined,
+          durationSec: text ? (finalDur.get(spec.id) ?? 0) : 0,
+          holdSec: spec.holdSec ?? defaultHold(spec.kind),
+        };
+      });
+      const manifest: NarrationManifest = { id: m.id, backend, voice, scenes };
+      fs.writeFileSync(narrationPath, JSON.stringify(manifest, null, 2));
+      const total = scenes.reduce((s, sc) => s + sc.durationSec + sc.holdSec, 0);
+      console.log(`  ✓ narrated ${m.id} (live session): ${scenes.length} scenes, ${total.toFixed(1)}s total audio`);
+      return manifest;
+    } catch (e) {
+      console.warn(`  ! live-session narration failed (${(e as Error).message.slice(0, 120)}); falling back to per-scene`);
+    }
+  }
 
   // Pass 1 — synthesize every spoken scene at the model's natural rate. We defer the
   // tempo step so we can equalize pace across scenes afterwards: a flat per-scene

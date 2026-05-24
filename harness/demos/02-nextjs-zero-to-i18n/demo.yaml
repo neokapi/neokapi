@@ -94,9 +94,11 @@ narration:
     kind: artifact
     artifact: japanese
     text: >
-      And the same app, running in Japanese. Every string is translated, the layout is
-      untouched, and the name placeholder is right where it belongs — Claude drove it, kapi
-      did the extraction and the round-trip.
+      And the same app, now in Japanese — layout untouched, the name placeholder right where
+      it belongs. In the interest of honesty: no human has reviewed a single word of this, so
+      a native speaker may well wince. But that's the cheap part to fix. The hard part —
+      lifting every string out of the code and round-tripping the translation back — kapi
+      already handled.
   - id: outro
     kind: outro
     text: >
