@@ -528,6 +528,33 @@ Document-level immutability is achieved by external storage layers that
 version entire Block states. Within a single pipeline execution, mutable
 streaming is the right trade-off.
 
+#### Content immutability by capability
+
+Mutable-in-place does not mean anything goes. A tool's write surface is
+constrained by declared capability — `BaseTool.WritesSource` and
+`WritesTarget`, both false by default:
+
+- **Analysis / annotation** tools (qa-check, word-count, term-lookup,
+  entity-annotate, the segmenter) declare neither. They read source and target
+  and emit overlays, annotations, and properties, but must not mutate source or
+  target content.
+- **Translation** tools declare `WritesTarget` and write `Block.Targets`.
+- **Source-transform** tools (redaction, filtering, normalization) declare
+  `WritesSource` and run in the early phase, before any stand-off overlay is
+  attached — run-anchored overlays (segmentation, terms, entities; see
+  [AD-002](002-content-model.md)) would be invalidated by a later source
+  rewrite. Recoverable transforms (redaction) restore the original on the way
+  out.
+
+`BaseTool.handleBlock` enforces this: it content-hashes the block's source and
+targets around each handler and returns an error when a tool changes a surface
+it did not declare, or when a source-transform mutates source while an overlay
+is present. The guard is gated by `tool.EnforceImmutability` (on by default).
+Source and target are therefore effectively read-only to a tool unless it opts
+in — the default the run-anchored content model needs. (The `script` tool makes
+this explicit: source is read-only unless its `allowSourceMutation` flag is
+set.)
+
 ## Consequences
 
 - Implementing a new tool requires only embedding `BaseTool` and setting
