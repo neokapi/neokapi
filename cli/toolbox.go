@@ -136,19 +136,26 @@ func readContent(path string) ([]byte, error) {
 	return os.ReadFile(path)
 }
 
-// resolveFormatName picks the format for a path + content: an explicit --format
-// wins, then file extension, then content sniffing, then plain text.
+// resolveFormatName picks the format for a path + content. An explicit --format
+// wins; otherwise it runs the framework's canonical detection cascade
+// (extension → container-aware content sniffing) and falls back to plain text.
+//
+// For stdin there is no filename, so detection is purely content-based — it
+// routes through the same Detector.Detect path as files, which means piped
+// documents (a .docx, a JSON catalog) are recognised via content sniffing, and
+// only genuinely unidentifiable input falls back to plain text. This is the one
+// place the toolbox decides a format, so both files and stdin share it.
 func (a *App) resolveFormatName(path string, content []byte) string {
 	if a.FormatFlag != "" {
 		return preset.ParseFormatRef(a.FormatFlag).RegistryName()
 	}
-	if path != "" && path != stdinName {
-		if det, err := a.FormatReg.DetectByExtension(filepath.Ext(path)); err == nil && det != "" {
-			return string(det)
-		}
+	// stdin carries no usable path; let Detect skip the extension stage.
+	detectPath := path
+	if detectPath == stdinName {
+		detectPath = ""
 	}
-	if det, err := a.FormatReg.Detector().DetectByContent(bytes.NewReader(content)); err == nil && det != "" {
-		return det
+	if name, err := a.FormatReg.Detector().Detect(detectPath, bytes.NewReader(content), ""); err == nil && name != "" {
+		return name
 	}
 	return fallbackFormat
 }

@@ -198,6 +198,43 @@ func TestEditDocumentDocxRoundtrip(t *testing.T) {
 	assert.True(t, found, "replacement text must survive the round-trip")
 }
 
+// TestResolveFormatNameStdin verifies the toolbox's format resolution — the one
+// path both files and stdin share — routes content (no filename) through the
+// container-aware detector, so piped documents are recognised rather than
+// blindly treated as plain text.
+func TestResolveFormatNameStdin(t *testing.T) {
+	app := newToolboxApp(t)
+
+	t.Run("piped JSON is detected by content", func(t *testing.T) {
+		assert.Equal(t, "json", app.resolveFormatName(stdinName, []byte(`{"a":"hello","b":"world"}`)))
+	})
+
+	t.Run("piped plain text falls back to plaintext", func(t *testing.T) {
+		assert.Equal(t, fallbackFormat, app.resolveFormatName(stdinName, []byte("just some words\n")))
+	})
+
+	t.Run("explicit --format wins over content", func(t *testing.T) {
+		app.FormatFlag = "plaintext"
+		defer func() { app.FormatFlag = "" }()
+		assert.Equal(t, "plaintext", app.resolveFormatName(stdinName, []byte(`{"a":"b"}`)))
+	})
+
+	t.Run("file extension still wins for paths", func(t *testing.T) {
+		// .md extension chosen even though the bytes look like JSON.
+		assert.Equal(t, "markdown", app.resolveFormatName("notes.md", []byte(`{"a":"b"}`)))
+	})
+
+	t.Run("piped .docx is detected as openxml, not epub", func(t *testing.T) {
+		fixtures, _ := filepath.Glob("../core/formats/openxml/testdata/*.docx")
+		if len(fixtures) == 0 {
+			t.Skip("no .docx fixtures available")
+		}
+		content, err := os.ReadFile(fixtures[0])
+		require.NoError(t, err)
+		assert.Equal(t, "openxml", app.resolveFormatName(stdinName, content))
+	})
+}
+
 func findCmd(cmds []*cobra.Command, name string) *cobra.Command {
 	for _, c := range cmds {
 		if c.Name() == name {
