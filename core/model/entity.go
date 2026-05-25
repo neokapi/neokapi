@@ -37,7 +37,7 @@ func entityTypeLabel(typeName string) string {
 type EntityAnnotation struct {
 	Text     string           // the entity text as found in source
 	Type     EntityType       // classification
-	Position TextRange        // character offset range in source text
+	Position RunRange         // run-anchored span in the source runs
 	Locale   LocaleID         // locale-specific formatting hint
 	DNT      bool             // do-not-translate flag
 	Source   ExtractionSource // how this entity was discovered ("llm", "ner", "manual")

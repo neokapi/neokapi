@@ -273,7 +273,8 @@ func (t *RedactTool) entityMatches(block *model.Block, text string) []redaction.
 		if !t.entityCats[cat] {
 			continue
 		}
-		start, end, ok := locateSpan(text, ea.Text, ea.Position.Start, ea.Position.End)
+		hintStart, hintEnd := ea.Position.ByteSpan(block.Source)
+		start, end, ok := locateSpan(text, ea.Text, hintStart, hintEnd)
 		if !ok {
 			continue
 		}

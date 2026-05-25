@@ -99,13 +99,10 @@ func (t *BrandVocabCheckTool) handleBlock(part *model.Part) (*model.Part, error)
 				}
 				absPos := idx + pos
 				f := brand.BrandVoiceFinding{
-					Dimension: brand.DimensionVocabulary,
-					Severity:  brand.SeverityMajor,
-					Message:   fmt.Sprintf("Forbidden term %q found", rule.Term),
-					Position: model.TextRange{
-						Start: absPos,
-						End:   absPos + len(rule.Term),
-					},
+					Dimension:    brand.DimensionVocabulary,
+					Severity:     brand.SeverityMajor,
+					Message:      fmt.Sprintf("Forbidden term %q found", rule.Term),
+					Position:     model.RunRangeForBytes(block.Source, absPos, absPos+len(rule.Term)),
 					OriginalText: sourceText[absPos : absPos+len(rule.Term)],
 				}
 				if rule.Replacement != "" {
@@ -130,13 +127,10 @@ func (t *BrandVocabCheckTool) handleBlock(part *model.Part) (*model.Part, error)
 				}
 				absPos := idx + pos
 				f := brand.BrandVoiceFinding{
-					Dimension: brand.DimensionVocabulary,
-					Severity:  brand.SeverityCritical,
-					Message:   fmt.Sprintf("Competitor term %q found", rule.Term),
-					Position: model.TextRange{
-						Start: absPos,
-						End:   absPos + len(rule.Term),
-					},
+					Dimension:    brand.DimensionVocabulary,
+					Severity:     brand.SeverityCritical,
+					Message:      fmt.Sprintf("Competitor term %q found", rule.Term),
+					Position:     model.RunRangeForBytes(block.Source, absPos, absPos+len(rule.Term)),
 					OriginalText: sourceText[absPos : absPos+len(rule.Term)],
 				}
 				if rule.Replacement != "" {
@@ -162,7 +156,7 @@ func (t *BrandVocabCheckTool) handleBlock(part *model.Part) (*model.Part, error)
 					Dimension:    brand.DimensionVocabulary,
 					Severity:     brand.SeverityCritical,
 					Message:      fmt.Sprintf("Competitor term %q found in termbase", m.Term.Text),
-					Position:     m.Position,
+					Position:     model.RunRangeForBytes(block.Source, m.Position.Start, m.Position.End),
 					OriginalText: m.Term.Text,
 				})
 			} else if m.Term.Status == model.TermForbidden {
@@ -170,7 +164,7 @@ func (t *BrandVocabCheckTool) handleBlock(part *model.Part) (*model.Part, error)
 					Dimension:    brand.DimensionVocabulary,
 					Severity:     brand.SeverityMajor,
 					Message:      fmt.Sprintf("Forbidden term %q found in termbase", m.Term.Text),
-					Position:     m.Position,
+					Position:     model.RunRangeForBytes(block.Source, m.Position.Start, m.Position.End),
 					OriginalText: m.Term.Text,
 				})
 			}

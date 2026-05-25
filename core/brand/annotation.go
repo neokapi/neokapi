@@ -7,7 +7,7 @@ type BrandVoiceAnnotation struct {
 	ProfileID string              `json:"profile_id"`
 	Score     int                 `json:"score"` // 0-100 overall
 	Findings  []BrandVoiceFinding `json:"findings"`
-	Position  model.TextRange     `json:"position"`
+	Position  model.RunRange      `json:"position"`
 }
 
 // AnnotationType returns the type identifier for this annotation.

@@ -14,7 +14,7 @@ func TestTermCandidateAnnotation_AnnotationType(t *testing.T) {
 		Category:        model.TermCategoryUI,
 		Translatability: model.TranslatabilityConsistent,
 		Confidence:      0.92,
-		Position:        model.TextRange{Start: 5, End: 14},
+		Position:        model.RunRange{StartOffset: 5, EndOffset: 14},
 		Locale:          "en-US",
 		Source:          model.ExtractionSourceLLM,
 		Status:          model.CandidateStatusPending,

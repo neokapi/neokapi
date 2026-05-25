@@ -251,10 +251,11 @@ func createReviewItemsFromParts(ctx context.Context, deps *ExtractionWorkerDeps,
 				}
 
 				data, _ := json.Marshal(a)
+				ps, pe := a.Position.ByteSpan(block.Source)
 				occ, _ := json.Marshal([]map[string]any{{
 					"block_id": block.ID,
-					"start":    a.Position.Start,
-					"end":      a.Position.End,
+					"start":    ps,
+					"end":      pe,
 					"context":  block.SourceText(),
 				}})
 
@@ -278,10 +279,11 @@ func createReviewItemsFromParts(ctx context.Context, deps *ExtractionWorkerDeps,
 				}
 
 				data, _ := json.Marshal(a)
+				ps, pe := a.Position.ByteSpan(block.Source)
 				occ, _ := json.Marshal([]map[string]any{{
 					"block_id": block.ID,
-					"start":    a.Position.Start,
-					"end":      a.Position.End,
+					"start":    ps,
+					"end":      pe,
 					"context":  block.SourceText(),
 				}})
 

@@ -492,7 +492,7 @@ func (t *AIEntityExtractTool) mergeAndAttach(block *model.Block, nerEntities []n
 			ann := &model.EntityAnnotation{
 				Text:     e.Text,
 				Type:     llmEntityType(e.Type),
-				Position: model.TextRange{Start: e.Offset, End: e.Offset + e.Length},
+				Position: model.RunRangeForBytes(block.Source, e.Offset, e.Offset+e.Length),
 				Locale:   t.locale,
 				DNT:      e.DNT,
 				Source:   model.ExtractionSourceLLM,
@@ -511,7 +511,7 @@ func (t *AIEntityExtractTool) mergeAndAttach(block *model.Block, nerEntities []n
 		ann := &model.EntityAnnotation{
 			Text:     e.Text,
 			Type:     e.Type,
-			Position: model.TextRange{Start: e.Offset, End: e.Offset + e.Length},
+			Position: model.RunRangeForBytes(block.Source, e.Offset, e.Offset+e.Length),
 			Locale:   t.locale,
 			DNT:      isDefaultDNT(e.Type),
 			Source:   model.ExtractionSourceNER,
@@ -533,7 +533,7 @@ func (t *AIEntityExtractTool) mergeAndAttach(block *model.Block, nerEntities []n
 				Category:        model.TermCategory(tc.Category),
 				Translatability: model.Translatability(tc.Translatability),
 				Confidence:      tc.Confidence,
-				Position:        model.TextRange{Start: tc.Offset, End: tc.Offset + tc.Length},
+				Position:        model.RunRangeForBytes(block.Source, tc.Offset, tc.Offset+tc.Length),
 				Locale:          t.locale,
 				Source:          model.ExtractionSourceLLM,
 				Status:          model.CandidateStatusPending,

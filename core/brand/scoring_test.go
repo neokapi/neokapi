@@ -39,9 +39,9 @@ func TestCalculateScore_NoFindings(t *testing.T) {
 
 func TestCalculateScore_MixedSeverities(t *testing.T) {
 	findings := []BrandVoiceFinding{
-		{Dimension: DimensionTone, Severity: SeverityMinor, Message: "too casual", Position: model.TextRange{Start: 0, End: 5}},
-		{Dimension: DimensionTone, Severity: SeverityMajor, Message: "wrong emotion", Position: model.TextRange{Start: 10, End: 20}},
-		{Dimension: DimensionVocabulary, Severity: SeverityCritical, Message: "competitor term", Position: model.TextRange{Start: 30, End: 40}},
+		{Dimension: DimensionTone, Severity: SeverityMinor, Message: "too casual", Position: model.RunRange{EndOffset: 5}},
+		{Dimension: DimensionTone, Severity: SeverityMajor, Message: "wrong emotion", Position: model.RunRange{StartOffset: 10, EndOffset: 20}},
+		{Dimension: DimensionVocabulary, Severity: SeverityCritical, Message: "competitor term", Position: model.RunRange{StartOffset: 30, EndOffset: 40}},
 	}
 
 	score := CalculateScore(findings)
@@ -77,7 +77,7 @@ func TestCalculateScore_ClampAtZero(t *testing.T) {
 			Dimension: DimensionBrand,
 			Severity:  SeverityCritical,
 			Message:   "critical issue",
-			Position:  model.TextRange{Start: i * 10, End: i*10 + 5},
+			Position:  model.RunRange{StartOffset: i * 10, EndOffset: i*10 + 5},
 		}
 	}
 

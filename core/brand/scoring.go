@@ -41,12 +41,12 @@ func SeverityWeight(s Severity) int {
 
 // BrandVoiceFinding represents a single brand voice compliance issue.
 type BrandVoiceFinding struct {
-	Dimension    Dimension       `json:"dimension"`
-	Severity     Severity        `json:"severity"`
-	Message      string          `json:"message"`
-	Suggestion   string          `json:"suggestion,omitempty"`
-	Position     model.TextRange `json:"position"`
-	OriginalText string          `json:"original_text,omitempty"`
+	Dimension    Dimension      `json:"dimension"`
+	Severity     Severity       `json:"severity"`
+	Message      string         `json:"message"`
+	Suggestion   string         `json:"suggestion,omitempty"`
+	Position     model.RunRange `json:"position"`
+	OriginalText string         `json:"original_text,omitempty"`
 }
 
 // DimensionScore holds the score breakdown for a single dimension.

@@ -656,7 +656,7 @@ func (a *App) LookupTM(handle string, req LookupTMRequest) []TMMatchDTO {
 		block.Annotations[fmt.Sprintf("entity:%d", i)] = &model.EntityAnnotation{
 			Text:     ea.Text,
 			Type:     model.EntityType(ea.Type),
-			Position: model.TextRange{Start: ea.Start, End: ea.End},
+			Position: model.RunRangeForBytes(block.Source, ea.Start, ea.End),
 			Source:   model.ExtractionSourceManual,
 		}
 	}

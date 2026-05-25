@@ -1,5 +1,7 @@
 package model
 
+import "unicode/utf8"
+
 // This file defines the stand-off overlay model (AD-002). A Block's content
 // is a flat []Run per locale; every interpretation *of* that content —
 // sentence segmentation, terminology, entities, QA findings, source↔target
@@ -134,6 +136,66 @@ func RunRangeFor(runs []Run, startRune, endRune int) RunRange {
 	sr, so := runPosition(runs, startRune)
 	er, eo := runPosition(runs, endRune)
 	return RunRange{StartRun: sr, StartOffset: so, EndRun: er, EndOffset: eo}
+}
+
+// TextSpan projects a RunRange back to character offsets [start, end) in the
+// text-only flattening of runs (RunsText) — the inverse of RunRangeFor.
+// Useful for UI / wire consumers that highlight over the flattened source text.
+func (r RunRange) TextSpan(runs []Run) (start, end int) {
+	return runTextOffset(runs, r.StartRun, r.StartOffset), runTextOffset(runs, r.EndRun, r.EndOffset)
+}
+
+func runTextOffset(runs []Run, runIdx, off int) int {
+	pos := 0
+	for i := 0; i < runIdx && i < len(runs); i++ {
+		if runs[i].Text != nil {
+			pos += len([]rune(runs[i].Text.Text))
+		}
+	}
+	if runIdx >= 0 && runIdx < len(runs) && runs[runIdx].Text != nil {
+		pos += off
+	}
+	return pos
+}
+
+// ByteSpan projects a RunRange to byte offsets [start, end) in the text-only
+// flattening of runs (RunsText), for consumers that byte-index the source text.
+func (r RunRange) ByteSpan(runs []Run) (start, end int) {
+	text := RunsText(runs)
+	rs, re := r.TextSpan(runs)
+	return runeToByteOffset(text, rs), runeToByteOffset(text, re)
+}
+
+func runeToByteOffset(s string, runeOff int) int {
+	if runeOff <= 0 {
+		return 0
+	}
+	n := 0
+	for i := range s {
+		if n == runeOff {
+			return i
+		}
+		n++
+	}
+	return len(s)
+}
+
+// RunRangeForBytes builds a RunRange for a byte-offset span [byteStart, byteEnd)
+// into the runs' text-only flattening (RunsText). Convenience for entity/term
+// detectors that report byte offsets into the source text; it converts to rune
+// offsets so the resulting range is correct for non-ASCII content too.
+func RunRangeForBytes(runs []Run, byteStart, byteEnd int) RunRange {
+	text := RunsText(runs)
+	toRune := func(b int) int {
+		if b <= 0 {
+			return 0
+		}
+		if b > len(text) {
+			b = len(text)
+		}
+		return utf8.RuneCountInString(text[:b])
+	}
+	return RunRangeFor(runs, toRune(byteStart), toRune(byteEnd))
 }
 
 // SegmentationFor returns the segmentation overlay for the given side (nil =

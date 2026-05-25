@@ -1147,12 +1147,13 @@ func enrichBlockEntities(bi *BlockInfoResponse, block *model.Block) {
 	for key, ann := range block.Annotations {
 		switch a := ann.(type) {
 		case *model.EntityAnnotation:
+			start, end := a.Position.ByteSpan(block.Source)
 			bi.Entities = append(bi.Entities, EntityInfoResponse{
 				Key:    key,
 				Text:   a.Text,
 				Type:   string(a.Type),
-				Start:  a.Position.Start,
-				End:    a.Position.End,
+				Start:  start,
+				End:    end,
 				DNT:    a.DNT,
 				Source: string(a.Source),
 				Locale: string(a.Locale),

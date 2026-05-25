@@ -104,7 +104,7 @@ func (t *TermLookupTool) handleBlock(part *model.Part) (*model.Part, error) {
 			ConceptID:   match.Concept.ID,
 			TargetTerms: targetRefs,
 			Status:      match.Term.Status,
-			Position:    match.Position,
+			Position:    model.RunRangeForBytes(block.Source, match.Position.Start, match.Position.End),
 			Score:       match.Score,
 			MatchType:   match.MatchType,
 		}
@@ -259,7 +259,7 @@ func (t *TermEnforceTool) handleBlock(part *model.Part) (*model.Part, error) {
 				ConceptID:   match.Concept.ID,
 				TargetTerms: targetRefs,
 				Status:      match.Term.Status,
-				Position:    match.Position,
+				Position:    model.RunRangeForBytes(block.Source, match.Position.Start, match.Position.End),
 				Score:       match.Score,
 				MatchType:   match.MatchType,
 			}
@@ -280,7 +280,7 @@ func (t *TermEnforceTool) handleBlock(part *model.Part) (*model.Part, error) {
 			ConceptID:   match.Concept.ID,
 			TargetTerms: targetRefs,
 			Status:      match.Term.Status,
-			Position:    match.Position,
+			Position:    model.RunRangeForBytes(block.Source, match.Position.Start, match.Position.End),
 			Score:       match.Score,
 			MatchType:   match.MatchType,
 		}

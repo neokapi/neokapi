@@ -60,8 +60,9 @@ func TestBrandVocabCheckForbiddenTerms(t *testing.T) {
 	assert.Equal(t, brand.SeverityMajor, findings[0].Severity)
 	assert.Contains(t, findings[0].Message, "cheap")
 	assert.Contains(t, findings[0].Suggestion, "affordable")
-	assert.Equal(t, 10, findings[0].Position.Start)
-	assert.Equal(t, 15, findings[0].Position.End)
+	assert.Equal(t, 0, findings[0].Position.StartRun)
+	assert.Equal(t, 10, findings[0].Position.StartOffset)
+	assert.Equal(t, 15, findings[0].Position.EndOffset)
 }
 
 func TestBrandVocabCheckCompetitorTerms(t *testing.T) {
