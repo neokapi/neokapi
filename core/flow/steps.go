@@ -17,16 +17,20 @@ type FlowStep struct {
 // StepsSpec is the steps-based flow format that humans author.
 // It compiles to a FlowDefinition (nodes + edges) for execution.
 type StepsSpec struct {
-	Input  string     `json:"input,omitempty" yaml:"input,omitempty"`
-	Output string     `json:"output,omitempty" yaml:"output,omitempty"`
-	Steps  []FlowStep `json:"steps" yaml:"steps"`
+	Input  string `json:"input,omitempty" yaml:"input,omitempty"`
+	Output string `json:"output,omitempty" yaml:"output,omitempty"`
+	// SourceTransforms is the leading source-transform stage: tools that settle
+	// the source/model (redaction, simplification, normalization) before the
+	// main steps run. Each must be a source-transform-capable tool. See AD-006.
+	SourceTransforms []FlowStep `json:"sourceTransforms,omitempty" yaml:"source_transforms,omitempty"`
+	Steps            []FlowStep `json:"steps" yaml:"steps"`
 }
 
 // StepsToGraph compiles a steps-based spec into FlowDefinition nodes and edges.
 // It auto-generates reader/writer nodes and chains steps sequentially,
 // with fan-out for parallel blocks.
 func StepsToGraph(spec *StepsSpec) ([]FlowNode, []FlowEdge, error) {
-	if len(spec.Steps) == 0 {
+	if len(spec.Steps) == 0 && len(spec.SourceTransforms) == 0 {
 		return nil, nil, errors.New("flow has no steps")
 	}
 
@@ -60,6 +64,34 @@ func StepsToGraph(spec *StepsSpec) ([]FlowNode, []FlowEdge, error) {
 
 	prevIDs := []string{readerID}
 	xPos := 250.0
+
+	// Source-transform stage: sequential tools that settle the source/model,
+	// emitted between the reader and the main steps and marked with the stage.
+	for _, step := range spec.SourceTransforms {
+		id := nextID("tool")
+		label := step.Label
+		if label == "" {
+			label = step.Tool
+		}
+		nodes = append(nodes, FlowNode{
+			ID:       id,
+			Type:     NodeTool,
+			Name:     step.Tool,
+			Label:    label,
+			Stage:    StageSourceTransform,
+			Config:   step.Config,
+			Position: NodePosition{X: xPos, Y: 100},
+		})
+		for _, prev := range prevIDs {
+			edges = append(edges, FlowEdge{
+				ID:     fmt.Sprintf("e-%s-%s", prev, id),
+				Source: prev,
+				Target: id,
+			})
+		}
+		prevIDs = []string{id}
+		xPos += 250
+	}
 
 	for _, step := range spec.Steps {
 		if len(step.Parallel) > 0 {
