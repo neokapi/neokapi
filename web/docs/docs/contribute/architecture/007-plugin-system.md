@@ -45,7 +45,9 @@ to evolve independently of the framework. Key requirements:
   error.
 - **Security.** Plugins run with full user privileges; signature
   verification raises the bar against tampering and supply-chain
-  attacks.
+  attacks. This is supply-chain signing (cosign / Sigstore), distinct
+  from OS code signing / notarization — see
+  [Plugin signing vs. OS notarization](#plugin-signing-vs-os-notarization).
 - **Performance for format-heavy workloads.** Okapi bridge processes
   large IDML / TMX / Word files at high throughput. JVM startup is
   hundreds of ms; the model must support long-lived daemons with
@@ -241,6 +243,42 @@ plugins refuse to install unless `--unsafe` is passed.
 The 1-hour cache at `$XDG_CACHE_HOME/kapi/registry-index.json` keeps
 auto-install prompts cheap; explicit `kapi plugin install / search /
 update-index` always fetches fresh.
+
+### Plugin signing vs. OS notarization
+
+Plugin signing sits on a different trust layer than the OS code
+signing applied to the kapi CLI and desktop apps. The two are
+independent and answer different questions:
+
+| Layer | Question | Mechanism | Triggered by |
+| ----- | -------- | --------- | ------------ |
+| **Supply chain** | Is this the genuine, untampered plugin? | cosign / Sigstore bundle + SHA-256, verified at install (above) | every `kapi plugin install` |
+| **OS Gatekeeper / SmartScreen** | Will the OS let the binary run without a warning? | Apple Developer ID + notarization (macOS); Authenticode (Windows) | the `com.apple.quarantine` xattr — set only by browser / mail downloads |
+
+Plugins rely on the **supply-chain** layer only. `kapi plugin install`
+fetches tarballs over HTTPS using Go's HTTP client, which does **not**
+set the quarantine attribute, and unpacks them under the data dir. The
+extracted binary is therefore never quarantined, so macOS Gatekeeper
+and Windows SmartScreen never engage on it — no Apple notarization or
+Authenticode signature is required for a plugin to run. The cosign
+signature + SHA-256 check is the meaningful integrity guarantee, and it
+is enforced on every platform.
+
+This is the inverse of the kapi CLI and desktop apps, which **are**
+Developer-ID-signed + notarized (macOS) and Authenticode-signed
+(Windows): users fetch those through a browser (DMG, release archive),
+so they arrive quarantined and must clear Gatekeeper / SmartScreen on
+first launch.
+
+The okapi-bridge is a `jpackage` app-image — a native launcher plus a
+bundled JRE, i.e. genuine native code — yet the same reasoning holds:
+installed unquarantined via `kapi plugin install` and verified by
+cosign + SHA-256, it runs without OS-level signing. Deep-signing and
+notarizing it (the launcher plus every bundled-JRE dylib, across each
+Okapi version × OS × arch) is deliberately **not** done, because it
+buys nothing for the programmatic install path. A plugin would need OS
+code signing only if it were also distributed as a **direct browser
+download** — out of scope for the registry-driven model.
 
 ### JSON Schema validation for `schema_extensions`
 
