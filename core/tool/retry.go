@@ -47,9 +47,8 @@ func (t *RetryTool) Config() ToolConfig           { return t.inner.Config() }
 func (t *RetryTool) SetConfig(c ToolConfig) error { return t.inner.SetConfig(c) }
 
 // Process wraps the inner tool's Process. If the inner tool is a BaseTool with
-// a block handler (any of the capability-typed handlers, or the legacy
-// HandleBlockFn), retries are applied per-block by wrapping that handler.
-// Otherwise the entire Process call is retried on error.
+// a capability-typed block handler, retries are applied per-block by wrapping
+// that handler. Otherwise the entire Process call is retried on error.
 func (t *RetryTool) Process(ctx context.Context, in <-chan *model.Part, out chan<- *model.Part) error {
 	bt, ok := t.inner.(*BaseTool)
 	if !ok {
@@ -78,21 +77,6 @@ func (t *RetryTool) Process(ctx context.Context, in <-chan *model.Part, out chan
 			return t.retryAttempt(ctx, func() error { return orig(v) })
 		}
 		defer func() { bt.Transform = orig }()
-	case bt.HandleBlockFn != nil:
-		orig := bt.HandleBlockFn
-		bt.HandleBlockFn = func(part *model.Part) (*model.Part, error) {
-			var res *model.Part
-			err := t.retryAttempt(ctx, func() error {
-				var e error
-				res, e = orig(part)
-				return e
-			})
-			if err != nil {
-				return nil, err
-			}
-			return res, nil
-		}
-		defer func() { bt.HandleBlockFn = orig }()
 	default:
 		// No block handler: retry the entire Process.
 		return t.retryProcess(ctx, in, out)

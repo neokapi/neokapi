@@ -190,8 +190,8 @@ func (t *RedactTool) Process(ctx context.Context, in <-chan *model.Part, out cha
 }
 
 // Flush persists the sidecar vault, if the tool is in external mode. Callers
-// that drive the tool via HandleBlockFn directly (rather than Process) must
-// call Flush when done.
+// that drive the tool via Apply directly (rather than Process) must call Flush
+// when done.
 func (t *RedactTool) Flush() error {
 	if t.vault != nil {
 		return t.vault.Flush()

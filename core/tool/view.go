@@ -7,11 +7,11 @@ import "github.com/neokapi/neokapi/core/model"
 // view; the writable output surface is overlays, annotations, and properties.
 //
 // A tool's capability is expressed by which handler field it sets on BaseTool:
-//   - HandleBlockFn(BlockView)     — analysis / annotation (the default; no
-//     content writes possible — the methods simply don't exist here)
-//   - TranslateBlockFn(TargetView) — writes target content
-//   - TransformBlockFn(SourceView) — rewrites source (and may write target);
-//     runs in the early phase, before any stand-off overlay is attached
+//   - Annotate(BlockView)   — analysis / annotation (the default; no content
+//     writes possible — the methods simply don't exist here)
+//   - Translate(TargetView) — writes target content
+//   - Transform(SourceView) — rewrites source (and may write target); runs in
+//     the early phase, before any stand-off overlay is attached
 //
 // Because the read methods hand back the Block's live run slices, tools must
 // treat returned runs as read-only; the dispatcher's backstop check

@@ -18,7 +18,7 @@ type ParallelBlockTool struct {
 }
 
 // NewParallelBlockTool creates a ParallelBlockTool that processes blocks in
-// parallel using the inner tool's HandleBlockFn. concurrency controls the
+// parallel using the inner tool's block handler. concurrency controls the
 // maximum number of blocks processed simultaneously.
 func NewParallelBlockTool(inner Tool, concurrency int) *ParallelBlockTool {
 	if concurrency < 1 {
