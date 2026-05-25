@@ -111,6 +111,77 @@ func TestScriptModifySourceTextInPlace(t *testing.T) {
 	assert.Equal(t, "HELLO WORLD", resultBlock.SourceText())
 }
 
+func TestScriptFunctionFormReturnEmits(t *testing.T) {
+	t.Parallel()
+	// A process(part) function is detected and called per Part; returning the
+	// part emits it (with edits applied). JSDoc on the param is a comment, so
+	// goja runs the body fine.
+	code := `
+		/** @param {Part} part */
+		function process(part) {
+			if (part.type === "block") {
+				part.block.source[0].content.text = part.block.source[0].content.text.toUpperCase();
+			}
+			return part;
+		}
+	`
+	tl := tools.NewScriptTool(&tools.ScriptConfig{Code: code})
+	block := model.NewBlock("tu1", "hello")
+	part := &model.Part{Type: model.PartBlock, Resource: block}
+	result := processPart(t, tl, part)
+	assert.Equal(t, "HELLO", result.Resource.(*model.Block).SourceText())
+}
+
+func TestScriptFunctionFormReturnNullSkips(t *testing.T) {
+	t.Parallel()
+	code := `
+		function process(part) {
+			if (part.type === "block" && part.block.source[0].content.text.length <= 5) return null;
+			return part;
+		}
+	`
+	tl := tools.NewScriptTool(&tools.ScriptConfig{Code: code})
+	parts := []*model.Part{
+		{Type: model.PartBlock, Resource: model.NewBlock("tu1", "Hi")},
+		{Type: model.PartBlock, Resource: model.NewBlock("tu2", "Hello World")},
+	}
+	results := processAllParts(t, tl, parts)
+	require.Len(t, results, 1)
+	assert.Equal(t, "Hello World", results[0].Resource.(*model.Block).SourceText())
+}
+
+func TestScriptFunctionFormEmitSkipInside(t *testing.T) {
+	t.Parallel()
+	// emit()/skip() still work inside process(); the return value is optional.
+	code := `
+		function process(part) {
+			if (part.type === "block") { skip(); return; }
+			emit(part);
+		}
+	`
+	tl := tools.NewScriptTool(&tools.ScriptConfig{Code: code})
+	block := model.NewBlock("tu1", "Hello")
+	part := &model.Part{Type: model.PartBlock, Resource: block}
+
+	in := make(chan *model.Part, 1)
+	out := make(chan *model.Part, 1)
+	in <- part
+	close(in)
+	require.NoError(t, tl.Process(t.Context(), in, out))
+	close(out)
+	assert.Nil(t, <-out)
+}
+
+func TestScriptFunctionFormReturnArrayEmitsMany(t *testing.T) {
+	t.Parallel()
+	code := `function process(part) { return [part, part]; }`
+	tl := tools.NewScriptTool(&tools.ScriptConfig{Code: code})
+	block := model.NewBlock("tu1", "Hello")
+	part := &model.Part{Type: model.PartBlock, Resource: block}
+	results := processAllParts(t, tl, []*model.Part{part})
+	assert.Len(t, results, 2)
+}
+
 func TestScriptSkipDropsParts(t *testing.T) {
 	t.Parallel()
 	tl := tools.NewScriptTool(&tools.ScriptConfig{Code: "skip()"})

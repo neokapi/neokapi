@@ -194,16 +194,17 @@ it always matches the build.
 ## Scripting — write a transform in JavaScript
 
 Not every transform deserves its own Go tool. The built-in `script` tool runs a
-small JavaScript program against each Part: read `part`, modify
-`part.block.source` or `part.block.targets`, then `emit(part)` to keep it or
-`skip()` to drop it. It is the quickest way to prototype a one-off rule, and it
-runs anywhere the engine runs — including the browser, via the embedded
-interpreter.
+small JavaScript program against each Part. Define `process(part)`, edit
+`part.block.source` or `part.block.targets`, and return the part to keep it (or
+`null` to drop it) — or omit the function and write top-level code against the
+global `part`, calling `emit(part)` / `skip()`. It is the quickest way to
+prototype a one-off rule, and it runs anywhere the engine runs — including the
+browser, via the embedded interpreter.
 
 :::tip Write a script, run it on your file
-Edit the JavaScript below (with full autocomplete for the `part` API), or load
-an example, then run it on a sample or your own file and read the per-Block
-before/after. Modify text in place or reassign the segment array — both work.
+Edit the JavaScript below — `process(part)` runs once per Part, with full
+autocomplete for the `part` API — or load an example, then run it on a sample or
+your own file and read the per-Block before/after of source and target.
 :::
 
 <ScriptLab defaultSampleId="messages-json" />

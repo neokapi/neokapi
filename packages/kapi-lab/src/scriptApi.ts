@@ -2,6 +2,12 @@
 // script tool's sandbox. These mirror the goja globals the tool exposes
 // (core/tools/script.go): `part`, `emit`, `skip`, `log`, and the shape of a
 // block's source/target segments. Kept in sync with that file by hand.
+//
+// Two authoring forms are supported. Define `function process(part) { … }` and
+// return the part to keep it (null to drop it); or write top-level code using
+// the global `part` and call emit()/skip(). The function form is the default in
+// the lab; a JSDoc `@param {Part} part` (a comment, so goja ignores it) gives the
+// parameter full type-aware completion.
 export const SCRIPT_API_DTS = `
 /** A unit of content flowing through the pipeline. */
 declare interface Part {
@@ -28,13 +34,13 @@ declare interface Segment {
   content: { text: string };
 }
 
-/** The current part being processed. Read and modify it, then emit() it. */
+/** The current part (in the global form). Read and modify it, then emit() it. */
 declare const part: Part;
 
 /**
  * Emit a part downstream. Call it once for each part you want to keep
- * (optionally after modifying it). If you call neither emit() nor skip(),
- * the part passes through unchanged.
+ * (optionally after modifying it). If you call neither emit() nor skip() — and
+ * a process() function returns nothing — the part passes through unchanged.
  */
 declare function emit(part: Part): void;
 
@@ -52,35 +58,33 @@ export interface ScriptExample {
   code: string;
 }
 
-// A library of small, self-contained scripts. Written in ES5 (no arrow
-// functions / template literals) to match the goja sandbox and the tool's
-// documented contract.
+// A library of small, self-contained scripts in the function form: define
+// process(part) and return the part to keep it (or null to drop it). Written in
+// ES5 (no arrow functions / template literals) to match the goja sandbox.
 export const SCRIPT_EXAMPLES: ScriptExample[] = [
   {
     id: "uppercase",
     label: "Uppercase source",
-    blurb: "Edit a block's source text in place.",
-    code: `// Modify the block's source text, then keep the part.
-if (part.type === "block") {
-  part.block.source[0].content.text =
-    part.block.source[0].content.text.toUpperCase();
+    blurb: "Edit a block's source text, then return it.",
+    code: `/** @param {Part} part */
+function process(part) {
+  if (part.type === "block") {
+    part.block.source[0].content.text =
+      part.block.source[0].content.text.toUpperCase();
+  }
+  return part;
 }
-emit(part);
 `,
   },
   {
     id: "filter-short",
     label: "Drop short blocks",
-    blurb: "Use skip() to filter parts out of the stream.",
-    code: `// Keep only blocks whose source is longer than 10 characters.
-if (part.type === "block") {
-  if (part.block.source[0].content.text.length > 10) {
-    emit(part);
-  } else {
-    skip();
-  }
-} else {
-  emit(part);
+    blurb: "Return null to drop a part from the stream.",
+    code: `/** @param {Part} part */
+function process(part) {
+  if (part.type !== "block") return part;
+  // Keep only blocks whose source is longer than 10 characters.
+  return part.block.source[0].content.text.length > 10 ? part : null;
 }
 `,
   },
@@ -88,93 +92,111 @@ if (part.type === "block") {
     id: "redact-emails",
     label: "Redact email addresses",
     blurb: "Rewrite text with a regular expression.",
-    code: `// Replace any email address in the source with [redacted].
-if (part.type === "block") {
-  var text = part.block.source[0].content.text;
-  part.block.source[0].content.text =
-    text.replace(/[\\w.+-]+@[\\w.-]+\\.[a-z]{2,}/gi, "[redacted]");
+    code: `/** @param {Part} part */
+function process(part) {
+  if (part.type === "block") {
+    var text = part.block.source[0].content.text;
+    part.block.source[0].content.text =
+      text.replace(/[\\w.+-]+@[\\w.-]+\\.[a-z]{2,}/gi, "[redacted]");
+  }
+  return part;
 }
-emit(part);
 `,
   },
   {
     id: "add-target",
     label: "Add a French target",
-    blurb: "Write a translation by reassigning targets[locale].",
-    code: `// Attach a target translation for a locale.
-if (part.type === "block") {
-  part.block.targets["fr"] = [{ content: { text: "Bonjour" } }];
+    blurb: "Write a translation by assigning targets[locale].",
+    code: `/** @param {Part} part */
+function process(part) {
+  if (part.type === "block") {
+    part.block.targets["fr"] = [{ content: { text: "Bonjour" } }];
+  }
+  return part;
 }
-emit(part);
 `,
   },
   {
     id: "wrap",
     label: "Wrap with markers",
     blurb: "Prefix and suffix the source text.",
-    code: `// Surround the source text with guillemets.
-if (part.type === "block") {
-  part.block.source[0].content.text =
-    "\\u00ab " + part.block.source[0].content.text + " \\u00bb";
+    code: `/** @param {Part} part */
+function process(part) {
+  if (part.type === "block") {
+    part.block.source[0].content.text =
+      "\\u00ab " + part.block.source[0].content.text + " \\u00bb";
+  }
+  return part;
 }
-emit(part);
 `,
   },
   {
     id: "log-by-type",
     label: "Log each part",
     blurb: "Inspect the stream with log() — output appears below.",
-    code: `// Log every part's type (and block id), then pass it through.
-if (part.type === "block") {
-  log("block " + part.block.id + ": " + part.block.source[0].content.text);
-} else {
-  log(part.type);
+    code: `/** @param {Part} part */
+function process(part) {
+  if (part.type === "block") {
+    log("block " + part.block.id + ": " + part.block.source[0].content.text);
+  } else {
+    log(part.type);
+  }
+  return part;
 }
-emit(part);
 `,
   },
   {
     id: "mask-vars",
     label: "Mask placeholders",
     blurb: "Replace {variables} so they stand out.",
-    code: `// Turn {name} style placeholders into <<name>>.
-if (part.type === "block") {
-  var text = part.block.source[0].content.text;
-  part.block.source[0].content.text =
-    text.replace(/\\{(\\w+)\\}/g, "<<$1>>");
+    code: `/** @param {Part} part */
+function process(part) {
+  if (part.type === "block") {
+    var text = part.block.source[0].content.text;
+    part.block.source[0].content.text = text.replace(/\\{(\\w+)\\}/g, "<<$1>>");
+  }
+  return part;
 }
-emit(part);
 `,
   },
   {
     id: "drop-media",
     label: "Strip media parts",
-    blurb: "Keep text, drop binary/media parts.",
-    code: `// Remove media parts from the stream; keep everything else.
-if (part.type === "media") {
-  skip();
-} else {
-  emit(part);
+    blurb: "Drop media parts; keep everything else.",
+    code: `/** @param {Part} part */
+function process(part) {
+  return part.type === "media" ? null : part;
 }
+`,
+  },
+  {
+    id: "globals-form",
+    label: "Globals form (no function)",
+    blurb: "You can also skip the function and use the global part + emit/skip.",
+    code: `// No process() function: this body runs once per Part, with the global
+// \`part\` in scope. Call emit(part) to keep it, or skip() to drop it.
+if (part.type === "block") {
+  part.block.source[0].content.text =
+    part.block.source[0].content.text.toUpperCase();
+}
+emit(part);
 `,
   },
 ];
 
-// The starter shown in the editor. It spells out the per-Part execution model
-// (the script tool runs this body once for every Part, with `part`, `emit`,
-// `skip` and `log` in scope) so the contract is clear at a glance.
-export const DEFAULT_SCRIPT = `// This runs once for every Part in the document.
-//   • part        — the current Part (only "block" parts carry text)
-//   • emit(part)  — keep this part (optionally after editing it)
-//   • skip()      — drop this part
-//   • log(msg)    — print to the log below
-// Do neither emit nor skip and the part passes through unchanged.
+// The starter shown in the editor: the function form, with a JSDoc-typed param
+// for full IntelliSense, returning the part to keep it.
+export const DEFAULT_SCRIPT = `// process(part) runs once for every Part in the document.
+// Return the part to keep it, or return null to drop it.
+// (emit()/skip() also work, and you can omit the function and just use \`part\`.)
 
-if (part.type === "block") {
-  // Edit the block's source text — here, shout it.
-  part.block.source[0].content.text =
-    part.block.source[0].content.text.toUpperCase();
+/** @param {Part} part */
+function process(part) {
+  if (part.type === "block") {
+    // Edit the block's source text — here, shout it.
+    part.block.source[0].content.text =
+      part.block.source[0].content.text.toUpperCase();
+  }
+  return part;
 }
-
-emit(part);
 `;

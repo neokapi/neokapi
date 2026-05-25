@@ -160,5 +160,26 @@ ok("html round-trip keeps lowercase doctype", htmlOut.includes("<!doctype html>"
 ok("html round-trip keeps self-closing spacing", /<meta charset="utf-8" \/>/.test(htmlOut));
 ok("html round-trip rewrites lang + keeps inline tag", htmlOut.includes('lang="qps"') && htmlOut.includes("<strong>"));
 
+// ── 7. script tool function form (process(part)) runs in WASM ────────────────
+const FN_RECIPE = `version: v1
+name: Lab
+defaults:
+  source_language: en
+flows:
+  lab:
+    steps:
+      - tool: script
+        config:
+          code: "function process(part) { if (part.type === 'block') { part.block.source[0].content.text = part.block.source[0].content.text.toUpperCase(); } return part; }"
+`;
+mem.vol.writeFile("/project/fn.kapi", enc.encode(FN_RECIPE));
+const fncode: number = await (globalThis as any).kapiRun([
+  "run", "lab", "-p", "/project/fn.kapi", "-i", "/project/sample.json",
+  "-o", "/project/out-fn.json", "--target-lang", "qps",
+]);
+ok("script function form process(part) exits 0", fncode === 0, `code=${fncode}`);
+const fnOut = dec.decode(mem.vol.readFile("/project/out-fn.json"));
+ok("script function form transformed text (uppercased)", /HELLO|YOUR CART IS EMPTY/.test(fnOut), fnOut.slice(0, 60));
+
 console.log(failures === 0 ? "\nALL LAB SMOKE CHECKS PASSED" : `\n${failures} CHECK(S) FAILED`);
 process.exit(failures === 0 ? 0 : 1);
