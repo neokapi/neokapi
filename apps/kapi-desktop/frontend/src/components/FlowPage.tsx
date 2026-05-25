@@ -44,6 +44,7 @@ export function FlowPage({ flowName, flow, onChange, onRun, readOnly, tabID }: F
             default_locale: t.default_locale,
             produces: t.produces,
             side_effects: t.side_effects,
+            isSourceTransform: t.is_source_transform,
           })),
         );
       }
