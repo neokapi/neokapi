@@ -554,7 +554,7 @@ func applyTMPrefill(tm sievepen.TranslationMemory, block *model.Block, source, t
 	var targetSpans []model.Span
 	matched := 0
 	anyExact := false
-	for i := 0; i < segCount; i++ {
+	for i := range segCount {
 		spanID := fmt.Sprintf("s%d", i+1)
 		if srcSeg != nil && i < len(srcSeg.Spans) {
 			spanID = srcSeg.Spans[i].ID

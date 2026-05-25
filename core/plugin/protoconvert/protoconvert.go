@@ -382,7 +382,7 @@ func sourceSegProtos(b *model.Block) []*pb.SegmentMessage {
 	seg := b.SourceSegmentation()
 	n := b.SourceSegmentCount()
 	out := make([]*pb.SegmentMessage, 0, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		out = append(out, runsToSegmentProto(segSpanID(seg, i), b.SourceSegmentRuns(i)))
 	}
 	return out
