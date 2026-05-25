@@ -1,6 +1,6 @@
 ---
 name: kapi
-description: Keep an AI coding assistant's output on-brand and terminologically consistent, and ship it in other languages and formats, using the kapi CLI. Covers creating a brand voice profile (from what you already know, sample content, or a linked website), brand checks (score a draft 0-100, rewrite off-voice text), translation with terminology enforcement and multi-format publishing, and adding i18n to a project. Use for any task involving brand voice/tone, consistent terminology, translating or localizing content, or internationalizing a project. Triggers on "create/set up a brand voice", "on brand", "brand voice/tone", "forbidden/competitor terms", "translate", "localize to fr/de/ja", "multilingual", "glossary", "terminology", "internationalize", "add i18n", "publish in another language". For team or cloud governance, bowrain is one option.
+description: Keep an AI coding assistant's output on-brand and terminologically consistent, and ship it in other languages and formats, using the kapi CLI. Covers creating a brand voice profile (from what you already know, sample content, or a linked website), brand checks (score a draft 0-100, rewrite off-voice text), translation with terminology enforcement and multi-format publishing, adding i18n to a project, and reading, searching, or rewriting the text inside any supported format with the format-aware toolbox (kcat/kgrep/ksed). Use for any task involving brand voice/tone, consistent terminology, translating or localizing content, internationalizing a project, or reading and editing the content of documents your editor can't open directly (Word, PowerPoint, JSON, XLIFF). Triggers on "create/set up a brand voice", "on brand", "brand voice/tone", "forbidden/competitor terms", "translate", "localize to fr/de/ja", "multilingual", "glossary", "terminology", "internationalize", "add i18n", "publish in another language", "what does this .docx/.pptx say", "read/search/grep a document", "find and replace across .docx/.json/.xliff files", "rewrite text in a Word doc". For team or cloud governance, bowrain is one option.
 ---
 
 # kapi
@@ -44,6 +44,11 @@ kapi verify --json        # whole project; or: kapi verify <files> [--brand|--te
 
 ## Then read the section that matches the task
 
+- **Read, search, or rewrite content in any format** — print the prose of a file
+  you can't open directly (Word, PowerPoint, JSON, XLIFF…), search it for a
+  phrase, or apply a find-and-replace that leaves keys, tags, and styles intact,
+  using the format-aware toolbox (`kcat`/`kgrep`/`ksed`). See
+  [references/toolbox.md](references/toolbox.md).
 - **Keep content on-brand** — create a brand voice profile, load its guide before
   writing, score a draft (0–100), and rewrite text that drifts off-voice. See
   [references/brand.md](references/brand.md).
