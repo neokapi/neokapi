@@ -360,9 +360,22 @@ func protoToConstraints(msg *pb.RunConstraints) *model.RunConstraints {
 
 // runsToSegmentProto wraps a run sequence in a single SegmentMessage for wire
 // transfer. The model no longer has structural segments — a side's content is
-// one run sequence, carried as one SegmentMessage.
-func runsToSegmentProto(id string, runs []model.Run) *pb.SegmentMessage {
-	return &pb.SegmentMessage{Id: id, Runs: RunsToProto(runs)}
+// one run sequence, carried as one SegmentMessage. Per-segment metadata
+// (e.g. the ignorable marker the bridge round-trips) rides in Properties.
+func runsToSegmentProto(id string, runs []model.Run, props map[string]string) *pb.SegmentMessage {
+	msg := &pb.SegmentMessage{Id: id, Runs: RunsToProto(runs)}
+	if len(props) > 0 {
+		msg.Properties = props
+	}
+	return msg
+}
+
+// segSpanProps returns the i-th span's Props on an overlay, or nil.
+func segSpanProps(seg *model.Overlay, i int) map[string]string {
+	if seg != nil && i < len(seg.Spans) {
+		return seg.Spans[i].Props
+	}
+	return nil
 }
 
 func segSpanID(seg *model.Overlay, i int) string {
@@ -383,7 +396,7 @@ func sourceSegProtos(b *model.Block) []*pb.SegmentMessage {
 	n := b.SourceSegmentCount()
 	out := make([]*pb.SegmentMessage, 0, n)
 	for i := range n {
-		out = append(out, runsToSegmentProto(segSpanID(seg, i), b.SourceSegmentRuns(i)))
+		out = append(out, runsToSegmentProto(segSpanID(seg, i), b.SourceSegmentRuns(i), segSpanProps(seg, i)))
 	}
 	return out
 }
@@ -395,11 +408,11 @@ func targetSegProtos(b *model.Block, loc model.LocaleID) []*pb.SegmentMessage {
 	key := model.Variant(loc)
 	seg := b.SegmentationFor(&key)
 	if seg == nil || len(seg.Spans) == 0 {
-		return []*pb.SegmentMessage{runsToSegmentProto("s1", runs)}
+		return []*pb.SegmentMessage{runsToSegmentProto("s1", runs, nil)}
 	}
 	out := make([]*pb.SegmentMessage, 0, len(seg.Spans))
 	for _, sp := range seg.Spans {
-		out = append(out, runsToSegmentProto(sp.ID, sp.Range.ExtractRuns(runs)))
+		out = append(out, runsToSegmentProto(sp.ID, sp.Range.ExtractRuns(runs), sp.Props))
 	}
 	return out
 }
@@ -413,7 +426,11 @@ func segProtosToRunsAndSpans(msgs []*pb.SegmentMessage) ([]model.Run, []model.Sp
 	for _, m := range msgs {
 		start := len(runs)
 		runs = append(runs, ProtoToRuns(m.Runs)...)
-		spans = append(spans, model.Span{ID: m.Id, Range: model.RunRange{StartRun: start, EndRun: len(runs)}})
+		sp := model.Span{ID: m.Id, Range: model.RunRange{StartRun: start, EndRun: len(runs)}}
+		if len(m.Properties) > 0 {
+			sp.Props = m.Properties
+		}
+		spans = append(spans, sp)
 	}
 	if len(msgs) <= 1 {
 		return runs, nil

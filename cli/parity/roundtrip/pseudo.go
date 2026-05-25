@@ -273,7 +273,7 @@ func sourceBaseSegs(b *model.Block) []baseSeg {
 			id:        sp.ID,
 			props:     sp.Props,
 			runs:      sp.Range.ExtractRuns(b.Source),
-			ignorable: sp.Props["xliff2:kind"] == "ignorable",
+			ignorable: sp.Ignorable(),
 		}
 		if srcIR != nil {
 			bs.ir = srcIR[sp.ID]
@@ -309,7 +309,7 @@ func targetBaseSegs(b *model.Block, loc model.LocaleID) []baseSeg {
 			id:        sp.ID,
 			props:     sp.Props,
 			runs:      sp.Range.ExtractRuns(t.Runs),
-			ignorable: sp.Props["xliff2:kind"] == "ignorable",
+			ignorable: sp.Ignorable(),
 		}
 		if ir != nil {
 			bs.ir = ir[sp.ID]

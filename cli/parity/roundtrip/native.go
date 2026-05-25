@@ -411,7 +411,7 @@ func seedIgnorableTargetsFromSource(b *model.Block, tgt model.LocaleID) {
 		// Only seed for ignorables (mirrors X2ToOkpConverter's check
 		// `!part.isSegment()` at line 200). Plain <segment> elements
 		// without a target stay target-less in okapi's output too.
-		if props["xliff2:kind"] != "ignorable" {
+		if props[model.SpanPropIgnorable] != "true" {
 			continue
 		}
 		segRuns := cloneRuns(b.SourceSegmentRuns(i))

@@ -27,16 +27,9 @@ import (
 //     is not representable as flat Run text and must survive round-trip.
 //   - Targets mirror the same structure per locale (variant key).
 
-// Span.Props keys used to carry xliff2 per-segment metadata on the
-// segmentation overlay.
-const (
-	// spanPropKind distinguishes <segment> from <ignorable>. Absent or
-	// "segment" means a translatable <segment>; "ignorable" marks an
-	// <ignorable> element.
-	spanPropKind = "xliff2:kind"
-	// spanKindIgnorable is the spanPropKind value for <ignorable>.
-	spanKindIgnorable = "ignorable"
-)
+// An <ignorable> element is marked on its segmentation span via the
+// framework's format-agnostic [model.SpanPropIgnorable] property (shared with
+// the okapi bridge); a translatable <segment> carries no such marker.
 
 // seg is the package-private per-segment record the reader builds and the
 // writer consumes — one <segment>/<ignorable> element's id, runs, and inline
@@ -134,7 +127,7 @@ func buildSegmentSpans(segs []seg) []model.Span {
 			Range: model.RunRange{StartRun: start, EndRun: end},
 		}
 		if s.Ignorable {
-			sp.Props = map[string]string{spanPropKind: spanKindIgnorable}
+			sp.Props = map[string]string{model.SpanPropIgnorable: "true"}
 		}
 		spans = append(spans, sp)
 	}
@@ -185,7 +178,7 @@ func segsFromOverlay(runs []model.Run, overlay *model.Overlay, irByID map[string
 		s := seg{
 			ID:        sp.ID,
 			Runs:      sp.Range.ExtractRuns(runs),
-			Ignorable: sp.Props[spanPropKind] == spanKindIgnorable,
+			Ignorable: sp.Ignorable(),
 		}
 		if irByID != nil {
 			s.Content = irByID[sp.ID]

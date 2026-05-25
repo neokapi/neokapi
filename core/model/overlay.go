@@ -41,6 +41,15 @@ type RunRange struct {
 // IsZero reports whether the range is the zero value.
 func (r RunRange) IsZero() bool { return r == RunRange{} }
 
+// SpanPropIgnorable, when set to "true" on a segmentation span's Props, marks
+// that span as non-translatable structural content — an okapi "ignorable"
+// TextPart, e.g. an xliff2 <ignorable>, inter-segment whitespace, or an ICU
+// plural selector. Translation tools and bilingual round-trips preserve such a
+// span's target verbatim instead of translating it; the span still occupies
+// its run range so neighbouring segment positions stay aligned. It is the
+// format-agnostic marker shared by the native readers and the okapi bridge.
+const SpanPropIgnorable = "ignorable"
+
 // Span is one entry in an Overlay: a run-anchored range with an optional
 // overlay-local id (e.g. a segment id "s1") and type-specific properties.
 type Span struct {
@@ -48,6 +57,10 @@ type Span struct {
 	Range RunRange          `json:"range"`
 	Props map[string]string `json:"props,omitempty"`
 }
+
+// Ignorable reports whether the span is marked as non-translatable structural
+// content (see [SpanPropIgnorable]).
+func (s Span) Ignorable() bool { return s.Props[SpanPropIgnorable] == "true" }
 
 // Overlay is a typed stand-off layer over one side of a Block: the source
 // (Variant nil) or a specific target variant. Spans are ordered by position.
