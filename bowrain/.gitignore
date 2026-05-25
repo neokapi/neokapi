@@ -1,4 +1,3 @@
 # Built binaries (in platform/ root from local dev builds)
 /bowrain-server
 /bowrain-worker
-/agentic-server

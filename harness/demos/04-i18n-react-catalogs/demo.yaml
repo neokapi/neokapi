@@ -1,0 +1,72 @@
+id: 04-i18n-react-catalogs
+title: Add French and German to a React app
+subtitle: An existing react-i18next project, and a request for two more languages.
+kind: framework
+aspects:
+  - i18n setup
+  - react-i18next
+  - placeholders & plurals
+needsAi: true
+model: sonnet
+captureTimeoutSec: 360
+
+prompt: >
+  This is a React app that uses react-i18next, with its English strings in
+  public/locales/en/translation.json. Can you add French and German?
+
+artifacts:
+  - id: fr
+    caption: "public/locales/fr/translation.json"
+    source: report
+    report: catalog
+    reportTitle: "public/locales/fr/translation.json"
+    reportSub: "kapi · placeholders and plural keys preserved"
+    path: public/locales/fr/translation.json
+    width: 1120
+    height: 720
+  - id: de
+    caption: "public/locales/de/translation.json"
+    source: report
+    report: catalog
+    reportTitle: "public/locales/de/translation.json"
+    reportSub: "kapi · the same catalog, in German"
+    path: public/locales/de/translation.json
+    width: 1120
+    height: 720
+
+narration:
+  - id: title
+    kind: title
+    text: >
+      Most apps already have an i18n setup — message catalogs in a folder, waiting to be
+      filled. This one uses react-i18next, and needs two more languages.
+  - id: prompt
+    kind: prompt
+    text: >
+      The request names the framework and points at the English catalog. It doesn't say
+      where the French and German files go, or how to keep the placeholders intact.
+  - id: work
+    kind: terminal
+    text: >
+      Claude checks how kapi expects react-i18next catalogs to be laid out, runs a quick
+      pseudo-translation pass to confirm the English file is ready, then translates it into
+      French and German. Because kapi understands the i18next format, the interpolation
+      placeholders and the plural keys are carried through unchanged.
+    caption: "Claude confirms the layout, checks readiness, then translates fr and de"
+  - id: fr
+    kind: artifact
+    artifact: fr
+    text: >
+      The French catalog. The name and count placeholders sit where the code expects them,
+      the plural keys are intact, and the values are translated.
+  - id: de
+    kind: artifact
+    artifact: de
+    text: >
+      And German, from the same run. Adding another language is the same request again; the
+      English source text stays the key, so nothing else in the code has to move.
+  - id: outro
+    kind: outro
+    text: >
+      No new framework and no message IDs. kapi reads and writes the catalog format the
+      project already uses.

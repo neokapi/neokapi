@@ -671,3 +671,125 @@ defaults:
 	assert.Equal(t, []string{"/shared/corp.tmx"}, loaded.Defaults.TM.Read)
 	assert.True(t, loaded.Defaults.Segmentation.Source)
 }
+
+func TestDefaults_BrandVoiceTermbase_Parse(t *testing.T) {
+	yamlText := `version: v1
+name: brandy
+defaults:
+  source_language: en
+  target_languages: [fr]
+  brand_voice:
+    profile_file: brand.yaml
+  termbase: glossary.db
+`
+	dir := t.TempDir()
+	path := filepath.Join(dir, "brandy.kapi")
+	require.NoError(t, os.WriteFile(path, []byte(yamlText), 0o644))
+
+	loaded, err := Load(path)
+	require.NoError(t, err)
+	require.NotNil(t, loaded.Defaults.BrandVoice)
+	assert.Equal(t, "brand.yaml", loaded.Defaults.BrandVoice.ProfileFile)
+	assert.Empty(t, loaded.Defaults.BrandVoice.Profile)
+	assert.Empty(t, loaded.Defaults.BrandVoice.Pack)
+	assert.Equal(t, "glossary.db", loaded.Defaults.Termbase)
+}
+
+func TestDefaults_BrandVoiceTermbase_RoundTrip(t *testing.T) {
+	proj := &KapiProject{
+		Version: "v1",
+		Name:    "Branded",
+		Defaults: Defaults{
+			SourceLanguage:  "en",
+			TargetLanguages: []model.LocaleID{"fr"},
+			BrandVoice:      &BrandVoiceBinding{Profile: "house-style"},
+			Termbase:        ".kapi/termbase.db",
+		},
+	}
+
+	dir := t.TempDir()
+	path := filepath.Join(dir, "branded.kapi")
+	require.NoError(t, Save(path, proj))
+
+	loaded, err := Load(path)
+	require.NoError(t, err)
+	require.NotNil(t, loaded.Defaults.BrandVoice)
+	assert.Equal(t, "house-style", loaded.Defaults.BrandVoice.Profile)
+	assert.Equal(t, ".kapi/termbase.db", loaded.Defaults.Termbase)
+}
+
+func TestBrandVoiceBinding_Validate(t *testing.T) {
+	tests := []struct {
+		name    string
+		binding *BrandVoiceBinding
+		wantErr bool
+	}{
+		{"nil is ok", nil, false},
+		{"profile_file only", &BrandVoiceBinding{ProfileFile: "brand.yaml"}, false},
+		{"profile only", &BrandVoiceBinding{Profile: "house"}, false},
+		{"pack only", &BrandVoiceBinding{Pack: "professional-b2b"}, false},
+		{"none set", &BrandVoiceBinding{}, true},
+		{"two set", &BrandVoiceBinding{ProfileFile: "brand.yaml", Pack: "p"}, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.binding.validate()
+			if tt.wantErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}
+
+// TestBowrainTopLevelBrandVoice_RoundTrips guards that the framework's
+// `defaults.brand_voice` binding does not regress bowrain's distinct
+// top-level `brand_voice:` extension. The framework alone (no bowrain
+// extension registered) must round-trip the top-level key verbatim via
+// Extras while still decoding the defaults binding into its typed field.
+func TestBowrainTopLevelBrandVoice_RoundTrips(t *testing.T) {
+	yamlText := `version: v1
+name: dual
+defaults:
+  source_language: en
+  target_languages: [fr]
+  brand_voice:
+    pack: professional-b2b
+brand_voice:
+  profile: house-style
+  channel: web
+`
+	dir := t.TempDir()
+	path := filepath.Join(dir, "dual.kapi")
+	require.NoError(t, os.WriteFile(path, []byte(yamlText), 0o644))
+
+	loaded, err := Load(path)
+	require.NoError(t, err)
+
+	// Framework binding under defaults decodes into the typed field.
+	require.NotNil(t, loaded.Defaults.BrandVoice)
+	assert.Equal(t, "professional-b2b", loaded.Defaults.BrandVoice.Pack)
+
+	// Bowrain's top-level brand_voice survives in Extras (no extension
+	// registered in the framework test binary).
+	node, ok := loaded.Extras["brand_voice"]
+	require.True(t, ok, "top-level brand_voice should be captured in Extras")
+	var topLevel struct {
+		Profile string `yaml:"profile"`
+		Channel string `yaml:"channel"`
+	}
+	require.NoError(t, node.Decode(&topLevel))
+	assert.Equal(t, "house-style", topLevel.Profile)
+	assert.Equal(t, "web", topLevel.Channel)
+
+	// Save and reload — both keys must survive a full round-trip.
+	out := filepath.Join(dir, "dual-out.kapi")
+	require.NoError(t, Save(out, loaded))
+	reloaded, err := Load(out)
+	require.NoError(t, err)
+	require.NotNil(t, reloaded.Defaults.BrandVoice)
+	assert.Equal(t, "professional-b2b", reloaded.Defaults.BrandVoice.Pack)
+	_, ok = reloaded.Extras["brand_voice"]
+	assert.True(t, ok, "top-level brand_voice should survive round-trip in Extras")
+}

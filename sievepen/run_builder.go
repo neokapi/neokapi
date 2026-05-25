@@ -27,8 +27,7 @@ func (b *runBuilder) AddText(text string) {
 }
 
 // AppendPh emits a PlaceholderRun with the default zero-valued constraints
-// used by the Fragment→Runs bridge (matches MarshalRuns for spans whose
-// Deletable/Cloneable/CanReorder are all false).
+// (Deletable/Cloneable/Reorderable all false).
 func (b *runBuilder) AddPh(id, semType, subType, data string) {
 	b.runs = append(b.runs, model.Run{Ph: &model.PlaceholderRun{
 		ID:          id,

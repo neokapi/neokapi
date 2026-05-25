@@ -1,0 +1,559 @@
+---
+id: 006-tool-system
+sidebar_position: 6
+title: "AD-006: Tool System"
+description: "Architecture decision: a Tool is a single composable pipeline stage — it reads Parts from an input channel and writes Parts to an output channel. BaseTool provides default pass-through; handlers set only the types they care about."
+keywords: [tool system, BaseTool, pipeline stage, composable, architecture decision, neokapi]
+---
+
+# AD-006: Tool System
+
+## Summary
+
+A Tool is a single stage in a processing pipeline. It reads Parts from an
+input channel and writes Parts to an output channel. Tools compose into
+Flows; Flows are executed by the pipeline engine
+([AD-004: Processing Engine](004-processing-engine.md)). The `BaseTool`
+struct with optional function fields (`HandleBlockFn`, `HandleDataFn`,
+`HandleMediaFn`) lets most tools implement only the handler for the Part
+type they care about; everything else passes through unchanged. Tools
+declare parameter schemas via `SchemaProvider`, which drives CLI flag
+generation, flow-editor config panels, and validation. An IO contract on
+`ToolMeta` declares locale cardinality, produced annotations, and side
+effects so the runner can infer locale iteration and the flow editor can
+show data flow.
+
+## Context
+
+Most tools only care about one or two Part types. A translation tool
+processes Blocks; a word counter reads Blocks; a binary extractor handles
+Media. Requiring every tool to implement the full `Process(ctx, in, out)`
+method with a type switch over all Part types produces repetitive
+boilerplate and creates risk of accidentally dropping Parts.
+
+Beyond structural dispatch, a tool system needs to answer several questions
+uniformly for CLI, flow editor, and plugin consumers:
+
+- What parameters does this tool accept, and what are their types?
+- How many locales does it operate on? Which ones?
+- What annotations does it produce? Which does it consume?
+- What external systems does it touch (TM, termbase, APIs)?
+
+## Decision
+
+### Tool interface and BaseTool dispatch
+
+The core interface is minimal:
+
+```go
+type Tool interface {
+    Process(ctx context.Context, in <-chan *Part, out chan<- *Part) error
+}
+```
+
+`BaseTool` provides a standard dispatch shell with optional function fields
+for each Part type:
+
+```go
+type BaseTool struct {
+    HandleBlockFn func(ctx context.Context, block *Block) (*Block, error)
+    HandleDataFn  func(ctx context.Context, data *Data)   (*Data, error)
+    HandleMediaFn func(ctx context.Context, media *Media) (*Media, error)
+
+    Meta          ToolMeta
+    SchemaFn      func() *schema.ComponentSchema
+}
+```
+
+`BaseTool.Process` reads Parts from the input channel, dispatches to the
+appropriate handler function if set, and passes unhandled Part types
+through to the output channel unchanged. Concrete tools embed `BaseTool`
+and set only the handlers they need. Tools that need access to the full
+stream (e.g., segmentation spanning multiple Blocks) can override
+`Process` directly.
+
+### SessionTool extension
+
+The channel-based `Tool.Process` is a forward-only transform. Some tools
+need random access to the project's block state — lookup by content hash,
+reading prior overlays (TM matches, QA findings, previously-produced
+targets) to skip work that's already done, or writing annotations that
+downstream tools in the same or a later run will consult. Those tools
+opt into the `SessionTool` interface alongside `Tool`:
+
+```go
+type SessionTool interface {
+    Tool
+
+    SessionProcess(
+        ctx context.Context,
+        sess blockstore.Session,
+        in <-chan *Part,
+        out chan<- *Part,
+    ) error
+}
+```
+
+Lifecycle (owned by the executor, not the tool):
+
+1. At flow start the executor opens a `blockstore.Session` against the
+   project's declared store backend (`memory`, `cache`, remote — see
+   [AD-008: Kapi Project Model](008-project-model.md)).
+2. For each tool the executor calls `SessionProcess` when the tool
+   implements `SessionTool`, otherwise the plain streaming `Process`.
+   Hybrid implementations are allowed: `SessionProcess` can read from
+   `in`, enrich via the session, and emit to `out`.
+3. The executor commits the session on success or rolls back on error.
+   Tools MUST NOT call `Commit` / `Rollback` themselves.
+
+SessionTool is additive — every SessionTool also implements Tool so
+flow composition (chaining steps that may or may not use the session)
+keeps working. See [the SessionTool authoring guide](/contribute/notes-internal/session-tool-authoring)
+for idiomatic patterns (skip-if-cached, overlay conventions, provider
+selection).
+
+### Tool categories
+
+Tools fall into four categories that set expectations for idempotency and
+ordering:
+
+| Category      | Responsibility                  | Examples                                          |
+| ------------- | ------------------------------- | ------------------------------------------------- |
+| **Transform** | Modify content in place         | Segmentation, case change, search/replace         |
+| **Enrich**    | Add metadata via annotations    | TM leveraging, AI translation, terminology lookup |
+| **Validate**  | Check quality without modifying | QA checks, word count, character count            |
+| **Convert**   | Transform representations       | Encoding conversion, line-break normalization     |
+
+### IO model
+
+Each tool declares an IO contract in its `ToolMeta`:
+
+```go
+type ToolMeta struct {
+    ID          ToolID
+    Category    ToolCategory
+    DisplayName string
+    Inputs      []PartType
+    Outputs     []PartType
+    Tags        []string
+
+    // Cardinality declares how many locales the tool operates on.
+    Cardinality LocaleCardinality
+
+    // DefaultLocale is an optional default for monolingual and bilingual tools.
+    DefaultLocale string
+
+    // Produces lists annotation types this tool writes to Blocks.
+    Produces []AnnotationType
+
+    // SideEffects lists external systems this tool reads from or writes to.
+    SideEffects []SideEffect
+}
+```
+
+#### Locale cardinality
+
+Tools declare how many locales they operate on per execution:
+
+```go
+type LocaleCardinality string
+
+const (
+    // Monolingual — operates on a single locale.
+    // Examples: word-count (source), pseudo-translate (target),
+    // encoding-detect (source).
+    Monolingual LocaleCardinality = "monolingual"
+
+    // Bilingual — operates on exactly two locales, provided as a pair.
+    // Examples: ai-translate (source→target), qa-check (source vs target).
+    Bilingual LocaleCardinality = "bilingual"
+
+    // Multilingual — operates on N locales simultaneously.
+    // Examples: translation-comparison, cross-locale QA.
+    Multilingual LocaleCardinality = "multilingual"
+)
+```
+
+Cardinality describes **how many** locales a tool needs. **Which** locales
+are provided at runtime by the runner or flow configuration — never
+hardcoded in the tool.
+
+#### Uniform locale access
+
+Blocks carry one source locale and N target locales. The source locale is
+structurally distinct because it anchors the document skeleton and inline
+code positions, but tools should not need to know whether a locale is
+"source" or "target" — they just need text for a given locale:
+
+```go
+// Text returns segment text for a locale. Checks source first
+// (if the locale matches the Block's source locale), then targets.
+func (b *Block) Text(locale LocaleID) string
+
+// SetText writes segment text for a locale.
+func (b *Block) SetText(locale LocaleID, text string)
+
+// HasLocale reports whether the Block has segments for the locale.
+func (b *Block) HasLocale(locale LocaleID) bool
+```
+
+A bilingual tool comparing `[fr, de]` calls `block.Text("fr")` and
+`block.Text("de")` — identical code whether `fr` is source or target.
+`SourceText()` and `TargetText(locale)` remain available when a tool
+specifically needs the source-anchored skeleton.
+
+#### Annotation types and registry
+
+Annotation types are typed string constants. The framework defines
+well-known types; plugins register additional types via an annotation
+registry:
+
+```go
+type AnnotationType string
+
+const (
+    AnnotationQAIssues       AnnotationType = "quality.qa-issues"
+    AnnotationTMMatch        AnnotationType = "leverage.tm-match"
+    AnnotationAltTranslation AnnotationType = "leverage.alt-translation"
+    AnnotationTerms          AnnotationType = "terminology.annotations"
+    AnnotationTermEnforce    AnnotationType = "terminology.enforcement"
+    AnnotationWordCount      AnnotationType = "analysis.word-count"
+    AnnotationCharCount      AnnotationType = "analysis.char-count"
+    AnnotationSegCount       AnnotationType = "analysis.seg-count"
+    AnnotationEntityMapping  AnnotationType = "entity.mapping"
+    AnnotationComparison     AnnotationType = "analysis.comparison"
+)
+```
+
+The `AnnotationRegistry` validates tool registrations: a tool declaring
+`Produces: []AnnotationType{AnnotationQAIssues}` is rejected at
+registration if the annotation type is unknown. This catches typos and
+prevents silent production of unrecognized metadata at runtime.
+
+#### Side effects
+
+Side effects are a closed set of known external interactions:
+
+```go
+type SideEffect string
+
+const (
+    SideEffectTMRead        SideEffect = "tm-read"
+    SideEffectTMWrite       SideEffect = "tm-write"
+    SideEffectTermbaseRead  SideEffect = "termbase-read"
+    SideEffectTermbaseWrite SideEffect = "termbase-write"
+    SideEffectAPICall       SideEffect = "api-call"
+    SideEffectAnalytics     SideEffect = "analytics"
+)
+```
+
+Side-effect declarations are informational metadata for the flow editor
+and documentation. They are not enforced at runtime — a tool with
+`SideEffects: [SideEffectTMWrite]` still runs normally even if no TM is
+configured (it simply skips the write). This keeps the tool interface
+simple while giving the UI enough information to warn meaningfully.
+
+#### Flow locale inference
+
+The runner inspects the tool chain's cardinality declarations to determine
+which locales to process:
+
+```go
+func ResolveFlowLocales(
+    toolMetas []ToolMeta,
+    sourceLocale string,
+    projectTargets []string,
+) [][]string
+```
+
+Resolution returns a slice of locale sets — one set per execution pass.
+Examples:
+
+| Flow               | Tools                                         | Passes                                 |
+| ------------------ | --------------------------------------------- | -------------------------------------- |
+| word-count         | `[word-count(mono)]`                          | `[[en]]`                               |
+| pseudo-translate   | `[pseudo-translate(bi, default:qps)]`         | `[[en, qps]]`                          |
+| translate          | `[ai-translate(bi)]`                          | `[[en, de], [en, fr], [en, ja], ...]`  |
+| translate+qa       | `[ai-translate(bi), qa-check(bi)]`            | `[[en, de], [en, fr], ...]`            |
+| compare de vs fr   | `[comparison(bi)]` with config `[de, fr]`     | `[[de, fr]]`                           |
+| cross-locale QA    | `[consistency-check(multi)]`                  | `[[en, de, fr, ja, nb, ar]]`           |
+| translate + pseudo | `[ai-translate(bi), pseudo(bi, default:qps)]` | `[[en, de], [en, fr], ..., [en, qps]]` |
+
+Mixed flows resolve to the union of all needed passes.
+
+### Parameter schemas
+
+Tools declare parameter schemas via the `tool.SchemaProvider` interface
+with `ComponentSchema` in the `core/schema/` package:
+
+```go
+type SchemaProvider interface {
+    Schema() *schema.ComponentSchema
+}
+
+type ComponentSchema struct {
+    ID          string
+    Title       string
+    Description string
+    Type        string                    // "object"
+    Meta        ComponentMeta             // id, type, category, displayName
+    Groups      []ParameterGroup          // UI groupings
+    Properties  map[string]PropertySchema // parameter definitions
+}
+```
+
+`schema.FromStruct(cfg, meta)` generates a `ComponentSchema` by reflecting
+on a Go struct. It supports struct tags for additional metadata:
+
+```go
+type PseudoConfig struct {
+    ExpansionPercent int    `schema:"description=Text expansion percentage,min=0,max=200"`
+    Prefix           string `schema:"description=Prefix for pseudo text"`
+    Suffix           string `schema:"description=Suffix for pseudo text"`
+    InternalField    string `schema:"-"` // excluded from schema
+}
+```
+
+`schema.ApplyConfig()` bridges `map[string]any` configuration (from flow
+YAML) to a typed struct via JSON round-trip.
+
+The `ToolRegistry` stores schemas alongside factories via
+`RegisterWithSchema(name, factory, schema)`. All built-in tools register
+auto-generated schemas.
+
+Schema-driven features:
+
+- **CLI flags** — `cli.RegisterSchemaFlags()` auto-generates Cobra flags
+  from the schema, mapping camelCase properties to kebab-case flags.
+- **Flow editor** — schema-driven config panels for tool nodes, reusing
+  the same `FilterConfigEditor` component that drives format filter
+  configuration.
+- **Validation** — `ComponentSchema.Validate()` checks parameter values
+  against the schema.
+- **JSON export** — `kapi tools schema <name>` prints the schema for any
+  tool.
+
+AI tool schemas include provider fields (Provider, APIKey, Model with enum
+support for provider selection), so AI-tool CLI flags are generated the
+same way as any other tool's.
+
+### Registration
+
+Tools register into a `ToolRegistry` with a name, factory function, and
+optional parameter schema:
+
+```go
+reg.RegisterWithSchema("pseudo-translate", func(cfg map[string]any) (Tool, error) {
+    return pseudo.New(cfg)
+}, pseudo.Schema())
+```
+
+`RegisterAll(reg)` in `core/tools/register.go` auto-registers all built-in
+tools. AI, MT, and terminology tools are instantiated on demand with their
+respective providers and registered into a flow's tool set at
+configuration time.
+
+Plugin tools ([AD-007: Plugin System and Okapi Bridge](007-plugin-system.md))
+use the same `Tool` interface via gRPC translation, so plugin-provided
+tools and built-in tools are interchangeable from the pipeline's
+perspective.
+
+### Annotation-based communication
+
+Tools communicate through annotations on Blocks. A typical pipeline:
+
+```
+reader → ai-entity-extract → term-lookup → tm-leverage → ai-translate → term-enforce → qa-check → writer
+```
+
+- `ai-entity-extract` adds `EntityAnnotation` with named entities.
+- `term-lookup` adds `TermAnnotation` with matched terminology.
+- `tm-leverage` reads entity annotations for generalized matching, adds `AltTranslation`.
+- `ai-translate` reads term and entity annotations for context-aware translation.
+- `term-enforce` validates terminology consistency in targets.
+- `qa-check` validates translation quality.
+
+Each tool reads the annotations it cares about and adds its own, keeping
+tools loosely coupled through a shared data model rather than direct
+dependencies.
+
+### Built-in tool inventory
+
+All built-in tools register via `RegisterAll()` in `core/tools/register.go`.
+
+**Transform tools** — modify content in place:
+
+| Tool                  | Description                                                               |
+| --------------------- | ------------------------------------------------------------------------- |
+| `pseudo-translate`    | Generate pseudo-translations with accent marks and prefix/suffix wrapping |
+| `search-replace`      | Regex-based search and replace in content                                 |
+| `segmentation`        | Split blocks into sentence segments using SRX-like rules                  |
+| `case-transform`      | Transform case of source and/or target text                               |
+| `create-target`       | Create target segment containers for blocks                               |
+| `remove-target`       | Remove target segments from blocks                                        |
+| `inline-codes-remove` | Strip inline codes/spans from fragment content                            |
+| `properties-set`      | Set or modify block properties programmatically                           |
+| `whitespace-correct`  | Normalize and fix whitespace issues in translations                       |
+| `span-classify`       | Reclassify `code:markup` spans into semantic vocabulary types             |
+| `tag-protect`         | Identify and mark tags and placeholders for protection                    |
+| `xslt-transform`      | Apply regex-based tag/text transformations to block text                  |
+
+**Enrich tools** — add metadata via annotations:
+
+| Tool                  | Description                                                                |
+| --------------------- | -------------------------------------------------------------------------- |
+| `tm-leverage`         | Pre-fill translations from Sievepen TM                                     |
+| `diff-leverage`       | Compare against previous version, preserve translations for unchanged text |
+| `term-lookup`         | Scan source text for known terms from TermBase                             |
+| `repetition-analysis` | Analyze source text repetitions across blocks in the pipeline              |
+
+**Validate tools** — check quality without modifying:
+
+| Tool                     | Description                                                                             |
+| ------------------------ | --------------------------------------------------------------------------------------- |
+| `word-count`             | Count words per block                                                                   |
+| `char-count`             | Count characters per block                                                              |
+| `segment-count`          | Count source and target segments in blocks                                              |
+| `qa-check`               | Rule-based quality checks (missing translations, whitespace, numbers, span constraints) |
+| `term-check`             | Verify terminology usage in translations against a glossary                             |
+| `term-enforce`           | Validate preferred term usage in target text                                            |
+| `inconsistency-check`    | Check for translation inconsistencies across blocks                                     |
+| `length-check`           | Verify translation length constraints                                                   |
+| `chars-check`            | Check for invalid or unexpected characters in translations                              |
+| `pattern-check`          | Validate regex patterns in translations (placeholders, variables)                       |
+| `translation-comparison` | Compare translations across two target locales and report differences                   |
+| `xml-validation`         | Validate XML well-formedness of block text                                              |
+| `chars-listing`          | List all unique characters used in content (for font subsetting)                        |
+| `scoping-report`         | Classify blocks into scoping categories based on repetition and match status            |
+
+**Convert tools** — transform representations:
+
+| Tool                | Description                                             |
+| ------------------- | ------------------------------------------------------- |
+| `encoding-convert`  | Convert character encoding of text content              |
+| `encoding-detect`   | Detect encoding characteristics of block text           |
+| `linebreak-convert` | Normalize line endings in source and/or target text     |
+| `bom-convert`       | Add or remove the Unicode BOM marker on document layers |
+| `fullwidth-convert` | Convert between half-width and full-width characters    |
+| `uri-convert`       | Encode or decode URI escape sequences in text           |
+
+**Pipeline tools** — operate on the part stream:
+
+| Tool               | Description                                                              |
+| ------------------ | ------------------------------------------------------------------------ |
+| `layer-processor`  | Apply format-specific tool chains to child layers                        |
+| `external-command` | Execute an external command on block text                                |
+| `script`           | Run user-provided JavaScript (ES5 via goja) on each part                 |
+| `batch`            | Collect blocks into configurable batches for downstream batch processing |
+
+### AI, MT, and terminology tools
+
+AI and MT tools are instantiated on demand with a provider, not
+auto-registered. They use the same `Tool` interface and work identically
+in flows.
+
+**AI tools** (`core/ai/tools/`):
+
+| Tool                | Description                                                        |
+| ------------------- | ------------------------------------------------------------------ |
+| `ai-translate`      | Translate blocks using an LLM provider (batch + concurrent)        |
+| `ai-qa`             | Check translation quality using an LLM provider                    |
+| `ai-review`         | Review translations with explanations using an LLM                 |
+| `ai-terminology`    | Extract terminology from blocks using an LLM                       |
+| `ai-entity-extract` | Extract named entities and term candidates using AI + optional NER |
+
+**MT tools** (`core/mt/tools/`):
+
+| Tool                   | Description                                                                          |
+| ---------------------- | ------------------------------------------------------------------------------------ |
+| `{provider}-translate` | Translate blocks using an MT provider (DeepL, Google, Microsoft, ModernMT, MyMemory) |
+
+**Terminology tools** (`termbase/`):
+
+| Tool           | Description                                         |
+| -------------- | --------------------------------------------------- |
+| `term-lookup`  | Annotate blocks with matching terms from a TermBase |
+| `term-enforce` | Verify correct terminology usage in translations    |
+
+**TM tools** (`sievepen/`):
+
+| Tool          | Description                                                                |
+| ------------- | -------------------------------------------------------------------------- |
+| `tm-leverage` | Content-aware TM leverage with generalized, structural, and plain matching |
+
+### Flow steps format
+
+Flows are authored as a YAML step list (compiled to the internal graph by
+the executor, see
+[AD-004: Processing Engine](004-processing-engine.md)):
+
+```yaml
+apiVersion: v1
+kind: FlowDefinition
+metadata:
+  name: Production Pipeline
+spec:
+  input: auto
+  output: auto
+  steps:
+    - tool: tm-leverage
+      config:
+        fuzzyThreshold: 75
+    - tool: ai-translate
+      config:
+        provider: anthropic
+    - tool: qa-check
+    - parallel:
+        - tool: word-count
+        - tool: char-count
+```
+
+Steps are sequential by default; `parallel:` blocks provide fan-out. The
+`script` step lets authors drop in custom JavaScript when no existing tool
+fits.
+
+### Mutable streaming model
+
+Tools modify Blocks in place as they flow through channels. This is a
+deliberate trade-off:
+
+- **Performance** — no copying or delta accumulation for high-volume
+  streaming; zero allocation per tool for pass-through Part types.
+- **Simplicity** — tools read and write fields on the same Block. No
+  immutable builders, lenses, or patch application.
+- **Proven pattern** — Okapi Framework uses the same mutable-event model
+  across thousands of localization workflows.
+
+Document-level immutability is achieved by external storage layers that
+version entire Block states. Within a single pipeline execution, mutable
+streaming is the right trade-off.
+
+## Consequences
+
+- Implementing a new tool requires only embedding `BaseTool` and setting
+  one handler function field.
+- Unhandled Part types pass through automatically; no risk of accidentally
+  dropping Parts.
+- Plugin tools use the same interface via gRPC translation, so the
+  pipeline treats all tools uniformly
+  ([AD-007: Plugin System and Okapi Bridge](007-plugin-system.md)).
+- Schema-driven CLI flags, flow editor config panels, and validation all
+  share one schema representation — changes to a tool's config propagate
+  automatically.
+- IO contracts enable flow-level locale inference: the runner figures out
+  whether to iterate project targets, run once on source, or run for a
+  specific locale set based on declared cardinality.
+- Annotation-based inter-tool communication keeps tools loosely coupled
+  through shared data, not direct dependencies.
+- Typed constants for `AnnotationType`, `SideEffect`, and
+  `LocaleCardinality` catch typos at compile time and enable IDE
+  autocomplete.
+- Mixed-cardinality flows resolve cleanly through pass union; tool
+  authors do not coordinate locale iteration.
+
+## Related
+
+- [AD-002: Content Model](002-content-model.md) — Blocks, Annotations, and Fragment projections
+- [AD-004: Processing Engine](004-processing-engine.md) — how Tools compose into Flows
+- [AD-005: Format System](005-format-system.md) — readers and writers bracket the tool chain
+- [AD-007: Plugin System and Okapi Bridge](007-plugin-system.md) — plugin tools

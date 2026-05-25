@@ -457,8 +457,8 @@ func (s *Server) HandleUpdateBlockTarget(c echo.Context) error {
 	return c.NoContent(http.StatusNoContent)
 }
 
-// HandleUpdateBlockTargetCoded updates a block target with coded text and spans.
-func (s *Server) HandleUpdateBlockTargetCoded(c echo.Context) error {
+// HandleUpdateBlockTargetRuns updates a block target from a Run sequence.
+func (s *Server) HandleUpdateBlockTargetRuns(c echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermTranslate); err != nil {
 		return err
 	}
@@ -470,7 +470,7 @@ func (s *Server) HandleUpdateBlockTargetCoded(c echo.Context) error {
 	pid := projectParam(c)
 	bid := c.Param("bid")
 
-	var req UpdateBlockTargetCodedRequest
+	var req UpdateBlockTargetRunsRequest
 	if err := c.Bind(&req); err != nil {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 	}
@@ -478,7 +478,7 @@ func (s *Server) HandleUpdateBlockTargetCoded(c echo.Context) error {
 		return err
 	}
 
-	if err := editorUpdateBlockTargetCoded(c.Request().Context(), s.ContentStore, pid, streamParam(c), bid, req); err != nil {
+	if err := editorUpdateBlockTargetRuns(c.Request().Context(), s.ContentStore, pid, streamParam(c), bid, req); err != nil {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
 	}
 

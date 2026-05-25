@@ -20,7 +20,7 @@ permissions:
   contents: read
 
 jobs:
-  record-scenes:
+  build-wasm:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -29,52 +29,21 @@ jobs:
           go-version: "1.26.0"
           cache: true
 
-      - name: Build kapi binary
-        run: make build
+      - name: Build playground wasm
+        run: make web-wasm-demo
 
-      - name: Install VHS + Xvfb
-        run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq ffmpeg ttyd xvfb
-          curl -L "https://github.com/charmbracelet/vhs/releases/download/v0.9.0/vhs_0.9.0_amd64.deb" -o /tmp/vhs.deb
-          sudo dpkg -i /tmp/vhs.deb
+      - name: Build CLI playground wasm
+        run: make web-wasm-cli
 
-      - name: Record terminal scenes
-        env:
-          DISPLAY: ":99"
-        run: |
-          export PATH="$PWD/bin:$PATH"
-          Xvfb :99 -screen 0 1280x720x24 &
-          sleep 2
-          if [ -d web/docs/scenes ]; then
-            for scene_dir in web/docs/scenes/*/; do
-              for tape in "$scene_dir"*.tape; do
-                [ -f "$tape" ] || continue
-                echo "Recording $tape"
-                (cd "$scene_dir" && timeout 180 vhs "$(basename "$tape")") || echo "::warning::tape $tape failed"
-              done
-            done
-          fi
-
-      - name: Stage recorded assets under static/video/kapi/
-        run: |
-          mkdir -p web/docs/static/video/kapi
-          if [ -d web/docs/scenes ]; then
-            for webm in web/docs/scenes/*/*.webm; do
-              [ -f "$webm" ] || continue
-              cp "$webm" "web/docs/static/video/kapi/$(basename "$webm")"
-            done
-          fi
-
-      - name: Upload recorded scenes
+      - name: Upload playground wasm
         uses: actions/upload-artifact@v7
         with:
-          name: kapi-scenes
-          path: web/docs/static/video/kapi
+          name: kapi-wasm
+          path: web/docs/static/wasm
           retention-days: 7
 
   build:
-    needs: record-scenes
+    needs: build-wasm
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -87,11 +56,28 @@ jobs:
       - name: Install workspace dependencies
         run: vp install
 
-      - name: Download recorded scenes
+      # All docs videos — VHS scene tapes (01-*.webm) and the harness Claude
+      # explainer videos (claude-*) — are recorded on the desktop and published to
+      # the docs-assets release (make kapi-scenes / make harness-videos, then
+      # make publish-docs-assets). CI no longer records them; it stages them here.
+      - name: Stage docs videos from docs-assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p web/docs/static/video
+          if gh release download docs-assets -p docs-assets.tar.gz -D /tmp/da 2>/dev/null; then
+            tar xzf /tmp/da/docs-assets.tar.gz -C /tmp/da
+            [ -d /tmp/da/video ] && cp -R /tmp/da/video/. web/docs/static/video/
+            echo "Staged docs videos: $(find web/docs/static/video -name '*.webm' 2>/dev/null | wc -l) webm"
+          else
+            echo "::warning::docs-assets release unavailable; docs videos will be missing"
+          fi
+
+      - name: Download playground wasm
         uses: actions/download-artifact@v8
         with:
-          name: kapi-scenes
-          path: web/docs/static/video/kapi
+          name: kapi-wasm
+          path: web/docs/static/wasm
 
       - name: Stub test-comparison.json
         # CI's test-comparison job uploads the real artifact; this stub keeps

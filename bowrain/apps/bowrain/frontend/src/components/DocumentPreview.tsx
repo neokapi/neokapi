@@ -1,6 +1,26 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import type { BlockInfo } from "../types/api";
+import type { BlockInfo, Run } from "../types/api";
 import { useEditorApi } from "../hooks/useApi";
+
+/**
+ * Flatten an RFC 0001 Run sequence to plain display text. Text runs
+ * contribute their text; placeholders / paired codes / subs contribute
+ * their equiv label so the preview shows a readable approximation;
+ * plural / select fall back to the "other" form.
+ */
+function flattenRuns(runs: Run[] | undefined): string {
+  if (!runs) return "";
+  let out = "";
+  for (const r of runs) {
+    if (r.text) out += r.text.text;
+    else if (r.ph) out += r.ph.equiv || r.ph.id;
+    else if (r.sub) out += r.sub.equiv || r.sub.ref;
+    else if (r.plural) out += flattenRuns(r.plural.forms.other);
+    else if (r.select) out += flattenRuns(r.select.cases.other);
+    // pcOpen / pcClose carry no visible text in a plain preview.
+  }
+  return out;
+}
 
 interface DocumentPreviewProps {
   projectId: string;
@@ -86,8 +106,11 @@ export function DocumentPreview({
     if (!cw || !iframeReady) return;
 
     for (const block of blocks) {
+      const targetRuns = block.targetRuns?.[targetLocale];
       const html =
-        showTarget && block.targets[targetLocale] ? block.targets[targetLocale] : block.source;
+        showTarget && targetRuns && targetRuns.length > 0
+          ? flattenRuns(targetRuns)
+          : flattenRuns(block.sourceRuns);
       cw.postMessage({ type: "kat-update-block", blockId: block.id, html }, "*");
     }
   }, [showTarget, blocks, targetLocale, iframeReady]);

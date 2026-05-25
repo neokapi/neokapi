@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import Layout from "@theme/Layout";
 import { tools } from "@neokapi/reference-data";
 import { firstLine } from "@site/src/components/reference/Markdown";
-import ReferenceList from "@site/src/components/reference/ReferenceList";
+import ReferenceGrid from "@site/src/components/reference/ReferenceGrid";
 
 export default function Tools() {
   // Category grouping happens in ReferenceList; here we only ensure a stable
@@ -24,13 +24,13 @@ export default function Tools() {
       <main className="container margin-vert--lg">
         <h1>Tool Reference</h1>
         <p>
-          Processing tools transform content as it streams through a flow — translating,
-          validating, analyzing, and converting blocks. Tools are grouped by category below. Expand
-          one to read its documentation and configure its parameters live; the YAML output drops
-          into a flow step.
+          Processing tools transform content as it streams through a flow — translating, validating,
+          analyzing, and converting blocks. Tools are grouped by category below. Select one to read
+          its documentation and configure its parameters live; the YAML output drops into a flow
+          step. Each tool has a shareable link.
         </p>
 
-        <ReferenceList entries={entries} kind="tool" />
+        <ReferenceGrid entries={entries} kind="tool" />
       </main>
     </Layout>
   );

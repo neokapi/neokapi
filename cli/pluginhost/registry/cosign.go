@@ -1,3 +1,5 @@
+//go:build !js
+
 // Cosign / Sigstore signature verification for plugin tarballs.
 //
 // Plugins published to the registry are signed with cosign keyless

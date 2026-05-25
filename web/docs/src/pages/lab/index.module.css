@@ -1,0 +1,46 @@
+.page {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 2.5rem 1rem 4rem;
+}
+
+.hero {
+  margin-bottom: 2rem;
+}
+
+.hero h1 {
+  margin-bottom: 0.5rem;
+}
+
+.lede {
+  font-size: 1.05rem;
+  color: var(--ifm-color-emphasis-700);
+  max-width: 70ch;
+}
+
+.section {
+  margin-top: 2.75rem;
+  padding-top: 1.75rem;
+  border-top: 1px solid var(--ifm-color-emphasis-200);
+}
+
+.section h2 {
+  margin-bottom: 0.4rem;
+}
+
+.sectionIntro {
+  color: var(--ifm-color-emphasis-700);
+  max-width: 72ch;
+  margin-bottom: 1rem;
+}
+
+.step {
+  display: inline-block;
+  font-family: var(--ifm-font-family-monospace);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--ifm-color-primary);
+  margin-bottom: 0.25rem;
+}

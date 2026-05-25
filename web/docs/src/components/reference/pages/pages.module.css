@@ -1,0 +1,179 @@
+/* Static per-entry reference pages (R4, #673). Scoped styling for the
+   command / format / tool detail bodies rendered inside Docusaurus doc pages.
+   Uses Infima tokens so it tracks the active theme. */
+
+.page {
+  /* The generated MDX wraps the H1 + synopsis above; this is the body. */
+  margin-top: 0.5rem;
+}
+
+.lead {
+  font-size: 0.95rem;
+  color: var(--ifm-color-emphasis-800);
+  margin: 0 0 1rem;
+}
+
+/* ── Metadata grid ── */
+
+.metaGrid {
+  display: flex;
+  gap: 2rem;
+  flex-wrap: wrap;
+  margin: 1rem 0 1.5rem;
+  padding: 0.85rem 1rem;
+  background: var(--ifm-color-emphasis-100);
+  border: 1px solid var(--ifm-color-emphasis-200);
+  border-radius: 8px;
+}
+
+.metaItem {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.metaLabel {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--ifm-color-emphasis-500);
+}
+
+.metaValue {
+  font-size: 0.85rem;
+  color: var(--ifm-color-emphasis-800);
+}
+
+.metaValueMono {
+  font-family: var(--ifm-font-family-monospace);
+  font-size: 0.82rem;
+  color: var(--ifm-color-emphasis-800);
+}
+
+/* ── Section headings ── */
+
+.sectionHeading {
+  font-size: 1.15rem;
+  margin: 1.75rem 0 0.75rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--ifm-color-emphasis-200);
+}
+
+.curatedSection {
+  margin: 1.5rem 0;
+}
+
+/* ── Parameters table ── */
+
+.paramTable {
+  display: table;
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+  margin: 0.5rem 0 0.75rem;
+}
+
+.paramTable th {
+  text-align: left;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--ifm-color-emphasis-500);
+  border-bottom: 2px solid var(--ifm-color-emphasis-300);
+  padding: 0.4rem 0.6rem;
+}
+
+.paramTable td {
+  border-bottom: 1px solid var(--ifm-color-emphasis-200);
+  padding: 0.45rem 0.6rem;
+  vertical-align: top;
+}
+
+.paramName code {
+  font-size: 0.8rem;
+}
+
+.paramType {
+  font-family: var(--ifm-font-family-monospace);
+  font-size: 0.78rem;
+  color: var(--ifm-color-emphasis-600);
+  white-space: nowrap;
+}
+
+.paramDefault {
+  font-family: var(--ifm-font-family-monospace);
+  font-size: 0.78rem;
+  color: var(--ifm-color-emphasis-600);
+}
+
+.paramDesc {
+  color: var(--ifm-color-emphasis-800);
+}
+
+.deprecated {
+  display: inline-block;
+  margin-left: 0.4rem;
+  font-size: 0.62rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--ifm-color-warning-darkest);
+  background: var(--ifm-color-warning-contrast-background);
+  border-radius: 4px;
+  padding: 0.05rem 0.3rem;
+}
+
+.configHint {
+  font-size: 0.82rem;
+  color: var(--ifm-color-emphasis-600);
+  margin: 0.5rem 0 0;
+}
+
+.noConfig {
+  font-size: 0.88rem;
+  color: var(--ifm-color-emphasis-600);
+  font-style: italic;
+  margin: 1rem 0;
+}
+
+/* ── Examples / notes ── */
+
+.example {
+  margin: 0.75rem 0 1rem;
+}
+
+.exampleTitle {
+  font-size: 0.98rem;
+  margin: 0.5rem 0 0.4rem;
+}
+
+.codeBlock {
+  background: var(--ifm-code-background);
+  border: 1px solid var(--ifm-color-emphasis-200);
+  border-radius: 6px;
+  padding: 0.75rem 1rem;
+  font-size: 0.8rem;
+  overflow-x: auto;
+  white-space: pre;
+}
+
+.noteList {
+  margin: 0.25rem 0 0.75rem;
+  padding-left: 1.25rem;
+}
+
+.noteList li {
+  margin: 0.25rem 0;
+}
+
+.wikiLink {
+  margin-top: 1rem;
+  font-size: 0.85rem;
+}
+
+.browseBack {
+  margin-top: 2rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--ifm-color-emphasis-200);
+  font-size: 0.85rem;
+}

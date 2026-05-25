@@ -216,8 +216,8 @@ on REST requests, the same header in gRPC metadata.
 
 ### Standalone mode
 
-Self-hosted single-user deployments (`kapi serve`, or bowrain-server
-with no `JWTSecret`) use the virtual workspace slug `_`:
+Self-hosted single-user deployments (bowrain-server with no `JWTSecret`)
+use the virtual workspace slug `_`:
 
 - `/api/v1/_/my-project/blocks/main` is a valid standalone request.
 - `AuthMiddleware` becomes a no-op that injects a synthetic user.

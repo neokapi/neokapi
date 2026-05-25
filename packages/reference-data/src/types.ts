@@ -200,3 +200,72 @@ export interface ReferenceGapReport {
   summary: Record<string, number>;
   gaps: ReferenceGap[];
 }
+
+// ── Command reference types ─────────────────────────────────────────────────
+
+/** One flag on a CLI command. */
+export interface CommandFlag {
+  /** Long flag name (without --). */
+  name: string;
+  /** Single-character shorthand (without -). Absent when not set. */
+  shorthand?: string;
+  /** Human-readable usage description. */
+  usage?: string;
+  /** Default value as a string (empty string when the default is ""). */
+  default?: string;
+  /** Go pflag value type, e.g. "string", "bool", "int", "stringSlice". */
+  type?: string;
+}
+
+/** One command or subcommand in the kapi CLI. */
+export interface CommandEntry {
+  /**
+   * Dot-joined command path, e.g. "formats.info".
+   * Top-level commands have a single segment, e.g. "pseudo-translate".
+   */
+  id: string;
+  /**
+   * Ordered list of command name segments (root "kapi" is excluded),
+   * e.g. ["formats", "info"].
+   */
+  path: string[];
+  /** Cobra Use string, e.g. "info <format>". */
+  use: string;
+  /** One-line description. */
+  short?: string;
+  /** Multi-line description. */
+  long?: string;
+  /** Alternative command names. */
+  aliases?: string[];
+  /** Cobra command group ID, e.g. "processing", "management". */
+  groupID?: string;
+  /** Local flags registered on this command (excludes inherited persistent flags). */
+  flags?: CommandFlag[];
+  /** Non-empty lines from the cobra Example string. */
+  examples?: string[];
+  /**
+   * True when this command can run inside the browser WASM build.
+   * Derived from the kapi-wasm-cli buildRoot allowlist plus a curated
+   * override map for commands that require network, the OS keychain,
+   * SQLite (cgo), or a running server.
+   */
+  offlineCapable: boolean;
+  /**
+   * True when the command is present in the kapi-wasm-cli buildRoot and can
+   * actually run in the browser playground — offline commands directly, AI/MT
+   * commands via the demo provider. Gates the ▸ Run affordance.
+   */
+  runnableInBrowser: boolean;
+  /**
+   * True for commands that run in-browser only via the deterministic demo
+   * provider (AI/MT). Their output is illustrative, not from a real model — the
+   * UI labels these "Demo".
+   */
+  demoMode: boolean;
+}
+
+/** Top-level document for commands.json. */
+export interface CommandDataset {
+  generatedAt: string;
+  commands: CommandEntry[];
+}

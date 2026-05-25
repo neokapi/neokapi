@@ -204,80 +204,6 @@ export class BlockTermMatch {
 }
 
 /**
- * Capability describes a specific format or tool provided by a plugin.
- */
-export class Capability {
-    /**
-     * Creates a new Capability instance.
-     * @param {Partial<Capability>} [$$source = {}] - The source object to create the Capability.
-     */
-    constructor($$source = {}) {
-        if (!("type" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["type"] = "";
-        }
-        if (!("name" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["name"] = "";
-        }
-        if (/** @type {any} */(false)) {
-            /**
-             * @member
-             * @type {string | undefined}
-             */
-            this["display_name"] = undefined;
-        }
-        if (/** @type {any} */(false)) {
-            /**
-             * @member
-             * @type {string | undefined}
-             */
-            this["description"] = undefined;
-        }
-        if (/** @type {any} */(false)) {
-            /**
-             * @member
-             * @type {string[] | undefined}
-             */
-            this["mime_types"] = undefined;
-        }
-        if (/** @type {any} */(false)) {
-            /**
-             * @member
-             * @type {string[] | undefined}
-             */
-            this["extensions"] = undefined;
-        }
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new Capability instance from a string or object.
-     * @param {any} [$$source = {}]
-     * @returns {Capability}
-     */
-    static createFrom($$source = {}) {
-        const $$createField4_0 = $$createType6;
-        const $$createField5_0 = $$createType6;
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        if ("mime_types" in $$parsedSource) {
-            $$parsedSource["mime_types"] = $$createField4_0($$parsedSource["mime_types"]);
-        }
-        if ("extensions" in $$parsedSource) {
-            $$parsedSource["extensions"] = $$createField5_0($$parsedSource["extensions"]);
-        }
-        return new Capability(/** @type {Partial<Capability>} */($$parsedSource));
-    }
-}
-
-/**
  * ConceptInfo is the frontend-facing representation of a concept.
  */
 export class ConceptInfo {
@@ -1096,177 +1022,6 @@ export class PluginInfo {
 }
 
 /**
- * PluginInstallResult describes the outcome of a plugin install or update.
- */
-export class PluginInstallResult {
-    /**
-     * Creates a new PluginInstallResult instance.
-     * @param {Partial<PluginInstallResult>} [$$source = {}] - The source object to create the PluginInstallResult.
-     */
-    constructor($$source = {}) {
-        if (!("name" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["name"] = "";
-        }
-        if (!("version" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["version"] = "";
-        }
-        if (!("install_type" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["install_type"] = "";
-        }
-        if (!("files" in $$source)) {
-            /**
-             * @member
-             * @type {string[]}
-             */
-            this["files"] = [];
-        }
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new PluginInstallResult instance from a string or object.
-     * @param {any} [$$source = {}]
-     * @returns {PluginInstallResult}
-     */
-    static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType6;
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        if ("files" in $$parsedSource) {
-            $$parsedSource["files"] = $$createField3_0($$parsedSource["files"]);
-        }
-        return new PluginInstallResult(/** @type {Partial<PluginInstallResult>} */($$parsedSource));
-    }
-}
-
-/**
- * PluginSearchResult describes a plugin available in the registry.
- */
-export class PluginSearchResult {
-    /**
-     * Creates a new PluginSearchResult instance.
-     * @param {Partial<PluginSearchResult>} [$$source = {}] - The source object to create the PluginSearchResult.
-     */
-    constructor($$source = {}) {
-        if (!("name" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["name"] = "";
-        }
-        if (!("version" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["version"] = "";
-        }
-        if (!("description" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["description"] = "";
-        }
-        if (!("plugin_type" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["plugin_type"] = "";
-        }
-        if (!("install_type" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["install_type"] = "";
-        }
-        if (/** @type {any} */(false)) {
-            /**
-             * @member
-             * @type {Capability[] | undefined}
-             */
-            this["capabilities"] = undefined;
-        }
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new PluginSearchResult instance from a string or object.
-     * @param {any} [$$source = {}]
-     * @returns {PluginSearchResult}
-     */
-    static createFrom($$source = {}) {
-        const $$createField5_0 = $$createType16;
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        if ("capabilities" in $$parsedSource) {
-            $$parsedSource["capabilities"] = $$createField5_0($$parsedSource["capabilities"]);
-        }
-        return new PluginSearchResult(/** @type {Partial<PluginSearchResult>} */($$parsedSource));
-    }
-}
-
-/**
- * PluginUpdateInfo describes an available update for an installed plugin.
- */
-export class PluginUpdateInfo {
-    /**
-     * Creates a new PluginUpdateInfo instance.
-     * @param {Partial<PluginUpdateInfo>} [$$source = {}] - The source object to create the PluginUpdateInfo.
-     */
-    constructor($$source = {}) {
-        if (!("name" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["name"] = "";
-        }
-        if (!("installed_version" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["installed_version"] = "";
-        }
-        if (!("available_version" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["available_version"] = "";
-        }
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new PluginUpdateInfo instance from a string or object.
-     * @param {any} [$$source = {}]
-     * @returns {PluginUpdateInfo}
-     */
-    static createFrom($$source = {}) {
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        return new PluginUpdateInfo(/** @type {Partial<PluginUpdateInfo>} */($$parsedSource));
-    }
-}
-
-/**
  * PluralRunInfo is a structured plural construct.
  */
 export class PluralRunInfo {
@@ -1422,7 +1177,7 @@ export class ProjectInfo {
      */
     static createFrom($$source = {}) {
         const $$createField3_0 = $$createType6;
-        const $$createField5_0 = $$createType18;
+        const $$createField5_0 = $$createType16;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("target_languages" in $$parsedSource) {
             $$parsedSource["target_languages"] = $$createField3_0($$parsedSource["target_languages"]);
@@ -1681,13 +1436,13 @@ export class RunInfo {
      * @returns {RunInfo}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType20;
-        const $$createField1_0 = $$createType22;
-        const $$createField2_0 = $$createType24;
-        const $$createField3_0 = $$createType26;
-        const $$createField4_0 = $$createType28;
-        const $$createField5_0 = $$createType30;
-        const $$createField6_0 = $$createType32;
+        const $$createField0_0 = $$createType18;
+        const $$createField1_0 = $$createType20;
+        const $$createField2_0 = $$createType22;
+        const $$createField3_0 = $$createType24;
+        const $$createField4_0 = $$createType26;
+        const $$createField5_0 = $$createType28;
+        const $$createField6_0 = $$createType30;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("text" in $$parsedSource) {
             $$parsedSource["text"] = $$createField0_0($$parsedSource["text"]);
@@ -2072,7 +1827,7 @@ export class TMSearchResult {
      * @returns {TMSearchResult}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType34;
+        const $$createField0_0 = $$createType32;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("entries" in $$parsedSource) {
             $$parsedSource["entries"] = $$createField0_0($$parsedSource["entries"]);
@@ -2323,7 +2078,7 @@ export class TermLookupResult {
      * @returns {TermLookupResult}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType36;
+        const $$createField0_0 = $$createType34;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("matches" in $$parsedSource) {
             $$parsedSource["matches"] = $$createField0_0($$parsedSource["matches"]);
@@ -2449,7 +2204,7 @@ export class TermSearchResult {
      * @returns {TermSearchResult}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType38;
+        const $$createField0_0 = $$createType36;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("concepts" in $$parsedSource) {
             $$parsedSource["concepts"] = $$createField0_0($$parsedSource["concepts"]);
@@ -2857,8 +2612,8 @@ export class WordCountResult {
      * @returns {WordCountResult}
      */
     static createFrom($$source = {}) {
-        const $$createField2_0 = $$createType39;
-        const $$createField3_0 = $$createType39;
+        const $$createField2_0 = $$createType37;
+        const $$createField3_0 = $$createType37;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("target_words" in $$parsedSource) {
             $$parsedSource["target_words"] = $$createField2_0($$parsedSource["target_words"]);
@@ -2952,28 +2707,26 @@ const $$createType11 = $Create.Map($Create.Any, $Create.Any);
 const $$createType12 = PositionInfo.createFrom;
 const $$createType13 = RunConstraintsInfo.createFrom;
 const $$createType14 = $Create.Nullable($$createType13);
-const $$createType15 = Capability.createFrom;
+const $$createType15 = ProjectItem.createFrom;
 const $$createType16 = $Create.Array($$createType15);
-const $$createType17 = ProjectItem.createFrom;
-const $$createType18 = $Create.Array($$createType17);
-const $$createType19 = TextRunInfo.createFrom;
+const $$createType17 = TextRunInfo.createFrom;
+const $$createType18 = $Create.Nullable($$createType17);
+const $$createType19 = PlaceholderRunInfo.createFrom;
 const $$createType20 = $Create.Nullable($$createType19);
-const $$createType21 = PlaceholderRunInfo.createFrom;
+const $$createType21 = PcOpenRunInfo.createFrom;
 const $$createType22 = $Create.Nullable($$createType21);
-const $$createType23 = PcOpenRunInfo.createFrom;
+const $$createType23 = PcCloseRunInfo.createFrom;
 const $$createType24 = $Create.Nullable($$createType23);
-const $$createType25 = PcCloseRunInfo.createFrom;
+const $$createType25 = SubRunInfo.createFrom;
 const $$createType26 = $Create.Nullable($$createType25);
-const $$createType27 = SubRunInfo.createFrom;
+const $$createType27 = PluralRunInfo.createFrom;
 const $$createType28 = $Create.Nullable($$createType27);
-const $$createType29 = PluralRunInfo.createFrom;
+const $$createType29 = SelectRunInfo.createFrom;
 const $$createType30 = $Create.Nullable($$createType29);
-const $$createType31 = SelectRunInfo.createFrom;
-const $$createType32 = $Create.Nullable($$createType31);
-const $$createType33 = TMEntryInfo.createFrom;
+const $$createType31 = TMEntryInfo.createFrom;
+const $$createType32 = $Create.Array($$createType31);
+const $$createType33 = TermMatchInfo.createFrom;
 const $$createType34 = $Create.Array($$createType33);
-const $$createType35 = TermMatchInfo.createFrom;
+const $$createType35 = ConceptInfo.createFrom;
 const $$createType36 = $Create.Array($$createType35);
-const $$createType37 = ConceptInfo.createFrom;
-const $$createType38 = $Create.Array($$createType37);
-const $$createType39 = $Create.Map($Create.Any, $Create.Any);
+const $$createType37 = $Create.Map($Create.Any, $Create.Any);

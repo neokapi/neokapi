@@ -1,6 +1,6 @@
 {
   "name": "@neokapi/kapi-format",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "description": "Canonical TypeScript schema for the Kapi Localization Format (KLF). Block/Run content model, reference Level-1 preview renderer, target validator, annotation overlay resolver. Mirrors core/klf in Go byte-for-byte against shared golden fixtures.",
   "type": "module",
@@ -16,12 +16,34 @@
     "./target-plural": "./src/target-plural.ts",
     "./package.json": "./package.json"
   },
+  "publishConfig": {
+    "main": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "exports": {
+      ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" },
+      "./block": { "types": "./dist/block.d.ts", "default": "./dist/block.js" },
+      "./vocabulary": { "types": "./dist/vocabulary.d.ts", "default": "./dist/vocabulary.js" },
+      "./preview": { "types": "./dist/preview.d.ts", "default": "./dist/preview.js" },
+      "./annotation": { "types": "./dist/annotation.d.ts", "default": "./dist/annotation.js" },
+      "./klf": { "types": "./dist/klf.d.ts", "default": "./dist/klf.js" },
+      "./target-plural": { "types": "./dist/target-plural.d.ts", "default": "./dist/target-plural.js" },
+      "./package.json": "./package.json"
+    }
+  },
+  "files": [
+    "dist",
+    "src"
+  ],
   "scripts": {
+    "build": "node build.mjs",
+    "prepack": "node build.mjs",
     "typecheck": "vpx tsc --noEmit",
     "validate": "node --experimental-strip-types examples/validate.ts",
     "test": "vitest run"
   },
   "devDependencies": {
+    "esbuild": "^0.28.0",
+    "typescript": "^6.0.3",
     "vitest": "^4.1.5"
   },
   "engines": {

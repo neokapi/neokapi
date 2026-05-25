@@ -21,6 +21,8 @@ import (
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/tool"
 	libtools "github.com/neokapi/neokapi/core/tools"
+	"github.com/neokapi/neokapi/sievepen"
+	"github.com/neokapi/neokapi/termbase"
 	"github.com/spf13/cobra"
 )
 
@@ -46,6 +48,17 @@ type App struct {
 	Encoding   string
 	SourceLang string
 	TargetLang string
+
+	// TMBackend, when non-nil, is returned by openTMSQLite instead of
+	// opening a SQLite database. Used by the WASM browser build to inject
+	// a pre-seeded InMemoryTM so the tm / extract commands work without cgo.
+	TMBackend sievepen.TMStore
+
+	// TBBackend, when non-nil, is returned by openTermbaseSQLite instead
+	// of opening a SQLite database. Used by the WASM browser build to
+	// inject a pre-seeded InMemoryTermBase so termbase / term-check work
+	// without cgo.
+	TBBackend termbase.TermBase
 
 	// Credentials is the shared credential store for AI provider keys.
 	Credentials *credentials.Store
@@ -74,6 +87,12 @@ type App struct {
 	// projectFlowTools is set temporarily by runProjectSteps to override
 	// buildFlowTools for project-defined flows.
 	projectFlowTools []tool.Tool
+
+	// projectBindings carries the standing brand-voice + termbase context
+	// resolved from a .kapi project (defaults.brand_voice / defaults.termbase).
+	// Set temporarily by runFromProject so project-flow steps can be made
+	// brand- and terminology-aware with no flags. nil for ad-hoc runs.
+	projectBindings *projectBindings
 
 	// translator localizes tool/format/plugin metadata at API egress.
 	// Built during Init from --lang / KAPI_LANG / config / POSIX env.

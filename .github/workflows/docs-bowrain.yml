@@ -59,6 +59,11 @@ jobs:
           BOWRAIN_BACKEND_URL: ${{ env.KAPI_WEB_SITE && '' || 'https://dev.bowrain.cloud' }}
         run: |
           export PATH="$PWD/bin:$PATH"
+          # The tapes `cd $WALKTHROUGH_DIR` before running `kapi init`/push/sync.
+          # Point it at a fresh dir OUTSIDE the repo checkout so those commands
+          # never walk up into — or act on — the repo-root dogfood .kapi project.
+          export WALKTHROUGH_DIR="${RUNNER_TEMP:-/tmp}/bowrain-walkthrough"
+          rm -rf "$WALKTHROUGH_DIR" && mkdir -p "$WALKTHROUGH_DIR"
           Xvfb :99 -screen 0 1280x720x24 &
           sleep 2
           if [ -d bowrain/web/docs/scenes ]; then

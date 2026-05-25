@@ -8,10 +8,11 @@ import (
 	"strings"
 
 	"github.com/mattn/go-isatty"
+	"github.com/neokapi/neokapi/cli/output"
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/tool"
-	"github.com/neokapi/neokapi/core/tools"
+	coretools "github.com/neokapi/neokapi/core/tools"
 	aiprovider "github.com/neokapi/neokapi/providers/ai"
 	"github.com/spf13/cobra"
 )
@@ -36,7 +37,7 @@ func allKLF(paths []string) bool {
 // CollectorFactories maps tool names to streaming collector factories.
 // Only tools that aggregate results across files need a collector.
 var CollectorFactories = map[string]func() flow.Collector{
-	"word-count": func() flow.Collector { return tools.NewStreamingWordCountCollector() },
+	"word-count": func() flow.Collector { return coretools.NewStreamingWordCountCollector() },
 }
 
 // aiProgressWriter returns a ProgressEvent callback that writes a single
@@ -66,6 +67,66 @@ func aiProgressWriter(w *os.File) func(aiprovider.ProgressEvent) {
 			}
 		}
 	}
+}
+
+// toolExamples maps tool names to their cobra Example strings. Each entry is a
+// newline-separated list of representative, runnable commands using the bundled
+// playground fixtures (messages.json, app.xliff, page.html, etc.) so they work
+// in the wasm CLI playground with no uploads.
+//
+// AI/MT commands use demo mode (no --provider flag needed in the playground).
+var toolExamples = map[string]string{
+	// ── Analysis ────────────────────────────────────────────────────────
+	"word-count": `  kapi word-count messages.json
+  kapi word-count app.xliff --json`,
+	"char-count": `  kapi char-count messages.json
+  kapi char-count page.html`,
+	"segment-count": `  kapi segment-count messages.json
+  kapi segment-count app.xliff`,
+	"scoping-report": `  kapi scoping-report messages.json
+  kapi scoping-report app.xliff --json`,
+	"repetition-analysis": `  kapi repetition-analysis messages.json
+  kapi repetition-analysis app.xliff`,
+
+	// ── Quality ─────────────────────────────────────────────────────────
+	"qa-check": `  kapi qa-check app.xliff --target-lang fr
+  kapi qa-check app.xliff --target-lang de --json`,
+	"term-check": `  kapi term-check app.xliff --source-lang en --target-lang fr
+  kapi term-check messages.json --source-lang en --target-lang fr`,
+	"inconsistency-check": `  kapi inconsistency-check app.xliff --target-lang fr
+  kapi inconsistency-check app.xliff --target-lang de`,
+	"length-check": `  kapi length-check app.xliff --target-lang fr
+  kapi length-check app.xliff --target-lang ja`,
+	"chars-check": `  kapi chars-check app.xliff --target-lang fr
+  kapi chars-check app.xliff --target-lang zh`,
+	"pattern-check": `  kapi pattern-check app.xliff --target-lang fr
+  kapi pattern-check app.xliff --target-lang de`,
+	"brand-vocab-check": `  kapi brand-vocab-check app.xliff --target-lang fr
+  kapi brand-vocab-check messages.json --target-lang de`,
+
+	// ── Translation ─────────────────────────────────────────────────────
+	"pseudo-translate": `  kapi pseudo-translate messages.json -o messages.pseudo.json
+  kapi pseudo-translate app.xliff -o app.pseudo.xliff --target-lang qps`,
+	"ai-translate": `  kapi ai-translate messages.json --target-lang fr
+  kapi ai-translate app.xliff --target-lang de -o app.de.xliff`,
+	"tm-leverage": `  kapi tm-leverage app.xliff --target-lang fr
+  kapi tm-leverage messages.json --target-lang de`,
+
+	// ── Text Processing ─────────────────────────────────────────────────
+	"search-replace": `  kapi search-replace messages.json --find "foo" --replace "bar"
+  kapi search-replace page.html --find "colour" --replace "color"`,
+	"case-transform": `  kapi case-transform messages.json --mode upper
+  kapi case-transform messages.json --mode lower`,
+	"segmentation": `  kapi segmentation messages.json
+  kapi segmentation app.xliff`,
+
+	// ── AI Quality ───────────────────────────────────────────────────────
+	"ai-qa": `  kapi ai-qa app.xliff --target-lang fr
+  kapi ai-qa app.xliff --target-lang de`,
+	"ai-review": `  kapi ai-review app.xliff --target-lang fr
+  kapi ai-review messages.json --target-lang de`,
+	"brand-voice-check": `  kapi brand-voice-check messages.json --target-lang fr
+  kapi brand-voice-check app.xliff --target-lang de`,
 }
 
 // NewToolCommands creates cobra commands from all CLI-visible tools in the
@@ -112,9 +173,12 @@ func (a *App) NewToolCommands() []*cobra.Command {
 			Aliases: info.Aliases,
 			Short:   short,
 			GroupID: info.Category,
+			Example: toolExamples[toolName],
 			Args:    cobra.MinimumNArgs(1),
 			RunE: func(cmd *cobra.Command, args []string) error {
 				jsonOut, _ := cmd.Flags().GetBool("json")
+				jqFilter, _ := cmd.Flags().GetString("jq")
+				jsonOut = jsonOut || jqFilter != "" // --jq implies JSON
 				conc, _ := cmd.Flags().GetInt("concurrency")
 				failUnknown, _ := cmd.Flags().GetBool("fail-on-unknown")
 				strict, _ := cmd.Flags().GetBool("strict")
@@ -153,8 +217,39 @@ func (a *App) NewToolCommands() []*cobra.Command {
 				tracePath, _ := cmd.Flags().GetString("trace")
 				parallelBlocks, _ := cmd.Flags().GetInt("parallel-blocks")
 
+				// Tools that require a TM (e.g. tm-leverage) get a real SQLite
+				// TM provider resolved from --tm or the project's .kapi/tm.db,
+				// opened once and shared across every input file. Without this
+				// the tool's config factory falls back to NullTMProvider and
+				// leverages nothing. Mirrors the termbase glossary injection
+				// below and reuses the flow path's TM opening logic.
+				var tmProvider coretools.TMProvider
+				if toolRequires(toolSchema, "tm") {
+					p, cleanup, terr := a.openToolTM(cmd)
+					if terr != nil {
+						return terr
+					}
+					defer cleanup()
+					tmProvider = p
+				}
+
 				newTool := func() (tool.Tool, error) {
 					config := ReadAllSchemaFlags(cmd, toolSchema)
+					// Tools that require a termbase (e.g. term-check) get the
+					// project's bound glossary injected when no glossary was
+					// supplied programmatically. This makes `kapi term-check
+					// fr.json` enforce the project termbase with no flag.
+					if toolRequires(toolSchema, "termbase") {
+						if _, ok := config["glossary"]; !ok {
+							glossary, gerr := a.resolveProjectGlossary(cmd, effectiveLang)
+							if gerr != nil {
+								return nil, gerr
+							}
+							if len(glossary) > 0 {
+								config["glossary"] = glossary
+							}
+						}
+					}
 					credName, _ := cmd.Flags().GetString("credential")
 					if credName != "" {
 						config["credential"] = credName
@@ -169,7 +264,20 @@ func (a *App) NewToolCommands() []*cobra.Command {
 					if !jsonOut && isatty.IsTerminal(os.Stderr.Fd()) {
 						config["onProgress"] = aiProgressWriter(os.Stderr)
 					}
-					return a.ToolReg.NewToolWithConfig(registry.ToolID(toolName), config, effectiveLang)
+					t, terr := a.ToolReg.NewToolWithConfig(registry.ToolID(toolName), config, effectiveLang)
+					if terr != nil {
+						return nil, terr
+					}
+					// The tm-leverage config factory cannot read a non-JSON
+					// provider from the config map (Provider is json:"-"), so it
+					// defaults to NullTMProvider. Swap in the resolved SQLite TM
+					// on the created tool's config so it actually leverages.
+					if tmProvider != nil {
+						if cfg, ok := t.Config().(*coretools.TMLeverageConfig); ok {
+							cfg.Provider = tmProvider
+						}
+					}
+					return t, nil
 				}
 
 				var collector func() flow.Collector
@@ -183,6 +291,8 @@ func (a *App) NewToolCommands() []*cobra.Command {
 					FormatMappings: mappings,
 					Concurrency:    conc,
 					JSONOutput:     jsonOut,
+					JQ:             jqFilter,
+					Colorize:       output.Colorize(cmd),
 					FailOnUnknown:  failUnknown,
 					NoWarn:         noWarn,
 					Progress:       progress,
@@ -218,9 +328,13 @@ func (a *App) NewToolCommands() []*cobra.Command {
 		RegisterSchemaFlags(cmd, toolSchema)
 		if toolSchema.ToolMeta != nil {
 			for _, req := range toolSchema.ToolMeta.Requires {
-				if req == "credentials" {
+				switch req {
+				case "credentials":
 					cmd.Flags().String("credential", "", "saved credential name to use (see 'kapi credentials list')")
-					break
+				case "termbase":
+					cmd.Flags().String("termbase", "", "named termbase or path to a glossary (defaults to the project termbase)")
+				case "tm":
+					cmd.Flags().String("tm", "", "named TM or path to a .db (defaults to the project TM at .kapi/tm.db)")
 				}
 			}
 		}

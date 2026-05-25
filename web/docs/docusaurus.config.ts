@@ -11,8 +11,7 @@ const baseUrl = process.env.DOCS_BASE_URL ?? "/web/neokapi/docs/";
 
 const config: Config = {
   title: "neokapi",
-  tagline:
-    "Keep your AI on-brand and consistent — ship it in every language and format. Open source, offline by default.",
+  tagline: "Format-aware localization and brand governance for people, elves, and agents",
   favicon: "img/favicon.png",
 
   url: "https://neokapi.github.io",
@@ -39,25 +38,10 @@ const config: Config = {
 
   themes: ["@docusaurus/theme-mermaid"],
 
-  // Architecture docs and implementation notes were absorbed into the
-  // main docs tree (issue #425 followup). The `ad` and `notes` plugin
-  // instances are no longer needed.
+  // The framework-first IA restructure (issue #670) moved pages freely. The
+  // site is not yet live, so no client-side redirects are kept — old URLs are
+  // simply gone.
   plugins: [
-    [
-      "@docusaurus/plugin-client-redirects",
-      {
-        // The developer/* concept pages were merged into their features/*
-        // counterparts. Keep the old URLs alive.
-        redirects: [
-          { from: "/developer/terminology", to: "/features/terminology" },
-          { from: "/developer/translation-memory", to: "/features/translation-memory" },
-          { from: "/developer/brand-voice", to: "/features/brand-voice" },
-          // The standalone "Demos" page was superseded by the Walkthroughs
-          // gallery (its videos used a recording pipeline that no longer exists).
-          { from: "/kapi-cli/demo-videos", to: "/walkthroughs" },
-        ],
-      },
-    ],
     // Silence the benign "Critical dependency" webpack warning emitted by the
     // UMD wrapper in vscode-languageserver-types (pulled in transitively via
     // @docusaurus/theme-mermaid → mermaid → langium). The `require` it flags is
@@ -71,7 +55,9 @@ const config: Config = {
           return {
             ignoreWarnings: [
               (warning: { message?: string; module?: { resource?: string } }) =>
-                /Critical dependency: require function is used/.test(warning.message ?? "") &&
+                /Critical dependency: require function is used/.test(
+                  warning.message ?? "",
+                ) &&
                 /[\\/]node_modules[\\/]vscode-languageserver-types[\\/]/.test(
                   warning.module?.resource ?? "",
                 ),
@@ -113,11 +99,34 @@ const config: Config = {
         theme: {
           customCss: ["./src/css/custom.css", "./src/css/tailwind.css"],
         },
+        // @docusaurus/plugin-sitemap is bundled in preset-classic. Explicit
+        // config here activates it and sets the change frequency hint that
+        // search-engine crawlers use when deciding how often to re-index pages.
+        sitemap: {
+          changefreq: "weekly",
+          priority: 0.5,
+          ignorePatterns: [],
+          filename: "sitemap.xml",
+        },
       } satisfies Preset.Options,
     ],
   ],
 
   themeConfig: {
+    // Open Graph + Twitter Card metadata for social sharing.
+    // The hero-logo.png is used as the default og:image — it is a wide,
+    // high-contrast image suitable for link previews. Individual pages can
+    // override this via their own frontmatter `image:` field.
+    image: "img/hero-logo.png",
+    metadata: [
+      { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:site", content: "@neokapi" },
+      {
+        name: "description",
+        content:
+          "neokapi is an open-source, format-aware localization framework in Go. It provides a concurrent streaming pipeline, content model, and composable tools for AI translation, TM leverage, terminology enforcement, and brand-voice governance.",
+      },
+    ],
     navbar: {
       title: "neokapi",
       logo: {
@@ -125,11 +134,48 @@ const config: Config = {
         src: "img/logo.png",
       },
       items: [
+        // Framework-first IA: the framework is the spine; CLI / React / Desktop
+        // are peer front-ends. Get Started and the home page lead with the
+        // framework + the AI-assistant pivot.
         {
           type: "docSidebar",
-          sidebarId: "gettingStartedSidebar",
+          sidebarId: "getStartedSidebar",
           label: "Get Started",
           position: "left",
+        },
+        {
+          type: "docSidebar",
+          sidebarId: "frameworkSidebar",
+          label: "Framework",
+          position: "left",
+        },
+        {
+          to: "/lab",
+          label: "Lab",
+          position: "left",
+        },
+        {
+          type: "docSidebar",
+          sidebarId: "guidesSidebar",
+          label: "Guides",
+          position: "left",
+        },
+        {
+          type: "dropdown",
+          label: "Reference",
+          position: "left",
+          items: [
+            // Generated, runnable references + interactive grids. R4 fills the
+            // per-entry pages under /reference/{commands,formats,tools}/.
+            { label: "Reference Overview", to: "/reference" },
+            { label: "Commands", to: "/commands" },
+            { label: "Formats", to: "/formats" },
+            { label: "Tools", to: "/tools" },
+            { label: "Flows", to: "/flow-visualization" },
+            { label: "Parity", to: "/parity" },
+            { label: "Benchmarks", to: "/pseudobench" },
+            { label: "Test Results", to: "/test-comparison" },
+          ],
         },
         {
           type: "docSidebar",
@@ -150,30 +196,6 @@ const config: Config = {
           position: "left",
         },
         {
-          type: "docSidebar",
-          sidebarId: "frameworkSidebar",
-          label: "Framework",
-          position: "left",
-        },
-        {
-          type: "docSidebar",
-          sidebarId: "walkthroughsSidebar",
-          label: "Walkthroughs",
-          position: "left",
-        },
-        {
-          type: "dropdown",
-          label: "Reference",
-          position: "left",
-          items: [
-            { label: "Format Reference", to: "/formats" },
-            { label: "Tool Reference", to: "/tools" },
-            { label: "Benchmarks", to: "/pseudobench" },
-            { label: "Parity", to: "/parity" },
-            { label: "Test Results", to: "/test-comparison" },
-          ],
-        },
-        {
           href: "https://github.com/neokapi/neokapi",
           label: "GitHub",
           position: "right",
@@ -188,23 +210,31 @@ const config: Config = {
           items: [
             {
               label: "Get Started",
-              to: "/getting-started/introduction",
-            },
-            {
-              label: "CLI",
-              to: "/kapi-cli/overview",
-            },
-            {
-              label: "React",
-              to: "/kapi-react/introduction",
+              to: "/get-started/introduction",
             },
             {
               label: "Framework",
-              to: "/developer/architecture",
+              to: "/framework/architecture",
+            },
+            {
+              label: "Guides",
+              to: "/guides",
+            },
+            {
+              label: "CLI",
+              to: "/cli/overview",
+            },
+            {
+              label: "React",
+              to: "/react/introduction",
             },
             {
               label: "Format Reference",
               to: "/formats",
+            },
+            {
+              label: "Contribute",
+              to: "/contribute/tool-authoring",
             },
           ],
         },

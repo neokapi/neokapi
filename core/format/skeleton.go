@@ -2,6 +2,7 @@ package format
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -43,6 +44,7 @@ type SkeletonEntry struct {
 // Binary format: [type:1byte] [length:4bytes big-endian] [data:N bytes]
 type SkeletonStore struct {
 	file       *os.File
+	buf        *bytes.Buffer // non-nil for memory-backed stores (no filesystem, e.g. wasm)
 	writer     *bufio.Writer
 	reader     *bufio.Reader
 	persistent bool // when true, Close() does not remove the backing file
@@ -66,12 +68,29 @@ func (s *SkeletonStore) EntriesWritten() int { return s.entries }
 func NewSkeletonStore() (*SkeletonStore, error) {
 	f, err := os.CreateTemp("", "neokapi-skeleton-*")
 	if err != nil {
-		return nil, fmt.Errorf("skeleton store: create temp: %w", err)
+		// No writable temp filesystem (notably the js/wasm browser build, where
+		// os.CreateTemp always fails). Fall back to an in-memory store so the
+		// caller still gets a working byte-exact skeleton — otherwise skeleton
+		// wiring is skipped and format writers re-serialize their parse tree,
+		// silently losing whitespace, doctype case, and attribute spacing.
+		return NewMemorySkeletonStore(), nil
 	}
 	return &SkeletonStore{
 		file:   f,
 		writer: bufio.NewWriter(f),
 	}, nil
+}
+
+// NewMemorySkeletonStore creates a skeleton store backed entirely by an
+// in-memory buffer. Use it where no filesystem is available (e.g. the
+// js/wasm browser build, where os.CreateTemp fails). Close() is a no-op
+// beyond flushing; there is no backing file to remove.
+func NewMemorySkeletonStore() *SkeletonStore {
+	buf := &bytes.Buffer{}
+	return &SkeletonStore{
+		buf:    buf,
+		writer: bufio.NewWriter(buf),
+	}
 }
 
 // NewSkeletonStoreAt creates a new skeleton store at a specific path. The
@@ -158,6 +177,12 @@ func (s *SkeletonStore) Flush() error {
 			return err
 		}
 	}
+	if s.buf != nil {
+		// Memory-backed: the buffer already holds every written byte and
+		// bytes.Buffer reads from the front, so there's nothing to seek.
+		s.reader = bufio.NewReader(s.buf)
+		return nil
+	}
 	if _, err := s.file.Seek(0, io.SeekStart); err != nil {
 		return err
 	}
@@ -196,6 +221,10 @@ func (s *SkeletonStore) Next() (SkeletonEntry, error) {
 func (s *SkeletonStore) Close() error {
 	if s.writer != nil {
 		_ = s.writer.Flush()
+	}
+	if s.buf != nil {
+		// Memory-backed: no file to close or remove.
+		return nil
 	}
 	name := s.file.Name()
 	err := s.file.Close()

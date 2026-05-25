@@ -97,7 +97,7 @@ type auditRow struct {
 // collectAuditRows iterates the TM, keeping only entries with an Origin
 // whose Source="merge" and Reference matches the given batch id. Results
 // are capped at `limit` when > 0.
-func collectAuditRows(tm *sievepen.SQLiteTM, batch string, limit int) []auditRow {
+func collectAuditRows(tm sievepen.TMStore, batch string, limit int) []auditRow {
 	var rows []auditRow
 	for _, entry := range tm.Entries() {
 		matched := false

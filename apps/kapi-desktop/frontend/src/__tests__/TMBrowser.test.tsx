@@ -6,7 +6,7 @@ import { TMBrowser } from "@neokapi/ui-primitives";
 import type { TMAdapter, TMEntryDTO, VariantDTO } from "@neokapi/ui-primitives";
 
 function v(locale: string, text: string): VariantDTO {
-  return { locale, text, coded: text, spans: [] };
+  return { locale, text, runs: [{ text }] };
 }
 
 function makeTMEntry(overrides: Partial<TMEntryDTO> = {}): TMEntryDTO {

@@ -1,0 +1,83 @@
+.wrap {
+  min-height: 100vh;
+  margin: 0;
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  background: #f6f7fb;
+  color: #1a1f2e;
+  padding: 56px 64px;
+}
+
+.header {
+  margin-bottom: 32px;
+}
+
+.title {
+  font-size: 40px;
+  font-weight: 700;
+  margin: 0 0 6px;
+}
+
+.subtitle {
+  font-size: 18px;
+  color: #5b647a;
+  margin: 0;
+}
+
+.actions {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 28px;
+}
+
+.newBtn {
+  background: #4f46e5;
+  color: #fff;
+  border: 0;
+  border-radius: 10px;
+  padding: 12px 20px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.search {
+  flex: 1;
+  background: #fff;
+  border: 1px solid #e6e8f0;
+  border-radius: 10px;
+  padding: 12px 16px;
+  color: #9aa3b8;
+  font-size: 16px;
+}
+
+.list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 14px;
+}
+
+.card {
+  background: #fff;
+  border: 1px solid #e6e8f0;
+  border-radius: 14px;
+  padding: 20px 24px;
+}
+
+.cardTitle {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.cardExcerpt {
+  font-size: 15px;
+  color: #5b647a;
+  margin-top: 4px;
+}
+
+.footer {
+  margin-top: 40px;
+  color: #9aa3b8;
+  font-size: 14px;
+}

@@ -1,0 +1,44 @@
+{
+  "@@locale": "en",
+  "@@last_modified": "2024-01-15T10:30:00.000Z",
+  "@@author": "Flutter Team",
+  "@@context": "HomePage",
+  "itemCount": "{count, plural, =0{No items} =1{1 item} other{{count} items}}",
+  "@itemCount": {
+    "description": "The number of items in a list.",
+    "placeholders": {
+      "count": {
+        "type": "int",
+        "format": "decimalPattern"
+      }
+    }
+  },
+  "pronoun": "{gender, select, male{He} female{She} other{They}} liked your post.",
+  "@pronoun": {
+    "description": "A gendered pronoun message.",
+    "placeholders": {
+      "gender": {
+        "type": "String"
+      }
+    }
+  },
+  "greeting": "Hello, {name}!",
+  "@greeting": {
+    "description": "A friendly greeting.",
+    "placeholders": {
+      "name": {
+        "type": "String",
+        "example": "Alice"
+      }
+    }
+  },
+  "lastUpdated": "Last updated on {date}",
+  "@lastUpdated": {
+    "placeholders": {
+      "date": {
+        "type": "DateTime",
+        "format": "yMMMd"
+      }
+    }
+  }
+}

@@ -42,6 +42,17 @@ GOFMT   := gofmt
 BIN_DIR := $(ROOT_DIR)/bin
 COVER_DIR := coverage
 
+# ── kapi dogfood isolation ────────────────────────────────────────────────
+# This repo dogfoods kapi: a *.kapi recipe sits at the repo root, which kapi
+# auto-discovers via a git-style upward walk from any in-repo cwd. Every
+# in-repo kapi invocation that is NOT the dogfood workflow itself must opt out
+# of that discovery (KAPI_NO_PROJECT) and point kapi at a throwaway
+# config/data/cache home, so it can never read the developer's ~/.config/kapi,
+# their user-installed plugins, or silently bind to the dogfood recipe.
+# Prefix in-repo kapi calls with $(KAPI_ISO_ENV). See CLAUDE.md "Dogfooding".
+KAPI_ISO_DIR := $(CURDIR)/.kapi-iso
+KAPI_ISO_ENV := KAPI_NO_PROJECT=1 KAPI_CONFIG_DIR=$(KAPI_ISO_DIR)/config XDG_DATA_HOME=$(KAPI_ISO_DIR)/data XDG_CACHE_HOME=$(KAPI_ISO_DIR)/cache
+
 GOLANGCI_LINT := $(shell which golangci-lint 2>/dev/null || { test -x "$$(go env GOPATH)/bin/golangci-lint" && echo "$$(go env GOPATH)/bin/golangci-lint"; })
 
 # ── CI auto-detection ────────────────────────────────────────────────────────
@@ -93,6 +104,19 @@ test-verbose: ## Run tests with verbose output
 test-integration: ## Run integration tests
 	@$(MAKE) --no-print-directory _fw-test-integration
 	@$(MAKE) -C bowrain test-integration
+
+format-acceptance: ## Run native-format consumer-toolchain acceptance tests (plutil/resgen/xmllint/node; each check auto-skips if its tool is absent)
+	# Scoped to the formats that ship a //go:build acceptance suite — running
+	# ./core/formats/... would also pull in unrelated packages' fixture-dependent
+	# tests (e.g. xliff2's okapi byte-equal corpus). Add new formats here as they
+	# gain acceptance coverage.
+	# Clear NODE_OPTIONS so node/npx spawned by the JSON-schema + MDX checks do
+	# not inherit a flag the runner's node rejects (e.g. CI sets
+	# --experimental-strip-types, which Node 20 refuses). These checks need none.
+	NODE_OPTIONS= $(GO) test -tags acceptance -count=1 \
+		./core/formats/xcstrings/ ./core/formats/arb/ ./core/formats/resx/ \
+		./core/formats/androidxml/ ./core/formats/applestrings/ \
+		./core/formats/i18next/ ./core/formats/designtokens/ ./core/formats/mdx/
 
 fmt: ## Format Go source files
 	$(GOFMT) -w -s .
@@ -480,7 +504,7 @@ kapi-desktop-extract: kapi-desktop-frontend-deps ## Extract translatable blocks 
 	cd $(KAPI_DESKTOP_DIR)/frontend && vp run extract
 
 kapi-desktop-pseudo-translate: kapi-desktop-extract bin/kapi ## Pseudo-translate i18n/ → i18n-qps/
-	./bin/kapi pseudo-translate $(KAPI_DESKTOP_DIR)/frontend/i18n \
+	$(KAPI_ISO_ENV) ./bin/kapi pseudo-translate $(KAPI_DESKTOP_DIR)/frontend/i18n \
 		--target-lang qps \
 		-o $(KAPI_DESKTOP_DIR)/frontend/i18n-qps \
 		-q
@@ -494,7 +518,7 @@ kapi-i18n-generate: ## Regenerate core/i18n/builtins/metadata.json from Go regis
 	go generate ./core/i18n/...
 
 kapi-i18n-pseudo-translate: kapi-i18n-generate bin/kapi ## Pseudo-translate builtins into core/i18n/catalogs/qps.mo
-	./bin/kapi pseudo-translate core/i18n/builtins/metadata.json \
+	$(KAPI_ISO_ENV) ./bin/kapi pseudo-translate core/i18n/builtins/metadata.json \
 		--target-lang qps \
 		-f json \
 		-o core/i18n/catalogs/qps.mo \
@@ -639,6 +663,48 @@ fetch-docs-assets: ## Download legacy docs assets (transitional, until walkthrou
 	@rm -f /tmp/docs-assets.tar.gz
 	@du -sh web/docs/static/img web/docs/static/video 2>/dev/null || true
 
+publish-docs-assets: ## Publish web/docs/static/{img,video} to the docs-assets release (merges, never drops)
+	@bash scripts/publish-docs-assets.sh
+
+# harness/ records kapi driven by Claude Code as narrated 1-min explainer videos
+# and publishes them theme-matched (light + dark) into the docs site. Built and
+# published from your desktop — no CI required. See harness/Makefile for details.
+harness-deps: ## Install the demo-video harness deps (node + Playwright)
+	$(MAKE) -C harness deps
+
+harness-videos: ## Render + convert the docs demo videos (light + dark) → web/docs/static/video/kapi/
+	$(MAKE) -C harness videos
+
+# Record the kapi docs scene tapes (VHS) on your desktop and stage them under
+# static/video/kapi/, then `make publish-docs-assets`. Done locally so CI doesn't
+# re-record on every build (docs-kapi.yml stages these from the docs-assets release).
+# Needs `vhs` (brew install vhs) and a built kapi (bin/kapi).
+kapi-scenes: ## Record kapi docs scene tapes (VHS, desktop) → web/docs/static/video/kapi/
+	@command -v vhs >/dev/null || { echo "vhs not found — run: brew install vhs"; exit 1; }
+	@test -x bin/kapi || $(MAKE) build
+	@mkdir -p web/docs/static/video/kapi
+	@for scene_dir in web/docs/scenes/*/; do \
+	  for tape in "$$scene_dir"*.tape; do \
+	    [ -f "$$tape" ] || continue; \
+	    echo "Recording $$tape"; \
+	    scene_env="KAPI_CONFIG_DIR=$(KAPI_ISO_DIR)/config XDG_DATA_HOME=$(KAPI_ISO_DIR)/data XDG_CACHE_HOME=$(KAPI_ISO_DIR)/cache"; \
+	    if find "$$scene_dir" -name '*.kapi' | grep -q .; then \
+	      : "scene owns a recipe — keep discovery on (nearest-wins shields it from the root dogfood recipe)"; \
+	    else \
+	      scene_env="$$scene_env KAPI_NO_PROJECT=1"; \
+	    fi; \
+	    (cd "$$scene_dir" && env $$scene_env PATH="$(CURDIR)/bin:$$PATH" vhs "$$(basename "$$tape")") || echo "  ! $$tape failed"; \
+	  done; \
+	done
+	@for webm in web/docs/scenes/*/*.webm; do \
+	  [ -f "$$webm" ] || continue; \
+	  out="web/docs/static/video/kapi/$$(basename "$$webm")"; \
+	  ffmpeg -y -i "$$webm" -an -c:v libvpx-vp9 -b:v 0 -crf 32 -row-mt 1 -pix_fmt yuv420p \
+	    -colorspace bt709 -color_primaries bt709 -color_trc bt709 -color_range tv -map_metadata -1 \
+	    "$$out" >/dev/null 2>&1 || cp "$$webm" "$$out"; \
+	done
+	@echo "Recorded $$(ls web/docs/static/video/kapi/01-*.webm 2>/dev/null | wc -l) scene(s) → web/docs/static/video/kapi/  (now: make publish-docs-assets)"
+
 # ── Generate (scripts at root) ──────────────────────────────────────────────
 
 # okapi-bridge plugin dir feeding the reference dataset. Override with
@@ -652,12 +718,38 @@ generate-reference-docs: ## Generate the unified format + tool reference dataset
 # Superseded by generate-reference-docs; kept as an alias for existing callers.
 generate-format-docs: generate-reference-docs
 
+generate-reference-pages: ## Generate static per-entry reference MDX pages (R4, #673) → web/docs/docs/reference/{commands,formats,tools}
+	cd web/docs && node --no-warnings --experimental-strip-types scripts/gen-reference-pages.ts
+
 # ── Documentation Site ──────────────────────────────────────────────────────
 
 docs-deps: ; cd web/docs && vp install --frozen-lockfile
 docs-dev: ; cd web/docs && vp run start
 docs-build: ; cd web/docs && vp run build
 docs-serve: ; cd web/docs && vp run serve
+
+# Output dir for the in-browser playground (gitignored; built locally or in CI).
+WASM_DEMO_DIR := web/docs/static/wasm
+
+web-wasm-demo: ## Build the in-browser playground wasm + JS glue → web/docs/static/wasm/
+	@mkdir -p $(WASM_DEMO_DIR)
+	GOOS=js GOARCH=wasm $(GO) build -o $(WASM_DEMO_DIR)/kapi.wasm ./cmd/kapi-wasm
+	@cp "$$($(GO) env GOROOT)/lib/wasm/wasm_exec.js" $(WASM_DEMO_DIR)/wasm_exec.js
+	@ls -lh $(WASM_DEMO_DIR)/kapi.wasm | awk '{print "  built",$$NF,$$5}'
+
+web-wasm-cli: ## Build the in-browser kapi CLI (wasm) → web/docs/static/wasm/kapi-cli.wasm
+	@mkdir -p $(WASM_DEMO_DIR)
+	cd kapi && GOOS=js GOARCH=wasm $(GO) build -o $(CURDIR)/$(WASM_DEMO_DIR)/kapi-cli.wasm ./cmd/kapi-wasm-cli
+	@cp "$$($(GO) env GOROOT)/lib/wasm/wasm_exec.js" $(WASM_DEMO_DIR)/wasm_exec.js
+	@# Precompress for the browser: the kit prefers kapi-cli.wasm.gz and inflates
+	@# it via DecompressionStream('gzip'), so this works without the host having
+	@# to set Content-Encoding (GitHub Pages / Docusaurus static serving do not).
+	@gzip -9 -f -k -c $(WASM_DEMO_DIR)/kapi-cli.wasm > $(WASM_DEMO_DIR)/kapi-cli.wasm.gz
+	@ls -lh $(WASM_DEMO_DIR)/kapi-cli.wasm | awk '{print "  built",$$NF,$$5}'
+	@ls -lh $(WASM_DEMO_DIR)/kapi-cli.wasm.gz | awk '{print "  built",$$NF,$$5}'
+
+docs-verify-snippets: web-wasm-cli ## Verify every RunnableSnippet + scene smoke_contract runs green in wasm
+	node --experimental-strip-types scripts/verify-snippets/harness.ts
 
 # ── Tools ────────────────────────────────────────────────────────────────────
 
@@ -728,8 +820,8 @@ help: ## Show this help
         kapi-storybook kapi-storybook-build bowrain-storybook bowrain-storybook-build \
         cover test-e2e test-e2e-kapi test-e2e-bowrain test-e2e-cloud test-e2e-dev \
         bench bench-build bench-generate bench-run bench-run-collection bench-run-all bench-versions \
-        fetch-docs-assets \
-        generate-format-docs generate-reference-docs \
+        fetch-docs-assets publish-docs-assets harness-deps harness-videos \
+        generate-format-docs generate-reference-docs generate-reference-pages \
         docs-deps docs-dev docs-build docs-serve \
         tools setup-remote gha-lint clean \
         _fw-fmt _fw-test _fw-test-fast _fw-test-unit _fw-test-race _fw-test-verbose _fw-test-integration \

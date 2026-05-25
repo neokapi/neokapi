@@ -1,0 +1,26 @@
+{
+  "appTitle": "Flutter Gallery",
+  "@appTitle": {
+    "description": "The application title shown in the app bar."
+  },
+  "githubRepo": "{repoName} GitHub repository",
+  "@githubRepo": {
+    "description": "Represents a link to a GitHub repository.",
+    "placeholders": {
+      "repoName": {
+        "example": "Flutter Gallery"
+      }
+    }
+  },
+  "aboutDialogDescription": "To see the source code for this app, please visit the {repoLink}.",
+  "@aboutDialogDescription": {
+    "description": "A description about how to view the source code for this app.",
+    "placeholders": {
+      "repoLink": {
+        "type": "String",
+        "example": "Flutter Gallery GitHub repository"
+      }
+    }
+  },
+  "cancel": "Cancel"
+}

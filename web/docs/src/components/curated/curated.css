@@ -1,0 +1,367 @@
+/*
+ * Curated result-view styles (R8). Plain (non-module) CSS with a `kapi-cur-`
+ * prefix, intentionally aligned with the kit's `kapi-pg-` look: it reuses the
+ * same `--kpg-*` design tokens (defined on :root by @neokapi/kapi-playground's
+ * styles.css, which the kit re-exports on import) so the curated views match
+ * the playground's Infima-aware surfaces and honor light/dark automatically.
+ * Terminal panes keep the Catppuccin Mocha background in both themes.
+ */
+
+.kapi-cur {
+  margin: 0 0 1.25rem;
+}
+
+/* ── Card frame shared by all curated views ──────────────────────────────── */
+
+.kapi-cur-card {
+  border: 1px solid var(--kpg-border, rgba(0, 0, 0, 0.12));
+  border-radius: var(--kpg-radius, 8px);
+  background: var(--kpg-surface, #fff);
+  color: var(--kpg-fg, #1c1e21);
+  overflow: hidden;
+}
+
+.kapi-cur-head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--kpg-border-soft, rgba(0, 0, 0, 0.08));
+  background: var(--kpg-hover, rgba(0, 0, 0, 0.03));
+}
+
+.kapi-cur-title {
+  font-weight: 700;
+  font-size: 0.86rem;
+  font-family: var(--kpg-mono, ui-monospace, monospace);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.kapi-cur-badge {
+  font-size: 0.72rem;
+  font-family: var(--kpg-mono, ui-monospace, monospace);
+  background: var(--kpg-border-soft, rgba(0, 0, 0, 0.08));
+  border-radius: 999px;
+  padding: 0.1rem 0.55rem;
+  flex-shrink: 0;
+}
+
+.kapi-cur-body {
+  padding: 0.75rem;
+  overflow-x: auto;
+}
+
+.kapi-cur-meta {
+  font-size: 0.82rem;
+  color: var(--kpg-muted, #606770);
+  margin: 0 0 0.5rem;
+}
+
+.kapi-cur-error {
+  color: var(--kpg-danger, #e5484d);
+  font-size: 0.88rem;
+  margin: 0;
+}
+
+/* ── Loading state (mirrors the kit's spinner copy) ──────────────────────── */
+
+.kapi-cur-loading {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 1.25rem 0.75rem;
+  color: var(--kpg-muted, #606770);
+  font-size: 0.86rem;
+}
+
+.kapi-cur-spinner {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid var(--kpg-border, rgba(127, 127, 127, 0.3));
+  border-top-color: var(--kpg-accent, #4a7cf6);
+  animation: kapi-cur-spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes kapi-cur-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ── Block preview table (the "kapi reader" view) ────────────────────────── */
+
+.kapi-cur-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+}
+
+.kapi-cur-table th,
+.kapi-cur-table td {
+  border: 1px solid var(--kpg-border, rgba(0, 0, 0, 0.12));
+  padding: 0.4rem 0.6rem;
+  text-align: left;
+  vertical-align: top;
+}
+
+.kapi-cur-table th {
+  background: var(--kpg-hover, rgba(0, 0, 0, 0.04));
+  font-weight: 700;
+}
+
+.kapi-cur-table td code,
+.kapi-cur-id {
+  font-family: var(--kpg-mono, ui-monospace, monospace);
+  font-size: 0.82rem;
+}
+
+.kapi-cur-num {
+  color: var(--kpg-muted, #606770);
+  width: 2.5rem;
+  text-align: right;
+}
+
+/* Inline-span markers (Unicode PUA codes) are rendered as little chips so a
+   reader can see where inline markup sat without the invisible code points. */
+.kapi-cur-span {
+  display: inline-block;
+  font-family: var(--kpg-mono, ui-monospace, monospace);
+  font-size: 0.72rem;
+  line-height: 1.2;
+  padding: 0 0.3rem;
+  margin: 0 0.1rem;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--kpg-accent, #2e8555) 16%, transparent);
+  color: var(--kpg-accent, #2e8555);
+  vertical-align: baseline;
+}
+
+/* ── Before/after split ──────────────────────────────────────────────────── */
+
+.kapi-cur-split {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
+@media (max-width: 720px) {
+  .kapi-cur-split {
+    grid-template-columns: 1fr;
+  }
+}
+
+.kapi-cur-pane {
+  border: 1px solid var(--kpg-border, rgba(0, 0, 0, 0.12));
+  border-radius: var(--kpg-radius, 8px);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.kapi-cur-pane-head {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.6rem;
+  border-bottom: 1px solid var(--kpg-border-soft, rgba(0, 0, 0, 0.08));
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--kpg-muted, #606770);
+  background: var(--kpg-hover, rgba(0, 0, 0, 0.03));
+}
+
+.kapi-cur-pane-name {
+  font-family: var(--kpg-mono, ui-monospace, monospace);
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 600;
+  color: var(--kpg-fg, #1c1e21);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.kapi-cur-code {
+  margin: 0;
+  padding: 0.6rem 0.75rem;
+  font-family: var(--kpg-mono, ui-monospace, monospace);
+  font-size: 0.8rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow: auto;
+  max-height: 360px;
+  background: var(--kpg-surface, #fff);
+  color: var(--kpg-fg, #1c1e21);
+  flex: 1;
+}
+
+.kapi-cur-arrow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--kpg-muted, #606770);
+}
+
+/* ── Command line strip (used by BeforeAfter + DualExample) ──────────────── */
+
+.kapi-cur-cmd {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: var(--kpg-mono, ui-monospace, monospace);
+  font-size: 0.84rem;
+  padding: 0.5rem 0.75rem;
+  background: #1e1e2e;
+  color: #cdd6f4;
+  border-radius: var(--kpg-radius, 8px);
+  margin: 0 0 0.75rem;
+  overflow-x: auto;
+}
+
+.kapi-cur-cmd-prompt {
+  color: #a6adc8;
+  user-select: none;
+}
+
+.kapi-cur-cmd-text {
+  flex: 1;
+  min-width: 0;
+  white-space: pre;
+}
+
+/* ── Buttons (Run / Reset / Raw-Blocks) ──────────────────────────────────── */
+
+.kapi-cur-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border: 1px solid var(--kpg-border, rgba(0, 0, 0, 0.12));
+  border-radius: 6px;
+  background: var(--kpg-surface, #fff);
+  color: var(--kpg-fg, #1c1e21);
+  padding: 0.25rem 0.6rem;
+  font: inherit;
+  font-size: 0.8rem;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition:
+    background 0.12s ease,
+    border-color 0.12s ease;
+}
+
+.kapi-cur-btn:hover {
+  background: var(--kpg-hover, rgba(0, 0, 0, 0.04));
+  border-color: var(--kpg-muted, #606770);
+}
+
+.kapi-cur-btn:focus-visible {
+  outline: 2px solid var(--kpg-accent, #2e8555);
+  outline-offset: 1px;
+}
+
+.kapi-cur-btn--primary {
+  background: var(--kpg-accent, #2e8555);
+  border-color: var(--kpg-accent, #2e8555);
+  color: #fff;
+  font-weight: 600;
+}
+
+.kapi-cur-btn--primary:hover {
+  background: color-mix(in srgb, var(--kpg-accent, #2e8555) 85%, #000);
+  border-color: color-mix(in srgb, var(--kpg-accent, #2e8555) 85%, #000);
+}
+
+/* ── DualExample tabs ────────────────────────────────────────────────────── */
+
+.kapi-cur-tabs {
+  display: flex;
+  gap: 0.25rem;
+  margin: 0 0 0.75rem;
+  border-bottom: 1px solid var(--kpg-border, rgba(0, 0, 0, 0.12));
+}
+
+.kapi-cur-tab {
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--kpg-muted, #606770);
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 0.4rem 0.75rem;
+  cursor: pointer;
+  margin-bottom: -1px;
+}
+
+.kapi-cur-tab:hover {
+  color: var(--kpg-fg, #1c1e21);
+}
+
+.kapi-cur-tab[aria-selected="true"] {
+  color: var(--kpg-accent, #2e8555);
+  border-bottom-color: var(--kpg-accent, #2e8555);
+}
+
+.kapi-cur-tab:focus-visible {
+  outline: 2px solid var(--kpg-accent, #2e8555);
+  outline-offset: -2px;
+}
+
+/* Side-by-side layout for DualExample (when not tabbed). */
+.kapi-cur-dual-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 0.75rem;
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .kapi-cur-dual-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ── Embedded terminal pane in DualExample ───────────────────────────────── */
+
+.kapi-cur-term {
+  background: #1e1e2e;
+  border-radius: var(--kpg-radius, 8px);
+  padding: 0.5rem;
+  overflow: hidden;
+  min-height: 300px;
+  height: 100%;
+}
+
+.kapi-cur-term-block {
+  display: flex;
+  flex-direction: column;
+}
+
+/* The captured stdout/stderr strip keeps the Catppuccin palette in both themes
+   so it reads as terminal output, matching the command strip above it. */
+.kapi-cur-stdout {
+  background: #1e1e2e;
+  color: #cdd6f4;
+  border-radius: var(--kpg-radius, 8px);
+  margin: 0;
+  max-height: 360px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .kapi-cur-spinner {
+    animation: none;
+  }
+  .kapi-cur-btn {
+    transition: none;
+  }
+}

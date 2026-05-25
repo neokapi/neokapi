@@ -1,0 +1,19 @@
+/* Greeting shown on the home screen */
+"home.greeting" = "Hello, %@!";
+
+/* Title of the cancel button */
+"button.cancel" = "Cancel";
+
+// A line comment preceding an entry
+"button.ok" = "OK";
+
+/* Number of unread messages, with a newline and a tab */
+"inbox.summary" = "You have %lld unread messages.\nTap to view.\t(updated)";
+
+/* Positional arguments and an escaped quote */
+"share.text" = "%1$@ shared \"%2$@\" with you";
+
+/* Unicode escape and a literal percent */
+"progress.label" = "Loading\U2026 50%% complete";
+
+"untranslated.key" = "Needs translation";

@@ -1,0 +1,299 @@
+<MIFFile 11.0> # Generated manually
+<Tbls
+ <Tbl
+  <TblID 54>
+  <TblTag `invisible'>
+  <TblFormat
+   <TblColumn
+    <TblColumnNum 0>
+    <TblColumnWidth  2.38021">
+    <TblColumnH
+     <PgfTag `p bulleted'>
+     <Pgf
+      <PgfNumFormat `•\\t'>
+      <PgfNumberFont `'>
+      <PgfHyphenate Yes>
+     > # end of Pgf
+    > # end of TblColumnH
+    <TblColumnBody
+     <PgfTag `p bulleted'>
+     <Pgf
+      <PgfNumFormat `•\\t'>
+      <PgfNumberFont `'>
+      <PgfHyphenate Yes>
+     > # end of Pgf
+    > # end of TblColumnBody
+    <TblColumnF
+     <PgfTag `p bulleted'>
+     <Pgf
+      <PgfNumFormat `•\\t'>
+      <PgfNumberFont `'>
+      <PgfHyphenate Yes>
+     > # end of Pgf
+    > # end of TblColumnF
+   > # end of TblColumn
+   <TblColumn
+    <TblColumnNum 1>
+    <TblColumnWidth  2.38021">
+    <TblColumnH
+     <PgfTag `p bulleted'>
+     <Pgf
+      <PgfNumFormat `•\\t'>
+      <PgfNumberFont `'>
+      <PgfHyphenate Yes>
+     > # end of Pgf
+    > # end of TblColumnH
+    <TblColumnBody
+     <PgfTag `p bulleted'>
+     <Pgf
+      <PgfNumFormat `•\\t'>
+      <PgfNumberFont `'>
+      <PgfHyphenate Yes>
+     > # end of Pgf
+    > # end of TblColumnBody
+    <TblColumnF
+     <PgfTag `p bulleted'>
+     <Pgf
+      <PgfNumFormat `•\\t'>
+      <PgfNumberFont `'>
+      <PgfHyphenate Yes>
+     > # end of Pgf
+    > # end of TblColumnF
+   > # end of TblColumn
+   <TblTitlePgf1
+    <PgfTag `TableTitle'>
+    <Pgf
+     <PgfFont
+      <FTag `'>
+      <FPlatformName `W.Helvetica Neue Condensed.R.700'>
+      <FFamily `Helvetica Neue Condensed'>
+      <FVar `Regular'>
+      <FWeight `Bold'>
+      <FAngle `Regular'>
+      <FEncoding `FrameRoman'>
+      <FSize  11.0 pt>
+      <FUnderlining FNoUnderlining>
+      <FOverline No>
+      <FStrike No>
+      <FChangeBar No>
+      <FOutline No>
+      <FShadow No>
+      <FPairKern Yes>
+      <FTsume No>
+      <FCase FAsTyped>
+      <FPosition FNormal>
+      <FDX  0.0%>
+      <FDY  0.0%>
+      <FDW  0.0%>
+      <FStretch  100.0%>
+      <FLanguage USEnglish>
+      <FLocked No>
+      <FSeparation 0>
+      <FColor `Black'>
+      <FBackgroundColor NoColor>
+     > # end of PgfFont
+    > # end of Pgf
+   > # end of TblTitlePgf1
+   <TblInitNumHRows 1>
+   <TblInitNumBodyRows 5>
+  > # end of TblFormat
+  <TblNumColumns 2>
+  <Unique 1122547>
+  <TblColumnWidth  1.99827">
+  <TblColumnWidth  4.99827">
+  <Element
+   <Unique 1101531>
+   <ETag `Table'>
+   <Attributes
+   > # end of Attributes
+   <Collapsed No>
+   <SpecialCase No>
+   <BannerTextProcessed No>
+   <ElementHasAttrContent No>
+   <AttributeDisplay None>
+  > # end of Element
+  <TblBody
+   <Element
+    <Unique 1101532>
+    <ETag `TableBody'>
+    <Attributes
+    > # end of Attributes
+    <Collapsed No>
+    <SpecialCase No>
+    <BannerTextProcessed No>
+    <ElementHasAttrContent No>
+    <AttributeDisplay None>
+   > # end of Element
+   <Row
+    <RowMaxHeight  14.0">
+    <RowHeight  0.51337">
+    <Element
+     <Unique 1101682>
+     <ETag `TableRow'>
+     <Attributes
+     > # end of Attributes
+     <Collapsed No>
+     <SpecialCase No>
+     <BannerTextProcessed No>
+     <ElementHasAttrContent No>
+     <AttributeDisplay None>
+    > # end of Element
+    <Cell
+     <Element
+      <Unique 1101698>
+      <ETag `TableCell'>
+      <Attributes
+      > # end of Attributes
+      <Collapsed No>
+      <SpecialCase No>
+      <BannerTextProcessed No>
+      <ElementHasAttrContent No>
+      <AttributeDisplay None>
+     > # end of Element
+     <CellContent
+      <Notes
+      > # end of Notes
+      <Para
+       <Unique 1122555>
+       <PgfTag `p graphic'>
+       <ParaLine
+        <ElementBegin
+         <Unique 1101691>
+         <ETag `Graphic'>
+         <Attributes
+         > # end of Attributes
+         <Collapsed No>
+         <SpecialCase No>
+         <BannerTextProcessed No>
+         <ElementHasAttrContent No>
+         <AttributeDisplay None>
+        > # end of ElementBegin
+        <AFrame 9>
+        <ElementEnd `Graphic'>
+       > # end of ParaLine
+      > # end of Para
+     > # end of CellContent
+    > # end of Cell
+    <Cell
+     <Element
+      <Unique 1101701>
+      <ETag `TableCell'>
+      <Attributes
+      > # end of Attributes
+      <Collapsed No>
+      <SpecialCase No>
+      <BannerTextProcessed No>
+      <ElementHasAttrContent No>
+      <AttributeDisplay None>
+     > # end of Element
+     <CellContent
+      <Notes
+      > # end of Notes
+      <Para
+       <Unique 1122559>
+       <PgfTag `p cellBody'>
+       <PgfReferenced Yes>
+       <ParaLine
+        <ElementBegin
+         <Unique 1101705>
+         <ETag `Para'>
+         <Attributes
+         > # end of Attributes
+         <Collapsed No>
+         <SpecialCase No>
+         <BannerTextProcessed No>
+         <ElementHasAttrContent No>
+         <AttributeDisplay None>
+        > # end of ElementBegin
+        <String `The 1st para line. '>
+       > # end of ParaLine
+       <ParaLine
+        <String `The 2nd.'>
+        <ElementEnd `Para'>
+       > # end of ParaLine
+      > # end of Para
+     > # end of CellContent
+    > # end of Cell
+   > # end of Row
+  > # end of TblBody
+ > # end of Tbl
+> # end of Tbls
+<Page
+ <Unique 999103>
+ <PageType BodyPage>
+ <PageNum `4'>
+ <PageTag `'>
+ <PageSize  9.0" 11.5">
+ <PageOrientation Portrait>
+ <PageAngle  0.0>
+ <PageBackground `Default'>
+ <TextRect
+  <ID 102>
+  <Unique 999106>
+  <Pen 15>
+  <Fill 15>
+  <PenWidth  1.0 pt>
+  <Separation 0>
+  <ObColor `Black'>
+  <DashedPattern
+   <DashedStyle Solid>
+  > # end of DashedPattern
+  <RunaroundGap  6.0 pt>
+  <RunaroundType None>
+  <ShapeRect  1.0" 1.25" 7.0" 9.0">
+  <BRect  1.0" 1.25" 7.0" 9.0">
+  <TRNumColumns 1>
+  <TRColumnGap  0.25">
+  <TRColumnBalance No>
+  <TRSideheadWidth  1.0">
+  <TRSideheadGap  0.25">
+  <TRSideheadPlacement Left>
+  <TRNext 103>
+ > # end of TextRect
+> # end of Page
+<TextFlow
+ <TFTag `A'>
+ <TFAutoConnect Yes>
+ <Notes
+ > # end of Notes
+ <Para
+  <Unique 1122562>
+  <PgfTag `h1 heading1'>
+  <Pgf
+   <PgfPlacement PageTop>
+  > # end of Pgf
+  <PgfNumString `2.3 \t'>
+  <PgfReferenced Yes>
+  <ParaLine
+   <TextRectID 102>
+   <ElementBegin
+    <Unique 1075024>
+    <ETag `Section'>
+    <Attributes
+    > # end of Attributes
+    <Collapsed Yes>
+    <SpecialCase No>
+    <BannerTextProcessed No>
+    <ElementHasAttrContent No>
+    <ElementReferenced Yes>
+    <AttributeDisplay None>
+   > # end of ElementBegin
+   <ElementBegin
+    <Unique 1075028>
+    <ETag `Title'>
+    <Attributes
+    > # end of Attributes
+    <Collapsed No>
+    <SpecialCase No>
+    <BannerTextProcessed No>
+    <ElementHasAttrContent No>
+    <AttributeDisplay AllAttributes>
+   > # end of ElementBegin
+   <String `A paragraph line.'>
+   <ElementEnd `Title'>
+   <ATbl 54>
+   <ElementEnd `Section'>
+  > # end of ParaLine
+ > # end of Para
+> # end of TextFlow
+# End of MIFFile

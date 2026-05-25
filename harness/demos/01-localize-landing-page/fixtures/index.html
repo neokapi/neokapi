@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Lumen Notes — think clearly</title>
+    <style>
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+      body {
+        font-family: -apple-system, "Segoe UI", Inter, system-ui, sans-serif;
+        color: #1a1f2e;
+        background: radial-gradient(1100px 600px at 80% -10%, #fff1e8 0%, #ffffff 55%);
+      }
+      header {
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 28px 64px; max-width: 1180px; margin: 0 auto;
+      }
+      .brand { font-weight: 800; font-size: 22px; letter-spacing: -0.01em; }
+      .brand span { color: #ff7a45; }
+      nav a { margin-left: 30px; text-decoration: none; color: #475069; font-weight: 600; font-size: 16px; }
+      .cta-top {
+        background: #1a1f2e; color: #fff; padding: 11px 20px; border-radius: 10px;
+      }
+      .hero { max-width: 920px; margin: 56px auto 0; padding: 0 64px; text-align: center; }
+      .eyebrow { color: #ff7a45; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; font-size: 14px; }
+      h1 { font-size: 62px; line-height: 1.05; letter-spacing: -0.02em; margin: 18px 0; }
+      .sub { font-size: 22px; color: #475069; line-height: 1.5; max-width: 680px; margin: 0 auto; }
+      .actions { margin-top: 36px; display: flex; gap: 16px; justify-content: center; }
+      .btn-primary { background: #ff7a45; color: #fff; padding: 16px 30px; border-radius: 12px; font-weight: 700; font-size: 17px; text-decoration: none; }
+      .btn-ghost { padding: 16px 30px; border-radius: 12px; font-weight: 700; font-size: 17px; color: #1a1f2e; text-decoration: none; border: 1.5px solid #d7dce8; }
+      .features { max-width: 1100px; margin: 90px auto 64px; padding: 0 64px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 28px; }
+      .card { background: #fff; border: 1px solid #eef1f7; border-radius: 18px; padding: 30px; box-shadow: 0 18px 50px rgba(20,25,45,0.06); }
+      .card h3 { font-size: 20px; margin-bottom: 10px; }
+      .card p { color: #5a6480; line-height: 1.55; font-size: 16px; }
+      .icon { width: 44px; height: 44px; border-radius: 12px; background: #fff1e8; display: grid; place-items: center; font-size: 22px; margin-bottom: 16px; }
+      footer { text-align: center; color: #8b93a7; padding: 40px; font-size: 15px; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div class="brand">Lumen<span>Notes</span></div>
+      <nav>
+        <a href="#">Features</a>
+        <a href="#">Pricing</a>
+        <a href="#">Blog</a>
+        <a class="cta-top" href="#">Start free</a>
+      </nav>
+    </header>
+
+    <section class="hero">
+      <div class="eyebrow">Notes that think with you</div>
+      <h1>Capture every idea before it slips away</h1>
+      <p class="sub">
+        Lumen Notes turns scattered thoughts into clear, organized writing. Jot it down, and let the
+        assistant connect the dots, suggest the next step, and keep everything searchable.
+      </p>
+      <div class="actions">
+        <a class="btn-primary" href="#">Get started for free</a>
+        <a class="btn-ghost" href="#">Watch the two-minute tour</a>
+      </div>
+    </section>
+
+    <section class="features">
+      <div class="card">
+        <div class="icon">✶</div>
+        <h3>Write without friction</h3>
+        <p>A calm, distraction-free editor that stays out of your way so the words can flow.</p>
+      </div>
+      <div class="card">
+        <div class="icon">⚡</div>
+        <h3>Find anything instantly</h3>
+        <p>Full-text search across every note, so nothing you wrote is ever truly lost.</p>
+      </div>
+      <div class="card">
+        <div class="icon">◎</div>
+        <h3>Stay in control of your data</h3>
+        <p>Your notes are encrypted and exportable. Leave whenever you like — no lock-in.</p>
+      </div>
+    </section>
+
+    <footer>© 2026 Lumen Notes. Made for people who think on paper.</footer>
+  </body>
+</html>

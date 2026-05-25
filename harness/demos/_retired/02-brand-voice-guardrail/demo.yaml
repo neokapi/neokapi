@@ -1,0 +1,74 @@
+id: 02-brand-voice-guardrail
+title: Check and fix copy against a brand voice
+subtitle: A draft that "doesn't sound like us", a brand profile, and a request to fix it.
+kind: use-case
+aspects:
+  - brand voice
+  - brand check (0–100)
+  - brand rewrite
+needsAi: true
+model: sonnet
+captureTimeoutSec: 320
+
+prompt: >
+  We drafted a launch announcement in DRAFT.md, but it doesn't sound like us — our brand
+  voice is written up in brand.yaml. Can you check how on-brand it is, and rewrite it to
+  fit? Save the rewrite as DRAFT.fixed.md.
+
+artifacts:
+  - id: before
+    caption: "kapi brand check on the draft — score and flagged phrases"
+    source: command
+    command: kapi brand check DRAFT.md --profile-file brand.yaml --json
+    report: brand
+    width: 1100
+    height: 760
+  - id: after
+    caption: "The same check on the rewrite"
+    source: command
+    command: kapi brand check DRAFT.fixed.md --profile-file brand.yaml --json
+    report: brand
+    width: 1100
+    height: 760
+
+narration:
+  - id: title
+    kind: title
+    text: >
+      A brand voice is easy to describe and hard to enforce by hand. Here, the team has
+      written theirs down, and asks Claude to check a draft against it and fix what drifts.
+  - id: prompt
+    kind: prompt
+    text: >
+      The request points at the draft and the brand profile. It does not say how to score
+      text or how to rewrite it — that is what the kapi skill knows.
+  - id: check
+    kind: terminal
+    text: >
+      Claude loads the brand voice guide, then runs kapi's brand check. The check is
+      rule-based and runs offline. It returns a score out of a hundred and marks each phrase
+      that breaks the rules — corporate jargon, banned words, a competitor's name.
+    caption: "kapi brand check: a 0-to-100 score and a finding for each off-voice phrase"
+  - id: fix
+    kind: terminal
+    text: >
+      Claude then rewrites the announcement to match the voice and saves it, before checking
+      the rewrite the same way — so the result is measured, not just asserted.
+    caption: "Claude rewrites to match the voice, then re-checks the result"
+  - id: before
+    kind: artifact
+    artifact: before
+    text: >
+      This is the draft as kapi scored it: the number, and the exact phrases it flagged,
+      each with the replacement the profile prefers.
+  - id: after
+    kind: artifact
+    artifact: after
+    text: >
+      And the rewrite, scored by the same check. The flagged phrases are gone and the score
+      reflects it. This is a gate you can run in a pull request.
+  - id: outro
+    kind: outro
+    text: >
+      The brand voice lives in the repository as a file, and the same assistant that writes
+      the copy can check it against that file.

@@ -1,0 +1,91 @@
+id: 02-verify-guardrail
+title: Claude checks its own work with kapi
+subtitle: Bringing the French up to date — and kapi catches two problems that were already in the file.
+kind: use-case
+aspects:
+  - verify loop
+  - terminology
+  - placeholder QA
+  - brand voice
+needsAi: false
+model: sonnet
+captureTimeoutSec: 360
+
+# Real git-tracked project with a bound brand voice + glossary. Natural English
+# keys (the source text is the key). The French file is behind: one English
+# string has no translation yet, and two existing entries are wrong — "Boards"
+# wasn't translated to the team's glossary term, and a greeting lost its
+# {{name}} placeholder.
+setup:
+  - git init -q && git add -A && git -c user.email=dev@example.com -c user.name=Dev commit -qm "initial project"
+  - kapi termbase import glossary.csv --format csv -s en -t fr --file .kapi/termbase.db
+
+prompt: >
+  Our English copy changed and the French has fallen behind. Can you bring the French
+  translations in src/fr.json up to date with src/en.json?
+
+artifacts:
+  - id: before
+    caption: "src/fr.json before — behind, with two problems already in it"
+    source: report
+    report: catalog
+    reportTitle: "src/fr.json — before"
+    reportSub: "'Archive this board' untranslated · Boards → 'Panneaux' (off-glossary) · greeting lost {{name}}"
+    path: src/fr.json
+    from: fixture
+    width: 1150
+    height: 720
+  - id: after
+    caption: "src/fr.json after — complete, on-glossary, placeholder intact"
+    source: report
+    report: catalog
+    reportTitle: "src/fr.json — after"
+    reportSub: "kapi · new string translated, 'tableau' per the glossary, {{name}} preserved"
+    path: src/fr.json
+    width: 1150
+    height: 720
+
+narration:
+  - id: title
+    kind: title
+    text: >
+      The English copy moved on and the French has fallen behind. Claude brings it up to
+      date — and uses kapi to check the result before calling it done.
+  - id: prompt
+    kind: prompt
+    text: >
+      An ordinary request: the source strings changed, so bring the translations back in
+      line. Nothing about what might already be wrong in the file.
+  - id: work
+    kind: terminal
+    text: >
+      Following the kapi skill, Claude doesn't hand-edit the file. It asks kapi which strings
+      need translating, looks up the project's glossary and brand voice, and translates against
+      them — then lets kapi write the results back into the JSON.
+    caption: "Claude translates through kapi — extract, glossary, merge"
+  - id: verify
+    kind: terminal
+    text: >
+      Then it runs kapi verify: brand voice, terminology, and placeholders, all in one gate.
+      Because it translated against the project's rules, every check comes back green — and
+      only then does it call the work done.
+    caption: "kapi verify — brand, terminology, placeholders: all green"
+  - id: before
+    kind: artifact
+    artifact: before
+    text: >
+      Here's where the French started. One string had no translation at all, boards was
+      rendered as Panneaux instead of the team's term, and the greeting was missing the name
+      it's supposed to address.
+  - id: after
+    kind: artifact
+    artifact: after
+    text: >
+      And after Claude's pass through kapi. Every string is translated, boards now uses the
+      glossary term, and the name placeholder is back — all confirmed by verify before anyone
+      ships it.
+  - id: outro
+    kind: outro
+    text: >
+      Claude did the translating — with kapi handing it the project's glossary and brand
+      rules, and the verify gate proving the whole file is correct before it ships.

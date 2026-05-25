@@ -48,7 +48,7 @@ vp install              # Install all frontend workspace members (run at repo ro
 ```
 
 > **Note:** A single root `package.json` npm workspace coordinates all frontend
-> packages (`packages/ui`, `packages/flow-editor`, `kapi/apps/kapi-web`,
+> packages (`packages/ui`, `packages/flow-editor`,
 > `apps/kapi-desktop/frontend`, `bowrain/apps/bowrain/frontend`,
 > `bowrain/apps/web`, `bowrain/apps/ctrl`, `website`). Run `vp install` at the
 > repo root — no per-directory installs are needed.
@@ -68,11 +68,11 @@ make bowrain-storybook              # Run Bowrain Storybook on port 6006
 make bowrain-storybook-build        # Build Bowrain Storybook static site
 ```
 
-**Web UI (embedded in kapi serve):**
+**Bowrain web app (SaaS UI served by bowrain-server):**
 
 ```bash
-make web-deps                                 # vp install for web UI
-make web-build                                # Build web UI → bowrain/apps/web/dist/
+make -C bowrain web-deps                      # vp install for the web app
+make -C bowrain web-build                     # Build web app → bowrain/apps/web/dist/
 ```
 
 **Bowrain (desktop GUI):**
@@ -93,7 +93,7 @@ cd web/docs && vp run build           # Production build → web/docs/build/
 
 ## Build Conventions
 
-Always prefer `make` targets over raw `go build` / `go test` commands. The Makefile handles prerequisites (e.g. `make build` requires `make web-build` first for the embedded web UI) and places binaries in `bin/` rather than the repo root. Use direct `go test` only when targeting a specific package or test function.
+Always prefer `make` targets over raw `go build` / `go test` commands. The Makefile handles prerequisites (e.g. `make proto` regenerates gRPC code before a build that needs it) and places binaries in `bin/` rather than the repo root. Use direct `go test` only when targeting a specific package or test function.
 
 For the multi-module structure:
 
@@ -110,6 +110,43 @@ For the multi-module structure:
 - `GOWORK=off bash -c "cd bowrain/core && go build ./..."` verifies bowrain/core isolation (no cli dep)
 - `GOWORK=off bash -c "cd kapi && go build ./..."` verifies kapi isolation (no bowrain dep)
 - `GOWORK=off bash -c "cd apps/kapi-desktop && go build ./..."` verifies kapi-desktop isolation (no bowrain dep)
+
+## Dogfooding kapi (in-repo isolation contract)
+
+This repo dogfoods kapi: a `*.kapi` recipe lives at the repo root and is driven
+by the **system/user-installed** kapi + plugins (the real `kapi-bowrain` plugin,
+real keychain auth, real server). That recipe is auto-discovered by a git-style
+**upward walk** from any cwd inside the tree (`core/project.ResolveLayout` →
+`cli.ResolveProjectPath`), so the dogfood project must never leak into the
+project's own tests, scripts, or docs recorders.
+
+**The contract: every in-repo kapi invocation that is _not_ the dogfood
+workflow must isolate itself.** Set, on the kapi process environment:
+
+- `KAPI_NO_PROJECT=1` — opt out of project discovery (an explicit `-p` still
+  wins). **Note:** `KAPI_PROJECT=""` does *not* disable discovery; only a
+  non-empty `KAPI_NO_PROJECT` does.
+- `KAPI_CONFIG_DIR`, `XDG_DATA_HOME`, `XDG_CACHE_HOME` → throwaway dirs, so kapi
+  can't read the developer's `~/.config/kapi`, user-installed plugins, or caches.
+
+Where this is already wired:
+
+- **Makefile** — use the shared `$(KAPI_ISO_ENV)` (defined near the top) to
+  prefix any in-repo `bin/kapi` call (e.g. the `kapi-*-pseudo-translate`
+  targets). `make kapi-scenes` applies config isolation to every scene and adds
+  `KAPI_NO_PROJECT=1` for scenes that don't own a `*.kapi` fixture (scenes that
+  do — e.g. `kapi-bilingual-workflow` — keep discovery on and rely on
+  nearest-recipe-wins).
+- **`kapi/e2e`** — `TestMain` builds with `-tags fts5` and pins an isolated
+  config/data/cache home with `KAPI_NO_PROJECT=1` (see `isoEnv`).
+- **bowrain docs scenes** (`docs-bowrain.yml`) — run from `$WALKTHROUGH_DIR`, a
+  temp dir *outside* the checkout, so the bowrain plugin commands (which require
+  a project) operate on their own `kapi init`'d project, never the dogfood one.
+- **harness/** — already safe: its sandboxes live in `os.tmpdir()` (outside the
+  repo) and it sets `XDG_DATA_HOME` / `KAPI_CONFIG_DIR` via `kapiIsolationEnv()`.
+
+When adding a new in-repo kapi invocation, follow this contract or it may
+silently bind to (and act on) the dogfood project.
 
 ## Architecture
 
@@ -156,8 +193,7 @@ neokapi/
 ├── kapi/
 │   ├── go.mod             # module github.com/neokapi/neokapi/kapi (framework + cli)
 │   ├── cmd/kapi/          # Thin root cmd wiring shared CLI commands
-│   └── apps/
-│       └── kapi-web/      # kapi serve web UI
+│   └── preset/            # Built-in preset definitions
 │
 │   ── Kapi Desktop Module ───────────────
 ├── apps/
@@ -225,7 +261,6 @@ neokapi/
 │   ── Non-Go Assets ─────────────────────
 ├── docs/                  # Architecture decisions, implementation notes
 ├── web/docs/               # Docusaurus site
-├── agentic/               # Agentic fleet configurations
 └── Makefile               # Multi-module build targets
 ```
 
@@ -244,7 +279,7 @@ my-app/
 │   │   └── pseudo.yaml
 │   └── cache/              # all regenerable caches under one roof
 │       ├── blocks.db        # block store
-│       ├── sync-cache.json  # bowrain push/pull state
+│       ├── sync-cache.json  # kapi push/pull state
 │       ├── extractions/
 │       └── collections/
 ├── src/
@@ -255,18 +290,17 @@ my-app/
 
 A bowrain project is just a kapi project whose recipe declares a `server:` block (compound URL, optional `stream`). Top-level recipe fields cover `defaults`, `content`, `plugins` (map form), `flows`, `hooks`, `automations`, `assets`, `brand_voice`. Auth tokens live in the OS keychain (`bowrain-auth:<server-url>`, `bowrain-refresh:<server-url>`); non-secret metadata sits at `~/.config/bowrain/auth.json`. `BOWRAIN_AUTH_TOKEN` env var works in CI.
 
-**Key Bowrain CLI commands:**
+**Key bowrain plugin commands (run via `kapi` once the `kapi-bowrain` plugin is installed):**
 
 ```bash
-bowrain init                    # Write <dir-name>.kapi + .kapi/ state dir
-bowrain status                  # Show sync state (like git status)
-bowrain pull                    # Fetch from Bowrain Server → update local files
-bowrain push                    # Send local files → update Bowrain Server
-bowrain run <flow-name>         # Execute flow (inline on recipe or .kapi/flows/)
-bowrain serve                   # Start local dashboard (web UI)
+kapi init                       # Write <dir-name>.kapi + .kapi/ state dir
+kapi status                     # Show sync state (like git status)
+kapi pull                       # Fetch from Bowrain Server → update local files
+kapi push                       # Send local files → update Bowrain Server
+kapi run <flow-name>            # Execute flow (inline on recipe or .kapi/flows/)
 ```
 
-**All `bowrain` commands require a `.kapi` project with a `server:` block.** The CLI searches upward from the current directory (like git) to find the recipe.
+**All bowrain plugin commands require a `.kapi` project with a `server:` block.** The CLI searches upward from the current directory (like git) to find the recipe.
 
 **Key kapi CLI commands (standalone, no project needed):**
 
@@ -357,75 +391,26 @@ Create a type embedding `tool.BaseTool` and set `HandleBlockFn` / `HandleDataFn`
 
 Tests use `github.com/stretchr/testify` (assert/require). Table-driven tests are the standard pattern. Format tests typically do roundtrip validation (read → write → compare). Test files colocate with implementation (`*_test.go`).
 
-## Screenshots, Recordings & Screencasts
+## Documentation Assets (Walkthroughs & Scenes)
 
-Screenshots and video recordings serve as documentation and are embedded on the website. **Whenever UI-related code changes, all screenshots and recordings must be regenerated** as part of the verification process before committing.
+Walkthrough videos serve as documentation and are embedded on the website. **Whenever UI- or CLI-surface code changes, re-record the affected walkthrough scenes** as part of the verification process before committing.
 
-### Screenshot systems
-
-Screenshots are captured via Playwright and written directly to `web/docs/static/img/`:
-
-1. **Bowrain (desktop GUI)** — 9 screenshots x 2 themes in `bowrain/apps/bowrain/frontend/e2e/screenshots.spec.ts`. Self-contained (auto-starts a Vite dev server). Output: `web/docs/static/img/bowrain/{dark,light}/`.
-2. **Web app** — 6 test suites (multiple captures each) x 2 themes in `bowrain/apps/web/e2e/screenshots.spec.ts`. Requires a running bowrain-server with Keycloak OIDC. Output: `web/docs/static/img/web-app/{dark,light}/`.
-
-### Recording systems
-
-There are four independent video recording pipelines:
-
-1. **Bowrain (desktop GUI)** — 13 scenarios x 2 themes (dark + light) in `bowrain/apps/bowrain/frontend/e2e/recordings.spec.ts`. Uses real bowrain-server via Wails dev mode for recordings/screenshots. Mocks (`mock-backend.ts`) are used for e2e unit tests only.
-2. **Web app** — 8 scenarios x 2 themes (dark + light) in `bowrain/apps/web/e2e/recordings.spec.ts`. Requires a running bowrain-server with Keycloak OIDC.
-3. **Kapi CLI** — VHS terminal recordings from `.tape` files in `web/docs/tapes/` (3 standalone kapi demos). No server required.
-4. **Bowrain CLI** — VHS terminal recordings from `.tape` files in `bowrain/e2e/tapes/` (10 bowrain demos, some need server).
+Docs are walkthrough-first: each walkthrough is an authored prompt (`web/docs/walkthroughs/{id}.md`) plus a unified scene spec (`{id}.scene.yaml`). The recorder produces per-scene artifacts under `web/docs/scenes/{id}/` — VHS `.tape` files for terminal scenes and Playwright `.spec.ts` for UI scenes — each rendering to a `.webm` that lands under `web/docs/static/video/`. `KapiPlayground` embeds wire the scenes into the MDX pages.
 
 ### How to regenerate
 
-**Locally:**
-
 ```bash
-# 1. Bowrain screenshots + recordings (self-contained)
-make screenshots                 # screenshots → web/docs/static/img/bowrain/{dark,light}/
-make recordings                  # recordings → web/docs/static/video/bowrain/{dark,light}/
-
-# 2. Web app screenshots + recordings (needs Keycloak + local server)
-docker compose up -d --wait   # starts Keycloak + Mailpit
-make dev-server               # builds + starts bowrain-server locally
-cd bowrain/apps/web && vp run e2e:screenshots
-cd bowrain/apps/web && vp run e2e:recordings
-THEME=dark  bash bowrain/apps/web/scripts/copy-recordings.sh
-THEME=light bash bowrain/apps/web/scripts/copy-recordings.sh
-# Ctrl-C the server, then:
-docker compose down -v
-
-# 3. Kapi CLI recordings (no server needed)
-make kapi-recordings             # runs tapes + copies to web/docs/static/video/kapi/
-
-# 4. Bowrain CLI recordings (needs VHS + server)
-# bowrain-cli-recordings retired with the standalone bowrain binary; the kapi-bowrain plugin
-# is exercised via the same tapes through the kapi binary now.
-
-# Or generate everything at once:
-make docs-assets                 # screenshots + recordings + cli-recordings
+make kapi-scenes          # record the kapi terminal scene tapes (VHS, desktop) → web/docs/static/video/kapi/
+make harness-videos       # render the narrated demo videos (light + dark) → web/docs/static/video/kapi/
+make fetch-docs-assets    # download already-built assets from the docs-assets release (transitional)
+make publish-docs-assets  # publish web/docs/static/{img,video} to the docs-assets release (merges, never drops)
 ```
 
-**Fetching pre-built assets (no local regeneration needed):**
+The three walkthrough skills drive the workflow: `walkthrough-scenes` (regenerate the recorder artifacts), `walkthrough-verify` (run scenes locally, capture sizes + durations), and `walkthrough-doc` (regenerate the published MDX).
 
-```bash
-make fetch-docs-assets           # downloads tarball from docs-assets GitHub release
-```
+### In CI
 
-**In CI:**
-
-```bash
-# Automated via GitHub Actions (.github/workflows/screenshots-recordings.yml)
-# - On-demand: workflow_dispatch
-# - On release: automatically triggered by version tags
-# - Nightly: scheduled at 2 AM UTC
-#
-# All four systems (Bowrain, Web app, Kapi CLI, Bowrain CLI) run in parallel jobs.
-# A publish-assets job creates a tarball and uploads it to the "docs-assets"
-# GitHub release. The docs deploy workflow fetches this tarball before building.
-# Assets are NOT stored in git.
-```
+The docs build workflow (`.github/workflows/docs-kapi.yml`) **stages** the `.webm` assets from the `docs-assets` GitHub release rather than recording in CI — recording happens on the desktop and is pushed to the release via `make publish-docs-assets`. Assets are not stored in git.
 
 ### Real systems, not mocks
 
@@ -440,12 +425,11 @@ All screenshots and recordings must run against real neokapi infrastructure. Spe
 
 Before committing any UI-related change:
 
-1. TypeScript checks pass for all 4 projects (`packages/ui`, `bowrain/apps/web`, `kapi/apps/kapi-web`, `bowrain/apps/bowrain/frontend`)
+1. TypeScript checks pass for the frontend projects (`packages/ui`, `bowrain/apps/web`, `bowrain/apps/bowrain/frontend`, `apps/kapi-desktop/frontend`)
 2. All unit tests pass (`cd packages/ui && vp test`)
-3. All 3 frontend production builds succeed
-4. All screenshots regenerated to `web/docs/static/img/`
-5. All recordings regenerated and copied to `web/docs/static/video/`
-6. Go build succeeds (`make build build-server`)
+3. All frontend production builds succeed
+4. Affected walkthrough scenes re-recorded (see the walkthrough/scenes engine below) and assets land under `web/docs/static/`
+5. Go build succeeds (`make build build-server`)
 
 ## Writing & Brand Communication
 

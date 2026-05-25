@@ -38,7 +38,7 @@ export function Platform() {
               { label: 'CMS', examples: 'Contentful, Strapi, WordPress' },
               { label: 'Design', examples: 'Figma, Sketch' },
               { label: 'Code', examples: 'Git repos, CI/CD' },
-              { label: 'Files', examples: 'bowrain push / pull' },
+              { label: 'Files', examples: 'kapi push / pull' },
             ].map(c => (
               <div key={c.label} className="rounded-lg bg-neutral-800/50 p-3">
                 <div className="font-medium text-neutral-300">{c.label}</div>
@@ -108,16 +108,16 @@ export function Platform() {
             <h3 className="text-lg font-semibold text-white">Git-like workflow</h3>
           </div>
           <p className="text-sm leading-relaxed text-neutral-400">
-            The Bowrain CLI manages a <code className="rounded bg-neutral-800 px-1 text-xs text-neutral-300">.bowrain/</code> project directory and syncs with the server.
+            The Bowrain CLI manages a <code className="rounded bg-neutral-800 px-1 text-xs text-neutral-300">.kapi/</code> project directory and syncs with the server.
             Only changed content syncs — fast and efficient.
           </p>
           <div className="mt-4 overflow-hidden rounded-lg border border-neutral-800 bg-neutral-950 p-4 font-mono text-xs">
-            <div><span className="text-suggestion">$</span> <span className="text-neutral-400">bowrain init</span></div>
-            <div><span className="text-suggestion">$</span> <span className="text-neutral-400">bowrain push -m "v2.1 strings"</span></div>
+            <div><span className="text-suggestion">$</span> <span className="text-neutral-400">kapi init</span></div>
+            <div><span className="text-suggestion">$</span> <span className="text-neutral-400">kapi push -m "v2.1 strings"</span></div>
             <div className="text-neutral-600">  → 47 blocks pushed (12 new, 8 changed)</div>
-            <div className="mt-2"><span className="text-suggestion">$</span> <span className="text-neutral-400">bowrain pull</span></div>
+            <div className="mt-2"><span className="text-suggestion">$</span> <span className="text-neutral-400">kapi pull</span></div>
             <div className="text-neutral-600">  → 47 blocks pulled for de, fr, ja</div>
-            <div className="mt-2"><span className="text-suggestion">$</span> <span className="text-neutral-400">bowrain status</span></div>
+            <div className="mt-2"><span className="text-suggestion">$</span> <span className="text-neutral-400">kapi status</span></div>
             <div className="text-neutral-600">  → de: 47/47 ✓  fr: 45/47  ja: 41/47</div>
           </div>
         </div>

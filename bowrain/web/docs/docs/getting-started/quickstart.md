@@ -99,7 +99,6 @@ kapi run my-flow
 | `kapi push`             | Upload to server                  |
 | `kapi pull`             | Fetch from server                 |
 | `kapi config`           | View or set configuration         |
-| `kapi serve`            | Open local web editor             |
 
 ## Next Steps
 

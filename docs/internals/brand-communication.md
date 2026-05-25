@@ -79,8 +79,8 @@ the source of truth. Specifics that have bitten us:
 - **`--json`** is the output-format flag (a global persistent flag); `--format`
   / `-f` overrides *input* format detection — don't use `--format json` for
   output.
-- **Homebrew formula** is `neokapi/tap/kapi` (CLI) and
-  `neokapi/tap/kapi-desktop` (cask).
+- **Homebrew formula** is `neokapi/tap/kapi-cli` (CLI) and
+  `neokapi/tap/kapi` (cask).
 - Format families: DOCX/XLSX/PPTX/ODF/EPUB/PDF/IDML are **native**, not
   bridge-only. `TBX` is not a format (only `tmx`); `RESX` is an XML preset, not
   a standalone format.

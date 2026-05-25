@@ -72,7 +72,7 @@ func recordBlockHistory(ctx context.Context, tx *sql.Tx, projectID, stream, bloc
 func recordTargetHistory(ctx context.Context, tx *sql.Tx, projectID, stream string, blockID string, oldTargets map[model.LocaleID][]*model.Segment, newTargets map[model.LocaleID][]*model.Segment) error {
 	for locale, newSegs := range newTargets {
 		newText := segmentsPlainText(newSegs)
-		newCoded := segmentsCoded(newSegs)
+		newCoded := segmentsRunsJSON(newSegs)
 
 		oldSegs := oldTargets[locale]
 		oldText := segmentsPlainText(oldSegs)
@@ -108,16 +108,20 @@ func segmentsPlainText(segs []*model.Segment) string {
 	return buf.String()
 }
 
-// segmentsCoded returns the legacy PUA-marker coded form of the first
-// segment, used for the block_history.coded_text column. Multi-segment
-// blocks only persist the first segment's coded form here — the column
-// is a debugging aid for editor history, not the canonical store.
-func segmentsCoded(segs []*model.Segment) string {
+// segmentsRunsJSON returns the JSON-encoded Run sequence of the first
+// segment, stored in the block_history.coded_text column (the column name is
+// retained for schema stability). Multi-segment blocks only persist the first
+// segment's runs here — the column is a debugging aid for editor history that
+// preserves inline markup, not the canonical store (the translations table is).
+func segmentsRunsJSON(segs []*model.Segment) string {
 	if len(segs) == 0 || len(segs[0].Runs) == 0 {
 		return ""
 	}
-	coded, _ := model.MarshalRuns(segs[0].Runs)
-	return coded
+	b, err := json.Marshal(segs[0].Runs)
+	if err != nil {
+		return ""
+	}
+	return string(b)
 }
 
 // loadExistingTargets fetches existing targets JSON for a block within a transaction.

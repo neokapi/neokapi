@@ -1,0 +1,81 @@
+id: 01-translate-project
+title: Translate the app, within the project's guardrails
+subtitle: A project that knows its locales and glossary, and a plain request to add French.
+kind: zero-to-hero
+aspects:
+  - translation
+  - terminology
+  - verify loop
+needsAi: false
+model: sonnet
+captureTimeoutSec: 360
+
+# Real git-tracked project; the glossary is imported into the project termbase up front.
+setup:
+  - git init -q && git add -A && git -c user.email=dev@example.com -c user.name=Dev commit -qm "initial project"
+  - kapi termbase import glossary.csv --format csv -s en -t fr --file .kapi/termbase.db
+
+prompt: >
+  Can you translate our app into French? The English strings are in src/en.json.
+
+artifacts:
+  - id: glossary
+    caption: "The project's approved terms (imported into its termbase)"
+    source: report
+    report: glossary
+    path: glossary.csv
+    from: fixture
+    width: 1000
+    height: 700
+  - id: catalog
+    caption: "src/fr.json — translated, terms enforced, placeholders intact"
+    source: report
+    report: catalog
+    reportTitle: "src/fr.json"
+    reportSub: "kapi · keys + {{name}} preserved, glossary terms applied"
+    path: src/fr.json
+    width: 1100
+    height: 740
+
+narration:
+  - id: title
+    kind: title
+    text: >
+      This is a real project. It already knows its languages and keeps a glossary of
+      approved terms, so adding French is a short request.
+  - id: prompt
+    kind: prompt
+    text: >
+      The developer just asks to translate the app into French and points at the English
+      strings. The locales and the glossary are the project's job to remember.
+  - id: work
+    kind: terminal
+    text: >
+      Claude doesn't reach for a second translation model — it translates the strings
+      itself, with kapi handling the format and the rules. kapi pulls out the text, Claude
+      translates it following the project's glossary, and kapi writes it back into the JSON,
+      keeping the keys and the name placeholder in place.
+    caption: "Claude translates within kapi's guardrails — glossary applied, format preserved"
+  - id: verify
+    kind: terminal
+    text: >
+      Then it runs kapi verify, which checks the result against the glossary and looks for
+      dropped placeholders or untranslated text. When that comes back clean, the work is done.
+    caption: "kapi verify confirms terminology and placeholders before it's called done"
+  - id: glossary
+    kind: artifact
+    artifact: glossary
+    text: >
+      These are the approved French terms the project carries — board is tableau, card is
+      carte, and so on.
+  - id: catalog
+    kind: artifact
+    artifact: catalog
+    text: >
+      And the French strings. The keys are unchanged, the name placeholder is where the code
+      expects it, and the product terms match the glossary rather than a generic synonym.
+  - id: outro
+    kind: outro
+    text: >
+      The project holds the languages and the glossary, so the request is just "translate the
+      app". Claude does the translating; kapi keeps it in-format, on-terminology, and verified.

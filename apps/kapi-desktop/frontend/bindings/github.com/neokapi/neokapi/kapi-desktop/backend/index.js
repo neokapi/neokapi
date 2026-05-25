@@ -54,7 +54,6 @@ export {
     ResourceInfo,
     RunEvent,
     SaveUserFlowRequest,
-    SpanDTO,
     TMEntryDTO,
     TMFacets,
     TMMatchDTO,

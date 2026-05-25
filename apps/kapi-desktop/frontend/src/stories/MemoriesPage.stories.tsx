@@ -16,12 +16,11 @@ const SAMPLE_ENTRIES: TMEntryDTO[] = [
     project_id: "",
     hint_src_lang: "en-US",
     variants: {
-      "en-US": { locale: "en-US", text: "Hello world", coded: "Hello world", spans: [] },
+      "en-US": { locale: "en-US", text: "Hello world", runs: [{ text: "Hello world" }] },
       "fr-FR": {
         locale: "fr-FR",
         text: "Bonjour le monde",
-        coded: "Bonjour le monde",
-        spans: [],
+        runs: [{ text: "Bonjour le monde" }],
       },
     },
     created_at: new Date(Date.now() - 3600000).toISOString(),
@@ -35,19 +34,23 @@ const SAMPLE_ENTRIES: TMEntryDTO[] = [
       "en-US": {
         locale: "en-US",
         text: "Click here to continue",
-        coded: "Click \uE001here\uE002 to continue",
-        spans: [
-          { span_type: "opening", type: "fmt:bold", id: "1", data: "<b>" },
-          { span_type: "closing", type: "fmt:bold", id: "1", data: "</b>" },
+        runs: [
+          { text: "Click " },
+          { pcOpen: { id: "1", type: "fmt:bold", data: "<b>", equiv: "b" } },
+          { text: "here" },
+          { pcClose: { id: "1", type: "fmt:bold", data: "</b>", equiv: "b" } },
+          { text: " to continue" },
         ],
       },
       "fr-FR": {
         locale: "fr-FR",
         text: "Cliquez ici pour continuer",
-        coded: "Cliquez \uE001ici\uE002 pour continuer",
-        spans: [
-          { span_type: "opening", type: "fmt:bold", id: "1", data: "<b>" },
-          { span_type: "closing", type: "fmt:bold", id: "1", data: "</b>" },
+        runs: [
+          { text: "Cliquez " },
+          { pcOpen: { id: "1", type: "fmt:bold", data: "<b>", equiv: "b" } },
+          { text: "ici" },
+          { pcClose: { id: "1", type: "fmt:bold", data: "</b>", equiv: "b" } },
+          { text: " pour continuer" },
         ],
       },
     },
@@ -61,15 +64,19 @@ const SAMPLE_ENTRIES: TMEntryDTO[] = [
     variants: {
       "en-US": {
         locale: "en-US",
-        text: " is a hero",
-        coded: "\uE003 is a hero",
-        spans: [{ span_type: "placeholder", type: "entity:person", id: "e1", data: "Bob" }],
+        text: "Bob is a hero",
+        runs: [
+          { ph: { id: "e1", type: "entity:person", data: "Bob", equiv: "Bob" } },
+          { text: " is a hero" },
+        ],
       },
       "fr-FR": {
         locale: "fr-FR",
-        text: " est un héros",
-        coded: "\uE003 est un héros",
-        spans: [{ span_type: "placeholder", type: "entity:person", id: "e1", data: "Bob" }],
+        text: "Bob est un héros",
+        runs: [
+          { ph: { id: "e1", type: "entity:person", data: "Bob", equiv: "Bob" } },
+          { text: " est un héros" },
+        ],
       },
     },
     created_at: new Date(Date.now() - 86400000).toISOString(),
@@ -99,8 +106,7 @@ function createMockAdapter(entries: TMEntryDTO[]): TMAdapter {
         variants[locale] = {
           locale,
           text: input.text,
-          coded: input.coded ?? input.text,
-          spans: input.spans ?? [],
+          runs: input.runs ?? [{ text: input.text }],
         };
       }
       data.push({
@@ -120,8 +126,7 @@ function createMockAdapter(entries: TMEntryDTO[]): TMAdapter {
           variants[locale] = {
             locale,
             text: input.text,
-            coded: input.coded ?? input.text,
-            spans: input.spans ?? [],
+            runs: input.runs ?? [{ text: input.text }],
           };
         }
         return {

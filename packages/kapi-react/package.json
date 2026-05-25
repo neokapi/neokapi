@@ -1,6 +1,6 @@
 {
   "name": "@neokapi/kapi-react",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "description": "Zero-config i18n for React. Transforms vanilla JSX at build time using W3C HTML5 translatability rules. Supports build-time inlining (zero runtime) and OTA dynamic loading. Extracts translatable content as Kapi Localization Format (KLF).",
   "keywords": [
@@ -70,13 +70,13 @@
   },
   "dependencies": {
     "@neokapi/kapi-format": "*",
-    "@swc/core": "^1.15.33",
+    "@swc/core": "^1.15.40",
     "unplugin": "^3.0.0"
   },
   "devDependencies": {
-    "@babel/core": "^7.29.0",
-    "@babel/plugin-syntax-jsx": "^7.28.0",
-    "@babel/preset-typescript": "^7.28.0",
+    "@babel/core": "^7.29.7",
+    "@babel/plugin-syntax-jsx": "^7.29.7",
+    "@babel/preset-typescript": "^7.29.7",
     "@babel/types": "^7.29.0",
     "@storybook/react-vite": "^10.3.6",
     "@types/node": "^25.6.0",
@@ -87,7 +87,7 @@
     "vitest": "^4.1.5"
   },
   "peerDependencies": {
-    "@babel/core": "^7.29.0",
+    "@babel/core": "^7.29.7",
     "@storybook/react-vite": "^10.0.0",
     "react": "^18.0.0 || ^19.0.0",
     "storybook": "^10.0.0"

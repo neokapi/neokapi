@@ -1,8 +1,24 @@
 import { useState, useCallback, useMemo } from "react";
+import type { Run } from "@neokapi/kapi-format";
 import type { TMEntryDTO, VariantDTO } from "./types";
 import type { SpanInfo } from "../../types/span";
 import { CodedTextDisplay } from "./CodedTextDisplay";
 import { InlineCodeEditor } from "../editor/InlineCodeEditor";
+import { codedToRuns, runsToCoded } from "../editor/runsCodedBridge";
+
+/**
+ * Bridge a variant's Run sequence into the (codedText, SpanInfo[])
+ * shape the inline editor consumes. Plural / select wrappers can't be
+ * flattened to coded text — for those the editor opens on plain text
+ * with no chips (runsToCoded throws), which is the safe fallback.
+ */
+function runsToEditable(runs: Run[]): { codedText: string; spans: SpanInfo[] } {
+  try {
+    return runsToCoded(runs);
+  } catch {
+    return { codedText: "", spans: [] };
+  }
+}
 import { LocalePill } from "./LocalePill";
 import { OriginsPopover } from "./OriginsPopover";
 import { ItemCard } from "../ui/item-card";
@@ -20,7 +36,7 @@ interface TMGroupedEntryProps {
   selected: boolean;
   onToggleSelect: () => void;
   /** Called when a variant is edited inline. The first arg is the edited locale. */
-  onEditVariant: (locale: string, codedText: string, spans: SpanInfo[]) => void;
+  onEditVariant: (locale: string, runs: Run[]) => void;
   onDelete: () => void;
   /**
    * Filter visible variants by locale. `undefined` = show all.
@@ -75,7 +91,7 @@ export function TMGroupedEntry({
 
   const handleSave = useCallback(
     (variant: VariantDTO, codedText: string, spans: SpanInfo[]) => {
-      onEditVariant(variant.locale, codedText, spans);
+      onEditVariant(variant.locale, codedToRuns(codedText, spans));
       setEditingLocale(null);
     },
     [onEditVariant],
@@ -83,8 +99,10 @@ export function TMGroupedEntry({
 
   const hiddenCount = otherVariants.length - filteredVariants.length;
   const sourceText = sourceVariant?.text ?? "";
-  const sourceCoded = sourceVariant?.coded ?? "";
-  const sourceSpans = sourceVariant?.spans ?? [];
+  const sourceRuns = useMemo(() => sourceVariant?.runs ?? [], [sourceVariant]);
+  // The inline editor still works in the (codedText, SpanInfo[]) shape;
+  // bridge the source variant's runs into that form for tag-aware editing.
+  const sourceSpans = useMemo(() => runsToEditable(sourceRuns).spans, [sourceRuns]);
 
   const countLabel = `${filteredVariants.length}${hiddenCount > 0 ? `/${otherVariants.length}` : ""} ${otherVariants.length === 1 ? "translation" : "translations"}`;
 
@@ -115,8 +133,7 @@ export function TMGroupedEntry({
             <LocalePill locale={sourceLocale} />
             <CodedTextDisplay
               text={sourceText}
-              codedText={sourceCoded}
-              spans={sourceSpans}
+              runs={sourceRuns}
               className="text-[14px] font-medium text-foreground flex-1"
             />
             <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-px rounded tabular-nums shrink-0">
@@ -136,13 +153,11 @@ export function TMGroupedEntry({
                 <div key={variant.locale} className="group/target flex items-start gap-2">
                   {editingLocale === variant.locale ? (
                     <div className="flex-1">
-                      <InlineCodeEditor
-                        initialCodedText={variant.coded || variant.text}
-                        initialSpans={variant.spans || []}
+                      <VariantInlineEditor
+                        variant={variant}
                         sourceSpans={sourceSpans}
                         onSave={(codedText, spans) => handleSave(variant, codedText, spans)}
                         onCancel={() => setEditingLocale(null)}
-                        compact
                       />
                     </div>
                   ) : (
@@ -150,8 +165,7 @@ export function TMGroupedEntry({
                       <LocalePill locale={variant.locale} />
                       <CodedTextDisplay
                         text={variant.text}
-                        codedText={variant.coded}
-                        spans={variant.spans}
+                        runs={variant.runs}
                         className="text-[13px] text-muted-foreground flex-1"
                       />
                       <span className="text-[10px] text-muted-foreground shrink-0">
@@ -189,5 +203,35 @@ export function TMGroupedEntry({
         </div>
       </div>
     </ItemCard>
+  );
+}
+
+/**
+ * Inline editor for a single variant. Bridges the variant's Run
+ * sequence into the (codedText, SpanInfo[]) shape the InlineCodeEditor
+ * consumes, then hands the edited coded text back to `onSave` (the
+ * parent converts it back into Runs).
+ */
+function VariantInlineEditor({
+  variant,
+  sourceSpans,
+  onSave,
+  onCancel,
+}: {
+  variant: VariantDTO;
+  sourceSpans: SpanInfo[];
+  onSave: (codedText: string, spans: SpanInfo[]) => void;
+  onCancel: () => void;
+}) {
+  const { codedText, spans } = useMemo(() => runsToEditable(variant.runs), [variant.runs]);
+  return (
+    <InlineCodeEditor
+      initialCodedText={codedText || variant.text}
+      initialSpans={spans}
+      sourceSpans={sourceSpans}
+      onSave={onSave}
+      onCancel={onCancel}
+      compact
+    />
   );
 }

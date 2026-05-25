@@ -7,7 +7,7 @@ import ThemedImage from "@theme/ThemedImage";
 
 # Web Application
 
-The neokapi web application is a browser-based translation workbench that provides the same powerful editing experience as the [Bowrain desktop app](/desktop/overview), accessible from any modern browser. It runs as part of `bowrain-server` for multi-user SaaS deployments, or as part of `kapi serve` for local single-user workflows.
+The neokapi web application is a browser-based translation workbench that provides the same powerful editing experience as the [Bowrain desktop app](/desktop/overview), accessible from any modern browser. It runs as part of `bowrain-server` for multi-user SaaS deployments.
 
 ## Screenshots
 
@@ -146,16 +146,9 @@ View workspace information including name, slug, description, and your role.
 - **File export** in original format with translations applied
 - **Drag-and-drop** file upload with format auto-detection
 
-## Deployment Modes
+## Deployment
 
-| Mode       | Command          | Auth               | Workspaces           | Use Case                        |
-| ---------- | ---------------- | ------------------ | -------------------- | ------------------------------- |
-| **Server** | `bowrain-server` | SSO                | Multiple, multi-user | Team/SaaS deployments           |
-| **Local**  | `kapi serve`  | None (single user) | Single, auto-created | Local development, personal use |
-
-In **local mode**, authentication is bypassed and a single workspace is created automatically. The workspace rail is hidden, giving you a streamlined single-workspace experience.
-
-In **server mode**, users authenticate through your identity provider and can belong to multiple workspaces with different roles. See [Self-Hosting](./self-hosting.md) for deployment instructions.
+The web application is served by `bowrain-server`. Users authenticate through your identity provider and can belong to multiple workspaces with different roles. See [Self-Hosting](./self-hosting.md) for deployment instructions.
 
 ## Comparison with Bowrain
 

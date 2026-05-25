@@ -51,7 +51,7 @@ func ProtoToAnnotation(e *pb.AnnotationEntry) model.Annotation {
 	if err := json.Unmarshal(e.Data, a); err != nil {
 		// Structured unmarshal can fail when the wire format uses simpler
 		// types than the Go model (e.g., the bridge sends Source/Target as
-		// plain strings but the Go AltTranslation expects *Fragment).
+		// plain strings but the Go AltTranslation expects []Run).
 		// Fall back to map-based population.
 		m := jsonToMap(e.Data)
 		if m != nil {
@@ -87,7 +87,7 @@ func ProtoToAnnotations(entries map[string]*pb.AnnotationEntry) map[string]model
 
 // populateAnnotation fills a typed annotation from a raw map.
 // This is used as a fallback when json.Unmarshal fails due to type mismatches
-// (e.g., the bridge sends Source/Target as strings but Go expects *Fragment).
+// (e.g., the bridge sends Source/Target as strings but Go expects []Run).
 func populateAnnotation(typeName string, a model.Annotation, m map[string]any) model.Annotation {
 	switch v := a.(type) {
 	case *model.NoteAnnotation:

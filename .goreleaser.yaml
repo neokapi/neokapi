@@ -24,10 +24,13 @@ builds:
     binary: kapi
     env:
       - CGO_ENABLED=0
+    # Windows CLI binaries are built + Authenticode-signed out of band (the
+    # build-windows-cli job uploads them as artifacts; scripts/publish-windows-signed.sh
+    # signs them with Certum and adds them to the published release). GoReleaser
+    # publishes the CI-signed macOS + Linux builds only.
     goos:
       - linux
       - darwin
-      - windows
     goarch:
       - amd64
       - arm64
@@ -36,6 +39,14 @@ builds:
       - -X github.com/neokapi/neokapi/core/version.Version={{.Version}}
       - -X github.com/neokapi/neokapi/core/version.Commit={{.Commit}}
       - -X github.com/neokapi/neokapi/core/version.BuildDate={{.Date}}
+    # Sign + notarize the macOS binaries with quill (cross-platform Apple
+    # signing) before they are archived. No-op for linux/windows; ad-hoc +
+    # offline for snapshot builds. See scripts/quill-sign-darwin.sh.
+    hooks:
+      post:
+        - cmd: bash scripts/quill-sign-darwin.sh "{{ .Path }}" "{{ .Os }}" "{{ .IsSnapshot }}"
+          env:
+            - QUILL_LOG_FILE=/tmp/quill-{{ .Target }}.log
 
   - id: kapi-bowrain
     dir: bowrain/cli
@@ -103,10 +114,11 @@ signs:
       - COSIGN_EXPERIMENTAL=true
 
 brews:
-  # kapi (Apache-2.0) — manifest-driven plugins discovered at runtime.
-  # Default `brew install neokapi/tap/kapi` produces an Apache-clean
-  # binary with no vendor plugins compiled in.
-  - name: kapi
+  # kapi CLI (Apache-2.0) — manifest-driven plugins discovered at runtime.
+  # `brew install neokapi/tap/kapi-cli` produces an Apache-clean binary with
+  # no vendor plugins compiled in. The formula is named kapi-cli so the
+  # `kapi` token stays reserved for the desktop app cask (Casks/kapi.rb).
+  - name: kapi-cli
     ids:
       - kapi
     repository:
@@ -138,7 +150,7 @@ brews:
     download_strategy: GitHubPrivateRepositoryReleaseDownloadStrategy
     custom_require: "lib/private_download_strategy"
     dependencies:
-      - name: kapi
+      - name: kapi-cli
     install: |
       plugin_dir = pkgshare/"plugins/bowrain"
       plugin_dir.mkpath

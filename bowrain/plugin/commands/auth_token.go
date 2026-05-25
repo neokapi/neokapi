@@ -30,12 +30,12 @@ Requires a .bowrain/ project with a configured workspace.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		stored, err := loadAuth()
 		if err != nil {
-			return errors.New("not authenticated — run: bowrain auth login")
+			return errors.New("not authenticated — run: kapi auth login")
 		}
 
 		proj, err := project.FindProject("")
 		if err != nil {
-			return errors.New("no kapi project found — run: bowrain init")
+			return errors.New("no kapi project found — run: kapi init")
 		}
 		if !proj.Recipe.HasServer() || proj.Recipe.Server.Workspace() == "" {
 			return errors.New("no workspace configured in the project recipe")
@@ -62,12 +62,12 @@ var authTokenListCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		stored, err := loadAuth()
 		if err != nil {
-			return errors.New("not authenticated — run: bowrain auth login")
+			return errors.New("not authenticated — run: kapi auth login")
 		}
 
 		proj, err := project.FindProject("")
 		if err != nil {
-			return errors.New("no kapi project found — run: bowrain init")
+			return errors.New("no kapi project found — run: kapi init")
 		}
 		if !proj.Recipe.HasServer() || proj.Recipe.Server.Workspace() == "" {
 			return errors.New("no workspace configured in the project recipe")
@@ -101,12 +101,12 @@ var authTokenDeleteCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		stored, err := loadAuth()
 		if err != nil {
-			return errors.New("not authenticated — run: bowrain auth login")
+			return errors.New("not authenticated — run: kapi auth login")
 		}
 
 		proj, err := project.FindProject("")
 		if err != nil {
-			return errors.New("no kapi project found — run: bowrain init")
+			return errors.New("no kapi project found — run: kapi init")
 		}
 		if !proj.Recipe.HasServer() || proj.Recipe.Server.Workspace() == "" {
 			return errors.New("no workspace configured in the project recipe")

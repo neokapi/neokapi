@@ -28,7 +28,8 @@ func TestRegisterAllReaders(t *testing.T) {
 		"regex", "doxygen", "messageformat", "phpcontent",
 		"icml", "idml", "fixedwidth",
 		"transtable", "paraplaintext", "splicedlines", "versifiedtext", "vignette",
-		"odf", "epub", "rtf", "mif", "ttx", "txml", "pdf",
+		"odf", "epub", "rtf", "mif", "ttx", "txml", "pdf", "xcstrings", "arb", "resx",
+		"androidxml", "applestrings", "i18next", "designtokens", "mdx",
 		// Declarative pseudo-format: registered so it shows up in the
 		// format list / UI. Open() intentionally errors — actual exec
 		// extraction runs via `kapi extract -p` (Framework AD-002).
@@ -53,7 +54,8 @@ func TestRegisterAllWriters(t *testing.T) {
 		"regex", "doxygen", "messageformat", "phpcontent",
 		"icml", "idml", "fixedwidth",
 		"transtable", "paraplaintext", "splicedlines", "versifiedtext", "vignette",
-		"odf", "epub", "rtf", "mif", "ttx", "txml", "pdf",
+		"odf", "epub", "rtf", "mif", "ttx", "txml", "pdf", "xcstrings", "arb", "resx",
+		"androidxml", "applestrings", "i18next", "designtokens", "mdx",
 	}
 
 	for _, name := range expectedFormats {

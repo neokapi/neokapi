@@ -9,6 +9,9 @@ import { Create as $Create } from "@wailsio/runtime";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
 import * as flow$0 from "../../core/flow/models.js";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
+import * as model$0 from "../../core/model/models.js";
 
 /**
  * AddConceptRequest is the request to add a new concept.
@@ -68,8 +71,8 @@ export class AddConceptRequest {
 
 /**
  * AddTMEntryRequest is the request to add a new multilingual TM entry.
- * Callers populate Variants with one VariantInput per locale; the server
- * rebuilds Run sequences from the coded form + spans or falls back to plain Text.
+ * Callers populate Variants with one VariantInput per locale; the server uses
+ * each variant's Run sequence, falling back to plain Text when Runs is empty.
  */
 export class AddTMEntryRequest {
     /**
@@ -2705,59 +2708,6 @@ export class SaveUserFlowRequest {
 }
 
 /**
- * SpanDTO is the frontend-facing inline span.
- */
-export class SpanDTO {
-    /**
-     * Creates a new SpanDTO instance.
-     * @param {Partial<SpanDTO>} [$$source = {}] - The source object to create the SpanDTO.
-     */
-    constructor($$source = {}) {
-        if (!("span_type" in $$source)) {
-            /**
-             * "opening"|"closing"|"placeholder"
-             * @member
-             * @type {string}
-             */
-            this["span_type"] = "";
-        }
-        if (!("type" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["type"] = "";
-        }
-        if (!("data" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["data"] = "";
-        }
-        if (/** @type {any} */(false)) {
-            /**
-             * @member
-             * @type {string | undefined}
-             */
-            this["display_text"] = undefined;
-        }
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new SpanDTO instance from a string or object.
-     * @param {any} [$$source = {}]
-     * @returns {SpanDTO}
-     */
-    static createFrom($$source = {}) {
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        return new SpanDTO(/** @type {Partial<SpanDTO>} */($$parsedSource));
-    }
-}
-
-/**
  * TMEntryDTO is the frontend-facing multilingual TM entry.
  */
 export class TMEntryDTO {
@@ -3795,7 +3745,8 @@ export class UserFlowInfo {
 }
 
 /**
- * VariantDTO is a single language variant of a multilingual TM entry.
+ * VariantDTO is a single language variant of a multilingual TM entry. Inline
+ * markup travels as an RFC 0001 Run sequence; Text is the flattened plain form.
  */
 export class VariantDTO {
     /**
@@ -3817,19 +3768,12 @@ export class VariantDTO {
              */
             this["text"] = "";
         }
-        if (!("coded" in $$source)) {
+        if (!("runs" in $$source)) {
             /**
              * @member
-             * @type {string}
+             * @type {model$0.Run[]}
              */
-            this["coded"] = "";
-        }
-        if (!("spans" in $$source)) {
-            /**
-             * @member
-             * @type {SpanDTO[]}
-             */
-            this["spans"] = [];
+            this["runs"] = [];
         }
 
         Object.assign(this, $$source);
@@ -3841,10 +3785,10 @@ export class VariantDTO {
      * @returns {VariantDTO}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType59;
+        const $$createField2_0 = $$createType58;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        if ("spans" in $$parsedSource) {
-            $$parsedSource["spans"] = $$createField3_0($$parsedSource["spans"]);
+        if ("runs" in $$parsedSource) {
+            $$parsedSource["runs"] = $$createField2_0($$parsedSource["runs"]);
         }
         return new VariantDTO(/** @type {Partial<VariantDTO>} */($$parsedSource));
     }
@@ -3852,6 +3796,8 @@ export class VariantDTO {
 
 /**
  * VariantInputDTO is how the frontend submits a single variant on add/update.
+ * Runs carries the inline content; Text is a plain-text fallback used when
+ * Runs is empty.
  */
 export class VariantInputDTO {
     /**
@@ -3869,16 +3815,9 @@ export class VariantInputDTO {
         if (/** @type {any} */(false)) {
             /**
              * @member
-             * @type {string | undefined}
+             * @type {model$0.Run[] | undefined}
              */
-            this["coded"] = undefined;
-        }
-        if (/** @type {any} */(false)) {
-            /**
-             * @member
-             * @type {SpanDTO[] | undefined}
-             */
-            this["spans"] = undefined;
+            this["runs"] = undefined;
         }
 
         Object.assign(this, $$source);
@@ -3890,10 +3829,10 @@ export class VariantInputDTO {
      * @returns {VariantInputDTO}
      */
     static createFrom($$source = {}) {
-        const $$createField2_0 = $$createType59;
+        const $$createField1_0 = $$createType58;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        if ("spans" in $$parsedSource) {
-            $$parsedSource["spans"] = $$createField2_0($$parsedSource["spans"]);
+        if ("runs" in $$parsedSource) {
+            $$parsedSource["runs"] = $$createField1_0($$parsedSource["runs"]);
         }
         return new VariantInputDTO(/** @type {Partial<VariantInputDTO>} */($$parsedSource));
     }
@@ -3958,5 +3897,4 @@ const $$createType54 = $Create.Array($$createType53);
 const $$createType55 = $Create.Array($$createType50);
 const $$createType56 = ConceptDTO.createFrom;
 const $$createType57 = $Create.Array($$createType56);
-const $$createType58 = SpanDTO.createFrom;
-const $$createType59 = $Create.Array($$createType58);
+const $$createType58 = $Create.Array($Create.Any);

@@ -6,7 +6,7 @@ import { fn } from "storybook/test";
 const now = new Date().toISOString();
 
 function v(locale: string, text: string): VariantDTO {
-  return { locale, text, coded: text, spans: [] };
+  return { locale, text, runs: [{ text }] };
 }
 
 const basicEntry: TMEntryDTO = {

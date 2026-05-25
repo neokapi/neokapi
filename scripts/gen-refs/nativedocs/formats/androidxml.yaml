@@ -1,0 +1,49 @@
+# Native reference doc for the built-in `androidxml` format.
+# Schema source: core/formats/androidxml/config.go (Config) + schema.go.
+# Supersedes treating Android strings.xml as generic XML.
+description: Extract and update translatable strings in Android string resource files (res/values/strings.xml).
+overview: |
+  The **Android String Resources** format reads `res/values/strings.xml`
+  files with full localization awareness, rather than as generic XML. It
+  extracts `<string>`, `<string-array>` items, and `<plurals>` items
+  (by CLDR `quantity`) as translatable blocks.
+
+  Android l10n semantics are honored: entries marked `translatable="false"`
+  and bare resource references (`@string/foo`, `?attr/bar`) are skipped;
+  positional/printf arguments (`%1$s`, `%d`, `%%`), `<xliff:g>` do-not-translate
+  spans, inline styling tags, and `<![CDATA[…]]>` sections are protected as
+  inline codes; and a comment immediately preceding an entry becomes a
+  translator note. Detection is content-based (a `<resources>` root with at
+  least one string/array/plurals element) so generic XML still routes to the
+  XML format. Output is a byte-faithful splice of the original — only changed
+  values are rewritten, preserving prolog, comments, whitespace, attribute
+  order, entities, and Android backslash escapes.
+parameters:
+  extractComments:
+    description: Attach a preceding XML comment as a translator note.
+    help: |
+      When enabled (the default), an XML `<!-- comment -->` immediately
+      preceding an entry is attached to the block as a translator note.
+    values: "`true` / `false` (default `true`)"
+  skipNonTranslatable:
+    description: Skip entries marked translatable="false".
+    help: |
+      When enabled (the default), `<string>`/`<string-array>`/`<plurals>`
+      entries carrying `translatable="false"` are passed through untouched
+      and not extracted.
+    values: "`true` / `false` (default `true`)"
+  skipResourceReferences:
+    description: Skip values that are bare resource references.
+    help: |
+      When enabled (the default), values that are a single resource reference
+      (`@string/foo`, `?attr/bar`) are not extracted as translatable text.
+    values: "`true` / `false` (default `true`)"
+processingNotes:
+  - "`<string>`, `<string-array>` items, and `<plurals>` items become translatable blocks; plural items are keyed by CLDR quantity."
+  - "Positional/printf args, `<xliff:g>`, inline styling, and CDATA are protected as inline codes; Android backslash escapes round-trip verbatim."
+  - Detection is Sniff-based so plain XML documents are not claimed.
+examples:
+  - title: Keep non-translatable entries in scope
+    description: Extract even entries marked translatable="false".
+    config: |
+      skipNonTranslatable: false

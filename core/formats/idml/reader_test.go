@@ -600,6 +600,49 @@ func TestNilDocument(t *testing.T) {
 	assert.Contains(t, err.Error(), "nil document")
 }
 
+// TestStoryLessPackageYieldsEmptyDocument guards the robustness fix surfaced
+// by the real-world corpus (simpleidml-magazineA-template.idml): a valid IDML
+// package may legitimately contain no Stories/ entries — e.g. a layout-only
+// template whose only "story" is the empty XML/BackingStory. The reader must
+// NOT hard-error on such a package; it must emit a well-formed (root-layer-only)
+// empty document so the writer can copy the package through. This matches
+// Okapi's IDML filter, which folds the BackingStory into its part-name list and
+// simply yields no translatable units (DesignMapFragments.java:165,335-336).
+func TestStoryLessPackageYieldsEmptyDocument(t *testing.T) {
+	// A minimal valid IDML package with mimetype + designmap but NO Stories/.
+	var buf bytes.Buffer
+	zw := zip.NewWriter(&buf)
+	mf, err := zw.CreateHeader(&zip.FileHeader{Name: "mimetype", Method: zip.Store})
+	require.NoError(t, err)
+	_, err = mf.Write([]byte("application/vnd.adobe.indesign-idml-package"))
+	require.NoError(t, err)
+	dm, err := zw.Create("designmap.xml")
+	require.NoError(t, err)
+	_, err = dm.Write([]byte(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Document DOMVersion="16.0"></Document>`))
+	require.NoError(t, err)
+	require.NoError(t, zw.Close())
+
+	ctx := t.Context()
+	reader := NewReader()
+	doc := &model.RawDocument{
+		URI:          "template.idml",
+		SourceLocale: model.LocaleEnglish,
+		Encoding:     "UTF-8",
+		MimeType:     "application/vnd.adobe.indesign-idml-package",
+		Reader:       io.NopCloser(bytes.NewReader(buf.Bytes())),
+	}
+	require.NoError(t, reader.Open(ctx, doc))
+	defer reader.Close()
+
+	parts := testutil.CollectParts(t, reader.Read(ctx)) // must not error
+	assert.Empty(t, testutil.FilterBlocks(parts),
+		"story-less package must yield no translatable blocks")
+	require.NotEmpty(t, parts, "story-less package must still emit a root layer")
+	assert.Equal(t, model.PartLayerStart, parts[0].Type)
+	assert.Equal(t, model.PartLayerEnd, parts[len(parts)-1].Type)
+}
+
 func TestInvalidZIPError(t *testing.T) {
 	ctx := t.Context()
 	reader := NewReader()

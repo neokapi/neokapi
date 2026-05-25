@@ -1,0 +1,12 @@
+{
+  "key_one": "{{count}} item",
+  "key_other": "{{count}} items",
+  "cart": {
+    "items_zero": "Your cart is empty",
+    "items_one": "{{count}} item in your cart",
+    "items_two": "{{count}} items in your cart",
+    "items_few": "{{count}} items in your cart",
+    "items_many": "{{count}} items in your cart",
+    "items_other": "{{count}} items in your cart"
+  }
+}

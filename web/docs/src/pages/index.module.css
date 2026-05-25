@@ -1,24 +1,263 @@
 .heroBanner {
-  padding: 2rem 0 3rem;
-  text-align: center;
+  /* Override Infima's .hero flex/padding so the two-column grid below controls
+     layout and the container centers normally. */
+  display: block;
+  padding: 3rem 0 3.5rem;
   position: relative;
   overflow: hidden;
 }
 
+/* A soft radial wash + faint grid behind the hero for depth, tinted with the
+   site's primary green. Sits behind the content; pointer-events:none so it
+   never intercepts the CTA. */
+.heroBanner::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(
+      60% 70% at 78% 18%,
+      color-mix(in srgb, var(--ifm-color-primary) 28%, transparent),
+      transparent 70%
+    ),
+    linear-gradient(
+      to bottom,
+      color-mix(in srgb, var(--ifm-color-primary) 6%, transparent),
+      transparent 55%
+    );
+}
+
+.heroGrid {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1.05fr 1fr;
+  gap: 2.5rem;
+  align-items: center;
+  text-align: left;
+}
+
+.heroIntro {
+  min-width: 0;
+}
+
 .heroLogo {
-  width: 200px;
-  height: 200px;
+  width: 96px;
+  height: 96px;
   margin-bottom: 1rem;
 }
 
 .heroTitle {
-  font-size: 2.2rem;
+  font-size: 2.4rem;
+  line-height: 1.12;
+  margin-bottom: 1rem;
+  text-wrap: balance;
+}
+
+.heroSubtitle {
+  font-size: 1.08rem;
+  line-height: 1.6;
+  max-width: 38rem;
+  margin-bottom: 1.5rem;
+  color: var(--ifm-font-color-base);
+  opacity: 0.92;
 }
 
 .buttons {
   display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+/* Primary "Try" CTA. Solid green pill with a soft glow that intensifies on
+   hover; reads as the single most important action on the page. */
+.tryButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: var(--ifm-color-primary);
+  color: #fff;
+  border: none;
+  font-weight: 700;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  box-shadow: 0 6px 20px color-mix(in srgb, var(--ifm-color-primary) 45%, transparent);
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease,
+    background 0.15s ease;
+}
+
+.tryButton:hover {
+  background: var(--ifm-color-primary-dark);
+  color: #fff;
+  transform: translateY(-1px);
+  box-shadow: 0 10px 28px color-mix(in srgb, var(--ifm-color-primary) 55%, transparent);
+}
+
+.tryButton:focus-visible {
+  outline: 3px solid #fff;
+  outline-offset: 2px;
+}
+
+.heroHint {
+  margin: 0.9rem 0 0;
+  font-size: 0.85rem;
+  opacity: 0.75;
+}
+
+.heroAside {
+  min-width: 0;
+}
+
+/* ── The faux-terminal CTA card ───────────────────────────────────────────── */
+
+/* The entire terminal card is one big button: clicking anywhere opens the
+   real in-browser playground. Catppuccin-Mocha palette so it matches the live
+   terminal the reader is about to see. */
+.heroTerminal {
+  display: block;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  border: 1px solid rgba(205, 214, 244, 0.16);
+  border-radius: 14px;
+  background: #1e1e2e;
+  padding: 0;
+  overflow: hidden;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.4);
+  transition:
+    transform 0.18s ease,
+    box-shadow 0.18s ease,
+    border-color 0.18s ease;
+}
+
+.heroTerminal:hover {
+  transform: translateY(-3px);
+  border-color: color-mix(in srgb, var(--ifm-color-primary) 70%, rgba(205, 214, 244, 0.2));
+  box-shadow:
+    0 26px 60px rgba(0, 0, 0, 0.5),
+    0 0 0 1px color-mix(in srgb, var(--ifm-color-primary) 45%, transparent);
+}
+
+.heroTerminal:focus-visible {
+  outline: 3px solid var(--ifm-color-primary-lightest, var(--ifm-color-primary));
+  outline-offset: 3px;
+}
+
+.heroTerminalBar {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.6rem 0.85rem;
+  background: #181825;
+  border-bottom: 1px solid rgba(205, 214, 244, 0.1);
+}
+
+.heroDot {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.heroDot[data-tone="red"] {
+  background: #f38ba8;
+}
+.heroDot[data-tone="amber"] {
+  background: #f9e2af;
+}
+.heroDot[data-tone="green"] {
+  background: #a6e3a1;
+}
+
+.heroTerminalLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-left: auto;
+  font-size: 0.72rem;
+  letter-spacing: 0.02em;
+  color: #9399b2;
+  font-family: var(--ifm-font-family-monospace, ui-monospace, Menlo, monospace);
+}
+
+.heroTerminalBody {
+  display: block;
+  padding: 1.1rem 1.2rem 0.4rem;
+  font-family: var(--ifm-font-family-monospace, ui-monospace, Menlo, monospace);
+  font-size: 0.92rem;
+  line-height: 1.7;
+  color: #cdd6f4;
+}
+
+.heroLine {
+  display: block;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.heroPrompt {
+  color: #89b4fa;
+  user-select: none;
+  margin-right: 0.5ch;
+}
+
+.heroOutput {
+  color: #9399b2;
+}
+
+.heroOk {
+  color: #a6e3a1;
+}
+
+.heroPseudo {
+  color: #f9e2af;
+}
+
+.heroCursorLine {
+  display: flex;
+  align-items: center;
+}
+
+.heroCursor {
+  display: inline-block;
+  width: 0.55ch;
+  height: 1.05em;
+  margin-left: 0.1ch;
+  background: #cdd6f4;
+  animation: heroBlink 1.1s steps(2, start) infinite;
+}
+
+@keyframes heroBlink {
+  to {
+    visibility: hidden;
+  }
+}
+
+/* The green "Run it now" pill anchored at the bottom of the card. Visually
+   echoes the inline RunnableSnippet Run button so the affordance is learnable. */
+.heroRunPill {
+  display: flex;
   align-items: center;
   justify-content: center;
+  gap: 0.45rem;
+  margin: 0.4rem 0 0;
+  padding: 0.7rem;
+  font-family: var(--ifm-font-family-monospace, ui-monospace, Menlo, monospace);
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #fff;
+  background: var(--ifm-color-primary);
+  transition: background 0.15s ease;
+}
+
+.heroTerminal:hover .heroRunPill,
+.heroTerminal:focus-visible .heroRunPill {
+  background: var(--ifm-color-primary-light, var(--ifm-color-primary));
 }
 
 .features {
@@ -26,4 +265,52 @@
   align-items: center;
   padding: 2rem 0;
   width: 100%;
+}
+
+/* ── Responsive: stack the terminal under the intro on narrow viewports ───── */
+
+@media (max-width: 996px) {
+  .heroGrid {
+    grid-template-columns: 1fr;
+    gap: 1.75rem;
+    text-align: center;
+  }
+
+  .heroSubtitle {
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .buttons {
+    justify-content: center;
+  }
+
+  .heroTerminal {
+    max-width: 32rem;
+    margin: 0 auto;
+  }
+}
+
+@media (max-width: 575px) {
+  .heroTitle {
+    font-size: 1.9rem;
+  }
+  .heroTerminalBody {
+    font-size: 0.82rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .heroCursor {
+    animation: none;
+  }
+  .tryButton,
+  .heroTerminal,
+  .heroRunPill {
+    transition: none;
+  }
+  .tryButton:hover,
+  .heroTerminal:hover {
+    transform: none;
+  }
 }

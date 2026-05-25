@@ -1,0 +1,90 @@
+id: 06-multi-format-publishing
+title: Translate Markdown and a properties file
+subtitle: Two files in two formats, one request, each round-tripped back into its own format.
+kind: use-case
+aspects:
+  - format-aware
+  - Markdown round-trip
+  - .properties round-trip
+needsAi: true
+model: sonnet
+captureTimeoutSec: 320
+
+prompt: >
+  We need French versions of two files: our getting-started guide README.md, and our UI
+  strings messages.properties. Can you translate both into French, keeping each in its own
+  format? Save them as README.fr.md and messages.fr.properties.
+
+artifacts:
+  - id: md-before
+    caption: "README.md — the English guide, rendered"
+    source: report
+    report: markdown
+    reportTitle: "README.md (English)"
+    path: README.md
+    width: 1100
+    height: 820
+  - id: md-after
+    caption: "README.fr.md — same headings, lists and quote, in French"
+    source: report
+    report: markdown
+    reportTitle: "README.fr.md (Français)"
+    path: README.fr.md
+    width: 1100
+    height: 820
+  - id: props
+    caption: "messages.fr.properties — keys preserved, values translated"
+    source: report
+    report: catalog
+    reportTitle: "messages.fr.properties"
+    reportSub: "kapi · Java properties round-trip"
+    path: messages.fr.properties
+    width: 1100
+    height: 700
+
+narration:
+  - id: title
+    kind: title
+    text: >
+      Content rarely lives in one format. Here, two files in two formats need translating,
+      and each has to come back out as what it was.
+  - id: prompt
+    kind: prompt
+    text: >
+      The request names both files and asks to keep each in its own format. It doesn't
+      explain how the two formats differ — kapi already knows.
+  - id: markdown
+    kind: terminal
+    text: >
+      kapi reads Markdown and Java properties as distinct formats. For the guide, it
+      translates the prose with Gemini and writes Markdown back: the headings, the bold text,
+      the list, and the blockquote stay where they were.
+    caption: "kapi translates README.md and writes Markdown back, structure intact"
+  - id: properties
+    kind: terminal
+    text: >
+      For the properties file, it keeps every key on the left of the equals sign and
+      translates only the message on the right.
+    caption: "messages.properties — keys untouched, only the values translated"
+  - id: md-before
+    kind: artifact
+    artifact: md-before
+    text: >
+      The English guide as it renders today: a title, sections, and a tip in a blockquote.
+  - id: md-after
+    kind: artifact
+    artifact: md-after
+    text: >
+      The French version, with the same structure — because kapi treated it as Markdown
+      throughout, not as a block of text.
+  - id: props
+    kind: artifact
+    artifact: props
+    text: >
+      And the properties file in French: every key preserved, every value translated. One
+      run handled both formats.
+  - id: outro
+    kind: outro
+    text: >
+      kapi reads and writes localization, document, and data formats, so a translation request
+      doesn't turn into a pile of conversion scripts.

@@ -1,0 +1,140 @@
+---
+sidebar_position: 1
+title: Introduction
+slug: /get-started/introduction
+description: neokapi is an open-source, format-aware localization framework in Go. Learn how its content model, format readers, processing tools, and concurrent pipeline work together.
+keywords: [neokapi, localization framework, open source, kapi cli, content model, formats, tools, pipeline]
+---
+
+import RunnableSnippet from "@site/src/components/KapiPlayground/RunnableSnippet";
+import { DualExample } from "@site/src/components/curated";
+
+# Introduction
+
+neokapi is a **framework for format-aware localization**. At its core is a
+content model that represents translatable text independently of the file it
+came from, a set of format readers and writers that move documents in and out of
+that model, and processing tools — translation, QA, terminology enforcement,
+brand-voice checks — that compose into concurrent pipelines. It is **open
+source** and **offline by default**.
+
+The framework is the thing; the CLI is one surface onto it. The same engine
+drives the `kapi` command line, the desktop app, and a Go library — and, through
+the `kapi mcp` server and Claude skills, AI assistants like Claude Code reach the
+same brand and terminology tools while they write. This page introduces the
+model and shows a runnable taste from the CLI.
+
+## What the framework does
+
+A document — JSON, DOCX, Markdown, XLIFF, an Android `strings.xml`, an Apple
+`.xcstrings`, and [more](/formats) — is read into a **content model**: the
+translatable text is segmented into _blocks_, each with a stable id, while the
+surrounding structure and inline markup are held separately so a round-trip
+writes the file back faithfully. Tools transform blocks as they stream through;
+a writer reassembles the original format around the transformed text.
+
+Here is the same file seen two ways — the CLI command on the left, and the
+content model the framework parsed it into on the right:
+
+<DualExample
+  command="kapi word-count messages.json"
+  seed={["messages.json"]}
+  result={{
+    kind: "blocks",
+    sample: "messages.json",
+    title: "messages.json — parsed blocks",
+    caption: "How the framework sees the file: translatable blocks with stable ids.",
+  }}
+/>
+
+The block view is the framework's own representation. Everything else — word
+counts, pseudo-translation, AI translation, QA — is a tool operating on these
+blocks.
+
+## Two things you can do with it
+
+**Localize anything.** Read and write localization, document, data, subtitle,
+and office formats natively, with more available through the okapi-bridge (see
+the [Format Reference](/formats)), then translate with an LLM or MT backend,
+reuse a content-aware translation memory, enforce terminology, and run QA — all
+composable into [flows](/framework/architecture).
+
+**Keep AI output on-brand.** Plug `kapi` into your AI coding assistant (Claude
+Code, Cursor, Windsurf, or any [MCP](https://modelcontextprotocol.io/) client)
+so the strings, docs, and copy it generates stay on-voice and use the right
+terminology. Load a machine-readable brand-voice profile, score text across five
+dimensions, and rewrite content that drifts off-brand — locally, without sending
+your content anywhere unless you choose to.
+
+Both share the same content model and enforcement path, so the words your AI
+writes stay on-brand and consistent through every language.
+
+## A runnable taste
+
+You don't need to install anything to try it. The command below runs the **real
+`kapi` binary** compiled to WebAssembly, right here in your browser — press
+**▸ Run**. It seeds a small `messages.json`, pseudo-translates it, and writes
+`messages-qps.json`, which you can preview in the **Files** panel:
+
+<RunnableSnippet
+  cmd="kapi pseudo-translate messages.json -o messages-qps.json"
+  seed={["messages.json"]}
+/>
+
+The accented output (`▒ Ĥéļļö, Ŵöŕļđ! ▒`) is the framework reading the file,
+streaming each block through the pseudo-translation tool, and writing the JSON
+back with structure intact. See [Try It in Your Browser](/get-started/try-it)
+for more runnable examples, or the [CLI Playground](/playground-cli) for a full
+terminal.
+
+## Inside your AI assistant
+
+`kapi mcp` exposes brand and terminology tools — `brand_guide`, `brand_check`,
+`brand_rewrite`, `term_lookup`, `tm_search` — to any MCP client. Your assistant
+can consult the brand profile and terminology _while it writes_, so content is
+on-brand at generation time rather than flagged afterward. See
+[Using Kapi with AI Assistants](/cli/mcp), or
+[Using kapi with Claude](/get-started/use-with-claude) for the skill-based
+workflow.
+
+## Architecture at a glance
+
+Content flows through a channel-based concurrent pipeline. Each tool runs in its
+own goroutine, connected by buffered channels that provide backpressure;
+context cancellation propagates to every stage:
+
+```
+Input File → DataFormatReader → [Tool 1] → [Tool 2] → ... → DataFormatWriter → Output File
+                                    ↕            ↕
+                              chan *Part    chan *Part
+```
+
+See [Architecture](/framework/architecture) for the streaming model and
+[Content Model](/framework/content-model) for blocks, fragments, and inline
+spans.
+
+## Terminology
+
+If you're familiar with the Okapi Framework, here's how concepts map:
+
+| Okapi (Java)               | neokapi (Go)               |
+| -------------------------- | -------------------------- |
+| Filter                     | DataFormat (Reader/Writer) |
+| Step                       | Tool                       |
+| Pipeline                   | Flow                       |
+| PipelineDriver             | Executor                   |
+| Event                      | Part                       |
+| TextUnit                   | Block                      |
+| TextFragment               | Fragment                   |
+| Code                       | Span                       |
+| StartSubDocument/SubFilter | Child Layer                |
+| Tikal                      | kapi (CLI)                 |
+
+## Next steps
+
+- [Try It in Your Browser](/get-started/try-it) — run real `kapi` in one click,
+  no install
+- [Quick Start](/get-started/quickstart) — runnable first steps
+- [Installation](/get-started/installation) — when you're ready to run locally
+- [Using kapi with Claude](/get-started/use-with-claude) — wire kapi into your
+  AI assistant

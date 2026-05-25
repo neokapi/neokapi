@@ -1,5 +1,38 @@
 {
-  "generatedAt": "2026-05-23T06:29:38Z",
-  "summary": {},
-  "gaps": null
+  "generatedAt": "2026-05-25T00:35:34Z",
+  "summary": {
+    "built-in/format/doc.examples": 1,
+    "built-in/tool/doc.overview": 3,
+    "total": 4
+  },
+  "gaps": [
+    {
+      "kind": "format",
+      "source": "built-in",
+      "id": "mdx",
+      "field": "doc.examples",
+      "detail": "configurable but no worked examples"
+    },
+    {
+      "kind": "tool",
+      "source": "built-in",
+      "id": "ai-entity-extract",
+      "field": "doc.overview",
+      "detail": "no overview / rich documentation"
+    },
+    {
+      "kind": "tool",
+      "source": "built-in",
+      "id": "redact",
+      "field": "doc.overview",
+      "detail": "no overview / rich documentation"
+    },
+    {
+      "kind": "tool",
+      "source": "built-in",
+      "id": "unredact",
+      "field": "doc.overview",
+      "detail": "no overview / rich documentation"
+    }
+  ]
 }

@@ -1,0 +1,71 @@
+id: 07-global-launch-many-languages
+title: Translate app strings into four languages
+subtitle: One source file, four target languages, including a non-Latin script.
+kind: zero-to-hero
+aspects:
+  - multi-locale
+  - CJK / non-Latin
+  - placeholders preserved
+needsAi: true
+model: sonnet
+captureTimeoutSec: 360
+
+prompt: >
+  We're launching our notes app in more markets. Can you translate our app strings,
+  src/en.json, into German, Spanish, French and Japanese? Save each one next to it as
+  src/de.json, src/es.json, src/fr.json and src/ja.json.
+
+artifacts:
+  - id: ja
+    caption: "src/ja.json — Japanese, placeholders intact"
+    source: report
+    report: catalog
+    reportTitle: "src/ja.json — 日本語"
+    reportSub: "kapi · {{name}} and {{price}} preserved"
+    path: src/ja.json
+    width: 1120
+    height: 720
+  - id: de
+    caption: "src/de.json — German, same keys"
+    source: report
+    report: catalog
+    reportTitle: "src/de.json — Deutsch"
+    reportSub: "kapi · keys and placeholders intact"
+    path: src/de.json
+    width: 1120
+    height: 720
+
+narration:
+  - id: title
+    kind: title
+    text: >
+      Four target languages from one English file, one of them in a non-Latin script. The
+      request is the same shape it would be for one language.
+  - id: prompt
+    kind: prompt
+    text: >
+      The request lists the languages and where each file should go. It doesn't say to run
+      one command per language, or how to keep the placeholders — the skill handles that.
+  - id: work
+    kind: terminal
+    text: >
+      Claude translates the file once per language with Gemini. Because kapi parses the JSON,
+      every key and every interpolation placeholder is carried through; only the values change.
+    caption: "One source file, four languages — keys and placeholders carried through"
+  - id: ja
+    kind: artifact
+    artifact: ja
+    text: >
+      The Japanese catalog. The interface text is translated, and the placeholders for the
+      name and the price sit exactly where the code expects them. The file is still valid JSON.
+  - id: de
+    kind: artifact
+    artifact: de
+    text: >
+      And German, with its longer compound words. Same keys, same placeholders. The next
+      language is the same request again.
+  - id: outro
+    kind: outro
+    text: >
+      The source English text stays the key in every file, so the code reads the same
+      whichever language is loaded.

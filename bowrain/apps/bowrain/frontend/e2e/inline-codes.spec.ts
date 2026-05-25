@@ -132,19 +132,37 @@ async function openEditorWithInlineBlocks(page: Page) {
         return origUpdateTarget(req);
       };
 
-      // Monkey-patch UpdateBlockTargetCoded for welcome.html blocks
-      const origUpdateCoded = mock[IDS.UpdateBlockTargetCoded];
-      mock[IDS.UpdateBlockTargetCoded] = (req: any) => {
+      // Monkey-patch UpdateBlockTargetRuns for welcome.html blocks. The
+      // @neokapi/ui editor authors coded text + spans; the desktop adapter
+      // converts to an RFC 0001 Run sequence before calling the backend,
+      // so the request carries `runs` (not coded_text). Reconstruct the
+      // plain + coded forms from the runs so the source-block stub above
+      // can echo edits back into the editor.
+      const origUpdateRuns = mock[IDS.UpdateBlockTargetRuns];
+      mock[IDS.UpdateBlockTargetRuns] = (req: any) => {
         const itemName = req.item_name || req.file_name;
         if (itemName === "welcome.html") {
           if (!welcomeTargets[req.block_id]) welcomeTargets[req.block_id] = {};
           if (!welcomeTargetsCoded[req.block_id]) welcomeTargetsCoded[req.block_id] = {};
-          const plain = req.coded_text.replace(/[\uE001-\uE003]/g, "");
+          let plain = "";
+          let coded = "";
+          for (const run of req.runs ?? []) {
+            if (run.text) {
+              plain += run.text.text;
+              coded += run.text.text;
+            } else if (run.pcOpen) {
+              coded += mo;
+            } else if (run.pcClose) {
+              coded += mc;
+            } else if (run.ph) {
+              coded += mp;
+            }
+          }
           welcomeTargets[req.block_id][req.target_locale] = plain;
-          welcomeTargetsCoded[req.block_id][req.target_locale] = req.coded_text;
+          welcomeTargetsCoded[req.block_id][req.target_locale] = coded;
           return;
         }
-        if (origUpdateCoded) return origUpdateCoded(req);
+        if (origUpdateRuns) return origUpdateRuns(req);
       };
     },
     { mo: M_OPEN, mc: M_CLOSE, mp: M_PLACEHOLDER },

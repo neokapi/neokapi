@@ -21,14 +21,14 @@ var addCmd = &cobra.Command{
 Patterns support ** for recursive matching.
 
 Examples:
-  bowrain add "src/**/*.html"
-  bowrain add "locales/*.json" --format json
-  bowrain add "src/**/*.html" "content/**/*.md"`,
+  kapi add "src/**/*.html"
+  kapi add "locales/*.json" --format json
+  kapi add "src/**/*.html" "content/**/*.md"`,
 	Args: cobra.MinimumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		proj, err := project.FindProject("")
 		if err != nil {
-			return fmt.Errorf("no kapi project found (run 'bowrain init' first): %w", err)
+			return fmt.Errorf("no kapi project found (run 'kapi init' first): %w", err)
 		}
 
 		var result output.AddOutput

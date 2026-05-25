@@ -1,16 +1,16 @@
-import type { SpanInfo } from "../../types/span";
+import type { Run } from "@neokapi/kapi-format";
 
 // --- TM Types (multilingual model) ---
 
 /**
  * A single language variant of a multilingual TM entry.
- * Each TM entry has one variant per locale.
+ * Each TM entry has one variant per locale. Inline markup travels as
+ * an RFC 0001 Run sequence; `text` is the flattened plain form.
  */
 export interface VariantDTO {
   locale: string;
   text: string;
-  coded: string;
-  spans: SpanInfo[];
+  runs: Run[];
 }
 
 /** Position + text for a single-locale entity value. */
@@ -176,8 +176,7 @@ export interface LookupTMRequest {
 /** Input for a single variant when adding / updating a TM entry. */
 export interface VariantInputDTO {
   text: string;
-  coded?: string;
-  spans?: SpanInfo[];
+  runs?: Run[];
 }
 
 /** Request payload for adding a multilingual TM entry. */

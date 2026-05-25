@@ -14,6 +14,59 @@ import * as flow$0 from "../flow/models.js";
 import * as model$0 from "../model/models.js";
 
 /**
+ * BrandVoiceBinding binds a brand voice profile to a project under
+ * `defaults.brand_voice`. Exactly one source is expected: a standalone
+ * profile YAML (ProfileFile, resolved relative to the project root), a
+ * profile in the local brand store (Profile), or a built-in starter pack
+ * (Pack).
+ */
+export class BrandVoiceBinding {
+    /**
+     * Creates a new BrandVoiceBinding instance.
+     * @param {Partial<BrandVoiceBinding>} [$$source = {}] - The source object to create the BrandVoiceBinding.
+     */
+    constructor($$source = {}) {
+        if (/** @type {any} */(false)) {
+            /**
+             * ProfileFile is the path to a standalone profile YAML, resolved
+             * relative to the project root.
+             * @member
+             * @type {string | undefined}
+             */
+            this["profile_file"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Profile names a profile in the local brand store.
+             * @member
+             * @type {string | undefined}
+             */
+            this["profile"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Pack names a built-in starter pack.
+             * @member
+             * @type {string | undefined}
+             */
+            this["pack"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new BrandVoiceBinding instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {BrandVoiceBinding}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new BrandVoiceBinding(/** @type {Partial<BrandVoiceBinding>} */($$parsedSource));
+    }
+}
+
+/**
  * ContentCollection is either a bare content entry or a named collection of items.
  * 
  * Bare entry (has path, no items):
@@ -157,6 +210,15 @@ export class ContentItem {
              */
             this["target_languages"] = undefined;
         }
+        if (/** @type {any} */(false)) {
+            /**
+             * Redaction overrides the project-wide redaction spec for this item.
+             * nil means inherit defaults.
+             * @member
+             * @type {RedactionSpec | null | undefined}
+             */
+            this["redaction"] = undefined;
+        }
 
         Object.assign(this, $$source);
     }
@@ -169,12 +231,16 @@ export class ContentItem {
     static createFrom($$source = {}) {
         const $$createField1_0 = $$createType4;
         const $$createField4_0 = $$createType0;
+        const $$createField5_0 = $$createType6;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("format" in $$parsedSource) {
             $$parsedSource["format"] = $$createField1_0($$parsedSource["format"]);
         }
         if ("target_languages" in $$parsedSource) {
             $$parsedSource["target_languages"] = $$createField4_0($$parsedSource["target_languages"]);
+        }
+        if ("redaction" in $$parsedSource) {
+            $$parsedSource["redaction"] = $$createField5_0($$parsedSource["redaction"]);
         }
         return new ContentItem(/** @type {Partial<ContentItem>} */($$parsedSource));
     }
@@ -239,6 +305,75 @@ export class Defaults {
              */
             this["formats"] = undefined;
         }
+        if (/** @type {any} */(false)) {
+            /**
+             * Exclude is a list of glob patterns skipped during content scanning.
+             * @member
+             * @type {string[] | undefined}
+             */
+            this["exclude"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Merge governs kapi merge behavior (AD-017).
+             * @member
+             * @type {MergeDefaults | undefined}
+             */
+            this["merge"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * TM governs TM pre-fill on kapi extract and TM write-back on kapi merge (AD-017).
+             * @member
+             * @type {TMDefaults | undefined}
+             */
+            this["tm"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Segmentation governs the opt-in sentence-level segmentation overlay
+             * applied on extract (AD-017).
+             * @member
+             * @type {SegmentationDefaults | undefined}
+             */
+            this["segmentation"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Redaction governs replacing sensitive content with protected
+             * placeholders before processing and restoring it afterwards. nil means
+             * no redaction.
+             * @member
+             * @type {RedactionSpec | null | undefined}
+             */
+            this["redaction"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * BrandVoice binds a brand voice profile as standing project context.
+             * When set, project-scoped commands (brand check/rewrite/guide and
+             * project translation flows) honor it with no profile flag. nil means
+             * no bound brand voice.
+             * 
+             * This is the framework binding under `defaults:`. It is distinct from
+             * bowrain's top-level `brand_voice` extension (decoded from Extras),
+             * which is a platform-level policy with collection scoping.
+             * @member
+             * @type {BrandVoiceBinding | null | undefined}
+             */
+            this["brand_voice"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Termbase binds a glossary/termbase as standing project context. When
+             * set, project-scoped term enforcement uses it with no --termbase flag.
+             * The path resolves relative to the project root (the recipe's
+             * directory). Empty means no bound termbase.
+             * @member
+             * @type {string | undefined}
+             */
+            this["termbase"] = undefined;
+        }
 
         Object.assign(this, $$source);
     }
@@ -250,13 +385,37 @@ export class Defaults {
      */
     static createFrom($$source = {}) {
         const $$createField1_0 = $$createType0;
-        const $$createField6_0 = $$createType6;
+        const $$createField6_0 = $$createType8;
+        const $$createField7_0 = $$createType9;
+        const $$createField8_0 = $$createType10;
+        const $$createField9_0 = $$createType11;
+        const $$createField10_0 = $$createType12;
+        const $$createField11_0 = $$createType6;
+        const $$createField12_0 = $$createType14;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("target_languages" in $$parsedSource) {
             $$parsedSource["target_languages"] = $$createField1_0($$parsedSource["target_languages"]);
         }
         if ("formats" in $$parsedSource) {
             $$parsedSource["formats"] = $$createField6_0($$parsedSource["formats"]);
+        }
+        if ("exclude" in $$parsedSource) {
+            $$parsedSource["exclude"] = $$createField7_0($$parsedSource["exclude"]);
+        }
+        if ("merge" in $$parsedSource) {
+            $$parsedSource["merge"] = $$createField8_0($$parsedSource["merge"]);
+        }
+        if ("tm" in $$parsedSource) {
+            $$parsedSource["tm"] = $$createField9_0($$parsedSource["tm"]);
+        }
+        if ("segmentation" in $$parsedSource) {
+            $$parsedSource["segmentation"] = $$createField10_0($$parsedSource["segmentation"]);
+        }
+        if ("redaction" in $$parsedSource) {
+            $$parsedSource["redaction"] = $$createField11_0($$parsedSource["redaction"]);
+        }
+        if ("brand_voice" in $$parsedSource) {
+            $$parsedSource["brand_voice"] = $$createField12_0($$parsedSource["brand_voice"]);
         }
         return new Defaults(/** @type {Partial<Defaults>} */($$parsedSource));
     }
@@ -363,7 +522,7 @@ export class FormatDefaults {
      * @returns {FormatDefaults}
      */
     static createFrom($$source = {}) {
-        const $$createField1_0 = $$createType7;
+        const $$createField1_0 = $$createType15;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("config" in $$parsedSource) {
             $$parsedSource["config"] = $$createField1_0($$parsedSource["config"]);
@@ -421,7 +580,7 @@ export class FormatSpec {
      * @returns {FormatSpec}
      */
     static createFrom($$source = {}) {
-        const $$createField2_0 = $$createType7;
+        const $$createField2_0 = $$createType15;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("config" in $$parsedSource) {
             $$parsedSource["config"] = $$createField2_0($$parsedSource["config"]);
@@ -488,6 +647,22 @@ export class KapiProject {
              */
             this["flows"] = undefined;
         }
+        if (/** @type {any} */(false)) {
+            /**
+             * Requires lists plugin dependencies as a map of plugin name → version
+             * constraint. Validation fails if any named plugin (or extension group
+             * of the same name) has no registered extension in the loading process.
+             * A recipe with `requires: { bowrain: "^1.0" }` will refuse to load in a
+             * binary that has not registered the bowrain extension.
+             * 
+             * Version constraints follow semver (`^1.0`, `>=1.47.0`, `~1.4.2`,
+             * `1.4.0` exact-match, `*` any). The map form is mandatory — a bare-list
+             * form (`requires: [bowrain]`) is rejected with an actionable error.
+             * @member
+             * @type {RequiresMap | undefined}
+             */
+            this["requires"] = undefined;
+        }
 
         Object.assign(this, $$source);
     }
@@ -498,10 +673,11 @@ export class KapiProject {
      * @returns {KapiProject}
      */
     static createFrom($$source = {}) {
-        const $$createField2_0 = $$createType9;
-        const $$createField3_0 = $$createType10;
-        const $$createField4_0 = $$createType12;
-        const $$createField6_0 = $$createType15;
+        const $$createField2_0 = $$createType17;
+        const $$createField3_0 = $$createType18;
+        const $$createField4_0 = $$createType20;
+        const $$createField6_0 = $$createType23;
+        const $$createField7_0 = $$createType24;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("plugins" in $$parsedSource) {
             $$parsedSource["plugins"] = $$createField2_0($$parsedSource["plugins"]);
@@ -515,7 +691,44 @@ export class KapiProject {
         if ("flows" in $$parsedSource) {
             $$parsedSource["flows"] = $$createField6_0($$parsedSource["flows"]);
         }
+        if ("requires" in $$parsedSource) {
+            $$parsedSource["requires"] = $$createField7_0($$parsedSource["requires"]);
+        }
         return new KapiProject(/** @type {Partial<KapiProject>} */($$parsedSource));
+    }
+}
+
+/**
+ * MergeDefaults governs kapi merge behavior (AD-017).
+ */
+export class MergeDefaults {
+    /**
+     * Creates a new MergeDefaults instance.
+     * @param {Partial<MergeDefaults>} [$$source = {}] - The source object to create the MergeDefaults.
+     */
+    constructor($$source = {}) {
+        if (/** @type {any} */(false)) {
+            /**
+             * ConflictPolicy governs how merge applies a translator's target when
+             * an existing on-disk target or TM TU already has a translation. Valid
+             * values: "translator-wins" (default), "existing-wins", "newest-wins".
+             * @member
+             * @type {string | undefined}
+             */
+            this["conflict_policy"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new MergeDefaults instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {MergeDefaults}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new MergeDefaults(/** @type {Partial<MergeDefaults>} */($$parsedSource));
     }
 }
 
@@ -660,12 +873,171 @@ export class PluginStatus {
      * @returns {PluginStatus}
      */
     static createFrom($$source = {}) {
-        const $$createField1_0 = $$createType17;
+        const $$createField1_0 = $$createType27;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("issues" in $$parsedSource) {
             $$parsedSource["issues"] = $$createField1_0($$parsedSource["issues"]);
         }
         return new PluginStatus(/** @type {Partial<PluginStatus>} */($$parsedSource));
+    }
+}
+
+/**
+ * RedactionSpec configures content redaction. The sensitive term list itself
+ * lives in a dedicated rules file (so it can be gitignored) referenced by
+ * Rules; this spec only points at it and selects detection backends. Declared
+ * under defaults: project-wide and overridable per content item.
+ */
+export class RedactionSpec {
+    /**
+     * Creates a new RedactionSpec instance.
+     * @param {Partial<RedactionSpec>} [$$source = {}] - The source object to create the RedactionSpec.
+     */
+    constructor($$source = {}) {
+        if (/** @type {any} */(false)) {
+            /**
+             * Enabled turns redaction on for extract/merge.
+             * @member
+             * @type {boolean | undefined}
+             */
+            this["enabled"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Rules is the path to a redaction rules YAML file.
+             * @member
+             * @type {string | undefined}
+             */
+            this["rules"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Detectors selects detection backends: "rules" and/or "entities".
+             * @member
+             * @type {string[] | undefined}
+             */
+            this["detectors"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Placeholder overrides the visible stand-in template, e.g.
+             * "[REDACTED:{category}]".
+             * @member
+             * @type {string | undefined}
+             */
+            this["placeholder"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new RedactionSpec instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {RedactionSpec}
+     */
+    static createFrom($$source = {}) {
+        const $$createField2_0 = $$createType9;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("detectors" in $$parsedSource) {
+            $$parsedSource["detectors"] = $$createField2_0($$parsedSource["detectors"]);
+        }
+        return new RedactionSpec(/** @type {Partial<RedactionSpec>} */($$parsedSource));
+    }
+}
+
+/**
+ * RequiresMap is the type of KapiProject.Requires — a map of plugin name to
+ * semver-style version constraint. It defines a custom UnmarshalYAML that
+ * rejects the legacy bare-list form (`requires: [bowrain]`) with an
+ * actionable migration hint.
+ * @typedef {{ [_ in string]?: string }} RequiresMap
+ */
+
+/**
+ * SegmentationDefaults governs the opt-in SRX segmentation overlay (AD-017).
+ */
+export class SegmentationDefaults {
+    /**
+     * Creates a new SegmentationDefaults instance.
+     * @param {Partial<SegmentationDefaults>} [$$source = {}] - The source object to create the SegmentationDefaults.
+     */
+    constructor($$source = {}) {
+        if (/** @type {any} */(false)) {
+            /**
+             * Source toggles sentence-level segmentation of source text on extract.
+             * @member
+             * @type {boolean | undefined}
+             */
+            this["source"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * SRX optionally points at an SRX rules file. When empty, built-in
+             * default rules are used.
+             * @member
+             * @type {string | undefined}
+             */
+            this["srx"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new SegmentationDefaults instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {SegmentationDefaults}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new SegmentationDefaults(/** @type {Partial<SegmentationDefaults>} */($$parsedSource));
+    }
+}
+
+/**
+ * TMDefaults governs TM pre-fill on extract and TM write-back on merge (AD-017).
+ */
+export class TMDefaults {
+    /**
+     * Creates a new TMDefaults instance.
+     * @param {Partial<TMDefaults>} [$$source = {}] - The source object to create the TMDefaults.
+     */
+    constructor($$source = {}) {
+        if (/** @type {any} */(false)) {
+            /**
+             * FuzzyThreshold is the minimum fuzzy match score (0..100) to pre-fill
+             * the target on extract. Defaults to DefaultFuzzyThreshold when zero.
+             * @member
+             * @type {number | undefined}
+             */
+            this["fuzzy_threshold"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Read lists additional read-only TM files consulted during pre-fill on
+             * extract. Writes always go to the project TM, never to these.
+             * @member
+             * @type {string[] | undefined}
+             */
+            this["read"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new TMDefaults instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {TMDefaults}
+     */
+    static createFrom($$source = {}) {
+        const $$createField1_0 = $$createType9;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("read" in $$parsedSource) {
+            $$parsedSource["read"] = $$createField1_0($$parsedSource["read"]);
+        }
+        return new TMDefaults(/** @type {Partial<TMDefaults>} */($$parsedSource));
     }
 }
 
@@ -675,16 +1047,31 @@ const $$createType1 = ContentItem.createFrom;
 const $$createType2 = $Create.Array($$createType1);
 const $$createType3 = FormatSpec.createFrom;
 const $$createType4 = $Create.Nullable($$createType3);
-const $$createType5 = FormatDefaults.createFrom;
-const $$createType6 = $Create.Map($Create.Any, $$createType5);
-const $$createType7 = $Create.Map($Create.Any, $Create.Any);
-const $$createType8 = PluginSpec.createFrom;
-const $$createType9 = $Create.Map($Create.Any, $$createType8);
-const $$createType10 = Defaults.createFrom;
-const $$createType11 = ContentCollection.createFrom;
-const $$createType12 = $Create.Array($$createType11);
-const $$createType13 = flow$0.StepsSpec.createFrom;
+const $$createType5 = RedactionSpec.createFrom;
+const $$createType6 = $Create.Nullable($$createType5);
+const $$createType7 = FormatDefaults.createFrom;
+const $$createType8 = $Create.Map($Create.Any, $$createType7);
+const $$createType9 = $Create.Array($Create.Any);
+const $$createType10 = MergeDefaults.createFrom;
+const $$createType11 = TMDefaults.createFrom;
+const $$createType12 = SegmentationDefaults.createFrom;
+const $$createType13 = BrandVoiceBinding.createFrom;
 const $$createType14 = $Create.Nullable($$createType13);
-const $$createType15 = $Create.Map($Create.Any, $$createType14);
-const $$createType16 = PluginIssue.createFrom;
-const $$createType17 = $Create.Array($$createType16);
+const $$createType15 = $Create.Map($Create.Any, $Create.Any);
+const $$createType16 = PluginSpec.createFrom;
+const $$createType17 = $Create.Map($Create.Any, $$createType16);
+const $$createType18 = Defaults.createFrom;
+const $$createType19 = ContentCollection.createFrom;
+const $$createType20 = $Create.Array($$createType19);
+const $$createType21 = flow$0.StepsSpec.createFrom;
+const $$createType22 = $Create.Nullable($$createType21);
+const $$createType23 = $Create.Map($Create.Any, $$createType22);
+var $$createType24 = /** @type {(...args: any[]) => any} */(function $$initCreateType24(...args) {
+    if ($$createType24 === $$initCreateType24) {
+        $$createType24 = $$createType25;
+    }
+    return $$createType24(...args);
+});
+const $$createType25 = $Create.Map($Create.Any, $Create.Any);
+const $$createType26 = PluginIssue.createFrom;
+const $$createType27 = $Create.Array($$createType26);

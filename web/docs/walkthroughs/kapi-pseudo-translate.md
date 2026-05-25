@@ -10,7 +10,7 @@ scenes:
     fixtures:
       - messages.json
     smoke_contract:
-      - kapi pseudo-translate samples/messages.json --target-lang fr
+      - kapi pseudo-translate messages.json -o messages.fr.json
 ---
 
 ## Story
@@ -23,7 +23,7 @@ so issues surface immediately on screen — no API key, no waiting, no cost.
 ## Scene 1 — pseudo-translate (terminal)
 
 The user opens a JSON message catalog (`messages.json`), runs
-`kapi pseudo-translate ... --target-lang fr` to generate a French-shaped
+`kapi pseudo-translate ...` to generate a pseudo-locale (`qps`)
 pseudo-translation, then inspects the output JSON to confirm the
 expansion. The recording shows: source file → command → output file.
 

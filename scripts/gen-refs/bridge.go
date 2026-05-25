@@ -42,7 +42,7 @@ type bridgeDoc struct {
 	Parameters          map[string]bridgeDocParam    `json:"parameters"`
 	Limitations         []string                     `json:"limitations"`
 	ProcessingNotes     []string                     `json:"processingNotes"`
-	Examples            []DocExample                  `json:"examples"`
+	Examples            []DocExample                 `json:"examples"`
 	PropertySuggestions map[string]bridgePropSuggest `json:"propertySuggestions"`
 	WikiURL             string                       `json:"wikiUrl"`
 }

@@ -1,0 +1,5 @@
+out/
+
+# demo purposes only — ignore all the generated files
+.kapi/
+src/locales/

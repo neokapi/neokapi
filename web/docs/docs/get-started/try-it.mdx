@@ -1,0 +1,54 @@
+---
+sidebar_position: 2
+title: Try It in Your Browser
+description: Run the real kapi CLI in your browser — compiled to WebAssembly, nothing leaves your machine. Pseudo-translate files, count words, and explore the content model without installing anything.
+keywords: [kapi, browser, webassembly, wasm, playground, pseudo-translate, interactive demo]
+---
+
+import RunnableSnippet from "@site/src/components/KapiPlayground/RunnableSnippet";
+
+# Try It in Your Browser
+
+Every command on this page runs the **real `kapi` binary** — compiled to
+WebAssembly and executed right here, nothing leaves your machine. Press **▸ Run**
+on any command. The first run takes a moment to start; after that it's instant.
+No install required.
+
+## Pseudo-translate a file
+
+Pseudo-translation replaces source text with accented look-alikes so you can
+spot untranslated strings and layout problems before real translation. This
+seeds a small `messages.json` and writes `out.json`:
+
+<RunnableSnippet
+  cmd="kapi pseudo-translate messages.json -o out.json"
+  seed={["messages.json"]}
+/>
+
+After it runs, open `out.json` in the **Files** panel to preview the result, or
+download it.
+
+## Count the words
+
+Estimate translation volume for the same file:
+
+<RunnableSnippet cmd="kapi word-count messages.json" seed={["messages.json"]} />
+
+## See what kapi understands
+
+This one needs no input file — it lists every registered format:
+
+<RunnableSnippet cmd="kapi formats" />
+
+## Edit, then run yourself
+
+With `editable`, the command is placed at the prompt instead of running
+automatically — press **Enter** when you are ready, or tweak it first:
+
+<RunnableSnippet cmd="kapi word-count messages.json --json" seed={["messages.json"]} editable />
+
+## Where to go next
+
+- [Quick Start](/get-started/quickstart) — more runnable first steps
+- [Installation](/get-started/installation) — install the CLI to run locally
+- [CLI Playground](/playground-cli) — a full interactive terminal

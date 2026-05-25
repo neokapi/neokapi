@@ -7,7 +7,7 @@ import { TMGroupedEntry } from "../components/resource-browser/TMGroupedEntry";
 import type { TMEntryDTO, VariantDTO } from "../components/resource-browser/types";
 
 function v(locale: string, text: string): VariantDTO {
-  return { locale, text, coded: text, spans: [] };
+  return { locale, text, runs: [{ text }] };
 }
 
 function makeEntry(overrides: Partial<TMEntryDTO> = {}): TMEntryDTO {

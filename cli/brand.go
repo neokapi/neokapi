@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 
@@ -17,6 +18,7 @@ import (
 	"github.com/neokapi/neokapi/core/brand"
 	"github.com/neokapi/neokapi/core/brand/packs"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/storage"
 	"github.com/neokapi/neokapi/core/tool"
 	coretools "github.com/neokapi/neokapi/core/tools"
@@ -70,6 +72,7 @@ func addProfileFlags(cmd *cobra.Command) {
 	cmd.Flags().String("pack", "", "built-in starter pack name")
 	cmd.Flags().String("locale", "", "apply locale-specific overrides")
 	cmd.Flags().String("channel", "", "apply channel-specific overrides")
+	AddProjectFlag(cmd)
 	AddResourceFlags(cmd)
 }
 
@@ -492,11 +495,22 @@ func (a *App) resolveBrandProfile(cmd *cobra.Command) (*brand.VoiceProfile, stri
 			count++
 		}
 	}
-	if count == 0 {
-		return nil, "", errors.New("specify a profile with --profile, --profile-file, or --pack")
-	}
 	if count > 1 {
 		return nil, "", errors.New("--profile, --profile-file, and --pack are mutually exclusive")
+	}
+	if count == 0 {
+		// No explicit flag — fall back to the project's bound brand voice
+		// (defaults.brand_voice) or a convention file at the project root.
+		// This makes `kapi brand check DRAFT.md` work flag-free inside a
+		// project directory.
+		profile, src, ok, perr := a.resolveProjectBrandProfile(cmd, locale, channel)
+		if perr != nil {
+			return nil, "", perr
+		}
+		if ok {
+			return profile, src, nil
+		}
+		return nil, "", errors.New("specify a profile with --profile, --profile-file, or --pack (or bind one in your .kapi project under defaults.brand_voice)")
 	}
 
 	var profile *brand.VoiceProfile
@@ -531,6 +545,123 @@ func (a *App) resolveBrandProfile(cmd *cobra.Command) (*brand.VoiceProfile, stri
 		profile = brand.ResolveProfile(profile, locale, channel)
 	}
 	return profile, src, nil
+}
+
+// resolveProjectBrandProfile resolves a brand voice profile from the .kapi
+// project in scope, with no profile flag. Resolution order:
+//
+//  1. defaults.brand_voice in the recipe (profile_file → YAML, profile →
+//     local store, pack → built-in starter pack). profile_file is resolved
+//     relative to the project root.
+//  2. A convention file at <projectRoot>/brand.yaml, then
+//     <projectRoot>/.kapi/brand.yaml.
+//
+// Returns (profile, source, found, error). found is false (with nil error)
+// when no project is in scope or the project carries no brand binding and no
+// convention file — letting the caller surface the "specify a profile" error.
+func (a *App) resolveProjectBrandProfile(cmd *cobra.Command, locale, channel string) (*brand.VoiceProfile, string, bool, error) {
+	projectPath, err := ResolveProjectPath(cmd)
+	if err != nil {
+		return nil, "", false, err
+	}
+	if projectPath == "" {
+		return nil, "", false, nil
+	}
+
+	root := filepath.Dir(projectPath)
+
+	// Load the recipe to read defaults.brand_voice. Skip the
+	// requires-extension check so brand resolution does not demand plugins
+	// that brand check/rewrite/guide don't actually use.
+	proj, lerr := project.LoadWithOptions(projectPath, project.LoadOptions{SkipRequiresCheck: true})
+	if lerr != nil {
+		return nil, "", false, fmt.Errorf("load project for brand voice: %w", lerr)
+	}
+
+	profile, src, found, err := a.loadBoundBrandProfile(cmd, proj, root)
+	if err != nil {
+		return nil, "", false, err
+	}
+	if !found {
+		// Convention files at the project root.
+		for _, conv := range []string{
+			filepath.Join(root, "brand.yaml"),
+			filepath.Join(root, project.StateDirName, "brand.yaml"),
+		} {
+			p, lerr := loadProfileFile(conv)
+			if lerr != nil {
+				return nil, "", false, lerr
+			}
+			if p != nil {
+				profile, src, found = p, conv, true
+				break
+			}
+		}
+	}
+	if !found {
+		return nil, "", false, nil
+	}
+
+	if locale != "" || channel != "" {
+		profile = brand.ResolveProfile(profile, locale, channel)
+	}
+	return profile, src, true, nil
+}
+
+// loadBoundBrandProfile resolves the recipe's defaults.brand_voice binding
+// into a VoiceProfile. Returns found=false when the recipe has no binding.
+// profile_file paths are resolved relative to the project root.
+func (a *App) loadBoundBrandProfile(cmd *cobra.Command, proj *project.KapiProject, root string) (*brand.VoiceProfile, string, bool, error) {
+	bv := proj.Defaults.BrandVoice
+	if bv == nil {
+		return nil, "", false, nil
+	}
+	switch {
+	case bv.ProfileFile != "":
+		path := bv.ProfileFile
+		if !filepath.IsAbs(path) {
+			path = filepath.Join(root, path)
+		}
+		p, err := loadProfileFile(path)
+		if err != nil {
+			return nil, "", false, err
+		}
+		if p == nil {
+			return nil, "", false, fmt.Errorf("brand voice profile file %q (from defaults.brand_voice.profile_file) not found", path)
+		}
+		return p, path, true, nil
+	case bv.Pack != "":
+		p, err := packs.Load(bv.Pack)
+		if err != nil {
+			return nil, "", false, err
+		}
+		return p, "pack:" + bv.Pack, true, nil
+	case bv.Profile != "":
+		p, err := a.lookupStoreProfile(cmd, bv.Profile)
+		if err != nil {
+			return nil, "", false, err
+		}
+		return p, "store:" + bv.Profile, true, nil
+	}
+	return nil, "", false, nil
+}
+
+// loadProfileFile loads a VoiceProfile YAML from path. Returns (nil, nil) when
+// the file does not exist so callers can fall through to other sources.
+func loadProfileFile(path string) (*brand.VoiceProfile, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("open profile %q: %w", path, err)
+	}
+	defer f.Close()
+	p, err := brand.LoadProfileYAML(f)
+	if err != nil {
+		return nil, fmt.Errorf("load profile %q: %w", path, err)
+	}
+	return p, nil
 }
 
 // lookupStoreProfile finds a profile in the local store by ID or by name.

@@ -1,4 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import type { Run } from "@neokapi/kapi-format";
+import { flattenRuns } from "@neokapi/kapi-format";
 import type { TMAdapter } from "./adapters";
 import type {
   TMEntryDTO,
@@ -9,7 +11,6 @@ import type {
   VariantDTO,
   VariantInputDTO,
 } from "./types";
-import type { SpanInfo } from "../../types/span";
 import { LocalePill } from "./LocalePill";
 import { BulkActionBar } from "./BulkActionBar";
 import { Pagination } from "./Pagination";
@@ -43,17 +44,12 @@ interface TMBrowserProps {
 const PAGE_SIZE = 50;
 
 /**
- * Picks a fragment coded field and spans from a variant, falling back to
- * plain text when no coded content is present.
+ * Builds a variant input from a Run sequence, deriving the flattened
+ * plain text and attaching the runs when any inline content is present.
  */
-function variantForInput(
-  text: string,
-  coded: string | null,
-  spans: SpanInfo[] | null,
-): VariantInputDTO {
-  const input: VariantInputDTO = { text };
-  if (coded) input.coded = coded;
-  if (spans && spans.length > 0) input.spans = spans;
+function variantForInput(runs: Run[]): VariantInputDTO {
+  const input: VariantInputDTO = { text: flattenRuns(runs) };
+  if (runs.length > 0) input.runs = runs;
   return input;
 }
 
@@ -292,15 +288,14 @@ export function TMBrowser({
 
   // --- CRUD ---
   const handleEditVariant = useCallback(
-    async (entry: TMEntryDTO, locale: string, codedText: string, spans: SpanInfo[]) => {
+    async (entry: TMEntryDTO, locale: string, runs: Run[]) => {
       try {
-        const plainText = codedText.replace(/[\uE001\uE002\uE003]/g, "");
         const nextVariants: Record<string, VariantInputDTO> = {};
         for (const [l, v] of Object.entries(entry.variants)) {
           if (l === locale) {
-            nextVariants[l] = variantForInput(plainText, codedText, spans);
+            nextVariants[l] = variantForInput(runs);
           } else {
-            nextVariants[l] = variantForInput(v.text, v.coded, v.spans);
+            nextVariants[l] = variantForInput(v.runs);
           }
         }
         await adapter.updateEntry({
@@ -656,9 +651,7 @@ export function TMBrowser({
                   entry={withHint(entry, viewMode === "bilingual" ? bilingualSrc : null)}
                   selected={selected.has(entry.id)}
                   onToggleSelect={() => toggleSelect(entry.id)}
-                  onEditVariant={(locale, codedText, spans) =>
-                    void handleEditVariant(entry, locale, codedText, spans)
-                  }
+                  onEditVariant={(locale, runs) => void handleEditVariant(entry, locale, runs)}
                   onDelete={() => void handleDelete(entry.id)}
                   visibleLocales={viewMode === "bilingual" ? bilingualVisible : displayLocales}
                 />

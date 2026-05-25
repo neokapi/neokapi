@@ -99,6 +99,55 @@ type Dataset struct {
 	Entries     []Entry `json:"entries"`
 }
 
+// CommandFlag describes one flag on a CLI command.
+type CommandFlag struct {
+	Name      string `json:"name"`
+	Shorthand string `json:"shorthand,omitempty"`
+	Usage     string `json:"usage,omitempty"`
+	Default   string `json:"default,omitempty"`
+	Type      string `json:"type,omitempty"`
+}
+
+// CommandEntry describes one command or subcommand in the kapi CLI.
+// The JSON shape is consumed by packages/reference-data/src/types.ts.
+type CommandEntry struct {
+	// ID is the dot-joined command path, e.g. "formats.list".
+	ID string `json:"id"`
+	// Path is the ordered list of command names from root to this command,
+	// e.g. ["formats", "list"]. The root "kapi" is excluded.
+	Path []string `json:"path"`
+	// Use is the cobra Use string (first word is the command name).
+	Use string `json:"use"`
+	// Short is the one-line description.
+	Short string `json:"short,omitempty"`
+	// Long is the multi-line description.
+	Long string `json:"long,omitempty"`
+	// Aliases is the list of alternative command names.
+	Aliases []string `json:"aliases,omitempty"`
+	// GroupID is the cobra command group, e.g. "processing", "management".
+	GroupID string `json:"groupID,omitempty"`
+	// Flags are the command-local flags (not inherited persistent flags).
+	Flags []CommandFlag `json:"flags,omitempty"`
+	// Examples is the cobra Example string, split into individual lines.
+	Examples []string `json:"examples,omitempty"`
+	// OfflineCapable is true when this command needs no network (editorial
+	// "run here vs watch" signal). Derived from a curated override map + heuristic.
+	OfflineCapable bool `json:"offlineCapable"`
+	// RunnableInBrowser is true when the command is present in the kapi-wasm-cli
+	// buildRoot and can actually execute in the playground — offline commands
+	// directly, and AI/MT commands via the demo provider. This gates the Run button.
+	RunnableInBrowser bool `json:"runnableInBrowser"`
+	// DemoMode is true for commands that run in-browser only via the deterministic
+	// demo provider (AI/MT): their output is illustrative, not from a real model.
+	DemoMode bool `json:"demoMode"`
+}
+
+// CommandDataset is the top-level JSON document for commands.json.
+type CommandDataset struct {
+	GeneratedAt string         `json:"generatedAt"`
+	Commands    []CommandEntry `json:"commands"`
+}
+
 // Gap is one missing-metadata finding flagged for follow-up.
 type Gap struct {
 	Kind   string `json:"kind"`

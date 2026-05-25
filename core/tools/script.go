@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strconv"
 
 	"github.com/dop251/goja"
 	"github.com/neokapi/neokapi/core/model"
@@ -182,9 +183,35 @@ func (s *ScriptTool) runScript(part *model.Part) ([]*model.Part, error) {
 		return goja.Undefined()
 	})
 
-	_, err := s.vm.RunProgram(s.program)
-	if err != nil {
+	// Run the program. In the implicit-globals form this executes the logic
+	// against `part`; in the function form it (re)defines process().
+	if _, err := s.vm.RunProgram(s.program); err != nil {
 		return nil, err
+	}
+
+	// Function form: if the script defined `function process(part) { … }`, call
+	// it for this Part. emit()/skip() inside it work exactly as in the globals
+	// form; as a convenience the return value is also honored — return a part
+	// (or an array of parts) to emit, return null to drop it, return nothing to
+	// pass it through unchanged.
+	if pv := s.vm.Get("process"); pv != nil {
+		if processFn, ok := goja.AssertFunction(pv); ok {
+			ret, err := processFn(goja.Undefined(), jsObj)
+			if err != nil {
+				return nil, err
+			}
+			if !skipped && !emitCalled && ret != nil {
+				switch {
+				case goja.IsNull(ret):
+					skipped = true
+				case goja.IsUndefined(ret):
+					// Pass-through: handled by the !emitCalled branch below.
+				default:
+					emitted = append(emitted, s.returnedParts(ret, part)...)
+					emitCalled = true
+				}
+			}
+		}
 	}
 
 	if skipped {
@@ -194,6 +221,29 @@ func (s *ScriptTool) runScript(part *model.Part) ([]*model.Part, error) {
 		return []*model.Part{part}, nil
 	}
 	return emitted, nil
+}
+
+// returnedParts converts a process() return value into emitted parts, applying
+// any edits back onto the original Part. The value may be a single part object
+// or an array of them.
+func (s *ScriptTool) returnedParts(v goja.Value, original *model.Part) []*model.Part {
+	obj := v.ToObject(s.vm)
+	if obj.ClassName() != "Array" {
+		return []*model.Part{jsToPartUpdate(s.vm, obj, original)}
+	}
+	var out []*model.Part
+	length := 0
+	if n := obj.Get("length"); n != nil {
+		length = int(n.ToInteger())
+	}
+	for i := range length {
+		el := obj.Get(strconv.Itoa(i))
+		if el == nil || goja.IsUndefined(el) || goja.IsNull(el) {
+			continue
+		}
+		out = append(out, jsToPartUpdate(s.vm, el.ToObject(s.vm), original))
+	}
+	return out
 }
 
 // partTypeString returns a JS-friendly string for a PartType.
@@ -238,7 +288,10 @@ func blockToJS(vm *goja.Runtime, block *model.Block) *goja.Object {
 	_ = obj.Set("id", block.ID)
 	_ = obj.Set("translatable", block.Translatable)
 
-	// Source segments as array of {content: {text: "..."}}
+	// Source segments as a native JS array of {content: {text: "..."}}. Using
+	// vm.NewArray (rather than Set-ing a Go []any) makes in-place edits such as
+	// part.block.source[0].content.text = "..." round-trip through Export — a
+	// Go-slice-backed value would not reflect nested mutations on readback.
 	source := make([]any, 0, len(block.Source))
 	for _, seg := range block.Source {
 		segObj := vm.NewObject()
@@ -247,9 +300,9 @@ func blockToJS(vm *goja.Runtime, block *model.Block) *goja.Object {
 		_ = segObj.Set("content", contentObj)
 		source = append(source, segObj)
 	}
-	_ = obj.Set("source", source)
+	_ = obj.Set("source", vm.NewArray(source...))
 
-	// Targets as map of locale -> [{content: {text: "..."}}]
+	// Targets as a map of locale -> native JS array of {content: {text: "..."}}.
 	targets := vm.NewObject()
 	for locale, segs := range block.Targets {
 		localeSegs := make([]any, 0, len(segs))
@@ -260,7 +313,7 @@ func blockToJS(vm *goja.Runtime, block *model.Block) *goja.Object {
 			_ = segObj.Set("content", contentObj)
 			localeSegs = append(localeSegs, segObj)
 		}
-		_ = targets.Set(string(locale), localeSegs)
+		_ = targets.Set(string(locale), vm.NewArray(localeSegs...))
 	}
 	_ = obj.Set("targets", targets)
 

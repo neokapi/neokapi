@@ -74,7 +74,7 @@ neokapi/                              ── Framework Module ──
 ├── go.mod                           # module github.com/neokapi/neokapi
 ├── go.work                          # workspace: use . and ./bowrain
 │
-├── model/                           # Part, Block, Layer, Fragment, Span, Data, Media
+├── model/                           # Part, Block, Layer, Segment, Run, Data, Media
 ├── format/                          # DataFormatReader/Writer interfaces, detection
 ├── tool/                            # Tool interface, BaseTool dispatch
 ├── flow/                            # Executor, Builder, FlowDefinition
@@ -184,21 +184,14 @@ classDiagram
 
     class Segment {
         +string ID
-        +Fragment Content
+        +[]Run Runs
     }
 
-    class Fragment {
-        +string CodedText
-        +[]Span Spans
-        +Text() string
-        +HasSpans() bool
-    }
-
-    class Span {
-        +SpanType SpanType
-        +string Type
-        +string ID
-        +string Data
+    class Run {
+        +TextRun Text
+        +PlaceholderRun Ph
+        +PcOpenRun PcOpen
+        +PcCloseRun PcClose
     }
 
     class Data {
@@ -223,29 +216,31 @@ classDiagram
     Layer --> Data : contains
     Layer --> Media : contains
     Block --> Segment : Source, Targets
-    Segment --> Fragment : Content
-    Fragment --> Span : Spans
+    Segment --> Run : Runs
 ```
 
 Embedded content (HTML inside JSON, CDATA in XML) is modeled as nested
 Layers, each with its own DataFormat. See
 [AD-002](ad/002-content-model.md).
 
-### Inline Span Encoding
+### Inline Content as Runs
 
-Fragments use coded text: inline markup is replaced by Unicode PUA markers
-(U+E000-U+E0FF), with the actual markup stored in the Spans slice. This
-allows string operations on text without corrupting markup.
+A Segment's content is a flat sequence of typed `Run` values (RFC 0001).
+Plain text is a `TextRun`; paired inline markup becomes a `PcOpenRun` /
+`PcCloseRun` sharing an ID; standalone placeholders (variables, `<br/>`,
+icons) are a `PlaceholderRun`. Inline markup never lives inside the text
+string, so text operations cannot corrupt it.
 
 ```
 Source HTML: "Click <b>here</b> for info"
 
-Fragment:
-    CodedText: "Click \uE001here\uE002 for info"
-    Spans: [
-        {SpanType: SpanOpening, Type: "bold", Data: "<b>"},
-        {SpanType: SpanClosing, Type: "bold", Data: "</b>"},
-    ]
+Segment.Runs: [
+    {Text:    {Text: "Click "}},
+    {PcOpen:  {ID: "1", Type: "fmt:bold", Data: "<b>"}},
+    {Text:    {Text: "here"}},
+    {PcClose: {ID: "1", Type: "fmt:bold", Data: "</b>"}},
+    {Text:    {Text: " for info"}},
+]
 ```
 
 ### Part Stream
@@ -272,8 +267,8 @@ DataFormatReader.Read(ctx) -> chan PartResult
 | PipelineDriver             | Executor                   |
 | Event                      | Part                       |
 | TextUnit                   | Block                      |
-| TextFragment               | Fragment                   |
-| Code                       | Span                       |
+| TextFragment               | Segment ([]Run)            |
+| Code                       | Run                        |
 | StartSubDocument/SubFilter | Child Layer                |
 | Tikal                      | kapi (CLI)                 |
 | Rainbow                    | Bowrain (desktop app)      |
@@ -314,7 +309,7 @@ type LLMProvider interface {
 
 | Channel          | Target              | Command                                                         |
 | ---------------- | ------------------- | --------------------------------------------------------------- |
-| Homebrew formula | kapi CLI            | `brew install neokapi/tap/kapi`                                 |
+| Homebrew formula | kapi CLI            | `brew install neokapi/tap/kapi-cli`                                 |
 | Homebrew Cask    | Bowrain GUI (macOS) | `brew install --cask neokapi/tap/bowrain`                       |
 | GitHub Releases  | All platforms       | Direct download                                                 |
 | Go install       | Go developers       | `go install github.com/neokapi/neokapi/bowrain/cmd/kapi@latest` |

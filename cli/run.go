@@ -60,6 +60,8 @@ Custom flows can be defined in .kapi project files or .bowrain/flows/ as YAML fi
 
 Use -p to run a flow from a .kapi project file:
   kapi run translate -p myproject.kapi`,
+		Example: `  kapi run ai-translate-qa -i app.xliff --target-lang fr
+  kapi run ai-translate-qa -i messages.json --target-lang de`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			flowName := args[0]
@@ -175,6 +177,15 @@ func (a *App) runFromProject(cmd *cobra.Command, flowName, projectPath string, o
 	// Store project context for downstream reader/writer configuration.
 	a.projectContext = ctx
 	defer func() { a.projectContext = nil }()
+
+	// Resolve standing brand-voice + glossary bindings so project-flow steps
+	// honor them with no flags (defaults.brand_voice / defaults.termbase).
+	bindings, err := a.resolveProjectBindings(cmd, proj, projectPath)
+	if err != nil {
+		return err
+	}
+	a.projectBindings = bindings
+	defer func() { a.projectBindings = nil }()
 
 	// Build resource context from project file location.
 	absProjectPath, _ := filepath.Abs(projectPath)

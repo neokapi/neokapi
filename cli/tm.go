@@ -10,6 +10,7 @@ import (
 
 	"github.com/neokapi/neokapi/cli/output"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/sievepen"
 	"github.com/spf13/cobra"
 )
@@ -32,6 +33,9 @@ Resource location (mutually exclusive):
   --file <path>   Explicit file path
 
 Default (no flag): same as --local (uses ./tm.db).`,
+		Example: `  kapi tm stats
+  kapi tm lookup "welcome back" -s en -t fr
+  kapi tm import corpus.tmx -s en -t fr`,
 	}
 
 	importCmd := a.newTMImportCmd()
@@ -52,8 +56,11 @@ Default (no flag): same as --local (uses ./tm.db).`,
 	return tmCmd
 }
 
-func (a *App) openTMSQLite(cmd *cobra.Command) (*sievepen.SQLiteTM, string, error) {
-	dbPath, err := ResolveResourcePath(cmd, "tm", "tm.db")
+func (a *App) openTMSQLite(cmd *cobra.Command) (sievepen.TMStore, string, error) {
+	if a.TMBackend != nil {
+		return a.TMBackend, "(in-memory)", nil
+	}
+	dbPath, err := a.resolveTMCmdPath(cmd)
 	if err != nil {
 		return nil, "", err
 	}
@@ -62,6 +69,43 @@ func (a *App) openTMSQLite(cmd *cobra.Command) (*sievepen.SQLiteTM, string, erro
 		return nil, dbPath, fmt.Errorf("open TM: %w", err)
 	}
 	return tm, dbPath, nil
+}
+
+// resolveTMCmdPath picks the SQLite TM file a `kapi tm` subcommand operates on.
+// An explicit --name/--file/--local flag always wins. Otherwise, when run inside
+// a .kapi project, it defaults to the project's authoritative TM
+// (<projectRoot>/.kapi/tm.db) so that `kapi tm lookup`/`import`/`stats` see the
+// same TM that `kapi extract` pre-fills from and `kapi merge` writes back to —
+// without it, those commands silently hit an empty ./tm.db. Falls back to
+// ./tm.db outside a project. This mirrors resolveTermbaseCmdPath.
+func (a *App) resolveTMCmdPath(cmd *cobra.Command) (string, error) {
+	name, _ := cmd.Flags().GetString("name")
+	local, _ := cmd.Flags().GetBool("local")
+	file, _ := cmd.Flags().GetString("file")
+	if name != "" || file != "" || local {
+		return ResolveResourcePath(cmd, "tm", "tm.db")
+	}
+	if p, err := a.resolveProjectTMPath(cmd); err == nil && p != "" {
+		return p, nil
+	}
+	return ResolveResourcePath(cmd, "tm", "tm.db")
+}
+
+// resolveProjectTMPath returns the authoritative TM path for the .kapi project
+// in scope, or "" (with nil error) when no project can be located. Unlike the
+// termbase (which can be re-bound via defaults.termbase), the project TM is
+// always the conventional <projectRoot>/.kapi/tm.db — the same file
+// kapi extract and kapi merge use (see cli/extract.go and cli/merge.go).
+func (a *App) resolveProjectTMPath(cmd *cobra.Command) (string, error) {
+	projectPath, err := ResolveProjectPath(cmd)
+	if err != nil {
+		return "", err
+	}
+	if projectPath == "" {
+		return "", nil
+	}
+	root := filepath.Dir(projectPath)
+	return filepath.Join(root, project.StateDirName, "tm.db"), nil
 }
 
 func (a *App) newTMImportCmd() *cobra.Command {
@@ -79,6 +123,8 @@ pair set (e.g. --all-pairs --locales en-GB,fr-FR,de-DE).
 The importer auto-detects UTF-8/UTF-16 from the BOM, so Euramis exports work
 without pre-conversion. For web-crawl TMX sets (bitextor output) the per-TUV
 <prop type="source-document"> URL is recorded as Origin.Reference.`,
+		Example: `  kapi tm import corpus.tmx -s en -t fr
+  kapi tm import corpus.tmx --all-pairs --locales en,fr,de --name my-tm`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			srcLocale, _ := cmd.Flags().GetString("source-locale")
@@ -193,17 +239,21 @@ Examples:
 			// FTS5 inserts — they're the dominant cost on large
 			// corpora — and we restore text-search + fuzzy-match
 			// capability here once the bulk is done.
-			if !a.Quiet {
-				fmt.Fprintln(os.Stderr, "Rebuilding search index...")
-			}
-			if err := tm.RebuildSearchIndex(); err != nil {
-				fmt.Fprintf(os.Stderr, "warning: rebuild search index: %v\n", err)
-			}
-			if !a.Quiet {
-				fmt.Fprintln(os.Stderr, "Rebuilding fuzzy index...")
-			}
-			if err := tm.RebuildFuzzyIndex(); err != nil {
-				fmt.Fprintf(os.Stderr, "warning: rebuild fuzzy index: %v\n", err)
+			// RebuildSearchIndex/RebuildFuzzyIndex are SQLite-specific;
+			// in-memory backends skip this step (lookup stays live).
+			if sq, ok := tm.(*sievepen.SQLiteTM); ok {
+				if !a.Quiet {
+					fmt.Fprintln(os.Stderr, "Rebuilding search index...")
+				}
+				if err := sq.RebuildSearchIndex(); err != nil {
+					fmt.Fprintf(os.Stderr, "warning: rebuild search index: %v\n", err)
+				}
+				if !a.Quiet {
+					fmt.Fprintln(os.Stderr, "Rebuilding fuzzy index...")
+				}
+				if err := sq.RebuildFuzzyIndex(); err != nil {
+					fmt.Fprintf(os.Stderr, "warning: rebuild fuzzy index: %v\n", err)
+				}
 			}
 
 			if a.Quiet {
@@ -247,7 +297,7 @@ func parseLocaleList(raw string) []model.LocaleID {
 
 // importTMXFile imports a single TMX file (plain or .gz) into the TM.
 // Uses ImportTMXLocalePairs when allPairs is true, otherwise single-pair import.
-func importTMXFile(tm *sievepen.SQLiteTM, path, srcLocale, tgtLocale string, allPairs bool, locales []model.LocaleID) (int, error) {
+func importTMXFile(tm sievepen.TMStore, path, srcLocale, tgtLocale string, allPairs bool, locales []model.LocaleID) (int, error) {
 	f, err := os.Open(path)
 	if err != nil {
 		return 0, fmt.Errorf("open %s: %w", path, err)
@@ -369,7 +419,9 @@ func (a *App) newTMLookupCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "lookup [text]",
 		Short: "Look up text in translation memory",
-		Args:  cobra.ExactArgs(1),
+		Example: `  kapi tm lookup "welcome back" -s en -t fr
+  kapi tm lookup "save" -s en -t de --min-score 0.8`,
+		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			srcLocale, _ := cmd.Flags().GetString("source-locale")
 			tgtLocale, _ := cmd.Flags().GetString("target-locale")
@@ -424,7 +476,9 @@ func (a *App) newTMSearchCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "search [query]",
 		Short: "Search translation memory entries",
-		Args:  cobra.ExactArgs(1),
+		Example: `  kapi tm search "dashboard" -s en -t fr
+  kapi tm search "settings" --limit 5`,
+		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			srcLocale, _ := cmd.Flags().GetString("source-locale")
 			tgtLocale, _ := cmd.Flags().GetString("target-locale")
@@ -481,8 +535,9 @@ func (a *App) newTMSearchCmd() *cobra.Command {
 
 func (a *App) newTMStatsCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   "stats",
-		Short: "Show translation memory statistics",
+		Use:     "stats",
+		Short:   "Show translation memory statistics",
+		Example: "  kapi tm stats\n  kapi tm stats --name my-tm",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			tm, dbPath, err := a.openTMSQLite(cmd)
 			if err != nil {

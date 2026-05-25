@@ -1,28 +1,29 @@
-import type { SpanInfo } from "../../types/span";
-import { parseCodedSegments } from "../editor/codedText";
+import type { Run } from "@neokapi/kapi-format";
+
+import { runsToSegments } from "../editor/codedText";
 import { TagChipComponent } from "../editor/TagChipComponent";
 
 interface CodedTextDisplayProps {
-  /** Plain text (used when no coded text is available). */
-  text: string;
-  /** Coded text with Unicode markers. If empty/undefined, falls back to text. */
-  codedText?: string;
-  /** Span metadata for inline codes. */
-  spans?: SpanInfo[];
+  /** Inline content as an RFC 0001 Run sequence. */
+  runs?: Run[];
+  /** Plain-text fallback used when `runs` is empty/absent. */
+  text?: string;
   /** Additional CSS class. */
   className?: string;
 }
 
 /**
- * Renders text with inline codes as tag chips.
- * Falls back to plain text when no spans are present.
+ * Renders an inline Run sequence as text interleaved with tag chips.
+ * Text runs render as plain text; ph / pcOpen / pcClose / sub runs
+ * render as inline code chips. Falls back to plain `text` when no
+ * runs are present.
  */
-export function CodedTextDisplay({ text, codedText, spans, className }: CodedTextDisplayProps) {
-  if (!codedText || !spans || spans.length === 0) {
-    return <span className={className}>{text}</span>;
+export function CodedTextDisplay({ runs, text, className }: CodedTextDisplayProps) {
+  if (!runs || runs.length === 0) {
+    return <span className={className}>{text ?? ""}</span>;
   }
 
-  const segments = parseCodedSegments(codedText, spans);
+  const segments = runsToSegments(runs);
 
   return (
     <span className={className}>

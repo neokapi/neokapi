@@ -403,8 +403,7 @@ export function TMSearchBar({
                           <LocalePill locale={src.locale} />
                           <CodedTextDisplay
                             text={src.text}
-                            codedText={src.coded}
-                            spans={src.spans}
+                            runs={src.runs}
                             className="text-[12px] text-foreground flex-1"
                           />
                         </div>
@@ -414,8 +413,7 @@ export function TMSearchBar({
                           <LocalePill locale={tgt.locale} />
                           <CodedTextDisplay
                             text={tgt.text}
-                            codedText={tgt.coded}
-                            spans={tgt.spans}
+                            runs={tgt.runs}
                             className="text-[12px] text-muted-foreground flex-1"
                           />
                         </div>

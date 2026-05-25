@@ -115,7 +115,7 @@ func NewSourceConnector(project *Project, formatReg *registry.FormatRegistry) (*
 	case workspace != "":
 		authInfo, err := config.LoadAuth()
 		if err != nil {
-			return nil, errors.New("workspace sync requires authentication: run 'bowrain auth login'")
+			return nil, errors.New("workspace sync requires authentication: run 'kapi auth login'")
 		}
 		if authInfo.ServerURL != "" && authInfo.ServerURL != serverURL {
 			return nil, fmt.Errorf("auth token is for %s but project points to %s", authInfo.ServerURL, serverURL)

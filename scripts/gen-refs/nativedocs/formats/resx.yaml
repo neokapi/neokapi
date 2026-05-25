@@ -1,0 +1,42 @@
+# Native reference doc for the built-in `resx` format.
+# Schema source: core/formats/resx/config.go (Config) + schema.go.
+# Supersedes the generic xml ResXConfig() preset (which cannot attach
+# <comment> notes); this is a first-class, byte-faithful reader/writer.
+description: Extract and update translatable strings in Microsoft .NET RESX 2.0 and .resw resource files.
+overview: |
+  The **.NET RESX** format reads Microsoft ResX 2.0 resource files and their
+  string-only `.resw` variant — the standard localization container for .NET
+  applications (locale by satellite filename, e.g. `Strings.fr.resx`).
+
+  String `<data>` entries become translatable blocks: the `name` attribute is
+  the block name, `<value>` is the source, a sibling `<comment>` becomes a
+  translator note, and `xml:space="preserve"` is honored. .NET composite-format
+  placeholders such as `{0}` and `{1:t}` are protected as inline codes. Typed
+  and binary `<data>` (those carrying `type`/`mimetype`), `<metadata>`,
+  `<assembly>`, name-reference entries, and the `<resheader>` boilerplate pass
+  through untouched. Round-trips are byte-faithful — only changed `<value>`
+  content is spliced back into the original document.
+parameters:
+  extractComments:
+    description: Attach each entry's <comment> as a translator note.
+    help: |
+      When enabled (the default), a string entry's sibling `<comment>` element
+      is attached to the block as a translator note. Disable to ignore
+      comments.
+    values: "`true` / `false` (default `true`)"
+  skipNameDataReferences:
+    description: Skip name-reference (>>name) data entries.
+    help: |
+      When enabled (the default), `<data>` entries whose name begins with `>`
+      (file/resource references rather than inline string values) are not
+      extracted.
+    values: "`true` / `false` (default `true`)"
+processingNotes:
+  - Only string `<data>` entries are translatable; typed/binary data, metadata, assembly, and resheader entries pass through untouched.
+  - "`xml:space=\"preserve\"` on an entry sets the block's preserve-whitespace flag."
+  - .NET composite-format placeholders (`{0}`, `{1:t}`) are protected as inline codes.
+examples:
+  - title: Ignore comments
+    description: Do not turn <comment> elements into translator notes.
+    config: |
+      extractComments: false

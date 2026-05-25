@@ -10,7 +10,7 @@ scenes:
     fixtures:
       - messages.json
     smoke_contract:
-      - kapi word-count fixtures/messages.json
+      - kapi word-count messages.json
 ---
 
 ## Story

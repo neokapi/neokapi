@@ -36,7 +36,7 @@ func NewReader() *Reader {
 			FormatName:        "regex",
 			FormatDisplayName: "Regex Extraction",
 			FormatMimeType:    "text/x-regex",
-			FormatExtensions:  []string{".strings", ".ini", ".info", ".rls"},
+			FormatExtensions:  []string{".ini", ".info", ".rls"},
 			Cfg:               cfg,
 		},
 		cfg: cfg,
@@ -52,7 +52,7 @@ func (r *Reader) SetSkeletonStore(store *format.SkeletonStore) {
 func (r *Reader) Signature() format.FormatSignature {
 	return format.FormatSignature{
 		MIMETypes:  []string{"text/x-regex"},
-		Extensions: []string{".strings", ".ini", ".info", ".rls"},
+		Extensions: []string{".ini", ".info", ".rls"},
 	}
 }
 

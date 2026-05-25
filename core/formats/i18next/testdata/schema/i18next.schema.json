@@ -1,0 +1,28 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://neokapi.dev/schemas/i18next/i18next.schema.json",
+  "title": "i18next resource bundle (structural)",
+  "description": "A faithful de-facto structural schema for an i18next / react-i18next JSON resource bundle. i18next has no official JSON Schema (the format is defined by library convention at https://www.i18next.com/misc/json-format), so this schema captures the recursive value shape the library reads: a JSON object whose leaf values are translation strings, and whose intermediate values are nested namespaces (objects). Arrays of strings are permitted because i18next supports array-valued keys (returnObjects / joinArrays). Plural sibling keys (key_one/key_other), context keys (key_male), nesting ($t(...)), and interpolation ({{var}}) are all ordinary string values under this schema — there is no key-name constraint, exactly as i18next imposes none. The purpose is to assert that a translated bundle remains a well-formed i18next resource object (no value collapsed to a number/bool, no key promoted to a non-object/non-string).",
+  "$ref": "#/definitions/namespace",
+  "definitions": {
+    "namespace": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/definitions/value" }
+    },
+    "value": {
+      "oneOf": [
+        { "type": "string" },
+        { "$ref": "#/definitions/namespace" },
+        {
+          "type": "array",
+          "items": {
+            "oneOf": [
+              { "type": "string" },
+              { "$ref": "#/definitions/namespace" }
+            ]
+          }
+        }
+      ]
+    }
+  }
+}

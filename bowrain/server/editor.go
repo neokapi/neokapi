@@ -152,32 +152,19 @@ type ProjectItemResponse struct {
 	WordCount    int    `json:"word_count"`
 }
 
-// SpanInfoResponse describes an inline span element.
-type SpanInfoResponse struct {
-	SpanType    string `json:"span_type"`
-	Type        string `json:"type"`
-	ID          string `json:"id"`
-	Data        string `json:"data"`
-	SubType     string `json:"sub_type,omitempty"`
-	DisplayText string `json:"display_text,omitempty"`
-	EquivText   string `json:"equiv_text,omitempty"`
-	Deletable   bool   `json:"deletable,omitempty"`
-	Cloneable   bool   `json:"cloneable,omitempty"`
-	CanReorder  bool   `json:"can_reorder,omitempty"`
-}
-
 // BlockInfoResponse is a serializable representation of a translatable block.
+// Inline markup travels as RFC 0001 Run sequences (source_runs / targets_runs),
+// the same content model the gRPC editor uses; there is no coded-text form.
 type BlockInfoResponse struct {
-	ID           string               `json:"id"`
-	Source       string               `json:"source"`
-	SourceCoded  string               `json:"source_coded,omitempty"`
-	SourceSpans  []SpanInfoResponse   `json:"source_spans,omitempty"`
-	Targets      map[string]string    `json:"targets"`
-	TargetsCoded map[string]string    `json:"targets_coded,omitempty"`
-	Translatable bool                 `json:"translatable"`
-	HasSpans     bool                 `json:"has_spans"`
-	Properties   map[string]string    `json:"properties"`
-	Entities     []EntityInfoResponse `json:"entities,omitempty"`
+	ID             string                 `json:"id"`
+	Source         string                 `json:"source"`
+	SourceRuns     []model.Run            `json:"source_runs,omitempty"`
+	Targets        map[string]string      `json:"targets"`
+	TargetsRuns    map[string][]model.Run `json:"targets_runs,omitempty"`
+	Translatable   bool                   `json:"translatable"`
+	HasInlineCodes bool                   `json:"has_inline_codes"`
+	Properties     map[string]string      `json:"properties"`
+	Entities       []EntityInfoResponse   `json:"entities,omitempty"`
 }
 
 // EntityInfoResponse represents an entity annotation on a block.
@@ -212,14 +199,12 @@ type UpdateBlockTargetRequest struct {
 	Text         string `json:"text"`
 }
 
-// UpdateBlockTargetCodedRequest holds parameters for coded text update.
-// The JSON field name `coded_text` is kept for wire compatibility with
-// the editor client; the Go field is named `Coded` to stay clear of the
-// RFC 0001 Phase 2 acceptance grep.
-type UpdateBlockTargetCodedRequest struct {
-	TargetLocale string             `json:"target_locale"`
-	Coded        string             `json:"coded_text"`
-	Spans        []SpanInfoResponse `json:"spans"`
+// UpdateBlockTargetRunsRequest updates a block target from a Run sequence —
+// the Run-native counterpart of UpdateBlockTargetRequest (which carries plain
+// text). The runs are stored verbatim as the target's first segment.
+type UpdateBlockTargetRunsRequest struct {
+	TargetLocale string      `json:"target_locale"`
+	Runs         []model.Run `json:"runs"`
 }
 
 // TranslateRequest holds parameters for translation operations.
@@ -656,49 +641,17 @@ func editorUpdateBlockTarget(ctx context.Context, cs store.ContentStore, project
 	return cs.StoreBlocks(ctx, projectID, stream, []*model.Block{sb.Block})
 }
 
-// editorUpdateBlockTargetCoded loads a block, updates its target with coded text, and stores it back.
-func editorUpdateBlockTargetCoded(ctx context.Context, cs store.ContentStore, projectID, stream, blockID string, req UpdateBlockTargetCodedRequest) error {
+// editorUpdateBlockTargetRuns loads a block, updates its target with the given
+// Run sequence, and stores it back.
+func editorUpdateBlockTargetRuns(ctx context.Context, cs store.ContentStore, projectID, stream, blockID string, req UpdateBlockTargetRunsRequest) error {
 	sb, err := cs.GetBlock(ctx, projectID, stream, blockID)
 	if err != nil {
 		return err
 	}
 
-	sb.Block.SetTargetRuns(model.LocaleID(req.TargetLocale), editorRequestToRuns(req.Coded, req.Spans))
+	sb.Block.SetTargetRuns(model.LocaleID(req.TargetLocale), req.Runs)
 
 	return cs.StoreBlocks(ctx, projectID, stream, []*model.Block{sb.Block})
-}
-
-// editorRequestToRuns converts an editor's coded form + span list into a
-// Run sequence. Each PUA marker in the coded form consumes the next entry
-// in spans and emits the matching Run kind.
-func editorRequestToRuns(coded string, spans []SpanInfoResponse) []model.Run {
-	if coded == "" {
-		return nil
-	}
-	var runs []model.Run
-	var text []rune
-	flushText := func() {
-		if len(text) > 0 {
-			runs = append(runs, model.Run{Text: &model.TextRun{Text: string(text)}})
-			text = text[:0]
-		}
-	}
-	idx := 0
-	for _, r := range coded {
-		switch r {
-		case model.MarkerOpening, model.MarkerClosing, model.MarkerPlaceholder:
-			flushText()
-			if idx >= len(spans) {
-				continue
-			}
-			runs = append(runs, editorInfoToRun(r, spans[idx]))
-			idx++
-		default:
-			text = append(text, r)
-		}
-	}
-	flushText()
-	return runs
 }
 
 // editorPseudoTranslate pseudo-translates all blocks for an item.
@@ -890,9 +843,9 @@ func editorGetWordCount(ctx context.Context, cs store.ContentStore, projectID, s
 
 // editorExportTranslatedFile is no longer supported server-side.
 // Source bytes are no longer stored in the Item model. Use the CLI
-// ('bowrain pull') for translated file export.
+// ('kapi pull') for translated file export.
 func editorExportTranslatedFile(_ context.Context, _ store.ContentStore, _ *registry.FormatRegistry, _, _, itemName, _, _ string) (string, error) {
-	return "", fmt.Errorf("server-side export not available for %q: use 'bowrain pull' for translated file export", itemName)
+	return "", fmt.Errorf("server-side export not available for %q: use 'kapi pull' for translated file export", itemName)
 }
 
 // editorLookupTMForBlock looks up TM matches for a specific block.
@@ -1154,27 +1107,35 @@ func enrichBlockInfoResponse(bi *BlockInfoResponse, block *model.Block, targetLo
 	if len(block.Source) == 0 || len(block.Source[0].Runs) == 0 {
 		return
 	}
-	coded, spans := model.MarshalRuns(block.Source[0].Runs)
-	if len(spans) == 0 {
+	srcRuns := block.Source[0].Runs
+	if !runsHaveInlineCodes(srcRuns) {
+		// Plain-text blocks carry their content in Source/Targets already;
+		// only blocks with inline markup need the Run sequences.
 		return
 	}
 
-	bi.HasSpans = true
-	bi.SourceCoded = coded
-	bi.SourceSpans = make([]SpanInfoResponse, len(spans))
-	for i, s := range spans {
-		bi.SourceSpans[i] = editorSpanToInfo(s)
-	}
+	bi.HasInlineCodes = true
+	bi.SourceRuns = srcRuns
 
-	bi.TargetsCoded = make(map[string]string, len(targetLocales))
+	bi.TargetsRuns = make(map[string][]model.Run, len(targetLocales))
 	for _, locale := range targetLocales {
 		segs, ok := block.Targets[model.LocaleID(locale)]
 		if !ok || len(segs) == 0 || len(segs[0].Runs) == 0 {
 			continue
 		}
-		targetCoded, _ := model.MarshalRuns(segs[0].Runs)
-		bi.TargetsCoded[locale] = targetCoded
+		bi.TargetsRuns[locale] = segs[0].Runs
 	}
+}
+
+// runsHaveInlineCodes reports whether a Run sequence contains any non-text
+// run (paired code, placeholder, sub, plural, or select).
+func runsHaveInlineCodes(runs []model.Run) bool {
+	for _, r := range runs {
+		if r.Text == nil {
+			return true
+		}
+	}
+	return false
 }
 
 // enrichBlockEntities extracts entity and term-candidate annotations from a block.
@@ -1245,73 +1206,6 @@ func runToolOnParts(ctx context.Context, t tool.Tool, parts []*model.Part) ([]*m
 		result = append(result, pt)
 	}
 	return result, nil
-}
-
-func editorSpanToInfo(s *model.Span) SpanInfoResponse {
-	var spanType string
-	switch s.SpanType {
-	case model.SpanOpening:
-		spanType = "opening"
-	case model.SpanClosing:
-		spanType = "closing"
-	case model.SpanPlaceholder:
-		spanType = "placeholder"
-	}
-	return SpanInfoResponse{
-		SpanType:    spanType,
-		Type:        s.Type,
-		ID:          s.ID,
-		Data:        s.Data,
-		SubType:     s.SubType,
-		DisplayText: s.DisplayText,
-		EquivText:   s.EquivText,
-		Deletable:   s.Deletable,
-		Cloneable:   s.Cloneable,
-		CanReorder:  s.CanReorder,
-	}
-}
-
-// editorInfoToRun converts a single SpanInfoResponse + marker into a Run.
-// The marker (one of MarkerOpening / MarkerClosing / MarkerPlaceholder) is
-// the wire-level discriminator that selects the Run kind; the response's
-// SpanType field, while informative, is not authoritative — readers always
-// trust the marker.
-func editorInfoToRun(marker rune, si SpanInfoResponse) model.Run {
-	constraints := &model.RunConstraints{
-		Deletable:   si.Deletable,
-		Cloneable:   si.Cloneable,
-		Reorderable: si.CanReorder,
-	}
-	switch marker {
-	case model.MarkerOpening:
-		return model.Run{PcOpen: &model.PcOpenRun{
-			ID:          si.ID,
-			Type:        si.Type,
-			SubType:     si.SubType,
-			Data:        si.Data,
-			Equiv:       si.EquivText,
-			Disp:        si.DisplayText,
-			Constraints: constraints,
-		}}
-	case model.MarkerClosing:
-		return model.Run{PcClose: &model.PcCloseRun{
-			ID:      si.ID,
-			Type:    si.Type,
-			SubType: si.SubType,
-			Data:    si.Data,
-			Equiv:   si.EquivText,
-		}}
-	default:
-		return model.Run{Ph: &model.PlaceholderRun{
-			ID:          si.ID,
-			Type:        si.Type,
-			SubType:     si.SubType,
-			Data:        si.Data,
-			Equiv:       si.EquivText,
-			Disp:        si.DisplayText,
-			Constraints: constraints,
-		}}
-	}
 }
 
 // editorPseudoRuns walks a Run sequence and applies pseudo-accent to TextRun
