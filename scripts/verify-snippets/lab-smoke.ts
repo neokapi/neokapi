@@ -119,5 +119,27 @@ ok("ai-translate flow runs offline (demo provider) exits 0", aicode === 0, `code
 const aitrace = JSON.parse(dec.decode(mem.vol.readFile("/project/aitrace.json")));
 ok("ai flow trace has part snapshots", Object.keys(aitrace.parts ?? {}).length > 0, `parts=${Object.keys(aitrace.parts ?? {}).length}`);
 
+// ── 5. the script tool runs user JS in WASM (goja) — the Script Lab path ──────
+// JS uses single quotes so it sits cleanly inside a double-quoted YAML scalar.
+const SCRIPT_RECIPE = `version: v1
+name: Lab
+defaults:
+  source_language: en
+flows:
+  lab:
+    steps:
+      - tool: script
+        config:
+          code: "if (part.type === 'block') { part.block.source[0].content.text = part.block.source[0].content.text.toUpperCase(); } emit(part);"
+`;
+mem.vol.writeFile("/project/script.kapi", enc.encode(SCRIPT_RECIPE));
+const scode: number = await (globalThis as any).kapiRun([
+  "run", "lab", "-p", "/project/script.kapi", "-i", "/project/sample.json",
+  "-o", "/project/out-script.json", "--target-lang", "qps", "--trace", "/project/scripttrace.json",
+]);
+ok("script tool (goja) runs user JS in WASM, exits 0", scode === 0, `code=${scode}`);
+const scriptOut = dec.decode(mem.vol.readFile("/project/out-script.json"));
+ok("script transformed block text (uppercased)", /HELLO|YOUR CART IS EMPTY|SEE YOU TOMORROW/.test(scriptOut), scriptOut.slice(0, 80));
+
 console.log(failures === 0 ? "\nALL LAB SMOKE CHECKS PASSED" : `\n${failures} CHECK(S) FAILED`);
 process.exit(failures === 0 ? 0 : 1);

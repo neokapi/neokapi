@@ -5,6 +5,7 @@ import { AnatomyExplorer, PipelineExplorer } from "@site/src/components/Lab";
 import { ToolLab } from "@site/src/components/Lab/ToolLab";
 import { RoundTripExplorer } from "@site/src/components/Lab/RoundTripExplorer";
 import { FlowBuilderRunner } from "@site/src/components/Lab/FlowBuilderRunner";
+import { ScriptLab } from "@site/src/components/Lab/ScriptLab";
 import styles from "./index.module.css";
 
 // The Lab is the free-play destination that composes every interactive
@@ -120,6 +121,21 @@ export default function LabPage(): React.ReactElement {
           }
         >
           <FlowBuilderRunner defaultSampleId="messages-json" />
+        </Section>
+
+        <Section
+          step="06 · Scripting"
+          title="Script — write your own transform"
+          intro={
+            <>
+              When no built-in tool fits, the <code>script</code> tool runs a small
+              JavaScript program over each Part. Edit it with full autocomplete,
+              load an example, and run it on your file — modify the text, filter
+              parts, redact, or just <code>log()</code> what flows through.
+            </>
+          }
+        >
+          <ScriptLab defaultSampleId="messages-json" />
         </Section>
       </main>
     </Layout>

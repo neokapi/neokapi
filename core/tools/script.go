@@ -238,7 +238,10 @@ func blockToJS(vm *goja.Runtime, block *model.Block) *goja.Object {
 	_ = obj.Set("id", block.ID)
 	_ = obj.Set("translatable", block.Translatable)
 
-	// Source segments as array of {content: {text: "..."}}
+	// Source segments as a native JS array of {content: {text: "..."}}. Using
+	// vm.NewArray (rather than Set-ing a Go []any) makes in-place edits such as
+	// part.block.source[0].content.text = "..." round-trip through Export — a
+	// Go-slice-backed value would not reflect nested mutations on readback.
 	source := make([]any, 0, len(block.Source))
 	for _, seg := range block.Source {
 		segObj := vm.NewObject()
@@ -247,9 +250,9 @@ func blockToJS(vm *goja.Runtime, block *model.Block) *goja.Object {
 		_ = segObj.Set("content", contentObj)
 		source = append(source, segObj)
 	}
-	_ = obj.Set("source", source)
+	_ = obj.Set("source", vm.NewArray(source...))
 
-	// Targets as map of locale -> [{content: {text: "..."}}]
+	// Targets as a map of locale -> native JS array of {content: {text: "..."}}.
 	targets := vm.NewObject()
 	for locale, segs := range block.Targets {
 		localeSegs := make([]any, 0, len(segs))
@@ -260,7 +263,7 @@ func blockToJS(vm *goja.Runtime, block *model.Block) *goja.Object {
 			_ = segObj.Set("content", contentObj)
 			localeSegs = append(localeSegs, segObj)
 		}
-		_ = targets.Set(string(locale), localeSegs)
+		_ = targets.Set(string(locale), vm.NewArray(localeSegs...))
 	}
 	_ = obj.Set("targets", targets)
 

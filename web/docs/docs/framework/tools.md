@@ -6,6 +6,7 @@ keywords: [tools, pipeline stage, processing, translation, QA, TM leverage, segm
 ---
 
 import { ToolLab } from "@site/src/components/Lab/ToolLab";
+import { ScriptLab } from "@site/src/components/Lab/ScriptLab";
 
 # Tools
 
@@ -189,6 +190,23 @@ configuration forms in the visual editors. A tool that opts into this advertises
 its schema through an optional interface; the generated [Tool
 Reference](/tools) renders each tool's parameters from exactly these schemas, so
 it always matches the build.
+
+## Scripting — write a transform in JavaScript
+
+Not every transform deserves its own Go tool. The built-in `script` tool runs a
+small JavaScript program against each Part: read `part`, modify
+`part.block.source` or `part.block.targets`, then `emit(part)` to keep it or
+`skip()` to drop it. It is the quickest way to prototype a one-off rule, and it
+runs anywhere the engine runs — including the browser, via the embedded
+interpreter.
+
+:::tip Write a script, run it on your file
+Edit the JavaScript below (with full autocomplete for the `part` API), or load
+an example, then run it on a sample or your own file and read the per-Block
+before/after. Modify text in place or reassign the segment array — both work.
+:::
+
+<ScriptLab defaultSampleId="messages-json" />
 
 ## Where tools come from
 

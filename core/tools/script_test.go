@@ -90,6 +90,27 @@ func TestScriptModifyTargetText(t *testing.T) {
 	assert.Equal(t, "Bonjour", resultBlock.TargetText("fr"))
 }
 
+func TestScriptModifySourceTextInPlace(t *testing.T) {
+	t.Parallel()
+	// In-place edits to source text must round-trip, not only whole-array
+	// reassignment — source/targets are exposed as native JS arrays so nested
+	// mutations reflect on readback.
+	code := `
+		if (part.type === "block") {
+			part.block.source[0].content.text = part.block.source[0].content.text.toUpperCase();
+			emit(part);
+		}
+	`
+	tl := tools.NewScriptTool(&tools.ScriptConfig{Code: code})
+
+	block := model.NewBlock("tu1", "Hello World")
+	part := &model.Part{Type: model.PartBlock, Resource: block}
+	result := processPart(t, tl, part)
+
+	resultBlock := result.Resource.(*model.Block)
+	assert.Equal(t, "HELLO WORLD", resultBlock.SourceText())
+}
+
 func TestScriptSkipDropsParts(t *testing.T) {
 	t.Parallel()
 	tl := tools.NewScriptTool(&tools.ScriptConfig{Code: "skip()"})

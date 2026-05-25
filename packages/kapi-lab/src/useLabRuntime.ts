@@ -23,7 +23,11 @@ export interface TraceOutcome {
   ok: boolean;
   error?: string;
   trace?: FlowTrace;
+  /** Captured stdout + stderr from the run (e.g. script log() output). */
+  output?: string;
 }
+
+const noop = () => {};
 
 export interface LabRuntime {
   status: LabStatus;
@@ -109,9 +113,18 @@ export function useLabRuntime(assets: LabRuntimeAssets | null): LabRuntime {
     const rt = runtimeRef.current;
     if (!rt) return { ok: false, error: "runtime not ready" };
     return serialized(async () => {
+      // Capture stdout/stderr for the duration of the run so callers can show
+      // script log() output and diagnostics. Safe because runs are serialized.
+      let captured = "";
+      rt.setSinks(
+        (s) => (captured += s),
+        (s) => (captured += s),
+      );
       const res: TraceRunResult = await rt.runWithTrace(argv);
-      if (!res.trace) return { ok: false, error: `run exited ${res.code} with no trace` };
-      return { ok: true, trace: res.trace as FlowTrace };
+      rt.setSinks(noop, noop);
+      if (!res.trace)
+        return { ok: false, error: `run exited ${res.code} with no trace`, output: captured };
+      return { ok: true, trace: res.trace as FlowTrace, output: captured };
     });
   }, []);
 
