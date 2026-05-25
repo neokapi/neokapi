@@ -131,6 +131,65 @@ cd plugins/sat && GOWORK=off CGO_ENABLED=1 CGO_LDFLAGS="-L$SAT_TOKENIZERS_LIB" \
   go test -tags "onnx satmodel" -run TestEngineSegmentEndToEnd -v ./internal/sat/
 ```
 
+## Distribution
+
+The plugin is distributed as signed, per-platform release tarballs indexed in
+the [`neokapi/registry`](https://github.com/neokapi/registry). Install it with:
+
+```sh
+kapi plugins install sat
+```
+
+### Tarball layout
+
+Each release artifact `kapi-sat_<version>_<os>_<arch>.tar.gz` contains:
+
+```
+kapi-sat[.exe]                the plugin binary (at the tarball root)
+manifest.json                 the plugin manifest (at the tarball root)
+lib/libonnxruntime.dylib      onnxruntime shared library (darwin)
+  | libonnxruntime.so         (linux)
+  | onnxruntime.dll           (windows)
+```
+
+### Bundled onnxruntime — auto-resolution
+
+The onnxruntime shared library is **bundled** at `lib/<name>` beside the binary.
+When `KAPI_SAT_ORT_LIB` is unset, `resolveORTLib()` (in
+[`internal/sat/ort_onnx.go`](internal/sat/ort_onnx.go)) loads the library from
+`<exe-dir>/lib/<name>` or `<exe-dir>/<name>` — so a registry-installed plugin
+works with **no environment configuration**. `KAPI_SAT_ORT_LIB` remains an
+explicit override (it wins when set) and is only *needed* for a from-source /
+dev build, where no bundled library sits next to the binary.
+
+The daulet/tokenizers static library is linked at **build time**, so it is not
+part of the tarball and not needed at runtime.
+
+### Models
+
+Models are **not** bundled. They download from HuggingFace on first use and are
+cached on disk (see [Models & cache](#models--cache)). The first `segment` for a
+model fetches ~428 MB (ONNX) + ~9 MB (tokenizer).
+
+### Supported platforms
+
+`darwin/arm64`, `darwin/amd64`, `linux/amd64`, `linux/arm64`, `windows/amd64`.
+
+### Release pipeline
+
+The `build-sat-plugin` matrix job in
+[`.github/workflows/release.yml`](../../.github/workflows/release.yml) builds
+each platform on a native runner (cgo, `-tags onnx`): it downloads the pinned
+onnxruntime release (the ABI matched to `yalue/onnxruntime_go`) and the pinned
+`daulet/tokenizers` static library (built from Rust source on Windows, which has
+no prebuilt archive), runs [`scripts/package-sat-plugin.sh`](../../scripts/package-sat-plugin.sh)
+to build + bundle + tar, Developer-ID signs + notarizes the macOS binary, and
+[cosign](https://github.com/sigstore/cosign)-signs every tarball (keyless;
+`<file>.sigstore.json`). The `register-sat-plugin` job then publishes the
+per-platform URLs, SHA-256s, and signatures into the registry so
+`kapi plugins install sat` can verify the download. Run the same packaging
+locally with `make package-sat-plugin SAT_TOKENIZERS_LIB=… SAT_ORT_DIR=…`.
+
 ## Models & cache
 
 | Model | Source repo | ONNX file | Tokenizer | Default threshold |
@@ -193,10 +252,14 @@ Mirrors `superlinear-ai/wtpsplit-lite` for the `*-sm` models:
 - **Spawn once, reuse.** Start `kapi-sat serve` once and keep it alive; correlate
   responses by `id`. Closing the plugin's stdin ends its loop cleanly. The
   `satproto.Client` is concurrency-safe and serializes round-trips.
-- **Runtime env.** The host must set `KAPI_SAT_ORT_LIB` to the onnxruntime
-  shared library path (the plugin does not bundle it). Optionally set
-  `KAPI_SAT_CACHE` to control where models are stored. The tokenizer lib is
-  linked at build time, not needed at runtime.
+- **Runtime env.** A registry-installed plugin needs **no** env: the install
+  tarball ships the onnxruntime shared library at `lib/<name>` beside the
+  binary, and the plugin auto-resolves it (see [Distribution](#distribution)).
+  `KAPI_SAT_ORT_LIB` remains an **override** and is only *required* for a
+  from-source / dev build (where no bundled lib sits next to the binary) — point
+  it at the onnxruntime shared library path. Optionally set `KAPI_SAT_CACHE` to
+  control where models are stored. The tokenizer lib is linked at build time,
+  not needed at runtime.
 - **First-request latency.** The first `segment` for a model downloads ~428 MB
   (ONNX) + ~9 MB (tokenizer) and loads the session. Consider an explicit warm-up
   `segment` (or surface download progress, which the plugin writes to stderr).
