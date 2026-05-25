@@ -94,8 +94,10 @@ func (l *Layer) IsEmbedded() bool { return l.ParentID != "" && l.Format != "" }
 ### Block (translatable content)
 
 ```go
-// Block is the primary translatable content unit (Okapi: TextUnit).
-// Source and target segments live directly on the Block.
+// Block is the primary translatable content unit (Okapi: TextUnit). Source is
+// a single flat run sequence; translations are first-class Target records keyed
+// by VariantKey; every interpretation of the runs (segmentation, terms, entities,
+// QA, alignment) is a stand-off Overlay. There is no structural Segment type.
 type Block struct {
     ID           string
     Name         string
@@ -103,141 +105,156 @@ type Block struct {
     MimeType     string
     Translatable bool
     Skeleton     *Skeleton
-    Source       []*Segment
-    Targets      map[LocaleID][]*Segment
+    Source       []Run
+    Targets      map[VariantKey]*Target
+    Overlays     []Overlay
     Properties   map[string]string
     Annotations  map[string]Annotation
 }
 
 func (b *Block) ResourceID() string { return b.ID }
 
-// SourceText returns the plain text of all source segments concatenated.
-func (b *Block) SourceText() string {
-    var buf strings.Builder
-    for _, seg := range b.Source {
-        buf.WriteString(seg.Content.Text())
-    }
-    return buf.String()
+// SourceText returns the plain text of the source run sequence.
+func (b *Block) SourceText() string { /* flat-text projection of Source runs */ }
+
+// SourceRuns returns the canonical source run sequence.
+func (b *Block) SourceRuns() []Run { return b.Source }
+
+// SetSourceRuns replaces the source run sequence.
+func (b *Block) SetSourceRuns(runs []Run) { b.Source = runs }
+
+// SetSourceText replaces the source with a single plain-text Run.
+func (b *Block) SetSourceText(text string) { /* b.Source = []Run{{Text: &TextRun{Text: text}}} */ }
+
+// HasTarget returns true if a locale-keyed variant exists.
+func (b *Block) HasTarget(locale LocaleID) bool { /* checks Targets[Variant(locale)] */ }
+
+// TargetLocales returns the sorted list of locales that have a Target.
+func (b *Block) TargetLocales() []LocaleID { /* sorted slice from Targets keys */ }
+
+// Target returns the locale-only variant, or nil.
+func (b *Block) Target(locale LocaleID) *Target { return b.Targets[Variant(locale)] }
+
+// TargetRuns returns the target run sequence for a locale.
+func (b *Block) TargetRuns(locale LocaleID) []Run { /* from Target(locale) */ }
+
+// TargetText returns the plain text of the target for a locale.
+func (b *Block) TargetText(locale LocaleID) string { /* flat-text projection */ }
+
+// SetTargetRuns sets the target run sequence for a locale.
+func (b *Block) SetTargetRuns(locale LocaleID, runs []Run) { /* upserts Targets[Variant(locale)] */ }
+
+// SetTargetText sets the target as a single plain-text Run for a locale.
+func (b *Block) SetTargetText(locale LocaleID, text string) { /* upserts Targets[Variant(locale)] */ }
+
+// SetTargetVariant sets an arbitrary tone/channel variant Target.
+func (b *Block) SetTargetVariant(key VariantKey, t *Target) { b.Targets[key] = t }
+
+// SourceSegmentation returns the source segmentation Overlay, or nil if absent.
+// Without one, the block is treated as a single implicit segment.
+func (b *Block) SourceSegmentation() *Overlay { /* finds Overlay{Type: "segmentation", Variant: nil} */ }
+
+// SourceSegmentCount returns the number of spans in the source segmentation
+// overlay, or 1 for a non-empty block with no segmentation overlay.
+func (b *Block) SourceSegmentCount() int { /* span count from SourceSegmentation */ }
+
+// SourceSegmentRuns returns the run slice for the i-th source segment span.
+func (b *Block) SourceSegmentRuns(i int) []Run { /* sub-slice from RunRange */ }
+
+// SetSegmentation replaces the segmentation overlay for the given variant
+// (nil = source side). Segmentation is stored as a stand-off Overlay —
+// it does not alter the run sequence.
+func (b *Block) SetSegmentation(variant *VariantKey, spans []Span) { /* upserts Overlays */ }
+
+// VariantKey identifies a translation: locale plus optional tone and channel.
+type VariantKey struct {
+    Locale  LocaleID
+    Tone    string // optional
+    Channel string // optional
 }
 
-// FirstFragment returns the Fragment of the first source segment.
-func (b *Block) FirstFragment() *Fragment {
-    if len(b.Source) == 0 {
-        return nil
-    }
-    return b.Source[0].Content
+// Variant returns a locale-only VariantKey (no tone or channel).
+func Variant(locale LocaleID) VariantKey { return VariantKey{Locale: locale} }
+
+// Target is one translation: a flat run sequence with status and provenance.
+type Target struct {
+    Runs   []Run
+    Status TargetStatus // e.g. "", "translated", "reviewed"
+    Origin Origin       // tool/provider that produced it
+    Score  float64
 }
 
-// SetSourceText replaces all source content with a single unsegmented Fragment.
-func (b *Block) SetSourceText(text string) {
-    b.Source = []*Segment{{ID: "s1", Content: NewFragment(text)}}
+// Overlay is a typed stand-off layer over one side of a Block — the source
+// (Variant nil) or a target variant — anchoring Spans to run-index ranges.
+type Overlay struct {
+    Type    OverlayType // "segmentation" | "term" | "entity" | "qa" | "alignment"
+    Variant *VariantKey // nil = source side
+    Spans   []Span
 }
 
-// HasTarget returns true if target segments exist for the given locale.
-func (b *Block) HasTarget(locale LocaleID) bool {
-    segs, ok := b.Targets[locale]
-    return ok && len(segs) > 0
-}
-
-// TargetText returns the plain text of all target segments for the given locale.
-func (b *Block) TargetText(locale LocaleID) string {
-    segs, ok := b.Targets[locale]
-    if !ok {
-        return ""
-    }
-    var buf strings.Builder
-    for _, seg := range segs {
-        buf.WriteString(seg.Content.Text())
-    }
-    return buf.String()
-}
-
-// SetTargetText sets the target text for a locale as a single unsegmented Fragment.
-func (b *Block) SetTargetText(locale LocaleID, text string) {
-    if b.Targets == nil {
-        b.Targets = make(map[LocaleID][]*Segment)
-    }
-    b.Targets[locale] = []*Segment{{ID: "s1", Content: NewFragment(text)}}
-}
-
-// Segment is a single segment within a Block's source or target content.
-type Segment struct {
-    ID      string
-    Content *Fragment
-}
-```
-
-### Fragment (text with inline spans)
-
-```go
-// Fragment holds text content with inline Spans (Okapi: TextFragment).
-// Spans are represented as markers in the CodedText with metadata in the Spans slice.
-type Fragment struct {
-    CodedText string  // Text with span markers (special Unicode chars)
-    Spans     []*Span // Inline markup elements
-}
-
-// NewFragment creates a Fragment from plain text (no spans).
-func NewFragment(text string) *Fragment {
-    return &Fragment{CodedText: text}
-}
-
-// Text returns the plain text with all span markers stripped.
-func (f *Fragment) Text() string {
-    // Strip span marker characters from CodedText
-    // Implementation: filter out chars in the private use area
-}
-
-// HasSpans returns true if this Fragment contains any inline spans.
-func (f *Fragment) HasSpans() bool {
-    return len(f.Spans) > 0
-}
-
-// AppendText appends plain text to the Fragment.
-func (f *Fragment) AppendText(text string) {
-    f.CodedText += text
-}
-
-// AppendSpan appends an inline span and its marker to the Fragment.
-func (f *Fragment) AppendSpan(span *Span) {
-    // Add marker character to CodedText
-    // Append span to Spans slice
-}
-
-// IsEmpty returns true if the Fragment has no content.
-func (f *Fragment) IsEmpty() bool {
-    return len(f.CodedText) == 0
-}
-
-// Length returns the length of the coded text (including markers).
-func (f *Fragment) Length() int {
-    return len(f.CodedText)
-}
-```
-
-### Span (inline markup)
-
-```go
-// SpanType classifies inline markup elements.
-type SpanType int
-
-const (
-    SpanOpening     SpanType = iota // Opening tag (e.g., <b>)
-    SpanClosing                     // Closing tag (e.g., </b>)
-    SpanPlaceholder                 // Self-closing/standalone (e.g., <br/>)
-)
-
-// Span represents an inline markup element within a Fragment (Okapi: Code).
+// Span is one entry in an Overlay: a run-anchored range with an optional id
+// and type-specific props. RunRange is half-open [start, end) over the run
+// slice, with intra-text-run rune offsets so boundaries survive inline-code
+// insertions and edits.
 type Span struct {
-    SpanType  SpanType
-    Type      string // Semantic type (e.g., "bold", "link", "image")
-    ID        string
-    Data      string // Original markup data (e.g., "<b>")
-    OuterData string
-    Deletable bool
-    Cloneable bool
+    ID    string
+    Range RunRange
+    Props map[string]string
+}
+
+type RunRange struct {
+    StartRun, StartOffset, EndRun, EndOffset int
 }
 ```
+
+> A coded-text exchange form (`Fragment` with a `CodedText` string carrying
+> private-use-area markers and a parallel `[]Span`, mirroring Okapi's
+> `TextFragment`) historically backed inline content. It has been removed;
+> `[]Run` is the canonical representation.
+
+### Run (inline content)
+
+A block's `Source` (and each `Target.Runs`) is a flat `[]Run`. Each `Run` is a
+discriminated union — exactly one pointer field is set:
+
+```go
+// Run is one element of a flat inline-content sequence (core/model/run.go).
+type Run struct {
+    Text    *TextRun        // plain text chunk
+    Ph      *PlaceholderRun // self-closing token: variable, <br>, icon
+    PcOpen  *PcOpenRun      // opening half of a paired code (<b>, <a>, …)
+    PcClose *PcCloseRun     // closing half of a paired code (</b>, </a>, …)
+    Sub     *SubRun         // reference to a nested Block (subfilter output)
+    Plural  *PluralRun      // ICU plural with per-form Runs
+    Select  *SelectRun      // ICU select with per-case Runs
+}
+
+type TextRun struct {
+    Text string
+}
+
+// PlaceholderRun is a self-closing inline code.
+// PcOpenRun is identical in shape; PcCloseRun shares its ID with the
+// matching PcOpen and inherits its behavior.
+type PlaceholderRun struct {
+    ID          string
+    Type        string          // semantic type (e.g., "fmt:bold", "var")
+    SubType     string
+    Data        string          // original markup verbatim (e.g., "<br/>")
+    Equiv       string          // plain-text equivalent (e.g., "\n")
+    Disp        string          // editor display label
+    Constraints *RunConstraints
+}
+
+type RunConstraints struct {
+    Deletable   bool
+    Cloneable   bool
+    Reorderable bool
+}
+```
+
+A `Run` serializes to JSON as an object with exactly one of the keys `text`,
+`ph`, `pcOpen`, `pcClose`, `sub`, `plural`, or `select`.
 
 ### Data, Media, Group markers
 
@@ -412,12 +429,12 @@ type Annotation interface {
 
 // AltTranslation holds an alternative translation with metadata.
 type AltTranslation struct {
-    Source    *Fragment
-    Target   *Fragment
-    Locale   LocaleID
-    Origin   string  // Where this translation came from (TM, MT, etc.)
-    Score    float64 // Match quality (0.0 - 1.0)
-    MatchType string // "exact", "fuzzy", "mt", "ai"
+    Source    []Run
+    Target    []Run
+    Locale    LocaleID
+    Origin    string  // Where this translation came from (TM, MT, etc.)
+    Score     float64 // Match quality (0.0 - 1.0)
+    MatchType string  // "exact", "fuzzy", "mt", "ai"
 }
 
 func (at *AltTranslation) AnnotationType() string { return "alt-translations" }
@@ -591,109 +608,103 @@ type ToolConfig interface {
 }
 ```
 
-### BaseTool (embedding target with event dispatch)
+### BaseTool (embedding target with part-type dispatch)
+
+`BaseTool` implements `Process` once and dispatches each Part to the matching
+handler. Embed it and set only the handlers you need; unset handlers pass the
+Part through unchanged. For Blocks, set exactly **one** capability-typed
+handler — the parameter type bounds what the tool may write (AD-006):
 
 ```go
-// BaseTool provides default pass-through behavior and event dispatch.
-// Embed in concrete tools and override Handle* methods as needed.
+// PartHandler handles a single non-block Part.
+type PartHandler func(part *model.Part) (*model.Part, error)
+
+// BaseTool provides default pass-through behavior and capability-typed dispatch.
+// Embed in concrete tools and set only the handler fields you need.
 type BaseTool struct {
-    name        string
-    description string
-    config      ToolConfig
+    ToolName        string
+    ToolDescription string
+    Cfg             ToolConfig
+    SchemaFn        func() *schema.ComponentSchema
+
+    // Block handlers — set exactly ONE:
+    //   Annotate  — read-only view (overlays, annotations, properties)
+    //   Translate — writes target; source is read-only
+    //   Transform — rewrites source (and may write target)
+    Annotate  func(BlockView) error
+    Translate func(TargetView) error
+    Transform func(SourceView) error
+
+    // Other part-type handlers — all optional; unset = pass through.
+    HandleDataFn       PartHandler
+    HandleMediaFn      PartHandler
+    HandleLayerStartFn PartHandler
+    HandleLayerEndFn   PartHandler
+    HandleGroupStartFn PartHandler
+    HandleGroupEndFn   PartHandler
 }
 
-func (b *BaseTool) Name() string        { return b.name }
-func (b *BaseTool) Description() string { return b.description }
-func (b *BaseTool) Config() ToolConfig  { return b.config }
-func (b *BaseTool) SetConfig(cfg ToolConfig) error {
-    if err := cfg.Validate(); err != nil {
-        return fmt.Errorf("invalid config: %w", err)
-    }
-    b.config = cfg
-    return nil
-}
-
-// Process dispatches each Part to the appropriate Handle* method.
-// Override this only if you need full control over the processing loop.
-func (b *BaseTool) Process(ctx context.Context, in <-chan *model.Part, out chan<- *model.Part) error {
-    for {
-        select {
-        case <-ctx.Done():
-            return ctx.Err()
-        case part, ok := <-in:
-            if !ok {
-                return nil // input channel closed
-            }
-            result, err := b.dispatch(part)
-            if err != nil {
-                return err
-            }
-            select {
-            case out <- result:
-            case <-ctx.Done():
-                return ctx.Err()
-            }
-        }
-    }
-}
-
-func (b *BaseTool) dispatch(part *model.Part) (*model.Part, error) {
-    switch part.Type {
-    case model.PartBlock:
-        return b.HandleBlock(part)
-    case model.PartData:
-        return b.HandleData(part)
-    case model.PartMedia:
-        return b.HandleMedia(part)
-    case model.PartLayerStart:
-        return b.HandleLayerStart(part)
-    case model.PartLayerEnd:
-        return b.HandleLayerEnd(part)
-    case model.PartGroupStart:
-        return b.HandleGroupStart(part)
-    case model.PartGroupEnd:
-        return b.HandleGroupEnd(part)
-    default:
-        return part, nil // pass through unknown types
-    }
-}
-
-// Default handlers — all pass through. Override in concrete tools.
-func (b *BaseTool) HandleBlock(part *model.Part) (*model.Part, error)      { return part, nil }
-func (b *BaseTool) HandleData(part *model.Part) (*model.Part, error)       { return part, nil }
-func (b *BaseTool) HandleMedia(part *model.Part) (*model.Part, error)      { return part, nil }
-func (b *BaseTool) HandleLayerStart(part *model.Part) (*model.Part, error) { return part, nil }
-func (b *BaseTool) HandleLayerEnd(part *model.Part) (*model.Part, error)   { return part, nil }
-func (b *BaseTool) HandleGroupStart(part *model.Part) (*model.Part, error) { return part, nil }
-func (b *BaseTool) HandleGroupEnd(part *model.Part) (*model.Part, error)   { return part, nil }
+// BlockView ⊂ TargetView ⊂ SourceView are the read/write surfaces a block
+// handler sees. BlockView reads source/target and writes overlays, annotations,
+// and properties; TargetView adds SetTarget*; SourceView adds SetSource*. A
+// tool needing batching, 1→N fan-out, or stream control overrides Process
+// instead.
 ```
 
-### Concrete Tool example
+| Handler | View | May write |
+| --- | --- | --- |
+| `Annotate(BlockView)` | source + target read-only | overlays, annotations, properties |
+| `Translate(TargetView)` | source read-only | target content (+ the above) |
+| `Transform(SourceView)` | source writable | source content (+ the above) |
+
+### Concrete Tool examples
+
+An annotation tool (read-only, produces a segmentation overlay):
 
 ```go
-// SegmentationTool applies SRX segmentation rules to Blocks.
-type SegmentationTool struct {
-    BaseTool
-    rules *srx.Rules
+// segmentation tool — sets Annotate because it only reads source runs
+// and writes a stand-off segmentation overlay; it does not alter source content.
+t := &tool.BaseTool{
+    ToolName:        "segmentation",
+    ToolDescription: "Applies SRX segmentation rules to translatable blocks",
 }
-
-func NewSegmentationTool() *SegmentationTool {
-    return &SegmentationTool{
-        BaseTool: BaseTool{
-            name:        "segmentation",
-            description: "Applies SRX segmentation rules to translatable blocks",
-        },
+t.Annotate = func(v tool.BlockView) error {
+    if !v.Translatable() {
+        return nil
     }
+    spans := srxRules.Segment(v.SourceRuns())
+    v.SetSegmentation(nil, spans) // nil variant = source side
+    return nil
 }
+```
 
-func (s *SegmentationTool) HandleBlock(part *model.Part) (*model.Part, error) {
-    block := part.Resource.(*model.Block)
-    if !block.Translatable {
-        return part, nil
+A translation tool (writes target):
+
+```go
+// ai-translate — sets Translate because it writes Block.Targets; source is read-only.
+t := &tool.BaseTool{ToolName: "ai-translate"}
+t.Translate = func(v tool.TargetView) error {
+    translated, err := llm.Translate(ctx, v.SourceText(), targetLocale)
+    if err != nil {
+        return err
     }
-    // Apply SRX rules to segment the source content into multiple segments
-    block.Source = s.segmentContent(block.Source)
-    return part, nil
+    v.SetTargetText(targetLocale, translated)
+    return nil
+}
+```
+
+A source-transform tool (rewrites source):
+
+```go
+// redaction — sets Transform because it rewrites Block.Source.
+// Source-transform tools run in a flow's leading source-transform stage,
+// before any stand-off overlays are attached.
+t := &tool.BaseTool{ToolName: "redaction"}
+t.Transform = func(v tool.SourceView) error {
+    redacted, vault := redact(v.SourceRuns())
+    v.SetSourceRuns(redacted)
+    v.SetAnnotation("redaction-vault", vault)
+    return nil
 }
 ```
 

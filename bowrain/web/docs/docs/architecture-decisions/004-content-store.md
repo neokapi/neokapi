@@ -92,13 +92,13 @@ This gives:
 
 ```go
 type StoredBlock struct {
-    ContentHash string                          // from BlockIdentity, primary identifier
-    ContextHash string                          // from BlockIdentity
-    Source      *model.Fragment
-    Targets     map[model.LocaleID]*model.Fragment
+    ContentHash string                              // from BlockIdentity, primary identifier
+    ContextHash string                              // from BlockIdentity
+    Source      []model.Run                         // flat source run sequence (source_json)
+    Targets     map[model.VariantKey]*model.Target  // per-variant targets (translations table)
     Annotations map[string]model.Annotation
     Properties  map[string]any
-    ContentRef  *model.ContentRef               // link back to the source system
+    ContentRef  *model.ContentRef                   // link back to the source system
     CreatedAt   time.Time
     UpdatedAt   time.Time
 }
@@ -187,7 +187,7 @@ CREATE TABLE blocks (
     translatable INTEGER NOT NULL DEFAULT 1,
     content_hash TEXT NOT NULL DEFAULT '',
     context_hash TEXT NOT NULL DEFAULT '',
-    source_json  TEXT NOT NULL DEFAULT '[]',  -- serialized Fragment JSON
+    source_json  TEXT NOT NULL DEFAULT '[]',  -- serialized []model.Run (flat run sequence)
     properties   TEXT NOT NULL DEFAULT '{}',
     stored_at    TIMESTAMP NOT NULL,
     updated_at   TIMESTAMP NOT NULL,
@@ -202,7 +202,7 @@ CREATE TABLE translations (
     block_id      TEXT NOT NULL,
     locale        TEXT NOT NULL,
     text          TEXT NOT NULL DEFAULT '',     -- flat text for simple queries
-    segments_json TEXT NOT NULL DEFAULT '[]',   -- rich []*Segment round-trip
+    segments_json TEXT NOT NULL DEFAULT '{}',   -- model.Target JSON (runs + status + origin + score); column name is historical
     provider      TEXT NOT NULL DEFAULT '',     -- source attribution (ai/human/webhook:deepl)
     metadata      TEXT NOT NULL DEFAULT '{}',
     updated_at    TIMESTAMP NOT NULL,
