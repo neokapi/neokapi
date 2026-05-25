@@ -9,7 +9,7 @@ import { BlockPreview } from "@site/src/components/curated";
 
 # Working with Inline Formatting
 
-When documents are processed through the pipeline, neokapi preserves inline formatting like **bold**, _italic_, [links](https://example.com), and embedded values like variables and placeholders. This is handled through the **Run** model: a segment's content is a flat `[]Run` sequence in which inline markup becomes typed inline-code runs, normalizing format-specific markup into a format-independent representation.
+When documents are processed through the pipeline, neokapi preserves inline formatting like **bold**, _italic_, [links](https://example.com), and embedded values like variables and placeholders. This is handled through the **Run** model: a block's content is a flat `[]Run` sequence in which inline markup becomes typed inline-code runs, normalizing format-specific markup into a format-independent representation.
 
 ## Seeing inline codes in the content model
 

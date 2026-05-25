@@ -32,11 +32,9 @@ tests run from `bowrain/`. Both are exercised by `make test`.
 ```
 neokapi/                              ── Framework Module Tests ──
 ├── model/
-│   ├── block_test.go                # Block creation, source/target segment management
-│   ├── layer_test.go                # Layer nesting, embedded content, format association
-│   ├── fragment_test.go             # Fragment span encoding/decoding
-│   ├── span_test.go                 # Span type handling
-│   └── skeleton_test.go             # Per-block skeleton reconstruction
+│   ├── model_test.go                # Block creation, targets, overlays
+│   ├── run_test.go                  # Run sequence (canonical inline content)
+│   └── identity_test.go             # Block identity / content hashing
 ├── flow/
 │   ├── executor_test.go             # Flow execution, goroutine wiring, error propagation
 │   └── builder_test.go              # Builder API
@@ -502,17 +500,16 @@ func TestExtraction(t *testing.T) {
     require.Len(t, blocks, 3)
     assert.Equal(t, "Welcome", blocks[0].SourceText())
     assert.Equal(t, "Click here for more info", blocks[1].SourceText())
-    assert.True(t, blocks[1].FirstFragment().HasSpans())
     assert.Equal(t, "Footer text", blocks[2].SourceText())
 }
 ```
 
-### Span Preservation Test
+### Inline-code preservation test
 
-Verify inline markup is correctly represented as Spans.
+Verify inline markup is carried as inline-code runs, not folded into the text.
 
 ```go
-func TestSpanPreservation(t *testing.T) {
+func TestInlineCodePreservation(t *testing.T) {
     input := `<p>Click <b>here</b> for <a href="url">info</a></p>`
     reader := NewReader()
     err := reader.Open(ctx, testutil.RawDocFromString(input, "en"))
@@ -522,13 +519,22 @@ func TestSpanPreservation(t *testing.T) {
     blocks := testutil.CollectBlocks(t, reader.Read(ctx))
     require.Len(t, blocks, 1)
 
-    frag := blocks[0].FirstFragment()
-    assert.Equal(t, "Click here for info", frag.Text())
-    require.Len(t, frag.Spans, 4) // <b>, </b>, <a>, </a>
+    runs := blocks[0].SourceRuns()
+    assert.Equal(t, "Click here for info", model.RunsText(runs))
 
-    assert.Equal(t, model.SpanOpening, frag.Spans[0].SpanType)
-    assert.Equal(t, "bold", frag.Spans[0].Type)
-    assert.Equal(t, "<b>", frag.Spans[0].Data)
+    // Inline markup is carried as non-text (inline-code) runs — here two
+    // paired codes (<b>…</b>, <a>…</a>) — never baked into the text.
+    var inline []model.Run
+    for _, r := range runs {
+        if r.Text == nil {
+            inline = append(inline, r)
+        }
+    }
+    require.Len(t, inline, 4) // <b>, </b>, <a>, </a>
+
+    require.NotNil(t, inline[0].PcOpen)
+    assert.Equal(t, "fmt:bold", inline[0].PcOpen.Type)
+    assert.Equal(t, "<b>", inline[0].PcOpen.Data)
 }
 ```
 

@@ -38,7 +38,7 @@ func (c *RemoveTargetConfig) Validate() error {
 func NewRemoveTargetTool(cfg *RemoveTargetConfig) *tool.BaseTool {
 	t := &tool.BaseTool{
 		ToolName:        "remove-target",
-		ToolDescription: "Removes target segments from blocks",
+		ToolDescription: "Removes a locale's target (or all targets) from blocks",
 		Cfg:             cfg,
 	}
 	// Translate: remove-target modifies/clears targets; source is read-only.

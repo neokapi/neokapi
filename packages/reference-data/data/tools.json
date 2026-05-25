@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-25T00:35:34Z",
+  "generatedAt": "2026-05-25T20:45:12Z",
   "kind": "tool",
   "entries": [
     {
@@ -2635,19 +2635,19 @@
           "copySource": {
             "type": "boolean",
             "title": "Copy Source",
-            "description": "Copy source text to the new target segment",
+            "description": "Copy the source runs into the new target",
             "default": false
           },
           "createOnNonTranslatable": {
             "type": "boolean",
             "title": "Create on Non-Translatable",
-            "description": "Create a target container even for non-translatable text units",
+            "description": "Create a target even for non-translatable text units",
             "default": true
           },
           "overwrite": {
             "type": "boolean",
             "title": "Overwrite Existing",
-            "description": "Overwrite existing target segments if they already exist",
+            "description": "Overwrite the existing target if one already exists",
             "default": false
           },
           "targetLocale": {
@@ -8231,13 +8231,13 @@
           "applySource": {
             "type": "boolean",
             "title": "Apply to Source",
-            "description": "Apply to source segments",
+            "description": "Apply to the source text",
             "default": false
           },
           "applyTarget": {
             "type": "boolean",
             "title": "Apply to Target",
-            "description": "Apply to target segments",
+            "description": "Apply to the target text",
             "default": true
           },
           "includeNonTranslatable": {
@@ -10463,13 +10463,13 @@
           "prefix": {
             "type": "string",
             "title": "Prefix",
-            "description": "Characters prepended before each translated segment",
+            "description": "Characters prepended before each translated block",
             "default": "▒ "
           },
           "suffix": {
             "type": "string",
             "title": "Suffix",
-            "description": "Characters appended after each translated segment",
+            "description": "Characters appended after each translated block",
             "default": " ▒"
           }
         }
@@ -13992,6 +13992,12 @@
           "writesOutput": true
         },
         "properties": {
+          "allowSourceMutation": {
+            "type": "boolean",
+            "title": "Allow Source Mutation",
+            "description": "Permit the script to modify the source text (off by default; source is read-only)",
+            "default": false
+          },
           "code": {
             "type": "string",
             "title": "Inline Code",

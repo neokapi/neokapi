@@ -47,8 +47,8 @@ func NewUppercaseTool() *tool.BaseTool {
 
 | Category      | Responsibility                  | Examples                                      |
 | ------------- | ------------------------------- | --------------------------------------------- |
-| **Transform** | Modify content in-place         | Segmentation, case change, search/replace     |
-| **Enrich**    | Add metadata                    | TM leveraging, AI translation, terminology    |
+| **Transform** | Modify content in-place         | case change, search/replace, redaction        |
+| **Enrich**    | Add metadata or overlays        | segmentation, TM leveraging, AI translation, terminology |
 | **Validate**  | Check quality without modifying | QA checks, word count, spell check            |
 | **Convert**   | Transform representations       | Encoding conversion, line break normalization |
 
@@ -95,87 +95,12 @@ Use `RegisterWithSchema` instead to attach a parameter schema — see
 
 ## Built-in Tools
 
-The framework's built-in tools are registered with their parameter schemas; the
-authoritative, generated list of what ships in the current build is the
-[Tool Reference](/tools). The categories below are a way of thinking about the
-kinds of work tools do — see [Tools](/framework/tools) for the concept.
-
-### Analysis & Reporting
-
-| Tool                  | Category | Description                                                                                                      |
-| --------------------- | -------- | ---------------------------------------------------------------------------------------------------------------- |
-| `word-count`          | Validate | Counts words per locale, stores in block properties                                                              |
-| `char-count`          | Validate | Counts characters (with/without spaces) per locale                                                               |
-| `segment-count`       | Validate | Counts source and target segments                                                                                |
-| `repetition-analysis` | Validate | Tracks repeated source segments across the pipeline, tags first-occurrence vs repetition with group keys         |
-| `scoping-report`      | Validate | Classifies blocks into scoping categories (new, repetition, exact-match, fuzzy-match) based on upstream analysis |
-| `chars-listing`       | Validate | Accumulates all unique characters and frequencies for font subsetting                                            |
-
-### Content Manipulation
-
-| Tool                  | Category  | Description                                                       |
-| --------------------- | --------- | ----------------------------------------------------------------- |
-| `create-target`       | Transform | Creates target segment containers, optionally copying source text |
-| `remove-target`       | Transform | Removes target segments for a specific locale or all locales      |
-| `inline-codes-remove` | Transform | Strips inline span markers to produce clean plain text            |
-| `properties-set`      | Transform | Sets key-value properties on blocks programmatically              |
-
-### Text Processing
-
-| Tool                 | Category  | Description                                                                   |
-| -------------------- | --------- | ----------------------------------------------------------------------------- |
-| `pseudo-translate`   | Transform | Generates pseudo-translations with accented characters and expansion padding  |
-| `search-replace`     | Transform | Regex or literal search-and-replace on block content                          |
-| `case-transform`     | Transform | Transforms text to upper, lower, or title case                                |
-| `linebreak-convert`  | Convert   | Normalizes line endings (LF, CRLF, CR)                                        |
-| `bom-convert`        | Convert   | Controls Unicode BOM presence on Layer resources                              |
-| `fullwidth-convert`  | Convert   | Converts between half-width and full-width characters (CJK)                   |
-| `uri-convert`        | Convert   | Encodes or decodes URI escape sequences                                       |
-| `whitespace-correct` | Convert   | Normalizes whitespace, removes zero-width characters, matches source patterns |
-| `encoding-convert`   | Convert   | Tags blocks with target encoding for downstream writers                       |
-| `external-command`   | Transform | Executes external CLI programs on block text                                  |
-
-### Segmentation
-
-| Tool             | Category  | Description                                                  |
-| ---------------- | --------- | ------------------------------------------------------------ |
-| `segmentation`   | Transform | SRX-like sentence segmentation with configurable regex rules |
-| `xslt-transform` | Transform | Regex-based tag transformation with backreference support    |
-
-### Quality Assurance
-
-| Tool                     | Category | Description                                                                  |
-| ------------------------ | -------- | ---------------------------------------------------------------------------- |
-| `qa-check`               | Validate | Checks whitespace, empty targets, target-same-as-source, span constraints    |
-| `length-check`           | Validate | Verifies character count, word count, and target/source length ratio         |
-| `chars-check`            | Validate | Detects forbidden characters, mojibake corruption, control characters        |
-| `pattern-check`          | Validate | Validates regex patterns in translations (e.g., printf placeholders)         |
-| `inconsistency-check`    | Validate | Flags same source with different targets (or vice versa) across the pipeline |
-| `translation-comparison` | Validate | Compares translations across two target locales                              |
-| `xml-validation`         | Validate | Validates XML structure in source and/or target text                         |
-
-### Translation & Leverage
-
-| Tool              | Category  | Description                                                               |
-| ----------------- | --------- | ------------------------------------------------------------------------- |
-| `tm-leverage`     | Enrich    | Pre-fills translations from Sievepen TM with fuzzy matching               |
-| `diff-leverage`   | Enrich    | Preserves translations from previous document versions for unchanged text |
-| `term-lookup`     | Enrich    | Scans source text for terminology matches, attaches annotations           |
-| `term-enforce`    | Validate  | Checks translations for correct terminology usage                         |
-| `term-check`      | Validate  | Term glossary checking with source→target mapping                         |
-| `tag-protect`     | Transform | Protects tags matching regex patterns from modification                   |
-| `span-classify`   | Transform | Reclassifies markup spans into semantic vocabulary types                  |
-| `layer-processor` | Transform | Applies format-specific tool chains to child layers                       |
-
-### AI & MT Tools
-
-| Tool                   | Category | Description                                                      |
-| ---------------------- | -------- | ---------------------------------------------------------------- |
-| `ai-translate`         | Enrich   | LLM-powered translation via Anthropic, OpenAI, Gemini, or Ollama |
-| `ai-qa`                | Validate | LLM-powered quality checks (terminology, fluency, accuracy)      |
-| `ai-review`            | Validate | LLM-powered translation review with explanations                 |
-| `ai-terminology`       | Enrich   | LLM-powered terminology extraction                               |
-| `{provider}-translate` | Enrich   | MT translation via DeepL, Google, Microsoft, ModernMT, MyMemory  |
+The framework's built-in tools are registered with their parameter schemas. The
+authoritative, generated list of what ships in the current build — every tool's
+name, description, and parameters — is the [Tool Reference](/tools), rendered
+from those schemas so it always matches the build. This guide deliberately does
+not restate it; for how the built-ins map to the kinds of work above, see
+[Tools](/framework/tools).
 
 ### Schema-Driven CLI Flags
 

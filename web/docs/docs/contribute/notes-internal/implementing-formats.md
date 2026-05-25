@@ -21,8 +21,8 @@ migrating existing Okapi filters. Parent AD:
 | PipelineDriver                    | Executor                   |
 | Event                             | Part                       |
 | TextUnit                          | Block                      |
-| TextFragment                      | Fragment                   |
-| Code                              | Span                       |
+| TextFragment                      | Run sequence (`[]Run`)     |
+| Code                              | Run                        |
 | StartDocument / EndDocument       | Layer (root)               |
 | StartSubDocument / StartSubFilter | Child Layer                |
 

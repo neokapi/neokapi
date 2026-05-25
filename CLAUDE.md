@@ -159,7 +159,7 @@ neokapi/
 │
 │   ── Framework Module (repo root) ──────
 ├── core/
-│   ├── model/             # Content model (Part, Block, Fragment, Span, Layer)
+│   ├── model/             # Content model (Part, Block, Run, Target, Overlay, Layer)
 │   ├── format/            # DataFormatReader/Writer interfaces
 │   ├── tool/              # Tool interface
 │   ├── flow/              # Executor, pipeline orchestration
@@ -375,8 +375,8 @@ The Part is the fundamental streaming unit, carrying a PartType discriminator an
 | PipelineDriver                  | Executor                   |
 | Event                           | Part                       |
 | TextUnit                        | Block                      |
-| TextFragment                    | Fragment                   |
-| Code                            | Span                       |
+| TextFragment                    | Run sequence (`[]Run`)     |
+| Code                            | Run                        |
 | StartSubDocument/StartSubFilter | Child Layer                |
 
 ## Implementing a New Format

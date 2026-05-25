@@ -69,6 +69,16 @@ shape. Here an XLIFF bilingual file resolves to the same kind of block stream:
   caption="The same content model from an XLIFF file — identifiers and source text."
 />
 
+The block shape is the same, but bilingual formats carry more. A monolingual
+format (JSON, YAML, properties) produces whole-block source content with no
+internal segment structure. A bilingual format (XLIFF, TMX) additionally
+populates stand-off [segmentation and alignment overlays](/framework/content-model):
+the file's existing segment boundaries and source↔target pairings are recorded as
+overlays over the runs rather than baked into structure, so they survive a
+round-trip when present and are simply absent when a format doesn't define them.
+Tools and writers read those overlays; a format that emits none works at
+whole-block granularity.
+
 ## Okapi bridge formats
 
 With the Okapi bridge [plugin](/contribute/plugins) installed, kapi can also

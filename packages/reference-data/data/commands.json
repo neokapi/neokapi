@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-25T00:35:34Z",
+  "generatedAt": "2026-05-25T20:45:12Z",
   "commands": [
     {
       "id": "ai-entity-extract",
@@ -3124,7 +3124,7 @@
         },
         {
           "name": "prefix",
-          "usage": "Characters prepended before each translated segment",
+          "usage": "Characters prepended before each translated block",
           "default": "▒ ",
           "type": "string"
         },
@@ -3149,7 +3149,7 @@
         },
         {
           "name": "suffix",
-          "usage": "Characters appended after each translated segment",
+          "usage": "Characters appended after each translated block",
           "default": " ▒",
           "type": "string"
         },
@@ -3934,6 +3934,12 @@
       "short": "Script",
       "groupID": "text-processing",
       "flags": [
+        {
+          "name": "allow-source-mutation",
+          "usage": "Permit the script to modify the source text (off by default; source is read-only)",
+          "default": "false",
+          "type": "bool"
+        },
         {
           "name": "code",
           "usage": "Inline ES5 JavaScript code",

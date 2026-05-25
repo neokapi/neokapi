@@ -176,8 +176,8 @@ what a tool does, the built-in tools fall into a few broad kinds:
 
 | Kind          | What it does                              | Examples                                            |
 | ------------- | ----------------------------------------- | --------------------------------------------------- |
-| **Transform** | Modify content in place                   | segmentation, case change, search/replace, redact   |
-| **Enrich**    | Attach matches or metadata to content     | TM leverage, terminology lookup, AI translation      |
+| **Transform** | Modify content in place                   | case change, search/replace, redact                 |
+| **Enrich**    | Attach matches or metadata to content     | segmentation, TM leverage, terminology lookup, AI translation |
 | **Validate**  | Check content without modifying it        | QA checks, length checks, terminology enforcement    |
 | **Analyze**   | Accumulate statistics across the stream   | word count, repetition analysis, character inventory |
 | **Convert**   | Adjust representation                     | encoding conversion, line-break normalization        |

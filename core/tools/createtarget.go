@@ -10,9 +10,9 @@ import (
 // CreateTargetConfig holds configuration for the create-target tool.
 type CreateTargetConfig struct {
 	TargetLocale            model.LocaleID `schema:"title=Target Locale,description=Target locale to create"`                                                                  // Target locale to create (required)
-	CopySource              bool           `schema:"title=Copy Source,description=Copy source text to the new target segment"`                                                 // Whether to copy source text to target (default: false)
-	Overwrite               bool           `schema:"title=Overwrite Existing,description=Overwrite existing target segments if they already exist"`                            // Whether to overwrite existing targets (default: false)
-	CreateOnNonTranslatable bool           `schema:"title=Create on Non-Translatable,description=Create a target container even for non-translatable text units,default=true"` // Create targets on non-translatable blocks
+	CopySource              bool           `schema:"title=Copy Source,description=Copy the source runs into the new target"`                                                   // Whether to copy source text to target (default: false)
+	Overwrite               bool           `schema:"title=Overwrite Existing,description=Overwrite the existing target if one already exists"`                                 // Whether to overwrite existing targets (default: false)
+	CreateOnNonTranslatable bool           `schema:"title=Create on Non-Translatable,description=Create a target even for non-translatable text units,default=true"`           // Create targets on non-translatable blocks
 }
 
 // ToolName returns the tool name this config applies to.
@@ -35,12 +35,11 @@ func (c *CreateTargetConfig) Validate() error {
 }
 
 // NewCreateTargetTool creates a new create-target tool.
-// It creates target segment containers for blocks, optionally copying
-// source text to the target.
+// It creates a target for blocks, optionally copying the source runs.
 func NewCreateTargetTool(cfg *CreateTargetConfig) *tool.BaseTool {
 	t := &tool.BaseTool{
 		ToolName:        "create-target",
-		ToolDescription: "Creates target segment containers for blocks",
+		ToolDescription: "Creates a target for blocks, optionally copying the source",
 		Cfg:             cfg,
 	}
 	// Translate: create-target writes a target container (optionally seeded

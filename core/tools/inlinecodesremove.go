@@ -9,8 +9,8 @@ import (
 
 // InlineCodesRemoveConfig holds configuration for the inline codes remove tool.
 type InlineCodesRemoveConfig struct {
-	ApplySource            bool           `schema:"title=Apply to Source,description=Apply to source segments"`                                                                     // Apply to source segments (default: false)
-	ApplyTarget            bool           `schema:"title=Apply to Target,description=Apply to target segments,default=true"`                                                        // Apply to target segments (default: true)
+	ApplySource            bool           `schema:"title=Apply to Source,description=Apply to the source text"`                                                                     // Apply to source text (default: false)
+	ApplyTarget            bool           `schema:"title=Apply to Target,description=Apply to the target text,default=true"`                                                        // Apply to target text (default: true)
 	TargetLocale           model.LocaleID `schema:"title=Target Locale,description=Target locale for processing,showIfSet=ApplyTarget"`                                             // Target locale (required when ApplyTarget is true)
 	IncludeNonTranslatable bool           `schema:"title=Include Non-Translatable,description=Apply the removal action even to text units marked as non-translatable,default=true"` // Include non-translatable blocks
 	ReplaceWithSpace       bool           `schema:"title=Replace With Space,description=Replace line-break inline codes with spaces instead of removing them entirely"`             // Replace line-break codes with spaces
@@ -45,7 +45,7 @@ func (c *InlineCodesRemoveConfig) Validate() error {
 func NewInlineCodesRemoveTool(cfg *InlineCodesRemoveConfig) *tool.BaseTool {
 	t := &tool.BaseTool{
 		ToolName:        "inline-codes-remove",
-		ToolDescription: "Strips inline-code runs from segment content, producing clean plain text",
+		ToolDescription: "Strips inline-code runs from block content, producing clean plain text",
 		Cfg:             cfg,
 	}
 	// Transform: inline-codes-remove may rewrite source and/or target runs.

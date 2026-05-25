@@ -127,8 +127,8 @@ ordering:
 
 | Category      | Responsibility                  | Examples                                          |
 | ------------- | ------------------------------- | ------------------------------------------------- |
-| **Transform** | Modify content in place         | Segmentation, case change, search/replace         |
-| **Enrich**    | Add metadata via annotations    | TM leveraging, AI translation, terminology lookup |
+| **Transform** | Modify content in place         | case change, search/replace, redaction            |
+| **Enrich**    | Add metadata or overlays        | segmentation, TM leveraging, AI translation, terminology lookup |
 | **Validate**  | Check quality without modifying | QA checks, word count, character count            |
 | **Convert**   | Transform representations       | Encoding conversion, line-break normalization     |
 
@@ -194,14 +194,15 @@ code positions, but tools should not need to know whether a locale is
 "source" or "target" — they just need text for a given locale:
 
 ```go
-// Text returns segment text for a locale. Checks source first
-// (if the locale matches the Block's source locale), then targets.
+// Text returns the plain text for a locale: the source text if the
+// locale matches the Block's source locale, otherwise the target text.
 func (b *Block) Text(locale LocaleID) string
 
-// SetText writes segment text for a locale.
+// SetText writes text for a locale (source if it matches the source
+// locale, otherwise a target).
 func (b *Block) SetText(locale LocaleID, text string)
 
-// HasLocale reports whether the Block has segments for the locale.
+// HasLocale reports whether the Block has content for the locale.
 func (b *Block) HasLocale(locale LocaleID) bool
 ```
 
@@ -395,21 +396,21 @@ All built-in tools register via `RegisterAll()` in `core/tools/register.go`.
 | --------------------- | ------------------------------------------------------------------------- |
 | `pseudo-translate`    | Generate pseudo-translations with accent marks and prefix/suffix wrapping |
 | `search-replace`      | Regex-based search and replace in content                                 |
-| `segmentation`        | Split blocks into sentence segments using SRX-like rules                  |
 | `case-transform`      | Transform case of source and/or target text                               |
-| `create-target`       | Create target segment containers for blocks                               |
-| `remove-target`       | Remove target segments from blocks                                        |
-| `inline-codes-remove` | Strip inline codes/spans from fragment content                            |
+| `create-target`       | Create a target for blocks, optionally copying the source runs            |
+| `remove-target`       | Remove a locale's target (or all targets) from blocks                     |
+| `inline-codes-remove` | Strip inline-code runs to produce clean plain text                        |
 | `properties-set`      | Set or modify block properties programmatically                           |
 | `whitespace-correct`  | Normalize and fix whitespace issues in translations                       |
 | `span-classify`       | Reclassify `code:markup` spans into semantic vocabulary types             |
 | `tag-protect`         | Identify and mark tags and placeholders for protection                    |
 | `xslt-transform`      | Apply regex-based tag/text transformations to block text                  |
 
-**Enrich tools** — add metadata via annotations:
+**Enrich tools** — add metadata or overlays via annotations:
 
 | Tool                  | Description                                                                |
 | --------------------- | -------------------------------------------------------------------------- |
+| `segmentation`        | Annotate blocks with a sentence-segmentation overlay (SRX-like rules)      |
 | `tm-leverage`         | Pre-fill translations from Sievepen TM                                     |
 | `diff-leverage`       | Compare against previous version, preserve translations for unchanged text |
 | `term-lookup`         | Scan source text for known terms from TermBase                             |

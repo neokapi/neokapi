@@ -137,7 +137,7 @@ responsibility:
 
 ```
 core/
-    model/            Content model types (Part, Block, Layer, Fragment, Span)
+    model/            Content model types (Part, Block, Layer, Run, Target, Overlay)
     format/           DataFormatReader/Writer interfaces, detection
     tool/             Tool interface, BaseTool dispatch
     flow/             Executor, Builder, FlowDefinition

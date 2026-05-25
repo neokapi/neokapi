@@ -285,14 +285,14 @@ type Overlay struct {
 }
 
 type Span struct {
-    Range   RunRange // run-anchored, never a flattened-string offset
-    Payload any      // type-specific: segment id, term, entity kind, score, alignment ref
+    ID    string            // overlay-local id, e.g. a segment id "s1"
+    Range RunRange          // run-anchored, never a flattened-string offset
+    Props map[string]string // type-specific: segment kind, term, entity kind, score, alignment ref
 }
 
-// RunRange anchors a span on the run sequence — a start and end position plus
+// RunRange anchors a span on the run sequence — start and end run indices plus
 // an intra-text-run character offset — so boundaries stay stable across inline
-// codes and survive run-preserving edits. Inline-code runs already carry ids;
-// text runs carry stable ids for the same purpose.
+// codes and survive run-preserving edits.
 type RunRange struct {
     StartRun, StartOffset int
     EndRun,   EndOffset   int

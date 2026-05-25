@@ -183,8 +183,8 @@ import (
 
 // Config
 type WrapTextConfig struct {
-    Prefix       string `json:"prefix"       schema:"description=Text prepended to each segment,default=["`
-    Suffix       string `json:"suffix"       schema:"description=Text appended to each segment,default=]"`
+    Prefix       string `json:"prefix"       schema:"description=Text prepended to each block,default=["`
+    Suffix       string `json:"suffix"       schema:"description=Text appended to each block,default=]"`
     TargetLocale string `json:"targetLocale" schema:"description=Target locale,placeholder=en-US"`
     SourceOnly   bool   `json:"sourceOnly"   schema:"description=Wrap source text only,default=false"`
 }

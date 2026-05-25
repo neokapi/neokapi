@@ -65,7 +65,7 @@ neokapi/
 ├── go.work                          # coordinates the framework + CLI + app modules
 │
 ├── core/                            # Platform-agnostic framework packages
-│   ├── model/                       # Part, Block, Layer, Fragment, Span, Data, Media
+│   ├── model/                       # Part, Block, Layer, Run, Target, Overlay, Data, Media
 │   ├── format/                      # DataFormatReader/Writer interfaces, detection
 │   ├── tool/                        # Tool interface, BaseTool dispatch
 │   ├── flow/                        # Executor, Builder, FlowDefinition

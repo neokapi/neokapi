@@ -260,8 +260,8 @@ Okapi concepts as follows:
 | PipelineDriver                  | Executor                   |
 | Event                           | Part                       |
 | TextUnit                        | Block                      |
-| TextFragment                    | Fragment                   |
-| Code                            | Span                       |
+| TextFragment                    | Run sequence (`[]Run`)     |
+| Code                            | Run                        |
 | StartSubDocument/StartSubFilter | Child Layer                |
 
 ## Consequences

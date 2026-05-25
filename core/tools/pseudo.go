@@ -73,8 +73,8 @@ var accentMap = map[rune]rune{
 // PseudoConfig holds configuration for the pseudo-translation tool.
 type PseudoConfig struct {
 	ExpansionPercent int            `json:"expansionPercent,omitempty" schema:"title=Expansion Percent,description=Extra padding percentage added to simulate translation expansion (0 = no padding),default=0,min=0"`
-	Prefix           string         `json:"prefix,omitempty"           schema:"title=Prefix,description=Characters prepended before each translated segment"`
-	Suffix           string         `json:"suffix,omitempty"           schema:"title=Suffix,description=Characters appended after each translated segment"`
+	Prefix           string         `json:"prefix,omitempty"           schema:"title=Prefix,description=Characters prepended before each translated block"`
+	Suffix           string         `json:"suffix,omitempty"           schema:"title=Suffix,description=Characters appended after each translated block"`
 	TargetLocale     model.LocaleID `json:"targetLocale,omitempty"     schema:"-"`
 }
 

@@ -507,7 +507,7 @@ as documents and operates on the project folder.
 
 ## Related
 
-- [AD-002: Content Model](002-content-model.md) — Block, Fragment, Span
+- [AD-002: Content Model](002-content-model.md) — Block, Run, Overlay
 - [AD-004: Processing Engine](004-processing-engine.md) — flow execution
 - [AD-006: Tool System](006-tool-system.md) — Tool and SessionTool interfaces
 - [AD-013: Kapi CLI](013-kapi-cli.md) — CLI use of projects

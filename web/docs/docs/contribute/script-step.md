@@ -40,10 +40,16 @@ part.block.targets["fr"][0].content.text; // French target's first run text
 Emit a modified (or new) Part to the output channel. If you call `emit()`, the original Part is **not** forwarded automatically -- only what you emit reaches downstream tools.
 
 ```javascript
-// Modify source text and emit
-part.block.source[0].content.text = part.block.source[0].content.text.toUpperCase();
+// Modify a target translation and emit
+if (part.block.targets["fr"]) {
+  var seg = part.block.targets["fr"][0];
+  seg.content.text = seg.content.text.toUpperCase();
+}
 emit(part);
 ```
+
+By default the script may read the source but only **target** edits are read
+back — the source is read-only (see [Configuration reference](#configuration-reference)).
 
 ### skip()
 
@@ -179,15 +185,24 @@ if (part.type !== "block") {
 
 ### Transform source text
 
-Normalize whitespace in source segments before translation:
+Normalize whitespace in the source before translation. Source edits are
+**ignored by default** — the source is read-only to the script (immutability
+contract). Opt in with `allowSourceMutation: true`, and place the step in a
+flow's [source-transform stage](/contribute/flow-authoring) so the model is
+settled before any annotation or translation runs:
 
-```javascript
-if (part.type === "block") {
-  var text = part.block.source[0].content.text;
-  text = text.replace(/\s+/g, " ").replace(/^\s+|\s+$/g, "");
-  part.block.source[0].content.text = text;
-  emit(part);
-}
+```yaml
+source_transforms:
+  - tool: script
+    config:
+      allowSourceMutation: true
+      code: |
+        if (part.type === 'block') {
+          var text = part.block.source[0].content.text;
+          text = text.replace(/\s+/g, ' ').replace(/^\s+|\s+$/g, '');
+          part.block.source[0].content.text = text;
+          emit(part);
+        }
 ```
 
 ### Log and pass through
@@ -203,11 +218,12 @@ if (part.type === "block") {
 
 ## Configuration reference
 
-| Property     | Type   | Description                                        |
-| ------------ | ------ | -------------------------------------------------- |
-| `source`     | string | Mode selector: `inline` (default) or `file`        |
-| `code`       | string | Inline JavaScript code (ES5)                       |
-| `scriptFile` | string | Path to a `.js` file                               |
+| Property              | Type    | Description                                                                       |
+| --------------------- | ------- | --------------------------------------------------------------------------------- |
+| `source`              | string  | Mode selector: `inline` (default) or `file`                                       |
+| `code`                | string  | Inline JavaScript code (ES5)                                                      |
+| `scriptFile`          | string  | Path to a `.js` file                                                              |
+| `allowSourceMutation` | boolean | Permit the script to modify the source text. Off by default — the source is read-only and source edits are ignored unless this is set. |
 
 Provide either `code` or `scriptFile`. The optional `source` field selects the
 mode explicitly (`inline` or `file`) for UI and validation; when omitted, the
@@ -218,4 +234,4 @@ mode is inferred from whichever of `code`/`scriptFile` is set.
 - The runtime is ES5 only (no `let`, `const`, arrow functions, or template literals). Use `var` for variable declarations.
 - Each tool instance gets its own goja runtime, so there is no shared state between parallel pipeline branches.
 - The script runs synchronously for each Part. Long-running scripts will block the pipeline.
-- Only block text modifications are read back. Changes to other Part types are not persisted.
+- Target text edits on block parts are read back. Source edits are read back only when `allowSourceMutation: true`; otherwise the source is read-only. Changes to other Part types are not persisted.

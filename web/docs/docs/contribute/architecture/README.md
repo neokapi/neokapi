@@ -22,7 +22,7 @@ pseudocode) are separated into [Implementation Notes](/contribute/notes-internal
 
 | AD                          | Title         | Scope                                                             |
 | --------------------------- | ------------- | ----------------------------------------------------------------- |
-| [002](002-content-model.md) | Content Model | Part/Resource, Block, Fragment, Span, semantic vocabulary, Layers |
+| [002](002-content-model.md) | Content Model | Part/Resource, Block, Run, Overlay, semantic vocabulary, Layers |
 | [003](003-identity.md)      | Identity      | Base62 IDs, dual block identity                                   |
 
 ## Processing

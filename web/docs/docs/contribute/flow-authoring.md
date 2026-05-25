@@ -70,7 +70,7 @@ steps:
       targetLocale: fr
 ```
 
-This creates a three-stage pipeline: create target segments, clean up placeholder text, then run quality checks.
+This creates a three-stage pipeline: create the target, clean up placeholder text, then run quality checks.
 
 ## Parallel blocks for fan-out
 
@@ -100,15 +100,45 @@ steps:
 
 All three analysis tools run at the same time, each in its own goroutine.
 
+## Source-transform stage
+
+An optional `source_transforms:` list declares a leading stage that runs
+**before** the main `steps`. Use it for tools that rewrite the source — redaction,
+whitespace/markup normalization, a source-mutating `script` — so the model is
+settled before any annotation or translation sees it. A run-anchored overlay
+(segmentation, terms) attached during the main stage would rot if a later tool
+still mutated the source, which is why source rewrites belong here, up front.
+
+```yaml
+source_transforms:
+  - tool: redact
+    config:
+      patterns: [email, credit-card]
+
+steps:
+  - tool: ai-translate
+    config:
+      targetLocale: fr
+```
+
+Only **source-transform-capable** tools (those exposing the `Transform`
+capability) may appear in this stage; the flow build rejects others. Note that
+capability is not placement: a `Transform`-capable tool is allowed to run early,
+but it is not hoisted automatically — a tool that happens to be able to rewrite
+the source (e.g. `case-transform` on a target) stays in `steps` unless you
+declare it here. See the [tool-system AD](/contribute/architecture/006-tool-system)
+for the immutability model behind the stage.
+
 ## How steps compile to the graph
 
 The `StepsToGraph()` function transforms a `StepsSpec` into `FlowNode` and `FlowEdge` slices:
 
 1. A **reader** node is created from the `input` format (default: `auto`)
-2. Each sequential step becomes a **tool** node, chained by edges
-3. A `parallel:` block creates multiple tool nodes, all connected from the previous node (fan-out)
-4. After a parallel block, subsequent steps connect from all branch endpoints (fan-in)
-5. A **writer** node is created from the `output` format (default: `auto`)
+2. Each `source_transforms:` entry becomes a stage-marked **tool** node, chained directly after the reader so the source is settled first
+3. Each sequential step becomes a **tool** node, chained by edges
+4. A `parallel:` block creates multiple tool nodes, all connected from the previous node (fan-out)
+5. After a parallel block, subsequent steps connect from all branch endpoints (fan-in)
+6. A **writer** node is created from the `output` format (default: `auto`)
 
 The resulting graph is what the `Executor` runs -- each node becomes a goroutine connected by buffered channels.
 
@@ -116,7 +146,7 @@ The resulting graph is what the `Executor` runs -- each node becomes a goroutine
 
 ### Translation pipeline
 
-A typical translation flow with TM leverage, AI translation for new segments, and quality checks:
+A typical translation flow with TM leverage, AI translation for new blocks, and quality checks:
 
 ```yaml
 steps:
@@ -174,7 +204,7 @@ Use the JavaScript script step to filter or transform parts programmatically:
 ```yaml
 steps:
   - tool: script
-    label: Skip short segments
+    label: Skip short blocks
     config:
       code: |
         if (part.type === 'block') {

@@ -150,7 +150,7 @@ line breaks, variables, placeholders. A localization framework must preserve
 this markup through the entire pipeline (extraction, TM lookup, MT, AI
 translation, QA, reconstruction) without corruption.
 
-neokapi solves this with the **Run** model: a segment's content is a flat
+neokapi solves this with the **Run** model: a block's content is a flat
 `[]model.Run` sequence. Text travels as `TextRun`s; inline markup becomes
 inline-code runs (`PcOpen`/`PcClose` for paired tags, `Ph` for self-closing
 tokens) that carry the original markup in a `Data` field. This lets tools,

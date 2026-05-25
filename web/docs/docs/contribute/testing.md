@@ -21,8 +21,7 @@ keywords: [testing, roundtrip, table-driven tests, parity, Okapi, testify, mock 
 ```
 neokapi/
 ├── core/model/
-│   ├── model_test.go               # Block creation, segment management
-│   ├── coded_text_test.go          # Fragment/Span coded-form encoding
+│   ├── model_test.go               # Block creation, targets, overlays
 │   └── run_test.go                 # Run sequence (canonical inline content)
 ├── core/flow/
 │   ├── executor_test.go            # Flow execution, error propagation
