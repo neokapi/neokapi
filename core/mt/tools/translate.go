@@ -44,6 +44,7 @@ func NewMTTranslateTool(p mtprovider.MTProvider, cfg MTTranslateConfig) *MTTrans
 	}
 	t.ToolName = string(p.Name()) + "-translate"
 	t.ToolDescription = "Translates Blocks using " + string(p.Name())
+	t.WritesTarget = true
 	t.HandleBlockFn = t.handleBlock
 	return t
 }

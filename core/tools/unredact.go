@@ -72,6 +72,8 @@ func NewUnredactTool(cfg *UnredactConfig) (*UnredactTool, error) {
 		ToolName:        "unredact",
 		ToolDescription: "Restores original values into redacted content after processing",
 		Cfg:             cfg,
+		WritesSource:    true,
+		WritesTarget:    true,
 	}
 	base.HandleBlockFn = t.handleBlock
 	t.BaseTool = base

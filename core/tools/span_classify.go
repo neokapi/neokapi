@@ -61,6 +61,8 @@ func NewSpanClassifyTool(cfg *SpanClassifyConfig) *SpanClassifyTool {
 	}
 	t.ToolName = "span-classify"
 	t.ToolDescription = "Reclassifies code:markup inline-code runs into semantic vocabulary types"
+	t.WritesSource = true
+	t.WritesTarget = true
 	t.HandleBlockFn = t.handleBlock
 	return t
 }

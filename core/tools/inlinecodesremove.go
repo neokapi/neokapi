@@ -47,6 +47,8 @@ func NewInlineCodesRemoveTool(cfg *InlineCodesRemoveConfig) *tool.BaseTool {
 		ToolName:        "inline-codes-remove",
 		ToolDescription: "Strips inline-code runs from segment content, producing clean plain text",
 		Cfg:             cfg,
+		WritesSource:    true,
+		WritesTarget:    true,
 	}
 	t.HandleBlockFn = func(part *model.Part) (*model.Part, error) {
 		block, ok := part.Resource.(*model.Block)

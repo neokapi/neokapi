@@ -386,6 +386,7 @@ func (a *App) PseudoTranslateItem(projectID, itemName, targetLocale string) (*Tr
 	pseudoTool := &tool.BaseTool{
 		ToolName:        "pseudo-translate",
 		ToolDescription: "Pseudo-translates blocks",
+		WritesTarget:    true,
 	}
 	pseudoTool.HandleBlockFn = func(part *model.Part) (*model.Part, error) {
 		block, ok := part.Resource.(*model.Block)

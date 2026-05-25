@@ -80,6 +80,8 @@ func NewCaseTransformTool(cfg *CaseTransformConfig) *tool.BaseTool {
 		ToolName:        "case-transform",
 		ToolDescription: "Transforms the case of source and/or target text",
 		Cfg:             cfg,
+		WritesSource:    true,
+		WritesTarget:    true,
 	}
 	t.HandleBlockFn = func(part *model.Part) (*model.Part, error) {
 		block, ok := part.Resource.(*model.Block)

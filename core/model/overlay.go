@@ -236,6 +236,18 @@ func (b *Block) SetSegmentation(variant *VariantKey, spans []Span) {
 	}
 }
 
+// HasSourceOverlays reports whether the block carries any source-side overlay
+// (segmentation, terms, entities, …). Source mutation after an overlay is
+// attached would invalidate its run-anchored ranges.
+func (b *Block) HasSourceOverlays() bool {
+	for i := range b.Overlays {
+		if b.Overlays[i].OnSource() {
+			return true
+		}
+	}
+	return false
+}
+
 // SourceSegmentation returns the source-side segmentation overlay, or nil.
 func (b *Block) SourceSegmentation() *Overlay {
 	for i := range b.Overlays {

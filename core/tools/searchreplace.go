@@ -96,6 +96,8 @@ func NewSearchReplaceTool(cfg *SearchReplaceConfig) *tool.BaseTool {
 		ToolName:        "search-replace",
 		ToolDescription: "Performs search and replace on block text",
 		Cfg:             cfg,
+		WritesSource:    true,
+		WritesTarget:    true,
 	}
 	t.HandleBlockFn = func(part *model.Part) (*model.Part, error) {
 		block, ok := part.Resource.(*model.Block)

@@ -13,6 +13,7 @@ func exampleUppercaseTool() *tool.BaseTool {
 	return &tool.BaseTool{
 		ToolName:        "uppercase",
 		ToolDescription: "Uppercases source text",
+		WritesSource:    true,
 		HandleBlockFn: func(part *model.Part) (*model.Part, error) {
 			block := part.Resource.(*model.Block)
 			block.SetSourceText(strings.ToUpper(block.SourceText()))

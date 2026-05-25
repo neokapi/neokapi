@@ -57,6 +57,8 @@ func NewXSLTTransformTool(cfg *XSLTTransformConfig) *tool.BaseTool {
 		ToolName:        "xslt-transform",
 		ToolDescription: "Applies regex-based tag/text transformations to block text",
 		Cfg:             cfg,
+		WritesSource:    true,
+		WritesTarget:    true,
 	}
 	t.HandleBlockFn = func(part *model.Part) (*model.Part, error) {
 		block, ok := part.Resource.(*model.Block)

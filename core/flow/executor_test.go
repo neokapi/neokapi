@@ -24,7 +24,8 @@ func passThroughTool(name string) *tool.BaseTool {
 // uppercaseTool creates a tool that uppercases block source text.
 func uppercaseTool() *tool.BaseTool {
 	return &tool.BaseTool{
-		ToolName: "uppercase",
+		ToolName:     "uppercase",
+		WritesTarget: true,
 		HandleBlockFn: func(part *model.Part) (*model.Part, error) {
 			block := part.Resource.(*model.Block)
 			if block.Translatable {
@@ -338,7 +339,8 @@ func TestParallelExecutionMultipleDocuments(t *testing.T) {
 
 	uppercaseFactory := func() (tool.Tool, error) {
 		return &tool.BaseTool{
-			ToolName: "uppercase",
+			ToolName:     "uppercase",
+			WritesTarget: true,
 			HandleBlockFn: func(part *model.Part) (*model.Part, error) {
 				totalBlocks.Add(1)
 				block := part.Resource.(*model.Block)

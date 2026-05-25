@@ -19,6 +19,12 @@ type ScriptConfig struct {
 	Source     string `json:"source,omitempty"     schema:"title=Script Source,description=Script source mode,enum=inline|file,default=inline,widget=segmented"`
 	Code       string `json:"code,omitempty"       schema:"title=Inline Code,description=Inline ES5 JavaScript code,widget=code-editor,showIf=source:inline"`
 	ScriptFile string `json:"scriptFile,omitempty" schema:"title=Script File,description=Path to a .js file,widget=file-picker,showIf=source:file"`
+	// AllowSourceMutation opts the script into writing the block's SOURCE.
+	// Off by default: source is read-only to the script (its source edits are
+	// ignored), matching the content-model immutability contract; only target
+	// edits take effect. Enable for source-transform scripts that run early,
+	// before any segmentation/term/entity overlay is attached.
+	AllowSourceMutation bool `json:"allowSourceMutation,omitempty" schema:"title=Allow Source Mutation,description=Permit the script to modify the source text (off by default; source is read-only)"`
 }
 
 // ToolName returns the tool name this config applies to.
@@ -29,6 +35,7 @@ func (c *ScriptConfig) Reset() {
 	c.Source = "inline"
 	c.Code = ""
 	c.ScriptFile = ""
+	c.AllowSourceMutation = false
 }
 
 // Validate checks configuration validity.
@@ -83,7 +90,17 @@ func NewScriptTool(cfg *ScriptConfig) *ScriptTool {
 	t.ToolName = "script"
 	t.ToolDescription = "Run a JavaScript processing script on each part"
 	t.Cfg = cfg
+	// Scripts may edit targets; source is read-only unless explicitly opted in.
+	t.WritesTarget = true
+	t.WritesSource = cfg != nil && cfg.AllowSourceMutation
 	return t
+}
+
+// allowsSourceMutation reports whether the script is permitted to write the
+// block's source. Off by default — source is read-only to the script.
+func (s *ScriptTool) allowsSourceMutation() bool {
+	c, _ := s.Cfg.(*ScriptConfig)
+	return c != nil && c.AllowSourceMutation
 }
 
 // Process runs the compiled JavaScript program for each Part from the input channel.
@@ -167,7 +184,7 @@ func (s *ScriptTool) runScript(part *model.Part) ([]*model.Part, error) {
 			return goja.Undefined()
 		}
 		obj := arg.ToObject(s.vm)
-		emittedPart := jsToPartUpdate(s.vm, obj, part)
+		emittedPart := jsToPartUpdate(s.vm, obj, part, s.allowsSourceMutation())
 		emitted = append(emitted, emittedPart)
 		return goja.Undefined()
 	})
@@ -314,7 +331,7 @@ func blockToJS(vm *goja.Runtime, block *model.Block) *goja.Object {
 
 // jsToPartUpdate reads back modified data from the JS object and applies
 // changes to a clone of the original Part. Only block text changes are applied.
-func jsToPartUpdate(vm *goja.Runtime, obj *goja.Object, original *model.Part) *model.Part {
+func jsToPartUpdate(vm *goja.Runtime, obj *goja.Object, original *model.Part, allowSourceMutation bool) *model.Part {
 	if original.Type != model.PartBlock {
 		return original
 	}
@@ -338,7 +355,9 @@ func jsToPartUpdate(vm *goja.Runtime, obj *goja.Object, original *model.Part) *m
 			if segMap, ok := segs[0].(map[string]any); ok {
 				if contentMap, ok := segMap["content"].(map[string]any); ok {
 					if text, ok := contentMap["text"].(string); ok {
-						if text != block.SourceText() {
+						// Source is read-only unless the script opts in; otherwise
+						// its source edits are ignored (immutability contract).
+						if allowSourceMutation && text != block.SourceText() {
 							block.SetSourceText(text)
 						}
 					}

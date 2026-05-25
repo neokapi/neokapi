@@ -63,6 +63,8 @@ func NewFullWidthConvertTool(cfg *FullWidthConvertConfig) *tool.BaseTool {
 		ToolName:        "fullwidth-convert",
 		ToolDescription: "Converts between half-width and full-width characters",
 		Cfg:             cfg,
+		WritesSource:    true,
+		WritesTarget:    true,
 	}
 	t.HandleBlockFn = func(part *model.Part) (*model.Part, error) {
 		block, ok := part.Resource.(*model.Block)

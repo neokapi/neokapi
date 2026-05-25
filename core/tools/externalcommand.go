@@ -63,6 +63,8 @@ func NewExternalCommandTool(cfg *ExternalCommandConfig) *tool.BaseTool {
 		ToolName:        "external-command",
 		ToolDescription: "Executes an external command on block text",
 		Cfg:             cfg,
+		WritesSource:    true,
+		WritesTarget:    true,
 	}
 	t.HandleBlockFn = func(part *model.Part) (*model.Part, error) {
 		block, ok := part.Resource.(*model.Block)

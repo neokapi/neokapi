@@ -56,6 +56,8 @@ func NewURIConvertTool(cfg *URIConvertConfig) *tool.BaseTool {
 		ToolName:        "uri-convert",
 		ToolDescription: "Encodes or decodes URI escape sequences in text",
 		Cfg:             cfg,
+		WritesSource:    true,
+		WritesTarget:    true,
 	}
 	t.HandleBlockFn = func(part *model.Part) (*model.Part, error) {
 		block, ok := part.Resource.(*model.Block)

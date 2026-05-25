@@ -70,6 +70,7 @@ func NewWhitespaceCorrectTool(cfg *WhitespaceCorrectConfig) *tool.BaseTool {
 		ToolName:        "whitespace-correct",
 		ToolDescription: "Normalizes and fixes whitespace issues in translations",
 		Cfg:             cfg,
+		WritesTarget:    true,
 	}
 	t.HandleBlockFn = func(part *model.Part) (*model.Part, error) {
 		block, ok := part.Resource.(*model.Block)

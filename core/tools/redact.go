@@ -169,6 +169,7 @@ func NewRedactTool(cfg *RedactConfig) (*RedactTool, error) {
 		ToolName:        "redact",
 		ToolDescription: "Replaces sensitive spans with protected placeholders before processing",
 		Cfg:             cfg,
+		WritesSource:    true,
 	}
 	base.HandleBlockFn = t.handleBlock
 	t.BaseTool = base

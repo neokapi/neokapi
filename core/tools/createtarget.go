@@ -42,6 +42,7 @@ func NewCreateTargetTool(cfg *CreateTargetConfig) *tool.BaseTool {
 		ToolName:        "create-target",
 		ToolDescription: "Creates target segment containers for blocks",
 		Cfg:             cfg,
+		WritesTarget:    true,
 	}
 	t.HandleBlockFn = func(part *model.Part) (*model.Part, error) {
 		block, ok := part.Resource.(*model.Block)

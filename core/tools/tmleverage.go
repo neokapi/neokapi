@@ -138,6 +138,7 @@ func NewTMLeverageTool(cfg *TMLeverageConfig) *tool.BaseTool {
 		ToolName:        "tm-leverage",
 		ToolDescription: "Pre-fills translations from translation memory using exact and fuzzy matching",
 		Cfg:             cfg,
+		WritesTarget:    true,
 	}
 	t.HandleBlockFn = func(part *model.Part) (*model.Part, error) {
 		block, ok := part.Resource.(*model.Block)

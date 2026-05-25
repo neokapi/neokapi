@@ -73,6 +73,8 @@ func NewEncodingConvertTool(cfg *EncodingConvertConfig) *tool.BaseTool {
 		ToolName:        "encoding-convert",
 		ToolDescription: "Converts character encoding of text content",
 		Cfg:             cfg,
+		WritesSource:    true,
+		WritesTarget:    true,
 	}
 	t.HandleBlockFn = func(part *model.Part) (*model.Part, error) {
 		block, ok := part.Resource.(*model.Block)

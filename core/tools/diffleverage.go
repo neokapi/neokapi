@@ -88,6 +88,7 @@ func NewDiffLeverageTool(cfg *DiffLeverageConfig) *tool.BaseTool {
 		ToolName:        "diff-leverage",
 		ToolDescription: "Compares blocks against previous version, preserving translations for unchanged text",
 		Cfg:             cfg,
+		WritesTarget:    true,
 	}
 	t.HandleBlockFn = func(part *model.Part) (*model.Part, error) {
 		block, ok := part.Resource.(*model.Block)

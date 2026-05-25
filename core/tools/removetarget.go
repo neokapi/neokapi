@@ -40,6 +40,7 @@ func NewRemoveTargetTool(cfg *RemoveTargetConfig) *tool.BaseTool {
 		ToolName:        "remove-target",
 		ToolDescription: "Removes target segments from blocks",
 		Cfg:             cfg,
+		WritesTarget:    true,
 	}
 	t.HandleBlockFn = func(part *model.Part) (*model.Part, error) {
 		block, ok := part.Resource.(*model.Block)

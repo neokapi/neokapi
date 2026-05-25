@@ -181,6 +181,7 @@ func NewAITranslateTool(p aiprovider.LLMProvider, cfg AITranslateConfig) *AITran
 	}
 	t.ToolName = "ai-translate"
 	t.ToolDescription = "Translates Blocks using AI/LLM"
+	t.WritesTarget = true
 	t.HandleBlockFn = t.handleBlock
 	return t
 }

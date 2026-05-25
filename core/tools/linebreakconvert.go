@@ -50,6 +50,8 @@ func NewLineBreakConvertTool(cfg *LineBreakConvertConfig) *tool.BaseTool {
 		ToolName:        "linebreak-convert",
 		ToolDescription: "Normalizes line endings in source and/or target text of blocks",
 		Cfg:             cfg,
+		WritesSource:    true,
+		WritesTarget:    true,
 	}
 	t.HandleBlockFn = func(part *model.Part) (*model.Part, error) {
 		block, ok := part.Resource.(*model.Block)

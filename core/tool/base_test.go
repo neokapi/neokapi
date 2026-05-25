@@ -147,7 +147,8 @@ func TestBaseToolErrorPropagation(t *testing.T) {
 
 func TestBaseToolModifyBlock(t *testing.T) {
 	bt := &tool.BaseTool{
-		ToolName: "uppercase",
+		ToolName:     "uppercase",
+		WritesTarget: true,
 		HandleBlockFn: func(part *model.Part) (*model.Part, error) {
 			block := part.Resource.(*model.Block)
 			if block.Translatable {
@@ -180,4 +181,73 @@ func TestBaseToolConfig(t *testing.T) {
 	// nil config is ok
 	err := bt.SetConfig(nil)
 	require.NoError(t, err)
+}
+
+func TestImmutabilityGuard(t *testing.T) {
+	mkBlock := func() *model.Block {
+		b := model.NewBlock("b1", "Hello world")
+		b.SourceLocale = "en"
+		return b
+	}
+	run := func(bt *tool.BaseTool, b *model.Block) error {
+		in := make(chan *model.Part, 1)
+		out := make(chan *model.Part, 1)
+		in <- &model.Part{Type: model.PartBlock, Resource: b}
+		close(in)
+		return bt.Process(context.Background(), in, out)
+	}
+	oneSpanOverlay := []model.Span{{ID: "s1", Range: model.RunRange{StartRun: 0, EndRun: 1}}}
+
+	t.Run("source mutation without WritesSource is rejected", func(t *testing.T) {
+		bt := &tool.BaseTool{ToolName: "bad-src"}
+		bt.HandleBlockFn = func(p *model.Part) (*model.Part, error) {
+			p.Resource.(*model.Block).SetSourceText("changed")
+			return p, nil
+		}
+		require.ErrorContains(t, run(bt, mkBlock()), "WritesSource")
+	})
+	t.Run("source mutation with WritesSource is allowed", func(t *testing.T) {
+		bt := &tool.BaseTool{ToolName: "src-xform", WritesSource: true}
+		bt.HandleBlockFn = func(p *model.Part) (*model.Part, error) {
+			p.Resource.(*model.Block).SetSourceText("changed")
+			return p, nil
+		}
+		require.NoError(t, run(bt, mkBlock()))
+	})
+	t.Run("target mutation without WritesTarget is rejected", func(t *testing.T) {
+		bt := &tool.BaseTool{ToolName: "bad-tgt"}
+		bt.HandleBlockFn = func(p *model.Part) (*model.Part, error) {
+			p.Resource.(*model.Block).SetTargetText("fr", "Bonjour")
+			return p, nil
+		}
+		require.ErrorContains(t, run(bt, mkBlock()), "WritesTarget")
+	})
+	t.Run("target mutation with WritesTarget is allowed", func(t *testing.T) {
+		bt := &tool.BaseTool{ToolName: "translator", WritesTarget: true}
+		bt.HandleBlockFn = func(p *model.Part) (*model.Part, error) {
+			p.Resource.(*model.Block).SetTargetText("fr", "Bonjour")
+			return p, nil
+		}
+		require.NoError(t, run(bt, mkBlock()))
+	})
+	t.Run("analysis tool writing only overlays/properties is allowed", func(t *testing.T) {
+		bt := &tool.BaseTool{ToolName: "analyzer"} // declares neither capability
+		bt.HandleBlockFn = func(p *model.Part) (*model.Part, error) {
+			b := p.Resource.(*model.Block)
+			b.Properties["word-count"] = "2"
+			b.SetSegmentation(nil, oneSpanOverlay)
+			return p, nil
+		}
+		require.NoError(t, run(bt, mkBlock()))
+	})
+	t.Run("source transform after an overlay is attached is rejected", func(t *testing.T) {
+		bt := &tool.BaseTool{ToolName: "late-xform", WritesSource: true}
+		bt.HandleBlockFn = func(p *model.Part) (*model.Part, error) {
+			p.Resource.(*model.Block).SetSourceText("changed")
+			return p, nil
+		}
+		b := mkBlock()
+		b.SetSegmentation(nil, oneSpanOverlay)
+		require.ErrorContains(t, run(bt, b), "overlay")
+	})
 }

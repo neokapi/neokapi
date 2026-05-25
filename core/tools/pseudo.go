@@ -156,6 +156,7 @@ func NewPseudoTranslateTool(cfg *PseudoConfig) *PseudoTranslateTool {
 		ToolName:        "pseudo-translate",
 		ToolDescription: "Generates pseudo-translations for testing localization readiness",
 		Cfg:             cfg,
+		WritesTarget:    true,
 	}
 	base.HandleBlockFn = func(part *model.Part) (*model.Part, error) {
 		return applyPseudo(part, cfg)

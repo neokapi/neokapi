@@ -270,6 +270,7 @@ func TestEndToEndFlowPipeline(t *testing.T) {
 	uppercaseTool := &tool.BaseTool{
 		ToolName:        "uppercase",
 		ToolDescription: "Converts source text to uppercase",
+		WritesTarget:    true,
 		HandleBlockFn: func(part *model.Part) (*model.Part, error) {
 			block := part.Resource.(*model.Block)
 			upper := strings.ToUpper(block.SourceText())

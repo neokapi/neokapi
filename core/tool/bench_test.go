@@ -68,7 +68,8 @@ func BenchmarkParallelBlockTool(b *testing.B) {
 
 	for b.Loop() {
 		inner := &tool.BaseTool{
-			ToolName: "uppercase",
+			ToolName:     "uppercase",
+			WritesTarget: true,
 			HandleBlockFn: func(part *model.Part) (*model.Part, error) {
 				block := part.Resource.(*model.Block)
 				block.SetTargetText(model.LocaleFrench, strings.ToUpper(block.SourceText()))
