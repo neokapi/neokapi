@@ -8,7 +8,8 @@ import type { LabRuntimeAssets } from "./useLabRuntime";
 import FileSource from "./FileSource";
 import type { FileSourceValue } from "./FileSource";
 import { SAMPLES } from "./samples";
-import type { PartSnapshotSet } from "./types";
+import type { FlowTrace } from "./types";
+import BlockResults from "./BlockResults";
 import shared from "./styles.module.css";
 import styles from "./ToolLab.module.css";
 
@@ -18,14 +19,6 @@ import styles from "./ToolLab.module.css";
 // offline transforms, so a learner can edit their config and see the effect at
 // once. The trace node id of the single configured step is always "tool-0".
 const ALLOWED_TOOL_IDS = ["pseudo-translate", "case-transform"] as const;
-const TOOL_NODE_ID = "tool-0";
-
-// A single row of the before/after table — one translatable Block, paired by id.
-interface DiffRow {
-  id: string;
-  before: string;
-  after: string;
-}
 
 export interface ToolLabProps {
   /** WASM asset URLs from the host; null defers booting (e.g. during SSR). */
@@ -158,7 +151,7 @@ export default function ToolLab({
     setValues(seedDefaults(tool?.schema));
   }, [tool]);
 
-  const [rows, setRows] = useState<DiffRow[] | null>(null);
+  const [trace, setTrace] = useState<FlowTrace | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -183,10 +176,10 @@ export default function ToolLab({
       "fr",
     ]);
     if (res.ok && res.trace) {
-      setRows(buildDiff(res.trace.parts));
+      setTrace(res.trace);
     } else {
       setError(res.error ?? "the run produced no trace");
-      setRows(null);
+      setTrace(null);
     }
     setBusy(false);
   }, [runtime.ready, runtime.writeFile, runtime.trace, file, tool, values]);
@@ -200,6 +193,10 @@ export default function ToolLab({
     const handle = setTimeout(() => void runTool(), 250);
     return () => clearTimeout(handle);
   }, [runtime.ready, runTool]);
+
+  const blockCount = trace
+    ? Object.values(trace.parts).filter((ss) => ss.initial.type === "Block").length
+    : 0;
 
   if (!tool) {
     return <div className={shared.emptyHint}>No browser-safe tools available.</div>;
@@ -250,65 +247,18 @@ export default function ToolLab({
         {runtime.status === "error" && `Failed to start: ${runtime.error}`}
         {runtime.ready && busy && "Running tool…"}
         {runtime.ready && !busy && error && `Error: ${error}`}
-        {runtime.ready && !busy && !error && rows && (
+        {runtime.ready && !busy && !error && trace && (
           <span>
-            {rows.length} {rows.length === 1 ? "block" : "blocks"}
+            {blockCount} {blockCount === 1 ? "block" : "blocks"}
           </span>
         )}
       </div>
 
-      {rows && rows.length > 0 ? (
-        <DiffTable rows={rows} />
+      {trace ? (
+        <BlockResults trace={trace} targetLocale="fr" />
       ) : (
-        !error &&
-        !busy && (
-          <div className={shared.emptyHint}>
-            {rows ? "This file has no translatable blocks." : "Pick a tool and edit its config."}
-          </div>
-        )
+        !error && !busy && <div className={shared.emptyHint}>Pick a tool and edit its config.</div>
       )}
     </div>
-  );
-}
-
-// Reduce a trace's part snapshots to before/after rows: one per Block, pairing
-// the reader's initial source text with the configured step's output. The tool
-// may write its result onto either targetText (a translation/expansion) or, for
-// pure rewrites, sourceText; `summary` is the last-resort fallback.
-function buildDiff(parts: Record<string, PartSnapshotSet>): DiffRow[] {
-  const rows: DiffRow[] = [];
-  for (const set of Object.values(parts)) {
-    if (set.initial.type !== "Block") continue;
-    const after = set.afterNode?.[TOOL_NODE_ID];
-    const before = set.initial.sourceText ?? set.initial.summary;
-    const result = after?.targetText ?? after?.sourceText ?? after?.summary ?? set.initial.summary;
-    rows.push({ id: set.initial.id, before, after: result });
-  }
-  return rows;
-}
-
-function DiffTable({ rows }: { rows: DiffRow[] }): React.ReactElement {
-  return (
-    <table className={styles.diffTable}>
-      <thead>
-        <tr>
-          <th className={styles.idCol}>Block</th>
-          <th>Before</th>
-          <th>After</th>
-        </tr>
-      </thead>
-      <tbody>
-        {rows.map((row) => {
-          const changed = row.before !== row.after;
-          return (
-            <tr key={row.id}>
-              <td className={styles.idCell}>{row.id}</td>
-              <td className={styles.beforeCell}>{row.before}</td>
-              <td className={changed ? styles.afterCellChanged : styles.afterCell}>{row.after}</td>
-            </tr>
-          );
-        })}
-      </tbody>
-    </table>
   );
 }

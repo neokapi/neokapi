@@ -5,6 +5,7 @@ import { useLabRuntime } from "./useLabRuntime";
 import type { LabRuntimeAssets } from "./useLabRuntime";
 import FileSource from "./FileSource";
 import type { FileSourceValue } from "./FileSource";
+import BlockResults from "./BlockResults";
 import { SAMPLES } from "./samples";
 import { DEFAULT_SCRIPT, SCRIPT_API_DTS, SCRIPT_EXAMPLES } from "./scriptApi";
 import type { FlowTrace } from "./types";
@@ -15,12 +16,6 @@ export interface ScriptLabProps {
   assets: LabRuntimeAssets | null;
   defaultSampleId?: string;
   sampleIds?: string[];
-}
-
-interface BlockDiff {
-  id: string;
-  before: string;
-  after: string | null; // null = the script dropped this block
 }
 
 // Build a .kapi recipe with a single `script` step carrying the user's code as
@@ -129,18 +124,9 @@ export default function ScriptLab({
     if (runtime.ready) void run();
   }, [runtime.ready, file]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const diffs: BlockDiff[] = trace
-    ? Object.values(trace.parts)
-        .filter((ss) => ss.initial.type === "Block")
-        .map((ss) => {
-          const after = ss.afterNode?.["tool-0"];
-          return {
-            id: ss.initial.id,
-            before: ss.initial.sourceText ?? "",
-            after: after ? (after.sourceText ?? "") : null,
-          };
-        })
-    : [];
+  const blockCount = trace
+    ? Object.values(trace.parts).filter((ss) => ss.initial.type === "Block").length
+    : 0;
 
   return (
     <div className={shared.explorer}>
@@ -241,35 +227,10 @@ export default function ScriptLab({
         {runtime.status === "error" && `Failed to start: ${runtime.error}`}
         {runtime.ready && busy && "Running script…"}
         {runtime.ready && !busy && error && `Error: ${error}`}
-        {runtime.ready && !busy && !error && trace && `${diffs.length} block(s) processed`}
+        {runtime.ready && !busy && !error && trace && `${blockCount} block(s) processed`}
       </div>
 
-      {trace && diffs.length > 0 && (
-        <table className={styles.diff}>
-          <thead>
-            <tr>
-              <th>Block</th>
-              <th>Source (before)</th>
-              <th>Source (after)</th>
-            </tr>
-          </thead>
-          <tbody>
-            {diffs.map((d) => {
-              const changed = d.after !== null && d.after !== d.before;
-              return (
-                <tr
-                  key={d.id}
-                  className={d.after === null ? styles.dropped : changed ? styles.changed : ""}
-                >
-                  <td className={styles.blockId}>{d.id}</td>
-                  <td>{d.before}</td>
-                  <td>{d.after === null ? <em>dropped (skip)</em> : d.after}</td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      )}
+      {trace && <BlockResults trace={trace} targetLocale="fr" />}
 
       {logOutput && (
         <div className={styles.logPanel}>

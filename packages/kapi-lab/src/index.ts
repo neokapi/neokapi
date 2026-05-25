@@ -22,6 +22,8 @@ export { default as ScriptLab } from "./ScriptLab";
 export type { ScriptLabProps } from "./ScriptLab";
 export { SCRIPT_EXAMPLES, SCRIPT_API_DTS } from "./scriptApi";
 export type { ScriptExample } from "./scriptApi";
+export { default as BlockResults } from "./BlockResults";
+export type { BlockResultsProps } from "./BlockResults";
 export { default as RunSequence } from "./RunSequence";
 export { default as FileSource } from "./FileSource";
 export type { FileSourceValue } from "./FileSource";
