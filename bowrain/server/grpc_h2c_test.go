@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"errors"
 	"net"
 	"net/http"
 	"testing"
@@ -19,7 +20,8 @@ import (
 // re-binding it, which the readiness polling in the test tolerates.
 func freeAddr(t *testing.T) string {
 	t.Helper()
-	lis, err := net.Listen("tcp", "127.0.0.1:0")
+	var lc net.ListenConfig
+	lis, err := lc.Listen(t.Context(), "tcp", "127.0.0.1:0")
 	require.NoError(t, err)
 	addr := lis.Addr().String()
 	require.NoError(t, lis.Close())
@@ -46,7 +48,7 @@ func TestStartMultiplexesGRPCAndHTTP(t *testing.T) {
 		defer cancel()
 		require.NoError(t, srv.Shutdown(ctx))
 		// Start returns http.ErrServerClosed on graceful shutdown.
-		if err := <-serveErr; err != nil && err != http.ErrServerClosed {
+		if err := <-serveErr; err != nil && !errors.Is(err, http.ErrServerClosed) {
 			t.Errorf("Start returned unexpected error: %v", err)
 		}
 	})
@@ -57,7 +59,11 @@ func TestStartMultiplexesGRPCAndHTTP(t *testing.T) {
 	// Wait for the listener to come up by polling the HTTP/1.1 health route,
 	// which also asserts the non-gRPC branch of the multiplexer.
 	require.Eventually(t, func() bool {
-		resp, err := httpClient.Get(baseURL + "/api/v1/health")
+		req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, baseURL+"/api/v1/health", nil)
+		if err != nil {
+			return false
+		}
+		resp, err := httpClient.Do(req)
 		if err != nil {
 			return false
 		}
