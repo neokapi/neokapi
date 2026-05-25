@@ -113,6 +113,46 @@ func (b *BaseTool) Process(ctx context.Context, in <-chan *model.Part, out chan<
 	}
 }
 
+// Capability classifies what a tool's block handler may write — for flow-stage
+// validation (e.g. only source-transforms belong in a Flow's source-transform
+// stage). Tools that override Process without setting a typed handler report
+// CapNone.
+type Capability int
+
+const (
+	CapNone      Capability = iota // no typed block handler (pure Process override / pass-through)
+	CapAnnotate                    // read-only: overlays/annotations/properties
+	CapTranslate                   // writes target
+	CapTransform                   // rewrites source (and may write target)
+)
+
+// Capable is the optional interface a Tool implements to report its write
+// capability. *BaseTool implements it (and tools embedding it inherit it).
+type Capable interface {
+	Capability() Capability
+}
+
+// Capability reports the tool's write capability from which typed handler is set.
+func (b *BaseTool) Capability() Capability {
+	switch {
+	case b.Transform != nil:
+		return CapTransform
+	case b.Translate != nil:
+		return CapTranslate
+	case b.Annotate != nil:
+		return CapAnnotate
+	default:
+		return CapNone
+	}
+}
+
+// IsSourceTransform reports whether t may rewrite source (CapTransform). Tools
+// that don't implement Capable are treated as not source-transforms.
+func IsSourceTransform(t Tool) bool {
+	c, ok := t.(Capable)
+	return ok && c.Capability() == CapTransform
+}
+
 // Apply runs a single Part through the tool's per-part dispatch — the same
 // routing (and immutability backstop) Process uses — returning the result Part,
 // or nil if the handler dropped it. For callers that apply a BaseTool across an
