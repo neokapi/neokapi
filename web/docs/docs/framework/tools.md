@@ -5,6 +5,8 @@ description: Tools are the composable processing stages in a neokapi pipeline â€
 keywords: [tools, pipeline stage, processing, translation, QA, TM leverage, segmentation, composable]
 ---
 
+import { ToolLab } from "@site/src/components/Lab/ToolLab";
+
 # Tools
 
 A **tool** is the unit of processing in neokapi. Where a [format](/framework/formats)
@@ -20,6 +22,17 @@ cares about and passing the rest through untouched. The category of work a tool
 does is not fixed by the framework; the same interface backs analysis,
 transformation, enrichment, and validation alike. The authoritative, generated
 list of what ships in the current build is the [Tool Reference](/tools).
+
+:::tip Try a tool on a file
+Pick a tool, edit its configuration in the live form, and run it on a sample
+file to see how each translatable [Block](/framework/content-model) changes â€”
+source before, tool output after. The same form that drives the configuration
+here is the one the visual editors and the [Tool Reference](/tools) render from
+the tool's schema. This runs the real `kapi` engine in your browser via
+WebAssembly.
+:::
+
+<ToolLab defaultSampleId="messages-json" />
 
 ## The Tool interface
 

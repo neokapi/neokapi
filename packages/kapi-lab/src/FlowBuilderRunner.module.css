@@ -1,0 +1,22 @@
+/* ── FlowEditor frame ───────────────────────────────────────────────────────
+ *
+ * The flow-editor lays its three columns out as `h-full`, so it needs an
+ * ancestor with an explicit height or it collapses. We give it a sized, bordered
+ * card that matches the other lab explorers' visual language. The background and
+ * border resolve against the ui-primitives theme variables that the surrounding
+ * `.kapi-reference` wrapper supplies. */
+.editorFrame {
+  height: 460px;
+  border: 1px solid var(--ifm-color-emphasis-200);
+  border-radius: var(--ifm-card-border-radius);
+  background: var(--background, var(--ifm-card-background-color));
+  overflow: hidden;
+}
+
+@media (max-width: 768px) {
+  /* Give the three-column editor more vertical room on narrow screens, where
+     the palette / canvas / config panels stack tightly. */
+  .editorFrame {
+    height: 520px;
+  }
+}

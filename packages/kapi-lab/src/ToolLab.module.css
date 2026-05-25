@@ -1,0 +1,66 @@
+/* ToolLab — config form + per-Block before/after diff table.
+   Layout-only; the explorer shell, file source, picker row, status bar and run
+   button are reused from styles.module.css. */
+
+/* The SchemaForm panel. The `.kapi-reference` scope (added alongside this class
+   on the same element) supplies the design tokens; this just frames it. */
+.configPanel {
+  border: 1px solid var(--ifm-color-emphasis-200);
+  border-radius: var(--ifm-card-border-radius);
+  background: var(--ifm-card-background-color);
+  padding: 0.85rem 1rem;
+}
+
+/* ── Before / after diff table ──────────────────────────────────────────── */
+.diffTable {
+  display: table;
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+  table-layout: fixed;
+}
+
+.diffTable th {
+  text-align: left;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--ifm-color-emphasis-500);
+  padding: 0.4rem 0.6rem;
+  border-bottom: 1px solid var(--ifm-color-emphasis-200);
+}
+
+.diffTable td {
+  padding: 0.4rem 0.6rem;
+  border-bottom: 1px solid var(--ifm-color-emphasis-100);
+  vertical-align: top;
+  word-break: break-word;
+  white-space: pre-wrap;
+}
+
+.idCol {
+  width: 22%;
+}
+
+.idCell {
+  font-family: var(--ifm-font-family-monospace);
+  font-size: 0.78rem;
+  color: var(--ifm-color-emphasis-600);
+}
+
+.beforeCell {
+  color: var(--ifm-color-emphasis-700);
+}
+
+.afterCell {
+  color: var(--ifm-color-emphasis-700);
+}
+
+/* Highlight rows the tool actually changed, so the effect of a config edit is
+   immediately legible against the unchanged ones. */
+.afterCellChanged {
+  color: var(--ifm-font-color-base);
+  font-weight: 600;
+  background: color-mix(in srgb, var(--ifm-color-primary) 8%, transparent);
+}

@@ -6,6 +6,7 @@ keywords: [formats, format reader, format writer, XLIFF, JSON, DOCX, Markdown, l
 ---
 
 import { BlockPreview } from "@site/src/components/curated";
+import { RoundTripExplorer } from "@site/src/components/Lab/RoundTripExplorer";
 
 # Formats
 
@@ -17,6 +18,17 @@ symmetry is what lets the same [tools](/framework/tools) and
 [flows](/framework/flows) operate on any format: by the time a tool sees a Block,
 it no longer matters whether it came from JSON, XLIFF, or DOCX. A format is the
 neokapi analogue of an Okapi _filter_.
+
+:::tip See the skeleton preserved
+Reading a file splits it into translatable [blocks](/framework/content-model) and
+a non-translatable _skeleton_ — every tag, key, attribute, and delimiter the
+writer needs to reproduce the original structure. Run a file through
+`pseudo-translate` below and compare the source with the round-tripped output:
+only the leaf text changes, while the skeleton comes back byte-for-byte. This
+runs the real `kapi` reader and writer in your browser via WebAssembly.
+:::
+
+<RoundTripExplorer defaultSampleId="page-html" />
 
 neokapi ships built-in readers and writers spanning several families:
 

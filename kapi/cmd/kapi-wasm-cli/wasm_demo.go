@@ -4,6 +4,7 @@ package main
 
 import (
 	"fmt"
+	"slices"
 
 	"github.com/neokapi/neokapi/core/model"
 	mttools "github.com/neokapi/neokapi/core/mt/tools"
@@ -68,17 +69,21 @@ func forceDemoProviders(reg *registry.ToolRegistry) {
 	if reg == nil {
 		return
 	}
-	reg.SetConfigPreprocessor(func(_ string, _ []string, config map[string]any) (map[string]any, error) {
+	reg.SetConfigPreprocessor(func(_ string, requires []string, config map[string]any) (map[string]any, error) {
 		if config == nil {
 			config = map[string]any{}
 		}
-		// Only AI tools carry a "provider" key. Coerce any non-demo or empty
-		// selection to the demo provider so the command runs offline.
-		if _, ok := config["provider"]; ok {
-			if p, _ := config["provider"].(string); p != string(aiprovider.Demo) {
-				config["provider"] = string(aiprovider.Demo)
-			}
-			// Drop any model so the demo provider reports its own stub model.
+		// A tool that requires credentials is provider-backed (AI/MT). Coerce it
+		// to the deterministic demo provider even when no provider was selected —
+		// which is the case inside a flow or recipe, where buildFlowTools omits
+		// the provider key unless --provider was passed. Without this the tool
+		// would fall back to its real default (anthropic) and the browser fetch
+		// fails (no key, blocked by CORS). The single-tool path already carries a
+		// provider key; coerce that too. An explicit `--provider demo` is a no-op.
+		_, hasProvider := config["provider"]
+		if hasProvider || slices.Contains(requires, schema.RequiresCredentials) {
+			config["provider"] = string(aiprovider.Demo)
+			// Drop any model/key so the demo provider reports its own stub model.
 			delete(config, "model")
 			delete(config, "apiKey")
 		}
