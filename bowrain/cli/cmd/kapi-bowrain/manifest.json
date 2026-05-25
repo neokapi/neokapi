@@ -33,7 +33,6 @@
         "subcommands": ["login", "logout", "status", "claim", "token"]},
       {"name": "stream", "short": "Manage streams",
         "subcommands": ["list", "create", "diff", "merge", "archive", "status"]},
-      {"name": "serve",  "short": "Open a local dashboard"},
       {"name": "ui",     "short": "Launch the Bowrain desktop app"},
       {"name": "workspace", "short": "List and create workspaces on the server",
         "subcommands": ["list", "create"]}

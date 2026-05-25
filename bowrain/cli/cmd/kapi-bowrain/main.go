@@ -117,7 +117,7 @@ func buildCommandSubtree() *cobra.Command {
 	}
 
 	// Bowrain plugin subcommands (push, pull, status, ls, add, rm, sync,
-	// auth, config, diff, stream, serve, ui, init).
+	// auth, config, diff, stream, ui, init).
 	cli.ApplyCommandFactories(cmd, app)
 	return cmd
 }
