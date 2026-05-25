@@ -6,6 +6,7 @@ keywords: [flows, pipeline, YAML, tool composition, kapi run, localization workf
 ---
 
 import { DualExample } from "@site/src/components/curated";
+import { FlowBuilderRunner } from "@site/src/components/Lab/FlowBuilderRunner";
 
 # Flows
 
@@ -120,6 +121,16 @@ topological order.
 Because both forms compile to the same graph, the steps you write by hand and
 the graph you build in the editor are interchangeable: a hand-written flow opens
 in the editor, and an editor-built flow runs from the CLI.
+
+:::tip Build a flow, then run it
+Assemble a flow in the same node editor the desktop app uses — add, remove, and
+reorder tool nodes — then press **Run flow** to execute it on a file and step
+through the result. The graph is serialized to a `.kapi` recipe and run with the
+real `kapi` engine in your browser via WebAssembly, so the flow you build is the
+flow that runs.
+:::
+
+<FlowBuilderRunner defaultSampleId="messages-json" />
 
 ## Running a flow
 

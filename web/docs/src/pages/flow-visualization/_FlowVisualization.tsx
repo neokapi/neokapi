@@ -1,16 +1,9 @@
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import useBaseUrl from "@docusaurus/useBaseUrl";
-import type { FlowTrace, TraceEvent, FlowNode, PartSnapshotSet } from "./_types";
-import { usePlayback } from "./_usePlayback";
-import FlowGraph from "./_FlowGraph";
-import TimelineControls from "./_TimelineControls";
-import PartInspector from "./_PartInspector";
+import { FlowTracePlayer } from "@neokapi/kapi-lab";
+import type { FlowTrace } from "@neokapi/kapi-lab";
 import TraceSelector from "./_TraceSelector";
 import styles from "./_index.module.css";
-
-const EMPTY_EVENTS: TraceEvent[] = [];
-const EMPTY_NODES: FlowNode[] = [];
-const EMPTY_PARTS: Record<string, PartSnapshotSet> = {};
 
 const AVAILABLE_TRACES = [
   {
@@ -40,22 +33,22 @@ const AVAILABLE_TRACES = [
   },
 ];
 
+// FlowVisualization is the standalone /flow-visualization page: a trace picker
+// (built-in traces + upload-your-own) feeding the shared, step-driven
+// <FlowTracePlayer> from @neokapi/kapi-lab. The same player is embedded inline
+// in the docs and the /lab page; this page is the free-play surface.
 export default function FlowVisualization(): React.ReactElement {
   const [trace, setTrace] = useState<FlowTrace | null>(null);
   const [tracePath, setTracePath] = useState(AVAILABLE_TRACES[0].path);
-  const [selectedPartId, setSelectedPartId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loadedFileName, setLoadedFileName] = useState<string | null>(null);
 
   const tracePathResolved = useBaseUrl(tracePath);
 
   useEffect(() => {
-    // Skip fetch when a file was loaded directly.
-    if (loadedFileName) return;
-
+    if (loadedFileName) return; // a file was loaded directly; skip fetch
     setTrace(null);
     setError(null);
-    setSelectedPartId(null);
     fetch(tracePathResolved)
       .then((r) => {
         if (!r.ok) throw new Error(`Failed to load trace: ${r.status}`);
@@ -73,16 +66,8 @@ export default function FlowVisualization(): React.ReactElement {
   const handleLoadFile = useCallback((data: unknown, fileName: string) => {
     setLoadedFileName(fileName);
     setError(null);
-    setSelectedPartId(null);
     setTrace(data as FlowTrace);
   }, []);
-
-  const playback = usePlayback({
-    events: trace?.events ?? EMPTY_EVENTS,
-    nodes: trace?.nodes ?? EMPTY_NODES,
-    parts: trace?.parts ?? EMPTY_PARTS,
-    channelSize: trace?.channelSize ?? 64,
-  });
 
   const selector = (
     <TraceSelector
@@ -110,7 +95,7 @@ export default function FlowVisualization(): React.ReactElement {
       <div className={styles.wrapper}>
         {selector}
         <div className={styles.inspector}>
-          <div className={styles.inspectorHint}>Loading trace data...</div>
+          <div className={styles.inspectorHint}>Loading trace data…</div>
         </div>
       </div>
     );
@@ -119,29 +104,7 @@ export default function FlowVisualization(): React.ReactElement {
   return (
     <div className={styles.wrapper}>
       {selector}
-      <p className={styles.traceDescription}>{trace.description}</p>
-      <div className={styles.visualizationArea}>
-        <FlowGraph
-          nodes={trace.nodes}
-          channelSize={trace.channelSize}
-          particles={playback.particles}
-          channelFills={playback.channelFills}
-          activeNodes={playback.activeNodes}
-          selectedPartId={selectedPartId}
-          onPartClick={setSelectedPartId}
-        />
-      </div>
-      <TimelineControls
-        state={playback.state}
-        events={trace.events}
-        onPlay={playback.play}
-        onPause={playback.pause}
-        onStep={playback.step}
-        onSeek={playback.seek}
-        onSetSpeed={playback.setSpeed}
-        onReset={playback.reset}
-      />
-      <PartInspector partId={selectedPartId} parts={trace.parts} nodes={trace.nodes} />
+      <FlowTracePlayer trace={trace} />
     </div>
   );
 }

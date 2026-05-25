@@ -150,6 +150,11 @@ const config: Config = {
           position: "left",
         },
         {
+          to: "/lab",
+          label: "Lab",
+          position: "left",
+        },
+        {
           type: "docSidebar",
           sidebarId: "guidesSidebar",
           label: "Guides",

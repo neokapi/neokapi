@@ -6,6 +6,7 @@ keywords: [content model, Part, Block, Segment, Run, Layer, localization, format
 ---
 
 import { BlockPreview } from "@site/src/components/curated";
+import { AnatomyExplorer } from "@site/src/components/Lab";
 
 # Content Model
 
@@ -16,6 +17,16 @@ into the same handful of types, so [tools](/framework/tools),
 and editors all work against one representation rather than against each format's
 quirks. It is a deliberate, format-independent abstraction over localizable
 content, modeled on the Okapi Framework's resource hierarchy.
+
+:::tip Try it — anatomy of a file
+Pick a sample or drop in your own file and see exactly how a reader decomposes it
+into Layers, Groups, Blocks, and **Runs**. Notice that an HTML `<strong>` becomes
+a paired inline code inside a block's run sequence, while a JSON `{name}` stays
+literal text — that is format-awareness in action. This runs the real `kapi`
+reader in your browser via WebAssembly.
+:::
+
+<AnatomyExplorer defaultSampleId="page-html" />
 
 ## The Part is the streaming unit
 

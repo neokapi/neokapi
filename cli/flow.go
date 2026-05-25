@@ -215,6 +215,7 @@ func (a *App) runSingleFile(ctx context.Context, cmd *cobra.Command, flowName, i
 		FormatReg:    a.FormatReg,
 		SourceLocale: model.LocaleID(a.SourceLang),
 		Encoding:     a.Encoding,
+		Recorder:     recorder,
 		ConfigureReader: func(reader format.DataFormatReader, detectedFmt registry.FormatID) error {
 			if len(mergedConfig) > 0 {
 				if cfg := reader.Config(); cfg != nil {
@@ -249,7 +250,7 @@ func (a *App) runSingleFile(ctx context.Context, cmd *cobra.Command, flowName, i
 			detected, _ := a.FormatReg.DetectByExtension(filepath.Ext(inputPath))
 			detectedFmt = string(detected)
 		}
-		a.writeTraceFile(tracePath, flowName, detectedFmt, inputPath, outputPath, recorder)
+		a.writeTraceFile(tracePath, flowName, detectedFmt, inputPath, outputPath, recorder, stepNames)
 	}
 
 	if !a.Quiet {
@@ -263,8 +264,10 @@ func (a *App) runSingleFile(ctx context.Context, cmd *cobra.Command, flowName, i
 	return nil
 }
 
-// writeTraceFile serializes a trace to JSON and writes it to disk.
-func (a *App) writeTraceFile(tracePath, flowName, fmtName, inputPath, outputPath string, recorder *flow.TraceRecorder) {
+// writeTraceFile serializes a trace to JSON and writes it to disk. toolNames is
+// the ordered list of tool names (one per "tool-N" node) used to label the
+// graph nodes — without it the nodes would fall back to their bare "tool-N" ids.
+func (a *App) writeTraceFile(tracePath, flowName, fmtName, inputPath, outputPath string, recorder *flow.TraceRecorder, toolNames []string) {
 	inputContent, _ := os.ReadFile(inputPath)
 	inputPreview := string(inputContent)
 	if len(inputPreview) > 2000 {
@@ -276,25 +279,13 @@ func (a *App) writeTraceFile(tracePath, flowName, fmtName, inputPath, outputPath
 		outputPreview = outputPreview[:2000] + "\n... (truncated)"
 	}
 
-	var traceNodes []flow.TraceNode
-	traceNodes = append(traceNodes, flow.TraceNode{
-		ID: "reader", Type: flow.NodeReader, Name: fmtName, Label: fmtName + " reader",
-	})
-	for _, e := range recorder.Events() {
-		if e.Type == flow.TraceEnter && e.NodeID != "reader" && e.NodeID != "writer" {
-			found := false
-			for _, n := range traceNodes {
-				if n.ID == e.NodeID {
-					found = true
-					break
-				}
-			}
-			if !found {
-				traceNodes = append(traceNodes, flow.TraceNode{
-					ID: e.NodeID, Type: flow.NodeTool, Name: e.NodeID,
-				})
-			}
-		}
+	traceNodes := []flow.TraceNode{
+		{ID: "reader", Type: flow.NodeReader, Name: fmtName, Label: fmtName + " reader"},
+	}
+	for i, name := range toolNames {
+		traceNodes = append(traceNodes, flow.TraceNode{
+			ID: fmt.Sprintf("tool-%d", i), Type: flow.NodeTool, Name: name, Label: name,
+		})
 	}
 	traceNodes = append(traceNodes, flow.TraceNode{
 		ID: "writer", Type: flow.NodeWriter, Name: fmtName, Label: fmtName + " writer",

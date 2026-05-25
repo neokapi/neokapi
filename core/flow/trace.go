@@ -33,6 +33,22 @@ type PartSnapshot struct {
 	Summary    string `json:"summary"`              // short description
 	SourceText string `json:"sourceText,omitempty"` // source text for blocks
 	TargetText string `json:"targetText,omitempty"` // target text for blocks
+	// Detail carries the full part structure for a rich inspector — run
+	// sequences (inline codes preserved), every target locale, and properties.
+	// Populated for Block parts; nil for structural parts.
+	Detail *PartDetail `json:"detail,omitempty"`
+}
+
+// PartDetail is the run-native, full view of a Block at a point in time, for the
+// "drill into a part" inspector. Source/Targets are run sequences (not flattened
+// strings) so inline placeholders and paired codes survive.
+type PartDetail struct {
+	Name         string                 `json:"name,omitempty"`
+	Translatable bool                   `json:"translatable,omitempty"`
+	Source       []model.Run            `json:"source,omitempty"`
+	Targets      map[string][]model.Run `json:"targets,omitempty"`
+	Properties   map[string]string      `json:"properties,omitempty"`
+	HasSkeleton  bool                   `json:"hasSkeleton,omitempty"`
 }
 
 // PartSnapshotSet holds the initial snapshot and snapshots after each node.
@@ -172,6 +188,21 @@ func snapshotFromPart(part *model.Part) PartSnapshot {
 			} else {
 				snap.Summary = "empty block"
 			}
+			// Full detail for the inspector: run sequences + every locale.
+			detail := &PartDetail{
+				Name:         block.Name,
+				Translatable: block.Translatable,
+				Source:       block.SourceRuns(),
+				Properties:   block.Properties,
+				HasSkeleton:  block.Skeleton != nil,
+			}
+			if len(block.Targets) > 0 {
+				detail.Targets = make(map[string][]model.Run, len(block.Targets))
+				for loc := range block.Targets {
+					detail.Targets[string(loc)] = block.TargetRuns(loc)
+				}
+			}
+			snap.Detail = detail
 		}
 	case model.PartLayerStart:
 		layer, ok := part.Resource.(*model.Layer)

@@ -1,6 +1,6 @@
 import React from "react";
-import type { FlowNode, Particle } from "./_types";
-import styles from "./_index.module.css";
+import type { FlowNode, Particle } from "./types";
+import styles from "./styles.module.css";
 
 interface FlowGraphProps {
   nodes: FlowNode[];
@@ -19,6 +19,9 @@ const BRIDGE_WIDTH = 240;
 const NODE_GAP = 120;
 const PADDING_X = 60;
 const PADDING_Y = 60;
+// Vertical gap between particles that share a node/edge, so co-located parts
+// fan out into distinct dots instead of stacking into one.
+const PARTICLE_SPREAD = 13;
 
 const PART_COLORS: Record<string, string> = {
   Block: "#3b82f6",
@@ -44,10 +47,7 @@ function getNodeWidth(node: FlowNode): number {
 
 function getNodeHeight(node: FlowNode): number {
   const c = node.concurrency ?? 0;
-  if (c > 1) {
-    // Base height + lanes for each worker
-    return NODE_HEIGHT + (c - 1) * WORKER_LANE_HEIGHT;
-  }
+  if (c > 1) return NODE_HEIGHT + (c - 1) * WORKER_LANE_HEIGHT;
   return NODE_HEIGHT;
 }
 
@@ -57,9 +57,7 @@ function getMaxNodeHeight(nodes: FlowNode[]): number {
 
 function getNodeX(nodes: FlowNode[], index: number): number {
   let x = PADDING_X;
-  for (let i = 0; i < index; i++) {
-    x += getNodeWidth(nodes[i]) + NODE_GAP;
-  }
+  for (let i = 0; i < index; i++) x += getNodeWidth(nodes[i]) + NODE_GAP;
   return x;
 }
 
@@ -100,9 +98,30 @@ export default function FlowGraph({
   const totalWidth = getTotalWidth(nodes);
   const totalHeight = PADDING_Y * 2 + maxNodeHeight;
 
-  // Build node index for particle lookups
   const nodeIndexMap = new Map<string, number>();
   nodes.forEach((n, i) => nodeIndexMap.set(n.id, i));
+
+  // Fan co-located particles apart: group by slot (a node — optionally a worker
+  // lane — or an edge), then give each a vertical offset by its index within the
+  // slot so all of them are visible rather than overlapping at one point. The
+  // gap shrinks as a slot gets crowded so a large batch still fits.
+  const slotKeyOf = (p: Particle): string =>
+    p.position === "node" ? `n:${p.nodeId}:${p.worker ?? "_"}` : `e:${p.edgeIndex}`;
+  const slotCounts = new Map<string, number>();
+  for (const p of particles) {
+    const k = slotKeyOf(p);
+    slotCounts.set(k, (slotCounts.get(k) ?? 0) + 1);
+  }
+  const slotSeen = new Map<string, number>();
+  const fanOffsets = particles.map((p) => {
+    const k = slotKeyOf(p);
+    const count = slotCounts.get(k) ?? 1;
+    const idx = slotSeen.get(k) ?? 0;
+    slotSeen.set(k, idx + 1);
+    if (count <= 1) return 0;
+    const gap = Math.min(PARTICLE_SPREAD, maxNodeHeight / count);
+    return (idx - (count - 1) / 2) * gap;
+  });
 
   return (
     <svg
@@ -141,7 +160,6 @@ export default function FlowGraph({
         return (
           <g key={`edge-${i}`}>
             <path d={pathD} className={styles.edgePath} markerEnd="url(#arrowhead)" />
-            {/* Buffer meter */}
             <rect
               x={meterX}
               y={meterY}
@@ -177,7 +195,6 @@ export default function FlowGraph({
       {nodes.map((node, i) => {
         const x = getNodeX(nodes, i);
         const h = getNodeHeight(node);
-        // Vertically center each node within maxNodeHeight
         const y = PADDING_Y + (maxNodeHeight - h) / 2;
         const w = getNodeWidth(node);
         const isActive = activeNodes.has(node.id);
@@ -219,14 +236,12 @@ export default function FlowGraph({
                 {node.bridge.filterClass}
               </text>
             )}
-            {/* Worker lanes for concurrent nodes */}
             {concurrency > 1 && (
               <g>
                 {Array.from({ length: concurrency }, (_, wi) => {
                   const laneY = y + 52 + wi * WORKER_LANE_HEIGHT;
                   const laneW = w - 20;
                   const laneH = WORKER_LANE_HEIGHT - 4;
-                  // Count active particles in this worker lane
                   const laneActive = particles.some(
                     (p) => p.position === "node" && p.nodeId === node.id && p.worker === wi,
                   );
@@ -259,7 +274,7 @@ export default function FlowGraph({
       })}
 
       {/* Particles */}
-      {particles.map((particle) => {
+      {particles.map((particle, pIndex) => {
         let cx: number;
         let cy: number;
 
@@ -270,8 +285,6 @@ export default function FlowGraph({
           const center = getNodeCenter(nodes, nIdx, maxNodeHeight);
           cx = center.x;
           cy = center.y;
-
-          // Position in worker lane if concurrent node
           const concurrency = node.concurrency ?? 0;
           if (concurrency > 1 && particle.worker !== undefined) {
             const h = getNodeHeight(node);
@@ -279,7 +292,7 @@ export default function FlowGraph({
             const laneY = nodeY + 52 + particle.worker * WORKER_LANE_HEIGHT;
             const laneH = WORKER_LANE_HEIGHT - 4;
             cy = laneY + laneH / 2;
-            cx = center.x + 16; // offset right of the "w0" label
+            cx = center.x + 16;
           }
         } else if (particle.position === "edge" && particle.edgeIndex !== undefined) {
           const i = particle.edgeIndex;
@@ -294,6 +307,9 @@ export default function FlowGraph({
         } else {
           return null;
         }
+
+        // Spread out parts sharing this slot so they don't stack into one dot.
+        cy += fanOffsets[pIndex];
 
         const color = PART_COLORS[particle.partType] || "#94a3b8";
         const isSelected = particle.partId === selectedPartId;
@@ -314,10 +330,18 @@ export default function FlowGraph({
                 stroke={color}
                 strokeWidth={2}
                 opacity={0.5}
-                className={styles.particleSelected}
+                className={`${styles.particle} ${styles.particleSelected}`}
               />
             )}
-            <circle cx={cx} cy={cy} r={radius} fill={color} stroke="white" strokeWidth={1.5} />
+            <circle
+              cx={cx}
+              cy={cy}
+              r={radius}
+              fill={color}
+              stroke="white"
+              strokeWidth={1.5}
+              className={styles.particle}
+            />
             <title>{particle.summary}</title>
           </g>
         );

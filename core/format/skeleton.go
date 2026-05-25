@@ -68,7 +68,12 @@ func (s *SkeletonStore) EntriesWritten() int { return s.entries }
 func NewSkeletonStore() (*SkeletonStore, error) {
 	f, err := os.CreateTemp("", "neokapi-skeleton-*")
 	if err != nil {
-		return nil, fmt.Errorf("skeleton store: create temp: %w", err)
+		// No writable temp filesystem (notably the js/wasm browser build, where
+		// os.CreateTemp always fails). Fall back to an in-memory store so the
+		// caller still gets a working byte-exact skeleton — otherwise skeleton
+		// wiring is skipped and format writers re-serialize their parse tree,
+		// silently losing whitespace, doctype case, and attribute spacing.
+		return NewMemorySkeletonStore(), nil
 	}
 	return &SkeletonStore{
 		file:   f,

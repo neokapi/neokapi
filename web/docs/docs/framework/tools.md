@@ -5,6 +5,9 @@ description: Tools are the composable processing stages in a neokapi pipeline �
 keywords: [tools, pipeline stage, processing, translation, QA, TM leverage, segmentation, composable]
 ---
 
+import { ToolLab } from "@site/src/components/Lab/ToolLab";
+import { ScriptLab } from "@site/src/components/Lab/ScriptLab";
+
 # Tools
 
 A **tool** is the unit of processing in neokapi. Where a [format](/framework/formats)
@@ -20,6 +23,17 @@ cares about and passing the rest through untouched. The category of work a tool
 does is not fixed by the framework; the same interface backs analysis,
 transformation, enrichment, and validation alike. The authoritative, generated
 list of what ships in the current build is the [Tool Reference](/tools).
+
+:::tip Try a tool on a file
+Pick a tool, edit its configuration in the live form, and run it on a sample
+file to see how each translatable [Block](/framework/content-model) changes —
+source before, tool output after. The same form that drives the configuration
+here is the one the visual editors and the [Tool Reference](/tools) render from
+the tool's schema. This runs the real `kapi` engine in your browser via
+WebAssembly.
+:::
+
+<ToolLab defaultSampleId="messages-json" />
 
 ## The Tool interface
 
@@ -176,6 +190,24 @@ configuration forms in the visual editors. A tool that opts into this advertises
 its schema through an optional interface; the generated [Tool
 Reference](/tools) renders each tool's parameters from exactly these schemas, so
 it always matches the build.
+
+## Scripting — write a transform in JavaScript
+
+Not every transform deserves its own Go tool. The built-in `script` tool runs a
+small JavaScript program against each Part. Define `process(part)`, edit
+`part.block.source` or `part.block.targets`, and return the part to keep it (or
+`null` to drop it) — or omit the function and write top-level code against the
+global `part`, calling `emit(part)` / `skip()`. It is the quickest way to
+prototype a one-off rule, and it runs anywhere the engine runs — including the
+browser, via the embedded interpreter.
+
+:::tip Write a script, run it on your file
+Edit the JavaScript below — `process(part)` runs once per Part, with full
+autocomplete for the `part` API — or load an example, then run it on a sample or
+your own file and read the per-Block before/after of source and target.
+:::
+
+<ScriptLab defaultSampleId="messages-json" />
 
 ## Where tools come from
 

@@ -33,6 +33,12 @@ export type { KapiEmbedProps, KapiEmbedHandle, KapiRunRequest } from "./KapiEmbe
 
 // Runtime + fixtures (for advanced hosts / tooling).
 export { bootKapiRuntime, isBooted } from "./runtime";
-export type { KapiRuntime, PreviewResult, PreviewBlock } from "./runtime";
+export type {
+  KapiRuntime,
+  PreviewResult,
+  PreviewBlock,
+  InspectResult,
+  TraceRunResult,
+} from "./runtime";
 export { fixtureNames, getFixture } from "./fixtures";
 export type { Fixture } from "./fixtures";

@@ -26,15 +26,52 @@ export interface PreviewResult {
   bytes?: number;
 }
 
+export interface InspectResult {
+  ok: boolean;
+  error?: string;
+  format?: string;
+  /**
+   * Parsed ContentTree (the hierarchical content-model view). Typed as unknown
+   * here so the kit stays lab-agnostic; @neokapi/kapi-lab casts it to its
+   * ContentTree type.
+   */
+  tree?: unknown;
+  bytes?: number;
+}
+
+export interface TraceRunResult {
+  /** Process-style exit code from the underlying kapiRun. */
+  code: number;
+  /**
+   * Parsed FlowTrace JSON, or null when the run produced no trace file.
+   * Typed as unknown; @neokapi/kapi-lab casts it to its FlowTrace type.
+   */
+  trace: unknown | null;
+}
+
 export interface KapiRuntime {
   vol: MemVolume;
   run(argv: string[]): Promise<number>;
   preview(path: string): Promise<PreviewResult>;
+  /** Inspect a file's content model, returning the parsed ContentTree. */
+  inspect(path: string): Promise<InspectResult>;
+  /**
+   * Run a command with flow tracing enabled and return the parsed FlowTrace.
+   * Appends `--trace <tmp>` to argv, runs it, and reads the trace back from the
+   * in-memory filesystem. The caller supplies the command plus its input and
+   * output args, e.g. ["pseudo-translate", "/p/in.json", "-o", "/p/out.json"]
+   * or ["run", "ai-translate-qa", "-i", "/p/in.json", "-o", "/p/out.json"].
+   */
+  runWithTrace(argv: string[]): Promise<TraceRunResult>;
   cwd(): string;
   chdir(dir: string): void;
   /** Point the live stdout/stderr sinks at a destination (the active terminal). */
   setSinks(out: (s: string) => void, err: (s: string) => void): void;
 }
+
+// Monotonic counter for unique in-memfs trace paths, so a re-run never reads a
+// stale trace from a prior call.
+let traceSeq = 0;
 
 // The one active session's output sinks. Only one terminal is ever live, so a
 // single pair of refs suffices — no per-embed isolation needed (see #658).
@@ -137,6 +174,37 @@ export function bootKapiRuntime(wasmExecUrl: string, wasmUrl: string): Promise<K
       vol: mem.vol,
       run: (argv: string[]) => g.kapiRun(argv) as Promise<number>,
       preview: (path: string) => g.kapiPreview(path) as Promise<PreviewResult>,
+      inspect: async (path: string): Promise<InspectResult> => {
+        const res = (await g.labInspect(path)) as {
+          ok: boolean;
+          error?: string;
+          format?: string;
+          json?: string;
+          bytes?: number;
+        };
+        if (!res || !res.ok) return { ok: false, error: res?.error ?? "inspect failed" };
+        try {
+          return {
+            ok: true,
+            format: res.format,
+            tree: res.json ? JSON.parse(res.json) : undefined,
+            bytes: res.bytes,
+          };
+        } catch (e) {
+          return { ok: false, error: `parse content tree: ${(e as Error).message}` };
+        }
+      },
+      runWithTrace: async (argv: string[]): Promise<TraceRunResult> => {
+        const tracePath = `/.lab/trace-${++traceSeq}.json`;
+        const code = (await g.kapiRun([...argv, "--trace", tracePath])) as number;
+        try {
+          // kapiRun resolves only after the command (incl. the synchronous
+          // trace write) completes, so the file is present to read here.
+          return { code, trace: JSON.parse(dec.decode(mem.vol.readFile(tracePath))) };
+        } catch {
+          return { code, trace: null };
+        }
+      },
       cwd: () => mem.vol.cwd(),
       chdir: (dir: string) => mem.process.chdir(dir),
       setSinks: (out, err) => {
