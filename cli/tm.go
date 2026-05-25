@@ -10,6 +10,7 @@ import (
 
 	"github.com/neokapi/neokapi/cli/output"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/sievepen"
 	"github.com/spf13/cobra"
 )
@@ -59,7 +60,7 @@ func (a *App) openTMSQLite(cmd *cobra.Command) (sievepen.TMStore, string, error)
 	if a.TMBackend != nil {
 		return a.TMBackend, "(in-memory)", nil
 	}
-	dbPath, err := ResolveResourcePath(cmd, "tm", "tm.db")
+	dbPath, err := a.resolveTMCmdPath(cmd)
 	if err != nil {
 		return nil, "", err
 	}
@@ -68,6 +69,43 @@ func (a *App) openTMSQLite(cmd *cobra.Command) (sievepen.TMStore, string, error)
 		return nil, dbPath, fmt.Errorf("open TM: %w", err)
 	}
 	return tm, dbPath, nil
+}
+
+// resolveTMCmdPath picks the SQLite TM file a `kapi tm` subcommand operates on.
+// An explicit --name/--file/--local flag always wins. Otherwise, when run inside
+// a .kapi project, it defaults to the project's authoritative TM
+// (<projectRoot>/.kapi/tm.db) so that `kapi tm lookup`/`import`/`stats` see the
+// same TM that `kapi extract` pre-fills from and `kapi merge` writes back to —
+// without it, those commands silently hit an empty ./tm.db. Falls back to
+// ./tm.db outside a project. This mirrors resolveTermbaseCmdPath.
+func (a *App) resolveTMCmdPath(cmd *cobra.Command) (string, error) {
+	name, _ := cmd.Flags().GetString("name")
+	local, _ := cmd.Flags().GetBool("local")
+	file, _ := cmd.Flags().GetString("file")
+	if name != "" || file != "" || local {
+		return ResolveResourcePath(cmd, "tm", "tm.db")
+	}
+	if p, err := a.resolveProjectTMPath(cmd); err == nil && p != "" {
+		return p, nil
+	}
+	return ResolveResourcePath(cmd, "tm", "tm.db")
+}
+
+// resolveProjectTMPath returns the authoritative TM path for the .kapi project
+// in scope, or "" (with nil error) when no project can be located. Unlike the
+// termbase (which can be re-bound via defaults.termbase), the project TM is
+// always the conventional <projectRoot>/.kapi/tm.db — the same file
+// kapi extract and kapi merge use (see cli/extract.go and cli/merge.go).
+func (a *App) resolveProjectTMPath(cmd *cobra.Command) (string, error) {
+	projectPath, err := ResolveProjectPath(cmd)
+	if err != nil {
+		return "", err
+	}
+	if projectPath == "" {
+		return "", nil
+	}
+	root := filepath.Dir(projectPath)
+	return filepath.Join(root, project.StateDirName, "tm.db"), nil
 }
 
 func (a *App) newTMImportCmd() *cobra.Command {

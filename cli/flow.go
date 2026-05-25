@@ -767,36 +767,37 @@ func (a *App) buildToolByName(toolName string, config map[string]any, cmd ...*co
 				return qaTools, cleanup, nil
 
 			case "tm":
-				// Tools requiring a TM get the provider injected from CLI flags.
+				// Tools requiring a TM get a real SQLite provider injected from
+				// the --tm flag or, with no flag, the project's .kapi/tm.db.
 				tmConfig := map[string]any{
 					"source_locale":   a.SourceLang,
 					"target_locale":   a.TargetLang,
 					"fuzzy_threshold": 70,
 				}
 				var cleanup func()
+				var provider coretools.TMProvider
 				if len(cmd) > 0 && cmd[0] != nil {
-					if tmName, _ := cmd[0].Flags().GetString("tm"); tmName != "" {
-						var tmPath string
-						if strings.ContainsAny(tmName, "/\\") || strings.HasSuffix(tmName, ".db") {
-							tmPath = tmName
-						} else {
-							var err error
-							tmPath, err = resolveNamedResource("tm", tmName)
-							if err != nil {
-								return nil, nil, fmt.Errorf("resolve TM %q: %w", tmName, err)
-							}
-						}
-						tm, err := sqltm.NewSQLiteTM(tmPath)
-						if err != nil {
-							return nil, nil, fmt.Errorf("open TM %q: %w", tmName, err)
-						}
-						tmConfig["provider"] = &cliTMProvider{tm: tm}
-						cleanup = func() { tm.Close() }
+					p, cl, err := a.openToolTM(cmd[0])
+					if err != nil {
+						return nil, nil, err
 					}
+					cleanup = cl
+					provider = p
 				}
 				t, err := a.ToolReg.NewToolWithConfig(registry.ToolID(toolName), tmConfig, a.TargetLang)
 				if err != nil {
+					if cleanup != nil {
+						cleanup()
+					}
 					return nil, nil, err
+				}
+				// The tm-leverage config factory cannot read a non-JSON provider
+				// from the config map (Provider is json:"-") and defaults to
+				// NullTMProvider, so set the resolved provider on the created tool.
+				if provider != nil {
+					if cfg, ok := t.Config().(*coretools.TMLeverageConfig); ok {
+						cfg.Provider = provider
+					}
 				}
 				return []tool.Tool{t}, cleanup, nil
 			}
@@ -922,6 +923,56 @@ func (a *App) openTermbase(cmd ...*cobra.Command) (*sqltb.SQLiteTermBase, func()
 		return nil, nil, fmt.Errorf("open termbase %q: %w", tbPath, err)
 	}
 	return tb, func() { tb.Close() }, nil
+}
+
+// openToolTM resolves the TM a `tm`-requiring tool (e.g. tm-leverage) should
+// leverage and opens it as a TMProvider. The --tm flag wins: a named resource
+// (no path separators) resolves via KAPI_HOME, an explicit file path is opened
+// directly. When no flag is given but a .kapi project is in scope, the project's
+// authoritative TM (<root>/.kapi/tm.db) is opened, so `kapi tm-leverage fr.json`
+// leverages the same TM that `kapi extract`/`kapi merge` use — with no flag.
+//
+// Returns (nil, noop, nil) when no TM is in scope, or when the resolved DB does
+// not exist outside a project, preserving today's no-match behavior rather than
+// erroring. Inside a project the .kapi/tm.db file is opened (and created on
+// demand by SQLite) so the tool leverages it. This mirrors openTermbase and
+// reuses the same resolution as the `kapi tm` subcommands (resolveProjectTMPath).
+func (a *App) openToolTM(cmd *cobra.Command) (coretools.TMProvider, func(), error) {
+	noop := func() {}
+	if cmd == nil {
+		return nil, noop, nil
+	}
+	tmValue, _ := cmd.Flags().GetString("tm")
+
+	var tmPath string
+	switch {
+	case tmValue == "":
+		// No flag — fall back to the project's authoritative TM.
+		p, err := a.resolveProjectTMPath(cmd)
+		if err != nil {
+			return nil, nil, err
+		}
+		if p == "" {
+			return nil, noop, nil
+		}
+		tmPath = p
+	case strings.ContainsAny(tmValue, "/\\") || strings.HasSuffix(tmValue, ".db"):
+		// Explicit file path.
+		tmPath = tmValue
+	default:
+		// Named resource.
+		var err error
+		tmPath, err = resolveNamedResource("tm", tmValue)
+		if err != nil {
+			return nil, nil, fmt.Errorf("resolve TM %q: %w", tmValue, err)
+		}
+	}
+
+	tm, err := sqltm.NewSQLiteTM(tmPath)
+	if err != nil {
+		return nil, nil, fmt.Errorf("open TM %q: %w", tmPath, err)
+	}
+	return &cliTMProvider{tm: tm}, func() { tm.Close() }, nil
 }
 
 // projectBindings holds the standing brand-voice + glossary context resolved

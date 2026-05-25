@@ -12,7 +12,7 @@ import (
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/tool"
-	"github.com/neokapi/neokapi/core/tools"
+	coretools "github.com/neokapi/neokapi/core/tools"
 	aiprovider "github.com/neokapi/neokapi/providers/ai"
 	"github.com/spf13/cobra"
 )
@@ -37,7 +37,7 @@ func allKLF(paths []string) bool {
 // CollectorFactories maps tool names to streaming collector factories.
 // Only tools that aggregate results across files need a collector.
 var CollectorFactories = map[string]func() flow.Collector{
-	"word-count": func() flow.Collector { return tools.NewStreamingWordCountCollector() },
+	"word-count": func() flow.Collector { return coretools.NewStreamingWordCountCollector() },
 }
 
 // aiProgressWriter returns a ProgressEvent callback that writes a single
@@ -217,6 +217,22 @@ func (a *App) NewToolCommands() []*cobra.Command {
 				tracePath, _ := cmd.Flags().GetString("trace")
 				parallelBlocks, _ := cmd.Flags().GetInt("parallel-blocks")
 
+				// Tools that require a TM (e.g. tm-leverage) get a real SQLite
+				// TM provider resolved from --tm or the project's .kapi/tm.db,
+				// opened once and shared across every input file. Without this
+				// the tool's config factory falls back to NullTMProvider and
+				// leverages nothing. Mirrors the termbase glossary injection
+				// below and reuses the flow path's TM opening logic.
+				var tmProvider coretools.TMProvider
+				if toolRequires(toolSchema, "tm") {
+					p, cleanup, terr := a.openToolTM(cmd)
+					if terr != nil {
+						return terr
+					}
+					defer cleanup()
+					tmProvider = p
+				}
+
 				newTool := func() (tool.Tool, error) {
 					config := ReadAllSchemaFlags(cmd, toolSchema)
 					// Tools that require a termbase (e.g. term-check) get the
@@ -248,7 +264,20 @@ func (a *App) NewToolCommands() []*cobra.Command {
 					if !jsonOut && isatty.IsTerminal(os.Stderr.Fd()) {
 						config["onProgress"] = aiProgressWriter(os.Stderr)
 					}
-					return a.ToolReg.NewToolWithConfig(registry.ToolID(toolName), config, effectiveLang)
+					t, terr := a.ToolReg.NewToolWithConfig(registry.ToolID(toolName), config, effectiveLang)
+					if terr != nil {
+						return nil, terr
+					}
+					// The tm-leverage config factory cannot read a non-JSON
+					// provider from the config map (Provider is json:"-"), so it
+					// defaults to NullTMProvider. Swap in the resolved SQLite TM
+					// on the created tool's config so it actually leverages.
+					if tmProvider != nil {
+						if cfg, ok := t.Config().(*coretools.TMLeverageConfig); ok {
+							cfg.Provider = tmProvider
+						}
+					}
+					return t, nil
 				}
 
 				var collector func() flow.Collector
@@ -304,6 +333,8 @@ func (a *App) NewToolCommands() []*cobra.Command {
 					cmd.Flags().String("credential", "", "saved credential name to use (see 'kapi credentials list')")
 				case "termbase":
 					cmd.Flags().String("termbase", "", "named termbase or path to a glossary (defaults to the project termbase)")
+				case "tm":
+					cmd.Flags().String("tm", "", "named TM or path to a .db (defaults to the project TM at .kapi/tm.db)")
 				}
 			}
 		}

@@ -40,8 +40,11 @@ out.
 
 ## Step 1 — load your TM
 
-Import the translation memory so leverage can read it. With no `--name`, it
-lands in the project's default TM:
+Import the translation memory so leverage can read it. Inside a `.kapi` project,
+`kapi tm` commands resolve the project's authoritative TM (`.kapi/tm.db`) — the
+same file `kapi extract` pre-fills from and `kapi merge` writes back to. Outside
+a project the default is `./tm.db`; pass `--name <tm>` to target a named TM in
+`KAPI_HOME` or `--file <path>` for an explicit file.
 
 ```bash
 kapi tm import project.tmx -s en -t fr
@@ -55,9 +58,12 @@ kapi tm stats
 
 ## Step 2 — leverage the TM
 
-Fill segments that have an exact or fuzzy match in the TM. Exact matches are
-applied automatically; fuzzy matches (70% similarity by default) are filled too,
-with the score recorded so reviewers know which to double-check:
+Fill segments that have an exact or fuzzy match in the TM. With no flag inside a
+project, `tm-leverage` reads the same project TM you just imported into; pass
+`--tm <name>` (a `KAPI_HOME` TM) or `--tm <path>` to leverage a different one.
+Exact matches are applied automatically; fuzzy matches (70% similarity by
+default) are filled too, with the score recorded so reviewers know which to
+double-check:
 
 ```bash
 kapi tm-leverage messages_en.json \
