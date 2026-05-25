@@ -265,6 +265,11 @@ func (a *App) runGrep(ctx context.Context, args []string, m *matcher, opts grepO
 			return nil
 		})
 		if ferr != nil {
+			// A cancelled context (Ctrl-C) is a global interrupt, not a per-file
+			// error: stop now and let cli.Run map it to exit 130 with no message.
+			if errors.Is(ferr, context.Canceled) {
+				return ferr
+			}
 			fmt.Fprintf(os.Stderr, "kgrep: %s: %v\n", displayName(file), ferr)
 			continue
 		}

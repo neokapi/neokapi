@@ -129,11 +129,32 @@ func displayName(path string) string {
 }
 
 // readContent reads a file path, or standard input when path is "" or "-".
-func readContent(path string) ([]byte, error) {
-	if path == "" || path == stdinName {
-		return io.ReadAll(os.Stdin)
+//
+// A terminal stdin read blocks until EOF, so we run it on a goroutine and race
+// it against ctx: cli.Run traps SIGINT and turns it into context cancellation
+// (it does not let the signal kill the process), and a plain io.ReadAll would
+// never observe that — Ctrl-C on `kcat` with no FILE would hang. Racing ctx
+// lets the command return context.Canceled (→ exit 130) while the orphaned read
+// goroutine is torn down at process exit.
+func readContent(ctx context.Context, path string) ([]byte, error) {
+	if path != "" && path != stdinName {
+		return os.ReadFile(path)
 	}
-	return os.ReadFile(path)
+	type result struct {
+		data []byte
+		err  error
+	}
+	done := make(chan result, 1)
+	go func() {
+		data, err := io.ReadAll(os.Stdin)
+		done <- result{data, err}
+	}()
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	case r := <-done:
+		return r.data, r.err
+	}
 }
 
 // resolveFormatName picks the format for a path + content. An explicit --format
@@ -163,7 +184,7 @@ func (a *App) resolveFormatName(path string, content []byte) string {
 // streamBlocks opens path (or stdin), detects its format, and calls fn for each
 // Block part in document order. Read-only — the backbone of cat and grep.
 func (a *App) streamBlocks(ctx context.Context, path string, fn func(index int, b *model.Block) error) (string, error) {
-	content, err := readContent(path)
+	content, err := readContent(ctx, path)
 	if err != nil {
 		return "", err
 	}
@@ -211,7 +232,7 @@ func (a *App) editDocument(ctx context.Context, path string, t *tool.BaseTool, w
 	if inPlace && (path == "" || path == stdinName) {
 		return errors.New("in-place editing requires a file argument")
 	}
-	content, err := readContent(path)
+	content, err := readContent(ctx, path)
 	if err != nil {
 		return err
 	}

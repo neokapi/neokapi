@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/stretchr/testify/assert"
@@ -212,6 +213,58 @@ func TestEditDocumentInPlaceWithBackup(t *testing.T) {
 	backup, err := os.ReadFile(path + ".bak")
 	require.NoError(t, err)
 	assert.Contains(t, string(backup), "foo")
+}
+
+// TestReadContentStdinCancel guards the Ctrl-C fix: cli.Run traps SIGINT and
+// turns it into context cancellation rather than killing the process, so a
+// blocking stdin read must observe the cancelled context and return promptly
+// instead of hanging forever (the bug where `kcat` with no FILE swallowed
+// Ctrl-C). We swap os.Stdin for a pipe whose write end stays open (no EOF), so
+// io.ReadAll would block indefinitely without the context race.
+func TestReadContentStdinCancel(t *testing.T) {
+	r, w, err := os.Pipe()
+	require.NoError(t, err)
+	defer w.Close() // keep the write end open: the read never sees EOF
+	defer r.Close()
+
+	orig := os.Stdin
+	os.Stdin = r
+	t.Cleanup(func() { os.Stdin = orig })
+
+	ctx, cancel := context.WithCancel(context.Background())
+	type result struct {
+		data []byte
+		err  error
+	}
+	done := make(chan result, 1)
+	go func() {
+		data, err := readContent(ctx, "-")
+		done <- result{data, err}
+	}()
+
+	cancel()
+
+	select {
+	case got := <-done:
+		assert.ErrorIs(t, got.err, context.Canceled)
+		assert.Nil(t, got.data)
+	case <-time.After(2 * time.Second):
+		t.Fatal("readContent did not return after context cancellation (would hang on Ctrl-C)")
+	}
+}
+
+func TestReadContentFile(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "f.txt")
+	require.NoError(t, os.WriteFile(path, []byte("hello"), 0o644))
+
+	// A file read ignores the context and returns the bytes; cancellation only
+	// guards the blocking stdin path.
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	got, err := readContent(ctx, path)
+	require.NoError(t, err)
+	assert.Equal(t, "hello", string(got))
 }
 
 func TestBusyboxRoot(t *testing.T) {

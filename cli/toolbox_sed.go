@@ -120,6 +120,11 @@ func (a *App) runSed(ctx context.Context, args []string, t *tool.BaseTool, write
 	var firstErr error
 	for _, file := range files {
 		if err := a.editDocument(ctx, file, t, writeLocale, inPlace, backupSuffix, os.Stdout); err != nil {
+			// A cancelled context (Ctrl-C) is a global interrupt, not a per-file
+			// error: stop now and let cli.Run map it to exit 130 with no message.
+			if errors.Is(err, context.Canceled) {
+				return err
+			}
 			fmt.Fprintf(os.Stderr, "ksed: %s: %v\n", displayName(file), err)
 			if firstErr == nil {
 				firstErr = err
