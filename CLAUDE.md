@@ -261,7 +261,6 @@ kapi status                     # Show sync state (like git status)
 kapi pull                       # Fetch from Bowrain Server → update local files
 kapi push                       # Send local files → update Bowrain Server
 kapi run <flow-name>            # Execute flow (inline on recipe or .kapi/flows/)
-kapi serve                      # Start local dashboard (web UI)
 ```
 
 **All bowrain plugin commands require a `.kapi` project with a `server:` block.** The CLI searches upward from the current directory (like git) to find the recipe.

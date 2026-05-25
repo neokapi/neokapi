@@ -9,22 +9,9 @@ This guide walks you through first login, workspace creation, and translating yo
 
 ## Prerequisites
 
-You need a running Bowrain Server. Choose one of:
-
-- **Local mode**: Run `kapi serve` for single-user, no-auth local development
-- **Server mode**: Deploy Bowrain Server with Docker Compose (see [Installation](./installation.md))
+You need a running Bowrain Server, deployed with Docker Compose (see [Installation](./installation.md)).
 
 ## Starting the Server
-
-### Local Mode
-
-```bash
-kapi serve
-```
-
-Open `http://localhost:8080` in your browser. No authentication is required — you are automatically signed in as a local user with a pre-created workspace.
-
-### Server Mode
 
 ```bash
 docker compose up -d
@@ -32,7 +19,7 @@ docker compose up -d
 
 Open `http://localhost:8080` (or your configured domain) in your browser.
 
-## Logging In (Server Mode)
+## Logging In
 
 The web UI redirects you to your configured identity provider for authentication. Depending on your provider configuration, you will see options like:
 
@@ -44,9 +31,7 @@ After authenticating, you are redirected back to the Bowrain web UI with an acti
 
 ## Personal Workspace
 
-After your first login in server mode, a **personal workspace** is automatically created for you. This workspace is named after your display name and is ready to use immediately — no manual workspace creation needed.
-
-In local mode, a workspace named "Local" is created automatically.
+After your first login, a **personal workspace** is automatically created for you. This workspace is named after your display name and is ready to use immediately — no manual workspace creation needed.
 
 ## Creating a Team Workspace
 

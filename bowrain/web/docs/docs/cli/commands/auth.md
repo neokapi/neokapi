@@ -93,13 +93,7 @@ Tokens are stored in `~/.config/bowrain/auth.json`:
 }
 ```
 
-## Server Modes
+## Server Authentication
 
-Authentication is only required when connecting to a `bowrain-server` running in
-multi-user mode. When using `kapi serve` for local project editing, no
-authentication is needed — the local server runs on localhost without auth.
-
-| Mode             | Auth Required | Description                           |
-| ---------------- | ------------- | ------------------------------------- |
-| `kapi serve`  | No            | Local project server, localhost only  |
-| `bowrain-server` | Yes           | Multi-user deployment with workspaces |
+Authentication is required when connecting to a `bowrain-server`, which runs as
+a multi-user deployment with workspaces.

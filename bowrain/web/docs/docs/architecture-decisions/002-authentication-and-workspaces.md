@@ -222,22 +222,20 @@ is terminal-friendly and works over SSH:
 The device authorization claim page is hosted in the web app with the same
 theme as the rest of Bowrain.
 
-### Server Modes
+### Server Configuration
 
-| Feature    | `bowrain-server`              | `kapi serve` (standalone)       |
-| ---------- | ----------------------------- | ---------------------------------- |
-| Binding    | `0.0.0.0` (configurable)      | `127.0.0.1`                        |
-| Auth       | OIDC + JWT                    | None                               |
-| Workspaces | Multi-workspace, multi-user   | Single implicit workspace          |
-| gRPC       | Yes                           | No                                 |
-| Use case   | Production / team deployment  | Local single-user editing          |
+`bowrain-server` runs as a production, multi-user deployment:
 
-The selector is the `Config.JWTSecret` field: when set, OIDC routes are
-registered and all CRUD endpoints require authentication; when empty, routes
-are registered without auth middleware.
+| Feature    | `bowrain-server`              |
+| ---------- | ----------------------------- |
+| Binding    | `0.0.0.0` (configurable)      |
+| Auth       | OIDC + JWT                    |
+| Workspaces | Multi-workspace, multi-user   |
+| gRPC       | Yes                           |
+| Use case   | Production / team deployment  |
 
-The server reports its mode via `GET /api/v1/config` so the web UI, desktop
-app, and CLI can adapt their behavior.
+The server reports its configuration via `GET /api/v1/config` so the web UI,
+desktop app, and CLI can adapt their behavior.
 
 ### SessionStateStore
 
@@ -346,8 +344,7 @@ its owning workspace.
   browser redirect with OS keyring storage.
 - The admin realm is fully separated from the customer realm, so admin
   access cannot leak into customer identity and vice versa.
-- An OIDC provider is a deployment dependency for multi-user mode but not
-  for `kapi serve` standalone local use.
+- An OIDC provider is a deployment dependency.
 
 ## Related
 

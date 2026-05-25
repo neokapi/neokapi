@@ -321,7 +321,6 @@ kapi sync                # push → wait_translate → pull (orchestrated)
 kapi ls                  # list tracked files with stats
 kapi add <path>          # append a content entry to the recipe
 kapi rm <path>           # remove or exclude a content entry
-kapi serve               # local dashboard (web UI)
 kapi mcp                 # stdio MCP server exposing project tools
 ```
 
