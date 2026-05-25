@@ -236,7 +236,7 @@ func (s *ScriptTool) returnedParts(v goja.Value, original *model.Part) []*model.
 	if n := obj.Get("length"); n != nil {
 		length = int(n.ToInteger())
 	}
-	for i := 0; i < length; i++ {
+	for i := range length {
 		el := obj.Get(strconv.Itoa(i))
 		if el == nil || goja.IsUndefined(el) || goja.IsNull(el) {
 			continue
