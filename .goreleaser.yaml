@@ -24,10 +24,13 @@ builds:
     binary: kapi
     env:
       - CGO_ENABLED=0
+    # Windows CLI binaries are built + Authenticode-signed out of band (the
+    # build-windows-cli job uploads them as artifacts; scripts/publish-windows-signed.sh
+    # signs them with Certum and adds them to the published release). GoReleaser
+    # publishes the CI-signed macOS + Linux builds only.
     goos:
       - linux
       - darwin
-      - windows
     goarch:
       - amd64
       - arm64

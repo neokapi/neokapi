@@ -595,11 +595,13 @@ jobs:
         run: |
           Compress-Archive -Path "bowrain/apps/bowrain/bin/Bowrain.exe" -DestinationPath "bowrain-${{ steps.version.outputs.VERSION }}-windows-${{ matrix.build.arch }}.zip"
 
-      - name: Upload ZIP to release
+      - name: Upload Windows ZIP as artifact (Authenticode-signed locally before release)
         if: runner.os == 'Windows'
-        uses: softprops/action-gh-release@v3
+        uses: actions/upload-artifact@v4
         with:
-          files: "bowrain-${{ steps.version.outputs.VERSION }}-windows-${{ matrix.build.arch }}.zip"
+          name: bowrain-windows-${{ matrix.build.arch }}
+          path: "bowrain-${{ steps.version.outputs.VERSION }}-windows-${{ matrix.build.arch }}.zip"
+          retention-days: 14
 
       # Linux: Create tarball
       - name: Create tarball
@@ -872,11 +874,13 @@ jobs:
         run: |
           Compress-Archive -Path "apps/kapi-desktop/bin/Kapi.exe" -DestinationPath "kapi-desktop-${{ steps.version.outputs.VERSION }}-windows-${{ matrix.build.arch }}.zip"
 
-      - name: Upload ZIP to release
+      - name: Upload Windows ZIP as artifact (Authenticode-signed locally before release)
         if: runner.os == 'Windows'
-        uses: softprops/action-gh-release@v3
+        uses: actions/upload-artifact@v4
         with:
-          files: "kapi-desktop-${{ steps.version.outputs.VERSION }}-windows-${{ matrix.build.arch }}.zip"
+          name: kapi-desktop-windows-${{ matrix.build.arch }}
+          path: "kapi-desktop-${{ steps.version.outputs.VERSION }}-windows-${{ matrix.build.arch }}.zip"
+          retention-days: 14
 
       - name: Create tarball
         if: runner.os == 'Linux'
@@ -889,6 +893,43 @@ jobs:
         uses: softprops/action-gh-release@v3
         with:
           files: "kapi-desktop-${{ steps.version.outputs.VERSION }}-linux-${{ matrix.build.arch }}.tar.gz"
+
+  # kapi CLI Windows binaries — built here as workflow artifacts (NOT attached to
+  # the release) so they can be Authenticode-signed locally with a Certum cert and
+  # added to the published release (scripts/publish-windows-signed.sh). The
+  # CI-signed macOS + Linux CLI builds and the GitHub release are owned by the
+  # goreleaser job.
+  build-windows-cli:
+    name: Build kapi CLI (Windows, unsigned artifact)
+    needs: parity-gate
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        arch: [amd64, arm64]
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v6
+        with:
+          go-version: "1.26.0"
+      - name: Build kapi.exe
+        working-directory: kapi
+        env:
+          GOOS: windows
+          GOARCH: ${{ matrix.arch }}
+          CGO_ENABLED: "0"
+          GH_SHA: ${{ github.sha }}
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          LDFLAGS="-s -w -X github.com/neokapi/neokapi/core/version.Version=${VERSION} -X github.com/neokapi/neokapi/core/version.Commit=${GH_SHA::7} -X github.com/neokapi/neokapi/core/version.BuildDate=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          go build -trimpath -ldflags="${LDFLAGS}" -o kapi.exe ./cmd/kapi
+          zip -q "kapi_${VERSION}_windows_${GOARCH}.zip" kapi.exe
+      - uses: actions/upload-artifact@v4
+        with:
+          name: kapi-cli-windows-${{ matrix.arch }}
+          path: kapi/kapi_*_windows_${{ matrix.arch }}.zip
+          retention-days: 14
 
   update-casks:
     name: Update Homebrew Casks
