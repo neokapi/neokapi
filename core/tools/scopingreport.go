@@ -67,37 +67,29 @@ func NewScopingReportTool(cfg *ScopingReportConfig) *tool.BaseTool {
 		ToolDescription: "Classifies blocks into scoping categories based on repetition and match status",
 		Cfg:             cfg,
 	}
-	t.HandleBlockFn = func(part *model.Part) (*model.Part, error) {
-		block, ok := part.Resource.(*model.Block)
-		if !ok {
-			return part, nil
-		}
-		if !block.Translatable {
-			return part, nil
+	t.Annotate = func(v tool.BlockView) error {
+		if !v.Translatable() {
+			return nil
 		}
 
-		if block.Properties == nil {
-			block.Properties = make(map[string]string)
-		}
+		category := classifyScopingCategory(v)
+		v.SetProperty(PropScopingCategory, category)
 
-		category := classifyScopingCategory(block)
-		block.Properties[PropScopingCategory] = category
-
-		return part, nil
+		return nil
 	}
 	return t
 }
 
 // classifyScopingCategory determines the scoping category of a block
 // based on properties set by upstream analysis tools.
-func classifyScopingCategory(block *model.Block) string {
+func classifyScopingCategory(v tool.BlockView) string {
 	// Check repetition status first.
-	if status, ok := block.Properties[PropRepetitionStatus]; ok && status == "repetition" {
+	if status := v.Property(PropRepetitionStatus); status == "repetition" {
 		return ScopingRepetition
 	}
 
 	// Check diff-leverage status.
-	if status, ok := block.Properties[PropDiffLeverageStatus]; ok {
+	if status := v.Property(PropDiffLeverageStatus); status != "" {
 		switch status {
 		case "unchanged":
 			return ScopingExactMatch

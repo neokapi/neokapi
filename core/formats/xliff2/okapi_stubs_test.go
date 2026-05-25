@@ -643,7 +643,7 @@ func TestRead_MultipleSegments(t *testing.T) {
 	require.NotEmpty(t, blocks)
 
 	b := blocks[0]
-	require.GreaterOrEqual(t, len(b.Source), 2,
+	require.GreaterOrEqual(t, b.SourceSegmentCount(), 2,
 		"unit with 2 segments should produce 2+ source segments")
 }
 

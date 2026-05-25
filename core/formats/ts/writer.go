@@ -217,8 +217,8 @@ func (w *Writer) writeFromSkeleton() error {
 			var text string
 			switch elemType {
 			case "source":
-				if seg := block.FirstSegment(); seg != nil && len(seg.Runs) > 0 {
-					text = w.runsToXML(seg.Runs)
+				if len(block.Source) > 0 {
+					text = w.runsToXML(block.Source)
 				}
 			case "translation", "synthesized_translation":
 				// `synthesized_translation` is the placeholder the reader
@@ -230,18 +230,15 @@ func (w *Writer) writeFromSkeleton() error {
 				// pseudo-translated source when no explicit target was
 				// produced (matches okapi's text-modification fill).
 				if block.HasTarget(targetLocale) {
-					targetSegs := block.Targets[targetLocale]
-					if len(targetSegs) > 0 && len(targetSegs[0].Runs) > 0 {
-						text = w.runsToXML(targetSegs[0].Runs)
-					}
+					text = w.runsToXML(block.TargetRuns(targetLocale))
 				} else if len(block.Targets) > 0 {
 					// File declared a target language other than ours
 					// (e.g. <TS language="af">). Preserve the existing
 					// translation so non-matching round-trips match
 					// okapi's "leave bilingual content alone" semantics.
-					for _, segs := range block.Targets {
-						if len(segs) > 0 && len(segs[0].Runs) > 0 {
-							text = w.runsToXML(segs[0].Runs)
+					for _, loc := range block.TargetLocales() {
+						if runs := block.TargetRuns(loc); len(runs) > 0 {
+							text = w.runsToXML(runs)
 							break
 						}
 					}
@@ -253,8 +250,8 @@ func (w *Writer) writeFromSkeleton() error {
 					// TextModificationStep is disabled: the empty target
 					// gets filled with the source string before the writer
 					// runs.
-					if seg := block.FirstSegment(); seg != nil && len(seg.Runs) > 0 {
-						text = w.runsToXML(seg.Runs)
+					if len(block.Source) > 0 {
+						text = w.runsToXML(block.Source)
 					}
 				}
 			case "numerus_translation":
@@ -266,17 +263,7 @@ func (w *Writer) writeFromSkeleton() error {
 				// ` variants="no"`) so the round-trip preserves the
 				// `<translation>\n<numerusform variants="no">…</numerusform>\n</translation>`
 				// shape okapi's pipeline produces.
-				segs := block.Targets[targetLocale]
-				if len(segs) == 0 {
-					// File declared a non-matching target locale; pick
-					// any present target so existing forms pass through.
-					for _, s := range block.Targets {
-						if len(s) > 0 {
-							segs = s
-							break
-						}
-					}
-				}
+				formRuns := w.numerusFormRuns(block, targetLocale)
 				var attrs []string
 				if joined := block.Properties["_numerusform_attrs"]; joined != "" {
 					attrs = strings.Split(joined, "\x1f")
@@ -315,7 +302,7 @@ func (w *Writer) writeFromSkeleton() error {
 				// segment count when it falls back to source-as-base
 				// (one source segment → one pseudo'd target segment),
 				// which would otherwise drop the empty forms.
-				formCount := len(segs)
+				formCount := len(formRuns)
 				if n := len(prefixes); n > formCount {
 					formCount = n
 				}
@@ -341,8 +328,8 @@ func (w *Writer) writeFromSkeleton() error {
 						// Original form was empty — preserve the empty
 						// shape instead of substituting in a
 						// pseudo-translated source clone.
-					} else if i < len(segs) && segs[i] != nil {
-						b.WriteString(w.runsToXMLEscapeApos(segs[i].Runs))
+					} else if i < len(formRuns) && len(formRuns[i]) > 0 {
+						b.WriteString(w.runsToXMLEscapeApos(formRuns[i]))
 					}
 					b.WriteString("</numerusform>")
 				}
@@ -572,8 +559,8 @@ func (w *Writer) writeMessage(block *model.Block, targetLocale model.LocaleID) e
 
 	// Write source
 	var sourceText string
-	if seg := block.FirstSegment(); seg != nil && len(seg.Runs) > 0 {
-		sourceText = w.runsToXML(seg.Runs)
+	if len(block.Source) > 0 {
+		sourceText = w.runsToXML(block.Source)
 	}
 	if _, err := fmt.Fprintf(w.Output, "        <source>%s</source>\n", sourceText); err != nil {
 		return err
@@ -614,19 +601,16 @@ func (w *Writer) writeMessage(block *model.Block, targetLocale model.LocaleID) e
 			return err
 		}
 
-		// Each plural form is its own segment under
-		// block.Targets[targetLocale]; the reader builds one segment per
-		// <numerusform> so the pseudo / TextModificationStep pipeline
-		// reaches every form. Fall back to the legacy
+		// Each plural form is one span of the target-side segmentation
+		// overlay over block.TargetRuns(targetLocale); the reader builds
+		// one span per <numerusform> so the pseudo / TextModificationStep
+		// pipeline reaches every form. Fall back to the legacy
 		// `numerusform:<i>` properties for blocks built outside the
 		// reader (tests, programmatic construction).
-		segs := block.Targets[targetLocale]
-		if len(segs) > 0 {
-			for _, seg := range segs {
-				if seg == nil {
-					continue
-				}
-				form := w.runsToXML(seg.Runs)
+		formRuns := w.numerusFormRuns(block, targetLocale)
+		if len(formRuns) > 0 {
+			for _, runs := range formRuns {
+				form := w.runsToXML(runs)
 				if _, err := fmt.Fprintf(w.Output, "            <numerusform>%s</numerusform>\n", form); err != nil {
 					return err
 				}
@@ -655,13 +639,8 @@ func (w *Writer) writeMessage(block *model.Block, targetLocale model.LocaleID) e
 		}
 
 		if block.HasTarget(targetLocale) {
-			targetSegs := block.Targets[targetLocale]
-			if len(targetSegs) > 0 && len(targetSegs[0].Runs) > 0 {
-				targetXML := w.runsToXML(targetSegs[0].Runs)
-				transOpen += fmt.Sprintf(">%s</translation>\n", targetXML)
-			} else {
-				transOpen += "></translation>\n"
-			}
+			targetXML := w.runsToXML(block.TargetRuns(targetLocale))
+			transOpen += fmt.Sprintf(">%s</translation>\n", targetXML)
 		} else {
 			transOpen += "></translation>\n"
 		}
@@ -694,6 +673,46 @@ func (w *Writer) runsToXMLEscapeApos(runs []model.Run) string {
 	var buf strings.Builder
 	writeTSRunsXML(&buf, runs, true)
 	return buf.String()
+}
+
+// numerusFormRuns reconstructs the per-numerusform Run slices for a
+// numerus block. The reader stores the plural forms as one flat target
+// Run sequence plus a target-side SEGMENTATION OVERLAY whose spans
+// (ordered by their `numerus-form` index) carve out each form. The
+// writer extracts each span's runs via Range.ExtractRuns so it can emit
+// one `<numerusform>` per form. When no segmentation overlay is present
+// (e.g. a block built outside the reader, or whose forms were collapsed
+// to a single target run by a downstream step), the whole target run
+// sequence is returned as a single form so existing content still
+// round-trips.
+//
+// When the requested locale has no target, falls back to any present
+// target so a file declaring a non-matching `<TS language>` still
+// passes its existing forms through unchanged.
+func (w *Writer) numerusFormRuns(block *model.Block, locale model.LocaleID) [][]model.Run {
+	runs := block.TargetRuns(locale)
+	key := model.Variant(locale)
+	if len(runs) == 0 {
+		for _, loc := range block.TargetLocales() {
+			if r := block.TargetRuns(loc); len(r) > 0 {
+				runs = r
+				key = model.Variant(loc)
+				break
+			}
+		}
+	}
+	if len(runs) == 0 {
+		return nil
+	}
+	ov := block.SegmentationFor(&key)
+	if ov == nil || len(ov.Spans) == 0 {
+		return [][]model.Run{runs}
+	}
+	forms := make([][]model.Run, len(ov.Spans))
+	for i, span := range ov.Spans {
+		forms[i] = span.Range.ExtractRuns(runs)
+	}
+	return forms
 }
 
 func writeTSRunsXML(buf *strings.Builder, runs []model.Run, escapeApos bool) {

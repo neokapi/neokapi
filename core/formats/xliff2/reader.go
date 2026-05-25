@@ -265,7 +265,7 @@ func (r *Reader) emitUnit(ctx context.Context, ch chan<- model.PartResult, unit 
 		Translatable: translatable,
 		Properties:   make(map[string]string),
 		Annotations:  make(map[string]model.Annotation),
-		Targets:      make(map[model.LocaleID][]*model.Segment),
+		Targets:      make(map[model.VariantKey]*model.Target),
 	}
 
 	// Unit-level <notes>: store as note-N properties (preserves order).
@@ -291,8 +291,8 @@ func (r *Reader) emitUnit(ctx context.Context, ch chan<- model.PartResult, unit 
 	}
 
 	// Walk segments and ignorables in document order.
-	srcSegs := []*model.Segment{}
-	tgtSegs := []*model.Segment{}
+	srcSegs := []seg{}
+	tgtSegs := []seg{}
 
 	// Collect explicit segment ids first so synthesized ids for
 	// unkeyed elements don't collide with them. xliff2 makes the id
@@ -338,42 +338,39 @@ func (r *Reader) emitUnit(ctx context.Context, ch chan<- model.PartResult, unit 
 			continue // spec violation but tolerate
 		}
 		srcInlines := parseInlines(srcEl)
-		srcSeg := &model.Segment{
-			ID:          segID,
-			Runs:        inlinesToRuns(srcInlines),
-			Annotations: map[string]model.Annotation{},
+		srcSeg := seg{
+			ID:      segID,
+			Runs:    inlinesToRuns(srcInlines),
+			Content: &Content{Inlines: srcInlines},
 		}
-		srcSeg.Annotations["xliff2:segment-inline"] = &SegmentInlineAnnotation{Content: &Content{Inlines: srcInlines}}
 		// Preserve <ignorable> vs <segment> distinction for downstream
 		// pipelines that need it (e.g. parity native engine seeds
 		// targets for ignorables only, mirroring okapi's
 		// X2ToOkpConverter line 200).
 		if child.Tag == "ignorable" {
-			if srcSeg.Properties == nil {
-				srcSeg.Properties = map[string]string{}
-			}
-			srcSeg.Properties["xliff2:ignorable"] = "yes"
+			srcSeg.Ignorable = true
 		}
 		srcSegs = append(srcSegs, srcSeg)
 
 		if tgtEl := child.SelectElement("target"); tgtEl != nil {
 			tgtInlines := parseInlines(tgtEl)
 			if hasNonEmptyInline(tgtInlines) {
-				tgtSeg := &model.Segment{
-					ID:          segID,
-					Runs:        inlinesToRuns(tgtInlines),
-					Annotations: map[string]model.Annotation{},
-				}
-				tgtSeg.Annotations["xliff2:segment-inline"] = &SegmentInlineAnnotation{Content: &Content{Inlines: tgtInlines}}
-				tgtSegs = append(tgtSegs, tgtSeg)
+				tgtSegs = append(tgtSegs, seg{
+					ID:      segID,
+					Runs:    inlinesToRuns(tgtInlines),
+					Content: &Content{Inlines: tgtInlines},
+					// Mirror the source <ignorable> marker onto the
+					// target seg so the target segmentation overlay
+					// carries the same kind — downstream consumers
+					// (e.g. the parity pseudo) must keep an
+					// <ignorable>'s target verbatim, never translate it.
+					Ignorable: child.Tag == "ignorable",
+				})
 			}
 		}
 	}
 
-	block.Source = srcSegs
-	if len(tgtSegs) > 0 && !trgLang.IsEmpty() {
-		block.Targets[trgLang] = tgtSegs
-	}
+	applySegmentsToBlock(block, srcSegs, tgtSegs, trgLang)
 
 	r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
 }
@@ -790,10 +787,10 @@ type xliff2StreamState struct {
 	// stack is the effective parent value for the current element.
 	// Document default is "yes" (true).
 	translateStack []bool
-	segID         string
-	blockCount    int
-	elemPositions []elemPos
-	elemStartOff  int64
+	segID          string
+	blockCount     int
+	elemPositions  []elemPos
+	elemStartOff   int64
 
 	// Accumulators
 	sourceInnerXML strings.Builder
@@ -803,8 +800,8 @@ type xliff2StreamState struct {
 	targetDepth    int
 
 	// Current unit data
-	sourceSegs []*model.Segment
-	targets    map[model.LocaleID][]*model.Segment
+	sourceSegs []seg
+	targets    map[model.LocaleID][]seg
 	notes      []string
 	states     []string
 }
@@ -922,7 +919,7 @@ func (s *xliff2StreamState) handleStartElement(t xml.StartElement) {
 		s.unitName = ""
 		s.unitTranslate = ""
 		s.sourceSegs = nil
-		s.targets = make(map[model.LocaleID][]*model.Segment)
+		s.targets = make(map[model.LocaleID][]seg)
 		s.notes = nil
 		s.states = nil
 		for _, a := range t.Attr {
@@ -1079,10 +1076,9 @@ func (s *xliff2StreamState) emitUnit() {
 		ID:           s.unitID,
 		Name:         s.unitName,
 		Translatable: translatable,
-		Source:       s.sourceSegs,
-		Targets:      s.targets,
 		Properties:   make(map[string]string),
 		Annotations:  make(map[string]model.Annotation),
+		Targets:      make(map[model.VariantKey]*model.Target),
 	}
 	for _, st := range s.states {
 		if st != "" {
@@ -1092,6 +1088,13 @@ func (s *xliff2StreamState) emitUnit() {
 	for i, note := range s.notes {
 		block.Properties[fmt.Sprintf("note-%d", i)] = note
 	}
+	// The streaming skeleton path tracks at most one target locale.
+	trgLang := model.LocaleID(s.trgLang)
+	var tgtSegs []seg
+	if segs, ok := s.targets[trgLang]; ok {
+		tgtSegs = segs
+	}
+	applySegmentsToBlock(block, s.sourceSegs, tgtSegs, trgLang)
 	s.reader.emit(s.ctx, s.ch, &model.Part{Type: model.PartBlock, Resource: block})
 	s.blockCount++
 	s.inUnit = false
@@ -1115,7 +1118,7 @@ func (s *xliff2StreamState) finishSource() {
 		sid = fmt.Sprintf("s%d", len(s.sourceSegs)+1)
 	}
 	sourceText := strings.TrimSpace(s.sourceInnerXML.String())
-	s.sourceSegs = append(s.sourceSegs, &model.Segment{
+	s.sourceSegs = append(s.sourceSegs, seg{
 		ID:   sid,
 		Runs: []model.Run{{Text: &model.TextRun{Text: sourceText}}},
 	})
@@ -1142,7 +1145,7 @@ func (s *xliff2StreamState) finishTarget() {
 		if sid == "" {
 			sid = fmt.Sprintf("s%d", len(s.sourceSegs))
 		}
-		s.targets[tl] = append(s.targets[tl], &model.Segment{
+		s.targets[tl] = append(s.targets[tl], seg{
 			ID:   sid,
 			Runs: []model.Run{{Text: &model.TextRun{Text: targetText}}},
 		})

@@ -13,8 +13,8 @@ import "github.com/neokapi/neokapi/core/model"
 // where inline placeholders, paired codes and plurals live. The Block atom is
 // the run sequence ([]model.Run, via Block.SourceRuns / TargetRuns), matching
 // the run-native content model (RFC 0001). Segment boundaries are exposed only
-// as a secondary overlay view ([]SegmentSpan, by run-index range) so this view
-// stays correct as segmentation moves to a stand-off overlay (#697).
+// as a secondary overlay view ([]SegmentSpan, by run-index range), sourced from
+// the Block's stand-off segmentation overlay (AD-002).
 type ContentTree struct {
 	Format string         `json:"format"`
 	Root   []*ContentNode `json:"root"`
@@ -47,7 +47,7 @@ type ContentNode struct {
 	ParentID string `json:"parentId,omitempty"`
 
 	// Block fields. Source/Targets are flattened run sequences (the Block
-	// atom); Segments is the transitional boundary overlay.
+	// atom); Segments is the run-index boundary overlay view.
 	Translatable bool                   `json:"translatable,omitempty"`
 	Source       []model.Run            `json:"source,omitempty"`
 	Targets      map[string][]model.Run `json:"targets,omitempty"`
@@ -62,10 +62,9 @@ type ContentNode struct {
 	Children []*ContentNode `json:"children,omitempty"`
 }
 
-// SegmentSpan is the transitional overlay view of a Block's current segment
-// boundaries, expressed as a half-open run-index range [Start, End) over the
-// flattened Source runs. When segmentation becomes a stand-off overlay (#697),
-// this is sourced from that overlay instead of the structural []*Segment.
+// SegmentSpan is the overlay view of a Block's segment boundaries, expressed as
+// a half-open run-index range [Start, End) over the flattened Source runs,
+// derived from the Block's stand-off segmentation overlay (AD-002).
 type SegmentSpan struct {
 	ID    string `json:"id"`
 	Start int    `json:"start"` // first run index, inclusive
@@ -197,35 +196,29 @@ func blockNode(b *model.Block) *ContentNode {
 		Properties:   nonEmptyProps(b.Properties),
 		HasSkeleton:  b.Skeleton != nil,
 		Source:       b.SourceRuns(),
-		Segments:     segmentSpans(b.Source),
+		Segments:     segmentSpans(b),
 	}
 	if len(b.Targets) > 0 {
 		n.Targets = make(map[string][]model.Run, len(b.Targets))
-		for loc := range b.Targets {
+		for _, loc := range b.TargetLocales() {
 			n.Targets[string(loc)] = b.TargetRuns(loc)
 		}
 	}
 	return n
 }
 
-// segmentSpans derives the run-index boundary overlay from a Block's current
-// structural segments. A single (or empty) segment carries no meaningful
-// boundary, so it returns nil — the learner sees just the run sequence. This is
-// the only place coupled to the structural []*Segment shape; when #697 lands it
-// reads the segmentation overlay instead.
-func segmentSpans(segs []*model.Segment) []SegmentSpan {
-	if len(segs) <= 1 {
+// segmentSpans derives the run-index boundary spans from a Block's source
+// segmentation overlay (AD-002). With no overlay (or a single span) there is no
+// meaningful boundary, so it returns nil — the learner sees just the run
+// sequence.
+func segmentSpans(b *model.Block) []SegmentSpan {
+	seg := b.SourceSegmentation()
+	if seg == nil || len(seg.Spans) <= 1 {
 		return nil
 	}
-	spans := make([]SegmentSpan, 0, len(segs))
-	idx := 0
-	for _, s := range segs {
-		if s == nil {
-			continue
-		}
-		n := len(s.Runs)
-		spans = append(spans, SegmentSpan{ID: s.ID, Start: idx, End: idx + n})
-		idx += n
+	spans := make([]SegmentSpan, 0, len(seg.Spans))
+	for _, s := range seg.Spans {
+		spans = append(spans, SegmentSpan{ID: s.ID, Start: s.Range.StartRun, End: s.Range.EndRun})
 	}
 	return spans
 }

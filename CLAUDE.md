@@ -350,8 +350,8 @@ Each tool runs in its own goroutine. Buffered channels (default 64) provide back
 The Part is the fundamental streaming unit, carrying a PartType discriminator and a Resource:
 
 - **Layer** — structural grouping (document, section, embedded content). Layers nest: embedded content (HTML inside JSON) becomes a child Layer with its own DataFormat.
-- **Block** — translatable content with Source segments and Target segments per locale
-- **Fragment** — text with inline Spans using coded text (Unicode private use area markers replace inline markup)
+- **Block** — translatable content: a flat `Source []Run`, `Targets map[VariantKey]*Target` (variant = locale + optional tone/channel), and stand-off `Overlays` (segmentation, terms, entities, QA, alignment) anchored to run-index ranges. There is no structural `Segment` type — segmentation is an opt-in overlay (AD-002).
+- **Run** — the inline unit: a discriminated union (Text, Ph, PcOpen/PcClose, Sub, Plural, Select). Inline markup lives in runs, not in the text.
 - **Data** — non-translatable structure
 - **Media** — binary content
 
@@ -385,7 +385,7 @@ Create a package under `core/formats/` with reader.go, writer.go, config.go. The
 
 ## Implementing a New Tool
 
-Create a type embedding `tool.BaseTool` and set `HandleBlockFn` / `HandleDataFn` / `HandleMediaFn` function fields for the part types you want to process. Parts you don't handle pass through unchanged. Register in the tool registry.
+Create a type embedding `tool.BaseTool`. For Blocks, set exactly one capability-typed handler — `Annotate(BlockView)` (read-only; writes overlays/annotations/properties), `Translate(TargetView)` (writes target), or `Transform(SourceView)` (rewrites source) — the view type bounds what the tool may write (immutability model, AD-006). Other Part types use the untyped `HandleDataFn` / `HandleMediaFn` / `Handle{Layer,Group}{Start,End}Fn` fields. Parts you don't handle pass through unchanged. A tool that needs batching, 1→N fan-out, or stream control overrides `Process` instead. Register in the tool registry. Source-transform (`Transform`) tools belong in a flow's leading source-transform stage, which settles the source before annotation/translation.
 
 ## Testing
 

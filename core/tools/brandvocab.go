@@ -41,7 +41,7 @@ func NewBrandVocabCheckTool(profile *brand.VoiceProfile, tb termbase.TermBase) *
 	t.ToolName = "brand-vocab-check"
 	t.ToolDescription = "Checks text against brand vocabulary rules (forbidden, competitor, preferred terms)"
 	t.Cfg = &BrandVocabConfig{Profile: profile}
-	t.HandleBlockFn = t.handleBlock
+	t.Annotate = t.annotateBlock
 	return t
 }
 
@@ -56,7 +56,7 @@ func NewBrandVocabCheckToolWithResolver(resolver brand.ProfileResolver, rc brand
 	t.ToolName = "brand-vocab-check"
 	t.ToolDescription = "Checks text against brand vocabulary rules (forbidden, competitor, preferred terms)"
 	t.Cfg = &BrandVocabConfig{}
-	t.HandleBlockFn = t.handleBlock
+	t.Annotate = t.annotateBlock
 	return t
 }
 
@@ -71,19 +71,15 @@ func (t *BrandVocabCheckTool) resolveOnce() {
 	}
 }
 
-func (t *BrandVocabCheckTool) handleBlock(part *model.Part) (*model.Part, error) {
+func (t *BrandVocabCheckTool) annotateBlock(v tool.BlockView) error {
 	t.resolveOnce()
 
-	block, ok := part.Resource.(*model.Block)
-	if !ok {
-		return part, nil
-	}
-
-	sourceText := block.SourceText()
+	sourceText := v.SourceText()
 	if strings.TrimSpace(sourceText) == "" {
-		return part, nil
+		return nil
 	}
 
+	sourceRuns := v.SourceRuns()
 	var findings []brand.BrandVoiceFinding
 	lowerText := strings.ToLower(sourceText)
 
@@ -99,13 +95,10 @@ func (t *BrandVocabCheckTool) handleBlock(part *model.Part) (*model.Part, error)
 				}
 				absPos := idx + pos
 				f := brand.BrandVoiceFinding{
-					Dimension: brand.DimensionVocabulary,
-					Severity:  brand.SeverityMajor,
-					Message:   fmt.Sprintf("Forbidden term %q found", rule.Term),
-					Position: model.TextRange{
-						Start: absPos,
-						End:   absPos + len(rule.Term),
-					},
+					Dimension:    brand.DimensionVocabulary,
+					Severity:     brand.SeverityMajor,
+					Message:      fmt.Sprintf("Forbidden term %q found", rule.Term),
+					Position:     model.RunRangeForBytes(sourceRuns, absPos, absPos+len(rule.Term)),
 					OriginalText: sourceText[absPos : absPos+len(rule.Term)],
 				}
 				if rule.Replacement != "" {
@@ -130,13 +123,10 @@ func (t *BrandVocabCheckTool) handleBlock(part *model.Part) (*model.Part, error)
 				}
 				absPos := idx + pos
 				f := brand.BrandVoiceFinding{
-					Dimension: brand.DimensionVocabulary,
-					Severity:  brand.SeverityCritical,
-					Message:   fmt.Sprintf("Competitor term %q found", rule.Term),
-					Position: model.TextRange{
-						Start: absPos,
-						End:   absPos + len(rule.Term),
-					},
+					Dimension:    brand.DimensionVocabulary,
+					Severity:     brand.SeverityCritical,
+					Message:      fmt.Sprintf("Competitor term %q found", rule.Term),
+					Position:     model.RunRangeForBytes(sourceRuns, absPos, absPos+len(rule.Term)),
 					OriginalText: sourceText[absPos : absPos+len(rule.Term)],
 				}
 				if rule.Replacement != "" {
@@ -162,7 +152,7 @@ func (t *BrandVocabCheckTool) handleBlock(part *model.Part) (*model.Part, error)
 					Dimension:    brand.DimensionVocabulary,
 					Severity:     brand.SeverityCritical,
 					Message:      fmt.Sprintf("Competitor term %q found in termbase", m.Term.Text),
-					Position:     m.Position,
+					Position:     model.RunRangeForBytes(sourceRuns, m.Position.Start, m.Position.End),
 					OriginalText: m.Term.Text,
 				})
 			} else if m.Term.Status == model.TermForbidden {
@@ -170,36 +160,29 @@ func (t *BrandVocabCheckTool) handleBlock(part *model.Part) (*model.Part, error)
 					Dimension:    brand.DimensionVocabulary,
 					Severity:     brand.SeverityMajor,
 					Message:      fmt.Sprintf("Forbidden term %q found in termbase", m.Term.Text),
-					Position:     m.Position,
+					Position:     model.RunRangeForBytes(sourceRuns, m.Position.Start, m.Position.End),
 					OriginalText: m.Term.Text,
 				})
 			}
 		}
 	}
 
-	if block.Properties == nil {
-		block.Properties = make(map[string]string)
-	}
-
 	if len(findings) > 0 {
 		findingsJSON, _ := json.Marshal(findings)
-		block.Properties["brand-vocab-findings"] = string(findingsJSON)
+		v.SetProperty("brand-vocab-findings", string(findingsJSON))
 
 		// Calculate score and add annotation.
 		score := brand.CalculateScore(findings)
-		if block.Annotations == nil {
-			block.Annotations = make(map[string]model.Annotation)
-		}
 		profileID := ""
 		if t.profile != nil {
 			profileID = t.profile.ID
 		}
-		block.Annotations["brand-voice"] = &brand.BrandVoiceAnnotation{
+		v.Annotate("brand-voice", &brand.BrandVoiceAnnotation{
 			ProfileID: profileID,
 			Score:     score.Overall,
 			Findings:  findings,
-		}
+		})
 	}
 
-	return part, nil
+	return nil
 }

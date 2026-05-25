@@ -70,6 +70,8 @@ export interface FormatSpec {
 
 export interface FlowSpec {
   description?: string;
+  /** Leading source-transform stage: tools that settle the source before the main steps. */
+  sourceTransforms?: FlowStep[];
   steps: FlowStep[];
 }
 
@@ -111,6 +113,8 @@ export interface ToolInfo {
   default_locale?: string;
   produces?: string[];
   side_effects?: string[];
+  /** Whether the tool may run in the source-transform stage (rewrite source). */
+  is_source_transform?: boolean;
 }
 
 export interface FormatInfo {

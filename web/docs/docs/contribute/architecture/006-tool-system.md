@@ -14,9 +14,12 @@ A Tool is a single stage in a processing pipeline. It reads Parts from an
 input channel and writes Parts to an output channel. Tools compose into
 Flows; Flows are executed by the pipeline engine
 ([AD-004: Processing Engine](004-processing-engine.md)). The `BaseTool`
-struct with optional function fields (`HandleBlockFn`, `HandleDataFn`,
-`HandleMediaFn`) lets most tools implement only the handler for the Part
-type they care about; everything else passes through unchanged. Tools
+struct with optional handler fields — a capability-typed block handler
+(`Annotate` / `Translate` / `Transform`) plus untyped `HandleDataFn`,
+`HandleMediaFn` for other Part types — lets most tools implement only the
+handler for the Part type they care about; everything else passes through
+unchanged. The block handler a tool sets also declares what it may write
+(see "Content immutability by capability" below). Tools
 declare parameter schemas via `SchemaProvider`, which drives CLI flag
 generation, flow-editor config panels, and validation. An IO contract on
 `ToolMeta` declares locale cardinality, produced annotations, and side
@@ -51,26 +54,31 @@ type Tool interface {
 }
 ```
 
-`BaseTool` provides a standard dispatch shell with optional function fields
-for each Part type:
+`BaseTool` provides a standard dispatch shell. The block handler is one of
+three capability-typed fields — the tool sets exactly one, and the parameter
+type bounds what it may write:
 
 ```go
 type BaseTool struct {
-    HandleBlockFn func(ctx context.Context, block *Block) (*Block, error)
+    Annotate  func(BlockView) error  // read-only: overlays/annotations/properties
+    Translate func(TargetView) error // writes target
+    Transform func(SourceView) error // rewrites source (and may write target)
+
     HandleDataFn  func(ctx context.Context, data *Data)   (*Data, error)
     HandleMediaFn func(ctx context.Context, media *Media) (*Media, error)
 
-    Meta          ToolMeta
-    SchemaFn      func() *schema.ComponentSchema
+    SchemaFn func() *schema.ComponentSchema
 }
 ```
 
-`BaseTool.Process` reads Parts from the input channel, dispatches to the
-appropriate handler function if set, and passes unhandled Part types
-through to the output channel unchanged. Concrete tools embed `BaseTool`
-and set only the handlers they need. Tools that need access to the full
-stream (e.g., segmentation spanning multiple Blocks) can override
-`Process` directly.
+`BaseTool.Process` reads Parts from the input channel, dispatches Blocks to
+whichever capability-typed handler is set (and other Part types to their
+`Handle*Fn`), and passes unhandled Part types through unchanged. Concrete tools
+embed `BaseTool` and set only the handlers they need. A tool that needs the full
+stream — batching, 1→N fan-out, cross-block state (e.g. the batch collector, the
+concurrent ai-translate path) — overrides `Process` directly; it may reuse a
+typed handler over a held block via `tool.NewBlockView`/`NewTargetView`/
+`NewSourceView`.
 
 ### SessionTool extension
 
@@ -527,6 +535,57 @@ deliberate trade-off:
 Document-level immutability is achieved by external storage layers that
 version entire Block states. Within a single pipeline execution, mutable
 streaming is the right trade-off.
+
+#### Content immutability by capability
+
+Mutable-in-place does not mean anything goes. A tool's write surface is a
+compile-time property: it declares what it may write by which process-named
+block handler it sets on `BaseTool`, and the handler's parameter type makes the
+wrong writes unrepresentable.
+
+| Handler | View | May write |
+| --- | --- | --- |
+| `Annotate(BlockView)` | source + target read-only | overlays, annotations, properties |
+| `Translate(TargetView)` | source read-only | target content (+ the above) |
+| `Transform(SourceView)` | source writable | source content (+ the above) |
+
+- **Analysis / annotation** tools (qa-check, word-count, term-lookup,
+  entity-extract, the segmenter) set `Annotate`. `BlockView` exposes no
+  source/target setter, so they *cannot* mutate content — they emit overlays,
+  annotations, and properties.
+- **Translation** tools (ai-translate, the MT tools, tm-leverage,
+  create-target) set `Translate` and write `Block.Targets`; source stays
+  read-only.
+- **Source-transform** tools (redaction, normalization, case/encoding
+  conversion) set `Transform` and may rewrite `Block.Source`. They belong in a
+  flow's source-transform stage (below), which runs before any stand-off
+  overlay is attached — run-anchored overlays (segmentation, terms, entities;
+  see [AD-002](002-content-model.md)) would be invalidated by a later source
+  rewrite. Recoverable transforms (redaction) record the original as a block
+  annotation (or a sidecar vault) and restore it on the way out.
+
+The read views hand back the block's live run slices, which Go cannot make
+deeply immutable without copying. So a dev/test **backstop** in
+`BaseTool.handleBlock` content-hashes source and targets around each handler and
+errors if a handler edited a surface its tier forbids (catching in-place edits
+through those aliased slices), or if a source transform ran while an overlay was
+already attached. The backstop is gated by `tool.EnforceImmutability` (on by
+default). A tool that genuinely needs the maximal surface — `script`, which runs
+arbitrary JavaScript — overrides `Process` instead and self-gates source
+mutation behind its `allowSourceMutation` flag.
+
+#### The source-transform stage
+
+A `Flow` has an optional leading **source-transform stage**: `Transform`-capable
+tools that settle the source/model — redaction, a simplifier, normalization —
+before the main tools run. The executor runs the stage ahead of the main tools
+(`Flow.Pipeline()` concatenates them), so downstream tools — segmentation,
+terminology, entities, translation, QA — all operate on one settled, canonical
+source. The stage is **explicit**, not inferred from capability: a tool is
+source-transform-*capable* (it can write source) independently of whether it is
+*placed* early, so a `Transform` tool used late on the target (e.g.
+`case-transform` configured for the target only) is never auto-hoisted. `Build`
+rejects any tool in the stage that is not `tool.CapTransform`.
 
 ## Consequences
 

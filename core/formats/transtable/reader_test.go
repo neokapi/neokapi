@@ -136,11 +136,19 @@ func TestSegmentedTextUnit(t *testing.T) {
 	assert.Equal(t, "src3-segZZZ", blocks[2].SourceText())
 	assert.Equal(t, "src4-seg0", blocks[3].SourceText())
 
-	// tu=2 should have three segments after grouping.
-	require.Len(t, blocks[1].Source, 3)
-	assert.Equal(t, "0", blocks[1].Source[0].ID)
-	assert.Equal(t, "1", blocks[1].Source[1].ID)
-	assert.Equal(t, "2", blocks[1].Source[2].ID)
+	// tu=2 should have three segments after grouping. In the Run model
+	// the segmentation rides as a stand-off overlay over the single
+	// source run sequence; assert the three spans carry the seg ids and
+	// split the source back into the original three cells.
+	seg := blocks[1].SourceSegmentation()
+	require.NotNil(t, seg)
+	require.Len(t, seg.Spans, 3)
+	assert.Equal(t, "0", seg.Spans[0].ID)
+	assert.Equal(t, "1", seg.Spans[1].ID)
+	assert.Equal(t, "2", seg.Spans[2].ID)
+	assert.Equal(t, "src2-seg0", model.RunsText(blocks[1].SourceSegmentRuns(0)))
+	assert.Equal(t, "src2-seg1", model.RunsText(blocks[1].SourceSegmentRuns(1)))
+	assert.Equal(t, "src2-seg2", model.RunsText(blocks[1].SourceSegmentRuns(2)))
 }
 
 // okapi: TransTableFilterTest#testSegmentedWithTarget

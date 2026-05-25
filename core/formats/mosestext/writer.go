@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"strings"
 
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
@@ -169,15 +168,7 @@ func (w *Writer) blockText(block *model.Block) string {
 	}
 
 	if !w.Locale.IsEmpty() && block.HasTarget(w.Locale) {
-		var b strings.Builder
-		for _, seg := range block.Targets[w.Locale] {
-			b.WriteString(render(seg.Runs))
-		}
-		return b.String()
+		return render(block.TargetRuns(w.Locale))
 	}
-	var b strings.Builder
-	for _, seg := range block.Source {
-		b.WriteString(render(seg.Runs))
-	}
-	return b.String()
+	return render(block.Source)
 }

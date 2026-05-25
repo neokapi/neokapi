@@ -94,7 +94,9 @@ func NewAIEntityExtractTool(llm aiprovider.LLMProvider, nerProvider ner.Provider
 	}
 	et.ToolName = "ai-entity-extract"
 	et.ToolDescription = "Extracts named entities and term candidates using AI/LLM + optional NER"
-	et.HandleBlockFn = et.handleBlock
+	// Annotate: extraction reads source and writes only entity/term-candidate
+	// annotations. The batched path (Process override) reuses it via NewBlockView.
+	et.Annotate = et.annotate
 	return et
 }
 
@@ -110,15 +112,10 @@ func (t *AIEntityExtractTool) Process(ctx context.Context, in <-chan *model.Part
 // Single-block processing
 // ---------------------------------------------------------------------------
 
-func (t *AIEntityExtractTool) handleBlock(part *model.Part) (*model.Part, error) {
-	block, ok := part.Resource.(*model.Block)
-	if !ok {
-		return part, nil
-	}
-
-	sourceText := block.SourceText()
+func (t *AIEntityExtractTool) annotate(v tool.BlockView) error {
+	sourceText := v.SourceText()
 	if strings.TrimSpace(sourceText) == "" {
-		return part, nil
+		return nil
 	}
 
 	// Run NER if available.
@@ -135,16 +132,16 @@ func (t *AIEntityExtractTool) handleBlock(part *model.Part) (*model.Part, error)
 
 	// Run LLM extraction.
 	llmResult, err := t.extractWithLLM(context.Background(), []extractionEntry{
-		{blockID: block.ID, text: sourceText},
+		{blockID: v.ID(), text: sourceText},
 	})
 	if err != nil {
-		return nil, fmt.Errorf("ai-entity-extract: %w", err)
+		return fmt.Errorf("ai-entity-extract: %w", err)
 	}
 
 	// Merge and attach annotations.
-	t.attachAnnotations(block, nerEntities, llmResult)
+	t.attachAnnotations(v, nerEntities, llmResult)
 
-	return part, nil
+	return nil
 }
 
 // ---------------------------------------------------------------------------
@@ -278,7 +275,7 @@ func (t *AIEntityExtractTool) processBatched(ctx context.Context, in <-chan *mod
 			if r, ok := llmByEntry[entryOffset]; ok {
 				llmResult = r
 			}
-			t.attachAnnotationsFromBatch(entry.block, nerEnts, llmResult, entry.blockID)
+			t.attachAnnotationsFromBatch(tool.NewBlockView(entry.block), nerEnts, llmResult, entry.blockID)
 		}
 		entryOffset += len(batch)
 	}
@@ -443,21 +440,21 @@ func (t *AIEntityExtractTool) extractWithLLM(ctx context.Context, entries []extr
 // Annotation attachment
 // ---------------------------------------------------------------------------
 
-func (t *AIEntityExtractTool) attachAnnotations(block *model.Block, nerEntities []ner.DetectedEntity, llmResult *llmExtractionResult) {
+func (t *AIEntityExtractTool) attachAnnotations(v tool.BlockView, nerEntities []ner.DetectedEntity, llmResult *llmExtractionResult) {
 	// Find the LLM block result matching this block.
 	var blockResult *llmBlockResult
 	if llmResult != nil {
 		for i := range llmResult.Blocks {
-			if llmResult.Blocks[i].BlockID == block.ID {
+			if llmResult.Blocks[i].BlockID == v.ID() {
 				blockResult = &llmResult.Blocks[i]
 				break
 			}
 		}
 	}
-	t.mergeAndAttach(block, nerEntities, blockResult)
+	t.mergeAndAttach(v, nerEntities, blockResult)
 }
 
-func (t *AIEntityExtractTool) attachAnnotationsFromBatch(block *model.Block, nerEntities []ner.DetectedEntity, llmResult *llmExtractionResult, blockID string) {
+func (t *AIEntityExtractTool) attachAnnotationsFromBatch(v tool.BlockView, nerEntities []ner.DetectedEntity, llmResult *llmExtractionResult, blockID string) {
 	var blockResult *llmBlockResult
 	if llmResult != nil {
 		for i := range llmResult.Blocks {
@@ -467,14 +464,10 @@ func (t *AIEntityExtractTool) attachAnnotationsFromBatch(block *model.Block, ner
 			}
 		}
 	}
-	t.mergeAndAttach(block, nerEntities, blockResult)
+	t.mergeAndAttach(v, nerEntities, blockResult)
 }
 
-func (t *AIEntityExtractTool) mergeAndAttach(block *model.Block, nerEntities []ner.DetectedEntity, llmBlock *llmBlockResult) {
-	if block.Annotations == nil {
-		block.Annotations = make(map[string]model.Annotation)
-	}
-
+func (t *AIEntityExtractTool) mergeAndAttach(v tool.BlockView, nerEntities []ner.DetectedEntity, llmBlock *llmBlockResult) {
 	// Track entity positions to reconcile NER + LLM.
 	type entityKey struct {
 		offset int
@@ -492,12 +485,12 @@ func (t *AIEntityExtractTool) mergeAndAttach(block *model.Block, nerEntities []n
 			ann := &model.EntityAnnotation{
 				Text:     e.Text,
 				Type:     llmEntityType(e.Type),
-				Position: model.TextRange{Start: e.Offset, End: e.Offset + e.Length},
+				Position: model.RunRangeForBytes(v.SourceRuns(), e.Offset, e.Offset+e.Length),
 				Locale:   t.locale,
 				DNT:      e.DNT,
 				Source:   model.ExtractionSourceLLM,
 			}
-			block.Annotations[fmt.Sprintf("entity:%d", entityIdx)] = ann
+			v.Annotate(fmt.Sprintf("entity:%d", entityIdx), ann)
 			entityIdx++
 		}
 	}
@@ -511,12 +504,12 @@ func (t *AIEntityExtractTool) mergeAndAttach(block *model.Block, nerEntities []n
 		ann := &model.EntityAnnotation{
 			Text:     e.Text,
 			Type:     e.Type,
-			Position: model.TextRange{Start: e.Offset, End: e.Offset + e.Length},
+			Position: model.RunRangeForBytes(v.SourceRuns(), e.Offset, e.Offset+e.Length),
 			Locale:   t.locale,
 			DNT:      isDefaultDNT(e.Type),
 			Source:   model.ExtractionSourceNER,
 		}
-		block.Annotations[fmt.Sprintf("entity:%d", entityIdx)] = ann
+		v.Annotate(fmt.Sprintf("entity:%d", entityIdx), ann)
 		entityIdx++
 	}
 
@@ -533,12 +526,12 @@ func (t *AIEntityExtractTool) mergeAndAttach(block *model.Block, nerEntities []n
 				Category:        model.TermCategory(tc.Category),
 				Translatability: model.Translatability(tc.Translatability),
 				Confidence:      tc.Confidence,
-				Position:        model.TextRange{Start: tc.Offset, End: tc.Offset + tc.Length},
+				Position:        model.RunRangeForBytes(v.SourceRuns(), tc.Offset, tc.Offset+tc.Length),
 				Locale:          t.locale,
 				Source:          model.ExtractionSourceLLM,
 				Status:          model.CandidateStatusPending,
 			}
-			block.Annotations[fmt.Sprintf("term-candidate:%d", termIdx)] = ann
+			v.Annotate(fmt.Sprintf("term-candidate:%d", termIdx), ann)
 			termIdx++
 		}
 	}

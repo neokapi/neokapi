@@ -6,6 +6,7 @@ export {
     FlowStep,
     FlowTrace,
     NodeType,
+    PartDetail,
     PartSnapshot,
     PartSnapshotSet,
     StepSnapshot,

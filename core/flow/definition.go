@@ -31,6 +31,19 @@ const (
 	NodeTool   NodeType = "tool"
 )
 
+// FlowStage names the pipeline stage a tool node belongs to.
+type FlowStage string
+
+const (
+	// StageMain is the default stage — the main tool chain.
+	StageMain FlowStage = ""
+	// StageSourceTransform marks a tool that settles the source/model
+	// (redaction, simplification, normalization) ahead of the main tools, so
+	// downstream tools see one canonical source. Only source-transform-capable
+	// tools (tool.CapTransform) may sit here. See AD-006.
+	StageSourceTransform FlowStage = "source-transform"
+)
+
 // FlowDefinition is a JSON-serializable flow that can be stored and loaded.
 // It captures the visual graph (nodes + edges) as well as the tool configurations
 // needed to reconstruct a runnable Flow.
@@ -47,10 +60,14 @@ type FlowDefinition struct {
 
 // FlowNode represents a node in the flow graph.
 type FlowNode struct {
-	ID       string         `json:"id"`
-	Type     NodeType       `json:"type"` // NodeReader, NodeWriter, or NodeTool
-	Name     string         `json:"name"` // tool or format name
-	Label    string         `json:"label,omitempty"`
+	ID    string   `json:"id"`
+	Type  NodeType `json:"type"` // NodeReader, NodeWriter, or NodeTool
+	Name  string   `json:"name"` // tool or format name
+	Label string   `json:"label,omitempty"`
+	// Stage assigns a tool node to a pipeline stage. Empty (StageMain) is the
+	// main chain; StageSourceTransform runs ahead of it. Ignored for reader/
+	// writer nodes.
+	Stage    FlowStage      `json:"stage,omitempty"`
 	Config   map[string]any `json:"config,omitempty"`
 	Position NodePosition   `json:"position"`
 }
@@ -89,6 +106,14 @@ func (d *FlowDefinition) Validate() error {
 		case NodeTool, NodeReader, NodeWriter:
 		default:
 			return fmt.Errorf("invalid node type %q for node %s", n.Type, n.ID)
+		}
+		switch n.Stage {
+		case StageMain, StageSourceTransform:
+		default:
+			return fmt.Errorf("invalid stage %q for node %s", n.Stage, n.ID)
+		}
+		if n.Stage == StageSourceTransform && n.Type != NodeTool {
+			return fmt.Errorf("node %s: only tool nodes may be in the %s stage", n.ID, StageSourceTransform)
 		}
 	}
 	for _, e := range d.Edges {
@@ -156,6 +181,33 @@ func (d *FlowDefinition) ToolNodeNames() ([]string, error) {
 		}
 	}
 	return names, nil
+}
+
+// StagedToolNodes returns tool node names split by stage, each in topological
+// order: the source-transform stage first, then the main tools. The source
+// transforms are also returned interleaved at the front of the combined order,
+// which the executor relies on (Parts stream through tools in order).
+func (d *FlowDefinition) StagedToolNodes() (sourceTransforms, main []string, err error) {
+	order, err := d.TopologicalOrder()
+	if err != nil {
+		return nil, nil, err
+	}
+	nodeMap := make(map[string]*FlowNode, len(d.Nodes))
+	for i := range d.Nodes {
+		nodeMap[d.Nodes[i].ID] = &d.Nodes[i]
+	}
+	for _, id := range order {
+		n := nodeMap[id]
+		if n.Type != NodeTool {
+			continue
+		}
+		if n.Stage == StageSourceTransform {
+			sourceTransforms = append(sourceTransforms, n.Name)
+		} else {
+			main = append(main, n.Name)
+		}
+	}
+	return sourceTransforms, main, nil
 }
 
 // BuiltInFlows returns the default set of built-in flow definitions.
@@ -245,7 +297,7 @@ func BuiltInFlows() []FlowDefinition {
 			Source:      registry.SourceBuiltIn,
 			Nodes: []FlowNode{
 				{ID: "reader", Type: NodeReader, Name: "auto", Label: "Input", Position: NodePosition{X: 0, Y: 100}},
-				{ID: "redact", Type: NodeTool, Name: "redact", Label: "Redact", Position: NodePosition{X: 250, Y: 100}},
+				{ID: "redact", Type: NodeTool, Name: "redact", Label: "Redact", Stage: StageSourceTransform, Position: NodePosition{X: 250, Y: 100}},
 				{ID: "ai-translate", Type: NodeTool, Name: "ai-translate", Label: "AI Translate", Position: NodePosition{X: 500, Y: 100}},
 				{ID: "unredact", Type: NodeTool, Name: "unredact", Label: "Unredact", Position: NodePosition{X: 750, Y: 100}},
 				{ID: "writer", Type: NodeWriter, Name: "auto", Label: "Output", Position: NodePosition{X: 1000, Y: 100}},

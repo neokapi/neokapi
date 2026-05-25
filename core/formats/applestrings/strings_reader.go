@@ -42,8 +42,8 @@ func (r *Reader) emitStrings(ctx context.Context, ch chan<- model.PartResult, co
 			Name:         e.key,
 			Translatable: true,
 			SourceLocale: locale,
-			Source:       []*model.Segment{{ID: "s1", Runs: runsFromValue(e.value, r.cfg.ProtectPlaceholders)}},
-			Targets:      make(map[model.LocaleID][]*model.Segment),
+			Source:       runsFromValue(e.value, r.cfg.ProtectPlaceholders),
+			Targets:      make(map[model.VariantKey]*model.Target),
 			Properties:   make(map[string]string),
 			Annotations:  make(map[string]model.Annotation),
 		}

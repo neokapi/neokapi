@@ -284,14 +284,14 @@ func TestWriterPlainTextOutput(t *testing.T) {
 		{Type: model.PartLayerStart, Resource: &model.Layer{ID: "doc1", Format: "mosestext"}},
 		{Type: model.PartBlock, Resource: &model.Block{
 			ID: "tu1",
-			Source: []*model.Segment{{ID: "s1", Runs: []model.Run{
+			Source: []model.Run{
 				{Text: &model.TextRun{Text: "Text "}},
 				{Ph: &model.PlaceholderRun{ID: "c1", Type: "code", Data: "<x id=\"1\"/>"}},
-			}}},
+			},
 		}},
 		{Type: model.PartBlock, Resource: &model.Block{
 			ID:     "tu2",
-			Source: []*model.Segment{{ID: "s1", Runs: []model.Run{{Text: &model.TextRun{Text: "Plain line"}}}}},
+			Source: []model.Run{{Text: &model.TextRun{Text: "Plain line"}}},
 		}},
 		{Type: model.PartLayerEnd, Resource: &model.Layer{ID: "doc1"}},
 	}

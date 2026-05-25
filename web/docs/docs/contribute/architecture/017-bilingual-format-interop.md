@@ -116,8 +116,9 @@ layer property map. The writer emits **2.2** by default, with
 older tooling.
 
 **PO (gettext)** is the day-one alternate. Selected with `--format
-po`. One entry per segment. Kapi-specific bookkeeping rides in
-developer comments (`#. kapi-block: <hash>/<sN>`).
+po`. One entry per segment span (the whole block when unsegmented).
+Kapi-specific bookkeeping rides in developer comments
+(`#. kapi-block: <hash>/<sN>`).
 
 XLIFF 1.2, Qt TS, XLSX-bilingual, SRT, and TTML remain available as
 format support (byte-exact roundtrip via their readers/writers) but
@@ -126,25 +127,27 @@ do not get extract/merge integration in v1.
 ### Block is the merge key; segmentation is an overlay
 
 The merge key is the block content hash (`core/model/identity.go`
-`ComputeContentHash`, SHA-256 over normalized `SourceText()`).
-Segmentation does not change the hash — `SourceText()` concatenates
-segments, so a block's identity is stable across segmentation
-on/off toggles between extractions.
+`ComputeContentHash`, SHA-256 over the normalized source runs).
+Segmentation is a stand-off overlay over those runs (AD-002), not a
+rewrite of them, so it never changes the hash — a block's identity is
+stable across segmentation on/off toggles between extractions.
 
-By default one segment per Block (one XLIFF `<segment>` / one PO
-entry). When the recipe sets `segmentation.source: true`, the
-existing `core/tools/segmentation.go` SRX tool runs as a pipeline
-stage and produces N segments per Block with stable IDs (`s1`,
-`s2`, …). Merge recomposes by concatenating target segments in ID
-order — the block hash is the join key, so a project can flip
-segmentation on or off between extractions without breaking TM, QA
-overlays, or manifest bookkeeping.
+With no segmentation overlay, a Block emits one XLIFF `<segment>` /
+one PO entry over its whole content. When the recipe sets
+`segmentation.source: true`, the `segment` annotator runs as a
+pipeline stage and attaches a segmentation overlay with stable span
+ids (`s1`, `s2`, …); the writer materializes one `<segment>` /
+`<ignorable>` (or PO entry) per span and gap. Merge maps each
+returned target back to its source span via the alignment overlay and
+splices the target runs into place — the block hash is the join key,
+so a project can flip segmentation on or off between extractions
+without breaking TM, QA overlays, or manifest bookkeeping.
 
 Per-segment TM lookup is the matching widening: `sievepen.Lookup`
-currently keys on `source.FirstSegment()`, correct when segmentation
-is off. When segmentation is on, extract iterates segments and
-looks up each independently for sentence-level leverage via a
-`LookupSegment` method added to the `TranslationMemory` interface.
+keys on the whole block when there is no segmentation overlay. When
+one is present, extract iterates its spans and looks each up
+independently for sentence-level leverage via the `LookupSegment`
+method on the `TranslationMemory` interface.
 
 ### Skeleton portability (project-state only, v1)
 
@@ -292,9 +295,9 @@ is absent.
   `project.ResolveLayout` entry point.
 - **AD-009 (Translation Memory)** — `Lookup` becomes load-bearing
   for extract pre-fill. A `LookupSegment` method is added for
-  per-segment matching when segmentation is on. Merge extends the
-  `Origin` provenance story with a `"merge"` source and the batch
-  id in `Reference`.
+  per-span matching when a segmentation overlay is present. Merge
+  extends the `Origin` provenance story with a `"merge"` source and
+  the batch id in `Reference`.
 - **AD-010 (Terminology)** — termbase-informed glossary hints on
   extract are a natural follow-up (analogous to TM pre-fill). Not
   in v1.
@@ -313,11 +316,11 @@ hide them a layer deeper and make their specialized flag shapes
 express.
 
 **Why block hash as merge key, not segment position?** Segmentation
-is an overlay, not a structural change. The same Block may emit 1
-or N segments depending on the recipe; using block hash as the
-stable key means the project can change segmentation settings
-between extractions without breaking merge. Segment IDs (`s1`,
-`s2`, …) ride _inside_ the block's bookkeeping.
+is a stand-off overlay, not a structural change. The same Block may
+emit 1 or N `<segment>`s depending on the recipe; using block hash as
+the stable key means the project can change segmentation settings
+between extractions without breaking merge. Segment span ids (`s1`,
+`s2`, …) ride _inside_ the segmentation overlay.
 
 **Why project-state skeletons (not embedded)?** Keeps the emitted
 XLIFF small and CAT-friendly. Makes TM absorb cheap (no skeleton

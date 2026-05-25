@@ -84,13 +84,12 @@ func Canonicalize(parts []*model.Part) []CanonicalPart {
 // are valid representations of the same paired code).
 func renderBlockSource(b *model.Block) string {
 	var buf strings.Builder
-	for i, seg := range b.Source {
+	n := b.SourceSegmentCount()
+	for i := 0; i < n; i++ {
 		if i > 0 {
 			buf.WriteByte(' ')
 		}
-		if seg != nil {
-			renderSegmentRuns(&buf, seg.Runs)
-		}
+		renderSegmentRuns(&buf, b.SourceSegmentRuns(i))
 	}
 	return collapseWhitespace(buf.String())
 }
@@ -133,17 +132,21 @@ func renderBlockTargets(b *model.Block) string {
 		return ""
 	}
 	parts := make([]string, 0, len(b.Targets))
-	for locale, segs := range b.Targets {
+	for _, locale := range b.TargetLocales() {
 		var buf strings.Builder
 		buf.WriteString(string(locale))
 		buf.WriteByte('=')
-		for i, seg := range segs {
-			if i > 0 {
-				buf.WriteByte(' ')
+		runs := b.TargetRuns(locale)
+		key := model.Variant(locale)
+		if ov := b.SegmentationFor(&key); ov != nil && len(ov.Spans) > 0 {
+			for i, sp := range ov.Spans {
+				if i > 0 {
+					buf.WriteByte(' ')
+				}
+				renderSegmentRuns(&buf, sp.Range.ExtractRuns(runs))
 			}
-			if seg != nil {
-				renderSegmentRuns(&buf, seg.Runs)
-			}
+		} else {
+			renderSegmentRuns(&buf, runs)
 		}
 		parts = append(parts, collapseWhitespace(buf.String()))
 	}

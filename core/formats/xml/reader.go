@@ -567,8 +567,8 @@ func (s *xmlParseState) flushBlock(frame *elementFrame, path string, endTagOffse
 	block := &model.Block{
 		ID:           blockID,
 		Translatable: true,
-		Source:       []*model.Segment{model.NewRunsSegment("s1", finalRuns)},
-		Targets:      make(map[model.LocaleID][]*model.Segment),
+		Source:       finalRuns,
+		Targets:      make(map[model.VariantKey]*model.Target),
 		Properties:   make(map[string]string),
 		Annotations:  make(map[string]model.Annotation),
 	}

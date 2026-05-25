@@ -119,12 +119,12 @@ func TestRedactTool_EntityDetection(t *testing.T) {
 	block.Annotations["entity:0"] = &model.EntityAnnotation{
 		Text:     "Alice",
 		Type:     model.EntityPerson,
-		Position: model.TextRange{Start: 0, End: 5},
+		Position: model.RunRangeForBytes(block.Source, 0, 5),
 	}
 	block.Annotations["entity:1"] = &model.EntityAnnotation{
 		Text:     "Bob",
 		Type:     model.EntityPerson,
-		Position: model.TextRange{Start: 10, End: 13},
+		Position: model.RunRangeForBytes(block.Source, 10, 13),
 	}
 
 	result := processPart(t, tl, &model.Part{Type: model.PartBlock, Resource: block})

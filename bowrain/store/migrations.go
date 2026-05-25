@@ -514,7 +514,7 @@ var storeMigrations = []storage.Migration{
 				block_id      TEXT NOT NULL,
 				locale        TEXT NOT NULL,
 				text          TEXT NOT NULL DEFAULT '',
-				segments_json JSONB NOT NULL DEFAULT '[]'::jsonb,
+				target_json   JSONB NOT NULL DEFAULT '{}'::jsonb,
 				provider      TEXT NOT NULL DEFAULT '',
 				metadata      JSONB NOT NULL DEFAULT '{}'::jsonb,
 				updated_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),

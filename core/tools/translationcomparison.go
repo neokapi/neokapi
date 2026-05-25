@@ -90,43 +90,35 @@ func NewTranslationComparisonTool(cfg *TranslationComparisonConfig) *tool.BaseTo
 		ToolDescription: "Compares translations across two target locales and reports differences",
 		Cfg:             cfg,
 	}
-	t.HandleBlockFn = func(part *model.Part) (*model.Part, error) {
-		block, ok := part.Resource.(*model.Block)
-		if !ok {
-			return part, nil
-		}
-		if !block.Translatable {
-			return part, nil
+	t.Annotate = func(v tool.BlockView) error {
+		if !v.Translatable() {
+			return nil
 		}
 
 		conf := t.Cfg.(*TranslationComparisonConfig)
 
-		if block.Properties == nil {
-			block.Properties = make(map[string]string)
-		}
-
-		has1 := block.HasTarget(conf.Locale1)
-		has2 := block.HasTarget(conf.Locale2)
+		has1 := v.HasTarget(conf.Locale1)
+		has2 := v.HasTarget(conf.Locale2)
 
 		switch {
 		case !has1 && !has2:
-			block.Properties[PropComparisonStatus] = "missing-both"
-			block.Properties[PropComparisonDiff] = fmt.Sprintf(
-				"Both %s and %s translations are missing", conf.Locale1, conf.Locale2)
+			v.SetProperty(PropComparisonStatus, "missing-both")
+			v.SetProperty(PropComparisonDiff, fmt.Sprintf(
+				"Both %s and %s translations are missing", conf.Locale1, conf.Locale2))
 
 		case !has1:
-			block.Properties[PropComparisonStatus] = "missing-locale1"
-			block.Properties[PropComparisonDiff] = fmt.Sprintf(
-				"Translation for %s is missing", conf.Locale1)
+			v.SetProperty(PropComparisonStatus, "missing-locale1")
+			v.SetProperty(PropComparisonDiff, fmt.Sprintf(
+				"Translation for %s is missing", conf.Locale1))
 
 		case !has2:
-			block.Properties[PropComparisonStatus] = "missing-locale2"
-			block.Properties[PropComparisonDiff] = fmt.Sprintf(
-				"Translation for %s is missing", conf.Locale2)
+			v.SetProperty(PropComparisonStatus, "missing-locale2")
+			v.SetProperty(PropComparisonDiff, fmt.Sprintf(
+				"Translation for %s is missing", conf.Locale2))
 
 		default:
-			text1 := block.TargetText(conf.Locale1)
-			text2 := block.TargetText(conf.Locale2)
+			text1 := v.TargetText(conf.Locale1)
+			text2 := v.TargetText(conf.Locale2)
 
 			cmp1, cmp2 := text1, text2
 			if !conf.CaseSensitive {
@@ -152,17 +144,17 @@ func NewTranslationComparisonTool(cfg *TranslationComparisonConfig) *tool.BaseTo
 			}
 
 			if cmp1 == cmp2 {
-				block.Properties[PropComparisonStatus] = "identical"
-				block.Properties[PropComparisonDiff] = fmt.Sprintf(
-					"Translations for %s and %s are identical", label1, label2)
+				v.SetProperty(PropComparisonStatus, "identical")
+				v.SetProperty(PropComparisonDiff, fmt.Sprintf(
+					"Translations for %s and %s are identical", label1, label2))
 			} else {
-				block.Properties[PropComparisonStatus] = "different"
-				block.Properties[PropComparisonDiff] = fmt.Sprintf(
-					"%s: %q vs %s: %q", label1, text1, label2, text2)
+				v.SetProperty(PropComparisonStatus, "different")
+				v.SetProperty(PropComparisonDiff, fmt.Sprintf(
+					"%s: %q vs %s: %q", label1, text1, label2, text2))
 			}
 		}
 
-		return part, nil
+		return nil
 	}
 	return t
 }

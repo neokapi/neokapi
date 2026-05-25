@@ -8,9 +8,10 @@ import "github.com/neokapi/neokapi/core/model"
 // the model.Run downconversion (consumed by generic tools) would lose
 // detail like ctype, xid, crc, or pos.
 //
-// The xliff reader attaches a *NativeContent to each model.Segment via
-// the SegmentNativeAnnotation annotation. The writer prefers the
-// native content over the generic Runs when present, filling text
+// The xliff reader attaches a *NativeContent for each segment of a
+// Block via a per-span SegmentNativeAnnotation keyed on the segment's
+// span id (see segNativeKey / targetSegNativeKey). The writer prefers
+// the native content over the generic Runs when present, filling text
 // positions from the (possibly tool-modified) Runs in order so
 // pseudo-translate wrapping and AI-translated text still propagate.
 type NativeContent struct {
@@ -18,8 +19,11 @@ type NativeContent struct {
 }
 
 // SegmentNativeAnnotation wraps a NativeContent so it can ride on
-// model.Segment.Annotations alongside generic data. Source vs target
-// is implied by which segment carries it.
+// model.Block.Annotations alongside other block-level data. Because the
+// Run-based content model has no per-segment annotation slot, the
+// reader stores one of these per source/target segment under a span-
+// keyed block annotation (segNativeKey for source, targetSegNativeKey
+// for a target locale). The segmentation overlay defines the span ids.
 type SegmentNativeAnnotation struct {
 	Content *NativeContent
 }
@@ -31,7 +35,8 @@ func (a *SegmentNativeAnnotation) AnnotationType() string { return "xliff:native
 // captures the full <source> body — including any <mrk mtype="seg">
 // segmentation wrappers and the raw text between mrks. The writer
 // walks this tree to reconstruct the body, substituting text inside
-// each mrk from the matching block.Source[i] segment's runs.
+// each mrk from the runs of the matching source segment (the i-th
+// span of the source segmentation overlay).
 type SourceBodyNativeAnnotation struct {
 	Content *NativeContent
 }

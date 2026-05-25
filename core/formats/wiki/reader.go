@@ -681,22 +681,17 @@ func tokenizeDokuWikiInlineCodes(b *model.Block) {
 	if b == nil || len(b.Source) == 0 {
 		return
 	}
-	for _, seg := range b.Source {
-		if len(seg.Runs) == 0 {
-			continue
-		}
-		text := seg.Text()
-		// Cheap fast-path: skip the regex scan when the segment has
-		// none of the inline opener characters our tokeniser knows
-		// about (`[`, `{`, `<`, plus the symmetric markers `*`, `_`,
-		// `'`, `/`).
-		if !strings.ContainsAny(text, "[{<*_'/~%") {
-			continue
-		}
-		runs, changed := splitDokuWikiInlineRuns(text)
-		if changed {
-			seg.SetRuns(runs)
-		}
+	text := model.RunsText(b.Source)
+	// Cheap fast-path: skip the regex scan when the block has
+	// none of the inline opener characters our tokeniser knows
+	// about (`[`, `{`, `<`, plus the symmetric markers `*`, `_`,
+	// `'`, `/`).
+	if !strings.ContainsAny(text, "[{<*_'/~%") {
+		return
+	}
+	runs, changed := splitDokuWikiInlineRuns(text)
+	if changed {
+		b.Source = runs
 	}
 }
 

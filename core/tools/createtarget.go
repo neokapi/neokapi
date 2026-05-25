@@ -43,30 +43,27 @@ func NewCreateTargetTool(cfg *CreateTargetConfig) *tool.BaseTool {
 		ToolDescription: "Creates target segment containers for blocks",
 		Cfg:             cfg,
 	}
-	t.HandleBlockFn = func(part *model.Part) (*model.Part, error) {
-		block, ok := part.Resource.(*model.Block)
-		if !ok {
-			return part, nil
-		}
-
+	// Translate: create-target writes a target container (optionally seeded
+	// with the source text); it never touches source.
+	t.Translate = func(v tool.TargetView) error {
 		conf := t.Cfg.(*CreateTargetConfig)
 
-		if !block.Translatable && !conf.CreateOnNonTranslatable {
-			return part, nil
+		if !v.Translatable() && !conf.CreateOnNonTranslatable {
+			return nil
 		}
 
 		// Skip if target already exists and we're not overwriting.
-		if block.HasTarget(conf.TargetLocale) && !conf.Overwrite {
-			return part, nil
+		if v.HasTarget(conf.TargetLocale) && !conf.Overwrite {
+			return nil
 		}
 
 		if conf.CopySource {
-			block.SetTargetText(conf.TargetLocale, block.SourceText())
+			v.SetTargetText(conf.TargetLocale, v.SourceText())
 		} else {
-			block.SetTargetText(conf.TargetLocale, "")
+			v.SetTargetText(conf.TargetLocale, "")
 		}
 
-		return part, nil
+		return nil
 	}
 	return t
 }

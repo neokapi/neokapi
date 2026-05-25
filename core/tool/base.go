@@ -3,6 +3,8 @@ package tool
 import (
 	"context"
 	"fmt"
+	"hash/fnv"
+	"sort"
 
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/schema"
@@ -10,6 +12,15 @@ import (
 
 // PartHandler is the function signature for handling a single Part.
 type PartHandler func(part *model.Part) (*model.Part, error)
+
+// EnforceImmutability gates the dev/test backstop in the typed block-handler
+// dispatch. On by default: capability is enforced primarily by the handler's
+// parameter type (an Annotate handler has no source/target setters), and the
+// backstop additionally catches in-place edits made through the live run
+// slices the read-only view hands back — including a source rewrite while a
+// stand-off overlay is attached (overlays anchor to runs and would be
+// invalidated). Can be disabled in perf-sensitive embeddings.
+var EnforceImmutability = true
 
 // BaseTool provides default pass-through behavior and event dispatch.
 // Embed in concrete tools and override Handle* methods as needed.
@@ -22,8 +33,26 @@ type BaseTool struct {
 	// Set this to enable schema-driven CLI flags and flow editor config panels.
 	SchemaFn func() *schema.ComponentSchema
 
-	// Override these handlers in concrete tools.
-	HandleBlockFn      PartHandler
+	// Process-named block handlers (immutability model, AD-006). A tool sets
+	// exactly ONE, picking the verb that matches what it does — that choice
+	// IS its capability declaration, enforced by the parameter type:
+	//
+	//   Annotate(BlockView)  — analysis/annotation: reads source+target,
+	//                          writes only overlays, annotations, properties.
+	//                          The default surface; no content writes exist.
+	//   Translate(TargetView)— target production: reads source, writes target.
+	//   Transform(SourceView)— source transformation: rewrites source (and may
+	//                          write target). Runs early, before overlays exist;
+	//                          may record recovery for a later restore (e.g. redact).
+	//
+	// Each is 1→1 (mutate in place) or 1→0 (call view.Drop()). A tool needing
+	// 1→N, cross-block state, batching, or stream control overrides Process.
+	Annotate  func(BlockView) error
+	Translate func(TargetView) error
+	Transform func(SourceView) error
+
+	// Non-block handlers stay untyped: the immutability model governs Block
+	// source/target content; Data/Media/Layer/Group parts carry no such content.
 	HandleDataFn       PartHandler
 	HandleMediaFn      PartHandler
 	HandleLayerStartFn PartHandler
@@ -84,6 +113,61 @@ func (b *BaseTool) Process(ctx context.Context, in <-chan *model.Part, out chan<
 	}
 }
 
+// Capability classifies what a tool's block handler may write — for flow-stage
+// validation (e.g. only source-transforms belong in a Flow's source-transform
+// stage). Tools that override Process without setting a typed handler report
+// CapNone.
+type Capability int
+
+const (
+	CapNone      Capability = iota // no typed block handler (pure Process override / pass-through)
+	CapAnnotate                    // read-only: overlays/annotations/properties
+	CapTranslate                   // writes target
+	CapTransform                   // rewrites source (and may write target)
+)
+
+// Capable is the optional interface a Tool implements to report its write
+// capability. *BaseTool implements it (and tools embedding it inherit it).
+type Capable interface {
+	Capability() Capability
+}
+
+// Capability reports the tool's write capability from which typed handler is set.
+func (b *BaseTool) Capability() Capability {
+	switch {
+	case b.Transform != nil:
+		return CapTransform
+	case b.Translate != nil:
+		return CapTranslate
+	case b.Annotate != nil:
+		return CapAnnotate
+	default:
+		return CapNone
+	}
+}
+
+// IsSourceTransform reports whether t may rewrite source (CapTransform). Tools
+// that don't implement Capable are treated as not source-transforms.
+func IsSourceTransform(t Tool) bool {
+	c, ok := t.(Capable)
+	return ok && c.Capability() == CapTransform
+}
+
+// Apply runs a single Part through the tool's per-part dispatch — the same
+// routing (and immutability backstop) Process uses — returning the result Part,
+// or nil if the handler dropped it. For callers that apply a BaseTool across an
+// in-memory slice of parts rather than driving the streaming pipeline.
+func (b *BaseTool) Apply(part *model.Part) (*model.Part, error) {
+	return b.dispatch(part)
+}
+
+// hasBlockHandler reports whether the tool set one of the capability-typed
+// block handlers. Wrappers (parallel, retry) use it to decide whether per-block
+// treatment is possible.
+func (b *BaseTool) hasBlockHandler() bool {
+	return b.Annotate != nil || b.Translate != nil || b.Transform != nil
+}
+
 func (b *BaseTool) dispatch(part *model.Part) (*model.Part, error) {
 	switch part.Type {
 	case model.PartBlock:
@@ -105,11 +189,134 @@ func (b *BaseTool) dispatch(part *model.Part) (*model.Part, error) {
 	}
 }
 
+// handleBlock dispatches a Block part to whichever capability-typed handler the
+// tool set. The handler's parameter type bounds what it may write; a dev/test
+// backstop (gated by EnforceImmutability) additionally catches in-place edits
+// the read-only view type can't prevent — a tool that mutates the live run
+// slices it was handed.
 func (b *BaseTool) handleBlock(part *model.Part) (*model.Part, error) {
-	if b.HandleBlockFn != nil {
-		return b.HandleBlockFn(part)
+	switch {
+	case b.Transform != nil:
+		return b.runTransform(part)
+	case b.Translate != nil:
+		return b.runTranslate(part)
+	case b.Annotate != nil:
+		return b.runAnnotate(part)
+	default:
+		return part, nil
 	}
-	return part, nil
+}
+
+// runAnnotate drives a read-only annotation handler. Backstop: neither source
+// nor target content may change (only overlays/annotations/properties).
+func (b *BaseTool) runAnnotate(part *model.Part) (*model.Part, error) {
+	block, _ := part.Resource.(*model.Block)
+	if block == nil {
+		return part, nil
+	}
+	v := newBlockView(block)
+	if !EnforceImmutability {
+		if err := b.Annotate(v); err != nil {
+			return nil, err
+		}
+		return v.result(part), nil
+	}
+	srcBefore, tgtBefore := blockSourceSig(block), blockTargetsSig(block)
+	if err := b.Annotate(v); err != nil {
+		return nil, err
+	}
+	if blockSourceSig(block) != srcBefore {
+		return nil, fmt.Errorf("immutability: annotate tool %q changed source of block %q — annotators write only overlays/annotations/properties", b.ToolName, block.ID)
+	}
+	if blockTargetsSig(block) != tgtBefore {
+		return nil, fmt.Errorf("immutability: annotate tool %q changed target of block %q — use a Translate handler to write targets", b.ToolName, block.ID)
+	}
+	return v.result(part), nil
+}
+
+// runTranslate drives a target-writing handler. Backstop: source is read-only.
+func (b *BaseTool) runTranslate(part *model.Part) (*model.Part, error) {
+	block, _ := part.Resource.(*model.Block)
+	if block == nil {
+		return part, nil
+	}
+	v := newBlockView(block)
+	if !EnforceImmutability {
+		if err := b.Translate(v); err != nil {
+			return nil, err
+		}
+		return v.result(part), nil
+	}
+	srcBefore := blockSourceSig(block)
+	if err := b.Translate(v); err != nil {
+		return nil, err
+	}
+	if blockSourceSig(block) != srcBefore {
+		return nil, fmt.Errorf("immutability: translate tool %q changed source of block %q — use a Transform handler to rewrite source", b.ToolName, block.ID)
+	}
+	return v.result(part), nil
+}
+
+// runTransform drives a source-transform handler (source + target writable).
+// Backstop: source must not change once a stand-off overlay is attached — the
+// overlay's run-anchored ranges would rot. Source transforms run early.
+func (b *BaseTool) runTransform(part *model.Part) (*model.Part, error) {
+	block, _ := part.Resource.(*model.Block)
+	if block == nil {
+		return part, nil
+	}
+	v := newBlockView(block)
+	if !EnforceImmutability {
+		if err := b.Transform(v); err != nil {
+			return nil, err
+		}
+		return v.result(part), nil
+	}
+	hadOverlay := block.HasSourceOverlays()
+	srcBefore := blockSourceSig(block)
+	if err := b.Transform(v); err != nil {
+		return nil, err
+	}
+	if hadOverlay && blockSourceSig(block) != srcBefore {
+		return nil, fmt.Errorf("immutability: transform tool %q changed source of block %q while a stand-off overlay was attached — source transforms must run before overlays", b.ToolName, block.ID)
+	}
+	return v.result(part), nil
+}
+
+// blockSourceSig is a cheap content signature of a Block's source runs,
+// covering text and inline-code markup so in-place edits are detected.
+func blockSourceSig(b *model.Block) uint64 {
+	h := fnv.New64a()
+	_, _ = h.Write([]byte(model.RenderRunsWithData(b.Source)))
+	return h.Sum64()
+}
+
+// blockTargetsSig is an order-independent content signature of all target
+// variants (content + status), used to detect target mutation.
+func blockTargetsSig(b *model.Block) uint64 {
+	if len(b.Targets) == 0 {
+		return 0
+	}
+	keys := make([]string, 0, len(b.Targets))
+	index := make(map[string]model.VariantKey, len(b.Targets))
+	for k := range b.Targets {
+		kt, _ := k.MarshalText()
+		keys = append(keys, string(kt))
+		index[string(kt)] = k
+	}
+	sort.Strings(keys)
+	h := fnv.New64a()
+	for _, kt := range keys {
+		_, _ = h.Write([]byte(kt))
+		_, _ = h.Write([]byte{0})
+		if t := b.Targets[index[kt]]; t != nil {
+			_, _ = h.Write([]byte(model.RenderRunsWithData(t.Runs)))
+			_, _ = h.Write([]byte{0})
+			_, _ = h.Write([]byte(t.Status))
+		}
+		_, _ = h.Write([]byte{1})
+	}
+	return h.Sum64()
 }
 
 func (b *BaseTool) handleData(part *model.Part) (*model.Part, error) {

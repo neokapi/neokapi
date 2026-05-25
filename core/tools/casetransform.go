@@ -81,28 +81,24 @@ func NewCaseTransformTool(cfg *CaseTransformConfig) *tool.BaseTool {
 		ToolDescription: "Transforms the case of source and/or target text",
 		Cfg:             cfg,
 	}
-	t.HandleBlockFn = func(part *model.Part) (*model.Part, error) {
-		block, ok := part.Resource.(*model.Block)
-		if !ok {
-			return part, nil
-		}
-		if !block.Translatable {
-			return part, nil
+	// Transform: case-transform may rewrite source (and/or target). As a
+	// source-transform it runs early, before any overlay is attached.
+	t.Transform = func(v tool.SourceView) error {
+		if !v.Translatable() {
+			return nil
 		}
 
 		conf := t.Cfg.(*CaseTransformConfig)
 
 		if conf.ApplySource {
-			sourceText := block.SourceText()
-			block.SetSourceText(transformCase(sourceText, conf.Mode))
+			v.SetSourceText(transformCase(v.SourceText(), conf.Mode))
 		}
 
-		if conf.ApplyTarget && !conf.TargetLocale.IsEmpty() && block.HasTarget(conf.TargetLocale) {
-			targetText := block.TargetText(conf.TargetLocale)
-			block.SetTargetText(conf.TargetLocale, transformCase(targetText, conf.Mode))
+		if conf.ApplyTarget && !conf.TargetLocale.IsEmpty() && v.HasTarget(conf.TargetLocale) {
+			v.SetTargetText(conf.TargetLocale, transformCase(v.TargetText(conf.TargetLocale), conf.Mode))
 		}
 
-		return part, nil
+		return nil
 	}
 	return t
 }

@@ -81,7 +81,7 @@ func NewAIQACheckTool(p aiprovider.LLMProvider, cfg AIQAConfig) *AIQACheckTool {
 	}
 	t.ToolName = "ai-qa"
 	t.ToolDescription = "Checks translation quality using AI/LLM"
-	t.HandleBlockFn = t.handleBlock
+	t.Annotate = t.annotate
 	return t
 }
 
@@ -120,18 +120,13 @@ type qaResult struct {
 	Issues []aiprovider.QAIssue `json:"issues"`
 }
 
-func (t *AIQACheckTool) handleBlock(part *model.Part) (*model.Part, error) {
-	block, ok := part.Resource.(*model.Block)
-	if !ok {
-		return part, nil
+func (t *AIQACheckTool) annotate(v tool.BlockView) error {
+	if !v.HasTarget(t.targetLocale) {
+		return nil
 	}
 
-	if !block.HasTarget(t.targetLocale) {
-		return part, nil
-	}
-
-	sourceText := block.SourceText()
-	targetText := block.TargetText(t.targetLocale)
+	sourceText := v.SourceText()
+	targetText := v.TargetText(t.targetLocale)
 
 	prompt := fmt.Sprintf(
 		"Analyze the following translation for quality issues. Check for: %s.\n\n"+
@@ -146,7 +141,7 @@ func (t *AIQACheckTool) handleBlock(part *model.Part) (*model.Part, error) {
 		{Role: "user", Content: prompt},
 	}, qaSchema())
 	if err != nil {
-		return nil, fmt.Errorf("ai-qa: %w", err)
+		return fmt.Errorf("ai-qa: %w", err)
 	}
 	t.addUsage(resp.Usage)
 
@@ -159,14 +154,10 @@ func (t *AIQACheckTool) handleBlock(part *model.Part) (*model.Part, error) {
 		}}
 	}
 
-	if block.Properties == nil {
-		block.Properties = make(map[string]string)
-	}
-
 	issuesJSON, _ := json.Marshal(result.Issues)
-	block.Properties["qa-issues"] = string(issuesJSON)
-	block.Properties["qa-provider"] = string(t.provider.Name())
-	block.Properties["qa-checks"] = strings.Join(t.checks, ",")
+	v.SetProperty("qa-issues", string(issuesJSON))
+	v.SetProperty("qa-provider", string(t.provider.Name()))
+	v.SetProperty("qa-checks", strings.Join(t.checks, ","))
 
-	return part, nil
+	return nil
 }

@@ -512,7 +512,7 @@ func (w *Writer) blockText(block *model.Block) string {
 // have their backslash double-escaped to `\\r` along with TextRun
 // backslashes.
 func renderSource(block *model.Block) string {
-	return renderSegmentsWithSentinels(block.Source)
+	return renderRunsWithSentinels(block.Source)
 }
 
 // renderTarget mirrors renderSource for a target locale. Returns the
@@ -523,11 +523,11 @@ func renderTarget(block *model.Block, locale model.LocaleID) string {
 	if locale == "" {
 		return ""
 	}
-	segs, ok := block.Targets[locale]
-	if !ok {
+	t := block.Target(locale)
+	if t == nil {
 		return ""
 	}
-	return renderSegmentsWithSentinels(segs)
+	return renderRunsWithSentinels(t.Runs)
 }
 
 // escapeSkipStart and escapeSkipEnd bracket regions of text that
@@ -543,23 +543,18 @@ const (
 // on them) and Ph Data wrapped in escape-skip sentinels. Other run
 // shapes fall back to RenderRunsWithData semantics on a single-run
 // slice so any future run types stay handled.
-func renderSegmentsWithSentinels(segs []*model.Segment) string {
+func renderRunsWithSentinels(runs []model.Run) string {
 	var buf strings.Builder
-	for _, seg := range segs {
-		if seg == nil {
-			continue
-		}
-		for _, run := range seg.Runs {
-			switch {
-			case run.Ph != nil:
-				buf.WriteByte(escapeSkipStart)
-				buf.WriteString(run.Ph.Data)
-				buf.WriteByte(escapeSkipEnd)
-			case run.Text != nil:
-				buf.WriteString(run.Text.Text)
-			default:
-				buf.WriteString(model.RenderRunsWithData([]model.Run{run}))
-			}
+	for _, run := range runs {
+		switch {
+		case run.Ph != nil:
+			buf.WriteByte(escapeSkipStart)
+			buf.WriteString(run.Ph.Data)
+			buf.WriteByte(escapeSkipEnd)
+		case run.Text != nil:
+			buf.WriteString(run.Text.Text)
+		default:
+			buf.WriteString(model.RenderRunsWithData([]model.Run{run}))
 		}
 	}
 	return buf.String()

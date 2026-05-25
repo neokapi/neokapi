@@ -56,9 +56,9 @@ func TestBaseToolDispatch(t *testing.T) {
 
 	bt := &tool.BaseTool{
 		ToolName: "tracker",
-		HandleBlockFn: func(part *model.Part) (*model.Part, error) {
-			handledTypes = append(handledTypes, part.Type)
-			return part, nil
+		Annotate: func(tool.BlockView) error {
+			handledTypes = append(handledTypes, model.PartBlock)
+			return nil
 		},
 		HandleDataFn: func(part *model.Part) (*model.Part, error) {
 			handledTypes = append(handledTypes, part.Type)
@@ -130,8 +130,8 @@ func TestBaseToolContextCancellation(t *testing.T) {
 func TestBaseToolErrorPropagation(t *testing.T) {
 	bt := &tool.BaseTool{
 		ToolName: "error-tool",
-		HandleBlockFn: func(part *model.Part) (*model.Part, error) {
-			return nil, assert.AnError
+		Annotate: func(tool.BlockView) error {
+			return assert.AnError
 		},
 	}
 
@@ -148,12 +148,11 @@ func TestBaseToolErrorPropagation(t *testing.T) {
 func TestBaseToolModifyBlock(t *testing.T) {
 	bt := &tool.BaseTool{
 		ToolName: "uppercase",
-		HandleBlockFn: func(part *model.Part) (*model.Part, error) {
-			block := part.Resource.(*model.Block)
-			if block.Translatable {
-				block.SetTargetText(model.LocaleFrench, "TRANSLATED")
+		Translate: func(v tool.TargetView) error {
+			if v.Translatable() {
+				v.SetTargetText(model.LocaleFrench, "TRANSLATED")
 			}
-			return part, nil
+			return nil
 		},
 	}
 
@@ -180,4 +179,79 @@ func TestBaseToolConfig(t *testing.T) {
 	// nil config is ok
 	err := bt.SetConfig(nil)
 	require.NoError(t, err)
+}
+
+// TestImmutabilityGuard exercises the dev/test backstop in the typed-handler
+// dispatch. Capability is enforced primarily by the parameter type — an
+// Annotate handler simply has no source/target setters — so the backstop's
+// remaining job is to catch in-place edits through the live run slices the
+// view hands back. These cases mutate via those aliased slices to trip it.
+func TestImmutabilityGuard(t *testing.T) {
+	mkBlock := func() *model.Block {
+		b := model.NewBlock("b1", "Hello world")
+		b.SourceLocale = "en"
+		return b
+	}
+	run := func(bt *tool.BaseTool, b *model.Block) error {
+		in := make(chan *model.Part, 1)
+		out := make(chan *model.Part, 1)
+		in <- &model.Part{Type: model.PartBlock, Resource: b}
+		close(in)
+		return bt.Process(context.Background(), in, out)
+	}
+	oneSpanOverlay := []model.Span{{ID: "s1", Range: model.RunRange{StartRun: 0, EndRun: 1}}}
+
+	t.Run("annotate handler mutating source via aliased slice is rejected", func(t *testing.T) {
+		bt := &tool.BaseTool{ToolName: "bad-src"}
+		bt.Annotate = func(v tool.BlockView) error {
+			v.SourceRuns()[0].Text.Text = "changed" // in-place edit through the live slice
+			return nil
+		}
+		require.ErrorContains(t, run(bt, mkBlock()), "changed source")
+	})
+	t.Run("transform handler may rewrite source", func(t *testing.T) {
+		bt := &tool.BaseTool{ToolName: "src-xform"}
+		bt.Transform = func(v tool.SourceView) error {
+			v.SetSourceText("changed")
+			return nil
+		}
+		require.NoError(t, run(bt, mkBlock()))
+	})
+	t.Run("annotate handler mutating target via aliased slice is rejected", func(t *testing.T) {
+		bt := &tool.BaseTool{ToolName: "bad-tgt"}
+		bt.Annotate = func(v tool.BlockView) error {
+			v.TargetRuns("fr")[0].Text.Text = "changed" // in-place edit through the live slice
+			return nil
+		}
+		b := mkBlock()
+		b.SetTargetText("fr", "Bonjour")
+		require.ErrorContains(t, run(bt, b), "changed target")
+	})
+	t.Run("translate handler may write target", func(t *testing.T) {
+		bt := &tool.BaseTool{ToolName: "translator"}
+		bt.Translate = func(v tool.TargetView) error {
+			v.SetTargetText("fr", "Bonjour")
+			return nil
+		}
+		require.NoError(t, run(bt, mkBlock()))
+	})
+	t.Run("annotate handler writing only overlays/properties is allowed", func(t *testing.T) {
+		bt := &tool.BaseTool{ToolName: "analyzer"}
+		bt.Annotate = func(v tool.BlockView) error {
+			v.SetProperty("word-count", "2")
+			v.SetSegmentation(nil, oneSpanOverlay)
+			return nil
+		}
+		require.NoError(t, run(bt, mkBlock()))
+	})
+	t.Run("source transform after an overlay is attached is rejected", func(t *testing.T) {
+		bt := &tool.BaseTool{ToolName: "late-xform"}
+		bt.Transform = func(v tool.SourceView) error {
+			v.SetSourceText("changed")
+			return nil
+		}
+		b := mkBlock()
+		b.SetSegmentation(nil, oneSpanOverlay)
+		require.ErrorContains(t, run(bt, b), "overlay")
+	})
 }

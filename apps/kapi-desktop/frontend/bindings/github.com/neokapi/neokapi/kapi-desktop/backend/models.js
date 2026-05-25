@@ -3437,6 +3437,15 @@ export class ToolInfo {
              */
             this["side_effects"] = undefined;
         }
+        if (/** @type {any} */(false)) {
+            /**
+             * IsSourceTransform reports whether the tool can rewrite source — i.e.
+             * whether the flow editor may place it in the source-transform stage.
+             * @member
+             * @type {boolean | undefined}
+             */
+            this["is_source_transform"] = undefined;
+        }
 
         Object.assign(this, $$source);
     }

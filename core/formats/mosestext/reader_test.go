@@ -247,11 +247,8 @@ func TestSegmentIDs(t *testing.T) {
 	require.NotEmpty(t, blocks)
 
 	for _, b := range blocks {
-		require.NotEmpty(t, b.Source, "block should have source segments")
-		for _, seg := range b.Source {
-			assert.NotEmpty(t, seg.ID, "segment should have an ID")
-			assert.NotEmpty(t, seg.Runs, "segment should have content")
-		}
+		require.NotEmpty(t, b.Source, "block should have source content")
+		assert.NotEmpty(t, b.SourceText(), "block should have content")
 	}
 }
 

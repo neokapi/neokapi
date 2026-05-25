@@ -41,6 +41,11 @@ type ToolInfo struct {
 	Produces      []schema.AnnotationType  `json:"produces,omitempty"`
 	SideEffects   []schema.SideEffect      `json:"side_effects,omitempty"`
 
+	// IsSourceTransform reports whether the tool can rewrite source
+	// (tool.CapTransform) — i.e. whether it may sit in a flow's source-transform
+	// stage. Derived from the tool's handler at registration. (AD-006)
+	IsSourceTransform bool `json:"is_source_transform,omitempty"`
+
 	// CLI metadata
 	WritesOutput          bool     `json:"writes_output,omitempty"`
 	DefaultParallelBlocks int      `json:"default_parallel_blocks,omitempty"`
@@ -48,6 +53,21 @@ type ToolInfo struct {
 
 	// Bridge step metadata (only for Okapi bridge step tools).
 	StepMeta *schema.StepMeta `json:"step_meta,omitempty"`
+}
+
+// probeSourceTransform reports whether a default-constructed tool from factory
+// is source-transform-capable (tool.CapTransform). It is the DRY source of
+// truth — capability comes from the tool's handler, not a hand-maintained flag.
+// Guarded: a factory that panics on default construction yields false.
+func probeSourceTransform(factory ToolFactory) (result bool) {
+	if factory == nil {
+		return false
+	}
+	defer func() { _ = recover() }()
+	if c, ok := factory().(tool.Capable); ok {
+		return c.Capability() == tool.CapTransform
+	}
+	return false
 }
 
 // copyToolMeta copies all ToolMeta fields into a ToolInfo.
@@ -92,7 +112,7 @@ func (r *ToolRegistry) Register(name ToolID, factory ToolFactory) {
 	defer r.mu.Unlock()
 	r.tools[name] = &ToolRegistration{
 		Factory: factory,
-		Info:    ToolInfo{Name: name, Source: SourceBuiltIn},
+		Info:    ToolInfo{Name: name, Source: SourceBuiltIn, IsSourceTransform: probeSourceTransform(factory)},
 	}
 }
 
@@ -101,9 +121,10 @@ func (r *ToolRegistry) RegisterWithSchema(name ToolID, factory ToolFactory, s *s
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	info := ToolInfo{
-		Name:      name,
-		Source:    SourceBuiltIn,
-		HasSchema: s != nil,
+		Name:              name,
+		Source:            SourceBuiltIn,
+		HasSchema:         s != nil,
+		IsSourceTransform: probeSourceTransform(factory),
 	}
 	if s != nil {
 		info.DisplayName = s.Title

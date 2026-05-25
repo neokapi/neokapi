@@ -508,54 +508,52 @@ func (r *Reader) applyCodeFinder(block *model.Block) {
 		return
 	}
 
-	for _, seg := range block.Source {
-		if len(seg.Runs) == 0 {
-			continue
-		}
-		text := seg.Text()
-
-		// Collect all match ranges
-		type matchRange struct {
-			start, end int
-		}
-		var matches []matchRange
-		for _, re := range patterns {
-			for _, loc := range re.FindAllStringIndex(text, -1) {
-				matches = append(matches, matchRange{loc[0], loc[1]})
-			}
-		}
-		if len(matches) == 0 {
-			continue
-		}
-
-		// Sort matches by start position
-		slices.SortFunc(matches, func(a, b matchRange) int {
-			return a.start - b.start
-		})
-
-		// Rebuild segment content as Runs: text between matches
-		// becomes TextRuns; each matched inline code becomes a Ph
-		// run.
-		var runs []model.Run
-		lastEnd := 0
-		spanID := 1
-		for _, m := range matches {
-			if m.start > lastEnd {
-				runs = append(runs, model.Run{Text: &model.TextRun{Text: text[lastEnd:m.start]}})
-			}
-			runs = append(runs, model.Run{Ph: &model.PlaceholderRun{
-				ID:   "c" + strconv.Itoa(spanID),
-				Type: "code",
-				Data: text[m.start:m.end],
-			}})
-			lastEnd = m.end
-			spanID++
-		}
-		if lastEnd < len(text) {
-			runs = append(runs, model.Run{Text: &model.TextRun{Text: text[lastEnd:]}})
-		}
-		seg.SetRuns(runs)
+	if len(block.Source) == 0 {
+		return
 	}
+	text := model.RunsText(block.Source)
+
+	// Collect all match ranges
+	type matchRange struct {
+		start, end int
+	}
+	var matches []matchRange
+	for _, re := range patterns {
+		for _, loc := range re.FindAllStringIndex(text, -1) {
+			matches = append(matches, matchRange{loc[0], loc[1]})
+		}
+	}
+	if len(matches) == 0 {
+		return
+	}
+
+	// Sort matches by start position
+	slices.SortFunc(matches, func(a, b matchRange) int {
+		return a.start - b.start
+	})
+
+	// Rebuild block content as Runs: text between matches
+	// becomes TextRuns; each matched inline code becomes a Ph
+	// run.
+	var runs []model.Run
+	lastEnd := 0
+	spanID := 1
+	for _, m := range matches {
+		if m.start > lastEnd {
+			runs = append(runs, model.Run{Text: &model.TextRun{Text: text[lastEnd:m.start]}})
+		}
+		runs = append(runs, model.Run{Ph: &model.PlaceholderRun{
+			ID:   "c" + strconv.Itoa(spanID),
+			Type: "code",
+			Data: text[m.start:m.end],
+		}})
+		lastEnd = m.end
+		spanID++
+	}
+	if lastEnd < len(text) {
+		runs = append(runs, model.Run{Text: &model.TextRun{Text: text[lastEnd:]}})
+	}
+	block.SetSourceRuns(runs)
 }
 
 // matchSubfilter checks if the given key path matches any configured subfilter mapping.

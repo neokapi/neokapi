@@ -73,20 +73,43 @@ func NewUnredactTool(cfg *UnredactConfig) (*UnredactTool, error) {
 		ToolDescription: "Restores original values into redacted content after processing",
 		Cfg:             cfg,
 	}
-	base.HandleBlockFn = t.handleBlock
+	// Transform: unredact rewrites both source and target runs to restore originals.
+	base.Transform = t.handleBlock
 	t.BaseTool = base
 	return t, nil
 }
 
-func (t *UnredactTool) handleBlock(part *model.Part) (*model.Part, error) {
-	block, ok := part.Resource.(*model.Block)
-	if !ok || block == nil {
-		return part, nil
+func (t *UnredactTool) handleBlock(v tool.SourceView) error {
+	// Retrieve the block's annotations to find the secret annotation.
+	// We need to use the Annotations() map to find the secret key and delete it.
+	annotations := v.Annotations()
+	ann, hasAnn := annotations[redaction.SecretAnnotationKey]
+
+	var get func(string) (string, bool)
+	var entries []redaction.RedactedValue
+
+	if t.vault != nil {
+		blockID := v.ID()
+		get = func(token string) (string, bool) {
+			val, ok := t.vault.Get(blockID, token)
+			return val.Original, ok
+		}
+		entries = redaction.ValuesForBlock(t.vault, blockID)
+	} else if hasAnn {
+		if secretAnn, ok := ann.(*redaction.SecretAnnotation); ok {
+			get = func(token string) (string, bool) {
+				val, ok := secretAnn.Get(token)
+				return val.Original, ok
+			}
+			entries = make([]redaction.RedactedValue, 0, len(secretAnn.Values))
+			for _, val := range secretAnn.Values {
+				entries = append(entries, val)
+			}
+		}
 	}
 
-	get, entries := t.lookup(block)
 	if get == nil {
-		return part, nil
+		return nil
 	}
 
 	restore := func(runs []model.Run) ([]model.Run, int) {
@@ -98,41 +121,16 @@ func (t *UnredactTool) handleBlock(part *model.Part) (*model.Part, error) {
 		return runs, n1 + n2
 	}
 
-	if sr, n := restore(block.SourceRuns()); n > 0 {
-		block.SetSourceRuns(sr)
+	if sr, n := restore(v.SourceRuns()); n > 0 {
+		v.SetSourceRuns(sr)
 	}
-	for locale := range block.Targets {
-		if tr, n := restore(block.TargetRuns(locale)); n > 0 {
-			block.SetTargetRuns(locale, tr)
+	for _, locale := range v.TargetLocales() {
+		if tr, n := restore(v.TargetRuns(locale)); n > 0 {
+			v.SetTargetRuns(locale, tr)
 		}
 	}
 
-	delete(block.Annotations, redaction.SecretAnnotationKey)
-	return part, nil
+	delete(annotations, redaction.SecretAnnotationKey)
+	return nil
 }
 
-// lookup returns a token→original getter and the block's stored values
-// (for text-based restore), sourced from the sidecar vault (external) or the
-// in-process annotation. Returns nil when no source of originals is available.
-func (t *UnredactTool) lookup(block *model.Block) (func(string) (string, bool), []redaction.RedactedValue) {
-	if t.vault != nil {
-		blockID := block.ID
-		get := func(token string) (string, bool) {
-			v, ok := t.vault.Get(blockID, token)
-			return v.Original, ok
-		}
-		return get, redaction.ValuesForBlock(t.vault, blockID)
-	}
-	if ann, ok := block.Annotations[redaction.SecretAnnotationKey].(*redaction.SecretAnnotation); ok {
-		get := func(token string) (string, bool) {
-			v, ok := ann.Get(token)
-			return v.Original, ok
-		}
-		entries := make([]redaction.RedactedValue, 0, len(ann.Values))
-		for _, v := range ann.Values {
-			entries = append(entries, v)
-		}
-		return get, entries
-	}
-	return nil, nil
-}

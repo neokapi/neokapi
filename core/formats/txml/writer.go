@@ -197,11 +197,10 @@ func (w *Writer) lookupRef(refID string) (string, bool) {
 
 	switch elemType {
 	case "source":
-		if segIdx >= len(block.Source) {
+		if segIdx >= block.SourceSegmentCount() {
 			return "", false
 		}
-		seg := block.Source[segIdx]
-		return renderTXMLInline(seg.Runs), true
+		return renderTXMLInline(block.SourceSegmentRuns(segIdx)), true
 	case "target":
 		// Replacing the content of an existing <target> element. Try the
 		// recorded targetlocale first; fall back to the writer's
@@ -211,8 +210,8 @@ func (w *Writer) lookupRef(refID string) (string, bool) {
 		}
 		// No target available — preserve the source as a fallback so
 		// the document stays well-formed.
-		if segIdx < len(block.Source) {
-			return renderTXMLInline(block.Source[segIdx].Runs), true
+		if segIdx < block.SourceSegmentCount() {
+			return renderTXMLInline(block.SourceSegmentRuns(segIdx)), true
 		}
 		return "", true
 	case "target-insert":
@@ -237,29 +236,48 @@ func (w *Writer) lookupRef(refID string) (string, bool) {
 // recorded targetlocale, then the writer's configured locale, then any
 // available target locale. Returns ok=false when the block carries no
 // target segment for this index in any locale.
+//
+// The Block holds one flat target Run sequence per locale plus a target
+// segmentation overlay; segIdx indexes the overlay's spans (a dense
+// list — only segments that carried a <target> appear), matching the
+// reader's per-segment target spans.
 func (w *Writer) targetInnerXML(block *model.Block, segIdx int) (string, bool) {
-	targetLocale := model.LocaleID(w.targetLocale)
-	if !targetLocale.IsEmpty() && block.HasTarget(targetLocale) {
-		segs := block.Targets[targetLocale]
-		if segIdx < len(segs) {
-			return renderTXMLInline(segs[segIdx].Runs), true
-		}
+	if inner, ok := targetSegmentXML(block, model.LocaleID(w.targetLocale), segIdx); ok {
+		return inner, true
 	}
-	if !w.Locale.IsEmpty() && block.HasTarget(w.Locale) {
-		segs := block.Targets[w.Locale]
-		if segIdx < len(segs) {
-			return renderTXMLInline(segs[segIdx].Runs), true
-		}
+	if inner, ok := targetSegmentXML(block, w.Locale, segIdx); ok {
+		return inner, true
 	}
-	for locale, segs := range block.Targets {
-		if !block.HasTarget(locale) {
-			continue
-		}
-		if segIdx < len(segs) {
-			return renderTXMLInline(segs[segIdx].Runs), true
+	for _, locale := range block.TargetLocales() {
+		if inner, ok := targetSegmentXML(block, locale, segIdx); ok {
+			return inner, true
 		}
 	}
 	return "", false
+}
+
+// targetSegmentXML returns the rendered TXML inner XML of the idx-th
+// target segment for a locale, splitting the locale's target runs by
+// its target segmentation overlay. With no overlay the whole target is
+// one segment. Returns ok=false when the locale has no target or the
+// index is out of range.
+func targetSegmentXML(block *model.Block, locale model.LocaleID, idx int) (string, bool) {
+	if locale.IsEmpty() || !block.HasTarget(locale) {
+		return "", false
+	}
+	runs := block.TargetRuns(locale)
+	key := model.Variant(locale)
+	ov := block.SegmentationFor(&key)
+	if ov == nil {
+		if idx == 0 {
+			return renderTXMLInline(runs), true
+		}
+		return "", false
+	}
+	if idx < 0 || idx >= len(ov.Spans) {
+		return "", false
+	}
+	return renderTXMLInline(ov.Spans[idx].Range.ExtractRuns(runs)), true
 }
 
 func (w *Writer) writeHeader() error {
@@ -306,31 +324,39 @@ func (w *Writer) writeBlock(part *model.Part) error {
 		targetLocale = w.Locale
 	}
 
-	// Walk source segments; pair each with its same-indexed target
-	// segment when one exists.
-	var targetSegs []*model.Segment
+	// Walk source segments via the segmentation overlay; pair each with
+	// its same-indexed target segment (dense overlay span) when one
+	// exists.
+	srcSeg := block.SourceSegmentation()
+	srcCount := block.SourceSegmentCount()
+	var (
+		trgRuns []model.Run
+		trgOv   *model.Overlay
+	)
 	if !targetLocale.IsEmpty() {
-		targetSegs = block.Targets[targetLocale]
+		trgRuns = block.TargetRuns(targetLocale)
+		key := model.Variant(targetLocale)
+		trgOv = block.SegmentationFor(&key)
 	}
 
-	for i, srcSeg := range block.Source {
-		segID := srcSeg.ID
-		if segID == "" {
-			segID = fmt.Sprintf("s%d", i+1)
+	for i := range srcCount {
+		segID := fmt.Sprintf("s%d", i+1)
+		if srcSeg != nil && i < len(srcSeg.Spans) && srcSeg.Spans[i].ID != "" {
+			segID = srcSeg.Spans[i].ID
 		}
 		if _, err := fmt.Fprintf(w.Output, "<segment segmentId=\"%s\">", xmlEscape(segID)); err != nil {
 			return err
 		}
 		// renderTXMLInline already escapes text and reconstructs <ut>
 		// inline codes, so the result is written verbatim.
-		sourceXML := renderTXMLInline(srcSeg.Runs)
+		sourceXML := renderTXMLInline(block.SourceSegmentRuns(i))
 		if _, err := fmt.Fprintf(w.Output, "<source>%s</source>", sourceXML); err != nil {
 			return err
 		}
 		var targetXML string
 		hasTarget := false
-		if i < len(targetSegs) {
-			targetXML = renderTXMLInline(targetSegs[i].Runs)
+		if segRuns, ok := directTargetSegmentRuns(trgRuns, trgOv, i); ok {
+			targetXML = renderTXMLInline(segRuns)
 			hasTarget = targetXML != ""
 		}
 		if hasTarget {
@@ -347,6 +373,27 @@ func (w *Writer) writeBlock(part *model.Part) error {
 		}
 	}
 	return nil
+}
+
+// directTargetSegmentRuns returns the runs of the idx-th target segment
+// for the direct (non-skeleton) writer path. With a target
+// segmentation overlay idx indexes the (dense) overlay spans; without
+// one the whole target is one segment (idx 0). Returns ok=false when
+// there is no target segment for the index.
+func directTargetSegmentRuns(runs []model.Run, ov *model.Overlay, idx int) ([]model.Run, bool) {
+	if len(runs) == 0 {
+		return nil, false
+	}
+	if ov == nil {
+		if idx == 0 {
+			return runs, true
+		}
+		return nil, false
+	}
+	if idx < 0 || idx >= len(ov.Spans) {
+		return nil, false
+	}
+	return ov.Spans[idx].Range.ExtractRuns(runs), true
 }
 
 // renderTXMLInline serializes a Run sequence to TXML inner-XML form

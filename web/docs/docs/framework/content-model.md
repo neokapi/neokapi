@@ -1,8 +1,8 @@
 ---
 sidebar_position: 2
 title: Content Model
-description: The neokapi content model — how documents are represented as a stream of Parts (Layer, Block, Segment, Run, Data, Media) so that tools and translations work independently of the source file format.
-keywords: [content model, Part, Block, Segment, Run, Layer, localization, format-independent]
+description: The neokapi content model — documents as a stream of Parts (Layer, Block, Data, Media); a Block carries a flat Run sequence, variant-keyed Targets, and stand-off Overlays, so tools and translations work independently of the source file format.
+keywords: [content model, Part, Block, Run, Overlay, variant target, Layer, localization, format-independent]
 ---
 
 import { BlockPreview } from "@site/src/components/curated";
@@ -69,11 +69,17 @@ classDiagram
     }
     class Block {
         +bool Translatable
-        +[]Segment Source
-        +map~Locale,[]Segment~ Targets
+        +[]Run Source
+        +map~VariantKey,Target~ Targets
+        +[]Overlay Overlays
     }
-    class Segment {
+    class Target {
         +[]Run Runs
+        +TargetStatus Status
+    }
+    class Overlay {
+        +OverlayType Type
+        +[]Span Spans
     }
     class Run {
         +TextRun Text
@@ -83,27 +89,30 @@ classDiagram
     }
     Layer --> Layer : child Layers (embedded content)
     Layer --> Block : contains
-    Block --> Segment : Source, Targets
-    Segment --> Run : flat run sequence
+    Block --> Run : flat Source sequence
+    Block --> Target : per variant
+    Block --> Overlay : stand-off annotations
+    Target --> Run : flat run sequence
 ```
 
 - **Layer** — a structural grouping: a whole document, a section, or embedded
   content. Layers nest. Embedded content — HTML inside a JSON value, CDATA inside
   XML — becomes a **child layer** with its own format, so the right reader handles
   it and inline markup is preserved at every level rather than being flattened.
-- **Block** — the primary translatable unit (Okapi's _TextUnit_). A block holds a
-  source and, per target locale, a translation. It carries a `Translatable` flag,
-  arbitrary properties, and **annotations** — the shared channel through which
-  [TM matches](/framework/translation-memory),
-  [terminology](/framework/terminology), [brand-voice](/framework/brand-voice)
-  findings, and [QA](/framework/qa-checks) results all attach to content without
-  colliding.
-- **Segment** — a block's source or target is a list of segments (typically
-  sentences after [segmentation](/framework/tools)), each carrying a flat `Runs`
-  sequence.
-- **Run** — one element of a segment's inline content: a chunk of text, an
-  opening or closing inline tag, a self-closing placeholder, or a structured
-  plural/select construct (see below).
+- **Block** — the primary translatable unit (Okapi's _TextUnit_). Its `Source` is
+  a single flat `[]Run`; its translations are first-class `Target` records keyed
+  by a **VariantKey** (locale plus optional tone and channel). It carries a
+  `Translatable` flag, arbitrary properties, and **annotations**.
+- **Overlay** — every interpretation _of_ a block's runs — sentence
+  segmentation, terminology, entities, QA findings, source↔target alignment — is
+  a typed, run-anchored **stand-off overlay** layered over the runs rather than
+  baked into the structure. There is no structural `Segment` type: a segment is
+  just a span in the segmentation overlay, so segmentation is opt-in, multi-layer,
+  and reversible (drop the overlay to get the unsegmented content back). See
+  [AD-002](/contribute/architecture/002-content-model).
+- **Run** — one element of a block's inline content: a chunk of text, an opening
+  or closing inline tag, a self-closing placeholder, or a structured plural/select
+  construct (see below).
 - **Data** and **Media** — non-translatable document structure and binary
   content, which flow through so the writer can reconstruct a faithful output.
 
@@ -111,8 +120,8 @@ classDiagram
 
 The Run sequence is where neokapi solves a hard problem: how to let a tool, a
 translation engine, or a TM operate on the words while keeping inline markup like
-`<b>`, `**`, or `{count}` intact. A segment's content is a flat `[]Run` — a
-discriminated union where each run is exactly one of:
+`<b>`, `**`, or `{count}` intact. A block's source (and each target) is a flat
+`[]Run` — a discriminated union where each run is exactly one of:
 
 | Run kind        | Field      | Represents                                     |
 | --------------- | ---------- | ---------------------------------------------- |
@@ -130,7 +139,7 @@ so the writer can replay it verbatim:
 ```
 Source HTML: Click <b>here</b> for info
 
-Segment.Runs:
+Source runs:
   - {Text: "Click "}
   - {PcOpen:  {ID: "1", Type: "fmt:bold", Data: "<b>"}}
   - {Text: "here"}
@@ -138,7 +147,7 @@ Segment.Runs:
   - {Text: " for info"}
 ```
 
-A tool can project the runs to plain text (`Segment.Text()` returns
+A tool can project the runs to plain text (`block.SourceText()` returns
 `"Click here for info"`); a translation engine sees text with opaque tokens it
 must preserve; and the writer re-emits each run's `Data` at its position to
 reconstruct the source faithfully — attributes and all. Because the same `<b>`,
@@ -147,10 +156,6 @@ same semantic `Type`, the representation is format-independent.
 [Inline Formatting](/framework/inline-formatting) and
 [Vocabularies](/framework/vocabularies) cover how runs are classified and what
 metadata they carry.
-
-> A coded-text exchange form (a string with private-use-area markers and a
-> parallel `Span` list, mirroring Okapi's `TextFragment`) historically backed
-> inline content. It has been removed; `[]Run` is the canonical representation.
 
 ## See it on a real file
 
@@ -189,8 +194,9 @@ For readers familiar with the Okapi Framework, the model maps directly:
 | ------------------------------- | -------------------------- |
 | Filter                          | DataFormat                 |
 | TextUnit                        | Block                      |
-| TextFragment                    | Segment (`[]Run`)          |
+| TextFragment                    | Run sequence (`[]Run`)     |
 | Code                            | Run (`PcOpen`/`PcClose`/`Ph`) |
+| Segment (structural)            | Span in a segmentation overlay |
 | StartSubDocument/StartSubFilter | Child Layer                |
 | Event                           | Part                       |
 

@@ -502,7 +502,7 @@ var storeMigrations = []storage.Migration{
 				block_id      TEXT NOT NULL,
 				locale        TEXT NOT NULL,
 				text          TEXT NOT NULL DEFAULT '',
-				segments_json TEXT NOT NULL DEFAULT '[]',
+				target_json   TEXT NOT NULL DEFAULT '{}',
 				provider      TEXT NOT NULL DEFAULT '',
 				metadata      TEXT NOT NULL DEFAULT '{}',
 				updated_at    TEXT NOT NULL DEFAULT (datetime('now')),

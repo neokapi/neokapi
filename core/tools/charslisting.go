@@ -93,40 +93,32 @@ func NewCharsListingTool(cfg *CharsListingConfig) *CharsListingResult {
 		ToolDescription: "Lists all unique characters used in content for font subsetting",
 		Cfg:             cfg,
 	}
-	t.HandleBlockFn = func(part *model.Part) (*model.Part, error) {
-		block, ok := part.Resource.(*model.Block)
-		if !ok {
-			return part, nil
-		}
-		if !block.Translatable {
-			return part, nil
+	t.Annotate = func(v tool.BlockView) error {
+		if !v.Translatable() {
+			return nil
 		}
 
 		conf := t.Cfg.(*CharsListingConfig)
 
-		if block.Properties == nil {
-			block.Properties = make(map[string]string)
-		}
-
 		blockChars := make(map[rune]struct{})
 
 		if conf.IncludeSource {
-			for _, r := range block.SourceText() {
+			for _, r := range v.SourceText() {
 				charCounts[r]++
 				blockChars[r] = struct{}{}
 			}
 		}
 
-		if conf.IncludeTarget && block.HasTarget(conf.TargetLocale) {
-			for _, r := range block.TargetText(conf.TargetLocale) {
+		if conf.IncludeTarget && v.HasTarget(conf.TargetLocale) {
+			for _, r := range v.TargetText(conf.TargetLocale) {
 				charCounts[r]++
 				blockChars[r] = struct{}{}
 			}
 		}
 
-		block.Properties[PropCharsListingCount] = strconv.Itoa(len(blockChars))
+		v.SetProperty(PropCharsListingCount, strconv.Itoa(len(blockChars)))
 
-		return part, nil
+		return nil
 	}
 
 	result.tool = t

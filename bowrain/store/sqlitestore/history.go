@@ -5,10 +5,10 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"strings"
 	"time"
 
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
+	bstore "github.com/neokapi/neokapi/bowrain/store"
 	"github.com/neokapi/neokapi/core/model"
 )
 
@@ -69,13 +69,18 @@ func recordBlockHistory(ctx context.Context, tx *sql.Tx, projectID, stream, bloc
 }
 
 // recordTargetHistory checks for target changes and records history entries.
-func recordTargetHistory(ctx context.Context, tx *sql.Tx, projectID, stream string, blockID string, oldTargets map[model.LocaleID][]*model.Segment, newTargets map[model.LocaleID][]*model.Segment) error {
-	for locale, newSegs := range newTargets {
-		newText := segmentsPlainText(newSegs)
-		newCoded := segmentsRunsJSON(newSegs)
+func recordTargetHistory(ctx context.Context, tx *sql.Tx, projectID, stream string, blockID string, oldTargets map[model.VariantKey]*model.Target, newTargets map[model.VariantKey]*model.Target) error {
+	for key, newTarget := range newTargets {
+		if newTarget == nil {
+			continue
+		}
+		newText := model.RunsText(newTarget.Runs)
+		newCoded := targetRunsJSON(newTarget)
 
-		oldSegs := oldTargets[locale]
-		oldText := segmentsPlainText(oldSegs)
+		oldText := ""
+		if old := oldTargets[key]; old != nil {
+			oldText = model.RunsText(old.Runs)
+		}
 
 		if newText == oldText {
 			continue
@@ -86,71 +91,58 @@ func recordTargetHistory(ctx context.Context, tx *sql.Tx, projectID, stream stri
 			changeType = "target_added"
 		}
 
-		if err := recordBlockHistory(ctx, tx, projectID, stream, blockID, string(locale), changeType, newText, newCoded, "", ""); err != nil {
-			return fmt.Errorf("record history for block %s locale %s: %w", blockID, locale, err)
+		variant := bstore.VariantKeyText(key)
+		if err := recordBlockHistory(ctx, tx, projectID, stream, blockID, variant, changeType, newText, newCoded, "", ""); err != nil {
+			return fmt.Errorf("record history for block %s variant %s: %w", blockID, variant, err)
 		}
 	}
 	return nil
 }
 
-// segmentsPlainText concatenates the plain text of every segment in
-// the slice. Mirrors the behaviour of model.Block.TargetText so that
-// history-row deduplication compares the same string the rest of the
-// app sees.
-func segmentsPlainText(segs []*model.Segment) string {
-	if len(segs) == 0 {
+// targetRunsJSON returns the JSON-encoded Run sequence of a target, stored in
+// the block_history.coded_text column (the column name is retained for schema
+// stability). The column is a debugging aid for editor history that preserves
+// inline markup, not the canonical store (the translations table is).
+func targetRunsJSON(t *model.Target) string {
+	if t == nil || len(t.Runs) == 0 {
 		return ""
 	}
-	var buf strings.Builder
-	for _, s := range segs {
-		buf.WriteString(s.Text())
-	}
-	return buf.String()
-}
-
-// segmentsRunsJSON returns the JSON-encoded Run sequence of the first
-// segment, stored in the block_history.coded_text column (the column name is
-// retained for schema stability). Multi-segment blocks only persist the first
-// segment's runs here — the column is a debugging aid for editor history that
-// preserves inline markup, not the canonical store (the translations table is).
-func segmentsRunsJSON(segs []*model.Segment) string {
-	if len(segs) == 0 || len(segs[0].Runs) == 0 {
-		return ""
-	}
-	b, err := json.Marshal(segs[0].Runs)
+	b, err := json.Marshal(t.Runs)
 	if err != nil {
 		return ""
 	}
 	return string(b)
 }
 
-// loadExistingTargets fetches existing targets JSON for a block within a transaction.
-// loadExistingTargets returns the current per-locale target segments for a
-// block — used by recordTargetHistory before a StoreBlocks upsert. Reads
-// from the translations table (#405) instead of the former inline
-// blocks.targets_json column.
-func loadExistingTargets(ctx context.Context, tx *sql.Tx, projectID, _, blockID string) (map[model.LocaleID][]*model.Segment, error) {
+// loadExistingTargets returns the current per-variant Targets for a block —
+// used by recordTargetHistory before a StoreBlocks upsert. Reads from the
+// translations table; the target_json column holds the model.Target JSON.
+func loadExistingTargets(ctx context.Context, tx *sql.Tx, projectID, _, blockID string) (map[model.VariantKey]*model.Target, error) {
 	rows, err := tx.QueryContext(ctx,
-		`SELECT locale, segments_json FROM translations
+		`SELECT locale, target_json FROM translations
 		 WHERE project_id = ? AND stream = 'main' AND block_id = ?`,
 		projectID, blockID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	targets := map[model.LocaleID][]*model.Segment{}
+	targets := map[model.VariantKey]*model.Target{}
 	for rows.Next() {
-		var locale, segJSON string
-		if err := rows.Scan(&locale, &segJSON); err != nil {
+		var keyText, targetJSON string
+		if err := rows.Scan(&keyText, &targetJSON); err != nil {
 			return nil, err
 		}
-		var segs []*model.Segment
-		if segJSON != "" && segJSON != "[]" && segJSON != "null" {
-			if err := json.Unmarshal([]byte(segJSON), &segs); err != nil {
+		var key model.VariantKey
+		if err := key.UnmarshalText([]byte(keyText)); err != nil {
+			continue // skip malformed keys silently
+		}
+		target := &model.Target{}
+		if targetJSON != "" && targetJSON != "null" {
+			if err := json.Unmarshal([]byte(targetJSON), target); err != nil {
 				continue // skip malformed rows silently — same behaviour as the prior impl
 			}
 		}
-		targets[model.LocaleID(locale)] = segs
+		targets[key] = target
 	}
 	if rows.Err() != nil {
 		return nil, rows.Err()

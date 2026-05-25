@@ -78,10 +78,9 @@ func (b *runBuilder) AddPcOpen(id, semType, subType, data, disp, equiv string, c
 	}})
 }
 
-// AppendPcClose emits the closing half of a paired code. PcCloseRun has no
-// Constraints field — the closing half inherits behavior from its opener —
-// and MarshalRuns drops Disp when emitting a close, so we match that
-// behavior here (callers may pass disp but it is ignored).
+// AppendPcClose emits the closing half of a paired code. PcCloseRun carries no
+// Constraints or Disp — the closing half inherits behavior and display from its
+// opener (matched by shared id).
 func (b *runBuilder) AddPcClose(id, semType, subType, data, equiv string) {
 	b.runs = append(b.runs, model.Run{PcClose: &model.PcCloseRun{
 		ID:      id,

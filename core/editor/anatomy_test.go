@@ -30,30 +30,33 @@ func dataPart(d *model.Data) *model.Part {
 }
 
 // richBlock is a multi-segment block carrying a text run, an inline
-// placeholder, and an ICU plural — the interesting cases for a learner.
+// placeholder, and an ICU plural — the interesting cases for a learner. The
+// source is a flat run sequence (AD-002); the two sentence boundaries are a
+// stand-off segmentation overlay rather than structural segments.
 func richBlock() *model.Block {
-	return &model.Block{
+	b := &model.Block{
 		ID:           "b1",
 		Translatable: true,
-		Source: []*model.Segment{
-			{ID: "s1", Runs: []model.Run{
-				{Text: &model.TextRun{Text: "Hello "}},
-				{Ph: &model.PlaceholderRun{ID: "1", Type: "var", Data: "{name}", Equiv: "{name}"}},
-			}},
-			{ID: "s2", Runs: []model.Run{
-				{Plural: &model.PluralRun{
-					Pivot: "count",
-					Forms: map[model.PluralForm][]model.Run{
-						model.PluralOne:   {{Text: &model.TextRun{Text: "1 item"}}},
-						model.PluralOther: {{Text: &model.TextRun{Text: "# items"}}},
-					},
-				}},
+		Source: []model.Run{
+			{Text: &model.TextRun{Text: "Hello "}},
+			{Ph: &model.PlaceholderRun{ID: "1", Type: "var", Data: "{name}", Equiv: "{name}"}},
+			{Plural: &model.PluralRun{
+				Pivot: "count",
+				Forms: map[model.PluralForm][]model.Run{
+					model.PluralOne:   {{Text: &model.TextRun{Text: "1 item"}}},
+					model.PluralOther: {{Text: &model.TextRun{Text: "# items"}}},
+				},
 			}},
 		},
-		Targets: map[model.LocaleID][]*model.Segment{
-			"fr": {{ID: "s1", Runs: []model.Run{{Text: &model.TextRun{Text: "Bonjour"}}}}},
+		Targets: map[model.VariantKey]*model.Target{
+			model.Variant("fr"): {Runs: []model.Run{{Text: &model.TextRun{Text: "Bonjour"}}}},
 		},
 	}
+	b.SetSegmentation(nil, []model.Span{
+		{ID: "s1", Range: model.RunRange{StartRun: 0, EndRun: 2}},
+		{ID: "s2", Range: model.RunRange{StartRun: 2, EndRun: 3}},
+	})
+	return b
 }
 
 func TestBuildContentTree_Hierarchy(t *testing.T) {

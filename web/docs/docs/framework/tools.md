@@ -84,7 +84,12 @@ type BaseTool struct {
     ToolDescription string
     Cfg             ToolConfig
 
-    HandleBlockFn      PartHandler
+    // Block handler — set exactly one. The view type bounds what it may write.
+    Annotate  func(BlockView) error  // read-only: overlays / annotations / properties
+    Translate func(TargetView) error // writes target
+    Transform func(SourceView) error // rewrites source (and may write target)
+
+    // Other Part types stay untyped.
     HandleDataFn       PartHandler
     HandleMediaFn      PartHandler
     HandleLayerStartFn PartHandler
@@ -94,14 +99,19 @@ type BaseTool struct {
 }
 ```
 
-A concrete tool embeds `BaseTool` and sets only the handler fields it needs.
+A concrete tool embeds `BaseTool` and sets only the handlers it needs.
 `BaseTool.Process` reads each Part, switches on its `Type`, and calls the
 matching handler. **Any handler left unset is a pass-through** — the Part flows
-to the output channel unchanged. This is what lets a block-only tool ignore
-layer boundaries, media, and structural data without writing any code for them.
+to the output channel unchanged. For Blocks, a tool sets one of three
+capability-typed handlers and the view it receives decides what it may write
+(the immutability model — see [the tool-system AD](/contribute/architecture/006-tool-system)):
+`Annotate` reads source and target but writes only overlays, annotations, and
+properties; `Translate` writes the target; `Transform` rewrites the source. The
+forbidden writes simply aren't on the view, so a quality check can't accidentally
+mutate the source.
 
-The case-transform tool is a representative example. It only handles Blocks, and
-within those only when they are translatable:
+The case-transform tool is a representative example. It can rewrite the source,
+so it sets `Transform`:
 
 ```go
 func NewCaseTransformTool(cfg *CaseTransformConfig) *tool.BaseTool {
@@ -110,16 +120,15 @@ func NewCaseTransformTool(cfg *CaseTransformConfig) *tool.BaseTool {
         ToolDescription: "Transforms the case of source and/or target text",
         Cfg:             cfg,
     }
-    t.HandleBlockFn = func(part *model.Part) (*model.Part, error) {
-        block, ok := part.Resource.(*model.Block)
-        if !ok || !block.Translatable {
-            return part, nil // pass through
+    t.Transform = func(v tool.SourceView) error {
+        if !v.Translatable() {
+            return nil // pass through
         }
         conf := t.Cfg.(*CaseTransformConfig)
         if conf.ApplySource {
-            block.SetSourceText(transformCase(block.SourceText(), conf.Mode))
+            v.SetSourceText(transformCase(v.SourceText(), conf.Mode))
         }
-        return part, nil
+        return nil
     }
     return t
 }
@@ -154,7 +163,7 @@ channels, backpressure, error propagation — are covered in
 Because a tool is just an interface, one tool can wrap another to add behavior
 without the inner tool knowing. The framework uses this for **intra-tool block
 parallelism**: `ParallelBlockTool` wraps a block-handling tool and fans its
-`HandleBlockFn` out across N goroutines while preserving Part order, which is
+block handler out across N goroutines while preserving Part order, which is
 valuable for IO-bound tools such as AI or MT translation where each block is an
 independent network call. The wrapper presents the same `Tool` interface, so the
 rest of the flow is unaffected.

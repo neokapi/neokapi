@@ -177,18 +177,9 @@ func (w *Writer) headerLine(block *model.Block, text string) (string, bool) {
 // tokenizeDokuWikiInlineCodes.
 func (w *Writer) blockText(block *model.Block) string {
 	if !w.Locale.IsEmpty() && block.HasTarget(w.Locale) {
-		segs := block.Targets[w.Locale]
-		var b strings.Builder
-		for _, seg := range segs {
-			b.WriteString(model.RenderRunsWithData(seg.Runs))
-		}
-		return b.String()
+		return model.RenderRunsWithData(block.TargetRuns(w.Locale))
 	}
-	var b strings.Builder
-	for _, seg := range block.Source {
-		b.WriteString(model.RenderRunsWithData(seg.Runs))
-	}
-	return b.String()
+	return model.RenderRunsWithData(block.Source)
 }
 
 func (w *Writer) writePart(part *model.Part) error {

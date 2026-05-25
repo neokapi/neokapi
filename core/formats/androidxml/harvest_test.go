@@ -147,7 +147,7 @@ func TestRichFixtureExtraction(t *testing.T) {
 	// the translatable text outside it is empty.
 	privacy := by["privacy_policy"]
 	require.NotNil(t, privacy)
-	assert.True(t, privacy.FirstSegment().HasInlineCodes(), "CDATA should be a code")
+	assert.True(t, runsHaveInlineCodes(privacy.SourceRuns()), "CDATA should be a code")
 	assert.Equal(t, "", privacy.SourceText(), "CDATA contributes no translatable text")
 	assert.Equal(t,
 		`<![CDATA[Read our <a href="https://example.com/privacy">Privacy&nbsp;Policy</a> &amp; <b>Terms</b> before continuing.]]>`,
@@ -161,7 +161,7 @@ func TestRichFixtureExtraction(t *testing.T) {
 	// xliff:g span protects the filename; the connective text stays translatable.
 	dl := by["downloading_file"]
 	require.NotNil(t, dl)
-	assert.True(t, dl.FirstSegment().HasInlineCodes())
+	assert.True(t, runsHaveInlineCodes(dl.SourceRuns()))
 	assert.Equal(t, "Downloading  now…", dl.SourceText())
 	assert.Equal(t,
 		`Downloading <xliff:g id="filename" example="report.pdf">%1$s</xliff:g> now…`,

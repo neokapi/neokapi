@@ -57,36 +57,31 @@ func NewURIConvertTool(cfg *URIConvertConfig) *tool.BaseTool {
 		ToolDescription: "Encodes or decodes URI escape sequences in text",
 		Cfg:             cfg,
 	}
-	t.HandleBlockFn = func(part *model.Part) (*model.Part, error) {
-		block, ok := part.Resource.(*model.Block)
-		if !ok {
-			return part, nil
-		}
-		if !block.Translatable {
-			return part, nil
+	// Transform: uri-convert may rewrite source and/or target text.
+	t.Transform = func(v tool.SourceView) error {
+		if !v.Translatable() {
+			return nil
 		}
 
 		conf := t.Cfg.(*URIConvertConfig)
 
 		if conf.ApplySource {
-			sourceText := block.SourceText()
-			converted, err := convertURI(sourceText, conf.Mode)
+			converted, err := convertURI(v.SourceText(), conf.Mode)
 			if err != nil {
-				return nil, fmt.Errorf("uri-convert source: %w", err)
+				return fmt.Errorf("uri-convert source: %w", err)
 			}
-			block.SetSourceText(converted)
+			v.SetSourceText(converted)
 		}
 
-		if conf.ApplyTarget && !conf.TargetLocale.IsEmpty() && block.HasTarget(conf.TargetLocale) {
-			targetText := block.TargetText(conf.TargetLocale)
-			converted, err := convertURI(targetText, conf.Mode)
+		if conf.ApplyTarget && !conf.TargetLocale.IsEmpty() && v.HasTarget(conf.TargetLocale) {
+			converted, err := convertURI(v.TargetText(conf.TargetLocale), conf.Mode)
 			if err != nil {
-				return nil, fmt.Errorf("uri-convert target: %w", err)
+				return fmt.Errorf("uri-convert target: %w", err)
 			}
-			block.SetTargetText(conf.TargetLocale, converted)
+			v.SetTargetText(conf.TargetLocale, converted)
 		}
 
-		return part, nil
+		return nil
 	}
 	return t
 }

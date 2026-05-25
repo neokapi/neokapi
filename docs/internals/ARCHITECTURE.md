@@ -74,7 +74,7 @@ neokapi/                              ── Framework Module ──
 ├── go.mod                           # module github.com/neokapi/neokapi
 ├── go.work                          # workspace: use . and ./bowrain
 │
-├── model/                           # Part, Block, Layer, Segment, Run, Data, Media
+├── model/                           # Part, Block, Layer, Run, Target, Overlay, Data, Media
 ├── format/                          # DataFormatReader/Writer interfaces, detection
 ├── tool/                            # Tool interface, BaseTool dispatch
 ├── flow/                            # Executor, Builder, FlowDefinition
@@ -177,14 +177,20 @@ classDiagram
         +string ID
         +string Name
         +bool Translatable
-        +[]Segment Source
-        +map~LocaleID,[]Segment~ Targets
+        +[]Run Source
+        +map~VariantKey,Target~ Targets
+        +[]Overlay Overlays
         +Skeleton Skeleton
     }
 
-    class Segment {
-        +string ID
+    class Target {
         +[]Run Runs
+        +TargetStatus Status
+    }
+
+    class Overlay {
+        +OverlayType Type
+        +[]Span Spans
     }
 
     class Run {
@@ -215,8 +221,10 @@ classDiagram
     Layer --> Block : contains
     Layer --> Data : contains
     Layer --> Media : contains
-    Block --> Segment : Source, Targets
-    Segment --> Run : Runs
+    Block --> Run : flat Source sequence
+    Block --> Target : per variant
+    Block --> Overlay : stand-off annotations
+    Target --> Run : flat run sequence
 ```
 
 Embedded content (HTML inside JSON, CDATA in XML) is modeled as nested
@@ -225,16 +233,18 @@ Layers, each with its own DataFormat. See
 
 ### Inline Content as Runs
 
-A Segment's content is a flat sequence of typed `Run` values (RFC 0001).
-Plain text is a `TextRun`; paired inline markup becomes a `PcOpenRun` /
-`PcCloseRun` sharing an ID; standalone placeholders (variables, `<br/>`,
-icons) are a `PlaceholderRun`. Inline markup never lives inside the text
-string, so text operations cannot corrupt it.
+A block's `Source` (and each `Target`) is a flat `[]Run` — a discriminated
+union of typed `Run` values. Plain text is a `TextRun`; paired
+inline markup becomes a `PcOpenRun` / `PcCloseRun` sharing an ID; standalone
+placeholders (variables, `<br/>`, icons) are a `PlaceholderRun`. Inline
+markup never lives inside the text string, so text operations cannot corrupt
+it. There is no structural `Segment` type — segmentation is a stand-off
+`Overlay` layered over the runs.
 
 ```
-Source HTML: "Click <b>here</b> for info"
+Source HTML: Click <b>here</b> for info
 
-Segment.Runs: [
+Block.Source: [
     {Text:    {Text: "Click "}},
     {PcOpen:  {ID: "1", Type: "fmt:bold", Data: "<b>"}},
     {Text:    {Text: "here"}},
@@ -267,8 +277,9 @@ DataFormatReader.Read(ctx) -> chan PartResult
 | PipelineDriver             | Executor                   |
 | Event                      | Part                       |
 | TextUnit                   | Block                      |
-| TextFragment               | Segment ([]Run)            |
+| TextFragment               | Run sequence (`[]Run`)     |
 | Code                       | Run                        |
+| Segment (structural)       | Span in a segmentation Overlay |
 | StartSubDocument/SubFilter | Child Layer                |
 | Tikal                      | kapi (CLI)                 |
 | Rainbow                    | Bowrain (desktop app)      |

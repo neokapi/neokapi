@@ -121,7 +121,7 @@ func snippetRoundtripTranslated(t *testing.T, input string, translate func(src s
 		}
 		b := p.Resource.(*model.Block)
 		tgt := translate(b.SourceText())
-		b.Targets[locale] = []*model.Segment{{ID: "s1", Runs: []model.Run{{Text: &model.TextRun{Text: tgt}}}}}
+		b.SetTargetRuns(locale, []model.Run{{Text: &model.TextRun{Text: tgt}}})
 	}
 
 	var buf bytes.Buffer
@@ -221,9 +221,9 @@ func TestSkeletonStore_WithTranslation(t *testing.T) {
 			b := p.Resource.(*model.Block)
 			switch b.SourceText() {
 			case "Hello World":
-				b.Targets[locale] = []*model.Segment{{ID: "s1", Runs: []model.Run{{Text: &model.TextRun{Text: "Bonjour le monde"}}}}}
+				b.SetTargetText(locale, "Bonjour le monde")
 			case "Goodbye":
-				b.Targets[locale] = []*model.Segment{{ID: "s1", Runs: []model.Run{{Text: &model.TextRun{Text: "Au revoir"}}}}}
+				b.SetTargetText(locale, "Au revoir")
 			}
 		}
 	}

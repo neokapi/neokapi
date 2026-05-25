@@ -142,24 +142,22 @@ func xmlFilterBlocks(t *testing.T, input string) []*model.Block {
 	return testutil.CollectBlocks(t, reader.Read(ctx))
 }
 
-// codedText renders a block's first source segment in an Okapi
+// codedText renders a block's source content in an Okapi
 // GenericContent-like form: literal text with <ph/> / <pc>…</pc>
 // stand-ins for inline codes. Lets the within-text ports assert the same
 // inline shape Okapi's `fmt.setContent(...).toString()` produces.
 func codedText(b *model.Block) string {
 	var sb bytes.Buffer
-	for _, seg := range b.Source {
-		for _, r := range seg.Runs {
-			switch {
-			case r.Text != nil:
-				sb.WriteString(r.Text.Text)
-			case r.Ph != nil:
-				sb.WriteString("<ph/>")
-			case r.PcOpen != nil:
-				sb.WriteString("<pc>")
-			case r.PcClose != nil:
-				sb.WriteString("</pc>")
-			}
+	for _, r := range b.Source {
+		switch {
+		case r.Text != nil:
+			sb.WriteString(r.Text.Text)
+		case r.Ph != nil:
+			sb.WriteString("<ph/>")
+		case r.PcOpen != nil:
+			sb.WriteString("<pc>")
+		case r.PcClose != nil:
+			sb.WriteString("</pc>")
 		}
 	}
 	return sb.String()

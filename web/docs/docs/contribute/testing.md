@@ -118,12 +118,11 @@ control:
 func TestFlowExecution(t *testing.T) {
     uppercase := &tool.BaseTool{
         ToolName: "uppercase",
-        HandleBlockFn: func(part *model.Part) (*model.Part, error) {
-            block := part.Resource.(*model.Block)
-            if block.Translatable {
-                block.SetTargetText(model.LocaleFrench, strings.ToUpper(block.SourceText()))
+        Translate: func(v tool.TargetView) error {
+            if v.Translatable() {
+                v.SetTargetText(model.LocaleFrench, strings.ToUpper(v.SourceText()))
             }
-            return part, nil
+            return nil
         },
     }
 

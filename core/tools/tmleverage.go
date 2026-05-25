@@ -139,33 +139,26 @@ func NewTMLeverageTool(cfg *TMLeverageConfig) *tool.BaseTool {
 		ToolDescription: "Pre-fills translations from translation memory using exact and fuzzy matching",
 		Cfg:             cfg,
 	}
-	t.HandleBlockFn = func(part *model.Part) (*model.Part, error) {
-		block, ok := part.Resource.(*model.Block)
-		if !ok {
-			return part, nil
-		}
-		if !block.Translatable {
-			return part, nil
+	// Translate: tm-leverage writes a target translation from TM; source is read-only.
+	t.Translate = func(v tool.TargetView) error {
+		if !v.Translatable() {
+			return nil
 		}
 
 		conf := t.Cfg.(*TMLeverageConfig)
 		if conf.Provider == nil {
-			return part, nil
+			return nil
 		}
 
-		if block.Properties == nil {
-			block.Properties = make(map[string]string)
-		}
-
-		sourceText := block.SourceText()
+		sourceText := v.SourceText()
 		if sourceText == "" {
-			return part, nil
+			return nil
 		}
 
 		// Check no-query threshold: skip TM query if an existing match scores at/above.
-		if existingScore, ok := block.Properties[PropTMMatchScore]; ok && conf.NoQueryThreshold <= 101 {
+		if existingScore := v.Property(PropTMMatchScore); existingScore != "" && conf.NoQueryThreshold <= 101 {
 			if score, err := strconv.Atoi(existingScore); err == nil && score >= conf.NoQueryThreshold {
-				return part, nil
+				return nil
 			}
 		}
 
@@ -175,31 +168,31 @@ func NewTMLeverageTool(cfg *TMLeverageConfig) *tool.BaseTool {
 			if conf.DowngradeIdenticalBestMatches {
 				score = 99
 			}
-			if shouldFillTarget(conf, block, score) {
-				block.SetTargetText(conf.TargetLocale, translation)
+			if shouldFillTarget(conf, v, score) {
+				v.SetTargetText(conf.TargetLocale, translation)
 			}
-			block.Properties[PropTMMatchScore] = strconv.Itoa(score)
-			block.Properties[PropTMMatchType] = "exact"
-			return part, nil
+			v.SetProperty(PropTMMatchScore, strconv.Itoa(score))
+			v.SetProperty(PropTMMatchType, "exact")
+			return nil
 		}
 
 		// Try fuzzy match.
 		if translation, score, found := conf.Provider.LookupFuzzy(sourceText, conf.SourceLocale, conf.TargetLocale, conf.FuzzyThreshold); found {
-			if shouldFillTarget(conf, block, score) {
-				block.SetTargetText(conf.TargetLocale, translation)
+			if shouldFillTarget(conf, v, score) {
+				v.SetTargetText(conf.TargetLocale, translation)
 			}
-			block.Properties[PropTMMatchScore] = strconv.Itoa(score)
-			block.Properties[PropTMMatchType] = "fuzzy"
-			return part, nil
+			v.SetProperty(PropTMMatchScore, strconv.Itoa(score))
+			v.SetProperty(PropTMMatchType, "fuzzy")
+			return nil
 		}
 
-		return part, nil
+		return nil
 	}
 	return t
 }
 
 // shouldFillTarget decides whether to copy the translation into the target based on config.
-func shouldFillTarget(conf *TMLeverageConfig, block *model.Block, score int) bool {
+func shouldFillTarget(conf *TMLeverageConfig, v tool.TargetView, score int) bool {
 	if !conf.FillTarget {
 		return false
 	}
@@ -208,7 +201,7 @@ func shouldFillTarget(conf *TMLeverageConfig, block *model.Block, score int) boo
 	}
 	if conf.FillIfTargetIsEmpty {
 		// Only fill if target is empty.
-		if block.HasTarget(conf.TargetLocale) && block.TargetText(conf.TargetLocale) != "" {
+		if v.HasTarget(conf.TargetLocale) && v.TargetText(conf.TargetLocale) != "" {
 			return false
 		}
 	}

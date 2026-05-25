@@ -24,6 +24,17 @@ func skipStart(t *testing.T, d *xml.Decoder) {
 	require.NoError(t, err)
 }
 
+// hasInlineCodes reports whether any run in the sequence is an inline-code run
+// (anything other than a plain text run).
+func hasInlineCodes(runs []model.Run) bool {
+	for _, r := range runs {
+		if r.Text == nil {
+			return true
+		}
+	}
+	return false
+}
+
 func TestParseRunPropsEmpty(t *testing.T) {
 	input := `<w:rPr></w:rPr>`
 	d := xml.NewDecoder(bytes.NewReader([]byte(input)))
@@ -467,7 +478,7 @@ func TestComplexFieldExtraction(t *testing.T) {
 
 		blocks := parseDocXML(t, docXML, cfg)
 		require.Len(t, blocks, 1)
-		text := blocks[0].Source[0].Text()
+		text := blocks[0].SourceText()
 		assert.Contains(t, text, "Before ")
 		assert.Contains(t, text, "Link Text")
 		assert.Contains(t, text, " after")
@@ -481,7 +492,7 @@ func TestComplexFieldExtraction(t *testing.T) {
 
 		blocks := parseDocXML(t, docXML, cfg)
 		require.Len(t, blocks, 1)
-		text := blocks[0].Source[0].Text()
+		text := blocks[0].SourceText()
 		assert.Contains(t, text, "Before ")
 		assert.NotContains(t, text, "Link Text")
 		assert.Contains(t, text, " after")
@@ -494,7 +505,7 @@ func TestComplexFieldExtraction(t *testing.T) {
 
 		blocks := parseDocXML(t, docXML, cfg)
 		require.Len(t, blocks, 1)
-		text := blocks[0].Source[0].Text()
+		text := blocks[0].SourceText()
 		assert.Contains(t, text, "Link Text")
 	})
 }
@@ -543,7 +554,7 @@ func TestComplexFieldPreFldCharBodyText(t *testing.T) {
 
 		blocks := parseDocXML(t, docXML, cfg)
 		require.Len(t, blocks, 1)
-		text := blocks[0].Source[0].Text()
+		text := blocks[0].SourceText()
 		// The body text authored before the begin marker must survive.
 		assert.Contains(t, text, "pre-field body ",
 			"pre-fldChar body text must be extracted, not dropped by the field window")
@@ -574,7 +585,7 @@ func TestComplexFieldPreFldCharBodyText(t *testing.T) {
 
 		blocks := parseDocXML(t, interiorXML, cfg)
 		require.Len(t, blocks, 1)
-		text := blocks[0].Source[0].Text()
+		text := blocks[0].SourceText()
 		assert.NotContains(t, text, "interior suppressed",
 			"text inside the begin→separate window must NOT be extracted")
 		assert.Contains(t, text, "display", "the field's display text is extractable")
@@ -635,7 +646,7 @@ func TestComplexFieldEndTextBeginBodyText(t *testing.T) {
 
 		blocks := parseDocXML(t, docXML, cfg)
 		require.Len(t, blocks, 1)
-		text := blocks[0].Source[0].Text()
+		text := blocks[0].SourceText()
 
 		// The body text in the `end → text → begin` window must survive.
 		assert.Contains(t, text, ", a race of ",
@@ -712,7 +723,7 @@ func TestComplexFieldInteriorTextStaysOpaque(t *testing.T) {
 
 	blocks := parseDocXML(t, docXML, cfg)
 	require.Len(t, blocks, 1)
-	text := blocks[0].Source[0].Text()
+	text := blocks[0].SourceText()
 	// Plain body text outside the field is extracted.
 	assert.Contains(t, text, "real body ")
 	// Text authored after a begin (field still active) is suppressed
@@ -763,7 +774,7 @@ func TestComplexFieldEndTextBeginCrossParagraph(t *testing.T) {
 	require.NotEmpty(t, blocks)
 	var sb strings.Builder
 	for _, b := range blocks {
-		sb.WriteString(b.Source[0].Text())
+		sb.WriteString(b.SourceText())
 	}
 	text := sb.String()
 	// The `end → text → begin` body text in P2 (with the field opened in
@@ -818,7 +829,7 @@ func TestComplexFieldNested(t *testing.T) {
 
 		blocks := parseDocXML(t, docXML, cfg)
 		require.Len(t, blocks, 1)
-		text := blocks[0].Source[0].Text()
+		text := blocks[0].SourceText()
 		assert.Contains(t, text, "Chapter 1")
 	})
 }
@@ -860,10 +871,10 @@ func TestFontMappingMergesRuns(t *testing.T) {
 	blocks := parseDocXML(t, docXML, cfg)
 	require.Len(t, blocks, 1)
 	// After font mapping, both runs have same fontName "sans-serif" → should merge
-	text := blocks[0].Source[0].Text()
+	text := blocks[0].SourceText()
 	assert.Equal(t, "Hello World", text)
 	// Should have no spans since the merged font is "other" property, not a formatting span
-	assert.False(t, blocks[0].Source[0].HasInlineCodes())
+	assert.False(t, hasInlineCodes(blocks[0].Source))
 }
 
 // --- Code finder tests ---
@@ -883,7 +894,7 @@ func TestCodeFinderBasic(t *testing.T) {
 
 	blocks := parseDocXML(t, docXML, cfg)
 	require.Len(t, blocks, 1)
-	assert.True(t, blocks[0].Source[0].HasInlineCodes(), "should have code finder inline-code runs")
+	assert.True(t, hasInlineCodes(blocks[0].Source), "should have code finder inline-code runs")
 }
 
 func TestCodeFinderDisabled(t *testing.T) {
@@ -900,7 +911,7 @@ func TestCodeFinderDisabled(t *testing.T) {
 
 	blocks := parseDocXML(t, docXML, cfg)
 	require.Len(t, blocks, 1)
-	assert.False(t, blocks[0].Source[0].HasInlineCodes(), "no spans when code finder disabled")
+	assert.False(t, hasInlineCodes(blocks[0].Source), "no spans when code finder disabled")
 }
 
 // --- Extract run fonts info tests ---
@@ -1247,7 +1258,7 @@ func TestExtractDrawingTranslations_BareTInChoice(t *testing.T) {
 	require.Len(t, emitted, 1)
 	assert.Equal(t, "property", emitted[0].Type)
 	assert.Equal(t, "alt-content-text", emitted[0].Properties["element"])
-	srcRuns := emitted[0].Source[0].Runs
+	srcRuns := emitted[0].Source
 	require.Len(t, srcRuns, 1)
 	require.NotNil(t, srcRuns[0].Text)
 	// Decoder applies entity decoding once on read.
@@ -1304,7 +1315,7 @@ func TestParseParagraph_BookmarkPreserved(t *testing.T) {
 	cfg.Reset()
 	blocks := parseDocXML(t, docXML, cfg)
 	require.Len(t, blocks, 1)
-	runs := blocks[0].Source[0].Runs
+	runs := blocks[0].Source
 	// Expected: bookmarkStart placeholder, "hello" text, bookmarkEnd placeholder.
 	require.Len(t, runs, 3, "expect bookmarkStart + text + bookmarkEnd runs")
 
@@ -1349,7 +1360,7 @@ func TestParseParagraph_GoBackBookmarkSkipped(t *testing.T) {
 	cfg.Reset()
 	blocks := parseDocXML(t, docXML, cfg)
 	require.Len(t, blocks, 1)
-	runs := blocks[0].Source[0].Runs
+	runs := blocks[0].Source
 	// Expected: just the text run, both _GoBack markers dropped.
 	require.Len(t, runs, 1, "expect _GoBack start AND end to be skipped")
 	require.NotNil(t, runs[0].Text)
@@ -1382,7 +1393,7 @@ func TestParseParagraph_BookmarkSpanningParagraphs(t *testing.T) {
 	require.Len(t, blocks, 2)
 
 	// Paragraph 1: bookmarkStart + "first".
-	runs1 := blocks[0].Source[0].Runs
+	runs1 := blocks[0].Source
 	require.Len(t, runs1, 2)
 	require.NotNil(t, runs1[0].Ph)
 	assert.Equal(t, SubTypeBookmarkStart, runs1[0].Ph.SubType)
@@ -1391,7 +1402,7 @@ func TestParseParagraph_BookmarkSpanningParagraphs(t *testing.T) {
 	assert.Equal(t, "first", runs1[1].Text.Text)
 
 	// Paragraph 2: "second" + bookmarkEnd.
-	runs2 := blocks[1].Source[0].Runs
+	runs2 := blocks[1].Source
 	require.Len(t, runs2, 2)
 	require.NotNil(t, runs2[0].Text)
 	assert.Equal(t, "second", runs2[0].Text.Text)
@@ -1434,7 +1445,7 @@ func TestRowDeletionAutoAccept(t *testing.T) {
 
 	// Only the kept row's text becomes a block.
 	require.Len(t, blocks, 1, "deleted row's content must not produce a block")
-	runs := blocks[0].Source[0].Runs
+	runs := blocks[0].Source
 	require.Len(t, runs, 1)
 	require.NotNil(t, runs[0].Text)
 	assert.Equal(t, "kept", runs[0].Text.Text)
@@ -1523,7 +1534,7 @@ func TestRowDeletionDisabledWhenAcceptRevisionsFalse(t *testing.T) {
 	// With auto-accept disabled, the row is kept and its text
 	// extracted as a normal block.
 	require.Len(t, blocks, 1)
-	runs := blocks[0].Source[0].Runs
+	runs := blocks[0].Source
 	require.Len(t, runs, 1)
 	require.NotNil(t, runs[0].Text)
 	assert.Equal(t, "deleted", runs[0].Text.Text)
@@ -1550,7 +1561,7 @@ func TestRowInsertionMarkerKeepsRow(t *testing.T) {
 	blocks := parseDocXML(t, docXML, cfg)
 
 	require.Len(t, blocks, 1, "row insertion must keep the row")
-	runs := blocks[0].Source[0].Runs
+	runs := blocks[0].Source
 	require.Len(t, runs, 1)
 	require.NotNil(t, runs[0].Text)
 	assert.Equal(t, "inserted", runs[0].Text.Text)
@@ -1587,7 +1598,7 @@ func TestNestedTableRowDeletion(t *testing.T) {
 	blocks := parseDocXML(t, docXML, cfg)
 
 	require.Len(t, blocks, 1, "nested-deleted row's content must not emit a block")
-	runs := blocks[0].Source[0].Runs
+	runs := blocks[0].Source
 	require.Len(t, runs, 1)
 	require.NotNil(t, runs[0].Text)
 	assert.Equal(t, "nested-kept", runs[0].Text.Text)
@@ -1632,7 +1643,7 @@ func TestMoveFromRowAutoAccept(t *testing.T) {
 	// Only the kept row's text becomes a block — moveFrom-row's
 	// translatable content is dropped.
 	require.Len(t, blocks, 1, "moveFrom row's content must not produce a block")
-	runs := blocks[0].Source[0].Runs
+	runs := blocks[0].Source
 	require.Len(t, runs, 1)
 	require.NotNil(t, runs[0].Text)
 	assert.Equal(t, "kept", runs[0].Text.Text)
@@ -1666,8 +1677,8 @@ func TestMoveFromRowEmptyTableDropped(t *testing.T) {
 	blocks := parseDocXML(t, docXML, cfg)
 
 	require.Len(t, blocks, 2, "empty-after-moveFrom table must not emit blocks")
-	assert.Equal(t, "before", blocks[0].Source[0].Runs[0].Text.Text)
-	assert.Equal(t, "after", blocks[1].Source[0].Runs[0].Text.Text)
+	assert.Equal(t, "before", blocks[0].Source[0].Text.Text)
+	assert.Equal(t, "after", blocks[1].Source[0].Text.Text)
 }
 
 // TestMoveFromRowDetectorAttributeForms verifies the row-body detector
@@ -1759,7 +1770,7 @@ func TestInsContentRunExtraction(t *testing.T) {
 
 	require.Len(t, blocks, 1, "single paragraph must emit one block")
 	require.Len(t, blocks[0].Source, 1)
-	runs := blocks[0].Source[0].Runs
+	runs := blocks[0].Source
 	// Collect all TextRun strings in source order.
 	var texts []string
 	for _, r := range runs {

@@ -6,6 +6,7 @@ package protoconvert
 
 import (
 	"encoding/json"
+	"fmt"
 
 	"github.com/neokapi/neokapi/core/model"
 	pb "github.com/neokapi/neokapi/core/plugin/proto/v2"
@@ -357,23 +358,78 @@ func protoToConstraints(msg *pb.RunConstraints) *model.RunConstraints {
 // Proto ↔ Model: Segment
 // ────────────────────────────────────────────────────────────────────────────
 
-// SegmentToProto converts a model.Segment to a proto SegmentMessage.
-func SegmentToProto(s *model.Segment) *pb.SegmentMessage {
-	return &pb.SegmentMessage{
-		Id:         s.ID,
-		Runs:       RunsToProto(s.Runs),
-		Properties: s.Properties,
-	}
+// runsToSegmentProto wraps a run sequence in a single SegmentMessage for wire
+// transfer. The model no longer has structural segments — a side's content is
+// one run sequence, carried as one SegmentMessage.
+func runsToSegmentProto(id string, runs []model.Run) *pb.SegmentMessage {
+	return &pb.SegmentMessage{Id: id, Runs: RunsToProto(runs)}
 }
 
-// ProtoToSegment converts a proto SegmentMessage to a model.Segment.
-func ProtoToSegment(msg *pb.SegmentMessage) *model.Segment {
-	seg := &model.Segment{
-		ID:         msg.Id,
-		Properties: msg.Properties,
+func segSpanID(seg *model.Overlay, i int) string {
+	if seg != nil && i < len(seg.Spans) && seg.Spans[i].ID != "" {
+		return seg.Spans[i].ID
 	}
-	seg.SetRuns(ProtoToRuns(msg.Runs))
-	return seg
+	return fmt.Sprintf("s%d", i+1)
+}
+
+// sourceSegProtos emits one SegmentMessage per source segment span, carrying
+// the span id so the reverse conversion can rebuild the segmentation overlay.
+// An unsegmented block emits a single "s1" segment.
+func sourceSegProtos(b *model.Block) []*pb.SegmentMessage {
+	if len(b.Source) == 0 {
+		return nil
+	}
+	seg := b.SourceSegmentation()
+	n := b.SourceSegmentCount()
+	out := make([]*pb.SegmentMessage, 0, n)
+	for i := range n {
+		out = append(out, runsToSegmentProto(segSpanID(seg, i), b.SourceSegmentRuns(i)))
+	}
+	return out
+}
+
+// targetSegProtos emits one SegmentMessage per target segment span for a
+// locale (one "s1" segment when the target is unsegmented).
+func targetSegProtos(b *model.Block, loc model.LocaleID) []*pb.SegmentMessage {
+	runs := b.TargetRuns(loc)
+	key := model.Variant(loc)
+	seg := b.SegmentationFor(&key)
+	if seg == nil || len(seg.Spans) == 0 {
+		return []*pb.SegmentMessage{runsToSegmentProto("s1", runs)}
+	}
+	out := make([]*pb.SegmentMessage, 0, len(seg.Spans))
+	for _, sp := range seg.Spans {
+		out = append(out, runsToSegmentProto(sp.ID, sp.Range.ExtractRuns(runs)))
+	}
+	return out
+}
+
+// segProtosToRunsAndSpans concatenates SegmentMessages into a run sequence and
+// the matching segmentation spans (run-index boundaries, preserving ids).
+// Returns nil spans for the single-segment case (no overlay needed).
+func segProtosToRunsAndSpans(msgs []*pb.SegmentMessage) ([]model.Run, []model.Span) {
+	var runs []model.Run
+	spans := make([]model.Span, 0, len(msgs))
+	for _, m := range msgs {
+		start := len(runs)
+		runs = append(runs, ProtoToRuns(m.Runs)...)
+		spans = append(spans, model.Span{ID: m.Id, Range: model.RunRange{StartRun: start, EndRun: len(runs)}})
+	}
+	if len(msgs) <= 1 {
+		return runs, nil
+	}
+	return runs, spans
+}
+
+// applyTargetSegProtos sets a locale's target runs from SegmentMessages and a
+// target segmentation overlay when the peer split it into multiple segments.
+func applyTargetSegProtos(b *model.Block, loc model.LocaleID, msgs []*pb.SegmentMessage) {
+	runs, spans := segProtosToRunsAndSpans(msgs)
+	b.SetTargetRuns(loc, runs)
+	if len(spans) > 0 {
+		key := model.Variant(loc)
+		b.SetSegmentation(&key, spans)
+	}
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -398,15 +454,12 @@ func BlockToProto(b *model.Block) *pb.BlockMessage {
 		PreserveWhitespace: b.PreserveWhitespace,
 		IsReferent:         b.IsReferent,
 	}
-	for _, seg := range b.Source {
-		msg.Source = append(msg.Source, SegmentToProto(seg))
-	}
-	for locale, segs := range b.Targets {
-		te := &pb.TargetEntry{Locale: string(locale)}
-		for _, seg := range segs {
-			te.Segments = append(te.Segments, SegmentToProto(seg))
-		}
-		msg.Targets = append(msg.Targets, te)
+	msg.Source = sourceSegProtos(b)
+	for _, locale := range b.TargetLocales() {
+		msg.Targets = append(msg.Targets, &pb.TargetEntry{
+			Locale:   string(locale),
+			Segments: targetSegProtos(b, locale),
+		})
 	}
 	return msg
 }
@@ -423,7 +476,7 @@ func ProtoToBlock(msg *pb.BlockMessage) *model.Block {
 		MimeType:           msg.MimeType,
 		Translatable:       msg.Translatable,
 		Properties:         msg.Properties,
-		Targets:            make(map[model.LocaleID][]*model.Segment),
+		Targets:            make(map[model.VariantKey]*model.Target),
 		Annotations:        ProtoToAnnotations(msg.Annotations),
 		DisplayHint:        ProtoToDisplayHint(msg.DisplayHint),
 		Skeleton:           ProtoToSkeleton(msg.Skeleton),
@@ -436,14 +489,13 @@ func ProtoToBlock(msg *pb.BlockMessage) *model.Block {
 	if b.Annotations == nil {
 		b.Annotations = make(map[string]model.Annotation)
 	}
-	for _, seg := range msg.Source {
-		b.Source = append(b.Source, ProtoToSegment(seg))
+	srcRuns, srcSpans := segProtosToRunsAndSpans(msg.Source)
+	b.Source = srcRuns
+	if len(srcSpans) > 0 {
+		b.SetSegmentation(nil, srcSpans)
 	}
 	for _, te := range msg.Targets {
-		locale := model.LocaleID(te.Locale)
-		for _, seg := range te.Segments {
-			b.Targets[locale] = append(b.Targets[locale], ProtoToSegment(seg))
-		}
+		applyTargetSegProtos(b, model.LocaleID(te.Locale), te.Segments)
 	}
 	return b
 }
@@ -713,19 +765,18 @@ func ContentBlockToPart(cb *pb.ContentBlock) *model.Part {
 		PreserveWhitespace: cb.PreserveWhitespace,
 	}
 
-	// Source segments
-	for _, seg := range cb.Source {
-		block.Source = append(block.Source, ProtoToSegment(seg))
+	// Source content
+	srcRuns, srcSpans := segProtosToRunsAndSpans(cb.Source)
+	block.Source = srcRuns
+	if len(srcSpans) > 0 {
+		block.SetSegmentation(nil, srcSpans)
 	}
 
-	// Target segments
+	// Target content
 	if len(cb.Targets) > 0 {
-		block.Targets = make(map[model.LocaleID][]*model.Segment)
+		block.Targets = make(map[model.VariantKey]*model.Target)
 		for _, te := range cb.Targets {
-			locale := model.LocaleID(te.Locale)
-			for _, seg := range te.Segments {
-				block.Targets[locale] = append(block.Targets[locale], ProtoToSegment(seg))
-			}
+			applyTargetSegProtos(block, model.LocaleID(te.Locale), te.Segments)
 		}
 	}
 
@@ -775,18 +826,15 @@ func PartToContentBlock(p *model.Part) *pb.ContentBlock {
 		PreserveWhitespace: block.PreserveWhitespace,
 	}
 
-	// Source segments
-	for _, seg := range block.Source {
-		cb.Source = append(cb.Source, SegmentToProto(seg))
-	}
+	// Source content
+	cb.Source = sourceSegProtos(block)
 
-	// Target segments
-	for locale, segs := range block.Targets {
-		te := &pb.TargetEntry{Locale: string(locale)}
-		for _, seg := range segs {
-			te.Segments = append(te.Segments, SegmentToProto(seg))
-		}
-		cb.Targets = append(cb.Targets, te)
+	// Target content
+	for _, locale := range block.TargetLocales() {
+		cb.Targets = append(cb.Targets, &pb.TargetEntry{
+			Locale:   string(locale),
+			Segments: targetSegProtos(block, locale),
+		})
 	}
 
 	// Properties

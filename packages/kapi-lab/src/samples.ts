@@ -78,6 +78,19 @@ cart.checkout = Proceed to checkout
 </xliff>
 `,
   },
+  {
+    id: "support-reply",
+    label: "support-reply.json",
+    filename: "support-reply.json",
+    blurb:
+      "A support reply carrying a brand name (Acme Corp) and a person name (Jane Doe) — good targets for redaction — plus US spelling (color) that a search-replace normaliser can settle to British English before translation.",
+    content: `{
+  "subject": "Your Acme Corp order",
+  "body": "Hi, we love the color of your order. Jane Doe will follow up tomorrow.",
+  "footer": "Thanks for choosing Acme Corp"
+}
+`,
+  },
 ];
 
 export function sampleById(id: string): LabSample | undefined {

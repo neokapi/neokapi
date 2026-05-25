@@ -28,6 +28,9 @@ type FlowNodeInfo struct {
 	Type     string         `json:"type"`
 	Name     string         `json:"name"`
 	Label    string         `json:"label,omitempty"`
+	// Stage is the pipeline stage for this node. Empty means the main stage;
+	// "source-transform" means the leading source-rewrite stage.
+	Stage    string         `json:"stage,omitempty"`
 	Config   map[string]any `json:"config,omitempty"`
 	Position PositionInfo   `json:"position"`
 }
@@ -53,6 +56,7 @@ func flowDefToInfo(def flow.FlowDefinition) FlowDefinitionInfo {
 			Type:     string(n.Type),
 			Name:     n.Name,
 			Label:    n.Label,
+			Stage:    string(n.Stage),
 			Config:   n.Config,
 			Position: PositionInfo{X: n.Position.X, Y: n.Position.Y},
 		}
@@ -85,6 +89,7 @@ func infoToFlowDef(info FlowDefinitionInfo) flow.FlowDefinition {
 			Type:     flow.NodeType(n.Type),
 			Name:     n.Name,
 			Label:    n.Label,
+			Stage:    flow.FlowStage(n.Stage),
 			Config:   n.Config,
 			Position: flow.NodePosition{X: n.Position.X, Y: n.Position.Y},
 		}

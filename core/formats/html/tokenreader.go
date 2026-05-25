@@ -158,10 +158,7 @@ func (s *tokenReaderState) trimTrailingWSOfLastTextBlock() {
 	if s.lastTextBlock == nil {
 		return
 	}
-	if len(s.lastTextBlock.Source) == 0 {
-		return
-	}
-	runs := s.lastTextBlock.Source[0].Runs
+	runs := s.lastTextBlock.Source
 	if len(runs) == 0 {
 		return
 	}
@@ -1002,8 +999,8 @@ leafClosed:
 			Type:               blockTypeFromTag(tag),
 			Translatable:       true,
 			PreserveWhitespace: preserveWS,
-			Source:             []*model.Segment{model.NewRunsSegment("s1", b.Runs())},
-			Targets:            make(map[model.LocaleID][]*model.Segment),
+			Source:             b.Runs(),
+			Targets:            make(map[model.VariantKey]*model.Target),
 			Properties:         extractBlockPropsFromToken(attrs),
 			Annotations:        make(map[string]model.Annotation),
 		}
@@ -1463,8 +1460,8 @@ func (s *tokenReaderState) handleMetaToken(raw []byte, attrs []html.Attribute, c
 				Type:         "content",
 				Translatable: true,
 				IsReferent:   true,
-				Source:       []*model.Segment{model.NewRunsSegment("s1", []model.Run{{Text: &model.TextRun{Text: content}}})},
-				Targets:      make(map[model.LocaleID][]*model.Segment),
+				Source:       []model.Run{{Text: &model.TextRun{Text: content}}},
+				Targets:      make(map[model.VariantKey]*model.Target),
 				Properties:   make(map[string]string),
 				Annotations:  make(map[string]model.Annotation),
 			}
@@ -1736,8 +1733,8 @@ func (s *tokenReaderState) emitAttrBlock(blockID, attrKey, value string, ctx con
 		Type:         attrKey,
 		Translatable: true,
 		IsReferent:   true,
-		Source:       []*model.Segment{model.NewRunsSegment("s1", []model.Run{{Text: &model.TextRun{Text: value}}})},
-		Targets:      make(map[model.LocaleID][]*model.Segment),
+		Source:       []model.Run{{Text: &model.TextRun{Text: value}}},
+		Targets:      make(map[model.VariantKey]*model.Target),
 		Properties:   make(map[string]string),
 		Annotations:  make(map[string]model.Annotation),
 	}
@@ -2093,8 +2090,8 @@ func buildBlockWithEntities(blockID, text string) *model.Block {
 	return &model.Block{
 		ID:           blockID,
 		Translatable: true,
-		Source:       []*model.Segment{model.NewRunsSegment("s1", b.runs)},
-		Targets:      make(map[model.LocaleID][]*model.Segment),
+		Source:       b.runs,
+		Targets:      make(map[model.VariantKey]*model.Target),
 		Properties:   make(map[string]string),
 		Annotations:  make(map[string]model.Annotation),
 	}

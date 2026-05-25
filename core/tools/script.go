@@ -19,6 +19,12 @@ type ScriptConfig struct {
 	Source     string `json:"source,omitempty"     schema:"title=Script Source,description=Script source mode,enum=inline|file,default=inline,widget=segmented"`
 	Code       string `json:"code,omitempty"       schema:"title=Inline Code,description=Inline ES5 JavaScript code,widget=code-editor,showIf=source:inline"`
 	ScriptFile string `json:"scriptFile,omitempty" schema:"title=Script File,description=Path to a .js file,widget=file-picker,showIf=source:file"`
+	// AllowSourceMutation opts the script into writing the block's SOURCE.
+	// Off by default: source is read-only to the script (its source edits are
+	// ignored), matching the content-model immutability contract; only target
+	// edits take effect. Enable for source-transform scripts that run early,
+	// before any segmentation/term/entity overlay is attached.
+	AllowSourceMutation bool `json:"allowSourceMutation,omitempty" schema:"title=Allow Source Mutation,description=Permit the script to modify the source text (off by default; source is read-only)"`
 }
 
 // ToolName returns the tool name this config applies to.
@@ -29,6 +35,7 @@ func (c *ScriptConfig) Reset() {
 	c.Source = "inline"
 	c.Code = ""
 	c.ScriptFile = ""
+	c.AllowSourceMutation = false
 }
 
 // Validate checks configuration validity.
@@ -83,7 +90,19 @@ func NewScriptTool(cfg *ScriptConfig) *ScriptTool {
 	t.ToolName = "script"
 	t.ToolDescription = "Run a JavaScript processing script on each part"
 	t.Cfg = cfg
+	// script is the general-purpose tool: it overrides Process (for emit/skip
+	// and the function-form return), so it is exempt from the dispatch's typed
+	// block handlers. It self-enforces immutability instead — jsToPartUpdate
+	// applies source edits only when allowsSourceMutation() is set; targets are
+	// always writable.
 	return t
+}
+
+// allowsSourceMutation reports whether the script is permitted to write the
+// block's source. Off by default — source is read-only to the script.
+func (s *ScriptTool) allowsSourceMutation() bool {
+	c, _ := s.Cfg.(*ScriptConfig)
+	return c != nil && c.AllowSourceMutation
 }
 
 // Process runs the compiled JavaScript program for each Part from the input channel.
@@ -167,7 +186,7 @@ func (s *ScriptTool) runScript(part *model.Part) ([]*model.Part, error) {
 			return goja.Undefined()
 		}
 		obj := arg.ToObject(s.vm)
-		emittedPart := jsToPartUpdate(s.vm, obj, part)
+		emittedPart := jsToPartUpdate(s.vm, obj, part, s.allowsSourceMutation())
 		emitted = append(emitted, emittedPart)
 		return goja.Undefined()
 	})
@@ -229,7 +248,7 @@ func (s *ScriptTool) runScript(part *model.Part) ([]*model.Part, error) {
 func (s *ScriptTool) returnedParts(v goja.Value, original *model.Part) []*model.Part {
 	obj := v.ToObject(s.vm)
 	if obj.ClassName() != "Array" {
-		return []*model.Part{jsToPartUpdate(s.vm, obj, original)}
+		return []*model.Part{jsToPartUpdate(s.vm, obj, original, s.allowsSourceMutation())}
 	}
 	var out []*model.Part
 	length := 0
@@ -241,7 +260,7 @@ func (s *ScriptTool) returnedParts(v goja.Value, original *model.Part) []*model.
 		if el == nil || goja.IsUndefined(el) || goja.IsNull(el) {
 			continue
 		}
-		out = append(out, jsToPartUpdate(s.vm, el.ToObject(s.vm), original))
+		out = append(out, jsToPartUpdate(s.vm, el.ToObject(s.vm), original, s.allowsSourceMutation()))
 	}
 	return out
 }
@@ -288,32 +307,24 @@ func blockToJS(vm *goja.Runtime, block *model.Block) *goja.Object {
 	_ = obj.Set("id", block.ID)
 	_ = obj.Set("translatable", block.Translatable)
 
-	// Source segments as a native JS array of {content: {text: "..."}}. Using
-	// vm.NewArray (rather than Set-ing a Go []any) makes in-place edits such as
-	// part.block.source[0].content.text = "..." round-trip through Export — a
-	// Go-slice-backed value would not reflect nested mutations on readback.
-	source := make([]any, 0, len(block.Source))
-	for _, seg := range block.Source {
-		segObj := vm.NewObject()
-		contentObj := vm.NewObject()
-		_ = contentObj.Set("text", seg.Text())
-		_ = segObj.Set("content", contentObj)
-		source = append(source, segObj)
-	}
-	_ = obj.Set("source", vm.NewArray(source...))
+	// Source content as a native JS one-element array of {content: {text}}.
+	// vm.NewArray (rather than a Go []any) makes in-place edits such as
+	// part.block.source[0].content.text = "..." round-trip through Export; a
+	// block's content is now a single run sequence rather than N segments.
+	srcSeg := vm.NewObject()
+	srcContent := vm.NewObject()
+	_ = srcContent.Set("text", block.SourceText())
+	_ = srcSeg.Set("content", srcContent)
+	_ = obj.Set("source", vm.NewArray(srcSeg))
 
-	// Targets as a map of locale -> native JS array of {content: {text: "..."}}.
+	// Targets as a map of locale -> native JS one-element array.
 	targets := vm.NewObject()
-	for locale, segs := range block.Targets {
-		localeSegs := make([]any, 0, len(segs))
-		for _, seg := range segs {
-			segObj := vm.NewObject()
-			contentObj := vm.NewObject()
-			_ = contentObj.Set("text", seg.Text())
-			_ = segObj.Set("content", contentObj)
-			localeSegs = append(localeSegs, segObj)
-		}
-		_ = targets.Set(string(locale), vm.NewArray(localeSegs...))
+	for _, locale := range block.TargetLocales() {
+		tSeg := vm.NewObject()
+		tContent := vm.NewObject()
+		_ = tContent.Set("text", block.TargetText(locale))
+		_ = tSeg.Set("content", tContent)
+		_ = targets.Set(string(locale), vm.NewArray(tSeg))
 	}
 	_ = obj.Set("targets", targets)
 
@@ -322,7 +333,7 @@ func blockToJS(vm *goja.Runtime, block *model.Block) *goja.Object {
 
 // jsToPartUpdate reads back modified data from the JS object and applies
 // changes to a clone of the original Part. Only block text changes are applied.
-func jsToPartUpdate(vm *goja.Runtime, obj *goja.Object, original *model.Part) *model.Part {
+func jsToPartUpdate(vm *goja.Runtime, obj *goja.Object, original *model.Part, allowSourceMutation bool) *model.Part {
 	if original.Type != model.PartBlock {
 		return original
 	}
@@ -346,7 +357,9 @@ func jsToPartUpdate(vm *goja.Runtime, obj *goja.Object, original *model.Part) *m
 			if segMap, ok := segs[0].(map[string]any); ok {
 				if contentMap, ok := segMap["content"].(map[string]any); ok {
 					if text, ok := contentMap["text"].(string); ok {
-						if text != block.SourceText() {
+						// Source is read-only unless the script opts in; otherwise
+						// its source edits are ignored (immutability contract).
+						if allowSourceMutation && text != block.SourceText() {
 							block.SetSourceText(text)
 						}
 					}

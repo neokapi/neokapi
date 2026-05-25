@@ -32,14 +32,12 @@ func markerDenseParagraph(n int) string {
 	return b.String()
 }
 
-// segmentWithText returns a model.Block carrying a single source segment whose
-// runs are one TextRun holding `text`, mirroring what the reader produces for
-// a plain paragraph before inline tokenisation runs.
+// segmentWithText returns a model.Block whose source runs are one TextRun
+// holding `text`, mirroring what the reader produces for a plain paragraph
+// before inline tokenisation runs.
 func segmentWithText(text string) *model.Block {
 	b := &model.Block{}
-	seg := &model.Segment{}
-	seg.SetRuns([]model.Run{{Text: &model.TextRun{Text: text}}})
-	b.Source = []*model.Segment{seg}
+	b.Source = []model.Run{{Text: &model.TextRun{Text: text}}}
 	return b
 }
 
@@ -85,8 +83,8 @@ func TestTokenizeDokuWikiInlineCodes_MarkerDense(t *testing.T) {
 	text := markerDenseParagraph(4000)
 	block := segmentWithText(text)
 	tokenizeDokuWikiInlineCodes(block)
-	require.Len(t, block.Source, 1)
-	assert.Equal(t, text, concatRunText(block.Source[0].Runs),
+	require.NotEmpty(t, block.Source)
+	assert.Equal(t, text, concatRunText(block.Source),
 		"tokeniser must preserve the paragraph bytes exactly")
 }
 

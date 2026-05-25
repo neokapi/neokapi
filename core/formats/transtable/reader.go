@@ -343,48 +343,67 @@ func groupRows(rows []rawRow, allowSegments bool) []rowGroup {
 }
 
 // buildBlock turns one rowGroup into a translatable Block. Each row in
-// the group becomes one source segment (and one target segment when
-// the row has a third cell).
+// the group is one former structural segment. In the Run model the
+// block holds a single Run sequence per side (source / target); the
+// per-row segmentation rides as a stand-off segmentation overlay whose
+// Spans carry the segment ids and run-index boundaries (AD-017).
 func (r *Reader) buildBlock(g rowGroup, sourceLocale, targetLocale model.LocaleID) *model.Block {
 	blk := &model.Block{
 		ID:           g.tuID,
 		Name:         "tu" + g.tuID,
 		Translatable: true,
 		SourceLocale: sourceLocale,
-		Source:       make([]*model.Segment, 0, len(g.rows)),
-		Targets:      make(map[model.LocaleID][]*model.Segment),
+		Targets:      make(map[model.VariantKey]*model.Target),
 		Properties:   make(map[string]string),
 		Annotations:  make(map[string]model.Annotation),
 	}
 	blk.Properties["tu_id"] = g.tuID
 
-	var targetSegs []*model.Segment
+	var (
+		srcRuns []model.Run
+		trgRuns []model.Run
+		spans   []model.Span
+		srcPos  int
+		trgPos  int
+	)
 	hasAnyTarget := false
 	for i, row := range g.rows {
 		segID := row.segID
 		if segID == "" {
 			segID = fmt.Sprintf("s%d", i+1)
 		}
-		blk.Source = append(blk.Source, &model.Segment{
-			ID:   segID,
-			Runs: []model.Run{{Text: &model.TextRun{Text: row.source}}},
-		})
+
+		// Each row contributes exactly one source TextRun. Record the
+		// segment span over the source runs.
+		srcRun := model.Run{Text: &model.TextRun{Text: row.source}}
+		srcRuns = append(srcRuns, srcRun)
+		srcEnd := srcPos + 1
+
+		// Each row also contributes one target TextRun (empty when the
+		// row had no third cell) so source/target segment spans stay
+		// index-aligned, matching the former per-segment alignment.
+		trgRun := model.Run{Text: &model.TextRun{Text: row.target}}
+		trgRuns = append(trgRuns, trgRun)
+		trgEnd := trgPos + 1
 		if row.hasTrg {
 			hasAnyTarget = true
-			targetSegs = append(targetSegs, &model.Segment{
-				ID:   segID,
-				Runs: []model.Run{{Text: &model.TextRun{Text: row.target}}},
-			})
-		} else {
-			// Maintain segment-index alignment between source and target.
-			targetSegs = append(targetSegs, &model.Segment{
-				ID:   segID,
-				Runs: []model.Run{{Text: &model.TextRun{Text: ""}}},
-			})
 		}
+
+		spans = append(spans, model.Span{
+			ID:    segID,
+			Range: model.RunRange{StartRun: srcPos, EndRun: srcEnd},
+		})
+		srcPos = srcEnd
+		trgPos = trgEnd
 	}
+
+	blk.Source = srcRuns
+	blk.SetSegmentation(nil, spans)
+
 	if hasAnyTarget && !targetLocale.IsEmpty() {
-		blk.Targets[targetLocale] = targetSegs
+		blk.SetTargetRuns(targetLocale, trgRuns)
+		key := model.Variant(targetLocale)
+		blk.SetSegmentation(&key, spans)
 	}
 	return blk
 }

@@ -5,7 +5,6 @@ import (
 	"strings"
 
 	"github.com/neokapi/neokapi/core/flow"
-	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/tool"
 )
 
@@ -13,10 +12,9 @@ func exampleUppercaseTool() *tool.BaseTool {
 	return &tool.BaseTool{
 		ToolName:        "uppercase",
 		ToolDescription: "Uppercases source text",
-		HandleBlockFn: func(part *model.Part) (*model.Part, error) {
-			block := part.Resource.(*model.Block)
-			block.SetSourceText(strings.ToUpper(block.SourceText()))
-			return part, nil
+		Transform: func(v tool.SourceView) error {
+			v.SetSourceText(strings.ToUpper(v.SourceText()))
+			return nil
 		},
 	}
 }

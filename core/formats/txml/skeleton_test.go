@@ -113,7 +113,7 @@ func TestSkeletonStore_WithTranslation(t *testing.T) {
 		if p.Type == model.PartBlock {
 			b := p.Resource.(*model.Block)
 			if b.SourceText() == "Hello" {
-				b.Targets[model.LocaleID("fr")] = []*model.Segment{{ID: "s1", Runs: []model.Run{{Text: &model.TextRun{Text: "Salut"}}}}}
+				b.SetTargetText(model.LocaleID("fr"), "Salut")
 			}
 		}
 	}
@@ -168,7 +168,7 @@ func TestSkeletonStore_InjectsTargetIntoSourceOnlySegment(t *testing.T) {
 	for _, p := range parts {
 		if p.Type == model.PartBlock {
 			b := p.Resource.(*model.Block)
-			b.Targets[model.LocaleID("fr")] = []*model.Segment{{ID: "s1", Runs: []model.Run{{Text: &model.TextRun{Text: "Bonjour"}}}}}
+			b.SetTargetText(model.LocaleID("fr"), "Bonjour")
 		}
 	}
 
@@ -218,7 +218,7 @@ func TestSkeletonStore_InjectsTargetAfterTrailingWS(t *testing.T) {
 	for _, p := range parts {
 		if p.Type == model.PartBlock {
 			b := p.Resource.(*model.Block)
-			b.Targets[model.LocaleID("fr")] = []*model.Segment{{ID: "s1", Runs: []model.Run{{Text: &model.TextRun{Text: "Bonjour"}}}}}
+			b.SetTargetText(model.LocaleID("fr"), "Bonjour")
 		}
 	}
 
@@ -263,7 +263,7 @@ func TestSkeletonStore_WithTranslation_Escaping(t *testing.T) {
 	for _, p := range parts {
 		if p.Type == model.PartBlock {
 			b := p.Resource.(*model.Block)
-			b.Targets[model.LocaleID("fr")] = []*model.Segment{{ID: "s1", Runs: []model.Run{{Text: &model.TextRun{Text: "A & B < C"}}}}}
+			b.SetTargetText(model.LocaleID("fr"), "A & B < C")
 		}
 	}
 
@@ -356,12 +356,14 @@ func TestDoubleExtractionFixtures(t *testing.T) {
 
 			require.Equal(t, len(first), len(second), "block count must be stable across roundtrip")
 			for i := range first {
-				require.Equal(t, len(first[i].Source), len(second[i].Source),
+				require.Equal(t, first[i].SourceSegmentCount(), second[i].SourceSegmentCount(),
 					"block %d: source segment count must be stable", i)
-				for s := range first[i].Source {
-					assert.Equal(t, first[i].Source[s].Text(), second[i].Source[s].Text(),
+				for s := range first[i].SourceSegmentCount() {
+					firstRuns := first[i].SourceSegmentRuns(s)
+					secondRuns := second[i].SourceSegmentRuns(s)
+					assert.Equal(t, model.RunsText(firstRuns), model.RunsText(secondRuns),
 						"block %d segment %d: source text must be stable", i, s)
-					assert.Equal(t, len(first[i].Source[s].Runs), len(second[i].Source[s].Runs),
+					assert.Equal(t, len(firstRuns), len(secondRuns),
 						"block %d segment %d: inline-code run structure must be stable", i, s)
 				}
 			}

@@ -340,8 +340,8 @@ func TestWriteStringsFromScratch(t *testing.T) {
 			ID:           id,
 			Translatable: true,
 			SourceLocale: "en",
-			Source:       []*model.Segment{{ID: "s1", Runs: []model.Run{{Text: &model.TextRun{Text: value}}}}},
-			Targets:      map[model.LocaleID][]*model.Segment{},
+			Source:       []model.Run{{Text: &model.TextRun{Text: value}}},
+			Targets:      map[model.VariantKey]*model.Target{},
 			Properties:   map[string]string{"applestrings.key": key, "applestrings.leaf": "value"},
 			Annotations:  map[string]model.Annotation{},
 		}
@@ -374,8 +374,8 @@ func TestWriteStringsdictFromScratch(t *testing.T) {
 			ID:           id,
 			Translatable: true,
 			SourceLocale: "en",
-			Source:       []*model.Segment{{ID: "s1", Runs: []model.Run{{Text: &model.TextRun{Text: value}}}}},
-			Targets:      map[model.LocaleID][]*model.Segment{},
+			Source:       []model.Run{{Text: &model.TextRun{Text: value}}},
+			Targets:      map[model.VariantKey]*model.Target{},
 			Properties: map[string]string{
 				"applestrings.key":      key,
 				"applestrings.leaf":     "plural",

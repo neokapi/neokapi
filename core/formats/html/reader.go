@@ -241,8 +241,8 @@ func (v *readerVisitor) onAttributeBlock(blockID string, n *html.Node, attrKey s
 		Type:         attrKey,
 		Translatable: true,
 		IsReferent:   true,
-		Source:       []*model.Segment{model.NewRunsSegment("s1", []model.Run{{Text: &model.TextRun{Text: value}}})},
-		Targets:      make(map[model.LocaleID][]*model.Segment),
+		Source:       []model.Run{{Text: &model.TextRun{Text: value}}},
+		Targets:      make(map[model.VariantKey]*model.Target),
 		Properties:   make(map[string]string),
 		Annotations:  make(map[string]model.Annotation),
 	}
@@ -258,8 +258,8 @@ func (v *readerVisitor) onMetaBlock(blockID string, n *html.Node) {
 		Type:         "content",
 		Translatable: true,
 		IsReferent:   true,
-		Source:       []*model.Segment{model.NewRunsSegment("s1", []model.Run{{Text: &model.TextRun{Text: content}}})},
-		Targets:      make(map[model.LocaleID][]*model.Segment),
+		Source:       []model.Run{{Text: &model.TextRun{Text: content}}},
+		Targets:      make(map[model.VariantKey]*model.Target),
 		Properties:   make(map[string]string),
 		Annotations:  make(map[string]model.Annotation),
 	}
@@ -285,8 +285,8 @@ func (v *readerVisitor) onBlockElement(blockID string, n *html.Node, preserveWS 
 		Type:               v.reader.blockType(n),
 		Translatable:       true,
 		PreserveWhitespace: preserveWS,
-		Source:             []*model.Segment{model.NewRunsSegment("s1", runs)},
-		Targets:            make(map[model.LocaleID][]*model.Segment),
+		Source:             runs,
+		Targets:            make(map[model.VariantKey]*model.Target),
 		Properties:         v.reader.extractBlockProperties(n),
 		Annotations:        make(map[string]model.Annotation),
 		Skeleton: &model.Skeleton{
@@ -314,8 +314,8 @@ func (v *readerVisitor) onMixedContentBlock(blockID string, parent *html.Node, r
 		Type:               v.reader.blockType(parent),
 		Translatable:       true,
 		PreserveWhitespace: preserveWS,
-		Source:             []*model.Segment{model.NewRunsSegment("s1", runs)},
-		Targets:            make(map[model.LocaleID][]*model.Segment),
+		Source:             runs,
+		Targets:            make(map[model.VariantKey]*model.Target),
 		Properties:         v.reader.extractBlockProperties(parent),
 		Annotations:        make(map[string]model.Annotation),
 	}

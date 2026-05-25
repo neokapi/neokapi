@@ -329,11 +329,11 @@ func (w *Writer) writeFromSkeleton() error {
 				if w.Locale.IsEmpty() {
 					continue
 				}
-				segs, _ := w.pickTargetSegments(block, targetLang)
+				segs, base := w.pickTargetSegments(block, targetLang)
 				if len(segs) == 0 {
 					continue
 				}
-				inj := wrapSegmentsAsMrk(segs, block.Source)
+				inj := wrapSegmentsAsMrk(segs, base)
 				text = fmt.Sprintf("<target xml:lang=\"%s\">%s</target>\n",
 					xmlEscapeAttr(string(injectLang)), inj)
 				if _, err := io.WriteString(out, text); err != nil {
@@ -498,24 +498,7 @@ func (w *Writer) sourceText(block *model.Block) string {
 			return renderNativeWithRunsOpts(sa.Content, nil, opts)
 		}
 	}
-	return concatSegments(block.Source)
-}
-
-// nativeContentOf returns the xliff-native IR attached to a segment by
-// the reader, or nil if the segment was created without one (synthetic
-// blocks from tools, etc.).
-func nativeContentOf(seg *model.Segment) *NativeContent {
-	if seg == nil {
-		return nil
-	}
-	a, ok := seg.Annotations["xliff:native"]
-	if !ok {
-		return nil
-	}
-	if na, ok := a.(*SegmentNativeAnnotation); ok && na != nil {
-		return na.Content
-	}
-	return nil
+	return concatSegments(sourceSegViews(block))
 }
 
 // renderXliffRuns serializes a Run sequence into xliff 1.2 inline
@@ -653,28 +636,27 @@ func (w *Writer) targetText(block *model.Block, targetLang model.LocaleID) strin
 		}
 	}
 	if blockIsSegmented(block) {
-		return wrapSegmentsAsMrk(tgtSegs, block.Source)
+		return wrapSegmentsAsMrk(tgtSegs, sourceSegViews(block))
 	}
 	return concatSegments(tgtSegs)
 }
 
-// pickTargetSegments selects the segment slice that should drive the
+// pickTargetSegments selects the segment views that should drive the
 // <target> output, plus a "base" slice that supplies the structural
 // native IR when the chosen segments lack one (typical for pseudo-
 // translated targets that were synthesised from the source). Returns
 // (nil, nil) when neither an existing target nor a source-derived
 // fallback is usable.
-func (w *Writer) pickTargetSegments(block *model.Block, targetLang model.LocaleID) ([]*model.Segment, []*model.Segment) {
+func (w *Writer) pickTargetSegments(block *model.Block, targetLang model.LocaleID) ([]segView, []segView) {
+	src := sourceSegViews(block)
 	if block.HasTarget(targetLang) {
-		return block.Targets[targetLang], block.Source
+		return targetSegViews(block, targetLang), src
 	}
-	for _, segs := range block.Targets {
-		if len(segs) > 0 {
-			return segs, block.Source
-		}
+	if loc := anyTargetLocale(block); loc != "" {
+		return targetSegViews(block, loc), src
 	}
-	if len(block.Source) > 0 {
-		return block.Source, block.Source
+	if len(src) > 0 {
+		return src, src
 	}
 	return nil, nil
 }
@@ -682,7 +664,7 @@ func (w *Writer) pickTargetSegments(block *model.Block, targetLang model.LocaleI
 // concatSegments joins all segments' rendered content with no
 // wrappers between them. Used for <source> (always unsegmented) and
 // for <target> when the block isn't segmented.
-func concatSegments(segs []*model.Segment) string {
+func concatSegments(segs []segView) string {
 	var b strings.Builder
 	for _, s := range segs {
 		b.WriteString(renderSegment(s))
@@ -697,13 +679,10 @@ func concatSegments(segs []*model.Segment) string {
 // segment slice itself lacks one (pseudo-translated targets are
 // text-only; we re-use the source segment's inline structure so
 // inline-code attributes survive).
-func wrapSegmentsAsMrk(segs, base []*model.Segment) string {
+func wrapSegmentsAsMrk(segs, base []segView) string {
 	var b strings.Builder
 	for i, s := range segs {
-		mid := s.ID
-		if mid == "" || mid == "s1" {
-			mid = strconv.Itoa(i)
-		}
+		mid := midForSegView(s, i)
 		b.WriteString(`<mrk mid="`)
 		b.WriteString(xmlEscapeAttr(mid))
 		b.WriteString(`" mtype="seg">`)
@@ -713,43 +692,21 @@ func wrapSegmentsAsMrk(segs, base []*model.Segment) string {
 	return b.String()
 }
 
-// blockIsSegmented reports whether the block carries seg-source-style
-// segmentation (multiple source segments, or a single segment whose ID
-// looks like a mrk mid rather than the default "s1"). When true the
-// writer mirrors the segmentation onto <target>.
-func blockIsSegmented(block *model.Block) bool {
-	if len(block.Source) > 1 {
-		return true
-	}
-	if len(block.Source) == 1 {
-		id := block.Source[0].ID
-		if id != "" && id != "s1" {
-			return true
-		}
-	}
-	return false
-}
-
 // renderSegment renders one segment using its native IR when present,
 // falling back to renderXliffRuns or plain text.
-func renderSegment(seg *model.Segment) string {
-	return renderSegmentWithBase(seg, nil)
+func renderSegment(seg segView) string {
+	return renderSegmentWithBase(seg, segView{})
 }
 
 // renderSegmentWithBase renders a segment, falling back to base's
 // native IR if seg has none. This lets a pseudo-translated target
 // segment (text-only) inherit the source segment's inline structure.
-func renderSegmentWithBase(seg, base *model.Segment) string {
-	if seg == nil {
-		return ""
+func renderSegmentWithBase(seg, base segView) string {
+	if seg.Native != nil {
+		return renderNativeWithRuns(seg.Native, seg.Runs)
 	}
-	if nc := nativeContentOf(seg); nc != nil {
-		return renderNativeWithRuns(nc, seg.Runs)
-	}
-	if base != nil {
-		if nc := nativeContentOf(base); nc != nil {
-			return renderNativeWithRuns(nc, seg.Runs)
-		}
+	if base.Native != nil {
+		return renderNativeWithRuns(base.Native, seg.Runs)
 	}
 	if len(seg.Runs) > 0 {
 		return renderXliffRuns(seg.Runs)
@@ -757,10 +714,11 @@ func renderSegmentWithBase(seg, base *model.Segment) string {
 	return seg.Text()
 }
 
-// baseAt returns the i-th segment from base, or nil if out of range.
-func baseAt(base []*model.Segment, i int) *model.Segment {
+// baseAt returns the i-th segment view from base, or the zero segView
+// if out of range.
+func baseAt(base []segView, i int) segView {
 	if i < 0 || i >= len(base) {
-		return nil
+		return segView{}
 	}
 	return base[i]
 }
@@ -816,7 +774,7 @@ func (w *Writer) flush() error {
 
 		// Target
 		if block.HasTarget(targetLang) {
-			targetText := fragmentToXLIFF(block.Targets[targetLang])
+			targetText := fragmentToXLIFF(block.TargetRuns(targetLang))
 			fmt.Fprintf(w.Output, "        <target>%s</target>\n", targetText)
 		}
 
@@ -870,14 +828,13 @@ func (w *Writer) flush() error {
 	return nil
 }
 
-// fragmentToXLIFF converts segments to XLIFF inline content.
-func fragmentToXLIFF(segs []*model.Segment) string {
-	var buf strings.Builder
-	for _, seg := range segs {
-		if len(seg.Runs) > 0 {
-			// Simple case: just use the text
-			buf.WriteString(xmlEscapeText(seg.Text()))
-		}
+// fragmentToXLIFF converts a Run sequence to XLIFF inline content. This
+// is the legacy non-skeleton flush path; it emits only plain text
+// (TextRun content), which is sufficient for the synthetic blocks that
+// reach it.
+func fragmentToXLIFF(runs []model.Run) string {
+	if len(runs) == 0 {
+		return ""
 	}
-	return buf.String()
+	return xmlEscapeText(model.RunsText(runs))
 }

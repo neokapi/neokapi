@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"unicode/utf8"
 
-	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/schema"
 	"github.com/neokapi/neokapi/core/tool"
 )
@@ -56,44 +55,36 @@ func NewEncodingDetectTool(cfg *EncodingDetectConfig) *tool.BaseTool {
 		ToolDescription: "Detects encoding characteristics of block text",
 		Cfg:             cfg,
 	}
-	t.HandleBlockFn = func(part *model.Part) (*model.Part, error) {
-		block, ok := part.Resource.(*model.Block)
-		if !ok {
-			return part, nil
-		}
-		if !block.Translatable {
-			return part, nil
+	t.Annotate = func(v tool.BlockView) error {
+		if !v.Translatable() {
+			return nil
 		}
 
-		if block.Properties == nil {
-			block.Properties = make(map[string]string)
-		}
-
-		sourceText := block.SourceText()
+		sourceText := v.SourceText()
 		isASCII := isASCIIOnly(sourceText)
 		isUTF8 := utf8.ValidString(sourceText)
 
 		if isASCII {
-			block.Properties[PropEncodingDetected] = "ascii"
+			v.SetProperty(PropEncodingDetected, "ascii")
 		} else if isUTF8 {
-			block.Properties[PropEncodingDetected] = "utf-8"
+			v.SetProperty(PropEncodingDetected, "utf-8")
 		} else {
-			block.Properties[PropEncodingDetected] = "unknown"
+			v.SetProperty(PropEncodingDetected, "unknown")
 		}
 
 		if isUTF8 {
-			block.Properties[PropEncodingIsUTF8] = "true"
+			v.SetProperty(PropEncodingIsUTF8, "true")
 		} else {
-			block.Properties[PropEncodingIsUTF8] = "false"
+			v.SetProperty(PropEncodingIsUTF8, "false")
 		}
 
 		if isASCII {
-			block.Properties[PropEncodingIsASCII] = "true"
+			v.SetProperty(PropEncodingIsASCII, "true")
 		} else {
-			block.Properties[PropEncodingIsASCII] = "false"
+			v.SetProperty(PropEncodingIsASCII, "false")
 		}
 
-		return part, nil
+		return nil
 	}
 	return t
 }

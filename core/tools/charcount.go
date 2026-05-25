@@ -76,20 +76,12 @@ func NewCharCountTool(cfg *CharCountConfig) *tool.BaseTool {
 		ToolDescription: "Counts characters in source and target text of blocks",
 		Cfg:             cfg,
 	}
-	t.HandleBlockFn = func(part *model.Part) (*model.Part, error) {
-		block, ok := part.Resource.(*model.Block)
-		if !ok {
-			return part, nil
-		}
-		if !block.Translatable {
-			return part, nil
+	t.Annotate = func(v tool.BlockView) error {
+		if !v.Translatable() {
+			return nil
 		}
 
 		conf := t.Cfg.(*CharCountConfig)
-
-		if block.Properties == nil {
-			block.Properties = make(map[string]string)
-		}
 
 		// Default to counting both when neither scope is explicitly set.
 		countSource := conf.CountSource || (!conf.CountSource && !conf.CountTarget)
@@ -97,19 +89,19 @@ func NewCharCountTool(cfg *CharCountConfig) *tool.BaseTool {
 
 		// Count source characters.
 		if countSource {
-			sourceText := block.SourceText()
-			block.Properties[PropCharCountSource] = strconv.Itoa(countChars(sourceText))
-			block.Properties[PropCharCountSourceNospace] = strconv.Itoa(countCharsNoSpace(sourceText))
+			sourceText := v.SourceText()
+			v.SetProperty(PropCharCountSource, strconv.Itoa(countChars(sourceText)))
+			v.SetProperty(PropCharCountSourceNospace, strconv.Itoa(countCharsNoSpace(sourceText)))
 		}
 
 		// Count target characters if locale is set and target exists.
-		if countTarget && !conf.Locale.IsEmpty() && block.HasTarget(conf.Locale) {
-			targetText := block.TargetText(conf.Locale)
-			block.Properties[PropCharCountTarget] = strconv.Itoa(countChars(targetText))
-			block.Properties[PropCharCountTargetNospace] = strconv.Itoa(countCharsNoSpace(targetText))
+		if countTarget && !conf.Locale.IsEmpty() && v.HasTarget(conf.Locale) {
+			targetText := v.TargetText(conf.Locale)
+			v.SetProperty(PropCharCountTarget, strconv.Itoa(countChars(targetText)))
+			v.SetProperty(PropCharCountTargetNospace, strconv.Itoa(countCharsNoSpace(targetText)))
 		}
 
-		return part, nil
+		return nil
 	}
 	return t
 }

@@ -103,17 +103,15 @@ func translateRoundtripWithSkeleton(t *testing.T, input string) string {
 			continue
 		}
 		b := p.Resource.(*model.Block)
-		for _, seg := range b.Source {
-			runs := make([]model.Run, 0, len(seg.Runs))
-			for _, r := range seg.Runs {
-				if r.Text != nil {
-					runs = append(runs, model.Run{Text: &model.TextRun{Text: "X" + r.Text.Text}})
-				} else {
-					runs = append(runs, r)
-				}
+		runs := make([]model.Run, 0, len(b.Source))
+		for _, r := range b.Source {
+			if r.Text != nil {
+				runs = append(runs, model.Run{Text: &model.TextRun{Text: "X" + r.Text.Text}})
+			} else {
+				runs = append(runs, r)
 			}
-			b.Targets[locale] = append(b.Targets[locale], &model.Segment{ID: seg.ID, Runs: runs})
 		}
+		b.SetTargetRuns(locale, runs)
 	}
 
 	var buf bytes.Buffer
@@ -296,9 +294,9 @@ func TestSkeletonStore_WithTranslation(t *testing.T) {
 			b := p.Resource.(*model.Block)
 			switch b.SourceText() {
 			case "Hello World":
-				b.Targets[locale] = []*model.Segment{{ID: "s1", Runs: []model.Run{{Text: &model.TextRun{Text: "Bonjour le monde"}}}}}
+				b.SetTargetText(locale, "Bonjour le monde")
 			case "Goodbye":
-				b.Targets[locale] = []*model.Segment{{ID: "s1", Runs: []model.Run{{Text: &model.TextRun{Text: "Au revoir"}}}}}
+				b.SetTargetText(locale, "Au revoir")
 			}
 		}
 	}
@@ -340,9 +338,9 @@ func TestSkeletonStore_WithTranslation_DoubleQuoted(t *testing.T) {
 			b := p.Resource.(*model.Block)
 			switch b.SourceText() {
 			case "Hello World":
-				b.Targets[locale] = []*model.Segment{{ID: "s1", Runs: []model.Run{{Text: &model.TextRun{Text: "Bonjour le monde"}}}}}
+				b.SetTargetText(locale, "Bonjour le monde")
 			case "Goodbye":
-				b.Targets[locale] = []*model.Segment{{ID: "s1", Runs: []model.Run{{Text: &model.TextRun{Text: "Au revoir"}}}}}
+				b.SetTargetText(locale, "Au revoir")
 			}
 		}
 	}
@@ -383,7 +381,7 @@ func TestSkeletonStore_WithTranslation_Nested(t *testing.T) {
 		if p.Type == model.PartBlock {
 			b := p.Resource.(*model.Block)
 			if b.SourceText() == "Hello" {
-				b.Targets[locale] = []*model.Segment{{ID: "s1", Runs: []model.Run{{Text: &model.TextRun{Text: "Hallo"}}}}}
+				b.SetTargetText(locale, "Hallo")
 			}
 		}
 	}

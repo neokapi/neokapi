@@ -6,6 +6,10 @@
 // @ts-ignore: Unused imports
 import { Create as $Create } from "@wailsio/runtime";
 
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
+import * as model$0 from "../model/models.js";
+
 /**
  * FlowStep represents a single step in the human-authored steps format.
  * Steps are sequential by default. Use Parallel for fan-out branches.
@@ -191,6 +195,86 @@ export const NodeType = {
 };
 
 /**
+ * PartDetail is the run-native, full view of a Block at a point in time, for the
+ * "drill into a part" inspector. Source/Targets are run sequences (not flattened
+ * strings) so inline placeholders and paired codes survive.
+ */
+export class PartDetail {
+    /**
+     * Creates a new PartDetail instance.
+     * @param {Partial<PartDetail>} [$$source = {}] - The source object to create the PartDetail.
+     */
+    constructor($$source = {}) {
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["name"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {boolean | undefined}
+             */
+            this["translatable"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {model$0.Run[] | undefined}
+             */
+            this["source"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {{ [_ in string]?: model$0.Run[] } | undefined}
+             */
+            this["targets"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {{ [_ in string]?: string } | undefined}
+             */
+            this["properties"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {boolean | undefined}
+             */
+            this["hasSkeleton"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new PartDetail instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {PartDetail}
+     */
+    static createFrom($$source = {}) {
+        const $$createField2_0 = $$createType11;
+        const $$createField3_0 = $$createType12;
+        const $$createField4_0 = $$createType13;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("source" in $$parsedSource) {
+            $$parsedSource["source"] = $$createField2_0($$parsedSource["source"]);
+        }
+        if ("targets" in $$parsedSource) {
+            $$parsedSource["targets"] = $$createField3_0($$parsedSource["targets"]);
+        }
+        if ("properties" in $$parsedSource) {
+            $$parsedSource["properties"] = $$createField4_0($$parsedSource["properties"]);
+        }
+        return new PartDetail(/** @type {Partial<PartDetail>} */($$parsedSource));
+    }
+}
+
+/**
  * PartSnapshot captures the state of a Part at a point in time.
  */
 export class PartSnapshot {
@@ -238,6 +322,16 @@ export class PartSnapshot {
              */
             this["targetText"] = undefined;
         }
+        if (/** @type {any} */(false)) {
+            /**
+             * Detail carries the full part structure for a rich inspector — run
+             * sequences (inline codes preserved), every target locale, and properties.
+             * Populated for Block parts; nil for structural parts.
+             * @member
+             * @type {PartDetail | null | undefined}
+             */
+            this["detail"] = undefined;
+        }
 
         Object.assign(this, $$source);
     }
@@ -248,7 +342,11 @@ export class PartSnapshot {
      * @returns {PartSnapshot}
      */
     static createFrom($$source = {}) {
+        const $$createField5_0 = $$createType15;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("detail" in $$parsedSource) {
+            $$parsedSource["detail"] = $$createField5_0($$parsedSource["detail"]);
+        }
         return new PartSnapshot(/** @type {Partial<PartSnapshot>} */($$parsedSource));
     }
 }
@@ -286,8 +384,8 @@ export class PartSnapshotSet {
      * @returns {PartSnapshotSet}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType11;
-        const $$createField1_0 = $$createType12;
+        const $$createField0_0 = $$createType16;
+        const $$createField1_0 = $$createType17;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("initial" in $$parsedSource) {
             $$parsedSource["initial"] = $$createField0_0($$parsedSource["initial"]);
@@ -368,6 +466,16 @@ export class StepsSpec {
              */
             this["output"] = undefined;
         }
+        if (/** @type {any} */(false)) {
+            /**
+             * SourceTransforms is the leading source-transform stage: tools that settle
+             * the source/model (redaction, simplification, normalization) before the
+             * main steps run. Each must be a source-transform-capable tool. See AD-006.
+             * @member
+             * @type {FlowStep[] | undefined}
+             */
+            this["sourceTransforms"] = undefined;
+        }
         if (!("steps" in $$source)) {
             /**
              * @member
@@ -386,9 +494,13 @@ export class StepsSpec {
      */
     static createFrom($$source = {}) {
         const $$createField2_0 = $$createType2;
+        const $$createField3_0 = $$createType2;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("sourceTransforms" in $$parsedSource) {
+            $$parsedSource["sourceTransforms"] = $$createField2_0($$parsedSource["sourceTransforms"]);
+        }
         if ("steps" in $$parsedSource) {
-            $$parsedSource["steps"] = $$createField2_0($$parsedSource["steps"]);
+            $$parsedSource["steps"] = $$createField3_0($$parsedSource["steps"]);
         }
         return new StepsSpec(/** @type {Partial<StepsSpec>} */($$parsedSource));
     }
@@ -587,5 +699,10 @@ const $$createType7 = PartSnapshotSet.createFrom;
 const $$createType8 = $Create.Nullable($$createType7);
 const $$createType9 = $Create.Map($Create.Any, $$createType8);
 const $$createType10 = TraceFile.createFrom;
-const $$createType11 = PartSnapshot.createFrom;
+const $$createType11 = $Create.Array($Create.Any);
 const $$createType12 = $Create.Map($Create.Any, $$createType11);
+const $$createType13 = $Create.Map($Create.Any, $Create.Any);
+const $$createType14 = PartDetail.createFrom;
+const $$createType15 = $Create.Nullable($$createType14);
+const $$createType16 = PartSnapshot.createFrom;
+const $$createType17 = $Create.Map($Create.Any, $$createType16);

@@ -332,55 +332,109 @@ func (e *NativeEngine) RoundTrip(t *testing.T, in Input, spec PseudoSpec) []byte
 	return out
 }
 
-// seedIgnorableTargetsFromSource ensures every source segment in b has
-// a matching target for tgt, by cloning the source segment into the
-// targets map (id-keyed) when no target exists for that id. Used by
-// the xliff2 native engine to mirror okapi's X2ToOkpConverter line
-// 200 source-to-target copy for ignorables that lack a target — the
-// reader doesn't synthesize these (a faithful parse keeps the source
+// seedIgnorableTargetsFromSource ensures every source segment in b has a
+// matching target segment for tgt, by cloning the source segment's runs
+// into the target run sequence (and adding an id-aligned target
+// segmentation span) when no target segment exists for that id. Used by
+// the xliff2 native engine to mirror okapi's X2ToOkpConverter line 200
+// source-to-target copy for ignorables that lack a target — the reader
+// doesn't synthesize these (a faithful parse keeps the source
 // asymmetry), but pseudo only operates on existing targets, so without
 // the seed our ignorables end up with empty targets while okapi's are
 // pseudo-translated.
 //
-// Only seeds when at least one source segment ALREADY has a target —
-// for unit-only-source blocks (translate="no"-style flows) we leave
-// the model untouched.
+// Operates over the stand-off segmentation overlay (AD-002): the source
+// segments come from the source overlay (nil → a single anonymous
+// segment), the existing target segments from the target overlay. For
+// each ignorable source segment missing from the target we append its
+// cloned runs to the target run slice and a matching span (same id +
+// props) to the target overlay, keeping the target index/id-aligned with
+// the source.
+//
+// Only seeds when at least one target segment ALREADY exists — for
+// unit-only-source blocks (translate="no"-style flows) we leave the
+// model untouched.
 func seedIgnorableTargetsFromSource(b *model.Block, tgt model.LocaleID) {
 	if b == nil || len(b.Source) == 0 {
 		return
 	}
-	existingTargets := b.Targets[tgt]
-	if len(existingTargets) == 0 {
+	target := b.Target(tgt)
+	if target == nil || len(target.Runs) == 0 {
 		return
 	}
-	have := make(map[string]bool, len(existingTargets))
-	for _, t := range existingTargets {
-		if t != nil {
-			have[t.ID] = true
+
+	srcSeg := b.SourceSegmentation()
+	srcCount := b.SourceSegmentCount()
+
+	key := model.Variant(tgt)
+	tgtSeg := b.SegmentationFor(&key)
+
+	// Existing target span ids and the target run slice. With no target
+	// overlay the whole target is one anonymous segment; treat its id as
+	// the lone source segment's id so we don't double-seed it.
+	have := make(map[string]bool)
+	var tgtSpans []model.Span
+	if tgtSeg != nil {
+		tgtSpans = make([]model.Span, len(tgtSeg.Spans))
+		copy(tgtSpans, tgtSeg.Spans)
+		for _, sp := range tgtSpans {
+			have[sp.ID] = true
 		}
+	} else if srcSeg != nil && len(srcSeg.Spans) > 0 {
+		// Single flat target, source is segmented: the existing target
+		// runs map to the first source segment id (the reader emits a
+		// target only when it has non-empty inline content). Seed a span
+		// covering the existing runs so the rebuilt target overlay keeps
+		// describing that pre-existing segment.
+		firstID := srcSeg.Spans[0].ID
+		have[firstID] = true
+		tgtSpans = append(tgtSpans, model.Span{
+			ID:    firstID,
+			Range: model.RunRange{StartRun: 0, EndRun: len(target.Runs)},
+		})
 	}
-	if b.Targets == nil {
-		b.Targets = make(map[model.LocaleID][]*model.Segment)
-	}
-	for _, src := range b.Source {
-		if src == nil || have[src.ID] {
+
+	tgtRuns := target.Runs
+	seeded := false
+	for i := 0; i < srcCount; i++ {
+		var (
+			id    string
+			props map[string]string
+		)
+		if srcSeg != nil && i < len(srcSeg.Spans) {
+			id = srcSeg.Spans[i].ID
+			props = srcSeg.Spans[i].Props
+		}
+		if have[id] {
 			continue
 		}
 		// Only seed for ignorables (mirrors X2ToOkpConverter's check
 		// `!part.isSegment()` at line 200). Plain <segment> elements
 		// without a target stay target-less in okapi's output too.
-		if src.Properties == nil || src.Properties["xliff2:ignorable"] != "yes" {
+		if props[model.SpanPropIgnorable] != "true" {
 			continue
 		}
-		clone := &model.Segment{
-			ID:          src.ID,
-			Runs:        cloneRuns(src.Runs),
-			Annotations: map[string]model.Annotation{},
-			Properties:  src.Properties,
+		segRuns := cloneRuns(b.SourceSegmentRuns(i))
+		start := len(tgtRuns)
+		tgtRuns = append(tgtRuns, segRuns...)
+		end := len(tgtRuns)
+		sp := model.Span{ID: id, Range: model.RunRange{StartRun: start, EndRun: end}}
+		if len(props) > 0 {
+			clonedProps := make(map[string]string, len(props))
+			for k, v := range props {
+				clonedProps[k] = v
+			}
+			sp.Props = clonedProps
 		}
-		b.Targets[tgt] = append(b.Targets[tgt], clone)
-		have[src.ID] = true
+		tgtSpans = append(tgtSpans, sp)
+		have[id] = true
+		seeded = true
 	}
+	if !seeded {
+		return
+	}
+	b.SetTargetRuns(tgt, tgtRuns)
+	b.SetSegmentation(&key, tgtSpans)
 }
 
 // cloneRuns returns a deep copy of the given run slice.

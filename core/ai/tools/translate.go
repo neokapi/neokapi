@@ -181,7 +181,9 @@ func NewAITranslateTool(p aiprovider.LLMProvider, cfg AITranslateConfig) *AITran
 	}
 	t.ToolName = "ai-translate"
 	t.ToolDescription = "Translates Blocks using AI/LLM"
-	t.HandleBlockFn = t.handleBlock
+	// Translate: writes the target locale; source stays read-only. The batched
+	// and session paths (Process overrides) reuse translate() via NewTargetView.
+	t.Translate = t.translate
 	return t
 }
 
@@ -260,10 +262,7 @@ func (t *AITranslateTool) sessionHandleBlock(
 	}
 	hash := block.ID
 	if hash == "" {
-		if _, err := t.handleBlock(part); err != nil {
-			return err
-		}
-		return nil
+		return t.translate(tool.NewTargetView(block))
 	}
 
 	// Skip if already cached.
@@ -277,7 +276,7 @@ func (t *AITranslateTool) sessionHandleBlock(
 		}
 	}
 
-	if _, err := t.handleBlock(part); err != nil {
+	if err := t.translate(tool.NewTargetView(block)); err != nil {
 		return err
 	}
 
@@ -415,23 +414,21 @@ type aiTargetCache struct {
 // Single-block processing (existing behavior)
 // ---------------------------------------------------------------------------
 
-func (t *AITranslateTool) handleBlock(part *model.Part) (*model.Part, error) {
-	block, ok := part.Resource.(*model.Block)
-	if !ok {
-		return part, nil
+// translate writes the AI target for one block. Source is read-only (the
+// TargetView exposes no source setter). Dispatched directly for the
+// block-by-block path; the batched and session paths call it via NewTargetView.
+func (t *AITranslateTool) translate(v tool.TargetView) error {
+	if !v.Translatable() {
+		return nil
 	}
 
-	if !block.Translatable {
-		return part, nil
+	if t.skipMatched && v.HasTarget(t.targetLocale) {
+		return nil
 	}
 
-	if t.skipMatched && block.HasTarget(t.targetLocale) {
-		return part, nil
-	}
-
-	sourceText := block.SourceText()
+	sourceText := v.SourceText()
 	if sourceText == "" {
-		return part, nil
+		return nil
 	}
 
 	t.blockIndex.Add(1)
@@ -439,9 +436,9 @@ func (t *AITranslateTool) handleBlock(part *model.Part) (*model.Part, error) {
 	// If the source has inline codes, route through the
 	// placeholder-preserving LLM path so the model can keep them
 	// intact.
-	sourceRuns := block.SourceRuns()
+	sourceRuns := v.SourceRuns()
 	if hasInlineCodes(sourceRuns) {
-		return t.handleBlockWithInlineCodes(part, block, sourceRuns)
+		return t.translateWithInlineCodes(v, sourceRuns)
 	}
 
 	// Plain text translation.
@@ -453,15 +450,15 @@ func (t *AITranslateTool) handleBlock(part *model.Part) (*model.Part, error) {
 		VoiceGuide:     t.voiceGuide,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("ai-translate: %w", err)
+		return fmt.Errorf("ai-translate: %w", err)
 	}
 	t.addUsage(resp.Usage)
 
-	block.SetTargetText(t.targetLocale, resp.Translation)
-	t.annotateTranslation(block, resp)
+	v.SetTargetText(t.targetLocale, resp.Translation)
+	t.annotateTranslation(v, resp)
 
 	t.emitProgress(true, "")
-	return part, nil
+	return nil
 }
 
 // translateBlock translates text using streaming when available (for live
@@ -503,7 +500,7 @@ func (t *AITranslateTool) translateBlock(ctx context.Context, req aiprovider.Tra
 // inline codes. Renders source runs as placeholder-tagged text so
 // the LLM can preserve tag positions, then reconstructs the target
 // Run sequence from the response via ParseRunsPlaceholderText.
-func (t *AITranslateTool) handleBlockWithInlineCodes(part *model.Part, block *model.Block, sourceRuns []model.Run) (*model.Part, error) {
+func (t *AITranslateTool) translateWithInlineCodes(v tool.TargetView, sourceRuns []model.Run) error {
 	sourceText := model.RunsPlaceholderText(sourceRuns)
 
 	prompt := fmt.Sprintf(
@@ -519,16 +516,16 @@ func (t *AITranslateTool) handleBlockWithInlineCodes(part *model.Part, block *mo
 		VoiceGuide:     t.voiceGuide,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("ai-translate: %w", err)
+		return fmt.Errorf("ai-translate: %w", err)
 	}
 	t.addUsage(resp.Usage)
 
 	targetRuns := model.ParseRunsPlaceholderText(resp.Translation, sourceRuns)
-	block.SetTargetRuns(t.targetLocale, targetRuns)
-	t.annotateTranslation(block, resp)
+	v.SetTargetRuns(t.targetLocale, targetRuns)
+	t.annotateTranslation(v, resp)
 
 	t.emitProgress(true, "")
-	return part, nil
+	return nil
 }
 
 // hasInlineCodes reports whether a Run sequence contains any
@@ -560,17 +557,14 @@ func (t *AITranslateTool) emitProgress(done bool, thinking string) {
 	})
 }
 
-func (t *AITranslateTool) annotateTranslation(block *model.Block, resp *aiprovider.TranslateResponse) {
-	if block.Annotations == nil {
-		block.Annotations = make(map[string]model.Annotation)
-	}
-	block.Annotations["alt-translations"] = &model.AltTranslation{
+func (t *AITranslateTool) annotateTranslation(v tool.TargetView, resp *aiprovider.TranslateResponse) {
+	v.Annotate("alt-translations", &model.AltTranslation{
 		Target:    []model.Run{{Text: &model.TextRun{Text: resp.Translation}}},
 		Locale:    t.targetLocale,
 		Origin:    "ai:" + string(t.provider.Name()),
 		Score:     resp.Confidence,
 		MatchType: model.MatchAI,
-	}
+	})
 }
 
 // ---------------------------------------------------------------------------
@@ -725,8 +719,7 @@ type batchResult struct {
 // Falls back to individual translation for any missing entries.
 func (t *AITranslateTool) translateBatch(ctx context.Context, entries []blockEntry) error {
 	if len(entries) == 1 {
-		_, err := t.handleBlock(entries[0].part)
-		return err
+		return t.translate(tool.NewTargetView(entries[0].block))
 	}
 
 	// Build numbered prompt.
@@ -784,19 +777,20 @@ func (t *AITranslateTool) translateBatch(ctx context.Context, entries []blockEnt
 	for i, entry := range entries {
 		text, ok := translations[i+1]
 		if !ok || text == "" {
-			if _, err := t.handleBlock(entry.part); err != nil {
+			if err := t.translate(tool.NewTargetView(entry.block)); err != nil {
 				return err
 			}
 			continue
 		}
 
+		ev := tool.NewTargetView(entry.block)
 		if entry.hasInlineCodes {
 			targetRuns := model.ParseRunsPlaceholderText(text, entry.sourceRuns)
-			entry.block.SetTargetRuns(t.targetLocale, targetRuns)
+			ev.SetTargetRuns(t.targetLocale, targetRuns)
 		} else {
-			entry.block.SetTargetText(t.targetLocale, text)
+			ev.SetTargetText(t.targetLocale, text)
 		}
-		t.annotateTranslation(entry.block, &aiprovider.TranslateResponse{
+		t.annotateTranslation(ev, &aiprovider.TranslateResponse{
 			Translation: text,
 			Confidence:  0.85,
 			Model:       resp.Model,

@@ -672,21 +672,18 @@ func editorPseudoTranslate(ctx context.Context, cs store.ContentStore, projectID
 		ToolName:        "pseudo-translate",
 		ToolDescription: "Pseudo-translates blocks",
 	}
-	pseudoTool.HandleBlockFn = func(part *model.Part) (*model.Part, error) {
-		block, ok := part.Resource.(*model.Block)
-		if !ok || !block.Translatable {
-			return part, nil
+	pseudoTool.Translate = func(v tool.TargetView) error {
+		if !v.Translatable() {
+			return nil
 		}
 		locale := model.LocaleID(targetLocale)
-		seg := block.FirstSegment()
-		if seg != nil && seg.HasInlineCodes() {
-			block.SetTargetRuns(locale, editorPseudoRuns(seg.Runs))
+		runs := v.SourceRuns()
+		if runsHaveInlineCodes(runs) {
+			v.SetTargetRuns(locale, editorPseudoRuns(runs))
 		} else {
-			src := block.SourceText()
-			pseudo := "[" + editorPseudoAccent(src) + "]"
-			block.SetTargetText(locale, pseudo)
+			v.SetTargetText(locale, "["+editorPseudoAccent(v.SourceText())+"]")
 		}
-		return part, nil
+		return nil
 	}
 
 	outParts, err := runToolOnParts(ctx, pseudoTool, parts)
@@ -1104,10 +1101,10 @@ func storedBlockToInfoResponse(sb *store.StoredBlock, targetLocales []string) Bl
 }
 
 func enrichBlockInfoResponse(bi *BlockInfoResponse, block *model.Block, targetLocales []string) {
-	if len(block.Source) == 0 || len(block.Source[0].Runs) == 0 {
+	srcRuns := block.SourceRuns()
+	if len(srcRuns) == 0 {
 		return
 	}
-	srcRuns := block.Source[0].Runs
 	if !runsHaveInlineCodes(srcRuns) {
 		// Plain-text blocks carry their content in Source/Targets already;
 		// only blocks with inline markup need the Run sequences.
@@ -1119,11 +1116,11 @@ func enrichBlockInfoResponse(bi *BlockInfoResponse, block *model.Block, targetLo
 
 	bi.TargetsRuns = make(map[string][]model.Run, len(targetLocales))
 	for _, locale := range targetLocales {
-		segs, ok := block.Targets[model.LocaleID(locale)]
-		if !ok || len(segs) == 0 || len(segs[0].Runs) == 0 {
+		runs := block.TargetRuns(model.LocaleID(locale))
+		if len(runs) == 0 {
 			continue
 		}
-		bi.TargetsRuns[locale] = segs[0].Runs
+		bi.TargetsRuns[locale] = runs
 	}
 }
 
@@ -1147,12 +1144,13 @@ func enrichBlockEntities(bi *BlockInfoResponse, block *model.Block) {
 	for key, ann := range block.Annotations {
 		switch a := ann.(type) {
 		case *model.EntityAnnotation:
+			start, end := a.Position.ByteSpan(block.Source)
 			bi.Entities = append(bi.Entities, EntityInfoResponse{
 				Key:    key,
 				Text:   a.Text,
 				Type:   string(a.Type),
-				Start:  a.Position.Start,
-				End:    a.Position.End,
+				Start:  start,
+				End:    end,
 				DNT:    a.DNT,
 				Source: string(a.Source),
 				Locale: string(a.Locale),

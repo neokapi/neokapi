@@ -270,11 +270,10 @@ func TestEndToEndFlowPipeline(t *testing.T) {
 	uppercaseTool := &tool.BaseTool{
 		ToolName:        "uppercase",
 		ToolDescription: "Converts source text to uppercase",
-		HandleBlockFn: func(part *model.Part) (*model.Part, error) {
-			block := part.Resource.(*model.Block)
-			upper := strings.ToUpper(block.SourceText())
-			block.SetTargetText(model.LocaleFrench, upper)
-			return part, nil
+		Translate: func(v tool.TargetView) error {
+			upper := strings.ToUpper(v.SourceText())
+			v.SetTargetText(model.LocaleFrench, upper)
+			return nil
 		},
 	}
 

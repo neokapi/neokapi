@@ -331,7 +331,7 @@ func (h *qaCheckHandler) checkLengthIssues(conf *QACheckConfig, sourceText, targ
 }
 
 // checkPatternAndCodeIssues runs pattern verification and inline code/span constraint checks.
-func (h *qaCheckHandler) checkPatternAndCodeIssues(conf *QACheckConfig, block *model.Block, sourceText, targetText string) []QAIssue {
+func (h *qaCheckHandler) checkPatternAndCodeIssues(conf *QACheckConfig, v tool.BlockView, sourceText, targetText string) []QAIssue {
 	var issues []QAIssue
 
 	// Check: pattern verification.
@@ -341,18 +341,18 @@ func (h *qaCheckHandler) checkPatternAndCodeIssues(conf *QACheckConfig, block *m
 
 	// Check: inline code differences.
 	if conf.CheckCodeDifference {
-		sourceRuns := block.SourceRuns()
-		if runsHaveInline(sourceRuns) && block.HasTarget(conf.TargetLocale) {
-			targetRuns := block.TargetRuns(conf.TargetLocale)
+		sourceRuns := v.SourceRuns()
+		if runsHaveInline(sourceRuns) && v.HasTarget(conf.TargetLocale) {
+			targetRuns := v.TargetRuns(conf.TargetLocale)
 			issues = append(issues, checkCodeDifferencesRuns(sourceRuns, targetRuns, conf.StrictCodeOrder)...)
 		}
 	}
 
 	// Check: run constraint violations.
 	if conf.CheckSpanConstraints {
-		sourceRuns := block.SourceRuns()
-		if runsHaveInline(sourceRuns) && block.HasTarget(conf.TargetLocale) {
-			targetRuns := block.TargetRuns(conf.TargetLocale)
+		sourceRuns := v.SourceRuns()
+		if runsHaveInline(sourceRuns) && v.HasTarget(conf.TargetLocale) {
+			targetRuns := v.TargetRuns(conf.TargetLocale)
 			issues = append(issues, checkRunConstraints(sourceRuns, targetRuns)...)
 		}
 	}
@@ -371,45 +371,37 @@ func NewQACheckTool(cfg *QACheckConfig) *tool.BaseTool {
 	}
 	h := &qaCheckHandler{tool: t}
 
-	t.HandleBlockFn = func(part *model.Part) (*model.Part, error) {
-		block, ok := part.Resource.(*model.Block)
-		if !ok {
-			return part, nil
-		}
-		if !block.Translatable {
-			return part, nil
+	t.Annotate = func(v tool.BlockView) error {
+		if !v.Translatable() {
+			return nil
 		}
 
 		conf := t.Cfg.(*QACheckConfig)
 
-		if block.Properties == nil {
-			block.Properties = make(map[string]string)
-		}
-
-		sourceText := block.SourceText()
+		sourceText := v.SourceText()
 
 		// If there is no target, check if empty target is an issue.
-		if !block.HasTarget(conf.TargetLocale) {
+		if !v.HasTarget(conf.TargetLocale) {
 			if conf.CheckEmptyTarget && sourceText != "" {
-				storeQAIssues(block, []QAIssue{{
+				storeQAIssues(v, []QAIssue{{
 					Type:     "empty-target",
 					Severity: QASeverityError,
 					Message:  "Target is empty but source has content",
 				}})
 			}
-			return part, nil
+			return nil
 		}
 
-		targetText := block.TargetText(conf.TargetLocale)
+		targetText := v.TargetText(conf.TargetLocale)
 
 		var issues []QAIssue
 		issues = append(issues, h.checkTextIssues(conf, sourceText, targetText)...)
 		issues = append(issues, h.checkLengthIssues(conf, sourceText, targetText)...)
-		issues = append(issues, h.checkPatternAndCodeIssues(conf, block, sourceText, targetText)...)
+		issues = append(issues, h.checkPatternAndCodeIssues(conf, v, sourceText, targetText)...)
 
-		storeQAIssues(block, issues)
+		storeQAIssues(v, issues)
 
-		return part, nil
+		return nil
 	}
 	return t
 }
@@ -599,25 +591,21 @@ func mapKindToSpanName(kind string) string {
 	return kind
 }
 
-// storeQAIssues writes QA findings to Block.Properties.
-func storeQAIssues(block *model.Block, issues []QAIssue) {
-	if block.Properties == nil {
-		block.Properties = make(map[string]string)
-	}
-
+// storeQAIssues writes QA findings to block properties.
+func storeQAIssues(v tool.BlockView, issues []QAIssue) {
 	if len(issues) == 0 {
-		block.Properties[PropQAPassed] = "true"
-		block.Properties[PropQAIssues] = "[]"
+		v.SetProperty(PropQAPassed, "true")
+		v.SetProperty(PropQAIssues, "[]")
 		return
 	}
 
-	block.Properties[PropQAPassed] = "false"
+	v.SetProperty(PropQAPassed, "false")
 	data, err := json.Marshal(issues)
 	if err != nil {
-		block.Properties[PropQAIssues] = "[]"
+		v.SetProperty(PropQAIssues, "[]")
 		return
 	}
-	block.Properties[PropQAIssues] = string(data)
+	v.SetProperty(PropQAIssues, string(data))
 }
 
 // leadingWhitespace returns the leading whitespace characters of a string.

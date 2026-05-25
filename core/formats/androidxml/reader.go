@@ -373,8 +373,8 @@ func (r *Reader) newBlock(counter int, name string, runs []model.Run) *model.Blo
 		Name:         name,
 		Translatable: true,
 		SourceLocale: r.docLocale(),
-		Source:       []*model.Segment{{ID: "s1", Runs: runs}},
-		Targets:      make(map[model.LocaleID][]*model.Segment),
+		Source:       runs,
+		Targets:      make(map[model.VariantKey]*model.Target),
 		Properties:   make(map[string]string),
 		Annotations:  make(map[string]model.Annotation),
 	}

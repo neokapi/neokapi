@@ -114,7 +114,7 @@ export default function X() {}
 	for _, p := range parts {
 		if p.Type == model.PartBlock {
 			b := p.Resource.(*model.Block)
-			txt := strings.TrimSpace(b.Source[0].Text())
+			txt := strings.TrimSpace(b.SourceText())
 			assert.False(t, strings.HasPrefix(txt, "import ") || strings.HasPrefix(txt, "export "),
 				"ESM statement leaked into a translatable block: %q", txt)
 		}
@@ -159,7 +159,7 @@ Done.
 	for _, p := range parts {
 		if p.Type == model.PartBlock {
 			b := p.Resource.(*model.Block)
-			txt := b.Source[0].Text()
+			txt := b.SourceText()
 			assert.NotContains(t, txt, "ThemedVideo", "component name leaked into block")
 			assert.NotContains(t, txt, "maxWidth", "attribute name leaked into block")
 		}
@@ -219,7 +219,7 @@ A paragraph of prose.
 	var texts []string
 	for _, p := range parts {
 		if p.Type == model.PartBlock {
-			texts = append(texts, p.Resource.(*model.Block).Source[0].Text())
+			texts = append(texts, p.Resource.(*model.Block).SourceText())
 		}
 	}
 	assert.Contains(t, texts, "Heading One")
@@ -236,7 +236,7 @@ func TestCodeFenceNotTranslated(t *testing.T) {
 
 	for _, p := range parts {
 		if p.Type == model.PartBlock {
-			txt := p.Resource.(*model.Block).Source[0].Text()
+			txt := p.Resource.(*model.Block).SourceText()
 			assert.NotContains(t, txt, "const secret", "code fence content leaked into a translatable block")
 		}
 	}
@@ -263,7 +263,7 @@ After the table.
 
 	for _, p := range parts {
 		if p.Type == model.PartBlock {
-			txt := p.Resource.(*model.Block).Source[0].Text()
+			txt := p.Resource.(*model.Block).SourceText()
 			assert.NotContains(t, txt, "|", "table row leaked into a translatable block")
 		}
 	}
@@ -297,10 +297,8 @@ The quick brown fox.
 			continue
 		}
 		b := p.Resource.(*model.Block)
-		if b.Source[0].Text() == "The quick brown fox." {
-			b.Targets[model.LocaleID("fr-FR")] = []*model.Segment{
-				model.NewRunsSegment("s1", []model.Run{{Text: &model.TextRun{Text: "Le renard brun rapide."}}}),
-			}
+		if b.SourceText() == "The quick brown fox." {
+			b.SetTargetText(model.LocaleID("fr-FR"), "Le renard brun rapide.")
 			translated = true
 		}
 	}
@@ -452,7 +450,7 @@ func TestMalformedMDXNoTranslatableLeak(t *testing.T) {
 
 	for _, p := range parts {
 		if p.Type == model.PartBlock {
-			txt := p.Resource.(*model.Block).Source[0].Text()
+			txt := p.Resource.(*model.Block).SourceText()
 			assert.NotContains(t, txt, "Widget", "malformed JSX component name leaked into a block")
 			assert.NotContains(t, txt, "brokenExpr", "malformed expression leaked into a block")
 		}

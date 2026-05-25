@@ -685,14 +685,14 @@ func (tm *SQLiteTM) Lookup(source *model.Block, sourceLocale, targetLocale model
 	}
 
 	opts = ApplyDefaults(opts)
-	seg := source.FirstSegment()
-	if seg == nil || len(seg.Runs) == 0 {
+	runs := source.Source
+	if len(runs) == 0 {
 		return nil, nil
 	}
 
-	plainKey := NormalizeText(model.FlattenRuns(seg.Runs))
-	structKey := NormalizeText(model.RunsStructuralText(seg.Runs))
-	generalKey := NormalizeText(model.RunsGeneralizedText(seg.Runs))
+	plainKey := NormalizeText(model.FlattenRuns(runs))
+	structKey := NormalizeText(model.RunsStructuralText(runs))
+	generalKey := NormalizeText(model.RunsGeneralizedText(runs))
 	entityAnnotations := ExtractEntityAnnotations(source)
 
 	return tm.tieredLookup(plainKey, structKey, generalKey, entityAnnotations, sourceLocale, targetLocale, opts)
@@ -701,17 +701,17 @@ func (tm *SQLiteTM) Lookup(source *model.Block, sourceLocale, targetLocale model
 // LookupSegment searches for matches against a specific segment of the
 // source block. See TranslationMemory.LookupSegment for the contract.
 func (tm *SQLiteTM) LookupSegment(source *model.Block, segmentIdx int, sourceLocale, targetLocale model.LocaleID, opts LookupOptions) ([]TMMatch, error) {
-	if source == nil || segmentIdx < 0 || segmentIdx >= len(source.Source) {
+	if source == nil {
 		return nil, nil
 	}
-	seg := source.Source[segmentIdx]
-	if seg == nil || len(seg.Runs) == 0 {
+	runs := source.SourceSegmentRuns(segmentIdx)
+	if len(runs) == 0 {
 		return nil, nil
 	}
 	opts = ApplyDefaults(opts)
-	plainKey := NormalizeText(model.FlattenRuns(seg.Runs))
-	structKey := NormalizeText(model.RunsStructuralText(seg.Runs))
-	generalKey := NormalizeText(model.RunsGeneralizedText(seg.Runs))
+	plainKey := NormalizeText(model.FlattenRuns(runs))
+	structKey := NormalizeText(model.RunsStructuralText(runs))
+	generalKey := NormalizeText(model.RunsGeneralizedText(runs))
 	// Entity annotations carry block-level context; keep them so the
 	// generalized (entity-aware) tier still works inside a segment.
 	entityAnnotations := ExtractEntityAnnotations(source)

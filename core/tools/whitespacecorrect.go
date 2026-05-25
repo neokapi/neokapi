@@ -71,21 +71,18 @@ func NewWhitespaceCorrectTool(cfg *WhitespaceCorrectConfig) *tool.BaseTool {
 		ToolDescription: "Normalizes and fixes whitespace issues in translations",
 		Cfg:             cfg,
 	}
-	t.HandleBlockFn = func(part *model.Part) (*model.Part, error) {
-		block, ok := part.Resource.(*model.Block)
-		if !ok {
-			return part, nil
-		}
-		if !block.Translatable {
-			return part, nil
+	// Translate: whitespace-correct fixes target content; source is read-only.
+	t.Translate = func(v tool.TargetView) error {
+		if !v.Translatable() {
+			return nil
 		}
 
 		conf := t.Cfg.(*WhitespaceCorrectConfig)
-		if conf.TargetLocale.IsEmpty() || !block.HasTarget(conf.TargetLocale) {
-			return part, nil
+		if conf.TargetLocale.IsEmpty() || !v.HasTarget(conf.TargetLocale) {
+			return nil
 		}
 
-		targetText := block.TargetText(conf.TargetLocale)
+		targetText := v.TargetText(conf.TargetLocale)
 
 		if conf.RemoveZeroWidthChars {
 			targetText = removeZeroWidthChars(targetText)
@@ -104,16 +101,15 @@ func NewWhitespaceCorrectTool(cfg *WhitespaceCorrectConfig) *tool.BaseTool {
 		}
 
 		if conf.MatchSourceWhitespace {
-			sourceText := block.SourceText()
-			targetText = matchSourceWhitespace(sourceText, targetText)
+			targetText = matchSourceWhitespace(v.SourceText(), targetText)
 		}
 
 		// Punctuation-specific whitespace correction: remove trailing whitespace
 		// after specific punctuation marks (useful for CJK targets).
 		targetText = correctPunctuationWhitespace(targetText, conf)
 
-		block.SetTargetText(conf.TargetLocale, targetText)
-		return part, nil
+		v.SetTargetText(conf.TargetLocale, targetText)
+		return nil
 	}
 	return t
 }

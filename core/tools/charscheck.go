@@ -108,27 +108,19 @@ func NewCharsCheckTool(cfg *CharsCheckConfig) *tool.BaseTool {
 		ToolDescription: "Checks for invalid or unexpected characters in translations",
 		Cfg:             cfg,
 	}
-	t.HandleBlockFn = func(part *model.Part) (*model.Part, error) {
-		block, ok := part.Resource.(*model.Block)
-		if !ok {
-			return part, nil
-		}
-		if !block.Translatable {
-			return part, nil
+	t.Annotate = func(v tool.BlockView) error {
+		if !v.Translatable() {
+			return nil
 		}
 
 		conf := t.Cfg.(*CharsCheckConfig)
 
-		if block.Properties == nil {
-			block.Properties = make(map[string]string)
+		if !v.HasTarget(conf.TargetLocale) {
+			return nil
 		}
 
-		if !block.HasTarget(conf.TargetLocale) {
-			return part, nil
-		}
-
-		targetText := block.TargetText(conf.TargetLocale)
-		sourceText := block.SourceText()
+		targetText := v.TargetText(conf.TargetLocale)
+		sourceText := v.SourceText()
 
 		var issues []QAIssue
 
@@ -168,9 +160,9 @@ func NewCharsCheckTool(cfg *CharsCheckConfig) *tool.BaseTool {
 			issues = append(issues, checkCorruption(targetText)...)
 		}
 
-		storeCharsCheckIssues(block, issues)
+		storeCharsCheckIssues(v, issues)
 
-		return part, nil
+		return nil
 	}
 	return t
 }
@@ -239,23 +231,19 @@ func checkCorruption(text string) []QAIssue {
 	return issues
 }
 
-// storeCharsCheckIssues writes character check findings to Block.Properties.
-func storeCharsCheckIssues(block *model.Block, issues []QAIssue) {
-	if block.Properties == nil {
-		block.Properties = make(map[string]string)
-	}
-
+// storeCharsCheckIssues writes character check findings to block properties.
+func storeCharsCheckIssues(v tool.BlockView, issues []QAIssue) {
 	if len(issues) == 0 {
-		block.Properties[PropCharsCheckPassed] = "true"
-		block.Properties[PropCharsCheckIssues] = "[]"
+		v.SetProperty(PropCharsCheckPassed, "true")
+		v.SetProperty(PropCharsCheckIssues, "[]")
 		return
 	}
 
-	block.Properties[PropCharsCheckPassed] = "false"
+	v.SetProperty(PropCharsCheckPassed, "false")
 	data, err := json.Marshal(issues)
 	if err != nil {
-		block.Properties[PropCharsCheckIssues] = "[]"
+		v.SetProperty(PropCharsCheckIssues, "[]")
 		return
 	}
-	block.Properties[PropCharsCheckIssues] = string(data)
+	v.SetProperty(PropCharsCheckIssues, string(data))
 }

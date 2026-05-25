@@ -182,13 +182,12 @@ func TestPseudoTranslateToolWrapsPlaceholderRunsOnce(t *testing.T) {
 	block := &model.Block{
 		ID:           "tu1",
 		Translatable: true,
-		Source:       []*model.Segment{{ID: "s1", Runs: placeholderRuns()}},
-		Targets:      make(map[model.LocaleID][]*model.Segment),
+		Source:       placeholderRuns(),
 	}
 	part := &model.Part{Type: model.PartBlock, Resource: block}
 	result := processPart(t, tl, part)
 
-	runs := result.Resource.(*model.Block).Targets["qps"][0].Runs
+	runs := result.Resource.(*model.Block).TargetRuns("qps")
 
 	// Placeholder survives verbatim.
 	var phs int
@@ -220,8 +219,7 @@ func TestPseudoTranslateToolPreservesSpans(t *testing.T) {
 	block := &model.Block{
 		ID:           "tu1",
 		Translatable: true,
-		Source:       []*model.Segment{{ID: "s1", Runs: linkRuns()}},
-		Targets:      make(map[model.LocaleID][]*model.Segment),
+		Source:       linkRuns(),
 	}
 	part := &model.Part{Type: model.PartBlock, Resource: block}
 	result := processPart(t, tl, part)
@@ -229,10 +227,8 @@ func TestPseudoTranslateToolPreservesSpans(t *testing.T) {
 	resultBlock := result.Resource.(*model.Block)
 
 	require.True(t, resultBlock.HasTarget("qps"))
-	targetSegs := resultBlock.Targets["qps"]
-	require.Len(t, targetSegs, 1)
-
-	runs := targetSegs[0].Runs
+	runs := resultBlock.TargetRuns("qps")
+	require.NotNil(t, runs)
 
 	// Inline-code runs should be preserved (PcOpen + PcClose).
 	var pcOpens, pcCloses int
@@ -271,14 +267,13 @@ func TestPseudoTranslateToolSpansWithExpansion(t *testing.T) {
 	block := &model.Block{
 		ID:           "tu1",
 		Translatable: true,
-		Source:       []*model.Segment{{ID: "s1", Runs: linkRuns()}},
-		Targets:      make(map[model.LocaleID][]*model.Segment),
+		Source:       linkRuns(),
 	}
 	part := &model.Part{Type: model.PartBlock, Resource: block}
 	result := processPart(t, tl, part)
 
 	resultBlock := result.Resource.(*model.Block)
-	runs := resultBlock.Targets["qps"][0].Runs
+	runs := resultBlock.TargetRuns("qps")
 
 	// Expansion padding should appear in the text projection.
 	assert.Contains(t, model.RunsPlainText(runs), "~~")

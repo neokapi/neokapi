@@ -69,10 +69,9 @@ func BenchmarkParallelBlockTool(b *testing.B) {
 	for b.Loop() {
 		inner := &tool.BaseTool{
 			ToolName: "uppercase",
-			HandleBlockFn: func(part *model.Part) (*model.Part, error) {
-				block := part.Resource.(*model.Block)
-				block.SetTargetText(model.LocaleFrench, strings.ToUpper(block.SourceText()))
-				return part, nil
+			Translate: func(v tool.TargetView) error {
+				v.SetTargetText(model.LocaleFrench, strings.ToUpper(v.SourceText()))
+				return nil
 			},
 		}
 		pt := tool.NewParallelBlockTool(inner, 4)

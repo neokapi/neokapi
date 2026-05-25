@@ -43,7 +43,7 @@ func proseBlockTexts(parts []*model.Part) []string {
 	var out []string
 	for _, p := range parts {
 		if p.Type == model.PartBlock {
-			out = append(out, p.Resource.(*model.Block).Source[0].Text())
+			out = append(out, p.Resource.(*model.Block).SourceText())
 		}
 	}
 	return out
@@ -105,7 +105,7 @@ func TestInvariantProseTranslatedStructurePreserved(t *testing.T) {
 		}
 		b := p.Resource.(*model.Block)
 		// Only translate prose that contains a letter (skip pure-symbol blocks).
-		if strings.ContainsAny(b.Source[0].Text(), "abcdefghijklmnopqrstuvwxyz") {
+		if strings.ContainsAny(b.SourceText(), "abcdefghijklmnopqrstuvwxyz") {
 			translated = append(translated, pseudoTranslate(b, fr))
 		}
 	}
@@ -175,7 +175,7 @@ func TestInvariantCodeFenceAndTableByteIdentical(t *testing.T) {
 	for _, p := range parts {
 		if p.Type == model.PartBlock {
 			b := p.Resource.(*model.Block)
-			if strings.ContainsAny(b.Source[0].Text(), "abcdefghijklmnopqrstuvwxyz") {
+			if strings.ContainsAny(b.SourceText(), "abcdefghijklmnopqrstuvwxyz") {
 				pseudoTranslate(b, fr)
 			}
 		}
@@ -216,7 +216,7 @@ func TestInvariantInlineCodeMarkupPreservedUnderTranslation(t *testing.T) {
 			continue
 		}
 		b := p.Resource.(*model.Block)
-		if strings.Contains(b.Source[0].Text(), "<dir-name>.kapi") {
+		if strings.Contains(b.SourceText(), "<dir-name>.kapi") {
 			pseudoTranslate(b, fr)
 			found = true
 		}

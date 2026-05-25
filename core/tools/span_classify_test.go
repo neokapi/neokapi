@@ -1,12 +1,28 @@
 package tools
 
 import (
+	"context"
 	"testing"
 
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// runSpanClassify drives a single Part through the tool's Process (span-classify
+// is a Transform handler now, so it can't be invoked via HandleBlockFn).
+func runSpanClassify(t *testing.T, tl interface {
+	Process(context.Context, <-chan *model.Part, chan<- *model.Part) error
+}, part *model.Part) *model.Part {
+	t.Helper()
+	in := make(chan *model.Part, 1)
+	out := make(chan *model.Part, 1)
+	in <- part
+	close(in)
+	require.NoError(t, tl.Process(t.Context(), in, out))
+	close(out)
+	return <-out
+}
 
 // pairedRuns builds a `<open>middle</close>` Run sequence with the given
 // type and tag data, used by the span-classify tests.
@@ -60,17 +76,15 @@ func firstPh(runs []model.Run) *model.PlaceholderRun {
 func TestSpanClassifyFromData(t *testing.T) {
 	t.Parallel()
 	block := model.NewBlock("1", "")
-	block.Source = []*model.Segment{{Runs: pairedRuns("code:markup", "<b>", "Hello", "</b>")}}
-	block.Source[0].Runs = append(block.Source[0].Runs, model.Run{Text: &model.TextRun{Text: " world"}})
+	block.Source = append(pairedRuns("code:markup", "<b>", "Hello", "</b>"), model.Run{Text: &model.TextRun{Text: " world"}})
 	block.Translatable = true
 
 	part := &model.Part{Type: model.PartBlock, Resource: block}
 
 	tool := NewSpanClassifyTool(&SpanClassifyConfig{})
-	result, err := tool.HandleBlockFn(part)
-	require.NoError(t, err)
+	result := runSpanClassify(t, tool, part)
 
-	runs := result.Resource.(*model.Block).Source[0].Runs
+	runs := result.Resource.(*model.Block).Source
 	open := firstPcOpen(runs)
 	cls := firstPcClose(runs)
 	require.NotNil(t, open)
@@ -89,16 +103,15 @@ func TestSpanClassifyFromData(t *testing.T) {
 func TestSpanClassifyFromSubType(t *testing.T) {
 	t.Parallel()
 	block := model.NewBlock("1", "")
-	block.Source = []*model.Segment{{Runs: pairedRunsSubType("code:markup", "okapi:italic", "<em>", "text", "</em>")}}
+	block.Source = pairedRunsSubType("code:markup", "okapi:italic", "<em>", "text", "</em>")
 	block.Translatable = true
 
 	part := &model.Part{Type: model.PartBlock, Resource: block}
 
 	tool := NewSpanClassifyTool(&SpanClassifyConfig{})
-	result, err := tool.HandleBlockFn(part)
-	require.NoError(t, err)
+	result := runSpanClassify(t, tool, part)
 
-	runs := result.Resource.(*model.Block).Source[0].Runs
+	runs := result.Resource.(*model.Block).Source
 	open := firstPcOpen(runs)
 	cls := firstPcClose(runs)
 	require.NotNil(t, open)
@@ -110,20 +123,19 @@ func TestSpanClassifyFromSubType(t *testing.T) {
 func TestSpanClassifyBreakPlaceholder(t *testing.T) {
 	t.Parallel()
 	block := model.NewBlock("1", "")
-	block.Source = []*model.Segment{{Runs: []model.Run{
+	block.Source = []model.Run{
 		{Text: &model.TextRun{Text: "line one"}},
 		{Ph: &model.PlaceholderRun{ID: "1", Type: "code:markup", Data: "<br/>"}},
 		{Text: &model.TextRun{Text: "line two"}},
-	}}}
+	}
 	block.Translatable = true
 
 	part := &model.Part{Type: model.PartBlock, Resource: block}
 
 	tool := NewSpanClassifyTool(&SpanClassifyConfig{})
-	result, err := tool.HandleBlockFn(part)
-	require.NoError(t, err)
+	result := runSpanClassify(t, tool, part)
 
-	ph := firstPh(result.Resource.(*model.Block).Source[0].Runs)
+	ph := firstPh(result.Resource.(*model.Block).Source)
 	require.NotNil(t, ph)
 	assert.Equal(t, "struct:break", ph.Type)
 	require.NotNil(t, ph.Constraints)
@@ -134,16 +146,15 @@ func TestSpanClassifyBreakPlaceholder(t *testing.T) {
 func TestSpanClassifyUnknownType(t *testing.T) {
 	t.Parallel()
 	block := model.NewBlock("1", "")
-	block.Source = []*model.Segment{{Runs: pairedRuns("code:markup", "<custom-tag>", "content", "</custom-tag>")}}
+	block.Source = pairedRuns("code:markup", "<custom-tag>", "content", "</custom-tag>")
 	block.Translatable = true
 
 	part := &model.Part{Type: model.PartBlock, Resource: block}
 
 	tool := NewSpanClassifyTool(&SpanClassifyConfig{})
-	result, err := tool.HandleBlockFn(part)
-	require.NoError(t, err)
+	result := runSpanClassify(t, tool, part)
 
-	runs := result.Resource.(*model.Block).Source[0].Runs
+	runs := result.Resource.(*model.Block).Source
 	open := firstPcOpen(runs)
 	cls := firstPcClose(runs)
 	require.NotNil(t, open)
@@ -156,16 +167,15 @@ func TestSpanClassifyUnknownType(t *testing.T) {
 func TestSpanClassifySkipsNonMarkup(t *testing.T) {
 	t.Parallel()
 	block := model.NewBlock("1", "")
-	block.Source = []*model.Segment{{Runs: pairedRuns("fmt:bold", "<b>", "Hello", "</b>")}}
+	block.Source = pairedRuns("fmt:bold", "<b>", "Hello", "</b>")
 	block.Translatable = true
 
 	part := &model.Part{Type: model.PartBlock, Resource: block}
 
 	tool := NewSpanClassifyTool(&SpanClassifyConfig{})
-	result, err := tool.HandleBlockFn(part)
-	require.NoError(t, err)
+	result := runSpanClassify(t, tool, part)
 
-	runs := result.Resource.(*model.Block).Source[0].Runs
+	runs := result.Resource.(*model.Block).Source
 	open := firstPcOpen(runs)
 	cls := firstPcClose(runs)
 	require.NotNil(t, open)
@@ -178,19 +188,16 @@ func TestSpanClassifySkipsNonMarkup(t *testing.T) {
 func TestSpanClassifyTargetFragments(t *testing.T) {
 	t.Parallel()
 	block := model.NewBlock("1", "")
-	block.Source = []*model.Segment{{Runs: []model.Run{{Text: &model.TextRun{Text: "Hello"}}}}}
-	block.Targets = map[model.LocaleID][]*model.Segment{
-		"fr": {{Runs: pairedRuns("code:markup", "<i>", "Bonjour", "</i>")}},
-	}
+	block.Source = []model.Run{{Text: &model.TextRun{Text: "Hello"}}}
+	block.SetTargetRuns("fr", pairedRuns("code:markup", "<i>", "Bonjour", "</i>"))
 	block.Translatable = true
 
 	part := &model.Part{Type: model.PartBlock, Resource: block}
 
 	tool := NewSpanClassifyTool(&SpanClassifyConfig{})
-	result, err := tool.HandleBlockFn(part)
-	require.NoError(t, err)
+	result := runSpanClassify(t, tool, part)
 
-	runs := result.Resource.(*model.Block).Targets["fr"][0].Runs
+	runs := result.Resource.(*model.Block).TargetRuns("fr")
 	open := firstPcOpen(runs)
 	cls := firstPcClose(runs)
 	require.NotNil(t, open)

@@ -231,17 +231,15 @@ func TestRoundTrip_StaleIRDetection(t *testing.T) {
 	reader.Close()
 
 	// Mutate the target's Runs to "Salut" — but DON'T touch the
-	// SegmentInlineAnnotation. The writer must detect this via
+	// inline IR (UnitSegmentsAnnotation). The writer must detect this via
 	// freshness comparison.
 	for _, p := range parts {
 		if p.Type != model.PartBlock {
 			continue
 		}
 		block := p.Resource.(*model.Block)
-		for _, segs := range block.Targets {
-			for _, s := range segs {
-				s.Runs = []model.Run{{Text: &model.TextRun{Text: "Salut"}}}
-			}
+		for _, loc := range block.TargetLocales() {
+			block.SetTargetRuns(loc, []model.Run{{Text: &model.TextRun{Text: "Salut"}}})
 		}
 	}
 

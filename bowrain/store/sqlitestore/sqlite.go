@@ -612,9 +612,10 @@ func (s *SQLiteStore) storeBlocks(ctx context.Context, projectID, stream, itemNa
 				return fmt.Errorf("log change for block %s: %w", internalID, err)
 			}
 			// Log target additions for new blocks that already have translations.
-			for locale := range b.Targets {
-				if err := logChange(ctx, tx, projectID, stream, internalID, "target_added", string(locale), ""); err != nil {
-					return fmt.Errorf("log target change for block %s locale %s: %w", internalID, locale, err)
+			for key := range b.Targets {
+				variant := bstore.VariantKeyText(key)
+				if err := logChange(ctx, tx, projectID, stream, internalID, "target_added", variant, ""); err != nil {
+					return fmt.Errorf("log target change for block %s variant %s: %w", internalID, variant, err)
 				}
 			}
 		} else {
@@ -624,19 +625,20 @@ func (s *SQLiteStore) storeBlocks(ctx context.Context, projectID, stream, itemNa
 				}
 			}
 			// Log target changes — added vs modified based on whether the
-			// locale already had a row in the translations table. The
+			// variant already had a row in the translations table. The
 			// payload diff (modified-but-same?) is a best-effort check:
-			// if the locale was already there and we're upserting, it's
+			// if the variant was already there and we're upserting, it's
 			// a modification worth logging.
 			prev := existingLocales[internalID]
-			for locale := range b.Targets {
-				if _, had := prev[string(locale)]; had {
-					if err := logChange(ctx, tx, projectID, stream, internalID, "target_modified", string(locale), ""); err != nil {
-						return fmt.Errorf("log target change for block %s locale %s: %w", internalID, locale, err)
+			for key := range b.Targets {
+				variant := bstore.VariantKeyText(key)
+				if _, had := prev[variant]; had {
+					if err := logChange(ctx, tx, projectID, stream, internalID, "target_modified", variant, ""); err != nil {
+						return fmt.Errorf("log target change for block %s variant %s: %w", internalID, variant, err)
 					}
 				} else {
-					if err := logChange(ctx, tx, projectID, stream, internalID, "target_added", string(locale), ""); err != nil {
-						return fmt.Errorf("log target change for block %s locale %s: %w", internalID, locale, err)
+					if err := logChange(ctx, tx, projectID, stream, internalID, "target_added", variant, ""); err != nil {
+						return fmt.Errorf("log target change for block %s variant %s: %w", internalID, variant, err)
 					}
 				}
 			}
@@ -1056,7 +1058,7 @@ func scanStoredBlock(row scanner) (*platstore.StoredBlock, error) {
 	}
 	// Targets + Annotations hydrated via bstore.HydrateOverlays after
 	// the caller has scanned all rows. Leave empty here.
-	sb.Block.Targets = make(map[model.LocaleID][]*model.Segment)
+	sb.Block.Targets = make(map[model.VariantKey]*model.Target)
 	sb.Block.Annotations = make(map[string]model.Annotation)
 	return &sb, nil
 }

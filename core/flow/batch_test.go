@@ -34,10 +34,9 @@ func makeBatchFile(uri string, blockCount int) flow.BatchFile {
 func passthroughFactory() (tool.Tool, error) {
 	return &tool.BaseTool{
 		ToolName: "passthrough",
-		HandleBlockFn: func(part *model.Part) (*model.Part, error) {
-			block := part.Resource.(*model.Block)
-			block.Properties = map[string]string{"processed": "true"}
-			return part, nil
+		Annotate: func(v tool.BlockView) error {
+			v.SetProperty("processed", "true")
+			return nil
 		},
 	}, nil
 }
@@ -82,7 +81,7 @@ func TestBatchExecutor_Concurrency(t *testing.T) {
 	factory := func() (tool.Tool, error) {
 		return &tool.BaseTool{
 			ToolName: "slow-tool",
-			HandleBlockFn: func(part *model.Part) (*model.Part, error) {
+			Annotate: func(v tool.BlockView) error {
 				cur := active.Add(1)
 				for {
 					old := maxActive.Load()
@@ -92,7 +91,7 @@ func TestBatchExecutor_Concurrency(t *testing.T) {
 				}
 				time.Sleep(10 * time.Millisecond)
 				active.Add(-1)
-				return part, nil
+				return nil
 			},
 		}, nil
 	}
@@ -123,11 +122,11 @@ func TestBatchExecutor_ErrorPropagation(t *testing.T) {
 	factory := func() (tool.Tool, error) {
 		return &tool.BaseTool{
 			ToolName: "error-tool",
-			HandleBlockFn: func(part *model.Part) (*model.Part, error) {
-				if part.Resource.ResourceID() == "file2.json-b0" {
-					return nil, errors.New("intentional error")
+			Annotate: func(v tool.BlockView) error {
+				if v.ID() == "file2.json-b0" {
+					return errors.New("intentional error")
 				}
-				return part, nil
+				return nil
 			},
 		}, nil
 	}

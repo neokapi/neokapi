@@ -64,13 +64,10 @@ func NewExternalCommandTool(cfg *ExternalCommandConfig) *tool.BaseTool {
 		ToolDescription: "Executes an external command on block text",
 		Cfg:             cfg,
 	}
-	t.HandleBlockFn = func(part *model.Part) (*model.Part, error) {
-		block, ok := part.Resource.(*model.Block)
-		if !ok {
-			return part, nil
-		}
-		if !block.Translatable {
-			return part, nil
+	// Transform: external-command may rewrite source and/or target text.
+	t.Transform = func(v tool.SourceView) error {
+		if !v.Translatable() {
+			return nil
 		}
 
 		conf := t.Cfg.(*ExternalCommandConfig)
@@ -82,29 +79,27 @@ func NewExternalCommandTool(cfg *ExternalCommandConfig) *tool.BaseTool {
 
 		// Process source text.
 		if conf.ApplySource {
-			sourceText := block.SourceText()
-			result, exitCode, err := runCommand(conf, sourceText, timeout)
-			block.Properties[PropExternalCommandExitCode] = strconv.Itoa(exitCode)
+			result, exitCode, err := runCommand(conf, v.SourceText(), timeout)
+			v.SetProperty(PropExternalCommandExitCode, strconv.Itoa(exitCode))
 			if err != nil {
-				block.Properties[PropExternalCommandError] = err.Error()
-				return part, nil
+				v.SetProperty(PropExternalCommandError, err.Error())
+				return nil
 			}
-			block.SetSourceText(result)
+			v.SetSourceText(result)
 		}
 
 		// Process target text.
-		if conf.ApplyTarget && !conf.TargetLocale.IsEmpty() && block.HasTarget(conf.TargetLocale) {
-			targetText := block.TargetText(conf.TargetLocale)
-			result, exitCode, err := runCommand(conf, targetText, timeout)
-			block.Properties[PropExternalCommandExitCode] = strconv.Itoa(exitCode)
+		if conf.ApplyTarget && !conf.TargetLocale.IsEmpty() && v.HasTarget(conf.TargetLocale) {
+			result, exitCode, err := runCommand(conf, v.TargetText(conf.TargetLocale), timeout)
+			v.SetProperty(PropExternalCommandExitCode, strconv.Itoa(exitCode))
 			if err != nil {
-				block.Properties[PropExternalCommandError] = err.Error()
-				return part, nil
+				v.SetProperty(PropExternalCommandError, err.Error())
+				return nil
 			}
-			block.SetTargetText(conf.TargetLocale, result)
+			v.SetTargetText(conf.TargetLocale, result)
 		}
 
-		return part, nil
+		return nil
 	}
 	return t
 }

@@ -157,8 +157,26 @@ func NewPseudoTranslateTool(cfg *PseudoConfig) *PseudoTranslateTool {
 		ToolDescription: "Generates pseudo-translations for testing localization readiness",
 		Cfg:             cfg,
 	}
-	base.HandleBlockFn = func(part *model.Part) (*model.Part, error) {
-		return applyPseudo(part, cfg)
+	// Translate: pseudo-translate writes a target; source is read-only.
+	base.Translate = func(v tool.TargetView) error {
+		if !v.Translatable() {
+			return nil
+		}
+		runs := v.SourceRuns()
+		if len(runs) == 0 {
+			return nil
+		}
+		if runsHaveInline(runs) {
+			targetRuns := pseudoTranslateRuns(runs, cfg)
+			v.SetTargetRuns(cfg.TargetLocale, targetRuns)
+		} else {
+			sourceText := v.SourceText()
+			if sourceText == "" {
+				return nil
+			}
+			v.SetTargetText(cfg.TargetLocale, pseudoTranslate(sourceText, cfg))
+		}
+		return nil
 	}
 	return &PseudoTranslateTool{BaseTool: base, cfg: cfg}
 }

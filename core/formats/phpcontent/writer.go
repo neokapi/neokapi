@@ -226,13 +226,10 @@ func (w *Writer) writeData(part *model.Part) error {
 func (w *Writer) blockText(block *model.Block) string {
 	var runs []model.Run
 	if !w.Locale.IsEmpty() && block.HasTarget(w.Locale) {
-		segs := block.Targets[w.Locale]
-		if len(segs) > 0 && len(segs[0].Runs) > 0 {
-			runs = segs[0].Runs
-		}
+		runs = block.TargetRuns(w.Locale)
 	}
-	if runs == nil && len(block.Source) > 0 && len(block.Source[0].Runs) > 0 {
-		runs = block.Source[0].Runs
+	if runs == nil && len(block.Source) > 0 {
+		runs = block.Source
 	}
 	if runs == nil {
 		return ""

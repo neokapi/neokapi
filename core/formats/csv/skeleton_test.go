@@ -182,9 +182,9 @@ func TestSkeletonStore_WithTranslation(t *testing.T) {
 			b := p.Resource.(*model.Block)
 			switch b.SourceText() {
 			case "Hello World":
-				b.Targets[locale] = []*model.Segment{{ID: "s1", Runs: []model.Run{{Text: &model.TextRun{Text: "Bonjour le monde"}}}}}
+				b.SetTargetText(locale, "Bonjour le monde")
 			case "Goodbye":
-				b.Targets[locale] = []*model.Segment{{ID: "s1", Runs: []model.Run{{Text: &model.TextRun{Text: "Au revoir"}}}}}
+				b.SetTargetText(locale, "Au revoir")
 			}
 		}
 	}
@@ -225,9 +225,9 @@ func TestSkeletonStore_WithTranslation_QuotedField(t *testing.T) {
 			b := p.Resource.(*model.Block)
 			switch b.SourceText() {
 			case "Hello, World":
-				b.Targets[locale] = []*model.Segment{{ID: "s1", Runs: []model.Run{{Text: &model.TextRun{Text: "Bonjour le monde"}}}}}
+				b.SetTargetText(locale, "Bonjour le monde")
 			case "Goodbye":
-				b.Targets[locale] = []*model.Segment{{ID: "s1", Runs: []model.Run{{Text: &model.TextRun{Text: "Au revoir"}}}}}
+				b.SetTargetText(locale, "Au revoir")
 			}
 		}
 	}
@@ -269,9 +269,9 @@ func TestSkeletonStore_WithTranslation_CRLF(t *testing.T) {
 			b := p.Resource.(*model.Block)
 			switch b.SourceText() {
 			case "Hello":
-				b.Targets[locale] = []*model.Segment{{ID: "s1", Runs: []model.Run{{Text: &model.TextRun{Text: "Hallo"}}}}}
+				b.SetTargetText(locale, "Hallo")
 			case "Goodbye":
-				b.Targets[locale] = []*model.Segment{{ID: "s1", Runs: []model.Run{{Text: &model.TextRun{Text: "Tschuss"}}}}}
+				b.SetTargetText(locale, "Tschuss")
 			}
 		}
 	}

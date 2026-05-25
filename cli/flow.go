@@ -641,13 +641,14 @@ func (a *App) buildFlowTools(flowName string, cmd ...*cobra.Command) ([]tool.Too
 
 	// Extract tool node names in topological order (by X position).
 	type toolPos struct {
-		name string
-		x    float64
+		name  string
+		x     float64
+		stage flow.FlowStage
 	}
 	var toolNodes []toolPos
 	for _, n := range flowDef.Nodes {
 		if n.Type == flow.NodeTool {
-			toolNodes = append(toolNodes, toolPos{name: n.Name, x: n.Position.X})
+			toolNodes = append(toolNodes, toolPos{name: n.Name, x: n.Position.X, stage: n.Stage})
 		}
 	}
 	slices.SortFunc(toolNodes, func(a, b toolPos) int {
@@ -709,6 +710,13 @@ func (a *App) buildFlowTools(flowName string, cmd ...*cobra.Command) ([]tool.Too
 			cleanup()
 			return nil, nil, fmt.Errorf("tool %q in flow %q: %w", tn.name, flowName, err)
 		}
+		// Enforce the source-transform stage contract: a tool placed in the
+		// stage must be able to rewrite source (tool.CapTransform). This keeps
+		// the model settled before the main tools, matching AD-006.
+		if tn.stage == flow.StageSourceTransform && !anySourceTransform(t) {
+			cleanup()
+			return nil, nil, fmt.Errorf("tool %q in flow %q is in the source-transform stage but is not source-transform-capable", tn.name, flowName)
+		}
 		builtTools = append(builtTools, t...)
 		if toolCleanup != nil {
 			cleanups = append(cleanups, toolCleanup)
@@ -716,6 +724,17 @@ func (a *App) buildFlowTools(flowName string, cmd ...*cobra.Command) ([]tool.Too
 	}
 
 	return builtTools, cleanup, nil
+}
+
+// anySourceTransform reports whether any of the built tools is
+// source-transform-capable (tool.CapTransform).
+func anySourceTransform(tools []tool.Tool) bool {
+	for _, t := range tools {
+		if tool.IsSourceTransform(t) {
+			return true
+		}
+	}
+	return false
 }
 
 // buildToolByName creates tool(s) for a named tool, returning any resource
@@ -1138,7 +1157,19 @@ func (a *App) runProjectSteps(ctx context.Context, cmd *cobra.Command, flowName 
 	}
 
 	// Build tools from step definitions using the tool registry.
+	// Source-transform tools run first (they settle the source/model before the
+	// main steps) so they are prepended to the tool chain.
 	var projectTools []tool.Tool
+	for _, step := range spec.SourceTransforms {
+		t, err := a.toolFromStep(step, cmd, rCtx)
+		if err != nil {
+			return fmt.Errorf("flow %q source_transforms: %w", flowName, err)
+		}
+		if !tool.IsSourceTransform(t) {
+			return fmt.Errorf("flow %q: tool %q in source_transforms is not source-transform-capable", flowName, step.Tool)
+		}
+		projectTools = append(projectTools, t)
+	}
 	for _, step := range spec.Steps {
 		t, err := a.toolFromStep(step, cmd, rCtx)
 		if err != nil {

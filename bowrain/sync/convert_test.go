@@ -44,10 +44,8 @@ func TestBlockRoundTrip(t *testing.T) {
 func TestBlockWithTargets(t *testing.T) {
 	b := &model.Block{ID: "b1", Translatable: true}
 	b.SetSourceText("Hello")
-	b.Targets = map[model.LocaleID][]*model.Segment{
-		"fr": {model.NewRunsSegment("s1", []model.Run{{Text: &model.TextRun{Text: "Bonjour"}}})},
-		"de": {model.NewRunsSegment("s1", []model.Run{{Text: &model.TextRun{Text: "Hallo"}}})},
-	}
+	b.SetTargetText("fr", "Bonjour")
+	b.SetTargetText("de", "Hallo")
 
 	pb := BlockToProto(b, "en.json")
 	require.NotNil(t, pb.Targets)

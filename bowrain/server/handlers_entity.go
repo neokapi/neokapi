@@ -63,7 +63,7 @@ func (s *Server) HandleCreateEntity(c echo.Context) error {
 	ann := &model.EntityAnnotation{
 		Text:     req.Text,
 		Type:     model.EntityType(req.Type),
-		Position: model.TextRange{Start: req.Start, End: req.End},
+		Position: model.RunRangeForBytes(block.Source, req.Start, req.End),
 		DNT:      req.DNT,
 		Source:   model.ExtractionSourceManual,
 		Locale:   model.LocaleID(req.Locale),

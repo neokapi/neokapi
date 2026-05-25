@@ -649,14 +649,14 @@ func (a *App) LookupTM(handle string, req LookupTMRequest) []TMMatchDTO {
 	block := &model.Block{
 		ID:           "lookup",
 		Translatable: true,
-		Source:       []*model.Segment{{ID: "s1", Runs: runs}},
+		Source:       runs,
 		Annotations:  make(map[string]model.Annotation),
 	}
 	for i, ea := range req.Entities {
 		block.Annotations[fmt.Sprintf("entity:%d", i)] = &model.EntityAnnotation{
 			Text:     ea.Text,
 			Type:     model.EntityType(ea.Type),
-			Position: model.TextRange{Start: ea.Start, End: ea.End},
+			Position: model.RunRangeForBytes(block.Source, ea.Start, ea.End),
 			Source:   model.ExtractionSourceManual,
 		}
 	}

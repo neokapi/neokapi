@@ -85,6 +85,17 @@ func blockByName(parts []*model.Part) map[string]*model.Block {
 	return m
 }
 
+// runsHaveInlineCodes reports whether the run sequence contains any non-text
+// (inline-code) run — a placeholder, paired code, or subblock reference.
+func runsHaveInlineCodes(runs []model.Run) bool {
+	for _, r := range runs {
+		if r.Text == nil {
+			return true
+		}
+	}
+	return false
+}
+
 // TestInterfaces ensures the reader/writer satisfy the format interfaces.
 func TestInterfaces(t *testing.T) {
 	var _ format.DataFormatReader = androidxml.NewReader()
@@ -217,7 +228,7 @@ func TestPlaceholderProtection(t *testing.T) {
 	// keeps it.
 	welcome := by["welcome_user"]
 	require.NotNil(t, welcome)
-	assert.True(t, welcome.FirstSegment().HasInlineCodes(), "%1$s should be a code")
+	assert.True(t, runsHaveInlineCodes(welcome.SourceRuns()), "%1$s should be a code")
 	assert.Equal(t, "Welcome back, !", welcome.SourceText())
 	assert.Equal(t, "Welcome back, %1$s!", model.RenderRunsWithData(welcome.SourceRuns()))
 
@@ -229,7 +240,7 @@ func TestPlaceholderProtection(t *testing.T) {
 	// xliff:g spans are paired codes; the text between them stays translatable.
 	fileSize := by["file_size"]
 	require.NotNil(t, fileSize)
-	assert.True(t, fileSize.FirstSegment().HasInlineCodes())
+	assert.True(t, runsHaveInlineCodes(fileSize.SourceRuns()))
 	assert.Equal(t,
 		`Used <xliff:g id="size" example="1.2 GB">%1$s</xliff:g> of <xliff:g id="total" example="5 GB">%2$s</xliff:g>`,
 		model.RenderRunsWithData(fileSize.SourceRuns()))
@@ -239,7 +250,7 @@ func TestPlaceholderProtection(t *testing.T) {
 	// CDATA is preserved verbatim as one opaque code.
 	rich := by["rich_html"]
 	require.NotNil(t, rich)
-	assert.True(t, rich.FirstSegment().HasInlineCodes())
+	assert.True(t, runsHaveInlineCodes(rich.SourceRuns()))
 	assert.Equal(t,
 		`<![CDATA[Read our <a href="https://example.com">terms &amp; conditions</a> first.]]>`,
 		model.RenderRunsWithData(rich.SourceRuns()))

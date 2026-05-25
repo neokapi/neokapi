@@ -694,7 +694,7 @@ func (r *Reader) buildBlock(tuID string, tu *tuState, srcLang string, locale mod
 		ID:           tuID,
 		Name:         tuID,
 		Translatable: true,
-		Targets:      make(map[model.LocaleID][]*model.Segment),
+		Targets:      make(map[model.VariantKey]*model.Target),
 		Properties:   make(map[string]string),
 		Annotations:  make(map[string]model.Annotation),
 	}
@@ -720,9 +720,9 @@ func (r *Reader) buildBlock(tuID string, tu *tuState, srcLang string, locale mod
 		tuvLangLower := strings.ToLower(tuv.lang)
 		if langMatches(tuvLangLower, srcLangLower) {
 			if tuv.seg != nil {
-				block.Source = []*model.Segment{model.NewRunsSegment("s1", tuv.seg.runs)}
+				block.Source = tuv.seg.runs
 			} else {
-				block.Source = []*model.Segment{model.NewRunsSegment("s1", []model.Run{{Text: &model.TextRun{Text: ""}}})}
+				block.Source = []model.Run{{Text: &model.TextRun{Text: ""}}}
 			}
 			sourceFound = true
 			break
@@ -733,15 +733,15 @@ func (r *Reader) buildBlock(tuID string, tu *tuState, srcLang string, locale mod
 	if !sourceFound && len(tu.tuvs) > 0 {
 		tuv := tu.tuvs[0]
 		if tuv.seg != nil {
-			block.Source = []*model.Segment{model.NewRunsSegment("s1", tuv.seg.runs)}
+			block.Source = tuv.seg.runs
 		} else {
-			block.Source = []*model.Segment{model.NewRunsSegment("s1", []model.Run{{Text: &model.TextRun{Text: ""}}})}
+			block.Source = []model.Run{{Text: &model.TextRun{Text: ""}}}
 		}
 	}
 
 	// If still no source, set empty
 	if block.Source == nil {
-		block.Source = []*model.Segment{model.NewRunsSegment("s1", []model.Run{{Text: &model.TextRun{Text: ""}}})}
+		block.Source = []model.Run{{Text: &model.TextRun{Text: ""}}}
 	}
 
 	// Add targets
@@ -755,7 +755,7 @@ func (r *Reader) buildBlock(tuID string, tu *tuState, srcLang string, locale mod
 			continue
 		}
 		if tuv.seg != nil {
-			block.Targets[model.LocaleID(tuv.lang)] = []*model.Segment{model.NewRunsSegment("s1", tuv.seg.runs)}
+			block.SetTargetRuns(model.LocaleID(tuv.lang), tuv.seg.runs)
 		} else {
 			block.SetTargetText(model.LocaleID(tuv.lang), "")
 		}

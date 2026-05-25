@@ -2742,8 +2742,8 @@ func (r *Reader) processPgfCatalog(ctx context.Context, ch chan<- model.PartResu
 // applyCodeFinderWithExtras is applyCodeFinder plus an additional
 // list of context-specific patterns appended to the global config
 // patterns for THIS block only. Both rule sets feed a single
-// applyCodeFinderToSegments call so a second pass doesn't undo the
-// first (Segment.Text() drops Ph data, so re-running the splitter
+// applyCodeFinderToBlock call so a second pass doesn't undo the
+// first (flattening to text drops Ph data, so re-running the splitter
 // after a previous pass would lose the earlier placeholders).
 func (r *Reader) applyCodeFinderWithExtras(block *model.Block, extras []*regexp.Regexp) {
 	if block == nil {
@@ -2756,10 +2756,7 @@ func (r *Reader) applyCodeFinderWithExtras(block *model.Block, extras []*regexp.
 	if len(merged) == 0 {
 		return
 	}
-	applyCodeFinderToSegments(block.Source, merged)
-	for _, segs := range block.Targets {
-		applyCodeFinderToSegments(segs, merged)
-	}
+	applyCodeFinderToBlock(block, merged)
 }
 
 // skipPage reports whether a <Page> statement should be treated as a
@@ -3005,10 +3002,6 @@ func simplifyBlockCodes(block *model.Block) {
 	if block == nil || len(block.Source) == 0 {
 		return
 	}
-	seg := block.Source[0]
-	if seg == nil {
-		return
-	}
 	// Work on a flattened rune+code stream so the iterative leading/
 	// trailing simplification mirrors okapi CodeSimplifier.removeLeadingTrailingCodes
 	// exactly: on iteration 1 a boundary whitespace is only removable when it
@@ -3026,7 +3019,7 @@ func simplifyBlockCodes(block *model.Block) {
 	// Flatten into per-rune text tokens and per-code tokens so boundary
 	// whitespace can be removed one char at a time.
 	var toks []tok
-	for _, run := range seg.Runs {
+	for _, run := range block.Source {
 		if run.Text != nil {
 			for _, r := range run.Text.Text {
 				toks = append(toks, tok{text: string(r)})
@@ -3208,7 +3201,7 @@ func simplifyBlockCodes(block *model.Block) {
 	if len(out) == 0 {
 		out = []model.Run{{Text: &model.TextRun{Text: ""}}}
 	}
-	seg.Runs = out
+	block.SetSourceRuns(out)
 }
 
 // applyCodeFinder splits each TextRun in the block into text +
@@ -3267,80 +3260,84 @@ func (r *Reader) applyCodeFinderCtx(block *model.Block, ctx codeFinderCtx) {
 			return
 		}
 	}
-	applyCodeFinderToSegments(block.Source, patterns)
-	for _, segs := range block.Targets {
-		applyCodeFinderToSegments(segs, patterns)
-	}
+	applyCodeFinderToBlock(block, patterns)
 }
 
-// applyCodeFinderToSegments rewrites TextRun content in segs so that
-// every CodeFinder regex match becomes a Ph (placeholder) run carrying
-// the original literal in its Data field. The writer emits Ph.Data
-// verbatim via RenderRunsWithData, so inline FrameMaker codes survive
-// the round-trip even when target text is generated via pseudo or MT.
+// applyCodeFinderToRuns rewrites TextRun content in runs so that every
+// CodeFinder regex match becomes a Ph (placeholder) run carrying the
+// original literal in its Data field. The writer emits Ph.Data verbatim
+// via RenderRunsWithData, so inline FrameMaker codes survive the
+// round-trip even when target text is generated via pseudo or MT.
 //
 // Mirrors po.applyCodeFinderToSegments — kept colocated with the mif
 // reader to avoid an extra cross-package dependency. The two should
 // stay in sync.
-func applyCodeFinderToSegments(segs []*model.Segment, patterns []*regexp.Regexp) {
-	for _, seg := range segs {
-		if seg == nil || len(seg.Runs) == 0 {
+func applyCodeFinderToRuns(runs []model.Run, patterns []*regexp.Regexp) []model.Run {
+	if len(runs) == 0 {
+		return runs
+	}
+	// Process per-run so existing inline-code (Ph) runs produced by
+	// buildParaRuns survive: only TextRun content is split. spanID is
+	// shared across the whole run sequence so generated placeholder ids
+	// stay unique.
+	spanID := 1
+	var out []model.Run
+	for _, run := range runs {
+		if run.Text == nil {
+			out = append(out, run)
 			continue
 		}
-		// Process per-run so existing inline-code (Ph) runs produced by
-		// buildParaRuns survive: only TextRun content is split. spanID is
-		// shared across the whole segment so generated placeholder ids stay
-		// unique.
-		spanID := 1
-		var out []model.Run
-		for _, run := range seg.Runs {
-			if run.Text == nil {
-				out = append(out, run)
-				continue
-			}
-			text := run.Text.Text
-			var matches [][2]int
-			for _, re := range patterns {
-				for _, loc := range re.FindAllStringIndex(text, -1) {
-					matches = append(matches, [2]int{loc[0], loc[1]})
-				}
-			}
-			if len(matches) == 0 {
-				out = append(out, run)
-				continue
-			}
-			// Sort matches by start, drop overlaps (keep the earlier match).
-			for i := 1; i < len(matches); i++ {
-				for j := i; j > 0 && matches[j][0] < matches[j-1][0]; j-- {
-					matches[j], matches[j-1] = matches[j-1], matches[j]
-				}
-			}
-			merged := matches[:0]
-			for _, m := range matches {
-				if len(merged) > 0 && m[0] < merged[len(merged)-1][1] {
-					continue
-				}
-				merged = append(merged, m)
-			}
-			matches = merged
-
-			lastEnd := 0
-			for _, m := range matches {
-				if m[0] > lastEnd {
-					out = append(out, model.Run{Text: &model.TextRun{Text: text[lastEnd:m[0]]}})
-				}
-				out = append(out, model.Run{Ph: &model.PlaceholderRun{
-					ID:   fmt.Sprintf("c%d", spanID),
-					Data: text[m[0]:m[1]],
-				}})
-				spanID++
-				lastEnd = m[1]
-			}
-			if lastEnd < len(text) {
-				out = append(out, model.Run{Text: &model.TextRun{Text: text[lastEnd:]}})
+		text := run.Text.Text
+		var matches [][2]int
+		for _, re := range patterns {
+			for _, loc := range re.FindAllStringIndex(text, -1) {
+				matches = append(matches, [2]int{loc[0], loc[1]})
 			}
 		}
-		seg.Runs = out
+		if len(matches) == 0 {
+			out = append(out, run)
+			continue
+		}
+		// Sort matches by start, drop overlaps (keep the earlier match).
+		for i := 1; i < len(matches); i++ {
+			for j := i; j > 0 && matches[j][0] < matches[j-1][0]; j-- {
+				matches[j], matches[j-1] = matches[j-1], matches[j]
+			}
+		}
+		merged := matches[:0]
+		for _, m := range matches {
+			if len(merged) > 0 && m[0] < merged[len(merged)-1][1] {
+				continue
+			}
+			merged = append(merged, m)
+		}
+		matches = merged
+
+		lastEnd := 0
+		for _, m := range matches {
+			if m[0] > lastEnd {
+				out = append(out, model.Run{Text: &model.TextRun{Text: text[lastEnd:m[0]]}})
+			}
+			out = append(out, model.Run{Ph: &model.PlaceholderRun{
+				ID:   fmt.Sprintf("c%d", spanID),
+				Data: text[m[0]:m[1]],
+			}})
+			spanID++
+			lastEnd = m[1]
+		}
+		if lastEnd < len(text) {
+			out = append(out, model.Run{Text: &model.TextRun{Text: text[lastEnd:]}})
+		}
+	}
+	return out
+}
+
+// applyCodeFinderToBlock applies applyCodeFinderToRuns to a block's
+// source runs and every committed target's runs.
+func applyCodeFinderToBlock(block *model.Block, patterns []*regexp.Regexp) {
+	block.SetSourceRuns(applyCodeFinderToRuns(block.Source, patterns))
+	for _, loc := range block.TargetLocales() {
+		block.SetTargetRuns(loc, applyCodeFinderToRuns(block.TargetRuns(loc), patterns))
 	}
 }
 

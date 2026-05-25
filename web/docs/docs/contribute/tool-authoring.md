@@ -11,10 +11,15 @@ This guide covers how to create a tool with a parameter schema so that the UI an
 
 ## Tool basics
 
-Every tool is built on `tool.BaseTool`, setting handler functions for the Part
-types it processes. Parts you don't handle pass through unchanged. A handler has
-the signature `func(part *model.Part) (*model.Part, error)`; it receives the
-streaming `Part` and type-asserts the resource it cares about (here, a `*Block`).
+Every tool is built on `tool.BaseTool`. For Blocks — the translatable unit — a
+tool sets exactly one capability-typed handler, and the view it receives bounds
+what it may write (AD-006): `Annotate(BlockView)` reads source and target and
+writes only overlays, annotations, and properties; `Translate(TargetView)`
+writes the target; `Transform(SourceView)` rewrites the source. The wrong writes
+are simply not on the view — an annotator has no target setter to call. Other
+Part types (Data, Media, Layer, Group) use the untyped `Handle*Fn` fields. Parts
+you don't handle pass through unchanged; a handler returns an `error` (and may
+call `v.Drop()` to remove the block from the stream).
 
 ```go
 package mytool
@@ -32,18 +37,23 @@ func NewMyTool(cfg *MyToolConfig) *tool.BaseTool {
         ToolDescription: "Does something useful",
         Cfg:             cfg,
     }
-    t.HandleBlockFn = func(part *model.Part) (*model.Part, error) {
-        block, ok := part.Resource.(*model.Block)
-        if !ok || !block.Translatable {
-            return part, nil // pass through
+    // A tool declares its capability by which block handler it sets — the
+    // parameter type bounds what it may write (AD-006):
+    //   Annotate(BlockView)   — read-only: overlays / annotations / properties
+    //   Translate(TargetView) — writes the target; source stays read-only
+    //   Transform(SourceView) — rewrites the source (runs in the early stage)
+    // This tool writes a target, so it sets Translate.
+    t.Translate = func(v tool.TargetView) error {
+        if !v.Translatable() {
+            return nil // pass through
         }
         conf := t.Cfg.(*MyToolConfig)
-        text := block.SourceText()
+        text := v.SourceText()
         if conf.Uppercase {
             text = strings.ToUpper(text)
         }
-        block.SetTargetText(model.LocaleID(conf.TargetLocale), text)
-        return part, nil
+        v.SetTargetText(model.LocaleID(conf.TargetLocale), text)
+        return nil
     }
     return t
 }
@@ -186,22 +196,21 @@ func (c *WrapTextConfig) Reset()           { c.Prefix = "["; c.Suffix = "]" }
 func NewWrapTextTool(cfg *WrapTextConfig) *tool.BaseTool {
     t := &tool.BaseTool{
         ToolName:        "wrap-text",
-        ToolDescription: "Wraps segment text with prefix and suffix",
+        ToolDescription: "Wraps block text with prefix and suffix",
         Cfg:             cfg,
     }
-    t.HandleBlockFn = func(part *model.Part) (*model.Part, error) {
-        block, ok := part.Resource.(*model.Block)
-        if !ok {
-            return part, nil
-        }
+    // It can rewrite the source (SourceOnly), so it sets Transform — the only
+    // handler whose view exposes a source setter. Source-transform tools run
+    // in a flow's leading source-transform stage, before any overlay attaches.
+    t.Transform = func(v tool.SourceView) error {
         conf := t.Cfg.(*WrapTextConfig)
-        wrapped := fmt.Sprintf("%s%s%s", conf.Prefix, block.SourceText(), conf.Suffix)
+        wrapped := fmt.Sprintf("%s%s%s", conf.Prefix, v.SourceText(), conf.Suffix)
         if conf.SourceOnly {
-            block.SetSourceText(wrapped)
+            v.SetSourceText(wrapped)
         } else {
-            block.SetTargetText(model.LocaleID(conf.TargetLocale), wrapped)
+            v.SetTargetText(model.LocaleID(conf.TargetLocale), wrapped)
         }
-        return part, nil
+        return nil
     }
     return t
 }

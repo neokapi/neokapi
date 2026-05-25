@@ -41,13 +41,10 @@ func NewRemoveTargetTool(cfg *RemoveTargetConfig) *tool.BaseTool {
 		ToolDescription: "Removes target segments from blocks",
 		Cfg:             cfg,
 	}
-	t.HandleBlockFn = func(part *model.Part) (*model.Part, error) {
-		block, ok := part.Resource.(*model.Block)
-		if !ok {
-			return part, nil
-		}
-		if !block.Translatable {
-			return part, nil
+	// Translate: remove-target modifies/clears targets; source is read-only.
+	t.Translate = func(v tool.TargetView) error {
+		if !v.Translatable() {
+			return nil
 		}
 
 		conf := t.Cfg.(*RemoveTargetConfig)
@@ -58,24 +55,24 @@ func NewRemoveTargetTool(cfg *RemoveTargetConfig) *tool.BaseTool {
 			for _, id := range strings.Split(conf.TextUnitIDs, ",") {
 				idSet.Add(strings.TrimSpace(id))
 			}
-			if !idSet.Contains(block.ID) {
-				return part, nil
+			if !idSet.Contains(v.ID()) {
+				return nil
 			}
 		}
 
 		if conf.TargetLocale.IsEmpty() {
 			// Remove all targets.
-			block.Targets = make(map[model.LocaleID][]*model.Segment)
+			v.ClearTargets()
 		} else {
-			delete(block.Targets, conf.TargetLocale)
+			v.RemoveTarget(conf.TargetLocale)
 		}
 
 		// Remove block entirely if no targets remain and configured to do so.
-		if conf.RemoveBlockIfEmpty && len(block.Targets) == 0 {
-			return nil, nil
+		if conf.RemoveBlockIfEmpty && len(v.TargetLocales()) == 0 {
+			v.Drop()
 		}
 
-		return part, nil
+		return nil
 	}
 	return t
 }

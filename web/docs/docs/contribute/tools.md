@@ -31,14 +31,13 @@ func NewUppercaseTool() *tool.BaseTool {
         ToolName:        "uppercase",
         ToolDescription: "Converts source text to uppercase",
     }
-    t.HandleBlockFn = func(part *model.Part) (*model.Part, error) {
-        block, ok := part.Resource.(*model.Block)
-        if !ok || !block.Translatable {
-            return part, nil
+    // Writes a target, so it sets Translate (the view bounds it to target writes).
+    t.Translate = func(v tool.TargetView) error {
+        if !v.Translatable() {
+            return nil
         }
-        text := strings.ToUpper(block.SourceText())
-        block.SetTargetText(model.LocaleEnglish, text)
-        return part, nil
+        v.SetTargetText(model.LocaleEnglish, strings.ToUpper(v.SourceText()))
+        return nil
     }
     return t
 }

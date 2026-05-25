@@ -5,25 +5,22 @@ import (
 	"unicode"
 )
 
-// countWordsFromSourceJSON counts words from serialized source segments
-// JSON. Text runs serialize as `{"text":"..."}` per Framework AD-002, so we decode
-// the text key as a bare string. Other run kinds contribute nothing.
-// Unicode space boundaries define word breaks.
+// countWordsFromSourceJSON counts words from the serialized source runs JSON.
+// source_json now holds the block's flat []model.Run sequence directly. Text
+// runs serialize as `{"text":"..."}` per Framework AD-002, so we decode the
+// text key as a bare string. Other run kinds contribute nothing. Unicode space
+// boundaries define word breaks.
 func countWordsFromSourceJSON(sourceJSON string) int {
-	var segments []struct {
-		Runs []struct {
-			Text *string `json:"text,omitempty"`
-		} `json:"Runs"`
+	var runs []struct {
+		Text *string `json:"text,omitempty"`
 	}
-	if err := json.Unmarshal([]byte(sourceJSON), &segments); err != nil {
+	if err := json.Unmarshal([]byte(sourceJSON), &runs); err != nil {
 		return 0
 	}
 	count := 0
-	for _, seg := range segments {
-		for _, r := range seg.Runs {
-			if r.Text != nil {
-				count += countWords(*r.Text)
-			}
+	for _, r := range runs {
+		if r.Text != nil {
+			count += countWords(*r.Text)
 		}
 	}
 	return count

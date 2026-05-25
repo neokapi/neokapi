@@ -665,8 +665,8 @@ func parseCoreProperties(data []byte, partPath string, blockCounter *int, emitBl
 						ID:           blockID,
 						Type:         "property",
 						Translatable: true,
-						Source:       []*model.Segment{model.NewRunsSegment("s1", []model.Run{{Text: &model.TextRun{Text: text}}})},
-						Targets:      make(map[model.LocaleID][]*model.Segment),
+						Source:       []model.Run{{Text: &model.TextRun{Text: text}}},
+						Targets:      make(map[model.VariantKey]*model.Target),
 						Properties: map[string]string{
 							"partPath": partPath,
 							"element":  currentElement,

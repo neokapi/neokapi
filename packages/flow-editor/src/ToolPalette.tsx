@@ -1,8 +1,12 @@
 import { useState, useMemo } from "react";
-import { Search, ChevronDown, ChevronRight, GripVertical } from "lucide-react";
+import { Search, ChevronDown, ChevronRight, GripVertical, Layers } from "lucide-react";
 import { InputGroup, InputGroupAddon, InputGroupInput, ScrollArea } from "@neokapi/ui-primitives";
 import type { ToolInfo } from "./types";
 import { ALL_CATEGORIES } from "./category";
+
+/** Accent color for source-transform-capable tools (must match ToolNode). */
+const SOURCE_TRANSFORM_COLOR = "oklch(0.68 0.16 250)";
+const SOURCE_TRANSFORM_BG = "oklch(0.68 0.16 250 / 0.10)";
 
 interface ToolPaletteProps {
   tools: ToolInfo[];
@@ -165,7 +169,23 @@ function PaletteItem({
     >
       <GripVertical size={11} className="mt-0.5 shrink-0 text-border" />
       <div className="min-w-0 flex-1">
-        <div className="text-[11.5px] font-medium text-foreground">{displayName}</div>
+        <div className="flex items-center gap-1">
+          <div className="text-[11.5px] font-medium text-foreground">{displayName}</div>
+          {tool.isSourceTransform && (
+            <span
+              className="inline-flex items-center gap-0.5 rounded px-1 py-px text-[8px] font-semibold shrink-0"
+              style={{
+                background: SOURCE_TRANSFORM_BG,
+                color: SOURCE_TRANSFORM_COLOR,
+                border: `1px solid ${SOURCE_TRANSFORM_COLOR}`,
+              }}
+              title="Can run as a source transform — settles the model before main tools"
+            >
+              <Layers size={7} />
+              pre
+            </span>
+          )}
+        </div>
         <div className="text-[10px] leading-tight text-muted-foreground">{tool.description}</div>
         {/* Tags + IO contract badges */}
         <div className="mt-0.5 flex flex-wrap gap-0.5">

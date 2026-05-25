@@ -74,48 +74,40 @@ func NewEncodingConvertTool(cfg *EncodingConvertConfig) *tool.BaseTool {
 		ToolDescription: "Converts character encoding of text content",
 		Cfg:             cfg,
 	}
-	t.HandleBlockFn = func(part *model.Part) (*model.Part, error) {
-		block, ok := part.Resource.(*model.Block)
-		if !ok {
-			return part, nil
-		}
-		if !block.Translatable {
-			return part, nil
+	// Transform: encoding-convert may rewrite source and/or target text.
+	t.Transform = func(v tool.SourceView) error {
+		if !v.Translatable() {
+			return nil
 		}
 
 		conf := t.Cfg.(*EncodingConvertConfig)
 
 		enc, err := ianaindex.IANA.Encoding(conf.TargetEncoding)
 		if err != nil {
-			return nil, fmt.Errorf("encoding-convert: unsupported encoding %q: %w", conf.TargetEncoding, err)
+			return fmt.Errorf("encoding-convert: unsupported encoding %q: %w", conf.TargetEncoding, err)
 		}
 
-		if block.Properties == nil {
-			block.Properties = make(map[string]string)
-		}
-		block.Properties[PropEncodingTarget] = conf.TargetEncoding
+		v.SetProperty(PropEncodingTarget, conf.TargetEncoding)
 
 		if conf.ApplySource {
-			sourceText := block.SourceText()
-			sourceText = unescapeText(sourceText, conf)
+			sourceText := unescapeText(v.SourceText(), conf)
 			converted, convErr := convertThroughEncoding(sourceText, enc)
 			if convErr != nil {
-				return nil, fmt.Errorf("encoding-convert: source conversion failed: %w", convErr)
+				return fmt.Errorf("encoding-convert: source conversion failed: %w", convErr)
 			}
-			block.SetSourceText(converted)
+			v.SetSourceText(converted)
 		}
 
-		if conf.ApplyTarget && !conf.TargetLocale.IsEmpty() && block.HasTarget(conf.TargetLocale) {
-			targetText := block.TargetText(conf.TargetLocale)
-			targetText = unescapeText(targetText, conf)
+		if conf.ApplyTarget && !conf.TargetLocale.IsEmpty() && v.HasTarget(conf.TargetLocale) {
+			targetText := unescapeText(v.TargetText(conf.TargetLocale), conf)
 			converted, convErr := convertThroughEncoding(targetText, enc)
 			if convErr != nil {
-				return nil, fmt.Errorf("encoding-convert: target conversion failed: %w", convErr)
+				return fmt.Errorf("encoding-convert: target conversion failed: %w", convErr)
 			}
-			block.SetTargetText(conf.TargetLocale, converted)
+			v.SetTargetText(conf.TargetLocale, converted)
 		}
 
-		return part, nil
+		return nil
 	}
 	return t
 }

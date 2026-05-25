@@ -24,18 +24,18 @@ func TestPO_WriteAndParseRoundTrip(t *testing.T) {
 		{
 			ID:           "tu1",
 			Translatable: true,
-			Source:       []*model.Segment{{ID: "s1", Runs: []model.Run{{Text: &model.TextRun{Text: "Hello"}}}}},
-			Targets: map[model.LocaleID][]*model.Segment{
-				"fr-FR": {{ID: "s1", Runs: []model.Run{{Text: &model.TextRun{Text: "Bonjour"}}}}},
+			Source:       []model.Run{{Text: &model.TextRun{Text: "Hello"}}},
+			Targets: map[model.VariantKey]*model.Target{
+				model.Variant("fr-FR"): {Runs: []model.Run{{Text: &model.TextRun{Text: "Bonjour"}}}},
 			},
 			Properties: map[string]string{"kapi-tm-match": "exact"},
 		},
 		{
 			ID:           "tu2",
 			Translatable: true,
-			Source:       []*model.Segment{{ID: "s1", Runs: []model.Run{{Text: &model.TextRun{Text: "Goodbye"}}}}},
-			Targets: map[model.LocaleID][]*model.Segment{
-				"fr-FR": {{ID: "s1", Runs: []model.Run{{Text: &model.TextRun{Text: "Au revoir"}}}}},
+			Source:       []model.Run{{Text: &model.TextRun{Text: "Goodbye"}}},
+			Targets: map[model.VariantKey]*model.Target{
+				model.Variant("fr-FR"): {Runs: []model.Run{{Text: &model.TextRun{Text: "Au revoir"}}}},
 			},
 			Properties: map[string]string{"kapi-tm-match": "fuzzy"},
 		},

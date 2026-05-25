@@ -614,9 +614,10 @@ func (s *PostgresStore) storeBlocks(ctx context.Context, projectID, stream, item
 			if err := logChange(ctx, tx, projectID, stream, internalID, "source_added", "", identity.ContentHash); err != nil {
 				return fmt.Errorf("log change for block %s: %w", internalID, err)
 			}
-			for locale := range b.Targets {
-				if err := logChange(ctx, tx, projectID, stream, internalID, "target_added", string(locale), ""); err != nil {
-					return fmt.Errorf("log target change for block %s locale %s: %w", internalID, locale, err)
+			for key := range b.Targets {
+				variant := VariantKeyText(key)
+				if err := logChange(ctx, tx, projectID, stream, internalID, "target_added", variant, ""); err != nil {
+					return fmt.Errorf("log target change for block %s variant %s: %w", internalID, variant, err)
 				}
 			}
 		} else {
@@ -625,14 +626,15 @@ func (s *PostgresStore) storeBlocks(ctx context.Context, projectID, stream, item
 					return fmt.Errorf("log change for block %s: %w", internalID, err)
 				}
 			}
-			for locale := range b.Targets {
-				if _, had := existing.locales[string(locale)]; had {
-					if err := logChange(ctx, tx, projectID, stream, internalID, "target_modified", string(locale), ""); err != nil {
-						return fmt.Errorf("log target change for block %s locale %s: %w", internalID, locale, err)
+			for key := range b.Targets {
+				variant := VariantKeyText(key)
+				if _, had := existing.locales[variant]; had {
+					if err := logChange(ctx, tx, projectID, stream, internalID, "target_modified", variant, ""); err != nil {
+						return fmt.Errorf("log target change for block %s variant %s: %w", internalID, variant, err)
 					}
 				} else {
-					if err := logChange(ctx, tx, projectID, stream, internalID, "target_added", string(locale), ""); err != nil {
-						return fmt.Errorf("log target change for block %s locale %s: %w", internalID, locale, err)
+					if err := logChange(ctx, tx, projectID, stream, internalID, "target_added", variant, ""); err != nil {
+						return fmt.Errorf("log target change for block %s variant %s: %w", internalID, variant, err)
 					}
 				}
 			}
@@ -1006,7 +1008,7 @@ func scanStoredBlockPg(row scanner) (*platstore.StoredBlock, error) {
 	// Targets + Annotations are hydrated separately via hydrateOverlays
 	// after all rows are scanned — see GetBlock / GetBlocks. Leave
 	// empty here.
-	sb.Block.Targets = make(map[model.LocaleID][]*model.Segment)
+	sb.Block.Targets = make(map[model.VariantKey]*model.Target)
 	sb.Block.Annotations = make(map[string]model.Annotation)
 	return &sb, nil
 }

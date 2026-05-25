@@ -280,9 +280,9 @@ func runTool(
 // For parallel execution (multiple documents), it creates fresh instances
 // via ToolFactories. For single/sequential, it uses f.Tools directly.
 func (e *DefaultExecutor) resolveTools(f *Flow) ([]tool.Tool, error) {
-	if len(f.ToolFactories) > 0 {
-		tools := make([]tool.Tool, len(f.ToolFactories))
-		for i, factory := range f.ToolFactories {
+	if factories := f.PipelineFactories(); len(factories) > 0 {
+		tools := make([]tool.Tool, len(factories))
+		for i, factory := range factories {
 			t, err := factory()
 			if err != nil {
 				return nil, fmt.Errorf("tool factory %d: %w", i, err)
@@ -291,7 +291,7 @@ func (e *DefaultExecutor) resolveTools(f *Flow) ([]tool.Tool, error) {
 		}
 		return tools, nil
 	}
-	return f.Tools, nil
+	return f.Pipeline(), nil
 }
 
 // feedCollectors passes output parts to all registered collectors.
@@ -308,7 +308,9 @@ func (e *DefaultExecutor) feedCollectors(ctx context.Context, item *Item, parts 
 // The caller feeds Parts into the input channel and receives them from the output channel.
 // The caller must close the input channel when done.
 func (e *DefaultExecutor) ExecuteWithChannels(ctx context.Context, f *Flow) (in chan<- *model.Part, out <-chan *model.Part, wait func() error) {
-	if len(f.Tools) == 0 {
+	// The source-transform stage runs ahead of the main tools (see Flow.Pipeline).
+	tools := f.Pipeline()
+	if len(tools) == 0 {
 		ch := make(chan *model.Part, e.config.ChannelSize)
 		return ch, ch, func() error { return nil }
 	}
@@ -324,12 +326,12 @@ func (e *DefaultExecutor) ExecuteWithChannels(ctx context.Context, f *Flow) (in 
 		return ch, ch, func() error { return fmt.Errorf("open blockstore session: %w", err) }
 	}
 
-	channels := make([]chan *model.Part, len(f.Tools)+1)
+	channels := make([]chan *model.Part, len(tools)+1)
 	for i := range channels {
 		channels[i] = make(chan *model.Part, e.config.ChannelSize)
 	}
 
-	for i, t := range f.Tools {
+	for i, t := range tools {
 		inCh := channels[i]
 		outCh := channels[i+1]
 

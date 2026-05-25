@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"slices"
+	"strconv"
 
 	pb "github.com/neokapi/neokapi/bowrain/proto/v1"
 	"github.com/neokapi/neokapi/core/model"
@@ -26,20 +27,28 @@ func BlockToProto(b *model.Block, itemName string) *pb.SyncBlock {
 		Properties:         b.Properties,
 	}
 
-	// Source segments.
-	for _, seg := range b.Source {
-		sb.Source = append(sb.Source, segmentToProto(seg))
+	// Source content — the flat run sequence rides as a single wire segment.
+	if len(b.Source) > 0 {
+		sb.Source = []*pb.SyncSegment{runsToSyncSegment("", b.Source)}
 	}
 
-	// Targets per locale.
+	// Targets per variant. The variant key serializes to its text form
+	// (locale-only is the common case, e.g. "fr-FR"); the run sequence rides
+	// as a single wire segment carrying any target status/origin/score in
+	// segment properties so the round-trip is lossless.
 	if len(b.Targets) > 0 {
 		sb.Targets = make(map[string]*pb.SyncSegmentList, len(b.Targets))
-		for locale, segs := range b.Targets {
-			list := &pb.SyncSegmentList{}
-			for _, seg := range segs {
-				list.Segments = append(list.Segments, segmentToProto(seg))
+		for key, target := range b.Targets {
+			if target == nil {
+				continue
 			}
-			sb.Targets[string(locale)] = list
+			keyText, err := key.MarshalText()
+			if err != nil {
+				continue
+			}
+			sb.Targets[string(keyText)] = &pb.SyncSegmentList{
+				Segments: []*pb.SyncSegment{targetToSyncSegment(target)},
+			}
 		}
 	}
 
@@ -86,23 +95,35 @@ func ProtoToBlock(sb *pb.SyncBlock) *model.Block {
 		Properties:         sb.Properties,
 	}
 
-	// Source segments.
+	// Source content — concatenate the runs of every wire segment back into the
+	// block's flat run sequence.
 	for _, seg := range sb.Source {
-		b.Source = append(b.Source, protoToSegment(seg))
+		b.Source = append(b.Source, syncProtoToRuns(seg.Runs)...)
 	}
 
-	// If no structured source but source_text is set, create a simple segment.
+	// If no structured source but source_text is set, create a simple run.
 	if len(b.Source) == 0 && sb.SourceText != "" {
 		b.SetSourceText(sb.SourceText)
 	}
 
-	// Targets.
+	// Targets — one Target per variant, runs concatenated from the wire
+	// segments, status/origin/score restored from the first segment's props.
 	if len(sb.Targets) > 0 {
-		b.Targets = make(map[model.LocaleID][]*model.Segment, len(sb.Targets))
-		for locale, list := range sb.Targets {
-			for _, seg := range list.Segments {
-				b.Targets[model.LocaleID(locale)] = append(b.Targets[model.LocaleID(locale)], protoToSegment(seg))
+		b.Targets = make(map[model.VariantKey]*model.Target, len(sb.Targets))
+		for keyText, list := range sb.Targets {
+			var key model.VariantKey
+			if err := key.UnmarshalText([]byte(keyText)); err != nil {
+				continue
 			}
+			var runs []model.Run
+			var first *pb.SyncSegment
+			for _, seg := range list.Segments {
+				if first == nil {
+					first = seg
+				}
+				runs = append(runs, syncProtoToRuns(seg.Runs)...)
+			}
+			b.Targets[key] = syncSegmentToTarget(runs, first)
 		}
 	}
 
@@ -132,23 +153,85 @@ func ProtoToBlock(sb *pb.SyncBlock) *model.Block {
 	return b
 }
 
-// segmentToProto converts a model.Segment to proto.
-func segmentToProto(seg *model.Segment) *pb.SyncSegment {
+// runsToSyncSegment wraps a flat run sequence in a single wire segment.
+func runsToSyncSegment(id string, runs []model.Run) *pb.SyncSegment {
 	return &pb.SyncSegment{
-		Id:         seg.ID,
-		Runs:       runsToSyncProto(seg.Runs),
-		Properties: seg.Properties,
+		Id:   id,
+		Runs: runsToSyncProto(runs),
 	}
 }
 
-// protoToSegment converts a proto segment to model.Segment.
-func protoToSegment(ps *pb.SyncSegment) *model.Segment {
-	seg := &model.Segment{
-		ID:         ps.Id,
-		Properties: ps.Properties,
+// Wire-segment property keys carrying Target metadata across the protocol.
+const (
+	propTargetStatus = "__status"
+	propTargetScore  = "__score"
+	propOriginKind   = "__origin_kind"
+	propOriginEngine = "__origin_engine"
+	propOriginTool   = "__origin_tool"
+	propOriginRef    = "__origin_reference"
+	propOriginTime   = "__origin_timestamp"
+)
+
+// targetToSyncSegment encodes a committed Target as a single wire segment,
+// stashing status/origin/score in segment properties so the protocol shape
+// stays unchanged while the round-trip remains lossless.
+func targetToSyncSegment(t *model.Target) *pb.SyncSegment {
+	props := map[string]string{}
+	if t.Status != "" {
+		props[propTargetStatus] = string(t.Status)
 	}
-	seg.SetRuns(syncProtoToRuns(ps.Runs))
-	return seg
+	if t.Score != 0 {
+		props[propTargetScore] = strconv.FormatFloat(t.Score, 'g', -1, 64)
+	}
+	if t.Origin.Kind != "" {
+		props[propOriginKind] = t.Origin.Kind
+	}
+	if t.Origin.Engine != "" {
+		props[propOriginEngine] = t.Origin.Engine
+	}
+	if t.Origin.Tool != "" {
+		props[propOriginTool] = t.Origin.Tool
+	}
+	if t.Origin.Reference != "" {
+		props[propOriginRef] = t.Origin.Reference
+	}
+	if t.Origin.Timestamp != "" {
+		props[propOriginTime] = t.Origin.Timestamp
+	}
+	if len(props) == 0 {
+		props = nil
+	}
+	return &pb.SyncSegment{
+		Runs:       runsToSyncProto(t.Runs),
+		Properties: props,
+	}
+}
+
+// syncSegmentToTarget rebuilds a Target from concatenated runs plus the first
+// wire segment's metadata properties.
+func syncSegmentToTarget(runs []model.Run, first *pb.SyncSegment) *model.Target {
+	t := &model.Target{Runs: runs}
+	if first == nil {
+		return t
+	}
+	props := first.Properties
+	if props == nil {
+		return t
+	}
+	t.Status = model.TargetStatus(props[propTargetStatus])
+	if s := props[propTargetScore]; s != "" {
+		if v, err := strconv.ParseFloat(s, 64); err == nil {
+			t.Score = v
+		}
+	}
+	t.Origin = model.Origin{
+		Kind:      props[propOriginKind],
+		Engine:    props[propOriginEngine],
+		Tool:      props[propOriginTool],
+		Reference: props[propOriginRef],
+		Timestamp: props[propOriginTime],
+	}
+	return t
 }
 
 // runsToSyncProto converts a run sequence into the wire form.

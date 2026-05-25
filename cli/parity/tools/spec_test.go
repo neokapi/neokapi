@@ -67,9 +67,7 @@ func newSampleBlock(id, text string) *model.Part {
 		Resource: &model.Block{
 			ID:           id,
 			Translatable: true,
-			Source: []*model.Segment{
-				{Runs: []model.Run{{Text: &model.TextRun{Text: text}}}},
-			},
+			Source:       []model.Run{{Text: &model.TextRun{Text: text}}},
 		},
 	}
 }

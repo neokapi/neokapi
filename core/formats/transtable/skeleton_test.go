@@ -105,7 +105,7 @@ func TestSkeletonStore_WithTranslation(t *testing.T) {
 		if p.Type == model.PartBlock {
 			b := p.Resource.(*model.Block)
 			if b.SourceText() == "Hello" {
-				b.Targets[locale] = []*model.Segment{{ID: "s1", Runs: []model.Run{{Text: &model.TextRun{Text: "Bonjour"}}}}}
+				b.SetTargetText(locale, "Bonjour")
 			}
 		}
 	}

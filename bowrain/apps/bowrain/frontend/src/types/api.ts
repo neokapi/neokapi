@@ -17,6 +17,8 @@ export interface ToolInfo {
   description: string;
   category: "transform" | "validate" | "enrich" | "convert" | "pipeline" | "utility";
   hasSchema?: boolean;
+  /** True when the tool may be placed in the source-transform stage of a flow. */
+  is_source_transform?: boolean;
 }
 
 /** Tool parameter schema (matches Go schema.ComponentSchema) */
@@ -72,6 +74,8 @@ export interface FlowNodeInfo {
   type: "tool" | "reader" | "writer";
   name: string;
   label?: string;
+  /** Pipeline stage: "" or undefined = main chain; "source-transform" = leading rewrite stage. */
+  stage?: string;
   config?: Record<string, unknown>;
   position: FlowNodePosition;
 }

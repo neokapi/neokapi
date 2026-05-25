@@ -414,11 +414,8 @@ func TestExtract_SegmentIDs(t *testing.T) {
 	require.NotEmpty(t, blocks)
 
 	for _, b := range blocks {
-		require.NotEmpty(t, b.Source, "block should have source segments")
-		for _, seg := range b.Source {
-			assert.NotEmpty(t, seg.ID, "segment should have an ID")
-			assert.NotEmpty(t, seg.Runs, "segment should have content")
-		}
+		require.NotEmpty(t, b.Source, "block should have source content")
+		assert.NotEmpty(t, b.SourceText(), "block should have content")
 	}
 }
 
@@ -1107,7 +1104,7 @@ func TestExtract_DokuWikiInlineCodes(t *testing.T) {
 			parts := readDefault(t, tt.input)
 			blocks := testutil.FilterBlocks(parts)
 			require.Greater(t, len(blocks), tt.blockSelectIdx, "expected at least %d block(s)", tt.blockSelectIdx+1)
-			runs := blocks[tt.blockSelectIdx].Source[0].Runs
+			runs := blocks[tt.blockSelectIdx].Source
 			require.Len(t, runs, len(tt.want), "run count mismatch: got %d runs, want %d (runs=%+v)", len(runs), len(tt.want), runs)
 			for i, w := range tt.want {
 				switch w.kind {

@@ -95,6 +95,30 @@ steps:
       - tool: chars-listing
 ```
 
+### The source-transform stage
+
+Some tools rewrite the **source** itself — redaction replacing sensitive spans
+with placeholders, a simplifier rephrasing for clarity, a normalizer. These run
+in a leading **source-transform stage**, declared with `source_transforms:`,
+ahead of the main steps. The point is a single settled model: everything
+downstream — segmentation, terminology, translation, QA — sees the same
+canonical source.
+
+```yaml
+source_transforms:
+  - tool: redact          # settle the model first
+steps:
+  - tool: ai-translate    # translates the redacted source
+  - tool: qa-check
+```
+
+Only tools that can rewrite source may sit in this stage; the editor offers it
+only for those tools, and a hand-written flow that puts an analysis or
+translation tool there is rejected when the flow runs. The stage exists because
+source edits must land *before* any run-anchored annotation (segments, term and
+entity spans) is attached — see
+[the tool system AD](/contribute/architecture/006-tool-system) for why.
+
 ### Graph — the canonical form
 
 Internally a flow is a directed graph of **nodes** (a reader, tool nodes, a
@@ -130,7 +154,7 @@ real `kapi` engine in your browser via WebAssembly, so the flow you build is the
 flow that runs.
 :::
 
-<FlowBuilderRunner defaultSampleId="messages-json" />
+<FlowBuilderRunner defaultSampleId="support-reply" />
 
 ## Running a flow
 

@@ -51,32 +51,25 @@ func NewXMLValidationTool(cfg *XMLValidationConfig) *tool.BaseTool {
 		ToolDescription: "Validates XML well-formedness of block text",
 		Cfg:             cfg,
 	}
-	t.HandleBlockFn = func(part *model.Part) (*model.Part, error) {
-		block, ok := part.Resource.(*model.Block)
-		if !ok {
-			return part, nil
-		}
-		if !block.Translatable {
-			return part, nil
+	t.Annotate = func(v tool.BlockView) error {
+		if !v.Translatable() {
+			return nil
 		}
 
 		conf := t.Cfg.(*XMLValidationConfig)
-		if block.Properties == nil {
-			block.Properties = make(map[string]string)
-		}
 
 		valid := true
 		var errMsg string
 
 		if conf.CheckSource {
-			if err := validateXML(block.SourceText(), conf.WrapRoot); err != nil {
+			if err := validateXML(v.SourceText(), conf.WrapRoot); err != nil {
 				valid = false
 				errMsg = "source: " + err.Error()
 			}
 		}
 
-		if conf.CheckTarget && !conf.Locale.IsEmpty() && block.HasTarget(conf.Locale) {
-			if err := validateXML(block.TargetText(conf.Locale), conf.WrapRoot); err != nil {
+		if conf.CheckTarget && !conf.Locale.IsEmpty() && v.HasTarget(conf.Locale) {
+			if err := validateXML(v.TargetText(conf.Locale), conf.WrapRoot); err != nil {
 				valid = false
 				if errMsg != "" {
 					errMsg += "; "
@@ -86,13 +79,13 @@ func NewXMLValidationTool(cfg *XMLValidationConfig) *tool.BaseTool {
 		}
 
 		if valid {
-			block.Properties[PropXMLValid] = "true"
+			v.SetProperty(PropXMLValid, "true")
 		} else {
-			block.Properties[PropXMLValid] = "false"
-			block.Properties[PropXMLValidError] = errMsg
+			v.SetProperty(PropXMLValid, "false")
+			v.SetProperty(PropXMLValidError, errMsg)
 		}
 
-		return part, nil
+		return nil
 	}
 	return t
 }

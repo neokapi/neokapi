@@ -16,6 +16,8 @@ export interface FlowNodeInfo {
   label?: string;
   config?: Record<string, unknown>;
   position: { x: number; y: number };
+  /** Which pipeline stage this node belongs to. "" or omitted = main stage. */
+  stage?: "" | "source-transform";
 }
 
 export interface FlowEdgeInfo {
@@ -41,6 +43,8 @@ export interface ToolInfo {
   default_locale?: string;
   produces?: string[];
   side_effects?: string[];
+  /** Whether this tool may run in the source-transform stage (rewrite source/model). */
+  isSourceTransform?: boolean;
 }
 
 export interface FlowStep {
@@ -53,6 +57,8 @@ export interface FlowStep {
 
 export interface FlowSpec {
   description?: string;
+  /** Leading tools that rewrite the source/model before the main steps run. */
+  sourceTransforms?: FlowStep[];
   steps: FlowStep[];
 }
 

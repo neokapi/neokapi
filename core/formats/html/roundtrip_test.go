@@ -196,9 +196,7 @@ func TestRoundtrip_WithTranslation(t *testing.T) {
 		if p.Type == model.PartBlock {
 			b := p.Resource.(*model.Block)
 			if b.SourceText() == "Hello world" {
-				b.Targets[locale] = []*model.Segment{
-					{ID: "s1", Runs: []model.Run{{Text: &model.TextRun{Text: "Bonjour le monde"}}}},
-				}
+				b.SetTargetRuns(locale, []model.Run{{Text: &model.TextRun{Text: "Bonjour le monde"}}})
 			}
 		}
 	}
@@ -236,14 +234,10 @@ func TestRoundtrip_TranslateAttribute(t *testing.T) {
 		if p.Type == model.PartBlock {
 			b := p.Resource.(*model.Block)
 			if b.SourceText() == "Original title" {
-				b.Targets[locale] = []*model.Segment{
-					{ID: "s1", Runs: []model.Run{{Text: &model.TextRun{Text: "Originaltitel"}}}},
-				}
+				b.SetTargetRuns(locale, []model.Run{{Text: &model.TextRun{Text: "Originaltitel"}}})
 			}
 			if b.SourceText() == "Text" {
-				b.Targets[locale] = []*model.Segment{
-					{ID: "s1", Runs: []model.Run{{Text: &model.TextRun{Text: "Texte"}}}},
-				}
+				b.SetTargetRuns(locale, []model.Run{{Text: &model.TextRun{Text: "Texte"}}})
 			}
 		}
 	}
@@ -280,9 +274,7 @@ func TestRoundtrip_TranslateMetaContent(t *testing.T) {
 		if p.Type == model.PartBlock {
 			b := p.Resource.(*model.Block)
 			if b.SourceText() == "Original description" {
-				b.Targets[locale] = []*model.Segment{
-					{ID: "s1", Runs: []model.Run{{Text: &model.TextRun{Text: "Descripción original"}}}},
-				}
+				b.SetTargetRuns(locale, []model.Run{{Text: &model.TextRun{Text: "Descripción original"}}})
 			}
 		}
 	}
@@ -318,9 +310,7 @@ func TestRoundtrip_NonTranslatableUnchanged(t *testing.T) {
 		if p.Type == model.PartBlock {
 			b := p.Resource.(*model.Block)
 			if b.SourceText() == "Translate me" {
-				b.Targets[locale] = []*model.Segment{
-					{ID: "s1", Runs: []model.Run{{Text: &model.TextRun{Text: "翻訳してください"}}}},
-				}
+				b.SetTargetRuns(locale, []model.Run{{Text: &model.TextRun{Text: "翻訳してください"}}})
 			}
 		}
 	}
@@ -499,9 +489,7 @@ func TestSkeletonRoundtrip_WithTranslation(t *testing.T) {
 		if p.Type == model.PartBlock {
 			b := p.Resource.(*model.Block)
 			if b.SourceText() == "Hello world" {
-				b.Targets[locale] = []*model.Segment{
-					{ID: "s1", Runs: []model.Run{{Text: &model.TextRun{Text: "Bonjour le monde"}}}},
-				}
+				b.SetTargetRuns(locale, []model.Run{{Text: &model.TextRun{Text: "Bonjour le monde"}}})
 			}
 		}
 	}
@@ -548,11 +536,11 @@ func TestSkeletonRoundtrip_TranslatableAttributes(t *testing.T) {
 			b := p.Resource.(*model.Block)
 			switch b.SourceText() {
 			case "Tooltip":
-				b.Targets[locale] = []*model.Segment{{ID: "s1", Runs: []model.Run{{Text: &model.TextRun{Text: "Hinweis"}}}}}
+				b.SetTargetRuns(locale, []model.Run{{Text: &model.TextRun{Text: "Hinweis"}}})
 			case "Text":
-				b.Targets[locale] = []*model.Segment{{ID: "s1", Runs: []model.Run{{Text: &model.TextRun{Text: "Texte"}}}}}
+				b.SetTargetRuns(locale, []model.Run{{Text: &model.TextRun{Text: "Texte"}}})
 			case "Photo":
-				b.Targets[locale] = []*model.Segment{{ID: "s1", Runs: []model.Run{{Text: &model.TextRun{Text: "Foto"}}}}}
+				b.SetTargetRuns(locale, []model.Run{{Text: &model.TextRun{Text: "Foto"}}})
 			}
 		}
 	}
@@ -598,9 +586,7 @@ func TestSkeletonRoundtrip_LangRewrittenToTargetLocale(t *testing.T) {
 		if p.Type == model.PartBlock {
 			b := p.Resource.(*model.Block)
 			if b.SourceText() == "Hello world" {
-				b.Targets[locale] = []*model.Segment{
-					{ID: "s1", Runs: []model.Run{{Text: &model.TextRun{Text: "Bonjour le monde"}}}},
-				}
+				b.SetTargetRuns(locale, []model.Run{{Text: &model.TextRun{Text: "Bonjour le monde"}}})
 			}
 		}
 	}

@@ -61,29 +61,21 @@ func NewSpanClassifyTool(cfg *SpanClassifyConfig) *SpanClassifyTool {
 	}
 	t.ToolName = "span-classify"
 	t.ToolDescription = "Reclassifies code:markup inline-code runs into semantic vocabulary types"
-	t.HandleBlockFn = t.handleBlock
+	// Transform: span-classify rewrites source and target inline-code runs.
+	t.Transform = t.handleBlock
 	return t
 }
 
-func (t *SpanClassifyTool) handleBlock(part *model.Part) (*model.Part, error) {
-	block, ok := part.Resource.(*model.Block)
-	if !ok {
-		return part, nil
+func (t *SpanClassifyTool) handleBlock(v tool.SourceView) error {
+	// Classify inline codes in the source content.
+	v.SetSourceRuns(t.classifyRuns(v.SourceRuns()))
+
+	// Classify inline codes in every target locale's content.
+	for _, loc := range v.TargetLocales() {
+		v.SetTargetRuns(loc, t.classifyRuns(v.TargetRuns(loc)))
 	}
 
-	// Classify inline codes in source segments.
-	for _, seg := range block.Source {
-		seg.SetRuns(t.classifyRuns(seg.Runs))
-	}
-
-	// Classify inline codes in every target locale's segments.
-	for _, segs := range block.Targets {
-		for _, seg := range segs {
-			seg.SetRuns(t.classifyRuns(seg.Runs))
-		}
-	}
-
-	return part, nil
+	return nil
 }
 
 // classifyRuns walks a run sequence and reclassifies any "code:markup"

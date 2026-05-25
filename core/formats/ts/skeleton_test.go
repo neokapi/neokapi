@@ -179,7 +179,7 @@ func TestSkeletonStore_WithTranslation(t *testing.T) {
 		if p.Type == model.PartBlock {
 			b := p.Resource.(*model.Block)
 			if b.SourceText() == "Hello" {
-				b.Targets[locale] = []*model.Segment{{ID: "s1", Runs: []model.Run{{Text: &model.TextRun{Text: "Bonjour"}}}}}
+				b.SetTargetRuns(locale, []model.Run{{Text: &model.TextRun{Text: "Bonjour"}}})
 			}
 		}
 	}
@@ -242,7 +242,7 @@ func TestSkeletonStore_WithTranslation_Escaping(t *testing.T) {
 	for _, p := range parts {
 		if p.Type == model.PartBlock {
 			b := p.Resource.(*model.Block)
-			b.Targets[locale] = []*model.Segment{{ID: "s1", Runs: []model.Run{{Text: &model.TextRun{Text: "A & B < C"}}}}}
+			b.SetTargetRuns(locale, []model.Run{{Text: &model.TextRun{Text: "A & B < C"}}})
 		}
 	}
 
