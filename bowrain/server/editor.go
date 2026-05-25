@@ -672,21 +672,18 @@ func editorPseudoTranslate(ctx context.Context, cs store.ContentStore, projectID
 		ToolName:        "pseudo-translate",
 		ToolDescription: "Pseudo-translates blocks",
 	}
-	pseudoTool.HandleBlockFn = func(part *model.Part) (*model.Part, error) {
-		block, ok := part.Resource.(*model.Block)
-		if !ok || !block.Translatable {
-			return part, nil
+	pseudoTool.Translate = func(v tool.TargetView) error {
+		if !v.Translatable() {
+			return nil
 		}
 		locale := model.LocaleID(targetLocale)
-		runs := block.SourceRuns()
+		runs := v.SourceRuns()
 		if runsHaveInlineCodes(runs) {
-			block.SetTargetRuns(locale, editorPseudoRuns(runs))
+			v.SetTargetRuns(locale, editorPseudoRuns(runs))
 		} else {
-			src := block.SourceText()
-			pseudo := "[" + editorPseudoAccent(src) + "]"
-			block.SetTargetText(locale, pseudo)
+			v.SetTargetText(locale, "["+editorPseudoAccent(v.SourceText())+"]")
 		}
-		return part, nil
+		return nil
 	}
 
 	outParts, err := runToolOnParts(ctx, pseudoTool, parts)

@@ -386,23 +386,19 @@ func (a *App) PseudoTranslateItem(projectID, itemName, targetLocale string) (*Tr
 	pseudoTool := &tool.BaseTool{
 		ToolName:        "pseudo-translate",
 		ToolDescription: "Pseudo-translates blocks",
-		WritesTarget:    true,
 	}
-	pseudoTool.HandleBlockFn = func(part *model.Part) (*model.Part, error) {
-		block, ok := part.Resource.(*model.Block)
-		if !ok || !block.Translatable {
-			return part, nil
+	pseudoTool.Translate = func(v tool.TargetView) error {
+		if !v.Translatable() {
+			return nil
 		}
 		locale := model.LocaleID(targetLocale)
-		runs := block.SourceRuns()
+		runs := v.SourceRuns()
 		if runsHaveInlineCodes(runs) {
-			block.SetTargetRuns(locale, pseudoRuns(runs))
+			v.SetTargetRuns(locale, pseudoRuns(runs))
 		} else {
-			src := block.SourceText()
-			pseudo := "[" + pseudoAccent(src) + "]"
-			block.SetTargetText(locale, pseudo)
+			v.SetTargetText(locale, "["+pseudoAccent(v.SourceText())+"]")
 		}
-		return part, nil
+		return nil
 	}
 
 	outParts, err := runToolOnParts(ctx, pseudoTool, parts)

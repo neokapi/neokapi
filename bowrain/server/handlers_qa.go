@@ -102,7 +102,7 @@ func runQAOnBlock(block *model.Block, locale model.LocaleID) []QAIssueResponse {
 	}
 
 	// Process through the tool (ignoring error since the tool is deterministic).
-	_, _ = qaTool.HandleBlockFn(part)
+	_, _ = qaTool.Apply(part)
 
 	// Read issues from block properties.
 	issuesJSON, ok := block.Properties[tools.PropQAIssues]

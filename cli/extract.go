@@ -624,11 +624,8 @@ func applyRedaction(blocks []*model.Block, spec *project.RedactionSpec, rootDir,
 		return err
 	}
 	for _, b := range blocks {
-		if rt.HandleBlockFn == nil {
-			break
-		}
 		part := &model.Part{Type: model.PartBlock, Resource: b}
-		if _, err := rt.HandleBlockFn(part); err != nil {
+		if _, err := rt.Apply(part); err != nil {
 			return err
 		}
 	}
@@ -644,11 +641,8 @@ func applySegmentation(blocks []*model.Block, conf project.SegmentationDefaults)
 	}
 	t := tools.NewSegmentationTool(cfg)
 	for _, b := range blocks {
-		if t.HandleBlockFn == nil {
-			continue
-		}
 		part := &model.Part{Type: model.PartBlock, Resource: b}
-		if _, err := t.HandleBlockFn(part); err != nil {
+		if _, err := t.Apply(part); err != nil {
 			return err
 		}
 	}

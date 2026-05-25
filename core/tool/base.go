@@ -124,6 +124,14 @@ func (b *BaseTool) Process(ctx context.Context, in <-chan *model.Part, out chan<
 	}
 }
 
+// Apply runs a single Part through the tool's per-part dispatch — the same
+// routing (and immutability backstop) Process uses — returning the result Part,
+// or nil if the handler dropped it. For callers that apply a BaseTool across an
+// in-memory slice of parts rather than driving the streaming pipeline.
+func (b *BaseTool) Apply(part *model.Part) (*model.Part, error) {
+	return b.dispatch(part)
+}
+
 // hasBlockHandler reports whether the tool set any per-block handler — one of
 // the capability-typed handlers or the legacy HandleBlockFn. Wrappers
 // (parallel, retry) use it to decide whether per-block treatment is possible.
