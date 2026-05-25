@@ -39,8 +39,9 @@ const (
 )
 
 // seg is the package-private per-segment record the reader builds and the
-// writer consumes. It stands in for the retired *model.Segment within the
-// xliff2 package only.
+// writer consumes — one <segment>/<ignorable> element's id, runs, and inline
+// IR, used only within the xliff2 package to bridge the format's multi-segment
+// units to the Block's flat runs + segmentation overlay.
 type seg struct {
 	ID        string
 	Runs      []model.Run

@@ -202,7 +202,7 @@ CREATE TABLE translations (
     block_id      TEXT NOT NULL,
     locale        TEXT NOT NULL,
     text          TEXT NOT NULL DEFAULT '',     -- flat text for simple queries
-    segments_json TEXT NOT NULL DEFAULT '{}',   -- model.Target JSON (runs + status + origin + score)
+    target_json   TEXT NOT NULL DEFAULT '{}',   -- model.Target JSON (runs + status + origin + score)
     provider      TEXT NOT NULL DEFAULT '',     -- source attribution (ai/human/webhook:deepl)
     metadata      TEXT NOT NULL DEFAULT '{}',
     updated_at    TIMESTAMP NOT NULL,

@@ -562,10 +562,10 @@ func patchUnit(unitEl *etree.Element, block *model.Block, targetLang model.Local
 	}
 
 	// xliff2 makes segment ids optional. Match DOM <segment>/<ignorable>
-	// elements to model.Segments by DOM id first, then fall back to
+	// elements to the seg records by DOM id first, then fall back to
 	// document-order position. The reader synthesizes collision-free ids
 	// for unkeyed elements ("s<n>" or "_xliff2_seg_<n>" when "s<n>" is
-	// already explicitly used) and assigns them to model.Segment.ID, so
+	// already explicitly used) and assigns them to the seg's id, so
 	// positional fallback recovers the correspondence the DOM lacks.
 	patched := false
 	domSegIdx := 0

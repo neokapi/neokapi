@@ -2781,10 +2781,8 @@ func (r *Reader) buildRawHTMLRuns(b *runBuilder, n *ast.RawHTML, source []byte, 
 		return
 	}
 
-	// Raw inline HTML has no vocabulary entry in the original Fragment
-	// path, so emit with empty display/equiv and zero-valued constraints
-	// (mirrors the default all-false RunConstraints that MarshalRuns
-	// produces for a Span with unset Deletable/Cloneable/CanReorder).
+	// Raw inline HTML has no vocabulary entry, so emit with empty
+	// display/equiv and zero-valued (all-false) RunConstraints.
 	*idCounter++
 	id := strconv.Itoa(*idCounter)
 	b.AddPcOpen(id, "fmt:html", "md:html-inline", tag, "", "", false, false, false)
@@ -2852,8 +2850,8 @@ func (r *Reader) emitInlineHTMLWithAttrs(b *runBuilder, tag string, idCounter *i
 		return false
 	}
 	// Emit a sequence of PlaceholderRun(opaque-bytes) + TextRun(value)
-	// segments. The closing PlaceholderRun matches the last open id so
-	// MarshalRuns sees a balanced pair around the value sequence.
+	// segments. The closing PlaceholderRun matches the last open id so the
+	// runs form a balanced open/close pair around the value sequence.
 	cursor := 0
 	*idCounter++
 	id := strconv.Itoa(*idCounter)

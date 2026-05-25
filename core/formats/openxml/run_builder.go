@@ -54,10 +54,8 @@ func (b *runBuilder) Break() {
 	b.breakNext = true
 }
 
-// AppendPh emits a PlaceholderRun mirroring a SpanPlaceholder. The
-// constraint booleans map directly onto RunConstraints (Deletable,
-// Cloneable, Reorderable), preserving the behavior of
-// MarshalRuns on a matching Span.
+// AppendPh emits a PlaceholderRun. The constraint booleans map directly onto
+// RunConstraints (Deletable, Cloneable, Reorderable).
 func (b *runBuilder) AddPh(id, semType, subType, data, equiv, disp string, deletable, cloneable, reorderable bool) {
 	b.runs = append(b.runs, model.Run{Ph: &model.PlaceholderRun{
 		ID:      id,

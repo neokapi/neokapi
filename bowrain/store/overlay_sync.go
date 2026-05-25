@@ -12,8 +12,8 @@ import (
 )
 
 // SyncBlockOverlays writes a block's targets and annotations into the
-// kind-specific overlay tables (#403 / #405). Replaces the former
-// inline writes to blocks.targets_json / blocks.annotations.
+// kind-specific overlay tables (translations, annotations), keyed for
+// access-pattern-specific indexes (#403 / #405).
 //
 // UPSERT semantics — partial maps only update the variants/kinds
 // provided. Unspecified entries are left intact. This matches how
@@ -21,9 +21,8 @@ import (
 //
 // Targets persist as runs-based variant records: the `translations.locale`
 // column stores the VariantKey text form ("fr-FR" or "fr-FR;tone=…"), and
-// `segments_json` stores the full model.Target JSON (runs + status + origin +
-// score). blocks.db is a regenerable cache, so the column name is historical;
-// the payload is a Target, not a segment list.
+// `target_json` stores the full model.Target JSON (runs + status + origin +
+// score).
 //
 // dialect: "pg" | "sqlite".
 func SyncBlockOverlays(
@@ -151,8 +150,7 @@ func LoadBlockOverlays(
 }
 
 // LoadBlockTargetLocales returns the set of locales each block has a
-// translation for. Replaces the former extractTargetLocales path that
-// parsed targets_json inline.
+// translation for, read from the translations overlay table.
 func LoadBlockTargetLocales(
 	ctx context.Context,
 	db Querier,
@@ -210,18 +208,18 @@ func anyStrings(in []string) []any {
 
 func sqlUpsertTranslation(dialect string) string {
 	if dialect == "sqlite" {
-		return `INSERT INTO translations (project_id, stream, block_id, locale, text, segments_json, updated_at)
+		return `INSERT INTO translations (project_id, stream, block_id, locale, text, target_json, updated_at)
 			VALUES (?, ?, ?, ?, ?, ?, ?)
 			ON CONFLICT(project_id, stream, block_id, locale) DO UPDATE SET
 				text = excluded.text,
-				segments_json = excluded.segments_json,
+				target_json = excluded.target_json,
 				updated_at = excluded.updated_at`
 	}
-	return `INSERT INTO translations (project_id, stream, block_id, locale, text, segments_json, updated_at)
+	return `INSERT INTO translations (project_id, stream, block_id, locale, text, target_json, updated_at)
 		VALUES ($1, $2, $3, $4, $5, $6, $7)
 		ON CONFLICT (project_id, stream, block_id, locale) DO UPDATE SET
 			text = EXCLUDED.text,
-			segments_json = EXCLUDED.segments_json,
+			target_json = EXCLUDED.target_json,
 			updated_at = EXCLUDED.updated_at`
 }
 
@@ -241,10 +239,10 @@ func sqlUpsertAnnotation(dialect string) string {
 }
 
 // sqlListTranslationsByBlocks returns a SELECT that pulls all
-// (block_id, locale, segments_json) rows for a set of blocks in one
+// (block_id, locale, target_json) rows for a set of blocks in one
 // project+stream. nblocks is the number of placeholder slots to emit.
 func sqlListTranslationsByBlocks(dialect string, nblocks int) string {
-	return `SELECT block_id, locale, segments_json FROM translations
+	return `SELECT block_id, locale, target_json FROM translations
 		WHERE project_id = ` + placeholder(dialect, 1) + ` AND stream = ` + placeholder(dialect, 2) + `
 		AND block_id IN (` + placeholderList(dialect, 3, nblocks) + `)`
 }

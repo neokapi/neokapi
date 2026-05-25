@@ -116,11 +116,10 @@ func targetRunsJSON(t *model.Target) string {
 
 // loadExistingTargets returns the current per-variant Targets for a block —
 // used by recordTargetHistory before a StoreBlocks upsert. Reads from the
-// translations table (#405) instead of the former inline blocks.targets_json
-// column. The segments_json column now stores a model.Target JSON payload.
+// translations table; the target_json column holds the model.Target JSON.
 func loadExistingTargets(ctx context.Context, tx *sql.Tx, projectID, _, blockID string) (map[model.VariantKey]*model.Target, error) {
 	rows, err := tx.QueryContext(ctx,
-		`SELECT locale, segments_json FROM translations
+		`SELECT locale, target_json FROM translations
 		 WHERE project_id = ? AND stream = 'main' AND block_id = ?`,
 		projectID, blockID)
 	if err != nil {
