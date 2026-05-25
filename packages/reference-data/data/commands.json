@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-24T10:52:51Z",
+  "generatedAt": "2026-05-25T00:35:34Z",
   "commands": [
     {
       "id": "ai-entity-extract",
@@ -5662,6 +5662,11 @@
         {
           "name": "target-lang",
           "usage": "target language (e.g. fr, de-DE)",
+          "type": "string"
+        },
+        {
+          "name": "tm",
+          "usage": "named TM or path to a .db (defaults to the project TM at .kapi/tm.db)",
           "type": "string"
         },
         {

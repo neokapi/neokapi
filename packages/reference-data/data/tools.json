@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-23T12:08:05Z",
+  "generatedAt": "2026-05-25T00:35:34Z",
   "kind": "tool",
   "entries": [
     {
@@ -101,6 +101,10 @@
               {
                 "value": "ollama",
                 "label": "Ollama"
+              },
+              {
+                "value": "demo",
+                "label": "Demo (illustrative)"
               }
             ]
           }
@@ -260,6 +264,10 @@
               {
                 "value": "ollama",
                 "label": "Ollama"
+              },
+              {
+                "value": "demo",
+                "label": "Demo (illustrative)"
               }
             ]
           }
@@ -369,6 +377,10 @@
               {
                 "value": "ollama",
                 "label": "Ollama"
+              },
+              {
+                "value": "demo",
+                "label": "Demo (illustrative)"
               }
             ]
           }
@@ -517,6 +529,10 @@
               {
                 "value": "ollama",
                 "label": "Ollama"
+              },
+              {
+                "value": "demo",
+                "label": "Demo (illustrative)"
               }
             ]
           }
@@ -664,6 +680,10 @@
               {
                 "value": "ollama",
                 "label": "Ollama"
+              },
+              {
+                "value": "demo",
+                "label": "Demo (illustrative)"
               }
             ]
           }
@@ -831,6 +851,10 @@
               {
                 "value": "ollama",
                 "label": "Ollama"
+              },
+              {
+                "value": "demo",
+                "label": "Demo (illustrative)"
               }
             ]
           },
