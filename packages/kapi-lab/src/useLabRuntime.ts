@@ -35,6 +35,8 @@ export interface LabRuntime {
   /** Run a command with tracing; argv uses absolute /project paths. */
   trace: (argv: string[]) => Promise<TraceOutcome>;
   run: (argv: string[]) => Promise<number>;
+  /** Read a file from the in-memory filesystem (decoded UTF-8), or null. */
+  readFile: (path: string) => string | null;
 }
 
 const PROJECT_DIR = "/project";
@@ -119,6 +121,16 @@ export function useLabRuntime(assets: LabRuntimeAssets | null): LabRuntime {
     return serialized(() => rt.run(argv));
   }, []);
 
+  const readFile = useCallback((path: string): string | null => {
+    const rt = runtimeRef.current;
+    if (!rt) return null;
+    try {
+      return new TextDecoder().decode(rt.vol.readFile(path));
+    } catch {
+      return null;
+    }
+  }, []);
+
   return {
     status,
     error,
@@ -127,5 +139,6 @@ export function useLabRuntime(assets: LabRuntimeAssets | null): LabRuntime {
     inspect,
     trace,
     run,
+    readFile,
   };
 }

@@ -77,5 +77,25 @@ if (withAfter) {
   console.log(`   part ${pid}: source="${set.initial.sourceText}" → after tool target="${Object.values(set.afterNode)[0]?.targetText ?? "(none)"}"`);
 }
 
+// ── 3. recipe-based custom flow → trace (the ToolLab / FlowBuilder path) ─────
+const RECIPE = `version: v1
+name: Lab
+defaults:
+  source_language: en
+flows:
+  lab:
+    steps:
+      - tool: pseudo-translate
+`;
+mem.vol.writeFile("/project/lab.kapi", enc.encode(RECIPE));
+const rcode: number = await (globalThis as any).kapiRun([
+  "run", "lab", "-p", "/project/lab.kapi", "-i", "/project/sample.json",
+  "-o", "/project/out-recipe.json", "--target-lang", "qps", "--trace", "/project/rtrace.json",
+]);
+ok("recipe flow run exits 0", rcode === 0, `code=${rcode}`);
+const rtrace = JSON.parse(dec.decode(mem.vol.readFile("/project/rtrace.json")));
+ok("recipe trace tool node is named (not tool-N)", rtrace.nodes?.some((n: any) => n.name === "pseudo-translate"), `names=${JSON.stringify(rtrace.nodes?.map((n: any) => n.name))}`);
+ok("recipe trace has part snapshots", Object.keys(rtrace.parts ?? {}).length > 0, `parts=${Object.keys(rtrace.parts ?? {}).length}`);
+
 console.log(failures === 0 ? "\nALL LAB SMOKE CHECKS PASSED" : `\n${failures} CHECK(S) FAILED`);
 process.exit(failures === 0 ? 0 : 1);

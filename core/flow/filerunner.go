@@ -39,6 +39,13 @@ type FileRunnerConfig struct {
 	// ConfigureWriter is an optional callback applied to each writer after
 	// creation. Use this to apply project encoding or other defaults.
 	ConfigureWriter func(writer format.DataFormatWriter)
+
+	// Recorder, when non-nil, captures a flow trace: an initial snapshot of
+	// each Part as it leaves the reader plus reader-exit events, and
+	// writer enter/exit events. The caller is responsible for wrapping the
+	// tools with TracingTool to capture per-tool snapshots. This is what makes
+	// `kapi run <flow> --trace` produce the same rich trace as a single tool.
+	Recorder *TraceRecorder
 }
 
 // FileRunner runs a full read → process → write pipeline for a single file.
@@ -155,6 +162,14 @@ func (r *FileRunner) RunFileWithReaderWriter(ctx context.Context, flowName strin
 			return fmt.Errorf("read %q: %w", filepath.Base(inputPath), result.Error)
 		}
 		parts = append(parts, result.Part)
+		// Record the reader-stage trace: an initial snapshot (so per-tool
+		// TracingTool snapshots have a set to attach to) plus a reader-exit
+		// event as the Part heads into the pipeline.
+		if r.cfg.Recorder != nil && result.Part != nil && result.Part.Resource != nil {
+			id := result.Part.Resource.ResourceID()
+			r.cfg.Recorder.SnapshotPart(result.Part, "reader", "initial")
+			r.cfg.Recorder.Record(TraceExit, "reader", id, nil)
+		}
 	}
 	// Close reader immediately after reading — for daemon-backed plugin
 	// formats this lets the daemon enter its idle state, freeing the
@@ -270,9 +285,30 @@ func (r *FileRunner) RunFileWithReaderWriter(ctx context.Context, flowName strin
 	// all parts), drain the remainder here so a tool goroutine blocked on
 	// an `outCh <- p` send can still finish; otherwise the executor's
 	// errgroup Wait() — and thus this function — would hang.
-	writeErr := writer.Write(ctx, outCh)
+	// When tracing, relay the executor output through a tap that records a
+	// writer enter/exit event per Part before the writer consumes it. The
+	// relay owns draining outCh and closes its own channel when outCh closes,
+	// so the no-trace path (writerIn == outCh) is byte-for-byte unchanged.
+	writerIn := outCh
+	if r.cfg.Recorder != nil {
+		tapCh := make(chan *model.Part, cap(outCh))
+		go func() {
+			defer close(tapCh)
+			for p := range outCh {
+				if p != nil && p.Resource != nil {
+					id := p.Resource.ResourceID()
+					r.cfg.Recorder.Record(TraceEnter, "writer", id, nil)
+					r.cfg.Recorder.Record(TraceExit, "writer", id, nil)
+				}
+				tapCh <- p
+			}
+		}()
+		writerIn = tapCh
+	}
+
+	writeErr := writer.Write(ctx, writerIn)
 	if writeErr != nil {
-		for range outCh { //nolint:revive // intentional drain to unblock tools
+		for range writerIn { //nolint:revive // intentional drain to unblock tools
 		}
 	}
 	waitErr := wait()
