@@ -322,8 +322,8 @@ func (a *App) mergeOneXLIFF(ctx context.Context, task mergeTask) (mergeStats, er
 
 	// 5. Apply translations per conflict policy with per-block stale check.
 	for _, tb := range translatedBlocks {
-		target, ok := tb.Targets[targetLocale]
-		if !ok || !hasAnyText(target) {
+		target := tb.Target(targetLocale)
+		if target == nil || !hasAnyText(target.Runs) {
 			// Translator returned no target for this block — leave existing.
 			stats.Skipped++
 			continue
@@ -351,11 +351,12 @@ func (a *App) mergeOneXLIFF(ctx context.Context, task mergeTask) (mergeStats, er
 		}
 
 		// Conflict policy.
-		existing, hasExisting := srcBlock.Targets[targetLocale]
+		existing := srcBlock.Target(targetLocale)
+		hasExisting := existing != nil
 		apply := true
 		switch task.policy {
 		case project.ConflictPolicyExistingWins:
-			if hasExisting && hasAnyText(existing) {
+			if hasExisting && hasAnyText(existing.Runs) {
 				apply = false
 			}
 		case project.ConflictPolicyNewestWins:
@@ -363,7 +364,7 @@ func (a *App) mergeOneXLIFF(ctx context.Context, task mergeTask) (mergeStats, er
 			// (re-read) source file's existing target. Prefer the XLIFF if
 			// the source file's mtime is older than the XLIFF's mtime,
 			// otherwise keep existing.
-			if hasExisting && hasAnyText(existing) {
+			if hasExisting && hasAnyText(existing.Runs) {
 				srcInfo, _ := os.Stat(sourceAbs)
 				xliffInfo, _ := os.Stat(task.input)
 				if srcInfo != nil && xliffInfo != nil && !xliffInfo.ModTime().After(srcInfo.ModTime()) {
@@ -377,10 +378,7 @@ func (a *App) mergeOneXLIFF(ctx context.Context, task mergeTask) (mergeStats, er
 			stats.Skipped++
 			continue
 		}
-		if srcBlock.Targets == nil {
-			srcBlock.Targets = map[model.LocaleID][]*model.Segment{}
-		}
-		srcBlock.Targets[targetLocale] = target
+		srcBlock.SetTarget(targetLocale, target)
 		stats.Applied++
 
 		// TM absorb with provenance.
@@ -471,15 +469,16 @@ func (a *App) mergeOnePO(ctx context.Context, task mergeTask) (mergeStats, error
 			continue
 		}
 		// Conflict policy.
-		existing, hasExisting := srcBlock.Targets[targetLocale]
+		existing := srcBlock.Target(targetLocale)
+		hasExisting := existing != nil
 		apply := true
 		switch task.policy {
 		case project.ConflictPolicyExistingWins:
-			if hasExisting && hasAnyText(existing) {
+			if hasExisting && hasAnyText(existing.Runs) {
 				apply = false
 			}
 		case project.ConflictPolicyNewestWins:
-			if hasExisting && hasAnyText(existing) {
+			if hasExisting && hasAnyText(existing.Runs) {
 				srcInfo, _ := os.Stat(sourceAbs)
 				poInfo, _ := os.Stat(task.input)
 				if srcInfo != nil && poInfo != nil && !poInfo.ModTime().After(srcInfo.ModTime()) {
@@ -491,19 +490,8 @@ func (a *App) mergeOnePO(ctx context.Context, task mergeTask) (mergeStats, error
 			stats.Skipped++
 			continue
 		}
-		// Stash target text as a single-segment target (PO v1 = one
-		// msgid per block; the segmentation-on case is deferred per
-		// writePOExtract).
-		if srcBlock.Targets == nil {
-			srcBlock.Targets = map[model.LocaleID][]*model.Segment{}
-		}
-		segID := "s1"
-		if len(srcBlock.Source) > 0 {
-			segID = srcBlock.Source[0].ID
-		}
-		srcBlock.Targets[targetLocale] = []*model.Segment{
-			{ID: segID, Runs: []model.Run{{Text: &model.TextRun{Text: mb.MsgStr}}}},
-		}
+		// Stash target text (PO v1 = one msgid per block).
+		srcBlock.SetTargetText(targetLocale, mb.MsgStr)
 		stats.Applied++
 
 		if task.tm != nil {
@@ -819,12 +807,10 @@ func expandMergeInputs(inputs []string, root string) ([]string, error) {
 	return out, nil
 }
 
-func hasAnyText(segs []*model.Segment) bool {
-	for _, s := range segs {
-		for _, r := range s.Runs {
-			if r.Text != nil && strings.TrimSpace(r.Text.Text) != "" {
-				return true
-			}
+func hasAnyText(runs []model.Run) bool {
+	for _, r := range runs {
+		if r.Text != nil && strings.TrimSpace(r.Text.Text) != "" {
+			return true
 		}
 	}
 	return false

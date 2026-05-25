@@ -72,7 +72,7 @@ func writePOExtract(out io.Writer, target model.LocaleID, batchID, sourceRel, so
 		}
 		// One msgid per block (segmentation-off case). Skip multi-segment
 		// blocks for v1 PO — extract fails earlier for segmentation-on.
-		if len(b.Source) > 1 {
+		if b.SourceSegmentCount() > 1 {
 			return errors.New("po extract: segmentation-on output is tracked as a follow-up; emit XLIFF for this project or unset defaults.segmentation.source")
 		}
 		fmt.Fprintln(bw)

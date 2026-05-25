@@ -1350,12 +1350,28 @@ func (w *Writer) appendUnit(parent *etree.Element, block *model.Block, targetLan
 		srcEl := segEl.CreateElement("source")
 		writeSegmentInline(srcEl, srcSeg)
 
-		for j := range tgtSegs {
-			if tgtSegs[j].ID == srcSeg.ID && srcSeg.ID != "" {
-				tgtEl := segEl.CreateElement("target")
-				writeSegmentInline(tgtEl, &tgtSegs[j])
-				break
+		// Pair the target segment: by id when ids are present (the
+		// segmented case carries overlay span ids), else positionally
+		// (the unsegmented single-segment case has empty ids).
+		var tgt *seg
+		byID := false
+		if srcSeg.ID != "" {
+			for j := range tgtSegs {
+				if tgtSegs[j].ID == srcSeg.ID {
+					tgt = &tgtSegs[j]
+					byID = true
+					break
+				}
 			}
+		} else if i < len(tgtSegs) {
+			tgt = &tgtSegs[i]
+		}
+		// id-matched targets emit verbatim (preserves round-trip fidelity);
+		// the positional fallback only emits when the target has content, so
+		// unmatched prefill segments don't produce empty <target>s.
+		if tgt != nil && (byID || len(tgt.Runs) > 0 || tgt.Content != nil) {
+			tgtEl := segEl.CreateElement("target")
+			writeSegmentInline(tgtEl, tgt)
 		}
 	}
 }

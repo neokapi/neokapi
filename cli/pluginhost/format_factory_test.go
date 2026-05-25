@@ -187,11 +187,9 @@ func textOfBlock(b *model.Block) string {
 		return ""
 	}
 	var out strings.Builder
-	for _, seg := range b.Source {
-		for _, run := range seg.Runs {
-			if run.Text != nil {
-				out.WriteString(run.Text.Text)
-			}
+	for _, run := range b.Source {
+		if run.Text != nil {
+			out.WriteString(run.Text.Text)
 		}
 	}
 	return out.String()

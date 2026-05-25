@@ -514,7 +514,7 @@ func (a *App) extractOne(ctx context.Context, task extractTask) (project.Extract
 
 	segments := 0
 	for _, b := range blocks {
-		segments += len(b.Source)
+		segments += b.SourceSegmentCount()
 	}
 
 	return project.ExtractionFile{
@@ -535,57 +535,59 @@ const (
 	prefillFuzzy
 )
 
-// applyTMPrefill queries the TM and fills block.Targets[locale] with the
-// best match when it exceeds the threshold. Returns whether the block
-// was covered by an exact or fuzzy match. The block's source segments
-// are the unit of lookup — one lookup per segment, so segmentation
-// (per #417) can wire in without touching this function.
+// applyTMPrefill queries the TM and fills the block's target for the locale
+// with the best match when it exceeds the threshold. Returns whether the
+// block was covered by an exact or fuzzy match. The source segment spans are
+// the unit of lookup — one lookup per span — and the pre-filled target is
+// written as a run sequence plus a target segmentation overlay index-aligned
+// to the source spans (so a segmented block round-trips per-segment targets).
 func applyTMPrefill(tm sievepen.TranslationMemory, block *model.Block, source, target model.LocaleID, threshold float64) prefillOutcome {
 	if tm == nil || block == nil || len(block.Source) == 0 {
 		return prefillNone
 	}
 	opts := sievepen.LookupOptions{MinScore: threshold, MaxResults: 1}
 
-	// Initialize target segments so we can fill in per segment.
-	targetSegs := make([]*model.Segment, 0, len(block.Source))
+	segCount := block.SourceSegmentCount()
+	srcSeg := block.SourceSegmentation() // nil when unsegmented (one implicit span)
+
+	var targetRuns []model.Run
+	var targetSpans []model.Span
 	matched := 0
 	anyExact := false
-	for i, seg := range block.Source {
-		matches, err := tm.LookupSegment(block, i, source, target, opts)
-		if err != nil || len(matches) == 0 {
-			// No match → empty target segment, preserving segment id.
-			targetSegs = append(targetSegs, &model.Segment{ID: seg.ID})
-			continue
+	for i := 0; i < segCount; i++ {
+		spanID := fmt.Sprintf("s%d", i+1)
+		if srcSeg != nil && i < len(srcSeg.Spans) {
+			spanID = srcSeg.Spans[i].ID
 		}
-		best := matches[0]
-		text := best.Entry.VariantText(target)
-		if text == "" {
-			targetSegs = append(targetSegs, &model.Segment{ID: seg.ID})
-			continue
+		start := len(targetRuns)
+		if matches, err := tm.LookupSegment(block, i, source, target, opts); err == nil && len(matches) > 0 {
+			if text := matches[0].Entry.VariantText(target); text != "" {
+				targetRuns = append(targetRuns, model.Run{Text: &model.TextRun{Text: text}})
+				matched++
+				if matches[0].Score >= 1.0 {
+					anyExact = true
+				}
+			}
 		}
-		targetSegs = append(targetSegs, &model.Segment{
-			ID:   seg.ID,
-			Runs: []model.Run{{Text: &model.TextRun{Text: text}}},
-		})
-		matched++
-		if best.Score >= 1.0 {
-			anyExact = true
-		}
+		// Span covers this segment's (0 or 1) target runs, preserving id and
+		// index alignment with the source span even when unmatched (empty).
+		targetSpans = append(targetSpans, model.Span{ID: spanID, Range: model.RunRange{StartRun: start, EndRun: len(targetRuns)}})
 	}
 	if matched == 0 {
 		return prefillNone
 	}
-	if block.Targets == nil {
-		block.Targets = make(map[model.LocaleID][]*model.Segment, 1)
+	block.SetTargetRuns(target, targetRuns)
+	if segCount > 1 {
+		key := model.Variant(target)
+		block.SetSegmentation(&key, targetSpans)
 	}
-	block.Targets[target] = targetSegs
 	// Stash the match type on the block so downstream writers can surface
 	// it in format-appropriate ways (PO's `#, fuzzy` flag; XLIFF 2's
 	// segment state — not yet emitted, tracked as a follow-up).
 	if block.Properties == nil {
 		block.Properties = make(map[string]string, 1)
 	}
-	if anyExact && matched == len(block.Source) {
+	if anyExact && matched == segCount {
 		block.Properties["kapi-tm-match"] = "exact"
 		return prefillExact
 	}
