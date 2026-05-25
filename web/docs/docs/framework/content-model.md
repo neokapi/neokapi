@@ -157,10 +157,6 @@ same semantic `Type`, the representation is format-independent.
 [Vocabularies](/framework/vocabularies) cover how runs are classified and what
 metadata they carry.
 
-> A coded-text exchange form (a string with private-use-area markers and a
-> parallel `Span` list, mirroring Okapi's `TextFragment`) historically backed
-> inline content. It has been removed; `[]Run` is the canonical representation.
-
 ## See it on a real file
 
 The clearest way to understand the content model is to watch a reader produce it.

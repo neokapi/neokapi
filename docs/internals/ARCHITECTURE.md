@@ -234,7 +234,7 @@ Layers, each with its own DataFormat. See
 ### Inline Content as Runs
 
 A block's `Source` (and each `Target`) is a flat `[]Run` — a discriminated
-union of typed `Run` values (RFC 0001). Plain text is a `TextRun`; paired
+union of typed `Run` values. Plain text is a `TextRun`; paired
 inline markup becomes a `PcOpenRun` / `PcCloseRun` sharing an ID; standalone
 placeholders (variables, `<br/>`, icons) are a `PlaceholderRun`. Inline
 markup never lives inside the text string, so text operations cannot corrupt

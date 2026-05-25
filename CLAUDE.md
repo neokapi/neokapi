@@ -351,7 +351,7 @@ The Part is the fundamental streaming unit, carrying a PartType discriminator an
 
 - **Layer** — structural grouping (document, section, embedded content). Layers nest: embedded content (HTML inside JSON) becomes a child Layer with its own DataFormat.
 - **Block** — translatable content: a flat `Source []Run`, `Targets map[VariantKey]*Target` (variant = locale + optional tone/channel), and stand-off `Overlays` (segmentation, terms, entities, QA, alignment) anchored to run-index ranges. There is no structural `Segment` type — segmentation is an opt-in overlay (AD-002).
-- **Run** — the inline unit: a discriminated union (Text, Ph, PcOpen/PcClose, Sub, Plural, Select) replacing the old PUA coded-text representation (RFC 0001).
+- **Run** — the inline unit: a discriminated union (Text, Ph, PcOpen/PcClose, Sub, Plural, Select). Inline markup lives in runs, not in the text.
 - **Data** — non-translatable structure
 - **Media** — binary content
 

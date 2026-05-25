@@ -207,11 +207,6 @@ type RunRange struct {
 }
 ```
 
-> A coded-text exchange form (`Fragment` with a `CodedText` string carrying
-> private-use-area markers and a parallel `[]Span`, mirroring Okapi's
-> `TextFragment`) historically backed inline content. It has been removed;
-> `[]Run` is the canonical representation.
-
 ### Run (inline content)
 
 A block's `Source` (and each `Target.Runs`) is a flat `[]Run`. Each `Run` is a

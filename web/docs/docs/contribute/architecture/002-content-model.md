@@ -13,12 +13,11 @@ keywords: [content model, Part, Block, Run, Segment, overlay, stand-off annotati
 Documents in neokapi are represented as a stream of `Part` values, each
 carrying a `PartType` discriminator and a `Resource`. Translatable content is
 a `Block`; a Block's content is a flat `[]Run` per locale — a discriminated
-union (`Text`, `Ph`, `PcOpen`, `PcClose`, `Sub`, `Plural`, `Select`) defined
-by RFC 0001. Inline-code runs carry the metadata that the older model spread
-across six span "layers" (native markup, abstract identity, semantic type,
-display text, text equivalent, editing constraints) directly on their fields,
-so format-aware tools can process content semantically while writers roundtrip
-native markup exactly. Interpretations *of* that content — sentence
+union (`Text`, `Ph`, `PcOpen`, `PcClose`, `Sub`, `Plural`, `Select`). Each
+inline-code run carries its metadata (native markup, abstract identity,
+semantic type, display text, text equivalent, editing constraints) directly on
+its fields, so format-aware tools can process content semantically while writers
+roundtrip native markup exactly. Interpretations *of* that content — sentence
 segmentation, terminology, entities, QA findings — are **stand-off overlays**:
 typed, run-anchored span sets layered over the runs on demand, never rewriting
 them. `Segment` is not a structural type; a segment is a span in a
@@ -502,22 +501,6 @@ the TypeScript side renders a PUA-coded form for the visual editor's styled
 chips, an `<x id="1"/>…` placeholder form for LLM prompts, and semantic HTML
 for commercial MT. The Block is identical; each consumer renders it
 differently.
-
-> **Historical note.** An earlier model represented inline content as a
-> `Fragment{CodedText, Spans}` pair — text with Unicode private-use-area
-> markers plus a positional `[]*Span` side-table — bridged to runs by
-> `RunsToFragment` / `MarshalRuns` / `UnmarshalRuns` in a
-> `core/model/coded_text.go`. That bridge has been removed (RFC 0001):
-> `[]Run` is now the sole inline-content representation, with no `Fragment`,
-> `Span`, or coded-text marker types.
-
-> **Historical note.** An earlier model made segmentation structural —
-> `Block.Source []*Segment`, each `Segment` owning its own `[]Run` — and the
-> segmentation tool rewrote that structure in place. Segmentation is now a
-> stand-off overlay over a single per-locale run sequence; `Segment` is a span,
-> not a type. Bilingual formats that carry sentence segments (XLIFF, TMX)
-> project to and from segmentation + alignment overlays at the reader/writer
-> boundary.
 
 ### Boundaries: structural canonical, projections at consumers
 

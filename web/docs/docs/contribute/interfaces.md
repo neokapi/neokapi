@@ -222,11 +222,6 @@ A `Run` serializes to JSON as an object with exactly one of the keys `text`,
 [Implementing a Format](/contribute/formats#inline-code-handling) for a complete
 guide to building and reconstructing inline codes from runs.
 
-> A coded-text exchange form (`Fragment` with a private-use-area-marked
-> `CodedText` string and a parallel `[]Span`, mirroring Okapi's `TextFragment`)
-> historically backed inline content. It has been removed; `[]Run` is the
-> canonical representation.
-
 ### Data, Media, RawDocument
 
 ```go
