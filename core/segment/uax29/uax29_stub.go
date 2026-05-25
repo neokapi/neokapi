@@ -1,0 +1,8 @@
+//go:build !cgo || windows
+
+// Package uax29 would provide an ICU-backed UAX-29 sentence-segmentation
+// engine, but ICU is reached via cgo and is not available on this build
+// (cgo disabled, or Windows). This stub keeps the package compiling without
+// registering the "uax29" engine, so segment.HasEngine("uax29") reports false
+// and segment.NewEngine("uax29", …) returns segment.ErrEngineUnavailable.
+package uax29

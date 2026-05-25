@@ -64,9 +64,16 @@ func (s Span) Ignorable() bool { return s.Props[SpanPropIgnorable] == "true" }
 
 // Overlay is a typed stand-off layer over one side of a Block: the source
 // (Variant nil) or a specific target variant. Spans are ordered by position.
+//
+// Layer names a segmentation granularity so several can coexist over the same
+// runs (AD-002): the empty string is the primary sentence segmentation — the
+// one bilingual formats (XLIFF 2.0 <segment>, TMX <seg>) project to and from —
+// while named layers ("llm-chunk", "clause", …) are additional interpretations
+// produced on demand. Layer is meaningful only for segmentation overlays.
 type Overlay struct {
 	Type    OverlayType `json:"type"`
 	Variant *VariantKey `json:"variant,omitempty"` // nil = source side
+	Layer   string      `json:"layer,omitempty"`   // "" = primary sentence segmentation
 	Spans   []Span      `json:"spans,omitempty"`
 }
 
@@ -211,19 +218,39 @@ func RunRangeForBytes(runs []Run, byteStart, byteEnd int) RunRange {
 	return RunRangeFor(runs, toRune(byteStart), toRune(byteEnd))
 }
 
-// SegmentationFor returns the segmentation overlay for the given side (nil =
-// source), or nil if none.
+// SegmentationFor returns the primary (layer "") segmentation overlay for the
+// given side (nil = source), or nil if none.
 func (b *Block) SegmentationFor(variant *VariantKey) *Overlay {
+	return b.SegmentationLayerFor(variant, "")
+}
+
+// SegmentationLayerFor returns the segmentation overlay for the given side
+// (nil = source) and layer ("" = primary sentence segmentation), or nil.
+func (b *Block) SegmentationLayerFor(variant *VariantKey, layer string) *Overlay {
 	for i := range b.Overlays {
 		o := &b.Overlays[i]
 		if o.Type != OverlaySegmentation {
 			continue
 		}
-		if sameVariant(o.Variant, variant) {
+		if sameVariant(o.Variant, variant) && o.Layer == layer {
 			return o
 		}
 	}
 	return nil
+}
+
+// SegmentationLayers lists the layer names of every segmentation overlay on
+// the given side (nil = source), in overlay order. The primary layer reports
+// as "".
+func (b *Block) SegmentationLayers(variant *VariantKey) []string {
+	var layers []string
+	for i := range b.Overlays {
+		o := &b.Overlays[i]
+		if o.Type == OverlaySegmentation && sameVariant(o.Variant, variant) {
+			layers = append(layers, o.Layer)
+		}
+	}
+	return layers
 }
 
 func sameVariant(a, b *VariantKey) bool {
@@ -233,19 +260,28 @@ func sameVariant(a, b *VariantKey) bool {
 	return *a == *b
 }
 
-// SetSegmentation replaces the segmentation overlay for the given side
-// (nil = source) with one carrying the supplied spans. Empty spans removes it.
+// SetSegmentation replaces the primary (layer "") segmentation overlay for the
+// given side (nil = source) with one carrying the supplied spans. Empty spans
+// removes it.
 func (b *Block) SetSegmentation(variant *VariantKey, spans []Span) {
+	b.SetSegmentationLayer(variant, "", spans)
+}
+
+// SetSegmentationLayer replaces the segmentation overlay for the given side
+// (nil = source) and layer ("" = primary sentence segmentation) with one
+// carrying the supplied spans, leaving other layers untouched. Empty spans
+// removes that layer.
+func (b *Block) SetSegmentationLayer(variant *VariantKey, layer string, spans []Span) {
 	out := b.Overlays[:0]
 	for _, o := range b.Overlays {
-		if o.Type == OverlaySegmentation && sameVariant(o.Variant, variant) {
+		if o.Type == OverlaySegmentation && sameVariant(o.Variant, variant) && o.Layer == layer {
 			continue
 		}
 		out = append(out, o)
 	}
 	b.Overlays = out
 	if len(spans) > 0 {
-		b.Overlays = append(b.Overlays, Overlay{Type: OverlaySegmentation, Variant: variant, Spans: spans})
+		b.Overlays = append(b.Overlays, Overlay{Type: OverlaySegmentation, Variant: variant, Layer: layer, Spans: spans})
 	}
 }
 
@@ -261,11 +297,13 @@ func (b *Block) HasSourceOverlays() bool {
 	return false
 }
 
-// SourceSegmentation returns the source-side segmentation overlay, or nil.
+// SourceSegmentation returns the primary (layer "") source-side segmentation
+// overlay, or nil.
 func (b *Block) SourceSegmentation() *Overlay {
 	for i := range b.Overlays {
-		if b.Overlays[i].Type == OverlaySegmentation && b.Overlays[i].OnSource() {
-			return &b.Overlays[i]
+		o := &b.Overlays[i]
+		if o.Type == OverlaySegmentation && o.OnSource() && o.Layer == "" {
+			return o
 		}
 	}
 	return nil

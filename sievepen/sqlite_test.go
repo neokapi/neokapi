@@ -370,88 +370,13 @@ func TestSQLiteTM_EntityConceptIDRoundtrip(t *testing.T) {
 }
 
 // --- ICU tokenizer — multilingual search ---
-
-// TestSQLiteTM_SearchCJK verifies that the ICU tokenizer correctly segments
-// CJK text (no spaces between words). With the old unicode61 tokenizer, the
-// entire string would be one token and substring searches would fail.
-func TestSQLiteTM_SearchCJK(t *testing.T) {
-	tm, err := sievepen.NewSQLiteTM(":memory:")
-	require.NoError(t, err)
-	defer tm.Close()
-
-	require.NoError(t, tm.Add(sievepen.TMEntry{
-		ID: "e1",
-		Variants: map[model.LocaleID][]model.Run{
-			"zh-CN": {{Text: &model.TextRun{Text: "中国经济发展报告"}}},
-			"en":    {{Text: &model.TextRun{Text: "China economic development report"}}},
-		},
-		HintSrcLang: "zh-CN",
-	}))
-	require.NoError(t, tm.Add(sievepen.TMEntry{
-		ID: "e2",
-		Variants: map[model.LocaleID][]model.Run{
-			"zh-CN": {{Text: &model.TextRun{Text: "国际贸易协定"}}},
-			"en":    {{Text: &model.TextRun{Text: "International trade agreement"}}},
-		},
-		HintSrcLang: "zh-CN",
-	}))
-
-	// Search for "经济" (economy) in Chinese — ICU segments at word boundaries.
-	entries, total := tm.SearchEntries("经济", "zh-CN", "", 0, 10)
-	assert.Equal(t, 1, total, "ICU should segment Chinese and find 经济")
-	if len(entries) > 0 {
-		assert.Equal(t, "e1", entries[0].ID)
-	}
-
-	// Search for "贸易" (trade) — should find e2.
-	entries, total = tm.SearchEntries("贸易", "zh-CN", "", 0, 10)
-	assert.Equal(t, 1, total)
-	if len(entries) > 0 {
-		assert.Equal(t, "e2", entries[0].ID)
-	}
-}
-
-func TestSQLiteTM_SearchJapanese(t *testing.T) {
-	tm, err := sievepen.NewSQLiteTM(":memory:")
-	require.NoError(t, err)
-	defer tm.Close()
-
-	require.NoError(t, tm.Add(sievepen.TMEntry{
-		ID: "e1",
-		Variants: map[model.LocaleID][]model.Run{
-			"ja-JP": {{Text: &model.TextRun{Text: "日本語のテストです"}}},
-			"en":    {{Text: &model.TextRun{Text: "This is a Japanese test"}}},
-		},
-		HintSrcLang: "ja-JP",
-	}))
-
-	entries, total := tm.SearchEntries("テスト", "ja-JP", "", 0, 10)
-	assert.Equal(t, 1, total, "ICU should segment Japanese and find テスト")
-	if len(entries) > 0 {
-		assert.Equal(t, "e1", entries[0].ID)
-	}
-}
-
-func TestSQLiteTM_SearchThai(t *testing.T) {
-	tm, err := sievepen.NewSQLiteTM(":memory:")
-	require.NoError(t, err)
-	defer tm.Close()
-
-	require.NoError(t, tm.Add(sievepen.TMEntry{
-		ID: "e1",
-		Variants: map[model.LocaleID][]model.Run{
-			"th-TH": {{Text: &model.TextRun{Text: "การทดสอบภาษาไทยในระบบค้นหา"}}},
-			"en":    {{Text: &model.TextRun{Text: "Testing Thai language in the search system"}}},
-		},
-		HintSrcLang: "th-TH",
-	}))
-
-	entries, total := tm.SearchEntries("ภาษา", "th-TH", "", 0, 10)
-	assert.Equal(t, 1, total, "ICU should segment Thai and find ภาษา")
-	if len(entries) > 0 {
-		assert.Equal(t, "e1", entries[0].ID)
-	}
-}
+//
+// Tests that depend on word segmentation of scripts without explicit word
+// boundaries (CJK, Thai) require the ICU tokenizer and live in the cgo-only
+// file sqlite_icu_test.go. The no-cgo (modernc + unicode61) counterparts that
+// assert whole-token search behaviour live in sqlite_nocgo_test.go. The Arabic
+// and Korean cases below use space-separated words, so they behave the same
+// under both tokenizers and stay shared here.
 
 func TestSQLiteTM_SearchArabic(t *testing.T) {
 	tm, err := sievepen.NewSQLiteTM(":memory:")

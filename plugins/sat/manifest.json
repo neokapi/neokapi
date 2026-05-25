@@ -1,0 +1,48 @@
+{
+  "manifest_version": "1",
+  "plugin": "sat",
+  "version": "0.1.0",
+  "description": "SaT (Segment any Text / wtpsplit) ML sentence segmenter — runs XLM-RoBERTa SaT ONNX models in-process and speaks a line-delimited JSON segmentation protocol on stdin/stdout.",
+  "homepage": "https://github.com/neokapi/neokapi/tree/main/plugins/sat",
+  "author": "Neokapi <hello@neokapi.dev>",
+  "license": "Apache-2.0",
+  "binary": "kapi-sat",
+  "min_kapi_version": "0.0.1",
+  "group": "neokapi",
+  "capabilities": {
+    "commands": [
+      {
+        "name": "sat",
+        "short": "SaT ML segmenter self-check",
+        "long": "Construct the in-process SaT engine and list the supported models. The host `sat` segment engine drives the plugin over the stdin/stdout segmentation protocol (kapi-sat serve); this command is for interactive verification."
+      }
+    ]
+  },
+  "metadata": {
+    "segment": {
+      "protocol": "satproto-line-json-v1",
+      "transport": "stdin-stdout",
+      "invocation": ["kapi-sat", "serve"],
+      "protocol_package": "github.com/neokapi/neokapi/plugins/sat/satproto",
+      "boundary_units": "rune-offsets",
+      "ops": ["segment", "ping", "info"],
+      "models": [
+        {
+          "name": "sat-3l-sm",
+          "default": true,
+          "source": "segment-any-text/sat-3l-sm",
+          "onnx_file": "model.onnx",
+          "tokenizer": "facebookAI/xlm-roberta-base",
+          "default_threshold": 0.25
+        },
+        {
+          "name": "sat-12l-sm",
+          "source": "segment-any-text/sat-12l-sm",
+          "onnx_file": "model.onnx",
+          "tokenizer": "facebookAI/xlm-roberta-base",
+          "default_threshold": 0.25
+        }
+      ]
+    }
+  }
+}

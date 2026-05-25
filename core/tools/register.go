@@ -181,7 +181,7 @@ func RegisterAll(reg *registry.ToolRegistry) {
 	reg.RegisterWithSchema("segmentation", func() tool.Tool {
 		return NewSegmentationTool(&SegmentationConfig{})
 	}, toolSchema(&SegmentationConfig{}, toolMeta("segmentation", "Segmentation", schema.CategoryTextProcessing,
-		withInputs(B), withTags("text-processing"), withWritesOutput(), withCardinality(schema.Monolingual))))
+		withInputs(B), withTags("text-processing"), withAliases("segment"), withWritesOutput(), withCardinality(schema.Monolingual))))
 
 	reg.RegisterWithSchema("create-target", func() tool.Tool {
 		return NewCreateTargetTool(&CreateTargetConfig{CreateOnNonTranslatable: true})

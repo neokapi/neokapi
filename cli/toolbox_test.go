@@ -246,7 +246,7 @@ func TestReadContentStdinCancel(t *testing.T) {
 
 	select {
 	case got := <-done:
-		assert.ErrorIs(t, got.err, context.Canceled)
+		require.ErrorIs(t, got.err, context.Canceled)
 		assert.Nil(t, got.data)
 	case <-time.After(2 * time.Second):
 		t.Fatal("readContent did not return after context cancellation (would hang on Ctrl-C)")

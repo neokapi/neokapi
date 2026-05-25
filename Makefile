@@ -476,6 +476,54 @@ build-all: ## Build all Go binaries
 build-server build-worker build-kapi-bowrain-plugin build-bowrain build-headless install-kapi-bowrain-plugin:
 	$(MAKE) -C bowrain $@
 
+# ── SaT ML segmenter plugin (plugins/sat) ────────────────────────────────────
+# Builds the kapi-sat plugin binary. The default target builds WITHOUT the ONNX
+# backend (no cgo, no native deps) — useful for CI and for shipping a binary
+# whose protocol/manifest are exercisable; segment requests then report that
+# the binary lacks ONNX support.
+#
+# `build-sat-plugin-onnx` builds the real in-process segmenter and requires the
+# native deps (CGO):
+#   - onnxruntime shared library (download from microsoft/onnxruntime releases;
+#     point the binary at it at RUNTIME via KAPI_SAT_ORT_LIB)
+#   - the daulet/tokenizers static library (libtokenizers.a) on the linker path
+#     (download from the daulet/tokenizers GitHub releases or `make build` it)
+# Set SAT_TOKENIZERS_LIB to the directory containing libtokenizers.a.
+# See plugins/sat/README.md for full install instructions.
+build-sat-plugin: ## Build the kapi-sat plugin (no ONNX backend; pure Go)
+	@mkdir -p $(BIN_DIR)
+	cd plugins/sat && GOWORK=off $(GO) build $(LDFLAGS) -o $(BIN_DIR)/kapi-sat ./cmd/kapi-sat
+
+build-sat-plugin-onnx: ## Build kapi-sat WITH the ONNX backend (requires onnxruntime + libtokenizers; CGO)
+	@mkdir -p $(BIN_DIR)
+	cd plugins/sat && GOWORK=off CGO_ENABLED=1 \
+		CGO_LDFLAGS="-L$(SAT_TOKENIZERS_LIB)" \
+		$(GO) build $(LDFLAGS) -tags onnx -o $(BIN_DIR)/kapi-sat ./cmd/kapi-sat
+
+test-sat-plugin: ## Run kapi-sat pure-Go tests (protocol + algorithm + cache)
+	cd plugins/sat && GOWORK=off $(GO) test ./...
+
+# Package a signed-ready distribution tarball for the HOST platform: builds
+# kapi-sat -tags onnx, bundles the onnxruntime shared lib at lib/<name> beside
+# the binary (so an installed plugin needs no KAPI_SAT_ORT_LIB), and emits
+# kapi-sat_<version>_<os>_<arch>.tar.gz under $(BIN_DIR)/sat-dist.
+#
+# Requires the same two native deps as build-sat-plugin-onnx:
+#   SAT_TOKENIZERS_LIB  dir containing libtokenizers.a (linked at build time)
+#   SAT_ORT_DIR         extracted onnxruntime release dir (its shared lib is
+#                       copied into the tarball; downloaded from
+#                       microsoft/onnxruntime releases)
+# The release matrix (.github/workflows/release.yml: build-sat-plugin) runs the
+# underlying script per platform; this target is the local equivalent.
+package-sat-plugin: ## Package a kapi-sat distribution tarball for the host platform (CGO; needs SAT_TOKENIZERS_LIB + SAT_ORT_DIR)
+	@test -n "$(SAT_TOKENIZERS_LIB)" || { echo "set SAT_TOKENIZERS_LIB to the dir containing libtokenizers.a"; exit 1; }
+	@test -n "$(SAT_ORT_DIR)" || { echo "set SAT_ORT_DIR to the extracted onnxruntime release dir"; exit 1; }
+	scripts/package-sat-plugin.sh \
+		--version "$(VERSION)" \
+		--ort-dir "$(SAT_ORT_DIR)" \
+		--tokenizers-lib "$(SAT_TOKENIZERS_LIB)" \
+		--out-dir "$(BIN_DIR)/sat-dist"
+
 # ── Kapi Desktop ────────────────────────────────────────────────────────────
 
 # Node 22 requires --experimental-strip-types to load vite.config.ts natively.

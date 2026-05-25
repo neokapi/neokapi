@@ -44,7 +44,9 @@ type BlockView interface {
 	// Overlays / annotations / properties — the writable output surface.
 	Overlays() []model.Overlay
 	SegmentationFor(variant *model.VariantKey) *model.Overlay
+	SegmentationLayerFor(variant *model.VariantKey, layer string) *model.Overlay
 	SetSegmentation(variant *model.VariantKey, spans []model.Span)
+	SetSegmentationLayer(variant *model.VariantKey, layer string, spans []model.Span)
 	AddOverlay(o model.Overlay)
 	Annotations() map[string]model.Annotation
 	Annotate(key string, a model.Annotation)
@@ -113,19 +115,25 @@ func (v *blockView) SourceSegmentation() *model.Overlay  { return v.b.SourceSegm
 func (v *blockView) SourceSegmentCount() int             { return v.b.SourceSegmentCount() }
 func (v *blockView) SourceSegmentRuns(i int) []model.Run { return v.b.SourceSegmentRuns(i) }
 
-func (v *blockView) HasTarget(loc model.LocaleID) bool       { return v.b.HasTarget(loc) }
-func (v *blockView) TargetLocales() []model.LocaleID         { return v.b.TargetLocales() }
+func (v *blockView) HasTarget(loc model.LocaleID) bool         { return v.b.HasTarget(loc) }
+func (v *blockView) TargetLocales() []model.LocaleID           { return v.b.TargetLocales() }
 func (v *blockView) TargetRuns(loc model.LocaleID) []model.Run { return v.b.TargetRuns(loc) }
-func (v *blockView) TargetText(loc model.LocaleID) string    { return v.b.TargetText(loc) }
-func (v *blockView) Target(loc model.LocaleID) *model.Target { return v.b.Target(loc) }
+func (v *blockView) TargetText(loc model.LocaleID) string      { return v.b.TargetText(loc) }
+func (v *blockView) Target(loc model.LocaleID) *model.Target   { return v.b.Target(loc) }
 
 // Overlays / annotations / properties (writable output surface).
 func (v *blockView) Overlays() []model.Overlay { return v.b.Overlays }
 func (v *blockView) SegmentationFor(variant *model.VariantKey) *model.Overlay {
 	return v.b.SegmentationFor(variant)
 }
+func (v *blockView) SegmentationLayerFor(variant *model.VariantKey, layer string) *model.Overlay {
+	return v.b.SegmentationLayerFor(variant, layer)
+}
 func (v *blockView) SetSegmentation(variant *model.VariantKey, spans []model.Span) {
 	v.b.SetSegmentation(variant, spans)
+}
+func (v *blockView) SetSegmentationLayer(variant *model.VariantKey, layer string, spans []model.Span) {
+	v.b.SetSegmentationLayer(variant, layer, spans)
 }
 func (v *blockView) AddOverlay(o model.Overlay) { v.b.Overlays = append(v.b.Overlays, o) }
 func (v *blockView) Annotations() map[string]model.Annotation {

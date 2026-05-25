@@ -66,7 +66,12 @@ var tmMigrations = []storage.Migration{
 	{
 		Version:     1,
 		Description: "multilingual TM schema with per-variant match keys and import sessions",
-		SQL: `
+		// tm_variant_search uses storage.FTSWordTokenizer, which resolves to the
+		// ICU tokenizer under cgo builds and unicode61 under no-cgo builds (the
+		// ICU tokenizer is a cgo-only extension). A .db whose FTS table was
+		// created with one tokenizer cannot be FTS-word-queried by a binary built
+		// with the other; the trigram table below stays portable.
+		SQL: fmt.Sprintf(`
 		CREATE TABLE IF NOT EXISTS tm_entries (
 			id              TEXT PRIMARY KEY,
 			project_id      TEXT NOT NULL DEFAULT '',
@@ -99,7 +104,7 @@ var tmMigrations = []storage.Migration{
 			text,
 			locale UNINDEXED,
 			entry_id UNINDEXED,
-			tokenize='icu'
+			tokenize='%s'
 		);
 
 		CREATE VIRTUAL TABLE IF NOT EXISTS tm_variant_trigram USING fts5(
@@ -165,7 +170,7 @@ var tmMigrations = []storage.Migration{
 		CREATE INDEX IF NOT EXISTS idx_origins_source  ON tm_entry_origins(source);
 		CREATE INDEX IF NOT EXISTS idx_origins_key     ON tm_entry_origins(key);
 		CREATE INDEX IF NOT EXISTS idx_origins_session ON tm_entry_origins(session_id);
-		`,
+		`, storage.FTSWordTokenizer),
 	},
 	{
 		Version:     2,
