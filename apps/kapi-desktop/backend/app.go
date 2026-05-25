@@ -1295,20 +1295,11 @@ func blockSourceText(b *model.Block) string {
 // blockProperties returns notable properties of a Block.
 func blockProperties(b *model.Block) map[string]string {
 	props := make(map[string]string)
-	for _, seg := range b.Source {
-		if len(seg.Runs) == 0 {
-			continue
-		}
-		n := countInlineCodeRuns(seg.Runs)
-		if n > 0 {
-			props["inline_codes"] = fmt.Sprintf("%d", n)
-			break
-		}
+	if n := countInlineCodeRuns(b.Source); n > 0 {
+		props["inline_codes"] = fmt.Sprintf("%d", n)
 	}
-	if len(b.Targets) > 0 {
-		for loc := range b.Targets {
-			props["target_"+string(loc)] = "present"
-		}
+	for _, loc := range b.TargetLocales() {
+		props["target_"+string(loc)] = "present"
 	}
 	return props
 }
