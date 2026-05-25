@@ -48,7 +48,7 @@ export default function RoundTripExplorer({
     // Seed the source into the in-memory FS, then read → pseudo-translate →
     // write to a sibling path. trace() performs the whole round trip and leaves
     // the rendered output file on the volume for us to read back.
-    const inPath = runtime.writeFile(file.filename, file.content);
+    const inPath = runtime.writeFile(file.filename, file.bytes ?? file.content);
     const outPath = `/project/roundtrip-${file.filename}`;
     const res = await runtime.trace(["pseudo-translate", inPath, "-o", outPath]);
     if (res.ok && res.trace) {

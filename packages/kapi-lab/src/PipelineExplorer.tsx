@@ -69,7 +69,7 @@ export default function PipelineExplorer({
     const pipeline = PIPELINES.find((p) => p.id === pipelineId) ?? PIPELINES[0];
     setBusy(true);
     setError(null);
-    const inPath = runtime.writeFile(file.filename, file.content);
+    const inPath = runtime.writeFile(file.filename, file.bytes ?? file.content);
     const outPath = `/project/out-${file.filename}`;
     const res = await runtime.trace(pipeline.build(inPath, outPath));
     if (res.ok && res.trace) {

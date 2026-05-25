@@ -44,7 +44,7 @@ export default function AnatomyExplorer({
     setBusy(true);
     setError(null);
     runtime
-      .inspect(file.filename, file.content)
+      .inspect(file.filename, file.bytes ?? file.content)
       .then((res) => {
         if (cancelled) return;
         if (res.ok && res.tree) {

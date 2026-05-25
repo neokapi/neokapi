@@ -149,7 +149,7 @@ export default function FlowBuilderRunner({
       setError(null);
       const recipe = buildRecipe({ steps });
       runtime.writeFile("flow.kapi", recipe);
-      const inPath = runtime.writeFile(file.filename, file.content);
+      const inPath = runtime.writeFile(file.filename, file.bytes ?? file.content);
       const res = await runtime.trace([
         "run",
         "lab",

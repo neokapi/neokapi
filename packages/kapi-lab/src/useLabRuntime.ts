@@ -33,9 +33,10 @@ export interface LabRuntime {
   status: LabStatus;
   error: string | null;
   ready: boolean;
-  /** Seed a file into the in-memory filesystem under /project. Returns its path. */
-  writeFile: (filename: string, content: string) => string;
-  inspect: (filename: string, content: string) => Promise<InspectOutcome>;
+  /** Seed a file into the in-memory filesystem under /project. Accepts text or
+   *  raw bytes (use bytes for binary formats like .docx). Returns its path. */
+  writeFile: (filename: string, data: string | Uint8Array) => string;
+  inspect: (filename: string, data: string | Uint8Array) => Promise<InspectOutcome>;
   /** Run a command with tracing; argv uses absolute /project paths. */
   trace: (argv: string[]) => Promise<TraceOutcome>;
   run: (argv: string[]) => Promise<number>;
@@ -87,20 +88,20 @@ export function useLabRuntime(assets: LabRuntimeAssets | null): LabRuntime {
     };
   }, [assets]);
 
-  const writeFile = useCallback((filename: string, content: string): string => {
+  const writeFile = useCallback((filename: string, data: string | Uint8Array): string => {
     const rt = runtimeRef.current;
     const path = `${PROJECT_DIR}/${filename}`;
-    if (rt) rt.vol.writeFile(path, enc.encode(content));
+    if (rt) rt.vol.writeFile(path, typeof data === "string" ? enc.encode(data) : data);
     return path;
   }, []);
 
   const inspect = useCallback(
-    async (filename: string, content: string): Promise<InspectOutcome> => {
+    async (filename: string, data: string | Uint8Array): Promise<InspectOutcome> => {
       const rt = runtimeRef.current;
       if (!rt) return { ok: false, error: "runtime not ready" };
       return serialized(async () => {
         const path = `${PROJECT_DIR}/${filename}`;
-        rt.vol.writeFile(path, enc.encode(content));
+        rt.vol.writeFile(path, typeof data === "string" ? enc.encode(data) : data);
         const res: InspectResult = await rt.inspect(path);
         if (!res.ok) return { ok: false, error: res.error };
         return { ok: true, format: res.format, tree: res.tree as ContentTree };

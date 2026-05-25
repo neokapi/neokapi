@@ -166,7 +166,7 @@ export default function ToolLab({
     if (!runtime.ready || !tool) return;
     setBusy(true);
     setError(null);
-    const inPath = runtime.writeFile(file.filename, file.content);
+    const inPath = runtime.writeFile(file.filename, file.bytes ?? file.content);
     const recipe = buildRecipe(tool.id, values, tool.schema);
     const recipePath = runtime.writeFile("toollab.kapi", recipe);
     const outPath = `/project/toollab-out-${file.filename}`;

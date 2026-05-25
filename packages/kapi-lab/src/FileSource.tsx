@@ -5,9 +5,16 @@ import styles from "./styles.module.css";
 
 export interface FileSourceValue {
   filename: string;
-  content: string;
   label: string;
+  /** Best-effort UTF-8 text, for display and as the source for text samples. */
+  content: string;
+  /** Raw bytes — set for uploads. When present this is what the engine reads,
+   *  so binary formats (.docx, .xlsx, …) survive intact rather than being
+   *  corrupted by a text round-trip. Absent for the bundled text samples. */
+  bytes?: Uint8Array;
 }
+
+const dec = new TextDecoder();
 
 interface FileSourceProps {
   value: FileSourceValue | null;
@@ -16,8 +23,9 @@ interface FileSourceProps {
   sampleIds?: string[];
 }
 
-// FileSource lets a learner pick a bundled sample or upload their own file. It
-// reports the raw text + filename; the explorer decides what to do with it.
+// FileSource lets a learner pick a bundled sample or upload their own file.
+// Uploads are read as raw bytes (not text) so binary formats such as .docx
+// survive intact; the explorer writes those bytes straight into the engine.
 export default function FileSource({
   value,
   onChange,
@@ -31,9 +39,10 @@ export default function FileSource({
     if (!file) return;
     const reader = new FileReader();
     reader.onload = () => {
-      onChange({ filename: file.name, content: String(reader.result ?? ""), label: file.name });
+      const bytes = new Uint8Array(reader.result as ArrayBuffer);
+      onChange({ filename: file.name, label: file.name, bytes, content: dec.decode(bytes) });
     };
-    reader.readAsText(file);
+    reader.readAsArrayBuffer(file);
     e.target.value = "";
   }
 

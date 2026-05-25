@@ -92,7 +92,7 @@ export default function ScriptLab({
     if (!runtime.ready) return;
     setBusy(true);
     setError(null);
-    const inPath = runtime.writeFile(file.filename, file.content);
+    const inPath = runtime.writeFile(file.filename, file.bytes ?? file.content);
     runtime.writeFile("script.kapi", buildRecipe(codeRef.current));
     const res = await runtime.trace([
       "run",
@@ -191,6 +191,10 @@ export default function ScriptLab({
             automaticLayout: true,
             tabSize: 2,
             padding: { top: 10, bottom: 10 },
+            // Use the classic hidden-textarea input path rather than the newer
+            // EditContext API: EditContext mishandles some keys (e.g. Space)
+            // when the editor sits inside certain page layouts.
+            editContext: false,
           }}
         />
       </div>
