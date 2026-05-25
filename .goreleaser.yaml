@@ -103,10 +103,11 @@ signs:
       - COSIGN_EXPERIMENTAL=true
 
 brews:
-  # kapi (Apache-2.0) — manifest-driven plugins discovered at runtime.
-  # Default `brew install neokapi/tap/kapi` produces an Apache-clean
-  # binary with no vendor plugins compiled in.
-  - name: kapi
+  # kapi CLI (Apache-2.0) — manifest-driven plugins discovered at runtime.
+  # `brew install neokapi/tap/kapi-cli` produces an Apache-clean binary with
+  # no vendor plugins compiled in. The formula is named kapi-cli so the
+  # `kapi` token stays reserved for the desktop app cask (Casks/kapi.rb).
+  - name: kapi-cli
     ids:
       - kapi
     repository:
@@ -138,7 +139,7 @@ brews:
     download_strategy: GitHubPrivateRepositoryReleaseDownloadStrategy
     custom_require: "lib/private_download_strategy"
     dependencies:
-      - name: kapi
+      - name: kapi-cli
     install: |
       plugin_dir = pkgshare/"plugins/bowrain"
       plugin_dir.mkpath

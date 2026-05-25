@@ -13,8 +13,8 @@ This guide walks you through creating your first localization project with Kapi.
 
 ```bash
 # Install kapi CLI + Kapi
-brew install neokapi/tap/kapi
-brew install --cask neokapi/tap/kapi-desktop
+brew install neokapi/tap/kapi-cli
+brew install --cask neokapi/tap/kapi
 ```
 
 Or download from [GitHub Releases](https://github.com/neokapi/neokapi/releases).

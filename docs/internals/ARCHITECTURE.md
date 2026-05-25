@@ -314,7 +314,7 @@ type LLMProvider interface {
 
 | Channel          | Target              | Command                                                         |
 | ---------------- | ------------------- | --------------------------------------------------------------- |
-| Homebrew formula | kapi CLI            | `brew install neokapi/tap/kapi`                                 |
+| Homebrew formula | kapi CLI            | `brew install neokapi/tap/kapi-cli`                                 |
 | Homebrew Cask    | Bowrain GUI (macOS) | `brew install --cask neokapi/tap/bowrain`                       |
 | GitHub Releases  | All platforms       | Direct download                                                 |
 | Go install       | Go developers       | `go install github.com/neokapi/neokapi/bowrain/cmd/kapi@latest` |

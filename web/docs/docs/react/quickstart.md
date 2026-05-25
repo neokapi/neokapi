@@ -21,7 +21,7 @@ The [`kapi` CLI](/cli/overview) is the translation pipeline that produces pseudo
 
 ```bash
 # macOS
-brew install neokapi/tap/kapi
+brew install neokapi/tap/kapi-cli
 
 # Linux / Windows — download a release from github.com/neokapi/neokapi/releases
 ```

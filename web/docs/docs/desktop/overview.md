@@ -23,7 +23,7 @@ Kapi is the visual companion for the [kapi CLI](/cli/overview). It provides a na
 ### macOS (Homebrew)
 
 ```bash
-brew install --cask neokapi/tap/kapi-desktop
+brew install --cask neokapi/tap/kapi
 ```
 
 This also installs the `kapi` CLI as a dependency.

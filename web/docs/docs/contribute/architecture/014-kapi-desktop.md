@@ -175,7 +175,7 @@ projects backed by any store the framework supports.
 ### Distribution
 
 - **macOS** — DMG via GitHub Releases, Homebrew Cask
-  (`brew install --cask neokapi/tap/kapi-desktop`). `.kapi` file
+  (`brew install --cask neokapi/tap/kapi`). `.kapi` file
   association via `CFBundleDocumentTypes` in Info.plist.
 - **Windows** — ZIP archive via GitHub Releases.
 - **Linux** — binary via GitHub Releases; AppImage planned.

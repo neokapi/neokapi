@@ -132,7 +132,7 @@ the [Architecture Decisions](/contribute/architecture/001-vision-and-modules).
 
 | Channel          | Target        | Command                                                      |
 | ---------------- | ------------- | ------------------------------------------------------------ |
-| Homebrew formula | kapi CLI      | `brew install neokapi/tap/kapi`                              |
+| Homebrew formula | kapi CLI      | `brew install neokapi/tap/kapi-cli`                              |
 | GitHub Releases  | All platforms | Direct download                                              |
 | Go install       | Go developers | `go install github.com/neokapi/neokapi/kapi/cmd/kapi@latest` |
 

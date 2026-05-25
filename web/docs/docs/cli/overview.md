@@ -92,7 +92,7 @@ For a visual interface, use [Kapi](/desktop/overview) — the GUI companion for 
 
 ```bash
 # macOS/Linux
-brew install neokapi/tap/kapi
+brew install neokapi/tap/kapi-cli
 
 # Go install
 go install github.com/neokapi/neokapi/kapi/cmd/kapi@latest
@@ -127,7 +127,7 @@ See [Kapi Project Files](/desktop/project-file) for the full format reference.
 Install via Homebrew:
 
 ```bash
-brew install --cask neokapi/tap/kapi-desktop
+brew install --cask neokapi/tap/kapi
 ```
 
 ## Next Steps

@@ -14,7 +14,7 @@ binary that runs offline by default.
 ## Homebrew (macOS/Linux)
 
 ```bash
-brew install neokapi/tap/kapi
+brew install neokapi/tap/kapi-cli
 ```
 
 ## Go Install
