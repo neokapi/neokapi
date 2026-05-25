@@ -11,11 +11,12 @@ keywords: [AI providers, LLMProvider, Anthropic, OpenAI, Gemini, Ollama, archite
 ## Summary
 
 The framework integrates LLM capabilities through an `LLMProvider` interface
-in `providers/ai/` (package `aiprovider`), with five built-in implementations
-(Anthropic, OpenAI, Azure OpenAI, Ollama, Gemini) and an optional
-`StreamingLLMProvider` extension for live thinking progress. AI tools consume
-providers through an `AIWorkerPool` that adds rate limiting, circuit
-breaking, and retry with backoff. A `ChatStructured` method with JSON Schema
+in `providers/ai/` (package `aiprovider`), with built-in implementations for
+Anthropic, OpenAI, Azure OpenAI, Ollama, and Gemini (plus an offline `demo`
+provider) and an optional `StreamingLLMProvider` extension for live thinking
+progress. AI tools call providers directly; throughput comes from
+config-driven batching and bounded concurrency inside the tool, not from a
+separate worker-pool subsystem. A `ChatStructured` method with JSON Schema
 enables reliable batch translation and other structured-output tasks.
 
 ## Context
@@ -26,9 +27,11 @@ pipeline: AI tools should sit alongside TM leverage, term enforcement, and
 QA in the same flow.
 
 AI APIs come with practical constraints: rate limits, cost per token,
-transient failures, and variable latency. A production-grade integration
-needs batching, rate limiting, circuit breakers, and retry logic to use
-these APIs reliably at scale.
+transient failures, and variable latency. The framework's answer is to keep
+the provider interface thin and let the calling tool decide how much work to
+batch into a single request and how many requests to run in parallel.
+Workspace-scale orchestration — async job queues, multi-tenant quotas —
+belongs to the bowrain platform, not to the framework primitives.
 
 Providers also differ in their structured-output mechanism: OpenAI and
 Azure OpenAI use `response_format: json_schema`, Anthropic uses tool-use
@@ -70,8 +73,13 @@ manual flag registration.
 | Ollama        | `providers/ai/ollama.go`      | llama3                   | Local models, `format: json`         |
 | Google Gemini | `providers/ai/gemini.go`      | gemini-3-flash-preview   | SSE streaming with `includeThoughts` |
 
-A mock provider (`providers/ai/mock.go`) enables deterministic testing
-without API calls.
+Two non-network providers round out the registry: a mock provider
+(`providers/ai/mock.go`) for deterministic tests, and a `demo` provider
+(`providers/ai/demo.go`) registered as `demo` that returns illustrative
+output so the browser playground can run AI commands with no API keys. The
+provider list is generated from the registry in `providers/ai/provider.go`
+(`Providers()`), not hardcoded — the live set surfaces as the `provider`
+option in the [`ai-translate` reference](/reference/tools/ai-translate).
 
 Each provider takes a `Config` struct with API key, base URL, model name,
 and generation parameters (temperature, max tokens, etc.). Azure OpenAI
@@ -110,35 +118,49 @@ provider that does not implement `StreamingLLMProvider` can still be
 used — callers that need streaming check for the extension with a type
 assertion.
 
-### AIWorkerPool
+### Concurrency model
 
-AI API calls flow through a worker pool that handles rate limiting,
-concurrency, and failure recovery:
+AI tools call the provider directly — `provider.Translate()` for a single
+block, `provider.ChatStructured()` for a batch. There is no intervening
+worker pool, rate limiter, or circuit breaker in the framework. Throughput is
+a property of the tool's own configuration, illustrated by `ai-translate`
+(`core/ai/tools/translate.go`):
 
 ```go
-type AIWorkerPool struct {
-    provider    LLMProvider
-    limiter     *rate.Limiter              // token-bucket rate limit
-    breaker     *gobreaker.CircuitBreaker  // circuit breaker
-    sem         *semaphore.Weighted        // concurrent request cap
-    retryConfig RetryConfig
-}
+const (
+    DefaultBatchSize        = 100
+    DefaultBatchConcurrency = 1
+)
 ```
 
-Components:
+`AITranslateConfig` exposes `BatchSize` and `BatchConcurrency` as schema
+fields, so they surface as CLI flags and flow config like any other tool
+option. The tool's `Process` method chooses a path from those values:
 
-- **Rate limiting** — token bucket via `golang.org/x/time/rate`. Configured
-  per provider (Anthropic and OpenAI have different RPM ceilings).
-- **Concurrency control** — a weighted semaphore limits parallel requests
-  to prevent overwhelming the provider.
-- **Circuit breaker** — `sony/gobreaker` opens after consecutive failures,
-  preventing cascading failure when an API is down. A timeout returns the
-  breaker to half-open, allowing probe requests.
-- **Retry with backoff** — exponential backoff with jitter for transient
-  failures (429, 503). Non-retryable errors (400, 401) fail immediately.
+- **Block-by-block** (`batchSize <= 1` and `concurrency <= 1`) — the default
+  `BaseTool.Process` drives one `provider.Translate()` call per translatable
+  Block. This is also the only path that honours session overlay caching
+  (`SessionProcess`), so re-runs can skip already-translated Blocks.
+- **Batched** (`processBatched`) — drains all input Parts into a slice,
+  selects the translatable Blocks (skipping already-translated ones when
+  `SkipMatched` is set), groups them into batches of `batchSize`, and
+  translates each batch in a single `ChatStructured()` call. Batches run
+  under a `chan struct{}` semaphore sized to `BatchConcurrency`, so at most
+  that many LLM calls are in flight at once. All Parts are then written
+  downstream in their original order; entries missing from the structured
+  response fall back to individual `handleBlock` calls.
 
-A request flow: acquire a semaphore slot, wait for the rate limiter,
-execute through the circuit breaker with retry, release the semaphore.
+Streaming mode is orthogonal: when the provider implements
+`StreamingLLMProvider` and an `OnProgress` callback is supplied, the tool
+routes calls through `ChatStream` / `ChatStructuredStream` to surface live
+thinking summaries (see below). Transient-failure handling (retry, backoff)
+is left to the individual provider implementations and the underlying SDK;
+the framework does not impose a uniform retry policy.
+
+This in-tool batching is distinct from the `ParallelBlockTool` concurrency in
+[AD-004: Processing Engine](004-processing-engine.md), which parallelizes Part
+dispatch across the pipeline rather than grouping Blocks into a single API
+call.
 
 ### AI tools
 
@@ -175,31 +197,17 @@ AI tools receive terminology context from upstream stages:
 Terminology enforcement is not just a post-translation validation step;
 it actively guides AI translation quality from the start.
 
-### Batch translation
+### Structured batch output
 
-The `ai-translate` tool has two modes:
-
-- **Single-block** (default for small documents) — translates each Block
-  individually via `provider.Translate()`. Simple, predictable, works with
-  all providers.
-- **Batch** (configurable) — groups translatable Blocks and translates
-  them in a single `ChatStructured()` call using a JSON Schema that
-  returns `{ translations: [{ index, text }] }`.
-
-Batch configuration:
-
-- `BatchSize` — Blocks per LLM call (default 100)
-- `BatchConcurrency` — parallel batch calls (default 1; 0 or 1 = sequential)
-
-Batch mode drains input Parts into memory, identifies translatable Blocks
-(skipping already-translated ones), groups them, processes batches
-concurrently with a semaphore, and writes all Parts downstream in original
-order. Missing entries in the structured response are retried
-individually as single-block translations.
-
-This application-level batching is distinct from the `ParallelBlockTool`
-concurrency in [AD-004: Processing Engine](004-processing-engine.md), which
-parallelizes Part dispatch within the pipeline.
+The batched `ai-translate` path relies on `ChatStructured()` to make a
+multi-block response unambiguous. The tool sends a numbered prompt
+(`[1] …`, `[2] …`) and constrains the response to a JSON Schema that returns
+`{ translations: [{ index, text }] }` with `additionalProperties: false` and
+`strict: true`. Index-text pairs eliminate the text-parsing ambiguity of
+free-form output and let the tool re-associate each translation with its
+source Block. Blocks whose source carries inline codes are rendered as
+placeholder-tagged text before the call and reconstructed from the response
+via `ParseRunsPlaceholderText`, so inline markup survives the round trip.
 
 ### Prompt templates
 
@@ -229,11 +237,11 @@ project files.
 
 ### Scope boundary
 
-The framework's responsibility ends at the provider interface, the
-worker pool, and the pipeline tools. Server-side asynchronous job
-queues, multi-tenant quota enforcement, and workspace-scale translation
-orchestration are the bowrain platform's concern, built on top of these
-framework primitives.
+The framework's responsibility ends at the provider interface and the
+pipeline tools that call it. Server-side asynchronous job queues,
+multi-tenant quota enforcement, rate-limit budgets, and workspace-scale
+translation orchestration are the bowrain platform's concern, built on top of
+these framework primitives.
 
 ## Consequences
 
@@ -244,10 +252,11 @@ framework primitives.
 - Terminology context flows through the pipeline via annotations,
   enabling AI tools to produce terminology-consistent translations from
   the start.
-- The worker pool handles API rate limits, concurrent request caps, and
-  transient failures gracefully, making AI tools reliable in production.
-- Batching reduces API call count and improves throughput for large
-  document processing.
+- Throughput tuning lives on the tool, not in a hidden subsystem: a
+  caller raises `BatchSize` to cut API call count and `BatchConcurrency` to
+  run batches in parallel, with no separate worker pool to configure.
+- Structured batch output gives the tool a reliable index-text contract, so
+  large documents translate in far fewer calls without parsing ambiguity.
 - Provider abstraction enables cost optimization: local Ollama for
   development, Claude or OpenAI for production.
 - Prompt templates are centralized and testable. The mock provider

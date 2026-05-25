@@ -1,8 +1,8 @@
 ---
 sidebar_position: 2
 title: Content Model
-description: The neokapi content model — how documents are represented as a stream of Parts (Layer, Block, Fragment, Data, Media) so that tools and translations work independently of the source file format.
-keywords: [content model, Part, Block, Fragment, Layer, Span, localization, format-independent]
+description: The neokapi content model — how documents are represented as a stream of Parts (Layer, Block, Segment, Run, Data, Media) so that tools and translations work independently of the source file format.
+keywords: [content model, Part, Block, Segment, Run, Layer, localization, format-independent]
 ---
 
 import { BlockPreview } from "@site/src/components/curated";
@@ -62,21 +62,18 @@ classDiagram
         +map~Locale,[]Segment~ Targets
     }
     class Segment {
-        +Fragment Content
+        +[]Run Runs
     }
-    class Fragment {
-        +string CodedText
-        +[]Span Spans
-    }
-    class Span {
-        +SpanType SpanType
-        +string Data
+    class Run {
+        +TextRun Text
+        +PlaceholderRun Ph
+        +PcOpenRun PcOpen
+        +PcCloseRun PcClose
     }
     Layer --> Layer : child Layers (embedded content)
     Layer --> Block : contains
     Block --> Segment : Source, Targets
-    Segment --> Fragment
-    Fragment --> Span : inline markup
+    Segment --> Run : flat run sequence
 ```
 
 - **Layer** — a structural grouping: a whole document, a section, or embedded
@@ -91,36 +88,58 @@ classDiagram
   findings, and [QA](/framework/qa-checks) results all attach to content without
   colliding.
 - **Segment** — a block's source or target is a list of segments (typically
-  sentences after [segmentation](/framework/tools)), each wrapping a fragment.
-- **Fragment** — text plus its inline markup, stored as coded text (see below).
-- **Span** — a single inline element (a bold tag, a link, a variable) lifted out
-  of the text.
+  sentences after [segmentation](/framework/tools)), each carrying a flat `Runs`
+  sequence.
+- **Run** — one element of a segment's inline content: a chunk of text, an
+  opening or closing inline tag, a self-closing placeholder, or a structured
+  plural/select construct (see below).
 - **Data** and **Media** — non-translatable document structure and binary
   content, which flow through so the writer can reconstruct a faithful output.
 
-## Coded text keeps inline markup out of the way
+## Runs keep inline markup out of the way
 
-The Fragment is where neokapi solves a hard problem: how to let a tool, a
-translation engine, or a TM operate on plain text without corrupting inline
-markup like `<b>`, `**`, or `{count}`. The answer is **coded text**. Inline
-markup is removed from the text and replaced by a positional marker character;
-the original markup is stored alongside, in the fragment's spans:
+The Run sequence is where neokapi solves a hard problem: how to let a tool, a
+translation engine, or a TM operate on the words while keeping inline markup like
+`<b>`, `**`, or `{count}` intact. A segment's content is a flat `[]Run` — a
+discriminated union where each run is exactly one of:
+
+| Run kind        | Field      | Represents                                     |
+| --------------- | ---------- | ---------------------------------------------- |
+| Text            | `Text`     | a plain text chunk                             |
+| Placeholder     | `Ph`       | a self-closing token (`<br/>`, `<img>`, `{n}`) |
+| Paired open     | `PcOpen`   | the opening half of a paired code (`<b>`, `<a>`) |
+| Paired close    | `PcClose`  | the closing half of a paired code (`</b>`, `</a>`) |
+| Sub             | `Sub`      | a reference to a nested sub-block (subfilter output) |
+| Plural / Select | `Plural` / `Select` | a structured ICU construct with per-form runs |
+
+Bold text becomes a `PcOpen` / text / `PcClose` triple; a `<br/>` or a variable
+becomes a single `Ph`. The original markup is carried in the run's `Data` field,
+so the writer can replay it verbatim:
 
 ```
 Source HTML: Click <b>here</b> for info
 
-Fragment.CodedText: "Click ⟪here⟫ for info"   (⟪ ⟫ are span markers)
-Fragment.Spans:     [ {opening, "<b>"}, {closing, "</b>"} ]
+Segment.Runs:
+  - {Text: "Click "}
+  - {PcOpen:  {ID: "1", Type: "fmt:bold", Data: "<b>"}}
+  - {Text: "here"}
+  - {PcClose: {ID: "1", Type: "fmt:bold", Data: "</b>"}}
+  - {Text: " for info"}
 ```
 
-A tool sees clean text with markers it can skip over; a translation engine gets
-text it can translate freely; and the writer replays each span's original markup
-at the marker positions to reconstruct the source faithfully — attributes and
-all. Because the same `<b>`, Markdown `**`, and DOCX `<w:b/>` all reduce to a
-span of the same semantic type, the representation is format-independent.
+A tool can project the runs to plain text (`Segment.Text()` returns
+`"Click here for info"`); a translation engine sees text with opaque tokens it
+must preserve; and the writer re-emits each run's `Data` at its position to
+reconstruct the source faithfully — attributes and all. Because the same `<b>`,
+Markdown `**`, and DOCX `<w:b/>` all reduce to a `PcOpen`/`PcClose` pair of the
+same semantic `Type`, the representation is format-independent.
 [Inline Formatting](/framework/inline-formatting) and
-[Vocabularies](/framework/vocabularies) cover how spans are classified and what
+[Vocabularies](/framework/vocabularies) cover how runs are classified and what
 metadata they carry.
+
+> A coded-text exchange form (a string with private-use-area markers and a
+> parallel `Span` list, mirroring Okapi's `TextFragment`) historically backed
+> inline content. It has been removed; `[]Run` is the canonical representation.
 
 ## See it on a real file
 
@@ -133,8 +152,8 @@ identifier and its source text:
   caption="A JSON file parsed into the content model: blocks, ids, and source text."
 />
 
-The same parser run against an HTML page shows fragments with inline spans (the
-chips mark where inline markup was lifted out of the text):
+The same parser run against an HTML page shows runs with inline codes (the
+chips mark the `PcOpen`/`PcClose`/`Ph` runs lifted out of the text):
 
 <BlockPreview
   sample="page.html"
@@ -155,19 +174,19 @@ back with only the translated text differing.
 
 For readers familiar with the Okapi Framework, the model maps directly:
 
-| Okapi (Java)                    | neokapi (Go)  |
-| ------------------------------- | ------------- |
-| Filter                          | DataFormat    |
-| TextUnit                        | Block         |
-| TextFragment                    | Fragment      |
-| Code                            | Span          |
-| StartSubDocument/StartSubFilter | Child Layer   |
-| Event                           | Part          |
+| Okapi (Java)                    | neokapi (Go)               |
+| ------------------------------- | -------------------------- |
+| Filter                          | DataFormat                 |
+| TextUnit                        | Block                      |
+| TextFragment                    | Segment (`[]Run`)          |
+| Code                            | Run (`PcOpen`/`PcClose`/`Ph`) |
+| StartSubDocument/StartSubFilter | Child Layer                |
+| Event                           | Part                       |
 
 ## Related reading
 
 - [Formats](/framework/formats) — the readers and writers that produce and consume the model.
-- [Inline Formatting](/framework/inline-formatting) and [Vocabularies](/framework/vocabularies) — how spans are represented and classified.
+- [Inline Formatting](/framework/inline-formatting) and [Vocabularies](/framework/vocabularies) — how inline-code runs are represented and classified.
 - [Pipeline](/framework/pipeline) — how Parts stream through the executor.
 - [Interface Reference](/contribute/interfaces) — the concrete Go types and method signatures.
 - [AD-002: Content Model](/contribute/architecture/002-content-model) — the design rationale.

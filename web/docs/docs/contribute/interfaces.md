@@ -112,65 +112,84 @@ func (b *Block) TargetRuns(locale LocaleID) []Run { /* target inline content */ 
 func (b *Block) SetTargetRuns(locale LocaleID, runs []Run) { /* set target runs */ }
 
 // Segment is a single segment within a Block's source or target content.
-// Runs is the canonical inline-content representation (RFC 0001); the
-// Fragment/Span coded form is a legacy bridge for wire formats and tests.
+// Runs is the canonical inline-content representation: a flat run sequence.
 type Segment struct {
     ID          string
     Runs        []Run
     Properties  map[string]string
     Annotations map[string]Annotation
 }
+
+func (s *Segment) Text() string { /* plain-text flattening (inline codes drop) */ }
+func (s *Segment) SetRuns(runs []Run) { /* replace the run sequence */ }
+func (s *Segment) SetRunsText(text string) { /* a single TextRun */ }
+func (s *Segment) HasInlineCodes() bool { /* any non-text run present */ }
 ```
 
-### Fragment (text with inline spans)
+### Run (inline content)
+
+A segment's content is a flat `[]Run`. Each `Run` is a discriminated union —
+exactly one pointer field is set — defined in `core/model/run.go`:
 
 ```go
-// Fragment holds text content with inline Spans (Okapi: TextFragment).
-type Fragment struct {
-    CodedText string  // Text with span markers (special Unicode chars)
-    Spans     []*Span // Inline markup elements
+// Run is one element of a segment's flat inline-content sequence.
+type Run struct {
+    Text    *TextRun        // plain text chunk
+    Ph      *PlaceholderRun // self-closing token: variable, <br>, icon, redaction
+    PcOpen  *PcOpenRun      // opening half of a paired code (<b>, <a>, …)
+    PcClose *PcCloseRun     // closing half of a paired code (</b>, </a>, …)
+    Sub     *SubRun         // reference to a nested Block (subfilter output)
+    Plural  *PluralRun      // ICU plural with per-form Runs
+    Select  *SelectRun      // ICU select with per-case Runs
 }
 
-func NewFragment(text string) *Fragment { /* plain text, no spans */ }
-func (f *Fragment) Text() string { /* strip span markers */ }
-func (f *Fragment) HasSpans() bool { return len(f.Spans) > 0 }
-func (f *Fragment) AppendText(text string) { /* append plain text */ }
-func (f *Fragment) AppendSpan(span *Span) { /* add span with marker */ }
-func (f *Fragment) IsEmpty() bool { return len(f.CodedText) == 0 }
-```
-
-### Span (inline markup)
-
-```go
-type SpanType int
+// RunKind names a Run's discriminator (see Run.Kind()).
+type RunKind string
 
 const (
-    SpanOpening     SpanType = iota // Opening tag (e.g., <b>)
-    SpanClosing                     // Closing tag (e.g., </b>)
-    SpanPlaceholder                 // Self-closing/standalone (e.g., <br/>)
+    RunKindText    RunKind = "text"
+    RunKindPh      RunKind = "ph"
+    RunKindPcOpen  RunKind = "pcOpen"
+    RunKindPcClose RunKind = "pcClose"
+    RunKindSub     RunKind = "sub"
+    RunKindPlural  RunKind = "plural"
+    RunKindSelect  RunKind = "select"
 )
 
-// Span represents an inline markup element within a Fragment.
-type Span struct {
-    SpanType    SpanType
-    Type        string // Semantic type (e.g., "bold", "link", "image")
+type TextRun struct {
+    Text string
+}
+
+// PlaceholderRun is a self-closing inline code. PcOpenRun is identical in
+// shape; PcCloseRun shares its ID with the matching PcOpen but omits Disp
+// and Constraints (the close inherits the opener's behavior).
+type PlaceholderRun struct {
     ID          string
-    Data        string // Original markup verbatim (e.g., "<b>", "<a href=\"/help\">")
-    OuterData   string // Outer context when needed
-    Deletable   bool   // Can a translator remove this code?
-    Cloneable   bool   // Can a translator duplicate this code?
-    OriginalID  string // Original ID before merging/splitting
-    DisplayText string // Human-readable label for editors (e.g., "[B]")
-    EquivText   string // Plain text equivalent (e.g., "\n" for <br>)
-    CanReorder  bool   // Can this code be reordered in translation?
-    Flags       int    // Bitfield: SpanFlagHasRef, SpanFlagAdded, SpanFlagMerged, SpanFlagMarkerMasking
-    Annotations map[string]Annotation
+    Type        string          // semantic type (e.g., "fmt:bold", "var")
+    SubType     string
+    Data        string          // original markup verbatim (e.g., "<br/>")
+    Equiv       string          // plain-text equivalent (e.g., "\n")
+    Disp        string          // editor display label (e.g., "[BR]")
+    Constraints *RunConstraints // deletable / cloneable / reorderable
+}
+
+// RunConstraints is the per-run editing policy.
+type RunConstraints struct {
+    Deletable   bool // translator may remove this code
+    Cloneable   bool // translator may duplicate this code
+    Reorderable bool // this code may move relative to others
 }
 ```
 
-Markers in `CodedText` map to spans positionally. See
+A `Run` serializes to JSON as an object with exactly one of the keys `text`,
+`ph`, `pcOpen`, `pcClose`, `sub`, `plural`, or `select`. See
 [Implementing a Format](/contribute/formats#inline-code-handling) for a complete
-guide to building and reconstructing inline codes.
+guide to building and reconstructing inline codes from runs.
+
+> A coded-text exchange form (`Fragment` with a private-use-area-marked
+> `CodedText` string and a parallel `[]Span`, mirroring Okapi's `TextFragment`)
+> historically backed inline content. It has been removed; `[]Run` is the
+> canonical representation.
 
 ### Data, Media, RawDocument
 

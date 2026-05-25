@@ -173,71 +173,110 @@ Key design choices:
 - **Idle timeout** (daemon mode): shuts down after N seconds with no active streams
 - **Stuck timeout**: aborts pipeline if translation queue poll exceeds timeout
 
-## Bridge Registry
+## Host-Side Discovery and Daemon Pool
 
-A single process-wide `BridgeRegistry` manages bridge instances:
+The Go side of the bridge lives in `cli/pluginhost/` — the host-side runtime
+for kapi's unified plugin model (#438). It discovers plugins from on-disk
+manifests, builds dispatch tables, and (for Mode-C plugins like the Okapi
+bridge) manages a pool of long-lived daemon subprocesses connected over
+Unix-socket gRPC. There is no `BridgeRegistry`, `managedBridge`, or
+`PluginLoader`; those names belong to a retired Go layer.
 
-```go
-type BridgeRegistry struct {
-    bridges   map[string]*managedBridge  // keyed by config hash
-    global    chan struct{}              // global concurrency semaphore
-    maxPerJVM int                       // per-JVM concurrency limit
-    daemon    bool                      // persist JVMs across invocations
-}
-```
+### Discovery (`cli/pluginhost/discover.go`)
 
-### Concurrency Control
+Discovery is pure filesystem reads — **no subprocess is launched to enumerate
+plugins**. `Discover` walks each plugin root, reads `manifest.json` from each
+sub-directory, parses it with `manifest.Parse`, and verifies the declared
+`plugin` name matches the install directory name. Manifests that fail to parse
+or validate are skipped with a warning; missing directories are silently
+ignored. Each surviving manifest becomes a `*Plugin` carrying its install
+`Dir`, `Source`, parsed `Manifest`, and resolved `BinaryPath`.
 
-- **Global semaphore** (`maxTotal`, default `NumCPU`): bounds total concurrent streams across all JVMs
-- **Per-JVM semaphore** (`maxPerJVM`, default 8): bounds concurrent streams on each JVM
-- `Acquire(cfg)` returns a bridge + release function; blocks if at capacity
+Roots are scanned in precedence order (lower `Source.Order` wins on a name
+conflict), assembled by `assembleRoots`:
 
-### Daemon Mode
+| Order | Root                                        | Source                                    |
+| ----- | ------------------------------------------- | ----------------------------------------- |
+| 1     | `$KAPI_PLUGINS_DIR` (os-path-list, may be multiple) | env override                      |
+| 2     | `$XDG_DATA_HOME/kapi/plugins` (→ `~/.local/share/kapi/plugins`) | per-user install       |
+| 3     | system dirs (`/opt/homebrew/share/kapi/plugins`, `/usr/local/share/kapi/plugins`, `/usr/share/kapi/plugins`) | system install |
 
-When `KAPI_BRIDGE_DAEMON=1`:
+`NewHost` (`cli/pluginhost/host.go`) folds the discovered plugins into
+dispatch tables for commands, MCP tools, formats, and recipe schema
+extensions. When two plugins claim the same capability name the conflicting
+entry is dropped from the table and a conflict message is emitted, so an
+ambiguous capability simply does not dispatch until one plugin is removed.
 
-- JVMs persist after kapi exits (no Shutdown RPC sent)
-- Discovered via address files in `~/.cache/neokapi/bridge/`
-- `KAPI_BRIDGE_IDLE_TIMEOUT` controls JVM auto-shutdown (default 30s)
-- Eliminates JVM startup cost for subsequent invocations
+### Discovery cache (`cli/pluginhost/cache.go`)
 
-### Warmup
+To avoid re-reading every manifest on each invocation, discovery results are
+cached as JSON. `CacheLocation` resolves to `$KAPI_PLUGIN_CACHE`, else
+`$XDG_CACHE_HOME/kapi/plugins-cache.json` (→ `~/.cache/kapi/...`). The cache
+records each root's directory mtime; `IsFresh` rejects the cache when the
+binary's `cacheVersion` changed, `GOOS`/`GOARCH` differ, the set of roots
+changed, or any root's current mtime is newer than the recorded one. A miss
+triggers a full rescan + rebuild via `BuildCache`. The cache is rebuilt as a
+side effect of install/update/remove.
 
-`WarmupBridges()` eagerly starts one JVM per bridge configuration before concurrent file processing begins, amortizing the ~1.3s JVM startup cost.
+### Daemon pool (`cli/pluginhost/daemon.go`)
 
-## gRPC Performance Tuning
+Mode-C plugins are served by a `DaemonPool` owned by the kapi process. The
+pool lazily spawns one daemon subprocess per plugin in `Acquire`, reuses a
+healthy daemon on subsequent calls, and tears every daemon down on
+`Shutdown()`:
 
-Both Go client and Java server are tuned for localhost throughput:
+- **Lazy spawn + reuse** — the first `Acquire(plugin)` runs
+  `plugin.BinaryPath daemon`, reads the daemon's first stdout line as the
+  `Handshake` JSON (`{"socket": "...", "version": "..."}`), and dials that
+  Unix socket as a gRPC client. Later calls return the cached, healthy
+  `DaemonClient` (gRPC `ClientConn` is concurrency-safe, so one client serves
+  parallel RPCs).
+- **Per-plugin spawn lock** — concurrent first-callers for the same plugin
+  serialize on a per-plugin mutex (`spawnLockFor`) so only one JVM is started;
+  the losers re-check the cache and reuse the winner's client.
+- **Bounded pool, LRU eviction** — `MaxDaemons` caps concurrent daemons. When
+  zero it resolves from `$KAPI_MAX_DAEMONS`, falling back to
+  `defaultMaxDaemons` (8). Exceeding the cap evicts the least-recently-used
+  daemon (`lruLocked`) before spawning a new one.
+- **Per-daemon idle timeout** — `idleTimeoutFor` prefers an explicit
+  `DaemonPoolOptions.IdleTimeout`, then the manifest's
+  `daemon.idle_timeout_seconds`, then `defaultIdleTimeout` (5 minutes). A
+  `watchIdle` goroutine terminates a daemon that sits unused past that
+  window. (Startup is bounded the same way via `startup_timeout_seconds`,
+  default 30s.)
+- **External attach** — `$KAPI_DAEMON_SOCKET_<PLUGIN>` (e.g.
+  `KAPI_DAEMON_SOCKET_OKAPI_BRIDGE`) points the pool at a pre-started daemon's
+  socket, skipping `exec` entirely. `pseudobench` uses this to measure a
+  long-lived daemon's per-call cost without paying JVM startup each
+  invocation.
 
-### Go Client
+Mode C is POSIX-only today: `spawn` returns an error on Windows, since the
+transport is Unix sockets.
 
-| Setting           | Value  | Purpose                              |
-| ----------------- | ------ | ------------------------------------ |
-| Write buffer      | 256 KB | Coalesce small writes (default 32KB) |
-| Read buffer       | 256 KB | Reduce read syscalls                 |
-| Stream window     | 4 MB   | Per-stream flow control headroom     |
-| Connection window | 8 MB   | Per-connection flow control          |
-| Max recv msg      | 64 MB  | Large ContentBlockBatch messages     |
-| readParts channel | 4096   | Absorb large batch unpacks           |
+## Transport and Throughput
 
-### Java Server (Netty)
+The host dials the daemon's Unix socket with `grpc.NewClient(...)` and
+insecure transport (`cli/pluginhost/daemon.go`, `dialUnixSocket`) — insecure
+is safe because the socket lives under `$TMPDIR` with 0600 mode, owned by the
+same user. `waitReady` actively probes the connection to `READY` (or fails on
+the startup deadline) so the pool fails fast when a daemon isn't serving.
 
-| Setting                | Value | Purpose                           |
-| ---------------------- | ----- | --------------------------------- |
-| Flow control window    | 4 MB  | Match Go client window            |
-| Max inbound msg        | 64 MB | Large batch messages              |
-| ContentBlockBatch size | 1024  | Blocks per gRPC message (Java→Go) |
+Throughput on the wire comes from two structural choices rather than tuned
+buffer knobs on the Go side:
 
-### Go→Java Send Strategy
+- **Batched Java→Go transfer** — the Java reader packs subscribed events into
+  `ContentBlockBatch` messages of up to 1024 `ContentBlock`s (see the Wire
+  Format section above), amortizing gRPC framing over many blocks. This is
+  safe because Java sends all blocks before waiting for any translation back.
+- **Individual Go→Java sends** — processed parts are sent back one at a time
+  via `ProcessRequest.part`, not batched. Batching the return path would
+  deadlock: the final partial batch would be held until the processed-parts
+  stream closes, which needs `ReadDone` from Java, which needs translations
+  from Go — a circular dependency. Per-part delivery breaks the cycle.
 
-Processed parts are sent back individually (not batched) from Go to Java.
-Batching from Go→Java causes a deadlock: the final partial batch is held until
-the `processedParts` channel closes, which requires `ReadDone` from Java, which
-requires translations from Go — circular dependency. Individual sends avoid this
-because each part is delivered immediately.
-
-Java→Go batching (ContentBlockBatch of 1024) is safe because Java sends all
-blocks before waiting for translations.
+The `subscribe_parts = [4]` (Block-only) optimization — letting Java write
+structural events directly without a gRPC round-trip — does far more for large
+documents than any buffer sizing, cutting message counts by roughly 3-4×.
 
 ## Plugin Parameters
 
@@ -251,28 +290,39 @@ Parameters are passed as `map<string, string>` in `ProcessHeader.filter_params`.
 - **Schema validation**: warnings logged for invalid parameters
 - **Parameter flattening**: hierarchical JSON config flattened to Okapi parameter names via `x-flattenPath` schema annotations
 
-## Multi-Version Directory Layout
+## Install Layout
+
+A plugin installs into a single directory named for the plugin, directly
+under a discovery root. `InstallFromRegistry` (`cli/pluginhost/install.go`)
+writes `<root>/<plugin-name>/`, downloads + verifies the platform asset, and
+records provenance in `installed.json`:
 
 ```
 ~/.local/share/kapi/plugins/
-  okapi/
-    2.17.0/
-      manifest.json
-      schemas/
-      neokapi-bridge-jar-with-dependencies.jar
-    2.18.0/
-      manifest.json
-      schemas/
-      neokapi-bridge-jar-with-dependencies.jar
+  okapi-bridge/
+    manifest.json            # plugin, version, binary, daemon, capabilities
+    installed.json           # version + registry provenance
+    Contents/MacOS/kapi-okapi-bridge   # the daemon binary (manifest.binary)
 ```
 
-Each version directory contains a `manifest.json` with capabilities and command configuration. The plugin loader registers capabilities with versioned names (`okf_html@2.17.0`) and bare aliases (`okf_html` → latest).
+`manifest.json` declares `plugin`, `version` (semver, e.g. `1.48.0`),
+`binary` (the executable to exec), an optional `daemon` block
+(`idle_timeout_seconds`, `startup_timeout_seconds`, handshake fields), and a
+`capabilities` block listing the formats, commands, MCP tools, and schema
+extensions the plugin provides. Formats are registered under their bare names
+(`okf_html`, `okf_archive`, …) — there is no `@version` aliasing or `→ latest`
+resolution in the current model; one directory holds one version of a plugin,
+and a duplicate plugin name across roots is resolved by source precedence
+(see Discovery above).
 
-## Plugin Loader
+The discovery + dispatch surface replaces the retired `PluginLoader` /
+`ScanMetadata` / `LoadBridges` / `WarmupBridges` layer entirely:
 
-The `PluginLoader` (`plugin/loader/`) ties discovery together:
-
-- **`ScanMetadata`**: reads `manifest.json` and `schemas/` from disk — no JVM needed
-- **`LoadBridges`**: creates the shared `BridgeRegistry`, registers reader factories
-- **`WarmupBridges`**: eagerly starts JVMs before concurrent processing
-- **`Shutdown`**: stops all bridges and plugins
+- **Discovery** — `pluginhost.Discover` reads manifests from disk; no JVM or
+  subprocess is launched to enumerate capabilities.
+- **Dispatch** — `pluginhost.NewHost` builds the command/MCP/format/schema
+  tables and surfaces conflicts.
+- **Daemon lifecycle** — `pluginhost.DaemonPool` spawns Mode-C daemons lazily
+  on first `Acquire`, reuses them, and tears them down on `Shutdown`. There is
+  no eager warmup step; the per-plugin spawn lock keeps the first concurrent
+  burst from starting redundant JVMs.

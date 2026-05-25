@@ -2,8 +2,8 @@
 id: 002-content-model
 sidebar_position: 2
 title: "AD-002: Content Model"
-description: "Architecture decision: documents are represented as a stream of Part values (Layer, Block, Fragment, Data, Media) so that tools and translations work independently of source file format."
-keywords: [content model, Part, Block, Fragment, Layer, architecture decision, neokapi]
+description: "Architecture decision: documents are represented as a stream of Part values (Layer, Block, Data, Media) and a Block's inline content is a flat sequence of Run values, so that tools and translations work independently of source file format."
+keywords: [content model, Part, Block, Run, Segment, Layer, architecture decision, neokapi]
 ---
 
 # AD-002: Content Model
@@ -12,12 +12,13 @@ keywords: [content model, Part, Block, Fragment, Layer, architecture decision, n
 
 Documents in neokapi are represented as a stream of `Part` values, each
 carrying a `PartType` discriminator and a `Resource`. Translatable content is
-a `Block`; text with inline markup is a `Fragment` containing ordered `Span`
-values referenced positionally by Unicode private-use-area markers. Spans
-carry six layers of metadata (native markup, abstract identity, semantic
-type, display text, text equivalent, editing constraints) so that
-format-aware tools can process content semantically while writers roundtrip
-native markup exactly.
+a `Block`; a Block's inline content lives on its `Segment` values as a flat
+`[]Run` — a discriminated union (`Text`, `Ph`, `PcOpen`, `PcClose`, `Sub`,
+`Plural`, `Select`) defined by RFC 0001. Inline-code runs carry the metadata
+that the older model spread across six span "layers" (native markup, abstract
+identity, semantic type, display text, text equivalent, editing constraints)
+directly on their fields, so format-aware tools can process content
+semantically while writers roundtrip native markup exactly.
 
 ## Context
 
@@ -25,7 +26,9 @@ A localization content model must represent translatable documents in a way
 that is format-independent, type-safe, extensible, and able to represent
 recursive embedded content naturally. Go's composition and interface system
 (no class inheritance) shapes the design toward discriminated unions and
-explicit resource types rather than deep type hierarchies.
+explicit resource types rather than deep type hierarchies. Both the Part
+stream and the inline-content model are discriminated unions — one keyed by
+`PartType`, the other by which `Run` field is set.
 
 Beyond structural representation, real-world localization workflows demand:
 
@@ -100,13 +103,24 @@ without maintaining separate error channels.
 
 ```go
 type Block struct {
-    ID          BlockIdentity
-    Source      []Segment
-    Targets     map[LocaleID][]Segment
-    Annotations map[string]Annotation
-    Properties  map[string]any
+    ID           string
+    SourceLocale LocaleID
+    Source       []*Segment
+    Targets      map[LocaleID][]*Segment
+    Identity     *BlockIdentity // content-addressable hash for dedup
+    Annotations  map[string]Annotation
+    Properties   map[string]string
+    // …skeleton link, display hint, whitespace flag, etc.
 }
 ```
+
+A Block holds source segments and per-locale target segments. Each `Segment`
+carries a flat `Runs []Run` sequence — the canonical inline-content
+representation (see [Segment and the Run sequence](#segment-and-the-run-sequence)
+below). `Block.SourceRuns()` / `TargetRuns(locale)` flatten the segment runs;
+`SetSourceRuns` / `SetTargetRuns` replace them; `FirstSegment()` returns the
+first source segment, which is what TM lookup keys on when segmentation is
+off.
 
 #### Content-addressable identity
 
@@ -176,65 +190,83 @@ Tools communicate by reading annotations produced upstream and writing their
 own downstream, keeping tools loosely coupled through the shared data model
 rather than direct dependencies.
 
-### Fragment and coded text
+### Segment and the Run sequence
 
-Text with inline formatting is a `Fragment` using coded text. Unicode
-Private-Use-Area markers replace inline markup within the text string. Each
-marker maps positionally to a `Span` carrying the code's metadata:
-
-```go
-const (
-    MarkerOpening     rune = '\uE001'
-    MarkerClosing     rune = '\uE002'
-    MarkerPlaceholder rune = '\uE003'
-)
-
-type Fragment struct {
-    CodedText string  // Text with PUA markers at span positions
-    Spans     []*Span // Metadata per marker, indexed positionally
-}
-```
-
-The Nth marker character in `CodedText` corresponds to `Spans[N]`. Three
-marker runes distinguish opening, closing, and placeholder (standalone)
-codes. Tools process `CodedText` as a simple string (skipping marker runes)
-while preserving complete inline-code information.
-
-### Span: six layers
-
-Each `Span` carries all six layers of the inline-code model:
+A Block's inline content is not a string with embedded markers — it is a flat
+sequence of `Run` values on each `Segment`:
 
 ```go
-type Span struct {
-    // Layer 2: Abstract identity
-    SpanType    SpanType  // Opening, Closing, or Placeholder
-    ID          string    // Sequential per-fragment: "1", "2", "3"
-
-    // Layer 3: Semantic type
-    Type        string    // From semantic type vocabulary
-    SubType     string    // Format-specific refinement (e.g., "xlf:b")
-
-    // Layer 1: Native markup
-    Data        string    // Native format markup (e.g., "<b>", "**", "<w:b/>")
-    OuterData   string    // Outer context when Data alone is insufficient
-
-    // Layer 4: Display text
-    DisplayText string    // Translator-facing label: "[B]", "[/B]", "[IMG]"
-
-    // Layer 5: Text equivalent
-    EquivText   string    // Plain text equivalent ("\n" for <br>, "" for bold)
-
-    // Layer 6: Editing constraints
-    Deletable   bool
-    Cloneable   bool
-    CanReorder  bool
-
-    // Internal tracking
-    OriginalID  string    // ID before merge/split operations
-    Flags       int       // SpanFlagHasRef, SpanFlagAdded, SpanFlagMerged, etc.
+type Segment struct {
+    ID          string
+    Runs        []Run
+    Properties  map[string]string
     Annotations map[string]Annotation
 }
 ```
+
+`Run` is a discriminated union: exactly one of its pointer fields is set,
+which is the run's *kind*. `Run.Kind()` returns the discriminator and
+`Run.RunID()` returns the id for the kinds that carry one.
+
+```go
+type Run struct {
+    Text    *TextRun        // plain text chunk
+    Ph      *PlaceholderRun // self-closing: variable, icon, <br>, redaction
+    PcOpen  *PcOpenRun      // opening half of a paired code (<a>, <b>, …)
+    PcClose *PcCloseRun     // closing half of a paired code (</a>, </b>, …)
+    Sub     *SubRun         // reference to a nested Block (subfilter output)
+    Plural  *PluralRun      // ICU plural with per-form Runs
+    Select  *SelectRun      // ICU select with per-case Runs
+}
+```
+
+Text and inline codes interleave positionally in the slice; there is no
+parallel side-table and no marker characters. A reader builds the slice by
+appending a `TextRun` for each text chunk and an inline-code run for each
+construct it encounters (see `core/formats/*/run_builder.go`).
+
+### Inline-code runs carry the former span "layers"
+
+The earlier content model spread inline-code metadata across six "span
+layers." Those layers now live directly on the inline-code run structs.
+`PlaceholderRun` and `PcOpenRun` carry the full set:
+
+```go
+type PcOpenRun struct {
+    ID          string          // abstract identity; shared with the matching PcClose
+    Type        string          // semantic type from the vocabulary ("fmt:bold")
+    SubType     string          // format-specific refinement ("html:b", "xlf:b")
+    Data        string          // native markup, replayed verbatim by writers ("<b class='x'>")
+    Equiv       string          // plain-text equivalent ("" for bold, "\n" for <br>)
+    Disp        string          // translator-facing label ("[B]")
+    Constraints *RunConstraints // editing constraints
+}
+
+type RunConstraints struct {
+    Deletable   bool
+    Cloneable   bool
+    Reorderable bool
+}
+```
+
+`PlaceholderRun` has the same shape (it is self-closing, so it has no pairing
+partner). `PcCloseRun` is the closing half of a paired code and is leaner — it
+shares `ID` with its `PcOpen` and replays its own `Data`, but it has no
+`Constraints` field because the closing half inherits its opener's behavior.
+The six concerns map onto these fields as follows:
+
+| Former span "layer" | Run field                  |
+| ------------------- | -------------------------- |
+| Abstract identity   | `ID` (+ `Kind()`)          |
+| Semantic type       | `Type`, `SubType`          |
+| Native markup       | `Data`                     |
+| Display text        | `Disp`                     |
+| Text equivalent     | `Equiv`                    |
+| Editing constraints | `Constraints`              |
+
+`SubRun` references a subblock produced by a subfilter (`ID`, `Ref`, `Equiv`);
+`PluralRun` / `SelectRun` are structured ICU constructs whose branches are
+themselves `[]Run`.
 
 ### Semantic type vocabulary
 
@@ -313,91 +345,75 @@ convention. Reserved prefixes:
 
 Custom subtypes use a reverse-domain prefix: `com.acme:custom-tag`.
 
-### Span ID assignment
+### Run ID assignment and pairing
 
-Format readers assign sequential numeric IDs to spans within each Fragment.
-Opening and closing spans that form a pair share the same ID; placeholder
-spans get their own ID. IDs start at `"1"`:
+Format readers assign sequential numeric IDs to inline-code runs within each
+segment. A `PcOpenRun` and the `PcCloseRun` that closes it share the same
+`ID`; a `PlaceholderRun` gets its own. IDs start at `"1"`. Pairs nest LIFO,
+and runs inside a `Plural`/`Select` branch form their own scope:
 
 ```
-Input:  Click <b>here</b> for <a href="x">info</a>.
-Spans:  [Opening id="1"] [Closing id="1"] [Opening id="2"] [Closing id="2"]
+Input: Click <b>here</b> for <a href="x">info</a>.
+Runs:  TextRun "Click "
+       PcOpen{ID:"1", Type:"fmt:bold"}        TextRun "here"  PcClose{ID:"1"}
+       TextRun " for "
+       PcOpen{ID:"2", Type:"link:hyperlink"}  TextRun "info"  PcClose{ID:"2"}
+       TextRun "."
 ```
 
 This produces stable structural keys for TM matching: HTML `<b>Click</b>`
 and Markdown `**Click**` both yield `{1}Click{/1}` — TM entries created from
 HTML match Markdown sources at the structural tier.
 
-### Fragment text projections
+### Run text projections
 
-Fragment provides multiple views of its content:
-
-```go
-// Plain text — markers stripped, spans ignored.
-// Use: word count, search, QA text comparison.
-func (f *Fragment) Text() string
-
-// Structural text — markers replaced by numbered placeholders.
-// Use: TM exact matching (structural tier).
-func (f *Fragment) StructuralText() string
-
-// Generalized text — entity spans become typed placeholders ({PERSON}),
-// structural spans become numbered.
-// Use: TM generalized matching (entity-agnostic tier).
-func (f *Fragment) GeneralizedText() string
-
-// Semantic HTML — renders spans as semantic HTML elements.
-// Use: MT APIs (DeepL tag_handling=html, Google mime_type=text/html),
-// translation editor preview, AI translation with context.
-func (f *Fragment) SemanticHTML() string
-
-// Placeholder text — numbered XML placeholders for LLM prompts.
-// <x id="1"/>text<x id="/1"/> format.
-// Use: LLM translation prompts where tag preservation is critical.
-func (f *Fragment) PlaceholderText() string
-```
-
-Example, a Fragment `"Click \uE001here\uE002 for info"` with
-`Span[0]={SpanOpening, Type:"fmt:bold", ID:"1", Data:"<b class='x'>"}` and
-`Span[1]={SpanClosing, Type:"fmt:bold", ID:"1", Data:"</b>"}`:
-
-```
-Text():            "Click here for info"
-StructuralText():  "Click {1}here{/1} for info"
-SemanticHTML():    "Click <b>here</b> for info"
-PlaceholderText(): "Click <x id=\"1\"/>here<x id=\"/1\"/> for info"
-```
-
-The semantic-type-to-HTML mapping is defined by a small `SemanticHTMLMap`.
-Unknown types fall back to `<span data-type="…">`.
-
-### Run sequences as canonical inline content
-
-`Block.Source` and `Block.Targets` are sequences of `Segment`, and each
-`Segment.Runs` is a flat `[]Run` — a discriminated union that is the
-**canonical representation of inline content** in neokapi:
+A Run sequence is the single source of truth; every textual form that crosses
+a boundary is a **projection** computed from `[]Run` on demand. The framework
+provides (in `core/model/`):
 
 ```go
-type Run struct {
-    Text   *TextRun        // plain text chunk
-    Ph     *PlaceholderRun // self-closing: variable, icon, <br>, redaction
-    PcOpen *PcOpenRun      // opening half of a paired code (<a>, <b>, …)
-    PcClose *PcCloseRun    // closing half of a paired code (</a>, </b>, …)
-    Sub    *SubRun         // reference to a nested Block (subfilter output)
-    Plural *PluralRun      // ICU plural with per-form Runs
-    Select *SelectRun      // ICU select with per-case Runs
-}
+// Plain flattening — TextRun content verbatim, placeholders contribute
+// {equiv}, paired codes contribute their inner content, plural/select take
+// the 'other' branch. Use: word count, search, QA text comparison.
+// Segment.Text() is the text-only variant (inline codes contribute nothing).
+func FlattenRuns(runs []Run) string
+
+// Structural text — inline-code runs become numbered placeholders ({1},
+// {/1}, {2/}). Use: TM exact matching (structural tier).
+func RunsStructuralText(runs []Run) string
+
+// Generalized text — entity Ph runs become typed placeholders ({PERSON}),
+// other inline codes become numbered. Use: TM generalized matching.
+func RunsGeneralizedText(runs []Run) string
+
+// Markup-preserving render — re-emits each run's captured Data verbatim.
+// Use: HTML/XML/Markdown writers splicing opaque markup back into a string.
+func RenderRunsWithData(runs []Run) string
 ```
 
-Every `PcOpenRun` carries an `id` and is paired with a matching
-`PcCloseRun` of the same `id` later in the same Run sequence. Pairs nest
-LIFO; runs may appear inside plural / select forms with their own scope.
+Example, the Run sequence `TextRun "Click "`,
+`PcOpen{ID:"1", Type:"fmt:bold", Data:"<b class='x'>"}`, `TextRun "here"`,
+`PcClose{ID:"1", Data:"</b>"}`, `TextRun " for info"`:
 
-`Run[]` is isomorphic to `Fragment{CodedText, Spans}` — `RunsToFragment` and
-the inverse `MarshalRuns` / `UnmarshalRuns` (`core/model/coded_text.go`)
-bridge the two whenever code paths still consume the `CodedText` form for
-persistence or XLIFF round-trip. Going forward `Run[]` is the canonical
-form; `Fragment` is the persistence/bridge view.
+```
+FlattenRuns():        "Click here for info"
+RunsStructuralText(): "Click {1}here{/1} for info"
+RenderRunsWithData(): "Click <b class='x'>here</b> for info"
+```
+
+Higher-level consumers layer further projections on top of the same `[]Run`:
+the TypeScript side renders a PUA-coded form for the visual editor's styled
+chips, an `<x id="1"/>…` placeholder form for LLM prompts, and semantic HTML
+for commercial MT. The Block is identical; each consumer renders it
+differently.
+
+> **Historical note.** An earlier model represented inline content as a
+> `Fragment{CodedText, Spans}` pair — text with Unicode private-use-area
+> markers plus a positional `[]*Span` side-table — bridged to runs by
+> `RunsToFragment` / `MarshalRuns` / `UnmarshalRuns` in a
+> `core/model/coded_text.go`. That bridge has been removed (RFC 0001):
+> `[]Run` is now the sole inline-content representation, with no `Fragment`,
+> `Span`, or coded-text marker types.
 
 ### Boundaries: structural canonical, projections at consumers
 
@@ -428,7 +444,6 @@ The framework provides:
 | `RunsSemanticHTML(runs, reg)`  | `<a href="…">here</a>`           | Commercial MT (DeepL, Google) and HTML-style LLM prompts                  |
 | `flattenRuns(runs)` (TS)       | `Click {=m0}here{/=m0}`          | ICU runtime, kapi-react `__tx` re-attach                                  |
 | `runsToCoded(runs)` (TS)       | PUA-marker text + `SpanInfo[]`   | Visual editor (chips, formatting, semantic spans rendered as styled text) |
-| `Fragment.CodedText` + `Spans` | PUA-marker text + `Span[]`       | Persistence bridge, XLIFF round-trip via `Span.Data`                      |
 
 Two consequences fall out of the convention:
 
@@ -446,30 +461,35 @@ Two consequences fall out of the convention:
 
 ### Reader and writer contracts
 
-**Readers** populate all six span layers when producing Fragments:
+**Readers** populate every field on each inline-code run they emit:
 
-1. **ID** — sequential numeric, paired opening/closing share the same ID.
-2. **Type** — from the semantic-type vocabulary.
+1. **ID** — sequential numeric; a paired `PcOpen`/`PcClose` share the same ID.
+2. **Type** / **SubType** — from the semantic-type vocabulary plus a
+   format-specific refinement.
 3. **Data** — verbatim native markup for roundtrip fidelity.
-4. **DisplayText** — short human-readable label (`"[B]"`, `"[IMG]"`).
-5. **EquivText** — plain text equivalent where applicable.
-6. **Editing constraints** — `Deletable`, `Cloneable`, `CanReorder` based on
-   format semantics.
+4. **Disp** — short human-readable label (`"[B]"`, `"[IMG]"`).
+5. **Equiv** — plain-text equivalent where applicable.
+6. **Constraints** — `Deletable`, `Cloneable`, `Reorderable` based on format
+   semantics.
 
-**Writers** reconstruct output using `Span.Data` (the native markup), not the
+**Writers** reconstruct output using `Run.Data` (the native markup), not the
 semantic type. This ensures perfect roundtrip fidelity — the writer replays
-exactly what the reader captured:
+exactly what the reader captured, which is what `RenderRunsWithData` does:
 
 ```go
-func renderFragment(frag *Fragment) string {
+func RenderRunsWithData(runs []Run) string {
     var buf strings.Builder
-    spanIdx := 0
-    for _, r := range frag.CodedText {
-        if isMarker(r) && spanIdx < len(frag.Spans) {
-            buf.WriteString(frag.Spans[spanIdx].Data)
-            spanIdx++
-        } else {
-            buf.WriteRune(r)
+    for _, r := range runs {
+        switch {
+        case r.Text != nil:
+            buf.WriteString(r.Text.Text)
+        case r.Ph != nil:
+            buf.WriteString(r.Ph.Data)
+        case r.PcOpen != nil:
+            buf.WriteString(r.PcOpen.Data)
+        case r.PcClose != nil:
+            buf.WriteString(r.PcClose.Data)
+        // …Sub replays Ref; Plural/Select recurse into the 'other' branch.
         }
     }
     return buf.String()
@@ -546,19 +566,19 @@ sub-writer, and insert the rendered string into the parent format.
 
 ### Integration with AI, MT, and TM
 
-AI tools and MT providers pick the appropriate Fragment projection based on
-the backend's tag-handling capability:
+AI tools and MT providers pick the appropriate Run projection based on the
+backend's tag-handling capability:
 
-- **Commercial MT APIs** (DeepL, Google, Amazon) — use `SemanticHTML()`. The
-  API preserves the semantic HTML tags; the framework restores the native
-  markup from the original Span data.
-- **LLM translation** — use `PlaceholderText()` or `SemanticHTML()` depending
-  on prompt strategy. `ParsePlaceholderText` reconstructs a Fragment from
-  the LLM response by matching placeholder tags back to source Spans.
-- **TM matching** — three-tier matching uses `Text()`, `StructuralText()`,
-  and `GeneralizedText()` in order. Because structural keys use semantic
-  types and not native markup, TM entries created from HTML match Markdown
-  at the structural tier.
+- **Commercial MT APIs** (DeepL, Google, Amazon) — use `RunsSemanticHTML`.
+  The API preserves the semantic HTML tags; the framework restores the native
+  markup from each run's original `Data`.
+- **LLM translation** — use `RunsPlaceholderText` or `RunsSemanticHTML`
+  depending on prompt strategy. The response is parsed back into a `[]Run` by
+  matching placeholder tags to the source runs.
+- **TM matching** — three-tier matching uses `FlattenRuns`,
+  `RunsStructuralText`, and `RunsGeneralizedText` in order. Because structural
+  keys use run IDs and not native markup, TM entries created from HTML match
+  Markdown at the structural tier.
 
 ## Consequences
 
@@ -576,11 +596,12 @@ the backend's tag-handling capability:
   without content-model changes.
 - The semantic-type abstraction lets TM match across formats and lets AI
   prompts receive consistent inline-code representations.
-- Writers replay `Span.Data` verbatim, so roundtrip fidelity is a property of
+- Writers replay `Run.Data` verbatim, so roundtrip fidelity is a property of
   the model, not of each format's implementation.
 - Layers nest recursively with no special cases — embedded content is a
   first-class pipeline citizen.
-- The six-layer Span design aligns with XLIFF 2.0, making XLIFF
+- The Run union (paired `PcOpen`/`PcClose`, self-closing `Ph`, structured
+  `Plural`/`Select`) aligns with XLIFF 2.0's `<pc>`/`<ph>` model, making XLIFF
   serialization a natural mapping rather than a lossy conversion.
 
 ## Related

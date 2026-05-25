@@ -1,8 +1,8 @@
 ---
 sidebar_position: 3
 title: Implementing a Format
-description: Step-by-step guide for adding a new document format to neokapi — reader and writer Go structs, inline code handling, roundtrip fidelity tests, and registration in the format registry.
-keywords: [format implementation, DataFormatReader, DataFormatWriter, neokapi, Go, format reader, roundtrip]
+description: Step-by-step guide for adding a new document format to neokapi — reader and writer Go structs, inline code (Run) handling, roundtrip fidelity tests, and registration in the format registry.
+keywords: [format implementation, DataFormatReader, DataFormatWriter, neokapi, Go, format reader, runs, roundtrip]
 ---
 
 # Implementing a New Format
@@ -80,12 +80,8 @@ func (r *Reader) Read(ctx context.Context) <-chan model.PartResult {
 
         // 2. Emit Blocks for translatable content
         ch <- model.PartResult{Part: &model.Part{
-            Type: model.PartBlock,
-            Resource: &model.Block{
-                ID:           "b1",
-                Translatable: true,
-                Source:       []*model.Segment{{ID: "s1", Content: model.NewFragment("Hello")}},
-            },
+            Type:     model.PartBlock,
+            Resource: model.NewBlock("b1", "Hello"),
         }}
 
         // 3. Emit PartLayerEnd
@@ -136,7 +132,7 @@ func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
             switch part.Type {
             case model.PartBlock:
                 block := part.Resource.(*model.Block)
-                // Write translated content — see renderFragment below
+                // Write translated content — see renderRuns below
             case model.PartData:
                 // Write structural content verbatim
             }
@@ -154,45 +150,64 @@ line breaks, variables, placeholders. A localization framework must preserve
 this markup through the entire pipeline (extraction, TM lookup, MT, AI
 translation, QA, reconstruction) without corruption.
 
-neokapi solves this with **coded text**: inline markup is replaced by Unicode
-Private Use Area (PUA) marker characters in the text string, while the original
-markup is stored in a parallel `Spans` slice. This lets tools, translation
-engines, and TM matching operate on plain text with positional markers, and the
-writer reconstructs the original markup on output.
+neokapi solves this with the **Run** model: a segment's content is a flat
+`[]model.Run` sequence. Text travels as `TextRun`s; inline markup becomes
+inline-code runs (`PcOpen`/`PcClose` for paired tags, `Ph` for self-closing
+tokens) that carry the original markup in a `Data` field. This lets tools,
+translation engines, and TM matching project the runs to plain text, and the
+writer reconstructs the original markup by re-emitting each run's `Data`.
 
-### The Fragment and Span Model
+### The Run Model
 
-A `Fragment` holds text content with inline codes:
+A `Run` is a discriminated union — exactly one of its pointer fields is set:
 
 ```go
-type Fragment struct {
-    CodedText string  // Text with PUA marker characters
-    Spans     []*Span // Original markup for each marker
+type Run struct {
+    Text    *TextRun        // plain text chunk
+    Ph      *PlaceholderRun // self-closing: variable, icon, <br>, redaction
+    PcOpen  *PcOpenRun      // opening half of a paired code (<a>, <b>, …)
+    PcClose *PcCloseRun     // closing half of a paired code (</a>, </b>, …)
+    Sub     *SubRun         // reference to a nested Block (subfilter output)
+    Plural  *PluralRun      // ICU plural with per-form Runs
+    Select  *SelectRun      // ICU select with per-case Runs
 }
 ```
 
-Three marker characters identify span types:
-
-| Marker      | Constant                  | Unicode | Purpose                                                 |
-| ----------- | ------------------------- | ------- | ------------------------------------------------------- |
-| Opening     | `model.MarkerOpening`     | U+E001  | Paired opening tag (`<b>`, `**`, `<a href="...">`)      |
-| Closing     | `model.MarkerClosing`     | U+E002  | Paired closing tag (`</b>`, `**`, `</a>`)               |
-| Placeholder | `model.MarkerPlaceholder` | U+E003  | Self-closing element (`<br/>`, `<img>`, `\{variable\}`) |
-
-Each `Span` stores full metadata about an inline code:
+The three inline-code runs you reach for most are:
 
 ```go
-type Span struct {
-    SpanType    SpanType // SpanOpening, SpanClosing, or SpanPlaceholder
-    Type        string   // Semantic type (e.g., "bold", "link", "image", "br")
-    ID          string   // Unique identifier for matching open/close pairs
-    Data        string   // Original markup verbatim (e.g., "<b>", "</b>")
-    OuterData   string   // Outer context when needed
-    Deletable   bool     // Can a translator remove this code?
-    Cloneable   bool     // Can a translator duplicate this code?
-    CanReorder  bool     // Can this code move relative to others?
-    DisplayText string   // What to show in a translation editor (e.g., "[B]")
-    EquivText   string   // Text equivalent (e.g., "\n" for <br>)
+// PlaceholderRun — a self-closing token (<br/>, {count}, an icon).
+type PlaceholderRun struct {
+    ID          string          // unique within the run sequence
+    Type        string          // semantic type (e.g., "fmt:linebreak", "var")
+    SubType     string          // optional refinement
+    Data        string          // original markup verbatim (e.g., "<br/>")
+    Equiv       string          // plain-text equivalent (e.g., "\n")
+    Disp        string          // editor display label (e.g., "[BR]")
+    Constraints *RunConstraints // deletable / cloneable / reorderable
+}
+
+// PcOpenRun — the opening half of a paired code. PcCloseRun mirrors it
+// (sharing ID) but omits Disp and Constraints — the close inherits the
+// opener's behavior.
+type PcOpenRun struct {
+    ID          string
+    Type        string          // e.g., "fmt:bold", "fmt:link"
+    SubType     string
+    Data        string          // e.g., "<b>", "<a href=\"/help\">"
+    Equiv       string
+    Disp        string
+    Constraints *RunConstraints
+}
+```
+
+`RunConstraints` is the editing-policy triple:
+
+```go
+type RunConstraints struct {
+    Deletable   bool // translator may remove this code
+    Cloneable   bool // translator may duplicate this code
+    Reorderable bool // this code may move relative to others
 }
 ```
 
@@ -204,83 +219,43 @@ Consider this HTML paragraph:
 <p>Click <b>here</b> for <a href="/help">info</a></p>
 ```
 
-The reader extracts the `<p>` content as a single Fragment:
+The reader extracts the `<p>` content as a single segment whose `Runs` are:
 
 ```
-CodedText: "Click \uE001here\uE002 for \uE001info\uE002"
-Spans: [
-    {SpanType: Opening,     Type: "b", ID: "b",    Data: "<b>"},
-    {SpanType: Closing,     Type: "b", ID: "b",    Data: "</b>"},
-    {SpanType: Opening,     Type: "a", ID: "a",    Data: "<a href=\"/help\">"},
-    {SpanType: Closing,     Type: "a", ID: "a",    Data: "</a>"},
+[
+    {Text: "Click "},
+    {PcOpen:  {ID: "1", Type: "fmt:bold", Data: "<b>"}},
+    {Text: "here"},
+    {PcClose: {ID: "1", Type: "fmt:bold", Data: "</b>"}},
+    {Text: " for "},
+    {PcOpen:  {ID: "2", Type: "fmt:link", Data: "<a href=\"/help\">"}},
+    {Text: "info"},
+    {PcClose: {ID: "2", Type: "fmt:link", Data: "</a>"}},
 ]
 ```
 
-The marker characters are positional anchors — each marker in `CodedText`
-corresponds to the next `Span` in the slice, in order. This means:
+The runs are ordered, and a `PcClose` shares its `ID` with the matching
+`PcOpen`. This means:
 
-- `frag.Text()` returns `"Click here for info"` (markers stripped)
-- `frag.HasSpans()` returns `true`
-- `frag.Spans[0].Data` returns `"<b>"` (the original markup, including attributes)
+- `seg.Text()` returns `"Click here for info"` (inline-code runs contribute nothing)
+- `seg.HasInlineCodes()` returns `true`
+- the second run's `PcOpen.Data` is `"<b>"` (the original markup, including attributes)
 
-Tools see the markers but skip over them. Translation engines get clean text
-with positional codes. The writer replays `Span.Data` at each marker position
-to reconstruct the original markup perfectly — even preserving attributes like
-`class="emphasis"` or `href="/help"`.
-
-### Building Fragments in a Reader
-
-Use the Fragment builder API to construct coded text incrementally:
-
-```go
-frag := &model.Fragment{}
-
-// Plain text
-frag.AppendText("Click ")
-
-// Opening tag — appends MarkerOpening + records the Span
-frag.AppendSpan(&model.Span{
-    SpanType: model.SpanOpening,
-    Type:     "b",
-    ID:       "b",
-    Data:     "<b>",
-})
-
-// Text inside the tag
-frag.AppendText("here")
-
-// Closing tag — appends MarkerClosing + records the Span
-frag.AppendSpan(&model.Span{
-    SpanType: model.SpanClosing,
-    Type:     "b",
-    ID:       "b",
-    Data:     "</b>",
-})
-
-frag.AppendText(" for info")
-```
-
-For self-closing elements like `<br/>` or `<img>`:
-
-```go
-frag.AppendSpan(&model.Span{
-    SpanType: model.SpanPlaceholder,
-    Type:     "br",
-    ID:       "br",
-    Data:     "<br/>",
-})
-```
+Tools project the runs to plain text and skip the inline codes. Translation
+engines get clean text with opaque tokens. The writer re-emits each run's
+`Data` to reconstruct the original markup perfectly — even preserving
+attributes like `class="emphasis"` or `href="/help"`.
 
 ### Three Categories of Inline Elements
 
 When implementing a format reader, classify each inline element into one of
 three categories:
 
-| Category         | SpanType          | Examples                              | Pattern                     |
-| ---------------- | ----------------- | ------------------------------------- | --------------------------- |
-| **Paired tags**  | Opening + Closing | `<b>...</b>`, `**...**`, `<a>...</a>` | Wrap content with two spans |
-| **Self-closing** | Placeholder       | `<br/>`, `<img>`, `<hr/>`             | Single span, no children    |
-| **Block-level**  | _(not a span)_    | `<p>`, `<div>`, `<h1>`                | Boundary for a new Block    |
+| Category         | Run kind             | Examples                              | Pattern                                |
+| ---------------- | -------------------- | ------------------------------------- | -------------------------------------- |
+| **Paired tags**  | `PcOpen` + `PcClose` | `<b>...</b>`, `**...**`, `<a>...</a>` | Wrap content with two runs (shared ID) |
+| **Self-closing** | `Ph`                 | `<br/>`, `<img>`, `<hr/>`             | Single run, no children                |
+| **Block-level**  | _(not a run)_        | `<p>`, `<div>`, `<h1>`                | Boundary for a new Block               |
 
 The reader decides what is inline vs. block-level. For HTML, this distinction
 is well-defined. For other formats (Markdown, XLIFF, custom XML), you choose
@@ -288,49 +263,59 @@ the mapping based on what a translator needs to see as a contiguous unit.
 
 ### Complete Reader Example with Inline Codes
 
-Here is how the HTML reader collects inline content from a block-level element.
-This pattern applies to any format with inline markup:
+Here is how a reader collects inline content from a block-level element into a
+`[]model.Run` slice. This pattern applies to any format with inline markup:
 
 ```go
-// collectInlineContent builds a Fragment from all text and inline
+// collectInlineContent builds a run sequence from all text and inline
 // elements inside a block-level container node.
-func (r *Reader) collectInlineContent(n *html.Node) *model.Fragment {
-    frag := &model.Fragment{}
-    r.collectFromNode(n, frag)
-    return frag
+func (r *Reader) collectInlineContent(n *html.Node) []model.Run {
+    var runs []model.Run
+    r.collectFromNode(n, &runs)
+    return runs
 }
 
-func (r *Reader) collectFromNode(n *html.Node, frag *model.Fragment) {
+// appendText coalesces adjacent text so consecutive chunks stay one TextRun.
+func appendText(runs *[]model.Run, text string) {
+    if text == "" {
+        return
+    }
+    if n := len(*runs); n > 0 && (*runs)[n-1].Text != nil {
+        (*runs)[n-1].Text.Text += text
+        return
+    }
+    *runs = append(*runs, model.Run{Text: &model.TextRun{Text: text}})
+}
+
+func (r *Reader) collectFromNode(n *html.Node, runs *[]model.Run) {
     for child := n.FirstChild; child != nil; child = child.NextSibling {
         switch child.Type {
         case html.TextNode:
-            // Plain text — append directly
-            frag.AppendText(child.Data)
+            // Plain text — coalesce into the run sequence
+            appendText(runs, child.Data)
 
         case html.ElementNode:
             if selfClosingElements[child.DataAtom] {
-                // Self-closing: <br/>, <img>, etc. → single placeholder span
-                frag.AppendSpan(&model.Span{
-                    SpanType: model.SpanPlaceholder,
-                    Type:     child.Data,
-                    ID:       child.Data,
-                    Data:     renderTag(child), // e.g., "<br/>"
-                })
+                // Self-closing: <br/>, <img>, etc. → a Ph run
+                *runs = append(*runs, model.Run{Ph: &model.PlaceholderRun{
+                    ID:   r.nextID(),
+                    Type: child.Data,
+                    Data: renderTag(child), // e.g., "<br/>"
+                }})
             } else if isInlineElement(child) {
                 // Paired inline: <b>, <a>, <em>, etc.
-                frag.AppendSpan(&model.Span{
-                    SpanType: model.SpanOpening,
-                    Type:     child.Data,
-                    ID:       child.Data,
-                    Data:     renderOpenTag(child), // e.g., "<a href=\"/help\">"
-                })
-                r.collectFromNode(child, frag) // Recurse into children
-                frag.AppendSpan(&model.Span{
-                    SpanType: model.SpanClosing,
-                    Type:     child.Data,
-                    ID:       child.Data,
-                    Data:     fmt.Sprintf("</%s>", child.Data),
-                })
+                id := r.nextID()
+                *runs = append(*runs, model.Run{PcOpen: &model.PcOpenRun{
+                    ID:   id,
+                    Type: child.Data,
+                    Data: renderOpenTag(child), // e.g., "<a href=\"/help\">"
+                }})
+                r.collectFromNode(child, runs) // Recurse into children
+                *runs = append(*runs, model.Run{PcClose: &model.PcCloseRun{
+                    ID:   id, // shares ID with its PcOpen
+                    Type: child.Data,
+                    Data: fmt.Sprintf("</%s>", child.Data),
+                }})
             }
             // Block-level elements are NOT collected — they form new Blocks
         }
@@ -339,36 +324,24 @@ func (r *Reader) collectFromNode(n *html.Node, frag *model.Fragment) {
 ```
 
 The key insight: **recurse into inline children** to handle nested formatting
-like `<b><i>bold italic</i></b>`. Each level of nesting adds its own
-opening/closing span pair, and the `CodedText` naturally captures the correct
-order.
+like `<b><i>bold italic</i></b>`. Each level of nesting appends its own
+`PcOpen`/`PcClose` pair, and the flat run sequence naturally captures the
+correct order. Attach the collected runs to a block with
+`block.SetSourceRuns(runs)`, or build the block directly with
+`model.NewRunsBlock(id, runs)`.
 
 ### Reconstructing Markup in a Writer
 
-The writer iterates through `CodedText` character by character. When it
-encounters a marker character, it emits the corresponding `Span.Data`:
+The writer walks the run sequence and emits each run's content: literal text for
+`TextRun`s, the captured `Data` for inline-code runs. The framework provides
+`model.RenderRunsWithData` for exactly this — the canonical rendering path the
+HTML, XML, and Markdown writers all use:
 
 ```go
-func (w *Writer) renderFragment(buf *strings.Builder, frag *model.Fragment) {
-    if !frag.HasSpans() {
-        // No inline codes — write text directly
-        buf.WriteString(frag.CodedText)
-        return
-    }
-
-    spanIdx := 0
-    for _, r := range frag.CodedText {
-        if r == model.MarkerOpening || r == model.MarkerClosing || r == model.MarkerPlaceholder {
-            // Replace marker with original markup
-            if spanIdx < len(frag.Spans) {
-                buf.WriteString(frag.Spans[spanIdx].Data)
-                spanIdx++
-            }
-        } else {
-            // Regular text character
-            buf.WriteRune(r)
-        }
-    }
+func (w *Writer) renderRuns(buf *strings.Builder, runs []model.Run) {
+    // RenderRunsWithData emits TextRun content verbatim and re-emits the
+    // captured Data for every inline-code run (Ph, PcOpen, PcClose, Sub).
+    buf.WriteString(model.RenderRunsWithData(runs))
 }
 ```
 
@@ -379,22 +352,18 @@ that string, attributes and all.
 
 ### Choosing Target vs Source Content
 
-When writing output, the writer must choose the right content. Use target
-content if a translation exists for the configured locale, otherwise fall back
-to source:
+When writing output, the writer must choose the right content. Use the target
+runs if a translation exists for the configured locale, otherwise fall back to
+the source runs:
 
 ```go
 func (w *Writer) writeBlock(block *model.Block) {
     if !w.Locale.IsEmpty() && block.HasTarget(w.Locale) {
         // Write translated content (preserving inline codes)
-        for _, seg := range block.Targets[w.Locale] {
-            w.renderFragment(buf, seg.Content)
-        }
+        w.renderRuns(buf, block.TargetRuns(w.Locale))
     } else {
         // Fall back to source
-        for _, seg := range block.Source {
-            w.renderFragment(buf, seg.Content)
-        }
+        w.renderRuns(buf, block.SourceRuns())
     }
 }
 ```
@@ -406,17 +375,13 @@ tags, whitespace, etc.) is captured in a **Skeleton**. The reader builds a
 skeleton with text parts and a reference to the block content:
 
 ```go
-block := &model.Block{
-    ID:           "tu1",
-    Translatable: true,
-    Source:       []*model.Segment{{ID: "s1", Content: frag}},
-    Skeleton: &model.Skeleton{
-        Strategy: model.SkeletonFragmentBased,
-        Parts: []model.SkeletonPart{
-            &model.SkeletonText{Text: "<p>"},       // Before content
-            &model.SkeletonRef{ResourceID: "tu1"},   // Content placeholder
-            &model.SkeletonText{Text: "</p>\n"},     // After content
-        },
+block := model.NewRunsBlock("tu1", runs)
+block.Skeleton = &model.Skeleton{
+    Strategy: model.SkeletonFragmentBased,
+    Parts: []model.SkeletonPart{
+        &model.SkeletonText{Text: "<p>"},      // Before content
+        &model.SkeletonRef{ResourceID: "tu1"}, // Content placeholder
+        &model.SkeletonText{Text: "</p>\n"},   // After content
     },
 }
 ```
@@ -428,10 +393,10 @@ if block.Skeleton != nil {
     for _, sp := range block.Skeleton.Parts {
         switch p := sp.(type) {
         case *model.SkeletonText:
-            fmt.Fprint(w.Output, p.Text)  // Emit structure verbatim
+            fmt.Fprint(w.Output, p.Text) // Emit structure verbatim
         case *model.SkeletonRef:
-            // Emit the translated/source content with inline codes
-            w.renderFragment(buf, content)
+            // Emit the translated/source runs with inline codes
+            w.renderRuns(buf, runs)
         }
     }
 }
@@ -443,27 +408,24 @@ tags, whitespace, and attributes — which risks losing information.
 
 ---
 
-## Span Metadata Fields
+## Run Metadata Fields
 
-The `Span` struct carries more than just the raw markup. These fields help
+An inline-code run carries more than just the raw markup. These fields help
 tools, editors, and QA checks work with inline codes intelligently:
 
-| Field         | Purpose                                         | Example                             |
-| ------------- | ----------------------------------------------- | ----------------------------------- |
-| `SpanType`    | Discriminator: Opening, Closing, or Placeholder | `SpanOpening`                       |
-| `Type`        | Semantic type for tool processing               | `"bold"`, `"link"`, `"image"`       |
-| `ID`          | Matches opening/closing pairs                   | `"b1"` for both `<b>` and `</b>`    |
-| `Data`        | Original markup for roundtrip reconstruction    | `"<a href=\"/help\">"`              |
-| `OuterData`   | Outer context (e.g., CDATA wrapper)             |                                     |
-| `Deletable`   | Translator can remove this code                 | `true` for optional formatting      |
-| `Cloneable`   | Translator can duplicate this code              | `true` for `<b>`                    |
-| `CanReorder`  | Code can move in translation                    | `true` for independent placeholders |
-| `DisplayText` | UI label in translation editors                 | `"[B]"`, `"[/B]"`, `"[IMG]"`        |
-| `EquivText`   | Plain text equivalent                           | `"\n"` for `<br>`                   |
+| Field         | Purpose                                          | Example                                  |
+| ------------- | ------------------------------------------------ | ---------------------------------------- |
+| _discriminator_ | Which field is set: `PcOpen`, `PcClose`, or `Ph` | a `PcOpen`                            |
+| `Type`        | Semantic type for tool processing                | `"fmt:bold"`, `"fmt:link"`, `"var"`      |
+| `ID`          | Matches an opening run to its closing run        | `"1"` shared by the `<b>`/`</b>` pair    |
+| `Data`        | Original markup for roundtrip reconstruction     | `"<a href=\"/help\">"`                   |
+| `Disp`        | UI label in translation editors                  | `"[B]"`, `"[/B]"`, `"[IMG]"`             |
+| `Equiv`       | Plain text equivalent                            | `"\n"` for `<br>`                        |
+| `Constraints` | Editing policy (`Deletable`/`Cloneable`/`Reorderable`) | non-deletable for a `{count}` variable |
 
 Set these fields in the reader when you have the information. At minimum, set
-`SpanType`, `Type`, `ID`, and `Data`. The other fields enhance the experience
-for translators and tools but are optional.
+the discriminator, `Type`, `ID`, and `Data`. The other fields enhance the
+experience for translators and tools but are optional.
 
 ---
 
@@ -509,7 +471,7 @@ Verify that the reader correctly identifies translatable content and inline
 codes:
 
 ```go
-func TestReadInlineSpans(t *testing.T) {
+func TestReadInlineRuns(t *testing.T) {
     ctx := context.Background()
     reader := NewReader()
     err := reader.Open(ctx, testutil.RawDocFromString(
@@ -522,27 +484,29 @@ func TestReadInlineSpans(t *testing.T) {
     blocks := testutil.CollectBlocks(t, reader.Read(ctx))
     require.GreaterOrEqual(t, len(blocks), 1)
 
-    frag := blocks[0].FirstFragment()
-    require.NotNil(t, frag)
+    seg := blocks[0].FirstSegment()
+    require.NotNil(t, seg)
 
     // Plain text is correct
-    assert.Equal(t, "Click here for info", frag.Text())
+    assert.Equal(t, "Click here for info", seg.Text())
 
-    // Inline codes are preserved
-    assert.True(t, frag.HasSpans())
-    require.Len(t, frag.Spans, 2)
-    assert.Equal(t, model.SpanOpening, frag.Spans[0].SpanType)
-    assert.Equal(t, "<b>", frag.Spans[0].Data)
-    assert.Equal(t, model.SpanClosing, frag.Spans[1].SpanType)
-    assert.Equal(t, "</b>", frag.Spans[1].Data)
+    // Inline codes are preserved as a PcOpen/PcClose pair
+    assert.True(t, seg.HasInlineCodes())
+    runs := blocks[0].SourceRuns()
+    require.Len(t, runs, 4) // "Click ", <b>, "here", </b> + trailing text coalesces
+    require.NotNil(t, runs[1].PcOpen)
+    assert.Equal(t, "<b>", runs[1].PcOpen.Data)
+    require.NotNil(t, runs[3].PcClose)
+    assert.Equal(t, "</b>", runs[3].PcClose.Data)
+    assert.Equal(t, runs[1].PcOpen.ID, runs[3].PcClose.ID) // shared ID
 }
 ```
 
 Test each type of inline element your format supports:
 
 ```go
-func TestReadPlaceholderSpan(t *testing.T) {
-    // Self-closing elements become SpanPlaceholder
+func TestReadPlaceholderRun(t *testing.T) {
+    // Self-closing elements become Ph runs
     reader := NewReader()
     reader.Open(ctx, testutil.RawDocFromString(
         `<html><body><p>Line one<br/>Line two</p></body></html>`,
@@ -551,16 +515,16 @@ func TestReadPlaceholderSpan(t *testing.T) {
     defer reader.Close()
 
     blocks := testutil.CollectBlocks(t, reader.Read(ctx))
-    frag := blocks[0].FirstFragment()
+    runs := blocks[0].SourceRuns()
 
-    assert.Equal(t, "Line oneLine two", frag.Text())
-    require.Len(t, frag.Spans, 1)
-    assert.Equal(t, model.SpanPlaceholder, frag.Spans[0].SpanType)
-    assert.Equal(t, "br", frag.Spans[0].Type)
+    assert.Equal(t, "Line oneLine two", blocks[0].SourceText())
+    // The <br/> is a single Ph run between the two text runs.
+    require.NotNil(t, runs[1].Ph)
+    assert.Equal(t, "br", runs[1].Ph.Type)
 }
 
-func TestReadLinkSpan(t *testing.T) {
-    // Links preserve href in Span.Data
+func TestReadLinkRun(t *testing.T) {
+    // Links preserve href in PcOpen.Data
     reader := NewReader()
     reader.Open(ctx, testutil.RawDocFromString(
         `<html><body><p>Visit <a href="http://example.com">our site</a></p></body></html>`,
@@ -569,10 +533,11 @@ func TestReadLinkSpan(t *testing.T) {
     defer reader.Close()
 
     blocks := testutil.CollectBlocks(t, reader.Read(ctx))
-    frag := blocks[0].FirstFragment()
+    runs := blocks[0].SourceRuns()
 
-    assert.Equal(t, "Visit our site", frag.Text())
-    assert.Contains(t, frag.Spans[0].Data, "href") // Attributes preserved
+    assert.Equal(t, "Visit our site", blocks[0].SourceText())
+    require.NotNil(t, runs[1].PcOpen)
+    assert.Contains(t, runs[1].PcOpen.Data, "href") // Attributes preserved
 }
 ```
 
@@ -619,23 +584,17 @@ func TestTranslationRoundTrip(t *testing.T) {
     parts := testutil.CollectParts(t, reader.Read(ctx))
     reader.Close()
 
-    // Build a translated Fragment with the same inline codes
+    // Build a translated run sequence with the same inline codes.
     for _, p := range parts {
         if p.Type == model.PartBlock {
             block := p.Resource.(*model.Block)
 
-            target := &model.Fragment{}
-            target.AppendText("Cliquez ")
-            target.AppendSpan(&model.Span{
-                SpanType: model.SpanOpening,
-                Type: "b", ID: "b", Data: "<b>",
+            block.SetTargetRuns(model.LocaleFrench, []model.Run{
+                {Text: &model.TextRun{Text: "Cliquez "}},
+                {PcOpen: &model.PcOpenRun{ID: "1", Type: "fmt:bold", Data: "<b>"}},
+                {Text: &model.TextRun{Text: "ici"}},
+                {PcClose: &model.PcCloseRun{ID: "1", Type: "fmt:bold", Data: "</b>"}},
             })
-            target.AppendText("ici")
-            target.AppendSpan(&model.Span{
-                SpanType: model.SpanClosing,
-                Type: "b", ID: "b", Data: "</b>",
-            })
-            block.SetTargetFragment(model.LocaleFrench, target)
         }
     }
 
@@ -655,52 +614,52 @@ See [Testing](/contribute/testing) for more patterns.
 
 ## Inline Code Patterns by Format
 
-Different formats map to the same Fragment/Span model in different ways:
+Different formats map to the same Run model in different ways:
 
 ### HTML / XML
 
 Block-level elements (`<p>`, `<div>`, `<h1>`) are Block boundaries. Inline
-elements (`<b>`, `<a>`, `<em>`, `<span>`) become Spans. Void elements
-(`<br>`, `<img>`) become placeholders.
+elements (`<b>`, `<a>`, `<em>`, `<span>`) become `PcOpen`/`PcClose` pairs. Void
+elements (`<br>`, `<img>`) become `Ph` runs.
 
 ```
 Input:  <p>Click <b>here</b> for <a href="/help">info</a></p>
 Text:   "Click here for info"
-Spans:  [<b>, </b>, <a href="/help">, </a>]
+Runs:   [text, PcOpen <b>, text, PcClose </b>, text, PcOpen <a href="/help">, text, PcClose </a>]
 ```
 
 ### Markdown
 
-Emphasis markers (`*`, `**`, `` ` ``) become opening/closing span pairs.
-Links have the URL stored in the opening span's Data field.
+Emphasis markers (`*`, `**`, `` ` ``) become `PcOpen`/`PcClose` pairs. Links
+have the URL stored in the opening run's `Data` field.
 
 ```
 Input:  Click **here** for [info](/help)
 Text:   "Click here for info"
-Spans:  [**, **, [, ](/help)]
+Runs:   [text, PcOpen **, text, PcClose **, text, PcOpen [, text, PcClose ](/help)]
 ```
 
 ### XLIFF / Translation Formats
 
-XLIFF `<bpt>`/`<ept>` (begin/end paired tag) map to Opening/Closing spans.
-`<ph>` (placeholder) maps to Placeholder spans. `<it>` (isolated tag) maps
-to Placeholder. The original XLIFF inline markup goes into `Span.Data`.
+XLIFF `<pc>` maps to a `PcOpen`/`PcClose` pair, `<bpt>`/`<ept>` (begin/end
+paired tag) likewise. `<ph>` (placeholder) and `<it>` (isolated tag) map to a
+`Ph` run. The original XLIFF inline markup goes into the run's `Data`.
 
 ### Templating / Variables
 
-Template variables like `\{name\}` or `$\{count\}` become placeholder spans.
-The full variable expression goes into `Data`:
+Template variables like `\{name\}` or `$\{count\}` become `Ph` runs. The full
+variable expression goes into `Data`:
 
 ```
 Input:  Hello {name}, you have {count} items
 Text:   "Hello , you have  items"
-Spans:  [{name} (Placeholder), {count} (Placeholder)]
+Runs:   [text, Ph {name}, text, Ph {count}, text]
 ```
 
 ### Formats Without Inline Codes
 
 Formats like JSON, YAML, or .properties typically don't have inline markup.
-Use `model.NewFragment(text)` to create plain text Fragments with no spans.
+Use `model.NewBlock(id, text)` to create a block with a single plain `TextRun`.
 If these formats contain embedded HTML or Markdown, use nested Layers
 (see [Architecture](/framework/architecture)) to delegate inline
 handling to the appropriate sub-format reader.

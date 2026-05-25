@@ -2,8 +2,8 @@
 id: 009-translation-memory
 sidebar_position: 9
 title: "AD-009: Translation Memory (Sievepen)"
-description: "Architecture decision: Sievepen is neokapi's TM library — it stores full Fragments with inline Spans and matches in three tiers (plain, structural, source-entity) to return the highest-quality match first."
-keywords: [Sievepen, translation memory, Fragment, matching tiers, SQLite, architecture decision, neokapi]
+description: "Architecture decision: Sievepen is neokapi's TM library — it stores multilingual entries as Run sequences with inline markup and matches in three tiers (plain, structural, source-entity) to return the highest-quality match first."
+keywords: [Sievepen, translation memory, runs, multilingual, matching tiers, SQLite, architecture decision, neokapi]
 ---
 
 # AD-009: Translation Memory (Sievepen)
@@ -11,11 +11,12 @@ keywords: [Sievepen, translation memory, Fragment, matching tiers, SQLite, archi
 ## Summary
 
 Sievepen is neokapi's built-in translation memory library, living in
-`sievepen/`. It stores full Fragments with inline Spans and entity metadata
-rather than plain strings, and uses a tiered matching pipeline (generalized
-exact, structural exact, plain exact, fuzzy) to maximize reuse. The framework
-ships in-memory and SQLite backends; a PostgreSQL backend is provided by the
-bowrain platform.
+`sievepen/`. It stores multilingual entries as per-locale `[]model.Run`
+sequences — preserving inline markup and entity metadata — rather than flat
+strings, and uses a tiered matching pipeline (generalized exact, structural
+exact, plain exact, fuzzy) to maximize reuse. The framework ships in-memory
+and SQLite backends; a PostgreSQL backend is provided by the bowrain
+platform.
 
 ## Context
 
@@ -34,48 +35,59 @@ alone, which loses information that matters to translators:
 - **Pipeline context** (entity annotations, term matches, QA results)
   produced earlier in the flow is discarded.
 
-A content-aware TM preserves Fragments end-to-end, derives multiple matching
-keys from a single entry, and returns matches with entity adaptation
+A content-aware TM preserves Run sequences end-to-end, derives multiple
+matching keys from a single entry, and returns matches with entity adaptation
 information so translators receive pre-adapted targets.
 
 ## Decision
 
-### Content-aware storage
+### Content-aware, multilingual storage
 
-Sievepen stores `model.Fragment` values — the same type used throughout the
-pipeline ([AD-002: Content Model](002-content-model.md)) — rather than
-strings. Each TM entry preserves inline Spans (markup codes) and entity
-mappings.
+Sievepen stores per-locale `[]model.Run` sequences — the same inline-content
+representation used throughout the pipeline ([AD-002: Content
+Model](002-content-model.md)) — rather than strings. A TM entry is
+**multilingual**: each language is a peer variant in a `Variants` map, with no
+authoritative "source" at the persistence layer. The lookup direction is
+supplied at the call site. Each variant preserves inline-code runs (markup
+codes) and the entry carries entity mappings.
 
 ```go
 type TMEntry struct {
-    ID           string
-    Source       *model.Fragment
-    Target       *model.Fragment
-    SourceLocale model.LocaleID
-    TargetLocale model.LocaleID
-    Entities     []EntityMapping
-    Annotations  map[string]model.Annotation
-    Properties   map[string]string
-    CreatedAt    time.Time
-    UpdatedAt    time.Time
+    ID          string
+    ProjectID   string
+    Variants    map[model.LocaleID][]model.Run // peer language variants
+    HintSrcLang model.LocaleID                 // locale the author treated as canonical
+    Entities    []EntityMapping
+    Properties  map[string]string
+    Origins     []Origin
+    Note        string
+    CreatedAt   time.Time
+    UpdatedAt   time.Time
 }
 ```
 
-An `EntityMapping` records the typed entity that appeared at a position in
-the source, alongside its translation in the target.
+`HintSrcLang` records which locale the author treated as canonical (e.g. the
+TMX header `srclang`, or the locale a translator started from); it is used for
+display and entity-direction purposes only. An `EntityMapping` records a typed
+entity across all variants (`Values map[LocaleID]EntityValue`) with its
+per-locale value and position. `TMEntry` helpers project a single variant:
+`Variant(locale)` returns its runs, `VariantText` / `VariantStructural` /
+`VariantGeneralized` return the corresponding text keys.
 
 ### Derived matching keys
 
-Each entry is stored with three derived keys, pre-computed at write time and
-indexed:
+Each variant is indexed under three keys, derived from its Run sequence and
+pre-computed at write time:
 
-- **plain** — `Fragment.Text()` with all Span markers stripped. Enables
-  matching against legacy TMs and unanalyzed content.
-- **structural** — Spans rendered as numbered placeholders (`{1}`, `{/1}`).
-  Preserves inline code position awareness.
-- **generalized** — entity Spans rendered as typed placeholders (`{PERSON}`,
-  `{PRODUCT}`). Maximum reuse; entities become interchangeable.
+- **plain** — `model.FlattenRuns(runs)` with inline-code runs contributing
+  their text equivalents. Enables matching against legacy TMs and unanalyzed
+  content.
+- **structural** — `model.RunsStructuralText(runs)`: inline-code runs rendered
+  as numbered placeholders (`{1}`, `{/1}`). Preserves inline-code position
+  awareness.
+- **generalized** — `model.RunsGeneralizedText(runs)`: entity `Ph` runs
+  rendered as typed placeholders (`{PERSON}`, `{PRODUCT}`). Maximum reuse;
+  entities become interchangeable.
 
 "John works at Acme" and "Alice works at Globex" both generalize to
 `{PERSON} works at {ORGANIZATION}` — an exact match at the generalized tier.
@@ -133,10 +145,13 @@ type TranslationMemory interface {
 ```
 
 `Lookup` takes a `*model.Block` rather than a string. The Block carries the
-entity annotations needed to compute the generalized key and the Spans
-needed for the structural key; no separate pre-processing step is required.
-By default `Lookup` keys on the block's _first_ segment, which is correct
-when segmentation is off (one segment per Block — the verbatim lookup case).
+entity annotations needed to compute the generalized key and the inline-code
+runs needed for the structural key; no separate pre-processing step is
+required. By default `Lookup` keys on the block's _first_ segment, which is
+correct when segmentation is off (one segment per Block — the verbatim lookup
+case). Matches are found among entries whose `Variants[sourceLocale]` exists
+and matches the source; `TMMatch.Entry.Variant(targetLocale)` is the
+translation.
 
 `LookupSegment` selects a specific segment by index for the
 sentence-level TM leverage path used by `kapi extract` when the
@@ -187,20 +202,17 @@ Latin (e + combining acute vs. é).
 ### TMX import and export
 
 Sievepen imports and exports TMX files for interchange with external
-tooling. The element mapping:
+tooling. The element mapping (TMX inline element ↔ `model.Run` kind):
 
-| Fragment Span     | TMX Element |
-| ----------------- | ----------- |
-| `SpanPlaceholder` | `<ph>`      |
-| `SpanOpening`     | `<bpt>`     |
-| `SpanClosing`     | `<ept>`     |
+| TMX element | Run kind     |
+| ----------- | ------------ |
+| `<ph>`      | `Ph`         |
+| `<bpt>`     | `PcOpen`     |
+| `<ept>`     | `PcClose`    |
 
-Entity metadata travels as `<prop>` elements on the TMX `<tu>`. Inline
-element mapping is handled by the full TMX format reader in
-`core/formats/tmx/`; the TM module's TMX import (`sievepen/tmx_import.go`)
-handles plain text and entity properties only. Legacy plain-text TMX
-imports produce entries with plain Fragments and no entity mappings;
-they participate in plain matching only.
+Entity metadata travels as `<prop>` elements on the TMX `<tu>`. Legacy
+plain-text TMX imports produce entries whose variants are a single `TextRun`
+with no entity mappings; they participate in plain matching only.
 
 ### Pipeline integration
 
@@ -215,15 +227,15 @@ A typical flow:
 Reader → entity-annotate → tm-leverage → ai-translate → qa-check → Writer
 ```
 
-After translation (human or AI), Blocks are written to TM with their full
-Fragment representation and entity mappings. The save step extracts entity
-annotations and stores them as `EntityMapping` entries, so the TM
-accumulates richer data over time.
+After translation (human or AI), Blocks are written to TM with their full Run
+representation and entity mappings. The save step extracts entity annotations
+and stores them as `EntityMapping` entries, so the TM accumulates richer data
+over time.
 
 ## Consequences
 
-- TM stores rich content (Fragments with Spans and entity metadata), not
-  flat strings.
+- TM stores rich content (Run sequences with inline-code runs and entity
+  metadata), not flat strings.
 - Generalized matching turns entity variation from a fuzzy penalty into an
   exact match at the top tier.
 - Entity adaptation provides pre-adapted targets with the correct entity
@@ -239,8 +251,8 @@ accumulates richer data over time.
 
 ## Related
 
-- [AD-002: Content Model](002-content-model.md) — Fragment, Span, entity
-  annotations
+- [AD-002: Content Model](002-content-model.md) — Run sequences, inline-code
+  runs, entity annotations
 - [AD-006: Tool System](006-tool-system.md) — `tm-leverage` tool
 - [AD-010: Terminology](010-terminology.md) — shares matching infrastructure
 - [TM Matching Algorithm](/contribute/notes-internal/tm-matching-algorithm) — trigram

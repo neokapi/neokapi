@@ -126,9 +126,9 @@ are replayed for processing.
 | ------------------------------------------------------------ | -------------------------------------------------------------------------------------------------- |
 | Non-translatable element start (e.g., `<script>`, `<style>`) | Write raw bytes to skeleton, consume until close tag                                               |
 | Block-level element start (container)                        | Write start tag to skeleton, process children recursively                                          |
-| Block-level element start (leaf)                             | Extract translatable attributes as skeleton refs, buffer content, build Fragment with inline Spans |
-| Inline element start/end                                     | Part of leaf block content → becomes Span in Fragment                                              |
-| Text token                                                   | Part of leaf block content → appended to Fragment                                                  |
+| Block-level element start (leaf)                             | Extract translatable attributes as skeleton refs, buffer content, build a `[]Run` for the block    |
+| Inline element start/end                                     | Part of leaf block content → becomes a paired-code run (`PcOpen`/`PcClose`)                        |
+| Text token                                                   | Part of leaf block content → appended as a `TextRun`                                               |
 | Comment                                                      | Written to skeleton (non-translatable)                                                             |
 | Doctype                                                      | Written to skeleton                                                                                |
 
@@ -148,16 +148,18 @@ The `findAttrValueOffset` function locates the byte offset of an attribute
 value within the raw tag bytes by scanning for `attrKey=` followed by a
 quote character.
 
-### Fragment building
+### Run sequence building
 
 For leaf block elements, tokens between start and end tag are collected and
-built into a Fragment:
+built into a `[]model.Run` (via the HTML `runBuilder` —
+`core/formats/html/run_builder.go`):
 
-- Text tokens → `frag.AppendText()`
-- Inline element open/close → opening/closing Span with `Data = string(raw)`
-  (preserves original quote style, attribute order, whitespace)
-- Self-closing inline → placeholder Span
-- Comments within inline content → placeholder Span
+- Text tokens → append a `TextRun` (`AddText`, which coalesces adjacent text)
+- Inline element open/close → a paired `PcOpenRun` / `PcCloseRun` (sharing an
+  `ID`) with `Data = string(raw)` (preserves original quote style, attribute
+  order, whitespace)
+- Self-closing inline → a `PlaceholderRun`
+- Comments within inline content → a `PlaceholderRun`
 
 ### Memory profile
 
@@ -165,7 +167,7 @@ built into a Fragment:
 | --------------------- | -------------------------------- |
 | Tokenizer             | ~4KB internal buffer (streaming) |
 | Forward scan          | ~1–10 tokens replay buffer       |
-| Fragment building     | ~1–10KB (one leaf block)         |
+| Run sequence building | ~1–10KB (one leaf block)         |
 | Skeleton store        | Temp file on disk                |
 | Pipeline              | Blocks only (~5% of document)    |
 | **Peak per document** | **~100KB**                       |

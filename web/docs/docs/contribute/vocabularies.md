@@ -75,7 +75,7 @@ and carry rendering, display, color, and constraint metadata:
 | `name`          | Yes      | Unique vocabulary name                             |
 | `version`       | Yes      | Semver version string                              |
 | `extends`       | No       | Parent vocabulary name (types are merged)          |
-| `entity_prefix` | No       | Prefix for entity-type spans (default `"entity:"`) |
+| `entity_prefix` | No       | Prefix for entity-type inline codes (default `"entity:"`) |
 | `types`         | Yes      | Map of type name → `SpanTypeInfo`                  |
 | `fallback`      | No       | Default rendering for unknown types                |
 
@@ -94,8 +94,8 @@ Type names follow the `category:name` pattern: `fmt:bold`, `link:hyperlink`,
 
 ## Using vocabularies in a format reader
 
-A format reader initializes a `VocabularyRegistry` and uses it to populate span
-metadata as it builds fragments:
+A format reader initializes a `VocabularyRegistry` and uses it to populate
+inline-code metadata as it builds a Block's `[]model.Run` sequence:
 
 ```go
 package myformat
@@ -113,35 +113,61 @@ func NewReader() *Reader {
 }
 ```
 
-When creating spans, look up the vocabulary entry and populate the rendering and
-constraint fields:
+Inline content is a flat `[]model.Run` (see
+[AD-002: Content Model](/contribute/architecture/002-content-model)). An
+opening tag becomes a `PcOpenRun`, its matching close a `PcCloseRun` with the
+same `ID`, and a self-closing construct a `PlaceholderRun`. When building one,
+look up the vocabulary entry and populate the rendering and constraint fields —
+mirroring the per-format `runBuilder` helpers (`core/formats/*/run_builder.go`):
 
 ```go
-func (r *Reader) createSpan(semType, subType, id, nativeMarkup string, st model.SpanType) *model.Span {
+// openRun builds the opening half of a paired code, e.g. <b> / <a href="…">.
+func (r *Reader) openRun(semType, subType, id, nativeMarkup string) model.Run {
     info := r.vocab.LookupOrFallback(semType)
+    return model.Run{PcOpen: &model.PcOpenRun{
+        ID:      id,            // shared with the matching PcClose
+        Type:    semType,       // "fmt:bold"
+        SubType: subType,       // "html:b" or "md:strong"
+        Data:    nativeMarkup,  // original markup for roundtrip
+        Disp:    info.Display.Open,    // "[B]"
+        Equiv:   info.Equiv,           // "" (or "\n" for struct:break)
+        Constraints: &model.RunConstraints{
+            Deletable:   info.Constraints.Deletable,
+            Cloneable:   info.Constraints.Cloneable,
+            Reorderable: info.Constraints.Reorderable,
+        },
+    }}
+}
 
-    var displayText string
-    switch st {
-    case model.SpanOpening:
-        displayText = info.Display.Open
-    case model.SpanClosing:
-        displayText = info.Display.Close
-    case model.SpanPlaceholder:
-        displayText = info.Display.Placeholder
-    }
+// closeRun builds the matching close. PcCloseRun shares the opener's ID and
+// replays its own native markup; it inherits the opener's constraints.
+func (r *Reader) closeRun(semType, subType, id, nativeMarkup string) model.Run {
+    info := r.vocab.LookupOrFallback(semType)
+    return model.Run{PcClose: &model.PcCloseRun{
+        ID:      id,
+        Type:    semType,
+        SubType: subType,
+        Data:    nativeMarkup,  // "</b>"
+        Equiv:   info.Equiv,
+    }}
+}
 
-    return &model.Span{
-        SpanType:    st,
-        Type:        semType,       // "fmt:bold"
-        SubType:     subType,       // "html:b" or "md:strong"
-        ID:          id,
-        Data:        nativeMarkup,  // original markup for roundtrip
-        DisplayText: displayText,   // "[B]"
-        EquivText:   info.Equiv,    // "" (or "\n" for struct:break)
-        Deletable:   info.Constraints.Deletable,
-        Cloneable:   info.Constraints.Cloneable,
-        CanReorder:  info.Constraints.Reorderable,
-    }
+// phRun builds a self-closing placeholder, e.g. <br/> or a variable token.
+func (r *Reader) phRun(semType, subType, id, nativeMarkup string) model.Run {
+    info := r.vocab.LookupOrFallback(semType)
+    return model.Run{Ph: &model.PlaceholderRun{
+        ID:      id,
+        Type:    semType,
+        SubType: subType,
+        Data:    nativeMarkup,
+        Disp:    info.Display.Placeholder, // "[BR/]"
+        Equiv:   info.Equiv,               // "\n" for struct:break
+        Constraints: &model.RunConstraints{
+            Deletable:   info.Constraints.Deletable,
+            Cloneable:   info.Constraints.Cloneable,
+            Reorderable: info.Constraints.Reorderable,
+        },
+    }}
 }
 ```
 
@@ -230,15 +256,17 @@ var myFormatSemanticTypes = map[string]string{
 
 For formats that do not perform full semantic classification (for example, when
 content arrives via the Okapi bridge), the `span-classify` tool reclassifies
-generic `code:markup` spans into proper semantic types:
+generic `code:markup` inline-code runs (`Ph` / `PcOpen` / `PcClose`) into
+proper semantic types:
 
 ```go
 tool := tools.NewSpanClassifyTool(&tools.SpanClassifyConfig{})
 ```
 
-It applies strategies in order: check `SubType` against known Okapi type strings,
-parse `Data` for an HTML element name, look that name up in the semantic type
-map, and otherwise leave the span as `code:markup`.
+It applies strategies in order: check the run's `SubType` against known Okapi
+type strings, parse `Data` for an HTML element name, look that name up in the
+semantic type map, and otherwise leave the run as `code:markup`. The tool name
+is retained for backwards compatibility with existing flow definitions.
 
 ## Testing vocabularies
 
@@ -263,11 +291,11 @@ func TestMyVocabulary(t *testing.T) {
 1. **Use existing types when possible.** Map to `fmt:bold` rather than creating `my-format:bold`.
 2. **Set constraints conservatively.** Mark code tokens non-deletable; formatting fully flexible.
 3. **Keep vocabularies small.** Only add types with distinct rendering or constraint needs.
-4. **Test roundtrip fidelity.** Vocabulary types affect rendering, but `Span.Data` drives output — verify both.
+4. **Test roundtrip fidelity.** Vocabulary types affect rendering, but each run's `Data` drives output — verify both.
 5. **Extend rather than replace.** Use `extends` to build on `common-formatting`.
 
 ## Related reading
 
 - [Vocabularies](/framework/vocabularies) — the concept and built-in vocabularies.
 - [Implementing a Format](/contribute/formats) — building readers and writers.
-- [Inline Formatting](/framework/inline-formatting) — the span model in the content model.
+- [Inline Formatting](/framework/inline-formatting) — the inline-code model in the content model.

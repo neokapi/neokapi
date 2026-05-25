@@ -52,8 +52,7 @@ discovered at runtime via their manifests rather than compiled in.
 kapi/
 ├── go.mod                   # module github.com/neokapi/neokapi/kapi
 ├── cmd/kapi/                # thin root cmd wiring shared CLI commands
-└── apps/
-    └── kapi-web/            # web UI embedded by `kapi serve`
+└── preset/                  # built-in preset definitions
 ```
 
 The shared CLI base provides command factories; kapi registers them and
@@ -309,12 +308,6 @@ MCP tools reuse the same infrastructure as CLI commands — `FormatRegistry`
 for format detection and reader/writer creation, `Executor` for pipeline
 orchestration, built-in tool constructors for flow chains. No parallel
 implementation.
-
-### Web UI
-
-`kapi serve` starts a local web UI at `kapi/apps/kapi-web/` for browsing
-formats, running tools, and inspecting flows. The frontend is embedded at
-build time; `make web-build` produces the assets before `make build`.
 
 ## Consequences
 

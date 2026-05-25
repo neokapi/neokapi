@@ -30,7 +30,7 @@ flows:
       - tool: ai-translate
         config:
           provider: anthropic
-          model: claude-sonnet-4-5-20241022
+          model: claude-sonnet-4-20250514
 
   translate-and-qa:
     steps:

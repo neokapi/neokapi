@@ -1,42 +1,43 @@
 ---
 sidebar_position: 3
 title: Inline Formatting
-description: How neokapi preserves bold, italic, links, and other inline markup through the pipeline. Inline elements become typed Spans so translations can reorder or omit them safely.
-keywords: [inline formatting, spans, bold, italic, links, placeholders, fragment, coded text]
+description: How neokapi preserves bold, italic, links, and other inline markup through the pipeline. Inline elements become typed inline-code runs so translations can reorder or omit them safely.
+keywords: [inline formatting, runs, bold, italic, links, placeholders, inline codes, run sequence]
 ---
 
 import { BlockPreview } from "@site/src/components/curated";
 
 # Working with Inline Formatting
 
-When documents are processed through the pipeline, neokapi preserves inline formatting like **bold**, _italic_, [links](https://example.com), and embedded values like variables and placeholders. This is handled through the Fragment and Span model, which normalizes format-specific markup into a format-independent representation.
+When documents are processed through the pipeline, neokapi preserves inline formatting like **bold**, _italic_, [links](https://example.com), and embedded values like variables and placeholders. This is handled through the **Run** model: a segment's content is a flat `[]Run` sequence in which inline markup becomes typed inline-code runs, normalizing format-specific markup into a format-independent representation.
 
 ## Seeing inline codes in the content model
 
 When kapi reads a file with inline markup, the markup does not stay in the text.
-Each inline element is extracted into a **span** and replaced in the text by a
-positional marker. Below, kapi parses an HTML page; in the parsed source text
-the inline `<strong>` and `<a>` elements appear as span markers (rendered here as
+Each inline element becomes an **inline-code run** — a `PcOpen`/`PcClose` pair
+for paired tags, a `Ph` for self-closing tokens — sitting in the run sequence
+between text runs. Below, kapi parses an HTML page; in the parsed source text the
+inline `<strong>` and `<a>` elements appear as inline-code runs (rendered here as
 chips) rather than as literal tags:
 
 <BlockPreview
   sample="page.html"
-  caption="kapi parsing HTML — inline elements become span markers in the source text."
+  caption="kapi parsing HTML — inline elements become inline-code runs in the source text."
 />
 
-This is the same representation regardless of the source format: the markers
-mark _where_ inline formatting sits, while the original markup is held alongside
-in the span so the writer can reconstruct it exactly.
+This is the same representation regardless of the source format: the inline-code
+runs mark _where_ inline formatting sits, while the original markup is held in the
+run's `Data` field so the writer can reconstruct it exactly.
 
 ## How It Works
 
-neokapi extracts inline formatting from any supported format and represents it using coded text with Span metadata. This means `<b>` (HTML), `**` (Markdown), and `<w:b/>` (DOCX) all produce the same semantic type (`fmt:bold`), enabling format-independent processing.
+neokapi extracts inline formatting from any supported format and represents it as inline-code runs carrying semantic metadata. This means `<b>` (HTML), `**` (Markdown), and `<w:b/>` (DOCX) all produce a `PcOpen`/`PcClose` pair with the same semantic type (`fmt:bold`), enabling format-independent processing.
 
-The Span model carries metadata that editors can use to guide translators:
+Each inline-code run carries metadata that editors can use to guide translators:
 
-- **Display text**: Human-readable labels (e.g., `[B]` for bold, `[/B]` for bold close)
-- **Constraints**: Whether a tag is deletable, cloneable, or reorderable
-- **Equivalent text**: Plain text fallback (e.g., `\n` for line breaks)
+- **Display text** (`Disp`): Human-readable labels (e.g., `[B]` for bold, `[/B]` for bold close)
+- **Constraints** (`Constraints`): Whether a code is deletable, cloneable, or reorderable
+- **Equivalent text** (`Equiv`): Plain text fallback (e.g., `\n` for line breaks)
 
 See [Vocabularies](/framework/vocabularies) for the full semantic type system.
 
@@ -67,7 +68,7 @@ Editors can use these constraints to prevent invalid changes and provide real-ti
 
 ### HTML Files
 
-HTML inline elements (`<b>`, `<a href="...">`, `<br/>`) are extracted as Spans. Block-level elements form Block boundaries.
+HTML inline elements (`<b>`, `<a href="...">`, `<br/>`) are extracted as inline-code runs — paired tags as `PcOpen`/`PcClose`, void elements as `Ph`. Block-level elements form Block boundaries.
 
 **Example:**
 
@@ -83,11 +84,11 @@ Markdown emphasis (`**`, `*`, backticks, `[]()`) maps to the same semantic types
 
 ### JSON/YAML Localization Files
 
-i18n variables like `{userName}` or `{count}` become placeholder Spans marked as non-deletable. They can be rearranged to match target language word order:
+i18n variables like `{userName}` or `{count}` become `Ph` runs marked as non-deletable. They can be rearranged to match target language word order:
 
 > Hello \{userName\}, you have \{count\} new messages.
 > Bonjour \{userName\}, vous avez \{count\} nouveaux messages.
 
 ### XLIFF Exchange Files
 
-XLIFF `<pc>`, `<ph>`, and `<sc>`/`<ec>` elements map to the same Span model, enabling consistent processing regardless of exchange format.
+XLIFF `<pc>` maps to a `PcOpen`/`PcClose` pair, `<ph>` to a `Ph` run, and `<sc>`/`<ec>` to a `PcOpen`/`PcClose` pair — the same run model, enabling consistent processing regardless of exchange format.

@@ -1,8 +1,8 @@
 ---
 sidebar_position: 7
 title: .kapi Project File Format
-description: Implementation note for AD-008 — the KapiProject YAML schema, ContentEntry and Defaults struct layouts, how extension extras are decoded, and how the .kapi recipe is loaded, validated, and saved.
-keywords: [kapi project file, KapiProject, YAML schema, ContentEntry, Defaults, project model, implementation note]
+description: Implementation note for AD-008 — the KapiProject YAML schema, ContentCollection/ContentItem and Defaults struct layouts, how extension extras are decoded, and how the .kapi recipe is loaded, validated, and saved.
+keywords: [kapi project file, KapiProject, YAML schema, ContentCollection, ContentItem, Defaults, project model, implementation note]
 ---
 
 # .kapi Project File Format
@@ -53,47 +53,141 @@ type ContentCollection struct {
 
 Flow definitions reuse `core/flow.StepsSpec` and `core/flow.FlowStep` (see [flow-steps-format](./flow-steps-format.md)).
 
+## Content model
+
+`Content` is a list of `ContentCollection` values. Each entry is one of two
+shapes, distinguished by `ContentCollection.IsBareEntry()`:
+
+- **Bare entry** — has a `path` and no `items`. The `path`, `format`, and
+  `target` fields are promoted onto the collection directly. Use this for a
+  single glob with no grouping.
+- **Named collection** — has a `name` and a non-empty `items` list of
+  `ContentItem`, and may set its own `source_language` / `target_languages`.
+  Use this to group related patterns and scope languages per group.
+
+`KapiProject.IterateContent` walks both shapes uniformly, yielding each
+`ContentItem` paired with its parent collection so callers can resolve
+fall-through fields. Language resolution falls through item → collection →
+project defaults via `ContentItem.ResolvedSourceLanguage` /
+`ResolvedTargetLanguages`. A bare entry's promoted fields are wrapped as a
+single-item slice by `ContentCollection.EffectiveItems`, carrying its `Extras`
+through so platform per-item fields survive.
+
+## Defaults-scoped settings
+
+`Defaults` holds project-wide processing settings that individual content items
+can override. Beyond locales and the parallelism/encoding knobs shown above:
+
+- `merge` (`MergeDefaults.ConflictPolicy`) — how `kapi merge` resolves a
+  translator's target against an existing on-disk target or TM entry
+  (`translator-wins` default, `existing-wins`, `newest-wins`). See
+  [AD-017](/contribute/architecture/017-bilingual-format-interop).
+- `tm` (`TMDefaults`) — `fuzzy_threshold` (TM pre-fill cutoff on `kapi extract`,
+  default 75) and `read` (additional read-only TM files; writes always go to the
+  project TM).
+- `segmentation` (`SegmentationDefaults`) — opt-in SRX sentence segmentation
+  overlay on extract (`source`, optional `srx` rules file).
+- `redaction` (`*RedactionSpec`) — replace sensitive content with protected
+  placeholders before processing and restore it afterwards. Overridable per
+  `ContentItem.Redaction`.
+- `brand_voice` (`*BrandVoiceBinding`) — bind a brand voice profile (one of
+  `profile_file`, `profile`, or `pack`) as standing project context. This is the
+  framework binding under `defaults:`, distinct from bowrain's top-level
+  `brand_voice` extension.
+- `termbase` (string) — path to a glossary/termbase, resolved relative to the
+  project root, used for project-scoped term enforcement with no `--termbase`
+  flag.
+
+## Platform extensions and the `server:` block
+
+The framework knows nothing about platform-specific keys. Unknown top-level YAML
+keys land in `Extras map[string]yaml.Node` (with `yaml:",inline"`) on
+`KapiProject`, `Defaults`, `ContentCollection`, and `ContentItem`. Platform
+layers decode their own typed schema from these maps via `GetExtra` and
+re-encode on `SetExtra`; round-tripping a recipe through the framework alone
+preserves the keys verbatim.
+
+Bowrain uses this mechanism for its `server:` block (and `hooks`, `automations`,
+`assets`, `brand_voice` platform policy). A recipe with no `server:` block is a
+pure local project. The kapi CLI tolerates the `server:` block but ignores it;
+the bowrain plugin decodes it from `Extras`. `requires:` (a map of plugin name →
+semver constraint) gates loading: a recipe declaring `requires: { bowrain: "^1.0" }`
+refuses to load in a binary that has not registered the bowrain extension. See
+[AD-008](/contribute/architecture/008-project-model) for the full extension
+model and `server:` schema.
+
 ## Validation Rules
 
 - `version` is required, must be `"v1"`
-- `name` is required, non-empty
-- Each `content[].path` must be non-empty
+- For each `content[]` entry:
+  - Bare entry — `path` is required and `items` must be empty.
+  - Named collection — `path` must be empty (use `items`) and `items` must be
+    non-empty; each item requires a non-empty `path`.
+- `defaults.merge.conflict_policy`, `defaults.tm.fuzzy_threshold` (0..100),
+  `defaults.redaction.detectors`, and `defaults.brand_voice` are each
+  shape-checked.
 - Each flow must have at least one step
 - Each step must have a non-empty `tool` field (unless it uses `parallel`)
 - Steps with `parallel` can omit `tool` (the parallel branches provide tools)
+- Each `requires:` entry must have a non-empty plugin name and a well-formed
+  semver constraint (`^1.0`, `>=1.4.0`, `1.4.0`, `~1.4.2`, or `*`). Unless
+  `SkipRequiresCheck` is set, every named plugin must have a registered
+  extension group, else loading fails with an install hint.
+- Extras at each scope are validated against any registered extension schema.
+
+Note: `name` is optional (`yaml:"name,omitempty"`); the framework does not
+require it.
 
 ## File Paths
 
 - Content patterns are expanded via `core/project.ExpandGlob`, backed by
   `github.com/bmatcuk/doublestar/v4` — recursive `**` directory matching is
-  supported (e.g. `src/**/*.json`), along with `exclude` glob patterns
-- Patterns are resolved relative to the `.kapi` file's parent directory
-- The `{lang}` placeholder in `target` is expanded with the target locale at runtime
+  supported (e.g. `src/**/*.json`). `ExpandGlob` filters out any match that
+  matches one of the `defaults.exclude` glob patterns (matched with
+  `doublestar.Match`)
+- Patterns are resolved relative to the project root (the recipe's parent
+  directory)
+- The `{lang}` placeholder in `target` is expanded with the target locale at
+  runtime via `core/project.ResolvePathPattern`; `ExpandTemplate` additionally
+  resolves `{path}`, `{filename}`, and `{basename}` from the source path
 
 ## Credential Resolution
 
 The `.kapi` file references AI providers by type (e.g., `provider: anthropic`), not by key. API keys are resolved at runtime:
 
-1. Kapi: OS keychain via `cli/credentials.Store` (`~/.config/kapi/providers.json` + keyring service `"kapi"`)
-2. Kapi CLI: environment variables (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`) or `--api-key` flag
+1. OS keychain via `cli/credentials.Store` (non-secret config at
+   `~/.config/kapi/providers.json`; keys under the keychain service `"kapi"`)
+2. Environment variables (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`) or the
+   `--api-key` flag
 3. The `--provider` and `--model` CLI flags override project defaults
 
 ## CLI Integration
 
 ```bash
-# One-shot (no project, unchanged behavior)
+# One-shot (no project)
 kapi ai-translate -i file.json --target-lang fr
 
-# With project file
+# With project file: run a built-in flow with project defaults
+kapi run ai-translate-qa -p translation.kapi --target-lang de
+
+# Or run a flow defined in the recipe's flows: map (here named "translate")
 kapi run translate -p translation.kapi
-kapi run translate-and-qa -p translation.kapi --target-lang de
 ```
+
+Built-in flows are `ai-translate`, `ai-translate-qa`, `pseudo-translate`,
+`qa-check`, `tm-leverage`, and `secure-translate` (see
+`core/flow.BuiltInFlows`). A recipe's `flows:` map can add or override flows by
+name.
 
 With `-p`:
 
-- Flow name is looked up in the project's `flows` map
-- `source_language` and `target_languages[0]` provide defaults (CLI flags override)
-- `--input` is still required (content pattern resolution is Kapi only)
+- The flow name is looked up first in the project's `flows` map, then in the
+  built-in set
+- `defaults.source_language` and `defaults.target_languages[0]` provide
+  defaults (CLI flags override)
+- For single-file flows, `--input` selects the file. The project's `content`
+  collections describe which files `kapi extract` / `kapi merge` operate on
+  across the project
 
 ## Desktop Integration
 
@@ -101,7 +195,9 @@ Kapi Desktop at `apps/kapi-desktop/`:
 
 - Opens `.kapi` files as documents (File > Open, drag-and-drop, OS file association)
 - Edits flows inline (steps editor)
-- Resolves content patterns against the filesystem via `App.MatchContent(tabID)`
+- Resolves content patterns against the filesystem via `App.MatchContent(tabID)`,
+  using the same `core/project` glob expansion the CLI relies on for `extract` /
+  `merge` — pattern resolution is shared framework code, not a desktop-only feature
 - Stores recent files at `~/.config/kapi-desktop/recent.json`
 - Stores settings at `~/.config/kapi-desktop/settings.json`
 
@@ -123,13 +219,33 @@ name: Acme App Localization
 defaults:
   source_language: en-US
   target_languages: [fr-FR, de-DE, ja-JP]
+  concurrency: 4
+  parallel_blocks: 3
+  encoding: utf-8
+  exclude:
+    - "**/*.generated.json"
+  merge:
+    conflict_policy: translator-wins
+  tm:
+    fuzzy_threshold: 75
+  segmentation:
+    source: true
+  termbase: glossary/terms.db
 
 content:
+  # Bare entry — single glob, languages inherited from defaults.
   - path: "src/i18n/en/*.json"
     format: json
     target: "src/i18n/{lang}/*.json"
-  - path: "docs/en/*.md"
-    format: markdown
+
+  # Named collection — groups patterns and scopes its own languages.
+  - name: Marketing
+    target_languages: [fr-FR, de-DE]
+    items:
+      - path: "docs/en/*.md"
+        format: markdown
+      - path: "site/en/*.html"
+        format: html
 
 preset: nextjs
 requires:
@@ -141,7 +257,7 @@ flows:
       - tool: ai-translate
         config:
           provider: anthropic
-          model: claude-sonnet-4-5-20241022
+          model: claude-sonnet-4-20250514
 
   full-pipeline:
     steps:
@@ -158,9 +274,4 @@ flows:
       - tool: pseudo-translate
         config:
           expansion_rate: 1.3
-
-defaults:
-  concurrency: 4
-  parallel_blocks: 3
-  encoding: utf-8
 ```
