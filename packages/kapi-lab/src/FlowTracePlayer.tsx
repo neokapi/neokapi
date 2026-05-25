@@ -4,6 +4,7 @@ import { useFlowPlayback } from "./useFlowPlayback";
 import FlowGraph from "./FlowGraph";
 import StepControls from "./StepControls";
 import PartInspector from "./PartInspector";
+import PartDetailsModal from "./PartDetailsModal";
 import styles from "./styles.module.css";
 
 export interface FlowTracePlayerProps {
@@ -23,6 +24,7 @@ export default function FlowTracePlayer({
   const [selectedPartId, setSelectedPartId] = useState<string | null>(null);
   // Tracks whether the user picked a part by hand; if so, stop auto-following.
   const [manualSelect, setManualSelect] = useState(false);
+  const [detailsOpen, setDetailsOpen] = useState(false);
 
   const playback = useFlowPlayback({
     events: trace.events,
@@ -43,6 +45,7 @@ export default function FlowTracePlayer({
   useEffect(() => {
     setSelectedPartId(null);
     setManualSelect(false);
+    setDetailsOpen(false);
   }, [trace]);
 
   const handlePartClick = (id: string) => {
@@ -94,6 +97,13 @@ export default function FlowTracePlayer({
         parts={trace.parts}
         nodes={trace.nodes}
         activeNodeIds={activeNodeIds}
+        onOpenDetails={() => setDetailsOpen(true)}
+      />
+
+      <PartDetailsModal
+        set={detailsOpen && selectedPartId ? trace.parts[selectedPartId] : null}
+        nodes={trace.nodes}
+        onClose={() => setDetailsOpen(false)}
       />
     </div>
   );

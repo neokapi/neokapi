@@ -52,7 +52,18 @@ export interface PartSnapshot {
   summary: string;
   sourceText?: string;
   targetText?: string;
-  detail?: unknown;
+  /** Full part structure at this point — run sequences, every locale, properties. */
+  detail?: PartDetail;
+}
+
+/** The run-native, full view of a Block at a point in time (mirrors Go PartDetail). */
+export interface PartDetail {
+  name?: string;
+  translatable?: boolean;
+  source?: Run[];
+  targets?: Record<string, Run[]>;
+  properties?: Record<string, string>;
+  hasSkeleton?: boolean;
 }
 
 export interface PartSnapshotSet {
@@ -99,9 +110,6 @@ export interface Particle {
 
 export type RunKind = "text" | "ph" | "pcOpen" | "pcClose" | "sub" | "plural" | "select";
 
-export interface TextRun {
-  text: string;
-}
 export interface CodeRun {
   id: string;
   type?: string;
@@ -124,9 +132,13 @@ export interface SelectRun {
   cases: Record<string, Run[]>;
 }
 
-/** A run is an object with exactly one discriminator key (RFC 0001). */
+/**
+ * A run is an object with exactly one discriminator key (RFC 0001). Text runs
+ * serialize flat — `{"text":"literal"}` — per Framework AD-002, so `text` is a
+ * plain string; every other kind nests its struct under its discriminator key.
+ */
 export interface Run {
-  text?: TextRun;
+  text?: string;
   ph?: CodeRun;
   pcOpen?: CodeRun;
   pcClose?: CodeRun;

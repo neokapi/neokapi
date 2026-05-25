@@ -8,6 +8,8 @@ interface PartInspectorProps {
   nodes: FlowNode[];
   /** Node ids touched at the current step — highlighted in the history. */
   activeNodeIds?: string[];
+  /** Opens the full Part details modal for the selected part, if provided. */
+  onOpenDetails?: () => void;
 }
 
 export default function PartInspector({
@@ -15,6 +17,7 @@ export default function PartInspector({
   parts,
   nodes,
   activeNodeIds = [],
+  onOpenDetails,
 }: PartInspectorProps): React.ReactElement {
   if (!partId || !parts[partId]) {
     return (
@@ -32,8 +35,15 @@ export default function PartInspector({
 
   return (
     <div className={styles.inspector}>
-      <div className={styles.inspectorTitle}>
-        {initial.type} &mdash; {initial.id}
+      <div className={styles.inspectorTitleRow}>
+        <div className={styles.inspectorTitle}>
+          {initial.type} &mdash; {initial.id}
+        </div>
+        {onOpenDetails && (
+          <button className={styles.fileMetaBtn} onClick={onOpenDetails}>
+            Details…
+          </button>
+        )}
       </div>
 
       {initial.sourceText && (

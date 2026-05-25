@@ -9,6 +9,8 @@ export type { FlowTracePlayerProps } from "./FlowTracePlayer";
 export { default as FlowGraph } from "./FlowGraph";
 export { default as StepControls } from "./StepControls";
 export { default as PartInspector } from "./PartInspector";
+export { default as PartDetailsModal } from "./PartDetailsModal";
+export type { PartDetailsModalProps } from "./PartDetailsModal";
 
 // Explorers + shared harness.
 export { default as AnatomyExplorer } from "./AnatomyExplorer";

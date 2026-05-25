@@ -31,8 +31,8 @@ export default function RunSequence({ runs, segments }: RunSequenceProps): React
 }
 
 function RunChip({ run }: { run: Run }): React.ReactElement {
-  if (run.text) {
-    return <span className={styles.runText}>{run.text.text}</span>;
+  if (run.text !== undefined) {
+    return <span className={styles.runText}>{run.text}</span>;
   }
   if (run.ph) {
     const label = run.ph.equiv || run.ph.data || `#${run.ph.id}`;
