@@ -19,7 +19,10 @@
     "test:watch": "vp test watch"
   },
   "dependencies": {
+    "@neokapi/flow-editor": "*",
     "@neokapi/kapi-playground": "*",
+    "@neokapi/reference-data": "*",
+    "@neokapi/ui-primitives": "*",
     "lucide-react": "^1.14.0"
   },
   "devDependencies": {
