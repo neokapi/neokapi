@@ -77,7 +77,7 @@ func (e *BridgeEngine) RoundTrip(t *testing.T, in Input, spec PseudoSpec) []byte
 			tgt := model.LocaleID(spec.TgtLocale())
 			forceSrc := e.ForcePseudoSourceBase
 			if forceSrc {
-				if existing, ok := b.Targets[tgt]; ok && segmentsHaveText(existing) {
+				if existing := b.Target(tgt); existing != nil && runsHaveText(existing.Runs) {
 					forceSrc = false
 				}
 			}
