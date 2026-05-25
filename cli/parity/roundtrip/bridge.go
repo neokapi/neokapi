@@ -82,6 +82,21 @@ func (e *BridgeEngine) RoundTrip(t *testing.T, in Input, spec PseudoSpec) []byte
 				}
 			}
 			applyPseudoToBlockOpts(b, spec, forceSrc)
+
+			// xliff2 source-base: okapi's pseudo pipeline source-copies
+			// into a target for the requested locale for EVERY part —
+			// segments AND ignorables — via createTarget(COPY_ALL), then
+			// translates segments only. The Java applier reproduces that
+			// COPY_ALL only when Go sends a target for the locale. Our
+			// pseudo produces none when the unit's sole content lives in
+			// an <ignorable> (the daemon's getSegments() never surfaces
+			// ignorables to Go, so Go sees an empty source). Echo an empty
+			// target so the applier fires and materializes the ignorable's
+			// source-copy target — matching the structural model, which
+			// always echoed one target segment per source segment.
+			if forceSrc && b.Target(tgt) == nil && (len(b.Source) > 0 || len(b.Targets) > 0) {
+				b.SetTargetRuns(tgt, nil)
+			}
 		},
 	}
 	if len(in.Companions) > 0 {

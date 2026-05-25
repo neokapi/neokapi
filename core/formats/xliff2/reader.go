@@ -359,6 +359,12 @@ func (r *Reader) emitUnit(ctx context.Context, ch chan<- model.PartResult, unit 
 					ID:      segID,
 					Runs:    inlinesToRuns(tgtInlines),
 					Content: &Content{Inlines: tgtInlines},
+					// Mirror the source <ignorable> marker onto the
+					// target seg so the target segmentation overlay
+					// carries the same kind — downstream consumers
+					// (e.g. the parity pseudo) must keep an
+					// <ignorable>'s target verbatim, never translate it.
+					Ignorable: child.Tag == "ignorable",
 				})
 			}
 		}

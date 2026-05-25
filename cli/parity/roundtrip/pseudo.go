@@ -132,10 +132,10 @@ func applyPseudoToBlockOpts(b *model.Block, spec PseudoSpec, forceSourceBase boo
 
 	// Existing target segment lookup so ignorable segments preserve their
 	// original target verbatim (e.g. an authored French translation
-	// inside an xliff2 <ignorable>).
-	existingByID := make(map[string][]model.Run)
+	// inside an xliff2 <ignorable>), including its inline IR.
+	existingByID := make(map[string]baseSeg)
 	for _, s := range targetBaseSegs(b, tgt) {
-		existingByID[s.id] = s.runs
+		existingByID[s.id] = s
 	}
 
 	var tgtIR map[string]*xliff2.Content
@@ -150,10 +150,23 @@ func applyPseudoToBlockOpts(b *model.Block, spec PseudoSpec, forceSourceBase boo
 			// TextModificationStep only operates on <segment>s, never
 			// <ignorable>s. Preserve any existing target verbatim,
 			// otherwise clone the base (source) runs.
+			var srcIR *xliff2.Content
 			if ex, ok := existingByID[bs.id]; ok {
-				runs = ex
+				runs = ex.runs
+				srcIR = ex.ir
 			} else {
 				runs = cloneRuns(bs.runs)
+				srcIR = bs.ir
+			}
+			// Carry the inline IR verbatim (no pseudo) so the writer
+			// reconstructs the ignorable's inline codes on the target —
+			// e.g. an icu_message <ph> — instead of falling back to
+			// text-only rendering and dropping them.
+			if srcIR != nil && bs.id != "" {
+				if tgtIR == nil {
+					tgtIR = make(map[string]*xliff2.Content)
+				}
+				tgtIR[bs.id] = &xliff2.Content{Inlines: cloneInlines(srcIR.Inlines)}
 			}
 		default:
 			pseudo := make([]model.Run, 0, len(bs.runs))
@@ -198,7 +211,13 @@ func applyPseudoToBlockOpts(b *model.Block, spec PseudoSpec, forceSourceBase boo
 	emitOverlay := len(outSegs) > 1
 	if !emitOverlay {
 		for _, s := range outSegs {
-			if len(s.props) > 0 {
+			// A lone segment still keeps its overlay when it carries
+			// per-segment props (e.g. a ts <numerusform> tagged
+			// numerus-form=0) OR a real segment id — xliff2 keys its
+			// target <segment>/<ignorable> match on the id, so dropping a
+			// keyed single segment's overlay (e.g. white_space's
+			// <segment id="1">) would orphan the target and elide it.
+			if len(s.props) > 0 || s.id != "" {
 				emitOverlay = true
 				break
 			}
@@ -384,6 +403,44 @@ func clonePseudoInlines(inls []xliff2.Inline) []xliff2.Inline {
 		case in.Mrk != nil:
 			mrk := *in.Mrk
 			mrk.Children = clonePseudoInlines(in.Mrk.Children)
+			out[i] = xliff2.Inline{Mrk: &mrk}
+		case in.Ph != nil:
+			ph := *in.Ph
+			out[i] = xliff2.Inline{Ph: &ph}
+		case in.Sc != nil:
+			sc := *in.Sc
+			out[i] = xliff2.Inline{Sc: &sc}
+		case in.Ec != nil:
+			ec := *in.Ec
+			out[i] = xliff2.Inline{Ec: &ec}
+		case in.Sm != nil:
+			sm := *in.Sm
+			out[i] = xliff2.Inline{Sm: &sm}
+		case in.Em != nil:
+			em := *in.Em
+			out[i] = xliff2.Inline{Em: &em}
+		}
+	}
+	return out
+}
+
+// cloneInlines deep-clones an xliff2 Inline tree verbatim, leaving every
+// Text node's Content untouched. Used for ignorable segments, whose targets
+// are copied as-is (okapi never pseudo-translates <ignorable> bodies) but
+// must still preserve their inline-code structure (<ph>/<pc>/<sc>/<ec>/…).
+func cloneInlines(inls []xliff2.Inline) []xliff2.Inline {
+	out := make([]xliff2.Inline, len(inls))
+	for i, in := range inls {
+		switch {
+		case in.Text != nil:
+			out[i] = xliff2.Inline{Text: &xliff2.Text{Content: in.Text.Content}}
+		case in.Pc != nil:
+			pc := *in.Pc
+			pc.Children = cloneInlines(in.Pc.Children)
+			out[i] = xliff2.Inline{Pc: &pc}
+		case in.Mrk != nil:
+			mrk := *in.Mrk
+			mrk.Children = cloneInlines(in.Mrk.Children)
 			out[i] = xliff2.Inline{Mrk: &mrk}
 		case in.Ph != nil:
 			ph := *in.Ph
