@@ -90,9 +90,11 @@ func NewScriptTool(cfg *ScriptConfig) *ScriptTool {
 	t.ToolName = "script"
 	t.ToolDescription = "Run a JavaScript processing script on each part"
 	t.Cfg = cfg
-	// Scripts may edit targets; source is read-only unless explicitly opted in.
-	t.WritesTarget = true
-	t.WritesSource = cfg != nil && cfg.AllowSourceMutation
+	// script is the general-purpose tool: it overrides Process (for emit/skip
+	// and the function-form return), so it is exempt from the dispatch's typed
+	// block handlers. It self-enforces immutability instead — jsToPartUpdate
+	// applies source edits only when allowsSourceMutation() is set; targets are
+	// always writable.
 	return t
 }
 

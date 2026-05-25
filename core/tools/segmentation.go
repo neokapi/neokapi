@@ -250,42 +250,34 @@ func NewSegmentationTool(cfg *SegmentationConfig) *tool.BaseTool {
 		ToolDescription: "Splits source text into sentence segments using SRX-like rules",
 		Cfg:             cfg,
 	}
-	t.HandleBlockFn = func(part *model.Part) (*model.Part, error) {
-		block, ok := part.Resource.(*model.Block)
-		if !ok {
-			return part, nil
-		}
-		if !block.Translatable {
-			return part, nil
+	t.Annotate = func(v tool.BlockView) error {
+		if !v.Translatable() {
+			return nil
 		}
 
 		conf := t.Cfg.(*SegmentationConfig)
-
-		if block.Properties == nil {
-			block.Properties = make(map[string]string)
-		}
 
 		// Segment source text into a stand-off segmentation overlay; the
 		// source runs are never rewritten, so segmentation is reversible
 		// (dropping the overlay restores the unsegmented content).
 		if conf.SegmentSource {
-			if block.SourceSegmentation() == nil || conf.OverwriteSegmentation {
-				spans := segmentSpans(block.Source, compiled)
-				block.SetSegmentation(nil, spans)
-				block.Properties[PropSegmentCount] = strconv.Itoa(len(spans))
+			if v.SourceSegmentation() == nil || conf.OverwriteSegmentation {
+				spans := segmentSpans(v.SourceRuns(), compiled)
+				v.SetSegmentation(nil, spans)
+				v.SetProperty(PropSegmentCount, strconv.Itoa(len(spans)))
 			}
 		}
 
 		// Segment target text into a target-side overlay if enabled.
-		if conf.SegmentTarget && !conf.TargetLocale.IsEmpty() && block.HasTarget(conf.TargetLocale) {
+		if conf.SegmentTarget && !conf.TargetLocale.IsEmpty() && v.HasTarget(conf.TargetLocale) {
 			key := model.Variant(conf.TargetLocale)
-			if block.SegmentationFor(&key) == nil || conf.OverwriteSegmentation {
-				spans := segmentSpans(block.TargetRuns(conf.TargetLocale), compiled)
-				block.SetSegmentation(&key, spans)
+			if v.SegmentationFor(&key) == nil || conf.OverwriteSegmentation {
+				spans := segmentSpans(v.TargetRuns(conf.TargetLocale), compiled)
+				v.SetSegmentation(&key, spans)
 			}
 		}
 
-		return part, nil
+		return nil
 	}
 	return t
 }

@@ -96,21 +96,16 @@ func NewSearchReplaceTool(cfg *SearchReplaceConfig) *tool.BaseTool {
 		ToolName:        "search-replace",
 		ToolDescription: "Performs search and replace on block text",
 		Cfg:             cfg,
-		WritesSource:    true,
-		WritesTarget:    true,
 	}
-	t.HandleBlockFn = func(part *model.Part) (*model.Part, error) {
-		block, ok := part.Resource.(*model.Block)
-		if !ok {
-			return part, nil
-		}
-		if !block.Translatable {
-			return part, nil
+	// Transform: search-replace may rewrite source and/or target text.
+	t.Transform = func(v tool.SourceView) error {
+		if !v.Translatable() {
+			return nil
 		}
 
 		conf := t.Cfg.(*SearchReplaceConfig)
 		if len(conf.Pairs) == 0 {
-			return part, nil
+			return nil
 		}
 
 		// Build effective pairs, applying config-level regex/case/dotAll/multiLine flags.
@@ -134,29 +129,29 @@ func NewSearchReplaceTool(cfg *SearchReplaceConfig) *tool.BaseTool {
 
 		// Apply to source text if enabled.
 		if applySource {
-			sourceText := block.SourceText()
+			sourceText := v.SourceText()
 			newSource, err := applyReplacements(sourceText, effectivePairs, replaceAll)
 			if err != nil {
-				return nil, fmt.Errorf("search-replace source: %w", err)
+				return fmt.Errorf("search-replace source: %w", err)
 			}
 			if newSource != sourceText {
-				block.SetSourceText(newSource)
+				v.SetSourceText(newSource)
 			}
 		}
 
 		// Apply to target text if enabled and locale is set and target exists.
-		if applyTarget && !conf.TargetLocale.IsEmpty() && block.HasTarget(conf.TargetLocale) {
-			targetText := block.TargetText(conf.TargetLocale)
+		if applyTarget && !conf.TargetLocale.IsEmpty() && v.HasTarget(conf.TargetLocale) {
+			targetText := v.TargetText(conf.TargetLocale)
 			newTarget, err := applyReplacements(targetText, effectivePairs, replaceAll)
 			if err != nil {
-				return nil, fmt.Errorf("search-replace target: %w", err)
+				return fmt.Errorf("search-replace target: %w", err)
 			}
 			if newTarget != targetText {
-				block.SetTargetText(conf.TargetLocale, newTarget)
+				v.SetTargetText(conf.TargetLocale, newTarget)
 			}
 		}
 
-		return part, nil
+		return nil
 	}
 	return t
 }

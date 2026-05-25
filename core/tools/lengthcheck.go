@@ -124,27 +124,19 @@ func NewLengthCheckTool(cfg *LengthCheckConfig) *tool.BaseTool {
 		ToolDescription: "Verifies translation length constraints (chars, words, ratio)",
 		Cfg:             cfg,
 	}
-	t.HandleBlockFn = func(part *model.Part) (*model.Part, error) {
-		block, ok := part.Resource.(*model.Block)
-		if !ok {
-			return part, nil
-		}
-		if !block.Translatable {
-			return part, nil
+	t.Annotate = func(v tool.BlockView) error {
+		if !v.Translatable() {
+			return nil
 		}
 
 		conf := t.Cfg.(*LengthCheckConfig)
 
-		if block.Properties == nil {
-			block.Properties = make(map[string]string)
+		if !v.HasTarget(conf.TargetLocale) {
+			return nil
 		}
 
-		if !block.HasTarget(conf.TargetLocale) {
-			return part, nil
-		}
-
-		targetText := block.TargetText(conf.TargetLocale)
-		sourceText := block.SourceText()
+		targetText := v.TargetText(conf.TargetLocale)
+		sourceText := v.SourceText()
 
 		var issues []QAIssue
 
@@ -229,9 +221,9 @@ func NewLengthCheckTool(cfg *LengthCheckConfig) *tool.BaseTool {
 			}
 		}
 
-		storeLengthCheckIssues(block, issues)
+		storeLengthCheckIssues(v, issues)
 
-		return part, nil
+		return nil
 	}
 	return t
 }
@@ -245,23 +237,19 @@ func longOrShort(length, breakpoint int) string {
 	return "short"
 }
 
-// storeLengthCheckIssues writes length check findings to Block.Properties.
-func storeLengthCheckIssues(block *model.Block, issues []QAIssue) {
-	if block.Properties == nil {
-		block.Properties = make(map[string]string)
-	}
-
+// storeLengthCheckIssues writes length check findings to block properties.
+func storeLengthCheckIssues(v tool.BlockView, issues []QAIssue) {
 	if len(issues) == 0 {
-		block.Properties[PropLengthCheckPassed] = "true"
-		block.Properties[PropLengthCheckIssues] = "[]"
+		v.SetProperty(PropLengthCheckPassed, "true")
+		v.SetProperty(PropLengthCheckIssues, "[]")
 		return
 	}
 
-	block.Properties[PropLengthCheckPassed] = "false"
+	v.SetProperty(PropLengthCheckPassed, "false")
 	data, err := json.Marshal(issues)
 	if err != nil {
-		block.Properties[PropLengthCheckIssues] = "[]"
+		v.SetProperty(PropLengthCheckIssues, "[]")
 		return
 	}
-	block.Properties[PropLengthCheckIssues] = string(data)
+	v.SetProperty(PropLengthCheckIssues, string(data))
 }

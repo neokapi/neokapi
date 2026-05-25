@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/tool"
 )
 
@@ -50,33 +49,26 @@ func NewLineBreakConvertTool(cfg *LineBreakConvertConfig) *tool.BaseTool {
 		ToolName:        "linebreak-convert",
 		ToolDescription: "Normalizes line endings in source and/or target text of blocks",
 		Cfg:             cfg,
-		WritesSource:    true,
-		WritesTarget:    true,
 	}
-	t.HandleBlockFn = func(part *model.Part) (*model.Part, error) {
-		block, ok := part.Resource.(*model.Block)
-		if !ok {
-			return part, nil
-		}
-		if !block.Translatable {
-			return part, nil
+	// Transform: linebreak-convert may rewrite source and/or target text.
+	t.Transform = func(v tool.SourceView) error {
+		if !v.Translatable() {
+			return nil
 		}
 
 		conf := t.Cfg.(*LineBreakConvertConfig)
 
 		if conf.ApplySource {
-			sourceText := block.SourceText()
-			block.SetSourceText(convertLineBreaks(sourceText, conf.Mode))
+			v.SetSourceText(convertLineBreaks(v.SourceText(), conf.Mode))
 		}
 
 		if conf.ApplyTarget {
-			for _, locale := range block.TargetLocales() {
-				targetText := block.TargetText(locale)
-				block.SetTargetText(locale, convertLineBreaks(targetText, conf.Mode))
+			for _, locale := range v.TargetLocales() {
+				v.SetTargetText(locale, convertLineBreaks(v.TargetText(locale), conf.Mode))
 			}
 		}
 
-		return part, nil
+		return nil
 	}
 	return t
 }

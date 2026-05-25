@@ -47,32 +47,26 @@ func NewInlineCodesRemoveTool(cfg *InlineCodesRemoveConfig) *tool.BaseTool {
 		ToolName:        "inline-codes-remove",
 		ToolDescription: "Strips inline-code runs from segment content, producing clean plain text",
 		Cfg:             cfg,
-		WritesSource:    true,
-		WritesTarget:    true,
 	}
-	t.HandleBlockFn = func(part *model.Part) (*model.Part, error) {
-		block, ok := part.Resource.(*model.Block)
-		if !ok {
-			return part, nil
-		}
-
+	// Transform: inline-codes-remove may rewrite source and/or target runs.
+	t.Transform = func(v tool.SourceView) error {
 		conf := t.Cfg.(*InlineCodesRemoveConfig)
 
-		if !block.Translatable && !conf.IncludeNonTranslatable {
-			return part, nil
+		if !v.Translatable() && !conf.IncludeNonTranslatable {
+			return nil
 		}
 
 		if conf.ApplySource {
-			block.SetSourceRuns(stripInlineRuns(block.Source, conf.ReplaceWithSpace))
+			v.SetSourceRuns(stripInlineRuns(v.SourceRuns(), conf.ReplaceWithSpace))
 		}
 
 		if conf.ApplyTarget {
-			if runs := block.TargetRuns(conf.TargetLocale); runs != nil {
-				block.SetTargetRuns(conf.TargetLocale, stripInlineRuns(runs, conf.ReplaceWithSpace))
+			if runs := v.TargetRuns(conf.TargetLocale); runs != nil {
+				v.SetTargetRuns(conf.TargetLocale, stripInlineRuns(runs, conf.ReplaceWithSpace))
 			}
 		}
 
-		return part, nil
+		return nil
 	}
 	return t
 }

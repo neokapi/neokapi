@@ -103,31 +103,23 @@ func NewPatternCheckTool(cfg *PatternCheckConfig) *tool.BaseTool {
 		ToolDescription: "Validates regex patterns in translations (e.g., placeholders, variables)",
 		Cfg:             cfg,
 	}
-	t.HandleBlockFn = func(part *model.Part) (*model.Part, error) {
-		block, ok := part.Resource.(*model.Block)
-		if !ok {
-			return part, nil
-		}
-		if !block.Translatable {
-			return part, nil
+	t.Annotate = func(v tool.BlockView) error {
+		if !v.Translatable() {
+			return nil
 		}
 
 		conf := t.Cfg.(*PatternCheckConfig)
 
-		if block.Properties == nil {
-			block.Properties = make(map[string]string)
-		}
-
-		sourceText := block.SourceText()
+		sourceText := v.SourceText()
 
 		// If no target, nothing to check.
-		if !block.HasTarget(conf.TargetLocale) {
-			block.Properties[PropPatternCheckPassed] = "true"
-			block.Properties[PropPatternCheckIssues] = "[]"
-			return part, nil
+		if !v.HasTarget(conf.TargetLocale) {
+			v.SetProperty(PropPatternCheckPassed, "true")
+			v.SetProperty(PropPatternCheckIssues, "[]")
+			return nil
 		}
 
-		targetText := block.TargetText(conf.TargetLocale)
+		targetText := v.TargetText(conf.TargetLocale)
 
 		var issues []QAIssue
 
@@ -163,30 +155,26 @@ func NewPatternCheckTool(cfg *PatternCheckConfig) *tool.BaseTool {
 			}
 		}
 
-		storePatternCheckIssues(block, issues)
+		storePatternCheckIssues(v, issues)
 
-		return part, nil
+		return nil
 	}
 	return t
 }
 
-// storePatternCheckIssues writes pattern check findings to Block.Properties.
-func storePatternCheckIssues(block *model.Block, issues []QAIssue) {
-	if block.Properties == nil {
-		block.Properties = make(map[string]string)
-	}
-
+// storePatternCheckIssues writes pattern check findings to block properties.
+func storePatternCheckIssues(v tool.BlockView, issues []QAIssue) {
 	if len(issues) == 0 {
-		block.Properties[PropPatternCheckPassed] = "true"
-		block.Properties[PropPatternCheckIssues] = "[]"
+		v.SetProperty(PropPatternCheckPassed, "true")
+		v.SetProperty(PropPatternCheckIssues, "[]")
 		return
 	}
 
-	block.Properties[PropPatternCheckPassed] = "false"
+	v.SetProperty(PropPatternCheckPassed, "false")
 	data, err := json.Marshal(issues)
 	if err != nil {
-		block.Properties[PropPatternCheckIssues] = "[]"
+		v.SetProperty(PropPatternCheckIssues, "[]")
 		return
 	}
-	block.Properties[PropPatternCheckIssues] = string(data)
+	v.SetProperty(PropPatternCheckIssues, string(data))
 }

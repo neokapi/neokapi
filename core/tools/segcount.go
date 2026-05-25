@@ -62,32 +62,24 @@ func NewSegCountTool(cfg *SegCountConfig) *tool.BaseTool {
 		ToolDescription: "Counts source and target segments in blocks",
 		Cfg:             cfg,
 	}
-	t.HandleBlockFn = func(part *model.Part) (*model.Part, error) {
-		block, ok := part.Resource.(*model.Block)
-		if !ok {
-			return part, nil
-		}
-		if !block.Translatable {
-			return part, nil
+	t.Annotate = func(v tool.BlockView) error {
+		if !v.Translatable() {
+			return nil
 		}
 
-		if block.Properties == nil {
-			block.Properties = make(map[string]string)
-		}
-
-		block.Properties[PropSegCountSource] = strconv.Itoa(block.SourceSegmentCount())
+		v.SetProperty(PropSegCountSource, strconv.Itoa(v.SourceSegmentCount()))
 
 		conf := t.Cfg.(*SegCountConfig)
-		if !conf.Locale.IsEmpty() && block.HasTarget(conf.Locale) {
+		if !conf.Locale.IsEmpty() && v.HasTarget(conf.Locale) {
 			key := model.Variant(conf.Locale)
 			count := 1
-			if seg := block.SegmentationFor(&key); seg != nil {
+			if seg := v.SegmentationFor(&key); seg != nil {
 				count = len(seg.Spans)
 			}
-			block.Properties[PropSegCountTarget] = strconv.Itoa(count)
+			v.SetProperty(PropSegCountTarget, strconv.Itoa(count))
 		}
 
-		return part, nil
+		return nil
 	}
 	return t
 }

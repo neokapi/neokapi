@@ -6,7 +6,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/tool"
 )
 
@@ -59,13 +58,9 @@ func NewTagProtectTool(cfg *TagProtectConfig) *tool.BaseTool {
 		ToolDescription: "Identifies and marks tags and placeholders for protection",
 		Cfg:             cfg,
 	}
-	t.HandleBlockFn = func(part *model.Part) (*model.Part, error) {
-		block, ok := part.Resource.(*model.Block)
-		if !ok {
-			return part, nil
-		}
-		if !block.Translatable {
-			return part, nil
+	t.Annotate = func(v tool.BlockView) error {
+		if !v.Translatable() {
+			return nil
 		}
 
 		conf := t.Cfg.(*TagProtectConfig)
@@ -74,22 +69,15 @@ func NewTagProtectTool(cfg *TagProtectConfig) *tool.BaseTool {
 			patterns = defaultTagPatterns
 		}
 
-		sourceText := block.SourceText()
-		protected := findProtectedTags(sourceText, patterns)
+		protected := findProtectedTags(v.SourceText(), patterns)
 
-		if block.Properties == nil {
-			block.Properties = make(map[string]string)
-		}
-		block.Properties[PropTagProtectCount] = strconv.Itoa(len(protected))
+		v.SetProperty(PropTagProtectCount, strconv.Itoa(len(protected)))
 
 		if len(protected) > 0 {
-			if block.Annotations == nil {
-				block.Annotations = make(map[string]model.Annotation)
-			}
-			block.Annotations["protected-tags"] = &ProtectedTags{Tags: protected}
+			v.Annotate("protected-tags", &ProtectedTags{Tags: protected})
 		}
 
-		return part, nil
+		return nil
 	}
 	return t
 }

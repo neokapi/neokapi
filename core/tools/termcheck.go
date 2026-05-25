@@ -88,32 +88,24 @@ func NewTermCheckTool(cfg *TermCheckConfig) *tool.BaseTool {
 		ToolDescription: "Verifies terminology usage in translations against a glossary",
 		Cfg:             cfg,
 	}
-	t.HandleBlockFn = func(part *model.Part) (*model.Part, error) {
-		block, ok := part.Resource.(*model.Block)
-		if !ok {
-			return part, nil
-		}
-		if !block.Translatable {
-			return part, nil
+	t.Annotate = func(v tool.BlockView) error {
+		if !v.Translatable() {
+			return nil
 		}
 
 		conf := t.Cfg.(*TermCheckConfig)
 		if len(conf.Glossary) == 0 {
-			return part, nil
+			return nil
 		}
 
-		if !block.HasTarget(conf.TargetLocale) {
-			return part, nil
+		if !v.HasTarget(conf.TargetLocale) {
+			return nil
 		}
 
-		if block.Properties == nil {
-			block.Properties = make(map[string]string)
-		}
+		sourceText := v.SourceText()
+		targetText := v.TargetText(conf.TargetLocale)
 
-		sourceText := block.SourceText()
-		targetText := block.TargetText(conf.TargetLocale)
-
-		var errors []string
+		var errs []string
 		for _, entry := range conf.Glossary {
 			srcContains := containsTerm(sourceText, entry.Source, conf.CaseSensitive)
 			if !srcContains {
@@ -121,18 +113,18 @@ func NewTermCheckTool(cfg *TermCheckConfig) *tool.BaseTool {
 			}
 			tgtContains := containsTerm(targetText, entry.Target, conf.CaseSensitive)
 			if !tgtContains {
-				errors = append(errors, fmt.Sprintf("term %q found in source but required translation %q missing in target", entry.Source, entry.Target))
+				errs = append(errs, fmt.Sprintf("term %q found in source but required translation %q missing in target", entry.Source, entry.Target))
 			}
 		}
 
-		if len(errors) == 0 {
-			block.Properties[PropTermCheckPassed] = "true"
+		if len(errs) == 0 {
+			v.SetProperty(PropTermCheckPassed, "true")
 		} else {
-			block.Properties[PropTermCheckPassed] = "false"
-			block.Properties[PropTermCheckErrors] = strings.Join(errors, "; ")
+			v.SetProperty(PropTermCheckPassed, "false")
+			v.SetProperty(PropTermCheckErrors, strings.Join(errs, "; "))
 		}
 
-		return part, nil
+		return nil
 	}
 	return t
 }

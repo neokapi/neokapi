@@ -8,8 +8,6 @@ import (
 
 	"github.com/neokapi/neokapi/core/schema"
 	"github.com/neokapi/neokapi/core/tool"
-
-	"github.com/neokapi/neokapi/core/model"
 )
 
 // Repetition analysis property keys stored on Block.Properties.
@@ -77,29 +75,20 @@ func NewRepetitionAnalysisTool(cfg *RepetitionAnalysisConfig) *tool.BaseTool {
 	// Stateful: captured by the closure and reset on each Process() call.
 	var groups map[string]*repGroup
 
-	t.HandleBlockFn = func(part *model.Part) (*model.Part, error) {
+	t.Annotate = func(v tool.BlockView) error {
 		// Lazy-init on first block (Process creates a fresh closure scope per run
-		// via BaseTool, but HandleBlockFn is reused — so we init on nil).
+		// via BaseTool, but Annotate is reused — so we init on nil).
 		if groups == nil {
 			groups = make(map[string]*repGroup)
 		}
 
-		block, ok := part.Resource.(*model.Block)
-		if !ok {
-			return part, nil
-		}
-		if !block.Translatable {
-			return part, nil
+		if !v.Translatable() {
+			return nil
 		}
 
 		conf := t.Cfg.(*RepetitionAnalysisConfig)
 
-		if block.Properties == nil {
-			block.Properties = make(map[string]string)
-		}
-
-		sourceText := block.SourceText()
-		normalized := strings.TrimSpace(sourceText)
+		normalized := strings.TrimSpace(v.SourceText())
 		if !conf.CaseSensitive {
 			normalized = strings.ToLower(normalized)
 		}
@@ -112,19 +101,19 @@ func NewRepetitionAnalysisTool(cfg *RepetitionAnalysisConfig) *tool.BaseTool {
 			groups[groupKey] = g
 		}
 		g.count++
-		g.blockIDs = append(g.blockIDs, block.ID)
+		g.blockIDs = append(g.blockIDs, v.ID())
 
 		if g.count == 1 {
-			block.Properties[PropRepetitionStatus] = "first-occurrence"
+			v.SetProperty(PropRepetitionStatus, "first-occurrence")
 		} else {
-			block.Properties[PropRepetitionStatus] = "repetition"
+			v.SetProperty(PropRepetitionStatus, "repetition")
 		}
 
-		block.Properties[PropRepetitionGroup] = groupKey
-		block.Properties[PropRepetitionCount] = strconv.Itoa(g.count)
-		block.Properties[PropRepetitionIndex] = strconv.Itoa(g.count)
+		v.SetProperty(PropRepetitionGroup, groupKey)
+		v.SetProperty(PropRepetitionCount, strconv.Itoa(g.count))
+		v.SetProperty(PropRepetitionIndex, strconv.Itoa(g.count))
 
-		return part, nil
+		return nil
 	}
 
 	return t

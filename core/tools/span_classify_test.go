@@ -1,12 +1,28 @@
 package tools
 
 import (
+	"context"
 	"testing"
 
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// runSpanClassify drives a single Part through the tool's Process (span-classify
+// is a Transform handler now, so it can't be invoked via HandleBlockFn).
+func runSpanClassify(t *testing.T, tl interface {
+	Process(context.Context, <-chan *model.Part, chan<- *model.Part) error
+}, part *model.Part) *model.Part {
+	t.Helper()
+	in := make(chan *model.Part, 1)
+	out := make(chan *model.Part, 1)
+	in <- part
+	close(in)
+	require.NoError(t, tl.Process(t.Context(), in, out))
+	close(out)
+	return <-out
+}
 
 // pairedRuns builds a `<open>middle</close>` Run sequence with the given
 // type and tag data, used by the span-classify tests.
@@ -66,8 +82,7 @@ func TestSpanClassifyFromData(t *testing.T) {
 	part := &model.Part{Type: model.PartBlock, Resource: block}
 
 	tool := NewSpanClassifyTool(&SpanClassifyConfig{})
-	result, err := tool.HandleBlockFn(part)
-	require.NoError(t, err)
+	result := runSpanClassify(t, tool, part)
 
 	runs := result.Resource.(*model.Block).Source
 	open := firstPcOpen(runs)
@@ -94,8 +109,7 @@ func TestSpanClassifyFromSubType(t *testing.T) {
 	part := &model.Part{Type: model.PartBlock, Resource: block}
 
 	tool := NewSpanClassifyTool(&SpanClassifyConfig{})
-	result, err := tool.HandleBlockFn(part)
-	require.NoError(t, err)
+	result := runSpanClassify(t, tool, part)
 
 	runs := result.Resource.(*model.Block).Source
 	open := firstPcOpen(runs)
@@ -119,8 +133,7 @@ func TestSpanClassifyBreakPlaceholder(t *testing.T) {
 	part := &model.Part{Type: model.PartBlock, Resource: block}
 
 	tool := NewSpanClassifyTool(&SpanClassifyConfig{})
-	result, err := tool.HandleBlockFn(part)
-	require.NoError(t, err)
+	result := runSpanClassify(t, tool, part)
 
 	ph := firstPh(result.Resource.(*model.Block).Source)
 	require.NotNil(t, ph)
@@ -139,8 +152,7 @@ func TestSpanClassifyUnknownType(t *testing.T) {
 	part := &model.Part{Type: model.PartBlock, Resource: block}
 
 	tool := NewSpanClassifyTool(&SpanClassifyConfig{})
-	result, err := tool.HandleBlockFn(part)
-	require.NoError(t, err)
+	result := runSpanClassify(t, tool, part)
 
 	runs := result.Resource.(*model.Block).Source
 	open := firstPcOpen(runs)
@@ -161,8 +173,7 @@ func TestSpanClassifySkipsNonMarkup(t *testing.T) {
 	part := &model.Part{Type: model.PartBlock, Resource: block}
 
 	tool := NewSpanClassifyTool(&SpanClassifyConfig{})
-	result, err := tool.HandleBlockFn(part)
-	require.NoError(t, err)
+	result := runSpanClassify(t, tool, part)
 
 	runs := result.Resource.(*model.Block).Source
 	open := firstPcOpen(runs)
@@ -184,8 +195,7 @@ func TestSpanClassifyTargetFragments(t *testing.T) {
 	part := &model.Part{Type: model.PartBlock, Resource: block}
 
 	tool := NewSpanClassifyTool(&SpanClassifyConfig{})
-	result, err := tool.HandleBlockFn(part)
-	require.NoError(t, err)
+	result := runSpanClassify(t, tool, part)
 
 	runs := result.Resource.(*model.Block).TargetRuns("fr")
 	open := firstPcOpen(runs)

@@ -88,29 +88,21 @@ func NewDiffLeverageTool(cfg *DiffLeverageConfig) *tool.BaseTool {
 		ToolName:        "diff-leverage",
 		ToolDescription: "Compares blocks against previous version, preserving translations for unchanged text",
 		Cfg:             cfg,
-		WritesTarget:    true,
 	}
-	t.HandleBlockFn = func(part *model.Part) (*model.Part, error) {
-		block, ok := part.Resource.(*model.Block)
-		if !ok {
-			return part, nil
-		}
-		if !block.Translatable {
-			return part, nil
+	// Translate: diff-leverage writes a target from previous versions; source is read-only.
+	t.Translate = func(v tool.TargetView) error {
+		if !v.Translatable() {
+			return nil
 		}
 
 		conf := t.Cfg.(*DiffLeverageConfig)
 
-		if block.Properties == nil {
-			block.Properties = make(map[string]string)
-		}
+		sourceText := v.SourceText()
 
-		sourceText := block.SourceText()
-
-		prev, found := conf.PreviousTexts[block.ID]
+		prev, found := conf.PreviousTexts[v.ID()]
 		if !found {
-			block.Properties[PropDiffLeverageStatus] = "new"
-			return part, nil
+			v.SetProperty(PropDiffLeverageStatus, "new")
+			return nil
 		}
 
 		// Compare source texts.
@@ -120,11 +112,11 @@ func NewDiffLeverageTool(cfg *DiffLeverageConfig) *tool.BaseTool {
 		}
 
 		if srcMatch {
-			block.Properties[PropDiffLeverageStatus] = "unchanged"
+			v.SetProperty(PropDiffLeverageStatus, "unchanged")
 			if prev.TargetText != "" {
-				block.SetTargetText(conf.TargetLocale, prev.TargetText)
+				v.SetTargetText(conf.TargetLocale, prev.TargetText)
 			}
-			return part, nil
+			return nil
 		}
 
 		// Source text differs.
@@ -136,17 +128,17 @@ func NewDiffLeverageTool(cfg *DiffLeverageConfig) *tool.BaseTool {
 			}
 			score := similarityScore(a, b)
 			if score > 70 {
-				block.Properties[PropDiffLeverageStatus] = "leveraged"
-				block.Properties[PropDiffLeverageScore] = strconv.Itoa(score)
+				v.SetProperty(PropDiffLeverageStatus, "leveraged")
+				v.SetProperty(PropDiffLeverageScore, strconv.Itoa(score))
 				if prev.TargetText != "" {
-					block.SetTargetText(conf.TargetLocale, prev.TargetText)
+					v.SetTargetText(conf.TargetLocale, prev.TargetText)
 				}
-				return part, nil
+				return nil
 			}
 		}
 
-		block.Properties[PropDiffLeverageStatus] = "modified"
-		return part, nil
+		v.SetProperty(PropDiffLeverageStatus, "modified")
+		return nil
 	}
 	return t
 }

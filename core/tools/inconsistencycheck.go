@@ -111,27 +111,19 @@ func NewInconsistencyCheckTool(cfg *InconsistencyCheckConfig) *tool.BaseTool {
 		}
 		return part, nil
 	}
-	t.HandleBlockFn = func(part *model.Part) (*model.Part, error) {
-		block, ok := part.Resource.(*model.Block)
-		if !ok {
-			return part, nil
-		}
-		if !block.Translatable {
-			return part, nil
+	t.Annotate = func(v tool.BlockView) error {
+		if !v.Translatable() {
+			return nil
 		}
 
 		conf := t.Cfg.(*InconsistencyCheckConfig)
 
-		if !block.HasTarget(conf.TargetLocale) {
-			return part, nil
+		if !v.HasTarget(conf.TargetLocale) {
+			return nil
 		}
 
-		if block.Properties == nil {
-			block.Properties = make(map[string]string)
-		}
-
-		sourceText := strings.TrimSpace(block.SourceText())
-		targetText := strings.TrimSpace(block.TargetText(conf.TargetLocale))
+		sourceText := strings.TrimSpace(v.SourceText())
+		targetText := strings.TrimSpace(v.TargetText(conf.TargetLocale))
 
 		// Normalize for comparison.
 		normSource := sourceText
@@ -157,26 +149,26 @@ func NewInconsistencyCheckTool(cfg *InconsistencyCheckConfig) *tool.BaseTool {
 
 		// Check for target inconsistency: same source, different targets.
 		if conf.CheckTargetInconsistency && len(sourceToTargets[normSource]) > 1 {
-			block.Properties[PropInconsistencyStatus] = "inconsistent"
-			block.Properties[PropInconsistencyType] = "target-inconsistency"
+			v.SetProperty(PropInconsistencyStatus, "inconsistent")
+			v.SetProperty(PropInconsistencyType, "target-inconsistency")
 			alternatives := alternativesExcluding(sourceToTargets[normSource], normTarget)
 			data, _ := json.Marshal(alternatives)
-			block.Properties[PropInconsistencyDetails] = string(data)
-			return part, nil
+			v.SetProperty(PropInconsistencyDetails, string(data))
+			return nil
 		}
 
 		// Check for source inconsistency: different sources, same target.
 		if conf.CheckSourceInconsistency && len(targetToSources[normTarget]) > 1 {
-			block.Properties[PropInconsistencyStatus] = "inconsistent"
-			block.Properties[PropInconsistencyType] = "source-inconsistency"
+			v.SetProperty(PropInconsistencyStatus, "inconsistent")
+			v.SetProperty(PropInconsistencyType, "source-inconsistency")
 			alternatives := alternativesExcluding(targetToSources[normTarget], normSource)
 			data, _ := json.Marshal(alternatives)
-			block.Properties[PropInconsistencyDetails] = string(data)
-			return part, nil
+			v.SetProperty(PropInconsistencyDetails, string(data))
+			return nil
 		}
 
-		block.Properties[PropInconsistencyStatus] = "consistent"
-		return part, nil
+		v.SetProperty(PropInconsistencyStatus, "consistent")
+		return nil
 	}
 	return t
 }

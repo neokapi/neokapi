@@ -3,7 +3,6 @@ package tools
 import (
 	"errors"
 
-	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/tool"
 )
 
@@ -40,29 +39,22 @@ func NewPropertiesSetTool(cfg *PropertiesSetConfig) *tool.BaseTool {
 		ToolDescription: "Sets or modifies properties on blocks programmatically",
 		Cfg:             cfg,
 	}
-	t.HandleBlockFn = func(part *model.Part) (*model.Part, error) {
-		block, ok := part.Resource.(*model.Block)
-		if !ok {
-			return part, nil
-		}
-		if cfg.OnlyTranslatable && !block.Translatable {
-			return part, nil
+	t.Annotate = func(v tool.BlockView) error {
+		if cfg.OnlyTranslatable && !v.Translatable() {
+			return nil
 		}
 
-		if block.Properties == nil {
-			block.Properties = make(map[string]string)
-		}
-
+		props := v.Properties()
 		for key, value := range cfg.Properties {
 			if !cfg.Overwrite {
-				if _, exists := block.Properties[key]; exists {
+				if _, exists := props[key]; exists {
 					continue
 				}
 			}
-			block.Properties[key] = value
+			v.SetProperty(key, value)
 		}
 
-		return part, nil
+		return nil
 	}
 	return t
 }
