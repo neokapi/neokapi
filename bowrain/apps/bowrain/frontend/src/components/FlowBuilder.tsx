@@ -29,10 +29,19 @@ import {
   DialogTitle,
   DialogFooter,
   SchemaForm,
+  Switch,
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
   type ComponentSchema,
 } from "@neokapi/ui";
 import { useFlowDefinitions, useFlowDefinitionApi, useTools, useToolSchema } from "../hooks/useApi";
 import type { FlowDefinitionInfo, FlowNodeInfo, FlowEdgeInfo, ToolInfo } from "../types/api";
+
+// --- Constants ---
+
+const STAGE_SOURCE_TRANSFORM = "source-transform";
 
 // --- Custom Node Components ---
 
@@ -60,6 +69,14 @@ const nodeColors: Record<
     label: "Tool",
     text: "#e4e4e7",
     sub: "#94a3b8",
+  },
+  // Source-transform tools get a distinct amber accent.
+  sourceTransform: {
+    bg: "rgba(245, 158, 11, 0.12)",
+    border: "#f59e0b",
+    label: "Source Transform",
+    text: "#e4e4e7",
+    sub: "#fcd34d",
   },
 };
 
@@ -104,23 +121,31 @@ function WriterNode({ data }: NodeProps) {
 }
 
 function ToolNode({ data, selected }: NodeProps) {
-  const colors = nodeColors.tool;
+  const isSourceTransform = data.stage === STAGE_SOURCE_TRANSFORM;
+  const colors = isSourceTransform ? nodeColors.sourceTransform : nodeColors.tool;
+  const activeBorder = isSourceTransform ? colors.border : "var(--accent, #6366f1)";
+
   return (
     <div
       data-testid={`flow-node-${String(data.nodeId)}`}
+      data-stage={isSourceTransform ? STAGE_SOURCE_TRANSFORM : "main"}
       className={cn(
         "px-4 py-2.5 rounded-lg min-w-[140px] text-center text-[13px]",
         selected && "ring-2 ring-primary/30",
       )}
       style={{
-        border: `2px solid ${selected ? "var(--accent, #6366f1)" : colors.border}`,
-        background: selected ? "rgba(99, 102, 241, 0.15)" : colors.bg,
+        border: `2px solid ${selected ? activeBorder : colors.border}`,
+        background: selected
+          ? isSourceTransform
+            ? "rgba(245, 158, 11, 0.22)"
+            : "rgba(99, 102, 241, 0.15)"
+          : colors.bg,
         color: colors.text,
       }}
     >
       <Handle type="target" position={Position.Left} style={{ background: colors.border }} />
       <div className="text-[10px] font-semibold mb-0.5" style={{ color: colors.sub }}>
-        TOOL
+        {isSourceTransform ? "SOURCE TRANSFORM" : "TOOL"}
       </div>
       <div className="font-semibold">{(data.label as string) || (data.toolName as string)}</div>
       {data.description ? (
@@ -128,6 +153,20 @@ function ToolNode({ data, selected }: NodeProps) {
           {data.description as string}
         </div>
       ) : null}
+      {isSourceTransform && (
+        <div className="mt-1.5 flex justify-center">
+          <span
+            className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider"
+            style={{
+              background: "rgba(245, 158, 11, 0.25)",
+              color: "#f59e0b",
+              border: "1px solid rgba(245, 158, 11, 0.4)",
+            }}
+          >
+            source-transform
+          </span>
+        </div>
+      )}
       <Handle type="source" position={Position.Right} style={{ background: colors.border }} />
     </div>
   );
@@ -152,6 +191,7 @@ function defToReactFlow(def: FlowDefinitionInfo): { nodes: Node[]; edges: Edge[]
       formatName: n.name === "auto" ? "Auto-detect" : n.name,
       nodeId: n.id,
       config: n.config || {},
+      stage: n.stage || "",
     },
   }));
   const edges: Edge[] = def.edges.map((e: FlowEdgeInfo) => ({
@@ -182,6 +222,7 @@ function reactFlowToDef(
       type: (n.type || "tool") as "tool" | "reader" | "writer",
       name: (n.data.toolName as string) || n.id,
       label: (n.data.label as string) || "",
+      stage: (n.data.stage as string) || undefined,
       config: (n.data.config as Record<string, unknown>) || undefined,
       position: { x: n.position.x, y: n.position.y },
     })),
@@ -276,40 +317,93 @@ function FlowList({
 
 function ToolConfigPanel({
   toolName,
+  stage,
+  isSourceTransformCapable,
   config,
   onChange,
+  onStageChange,
 }: {
   toolName: string;
+  stage: string;
+  isSourceTransformCapable: boolean;
   config: Record<string, unknown>;
   onChange: (config: Record<string, unknown>) => void;
+  onStageChange: (stage: string) => void;
 }) {
   const { schema, loading } = useToolSchema(toolName);
-
-  if (loading) {
-    return <div className="p-4 text-sm text-muted-foreground">Loading schema...</div>;
-  }
-
-  if (!schema || !schema.properties || Object.keys(schema.properties).length === 0) {
-    return (
-      <div className="p-4 text-sm text-muted-foreground">
-        No configurable parameters for <span className="font-mono">{toolName}</span>
-      </div>
-    );
-  }
+  const isSourceTransform = stage === STAGE_SOURCE_TRANSFORM;
 
   return (
-    <div className="p-4 space-y-4">
-      <div>
-        <h3 className="text-sm font-semibold text-foreground">{schema.title || toolName}</h3>
-        {schema.description && (
-          <p className="text-xs text-muted-foreground mt-1">{schema.description}</p>
+    <div className="flex flex-col">
+      {/* Stage toggle section */}
+      <div className="px-4 py-3 border-b border-border">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex flex-col gap-0.5">
+            <Label className="text-sm font-medium text-foreground">Source Transform</Label>
+            <span className="text-[11px] text-muted-foreground leading-tight">
+              Runs before main tools to settle the source model
+            </span>
+          </div>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                {/* Wrap in a span so Tooltip works when Switch is disabled */}
+                <span className="inline-flex">
+                  <Switch
+                    data-testid="source-transform-toggle"
+                    checked={isSourceTransform}
+                    disabled={!isSourceTransformCapable}
+                    onCheckedChange={(checked: boolean) =>
+                      onStageChange(checked ? STAGE_SOURCE_TRANSFORM : "")
+                    }
+                    aria-label="Enable source-transform stage"
+                  />
+                </span>
+              </TooltipTrigger>
+              <TooltipContent side="left" className="max-w-[200px] text-xs">
+                {isSourceTransformCapable
+                  ? "This tool can rewrite the source/model. Enable to run it in the source-transform stage before the main tools."
+                  : "This tool does not support the source-transform stage. Only tools that rewrite source content (e.g. redact, simplify, normalize) can be placed here."}
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </div>
+        {isSourceTransform && (
+          <div
+            className="mt-2 px-2 py-1.5 rounded text-[11px]"
+            style={{
+              background: "rgba(245, 158, 11, 0.1)",
+              color: "#f59e0b",
+              border: "1px solid rgba(245, 158, 11, 0.3)",
+            }}
+          >
+            Runs ahead of main tools — downstream sees a settled source.
+          </div>
         )}
       </div>
-      <SchemaForm
-        schema={schema as unknown as ComponentSchema}
-        values={config}
-        onChange={onChange}
-      />
+
+      {/* Tool schema config */}
+      {loading ? (
+        <div className="p-4 text-sm text-muted-foreground">Loading schema...</div>
+      ) : !schema || !schema.properties || Object.keys(schema.properties).length === 0 ? (
+        <div className="p-4 text-sm text-muted-foreground">
+          No configurable parameters for <span className="font-mono">{toolName}</span>
+        </div>
+      ) : (
+        <div className="p-4 space-y-4">
+          <div>
+            <h3 className="text-sm font-semibold text-foreground">{schema.title || toolName}</h3>
+            {schema.description && (
+              <p className="text-xs text-muted-foreground mt-1">{schema.description}</p>
+            )}
+          </div>
+          <SchemaForm
+            schema={schema as unknown as ComponentSchema}
+            values={config}
+            onChange={onChange}
+          />
+        </div>
+      )}
     </div>
   );
 }
@@ -340,6 +434,15 @@ export function FlowBuilder() {
     const node = nodes.find((n) => n.id === selectedNodeId);
     return node?.type === "tool" ? node : null;
   }, [selectedNodeId, nodes]);
+
+  // Build a lookup map from tool name to ToolInfo for capability checks.
+  const toolInfoMap = useMemo(() => {
+    const map = new Map<string, ToolInfo>();
+    for (const t of tools) {
+      map.set(t.name, t);
+    }
+    return map;
+  }, [tools]);
 
   const isBuiltIn = activeDef?.source === "built-in";
 
@@ -443,6 +546,8 @@ export function FlowBuilder() {
           toolName: tool.name,
           description: tool.description,
           nodeId: id,
+          stage: "",
+          config: {},
         },
       };
       setNodes((prev) => [...prev, newNode]);
@@ -496,6 +601,17 @@ export function FlowBuilder() {
     [selectedToolNode, setNodes],
   );
 
+  const handleToolStageChange = useCallback(
+    (stage: string) => {
+      if (!selectedToolNode) return;
+      setNodes((prev) =>
+        prev.map((n) => (n.id === selectedToolNode.id ? { ...n, data: { ...n.data, stage } } : n)),
+      );
+      setDirty(true);
+    },
+    [selectedToolNode, setNodes],
+  );
+
   const handleNodesChange = useCallback(
     (...args: Parameters<typeof onNodesChange>) => {
       onNodesChange(...args);
@@ -514,17 +630,20 @@ export function FlowBuilder() {
 
   const miniMapNodeColor = useMemo(
     () => (node: Node) => {
-      switch (node.type) {
-        case "reader":
-          return nodeColors.reader.border;
-        case "writer":
-          return nodeColors.writer.border;
-        default:
-          return nodeColors.tool.border;
-      }
+      if (node.type === "reader") return nodeColors.reader.border;
+      if (node.type === "writer") return nodeColors.writer.border;
+      if (node.data?.stage === STAGE_SOURCE_TRANSFORM) return nodeColors.sourceTransform.border;
+      return nodeColors.tool.border;
     },
     [],
   );
+
+  // Determine if the selected tool is source-transform capable.
+  const selectedToolCapable = useMemo(() => {
+    if (!selectedToolNode) return false;
+    const toolName = selectedToolNode.data.toolName as string;
+    return toolInfoMap.get(toolName)?.is_source_transform ?? false;
+  }, [selectedToolNode, toolInfoMap]);
 
   return (
     <div
@@ -672,8 +791,11 @@ export function FlowBuilder() {
                 >
                   <ToolConfigPanel
                     toolName={selectedToolNode.data.toolName as string}
+                    stage={(selectedToolNode.data.stage as string) || ""}
+                    isSourceTransformCapable={selectedToolCapable}
                     config={(selectedToolNode.data.config as Record<string, unknown>) || {}}
                     onChange={handleToolConfigChange}
+                    onStageChange={handleToolStageChange}
                   />
                 </div>
               )}
