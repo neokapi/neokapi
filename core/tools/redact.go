@@ -169,9 +169,13 @@ func NewRedactTool(cfg *RedactConfig) (*RedactTool, error) {
 		ToolName:        "redact",
 		ToolDescription: "Replaces sensitive spans with protected placeholders before processing",
 		Cfg:             cfg,
-		WritesSource:    true,
 	}
-	base.HandleBlockFn = t.handleBlock
+	// Transform: redact rewrites the source (replacing sensitive spans) and
+	// records recovery — on the block as a SecretAnnotation, or in a sidecar
+	// vault. It is a recoverable source-transform: it must run before any
+	// stand-off overlay is attached, and a later unredact restores the
+	// originals from the recovery record.
+	base.Transform = t.transform
 	t.BaseTool = base
 	return t, nil
 }
@@ -195,53 +199,53 @@ func (t *RedactTool) Flush() error {
 	return nil
 }
 
-func (t *RedactTool) handleBlock(part *model.Part) (*model.Part, error) {
-	block, ok := part.Resource.(*model.Block)
-	if !ok || block == nil || !block.Translatable {
-		return part, nil
+func (t *RedactTool) transform(v tool.SourceView) error {
+	if !v.Translatable() {
+		return nil
 	}
-	runs := block.SourceRuns()
+	runs := v.SourceRuns()
 	if len(runs) == 0 {
-		return part, nil
+		return nil
 	}
-	text := block.SourceText()
+	text := v.SourceText()
 
 	var matches []redaction.Match
 	if t.rules != nil {
-		ms, err := t.rules.Detect(context.Background(), text, block.SourceLocale)
+		ms, err := t.rules.Detect(context.Background(), text, v.SourceLocale())
 		if err != nil {
-			return nil, fmt.Errorf("redact: %w", err)
+			return fmt.Errorf("redact: %w", err)
 		}
 		matches = append(matches, ms...)
 	}
 	if t.useEntities {
-		matches = append(matches, t.entityMatches(block, text)...)
+		matches = append(matches, t.entityMatches(v, text)...)
 	}
 	matches = redaction.NormalizeMatches(matches)
 	if len(matches) == 0 {
-		return part, nil
+		return nil
 	}
 
 	newRuns, records := redaction.Redact(runs, matches, t.opts)
 	if len(records) == 0 {
-		return part, nil
+		return nil
 	}
-	block.SetSourceRuns(newRuns)
-	t.store(block, records)
-	return part, nil
+	v.SetSourceRuns(newRuns)
+	t.store(v, records)
+	return nil
 }
 
-// store persists the records: to the sidecar vault in external mode, or to an
-// in-process SecretAnnotation on the block otherwise.
-func (t *RedactTool) store(block *model.Block, records []redaction.Redacted) {
+// store persists the recovery records: to the sidecar vault in external mode,
+// or to an in-process SecretAnnotation on the block otherwise. The annotation
+// is the on-block recovery record a later unredact reads to restore originals.
+func (t *RedactTool) store(v tool.SourceView, records []redaction.Redacted) {
 	toValue := func(r redaction.Redacted) redaction.RedactedValue {
 		return redaction.RedactedValue{
 			Token:    r.Token,
 			Category: r.Category,
 			Disp:     r.Disp,
 			Original: r.Original,
-			Locale:   block.SourceLocale,
-			BlockID:  block.ID,
+			Locale:   v.SourceLocale(),
+			BlockID:  v.ID(),
 		}
 	}
 	if t.vault != nil {
@@ -250,22 +254,19 @@ func (t *RedactTool) store(block *model.Block, records []redaction.Redacted) {
 		}
 		return
 	}
-	if block.Annotations == nil {
-		block.Annotations = map[string]model.Annotation{}
-	}
 	ann := &redaction.SecretAnnotation{Values: make(map[string]redaction.RedactedValue, len(records))}
 	for _, r := range records {
 		ann.Values[r.Token] = toValue(r)
 	}
-	block.Annotations[redaction.SecretAnnotationKey] = ann
+	v.Annotate(redaction.SecretAnnotationKey, ann)
 }
 
 // entityMatches turns the block's EntityAnnotations into redaction matches,
 // keeping only the configured categories. Offsets reported by the extractor
 // are reconciled against the source text so byte spans are exact.
-func (t *RedactTool) entityMatches(block *model.Block, text string) []redaction.Match {
+func (t *RedactTool) entityMatches(v tool.SourceView, text string) []redaction.Match {
 	var out []redaction.Match
-	for _, ann := range block.Annotations {
+	for _, ann := range v.Annotations() {
 		ea, ok := ann.(*model.EntityAnnotation)
 		if !ok {
 			continue
@@ -274,7 +275,7 @@ func (t *RedactTool) entityMatches(block *model.Block, text string) []redaction.
 		if !t.entityCats[cat] {
 			continue
 		}
-		hintStart, hintEnd := ea.Position.ByteSpan(block.Source)
+		hintStart, hintEnd := ea.Position.ByteSpan(v.SourceRuns())
 		start, end, ok := locateSpan(text, ea.Text, hintStart, hintEnd)
 		if !ok {
 			continue
