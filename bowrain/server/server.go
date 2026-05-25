@@ -20,8 +20,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/redis/go-redis/v9"
 	slogecho "github.com/samber/slog-echo"
-	"golang.org/x/net/http2"
-	"golang.org/x/net/http2/h2c" //nolint:staticcheck // SA1019: h2c migration to http.Server.Protocols deferred (gRPC-over-h2c multiplexing needs integration testing)
 	"google.golang.org/grpc"
 
 	corebrand "github.com/neokapi/neokapi/core/brand"
@@ -1236,10 +1234,18 @@ func (s *Server) Start(addr string) error {
 		}
 	})
 
-	h2s := &http2.Server{}
+	// Serve HTTP/1.1 and cleartext HTTP/2 (h2c with prior knowledge, as used by
+	// gRPC clients) on the same listener via the standard library's protocol
+	// negotiation (Go 1.24+), replacing the deprecated
+	// golang.org/x/net/http2/h2c handler.
+	protocols := new(http.Protocols)
+	protocols.SetHTTP1(true)
+	protocols.SetUnencryptedHTTP2(true)
+
 	srv := &http.Server{
-		Addr:    addr,
-		Handler: h2c.NewHandler(handler, h2s), //nolint:staticcheck // SA1019: see h2c import note
+		Addr:      addr,
+		Handler:   handler,
+		Protocols: protocols,
 	}
 	s.httpServer = srv
 	slog.Info("starting Bowrain server", "addr", addr, "mode", "HTTP+gRPC")
