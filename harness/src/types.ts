@@ -28,8 +28,22 @@ export interface DemoManifest {
    * Demos without it are previews only (not shipped on the website).
    */
   publishAs?: string;
-  /** The task prompt handed to Claude Code. */
-  prompt: string;
+  /**
+   * Terminal style:
+   *   "claude" (default) — a live Claude Code session (`prompt` required, capture runs claude).
+   *   "shell"            — a scripted plain shell session (`script` required, no Claude). The
+   *                        commands run for real and their output is recorded deterministically;
+   *                        the renderer frames them as a normal terminal (no Claude chrome).
+   */
+  terminal?: "claude" | "shell";
+  /** Card branding: "claude" (default) → kapi × Claude Code lockup; "kapi" → kapi-only lockup. */
+  brand?: "claude" | "kapi";
+  /** Displayed working-directory label in the terminal title bar (cosmetic; default ~/project). */
+  cwd?: string;
+  /** Ordered commands for a `terminal: "shell"` demo (run via `sh -c`, so globs expand). */
+  script?: ScriptStep[];
+  /** The task prompt handed to Claude Code (required unless `terminal: "shell"`). */
+  prompt?: string;
   /** Whether the demo needs the Gemini AI path (ai-translate / AI brand). */
   needsAi: boolean;
   /**
@@ -50,6 +64,14 @@ export interface DemoManifest {
   artifacts: ArtifactSpec[];
   /** Ordered narration scenes that drive the video timeline. */
   narration: NarrationSpec[];
+}
+
+/** One step of a scripted shell demo: either a visible "# comment" beat or a command. */
+export interface ScriptStep {
+  /** A shell command to run + record (run via `sh -c`, so wildcards expand). */
+  command?: string;
+  /** A "# ..." annotation line shown in the terminal (no command run). */
+  comment?: string;
 }
 
 /** How to capture one visual artifact after the Claude run finishes. */
@@ -128,6 +150,10 @@ export type TimelineEvent =
   | { i: number; kind: "tool_use"; id: string; tool: string; title: string; command?: string; detail?: string }
   | { i: number; kind: "tool_result"; forId: string; output: string; isError: boolean }
   | { i: number; kind: "skill"; name: string }
+  // Scripted-shell demo events (terminal: "shell") — a plain `$ command` + its real output.
+  | { i: number; kind: "command"; text: string }
+  | { i: number; kind: "output"; text: string; isError: boolean }
+  | { i: number; kind: "comment"; text: string }
   // The kapi verify Stop hook fired and blocked Claude from finishing, with the
   // gate findings to fix. `findings` are the parsed "ERROR/WARNING [gate] …" lines.
   | { i: number; kind: "hook_block"; reason: string; findings: string[] }
@@ -142,6 +168,11 @@ export interface DemoCapture {
   tagline?: string;
   aspects: string[];
   prompt: string;
+  /** "claude" (default) or "shell" — selects the terminal renderer + card branding. */
+  terminal?: "claude" | "shell";
+  brand?: "claude" | "kapi";
+  /** Working-directory label shown in the terminal title bar (shell demos). */
+  cwd?: string;
   events: TimelineEvent[];
   meta: {
     model: string;
@@ -189,6 +220,13 @@ export interface NarrationManifest {
   backend: string;
   voice: string;
   scenes: NarrationScene[];
+  /**
+   * One-shot narration: a single continuous track for the whole video (staticFile
+   * path, e.g. "audio/_narration.wav"). When set, the renderer plays this one
+   * track instead of per-scene clips, so the voice's tempo and tone stay uniform
+   * end to end. Scene `durationSec` values are word-proportional shares of it.
+   */
+  fullAudio?: string;
 }
 
 /** Per-artifact metadata written to public/<id>/artifacts.json. */

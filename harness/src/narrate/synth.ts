@@ -31,7 +31,11 @@ function pickBackend(): { backend: Backend; voice: string } {
     return { backend: "gemini", voice: process.env.GEMINI_TTS_VOICE || "Charon" };
   }
   if (forced === "gemini" && !process.env.GEMINI_API_KEY) {
-    console.warn("  ! NARRATION_BACKEND=gemini but GEMINI_API_KEY unset — falling back to macOS say");
+    // Explicit gemini request with no key: fail loudly rather than silently
+    // degrading to the offline `say` voice.
+    throw new Error(
+      "NARRATION_BACKEND=gemini but GEMINI_API_KEY is unset — add it to harness/.env (no `say` fallback when gemini is explicitly requested)",
+    );
   }
   return { backend: "say", voice: process.env.SAY_VOICE || "Daniel" };
 }
@@ -365,6 +369,17 @@ export async function narrateDemo(m: DemoManifest, opts: NarrateOptions = {}): P
   const { backend, voice } = pickBackend();
   console.log(`  · narrating ${m.id} with ${backend} (${voice}), ${m.narration.length} scenes`);
 
+  // One-shot: narrate the WHOLE video in a single continuous read, so the voice's
+  // tempo and tone can't drift scene-to-scene (no per-scene clips, no per-scene
+  // tempo normalization). Scene durations are word-proportional shares of the one
+  // track — exact enough because a single read holds a near-constant words/sec.
+  // Opt-in (NARRATION_ONESHOT=1); gemini only.
+  if (backend === "gemini" && (process.env.NARRATION_ONESHOT ?? "0") === "1") {
+    const oneShot = await narrateOneShot(m, voice, audioDir, narrationPath, backend);
+    if (oneShot) return oneShot;
+    console.warn("  ! one-shot narration failed; falling back to per-scene");
+  }
+
   // Preferred path: narrate the whole video in ONE Gemini Live session — the model
   // holds one voice/persona across turns (no scene-to-scene drift), one turn per scene
   // gives clean per-scene clips, and it's read verbatim. Falls through to per-scene
@@ -507,6 +522,58 @@ export async function narrateDemo(m: DemoManifest, opts: NarrateOptions = {}): P
   fs.writeFileSync(narrationPath, JSON.stringify(manifest, null, 2));
   const total = scenes.reduce((s, sc) => s + sc.durationSec + sc.holdSec, 0);
   console.log(`  ✓ narrated ${m.id}: ${scenes.length} scenes, ${total.toFixed(1)}s total audio`);
+  return manifest;
+}
+
+/**
+ * One continuous read for the whole video → one track, uniform tempo/tone. Scene
+ * durations are word-proportional shares of it (a single read holds a near-constant
+ * words/sec, so the visuals track the voice). Returns null on failure so the caller
+ * falls back to per-scene synthesis.
+ */
+async function narrateOneShot(
+  m: DemoManifest,
+  voice: string,
+  audioDir: string,
+  narrationPath: string,
+  backend: string,
+): Promise<NarrationManifest | null> {
+  const spoken = m.narration.filter((s) => s.text?.trim());
+  if (spoken.length === 0) return null;
+  const liveModel = process.env.GEMINI_LIVE_MODEL || "gemini-3.1-flash-live-preview";
+  const fullWav = path.join(audioDir, "_narration.wav");
+  // One turn = one continuous read. Paragraph breaks → natural beats between scenes.
+  const fullText = spoken.map((s) => s.text.trim()).join("\n\n");
+  let durs: number[];
+  try {
+    durs = await geminiLiveNarrate(voice, [{ text: fullText, outWav: fullWav }], liveModel);
+  } catch (e) {
+    console.warn(`    one-shot live read failed: ${(e as Error).message.slice(0, 120)}`);
+    return null;
+  }
+  if (!durs.length || durs[0] <= 0) return null;
+  // A single uniform speed adjustment (not per-scene) keeps the tempo consistent.
+  const speed = narrationLiveSpeed();
+  if (Math.abs(speed - 1) > 0.001) await applyTempo(fullWav, speed);
+  const D = wavDurationSec(fullWav);
+  const totalWords = spoken.reduce((sum, s) => sum + countWords(s.text), 0) || 1;
+  const scenes: NarrationScene[] = m.narration.map((spec) => {
+    const text = spec.text?.trim() ?? "";
+    const words = countWords(text);
+    return {
+      id: spec.id,
+      kind: spec.kind,
+      text,
+      caption: spec.caption?.trim() || captionFromText(spec.text ?? ""),
+      artifact: spec.artifact,
+      audio: undefined, // the single fullAudio track plays for the whole video
+      durationSec: text ? D * (words / totalWords) : 0,
+      holdSec: text ? 0 : defaultHold(spec.kind), // no gaps — the one read already pauses
+    };
+  });
+  const manifest: NarrationManifest = { id: m.id, backend, voice, scenes, fullAudio: "audio/_narration.wav" };
+  fs.writeFileSync(narrationPath, JSON.stringify(manifest, null, 2));
+  console.log(`  ✓ narrated ${m.id} (one-shot): ${D.toFixed(1)}s single track across ${scenes.length} scenes`);
   return manifest;
 }
 

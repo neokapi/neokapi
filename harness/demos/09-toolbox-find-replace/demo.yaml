@@ -1,0 +1,79 @@
+id: 09-toolbox-find-replace
+title: grep, sed and cat — for any format
+subtitle: kcat, kgrep and ksed work on the text kapi reads out of a document — Word, Excel, Markdown — not raw bytes.
+tagline: muscle memory from the tools you already know, on content those tools can't see into.
+kind: use-case
+publishAs: toolbox-explainer
+# A scripted plain-shell demo (no Claude): the toolbox is deterministic, so the
+# commands run for real and their output is recorded exactly.
+terminal: shell
+brand: kapi
+cwd: ~/sales
+needsAi: false
+captureTimeoutSec: 120
+aspects:
+  - format-aware
+  - kcat · kgrep · ksed
+  - docx + xlsx + markdown
+  - one pass, in place
+
+# Each comment names exactly what the command below it does. Wildcards (`*`)
+# fan a single pattern or substitution across every file, regardless of format.
+script:
+  - comment: A sales team's collateral — one product name, three formats.
+  - command: ls
+  - comment: kcat the Word proposal — its prose, as plain lines.
+  - command: kcat proposal.docx
+  - comment: kcat the Excel price list — one cell per line.
+  - command: kcat pricing.xlsx
+  - comment: kgrep every "SalesPilot" across all three files at once.
+  - command: kgrep -n SalesPilot *
+  - comment: ksed renames SalesPilot to Northstar, in place, in all three.
+  - command: ksed -i 's/SalesPilot/Northstar/g' *
+  - comment: kgrep the new name to confirm — same matches, renamed.
+  - command: kgrep -c Northstar *
+  - command: kcat proposal.docx
+
+artifacts:
+  - id: after
+    caption: "proposal.docx — renamed to Northstar, heading and bold intact"
+    source: docx
+    path: proposal.docx
+    reportTitle: "proposal.docx"
+    reportSub: "still a valid Word document — only the words changed"
+    width: 1100
+    height: 760
+
+narration:
+  - id: title
+    kind: title
+    text: >
+      A sales pitch, a Word proposal, and an Excel price list — and a product
+      being renamed across all of them.
+  - id: cat
+    kind: terminal
+    text: >
+      kcat reads the text back out of the Word file and the spreadsheet, as plain
+      lines.
+    caption: "kcat reads the text inside the .docx and the .xlsx"
+  - id: grep
+    kind: terminal
+    text: >
+      kgrep finds every mention of the old name across all three files at once.
+    caption: "kgrep finds the product name across every format"
+  - id: sed
+    kind: terminal
+    text: >
+      One ksed renames it everywhere, in place — and kgrep confirms the same
+      matches under the new name.
+    caption: "one ksed renames across all three, in place"
+  - id: after
+    kind: artifact
+    artifact: after
+    text: >
+      The proposal is still a valid Word document — only the words changed.
+  - id: outro
+    kind: outro
+    text: >
+      kcat, kgrep and ksed: grep, sed and cat, for the words inside any of the
+      more than fifty file formats neokapi reads.

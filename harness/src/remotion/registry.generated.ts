@@ -28,5 +28,9 @@ export const DEMOS: RegistryEntry[] = [
   {
     "id": "08-mcp-tools",
     "title": "Reach kapi over MCP"
+  },
+  {
+    "id": "09-toolbox-find-replace",
+    "title": "grep, sed and cat — for any format"
   }
 ];
