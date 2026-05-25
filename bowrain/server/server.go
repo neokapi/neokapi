@@ -1128,7 +1128,7 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group) {
 	// Blocks — Bowrain AD-011: /:ws/:id/blocks/:ref
 	g.GET("/:id/blocks/:ref", s.HandleGetFileBlocks)
 	g.PUT("/:id/blocks/:ref/:bid", s.HandleUpdateBlockTarget)
-	g.PUT("/:id/blocks/:ref/:bid/coded", s.HandleUpdateBlockTargetCoded)
+	g.PUT("/:id/blocks/:ref/:bid/runs", s.HandleUpdateBlockTargetRuns)
 	g.GET("/:id/blocks/:ref/:bid/history", s.HandleGetBlockHistory)
 	g.GET("/:id/blocks/:ref/:bid/notes", s.HandleListBlockNotes)
 	g.POST("/:id/blocks/:ref/:bid/notes", s.HandleAddBlockNote)

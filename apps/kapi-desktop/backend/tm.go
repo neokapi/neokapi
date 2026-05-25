@@ -35,12 +35,12 @@ type OriginDTO struct {
 	SessionID string `json:"session_id,omitempty"`
 }
 
-// VariantDTO is a single language variant of a multilingual TM entry.
+// VariantDTO is a single language variant of a multilingual TM entry. Inline
+// markup travels as an RFC 0001 Run sequence; Text is the flattened plain form.
 type VariantDTO struct {
-	Locale string    `json:"locale"`
-	Text   string    `json:"text"`
-	Coded  string    `json:"coded"`
-	Spans  []SpanDTO `json:"spans"`
+	Locale string      `json:"locale"`
+	Text   string      `json:"text"`
+	Runs   []model.Run `json:"runs"`
 }
 
 // EntityValueDTO is the frontend-facing value+position of an entity mapping
@@ -71,14 +71,6 @@ type TMEntryDTO struct {
 	Origins     []OriginDTO           `json:"origins,omitempty"`
 	CreatedAt   string                `json:"created_at"`
 	UpdatedAt   string                `json:"updated_at"`
-}
-
-// SpanDTO is the frontend-facing inline span.
-type SpanDTO struct {
-	SpanType    string `json:"span_type"` // "opening"|"closing"|"placeholder"
-	Type        string `json:"type"`
-	Data        string `json:"data"`
-	DisplayText string `json:"display_text,omitempty"`
 }
 
 // TMSearchResult is the paginated result from SearchTMEntries.
@@ -129,8 +121,8 @@ type EntityAnnotationDTO struct {
 }
 
 // AddTMEntryRequest is the request to add a new multilingual TM entry.
-// Callers populate Variants with one VariantInput per locale; the server
-// rebuilds Run sequences from the coded form + spans or falls back to plain Text.
+// Callers populate Variants with one VariantInput per locale; the server uses
+// each variant's Run sequence, falling back to plain Text when Runs is empty.
 type AddTMEntryRequest struct {
 	Variants    map[string]VariantInputDTO `json:"variants"`
 	HintSrcLang string                     `json:"hint_src_lang"`
@@ -140,10 +132,11 @@ type AddTMEntryRequest struct {
 }
 
 // VariantInputDTO is how the frontend submits a single variant on add/update.
+// Runs carries the inline content; Text is a plain-text fallback used when
+// Runs is empty.
 type VariantInputDTO struct {
-	Text  string    `json:"text"`
-	Coded string    `json:"coded,omitempty"`
-	Spans []SpanDTO `json:"spans,omitempty"`
+	Text string      `json:"text"`
+	Runs []model.Run `json:"runs,omitempty"`
 }
 
 // UpdateTMEntryRequest is the request to update a TM entry. The Variants map
@@ -258,103 +251,29 @@ type EntityValueFilter struct {
 
 // --- Conversion helpers ---
 
-// runsFromVariantInput builds a Run sequence from the frontend variant
-// input. If Coded is empty, the result is a single TextRun (or empty for
-// empty Text). When Coded carries PUA markers, each marker consumes the
-// next entry in Spans and emits the matching Run kind.
+// runsFromVariantInput builds a Run sequence from the frontend variant input.
+// It uses the submitted Run sequence directly; when Runs is empty it falls back
+// to a single TextRun built from Text (or nil for empty input).
 func runsFromVariantInput(in VariantInputDTO) []model.Run {
-	if in.Coded == "" {
-		if in.Text == "" {
-			return nil
-		}
-		return []model.Run{{Text: &model.TextRun{Text: in.Text}}}
+	if len(in.Runs) > 0 {
+		return in.Runs
 	}
-	var runs []model.Run
-	var text []rune
-	flushText := func() {
-		if len(text) > 0 {
-			runs = append(runs, model.Run{Text: &model.TextRun{Text: string(text)}})
-			text = text[:0]
-		}
+	if in.Text == "" {
+		return nil
 	}
-	spanIdx := 0
-	for _, r := range in.Coded {
-		switch r {
-		case model.MarkerOpening, model.MarkerClosing, model.MarkerPlaceholder:
-			flushText()
-			if spanIdx >= len(in.Spans) {
-				continue
-			}
-			s := in.Spans[spanIdx]
-			spanIdx++
-			runs = append(runs, spanDTOToRun(r, s))
-		default:
-			text = append(text, r)
-		}
-	}
-	flushText()
-	return runs
+	return []model.Run{{Text: &model.TextRun{Text: in.Text}}}
 }
 
-// spanDTOToRun maps a marker + SpanDTO to a single Run. Constraints
-// default to deletable + reorderable (not cloneable) since the editor
-// DTO does not carry per-span constraints.
-func spanDTOToRun(marker rune, s SpanDTO) model.Run {
-	defaultConstraints := &model.RunConstraints{Deletable: true, Reorderable: true}
-	switch marker {
-	case model.MarkerOpening:
-		return model.Run{PcOpen: &model.PcOpenRun{
-			Type:        s.Type,
-			Data:        s.Data,
-			Disp:        s.DisplayText,
-			Constraints: defaultConstraints,
-		}}
-	case model.MarkerClosing:
-		return model.Run{PcClose: &model.PcCloseRun{
-			Type: s.Type,
-			Data: s.Data,
-		}}
-	default:
-		return model.Run{Ph: &model.PlaceholderRun{
-			Type:        s.Type,
-			Data:        s.Data,
-			Disp:        s.DisplayText,
-			Constraints: defaultConstraints,
-		}}
-	}
-}
-
-// runsToVariantDTO converts a Run sequence into the frontend shape. The
-// coded view is materialised on demand via MarshalRuns so the wire shape
-// stays unchanged.
+// runsToVariantDTO converts a Run sequence into the frontend shape, carrying
+// the runs verbatim plus the flattened plain text.
 func runsToVariantDTO(locale model.LocaleID, runs []model.Run) VariantDTO {
 	if len(runs) == 0 {
 		return VariantDTO{Locale: string(locale)}
 	}
-	coded, spans := model.MarshalRuns(runs)
-	dtos := make([]SpanDTO, 0, len(spans))
-	for _, s := range spans {
-		var st string
-		switch s.SpanType {
-		case model.SpanOpening:
-			st = "opening"
-		case model.SpanClosing:
-			st = "closing"
-		default:
-			st = "placeholder"
-		}
-		dtos = append(dtos, SpanDTO{
-			SpanType:    st,
-			Type:        s.Type,
-			Data:        s.Data,
-			DisplayText: s.DisplayText,
-		})
-	}
 	return VariantDTO{
 		Locale: string(locale),
 		Text:   model.FlattenRuns(runs),
-		Coded:  coded,
-		Spans:  dtos,
+		Runs:   runs,
 	}
 }
 

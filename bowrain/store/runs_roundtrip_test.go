@@ -96,26 +96,6 @@ func TestRoundTrip_RunsKeysComputedFromRuns(t *testing.T) {
 	assert.Equal(t, "Hello {PERSON} says {2}hi{/2}", gen)
 }
 
-// TestRoundTrip_PUACodedFormStable verifies that the PUA-marker coded
-// form (the bridge wire shape used by the bowrain editor REST DTO and
-// the SQLite block_history.coded_text column) is stable across the
-// MarshalRuns / UnmarshalRuns round-trip.
-func TestRoundTrip_PUACodedFormStable(t *testing.T) {
-	runs := []model.Run{
-		{Text: &model.TextRun{Text: "Click "}},
-		{PcOpen: &model.PcOpenRun{ID: "1", Type: "link", Data: "<a>"}},
-		{Text: &model.TextRun{Text: "here"}},
-		{PcClose: &model.PcCloseRun{ID: "1", Type: "link", Data: "</a>"}},
-	}
-
-	coded, spans := model.MarshalRuns(runs)
-	assert.Equal(t, "Click \uE001here\uE002", coded)
-	require.Len(t, spans, 2)
-
-	again := model.UnmarshalRuns(coded, spans)
-	assertRunsEqual(t, runs, again)
-}
-
 // assertRunsEqual asserts that two Run sequences are equal field-by-field.
 // Adjacent TextRuns are compared individually (no coalescing).
 func assertRunsEqual(t *testing.T, expected, actual []model.Run) {

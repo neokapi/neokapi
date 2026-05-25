@@ -96,9 +96,9 @@ func TestBlockMultipleSegments(t *testing.T) {
 	assert.Equal(t, "Hello world", block.SourceText())
 }
 
-// Fragment / Span tests previously lived here; the bridge type is now
-// internal to coded_text.go and its behaviour is exercised via the
-// MarshalRuns / UnmarshalRuns round-trip in coded_text_test.go.
+// The inline content model is Run-based (RFC 0001); its behaviour is
+// exercised in run_test.go. The legacy Fragment / Span / coded-text bridge
+// has been removed.
 
 func TestLayerRoot(t *testing.T) {
 	layer := &model.Layer{

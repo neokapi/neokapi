@@ -80,10 +80,12 @@ func TestBlockRunsRoundTrip(t *testing.T) {
 	assert.Equal(t, len(runs), len(got))
 	assert.Equal(t, "Files ", got[0].Text.Text)
 
-	// Round-trip through MarshalRuns.
-	coded, spans := MarshalRuns(b.SourceRuns())
-	assert.NotEmpty(t, coded)
-	assert.Len(t, spans, 3)
+	// Round-trip through the canonical JSON wire form (no coded-text bridge).
+	data, err := json.Marshal(b.SourceRuns())
+	require.NoError(t, err)
+	var back []Run
+	require.NoError(t, json.Unmarshal(data, &back))
+	assert.Equal(t, runs, back)
 }
 
 func TestBlockSetTargetRuns(t *testing.T) {
