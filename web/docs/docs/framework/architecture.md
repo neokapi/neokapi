@@ -110,17 +110,17 @@ direct imports, so the framework never depends on a particular platform.
 
 The framework rests on a few concepts, each with its own page:
 
-- **[Content Model](/framework/content-model)** \u2014 the format-independent
+- **[Content Model](/framework/content-model)** — the format-independent
   representation. A document becomes a stream of `Part`s carrying layers, blocks,
   fragments, spans, data, and media. Embedded content (HTML inside JSON, CDATA in
   XML) is modeled as nested layers, each with its own format.
-- **[Formats](/framework/formats)** \u2014 paired readers and writers that produce and
+- **[Formats](/framework/formats)** — paired readers and writers that produce and
   consume the content model. The neokapi analogue of an Okapi _filter_.
-- **[Tools](/framework/tools)** \u2014 the processing units. Each reads Parts from a
+- **[Tools](/framework/tools)** — the processing units. Each reads Parts from a
   channel, transforms them, and writes them out. The analogue of an Okapi _step_.
-- **[Flows](/framework/flows)** \u2014 named, ordered compositions of tools. The
+- **[Flows](/framework/flows)** — named, ordered compositions of tools. The
   analogue of an Okapi _pipeline_.
-- **[Pipeline](/framework/pipeline)** \u2014 the concurrent executor that runs a flow:
+- **[Pipeline](/framework/pipeline)** — the concurrent executor that runs a flow:
   goroutines, buffered channels, and context-driven cancellation. The analogue of
   the Okapi _PipelineDriver_.
 
