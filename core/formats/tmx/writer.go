@@ -108,8 +108,9 @@ func (w *Writer) writeFromSkeleton() error {
 		// Order targets deterministically (skeleton can't tell us
 		// the source's order, but pseudo-translate produces a single
 		// target so map iteration order matches the user's expectation).
-		for locale, segs := range block.Targets {
-			if len(segs) == 0 {
+		for _, locale := range block.TargetLocales() {
+			runs := block.TargetRuns(locale)
+			if len(runs) == 0 {
 				continue
 			}
 			lang := string(locale)
@@ -119,7 +120,7 @@ func (w *Writer) writeFromSkeleton() error {
 			inject.WriteString(`<tuv xml:lang="`)
 			inject.WriteString(xmlEscapeAttr(lang))
 			inject.WriteString(`"><seg>`)
-			inject.WriteString(renderTMXSeg(segs))
+			inject.WriteString(renderTMXSeg(runs))
 			inject.WriteString(`</seg></tuv>`)
 		}
 		if inject.Len() == 0 {
@@ -165,20 +166,20 @@ func (w *Writer) writeFromSkeleton() error {
 			lang := refSuffix
 			emittedLangs[strings.ToLower(lang)] = true
 
-			var segs []*model.Segment
+			var runs []model.Run
 			langLower := strings.ToLower(lang)
 			if langMatches(langLower, srcLang) {
-				segs = block.Source
+				runs = block.Source
 			} else {
 				localeID := model.LocaleID(lang)
 				if block.HasTarget(localeID) {
-					segs = block.Targets[localeID]
+					runs = block.TargetRuns(localeID)
 				} else {
-					segs = block.Source
+					runs = block.Source
 				}
 			}
 
-			if _, err := io.WriteString(w.Output, renderTMXSeg(segs)); err != nil {
+			if _, err := io.WriteString(w.Output, renderTMXSeg(runs)); err != nil {
 				return err
 			}
 		}
@@ -204,7 +205,7 @@ func (w *Writer) writeFromSkeleton() error {
 //
 // Attribute order follows okapi's writer to maximise byte-level
 // agreement: i (paired-code id), pos (it only), type, x.
-func renderTMXSeg(segs []*model.Segment) string {
+func renderTMXSeg(runs []model.Run) string {
 	var b strings.Builder
 	xCounter := 0
 	// xFor returns the `x=` value to emit on a TMX inline element. The
@@ -225,36 +226,31 @@ func renderTMXSeg(segs []*model.Segment) string {
 		xCounter++
 		return xCounter
 	}
-	for _, seg := range segs {
-		if seg == nil {
-			continue
-		}
-		for _, run := range seg.Runs {
-			switch {
-			case run.Text != nil:
-				b.WriteString(xmlEscapeString(run.Text.Text))
-			case run.Ph != nil:
-				writeTMXPh(&b, run.Ph.ID, run.Ph.Type, run.Ph.Disp, xFor(run.Ph.ID, run.Ph.Equiv), run.Ph.Data)
-			case run.PcOpen != nil:
-				if run.PcOpen.SubType == "tmx-hi" {
-					writeTMXHiOpen(&b, run.PcOpen.Type, xFor(run.PcOpen.ID, run.PcOpen.Equiv))
-					continue
-				}
-				writeTMXInline(&b, "bpt", run.PcOpen.SubType, run.PcOpen.ID, run.PcOpen.Type, "begin", xFor(run.PcOpen.ID, run.PcOpen.Equiv), run.PcOpen.Data)
-			case run.PcClose != nil:
-				if run.PcClose.SubType == "tmx-hi" {
-					b.WriteString("</hi>")
-					continue
-				}
-				// ept (paired bpt close): no x — paired by i with
-				// the matching bpt. it pos=end is an isolated marker
-				// (no pair), needs its own x.
-				closeX := 0
-				if run.PcClose.SubType == "tmx-it-end" || run.PcClose.SubType == "tmx-it" {
-					closeX = xFor(run.PcClose.ID, run.PcClose.Equiv)
-				}
-				writeTMXInline(&b, "ept", run.PcClose.SubType, run.PcClose.ID, run.PcClose.Type, "end", closeX, run.PcClose.Data)
+	for _, run := range runs {
+		switch {
+		case run.Text != nil:
+			b.WriteString(xmlEscapeString(run.Text.Text))
+		case run.Ph != nil:
+			writeTMXPh(&b, run.Ph.ID, run.Ph.Type, run.Ph.Disp, xFor(run.Ph.ID, run.Ph.Equiv), run.Ph.Data)
+		case run.PcOpen != nil:
+			if run.PcOpen.SubType == "tmx-hi" {
+				writeTMXHiOpen(&b, run.PcOpen.Type, xFor(run.PcOpen.ID, run.PcOpen.Equiv))
+				continue
 			}
+			writeTMXInline(&b, "bpt", run.PcOpen.SubType, run.PcOpen.ID, run.PcOpen.Type, "begin", xFor(run.PcOpen.ID, run.PcOpen.Equiv), run.PcOpen.Data)
+		case run.PcClose != nil:
+			if run.PcClose.SubType == "tmx-hi" {
+				b.WriteString("</hi>")
+				continue
+			}
+			// ept (paired bpt close): no x — paired by i with
+			// the matching bpt. it pos=end is an isolated marker
+			// (no pair), needs its own x.
+			closeX := 0
+			if run.PcClose.SubType == "tmx-it-end" || run.PcClose.SubType == "tmx-it" {
+				closeX = xFor(run.PcClose.ID, run.PcClose.Equiv)
+			}
+			writeTMXInline(&b, "ept", run.PcClose.SubType, run.PcClose.ID, run.PcClose.Type, "end", closeX, run.PcClose.Data)
 		}
 	}
 	return b.String()
@@ -491,13 +487,14 @@ func (w *Writer) flush() error {
 		})
 
 		// Add target TUVs
-		for locale, segs := range block.Targets {
-			if len(segs) == 0 {
+		for _, locale := range block.TargetLocales() {
+			runs := block.TargetRuns(locale)
+			if len(runs) == 0 {
 				continue
 			}
 			tu.TUVs = append(tu.TUVs, xmlTUV{
 				Lang: string(locale),
-				Seg:  xmlSeg{Inner: renderTMXSeg(segs)},
+				Seg:  xmlSeg{Inner: renderTMXSeg(runs)},
 			})
 		}
 

@@ -208,7 +208,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 			block := model.NewBlock(blockID, "")
 			block.Name = name
 			if len(runs) > 0 {
-				block.Source = []*model.Segment{{ID: "s1", Runs: runs}}
+				block.Source = runs
 			}
 
 			// For skeleton: find the value position within the entity declaration
@@ -545,24 +545,22 @@ func (r *Reader) applyCodeFinder(block *model.Block) {
 	if len(patterns) == 0 {
 		return
 	}
+	if len(block.Source) == 0 {
+		return
+	}
 	spanID := 1
-	for _, seg := range block.Source {
-		if len(seg.Runs) == 0 {
+	var runs []model.Run
+	for _, run := range block.Source {
+		if run.Text == nil {
+			// Preserve non-text runs (structural references) verbatim.
+			runs = append(runs, run)
 			continue
 		}
-		var runs []model.Run
-		for _, run := range seg.Runs {
-			if run.Text == nil {
-				// Preserve non-text runs (structural references) verbatim.
-				runs = append(runs, run)
-				continue
-			}
-			split, used := splitTextRunOnCodeFinder(run.Text.Text, patterns, spanID)
-			runs = append(runs, split...)
-			spanID += used
-		}
-		seg.SetRuns(runs)
+		split, used := splitTextRunOnCodeFinder(run.Text.Text, patterns, spanID)
+		runs = append(runs, split...)
+		spanID += used
 	}
+	block.SetSourceRuns(runs)
 }
 
 // splitTextRunOnCodeFinder breaks a single literal-text string into a Run

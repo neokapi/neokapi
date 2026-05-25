@@ -72,10 +72,5 @@ func RenderBlockContentHTML(block *model.Block) string {
 	if len(block.Source) == 0 {
 		return ""
 	}
-
-	var buf strings.Builder
-	for _, seg := range block.Source {
-		buf.WriteString(model.RenderRunsWithData(seg.Runs))
-	}
-	return buf.String()
+	return model.RenderRunsWithData(block.Source)
 }

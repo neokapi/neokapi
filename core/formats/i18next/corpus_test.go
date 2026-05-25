@@ -55,10 +55,10 @@ func TestCorpusReadsAsTranslatableBundle(t *testing.T) {
 			blocks := collectBlocks(parts)
 			require.NotEmpty(t, blocks, "corpus bundle should yield translatable blocks: %s", path)
 			for _, b := range blocks {
-				require.NotEmpty(t, b.Source, "block %s has no source segment", b.Name)
-				assert.NotContains(t, b.Source[0].Text(), "{{",
+				require.NotEmpty(t, b.Source, "block %s has no source content", b.Name)
+				assert.NotContains(t, b.SourceText(), "{{",
 					"i18next interpolation leaked into translatable text of %s", b.Name)
-				assert.NotContains(t, b.Source[0].Text(), "$t(",
+				assert.NotContains(t, b.SourceText(), "$t(",
 					"i18next $t() nesting leaked into translatable text of %s", b.Name)
 			}
 		})

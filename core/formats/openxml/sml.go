@@ -279,8 +279,8 @@ func (p *smlParser) parseWorksheet(data []byte, partPath string, emitBlock func(
 							ID:           blockID,
 							Type:         "cell",
 							Translatable: true,
-							Source:       []*model.Segment{model.NewRunsSegment("s1", []model.Run{{Text: &model.TextRun{Text: text}}})},
-							Targets:      make(map[model.LocaleID][]*model.Segment),
+							Source:       []model.Run{{Text: &model.TextRun{Text: text}}},
+							Targets:      make(map[model.VariantKey]*model.Target),
 							Properties:   map[string]string{"partPath": partPath, "cell": cellRef},
 							Annotations:  make(map[string]model.Annotation),
 						}
@@ -395,8 +395,8 @@ func (p *smlParser) buildBlock(id string, runs []textRun, partPath string, siInd
 		ID:           id,
 		Type:         "shared-string",
 		Translatable: true,
-		Source:       []*model.Segment{model.NewRunsSegment("s1", b.Runs())},
-		Targets:      make(map[model.LocaleID][]*model.Segment),
+		Source:       b.Runs(),
+		Targets:      make(map[model.VariantKey]*model.Target),
 		Properties: map[string]string{
 			"partPath": partPath,
 			"siIndex":  strconv.Itoa(siIndex),
@@ -497,8 +497,8 @@ func (p *smlParser) skelWriteTableColumn(t xml.StartElement, partPath string, em
 					ID:           blockID,
 					Type:         "table-column",
 					Translatable: true,
-					Source:       []*model.Segment{model.NewRunsSegment("s1", []model.Run{{Text: &model.TextRun{Text: nameVal}}})},
-					Targets:      make(map[model.LocaleID][]*model.Segment),
+					Source:       []model.Run{{Text: &model.TextRun{Text: nameVal}}},
+					Targets:      make(map[model.VariantKey]*model.Target),
 					Properties:   map[string]string{"partPath": partPath},
 					Annotations:  make(map[string]model.Annotation),
 				}
@@ -517,8 +517,8 @@ func (p *smlParser) skelWriteTableColumn(t xml.StartElement, partPath string, em
 		ID:           blockID,
 		Type:         "table-column",
 		Translatable: true,
-		Source:       []*model.Segment{model.NewRunsSegment("s1", []model.Run{{Text: &model.TextRun{Text: nameVal}}})},
-		Targets:      make(map[model.LocaleID][]*model.Segment),
+		Source:       []model.Run{{Text: &model.TextRun{Text: nameVal}}},
+		Targets:      make(map[model.VariantKey]*model.Target),
 		Properties:   map[string]string{"partPath": partPath},
 		Annotations:  make(map[string]model.Annotation),
 	}

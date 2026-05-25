@@ -235,13 +235,12 @@ func (w *Writer) renderBlock(block *model.Block) string {
 // preferring the configured target locale when present.
 func (w *Writer) blockRuns(block *model.Block) []model.Run {
 	if !w.Locale.IsEmpty() && block.HasTarget(w.Locale) {
-		segs := block.Targets[w.Locale]
-		if len(segs) > 0 && len(segs[0].Runs) > 0 {
-			return segs[0].Runs
+		if runs := block.TargetRuns(w.Locale); len(runs) > 0 {
+			return runs
 		}
 	}
-	if len(block.Source) > 0 && len(block.Source[0].Runs) > 0 {
-		return block.Source[0].Runs
+	if len(block.Source) > 0 {
+		return block.Source
 	}
 	return nil
 }

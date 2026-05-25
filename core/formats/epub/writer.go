@@ -304,13 +304,12 @@ func (w *Writer) writeFromSkeleton(blocks map[string]*model.Block, childLayerVal
 // renderBlockText returns the translated (or source) text for a block.
 func (w *Writer) renderBlockText(block *model.Block) string {
 	if !w.Locale.IsEmpty() && block.HasTarget(w.Locale) {
-		segs := block.Targets[w.Locale]
-		if len(segs) > 0 && len(segs[0].Runs) > 0 {
-			return xmlEscape(segs[0].Text())
+		if runs := block.TargetRuns(w.Locale); len(runs) > 0 {
+			return xmlEscape(model.RunsText(runs))
 		}
 	}
-	if len(block.Source) > 0 && len(block.Source[0].Runs) > 0 {
-		return xmlEscape(block.Source[0].Text())
+	if len(block.Source) > 0 {
+		return xmlEscape(model.RunsText(block.Source))
 	}
 	return ""
 }

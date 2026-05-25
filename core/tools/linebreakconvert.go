@@ -68,7 +68,7 @@ func NewLineBreakConvertTool(cfg *LineBreakConvertConfig) *tool.BaseTool {
 		}
 
 		if conf.ApplyTarget {
-			for locale := range block.Targets {
+			for _, locale := range block.TargetLocales() {
 				targetText := block.TargetText(locale)
 				block.SetTargetText(locale, convertLineBreaks(targetText, conf.Mode))
 			}

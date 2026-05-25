@@ -61,11 +61,12 @@ func TestXLIFF2_FileNotesRoundTrip(t *testing.T) {
 		},
 	}
 	block := &model.Block{
-		ID: "u1",
-		Source: []*model.Segment{
-			{ID: "s1", Runs: []model.Run{{Text: &model.TextRun{Text: "Hello, world."}}}},
-		},
+		ID:     "u1",
+		Source: []model.Run{{Text: &model.TextRun{Text: "Hello, world."}}},
 	}
+	block.SetSegmentation(nil, []model.Span{
+		{ID: "s1", Range: model.RunRange{StartRun: 0, EndRun: 1}},
+	})
 
 	parts := make(chan *model.Part, 3)
 	parts <- &model.Part{Type: model.PartLayerStart, Resource: layer}
@@ -160,8 +161,11 @@ func TestXLIFF2_FileNotes_ExplicitOverridesLayer(t *testing.T) {
 	}
 	block := &model.Block{
 		ID:     "u1",
-		Source: []*model.Segment{{ID: "s1", Runs: []model.Run{{Text: &model.TextRun{Text: "x"}}}}},
+		Source: []model.Run{{Text: &model.TextRun{Text: "x"}}},
 	}
+	block.SetSegmentation(nil, []model.Span{
+		{ID: "s1", Range: model.RunRange{StartRun: 0, EndRun: 1}},
+	})
 
 	w := xliff2.NewWriter()
 	buf := &bytes.Buffer{}

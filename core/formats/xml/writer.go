@@ -229,10 +229,10 @@ func splitLeadingBOM(data []byte) (bom, rest []byte) {
 // (see reader.go's injectInlineAttrRefs). Pass nil to disable
 // substitution; markers will then be stripped to keep output well-formed.
 func (w *Writer) renderBlockXML(block *model.Block, blocks map[string]*model.Block) string {
-	segs := block.Source
+	runs := block.Source
 	useTarget := !w.Locale.IsEmpty() && block.HasTarget(w.Locale)
 	if useTarget {
-		segs = block.Targets[w.Locale]
+		runs = block.TargetRuns(w.Locale)
 	}
 	var buf strings.Builder
 	escape := xmlEscapeString
@@ -242,13 +242,10 @@ func (w *Writer) renderBlockXML(block *model.Block, blocks map[string]*model.Blo
 		// matches okapi's reference writer.
 		escape = xmlEscapeAttrValue
 	}
-	for _, seg := range segs {
-		runs := seg.Runs
-		if useTarget && !block.PreserveWhitespace && block.Type != "attribute" {
-			runs = collapseRenderWhitespace(runs)
-		}
-		writeRunsXML(&buf, runs, escape, blocks, w)
+	if useTarget && !block.PreserveWhitespace && block.Type != "attribute" {
+		runs = collapseRenderWhitespace(runs)
 	}
+	writeRunsXML(&buf, runs, escape, blocks, w)
 	return buf.String()
 }
 
@@ -569,16 +566,7 @@ func (w *Writer) fallbackChildText(parts []*model.Part) string {
 
 func (w *Writer) blockText(block *model.Block) string {
 	if !w.Locale.IsEmpty() && block.HasTarget(w.Locale) {
-		return w.renderSegments(block.Targets[w.Locale])
+		return model.RenderRunsWithData(block.TargetRuns(w.Locale))
 	}
-	return w.renderSegments(block.Source)
-}
-
-// renderSegments reconstructs text from segments, restoring inline span markup from span Data.
-func (w *Writer) renderSegments(segs []*model.Segment) string {
-	var buf strings.Builder
-	for _, seg := range segs {
-		buf.WriteString(model.RenderRunsWithData(seg.Runs))
-	}
-	return buf.String()
+	return model.RenderRunsWithData(block.Source)
 }

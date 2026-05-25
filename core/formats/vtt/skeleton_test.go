@@ -124,9 +124,9 @@ func TestSkeletonStore_WithTranslation(t *testing.T) {
 			b := p.Resource.(*model.Block)
 			switch b.SourceText() {
 			case "Hello":
-				b.Targets[locale] = []*model.Segment{{ID: "s1", Runs: []model.Run{{Text: &model.TextRun{Text: "Bonjour"}}}}}
+				b.SetTargetText(locale, "Bonjour")
 			case "World":
-				b.Targets[locale] = []*model.Segment{{ID: "s1", Runs: []model.Run{{Text: &model.TextRun{Text: "Monde"}}}}}
+				b.SetTargetText(locale, "Monde")
 			}
 		}
 	}
@@ -167,9 +167,9 @@ func TestSkeletonStore_WithTranslation_CRLF(t *testing.T) {
 			b := p.Resource.(*model.Block)
 			switch b.SourceText() {
 			case "Hello":
-				b.Targets[locale] = []*model.Segment{{ID: "s1", Runs: []model.Run{{Text: &model.TextRun{Text: "Hallo"}}}}}
+				b.SetTargetText(locale, "Hallo")
 			case "World":
-				b.Targets[locale] = []*model.Segment{{ID: "s1", Runs: []model.Run{{Text: &model.TextRun{Text: "Welt"}}}}}
+				b.SetTargetText(locale, "Welt")
 			}
 		}
 	}

@@ -1,5 +1,7 @@
 package model
 
+import "strings"
+
 // This file defines the variant-keyed target model (AD-002). A Block's
 // committed translations are first-class Target records keyed by a VariantKey
 // rather than bare locale→runs slots. Locale is the only required variant
@@ -22,6 +24,39 @@ func Variant(locale LocaleID) VariantKey { return VariantKey{Locale: locale} }
 
 // IsZero reports whether the key is the zero value.
 func (k VariantKey) IsZero() bool { return k == VariantKey{} }
+
+// MarshalText encodes a VariantKey as text so it can serve as a JSON/YAML map
+// key. A locale-only key encodes as the bare locale ("fr-FR"); optional
+// dimensions append as ";tone=…" / ";channel=…".
+func (k VariantKey) MarshalText() ([]byte, error) {
+	s := string(k.Locale)
+	if k.Tone != "" {
+		s += ";tone=" + k.Tone
+	}
+	if k.Channel != "" {
+		s += ";channel=" + k.Channel
+	}
+	return []byte(s), nil
+}
+
+// UnmarshalText decodes a VariantKey produced by MarshalText.
+func (k *VariantKey) UnmarshalText(b []byte) error {
+	parts := strings.Split(string(b), ";")
+	*k = VariantKey{Locale: LocaleID(parts[0])}
+	for _, p := range parts[1:] {
+		name, val, ok := strings.Cut(p, "=")
+		if !ok {
+			continue
+		}
+		switch name {
+		case "tone":
+			k.Tone = val
+		case "channel":
+			k.Channel = val
+		}
+	}
+	return nil
+}
 
 // TargetStatus is the lifecycle state of a committed translation.
 type TargetStatus string

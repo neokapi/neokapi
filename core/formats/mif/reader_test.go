@@ -158,13 +158,17 @@ func TestReadMIFSpecialCharacters(t *testing.T) {
 	assert.Equal(t, "Before tabafter tab.", blocks[0].SourceText())
 	// The tab survives as a Ph (placeholder) run carrying the tab literal,
 	// positioned between the two String values.
-	require.True(t, blocks[0].FirstSegment().HasInlineCodes(), "tab must be an inline code")
+	hasInlineCode := false
 	var tabData string
 	for _, run := range blocks[0].SourceRuns() {
+		if run.Text == nil {
+			hasInlineCode = true
+		}
 		if run.Ph != nil {
 			tabData = run.Ph.Data
 		}
 	}
+	require.True(t, hasInlineCode, "tab must be an inline code")
 	assert.Equal(t, "\t", tabData, "the inline code data must be the tab literal")
 }
 

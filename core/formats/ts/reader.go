@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"strconv"
 	"strings"
 
 	"github.com/neokapi/neokapi/core/format"
@@ -134,53 +135,53 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 	}
 
 	var (
-		tsVersion           string
-		tsLanguage          string
-		tsSrcLanguage       string
-		blockCount          int
-		contextName         string
-		contextCount        int
-		inContext           bool
-		inMessage           bool
-		inSource            bool
-		inTranslation       bool
-		inComment           bool
-		inExtraComment      bool
-		inTransComment      bool
-		inNumerusForm       bool
-		inContextName       bool
-		messageID           string
-		messageNumerus      bool
-		transType           string
-		sourceBuilder       strings.Builder
-		transBuilder        strings.Builder
-		commentBuilder      strings.Builder
-		extraCommentBuilder strings.Builder
-		transCommentBuilder strings.Builder
-		contextNameBuilder  strings.Builder
-		numerusForms             []string
-		numerusFormAttrs         []string     // per-form attribute strings (e.g. ` variants="no"`)
-		numerusFormAttrsCurrent  string       // attribute string of the currently-open <numerusform>
-		numerusFormRuns          [][]model.Run // per-form Run slices (text + byte placeholders)
-		numerusFormRunsCurrent   []model.Run  // Runs of the currently-open <numerusform>
-		numerusByteElemCount     int          // running byte element counter for inline-code IDs across forms in this message
+		tsVersion               string
+		tsLanguage              string
+		tsSrcLanguage           string
+		blockCount              int
+		contextName             string
+		contextCount            int
+		inContext               bool
+		inMessage               bool
+		inSource                bool
+		inTranslation           bool
+		inComment               bool
+		inExtraComment          bool
+		inTransComment          bool
+		inNumerusForm           bool
+		inContextName           bool
+		messageID               string
+		messageNumerus          bool
+		transType               string
+		sourceBuilder           strings.Builder
+		transBuilder            strings.Builder
+		commentBuilder          strings.Builder
+		extraCommentBuilder     strings.Builder
+		transCommentBuilder     strings.Builder
+		contextNameBuilder      strings.Builder
+		numerusForms            []string
+		numerusFormAttrs        []string      // per-form attribute strings (e.g. ` variants="no"`)
+		numerusFormAttrsCurrent string        // attribute string of the currently-open <numerusform>
+		numerusFormRuns         [][]model.Run // per-form Run slices (text + byte placeholders)
+		numerusFormRunsCurrent  []model.Run   // Runs of the currently-open <numerusform>
+		numerusByteElemCount    int           // running byte element counter for inline-code IDs across forms in this message
 		// Per-numerusform raw byte offsets so the writer can preserve
 		// the source's leading whitespace/indentation between forms
 		// instead of substituting a single hard-coded line break.
-		numerusFormOpenStartOff  int   // byte offset of the `<` of the currently-open <numerusform>
-		numerusFormOpenEndOff    int   // byte offset just after the `>` of the currently-open <numerusform>
-		numerusFormRanges        []numerusFormRange
-		numerusFormTrailingWS    string // raw text between last `</numerusform>` and `</translation>`
-		sourceRuns               []model.Run
-		sourceByteElems     []byteElem
-		transByteElems      []byteElem
-		buildingSource      bool
-		buildingTrans       bool
-		transRuns           []model.Run
+		numerusFormOpenStartOff int // byte offset of the `<` of the currently-open <numerusform>
+		numerusFormOpenEndOff   int // byte offset just after the `>` of the currently-open <numerusform>
+		numerusFormRanges       []numerusFormRange
+		numerusFormTrailingWS   string // raw text between last `</numerusform>` and `</translation>`
+		sourceRuns              []model.Run
+		sourceByteElems         []byteElem
+		transByteElems          []byteElem
+		buildingSource          bool
+		buildingTrans           bool
+		transRuns               []model.Run
 		// Per-message tracking for synthesized translation sections.
-		hasSource              bool  // current message had a `<source>` element
-		hasTranslation         bool  // current message had a `<translation>` element
-		lastValidBeforeEndOff  int64 // byte offset right after the closing `>` of the last validBefore element seen in the current message (0 if none)
+		hasSource             bool  // current message had a `<source>` element
+		hasTranslation        bool  // current message had a `<translation>` element
+		lastValidBeforeEndOff int64 // byte offset right after the closing `>` of the last validBefore element seen in the current message (0 if none)
 	)
 
 	layer := &model.Layer{
@@ -631,8 +632,8 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 							ID:           blockID,
 							Name:         contextName,
 							Translatable: translatable,
-							Source:       []*model.Segment{model.NewRunsSegment("s1", sourceRuns)},
-							Targets:      make(map[model.LocaleID][]*model.Segment),
+							Source:       sourceRuns,
+							Targets:      make(map[model.VariantKey]*model.Target),
 							Properties:   make(map[string]string),
 							Annotations:  make(map[string]model.Annotation),
 						}
@@ -691,16 +692,22 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 					}
 					// Set target text
 					if messageNumerus && len(numerusForms) > 0 {
-						// Store each plural form as its own segment so the
-						// pseudo / TextModificationStep pipeline reaches all
-						// forms, not just the first. The writer iterates the
-						// segments to emit one <numerusform>…</numerusform>
-						// each. Prefer the per-form Run sequence (which
-						// preserves inline `<byte value="…"/>` placeholders)
-						// when available; fall back to the flat text from
+						// Represent the plural forms as a single flat target
+						// run sequence (the numerusforms concatenated in
+						// order) plus a target-side SEGMENTATION OVERLAY: one
+						// Span per `<numerusform>`, anchored by run-index
+						// boundaries, carrying `numerus-form` = the form's
+						// 0-based index in its Props. The pseudo /
+						// TextModificationStep pipeline still reaches every
+						// form (the runs are contiguous), and the writer
+						// re-splits them by extracting each span's runs.
+						// Prefer the per-form Run sequence (which preserves
+						// inline `<byte value="…"/>` placeholders) when
+						// available; fall back to the flat text from
 						// transBuilder for forms that contain only character
 						// data.
-						segs := make([]*model.Segment, len(numerusForms))
+						var targetRuns []model.Run
+						spans := make([]model.Span, len(numerusForms))
 						for i, form := range numerusForms {
 							var runs []model.Run
 							if i < len(numerusFormRuns) && len(numerusFormRuns[i]) > 0 {
@@ -708,15 +715,24 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 							} else {
 								runs = []model.Run{{Text: &model.TextRun{Text: form}}}
 							}
-							segs[i] = &model.Segment{
-								ID:   fmt.Sprintf("n%d", i),
-								Runs: runs,
+							startRun := len(targetRuns)
+							targetRuns = append(targetRuns, runs...)
+							endRun := len(targetRuns)
+							spans[i] = model.Span{
+								ID: fmt.Sprintf("n%d", i),
+								Range: model.RunRange{
+									StartRun: startRun,
+									EndRun:   endRun,
+								},
+								Props: map[string]string{"numerus-form": strconv.Itoa(i)},
 							}
 						}
 						if block.Targets == nil {
-							block.Targets = make(map[model.LocaleID][]*model.Segment)
+							block.Targets = make(map[model.VariantKey]*model.Target)
 						}
-						block.Targets[targetLocale] = segs
+						block.SetTargetRuns(targetLocale, targetRuns)
+						key := model.Variant(targetLocale)
+						block.SetSegmentation(&key, spans)
 						// Snapshot the original numerusforms verbatim so
 						// the writer can decide whether downstream steps
 						// modified any plural form (mirrors okapi's

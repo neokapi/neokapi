@@ -155,7 +155,7 @@ func (w *Writer) writeFromSkeleton(blocks map[string]*model.Block) error {
 // RenderRunsWithData; plain TargetText/SourceText would drop them.
 func (w *Writer) blockValue(block *model.Block) string {
 	if !w.Locale.IsEmpty() && block.HasTarget(w.Locale) {
-		return encodePropertyValue(renderRunsText(block.Targets[w.Locale]), w.escapeExtended())
+		return encodePropertyValue(renderRunsText(block.TargetRuns(w.Locale)), w.escapeExtended())
 	}
 	if raw, ok := block.Properties["rawValue"]; ok {
 		return raw
@@ -163,15 +163,8 @@ func (w *Writer) blockValue(block *model.Block) string {
 	return encodePropertyValue(renderRunsText(block.Source), w.escapeExtended())
 }
 
-func renderRunsText(segs []*model.Segment) string {
-	var b strings.Builder
-	for _, seg := range segs {
-		if seg == nil {
-			continue
-		}
-		b.WriteString(model.RenderRunsWithData(seg.Runs))
-	}
-	return b.String()
+func renderRunsText(runs []model.Run) string {
+	return model.RenderRunsWithData(runs)
 }
 
 func (w *Writer) writePart(part *model.Part) error {
@@ -196,7 +189,7 @@ func (w *Writer) writeBlock(part *model.Part) error {
 	// markup survives the round-trip.
 	var text string
 	if !w.Locale.IsEmpty() && block.HasTarget(w.Locale) {
-		text = renderRunsText(block.Targets[w.Locale])
+		text = renderRunsText(block.TargetRuns(w.Locale))
 	} else {
 		text = renderRunsText(block.Source)
 	}

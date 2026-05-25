@@ -177,14 +177,19 @@ func TestInMemoryTM_LookupSegment_ExactMatchOnSpecificSegment(t *testing.T) {
 	require.NoError(t, tm.Add(trilingual("e1", "Save the file.", "Enregistrer le fichier.", "Datei speichern.")))
 	require.NoError(t, tm.Add(trilingual("e2", "It was successful.", "C'était un succès.", "Es war erfolgreich.")))
 
-	// Two-segment source block mirroring a post-segmentation state.
+	// Two-segment source block mirroring a post-segmentation state: a flat
+	// run sequence with a stand-off segmentation overlay marking the boundaries.
 	block := &model.Block{
 		ID: "u1",
-		Source: []*model.Segment{
-			{ID: "s1", Runs: []model.Run{{Text: &model.TextRun{Text: "Save the file."}}}},
-			{ID: "s2", Runs: []model.Run{{Text: &model.TextRun{Text: "It was successful."}}}},
+		Source: []model.Run{
+			{Text: &model.TextRun{Text: "Save the file."}},
+			{Text: &model.TextRun{Text: "It was successful."}},
 		},
 	}
+	block.SetSegmentation(nil, []model.Span{
+		{ID: "s1", Range: model.RunRange{StartRun: 0, EndRun: 1}},
+		{ID: "s2", Range: model.RunRange{StartRun: 1, EndRun: 2}},
+	})
 
 	// Segment 0 matches entry e1.
 	matches, err := tm.LookupSegment(block, 0, "en", "fr", sievepen.LookupOptions{MinScore: 0.9, MaxResults: 5})
@@ -204,7 +209,7 @@ func TestInMemoryTM_LookupSegment_OutOfRange(t *testing.T) {
 	require.NoError(t, tm.Add(trilingual("e1", "hi", "salut", "hallo")))
 	block := &model.Block{
 		ID:     "u1",
-		Source: []*model.Segment{{ID: "s1", Runs: []model.Run{{Text: &model.TextRun{Text: "hi"}}}}},
+		Source: []model.Run{{Text: &model.TextRun{Text: "hi"}}},
 	}
 	matches, err := tm.LookupSegment(block, 5, "en", "fr", sievepen.DefaultLookupOptions())
 	require.NoError(t, err)

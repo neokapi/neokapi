@@ -520,15 +520,18 @@ func walkUnitsRoundTrip(parent *etree.Element, blocksByID map[string]*model.Bloc
 // patchUnit reconciles one <unit> element in the source DOM with the
 // model.Block, returning true if any segment was patched.
 func patchUnit(unitEl *etree.Element, block *model.Block, targetLang model.LocaleID) bool {
-	srcByID := make(map[string]*model.Segment, len(block.Source))
-	for _, s := range block.Source {
-		srcByID[s.ID] = s
+	srcSegs := sourceSegsFromBlock(block)
+	srcByID := make(map[string]*seg, len(srcSegs))
+	srcByPos := make([]*seg, len(srcSegs))
+	for i := range srcSegs {
+		srcByPos[i] = &srcSegs[i]
+		srcByID[srcSegs[i].ID] = &srcSegs[i]
 	}
-	var trgByID map[string]*model.Segment
-	if trgSegs, ok := block.Targets[targetLang]; ok {
-		trgByID = make(map[string]*model.Segment, len(trgSegs))
-		for _, s := range trgSegs {
-			trgByID[s.ID] = s
+	var trgByID map[string]*seg
+	if trgSegs := targetSegsFromBlock(block, targetLang); len(trgSegs) > 0 {
+		trgByID = make(map[string]*seg, len(trgSegs))
+		for i := range trgSegs {
+			trgByID[trgSegs[i].ID] = &trgSegs[i]
 		}
 	}
 
@@ -574,8 +577,8 @@ func patchUnit(unitEl *etree.Element, block *model.Block, targetLang model.Local
 		segID := attrValue(segEl, "id")
 		modelSrc := srcByID[segID]
 		modelTgt := trgByID[segID]
-		if modelSrc == nil && segID == "" && domSegIdx < len(block.Source) {
-			modelSrc = block.Source[domSegIdx]
+		if modelSrc == nil && segID == "" && domSegIdx < len(srcByPos) {
+			modelSrc = srcByPos[domSegIdx]
 			if modelSrc != nil && modelTgt == nil {
 				modelTgt = trgByID[modelSrc.ID]
 			}
@@ -728,7 +731,7 @@ func patchUnit(unitEl *etree.Element, block *model.Block, targetLang model.Local
 // non-whitespace text content. Attributes (e.g. xml:space, state) on the
 // element itself are intentionally ignored — they only matter when the
 // element survives.
-func segmentTargetIsEmpty(modelTgt *model.Segment, tgtEl *etree.Element) bool {
+func segmentTargetIsEmpty(modelTgt *seg, tgtEl *etree.Element) bool {
 	if modelTgt != nil {
 		for _, r := range modelTgt.Runs {
 			if r.Text != nil && r.Text.Text != "" {
@@ -1057,39 +1060,34 @@ func walkXliff2El(el *etree.Element, f func(*etree.Element)) {
 	}
 }
 
-// segmentMatchesDOM reports whether the model.Segment's content
-// matches what's already in the DOM element. The comparison uses the
-// segment's SegmentInlineAnnotation IR when it is **fresh** (its text
-// content agrees with seg.Runs); otherwise falls back to text-only
-// comparison via seg.Runs. Self-detecting freshness removes the
-// caller-contract footgun where a tool modifies seg.Runs but leaves a
-// stale annotation behind — we'd otherwise silently skip patching.
-func segmentMatchesDOM(domEl *etree.Element, seg *model.Segment) bool {
-	if seg == nil {
+// segmentMatchesDOM reports whether the seg's content matches what's
+// already in the DOM element. The comparison uses the segment's inline IR
+// when it is **fresh** (its text content agrees with seg.Runs); otherwise
+// falls back to text-only comparison via seg.Runs. Self-detecting freshness
+// removes the caller-contract footgun where a tool modifies seg.Runs but
+// leaves a stale IR behind — we'd otherwise silently skip patching.
+func segmentMatchesDOM(domEl *etree.Element, s *seg) bool {
+	if s == nil {
 		return true
 	}
-	if ir := freshInlineIR(seg); ir != nil {
+	if ir := freshInlineIR(s); ir != nil {
 		return inlinesEqual(ir.Inlines, parseInlines(domEl))
 	}
-	return domElementText(domEl) == runsFlatText(seg.Runs)
+	return domElementText(domEl) == runsFlatText(s.Runs)
 }
 
-// freshInlineIR returns the segment's SegmentInlineAnnotation Content
-// when it is fresh — i.e., its concatenated text equals the segment's
-// Runs' concatenated text. Returns nil when no annotation is attached
-// or when it has been invalidated by a Run-side modification.
-func freshInlineIR(seg *model.Segment) *Content {
-	if seg == nil {
+// freshInlineIR returns the segment's inline IR Content when it is fresh —
+// i.e., its concatenated text equals the segment's Runs' concatenated text.
+// Returns nil when no IR is attached or when it has been invalidated by a
+// Run-side modification.
+func freshInlineIR(s *seg) *Content {
+	if s == nil || s.Content == nil {
 		return nil
 	}
-	a, ok := seg.Annotations["xliff2:segment-inline"].(*SegmentInlineAnnotation)
-	if !ok || a == nil || a.Content == nil {
+	if inlinesFlatText(s.Content.Inlines) != runsFlatText(s.Runs) {
 		return nil
 	}
-	if inlinesFlatText(a.Content.Inlines) != runsFlatText(seg.Runs) {
-		return nil
-	}
-	return a.Content
+	return s.Content
 }
 
 // inlinesFlatText returns the concatenated text content of an Inline
@@ -1189,13 +1187,13 @@ func collectText(sb *strings.Builder, el *etree.Element) {
 // inline-code attribute fidelity); falls back to the Runs' text when
 // the IR is stale or absent (loses inline attributes on the patched
 // segment but keeps text correct).
-func replaceInlineChildren(el *etree.Element, seg *model.Segment) {
+func replaceInlineChildren(el *etree.Element, s *seg) {
 	el.Child = nil
-	if ir := freshInlineIR(seg); ir != nil {
+	if ir := freshInlineIR(s); ir != nil {
 		renderInlinesInto(el, ir.Inlines)
 		return
 	}
-	el.SetText(model.RenderRunsWithData(seg.Runs))
+	el.SetText(model.RenderRunsWithData(s.Runs))
 }
 
 // childIndex returns the index of target in parent.Child, or -1.
@@ -1330,11 +1328,21 @@ func (w *Writer) appendUnit(parent *etree.Element, block *model.Block, targetLan
 		}
 	}
 
-	// Build segments. Per-segment inline IR (SegmentInlineAnnotation)
-	// drives full-fidelity emission of source/target bodies; segments
-	// without that annotation fall back to plain Run text.
-	for _, srcSeg := range block.Source {
-		segEl := unitEl.CreateElement("segment")
+	// Build segments. Per-segment inline IR drives full-fidelity emission
+	// of source/target bodies; segments without an IR fall back to plain
+	// Run text. The source/target seg lists are reconstructed from the
+	// block's flat runs + segmentation overlays.
+	srcSegs := sourceSegsFromBlock(block)
+	tgtSegs := targetSegsFromBlock(block, targetLang)
+	for i := range srcSegs {
+		srcSeg := &srcSegs[i]
+		// XLIFF 2 distinguishes <segment> (translatable) from <ignorable>
+		// (non-translatable inter-segment material). Emit the right tag.
+		tag := "segment"
+		if srcSeg.Ignorable {
+			tag = "ignorable"
+		}
+		segEl := unitEl.CreateElement(tag)
 		if srcSeg.ID != "" {
 			segEl.CreateAttr("id", srcSeg.ID)
 		}
@@ -1342,13 +1350,11 @@ func (w *Writer) appendUnit(parent *etree.Element, block *model.Block, targetLan
 		srcEl := segEl.CreateElement("source")
 		writeSegmentInline(srcEl, srcSeg)
 
-		if trgSegs, ok := block.Targets[targetLang]; ok {
-			for _, ts := range trgSegs {
-				if ts.ID == srcSeg.ID {
-					tgtEl := segEl.CreateElement("target")
-					writeSegmentInline(tgtEl, ts)
-					break
-				}
+		for j := range tgtSegs {
+			if tgtSegs[j].ID == srcSeg.ID && srcSeg.ID != "" {
+				tgtEl := segEl.CreateElement("target")
+				writeSegmentInline(tgtEl, &tgtSegs[j])
+				break
 			}
 		}
 	}
@@ -1358,15 +1364,15 @@ func (w *Writer) appendUnit(parent *etree.Element, block *model.Block, targetLan
 // fresh per-segment Inline IR when available, falling back to the
 // segment's Run text otherwise. See freshInlineIR for staleness
 // detection.
-func writeSegmentInline(el *etree.Element, seg *model.Segment) {
-	if seg == nil {
+func writeSegmentInline(el *etree.Element, s *seg) {
+	if s == nil {
 		return
 	}
-	if ir := freshInlineIR(seg); ir != nil {
+	if ir := freshInlineIR(s); ir != nil {
 		renderInlinesInto(el, ir.Inlines)
 		return
 	}
-	el.SetText(model.RenderRunsWithData(seg.Runs))
+	el.SetText(model.RenderRunsWithData(s.Runs))
 }
 
 // renderInlinesInto walks an Inline IR and appends each node to parent

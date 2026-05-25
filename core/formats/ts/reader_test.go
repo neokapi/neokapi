@@ -891,20 +891,25 @@ func TestSnippet_NumerusForms(t *testing.T) {
 	for _, b := range blocks {
 		if strings.Contains(b.SourceText(), "item") {
 			found = true
-			// Verify numerus marker + each form lands as its own
-			// translation segment so the pseudo / TextModificationStep
-			// pipeline reaches both forms (not just the first). The
-			// codeFinder pass splits `%n` out as a Ph run so pseudo
-			// leaves printf placeholders intact — Segment.Text()
-			// returns only TextRun content, so the comparison is on
-			// the post-Ph remainder (` article` / ` articles`). The
-			// `%n` placeholder is preserved verbatim in the run's Ph
-			// Data and re-emitted by the writer.
+			// Verify numerus marker + each form lands as one span of the
+			// target-side SEGMENTATION OVERLAY so the pseudo /
+			// TextModificationStep pipeline reaches both forms (not just
+			// the first). The codeFinder pass splits `%n` out as a Ph run
+			// so pseudo leaves printf placeholders intact — RunsText
+			// returns only TextRun content, so the comparison is on the
+			// post-Ph remainder (` article` / ` articles`). The `%n`
+			// placeholder is preserved verbatim in the run's Ph Data and
+			// re-emitted by the writer.
 			assert.Equal(t, "yes", b.Properties["numerus"])
-			segs := b.Targets["fr"]
-			require.Len(t, segs, 2, "expected one segment per <numerusform>")
-			assert.Equal(t, " article", segs[0].Text())
-			assert.Equal(t, " articles", segs[1].Text())
+			key := model.Variant("fr")
+			ov := b.SegmentationFor(&key)
+			require.NotNil(t, ov, "numerus target should carry a segmentation overlay")
+			require.Len(t, ov.Spans, 2, "expected one span per <numerusform>")
+			assert.Equal(t, "0", ov.Spans[0].Props["numerus-form"])
+			assert.Equal(t, "1", ov.Spans[1].Props["numerus-form"])
+			targetRuns := b.TargetRuns("fr")
+			assert.Equal(t, " article", model.RunsText(ov.Spans[0].Range.ExtractRuns(targetRuns)))
+			assert.Equal(t, " articles", model.RunsText(ov.Spans[1].Range.ExtractRuns(targetRuns)))
 			break
 		}
 	}

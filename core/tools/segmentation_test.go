@@ -29,7 +29,7 @@ func TestSegmentationToolSingleSentence(t *testing.T) {
 
 	resultBlock := result.Resource.(*model.Block)
 	assert.Equal(t, "1", resultBlock.Properties[tools.PropSegmentCount])
-	assert.Len(t, resultBlock.Source, 1)
+	assert.Equal(t, 1, resultBlock.SourceSegmentCount())
 }
 
 func TestSegmentationToolMultipleSentences(t *testing.T) {
@@ -45,7 +45,7 @@ func TestSegmentationToolMultipleSentences(t *testing.T) {
 	count := resultBlock.Properties[tools.PropSegmentCount]
 	// Should split into multiple segments.
 	assert.NotEqual(t, "1", count)
-	assert.True(t, len(resultBlock.Source) > 1, "Expected multiple source segments")
+	assert.True(t, resultBlock.SourceSegmentCount() > 1, "Expected multiple source segments")
 }
 
 func TestSegmentationToolExclamationQuestion(t *testing.T) {
@@ -60,7 +60,7 @@ func TestSegmentationToolExclamationQuestion(t *testing.T) {
 	resultBlock := result.Resource.(*model.Block)
 	count := resultBlock.Properties[tools.PropSegmentCount]
 	assert.NotEqual(t, "1", count)
-	assert.True(t, len(resultBlock.Source) > 1, "Expected multiple source segments")
+	assert.True(t, resultBlock.SourceSegmentCount() > 1, "Expected multiple source segments")
 }
 
 func TestSegmentationToolEmptyText(t *testing.T) {

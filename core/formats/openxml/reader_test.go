@@ -118,12 +118,12 @@ func TestReadInlineFormatting(t *testing.T) {
 	// First block: plain text, no inline-code runs
 	runs := blocks[0].SourceRuns()
 	assert.False(t, hasInlineCodeRun(runs), "simple text should have no inline-code runs")
-	assert.Equal(t, "Hello, World!", model.RunsPlainText(runs))
+	assert.Equal(t, "Hello, World!", model.RunsText(runs))
 
 	// Second block: bold text + normal text → should have inline-code runs
 	runs = blocks[1].SourceRuns()
 	assert.True(t, hasInlineCodeRun(runs), "bold+normal should have inline-code runs")
-	assert.Equal(t, "Bold text and normal text", model.RunsPlainText(runs))
+	assert.Equal(t, "Bold text and normal text", model.RunsText(runs))
 
 	// Verify bold inline-code runs exist
 	hasBold := false
@@ -138,7 +138,7 @@ func TestReadInlineFormatting(t *testing.T) {
 	// Third block: italic, normal, bold+italic
 	runs = blocks[2].SourceRuns()
 	assert.True(t, hasInlineCodeRun(runs))
-	assert.Equal(t, "Italic then bold italic", model.RunsPlainText(runs))
+	assert.Equal(t, "Italic then bold italic", model.RunsText(runs))
 
 	hasItalic := false
 	for _, r := range runs {

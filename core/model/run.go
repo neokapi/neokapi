@@ -413,3 +413,41 @@ func flattenRunsTo(buf *[]rune, runs []Run) {
 		}
 	}
 }
+
+// RunsText returns the plain-text flattening of a Run sequence: TextRun
+// content verbatim, inline-code runs (Ph / PcOpen / PcClose / Sub) contribute
+// nothing, plural / select take the 'other' branch (or the first form if
+// 'other' is absent). This is the text-only variant of FlattenRuns, which
+// renders {equiv} for placeholders.
+func RunsText(runs []Run) string {
+	var buf []rune
+	runsTextTo(&buf, runs)
+	return string(buf)
+}
+
+func runsTextTo(buf *[]rune, runs []Run) {
+	for _, r := range runs {
+		switch {
+		case r.Text != nil:
+			*buf = append(*buf, []rune(r.Text.Text)...)
+		case r.Plural != nil:
+			if form, ok := r.Plural.Forms[PluralOther]; ok {
+				runsTextTo(buf, form)
+				continue
+			}
+			for _, form := range r.Plural.Forms {
+				runsTextTo(buf, form)
+				break
+			}
+		case r.Select != nil:
+			if form, ok := r.Select.Cases["other"]; ok {
+				runsTextTo(buf, form)
+				continue
+			}
+			for _, form := range r.Select.Cases {
+				runsTextTo(buf, form)
+				break
+			}
+		}
+	}
+}

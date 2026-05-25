@@ -118,9 +118,9 @@ func (w *Writer) writeFromSkeleton() error {
 			}
 
 			block := w.blocks[blockIdx]
-			segs := block.Source
+			runs := block.Source
 			if !w.Locale.IsEmpty() && block.HasTarget(w.Locale) {
-				segs = block.Targets[w.Locale]
+				runs = block.TargetRuns(w.Locale)
 			}
 
 			// stringIdx>0 entries are the secondary `<String>`s of a single
@@ -141,9 +141,9 @@ func (w *Writer) writeFromSkeleton() error {
 			// `<String>` outputs (MIFFilter.processPara, MIFFilter.java:636-811).
 			var text string
 			if runOrdinal < 0 {
-				text = renderSegments(segs)
+				text = renderSegments(runs)
 			} else {
-				text = renderRunGroup(segs, runOrdinal)
+				text = renderRunGroup(runs, runOrdinal)
 			}
 			// Re-wrap with the leading/trailing boundary content that
 			// simplifyBlockCodes trimmed from the extracted unit (it is
@@ -152,7 +152,7 @@ func (w *Writer) writeFromSkeleton() error {
 			// last. For whole-block (-1) renders both attach to the one slot.
 			lead, trail := blockTrim(block)
 			if lead != "" || trail != "" {
-				lastGroup := runGroupCount(segs) - 1
+				lastGroup := runGroupCount(runs) - 1
 				if runOrdinal < 0 {
 					text = lead + text + trail
 				} else {
@@ -251,20 +251,12 @@ func (w *Writer) writeData(part *model.Part) error {
 	return nil
 }
 
-// renderSegments concatenates the rendered text of each segment using
-// RenderRunsWithData so inline-code Ph runs emit their captured
-// literal. Used by writeFromSkeleton to fill String/VariableDef refs
-// without losing the FrameMaker building blocks the reader extracted
-// via the CodeFinder.
-func renderSegments(segs []*model.Segment) string {
-	var sb strings.Builder
-	for _, seg := range segs {
-		if seg == nil {
-			continue
-		}
-		sb.WriteString(model.RenderRunsWithData(seg.Runs))
-	}
-	return sb.String()
+// renderSegments renders a run sequence using RenderRunsWithData so
+// inline-code Ph runs emit their captured literal. Used by
+// writeFromSkeleton to fill String/VariableDef refs without losing the
+// FrameMaker building blocks the reader extracted via the CodeFinder.
+func renderSegments(runs []model.Run) string {
+	return model.RenderRunsWithData(runs)
 }
 
 // blockTrim returns the leading and trailing boundary content that
@@ -307,31 +299,26 @@ type paraGroup struct {
 // reader's runOrdinal numbering skips them. renderRunGroup therefore indexes
 // into the EXTRACTABLE groups only, keeping the writer's group numbering in
 // lock-step with the reader's runOrdinal (which counts ref-producing runs).
-func paraGroups(segs []*model.Segment) []paraGroup {
+func paraGroups(runs []model.Run) []paraGroup {
 	var groups []paraGroup
 	cur := paraGroup{}
 	flush := func() {
 		groups = append(groups, cur)
 		cur = paraGroup{}
 	}
-	for _, seg := range segs {
-		if seg == nil {
+	for _, run := range runs {
+		if run.Ph != nil && run.Ph.Data == "" {
+			flush()
 			continue
 		}
-		for _, run := range seg.Runs {
-			if run.Ph != nil && run.Ph.Data == "" {
-				flush()
-				continue
+		switch {
+		case run.Text != nil:
+			cur.text += run.Text.Text
+			if hasNonWhitespace(run.Text.Text) {
+				cur.extractable = true
 			}
-			switch {
-			case run.Text != nil:
-				cur.text += run.Text.Text
-				if hasNonWhitespace(run.Text.Text) {
-					cur.extractable = true
-				}
-			case run.Ph != nil:
-				cur.text += run.Ph.Data
-			}
+		case run.Ph != nil:
+			cur.text += run.Ph.Data
 		}
 	}
 	flush()
@@ -339,9 +326,9 @@ func paraGroups(segs []*model.Segment) []paraGroup {
 }
 
 // runGroupCount returns the number of EXTRACTABLE text-groups in a block.
-func runGroupCount(segs []*model.Segment) int {
+func runGroupCount(runs []model.Run) int {
 	n := 0
-	for _, g := range paraGroups(segs) {
+	for _, g := range paraGroups(runs) {
 		if g.extractable {
 			n++
 		}
@@ -351,9 +338,9 @@ func runGroupCount(segs []*model.Segment) int {
 
 // renderRunGroup renders the ordinal-th EXTRACTABLE text-group of a Para
 // block (text + building-block code Data; structural boundaries excluded).
-func renderRunGroup(segs []*model.Segment, ordinal int) string {
+func renderRunGroup(runs []model.Run, ordinal int) string {
 	idx := 0
-	for _, g := range paraGroups(segs) {
+	for _, g := range paraGroups(runs) {
 		if !g.extractable {
 			continue
 		}

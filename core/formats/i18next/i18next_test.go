@@ -205,16 +205,16 @@ func TestInterpolationProtected(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			b := byName[name]
 			require.NotNil(t, b, "missing block %s", name)
-			require.Len(t, b.Source, 1)
+			require.NotEmpty(t, b.Source)
 
 			var phData []string
-			for _, run := range b.Source[0].Runs {
+			for _, run := range b.Source {
 				if run.Ph != nil {
 					phData = append(phData, run.Ph.Data)
 				}
 			}
 			assert.Equal(t, w.placeholders, phData, "protected inline codes")
-			assert.Equal(t, w.plainText, b.Source[0].Text(), "translatable text excludes codes")
+			assert.Equal(t, w.plainText, b.SourceText(), "translatable text excludes codes")
 		})
 	}
 }
@@ -374,7 +374,7 @@ func TestNestedNamespaceNames(t *testing.T) {
 	title := byName["/home/title"]
 	require.NotNil(t, title)
 	var phData []string
-	for _, run := range title.Source[0].Runs {
+	for _, run := range title.Source {
 		if run.Ph != nil {
 			phData = append(phData, run.Ph.Data)
 		}

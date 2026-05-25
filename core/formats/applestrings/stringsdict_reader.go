@@ -32,8 +32,8 @@ func (r *Reader) emitStringsdict(ctx context.Context, ch chan<- model.PartResult
 			Name:         leafName(leaf),
 			Translatable: true,
 			SourceLocale: locale,
-			Source:       []*model.Segment{{ID: "s1", Runs: runsFromValue(leaf.value, r.cfg.ProtectPlaceholders)}},
-			Targets:      make(map[model.LocaleID][]*model.Segment),
+			Source:       runsFromValue(leaf.value, r.cfg.ProtectPlaceholders),
+			Targets:      make(map[model.VariantKey]*model.Target),
 			Properties:   make(map[string]string),
 			Annotations:  make(map[string]model.Annotation),
 		}

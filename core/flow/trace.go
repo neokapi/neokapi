@@ -176,7 +176,7 @@ func snapshotFromPart(part *model.Part) PartSnapshot {
 			srcText := block.SourceText()
 			snap.SourceText = srcText
 			// Get target text from the first locale found.
-			for loc := range block.Targets {
+			for _, loc := range block.TargetLocales() {
 				snap.TargetText = block.TargetText(loc)
 				break
 			}

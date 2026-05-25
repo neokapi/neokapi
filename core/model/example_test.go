@@ -19,7 +19,7 @@ func ExampleNewBlock() {
 	// 2
 }
 
-func ExampleRunsPlainText() {
+func ExampleRunsText() {
 	runs := []model.Run{
 		{Text: &model.TextRun{Text: "Click "}},
 		{PcOpen: &model.PcOpenRun{ID: "1", Type: "a", Data: "<a>"}},
@@ -27,7 +27,7 @@ func ExampleRunsPlainText() {
 		{PcClose: &model.PcCloseRun{ID: "1", Type: "a", Data: "</a>"}},
 		{Text: &model.TextRun{Text: " to continue"}},
 	}
-	fmt.Println(model.RunsPlainText(runs))
+	fmt.Println(model.RunsText(runs))
 	// Output:
 	// Click here to continue
 }

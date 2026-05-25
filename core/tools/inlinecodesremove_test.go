@@ -32,20 +32,17 @@ func TestInlineCodesRemoveToolTarget(t *testing.T) {
 	block := &model.Block{
 		ID:           "tu1",
 		Translatable: true,
-		Source:       []*model.Segment{{ID: "s1", Runs: []model.Run{{Text: &model.TextRun{Text: "Click here"}}}}},
-		Targets: map[model.LocaleID][]*model.Segment{
-			model.LocaleFrench: {{ID: "s1", Runs: linkRunsFr()}},
-		},
-		Properties: make(map[string]string),
+		Source:       []model.Run{{Text: &model.TextRun{Text: "Click here"}}},
+		Properties:   make(map[string]string),
 	}
+	block.SetTargetRuns(model.LocaleFrench, linkRunsFr())
 	part := &model.Part{Type: model.PartBlock, Resource: block}
 	result := processPart(t, tl, part)
 
 	resultBlock := result.Resource.(*model.Block)
-	targetSegs := resultBlock.Targets[model.LocaleFrench]
-	require.Len(t, targetSegs, 1)
+	runs := resultBlock.TargetRuns(model.LocaleFrench)
+	require.NotNil(t, runs)
 
-	runs := targetSegs[0].Runs
 	assert.Equal(t, "Cliquez ici", model.RunsPlainText(runs))
 	assert.False(t, hasAnyInlineCode(runs))
 }
@@ -61,15 +58,14 @@ func TestInlineCodesRemoveToolSource(t *testing.T) {
 	block := &model.Block{
 		ID:           "tu1",
 		Translatable: true,
-		Source:       []*model.Segment{{ID: "s1", Runs: linkRuns()}},
-		Targets:      make(map[model.LocaleID][]*model.Segment),
+		Source:       linkRuns(),
 		Properties:   make(map[string]string),
 	}
 	part := &model.Part{Type: model.PartBlock, Resource: block}
 	result := processPart(t, tl, part)
 
 	resultBlock := result.Resource.(*model.Block)
-	runs := resultBlock.Source[0].Runs
+	runs := resultBlock.Source
 	assert.Equal(t, "Click here", model.RunsPlainText(runs))
 	assert.False(t, hasAnyInlineCode(runs))
 }
@@ -96,15 +92,14 @@ func TestInlineCodesRemoveToolMixedRunsBecomesPlainText(t *testing.T) {
 	block := &model.Block{
 		ID:           "tu1",
 		Translatable: true,
-		Source:       []*model.Segment{{ID: "s1", Runs: runs}},
-		Targets:      make(map[model.LocaleID][]*model.Segment),
+		Source:       runs,
 		Properties:   make(map[string]string),
 	}
 	part := &model.Part{Type: model.PartBlock, Resource: block}
 	result := processPart(t, tl, part)
 
 	resultBlock := result.Resource.(*model.Block)
-	out := resultBlock.Source[0].Runs
+	out := resultBlock.Source
 	assert.Equal(t, "Hello world and ", model.RunsPlainText(out))
 	assert.False(t, hasAnyInlineCode(out))
 }
@@ -120,8 +115,7 @@ func TestInlineCodesRemoveToolSkipsNonTranslatable(t *testing.T) {
 	block := &model.Block{
 		ID:           "tu1",
 		Translatable: false,
-		Source:       []*model.Segment{{ID: "s1", Runs: linkRuns()}},
-		Targets:      make(map[model.LocaleID][]*model.Segment),
+		Source:       linkRuns(),
 		Properties:   make(map[string]string),
 	}
 	part := &model.Part{Type: model.PartBlock, Resource: block}
@@ -129,8 +123,7 @@ func TestInlineCodesRemoveToolSkipsNonTranslatable(t *testing.T) {
 
 	resultBlock := result.Resource.(*model.Block)
 	// Inline codes should still be present since block is non-translatable.
-	assert.True(t, resultBlock.Source[0].HasInlineCodes())
-	assert.True(t, hasAnyInlineCode(resultBlock.Source[0].Runs))
+	assert.True(t, hasAnyInlineCode(resultBlock.Source))
 }
 
 func TestInlineCodesRemoveConfigValidation(t *testing.T) {

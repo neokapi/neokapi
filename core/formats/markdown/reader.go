@@ -1086,7 +1086,7 @@ func (r *Reader) emitAdmonition(ctx context.Context, ch chan<- model.PartResult,
 	// constructs inside admonition bodies and excludes their tag
 	// fragments from translation.
 	if runs := admonitionBodyRuns(bodyText); runs != nil {
-		bodyBlock.Source = []*model.Segment{model.NewRunsSegment("s1", runs)}
+		bodyBlock.Source = runs
 	}
 	// perLineExcess indicates whether any body line carries indent
 	// beyond the outer admonition indent. When every body line sits at
@@ -1158,7 +1158,7 @@ func admonitionBodyRuns(text string) []model.Run {
 
 // admonitionBodyStructuralMarkerRE matches a body line whose
 // (post-outerIndent-strip) content begins with a structural marker:
-// fenced-code fence (`\`\`\``, `~~~`), nested admonition opener
+// fenced-code fence (`\`\`\“, `~~~`), nested admonition opener
 // (`!!!`, `???`), or Docusaurus marker (`:::`). Lines that match are
 // NOT joined into the preceding paragraph for indent-doubling purposes
 // — they belong to a separate inner block in okapi's sub-parsed view.
@@ -2254,7 +2254,7 @@ func (r *Reader) addInlineRuns(block *model.Block, node ast.Node, source []byte)
 	idCounter := 0
 	r.buildCodedRuns(b, node, source, &idCounter)
 	if b.HasInlineCodes() {
-		block.Source = []*model.Segment{model.NewRunsSegment("s1", b.Runs())}
+		block.Source = b.Runs()
 	}
 }
 
@@ -2502,7 +2502,7 @@ func (r *Reader) buildCodeSpanRuns(b *runBuilder, n *ast.CodeSpan, source []byte
 }
 
 // codeSpanFences returns the opening and closing markers (each a run
-// of `` ` `` plus an optional padding space) for the given CodeSpan as
+// of “ ` “ plus an optional padding space) for the given CodeSpan as
 // they appear in source. Falls back to "`" / "`" when boundaries
 // can't be determined (defensive — should not happen for a well-formed
 // CodeSpan).
@@ -2956,52 +2956,50 @@ func (r *Reader) applyCodeFinder(block *model.Block) {
 		return
 	}
 
-	for _, seg := range block.Source {
-		if len(seg.Runs) == 0 {
-			continue
-		}
-		text := seg.Text()
-
-		type matchRange struct {
-			start, end int
-		}
-		var matches []matchRange
-		for _, re := range patterns {
-			for _, loc := range re.FindAllStringIndex(text, -1) {
-				matches = append(matches, matchRange{loc[0], loc[1]})
-			}
-		}
-		if len(matches) == 0 {
-			continue
-		}
-
-		// Sort matches by start position
-		for i := 1; i < len(matches); i++ {
-			for j := i; j > 0 && matches[j].start < matches[j-1].start; j-- {
-				matches[j], matches[j-1] = matches[j-1], matches[j]
-			}
-		}
-
-		var newRuns []model.Run
-		lastEnd := 0
-		spanID := 1
-		for _, m := range matches {
-			if m.start > lastEnd {
-				newRuns = append(newRuns, model.Run{Text: &model.TextRun{Text: text[lastEnd:m.start]}})
-			}
-			newRuns = append(newRuns, model.Run{Ph: &model.PlaceholderRun{
-				ID:   fmt.Sprintf("c%d", spanID),
-				Type: "code",
-				Data: text[m.start:m.end],
-			}})
-			lastEnd = m.end
-			spanID++
-		}
-		if lastEnd < len(text) {
-			newRuns = append(newRuns, model.Run{Text: &model.TextRun{Text: text[lastEnd:]}})
-		}
-		seg.SetRuns(newRuns)
+	if len(block.Source) == 0 {
+		return
 	}
+	text := model.RunsText(block.Source)
+
+	type matchRange struct {
+		start, end int
+	}
+	var matches []matchRange
+	for _, re := range patterns {
+		for _, loc := range re.FindAllStringIndex(text, -1) {
+			matches = append(matches, matchRange{loc[0], loc[1]})
+		}
+	}
+	if len(matches) == 0 {
+		return
+	}
+
+	// Sort matches by start position
+	for i := 1; i < len(matches); i++ {
+		for j := i; j > 0 && matches[j].start < matches[j-1].start; j-- {
+			matches[j], matches[j-1] = matches[j-1], matches[j]
+		}
+	}
+
+	var newRuns []model.Run
+	lastEnd := 0
+	spanID := 1
+	for _, m := range matches {
+		if m.start > lastEnd {
+			newRuns = append(newRuns, model.Run{Text: &model.TextRun{Text: text[lastEnd:m.start]}})
+		}
+		newRuns = append(newRuns, model.Run{Ph: &model.PlaceholderRun{
+			ID:   fmt.Sprintf("c%d", spanID),
+			Type: "code",
+			Data: text[m.start:m.end],
+		}})
+		lastEnd = m.end
+		spanID++
+	}
+	if lastEnd < len(text) {
+		newRuns = append(newRuns, model.Run{Text: &model.TextRun{Text: text[lastEnd:]}})
+	}
+	block.SetSourceRuns(newRuns)
 }
 
 // Close releases resources.

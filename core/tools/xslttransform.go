@@ -87,7 +87,7 @@ func NewXSLTTransformTool(cfg *XSLTTransformConfig) *tool.BaseTool {
 		}
 
 		if conf.ApplyTarget {
-			for locale := range block.Targets {
+			for _, locale := range block.TargetLocales() {
 				targetText := block.TargetText(locale)
 				newText, err := applyTransformRules(targetText, conf.Rules)
 				if err != nil {

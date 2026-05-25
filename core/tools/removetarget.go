@@ -65,9 +65,9 @@ func NewRemoveTargetTool(cfg *RemoveTargetConfig) *tool.BaseTool {
 
 		if conf.TargetLocale.IsEmpty() {
 			// Remove all targets.
-			block.Targets = make(map[model.LocaleID][]*model.Segment)
+			block.Targets = make(map[model.VariantKey]*model.Target)
 		} else {
-			delete(block.Targets, conf.TargetLocale)
+			delete(block.Targets, model.Variant(conf.TargetLocale))
 		}
 
 		// Remove block entirely if no targets remain and configured to do so.

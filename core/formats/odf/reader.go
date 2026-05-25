@@ -531,8 +531,8 @@ func (r *Reader) parseODFContent(ctx context.Context, ch chan<- model.PartResult
 							block = &model.Block{
 								ID:           blockID,
 								Translatable: true,
-								Source:       []*model.Segment{model.NewRunsSegment("s1", runs)},
-								Targets:      make(map[model.LocaleID][]*model.Segment),
+								Source:       runs,
+								Targets:      make(map[model.VariantKey]*model.Target),
 								Properties: map[string]string{
 									"partPath": partPath,
 									"element":  t.Name.Local,

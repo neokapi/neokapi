@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"regexp"
 	"strconv"
-	"strings"
+	"unicode/utf8"
 
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/schema"
@@ -145,90 +145,72 @@ func compileRules(rules []SegmentationRule) ([]compiledRule, error) {
 	return compiled, nil
 }
 
-// segmentText splits text into sentences using the provided rules.
-// It returns the list of segments.
-func segmentText(text string, rules []compiledRule) []string {
+// segmentBoundaries returns the sorted rune offsets at which the text breaks
+// into segments (exclusive of 0 and the end), applying the rules.
+func segmentBoundaries(text string, rules []compiledRule) []int {
 	if text == "" {
 		return nil
 	}
-
-	// Find all potential break points.
-	runes := []rune(text)
-	textLen := len(runes)
-
-	// For each position, determine if it is a break point.
-	breakPoints := make(map[int]bool)
-
+	breakPoints := make(map[int]bool) // byte offset -> isBreak
 	for _, rule := range rules {
-		// Find matches for the before pattern.
-		if rule.before != nil {
-			locs := rule.before.FindAllStringIndex(text, -1)
-			for _, loc := range locs {
-				breakPos := min(
-					// end of the match = break point
-					loc[1], len(text))
-
-				// If there is an after-break pattern, check it.
-				if rule.after != nil {
-					remaining := text[breakPos:]
-					if !rule.after.MatchString(remaining) {
-						continue
-					}
+		if rule.before == nil {
+			continue
+		}
+		for _, loc := range rule.before.FindAllStringIndex(text, -1) {
+			breakPos := loc[1]
+			if breakPos > len(text) {
+				breakPos = len(text)
+			}
+			if rule.after != nil && !rule.after.MatchString(text[breakPos:]) {
+				continue
+			}
+			if rule.isBreak {
+				if _, exists := breakPoints[breakPos]; !exists {
+					breakPoints[breakPos] = true
 				}
-
-				if rule.isBreak {
-					// Only set break if not already suppressed.
-					if _, exists := breakPoints[breakPos]; !exists {
-						breakPoints[breakPos] = true
-					}
-				} else {
-					// No-break: suppress this position.
-					breakPoints[breakPos] = false
-				}
+			} else {
+				breakPoints[breakPos] = false
 			}
 		}
 	}
-
-	// Collect break positions in order.
-	var positions []int
+	var byteOffsets []int
 	for pos, isBreak := range breakPoints {
-		if isBreak {
-			positions = append(positions, pos)
+		if isBreak && pos > 0 && pos < len(text) {
+			byteOffsets = append(byteOffsets, pos)
 		}
 	}
-
-	if len(positions) == 0 {
-		return []string{text}
+	sortPositions(byteOffsets)
+	out := make([]int, len(byteOffsets))
+	for i, b := range byteOffsets {
+		out[i] = utf8.RuneCountInString(text[:b])
 	}
+	return out
+}
 
-	// Sort positions.
-	sortPositions(positions)
-
-	// Split text at break positions.
-	var segments []string
-	prev := 0
-	for _, pos := range positions {
-		if pos <= prev || pos > textLen {
+// segmentSpans computes the segmentation spans for a run sequence. It flattens
+// the runs to text, finds sentence boundaries, and maps each resulting
+// [start,end) text range back onto a run-anchored RunRange. The runs
+// themselves are never modified — segmentation is a stand-off overlay.
+func segmentSpans(runs []model.Run, rules []compiledRule) []model.Span {
+	text := model.RunsText(runs)
+	if text == "" {
+		return nil
+	}
+	runeLen := utf8.RuneCountInString(text)
+	edges := append([]int{0}, segmentBoundaries(text, rules)...)
+	edges = append(edges, runeLen)
+	spans := make([]model.Span, 0, len(edges)-1)
+	for i := 0; i+1 < len(edges); i++ {
+		s, e := edges[i], edges[i+1]
+		if s >= e {
 			continue
 		}
-		seg := strings.TrimSpace(text[prev:pos])
-		if seg != "" {
-			segments = append(segments, seg)
-		}
-		prev = pos
+		spans = append(spans, model.Span{
+			ID:    fmt.Sprintf("s%d", len(spans)+1),
+			Range: model.RunRangeFor(runs, s, e),
+		})
 	}
-	// Remaining text.
-	if prev < len(text) {
-		seg := strings.TrimSpace(text[prev:])
-		if seg != "" {
-			segments = append(segments, seg)
-		}
-	}
-
-	if len(segments) == 0 {
-		return []string{text}
-	}
-	return segments
+	return spans
 }
 
 // sortPositions sorts an int slice in ascending order (simple insertion sort for small slices).
@@ -283,39 +265,23 @@ func NewSegmentationTool(cfg *SegmentationConfig) *tool.BaseTool {
 			block.Properties = make(map[string]string)
 		}
 
-		// Segment source text.
+		// Segment source text into a stand-off segmentation overlay; the
+		// source runs are never rewritten, so segmentation is reversible
+		// (dropping the overlay restores the unsegmented content).
 		if conf.SegmentSource {
-			alreadySegmented := len(block.Source) > 1
-			if !alreadySegmented || conf.OverwriteSegmentation {
-				sourceText := block.SourceText()
-				if sourceText == "" {
-					block.Properties[PropSegmentCount] = "0"
-				} else {
-					segments := segmentText(sourceText, compiled)
-					newSource := make([]*model.Segment, len(segments))
-					for i, seg := range segments {
-						newSource[i] = model.NewRunsSegment(fmt.Sprintf("s%d", i+1), []model.Run{{Text: &model.TextRun{Text: seg}}})
-					}
-					block.Source = newSource
-					block.Properties[PropSegmentCount] = strconv.Itoa(len(segments))
-				}
+			if block.SourceSegmentation() == nil || conf.OverwriteSegmentation {
+				spans := segmentSpans(block.Source, compiled)
+				block.SetSegmentation(nil, spans)
+				block.Properties[PropSegmentCount] = strconv.Itoa(len(spans))
 			}
 		}
 
-		// Segment target text if enabled.
+		// Segment target text into a target-side overlay if enabled.
 		if conf.SegmentTarget && !conf.TargetLocale.IsEmpty() && block.HasTarget(conf.TargetLocale) {
-			targetSegs := block.Targets[conf.TargetLocale]
-			alreadySegmented := len(targetSegs) > 1
-			if !alreadySegmented || conf.OverwriteSegmentation {
-				targetText := block.TargetText(conf.TargetLocale)
-				if targetText != "" {
-					segments := segmentText(targetText, compiled)
-					newTarget := make([]*model.Segment, len(segments))
-					for i, seg := range segments {
-						newTarget[i] = model.NewRunsSegment(fmt.Sprintf("s%d", i+1), []model.Run{{Text: &model.TextRun{Text: seg}}})
-					}
-					block.Targets[conf.TargetLocale] = newTarget
-				}
+			key := model.Variant(conf.TargetLocale)
+			if block.SegmentationFor(&key) == nil || conf.OverwriteSegmentation {
+				spans := segmentSpans(block.TargetRuns(conf.TargetLocale), compiled)
+				block.SetSegmentation(&key, spans)
 			}
 		}
 

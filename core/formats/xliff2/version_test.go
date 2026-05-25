@@ -122,8 +122,11 @@ func TestWriter_DefaultsTo2_2(t *testing.T) {
 	block := &model.Block{
 		ID:           "u1",
 		Translatable: true,
-		Source:       []*model.Segment{{ID: "s1", Runs: []model.Run{{Text: &model.TextRun{Text: "Hello"}}}}},
+		Source:       []model.Run{{Text: &model.TextRun{Text: "Hello"}}},
 	}
+	block.SetSegmentation(nil, []model.Span{
+		{ID: "s1", Range: model.RunRange{StartRun: 0, EndRun: 1}},
+	})
 	parts := []*model.Part{
 		{Type: model.PartBlock, Resource: block},
 	}

@@ -154,9 +154,9 @@ func TestSkeletonStore_WithTranslation(t *testing.T) {
 			b := p.Resource.(*model.Block)
 			switch b.SourceText() {
 			case "Hello World":
-				b.Targets[locale] = []*model.Segment{{ID: "s1", Runs: []model.Run{{Text: &model.TextRun{Text: "Bonjour le monde"}}}}}
+				b.SetTargetRuns(locale, []model.Run{{Text: &model.TextRun{Text: "Bonjour le monde"}}})
 			case "Goodbye":
-				b.Targets[locale] = []*model.Segment{{ID: "s1", Runs: []model.Run{{Text: &model.TextRun{Text: "Au revoir"}}}}}
+				b.SetTargetRuns(locale, []model.Run{{Text: &model.TextRun{Text: "Au revoir"}}})
 			}
 		}
 	}

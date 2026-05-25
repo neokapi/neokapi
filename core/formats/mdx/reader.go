@@ -378,10 +378,10 @@ func (r *Reader) spanReconstructsExactly(span []byte, entries []spanSkelEntry, b
 // for untranslated output, including the markdown line-prefix property so
 // multi-line blockquote/list continuations reconstruct exactly.
 func renderBlockSource(block *model.Block) string {
-	if len(block.Source) == 0 || len(block.Source[0].Runs) == 0 {
+	if len(block.Source) == 0 {
 		return ""
 	}
-	rendered := model.RenderRunsWithData(block.Source[0].Runs)
+	rendered := model.RenderRunsWithData(block.Source)
 	if prefix, ok := block.Properties[BlockPropLinePrefix]; ok && prefix != "" && strings.Contains(rendered, "\n") {
 		rendered = strings.ReplaceAll(rendered, "\n", "\n"+prefix)
 	}

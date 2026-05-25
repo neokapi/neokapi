@@ -1167,7 +1167,7 @@ func (r *Reader) buildBlock(tu *parsedTransUnit, sourceLang, targetLang model.Lo
 		PreserveWhitespace: preserveWS || tu.preserveWS,
 		Properties:         make(map[string]string),
 		Annotations:        make(map[string]Annotation),
-		Targets:            make(map[model.LocaleID][]*model.Segment),
+		Targets:            make(map[model.VariantKey]*model.Target),
 	}
 
 	if tu.resname != "" {
@@ -1222,11 +1222,23 @@ func (r *Reader) buildBlock(tu *parsedTransUnit, sourceLang, targetLang model.Lo
 		}
 	}
 	if useSegSource {
-		// Use seg-source segments
-		block.Source = make([]*model.Segment, len(tu.segSource))
+		// Use seg-source segments. Concatenate every segment's runs into
+		// a flat block.Source and lay a source segmentation overlay over
+		// the run-index boundaries (one Span per <mrk mtype="seg">, Span.ID
+		// = the segment mid). Each segment's xliff-native IR is stored
+		// block-level under segNativeKey(mid).
+		var srcRuns []model.Run
+		spans := make([]model.Span, len(tu.segSource))
 		for i, seg := range tu.segSource {
-			block.Source[i] = newSegmentWithNative(seg.mid, seg.text)
+			nc := parseNativeContent(seg.text)
+			runs := nativeToRuns(nc)
+			start := len(srcRuns)
+			srcRuns = append(srcRuns, runs...)
+			spans[i] = model.Span{ID: seg.mid, Range: model.RunRange{StartRun: start, EndRun: len(srcRuns)}}
+			block.Annotations[segNativeKey(seg.mid)] = &SegmentNativeAnnotation{Content: nc}
 		}
+		block.Source = srcRuns
+		block.SetSegmentation(nil, spans)
 		// Attach body-level native IR for <source>: parsed from the
 		// raw <source> body (which is unsegmented but mirrors the
 		// inline-code structure). Falls back to building it from the
@@ -1239,7 +1251,8 @@ func (r *Reader) buildBlock(tu *parsedTransUnit, sourceLang, targetLang model.Lo
 		// annotation cover the same bytes, so parse the native IR once
 		// and share it between both rather than decoding tu.source twice.
 		srcNative := parseNativeContent(tu.source)
-		block.Source = []*model.Segment{newSegmentFromNative("s1", srcNative)}
+		block.Source = nativeToRuns(srcNative)
+		block.Annotations[segNativeKey("s1")] = &SegmentNativeAnnotation{Content: srcNative}
 		block.Annotations["xliff:source-body"] = &SourceBodyNativeAnnotation{
 			Content: srcNative,
 		}
@@ -1280,13 +1293,22 @@ func (r *Reader) buildBlock(tu *parsedTransUnit, sourceLang, targetLang model.Lo
 		// Check if target has mrk segments
 		targetSegs := parseMrkSegmentsFromString(targetContent)
 		if len(targetSegs) > 0 {
-			tgtSegs := make([]*model.Segment, len(targetSegs))
+			var tgtRuns []model.Run
+			spans := make([]model.Span, len(targetSegs))
 			for i, seg := range targetSegs {
-				tgtSegs[i] = newSegmentWithNative(seg.mid, seg.text)
+				nc := parseNativeContent(seg.text)
+				runs := nativeToRuns(nc)
+				start := len(tgtRuns)
+				tgtRuns = append(tgtRuns, runs...)
+				spans[i] = model.Span{ID: seg.mid, Range: model.RunRange{StartRun: start, EndRun: len(tgtRuns)}}
+				block.Annotations[targetSegNativeKey(effectiveTargetLang, seg.mid)] = &SegmentNativeAnnotation{Content: nc}
 			}
-			block.Targets[effectiveTargetLang] = tgtSegs
+			block.SetTargetRuns(effectiveTargetLang, tgtRuns)
+			key := model.Variant(effectiveTargetLang)
+			block.SetSegmentation(&key, spans)
 		} else {
-			block.Targets[effectiveTargetLang] = []*model.Segment{newSegmentFromNative("s1", targetNative)}
+			block.SetTargetRuns(effectiveTargetLang, nativeToRuns(targetNative))
+			block.Annotations[targetSegNativeKey(effectiveTargetLang, "s1")] = &SegmentNativeAnnotation{Content: targetNative}
 		}
 		// Attach body-level native IR for <target>. Walking this lets
 		// the writer reconstruct mrk wrappers and between-mrk
@@ -1397,32 +1419,6 @@ func prefixForURI(uri string) string {
 		return "xmlns"
 	}
 	return uri
-}
-
-// newSegmentWithNative builds a Segment from raw inner XML, populating
-// both the generic Run downconversion (consumed by tools) and the
-// xliff-native IR annotation (consumed by the writer for byte-faithful
-// re-emission of inline elements with all their attributes).
-//
-// The body is parsed into the native IR exactly once; the generic Runs
-// are derived from that IR via nativeToRuns rather than re-decoding the
-// XML a second time. See newSegmentFromNative for the shared path.
-func newSegmentWithNative(id, innerXML string) *model.Segment {
-	return newSegmentFromNative(id, parseNativeContent(innerXML))
-}
-
-// newSegmentFromNative builds a Segment from an already-parsed native IR.
-// The caller owns nc; it is stored on the segment annotation unchanged
-// and downconverted to generic Runs. Sharing one *NativeContent between
-// the segment annotation and (in the unsegmented case) the block body
-// annotation avoids re-parsing the same body bytes.
-func newSegmentFromNative(id string, nc *NativeContent) *model.Segment {
-	seg := model.NewRunsSegment(id, nativeToRuns(nc))
-	if seg.Annotations == nil {
-		seg.Annotations = make(map[string]model.Annotation)
-	}
-	seg.Annotations["xliff:native"] = &SegmentNativeAnnotation{Content: nc}
-	return seg
 }
 
 // parseInlineContent parses XLIFF 1.2 inline elements and returns

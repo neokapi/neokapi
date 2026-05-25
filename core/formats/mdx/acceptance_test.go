@@ -196,7 +196,7 @@ func TestAcceptanceTranslatedMDXCompiles(t *testing.T) {
 			for _, p := range parts {
 				if p.Type == model.PartBlock {
 					b := p.Resource.(*model.Block)
-					if strings.ContainsAny(b.Source[0].Text(), "abcdefghijklmnopqrstuvwxyz") {
+					if strings.ContainsAny(b.SourceText(), "abcdefghijklmnopqrstuvwxyz") {
 						pseudoTranslate(b, fr)
 					}
 				}

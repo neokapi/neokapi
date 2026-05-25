@@ -196,9 +196,9 @@ func TestSkeletonStore_WithTranslation(t *testing.T) {
 			b := p.Resource.(*model.Block)
 			switch b.SourceText() {
 			case "Hello":
-				b.Targets[locale] = []*model.Segment{{ID: "s1", Runs: []model.Run{{Text: &model.TextRun{Text: "Bonjour"}}}}}
+				b.SetTargetRuns(locale, []model.Run{{Text: &model.TextRun{Text: "Bonjour"}}})
 			case "World":
-				b.Targets[locale] = []*model.Segment{{ID: "s1", Runs: []model.Run{{Text: &model.TextRun{Text: "Monde"}}}}}
+				b.SetTargetRuns(locale, []model.Run{{Text: &model.TextRun{Text: "Monde"}}})
 			}
 		}
 	}
@@ -261,7 +261,7 @@ func TestSkeletonStore_TranslationWithEntities(t *testing.T) {
 		if p.Type == model.PartBlock {
 			b := p.Resource.(*model.Block)
 			if b.SourceText() == "Cats & Dogs" {
-				b.Targets[locale] = []*model.Segment{{ID: "s1", Runs: []model.Run{{Text: &model.TextRun{Text: "Chats & Chiens"}}}}}
+				b.SetTargetRuns(locale, []model.Run{{Text: &model.TextRun{Text: "Chats & Chiens"}}})
 			}
 		}
 	}

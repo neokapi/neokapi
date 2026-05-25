@@ -175,39 +175,51 @@ func (w *Writer) writeBlockRows(block *model.Block) error {
 		tuID = block.ID
 	}
 
-	srcSegs := block.Source
-	var trgSegs []*model.Segment
+	// Reconstruct the former structural segments by walking the source
+	// segmentation overlay. With no overlay the whole source is one
+	// segment (SourceSegmentCount/SourceSegmentRuns handle this).
+	srcSeg := block.SourceSegmentation()
+	srcCount := block.SourceSegmentCount()
+
+	// Resolve the target overlay (if any) so we can split the target
+	// runs by the same segment spans the reader recorded.
+	var (
+		trgRuns []model.Run
+		trgOv   *model.Overlay
+	)
 	if !w.Locale.IsEmpty() {
-		trgSegs = block.Targets[w.Locale]
+		trgRuns = block.TargetRuns(w.Locale)
+		key := model.Variant(w.Locale)
+		trgOv = block.SegmentationFor(&key)
 	}
 
 	// One row per source segment. When there is more than one segment
 	// we emit `:s=<seg-id>` suffixes so the round-trip preserves the
 	// segmentation; with exactly one segment the suffix is dropped to
 	// match the upstream "unsegmented" wire shape.
-	multi := len(srcSegs) > 1
-	for i, seg := range srcSegs {
+	multi := srcCount > 1
+	for i := range srcCount {
 		var crumb string
 		if multi {
-			segID := seg.ID
-			if segID == "" {
-				segID = fmt.Sprintf("s%d", i+1)
+			segID := fmt.Sprintf("s%d", i+1)
+			if srcSeg != nil && i < len(srcSeg.Spans) && srcSeg.Spans[i].ID != "" {
+				segID = srcSeg.Spans[i].ID
 			}
 			crumb = fmt.Sprintf(`"okpCtx:tu=%s:s=%s"`, tuID, segID)
 		} else {
 			crumb = fmt.Sprintf(`"okpCtx:tu=%s"`, tuID)
 		}
 
-		sourceCell := quote(escape(seg.Text()))
+		sourceCell := quote(escape(model.RunsText(block.SourceSegmentRuns(i))))
 
 		var targetCell string
 		hasTarget := false
-		if i < len(trgSegs) {
-			targetCell = quote(escape(trgSegs[i].Text()))
+		if !w.Locale.IsEmpty() && trgRuns != nil {
 			// Always render the target column when a target locale is set
 			// so the wire shape matches what the upstream writer emits
 			// (third cell present, possibly empty).
-			hasTarget = !w.Locale.IsEmpty()
+			targetCell = quote(escape(model.RunsText(targetSegmentRuns(trgRuns, trgOv, i))))
+			hasTarget = true
 		} else if !w.Locale.IsEmpty() {
 			targetCell = `""`
 			hasTarget = true
@@ -224,6 +236,23 @@ func (w *Writer) writeBlockRows(block *model.Block) error {
 		}
 	}
 	return nil
+}
+
+// targetSegmentRuns returns the runs of the idx-th target segment. With
+// a target segmentation overlay it extracts the matching span; without
+// one (whole target = one segment) idx 0 returns all target runs and
+// any other index returns nil.
+func targetSegmentRuns(runs []model.Run, ov *model.Overlay, idx int) []model.Run {
+	if ov == nil {
+		if idx == 0 {
+			return runs
+		}
+		return nil
+	}
+	if idx < 0 || idx >= len(ov.Spans) {
+		return nil
+	}
+	return ov.Spans[idx].Range.ExtractRuns(runs)
 }
 
 // quote wraps s in double quotes. Mirrors the upstream writer which

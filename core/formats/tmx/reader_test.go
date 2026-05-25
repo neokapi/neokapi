@@ -2058,9 +2058,8 @@ func TestTargetFragmentWithSpans(t *testing.T) {
 
 	// Verify target also has inline-code runs.
 	assert.True(t, blocks[0].HasTarget("fr"))
-	targetSegs := blocks[0].Targets["fr"]
-	require.NotEmpty(t, targetSegs)
-	targetRuns := targetSegs[0].Runs
+	targetRuns := blocks[0].TargetRuns("fr")
+	require.NotEmpty(t, targetRuns)
 	assert.True(t, hasInlineCodeRun(targetRuns))
 	assert.Equal(t, "cible", model.RunsPlainText(targetRuns))
 }

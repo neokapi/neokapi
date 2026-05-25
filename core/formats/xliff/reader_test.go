@@ -148,6 +148,53 @@ func findBlockContaining(blocks []*model.Block, substr string) *model.Block { //
 	return nil
 }
 
+// sourceSegTexts returns the plain text of each source segment, derived
+// from the block's source segmentation overlay (or the whole source when
+// unsegmented). Mirrors the per-segment .Text() the old []*Segment model
+// exposed, so the migrated segmentation tests stay readable.
+func sourceSegTexts(b *model.Block) []string {
+	n := b.SourceSegmentCount()
+	out := make([]string, n)
+	for i := range n {
+		out[i] = model.RunsText(b.SourceSegmentRuns(i))
+	}
+	return out
+}
+
+// sourceSegIDs returns the span id of each source segment span (empty
+// when the block is unsegmented).
+func sourceSegIDs(b *model.Block) []string {
+	seg := b.SourceSegmentation()
+	if seg == nil {
+		return nil
+	}
+	out := make([]string, len(seg.Spans))
+	for i, s := range seg.Spans {
+		out[i] = s.ID
+	}
+	return out
+}
+
+// targetSegTexts returns the plain text of each target segment for a
+// locale, derived from the target-side segmentation overlay (or the
+// whole target when unsegmented).
+func targetSegTexts(b *model.Block, loc model.LocaleID) []string {
+	runs := b.TargetRuns(loc)
+	if runs == nil {
+		return nil
+	}
+	key := model.Variant(loc)
+	seg := b.SegmentationFor(&key)
+	if seg == nil {
+		return []string{model.RunsText(runs)}
+	}
+	out := make([]string, len(seg.Spans))
+	for i, s := range seg.Spans {
+		out[i] = model.RunsText(s.Range.ExtractRuns(runs))
+	}
+	return out
+}
+
 // --- Existing tests with okapi annotations ---
 
 const sampleXLIFF = `<?xml version="1.0" encoding="UTF-8"?>
@@ -1113,10 +1160,10 @@ func TestExtract_Segmentation(t *testing.T) {
 	blocks := readXLIFFBlocks(t, xlf)
 	require.NotEmpty(t, blocks)
 	b := blocks[0]
-	require.GreaterOrEqual(t, len(b.Source), 2)
-	for _, seg := range b.Source {
-		assert.NotEmpty(t, seg.ID)
-		assert.NotNil(t, seg.Runs)
+	require.GreaterOrEqual(t, b.SourceSegmentCount(), 2)
+	for i, id := range sourceSegIDs(b) {
+		assert.NotEmpty(t, id)
+		assert.NotEmpty(t, b.SourceSegmentRuns(i))
 	}
 }
 
@@ -1136,7 +1183,7 @@ func TestExtract_SegmentedTarget(t *testing.T) {
 	blocks := readXLIFFBlocks(t, xlf)
 	require.NotEmpty(t, blocks)
 	b := blocks[0]
-	assert.GreaterOrEqual(t, len(b.Source), 2)
+	assert.GreaterOrEqual(t, b.SourceSegmentCount(), 2)
 	assert.True(t, b.HasTarget("fr"))
 }
 
@@ -1154,9 +1201,8 @@ func TestExtract_SegmentedEntry(t *testing.T) {
 		`</trans-unit>`)
 	blocks := readXLIFFBlocks(t, xlf)
 	require.NotEmpty(t, blocks)
-	require.Len(t, blocks[0].Source, 2)
-	assert.Equal(t, "t1.", blocks[0].Source[0].Text())
-	assert.Equal(t, "t2", blocks[0].Source[1].Text())
+	require.Equal(t, 2, blocks[0].SourceSegmentCount())
+	assert.Equal(t, []string{"t1.", "t2"}, sourceSegTexts(blocks[0]))
 }
 
 // okapi: XLIFFFilterTest#testSegmentedSource1
@@ -1170,9 +1216,8 @@ func TestExtract_SegmentedSource1(t *testing.T) {
 		`</trans-unit>`)
 	blocks := readXLIFFBlocks(t, xlf)
 	require.NotEmpty(t, blocks)
-	require.Len(t, blocks[0].Source, 2)
-	assert.Equal(t, "t1.", blocks[0].Source[0].Text())
-	assert.Equal(t, "t2", blocks[0].Source[1].Text())
+	require.Equal(t, 2, blocks[0].SourceSegmentCount())
+	assert.Equal(t, []string{"t1.", "t2"}, sourceSegTexts(blocks[0]))
 }
 
 // okapi: XLIFFFilterTest#testSegmentedEntryWithDifferences
@@ -1195,8 +1240,8 @@ func TestExtract_SegmentedEntryWithDifferences(t *testing.T) {
 	defer reader.Close()
 	blocks := testutil.FilterBlocks(testutil.CollectParts(t, reader.Read(ctx)))
 	require.NotEmpty(t, blocks)
-	require.Len(t, blocks[0].Source, 1, "divergent seg-source must collapse to one source segment")
-	assert.Equal(t, "t1. x t2", blocks[0].Source[0].Text())
+	require.Equal(t, 1, blocks[0].SourceSegmentCount(), "divergent seg-source must collapse to one source segment")
+	assert.Equal(t, "t1. x t2", blocks[0].SourceText())
 }
 
 // okapi: XLIFFFilterTest#testSegmentedEntryOutput
@@ -1226,14 +1271,10 @@ func TestExtract_SegmentedEntryOutput(t *testing.T) {
 	blocks := testutil.FilterBlocks(testutil.CollectParts(t, reader.Read(ctx)))
 	reader.Close()
 	require.NotEmpty(t, blocks)
-	require.Len(t, blocks[0].Source, 2)
-	assert.Equal(t, "t1.", blocks[0].Source[0].Text())
-	assert.Equal(t, "t2", blocks[0].Source[1].Text())
+	require.Equal(t, 2, blocks[0].SourceSegmentCount())
+	assert.Equal(t, []string{"t1.", "t2"}, sourceSegTexts(blocks[0]))
 	require.True(t, blocks[0].HasTarget("fr"))
-	frSegs := blocks[0].Targets["fr"]
-	require.Len(t, frSegs, 2)
-	assert.Equal(t, "tt1.", frSegs[0].Text())
-	assert.Equal(t, "tt2", frSegs[1].Text())
+	assert.Equal(t, []string{"tt1.", "tt2"}, targetSegTexts(blocks[0], "fr"))
 
 	// Output: a skeleton-store roundtrip preserves the segmented structure
 	// byte-for-byte (the mrk wrappers in both seg-source and target survive).
@@ -2455,10 +2496,8 @@ func TestExtract_ThreeSegments(t *testing.T) {
       </trans-unit>`)
 	blocks := readXLIFFBlocks(t, xlf)
 	require.NotEmpty(t, blocks)
-	assert.GreaterOrEqual(t, len(blocks[0].Source), 3)
-	assert.Equal(t, "s1", blocks[0].Source[0].ID)
-	assert.Equal(t, "s2", blocks[0].Source[1].ID)
-	assert.Equal(t, "s3", blocks[0].Source[2].ID)
+	assert.GreaterOrEqual(t, blocks[0].SourceSegmentCount(), 3)
+	assert.Equal(t, []string{"s1", "s2", "s3"}, sourceSegIDs(blocks[0]))
 }
 
 // --- Writer: locale override ---

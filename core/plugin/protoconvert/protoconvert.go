@@ -357,23 +357,22 @@ func protoToConstraints(msg *pb.RunConstraints) *model.RunConstraints {
 // Proto ↔ Model: Segment
 // ────────────────────────────────────────────────────────────────────────────
 
-// SegmentToProto converts a model.Segment to a proto SegmentMessage.
-func SegmentToProto(s *model.Segment) *pb.SegmentMessage {
-	return &pb.SegmentMessage{
-		Id:         s.ID,
-		Runs:       RunsToProto(s.Runs),
-		Properties: s.Properties,
-	}
+// runsToSegmentProto wraps a run sequence in a single SegmentMessage for wire
+// transfer. The model no longer has structural segments — a side's content is
+// one run sequence, carried as one SegmentMessage.
+func runsToSegmentProto(id string, runs []model.Run) *pb.SegmentMessage {
+	return &pb.SegmentMessage{Id: id, Runs: RunsToProto(runs)}
 }
 
-// ProtoToSegment converts a proto SegmentMessage to a model.Segment.
-func ProtoToSegment(msg *pb.SegmentMessage) *model.Segment {
-	seg := &model.Segment{
-		ID:         msg.Id,
-		Properties: msg.Properties,
+// segmentsProtoRuns concatenates the runs of one or more SegmentMessages into
+// a single run sequence (tolerating peers that still split a side into
+// multiple segments).
+func segmentsProtoRuns(msgs []*pb.SegmentMessage) []model.Run {
+	var runs []model.Run
+	for _, m := range msgs {
+		runs = append(runs, ProtoToRuns(m.Runs)...)
 	}
-	seg.SetRuns(ProtoToRuns(msg.Runs))
-	return seg
+	return runs
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -398,15 +397,14 @@ func BlockToProto(b *model.Block) *pb.BlockMessage {
 		PreserveWhitespace: b.PreserveWhitespace,
 		IsReferent:         b.IsReferent,
 	}
-	for _, seg := range b.Source {
-		msg.Source = append(msg.Source, SegmentToProto(seg))
+	if len(b.Source) > 0 {
+		msg.Source = append(msg.Source, runsToSegmentProto("s1", b.Source))
 	}
-	for locale, segs := range b.Targets {
-		te := &pb.TargetEntry{Locale: string(locale)}
-		for _, seg := range segs {
-			te.Segments = append(te.Segments, SegmentToProto(seg))
-		}
-		msg.Targets = append(msg.Targets, te)
+	for _, locale := range b.TargetLocales() {
+		msg.Targets = append(msg.Targets, &pb.TargetEntry{
+			Locale:   string(locale),
+			Segments: []*pb.SegmentMessage{runsToSegmentProto("s1", b.TargetRuns(locale))},
+		})
 	}
 	return msg
 }
@@ -423,7 +421,7 @@ func ProtoToBlock(msg *pb.BlockMessage) *model.Block {
 		MimeType:           msg.MimeType,
 		Translatable:       msg.Translatable,
 		Properties:         msg.Properties,
-		Targets:            make(map[model.LocaleID][]*model.Segment),
+		Targets:            make(map[model.VariantKey]*model.Target),
 		Annotations:        ProtoToAnnotations(msg.Annotations),
 		DisplayHint:        ProtoToDisplayHint(msg.DisplayHint),
 		Skeleton:           ProtoToSkeleton(msg.Skeleton),
@@ -436,14 +434,9 @@ func ProtoToBlock(msg *pb.BlockMessage) *model.Block {
 	if b.Annotations == nil {
 		b.Annotations = make(map[string]model.Annotation)
 	}
-	for _, seg := range msg.Source {
-		b.Source = append(b.Source, ProtoToSegment(seg))
-	}
+	b.Source = segmentsProtoRuns(msg.Source)
 	for _, te := range msg.Targets {
-		locale := model.LocaleID(te.Locale)
-		for _, seg := range te.Segments {
-			b.Targets[locale] = append(b.Targets[locale], ProtoToSegment(seg))
-		}
+		b.SetTargetRuns(model.LocaleID(te.Locale), segmentsProtoRuns(te.Segments))
 	}
 	return b
 }
@@ -713,19 +706,14 @@ func ContentBlockToPart(cb *pb.ContentBlock) *model.Part {
 		PreserveWhitespace: cb.PreserveWhitespace,
 	}
 
-	// Source segments
-	for _, seg := range cb.Source {
-		block.Source = append(block.Source, ProtoToSegment(seg))
-	}
+	// Source content
+	block.Source = segmentsProtoRuns(cb.Source)
 
-	// Target segments
+	// Target content
 	if len(cb.Targets) > 0 {
-		block.Targets = make(map[model.LocaleID][]*model.Segment)
+		block.Targets = make(map[model.VariantKey]*model.Target)
 		for _, te := range cb.Targets {
-			locale := model.LocaleID(te.Locale)
-			for _, seg := range te.Segments {
-				block.Targets[locale] = append(block.Targets[locale], ProtoToSegment(seg))
-			}
+			block.SetTargetRuns(model.LocaleID(te.Locale), segmentsProtoRuns(te.Segments))
 		}
 	}
 
@@ -775,18 +763,17 @@ func PartToContentBlock(p *model.Part) *pb.ContentBlock {
 		PreserveWhitespace: block.PreserveWhitespace,
 	}
 
-	// Source segments
-	for _, seg := range block.Source {
-		cb.Source = append(cb.Source, SegmentToProto(seg))
+	// Source content
+	if len(block.Source) > 0 {
+		cb.Source = append(cb.Source, runsToSegmentProto("s1", block.Source))
 	}
 
-	// Target segments
-	for locale, segs := range block.Targets {
-		te := &pb.TargetEntry{Locale: string(locale)}
-		for _, seg := range segs {
-			te.Segments = append(te.Segments, SegmentToProto(seg))
-		}
-		cb.Targets = append(cb.Targets, te)
+	// Target content
+	for _, locale := range block.TargetLocales() {
+		cb.Targets = append(cb.Targets, &pb.TargetEntry{
+			Locale:   string(locale),
+			Segments: []*pb.SegmentMessage{runsToSegmentProto("s1", block.TargetRuns(locale))},
+		})
 	}
 
 	// Properties

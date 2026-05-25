@@ -437,16 +437,7 @@ func (w *Writer) blockText(block *model.Block) string {
 	// into TextRun + Ph runs. plain SourceText/TargetText drops Ph
 	// runs so the placeholders would vanish on round-trip.
 	if !w.Locale.IsEmpty() && block.HasTarget(w.Locale) {
-		segs := block.Targets[w.Locale]
-		var b strings.Builder
-		for _, seg := range segs {
-			b.WriteString(model.RenderRunsWithData(seg.Runs))
-		}
-		return b.String()
+		return model.RenderRunsWithData(block.TargetRuns(w.Locale))
 	}
-	var b strings.Builder
-	for _, seg := range block.Source {
-		b.WriteString(model.RenderRunsWithData(seg.Runs))
-	}
-	return b.String()
+	return model.RenderRunsWithData(block.Source)
 }

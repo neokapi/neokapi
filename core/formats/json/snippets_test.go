@@ -1486,9 +1486,9 @@ func TestSkeletonStore_WithTranslation(t *testing.T) {
 			b := p.Resource.(*model.Block)
 			switch b.SourceText() {
 			case "Hello World":
-				b.Targets[locale] = []*model.Segment{{ID: "s1", Runs: []model.Run{{Text: &model.TextRun{Text: "Bonjour le monde"}}}}}
+				b.SetTargetText(locale, "Bonjour le monde")
 			case "Goodbye":
-				b.Targets[locale] = []*model.Segment{{ID: "s1", Runs: []model.Run{{Text: &model.TextRun{Text: "Au revoir"}}}}}
+				b.SetTargetText(locale, "Au revoir")
 			}
 		}
 	}
@@ -1533,7 +1533,7 @@ func TestSkeletonStore_WithTranslation_UseFullKeyPath(t *testing.T) {
 		if p.Type == model.PartBlock {
 			b := p.Resource.(*model.Block)
 			if b.SourceText() == "Hello" {
-				b.Targets[locale] = []*model.Segment{{ID: "s1", Runs: []model.Run{{Text: &model.TextRun{Text: "Hallo"}}}}}
+				b.SetTargetText(locale, "Hallo")
 			}
 		}
 	}
@@ -1574,7 +1574,7 @@ func TestSkeletonStore_WithTranslation_IdRules(t *testing.T) {
 		if p.Type == model.PartBlock {
 			b := p.Resource.(*model.Block)
 			if b.SourceText() == "Hello" {
-				b.Targets[locale] = []*model.Segment{{ID: "s1", Runs: []model.Run{{Text: &model.TextRun{Text: "Hola"}}}}}
+				b.SetTargetText(locale, "Hola")
 			}
 		}
 	}
@@ -1640,7 +1640,7 @@ func TestSkeletonStore_EscapeForwardSlashes(t *testing.T) {
 		if p.Type == model.PartBlock {
 			b := p.Resource.(*model.Block)
 			if b.SourceText() == "http://example.com" {
-				b.Targets[locale] = []*model.Segment{{ID: "s1", Runs: []model.Run{{Text: &model.TextRun{Text: "http://exemple.fr"}}}}}
+				b.SetTargetText(locale, "http://exemple.fr")
 			}
 		}
 	}

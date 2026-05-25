@@ -48,9 +48,9 @@ type Options struct {
 //     store), or
 //   - a BlockHash directly (→ ImportDirect, no matching needed).
 //
-// Locale is required; Text is the translated text. RichSegments, when
-// non-nil, preserves full placeholder + span structure — the
-// translations table stores both the flat text and the rich segments
+// Locale is required; Text is the translated text. Runs, when
+// non-nil, preserves full placeholder + inline-code structure — the
+// translations table stores both the flat text and the runs
 // when available.
 type ImportPair struct {
 	// BlockHash is the content-addressed block key, if already known
@@ -65,10 +65,10 @@ type ImportPair struct {
 	// indicate an intentional empty target, though most importers
 	// will skip empty-target pairs upstream).
 	Text string
-	// RichSegments carries the full segment structure when the source
+	// Runs carries the target content as a Run sequence when the source
 	// format preserves it. Marshaled into the translations table's
-	// segments_json column on write.
-	RichSegments []*model.Segment
+	// runs_json column on write.
+	Runs []model.Run
 }
 
 // Report summarizes a completed import run.
@@ -191,7 +191,8 @@ func ImportFromFormat(
 		srcHash := hashSource(srcText)
 		blockHash, matched := index[srcHash]
 
-		for locale, segs := range block.Targets {
+		for _, locale := range block.TargetLocales() {
+			runs := block.TargetRuns(locale)
 			r.TotalPairs++
 			if !matched {
 				r.Unmatched++
@@ -199,7 +200,7 @@ func ImportFromFormat(
 			}
 			r.Matched++
 
-			text := plainSegmentsText(segs)
+			text := model.RunsText(runs)
 			if text == "" {
 				continue
 			}
@@ -214,10 +215,10 @@ func ImportFromFormat(
 			}
 
 			if err := writeTargetOverlay(sess, ImportPair{
-				BlockHash:    blockHash,
-				Locale:       string(locale),
-				Text:         text,
-				RichSegments: segs,
+				BlockHash: blockHash,
+				Locale:    string(locale),
+				Text:      text,
+				Runs:      runs,
 			}, opts.Provider); err != nil {
 				return r, err
 			}
@@ -293,8 +294,8 @@ func writeTargetOverlay(sess blockstore.Session, p ImportPair, provider string) 
 	if provider != "" {
 		payload["provider"] = provider
 	}
-	if len(p.RichSegments) > 0 {
-		payload["segments"] = p.RichSegments
+	if len(p.Runs) > 0 {
+		payload["runs"] = p.Runs
 	}
 	body, err := json.Marshal(payload)
 	if err != nil {
@@ -330,27 +331,11 @@ func plainBlockSourceText(b *blockstore.Block) string {
 	return sb.String()
 }
 
-// plainSourceText extracts the flat text from a model.Block's source
-// segments (what format readers produce).
+// plainSourceText extracts the flat text from a model.Block's source runs
+// (what format readers produce).
 func plainSourceText(b *model.Block) string {
 	if b == nil {
 		return ""
 	}
-	return plainSegmentsText(b.Source)
-}
-
-// plainSegmentsText extracts the flat text from a segment list.
-func plainSegmentsText(segs []*model.Segment) string {
-	var sb strings.Builder
-	for _, s := range segs {
-		if s == nil {
-			continue
-		}
-		for _, r := range s.Runs {
-			if r.Text != nil {
-				sb.WriteString(r.Text.Text)
-			}
-		}
-	}
-	return sb.String()
+	return model.RunsText(b.Source)
 }

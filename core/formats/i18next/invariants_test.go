@@ -30,13 +30,10 @@ func keyPathSet(blocks []*model.Block) []string {
 }
 
 // placeholderData returns the protected inline-code data strings of a block's
-// source segment, in order.
+// source content, in order.
 func placeholderData(b *model.Block) []string {
 	var ph []string
-	if len(b.Source) == 0 {
-		return ph
-	}
-	for _, run := range b.Source[0].Runs {
+	for _, run := range b.Source {
 		if run.Ph != nil {
 			ph = append(ph, run.Ph.Data)
 		}
@@ -101,7 +98,7 @@ func TestInvariantTranslatedOutputReparses(t *testing.T) {
 		require.NotNil(t, b, "missing re-parsed block %s", name)
 		assert.Equal(t, []string{"{{count}}"}, placeholderData(b),
 			"{{count}} must survive as a single protected inline code in %s", name)
-		assert.NotContains(t, b.Source[0].Text(), "{{count}}",
+		assert.NotContains(t, b.SourceText(), "{{count}}",
 			"{{count}} must not appear in the translatable text of %s", name)
 	}
 	// The empty-cart value carries no interpolation.

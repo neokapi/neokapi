@@ -23,8 +23,8 @@ func makeHTMLParts() []*model.Part {
 	block1 := &model.Block{
 		ID:           "tu1",
 		Translatable: true,
-		Source:       []*model.Segment{{ID: "s1", Runs: []model.Run{{Text: &model.TextRun{Text: "Hello world"}}}}},
-		Targets:      make(map[model.LocaleID][]*model.Segment),
+		Source:       []model.Run{{Text: &model.TextRun{Text: "Hello world"}}},
+		Targets:      make(map[model.VariantKey]*model.Target),
 		Properties:   map[string]string{"note": "greeting"},
 		Annotations:  make(map[string]model.Annotation),
 		Skeleton: &model.Skeleton{
@@ -40,8 +40,8 @@ func makeHTMLParts() []*model.Part {
 	block2 := &model.Block{
 		ID:           "tu2",
 		Translatable: true,
-		Source:       []*model.Segment{{ID: "s1", Runs: []model.Run{{Text: &model.TextRun{Text: "Welcome"}}}}},
-		Targets:      make(map[model.LocaleID][]*model.Segment),
+		Source:       []model.Run{{Text: &model.TextRun{Text: "Welcome"}}},
+		Targets:      make(map[model.VariantKey]*model.Target),
 		Properties:   make(map[string]string),
 		Annotations:  make(map[string]model.Annotation),
 		Skeleton: &model.Skeleton{
@@ -219,8 +219,8 @@ func TestHTMLPreviewWithSpans(t *testing.T) {
 	block := &model.Block{
 		ID:           "tu1",
 		Translatable: true,
-		Source:       []*model.Segment{{ID: "s1", Runs: runs}},
-		Targets:      make(map[model.LocaleID][]*model.Segment),
+		Source:       runs,
+		Targets:      make(map[model.VariantKey]*model.Target),
 		Properties:   make(map[string]string),
 		Annotations:  make(map[string]model.Annotation),
 		Skeleton: &model.Skeleton{
@@ -247,8 +247,8 @@ func TestMarkdownPreview(t *testing.T) {
 		{Type: model.PartBlock, Resource: &model.Block{
 			ID:           "tu1",
 			Translatable: true,
-			Source:       []*model.Segment{{ID: "s1", Runs: []model.Run{{Text: &model.TextRun{Text: "My Title"}}}}},
-			Targets:      make(map[model.LocaleID][]*model.Segment),
+			Source:       []model.Run{{Text: &model.TextRun{Text: "My Title"}}},
+			Targets:      make(map[model.VariantKey]*model.Target),
 			Type:         "heading",
 			Properties:   map[string]string{"level": "1"},
 			Annotations:  make(map[string]model.Annotation),
@@ -256,8 +256,8 @@ func TestMarkdownPreview(t *testing.T) {
 		{Type: model.PartBlock, Resource: &model.Block{
 			ID:           "tu2",
 			Translatable: true,
-			Source:       []*model.Segment{{ID: "s1", Runs: []model.Run{{Text: &model.TextRun{Text: "Some text"}}}}},
-			Targets:      make(map[model.LocaleID][]*model.Segment),
+			Source:       []model.Run{{Text: &model.TextRun{Text: "Some text"}}},
+			Targets:      make(map[model.VariantKey]*model.Target),
 			Properties:   make(map[string]string),
 			Annotations:  make(map[string]model.Annotation),
 		}},
@@ -274,8 +274,8 @@ func TestGenericPreview(t *testing.T) {
 		{Type: model.PartBlock, Resource: &model.Block{
 			ID:           "tu1",
 			Translatable: true,
-			Source:       []*model.Segment{{ID: "s1", Runs: []model.Run{{Text: &model.TextRun{Text: "Hello <world>"}}}}},
-			Targets:      make(map[model.LocaleID][]*model.Segment),
+			Source:       []model.Run{{Text: &model.TextRun{Text: "Hello <world>"}}},
+			Targets:      make(map[model.VariantKey]*model.Target),
 			Properties:   make(map[string]string),
 			Annotations:  make(map[string]model.Annotation),
 		}},
@@ -298,8 +298,8 @@ func TestSourceHTMLWithSpans(t *testing.T) {
 	block := &model.Block{
 		ID:           "tu1",
 		Translatable: true,
-		Source:       []*model.Segment{{ID: "s1", Runs: runs}},
-		Targets:      make(map[model.LocaleID][]*model.Segment),
+		Source:       runs,
+		Targets:      make(map[model.VariantKey]*model.Target),
 		Properties:   make(map[string]string),
 		Annotations:  make(map[string]model.Annotation),
 	}
@@ -327,7 +327,7 @@ func TestRenderFragmentHTML(t *testing.T) {
 
 	block2 := &model.Block{
 		ID:     "tu2",
-		Source: []*model.Segment{{ID: "s1", Runs: runs}},
+		Source: runs,
 	}
 	assert.Equal(t, "Hello <b>world</b>", renderFragmentHTML(block2))
 }

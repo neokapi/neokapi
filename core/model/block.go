@@ -2,18 +2,22 @@ package model
 
 import "strings"
 
-// Block is the primary translatable content unit.
-// Source and target segments live directly on the Block.
+// Block is the primary translatable content unit. Its content is a flat
+// []Run per locale: Source for the source language and Targets for each
+// committed translation variant. Segmentation, terminology, entities, and
+// other interpretations ride as stand-off Overlays (see overlay.go); there is
+// no structural segment type.
 type Block struct {
 	ID                 string
 	Name               string
 	Type               string
 	MimeType           string
 	Translatable       bool
-	SourceLocale       LocaleID // locale of the source segments (set by reader)
+	SourceLocale       LocaleID // locale of the source runs (set by reader)
 	Skeleton           *Skeleton
-	Source             []*Segment
-	Targets            map[LocaleID][]*Segment
+	Source             []Run                  // source content
+	Targets            map[VariantKey]*Target // committed translations, keyed by variant
+	Overlays           []Overlay              // opt-in stand-off interpretations (usually none)
 	Properties         map[string]string
 	Annotations        map[string]Annotation
 	Identity           *BlockIdentity // Content-addressable hash for deduplication
@@ -26,55 +30,39 @@ type Block struct {
 // ResourceID returns the Block's unique identifier.
 func (b *Block) ResourceID() string { return b.ID }
 
-// SourceText returns the plain text of all source segments
-// concatenated (TextRun content only — inline-code runs contribute
-// nothing).
+// SourceText returns the plain text of the source runs (TextRun content
+// only — inline-code runs contribute nothing).
 func (b *Block) SourceText() string {
-	var buf strings.Builder
-	for _, seg := range b.Source {
-		buf.WriteString(seg.Text())
-	}
-	return buf.String()
+	return RunsText(b.Source)
 }
 
-// SetSourceText replaces all source content with a single
-// unsegmented TextRun.
+// SetSourceText replaces the source content with a single TextRun.
 func (b *Block) SetSourceText(text string) {
-	b.Source = []*Segment{{ID: "s1", Runs: []Run{{Text: &TextRun{Text: text}}}}}
+	b.Source = []Run{{Text: &TextRun{Text: text}}}
 }
 
-// HasTarget returns true if target segments exist for the given locale.
+// HasTarget returns true if a committed target exists for the given locale.
 func (b *Block) HasTarget(locale LocaleID) bool {
-	segs, ok := b.Targets[locale]
-	return ok && len(segs) > 0
+	t, ok := b.Targets[Variant(locale)]
+	return ok && t != nil && len(t.Runs) > 0
 }
 
-// TargetText returns the plain text of all target segments for the given locale.
+// TargetText returns the plain text of the target runs for the given locale.
 func (b *Block) TargetText(locale LocaleID) string {
-	segs, ok := b.Targets[locale]
-	if !ok {
-		return ""
+	if t, ok := b.Targets[Variant(locale)]; ok && t != nil {
+		return RunsText(t.Runs)
 	}
-	var buf strings.Builder
-	for _, seg := range segs {
-		buf.WriteString(seg.Text())
-	}
-	return buf.String()
+	return ""
 }
 
-// SetTargetText sets the target text for a locale as a single
-// unsegmented TextRun.
+// SetTargetText sets the target text for a locale as a single TextRun.
 func (b *Block) SetTargetText(locale LocaleID, text string) {
-	if b.Targets == nil {
-		b.Targets = make(map[LocaleID][]*Segment)
-	}
-	b.Targets[locale] = []*Segment{{ID: "s1", Runs: []Run{{Text: &TextRun{Text: text}}}}}
+	b.SetTargetRuns(locale, []Run{{Text: &TextRun{Text: text}}})
 }
 
-// Text returns the plain text for a locale. If the locale matches SourceLocale,
-// returns the source text. Otherwise returns the target text for that locale.
-// Returns empty string if the locale has no segments. This provides uniform
-// access regardless of whether a locale is source or target.
+// Text returns the plain text for a locale. If the locale matches
+// SourceLocale, returns the source text; otherwise the target text. Provides
+// uniform access regardless of whether a locale is source or target.
 func (b *Block) Text(locale LocaleID) string {
 	if locale == b.SourceLocale && b.SourceLocale != "" {
 		return b.SourceText()
@@ -82,8 +70,8 @@ func (b *Block) Text(locale LocaleID) string {
 	return b.TargetText(locale)
 }
 
-// SetText writes text for a locale. If the locale matches SourceLocale,
-// writes to source. Otherwise writes to targets.
+// SetText writes text for a locale. Source if it matches SourceLocale,
+// otherwise a target.
 func (b *Block) SetText(locale LocaleID, text string) {
 	if locale == b.SourceLocale && b.SourceLocale != "" {
 		b.SetSourceText(text)
@@ -92,8 +80,8 @@ func (b *Block) SetText(locale LocaleID, text string) {
 	b.SetTargetText(locale, text)
 }
 
-// HasLocale reports whether the Block has segments for a locale,
-// checking both source and targets.
+// HasLocale reports whether the Block has content for a locale (source or
+// target).
 func (b *Block) HasLocale(locale LocaleID) bool {
 	if locale == b.SourceLocale && b.SourceLocale != "" {
 		return len(b.Source) > 0
@@ -101,9 +89,9 @@ func (b *Block) HasLocale(locale LocaleID) bool {
 	return b.HasTarget(locale)
 }
 
-// WordCount returns the number of words in the source text.
-// Words are sequences of non-whitespace characters. Coded text
-// markers are stripped automatically by SourceText().
+// WordCount returns the number of words in the source text. Words are
+// sequences of non-whitespace characters; inline codes are stripped by
+// SourceText().
 func (b *Block) WordCount() int {
 	text := strings.TrimSpace(b.SourceText())
 	if text == "" {
@@ -112,77 +100,85 @@ func (b *Block) WordCount() int {
 	return len(strings.Fields(text))
 }
 
-// NewBlock creates a new translatable Block with the given ID and
-// plain source text. Produces a single TextRun segment.
+// SourceRuns returns the Block's source content as a Run sequence.
+func (b *Block) SourceRuns() []Run { return b.Source }
+
+// TargetRuns returns the Block's target content for a locale, or nil.
+func (b *Block) TargetRuns(locale LocaleID) []Run {
+	if t, ok := b.Targets[Variant(locale)]; ok && t != nil {
+		return t.Runs
+	}
+	return nil
+}
+
+// SetSourceRuns replaces the Block's source content.
+func (b *Block) SetSourceRuns(runs []Run) { b.Source = runs }
+
+// SetTargetRuns sets the target runs for a locale, preserving any existing
+// status/provenance on that variant's Target.
+func (b *Block) SetTargetRuns(locale LocaleID, runs []Run) {
+	key := Variant(locale)
+	if b.Targets == nil {
+		b.Targets = make(map[VariantKey]*Target)
+	}
+	if t, ok := b.Targets[key]; ok && t != nil {
+		t.Runs = runs
+		return
+	}
+	b.Targets[key] = &Target{Runs: runs}
+}
+
+// Target returns the committed target for a locale variant, or nil.
+func (b *Block) Target(locale LocaleID) *Target { return b.Targets[Variant(locale)] }
+
+// TargetVariant returns the committed target for a full variant key, or nil.
+func (b *Block) TargetVariant(key VariantKey) *Target { return b.Targets[key] }
+
+// SetTarget stores a committed target for a locale variant.
+func (b *Block) SetTarget(locale LocaleID, t *Target) { b.SetTargetVariant(Variant(locale), t) }
+
+// SetTargetVariant stores a committed target for a full variant key.
+func (b *Block) SetTargetVariant(key VariantKey, t *Target) {
+	if b.Targets == nil {
+		b.Targets = make(map[VariantKey]*Target)
+	}
+	b.Targets[key] = t
+}
+
+// TargetLocales returns the distinct locales that have a committed target.
+func (b *Block) TargetLocales() []LocaleID {
+	seen := make(map[LocaleID]bool, len(b.Targets))
+	out := make([]LocaleID, 0, len(b.Targets))
+	for k := range b.Targets {
+		if !seen[k.Locale] {
+			seen[k.Locale] = true
+			out = append(out, k.Locale)
+		}
+	}
+	return out
+}
+
+// NewBlock creates a translatable Block with plain source text.
 func NewBlock(id, text string) *Block {
 	return &Block{
 		ID:           id,
 		Translatable: true,
-		Source:       []*Segment{{ID: "s1", Runs: []Run{{Text: &TextRun{Text: text}}}}},
-		Targets:      make(map[LocaleID][]*Segment),
+		Source:       []Run{{Text: &TextRun{Text: text}}},
+		Targets:      make(map[VariantKey]*Target),
 		Properties:   make(map[string]string),
 		Annotations:  make(map[string]Annotation),
 	}
 }
 
-// NewRunsBlock creates a Block whose source is a single segment
-// populated from the given Run sequence. Companion to NewBlock for
-// readers that emit Runs natively.
+// NewRunsBlock creates a translatable Block whose source is the given Run
+// sequence.
 func NewRunsBlock(id string, runs []Run) *Block {
 	return &Block{
 		ID:           id,
 		Translatable: true,
-		Source:       []*Segment{NewRunsSegment("s1", runs)},
-		Targets:      make(map[LocaleID][]*Segment),
+		Source:       runs,
+		Targets:      make(map[VariantKey]*Target),
 		Properties:   make(map[string]string),
 		Annotations:  make(map[string]Annotation),
 	}
-}
-
-// SourceRuns returns the Block's source content as a flat Run
-// sequence (concatenated across segments).
-func (b *Block) SourceRuns() []Run {
-	var out []Run
-	for _, s := range b.Source {
-		out = append(out, s.Runs...)
-	}
-	return out
-}
-
-// TargetRuns returns the Block's target content for a given locale
-// as a flat Run sequence.
-func (b *Block) TargetRuns(locale LocaleID) []Run {
-	segs, ok := b.Targets[locale]
-	if !ok {
-		return nil
-	}
-	var out []Run
-	for _, s := range segs {
-		out = append(out, s.Runs...)
-	}
-	return out
-}
-
-// SetSourceRuns replaces the Block's source with a single segment
-// carrying the given Run sequence. Companion to SetSourceText.
-func (b *Block) SetSourceRuns(runs []Run) {
-	b.Source = []*Segment{NewRunsSegment("s1", runs)}
-}
-
-// SetTargetRuns replaces the Block's target content for a locale
-// with a single segment carrying the given Run sequence.
-func (b *Block) SetTargetRuns(locale LocaleID, runs []Run) {
-	if b.Targets == nil {
-		b.Targets = make(map[LocaleID][]*Segment)
-	}
-	b.Targets[locale] = []*Segment{NewRunsSegment("s1", runs)}
-}
-
-// FirstSegment returns the first source segment or nil if the block
-// has no source content.
-func (b *Block) FirstSegment() *Segment {
-	if len(b.Source) == 0 {
-		return nil
-	}
-	return b.Source[0]
 }

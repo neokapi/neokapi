@@ -158,7 +158,7 @@ func (w *Writer) writeFromSkeleton() error {
 			} else {
 				// Target TUV - find the first target
 				text = block.SourceText() // fallback
-				for locale := range block.Targets {
+				for _, locale := range block.TargetLocales() {
 					if block.HasTarget(locale) {
 						text = block.TargetText(locale)
 						break
@@ -192,7 +192,7 @@ func (w *Writer) writeUnsegmentedTu(block *model.Block) error {
 
 	sourceText := block.SourceText()
 	targetText := sourceText // fall back to source if no translation
-	for locale := range block.Targets {
+	for _, locale := range block.TargetLocales() {
 		if block.HasTarget(locale) {
 			targetText = block.TargetText(locale)
 			break

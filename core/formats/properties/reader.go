@@ -847,52 +847,50 @@ func (r *Reader) applyCodeFinder(block *model.Block) {
 		return
 	}
 
-	for _, seg := range block.Source {
-		if len(seg.Runs) == 0 {
-			continue
-		}
-		text := seg.Text()
-
-		type matchRange struct {
-			start, end int
-		}
-		var matches []matchRange
-		for _, re := range patterns {
-			for _, loc := range re.FindAllStringIndex(text, -1) {
-				matches = append(matches, matchRange{loc[0], loc[1]})
-			}
-		}
-		if len(matches) == 0 {
-			continue
-		}
-
-		// Sort matches by start position
-		for i := 1; i < len(matches); i++ {
-			for j := i; j > 0 && matches[j].start < matches[j-1].start; j-- {
-				matches[j], matches[j-1] = matches[j-1], matches[j]
-			}
-		}
-
-		var runs []model.Run
-		lastEnd := 0
-		spanID := 1
-		for _, m := range matches {
-			if m.start > lastEnd {
-				runs = append(runs, model.Run{Text: &model.TextRun{Text: text[lastEnd:m.start]}})
-			}
-			runs = append(runs, model.Run{Ph: &model.PlaceholderRun{
-				ID:   fmt.Sprintf("c%d", spanID),
-				Type: "code",
-				Data: text[m.start:m.end],
-			}})
-			lastEnd = m.end
-			spanID++
-		}
-		if lastEnd < len(text) {
-			runs = append(runs, model.Run{Text: &model.TextRun{Text: text[lastEnd:]}})
-		}
-		seg.SetRuns(runs)
+	if len(block.Source) == 0 {
+		return
 	}
+	text := model.RunsText(block.Source)
+
+	type matchRange struct {
+		start, end int
+	}
+	var matches []matchRange
+	for _, re := range patterns {
+		for _, loc := range re.FindAllStringIndex(text, -1) {
+			matches = append(matches, matchRange{loc[0], loc[1]})
+		}
+	}
+	if len(matches) == 0 {
+		return
+	}
+
+	// Sort matches by start position
+	for i := 1; i < len(matches); i++ {
+		for j := i; j > 0 && matches[j].start < matches[j-1].start; j-- {
+			matches[j], matches[j-1] = matches[j-1], matches[j]
+		}
+	}
+
+	var runs []model.Run
+	lastEnd := 0
+	spanID := 1
+	for _, m := range matches {
+		if m.start > lastEnd {
+			runs = append(runs, model.Run{Text: &model.TextRun{Text: text[lastEnd:m.start]}})
+		}
+		runs = append(runs, model.Run{Ph: &model.PlaceholderRun{
+			ID:   fmt.Sprintf("c%d", spanID),
+			Type: "code",
+			Data: text[m.start:m.end],
+		}})
+		lastEnd = m.end
+		spanID++
+	}
+	if lastEnd < len(text) {
+		runs = append(runs, model.Run{Text: &model.TextRun{Text: text[lastEnd:]}})
+	}
+	block.SetSourceRuns(runs)
 }
 
 // Close releases resources.

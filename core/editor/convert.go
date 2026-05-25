@@ -63,13 +63,9 @@ func BuildBlockIndex(parts []*model.Part, sourceLocale, format, itemName string)
 				Properties:   copyProps(block.Properties),
 			}
 
-			for locale, segs := range block.Targets {
-				if len(segs) > 0 {
-					var buf strings.Builder
-					for _, seg := range segs {
-						buf.WriteString(seg.Text())
-					}
-					b.Targets[string(locale)] = buf.String()
+			for _, locale := range block.TargetLocales() {
+				if text := block.TargetText(locale); text != "" {
+					b.Targets[string(locale)] = text
 				}
 			}
 

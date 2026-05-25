@@ -39,17 +39,22 @@ func TestReadSimpleTranslatable(t *testing.T) {
 
 	blocks := testutil.CollectBlocks(t, reader.Read(ctx))
 
-	// One <translatable> => one Block with two segments (concatenated text).
+	// One <translatable> => one Block whose source carries two segment
+	// spans over the single Run sequence (concatenated text).
 	require.Len(t, blocks, 1)
 	assert.Equal(t, "b1", blocks[0].ID)
 	assert.Equal(t, "Segment onesegment two", blocks[0].SourceText())
-	require.Len(t, blocks[0].Source, 2)
-	assert.Equal(t, "Segment one", blocks[0].Source[0].Text())
-	assert.Equal(t, "segment two", blocks[0].Source[1].Text())
+	require.Equal(t, 2, blocks[0].SourceSegmentCount())
+	assert.Equal(t, "Segment one", model.RunsText(blocks[0].SourceSegmentRuns(0)))
+	assert.Equal(t, "segment two", model.RunsText(blocks[0].SourceSegmentRuns(1)))
 	assert.True(t, blocks[0].HasTarget("fr"))
-	// Target only present for the first segment.
-	require.Len(t, blocks[0].Targets[model.LocaleID("fr")], 1)
-	assert.Equal(t, "Segment un", blocks[0].Targets[model.LocaleID("fr")][0].Text())
+	// Target only present for the first segment: a single dense target
+	// span over the target runs.
+	frKey := model.Variant(model.LocaleID("fr"))
+	trgOv := blocks[0].SegmentationFor(&frKey)
+	require.NotNil(t, trgOv)
+	require.Len(t, trgOv.Spans, 1)
+	assert.Equal(t, "Segment un", model.RunsText(trgOv.Spans[0].Range.ExtractRuns(blocks[0].TargetRuns("fr"))))
 }
 
 // okapi: TXMLFilterTest#testSimpleEntry
@@ -97,9 +102,10 @@ func TestReadUTInlineCodes(t *testing.T) {
 	require.Len(t, blocks, 1)
 	assert.Equal(t, "Segment oneSegment TWO", blocks[0].SourceText())
 
-	// Inspect the second segment's runs.
-	require.Len(t, blocks[0].Source, 2)
-	runs := blocks[0].Source[1].Runs
+	// Inspect the second segment's runs (extracted via the source
+	// segmentation overlay).
+	require.Equal(t, 2, blocks[0].SourceSegmentCount())
+	runs := blocks[0].SourceSegmentRuns(1)
 	require.Len(t, runs, 4) // text "Segment ", ut, text "TWO", ut
 	require.NotNil(t, runs[0].Text)
 	assert.Equal(t, "Segment ", runs[0].Text.Text)
@@ -224,7 +230,9 @@ func TestReadEmptySources(t *testing.T) {
 	blocks := testutil.CollectBlocks(t, reader.Read(ctx))
 	require.Len(t, blocks, 1)
 	assert.Equal(t, "", blocks[0].SourceText())
-	require.Len(t, blocks[0].Source, 2)
+	// Two empty <source></source> segments → two (zero-width) source
+	// segment spans over an empty Run sequence.
+	require.Equal(t, 2, blocks[0].SourceSegmentCount())
 	// No <target> children present → no French target (Okapi: getTarget(fr)==null).
 	assert.False(t, blocks[0].HasTarget("fr"))
 }
@@ -288,15 +296,18 @@ func TestReadThreeSegmentsWithEmptyThird(t *testing.T) {
 	require.Len(t, blocks, 1)
 
 	// Three source segments; third is empty (empty <source></source>).
-	require.Len(t, blocks[0].Source, 3)
-	assert.Equal(t, "textS1", blocks[0].Source[0].Text())
-	assert.Equal(t, "textS2", blocks[0].Source[1].Text())
-	assert.Equal(t, "", blocks[0].Source[2].Text())
+	require.Equal(t, 3, blocks[0].SourceSegmentCount())
+	assert.Equal(t, "textS1", model.RunsText(blocks[0].SourceSegmentRuns(0)))
+	assert.Equal(t, "textS2", model.RunsText(blocks[0].SourceSegmentRuns(1)))
+	assert.Equal(t, "", model.RunsText(blocks[0].SourceSegmentRuns(2)))
 	assert.Equal(t, "textS1textS2", blocks[0].SourceText())
 
-	// Only the first segment carries a <target>.
-	require.Len(t, blocks[0].Targets[model.LocaleID("fr")], 1)
-	assert.Equal(t, "textT1", blocks[0].Targets[model.LocaleID("fr")][0].Text())
+	// Only the first segment carries a <target>: a single dense target span.
+	frKey := model.Variant(model.LocaleID("fr"))
+	trgOv := blocks[0].SegmentationFor(&frKey)
+	require.NotNil(t, trgOv)
+	require.Len(t, trgOv.Spans, 1)
+	assert.Equal(t, "textT1", model.RunsText(trgOv.Spans[0].Range.ExtractRuns(blocks[0].TargetRuns("fr"))))
 }
 
 // neokapi-only: the streaming Part model has no Okapi counterpart test.

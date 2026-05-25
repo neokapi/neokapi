@@ -165,7 +165,14 @@ func TestPlaceholderProtection(t *testing.T) {
 	assert.Equal(t, "You have {0} items in your cart.",
 		model.RenderRunsWithData(item.SourceRuns()))
 
-	require.True(t, item.FirstSegment().HasInlineCodes(), "expected an inline code for {0}")
+	hasInlineCode := false
+	for _, r := range item.SourceRuns() {
+		if r.Kind() != model.RunKindText {
+			hasInlineCode = true
+			break
+		}
+	}
+	require.True(t, hasInlineCode, "expected an inline code for {0}")
 }
 
 // TestTypedDataPassthrough verifies typed/binary <data>, <metadata>,

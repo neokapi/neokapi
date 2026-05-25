@@ -39,7 +39,7 @@ func BenchmarkRuns_FlattenText(b *testing.B) {
 	b.ResetTimer()
 
 	for b.Loop() {
-		_ = model.RunsPlainText(runs)
+		_ = model.RunsText(runs)
 	}
 }
 
@@ -76,10 +76,12 @@ func BenchmarkBlock_Clone(b *testing.B) {
 	block.Properties["context"] = "test sentence"
 	block.Properties["domain"] = "general"
 
-	// Add a second source segment to exercise multi-segment cloning.
-	block.Source = append(block.Source, &model.Segment{
-		ID:   "s2",
-		Runs: []model.Run{{Text: &model.TextRun{Text: "A second segment with more content for realism."}}},
+	// Add more source content + a segmentation overlay to exercise cloning.
+	block.Source = append(block.Source,
+		model.Run{Text: &model.TextRun{Text: "A second segment with more content for realism."}})
+	block.SetSegmentation(nil, []model.Span{
+		{ID: "s1", Range: model.RunRange{StartRun: 0, EndRun: 1}},
+		{ID: "s2", Range: model.RunRange{StartRun: 1, EndRun: 2}},
 	})
 
 	b.ReportAllocs()
@@ -92,25 +94,18 @@ func BenchmarkBlock_Clone(b *testing.B) {
 			Type:         block.Type,
 			MimeType:     block.MimeType,
 			Translatable: block.Translatable,
-			Source:       make([]*model.Segment, len(block.Source)),
-			Targets:      make(map[model.LocaleID][]*model.Segment, len(block.Targets)),
+			Source:       append([]model.Run(nil), block.Source...),
+			Targets:      make(map[model.VariantKey]*model.Target, len(block.Targets)),
+			Overlays:     append([]model.Overlay(nil), block.Overlays...),
 			Properties:   make(map[string]string, len(block.Properties)),
 		}
-		for i, seg := range block.Source {
-			clone.Source[i] = &model.Segment{
-				ID:   seg.ID,
-				Runs: append([]model.Run(nil), seg.Runs...),
+		for key, t := range block.Targets {
+			clone.Targets[key] = &model.Target{
+				Runs:   append([]model.Run(nil), t.Runs...),
+				Status: t.Status,
+				Origin: t.Origin,
+				Score:  t.Score,
 			}
-		}
-		for locale, segs := range block.Targets {
-			cloneSegs := make([]*model.Segment, len(segs))
-			for i, seg := range segs {
-				cloneSegs[i] = &model.Segment{
-					ID:   seg.ID,
-					Runs: append([]model.Run(nil), seg.Runs...),
-				}
-			}
-			clone.Targets[locale] = cloneSegs
 		}
 		for k, v := range block.Properties {
 			clone.Properties[k] = v

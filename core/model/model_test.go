@@ -67,33 +67,44 @@ func TestBlockSetSourceText(t *testing.T) {
 	block := model.NewBlock("tu1", "Original")
 	block.SetSourceText("Updated")
 	assert.Equal(t, "Updated", block.SourceText())
-	assert.Len(t, block.Source, 1)
-	assert.Equal(t, "s1", block.Source[0].ID)
+	require.Len(t, block.Source, 1)
+	require.NotNil(t, block.Source[0].Text)
+	assert.Equal(t, "Updated", block.Source[0].Text.Text)
 }
 
-func TestBlockFirstSegment(t *testing.T) {
+func TestBlockSourceRuns(t *testing.T) {
 	block := model.NewBlock("tu1", "Hello")
-	seg := block.FirstSegment()
-	require.NotNil(t, seg)
-	assert.Equal(t, "Hello", model.RunsPlainText(seg.Runs))
+	assert.Equal(t, "Hello", model.RunsText(block.SourceRuns()))
 
 	// Empty block
 	emptyBlock := &model.Block{}
-	assert.Nil(t, emptyBlock.FirstSegment())
+	assert.Empty(t, emptyBlock.SourceRuns())
 }
 
-func TestBlockMultipleSegments(t *testing.T) {
+func TestBlockSegmentationOverlay(t *testing.T) {
 	block := &model.Block{
 		ID:           "tu1",
 		Translatable: true,
-		Source: []*model.Segment{
-			{ID: "s1", Runs: []model.Run{{Text: &model.TextRun{Text: "Hello "}}}},
-			{ID: "s2", Runs: []model.Run{{Text: &model.TextRun{Text: "world"}}}},
+		Source: []model.Run{
+			{Text: &model.TextRun{Text: "Hello "}},
+			{Text: &model.TextRun{Text: "world"}},
 		},
-		Targets: make(map[model.LocaleID][]*model.Segment),
+		Targets: make(map[model.VariantKey]*model.Target),
 	}
 
+	// Whole-block flatten, and no overlay means one implicit segment.
 	assert.Equal(t, "Hello world", block.SourceText())
+	assert.Equal(t, 1, block.SourceSegmentCount())
+
+	// A segmentation overlay splits at the run boundary, without touching runs.
+	block.SetSegmentation(nil, []model.Span{
+		{ID: "s1", Range: model.RunRange{StartRun: 0, EndRun: 1}},
+		{ID: "s2", Range: model.RunRange{StartRun: 1, EndRun: 2}},
+	})
+	assert.Equal(t, 2, block.SourceSegmentCount())
+	assert.Equal(t, "Hello ", model.RunsText(block.SourceSegmentRuns(0)))
+	assert.Equal(t, "world", model.RunsText(block.SourceSegmentRuns(1)))
+	assert.Equal(t, "Hello world", block.SourceText()) // runs unchanged
 }
 
 // The inline content model is Run-based (RFC 0001); its behaviour is

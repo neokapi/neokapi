@@ -67,9 +67,9 @@ func TestParseNativeContent_Mrk(t *testing.T) {
 func TestRenderBodyWithSegments_PreservesBetweenMrkText(t *testing.T) {
 	src := `<mrk mid="0" mtype="seg">Segment one.</mrk> <mrk mid="1" mtype="seg">Segment two.</mrk>`
 	nc := parseNativeContent(src)
-	segs := []*model.Segment{
-		model.NewRunsSegment("0", []model.Run{{Text: &model.TextRun{Text: "Segment one."}}}),
-		model.NewRunsSegment("1", []model.Run{{Text: &model.TextRun{Text: "Segment two."}}}),
+	segs := []segView{
+		{ID: "0", Runs: []model.Run{{Text: &model.TextRun{Text: "Segment one."}}}},
+		{ID: "1", Runs: []model.Run{{Text: &model.TextRun{Text: "Segment two."}}}},
 	}
 	got := renderBodyWithSegments(nc, segs)
 	want := `<mrk mid="0" mtype="seg">Segment one.</mrk> <mrk mid="1" mtype="seg">Segment two.</mrk>`
@@ -84,12 +84,12 @@ func TestRenderBodyWithSegments_PseudoSubstitution(t *testing.T) {
 	// attributes from native.
 	src := `<bpt id="1" ctype="bold">&lt;b></bpt>fox<ept id="1">&lt;/b></ept>`
 	nc := parseNativeContent(src)
-	segs := []*model.Segment{
-		model.NewRunsSegment("s1", []model.Run{
+	segs := []segView{
+		{ID: "s1", Runs: []model.Run{
 			{PcOpen: &model.PcOpenRun{ID: "1", Type: "fmt:bold", Data: "<b>"}},
 			{Text: &model.TextRun{Text: "ƒõẋ"}}, // pseudo-translated
 			{PcClose: &model.PcCloseRun{ID: "1", Type: "fmt:bold", Data: "</b>"}},
-		}),
+		}},
 	}
 	got := renderBodyWithSegments(nc, segs)
 	want := `<bpt id="1" ctype="bold">&lt;b></bpt>ƒõẋ<ept id="1">&lt;/b></ept>`

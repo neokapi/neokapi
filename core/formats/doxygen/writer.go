@@ -694,36 +694,30 @@ func (w *Writer) joinedGroupPrefixes(block *model.Block, blocks map[string]*mode
 // surrounding TextRuns.
 func (w *Writer) blockText(block *model.Block) string {
 	if !w.Locale.IsEmpty() && block.HasTarget(w.Locale) {
-		segs, ok := block.Targets[w.Locale]
-		if ok {
-			return runsTextWithCodes(segs)
+		if runs := block.TargetRuns(w.Locale); runs != nil {
+			return runsTextWithCodes(runs)
 		}
 		return block.TargetText(w.Locale)
 	}
 	return runsTextWithCodes(block.Source)
 }
 
-// runsTextWithCodes flattens a segment sequence to the literal text
+// runsTextWithCodes flattens a run sequence to the literal text
 // the doxygen writer should emit: TextRuns contribute their Text
 // verbatim, PlaceholderRuns contribute their Data (the original
 // Doxygen command / HTML tag substring captured at extraction time).
 // Other run kinds fall back to their plain-text projection.
-func runsTextWithCodes(segs []*model.Segment) string {
+func runsTextWithCodes(runs []model.Run) string {
 	var sb strings.Builder
-	for _, seg := range segs {
-		if seg == nil {
-			continue
-		}
-		for _, run := range seg.Runs {
-			switch {
-			case run.Text != nil:
-				sb.WriteString(run.Text.Text)
-			case run.Ph != nil:
-				sb.WriteString(run.Ph.Data)
-			default:
-				// Conservative fallback for unsupported run kinds.
-				sb.WriteString(seg.Text())
-			}
+	for _, run := range runs {
+		switch {
+		case run.Text != nil:
+			sb.WriteString(run.Text.Text)
+		case run.Ph != nil:
+			sb.WriteString(run.Ph.Data)
+		default:
+			// Conservative fallback for unsupported run kinds.
+			sb.WriteString(model.RunsText([]model.Run{run}))
 		}
 	}
 	return sb.String()

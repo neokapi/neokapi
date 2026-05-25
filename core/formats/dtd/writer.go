@@ -183,30 +183,25 @@ func (w *Writer) writeBlock(part *model.Part) error {
 //     reader captured as Ph codes, e.g. `&test1;`, `%name;`) are emitted
 //     byte-for-byte — they are real references, not literal markup.
 func (w *Writer) escapedBlockValue(block *model.Block) string {
-	segs := block.Source
+	runs := block.Source
 	if !w.Locale.IsEmpty() && block.HasTarget(w.Locale) {
-		segs = block.Targets[w.Locale]
+		runs = block.TargetRuns(w.Locale)
 	}
 	var b strings.Builder
-	for _, seg := range segs {
-		if seg == nil {
+	for _, r := range runs {
+		if r.Text != nil {
+			b.WriteString(escapeEntityLiteral(r.Text.Text))
 			continue
 		}
-		for _, r := range seg.Runs {
-			if r.Text != nil {
-				b.WriteString(escapeEntityLiteral(r.Text.Text))
-				continue
-			}
-			// Code-finder-extracted markup (HTML tags etc.) must be
-			// entity-escaped so the resulting entity value stays valid DTD.
-			if r.Ph != nil && r.Ph.SubType == codeFinderTagType {
-				b.WriteString(escapeEntityLiteral(r.Ph.Data))
-				continue
-			}
-			// Structural entity / parameter references carry their original
-			// DTD bytes in Data — emit verbatim.
-			b.WriteString(model.RenderRunsWithData([]model.Run{r}))
+		// Code-finder-extracted markup (HTML tags etc.) must be
+		// entity-escaped so the resulting entity value stays valid DTD.
+		if r.Ph != nil && r.Ph.SubType == codeFinderTagType {
+			b.WriteString(escapeEntityLiteral(r.Ph.Data))
+			continue
 		}
+		// Structural entity / parameter references carry their original
+		// DTD bytes in Data — emit verbatim.
+		b.WriteString(model.RenderRunsWithData([]model.Run{r}))
 	}
 	return b.String()
 }

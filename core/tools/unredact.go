@@ -101,7 +101,7 @@ func (t *UnredactTool) handleBlock(part *model.Part) (*model.Part, error) {
 	if sr, n := restore(block.SourceRuns()); n > 0 {
 		block.SetSourceRuns(sr)
 	}
-	for locale := range block.Targets {
+	for _, locale := range block.TargetLocales() {
 		if tr, n := restore(block.TargetRuns(locale)); n > 0 {
 			block.SetTargetRuns(locale, tr)
 		}

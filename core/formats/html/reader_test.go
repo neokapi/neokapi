@@ -57,7 +57,7 @@ func TestReadInlineSpans(t *testing.T) {
 
 	runs := blocks[0].SourceRuns()
 	require.NotEmpty(t, runs)
-	assert.Equal(t, "Click here for info", model.RunsPlainText(runs))
+	assert.Equal(t, "Click here for info", model.RunsText(runs))
 
 	var inlineRuns []model.Run
 	for _, r := range runs {
@@ -92,7 +92,7 @@ func TestReadLinkSpan(t *testing.T) {
 	require.GreaterOrEqual(t, len(blocks), 1)
 
 	runs := blocks[0].SourceRuns()
-	assert.Equal(t, "Visit our site", model.RunsPlainText(runs))
+	assert.Equal(t, "Visit our site", model.RunsText(runs))
 
 	// Should have opening and closing link:hyperlink runs
 	var openingRun *model.PcOpenRun
@@ -125,7 +125,7 @@ func TestReadPlaceholderSpan(t *testing.T) {
 	require.GreaterOrEqual(t, len(blocks), 1)
 
 	runs := blocks[0].SourceRuns()
-	assert.Equal(t, "Line oneLine two", model.RunsPlainText(runs))
+	assert.Equal(t, "Line oneLine two", model.RunsText(runs))
 
 	// br should be a placeholder run with semantic type
 	found := false
@@ -338,14 +338,14 @@ func TestReadEntityInBareTextBlock(t *testing.T) {
 		}
 	}
 	require.NotNil(t, target, "block containing BUFO should exist")
-	require.Len(t, target.Source, 1)
+	require.NotEmpty(t, target.Source)
 
 	var sawEntity bool
-	for _, r := range target.Source[0].Runs {
+	for _, r := range target.Source {
 		if r.Ph != nil && r.Ph.Type == "code:entity" && r.Ph.Data == "&amp;" {
 			sawEntity = true
 			break
 		}
 	}
-	assert.True(t, sawEntity, "expected `&amp;` entity to be extracted as a code:entity placeholder run; got runs: %+v", target.Source[0].Runs)
+	assert.True(t, sawEntity, "expected `&amp;` entity to be extracted as a code:entity placeholder run; got runs: %+v", target.Source)
 }

@@ -575,23 +575,15 @@ func (w *Writer) writeFallback(blocks map[string]*model.Block) error {
 // renderTargetRuns reconstructs the full text from a block's target
 // runs, splicing inline-code Data back into the output.
 func (w *Writer) renderTargetRuns(block *model.Block, locale model.LocaleID) string {
-	segs := block.Targets[locale]
-	if len(segs) == 0 {
+	runs := block.TargetRuns(locale)
+	if len(runs) == 0 {
 		return w.renderSourceRuns(block)
 	}
-	var buf strings.Builder
-	for _, seg := range segs {
-		buf.WriteString(model.RenderRunsWithData(seg.Runs))
-	}
-	return buf.String()
+	return model.RenderRunsWithData(runs)
 }
 
 func (w *Writer) renderSourceRuns(block *model.Block) string {
-	var buf strings.Builder
-	for _, seg := range block.Source {
-		buf.WriteString(model.RenderRunsWithData(seg.Runs))
-	}
-	return buf.String()
+	return model.RenderRunsWithData(block.Source)
 }
 
 // setAttr sets an attribute value on an HTML node, adding it if not present.

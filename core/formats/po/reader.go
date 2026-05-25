@@ -1104,62 +1104,60 @@ func (r *Reader) applyCodeFinder(block *model.Block) {
 	if len(patterns) == 0 {
 		return
 	}
-	applyCodeFinderToSegments(block.Source, patterns)
-	for _, segs := range block.Targets {
-		applyCodeFinderToSegments(segs, patterns)
+	block.SetSourceRuns(applyCodeFinderToRuns(block.Source, patterns))
+	for _, loc := range block.TargetLocales() {
+		block.SetTargetRuns(loc, applyCodeFinderToRuns(block.TargetRuns(loc), patterns))
 	}
 }
 
 // applyCodeFinderToSegments applies the patterns to each segment's
 // TextRuns, splitting them at every match into text+placeholder runs.
 // Existing non-text runs (placeholders, paired codes) are left in place.
-func applyCodeFinderToSegments(segs []*model.Segment, patterns []*regexp.Regexp) {
-	for _, seg := range segs {
-		if seg == nil || len(seg.Runs) == 0 {
-			continue
-		}
-		text := seg.Text()
-
-		type matchRange struct {
-			start, end int
-		}
-		var matches []matchRange
-		for _, re := range patterns {
-			for _, loc := range re.FindAllStringIndex(text, -1) {
-				matches = append(matches, matchRange{loc[0], loc[1]})
-			}
-		}
-		if len(matches) == 0 {
-			continue
-		}
-
-		// Sort matches by start position
-		for i := 1; i < len(matches); i++ {
-			for j := i; j > 0 && matches[j].start < matches[j-1].start; j-- {
-				matches[j], matches[j-1] = matches[j-1], matches[j]
-			}
-		}
-
-		var runs []model.Run
-		lastEnd := 0
-		spanID := 1
-		for _, m := range matches {
-			if m.start > lastEnd {
-				runs = append(runs, model.Run{Text: &model.TextRun{Text: text[lastEnd:m.start]}})
-			}
-			runs = append(runs, model.Run{Ph: &model.PlaceholderRun{
-				ID:   fmt.Sprintf("c%d", spanID),
-				Type: "code",
-				Data: text[m.start:m.end],
-			}})
-			lastEnd = m.end
-			spanID++
-		}
-		if lastEnd < len(text) {
-			runs = append(runs, model.Run{Text: &model.TextRun{Text: text[lastEnd:]}})
-		}
-		seg.SetRuns(runs)
+func applyCodeFinderToRuns(in []model.Run, patterns []*regexp.Regexp) []model.Run {
+	if len(in) == 0 {
+		return in
 	}
+	text := model.RunsText(in)
+
+	type matchRange struct {
+		start, end int
+	}
+	var matches []matchRange
+	for _, re := range patterns {
+		for _, loc := range re.FindAllStringIndex(text, -1) {
+			matches = append(matches, matchRange{loc[0], loc[1]})
+		}
+	}
+	if len(matches) == 0 {
+		return in
+	}
+
+	// Sort matches by start position.
+	for i := 1; i < len(matches); i++ {
+		for j := i; j > 0 && matches[j].start < matches[j-1].start; j-- {
+			matches[j], matches[j-1] = matches[j-1], matches[j]
+		}
+	}
+
+	var runs []model.Run
+	lastEnd := 0
+	spanID := 1
+	for _, m := range matches {
+		if m.start > lastEnd {
+			runs = append(runs, model.Run{Text: &model.TextRun{Text: text[lastEnd:m.start]}})
+		}
+		runs = append(runs, model.Run{Ph: &model.PlaceholderRun{
+			ID:   fmt.Sprintf("c%d", spanID),
+			Type: "code",
+			Data: text[m.start:m.end],
+		}})
+		lastEnd = m.end
+		spanID++
+	}
+	if lastEnd < len(text) {
+		runs = append(runs, model.Run{Text: &model.TextRun{Text: text[lastEnd:]}})
+	}
+	return runs
 }
 
 // Close releases resources.

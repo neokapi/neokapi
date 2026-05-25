@@ -288,32 +288,24 @@ func blockToJS(vm *goja.Runtime, block *model.Block) *goja.Object {
 	_ = obj.Set("id", block.ID)
 	_ = obj.Set("translatable", block.Translatable)
 
-	// Source segments as a native JS array of {content: {text: "..."}}. Using
-	// vm.NewArray (rather than Set-ing a Go []any) makes in-place edits such as
-	// part.block.source[0].content.text = "..." round-trip through Export — a
-	// Go-slice-backed value would not reflect nested mutations on readback.
-	source := make([]any, 0, len(block.Source))
-	for _, seg := range block.Source {
-		segObj := vm.NewObject()
-		contentObj := vm.NewObject()
-		_ = contentObj.Set("text", seg.Text())
-		_ = segObj.Set("content", contentObj)
-		source = append(source, segObj)
-	}
-	_ = obj.Set("source", vm.NewArray(source...))
+	// Source content as a native JS one-element array of {content: {text}}.
+	// vm.NewArray (rather than a Go []any) makes in-place edits such as
+	// part.block.source[0].content.text = "..." round-trip through Export; a
+	// block's content is now a single run sequence rather than N segments.
+	srcSeg := vm.NewObject()
+	srcContent := vm.NewObject()
+	_ = srcContent.Set("text", block.SourceText())
+	_ = srcSeg.Set("content", srcContent)
+	_ = obj.Set("source", vm.NewArray(srcSeg))
 
-	// Targets as a map of locale -> native JS array of {content: {text: "..."}}.
+	// Targets as a map of locale -> native JS one-element array.
 	targets := vm.NewObject()
-	for locale, segs := range block.Targets {
-		localeSegs := make([]any, 0, len(segs))
-		for _, seg := range segs {
-			segObj := vm.NewObject()
-			contentObj := vm.NewObject()
-			_ = contentObj.Set("text", seg.Text())
-			_ = segObj.Set("content", contentObj)
-			localeSegs = append(localeSegs, segObj)
-		}
-		_ = targets.Set(string(locale), vm.NewArray(localeSegs...))
+	for _, locale := range block.TargetLocales() {
+		tSeg := vm.NewObject()
+		tContent := vm.NewObject()
+		_ = tContent.Set("text", block.TargetText(locale))
+		_ = tSeg.Set("content", tContent)
+		_ = targets.Set(string(locale), vm.NewArray(tSeg))
 	}
 	_ = obj.Set("targets", targets)
 

@@ -141,15 +141,7 @@ func BlockTexts(parts []*model.Part) []string {
 		if !ok || !blk.Translatable {
 			continue
 		}
-		var sb strings.Builder
-		for _, seg := range blk.Source {
-			for _, run := range seg.Runs {
-				if run.Text != nil {
-					sb.WriteString(run.Text.Text)
-				}
-			}
-		}
-		text := sb.String()
+		text := model.RunsText(blk.Source)
 		if text == "" {
 			continue
 		}

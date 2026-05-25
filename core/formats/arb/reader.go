@@ -131,8 +131,8 @@ func (r *Reader) blockFor(res *resource, locale model.LocaleID, counter int) *mo
 		Name:         res.id,
 		Translatable: true,
 		SourceLocale: locale,
-		Source:       []*model.Segment{{ID: "s1", Runs: runs}},
-		Targets:      make(map[model.LocaleID][]*model.Segment),
+		Source:       runs,
+		Targets:      make(map[model.VariantKey]*model.Target),
 		Properties:   make(map[string]string),
 		Annotations:  make(map[string]model.Annotation),
 	}

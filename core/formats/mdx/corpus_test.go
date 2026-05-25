@@ -59,7 +59,7 @@ func TestCorpusOpaqueConstructsNotTranslatable(t *testing.T) {
 					continue
 				}
 				b := p.Resource.(*model.Block)
-				txt := b.Source[0].Text()
+				txt := b.SourceText()
 				assert.NotContains(t, txt, "import ",
 					"ESM import leaked into a translatable block in %s: %q", path, txt)
 				assert.NotContains(t, txt, "```",

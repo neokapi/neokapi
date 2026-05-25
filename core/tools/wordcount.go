@@ -96,7 +96,7 @@ func NewWordCountTool(cfg *WordCountConfig) *tool.BaseTool {
 
 		// Count target words for every target locale present.
 		if countTarget {
-			for locale := range block.Targets {
+			for _, locale := range block.TargetLocales() {
 				targetText := block.TargetText(locale)
 				targetCount := countWords(targetText)
 				block.Properties[PropWordCountTargetPrefix+string(locale)] = strconv.Itoa(targetCount)

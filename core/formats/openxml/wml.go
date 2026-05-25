@@ -5630,8 +5630,8 @@ func (p *wmlParser) buildBlock(id string, runs []textRun, partPath, commonRPrXML
 		ID:           id,
 		Type:         "paragraph",
 		Translatable: true,
-		Source:       []*model.Segment{model.NewRunsSegment("s1", blockRuns)},
-		Targets:      make(map[model.LocaleID][]*model.Segment),
+		Source:       blockRuns,
+		Targets:      make(map[model.VariantKey]*model.Target),
 		Properties:   map[string]string{"partPath": partPath},
 		Annotations:  make(map[string]model.Annotation),
 	}
@@ -6894,11 +6894,8 @@ func (p *wmlParser) writeStartElementWithTranslatableAttrTo(
 				ID:           refID,
 				Type:         "property",
 				Translatable: true,
-				Source: []*model.Segment{model.NewRunsSegment(
-					"s1",
-					[]model.Run{{Text: &model.TextRun{Text: a.Value}}},
-				)},
-				Targets: make(map[model.LocaleID][]*model.Segment),
+				Source:       []model.Run{{Text: &model.TextRun{Text: a.Value}}},
+				Targets:      make(map[model.VariantKey]*model.Target),
 				Properties: map[string]string{
 					"partPath": partPath,
 					"element":  blockElementTag,
@@ -6966,11 +6963,8 @@ func (p *wmlParser) extractBareTextElement(
 						ID:           refID,
 						Type:         "property",
 						Translatable: true,
-						Source: []*model.Segment{model.NewRunsSegment(
-							"s1",
-							[]model.Run{{Text: &model.TextRun{Text: text.String()}}},
-						)},
-						Targets: make(map[model.LocaleID][]*model.Segment),
+						Source:       []model.Run{{Text: &model.TextRun{Text: text.String()}}},
+						Targets:      make(map[model.VariantKey]*model.Target),
 						Properties: map[string]string{
 							"partPath": partPath,
 							"element":  "alt-content-text",

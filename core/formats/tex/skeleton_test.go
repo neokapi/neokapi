@@ -118,9 +118,9 @@ Hello world`
 			b := p.Resource.(*model.Block)
 			switch b.SourceText() {
 			case "Introduction":
-				b.Targets[locale] = []*model.Segment{{ID: "s1", Runs: []model.Run{{Text: &model.TextRun{Text: "Pr\u00e9sentation"}}}}}
+				b.SetTargetText(locale, "Pr\u00e9sentation")
 			case "Hello world":
-				b.Targets[locale] = []*model.Segment{{ID: "s1", Runs: []model.Run{{Text: &model.TextRun{Text: "Bonjour le monde"}}}}}
+				b.SetTargetText(locale, "Bonjour le monde")
 			}
 		}
 	}

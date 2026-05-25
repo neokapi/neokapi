@@ -243,6 +243,13 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 // parseTranslatable parses a <translatable> element. Returns the
 // resulting Block, or nil if the translatable contained no live
 // (non-commented-out) segments.
+//
+// In the Run model a Block holds one flat Run sequence per side; the
+// per-<segment> structure rides as a stand-off segmentation overlay
+// over those runs (AD-017). The reader concatenates each segment's
+// source (and target) runs into the single side and records a Span per
+// former segment, carrying the segment id and the run-index boundaries
+// so the writer can reconstruct one <segment> per span.
 func (r *Reader) parseTranslatable(
 	decoder *xml.Decoder,
 	sourceLocale, targetLocale model.LocaleID,
@@ -255,7 +262,7 @@ func (r *Reader) parseTranslatable(
 		Translatable: true,
 		SourceLocale: sourceLocale,
 		Source:       nil,
-		Targets:      make(map[model.LocaleID][]*model.Segment),
+		Targets:      make(map[model.VariantKey]*model.Target),
 		Properties:   make(map[string]string),
 		Annotations:  make(map[string]model.Annotation),
 	}
@@ -265,6 +272,16 @@ func (r *Reader) parseTranslatable(
 
 	segOrdinal := 0
 	hasTarget := false
+	sawAnySegment := false
+
+	var (
+		srcRuns  []model.Run
+		trgRuns  []model.Run
+		srcSpans []model.Span
+		trgSpans []model.Span
+		srcPos   int
+		trgPos   int
+	)
 
 	for {
 		tok, err := decoder.Token()
@@ -290,31 +307,46 @@ func (r *Reader) parseTranslatable(
 			if segID == "" {
 				segID = fmt.Sprintf("s%d", segOrdinal+1)
 			}
-			srcSeg, trgSeg, err := r.parseSegment(decoder, blockIdx, segOrdinal, positions)
+			segSrcRuns, segTrgRuns, sawTarget, err := r.parseSegment(decoder, blockIdx, segOrdinal, positions)
 			if err != nil {
 				return nil, err
 			}
-			srcSeg.ID = segID
-			block.Source = append(block.Source, srcSeg)
-			if trgSeg != nil && !targetLocale.IsEmpty() {
-				trgSeg.ID = segID
-				block.Targets[targetLocale] = append(block.Targets[targetLocale], trgSeg)
+			sawAnySegment = true
+
+			srcRuns = append(srcRuns, segSrcRuns...)
+			srcEnd := srcPos + len(segSrcRuns)
+			srcSpans = append(srcSpans, model.Span{
+				ID:    segID,
+				Range: model.RunRange{StartRun: srcPos, EndRun: srcEnd},
+			})
+			srcPos = srcEnd
+
+			if sawTarget && !targetLocale.IsEmpty() {
+				trgRuns = append(trgRuns, segTrgRuns...)
+				trgEnd := trgPos + len(segTrgRuns)
+				trgSpans = append(trgSpans, model.Span{
+					ID:    segID,
+					Range: model.RunRange{StartRun: trgPos, EndRun: trgEnd},
+				})
+				trgPos = trgEnd
 				hasTarget = true
 			}
 			segOrdinal++
 
 		case xml.EndElement:
 			if t.Name.Local == "translatable" {
-				if len(block.Source) == 0 {
+				if !sawAnySegment {
 					// All segments were commented out (or there were
 					// none) — emit no block, matching Okapi's
 					// testEntryWithAllSegmentsCommentedOut behavior.
 					return nil, nil
 				}
-				if !hasTarget {
-					// Drop the empty target map entry if no real
-					// target was seen.
-					delete(block.Targets, targetLocale)
+				block.Source = srcRuns
+				block.SetSegmentation(nil, srcSpans)
+				if hasTarget {
+					block.SetTargetRuns(targetLocale, trgRuns)
+					key := model.Variant(targetLocale)
+					block.SetSegmentation(&key, trgSpans)
 				}
 				return block, nil
 			}
@@ -323,25 +355,23 @@ func (r *Reader) parseTranslatable(
 	}
 }
 
-// parseSegment parses one <segment> element. Returns the Source
-// Segment (always non-nil) and the Target Segment (nil when no
-// <target> child was present).
+// parseSegment parses one <segment> element. Returns the source runs
+// (always non-nil — possibly empty), the target runs (nil when no
+// <target> child was present), and whether a <target> child was seen.
 func (r *Reader) parseSegment(
 	decoder *xml.Decoder,
 	blockIdx, segIdx int,
 	positions *[]elemPosition,
-) (*model.Segment, *model.Segment, error) {
-	srcSeg := &model.Segment{}
-	var trgSeg *model.Segment
-	sawTarget := false
+) (srcRuns, trgRuns []model.Run, sawTarget bool, err error) {
+	srcRuns = []model.Run{}
 
 	for {
-		tok, err := decoder.Token()
-		if errors.Is(err, io.EOF) {
-			return nil, nil, errors.New("unexpected EOF inside <segment>")
+		tok, terr := decoder.Token()
+		if errors.Is(terr, io.EOF) {
+			return nil, nil, false, errors.New("unexpected EOF inside <segment>")
 		}
-		if err != nil {
-			return nil, nil, err
+		if terr != nil {
+			return nil, nil, false, terr
 		}
 
 		switch t := tok.(type) {
@@ -349,11 +379,11 @@ func (r *Reader) parseSegment(
 			switch t.Name.Local {
 			case "source":
 				startOff := decoder.InputOffset()
-				runs, err := r.parseInlineContent(decoder, "source")
-				if err != nil {
-					return nil, nil, err
+				runs, perr := r.parseInlineContent(decoder, "source")
+				if perr != nil {
+					return nil, nil, false, perr
 				}
-				srcSeg.Runs = runs
+				srcRuns = runs
 				if r.skeletonStore != nil {
 					endOff := decoder.InputOffset()
 					endPos := int(endOff) - len("</source>")
@@ -370,11 +400,11 @@ func (r *Reader) parseSegment(
 				}
 			case "target":
 				startOff := decoder.InputOffset()
-				runs, err := r.parseInlineContent(decoder, "target")
-				if err != nil {
-					return nil, nil, err
+				runs, perr := r.parseInlineContent(decoder, "target")
+				if perr != nil {
+					return nil, nil, false, perr
 				}
-				trgSeg = &model.Segment{Runs: runs}
+				trgRuns = runs
 				sawTarget = true
 				if r.skeletonStore != nil {
 					endOff := decoder.InputOffset()
@@ -392,13 +422,13 @@ func (r *Reader) parseSegment(
 				}
 			case "ws", "revisions":
 				// Skeleton / metadata — never extracted source text.
-				if err := skipElement(decoder); err != nil {
-					return nil, nil, err
+				if serr := skipElement(decoder); serr != nil {
+					return nil, nil, false, serr
 				}
 			default:
 				// Unknown element inside a segment — skip it.
-				if err := skipElement(decoder); err != nil {
-					return nil, nil, err
+				if serr := skipElement(decoder); serr != nil {
+					return nil, nil, false, serr
 				}
 			}
 
@@ -427,7 +457,7 @@ func (r *Reader) parseSegment(
 						insert:      true,
 					})
 				}
-				return srcSeg, trgSeg, nil
+				return srcRuns, trgRuns, sawTarget, nil
 			}
 		}
 	}

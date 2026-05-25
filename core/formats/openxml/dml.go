@@ -295,8 +295,8 @@ func (p *dmlParser) buildBlock(id string, runs []textRun, partPath string) *mode
 		ID:           id,
 		Type:         "paragraph",
 		Translatable: true,
-		Source:       []*model.Segment{model.NewRunsSegment("s1", b.Runs())},
-		Targets:      make(map[model.LocaleID][]*model.Segment),
+		Source:       b.Runs(),
+		Targets:      make(map[model.VariantKey]*model.Target),
 		Properties:   map[string]string{"partPath": partPath},
 		Annotations:  make(map[string]model.Annotation),
 	}

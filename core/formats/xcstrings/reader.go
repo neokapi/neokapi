@@ -202,8 +202,8 @@ func (r *Reader) emitLeaf(ctx context.Context, ch chan<- model.PartResult,
 		Name:         vr.blockName(),
 		Translatable: true,
 		SourceLocale: srcLocale,
-		Source:       []*model.Segment{{ID: "s1", Runs: runsFromValue(srcValue)}},
-		Targets:      make(map[model.LocaleID][]*model.Segment),
+		Source:       runsFromValue(srcValue),
+		Targets:      make(map[model.VariantKey]*model.Target),
 		Properties:   make(map[string]string),
 		Annotations:  make(map[string]model.Annotation),
 	}
@@ -229,10 +229,10 @@ func (r *Reader) emitLeaf(ctx context.Context, ch chan<- model.PartResult,
 	lang := model.LocaleID(vr.Lang)
 	if lang == srcLocale && vr.Lang == srcLang {
 		// Source-language leaf — the value IS the source content.
-		block.Source = []*model.Segment{{ID: "s1", Runs: runsFromValue(su.Value)}}
+		block.Source = runsFromValue(su.Value)
 	} else {
 		// Target leaf — value lives under the target locale.
-		block.Targets[lang] = []*model.Segment{{ID: "t1", Runs: runsFromValue(su.Value)}}
+		block.SetTargetRuns(lang, runsFromValue(su.Value))
 	}
 
 	r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})

@@ -75,12 +75,16 @@ func NewSegCountTool(cfg *SegCountConfig) *tool.BaseTool {
 			block.Properties = make(map[string]string)
 		}
 
-		block.Properties[PropSegCountSource] = strconv.Itoa(len(block.Source))
+		block.Properties[PropSegCountSource] = strconv.Itoa(block.SourceSegmentCount())
 
 		conf := t.Cfg.(*SegCountConfig)
 		if !conf.Locale.IsEmpty() && block.HasTarget(conf.Locale) {
-			segs := block.Targets[conf.Locale]
-			block.Properties[PropSegCountTarget] = strconv.Itoa(len(segs))
+			key := model.Variant(conf.Locale)
+			count := 1
+			if seg := block.SegmentationFor(&key); seg != nil {
+				count = len(seg.Spans)
+			}
+			block.Properties[PropSegCountTarget] = strconv.Itoa(count)
 		}
 
 		return part, nil
