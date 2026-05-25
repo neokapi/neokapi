@@ -130,8 +130,17 @@ brews:
     license: "Apache-2.0"
     download_strategy: GitHubPrivateRepositoryReleaseDownloadStrategy
     custom_require: "lib/private_download_strategy"
+    # Install kapi plus its multi-call toolbox aliases. kgrep / ksed / kcat are
+    # symlinks to the kapi binary, which dispatches on its invocation name
+    # (busybox-style) — no extra binaries, no extra download size.
+    install: |
+      bin.install "kapi"
+      bin.install_symlink bin/"kapi" => "kgrep"
+      bin.install_symlink bin/"kapi" => "ksed"
+      bin.install_symlink bin/"kapi" => "kcat"
     test: |
       system "#{bin}/kapi", "version"
+      assert_match "grep", shell_output("#{bin}/kgrep --help 2>&1")
 
   # bowrain-cli — installs kapi (via depends_on) plus the kapi-bowrain
   # plugin into Homebrew's standard kapi plugin dir

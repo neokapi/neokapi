@@ -440,9 +440,15 @@ contract-audit-clean: ## Remove the contract-audit working directory
 
 # ── Build ────────────────────────────────────────────────────────────────────
 
+# Busybox multi-call links: kgrep / ksed / kcat dispatch to the kapi binary by
+# argv[0] (see cli BusyboxRoot). The Homebrew formula creates these symlinks on
+# install; mirror that locally so `make build` yields the short commands too.
+LINK_KAPI_BUSYBOX = for n in kgrep ksed kcat; do ln -sf kapi $(BIN_DIR)/$$n; done
+
 build: ## Build the kapi CLI (Apache-2.0; manifest-driven plugins discovered at runtime)
 	@mkdir -p $(BIN_DIR)
 	cd kapi && $(GOBUILD) $(LDFLAGS) -o $(BIN_DIR)/kapi ./cmd/kapi
+	@$(LINK_KAPI_BUSYBOX)
 
 build-bowrain-plugin: ## Build the kapi-bowrain plugin binary (manifest-driven)
 	@mkdir -p $(BIN_DIR)
@@ -462,6 +468,7 @@ dev-skills: build ## Install kapi/bowrain skills into ./.claude/skills for in-re
 build-all: ## Build all Go binaries
 	@mkdir -p $(BIN_DIR)
 	cd kapi && $(GOBUILD) $(LDFLAGS) -o $(BIN_DIR)/kapi ./cmd/kapi
+	@$(LINK_KAPI_BUSYBOX)
 	cd bowrain/cli && $(GOBUILD) $(LDFLAGS) -o $(BIN_DIR)/kapi-bowrain ./cmd/kapi-bowrain
 	$(MAKE) -C bowrain build-server build-worker build-kapi-bowrain-plugin
 

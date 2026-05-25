@@ -184,10 +184,23 @@ const config: Config = {
           position: "left",
         },
         {
-          type: "docSidebar",
-          sidebarId: "reactSidebar",
-          label: "React",
+          // Toolbox groups the format-aware CLI utilities (kgrep/ksed/kcat)
+          // with the Kapi React toolkit — front-end tools built on the engine.
+          type: "dropdown",
+          label: "Toolbox",
           position: "left",
+          items: [
+            {
+              type: "docSidebar",
+              sidebarId: "toolboxSidebar",
+              label: "CLI Utilities (kgrep · ksed · kcat)",
+            },
+            {
+              type: "docSidebar",
+              sidebarId: "reactSidebar",
+              label: "Kapi React",
+            },
+          ],
         },
         {
           type: "docSidebar",
@@ -225,7 +238,11 @@ const config: Config = {
               to: "/cli/overview",
             },
             {
-              label: "React",
+              label: "Toolbox",
+              to: "/toolbox/overview",
+            },
+            {
+              label: "Kapi React",
               to: "/react/introduction",
             },
             {

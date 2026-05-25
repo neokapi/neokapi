@@ -19,6 +19,13 @@ const sidebars: SidebarsConfig = {
 
   cliSidebar: ["cli/overview", "cli/bilingual-workflow", "cli/mcp"],
 
+  toolboxSidebar: [
+    "toolbox/overview",
+    "toolbox/kgrep",
+    "toolbox/ksed",
+    "toolbox/kcat",
+  ],
+
   reactSidebar: [
     "react/introduction",
     "react/quickstart",

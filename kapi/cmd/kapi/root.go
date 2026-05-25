@@ -51,6 +51,14 @@ func init() {
 	rootCmd.AddCommand(runCmd)
 	rootCmd.AddCommand(app.NewExtractCmd(cli.ExtractCmdOptions{}))
 	rootCmd.AddCommand(app.NewMergeCmd(cli.MergeCmdOptions{}))
+
+	// Toolbox: format-aware cat / grep / sed. Registered as hidden, flag-detached
+	// proxies that delegate to the same standalone commands the multi-call
+	// binaries kcat / kgrep / ksed run (see main.go busybox dispatch). Hidden so
+	// `kapi --help` steers users to the dedicated k-commands.
+	for _, c := range app.NewToolboxProxies() {
+		rootCmd.AddCommand(c)
+	}
 	rootCmd.AddCommand(app.NewVerifyCmd())
 	rootCmd.AddCommand(app.NewHookCmd())
 	rootCmd.AddCommand(app.NewInitCmd())

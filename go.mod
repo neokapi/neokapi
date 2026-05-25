@@ -6,6 +6,7 @@ require (
 	github.com/beevik/etree v1.6.0
 	github.com/bmatcuk/doublestar/v4 v4.10.0
 	github.com/dop251/goja v0.0.0-20260311135729-065cd970411c
+	github.com/gabriel-vasile/mimetype v1.4.10
 	github.com/leonelquinteros/gotext v1.7.2
 	github.com/mattn/go-sqlite3 v1.14.42
 	github.com/stretchr/testify v1.11.1
