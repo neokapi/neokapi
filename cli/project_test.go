@@ -75,6 +75,7 @@ func TestResolveProjectPath_ExplicitFlagWins(t *testing.T) {
 }
 
 func TestResolveProjectPath_EnvVarFallback(t *testing.T) {
+	unsetEnv(t, NoProjectEnvVar)
 	dir := t.TempDir()
 	recipe := writeProject(t, dir, "env")
 	withEnv(t, ProjectEnvVar, recipe)
@@ -87,6 +88,7 @@ func TestResolveProjectPath_EnvVarFallback(t *testing.T) {
 
 func TestResolveProjectPath_AutoDiscoveryFromCwd(t *testing.T) {
 	unsetEnv(t, ProjectEnvVar)
+	unsetEnv(t, NoProjectEnvVar)
 	root := t.TempDir()
 	// Register real path (realpath resolves macOS symlinks like /var -> /private/var).
 	realRoot, err := filepath.EvalSymlinks(root)
@@ -105,6 +107,7 @@ func TestResolveProjectPath_AutoDiscoveryFromCwd(t *testing.T) {
 
 func TestResolveProjectPath_NoProjectReturnsEmpty(t *testing.T) {
 	unsetEnv(t, ProjectEnvVar)
+	unsetEnv(t, NoProjectEnvVar)
 	empty := t.TempDir()
 	realEmpty, err := filepath.EvalSymlinks(empty)
 	require.NoError(t, err)
@@ -117,6 +120,7 @@ func TestResolveProjectPath_NoProjectReturnsEmpty(t *testing.T) {
 
 func TestResolveProjectPath_AmbiguousLayoutWrapsError(t *testing.T) {
 	unsetEnv(t, ProjectEnvVar)
+	unsetEnv(t, NoProjectEnvVar)
 	dir := t.TempDir()
 	real, err := filepath.EvalSymlinks(dir)
 	require.NoError(t, err)
@@ -136,6 +140,7 @@ func TestResolveProjectPath_AmbiguousLayoutWrapsError(t *testing.T) {
 
 func TestRequireProjectPath_ErrorWhenMissing(t *testing.T) {
 	unsetEnv(t, ProjectEnvVar)
+	unsetEnv(t, NoProjectEnvVar)
 	empty := t.TempDir()
 	realEmpty, err := filepath.EvalSymlinks(empty)
 	require.NoError(t, err)
@@ -144,4 +149,51 @@ func TestRequireProjectPath_ErrorWhenMissing(t *testing.T) {
 	_, err = RequireProjectPath(newTestCmd())
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "no .kapi project found")
+}
+
+// TestResolveProjectPath_NoProjectEnvVarSkipsDiscovery verifies that
+// KAPI_NO_PROJECT suppresses the git-style upward walk even when a recipe is
+// present in the cwd — the guard tests, scripts, and scene recorders rely on
+// so an in-repo invocation never binds to a checked-in (e.g. dogfood) recipe.
+func TestResolveProjectPath_NoProjectEnvVarSkipsDiscovery(t *testing.T) {
+	unsetEnv(t, ProjectEnvVar)
+	withEnv(t, NoProjectEnvVar, "1")
+	dir := t.TempDir()
+	real, err := filepath.EvalSymlinks(dir)
+	require.NoError(t, err)
+	writeProject(t, real, "dogfood")
+	withCwd(t, real)
+
+	got, err := ResolveProjectPath(newTestCmd())
+	require.NoError(t, err)
+	assert.Empty(t, got, "KAPI_NO_PROJECT must skip discovery of a recipe in cwd")
+}
+
+// TestResolveProjectPath_NoProjectEnvVarSkipsEnvFallback verifies KAPI_NO_PROJECT
+// also wins over the KAPI_PROJECT env fallback (an explicit -p flag still wins —
+// see TestResolveProjectPath_ExplicitFlagBeatsNoProject).
+func TestResolveProjectPath_NoProjectEnvVarSkipsEnvFallback(t *testing.T) {
+	withEnv(t, ProjectEnvVar, "/some/where/proj.kapi")
+	withEnv(t, NoProjectEnvVar, "1")
+
+	got, err := ResolveProjectPath(newTestCmd())
+	require.NoError(t, err)
+	assert.Empty(t, got)
+}
+
+// TestResolveProjectPath_ExplicitFlagBeatsNoProject verifies an explicit -p
+// flag overrides KAPI_NO_PROJECT — opting out of discovery never blocks a
+// caller that names the recipe directly.
+func TestResolveProjectPath_ExplicitFlagBeatsNoProject(t *testing.T) {
+	withEnv(t, NoProjectEnvVar, "1")
+	dir := t.TempDir()
+	recipe := writeProject(t, dir, "explicit")
+	withCwd(t, t.TempDir())
+
+	cmd := newTestCmd()
+	require.NoError(t, cmd.Flags().Set(ProjectFlagName, recipe))
+
+	got, err := ResolveProjectPath(cmd)
+	require.NoError(t, err)
+	assert.Equal(t, recipe, got)
 }
