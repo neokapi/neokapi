@@ -34,6 +34,11 @@ vocabulary:
 // test can rewrite it for the passing case.
 func writeVerifyProject(t *testing.T) (root, targetFile string) {
 	t.Helper()
+	// Hermetic: neutralise an inherited KAPI_NO_PROJECT (the in-repo dogfood
+	// contract encourages devs to set it) so discovery finds the temp project
+	// written below. An empty value does NOT disable discovery — only a
+	// non-empty KAPI_NO_PROJECT does.
+	t.Setenv("KAPI_NO_PROJECT", "")
 	root = t.TempDir()
 	require.NoError(t, os.MkdirAll(filepath.Join(root, ".kapi"), 0o755))
 	require.NoError(t, os.MkdirAll(filepath.Join(root, "locales", "en"), 0o755))
@@ -230,6 +235,9 @@ func TestVerify_PassingAfterFix(t *testing.T) {
 // TestVerify_NoProject asserts that running verify outside any project returns
 // an operational error (exit 1), not a quality-gate failure.
 func TestVerify_NoProject(t *testing.T) {
+	// Hermetic: the "no project" result must come from the empty temp dir, not
+	// an inherited KAPI_NO_PROJECT.
+	t.Setenv("KAPI_NO_PROJECT", "")
 	t.Chdir(t.TempDir())
 
 	a := &App{}
