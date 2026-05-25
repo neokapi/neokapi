@@ -566,6 +566,10 @@ type ToolInfo struct {
 	DefaultLocale string   `json:"default_locale,omitempty"` // e.g., "qps" for pseudo-translate
 	Produces      []string `json:"produces,omitempty"`       // annotation types
 	SideEffects   []string `json:"side_effects,omitempty"`   // external interactions
+
+	// IsSourceTransform reports whether the tool can rewrite source — i.e.
+	// whether the flow editor may place it in the source-transform stage.
+	IsSourceTransform bool `json:"is_source_transform,omitempty"`
 }
 
 // SetLocale configures the active locale for metadata Wails methods.
@@ -649,10 +653,11 @@ func (a *App) toolInfosFrom(all []registry.ToolInfo) []ToolInfo {
 			Outputs:       info.Outputs,
 			Tags:          info.Tags,
 			Requires:      info.Requires,
-			Cardinality:   string(info.Cardinality),
-			DefaultLocale: string(info.DefaultLocale),
-			Produces:      produces,
-			SideEffects:   sideEffects,
+			Cardinality:       string(info.Cardinality),
+			DefaultLocale:     string(info.DefaultLocale),
+			Produces:          produces,
+			SideEffects:       sideEffects,
+			IsSourceTransform: info.IsSourceTransform,
 		}
 	}
 	slices.SortFunc(infos, func(a, b ToolInfo) int { return cmp.Compare(a.Name, b.Name) })
