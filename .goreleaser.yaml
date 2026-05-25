@@ -24,10 +24,13 @@ builds:
     binary: kapi
     env:
       - CGO_ENABLED=0
+    # Windows CLI binaries are built + Authenticode-signed out of band (the
+    # build-windows-cli job uploads them as artifacts; scripts/publish-windows-signed.sh
+    # signs them with Certum and adds them to the published release). GoReleaser
+    # publishes the CI-signed macOS + Linux builds only.
     goos:
       - linux
       - darwin
-      - windows
     goarch:
       - amd64
       - arm64
@@ -36,6 +39,14 @@ builds:
       - -X github.com/neokapi/neokapi/core/version.Version={{.Version}}
       - -X github.com/neokapi/neokapi/core/version.Commit={{.Commit}}
       - -X github.com/neokapi/neokapi/core/version.BuildDate={{.Date}}
+    # Sign + notarize the macOS binaries with quill (cross-platform Apple
+    # signing) before they are archived. No-op for linux/windows; ad-hoc +
+    # offline for snapshot builds. See scripts/quill-sign-darwin.sh.
+    hooks:
+      post:
+        - cmd: bash scripts/quill-sign-darwin.sh "{{ .Path }}" "{{ .Os }}" "{{ .IsSnapshot }}"
+          env:
+            - QUILL_LOG_FILE=/tmp/quill-{{ .Target }}.log
 
   - id: kapi-bowrain
     dir: bowrain/cli
