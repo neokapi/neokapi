@@ -19,6 +19,9 @@ const BRIDGE_WIDTH = 240;
 const NODE_GAP = 120;
 const PADDING_X = 60;
 const PADDING_Y = 60;
+// Vertical gap between particles that share a node/edge, so co-located parts
+// fan out into distinct dots instead of stacking into one.
+const PARTICLE_SPREAD = 13;
 
 const PART_COLORS: Record<string, string> = {
   Block: "#3b82f6",
@@ -97,6 +100,28 @@ export default function FlowGraph({
 
   const nodeIndexMap = new Map<string, number>();
   nodes.forEach((n, i) => nodeIndexMap.set(n.id, i));
+
+  // Fan co-located particles apart: group by slot (a node — optionally a worker
+  // lane — or an edge), then give each a vertical offset by its index within the
+  // slot so all of them are visible rather than overlapping at one point. The
+  // gap shrinks as a slot gets crowded so a large batch still fits.
+  const slotKeyOf = (p: Particle): string =>
+    p.position === "node" ? `n:${p.nodeId}:${p.worker ?? "_"}` : `e:${p.edgeIndex}`;
+  const slotCounts = new Map<string, number>();
+  for (const p of particles) {
+    const k = slotKeyOf(p);
+    slotCounts.set(k, (slotCounts.get(k) ?? 0) + 1);
+  }
+  const slotSeen = new Map<string, number>();
+  const fanOffsets = particles.map((p) => {
+    const k = slotKeyOf(p);
+    const count = slotCounts.get(k) ?? 1;
+    const idx = slotSeen.get(k) ?? 0;
+    slotSeen.set(k, idx + 1);
+    if (count <= 1) return 0;
+    const gap = Math.min(PARTICLE_SPREAD, maxNodeHeight / count);
+    return (idx - (count - 1) / 2) * gap;
+  });
 
   return (
     <svg
@@ -249,7 +274,7 @@ export default function FlowGraph({
       })}
 
       {/* Particles */}
-      {particles.map((particle) => {
+      {particles.map((particle, pIndex) => {
         let cx: number;
         let cy: number;
 
@@ -282,6 +307,9 @@ export default function FlowGraph({
         } else {
           return null;
         }
+
+        // Spread out parts sharing this slot so they don't stack into one dot.
+        cy += fanOffsets[pIndex];
 
         const color = PART_COLORS[particle.partType] || "#94a3b8";
         const isSelected = particle.partId === selectedPartId;
