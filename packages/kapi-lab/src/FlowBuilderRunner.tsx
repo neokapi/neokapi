@@ -3,6 +3,7 @@ import { Play } from "lucide-react";
 import { FlowEditor, graphToSteps, stepsToGraph } from "@neokapi/flow-editor";
 import type { FlowSpec, ToolInfo } from "@neokapi/flow-editor";
 import { tools as toolReference } from "@neokapi/reference-data";
+import type { ReferenceEntry } from "@neokapi/reference-data";
 import { useLabRuntime } from "./useLabRuntime";
 import type { LabRuntimeAssets } from "./useLabRuntime";
 import FileSource from "./FileSource";
@@ -118,6 +119,23 @@ export default function FlowBuilderRunner({
 
   const toolInfos = useMemo(() => buildToolInfos(), []);
 
+  // Resolve a clicked tool's schema and docs for the editor's configuration
+  // panel. Without these callbacks the panel sits on "Loading configuration…"
+  // for any tool that declares a schema.
+  const toolByName = useMemo(() => {
+    const m = new Map<string, ReferenceEntry>();
+    for (const e of toolReference.entries) if (!m.has(e.id)) m.set(e.id, e);
+    return m;
+  }, []);
+  const handleGetSchema = useCallback(
+    (toolName: string) => toolByName.get(toolName)?.schema ?? null,
+    [toolByName],
+  );
+  const handleGetDoc = useCallback(
+    (toolName: string) => toolByName.get(toolName)?.doc ?? null,
+    [toolByName],
+  );
+
   const initialSample = SAMPLES.find((s) => s.id === defaultSampleId) ?? SAMPLES[0];
   const [file, setFile] = useState<FileSourceValue>({
     filename: initialSample.filename,
@@ -189,6 +207,8 @@ export default function FlowBuilderRunner({
           flow={flow}
           tools={toolInfos}
           onChange={setFlow}
+          onGetSchema={handleGetSchema}
+          onGetDoc={handleGetDoc}
           onRun={(spec) => void runFlow(spec)}
           runDisabled={!runtime.ready || busy}
         />
