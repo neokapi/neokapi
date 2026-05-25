@@ -5,7 +5,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/schema"
 	"github.com/neokapi/neokapi/core/tool"
 )
@@ -69,20 +68,13 @@ func NewWordCountTool(cfg *WordCountConfig) *tool.BaseTool {
 		ToolDescription: "Counts words in source and target text of blocks",
 		Cfg:             cfg,
 	}
-	t.HandleBlockFn = func(part *model.Part) (*model.Part, error) {
-		block, ok := part.Resource.(*model.Block)
-		if !ok {
-			return part, nil
-		}
-		if !block.Translatable {
-			return part, nil
+	// Annotate: word-count reads source/target and writes only properties.
+	t.Annotate = func(v tool.BlockView) error {
+		if !v.Translatable() {
+			return nil
 		}
 
 		conf := t.Cfg.(*WordCountConfig)
-
-		if block.Properties == nil {
-			block.Properties = make(map[string]string)
-		}
 
 		// Default to counting both when neither scope is explicitly set.
 		countSource := conf.CountSource || (!conf.CountSource && !conf.CountTarget)
@@ -90,20 +82,18 @@ func NewWordCountTool(cfg *WordCountConfig) *tool.BaseTool {
 
 		// Count source words.
 		if countSource {
-			sourceCount := block.WordCount()
-			block.Properties[PropWordCountSource] = strconv.Itoa(sourceCount)
+			v.SetProperty(PropWordCountSource, strconv.Itoa(v.WordCount()))
 		}
 
 		// Count target words for every target locale present.
 		if countTarget {
-			for _, locale := range block.TargetLocales() {
-				targetText := block.TargetText(locale)
-				targetCount := countWords(targetText)
-				block.Properties[PropWordCountTargetPrefix+string(locale)] = strconv.Itoa(targetCount)
+			for _, locale := range v.TargetLocales() {
+				targetCount := countWords(v.TargetText(locale))
+				v.SetProperty(PropWordCountTargetPrefix+string(locale), strconv.Itoa(targetCount))
 			}
 		}
 
-		return part, nil
+		return nil
 	}
 	return t
 }
