@@ -244,7 +244,7 @@ func (a *App) editDocument(ctx context.Context, path string, t *tool.BaseTool, w
 	}
 	writer, err := a.FormatReg.NewWriter(registry.FormatID(fmtName))
 	if err != nil {
-		return fmt.Errorf("no writer for format %q (cannot edit in place): %w", fmtName, err)
+		return fmt.Errorf("%q is a read-only format (no writer) — read it with kcat instead", fmtName)
 	}
 
 	// Wire skeleton store when both sides support it (faithful round-trip).

@@ -283,34 +283,3 @@ func TestReadEmptyPDF(t *testing.T) {
 
 	assert.Empty(t, blocks)
 }
-
-func TestWriterOutputsPlainText(t *testing.T) {
-	ctx := t.Context()
-
-	reader := pdf.NewReader()
-	err := reader.Open(ctx, rawDocFromBytes([]byte(minimalPDF), model.LocaleEnglish))
-	require.NoError(t, err)
-
-	parts := testutil.CollectParts(t, reader.Read(ctx))
-	reader.Close()
-
-	var buf bytes.Buffer
-	writer := pdf.NewWriter()
-	err = writer.SetOutputWriter(&buf)
-	require.NoError(t, err)
-
-	ch := testutil.PartsToChannel(parts)
-	err = writer.Write(ctx, ch)
-	require.NoError(t, err)
-	writer.Close()
-
-	output := buf.String()
-	assert.Contains(t, output, "Hello World")
-	// Writer should output plain text, not PDF format
-	assert.NotContains(t, output, "%PDF")
-}
-
-func TestWriterName(t *testing.T) {
-	writer := pdf.NewWriter()
-	assert.Equal(t, "pdf", writer.Name())
-}

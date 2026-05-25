@@ -54,14 +54,17 @@ func TestRegisterAllWriters(t *testing.T) {
 		"regex", "doxygen", "messageformat", "phpcontent",
 		"icml", "idml", "fixedwidth",
 		"transtable", "paraplaintext", "splicedlines", "versifiedtext", "vignette",
-		"odf", "epub", "rtf", "mif", "ttx", "txml", "pdf", "xcstrings", "arb", "resx",
+		"odf", "epub", "rtf", "mif", "ttx", "txml", "xcstrings", "arb", "resx",
 		"androidxml", "applestrings", "i18next", "designtokens", "mdx",
+		// Note: "pdf" is intentionally absent — PDF is read-only (extraction
+		// only), so it registers a reader but no writer.
 	}
 
 	for _, name := range expectedFormats {
 		assert.True(t, reg.HasWriter(name), "writer not registered: %s", name)
 	}
 	assert.Len(t, reg.WriterNames(), len(expectedFormats))
+	assert.False(t, reg.HasWriter("pdf"), "pdf must remain read-only (no writer)")
 }
 
 func TestRegistryCreateInstances(t *testing.T) {

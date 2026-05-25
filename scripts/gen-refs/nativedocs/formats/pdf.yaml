@@ -1,5 +1,5 @@
 # Native reference doc for the built-in `pdf` format.
-# Schema source: core/formats/pdf/{reader.go,writer.go,config.go,spec.yaml}.
+# Schema source: core/formats/pdf/{reader.go,config.go,spec.yaml}.
 # Upstream analogue: Okapi PdfFilter (text scraping via PDFBox). Config is
 # empty (no schema), so no `parameters`/`examples` blocks are authored.
 description: Scrape text content from PDF files for word counts and leverage analysis.
@@ -16,15 +16,17 @@ overview: |
   and quick content review — not for layout-preserving round-trips. The reader
   does not consult font dictionaries, so strings encoded as glyph indices
   through a ToUnicode CMap (some CID/Type0 fonts) are filtered out rather than
-  surfaced as garbage. The **writer is degraded**: merging produces plain text
-  output, not a reconstructed PDF. This format has no configurable JSON schema
-  in this reference.
+  surfaced as garbage. PDF is **read-only**: it registers no writer, so it
+  cannot be edited or merged back — `kapi formats list` reports
+  `has_writer: false`, and tools such as `ksed` fail cleanly rather than
+  replacing the document with non-PDF plain text. This format has no
+  configurable JSON schema in this reference.
 limitations:
-  - Output is plain text, not PDF — there is no layout-preserving round-trip.
+  - Read-only — PDF registers no writer, so it cannot be edited or round-tripped back to PDF.
   - Complex structure such as tables and multi-level lists is not reconstructed; there is no paragraph segmentation.
   - Text encoded as glyph indices through a ToUnicode CMap (some CID/Type0 fonts) is dropped rather than surfaced.
 processingNotes:
   - "Reads text from content streams via the text-showing operators (`Tj`, `TJ`, `'`, `\"`), inflating FlateDecode segments."
   - Each page's text runs are joined with single spaces into one Block; no paragraph segmentation is applied.
-  - Merging emits the extracted (or translated) text as plain text.
+  - Read-only — PDF registers no writer, so editing or merging is rejected.
 wikiUrl: "https://www.iso.org/standard/75839.html"

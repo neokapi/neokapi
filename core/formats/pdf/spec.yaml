@@ -119,7 +119,8 @@ description: |
   boundaries are inferred from PDFBox's `indentThreshold` (vertical
   spacing between lines) and `spacingTolerance` (horizontal gap
   threshold). The filter is text-extraction only — it does not
-  round-trip back to PDF; its writer emits plain text.
+  round-trip back to PDF and registers no writer, so the format is
+  read-only.
 
 config:
   - key: useCodeFinder

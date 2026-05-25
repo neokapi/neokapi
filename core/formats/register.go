@@ -661,7 +661,10 @@ func RegisterAll(reg *registry.FormatRegistry, opts ...RegisterOptions) {
 		}, "Kapi Localization Format (KLF)")
 	reg.RegisterWriter("jsx", func() format.DataFormatWriter { return jsx.NewWriter() })
 
-	// PDF (extraction only)
+	// PDF is read-only: text extraction only. It registers no writer, so the
+	// format is labelled read-only (HasWriter=false) and editing tools like
+	// `ksed` fail cleanly rather than silently replacing the document with the
+	// extracted plain text. Translate a PDF by extracting to a bilingual format.
 	reg.RegisterReader("pdf",
 		func() format.DataFormatReader { return pdf.NewReader() },
 		format.FormatSignature{
@@ -669,7 +672,6 @@ func RegisterAll(reg *registry.FormatRegistry, opts ...RegisterOptions) {
 			Extensions: []string{".pdf"},
 			MagicBytes: [][]byte{[]byte("%PDF-")},
 		}, "PDF Text Extraction")
-	reg.RegisterWriter("pdf", func() format.DataFormatWriter { return pdf.NewWriter() })
 }
 
 // registerSchemaAndDecoder registers a format's schema and config decoder
