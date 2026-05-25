@@ -55,9 +55,7 @@ const config: Config = {
           return {
             ignoreWarnings: [
               (warning: { message?: string; module?: { resource?: string } }) =>
-                /Critical dependency: require function is used/.test(
-                  warning.message ?? "",
-                ) &&
+                /Critical dependency: require function is used/.test(warning.message ?? "") &&
                 /[\\/]node_modules[\\/]vscode-languageserver-types[\\/]/.test(
                   warning.module?.resource ?? "",
                 ),
@@ -184,23 +182,17 @@ const config: Config = {
           position: "left",
         },
         {
-          // Toolbox groups the format-aware CLI utilities (kgrep/ksed/kcat)
-          // with the Kapi React toolkit — front-end tools built on the engine.
-          type: "dropdown",
-          label: "Toolbox",
+          // Format-aware CLI utilities (kgrep/ksed/kcat).
+          type: "docSidebar",
+          sidebarId: "toolboxSidebar",
+          label: "CLI tools",
           position: "left",
-          items: [
-            {
-              type: "docSidebar",
-              sidebarId: "toolboxSidebar",
-              label: "CLI Utilities (kgrep · ksed · kcat)",
-            },
-            {
-              type: "docSidebar",
-              sidebarId: "reactSidebar",
-              label: "Kapi React",
-            },
-          ],
+        },
+        {
+          type: "docSidebar",
+          sidebarId: "reactSidebar",
+          label: "Kapi React",
+          position: "left",
         },
         {
           type: "docSidebar",
@@ -238,7 +230,7 @@ const config: Config = {
               to: "/cli/overview",
             },
             {
-              label: "Toolbox",
+              label: "CLI tools",
               to: "/toolbox/overview",
             },
             {
