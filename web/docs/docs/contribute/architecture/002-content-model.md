@@ -281,13 +281,14 @@ interpretation; segmentation is simply the overlay of type `segmentation`.
 type Overlay struct {
     Type    OverlayType // "segmentation" | "term" | "entity" | "qa" | "alignment" | …
     Variant *VariantKey // which run sequence it annotates; nil = source
+    Layer   string      // segmentation granularity; "" = primary sentence layer
     Spans   []Span
 }
 
 type Span struct {
-    ID    string            // overlay-local id, e.g. a segment id "s1"
+    ID    string            // overlay-local id (e.g. a segment id "s1")
     Range RunRange          // run-anchored, never a flattened-string offset
-    Props map[string]string // type-specific: segment kind, term, entity kind, score, alignment ref
+    Props map[string]string // type-specific: ignorable marker, term/entity payload, score, alignment ref
 }
 
 // RunRange anchors a span on the run sequence — start and end run indices plus
@@ -302,12 +303,26 @@ type RunRange struct {
 Four properties follow from anchoring interpretations to runs rather than
 baking them into structure:
 
-- **Segmentation is opt-in and dynamic.** A `segment` flow tool — backed by an
-  SRX ruleset, a UAX-29 baseline, or an ML/LLM segmenter — computes boundaries
-  and writes a segmentation overlay. Nothing runs it by default; whole-block
-  content is the norm, which is also what document-level AI translation wants
-  for coherence. Several segmentations can coexist (e.g. `sentence` and a
-  token-budgeted `llm-chunk`), each its own overlay.
+- **Segmentation is opt-in and dynamic.** The `segmentation` flow tool computes
+  boundaries and writes a segmentation overlay; nothing runs it by default.
+  Whole-block content is the norm, which is also what document-level AI
+  translation wants for coherence. The tool delegates to a pluggable
+  **segmenter engine** selected by an `engine:` config field, drawn from a
+  registry (`core/segment`) that mirrors the AI/MT provider registries:
+  - `srx` (default) — a faithful SRX 2.0 rule engine (cascading break/no-break
+    rules with language maps, lookaround via `dlclark/regexp2`, an embedded
+    default ruleset, and `SourceSrxPath`/`TargetSrxPath` overrides);
+  - `uax29` — the ICU Unicode sentence baseline (rules-free), where cgo/ICU is
+    linked;
+  - `llm` — semantic chunking via an AI provider, writing the `llm-chunk` layer;
+  - `sat` — the wtpsplit *Segment any Text* ML model, run in-process inside the
+    out-of-process `kapi-sat` plugin so its native ONNX stack stays out of the
+    portable binary.
+
+  Engines not linked into a binary are simply absent — selecting one reports a
+  clear error rather than failing the build. Several segmentations can coexist
+  (e.g. `sentence` and a token-budgeted `llm-chunk`), each its own overlay,
+  distinguished by the overlay's `Layer`.
 - **It is reversible by construction.** Desegmentation is "drop the overlay."
   There is no inverse operation to get wrong and no inter-segment "ignorable"
   material to lose — the gaps between segment spans are simply runs no span

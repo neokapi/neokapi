@@ -476,6 +476,33 @@ build-all: ## Build all Go binaries
 build-server build-worker build-kapi-bowrain-plugin build-bowrain build-headless install-kapi-bowrain-plugin:
 	$(MAKE) -C bowrain $@
 
+# ── SaT ML segmenter plugin (plugins/sat) ────────────────────────────────────
+# Builds the kapi-sat plugin binary. The default target builds WITHOUT the ONNX
+# backend (no cgo, no native deps) — useful for CI and for shipping a binary
+# whose protocol/manifest are exercisable; segment requests then report that
+# the binary lacks ONNX support.
+#
+# `build-sat-plugin-onnx` builds the real in-process segmenter and requires the
+# native deps (CGO):
+#   - onnxruntime shared library (download from microsoft/onnxruntime releases;
+#     point the binary at it at RUNTIME via KAPI_SAT_ORT_LIB)
+#   - the daulet/tokenizers static library (libtokenizers.a) on the linker path
+#     (download from the daulet/tokenizers GitHub releases or `make build` it)
+# Set SAT_TOKENIZERS_LIB to the directory containing libtokenizers.a.
+# See plugins/sat/README.md for full install instructions.
+build-sat-plugin: ## Build the kapi-sat plugin (no ONNX backend; pure Go)
+	@mkdir -p $(BIN_DIR)
+	cd plugins/sat && GOWORK=off $(GO) build $(LDFLAGS) -o $(BIN_DIR)/kapi-sat ./cmd/kapi-sat
+
+build-sat-plugin-onnx: ## Build kapi-sat WITH the ONNX backend (requires onnxruntime + libtokenizers; CGO)
+	@mkdir -p $(BIN_DIR)
+	cd plugins/sat && GOWORK=off CGO_ENABLED=1 \
+		CGO_LDFLAGS="-L$(SAT_TOKENIZERS_LIB)" \
+		$(GO) build $(LDFLAGS) -tags onnx -o $(BIN_DIR)/kapi-sat ./cmd/kapi-sat
+
+test-sat-plugin: ## Run kapi-sat pure-Go tests (protocol + algorithm + cache)
+	cd plugins/sat && GOWORK=off $(GO) test ./...
+
 # ── Kapi Desktop ────────────────────────────────────────────────────────────
 
 # Node 22 requires --experimental-strip-types to load vite.config.ts natively.

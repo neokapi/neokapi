@@ -108,8 +108,11 @@ classDiagram
   a typed, run-anchored **stand-off overlay** layered over the runs rather than
   baked into the structure. There is no structural `Segment` type: a segment is
   just a span in the segmentation overlay, so segmentation is opt-in, multi-layer,
-  and reversible (drop the overlay to get the unsegmented content back). See
-  [AD-002](/contribute/architecture/002-content-model).
+  and reversible (drop the overlay to get the unsegmented content back). The
+  `segmentation` tool writes that overlay from a pluggable engine chosen with
+  `--engine` — `srx` (the default SRX 2.0 rule engine), `uax29` (the ICU Unicode
+  baseline), `llm` (semantic chunks), or `sat` (the wtpsplit ML model, run via
+  the `kapi-sat` plugin). See [AD-002](/contribute/architecture/002-content-model).
 - **Run** — one element of a block's inline content: a chunk of text, an opening
   or closing inline tag, a self-closing placeholder, or a structured plural/select
   construct (see below).

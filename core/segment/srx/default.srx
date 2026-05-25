@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Default SRX 2.0 ruleset for neokapi's pure-Go SRX engine.
+
+  Adapted from Okapi's defaultSegmentation.srx (Apache-2.0); neokapi is also
+  Apache-2.0. Rules are intentionally reasonable rather than exhaustive: they
+  cover the common abbreviations, single-initial capitals, decimal numbers,
+  ellipsis, and the sentence-final break for [.!?] followed by space +
+  uppercase or end-of-text. Within each language rule, NO-BREAK exception rules
+  precede the BREAK rules so the first-match-wins decision suppresses splits
+  inside abbreviations and numbers.
+
+  Regexes use github.com/dlclark/regexp2 (PCRE/.NET-style), so Unicode property
+  classes \p{Lu} (uppercase letter) and \p{Ll} (lowercase letter) and lookahead
+  are available.
+-->
+<srx xmlns="http://www.lisa.org/srx20" version="2.0">
+  <header segmentsubflows="yes" cascade="yes">
+    <formathandle type="start" include="no"/>
+    <formathandle type="end" include="yes"/>
+    <formathandle type="isolated" include="no"/>
+  </header>
+  <body>
+    <languagerules>
+      <!-- Rules common to all languages: abbreviations, initials, numbers,
+           ellipsis, then the generic sentence-final break. -->
+      <languagerule languagerulename="Default">
+        <!-- Decimal / version numbers: don't break between a digit, a dot and
+             a following digit (e.g. "3.50", "v1.2.3"). -->
+        <rule break="no">
+          <beforebreak>\d+[.,]</beforebreak>
+          <afterbreak>\d</afterbreak>
+        </rule>
+        <!-- Single uppercase initial followed by a dot ("J. K. Rowling",
+             "A. Smith"): don't break after the initial's dot. -->
+        <rule break="no">
+          <beforebreak>(^|\s)\p{Lu}\.</beforebreak>
+          <afterbreak>\s</afterbreak>
+        </rule>
+        <!-- Two-letter capitalised acronym with internal dot ("U.S.", "U.K.",
+             "i.e."-style): don't break on the internal dots. -->
+        <rule break="no">
+          <beforebreak>\p{L}\.\p{L}\.</beforebreak>
+          <afterbreak></afterbreak>
+        </rule>
+        <!-- Common honorific / title abbreviations: don't break after the dot. -->
+        <rule break="no">
+          <beforebreak>\b(Mr|Mrs|Ms|Mx|Dr|Prof|Sr|Jr|St|Mt|Gen|Rep|Sen|Gov|Lt|Col|Sgt|Capt|Cmdr|Maj|Rev|Hon|Pres|Messrs|Mmes)\.</beforebreak>
+          <afterbreak>\s</afterbreak>
+        </rule>
+        <!-- Common general abbreviations (no., vol., etc., al., fig., pp.,
+             vs., approx., dept., est.): don't break after the dot. -->
+        <rule break="no">
+          <beforebreak>\b(no|No|vol|Vol|al|etc|seq|fig|Fig|pp|vs|approx|dept|Dept|est|cf|ca|circa|ed|Ed|eds|esp|incl|min|max|para|pt|Pt|sec|Sec|chap|Chap)\.</beforebreak>
+          <afterbreak>\s</afterbreak>
+        </rule>
+        <!-- Latin sentence-introducers e.g. / i.e.: the period inside is not a
+             sentence end. Match the trailing dot's position. -->
+        <rule break="no">
+          <beforebreak>\b(e\.g|i\.e|a\.m|p\.m|A\.M|P\.M)\.</beforebreak>
+          <afterbreak>\s</afterbreak>
+        </rule>
+        <!-- Ellipsis "..." or "…" not followed by an uppercase start should not
+             break (a trailing-off mid-sentence). When the ellipsis is followed
+             by space + uppercase, the break rule below still applies. -->
+        <rule break="no">
+          <beforebreak>\.\.\.</beforebreak>
+          <afterbreak>\s+\p{Ll}</afterbreak>
+        </rule>
+        <rule break="no">
+          <beforebreak>…</beforebreak>
+          <afterbreak>\s+\p{Ll}</afterbreak>
+        </rule>
+
+        <!-- BREAK: sentence-final punctuation (Latin and a few Unicode
+             equivalents), optionally followed by a closing quote/bracket, then
+             whitespace and an uppercase / digit start. -->
+        <rule break="yes">
+          <beforebreak>[.!?…。！？]['")\]»”’]?</beforebreak>
+          <afterbreak>\s+[\p{Lu}\p{Lt}\d"'(\[«“‘]</afterbreak>
+        </rule>
+        <!-- BREAK: sentence-final punctuation at end of text. -->
+        <rule break="yes">
+          <beforebreak>[.!?…。！？]['")\]»”’]?</beforebreak>
+          <afterbreak>\s*$</afterbreak>
+        </rule>
+        <!-- BREAK: CJK full-stop / ideographic terminators need no following
+             whitespace. -->
+        <rule break="yes">
+          <beforebreak>[。！？]</beforebreak>
+          <afterbreak></afterbreak>
+        </rule>
+      </languagerule>
+
+      <!-- English adds a couple of English-only abbreviations on top of the
+           shared Default rules (selected via the cascade for en.* locales). -->
+      <languagerule languagerulename="English">
+        <rule break="no">
+          <beforebreak>\b(Inc|Corp|Co|Ltd|Bros|Univ|Assn|Ave|Blvd|Rd)\.</beforebreak>
+          <afterbreak>\s</afterbreak>
+        </rule>
+      </languagerule>
+    </languagerules>
+
+    <maprules>
+      <!-- English first so its extra abbreviations are applied before the
+           shared Default rules (cascade=yes accumulates both, in this order). -->
+      <languagemap languagepattern="[Ee][Nn].*" languagerulename="English"/>
+      <languagemap languagepattern=".*" languagerulename="Default"/>
+    </maprules>
+  </body>
+</srx>
