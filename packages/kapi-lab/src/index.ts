@@ -10,6 +10,27 @@ export { default as FlowGraph } from "./FlowGraph";
 export { default as StepControls } from "./StepControls";
 export { default as PartInspector } from "./PartInspector";
 
+// Explorers + shared harness.
+export { default as AnatomyExplorer } from "./AnatomyExplorer";
+export type { AnatomyExplorerProps } from "./AnatomyExplorer";
+export { default as PipelineExplorer } from "./PipelineExplorer";
+export type { PipelineExplorerProps } from "./PipelineExplorer";
+export { default as RunSequence } from "./RunSequence";
+export { default as FileSource } from "./FileSource";
+export type { FileSourceValue } from "./FileSource";
+
+export { useLabRuntime } from "./useLabRuntime";
+export type {
+  LabRuntime,
+  LabRuntimeAssets,
+  LabStatus,
+  InspectOutcome,
+  TraceOutcome,
+} from "./useLabRuntime";
+
+export { SAMPLES, sampleById } from "./samples";
+export type { LabSample } from "./samples";
+
 export { useFlowPlayback } from "./useFlowPlayback";
 export type {
   PlaybackMode,

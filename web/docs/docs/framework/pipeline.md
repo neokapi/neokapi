@@ -5,6 +5,8 @@ description: The neokapi pipeline is the concurrent execution engine that runs f
 keywords: [pipeline, goroutines, channels, concurrent, streaming, errgroup, execution engine]
 ---
 
+import { PipelineExplorer } from "@site/src/components/Lab";
+
 # Pipeline
 
 The **pipeline** is how neokapi runs a [flow](/framework/flows). Where a flow
@@ -21,6 +23,15 @@ RawDocument ─▶ Reader ─chan─▶ [Tool 1] ─chan─▶ [Tool 2] ─chan�
 This is the neokapi analogue of Okapi's _PipelineDriver_. It is built on Go's
 native concurrency: goroutines for the stages, channels for the connections, and
 `errgroup` for coordination.
+
+:::tip Watch it run, step by step
+Run a file through a pipeline and drive it with **Next** — each step advances the
+stream by one event, so you can watch Parts move out of the reader, through the
+tools, and into the writer, inspecting how each Part changes at every stage. This
+runs the real `kapi` engine in your browser via WebAssembly.
+:::
+
+<PipelineExplorer defaultSampleId="messages-json" defaultPipelineId="pseudo-translate" />
 
 ## Streaming, not batching
 

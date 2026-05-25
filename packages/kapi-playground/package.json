@@ -9,6 +9,7 @@
     ".": "./src/index.ts",
     "./RunnableSnippet": "./src/RunnableSnippet.tsx",
     "./store": "./src/store.ts",
+    "./runtime": "./src/runtime.ts",
     "./*": "./src/*",
     "./package.json": "./package.json"
   },
