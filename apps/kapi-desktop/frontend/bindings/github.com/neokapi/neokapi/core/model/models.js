@@ -29,3 +29,11 @@ export const LocaleID = {
     LocaleRussian: "ru",
     LocaleArabic: "ar",
 };
+
+/**
+ * Run is the discriminated union of inline content primitives.
+ * Exactly one of the pointer fields is non-nil per Run. JSON
+ * encoding matches RFC 0001: a Run is an object with exactly one
+ * of the keys text, ph, pcOpen, pcClose, sub, plural, or select.
+ * @typedef {any} Run
+ */

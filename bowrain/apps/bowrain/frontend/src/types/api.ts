@@ -164,24 +164,50 @@ export interface ProjectItem {
   word_count: number;
 }
 
-/** Inline span info */
-export interface SpanInfo {
-  span_type: "opening" | "closing" | "placeholder";
-  type: string;
-  id: string;
-  data: string;
+/** Editing constraints applied to a run. Mirrors model.RunConstraints. */
+export interface RunConstraints {
+  deletable: boolean;
+  cloneable: boolean;
+  reorderable: boolean;
 }
 
-/** Translation block info */
+/**
+ * One element of a block's inline content sequence (RFC 0001). A Run
+ * is a discriminated union keyed by the present field; exactly one of
+ * the optional fields is set. Mirrors the Wails backend `RunInfo`.
+ */
+export interface Run {
+  text?: { text: string };
+  ph?: {
+    id: string;
+    type: string;
+    subType?: string;
+    data: string;
+    equiv: string;
+    disp?: string;
+    constraints?: RunConstraints;
+  };
+  pcOpen?: {
+    id: string;
+    type: string;
+    subType?: string;
+    data: string;
+    equiv: string;
+    disp?: string;
+    constraints?: RunConstraints;
+  };
+  pcClose?: { id: string; type: string; subType?: string; data: string; equiv?: string };
+  sub?: { id: string; ref: string; equiv: string };
+  plural?: { pivot: string; forms: Record<string, Run[]> };
+  select?: { pivot: string; cases: Record<string, Run[]> };
+}
+
+/** Translation block info. Inline markup travels as RFC 0001 Run sequences. */
 export interface BlockInfo {
   id: string;
-  source: string;
-  source_coded?: string;
-  source_spans?: SpanInfo[];
-  targets: Record<string, string>;
-  targets_coded?: Record<string, string>;
+  sourceRuns?: Run[];
+  targetRuns?: Record<string, Run[]>;
   translatable: boolean;
-  has_spans: boolean;
   properties: Record<string, string>;
 }
 
@@ -194,14 +220,13 @@ export interface UpdateBlockRequest {
   text: string;
 }
 
-/** Update block target with coded text and spans */
-export interface UpdateBlockTargetCodedRequest {
+/** Update block target with a structured Run sequence */
+export interface UpdateBlockTargetRunsRequest {
   project_id: string;
   item_name: string;
   block_id: string;
   target_locale: string;
-  coded_text: string;
-  spans: SpanInfo[];
+  runs: Run[];
 }
 
 /** Saved AI provider configuration (managed server-side) */

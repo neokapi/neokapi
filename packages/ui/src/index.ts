@@ -237,6 +237,21 @@ export { SkeletonCard } from "./components/SkeletonCard";
 // Types
 export type { SpanInfo } from "./types/span";
 
+// Run content model (re-exported from @neokapi/kapi-format so consumers
+// of the resource browser can reference the wire shape without taking a
+// direct dependency on the format package).
+export type {
+  Run,
+  TextRun,
+  PlaceholderRun,
+  PcOpenRun,
+  PcCloseRun,
+  SubRun,
+  PluralRun,
+  SelectRun,
+  RunConstraints,
+} from "@neokapi/kapi-format";
+
 // Vocabulary registry
 export { VocabularyRegistry, getDefaultRegistry } from "./vocabularies";
 export type { SpanTypeInfo, ColorScheme, SpanConstraints } from "./vocabularies";

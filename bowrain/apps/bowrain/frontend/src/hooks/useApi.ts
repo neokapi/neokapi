@@ -10,7 +10,7 @@ import type {
   ProjectInfo,
   BlockInfo,
   UpdateBlockRequest,
-  UpdateBlockTargetCodedRequest,
+  UpdateBlockTargetRunsRequest,
   TranslationStats,
   WordCountResult,
   ProviderConfig,
@@ -297,9 +297,9 @@ export function useEditorApi() {
     return Backend.UpdateBlockTarget(req);
   }, []);
 
-  const updateBlockTargetCoded = useCallback(
-    async (req: UpdateBlockTargetCodedRequest): Promise<void> => {
-      return Backend.UpdateBlockTargetCoded(req);
+  const updateBlockTargetRuns = useCallback(
+    async (req: UpdateBlockTargetRunsRequest): Promise<void> => {
+      return Backend.UpdateBlockTargetRuns(req);
     },
     [],
   );
@@ -403,7 +403,7 @@ export function useEditorApi() {
     () => ({
       getFileBlocks,
       updateBlockTarget,
-      updateBlockTargetCoded,
+      updateBlockTargetRuns,
       pseudoTranslateFile,
       tmTranslateFile,
       getWordCount,
@@ -417,7 +417,7 @@ export function useEditorApi() {
     [
       getFileBlocks,
       updateBlockTarget,
-      updateBlockTargetCoded,
+      updateBlockTargetRuns,
       pseudoTranslateFile,
       tmTranslateFile,
       getWordCount,

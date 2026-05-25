@@ -77,6 +77,8 @@ import type {
   CreditLedgerEntry,
 } from "@neokapi/ui";
 
+import { codedToRuns } from "./codedToRuns";
+
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore – generated .js bindings outside the TS project root
 import * as Backend from "../../bindings/github.com/neokapi/neokapi/bowrain/apps/bowrain/backend/app.js";
@@ -403,7 +405,15 @@ export class WailsApiAdapter implements ApiAdapter {
     return Backend.UpdateBlockTarget(req);
   }
   async updateBlockTargetCoded(_ws: string, req: UpdateBlockTargetCodedRequest): Promise<void> {
-    return Backend.UpdateBlockTargetCoded(req);
+    // The @neokapi/ui editor still authors coded text + spans; the Wails
+    // backend now consumes RFC 0001 runs, so convert at the boundary.
+    return Backend.UpdateBlockTargetRuns({
+      project_id: req.project_id,
+      item_name: req.item_name,
+      block_id: req.block_id,
+      target_locale: req.target_locale,
+      runs: codedToRuns(req.coded_text, req.spans),
+    });
   }
   async pseudoTranslateFile(
     _ws: string,

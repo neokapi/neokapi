@@ -102,14 +102,12 @@ export const WithLookup: Story = {
                 "en-US": {
                   locale: "en-US",
                   text: "Bob works at Widget Inc",
-                  coded: "Bob works at Widget Inc",
-                  spans: [],
+                  runs: [{ text: "Bob works at Widget Inc" }],
                 },
                 "fr-FR": {
                   locale: "fr-FR",
                   text: "Bob travaille chez Widget Inc",
-                  coded: "Bob travaille chez Widget Inc",
-                  spans: [],
+                  runs: [{ text: "Bob travaille chez Widget Inc" }],
                 },
               },
               created_at: new Date().toISOString(),

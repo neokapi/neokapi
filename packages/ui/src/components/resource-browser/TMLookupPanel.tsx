@@ -237,8 +237,7 @@ export function TMLookupPanel({ sourceLocale, targetLocale, onLookup }: TMLookup
                     </span>
                     <CodedTextDisplay
                       text={src.text}
-                      codedText={src.coded}
-                      spans={src.spans}
+                      runs={src.runs}
                       className="text-[12px] text-foreground flex-1"
                     />
                     <LocalePill locale={src.locale} />
@@ -251,8 +250,7 @@ export function TMLookupPanel({ sourceLocale, targetLocale, onLookup }: TMLookup
                     </span>
                     <CodedTextDisplay
                       text={tgt.text}
-                      codedText={tgt.coded}
-                      spans={tgt.spans}
+                      runs={tgt.runs}
                       className="text-[12px] text-muted-foreground flex-1"
                     />
                     <LocalePill locale={tgt.locale} />
