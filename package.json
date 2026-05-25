@@ -9,6 +9,7 @@
     "packages/storybook-config",
     "packages/docs-shared",
     "packages/kapi-playground",
+    "packages/kapi-lab",
     "packages/reference-data",
     "storybook",
     "web/docs",
