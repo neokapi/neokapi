@@ -52,7 +52,12 @@ var tbMigrations = []storage.Migration{
 	{
 		Version:     1,
 		Description: "termbase schema with project/stream support and FTS5 indexes",
-		SQL: `
+		// tb_search uses storage.FTSWordTokenizer, which resolves to the ICU
+		// tokenizer under cgo builds and unicode61 under no-cgo builds (the ICU
+		// tokenizer is a cgo-only extension). A .db whose FTS table was created
+		// with one tokenizer cannot be FTS-word-queried by a binary built with
+		// the other; the trigram table below stays portable.
+		SQL: fmt.Sprintf(`
 		CREATE TABLE IF NOT EXISTS tb_concepts (
 			id          TEXT PRIMARY KEY,
 			project_id  TEXT NOT NULL DEFAULT '',
@@ -104,9 +109,9 @@ var tbMigrations = []storage.Migration{
 		CREATE VIRTUAL TABLE IF NOT EXISTS tb_search USING fts5(
 			term_text, definition, domain,
 			content='',
-			tokenize='icu'
+			tokenize='%s'
 		);
-		`,
+		`, storage.FTSWordTokenizer),
 	},
 	{
 		Version:     2,
