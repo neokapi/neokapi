@@ -116,11 +116,14 @@ export default function LabPage(): React.ReactElement {
             <>
               A flow is an ordered composition of tools. Build one in the visual
               editor, then run it live and step through the result — the graph you
-              build and the flow the CLI runs are the same thing.
+              build and the flow the CLI runs are the same thing. This one opens
+              with a <strong>source-transform stage</strong> (normalize, then
+              redact) that settles the source before <code>ai-translate</code> and{" "}
+              <code>qa-check</code> see it.
             </>
           }
         >
-          <FlowBuilderRunner defaultSampleId="messages-json" />
+          <FlowBuilderRunner defaultSampleId="support-reply" />
         </Section>
 
         <Section

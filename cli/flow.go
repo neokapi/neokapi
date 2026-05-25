@@ -1157,7 +1157,19 @@ func (a *App) runProjectSteps(ctx context.Context, cmd *cobra.Command, flowName 
 	}
 
 	// Build tools from step definitions using the tool registry.
+	// Source-transform tools run first (they settle the source/model before the
+	// main steps) so they are prepended to the tool chain.
 	var projectTools []tool.Tool
+	for _, step := range spec.SourceTransforms {
+		t, err := a.toolFromStep(step, cmd, rCtx)
+		if err != nil {
+			return fmt.Errorf("flow %q source_transforms: %w", flowName, err)
+		}
+		if !tool.IsSourceTransform(t) {
+			return fmt.Errorf("flow %q: tool %q in source_transforms is not source-transform-capable", flowName, step.Tool)
+		}
+		projectTools = append(projectTools, t)
+	}
 	for _, step := range spec.Steps {
 		t, err := a.toolFromStep(step, cmd, rCtx)
 		if err != nil {

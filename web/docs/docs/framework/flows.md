@@ -154,7 +154,7 @@ real `kapi` engine in your browser via WebAssembly, so the flow you build is the
 flow that runs.
 :::
 
-<FlowBuilderRunner defaultSampleId="messages-json" />
+<FlowBuilderRunner defaultSampleId="support-reply" />
 
 ## Running a flow
 

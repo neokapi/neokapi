@@ -15,10 +15,12 @@ import shared from "./styles.module.css";
 import styles from "./FlowBuilderRunner.module.css";
 
 // Only tools that run in the browser WASM build are offered in the palette:
-// the offline tools (pseudo-translate, word-count, term-check) plus the
-// demo-provider-backed AI tools (ai-translate, qa-check). Listing anything
-// else would let a learner build a flow that cannot run here.
+// the offline tools (pseudo-translate, word-count, term-check, search-replace,
+// redact) plus the demo-provider-backed AI tools (ai-translate, qa-check).
+// Listing anything else would let a learner build a flow that cannot run here.
 const BROWSER_SAFE_TOOLS = [
+  "search-replace",
+  "redact",
   "pseudo-translate",
   "word-count",
   "term-check",
@@ -26,20 +28,28 @@ const BROWSER_SAFE_TOOLS = [
   "qa-check",
 ];
 
+// Tools that may run in the source-transform stage (they rewrite the source
+// or model before the main steps run). The flow editor surfaces the stage
+// toggle only for these tools.
+const SOURCE_TRANSFORM_TOOLS = new Set(["search-replace", "redact"]);
+
 // The flow-editor's palette and node colours key off its own ToolCategory set
 // (translate / validate / …), whereas the reference dataset uses the engine's
-// raw category names (translation / quality / analysis). Map between them so the
-// palette groups the tools sensibly instead of dumping them all under Pipeline.
+// raw category names (translation / quality / analysis / text-processing). Map
+// between them so the palette groups the tools sensibly instead of dumping
+// them all under Pipeline.
 const CATEGORY_MAP: Record<string, string> = {
   translation: "translate",
   quality: "validate",
   analysis: "enrich",
+  "text-processing": "transform",
 };
 
 // Build the palette's ToolInfo[] from the generated reference dataset so the
 // names, descriptions and IO contracts stay truthful to the live engine. We
 // keep only the browser-safe ids and remap the category for display.
-function buildToolInfos(): ToolInfo[] {
+// Exported for unit tests.
+export function buildToolInfos(): ToolInfo[] {
   const byId = new Map<string, ToolInfo>();
   for (const entry of toolReference.entries) {
     if (!BROWSER_SAFE_TOOLS.includes(entry.id) || byId.has(entry.id)) continue;
@@ -54,20 +64,41 @@ function buildToolInfos(): ToolInfo[] {
       tags: entry.tags,
       requires: entry.requires,
       cardinality: entry.cardinality as ToolInfo["cardinality"],
+      isSourceTransform: SOURCE_TRANSFORM_TOOLS.has(entry.id),
     });
   }
   // Preserve the curated order rather than the dataset's order.
   return BROWSER_SAFE_TOOLS.map((id) => byId.get(id)).filter((t): t is ToolInfo => !!t);
 }
 
-// The starter flow a learner opens with — a TM-free, two-step demo chain that
-// runs end-to-end in the browser: translate with the demo provider, then check.
+// The starter flow a learner opens with. The source-transform stage runs first:
+// search-replace normalises US→British spelling; redact hides the brand name and
+// person name. The main steps then translate and quality-check the settled source.
+// Exported for unit tests.
+export const STARTER_SOURCE_TRANSFORMS: FlowSpec["sourceTransforms"] = [
+  {
+    tool: "search-replace",
+    config: { pairs: [{ search: "color", replace: "colour" }], source: true, target: false },
+  },
+  {
+    tool: "redact",
+    config: {
+      detectors: ["rules"],
+      rules: [
+        { term: "Acme Corp", category: "org" },
+        { term: "Jane Doe", category: "person" },
+      ],
+    },
+  },
+];
 const STARTER_STEPS: FlowSpec["steps"] = [{ tool: "ai-translate" }, { tool: "qa-check" }];
 
-// Serialize a FlowSpec's steps into a minimal `.kapi` recipe with a single
-// `lab` flow. `config:` is emitted only when a step actually carries config, so
-// a freshly-added tool stays as a bare `- tool: <id>` line.
-function buildRecipe(spec: FlowSpec): string {
+// Serialize a FlowSpec into a minimal `.kapi` recipe with a single `lab` flow.
+// `config:` is emitted only when a step actually carries config, so a
+// freshly-added tool stays as a bare `- tool: <id>` line. The
+// `source_transforms:` block (if any) is emitted before `steps:`.
+// Exported for unit tests.
+export function buildRecipe(spec: FlowSpec): string {
   const lines: string[] = [
     "version: v1",
     "name: Lab",
@@ -75,8 +106,25 @@ function buildRecipe(spec: FlowSpec): string {
     "  source_language: en",
     "flows:",
     "  lab:",
-    "    steps:",
   ];
+
+  // Emit source_transforms block when the spec has any.
+  const sourceTransforms = (spec.sourceTransforms ?? []).filter((s) => s.tool);
+  if (sourceTransforms.length > 0) {
+    lines.push("    source_transforms:");
+    for (const step of sourceTransforms) {
+      lines.push(`      - tool: ${step.tool}`);
+      const config = step.config;
+      if (config && Object.keys(config).length > 0) {
+        lines.push("        config:");
+        for (const [key, value] of Object.entries(config)) {
+          lines.push(`          ${key}: ${formatScalar(value)}`);
+        }
+      }
+    }
+  }
+
+  lines.push("    steps:");
   for (const step of spec.steps) {
     if (!step.tool) continue; // skip the empty wrapper of a parallel group
     lines.push(`      - tool: ${step.tool}`);
@@ -136,7 +184,10 @@ export default function FlowBuilderRunner({
     [toolByName],
   );
 
-  const initialSample = SAMPLES.find((s) => s.id === defaultSampleId) ?? SAMPLES[0];
+  const initialSample =
+    SAMPLES.find((s) => s.id === defaultSampleId) ??
+    SAMPLES.find((s) => s.id === "support-reply") ??
+    SAMPLES[0];
   const [file, setFile] = useState<FileSourceValue>({
     filename: initialSample.filename,
     content: initialSample.content,
@@ -146,7 +197,10 @@ export default function FlowBuilderRunner({
   // The editor is controlled: `flow` is the source of truth and onChange feeds
   // the graph the learner edits (add / remove / reorder tool nodes) back in.
   const [flow, setFlow] = useState<FlowSpec>(() => {
-    const graph = stepsToGraph({ steps: STARTER_STEPS });
+    const graph = stepsToGraph({
+      sourceTransforms: STARTER_SOURCE_TRANSFORMS,
+      steps: STARTER_STEPS,
+    });
     return graphToSteps(graph.nodes);
   });
 
@@ -157,15 +211,16 @@ export default function FlowBuilderRunner({
   const runFlow = useCallback(
     async (spec: FlowSpec) => {
       if (!runtime.ready) return;
+      const sourceTransforms = (spec.sourceTransforms ?? []).filter((s) => s.tool);
       const steps = spec.steps.filter((s) => s.tool);
-      if (steps.length === 0) {
+      if (sourceTransforms.length === 0 && steps.length === 0) {
         setError("add at least one tool to the flow before running");
         setTrace(null);
         return;
       }
       setBusy(true);
       setError(null);
-      const recipe = buildRecipe({ steps });
+      const recipe = buildRecipe({ sourceTransforms, steps });
       runtime.writeFile("flow.kapi", recipe);
       const inPath = runtime.writeFile(file.filename, file.bytes ?? file.content);
       const res = await runtime.trace([
@@ -191,7 +246,9 @@ export default function FlowBuilderRunner({
     [runtime.ready, runtime.writeFile, runtime.trace, file],
   );
 
-  const stepCount = flow.steps.filter((s) => s.tool).length;
+  const stepCount =
+    (flow.sourceTransforms ?? []).filter((s) => s.tool).length +
+    flow.steps.filter((s) => s.tool).length;
 
   return (
     // `.kapi-reference` supplies the ui-primitives theme variables (--background,
