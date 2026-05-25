@@ -141,5 +141,24 @@ ok("script tool (goja) runs user JS in WASM, exits 0", scode === 0, `code=${scod
 const scriptOut = dec.decode(mem.vol.readFile("/project/out-script.json"));
 ok("script transformed block text (uppercased)", /HELLO|YOUR CART IS EMPTY|SEE YOU TOMORROW/.test(scriptOut), scriptOut.slice(0, 80));
 
+// ── 6. HTML round-trip is byte-exact (in-memory skeleton works in WASM) ───────
+// Without a writable temp FS the skeleton store must fall back to memory; if it
+// doesn't, the HTML writer re-serializes and normalizes doctype case / spacing.
+const HTML = `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Welcome</title>
+  </head>
+  <body><p>Thanks for trying <strong>kapi</strong>.</p></body>
+</html>
+`;
+mem.vol.writeFile("/project/page.html", enc.encode(HTML));
+await (globalThis as any).kapiRun(["pseudo-translate", "/project/page.html", "-o", "/project/out.html", "--target-lang", "qps"]);
+const htmlOut = dec.decode(mem.vol.readFile("/project/out.html"));
+ok("html round-trip keeps lowercase doctype", htmlOut.includes("<!doctype html>"), htmlOut.slice(0, 20));
+ok("html round-trip keeps self-closing spacing", /<meta charset="utf-8" \/>/.test(htmlOut));
+ok("html round-trip rewrites lang + keeps inline tag", htmlOut.includes('lang="qps"') && htmlOut.includes("<strong>"));
+
 console.log(failures === 0 ? "\nALL LAB SMOKE CHECKS PASSED" : `\n${failures} CHECK(S) FAILED`);
 process.exit(failures === 0 ? 0 : 1);
