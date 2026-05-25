@@ -20,11 +20,22 @@ const Mascot: React.FC<{ size?: number }> = ({ size = 128 }) => (
   </div>
 );
 
-const Lockup: React.FC<{ size?: number }> = ({ size = 1 }) => (
-  <div style={{ display: "flex", alignItems: "center", gap: 18 * size, fontSize: 30 * size, fontWeight: 700, letterSpacing: 0.4 }}>
+type Brand = "claude" | "kapi";
+
+const Lockup: React.FC<{ size?: number; brand?: Brand }> = ({ size = 1, brand = "claude" }) => (
+  <div style={{ display: "flex", alignItems: "center", gap: 16 * size, fontSize: 30 * size, fontWeight: 700, letterSpacing: 0.4 }}>
     <span style={{ color: KAPI }}>kapi</span>
-    <span style={{ color: theme.faint, fontWeight: 400 }}>×</span>
-    <span style={{ color: theme.text }}>Claude&nbsp;Code</span>
+    {brand === "claude" ? (
+      <>
+        <span style={{ color: theme.faint, fontWeight: 400 }}>×</span>
+        <span style={{ color: theme.text }}>Claude&nbsp;Code</span>
+      </>
+    ) : (
+      <>
+        <span style={{ color: theme.faint, fontWeight: 400 }}>·</span>
+        <span style={{ color: theme.text, fontWeight: 600 }}>toolbox</span>
+      </>
+    )}
   </div>
 );
 
@@ -39,11 +50,12 @@ const Chip: React.FC<{ label: string; delay: number }> = ({ label, delay }) => {
   );
 };
 
-export const TitleCard: React.FC<{ title: string; subtitle: string; tagline?: string; aspects: string[] }> = ({
+export const TitleCard: React.FC<{ title: string; subtitle: string; tagline?: string; aspects: string[]; brand?: Brand }> = ({
   title,
   subtitle,
   tagline,
   aspects,
+  brand = "claude",
 }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
@@ -55,7 +67,7 @@ export const TitleCard: React.FC<{ title: string; subtitle: string; tagline?: st
         <Mascot size={132} />
       </div>
       <div style={{ opacity: spring({ frame: frame - 2, fps, config: { damping: 200 } }), marginBottom: 40 }}>
-        <Lockup size={1.15} />
+        <Lockup size={1.15} brand={brand} />
       </div>
       <div style={{ fontSize: 88, fontWeight: 750, color: theme.text, letterSpacing: -0.02 * 88, lineHeight: 1.05, opacity: intro, transform: `translateY(${interpolate(intro, [0, 1], [26, 0])}px)`, maxWidth: 1500 }}>
         {title}
@@ -71,7 +83,7 @@ export const TitleCard: React.FC<{ title: string; subtitle: string; tagline?: st
   );
 };
 
-export const OutroCard: React.FC<{ title: string; tagline?: string; aspects: string[] }> = ({ title, tagline, aspects }) => {
+export const OutroCard: React.FC<{ title: string; tagline?: string; aspects: string[]; brand?: Brand }> = ({ title, tagline, aspects, brand = "claude" }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
   const intro = spring({ frame, fps, config: { damping: 200 } });
@@ -89,7 +101,7 @@ export const OutroCard: React.FC<{ title: string; tagline?: string; aspects: str
       {tagline ? <div style={{ fontSize: 30, color: theme.accent2, marginTop: 52, opacity: spring({ frame: frame - 24, fps, config: { damping: 200 } }), maxWidth: 1200, lineHeight: 1.4 }}>{tagline}</div> : null}
       <div style={{ marginTop: 60, display: "flex", flexDirection: "column", alignItems: "center", gap: 18, opacity: spring({ frame: frame - 30, fps, config: { damping: 200 } }) }}>
         <Mascot size={104} />
-        <Lockup />
+        <Lockup brand={brand} />
       </div>
       <div style={{ marginTop: 16, color: theme.faint, fontSize: 22, opacity: spring({ frame: frame - 34, fps, config: { damping: 200 } }) }}>
         the open localization engine · neokapi.github.io

@@ -1,12 +1,13 @@
 import React from "react";
 import { AbsoluteFill, interpolate, spring, useCurrentFrame, useVideoConfig } from "remotion";
-import { theme, CLAUDE } from "./theme.ts";
+import { theme, CLAUDE, KAPI } from "./theme.ts";
 
 const Light: React.FC<{ c: string }> = ({ c }) => (
   <span style={{ width: 14, height: 14, borderRadius: 14, background: c, display: "inline-block" }} />
 );
 
-/** The Claude Code prompt box (persistent at the bottom of the window). */
+/** The Claude Code input box (persistent at the bottom of the window). Shell demos
+ * carry their own `$` prompt + cursor in the transcript, so this is Claude-only. */
 const InputBox: React.FC = () => {
   const frame = useCurrentFrame();
   const blink = frame % 30 < 16;
@@ -35,12 +36,16 @@ const InputBox: React.FC = () => {
   );
 };
 
-/** A macOS terminal window running Claude Code, with a caption lower-third below it. */
-export const TerminalWindow: React.FC<{ model: string; caption: string; children: React.ReactNode }> = ({
-  model,
-  caption,
-  children,
-}) => {
+/** A macOS terminal window (Claude Code, or a plain shell) with a caption lower-third below it. */
+export const TerminalWindow: React.FC<{
+  model?: string;
+  caption: string;
+  /** Plain shell mode: drops the Claude chrome (banner is omitted by the child, this swaps the title bar + input box). */
+  shell?: boolean;
+  /** Working-directory label for the title bar (shell mode). */
+  cwd?: string;
+  children: React.ReactNode;
+}> = ({ model, caption, shell, cwd = "~/project", children }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
   const capOpacity = spring({ frame: frame - 4, fps, config: { damping: 200 } });
@@ -65,14 +70,22 @@ export const TerminalWindow: React.FC<{ model: string; caption: string; children
           <Light c="#febc2e" />
           <Light c="#28c840" />
           <div style={{ flex: 1, textAlign: "center", color: theme.termDim, fontSize: 18, fontFamily: theme.fontMono }}>
-            <span style={{ color: CLAUDE }}>✻</span> claude — ~/project
+            {shell ? (
+              <span>{cwd} — zsh</span>
+            ) : (
+              <>
+                <span style={{ color: CLAUDE }}>✻</span> claude — ~/project
+              </>
+            )}
           </div>
-          <div style={{ color: theme.termFaint, fontSize: 15, fontFamily: theme.fontMono }}>{model}</div>
+          <div style={{ color: shell ? KAPI : theme.termFaint, fontSize: shell ? 16 : 15, fontWeight: shell ? 700 : 400, fontFamily: theme.fontMono }}>
+            {shell ? "kapi" : model}
+          </div>
         </div>
         {/* transcript (scrolls, pinned to bottom) */}
         <div style={{ flex: 1, position: "relative" }}>{children}</div>
-        {/* persistent Claude Code input box */}
-        <InputBox />
+        {/* Claude's persistent input box; shell demos render their own prompt inline. */}
+        {shell ? null : <InputBox />}
       </div>
 
       {/* caption lower-third (below the window, never covers the terminal) */}

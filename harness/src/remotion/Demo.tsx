@@ -4,6 +4,7 @@ import type { CapturedArtifact, DemoCapture, NarrationManifest } from "../types.
 import { computeTiming } from "./timeline.ts";
 import { theme, setTheme, type ThemeMode } from "./components/theme.ts";
 import { ClaudeTerminal } from "./components/ClaudeTerminal.tsx";
+import { PlainTerminal } from "./components/PlainTerminal.tsx";
 import { TerminalWindow } from "./components/TerminalWindow.tsx";
 import { TitleCard, OutroCard } from "./components/Cards.tsx";
 import { ArtifactView } from "./components/ArtifactView.tsx";
@@ -26,38 +27,48 @@ export const Demo: React.FC<DemoProps> = ({ id, capture, narration, artifacts, t
   setTheme(themeMode ?? "dark");
   const fps = 30;
   const timing = computeTiming(narration.scenes, fps);
+  const shell = capture.terminal === "shell";
+  const brand = capture.brand ?? (shell ? "kapi" : "claude");
+
+  // The terminal scene, framed in the macOS window. Claude session or plain shell.
+  const terminalScene = (caption: string, termFrom: number) => (
+    <TerminalWindow model={capture.meta.model} caption={caption} shell={shell} cwd={capture.cwd}>
+      {shell ? (
+        <PlainTerminal events={capture.events} globalTermFrom={termFrom} totalTermFrames={timing.totalTermFrames} />
+      ) : (
+        <ClaudeTerminal events={capture.events} model={capture.meta.model} globalTermFrom={termFrom} totalTermFrames={timing.totalTermFrames} />
+      )}
+    </TerminalWindow>
+  );
+
+  // One-shot narration: a single continuous track for the whole video (uniform
+  // tempo/tone). Otherwise each scene carries its own clip.
+  const fullAudio = narration.fullAudio;
 
   return (
     <AbsoluteFill style={{ background: theme.bg, fontFamily: theme.fontSans }}>
+      {fullAudio ? <Audio src={staticFile(`${id}/${fullAudio}`)} /> : null}
       {narration.scenes.map((scene, idx) => {
         const t = timing.scenes[idx];
-        const audioSrc = scene.audio ? staticFile(`${id}/${scene.audio}`) : undefined;
+        const audioSrc = !fullAudio && scene.audio ? staticFile(`${id}/${scene.audio}`) : undefined;
         return (
           <Sequence key={scene.id} from={t.from} durationInFrames={t.durationFrames} name={`${scene.kind}:${scene.id}`}>
             {audioSrc ? <Audio src={audioSrc} /> : null}
             {scene.kind === "title" ? (
-              <TitleCard title={capture.title} subtitle={capture.subtitle} tagline={capture.tagline} aspects={capture.aspects} />
+              <TitleCard title={capture.title} subtitle={capture.subtitle} tagline={capture.tagline} aspects={capture.aspects} brand={brand} />
             ) : scene.kind === "prompt" ? (
               <PromptCard prompt={capture.prompt} />
             ) : scene.kind === "outro" ? (
-              <OutroCard title={capture.title} tagline={capture.tagline} aspects={capture.aspects} />
+              <OutroCard title={capture.title} tagline={capture.tagline} aspects={capture.aspects} brand={brand} />
             ) : scene.kind === "artifact" ? (
               (() => {
                 const art = artifacts.find((a) => a.id === scene.artifact);
-                if (!art) {
-                  // Artifact failed to capture — fall back to showing the terminal so the scene isn't blank.
-                  return (
-                    <TerminalWindow model={capture.meta.model} caption={scene.caption}>
-                      <ClaudeTerminal events={capture.events} model={capture.meta.model} globalTermFrom={t.termFrom} totalTermFrames={timing.totalTermFrames} />
-                    </TerminalWindow>
-                  );
-                }
+                // Artifact failed to capture — fall back to the terminal so the scene isn't blank.
+                if (!art) return terminalScene(scene.caption, t.termFrom);
                 return <ArtifactView demoId={id} artifact={art} caption={scene.caption || art.caption} />;
               })()
             ) : (
-              <TerminalWindow model={capture.meta.model} caption={scene.caption}>
-                <ClaudeTerminal events={capture.events} model={capture.meta.model} globalTermFrom={t.termFrom} totalTermFrames={timing.totalTermFrames} />
-              </TerminalWindow>
+              terminalScene(scene.caption, t.termFrom)
             )}
           </Sequence>
         );

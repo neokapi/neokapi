@@ -31,9 +31,21 @@ with a continuous British-English narration track explaining the story.
 | 6 | `06-multi-format-publishing`      | Format breadth: Markdown + Java `.properties` round-trip |
 | 7 | `07-global-launch-many-languages` | Multi-locale incl. non-Latin (de/es/fr/**ja**) |
 | 8 | `08-mcp-tools`                    | The MCP integration path: kapi run as an MCP server |
+| 9 | `09-toolbox-find-replace`         | The toolbox (kcat/kgrep/ksed) — a **scripted shell** demo, no Claude |
 
-Together they cover all four sections of the kapi skill (`brand`, `localize`, `i18n`,
+Demos 1–8 cover all four sections of the kapi skill (`brand`, `localize`, `i18n`,
 and the MCP/cloud path) plus the MCP tool surface.
+
+### Scripted shell demos (no Claude)
+
+A demo can set `terminal: shell` with a `script:` of commands instead of a Claude
+`prompt`. The commands run for real in the sandbox (via `sh -c`, so globs expand)
+and their output is recorded deterministically — no live `claude`, no billing, no
+Gemini. The renderer frames them as a plain terminal (a `$` prompt, no Claude
+banner or tool-call chrome) and the title/outro cards use the kapi-only lockup
+(`brand: kapi`). Everything else — the macOS window, captions, voice-over, artifact
+spotlights — is identical to the Claude demos. `09-toolbox-find-replace` is the
+reference example.
 
 ## How it works (pipeline)
 

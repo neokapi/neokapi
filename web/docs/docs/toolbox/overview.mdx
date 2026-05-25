@@ -1,22 +1,37 @@
 ---
 sidebar_position: 1
-title: Toolbox Overview
+title: CLI tools
 description: kgrep, ksed and kcat are format-aware reimaginings of grep, sed and cat. They operate on the translatable text inside any format kapi understands — Word documents, JSON catalogs, XLIFF, Markdown — instead of raw bytes.
 keywords: [kgrep, ksed, kcat, grep, sed, cat, format-aware, docx, localization, CLI]
 ---
 
-# Toolbox
+import { ThemedVideo } from "@neokapi/docs-shared";
 
-The toolbox is a set of format-aware reimaginings of the classic Unix text
+# CLI tools
+
+`kgrep`, `ksed` and `kcat` are format-aware reimaginings of the classic Unix text
 utilities. Where `grep`, `sed` and `cat` operate on raw bytes — lines of a file
-as the operating system stores them — `kgrep`, `ksed` and `kcat` operate on the
-**translatable text** that kapi extracts from a document, regardless of how that
-text is encoded on disk.
+as the operating system stores them — these operate on the **translatable text**
+that kapi extracts from a document, regardless of how that text is encoded on
+disk.
 
 The practical consequence: you can search the prose inside a Word `.docx`,
 rewrite a phrase across a directory of JSON catalogs, or print the segments of
 an XLIFF file as plain text — using muscle memory from tools you already know,
 without first converting anything.
+
+The video below shows the whole loop on a sales team's collateral — a Markdown
+pitch, a Word proposal, and an Excel price list. `kcat` prints the text inside
+each file, `kgrep` finds the product name across all three at once, and a single
+`ksed` rebrands it everywhere — rewriting each document back into its own format.
+
+<ThemedVideo
+  sources={{
+    light: "/video/kapi/toolbox-explainer-light.webm",
+    dark: "/video/kapi/toolbox-explainer-dark.webm",
+  }}
+  maxWidth="900px"
+/>
 
 | Tool   | Classic analogue | Operates on                                  |
 | ------ | ---------------- | -------------------------------------------- |
@@ -24,7 +39,8 @@ without first converting anything.
 | `kgrep`| `grep`           | matches a pattern against each block's text  |
 | `ksed` | `sed`            | rewrites block text and saves the document   |
 
-Each works on every format kapi can read — see the [Format
+Each works on every one of the **50+ file formats** neokapi reads — Office
+documents, localization and data formats, markup, and more. See the [Format
 Reference](/formats) for the full list.
 
 ## Why blocks, not lines
@@ -43,18 +59,11 @@ toolbox operates on those blocks:
 
 ## Installation
 
-The toolbox ships inside the `kapi` binary as a multi-call ("busybox-style")
-program: `kgrep`, `ksed` and `kcat` are alternate names for `kapi` that dispatch
-to the matching subcommand. Installing the kapi CLI installs all three:
+Installing the kapi CLI installs all three commands:
 
 ```bash
 brew install neokapi/tap/kapi-cli
 ```
-
-Every utility is also reachable as a kapi subcommand — `kapi grep`, `kapi sed`,
-`kapi cat` — which is useful inside scripts that already invoke `kapi`. These
-subcommands are hidden from `kapi --help` (to keep the focus on the dedicated
-commands) but behave identically to `kgrep`/`ksed`/`kcat`.
 
 ## Conventions shared by all three
 
@@ -69,12 +78,3 @@ commands) but behave identically to `kgrep`/`ksed`/`kcat`.
   `--target LOCALE` operates on a committed translation instead — for example
   `kgrep --target fr "déconnexion" messages.xliff` searches the French
   translations.
-
-## Subcommand and busybox forms are identical
-
-`kapi grep`/`kapi sed`/`kapi cat` are flag-detached: they do not inherit kapi's
-global flags, so the full set of short options — including `-v`, `-c` and `-q`,
-which kapi's globals would otherwise claim — mean exactly what they mean in
-`grep`/`sed`/`cat`. `kapi grep -v` inverts the match; it is not kapi's
-`--verbose`. The dedicated `kgrep`/`ksed`/`kcat` commands and their `kapi …`
-aliases run the same code with the same options.

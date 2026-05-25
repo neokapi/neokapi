@@ -22,8 +22,17 @@ export function loadManifest(id: string): DemoManifest {
   if (m.id !== id) {
     throw new Error(`demo.yaml id "${m.id}" does not match directory "${id}"`);
   }
-  // Light validation so authoring mistakes fail fast.
-  if (!m.title || !m.prompt) throw new Error(`demo ${id}: title and prompt are required`);
+  // Light validation so authoring mistakes fail fast. A "shell" demo is scripted
+  // (commands in `script`), so it needs no Claude `prompt`; a Claude demo needs one.
+  const isShell = m.terminal === "shell" || (Array.isArray(m.script) && m.script.length > 0);
+  if (!m.title) throw new Error(`demo ${id}: title is required`);
+  if (isShell) {
+    if (!Array.isArray(m.script) || m.script.length === 0) {
+      throw new Error(`demo ${id}: terminal "shell" requires a non-empty "script"`);
+    }
+  } else if (!m.prompt) {
+    throw new Error(`demo ${id}: prompt is required (or set terminal: shell with a script)`);
+  }
   m.artifacts ??= [];
   m.narration ??= [];
   m.aspects ??= [];

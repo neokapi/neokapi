@@ -195,7 +195,7 @@ export function normalizeTranscript(jsonlPath: string, m: DemoManifest): DemoCap
   let numTurns = 0;
   let costUsd: number | undefined;
 
-  push({ kind: "prompt", text: m.prompt });
+  push({ kind: "prompt", text: m.prompt ?? "" });
 
   // Track Stop-hook state so we emit one block per distinct verdict and a single
   // pass once the gates clear after a block (the "fixed it" beat).
@@ -271,7 +271,7 @@ export function normalizeTranscript(jsonlPath: string, m: DemoManifest): DemoCap
     subtitle: m.subtitle,
     tagline: m.tagline,
     aspects: m.aspects,
-    prompt: m.prompt,
+    prompt: m.prompt ?? "",
     events,
     meta: { model, durationMs, numTurns, costUsd, capturedAt: new Date().toISOString(), errors: detectErrors(events) },
   };

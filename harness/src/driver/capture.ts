@@ -116,7 +116,7 @@ export async function captureDemo(m: DemoManifest, opts: CaptureOptions = {}): P
   const model = opts.model ?? m.model ?? "sonnet";
   const args = [
     "-p",
-    m.prompt,
+    m.prompt ?? "",
     "--output-format",
     "stream-json",
     "--verbose",

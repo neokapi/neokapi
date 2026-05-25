@@ -65,9 +65,3 @@ fi
 | `--target LOCALE` | Search the translation for `LOCALE` instead of the source. |
 | `-f, --format` | Override format detection (e.g. `-f json`). |
 | `--json` | Emit matches as JSON. |
-
-:::note
-`kgrep` and the hidden `kapi grep` alias run the same code with the same
-options — `kapi grep` is flag-detached, so `-v`, `-c` and `-q` keep their grep
-meaning rather than kapi's global `--verbose`/`--config`/`--quiet`.
-:::
