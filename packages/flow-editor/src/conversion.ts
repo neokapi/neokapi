@@ -42,11 +42,39 @@ function makeEdge(source: string, target: string, label?: string): Edge {
   };
 }
 
+/** Build the data payload for a sequential tool node. */
+function makeToolNodeData(
+  step: FlowStep,
+  toolMap: Map<string, ToolInfo> | undefined,
+  extraData?: Record<string, unknown>,
+): Record<string, unknown> {
+  const info = toolMap?.get(step.tool);
+  return {
+    label: step.label || info?.display_name || step.tool,
+    toolName: step.tool,
+    config: step.config,
+    category: info?.category || "pipeline",
+    description: info?.description,
+    inputs: info?.inputs,
+    outputs: info?.outputs,
+    cardinality: info?.cardinality,
+    defaultLocale: info?.default_locale,
+    sideEffects: info?.side_effects,
+    isSourceTransform: info?.isSourceTransform,
+    valid: toolMap ? !!info : true,
+    ...extraData,
+  };
+}
+
 /**
  * Convert a steps-based FlowSpec into React Flow nodes and edges with auto-layout.
  *
  * Sequential steps produce a chain: reader → tool1 → tool2 → writer
  * Parallel steps produce fan-out/merge: prev → [branchA, branchB] → next
+ *
+ * Source-transform steps are emitted first (after the reader, before the main
+ * steps) and carry `stage: "source-transform"` on their node data so the UI
+ * can render them with a distinct visual treatment.
  */
 export function stepsToGraph(
   spec: FlowSpec,
@@ -74,6 +102,28 @@ export function stepsToGraph(
 
   let prevIds = ["reader"];
 
+  // --- Source-transform stage (leading, before main steps) ---
+  for (const step of spec.sourceTransforms ?? []) {
+    // Source-transforms are always sequential (no parallel fan-out in this stage).
+    const id = `tool-${toolCounter++}`;
+
+    nodes.push({
+      id,
+      type: "tool",
+      position: pos(primary, CENTER),
+      data: makeToolNodeData(step, toolMap, { stage: "source-transform" }),
+    });
+
+    for (const prev of prevIds) {
+      const prevNode = nodes.find((n) => n.id === prev);
+      edges.push(makeEdge(prev, id, partLabel(prevNode?.data.outputs as string[] | undefined)));
+    }
+
+    prevIds = [id];
+    primary += NODE_SIZE + NODE_GAP;
+  }
+
+  // --- Main stage ---
   for (const step of spec.steps) {
     if (step.parallel && step.parallel.length > 0) {
       // Fan-out: create parallel branch nodes spread along cross-axis
@@ -102,6 +152,7 @@ export function stepsToGraph(
             cardinality: info?.cardinality,
             defaultLocale: info?.default_locale,
             sideEffects: info?.side_effects,
+            isSourceTransform: info?.isSourceTransform,
             valid: toolMap ? !!info : true,
             parallel: true,
           },
@@ -120,25 +171,12 @@ export function stepsToGraph(
     } else {
       // Sequential step
       const id = `tool-${toolCounter++}`;
-      const info = toolMap?.get(step.tool);
 
       nodes.push({
         id,
         type: "tool",
         position: pos(primary, CENTER),
-        data: {
-          label: step.label || info?.display_name || step.tool,
-          toolName: step.tool,
-          config: step.config,
-          category: info?.category || "pipeline",
-          description: info?.description,
-          inputs: info?.inputs,
-          outputs: info?.outputs,
-          cardinality: info?.cardinality,
-          defaultLocale: info?.default_locale,
-          sideEffects: info?.side_effects,
-          valid: toolMap ? !!info : true,
-        },
+        data: makeToolNodeData(step, toolMap),
       });
 
       for (const prev of prevIds) {
@@ -176,6 +214,9 @@ export function stepsToGraph(
  *
  * Groups nodes at the same primary-axis position — if multiple tool nodes
  * share that position they form a parallel step; otherwise they're sequential.
+ *
+ * Nodes whose `data.stage` is "source-transform" are collected into
+ * `spec.sourceTransforms` (in primary-axis order); the rest become `spec.steps`.
  */
 export function graphToSteps(nodes: Node[], direction: LayoutDirection = "vertical"): FlowSpec {
   const isVertical = direction === "vertical";
@@ -186,16 +227,33 @@ export function graphToSteps(nodes: Node[], direction: LayoutDirection = "vertic
 
   if (toolNodes.length === 0) return { steps: [] };
 
-  // Group by primary-axis position (with tolerance for layout jitter).
-  const groups: Node[][] = [];
-  let currentGroup: Node[] = [toolNodes[0]];
+  // Partition into source-transform nodes and main nodes.
+  const stNodes = toolNodes.filter((n) => n.data.stage === "source-transform");
+  const mainNodes = toolNodes.filter((n) => n.data.stage !== "source-transform");
 
-  for (let i = 1; i < toolNodes.length; i++) {
-    if (Math.abs(primary(toolNodes[i]) - primary(currentGroup[0])) < NODE_SIZE / 2) {
-      currentGroup.push(toolNodes[i]);
+  // Source-transform nodes are always sequential — convert directly.
+  const sourceTransforms: FlowStep[] = stNodes.map((n) => ({
+    tool: (n.data.toolName as string) || "",
+    config: n.data.config as Record<string, unknown> | undefined,
+    label: n.data.label as string | undefined,
+  }));
+
+  if (mainNodes.length === 0) {
+    const result: FlowSpec = { steps: [] };
+    if (sourceTransforms.length > 0) result.sourceTransforms = sourceTransforms;
+    return result;
+  }
+
+  // Group main nodes by primary-axis position (with tolerance for layout jitter).
+  const groups: Node[][] = [];
+  let currentGroup: Node[] = [mainNodes[0]];
+
+  for (let i = 1; i < mainNodes.length; i++) {
+    if (Math.abs(primary(mainNodes[i]) - primary(currentGroup[0])) < NODE_SIZE / 2) {
+      currentGroup.push(mainNodes[i]);
     } else {
       groups.push(currentGroup);
-      currentGroup = [toolNodes[i]];
+      currentGroup = [mainNodes[i]];
     }
   }
   groups.push(currentGroup);
@@ -225,5 +283,7 @@ export function graphToSteps(nodes: Node[], direction: LayoutDirection = "vertic
     }
   }
 
-  return { steps };
+  const result: FlowSpec = { steps };
+  if (sourceTransforms.length > 0) result.sourceTransforms = sourceTransforms;
+  return result;
 }

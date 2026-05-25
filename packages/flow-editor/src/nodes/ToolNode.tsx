@@ -7,9 +7,14 @@ import {
   Loader2,
   RefreshCw,
   X,
+  Layers,
 } from "lucide-react";
 import { cn } from "@neokapi/ui-primitives";
 import { getCategoryStyle } from "../category";
+
+/** Accent color for the source-transform stage. */
+const SOURCE_TRANSFORM_COLOR = "oklch(0.68 0.16 250)";
+const SOURCE_TRANSFORM_BG = "oklch(0.68 0.16 250 / 0.10)";
 
 /** Status badge shown at top-right of a node (complete/error/active). */
 function NodeStatusBadge({ execState }: { execState: string }) {
@@ -67,6 +72,10 @@ export function ToolNode({ data, selected }: NodeProps) {
   const vertical = data.layoutDirection === "vertical";
   const retryConfig = data.retryConfig as Record<string, unknown> | undefined;
   const onRemove = data.onRemove as (() => void) | undefined;
+  const isSourceTransformStage = data.stage === "source-transform";
+
+  // Rail color: source-transform stage overrides the category color.
+  const railColor = isSourceTransformStage ? SOURCE_TRANSFORM_COLOR : style.color;
 
   return (
     <div
@@ -79,17 +88,20 @@ export function ToolNode({ data, selected }: NodeProps) {
             : execState === "complete"
               ? "2px solid oklch(0.65 0.15 145)"
               : selected
-                ? `2px solid ${style.color}`
-                : "2px solid var(--border)",
+                ? `2px solid ${railColor}`
+                : isSourceTransformStage
+                  ? `2px solid ${SOURCE_TRANSFORM_COLOR}`
+                  : "2px solid var(--border)",
         opacity: isValid ? 1 : 0.7,
+        background: isSourceTransformStage ? SOURCE_TRANSFORM_BG : undefined,
         boxShadow: selected
-          ? `0 0 0 3px ${style.color}33, 0 4px 12px oklch(0 0 0 / 0.3)`
+          ? `0 0 0 3px ${railColor}33, 0 4px 12px oklch(0 0 0 / 0.3)`
           : "0 2px 8px oklch(0 0 0 / 0.2)",
         animation: execState === "active" ? "nodePulse 1.5s ease-in-out infinite" : undefined,
       }}
     >
-      {/* Category rail */}
-      <div className="w-1 shrink-0 rounded-l-[6px]" style={{ background: style.color }} />
+      {/* Category / stage rail */}
+      <div className="w-1 shrink-0 rounded-l-[6px]" style={{ background: railColor }} />
 
       <div className="flex-1 px-3 py-2 relative">
         <Handle
@@ -98,7 +110,7 @@ export function ToolNode({ data, selected }: NodeProps) {
           style={{
             width: 10,
             height: 10,
-            background: style.color,
+            background: railColor,
             border: "2px solid var(--card)",
             ...(vertical ? { top: -9 } : { left: -9 }),
           }}
@@ -106,18 +118,42 @@ export function ToolNode({ data, selected }: NodeProps) {
 
         {/* Header row */}
         <div className="flex items-center gap-1 mb-0.5">
-          <Icon size={11} style={{ color: style.text }} />
+          <Icon
+            size={11}
+            style={{ color: isSourceTransformStage ? SOURCE_TRANSFORM_COLOR : style.text }}
+          />
           <span
             className="text-[9px] font-bold tracking-wider uppercase"
-            style={{ color: style.text }}
+            style={{ color: isSourceTransformStage ? SOURCE_TRANSFORM_COLOR : style.text }}
           >
             {style.label}
           </span>
-          {isParallel && (
+          {isSourceTransformStage && (
+            <span
+              className="ml-1 inline-flex items-center gap-0.5 rounded px-1 py-px text-[8px] font-semibold"
+              style={{
+                background: SOURCE_TRANSFORM_BG,
+                color: SOURCE_TRANSFORM_COLOR,
+                border: `1px solid ${SOURCE_TRANSFORM_COLOR}`,
+              }}
+              title="Runs in the source-transform stage — settles the model before main tools"
+            >
+              <Layers size={7} />
+              pre
+            </span>
+          )}
+          {isParallel && !isSourceTransformStage && (
             <GitBranch size={10} className="text-accent ml-auto" aria-label="Runs in parallel" />
           )}
-          {hasConfig && !isParallel && (
+          {hasConfig && !isParallel && !isSourceTransformStage && (
             <Settings2 size={10} className="text-muted-foreground ml-auto" />
+          )}
+          {hasConfig && isSourceTransformStage && (
+            <Settings2
+              size={10}
+              className="ml-auto"
+              style={{ color: SOURCE_TRANSFORM_COLOR, opacity: 0.7 }}
+            />
           )}
         </div>
 
@@ -213,7 +249,7 @@ export function ToolNode({ data, selected }: NodeProps) {
           style={{
             width: 10,
             height: 10,
-            background: style.color,
+            background: railColor,
             border: "2px solid var(--card)",
             ...(vertical ? { bottom: -9 } : { right: -9 }),
           }}

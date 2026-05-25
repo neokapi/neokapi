@@ -448,3 +448,114 @@ export const WithTraceData: Story = {
     },
   },
 };
+
+// ---------------------------------------------------------------------------
+// Source-transform stage stories
+// ---------------------------------------------------------------------------
+
+// Tools that declare isSourceTransform: true — in production these come from
+// the backend as is_source_transform, mapped to camelCase in the API layer.
+const sourceTransformAwareTools: ToolInfo[] = [
+  {
+    name: "redact",
+    display_name: "Redact",
+    description: "Replace sensitive spans with placeholders before translation",
+    category: "transform",
+    has_schema: true,
+    inputs: ["block"],
+    outputs: ["block"],
+    tags: ["privacy", "pre-processing"],
+    isSourceTransform: true,
+  },
+  {
+    name: "source-normalise",
+    display_name: "Source Normalise",
+    description: "Normalise quotes, punctuation, and whitespace in source text",
+    category: "transform",
+    has_schema: true,
+    inputs: ["block"],
+    outputs: ["block"],
+    tags: ["text-processing", "pre-processing"],
+    isSourceTransform: true,
+  },
+  {
+    name: "source-simplifier",
+    display_name: "Source Simplifier",
+    description: "Simplify complex source sentences to aid machine translation",
+    category: "transform",
+    has_schema: false,
+    inputs: ["block"],
+    outputs: ["block"],
+    tags: ["ai-powered", "pre-processing"],
+    isSourceTransform: true,
+  },
+  // Ordinary tools that cannot be source transforms
+  ...(toolsData as ToolInfo[]).filter((t) =>
+    ["ai-translate", "qa-check", "word-count", "pseudo-translate", "tm-leverage"].includes(t.name),
+  ),
+];
+
+/**
+ * A flow with a leading source-transform stage: redact → ai-translate → qa-check.
+ * The redact node renders with the blue "pre" badge and tinted border/rail.
+ */
+export const WithSourceTransformStage: Story = {
+  name: "Source-Transform Stage (redact → translate → qa)",
+  args: {
+    flow: {
+      sourceTransforms: [{ tool: "redact", config: { mode: "placeholder" } }],
+      steps: [{ tool: "ai-translate" }, { tool: "qa-check" }],
+    },
+    tools: sourceTransformAwareTools,
+    onGetSchema: getSchema,
+    onGetDoc: getDoc,
+  },
+};
+
+/**
+ * Two source-transform tools in the leading stage.
+ */
+export const MultipleSourceTransforms: Story = {
+  name: "Source-Transform Stage (normalise + redact → translate)",
+  args: {
+    flow: {
+      sourceTransforms: [{ tool: "source-normalise" }, { tool: "redact" }],
+      steps: [{ tool: "ai-translate" }, { tool: "qa-check" }, { tool: "word-count" }],
+    },
+    tools: sourceTransformAwareTools,
+  },
+};
+
+/**
+ * Palette showing source-transform-capable tools with their "pre" badge.
+ * Click any tool to open the config panel — the "Source transform" toggle
+ * is enabled for redact/normalise/simplifier and disabled for translate/qa.
+ */
+export const SourceTransformPaletteBadges: Story = {
+  name: "Source-Transform Palette Badges",
+  args: {
+    flow: {
+      sourceTransforms: [{ tool: "redact" }],
+      steps: [{ tool: "ai-translate" }, { tool: "qa-check" }],
+    },
+    tools: sourceTransformAwareTools,
+    onGetSchema: getSchema,
+    onGetDoc: getDoc,
+  },
+};
+
+/**
+ * Read-only view of a flow with source transforms — no palette, no config panel.
+ */
+export const SourceTransformReadOnly: Story = {
+  name: "Source-Transform Stage (read-only)",
+  args: {
+    flow: {
+      sourceTransforms: [{ tool: "redact" }],
+      steps: [{ tool: "ai-translate" }, { tool: "qa-check" }],
+    },
+    tools: sourceTransformAwareTools,
+    readOnly: true,
+    onRun: undefined,
+  },
+};
