@@ -394,6 +394,55 @@
   color: var(--ifm-color-emphasis-600);
 }
 
+/* Active-file meta row: view source / size / download. */
+.fileMeta {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  font-size: 0.8rem;
+}
+
+.fileMetaBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem 0.5rem;
+  border: 1px solid var(--ifm-color-emphasis-300);
+  border-radius: var(--ifm-global-radius);
+  background: var(--ifm-background-color);
+  color: var(--ifm-font-color-base);
+  cursor: pointer;
+  font-size: 0.78rem;
+}
+
+.fileMetaBtn:hover:not(:disabled) {
+  border-color: var(--ifm-color-primary);
+}
+
+.fileMetaBtn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.fileMetaInfo {
+  font-family: var(--ifm-font-family-monospace);
+  color: var(--ifm-color-emphasis-600);
+  margin-right: auto;
+}
+
+.fileView {
+  margin: 0;
+  padding: 0.6rem 0.75rem;
+  font-size: 0.8rem;
+  white-space: pre-wrap;
+  max-height: 16rem;
+  overflow: auto;
+  border: 1px solid var(--ifm-color-emphasis-200);
+  border-radius: var(--ifm-global-radius);
+  background: var(--ifm-color-emphasis-100);
+}
+
 .statusBar {
   display: flex;
   align-items: center;
