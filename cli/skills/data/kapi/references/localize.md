@@ -48,7 +48,9 @@ file, translate it in your head, and write the target file directly: that quietl
 skips terminology, placeholder and format integrity, and the brand voice — the very
 things kapi exists to enforce, and the things a human reviewer will later hold you to.
 Instead, let kapi pull out the text and the rules, do the translating, and let kapi
-write it back:
+write it back. (Inside a project, the kapi Claude Code plugin enforces this with a
+PreToolUse hook that blocks direct edits to generated target files — route the
+change through the round-trip below, or edit the source.)
 
 ```bash
 kapi extract --target-lang fr        # bilingual file with source + empty targets (out/*.xliff)
