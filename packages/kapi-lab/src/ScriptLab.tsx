@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Play } from "lucide-react";
-import Editor from "@monaco-editor/react";
+import Editor, { loader } from "@monaco-editor/react";
 import { useLabRuntime } from "./useLabRuntime";
 import type { LabRuntimeAssets } from "./useLabRuntime";
 import FileSource from "./FileSource";
@@ -46,6 +46,13 @@ ${body}
 }
 
 const ANSI = /\[[0-9;]*m/g;
+
+// Pin a specific, stable Monaco from the CDN rather than @latest. "Latest"
+// (0.55.x) regressed editor behavior in this embed — EditContext eating Space,
+// and document words leaking into completions the suggest options don't gate.
+// 0.52.2 honors those options. Configured once at module load (this is a
+// client-only, lazily-imported chunk, so it runs before the editor boots).
+loader.config({ paths: { vs: "https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs" } });
 
 function currentTheme(): "vs-dark" | "light" {
   if (typeof document === "undefined") return "light";
@@ -171,17 +178,38 @@ export default function ScriptLab({
       <div className={styles.editor}>
         <Editor
           height="300px"
-          language="javascript"
+          language="typescript"
           theme={theme}
           value={code}
           onChange={(v) => setCode(v ?? "")}
-          onMount={(_editor, monaco) => {
-            // Wire IntelliSense: the script API .d.ts gives completion, hover
-            // and inline diagnostics for part / emit / skip / log.
-            monaco.languages.typescript.javascriptDefaults.addExtraLib(
-              SCRIPT_API_DTS,
-              "file:///script-api.d.ts",
-            );
+          onMount={(editor, monaco) => {
+            // Use the TypeScript service (the model language is "typescript").
+            // In JS mode, member access offers every in-scope identifier (JS is
+            // dynamic), so "part." leaked words like toUpperCase; TS resolves it
+            // to only the real Part members.
+            const tsd = monaco.languages.typescript.typescriptDefaults;
+            // The script API .d.ts gives completion, hover and inline diagnostics
+            // for part / emit / skip / log.
+            tsd.addExtraLib(SCRIPT_API_DTS, "file:///script-api.d.ts");
+            // Drop the DOM lib so browser globals (window, document, …) — which
+            // the goja sandbox does not have — stop appearing in completions.
+            tsd.setCompilerOptions({ ...tsd.getCompilerOptions(), lib: ["es2020"] });
+            editor.updateOptions({ wordBasedSuggestions: "off", suggest: { showWords: false } });
+            // Block OS text substitutions from injecting characters into code —
+            // notably macOS "Add period with double-space", which turns a double
+            // space into ". ". Autocorrect-style replacements are never wanted in
+            // a code editor, and the textarea's autocorrect="off" doesn't stop
+            // this one, so we cancel it at the input layer.
+            const ta = editor.getDomNode()?.querySelector("textarea");
+            ta?.addEventListener("beforeinput", (e) => {
+              const ie = e as InputEvent;
+              if (
+                ie.inputType === "insertReplacementText" ||
+                (ie.inputType === "insertText" && ie.data === ". ")
+              ) {
+                e.preventDefault();
+              }
+            });
           }}
           options={{
             minimap: { enabled: false },
@@ -195,6 +223,15 @@ export default function ScriptLab({
             // EditContext API: EditContext mishandles some keys (e.g. Space)
             // when the editor sits inside certain page layouts.
             editContext: false,
+            // Render the suggest/hover widgets in a body-level layer so they are
+            // not clipped by the editor's fixed height + rounded overflow box.
+            fixedOverflowWidgets: true,
+            // Only offer type-aware completions from the script API .d.ts — not
+            // every word in the document (which surfaced bogus members like
+            // "toUpperCase" on `part`). showWords:false is the version-proof
+            // switch; wordBasedSuggestions covers older/newer Monaco too.
+            wordBasedSuggestions: "off",
+            suggest: { showWords: false },
           }}
         />
       </div>

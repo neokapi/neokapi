@@ -160,4 +160,21 @@ if (part.type === "media") {
   },
 ];
 
-export const DEFAULT_SCRIPT = SCRIPT_EXAMPLES[0].code;
+// The starter shown in the editor. It spells out the per-Part execution model
+// (the script tool runs this body once for every Part, with `part`, `emit`,
+// `skip` and `log` in scope) so the contract is clear at a glance.
+export const DEFAULT_SCRIPT = `// This runs once for every Part in the document.
+//   • part        — the current Part (only "block" parts carry text)
+//   • emit(part)  — keep this part (optionally after editing it)
+//   • skip()      — drop this part
+//   • log(msg)    — print to the log below
+// Do neither emit nor skip and the part passes through unchanged.
+
+if (part.type === "block") {
+  // Edit the block's source text — here, shout it.
+  part.block.source[0].content.text =
+    part.block.source[0].content.text.toUpperCase();
+}
+
+emit(part);
+`;
