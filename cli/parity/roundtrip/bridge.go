@@ -82,6 +82,23 @@ func (e *BridgeEngine) RoundTrip(t *testing.T, in Input, spec PseudoSpec) []byte
 				}
 			}
 			applyPseudoToBlockOpts(b, spec, forceSrc)
+
+			// xliff2 source-base: okapi's pseudo pipeline calls
+			// createTarget(COPY_ALL) for every translatable unit, then
+			// translates segments only — so a unit whose <segment> is
+			// empty but which carries an <ignorable> still gets a target,
+			// with the ignorable source-copied (icu_message.xlf2). The
+			// bridge daemon rightly sends Go only translatable <segment>s
+			// (surfacing ignorables would pollute the extraction view —
+			// see the okapi-bridge revert of the "round-trip ignorables"
+			// attempt), so when the segments are empty our pseudo produces
+			// no target. Echo an empty target for the locale so the
+			// daemon's applier fires and its own COPY_ALL materializes the
+			// ignorable — i.e. drive okapi's COPY_ALL the way okapi does,
+			// rather than trying to reconstruct ignorables Go can't see.
+			if forceSrc && b.Target(tgt) == nil && (len(b.Source) > 0 || len(b.Targets) > 0) {
+				b.SetTargetRuns(tgt, nil)
+			}
 		},
 	}
 	if len(in.Companions) > 0 {
