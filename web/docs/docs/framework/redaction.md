@@ -88,9 +88,13 @@ is only ever in memory:
 kapi run secure-translate -i src/locales/en.json --target-lang fr
 ```
 
-The flow is `reader → redact → ai-translate → unredact → writer`. The `redact`
-and `unredact` tools are ordinary pipeline steps, so you can also compose them
-into your own flows.
+The flow is `reader → redact → ai-translate → unredact → writer`. `redact` runs
+in the flow's [source-transform stage](/framework/flows#the-source-transform-stage):
+it settles the source — replacing sensitive spans with placeholders — before
+translation or any annotation reads it. `unredact` is an ordinary late step that
+restores the originals on the way out. You can compose both into your own flows;
+in the steps format, put `redact` under `source_transforms:` and `unredact`
+among the `steps:`.
 
 ### External: extract, translate, merge
 

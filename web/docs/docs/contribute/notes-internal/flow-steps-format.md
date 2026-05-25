@@ -28,16 +28,37 @@ type FlowStep struct {
 }
 ```
 
+## Source-transform stage
+
+An optional `source_transforms:` list declares the leading **source-transform
+stage** — tools that rewrite the source/model (redaction, a simplifier,
+normalization) and run *before* the main steps, so downstream tools see one
+settled, canonical source ([AD-006](../architecture/006-tool-system.md)). It
+takes the same `FlowStep` shape as `steps`. Only source-transform-capable tools
+(those that may rewrite source) are permitted here; placing any other tool in
+the stage is rejected at flow-resolution time.
+
+```yaml
+source_transforms:
+  - tool: redact          # settle the model first
+steps:
+  - tool: ai-translate    # downstream sees the redacted source
+  - tool: qa-check
+```
+
 ## Compilation
 
 `StepsToGraph(spec)` generates:
 
 1. A reader node (using `spec.input`, default "auto")
-2. Tool nodes from steps, chained sequentially
-3. Parallel branches for `parallel:` blocks (tee from previous, join at next)
-4. A writer node (using `spec.output`, default "auto")
+2. Source-transform tool nodes from `spec.source_transforms`, chained after the
+   reader and marked `stage: source-transform`
+3. Tool nodes from `steps`, chained sequentially after the source-transform stage
+4. Parallel branches for `parallel:` blocks (tee from previous, join at next)
+5. A writer node (using `spec.output`, default "auto")
 
-Auto-assigned IDs follow `tool-N` pattern. Positions auto-layout left-to-right.
+Auto-assigned IDs follow `tool-N` pattern. Positions auto-layout left-to-right,
+so the graph order is reader → source-transforms → main tools → writer.
 
 ## Examples
 
