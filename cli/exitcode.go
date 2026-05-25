@@ -26,6 +26,12 @@ const (
 // written normally before the command returns this sentinel.
 var ErrQualityGate = errors.New("quality gate failed")
 
+// ErrSilentExit requests a non-zero exit (ExitError) with no "Error:" message
+// printed — for tools that use exit status as a result channel rather than a
+// failure signal (e.g. `kgrep` exits 1 when nothing matched). The command is
+// responsible for writing any output of its own before returning it.
+var ErrSilentExit = errors.New("")
+
 // SignalContext returns a context that is cancelled on SIGINT or SIGTERM,
 // along with a stop function that must be called to release resources.
 func SignalContext(parent context.Context) (context.Context, context.CancelFunc) {
@@ -71,8 +77,9 @@ func Run(cmd *cobra.Command, cleanup ...func()) {
 	if err != nil {
 		code := ExitCode(cmd, err)
 
-		// Print the error ourselves since SilenceErrors is set.
-		if code != ExitSignal {
+		// Print the error ourselves since SilenceErrors is set. ErrSilentExit
+		// carries the exit code but suppresses the message (grep-style status).
+		if code != ExitSignal && !errors.Is(err, ErrSilentExit) {
 			fmt.Fprintf(os.Stderr, "Error: %s\n", err)
 		}
 
