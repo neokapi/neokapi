@@ -35,8 +35,8 @@ func (c *testStreamingCollector) Result() (flow.CollectorResult, error) {
 func TestTappingTool_ObservesAllParts(t *testing.T) {
 	inner := &tool.BaseTool{
 		ToolName: "passthrough",
-		HandleBlockFn: func(part *model.Part) (*model.Part, error) {
-			return part, nil
+		Annotate: func(v tool.BlockView) error {
+			return nil
 		},
 	}
 
@@ -75,11 +75,10 @@ func TestTappingTool_ObservesAllParts(t *testing.T) {
 func TestTappingTool_DoesNotMutateParts(t *testing.T) {
 	inner := &tool.BaseTool{
 		ToolName: "uppercase-tool",
-		HandleBlockFn: func(part *model.Part) (*model.Part, error) {
+		Annotate: func(v tool.BlockView) error {
 			// Tool modifies the block (this is normal).
-			block := part.Resource.(*model.Block)
-			block.Properties = map[string]string{"touched": "true"}
-			return part, nil
+			v.SetProperty("touched", "true")
+			return nil
 		},
 	}
 

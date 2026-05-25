@@ -32,10 +32,9 @@ func TestParallelBlockTool_OrderPreserved(t *testing.T) {
 	// Create a tool that appends " [processed]" to block source text.
 	inner := &tool.BaseTool{
 		ToolName: "test-tool",
-		HandleBlockFn: func(part *model.Part) (*model.Part, error) {
-			block := part.Resource.(*model.Block)
-			block.Properties = map[string]string{"processed": "true"}
-			return part, nil
+		Annotate: func(v tool.BlockView) error {
+			v.SetProperty("processed", "true")
+			return nil
 		},
 	}
 
@@ -107,7 +106,7 @@ func TestParallelBlockTool_Concurrency(t *testing.T) {
 
 	inner := &tool.BaseTool{
 		ToolName: "slow-tool",
-		HandleBlockFn: func(part *model.Part) (*model.Part, error) {
+		Annotate: func(v tool.BlockView) error {
 			cur := active.Add(1)
 			// Track max concurrency.
 			for {
@@ -118,7 +117,7 @@ func TestParallelBlockTool_Concurrency(t *testing.T) {
 			}
 			time.Sleep(10 * time.Millisecond)
 			active.Add(-1)
-			return part, nil
+			return nil
 		},
 	}
 
@@ -154,11 +153,11 @@ func TestParallelBlockTool_Concurrency(t *testing.T) {
 func TestParallelBlockTool_ErrorPropagation(t *testing.T) {
 	inner := &tool.BaseTool{
 		ToolName: "error-tool",
-		HandleBlockFn: func(part *model.Part) (*model.Part, error) {
-			if part.Resource.ResourceID() == "b3" {
-				return nil, errors.New("processing error on b3")
+		Annotate: func(v tool.BlockView) error {
+			if v.ID() == "b3" {
+				return errors.New("processing error on b3")
 			}
-			return part, nil
+			return nil
 		},
 	}
 
@@ -187,9 +186,9 @@ func TestParallelBlockTool_ErrorPropagation(t *testing.T) {
 func TestParallelBlockTool_Cancellation(t *testing.T) {
 	inner := &tool.BaseTool{
 		ToolName: "slow-cancel-tool",
-		HandleBlockFn: func(part *model.Part) (*model.Part, error) {
+		Annotate: func(v tool.BlockView) error {
 			time.Sleep(100 * time.Millisecond)
-			return part, nil
+			return nil
 		},
 	}
 
@@ -221,9 +220,9 @@ func TestParallelBlockTool_FallbackToSequential(t *testing.T) {
 	var called bool
 	inner := &tool.BaseTool{
 		ToolName: "seq-tool",
-		HandleBlockFn: func(part *model.Part) (*model.Part, error) {
+		Annotate: func(v tool.BlockView) error {
 			called = true
-			return part, nil
+			return nil
 		},
 	}
 
@@ -263,9 +262,9 @@ func TestParallelBlockTool_NonBlockOnly(t *testing.T) {
 		HandleDataFn: func(part *model.Part) (*model.Part, error) {
 			return part, nil
 		},
-		HandleBlockFn: func(part *model.Part) (*model.Part, error) {
-			t.Fatal("HandleBlockFn should not be called for non-block parts")
-			return part, nil
+		Annotate: func(v tool.BlockView) error {
+			t.Fatal("Annotate should not be called for non-block parts")
+			return nil
 		},
 	}
 

@@ -15,8 +15,8 @@ import (
 func TestRetryTool_SucceedsWithoutRetry(t *testing.T) {
 	inner := &BaseTool{
 		ToolName: "test-tool",
-		HandleBlockFn: func(part *model.Part) (*model.Part, error) {
-			return part, nil
+		Annotate: func(v BlockView) error {
+			return nil
 		},
 	}
 
@@ -40,12 +40,12 @@ func TestRetryTool_RetriesOnTransientError(t *testing.T) {
 
 	inner := &BaseTool{
 		ToolName: "flaky-tool",
-		HandleBlockFn: func(part *model.Part) (*model.Part, error) {
+		Annotate: func(v BlockView) error {
 			n := attempts.Add(1)
 			if n < 3 {
-				return nil, errors.New("transient error")
+				return errors.New("transient error")
 			}
-			return part, nil
+			return nil
 		},
 	}
 
@@ -70,8 +70,8 @@ func TestRetryTool_RetriesOnTransientError(t *testing.T) {
 func TestRetryTool_ExhaustsRetries(t *testing.T) {
 	inner := &BaseTool{
 		ToolName: "always-fails",
-		HandleBlockFn: func(part *model.Part) (*model.Part, error) {
-			return nil, errors.New("permanent error")
+		Annotate: func(v BlockView) error {
+			return errors.New("permanent error")
 		},
 	}
 
@@ -99,9 +99,9 @@ func TestRetryTool_RespectsRetryableErrors(t *testing.T) {
 
 	inner := &BaseTool{
 		ToolName: "selective-retry",
-		HandleBlockFn: func(part *model.Part) (*model.Part, error) {
+		Annotate: func(v BlockView) error {
 			attempts.Add(1)
-			return nil, errors.New("rate limit exceeded")
+			return errors.New("rate limit exceeded")
 		},
 	}
 
@@ -131,9 +131,9 @@ func TestRetryTool_DoesNotRetryNonMatchingError(t *testing.T) {
 
 	inner := &BaseTool{
 		ToolName: "non-retryable",
-		HandleBlockFn: func(part *model.Part) (*model.Part, error) {
+		Annotate: func(v BlockView) error {
 			attempts.Add(1)
-			return nil, errors.New("invalid config")
+			return errors.New("invalid config")
 		},
 	}
 
@@ -160,8 +160,8 @@ func TestRetryTool_DoesNotRetryNonMatchingError(t *testing.T) {
 func TestRetryTool_RespectsContextCancellation(t *testing.T) {
 	inner := &BaseTool{
 		ToolName: "slow-fail",
-		HandleBlockFn: func(part *model.Part) (*model.Part, error) {
-			return nil, errors.New("error")
+		Annotate: func(v BlockView) error {
+			return errors.New("error")
 		},
 	}
 

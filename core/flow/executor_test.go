@@ -24,14 +24,12 @@ func passThroughTool(name string) *tool.BaseTool {
 // uppercaseTool creates a tool that uppercases block source text.
 func uppercaseTool() *tool.BaseTool {
 	return &tool.BaseTool{
-		ToolName:     "uppercase",
-		WritesTarget: true,
-		HandleBlockFn: func(part *model.Part) (*model.Part, error) {
-			block := part.Resource.(*model.Block)
-			if block.Translatable {
-				block.SetTargetText(model.LocaleFrench, strings.ToUpper(block.SourceText()))
+		ToolName: "uppercase",
+		Translate: func(v tool.TargetView) error {
+			if v.Translatable() {
+				v.SetTargetText(model.LocaleFrench, strings.ToUpper(v.SourceText()))
 			}
-			return part, nil
+			return nil
 		},
 	}
 }
@@ -40,9 +38,9 @@ func uppercaseTool() *tool.BaseTool {
 func countingTool(name string, count *atomic.Int64) *tool.BaseTool {
 	return &tool.BaseTool{
 		ToolName: name,
-		HandleBlockFn: func(part *model.Part) (*model.Part, error) {
+		Annotate: func(v tool.BlockView) error {
 			count.Add(1)
-			return part, nil
+			return nil
 		},
 	}
 }
@@ -162,8 +160,8 @@ func TestExecutorModification(t *testing.T) {
 func TestExecutorErrorPropagation(t *testing.T) {
 	errTool := &tool.BaseTool{
 		ToolName: "error-tool",
-		HandleBlockFn: func(part *model.Part) (*model.Part, error) {
-			return nil, errors.New("processing error")
+		Annotate: func(v tool.BlockView) error {
+			return errors.New("processing error")
 		},
 	}
 
@@ -202,9 +200,9 @@ func TestFlowExecutorContextCancellation(t *testing.T) {
 	// Tool that blocks until context is cancelled
 	blockingTool := &tool.BaseTool{
 		ToolName: "blocking",
-		HandleBlockFn: func(part *model.Part) (*model.Part, error) {
+		Annotate: func(v tool.BlockView) error {
 			<-ctx.Done()
-			return nil, ctx.Err()
+			return ctx.Err()
 		},
 	}
 
@@ -254,9 +252,9 @@ func TestExecutorMixedPartTypes(t *testing.T) {
 
 	trackingTool := &tool.BaseTool{
 		ToolName: "tracker",
-		HandleBlockFn: func(part *model.Part) (*model.Part, error) {
+		Annotate: func(v tool.BlockView) error {
 			blockCount.Add(1)
-			return part, nil
+			return nil
 		},
 		HandleDataFn: func(part *model.Part) (*model.Part, error) {
 			dataCount.Add(1)
@@ -339,15 +337,13 @@ func TestParallelExecutionMultipleDocuments(t *testing.T) {
 
 	uppercaseFactory := func() (tool.Tool, error) {
 		return &tool.BaseTool{
-			ToolName:     "uppercase",
-			WritesTarget: true,
-			HandleBlockFn: func(part *model.Part) (*model.Part, error) {
+			ToolName: "uppercase",
+			Translate: func(v tool.TargetView) error {
 				totalBlocks.Add(1)
-				block := part.Resource.(*model.Block)
-				if block.Translatable {
-					block.SetTargetText(model.LocaleFrench, strings.ToUpper(block.SourceText()))
+				if v.Translatable() {
+					v.SetTargetText(model.LocaleFrench, strings.ToUpper(v.SourceText()))
 				}
-				return part, nil
+				return nil
 			},
 		}, nil
 	}
@@ -438,12 +434,12 @@ func TestParallelExecutionErrorPropagation(t *testing.T) {
 		AddToolFactory(func() (tool.Tool, error) {
 			return &tool.BaseTool{
 				ToolName: "maybe-error",
-				HandleBlockFn: func(part *model.Part) (*model.Part, error) {
+				Annotate: func(v tool.BlockView) error {
 					n := callCount.Add(1)
 					if n == 1 {
-						return nil, errors.New("intentional error")
+						return errors.New("intentional error")
 					}
-					return part, nil
+					return nil
 				},
 			}, nil
 		}).
