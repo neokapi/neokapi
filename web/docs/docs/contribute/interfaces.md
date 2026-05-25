@@ -85,7 +85,10 @@ func (l *Layer) IsEmbedded() bool { return l.ParentID != "" && l.Format != "" }
 ### Block (translatable content)
 
 ```go
-// Block is the primary translatable content unit (Okapi: TextUnit).
+// Block is the primary translatable content unit (Okapi: TextUnit). Source is a
+// single flat run sequence; translations are first-class Target records keyed by
+// VariantKey; every interpretation of the runs (segmentation, terms, entities,
+// QA, alignment) is a stand-off Overlay. There is no structural Segment type.
 type Block struct {
     ID           string
     Name         string
@@ -93,46 +96,79 @@ type Block struct {
     MimeType     string
     Translatable bool
     Skeleton     *Skeleton
-    Source       []*Segment
-    Targets      map[LocaleID][]*Segment
+    Source       []Run
+    Targets      map[VariantKey]*Target
+    Overlays     []Overlay
     Properties   map[string]string
     Annotations  map[string]Annotation
 }
 
 func (b *Block) ResourceID() string { return b.ID }
-func (b *Block) SourceText() string { /* concatenate source segments */ }
-func (b *Block) FirstSegment() *Segment { /* first source segment */ }
-func (b *Block) SetSourceText(text string) { /* replace source */ }
-func (b *Block) HasTarget(locale LocaleID) bool { /* check target exists */ }
-func (b *Block) TargetText(locale LocaleID) string { /* concatenate target */ }
-func (b *Block) SetTargetText(locale LocaleID, text string) { /* set target */ }
-func (b *Block) SourceRuns() []Run { /* canonical inline content */ }
+func (b *Block) SourceText() string { /* plain-text flattening of Source runs */ }
+func (b *Block) SourceRuns() []Run { /* the canonical source run sequence */ }
 func (b *Block) SetSourceRuns(runs []Run) { /* replace source runs */ }
+func (b *Block) SetSourceText(text string) { /* replace source with one TextRun */ }
+func (b *Block) HasTarget(locale LocaleID) bool { /* a locale-only variant exists */ }
+func (b *Block) TargetLocales() []LocaleID { /* sorted target locales */ }
+func (b *Block) Target(locale LocaleID) *Target { /* locale-only variant, or nil */ }
 func (b *Block) TargetRuns(locale LocaleID) []Run { /* target inline content */ }
+func (b *Block) TargetText(locale LocaleID) string { /* target plain text */ }
 func (b *Block) SetTargetRuns(locale LocaleID, runs []Run) { /* set target runs */ }
+func (b *Block) SetTargetText(locale LocaleID, text string) { /* set target text */ }
+func (b *Block) SetTargetVariant(key VariantKey, t *Target) { /* tone/channel variant */ }
+// Segmentation is one overlay among others; absent it, the block is one segment.
+func (b *Block) SourceSegmentation() *Overlay { /* source segmentation overlay, or nil */ }
+func (b *Block) SourceSegmentCount() int { /* span count, or 1 for a non-empty block */ }
+func (b *Block) SourceSegmentRuns(i int) []Run { /* runs of the i-th segment span */ }
+func (b *Block) SetSegmentation(variant *VariantKey, spans []Span) { /* replace overlay */ }
 
-// Segment is a single segment within a Block's source or target content.
-// Runs is the canonical inline-content representation: a flat run sequence.
-type Segment struct {
-    ID          string
-    Runs        []Run
-    Properties  map[string]string
-    Annotations map[string]Annotation
+// VariantKey identifies a translation: locale plus optional tone and channel.
+type VariantKey struct {
+    Locale  LocaleID
+    Tone    string // optional
+    Channel string // optional
 }
 
-func (s *Segment) Text() string { /* plain-text flattening (inline codes drop) */ }
-func (s *Segment) SetRuns(runs []Run) { /* replace the run sequence */ }
-func (s *Segment) SetRunsText(text string) { /* a single TextRun */ }
-func (s *Segment) HasInlineCodes() bool { /* any non-text run present */ }
+func Variant(locale LocaleID) VariantKey { return VariantKey{Locale: locale} }
+
+// Target is one translation: a flat run sequence with status and provenance.
+type Target struct {
+    Runs   []Run
+    Status TargetStatus // e.g. "", "translated", "reviewed"
+    Origin Origin       // tool/provider that produced it
+    Score  float64
+}
+
+// Overlay is a typed stand-off layer over one side of a Block — the source
+// (Variant nil) or a target variant — anchoring Spans to run-index ranges.
+type Overlay struct {
+    Type    OverlayType // "segmentation" | "term" | "entity" | "qa" | "alignment"
+    Variant *VariantKey // nil = source side
+    Spans   []Span
+}
+
+// Span is one entry in an Overlay: a run-anchored range with an optional id and
+// type-specific props. RunRange is half-open [start, end) over the runs, with an
+// intra-text-run rune offset so boundaries survive inline-code and edits.
+type Span struct {
+    ID    string
+    Range RunRange
+    Props map[string]string
+}
+
+type RunRange struct {
+    StartRun, StartOffset, EndRun, EndOffset int
+}
 ```
 
 ### Run (inline content)
 
-A segment's content is a flat `[]Run`. Each `Run` is a discriminated union —
-exactly one pointer field is set — defined in `core/model/run.go`:
+A block's source (and each target) is a flat `[]Run`. Each `Run` is a
+discriminated union — exactly one pointer field is set — defined in
+`core/model/run.go`:
 
 ```go
-// Run is one element of a segment's flat inline-content sequence.
+// Run is one element of a flat inline-content sequence.
 type Run struct {
     Text    *TextRun        // plain text chunk
     Ph      *PlaceholderRun // self-closing token: variable, <br>, icon, redaction
@@ -310,19 +346,27 @@ type SchemaProvider interface {
 ### BaseTool (embedding target with part-type dispatch)
 
 ```go
-// PartHandler handles a single Part, returning the (possibly transformed) Part.
+// PartHandler handles a single non-block Part, returning the (possibly
+// transformed) Part.
 type PartHandler func(part *model.Part) (*model.Part, error)
 
 // BaseTool implements Process once and dispatches each Part to the matching
-// handler. Embed it and set only the handler fields you need; unset handlers
-// pass the Part through unchanged.
+// handler. Embed it and set only the handlers you need; unset handlers pass the
+// Part through unchanged. For Blocks, set exactly ONE capability-typed handler —
+// the view it receives bounds what the tool may write (immutability, AD-006):
+//   Annotate(BlockView)   — read-only: overlays / annotations / properties
+//   Translate(TargetView) — writes the target; source read-only
+//   Transform(SourceView) — rewrites source (and may write target)
 type BaseTool struct {
     ToolName        string
     ToolDescription string
     Cfg             ToolConfig
     SchemaFn        func() *schema.ComponentSchema
 
-    HandleBlockFn      PartHandler
+    Annotate  func(BlockView) error
+    Translate func(TargetView) error
+    Transform func(SourceView) error
+
     HandleDataFn       PartHandler
     HandleMediaFn      PartHandler
     HandleLayerStartFn PartHandler
@@ -330,6 +374,11 @@ type BaseTool struct {
     HandleGroupStartFn PartHandler
     HandleGroupEndFn   PartHandler
 }
+
+// BlockView ⊂ TargetView ⊂ SourceView are the read/write surfaces a block
+// handler sees. BlockView reads source/target and writes overlays, annotations
+// and properties; TargetView adds SetTarget*; SourceView adds SetSource*. A tool
+// needing batching, 1→N fan-out, or stream control overrides Process instead.
 ```
 
 ### SessionTool (random access to project block state)

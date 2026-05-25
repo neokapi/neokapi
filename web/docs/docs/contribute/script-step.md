@@ -28,11 +28,11 @@ For block parts, the `block` property provides access to translatable content:
 part.block.id; // Block ID string
 part.block.translatable; // boolean
 
-// Source segments (array)
-part.block.source[0].content.text; // Source text of first segment
+// Source runs (flat array)
+part.block.source[0].content.text; // text of the first run
 
-// Target segments by locale (object)
-part.block.targets["fr"][0].content.text; // French target text
+// Target runs by locale (object)
+part.block.targets["fr"][0].content.text; // French target's first run text
 ```
 
 ### emit(part)
