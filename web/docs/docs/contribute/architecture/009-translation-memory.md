@@ -14,9 +14,9 @@ Sievepen is neokapi's built-in translation memory library, living in
 `sievepen/`. It stores multilingual entries as per-locale `[]model.Run`
 sequences — preserving inline markup and entity metadata — rather than flat
 strings, and uses a tiered matching pipeline (generalized exact, structural
-exact, plain exact, fuzzy) to maximize reuse. The framework ships in-memory
-and SQLite backends; a PostgreSQL backend is provided by the bowrain
-platform.
+exact, plain exact, fuzzy) — complemented by semantic retrieval for paraphrase
+— to maximize reuse. The framework ships in-memory and SQLite backends; a
+PostgreSQL backend is provided by the bowrain platform.
 
 ## Context
 
@@ -147,15 +147,15 @@ type TranslationMemory interface {
 `Lookup` takes a `*model.Block` rather than a string. The Block carries the
 entity annotations needed to compute the generalized key and the inline-code
 runs needed for the structural key; no separate pre-processing step is
-required. By default `Lookup` keys on the block's _first_ segment, which is
-correct when segmentation is off (one segment per Block — the verbatim lookup
-case). Matches are found among entries whose `Variants[sourceLocale]` exists
-and matches the source; `TMMatch.Entry.Variant(targetLocale)` is the
-translation.
+required. By default `Lookup` keys on the block's whole content — the verbatim
+lookup case when no segmentation overlay is present. Matches are found among
+entries whose `Variants[sourceLocale]` exists and matches the source;
+`TMMatch.Entry.Variant(targetLocale)` is the translation.
 
-`LookupSegment` selects a specific segment by index for the
-sentence-level TM leverage path used by `kapi extract` when the
-project's recipe sets `segmentation.source: true` (see
+`LookupSegment` keys on a single segment span — `segmentIdx` indexes the
+block's segmentation overlay ([AD-002](002-content-model.md)) — for the
+sentence-level TM leverage path used by `kapi extract` when the project's
+recipe sets `segmentation.source: true` (see
 [AD-017](017-bilingual-format-interop.md)).
 
 ### Backends
@@ -190,6 +190,19 @@ character-level Levenshtein in Go.
 multi-word Latin text (OR of quoted substrings ≥3 characters) and for
 single-word or CJK text (overlapping 4-character windows sampled at even
 intervals).
+
+### Hybrid leverage: exact tiers plus semantic retrieval
+
+The tiers above are *exact and fuzzy on normalized keys* — strong for
+repetition and near-repetition, blind to paraphrase. The intended direction is
+**hybrid**: the deterministic exact/structural/generalized tiers stay the
+high-confidence path (and back locked 100% / ICE leverage), complemented by
+**semantic retrieval** — embedding the source content and ranking candidates by
+vector similarity — for suggestions where no exact or close fuzzy match exists.
+Exact keys and embeddings derive from the same stored `[]Run` on demand; the
+whole block, and per-span when a segmentation overlay is present, feed both
+paths. Semantic matches surface as scored suggestions, never as silent
+auto-fill.
 
 ### Unicode normalization
 

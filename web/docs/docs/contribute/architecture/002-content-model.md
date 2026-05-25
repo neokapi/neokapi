@@ -3,7 +3,7 @@ id: 002-content-model
 sidebar_position: 2
 title: "AD-002: Content Model"
 description: "Architecture decision: documents are represented as a stream of Part values (Layer, Block, Data, Media) and a Block's inline content is a flat sequence of Run values, so that tools and translations work independently of source file format."
-keywords: [content model, Part, Block, Run, Segment, Layer, architecture decision, neokapi]
+keywords: [content model, Part, Block, Run, Segment, overlay, stand-off annotation, segmentation, Layer, architecture decision, neokapi]
 ---
 
 # AD-002: Content Model
@@ -12,13 +12,18 @@ keywords: [content model, Part, Block, Run, Segment, Layer, architecture decisio
 
 Documents in neokapi are represented as a stream of `Part` values, each
 carrying a `PartType` discriminator and a `Resource`. Translatable content is
-a `Block`; a Block's inline content lives on its `Segment` values as a flat
-`[]Run` — a discriminated union (`Text`, `Ph`, `PcOpen`, `PcClose`, `Sub`,
-`Plural`, `Select`) defined by RFC 0001. Inline-code runs carry the metadata
-that the older model spread across six span "layers" (native markup, abstract
-identity, semantic type, display text, text equivalent, editing constraints)
-directly on their fields, so format-aware tools can process content
-semantically while writers roundtrip native markup exactly.
+a `Block`; a Block's content is a flat `[]Run` per locale — a discriminated
+union (`Text`, `Ph`, `PcOpen`, `PcClose`, `Sub`, `Plural`, `Select`) defined
+by RFC 0001. Inline-code runs carry the metadata that the older model spread
+across six span "layers" (native markup, abstract identity, semantic type,
+display text, text equivalent, editing constraints) directly on their fields,
+so format-aware tools can process content semantically while writers roundtrip
+native markup exactly. Interpretations *of* that content — sentence
+segmentation, terminology, entities, QA findings — are **stand-off overlays**:
+typed, run-anchored span sets layered over the runs on demand, never rewriting
+them. `Segment` is not a structural type; a segment is a span in a
+segmentation overlay. Targets are first-class records keyed by a *variant* —
+locale plus optional tone or channel — not bare locale-keyed strings.
 
 ## Context
 
@@ -90,8 +95,8 @@ type Resource interface {
 Resource types:
 
 - **Layer** — structural grouping (document, section, embedded content).
-- **Block** — translatable content with source segments and target segments
-  per locale.
+- **Block** — translatable content: a source run sequence and per-locale
+  target run sequences, plus optional stand-off overlays.
 - **Data** — non-translatable structure (skeleton, metadata).
 - **Media** — binary content (images, embedded files).
 
@@ -105,22 +110,64 @@ without maintaining separate error channels.
 type Block struct {
     ID           string
     SourceLocale LocaleID
-    Source       []*Segment
-    Targets      map[LocaleID][]*Segment
-    Identity     *BlockIdentity // content-addressable hash for dedup
-    Annotations  map[string]Annotation
+    Source       []Run                  // whole source content
+    Targets      map[VariantKey]*Target // first-class targets, keyed by variant
+    Overlays     []Overlay              // opt-in stand-off interpretations (usually none)
+    Identity     *BlockIdentity        // content-addressable hash for dedup
+    Annotations  map[string]Annotation // block-level (non-positional) metadata
     Properties   map[string]string
     // …skeleton link, display hint, whitespace flag, etc.
 }
 ```
 
-A Block holds source segments and per-locale target segments. Each `Segment`
-carries a flat `Runs []Run` sequence — the canonical inline-content
-representation (see [Segment and the Run sequence](#segment-and-the-run-sequence)
-below). `Block.SourceRuns()` / `TargetRuns(locale)` flatten the segment runs;
-`SetSourceRuns` / `SetTargetRuns` replace them; `FirstSegment()` returns the
-first source segment, which is what TM lookup keys on when segmentation is
-off.
+A Block holds one source run sequence and one target run sequence per locale —
+the whole content, unsegmented. There is no `Segment` container: most blocks
+*are* a single string and its translations, and the model says exactly that.
+When a workflow needs sentence boundaries (review UI, exact-match TM keys,
+XLIFF/TMX export), a flow tool computes them and attaches a **segmentation
+overlay** (see [Stand-off overlays](#stand-off-overlays-segmentation-terminology-entities)).
+The overlay is layered over the runs; the runs are never repartitioned, so
+segmentation is reversible by construction — dropping the overlay restores the
+unsegmented content with no loss.
+
+#### Targets and variants
+
+A target is a **first-class record**, not a bare run sequence, and it is keyed
+by a **variant** rather than a bare locale:
+
+```go
+// VariantKey identifies a target variant. Locale is the only required
+// dimension; tone, channel, and any future axis are optional and zero-valued
+// by default, so the common case carries no extra ceremony.
+type VariantKey struct {
+    Locale  LocaleID // required
+    Tone    string   // optional ("" = unspecified)
+    Channel string   // optional
+}
+
+// Target is the committed translation for one variant: content plus its
+// lifecycle and provenance. Candidate/alternative translations (TM, MT, AI
+// proposals) remain stand-off overlays; Target is the chosen one.
+type Target struct {
+    Runs   []Run
+    Status TargetStatus // draft | translated | reviewed | signed-off
+    Origin Origin       // human | tm | mt | ai, plus engine, tool, timestamp, author
+    Score  float64
+}
+```
+
+Ergonomic accessors keep the locale-only path a one-liner: `block.Target("fr-FR")`
+resolves `VariantKey{Locale: "fr-FR"}`, while `block.TargetVariant(key)` reaches
+the general case. Code that only knows about locales never has to mention tone or
+channel — richer variants are strictly opt-in. A `Target`'s `Runs` carry their own
+overlays (target-side segmentation, target terms), scoped to that variant.
+
+This separates two things the older `map[LocaleID][]Run` conflated: the
+**committed translation per variant** (a `Target`, with status and provenance)
+from **candidate proposals** (stand-off `alt-translation` overlays, possibly many
+per variant, each scored). The in-flight `Target` holds the current committed
+translation; accumulated history across runs and review trails are a
+persistence-layer concern, outside the content model.
 
 #### Content-addressable identity
 
@@ -150,7 +197,6 @@ The `Properties` map carries arbitrary key-value metadata that tools and
 connectors attach as blocks flow through the pipeline. Examples:
 
 - `"translation-origin": "tm"` — how the translation was produced
-- `"segment-count": 3` — number of segments in the block
 - `"word-count": 42` — count from the wordcount tool
 - `"cms-path": "/en/blog/post-1"` — source location in a CMS
 
@@ -160,8 +206,8 @@ dedicated fields for every new piece of metadata.
 
 #### Annotations
 
-Blocks carry an `Annotations` map for metadata produced by pipeline tools.
-Each annotation implements the `Annotation` interface:
+Block-level, non-positional metadata produced by pipeline tools lives in the
+`Annotations` map. Each annotation implements the `Annotation` interface:
 
 ```go
 type Annotation interface {
@@ -169,40 +215,37 @@ type Annotation interface {
 }
 ```
 
-Built-in annotation types include:
+Interpretations fall into two carriers. **Positional** ones that point into the
+content — segmentation, terminology, entities, QA findings, source↔target
+alignment — are **stand-off overlays** with run-anchored spans (see
+[Stand-off overlays](#stand-off-overlays-segmentation-terminology-entities)).
+**Non-positional** ones that describe the block as a whole stay in the
+`Annotations` map:
 
-| Annotation                | Type Key          | Producer              | Purpose                                |
-| ------------------------- | ----------------- | --------------------- | -------------------------------------- |
-| `AltTranslation`          | `alt-translation` | TM leverage, AI tools | Alternative translations with scores   |
-| `TMMatchAnnotation`       | `tm-match`        | tm-leverage           | Best TM match with fuzzy score         |
-| `TermAnnotation`          | `term`            | term-lookup           | Matched terminology with target terms  |
-| `TermCandidateAnnotation` | `term-candidate`  | ai-terminology        | Term extraction candidates from LLM    |
-| `EntityAnnotation`        | `entity`          | entity-annotate       | Named entities (people, places, dates) |
-| `QAFindingAnnotation`     | `qa-finding`      | qa-check              | Quality check findings with severity   |
-| `WordCountAnnotation`     | `word-count`      | word-count            | Token and character counts             |
+| Interpretation   | Type Key          | Carrier          | Producer              | Purpose                                |
+| ---------------- | ----------------- | ---------------- | --------------------- | -------------------------------------- |
+| Segmentation     | `segmentation`    | overlay (spans)  | segment annotator     | Sentence / chunk boundaries over runs  |
+| Terminology      | `term`            | overlay (spans)  | term-lookup           | Matched terminology with target terms  |
+| Term candidates  | `term-candidate`  | overlay (spans)  | ai-terminology        | Term extraction candidates from an LLM |
+| Entities         | `entity`          | overlay (spans)  | entity-annotate       | Named entities (people, places, dates) |
+| QA findings      | `qa-finding`      | overlay (spans)  | qa-check              | Quality findings with severity         |
+| Alignment        | `alignment`       | overlay (spans)  | aligner, readers      | Source-span ↔ target-span links        |
+| Alt-translations | `alt-translation` | block annotation | TM leverage, AI tools | Candidate translations with scores     |
+| Best TM match    | `tm-match`        | block annotation | tm-leverage           | Best TM match with fuzzy score         |
+| Word count       | `word-count`      | block annotation | word-count            | Token and character counts             |
 
-Annotations are keyed by type and instance (`"term:0"`, `"term:1"`) to
-support multiple annotations of the same type per Block. They carry
-character-level positions via `TextRange` (start/end offsets), enabling
-precise inline highlighting without re-detecting boundaries at render time.
+Block annotations are keyed by type and instance (`"alt-translation:0"`,
+`"alt-translation:1"`) to support several of one type per Block.
 
-Tools communicate by reading annotations produced upstream and writing their
-own downstream, keeping tools loosely coupled through the shared data model
-rather than direct dependencies.
+Tools communicate by reading annotations and overlays produced upstream and
+writing their own downstream, keeping tools loosely coupled through the shared
+data model rather than direct dependencies.
 
-### Segment and the Run sequence
+### The Run sequence
 
-A Block's inline content is not a string with embedded markers — it is a flat
-sequence of `Run` values on each `Segment`:
-
-```go
-type Segment struct {
-    ID          string
-    Runs        []Run
-    Properties  map[string]string
-    Annotations map[string]Annotation
-}
-```
+A Block's content is not a string with embedded markers — it is a flat
+sequence of `Run` values, held directly on the Block (`Source`, and each
+`Targets[variant].Runs`):
 
 `Run` is a discriminated union: exactly one of its pointer fields is set,
 which is the run's *kind*. `Run.Kind()` returns the discriminator and
@@ -224,6 +267,59 @@ Text and inline codes interleave positionally in the slice; there is no
 parallel side-table and no marker characters. A reader builds the slice by
 appending a `TextRun` for each text chunk and an inline-code run for each
 construct it encounters (see `core/formats/*/run_builder.go`).
+
+### Stand-off overlays (segmentation, terminology, entities) {#stand-off-overlays-segmentation-terminology-entities}
+
+The runs are the content. Everything that *interprets* the content — where the
+sentence boundaries fall, which spans are terms or named entities, what a QA
+check flagged, how a source span aligns to a target span — is a **stand-off
+overlay**: a typed set of spans anchored to a run sequence, layered over it
+without rewriting it. This is the one mechanism for every positional
+interpretation; segmentation is simply the overlay of type `segmentation`.
+
+```go
+// Overlay is a typed stand-off layer over one side of a Block.
+type Overlay struct {
+    Type    OverlayType // "segmentation" | "term" | "entity" | "qa" | "alignment" | …
+    Variant *VariantKey // which run sequence it annotates; nil = source
+    Spans   []Span
+}
+
+type Span struct {
+    Range   RunRange // run-anchored, never a flattened-string offset
+    Payload any      // type-specific: segment id, term, entity kind, score, alignment ref
+}
+
+// RunRange anchors a span on the run sequence — a start and end position plus
+// an intra-text-run character offset — so boundaries stay stable across inline
+// codes and survive run-preserving edits. Inline-code runs already carry ids;
+// text runs carry stable ids for the same purpose.
+type RunRange struct {
+    StartRun, StartOffset int
+    EndRun,   EndOffset   int
+}
+```
+
+Four properties follow from anchoring interpretations to runs rather than
+baking them into structure:
+
+- **Segmentation is opt-in and dynamic.** A `segment` flow tool — backed by an
+  SRX ruleset, a UAX-29 baseline, or an ML/LLM segmenter — computes boundaries
+  and writes a segmentation overlay. Nothing runs it by default; whole-block
+  content is the norm, which is also what document-level AI translation wants
+  for coherence. Several segmentations can coexist (e.g. `sentence` and a
+  token-budgeted `llm-chunk`), each its own overlay.
+- **It is reversible by construction.** Desegmentation is "drop the overlay."
+  There is no inverse operation to get wrong and no inter-segment "ignorable"
+  material to lose — the gaps between segment spans are simply runs no span
+  covers.
+- **It is uniform.** Terminology, entities, and QA findings are the same kind
+  of overlay, anchored the same run-aware way, rather than each re-detecting
+  boundaries at render time.
+- **Leverage is hybrid.** TM matching works at the whole-block level (including
+  embedding/semantic similarity) and, when a segmentation overlay is present,
+  also computes exact and structural keys per segment span via the Run
+  projections below.
 
 ### Inline-code runs carry the former span "layers"
 
@@ -348,7 +444,7 @@ Custom subtypes use a reverse-domain prefix: `com.acme:custom-tag`.
 ### Run ID assignment and pairing
 
 Format readers assign sequential numeric IDs to inline-code runs within each
-segment. A `PcOpenRun` and the `PcCloseRun` that closes it share the same
+run sequence. A `PcOpenRun` and the `PcCloseRun` that closes it share the same
 `ID`; a `PlaceholderRun` gets its own. IDs start at `"1"`. Pairs nest LIFO,
 and runs inside a `Plural`/`Select` branch form their own scope:
 
@@ -374,8 +470,8 @@ provides (in `core/model/`):
 ```go
 // Plain flattening — TextRun content verbatim, placeholders contribute
 // {equiv}, paired codes contribute their inner content, plural/select take
-// the 'other' branch. Use: word count, search, QA text comparison.
-// Segment.Text() is the text-only variant (inline codes contribute nothing).
+// the 'other' branch. Use: word count, search, QA text comparison. A
+// text-only variant (inline codes contribute nothing) backs plain-text views.
 func FlattenRuns(runs []Run) string
 
 // Structural text — inline-code runs become numbered placeholders ({1},
@@ -415,10 +511,18 @@ differently.
 > `[]Run` is now the sole inline-content representation, with no `Fragment`,
 > `Span`, or coded-text marker types.
 
+> **Historical note.** An earlier model made segmentation structural —
+> `Block.Source []*Segment`, each `Segment` owning its own `[]Run` — and the
+> segmentation tool rewrote that structure in place. Segmentation is now a
+> stand-off overlay over a single per-locale run sequence; `Segment` is a span,
+> not a type. Bilingual formats that carry sentence segments (XLIFF, TMX)
+> project to and from segmentation + alignment overlays at the reader/writer
+> boundary.
+
 ### Boundaries: structural canonical, projections at consumers
 
 The neokapi inline-code model is **structural-canonical**. `Run[]` is the
-single source of truth for inline content inside a Segment. Every other
+single source of truth for a Block's content. Every other
 representation that crosses a boundary — to a translator, an LLM, an MT
 provider, a CAT tool, a runtime, a TM index — is a **projection** computed
 from `Run[]` on demand.
@@ -436,7 +540,7 @@ The framework provides:
 
 | Projection                     | Surface                          | Consumer                                                                  |
 | ------------------------------ | -------------------------------- | ------------------------------------------------------------------------- |
-| `Run[]` (no projection)        | `Segment.Runs`, KLF JSON wire    | Pipeline tools, store, format readers/writers                             |
+| `Run[]` (no projection)        | `Block.Source` / `Targets`, KLF wire | Pipeline tools, store, format readers/writers                         |
 | `RenderRunsWithData(runs)`     | native source markup             | Format writers (HTML, Markdown, XLIFF fallback) — replays `Data` verbatim |
 | `RunsStructuralText(runs)`     | `Click {1}here{/1} for info`     | TM matching (structural tier) — cross-format leverage                     |
 | `RunsGeneralizedText(runs)`    | structural + entity placeholders | TM matching (generalized tier)                                            |
@@ -603,6 +707,17 @@ backend's tag-handling capability:
 - The Run union (paired `PcOpen`/`PcClose`, self-closing `Ph`, structured
   `Plural`/`Select`) aligns with XLIFF 2.0's `<pc>`/`<ph>` model, making XLIFF
   serialization a natural mapping rather than a lossy conversion.
+- Segmentation, terminology, entities, and QA share one run-anchored stand-off
+  overlay mechanism; segmentation never mutates content, so it is opt-in,
+  multi-layered, and losslessly reversible.
+- Bilingual interchange formats that carry sentence segments (XLIFF 2.0
+  `<segment>`/`<ignorable>`, TMX) project to and from segmentation + alignment
+  overlays at the reader/writer boundary — opt-in byte-faithful round-trip —
+  without forcing segment structure into the content model.
+- Targets are first-class records keyed by a variant (locale plus optional
+  tone/channel); committed translations carry status and provenance, candidate
+  proposals stay as `alt-translation` overlays, and the variant axis extends
+  beyond locale without ceremony at locale-only call sites.
 
 ## Related
 
@@ -611,3 +726,4 @@ backend's tag-handling capability:
 - [AD-004: Processing Engine](004-processing-engine.md) — how Parts stream
 - [AD-005: Format System](005-format-system.md) — readers/writers that produce Parts
 - [AD-006: Tool System](006-tool-system.md) — tools that consume Parts
+- [AD-017: Bilingual Format Interop](017-bilingual-format-interop.md) — XLIFF/TMX segment + alignment projection
