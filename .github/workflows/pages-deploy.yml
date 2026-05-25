@@ -201,11 +201,23 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ steps.target.outputs.pr_number }}
         run: |
-          BODY="📚 Preview deployed:
+          MARKER="<!-- pr-preview-links -->"
+          BODY="${MARKER}
+          📚 Preview deployed:
           - neokapi landing: https://neokapi.github.io/web/prs/${PR_NUMBER}/neokapi/
           - neokapi docs: https://neokapi.github.io/web/prs/${PR_NUMBER}/neokapi/docs/
           - bowrain landing: https://neokapi.github.io/web/prs/${PR_NUMBER}/bowrain/
           - bowrain docs: https://neokapi.github.io/web/prs/${PR_NUMBER}/bowrain/docs/
           - kapi storybook: https://neokapi.github.io/storybook/prs/${PR_NUMBER}/kapi/
           - bowrain storybook: https://neokapi.github.io/storybook/prs/${PR_NUMBER}/bowrain/"
-          gh pr comment "$PR_NUMBER" --repo "${GITHUB_REPOSITORY}" --body "$BODY"
+          # Reuse a single sticky comment: find the previous preview comment by
+          # its hidden marker and edit it in place; create one only if none exists.
+          COMMENT_ID=$(gh api \
+            "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments" --paginate \
+            --jq ".[] | select(.body | contains(\"${MARKER}\")) | .id" | head -n1)
+          if [ -n "$COMMENT_ID" ]; then
+            gh api "repos/${GITHUB_REPOSITORY}/issues/comments/${COMMENT_ID}" \
+              -X PATCH -f body="$BODY"
+          else
+            gh pr comment "$PR_NUMBER" --repo "${GITHUB_REPOSITORY}" --body "$BODY"
+          fi
