@@ -154,3 +154,6 @@ platform/docker/traefik/certs
 /.claude/skills/kapi-*/
 /.claude/skills/bowrain-*/
 /packages/kapi-claude-plugin/skills/
+
+# Throwaway kapi config/data/cache home for in-repo (non-dogfood) invocations — see Makefile KAPI_ISO_ENV
+.kapi-iso/

@@ -42,6 +42,17 @@ GOFMT   := gofmt
 BIN_DIR := $(ROOT_DIR)/bin
 COVER_DIR := coverage
 
+# ── kapi dogfood isolation ────────────────────────────────────────────────
+# This repo dogfoods kapi: a *.kapi recipe sits at the repo root, which kapi
+# auto-discovers via a git-style upward walk from any in-repo cwd. Every
+# in-repo kapi invocation that is NOT the dogfood workflow itself must opt out
+# of that discovery (KAPI_NO_PROJECT) and point kapi at a throwaway
+# config/data/cache home, so it can never read the developer's ~/.config/kapi,
+# their user-installed plugins, or silently bind to the dogfood recipe.
+# Prefix in-repo kapi calls with $(KAPI_ISO_ENV). See CLAUDE.md "Dogfooding".
+KAPI_ISO_DIR := $(CURDIR)/.kapi-iso
+KAPI_ISO_ENV := KAPI_NO_PROJECT=1 KAPI_CONFIG_DIR=$(KAPI_ISO_DIR)/config XDG_DATA_HOME=$(KAPI_ISO_DIR)/data XDG_CACHE_HOME=$(KAPI_ISO_DIR)/cache
+
 GOLANGCI_LINT := $(shell which golangci-lint 2>/dev/null || { test -x "$$(go env GOPATH)/bin/golangci-lint" && echo "$$(go env GOPATH)/bin/golangci-lint"; })
 
 # ── CI auto-detection ────────────────────────────────────────────────────────
@@ -493,7 +504,7 @@ kapi-desktop-extract: kapi-desktop-frontend-deps ## Extract translatable blocks 
 	cd $(KAPI_DESKTOP_DIR)/frontend && vp run extract
 
 kapi-desktop-pseudo-translate: kapi-desktop-extract bin/kapi ## Pseudo-translate i18n/ → i18n-qps/
-	./bin/kapi pseudo-translate $(KAPI_DESKTOP_DIR)/frontend/i18n \
+	$(KAPI_ISO_ENV) ./bin/kapi pseudo-translate $(KAPI_DESKTOP_DIR)/frontend/i18n \
 		--target-lang qps \
 		-o $(KAPI_DESKTOP_DIR)/frontend/i18n-qps \
 		-q
@@ -507,7 +518,7 @@ kapi-i18n-generate: ## Regenerate core/i18n/builtins/metadata.json from Go regis
 	go generate ./core/i18n/...
 
 kapi-i18n-pseudo-translate: kapi-i18n-generate bin/kapi ## Pseudo-translate builtins into core/i18n/catalogs/qps.mo
-	./bin/kapi pseudo-translate core/i18n/builtins/metadata.json \
+	$(KAPI_ISO_ENV) ./bin/kapi pseudo-translate core/i18n/builtins/metadata.json \
 		--target-lang qps \
 		-f json \
 		-o core/i18n/catalogs/qps.mo \
@@ -676,7 +687,13 @@ kapi-scenes: ## Record kapi docs scene tapes (VHS, desktop) → web/docs/static/
 	  for tape in "$$scene_dir"*.tape; do \
 	    [ -f "$$tape" ] || continue; \
 	    echo "Recording $$tape"; \
-	    (cd "$$scene_dir" && PATH="$(CURDIR)/bin:$$PATH" vhs "$$(basename "$$tape")") || echo "  ! $$tape failed"; \
+	    scene_env="KAPI_CONFIG_DIR=$(KAPI_ISO_DIR)/config XDG_DATA_HOME=$(KAPI_ISO_DIR)/data XDG_CACHE_HOME=$(KAPI_ISO_DIR)/cache"; \
+	    if find "$$scene_dir" -name '*.kapi' | grep -q .; then \
+	      : "scene owns a recipe — keep discovery on (nearest-wins shields it from the root dogfood recipe)"; \
+	    else \
+	      scene_env="$$scene_env KAPI_NO_PROJECT=1"; \
+	    fi; \
+	    (cd "$$scene_dir" && env $$scene_env PATH="$(CURDIR)/bin:$$PATH" vhs "$$(basename "$$tape")") || echo "  ! $$tape failed"; \
 	  done; \
 	done
 	@for webm in web/docs/scenes/*/*.webm; do \

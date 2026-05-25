@@ -111,6 +111,43 @@ For the multi-module structure:
 - `GOWORK=off bash -c "cd kapi && go build ./..."` verifies kapi isolation (no bowrain dep)
 - `GOWORK=off bash -c "cd apps/kapi-desktop && go build ./..."` verifies kapi-desktop isolation (no bowrain dep)
 
+## Dogfooding kapi (in-repo isolation contract)
+
+This repo dogfoods kapi: a `*.kapi` recipe lives at the repo root and is driven
+by the **system/user-installed** kapi + plugins (the real `kapi-bowrain` plugin,
+real keychain auth, real server). That recipe is auto-discovered by a git-style
+**upward walk** from any cwd inside the tree (`core/project.ResolveLayout` →
+`cli.ResolveProjectPath`), so the dogfood project must never leak into the
+project's own tests, scripts, or docs recorders.
+
+**The contract: every in-repo kapi invocation that is _not_ the dogfood
+workflow must isolate itself.** Set, on the kapi process environment:
+
+- `KAPI_NO_PROJECT=1` — opt out of project discovery (an explicit `-p` still
+  wins). **Note:** `KAPI_PROJECT=""` does *not* disable discovery; only a
+  non-empty `KAPI_NO_PROJECT` does.
+- `KAPI_CONFIG_DIR`, `XDG_DATA_HOME`, `XDG_CACHE_HOME` → throwaway dirs, so kapi
+  can't read the developer's `~/.config/kapi`, user-installed plugins, or caches.
+
+Where this is already wired:
+
+- **Makefile** — use the shared `$(KAPI_ISO_ENV)` (defined near the top) to
+  prefix any in-repo `bin/kapi` call (e.g. the `kapi-*-pseudo-translate`
+  targets). `make kapi-scenes` applies config isolation to every scene and adds
+  `KAPI_NO_PROJECT=1` for scenes that don't own a `*.kapi` fixture (scenes that
+  do — e.g. `kapi-bilingual-workflow` — keep discovery on and rely on
+  nearest-recipe-wins).
+- **`kapi/e2e`** — `TestMain` builds with `-tags fts5` and pins an isolated
+  config/data/cache home with `KAPI_NO_PROJECT=1` (see `isoEnv`).
+- **bowrain docs scenes** (`docs-bowrain.yml`) — run from `$WALKTHROUGH_DIR`, a
+  temp dir *outside* the checkout, so the bowrain plugin commands (which require
+  a project) operate on their own `kapi init`'d project, never the dogfood one.
+- **harness/** — already safe: its sandboxes live in `os.tmpdir()` (outside the
+  repo) and it sets `XDG_DATA_HOME` / `KAPI_CONFIG_DIR` via `kapiIsolationEnv()`.
+
+When adding a new in-repo kapi invocation, follow this contract or it may
+silently bind to (and act on) the dogfood project.
+
 ## Architecture
 
 ### Multi-Module Structure
