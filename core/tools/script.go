@@ -246,7 +246,7 @@ func (s *ScriptTool) runScript(part *model.Part) ([]*model.Part, error) {
 func (s *ScriptTool) returnedParts(v goja.Value, original *model.Part) []*model.Part {
 	obj := v.ToObject(s.vm)
 	if obj.ClassName() != "Array" {
-		return []*model.Part{jsToPartUpdate(s.vm, obj, original)}
+		return []*model.Part{jsToPartUpdate(s.vm, obj, original, s.allowsSourceMutation())}
 	}
 	var out []*model.Part
 	length := 0
@@ -258,7 +258,7 @@ func (s *ScriptTool) returnedParts(v goja.Value, original *model.Part) []*model.
 		if el == nil || goja.IsUndefined(el) || goja.IsNull(el) {
 			continue
 		}
-		out = append(out, jsToPartUpdate(s.vm, el.ToObject(s.vm), original))
+		out = append(out, jsToPartUpdate(s.vm, el.ToObject(s.vm), original, s.allowsSourceMutation()))
 	}
 	return out
 }

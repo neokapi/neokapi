@@ -198,7 +198,7 @@ func snapshotFromPart(part *model.Part) PartSnapshot {
 			}
 			if len(block.Targets) > 0 {
 				detail.Targets = make(map[string][]model.Run, len(block.Targets))
-				for loc := range block.Targets {
+				for _, loc := range block.TargetLocales() {
 					detail.Targets[string(loc)] = block.TargetRuns(loc)
 				}
 			}

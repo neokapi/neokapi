@@ -94,14 +94,15 @@ func TestScriptModifySourceTextInPlace(t *testing.T) {
 	t.Parallel()
 	// In-place edits to source text must round-trip, not only whole-array
 	// reassignment — source/targets are exposed as native JS arrays so nested
-	// mutations reflect on readback.
+	// mutations reflect on readback. Source mutation is opt-in per the
+	// immutability model (AD-006), so the script declares AllowSourceMutation.
 	code := `
 		if (part.type === "block") {
 			part.block.source[0].content.text = part.block.source[0].content.text.toUpperCase();
 			emit(part);
 		}
 	`
-	tl := tools.NewScriptTool(&tools.ScriptConfig{Code: code})
+	tl := tools.NewScriptTool(&tools.ScriptConfig{Code: code, AllowSourceMutation: true})
 
 	block := model.NewBlock("tu1", "Hello World")
 	part := &model.Part{Type: model.PartBlock, Resource: block}
@@ -115,7 +116,7 @@ func TestScriptFunctionFormReturnEmits(t *testing.T) {
 	t.Parallel()
 	// A process(part) function is detected and called per Part; returning the
 	// part emits it (with edits applied). JSDoc on the param is a comment, so
-	// goja runs the body fine.
+	// goja runs the body fine. Source mutation is opt-in (AD-006).
 	code := `
 		/** @param {Part} part */
 		function process(part) {
@@ -125,7 +126,7 @@ func TestScriptFunctionFormReturnEmits(t *testing.T) {
 			return part;
 		}
 	`
-	tl := tools.NewScriptTool(&tools.ScriptConfig{Code: code})
+	tl := tools.NewScriptTool(&tools.ScriptConfig{Code: code, AllowSourceMutation: true})
 	block := model.NewBlock("tu1", "hello")
 	part := &model.Part{Type: model.PartBlock, Resource: block}
 	result := processPart(t, tl, part)
