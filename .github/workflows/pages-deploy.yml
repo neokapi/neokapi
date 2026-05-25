@@ -65,14 +65,6 @@ jobs:
           mkdir -p pages/web/neokapi pages/web/bowrain pages/web/prs
           mkdir -p pages/storybook/kapi pages/storybook/bowrain pages/storybook/prs
 
-      - name: Download all artifacts from triggering run
-        if: ${{ github.event_name == 'workflow_run' }}
-        uses: actions/download-artifact@v8
-        with:
-          run-id: ${{ github.event.workflow_run.id }}
-          github-token: ${{ github.token }}
-          path: artifacts
-
       - name: Determine target paths (production vs PR preview)
         id: target
         env:
@@ -90,12 +82,23 @@ jobs:
           # production, 404-ing every script and blanking the live docs until
           # the next push-to-main deploy. So: production is reachable ONLY when
           # the upstream build was not a PR; for PR builds we resolve the number
-          # from the head branch and fail loudly rather than ever clobber prod.
+          # from the head branch.
           if [ "$IS_PR" = "true" ]; then
             if [ -z "$PR_NUMBER" ] && [ -n "$HEAD_BRANCH" ]; then
               PR_NUMBER="$(gh pr list --head "$HEAD_BRANCH" --state open --json number --jq '.[0].number // empty')"
             fi
             if [ -z "$PR_NUMBER" ]; then
+              # No OPEN PR for this head branch. The usual cause is a benign
+              # race: the PR was merged/closed between the build finishing and
+              # this deploy starting, so a preview is moot (the push-to-main
+              # production deploy covers prod). Skip gracefully. Only fail if
+              # there is NO PR at all for the branch — then we genuinely cannot
+              # classify the build and must not risk clobbering production.
+              if [ -n "$HEAD_BRANCH" ] && [ -n "$(gh pr list --head "$HEAD_BRANCH" --state all --json number --jq '.[0].number // empty')" ]; then
+                echo "::notice::PR build (head=${HEAD_BRANCH}) has no open PR (already merged/closed); skipping preview deploy."
+                echo "skip=true" >> "$GITHUB_OUTPUT"
+                exit 0
+              fi
               echo "::error::PR build (head=${HEAD_BRANCH}) but could not resolve a PR number; refusing to deploy a preview build to production."
               exit 1
             fi
@@ -121,8 +124,16 @@ jobs:
             } >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Download all artifacts from triggering run
+        if: ${{ github.event_name == 'workflow_run' && steps.target.outputs.skip != 'true' }}
+        uses: actions/download-artifact@v8
+        with:
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ github.token }}
+          path: artifacts
+
       - name: Slot neokapi-web Vite app at /web/neokapi/ root
-        if: ${{ hashFiles('artifacts/neokapi-web/**') != '' }}
+        if: ${{ steps.target.outputs.skip != 'true' && hashFiles('artifacts/neokapi-web/**') != '' }}
         env:
           DEST: ${{ steps.target.outputs.kapi_app_dest }}
         run: |
@@ -133,7 +144,7 @@ jobs:
           cp -r artifacts/neokapi-web/* "pages/${DEST}/"
 
       - name: Slot bowrain-web Vite app at /web/bowrain/ root
-        if: ${{ hashFiles('artifacts/bowrain-web/**') != '' }}
+        if: ${{ steps.target.outputs.skip != 'true' && hashFiles('artifacts/bowrain-web/**') != '' }}
         env:
           DEST: ${{ steps.target.outputs.bowrain_app_dest }}
         run: |
@@ -142,7 +153,7 @@ jobs:
           cp -r artifacts/bowrain-web/* "pages/${DEST}/"
 
       - name: Slot kapi Docusaurus at /web/neokapi/docs/
-        if: ${{ hashFiles('artifacts/kapi-site/**') != '' }}
+        if: ${{ steps.target.outputs.skip != 'true' && hashFiles('artifacts/kapi-site/**') != '' }}
         env:
           DEST: ${{ steps.target.outputs.kapi_docs_dest }}
         run: |
@@ -151,7 +162,7 @@ jobs:
           cp -r artifacts/kapi-site/* "pages/${DEST}/"
 
       - name: Slot bowrain Docusaurus at /web/bowrain/docs/
-        if: ${{ hashFiles('artifacts/bowrain-site/**') != '' }}
+        if: ${{ steps.target.outputs.skip != 'true' && hashFiles('artifacts/bowrain-site/**') != '' }}
         env:
           DEST: ${{ steps.target.outputs.bowrain_docs_dest }}
         run: |
@@ -160,7 +171,7 @@ jobs:
           cp -r artifacts/bowrain-site/* "pages/${DEST}/"
 
       - name: Slot kapi storybook
-        if: ${{ hashFiles('artifacts/kapi-storybook/**') != '' }}
+        if: ${{ steps.target.outputs.skip != 'true' && hashFiles('artifacts/kapi-storybook/**') != '' }}
         env:
           DEST: ${{ steps.target.outputs.kapi_storybook_dest }}
         run: |
@@ -169,7 +180,7 @@ jobs:
           cp -r artifacts/kapi-storybook/* "pages/${DEST}/"
 
       - name: Slot bowrain storybook
-        if: ${{ hashFiles('artifacts/bowrain-storybook/**') != '' }}
+        if: ${{ steps.target.outputs.skip != 'true' && hashFiles('artifacts/bowrain-storybook/**') != '' }}
         env:
           DEST: ${{ steps.target.outputs.bowrain_storybook_dest }}
         run: |
@@ -178,6 +189,7 @@ jobs:
           cp -r artifacts/bowrain-storybook/* "pages/${DEST}/"
 
       - name: Commit and push
+        if: ${{ steps.target.outputs.skip != 'true' }}
         env:
           IS_PR: ${{ steps.target.outputs.is_pr }}
           PR_NUMBER: ${{ steps.target.outputs.pr_number }}
