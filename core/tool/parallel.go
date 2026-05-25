@@ -73,10 +73,10 @@ func (h *orderedBuffer) Pop() any {
 //  3. A reassembly goroutine collects results and emits them in sequence order
 //     using a min-heap buffer.
 func (p *ParallelBlockTool) Process(ctx context.Context, in <-chan *model.Part, out chan<- *model.Part) error {
-	// If concurrency is 1 or the inner tool isn't a BaseTool with HandleBlockFn,
-	// fall back to the inner tool's sequential processing.
+	// If concurrency is 1 or the inner tool isn't a BaseTool with a per-block
+	// handler, fall back to the inner tool's sequential processing.
 	baseTool, isBase := p.inner.(*BaseTool)
-	if p.concurrency <= 1 || !isBase || baseTool.HandleBlockFn == nil {
+	if p.concurrency <= 1 || !isBase || !baseTool.hasBlockHandler() {
 		return p.inner.Process(ctx, in, out)
 	}
 
@@ -121,7 +121,10 @@ func (p *ParallelBlockTool) Process(ctx context.Context, in <-chan *model.Part, 
 
 					wg.Go(func() {
 						defer func() { <-sem }() // release slot
-						result, err := baseTool.HandleBlockFn(part)
+						// Route through the dispatcher so the tool's typed
+						// handler (and the immutability backstop) applies; each
+						// worker handles a distinct block, so no shared state.
+						result, err := baseTool.handleBlock(part)
 						select {
 						case results <- sequencedPart{seq: currentSeq, part: result, err: err}:
 						case <-ctx.Done():

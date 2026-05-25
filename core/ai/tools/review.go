@@ -73,22 +73,17 @@ func NewAIReviewTool(p aiprovider.LLMProvider, cfg AIReviewConfig) *AIReviewTool
 	}
 	t.ToolName = "ai-review"
 	t.ToolDescription = "Reviews translations with explanations using AI/LLM"
-	t.HandleBlockFn = t.handleBlock
+	t.Annotate = t.annotate
 	return t
 }
 
-func (t *AIReviewTool) handleBlock(part *model.Part) (*model.Part, error) {
-	block, ok := part.Resource.(*model.Block)
-	if !ok {
-		return part, nil
+func (t *AIReviewTool) annotate(v tool.BlockView) error {
+	if !v.HasTarget(t.targetLocale) {
+		return nil
 	}
 
-	if !block.HasTarget(t.targetLocale) {
-		return part, nil
-	}
-
-	sourceText := block.SourceText()
-	targetText := block.TargetText(t.targetLocale)
+	sourceText := v.SourceText()
+	targetText := v.TargetText(t.targetLocale)
 
 	prompt := fmt.Sprintf(
 		`Review the following translation. Provide a brief assessment of accuracy, fluency, and any suggested improvements. Be concise.
@@ -108,15 +103,12 @@ Suggestion: <improved translation if needed, or "none">`,
 		{Role: "user", Content: prompt},
 	})
 	if err != nil {
-		return nil, fmt.Errorf("ai-review: %w", err)
+		return fmt.Errorf("ai-review: %w", err)
 	}
 	t.addUsage(resp.Usage)
 
-	if block.Properties == nil {
-		block.Properties = make(map[string]string)
-	}
-	block.Properties["review"] = resp.Content
-	block.Properties["review-provider"] = string(t.provider.Name())
+	v.SetProperty("review", resp.Content)
+	v.SetProperty("review-provider", string(t.provider.Name()))
 
-	return part, nil
+	return nil
 }

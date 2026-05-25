@@ -44,66 +44,50 @@ func NewMTTranslateTool(p mtprovider.MTProvider, cfg MTTranslateConfig) *MTTrans
 	}
 	t.ToolName = string(p.Name()) + "-translate"
 	t.ToolDescription = "Translates Blocks using " + string(p.Name())
-	t.WritesTarget = true
-	t.HandleBlockFn = t.handleBlock
+	// Translate: writes the target locale; source stays read-only.
+	t.Translate = t.translate
 	return t
 }
 
-func (t *MTTranslateTool) handleBlock(part *model.Part) (*model.Part, error) {
-	block, ok := part.Resource.(*model.Block)
-	if !ok {
-		return part, nil
+// translate writes the MT target for one block. Source is read-only (the
+// TargetView exposes no source setter). When the source carries inline codes
+// it round-trips through RunsSemanticHTML — MT APIs preserve HTML tags
+// natively, so semantic tags are the most robust transport for the codes.
+func (t *MTTranslateTool) translate(v tool.TargetView) error {
+	if !v.Translatable() {
+		return nil
 	}
 
-	if !block.Translatable {
-		return part, nil
-	}
-
-	sourceText := block.SourceText()
+	sourceText := v.SourceText()
 	if sourceText == "" {
-		return part, nil
+		return nil
 	}
 
-	// Route through the HTML-preserving path when the source has any
-	// non-text runs (inline codes).
-	sourceRuns := block.SourceRuns()
+	sourceRuns := v.SourceRuns()
 	if hasInlineCodes(sourceRuns) {
-		return t.handleBlockWithInlineCodes(part, block, sourceRuns)
+		resp, err := t.provider.Translate(context.Background(), mtprovider.TranslateRequest{
+			Source:       model.RunsSemanticHTML(sourceRuns, t.vocab),
+			SourceLocale: t.sourceLocale,
+			TargetLocale: t.targetLocale,
+		})
+		if err != nil {
+			return fmt.Errorf("%s-translate: %w", string(t.provider.Name()), err)
+		}
+		v.SetTargetRuns(t.targetLocale, model.ParseRunsSemanticHTML(resp.Translation, sourceRuns, t.vocab))
+		return nil
 	}
 
-	// Plain text translation.
 	resp, err := t.provider.Translate(context.Background(), mtprovider.TranslateRequest{
 		Source:       sourceText,
 		SourceLocale: t.sourceLocale,
 		TargetLocale: t.targetLocale,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("%s-translate: %w", string(t.provider.Name()), err)
+		return fmt.Errorf("%s-translate: %w", string(t.provider.Name()), err)
 	}
 
-	block.SetTargetText(t.targetLocale, resp.Translation)
-	return part, nil
-}
-
-// handleBlockWithInlineCodes translates a block whose source contains
-// inline codes. Source and target round-trip through RunsSemanticHTML —
-// MT APIs preserve HTML tags natively, so rendering through semantic
-// tags is the most robust format for this pipeline.
-func (t *MTTranslateTool) handleBlockWithInlineCodes(part *model.Part, block *model.Block, sourceRuns []model.Run) (*model.Part, error) {
-	sourceHTML := model.RunsSemanticHTML(sourceRuns, t.vocab)
-
-	resp, err := t.provider.Translate(context.Background(), mtprovider.TranslateRequest{
-		Source:       sourceHTML,
-		SourceLocale: t.sourceLocale,
-		TargetLocale: t.targetLocale,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("%s-translate: %w", string(t.provider.Name()), err)
-	}
-
-	targetRuns := model.ParseRunsSemanticHTML(resp.Translation, sourceRuns, t.vocab)
-	block.SetTargetRuns(t.targetLocale, targetRuns)
-	return part, nil
+	v.SetTargetText(t.targetLocale, resp.Translation)
+	return nil
 }
 
 // hasInlineCodes reports whether a Run sequence contains any non-text
@@ -170,8 +154,7 @@ func (t *MTTranslateTool) sessionHandleBlock(
 	}
 	hash := block.ID
 	if hash == "" {
-		_, err := t.handleBlock(part)
-		return err
+		return t.translate(tool.NewTargetView(block))
 	}
 
 	if randomAccess {
@@ -184,7 +167,7 @@ func (t *MTTranslateTool) sessionHandleBlock(
 		}
 	}
 
-	if _, err := t.handleBlock(part); err != nil {
+	if err := t.translate(tool.NewTargetView(block)); err != nil {
 		return err
 	}
 

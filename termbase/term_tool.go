@@ -55,19 +55,18 @@ func NewTermLookupTool(tb TermBase, cfg TermLookupConfig) *TermLookupTool {
 	t := &TermLookupTool{tb: tb, cfg: cfg}
 	t.ToolName = "term-lookup"
 	t.ToolDescription = "Annotates blocks with matching terms from a termbase"
-	t.HandleBlockFn = t.handleBlock
+	t.Annotate = t.annotate
 	return t
 }
 
-func (t *TermLookupTool) handleBlock(part *model.Part) (*model.Part, error) {
-	block, ok := part.Resource.(*model.Block)
-	if !ok || !block.Translatable {
-		return part, nil
+func (t *TermLookupTool) annotate(v tool.BlockView) error {
+	if !v.Translatable() {
+		return nil
 	}
 
-	sourceText := block.SourceText()
+	sourceText := v.SourceText()
 	if sourceText == "" {
-		return part, nil
+		return nil
 	}
 
 	// Find all term occurrences in the source text.
@@ -78,11 +77,7 @@ func (t *TermLookupTool) handleBlock(part *model.Part) (*model.Part, error) {
 	})
 
 	if len(matches) == 0 {
-		return part, nil
-	}
-
-	if block.Annotations == nil {
-		block.Annotations = make(map[string]model.Annotation)
+		return nil
 	}
 
 	// Attach each matched term as a TermAnnotation.
@@ -104,22 +99,18 @@ func (t *TermLookupTool) handleBlock(part *model.Part) (*model.Part, error) {
 			ConceptID:   match.Concept.ID,
 			TargetTerms: targetRefs,
 			Status:      match.Term.Status,
-			Position:    model.RunRangeForBytes(block.Source, match.Position.Start, match.Position.End),
+			Position:    model.RunRangeForBytes(v.SourceRuns(), match.Position.Start, match.Position.End),
 			Score:       match.Score,
 			MatchType:   match.MatchType,
 		}
 
-		key := fmt.Sprintf("term:%d", i)
-		block.Annotations[key] = annotation
+		v.Annotate(fmt.Sprintf("term:%d", i), annotation)
 	}
 
 	// Set the count as a property for quick access.
-	if block.Properties == nil {
-		block.Properties = make(map[string]string)
-	}
-	block.Properties["term-count"] = strconv.Itoa(len(matches))
+	v.SetProperty("term-count", strconv.Itoa(len(matches)))
 
-	return part, nil
+	return nil
 }
 
 // TermEnforceConfig holds configuration for the term enforcement tool.
@@ -172,24 +163,23 @@ func NewTermEnforceTool(tb TermBase, cfg TermEnforceConfig) *TermEnforceTool {
 	t := &TermEnforceTool{tb: tb, cfg: cfg}
 	t.ToolName = "term-enforce"
 	t.ToolDescription = "Verifies correct terminology usage in translations"
-	t.HandleBlockFn = t.handleBlock
+	t.Annotate = t.annotate
 	return t
 }
 
-func (t *TermEnforceTool) handleBlock(part *model.Part) (*model.Part, error) {
-	block, ok := part.Resource.(*model.Block)
-	if !ok || !block.Translatable {
-		return part, nil
+func (t *TermEnforceTool) annotate(v tool.BlockView) error {
+	if !v.Translatable() {
+		return nil
 	}
 
-	if !block.HasTarget(t.cfg.TargetLocale) {
-		return part, nil
+	if !v.HasTarget(t.cfg.TargetLocale) {
+		return nil
 	}
 
-	sourceText := block.SourceText()
-	targetText := block.TargetText(t.cfg.TargetLocale)
+	sourceText := v.SourceText()
+	targetText := v.TargetText(t.cfg.TargetLocale)
 	if sourceText == "" || targetText == "" {
-		return part, nil
+		return nil
 	}
 
 	// Find terms in source.
@@ -201,14 +191,7 @@ func (t *TermEnforceTool) handleBlock(part *model.Part) (*model.Part, error) {
 	})
 
 	if len(matches) == 0 {
-		return part, nil
-	}
-
-	if block.Properties == nil {
-		block.Properties = make(map[string]string)
-	}
-	if block.Annotations == nil {
-		block.Annotations = make(map[string]model.Annotation)
+		return nil
 	}
 
 	var violations []string
@@ -254,15 +237,15 @@ func (t *TermEnforceTool) handleBlock(part *model.Part) (*model.Part, error) {
 					Status: tt.Status,
 				})
 			}
-			block.Annotations[fmt.Sprintf("term-violation:%d", violationCount)] = &model.TermAnnotation{
+			v.Annotate(fmt.Sprintf("term-violation:%d", violationCount), &model.TermAnnotation{
 				SourceTerm:  match.Term.Text,
 				ConceptID:   match.Concept.ID,
 				TargetTerms: targetRefs,
 				Status:      match.Term.Status,
-				Position:    model.RunRangeForBytes(block.Source, match.Position.Start, match.Position.End),
+				Position:    model.RunRangeForBytes(v.SourceRuns(), match.Position.Start, match.Position.End),
 				Score:       match.Score,
 				MatchType:   match.MatchType,
-			}
+			})
 			violationCount++
 		}
 
@@ -275,26 +258,26 @@ func (t *TermEnforceTool) handleBlock(part *model.Part) (*model.Part, error) {
 				Status: tt.Status,
 			})
 		}
-		block.Annotations[fmt.Sprintf("term:%d", i)] = &model.TermAnnotation{
+		v.Annotate(fmt.Sprintf("term:%d", i), &model.TermAnnotation{
 			SourceTerm:  match.Term.Text,
 			ConceptID:   match.Concept.ID,
 			TargetTerms: targetRefs,
 			Status:      match.Term.Status,
-			Position:    model.RunRangeForBytes(block.Source, match.Position.Start, match.Position.End),
+			Position:    model.RunRangeForBytes(v.SourceRuns(), match.Position.Start, match.Position.End),
 			Score:       match.Score,
 			MatchType:   match.MatchType,
-		}
+		})
 	}
 
 	if len(violations) == 0 {
-		block.Properties["term-enforce-passed"] = "true"
+		v.SetProperty("term-enforce-passed", "true")
 	} else {
-		block.Properties["term-enforce-passed"] = "false"
-		block.Properties["term-enforce-errors"] = strings.Join(violations, "; ")
+		v.SetProperty("term-enforce-passed", "false")
+		v.SetProperty("term-enforce-errors", strings.Join(violations, "; "))
 	}
-	block.Properties["term-enforce-violations"] = strconv.Itoa(violationCount)
+	v.SetProperty("term-enforce-violations", strconv.Itoa(violationCount))
 
-	return part, nil
+	return nil
 }
 
 func containsText(text, substr string, caseSensitive bool) bool {

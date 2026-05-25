@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"github.com/neokapi/neokapi/core/brand"
-	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/schema"
 	"github.com/neokapi/neokapi/core/tool"
 	"github.com/neokapi/neokapi/providers/ai"
@@ -106,7 +105,7 @@ func NewBrandVoiceCheckTool(p aiprovider.LLMProvider, profile *brand.VoiceProfil
 	t.ToolName = "brand-voice-check"
 	t.ToolDescription = "Checks text against brand voice guidelines using AI/LLM"
 	t.Cfg = &BrandVoiceCheckConfig{Profile: profile}
-	t.HandleBlockFn = t.handleBlock
+	t.Annotate = t.annotate
 	return t
 }
 
@@ -122,7 +121,7 @@ func NewBrandVoiceCheckToolWithResolver(p aiprovider.LLMProvider, resolver brand
 	t.ToolName = "brand-voice-check"
 	t.ToolDescription = "Checks text against brand voice guidelines using AI/LLM"
 	t.Cfg = &BrandVoiceCheckConfig{}
-	t.HandleBlockFn = t.handleBlock
+	t.Annotate = t.annotate
 	return t
 }
 
@@ -180,17 +179,12 @@ func (t *BrandVoiceCheckTool) resolveOnce() {
 	}
 }
 
-func (t *BrandVoiceCheckTool) handleBlock(part *model.Part) (*model.Part, error) {
+func (t *BrandVoiceCheckTool) annotate(v tool.BlockView) error {
 	t.resolveOnce()
 
-	block, ok := part.Resource.(*model.Block)
-	if !ok {
-		return part, nil
-	}
-
-	sourceText := block.SourceText()
+	sourceText := v.SourceText()
 	if strings.TrimSpace(sourceText) == "" {
-		return part, nil
+		return nil
 	}
 
 	prompt := t.buildPrompt(sourceText)
@@ -199,7 +193,7 @@ func (t *BrandVoiceCheckTool) handleBlock(part *model.Part) (*model.Part, error)
 		{Role: "user", Content: prompt},
 	}, brandVoiceSchema())
 	if err != nil {
-		return nil, fmt.Errorf("brand-voice-check: %w", err)
+		return fmt.Errorf("brand-voice-check: %w", err)
 	}
 	t.addUsage(resp.Usage)
 
@@ -219,10 +213,6 @@ func (t *BrandVoiceCheckTool) handleBlock(part *model.Part) (*model.Part, error)
 		})
 	}
 
-	if block.Properties == nil {
-		block.Properties = make(map[string]string)
-	}
-
 	// Calculate brand compliance score.
 	score := brand.CalculateScore(findings)
 	profileID := ""
@@ -232,24 +222,21 @@ func (t *BrandVoiceCheckTool) handleBlock(part *model.Part) (*model.Part, error)
 	score.ProfileID = profileID
 
 	scoreJSON, _ := json.Marshal(score)
-	block.Properties["brand-voice-score"] = string(scoreJSON)
+	v.SetProperty("brand-voice-score", string(scoreJSON))
 
 	if len(findings) > 0 {
 		findingsJSON, _ := json.Marshal(findings)
-		block.Properties["brand-voice-findings"] = string(findingsJSON)
+		v.SetProperty("brand-voice-findings", string(findingsJSON))
 	}
 
 	// Add annotation.
-	if block.Annotations == nil {
-		block.Annotations = make(map[string]model.Annotation)
-	}
-	block.Annotations["brand-voice"] = &brand.BrandVoiceAnnotation{
+	v.Annotate("brand-voice", &brand.BrandVoiceAnnotation{
 		ProfileID: profileID,
 		Score:     score.Overall,
 		Findings:  findings,
-	}
+	})
 
-	return part, nil
+	return nil
 }
 
 // buildPrompt constructs the LLM prompt from the voice profile and text. The

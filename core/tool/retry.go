@@ -46,50 +46,87 @@ func (t *RetryTool) Description() string          { return t.inner.Description()
 func (t *RetryTool) Config() ToolConfig           { return t.inner.Config() }
 func (t *RetryTool) SetConfig(c ToolConfig) error { return t.inner.SetConfig(c) }
 
-// Process wraps the inner tool's Process. If the inner tool is a BaseTool
-// with HandleBlockFn, retries are applied per-block. Otherwise, the entire
-// Process call is retried on error.
+// Process wraps the inner tool's Process. If the inner tool is a BaseTool with
+// a block handler (any of the capability-typed handlers, or the legacy
+// HandleBlockFn), retries are applied per-block by wrapping that handler.
+// Otherwise the entire Process call is retried on error.
 func (t *RetryTool) Process(ctx context.Context, in <-chan *model.Part, out chan<- *model.Part) error {
 	bt, ok := t.inner.(*BaseTool)
-	if !ok || bt.HandleBlockFn == nil {
-		// Non-BaseTool or no block handler: retry the entire Process.
+	if !ok {
 		return t.retryProcess(ctx, in, out)
 	}
 
-	// Block-level retry: wrap the HandleBlockFn with retry logic.
-	originalFn := bt.HandleBlockFn
-	bt.HandleBlockFn = func(part *model.Part) (*model.Part, error) {
-		var lastErr error
-		backoff := t.config.InitialBackoff
-
-		for attempt := 0; attempt <= t.config.MaxRetries; attempt++ {
-			if attempt > 0 {
-				timer := time.NewTimer(backoff)
-				select {
-				case <-ctx.Done():
-					timer.Stop()
-					return nil, ctx.Err()
-				case <-timer.C:
-				}
-				backoff = time.Duration(float64(backoff) * t.config.BackoffFactor)
-			}
-
-			result, err := originalFn(part)
-			if err == nil {
-				return result, nil
-			}
-
-			if !t.isRetryable(err) {
+	// Wrap whichever block handler the inner tool set with retry logic. The
+	// handler's capability type is preserved (so the immutability surface is
+	// unchanged); only its error path gains backoff/retry.
+	switch {
+	case bt.Annotate != nil:
+		orig := bt.Annotate
+		bt.Annotate = func(v BlockView) error {
+			return t.retryAttempt(ctx, func() error { return orig(v) })
+		}
+		defer func() { bt.Annotate = orig }()
+	case bt.Translate != nil:
+		orig := bt.Translate
+		bt.Translate = func(v TargetView) error {
+			return t.retryAttempt(ctx, func() error { return orig(v) })
+		}
+		defer func() { bt.Translate = orig }()
+	case bt.Transform != nil:
+		orig := bt.Transform
+		bt.Transform = func(v SourceView) error {
+			return t.retryAttempt(ctx, func() error { return orig(v) })
+		}
+		defer func() { bt.Transform = orig }()
+	case bt.HandleBlockFn != nil:
+		orig := bt.HandleBlockFn
+		bt.HandleBlockFn = func(part *model.Part) (*model.Part, error) {
+			var res *model.Part
+			err := t.retryAttempt(ctx, func() error {
+				var e error
+				res, e = orig(part)
+				return e
+			})
+			if err != nil {
 				return nil, err
 			}
-			lastErr = err
+			return res, nil
 		}
-
-		return nil, fmt.Errorf("after %d retries: %w", t.config.MaxRetries, lastErr)
+		defer func() { bt.HandleBlockFn = orig }()
+	default:
+		// No block handler: retry the entire Process.
+		return t.retryProcess(ctx, in, out)
 	}
-	defer func() { bt.HandleBlockFn = originalFn }()
 
 	return t.inner.Process(ctx, in, out)
+}
+
+// retryAttempt runs fn under the configured backoff/retry policy: it retries
+// retryable errors up to MaxRetries with exponential backoff, honoring ctx.
+func (t *RetryTool) retryAttempt(ctx context.Context, fn func() error) error {
+	var lastErr error
+	backoff := t.config.InitialBackoff
+	for attempt := 0; attempt <= t.config.MaxRetries; attempt++ {
+		if attempt > 0 {
+			timer := time.NewTimer(backoff)
+			select {
+			case <-ctx.Done():
+				timer.Stop()
+				return ctx.Err()
+			case <-timer.C:
+			}
+			backoff = time.Duration(float64(backoff) * t.config.BackoffFactor)
+		}
+		err := fn()
+		if err == nil {
+			return nil
+		}
+		if !t.isRetryable(err) {
+			return err
+		}
+		lastErr = err
+	}
+	return fmt.Errorf("after %d retries: %w", t.config.MaxRetries, lastErr)
 }
 
 // retryProcess retries the entire Process call on error.

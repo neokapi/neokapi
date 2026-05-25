@@ -124,6 +124,13 @@ func (b *BaseTool) Process(ctx context.Context, in <-chan *model.Part, out chan<
 	}
 }
 
+// hasBlockHandler reports whether the tool set any per-block handler — one of
+// the capability-typed handlers or the legacy HandleBlockFn. Wrappers
+// (parallel, retry) use it to decide whether per-block treatment is possible.
+func (b *BaseTool) hasBlockHandler() bool {
+	return b.Annotate != nil || b.Translate != nil || b.Transform != nil || b.HandleBlockFn != nil
+}
+
 func (b *BaseTool) dispatch(part *model.Part) (*model.Part, error) {
 	switch part.Type {
 	case model.PartBlock:

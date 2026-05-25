@@ -87,6 +87,15 @@ type blockView struct {
 
 func newBlockView(b *model.Block) *blockView { return &blockView{b: b} }
 
+// NewBlockView, NewTargetView and NewSourceView build an explicit view over a
+// Block at the matching capability tier. Dispatched handlers receive a view
+// automatically; these constructors are for Process-override tools (batched or
+// session-aware translators, stream operators) that hold a *model.Block
+// directly and want to reuse the same capability-scoped surface.
+func NewBlockView(b *model.Block) BlockView   { return newBlockView(b) }
+func NewTargetView(b *model.Block) TargetView { return newBlockView(b) }
+func NewSourceView(b *model.Block) SourceView { return newBlockView(b) }
+
 // Reads.
 func (v *blockView) ID() string                     { return v.b.ID }
 func (v *blockView) Name() string                   { return v.b.Name }

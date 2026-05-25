@@ -52,32 +52,35 @@ func NewTMLeverageTool(tm TranslationMemory, cfg TMLeverageConfig) *TMLeverageTo
 	}
 	t.ToolName = "tm-leverage"
 	t.ToolDescription = "Content-aware TM leverage with generalized, structural, and plain matching"
-	t.HandleBlockFn = t.handleBlock
+	// Translate: applies TM matches as targets (exact tiers) and an
+	// alt-translation annotation; source stays read-only.
+	t.Translate = t.translate
 	return t
 }
 
-func (t *TMLeverageTool) handleBlock(part *model.Part) (*model.Part, error) {
-	block, ok := part.Resource.(*model.Block)
-	if !ok || !block.Translatable {
-		return part, nil
+func (t *TMLeverageTool) translate(v tool.TargetView) error {
+	if !v.Translatable() || v.SourceText() == "" {
+		return nil
 	}
 
-	sourceText := block.SourceText()
-	if sourceText == "" {
-		return part, nil
+	// Content-aware matching needs the source runs and entity annotations.
+	// Lookup reads only those (read-only), so pass a snapshot projected from
+	// the view rather than the live block — no source/target write escapes.
+	snapshot := &model.Block{
+		Source:       v.SourceRuns(),
+		Annotations:  v.Annotations(),
+		Translatable: true,
 	}
-
-	// Use the full Block for content-aware matching (entity annotations, spans).
-	matches, err := t.tm.Lookup(block, t.cfg.SourceLocale, t.cfg.TargetLocale, LookupOptions{
+	matches, err := t.tm.Lookup(snapshot, t.cfg.SourceLocale, t.cfg.TargetLocale, LookupOptions{
 		MinScore:   t.cfg.MinScore,
 		MaxResults: t.cfg.MaxResults,
 	})
 	if err != nil {
-		return part, nil // Continue processing even if TM lookup fails.
+		return nil // Continue processing even if TM lookup fails.
 	}
 
 	if len(matches) == 0 {
-		return part, nil
+		return nil
 	}
 
 	best := matches[0]
@@ -85,29 +88,26 @@ func (t *TMLeverageTool) handleBlock(part *model.Part) (*model.Part, error) {
 	sourceVariant := best.Entry.Variant(t.cfg.SourceLocale)
 	targetVariant := best.Entry.Variant(t.cfg.TargetLocale)
 	if len(targetVariant) == 0 {
-		return part, nil
+		return nil
 	}
 
 	// For exact matches (any tier), apply the target directly.
 	if best.MatchType.IsExact() {
 		adapted := applyEntityAdaptations(targetVariant, best.EntityAdaptations)
-		block.SetTargetRuns(t.cfg.TargetLocale, adapted)
+		v.SetTargetRuns(t.cfg.TargetLocale, adapted)
 	}
 
 	// Add the best match as an AltTranslation annotation.
-	if block.Annotations == nil {
-		block.Annotations = make(map[string]model.Annotation)
-	}
-	block.Annotations["alt-translation"] = &model.AltTranslation{
+	v.Annotate("alt-translation", &model.AltTranslation{
 		Source:    sourceVariant,
 		Target:    targetVariant,
 		Locale:    t.cfg.TargetLocale,
 		Origin:    "tm:sievepen",
 		Score:     best.Score,
 		MatchType: model.MatchType(best.MatchType),
-	}
+	})
 
-	return part, nil
+	return nil
 }
 
 // applyEntityAdaptations substitutes entity values in a target Run

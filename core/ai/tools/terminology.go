@@ -71,7 +71,7 @@ func NewAITerminologyTool(p aiprovider.LLMProvider, cfg AITerminologyConfig) *AI
 	}
 	t.ToolName = "ai-terminology"
 	t.ToolDescription = "Extracts terminology from Blocks using AI/LLM"
-	t.HandleBlockFn = t.handleBlock
+	t.Annotate = t.annotate
 	return t
 }
 
@@ -116,15 +116,10 @@ type terminologyResult struct {
 	Terms []TermEntry `json:"terms"`
 }
 
-func (t *AITerminologyTool) handleBlock(part *model.Part) (*model.Part, error) {
-	block, ok := part.Resource.(*model.Block)
-	if !ok {
-		return part, nil
-	}
-
-	sourceText := block.SourceText()
+func (t *AITerminologyTool) annotate(v tool.BlockView) error {
+	sourceText := v.SourceText()
 	if strings.TrimSpace(sourceText) == "" {
-		return part, nil
+		return nil
 	}
 
 	domainHint := ""
@@ -142,7 +137,7 @@ func (t *AITerminologyTool) handleBlock(part *model.Part) (*model.Part, error) {
 		{Role: "user", Content: prompt},
 	}, terminologySchema())
 	if err != nil {
-		return nil, fmt.Errorf("ai-terminology: %w", err)
+		return fmt.Errorf("ai-terminology: %w", err)
 	}
 	t.addUsage(resp.Usage)
 
@@ -151,14 +146,10 @@ func (t *AITerminologyTool) handleBlock(part *model.Part) (*model.Part, error) {
 		result.Terms = nil
 	}
 
-	if block.Properties == nil {
-		block.Properties = make(map[string]string)
-	}
-
 	if len(result.Terms) > 0 {
 		termsJSON, _ := json.Marshal(result.Terms)
-		block.Properties["terminology"] = string(termsJSON)
+		v.SetProperty("terminology", string(termsJSON))
 	}
 
-	return part, nil
+	return nil
 }
