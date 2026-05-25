@@ -51,7 +51,7 @@
     "check": "npm run typecheck && npm run lint && npm run fmt:check && npm run test"
   },
   "devDependencies": {
-    "@oxlint/plugins": "^1.61.0",
+    "@oxlint/plugins": "^1.66.0",
     "@types/estree": "^1.0.0",
     "@types/node": "^25.6.0",
     "esbuild": "^0.28.0",
