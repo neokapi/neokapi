@@ -349,7 +349,7 @@ func projectToProto(p *store.Project) *pb.ProjectResponse {
 
 func blockToProto(b *model.Block) *pb.BlockMessage {
 	targets := make(map[string]string, len(b.Targets))
-	for locale := range b.Targets {
+	for _, locale := range b.TargetLocales() {
 		targets[string(locale)] = b.TargetText(locale)
 	}
 

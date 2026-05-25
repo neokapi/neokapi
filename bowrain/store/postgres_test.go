@@ -623,22 +623,22 @@ func TestCountWordsFromSourceJSON(t *testing.T) {
 	}{
 		{
 			name:     "simple text",
-			json:     `[{"ID":"s1","Runs":[{"text":"Hello world"}]}]`,
+			json:     `[{"text":"Hello world"}]`,
 			expected: 2,
 		},
 		{
-			name:     "multiple segments",
-			json:     `[{"ID":"s1","Runs":[{"text":"Hello"}]},{"ID":"s2","Runs":[{"text":"beautiful world"}]}]`,
+			name:     "multiple runs",
+			json:     `[{"text":"Hello"},{"text":" beautiful world"}]`,
 			expected: 3,
 		},
 		{
 			name:     "text with inline code run",
-			json:     `[{"ID":"s1","Runs":[{"text":"Click "},{"ph":{"id":"1","type":"url","data":"http://x"}},{"text":" to continue"}]}]`,
+			json:     `[{"text":"Click "},{"ph":{"id":"1","type":"url","data":"http://x"}},{"text":" to continue"}]`,
 			expected: 3,
 		},
 		{
 			name:     "empty text",
-			json:     `[{"ID":"s1","Runs":[{"text":""}]}]`,
+			json:     `[{"text":""}]`,
 			expected: 0,
 		},
 		{

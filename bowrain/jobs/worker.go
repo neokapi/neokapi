@@ -341,11 +341,7 @@ func estimateTokens(blocks []*store.StoredBlock) int {
 	totalChars := 0
 	for _, sb := range blocks {
 		if sb.Block != nil && len(sb.Block.Source) > 0 {
-			for _, seg := range sb.Block.Source {
-				if len(seg.Runs) > 0 {
-					totalChars += len(seg.Text()) * 2 // source + target estimate
-				}
-			}
+			totalChars += len(sb.Block.SourceText()) * 2 // source + target estimate
 		}
 	}
 	return totalChars / 4

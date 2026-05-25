@@ -176,8 +176,8 @@ func (s *MCPServer) handleListBlocks(ctx context.Context, req *mcp.CallToolReque
 	var summaries []blockSummary
 	for _, b := range blocks {
 		src := ""
-		if b.Block != nil && len(b.Block.Source) > 0 {
-			src = b.Block.Source[0].Text()
+		if b.Block != nil {
+			src = b.Block.SourceText()
 		}
 		summaries = append(summaries, blockSummary{
 			ID:       b.Block.ID,
@@ -206,15 +206,13 @@ func (s *MCPServer) handleGetBlock(ctx context.Context, req *mcp.CallToolRequest
 		return nil, getBlockOutput{}, fmt.Errorf("get block: %w", err)
 	}
 	src := ""
-	if b.Block != nil && len(b.Block.Source) > 0 {
-		src = b.Block.Source[0].Text()
+	if b.Block != nil {
+		src = b.Block.SourceText()
 	}
 	targets := make(map[string]string)
 	if b.Block != nil {
-		for locale, segs := range b.Block.Targets {
-			if len(segs) > 0 {
-				targets[string(locale)] = segs[0].Text()
-			}
+		for _, locale := range b.Block.TargetLocales() {
+			targets[string(locale)] = model.RunsText(b.Block.TargetRuns(locale))
 		}
 	}
 	return nil, getBlockOutput{

@@ -678,9 +678,9 @@ func editorPseudoTranslate(ctx context.Context, cs store.ContentStore, projectID
 			return part, nil
 		}
 		locale := model.LocaleID(targetLocale)
-		seg := block.FirstSegment()
-		if seg != nil && seg.HasInlineCodes() {
-			block.SetTargetRuns(locale, editorPseudoRuns(seg.Runs))
+		runs := block.SourceRuns()
+		if runsHaveInlineCodes(runs) {
+			block.SetTargetRuns(locale, editorPseudoRuns(runs))
 		} else {
 			src := block.SourceText()
 			pseudo := "[" + editorPseudoAccent(src) + "]"
@@ -1104,10 +1104,10 @@ func storedBlockToInfoResponse(sb *store.StoredBlock, targetLocales []string) Bl
 }
 
 func enrichBlockInfoResponse(bi *BlockInfoResponse, block *model.Block, targetLocales []string) {
-	if len(block.Source) == 0 || len(block.Source[0].Runs) == 0 {
+	srcRuns := block.SourceRuns()
+	if len(srcRuns) == 0 {
 		return
 	}
-	srcRuns := block.Source[0].Runs
 	if !runsHaveInlineCodes(srcRuns) {
 		// Plain-text blocks carry their content in Source/Targets already;
 		// only blocks with inline markup need the Run sequences.
@@ -1119,11 +1119,11 @@ func enrichBlockInfoResponse(bi *BlockInfoResponse, block *model.Block, targetLo
 
 	bi.TargetsRuns = make(map[string][]model.Run, len(targetLocales))
 	for _, locale := range targetLocales {
-		segs, ok := block.Targets[model.LocaleID(locale)]
-		if !ok || len(segs) == 0 || len(segs[0].Runs) == 0 {
+		runs := block.TargetRuns(model.LocaleID(locale))
+		if len(runs) == 0 {
 			continue
 		}
-		bi.TargetsRuns[locale] = segs[0].Runs
+		bi.TargetsRuns[locale] = runs
 	}
 }
 

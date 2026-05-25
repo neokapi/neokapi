@@ -102,7 +102,7 @@ func blockInfoToBlock(bi BlockInfo) *model.Block {
 		ID:           bi.ID,
 		Translatable: bi.Translatable,
 		Properties:   bi.Properties,
-		Targets:      make(map[model.LocaleID][]*model.Segment),
+		Targets:      make(map[model.VariantKey]*model.Target),
 	}
 	b.SetSourceRuns(runInfosToRuns(bi.SourceRuns))
 	for locale, runs := range bi.TargetRuns {
@@ -393,9 +393,9 @@ func (a *App) PseudoTranslateItem(projectID, itemName, targetLocale string) (*Tr
 			return part, nil
 		}
 		locale := model.LocaleID(targetLocale)
-		seg := block.FirstSegment()
-		if seg != nil && seg.HasInlineCodes() {
-			block.SetTargetRuns(locale, pseudoRuns(seg.Runs))
+		runs := block.SourceRuns()
+		if runsHaveInlineCodes(runs) {
+			block.SetTargetRuns(locale, pseudoRuns(runs))
 		} else {
 			src := block.SourceText()
 			pseudo := "[" + pseudoAccent(src) + "]"
@@ -752,6 +752,18 @@ func pseudoAccent(text string) string {
 		}
 	}
 	return buf.String()
+}
+
+// runsHaveInlineCodes reports whether a Run sequence carries any non-text run
+// (placeholder or paired code) — the signal that pseudo-translation must walk
+// runs in place rather than flattening to text.
+func runsHaveInlineCodes(runs []model.Run) bool {
+	for _, r := range runs {
+		if r.Text == nil {
+			return true
+		}
+	}
+	return false
 }
 
 // pseudoRuns walks a Run sequence and applies pseudo-accent to TextRun

@@ -45,9 +45,9 @@ func TestRoundTrip_MixedRunKinds(t *testing.T) {
 	b := &model.Block{
 		ID:           "tu1",
 		Translatable: true,
-		Source:       []*model.Segment{{ID: "s1", Runs: srcRuns}},
-		Targets: map[model.LocaleID][]*model.Segment{
-			model.LocaleFrench: {{ID: "s1", Runs: tgtRuns}},
+		Source:       srcRuns,
+		Targets: map[model.VariantKey]*model.Target{
+			model.Variant(model.LocaleFrench): {Runs: tgtRuns},
 		},
 		Properties:  map[string]string{"client": "acme"},
 		Annotations: make(map[string]model.Annotation),
@@ -60,16 +60,15 @@ func TestRoundTrip_MixedRunKinds(t *testing.T) {
 	require.Len(t, got, 1)
 
 	r := got[0].Block
-	require.Len(t, r.Source, 1)
+	require.NotEmpty(t, r.Source)
 	assert.Equal(t, "tu1", r.ID)
 
 	// Source runs survive byte-for-byte.
-	assertRunsEqual(t, srcRuns, r.Source[0].Runs)
+	assertRunsEqual(t, srcRuns, r.Source)
 
 	// Target runs survive byte-for-byte.
-	require.Contains(t, r.Targets, model.LocaleFrench)
-	require.Len(t, r.Targets[model.LocaleFrench], 1)
-	assertRunsEqual(t, tgtRuns, r.Targets[model.LocaleFrench][0].Runs)
+	require.NotNil(t, r.Target(model.LocaleFrench))
+	assertRunsEqual(t, tgtRuns, r.TargetRuns(model.LocaleFrench))
 }
 
 // TestRoundTrip_RunsKeysComputedFromRuns verifies that the structural
