@@ -16653,7 +16653,6 @@
         "application/pdf"
       ],
       "hasReader": true,
-      "hasWriter": true,
       "schema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "$id": "https://neokapi.dev/schemas/filters/okf_pdf.v9.schema.json",
