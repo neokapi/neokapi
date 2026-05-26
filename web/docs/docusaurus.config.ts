@@ -182,17 +182,22 @@ const config: Config = {
           position: "left",
         },
         {
-          // Format-aware CLI utilities (kgrep/ksed/kcat).
-          type: "docSidebar",
-          sidebarId: "toolboxSidebar",
-          label: "CLI tools",
+          type: "dropdown",
+          label: "Toolbox",
           position: "left",
-        },
-        {
-          type: "docSidebar",
-          sidebarId: "reactSidebar",
-          label: "Kapi React",
-          position: "left",
+          items: [
+            {
+              // Format-aware CLI utilities (kgrep/ksed/kcat).
+              type: "docSidebar",
+              sidebarId: "toolboxSidebar",
+              label: "CLI tools",
+            },
+            {
+              type: "docSidebar",
+              sidebarId: "reactSidebar",
+              label: "Kapi React",
+            },
+          ],
         },
         {
           type: "docSidebar",
