@@ -165,6 +165,49 @@ func (p sedProgram) apply(text string) string {
 	return text
 }
 
+// applyRuns runs the program over a flat run sequence, editing the text while
+// preserving the inline codes around the change (model.ApplyTextEdits). It
+// returns the rewritten runs and whether the flattened text actually changed;
+// when nothing changes the original runs are returned untouched (no needless
+// re-chunking). Callers must guard with model.HasStructuredRuns: plural/select
+// runs have no linear text mapping and take the whole-text fallback instead.
+func (p sedProgram) applyRuns(runs []model.Run) ([]model.Run, bool) {
+	before := model.RunsText(runs)
+	cur := runs
+	for _, c := range p {
+		cur = c.editRuns(cur)
+	}
+	if model.RunsText(cur) == before {
+		return runs, false
+	}
+	return cur, true
+}
+
+// editRuns turns one substitution into a set of constraint-aware text edits and
+// applies them to the run sequence, so codes around the change are preserved
+// and an emptied deletable span (e.g. bold left wrapping nothing) collapses
+// rather than leaving an empty tag (see model.ApplyTextEdits). If nothing
+// matches, the input is returned unchanged.
+func (c sedCmd) editRuns(runs []model.Run) []model.Run {
+	text := model.RunsText(runs)
+	var matches [][]int
+	if c.global {
+		matches = c.re.FindAllStringSubmatchIndex(text, -1)
+	} else if m := c.re.FindStringSubmatchIndex(text); m != nil {
+		matches = [][]int{m}
+	}
+	if len(matches) == 0 {
+		return runs
+	}
+	src := []byte(text)
+	edits := make([]model.TextEdit, 0, len(matches))
+	for _, m := range matches {
+		repl := c.re.Expand(nil, []byte(c.repl), src, m)
+		edits = append(edits, model.TextEdit{Start: m[0], End: m[1], Replacement: string(repl)})
+	}
+	return model.ApplyTextEdits(runs, edits)
+}
+
 func parseSedProgram(scripts []string) (sedProgram, error) {
 	prog := make(sedProgram, 0, len(scripts))
 	for _, s := range scripts {
@@ -291,6 +334,14 @@ func sedReplToGo(s string, delim byte) string {
 
 // newSedTool builds a source-transform tool that applies the sed program to the
 // source text (scopeSource) or to the target translation for locale otherwise.
+//
+// Editing is run-aware: substitutions edit the run sequence so inline codes
+// (bold/link spans, placeholders) around the change survive, an emptied
+// deletable span collapses, and a non-deletable code (line break, variable) is
+// kept — all per the vocabulary constraints (see model.ApplyTextEdits). A match
+// may even span a code boundary, because the regex sees the code-free flattening
+// of the runs. Sequences with plural/select runs have no linear text mapping, so
+// those fall back to whole-text replacement.
 func newSedTool(prog sedProgram, locale model.LocaleID, scopeSource bool) *tool.BaseTool {
 	t := &tool.BaseTool{
 		ToolName:        "ksed",
@@ -301,17 +352,32 @@ func newSedTool(prog sedProgram, locale model.LocaleID, scopeSource bool) *tool.
 			return nil
 		}
 		if scopeSource {
+			runs := v.SourceRuns()
+			if !model.HasStructuredRuns(runs) {
+				if out, changed := prog.applyRuns(runs); changed {
+					v.SetSourceRuns(out)
+				}
+				return nil
+			}
 			src := v.SourceText()
 			if out := prog.apply(src); out != src {
 				v.SetSourceText(out)
 			}
 			return nil
 		}
-		if !locale.IsEmpty() && v.HasTarget(locale) {
-			tgt := v.TargetText(locale)
-			if out := prog.apply(tgt); out != tgt {
-				v.SetTargetText(locale, out)
+		if locale.IsEmpty() || !v.HasTarget(locale) {
+			return nil
+		}
+		runs := v.TargetRuns(locale)
+		if !model.HasStructuredRuns(runs) {
+			if out, changed := prog.applyRuns(runs); changed {
+				v.SetTargetRuns(locale, out)
 			}
+			return nil
+		}
+		tgt := v.TargetText(locale)
+		if out := prog.apply(tgt); out != tgt {
+			v.SetTargetText(locale, out)
 		}
 		return nil
 	}

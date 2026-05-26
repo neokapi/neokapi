@@ -83,6 +83,11 @@ but the document is re-serialized. That is exactly what you want for a `.docx`
 want for a tiny edit to a hand-formatted, source-controlled file, where an
 ordinary edit keeps the diff minimal.
 
+Inline formatting around your edit is preserved: a substitution can span a bold
+or linked span and the markup is kept intact (editing a word inside a `<b>` keeps
+the bold; consuming the whole span leaves no broken tag). A byte `sed` cannot do
+this — it would either miss the match or trample the markup.
+
 `ksed` only edits formats kapi can write back. A read-only format — PDF, which
 is extraction-only — has no writer, so `ksed` stops with an error
 (`pdf is a read-only format`) rather than silently replacing the document with
