@@ -1,8 +1,8 @@
 ---
 sidebar_position: 4
 title: Installation
-description: Install the kapi CLI on macOS, Linux, or Windows via Homebrew, Go install, or direct binary download. Offline by default; no configuration needed to start.
-keywords: [kapi, install, homebrew, go install, binary download, macos, linux, windows]
+description: Install the kapi CLI on macOS, Linux, or Windows via Homebrew or a direct binary download. Offline by default; no configuration needed to start.
+keywords: [kapi, install, homebrew, binary download, macos, linux, windows]
 ---
 
 # Installation
@@ -17,12 +17,6 @@ binary that runs offline by default.
 brew install neokapi/tap/kapi-cli
 ```
 
-## Go Install
-
-```bash
-go install github.com/neokapi/neokapi/kapi/cmd/kapi@latest
-```
-
 ## Binary Downloads
 
 Pre-built binaries for all platforms are available on the [GitHub Releases](https://github.com/neokapi/neokapi/releases) page:
@@ -31,7 +25,15 @@ Pre-built binaries for all platforms are available on the [GitHub Releases](http
 - macOS (amd64, arm64)
 - Windows (amd64, arm64)
 
-## Building from Source
+## From source (Go developers)
+
+Install the latest with Go:
+
+```bash
+go install github.com/neokapi/neokapi/kapi/cmd/kapi@latest
+```
+
+Or build the repository:
 
 ```bash
 git clone https://github.com/neokapi/neokapi.git

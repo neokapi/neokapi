@@ -27,14 +27,14 @@ export function Pipeline() {
       <div className="mx-auto max-w-6xl">
         <div className="mb-16 text-center">
           <h2 className="font-display text-3xl font-bold tracking-tight text-white sm:text-4xl">
-            A concurrent{' '}
+            Built to{' '}
             <span className="bg-gradient-to-r from-accent-cyan to-brand-400 bg-clip-text text-transparent">
-              streaming architecture
+              process at scale
             </span>
           </h2>
           <p className="mx-auto mt-4 max-w-2xl text-lg text-neutral-400">
-            Content flows through concurrent Go channels. Tools run in parallel goroutines
-            with automatic backpressure and fan-out across workers.
+            Your content moves through a pipeline of tools — read, translate, check, write —
+            that run in parallel across files and languages, so large jobs finish fast.
           </p>
         </div>
 
@@ -94,7 +94,7 @@ export function Pipeline() {
 
               {/* ─── Channel: Reader -> Terminology ─── */}
               <line x1="240" y1="170" x2="290" y2="170" stroke="#1e3a32" strokeWidth="1.5" />
-              <text x="265" y="162" textAnchor="middle" fill="#1e3a32" fontSize="8" fontFamily="Source Code Pro, monospace">chan</text>
+              <text x="265" y="162" textAnchor="middle" fill="#1e3a32" fontSize="8" fontFamily="Source Code Pro, monospace"></text>
               <circle r="3" fill="#25c2a0" filter="url(#glow-teal)" opacity="0">
                 <animateMotion dur="1.5s" begin="0s" repeatCount="indefinite" path="M240,170 L290,170" />
                 <animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.1;0.8;1" dur="1.5s" begin="0s" repeatCount="indefinite" />
@@ -111,7 +111,7 @@ export function Pipeline() {
 
               {/* ─── Channel: Terminology -> Fan-out ─── */}
               <line x1="390" y1="170" x2="430" y2="170" stroke="#1e3a32" strokeWidth="1.5" />
-              <text x="410" y="162" textAnchor="middle" fill="#1e3a32" fontSize="8" fontFamily="Source Code Pro, monospace">chan</text>
+              <text x="410" y="162" textAnchor="middle" fill="#1e3a32" fontSize="8" fontFamily="Source Code Pro, monospace"></text>
 
               {/* ─── Fan-out lines to workers ─── */}
               {WORKERS.map((_, i) => {
@@ -132,7 +132,7 @@ export function Pipeline() {
               })}
 
               {/* ─── Fan-out label ─── */}
-              <text x="520" y="52" textAnchor="middle" fill="#06b6d4" fontSize="9" fontFamily="Source Code Pro, monospace" opacity="0.6">ParallelBlockTool</text>
+              <text x="520" y="52" textAnchor="middle" fill="#06b6d4" fontSize="9" fontFamily="Source Code Pro, monospace" opacity="0.6">in parallel</text>
 
               {/* ─── Worker boxes ─── */}
               {WORKERS.map((label, i) => {
@@ -152,14 +152,14 @@ export function Pipeline() {
                       </rect>
                     )}
                     <text x="520" y={wy + 14} textAnchor="middle" fill={isActive ? '#fff' : '#94a3b8'} fontSize="11" fontFamily="Outfit, sans-serif" fontWeight="500">AI Translate</text>
-                    <text x="520" y={wy + 26} textAnchor="middle" fill={isActive ? '#06b6d4' : '#1e3a32'} fontSize="8" fontFamily="Source Code Pro, monospace">goroutine {i + 1}</text>
+                    <text x="520" y={wy + 26} textAnchor="middle" fill={isActive ? '#06b6d4' : '#1e3a32'} fontSize="8" fontFamily="Source Code Pro, monospace">worker {i + 1}</text>
                   </g>
                 )
               })}
 
               {/* ─── Channel: Fan-in -> QA ─── */}
               <line x1="610" y1="170" x2="650" y2="170" stroke="#1e3a32" strokeWidth="1.5" />
-              <text x="630" y="162" textAnchor="middle" fill="#1e3a32" fontSize="8" fontFamily="Source Code Pro, monospace">chan</text>
+              <text x="630" y="162" textAnchor="middle" fill="#1e3a32" fontSize="8" fontFamily="Source Code Pro, monospace"></text>
 
               {/* ─── QA Stage ─── */}
               <rect x="650" y="140" width="80" height="60" rx="10" fill="#0f1f1b" stroke="#33925d" strokeWidth="1.5" opacity="0.9" />
@@ -168,7 +168,7 @@ export function Pipeline() {
 
               {/* ─── Channel: QA -> Writer ─── */}
               <line x1="730" y1="170" x2="770" y2="170" stroke="#1e3a32" strokeWidth="1.5" />
-              <text x="750" y="162" textAnchor="middle" fill="#1e3a32" fontSize="8" fontFamily="Source Code Pro, monospace">chan</text>
+              <text x="750" y="162" textAnchor="middle" fill="#1e3a32" fontSize="8" fontFamily="Source Code Pro, monospace"></text>
               <circle r="3" fill="#25c2a0" filter="url(#glow-teal)" opacity="0">
                 <animateMotion dur="1.5s" begin="0.3s" repeatCount="indefinite" path="M730,170 L770,170" />
                 <animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.1;0.8;1" dur="1.5s" begin="0.3s" repeatCount="indefinite" />
@@ -203,7 +203,7 @@ export function Pipeline() {
               {/* ─── Concurrency labels ─── */}
               {/* File concurrency bracket */}
               <line x1="6" y1="115" x2="6" y2="210" stroke="#25c2a0" strokeWidth="1" opacity="0.2" />
-              <text x="4" y="268" fill="#25c2a0" fontSize="8" fontFamily="Source Code Pro, monospace" opacity="0.4" transform="rotate(-90, 4, 268)">FileConcurrency</text>
+              <text x="4" y="268" fill="#25c2a0" fontSize="8" fontFamily="Source Code Pro, monospace" opacity="0.4" transform="rotate(-90, 4, 268)">files in parallel</text>
 
               <line x1="958" y1="115" x2="958" y2="210" stroke="#25c2a0" strokeWidth="1" opacity="0.2" />
               <text x="956" y="268" fill="#25c2a0" fontSize="8" fontFamily="Source Code Pro, monospace" opacity="0.4" transform="rotate(-90, 956, 268)">3 locales</text>

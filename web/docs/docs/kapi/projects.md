@@ -95,7 +95,7 @@ defaults:
 | `source_language`  | string   | BCP-47 source locale (e.g., `en-US`)   |
 | `target_languages` | string[] | BCP-47 target locales                  |
 | `concurrency`      | int      | Number of files to process in parallel |
-| `parallel_blocks`  | int      | Goroutine fan-out for block processing |
+| `parallel_blocks`  | int      | Number of blocks to process in parallel within a file |
 | `encoding`         | string   | Input file encoding (default: `utf-8`) |
 
 ### Flow Steps

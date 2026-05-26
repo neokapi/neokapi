@@ -2,7 +2,7 @@
 sidebar_position: 1
 title: Introduction
 slug: /get-started/introduction
-description: neokapi is an open-source, format-aware localization framework in Go. Learn how its content model, format readers, processing tools, and concurrent pipeline work together.
+description: neokapi is an open-source, format-aware localization framework in Go. Learn how its content model, format readers, processing tools, and pipeline work together.
 keywords: [neokapi, localization framework, open source, kapi cli, content model, formats, tools, pipeline]
 ---
 
@@ -16,7 +16,7 @@ neokapi is a **framework for format-aware localization**. At its core is a
 content model that represents translatable text independently of the file it
 came from, a set of format readers and writers that move documents in and out of
 that model, and processing tools — translation, QA, terminology enforcement,
-brand-voice checks — that compose into concurrent pipelines. It is **open
+brand-voice checks — that compose into pipelines. It is **open
 source** and **offline by default**.
 
 The framework is the thing; the CLI is one surface onto it. The same engine
@@ -100,22 +100,22 @@ workflow.
 
 ## Architecture at a glance
 
-Content flows through a channel-based concurrent pipeline. Each tool runs in its
-own goroutine, connected by buffered channels that provide backpressure;
-context cancellation propagates to every stage:
+Content flows through a pipeline of tools that run in parallel — a reader, a
+chain of tools, and a writer — each handling parts of the document as they
+stream through:
 
 <PipelineDiagram
   animated
   stages={[
     { label: "Input File" },
     { label: "Reader", sub: "DataFormat", role: "io" },
-    { label: "Tool 1", note: "goroutine" },
-    { label: "Tool 2", note: "goroutine" },
+    { label: "Tool 1" },
+    { label: "Tool 2" },
     { label: "⋯" },
     { label: "Writer", sub: "DataFormat", role: "io" },
     { label: "Output File" },
   ]}
-  caption="Each tool runs in its own goroutine; stages are joined by buffered Part channels with backpressure."
+  caption="Tools run in parallel, each processing parts as they stream through."
 />
 
 See [Architecture](/framework/architecture) for the streaming model and

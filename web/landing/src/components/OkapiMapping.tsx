@@ -24,9 +24,9 @@ export function OkapiMapping() {
             </span>
           </h2>
           <p className="mx-auto mt-4 max-w-2xl text-lg text-neutral-400">
-            Neokapi reimagines the proven Okapi Framework concepts in Go &mdash; with channels instead of pipelines,
-            goroutines instead of threads. Experimental AI-based rewrites of Java filters bring native speed and near-instant
-            local processing, while a gRPC bridge to a JVM gives full access to battle-tested Okapi filters and steps.
+            Neokapi reimagines the proven Okapi Framework in Go for native speed and near-instant
+            local processing. Experimental AI-based rewrites of Java filters run natively, while a
+            bridge to Java gives full access to battle-tested Okapi filters and steps.
           </p>
         </div>
 

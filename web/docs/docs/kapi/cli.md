@@ -25,7 +25,7 @@ Kapi does two jobs from one engine:
   automatic format detection (see the [format reference](/formats)).
 
 It processes files directly (no project initialization needed) and extends via
-crash-isolated gRPC plugins, including the Okapi bridge to the Java filters.
+plugins, including the Okapi bridge to the Java filters.
 
 ## Key Commands
 
@@ -90,7 +90,7 @@ For a visual interface, use [Kapi Desktop](/kapi/desktop/overview) — the GUI c
 
 ## Installation
 
-See [Installation](/get-started/installation) for Homebrew, `go install`, and binary downloads.
+See [Installation](/get-started/installation) for Homebrew and binary downloads.
 
 ## Project Files
 

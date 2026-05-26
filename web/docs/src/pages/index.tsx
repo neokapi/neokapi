@@ -116,7 +116,7 @@ const NeokapiFeatures: ProductItem[] = [
   {
     title: "Formats & plugins",
     description:
-      "Readers and writers for localization, document, data, subtitle, and office formats, extended by crash-isolated gRPC plugins and a bridge to the Java Okapi filters.",
+      "Readers and writers for localization, document, data, subtitle, and office formats, extended by plugins and a bridge to the Java Okapi filters.",
     link: "/framework/formats",
     linkText: "Formats",
   },
@@ -130,7 +130,7 @@ const NeokapiFeatures: ProductItem[] = [
   {
     title: "Streaming pipeline",
     description:
-      "Each tool runs in its own goroutine, connected by buffered channels with backpressure and context cancellation.",
+      "Tools run in parallel and stream results as each part is ready, so large files and many languages process fast.",
     link: "/framework/architecture",
     linkText: "Architecture",
   },
