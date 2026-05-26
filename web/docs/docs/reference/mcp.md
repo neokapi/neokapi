@@ -9,7 +9,7 @@ keywords: [MCP, Model Context Protocol, kapi mcp, AI tools, Claude, Cursor, bran
 
 kapi exposes its file-processing capabilities as an [MCP](https://modelcontextprotocol.io/) (Model Context Protocol) server. This lets AI tools like Claude, GitHub Copilot, Cursor, Windsurf, and other MCP-compatible agents parse files, count words, run translation flows, check brand voice, and look up terminology — all through structured tool calls.
 
-For the agent-skills path (Claude Code calling the `kapi` CLI), see [using kapi with Claude](/get-started/use-with-claude). The two can be used together.
+For the agent-skills path (Claude Code calling the `kapi` CLI), see [using kapi with Claude](/kapi/get-started/use-with-claude). The two can be used together.
 
 ## Quick Start
 
@@ -235,7 +235,7 @@ LLM-backed tools like `ai-translate` need API keys and run from the CLI, not ove
 
 ## Related
 
-- [Using kapi with Claude](/get-started/use-with-claude) — the agent-skills path.
+- [Using kapi with Claude](/kapi/get-started/use-with-claude) — the agent-skills path.
 - [kapi CLI overview](/kapi/cli)
 - [Run command](/commands?id=run)
 - [Formats](/commands?id=formats)

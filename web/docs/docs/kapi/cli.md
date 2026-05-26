@@ -90,7 +90,7 @@ For a visual interface, use [Kapi Desktop](/kapi/desktop/overview) — the GUI c
 
 ## Installation
 
-See [Installation](/get-started/installation) for Homebrew and binary downloads.
+See [Installation](/kapi/get-started/installation) for Homebrew and binary downloads.
 
 ## Project Files
 

@@ -34,7 +34,7 @@ function formatDefault(def: string | undefined, type: string | undefined): strin
  */
 export default function CommandReferencePage({ id }: Props) {
   const guidesHref = useBaseUrl("/kapi/recipes");
-  const installHref = useBaseUrl("/get-started/installation");
+  const installHref = useBaseUrl("/kapi/get-started/installation");
   const commandsHref = useBaseUrl("/commands");
   const cmd: CommandEntry | undefined = commandData.commands.find((c) => c.id === id);
   if (!cmd) {

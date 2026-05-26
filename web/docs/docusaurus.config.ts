@@ -132,17 +132,11 @@ const config: Config = {
         src: "img/logo.png",
       },
       items: [
-        // IA: Get Started is the onboarding funnel; Kapi is the product manual
-        // (CLI + Desktop + recipes + projects); Framework is the engine (concepts
-        // + extending + architecture + notes, merged); Reference holds the
+        // IA: Kapi is the product (getting started + CLI + Desktop + recipes +
+        // projects); Framework is the engine (an Overview, then concepts +
+        // extending + architecture + notes); Reference holds the
         // generated/interactive references + MCP; Toolbox holds the CLI utilities
         // and Kapi React.
-        {
-          type: "docSidebar",
-          sidebarId: "getStartedSidebar",
-          label: "Get Started",
-          position: "left",
-        },
         {
           type: "docSidebar",
           sidebarId: "kapiSidebar",
@@ -209,8 +203,8 @@ const config: Config = {
           title: "Documentation",
           items: [
             {
-              label: "Get Started",
-              to: "/get-started/introduction",
+              label: "Get started",
+              to: "/kapi/get-started/quickstart",
             },
             {
               label: "Kapi",

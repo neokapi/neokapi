@@ -45,5 +45,5 @@ content patterns, flows, and defaults, portable and shareable via git.
 
 ## Install
 
-See [Installation](/get-started/installation) for the CLI (Homebrew or download)
+See [Installation](/kapi/get-started/installation) for the CLI (Homebrew or download)
 and Kapi Desktop (macOS cask).

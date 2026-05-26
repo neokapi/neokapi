@@ -7,7 +7,7 @@ keywords: [kapi, install, homebrew, binary download, macos, linux, windows]
 
 # Installation
 
-Once you've [tried kapi in the browser](/get-started/try-it), install the `kapi`
+Once you've [tried kapi in the browser](/kapi/get-started/try-it), install the `kapi`
 CLI to run it locally and against your own files — a single self-contained
 binary that runs offline by default.
 
@@ -59,7 +59,7 @@ kapi credentials list       # see what's saved
 ```
 
 Credentials live in your OS keychain. See the
-[Quick Start](/get-started/quickstart) for what to run next.
+[Quick Start](/kapi/get-started/quickstart) for what to run next.
 
 ## Kapi Desktop
 

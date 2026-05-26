@@ -84,14 +84,14 @@ function HomepageHeader() {
           <div className={styles.buttons}>
             <Link
               className={clsx("button button--lg", styles.tryButton)}
-              to="/get-started/use-with-claude"
+              to="/kapi/get-started/use-with-claude"
             >
               <Sparkles size={18} aria-hidden="true" />
               Try Kapi with Claude
             </Link>
             <Link
               className="button button--secondary button--lg"
-              to="/get-started/introduction"
+              to="/kapi/overview"
             >
               Get Started
             </Link>

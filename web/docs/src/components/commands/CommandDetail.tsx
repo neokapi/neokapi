@@ -23,7 +23,7 @@ interface Props {
  */
 export default function CommandDetail({ cmd }: Props) {
   const guidesHref = useBaseUrl("/kapi/recipes");
-  const installHref = useBaseUrl("/get-started/installation");
+  const installHref = useBaseUrl("/kapi/get-started/installation");
   const name = commandName(cmd);
   const summary = commandSummary(cmd);
   const flags = cmd.flags ?? [];

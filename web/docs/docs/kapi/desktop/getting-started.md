@@ -16,7 +16,7 @@ This guide walks you through creating your first localization project with Kapi 
 brew install --cask neokapi/tap/kapi
 ```
 
-The cask bundles the `kapi` CLI. See [Installation](/get-started/installation) for other platforms and options.
+The cask bundles the `kapi` CLI. See [Installation](/kapi/get-started/installation) for other platforms and options.
 
 ## 2. Launch and Create a Project
 
