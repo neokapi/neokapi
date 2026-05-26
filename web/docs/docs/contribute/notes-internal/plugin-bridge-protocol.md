@@ -5,6 +5,8 @@ description: Implementation note for AD-007 — the gRPC bridge protocol between
 keywords: [bridge protocol, gRPC, BridgeService, Okapi bridge, Process RPC, Part model, Event model, implementation note]
 ---
 
+import { LanesDiagram } from "@site/src/components/diagram";
+
 # Bridge Protocol
 
 This note provides implementation details for [AD-007](/contribute/architecture/007-plugin-system).
@@ -130,26 +132,38 @@ Linux, so the daemon transport is effectively POSIX-only today.
 
 The Java `BridgeServiceImpl` uses a two-thread single-pass design:
 
-```
-┌─ Reader Thread (filterPool, bounded) ─────────────────────────┐
-│  filter.open(doc)                                             │
-│  writer = filter.createFilterWriter()  ← same filter instance │
-│  while filter.hasNext():                                      │
-│    event = filter.next()                                      │
-│    eventQueue.put(event) ─────────────→ Writer Thread          │
-│    if subscribed(event):                                      │
-│      sendBatch.add(toContentBlock(event))                     │
-│      if batch full: respObserver.onNext(ContentBlockBatch)    │
-│  eventQueue.put(END_OF_EVENTS)                                │
-│  writerFuture.get()                                           │
-└───────────────────────────────────────────────────────────────┘
-
-┌─ Writer Thread (writerPool, unbounded) ───────────────────────┐
-│  while (event = eventQueue.poll()) != END_OF_EVENTS:          │
-│    modified = applier.applyTranslations(event)                │
-│    writer.handleEvent(modified)                               │
-└───────────────────────────────────────────────────────────────┘
-```
+<LanesDiagram
+  handoff="eventQueue"
+  lanes={[
+    {
+      title: "Reader Thread",
+      sub: "filterPool, bounded",
+      role: "io",
+      steps: [
+        "filter.open(doc)",
+        "writer = filter.createFilterWriter()   // same filter instance",
+        "while filter.hasNext():",
+        "  event = filter.next()",
+        "  eventQueue.put(event)              → Writer Thread",
+        "  if subscribed(event):",
+        "    sendBatch.add(toContentBlock(event))",
+        "    if batch full: respObserver.onNext(ContentBlockBatch)",
+        "eventQueue.put(END_OF_EVENTS)",
+        "writerFuture.get()",
+      ],
+    },
+    {
+      title: "Writer Thread",
+      sub: "writerPool, unbounded",
+      role: "translate",
+      steps: [
+        "while (event = eventQueue.poll()) != END_OF_EVENTS:",
+        "  modified = applier.applyTranslations(event)",
+        "  writer.handleEvent(modified)",
+      ],
+    },
+  ]}
+/>
 
 Key design choices:
 

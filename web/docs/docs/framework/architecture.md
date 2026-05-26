@@ -5,6 +5,8 @@ description: An overview of the neokapi framework architecture — the streaming
 keywords: [neokapi, architecture, streaming pipeline, content model, localization framework, go modules]
 ---
 
+import { ArchitectureDiagram } from "@site/src/components/diagram";
+
 # neokapi: Architecture
 
 neokapi is an open-source localization framework built in Go. It provides
@@ -14,47 +16,26 @@ major design choice, see the [Architecture Decisions](/contribute/architecture/0
 
 ## Processing Pipeline
 
-```mermaid
-graph LR
-    subgraph "Processing Pipeline"
-        direction LR
-        DFR[Format Reader]
-        T1[Segmentation]
-        T2[TM Leverage]
-        T3[AI Translation]
-        T4[QA Check]
-        DFW[Format Writer]
-        DFR -->|"chan Part"| T1
-        T1 -->|"chan Part"| T2
-        T2 -->|"chan Part"| T3
-        T3 -->|"chan Part"| T4
-        T4 -->|"chan Part"| DFW
-    end
+<ArchitectureDiagram />
 
-    subgraph "Resources"
-        TM[Translation Memory]
-        TB[Terminology]
-    end
+A [reader](/framework/formats) turns source files of any format into a stream of
+[Parts](/framework/content-model); a [writer](/framework/formats) turns the
+stream back into translated files. Between them runs a [flow](/framework/flows):
+a serial chain of [tools](/framework/tools) connected by buffered channels of
+Parts. The tools divide by capability — **annotators** attach stand-off overlays
+(segmentation, terminology, entities), **translators** fill in targets, and **QA**
+tools check and enforce — while [translation memory](/framework/translation-memory)
+and the [termbase](/framework/terminology) feed the relevant stages.
 
-    TM -.- T2
-    TB -.- T4
-
-    subgraph "Plugin System (gRPC)"
-        P1[Native Go]
-        P2[Okapi Bridge]
-        P3[Remote Plugin]
-    end
-
-    P1 -.- T1
-    P2 -.- DFR
-    P3 -.- T3
-
-    style T3 fill:#e1f5fe
-```
-
-The processing pipeline runs each tool in its own goroutine, connected by
-buffered channels with automatic backpressure. Context cancellation propagates
-to all stages. See [AD-001](/contribute/architecture/001-vision-and-modules) and
+Concurrency runs at three levels at once: each stage is its own goroutine joined
+by channels with automatic backpressure; a block-handling stage such as AI
+translation can **fan out** across N goroutines with an ordered fan-in; and the
+executor runs many documents in parallel, bounded by `MaxConcurrency`. Context
+cancellation propagates to every stage. Readers, writers, and tools can be
+supplied by [plugins](/contribute/notes-internal/plugin-model) — the Java
+[Okapi Bridge](/contribute/architecture/007-plugin-system), the `kapi-sat`
+segmenter, or any remote plugin — dispatched as subprocesses over gRPC. See
+[AD-001](/contribute/architecture/001-vision-and-modules) and
 [AD-004](/contribute/architecture/004-processing-engine).
 
 ## Package Layout

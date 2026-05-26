@@ -6,6 +6,8 @@ description: "Architecture decision: a parity harness runs every neokapi format 
 keywords: [parity testing, Okapi Framework, format parity, test harness, divergence, architecture decision, neokapi]
 ---
 
+import { PipelineDiagram } from "@site/src/components/diagram";
+
 # AD-018: Parity testing against Okapi
 
 ## Summary
@@ -45,24 +47,20 @@ outputs diverge.
 
 ### Architecture
 
-```
-TestParityHTML ─┐
-                ├─→ RunNative ─► html.NewReader (in-process)
-TestParityJSON  │       │
-                │   []model.Part
-                │       ▼
-                │   CompareBlockText(t, native, bridge)
-                │       ▲
-                │   []model.Part
-                │       │
-                └─→ RunBridge ─► DaemonPool.Acquire("okapi-bridge")
-                          │
-                          ▼
-                    kapi-okapi-bridge daemon (JVM, gRPC over Unix socket)
-                          │
-                          ▼
-                    BridgeService.Process / .ProcessStep
-```
+<PipelineDiagram
+  channelLabel="[]Part"
+  stages={[
+    { label: "TestParityHTML / JSON", sub: "same input", role: "io" },
+    {
+      parallelLabel: "run both implementations side by side",
+      lanes: [
+        { label: "RunNative", sub: "html.NewReader (in-process)" },
+        { label: "RunBridge", sub: "DaemonPool → JVM daemon (gRPC)" },
+      ],
+    },
+    { label: "CompareBlockText", sub: "fails on divergence", role: "qa" },
+  ]}
+/>
 
 ### Sandbox
 

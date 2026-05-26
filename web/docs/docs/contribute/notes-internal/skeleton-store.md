@@ -5,6 +5,8 @@ description: Implementation note for AD-005 — details of the SkeletonStore tem
 keywords: [SkeletonStore, streaming HTML, skeleton, tokenizer, HTML reader, implementation note, neokapi]
 ---
 
+import { StreamDiagram } from "@site/src/components/diagram";
+
 # Skeleton Store and Streaming HTML
 
 Implementation details for the `SkeletonStore` framework type and the
@@ -138,11 +140,14 @@ For elements with translatable attributes (e.g., `title`, `alt`, `content`
 on meta tags), the reader splits the raw tag bytes at attribute value
 boundaries to create interleaved skeleton text and ref entries:
 
-```
-<p title="Tooltip">  →  skeleton.WriteText('<p title="')
-                         skeleton.WriteRef("tu1")    // block for "Tooltip"
-                         skeleton.WriteText('">')
-```
+<StreamDiagram
+  title={'<p title="Tooltip">'}
+  items={[
+    { kind: "skeleton.WriteText", detail: `'<p title="'`, role: "meta" },
+    { kind: "skeleton.WriteRef", detail: '"tu1"', role: "block", note: 'block for "Tooltip"' },
+    { kind: "skeleton.WriteText", detail: `'">'`, role: "meta" },
+  ]}
+/>
 
 The `findAttrValueOffset` function locates the byte offset of an attribute
 value within the raw tag bytes by scanning for `attrKey=` followed by a

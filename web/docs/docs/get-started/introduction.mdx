@@ -8,6 +8,7 @@ keywords: [neokapi, localization framework, open source, kapi cli, content model
 
 import RunnableSnippet from "@site/src/components/KapiPlayground/RunnableSnippet";
 import { DualExample } from "@site/src/components/curated";
+import { PipelineDiagram } from "@site/src/components/diagram";
 
 # Introduction
 
@@ -103,11 +104,19 @@ Content flows through a channel-based concurrent pipeline. Each tool runs in its
 own goroutine, connected by buffered channels that provide backpressure;
 context cancellation propagates to every stage:
 
-```
-Input File → DataFormatReader → [Tool 1] → [Tool 2] → ... → DataFormatWriter → Output File
-                                    ↕            ↕
-                              chan *Part    chan *Part
-```
+<PipelineDiagram
+  animated
+  stages={[
+    { label: "Input File" },
+    { label: "Reader", sub: "DataFormat", role: "io" },
+    { label: "Tool 1", note: "goroutine" },
+    { label: "Tool 2", note: "goroutine" },
+    { label: "⋯" },
+    { label: "Writer", sub: "DataFormat", role: "io" },
+    { label: "Output File" },
+  ]}
+  caption="Each tool runs in its own goroutine; stages are joined by buffered Part channels with backpressure."
+/>
 
 See [Architecture](/framework/architecture) for the streaming model and
 [Content Model](/framework/content-model) for blocks, fragments, and inline

@@ -8,6 +8,7 @@ hide_table_of_contents: true
 ---
 
 import KapiGuidedEmbed from "@site/src/components/KapiPlayground/KapiGuidedEmbed";
+import { PipelineDiagram } from "@site/src/components/diagram";
 
 # Pre-translate with TM + termbase
 
@@ -29,9 +30,13 @@ Your project has:
 
 The pipeline is three deterministic steps:
 
-```text
-TM leverage  →  pseudo-translate the misses  →  term-check
-```
+<PipelineDiagram
+  stages={[
+    { label: "TM leverage", role: "translate" },
+    { label: "pseudo-translate", sub: "the misses", role: "translate" },
+    { label: "term-check", role: "qa" },
+  ]}
+/>
 
 TM leverage fills exact and fuzzy matches from previous releases;
 pseudo-translation covers everything the TM didn't, so no segment is silently

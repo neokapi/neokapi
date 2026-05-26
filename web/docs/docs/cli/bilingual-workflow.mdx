@@ -6,6 +6,7 @@ keywords: [bilingual workflow, XLIFF, PO, gettext, CAT tool, extract, merge, tra
 ---
 
 import { ThemedVideo } from "@neokapi/docs-shared";
+import { RoundTripDiagram } from "@site/src/components/diagram";
 
 # Bilingual Workflow: Extract → Translate → Merge
 
@@ -34,18 +35,22 @@ Interop](/contribute/architecture/017-bilingual-format-interop).
 The two commands that define this workflow are `kapi extract` and
 `kapi merge`. The translation memory participates on both sides:
 
-```
-  ┌───────────────── TM absorb on merge ─────────────────┐
-  │                                                      │
-authored source  ──►  kapi extract  ──►  XLIFF / PO  ──► translator  ──►
-                           │
-                           │
-                           ▼
-                      project TM
-                           ▲
-                           │
-  ◄── kapi merge   ◄── translated XLIFF / PO   ◄── returned by translator
-```
+<RoundTripDiagram
+  forward={[
+    { label: "authored source", role: "io" },
+    { label: "kapi extract", role: "annotate" },
+    { label: "XLIFF / PO", role: "translate" },
+    { label: "translator" },
+  ]}
+  back={[
+    { label: "kapi merge", role: "annotate" },
+    { label: "translated XLIFF / PO", role: "translate" },
+    { label: "returned by translator" },
+  ]}
+  hub={{ label: "project TM", sub: "tm.db" }}
+  forwardLabel="pre-fill"
+  backLabel="absorb"
+/>
 
 - **TM pre-fill on extract** — every segment is looked up against the
   project TM before it lands in the XLIFF. Exact matches are pre-filled
