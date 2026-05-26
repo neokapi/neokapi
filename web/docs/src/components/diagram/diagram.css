@@ -1,0 +1,278 @@
+/*
+ * Diagram kit (`kdx-` = kapi diagram) — a uniform, theme-aware SVG visual
+ * language for the docs. One SVG renders in both light and dark: every color is
+ * a CSS custom property declared on `.kdx` and overridden under
+ * `[data-theme="dark"]`, and every element picks its color through a class
+ * rather than a hardcoded `fill`/`stroke` attribute. The palette mirrors the
+ * landing-page pipeline (teal/cyan/amber/green) and the Infima brand primary
+ * (#2e8555 light · #25c2a0 dark), so the docs and the marketing site read as one
+ * system.
+ *
+ * SSR-safe: pure SVG + CSS, no browser APIs. Motion is opt-in (the hero) and
+ * fully suppressed under `prefers-reduced-motion`.
+ */
+
+.kdx {
+  /* surfaces & ink */
+  --kdx-surface: #ffffff;
+  --kdx-surface-2: #f3f6f5;
+  --kdx-border: #d3ddd9;
+  --kdx-ink: #1c1e21;
+  --kdx-muted: #5d6b66;
+  --kdx-channel: #b9c7c1;
+
+  /* role accents (light) */
+  --kdx-io: #2e8555; /* readers & writers (brand primary) */
+  --kdx-annotate: #6d5ae6; /* annotators — overlays (indigo) */
+  --kdx-translate: #0e9aab; /* translators — targets (cyan) */
+  --kdx-qa: #b45309; /* QA / enforce (amber) */
+  --kdx-resource: #0e7490; /* TM / termbase */
+  --kdx-plugin: #7c3aed; /* plugin system / gRPC */
+  --kdx-file: #2e8555; /* file chips */
+
+  margin: 1.5rem 0;
+}
+
+[data-theme="dark"] .kdx {
+  --kdx-surface: #0f1f1b;
+  --kdx-surface-2: #0a1614;
+  --kdx-border: #1e3a32;
+  --kdx-ink: #f3f7f6;
+  --kdx-muted: #93a3ad;
+  --kdx-channel: #274b40;
+
+  --kdx-io: #25c2a0;
+  --kdx-annotate: #8b87f7;
+  --kdx-translate: #22c8df;
+  --kdx-qa: #f59e0b;
+  --kdx-resource: #2bd4ee;
+  --kdx-plugin: #a78bfa;
+  --kdx-file: #7aebd4;
+}
+
+/* Horizontal scroll on narrow screens; the SVG keeps its aspect ratio. */
+.kdx-scroll {
+  overflow-x: auto;
+  padding-bottom: 0.25rem;
+}
+
+.kdx-canvas {
+  /* Floor for legibility: below this the SVG horizontally scrolls (mobile)
+     rather than shrinking text to nothing. Above it, the SVG scales to fit the
+     content column via its viewBox. */
+  min-width: 520px;
+  margin: 0 auto;
+}
+
+.kdx svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* ── Text ─────────────────────────────────────────────────────────────── */
+.kdx text {
+  font-family:
+    var(
+      --ifm-font-family-base,
+      system-ui,
+      -apple-system,
+      "Segoe UI",
+      Roboto,
+      sans-serif
+    );
+}
+.kdx-label {
+  fill: var(--kdx-ink);
+  font-weight: 600;
+}
+.kdx-sub,
+.kdx-chan,
+.kdx-file-t {
+  font-family: var(--kdx-mono, ui-monospace, "Source Code Pro", monospace);
+}
+.kdx-sub {
+  fill: var(--kdx-muted);
+}
+.kdx-chan {
+  fill: var(--kdx-muted);
+  opacity: 0.75;
+}
+.kdx-cap {
+  fill: var(--kdx-muted);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.kdx-note {
+  fill: var(--kdx-muted);
+}
+
+.kdx-caption {
+  margin: 0.4rem 0 0;
+  text-align: center;
+  font-size: 0.82rem;
+  color: var(--kdx-muted, #5d6b66);
+}
+
+/* ── Boxes & lanes ────────────────────────────────────────────────────── */
+.kdx-box {
+  fill: var(--kdx-surface);
+  stroke: var(--kdx-border);
+  stroke-width: 1.5;
+}
+.kdx-box--io {
+  stroke: var(--kdx-io);
+}
+.kdx-box--annotate {
+  stroke: var(--kdx-annotate);
+}
+.kdx-box--translate {
+  stroke: var(--kdx-translate);
+}
+.kdx-box--qa {
+  stroke: var(--kdx-qa);
+}
+
+/* subtitle tint matches the box role */
+.kdx-sub--io {
+  fill: var(--kdx-io);
+}
+.kdx-sub--annotate {
+  fill: var(--kdx-annotate);
+}
+.kdx-sub--translate {
+  fill: var(--kdx-translate);
+}
+.kdx-sub--qa {
+  fill: var(--kdx-qa);
+}
+
+.kdx-file {
+  fill: var(--kdx-surface);
+  stroke: var(--kdx-border);
+  stroke-width: 1;
+}
+.kdx-file-t {
+  fill: var(--kdx-file);
+}
+
+/* ── Connectors ───────────────────────────────────────────────────────── */
+.kdx-channel {
+  stroke: var(--kdx-channel);
+  stroke-width: 1.5;
+  fill: none;
+}
+.kdx-thin {
+  stroke: var(--kdx-io);
+  stroke-width: 1;
+  opacity: 0.35;
+  fill: none;
+}
+.kdx-thin--t {
+  stroke: var(--kdx-translate);
+}
+.kdx-link {
+  stroke-width: 1.25;
+  fill: none;
+  stroke-dasharray: 4 3;
+  opacity: 0.6;
+}
+.kdx-link--resource {
+  stroke: var(--kdx-resource);
+}
+.kdx-link--plugin {
+  stroke: var(--kdx-plugin);
+}
+.kdx-arrow {
+  fill: var(--kdx-channel);
+}
+
+/* ── Worker fan-out lane ──────────────────────────────────────────────── */
+.kdx-worker {
+  fill: var(--kdx-surface-2);
+  stroke: var(--kdx-translate);
+  stroke-width: 1;
+  opacity: 0.92;
+}
+.kdx-bracket {
+  fill: none;
+  stroke: var(--kdx-translate);
+  stroke-width: 1;
+  stroke-dasharray: 4 3;
+  opacity: 0.4;
+}
+
+/* ── Bands (plugin system / resources) ────────────────────────────────── */
+.kdx-band {
+  fill: var(--kdx-surface-2);
+  stroke: var(--kdx-plugin);
+  stroke-width: 1;
+  stroke-dasharray: 5 4;
+  opacity: 0.5;
+}
+.kdx-chip {
+  fill: var(--kdx-surface);
+  stroke: var(--kdx-plugin);
+  stroke-width: 1.25;
+}
+.kdx-chip--resource {
+  stroke: var(--kdx-resource);
+}
+.kdx-chip-t {
+  fill: var(--kdx-ink);
+  font-weight: 600;
+}
+.kdx-chip-sub {
+  fill: var(--kdx-muted);
+  font-family: var(--kdx-mono, ui-monospace, "Source Code Pro", monospace);
+}
+
+/* ghost stack — "documents in parallel" */
+.kdx-ghost {
+  fill: none;
+  stroke: var(--kdx-io);
+  stroke-width: 1.25;
+  opacity: 0.16;
+}
+
+/* ── Motion (hero only) ───────────────────────────────────────────────── */
+.kdx-dot {
+  opacity: 0;
+}
+.kdx-dot--io {
+  fill: var(--kdx-io);
+}
+.kdx-dot--translate {
+  fill: var(--kdx-translate);
+}
+
+/* staggered "active worker" pulse, no JS */
+.kdx-pulse {
+  fill: none;
+  stroke: var(--kdx-translate);
+  stroke-width: 1.25;
+  opacity: 0;
+}
+.kdx--animated .kdx-pulse {
+  animation: kdx-pulse 3.2s ease-in-out infinite;
+}
+@keyframes kdx-pulse {
+  0%,
+  100% {
+    opacity: 0;
+  }
+  10% {
+    opacity: 0.55;
+  }
+  25% {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .kdx-dot,
+  .kdx-pulse {
+    display: none;
+  }
+}
