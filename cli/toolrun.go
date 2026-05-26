@@ -74,10 +74,14 @@ type ToolRunConfig struct {
 	Progress       bool
 	OutputTemplate string
 	// InPlace: write back to the input file path instead of expanding
-	// OutputTemplate. Enabled automatically when all inputs are KLZ
-	// archives and -o was omitted — KLZ writers are locale-additive,
+	// OutputTemplate. Enabled automatically when all inputs are KLF
+	// files and -o was omitted — KLF writers are locale-additive,
 	// so in-place accumulates translations rather than clobbering.
-	InPlace        bool
+	InPlace bool
+	// DefaultLayout: no -o/--output-dir was given, so resolve each output
+	// path with localeOutputPath — swap the source locale in the input path
+	// if present, else write under a {lang}/ directory beside the input.
+	DefaultLayout  bool
 	TargetLang     string
 	TracePath      string // write flow trace JSON to this file
 	ParallelBlocks int    // fan out block processing across N goroutines (0 = off)
@@ -304,6 +308,24 @@ func (a *App) processOneFile(ctx context.Context, cfg ToolRunConfig, filePath st
 		}
 	}
 
+	// Resolve the output path once, before creating the writer, so the
+	// writer-format probe and the final write agree on the destination.
+	producesOutput := cfg.OutputTemplate != "" || cfg.InPlace || cfg.DefaultLayout
+	var outputPath string
+	switch {
+	case !producesOutput:
+		// Tool produces no output file (e.g. an analysis tool).
+	case cfg.InPlace:
+		outputPath = filePath
+	case cfg.OutputTemplate != "":
+		outputPath = expandOutputPath(cfg.OutputTemplate, filePath, commonDir, cfg.TargetLang)
+	default: // cfg.DefaultLayout
+		outputPath = localeOutputPath(filePath, a.SourceLang, cfg.TargetLang)
+		if err := os.MkdirAll(filepath.Dir(outputPath), 0o755); err != nil {
+			return fmt.Errorf("create output dir: %w", err)
+		}
+	}
+
 	// Create writer early so we can wire skeleton store before reading.
 	// Writer format defaults to the reader's format (same-in / same-out
 	// round-trip) but a different output extension selects a different
@@ -311,11 +333,10 @@ func (a *App) processOneFile(ctx context.Context, cfg ToolRunConfig, filePath st
 	// dedicated --writer flag. The output path's extension IS the user's
 	// intent declaration.
 	var writer format.DataFormatWriter
-	if cfg.OutputTemplate != "" || cfg.InPlace {
+	if producesOutput {
 		writerFormatName := registryName
 		if !cfg.InPlace {
-			probeOut := expandOutputPath(cfg.OutputTemplate, filePath, commonDir, cfg.TargetLang)
-			if ext := filepath.Ext(probeOut); ext != "" {
+			if ext := filepath.Ext(outputPath); ext != "" {
 				if det, err := a.FormatReg.DetectByExtension(ext); err == nil && det != "" {
 					writerFormatName = string(det)
 				}
@@ -506,14 +527,7 @@ func (a *App) processOneFile(ctx context.Context, cfg ToolRunConfig, filePath st
 		}
 	}
 
-	if (cfg.OutputTemplate != "" || cfg.InPlace) && writer != nil {
-		var outputPath string
-		if cfg.InPlace {
-			outputPath = filePath
-		} else {
-			outputPath = expandOutputPath(cfg.OutputTemplate, filePath, commonDir, cfg.TargetLang)
-		}
-
+	if producesOutput && writer != nil {
 		if err := writer.SetOutput(outputPath); err != nil {
 			return fmt.Errorf("set output %s: %w", outputPath, err)
 		}
@@ -542,7 +556,11 @@ func (a *App) processOneFile(ctx context.Context, cfg ToolRunConfig, filePath st
 			return fmt.Errorf("close writer %s: %w", outputPath, err)
 		}
 
-		if !a.Quiet && progress == nil {
+		// Print the destination only when stderr is an interactive terminal:
+		// a TTY-only nicety, silent when piped or scripted (matching the flow
+		// path's progress gating). The result file is the artifact; this line
+		// is a diagnostic. --quiet and the progress bar suppress it too.
+		if !a.Quiet && progress == nil && isatty.IsTerminal(os.Stderr.Fd()) {
 			fmt.Fprintf(os.Stderr, "%s → %s\n", filePath, outputPath)
 		}
 		return nil
@@ -679,6 +697,7 @@ func expandOutputPath(tmpl, filePath, commonDir, lang string) string {
 	extNoDot := strings.TrimPrefix(ext, ".")
 
 	result := tmpl
+	result = strings.ReplaceAll(result, "{dir}", filepath.Dir(filePath))
 	result = strings.ReplaceAll(result, "{name}", name)
 	result = strings.ReplaceAll(result, "{ext}", extNoDot)
 	result = strings.ReplaceAll(result, "{lang}", lang)
@@ -700,6 +719,130 @@ func expandOutputPath(tmpl, filePath, commonDir, lang string) string {
 	_ = os.MkdirAll(dir, 0o755)
 
 	return result
+}
+
+// localeOutputPath computes the default output path for an input file when no
+// -o template or --output-dir was given. The aim is to land translated files
+// where the project's own localization layout expects them:
+//
+//   - If the source locale appears in the input path — as a directory segment
+//     (locales/en/app.json) or a filename token (app.en.json, app_en.arb,
+//     en.json) — it is swapped for the target locale, writing beside the
+//     source. A directory match is preferred over a filename match.
+//   - Otherwise the file is placed under a {lang}/ directory beside the input
+//     (messages.json → fr/messages.json).
+//
+// The source locale matches case-insensitively against a whole path segment or
+// filename token, by either its full tag or its primary subtag (so en-US dirs
+// match a source of "en", and vice versa). It performs no filesystem access;
+// callers create the parent directory.
+func localeOutputPath(filePath, sourceLang, targetLang string) string {
+	if swapped, ok := swapLocaleSegment(filePath, sourceLang, targetLang); ok {
+		return swapped
+	}
+	base := filepath.Base(filePath)
+	if swapped, ok := swapLocaleToken(base, sourceLang, targetLang); ok {
+		return filepath.Join(filepath.Dir(filePath), swapped)
+	}
+	return filepath.Join(filepath.Dir(filePath), targetLang, base)
+}
+
+// localeSubtags returns the lower-cased forms a locale tag may be matched by:
+// its full tag and, when region-qualified, its primary language subtag.
+func localeSubtags(lang string) []string {
+	lang = strings.TrimSpace(lang)
+	if lang == "" {
+		return nil
+	}
+	full := strings.ToLower(lang)
+	out := []string{full}
+	if i := strings.IndexAny(lang, "-_"); i > 0 {
+		if primary := strings.ToLower(lang[:i]); primary != full {
+			out = append(out, primary)
+		}
+	}
+	return out
+}
+
+// localeMatches reports whether candidate is the source locale, compared as a
+// whole token (case-insensitive) against the source's full tag or primary
+// subtag.
+func localeMatches(candidate, sourceLang string) bool {
+	c := strings.ToLower(candidate)
+	for _, s := range localeSubtags(sourceLang) {
+		if c == s {
+			return true
+		}
+	}
+	return false
+}
+
+// swapLocaleSegment replaces the deepest directory segment that matches the
+// source locale with the target locale. The filename is left untouched.
+func swapLocaleSegment(filePath, sourceLang, targetLang string) (string, bool) {
+	dir := filepath.Dir(filePath)
+	if dir == "." || dir == string(filepath.Separator) {
+		return "", false
+	}
+	parts := strings.Split(filepath.ToSlash(dir), "/")
+	idx := -1
+	for i, p := range parts {
+		if localeMatches(p, sourceLang) {
+			idx = i // prefer the deepest match (closest to the file)
+		}
+	}
+	if idx < 0 {
+		return "", false
+	}
+	parts[idx] = targetLang
+	newDir := filepath.FromSlash(strings.Join(parts, "/"))
+	return filepath.Join(newDir, filepath.Base(filePath)), true
+}
+
+// swapLocaleToken replaces a locale token within a filename (split on '.', '_',
+// or '-') with the target locale, preserving the extension and separators.
+// "app.en.json" → "app.fr.json", "en.json" → "fr.json", "app_en.arb" →
+// "app_fr.arb".
+func swapLocaleToken(base, sourceLang, targetLang string) (string, bool) {
+	ext := filepath.Ext(base)
+	name := strings.TrimSuffix(base, ext)
+	if name == "" {
+		return "", false
+	}
+
+	type token struct {
+		text string
+		sep  byte // trailing separator, 0 for the final token
+	}
+	var toks []token
+	start := 0
+	for i := 0; i < len(name); i++ {
+		if c := name[i]; c == '.' || c == '_' || c == '-' {
+			toks = append(toks, token{name[start:i], c})
+			start = i + 1
+		}
+	}
+	toks = append(toks, token{name[start:], 0})
+
+	idx := -1
+	for i, t := range toks {
+		if localeMatches(t.text, sourceLang) {
+			idx = i // prefer the last matching token (e.g. app.en → en)
+		}
+	}
+	if idx < 0 {
+		return "", false
+	}
+	toks[idx].text = targetLang
+
+	var b strings.Builder
+	for _, t := range toks {
+		b.WriteString(t.text)
+		if t.sep != 0 {
+			b.WriteByte(t.sep)
+		}
+	}
+	return b.String() + ext, true
 }
 
 func warnf(progress progressGroup, format string, args ...any) {

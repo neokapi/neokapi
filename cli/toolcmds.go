@@ -193,19 +193,29 @@ func (a *App) NewToolCommands() []*cobra.Command {
 
 				var outputTmpl string
 				var inPlace bool
+				var defaultLayout bool
 				if info.WritesOutput {
 					outputTmpl, _ = cmd.Flags().GetString("output")
-					if outputTmpl == "" {
-						// KLF writers are locale-additive: reading and
-						// writing back to the same file accumulates
-						// translations. For that case the natural default
-						// is in-place. Other formats keep the sibling-dir
-						// template so input and output can't collide.
-						if allKLF(args) {
-							inPlace = true
-						} else {
-							outputTmpl = "./out/{name}.{ext}"
-						}
+					outputDir, _ := cmd.Flags().GetString("output-dir")
+					switch {
+					case outputTmpl != "":
+						// Explicit -o template wins.
+					case outputDir != "":
+						// Root outputs under DIR using a locale-dir layout
+						// (DIR/{lang}/<file>), mirroring tsc/babel --out-dir.
+						outputTmpl = filepath.Join(outputDir, "{lang}") + string(filepath.Separator)
+					case allKLF(args):
+						// KLF writers are locale-additive: reading and writing
+						// back to the same file accumulates translations, so the
+						// natural default is in-place.
+						inPlace = true
+					default:
+						// Locale-aware default, resolved per file in the runner:
+						// swap the source locale in the input path if present
+						// (locales/en/app.json → locales/fr/app.json), else place
+						// the file under a {lang}/ directory beside the input
+						// (messages.json → fr/messages.json).
+						defaultLayout = true
 					}
 				}
 
@@ -298,6 +308,7 @@ func (a *App) NewToolCommands() []*cobra.Command {
 					Progress:       progress,
 					OutputTemplate: outputTmpl,
 					InPlace:        inPlace,
+					DefaultLayout:  defaultLayout,
 					TargetLang:     effectiveLang,
 					TracePath:      tracePath,
 					ParallelBlocks: parallelBlocks,
@@ -323,7 +334,8 @@ func (a *App) NewToolCommands() []*cobra.Command {
 		cmd.Flags().Bool("no-warn", false, "suppress warnings for skipped files")
 		cmd.Flags().BoolP("progress", "p", false, "show progress bar")
 		if info.WritesOutput {
-			cmd.Flags().StringP("output", "o", "", "output path template (variables: {name}, {ext}, {lang})")
+			cmd.Flags().StringP("output", "o", "", "output path template (variables: {dir}, {name}, {ext}, {lang})")
+			cmd.Flags().String("output-dir", "", "write outputs under DIR/{lang}/ (default: beside the input, mirroring its locale layout)")
 		}
 		RegisterSchemaFlags(cmd, toolSchema)
 		if toolSchema.ToolMeta != nil {
