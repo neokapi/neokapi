@@ -298,9 +298,16 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: sat-tarball-${{ matrix.build.goos }}-${{ matrix.build.goarch }}
+          # Glob the output dir via a native per-OS path (runner.temp), NOT the
+          # script's stdout path: on the Windows runner the bash script emits a
+          # git-bash-style path (/d/a/_temp/…) that the JS upload-artifact action
+          # cannot resolve, so it silently uploads nothing (the tarball is on
+          # disk — its checksum artifact proves it). if-no-files-found: error
+          # turns a future miss into a hard failure instead of a 404'd release.
           path: |
-            ${{ steps.package.outputs.tarball }}
-            ${{ steps.package.outputs.tarball }}.sigstore.json
+            ${{ runner.temp }}/sat-out/*.tar.gz
+            ${{ runner.temp }}/sat-out/*.tar.gz.sigstore.json
+          if-no-files-found: error
           retention-days: 14
 
       # Expose the per-platform sha256 as a checksum artifact for the registry
