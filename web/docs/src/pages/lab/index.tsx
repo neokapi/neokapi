@@ -38,15 +38,15 @@ export default function LabPage(): React.ReactElement {
   return (
     <Layout
       title="Lab"
-      description="Learn the neokapi architecture by running it — interactive, WebAssembly-powered explorers for the content model, pipeline, tools, formats and flows."
+      description="Learn the neokapi architecture by running it — interactive, in-browser explorers for the content model, pipeline, tools, formats and flows."
     >
       <main className={styles.page}>
         <div className={styles.hero}>
           <h1>neokapi Lab</h1>
           <p className={styles.lede}>
             Learn the architecture by running it. Each explorer below runs the real
-            kapi engine in your browser (compiled to WebAssembly) on a sample — or
-            on a file you drop in. Nothing is mocked; this is the same engine the{" "}
+            kapi engine in your browser on a sample — or on a file you drop in.
+            Nothing is mocked; this is the same engine the{" "}
             <Link to="/playground-cli">CLI</Link> runs. The same explorers appear
             inline next to the concepts they teach throughout the{" "}
             <Link to="/framework/architecture">Framework</Link> docs.
