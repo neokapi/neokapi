@@ -1,2 +1,6 @@
-kapi-sat
+# Built binary at the module root. Anchored with a leading slash so it does
+# NOT match the cmd/kapi-sat/ SOURCE directory — an unanchored "kapi-sat"
+# pattern matches any path component of that name and silently excluded the
+# plugin's entry point (cmd/kapi-sat/main.go) from the repo.
+/kapi-sat
 *.lock
