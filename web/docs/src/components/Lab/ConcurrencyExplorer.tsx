@@ -2,8 +2,8 @@ import React, { useState, useEffect, useCallback } from "react";
 import useBaseUrl from "@docusaurus/useBaseUrl";
 import { FlowTracePlayer } from "@neokapi/kapi-lab";
 import type { FlowTrace } from "@neokapi/kapi-lab";
-import TraceSelector from "./_TraceSelector";
-import styles from "./_index.module.css";
+import TraceSelector from "./ConcurrencyTraceSelector";
+import styles from "./ConcurrencyExplorer.module.css";
 
 const AVAILABLE_TRACES = [
   {
@@ -33,11 +33,13 @@ const AVAILABLE_TRACES = [
   },
 ];
 
-// FlowVisualization is the standalone /flow-visualization page: a trace picker
-// (built-in traces + upload-your-own) feeding the shared, step-driven
-// <FlowTracePlayer> from @neokapi/kapi-lab. The same player is embedded inline
-// in the docs and the /lab page; this page is the free-play surface.
-export default function FlowVisualization(): React.ReactElement {
+// ConcurrencyExplorer is the Lab's trace-replay surface: a trace picker
+// (built-in traces + upload-your-own `kapi run --trace` output) feeding the
+// step-driven <FlowTracePlayer> from @neokapi/kapi-lab. Unlike the Lab's live
+// explorers, it replays recorded traces so it can show what live single-flow
+// runs don't: parallel workers, channel buffering, and the Java bridge's gRPC
+// boundary.
+export function ConcurrencyExplorer(): React.ReactElement {
   const [trace, setTrace] = useState<FlowTrace | null>(null);
   const [tracePath, setTracePath] = useState(AVAILABLE_TRACES[0].path);
   const [error, setError] = useState<string | null>(null);

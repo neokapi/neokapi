@@ -1,5 +1,5 @@
 import React, { useRef } from "react";
-import styles from "./_index.module.css";
+import styles from "./ConcurrencyExplorer.module.css";
 
 interface TraceSelectorProps {
   traces: { name: string; description: string; path: string }[];

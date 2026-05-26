@@ -6,6 +6,7 @@ import { ToolLab } from "@site/src/components/Lab/ToolLab";
 import { RoundTripExplorer } from "@site/src/components/Lab/RoundTripExplorer";
 import { FlowBuilderRunner } from "@site/src/components/Lab/FlowBuilderRunner";
 import { ScriptLab } from "@site/src/components/Lab/ScriptLab";
+import { ConcurrencyExplorer } from "@site/src/components/Lab/ConcurrencyExplorer";
 import styles from "./index.module.css";
 
 // The Lab is the free-play destination that composes every interactive
@@ -127,7 +128,23 @@ export default function LabPage(): React.ReactElement {
         </Section>
 
         <Section
-          step="06 · Scripting"
+          step="06 · Concurrency"
+          title="Concurrency — replay a pipeline trace"
+          intro={
+            <>
+              The pipeline is concurrent: each tool runs in its own goroutine,
+              connected by buffered channels of Parts. Replay a recorded trace to
+              watch Parts move through the stages &mdash; including parallel
+              workers, channel buffering, and the Java bridge&apos;s gRPC
+              boundary. Drop in your own <code>kapi run --trace</code> output too.
+            </>
+          }
+        >
+          <ConcurrencyExplorer />
+        </Section>
+
+        <Section
+          step="07 · Scripting"
           title="Script — write your own transform"
           intro={
             <>

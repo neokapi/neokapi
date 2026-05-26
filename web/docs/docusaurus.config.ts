@@ -171,7 +171,6 @@ const config: Config = {
             { label: "Commands", to: "/commands" },
             { label: "Formats", to: "/formats" },
             { label: "Tools", to: "/tools" },
-            { label: "Flows", to: "/flow-visualization" },
             { label: "MCP Server", to: "/reference/mcp" },
             { label: "Parity", to: "/parity" },
             { label: "Benchmarks", to: "/pseudobench" },
