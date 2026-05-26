@@ -711,6 +711,14 @@ pulse-build pulse-dev pulse-check:
 # The legacy screenshots/recordings/cli-recordings/docs-assets/Remotion
 # pipeline is removed — see commit history for what was here.
 
+# Regenerate every neokapi-branded logo/icon/favicon from the two-background
+# source pair (web/docs/assets/neokapi-logo-2-{black,white}.png): combines them
+# into one transparent, watermark-free master and fans it out. Fully scripted —
+# no AI. Re-render the demo videos afterwards (make harness-videos) to pick up
+# the new mascot. Bowrain is a separate brand: see scripts/generate-icons.sh.
+logo: ## Regenerate all neokapi logo/icon/favicon assets from the source pair
+	@bash scripts/generate-neokapi-logo.sh
+
 fetch-docs-assets: ## Download legacy docs assets (transitional, until walkthrough engine fully covers)
 	@gh release download docs-assets --pattern 'docs-assets.tar.gz' --dir /tmp --clobber
 	@mkdir -p web/docs/static
@@ -888,7 +896,7 @@ help: ## Show this help
         kapi-storybook kapi-storybook-build bowrain-storybook bowrain-storybook-build \
         cover test-e2e test-e2e-kapi test-e2e-bowrain test-e2e-cloud test-e2e-dev \
         bench bench-build bench-generate bench-run bench-run-collection bench-run-all bench-versions \
-        fetch-docs-assets publish-docs-assets harness-deps harness-videos \
+        logo fetch-docs-assets publish-docs-assets harness-deps harness-videos \
         generate-format-docs generate-reference-docs generate-reference-pages \
         docs-deps docs-dev docs-wasm docs-build docs-serve \
         tools setup-remote gha-lint clean \

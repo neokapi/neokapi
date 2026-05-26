@@ -2,7 +2,7 @@ import React from "react";
 import { AbsoluteFill, Img, interpolate, spring, staticFile, useCurrentFrame, useVideoConfig } from "remotion";
 import { theme, KAPI } from "./theme.ts";
 
-/** The neokapi mascot, on a light rounded badge (the artwork has a white background). */
+/** The neokapi mascot (transparent PNG), centered on a white rounded badge. */
 const Mascot: React.FC<{ size?: number }> = ({ size = 128 }) => (
   <div
     style={{
