@@ -168,7 +168,7 @@ const config: Config = {
             // Generated, runnable references + interactive grids. R4 fills the
             // per-entry pages under /reference/{commands,formats,tools}/.
             { label: "Reference Overview", to: "/reference" },
-            { label: "Commands", to: "/commands" },
+            { label: "Kapi CLI Commands", to: "/commands" },
             { label: "Formats", to: "/formats" },
             { label: "Tools", to: "/tools" },
             { label: "MCP Server", to: "/reference/mcp" },
