@@ -202,17 +202,10 @@ back with only the translated text differing.
 
 ## Mapping from Okapi
 
-For readers familiar with the Okapi Framework, the model maps directly:
-
-| Okapi (Java)                    | neokapi (Go)               |
-| ------------------------------- | -------------------------- |
-| Filter                          | DataFormat                 |
-| TextUnit                        | Block                      |
-| TextFragment                    | Run sequence (`[]Run`)     |
-| Code                            | Run (`PcOpen`/`PcClose`/`Ph`) |
-| Segment (structural)            | Span in a segmentation overlay |
-| StartSubDocument/StartSubFilter | Child Layer                |
-| Event                           | Part                       |
+The content-model types correspond directly to the Okapi Framework's resource
+hierarchy — `TextUnit` → `Block`, `Code` → `Run`, `StartSubDocument` → child
+`Layer`, and so on. See [Okapi comparison](/framework/okapi-comparison) for the
+full term-by-term map.
 
 ## Related reading
 

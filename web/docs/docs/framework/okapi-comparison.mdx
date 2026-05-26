@@ -1,0 +1,41 @@
+---
+sidebar_position: 16
+title: Okapi comparison
+description: How the neokapi framework maps onto the Okapi Framework it reimagines in Go — filters, steps, pipelines, and the content model, term by term.
+keywords: [okapi, comparison, terminology mapping, filter, step, pipeline, TextUnit, neokapi]
+---
+
+# Okapi comparison
+
+neokapi reimagines the [Okapi Framework](https://okapiframework.org/) — the
+established open-source Java localization toolkit — in Go. It keeps Okapi's
+proven model: format-specific readers, a chain of processing steps, and a
+pipeline that streams content through them. The engine is rewritten as a
+concurrent streaming pipeline and adds AI-native tools and brand-voice
+enforcement, but the core vocabulary maps directly.
+
+For readers familiar with Okapi, here is how the concepts correspond:
+
+| Okapi (Java)                    | neokapi (Go)                   |
+| ------------------------------- | ------------------------------ |
+| Filter                          | DataFormat (Reader/Writer)     |
+| Step                            | Tool                           |
+| Pipeline                        | Flow                           |
+| PipelineDriver                  | Executor                       |
+| Event                           | Part                           |
+| TextUnit                        | Block                          |
+| TextFragment                    | Run sequence (`[]Run`)         |
+| Code                            | Run (`PcOpen`/`PcClose`/`Ph`)  |
+| Segment (structural)            | Span in a segmentation overlay |
+| StartSubDocument/StartSubFilter | Child Layer                    |
+| Tikal                           | kapi (CLI)                     |
+
+neokapi also runs **actual Okapi filters** when you need them: the
+[Okapi bridge](/contribute/java-bridge) plugin exposes the Java filter library,
+so formats without a native reader still round-trip.
+
+## Related reading
+
+- [Content Model](/framework/content-model) — the Block, Run, and Layer types in detail.
+- [Architecture](/framework/architecture) — the streaming pipeline and modules.
+- [Okapi bridge](/contribute/java-bridge) — using the Java filters directly.
