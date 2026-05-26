@@ -66,3 +66,10 @@ with a skeleton — Office Open XML among them — the document's structure, sty
 and non-translatable content round-trip unchanged; the fidelity is *semantic*
 (the same text and structure), not a byte-for-byte copy. Only the `s///`
 substitution command is supported; compose multiple with `-e`.
+
+Inline formatting *within* a block is preserved as well. The pattern matches the
+block's text with its inline codes removed, so a substitution can span a bold or
+linked span — `s/Hello world/Hi/` matches even when *world* is bold — and the
+codes outside the replaced text stay in place: editing a word inside a `<b>` span
+keeps the span around the new word. Codes that fall entirely inside the replaced
+text are carried over so a paired code never loses its partner.
