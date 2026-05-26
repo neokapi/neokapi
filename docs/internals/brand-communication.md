@@ -32,6 +32,30 @@ localization engineer, not a prospect.
 - **Brochure framing.** Don't restate the same feature list as a hero, a card
   grid, and a bullet list. Say it once, in the right place.
 
+## Source work and localization — don't frame everything as translation
+
+neokapi does two jobs: **source-language work** (brand guardrails, terminology,
+QA) and **localization** (translation across languages and formats). Wording
+that frames the shared engine as translation undersells the source-language
+half — the reader doing brand work shouldn't feel the docs are about something
+else.
+
+- ✗ "the **translatable** text is segmented into blocks", "kapi extracts
+  **translatable** text", "only the **translatable** text changes".
+- ✓ Use neutral terms for the shared mechanism — *text*, *content*, *block*,
+  *extract*: "the text is **extracted** into blocks", "kapi extracts the text",
+  "only the text changes".
+- Reserve *translatable* / *translation* for genuinely localization-specific
+  contexts (a translation-job estimate, a target-language round-trip, the Okapi
+  heritage mapping).
+- **Extraction — not segmentation — produces blocks.** Reading a file
+  *extracts* its text into blocks; segmentation is a separate, opt-in overlay
+  *within* a block. Don't write "segmented into blocks".
+- Exception: the content model's **Block = translatable content** vs. a
+  **non-translatable skeleton** is a precise technical distinction — keep it in
+  the Framework / content-model docs, but don't carry that framing onto the
+  front page or everyday Kapi pages.
+
 ## Never hardcode counts that the code controls
 
 Do not write numbers that change whenever the codebase changes — they rot and
@@ -105,12 +129,14 @@ the source of truth. Specifics that have bitten us:
 ## Pre-publish checklist
 
 1. No superlatives or hype words; no emoji.
-2. No hardcoded format/tool/provider/filter/language counts.
-3. Each topic stated once; overlapping pages merged or cross-linked; redirects
+2. Shared-mechanism wording is neutral (text/content/extract), not
+   "translatable", unless the context is specifically about translation.
+3. No hardcoded format/tool/provider/filter/language counts.
+4. Each topic stated once; overlapping pages merged or cross-linked; redirects
    added for moved URLs.
-4. Every command, flag, import path, and flow name verified against the code.
-5. Headings in sentence case; product names spelled per the list above.
-6. Build is clean — `tsc` and the site build pass with no new warnings.
+5. Every command, flag, import path, and flow name verified against the code.
+6. Headings in sentence case; product names spelled per the list above.
+7. Build is clean — `tsc` and the site build pass with no new warnings.
 
 > If machine enforcement is wanted later, this guideline can also be encoded as
 > a `core/brand` VoiceProfile (tone/style/vocabulary rules + examples) and run

@@ -13,7 +13,7 @@ import { PipelineDiagram } from "@site/src/components/diagram";
 # Introduction
 
 neokapi is a **framework for format-aware localization**. At its core is a
-content model that represents translatable text independently of the file it
+content model that represents the text content independently of the file it
 came from, a set of format readers and writers that move documents in and out of
 that model, and processing tools — translation, QA, terminology enforcement,
 brand-voice checks — that compose into pipelines. It is **open
@@ -28,9 +28,9 @@ model and shows a runnable taste from the CLI.
 ## What the framework does
 
 A document — JSON, DOCX, Markdown, XLIFF, an Android `strings.xml`, an Apple
-`.xcstrings`, and [more](/formats) — is read into a **content model**: the
-translatable text is segmented into _blocks_, each with a stable id, while the
-surrounding structure and inline markup are held separately so a round-trip
+`.xcstrings`, and [more](/formats) — is read into a **content model**: the text
+is extracted into _blocks_, each with a stable id, while the surrounding
+structure and inline markup are held separately so a round-trip
 writes the file back faithfully. Tools transform blocks as they stream through;
 a writer reassembles the original format around the transformed text.
 
@@ -44,7 +44,7 @@ content model the framework parsed it into on the right:
     kind: "blocks",
     sample: "messages.json",
     title: "messages.json — parsed blocks",
-    caption: "How the framework sees the file: translatable blocks with stable ids.",
+    caption: "How the framework sees the file: text blocks with stable ids.",
   }}
 />
 

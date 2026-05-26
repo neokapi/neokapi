@@ -100,10 +100,10 @@ export default function LabPage(): React.ReactElement {
           title="Round-trip — structure in, structure out"
           intro={
             <>
-              Readers split a document into translatable Blocks and a non-translatable
-              skeleton; writers splice translations back into that skeleton. The
-              result: only the translatable text changes, structure is reproduced
-              exactly.
+              Readers split a document into Blocks of text and a structural
+              skeleton; writers splice content back into that skeleton. The
+              result: only the text in the blocks changes, structure is
+              reproduced exactly.
             </>
           }
         >
