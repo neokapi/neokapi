@@ -127,11 +127,22 @@ if [ -n "${SAT_PREBUILT_BIN:-}" ]; then
 else
   VERSION_PKG="github.com/neokapi/neokapi/core/version"
   LDFLAGS="-s -w -X ${VERSION_PKG}.Version=${VERSION}"
+  # cgo link flags. On Windows, daulet/tokenizers' static lib bundles Rust's
+  # std, which calls NT native APIs (NtReadFile, NtCreateFile,
+  # RtlNtStatusToDosError, …) exported by ntdll; daulet's own cgo LDFLAGS link
+  # ws2_32/userenv but not ntdll, so mingw's single-pass linker reports
+  # "undefined reference to Nt*/Rtl*". Append -lntdll via the env CGO_LDFLAGS,
+  # which Go places AFTER the package's -ltokenizers in the link line — the
+  # order the single-pass GNU linker requires.
+  CGO_LDFLAGS_VAL="-L${TOKENIZERS_LIB}"
+  if [ "$GOOS" = "windows" ]; then
+    CGO_LDFLAGS_VAL="${CGO_LDFLAGS_VAL} -lntdll"
+  fi
   echo "package-sat-plugin: building ${BIN_NAME} ${VERSION} for ${GOOS}/${GOARCH} (-tags onnx)"
   (
     cd "$PLUGIN_DIR"
     GOWORK=off CGO_ENABLED=1 \
-      CGO_LDFLAGS="-L${TOKENIZERS_LIB}" \
+      CGO_LDFLAGS="${CGO_LDFLAGS_VAL}" \
       go build -tags onnx -trimpath \
         -ldflags "${LDFLAGS}" \
         -o "$STAGE/${BIN_NAME}" ./cmd/kapi-sat
