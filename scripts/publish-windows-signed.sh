@@ -90,4 +90,12 @@ if gh release download "$TAG" --repo "$REPO" --pattern checksums.txt --dir "$wor
   [ "$add" = 1 ] && gh release upload "$TAG" --repo "$REPO" --clobber "$work/checksums.txt"
 fi
 
+# Optionally open/refresh the winget-pkgs PR for the signed CLI (opt-in:
+# WINGET_SUBMIT=1). Prereqs: the package exists in winget-pkgs (one-time
+# `komac new Neokapi.Kapi`) and a WINGET_TOKEN repo secret. See winget.yml.
+if [ "${WINGET_SUBMIT:-0}" = "1" ]; then
+  echo ">> Triggering winget submission for $TAG ..."
+  gh workflow run winget.yml --repo "$REPO" -f tag="$TAG"
+fi
+
 echo "✅ Signed Windows artifacts added to release $TAG: ${signed[*]##*/}"
