@@ -143,6 +143,21 @@
 .kdx-pill {
   fill: var(--kdx-surface);
 }
+
+/* self-loop arc (PhaseFlow) */
+.kdx-loop {
+  fill: none;
+  stroke: var(--kdx-annotate);
+  stroke-width: 1.25;
+  stroke-dasharray: 4 3;
+  opacity: 0.7;
+}
+
+/* lane/thread card divider (LanesDiagram) */
+.kdx-divider {
+  stroke: var(--kdx-border);
+  stroke-width: 1;
+}
 .kdx-link--io {
   stroke: var(--kdx-io);
 }

@@ -6,6 +6,8 @@ description: "Architecture decision: Sievepen is neokapi's TM library — it sto
 keywords: [Sievepen, translation memory, runs, multilingual, matching tiers, SQLite, architecture decision, neokapi]
 ---
 
+import { PipelineDiagram } from "@site/src/components/diagram";
+
 # AD-009: Translation Memory (Sievepen)
 
 ## Summary
@@ -236,9 +238,16 @@ as context.
 
 A typical flow:
 
-```
-Reader → entity-annotate → tm-leverage → ai-translate → qa-check → Writer
-```
+<PipelineDiagram
+  stages={[
+    { label: "Reader", role: "io" },
+    { label: "entity-annotate", role: "annotate" },
+    { label: "tm-leverage", role: "translate" },
+    { label: "ai-translate", role: "translate" },
+    { label: "qa-check", role: "qa" },
+    { label: "Writer", role: "io" },
+  ]}
+/>
 
 After translation (human or AI), Blocks are written to TM with their full Run
 representation and entity mappings. The save step extracts entity annotations

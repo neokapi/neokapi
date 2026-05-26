@@ -6,6 +6,8 @@ description: "Architecture decision: neokapi's terminology system is concept-ori
 keywords: [terminology, Concept, TBX, termbase, concept-oriented, architecture decision, neokapi]
 ---
 
+import { PipelineDiagram } from "@site/src/components/diagram";
+
 # AD-010: Terminology
 
 ## Summary
@@ -200,9 +202,17 @@ The framework ships built-in terminology tools as ordinary pipeline stages:
 
 A full pipeline looks like:
 
-```
-Reader → entity-annotate → term-lookup → tm-leverage → ai-translate → term-enforce → Writer
-```
+<PipelineDiagram
+  stages={[
+    { label: "Reader", role: "io" },
+    { label: "entity-annotate", role: "annotate" },
+    { label: "term-lookup", role: "annotate" },
+    { label: "tm-leverage", role: "translate" },
+    { label: "ai-translate", role: "translate" },
+    { label: "term-enforce", role: "qa" },
+    { label: "Writer", role: "io" },
+  ]}
+/>
 
 ### TBX import and export
 

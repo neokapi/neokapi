@@ -10,3 +10,7 @@ export { StreamDiagram } from "./StreamDiagram";
 export type { StreamDiagramProps, StreamItem, StreamRole } from "./StreamDiagram";
 export { RoundTripDiagram } from "./RoundTripDiagram";
 export type { RoundTripDiagramProps } from "./RoundTripDiagram";
+export { PhaseFlow } from "./PhaseFlow";
+export type { PhaseFlowProps, PhaseNode } from "./PhaseFlow";
+export { LanesDiagram } from "./LanesDiagram";
+export type { LanesDiagramProps, LaneThread } from "./LanesDiagram";

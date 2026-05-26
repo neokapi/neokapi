@@ -6,6 +6,8 @@ description: "Architecture decision: the processing engine is a channel-based st
 keywords: [processing engine, pipeline, goroutines, channels, errgroup, streaming, architecture decision]
 ---
 
+import { PipelineDiagram } from "@site/src/components/diagram";
+
 # AD-004: Processing Engine
 
 ## Summary
@@ -39,11 +41,18 @@ library) from the same data model.
 
 Content flows through a channel-based concurrent pipeline:
 
-```
-Source → DataFormatReader → [Tool 1] → [Tool 2] → ... → DataFormatWriter → Output
-                                 ↕            ↕
-                            chan *Part    chan *Part
-```
+<PipelineDiagram
+  animated
+  stages={[
+    { label: "Source" },
+    { label: "Reader", sub: "DataFormat", role: "io" },
+    { label: "Tool 1", note: "goroutine" },
+    { label: "Tool 2", note: "goroutine" },
+    { label: "⋯" },
+    { label: "Writer", sub: "DataFormat", role: "io" },
+    { label: "Output" },
+  ]}
+/>
 
 Each tool runs in its own goroutine. Buffered channels (default size 64)
 provide backpressure. `errgroup.Group` coordinates error handling across
@@ -82,11 +91,19 @@ processing underutilizes throughput. `ParallelBlockTool` wraps any tool to
 fan out Block processing across N goroutines while preserving strict Part
 ordering:
 
-```
-Input → Dispatcher → [Worker 1] → Reassembly (min-heap) → Output
-                   → [Worker 2] →
-                   → [Worker N] →
-```
+<PipelineDiagram
+  stages={[
+    { label: "Input" },
+    { label: "Dispatcher", sub: "seq numbers", role: "annotate" },
+    {
+      role: "translate",
+      parallelLabel: "fan-out · N goroutines (semaphore-bounded)",
+      lanes: [{ label: "Worker 1" }, { label: "Worker 2" }, { label: "Worker N" }],
+    },
+    { label: "Reassembly", sub: "min-heap · in order", role: "annotate" },
+    { label: "Output" },
+  ]}
+/>
 
 The dispatcher assigns monotonic sequence numbers to all incoming Parts.
 Block Parts are dispatched to a semaphore-bounded worker pool; non-Block

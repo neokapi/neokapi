@@ -6,6 +6,8 @@ description: "Architecture decision: LLM capabilities plug in through an LLMProv
 keywords: [AI providers, LLMProvider, Anthropic, OpenAI, Gemini, Ollama, architecture decision, neokapi]
 ---
 
+import { PipelineDiagram } from "@site/src/components/diagram";
+
 # AD-011: AI Providers
 
 ## Summary
@@ -177,9 +179,17 @@ AI capabilities reach the pipeline as ordinary Tools
 
 Because AI tools are ordinary Tools, they compose naturally:
 
-```
-Reader → tm-leverage → term-lookup → ai-translate → term-enforce → ai-qa → Writer
-```
+<PipelineDiagram
+  stages={[
+    { label: "Reader", role: "io" },
+    { label: "tm-leverage", role: "translate" },
+    { label: "term-lookup", role: "annotate" },
+    { label: "ai-translate", role: "translate" },
+    { label: "term-enforce", role: "qa" },
+    { label: "ai-qa", role: "qa" },
+    { label: "Writer", role: "io" },
+  ]}
+/>
 
 ### Terminology-aware prompts
 

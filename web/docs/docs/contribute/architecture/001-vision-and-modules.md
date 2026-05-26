@@ -6,6 +6,8 @@ description: "Architecture decision: neokapi is an open, AI-native Go localizati
 keywords: [neokapi, architecture decision, Go modules, go.work, multi-module, Apache-2.0]
 ---
 
+import { PipelineDiagram } from "@site/src/components/diagram";
+
 # AD-001: Vision and Module Architecture
 
 ## Summary
@@ -122,9 +124,13 @@ the AGPL-3.0 bowrain platform, which builds on framework interfaces (content
 model, tools, flows, formats), but no framework module ever imports bowrain
 code. The license gradient is one-directional:
 
-```
-Apache-2.0 framework  →  (consumed by)  →  AGPL-3.0 bowrain platform
-```
+<PipelineDiagram
+  channelLabel="consumed by"
+  stages={[
+    { label: "Apache-2.0 framework", sub: "core · cli · kapi · desktop", role: "io" },
+    { label: "AGPL-3.0 bowrain platform" },
+  ]}
+/>
 
 This is a structural property, not a convention. Because the framework
 modules never import bowrain packages, accidental upward coupling is a

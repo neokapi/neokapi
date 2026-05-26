@@ -30,7 +30,7 @@ const HUB_H = 54;
 const PAD = 36;
 
 const stageWidth = (s: PipelineStage): number =>
-  Math.max(84, Math.round(Math.max(s.label.length, (s.sub ?? "").length) * CHAR) + 26);
+  Math.max(84, Math.round(Math.max((s.label ?? "").length, (s.sub ?? "").length) * CHAR) + 26);
 
 interface Placed extends PipelineStage {
   x: number;

@@ -6,6 +6,8 @@ description: "Architecture decision: a Tool is a single composable pipeline stag
 keywords: [tool system, BaseTool, pipeline stage, composable, architecture decision, neokapi]
 ---
 
+import { PipelineDiagram } from "@site/src/components/diagram";
+
 # AD-006: Tool System
 
 ## Summary
@@ -371,9 +373,18 @@ perspective.
 
 Tools communicate through annotations on Blocks. A typical pipeline:
 
-```
-reader → ai-entity-extract → term-lookup → tm-leverage → ai-translate → term-enforce → qa-check → writer
-```
+<PipelineDiagram
+  stages={[
+    { label: "reader", role: "io" },
+    { label: "ai-entity-extract", role: "annotate" },
+    { label: "term-lookup", role: "annotate" },
+    { label: "tm-leverage", role: "translate" },
+    { label: "ai-translate", role: "translate" },
+    { label: "term-enforce", role: "qa" },
+    { label: "qa-check", role: "qa" },
+    { label: "writer", role: "io" },
+  ]}
+/>
 
 - `ai-entity-extract` adds `EntityAnnotation` with named entities.
 - `term-lookup` adds `TermAnnotation` with matched terminology.

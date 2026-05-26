@@ -6,6 +6,8 @@ description: "Architecture decision: MT services plug in through an MTProvider i
 keywords: [MT providers, MTProvider, DeepL, Google Translate, Microsoft Translator, architecture decision, neokapi]
 ---
 
+import { PipelineDiagram } from "@site/src/components/diagram";
+
 # AD-012: Machine Translation Providers
 
 ## Summary
@@ -143,9 +145,16 @@ Keys never appear in flow definitions or project files.
 
 A typical production flow chains TM, MT, and AI refinement:
 
-```
-Reader → tm-leverage → deepl-translate → ai-review → qa-check → Writer
-```
+<PipelineDiagram
+  stages={[
+    { label: "Reader", role: "io" },
+    { label: "tm-leverage", role: "translate" },
+    { label: "deepl-translate", role: "translate" },
+    { label: "ai-review", role: "qa" },
+    { label: "qa-check", role: "qa" },
+    { label: "Writer", role: "io" },
+  ]}
+/>
 
 - `tm-leverage` fills exact and generalized matches at near-zero cost.
 - `deepl-translate` translates the remainder quickly and cheaply.

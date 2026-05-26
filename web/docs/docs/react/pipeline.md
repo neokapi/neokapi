@@ -5,31 +5,34 @@ description: The three-phase kapi-react pipeline — extract JSX to a KLF archiv
 keywords: [extract, translate, compile, KLF, kapi-react pipeline, code splitting, localization pipeline]
 ---
 
+import { PhaseFlow } from "@site/src/components/diagram";
+
 # The extract → translate → compile pipeline
 
 Three phases, one contract: the KLF directory archive. A fourth optional phase — **split** — slices the compiled output along bundler chunk lines so code-split apps can lazy-load translations per route.
 
-```
-Your source code
-      │
-      │  kapi-react extract
-      ▼
-   i18n/ ─── (send to translators / AI / TMS) ───┐
-      ▲                                                  │
-      │                                                  ▼
-      │  kapi ai-translate / pseudo-translate / qa / ai-review
-      │  accumulate target locales in place
-      │                                                  │
-      └──────────────────────────────────────────────────┘
-      │
-      │  kapi-react compile
-      ▼
-public/translations/{locale}.json  ────►  loaded at runtime by your app
-      │
-      │  kapi-react split  (optional — only if you code-split your bundle)
-      ▼
-dist/translations/{locale}/{chunk}.json  ────►  lazy-loaded per route
-```
+<PhaseFlow
+  nodes={[
+    { label: "Your source code" },
+    {
+      label: "i18n/",
+      sub: "KLF archive",
+      role: "io",
+      edge: "kapi-react extract",
+      loop: ["kapi ai-translate / pseudo-translate / qa / ai-review", "accumulate target locales in place"],
+    },
+    {
+      label: "public/translations/{locale}.json",
+      sub: "loaded at runtime by your app",
+      edge: "kapi-react compile",
+    },
+    {
+      label: "dist/translations/{locale}/{chunk}.json",
+      sub: "lazy-loaded per route",
+      edge: "kapi-react split (optional)",
+    },
+  ]}
+/>
 
 The same `i18n/` is the source-of-truth artifact through the whole round-trip. Translation tools read it, append the target locale they're producing, and write back to the same file — so you accumulate locales rather than juggling per-run output files. One file in the repo, one file to ship to translators, one file to compile.
 
