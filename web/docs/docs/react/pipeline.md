@@ -160,7 +160,9 @@ Structural context (the `jsxPath`, the translator note, the inline element token
 
 ### In-place default vs. explicit redirect
 
-`kapi` tool commands default to in-place for KLF inputs — `kapi pseudo-translate i18n/ --target-lang qps` reads and writes the same files. Pass `-o other-dir/` to redirect without touching the originals. Non-KLF formats (JSON, XLIFF, …) still default to `./out/{name}.{ext}` since they're not locale-additive.
+`kapi` tool commands default to in-place for KLF inputs — `kapi pseudo-translate i18n/ --target-lang qps` reads and writes the same files, since the KLF writer is locale-additive (it adds or updates the requested locale, leaving the others intact). Pass `-o other-dir/` to redirect without touching the originals.
+
+Non-KLF formats (JSON, XLIFF, …) aren't locale-additive, so they write a new file in a locale-aware location: if the input path carries the source locale it is swapped for the target (`src/locales/en/app.json → src/locales/fr/app.json`), otherwise the output lands under a `{lang}/` directory beside the input (`messages.json → fr/messages.json`). Use `-o` for an explicit path or template, or `--output-dir DIR` to root outputs at `DIR/{lang}/`.
 
 ### Multiple locales in one `i18n/`
 

@@ -76,6 +76,23 @@ kapi presets list
 kapi plugin list
 ```
 
+## Output Locations
+
+Tools that write files (translation, pseudo-translation, source transforms)
+choose an output path automatically, so most commands need no `-o`:
+
+- **Locale-additive formats** (KLF) are updated **in place** — the target
+  locale is added to the same file.
+- **Other formats** (JSON, XLIFF, …) write a new file in a **locale-aware**
+  location: the source locale in the input path is swapped for the target
+  (`locales/en/app.json → locales/fr/app.json`), or, when the path carries no
+  locale, the file lands under a `{lang}/` directory beside the input
+  (`messages.json → fr/messages.json`).
+
+Override the destination with `-o <path|template>` (placeholders: `{dir}`,
+`{name}`, `{lang}`, `{ext}`) or `--output-dir DIR` to root outputs at
+`DIR/{lang}/`. See the [command reference](/commands) for every flag.
+
 ## When to Use Kapi
 
 Use Kapi CLI when you:

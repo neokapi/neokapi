@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-25T20:45:12Z",
+  "generatedAt": "2026-05-26T22:43:29Z",
   "commands": [
     {
       "id": "ai-entity-extract",
@@ -217,7 +217,12 @@
         {
           "name": "output",
           "shorthand": "o",
-          "usage": "output path template (variables: {name}, {ext}, {lang})",
+          "usage": "output path template (variables: {dir}, {name}, {ext}, {lang})",
+          "type": "string"
+        },
+        {
+          "name": "output-dir",
+          "usage": "write outputs under DIR/{lang}/ (default: beside the input, mirroring its locale layout)",
           "type": "string"
         },
         {
@@ -342,7 +347,12 @@
         {
           "name": "output",
           "shorthand": "o",
-          "usage": "output path template (variables: {name}, {ext}, {lang})",
+          "usage": "output path template (variables: {dir}, {name}, {ext}, {lang})",
+          "type": "string"
+        },
+        {
+          "name": "output-dir",
+          "usage": "write outputs under DIR/{lang}/ (default: beside the input, mirroring its locale layout)",
           "type": "string"
         },
         {
@@ -602,7 +612,12 @@
         {
           "name": "output",
           "shorthand": "o",
-          "usage": "output path template (variables: {name}, {ext}, {lang})",
+          "usage": "output path template (variables: {dir}, {name}, {ext}, {lang})",
+          "type": "string"
+        },
+        {
+          "name": "output-dir",
+          "usage": "write outputs under DIR/{lang}/ (default: beside the input, mirroring its locale layout)",
           "type": "string"
         },
         {
@@ -1443,7 +1458,12 @@
         {
           "name": "output",
           "shorthand": "o",
-          "usage": "output path template (variables: {name}, {ext}, {lang})",
+          "usage": "output path template (variables: {dir}, {name}, {ext}, {lang})",
+          "type": "string"
+        },
+        {
+          "name": "output-dir",
+          "usage": "write outputs under DIR/{lang}/ (default: beside the input, mirroring its locale layout)",
           "type": "string"
         },
         {
@@ -2005,7 +2025,12 @@
         {
           "name": "output",
           "shorthand": "o",
-          "usage": "output path template (variables: {name}, {ext}, {lang})",
+          "usage": "output path template (variables: {dir}, {name}, {ext}, {lang})",
+          "type": "string"
+        },
+        {
+          "name": "output-dir",
+          "usage": "write outputs under DIR/{lang}/ (default: beside the input, mirroring its locale layout)",
           "type": "string"
         },
         {
@@ -3113,7 +3138,12 @@
         {
           "name": "output",
           "shorthand": "o",
-          "usage": "output path template (variables: {name}, {ext}, {lang})",
+          "usage": "output path template (variables: {dir}, {name}, {ext}, {lang})",
+          "type": "string"
+        },
+        {
+          "name": "output-dir",
+          "usage": "write outputs under DIR/{lang}/ (default: beside the input, mirroring its locale layout)",
           "type": "string"
         },
         {
@@ -3370,7 +3400,12 @@
         {
           "name": "output",
           "shorthand": "o",
-          "usage": "output path template (variables: {name}, {ext}, {lang})",
+          "usage": "output path template (variables: {dir}, {name}, {ext}, {lang})",
+          "type": "string"
+        },
+        {
+          "name": "output-dir",
+          "usage": "write outputs under DIR/{lang}/ (default: beside the input, mirroring its locale layout)",
           "type": "string"
         },
         {
@@ -3993,7 +4028,12 @@
         {
           "name": "output",
           "shorthand": "o",
-          "usage": "output path template (variables: {name}, {ext}, {lang})",
+          "usage": "output path template (variables: {dir}, {name}, {ext}, {lang})",
+          "type": "string"
+        },
+        {
+          "name": "output-dir",
+          "usage": "write outputs under DIR/{lang}/ (default: beside the input, mirroring its locale layout)",
           "type": "string"
         },
         {
@@ -4122,7 +4162,12 @@
         {
           "name": "output",
           "shorthand": "o",
-          "usage": "output path template (variables: {name}, {ext}, {lang})",
+          "usage": "output path template (variables: {dir}, {name}, {ext}, {lang})",
+          "type": "string"
+        },
+        {
+          "name": "output-dir",
+          "usage": "write outputs under DIR/{lang}/ (default: beside the input, mirroring its locale layout)",
           "type": "string"
         },
         {
@@ -4298,6 +4343,9 @@
       ],
       "use": "segmentation [files...]",
       "short": "Segmentation",
+      "aliases": [
+        "segment"
+      ],
       "groupID": "text-processing",
       "flags": [
         {
@@ -4308,10 +4356,20 @@
           "type": "int"
         },
         {
+          "name": "credential",
+          "usage": "Stored credential name for the llm engine",
+          "type": "string"
+        },
+        {
           "name": "encoding",
           "shorthand": "e",
           "usage": "input file encoding",
           "default": "UTF-8",
+          "type": "string"
+        },
+        {
+          "name": "engine",
+          "usage": "Segmenter backend: srx (rule-based; default)/ uax29 (Unicode baseline)/ llm (semantic chunks)/ sat (ML model)",
           "type": "string"
         },
         {
@@ -4327,10 +4385,20 @@
           "type": "string"
         },
         {
+          "name": "instruction",
+          "usage": "Optional guidance for the llm engine",
+          "type": "string"
+        },
+        {
           "name": "json",
           "usage": "output results as JSON",
           "default": "false",
           "type": "bool"
+        },
+        {
+          "name": "layer",
+          "usage": "Segmentation overlay layer name; empty uses the engine's natural layer",
+          "type": "string"
         },
         {
           "name": "map",
@@ -4338,6 +4406,11 @@
           "usage": "map glob pattern to format (e.g. '*.docx=okf_openxml:test')",
           "default": "[]",
           "type": "stringArray"
+        },
+        {
+          "name": "model",
+          "usage": "Model name for the llm or sat engine",
+          "type": "string"
         },
         {
           "name": "no-warn",
@@ -4348,12 +4421,17 @@
         {
           "name": "output",
           "shorthand": "o",
-          "usage": "output path template (variables: {name}, {ext}, {lang})",
+          "usage": "output path template (variables: {dir}, {name}, {ext}, {lang})",
+          "type": "string"
+        },
+        {
+          "name": "output-dir",
+          "usage": "write outputs under DIR/{lang}/ (default: beside the input, mirroring its locale layout)",
           "type": "string"
         },
         {
           "name": "overwrite-segmentation",
-          "usage": "Re-segment already-segmented text units replacing previous segmentation",
+          "usage": "Re-segment already-segmented blocks replacing previous segmentation",
           "default": "false",
           "type": "bool"
         },
@@ -4371,20 +4449,30 @@
           "type": "bool"
         },
         {
+          "name": "provider",
+          "usage": "AI provider id for the llm engine",
+          "type": "string"
+        },
+        {
           "name": "renumber-codes",
-          "usage": "Renumber inline code IDs in each segment to start at 1",
+          "usage": "Renumber inline code IDs when materializing segments to a bilingual format",
           "default": "false",
           "type": "bool"
         },
         {
+          "name": "sat-model",
+          "usage": "SaT model for the sat engine (e.g. sat-3l-sm",
+          "type": "string"
+        },
+        {
           "name": "segment-source",
-          "usage": "Segment the source text using SRX rules",
+          "usage": "Segment the source text",
           "default": "true",
           "type": "bool"
         },
         {
           "name": "segment-target",
-          "usage": "Segment existing target text using SRX rules",
+          "usage": "Segment existing target text",
           "default": "false",
           "type": "bool"
         },
@@ -4396,7 +4484,7 @@
         },
         {
           "name": "source-srx-path",
-          "usage": "Path to SRX segmentation rules file for source text",
+          "usage": "Path to an SRX 2.0 rules file for source text (srx engine)",
           "type": "string"
         },
         {
@@ -4412,8 +4500,14 @@
         },
         {
           "name": "target-srx-path",
-          "usage": "Path to SRX segmentation rules file for target text",
+          "usage": "Path to an SRX 2.0 rules file for target text (srx engine)",
           "type": "string"
+        },
+        {
+          "name": "threshold",
+          "usage": "Boundary probability threshold for the sat engine (0 = model default)",
+          "default": "0",
+          "type": "float64"
         },
         {
           "name": "trace",
@@ -4425,15 +4519,27 @@
           "usage": "Treat isolated inline codes as whitespace during segmentation",
           "default": "false",
           "type": "bool"
+        },
+        {
+          "name": "trim-leading-whitespace",
+          "usage": "Exclude leading whitespace from each segment span",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "trim-trailing-whitespace",
+          "usage": "Exclude trailing whitespace from each segment span",
+          "default": "false",
+          "type": "bool"
         }
       ],
       "examples": [
         "kapi segmentation messages.json",
         "kapi segmentation app.xliff"
       ],
-      "offlineCapable": true,
+      "offlineCapable": false,
       "runnableInBrowser": true,
-      "demoMode": false
+      "demoMode": true
     },
     {
       "id": "skills",
@@ -5637,7 +5743,12 @@
         {
           "name": "output",
           "shorthand": "o",
-          "usage": "output path template (variables: {name}, {ext}, {lang})",
+          "usage": "output path template (variables: {dir}, {name}, {ext}, {lang})",
+          "type": "string"
+        },
+        {
+          "name": "output-dir",
+          "usage": "write outputs under DIR/{lang}/ (default: beside the input, mirroring its locale layout)",
           "type": "string"
         },
         {
