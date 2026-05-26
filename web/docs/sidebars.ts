@@ -21,20 +21,11 @@ const sidebars: SidebarsConfig = {
   kapiSidebar: [
     {
       type: "category",
-      label: "Kapi",
+      label: "Get Started",
       collapsible: false,
       className: "sidebar-section-heading",
       items: [
         { type: "doc", id: "kapi/overview", label: "Overview" },
-        { type: "doc", id: "kapi/projects", label: "Projects" },
-      ],
-    },
-    {
-      type: "category",
-      label: "Get started",
-      collapsible: false,
-      className: "sidebar-section-heading",
-      items: [
         "kapi/get-started/installation",
         "kapi/get-started/quickstart",
         "kapi/get-started/try-it",
@@ -120,7 +111,7 @@ const sidebars: SidebarsConfig = {
     },
   ],
 
-  referenceSidebar: ["reference/index", "reference/mcp"],
+  referenceSidebar: ["reference/index", "reference/project-file", "reference/mcp"],
 
   toolboxSidebar: [
     "toolbox/overview",

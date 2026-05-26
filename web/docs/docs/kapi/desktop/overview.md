@@ -52,6 +52,6 @@ kapi run translate -p myproject.kapi
 
 ## Next Steps
 
-- [Kapi Project Files](/kapi/projects) — Full format reference
+- [Kapi Project Files](/reference/project-file) — Full format reference
 - [Your first project](/kapi/desktop/getting-started) — Step-by-step walkthrough
 - [Kapi CLI](/kapi/cli) — Command-line reference

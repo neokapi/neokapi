@@ -104,7 +104,7 @@ kapi run translate -p myproject.kapi
 kapi run translate -p myproject.kapi --target-lang de
 ```
 
-See [Kapi Projects](/kapi/projects) for the full format reference.
+See [Kapi Projects](/reference/project-file) for the full format reference.
 
 ## Next Steps
 

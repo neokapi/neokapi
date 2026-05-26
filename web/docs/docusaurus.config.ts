@@ -165,6 +165,7 @@ const config: Config = {
             { label: "Kapi CLI Commands", to: "/commands" },
             { label: "Formats", to: "/formats" },
             { label: "Tools", to: "/tools" },
+            { label: "Project file", to: "/reference/project-file" },
             { label: "MCP Server", to: "/reference/mcp" },
             { label: "Parity", to: "/parity" },
             { label: "Benchmarks", to: "/pseudobench" },

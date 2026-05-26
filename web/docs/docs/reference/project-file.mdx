@@ -1,18 +1,17 @@
 ---
 sidebar_position: 2
-title: Kapi Projects
-description: A Kapi project (.kapi) is a portable YAML document that captures a localization workflow — source and target languages, content file patterns, tool pipelines, plugin requirements, and processing defaults. Compare it with ad-hoc, flag-driven runs.
-keywords: [kapi project, .kapi, ad-hoc, YAML, localization workflow, portability, project format]
+title: Project file
+description: Reference for the .kapi project file — a portable YAML recipe capturing source and target languages, content file patterns, flows, plugin requirements, and processing defaults, plus how kapi discovers it.
+keywords: [kapi project, .kapi, project file, YAML recipe, flows, defaults, discovery]
 ---
 
-# Kapi Projects
+# Project file
 
-There are two ways to drive kapi:
+A Kapi project is a portable `.kapi` YAML recipe at a project's root that captures a localization workflow: source and target languages, content file patterns, tool pipelines (flows), plugin requirements, and processing defaults. It carries no credentials or state, so it is always safe to commit. For when to use a project versus an ad-hoc run, see [Kapi](/kapi/overview#projects-vs-ad-hoc).
 
-- **Ad-hoc** — run a tool or flow directly on files, configured entirely by flags: `kapi ai-translate -i file.json --target-lang fr`. Nothing is saved; ideal for one-off jobs and scripting.
-- **Project** — capture the same workflow once in a portable `.kapi` file and replay it with `kapi run <flow> -p my-app.kapi`. Ideal for a repository you localize repeatedly, and shareable via git.
+## Discovery
 
-A Kapi project file is a YAML document that captures a localization workflow. It defines source and target languages, content file patterns, tool pipelines (flows), plugin requirements, and processing defaults.
+Like git, `kapi` walks up the directory tree from where you run it and uses the nearest `.kapi` recipe — running in **project mode** with that project's languages, defaults, and flows. An explicit `-p <path>` overrides discovery, and `KAPI_NO_PROJECT=1` disables it so the CLI runs ad-hoc.
 
 ## Format
 
@@ -125,7 +124,7 @@ flows:
 
 ## Key Properties
 
-- **No credentials** — API keys are never stored in Kapi project files. They come from the OS keychain (Kapi) or environment variables (CLI).
+- **No credentials** — API keys are never stored in Kapi project files. They come from the OS keychain (Kapi Desktop) or environment variables (CLI).
 - **No state** — No sync cursors, caches, or timestamps. Kapi project files are always clean and safe to commit.
 - **Portable** — Save anywhere, have multiple per directory, share via git.
 - **CLI-compatible** — `kapi run flowname -p file.kapi`
@@ -143,10 +142,10 @@ kapi run translate -p translation.kapi --target-lang de --provider openai
 kapi ai-translate -i file.json --target-lang fr
 ```
 
-## Using with Kapi
+## Using with Kapi Desktop
 
 - **File > Open** to load a Kapi project
 - **File > New** to create one from scratch
 - **File > Save / Save As** for standard document operations
-- Double-click a Kapi project to open it in Kapi (macOS)
+- Double-click a Kapi project to open it in Kapi Desktop (macOS)
 - Drag and drop Kapi projects onto the app window

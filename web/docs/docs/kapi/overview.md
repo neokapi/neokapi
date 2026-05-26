@@ -10,7 +10,7 @@ keywords: [Kapi, kapi CLI, Kapi Desktop, localization, brand guardrails, overvie
 **Kapi** keeps content **on-brand and terminologically consistent**, then
 **localizes it into every language and format**. It is built on the open-source
 [neokapi framework](/framework/architecture) and comes in two forms that share
-the same engine, tools, flows, and [`.kapi` projects](/kapi/projects):
+the same engine, tools, flows, and [`.kapi` projects](/reference/project-file):
 
 - **[Kapi CLI](/kapi/cli)** — a single binary that operates directly on files.
   Best for automation, scripting, CI gates, and offline work; no project or
@@ -39,9 +39,24 @@ and credential vault. Start with
 
 ## Projects vs. ad-hoc
 
-Either front-end can run **ad-hoc** — configured entirely by flags or clicks —
-or against a saved **[`.kapi` project](/kapi/projects)** that captures languages,
-content patterns, flows, and defaults, portable and shareable via git.
+There are two ways to drive Kapi:
+
+- **Ad-hoc** — run a tool or flow directly on files, configured by flags (or, in
+  the desktop app, clicks): `kapi ai-translate -i file.json --target-lang fr`.
+  Nothing is saved — ideal for one-off jobs, scripting, and CI.
+- **Project** — capture the workflow once in a portable `.kapi` recipe
+  (languages, content patterns, flows, plugin requirements, defaults) and replay
+  it with `kapi run <flow>`. Ideal for a repository you localize repeatedly, and
+  shareable via git.
+
+**Kapi finds your project automatically.** Like git, it walks up the directory
+tree from wherever you run it; if it finds a `.kapi` recipe, it switches to
+**project mode** and uses that project's languages, defaults, and flows — no
+`-p` flag needed. With no project in the tree it runs ad-hoc, and an explicit
+`-p <path>` always wins.
+
+See the [project file reference](/reference/project-file) for the full `.kapi`
+format.
 
 ## Install
 
