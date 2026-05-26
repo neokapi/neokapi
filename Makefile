@@ -779,7 +779,7 @@ generate-reference-pages: ## Generate static per-entry reference MDX pages (R4, 
 # ── Documentation Site ──────────────────────────────────────────────────────
 
 docs-deps: ; cd web/docs && vp install --frozen-lockfile
-docs-dev: ; cd web/docs && vp run start
+docs-dev: docs-wasm ; cd web/docs && vp run start
 docs-build: ; cd web/docs && vp run build
 docs-serve: ; cd web/docs && vp run serve
 
@@ -802,6 +802,19 @@ web-wasm-cli: ## Build the in-browser kapi CLI (wasm) → web/docs/static/wasm/k
 	@gzip -9 -f -k -c $(WASM_DEMO_DIR)/kapi-cli.wasm > $(WASM_DEMO_DIR)/kapi-cli.wasm.gz
 	@ls -lh $(WASM_DEMO_DIR)/kapi-cli.wasm | awk '{print "  built",$$NF,$$5}'
 	@ls -lh $(WASM_DEMO_DIR)/kapi-cli.wasm.gz | awk '{print "  built",$$NF,$$5}'
+
+# Build the in-browser wasm only when it's missing (a fresh checkout has none —
+# the binaries are gitignored). This is what `docs-dev` depends on, so the
+# explorer/playground embeds don't fetch a 404 (which a SPA serves as index.html,
+# yielding the browser's "Unexpected token '<'"). After changing the engine,
+# force a refresh with `make web-wasm-demo web-wasm-cli`.
+docs-wasm:
+	@if [ -f $(WASM_DEMO_DIR)/kapi.wasm ] && [ -f $(WASM_DEMO_DIR)/kapi-cli.wasm.gz ]; then \
+		echo "  wasm present in $(WASM_DEMO_DIR) (run 'make web-wasm-demo web-wasm-cli' to refresh)"; \
+	else \
+		echo "  staging in-browser wasm (one-time on a fresh checkout)…"; \
+		$(MAKE) web-wasm-demo web-wasm-cli; \
+	fi
 
 docs-verify-snippets: web-wasm-cli ## Verify every RunnableSnippet + scene smoke_contract runs green in wasm
 	node --experimental-strip-types scripts/verify-snippets/harness.ts
@@ -877,7 +890,7 @@ help: ## Show this help
         bench bench-build bench-generate bench-run bench-run-collection bench-run-all bench-versions \
         fetch-docs-assets publish-docs-assets harness-deps harness-videos \
         generate-format-docs generate-reference-docs generate-reference-pages \
-        docs-deps docs-dev docs-build docs-serve \
+        docs-deps docs-dev docs-wasm docs-build docs-serve \
         tools setup-remote gha-lint clean \
         _fw-fmt _fw-test _fw-test-fast _fw-test-unit _fw-test-race _fw-test-verbose _fw-test-integration \
         _fw-vet _fw-lint _fw-proto _fw-deps _fw-deps-update
