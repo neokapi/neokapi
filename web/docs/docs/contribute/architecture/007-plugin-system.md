@@ -26,21 +26,22 @@ not by `$PATH`. Each capability picks its transport:
 
 Plugin tarballs are cosign-signed via Sigstore keyless OIDC; `kapi
 plugin install` verifies SHA-256 + Sigstore JSON bundle against a
-registry-pinned cert identity before unpacking. Bowrain, the Okapi
-bridge, and any third-party plugin all use the same model. The default
-`kapi` binary is Apache-2.0 and ships zero vendor-plugin code.
+registry-pinned cert identity before unpacking. The Okapi bridge and
+any third-party plugin all use the same model. The default `kapi`
+binary is Apache-2.0 and ships zero vendor-plugin code.
 
 ## Context
 
 Plugins enable third-party formats, tools, connectors, and providers
 to evolve independently of the framework. Key requirements:
 
-- **License clarity.** kapi is Apache-2.0. Bundling AGPL plugins
-  forces the binary distribution to AGPL. The plugin model must let
+- **License clarity.** kapi is Apache-2.0. Bundling a plugin under a
+  more restrictive (e.g. copyleft) license would force the combined
+  binary distribution onto those terms. The plugin model must let
   vendors ship their own binaries on their own license terms without
   re-licensing kapi.
 - **Discoverability and consent.** A teammate's recipe declaring
-  `requires: { bowrain: "^1.0" }` should produce a clear, one-step
+  `requires: { myplugin: "^1.0" }` should produce a clear, one-step
   path to install — not a cryptic "extension group not registered"
   error.
 - **Security.** Plugins run with full user privileges; signature
@@ -69,9 +70,9 @@ provides under one or more sections:
 ```json
 {
   "manifest_version": "1",
-  "plugin": "bowrain",
+  "plugin": "myplugin",
   "version": "1.4.0",
-  "binary": "kapi-bowrain",
+  "binary": "kapi-myplugin",
   "license": "Apache-2.0",
   "min_kapi_version": "1.0.0",
   "capabilities": {
@@ -156,7 +157,7 @@ serves gRPC on the socket:
 ```
 <binary> daemon
    ↓
-{"socket":"/tmp/kapi-daemon-bowrain-12345.sock","version":"1.4.0"}
+{"socket":"/tmp/kapi-daemon-myplugin-12345.sock","version":"1.4.0"}
 ```
 
 kapi opens a gRPC client to that socket and dispatches concurrent
@@ -193,14 +194,14 @@ name to semver constraint:
 version: v1
 name: my-app
 requires:
-  bowrain: "^1.0"
+  myplugin: "^1.0"
   okapi-bridge: ">=1.47.0"
 ```
 
 Validation fails if any named plugin is not registered. On a TTY,
 kapi prompts to install the missing plugin and retries the command;
 in CI it prints an actionable error pointing at `kapi plugin install`.
-The bare-list form (`requires: [bowrain]`) is rejected with an
+The bare-list form (`requires: [myplugin]`) is rejected with an
 actionable migration hint.
 
 ### Registry and signing
@@ -301,12 +302,11 @@ constraint that failed.
 
 ### Standard plugins
 
-Two reference plugins ship with the project:
-
-- **bowrain** — cloud-server sync (push/pull/auth), the AGPL plugin
-  that proves the model. Ships as `bowrain-cli` brew formula
-  (depends on `kapi`, drops `kapi-bowrain` into
-  `share/kapi/plugins/bowrain/`).
+- **A platform plugin** — cloud-server sync (push/pull/auth),
+  distributed separately on its own license terms. It demonstrates how
+  a separately-licensed plugin attaches over the manifest model without
+  re-licensing `kapi`: installed via its own brew formula (depends on
+  `kapi`, drops its binary into `share/kapi/plugins/<plugin>/`).
 - **okapi-bridge** — Java bridge exposing 57+ Okapi Framework filters.
   Built with `jpackage` (no Go shim): produces a native launcher
   - bundled JRE per platform. Cosign-signed via GitHub Actions

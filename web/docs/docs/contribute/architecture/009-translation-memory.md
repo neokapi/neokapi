@@ -18,7 +18,8 @@ sequences — preserving inline markup and entity metadata — rather than flat
 strings, and uses a tiered matching pipeline (generalized exact, structural
 exact, plain exact, fuzzy) — complemented by semantic retrieval for paraphrase
 — to maximize reuse. The framework ships in-memory and SQLite backends; a
-PostgreSQL backend is provided by the bowrain platform.
+PostgreSQL backend can be supplied by a platform layer behind the same
+interface.
 
 ## Context
 
@@ -171,9 +172,9 @@ The framework provides two tiers:
   for fuzzy candidate retrieval. Uses `modernc.org/sqlite` (pure Go, no CGo)
   for cross-compilation.
 
-A PostgreSQL backend with workspace-scoped isolation and project scoping is
-provided by the bowrain platform (`bowrain/sievepen`), reusing the same
-matching algorithm behind the same `TranslationMemory` interface.
+A PostgreSQL backend with workspace-scoped isolation and project scoping can
+be supplied by a platform layer, reusing the same matching algorithm behind
+the same `TranslationMemory` interface.
 
 ### Fuzzy candidate retrieval
 

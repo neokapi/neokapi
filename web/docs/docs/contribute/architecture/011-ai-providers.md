@@ -33,7 +33,7 @@ transient failures, and variable latency. The framework's answer is to keep
 the provider interface thin and let the calling tool decide how much work to
 batch into a single request and how many requests to run in parallel.
 Workspace-scale orchestration — async job queues, multi-tenant quotas —
-belongs to the bowrain platform, not to the framework primitives.
+belongs to a platform layer, not to the framework primitives.
 
 Providers also differ in their structured-output mechanism: OpenAI and
 Azure OpenAI use `response_format: json_schema`, Anthropic uses tool-use
@@ -250,7 +250,7 @@ project files.
 The framework's responsibility ends at the provider interface and the
 pipeline tools that call it. Server-side asynchronous job queues,
 multi-tenant quota enforcement, rate-limit budgets, and workspace-scale
-translation orchestration are the bowrain platform's concern, built on top of
+translation orchestration are a platform layer's concern, built on top of
 these framework primitives.
 
 ## Consequences

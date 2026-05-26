@@ -105,9 +105,8 @@ Import and export are standalone functions rather than interface methods:
 - **SQLite** (`termbase/sqlite.go`) — persistent file-based storage for CLI
   tools. Pure Go via `modernc.org/sqlite`.
 
-A PostgreSQL backend with workspace isolation and terminology streams is
-provided by the bowrain platform (`bowrain/termbase`) behind the same
-`TermBase` interface.
+A PostgreSQL backend with workspace isolation and terminology streams can be
+supplied by a platform layer behind the same `TermBase` interface.
 
 ### Tiered lookup
 

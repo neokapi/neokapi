@@ -166,9 +166,9 @@ The `release.yml` workflow blocks tagging if the `parity.yml` workflow
 has not concluded as `success` for the tagged commit. The `parity-gate`
 job queries the GitHub Actions API for the parity workflow's
 conclusion against `${{ github.sha }}` and fails closed on absent /
-in-progress / failed runs. `goreleaser` and `build-bowrain` (the two
-top-level independent release jobs) then `needs: parity-gate`, so the
-entire downstream release pipeline inherits the gate.
+in-progress / failed runs. The top-level independent release jobs (such
+as `goreleaser`) then `needs: parity-gate`, so the entire downstream
+release pipeline inherits the gate.
 
 ## References
 

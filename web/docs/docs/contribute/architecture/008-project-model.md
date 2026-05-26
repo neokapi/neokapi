@@ -13,8 +13,8 @@ keywords: [kapi project, .kapi, YAML recipe, project model, state directory, arc
 A kapi project is a folder containing a `{name}.kapi` YAML recipe at its root
 and a sibling `.kapi/` state directory. The recipe captures the user's
 declarative intent — identity, content collections, flows, store selection,
-plus an optional `server:` block when the project syncs with a bowrain server —
-while `.kapi/` holds working state, with all regenerable caches under
+plus any platform extensions (such as a `server:` block) when a platform layer
+is in use — while `.kapi/` holds working state, with all regenerable caches under
 `.kapi/cache/`. A `ProjectContext` resolves the recipe into a runtime
 configuration, and a `BlockStore` interface with pluggable providers gives
 tools random-access storage beyond the streaming pipeline.
@@ -161,14 +161,14 @@ require an explicit `-p <path>` flag.
 The framework recipe (`KapiProject`) carries an `Extras map[string]yaml.Node`
 field with `yaml:",inline"` on `KapiProject`, `Defaults`, `ContentCollection`,
 and `ContentItem`. Unknown top-level YAML keys are captured as raw nodes;
-platform layers (e.g. bowrain) declare their own typed schema and decode
+platform layers declare their own typed schema and decode
 from `Extras` at load time. The framework knows nothing about platform-
 specific extensions and round-trips them verbatim.
 
 A platform package registers schemas at `init()`:
 
 ```go
-coreproj.RegisterExtensionGroup("bowrain", []coreproj.Extension{
+coreproj.RegisterExtensionGroup("myplugin", []coreproj.Extension{
     {Name: "server", Scope: coreproj.ScopeProject, Decoder: serverDecoder},
     {Name: "hooks", Scope: coreproj.ScopeProject, Decoder: hooksDecoder},
     // ...
@@ -187,62 +187,38 @@ when no extension under the named group has been registered:
 
 ```yaml
 version: v1
-requires: [bowrain]
+requires: [myplugin]
 server:
-  url: https://bowrain.example.com/team/proj
+  url: https://platform.example.com/team/proj
 ```
 
-A binary that doesn't link the bowrain extensions rejects this recipe
-with a clear "binary not built with bowrain linked in" message. A recipe
+A binary that doesn't link the `myplugin` extensions rejects this recipe
+with a clear "binary not built with myplugin linked in" message. A recipe
 without `requires:` loads in any binary; the extras pass through.
 
 Implementation details — including the `Scope` enum, decoder helpers, and
 a worked example — live in
 [Note: Plugin model](../notes-internal/plugin-model).
 
-### Optional bowrain-server connection
+### Example: a platform "connected project" extension
 
-A recipe with no `server:` block is a pure local project. Adding a `server:`
-block with a compound URL marks the project as bowrain-connected — `kapi
-push`, `kapi pull`, `kapi status`, and friends operate against the
-declared server. Kapi tools tolerate the `server:` block but ignore it.
+The framework has no built-in notion of a server, sync, or connection — those
+are not recipe fields. A platform builds a "connected project" on top of the
+generic mechanism above: it registers a `ScopeProject` extension (say,
+`server:`) and gates it with `requires:`, so a recipe carrying the key is
+meaningful only when that plugin is installed.
 
 ```yaml
+version: v1
+requires: [myplugin]
 server:
-  url: https://bowrain.example.com/my-team/abc123
-  stream: $auto
-
-# Top-level lifecycle policy (applies whenever the trigger fires):
-hooks:
-  pre-push: [qa-check]
-  post-pull: [update-stats]
-
-automations:
-  - name: auto-translate-on-push
-    trigger: post-push
-    actions:
-      - type: wait_translate
-      - type: pull
-
-# Top-level governance / content policy:
-assets:
-  enabled: true
-  max_size: 100MB
-
-brand_voice:
-  profile: company-profile
-  channel: marketing
+  url: https://platform.example.com/my-team/abc123
 ```
 
-Only the connection coordinates (`url`, `stream`) live under `server:`.
-Lifecycle (`hooks`, `automations`) and governance (`assets`, `brand_voice`)
-are top-level — they describe project-owned policy, not server identity.
-See [AD-010](https://neokapi.github.io/web/bowrain/docs/architecture-decisions/010-bowrain-cli-and-project-model)
-for the full bowrain workflow semantics.
-
-Auth tokens for bowrain servers live in the OS keychain (the same store
-kapi uses for LLM provider keys), keyed by server URL. Non-secret metadata
-(server URL, user info, expiry) lives at `~/.config/bowrain/auth.json`.
+A recipe with no such key is a pure local project; kapi tools that don't
+recognize the key tolerate it and round-trip it verbatim. The key's schema, the
+commands that act on it, and any credential handling are the platform's concern,
+documented in that platform's own docs — not here.
 
 ### Content collections
 

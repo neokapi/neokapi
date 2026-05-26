@@ -135,7 +135,7 @@ web/docs/
 ├── walkthroughs/            # authored prompts: {id}.md + {id}.scene.yaml
 ├── scenes/                  # recorder artifacts: {id}/0N-*.tape|.spec.ts + .webm
 └── static/
-    ├── img/                 # static images + bowrain screenshots (staged)
+    ├── img/                 # static images (logos, favicons, staged)
     └── video/               # recorded scene + harness videos (staged)
 ```
 
@@ -173,9 +173,9 @@ Demo assets for the kapi site are produced by the walkthrough/scenes engine
    `fixtures/`. Today every kapi walkthrough is a `kind: terminal` scene
    recorded with [VHS](https://github.com/charmbracelet/vhs); the engine also
    supports `kind: web` scenes recorded with Playwright `.spec.ts` against a
-   real backend (used on the bowrain site). The `walkthrough-scenes` skill
-   regenerates these artifacts deterministically from the prompt — the same
-   prompt yields byte-identical scene files.
+   real backend. The `walkthrough-scenes` skill regenerates these artifacts
+   deterministically from the prompt — the same prompt yields byte-identical
+   scene files.
 
 A VHS tape is declarative:
 
@@ -223,9 +223,8 @@ until per-theme assets exist, both `light` and `dark` point at the same
 component. WebM is preferred for size and quality.
 
 The kapi docs site no longer generates screenshots: `web/docs/static/img/`
-carries only static assets (logos, favicons) plus the `bowrain/` image set
-staged from the assets tarball. The bowrain site has its own scenes engine
-under `bowrain/web/docs/scenes/`.
+carries only static assets (logos, favicons) plus any image set staged from
+the assets tarball.
 
 ### Real systems, not mocks
 
@@ -237,7 +236,7 @@ real `kapi` binary, a web scene drives a real backend:
 - **Authentication and identity** — web scenes use the real Keycloak OIDC
   provider via `compose.yaml` (auth via session-cookie injection in the
   spec). Never mock the auth flow.
-- **Server** — the real bowrain-server binary, never a mock API server.
+- **Server** — for web scenes, the real platform server binary, never a mock API server.
 - **Database and storage** — a real SQLite database (the server creates
   one automatically).
 - **External integrations** outside the scope of neokapi (third-party MT
@@ -268,10 +267,9 @@ make fetch-docs-assets    # download the docs-assets tarball into static/
 Assets are not stored in git. CI **does not record** scenes: the
 `docs-kapi.yml` deploy workflow downloads the `docs-assets` tarball and copies
 its `video/` into `web/docs/static/video/` before building the site (the wasm
-playground is built separately and downloaded as a workflow artifact). The
-bowrain site records its web scenes against a real backend in `docs-bowrain.yml`
-and stages them similarly. A developer who only edits documentation text can
-rely on the prebuilt tarball via `make fetch-docs-assets` and skip recording.
+playground is built separately and downloaded as a workflow artifact). A
+developer who only edits documentation text can rely on the prebuilt tarball
+via `make fetch-docs-assets` and skip recording.
 
 The walkthrough skills automate the per-walkthrough loop:
 `walkthrough-scenes` regenerates the recorder artifacts from a prompt,
@@ -285,7 +283,7 @@ Before committing a change that affects documented behavior:
 1. TypeScript + lint + typecheck pass (`make frontend-check-all`).
 2. Frontend unit tests pass (`vp test` in each package).
 3. Production builds succeed.
-4. Go build succeeds (`make build` and `make -C bowrain build-server`).
+4. Go build succeeds (`make build`).
 5. Affected walkthroughs re-verify against the real backend
    (`walkthrough-verify`), so the scene `smoke_contract` still passes.
 6. Affected scene videos are re-recorded on the desktop (`make kapi-scenes`)

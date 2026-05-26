@@ -27,9 +27,9 @@ capabilities it provides:
 ```json
 {
   "manifest_version": "1",
-  "plugin": "bowrain",
+  "plugin": "myplugin",
   "version": "1.4.0",
-  "binary": "kapi-bowrain",
+  "binary": "kapi-myplugin",
   "license": "Apache-2.0",
   "min_kapi_version": "1.0.0",
   "capabilities": {
@@ -88,7 +88,7 @@ capability type.
   one JSON handshake line on stdout, then serves gRPC on the socket:
 
   ```
-  {"socket":"/tmp/kapi-daemon-bowrain-12345.sock","version":"1.4.0"}
+  {"socket":"/tmp/kapi-daemon-myplugin-12345.sock","version":"1.4.0"}
   ```
 
   kapi opens a gRPC client to that socket and dispatches concurrent requests. The
@@ -112,7 +112,7 @@ constraint:
 version: v1
 name: my-app
 requires:
-  bowrain: "^1.0"
+  myplugin: "^1.0"
   okapi-bridge: ">=1.47.0"
 ```
 
@@ -142,9 +142,11 @@ without `--unsafe`.
 
 ## Standard plugins
 
-- **bowrain** — cloud-server sync (`push` / `pull` / `auth`), the AGPL plugin that
-  proves the model. Installed via the `bowrain-cli` Homebrew formula, which drops
-  `kapi-bowrain` into `share/kapi/plugins/bowrain/`.
+- **A platform plugin** — cloud-server sync (`push` / `pull` / `auth`),
+  distributed separately on its own license terms. It demonstrates how a
+  separately-licensed plugin attaches over the manifest model without
+  re-licensing `kapi`: installed via its own Homebrew formula, which drops its
+  binary into `share/kapi/plugins/<plugin>/`.
 - **okapi-bridge** — a JVM-backed Mode-C daemon exposing the Okapi Framework's
   filter library to neokapi. See [Okapi Bridge](/contribute/java-bridge).
 

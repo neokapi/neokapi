@@ -92,7 +92,7 @@ can override. Beyond locales and the parallelism/encoding knobs shown above:
   `ContentItem.Redaction`.
 - `brand_voice` (`*BrandVoiceBinding`) — bind a brand voice profile (one of
   `profile_file`, `profile`, or `pack`) as standing project context. This is the
-  framework binding under `defaults:`, distinct from bowrain's top-level
+  framework binding under `defaults:`, distinct from a platform's top-level
   `brand_voice` extension.
 - `termbase` (string) — path to a glossary/termbase, resolved relative to the
   project root, used for project-scoped term enforcement with no `--termbase`
@@ -107,12 +107,13 @@ layers decode their own typed schema from these maps via `GetExtra` and
 re-encode on `SetExtra`; round-tripping a recipe through the framework alone
 preserves the keys verbatim.
 
-Bowrain uses this mechanism for its `server:` block (and `hooks`, `automations`,
-`assets`, `brand_voice` platform policy). A recipe with no `server:` block is a
-pure local project. The kapi CLI tolerates the `server:` block but ignores it;
-the bowrain plugin decodes it from `Extras`. `requires:` (a map of plugin name →
-semver constraint) gates loading: a recipe declaring `requires: { bowrain: "^1.0" }`
-refuses to load in a binary that has not registered the bowrain extension. See
+A vendor may use this to add their own recipe keys — for example, a `server:`
+block (and `hooks`, `automations`, `assets`, `brand_voice` policy). A recipe
+with no such extension is a pure local project. The kapi CLI tolerates unknown
+blocks but ignores them; the owning plugin decodes them from `Extras`.
+`requires:` (a map of plugin name → semver constraint) gates loading: a recipe
+declaring `requires: { myplugin: "^1.0" }` refuses to load in a binary that has
+not registered the `myplugin` extension. See
 [AD-008](/contribute/architecture/008-project-model) for the full extension
 model and `server:` schema.
 

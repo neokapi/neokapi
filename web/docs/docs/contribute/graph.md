@@ -1,24 +1,20 @@
 ---
 sidebar_position: 12
 title: Graph Store Library
-description: The neokapi graph store library provides a backend-agnostic graph database abstraction for concept management, with a SQLite backend for local use and an Apache AGE (PostgreSQL) backend for production deployments.
-keywords: [graph store, SQLite, Apache AGE, PostgreSQL, concept management, GraphStore interface, neokapi]
+description: The neokapi graph store library provides a backend-agnostic graph database abstraction for concept management, with a SQLite backend for local use and an interface designed for extension to server-side backends.
+keywords: [graph store, SQLite, concept management, GraphStore interface, neokapi]
 ---
 
 # Graph Store Library
 
-The graph store library (`core/graph/`) provides a backend-agnostic graph database abstraction for concept management. The framework includes a SQLite backend (adjacency tables) for local and CLI use. Server deployments can use an Apache AGE (PostgreSQL) backend for production use.
+The graph store library (`core/graph/`) provides a backend-agnostic graph database abstraction for concept management. The framework includes a SQLite backend (adjacency tables) for local and CLI use. The interface is designed for extension, so server deployments can add their own backend behind the same interface.
 
 ## Architecture
 
 ```mermaid
 graph TD
     GS[GraphStore Interface] --> SQLite[SQLite Backend]
-    GS --> CS[CypherStore Interface]
-    CS --> AGE[AGE Backend]
-
     SQLite --> DB[(SQLite)]
-    AGE --> PG[(PostgreSQL + AGE)]
 
     N[Node] --> P[Properties]
     E[Edge] --> V[Validity]
@@ -208,7 +204,7 @@ defer store.Close()
 
 Uses adjacency tables (`graph_nodes`, `graph_edges`) with JSON properties. Shortest path uses recursive CTE with BFS. Scoped queries filter edges in Go after retrieval.
 
-The `GraphStore` interface is designed for extension — server deployments can use an Apache AGE (PostgreSQL) backend.
+The `GraphStore` interface is designed for extension — server deployments can add their own backend behind the same interface.
 
 ## Usage Examples
 
@@ -258,29 +254,6 @@ store.CreateEdge(ctx, &graph.Edge{
 // Query with scope — only returns edges active at the given time with matching tags
 scope := graph.Scope{At: time.Date(2024, 6, 1, 0, 0, 0, 0, time.UTC), Tags: map[string]string{"market": "us"}}
 neighbors, _ := store.NeighborsScoped(ctx, "old-term", graph.Outgoing, scope, graph.LabelReplacedBy)
-```
-
-### Cypher Queries (AGE Backend Only)
-
-The AGE backend implements a `CypherStore` sub-interface (`bowrain/graph/`, server-side) that adds Cypher query support on top of `core/graph.GraphStore`:
-
-```go
-// bowrain/graph/cypher.go
-type CypherStore interface {
-    coreg.GraphStore // core/graph
-    CypherQuery(ctx context.Context, query string, params map[string]any) ([]*coreg.Node, error)
-    CypherExec(ctx context.Context, query string, params map[string]any) error
-}
-```
-
-Callers that need Cypher access type-assert at the call site:
-
-```go
-if cs, ok := store.(bgraph.CypherStore); ok { // bowrain/graph
-    nodes, _ := cs.CypherQuery(ctx,
-        "MATCH (n:Concept)-[:BROADER*1..3]->(m:Concept {id: $root}) RETURN n",
-        map[string]any{"root": "animal"})
-}
 ```
 
 Use `FindNodes`, `Neighbors`, and `ShortestPath` for portable queries that work across all backends.

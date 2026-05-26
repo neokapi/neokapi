@@ -158,8 +158,8 @@ Kapi Desktop consumes two shared workspace packages:
   plus layout components (PageHeader, EmptyState, SkeletonCard,
   PanelHeader, LoadingSpinner).
 - **`@neokapi/flow-editor`** (`packages/flow-editor/`) — a React flow
-  editor component library built on xyflow, used by both kapi-desktop and
-  the bowrain apps.
+  editor component library built on xyflow, used by kapi-desktop and other
+  apps in the workspace.
 
 Both packages resolve via npm workspace symlinks; no path aliases are
 needed. `vp install` at the repo root installs the entire workspace.

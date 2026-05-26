@@ -34,7 +34,7 @@ differ in invocation style. A single binary with progressive complexity
 covers all three: run a tool directly, run a flow from a recipe, or
 expose the same tools over MCP.
 
-The bowrain plugin CLI shares much of the same surface (formats, tools,
+A platform plugin's CLI shares much of the same surface (formats, tools,
 flows, plugins, presets) but is project-sync-centric. The common surface
 lives in a shared CLI base; each CLI selects which commands to register and
 adds its own behavior.
@@ -45,8 +45,8 @@ adds its own behavior.
 
 `kapi` is a Go binary at `kapi/cmd/kapi/`, part of the `kapi` module. It
 depends on the framework and the shared CLI base (`cli/`). It has no
-dependency on any bowrain code; vendor plugins (bowrain, okapi-bridge) are
-discovered at runtime via their manifests rather than compiled in.
+dependency on any vendor-plugin code; vendor plugins (such as okapi-bridge)
+are discovered at runtime via their manifests rather than compiled in.
 
 ```
 kapi/

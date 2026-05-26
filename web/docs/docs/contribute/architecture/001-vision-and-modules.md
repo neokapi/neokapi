@@ -29,10 +29,10 @@ every binary to pull every dependency produces slow builds and bloated
 artifacts.
 
 At the same time, the framework is the Apache-licensed core of a broader
-ecosystem. Platforms layered on top of it (such as the AGPL-3.0 bowrain
-platform) must build on framework interfaces without polluting the framework
-with platform-specific dependencies. The license boundary is structural, not
-conventional: framework code never depends on AGPL code, and CI enforces it.
+ecosystem. Separately-licensed platforms layered on top of it must build on
+framework interfaces without polluting the framework with platform-specific
+dependencies. The license boundary is structural, not conventional: framework
+code never depends on separately-licensed platform code, and CI enforces it.
 
 ## Decision
 
@@ -101,8 +101,8 @@ The following invariants are enforced by CI:
   keyring, no OIDC).
 - **Kapi Desktop** depends on framework + CLI. The Wails v3 and keyring
   dependencies justify a separate module so that Kapi CLI builds stay small.
-- **No framework module depends on any AGPL code.** The framework is
-  Apache-2.0 end-to-end.
+- **No framework module depends on any separately-licensed platform code.**
+  The framework is Apache-2.0 end-to-end.
 
 These rules are verified in CI with `GOWORK=off` builds per module:
 
@@ -120,20 +120,20 @@ dependency declared in the module's `go.mod`.
 ### License boundary
 
 All four framework modules are Apache-2.0. The broader repository also hosts
-the AGPL-3.0 bowrain platform, which builds on framework interfaces (content
-model, tools, flows, formats), but no framework module ever imports bowrain
+a separately-licensed platform, which builds on framework interfaces (content
+model, tools, flows, formats), but no framework module ever imports platform
 code. The license gradient is one-directional:
 
 <PipelineDiagram
   channelLabel="consumed by"
   stages={[
     { label: "Apache-2.0 framework", sub: "core · cli · kapi · desktop", role: "io" },
-    { label: "AGPL-3.0 bowrain platform" },
+    { label: "Separately-licensed platform" },
   ]}
 />
 
 This is a structural property, not a convention. Because the framework
-modules never import bowrain packages, accidental upward coupling is a
+modules never import platform packages, accidental upward coupling is a
 compile error.
 
 ### Framework package layout
@@ -244,8 +244,8 @@ their boundaries so invalid codes never propagate silently.
 - Four `go.mod` files need maintenance, but `go.work` resolves cross-module
   imports during daily development and GoReleaser handles multi-module release
   builds.
-- License-clean: Apache-2.0 framework modules never accidentally pull AGPL
-  code, enforced by import-path topology.
+- License-clean: Apache-2.0 framework modules never accidentally pull
+  separately-licensed platform code, enforced by import-path topology.
 - The shared CLI base lets kapi and kapi-desktop expose identical commands
   without duplicating command logic.
 - Progressive scalability: the same content model and tool chain works for a

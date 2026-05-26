@@ -50,14 +50,6 @@ Your workflow is saved as a Kapi project file that you can reopen, share, or run
 kapi run translate -p myproject.kapi
 ```
 
-## Kapi Desktop vs. Bowrain
-
-|               | Kapi Desktop                       | Bowrain                        |
-| ------------- | ---------------------------------- | ------------------------------ |
-| Purpose | Standalone file processing | Platform-connected editing |
-| Collaboration | Share Kapi projects via git | Real-time multi-user editing |
-| Automation | Local flows | Server-side hooks + automation |
-
 ## Next Steps
 
 - [Kapi Project Files](/desktop/project-file) — Full format reference
