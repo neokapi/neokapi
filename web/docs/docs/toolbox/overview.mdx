@@ -1,7 +1,7 @@
 ---
 sidebar_position: 1
 title: CLI tools
-description: kgrep, ksed and kcat are format-aware reimaginings of grep, sed and cat. They operate on the translatable text inside any format kapi understands — Word documents, JSON catalogs, XLIFF, Markdown — instead of raw bytes.
+description: kgrep, ksed and kcat are format-aware reimaginings of grep, sed and cat. They operate on text inside any format kapi understands — Word documents, JSON catalogs, XLIFF, Markdown — instead of raw bytes.
 keywords: [kgrep, ksed, kcat, grep, sed, cat, format-aware, docx, localization, CLI]
 ---
 
@@ -33,12 +33,6 @@ each file, `kgrep` finds the product name across all three at once, and a single
   maxWidth="900px"
 />
 
-| Tool   | Classic analogue | Operates on                                  |
-| ------ | ---------------- | -------------------------------------------- |
-| `kcat` | `cat`            | the text of each block, one per line         |
-| `kgrep`| `grep`           | matches a pattern against each block's text  |
-| `ksed` | `sed`            | rewrites block text and saves the document   |
-
 Each works on every one of the **50+ file formats** neokapi reads — Office
 documents, localization and data formats, markup, and more. See the [Format
 Reference](/formats) for the full list.
@@ -59,7 +53,7 @@ toolbox operates on those blocks:
 
 ## Installation
 
-Installing the kapi CLI installs all three commands:
+The Kapi CLI bundles all three commands:
 
 ```bash
 brew install neokapi/tap/kapi-cli
@@ -74,7 +68,7 @@ brew install neokapi/tap/kapi-cli
   `-f json`). Note this differs from `grep`/`sed`, where `-f` reads patterns or
   scripts from a file; in the toolbox `-f` always means *format*, matching the
   rest of the kapi CLI. Use `-e` for explicit patterns and scripts.
-- **Source vs. translation.** By default the utilities read the source text.
-  `--target LOCALE` operates on a committed translation instead — for example
-  `kgrep --target fr "déconnexion" messages.xliff` searches the French
-  translations.
+- **Source vs. translation.** For multilingual formats the utilities by default
+  operate on the the source text. `--target LOCALE` operates on a target language
+  instead — for example `kgrep --target fr "déconnexion" messages.xliff` searches
+  the French translations.
