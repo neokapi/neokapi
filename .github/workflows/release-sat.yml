@@ -289,12 +289,19 @@ jobs:
           set -euo pipefail
           cosign sign-blob --yes --bundle "${TARBALL}.sigstore.json" "${TARBALL}"
 
-      - name: Upload tarball + signature to release
-        uses: softprops/action-gh-release@v3
+      # Upload the tarball + signature as a workflow ARTIFACT (not directly to
+      # the GitHub release): the matrix legs run concurrently, and several
+      # softprops/action-gh-release calls racing to create/update the same
+      # release can silently drop an asset. A single publish job (below)
+      # downloads all artifacts and uploads them to the release in one writer.
+      - name: Upload tarball + signature artifact
+        uses: actions/upload-artifact@v4
         with:
-          files: |
+          name: sat-tarball-${{ matrix.build.goos }}-${{ matrix.build.goarch }}
+          path: |
             ${{ steps.package.outputs.tarball }}
             ${{ steps.package.outputs.tarball }}.sigstore.json
+          retention-days: 14
 
       # Expose the per-platform sha256 as a checksum artifact for the registry
       # step (which runs on a separate runner). One file per leg:
@@ -319,6 +326,29 @@ jobs:
           path: ${{ runner.temp }}/sat-checksums/*.sha256
           retention-days: 14
 
+  # Single-writer publish: download every leg's tarball + signature artifact
+  # and upload them to the GitHub release in ONE softprops call, avoiding the
+  # concurrent-release-write race that can drop an asset when matrix legs each
+  # upload directly.
+  publish-sat-release:
+    name: Publish kapi-sat release
+    needs: build-sat-plugin
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all tarball + signature artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: sat-tarball-*
+          path: sat-release
+          merge-multiple: true
+
+      - name: Upload all assets to the release
+        uses: softprops/action-gh-release@v3
+        with:
+          files: |
+            sat-release/*.tar.gz
+            sat-release/*.tar.gz.sigstore.json
+
   # Register the new kapi-sat plugin version into neokapi/registry so
   # `kapi plugins install sat` resolves to this build. Mirrors the goreleaser
   # job's "Update manifest plugin registry" step but for --plugin sat across the
@@ -330,7 +360,7 @@ jobs:
   # existing "bowrain"/"okapi-bridge" entries.
   register-sat-plugin:
     name: Register kapi-sat in plugin registry
-    needs: build-sat-plugin
+    needs: publish-sat-release
     runs-on: ubuntu-latest
     steps:
       - name: Download SaT checksum artifacts
