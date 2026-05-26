@@ -55,6 +55,13 @@ else.
   **non-translatable skeleton** is a precise technical distinction — keep it in
   the Framework / content-model docs, but don't carry that framing onto the
   front page or everyday Kapi pages.
+- **Lead examples with source-content formats, not interchange formats.** The
+  framework's everyday surface is reading the content people author — JSON,
+  DOCX, Markdown, HTML, YAML, mobile catalogs (`strings.xml`, `.xcstrings`), and
+  the like. Classic bilingual interchange formats — **XLIFF, PO, TMX, Qt TS** —
+  are for the translator handoff; feature them in the bilingual-workflow /
+  interchange context, not as the headline example or the first item in a
+  formats list. We support them, but they aren't the point.
 
 ## Never hardcode counts that the code controls
 

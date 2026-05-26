@@ -1,9 +1,5 @@
 const FORMAT_GROUPS = [
   {
-    category: 'Localization',
-    formats: ['XLIFF 1.2', 'XLIFF 2.0', 'PO/POT', 'TMX', 'Qt TS', 'Properties'],
-  },
-  {
     category: 'Data',
     formats: ['JSON', 'YAML', 'CSV', 'TSV', 'XML'],
   },
@@ -14,6 +10,11 @@ const FORMAT_GROUPS = [
   {
     category: 'Office & publishing',
     formats: ['DOCX', 'XLSX', 'PPTX', 'ODF', 'EPUB', 'PDF', 'IDML', 'MIF'],
+  },
+  {
+    // Bilingual interchange — the translator handoff, not the main surface.
+    category: 'Interchange',
+    formats: ['XLIFF 1.2', 'XLIFF 2.0', 'PO/POT', 'TMX', 'Qt TS', 'Properties'],
   },
 ]
 

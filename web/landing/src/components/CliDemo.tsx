@@ -29,7 +29,7 @@ const TABS = [
   },
   {
     label: 'Formats',
-    cmd: 'kapi formats\n\n# built-in readers and writers:\n# HTML, XML, XLIFF 1.2, XLIFF 2.0, JSON,\n# YAML, PO, Properties, Markdown, CSV,\n# SRT, VTT, TMX, Plaintext, ...\n# more via the Okapi bridge plugin',
+    cmd: 'kapi formats\n\n# built-in readers and writers:\n# JSON, YAML, HTML, Markdown, XML,\n# CSV, Properties, SRT, VTT,\n# XLIFF 1.2, XLIFF 2.0, PO, TMX, Plaintext, ...\n# more via the Okapi bridge plugin',
     description: 'Explore the supported file formats. Neokapi detects formats by extension, MIME type, or content sniffing.',
   },
 ]

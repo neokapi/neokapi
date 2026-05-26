@@ -124,9 +124,9 @@ function ToolsScreen() {
 function FormatsScreen() {
   const formats = [
     { name: 'JSON', params: 'key-value nested', active: true },
-    { name: 'XLIFF 2.0', params: 'segments, notes', active: true },
-    { name: 'HTML', params: 'translatable attrs', active: false },
+    { name: 'HTML', params: 'inline tags, attrs', active: true },
     { name: 'Markdown', params: 'front-matter, code', active: false },
+    { name: 'DOCX', params: 'runs, styles', active: false },
   ]
   return (
     <div className="space-y-2">
