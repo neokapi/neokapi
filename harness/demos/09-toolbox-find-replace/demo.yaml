@@ -48,30 +48,34 @@ narration:
   - id: title
     kind: title
     text: >
-      A sales pitch, a Word proposal, and an Excel price list — and a product
-      being renamed across all of them.
+      What if you could run classic CLI tools — like cat and grep, or even sed —
+      across both text and the content inside binary formats, like Word and Excel
+      documents? Well, now you can.
   - id: cat
     kind: terminal
     text: >
-      kcat reads the text back out of the Word file and the spreadsheet, as plain
-      lines.
+      Here's a sales team's collateral: a Markdown pitch, a Word proposal, and an
+      Excel price list. kcat reads the text straight out of the Word document and
+      the spreadsheet, as plain lines.
     caption: "kcat reads the text inside the .docx and the .xlsx"
   - id: grep
     kind: terminal
     text: >
-      kgrep finds every mention of the old name across all three files at once.
+      kgrep searches that text across all three files at once, and finds every
+      mention of the product name.
     caption: "kgrep finds the product name across every format"
   - id: sed
     kind: terminal
     text: >
-      One ksed renames it everywhere, in place — and kgrep confirms the same
-      matches under the new name.
+      And one ksed renames the product everywhere, in place — each file saved back
+      in its own format.
     caption: "one ksed renames across all three, in place"
   - id: after
     kind: artifact
     artifact: after
     text: >
-      The proposal is still a valid Word document — only the words changed.
+      The proposal is still a valid Word document — heading and structure intact.
+      Only the words changed.
   - id: outro
     kind: outro
     text: >
