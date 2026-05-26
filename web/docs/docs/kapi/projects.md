@@ -1,11 +1,16 @@
 ---
 sidebar_position: 2
-title: Kapi Project Files
-description: A Kapi project file (.kapi) is a portable YAML document that captures a localization workflow — source and target languages, content file patterns, tool pipelines, plugin requirements, and processing defaults.
-keywords: [kapi project file, .kapi, YAML, localization workflow, portability, project format]
+title: Kapi Projects
+description: A Kapi project (.kapi) is a portable YAML document that captures a localization workflow — source and target languages, content file patterns, tool pipelines, plugin requirements, and processing defaults. Compare it with ad-hoc, flag-driven runs.
+keywords: [kapi project, .kapi, ad-hoc, YAML, localization workflow, portability, project format]
 ---
 
-# Kapi Project Files
+# Kapi Projects
+
+There are two ways to drive kapi:
+
+- **Ad-hoc** — run a tool or flow directly on files, configured entirely by flags: `kapi ai-translate -i file.json --target-lang fr`. Nothing is saved; ideal for one-off jobs and scripting.
+- **Project** — capture the same workflow once in a portable `.kapi` file and replay it with `kapi run <flow> -p my-app.kapi`. Ideal for a repository you localize repeatedly, and shareable via git.
 
 A Kapi project file is a YAML document that captures a localization workflow. It defines source and target languages, content file patterns, tool pipelines (flows), plugin requirements, and processing defaults.
 

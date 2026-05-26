@@ -236,6 +236,6 @@ LLM-backed tools like `ai-translate` need API keys and run from the CLI, not ove
 ## Related
 
 - [Using kapi with Claude](/get-started/use-with-claude) — the agent-skills path.
-- [kapi CLI overview](/cli/overview)
+- [kapi CLI overview](/kapi/overview)
 - [Run command](/commands?id=run)
 - [Formats](/commands?id=formats)

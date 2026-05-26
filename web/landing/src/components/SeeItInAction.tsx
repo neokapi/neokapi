@@ -68,12 +68,12 @@ export function SeeItInAction() {
 
         <div className="mt-10">
           <a
-            href="https://neokapi.github.io/web/neokapi/docs/walkthroughs"
+            href="https://neokapi.github.io/web/neokapi/docs/"
             target="_blank"
             rel="noopener"
             className="inline-flex items-center gap-2 rounded-xl border border-brand-500/20 bg-brand-500/[0.06] px-5 py-2.5 font-display text-sm font-semibold text-brand-300 transition hover:bg-brand-500/[0.12] hover:text-brand-200"
           >
-            Browse the demo gallery &amp; walkthroughs
+            Explore the docs
             <ChevronRight className="h-4 w-4" />
           </a>
         </div>

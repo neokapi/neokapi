@@ -7,7 +7,7 @@ keywords: [Kapi, desktop app, Wails, flow editor, flow runner, plugin manager, c
 
 # Kapi
 
-Kapi is the visual companion for the [kapi CLI](/cli/overview). It provides a native desktop interface for building localization flows, running tools, managing plugins, and storing AI credentials — all without writing YAML or remembering CLI flags.
+Kapi is the visual companion for the [kapi CLI](/kapi/overview). It provides a native desktop interface for building localization flows, running tools, managing plugins, and storing AI credentials — all without writing YAML or remembering CLI flags.
 
 ## Features
 
@@ -52,6 +52,6 @@ kapi run translate -p myproject.kapi
 
 ## Next Steps
 
-- [Kapi Project Files](/desktop/project-file) — Full format reference
-- [Getting Started](/desktop/getting-started) — Step-by-step walkthrough
-- [Kapi CLI](/cli/overview) — Command-line reference
+- [Kapi Project Files](/kapi/projects) — Full format reference
+- [Getting Started](/kapi/desktop/getting-started) — Step-by-step walkthrough
+- [Kapi CLI](/kapi/overview) — Command-line reference

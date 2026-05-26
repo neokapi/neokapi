@@ -33,7 +33,7 @@ function formatDefault(def: string | undefined, type: string | undefined): strin
  * derives from the data so the page is never hand-authored prose.
  */
 export default function CommandReferencePage({ id }: Props) {
-  const guidesHref = useBaseUrl("/guides");
+  const guidesHref = useBaseUrl("/kapi/recipes");
   const installHref = useBaseUrl("/get-started/installation");
   const commandsHref = useBaseUrl("/commands");
   const cmd: CommandEntry | undefined = commandData.commands.find((c) => c.id === id);

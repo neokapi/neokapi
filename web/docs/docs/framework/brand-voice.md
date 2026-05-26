@@ -17,7 +17,7 @@ captures a brand voice as a machine-readable profile, scores content against it
 used for terminology. The Go library lives in `core/brand/`.
 
 This is how neokapi keeps your AI coding assistant on-brand: load the profile
-into context (or expose it over [MCP](/cli/mcp)) so generated copy, docs,
+into context (or expose it over [MCP](/reference/mcp)) so generated copy, docs,
 and UI strings are on-voice from the first draft — then score and rewrite
 anything that drifts, and carry the same voice through every translation.
 

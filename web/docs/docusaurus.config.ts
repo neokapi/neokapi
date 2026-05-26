@@ -132,13 +132,21 @@ const config: Config = {
         src: "img/logo.png",
       },
       items: [
-        // Framework-first IA: the framework is the spine; CLI / React / Desktop
-        // are peer front-ends. Get Started and the home page lead with the
-        // framework + the AI-assistant pivot.
+        // IA: Get Started is the onboarding funnel; Kapi is the product manual
+        // (CLI + Desktop + recipes + projects); Framework is the engine (concepts
+        // + extending + architecture + notes, merged); Reference holds the
+        // generated/interactive references + MCP; Toolbox holds the CLI utilities
+        // and Kapi React.
         {
           type: "docSidebar",
           sidebarId: "getStartedSidebar",
           label: "Get Started",
+          position: "left",
+        },
+        {
+          type: "docSidebar",
+          sidebarId: "kapiSidebar",
+          label: "Kapi",
           position: "left",
         },
         {
@@ -153,12 +161,6 @@ const config: Config = {
           position: "left",
         },
         {
-          type: "docSidebar",
-          sidebarId: "guidesSidebar",
-          label: "Guides",
-          position: "left",
-        },
-        {
           type: "dropdown",
           label: "Reference",
           position: "left",
@@ -170,16 +172,11 @@ const config: Config = {
             { label: "Formats", to: "/formats" },
             { label: "Tools", to: "/tools" },
             { label: "Flows", to: "/flow-visualization" },
+            { label: "MCP Server", to: "/reference/mcp" },
             { label: "Parity", to: "/parity" },
             { label: "Benchmarks", to: "/pseudobench" },
             { label: "Test Results", to: "/test-comparison" },
           ],
-        },
-        {
-          type: "docSidebar",
-          sidebarId: "cliSidebar",
-          label: "CLI",
-          position: "left",
         },
         {
           type: "dropdown",
@@ -200,12 +197,6 @@ const config: Config = {
           ],
         },
         {
-          type: "docSidebar",
-          sidebarId: "desktopSidebar",
-          label: "Desktop",
-          position: "left",
-        },
-        {
           href: "https://github.com/neokapi/neokapi",
           label: "GitHub",
           position: "right",
@@ -223,16 +214,16 @@ const config: Config = {
               to: "/get-started/introduction",
             },
             {
+              label: "Kapi",
+              to: "/kapi/overview",
+            },
+            {
               label: "Framework",
               to: "/framework/architecture",
             },
             {
-              label: "Guides",
-              to: "/guides",
-            },
-            {
-              label: "CLI",
-              to: "/cli/overview",
+              label: "Recipes",
+              to: "/kapi/recipes",
             },
             {
               label: "CLI tools",
@@ -243,12 +234,12 @@ const config: Config = {
               to: "/react/introduction",
             },
             {
-              label: "Format Reference",
-              to: "/formats",
+              label: "Reference",
+              to: "/reference",
             },
             {
-              label: "Contribute",
-              to: "/contribute/tool-authoring",
+              label: "Format Reference",
+              to: "/formats",
             },
           ],
         },

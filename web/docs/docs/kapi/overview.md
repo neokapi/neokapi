@@ -18,7 +18,7 @@ Kapi does two jobs from one engine:
 
 - **Brand governance for AI output** — load a brand voice profile, score text
   0–100, and rewrite content that drifts off-voice. Wire it into your AI coding
-  assistant over [MCP](/cli/mcp) so generation stays on-brand.
+  assistant over [MCP](/reference/mcp) so generation stays on-brand.
 - **Format-aware localization** — AI translation, MT, TM leverage, terminology
   enforcement, QA, and pseudo-translation across native localization, document,
   data, subtitle, and office formats, with more through the okapi-bridge and
@@ -86,7 +86,7 @@ Use Kapi CLI when you:
 - **Run in CI/CD** — gate a build on a brand score or QA check
 - **Work offline** — a single binary with embedded TM and termbase
 
-For a visual interface, use [Kapi](/desktop/overview) — the GUI companion for building flows, managing plugins, and running tools with live progress.
+For a visual interface, use [Kapi](/kapi/desktop/overview) — the GUI companion for building flows, managing plugins, and running tools with live progress.
 
 ## Installation
 
@@ -112,11 +112,11 @@ kapi run translate -p myproject.kapi
 kapi run translate -p myproject.kapi --target-lang de
 ```
 
-See [Kapi Project Files](/desktop/project-file) for the full format reference.
+See [Kapi Project Files](/kapi/projects) for the full format reference.
 
 ## Kapi
 
-[Kapi](/desktop/overview) is the GUI companion for kapi. It provides:
+[Kapi](/kapi/desktop/overview) is the GUI companion for kapi. It provides:
 
 - Visual flow editor for building tool pipelines
 - Live flow execution with progress visualization
@@ -133,7 +133,7 @@ brew install --cask neokapi/tap/kapi
 ## Next Steps
 
 - [Brand Voice](/framework/brand-voice) — profiles, scoring, and enforcement
-- [Using Kapi with AI Assistants](/cli/mcp) — wire kapi into Claude Code, Cursor, and more
+- [Using Kapi with AI Assistants](/reference/mcp) — wire kapi into Claude Code, Cursor, and more
 - [Formats](/commands?id=formats)
 - [Run Command](/commands?id=run)
 - [Pseudo-Translation](/commands?id=pseudo-translate)
@@ -144,5 +144,5 @@ brew install --cask neokapi/tap/kapi
 
 ### Use Cases
 
-- [Terminology QA](/guides/terminology-qa) — catch terminology mistakes in translated files
-- [Pre-translate with TM](/guides/pre-translate-with-tm) — combine TM and your glossary for consistent translations
+- [Terminology QA](/kapi/recipes/terminology-qa) — catch terminology mistakes in translated files
+- [Pre-translate with TM](/kapi/recipes/pre-translate-with-tm) — combine TM and your glossary for consistent translations

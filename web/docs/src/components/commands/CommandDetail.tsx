@@ -22,7 +22,7 @@ interface Props {
  *   !runnableInBrowser             → Watch note (network/server required)
  */
 export default function CommandDetail({ cmd }: Props) {
-  const guidesHref = useBaseUrl("/guides");
+  const guidesHref = useBaseUrl("/kapi/recipes");
   const installHref = useBaseUrl("/get-started/installation");
   const name = commandName(cmd);
   const summary = commandSummary(cmd);
