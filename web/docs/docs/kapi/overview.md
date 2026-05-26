@@ -50,10 +50,9 @@ There are two ways to drive Kapi:
   shareable via git.
 
 **Kapi finds your project automatically.** Like git, it walks up the directory
-tree from wherever you run it; if it finds a `.kapi` recipe, it switches to
-**project mode** and uses that project's languages, defaults, and flows — no
-`-p` flag needed. With no project in the tree it runs ad-hoc, and an explicit
-`-p <path>` always wins.
+tree from wherever you run it; if it finds a `.kapi` recipe, it runs in
+**project mode** with that project's languages, defaults, and flows. Otherwise
+it runs ad-hoc.
 
 See the [project file reference](/reference/project-file) for the full `.kapi`
 format.
