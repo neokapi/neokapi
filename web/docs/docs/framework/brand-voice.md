@@ -2,7 +2,7 @@
 sidebar_position: 14
 title: Brand Voice
 description: neokapi's brand voice governance scores content 0–100 against a machine-readable profile and enforces writing style through the same pipeline and Block annotation system used for terminology.
-keywords: [brand voice, brand governance, content scoring, writing style, MCP, AI assistant, on-brand]
+keywords: [brand voice, brand guardrails, content scoring, writing style, MCP, AI assistant, on-brand]
 ---
 
 import { PipelineDiagram } from "@site/src/components/diagram";
@@ -130,7 +130,7 @@ scores and findings to each Block as annotations. The faster, rule-based
 `brand-vocab-check` tool checks forbidden and competitor terms without LLM
 calls. Brand vocabulary also flows through ordinary terminology tools —
 preferred terms surface in `term-lookup`, forbidden/competitor terms trigger
-`term-enforce` violations — so brand governance and terminology share one
+`term-enforce` violations — so brand guardrails and terminology share one
 enforcement path.
 
 ## MCP integration

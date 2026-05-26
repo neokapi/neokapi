@@ -229,7 +229,7 @@ relations, term status, and context fields.
   generalization — a single annotation pass serves multiple consumers.
 - Concept relations give UIs a graph substrate for browsing terminology
   without requiring a separate graph database in the framework.
-- `CompetitorTerm` gives the framework a minimal hook for brand governance
+- `CompetitorTerm` gives the framework a minimal hook for brand guardrails
   without depending on the full brand module.
 - The same storage backends as TM (in-memory, SQLite) keep the CLI
   dependency footprint small and cross-compilation simple.

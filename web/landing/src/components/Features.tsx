@@ -90,7 +90,7 @@ export function Features() {
             </span>
           </h2>
           <p className="mx-auto mt-4 max-w-2xl text-lg text-neutral-400">
-            Brand governance for your AI output and a format-aware localization
+            Brand guardrails for your AI output and a format-aware localization
             toolkit — built from the same composable pieces.
           </p>
         </div>

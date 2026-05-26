@@ -1,8 +1,8 @@
 ---
 sidebar_position: 1
 title: Kapi CLI
-description: kapi is a standalone command-line tool for format-aware localization and brand governance — AI translation, TM leverage, terminology enforcement, QA, and pseudo-translation across native and Okapi bridge formats.
-keywords: [kapi, CLI, localization, brand governance, AI translation, pseudo-translate, word count, formats, tools]
+description: kapi is a standalone command-line tool for format-aware localization and brand guardrails — AI translation, TM leverage, terminology enforcement, QA, and pseudo-translation across native and Okapi bridge formats.
+keywords: [kapi, CLI, localization, brand guardrails, AI translation, pseudo-translate, word count, formats, tools]
 ---
 
 # Kapi CLI
@@ -16,7 +16,7 @@ configuration, and runs offline by default.
 
 Kapi does two jobs from one engine:
 
-- **Brand governance for AI output** — load a brand voice profile, score text
+- **Brand guardrails for AI output** — load a brand voice profile, score text
   0–100, and rewrite content that drifts off-voice. Wire it into your AI coding
   assistant over [MCP](/reference/mcp) so generation stays on-brand.
 - **Format-aware localization** — AI translation, MT, TM leverage, terminology

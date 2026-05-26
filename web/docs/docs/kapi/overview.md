@@ -2,7 +2,7 @@
 sidebar_position: 0
 title: Kapi
 description: Kapi keeps content on-brand and terminologically consistent, then localizes it into every language and format. It runs the neokapi engine two ways — the kapi command-line tool and the Kapi Desktop app — sharing the same tools, flows, and .kapi projects.
-keywords: [Kapi, kapi CLI, Kapi Desktop, localization, brand governance, overview]
+keywords: [Kapi, kapi CLI, Kapi Desktop, localization, brand guardrails, overview]
 ---
 
 # Kapi
