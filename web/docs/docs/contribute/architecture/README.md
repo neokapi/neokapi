@@ -34,6 +34,7 @@ pseudocode) are separated into [Implementation Notes](/contribute/notes-internal
 | [005](005-format-system.md)     | Format System     | DataFormatReader/Writer, detection, registries, skeleton strategies |
 | [006](006-tool-system.md)       | Tool System       | BaseTool, locale cardinality, annotations, side effects, schemas    |
 | [007](007-plugin-system.md)     | Plugin System     | manifest-driven out-of-process plugins, gRPC, presets, Okapi bridge |
+| [021](021-sat-segmenter-plugin.md) | SaT Segmenter Plugin | in-process ONNX SaT model, stdin/stdout protocol, native-stack isolation, `sat` engine |
 
 ## Project Model
 
@@ -49,6 +50,7 @@ pseudocode) are separated into [Implementation Notes](/contribute/notes-internal
 | [010](010-terminology.md)        | Terminology        | Concept model, TermBase, tiered lookup                        |
 | [011](011-ai-providers.md)       | AI Providers       | LLMProvider, streaming, batching, worker pool                 |
 | [012](012-mt-providers.md)       | MT Providers       | MTProvider interface, built-in backends                       |
+| [022](022-brand-voice.md)        | Brand Voice        | VoiceProfile, starter packs, vocab/voice checks, scoring, command + MCP surface |
 
 ## Applications
 
@@ -57,6 +59,8 @@ pseudocode) are separated into [Implementation Notes](/contribute/notes-internal
 | [013](013-kapi-cli.md)     | Kapi CLI     | Standalone CLI, output formats, credential store, MCP server |
 | [014](014-kapi-desktop.md) | Kapi Desktop | Wails v3 app, flow editor, runner, plugin manager            |
 | [019](019-kapi-react.md)   | Kapi React   | React i18n runtime, build-time extraction, `__tx` re-attach  |
+| [023](023-toolbox-utilities.md) | Toolbox Utilities | kcat/kgrep/ksed busybox multi-call, block-text projection, exit codes |
+| [024](024-agent-skills.md) | Agent Skills | embedded SKILL.md routers, `.claude/skills` install, kapi-*/bowrain-* split |
 
 ## Cross-Cutting
 
