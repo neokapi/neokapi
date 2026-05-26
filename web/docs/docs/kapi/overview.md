@@ -45,6 +45,5 @@ content patterns, flows, and defaults, portable and shareable via git.
 
 ## Install
 
-Install the CLI via Homebrew, `go install`, or a binary download, and
-[Kapi Desktop](/kapi/desktop/overview#installation) as a macOS cask (it bundles
-the CLI). See [Installation](/get-started/installation) for every option.
+See [Installation](/get-started/installation) for the CLI (Homebrew, `go install`,
+or binary) and Kapi Desktop (macOS cask).

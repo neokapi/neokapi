@@ -90,15 +90,7 @@ For a visual interface, use [Kapi](/kapi/desktop/overview) — the GUI companion
 
 ## Installation
 
-```bash
-# macOS/Linux
-brew install neokapi/tap/kapi-cli
-
-# Go install
-go install github.com/neokapi/neokapi/kapi/cmd/kapi@latest
-
-# Binary downloads: https://github.com/neokapi/neokapi/releases
-```
+See [Installation](/get-started/installation) for Homebrew, `go install`, and binary downloads.
 
 ## Project Files
 
