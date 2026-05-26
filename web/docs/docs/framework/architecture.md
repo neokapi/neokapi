@@ -108,14 +108,3 @@ The framework rests on a few concepts, each with its own page:
 For the concrete Go interfaces and method signatures behind these concepts, see
 the [Interface Reference](/contribute/interfaces). For the design rationale, see
 the [Architecture Decisions](/contribute/architecture/001-vision-and-modules).
-
-## Build and Distribution
-
-| Channel          | Target        | Command                                                      |
-| ---------------- | ------------- | ------------------------------------------------------------ |
-| Homebrew formula | kapi CLI      | `brew install neokapi/tap/kapi-cli`                              |
-| GitHub Releases  | All platforms | Direct download                                              |
-| Go install       | Go developers | `go install github.com/neokapi/neokapi/kapi/cmd/kapi@latest` |
-
-CI/CD runs via GitHub Actions: `ci.yml` (test, vet, lint, build on every
-push) and `release.yml` (GoReleaser on tag push).
