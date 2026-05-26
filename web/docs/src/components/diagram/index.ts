@@ -6,3 +6,7 @@ export { ArchitectureDiagram } from "./ArchitectureDiagram";
 export type { ArchitectureDiagramProps } from "./ArchitectureDiagram";
 export { PipelineDiagram } from "./PipelineDiagram";
 export type { PipelineDiagramProps, PipelineStage, StageRole } from "./PipelineDiagram";
+export { StreamDiagram } from "./StreamDiagram";
+export type { StreamDiagramProps, StreamItem, StreamRole } from "./StreamDiagram";
+export { RoundTripDiagram } from "./RoundTripDiagram";
+export type { RoundTripDiagramProps } from "./RoundTripDiagram";

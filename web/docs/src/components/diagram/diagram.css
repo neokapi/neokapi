@@ -115,6 +115,38 @@
   color: var(--kdx-muted, #5d6b66);
 }
 
+/* ── Stream diagram (vertical Part/event sequence) ────────────────────── */
+.kdx-mono {
+  fill: var(--kdx-ink);
+  font-family: var(--kdx-mono, ui-monospace, "Source Code Pro", monospace);
+}
+.kdx-node {
+  fill: var(--kdx-channel);
+}
+.kdx-node--io {
+  fill: var(--kdx-io);
+}
+.kdx-node--translate {
+  fill: var(--kdx-translate);
+}
+.kdx-node--annotate {
+  fill: var(--kdx-annotate);
+}
+
+/* ── Round-trip hub ───────────────────────────────────────────────────── */
+.kdx-hub {
+  fill: var(--kdx-surface);
+  stroke: var(--kdx-resource);
+  stroke-width: 1.5;
+}
+/* small surface pill behind an edge label so it stays legible over a line */
+.kdx-pill {
+  fill: var(--kdx-surface);
+}
+.kdx-link--io {
+  stroke: var(--kdx-io);
+}
+
 /* ── Boxes & lanes ────────────────────────────────────────────────────── */
 .kdx-box {
   fill: var(--kdx-surface);

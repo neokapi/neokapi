@@ -5,6 +5,8 @@ description: neokapi's brand voice governance scores content 0–100 against a m
 keywords: [brand voice, brand governance, content scoring, writing style, MCP, AI assistant, on-brand]
 ---
 
+import { PipelineDiagram } from "@site/src/components/diagram";
+
 # Brand Voice
 
 Where [terminology](/framework/terminology) ensures you use the right words,
@@ -111,9 +113,17 @@ examples to customize.
 
 The `brand-voice-check` tool runs in the pipeline alongside other tools:
 
-```
-Reader → TM Leverage → Term Lookup → AI Translate → Brand Voice Check → AI QA → Writer
-```
+<PipelineDiagram
+  stages={[
+    { label: "Reader", role: "io" },
+    { label: "TM Leverage", role: "translate" },
+    { label: "Term Lookup", role: "annotate" },
+    { label: "AI Translate", role: "translate" },
+    { label: "Brand Voice Check", role: "qa" },
+    { label: "AI QA", role: "qa" },
+    { label: "Writer", role: "io" },
+  ]}
+/>
 
 It uses an LLM to analyze content against the profile and attaches compliance
 scores and findings to each Block as annotations. The faster, rule-based

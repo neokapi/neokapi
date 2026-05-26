@@ -7,6 +7,7 @@ keywords: [tools, pipeline stage, processing, translation, QA, TM leverage, segm
 
 import { ToolLab } from "@site/src/components/Lab/ToolLab";
 import { ScriptLab } from "@site/src/components/Lab/ScriptLab";
+import { PipelineDiagram } from "@site/src/components/diagram";
 
 # Tools
 
@@ -143,11 +144,15 @@ across many Parts, or to emit more Parts than it consumes — it can implement
 The streaming contract is what makes composition trivial. Three Parts — a layer
 start, a block, a layer end — flowing through a two-tool chain look like this:
 
-```
-reader ─chan─▶ [segmentation] ─chan─▶ [ai-translate] ─chan─▶ writer
-               (handles Block)         (handles Block)
-               passes Layer*           passes Layer*
-```
+<PipelineDiagram
+  animated
+  stages={[
+    { label: "reader", role: "io" },
+    { label: "segmentation", role: "annotate", note: "handles Block · passes Layer*" },
+    { label: "ai-translate", role: "translate", note: "handles Block · passes Layer*" },
+    { label: "writer", role: "io" },
+  ]}
+/>
 
 Each tool runs in its own goroutine, connected by buffered channels. A tool that
 does not handle layer markers simply relays them, so structural context survives

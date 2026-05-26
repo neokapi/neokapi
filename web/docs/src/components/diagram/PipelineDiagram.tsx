@@ -27,7 +27,10 @@ export type StageRole = "io" | "annotate" | "translate" | "qa" | "tool";
 
 export interface PipelineStage {
   label: string;
+  /** Mono sub-line, role-tinted (e.g. "DataFormat", "Tool"). */
   sub?: string;
+  /** Extra muted note line under the box (e.g. "handles Block · passes Layer*"). */
+  note?: string;
   role?: StageRole;
 }
 
@@ -48,8 +51,15 @@ const CY = STAGE_Y + STAGE_H / 2;
 const GAP = 40; // channel length between stages
 const CHAR = 7.2; // approx px per char for width estimate
 
+/** Baselines for 1–3 centered text lines inside a stage box. */
+const LINE_BASELINES: Record<number, number[]> = {
+  1: [CY + 4],
+  2: [CY - 1, CY + 13],
+  3: [CY - 6, CY + 8, CY + 20],
+};
+
 const stageWidth = (s: PipelineStage): number => {
-  const longest = Math.max(s.label.length, (s.sub ?? "").length);
+  const longest = Math.max(s.label.length, (s.sub ?? "").length, (s.note ?? "").length);
   return Math.max(78, Math.round(longest * CHAR) + 26);
 };
 
@@ -76,7 +86,7 @@ export function PipelineDiagram({
   return (
     <div className={`kdx${animated ? " kdx--animated" : ""}`}>
       <div className="kdx-scroll">
-        <div className="kdx-canvas" style={{ minWidth: Math.min(totalW, 760) }}>
+        <div className="kdx-canvas" style={{ minWidth: Math.min(totalW, 460), maxWidth: totalW }}>
           <svg
             viewBox={`0 0 ${totalW} ${totalH}`}
             xmlns="http://www.w3.org/2000/svg"
@@ -99,6 +109,12 @@ export function PipelineDiagram({
             {placed.map((s, i) => {
               const cx = s.x + s.w / 2;
               const next = placed[i + 1];
+              const lines: { t: string; size: number; cls: string }[] = [
+                { t: s.label, size: 12.5, cls: "kdx-label" },
+              ];
+              if (s.sub) lines.push({ t: s.sub, size: 9, cls: `kdx-sub${roleSub(s.role)}` });
+              if (s.note) lines.push({ t: s.note, size: 8, cls: "kdx-chan" });
+              const baselines = LINE_BASELINES[lines.length] ?? LINE_BASELINES[3];
               return (
                 <g key={`${s.label}-${i}`}>
                   <rect
@@ -109,26 +125,18 @@ export function PipelineDiagram({
                     rx={9}
                     className={`kdx-box${roleBox(s.role)}`}
                   />
-                  <text
-                    x={cx}
-                    y={s.sub ? CY - 1 : CY + 4}
-                    textAnchor="middle"
-                    fontSize={12.5}
-                    className="kdx-label"
-                  >
-                    {s.label}
-                  </text>
-                  {s.sub && (
+                  {lines.map((ln, li) => (
                     <text
+                      key={li}
                       x={cx}
-                      y={CY + 15}
+                      y={baselines[li]}
                       textAnchor="middle"
-                      fontSize={9}
-                      className={`kdx-sub${roleSub(s.role)}`}
+                      fontSize={ln.size}
+                      className={ln.cls}
                     >
-                      {s.sub}
+                      {ln.t}
                     </text>
-                  )}
+                  ))}
 
                   {next && (
                     <>

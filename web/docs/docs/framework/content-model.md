@@ -7,6 +7,7 @@ keywords: [content model, Part, Block, Run, Overlay, variant target, Layer, loca
 
 import { BlockPreview } from "@site/src/components/curated";
 import { AnatomyExplorer } from "@site/src/components/Lab";
+import { StreamDiagram } from "@site/src/components/diagram";
 
 # Content Model
 
@@ -41,16 +42,26 @@ reconstructs the document from the stream.
 A typical small JSON document with one embedded HTML value produces a stream like
 this:
 
-```
-Read(ctx) ─▶ PartLayerStart  (format = "json")
-          ─▶ PartBlock        ("title")
-          ─▶ PartLayerStart  (format = "html")   ← embedded child layer
-          ─▶ PartBlock        ("Hello <b>world</b>")
-          ─▶ PartLayerEnd    (format = "html")
-          ─▶ PartBlock        ("footer")
-          ─▶ PartLayerEnd    (format = "json")
-          ─▶ (channel closed)
-```
+<StreamDiagram
+  title="Read(ctx)"
+  animated
+  items={[
+    { kind: "PartLayerStart", detail: 'format = "json"', role: "layer" },
+    { kind: "PartBlock", detail: '"title"', depth: 1, role: "block" },
+    {
+      kind: "PartLayerStart",
+      detail: 'format = "html"',
+      depth: 1,
+      role: "layer",
+      note: "embedded child layer",
+    },
+    { kind: "PartBlock", detail: '"Hello <b>world</b>"', depth: 2, role: "block" },
+    { kind: "PartLayerEnd", detail: 'format = "html"', depth: 1, role: "end" },
+    { kind: "PartBlock", detail: '"footer"', depth: 1, role: "block" },
+    { kind: "PartLayerEnd", detail: 'format = "json"', role: "end" },
+    { kind: "(channel closed)", role: "meta" },
+  ]}
+/>
 
 Streaming is why the model is shaped around a Part rather than a document tree:
 it keeps memory bounded and lets stages run concurrently. The mechanics are

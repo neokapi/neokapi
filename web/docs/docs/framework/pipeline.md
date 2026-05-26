@@ -6,6 +6,7 @@ keywords: [pipeline, goroutines, channels, concurrent, streaming, errgroup, exec
 ---
 
 import { PipelineExplorer } from "@site/src/components/Lab";
+import { PipelineDiagram } from "@site/src/components/diagram";
 
 # Pipeline
 
@@ -15,10 +16,18 @@ machinery that actually runs them: a [format reader](/framework/formats), a chai
 of [tools](/framework/tools), and a format writer, each running in its own
 goroutine and connected by buffered channels of [Parts](/framework/content-model).
 
-```
-RawDocument ─▶ Reader ─chan─▶ [Tool 1] ─chan─▶ [Tool 2] ─chan─▶ … ─chan─▶ Writer ─▶ Output
-                              (goroutine)      (goroutine)
-```
+<PipelineDiagram
+  animated
+  stages={[
+    { label: "RawDocument" },
+    { label: "Reader", sub: "DataFormat", role: "io" },
+    { label: "Tool 1", note: "goroutine" },
+    { label: "Tool 2", note: "goroutine" },
+    { label: "⋯" },
+    { label: "Writer", sub: "DataFormat", role: "io" },
+    { label: "Output" },
+  ]}
+/>
 
 This is the neokapi analogue of Okapi's _PipelineDriver_. It is built on Go's
 native concurrency: goroutines for the stages, channels for the connections, and
