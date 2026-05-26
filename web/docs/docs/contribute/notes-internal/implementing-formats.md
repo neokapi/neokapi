@@ -321,12 +321,23 @@ Per-value **escaping of text content before its first emission** (backslash
 / quote / newline / delimiter encoding) is not post-processing and is fine.
 
 **The one sanctioned exception** is faithfully reproducing a transform that
-Okapi *itself* performs on serialized bytes — e.g. openxml's
-`AllowWordStyleOptimisation` (WSO) style synthesis and `RunProperties.minified()`
-toggle collapse. These are reproduction, not compensation: the reference
-output already contains them, so they cannot be moved to a symmetric
-normalizer. When a writer keeps such a transform it MUST document the Okapi
-class/method it mirrors, so a reader can tell reproduction from compensation.
+Okapi *itself* performs on bytes the reader captured opaquely, where no
+symmetric normalizer can reach. openxml's DrawingML default-run hoist
+(`optimiseDMLBlockProperties` in `dml_style_optimization.go`) is the current
+template: the WML reader captures the entire `<w:drawing>` payload as opaque
+XML and replays it verbatim, so the only place to mirror Okapi's
+`StyleOptimisation.Default` hoist of common `<a:rPr>` into `<a:pPr><a:defRPr>`
+is an always-on post-skeleton flush. This is reproduction, not compensation:
+the reference output already contains the hoist, and because the payload is
+opaque to the comparator it cannot be cancelled on both sides. A writer that
+keeps such a transform MUST document the Okapi class/method it mirrors, so a
+reader can tell reproduction from compensation.
+
+> The WordprocessingML side does **not** qualify: native is faithful and
+> emits source `<w:rPr>` inline with no synthesised paragraph styles. The
+> former Word Style Optimisation (WSO) post-pass that mimicked Okapi's compact
+> pStyle form has been deleted; equivalence with Okapi's compact output is
+> instead proved by an effective-rPr normalizer in the parity comparator.
 
 Formats already converted to this convention: html (DOM `setAttr` instead of
 lang regex), the regex format (prefix/capture/suffix assembly), wiki (stored

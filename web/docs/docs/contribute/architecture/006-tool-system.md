@@ -136,28 +136,39 @@ ordering:
 
 ### IO model
 
-Each tool declares an IO contract in its `ToolMeta`:
+Each tool declares an IO contract in its `ToolMeta` (package `core/schema`).
+Inputs/outputs are part-type name strings (`"block"`, `"data"`, `"media"`,
+`"layer"`, `"group"`); the full struct also carries CLI and UI hints:
 
 ```go
+// core/schema/schema.go
 type ToolMeta struct {
-    ID          ToolID
-    Category    ToolCategory
+    ID          string
+    Category    string // "translate","validate","enrich","convert","transform","pipeline"
     DisplayName string
-    Inputs      []PartType
-    Outputs     []PartType
+    Description string
+    Inputs      []string // part-type names
+    Outputs     []string
     Tags        []string
 
-    // Cardinality declares how many locales the tool operates on.
+    // Requires declares external resources the tool needs at runtime.
+    Requires []string // "target-language","tm","termbase","credentials",…
+
+    // Cardinality declares how many locales the tool operates on per execution.
     Cardinality LocaleCardinality
 
     // DefaultLocale is an optional default for monolingual and bilingual tools.
-    DefaultLocale string
+    DefaultLocale model.LocaleID
 
     // Produces lists annotation types this tool writes to Blocks.
     Produces []AnnotationType
 
     // SideEffects lists external systems this tool reads from or writes to.
     SideEffects []SideEffect
+
+    WritesOutput          bool     // CLI adds -o/--output when true
+    DefaultParallelBlocks int      // concurrency for IO-bound tools
+    Aliases               []string // alternative CLI command names
 }
 ```
 
@@ -303,13 +314,16 @@ type SchemaProvider interface {
 }
 
 type ComponentSchema struct {
-    ID          string
+    ID          string                    // "$id"
+    Version     string                    // "$version"
     Title       string
     Description string
     Type        string                    // "object"
-    Meta        ComponentMeta             // id, type, category, displayName
-    Groups      []ParameterGroup          // UI groupings
+    ToolMeta    *ToolMeta                 // tool identity (see above)
+    Groups      []ParameterGroup          // UI groupings ("ui:groups")
+    StepMeta    *StepMeta                 // Okapi-bridge step metadata, when applicable
     Properties  map[string]PropertySchema // parameter definitions
+    RawJSON     json.RawMessage           // full schema access
 }
 ```
 

@@ -273,20 +273,21 @@ section (`source`, `srx`) toggles the SRX segmentation overlay — block
 identity is stable across toggles, so a project can change these
 fields between extractions safely.
 
-### BlockStore interface
+### Store interface
 
-Flows and tools read and write blocks and overlays through `BlockStore`
-(package `core/blockstore`), not through raw channels. The streaming contract
-is preserved as one capability among several.
+Flows and tools read and write blocks and overlays through the `Store` and
+`Session` interfaces (package `core/blockstore`), not through raw channels.
+The streaming contract is preserved as one capability among several.
 
 ```go
-type BlockStore interface {
+type Store interface {
     Begin(ctx context.Context) (Session, error)
     Capabilities() Capabilities
     Close() error
 }
 
 type Session interface {
+    Capabilities() Capabilities
     Blocks(filter BlockFilter) iter.Seq2[*Block, error]
     GetBlock(hash string) (*Block, error)
     PutBlock(collection string, b *Block) error
@@ -303,6 +304,7 @@ type Capabilities struct {
     Concurrent   bool
     Remote       bool
     Writable     bool
+    Persistent   bool
 }
 ```
 
@@ -318,6 +320,28 @@ defines the interface.
 
 ### Flow executor operates on a Session
 
+Tools keep the channel-based `Tool.Process(ctx, in, out)` contract
+([AD-006: Tool System](006-tool-system.md)). A tool that needs the store
+implements the optional `SessionTool` extension (in `core/tool/session.go`),
+which adds a session handle alongside the same streaming channels:
+
+```go
+type SessionTool interface {
+    Tool
+    SessionProcess(
+        ctx context.Context,
+        sess blockstore.Session,
+        in <-chan *model.Part,
+        out chan<- *model.Part,
+    ) error
+}
+```
+
+The executor opens one session per run, dispatches each stage through
+`SessionProcess` when the tool implements `SessionTool` (otherwise plain
+`Process`), and owns the transaction boundary — tools must not call
+`Commit`/`Rollback` themselves:
+
 ```go
 session, err := store.Begin(ctx)
 if err != nil {
@@ -325,18 +349,20 @@ if err != nil {
 }
 defer session.Close()
 
-for _, t := range flow.Tools {
-    if err := t.Process(ctx, session); err != nil {
-        return session.Rollback()
-    }
+// per stage, wired to in/out channels:
+if st, ok := t.(tool.SessionTool); ok {
+    err = st.SessionProcess(ctx, session, in, out)
+} else {
+    err = t.Process(ctx, in, out)
+}
+if err != nil {
+    return session.Rollback()
 }
 return session.Commit()
 ```
 
-The existing channel-based `Tool` interface ([AD-006: Tool System](006-tool-system.md))
-remains. A `SessionTool` extension (in `core/tool/session.go`) is provided for
-tools that want random access — term enforcement, multi-pass statistics, QA
-across the whole store.
+`SessionTool` is the path for tools that want random access — term
+enforcement, multi-pass statistics, QA across the whole store.
 
 ### ProjectContext
 

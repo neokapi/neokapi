@@ -138,7 +138,7 @@ continued by another. Keep the payload small and JSON-compatible.
 ## Read-only stores
 
 The `FormatReaderStore` wraps a raw XLIFF / JSON / etc. file as a
-read-only BlockStore. Its `PutOverlay` returns
+read-only `blockstore.Store`. Its `PutOverlay` returns
 `blockstore.ErrReadOnly`. Tools should ignore this error on the
 overlay-write path — the in-flight `*model.Block` already carries
 the result, and caching is best-effort for the _next_ run. See the
@@ -153,17 +153,22 @@ with session filtering at the **input** (skip cached) and
 overlay-write at the **output**. Example:
 `core/ai/tools/translate.go::processBatchedWithSession`.
 
-## Registered store providers
+## Store providers
 
-- `memory` — default when no store is declared. Snapshot-per-session,
-  last-writer-wins on commit. Capabilities: RandomAccess + Concurrent
-  - Writable.
-- `cache` — SQLite at `.kapi/cache/blocks.db`. The default for kapi
-  projects. Full ACID, persistent across runs.
-- `format-reader` — wraps a `format.DataFormatReader` as a read-only
-  store. Useful for ad-hoc CLI flows (`kapi ai-translate -i
-file.xliff`). RandomAccess=true, Writable=false.
-  collaborative projects.
+The providers are plain constructors in `core/blockstore`, not string-keyed
+entries declared in a recipe. The caller (CLI, project runner, executor)
+constructs the one it wants and hands it to the executor:
 
-The executor receives the store via `flow.WithBlockStore(s)`; tools
-never open the store directly.
+- `NewMemoryStore()` — the default when no store is passed. Snapshot-per-session,
+  last-writer-wins on commit. Capabilities: RandomAccess + Concurrent + Writable;
+  not Persistent.
+- `NewCacheStore(path)` — SQLite-backed store, typically at
+  `.kapi/cache/blocks.db`. The default for kapi projects. Full ACID, persistent
+  across runs.
+- `NewFormatReaderStore(factory)` — wraps a `format.DataFormatReader` factory as
+  a read-only store. Useful for ad-hoc CLI flows (`kapi ai-translate -i
+  file.xliff`): RandomAccess=true, Writable=false. Its `PutOverlay` returns
+  `blockstore.ErrReadOnly`.
+
+The executor receives the store via the `flow.WithBlockStore(s)` option
+(default `NewMemoryStore()`); tools never open the store directly.

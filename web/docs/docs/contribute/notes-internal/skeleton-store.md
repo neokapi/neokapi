@@ -31,6 +31,15 @@ Each entry is:
 | --------- | ------- | -------------------------- |
 | `0`       | Text    | Non-translatable raw bytes |
 | `1`       | Ref     | Block ID as UTF-8 string   |
+| `2`       | Lang    | Source-locale `lang`/`xml:lang` attribute value (raw bytes between the quotes), spliced for language retargeting |
+
+The `Lang` entry lets a writer retarget the document language: when the stored
+value matches the document's source locale it emits the target locale,
+otherwise it emits the stored value verbatim. Writers that do not understand
+the type must treat it as inert (emitting nothing would drop the attribute
+value). Only the HTML reader emits `Lang` today; other formats never see it,
+and because their entry-type switches have no `default` case the addition is
+purely additive.
 
 The format is append-only during writing and sequential during reading. After
 `Flush()`, the file is seeked to the beginning and entries are read with
@@ -42,6 +51,7 @@ The format is append-only during writing and sequential during reading. After
 func NewSkeletonStore() (*SkeletonStore, error)    // creates temp file in os.TempDir()
 func (s *SkeletonStore) WriteText(data []byte) error // skips empty data
 func (s *SkeletonStore) WriteRef(blockID string) error
+func (s *SkeletonStore) WriteLang(value string) error // language-attribute value for retargeting
 func (s *SkeletonStore) Flush() error                // flushes buffered writer, seeks to 0
 func (s *SkeletonStore) Next() (SkeletonEntry, error) // returns io.EOF at end
 func (s *SkeletonStore) Close() error                 // removes temp file
@@ -153,6 +163,12 @@ The `findAttrValueRange` function locates the byte range of an attribute
 value within the raw tag bytes by scanning for `attrKey=` followed by a
 quote character.
 
+`lang` / `xml:lang` attribute values are handled the same way, but spliced as
+a typed `SkeletonLang` (byte `2`) entry rather than verbatim text
+(`extractLangFromToken`), so the writer can retarget the document language on
+output instead of emitting the source-locale value (mirrors Okapi's HTML
+filter).
+
 ### Run sequence building
 
 For leaf block elements, tokens between start and end tag are collected and
@@ -186,10 +202,16 @@ When a skeleton store is available, the writer reads entries sequentially and
 fills in block content. No tokenizer, no DOM, no state machine:
 
 ```go
-func (w *Writer) writeFromSkeleton(store *format.SkeletonStore, blocks map[string]*model.Block) error {
+func (w *Writer) writeFromSkeleton(
+    store *format.SkeletonStore,
+    blocks map[string]*model.Block,
+    sourceLocale model.LocaleID,
+    needsLangRewrite bool,
+) error {
     for {
         entry, err := store.Next()
-        if err == io.EOF { break }
+        if errors.Is(err, io.EOF) { break }
+        if err != nil { return err }
         switch entry.Type {
         case format.SkeletonText:
             if _, err := w.Output.Write(entry.Data); err != nil {
@@ -198,12 +220,24 @@ func (w *Writer) writeFromSkeleton(store *format.SkeletonStore, blocks map[strin
         case format.SkeletonRef:
             if block, ok := blocks[string(entry.Data)]; ok {
                 text := w.getBlockText(block)
+                // (block-ref substitution + HTML encoding elided)
                 if _, err := io.WriteString(w.Output, text); err != nil {
                     return err
                 }
             }
+        case format.SkeletonLang:
+            // Retarget the document language: when the stored source-locale
+            // lang matches, emit the writer's target locale; else verbatim.
+            lang := string(entry.Data)
+            if needsLangRewrite && sameLanguage(lang, sourceLocale.String()) {
+                lang = w.Locale.String()
+            }
+            if _, err := io.WriteString(w.Output, lang); err != nil {
+                return err
+            }
         }
     }
+    return nil
 }
 ```
 

@@ -237,8 +237,8 @@ The reader extracts the `<p>` content as a single segment whose `Runs` are:
 The runs are ordered, and a `PcClose` shares its `ID` with the matching
 `PcOpen`. This means:
 
-- `seg.Text()` returns `"Click here for info"` (inline-code runs contribute nothing)
-- `seg.HasInlineCodes()` returns `true`
+- `block.SourceText()` returns `"Click here for info"` (inline-code runs contribute nothing)
+- `block.SourceRuns()` contains the `PcOpen`/`PcClose` pairs above
 - the second run's `PcOpen.Data` is `"<b>"` (the original markup, including attributes)
 
 Tools project the runs to plain text and skip the inline codes. Translation
@@ -484,14 +484,11 @@ func TestReadInlineRuns(t *testing.T) {
     blocks := testutil.CollectBlocks(t, reader.Read(ctx))
     require.GreaterOrEqual(t, len(blocks), 1)
 
-    seg := blocks[0].FirstSegment()
-    require.NotNil(t, seg)
+    // Plain text is the source runs with inline markup stripped.
+    assert.Equal(t, "Click here for info", blocks[0].SourceText())
 
-    // Plain text is correct
-    assert.Equal(t, "Click here for info", seg.Text())
-
-    // Inline codes are preserved as a PcOpen/PcClose pair
-    assert.True(t, seg.HasInlineCodes())
+    // Inline codes are preserved as a PcOpen/PcClose pair on the source runs.
+    // (There is no Segment type — segmentation is an opt-in overlay, AD-002.)
     runs := blocks[0].SourceRuns()
     require.Len(t, runs, 4) // "Click ", <b>, "here", </b> + trailing text coalesces
     require.NotNil(t, runs[1].PcOpen)

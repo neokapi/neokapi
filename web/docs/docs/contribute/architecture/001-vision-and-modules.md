@@ -144,7 +144,7 @@ responsibility:
 ```
 core/
     model/            Content model types (Part, Block, Layer, Run, Target, Overlay)
-    format/           DataFormatReader/Writer interfaces, detection
+    format/           DataFormatReader/Writer interfaces, detection, skeleton
     tool/             Tool interface, BaseTool dispatch
     flow/             Executor, Builder, FlowDefinition
     registry/         FormatRegistry, ToolRegistry
@@ -155,29 +155,51 @@ core/
     version/          Build version info
     formats/          Built-in format implementations
     tools/            Built-in utility tools
+    ai/               AI pipeline tools (tools/), prompts (prompt/), and NER (ner/)
+    mt/               MT pipeline tools (tools/)
     plugin/           Plugin system: gRPC host, Java bridge, loader, registry
     storage/          Shared SQLite DB infrastructure
+    blockstore/       Block store Session/Store interfaces
     project/          .kapi project file format
+    preset/           Built-in preset definitions
+    schema/           JSON-schema generation for tool/component parameters
+    segment/          Segmentation primitives and masking
+    brand/            Brand-voice model
+    graph/            Graph data structures
+    i18n/             Localization of component schemas and metadata
+    its/              W3C ITS metadata
+    klf/              KLF localization exchange format
+    redaction/        Span redaction/restoration
+    ignore/           .kapiignore pattern matching
+    httputil/         HTTP client helpers
+    set/              Generic set container
     testutil/         Shared test helpers
 sievepen/             Translation memory (interface + in-memory + SQLite + matching)
 termbase/             Terminology (interface + in-memory + SQLite + import)
 providers/
-    ai/               package aiprovider — LLM providers + AI tools
-    mt/               package mtprovider — MT providers + MT tools
+    ai/               package aiprovider — LLM providers
+    mt/               package mtprovider — MT providers
 bench/                Benchmarks
 examples/             Plugin examples
 ```
 
+The list above names the framework's primary package groups rather than
+enumerating every directory; consult the source tree for the authoritative set.
+
 ### Workspace and versioning
 
-The root `go.work` file coordinates all four modules for local development:
+The root `go.work` file coordinates the workspace for local development. It
+lists every module in the repository — the framework modules below plus the
+separately-licensed platform modules and build-support modules under
+`scripts/`. The four framework modules are:
 
 ```
 use (
-    .
-    ./cli
-    ./kapi
-    ./apps/kapi-desktop
+    .                   # framework
+    ./cli               # shared CLI base
+    ./kapi              # kapi CLI
+    ./apps/kapi-desktop # kapi-desktop
+    # … plus the platform modules (under bowrain/) and scripts/ helpers
 )
 ```
 

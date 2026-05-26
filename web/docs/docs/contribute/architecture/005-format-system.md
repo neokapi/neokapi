@@ -100,18 +100,22 @@ and writer factory in `core/formats/register.go` via `init()`.
 
 ### FormatRegistry
 
-A single `FormatRegistry` exposes factory lookup:
+A single `*FormatRegistry` (a concrete struct in `core/registry`) exposes
+factory lookup. Names are the `FormatID` string type; registration takes a
+factory plus static metadata, so no reader instance is built at startup:
 
 ```go
-type FormatRegistry interface {
-    RegisterReader(name string, factory ReaderFactory, meta FormatMeta)
-    RegisterWriter(name string, factory WriterFactory, meta FormatMeta)
-    NewReader(name string) (DataFormatReader, error)
-    NewWriter(name string) (DataFormatWriter, error)
-    Detect(doc *RawDocument) (string, error)
-    List() []FormatMeta
-}
+func (r *FormatRegistry) RegisterReader(name FormatID, factory FormatReaderFactory, sig format.FormatSignature, displayName string)
+func (r *FormatRegistry) RegisterWriter(name FormatID, factory FormatWriterFactory)
+func (r *FormatRegistry) NewReader(name FormatID) (format.DataFormatReader, error)
+func (r *FormatRegistry) NewWriter(name FormatID) (format.DataFormatWriter, error)
+func (r *FormatRegistry) FormatInfos() []FormatInfo
 ```
+
+Detection is delegated to a `*format.Detector`, reachable via `r.Detector()`.
+The registry's `DetectByExtension(ext)` (and the source-scoped
+`DetectByExtensionForSources`) wrap it, falling back to the lazy plugin-load
+`onMiss` hook on a first miss.
 
 Tiered registration makes native, plugin, and bridge formats
 indistinguishable to callers:
@@ -132,8 +136,8 @@ resolves the reference to the appropriate factory.
 
 ### Format detection
 
-`Detect(doc *RawDocument)` returns the best-matching format name using a
-cascade:
+`Detector.Detect(path, reader, mimeType)` returns the best-matching format
+name using a cascade:
 
 1. **MIME type** — explicit declaration wins if present.
 2. **File extension** — `.html`, `.xliff`, `.json`, etc. resolve

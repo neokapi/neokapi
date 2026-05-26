@@ -80,7 +80,7 @@ A single `Part` struct carries a `PartType` enum and a `Resource`:
 ```go
 type Part struct {
     Type     PartType
-    Resource Resource  // Block, Layer, Data, or Media
+    Resource Resource  // Block, Layer, Group, Data, or Media
 }
 
 type Resource interface {
@@ -88,12 +88,18 @@ type Resource interface {
 }
 ```
 
-`PartType` values are `PartLayerStart`, `PartLayerEnd`, `PartBlock`,
-`PartData`, `PartMedia`, and `PartCustom`.
+`PartType` values are `PartTypeUnknown` (the zero value),
+`PartLayerStart`, `PartLayerEnd`, `PartGroupStart`, `PartGroupEnd`,
+`PartBlock`, `PartData`, `PartMedia`, `PartRawDocument`, and `PartCustom`.
+Constants carry explicit integer values for wire compatibility, so a few
+slots are reserved for retired batch types and are not renumbered.
 
 Resource types:
 
-- **Layer** — structural grouping (document, section, embedded content).
+- **Layer** — structural grouping (document, section, embedded content),
+  delimited by `PartLayerStart`/`PartLayerEnd`.
+- **Group** (`GroupStart`/`GroupEnd`) — a nested structural group within a
+  layer (e.g. a table), delimited by `PartGroupStart`/`PartGroupEnd`.
 - **Block** — translatable content: a source run sequence and per-locale
   target run sequences, plus optional stand-off overlays.
 - **Data** — non-translatable structure (skeleton, metadata).

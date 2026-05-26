@@ -232,10 +232,15 @@ with no entity mappings; they participate in plain matching only.
 
 ### Pipeline integration
 
-The `tm-leverage` tool consumes `*model.Block` parts, queries the TM, and
-attaches `TMSuggestion` annotations with match score and entity adaptations.
-Downstream tools — `ai-translate`, UI review, QA — read these annotations
-as context.
+The `tm-leverage` tool is a `Translate`-capability tool
+([AD-006: Tool System](006-tool-system.md)): it reads each block's source,
+queries the TM (exact, then fuzzy above the configured threshold), and, when a
+match clears the fill threshold, writes the translated target via
+`SetTargetText`. It records the outcome on `Block.Properties` —
+`tm-match-score` (0–100) and `tm-match-type` (`exact` or `fuzzy`). Downstream
+tools — `ai-translate`, UI review, QA — read those properties as context (for
+example, `ai-translate` can skip blocks the TM already filled at a high
+score).
 
 A typical flow:
 

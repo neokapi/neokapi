@@ -76,6 +76,11 @@ The module depends on:
 - `github.com/neokapi/neokapi` — framework (flow, format, tool, plugin,
   registry, project).
 - `github.com/neokapi/neokapi/cli` — shared CLI base (credentials, config).
+- `github.com/neokapi/neokapi/bowrain/plugin/schema` — blank-imported in
+  `main.go` so the app validates bowrain recipes on open (server, hooks,
+  automations, assets, brand_voice). This is the lightweight schema-only
+  sub-module: it pulls in extension decoders only, not the bowrain CLI,
+  connector, or server code.
 - `github.com/wailsapp/wails/v3` — desktop framework.
 - `github.com/zalando/go-keyring` — OS keychain.
 

@@ -125,9 +125,10 @@ cost sub-linear in termbase size. Text is normalized with Unicode NFC via
 `NormalizeTerm()` before comparison. Character-level Levenshtein (on
 `[]rune`) is correct for all scripts including CJK.
 
-The architecture is extensible via a `Matcher` interface; additional
-matchers (Snowball stemmers, domain-specific tokenizers) can plug in
-without changing the lookup pipeline.
+Which tiers run is selected per call through `LookupOptions.MatchModes`
+(`[]model.MatchStrategy`) on `TermBase.Lookup`/`LookupAll`, alongside
+`CaseSensitive`, `MinScore`, and scope filters — so a caller can request, for
+example, exact-only or exact-plus-fuzzy without changing the pipeline.
 
 ### UI search
 
