@@ -165,20 +165,17 @@ func (p sedProgram) apply(text string) string {
 	return text
 }
 
-// applyRuns runs the program over a flat run sequence, preserving the inline
-// codes (placeholders and paired codes) that surround the edited text rather
-// than flattening the block to a single text run. It returns the rewritten
-// runs and whether the flattened text actually changed; when nothing changes
-// the original runs are returned untouched (no needless re-chunking).
-//
-// Only flat sequences are spliceable — see runsSpliceable. Plural/select runs
-// carry text inside nested structure that has no linear position in the
-// flattened string, so callers fall back to text replacement for those.
+// applyRuns runs the program over a flat run sequence, editing the text while
+// preserving the inline codes around the change (model.ApplyTextEdits). It
+// returns the rewritten runs and whether the flattened text actually changed;
+// when nothing changes the original runs are returned untouched (no needless
+// re-chunking). Callers must guard with model.HasStructuredRuns: plural/select
+// runs have no linear text mapping and take the whole-text fallback instead.
 func (p sedProgram) applyRuns(runs []model.Run) ([]model.Run, bool) {
 	before := model.RunsText(runs)
 	cur := runs
 	for _, c := range p {
-		cur = c.spliceRuns(cur)
+		cur = c.editRuns(cur)
 	}
 	if model.RunsText(cur) == before {
 		return runs, false
@@ -186,49 +183,12 @@ func (p sedProgram) applyRuns(runs []model.Run) ([]model.Run, bool) {
 	return cur, true
 }
 
-// codeRunAt is an inline-code run (ph / pcOpen / pcClose / sub) paired with its
-// byte position in the flattened text — the number of text bytes that precede
-// it. Codes are zero-width, so several may share one position.
-type codeRunAt struct {
-	pos int
-	run model.Run
-}
-
-// collectCodeRuns lists every inline-code run with its byte position in the
-// flattened text, in document order. Text runs only advance the position.
-func collectCodeRuns(runs []model.Run) []codeRunAt {
-	var codes []codeRunAt
-	pos := 0
-	for _, r := range runs {
-		if r.Text != nil {
-			pos += len(r.Text.Text)
-			continue
-		}
-		codes = append(codes, codeRunAt{pos: pos, run: r})
-	}
-	return codes
-}
-
-// runsSpliceable reports whether a run sequence can be spliced position-wise.
-// Plural/select runs draw their flattened text from nested forms, so a byte
-// offset into the flattening does not map back to a single run — those are
-// edited via whole-text replacement instead.
-func runsSpliceable(runs []model.Run) bool {
-	for _, r := range runs {
-		if r.Plural != nil || r.Select != nil {
-			return false
-		}
-	}
-	return true
-}
-
-// spliceRuns applies one substitution to a flat run sequence, replacing only
-// the matched text spans while weaving every original inline code back into
-// the result. Codes on a match boundary stay on their side of the replacement;
-// codes strictly inside a replaced span are carried over (in order) just after
-// the replacement, so a paired code never loses its partner and overall code
-// order is preserved. If nothing matches, the input is returned unchanged.
-func (c sedCmd) spliceRuns(runs []model.Run) []model.Run {
+// editRuns turns one substitution into a set of constraint-aware text edits and
+// applies them to the run sequence, so codes around the change are preserved
+// and an emptied deletable span (e.g. bold left wrapping nothing) collapses
+// rather than leaving an empty tag (see model.ApplyTextEdits). If nothing
+// matches, the input is returned unchanged.
+func (c sedCmd) editRuns(runs []model.Run) []model.Run {
 	text := model.RunsText(runs)
 	var matches [][]int
 	if c.global {
@@ -239,84 +199,13 @@ func (c sedCmd) spliceRuns(runs []model.Run) []model.Run {
 	if len(matches) == 0 {
 		return runs
 	}
-
-	codes := collectCodeRuns(runs)
 	src := []byte(text)
-	out := make([]model.Run, 0, len(runs)+2*len(matches))
-	ci := 0
-
-	emitText := func(lo, hi int) {
-		if lo < hi {
-			out = append(out, model.Run{Text: &model.TextRun{Text: text[lo:hi]}})
-		}
-	}
-	// emitGap emits text [from,to) interleaved with codes positioned in [from,to).
-	emitGap := func(from, to int) {
-		seg := from
-		for ci < len(codes) && codes[ci].pos < to {
-			p := codes[ci].pos
-			if p < from { // already consumed by an earlier boundary
-				ci++
-				continue
-			}
-			emitText(seg, p)
-			for ci < len(codes) && codes[ci].pos == p {
-				out = append(out, codes[ci].run)
-				ci++
-			}
-			seg = p
-		}
-		emitText(seg, to)
-	}
-	// emitCodesAt emits every code sitting exactly at pos.
-	emitCodesAt := func(pos int) {
-		for ci < len(codes) && codes[ci].pos == pos {
-			out = append(out, codes[ci].run)
-			ci++
-		}
-	}
-	// emitCodesBefore emits codes positioned strictly below hi (the interior of
-	// a match, once its left boundary has been consumed).
-	emitCodesBefore := func(hi int) {
-		for ci < len(codes) && codes[ci].pos < hi {
-			out = append(out, codes[ci].run)
-			ci++
-		}
-	}
-
-	cursor := 0
+	edits := make([]model.TextEdit, 0, len(matches))
 	for _, m := range matches {
-		s, e := m[0], m[1]
-		emitGap(cursor, s) // untouched text + its codes
-		emitCodesAt(s)     // left-boundary codes, before the replacement
 		repl := c.re.Expand(nil, []byte(c.repl), src, m)
-		if len(repl) > 0 {
-			out = append(out, model.Run{Text: &model.TextRun{Text: string(repl)}})
-		}
-		emitCodesBefore(e) // interior codes, carried over after the replacement
-		emitCodesAt(e)     // right-boundary codes, after the replacement
-		cursor = e
+		edits = append(edits, model.TextEdit{Start: m[0], End: m[1], Replacement: string(repl)})
 	}
-	emitGap(cursor, len(text)) // trailing text + its codes
-	emitCodesAt(len(text))     // codes pinned to the very end
-
-	return mergeAdjacentText(out)
-}
-
-// mergeAdjacentText coalesces consecutive text runs (which splicing can produce
-// where a replacement abuts untouched text) into one, leaving code runs as the
-// only thing that separates text. New TextRun values are allocated so the
-// caller's input runs are never mutated in place.
-func mergeAdjacentText(runs []model.Run) []model.Run {
-	out := make([]model.Run, 0, len(runs))
-	for _, r := range runs {
-		if r.Text != nil && len(out) > 0 && out[len(out)-1].Text != nil {
-			out[len(out)-1].Text = &model.TextRun{Text: out[len(out)-1].Text.Text + r.Text.Text}
-			continue
-		}
-		out = append(out, r)
-	}
-	return out
+	return model.ApplyTextEdits(runs, edits)
 }
 
 func parseSedProgram(scripts []string) (sedProgram, error) {
@@ -446,11 +335,13 @@ func sedReplToGo(s string, delim byte) string {
 // newSedTool builds a source-transform tool that applies the sed program to the
 // source text (scopeSource) or to the target translation for locale otherwise.
 //
-// Editing is run-aware: substitutions splice into the run sequence so the inline
-// codes (bold/link spans, placeholders) around the edited text survive — a match
+// Editing is run-aware: substitutions edit the run sequence so inline codes
+// (bold/link spans, placeholders) around the change survive, an emptied
+// deletable span collapses, and a non-deletable code (line break, variable) is
+// kept — all per the vocabulary constraints (see model.ApplyTextEdits). A match
 // may even span a code boundary, because the regex sees the code-free flattening
-// of the runs (see sedProgram.applyRuns). Sequences with plural/select runs have
-// no linear text mapping, so those fall back to whole-text replacement.
+// of the runs. Sequences with plural/select runs have no linear text mapping, so
+// those fall back to whole-text replacement.
 func newSedTool(prog sedProgram, locale model.LocaleID, scopeSource bool) *tool.BaseTool {
 	t := &tool.BaseTool{
 		ToolName:        "ksed",
@@ -462,7 +353,7 @@ func newSedTool(prog sedProgram, locale model.LocaleID, scopeSource bool) *tool.
 		}
 		if scopeSource {
 			runs := v.SourceRuns()
-			if runsSpliceable(runs) {
+			if !model.HasStructuredRuns(runs) {
 				if out, changed := prog.applyRuns(runs); changed {
 					v.SetSourceRuns(out)
 				}
@@ -478,7 +369,7 @@ func newSedTool(prog sedProgram, locale model.LocaleID, scopeSource bool) *tool.
 			return nil
 		}
 		runs := v.TargetRuns(locale)
-		if runsSpliceable(runs) {
+		if !model.HasStructuredRuns(runs) {
 			if out, changed := prog.applyRuns(runs); changed {
 				v.SetTargetRuns(locale, out)
 			}

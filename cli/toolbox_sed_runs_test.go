@@ -67,12 +67,12 @@ func TestSedApplyRunsPreservesCodes(t *testing.T) {
 		},
 		{
 			// The regex sees "Hello ugly world" (codes are invisible), so a phrase
-			// spanning the bold boundaries matches. Both halves of the pair fall
-			// inside the replaced span and are carried over, staying balanced.
-			name:    "match spanning the whole bold phrase",
+			// spanning the bold boundaries matches. The whole bold span is consumed;
+			// since bold is deletable the emptied span collapses — no empty <b></b>.
+			name:    "match spanning the whole bold phrase drops the emptied span",
 			script:  "s/Hello ugly world/Hi/",
 			runs:    boldUglyRuns(),
-			want:    "Hi<1></1>",
+			want:    "Hi",
 			changed: true,
 		},
 		{
@@ -115,6 +115,33 @@ func TestSedApplyRunsPreservesCodes(t *testing.T) {
 			changed: true,
 		},
 		{
+			// A non-deletable code (here a line break) survives even when the edit
+			// removes all the text around it — unlike a deletable bold span.
+			name:   "non-deletable code survives an emptying edit",
+			script: "s/Hello world/Hi/",
+			runs: []model.Run{
+				{Text: &model.TextRun{Text: "Hello "}},
+				{Ph: &model.PlaceholderRun{ID: "1", Type: "struct:break",
+					Constraints: &model.RunConstraints{Deletable: false}}},
+				{Text: &model.TextRun{Text: "world"}},
+			},
+			want:    "{1}Hi",
+			changed: true,
+		},
+		{
+			// A deletable standalone code sitting in deleted text goes with it.
+			name:   "deletable code dropped by an emptying edit",
+			script: "s/Hello world/Hi/",
+			runs: []model.Run{
+				{Text: &model.TextRun{Text: "Hello "}},
+				{Ph: &model.PlaceholderRun{ID: "1", Type: "fmt:icon",
+					Constraints: &model.RunConstraints{Deletable: true}}},
+				{Text: &model.TextRun{Text: "world"}},
+			},
+			want:    "Hi",
+			changed: true,
+		},
+		{
 			// No match leaves the runs (and codes) exactly as they were.
 			name:    "no match leaves runs untouched",
 			script:  "s/zzz/qqq/",
@@ -154,17 +181,6 @@ func TestSedApplyRunsMultiCmd(t *testing.T) {
 	got, changed := prog.applyRuns(boldUglyRuns())
 	assert.True(t, changed)
 	assert.Equal(t, "Hi <1>ugly</1> earth", sigRuns(got))
-}
-
-func TestRunsSpliceable(t *testing.T) {
-	assert.True(t, runsSpliceable(boldUglyRuns()))
-	assert.True(t, runsSpliceable([]model.Run{{Ph: &model.PlaceholderRun{ID: "1"}}}))
-	assert.False(t, runsSpliceable([]model.Run{
-		{Plural: &model.PluralRun{Pivot: "n", Forms: map[model.PluralForm][]model.Run{
-			model.PluralOther: {{Text: &model.TextRun{Text: "x"}}},
-		}}},
-	}))
-	assert.False(t, runsSpliceable([]model.Run{{Select: &model.SelectRun{Pivot: "g"}}}))
 }
 
 // TestSedToolPreservesCodesSource exercises the wired Transform: editing source
@@ -255,4 +271,7 @@ func TestEditDocumentSedHTMLMatchesAcrossInlineCode(t *testing.T) {
 	out := buf.String()
 	assert.Contains(t, out, "Hi there", "a phrase spanning the bold boundary must match and replace")
 	assert.NotContains(t, out, "ugly")
+	// The whole bold span was consumed; bold is deletable, so the emptied span
+	// collapses rather than leaving an empty <b></b>.
+	assert.NotContains(t, out, "<b>", "emptied deletable span must not survive as an empty tag")
 }

@@ -69,7 +69,13 @@ substitution command is supported; compose multiple with `-e`.
 
 Inline formatting *within* a block is preserved as well. The pattern matches the
 block's text with its inline codes removed, so a substitution can span a bold or
-linked span — `s/Hello world/Hi/` matches even when *world* is bold — and the
-codes outside the replaced text stay in place: editing a word inside a `<b>` span
-keeps the span around the new word. Codes that fall entirely inside the replaced
-text are carried over so a paired code never loses its partner.
+linked span — `s/Hello world/Hi/` matches even when *world* is bold. Editing a
+word inside a `<b>` span keeps the span around the new word.
+
+When an edit removes the text a code applied to, what happens depends on whether
+the code is *deletable* — the same vocabulary constraint the QA checks use (see
+[Inline Formatting](/framework/inline-formatting#editing-text-that-carries-inline-codes)).
+A deletable formatting span (bold, italic, a link) that is emptied collapses —
+ksed will not leave an empty `<b></b>`. A non-deletable code (a line break, a
+variable, a placeholder, a subblock reference) is always kept, even when the text
+around it is replaced.

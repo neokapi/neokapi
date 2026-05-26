@@ -64,6 +64,33 @@ Each inline code carries constraint metadata that defines what translators may d
 
 Editors can use these constraints to prevent invalid changes and provide real-time validation (e.g., warning about missing required tags or duplicate non-cloneable tags).
 
+## Editing text that carries inline codes
+
+The constraints are not only advice for a human translator — they govern what
+automated edits may do to a code when the surrounding text changes. A tool that
+rewrites a block's text (a find/replace such as [`ksed`](/toolbox/ksed), a
+normalization or redaction transform) works on the text-only flattening of the
+runs, in which inline codes have no width. It then re-anchors the codes that
+survive. The rule, applied per code, is:
+
+- A **paired code** (`PcOpen`/`PcClose`) is treated as a span over the text.
+  After the edit its endpoints are re-anchored. If the span still covers text it
+  is kept, balanced — editing a word inside a bold span keeps the span around the
+  new word. If the edit empties the span, a **deletable** span (bold, italic, a
+  link) is removed rather than left as an empty `<b></b>`, and a non-deletable
+  span is kept (empty) so it is never silently dropped.
+- A **standalone code** (`Ph`, `Sub`) that sits in text the edit removes is
+  dropped when **deletable** and kept (re-anchored to the edit boundary) when
+  not — so a line break, a variable, or a subblock reference survives an edit
+  that deletes the text around it.
+- Codes outside the edited range are unaffected.
+
+Because the deletability of each code is resolved from the same vocabulary the QA
+checks consult, an edit and a translation are held to one definition of which
+codes are required. The framework primitive is `model.ApplyTextEdits`; it mirrors
+the Okapi Framework, where each `Code` carries a `deleteable` flag and only the
+deleteable ones may be dropped.
+
 ## Format-Independent Processing
 
 ### HTML Files
