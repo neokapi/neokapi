@@ -1,148 +1,50 @@
 ---
-sidebar_position: 1
-title: kapi CLI Overview
-description: kapi is a standalone command-line tool for format-aware localization and brand governance — AI translation, TM leverage, terminology enforcement, QA, and pseudo-translation across native and Okapi bridge formats.
-keywords: [kapi, CLI, localization, brand governance, AI translation, pseudo-translate, word count, formats, tools]
+sidebar_position: 0
+title: Kapi
+description: Kapi keeps content on-brand and terminologically consistent, then localizes it into every language and format. It runs the neokapi engine two ways — the kapi command-line tool and the Kapi Desktop app — sharing the same tools, flows, and .kapi projects.
+keywords: [Kapi, kapi CLI, Kapi Desktop, localization, brand governance, overview]
 ---
 
-# Kapi CLI
+# Kapi
 
-Kapi is a standalone command-line tool that keeps content **on-brand and
-terminologically consistent**, then **localizes it into every language and
-format**. It operates directly on files without requiring a project, server, or
-configuration, and runs offline by default.
+**Kapi** keeps content **on-brand and terminologically consistent**, then
+**localizes it into every language and format**. It is built on the open-source
+[neokapi framework](/framework/architecture) and comes in two forms that share
+the same engine, tools, flows, and [`.kapi` projects](/kapi/projects):
 
-## What is Kapi?
+- **[Kapi CLI](/kapi/cli)** — a single binary that operates directly on files.
+  Best for automation, scripting, CI gates, and offline work; no project or
+  server required. It also serves brand and terminology tools to your AI
+  assistant over [MCP](/reference/mcp).
+- **[Kapi Desktop](/kapi/desktop/overview)** — a visual companion app for
+  building flows, running tools, managing plugins, and storing AI credentials —
+  without writing YAML or remembering flags.
 
-Kapi does two jobs from one engine:
+Because both front-ends run the same engine, a workflow built in one works in
+the other: the flows and the project file are identical.
 
-- **Brand governance for AI output** — load a brand voice profile, score text
-  0–100, and rewrite content that drifts off-voice. Wire it into your AI coding
-  assistant over [MCP](/reference/mcp) so generation stays on-brand.
-- **Format-aware localization** — AI translation, MT, TM leverage, terminology
-  enforcement, QA, and pseudo-translation across native localization, document,
-  data, subtitle, and office formats, with more through the okapi-bridge and
-  automatic format detection (see the [format reference](/formats)).
+## Command-line interface
 
-It processes files directly (no project initialization needed) and extends via
-crash-isolated gRPC plugins, including the Okapi bridge to the Java filters.
+Run tools and flows straight from the terminal — `kapi pseudo-translate`,
+`kapi ai-translate`, `kapi brand check`, `kapi run <flow>`. See the
+[Kapi CLI overview](/kapi/cli) for the command surface, and the
+[recipes](/kapi/recipes) for task-by-task walkthroughs you can run in the browser.
 
-## Key Commands
+## Desktop app
 
-```bash
-# --- Brand voice ---
-# Print a brand voice guide to inject into your AI assistant
-kapi brand guide --pack friendly-dtc
+Prefer a visual interface? [Kapi Desktop](/kapi/desktop/overview) wraps the same
+tools and flows in a native app with a flow editor, live runner, plugin manager,
+and credential vault. Start with
+[Getting started](/kapi/desktop/getting-started).
 
-# Score text against a profile; --min-score gates CI (exit code 3)
-kapi brand check --profile-file brand.yaml --min-score 80 release-notes.md
+## Projects vs. ad-hoc
 
-# Rewrite off-voice content
-kapi brand rewrite --profile-file brand.yaml --text "Leverage our solution"
+Either front-end can run **ad-hoc** — configured entirely by flags or clicks —
+or against a saved **[`.kapi` project](/kapi/projects)** that captures languages,
+content patterns, flows, and defaults, portable and shareable via git.
 
-# Serve brand + terminology tools to your AI assistant over MCP
-kapi mcp
+## Install
 
-# --- Localization ---
-# List supported formats
-kapi formats
-
-# Count words in a file
-kapi word-count messages.json
-
-# Pseudo-translate for UI testing
-kapi pseudo-translate messages.json
-
-# Translate with AI
-kapi ai-translate -i input.html -o output.html --source-lang en --target-lang fr
-
-# Run a composed multi-tool flow (brand-voice-aware when a profile is bound)
-kapi run ai-translate-qa -i input.html -o output.html --source-lang en --target-lang fr
-
-# List available tools and flows
-kapi tools
-kapi flows
-
-# Manage terminology
-kapi termbase import terms.csv --format csv -s en -t fr
-kapi termbase lookup "authentication module" -s en -t fr
-
-# Manage translation memory
-kapi tm import translations.tmx --name project-tm -s en -t fr
-kapi tm lookup "Welcome to our platform" -s en -t fr
-
-# List presets and plugins
-kapi presets list
-kapi plugin list
-```
-
-## When to Use Kapi
-
-Use Kapi CLI when you:
-
-- **Keep AI output on-brand** — score and fix content against a voice profile
-- **Localize content** — translate, pseudo-translate, count words, run QA
-- **Need quick results** without project setup or configuration
-- **Run in CI/CD** — gate a build on a brand score or QA check
-- **Work offline** — a single binary with embedded TM and termbase
-
-For a visual interface, use [Kapi](/kapi/desktop/overview) — the GUI companion for building flows, managing plugins, and running tools with live progress.
-
-## Installation
-
-```bash
-# macOS/Linux
-brew install neokapi/tap/kapi-cli
-
-# Go install
-go install github.com/neokapi/neokapi/kapi/cmd/kapi@latest
-
-# Binary downloads: https://github.com/neokapi/neokapi/releases
-```
-
-## Project Files
-
-Kapi can optionally use Kapi project files to save workflow configurations. Use `-p` to reference a project:
-
-```bash
-# Run a flow from a Kapi project
-kapi run translate -p myproject.kapi
-
-# Override project defaults with CLI flags
-kapi run translate -p myproject.kapi --target-lang de
-```
-
-See [Kapi Project Files](/kapi/projects) for the full format reference.
-
-## Kapi
-
-[Kapi](/kapi/desktop/overview) is the GUI companion for kapi. It provides:
-
-- Visual flow editor for building tool pipelines
-- Live flow execution with progress visualization
-- Plugin browser and installer
-- AI credential management with OS keychain storage
-- File browser with format auto-detection
-
-Install via Homebrew:
-
-```bash
-brew install --cask neokapi/tap/kapi
-```
-
-## Next Steps
-
-- [Brand Voice](/framework/brand-voice) — profiles, scoring, and enforcement
-- [Using Kapi with AI Assistants](/reference/mcp) — wire kapi into Claude Code, Cursor, and more
-- [Formats](/commands?id=formats)
-- [Run Command](/commands?id=run)
-- [Pseudo-Translation](/commands?id=pseudo-translate)
-- [Word Count](/commands?id=word-count)
-- [Terminology](/commands?id=termbase)
-- [Translation Memory](/commands?id=tm)
-- [Plugins](/commands?id=plugin)
-
-### Use Cases
-
-- [Terminology QA](/kapi/recipes/terminology-qa) — catch terminology mistakes in translated files
-- [Pre-translate with TM](/kapi/recipes/pre-translate-with-tm) — combine TM and your glossary for consistent translations
+Install the CLI via Homebrew, `go install`, or a binary download, and
+[Kapi Desktop](/kapi/desktop/overview#installation) as a macOS cask (it bundles
+the CLI). See [Installation](/get-started/installation) for every option.

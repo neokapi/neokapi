@@ -18,24 +18,32 @@ const sidebars: SidebarsConfig = {
 
   kapiSidebar: [
     "kapi/overview",
-    "kapi/bilingual-workflow",
     "kapi/projects",
     {
       type: "category",
-      label: "Recipes",
+      label: "CLI",
       collapsed: false,
-      link: { type: "doc", id: "kapi/recipes/index" },
       items: [
-        "kapi/recipes/overview",
-        "kapi/recipes/estimate-cost",
-        "kapi/recipes/pseudo-translate",
-        "kapi/recipes/terminology-qa",
-        "kapi/recipes/pre-translate-with-tm",
+        "kapi/cli",
+        "kapi/bilingual-workflow",
+        {
+          type: "category",
+          label: "Recipes",
+          collapsed: false,
+          link: { type: "doc", id: "kapi/recipes/index" },
+          items: [
+            "kapi/recipes/overview",
+            "kapi/recipes/estimate-cost",
+            "kapi/recipes/pseudo-translate",
+            "kapi/recipes/terminology-qa",
+            "kapi/recipes/pre-translate-with-tm",
+          ],
+        },
       ],
     },
     {
       type: "category",
-      label: "Kapi Desktop",
+      label: "Desktop",
       collapsed: false,
       items: ["kapi/desktop/overview", "kapi/desktop/getting-started"],
     },
