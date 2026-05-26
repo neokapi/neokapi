@@ -145,8 +145,13 @@ func readContent(ctx context.Context, path string) ([]byte, error) {
 		err  error
 	}
 	done := make(chan result, 1)
+	// Snapshot os.Stdin here, in the caller, rather than inside the goroutine.
+	// We deliberately leak this goroutine (the select below returns on ctx.Done
+	// without waiting for it), so reading the os.Stdin global from inside it would
+	// race any later restore of os.Stdin — exactly what tests that swap stdin do.
+	stdin := os.Stdin
 	go func() {
-		data, err := io.ReadAll(os.Stdin)
+		data, err := io.ReadAll(stdin)
 		done <- result{data, err}
 	}()
 	select {
