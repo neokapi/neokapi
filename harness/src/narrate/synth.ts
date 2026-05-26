@@ -283,8 +283,11 @@ function geminiLiveNarrate(
       fn();
     };
     const fail = (msg: string) => finish(() => reject(new Error(`live: ${msg}`)));
-    // Generous budget: setup + ~40s of generation per scene.
-    const timer = setTimeout(() => fail("session timeout"), 20_000 + scenes.length * 40_000);
+    // Generous budget scaled by total content, not scene COUNT: a one-shot read is
+    // a single long turn whose audio is as long as all scenes combined, so a
+    // count-based budget under-provisions it (and timed out). ~150ms/char + setup.
+    const totalChars = scenes.reduce((s, sc) => s + sc.text.length, 0);
+    const timer = setTimeout(() => fail("session timeout"), 30_000 + totalChars * 150);
 
     const sendTurn = (i: number) =>
       ws.send(JSON.stringify({ clientContent: { turns: [{ role: "user", parts: [{ text: scenes[i].text }] }], turnComplete: true } }));
