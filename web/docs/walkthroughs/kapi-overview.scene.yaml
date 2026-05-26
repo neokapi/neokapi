@@ -48,7 +48,7 @@ steps:
     narration: The top-level commands.
   - comment: List supported formats
   - command: kapi formats
-    narration: Enumerates the available format readers.
+    narration: Lists every format kapi can read and write.
   - comment: List available tools
   - command: kapi tools
     narration: The processing tools registry.

@@ -115,7 +115,7 @@ QA results can fail your build — a common CI pattern is `extract → ai-transl
 `kapi` has a built-in SQLite translation memory. Feed past translations in:
 
 ```bash
-kapi tm import historical-translations.xliff --source-lang en --target-lang fr
+kapi tm import historical-translations.xliff -s en -t fr
 ```
 
 Then when you translate a new `.klf`:

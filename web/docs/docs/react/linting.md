@@ -75,7 +75,7 @@ export default [
 ];
 ```
 
-The shareable configs are `recommended` (safe defaults, the label/ternary rules as warnings) and `recommendedStrict` (everything as `error`, including `prefer-t-for-label-props` and `prefer-t-for-label-expr`).
+The shareable configs are `recommended` (safe defaults — the five core rules at `error`, the two label rules at `warn`, `prefer-t-for-label-props` off) and `recommendedStrict` (everything at `error`, including `prefer-t-for-label-props` and `prefer-t-for-label-expr`).
 
 ## The W3C `translate="no"` escape hatch
 

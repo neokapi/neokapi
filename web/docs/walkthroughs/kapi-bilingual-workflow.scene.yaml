@@ -76,6 +76,6 @@ steps:
     narration: Merge reconciles targets onto the source files with full provenance.
     offline: false
   - comment: 5. kapi tm audit — trace what this merge wrote into the TM
-  - command: kapi tm audit --file .kapi/tm.db --batch $(ls .kapi/extractions | head -1) --limit 10
+  - command: kapi tm audit --file .kapi/tm.db --batch $(ls .kapi/cache/extractions | head -1) --limit 10
     narration: Every merge is provenance-tagged — proof of what came from which return.
     offline: false

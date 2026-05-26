@@ -172,19 +172,18 @@ persistence-layer concern, outside the content model.
 
 ```go
 type BlockIdentity struct {
-    ContentHash  string  // SHA-256 of normalized source text
-    ContextHash  string  // Hash of surrounding context (prev/next blocks)
-    SourcePath   string  // XPath, JSON path, or line number (display hint)
-    SequenceNum  int     // Order in document
+    ContentHash string // SHA-256 of normalized source text
+    ContextHash string // SHA-256 of contextual information (name, type, properties)
 }
 ```
 
 The `ContentHash` is computed from normalized source text
-(whitespace-normalized, inline codes stripped). Combined with `ContextHash`,
-this produces stable identity across extraction cycles: the same content
-always produces the same identity, so only blocks whose identity has changed
-need reprocessing. Identical blocks across documents share the same
-`ContentHash`, letting translation memory and AI tools avoid redundant work.
+(whitespace-normalized). Combined with `ContextHash` — a SHA-256 over the
+block's name, type, and sorted properties — this produces stable identity
+across extraction cycles: the same content always produces the same identity,
+so only blocks whose identity has changed need reprocessing. Identical blocks
+across documents share the same `ContentHash`, letting translation memory and
+AI tools avoid redundant work.
 
 Block identity also carries a separate project-unique internal ID tracked by
 the store layer — see [AD-003: Identity](003-identity.md) for the dual-ID
@@ -226,7 +225,7 @@ alignment — are **stand-off overlays** with run-anchored spans (see
 | Segmentation     | `segmentation`    | overlay (spans)  | segment annotator     | Sentence / chunk boundaries over runs  |
 | Terminology      | `term`            | overlay (spans)  | term-lookup           | Matched terminology with target terms  |
 | Term candidates  | `term-candidate`  | overlay (spans)  | ai-terminology        | Term extraction candidates from an LLM |
-| Entities         | `entity`          | overlay (spans)  | entity-annotate       | Named entities (people, places, dates) |
+| Entities         | `entity`          | overlay (spans)  | ai-entity-extract     | Named entities (people, places, dates) |
 | QA findings      | `qa-finding`      | overlay (spans)  | qa-check              | Quality findings with severity         |
 | Alignment        | `alignment`       | overlay (spans)  | aligner, readers      | Source-span ↔ target-span links        |
 | Alt-translations | `alt-translation` | block annotation | TM leverage, AI tools | Candidate translations with scores     |

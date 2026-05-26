@@ -64,7 +64,7 @@ The source text is the identifier. When the copy changes, you change the JSX —
 - **`<Plural>` / `<Select>` authoring components** with CLDR-aware runtime resolution via `Intl.PluralRules`.
 - **`t()` escape hatch** for the small set of strings that genuinely belong in data.
 - **Two build modes** — inline (zero runtime, builds per locale) and runtime (single bundle, dict loaded OTA).
-- **A proper exchange format** — KLF/KLF (see [AD-008](/contribute/architecture/008-project-model)) — that carries structural context, placeholders, plural forms, and annotation overlays. Not a flat key-value JSON.
+- **A proper exchange format** — KLF (see [AD-008](/contribute/architecture/008-project-model)) — that carries structural context, placeholders, plural forms, and annotation overlays. Not a flat key-value JSON.
 - **Full integration with `kapi`** for pseudo-translation, AI translation, QA, TM leverage, and terminology. The same toolchain that handles XLIFF, JSON, Markdown, HTML, and every other format kapi supports.
 
 ## When kapi-react isn't the right fit

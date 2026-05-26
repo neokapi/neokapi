@@ -15,7 +15,7 @@ XLIFF 2.2 (or PO) for a translator's CAT tool, `kapi merge` applies
 the returned file back onto the source — with the project TM
 participating on both sides of the loop (pre-fill on extract, absorb
 on merge). Block identity is the merge key; segmentation is an
-opt-in overlay. The project's `.kapi/extractions/<id>/` directory
+opt-in overlay. The project's `.kapi/cache/extractions/<id>/` directory
 is the source of truth for skeleton bookkeeping so the round-trip is
 deterministic and portable via `git`.
 
@@ -151,7 +151,7 @@ method on the `TranslationMemory` interface.
 
 ### Skeleton portability (project-state only, v1)
 
-V1 stores skeletons in project state (`.kapi/extractions/<id>/`).
+V1 stores skeletons in project state (`.kapi/cache/extractions/<id>/`).
 Merge therefore requires the same `.kapi` project that produced the
 extraction. The emitted XLIFF / PO is clean, CAT-friendly, and small.
 
@@ -163,7 +163,7 @@ forever.
 ### Extraction manifest
 
 Each `kapi extract` run writes a manifest at
-`.kapi/extractions/<batch-id>/manifest.yaml`:
+`.kapi/cache/extractions/<batch-id>/manifest.yaml`:
 
 ```yaml
 schemaVersion: 1
@@ -196,7 +196,7 @@ guessing from file name.
 - **PO**: file-header extracted comment `#. kapi-batch: <uuid>`.
 
 Sub-threshold TM matches are written to
-`.kapi/extractions/<batch-id>/suggestions.jsonl` for later analysis
+`.kapi/cache/extractions/<batch-id>/suggestions.jsonl` for later analysis
 without touching the emitted target.
 
 ### TM-in on extract (v1, on by default)
@@ -290,7 +290,7 @@ is absent.
   reader/writer are the carriers; skeleton store is how byte-exact
   roundtrip works.
 - **AD-008 (Project Model)** — extract adds the extraction manifest
-  under `.kapi/extractions/<id>/`. Conflict policy is a new
+  under `.kapi/cache/extractions/<id>/`. Conflict policy is a new
   `Defaults.Merge` section. Auto-discovery uses the existing
   `project.ResolveLayout` entry point.
 - **AD-009 (Translation Memory)** — `Lookup` becomes load-bearing

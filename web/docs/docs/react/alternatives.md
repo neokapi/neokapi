@@ -18,7 +18,7 @@ The incumbent. Uses developer-authored keys and a `t(key)` / `<Trans>` runtime.
 | Source identifier | Developer-invented key                | Source text + structural context                            |
 | JSX wrapping      | `t("key")` or `<Trans i18nKey="...">` | Plain JSX                                                   |
 | Extraction        | `i18next-parser` CLI or manual        | Plugin during normal build                                  |
-| Format            | Flat JSON / XLIFF                     | KLF/KLF with structural context, placeholders, plural forms |
+| Format            | Flat JSON / XLIFF                     | KLF with structural context, placeholders, plural forms |
 
 Migrating from react-i18next typically means dropping the `t()` / `<Trans>` wrappers and re-running the extract against the bare JSX. Existing translations can be loaded as-is if you key them by the same source text; otherwise it's a one-time re-translation pass through your TM.
 
@@ -44,7 +44,7 @@ The closest in philosophy — Lingui uses macros (`<Trans>`, `t` tagged template
 | Source identifier | Source text (via Babel macro)            | Source text + structural context (via SWC plugin)           |
 | JSX wrapping      | `<Trans>Hello</Trans>`, `t\`...\`` macro | Plain JSX                                                   |
 | Extraction        | `lingui extract`                         | Plugin during normal build                                  |
-| Format            | Flat JSON / PO                           | KLF/KLF with structural context, placeholders, plural forms |
+| Format            | Flat JSON / PO                           | KLF with structural context, placeholders, plural forms |
 
 Lingui and kapi-react agree on "source text as key". The core difference: Lingui asks you to opt every string into the macro (`<Trans>`, `` t`...` ``); kapi-react opts in by default. `t()` in kapi-react is a small escape hatch for non-JSX strings, not the normal authoring pattern.
 

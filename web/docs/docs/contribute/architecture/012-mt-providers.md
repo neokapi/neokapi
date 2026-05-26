@@ -48,7 +48,7 @@ expressed as typed configs rather than a generic parameter map.
 
 ```go
 type MTProvider interface {
-    Name() string
+    Name() ProviderID
     Translate(ctx context.Context, req TranslateRequest) (
         *TranslateResponse, error)
     Close() error

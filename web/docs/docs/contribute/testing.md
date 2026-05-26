@@ -37,7 +37,7 @@ neokapi/
 │   └── ... (each format follows the same pattern)
 │
 ├── core/ai/tools/
-│   └── translate_test.go           # Uses mock provider
+│   └── tools_test.go               # AI tool tests — use mock provider
 ├── providers/ai/
 │   └── mock.go                     # Mock LLM provider
 │
@@ -153,7 +153,7 @@ make cover              # Coverage report
 Single test:
 
 ```bash
-go test ./flow/ -run TestExecutorCancellation -v
+go test ./core/flow/ -run TestFlowExecutorContextCancellation -v
 ```
 
 ## Test Tags

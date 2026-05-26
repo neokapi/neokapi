@@ -190,11 +190,12 @@ The framework ships built-in terminology tools as ordinary pipeline stages:
 - **`term-enforce`** (validate) — checks preferred term usage in target
   text. Reports forbidden terms, non-preferred variants, deprecated
   terms, and missing target counterparts.
-- **`term-extract`** (AI-assisted enrich) — LLM extraction of candidate
+- **`ai-terminology`** (AI-assisted enrich) — LLM extraction of candidate
   terms with `status: proposed`. Uses a provider from
   [AD-011: AI Providers](011-ai-providers.md).
-- **`entity-annotate`** (AI-assisted enrich) — LLM-based named entity
-  annotation. Should run early in the pipeline, before `tm-leverage`.
+- **`ai-entity-extract`** (AI-assisted enrich) — LLM-based named entity
+  annotation (with optional NER). Should run early in the pipeline, before
+  `tm-leverage`.
 - **`redact`** and **`unredact`** (transform) — pair that replaces entity
   values with typed placeholders before external services and restores
   them afterwards.
@@ -204,7 +205,7 @@ A full pipeline looks like:
 <PipelineDiagram
   stages={[
     { label: "Reader", role: "io" },
-    { label: "entity-annotate", role: "annotate" },
+    { label: "ai-entity-extract", role: "annotate" },
     { label: "term-lookup", role: "annotate" },
     { label: "tm-leverage", role: "translate" },
     { label: "ai-translate", role: "translate" },

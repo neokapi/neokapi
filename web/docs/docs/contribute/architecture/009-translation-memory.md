@@ -242,7 +242,7 @@ A typical flow:
 <PipelineDiagram
   stages={[
     { label: "Reader", role: "io" },
-    { label: "entity-annotate", role: "annotate" },
+    { label: "ai-entity-extract", role: "annotate" },
     { label: "tm-leverage", role: "translate" },
     { label: "ai-translate", role: "translate" },
     { label: "qa-check", role: "qa" },

@@ -121,14 +121,11 @@ web/docs/
 ├── sidebars.ts              # docs sidebar
 ├── src/pages/               # custom React pages (landing)
 ├── docs/                    # all documentation, served at "/"
-│   ├── get-started/
+│   ├── kapi/                # CLI + desktop + get-started + guides + walkthrough MDX
 │   ├── framework/
-│   ├── guides/
-│   ├── reference/           # generated command/format/tool reference
-│   ├── cli/
 │   ├── react/
-│   ├── desktop/
-│   ├── walkthroughs/        # generated MDX (one per walkthrough prompt)
+│   ├── toolbox/             # format-aware kgrep/ksed/kcat utilities
+│   ├── reference/           # generated command/format/tool reference
 │   └── contribute/
 │       ├── architecture/    # framework ADs (this document)
 │       └── notes-internal/  # implementation notes
@@ -143,8 +140,8 @@ A single `@docusaurus/plugin-content-docs` instance serves all content
 from `web/docs/docs/` with `routeBasePath: "/"`. Audience separation is by
 top-level section rather than by separate plugin instances:
 
-- **User-facing docs** — `get-started/`, `framework/`, `guides/`,
-  `reference/`, `cli/`, `react/`, `desktop/`.
+- **User-facing docs** — `kapi/` (CLI, desktop, get-started, guides, and
+  walkthrough MDX), `framework/`, `react/`, `toolbox/`, `reference/`.
 - **Contributor docs** — `contribute/architecture/` (framework ADs,
   Apache-2.0 scope) and `contribute/notes-internal/` (implementation
   notes extracted from ADs).

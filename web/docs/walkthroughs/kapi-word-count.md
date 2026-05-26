@@ -22,7 +22,7 @@ breakdown so you can put a number on the bill.
 ## Scene 1 — word-count (terminal)
 
 Point `kapi word-count` at a JSON message catalog and watch it report
-words, characters, and segment counts. The output is the kind of number
+word and block counts. The output is the kind of number
 you paste into a quote.
 
 ## Closing

@@ -110,7 +110,7 @@ Count translatable words in a file.
 
 ### `run_flow`
 
-Execute a processing flow on a file. Available flows: `pseudo-translate`, `qa-check`, `segmentation`, `tm-leverage`. AI-powered flows (e.g. `ai-translate`) require API keys and are not available via MCP.
+Execute a processing flow on a file. The flow name is any built-in flow from `list_flows` (e.g. `pseudo-translate`, `qa-check`, `tm-leverage`, `ai-translate-qa`, `secure-translate`). AI-powered flows (e.g. `ai-translate`, `ai-translate-qa`) run only when the required provider API keys are configured.
 
 **Input:**
 | Parameter | Type | Required | Description |

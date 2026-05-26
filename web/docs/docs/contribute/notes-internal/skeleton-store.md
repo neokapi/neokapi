@@ -149,7 +149,7 @@ boundaries to create interleaved skeleton text and ref entries:
   ]}
 />
 
-The `findAttrValueOffset` function locates the byte offset of an attribute
+The `findAttrValueRange` function locates the byte range of an attribute
 value within the raw tag bytes by scanning for `attrKey=` followed by a
 quote character.
 

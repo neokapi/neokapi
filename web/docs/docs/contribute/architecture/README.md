@@ -20,10 +20,11 @@ pseudocode) are separated into [Implementation Notes](/contribute/notes-internal
 
 ## Foundation
 
-| AD                          | Title         | Scope                                                             |
-| --------------------------- | ------------- | ----------------------------------------------------------------- |
-| [002](002-content-model.md) | Content Model | Part/Resource, Block, Run, Overlay, semantic vocabulary, Layers |
-| [003](003-identity.md)      | Identity      | Base62 IDs, dual block identity                                   |
+| AD                                 | Title                | Scope                                                             |
+| ---------------------------------- | -------------------- | ----------------------------------------------------------------- |
+| [001](001-vision-and-modules.md)   | Vision and Modules   | Go modules, `go.work`, dependency boundaries, license gradient    |
+| [002](002-content-model.md)        | Content Model        | Part/Resource, Block, Run, Overlay, semantic vocabulary, Layers   |
+| [003](003-identity.md)             | Identity             | Base62 IDs, dual block identity                                   |
 
 ## Processing
 

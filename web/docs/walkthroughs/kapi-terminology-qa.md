@@ -21,14 +21,14 @@ scenes:
 
 A glossary makes terminology consistent across your translations and across
 locales. `kapi termbase` ingests CSVs, exposes lookup/search, and feeds
-into `kapi qa-check` to flag terminology drift in target files before
+into `kapi term-check` to flag terminology drift in target files before
 they ship.
 
 ## Scene 1 — termbase-qa (terminal)
 
-Import a CSV glossary into a named termbase, inspect stats, look up a
+Inspect the pre-seeded termbase's stats, look up a
 specific term, search for related ones, then run `kapi pseudo-translate`
-followed by `kapi qa-check --termbase ...` to see violations flagged in
+followed by `kapi term-check ...` to see violations flagged in
 the output.
 
 ## Closing

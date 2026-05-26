@@ -2,8 +2,8 @@
 id: 019-kapi-react
 sidebar_position: 19
 title: "AD-019: kapi-react extraction model"
-description: "Architecture decision: kapi-react extracts translatable content from React/JSX source at Vite build time, producing Block records whose Segment.Runs are typed spans — the same content model as the rest of the framework."
-keywords: [kapi-react, extraction model, JSX, Vite plugin, Block, Segment, Runs, architecture decision]
+description: "Architecture decision: kapi-react extracts translatable content from React/JSX source at Vite build time, producing Block records whose Source is a typed Run[] — the same content model as the rest of the framework."
+keywords: [kapi-react, extraction model, JSX, Vite plugin, Block, Run, architecture decision]
 ---
 
 # AD-019: kapi-react extraction model
@@ -11,7 +11,7 @@ keywords: [kapi-react, extraction model, JSX, Vite plugin, Block, Segment, Runs,
 ## Summary
 
 kapi-react extracts translatable content directly from React/JSX source at
-build time, producing `Block` records whose `Segment.Runs` are typed
+build time, producing `Block` records whose `Source` is a typed
 `Run[]` consistent with the framework's canonical inline-content model
 ([AD-002: Content Model](002-content-model.md)). Inline JSX elements with
 children become a paired `PcOpenRun` + inner runs + `PcCloseRun` triple in
@@ -59,7 +59,7 @@ each component module looking for translatable JSX. Translatability is
 determined by element vocabulary (`getTranslatability`,
 `inlineElements`) plus user-supplied `componentMap` and `rules`
 (`packages/kapi-react/src/plugin/defaults.ts`). For each translatable
-element the walker emits a Block whose `Segment.Runs` is built by the
+element the walker emits a Block whose `Source` run sequence is built by the
 runs builder (`extract/runs.ts`).
 
 ### Inline elements: paired codes
@@ -75,7 +75,7 @@ inline code in its parent's Run sequence.**
 </p>
 ```
 
-extracts as one Block whose `Source[0].Runs` is:
+extracts as one Block whose `Source` is:
 
 ```
 TextRun("Click ")
@@ -206,7 +206,8 @@ no wrapping `<span>`, so layout (e.g. shadcn-style buttons relying on
 
 `kapi-react-lint` validates target translations against their source
 Block. For paired markers the default `RunConstraints` are
-`{ deletable: false, duplicable: false }`:
+`{ deletable: false, cloneable: false }` (the same `deletable` /
+`cloneable` / `reorderable` shape as the framework's `RunConstraints`):
 
 | Translation behavior                                  | Lint    |
 | ----------------------------------------------------- | ------- |

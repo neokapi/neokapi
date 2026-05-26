@@ -125,7 +125,7 @@ recipe ([AD-008: Kapi Project Model](008-project-model.md)) for defaults:
 
 ```bash
 kapi run translate -p myproject.kapi
-kapi run translate-and-qa -p myproject.kapi --target-lang de
+kapi run ai-translate-qa -p myproject.kapi --target-lang de
 kapi ai-translate -p myproject.kapi
 ```
 
@@ -162,17 +162,16 @@ All commands that produce output support consistent format flags through
 the shared `cli/output/` package:
 
 ```bash
-kapi status --json                 # machine-readable JSON
-kapi status --text                 # human-readable (default)
-kapi status --output-format=json   # explicit long form
-kapi status -o json                # short flag form
+kapi tm stats --json                 # machine-readable JSON
+kapi tm stats --text                 # human-readable (default)
+kapi tm stats --output-format=json   # explicit long form
 ```
 
 Flag precedence:
 
 1. `--json` — highest precedence (shorthand for common case).
 2. `--text` — explicit text.
-3. `--output-format=<fmt>` or `-o <fmt>` — explicit selection.
+3. `--output-format=<fmt>` — explicit selection.
 4. Default: `text`.
 
 Supported formats: `text` (tables, formatted text, colors when the
