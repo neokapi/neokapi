@@ -1,6 +1,6 @@
-# JSX (KLF) format specification.
+# KLF format specification.
 #
-# JSX is the neokapi reader/writer for the Kapi Localization Format
+# This is the neokapi reader/writer for the Kapi Localization Format
 # (.klf), a structured JSON envelope for source-code-extracted
 # translatable strings. Each KLF document carries Blocks; each Block
 # has a structured Run sequence (text + placeholders + paired-codes
@@ -9,17 +9,19 @@
 # downstream tools and writers can rebuild the source.
 #
 # Native-only filter: KLF is a neokapi-specific exchange format. The
-# okapi-bridge daemon ships no okf_klf / okf_jsx counterpart. The
-# native reader carries the contract; this spec exercises the
-# always-on native runner only. No
-# `cli/parity/formats/jsx_spec_test.go` is added.
+# okapi-bridge daemon ships no okf_klf counterpart. The native reader
+# carries the contract; this spec exercises the always-on native
+# runner only via core/formats/jsx/spec_test.go. No parity bridge test
+# is added.
 #
 # Authoring notes:
 #   - input_xml carries inline KLF JSON (the field is named for XML
 #     historically; just raw text bytes).
 #   - The KLF wire schema is documented in core/klf/README.md.
+#   - documentType: "jsx" inside the examples denotes JSX/React source
+#     provenance, not the format id; it is intentionally unchanged.
 
-format: okf_jsx
+format: okf_klf
 kind: top_level
 mime_type: application/vnd.neokapi.klf+json
 description: |

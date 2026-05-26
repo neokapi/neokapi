@@ -348,6 +348,77 @@ func TestExpandTemplateLeavesUnknownBracesAlone(t *testing.T) {
 	assert.Equal(t, "abc  def", out, "unknown keys expand to empty string (same as TS reference)")
 }
 
+// TestSkeletonRoundTrip pins the canonical Skeleton wire shape
+// ({ ref, inline }) — issue #717 aligned the TS mirror
+// (packages/kapi-format/src/block.ts) to this Go-canonical shape after
+// it had drifted to { ref, digest }. The serialized field names here
+// are what packages/kapi-format/tests/skeleton.test.ts asserts on the
+// TS side, keeping the two implementations consistent.
+func TestSkeletonRoundTrip(t *testing.T) {
+	tests := []struct {
+		name     string
+		skel     *Skeleton
+		wantJSON string // the document's "skeleton" object, or "" if omitted
+	}{
+		{
+			name:     "ref and inline both present, in canonical order",
+			skel:     &Skeleton{Ref: "skel://1", Inline: "<root>{0}</root>"},
+			wantJSON: `"skeleton": {` + "\n" + `        "ref": "skel://1",` + "\n" + `        "inline": "<root>{0}</root>"` + "\n" + `      }`,
+		},
+		{
+			name:     "ref only",
+			skel:     &Skeleton{Ref: "skel://only"},
+			wantJSON: `"skeleton": {` + "\n" + `        "ref": "skel://only"` + "\n" + `      }`,
+		},
+		{
+			name:     "inline only",
+			skel:     &Skeleton{Inline: "payload"},
+			wantJSON: `"skeleton": {` + "\n" + `        "inline": "payload"` + "\n" + `      }`,
+		},
+		{
+			name:     "omitted entirely when nil",
+			skel:     nil,
+			wantJSON: "",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			file := &File{
+				SchemaVersion: SchemaVersion,
+				Kind:          Kind,
+				Generator:     GeneratorInfo{ID: "test", Version: "1.0"},
+				Project:       ProjectInfo{ID: "p", SourceLocale: "en"},
+				Documents: []Document{{
+					ID:           "doc1",
+					DocumentType: DocumentTypeJSX,
+					Path:         "src/App.tsx",
+					Skeleton:     tc.skel,
+					Blocks:       []Block{{ID: "b1", Translatable: true, Type: BlockTypeJSXElement, Source: []Run{{Text: &TextRun{Text: "Hello"}}}}},
+				}},
+			}
+
+			buf, err := Marshal(file)
+			require.NoError(t, err)
+			out := string(buf)
+
+			// The retired field name must never appear on the wire.
+			assert.NotContains(t, out, "digest")
+
+			if tc.wantJSON == "" {
+				assert.NotContains(t, out, `"skeleton"`)
+			} else {
+				assert.Contains(t, out, tc.wantJSON)
+			}
+
+			// Round-trips back to the identical struct.
+			got, err := Unmarshal(buf)
+			require.NoError(t, err)
+			assert.Equal(t, tc.skel, got.Documents[0].Skeleton)
+		})
+	}
+}
+
 func TestMarshalIsStableAcrossWrites(t *testing.T) {
 	doc := fixtureDocument()
 	a, err := Marshal(doc)

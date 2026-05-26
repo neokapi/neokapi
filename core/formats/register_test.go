@@ -22,7 +22,7 @@ func TestRegisterAllReaders(t *testing.T) {
 
 	expectedFormats := []registry.FormatID{
 		"plaintext", "html", "xml", "xliff", "xliff2",
-		"yaml", "json", "jsx", "po", "properties",
+		"yaml", "json", "klf", "po", "properties",
 		"markdown", "csv", "tsv", "srt", "ttml", "vtt", "tmx", "openxml",
 		"mosestext", "dtd", "ts", "wiki", "tex",
 		"regex", "doxygen", "messageformat", "phpcontent",
@@ -48,7 +48,7 @@ func TestRegisterAllWriters(t *testing.T) {
 
 	expectedFormats := []registry.FormatID{
 		"plaintext", "html", "xml", "xliff", "xliff2",
-		"yaml", "json", "jsx", "po", "mo", "properties",
+		"yaml", "json", "klf", "po", "mo", "properties",
 		"markdown", "csv", "tsv", "srt", "ttml", "vtt", "tmx", "openxml",
 		"mosestext", "dtd", "ts", "wiki", "tex",
 		"regex", "doxygen", "messageformat", "phpcontent",
@@ -65,6 +65,54 @@ func TestRegisterAllWriters(t *testing.T) {
 	}
 	assert.Len(t, reg.WriterNames(), len(expectedFormats))
 	assert.False(t, reg.HasWriter("pdf"), "pdf must remain read-only (no writer)")
+}
+
+// TestKLFFormatIDAndJSXAlias asserts the user-facing id is "klf" while
+// the legacy "jsx" id keeps resolving as a back-compat alias (issue
+// #717). `kapi formats` and detection surface "klf"; `--format jsx`
+// still works.
+func TestKLFFormatIDAndJSXAlias(t *testing.T) {
+	reg := registry.NewFormatRegistry()
+	formats.RegisterAll(reg)
+
+	// Canonical id is registered and listed.
+	require.True(t, reg.HasReader("klf"), "klf reader must be registered")
+	require.True(t, reg.HasWriter("klf"), "klf writer must be registered")
+
+	listed := map[registry.FormatID]bool{}
+	for _, name := range reg.ReaderNames() {
+		listed[name] = true
+	}
+	assert.True(t, listed["klf"], "klf must be in ReaderNames")
+	assert.False(t, listed["jsx"], "jsx must NOT be in ReaderNames — it is a name-only alias")
+
+	// `kapi formats` lists klf, never jsx.
+	var sawKLF, sawJSX bool
+	for _, info := range reg.FormatInfos() {
+		switch info.Name {
+		case "klf":
+			sawKLF = true
+		case "jsx":
+			sawJSX = true
+		}
+	}
+	assert.True(t, sawKLF, "FormatInfos must include klf")
+	assert.False(t, sawJSX, "FormatInfos must NOT include jsx")
+
+	// The alias resolves to the klf reader/writer.
+	r, err := reg.NewReader("jsx")
+	require.NoError(t, err, "--format jsx must still resolve")
+	assert.Equal(t, "klf", r.Name())
+	w, err := reg.NewWriter("jsx")
+	require.NoError(t, err)
+	assert.Equal(t, "klf", w.Name())
+
+	// Detection by extension / MIME returns the canonical id.
+	byExt, err := reg.DetectByExtension(".klf")
+	require.NoError(t, err)
+	assert.Equal(t, registry.FormatID("klf"), byExt)
+	assert.Equal(t, registry.FormatID("klf"),
+		reg.ResolveFormat("application/vnd.neokapi.klf+json"))
 }
 
 func TestRegistryCreateInstances(t *testing.T) {

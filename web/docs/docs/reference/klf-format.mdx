@@ -324,8 +324,8 @@ The validator reports problems as typed errors, each carrying a machine-readable
 | ------------------------ | -------------------------------------------------------------------------------- |
 | `missing-placeholder`    | A target dropped a required (non-optional) source placeholder.                   |
 | `extra-placeholder`      | A target introduced a placeholder not present in the source.                     |
-| `malformed-runs`         | A run sequence is structurally invalid.                                          |
-| `unknown-placeholder`    | A run references a placeholder not declared in the block's `placeholders` list.  |
+| `malformed-runs`         | A run is not a well-formed discriminated union — it has zero or more than one discriminator key set. |
+| `unknown-placeholder`    | A source run references a placeholder (or plural/select pivot) not declared in the block's `placeholders` list. |
 | `unclosed-paired-code`   | A `pcOpen` has no matching `pcClose` in the same runs scope.                      |
 | `unmatched-close-code`   | A `pcClose` has no matching `pcOpen`.                                             |
 | `duplicate-paired-code`  | Two `pcOpen` runs share the same id within a single runs scope.                  |

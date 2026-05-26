@@ -322,13 +322,19 @@ export const Kind = "kapi-localization-format" as const;
 export type DocumentType = "jsx" | "html" | "markdown" | "generic";
 
 /**
- * Non-authoritative skeleton reference. The extractor's `merge()`
- * consumes the skeleton to reconstruct the original source file
- * with translated content substituted in.
+ * Reference to the opaque skeleton payload a merge step consumes to
+ * reconstruct the original source file with translated content spliced
+ * back in. Mirrors Go `core/klf.Skeleton` (the canonical
+ * implementation): a `ref` to an external payload and/or an `inline`
+ * payload. Both are optional; at least one is present in practice.
+ * Both serialize with omit-when-empty semantics on the Go side, so the
+ * canonical serializer drops empty fields here too.
  */
 export interface Skeleton {
-  ref: string;
-  digest?: string;
+  /** Reference to an external skeleton payload. Omitted when empty. */
+  ref?: string;
+  /** Inline skeleton payload. Omitted when empty. */
+  inline?: string;
 }
 
 /**

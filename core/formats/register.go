@@ -649,8 +649,12 @@ func RegisterAll(reg *registry.FormatRegistry, opts ...RegisterOptions) {
 		format.FormatSignature{},
 		"Exec (subprocess extractor)")
 
-	// JSX / KLF — Kapi Localization Format
-	reg.RegisterReader("jsx",
+	// KLF — Kapi Localization Format. Registered under the canonical
+	// id "klf" (jsx.FormatName); the legacy id "jsx" stays a name-only
+	// back-compat alias so `--format jsx` keeps resolving. The alias
+	// carries no detection signature and no FormatInfo, so detection
+	// and `kapi formats` always surface "klf".
+	reg.RegisterReader(registry.FormatID(jsx.FormatName),
 		func() format.DataFormatReader { return jsx.NewReader() },
 		format.FormatSignature{
 			MIMETypes:  []string{"application/vnd.neokapi.klf+json"},
@@ -659,7 +663,8 @@ func RegisterAll(reg *registry.FormatRegistry, opts ...RegisterOptions) {
 				return bytes.Contains(data, []byte(`"kapi-localization-format"`))
 			},
 		}, "Kapi Localization Format (KLF)")
-	reg.RegisterWriter("jsx", func() format.DataFormatWriter { return jsx.NewWriter() })
+	reg.RegisterWriter(registry.FormatID(jsx.FormatName), func() format.DataFormatWriter { return jsx.NewWriter() })
+	reg.RegisterAlias(registry.FormatID(jsx.FormatAlias), registry.FormatID(jsx.FormatName))
 
 	// PDF is read-only: text extraction only. It registers no writer, so the
 	// format is labelled read-only (HasWriter=false) and editing tools like

@@ -38,6 +38,7 @@ type FormatRegistry struct {
 	readers  map[FormatID]FormatReaderFactory
 	writers  map[FormatID]FormatWriterFactory
 	infos    map[FormatID]*FormatInfo
+	aliases  map[FormatID]FormatID // alias id → canonical id
 	detector *format.Detector
 
 	// onMiss is called once when NewReader/NewWriter fails to find a format.
@@ -54,6 +55,7 @@ func NewFormatRegistry() *FormatRegistry {
 		readers:  make(map[FormatID]FormatReaderFactory),
 		writers:  make(map[FormatID]FormatWriterFactory),
 		infos:    make(map[FormatID]*FormatInfo),
+		aliases:  make(map[FormatID]FormatID),
 		detector: format.NewDetector(),
 	}
 }
@@ -117,6 +119,50 @@ func (r *FormatRegistry) RegisterWriter(name FormatID, factory FormatWriterFacto
 
 	info := r.getOrCreateInfo(name)
 	info.HasWriter = true
+}
+
+// RegisterAlias registers a name-only alias that resolves to a
+// canonical format id. Looking up a reader or writer by the alias
+// (NewReader / NewWriter / ResolveReader / ResolveWriter / HasReader /
+// HasWriter) transparently resolves to the canonical id's factory.
+//
+// An alias is deliberately *not* a detection signature and gets *no*
+// FormatInfo entry: auto-detection (by extension, MIME, or content)
+// and `kapi formats` always surface the canonical id, never the alias.
+// This is how a renamed format keeps its old `--format <old>` id
+// working without polluting the format listing or creating a
+// detection conflict between two ids claiming the same extension.
+//
+// Registering an alias whose name equals the canonical id is a no-op.
+func (r *FormatRegistry) RegisterAlias(alias, canonical FormatID) {
+	if alias == canonical || alias == "" {
+		return
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.aliases[alias] = canonical
+}
+
+// AliasTarget returns the canonical id an alias resolves to, and
+// whether the name is a registered alias.
+func (r *FormatRegistry) AliasTarget(alias FormatID) (FormatID, bool) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	canonical, ok := r.aliases[alias]
+	return canonical, ok
+}
+
+// resolveAlias returns the canonical id for a name. If the name is a
+// registered alias it returns the alias target; otherwise it returns
+// the name unchanged. Caller must NOT hold the lock.
+func (r *FormatRegistry) resolveAlias(name FormatID) FormatID {
+	r.mu.RLock()
+	canonical, ok := r.aliases[name]
+	r.mu.RUnlock()
+	if ok {
+		return canonical
+	}
+	return name
 }
 
 // RegisterFormatInfo registers format metadata without a reader/writer factory.
@@ -359,7 +405,9 @@ func (r *FormatRegistry) NewWriter(name FormatID) (format.DataFormatWriter, erro
 }
 
 // findReader looks up a reader factory by exact name or latest versioned entry.
+// A registered alias resolves to its canonical id first.
 func (r *FormatRegistry) findReader(name FormatID) FormatReaderFactory {
+	name = r.resolveAlias(name)
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	if factory, ok := r.readers[name]; ok {
@@ -374,7 +422,9 @@ func (r *FormatRegistry) findReader(name FormatID) FormatReaderFactory {
 }
 
 // findWriter looks up a writer factory by exact name or latest versioned entry.
+// A registered alias resolves to its canonical id first.
 func (r *FormatRegistry) findWriter(name FormatID) FormatWriterFactory {
+	name = r.resolveAlias(name)
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	if factory, ok := r.writers[name]; ok {
@@ -550,16 +600,20 @@ func (r *FormatRegistry) WriterNames() []FormatID {
 	return names
 }
 
-// HasReader returns true if a reader is registered for the given format name.
+// HasReader returns true if a reader is registered for the given format
+// name. A registered alias resolves to its canonical id first.
 func (r *FormatRegistry) HasReader(name FormatID) bool {
+	name = r.resolveAlias(name)
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	_, ok := r.readers[name]
 	return ok
 }
 
-// HasWriter returns true if a writer is registered for the given format name.
+// HasWriter returns true if a writer is registered for the given format
+// name. A registered alias resolves to its canonical id first.
 func (r *FormatRegistry) HasWriter(name FormatID) bool {
+	name = r.resolveAlias(name)
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	_, ok := r.writers[name]
