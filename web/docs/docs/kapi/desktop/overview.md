@@ -1,7 +1,7 @@
 ---
 sidebar_position: 1
 title: Kapi Desktop Overview
-description: Kapi is the visual desktop companion to the kapi CLI — a native app for building localization flows, running tools, managing plugins, and storing AI credentials without writing YAML or remembering flags.
+description: Kapi Desktop is the visual companion to the kapi CLI — a native app for building localization flows, running tools, managing plugins, and storing AI credentials without writing YAML or remembering flags.
 keywords: [Kapi, desktop app, Wails, flow editor, flow runner, plugin manager, credential vault, localization GUI]
 ---
 
@@ -38,7 +38,7 @@ Download the latest release from [GitHub Releases](https://github.com/neokapi/ne
 
 ## Quick Start
 
-1. **Launch Kapi** and click **New Project**
+1. **Launch Kapi Desktop** and click **New Project**
 2. Set your source language (e.g., `en-US`) and target languages
 3. Go to **Flows** and create a flow with the tools you need
 4. Go to **Credentials** and add your AI provider API key

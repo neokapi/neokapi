@@ -86,7 +86,7 @@ Use Kapi CLI when you:
 - **Run in CI/CD** — gate a build on a brand score or QA check
 - **Work offline** — a single binary with embedded TM and termbase
 
-For a visual interface, use [Kapi](/kapi/desktop/overview) — the GUI companion for building flows, managing plugins, and running tools with live progress.
+For a visual interface, use [Kapi Desktop](/kapi/desktop/overview) — the GUI companion for building flows, managing plugins, and running tools with live progress.
 
 ## Installation
 

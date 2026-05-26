@@ -59,12 +59,12 @@ kapi credentials list       # see what's saved
 Credentials live in your OS keychain. See the
 [Quick Start](/get-started/quickstart) for what to run next.
 
-## Kapi
+## Kapi Desktop
 
-For a visual interface, install Kapi alongside the CLI:
+For a visual interface, install Kapi Desktop alongside the CLI:
 
 ```bash
 brew install --cask neokapi/tap/kapi
 ```
 
-Or download the DMG/ZIP from [GitHub Releases](https://github.com/neokapi/neokapi/releases). See the [Kapi overview](/kapi/desktop/overview) for details.
+Or download the DMG/ZIP from [GitHub Releases](https://github.com/neokapi/neokapi/releases). See the [Kapi Desktop overview](/kapi/desktop/overview) for details.

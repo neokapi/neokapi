@@ -8,7 +8,7 @@ keywords: [Kapi, desktop, first project, localization project, flow, AI credenti
 
 # Your first project
 
-This guide walks you through creating your first localization project with Kapi.
+This guide walks you through creating your first localization project with Kapi Desktop.
 
 ## 1. Install
 
@@ -20,7 +20,7 @@ The cask bundles the `kapi` CLI. See [Installation](/get-started/installation) f
 
 ## 2. Launch and Create a Project
 
-Open Kapi. You'll see the welcome page with the neokapi logo and getting started guide.
+Open Kapi Desktop. You'll see the welcome page with the neokapi logo and getting started guide.
 
 Click **New Project** to create a Kapi project. Set:
 
@@ -79,7 +79,7 @@ Save your Kapi project (e.g., `translation.kapi`). You can:
 
 - Commit it to git for team sharing
 - Run it from the CLI: `kapi run translate-and-qa -p translation.kapi`
-- Reopen it anytime in Kapi
+- Reopen it anytime in Kapi Desktop
 
 ## 8. Install Plugins (Optional)
 
