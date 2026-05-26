@@ -3,7 +3,7 @@ name: Release SaT plugin
 # The kapi-sat ML segmenter plugin releases independently of the neokapi CLI,
 # on its own `sat-v*` tag (e.g. `sat-v0.1.0` -> kapi-sat version 0.1.0). This
 # matches the okapi-bridge "independent plugin" model: the plugin changes far
-# less often than kapi and carries the heaviest/riskiest build legs (a 5-platform
+# less often than kapi and carries the heaviest/riskiest build legs (a 4-platform
 # cgo matrix incl. a Windows Rust build), so coupling it to every kapi release
 # would rebuild/republish it needlessly and block on its flakiest leg.
 on:
@@ -40,8 +40,11 @@ jobs:
       fail-fast: false
       matrix:
         build:
+          # Intel macOS (darwin/amd64) is intentionally omitted: like the cgo
+          # Wails desktop apps (Bowrain, Kapi Desktop), this plugin is cgo and
+          # can't cross-compile, so it would need a scarce native macos-13
+          # runner. arm64 is the supported Mac target.
           - { platform: darwin/arm64, os: macos-latest, goos: darwin, goarch: arm64 }
-          - { platform: darwin/amd64, os: macos-13, goos: darwin, goarch: amd64 }
           - { platform: linux/amd64, os: ubuntu-latest, goos: linux, goarch: amd64 }
           - { platform: linux/arm64, os: ubuntu-24.04-arm, goos: linux, goarch: arm64 }
           - { platform: windows/amd64, os: windows-latest, goos: windows, goarch: amd64 }
@@ -319,7 +322,7 @@ jobs:
   # Register the new kapi-sat plugin version into neokapi/registry so
   # `kapi plugins install sat` resolves to this build. Mirrors the goreleaser
   # job's "Update manifest plugin registry" step but for --plugin sat across the
-  # five supported platforms.
+  # four supported platforms.
   #
   # PREREQUISITE: neokapi/registry's manifest-plugins.json must already contain a
   # "sat" stub plugin entry (registry-update refuses to create new top-level
@@ -365,7 +368,7 @@ jobs:
           REPO_URL="https://github.com/${REPO}/releases/download/${REF_NAME}"
           CERT_ID="https://github.com/${REPO}/.github/workflows/release-sat.yml@refs/tags/${REF_NAME}"
           declare -a ARGS
-          for plat in darwin/arm64 darwin/amd64 linux/arm64 linux/amd64 windows/amd64; do
+          for plat in darwin/arm64 linux/arm64 linux/amd64 windows/amd64; do
             os=${plat%/*}
             arch=${plat#*/}
             file="kapi-sat_${VERSION}_${os}_${arch}.tar.gz"
