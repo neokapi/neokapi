@@ -83,14 +83,10 @@ but the document is re-serialized. That is exactly what you want for a `.docx`
 want for a tiny edit to a hand-formatted, source-controlled file, where an
 ordinary edit keeps the diff minimal.
 
-Inline formatting inside a block is preserved: the pattern sees the block's text
-with its inline codes removed, so a substitution can span a bold or linked span,
-and editing a word inside a `<b>` span keeps the span. When an edit empties a
-code, the vocabulary's *deletable* constraint decides: a deletable formatting
-span (bold, italic, link) collapses rather than leaving an empty `<b></b>`, while
-a non-deletable code (line break, variable, placeholder, subblock reference)
-always survives. A byte `sed` cannot do this — it would either miss the match or
-trample the markup.
+Inline formatting around your edit is preserved: a substitution can span a bold
+or linked span and the markup is kept intact (editing a word inside a `<b>` keeps
+the bold; consuming the whole span leaves no broken tag). A byte `sed` cannot do
+this — it would either miss the match or trample the markup.
 
 `ksed` only edits formats kapi can write back. A read-only format — PDF, which
 is extraction-only — has no writer, so `ksed` stops with an error
