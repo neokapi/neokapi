@@ -35,7 +35,7 @@ Run tools and flows straight from the terminal — `kapi pseudo-translate`,
 Prefer a visual interface? [Kapi Desktop](/kapi/desktop/overview) wraps the same
 tools and flows in a native app with a flow editor, live runner, plugin manager,
 and credential vault. Start with
-[Getting started](/kapi/desktop/getting-started).
+[your first project](/kapi/desktop/getting-started).
 
 ## Projects vs. ad-hoc
 
