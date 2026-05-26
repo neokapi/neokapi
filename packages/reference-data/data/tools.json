@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-25T20:45:12Z",
+  "generatedAt": "2026-05-26T22:46:31Z",
   "kind": "tool",
   "entries": [
     {
@@ -14535,6 +14535,9 @@
         "text-processing"
       ],
       "cardinality": "monolingual",
+      "aliases": [
+        "segment"
+      ],
       "schema": {
         "$id": "segmentation",
         "title": "Segmentation",
@@ -14550,47 +14553,102 @@
             "text-processing"
           ],
           "cardinality": "monolingual",
-          "writesOutput": true
+          "writesOutput": true,
+          "aliases": [
+            "segment"
+          ]
         },
         "properties": {
+          "credential": {
+            "type": "string",
+            "title": "Credential",
+            "description": "Stored credential name for the llm engine"
+          },
+          "engine": {
+            "type": "string",
+            "title": "Segmentation Engine",
+            "description": "Segmenter backend: srx (rule-based; default)/ uax29 (Unicode baseline)/ llm (semantic chunks)/ sat (ML model)"
+          },
+          "instruction": {
+            "type": "string",
+            "title": "Chunking Instruction",
+            "description": "Optional guidance for the llm engine"
+          },
+          "layer": {
+            "type": "string",
+            "title": "Overlay Layer",
+            "description": "Segmentation overlay layer name; empty uses the engine's natural layer"
+          },
+          "model": {
+            "type": "string",
+            "title": "Model",
+            "description": "Model name for the llm or sat engine"
+          },
           "overwriteSegmentation": {
             "type": "boolean",
             "title": "Overwrite Existing Segmentation",
-            "description": "Re-segment already-segmented text units replacing previous segmentation",
+            "description": "Re-segment already-segmented blocks replacing previous segmentation",
             "default": false
+          },
+          "provider": {
+            "type": "string",
+            "title": "LLM Provider",
+            "description": "AI provider id for the llm engine"
           },
           "renumberCodes": {
             "type": "boolean",
             "title": "Renumber Code IDs",
-            "description": "Renumber inline code IDs in each segment to start at 1",
+            "description": "Renumber inline code IDs when materializing segments to a bilingual format",
             "default": false
+          },
+          "satModel": {
+            "type": "string",
+            "title": "SaT Model",
+            "description": "SaT model for the sat engine (e.g. sat-3l-sm"
           },
           "segmentSource": {
             "type": "boolean",
             "title": "Segment Source Text",
-            "description": "Segment the source text using SRX rules",
+            "description": "Segment the source text",
             "default": true
           },
           "segmentTarget": {
             "type": "boolean",
             "title": "Segment Target Text",
-            "description": "Segment existing target text using SRX rules",
+            "description": "Segment existing target text",
             "default": false
           },
           "sourceSrxPath": {
             "type": "string",
             "title": "Source SRX Rules Path",
-            "description": "Path to SRX segmentation rules file for source text"
+            "description": "Path to an SRX 2.0 rules file for source text (srx engine)"
           },
           "targetSrxPath": {
             "type": "string",
             "title": "Target SRX Rules Path",
-            "description": "Path to SRX segmentation rules file for target text"
+            "description": "Path to an SRX 2.0 rules file for target text (srx engine)"
+          },
+          "threshold": {
+            "type": "number",
+            "title": "Boundary Threshold",
+            "description": "Boundary probability threshold for the sat engine (0 = model default)"
           },
           "treatIsolatedCodesAsWhitespace": {
             "type": "boolean",
             "title": "Treat Isolated Codes as Whitespace",
             "description": "Treat isolated inline codes as whitespace during segmentation",
+            "default": false
+          },
+          "trimLeadingWhitespace": {
+            "type": "boolean",
+            "title": "Trim Leading Whitespace",
+            "description": "Exclude leading whitespace from each segment span",
+            "default": false
+          },
+          "trimTrailingWhitespace": {
+            "type": "boolean",
+            "title": "Trim Trailing Whitespace",
+            "description": "Exclude trailing whitespace from each segment span",
             "default": false
           }
         }

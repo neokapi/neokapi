@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-26T22:43:29Z",
+  "generatedAt": "2026-05-26T22:46:31Z",
   "commands": [
     {
       "id": "ai-entity-extract",
@@ -217,12 +217,7 @@
         {
           "name": "output",
           "shorthand": "o",
-          "usage": "output path template (variables: {dir}, {name}, {ext}, {lang})",
-          "type": "string"
-        },
-        {
-          "name": "output-dir",
-          "usage": "write outputs under DIR/{lang}/ (default: beside the input, mirroring its locale layout)",
+          "usage": "output path template (variables: {name}, {ext}, {lang})",
           "type": "string"
         },
         {
@@ -347,12 +342,7 @@
         {
           "name": "output",
           "shorthand": "o",
-          "usage": "output path template (variables: {dir}, {name}, {ext}, {lang})",
-          "type": "string"
-        },
-        {
-          "name": "output-dir",
-          "usage": "write outputs under DIR/{lang}/ (default: beside the input, mirroring its locale layout)",
+          "usage": "output path template (variables: {name}, {ext}, {lang})",
           "type": "string"
         },
         {
@@ -612,12 +602,7 @@
         {
           "name": "output",
           "shorthand": "o",
-          "usage": "output path template (variables: {dir}, {name}, {ext}, {lang})",
-          "type": "string"
-        },
-        {
-          "name": "output-dir",
-          "usage": "write outputs under DIR/{lang}/ (default: beside the input, mirroring its locale layout)",
+          "usage": "output path template (variables: {name}, {ext}, {lang})",
           "type": "string"
         },
         {
@@ -1458,12 +1443,7 @@
         {
           "name": "output",
           "shorthand": "o",
-          "usage": "output path template (variables: {dir}, {name}, {ext}, {lang})",
-          "type": "string"
-        },
-        {
-          "name": "output-dir",
-          "usage": "write outputs under DIR/{lang}/ (default: beside the input, mirroring its locale layout)",
+          "usage": "output path template (variables: {name}, {ext}, {lang})",
           "type": "string"
         },
         {
@@ -2025,12 +2005,7 @@
         {
           "name": "output",
           "shorthand": "o",
-          "usage": "output path template (variables: {dir}, {name}, {ext}, {lang})",
-          "type": "string"
-        },
-        {
-          "name": "output-dir",
-          "usage": "write outputs under DIR/{lang}/ (default: beside the input, mirroring its locale layout)",
+          "usage": "output path template (variables: {name}, {ext}, {lang})",
           "type": "string"
         },
         {
@@ -3138,12 +3113,7 @@
         {
           "name": "output",
           "shorthand": "o",
-          "usage": "output path template (variables: {dir}, {name}, {ext}, {lang})",
-          "type": "string"
-        },
-        {
-          "name": "output-dir",
-          "usage": "write outputs under DIR/{lang}/ (default: beside the input, mirroring its locale layout)",
+          "usage": "output path template (variables: {name}, {ext}, {lang})",
           "type": "string"
         },
         {
@@ -3400,12 +3370,7 @@
         {
           "name": "output",
           "shorthand": "o",
-          "usage": "output path template (variables: {dir}, {name}, {ext}, {lang})",
-          "type": "string"
-        },
-        {
-          "name": "output-dir",
-          "usage": "write outputs under DIR/{lang}/ (default: beside the input, mirroring its locale layout)",
+          "usage": "output path template (variables: {name}, {ext}, {lang})",
           "type": "string"
         },
         {
@@ -4028,12 +3993,7 @@
         {
           "name": "output",
           "shorthand": "o",
-          "usage": "output path template (variables: {dir}, {name}, {ext}, {lang})",
-          "type": "string"
-        },
-        {
-          "name": "output-dir",
-          "usage": "write outputs under DIR/{lang}/ (default: beside the input, mirroring its locale layout)",
+          "usage": "output path template (variables: {name}, {ext}, {lang})",
           "type": "string"
         },
         {
@@ -4162,12 +4122,7 @@
         {
           "name": "output",
           "shorthand": "o",
-          "usage": "output path template (variables: {dir}, {name}, {ext}, {lang})",
-          "type": "string"
-        },
-        {
-          "name": "output-dir",
-          "usage": "write outputs under DIR/{lang}/ (default: beside the input, mirroring its locale layout)",
+          "usage": "output path template (variables: {name}, {ext}, {lang})",
           "type": "string"
         },
         {
@@ -4421,12 +4376,7 @@
         {
           "name": "output",
           "shorthand": "o",
-          "usage": "output path template (variables: {dir}, {name}, {ext}, {lang})",
-          "type": "string"
-        },
-        {
-          "name": "output-dir",
-          "usage": "write outputs under DIR/{lang}/ (default: beside the input, mirroring its locale layout)",
+          "usage": "output path template (variables: {name}, {ext}, {lang})",
           "type": "string"
         },
         {
@@ -5743,12 +5693,7 @@
         {
           "name": "output",
           "shorthand": "o",
-          "usage": "output path template (variables: {dir}, {name}, {ext}, {lang})",
-          "type": "string"
-        },
-        {
-          "name": "output-dir",
-          "usage": "write outputs under DIR/{lang}/ (default: beside the input, mirroring its locale layout)",
+          "usage": "output path template (variables: {name}, {ext}, {lang})",
           "type": "string"
         },
         {
