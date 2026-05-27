@@ -92,6 +92,50 @@ make -C .. dev-web             # Vite dev server with HMR for bowrain/apps/web
 
 The first-time host setup (dnsmasq + mkcert for `*.mymac`) is the same as the framework root — see the steps in the [root README's Development Setup](../README.md).
 
+### Full local stack (everything in Docker)
+
+For a self-contained stack — server **and** async worker **and** all backing
+services in Docker on plain-HTTP localhost (no host DNS/TLS setup) — use
+[`compose.full.yaml`](compose.full.yaml). This is the quickest way to exercise
+real `push → translate → pull` cycles with the `kapi` plugin.
+
+```bash
+cp .env.example .env             # optional: set GEMINI_API_KEY for real MT
+make stack-up                    # from bowrain/ (or: make -C bowrain stack-up)
+# equivalently: docker compose -f compose.full.yaml up -d --build --wait
+```
+
+| Service        | URL                                   |
+| -------------- | ------------------------------------- |
+| Server (+ API) | http://localhost:8080                 |
+| Health         | http://localhost:8080/api/v1/health   |
+| Keycloak       | http://localhost:8180 (admin/admin)   |
+| Mailpit        | http://localhost:8025                 |
+
+The `bowrain-worker` runs the built-in auto-translate-on-push automation. Its
+upstream provider defaults to the offline **`demo`** provider (deterministic, no
+key) so the pipeline works out of the box; set `BOWRAIN_PLATFORM_PROVIDER=gemini`
++ `GEMINI_API_KEY` in `.env` for real translations (see `.env.example`).
+
+Drive it with the `kapi` plugin (install the `kapi-bowrain` plugin first):
+
+```bash
+mkdir myapp && cd myapp
+kapi init --server http://localhost:8080 --anonymous --name myapp --source en --targets fr,de
+echo '{"greeting":"Hello"}' > en.json
+kapi add en.json
+kapi sync --locale fr,de        # push → wait for translations → pull
+cat fr.json de.json             # translated catalogs
+```
+
+> **Note:** `kapi init` shown above is the bowrain plugin's init. If the
+> top-level `kapi init` resolves to the framework's local scaffolder instead
+> (it shadows the plugin's `init` — [issue tracked separately]), run
+> `kapi-bowrain command init …` with the same flags.
+
+Other targets: `make -C bowrain stack-ps`, `stack-logs`, `stack-down`,
+`stack-up-web` (adds the SaaS web UI at http://localhost:8080).
+
 ### Tests
 
 ```bash

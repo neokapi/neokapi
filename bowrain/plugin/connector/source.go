@@ -589,24 +589,25 @@ func (c *BowrainSourceConnector) Pull(ctx context.Context, opts bowrainconn.Pull
 			// Write a translated file for each target locale.
 			for _, loc := range locales {
 				// Build target map for this locale from structured segments.
-				targetMap := map[string]string{} // blockID → translated text
+				// Keyed by a stable match key (not the server block ID, which is
+				// not preserved across push/pull) so writeTranslatedFile can match
+				// the freshly re-parsed source blocks.
+				targetMap := map[string]string{} // matchKey → translated text
 				for _, b := range blocks {
 					if segs, ok := b.Targets[loc]; ok {
 						// Extract plain text from segments (flatten
 						// TextRuns only — inline codes and structured
 						// runs contribute nothing at export time).
-						var text string
-						var textSb546 strings.Builder
+						var textSb strings.Builder
 						for _, seg := range segs {
 							for _, r := range seg.Runs {
 								if r.Text != nil {
-									textSb546.WriteString(r.Text.Text)
+									textSb.WriteString(r.Text.Text)
 								}
 							}
 						}
-						text += textSb546.String()
-						if text != "" {
-							targetMap[b.ID] = text
+						if text := textSb.String(); text != "" {
+							targetMap[targetMatchKey(b.Name, b.SourceText)] = text
 						}
 					}
 				}
@@ -976,6 +977,18 @@ type MediaReplacementSetter interface {
 	SetMediaReplacement(zipPath string, data []byte)
 }
 
+// targetMatchKey computes a stable key for matching a pulled translation to a
+// locally re-parsed source block. Server-assigned block IDs are not preserved
+// across push/pull, so matching on b.ID fails (translations would never land).
+// Keyed catalogs (JSON, YAML, .strings, …) carry a stable block name; nameless
+// prose blocks fall back to source-text identity.
+func targetMatchKey(name, sourceText string) string {
+	if name != "" {
+		return "n:" + name
+	}
+	return "s:" + sourceText
+}
+
 func (c *BowrainSourceConnector) writeTranslatedFile(ctx context.Context, sourcePath, outputPath, formatName, locale string, targets map[string]string, mediaReplacements ...MediaReplacement) error {
 	// Read source.
 	reader, err := c.formatReg.NewReader(registry.FormatID(formatName))
@@ -1020,7 +1033,7 @@ func (c *BowrainSourceConnector) writeTranslatedFile(ctx context.Context, source
 		p := pr.Part
 		if p.Type == model.PartBlock {
 			if b, ok := p.Resource.(*model.Block); ok {
-				if t, exists := targets[b.ID]; exists {
+				if t, exists := targets[targetMatchKey(b.Name, b.SourceText())]; exists {
 					b.SetTargetText(model.LocaleID(locale), t)
 				}
 			}

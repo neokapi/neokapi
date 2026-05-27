@@ -56,7 +56,9 @@ var providerRateLimits = map[string]rate.Limit{
 	"openai":      10,
 	"azureopenai": 10,
 	"anthropic":   5,
-	"ollama":      100, // effectively unlimited
+	"gemini":      5,
+	"ollama":      100,  // effectively unlimited (local)
+	"demo":        1000, // offline stub; no network
 }
 
 // RunWorker runs the translation worker loop. It dequeues job IDs, loads the
@@ -311,17 +313,15 @@ func executeTranslationWithDeps(ctx context.Context, deps *WorkerDeps, job *Tran
 func resolveProvider(ctx context.Context, deps *WorkerDeps, job *TranslationJob) (aiprovider.LLMProvider, *rate.Limiter, error) {
 	if job.IsPlatformProvider() {
 		if deps.Platform == nil {
-			return nil, nil, errors.New("platform provider not configured (set BOWRAIN_OPENAI_ENDPOINT)")
+			return nil, nil, errors.New("platform provider not configured " +
+				"(set BOWRAIN_PLATFORM_PROVIDER + key for self-hosted/local, " +
+				"or BOWRAIN_OPENAI_ENDPOINT for Azure OpenAI)")
 		}
-		deployment := job.Model
-		if deployment == "" {
-			deployment = "gpt-4o"
-		}
-		prov, err := NewPlatformProvider(*deps.Platform, deployment)
+		prov, ptype, err := deps.Platform.build(job.Model)
 		if err != nil {
 			return nil, nil, err
 		}
-		limiter := rate.NewLimiter(providerRateLimit("azureopenai"), 1)
+		limiter := rate.NewLimiter(providerRateLimit(ptype), 1)
 		return prov, limiter, nil
 	}
 

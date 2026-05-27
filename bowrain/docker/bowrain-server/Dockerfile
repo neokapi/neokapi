@@ -47,8 +47,10 @@ RUN apk add --no-cache ca-certificates tzdata git
 
 COPY --from=builder /out/bowrain-server /usr/local/bin/bowrain-server
 
+# /data holds local blob storage (sync push payloads). The server requires a
+# PostgreSQL store via BOWRAIN_DATABASE_URL — there is no SQLite/file backend.
 VOLUME /data
-ENV BOWRAIN_STORE=/data/bowrain.db
+ENV BLOB_STORAGE_LOCAL_DIR=/data/blobs
 
 EXPOSE 8080
 ENTRYPOINT ["bowrain-server"]

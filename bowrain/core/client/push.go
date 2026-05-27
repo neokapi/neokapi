@@ -3,6 +3,8 @@ package client
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -185,7 +187,7 @@ func (c *BowrainClient) Push(ctx context.Context, blocksByItem map[string][]*mod
 
 func (c *BowrainClient) pushInit(ctx context.Context, req PushInitRequest) (*PushInitResponse, error) {
 	body, _ := json.Marshal(req)
-	u := c.streamPrefix() + "/sync/push/init"
+	u := c.streamPrefix() + "/push/init"
 	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, u, bytes.NewReader(body))
 	if err != nil {
 		return nil, err
@@ -206,7 +208,7 @@ func (c *BowrainClient) pushInit(ctx context.Context, req PushInitRequest) (*Pus
 
 func (c *BowrainClient) pushDiff(ctx context.Context, req PushDiffRequest) (*PushDiffResponse, error) {
 	body, _ := json.Marshal(req)
-	u := c.streamPrefix() + "/sync/push/diff"
+	u := c.streamPrefix() + "/push/diff"
 	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, u, bytes.NewReader(body))
 	if err != nil {
 		return nil, err
@@ -242,7 +244,7 @@ func (c *BowrainClient) uploadChunk(ctx context.Context, uploadID string, index 
 	}
 
 	// Upload via proxy (local dev) — direct SAS upload can be added later.
-	u := c.streamPrefix() + fmt.Sprintf("/sync/push/chunks/%s/%d", uploadID, index)
+	u := c.streamPrefix() + fmt.Sprintf("/push/chunks/%s/%d", uploadID, index)
 	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPut, u, bytes.NewReader(data))
 	if err != nil {
 		return nil, err
@@ -257,8 +259,13 @@ func (c *BowrainClient) uploadChunk(ctx context.Context, uploadID string, index 
 		return nil, fmt.Errorf("chunk upload HTTP %d", resp.StatusCode)
 	}
 
-	// Compute hash of the chunk data for the manifest.
-	hash := model.ComputeContentHash(string(data))
+	// Compute the chunk's content-addressed key for the manifest. This MUST
+	// match how the blob store keys uploaded bytes (plain SHA-256 of the exact
+	// bytes uploaded) so the worker can Download(chunk.Hash). Do NOT use
+	// model.ComputeContentHash here — it TrimSpace-normalizes its input, which
+	// corrupts the hash of binary (compressed) chunk data.
+	sum := sha256.Sum256(data)
+	hash := hex.EncodeToString(sum[:])
 
 	return &ChunkRef{
 		Index:       index,
@@ -271,7 +278,7 @@ func (c *BowrainClient) uploadChunk(ctx context.Context, uploadID string, index 
 
 func (c *BowrainClient) pushCommit(ctx context.Context, req PushCommitRequest) (*SyncPushResponse, error) {
 	body, _ := json.Marshal(req)
-	u := c.streamPrefix() + "/sync/push/commit"
+	u := c.streamPrefix() + "/push/commit"
 	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, u, bytes.NewReader(body))
 	if err != nil {
 		return nil, err
