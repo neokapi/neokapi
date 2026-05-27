@@ -14,8 +14,10 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 
 	"github.com/neokapi/neokapi/cli"
 	cliconfig "github.com/neokapi/neokapi/cli/config"
@@ -52,6 +54,16 @@ and then run bowrain commands through kapi (e.g., kapi push, kapi pull).`,
 
 func main() {
 	if err := rootCmd.Execute(); err != nil {
+		// SilenceErrors keeps cobra from printing (so kapi can format dispatch
+		// errors on its side), but when this binary runs as a Mode-A subprocess
+		// its stderr is inherited by the user — so we must surface the error
+		// ourselves. Without this, a bad flag or failed command exits 1 silently.
+		// (ExitError from a nested exec already printed its own output, so don't
+		// double-report it.)
+		var exitErr *exec.ExitError
+		if !errors.As(err, &exitErr) {
+			fmt.Fprintln(os.Stderr, "Error:", err)
+		}
 		os.Exit(1)
 	}
 }
