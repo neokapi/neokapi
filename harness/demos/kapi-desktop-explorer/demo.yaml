@@ -23,9 +23,7 @@ narration:
   - id: title
     kind: title
     text: >-
-      Kapi Desktop is the visual companion to the kapi command line. Let's look
-      at how it opens up the terminology and translation memory behind a
-      localisation project.
+      Kapi Desktop — the visual companion to the kapi command line.
 
   - id: intro
     kind: desktop

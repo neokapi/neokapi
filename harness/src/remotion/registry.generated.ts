@@ -34,19 +34,19 @@ export const DEMOS: RegistryEntry[] = [
     "title": "grep, sed and cat — for any format"
   },
   {
-    "id": "kapi-desktop-projects",
-    "title": "Create and manage a project"
-  },
-  {
     "id": "kapi-desktop-config",
     "title": "Configure Kapi Desktop"
+  },
+  {
+    "id": "kapi-desktop-explorer",
+    "title": "Browse a termbase and translation memory"
   },
   {
     "id": "kapi-desktop-flows",
     "title": "Compose localisation flows"
   },
   {
-    "id": "kapi-desktop-explorer",
-    "title": "Browse a termbase and translation memory"
+    "id": "kapi-desktop-projects",
+    "title": "Create and manage a project"
   }
 ];

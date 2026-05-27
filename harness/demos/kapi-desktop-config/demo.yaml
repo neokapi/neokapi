@@ -17,7 +17,7 @@ narration:
   - id: title
     kind: title
     text: >-
-      Kapi Desktop keeps its configuration in one place. Let's walk through it.
+      Kapi Desktop keeps all its configuration in one place.
 
   - id: intro
     kind: desktop

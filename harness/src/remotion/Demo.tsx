@@ -48,8 +48,9 @@ export const Demo: React.FC<DemoProps> = ({ id, capture, narration, artifacts, s
   // tempo/tone). Otherwise each scene carries its own clip.
   const fullAudio = narration.fullAudio;
 
-  // Desktop screencast beats (per active theme). Each desktop scene eases in to
-  // its zoom region and back out to full on its own (see DesktopScene).
+  // Desktop screencast beats (per active theme). Each desktop scene runs a 3D
+  // camera move on its own: full → dolly-in to the focus → hold → dolly fully
+  // out (with a tilt swing) — see DesktopScene.
   const mode: ThemeMode = themeMode ?? "dark";
   const beats = screencast?.beats[mode] ?? [];
   const beatById = new Map(beats.map((b) => [b.id, b] as const));
@@ -80,12 +81,19 @@ export const Demo: React.FC<DemoProps> = ({ id, capture, narration, artifacts, s
               (() => {
                 const b = scene.beat ? beatById.get(scene.beat) : undefined;
                 if (!screencast || !b) return terminalScene(scene.caption, t.termFrom);
+                // Previous beat (if the prior scene was also a desktop beat), so
+                // glide mode can ease from its composed shot.
+                const prev = narration.scenes[idx - 1];
+                const prevBeat = prev?.kind === "desktop" && prev.beat ? (beatById.get(prev.beat) ?? null) : null;
                 return (
                   <DesktopScene
                     demoId={id}
                     screencast={screencast}
                     themeMode={mode}
                     beat={b}
+                    prevBeat={prevBeat}
+                    sceneIndex={idx}
+                    globalFrom={t.from}
                     caption={scene.caption}
                     sceneDurationFrames={t.durationFrames}
                   />

@@ -17,8 +17,7 @@ narration:
   - id: title
     kind: title
     text: >-
-      Kapi Desktop is the visual companion to the kapi command line. Let's
-      create a localisation project and set it up.
+      Kapi Desktop — let's create and set up a localisation project.
 
   - id: intro
     kind: desktop
