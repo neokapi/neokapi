@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-26T22:46:31Z",
+  "generatedAt": "2026-05-27T05:43:57Z",
   "kind": "tool",
   "entries": [
     {
@@ -2821,6 +2821,100 @@
           }
         ],
         "wikiUrl": "https://okapiframework.org/wiki/index.php/Create_Target_Step"
+      }
+    },
+    {
+      "id": "deepl-translate",
+      "source": "built-in",
+      "kind": "tool",
+      "displayName": "DeepL Translate",
+      "description": "Translate content using DeepL",
+      "category": "translation",
+      "inputs": [
+        "block"
+      ],
+      "tags": [
+        "mt",
+        "machine-translation"
+      ],
+      "requires": [
+        "target-language",
+        "credentials"
+      ],
+      "cardinality": "bilingual",
+      "schema": {
+        "$id": "deepl-translate",
+        "title": "DeepL Translate",
+        "description": "Translate content using DeepL",
+        "type": "object",
+        "toolMeta": {
+          "id": "deepl-translate",
+          "category": "translation",
+          "displayName": "DeepL Translate",
+          "description": "Translate content using DeepL",
+          "inputs": [
+            "block"
+          ],
+          "tags": [
+            "mt",
+            "machine-translation"
+          ],
+          "requires": [
+            "target-language",
+            "credentials"
+          ],
+          "cardinality": "bilingual",
+          "produces": [
+            "translation.output"
+          ],
+          "sideEffects": [
+            "api-call"
+          ],
+          "writesOutput": true,
+          "defaultParallelBlocks": 5
+        },
+        "ui:groups": [
+          {
+            "id": "provider",
+            "label": "Provider",
+            "fields": [
+              "apiKey",
+              "subscriptionKey",
+              "region",
+              "email",
+              "projectId"
+            ]
+          }
+        ],
+        "properties": {
+          "apiKey": {
+            "type": "string",
+            "title": "API Key",
+            "description": "API key for the MT provider",
+            "ui:widget": "password"
+          },
+          "email": {
+            "type": "string",
+            "title": "Email",
+            "description": "Account email for higher rate limits (mymemory)"
+          },
+          "projectId": {
+            "type": "string",
+            "title": "Project ID",
+            "description": "Google Cloud project ID (google)"
+          },
+          "region": {
+            "type": "string",
+            "title": "Region",
+            "description": "Azure region (microsoft)"
+          },
+          "subscriptionKey": {
+            "type": "string",
+            "title": "Subscription Key",
+            "description": "Azure subscription key (microsoft)",
+            "ui:widget": "password"
+          }
+        }
       }
     },
     {
@@ -7149,6 +7243,100 @@
       }
     },
     {
+      "id": "google-translate",
+      "source": "built-in",
+      "kind": "tool",
+      "displayName": "Google Translate Translate",
+      "description": "Translate content using Google Translate",
+      "category": "translation",
+      "inputs": [
+        "block"
+      ],
+      "tags": [
+        "mt",
+        "machine-translation"
+      ],
+      "requires": [
+        "target-language",
+        "credentials"
+      ],
+      "cardinality": "bilingual",
+      "schema": {
+        "$id": "google-translate",
+        "title": "Google Translate Translate",
+        "description": "Translate content using Google Translate",
+        "type": "object",
+        "toolMeta": {
+          "id": "google-translate",
+          "category": "translation",
+          "displayName": "Google Translate Translate",
+          "description": "Translate content using Google Translate",
+          "inputs": [
+            "block"
+          ],
+          "tags": [
+            "mt",
+            "machine-translation"
+          ],
+          "requires": [
+            "target-language",
+            "credentials"
+          ],
+          "cardinality": "bilingual",
+          "produces": [
+            "translation.output"
+          ],
+          "sideEffects": [
+            "api-call"
+          ],
+          "writesOutput": true,
+          "defaultParallelBlocks": 5
+        },
+        "ui:groups": [
+          {
+            "id": "provider",
+            "label": "Provider",
+            "fields": [
+              "apiKey",
+              "subscriptionKey",
+              "region",
+              "email",
+              "projectId"
+            ]
+          }
+        ],
+        "properties": {
+          "apiKey": {
+            "type": "string",
+            "title": "API Key",
+            "description": "API key for the MT provider",
+            "ui:widget": "password"
+          },
+          "email": {
+            "type": "string",
+            "title": "Email",
+            "description": "Account email for higher rate limits (mymemory)"
+          },
+          "projectId": {
+            "type": "string",
+            "title": "Project ID",
+            "description": "Google Cloud project ID (google)"
+          },
+          "region": {
+            "type": "string",
+            "title": "Region",
+            "description": "Azure region (microsoft)"
+          },
+          "subscriptionKey": {
+            "type": "string",
+            "title": "Subscription Key",
+            "description": "Azure subscription key (microsoft)",
+            "ui:widget": "password"
+          }
+        }
+      }
+    },
+    {
       "id": "id-based-aligner",
       "source": "okapi",
       "kind": "tool",
@@ -9745,6 +9933,194 @@
       }
     },
     {
+      "id": "microsoft-translate",
+      "source": "built-in",
+      "kind": "tool",
+      "displayName": "Microsoft Translator Translate",
+      "description": "Translate content using Microsoft Translator",
+      "category": "translation",
+      "inputs": [
+        "block"
+      ],
+      "tags": [
+        "mt",
+        "machine-translation"
+      ],
+      "requires": [
+        "target-language",
+        "credentials"
+      ],
+      "cardinality": "bilingual",
+      "schema": {
+        "$id": "microsoft-translate",
+        "title": "Microsoft Translator Translate",
+        "description": "Translate content using Microsoft Translator",
+        "type": "object",
+        "toolMeta": {
+          "id": "microsoft-translate",
+          "category": "translation",
+          "displayName": "Microsoft Translator Translate",
+          "description": "Translate content using Microsoft Translator",
+          "inputs": [
+            "block"
+          ],
+          "tags": [
+            "mt",
+            "machine-translation"
+          ],
+          "requires": [
+            "target-language",
+            "credentials"
+          ],
+          "cardinality": "bilingual",
+          "produces": [
+            "translation.output"
+          ],
+          "sideEffects": [
+            "api-call"
+          ],
+          "writesOutput": true,
+          "defaultParallelBlocks": 5
+        },
+        "ui:groups": [
+          {
+            "id": "provider",
+            "label": "Provider",
+            "fields": [
+              "apiKey",
+              "subscriptionKey",
+              "region",
+              "email",
+              "projectId"
+            ]
+          }
+        ],
+        "properties": {
+          "apiKey": {
+            "type": "string",
+            "title": "API Key",
+            "description": "API key for the MT provider",
+            "ui:widget": "password"
+          },
+          "email": {
+            "type": "string",
+            "title": "Email",
+            "description": "Account email for higher rate limits (mymemory)"
+          },
+          "projectId": {
+            "type": "string",
+            "title": "Project ID",
+            "description": "Google Cloud project ID (google)"
+          },
+          "region": {
+            "type": "string",
+            "title": "Region",
+            "description": "Azure region (microsoft)"
+          },
+          "subscriptionKey": {
+            "type": "string",
+            "title": "Subscription Key",
+            "description": "Azure subscription key (microsoft)",
+            "ui:widget": "password"
+          }
+        }
+      }
+    },
+    {
+      "id": "modernmt-translate",
+      "source": "built-in",
+      "kind": "tool",
+      "displayName": "ModernMT Translate",
+      "description": "Translate content using ModernMT",
+      "category": "translation",
+      "inputs": [
+        "block"
+      ],
+      "tags": [
+        "mt",
+        "machine-translation"
+      ],
+      "requires": [
+        "target-language",
+        "credentials"
+      ],
+      "cardinality": "bilingual",
+      "schema": {
+        "$id": "modernmt-translate",
+        "title": "ModernMT Translate",
+        "description": "Translate content using ModernMT",
+        "type": "object",
+        "toolMeta": {
+          "id": "modernmt-translate",
+          "category": "translation",
+          "displayName": "ModernMT Translate",
+          "description": "Translate content using ModernMT",
+          "inputs": [
+            "block"
+          ],
+          "tags": [
+            "mt",
+            "machine-translation"
+          ],
+          "requires": [
+            "target-language",
+            "credentials"
+          ],
+          "cardinality": "bilingual",
+          "produces": [
+            "translation.output"
+          ],
+          "sideEffects": [
+            "api-call"
+          ],
+          "writesOutput": true,
+          "defaultParallelBlocks": 5
+        },
+        "ui:groups": [
+          {
+            "id": "provider",
+            "label": "Provider",
+            "fields": [
+              "apiKey",
+              "subscriptionKey",
+              "region",
+              "email",
+              "projectId"
+            ]
+          }
+        ],
+        "properties": {
+          "apiKey": {
+            "type": "string",
+            "title": "API Key",
+            "description": "API key for the MT provider",
+            "ui:widget": "password"
+          },
+          "email": {
+            "type": "string",
+            "title": "Email",
+            "description": "Account email for higher rate limits (mymemory)"
+          },
+          "projectId": {
+            "type": "string",
+            "title": "Project ID",
+            "description": "Google Cloud project ID (google)"
+          },
+          "region": {
+            "type": "string",
+            "title": "Region",
+            "description": "Azure region (microsoft)"
+          },
+          "subscriptionKey": {
+            "type": "string",
+            "title": "Subscription Key",
+            "description": "Azure subscription key (microsoft)",
+            "ui:widget": "password"
+          }
+        }
+      }
+    },
+    {
       "id": "m-t-character-count",
       "source": "okapi",
       "kind": "tool",
@@ -9846,6 +10222,100 @@
           "Results are stored as annotations on filter events and aggregated to the configured levels (text unit, group, document, sub-document, batch item, batch); the step produces no output document of its own.",
           "Belongs to the `OKAPI_WORD_COUNTS` category group. The `CategoryResolver` keeps only the highest-ranked matching category per segment — `MT` ranks below all TM-derived categories (exact, fuzzy, phrase-assembled) and above `CONCORDANCE`."
         ]
+      }
+    },
+    {
+      "id": "mymemory-translate",
+      "source": "built-in",
+      "kind": "tool",
+      "displayName": "MyMemory Translate",
+      "description": "Translate content using MyMemory",
+      "category": "translation",
+      "inputs": [
+        "block"
+      ],
+      "tags": [
+        "mt",
+        "machine-translation"
+      ],
+      "requires": [
+        "target-language",
+        "credentials"
+      ],
+      "cardinality": "bilingual",
+      "schema": {
+        "$id": "mymemory-translate",
+        "title": "MyMemory Translate",
+        "description": "Translate content using MyMemory",
+        "type": "object",
+        "toolMeta": {
+          "id": "mymemory-translate",
+          "category": "translation",
+          "displayName": "MyMemory Translate",
+          "description": "Translate content using MyMemory",
+          "inputs": [
+            "block"
+          ],
+          "tags": [
+            "mt",
+            "machine-translation"
+          ],
+          "requires": [
+            "target-language",
+            "credentials"
+          ],
+          "cardinality": "bilingual",
+          "produces": [
+            "translation.output"
+          ],
+          "sideEffects": [
+            "api-call"
+          ],
+          "writesOutput": true,
+          "defaultParallelBlocks": 5
+        },
+        "ui:groups": [
+          {
+            "id": "provider",
+            "label": "Provider",
+            "fields": [
+              "apiKey",
+              "subscriptionKey",
+              "region",
+              "email",
+              "projectId"
+            ]
+          }
+        ],
+        "properties": {
+          "apiKey": {
+            "type": "string",
+            "title": "API Key",
+            "description": "API key for the MT provider",
+            "ui:widget": "password"
+          },
+          "email": {
+            "type": "string",
+            "title": "Email",
+            "description": "Account email for higher rate limits (mymemory)"
+          },
+          "projectId": {
+            "type": "string",
+            "title": "Project ID",
+            "description": "Google Cloud project ID (google)"
+          },
+          "region": {
+            "type": "string",
+            "title": "Region",
+            "description": "Azure region (microsoft)"
+          },
+          "subscriptionKey": {
+            "type": "string",
+            "title": "Subscription Key",
+            "description": "Azure subscription key (microsoft)",
+            "ui:widget": "password"
+          }
+        }
       }
     },
     {
