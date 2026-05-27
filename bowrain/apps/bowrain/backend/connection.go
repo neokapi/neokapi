@@ -23,10 +23,24 @@ var errNotConnected = errors.New("not connected to server")
 const DefaultServerURL = "https://bowrain.cloud"
 
 const (
-	keyringService         = "bowrain"
+	keyringServiceBase     = "bowrain"
 	keyringAccessTokenKey  = "access-token"
 	keyringRefreshTokenKey = "refresh-token"
 )
+
+// keyringService returns the OS keychain service name for the desktop auth
+// tokens. It is namespaced by the config dir so an isolated
+// BOWRAIN_DESKTOP_CONFIG_DIR (tests, or an alternate/dogfood instance) gets its
+// own token slot instead of reading or clobbering the user's real login — the
+// same env var that already isolates auth.json now isolates the tokens too. The
+// default config dir keeps the bare "bowrain" service for backward
+// compatibility with existing installs.
+func keyringService() string {
+	if dir := os.Getenv("BOWRAIN_DESKTOP_CONFIG_DIR"); dir != "" {
+		return keyringServiceBase + ":" + dir
+	}
+	return keyringServiceBase
+}
 
 // ConnectionState represents the connection state of the desktop client.
 type ConnectionState string
@@ -455,8 +469,8 @@ func (a *App) Logout() {
 	a.Disconnect()
 	_ = os.Remove(desktopAuthFilePath())
 	// Remove tokens from keyring (best-effort).
-	_ = keyring.Delete(keyringService, keyringAccessTokenKey)
-	_ = keyring.Delete(keyringService, keyringRefreshTokenKey)
+	_ = keyring.Delete(keyringService(),keyringAccessTokenKey)
+	_ = keyring.Delete(keyringService(),keyringRefreshTokenKey)
 }
 
 // Disconnect closes the server connection.
@@ -503,12 +517,12 @@ func desktopAuthFilePath() string {
 func saveDesktopAuth(a *storedDesktopAuth) error {
 	// Save tokens to OS keychain.
 	if a.AccessToken != "" {
-		if err := keyring.Set(keyringService, keyringAccessTokenKey, a.AccessToken); err != nil {
+		if err := keyring.Set(keyringService(),keyringAccessTokenKey, a.AccessToken); err != nil {
 			return fmt.Errorf("save access token to keyring: %w", err)
 		}
 	}
 	if a.RefreshToken != "" {
-		if err := keyring.Set(keyringService, keyringRefreshTokenKey, a.RefreshToken); err != nil {
+		if err := keyring.Set(keyringService(),keyringRefreshTokenKey, a.RefreshToken); err != nil {
 			return fmt.Errorf("save refresh token to keyring: %w", err)
 		}
 	}
@@ -536,8 +550,8 @@ func loadDesktopAuth() (*storedDesktopAuth, error) {
 	}
 
 	// Load tokens from keyring.
-	a.AccessToken, _ = keyring.Get(keyringService, keyringAccessTokenKey)
-	a.RefreshToken, _ = keyring.Get(keyringService, keyringRefreshTokenKey)
+	a.AccessToken, _ = keyring.Get(keyringService(),keyringAccessTokenKey)
+	a.RefreshToken, _ = keyring.Get(keyringService(),keyringRefreshTokenKey)
 
 	return &a, nil
 }
