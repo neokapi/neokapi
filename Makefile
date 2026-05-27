@@ -857,6 +857,46 @@ gha-lint: ## Lint GitHub Actions workflow files
 	@command -v actionlint >/dev/null 2>&1 || { echo "actionlint not installed."; exit 1; }
 	actionlint
 
+# ── Release ───────────────────────────────────────────────────────────────────
+# Releases are tag-driven. `make release v=1.3.4` tags + pushes v1.3.4;
+# release.yml then builds & publishes the CLI, desktop apps, Docker images,
+# Homebrew casks and the plugin registry (macOS/Linux signed+notarized in CI).
+# The Windows binaries come out as CI artifacts and are signed locally
+# afterwards (SimplySign is a local Mac step) with `make release-windows`.
+
+# Version is passed as v=1.3.4 (a leading "v" is tolerated, e.g. v=v1.3.4).
+# The git tag is always vX.Y.Z; $(VER) is the bare X.Y.Z.
+v   ?=
+VER := $(patsubst v%,%,$(strip $(v)))
+TAG := v$(VER)
+
+.PHONY: release release-windows release-winget
+
+release: ## Tag + push a release (v=1.3.4); CI builds & publishes the rest
+	@[ -n "$(strip $(v))" ] || { echo "usage: make release v=1.3.4"; exit 1; }
+	@echo "$(VER)" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+' || { echo "✗ version must look like 1.3.4 (got '$(v)')"; exit 1; }
+	@test -z "$$(git status --porcelain)" || { echo "✗ working tree not clean"; exit 1; }
+	@test "$$(git rev-parse --abbrev-ref HEAD)" = "main" || { echo "✗ not on main"; exit 1; }
+	@git fetch --quiet origin main
+	@test "$$(git rev-parse HEAD)" = "$$(git rev-parse origin/main)" || { echo "✗ local main is not in sync with origin/main"; exit 1; }
+	@git rev-parse "$(TAG)" >/dev/null 2>&1 && { echo "✗ tag $(TAG) already exists"; exit 1; } || true
+	@printf "Tag and push %s at %s? [y/N] " "$(TAG)" "$$(git rev-parse --short HEAD)"; read ok; [ "$$ok" = "y" ] || { echo aborted; exit 1; }
+	git tag -a "$(TAG)" -m "Release $(TAG)"
+	git push origin "$(TAG)"
+	@echo ""
+	@echo "Pushed $(TAG). Follow CI with:  gh run watch"
+	@echo "After CI finishes, sign Windows (with SimplySign Desktop logged in):"
+	@echo "    make release-windows v=$(VER)"
+
+release-windows: ## Sign the Windows artifacts + finalize the release (after CI; SimplySign logged in)
+	@[ -n "$(strip $(v))" ] || { echo "usage: make release-windows v=1.3.4"; exit 1; }
+	JSIGN_KEYSTORE="$${JSIGN_KEYSTORE:-$$HOME/simplysign-pkcs11.cfg}" \
+		./scripts/publish-windows-signed.sh "$(TAG)"
+
+release-winget: ## Submit the signed CLI to winget-pkgs (after release-windows; needs WINGET_TOKEN + `komac new` bootstrap)
+	@[ -n "$(strip $(v))" ] || { echo "usage: make release-winget v=1.3.4"; exit 1; }
+	gh workflow run winget.yml --repo neokapi/neokapi -f tag="$(TAG)"
+
 # ── Clean ────────────────────────────────────────────────────────────────────
 
 clean: ## Remove all build artifacts
