@@ -1,8 +1,8 @@
 ---
 sidebar_position: 4
 title: Installation
-description: Install the kapi CLI on macOS, Linux, or Windows via Homebrew or a direct binary download. Offline by default; no configuration needed to start.
-keywords: [kapi, install, homebrew, binary download, macos, linux, windows]
+description: Install the kapi CLI on macOS, Linux, or Windows via Homebrew, WinGet, or a direct binary download. Offline by default; no configuration needed to start.
+keywords: [kapi, install, homebrew, winget, binary download, macos, linux, windows]
 ---
 
 # Installation
@@ -14,7 +14,13 @@ binary that runs offline by default.
 ## Homebrew (macOS/Linux)
 
 ```bash
-brew install neokapi/tap/kapi-cli
+brew install neokapi/tap/kapi
+```
+
+## WinGet (Windows)
+
+```powershell
+winget install Neokapi.Kapi
 ```
 
 ## Binary Downloads
@@ -69,4 +75,4 @@ For a visual interface, install Kapi Desktop alongside the CLI:
 brew install --cask neokapi/tap/kapi
 ```
 
-Or download the DMG/ZIP from [GitHub Releases](https://github.com/neokapi/neokapi/releases). See the [Kapi Desktop overview](/kapi/desktop/overview) for details.
+On Windows, download the signed installer (`kapi-desktop-X.Y.Z-windows-amd64-setup.exe` or `-arm64-setup.exe`); macOS DMG and Linux tarball builds are on [GitHub Releases](https://github.com/neokapi/neokapi/releases) as well. See the [Kapi Desktop overview](/kapi/desktop/overview) for details.

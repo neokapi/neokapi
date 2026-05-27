@@ -16,6 +16,15 @@ Bowrain's CLI is the **`kapi-bowrain` plugin** for the [`kapi`](https://neokapi.
 brew install neokapi/tap/bowrain-cli
 ```
 
+### WinGet (Windows)
+
+Install the `kapi` CLI, then add the bowrain plugin:
+
+```powershell
+winget install Neokapi.Kapi
+kapi plugin install bowrain
+```
+
 ### With kapi already installed
 
 ```bash
@@ -48,9 +57,9 @@ brew install --cask neokapi/tap/bowrain
 
 Download from [GitHub Releases](https://github.com/neokapi/neokapi/releases):
 
-- macOS (universal DMG)
-- Linux (amd64, arm64)
-- Windows (amd64, arm64)
+- **macOS**: DMG (Apple Silicon)
+- **Windows**: signed installer — `bowrain-X.Y.Z-windows-amd64-setup.exe` or `-arm64-setup.exe` (a portable `.zip` is also published)
+- **Linux**: tarball (amd64, arm64)
 
 ## Bowrain Server
 

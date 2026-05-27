@@ -98,12 +98,20 @@ brew install --cask neokapi/tap/kapi
 
 This also installs the `kapi` CLI as a dependency.
 
-### Manual Download
+### Windows (installer)
+
+Download and run the signed installer from [GitHub Releases](https://github.com/neokapi/neokapi/releases):
+
+- **amd64**: `kapi-desktop-X.Y.Z-windows-amd64-setup.exe`
+- **arm64**: `kapi-desktop-X.Y.Z-windows-arm64-setup.exe`
+
+The installer is Authenticode-signed, bootstraps the Microsoft WebView2 runtime if it is missing, and registers a Start-menu entry and uninstaller. A portable `kapi-desktop-X.Y.Z-windows-<arch>.zip` is also published for unattended use.
+
+### Manual Download (macOS, Linux)
 
 Download the latest release from [GitHub Releases](https://github.com/neokapi/neokapi/releases):
 
 - **macOS**: `kapi-desktop-X.Y.Z-macOS-arm64.dmg` (Apple Silicon)
-- **Windows**: `kapi-desktop-X.Y.Z-windows-amd64.zip` or `kapi-desktop-X.Y.Z-windows-arm64.zip`
 - **Linux**: `kapi-desktop-X.Y.Z-linux-amd64.tar.gz` or `kapi-desktop-X.Y.Z-linux-arm64.tar.gz`
 
 ## Quick Start

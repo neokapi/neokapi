@@ -20,10 +20,11 @@ The package ships a Vite plugin, extract + compile CLI subcommands, and the tiny
 The [`kapi` CLI](/kapi/cli) is the translation pipeline that produces pseudo-translations from the KLF directory kapi-react extracts. Install it too:
 
 ```bash
-# macOS
-brew install neokapi/tap/kapi-cli
+# macOS / Linux
+brew install neokapi/tap/kapi
 
-# Linux / Windows — download a release from github.com/neokapi/neokapi/releases
+# Windows
+winget install Neokapi.Kapi
 ```
 
 ## 2. Add the plugin to `vite.config.ts`

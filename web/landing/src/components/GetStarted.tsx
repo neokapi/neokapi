@@ -8,6 +8,10 @@ const CLI_METHODS = [
     command: 'brew install neokapi/tap/kapi',
   },
   {
+    label: 'WinGet',
+    command: 'winget install Neokapi.Kapi',
+  },
+  {
     label: 'Binary',
     command: 'curl -sSL https://github.com/neokapi/neokapi/releases/latest/download/kapi_darwin_arm64.tar.gz | tar xz',
   },
@@ -221,9 +225,9 @@ export function GetStarted() {
 
               <div className="grid gap-4 sm:grid-cols-3">
                 {[
-                  { os: 'macOS', arch: 'Universal', file: 'kapi_darwin_universal.dmg' },
-                  { os: 'Windows', arch: 'x64', file: 'kapi_windows_amd64.exe' },
-                  { os: 'Linux', arch: 'x64', file: 'kapi_linux_amd64.AppImage' },
+                  { os: 'macOS', arch: 'Apple Silicon', file: 'kapi-desktop-macOS-arm64.dmg' },
+                  { os: 'Windows', arch: 'amd64 · arm64', file: 'kapi-desktop-windows-setup.exe' },
+                  { os: 'Linux', arch: 'amd64 · arm64', file: 'kapi-desktop-linux.tar.gz' },
                 ].map((dl) => (
                   <a
                     key={dl.os}

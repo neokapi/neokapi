@@ -13,10 +13,11 @@ The bowrain platform — a full-stack localization platform built on top of neok
 ## Install
 
 ```bash
-brew install neokapi/tap/kapi-cli      # CLI
+brew install neokapi/tap/kapi      # macOS/Linux
+winget install Neokapi.Kapi        # Windows
 ```
 
-Pre-built binaries for Linux, macOS, and Windows are on the [Releases](https://github.com/neokapi/neokapi/releases) page.
+Pre-built binaries for Linux, macOS, and Windows (amd64 + arm64) are on the [Releases](https://github.com/neokapi/neokapi/releases) page. Kapi Desktop ships a signed Windows installer and a macOS cask — see the [installation guide](https://neokapi.github.io/web/neokapi/docs/kapi/get-started/installation).
 
 ## Repository Layout
 

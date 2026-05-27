@@ -17,9 +17,9 @@ brew install --cask neokapi/tap/bowrain
 
 Download the latest release from [GitHub Releases](https://github.com/neokapi/neokapi/releases):
 
-- **macOS**: Universal DMG (Intel + Apple Silicon)
-- **Windows**: ZIP archive (amd64, arm64)
-- **Linux**: Tarball (amd64, arm64)
+- **macOS**: DMG (Apple Silicon)
+- **Windows**: signed installer (`bowrain-X.Y.Z-windows-amd64-setup.exe` or `-arm64-setup.exe`); a portable `.zip` is also published
+- **Linux**: tarball (amd64, arm64)
 
 ## First Project
 
