@@ -45,6 +45,19 @@ const stdinName = "-"
 // classic tools.
 const fallbackFormat = "plaintext"
 
+// mapToolboxErr maps a toolbox utility's RunE result to the grep-style exit
+// code contract: nil on match (0), ErrSilentExit on no-match (1, message
+// suppressed), context.Canceled on interrupt (130), and any other operational
+// trouble (bad pattern, unreadable file, …) to ExitUsage (2) — matching
+// grep/sed/cat and the utilities' own --help. The underlying message is
+// preserved.
+func mapToolboxErr(err error) error {
+	if err == nil || errors.Is(err, ErrSilentExit) || errors.Is(err, context.Canceled) {
+		return err
+	}
+	return WithExitCode(ExitUsage, err)
+}
+
 // BusyboxRoot returns a standalone root command when prog names a multi-call
 // toolbox utility (kgrep / ksed / kcat, with an optional .exe suffix), or nil
 // when it does not — signalling the caller to run the normal kapi root. The
@@ -80,6 +93,9 @@ func BusyboxRoot(app *App, prog string) *cobra.Command {
 		ApplyAppInitializers(app)
 	}
 	cmd.PersistentPostRun = func(*cobra.Command, []string) { app.Shutdown() }
+	if inner := cmd.RunE; inner != nil {
+		cmd.RunE = func(c *cobra.Command, args []string) error { return mapToolboxErr(inner(c, args)) }
+	}
 	return cmd
 }
 
@@ -108,7 +124,7 @@ func (a *App) NewToolboxProxies() []*cobra.Command {
 				std.SilenceUsage = true
 				std.SilenceErrors = true
 				std.SetArgs(args)
-				return std.ExecuteContext(cmd.Context())
+				return mapToolboxErr(std.ExecuteContext(cmd.Context()))
 			},
 		}
 	}

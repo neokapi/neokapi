@@ -106,6 +106,16 @@ func TestRunGrepOutput(t *testing.T) {
 		assert.ErrorIs(t, err, ErrSilentExit, "no-match must signal exit 1 via ErrSilentExit")
 	})
 
+	t.Run("missing file returns exit 2 (trouble) and stays silent", func(t *testing.T) {
+		out, err := captureStdout(t, func() error {
+			return app.runGrep(context.Background(), []string{dir + "/missing.json"}, mustMatcher(t, "world", matcherOpts{}), grepOptions{})
+		})
+		assert.Empty(t, out)
+		require.Error(t, err)
+		assert.Equal(t, ExitUsage, ExitCode(nil, err), "a read error must map to exit 2 (grep trouble)")
+		assert.ErrorIs(t, err, ErrSilentExit, "trouble suppresses the summary message")
+	})
+
 	t.Run("two files get name prefixes", func(t *testing.T) {
 		path2 := writeToolboxFile(t, dir, "more.json", `{"x":"world tour"}`)
 		out, err := captureStdout(t, func() error {

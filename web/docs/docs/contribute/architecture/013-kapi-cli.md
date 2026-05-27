@@ -198,11 +198,17 @@ Commands without a `TextFormatter` fall back to formatted JSON.
 
 ### Exit codes
 
-| Code | Meaning                                        |
-| ---- | ---------------------------------------------- |
-| 0    | Success                                        |
-| 1    | Error (command failed)                         |
-| 2    | Conflict (e.g. sync conflict, overwrite block) |
+| Code | Meaning                                                                 |
+| ---- | ----------------------------------------------------------------------- |
+| 0    | Success (`ExitOK`)                                                      |
+| 1    | Operational error (`ExitError`) — the default for a failed command      |
+| 2    | Usage / toolbox trouble (`ExitUsage`) — e.g. `kgrep`/`ksed`/`kcat` on a bad pattern or unreadable file (grep convention) |
+| 3    | Quality/brand gate failed (`ExitGate`) — distinct from an error, so CI and skills can tell a sub-threshold gate from a crash |
+| 130  | Interrupted (`ExitSignal`) — 128 + SIGINT                               |
+
+Commands map errors to codes through `cli.ExitCode`; a command can request a
+specific code by returning an error tagged with `cli.WithExitCode` (the toolbox
+utilities use it for the grep-style `2`), and `ErrQualityGate` maps to `3`.
 
 Exit codes are consistent across formats. In JSON mode, errors are
 structured objects:
