@@ -835,7 +835,7 @@ jobs:
               -srcfolder dmg \
               -ov \
               -format UDZO \
-              "../../../kapi-desktop-${VERSION}-macOS-arm64.dmg" && break
+              "../../kapi-desktop-${VERSION}-macOS-arm64.dmg" && break
             echo "hdiutil attempt $i failed, retrying after 5s..."
             sleep 5
           done
