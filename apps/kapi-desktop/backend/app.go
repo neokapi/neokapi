@@ -88,7 +88,10 @@ func NewApp() *App {
 	logger := log.New(os.Stderr, "[kapi-desktop] ", log.LstdFlags)
 	pluginDir := defaultPluginDir()
 
-	credStore := credentials.NewStore(credentials.DefaultPath())
+	// Resolve the provider-config store under the env-overridable config dir
+	// (not credentials.DefaultPath, which hardcodes os.UserConfigDir) so an
+	// isolated KAPI_CONFIG_DIR fully isolates credentials from the user's own.
+	credStore := credentials.NewStore(filepath.Join(kapiConfigDir(), "providers.json"))
 
 	// Wire credential resolution: tools requiring "credentials" get their
 	// provider/apiKey/model injected from the shared credential store.

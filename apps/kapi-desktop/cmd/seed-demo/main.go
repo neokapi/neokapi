@@ -10,6 +10,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -49,8 +50,31 @@ func main() {
 	seedSecondaryTermbase(filepath.Join(tbDir, "brand-terms.db"))
 	seedTM(filepath.Join(tmDir, "acme-app.db"))
 	seedSecondaryTM(filepath.Join(tmDir, "global-tm.db"))
+	seedProviders(filepath.Join(root, "providers.json"))
 
 	fmt.Println("seeded:", tbDir, tmDir)
+}
+
+// seedProviders writes demo AI-provider configs (names + types only, no API
+// keys) so the AI Credentials screen looks realistic without exposing the
+// developer's real keychain entries. The backend reads this from the isolated
+// KAPI_CONFIG_DIR (see backend NewApp), so the user's own providers.json is
+// never touched.
+func seedProviders(path string) {
+	type provider struct {
+		ID           string `json:"id"`
+		Name         string `json:"name"`
+		ProviderType string `json:"provider_type"`
+		Model        string `json:"model,omitempty"`
+	}
+	providers := []provider{
+		{ID: "p1", Name: "Claude (Anthropic)", ProviderType: "anthropic", Model: "claude-sonnet-4-6"},
+		{ID: "p2", Name: "GPT-4o", ProviderType: "openai", Model: "gpt-4o"},
+		{ID: "p3", Name: "Gemini", ProviderType: "gemini", Model: "gemini-2.5-flash"},
+	}
+	data, err := json.MarshalIndent(providers, "", "  ")
+	must(err)
+	must(os.WriteFile(path, data, 0o644))
 }
 
 func seedTermbase(path string) {

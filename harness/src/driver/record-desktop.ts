@@ -17,7 +17,7 @@ import path from "node:path";
 import net from "node:net";
 import os from "node:os";
 import { spawn } from "node:child_process";
-import { chromium, type Page, type Browser } from "playwright";
+import { chromium, type Page, type Browser, type Locator } from "playwright";
 import { ensureDir, publicDemoDir, REPO_ROOT } from "../lib/paths.ts";
 import { injectCursor, moveTo, humanClick, humanType, idle } from "./cursor-helper.ts";
 
@@ -72,17 +72,29 @@ function waitPort(port: number, timeoutMs: number): Promise<void> {
 }
 
 const KAPI_DESKTOP_DIR = path.join(REPO_ROOT, "apps", "kapi-desktop");
-// Isolated config root so the real app never reads the developer's own
-// termbases/TMs/settings (honored via KAPI_CONFIG_DIR — see backend/paths.go).
-const ISO_DIR = path.join(os.tmpdir(), "kapi-desktop-demo", "kapi");
+// Isolated roots so the real app never touches the developer's own data
+// (honored via KAPI_CONFIG_DIR / KAPI_HOME_DIR / KAPI_DESKTOP_CONFIG_DIR — see
+// backend/paths.go). The home dir holds created projects (project walkthrough).
+const ISO_BASE = path.join(os.tmpdir(), "kapi-desktop-demo");
+const ISO_DIR = path.join(ISO_BASE, "kapi");
+const ISO_HOME = path.join(ISO_BASE, "home");
+const ISO_DESKTOP = path.join(ISO_BASE, "desktop");
 const ICU_PKGCONFIG = "/opt/homebrew/opt/icu4c/lib/pkgconfig";
 
-/** Env for the Go builds/run: cgo + fts5 deps + isolated config root. */
+/** Env for the Go builds/run: cgo + fts5 deps + isolated config/home roots. */
 function goEnv(extra: Record<string, string> = {}): NodeJS.ProcessEnv {
   const pkg = fs.existsSync(ICU_PKGCONFIG)
     ? `${ICU_PKGCONFIG}:${process.env.PKG_CONFIG_PATH ?? ""}`
     : process.env.PKG_CONFIG_PATH ?? "";
-  return { ...process.env, CGO_ENABLED: "1", PKG_CONFIG_PATH: pkg, KAPI_CONFIG_DIR: ISO_DIR, ...extra };
+  return {
+    ...process.env,
+    CGO_ENABLED: "1",
+    PKG_CONFIG_PATH: pkg,
+    KAPI_CONFIG_DIR: ISO_DIR,
+    KAPI_HOME_DIR: ISO_HOME,
+    KAPI_DESKTOP_CONFIG_DIR: ISO_DESKTOP,
+    ...extra,
+  };
 }
 
 function runToCompletion(cmd: string, args: string[], opts: { cwd: string; env: NodeJS.ProcessEnv }): Promise<void> {
@@ -127,27 +139,32 @@ async function startRealStack(): Promise<{ url: string; teardown: () => Promise<
   };
 }
 
-/**
- * The walkthrough script. Each beat runs its actions, and we timestamp its
- * span relative to the recording start so the renderer can play the exact slice
- * with the right zoom.
- */
-async function runWalkthrough(page: Page, t0: number): Promise<Beat[]> {
-  const beats: Beat[] = [];
+// ── Walkthrough scripts ───────────────────────────────────────────────────
+// Each demo has its own walkthrough keyed by id. A WalkCtx gives every script
+// the same timed-beat + element-zoom helpers; the per-beat zoom frames the real
+// component (from its bounding box) so nothing is cut off.
+
+interface WalkCtx {
+  page: Page;
+  /** A fixed-rect beat (sidebar/full views). zoom=null → full frame. */
+  beat: (id: string, zoom: ZoomRect | null, fn: () => Promise<void>) => Promise<void>;
+  /** A beat whose zoom is derived from elements AFTER its actions settle. */
+  beatEls: (id: string, selectors: string[], fn: () => Promise<void>) => Promise<void>;
+  /** Move the visible cursor onto an element's centre. */
+  cursorTo: (selector: string, duration?: number) => Promise<void>;
+  /** A sidebar nav button by its aria-label. */
+  sidebar: (label: string) => Locator;
+}
+
+function makeCtx(page: Page, t0: number, beats: Beat[]): WalkCtx {
   const now = () => (Date.now() - t0) / 1000;
   const sidebar = (label: string) => page.locator(`button[aria-label="${label}"]`);
-
-  // A fixed-rect beat (sidebar/full views).
   const beat = async (id: string, zoom: ZoomRect | null, fn: () => Promise<void>) => {
     const tStart = now();
     await fn();
     beats.push({ id, tStart, tEnd: now(), zoom });
   };
-
-  // Normalized zoom rect bounding the given elements at their FINAL on-screen
-  // position, padded — so the zoom frames the real component (no cut-off) and
-  // tracks layout shifts (e.g. the activity chart pushing content down).
-  const unionZoom = async (selectors: string[], pad = 0.035): Promise<ZoomRect | null> => {
+  const unionZoom = async (selectors: string[], pad = 0.04): Promise<ZoomRect | null> => {
     let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity, any = false;
     for (const s of selectors) {
       const box = await page.locator(s).first().boundingBox().catch(() => null);
@@ -169,89 +186,175 @@ async function runWalkthrough(page: Page, t0: number): Promise<Beat[]> {
     h = Math.min(1 - y, h);
     return { x, y, w, h };
   };
-
-  // Move the visible cursor onto an element's centre.
   const cursorTo = async (selector: string, duration = 600) => {
     const box = await page.locator(selector).first().boundingBox().catch(() => null);
     if (box) await moveTo(page, box.x + box.width / 2, box.y + box.height / 2, duration);
   };
-
-  // A beat whose zoom is derived from elements AFTER its actions settle — frames
-  // the actual component (search bar, card, entry) so nothing is cut off.
-  const beatEls = async (id: string, zoomSelectors: string[], fn: () => Promise<void>) => {
+  const beatEls = async (id: string, selectors: string[], fn: () => Promise<void>) => {
     const tStart = now();
     await fn();
-    const zoom = await unionZoom(zoomSelectors);
-    beats.push({ id, tStart, tEnd: now(), zoom });
+    beats.push({ id, tStart, tEnd: now(), zoom: await unionZoom(selectors) });
   };
+  return { page, beat, beatEls, cursorTo, sidebar };
+}
 
-  // 1 — Home: the app at rest (full frame).
+/** Termbase + translation-memory explorer. */
+async function explorerWalk(c: WalkCtx): Promise<void> {
+  const { page, beat, beatEls, cursorTo, sidebar } = c;
   await beat("intro", null, async () => {
     await idle(page, 2200);
   });
-
-  // 2 — Open the Termbases section (zoom toward the sidebar).
   await beat("open-termbases", { x: 0, y: 0.04, w: 0.34, h: 0.66 }, async () => {
     await humanClick(page, sidebar("Termbases"));
     await page.waitForTimeout(700);
   });
-
-  // 3 — Open a glossary (full frame — header, activity chart, and the concepts).
   await beat("open-glossary", null, async () => {
     await humanClick(page, page.locator('button:has-text("product-glossary")'));
     await page.waitForTimeout(1100);
   });
-
-  // 4 — Inspect a concept: the leading "seat" card (approved + deprecated terms).
   await beatEls("inspect-concept", ['[data-testid="concept-c-01"]'], async () => {
     await page.locator('[data-testid="concept-c-01"]').scrollIntoViewIfNeeded().catch(() => {});
     await page.waitForTimeout(300);
     await cursorTo('[data-testid="concept-c-01"]');
     await page.waitForTimeout(2200);
   });
-
-  // 5 — Search the terminology. The filter bar runs on Enter; "invoice" is a real
-  // term and yields the invoice concept (a domain like "billing" would not).
   await beatEls("search-term", ['[data-testid="filterbar-search"]', '[data-testid="concept-c-07"]'], async () => {
     await humanType(page, page.getByTestId("filterbar-search"), "invoice", { submit: true });
     await page.waitForTimeout(1500);
   });
-
-  // 6 — Cross over to Translation Memories and open one (zoom toward sidebar).
   await beat("open-tm", { x: 0, y: 0.04, w: 0.34, h: 0.66 }, async () => {
     await humanClick(page, sidebar("Translation Memories"));
     await page.waitForTimeout(600);
     await humanClick(page, page.locator('button:has-text("acme-app")'));
     await page.waitForTimeout(1100);
   });
-
-  // 7 — Inspect TM entries: a plain bilingual one + one carrying inline bold.
   await beatEls("inspect-tm", ['[data-testid="tm-entry-tm-01"]', '[data-testid="tm-entry-tm-02"]'], async () => {
     await page.locator('[data-testid="tm-entry-tm-01"]').scrollIntoViewIfNeeded().catch(() => {});
     await page.waitForTimeout(300);
     await cursorTo('[data-testid="tm-entry-tm-02"]');
     await page.waitForTimeout(2300);
   });
-
-  // 8 — Entity-aware entry ("Hi {Bob}, …").
   await beatEls("entity", ['[data-testid="tm-entry-tm-03"]'], async () => {
     await page.locator('[data-testid="tm-entry-tm-03"]').scrollIntoViewIfNeeded().catch(() => {});
     await page.waitForTimeout(300);
     await cursorTo('[data-testid="tm-entry-tm-03"]');
     await page.waitForTimeout(2200);
   });
-
-  // 9 — Search the memory. TMSearchBar runs on Enter — "invite" matches one entry.
   await beatEls("search-tm", ['[data-testid="tm-search"]', '[data-testid="tm-entry-tm-04"]'], async () => {
     await page.getByTestId("tm-search").scrollIntoViewIfNeeded().catch(() => {});
     await humanType(page, page.getByTestId("tm-search"), "invite", { submit: true });
     await page.waitForTimeout(1500);
   });
+}
 
+/** Create and manage a project. */
+async function projectsWalk(c: WalkCtx): Promise<void> {
+  const { page, beat, beatEls, cursorTo, sidebar } = c;
+  await beat("intro", null, async () => {
+    await idle(page, 2000);
+  });
+  // Open the New Project dialog and name the project.
+  await beatEls("new-project", ['button:has-text("Create Project")', 'input[placeholder="My App"]'], async () => {
+    await humanClick(page, page.locator('button:has-text("New Project")').first());
+    await page.waitForTimeout(400);
+    await humanType(page, page.locator('input[placeholder="My App"]'), "Acme Help Center");
+    await page.waitForTimeout(700);
+  });
+  // Create it → the Get Started template picker.
+  await beatEls("templates", ['button:has-text("Input → Output")', 'button:has-text("Start empty")'], async () => {
+    await humanClick(page, page.locator('button:has-text("Create Project")'));
+    await page.waitForTimeout(1100);
+  });
+  // Pick a structure → the project overview (full frame).
+  await beat("project-home", null, async () => {
+    await humanClick(page, page.locator('button:has-text("Input → Output")'));
+    await page.waitForTimeout(1300);
+  });
+  // Open Project Settings to configure languages.
+  await beat("project-settings", { x: 0.02, y: 0.05, w: 0.7, h: 0.7 }, async () => {
+    await humanClick(page, sidebar("Project Settings"));
+    await page.waitForTimeout(1300);
+  });
+  // Glance at the Content view (file patterns).
+  await beat("content", { x: 0.02, y: 0.05, w: 0.92, h: 0.6 }, async () => {
+    await humanClick(page, sidebar("Content"));
+    await page.waitForTimeout(1400);
+  });
+}
+
+/** Configuration: appearance, AI credentials, plugins. */
+async function configWalk(c: WalkCtx): Promise<void> {
+  const { page, beat, sidebar } = c;
+  const tab = (label: string) => page.locator(`[role="tab"]:has-text("${label}")`);
+  await beat("intro", null, async () => {
+    await idle(page, 2000);
+  });
+  // Open App Settings → General.
+  await beat("open-settings", { x: 0, y: 0.04, w: 0.34, h: 0.66 }, async () => {
+    await humanClick(page, sidebar("App Settings"));
+    await page.waitForTimeout(900);
+  });
+  // General: appearance + UI language (do NOT click theme — it would flip the recording).
+  await beat("general", { x: 0.02, y: 0.06, w: 0.6, h: 0.66 }, async () => {
+    await moveTo(page, WIDTH * 0.2, HEIGHT * 0.32, 700);
+    await page.waitForTimeout(2200);
+  });
+  // AI Credentials tab (seeded demo providers — no real keychain entries).
+  await beat("credentials", { x: 0.02, y: 0.06, w: 0.96, h: 0.46 }, async () => {
+    await humanClick(page, tab("AI Credentials"));
+    await page.waitForTimeout(1500);
+  });
+  // Plugins tab.
+  await beat("plugins", { x: 0.02, y: 0.06, w: 0.96, h: 0.6 }, async () => {
+    await humanClick(page, tab("Plugins"));
+    await page.waitForTimeout(1600);
+  });
+}
+
+/** Flows: the built-in library and a flow's pipeline. */
+async function flowsWalk(c: WalkCtx): Promise<void> {
+  const { page, beat, sidebar } = c;
+  await beat("intro", null, async () => {
+    await idle(page, 2000);
+  });
+  // Open the Flows library (full — shows the built-in flows).
+  await beat("library", null, async () => {
+    await humanClick(page, sidebar("Flows"));
+    await page.waitForTimeout(1100);
+  });
+  // Linger on the library of composable flows.
+  await beat("library-zoom", { x: 0.02, y: 0.16, w: 0.96, h: 0.52 }, async () => {
+    await moveTo(page, WIDTH * 0.5, HEIGHT * 0.4, 700);
+    await page.waitForTimeout(2000);
+  });
+  // Open a flow → its pipeline graph (Input → Redact → AI Translate → Unredact → Output).
+  await beat("open-flow", null, async () => {
+    await humanClick(page, page.getByText("Secure Translate", { exact: true }));
+    await page.waitForTimeout(1300);
+  });
+  // Zoom the pipeline column.
+  await beat("pipeline", { x: 0.36, y: 0.12, w: 0.3, h: 0.82 }, async () => {
+    await moveTo(page, WIDTH * 0.5, HEIGHT * 0.45, 700);
+    await page.waitForTimeout(2400);
+  });
+}
+
+const WALKTHROUGHS: Record<string, (c: WalkCtx) => Promise<void>> = {
+  "kapi-desktop-explorer": explorerWalk,
+  "kapi-desktop-projects": projectsWalk,
+  "kapi-desktop-config": configWalk,
+  "kapi-desktop-flows": flowsWalk,
+};
+
+async function runWalkthrough(page: Page, t0: number, demoId: string): Promise<Beat[]> {
+  const walk = WALKTHROUGHS[demoId];
+  if (!walk) throw new Error(`no walkthrough registered for "${demoId}"`);
+  const beats: Beat[] = [];
+  await walk(makeCtx(page, t0, beats));
   return beats;
 }
 
-async function recordTheme(browser: Browser, url: string, theme: ThemeMode, outDir: string): Promise<{ webm: string; beats: Beat[] }> {
+async function recordTheme(browser: Browser, url: string, theme: ThemeMode, outDir: string, demoId: string): Promise<{ webm: string; beats: Beat[] }> {
   const videoDir = ensureDir(path.join(outDir, `_rec-${theme}`));
   const context = await browser.newContext({
     viewport: { width: WIDTH, height: HEIGHT },
@@ -274,7 +377,7 @@ async function recordTheme(browser: Browser, url: string, theme: ThemeMode, outD
   await injectCursor(page);
   await page.waitForTimeout(400);
 
-  const beats = await runWalkthrough(page, t0);
+  const beats = await runWalkthrough(page, t0, demoId);
   await page.waitForTimeout(500);
 
   const video = page.video();
@@ -311,12 +414,22 @@ export async function recordDesktop(id: string, opts: RecordOptions = {}): Promi
     teardown = stack.teardown;
   }
 
+  // Reset created projects (isolated home) before each theme so state-mutating
+  // walkthroughs (e.g. project creation) start clean on both passes. The seeded
+  // termbases/TMs/providers under ISO_DIR are left intact.
+  const resetHome = () => {
+    fs.rmSync(ISO_HOME, { recursive: true, force: true });
+    fs.mkdirSync(ISO_HOME, { recursive: true });
+  };
+
   const browser = await chromium.launch();
   try {
     console.log("  · recording light theme");
-    const light = await recordTheme(browser, url, "light", outDir);
+    resetHome();
+    const light = await recordTheme(browser, url, "light", outDir, id);
     console.log("  · recording dark theme");
-    const dark = await recordTheme(browser, url, "dark", outDir);
+    resetHome();
+    const dark = await recordTheme(browser, url, "dark", outDir, id);
 
     const screencast: Screencast = {
       width: WIDTH,

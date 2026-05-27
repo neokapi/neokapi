@@ -5,9 +5,57 @@ description: Kapi Desktop is the visual companion to the kapi CLI — a native a
 keywords: [Kapi, desktop app, Wails, flow editor, flow runner, plugin manager, credential vault, localization GUI]
 ---
 
+import { ThemedVideo } from "@neokapi/docs-shared";
+
 # Kapi Desktop
 
 Kapi Desktop is the visual companion for the [kapi CLI](/kapi/cli). It provides a native desktop interface for building localization flows, running tools, managing plugins, and storing AI credentials — all without writing YAML or remembering CLI flags.
+
+## A quick tour
+
+### Create and manage a project
+
+A project pairs a source language with the locales you translate into, the files in scope, and the flows that process them. Naming it is the only required step — everything else is configured visually.
+
+<ThemedVideo
+  sources={{
+    light: "/video/kapi/kapi-desktop-projects-light.webm",
+    dark: "/video/kapi/kapi-desktop-projects-dark.webm",
+  }}
+/>
+
+### Compose flows
+
+Flows are pipelines of steps. Kapi ships built-in ones — AI translation, quality checks, pseudo-translation, translation-memory leverage, redact-and-restore — and you can copy any of them to edit, or build your own.
+
+<ThemedVideo
+  sources={{
+    light: "/video/kapi/kapi-desktop-flows-light.webm",
+    dark: "/video/kapi/kapi-desktop-flows-dark.webm",
+  }}
+/>
+
+### Configure appearance, providers, and plugins
+
+Settings gather everything in one place: light or dark appearance, the AI providers Kapi translates with (keys stay in your OS keychain), and the plugins that extend its formats and tools.
+
+<ThemedVideo
+  sources={{
+    light: "/video/kapi/kapi-desktop-config-light.webm",
+    dark: "/video/kapi/kapi-desktop-config-dark.webm",
+  }}
+/>
+
+### Browse terminology and translation memory
+
+Kapi keeps a glossary of multi-locale terms and a memory of past translations. Both are searchable, with inline formatting and entity placeholders preserved.
+
+<ThemedVideo
+  sources={{
+    light: "/video/kapi/kapi-desktop-explorer-light.webm",
+    dark: "/video/kapi/kapi-desktop-explorer-dark.webm",
+  }}
+/>
 
 ## Features
 

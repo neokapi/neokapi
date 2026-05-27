@@ -1,0 +1,72 @@
+id: kapi-desktop-projects
+title: Create and manage a project
+subtitle: Set up a localisation project in Kapi Desktop.
+tagline: the visual companion to the kapi command line
+kind: use-case
+publishAs: kapi-desktop-projects
+terminal: desktop
+brand: desktop
+needsAi: false
+aspects:
+  - Projects
+  - Source & target languages
+  - Content patterns
+  - Project settings
+
+narration:
+  - id: title
+    kind: title
+    text: >-
+      Kapi Desktop is the visual companion to the kapi command line. Let's
+      create a localisation project and set it up.
+
+  - id: intro
+    kind: desktop
+    beat: intro
+    text: >-
+      It opens to a home screen. A new project starts right here.
+
+  - id: new-project
+    kind: desktop
+    beat: new-project
+    caption: New Project asks only for a name.
+    text: >-
+      New Project asks only for a name — here, the Acme Help Center. Kapi
+      derives the folder and the rest from it.
+
+  - id: templates
+    kind: desktop
+    beat: templates
+    caption: Start from a structure, or a blank project.
+    text: >-
+      It offers a structure to start from: source files in, translations out —
+      or a blank project you shape yourself.
+
+  - id: project-home
+    kind: desktop
+    beat: project-home
+    caption: The project opens to an overview.
+    text: >-
+      The project opens to an overview — its content, flows, tools and settings,
+      with the source and target languages across the top.
+
+  - id: project-settings
+    kind: desktop
+    beat: project-settings
+    caption: "Project Settings: languages, plugins, processing."
+    text: >-
+      Project Settings is where you choose the source language and the locales
+      you're translating into, alongside plugins and processing options.
+
+  - id: content
+    kind: desktop
+    beat: content
+    caption: Content defines which files belong to the project.
+    text: >-
+      And Content defines which files belong to the project — glob patterns the
+      engine reads from and writes back to.
+
+  - id: outro
+    kind: outro
+    text: >-
+      That's a project — created, structured, and ready to translate.

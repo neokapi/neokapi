@@ -14,6 +14,13 @@
 // that forwards binding calls to /wbridge. Nothing here is mocked: same backend
 // code, same packages, same on-disk databases — only the transport differs (as
 // it already does between Wails' macOS and Windows/Linux runtimes).
+//
+// SECURITY — this is a RECORDING/DEV-ONLY tool, never part of a shipped build
+// (it is not imported by the app's main.go). It exposes the whole backend over
+// HTTP, so it deliberately refuses to run unless:
+//   - KAPI_CONFIG_DIR is set to an ISOLATED dir (never the user's real config),
+//     so it can only ever operate on throwaway data; and
+//   - it binds to 127.0.0.1 only, with CORS limited to the local dev origin.
 package main
 
 import (
@@ -22,6 +29,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"path/filepath"
 	"reflect"
 
 	// Parity with the desktop app: register bowrain recipe schema extensions.
@@ -36,15 +44,39 @@ type callRequest struct {
 	Args   []json.RawMessage `json:"args"`
 }
 
+// requireIsolatedConfig refuses to run unless KAPI_CONFIG_DIR is set to a dir
+// that is NOT the user's default config — so wbridge can never expose the real
+// backend/credentials, even if launched by mistake.
+func requireIsolatedConfig() {
+	dir := os.Getenv("KAPI_CONFIG_DIR")
+	if dir == "" {
+		log.Fatal("wbridge refuses to run: set KAPI_CONFIG_DIR to an isolated directory. " +
+			"This tool exposes the backend over HTTP for recording only and must never serve your real config.")
+	}
+	if cfg, err := os.UserConfigDir(); err == nil {
+		def := filepath.Join(cfg, "kapi")
+		if abs, _ := filepath.Abs(dir); abs == def {
+			log.Fatalf("wbridge refuses to run: KAPI_CONFIG_DIR (%s) is your default kapi config. Use an isolated directory.", dir)
+		}
+	}
+}
+
 func main() {
+	requireIsolatedConfig()
+	// CORS origin limited to the local dev server (overridable for other ports).
+	allowOrigin := os.Getenv("WBRIDGE_ORIGIN")
+	if allowOrigin == "" {
+		allowOrigin = "http://localhost:5174"
+	}
+
 	app := backend.NewApp()
 	appVal := reflect.ValueOf(app)
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/wbridge", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Origin", allowOrigin)
 		w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "*")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 		if r.Method == http.MethodOptions {
 			w.WriteHeader(http.StatusNoContent)
 			return

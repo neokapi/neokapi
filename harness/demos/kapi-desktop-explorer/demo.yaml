@@ -3,6 +3,7 @@ title: Browse a termbase and translation memory
 subtitle: A visual tour of terminology and translation memory in Kapi Desktop.
 tagline: the visual companion to the kapi command line
 kind: use-case
+publishAs: kapi-desktop-explorer
 terminal: desktop
 brand: desktop
 needsAi: false

@@ -1,0 +1,64 @@
+id: kapi-desktop-config
+title: Configure Kapi Desktop
+subtitle: Appearance, AI providers, and plugins — in one place.
+tagline: the visual companion to the kapi command line
+kind: use-case
+publishAs: kapi-desktop-config
+terminal: desktop
+brand: desktop
+needsAi: false
+aspects:
+  - Appearance
+  - AI providers
+  - Plugins
+  - Keychain-backed keys
+
+narration:
+  - id: title
+    kind: title
+    text: >-
+      Kapi Desktop keeps its configuration in one place. Let's walk through it.
+
+  - id: intro
+    kind: desktop
+    beat: intro
+    text: >-
+      From the home screen, the gear at the bottom opens Settings.
+
+  - id: open-settings
+    kind: desktop
+    beat: open-settings
+    caption: Settings — appearance, credentials, plugins, locales.
+    text: >-
+      Settings gathers appearance, AI credentials, plugins and locales under one
+      roof.
+
+  - id: general
+    kind: desktop
+    beat: general
+    caption: Appearance follows the system, or pin light or dark.
+    text: >-
+      Appearance follows your system, or you can pin light or dark. The
+      interface itself can even run in pseudo-English for localisation testing.
+
+  - id: credentials
+    kind: desktop
+    beat: credentials
+    caption: AI Credentials — keys live in the OS keychain.
+    text: >-
+      AI Credentials hold the providers Kapi translates with — Anthropic,
+      OpenAI, Gemini. The keys live in your operating system's keychain, never
+      on disk.
+
+  - id: plugins
+    kind: desktop
+    beat: plugins
+    caption: Plugins extend the formats and tools available.
+    text: >-
+      And plugins extend Kapi — adding formats, connectors and tools beyond the
+      built-in set.
+
+  - id: outro
+    kind: outro
+    text: >-
+      Appearance, providers, plugins — configured once, used everywhere.

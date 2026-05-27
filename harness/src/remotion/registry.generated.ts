@@ -2,6 +2,50 @@
 export interface RegistryEntry { id: string; title: string; }
 export const DEMOS: RegistryEntry[] = [
   {
+    "id": "01-localize-landing-page",
+    "title": "Translate a landing page to French"
+  },
+  {
+    "id": "02-nextjs-zero-to-i18n",
+    "title": "Zero to Japanese — i18n a Next.js app with kapi"
+  },
+  {
+    "id": "03-translate-docx",
+    "title": "Translate a document, structure intact"
+  },
+  {
+    "id": "04-i18n-react-catalogs",
+    "title": "Add French and German to a React app"
+  },
+  {
+    "id": "06-multi-format-publishing",
+    "title": "Translate Markdown and a properties file"
+  },
+  {
+    "id": "07-global-launch-many-languages",
+    "title": "Translate app strings into four languages"
+  },
+  {
+    "id": "08-mcp-tools",
+    "title": "Reach kapi over MCP"
+  },
+  {
+    "id": "09-toolbox-find-replace",
+    "title": "grep, sed and cat — for any format"
+  },
+  {
+    "id": "kapi-desktop-projects",
+    "title": "Create and manage a project"
+  },
+  {
+    "id": "kapi-desktop-config",
+    "title": "Configure Kapi Desktop"
+  },
+  {
+    "id": "kapi-desktop-flows",
+    "title": "Compose localisation flows"
+  },
+  {
     "id": "kapi-desktop-explorer",
     "title": "Browse a termbase and translation memory"
   }

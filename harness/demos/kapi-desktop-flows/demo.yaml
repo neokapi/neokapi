@@ -1,0 +1,62 @@
+id: kapi-desktop-flows
+title: Compose localisation flows
+subtitle: Built-in, composable pipelines of steps.
+tagline: the visual companion to the kapi command line
+kind: use-case
+publishAs: kapi-desktop-flows
+terminal: desktop
+brand: desktop
+needsAi: false
+aspects:
+  - Flows
+  - Built-in pipelines
+  - Composable steps
+  - Redaction & QA
+
+narration:
+  - id: title
+    kind: title
+    text: >-
+      In Kapi, work is organised into flows — pipelines of steps you compose and
+      run.
+
+  - id: intro
+    kind: desktop
+    beat: intro
+    text: >-
+      From the home screen, open the Flows library.
+
+  - id: library
+    kind: desktop
+    beat: library
+    caption: Built-in flows ship with Kapi.
+    text: >-
+      Kapi ships built-in flows: AI translate, quality checks, pseudo-translation,
+      translation-memory leverage, and more.
+
+  - id: library-zoom
+    kind: desktop
+    beat: library-zoom
+    caption: Each flow is a composable pipeline.
+    text: >-
+      Each one is a composable pipeline — run it as it is, or copy it to edit.
+
+  - id: open-flow
+    kind: desktop
+    beat: open-flow
+    caption: Open a flow to see its shape.
+    text: >-
+      Opening Secure Translate reveals its shape.
+
+  - id: pipeline
+    kind: desktop
+    beat: pipeline
+    caption: Input → redact → translate → restore → output.
+    text: >-
+      Input flows through redaction, AI translation, then un-redaction to the
+      output — so sensitive text never leaves your machine in the clear.
+
+  - id: outro
+    kind: outro
+    text: >-
+      Built-in flows, or your own — composed visually, run anywhere.

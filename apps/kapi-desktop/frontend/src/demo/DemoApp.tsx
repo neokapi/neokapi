@@ -173,7 +173,11 @@ const TM_ENTRIES: TMEntryDTO[] = [
     variants: {
       "en-US": { locale: "en-US", text: "Welcome back", runs: [{ text: "Welcome back" }] },
       "fr-FR": { locale: "fr-FR", text: "Bon retour", runs: [{ text: "Bon retour" }] },
-      "de-DE": { locale: "de-DE", text: "Willkommen zurück", runs: [{ text: "Willkommen zurück" }] },
+      "de-DE": {
+        locale: "de-DE",
+        text: "Willkommen zurück",
+        runs: [{ text: "Willkommen zurück" }],
+      },
     },
     created_at: hoursAgo(3),
     updated_at: hoursAgo(3),
@@ -309,7 +313,11 @@ const TM_ENTRIES: TMEntryDTO[] = [
         text: "Export your data",
         runs: [{ text: "Export your data" }],
       },
-      "fr-FR": { locale: "fr-FR", text: "Exportez vos données", runs: [{ text: "Exportez vos données" }] },
+      "fr-FR": {
+        locale: "fr-FR",
+        text: "Exportez vos données",
+        runs: [{ text: "Exportez vos données" }],
+      },
     },
     created_at: hoursAgo(48),
     updated_at: hoursAgo(48),
@@ -410,8 +418,8 @@ function HomeView({ onGo }: { onGo: (v: string) => void }) {
       <div>
         <h1 className="text-3xl font-semibold tracking-tight">Kapi Desktop</h1>
         <p className="mt-2 max-w-xl text-muted-foreground">
-          Browse the terminology and translation memory behind your localisation —
-          every concept, every approved term, every remembered translation.
+          Browse the terminology and translation memory behind your localisation — every concept,
+          every approved term, every remembered translation.
         </p>
       </div>
       <div className="grid w-full max-w-2xl grid-cols-1 gap-3 md:grid-cols-2">
@@ -528,7 +536,12 @@ function MemoriesView() {
             </div>
           }
         />
-        <TMBrowser adapter={adapter} locales={LOCALES} sourceLocale="en-US" targetLocales={["fr-FR", "de-DE"]} />
+        <TMBrowser
+          adapter={adapter}
+          locales={LOCALES}
+          sourceLocale="en-US"
+          targetLocales={["fr-FR", "de-DE"]}
+        />
       </div>
     );
   }
