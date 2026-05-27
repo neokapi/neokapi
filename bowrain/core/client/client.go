@@ -294,7 +294,7 @@ type BlockContent struct {
 // Returns a RichPullResponse with structured SyncBlock records. The response is
 // automatically decompressed when the server returns zstd-compressed data.
 func (c *BowrainClient) Pull(ctx context.Context, cursor int64, locales []string, limit int) (*RichPullResponse, error) {
-	u, err := url.Parse(c.streamPrefix() + "/sync/pull")
+	u, err := url.Parse(c.streamPrefix() + "/pull")
 	if err != nil {
 		return nil, fmt.Errorf("parse URL: %w", err)
 	}
@@ -349,7 +349,7 @@ func (c *BowrainClient) Pull(ctx context.Context, cursor int64, locales []string
 
 // PushStatus checks the status of auto-triggered translation jobs for a push.
 func (c *BowrainClient) PushStatus(ctx context.Context, pushID string) (*PushStatusResponse, error) {
-	u, err := url.Parse(c.streamPrefix() + "/sync/status")
+	u, err := url.Parse(c.streamPrefix() + "/status")
 	if err != nil {
 		return nil, fmt.Errorf("parse URL: %w", err)
 	}
@@ -384,7 +384,7 @@ func (c *BowrainClient) PushStatus(ctx context.Context, pushID string) (*PushSta
 // GetBlocks fetches blocks for a specific item (source file) with full structured
 // content including segments, spans, annotations, and metadata.
 func (c *BowrainClient) GetBlocks(ctx context.Context, itemName string) ([]SyncBlock, error) {
-	u, err := url.Parse(c.streamPrefix() + "/sync/blocks")
+	u, err := url.Parse(c.streamPrefix() + "/blocks")
 	if err != nil {
 		return nil, fmt.Errorf("parse URL: %w", err)
 	}

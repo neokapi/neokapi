@@ -121,6 +121,41 @@ type Capabilities struct {
 	// file shipped in the plugin dir; kapi validates Extras against the
 	// schema at recipe parse time.
 	SchemaExtensions []SchemaExtension `json:"schema_extensions,omitempty"`
+
+	// CommandContributions declares hooks a plugin adds to a built-in kapi
+	// command (e.g. extending `kapi init` to connect the project to a
+	// platform). Unlike Commands (which a plugin fully owns), a contribution
+	// augments a command kapi already provides: kapi registers the declared
+	// flags on the built-in command and, after it runs, dispatches the
+	// plugin's handler when the contribution is engaged.
+	CommandContributions []CommandContribution `json:"command_contributions,omitempty"`
+}
+
+// CommandContribution declares a plugin hook into a built-in kapi command.
+//
+// kapi adds the contribution's Flags to the named built-in command and, when
+// the contribution is engaged (EngageWhen flag set, or — if EngageWhen is empty
+// — any contributed flag set), dispatches the plugin handler after the built-in
+// command's own action runs. The handler is dispatched as a Mode-A subcommand
+// (`<binary> command <Handler> <engaged flags>`) in the command's project
+// directory (KAPI_PROJECT_DIR). Handlers must be idempotent.
+type CommandContribution struct {
+	// Command is the built-in command this contribution extends (e.g. "init").
+	Command string `json:"command"`
+
+	// Handler is the plugin subcommand kapi dispatches (e.g. "init-connect").
+	Handler string `json:"handler"`
+
+	// Short is an optional one-line description of what the contribution adds.
+	Short string `json:"short,omitempty"`
+
+	// Flags are added to the built-in command's flag set. The plugin handler
+	// parses them itself; engaged flags are forwarded to the handler.
+	Flags []FlagSpec `json:"flags,omitempty"`
+
+	// EngageWhen names the flag whose presence triggers dispatching the
+	// handler. When empty, the contribution engages if any of its Flags is set.
+	EngageWhen string `json:"engage_when,omitempty"`
 }
 
 // Command describes one top-level CLI command the plugin provides.
@@ -354,6 +389,36 @@ func (m *Manifest) Validate() error {
 		case "project", "defaults", "collection", "item":
 		default:
 			return fmt.Errorf("capabilities.schema_extensions[%d]: invalid scope %q (want project|defaults|collection|item)", i, ext.Scope)
+		}
+	}
+	for i, cc := range m.Capabilities.CommandContributions {
+		if cc.Command == "" {
+			return fmt.Errorf("capabilities.command_contributions[%d]: command is required", i)
+		}
+		if cc.Handler == "" {
+			return fmt.Errorf("capabilities.command_contributions[%d]: handler is required", i)
+		}
+		for j, fl := range cc.Flags {
+			if fl.Name == "" {
+				return fmt.Errorf("capabilities.command_contributions[%d].flags[%d]: name is required", i, j)
+			}
+			switch fl.Type {
+			case "bool", "string", "int", "stringSlice":
+			default:
+				return fmt.Errorf("capabilities.command_contributions[%d].flags[%d]: invalid type %q (want bool|string|int|stringSlice)", i, j, fl.Type)
+			}
+		}
+		if cc.EngageWhen != "" {
+			found := false
+			for _, fl := range cc.Flags {
+				if fl.Name == cc.EngageWhen {
+					found = true
+					break
+				}
+			}
+			if !found {
+				return fmt.Errorf("capabilities.command_contributions[%d]: engage_when %q is not one of the declared flags", i, cc.EngageWhen)
+			}
 		}
 	}
 	return nil

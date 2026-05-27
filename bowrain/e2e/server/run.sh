@@ -33,8 +33,11 @@ bash "$SCRIPT_DIR/setup.sh"
 
 echo ""
 echo "Running e2e tests..."
-cd "$ROOT_DIR"
-go test -tags=e2e -count=1 -v ./platform/e2e/server/
+# The e2e tests live in the bowrain module; run from there so the relative
+# package path resolves (the old ./platform/e2e/server path predates the
+# platform/ → bowrain/ rename).
+cd "$ROOT_DIR/bowrain"
+go test -tags=e2e -count=1 -v ./e2e/server/
 
 echo ""
 echo "All Bowrain server e2e tests passed!"

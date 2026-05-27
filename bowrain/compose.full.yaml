@@ -1,0 +1,234 @@
+# Full local Bowrain stack — everything in Docker, plain HTTP on localhost.
+#
+# Unlike compose.yaml (dev *dependencies* only; server/web run on the host),
+# this file brings up the entire platform — server, async worker, and all
+# backing services — so you can exercise real push → translate → pull cycles
+# with the kapi plugin against a self-contained local deployment.
+#
+#   ┌──────────┐  device-flow/anon   ┌────────────────┐
+#   │   kapi   │ ──────────────────▶ │ bowrain-server │ ──┐ enqueue (NATS)
+#   │ (plugin) │ ◀────────────────── │   :8080 (API)  │   │
+#   └──────────┘   push / pull       └────────────────┘   ▼
+#                                        ▲ events    ┌────────────────┐
+#                                        └────────── │ bowrain-worker │ ── upstream
+#                                          (NATS)    │  ingest + xlate │   (Gemini/…)
+#                                                    └────────────────┘
+#   server + worker share NATS (jobs + events) and a blob volume (push payloads).
+#
+# Usage:
+#   cp .env.example .env            # optional: set GEMINI_API_KEY etc.
+#   docker compose -f compose.full.yaml up -d --build --wait
+#   docker compose -f compose.full.yaml --profile web up -d --build   # + web UI on :8080
+#   docker compose -f compose.full.yaml down -v                       # tear down
+#
+# Endpoints:
+#   http://localhost:8080            bowrain-server API (+ web UI when --profile web)
+#   http://localhost:8080/api/v1/health
+#   http://localhost:8180            Keycloak (admin/admin)
+#   http://localhost:8025            Mailpit (sent emails)
+#
+# Translation upstream (worker):
+#   BOWRAIN_PLATFORM_PROVIDER defaults to "demo" (offline, deterministic, no key)
+#   so the full pipeline works out of the box. Set it to "gemini" + GEMINI_API_KEY
+#   (in .env) for real translations. See .env.example.
+
+name: bowrain-local
+
+services:
+  # ── Backing services ───────────────────────────────────────────────────────
+  postgres:
+    # Apache AGE = PostgreSQL 16 + graph extension (drop-in superset).
+    image: apache/age:release_PG16_1.6.0
+    environment:
+      POSTGRES_USER: bowrain
+      POSTGRES_PASSWORD: bowrain
+      POSTGRES_DB: bowrain
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./migrations/init-age.sql:/docker-entrypoint-initdb.d/01-init-age.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bowrain -d bowrain"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  keycloak:
+    # Dev image bundles the Apple identity-provider SPI the realm references.
+    # The custom "bowrain" login theme is OPTIONAL: it is installed + used when
+    # its provider jar has been built (`make -C bowrain keycloak-theme`), and
+    # otherwise the realm's loginTheme is stripped so login still renders with
+    # Keycloak's default theme. Either way the stack works with no theme build.
+    build:
+      context: .
+      dockerfile: docker/keycloak/Dockerfile.dev
+    entrypoint: ["/bin/bash", "-c"]
+    command:
+      - |
+        set -e
+        mkdir -p /opt/keycloak/data/import
+        cp /realm-src/bowrain-admin-realm.json /opt/keycloak/data/import/bowrain-admin-realm.json
+        jar="$$(find /theme-src -maxdepth 1 -type f -name '*.jar' 2>/dev/null | head -1)"
+        if [ -n "$$jar" ]; then
+          cp "$$jar" /opt/keycloak/providers/
+          cp /realm-src/realm.json /opt/keycloak/data/import/realm.json
+          echo "keycloak: using the custom bowrain login theme"
+        else
+          sed 's/"loginTheme": "bowrain",//' /realm-src/realm.json > /opt/keycloak/data/import/realm.json
+          echo "keycloak: bowrain login theme not built — using the default theme (run 'make keycloak-theme' for the branded UI)"
+        fi
+        exec /opt/keycloak/bin/kc.sh start-dev --import-realm
+    environment:
+      KC_HOSTNAME: http://localhost:8180
+      KC_HTTP_ENABLED: "true"
+      KC_HEALTH_ENABLED: "true"
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+      OIDC_CLIENT_SECRET: bowrain-secret
+    volumes:
+      - ./docker/keycloak/realm.json:/realm-src/realm.json:ro
+      - ./docker/keycloak/bowrain-admin-realm.json:/realm-src/bowrain-admin-realm.json:ro
+      - ./apps/keycloak-theme/dist_keycloak:/theme-src:ro
+    ports:
+      - "8180:8080"
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "{ printf 'HEAD /health/ready HTTP/1.0\\r\\n\\r\\n' >&0; grep 'HTTP/1.0 200'; } 0<>/dev/tcp/localhost/9000",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+  mailpit:
+    image: axllent/mailpit:latest
+    ports:
+      - "8025:8025"
+      - "1025:1025"
+
+  nats:
+    image: nats:2-alpine
+    command: ["--jetstream", "--store_dir", "/data"]
+    ports:
+      - "4222:4222"
+      - "8222:8222"
+    volumes:
+      - nats-data:/data
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Bowrain platform ─────────────────────────────────────────────────────────
+  bowrain-server:
+    image: ${BOWRAIN_SERVER_IMAGE:-bowrain-local/server:dev}
+    build:
+      context: ..
+      dockerfile: bowrain/docker/bowrain-server/Dockerfile
+    environment:
+      BOWRAIN_JWT_SECRET: dev-secret-change-in-production
+      BOWRAIN_DATABASE_URL: postgres://bowrain:bowrain@postgres:5432/bowrain?sslmode=disable
+      # In-cluster issuer the server validates tokens against; public URL is what
+      # the browser/host is redirected to. They must resolve to the same Keycloak.
+      BOWRAIN_OIDC_ISSUER_URL: http://keycloak:8080/realms/bowrain
+      BOWRAIN_OIDC_PUBLIC_URL: http://localhost:8180/realms/bowrain
+      BOWRAIN_OIDC_CLIENT_ID: bowrain
+      BOWRAIN_OIDC_CLIENT_SECRET: bowrain-secret
+      # The admin/ctrl control plane is not wired into the local stack — its OIDC
+      # verifier can't satisfy the localhost-vs-in-cluster issuer split here. The
+      # server runs fine without it (admin API simply stays disabled).
+      BOWRAIN_SMTP_HOST: mailpit:1025
+      BOWRAIN_SMTP_FROM: noreply@bowrain.local
+      BOWRAIN_NATS_URL: nats://nats:4222
+      BOWRAIN_REDIS_URL: redis://redis:6379
+      # Shared with the worker — push payloads land here for async ingestion.
+      BLOB_STORAGE_LOCAL_DIR: /data/blobs
+      # Serve the SPA from the server (single origin). Populated by the `web`
+      # profile's web-init container; empty otherwise (API still works).
+      BOWRAIN_WEB_UI_DIR: /web
+      BOWRAIN_LOG_FORMAT: text
+    ports:
+      - "8080:8080"
+    volumes:
+      - blob-data:/data
+      - web-dist:/web:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+      nats:
+        condition: service_started
+      redis:
+        condition: service_healthy
+      mailpit:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/api/v1/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  bowrain-worker:
+    image: ${BOWRAIN_WORKER_IMAGE:-bowrain-local/worker:dev}
+    build:
+      context: ..
+      dockerfile: bowrain/docker/bowrain-worker/Dockerfile
+    environment:
+      BOWRAIN_DATABASE_URL: postgres://bowrain:bowrain@postgres:5432/bowrain?sslmode=disable
+      BOWRAIN_NATS_URL: nats://nats:4222
+      BOWRAIN_REDIS_URL: redis://redis:6379
+      # Same shared volume as the server (note: worker uses LOCAL_BLOB_DIR).
+      LOCAL_BLOB_DIR: /data/blobs
+      # Upstream translation provider for "platform" jobs (auto-translate-on-push).
+      # "demo" = offline deterministic stub (no key). Set to "gemini" + GEMINI_API_KEY
+      # (or openai/anthropic/ollama) for real translations — see .env.example.
+      BOWRAIN_PLATFORM_PROVIDER: ${BOWRAIN_PLATFORM_PROVIDER:-demo}
+      BOWRAIN_PLATFORM_MODEL: ${BOWRAIN_PLATFORM_MODEL:-}
+      BOWRAIN_PLATFORM_API_KEY: ${BOWRAIN_PLATFORM_API_KEY:-}
+      BOWRAIN_PLATFORM_BASE_URL: ${BOWRAIN_PLATFORM_BASE_URL:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      BOWRAIN_LOG_FORMAT: text
+    volumes:
+      - blob-data:/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+      nats:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8081/healthz"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+
+  # ── Web UI (optional: `--profile web`) ──────────────────────────────────────
+  # One-shot build that copies the built SPA into the shared web-dist volume,
+  # which bowrain-server then serves at http://localhost:8080/. Building the web
+  # app is heavy (Node), so it is opt-in.
+  web-init:
+    profiles: ["web"]
+    image: ${BOWRAIN_WEB_IMAGE:-bowrain-local/web:dev}
+    build:
+      context: ..
+      dockerfile: bowrain/docker/bowrain-web/Dockerfile
+    entrypoint: ["/bin/sh", "-c", "cp -r /usr/share/nginx/html/. /web/ && echo 'web UI staged into shared volume'"]
+    volumes:
+      - web-dist:/web
+
+volumes:
+  postgres-data:
+  nats-data:
+  blob-data:
+  web-dist:

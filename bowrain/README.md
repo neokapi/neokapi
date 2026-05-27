@@ -72,25 +72,86 @@ cd .. && make build-server           # bin/bowrain-server
 cd apps/bowrain && wails3 build      # native desktop app
 ```
 
-### Local dev environment
+### Running Bowrain locally
 
-Bowrain expects Keycloak (OIDC), Mailpit (email), and a Postgres or SQLite store.
+Bowrain expects Keycloak (OIDC), Mailpit (email), a PostgreSQL store, NATS (job
+queue + event bus), and an async worker. There are three ways to wire it up,
+depending on what you're working on:
+
+| Mode                       | What runs where                                  | Entry point           | Command                                                           |
+| -------------------------- | ------------------------------------------------ | --------------------- | ----------------------------------------------------------------- |
+| **A · Host + HMR**         | deps + Traefik in Docker; server + web on host   | https://bowrain.mymac | `docker compose up -d --wait` + `make dev-server` + `make dev-web` |
+| **B · Full Docker, shared**| server + worker + web in Docker, **reusing A's deps + Traefik** | https://bowrain.mymac | `make stack-up-shared`                            |
+| **B · Full Docker, standalone** | everything in Docker, plain HTTP, own project | http://localhost:8080 | `make stack-up` (`stack-up-web` for the SPA)                 |
+
+Modes A and the *shared* full-Docker mode are the **same compose project** and
+therefore share **one** Traefik — no `:80/:443` clash. You flip between a
+host-run server (HMR) and a containerized one by adding/removing the app
+overlay; the container's router out-prioritizes the host file-routes while it's
+up, and the same Traefik falls back to the host server when it's gone. The
+*standalone* mode is a separate self-contained project (its own deps, no Traefik).
+
+Modes that use `*.bowrain.mymac` need the one-time host setup (dnsmasq + mkcert;
+`make -C bowrain certs` writes the wildcard cert) — see
+[the root README's Development Setup](../README.md). The standalone mode needs no
+host setup at all.
+
+**Mode A — active server/frontend development.** Backing services (and the
+shared Traefik) run in Docker; the server and Vite dev server run on the host
+with hot reload. Traefik routes `bowrain.mymac` → host `:8080`/`:5173`.
 
 ```bash
-docker compose up -d --wait    # Traefik + Keycloak + Mailpit
-make -C .. dev-server          # Build + run bowrain-server against the deps
-make -C .. dev-web             # Vite dev server with HMR for bowrain/apps/web
+docker compose up -d --wait    # deps + Traefik (auto-loads compose.override.yaml)
+make -C .. dev-server          # bowrain-server on host :8080
+make -C .. dev-web             # Vite HMR for bowrain/apps/web on :5173
+make -C .. dev-worker          # (optional) worker, for push→translate→pull
 ```
 
-| Service  | URL                                      |
-| -------- | ---------------------------------------- |
-| Web app  | https://bowrain.mymac                    |
-| API      | https://bowrain.mymac/api/*              |
-| Keycloak | https://auth.bowrain.mymac (admin/admin) |
-| Mailpit  | https://mail.bowrain.mymac               |
-| Traefik  | https://traefik.bowrain.mymac            |
+**Mode B (shared) — full stack in Docker behind the same Traefik.** Adds the
+server + worker + web containers to Mode A's deps + Traefik project
+([`compose.app.yaml`](compose.app.yaml)); reachable at the same
+`https://bowrain.mymac`. No second proxy.
 
-The first-time host setup (dnsmasq + mkcert for `*.mymac`) is the same as the framework root — see the steps in the [root README's Development Setup](../README.md).
+```bash
+cp .env.example .env     # optional: set GEMINI_API_KEY for real MT
+make stack-up-shared     # = docker compose -f compose.yaml -f compose.override.yaml -f compose.app.yaml up
+```
+
+**Mode B (standalone) — zero-setup self-contained stack.** Everything (incl. its
+own deps) built from source on plain-HTTP localhost
+([`compose.full.yaml`](compose.full.yaml)) — no `*.mymac`/TLS host setup. Best for
+CI and quick starts.
+
+```bash
+make stack-up            # core stack on http://localhost:8080  (Keycloak :8180, Mailpit :8025)
+make stack-up-web        # …also build + serve the SaaS web UI at http://localhost:8080/
+```
+
+The `bowrain-worker` runs the built-in auto-translate-on-push automation. Its
+upstream provider defaults to the offline **`demo`** provider (deterministic, no
+key) so the pipeline works out of the box; set `BOWRAIN_PLATFORM_PROVIDER=gemini`
++ `GEMINI_API_KEY` in `.env` for real translations (see `.env.example`).
+Other targets: `make -C bowrain stack-ps`, `stack-logs`, `stack-down`,
+`stack-shared-down`.
+
+**Driving any mode with the `kapi` plugin** (install the `kapi-bowrain` plugin
+first). Point `--server` at whichever entry point your mode exposes:
+
+```bash
+mkdir myapp && cd myapp
+kapi init --server http://localhost:8080 --anonymous --source-locale en --target-locale fr,de
+echo '{"greeting":"Hello"}' > en.json
+kapi add en.json
+kapi sync --locale fr,de        # push → wait for translations → pull
+cat fr.json de.json             # translated catalogs
+```
+
+`kapi init` scaffolds the project; when `--server` is given, the bowrain plugin
+*contributes* the server connection (writes the `server:` block + claim token).
+It is idempotent — running `kapi init --server …` inside an **existing** local
+kapi project simply connects it to bowrain, leaving an already-connected project
+untouched. (`--anonymous` skips sign-in; omit it to create the project under
+your account, or pass `--project <id>` to attach to an existing server project.)
 
 ### Tests
 

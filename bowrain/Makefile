@@ -78,7 +78,8 @@ DOCKER_KEYCLOAK_IMAGE := ghcr.io/neokapi/bowrain-keycloak
         frontend-check-all \
         docker-server docker-web docker-keycloak docker-all \
         docker-push-server docker-push-web docker-push-keycloak docker-push \
-        dev-deps dev-deps-down dev-server dev-web dev-ctrl bowrain-dev certs \
+        dev-deps dev-deps-down dev-server dev-worker dev-web dev-ctrl bowrain-dev certs \
+        stack-up stack-up-web stack-up-shared stack-shared-down stack-down stack-logs stack-ps stack-build \
         screenshots recordings \
         test test-fast test-unit test-race test-verbose test-integration \
         test-platform test-bowrain-cli test-bowrain test-e2e-bowrain test-e2e-cloud test-e2e-dev \
@@ -308,6 +309,48 @@ dev-ctrl: ctrl-deps ## Run control plane dev server with HMR (proxy -> localhost
 	cd $(CTRL_DIR) && \
 	VITE_ADMIN_OIDC_ISSUER_URL=https://auth.bowrain.mymac/realms/bowrain-admin \
 	vp run dev
+
+# ── Full Local Stack (everything in Docker) ──────────────────────────────────
+# Unlike dev-deps (deps only; server/web on the host), the stack-* targets run
+# the entire platform — server + async worker + backing services — in Docker on
+# plain-HTTP localhost. See compose.full.yaml. Set GEMINI_API_KEY etc. in
+# bowrain/.env (cp .env.example .env) for real translations; otherwise the
+# worker uses the offline "demo" provider so push → translate → pull still works.
+
+COMPOSE_FULL := docker compose -f compose.full.yaml
+
+stack-up: ## Build + start the full local stack (server+worker+deps) in Docker
+	$(COMPOSE_FULL) up -d --build --wait
+	@echo "Bowrain server:  http://localhost:8080  (health: /api/v1/health)"
+	@echo "Keycloak:        http://localhost:8180  (admin/admin)"
+	@echo "Mailpit:         http://localhost:8025"
+
+stack-up-web: ## Full local stack including the web UI (served at http://localhost:8080)
+	$(COMPOSE_FULL) --profile web up -d --build --wait
+
+COMPOSE_SHARED := docker compose -f compose.yaml -f compose.override.yaml -f compose.app.yaml
+
+stack-up-shared: ## Full Docker app sharing the local-dev deps + Traefik (https://bowrain.mymac)
+	$(COMPOSE_SHARED) up -d --build --wait
+	@echo "Web app + API:  https://bowrain.mymac   (containerized server, via the shared Traefik)"
+	@echo "Keycloak:       https://auth.bowrain.mymac  (admin/admin)"
+	@echo "Mailpit:        https://mail.bowrain.mymac"
+	@echo "(needs the *.bowrain.mymac host setup: dnsmasq + mkcert + 'make certs')"
+
+stack-shared-down: ## Stop the shared full-Docker app + deps and remove volumes
+	$(COMPOSE_SHARED) down -v
+
+stack-build: ## (Re)build the local-stack server + worker images
+	$(COMPOSE_FULL) build bowrain-server bowrain-worker
+
+stack-ps: ## Show full local stack service status
+	$(COMPOSE_FULL) ps
+
+stack-logs: ## Tail logs for the full local stack
+	$(COMPOSE_FULL) logs -f --tail=100
+
+stack-down: ## Stop the full local stack and remove its volumes
+	$(COMPOSE_FULL) down -v
 
 # ── Documentation Assets (Screenshots & Recordings) ─────────────────────────
 

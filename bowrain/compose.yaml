@@ -21,16 +21,36 @@ services:
     build:
       context: .
       dockerfile: docker/keycloak/Dockerfile.dev
-    command: start-dev --import-realm
+    # The custom "bowrain" login theme is OPTIONAL. When its provider jar has
+    # been built (`make keycloak-theme`) it is installed and used; otherwise the
+    # realm's loginTheme is stripped at import so login still renders with
+    # Keycloak's default theme. This keeps device-login working with no theme
+    # build. (dist_keycloak is gitignored; an empty bind-mount is harmless.)
+    entrypoint: ["/bin/bash", "-c"]
+    command:
+      - |
+        set -e
+        mkdir -p /opt/keycloak/data/import
+        cp /realm-src/bowrain-admin-realm.json /opt/keycloak/data/import/bowrain-admin-realm.json
+        jar="$$(find /theme-src -maxdepth 1 -type f -name '*.jar' 2>/dev/null | head -1)"
+        if [ -n "$$jar" ]; then
+          cp "$$jar" /opt/keycloak/providers/
+          cp /realm-src/realm.json /opt/keycloak/data/import/realm.json
+          echo "keycloak: using the custom bowrain login theme"
+        else
+          sed 's/"loginTheme": "bowrain",//' /realm-src/realm.json > /opt/keycloak/data/import/realm.json
+          echo "keycloak: bowrain login theme not built — using the default theme (run 'make keycloak-theme' for the branded UI)"
+        fi
+        exec /opt/keycloak/bin/kc.sh start-dev --import-realm
     environment:
       KC_HEALTH_ENABLED: "true"
       KEYCLOAK_ADMIN: admin
       KEYCLOAK_ADMIN_PASSWORD: admin
       OIDC_CLIENT_SECRET: bowrain-secret
     volumes:
-      - ./docker/keycloak/realm.json:/opt/keycloak/data/import/realm.json
-      - ./docker/keycloak/bowrain-admin-realm.json:/opt/keycloak/data/import/bowrain-admin-realm.json
-      - ./apps/keycloak-theme/dist_keycloak/keycloak-theme-for-kc-all-other-versions.jar:/opt/keycloak/providers/keycloak-theme.jar
+      - ./docker/keycloak/realm.json:/realm-src/realm.json:ro
+      - ./docker/keycloak/bowrain-admin-realm.json:/realm-src/bowrain-admin-realm.json:ro
+      - ./apps/keycloak-theme/dist_keycloak:/theme-src:ro
     ports:
       - "8180:8080"
     healthcheck:

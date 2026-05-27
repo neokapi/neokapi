@@ -63,6 +63,7 @@ func runWorker(dbURL string) error {
 	serviceBusConn := os.Getenv("BOWRAIN_SERVICE_BUS_CONNECTION")
 	natsURL := os.Getenv("BOWRAIN_NATS_URL")
 	openaiEndpoint := os.Getenv("BOWRAIN_OPENAI_ENDPOINT")
+	platformProvider := os.Getenv("BOWRAIN_PLATFORM_PROVIDER")
 	credentialsPath := os.Getenv("BOWRAIN_CREDENTIALS_PATH")
 	if credentialsPath == "" {
 		credentialsPath = credentials.DefaultPath()
@@ -172,12 +173,39 @@ func runWorker(dbURL string) error {
 		}
 	}
 
-	// Configure platform Azure OpenAI if endpoint is set.
-	if openaiEndpoint != "" {
+	// Configure the platform translation provider — used by jobs that carry no
+	// per-workspace credential (the built-in auto-translate-on-push automation).
+	//
+	//   - BOWRAIN_PLATFORM_PROVIDER (e.g. "gemini", "openai", "anthropic",
+	//     "ollama", "demo") selects a generic upstream for self-hosted / local
+	//     dev with a plain API key. The key comes from BOWRAIN_PLATFORM_API_KEY
+	//     or a provider-specific env var (e.g. GEMINI_API_KEY). This takes
+	//     precedence over the Azure path.
+	//   - BOWRAIN_OPENAI_ENDPOINT selects Azure OpenAI via managed identity
+	//     (the hosted Bowrain cloud).
+	switch {
+	case platformProvider != "":
+		apiKey := os.Getenv("BOWRAIN_PLATFORM_API_KEY")
+		if apiKey == "" {
+			apiKey = platformAPIKeyFromEnv(platformProvider)
+		}
+		translationDeps.Platform = &jobs.PlatformProviderConfig{
+			Provider: platformProvider,
+			APIKey:   apiKey,
+			Model:    os.Getenv("BOWRAIN_PLATFORM_MODEL"),
+			BaseURL:  os.Getenv("BOWRAIN_PLATFORM_BASE_URL"),
+		}
+		slog.Info("platform translation provider configured",
+			"provider", platformProvider, "model", os.Getenv("BOWRAIN_PLATFORM_MODEL"))
+	case openaiEndpoint != "":
 		translationDeps.Platform = &jobs.PlatformProviderConfig{
 			Endpoint: openaiEndpoint,
 			ClientID: azureClientID,
 		}
+		slog.Info("platform translation provider configured", "provider", "azure-openai")
+	default:
+		slog.Warn("no platform translation provider configured; " +
+			"auto-translate jobs will fail (set BOWRAIN_PLATFORM_PROVIDER + key, or BOWRAIN_OPENAI_ENDPOINT)")
 	}
 
 	g, ctx := errgroup.WithContext(ctx)
@@ -324,4 +352,28 @@ func envOrDefault(key, fallback string) string {
 		return v
 	}
 	return fallback
+}
+
+// platformAPIKeyFromEnv resolves a platform-provider API key from the
+// provider-specific environment variables, so operators can supply e.g.
+// GEMINI_API_KEY directly without also setting BOWRAIN_PLATFORM_API_KEY.
+// Keyless providers (ollama, demo) return "".
+func platformAPIKeyFromEnv(provider string) string {
+	var names []string
+	switch strings.ToLower(provider) {
+	case "gemini":
+		names = []string{"GEMINI_API_KEY", "GOOGLE_API_KEY"}
+	case "openai":
+		names = []string{"OPENAI_API_KEY"}
+	case "anthropic":
+		names = []string{"ANTHROPIC_API_KEY"}
+	case "azureopenai":
+		names = []string{"AZURE_OPENAI_API_KEY"}
+	}
+	for _, n := range names {
+		if v := os.Getenv(n); v != "" {
+			return v
+		}
+	}
+	return ""
 }

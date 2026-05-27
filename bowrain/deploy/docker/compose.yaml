@@ -1,9 +1,18 @@
-# Self-hosting Docker Compose for Bowrain.
+# Self-hosting Docker Compose for Bowrain (skeleton).
 #
-# Traefik routes:
+# This is a minimal reference for self-hosting Bowrain from published images.
+# For LOCAL DEVELOPMENT (build-from-source, demo translation provider, no
+# secrets to fill in), use bowrain/compose.full.yaml instead.
+#
+# The server requires PostgreSQL (there is no SQLite/file backend) and an async
+# worker that shares the job queue (NATS) and the blob volume. Auto-translate on
+# push runs in the worker; configure its upstream provider via the env below.
+#
+# Before `up`, set the placeholders marked REQUIRED (OIDC + JWT secret + a real
+# translation provider). Traefik routes:
 #   /api/*     → bowrain-server:8080
-#   /neokapi.*  → bowrain-server:8080  (gRPC)
-#   /*         → bowrain-web:80       (SPA)
+#   /neokapi.* → bowrain-server:8080  (gRPC)
+#   /*         → bowrain-web:80        (SPA)
 #
 # Usage:
 #   docker compose -f deploy/docker/compose.yaml up -d
@@ -22,14 +31,66 @@ services:
       - "--providers.file.watch=true"
     restart: unless-stopped
 
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: bowrain
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-bowrain} # REQUIRED: change for production
+      POSTGRES_DB: bowrain
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bowrain -d bowrain"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+  nats:
+    image: nats:2-alpine
+    command: ["--jetstream", "--store_dir", "/data"]
+    volumes:
+      - nats-data:/data
+    restart: unless-stopped
+
   bowrain-server:
     image: ghcr.io/neokapi/bowrain-server:latest
-    volumes:
-      - bowrain-data:/data
     environment:
-      BOWRAIN_STORE: /data/bowrain.db
+      BOWRAIN_DATABASE_URL: postgres://bowrain:${POSTGRES_PASSWORD:-bowrain}@postgres:5432/bowrain?sslmode=disable
+      BOWRAIN_JWT_SECRET: ${BOWRAIN_JWT_SECRET:?REQUIRED: set a strong JWT signing secret}
+      BOWRAIN_OIDC_ISSUER_URL: ${BOWRAIN_OIDC_ISSUER_URL:?REQUIRED: OIDC issuer URL}
+      BOWRAIN_OIDC_CLIENT_ID: ${BOWRAIN_OIDC_CLIENT_ID:-bowrain}
+      BOWRAIN_OIDC_CLIENT_SECRET: ${BOWRAIN_OIDC_CLIENT_SECRET:?REQUIRED: OIDC client secret}
+      BOWRAIN_NATS_URL: nats://nats:4222
+      BLOB_STORAGE_LOCAL_DIR: /data/blobs
+    volumes:
+      - blob-data:/data
     expose:
       - "8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      nats:
+        condition: service_started
+    restart: unless-stopped
+
+  bowrain-worker:
+    image: ghcr.io/neokapi/bowrain-worker:latest
+    environment:
+      BOWRAIN_DATABASE_URL: postgres://bowrain:${POSTGRES_PASSWORD:-bowrain}@postgres:5432/bowrain?sslmode=disable
+      BOWRAIN_NATS_URL: nats://nats:4222
+      LOCAL_BLOB_DIR: /data/blobs
+      # REQUIRED for auto-translate: set a real provider + key (gemini/openai/...).
+      BOWRAIN_PLATFORM_PROVIDER: ${BOWRAIN_PLATFORM_PROVIDER:-}
+      BOWRAIN_PLATFORM_API_KEY: ${BOWRAIN_PLATFORM_API_KEY:-}
+      BOWRAIN_PLATFORM_MODEL: ${BOWRAIN_PLATFORM_MODEL:-}
+    volumes:
+      - blob-data:/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+      nats:
+        condition: service_started
     restart: unless-stopped
 
   bowrain-web:
@@ -39,4 +100,6 @@ services:
     restart: unless-stopped
 
 volumes:
-  bowrain-data:
+  postgres-data:
+  nats-data:
+  blob-data:

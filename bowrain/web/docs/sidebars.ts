@@ -85,6 +85,7 @@ const sidebars: SidebarsConfig = {
       type: "category",
       label: "Developer",
       items: [
+        "developer/local-development",
         "developer/server",
         "developer/connectors",
         "developer/events",

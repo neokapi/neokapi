@@ -51,11 +51,16 @@ func TestInitCmd_scaffoldsProject(t *testing.T) {
 	require.NotNil(t, state)
 	assert.Equal(t, "my-app", state.Project.ID)
 
-	// Recipe contains the target locale.
-	recipeData, err := os.ReadFile(recipe)
+	// Recipe loads with source/target locales populated under defaults: —
+	// the schema the loader actually reads (not top-level sourceLocale).
+	p, err := project.Load(recipe)
 	require.NoError(t, err)
-	assert.Contains(t, string(recipeData), "sourceLocale: en")
-	assert.Contains(t, string(recipeData), "fr")
+	assert.Equal(t, "en", string(p.Defaults.SourceLanguage))
+	var targets []string
+	for _, l := range p.Defaults.TargetLanguages {
+		targets = append(targets, string(l))
+	}
+	assert.Contains(t, targets, "fr")
 }
 
 func TestInitCmd_framework(t *testing.T) {
@@ -112,18 +117,35 @@ func TestInitCmd_frameworkUnknown(t *testing.T) {
 	assert.Contains(t, err.Error(), "unknown framework")
 }
 
-func TestInitCmd_refusesExistingRecipe(t *testing.T) {
+func TestInitCmd_idempotentOnExistingRecipe(t *testing.T) {
 	app := newAppForTest(t)
 	dir := t.TempDir()
-	// Pre-create the recipe file.
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "existing.kapi"), []byte("version: v1\n"), 0o644))
+	// Pre-create the recipe file under the same name init will use.
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "existing.kapi"), []byte("version: v1\nname: existing\n"), 0o644))
 
 	cmd := app.NewInitCmd()
 	cmd.SetArgs([]string{"--dir", dir, "--name", "existing"})
 	var out bytes.Buffer
 	cmd.SetOut(&out)
 	cmd.SetErr(&out)
+	// Idempotent: re-running init on an existing project is not an error, so
+	// plugin contributions (e.g. connecting to a server) can run on top of it.
+	require.NoError(t, cmd.Execute())
+	assert.Contains(t, out.String(), "already initialized")
+}
+
+func TestInitCmd_refusesDifferentNamedProject(t *testing.T) {
+	app := newAppForTest(t)
+	dir := t.TempDir()
+	// A project already exists under a different name.
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "existing.kapi"), []byte("version: v1\nname: existing\n"), 0o644))
+
+	cmd := app.NewInitCmd()
+	cmd.SetArgs([]string{"--dir", dir, "--name", "other"})
+	var out bytes.Buffer
+	cmd.SetOut(&out)
+	cmd.SetErr(&out)
 	err := cmd.Execute()
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "refusing to overwrite")
+	assert.Contains(t, err.Error(), "already contains a kapi project")
 }
