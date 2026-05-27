@@ -55,8 +55,17 @@ func requireIsolatedConfig() {
 	}
 	if cfg, err := os.UserConfigDir(); err == nil {
 		def := filepath.Join(cfg, "kapi")
-		if abs, _ := filepath.Abs(dir); abs == def {
-			log.Fatalf("wbridge refuses to run: KAPI_CONFIG_DIR (%s) is your default kapi config. Use an isolated directory.", dir)
+		abs, _ := filepath.Abs(dir)
+		same := abs == def
+		// Resolve symlinks too, so a link that ultimately points at the real
+		// config dir can't slip past the literal-path comparison.
+		if dr, e1 := filepath.EvalSymlinks(dir); e1 == nil {
+			if df, e2 := filepath.EvalSymlinks(def); e2 == nil && dr == df {
+				same = true
+			}
+		}
+		if same {
+			log.Fatalf("wbridge refuses to run: KAPI_CONFIG_DIR (%s) resolves to your default kapi config. Use an isolated directory.", dir)
 		}
 	}
 }
