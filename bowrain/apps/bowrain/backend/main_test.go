@@ -5,11 +5,19 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/zalando/go-keyring"
+
 	"github.com/neokapi/neokapi/bowrain/store/sqlitestore"
 	"github.com/neokapi/neokapi/termbase"
 )
 
 func TestMain(m *testing.M) {
+	// Replace the OS keychain with an in-memory mock for the whole package, so
+	// no test can ever read or write the developer's real bowrain tokens — even
+	// one that forgets to call keyring.MockInit() itself. Defense in depth on
+	// top of the per-test mocks and the config-dir-namespaced keyringService.
+	keyring.MockInit()
+
 	// Isolate tests from locally-installed plugins.
 	dir, err := os.MkdirTemp("", "bowrain-test-plugins")
 	if err != nil {
