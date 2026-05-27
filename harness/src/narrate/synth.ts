@@ -387,8 +387,8 @@ export async function narrateDemo(m: DemoManifest, opts: NarrateOptions = {}): P
   // tempo and tone can't drift scene-to-scene (no per-scene clips, no per-scene
   // tempo normalization). Scene durations are word-proportional shares of the one
   // track — exact enough because a single read holds a near-constant words/sec.
-  // Opt-in (NARRATION_ONESHOT=1); gemini only.
-  if (backend === "gemini" && (process.env.NARRATION_ONESHOT ?? "0") === "1") {
+  // Opt-in per demo (`oneshot: true`) or globally (NARRATION_ONESHOT=1); gemini only.
+  if (backend === "gemini" && (m.oneshot || (process.env.NARRATION_ONESHOT ?? "0") === "1")) {
     const oneShot = await narrateOneShot(m, voice, audioDir, narrationPath, backend);
     if (oneShot) return oneShot;
     console.warn("  ! one-shot narration failed; falling back to per-scene");

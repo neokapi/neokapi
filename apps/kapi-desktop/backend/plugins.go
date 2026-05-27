@@ -52,6 +52,7 @@ func (a *App) InstallPlugin(name string) {
 	a.emitEvent("plugin-installing", map[string]string{"name": name})
 
 	go func() {
+		lastPct := -1
 		_, err := pluginhost.InstallFromRegistry(context.Background(), pluginhost.InstallOptions{
 			IndexURL:    pluginhost.DefaultIndexURL(),
 			PluginName:  name,
@@ -59,6 +60,18 @@ func (a *App) InstallPlugin(name string) {
 			TargetDir:   a.pluginDir,
 			LogF: func(msg string) {
 				a.logger.Printf("install %s: %s", name, msg)
+			},
+			// Emit download progress, throttled to whole-percent steps so the
+			// UI's progress bar advances without flooding the event stream.
+			ProgressF: func(downloaded, total int64) {
+				if total <= 0 {
+					return
+				}
+				pct := int(downloaded * 100 / total)
+				if pct != lastPct {
+					lastPct = pct
+					a.emitEvent("plugin-progress", map[string]any{"name": name, "percent": pct})
+				}
 			},
 		})
 		if err != nil {

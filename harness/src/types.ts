@@ -51,6 +51,15 @@ export interface DemoManifest {
   /** Whether the demo needs the Gemini AI path (ai-translate / AI brand). */
   needsAi: boolean;
   /**
+   * When true, narrate the whole video as ONE continuous Gemini read (one audio
+   * track, word-proportional scene timing) instead of one clip per scene. A
+   * single take keeps the voice's speed and tone perfectly uniform — no
+   * per-scene time-stretching, which can leave audible drift. Best for short
+   * demos where exact per-scene sync matters less than a seamless voice.
+   * (Also forced globally by NARRATION_ONESHOT=1.)
+   */
+  oneshot?: boolean;
+  /**
    * When true, run kapi as an MCP server (`kapi mcp`) instead of loading the skill
    * plugin, and forbid the Bash tool so Claude must drive kapi through MCP tool calls.
    * Demonstrates the MCP integration path.

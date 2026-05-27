@@ -152,6 +152,14 @@ func VerifySHA256(data []byte, expected string) error {
 
 // Download fetches the URL and returns its raw body.
 func Download(ctx context.Context, url string) ([]byte, error) {
+	return DownloadWithProgress(ctx, url, nil)
+}
+
+// DownloadWithProgress is Download with an optional progress callback, invoked
+// as bytes arrive with (bytesSoFar, totalBytes). total is -1 when the server
+// sends no Content-Length. The callback runs on the download goroutine, so it
+// must be cheap and non-blocking.
+func DownloadWithProgress(ctx context.Context, url string, onProgress func(downloaded, total int64)) ([]byte, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil, err
@@ -164,9 +172,30 @@ func Download(ctx context.Context, url string) ([]byte, error) {
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("download %s: HTTP %d", url, resp.StatusCode)
 	}
-	data, err := io.ReadAll(resp.Body)
+	var reader io.Reader = resp.Body
+	if onProgress != nil {
+		reader = &progressReader{r: resp.Body, total: resp.ContentLength, onProgress: onProgress}
+	}
+	data, err := io.ReadAll(reader)
 	if err != nil {
 		return nil, fmt.Errorf("download %s: read body: %w", url, err)
 	}
 	return data, nil
+}
+
+// progressReader reports cumulative bytes read through onProgress.
+type progressReader struct {
+	r          io.Reader
+	total      int64
+	downloaded int64
+	onProgress func(downloaded, total int64)
+}
+
+func (p *progressReader) Read(b []byte) (int, error) {
+	n, err := p.r.Read(b)
+	if n > 0 {
+		p.downloaded += int64(n)
+		p.onProgress(p.downloaded, p.total)
+	}
+	return n, err
 }

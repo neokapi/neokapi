@@ -7,6 +7,9 @@ publishAs: kapi-desktop-okapi
 terminal: desktop
 brand: desktop
 needsAi: false
+# One continuous narration read — keeps the voice's speed and tone uniform across
+# scenes (no per-scene time-stretching).
+oneshot: true
 aspects:
   - Plugin registry
   - Okapi Framework filters

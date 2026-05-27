@@ -402,7 +402,7 @@ async function flowsWalk(c: WalkCtx): Promise<void> {
 
 /** Install and use the okapi-bridge plugin from the UI. */
 async function okapiWalk(c: WalkCtx): Promise<void> {
-  const { page, beat, cursorTo, sidebar } = c;
+  const { page, beat, beatEls, cursorTo, sidebar } = c;
   const tab = (label: string) => page.locator(`[role="tab"]:has-text("${label}")`);
   // The plugin starts uninstalled on each theme pass — see resetPlugins() in
   // recordDesktop, which clears the isolated plugin dir and re-scans the backend.
@@ -421,14 +421,15 @@ async function okapiWalk(c: WalkCtx): Promise<void> {
   });
   // The Okapi bridge entry in the registry.
   await beatEls_okapiCard(c, "registry");
-  // Click Install — the genuine download runs; streamed events flip it to done.
-  await beat("install", null, async () => {
+  // Click Install — the genuine download runs with a live progress bar (streamed
+  // plugin-progress events). Stay on the beat, zoomed on the card, through the
+  // whole download so the recording captures the bar filling and the flip to
+  // installed.
+  await beatEls("install", ['[data-testid="available-plugin-okapi-bridge"]'], async () => {
     await humanClick(page, page.getByTestId("install-okapi-bridge"));
-    await page.waitForTimeout(2500);
+    await page.waitForSelector('[data-testid="install-okapi-bridge"]', { state: "detached", timeout: 300_000 });
+    await page.waitForTimeout(700);
   });
-  // Wait (un-beated, so the render skips it) for the install to actually finish.
-  await page.waitForSelector('[data-testid="install-okapi-bridge"]', { state: "detached", timeout: 240_000 });
-  await page.waitForTimeout(800);
   // The Installed tab now lists okapi-bridge with its Okapi filter formats.
   await beat("installed", { x: 0.02, y: 0.08, w: 0.96, h: 0.7 }, async () => {
     await humanClick(page, tab("Installed"));

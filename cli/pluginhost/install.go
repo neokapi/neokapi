@@ -64,6 +64,10 @@ type InstallOptions struct {
 
 	// LogF receives progress messages. Optional.
 	LogF func(msg string)
+
+	// ProgressF receives download progress as (bytesSoFar, totalBytes); total
+	// is -1 when the server sends no Content-Length. Optional.
+	ProgressF func(downloaded, total int64)
 }
 
 // InstallResult describes one successful install.
@@ -108,7 +112,7 @@ func InstallFromRegistry(ctx context.Context, opts InstallOptions) (*InstallResu
 	}
 
 	logf(fmt.Sprintf("Downloading %s %s (%s)...", opts.PluginName, version, plat.URL))
-	body, err := registry.Download(ctx, plat.URL)
+	body, err := registry.DownloadWithProgress(ctx, plat.URL, opts.ProgressF)
 	if err != nil {
 		return nil, err
 	}
