@@ -327,7 +327,11 @@ export function PluginManager({ plugins: propPlugins }: PluginManagerProps = {})
               {available.map((plugin) => {
                 const status = installStatus[plugin.name];
                 return (
-                  <ItemCard key={plugin.name} className="flex items-center gap-3">
+                  <ItemCard
+                    key={plugin.name}
+                    data-testid={`available-plugin-${plugin.name}`}
+                    className="flex items-center gap-3"
+                  >
                     <Package
                       size={20}
                       className={`shrink-0 ${plugin.installed || status?.state === "done" ? "text-primary" : "text-muted-foreground"}`}
@@ -373,7 +377,11 @@ export function PluginManager({ plugins: propPlugins }: PluginManagerProps = {})
                         </Button>
                       </div>
                     ) : (
-                      <Button size="sm" onClick={() => handleInstall(plugin.name)}>
+                      <Button
+                        size="sm"
+                        data-testid={`install-${plugin.name}`}
+                        onClick={() => handleInstall(plugin.name)}
+                      >
                         <Download size={12} /> Install
                       </Button>
                     )}
@@ -420,7 +428,7 @@ function InstalledPluginCard({
   const hasDetails = formatCaps.length > 0 || toolCaps.length > 0;
 
   return (
-    <ItemCard className="overflow-hidden p-0">
+    <ItemCard data-testid={`installed-plugin-${plugin.name}`} className="overflow-hidden p-0">
       <div className="flex items-center gap-3 p-4">
         <Package size={20} className="shrink-0 text-primary" />
         <div className="flex-1 min-w-0">

@@ -55,6 +55,7 @@ export function AppHome({
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Button
               variant="outline"
+              data-testid="sample-kapimart"
               onClick={() => onCreateSampleProject("kapimart")}
               className="h-auto whitespace-normal rounded-lg border-primary/20 bg-primary/5 p-4 text-left flex-col items-start hover:border-primary/40 hover:bg-primary/10"
             >
@@ -67,6 +68,7 @@ export function AppHome({
             </Button>
             <Button
               variant="outline"
+              data-testid="sample-okapimart"
               onClick={() => onCreateSampleProject("okapimart")}
               className="h-auto whitespace-normal rounded-lg border-primary/20 bg-primary/5 p-4 text-left flex-col items-start hover:border-primary/40 hover:bg-primary/10"
             >

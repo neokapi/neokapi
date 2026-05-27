@@ -31,11 +31,60 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"sync"
 
 	// Parity with the desktop app: register bowrain recipe schema extensions.
 	_ "github.com/neokapi/neokapi/bowrain/plugin/schema"
 	"github.com/neokapi/neokapi/kapi-desktop/backend"
 )
+
+// eventHub fans out backend events to all connected SSE clients. The desktop
+// app delivers events to the frontend over the Wails runtime; in the browser
+// there is no such channel, so the recorder subscribes here and re-dispatches
+// each event into the Wails runtime client-side (see real-main.tsx).
+type eventHub struct {
+	mu          sync.Mutex
+	subscribers map[chan []byte]struct{}
+}
+
+func newEventHub() *eventHub {
+	return &eventHub{subscribers: make(map[chan []byte]struct{})}
+}
+
+func (h *eventHub) subscribe() chan []byte {
+	ch := make(chan []byte, 64)
+	h.mu.Lock()
+	h.subscribers[ch] = struct{}{}
+	h.mu.Unlock()
+	return ch
+}
+
+func (h *eventHub) unsubscribe(ch chan []byte) {
+	h.mu.Lock()
+	if _, ok := h.subscribers[ch]; ok {
+		delete(h.subscribers, ch)
+		close(ch)
+	}
+	h.mu.Unlock()
+}
+
+// publish marshals one event and fans it out to every subscriber. Slow
+// subscribers are skipped (non-blocking send) so a stalled client can't wedge
+// the backend goroutine that emitted the event.
+func (h *eventHub) publish(name string, data any) {
+	payload, err := json.Marshal(map[string]any{"name": name, "data": data})
+	if err != nil {
+		return
+	}
+	h.mu.Lock()
+	for ch := range h.subscribers {
+		select {
+		case ch <- payload:
+		default:
+		}
+	}
+	h.mu.Unlock()
+}
 
 var errType = reflect.TypeOf((*error)(nil)).Elem()
 
@@ -80,6 +129,11 @@ func main() {
 
 	app := backend.NewApp()
 	appVal := reflect.ValueOf(app)
+
+	// Stream backend events (plugin install, flow:event, …) to connected
+	// browsers over SSE; real-main.tsx re-dispatches them into the Wails runtime.
+	hub := newEventHub()
+	app.SetEventSink(hub.publish)
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/wbridge", func(w http.ResponseWriter, r *http.Request) {
@@ -146,6 +200,37 @@ func main() {
 		}
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(result)
+	})
+
+	// SSE: stream backend events to the browser. The frontend re-dispatches each
+	// into the Wails runtime so useWailsEvent() fires exactly as it does natively.
+	mux.HandleFunc("/wevents", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", allowOrigin)
+		w.Header().Set("Content-Type", "text/event-stream")
+		w.Header().Set("Cache-Control", "no-cache")
+		w.Header().Set("Connection", "keep-alive")
+		flusher, ok := w.(http.Flusher)
+		if !ok {
+			http.Error(w, "streaming unsupported", http.StatusInternalServerError)
+			return
+		}
+		ch := hub.subscribe()
+		defer hub.unsubscribe(ch)
+		// Open the stream immediately so the client's EventSource fires `onopen`.
+		fmt.Fprint(w, ": connected\n\n")
+		flusher.Flush()
+		for {
+			select {
+			case <-r.Context().Done():
+				return
+			case payload, open := <-ch:
+				if !open {
+					return
+				}
+				fmt.Fprintf(w, "data: %s\n\n", payload)
+				flusher.Flush()
+			}
+		}
 	})
 
 	port := os.Getenv("WBRIDGE_PORT")

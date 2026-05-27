@@ -46,7 +46,40 @@ setTransport({
 });
 
 const params = new URLSearchParams(window.location.search);
-document.documentElement.classList.toggle("dark", params.get("theme") === "dark");
+
+// Stream backend events (plugin install progress, flow:event, …) from wbridge
+// and re-dispatch each into the Wails runtime, so useWailsEvent() fires exactly
+// as it does in the native app. Without this, fire-and-forget backend work
+// (e.g. plugin install) would never visibly complete during a recording.
+const EVENTS_URL = BRIDGE.replace(/\/wbridge$/, "/wevents");
+type WailsBridge = { dispatchWailsEvent?: (e: { name: string; data: unknown }) => void };
+const es = new EventSource(EVENTS_URL);
+es.onmessage = (ev) => {
+  try {
+    const { name, data } = JSON.parse(ev.data) as { name: string; data: unknown };
+    (window as unknown as { _wails?: WailsBridge })._wails?.dispatchWailsEvent?.({ name, data });
+  } catch {
+    /* ignore malformed event frames */
+  }
+};
+
+// Pin the recording palette. The recorder always loads `?theme=light|dark`, but
+// the genuine app re-applies its persisted theme asynchronously on mount
+// (useAppInit → getSettings), which can flip a dark recording back to light. A
+// MutationObserver re-asserts the forced class whenever something clears it; the
+// toggle is idempotent, so it never loops.
+const forcedTheme = params.get("theme");
+if (forcedTheme === "dark" || forcedTheme === "light") {
+  const isDark = forcedTheme === "dark";
+  const pin = () => document.documentElement.classList.toggle("dark", isDark);
+  pin();
+  new MutationObserver(pin).observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ["class"],
+  });
+} else {
+  document.documentElement.classList.toggle("dark", forcedTheme === "dark");
+}
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>

@@ -1,0 +1,72 @@
+id: kapi-desktop-content
+title: Manage content in a project
+subtitle: The files a project translates, and how they map.
+tagline: the visual companion to the kapi command line
+kind: use-case
+publishAs: kapi-desktop-content
+terminal: desktop
+brand: desktop
+needsAi: false
+aspects:
+  - Content collections
+  - File patterns
+  - Source & target files
+  - Format detection
+
+narration:
+  - id: title
+    kind: title
+    text: >-
+      In Kapi, a project's content is the set of files it translates.
+
+  - id: intro
+    kind: desktop
+    beat: intro
+    text: >-
+      We'll open a sample project to see how that content is organised.
+
+  - id: open-project
+    kind: desktop
+    beat: open-project
+    caption: KapiMart — a ready-made sample project.
+    text: >-
+      KapiMart is a ready-made sample — a small store with documentation, a
+      storefront, contracts and templates.
+
+  - id: overview
+    kind: desktop
+    beat: overview
+    caption: Source and target languages sit across the top.
+    text: >-
+      The source language and the locales it translates into sit across the top
+      of the project.
+
+  - id: content
+    kind: desktop
+    beat: content
+    caption: The Content view — patterns on the left, files on the right.
+    text: >-
+      The Content view has two halves: the patterns that define what belongs to
+      the project on the left, and the files they match on the right.
+
+  - id: patterns
+    kind: desktop
+    beat: patterns
+    caption: Patterns are grouped into named collections.
+    text: >-
+      Patterns are grouped into collections — the website, the online store, the
+      contracts and the templates — each a glob that the engine reads from and
+      writes back to.
+
+  - id: files
+    kind: desktop
+    beat: files
+    caption: Each matched file carries its detected format.
+    text: >-
+      On the right, every matched file is listed with the format Kapi detected
+      for it — Markdown, JSON, properties, Office documents and more.
+
+  - id: outro
+    kind: outro
+    text: >-
+      That's a project's content — grouped, matched, and ready to translate.

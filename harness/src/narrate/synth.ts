@@ -406,15 +406,20 @@ export async function narrateDemo(m: DemoManifest, opts: NarrateOptions = {}): P
       const inputs = spoken.map((s) => ({ text: s.text.trim(), outWav: path.join(audioDir, `${s.id}.wav`) }));
       const rawDurs = await geminiLiveNarrate(voice, inputs, liveModel);
 
-      // The session already gives a consistent voice at a natural narrator pace; only
-      // equalize *speed* across scenes by nudging each clip toward the median
-      // words-per-second × NARRATION_LIVE_SPEED (default 1.0 — no acceleration).
+      // The session already gives a consistent voice; normalize *speed* so every
+      // scene reads at the SAME words-per-second (the median × NARRATION_LIVE_SPEED).
+      // The clamp is deliberately WIDE: it bounds how far each clip can be nudged,
+      // so a tight band would *under*-correct outliers and leave audible
+      // scene-to-scene drift (the prior ±20-25% band did exactly that). A clip from
+      // one Live session sits near the median anyway, so the wide band fully
+      // equalizes ordinary variation and only guards against atempo artefacts on a
+      // pathological clip.
       const speed = narrationLiveSpeed();
       const words = spoken.map((s) => countWords(s.text));
       const naturalWps = rawDurs.map((d, i) => (d > 0 ? words[i] / d : 0)).filter((w) => w > 0);
       const targetWps = median(naturalWps) * speed;
-      const minF = speed * 0.8;
-      const maxF = speed * 1.25;
+      const minF = speed * 0.6;
+      const maxF = speed * 1.7;
       const finalDur = new Map<string, number>();
       for (let i = 0; i < spoken.length; i++) {
         const wps = rawDurs[i] > 0 ? words[i] / rawDurs[i] : 0;
@@ -507,8 +512,11 @@ export async function narrateDemo(m: DemoManifest, opts: NarrateOptions = {}): P
   const speed = narrationSpeed();
   const naturalWps = synthed.filter((s) => s.spoken && s.naturalDur > 0).map((s) => s.words / s.naturalDur);
   const targetWps = median(naturalWps) * speed;
-  const minF = speed * 0.8;
-  const maxF = speed * 1.25;
+  // Wide band so outlier scenes are pulled fully to the shared pace (see the
+  // live-session path above for why a tight clamp under-corrects). Cap below the
+  // single-stage atempo ceiling (2.0×).
+  const minF = speed * 0.6;
+  const maxF = Math.min(2.0, speed * 1.5);
 
   const scenes: NarrationScene[] = [];
   for (const s of synthed) {

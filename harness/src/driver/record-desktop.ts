@@ -80,6 +80,10 @@ const ISO_DIR = path.join(ISO_BASE, "kapi");
 const ISO_HOME = path.join(ISO_BASE, "home");
 const ISO_DESKTOP = path.join(ISO_BASE, "desktop");
 const ICU_PKGCONFIG = "/opt/homebrew/opt/icu4c/lib/pkgconfig";
+// The wbridge is built from source (no release ldflags), so core/version.Version
+// defaults to "dev". The plugin registry filters by min_kapi_version (okapi-bridge
+// requires ≥1.0.0), so stamp a real version or live plugin installs are rejected.
+const KAPI_VERSION = "1.0.9";
 
 /** Env for the Go builds/run: cgo + fts5 deps + isolated config/home roots. */
 function goEnv(extra: Record<string, string> = {}): NodeJS.ProcessEnv {
@@ -121,7 +125,11 @@ async function startRealStack(): Promise<{ url: string; teardown: () => Promise<
 
   console.log("  · building + starting wbridge (real backend over HTTP)");
   const bridgeBin = path.join(os.tmpdir(), "kapi-wbridge-rec");
-  await runToCompletion("go", ["build", "-tags", "fts5", "-o", bridgeBin, "./cmd/wbridge"], { cwd: KAPI_DESKTOP_DIR, env: goEnv() });
+  await runToCompletion(
+    "go",
+    ["build", "-tags", "fts5", "-ldflags", `-X github.com/neokapi/neokapi/core/version.Version=${KAPI_VERSION}`, "-o", bridgeBin, "./cmd/wbridge"],
+    { cwd: KAPI_DESKTOP_DIR, env: goEnv() },
+  );
   const bridge = spawn(bridgeBin, [], { env: goEnv({ WBRIDGE_PORT: "5175" }), stdio: "ignore" });
   await waitPort(5175, 60_000);
 
@@ -311,39 +319,151 @@ async function configWalk(c: WalkCtx): Promise<void> {
   });
 }
 
-/** Flows: the built-in library and a flow's pipeline. */
+/** Open the KapiMart sample project from the home screen. Idempotent: the
+ *  scaffold is re-created under the isolated home on each theme pass. */
+async function openSample(page: Page, testid: string, readyLabel: string): Promise<void> {
+  await page.waitForSelector(`[data-testid="${testid}"]`, { timeout: 15_000 });
+  await humanClick(page, page.getByTestId(testid));
+  // Wait until the project has opened and its plugins resolve (the gated sidebar
+  // item becomes enabled), so subsequent clicks land on a ready project.
+  await page.waitForSelector(`button[aria-label="${readyLabel}"]:not([disabled])`, { timeout: 60_000 });
+  await page.waitForTimeout(1200);
+}
+
+/** Manage content in a project — the KapiMart sample's collections and files. */
+async function contentWalk(c: WalkCtx): Promise<void> {
+  const { page, beat, sidebar } = c;
+  await beat("intro", null, async () => {
+    await page.waitForSelector('[data-testid="sample-kapimart"]', { timeout: 15_000 });
+    await idle(page, 2000);
+  });
+  // Open the KapiMart sample → its project overview.
+  await beat("open-project", null, async () => {
+    await openSample(page, "sample-kapimart", "Content");
+  });
+  // The overview header: source + target languages across the top.
+  await beat("overview", { x: 0.04, y: 0.02, w: 0.92, h: 0.42 }, async () => {
+    await moveTo(page, WIDTH * 0.5, HEIGHT * 0.2, 700);
+    await page.waitForTimeout(1800);
+  });
+  // Open the Content view.
+  await beat("content", null, async () => {
+    await humanClick(page, sidebar("Content"));
+    await page.waitForTimeout(1600);
+  });
+  // Left column: the file patterns, grouped into collections.
+  await beat("patterns", { x: 0.02, y: 0.1, w: 0.5, h: 0.84 }, async () => {
+    await moveTo(page, WIDTH * 0.26, HEIGHT * 0.4, 700);
+    await page.waitForTimeout(2500);
+  });
+  // Right column: the real files matched into the project, by format.
+  await beat("files", { x: 0.48, y: 0.1, w: 0.5, h: 0.84 }, async () => {
+    await moveTo(page, WIDTH * 0.74, HEIGHT * 0.4, 700);
+    await page.waitForTimeout(2500);
+  });
+}
+
+/** Compose flows — the flows defined in a project (KapiMart sample). */
 async function flowsWalk(c: WalkCtx): Promise<void> {
   const { page, beat, sidebar } = c;
   await beat("intro", null, async () => {
+    await page.waitForSelector('[data-testid="sample-kapimart"]', { timeout: 15_000 });
     await idle(page, 2000);
   });
-  // Open the Flows library (full — shows the built-in flows).
+  // Open the KapiMart sample project.
+  await beat("open-project", null, async () => {
+    await openSample(page, "sample-kapimart", "Flows");
+  });
+  // Open the project's Flows.
   await beat("library", null, async () => {
     await humanClick(page, sidebar("Flows"));
-    await page.waitForTimeout(1100);
-  });
-  // Linger on the library of composable flows.
-  await beat("library-zoom", { x: 0.02, y: 0.16, w: 0.96, h: 0.52 }, async () => {
-    await moveTo(page, WIDTH * 0.5, HEIGHT * 0.4, 700);
-    await page.waitForTimeout(2000);
-  });
-  // Open a flow → its pipeline graph (Input → Redact → AI Translate → Unredact → Output).
-  await beat("open-flow", null, async () => {
-    await humanClick(page, page.getByText("Secure Translate", { exact: true }));
     await page.waitForTimeout(1300);
   });
-  // Zoom the pipeline column.
-  await beat("pipeline", { x: 0.36, y: 0.12, w: 0.3, h: 0.82 }, async () => {
-    await moveTo(page, WIDTH * 0.5, HEIGHT * 0.45, 700);
+  // The project's flows: translate, translate-and-qa, pseudo-translate.
+  await beat("library-zoom", { x: 0.02, y: 0.08, w: 0.96, h: 0.62 }, async () => {
+    await moveTo(page, WIDTH * 0.5, HEIGHT * 0.36, 700);
+    await page.waitForTimeout(2200);
+  });
+  // Open a flow → its pipeline graph (AI translate → quality check).
+  await beat("open-flow", null, async () => {
+    await humanClick(page, page.getByText("translate-and-qa", { exact: true }));
+    await page.waitForTimeout(1500);
+  });
+  // Zoom the pipeline column (the graph sits right-of-centre).
+  await beat("pipeline", { x: 0.4, y: 0.1, w: 0.4, h: 0.84 }, async () => {
+    await moveTo(page, WIDTH * 0.6, HEIGHT * 0.45, 700);
     await page.waitForTimeout(2400);
+  });
+}
+
+/** Install and use the okapi-bridge plugin from the UI. */
+async function okapiWalk(c: WalkCtx): Promise<void> {
+  const { page, beat, cursorTo, sidebar } = c;
+  const tab = (label: string) => page.locator(`[role="tab"]:has-text("${label}")`);
+  // The plugin starts uninstalled on each theme pass — see resetPlugins() in
+  // recordDesktop, which clears the isolated plugin dir and re-scans the backend.
+  await beat("intro", null, async () => {
+    await idle(page, 2000);
+  });
+  // App Settings → Plugins → Available, where the registry is browsable.
+  await beat("open-plugins", { x: 0, y: 0.04, w: 0.34, h: 0.66 }, async () => {
+    await humanClick(page, sidebar("App Settings"));
+    await page.waitForTimeout(700);
+    await humanClick(page, tab("Plugins"));
+    await page.waitForTimeout(800);
+    await humanClick(page, tab("Available"));
+    await page.waitForSelector('[data-testid="available-plugin-okapi-bridge"]', { timeout: 30_000 });
+    await page.waitForTimeout(800);
+  });
+  // The Okapi bridge entry in the registry.
+  await beatEls_okapiCard(c, "registry");
+  // Click Install — the genuine download runs; streamed events flip it to done.
+  await beat("install", null, async () => {
+    await humanClick(page, page.getByTestId("install-okapi-bridge"));
+    await page.waitForTimeout(2500);
+  });
+  // Wait (un-beated, so the render skips it) for the install to actually finish.
+  await page.waitForSelector('[data-testid="install-okapi-bridge"]', { state: "detached", timeout: 240_000 });
+  await page.waitForTimeout(800);
+  // The Installed tab now lists okapi-bridge with its Okapi filter formats.
+  await beat("installed", { x: 0.02, y: 0.08, w: 0.96, h: 0.7 }, async () => {
+    await humanClick(page, tab("Installed"));
+    await page.waitForSelector('[data-testid="installed-plugin-okapi-bridge"]', { timeout: 30_000 });
+    await cursorTo('[data-testid="installed-plugin-okapi-bridge"]');
+    await page.waitForTimeout(2400);
+  });
+  // Back home → open the OkapiMart sample, which needs these filters.
+  await beat("open-okapimart", null, async () => {
+    await humanClick(page, sidebar("Home"));
+    await openSample(page, "sample-okapimart", "Content");
+  });
+  // Its Content resolves through the Okapi filters (okf_* formats).
+  await beat("content", null, async () => {
+    await humanClick(page, sidebar("Content"));
+    await page.waitForTimeout(1600);
+  });
+  await beat("okf-formats", { x: 0.02, y: 0.1, w: 0.96, h: 0.84 }, async () => {
+    await moveTo(page, WIDTH * 0.5, HEIGHT * 0.45, 700);
+    await page.waitForTimeout(2500);
+  });
+}
+
+/** A beat zoomed onto the okapi-bridge registry card. */
+async function beatEls_okapiCard(c: WalkCtx, id: string): Promise<void> {
+  const { page, beatEls, cursorTo } = c;
+  await beatEls(id, ['[data-testid="available-plugin-okapi-bridge"]'], async () => {
+    await cursorTo('[data-testid="available-plugin-okapi-bridge"]');
+    await page.waitForTimeout(2200);
   });
 }
 
 const WALKTHROUGHS: Record<string, (c: WalkCtx) => Promise<void>> = {
   "kapi-desktop-explorer": explorerWalk,
   "kapi-desktop-projects": projectsWalk,
+  "kapi-desktop-content": contentWalk,
   "kapi-desktop-config": configWalk,
   "kapi-desktop-flows": flowsWalk,
+  "kapi-desktop-okapi": okapiWalk,
 };
 
 async function runWalkthrough(page: Page, t0: number, demoId: string): Promise<Beat[]> {
@@ -372,7 +492,10 @@ async function recordTheme(browser: Browser, url: string, theme: ThemeMode, outD
   const t0 = Date.now();
   const page = await context.newPage();
   await page.emulateMedia({ colorScheme: theme });
-  await page.goto(`${url}?theme=${theme}`, { waitUntil: "networkidle" });
+  // "domcontentloaded", not "networkidle": real-main.tsx opens a long-lived SSE
+  // connection (/wevents) for streamed backend events, so the network never goes
+  // idle. The h1 wait below confirms the app actually rendered.
+  await page.goto(`${url}?theme=${theme}`, { waitUntil: "domcontentloaded" });
   await page.waitForSelector("h1", { timeout: 15_000 });
   await injectCursor(page);
   await page.waitForTimeout(400);
@@ -422,13 +545,35 @@ export async function recordDesktop(id: string, opts: RecordOptions = {}): Promi
     fs.mkdirSync(ISO_HOME, { recursive: true });
   };
 
+  // Clear any installed plugins before each theme so install walkthroughs start
+  // uninstalled on both passes. The wbridge backend is one long-lived process
+  // across both themes, so deleting the files isn't enough — tell it to re-scan
+  // (LoadPlugins) so its in-memory plugin host matches the now-empty dir. The
+  // app installs to KAPI_CONFIG_DIR/plugins (= ISO_DIR/plugins). Best-effort: a
+  // no-op for demos that install nothing, and skipped when the stack is external.
+  const resetPlugins = async () => {
+    fs.rmSync(path.join(ISO_DIR, "plugins"), { recursive: true, force: true });
+    if (externalUrl) return;
+    try {
+      await fetch("http://127.0.0.1:5175/wbridge", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ method: "LoadPlugins", args: [] }),
+      });
+    } catch {
+      /* backend not reachable — skip */
+    }
+  };
+
   const browser = await chromium.launch();
   try {
     console.log("  · recording light theme");
     resetHome();
+    await resetPlugins();
     const light = await recordTheme(browser, url, "light", outDir, id);
     console.log("  · recording dark theme");
     resetHome();
+    await resetPlugins();
     const dark = await recordTheme(browser, url, "dark", outDir, id);
 
     const screencast: Screencast = {

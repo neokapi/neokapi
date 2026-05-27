@@ -69,6 +69,13 @@ type App struct {
 	recent      *recentStore
 	settings    *settingsStore
 
+	// eventSink, when non-nil, receives every emitted event in addition to the
+	// Wails app. The recording wbridge (cmd/wbridge) sets this to stream events
+	// to the browser over SSE, since a plain browser has no Wails event channel.
+	// Nil in production.
+	eventMu   sync.RWMutex
+	eventSink func(name string, data any)
+
 	logger *log.Logger
 }
 
@@ -1434,6 +1441,23 @@ func (a *App) emitEvent(name string, data any) {
 	if a.app != nil {
 		a.app.Event.Emit(name, data)
 	}
+	a.eventMu.RLock()
+	sink := a.eventSink
+	a.eventMu.RUnlock()
+	if sink != nil {
+		sink(name, data)
+	}
+}
+
+// SetEventSink registers a listener that receives every emitted event, in
+// addition to the Wails app. Used by the recording wbridge to stream events
+// (plugin install progress, flow:event, …) to the browser over SSE. Passing nil
+// clears the sink. The sink is invoked from arbitrary goroutines, so it must be
+// safe for concurrent use.
+func (a *App) SetEventSink(sink func(name string, data any)) {
+	a.eventMu.Lock()
+	a.eventSink = sink
+	a.eventMu.Unlock()
 }
 
 func defaultPluginDir() string {

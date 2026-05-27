@@ -1,0 +1,87 @@
+id: kapi-desktop-okapi
+title: Using the Okapi plugin
+subtitle: Install the Okapi bridge and process files through its filters.
+tagline: the visual companion to the kapi command line
+kind: use-case
+publishAs: kapi-desktop-okapi
+terminal: desktop
+brand: desktop
+needsAi: false
+aspects:
+  - Plugin registry
+  - Okapi Framework filters
+  - Installing a plugin
+  - Plugin-backed formats
+
+narration:
+  - id: title
+    kind: title
+    text: >-
+      Plugins extend Kapi — here, the Okapi bridge and its filters.
+
+  - id: intro
+    kind: desktop
+    beat: intro
+    text: >-
+      Plugins are managed in Settings, under Plugins.
+
+  - id: open-plugins
+    kind: desktop
+    beat: open-plugins
+    caption: The Available tab lists the plugin registry.
+    text: >-
+      The Available tab lists the registry — plugins you can add to Kapi without
+      leaving the app.
+
+  - id: registry
+    kind: desktop
+    beat: registry
+    caption: The Okapi bridge brings the Okapi Framework's filters.
+    text: >-
+      The Okapi bridge brings the Okapi Framework's filters to Kapi, adding
+      dozens of document formats beyond the built-in set.
+
+  - id: install
+    kind: desktop
+    beat: install
+    caption: One click installs it from the registry.
+    text: >-
+      One click downloads and installs it — the binary, its filters, and a
+      bundled runtime, all into Kapi's own plugin directory.
+
+  - id: installed
+    kind: desktop
+    beat: installed
+    caption: Installed, with its filter formats listed.
+    text: >-
+      Once installed, it appears here with the formats it contributes, each an
+      Okapi filter prefixed okf.
+
+  - id: open-okapimart
+    kind: desktop
+    beat: open-okapimart
+    caption: OkapiMart — a project built on these filters.
+    text: >-
+      The OkapiMart sample is built on those filters. With the plugin in place,
+      it opens and resolves.
+
+  - id: content
+    kind: desktop
+    beat: content
+    caption: Its content is processed through the Okapi filters.
+    text: >-
+      Its content view reads the same store files as before, this time through
+      the Okapi filters.
+
+  - id: okf-formats
+    kind: desktop
+    beat: okf-formats
+    caption: Each file is handled by an okf_ filter.
+    text: >-
+      Each file is now handled by an okf filter — the bridge doing the parsing,
+      Kapi orchestrating the work.
+
+  - id: outro
+    kind: outro
+    text: >-
+      Install a plugin, and its formats become part of Kapi.
