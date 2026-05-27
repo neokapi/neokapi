@@ -62,38 +62,57 @@ nextjs, vue-i18n, flutter, angular.`,
 				return err
 			}
 
+			// `kapi init` is idempotent: re-running it (or running it on a
+			// project that already has a recipe) is not an error. This lets
+			// plugin contributions (e.g. connecting an existing kapi project to
+			// a server) run on top of `kapi init` without a separate command —
+			// `kapi init --server …` on an existing project just connects it.
+			//
+			// When the directory already hosts a project we adopt that recipe
+			// (so contributions run against it). The one hard error is an
+			// explicit --name that names a *different* project than the one
+			// already here — that would scaffold a second recipe alongside it.
+			recipeExists := false
+			if existing, err := existingRecipeName(root); err == nil && existing != "" {
+				existingName := strings.TrimSuffix(existing, project.RecipeExt)
+				if cmd.Flags().Changed("name") && name != existingName {
+					return fmt.Errorf("directory already contains a kapi project (%s); run from a clean directory or use --name %s", existing, existingName)
+				}
+				name = existingName
+				recipeExists = true
+			}
+
 			recipePath := filepath.Join(root, name+project.RecipeExt)
 			stateDir := filepath.Join(root, project.StateDirName)
 
-			if _, err := os.Stat(recipePath); err == nil {
-				return fmt.Errorf("refusing to overwrite existing %s", recipePath)
-			}
-			if _, err := os.Stat(stateDir); err == nil {
-				return fmt.Errorf("refusing to overwrite existing %s", stateDir)
-			}
-
-			recipe := scaffoldRecipe(name, sourceLocale, targetLocale, content)
-			if err := os.WriteFile(recipePath, recipe, 0o644); err != nil {
-				return fmt.Errorf("write recipe: %w", err)
+			if recipeExists {
+				fmt.Fprintf(cmd.OutOrStdout(), "kapi project already initialized: %s\n", recipePath)
+			} else {
+				recipe := scaffoldRecipe(name, sourceLocale, targetLocale, content)
+				if err := os.WriteFile(recipePath, recipe, 0o644); err != nil {
+					return fmt.Errorf("write recipe: %w", err)
+				}
 			}
 
+			// EnsureLayout/SaveState are safe to run on an existing layout.
 			layout := project.Layout{Root: root, RecipePath: recipePath, StateDir: stateDir}
 			if err := project.EnsureLayout(layout); err != nil {
 				return fmt.Errorf("create state dir: %w", err)
 			}
-			if err := project.SaveState(layout, &project.StateManifest{
-				Generator: project.StateGenerator{ID: "kapi", Version: version.Version},
-				Project: project.StateProjectRef{
-					ID:   name,
-					Path: "../" + filepath.Base(recipePath),
-				},
-			}); err != nil {
-				return fmt.Errorf("write state manifest: %w", err)
+			if !recipeExists {
+				if err := project.SaveState(layout, &project.StateManifest{
+					Generator: project.StateGenerator{ID: "kapi", Version: version.Version},
+					Project: project.StateProjectRef{
+						ID:   name,
+						Path: "../" + filepath.Base(recipePath),
+					},
+				}); err != nil {
+					return fmt.Errorf("write state manifest: %w", err)
+				}
+				fmt.Fprintf(cmd.OutOrStdout(), "Initialized kapi project %q\n", name)
+				fmt.Fprintf(cmd.OutOrStdout(), "  recipe: %s\n", recipePath)
+				fmt.Fprintf(cmd.OutOrStdout(), "  state:  %s\n", stateDir)
 			}
-
-			fmt.Fprintf(cmd.OutOrStdout(), "Initialized kapi project %q\n", name)
-			fmt.Fprintf(cmd.OutOrStdout(), "  recipe: %s\n", recipePath)
-			fmt.Fprintf(cmd.OutOrStdout(), "  state:  %s\n", stateDir)
 			return nil
 		},
 	}
@@ -159,20 +178,37 @@ func resolveDir(flag string) (string, error) {
 	return abs, nil
 }
 
+// existingRecipeName returns the base name of the first *.kapi recipe directly
+// in dir, or "" if none exists. Used to detect an already-initialized project.
+func existingRecipeName(dir string) (string, error) {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return "", err
+	}
+	for _, e := range entries {
+		if !e.IsDir() && filepath.Ext(e.Name()) == project.RecipeExt {
+			return e.Name(), nil
+		}
+	}
+	return "", nil
+}
+
 func scaffoldRecipe(name, sourceLocale string, targetLocales []string, content []scaffoldContent) []byte {
 	var b strings.Builder
 	b.WriteString("version: v1\n")
-	b.WriteString("id: ")
+	b.WriteString("name: ")
 	b.WriteString(name)
-	b.WriteString("\nname: ")
-	b.WriteString(name)
-	b.WriteString("\nsourceLocale: ")
+	// Source/target locales live under `defaults:` — the schema the loader
+	// reads (KapiProject.Defaults). Top-level sourceLocale/targetLocales keys
+	// are not part of the recipe schema and would be ignored.
+	b.WriteString("\ndefaults:\n")
+	b.WriteString("  source_language: ")
 	b.WriteString(sourceLocale)
 	b.WriteByte('\n')
 	if len(targetLocales) > 0 {
-		b.WriteString("targetLocales:\n")
+		b.WriteString("  target_languages:\n")
 		for _, t := range targetLocales {
-			b.WriteString("  - ")
+			b.WriteString("    - ")
 			b.WriteString(t)
 			b.WriteByte('\n')
 		}

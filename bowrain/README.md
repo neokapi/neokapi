@@ -121,17 +121,19 @@ Drive it with the `kapi` plugin (install the `kapi-bowrain` plugin first):
 
 ```bash
 mkdir myapp && cd myapp
-kapi init --server http://localhost:8080 --anonymous --name myapp --source en --targets fr,de
+kapi init --server http://localhost:8080 --anonymous --source-locale en --target-locale fr,de
 echo '{"greeting":"Hello"}' > en.json
 kapi add en.json
 kapi sync --locale fr,de        # push → wait for translations → pull
 cat fr.json de.json             # translated catalogs
 ```
 
-> **Note:** `kapi init` shown above is the bowrain plugin's init. If the
-> top-level `kapi init` resolves to the framework's local scaffolder instead
-> (it shadows the plugin's `init` — [issue tracked separately]), run
-> `kapi-bowrain command init …` with the same flags.
+`kapi init` scaffolds the project; when `--server` is given, the bowrain plugin
+*contributes* the server connection (writes the `server:` block + claim token).
+It is idempotent — running `kapi init --server …` inside an **existing** local
+kapi project simply connects it to bowrain, leaving an already-connected project
+untouched. (`--anonymous` skips sign-in; omit it to create the project under
+your account, or pass `--project <id>` to attach to an existing server project.)
 
 Other targets: `make -C bowrain stack-ps`, `stack-logs`, `stack-down`,
 `stack-up-web` (adds the SaaS web UI at http://localhost:8080).

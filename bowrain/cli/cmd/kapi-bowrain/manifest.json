@@ -52,6 +52,20 @@
     ],
     "source_connectors": [
       {"id": "bowrain-source", "description": "Sync .kapi projects with a Bowrain server (push, pull, status, ls)"}
+    ],
+    "command_contributions": [
+      {
+        "command": "init",
+        "handler": "init-connect",
+        "short": "Connect the new project to a Bowrain server",
+        "engage_when": "server",
+        "flags": [
+          {"name": "server", "type": "string", "description": "Bowrain server URL (connect this project to it)"},
+          {"name": "anonymous", "type": "bool", "description": "Create the project without signing in"},
+          {"name": "project", "type": "string", "description": "Attach to an existing server project by ID"},
+          {"name": "email", "type": "string", "description": "Email a link to claim an anonymous project"}
+        ]
+      }
     ]
   },
   "daemon": {

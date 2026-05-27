@@ -54,6 +54,15 @@ type Host struct {
 	mcpDispatch     map[string]*MCPRoute          // MCP tool name → owning plugin + manifest entry
 	formatDispatch  map[string]*FormatRoute       // format name → owning plugin + manifest entry
 	schemaExt       []SchemaExtensionRegistration // recipe schema extensions surfaced from manifests
+	contributions   []*ContributionRoute          // contributions to built-in commands
+}
+
+// ContributionRoute names a command contribution and the plugin that owns it.
+// Unlike CommandRoute (one plugin owns the whole command), multiple plugins may
+// contribute to the same built-in command, so contributions are kept as a slice.
+type ContributionRoute struct {
+	Plugin       *Plugin
+	Contribution manifest.CommandContribution
 }
 
 // CommandRoute names a command capability and the plugin it dispatches to.
@@ -155,6 +164,9 @@ func NewHost(plugins []*Plugin, conflicts func(msg string)) *Host {
 		for _, ext := range p.Manifest.Capabilities.SchemaExtensions {
 			h.schemaExt = append(h.schemaExt, SchemaExtensionRegistration{Plugin: p, Extension: ext})
 		}
+		for _, cc := range p.Manifest.Capabilities.CommandContributions {
+			h.contributions = append(h.contributions, &ContributionRoute{Plugin: p, Contribution: cc})
+		}
 	}
 
 	return h
@@ -215,6 +227,22 @@ func (h *Host) CommandRoutes() []*CommandRoute {
 	}
 	sort.SliceStable(out, func(i, j int) bool {
 		return out[i].Command.Name < out[j].Command.Name
+	})
+	return out
+}
+
+// ContributionRoutes returns all command-contribution entries, sorted by the
+// target command name then the owning plugin for deterministic wiring order.
+func (h *Host) ContributionRoutes() []*ContributionRoute {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	out := make([]*ContributionRoute, len(h.contributions))
+	copy(out, h.contributions)
+	sort.SliceStable(out, func(i, j int) bool {
+		if out[i].Contribution.Command != out[j].Contribution.Command {
+			return out[i].Contribution.Command < out[j].Contribution.Command
+		}
+		return out[i].Plugin.Name() < out[j].Plugin.Name()
 	})
 	return out
 }

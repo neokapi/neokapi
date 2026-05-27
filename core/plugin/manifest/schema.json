@@ -150,6 +150,35 @@
               "json_schema": { "type": "string" }
             }
           }
+        },
+        "command_contributions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["command", "handler"],
+            "additionalProperties": false,
+            "properties": {
+              "command": { "type": "string" },
+              "handler": { "type": "string" },
+              "short": { "type": "string" },
+              "engage_when": { "type": "string" },
+              "flags": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": ["name", "type"],
+                  "additionalProperties": false,
+                  "properties": {
+                    "name": { "type": "string" },
+                    "short": { "type": "string", "maxLength": 1 },
+                    "type": { "type": "string", "enum": ["bool", "string", "int", "stringSlice"] },
+                    "description": { "type": "string" },
+                    "default": {}
+                  }
+                }
+              }
+            }
+          }
         }
       }
     },

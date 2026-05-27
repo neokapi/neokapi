@@ -109,4 +109,13 @@ func init() {
 		},
 		DaemonPool: app.DaemonPool(),
 	})
+
+	// Plugin contributions augment built-in commands (e.g. bowrain extends
+	// `kapi init` to connect a project to a server). Wire these after the
+	// built-in + plugin command trees are in place so the target commands exist.
+	pluginhost.AttachContributions(rootCmd, app.PluginHost, func(msg string) {
+		if !app.Quiet {
+			fmt.Fprintln(os.Stderr, "Warning: "+msg)
+		}
+	})
 }
