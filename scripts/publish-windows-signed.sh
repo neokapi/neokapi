@@ -5,16 +5,19 @@
 # workflow has finished — macOS/Linux assets are published by CI; the Windows
 # binaries are produced as workflow *artifacts* and signed here.
 #
-# Prereqs — unlock the certificate first:
-#   • Certum cloud (SimplySign): open SimplySign Desktop, log in (mobile OTP), then
-#       export JSIGN_STORETYPE=PKCS11 JSIGN_KEYSTORE=/path/to/pkcs11.cfg
-#     where pkcs11.cfg contains:
-#       name=simplysign
-#       library=/path/to/<simplysign-pkcs11>.dylib
-#   • Certum card (CryptoCertum): insert the token, then
-#       export JSIGN_STORETYPE=CRYPTOCERTUM
-#   • Always:  export JSIGN_STOREPASS=<certificate PIN>
-#              export JSIGN_ALIAS="Skissefabrikken AS"   # certificate CN (default)
+# Prereqs — have the certificate mounted first:
+#   • SimplySign cloud (what neokapi uses): install SimplySign Desktop (brew
+#     bundle) and LOG IN via its menu-bar app (mobile OTP) so the cloud cert is
+#     mounted. The active session authorizes signing — there is NO card PIN and
+#     NO per-signature prompt — so JSIGN_STOREPASS stays empty and the alias is
+#     auto-discovered from the token. Just point at the PKCS#11 config:
+#       export JSIGN_KEYSTORE=~/simplysign-pkcs11.cfg
+#     where ~/simplysign-pkcs11.cfg contains:
+#       name = SimplySign
+#       library = /usr/local/lib/libSimplySignPKCS.dylib
+#     (The SimplySign session is time-limited — log in shortly before signing.)
+#   • PIN-protected token / physical card: set JSIGN_STORETYPE=CRYPTOCERTUM (card)
+#     or keep PKCS11, plus JSIGN_STOREPASS=<PIN> and JSIGN_ALIAS=<label>.
 #
 # Usage:  ./scripts/publish-windows-signed.sh v1.2.3
 #         RUN_ID=123456789 ./scripts/publish-windows-signed.sh v1.2.3   # pin the run
@@ -24,18 +27,34 @@ TAG="${1:?usage: publish-windows-signed.sh <tag>   e.g. v1.2.3}"
 REPO="${REPO:-neokapi/neokapi}"
 
 STORETYPE="${JSIGN_STORETYPE:-PKCS11}"
-ALIAS="${JSIGN_ALIAS:-Skissefabrikken AS}"
 TSA="${JSIGN_TSA:-http://time.certum.pl/}"
-: "${JSIGN_STOREPASS:?set JSIGN_STOREPASS to the certificate PIN}"
+# SimplySign cloud has no card PIN and no per-signature prompt — the active
+# SimplySign Desktop session is the authorization — so the store password is
+# empty by default. (For a PIN-protected token or physical card, set JSIGN_STOREPASS.)
+STOREPASS="${JSIGN_STOREPASS:-}"
 command -v jsign >/dev/null || { echo "jsign not found — run 'brew bundle'"; exit 1; }
 command -v gh    >/dev/null || { echo "gh not found — run 'brew bundle'"; exit 1; }
 
-JSIGN_ARGS=( --storetype "$STORETYPE" --storepass "$JSIGN_STOREPASS"
-             --alias "$ALIAS" --tsaurl "$TSA" --tsmode RFC3161 )
 if [ "$STORETYPE" = "PKCS11" ]; then
-  : "${JSIGN_KEYSTORE:?PKCS11 store needs JSIGN_KEYSTORE=/path/to/pkcs11.cfg}"
-  JSIGN_ARGS+=( --keystore "$JSIGN_KEYSTORE" )
+  : "${JSIGN_KEYSTORE:?PKCS11 store needs JSIGN_KEYSTORE=/path/to/pkcs11.cfg (SunPKCS11 config)}"
 fi
+
+# Signing alias. For SimplySign (PKCS11) this is the certificate's PKCS#11 object
+# label, which changes on every cert reissue — so auto-discover it from the live
+# token when JSIGN_ALIAS isn't set (requires the SimplySign Desktop session).
+ALIAS="${JSIGN_ALIAS:-}"
+if [ -z "$ALIAS" ] && [ "$STORETYPE" = "PKCS11" ]; then
+  ALIAS="$(keytool -list -storetype PKCS11 -keystore NONE \
+             -providerclass sun.security.pkcs11.SunPKCS11 -providerarg "$JSIGN_KEYSTORE" \
+             -storepass "$STOREPASS" </dev/null 2>/dev/null \
+           | awk -F', ' '/PrivateKeyEntry/ {print $1; exit}')"
+  [ -n "$ALIAS" ] && echo ">> Auto-resolved signing alias: $ALIAS"
+fi
+[ -n "$ALIAS" ] || { echo "Could not resolve the signing alias — set JSIGN_ALIAS (find it with: pkcs11-tool --module <lib> -O --type cert)."; exit 1; }
+
+JSIGN_ARGS=( --storetype "$STORETYPE" --storepass "$STOREPASS"
+             --alias "$ALIAS" --tsaurl "$TSA" --tsmode RFC3161 )
+[ "$STORETYPE" = "PKCS11" ] && JSIGN_ARGS+=( --keystore "$JSIGN_KEYSTORE" )
 
 # Find the release workflow run that built the Windows artifacts for this tag.
 RUN_ID="${RUN_ID:-$(gh run list --repo "$REPO" --workflow release.yml \
