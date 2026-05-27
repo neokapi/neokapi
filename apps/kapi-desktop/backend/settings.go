@@ -30,11 +30,7 @@ type settingsStore struct {
 }
 
 func newSettingsStore() *settingsStore {
-	configDir, err := os.UserConfigDir()
-	if err != nil {
-		configDir = filepath.Join(os.Getenv("HOME"), ".config")
-	}
-	path := filepath.Join(configDir, "kapi-desktop", "settings.json")
+	path := filepath.Join(desktopConfigDir(), "settings.json")
 
 	s := &settingsStore{
 		filePath: path,

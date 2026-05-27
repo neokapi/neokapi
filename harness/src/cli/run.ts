@@ -13,6 +13,7 @@ import { listDemoIds, loadManifest } from "../lib/manifest.ts";
 import { ASSETS_DIR, PUBLIC_DIR, ensureDir, publicDemoDir } from "../lib/paths.ts";
 import { captureDemo, renormalizeDemo } from "../driver/capture.ts";
 import { captureScript } from "../driver/capture-script.ts";
+import { captureDesktopDemo } from "../driver/capture-desktop.ts";
 import { captureArtifacts } from "../driver/artifacts.ts";
 import { narrateDemo } from "../narrate/synth.ts";
 import { renderDemo, type ThemeMode } from "../remotion/render.ts";
@@ -109,9 +110,10 @@ async function main() {
   for (const m of manifests) {
     if (only.includes("capture")) {
       console.log(`\n━━ capture · ${m.id} ━━`);
-      // Scripted shell demos record real command output (no Claude); Claude demos
-      // run a live headless session.
-      if (m.terminal === "shell" || (m.script?.length ?? 0) > 0) await captureScript(m, { force });
+      // Desktop demos record a Kapi Desktop UI screencast; scripted shell demos
+      // record real command output (no Claude); Claude demos run a live session.
+      if (m.terminal === "desktop") await captureDesktopDemo(m, { force });
+      else if (m.terminal === "shell" || (m.script?.length ?? 0) > 0) await captureScript(m, { force });
       else await captureDemo(m, { force });
     }
   }

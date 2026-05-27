@@ -20,7 +20,7 @@ const Mascot: React.FC<{ size?: number }> = ({ size = 128 }) => (
   </div>
 );
 
-type Brand = "claude" | "kapi";
+type Brand = "claude" | "kapi" | "desktop";
 
 const Lockup: React.FC<{ size?: number; brand?: Brand }> = ({ size = 1, brand = "claude" }) => (
   <div style={{ display: "flex", alignItems: "center", gap: 16 * size, fontSize: 30 * size, fontWeight: 700, letterSpacing: 0.4 }}>
@@ -29,6 +29,11 @@ const Lockup: React.FC<{ size?: number; brand?: Brand }> = ({ size = 1, brand = 
       <>
         <span style={{ color: theme.faint, fontWeight: 400 }}>×</span>
         <span style={{ color: theme.text }}>Claude&nbsp;Code</span>
+      </>
+    ) : brand === "desktop" ? (
+      <>
+        <span style={{ color: theme.faint, fontWeight: 400 }}>·</span>
+        <span style={{ color: theme.text, fontWeight: 600 }}>Desktop</span>
       </>
     ) : (
       <>

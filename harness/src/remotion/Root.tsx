@@ -1,6 +1,6 @@
 import React from "react";
 import { Composition, staticFile, type CalculateMetadataFunction } from "remotion";
-import type { CapturedArtifact, DemoCapture, NarrationManifest } from "../types.ts";
+import type { CapturedArtifact, DemoCapture, NarrationManifest, Screencast } from "../types.ts";
 import { Demo, type DemoProps } from "./Demo.tsx";
 import { computeTiming } from "./timeline.ts";
 import { FPS, WIDTH, HEIGHT } from "./components/theme.ts";
@@ -40,13 +40,14 @@ const calcMeta: CalculateMetadataFunction<DemoProps> = async ({ props }) => {
   }
   const narration = (await fetchJson<NarrationManifest>(`${id}/narration.json`)) ?? fallbackNarration(capture);
   const artifacts = (await fetchJson<CapturedArtifact[]>(`${id}/artifacts.json`)) ?? [];
+  const screencast = await fetchJson<Screencast>(`${id}/screencast.json`);
   const timing = computeTiming(narration.scenes, FPS);
   return {
     durationInFrames: Math.max(FPS, timing.totalFrames),
     fps: FPS,
     width: WIDTH,
     height: HEIGHT,
-    props: { ...props, capture, narration, artifacts },
+    props: { ...props, capture, narration, artifacts, screencast },
   };
 };
 
@@ -62,7 +63,7 @@ export const RemotionRoot: React.FC = () => {
           fps={FPS}
           width={WIDTH}
           height={HEIGHT}
-          defaultProps={{ id: d.id, capture: undefined as any, narration: undefined as any, artifacts: [] as CapturedArtifact[], themeMode: "dark" as const }}
+          defaultProps={{ id: d.id, capture: undefined as any, narration: undefined as any, artifacts: [] as CapturedArtifact[], screencast: null, themeMode: "dark" as const }}
           calculateMetadata={calcMeta}
         />
       ))}

@@ -23,15 +23,17 @@ export function loadManifest(id: string): DemoManifest {
     throw new Error(`demo.yaml id "${m.id}" does not match directory "${id}"`);
   }
   // Light validation so authoring mistakes fail fast. A "shell" demo is scripted
-  // (commands in `script`), so it needs no Claude `prompt`; a Claude demo needs one.
+  // (commands in `script`), a "desktop" demo replays a recorded screencast — both
+  // need no Claude `prompt`; a Claude demo needs one.
   const isShell = m.terminal === "shell" || (Array.isArray(m.script) && m.script.length > 0);
+  const isDesktop = m.terminal === "desktop";
   if (!m.title) throw new Error(`demo ${id}: title is required`);
   if (isShell) {
     if (!Array.isArray(m.script) || m.script.length === 0) {
       throw new Error(`demo ${id}: terminal "shell" requires a non-empty "script"`);
     }
-  } else if (!m.prompt) {
-    throw new Error(`demo ${id}: prompt is required (or set terminal: shell with a script)`);
+  } else if (!isDesktop && !m.prompt) {
+    throw new Error(`demo ${id}: prompt is required (or set terminal: shell/desktop)`);
   }
   m.artifacts ??= [];
   m.narration ??= [];
@@ -42,6 +44,9 @@ export function loadManifest(id: string): DemoManifest {
     }
     if (n.kind === "artifact" && !m.artifacts.find((a) => a.id === n.artifact)) {
       throw new Error(`demo ${id}: narration scene "${n.id}" references unknown artifact "${n.artifact}"`);
+    }
+    if (n.kind === "desktop" && !n.beat) {
+      throw new Error(`demo ${id}: narration scene "${n.id}" is kind=desktop but has no beat id`);
     }
   }
   return m;

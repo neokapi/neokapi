@@ -68,18 +68,26 @@ export function MemoriesPage({
     api
       .getProjectTMHandle(tabID)
       .then((h) => {
-        if (h) {
-          setProjectHandle(h);
-          void api.getTMStats(h).then((s) => {
-            if (s) setProjectStats(s);
-          });
-          void api.getTMActivityStats(h).then((stats) => {
-            if (stats) setActivityStats(stats);
-          });
-        }
+        if (h) setProjectHandle(h);
       })
       .catch(() => {});
   }, [tabID]);
+
+  // Dashboard stats (count, activity) for whichever TM is open — project OR
+  // named. Both use the same view, so a named TM shows the same activity chart.
+  useEffect(() => {
+    if (!activeHandle) {
+      setProjectStats(null);
+      setActivityStats([]);
+      return;
+    }
+    void api.getTMStats(activeHandle).then((s) => {
+      if (s) setProjectStats(s);
+    });
+    void api.getTMActivityStats(activeHandle).then((stats) => {
+      if (stats) setActivityStats(stats);
+    });
+  }, [activeHandle]);
 
   const refreshResources = useCallback(async () => {
     if (propResources || forceLoading) return;
@@ -192,13 +200,24 @@ export function MemoriesPage({
     }
   }, [activeHandle, showError]);
 
-  // Project TM view — shows dashboard + browser.
-  if (projectHandle && adapter) {
+  // Open TM view — identical dashboard (stats + activity chart + browser) whether
+  // the TM is project-scoped or a named/ad-hoc one. Only the header differs.
+  if (activeHandle && adapter) {
+    const isProject = !!projectHandle;
     return (
       <div className="p-6">
         <PageHeader
-          title="Project Translation Memory"
-          subtitle={projectStats ? `${projectStats.count.toLocaleString()} entries` : undefined}
+          title={isProject ? "Project Translation Memory" : tmName}
+          subtitle={
+            projectStats ? `${projectStats.count.toLocaleString()} entries` : tmPath || undefined
+          }
+          backButton={
+            isProject ? undefined : (
+              <Button variant="ghost" size="icon-xs" onClick={handleClose} title="Close TM">
+                <X size={16} />
+              </Button>
+            )
+          }
           actions={
             <div className="flex gap-2">
               <Button variant="outline" size="sm" onClick={handleImport}>
@@ -248,38 +267,6 @@ export function MemoriesPage({
           </Card>
         )}
 
-        {/* Browser with integrated filter bar */}
-        <TMBrowser adapter={adapter} locales={locales} onError={showError} />
-        <ImportProgress active={importing} />
-      </div>
-    );
-  }
-
-  // Named TM browser view — TM is open (non-project).
-  if (handle && adapter) {
-    return (
-      <div className="p-6">
-        <PageHeader
-          title={tmName}
-          subtitle={tmPath || undefined}
-          backButton={
-            <Button variant="ghost" size="icon-xs" onClick={handleClose} title="Close TM">
-              <X size={16} />
-            </Button>
-          }
-          actions={
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm" onClick={handleImport}>
-                <Upload size={12} />
-                Import TMX
-              </Button>
-              <Button variant="outline" size="sm" onClick={handleExport}>
-                <Download size={12} />
-                Export TMX
-              </Button>
-            </div>
-          }
-        />
         <TMBrowser adapter={adapter} locales={locales} onError={showError} />
         <ImportProgress active={importing} />
       </div>

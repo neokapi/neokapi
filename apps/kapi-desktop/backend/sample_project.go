@@ -17,7 +17,7 @@ func (a *App) CreateSampleProject(name string) (*TabInfo, error) {
 		return nil, fmt.Errorf("unknown sample project %q", name)
 	}
 
-	home, err := os.UserHomeDir()
+	home, err := userHomeDir()
 	if err != nil {
 		return nil, fmt.Errorf("cannot determine home directory: %w", err)
 	}

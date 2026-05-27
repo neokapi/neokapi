@@ -429,11 +429,7 @@ func listNamedResources(kind string) []ResourceInfo {
 }
 
 func namedResourceDir(kind string) string {
-	cfgDir, err := os.UserConfigDir()
-	if err != nil {
-		return ""
-	}
-	return filepath.Join(cfgDir, "kapi", kind)
+	return filepath.Join(kapiConfigDir(), kind)
 }
 
 // --- Recovery ---

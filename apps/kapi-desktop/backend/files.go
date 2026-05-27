@@ -29,7 +29,7 @@ func (a *App) GetBasePath(tabID string) string {
 	if op.Path != "" {
 		return filepath.Dir(op.Path)
 	}
-	home, _ := os.UserHomeDir()
+	home, _ := userHomeDir()
 	return home
 }
 

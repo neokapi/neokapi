@@ -1,0 +1,106 @@
+id: kapi-desktop-explorer
+title: Browse a termbase and translation memory
+subtitle: A visual tour of terminology and translation memory in Kapi Desktop.
+tagline: the visual companion to the kapi command line
+kind: use-case
+terminal: desktop
+brand: desktop
+needsAi: false
+aspects:
+  - Termbases
+  - Translation memory
+  - Multi-locale terms
+  - Inline formatting
+  - Entity placeholders
+
+# A "desktop" demo replays the recorded Kapi Desktop screencast (public/<id>/
+# screencast.{json,webm}) inside the macOS window frame. Each narration scene of
+# kind "desktop" names a `beat` from screencast.json and inherits that beat's
+# zoom region; the scene plays the beat's slice fit to the narration length.
+
+narration:
+  - id: title
+    kind: title
+    text: >-
+      Kapi Desktop is the visual companion to the kapi command line. Let's look
+      at how it opens up the terminology and translation memory behind a
+      localisation project.
+
+  - id: intro
+    kind: desktop
+    beat: intro
+    text: >-
+      It opens to a calm home screen. Everything a translator leans on — the
+      glossaries and the remembered translations — sits one click away in the
+      sidebar.
+
+  - id: termbases
+    kind: desktop
+    beat: open-termbases
+    caption: The Termbases section lists each glossary on disk.
+    text: >-
+      The Termbases section lists each glossary stored on disk, with its size
+      and when it last changed.
+
+  - id: glossary
+    kind: desktop
+    beat: open-glossary
+    caption: Opening a glossary shows every concept it holds.
+    text: >-
+      Opening the product glossary brings up every concept it holds — eight, in
+      this project.
+
+  - id: concept
+    kind: desktop
+    beat: inspect-concept
+    caption: Each concept carries a definition and its approved terms.
+    text: >-
+      Each concept carries a definition and its approved terms across languages.
+      A status badge marks the preferred wording, and flags the terms that are
+      deprecated.
+
+  - id: search-term
+    kind: desktop
+    beat: search-term
+    caption: Full-text search narrows the glossary.
+    text: >-
+      Full-text search narrows the list instantly. Here, every concept that
+      belongs to the billing domain.
+
+  - id: open-tm
+    kind: desktop
+    beat: open-tm
+    caption: The translation memory works the same way.
+    text: >-
+      The translation memory works the same way. We cross over and open the
+      memory for the Acme app.
+
+  - id: inspect-tm
+    kind: desktop
+    beat: inspect-tm
+    caption: Each entry pairs a source string with its translations.
+    text: >-
+      Each entry pairs a source string with its translations. Inline formatting,
+      like bold text and links, is preserved as tags rather than literal markup.
+
+  - id: entity
+    kind: desktop
+    beat: entity
+    caption: Names are held as placeholders, ready to reuse.
+    text: >-
+      Names and other entities are held as placeholders, so a remembered
+      translation can be reused later with a different value.
+
+  - id: search-tm
+    kind: desktop
+    beat: search-tm
+    caption: The memory is searchable too.
+    text: >-
+      And the memory is searchable too — every string that mentions the word
+      invite.
+
+  - id: outro
+    kind: outro
+    text: >-
+      That's the terminology and translation memory at the heart of kapi,
+      browsable in one place.

@@ -32,5 +32,9 @@ export const DEMOS: RegistryEntry[] = [
   {
     "id": "09-toolbox-find-replace",
     "title": "grep, sed and cat — for any format"
+  },
+  {
+    "id": "kapi-desktop-explorer",
+    "title": "Browse a termbase and translation memory"
   }
 ];

@@ -25,11 +25,7 @@ type recentStore struct {
 }
 
 func newRecentStore() *recentStore {
-	configDir, err := os.UserConfigDir()
-	if err != nil {
-		configDir = filepath.Join(os.Getenv("HOME"), ".config")
-	}
-	path := filepath.Join(configDir, "kapi-desktop", "recent.json")
+	path := filepath.Join(desktopConfigDir(), "recent.json")
 
 	s := &recentStore{filePath: path}
 	s.load()

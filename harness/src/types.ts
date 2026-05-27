@@ -34,10 +34,14 @@ export interface DemoManifest {
    *   "shell"            — a scripted plain shell session (`script` required, no Claude). The
    *                        commands run for real and their output is recorded deterministically;
    *                        the renderer frames them as a normal terminal (no Claude chrome).
+   *   "desktop"          — a Kapi Desktop UI walkthrough. Capture runs the Playwright recorder
+   *                        (src/driver/record-desktop.ts) against the real desktop frontend and
+   *                        writes screencast.json + light/dark webms; the renderer replays the
+   *                        screencast inside the macOS window frame with per-beat zoom.
    */
-  terminal?: "claude" | "shell";
-  /** Card branding: "claude" (default) → kapi × Claude Code lockup; "kapi" → kapi-only lockup. */
-  brand?: "claude" | "kapi";
+  terminal?: "claude" | "shell" | "desktop";
+  /** Card branding: "claude" (default) → kapi × Claude Code lockup; "kapi" → toolbox lockup; "desktop" → kapi · Desktop. */
+  brand?: "claude" | "kapi" | "desktop";
   /** Displayed working-directory label in the terminal title bar (cosmetic; default ~/project). */
   cwd?: string;
   /** Ordered commands for a `terminal: "shell"` demo (run via `sh -c`, so globs expand). */
@@ -126,15 +130,18 @@ export interface NarrationSpec {
    * - "prompt": full-screen the user's actual request (what they typed).
    * - "terminal": shows the Claude Code session replay (the real transcript).
    * - "artifact": full-screen a captured artifact.
+   * - "desktop": replays a Kapi Desktop screencast beat inside the macOS window (with zoom).
    * - "outro": closing recap card.
    */
-  kind: "title" | "prompt" | "terminal" | "artifact" | "outro";
+  kind: "title" | "prompt" | "terminal" | "artifact" | "desktop" | "outro";
   /** The spoken narration for this scene. */
   text: string;
   /** On-screen caption (defaults to a trimmed version of text for non-title scenes). */
   caption?: string;
   /** For kind="artifact": which ArtifactSpec.id to show. */
   artifact?: string;
+  /** For kind="desktop": which screencast beat id to play (see screencast.json). */
+  beat?: string;
   /** Optional minimum seconds (padding) added after the narration audio. */
   holdSec?: number;
 }
@@ -168,9 +175,9 @@ export interface DemoCapture {
   tagline?: string;
   aspects: string[];
   prompt: string;
-  /** "claude" (default) or "shell" — selects the terminal renderer + card branding. */
-  terminal?: "claude" | "shell";
-  brand?: "claude" | "kapi";
+  /** "claude" (default), "shell", or "desktop" — selects the scene renderer + card branding. */
+  terminal?: "claude" | "shell" | "desktop";
+  brand?: "claude" | "kapi" | "desktop";
   /** Working-directory label shown in the terminal title bar (shell demos). */
   cwd?: string;
   events: TimelineEvent[];
@@ -207,6 +214,8 @@ export interface NarrationScene {
   text: string;
   caption: string;
   artifact?: string;
+  /** For kind="desktop": which screencast beat id to play. */
+  beat?: string;
   /** staticFile-relative path to the audio, e.g. "audio/intro.wav". */
   audio?: string;
   /** Audio duration in seconds (0 for silent scenes). */
@@ -245,4 +254,33 @@ export interface DemoRegistryEntry {
   title: string;
   hasCapture: boolean;
   hasNarration: boolean;
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// Desktop screencast (written to public/<id>/screencast.json by record-desktop)
+// ──────────────────────────────────────────────────────────────────────────
+
+/** A normalized [0,1] zoom rect over the screencast frame, or null = full frame. */
+export interface ZoomRect {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+/** One recorded walkthrough beat: a time span in the screencast + its zoom region. */
+export interface ScreencastBeat {
+  id: string;
+  /** Seconds from the start of the recording. */
+  tStart: number;
+  tEnd: number;
+  zoom: ZoomRect | null;
+}
+
+/** The recorded Kapi Desktop walkthrough — light + dark webms and per-theme beats. */
+export interface Screencast {
+  width: number;
+  height: number;
+  video: { light: string; dark: string };
+  beats: { light: ScreencastBeat[]; dark: ScreencastBeat[] };
 }

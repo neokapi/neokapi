@@ -1,6 +1,6 @@
 import React from "react";
 import { AbsoluteFill, Audio, Sequence, staticFile } from "remotion";
-import type { CapturedArtifact, DemoCapture, NarrationManifest } from "../types.ts";
+import type { CapturedArtifact, DemoCapture, NarrationManifest, Screencast } from "../types.ts";
 import { computeTiming } from "./timeline.ts";
 import { theme, setTheme, type ThemeMode } from "./components/theme.ts";
 import { ClaudeTerminal } from "./components/ClaudeTerminal.tsx";
@@ -9,19 +9,22 @@ import { TerminalWindow } from "./components/TerminalWindow.tsx";
 import { TitleCard, OutroCard } from "./components/Cards.tsx";
 import { ArtifactView } from "./components/ArtifactView.tsx";
 import { PromptCard } from "./components/PromptCard.tsx";
+import { DesktopScene } from "./components/DesktopScene.tsx";
 
 export interface DemoProps {
   id: string;
   capture: DemoCapture;
   narration: NarrationManifest;
   artifacts: CapturedArtifact[];
+  /** For terminal:"desktop" demos: the recorded screencast (beats + webms). */
+  screencast?: Screencast | null;
   /** Which palette to render with (matches the docs page's light/dark mode). */
   themeMode?: ThemeMode;
   // Remotion's Composition requires props to be assignable to Record<string, unknown>.
   [key: string]: unknown;
 }
 
-export const Demo: React.FC<DemoProps> = ({ id, capture, narration, artifacts, themeMode }) => {
+export const Demo: React.FC<DemoProps> = ({ id, capture, narration, artifacts, screencast, themeMode }) => {
   // Swap the active palette before any child reads `theme.*`. The mode is constant
   // for the whole render job, so this is stable across frames.
   setTheme(themeMode ?? "dark");
@@ -45,6 +48,12 @@ export const Demo: React.FC<DemoProps> = ({ id, capture, narration, artifacts, t
   // tempo/tone). Otherwise each scene carries its own clip.
   const fullAudio = narration.fullAudio;
 
+  // Desktop screencast beats (per active theme). Each desktop scene eases in to
+  // its zoom region and back out to full on its own (see DesktopScene).
+  const mode: ThemeMode = themeMode ?? "dark";
+  const beats = screencast?.beats[mode] ?? [];
+  const beatById = new Map(beats.map((b) => [b.id, b] as const));
+
   return (
     <AbsoluteFill style={{ background: theme.bg, fontFamily: theme.fontSans }}>
       {fullAudio ? <Audio src={staticFile(`${id}/${fullAudio}`)} /> : null}
@@ -66,6 +75,21 @@ export const Demo: React.FC<DemoProps> = ({ id, capture, narration, artifacts, t
                 // Artifact failed to capture — fall back to the terminal so the scene isn't blank.
                 if (!art) return terminalScene(scene.caption, t.termFrom);
                 return <ArtifactView demoId={id} artifact={art} caption={scene.caption || art.caption} />;
+              })()
+            ) : scene.kind === "desktop" ? (
+              (() => {
+                const b = scene.beat ? beatById.get(scene.beat) : undefined;
+                if (!screencast || !b) return terminalScene(scene.caption, t.termFrom);
+                return (
+                  <DesktopScene
+                    demoId={id}
+                    screencast={screencast}
+                    themeMode={mode}
+                    beat={b}
+                    caption={scene.caption}
+                    sceneDurationFrames={t.durationFrames}
+                  />
+                );
               })()
             ) : (
               terminalScene(scene.caption, t.termFrom)

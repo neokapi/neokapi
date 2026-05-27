@@ -219,7 +219,7 @@ func (a *App) NewProject(name, sourceLang string, targetLangs []string, savePath
 		if name == "" {
 			return nil, fmt.Errorf("project name or save path is required")
 		}
-		home, err := os.UserHomeDir()
+		home, err := userHomeDir()
 		if err != nil {
 			return nil, fmt.Errorf("cannot determine home directory: %w", err)
 		}
@@ -228,7 +228,7 @@ func (a *App) NewProject(name, sourceLang string, targetLangs []string, savePath
 
 	// Expand ~ to the actual home directory (frontend may send ~/... paths).
 	if strings.HasPrefix(savePath, "~/") || savePath == "~" {
-		home, err := os.UserHomeDir()
+		home, err := userHomeDir()
 		if err == nil {
 			savePath = filepath.Join(home, savePath[2:])
 		}
@@ -1074,11 +1074,7 @@ func (a *App) ListAllFormatPresets(formatName string) []FormatPresetInfo {
 
 // userPresetDir returns the directory for user format presets.
 func (a *App) userPresetDir(formatName string) string {
-	home, err := os.UserConfigDir()
-	if err != nil {
-		home = os.TempDir()
-	}
-	return filepath.Join(home, "kapi", "format-presets", formatName)
+	return filepath.Join(kapiConfigDir(), "format-presets", formatName)
 }
 
 // loadUserPresets reads user presets from disk for a given format.
@@ -1427,7 +1423,7 @@ func (a *App) GetVersion() string {
 
 // GetHomeDir returns the user's home directory path.
 func (a *App) GetHomeDir() string {
-	home, _ := os.UserHomeDir()
+	home, _ := userHomeDir()
 	return home
 }
 
@@ -1442,11 +1438,7 @@ func defaultPluginDir() string {
 	if dir != "" {
 		return dir
 	}
-	home, err := os.UserConfigDir()
-	if err != nil {
-		return ""
-	}
-	return filepath.Join(home, "kapi", "plugins")
+	return filepath.Join(kapiConfigDir(), "plugins")
 }
 
 func toLocaleIDs(ss []string) []model.LocaleID {

@@ -77,21 +77,31 @@ export function TermbasesPage({
     api
       .getProjectTermbaseHandle(tabID)
       .then((h) => {
-        if (h) {
-          setProjectHandle(h);
-          void api.getTermbaseStats(h).then((s) => {
-            if (s) setProjectStats(s);
-          });
-          void api.getTermbaseActivityStats(h).then((stats) => {
-            if (stats) setActivityStats(stats);
-          });
-          void api.getTermbaseLocaleStats(h).then((stats) => {
-            if (stats) setLocaleList(stats);
-          });
-        }
+        if (h) setProjectHandle(h);
       })
       .catch(() => {});
   }, [tabID]);
+
+  // Dashboard stats (count, activity, locales) for whichever termbase is open —
+  // project OR named. Both use the same view, so a named termbase shows the same
+  // activity chart + filters as a project one.
+  useEffect(() => {
+    if (!activeHandle) {
+      setProjectStats(null);
+      setActivityStats([]);
+      setLocaleList([]);
+      return;
+    }
+    void api.getTermbaseStats(activeHandle).then((s) => {
+      if (s) setProjectStats(s);
+    });
+    void api.getTermbaseActivityStats(activeHandle).then((stats) => {
+      if (stats) setActivityStats(stats);
+    });
+    void api.getTermbaseLocaleStats(activeHandle).then((stats) => {
+      if (stats) setLocaleList(stats);
+    });
+  }, [activeHandle]);
 
   const refreshResources = useCallback(async () => {
     if (propResources || forceLoading) return;
@@ -216,13 +226,25 @@ export function TermbasesPage({
     }
   }, [activeHandle, tbName, showError]);
 
-  // Project termbase view — shows dashboard + browser.
-  if (projectHandle && adapter) {
+  // Open termbase view — identical dashboard (stats + activity chart + filters +
+  // browser) whether the termbase is project-scoped or a named/ad-hoc one. Only
+  // the header (title, back button) differs.
+  if (activeHandle && adapter) {
+    const isProject = !!projectHandle;
     return (
       <div className="p-6">
         <PageHeader
-          title="Project Termbase"
-          subtitle={projectStats ? `${projectStats.count.toLocaleString()} concepts` : undefined}
+          title={isProject ? "Project Termbase" : tbName}
+          subtitle={
+            projectStats ? `${projectStats.count.toLocaleString()} concepts` : tbPath || undefined
+          }
+          backButton={
+            isProject ? undefined : (
+              <Button variant="ghost" size="icon-xs" onClick={handleClose} title="Close Termbase">
+                <X size={16} />
+              </Button>
+            )
+          }
           actions={
             <div className="flex gap-2">
               <Button variant="outline" size="sm" onClick={handleImportCSV}>
@@ -307,40 +329,6 @@ export function TermbasesPage({
             return fields;
           })()}
         />
-        <ImportProgress active={importing} />
-      </div>
-    );
-  }
-
-  // Named termbase browser view — termbase is open (non-project).
-  if (handle && adapter) {
-    return (
-      <div className="p-6">
-        <PageHeader
-          title={tbName}
-          subtitle={tbPath || undefined}
-          backButton={
-            <Button variant="ghost" size="icon-xs" onClick={handleClose} title="Close Termbase">
-              <X size={16} />
-            </Button>
-          }
-          actions={
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm" onClick={handleImportCSV}>
-                <Upload size={12} />
-                Import CSV
-              </Button>
-              <Button variant="outline" size="sm" onClick={handleImportJSON}>
-                <Upload size={12} />
-                Import JSON
-              </Button>
-              <Button variant="outline" size="sm" onClick={handleExport}>
-                Export JSON
-              </Button>
-            </div>
-          }
-        />
-        <TermbaseBrowser adapter={adapter} locales={locales} onError={showError} />
         <ImportProgress active={importing} />
       </div>
     );

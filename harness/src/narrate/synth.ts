@@ -95,28 +95,32 @@ async function toWav(input: string, output: string): Promise<void> {
   if (r.code !== 0) throw new Error(`ffmpeg failed: ${r.stderr.slice(-400)}`);
 }
 
-/** Narration playback speed (atempo), pitch-preserving. Default 1.3 = noticeably brisker.
- *  This is the overall briskness target; per-scene pace is equalized around it (see
- *  narrateDemo) so scenes don't drift faster/slower than one another. */
+// ── Narration delivery tuning ────────────────────────────────────────────────
+// Committed code constants — NOT environment-driven. These govern the narrator's
+// pace and tone, so they must be identical on every machine and in CI; keeping
+// them in .env made the delivery inconsistent. .env is for secrets only
+// (GEMINI_API_KEY) + operational toggles (backend selection), never voice tuning.
+
+/** Per-scene fallback pace (atempo, pitch-preserving). 1.3 = noticeably brisker;
+ *  per-scene pace is equalized around it so scenes don't drift faster/slower. */
+const NARRATION_SPEED = 1.3;
+/** Gemini Live pace. The Live model already reads at ~150 wpm, so no acceleration
+ *  (1.0); this only equalizes speed across scenes. */
+const NARRATION_LIVE_SPEED = 1.0;
+/** Gemini TTS sampling temperature. Lower = steadier tone across scenes (0.4 =
+ *  "stable" per Gemini's docs). */
+const GEMINI_TEMPERATURE = 0.4;
+
 function narrationSpeed(): number {
-  const s = Number(process.env.NARRATION_SPEED);
-  return Number.isFinite(s) && s > 0 ? s : 1.3;
+  return NARRATION_SPEED;
 }
 
-/** Playback speed for the Live-session path. The Live model already reads at a
- *  measured ~150 wpm, so it needs no acceleration (unlike the slower per-scene
- *  :generateContent model, which gets NARRATION_SPEED=1.3). Default 1.0 = natural
- *  pace; this only equalizes speed across scenes. Override with NARRATION_LIVE_SPEED. */
 function narrationLiveSpeed(): number {
-  const s = Number(process.env.NARRATION_LIVE_SPEED);
-  return Number.isFinite(s) && s > 0 ? s : 1.0;
+  return NARRATION_LIVE_SPEED;
 }
 
-/** TTS sampling temperature. Lower = steadier tone/pace across the separate per-scene
- *  calls. Default 0.4 ("stable" per Gemini's docs). Override with NARRATION_TEMPERATURE. */
 function geminiTemperature(): number {
-  const t = Number(process.env.NARRATION_TEMPERATURE);
-  return Number.isFinite(t) && t >= 0 ? t : 0.4;
+  return GEMINI_TEMPERATURE;
 }
 
 /** Speed a WAV in place by an explicit atempo factor (pitch-preserving). */
@@ -209,11 +213,18 @@ async function openaiTts(text: string, voice: string, outWav: string): Promise<v
 }
 
 async function sayTts(text: string, voice: string, outWav: string): Promise<void> {
-  const aiff = outWav + ".aiff";
-  const r = await run("say", ["-v", voice, "-o", aiff, "--data-format=LEI16@24000", text], { timeoutMs: 60_000 });
+  // macOS `say` rejects `--data-format=LEI16@…` with the default AIFF container
+  // ("Opening output file failed: fmt?"), since AIFF is big-endian. Pin the WAVE
+  // container so the little-endian PCM format is valid; toWav then normalizes.
+  const tmp = outWav + ".say.wav";
+  const r = await run(
+    "say",
+    ["-v", voice, "-o", tmp, "--file-format=WAVE", "--data-format=LEI16@24000", text],
+    { timeoutMs: 60_000 },
+  );
   if (r.code !== 0) throw new Error(`say failed: ${r.stderr.slice(-300)}`);
-  await toWav(aiff, outWav);
-  fs.rmSync(aiff, { force: true });
+  await toWav(tmp, outWav);
+  fs.rmSync(tmp, { force: true });
 }
 
 async function synthOne(backend: Backend, voice: string, text: string, outWav: string): Promise<void> {
@@ -420,6 +431,7 @@ export async function narrateDemo(m: DemoManifest, opts: NarrateOptions = {}): P
           text,
           caption: spec.caption?.trim() || captionFromText(spec.text),
           artifact: spec.artifact,
+          beat: spec.beat,
           audio: text ? `audio/${spec.id}.wav` : undefined,
           durationSec: text ? (finalDur.get(spec.id) ?? 0) : 0,
           holdSec: spec.holdSec ?? defaultHold(spec.kind),
@@ -515,6 +527,7 @@ export async function narrateDemo(m: DemoManifest, opts: NarrateOptions = {}): P
       text: s.spec.text.trim(),
       caption: s.spec.caption?.trim() || captionFromText(s.spec.text),
       artifact: s.spec.artifact,
+      beat: s.spec.beat,
       audio,
       durationSec,
       holdSec: s.spec.holdSec ?? defaultHold(s.spec.kind),
@@ -569,6 +582,7 @@ async function narrateOneShot(
       text,
       caption: spec.caption?.trim() || captionFromText(spec.text ?? ""),
       artifact: spec.artifact,
+      beat: spec.beat,
       audio: undefined, // the single fullAudio track plays for the whole video
       durationSec: text ? D * (words / totalWords) : 0,
       holdSec: text ? 0 : defaultHold(spec.kind), // no gaps — the one read already pauses
