@@ -2,7 +2,7 @@
 sidebar_position: 3
 title: Quick Start
 description: Get kapi running in minutes — pseudo-translate files, count words, and run AI translation from the command line. Runnable examples included; no install required.
-keywords: [kapi, quickstart, pseudo-translate, word count, ai translation, command line]
+keywords: [kapi, quickstart, browser, playground, pseudo-translate, word count, ai translation, command line]
 ---
 
 import RunnableSnippet from "@site/src/components/KapiPlayground/RunnableSnippet";
@@ -14,7 +14,8 @@ Runnable first steps with kapi — no project setup, server, or configuration.
 
 Most commands below carry a **▸ Run** button. Pressing it runs the **real `kapi`
 binary** in your browser — no install, and nothing leaves your machine. The
-commands that need an API key are shown as static blocks; run those after
+first run takes a moment to start; after that it's instant. The commands that
+need an API key are shown as static blocks; run those after
 [installing](/kapi/get-started/installation) and adding a credential.
 
 ## Pseudo-translate a file
@@ -49,6 +50,15 @@ List the available processing tools, composable flows, and presets:
 <RunnableSnippet cmd="kapi tools" />
 <RunnableSnippet cmd="kapi flows" />
 <RunnableSnippet cmd="kapi presets list" />
+
+## Edit before you run
+
+With `editable`, the command is placed at the prompt instead of running
+automatically — press **Enter** when you're ready, or tweak it first:
+
+<RunnableSnippet cmd="kapi word-count messages.json --json" seed={["messages.json"]} editable />
+
+For a full interactive terminal, open the [CLI Playground](/playground-cli).
 
 ## Translate with AI
 
