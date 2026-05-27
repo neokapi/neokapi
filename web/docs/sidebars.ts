@@ -2,7 +2,7 @@ import type { SidebarsConfig } from "@docusaurus/plugin-content-docs";
 
 // One sidebar per top-level navbar section.
 //
-//   Kapi        — the product: getting started (install, quickstart, try-it,
+//   Kapi        — the product: getting started (install, quickstart,
 //                 Claude), CLI usage, recipes, the desktop app, the project model.
 //   Framework   — the engine: an Overview, the concepts, then the deep-dive
 //                 material (extending the framework, architecture decisions,
@@ -28,7 +28,6 @@ const sidebars: SidebarsConfig = {
         { type: "doc", id: "kapi/overview", label: "Overview" },
         "kapi/get-started/installation",
         "kapi/get-started/quickstart",
-        "kapi/get-started/try-it",
         "kapi/get-started/use-with-claude",
       ],
     },
