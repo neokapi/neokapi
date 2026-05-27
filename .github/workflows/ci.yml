@@ -142,7 +142,7 @@ jobs:
           go-version: "1.26.0"
 
       - name: Install Wails system dependencies (Linux)
-        run: sudo apt-get update && sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev
+        run: sudo apt-get update && sudo apt-get install -y libgtk-4-dev libwebkitgtk-6.0-dev libicu-dev pkg-config
 
       - name: Run Kapi Desktop Go backend tests
         run: make kapi-desktop-test
@@ -169,7 +169,7 @@ jobs:
       # The Wails app backend links the GTK/WebKit runtime on Linux; these dev
       # packages also pull in libicu-dev that the framework's cgo build needs.
       - name: Install Wails system dependencies (Linux)
-        run: sudo apt-get update && sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev
+        run: sudo apt-get update && sudo apt-get install -y libgtk-4-dev libwebkitgtk-6.0-dev libicu-dev pkg-config
 
       - name: Run Bowrain Desktop Go backend tests
         run: make bowrain-desktop-test
@@ -622,7 +622,7 @@ jobs:
           args: --timeout=5m ./...
 
       - name: Install Linux dependencies for Wails
-        run: sudo apt-get update && sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev
+        run: sudo apt-get update && sudo apt-get install -y libgtk-4-dev libwebkitgtk-6.0-dev libicu-dev pkg-config
 
       - name: Create Bowrain frontend placeholder
         run: mkdir -p bowrain/apps/bowrain/frontend/dist && echo placeholder > bowrain/apps/bowrain/frontend/dist/index.html
