@@ -597,7 +597,7 @@ jobs:
 
       - name: Upload Windows ZIP as artifact (Authenticode-signed locally before release)
         if: runner.os == 'Windows'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: bowrain-windows-${{ matrix.build.arch }}
           path: "bowrain-${{ steps.version.outputs.VERSION }}-windows-${{ matrix.build.arch }}.zip"
@@ -876,7 +876,7 @@ jobs:
 
       - name: Upload Windows ZIP as artifact (Authenticode-signed locally before release)
         if: runner.os == 'Windows'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: kapi-desktop-windows-${{ matrix.build.arch }}
           path: "kapi-desktop-${{ steps.version.outputs.VERSION }}-windows-${{ matrix.build.arch }}.zip"
@@ -925,7 +925,7 @@ jobs:
           LDFLAGS="-s -w -X github.com/neokapi/neokapi/core/version.Version=${VERSION} -X github.com/neokapi/neokapi/core/version.Commit=${GH_SHA::7} -X github.com/neokapi/neokapi/core/version.BuildDate=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
           go build -trimpath -ldflags="${LDFLAGS}" -o kapi.exe ./cmd/kapi
           zip -q "kapi_${VERSION}_windows_${GOARCH}.zip" kapi.exe
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: kapi-cli-windows-${{ matrix.arch }}
           path: kapi/kapi_*_windows_${{ matrix.arch }}.zip

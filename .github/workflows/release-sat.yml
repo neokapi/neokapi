@@ -295,7 +295,7 @@ jobs:
       # release can silently drop an asset. A single publish job (below)
       # downloads all artifacts and uploads them to the release in one writer.
       - name: Upload tarball + signature artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: sat-tarball-${{ matrix.build.goos }}-${{ matrix.build.goarch }}
           # Glob the output dir via a native per-OS path (runner.temp), NOT the
@@ -327,7 +327,7 @@ jobs:
             > "$RUNNER_TEMP/sat-checksums/${LEG_GOOS}_${LEG_GOARCH}.sha256"
 
       - name: Upload checksum artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: sat-checksum-${{ matrix.build.goos }}-${{ matrix.build.goarch }}
           path: ${{ runner.temp }}/sat-checksums/*.sha256
@@ -343,7 +343,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Download all tarball + signature artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           pattern: sat-tarball-*
           path: sat-release
@@ -371,7 +371,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Download SaT checksum artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           pattern: sat-checksum-*
           path: sat-checksums
