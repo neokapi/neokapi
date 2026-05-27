@@ -1,0 +1,121 @@
+# Full-Docker app overlay — runs server + worker + web IN Docker, reusing the
+# SAME deps + Traefik that the local-server dev mode (compose.yaml +
+# compose.override.yaml) already provides.
+#
+# This is the "shared Traefik" full-Docker mode: there is exactly one Traefik
+# (from compose.override.yaml), so it never clashes on :80/:443 with the
+# local-server mode — you flip between host-run and containerized server by
+# adding or removing this overlay. The server's Docker-label router runs at a
+# higher priority than the host file-routes in docker/traefik/dynamic.yml, so
+# the container wins whenever it's up; remove the overlay and the same Traefik
+# falls back to routing bowrain.mymac → your host `make dev-server`/`dev-web`.
+#
+# Usage (deps + Traefik + app, one project, one proxy):
+#   docker compose -f compose.yaml -f compose.override.yaml -f compose.app.yaml up -d --build --wait
+#   → https://bowrain.mymac        web app + API + gRPC (containerized server)
+#   → https://auth.bowrain.mymac   Keycloak     → https://mail.bowrain.mymac  Mailpit
+#
+# Requires the *.bowrain.mymac host setup (dnsmasq + mkcert + `make certs`) — the
+# same prerequisite as the local-server mode. For a zero-setup, plain-HTTP,
+# self-contained stack on localhost:8080 instead, use compose.full.yaml
+# (`make stack-up`).
+
+services:
+  bowrain-server:
+    image: ${BOWRAIN_SERVER_IMAGE:-bowrain-local/server:dev}
+    build:
+      context: ..
+      dockerfile: bowrain/docker/bowrain-server/Dockerfile
+    environment:
+      BOWRAIN_JWT_SECRET: dev-secret-change-in-production
+      BOWRAIN_DATABASE_URL: postgres://bowrain:bowrain@postgres:5432/bowrain_test?sslmode=disable
+      BOWRAIN_OIDC_ISSUER_URL: http://keycloak:8080/realms/bowrain
+      BOWRAIN_OIDC_PUBLIC_URL: https://auth.bowrain.mymac/realms/bowrain
+      BOWRAIN_OIDC_CLIENT_ID: bowrain
+      BOWRAIN_OIDC_CLIENT_SECRET: bowrain-secret
+      BOWRAIN_SMTP_HOST: mailpit:1025
+      BOWRAIN_SMTP_FROM: noreply@bowrain.local
+      BOWRAIN_NATS_URL: nats://nats:4222
+      BOWRAIN_REDIS_URL: redis://redis:6379
+      BLOB_STORAGE_LOCAL_DIR: /data/blobs
+      BOWRAIN_WEB_UI_DIR: /web
+      BOWRAIN_LOG_FORMAT: text
+    # No published ports: access is via Traefik (https://bowrain.mymac). This
+    # also avoids clashing with a host `make dev-server` on :8080.
+    volumes:
+      - blob-data:/data
+      - web-dist:/web:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+      nats:
+        condition: service_started
+      redis:
+        condition: service_healthy
+      mailpit:
+        condition: service_started
+      web-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/api/v1/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.bowrain-server.rule=Host(`bowrain.mymac`)"
+      - "traefik.http.routers.bowrain-server.tls=true"
+      # Priority beats the host file-routes (dynamic.yml, prio 90–100) so the
+      # container wins while it's up; the file-routes resume when it's gone.
+      - "traefik.http.routers.bowrain-server.priority=200"
+      # h2c so gRPC (HTTP/2 cleartext) and REST multiplex on the one backend port.
+      - "traefik.http.services.bowrain-server.loadbalancer.server.port=8080"
+      - "traefik.http.services.bowrain-server.loadbalancer.server.scheme=h2c"
+
+  bowrain-worker:
+    image: ${BOWRAIN_WORKER_IMAGE:-bowrain-local/worker:dev}
+    build:
+      context: ..
+      dockerfile: bowrain/docker/bowrain-worker/Dockerfile
+    environment:
+      BOWRAIN_DATABASE_URL: postgres://bowrain:bowrain@postgres:5432/bowrain_test?sslmode=disable
+      BOWRAIN_NATS_URL: nats://nats:4222
+      BOWRAIN_REDIS_URL: redis://redis:6379
+      LOCAL_BLOB_DIR: /data/blobs
+      BOWRAIN_PLATFORM_PROVIDER: ${BOWRAIN_PLATFORM_PROVIDER:-demo}
+      BOWRAIN_PLATFORM_MODEL: ${BOWRAIN_PLATFORM_MODEL:-}
+      BOWRAIN_PLATFORM_API_KEY: ${BOWRAIN_PLATFORM_API_KEY:-}
+      BOWRAIN_PLATFORM_BASE_URL: ${BOWRAIN_PLATFORM_BASE_URL:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      BOWRAIN_LOG_FORMAT: text
+    volumes:
+      - blob-data:/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+      nats:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8081/healthz"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+
+  # One-shot: stage the built SPA into the shared volume the server serves at /.
+  web-init:
+    image: ${BOWRAIN_WEB_IMAGE:-bowrain-local/web:dev}
+    build:
+      context: ..
+      dockerfile: bowrain/docker/bowrain-web/Dockerfile
+    entrypoint: ["/bin/sh", "-c", "cp -r /usr/share/nginx/html/. /web/ && echo 'web UI staged into shared volume'"]
+    volumes:
+      - web-dist:/web
+
+volumes:
+  blob-data:
+  web-dist:
