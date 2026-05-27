@@ -66,7 +66,10 @@ echo ">> Using workflow run $RUN_ID"
 work="$(mktemp -d)"; trap 'rm -rf "$work"' EXIT; cd "$work"
 
 echo ">> Downloading Windows artifacts from run $RUN_ID ..."
-gh run download "$RUN_ID" --repo "$REPO" --dir artifacts
+# Filter to the Windows artifacts only — the run also carries Docker buildx
+# "*.dockerbuild" build-record artifacts that `gh run download` cannot unzip
+# ("not a valid zip file"), which would abort the whole download under set -e.
+gh run download "$RUN_ID" --repo "$REPO" --dir artifacts --pattern '*windows*'
 
 # Collect Windows zips (each artifact lands in its own subdirectory). bash 3.2-safe.
 zips=()
