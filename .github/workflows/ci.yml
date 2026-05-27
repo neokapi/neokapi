@@ -25,6 +25,7 @@ jobs:
       bowrain: ${{ github.event_name == 'push' || steps.filter.outputs.bowrain }}
       frontend: ${{ github.event_name == 'push' || steps.filter.outputs.frontend }}
       kapi_desktop: ${{ github.event_name == 'push' || steps.filter.outputs.kapi_desktop }}
+      bowrain_desktop: ${{ github.event_name == 'push' || steps.filter.outputs.bowrain_desktop }}
       kapi_react: ${{ github.event_name == 'push' || steps.filter.outputs.kapi_react }}
       workflows: ${{ github.event_name == 'push' || steps.filter.outputs.workflows }}
       any_go: ${{ github.event_name == 'push' || steps.filter.outputs.framework || steps.filter.outputs.cli || steps.filter.outputs.platform || steps.filter.outputs.kapi || steps.filter.outputs.bowrain_cli || steps.filter.outputs.bowrain }}
@@ -71,6 +72,7 @@ jobs:
           fi
           check_paths frontend  '^bowrain/apps/(web|bowrain/frontend)/' '^bowrain/packages/ui/'
           check_paths kapi_desktop '^apps/kapi-desktop/' '^packages/(ui|flow-editor)/'
+          check_paths bowrain_desktop '^bowrain/apps/bowrain/' '^bowrain/packages/ui/'
           check_paths kapi_react '^packages/kapi-(format|react)/'
           check_paths workflows '^\.github/workflows/'
 
@@ -144,6 +146,33 @@ jobs:
 
       - name: Run Kapi Desktop Go backend tests
         run: make kapi-desktop-test
+
+  # ── Bowrain Desktop (Wails app: frontend vitest + Go backend) ────────────
+  bowrain-desktop:
+    name: Bowrain Desktop
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.bowrain_desktop == 'true'
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/setup-node-ui
+
+      - name: Run Bowrain Desktop frontend tests
+        working-directory: bowrain/apps/bowrain/frontend
+        run: vp test
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: "1.26.0"
+
+      # The Wails app backend links the GTK/WebKit runtime on Linux; these dev
+      # packages also pull in libicu-dev that the framework's cgo build needs.
+      - name: Install Wails system dependencies (Linux)
+        run: sudo apt-get update && sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev
+
+      - name: Run Bowrain Desktop Go backend tests
+        run: make bowrain-desktop-test
 
   # ── Kapi React (TS extractor + schema) ──────────────────────────────────
   kapi-react:
