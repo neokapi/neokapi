@@ -253,6 +253,7 @@ export function TMSearchBar({
 
           <input
             ref={inputRef}
+            data-testid="tm-search"
             type="text"
             value={draft}
             onChange={handleTextChange}

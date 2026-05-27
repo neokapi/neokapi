@@ -458,6 +458,7 @@ export function FilterBar({
 
           <input
             ref={inputRef}
+            data-testid="filterbar-search"
             type="text"
             value={inputValue}
             onChange={handleInputChange}

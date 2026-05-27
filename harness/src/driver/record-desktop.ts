@@ -135,47 +135,86 @@ async function startRealStack(): Promise<{ url: string; teardown: () => Promise<
 async function runWalkthrough(page: Page, t0: number): Promise<Beat[]> {
   const beats: Beat[] = [];
   const now = () => (Date.now() - t0) / 1000;
+  const sidebar = (label: string) => page.locator(`button[aria-label="${label}"]`);
+
+  // A fixed-rect beat (sidebar/full views).
   const beat = async (id: string, zoom: ZoomRect | null, fn: () => Promise<void>) => {
     const tStart = now();
     await fn();
     beats.push({ id, tStart, tEnd: now(), zoom });
   };
 
-  const sidebar = (label: string) => page.locator(`button[aria-label="${label}"]`);
+  // Normalized zoom rect bounding the given elements at their FINAL on-screen
+  // position, padded — so the zoom frames the real component (no cut-off) and
+  // tracks layout shifts (e.g. the activity chart pushing content down).
+  const unionZoom = async (selectors: string[], pad = 0.035): Promise<ZoomRect | null> => {
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity, any = false;
+    for (const s of selectors) {
+      const box = await page.locator(s).first().boundingBox().catch(() => null);
+      if (!box) continue;
+      any = true;
+      x0 = Math.min(x0, box.x);
+      y0 = Math.min(y0, box.y);
+      x1 = Math.max(x1, box.x + box.width);
+      y1 = Math.max(y1, box.y + box.height);
+    }
+    if (!any) return null;
+    let x = x0 / WIDTH - pad;
+    let y = y0 / HEIGHT - pad;
+    let w = (x1 - x0) / WIDTH + 2 * pad;
+    let h = (y1 - y0) / HEIGHT + 2 * pad;
+    x = Math.max(0, x);
+    y = Math.max(0, y);
+    w = Math.min(1 - x, w);
+    h = Math.min(1 - y, h);
+    return { x, y, w, h };
+  };
 
-  // Zoom rects are normalized [0,1] regions of the app; the renderer magnifies
-  // them to fill the frame. Keep them well under full width/height so the zoom
-  // is visibly ~1.4–2×, and align them with where the cursor lingers.
+  // Move the visible cursor onto an element's centre.
+  const cursorTo = async (selector: string, duration = 600) => {
+    const box = await page.locator(selector).first().boundingBox().catch(() => null);
+    if (box) await moveTo(page, box.x + box.width / 2, box.y + box.height / 2, duration);
+  };
+
+  // A beat whose zoom is derived from elements AFTER its actions settle — frames
+  // the actual component (search bar, card, entry) so nothing is cut off.
+  const beatEls = async (id: string, zoomSelectors: string[], fn: () => Promise<void>) => {
+    const tStart = now();
+    await fn();
+    const zoom = await unionZoom(zoomSelectors);
+    beats.push({ id, tStart, tEnd: now(), zoom });
+  };
 
   // 1 — Home: the app at rest (full frame).
   await beat("intro", null, async () => {
     await idle(page, 2200);
   });
 
-  // 2 — Open the Termbases section (zoom toward the sidebar + first cards).
+  // 2 — Open the Termbases section (zoom toward the sidebar).
   await beat("open-termbases", { x: 0, y: 0.04, w: 0.34, h: 0.66 }, async () => {
     await humanClick(page, sidebar("Termbases"));
     await page.waitForTimeout(700);
   });
 
-  // 3 — Open a glossary (full frame — all concepts appear).
+  // 3 — Open a glossary (full frame — header, activity chart, and the concepts).
   await beat("open-glossary", null, async () => {
     await humanClick(page, page.locator('button:has-text("product-glossary")'));
-    await page.waitForTimeout(900);
+    await page.waitForTimeout(1100);
   });
 
-  // 4 — Inspect a concept: the leading "seat" card (top-left) shows approved +
-  // deprecated terms across languages.
-  await beat("inspect-concept", { x: 0.02, y: 0.24, w: 0.5, h: 0.34 }, async () => {
-    await moveTo(page, WIDTH * 0.18, HEIGHT * 0.4, 700);
-    await page.waitForTimeout(2600);
+  // 4 — Inspect a concept: the leading "seat" card (approved + deprecated terms).
+  await beatEls("inspect-concept", ['[data-testid="concept-c-01"]'], async () => {
+    await page.locator('[data-testid="concept-c-01"]').scrollIntoViewIfNeeded().catch(() => {});
+    await page.waitForTimeout(300);
+    await cursorTo('[data-testid="concept-c-01"]');
+    await page.waitForTimeout(2200);
   });
 
-  // 5 — Search the terminology. The filter bar runs on Enter (submit), and a real
-  // term like "invoice" yields a hit — a domain like "billing" would not.
-  await beat("search-term", { x: 0.0, y: 0.24, w: 0.86, h: 0.54 }, async () => {
-    await humanType(page, page.locator('input[placeholder="Search terminology..."]'), "invoice", { submit: true });
-    await page.waitForTimeout(1700);
+  // 5 — Search the terminology. The filter bar runs on Enter; "invoice" is a real
+  // term and yields the invoice concept (a domain like "billing" would not).
+  await beatEls("search-term", ['[data-testid="filterbar-search"]', '[data-testid="concept-c-07"]'], async () => {
+    await humanType(page, page.getByTestId("filterbar-search"), "invoice", { submit: true });
+    await page.waitForTimeout(1500);
   });
 
   // 6 — Cross over to Translation Memories and open one (zoom toward sidebar).
@@ -183,26 +222,30 @@ async function runWalkthrough(page: Page, t0: number): Promise<Beat[]> {
     await humanClick(page, sidebar("Translation Memories"));
     await page.waitForTimeout(600);
     await humanClick(page, page.locator('button:has-text("acme-app")'));
-    await page.waitForTimeout(900);
+    await page.waitForTimeout(1100);
   });
 
-  // 7 — Inspect TM entries: bilingual variants + inline-code pills (top entries).
-  // The real TM browser has a facet sidebar on the left, so entries start ~x=0.14.
-  await beat("inspect-tm", { x: 0.13, y: 0.26, w: 0.62, h: 0.3 }, async () => {
-    await moveTo(page, WIDTH * 0.42, HEIGHT * 0.42, 700);
-    await page.waitForTimeout(2600);
+  // 7 — Inspect TM entries: a plain bilingual one + one carrying inline bold.
+  await beatEls("inspect-tm", ['[data-testid="tm-entry-tm-01"]', '[data-testid="tm-entry-tm-02"]'], async () => {
+    await page.locator('[data-testid="tm-entry-tm-01"]').scrollIntoViewIfNeeded().catch(() => {});
+    await page.waitForTimeout(300);
+    await cursorTo('[data-testid="tm-entry-tm-02"]');
+    await page.waitForTimeout(2300);
   });
 
-  // 8 — Entity-aware entry ("Hi {Bob}, …"), the third entry in the list.
-  await beat("entity", { x: 0.13, y: 0.46, w: 0.62, h: 0.22 }, async () => {
-    await moveTo(page, WIDTH * 0.42, HEIGHT * 0.56, 700);
-    await page.waitForTimeout(2400);
+  // 8 — Entity-aware entry ("Hi {Bob}, …").
+  await beatEls("entity", ['[data-testid="tm-entry-tm-03"]'], async () => {
+    await page.locator('[data-testid="tm-entry-tm-03"]').scrollIntoViewIfNeeded().catch(() => {});
+    await page.waitForTimeout(300);
+    await cursorTo('[data-testid="tm-entry-tm-03"]');
+    await page.waitForTimeout(2200);
   });
 
-  // 9 — Search the memory. TMSearchBar runs on Enter (submit) — "invite" matches.
-  await beat("search-tm", { x: 0.1, y: 0.1, w: 0.82, h: 0.5 }, async () => {
-    await humanType(page, page.locator('input[placeholder="Search translation memory..."]'), "invite", { submit: true });
-    await page.waitForTimeout(1800);
+  // 9 — Search the memory. TMSearchBar runs on Enter — "invite" matches one entry.
+  await beatEls("search-tm", ['[data-testid="tm-search"]', '[data-testid="tm-entry-tm-04"]'], async () => {
+    await page.getByTestId("tm-search").scrollIntoViewIfNeeded().catch(() => {});
+    await humanType(page, page.getByTestId("tm-search"), "invite", { submit: true });
+    await page.waitForTimeout(1500);
   });
 
   return beats;

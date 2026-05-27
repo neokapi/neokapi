@@ -47,8 +47,8 @@ narration:
     beat: open-glossary
     caption: Opening a glossary shows every concept it holds.
     text: >-
-      Opening the product glossary brings up every concept it holds — eight, in
-      this project.
+      Opening the product glossary brings up every concept it holds — eight here
+      — with an activity chart of recent edits across the top.
 
   - id: concept
     kind: desktop
@@ -62,10 +62,10 @@ narration:
   - id: search-term
     kind: desktop
     beat: search-term
-    caption: Full-text search narrows the glossary.
+    caption: Full-text search finds a term fast.
     text: >-
-      Full-text search narrows the list instantly. Here, every concept that
-      belongs to the billing domain.
+      Full-text search finds a term in an instant. Here, the invoice concept,
+      with its approved translations.
 
   - id: open-tm
     kind: desktop
