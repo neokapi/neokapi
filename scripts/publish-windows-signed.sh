@@ -5,6 +5,12 @@
 # workflow has finished — macOS/Linux assets are published by CI; the Windows
 # binaries are produced as workflow *artifacts* and signed here.
 #
+# For each artifact the signed .exe is re-zipped (portable download). The two
+# desktop GUI apps (Bowrain, Kapi) additionally get a signed NSIS installer
+# (setup.exe) built here with makensis from the signed .exe — both the inner
+# app .exe and the installer are signed, mirroring the macOS app+DMG signing.
+# The kapi CLI stays zip-only (installed via winget/scoop).
+#
 # Prereqs — have the certificate mounted first:
 #   • SimplySign cloud (what neokapi uses): install SimplySign Desktop (brew
 #     bundle) and LOG IN via its menu-bar app (mobile OTP) so the cloud cert is
@@ -26,14 +32,25 @@ set -euo pipefail
 TAG="${1:?usage: publish-windows-signed.sh <tag>   e.g. v1.2.3}"
 REPO="${REPO:-neokapi/neokapi}"
 
+# Repo root (captured before we cd into the work dir) — the NSIS templates and
+# icons for the desktop installers live in the checkout.
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# vX.Y.Z[-suffix] → X.Y.Z for the installer's numeric VIProductVersion.
+VER="${TAG#v}"
+VER_NUM="$(printf '%s' "$VER" | grep -oE '^[0-9]+\.[0-9]+\.[0-9]+')"
+[ -n "$VER_NUM" ] || { echo "Could not derive a numeric X.Y.Z version from tag '$TAG'."; exit 1; }
+
 STORETYPE="${JSIGN_STORETYPE:-PKCS11}"
 TSA="${JSIGN_TSA:-http://time.certum.pl/}"
 # SimplySign cloud has no card PIN and no per-signature prompt — the active
 # SimplySign Desktop session is the authorization — so the store password is
 # empty by default. (For a PIN-protected token or physical card, set JSIGN_STOREPASS.)
 STOREPASS="${JSIGN_STOREPASS:-}"
-command -v jsign >/dev/null || { echo "jsign not found — run 'brew bundle'"; exit 1; }
-command -v gh    >/dev/null || { echo "gh not found — run 'brew bundle'"; exit 1; }
+command -v jsign    >/dev/null || { echo "jsign not found — run 'brew bundle'"; exit 1; }
+command -v gh       >/dev/null || { echo "gh not found — run 'brew bundle'"; exit 1; }
+# Desktop installers (Bowrain, Kapi) are built from the signed .exe with NSIS.
+command -v makensis >/dev/null || { echo "makensis not found — run 'brew bundle'"; exit 1; }
+command -v wails3   >/dev/null || { echo "wails3 not found — go install github.com/wailsapp/wails/v3/cmd/wails3@latest"; exit 1; }
 
 if [ "$STORETYPE" = "PKCS11" ]; then
   : "${JSIGN_KEYSTORE:?PKCS11 store needs JSIGN_KEYSTORE=/path/to/pkcs11.cfg (SunPKCS11 config)}"
@@ -55,6 +72,42 @@ fi
 JSIGN_ARGS=( --storetype "$STORETYPE" --storepass "$STOREPASS"
              --alias "$ALIAS" --tsaurl "$TSA" --tsmode RFC3161 )
 [ "$STORETYPE" = "PKCS11" ] && JSIGN_ARGS+=( --keystore "$JSIGN_KEYSTORE" )
+
+# Build an NSIS installer (setup.exe) for a Wails desktop app from its
+# already-signed .exe. The installer embeds the Microsoft WebView2 bootstrapper,
+# so the app launches on machines without the runtime — something a bare .exe in
+# a .zip cannot do — and registers a Start-menu entry, Add/Remove-Programs entry
+# and uninstaller. App metadata is injected via -D defines (the committed
+# wails_tools.nsh only carries placeholder defaults).
+#   $1 app dir (relative to repo root)   $2 product/project name
+#   $3 signed .exe   $4 arch (amd64|arm64)   $5 output installer path
+build_nsis_installer() {
+  local app_dir="$1" name="$2" exe="$3" arch="$4" out="$5"
+  local nsis_src="$REPO_ROOT/$app_dir/build/windows/nsis"
+  local icon="$REPO_ROOT/$app_dir/build/windows/icon.ico"
+  [ -f "$nsis_src/project.nsi" ] || { echo "missing $nsis_src/project.nsi"; exit 1; }
+
+  # Replicate the build/windows{,/nsis} + bin layout that the template's relative
+  # OutFile ("..\..\..\bin") and MUI_ICON ("..\icon.ico") paths resolve against.
+  local b; b="$(mktemp -d)"
+  mkdir -p "$b/build/windows/nsis" "$b/bin"
+  cp "$icon" "$b/build/windows/icon.ico"
+  cp "$nsis_src/project.nsi" "$nsis_src/wails_tools.nsh" "$b/build/windows/nsis/"
+  # Fetch the WebView2 bootstrapper the installer embeds (wails.webview2runtime).
+  wails3 generate webview2bootstrapper -dir "$b/build/windows/nsis" >/dev/null
+
+  local flag=AMD64; [ "$arch" = "arm64" ] && flag=ARM64
+  ( cd "$b/build/windows/nsis" && makensis -V2 \
+      -DARG_WAILS_${flag}_BINARY="$exe" \
+      -DINFO_PROJECTNAME="$name" \
+      -DINFO_PRODUCTNAME="$name" \
+      -DINFO_COMPANYNAME="neokapi" \
+      -DINFO_PRODUCTVERSION="$VER_NUM" \
+      -DINFO_COPYRIGHT="© $(date +%Y) neokapi" \
+      project.nsi )
+  mv "$b/bin/${name}-${arch}-installer.exe" "$out"
+  rm -rf "$b"
+}
 
 # Find the release workflow run that built the Windows artifacts for this tag.
 RUN_ID="${RUN_ID:-$(gh run list --repo "$REPO" --workflow release.yml \
@@ -79,17 +132,37 @@ while IFS= read -r -d '' z; do zips+=("$z"); done \
 
 signed=()
 for z in "${zips[@]}"; do
-  echo ">> $(basename "$z")"
+  bn="$(basename "$z")"
+  echo ">> $bn"
   d="$(mktemp -d)"
   unzip -q "$z" -d "$d"
   while IFS= read -r -d '' exe; do
     echo "   signing $(basename "$exe")"
     jsign "${JSIGN_ARGS[@]}" "$exe"
   done < <(find "$d" -type f -name '*.exe' -print0)
-  out="$work/$(basename "$z")"
+
+  # Portable zip: re-zip the signed .exe under its original artifact name.
+  out="$work/$bn"
   ( cd "$d" && zip -qr "$out" . )
-  rm -rf "$d"
   signed+=("$out")
+
+  # Desktop GUI apps also ship a signed NSIS installer built from the signed
+  # .exe. The CLI (kapi_*) stays zip-only — CLIs install via winget/scoop.
+  app_dir=""; app_name=""
+  case "$bn" in
+    bowrain-*windows*)      app_dir="bowrain/apps/bowrain"; app_name="Bowrain" ;;
+    kapi-desktop-*windows*) app_dir="apps/kapi-desktop";    app_name="Kapi" ;;
+  esac
+  if [ -n "$app_dir" ]; then
+    arch=amd64; case "$bn" in *arm64*) arch=arm64 ;; esac
+    setup="$work/${bn%-windows-*}-windows-${arch}-setup.exe"
+    echo "   building installer ${setup##*/}"
+    build_nsis_installer "$app_dir" "$app_name" "$d/${app_name}.exe" "$arch" "$setup"
+    echo "   signing $(basename "$setup")"
+    jsign "${JSIGN_ARGS[@]}" "$setup"
+    signed+=("$setup")
+  fi
+  rm -rf "$d"
 done
 
 echo ">> Uploading signed Windows assets to release $TAG ..."
@@ -112,4 +185,5 @@ if gh release download "$TAG" --repo "$REPO" --pattern checksums.txt --dir "$wor
   [ "$add" = 1 ] && gh release upload "$TAG" --repo "$REPO" --clobber "$work/checksums.txt"
 fi
 
-echo "✅ Signed Windows artifacts added to release $TAG: ${signed[*]##*/}"
+echo "✅ Signed Windows artifacts added to release $TAG:"
+for f in "${signed[@]}"; do echo "   • ${f##*/}"; done
