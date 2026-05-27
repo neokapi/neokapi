@@ -16,14 +16,12 @@ outputs under `out/`.
 
 kapi has native readers and writers for localization, document, data, subtitle,
 and office formats, plus more through the okapi-bridge — selectable per file with
-`--map`. Both readers extract and round-trip the same asset (`both_ok: true`).
-They segment HTML
-slightly differently — in this demo the okapi `okf_html` filter also localizes
-the `<button>` and `<a>` text (18 words) that the native reader leaves alone
-(14 words), which you can see in `out/page.native.html` vs `out/page.okapi.html`.
-The authoritative, normalized head-to-head native↔okapi comparison across every
-shared format is the **parity suite** (`cli/parity`, `make parity`), run
-continuously in CI.
+`--map`. Both readers extract and round-trip the same asset (`both_ok: true`),
+localizing all of its visible text — the heading, the paragraph, and the
+`<button>` and `<a>` labels — for 18 translatable words each (compare
+`out/page.native.html` and `out/page.okapi.html`). The authoritative,
+normalized head-to-head native↔okapi comparison across every shared format is
+the **parity suite** (`cli/parity`, `make parity`), run continuously in CI.
 
 ## Requirements
 

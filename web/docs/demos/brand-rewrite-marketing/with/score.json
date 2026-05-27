@@ -41,8 +41,10 @@
       "severity": "major",
       "message": "Forbidden term \"it goes without saying\" found",
       "position": {
-        "Start": 60,
-        "End": 82
+        "startRun": 0,
+        "startOffset": 60,
+        "endRun": 0,
+        "endOffset": 82
       },
       "original_text": "it goes without saying"
     }

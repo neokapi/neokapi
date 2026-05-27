@@ -38,15 +38,15 @@ OKAPI_RT=false;  [ -s out/page.okapi.html ]  && OKAPI_RT=true
 python3 - "$NATIVE_WC" "$OKAPI_WC" "$OKAPI_STATUS" "$NATIVE_RT" "$OKAPI_RT" <<'PY' > parity.json
 import json, sys
 native, okapi, status, nrt, ort = int(sys.argv[1]), int(sys.argv[2]), sys.argv[3], sys.argv[4] == "true", sys.argv[5] == "true"
-# "both_ok" = each reader extracted content AND produced a round-trip. The two
-# readers segment HTML slightly differently (hence different word counts); the
-# authoritative, normalized native↔okapi comparison is the parity suite.
+# "both_ok" = each reader extracted content AND produced a round-trip. Both
+# readers localize the same visible text of this asset; the authoritative,
+# normalized native↔okapi comparison across formats is the parity suite.
 print(json.dumps({
     "asset": "fixtures/page.html",
     "native": {"reader": "html",     "word_count": native, "round_trip": nrt},
     "okapi":  {"reader": "okf_html",  "word_count": okapi,  "round_trip": ort, "status": status},
     "both_ok": (native > 0 and nrt) and (okapi > 0 and ort),
-    "note": "Word counts differ by reader segmentation; the normalized native↔okapi parity across the shared formats is verified by cli/parity (`make parity`).",
+    "note": "Both readers localize all visible text in this asset; the normalized native↔okapi parity across the shared formats is verified by cli/parity (`make parity`).",
 }, indent=2))
 PY
 echo "parity:"; cat parity.json

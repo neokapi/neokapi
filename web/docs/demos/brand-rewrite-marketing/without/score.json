@@ -42,8 +42,10 @@
       "message": "Forbidden term \"in order to\" found",
       "suggestion": "Use \"to\" instead",
       "position": {
-        "Start": 33,
-        "End": 44
+        "startRun": 0,
+        "startOffset": 33,
+        "endRun": 0,
+        "endOffset": 44
       },
       "original_text": "In order to"
     },
@@ -53,8 +55,10 @@
       "message": "Forbidden term \"in order to\" found",
       "suggestion": "Use \"to\" instead",
       "position": {
-        "Start": 229,
-        "End": 240
+        "startRun": 0,
+        "startOffset": 229,
+        "endRun": 0,
+        "endOffset": 240
       },
       "original_text": "In order to"
     },
@@ -64,8 +68,10 @@
       "message": "Forbidden term \"in order to\" found",
       "suggestion": "Use \"to\" instead",
       "position": {
-        "Start": 356,
-        "End": 367
+        "startRun": 0,
+        "startOffset": 356,
+        "endRun": 0,
+        "endOffset": 367
       },
       "original_text": "in order to"
     },
@@ -75,8 +81,10 @@
       "message": "Forbidden term \"at the end of the day\" found",
       "suggestion": "Use \"ultimately\" instead",
       "position": {
-        "Start": 128,
-        "End": 149
+        "startRun": 0,
+        "startOffset": 128,
+        "endRun": 0,
+        "endOffset": 149
       },
       "original_text": "At the end of the day"
     },
@@ -85,8 +93,10 @@
       "severity": "major",
       "message": "Forbidden term \"it goes without saying\" found",
       "position": {
-        "Start": 69,
-        "End": 91
+        "startRun": 0,
+        "startOffset": 69,
+        "endRun": 0,
+        "endOffset": 91
       },
       "original_text": "it goes without saying"
     },
@@ -96,8 +106,10 @@
       "message": "Forbidden term \"thought leader\" found",
       "suggestion": "Use \"expert\" instead",
       "position": {
-        "Start": 190,
-        "End": 204
+        "startRun": 0,
+        "startOffset": 190,
+        "endRun": 0,
+        "endOffset": 204
       },
       "original_text": "thought leader"
     }
