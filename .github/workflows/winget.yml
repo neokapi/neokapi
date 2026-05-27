@@ -1,0 +1,42 @@
+name: Publish to WinGet
+
+# Dispatch-only ON PURPOSE. The signed Windows installer is added to the
+# (already published) release by scripts/publish-windows-signed.sh *after* CI
+# publishes macOS/Linux — so winget must run after that step, not on the
+# release event (the signed asset isn't on the release yet at CI publish time).
+# The publish script triggers this with:  gh workflow run winget.yml -f tag=<tag>
+#
+# One-time prerequisites:
+#   • WINGET_TOKEN repo secret — a CLASSIC PAT with `public_repo` scope, on an
+#     account that has forked microsoft/winget-pkgs (fine-grained PATs are not
+#     supported by the action).
+#   • The package must already exist in winget-pkgs. Bootstrap it once with:
+#       komac new Neokapi.Kapi
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to publish to winget (e.g. v1.2.3)"
+        required: true
+
+jobs:
+  publish:
+    name: Submit kapi CLI to winget-pkgs
+    runs-on: ubuntu-latest
+    steps:
+      - name: Derive package version (strip leading v)
+        id: ver
+        env:
+          TAG: ${{ inputs.tag }}
+        run: echo "num=${TAG#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Publish to WinGet
+        uses: vedantmgoyal9/winget-releaser@v2
+        with:
+          identifier: Neokapi.Kapi
+          version: ${{ steps.ver.outputs.num }}
+          release-tag: ${{ inputs.tag }}
+          # Only the signed CLI zips (kapi_<ver>_windows_<arch>.zip) — the
+          # leading underscore excludes kapi-bowrain and kapi-desktop assets.
+          installers-regex: '^kapi_.*_windows_.*\.zip$'
+          token: ${{ secrets.WINGET_TOKEN }}
