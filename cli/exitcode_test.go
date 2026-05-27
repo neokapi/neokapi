@@ -49,16 +49,16 @@ func TestMapToolboxErr(t *testing.T) {
 	cmd := &cobra.Command{Use: "kgrep"}
 
 	// Match → nil → ExitOK.
-	assert.NoError(t, mapToolboxErr(nil))
+	require.NoError(t, mapToolboxErr(nil))
 
 	// No-match → ErrSilentExit passes through → ExitError (1), message suppressed.
 	noMatch := mapToolboxErr(ErrSilentExit)
-	assert.ErrorIs(t, noMatch, ErrSilentExit)
+	require.ErrorIs(t, noMatch, ErrSilentExit)
 	assert.Equal(t, ExitError, ExitCode(cmd, noMatch))
 
 	// Interrupt → context.Canceled passes through → ExitSignal (130).
 	cancelled := mapToolboxErr(context.Canceled)
-	assert.ErrorIs(t, cancelled, context.Canceled)
+	require.ErrorIs(t, cancelled, context.Canceled)
 	assert.Equal(t, ExitSignal, ExitCode(cmd, cancelled))
 
 	// Operational trouble → ExitUsage (2), underlying message preserved.
