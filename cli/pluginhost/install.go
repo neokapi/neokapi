@@ -345,27 +345,9 @@ func safeJoin(target, elem string) (string, error) {
 	return clean, nil
 }
 
-// RemoveInstalled uninstalls a plugin from the default user-writable XDG dir
-// (InstallTarget()). System installs (under /opt/homebrew, /usr/share, etc.)
-// refuse to remove here — the OS package manager owns those.
-func RemoveInstalled(pluginName string) error {
-	return RemoveInstalledFrom(InstallTarget(), pluginName)
-}
-
-// RemoveInstalledFrom uninstalls a plugin from a specific plugin directory.
-// Callers that install into a non-default dir (e.g. the desktop app, which uses
-// KAPI_PLUGIN_DIR / kapiConfigDir()/plugins) must remove from the SAME dir they
-// install into, or the plugin can't be found and uninstall fails.
-func RemoveInstalledFrom(dir, pluginName string) error {
-	target := filepath.Join(dir, pluginName)
-	if _, err := os.Stat(target); err != nil {
-		if os.IsNotExist(err) {
-			return fmt.Errorf("plugin %q is not installed under %s (system installs must be removed via the OS package manager)", pluginName, dir)
-		}
-		return err
-	}
-	return os.RemoveAll(target)
-}
+// Uninstall is owned by the plugin system: see (*Host).Remove, which deletes a
+// plugin from the exact directory it was discovered in. Front-ends pass only a
+// name, so install, discovery, and removal can never disagree on the location.
 
 // DefaultIndexURL is the registry index this binary defaults to.
 // Override via $KAPI_REGISTRY_URL.

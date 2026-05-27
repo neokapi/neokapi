@@ -78,12 +78,13 @@ func (a *App) UpdatePlugin(name string) {
 	a.InstallPlugin(name) // install latest overwrites older version
 }
 
-// RemovePlugin uninstalls a plugin from the configured plugin directory.
-// It removes from a.pluginDir — the SAME directory InstallPlugin installs into
-// and rescanPlugins discovers from — not the shared XDG default, which on macOS
-// differs from kapiConfigDir()/plugins and would leave the plugin unremovable.
+// RemovePlugin uninstalls a plugin via the plugin host, which deletes it from
+// the directory it was discovered in — the same one InstallPlugin installs into.
 func (a *App) RemovePlugin(name string) error {
-	if err := pluginhost.RemoveInstalledFrom(a.pluginDir, name); err != nil {
+	if a.pluginHost == nil {
+		return fmt.Errorf("remove %s: plugins not loaded", name)
+	}
+	if err := a.pluginHost.Remove(name); err != nil {
 		return fmt.Errorf("remove %s: %w", name, err)
 	}
 	a.rescanPlugins()

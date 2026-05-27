@@ -28,6 +28,13 @@ type DiscoverOptions struct {
 	// platform-appropriate set.
 	SystemDirs []string
 
+	// OnlyEnvDir restricts discovery to EnvPluginsDir alone, skipping the
+	// user (XDG) and system roots. Use it to dogfood an in-repo kapi without
+	// picking up the developer's or the machine's globally-installed plugins.
+	// Also enabled by a non-empty $KAPI_PLUGINS_DIR_ONLY (matching the
+	// KAPI_NO_PROJECT isolation convention), so any front-end honours it.
+	OnlyEnvDir bool
+
 	// OnWarn is called for non-fatal discovery warnings (skipped manifests,
 	// invalid JSON, etc.). Optional.
 	OnWarn func(msg string)
@@ -122,6 +129,13 @@ func assembleRoots(opts DiscoverOptions) []Source {
 				Path:  filepath.Clean(p),
 			})
 		}
+	}
+
+	// Dogfood / dev isolation: with OnlyEnvDir (or a non-empty
+	// $KAPI_PLUGINS_DIR_ONLY) the user and system roots are skipped entirely,
+	// so an in-repo kapi can't pick up globally-installed plugins.
+	if opts.OnlyEnvDir || os.Getenv("KAPI_PLUGINS_DIR_ONLY") != "" {
+		return roots
 	}
 
 	// Order 2: XDG data home / kapi / plugins.

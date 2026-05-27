@@ -5,11 +5,17 @@ package pluginhost
 
 import (
 	"fmt"
+	"os"
 	"sort"
 	"sync"
 
 	"github.com/neokapi/neokapi/core/plugin/manifest"
 )
+
+// systemSourceOrder is the Source.Order of OS-managed install roots
+// (e.g. /opt/homebrew/share/kapi/plugins). Plugins discovered there are owned
+// by the OS package manager and must not be removed by kapi.
+const systemSourceOrder = 3
 
 // Source identifies which discovery root a plugin came from. Lower
 // numeric values win on conflict (KAPI_PLUGINS_DIR > XDG > system).
@@ -192,6 +198,86 @@ func (h *Host) Plugin(name string) *Plugin {
 		}
 	}
 	return nil
+}
+
+// Remove uninstalls the named plugin, deleting it from the exact directory it
+// was discovered in (Plugin.Dir) and dropping it from the host's dispatch
+// tables. This is the single uninstall entry point for every front-end (CLI,
+// desktop): callers pass only the plugin name — the plugin system owns where
+// each plugin lives, so install, discovery, and removal can never disagree on
+// the directory.
+//
+// It refuses to remove OS-managed (system) installs, which belong to the OS
+// package manager, and reports an error when the plugin is not installed.
+func (h *Host) Remove(name string) error {
+	h.mu.Lock()
+	var target *Plugin
+	for _, p := range h.plugins {
+		if p.Name() == name {
+			target = p
+			break
+		}
+	}
+	if target == nil {
+		h.mu.Unlock()
+		return fmt.Errorf("plugin %q is not installed", name)
+	}
+	if target.Source.Order >= systemSourceOrder {
+		label := target.Source.Label
+		h.mu.Unlock()
+		return fmt.Errorf("plugin %q is a system install (%s) and must be removed via the OS package manager", name, label)
+	}
+	dir := target.Dir
+	// Drop from the in-memory tables so the host stays consistent without a
+	// full re-discovery; routing for the removed plugin stops immediately.
+	h.dropPluginLocked(target)
+	h.mu.Unlock()
+
+	if err := os.RemoveAll(dir); err != nil {
+		return fmt.Errorf("remove %s: %w", name, err)
+	}
+	return nil
+}
+
+// dropPluginLocked removes p from the plugins slice and every dispatch table.
+// Callers must hold h.mu.
+func (h *Host) dropPluginLocked(p *Plugin) {
+	kept := h.plugins[:0]
+	for _, q := range h.plugins {
+		if q != p {
+			kept = append(kept, q)
+		}
+	}
+	h.plugins = kept
+	for k, r := range h.commandDispatch {
+		if r.Plugin == p {
+			delete(h.commandDispatch, k)
+		}
+	}
+	for k, r := range h.mcpDispatch {
+		if r.Plugin == p {
+			delete(h.mcpDispatch, k)
+		}
+	}
+	for k, r := range h.formatDispatch {
+		if r.Plugin == p {
+			delete(h.formatDispatch, k)
+		}
+	}
+	keptExt := h.schemaExt[:0]
+	for _, e := range h.schemaExt {
+		if e.Plugin != p {
+			keptExt = append(keptExt, e)
+		}
+	}
+	h.schemaExt = keptExt
+	keptContrib := h.contributions[:0]
+	for _, c := range h.contributions {
+		if c.Plugin != p {
+			keptContrib = append(keptContrib, c)
+		}
+	}
+	h.contributions = keptContrib
 }
 
 // CommandRoute returns the dispatch entry for a top-level command, or

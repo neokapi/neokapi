@@ -97,6 +97,10 @@ function goEnv(extra: Record<string, string> = {}): NodeJS.ProcessEnv {
     KAPI_CONFIG_DIR: ISO_DIR,
     KAPI_HOME_DIR: ISO_HOME,
     KAPI_DESKTOP_CONFIG_DIR: ISO_DESKTOP,
+    // Discover plugins ONLY from the isolated config dir — never the developer's
+    // or the machine's globally-installed plugins (so the recorded plugin list
+    // is just what the demo installs).
+    KAPI_PLUGINS_DIR_ONLY: "1",
     ...extra,
   };
 }

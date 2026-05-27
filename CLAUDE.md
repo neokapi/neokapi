@@ -129,6 +129,11 @@ workflow must isolate itself.** Set, on the kapi process environment:
   non-empty `KAPI_NO_PROJECT` does.
 - `KAPI_CONFIG_DIR`, `XDG_DATA_HOME`, `XDG_CACHE_HOME` → throwaway dirs, so kapi
   can't read the developer's `~/.config/kapi`, user-installed plugins, or caches.
+- `KAPI_PLUGINS_DIR_ONLY=1` — discover plugins *only* from `$KAPI_PLUGINS_DIR`
+  (empty by default → none), skipping the user (XDG) **and** system (Homebrew,
+  `/usr/share`) plugin roots. `XDG_DATA_HOME` alone only isolates the user root,
+  so without this an in-repo kapi still picks up Homebrew-installed plugins.
+  Point `KAPI_PLUGINS_DIR` at a repo-local dir when a dogfood scenario needs one.
 
 Where this is already wired:
 

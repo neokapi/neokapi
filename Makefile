@@ -49,9 +49,12 @@ COVER_DIR := coverage
 # of that discovery (KAPI_NO_PROJECT) and point kapi at a throwaway
 # config/data/cache home, so it can never read the developer's ~/.config/kapi,
 # their user-installed plugins, or silently bind to the dogfood recipe.
+# KAPI_PLUGINS_DIR_ONLY also excludes the *system* plugin roots (Homebrew,
+# /usr/share) — XDG_DATA_HOME only isolates the user root — so an in-repo kapi
+# discovers no globally-installed plugins at all.
 # Prefix in-repo kapi calls with $(KAPI_ISO_ENV). See CLAUDE.md "Dogfooding".
 KAPI_ISO_DIR := $(CURDIR)/.kapi-iso
-KAPI_ISO_ENV := KAPI_NO_PROJECT=1 KAPI_CONFIG_DIR=$(KAPI_ISO_DIR)/config XDG_DATA_HOME=$(KAPI_ISO_DIR)/data XDG_CACHE_HOME=$(KAPI_ISO_DIR)/cache
+KAPI_ISO_ENV := KAPI_NO_PROJECT=1 KAPI_PLUGINS_DIR_ONLY=1 KAPI_CONFIG_DIR=$(KAPI_ISO_DIR)/config XDG_DATA_HOME=$(KAPI_ISO_DIR)/data XDG_CACHE_HOME=$(KAPI_ISO_DIR)/cache
 
 GOLANGCI_LINT := $(shell which golangci-lint 2>/dev/null || { test -x "$$(go env GOPATH)/bin/golangci-lint" && echo "$$(go env GOPATH)/bin/golangci-lint"; })
 

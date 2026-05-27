@@ -258,7 +258,11 @@ func (a *App) newPluginRemoveCmd() *cobra.Command {
 		Short: "Remove an installed plugin",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := pluginhost.RemoveInstalled(args[0]); err != nil {
+			a.InitPluginHost()
+			if a.PluginHost == nil {
+				return fmt.Errorf("plugin %q is not installed", args[0])
+			}
+			if err := a.PluginHost.Remove(args[0]); err != nil {
 				return err
 			}
 			fmt.Fprintf(cmd.OutOrStdout(), "Removed %s\n", args[0])
