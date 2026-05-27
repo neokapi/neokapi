@@ -345,14 +345,22 @@ func safeJoin(target, elem string) (string, error) {
 	return clean, nil
 }
 
-// Remove uninstalls a plugin from the user-writable XDG dir. System
-// installs (under /opt/homebrew, /usr/share, etc.) refuse to remove
-// here — the OS package manager owns those.
+// RemoveInstalled uninstalls a plugin from the default user-writable XDG dir
+// (InstallTarget()). System installs (under /opt/homebrew, /usr/share, etc.)
+// refuse to remove here — the OS package manager owns those.
 func RemoveInstalled(pluginName string) error {
-	target := filepath.Join(InstallTarget(), pluginName)
+	return RemoveInstalledFrom(InstallTarget(), pluginName)
+}
+
+// RemoveInstalledFrom uninstalls a plugin from a specific plugin directory.
+// Callers that install into a non-default dir (e.g. the desktop app, which uses
+// KAPI_PLUGIN_DIR / kapiConfigDir()/plugins) must remove from the SAME dir they
+// install into, or the plugin can't be found and uninstall fails.
+func RemoveInstalledFrom(dir, pluginName string) error {
+	target := filepath.Join(dir, pluginName)
 	if _, err := os.Stat(target); err != nil {
 		if os.IsNotExist(err) {
-			return fmt.Errorf("plugin %q is not installed under %s (system installs must be removed via the OS package manager)", pluginName, InstallTarget())
+			return fmt.Errorf("plugin %q is not installed under %s (system installs must be removed via the OS package manager)", pluginName, dir)
 		}
 		return err
 	}
