@@ -16,9 +16,14 @@ brew "osslsigncode"  # alternative Authenticode signer (PKCS#11)
 brew "goreleaser"    # local release builds / `goreleaser check` (matches CI)
 brew "cosign"        # Sigstore signing of plugin tarballs (matches CI)
 
+# ── macOS apps (Homebrew Cask) ───────────────────────────────────
+cask "simplysign"    # SimplySign Desktop — Certum cloud code signing. Presents
+                     #   the cloud cert to the OS as a smart card, so jsign signs
+                     #   via JSIGN_STORETYPE=CRYPTOCERTUM (no PKCS#11 dylib).
+                     #   Intel build → needs Rosetta 2:
+                     #     softwareupdate --install-rosetta --agree-to-license
+
 # ── Not on Homebrew — install manually ───────────────────────────
-# • SimplySign Desktop (Certum cloud signing, if you chose the cloud cert):
-#     https://support.certum.eu/en/installation-of-the-simplysign-application/
 # • wails3 (desktop apps):
 #     go install github.com/wailsapp/wails/v3/cmd/wails3@latest
 # • quill (macOS notarization — used in CI, not usually needed locally):
