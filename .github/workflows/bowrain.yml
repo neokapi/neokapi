@@ -13,7 +13,7 @@ jobs:
       matrix:
         build:
           - { platform: linux/amd64, os: ubuntu-latest }
-          - { platform: windows/amd64, os: windows-latest }
+          - { platform: windows/amd64, os: windows-2025 }
           - { platform: darwin/universal, os: macos-latest }
     runs-on: ${{ matrix.build.os }}
     steps:

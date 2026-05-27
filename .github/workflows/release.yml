@@ -342,8 +342,8 @@ jobs:
         build:
           - { platform: linux/amd64, os: ubuntu-latest, arch: amd64 }
           - { platform: linux/arm64, os: ubuntu-24.04-arm, arch: arm64 }
-          - { platform: windows/amd64, os: windows-latest, arch: amd64 }
-          - { platform: windows/arm64, os: windows-latest, arch: arm64 }
+          - { platform: windows/amd64, os: windows-2025, arch: amd64 }
+          - { platform: windows/arm64, os: windows-2025, arch: arm64 }
           - { platform: darwin/arm64, os: macos-latest, arch: arm64 }
     runs-on: ${{ matrix.build.os }}
     steps:
@@ -625,8 +625,8 @@ jobs:
         build:
           - { platform: linux/amd64, os: ubuntu-latest, arch: amd64 }
           - { platform: linux/arm64, os: ubuntu-24.04-arm, arch: arm64 }
-          - { platform: windows/amd64, os: windows-latest, arch: amd64 }
-          - { platform: windows/arm64, os: windows-latest, arch: arm64 }
+          - { platform: windows/amd64, os: windows-2025, arch: amd64 }
+          - { platform: windows/arm64, os: windows-2025, arch: arm64 }
           - { platform: darwin/arm64, os: macos-latest, arch: arm64 }
     runs-on: ${{ matrix.build.os }}
     steps:

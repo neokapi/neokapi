@@ -47,7 +47,7 @@ jobs:
           - { platform: darwin/arm64, os: macos-latest, goos: darwin, goarch: arm64 }
           - { platform: linux/amd64, os: ubuntu-latest, goos: linux, goarch: amd64 }
           - { platform: linux/arm64, os: ubuntu-24.04-arm, goos: linux, goarch: arm64 }
-          - { platform: windows/amd64, os: windows-latest, goos: windows, goarch: amd64 }
+          - { platform: windows/amd64, os: windows-2025, goos: windows, goarch: amd64 }
     runs-on: ${{ matrix.build.os }}
     env:
       # Pinned native-dependency versions (see job-level comment above).
@@ -142,7 +142,7 @@ jobs:
       # which is GNU-ld style (-l<name> -> lib<name>.a, -lstdc++) — so we MUST
       # build with the windows-GNU (MinGW) Rust target, NOT msvc, and rename the
       # crate output (libtokenizers_ffi.a) to libtokenizers.a. cgo on
-      # windows-latest uses the bundled mingw-w64 gcc, which matches the gnu ABI.
+      # windows-2025 uses the bundled mingw-w64 gcc, which matches the gnu ABI.
       - name: Install Rust (Windows, GNU target)
         if: runner.os == 'Windows'
         uses: dtolnay/rust-toolchain@stable
