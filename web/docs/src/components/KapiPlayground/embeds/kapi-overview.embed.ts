@@ -10,7 +10,7 @@ const config: WalkthroughEmbedConfig = {
   files: [],
   steps: [
     { command: "kapi --help", narration: "The top-level commands." },
-    { command: "kapi formats", narration: "Enumerates the available format readers." },
+    { command: "kapi formats", narration: "Lists every format kapi can read and write." },
     { command: "kapi tools", narration: "The processing tools registry." },
   ],
 };

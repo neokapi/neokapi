@@ -1207,8 +1207,8 @@ export default function PseudoBench() {
       <div className={styles.container}>
         <h1>PseudoBench</h1>
         <p className={styles.subtitle}>
-          Performance benchmarks: read &rarr; pseudo-translate &rarr; write across 21 real-world
-          files
+          Performance benchmarks: read &rarr; pseudo-translate &rarr; write across a corpus of
+          real-world files
         </p>
 
         {error && <div className={styles.error}>{error}</div>}

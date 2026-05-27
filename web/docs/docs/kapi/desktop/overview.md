@@ -15,7 +15,7 @@ Kapi Desktop is the visual companion for the [kapi CLI](/kapi/cli). It provides 
 - **Flow runner** — Execute flows with live progress visualization: per-file status, node highlighting, and timing.
 - **Tool runner** — Run individual tools on files with dynamic configuration forms generated from tool schemas.
 - **Plugin manager** — Browse the plugin registry, install, update, and manage plugins from a UI.
-- **Credential vault** — Store AI provider API keys (Anthropic, OpenAI, Ollama) securely in your OS keychain.
+- **Credential vault** — Store AI provider API keys securely in your OS keychain.
 - **Project files** — Save workflows as portable Kapi project files you can share via git or open with double-click.
 
 ## Installation

@@ -274,6 +274,9 @@ func (w *domWalker) processBlockWithMixedContent(n *html.Node, translateNo bool)
 			var textBuf strings.Builder
 			idCounter := 0
 			runStart := child
+			// Collect the inline elements in this run so the standalone-inline
+			// rule (documented below) can decide how the run is emitted.
+			var inlineKids []*html.Node
 			for child != nil && (child.Type == html.TextNode ||
 				child.Type == html.CommentNode ||
 				(child.Type == html.ElementNode && isInlineElement(child))) {
@@ -285,6 +288,7 @@ func (w *domWalker) processBlockWithMixedContent(n *html.Node, translateNo bool)
 				case html.ElementNode:
 					w.extractTranslatableAttributes(child, translateNo)
 					w.walkInlineChildren(child, &idCounter, translateNo)
+					inlineKids = append(inlineKids, child)
 				}
 				child = child.NextSibling
 			}
@@ -294,8 +298,50 @@ func (w *domWalker) processBlockWithMixedContent(n *html.Node, translateNo bool)
 				text = collapseWhitespace(text)
 				text = strings.TrimFunc(text, isHTMLWhitespace)
 			}
-			if text != "" || idCounter > 0 {
-				w.visitor.onMixedContentBlock(w.nextBlockID(), n, runStart, child, preserveWS)
+			// hasDirectText: the run carries direct (sibling-level) non-
+			// whitespace text gluing its inline elements into one unit.
+			hasDirectText := text != ""
+
+			// Standalone-inline rule.
+			//
+			// A "mixed-content run" is the maximal sequence of text + inline
+			// elements between two block-level boundaries inside a block
+			// CONTAINER (an element that also has block-level children, e.g.
+			// <body>, <div>, <section> with sibling <p>/<h1>/...). How the
+			// run becomes translatable blocks depends on whether it has any
+			// direct (sibling-level) non-whitespace text:
+			//
+			//  - The run HAS direct text (e.g. "Lead <b>bold</b> tail"):
+			//    inline elements are glued to surrounding text, so they stay
+			//    inline runs inside ONE combined block. This is the original
+			//    behavior — an inline element WITHIN a block's text never
+			//    becomes its own block.
+			//
+			//  - The run has NO direct text — only standalone inline elements
+			//    separated by whitespace (e.g. "<button>Pay now</button>
+			//    <a>Need help?</a>"): each inline element that carries
+			//    translatable content becomes its OWN block. The whitespace
+			//    between them is not translatable text, so there is nothing
+			//    gluing the elements into a single unit. This makes the
+			//    read-only DOM path agree with the authoritative tokenizer
+			//    path (which emits one block per such standalone inline
+			//    element) so word-count / segment-count / kgrep see the same
+			//    translatable blocks that pseudo-translate localizes (#721).
+			//
+			// A bare comment-only run (idCounter > 0, no text, no inline kids)
+			// keeps the combined-block path so the comment placeholder still
+			// round-trips.
+			switch {
+			case hasDirectText || len(inlineKids) == 0:
+				if text != "" || idCounter > 0 {
+					w.visitor.onMixedContentBlock(w.nextBlockID(), n, runStart, child, preserveWS)
+				}
+			default:
+				for _, inl := range inlineKids {
+					if w.inlineHasTranslatableContent(inl) {
+						w.visitor.onBlockElement(w.nextBlockID(), inl, preserveWS)
+					}
+				}
 			}
 
 			if child == nil {
@@ -305,6 +351,18 @@ func (w *domWalker) processBlockWithMixedContent(n *html.Node, translateNo bool)
 
 		w.walkNode(child, translateNo)
 	}
+}
+
+// inlineHasTranslatableContent reports whether a standalone inline element
+// holds content worth emitting as its own block. Unlike onBlockElement's emit
+// decision for block-level elements (which also fires on a bare `id` anchor),
+// a standalone inline element must carry actual text/inline-markup content
+// (hasAnyContent). An empty inline element with only an `id` (e.g.
+// `<span id="x"></span>`) is not translatable and is not emitted — matching
+// the authoritative tokenizer path, which never emits an empty inline as a
+// block.
+func (w *domWalker) inlineHasTranslatableContent(n *html.Node) bool {
+	return w.hasAnyContent(n)
 }
 
 // walkInlineChildren traverses inline content, counting spans and advancing

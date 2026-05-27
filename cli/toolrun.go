@@ -816,7 +816,7 @@ func swapLocaleToken(base, sourceLang, targetLang string) (string, bool) {
 	}
 	var toks []token
 	start := 0
-	for i := 0; i < len(name); i++ {
+	for i := range len(name) {
 		if c := name[i]; c == '.' || c == '_' || c == '-' {
 			toks = append(toks, token{name[start:i], c})
 			start = i + 1

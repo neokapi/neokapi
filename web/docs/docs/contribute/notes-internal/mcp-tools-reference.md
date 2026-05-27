@@ -21,9 +21,11 @@ List all supported file formats with their extensions, MIME types, and read/writ
 
 **Input:** none
 
-**Output:**
+**Output** (one element shown; `total` is `len(formats)`, set at runtime from
+the live registry, so the real value tracks the registered formats — see the
+generated [Format Reference](/reference/formats/html)):
 
-```json
+```jsonc
 {
   "formats": [
     {
@@ -35,8 +37,9 @@ List all supported file formats with their extensions, MIME types, and read/writ
       "has_writer": true,
       "source": "built-in"
     }
+    // …one entry per registered format
   ],
-  "total": 15
+  "total": 0 // = len(formats), runtime-dependent
 }
 ```
 
@@ -110,7 +113,7 @@ Count translatable words in a file.
 
 ### `run_flow`
 
-Execute a processing flow on a file. Available flows: `pseudo-translate`, `qa-check`, `segmentation`, `tm-leverage`. AI-powered flows (e.g. `ai-translate`) require API keys and are not available via MCP.
+Execute a processing flow on a file. The flow name is any built-in flow from `list_flows` (e.g. `pseudo-translate`, `qa-check`, `tm-leverage`, `ai-translate-qa`, `secure-translate`). AI-powered flows (e.g. `ai-translate`, `ai-translate-qa`) run only when the required provider API keys are configured.
 
 **Input:**
 | Parameter | Type | Required | Description |
@@ -150,16 +153,17 @@ List all available processing flows.
 
 **Input:** none
 
-**Output:**
+**Output** (illustrative selection; `total` is `len(flow.BuiltInFlows())`):
 
-```json
+```jsonc
 {
   "flows": [
     { "name": "pseudo-translate", "description": "Generate pseudo-translations for testing" },
     { "name": "qa-check", "description": "Run rule-based quality checks on translations" },
     { "name": "ai-translate", "description": "Translate content using AI/LLM" }
+    // …one entry per built-in flow
   ],
-  "total": 6
+  "total": 0 // = len(flow.BuiltInFlows()), runtime-dependent
 }
 ```
 
@@ -169,9 +173,10 @@ List all available processing tools (built-in and plugin-provided).
 
 **Input:** none
 
-**Output:**
+**Output** (one element shown; `total` is `len(tools)`, runtime-dependent —
+see the generated [Tool Reference](/reference/tools/word-count)):
 
-```json
+```jsonc
 {
   "tools": [
     {
@@ -179,10 +184,108 @@ List all available processing tools (built-in and plugin-provided).
       "description": "Count translatable words in content",
       "source": "built-in"
     }
+    // …one entry per registered tool
   ],
-  "total": 12
+  "total": 0 // = len(tools), runtime-dependent
 }
 ```
+
+## Brand, terminology, and TM tools
+
+The shared CLI base (`cli/mcp_brand.go`) registers a further set of offline
+tools on the same `mcp` stdio server via `RegisterMCPToolFactory`, so any
+binary built on the CLI base (including kapi) exposes them. They mirror the
+cloud bowrain MCP brand tools so non-Claude MCP clients get parity locally.
+All run offline against local files and SQLite stores.
+
+### `brand_guide`
+
+Render a brand voice guide (markdown) from a starter pack or a profile YAML,
+to inject into context before generating content.
+
+**Input:**
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `profile_pack` | string | one of pack/file | Starter pack name (e.g. `marketing-blog`, `technical-docs`) |
+| `profile_file` | string | one of pack/file | Path to a profile YAML |
+
+**Output:**
+| Field | Type | Description |
+|-------|------|-------------|
+| `profile` | string | Resolved profile name |
+| `guide` | string | Rendered markdown voice guide |
+
+### `brand_check`
+
+Score text against a brand voice profile using deterministic vocabulary
+rules; returns a 0–100 compliance score and findings.
+
+**Input:**
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `text` | string | yes | The text to check |
+| `profile_pack` | string | one of pack/file | Starter pack name |
+| `profile_file` | string | one of pack/file | Path to a profile YAML |
+
+**Output:**
+| Field | Type | Description |
+|-------|------|-------------|
+| `profile` | string | Resolved profile name |
+| `score` | int | Overall 0–100 compliance score |
+| `dimensions` | array | Per-dimension scores |
+| `findings` | array | Vocabulary findings |
+
+### `brand_rewrite`
+
+Rewrite text to comply with a brand voice profile by substituting
+forbidden/competitor terms (deterministic, offline).
+
+**Input:** same as `brand_check`.
+
+**Output:**
+| Field | Type | Description |
+|-------|------|-------------|
+| `profile` | string | Resolved profile name |
+| `original` | string | Input text |
+| `rewritten` | string | Rewritten text |
+| `changes` | array | `{from, to, count}` substitutions made |
+
+### `term_lookup`
+
+Look up a term in a local termbase to enforce consistent terminology.
+
+**Input:**
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `term` | string | yes | The term to look up |
+| `source_lang` | string | no | Source locale (e.g. `en`) |
+| `target_lang` | string | no | Target locale (e.g. `fr`) |
+| `termbase` | string | no | Path to the termbase db (default: `termbase.db`) |
+
+**Output:**
+| Field | Type | Description |
+|-------|------|-------------|
+| `matches` | array | `{term, locale, status, match_type}` entries |
+| `total` | int | `len(matches)` |
+
+### `tm_search`
+
+Search a local translation memory for prior translations of source text.
+
+**Input:**
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `text` | string | yes | Source text to search for |
+| `source_lang` | string | yes | Source locale (e.g. `en`) |
+| `target_lang` | string | yes | Target locale (e.g. `fr`) |
+| `min_score` | number | no | Minimum match score 0–1 (default: `0.7`) |
+| `tm` | string | no | Path to the TM db (default: `tm.db`) |
+
+**Output:**
+| Field | Type | Description |
+|-------|------|-------------|
+| `matches` | array | `{source, target, score, match_type}` entries (max 10) |
+| `total` | int | `len(matches)` |
 
 ---
 
@@ -191,6 +294,7 @@ List all available processing tools (built-in and plugin-provided).
 | File                              | Purpose                              |
 | --------------------------------- | ------------------------------------ |
 | `cli/mcp.go`                      | Shared `mcp` subcommand + server bootstrap (`NewMCPCmd`) |
+| `cli/mcp_brand.go`                | Shared brand/terminology/TM MCP tools registered via `RegisterMCPToolFactory` (`brand_guide`, `brand_check`, `brand_rewrite`, `term_lookup`, `tm_search`) + their input/output types |
 | `kapi/cmd/kapi/root.go`           | Wires the kapi root command, including `mcp`   |
 | `kapi/cmd/kapi/mcp_tools.go`      | kapi MCP tool handlers + input/output types (`list_formats`, `detect_format`, `extract_content`, `run_flow`, `list_flows`, `word_count`, `list_tools`, `pseudo_translate`) |
 | `kapi/cmd/kapi/mcp_tools_test.go` | Unit tests for kapi MCP handlers     |

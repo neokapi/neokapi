@@ -61,8 +61,9 @@ steps:
 
   - tool: search-replace
     config:
-      search: "TODO"
-      replace: ""
+      pairs:
+        - search: "TODO"
+          replace: ""
       target: true
 
   - tool: qa-check

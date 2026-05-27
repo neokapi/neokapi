@@ -115,7 +115,7 @@ type TermBase interface {
     DeleteConcept(id string) error
     Lookup(sourceText string, opts LookupOptions) []TermMatch
     LookupAll(sourceText string, opts LookupOptions) []TermMatch
-    Search(query string, sourceLocale, targetLocale string, offset, limit int) ([]Concept, int)
+    Search(query string, sourceLocale, targetLocale model.LocaleID, offset, limit int) ([]Concept, int)
     Count() int
     Concepts() []Concept
     Close() error

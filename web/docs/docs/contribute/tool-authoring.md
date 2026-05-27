@@ -105,9 +105,8 @@ The `schema.FromStruct()` function uses Go reflection to inspect a config struct
 ```go
 import "github.com/neokapi/neokapi/core/schema"
 
-s := schema.FromStruct(&MyToolConfig{}, schema.ComponentMeta{
+s := schema.FromStruct(&MyToolConfig{}, schema.ToolMeta{
     ID:          "my-tool",
-    Type:        "tool",
     Category:    "transform",
     DisplayName: "My Tool",
 })
@@ -118,9 +117,9 @@ The function:
 1. Iterates over exported struct fields
 2. Maps Go types to JSON Schema types
 3. Parses `schema` struct tags for metadata (description, default, enum, widget, etc.)
-4. Extracts `group` tags to build `x-groups` for the UI
+4. Extracts `group` tags to build `ui:groups` for the UI
 5. Uses `json` struct tags for field names (falls back to camelCase conversion)
-6. Generates a `ComponentSchema` with `x-component` metadata
+6. Generates a `ComponentSchema` with `toolMeta` metadata
 
 ### Parameter groups
 
@@ -149,9 +148,8 @@ func RegisterAll(reg *registry.ToolRegistry) {
 
 // Helper to reduce boilerplate
 func toolSchema(cfg any, id, displayName, category string) *schema.ComponentSchema {
-    return schema.FromStruct(cfg, schema.ComponentMeta{
+    return schema.FromStruct(cfg, schema.ToolMeta{
         ID:          id,
-        Type:        "tool",
         Category:    category,
         DisplayName: displayName,
     })
@@ -217,9 +215,8 @@ func NewWrapTextTool(cfg *WrapTextConfig) *tool.BaseTool {
 
 // Registration
 func Register(reg *registry.ToolRegistry) {
-    s := schema.FromStruct(&WrapTextConfig{}, schema.ComponentMeta{
+    s := schema.FromStruct(&WrapTextConfig{}, schema.ToolMeta{
         ID:          "wrap-text",
-        Type:        "tool",
         Category:    "transform",
         DisplayName: "Wrap Text",
     })

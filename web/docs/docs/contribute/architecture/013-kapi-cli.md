@@ -125,7 +125,7 @@ recipe ([AD-008: Kapi Project Model](008-project-model.md)) for defaults:
 
 ```bash
 kapi run translate -p myproject.kapi
-kapi run translate-and-qa -p myproject.kapi --target-lang de
+kapi run ai-translate-qa -p myproject.kapi --target-lang de
 kapi ai-translate -p myproject.kapi
 ```
 
@@ -162,17 +162,16 @@ All commands that produce output support consistent format flags through
 the shared `cli/output/` package:
 
 ```bash
-kapi status --json                 # machine-readable JSON
-kapi status --text                 # human-readable (default)
-kapi status --output-format=json   # explicit long form
-kapi status -o json                # short flag form
+kapi tm stats --json                 # machine-readable JSON
+kapi tm stats --text                 # human-readable (default)
+kapi tm stats --output-format=json   # explicit long form
 ```
 
 Flag precedence:
 
 1. `--json` — highest precedence (shorthand for common case).
 2. `--text` — explicit text.
-3. `--output-format=<fmt>` or `-o <fmt>` — explicit selection.
+3. `--output-format=<fmt>` — explicit selection.
 4. Default: `text`.
 
 Supported formats: `text` (tables, formatted text, colors when the
@@ -199,11 +198,17 @@ Commands without a `TextFormatter` fall back to formatted JSON.
 
 ### Exit codes
 
-| Code | Meaning                                        |
-| ---- | ---------------------------------------------- |
-| 0    | Success                                        |
-| 1    | Error (command failed)                         |
-| 2    | Conflict (e.g. sync conflict, overwrite block) |
+| Code | Meaning                                                                 |
+| ---- | ----------------------------------------------------------------------- |
+| 0    | Success (`ExitOK`)                                                      |
+| 1    | Operational error (`ExitError`) — the default for a failed command      |
+| 2    | Usage / toolbox trouble (`ExitUsage`) — e.g. `kgrep`/`ksed`/`kcat` on a bad pattern or unreadable file (grep convention) |
+| 3    | Quality/brand gate failed (`ExitGate`) — distinct from an error, so CI and skills can tell a sub-threshold gate from a crash |
+| 130  | Interrupted (`ExitSignal`) — 128 + SIGINT                               |
+
+Commands map errors to codes through `cli.ExitCode`; a command can request a
+specific code by returning an error tagged with `cli.WithExitCode` (the toolbox
+utilities use it for the grep-style `2`), and `ErrQualityGate` maps to `3`.
 
 Exit codes are consistent across formats. In JSON mode, errors are
 structured objects:

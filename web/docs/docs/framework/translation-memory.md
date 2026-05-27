@@ -79,7 +79,7 @@ fuzzy matches are attached as `AltTranslation` annotations for translator
 review.
 
 ```bash
-kapi ai-translate -i input.html -o output.html -s en -t fr --tm project-tm
+kapi tm-leverage -i input.html -o output.html --source-lang en --target-lang fr --tm project-tm
 ```
 
 ```yaml

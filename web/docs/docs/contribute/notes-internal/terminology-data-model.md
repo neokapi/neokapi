@@ -15,13 +15,14 @@ The core data model is concept-oriented, following TBX principles. A Concept gro
 
 ```go
 type Term struct {
-    Text         string           // the term text
-    Locale       model.LocaleID   // language/locale
-    Status       model.TermStatus // lifecycle status (proposed, approved, preferred,
-                                  // admitted, deprecated, forbidden)
-    PartOfSpeech string           // noun, verb, adjective, etc.
-    Gender       string           // grammatical gender (if applicable)
-    Note         string           // usage note or context
+    Text           string           // the term text
+    Locale         model.LocaleID   // language/locale
+    Status         model.TermStatus // lifecycle status (proposed, approved, preferred,
+                                    // admitted, deprecated, forbidden)
+    PartOfSpeech   string           // noun, verb, adjective, etc.
+    Gender         string           // grammatical gender (if applicable)
+    Note           string           // usage note or context
+    CompetitorTerm bool             // true if this is a competitor brand term
 }
 
 type Concept struct {
@@ -29,12 +30,17 @@ type Concept struct {
     ProjectID  string            // project scope (empty = workspace-scoped)
     Domain     string            // subject field (software, medical, legal, etc.)
     Definition string            // language-neutral definition
+    Source     TermSource        // "terminology" or "brand_vocabulary"
     Terms      []Term            // terms across locales
     Properties map[string]string // extensible metadata
     CreatedAt  time.Time
     UpdatedAt  time.Time
 }
 ```
+
+`TermSource` distinguishes traditional terminology
+(`TermSourceTerminology`) from brand vocabulary (`TermSourceBrandVocabulary`),
+so the two populations can share one termbase while staying filterable.
 
 Progressive disclosure: CSV import auto-creates Concepts with a single preferred Term per locale -- no extra complexity required.
 
@@ -54,7 +60,11 @@ type TermBase interface {
 }
 ```
 
-Import and export are standalone functions rather than interface methods: `ImportJSON`, `ExportJSON`, `ImportCSV`, `ExportCSV`. Framework backends: In-memory (CLI batch) and SQLite (persistent). The `TermBase` interface supports server-side backends for multi-user deployments.
+Import and export are standalone functions rather than interface methods:
+`ImportJSON`/`ExportJSON`, `ImportCSV`/`ExportCSV`, and `ImportTBX`/`ExportTBX`
+(the ISO TBX interchange format, with `TBXImportOptions`/`TBXExportOptions`).
+Framework backends: in-memory (CLI batch) and SQLite (persistent). The
+`TermBase` interface supports server-side backends for multi-user deployments.
 
 ## Fuzzy Matching and Search
 

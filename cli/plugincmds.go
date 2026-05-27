@@ -146,7 +146,7 @@ Examples:
 		},
 	}
 	cmd.Flags().StringVar(&channel, "channel", "stable", "registry channel (e.g. stable, beta)")
-	cmd.Flags().BoolVar(&unsafe, "unsafe", false, "skip signature verification (still verifies SHA-256)")
+	cmd.Flags().BoolVar(&unsafe, "unsafe", false, "skip SHA-256 and signature verification (install an unsigned/unverified plugin)")
 	cmd.Flags().StringVar(&indexURL, "index", "", "registry index URL (default: $KAPI_REGISTRY_URL or builtin)")
 	return cmd
 }
@@ -248,7 +248,7 @@ Examples:
 	cmd.Flags().StringVar(&channelOverride, "channel", "", "registry channel (default: channel from installed.json)")
 	cmd.Flags().StringVar(&constraintOverride, "constraint", "", "version constraint (default: constraint from installed.json)")
 	cmd.Flags().StringVar(&indexOverride, "index", "", "registry index URL (default: index_url from installed.json)")
-	cmd.Flags().BoolVar(&unsafe, "unsafe", false, "skip signature verification (still verifies SHA-256)")
+	cmd.Flags().BoolVar(&unsafe, "unsafe", false, "skip SHA-256 and signature verification (install an unsigned/unverified plugin)")
 	return cmd
 }
 

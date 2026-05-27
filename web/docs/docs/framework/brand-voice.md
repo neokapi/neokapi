@@ -148,8 +148,9 @@ AI agents reach brand voice checking through the `kapi mcp` server:
 }
 ```
 
-Agents can run brand voice checks via `run_flow`, extract content and review it
-against vocabulary rules, and score content for compliance. Server deployments
+Agents can score content for brand compliance with the `brand_check` MCP tool,
+fetch the brand guide with `brand_guide`, and rewrite off-brand copy with
+`brand_rewrite`. Server deployments
 can expose an HTTP MCP endpoint so agents consume profiles and scoring without a
 local CLI process.
 
@@ -239,7 +240,7 @@ type BrandVoiceAnnotation struct {
     ProfileID string              `json:"profile_id"`
     Score     int                 `json:"score"` // 0-100 overall
     Findings  []BrandVoiceFinding `json:"findings"`
-    Position  model.TextRange     `json:"position"`
+    Position  model.RunRange      `json:"position"`
 }
 
 func (a *BrandVoiceAnnotation) AnnotationType() string { return "brand-voice" }

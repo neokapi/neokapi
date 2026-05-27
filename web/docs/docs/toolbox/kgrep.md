@@ -63,5 +63,7 @@ fi
 | `-q, --quiet` | Suppress output; report the result through exit status only. |
 | `--color MODE` | Highlight matches: `auto`, `always`, `never`. |
 | `--target LOCALE` | Search the translation for `LOCALE` instead of the source. |
+| `--source-lang LOCALE` | Source language of the content (default `en`). |
 | `-f, --format` | Override format detection (e.g. `-f json`). |
+| `--encoding NAME` | Input encoding (default `UTF-8`). |
 | `--json` | Emit matches as JSON. |

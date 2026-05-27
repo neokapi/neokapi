@@ -1,11 +1,27 @@
 {
-  "generatedAt": "2026-05-25T20:45:12Z",
+  "generatedAt": "2026-05-27T05:43:57Z",
   "summary": {
+    "built-in/format/description": 1,
     "built-in/format/doc.examples": 1,
-    "built-in/tool/doc.overview": 3,
-    "total": 4
+    "built-in/format/doc.overview": 1,
+    "built-in/tool/doc.overview": 8,
+    "total": 11
   },
   "gaps": [
+    {
+      "kind": "format",
+      "source": "built-in",
+      "id": "klf",
+      "field": "description",
+      "detail": "no description or overview"
+    },
+    {
+      "kind": "format",
+      "source": "built-in",
+      "id": "klf",
+      "field": "doc.overview",
+      "detail": "no overview / rich documentation"
+    },
     {
       "kind": "format",
       "source": "built-in",
@@ -17,6 +33,41 @@
       "kind": "tool",
       "source": "built-in",
       "id": "ai-entity-extract",
+      "field": "doc.overview",
+      "detail": "no overview / rich documentation"
+    },
+    {
+      "kind": "tool",
+      "source": "built-in",
+      "id": "deepl-translate",
+      "field": "doc.overview",
+      "detail": "no overview / rich documentation"
+    },
+    {
+      "kind": "tool",
+      "source": "built-in",
+      "id": "google-translate",
+      "field": "doc.overview",
+      "detail": "no overview / rich documentation"
+    },
+    {
+      "kind": "tool",
+      "source": "built-in",
+      "id": "microsoft-translate",
+      "field": "doc.overview",
+      "detail": "no overview / rich documentation"
+    },
+    {
+      "kind": "tool",
+      "source": "built-in",
+      "id": "modernmt-translate",
+      "field": "doc.overview",
+      "detail": "no overview / rich documentation"
+    },
+    {
+      "kind": "tool",
+      "source": "built-in",
+      "id": "mymemory-translate",
       "field": "doc.overview",
       "detail": "no overview / rich documentation"
     },

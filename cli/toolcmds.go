@@ -37,7 +37,8 @@ func allKLF(paths []string) bool {
 // CollectorFactories maps tool names to streaming collector factories.
 // Only tools that aggregate results across files need a collector.
 var CollectorFactories = map[string]func() flow.Collector{
-	"word-count": func() flow.Collector { return coretools.NewStreamingWordCountCollector() },
+	"word-count":    func() flow.Collector { return coretools.NewStreamingWordCountCollector() },
+	"segment-count": func() flow.Collector { return coretools.NewStreamingSegCountCollector() },
 }
 
 // aiProgressWriter returns a ProgressEvent callback that writes a single

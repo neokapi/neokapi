@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-25T20:45:12Z",
+  "generatedAt": "2026-05-27T05:43:57Z",
   "kind": "format",
   "entries": [
     {
@@ -12869,11 +12869,10 @@
       }
     },
     {
-      "id": "jsx",
+      "id": "klf",
       "source": "built-in",
       "kind": "format",
       "displayName": "Kapi Localization Format (KLF)",
-      "description": "Read and write the Kapi Localization Format (.klf), the JSON envelope for strings extracted from source code.",
       "extensions": [
         ".klf"
       ],
@@ -12881,26 +12880,7 @@
         "application/vnd.neokapi.klf+json"
       ],
       "hasReader": true,
-      "hasWriter": true,
-      "doc": {
-        "overview": "This format reads and writes the Kapi Localization Format (`.klf`), a\nstructured JSON envelope for translatable strings extracted from\nsource code such as JSX / React components. A KLF document is a\n`kind: kapi-localization-format` envelope holding one or more\ndocuments, each carrying blocks. Every block has a structured run\nsequence — text plus placeholders, paired inline codes, plurals, and\nselects.\n\nOn read, each KLF block becomes one translatable block. Its source\ntext is the flattened run sequence: placeholders contribute their\nequivalent (wrapped in braces), paired codes elide their wrappers, and\nplural forms collapse to the `other` branch. The block ID is carried\nverbatim, and the full structured run graph travels alongside in an\nannotation so the writer can reassemble the original document. The\nwriter reverses the process; a block that arrives without that\nannotation (for example one inserted by an intermediate tool) is\nwritten as a minimal text-only run sequence so the file stays\nwell-formed.\n",
-        "limitations": [
-          "This is a neokapi-specific exchange format; the okapi-bridge daemon ships no equivalent filter.",
-          "Blocks that lose their structured-run annotation in the pipeline are written back as plain text, without the original placeholder or paired-code structure."
-        ],
-        "processingNotes": [
-          "One translatable block per KLF block; the block ID is preserved verbatim.",
-          "Source text is the flattened run sequence — placeholders become brace-wrapped equivalents, paired codes elide their wrappers, plurals collapse to the `other` branch.",
-          "Translator-facing context (file, component, element, JSX path, line, notes) and the structured runs travel in a block annotation for faithful round-tripping."
-        ],
-        "examples": [
-          {
-            "title": "Round-trip a KLF document",
-            "description": "No configuration is required. Declare the format to read a `.klf`\nenvelope and write it back after translation.\n",
-            "config": "format:\n  name: jsx\n"
-          }
-        ]
-      }
+      "hasWriter": true
     },
     {
       "id": "markdown",

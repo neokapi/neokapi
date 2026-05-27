@@ -90,17 +90,23 @@ func (l *Layer) IsEmbedded() bool { return l.ParentID != "" && l.Format != "" }
 // VariantKey; every interpretation of the runs (segmentation, terms, entities,
 // QA, alignment) is a stand-off Overlay. There is no structural Segment type.
 type Block struct {
-    ID           string
-    Name         string
-    Type         string
-    MimeType     string
-    Translatable bool
-    Skeleton     *Skeleton
-    Source       []Run
-    Targets      map[VariantKey]*Target
-    Overlays     []Overlay
-    Properties   map[string]string
-    Annotations  map[string]Annotation
+    ID                 string
+    Name               string
+    Type               string
+    MimeType           string
+    Translatable       bool
+    SourceLocale       LocaleID // locale of the source runs (set by reader)
+    Skeleton           *Skeleton
+    Source             []Run
+    Targets            map[VariantKey]*Target
+    Overlays           []Overlay
+    Properties         map[string]string
+    Annotations        map[string]Annotation
+    Identity           *BlockIdentity // content-addressable hash for deduplication
+    ContentRef         *ContentRef    // link to external connector source
+    DisplayHint        *DisplayHint   // UI rendering guidance
+    PreserveWhitespace bool           // whitespace is significant in this block
+    IsReferent         bool           // block is referenced by a skeleton
 }
 
 func (b *Block) ResourceID() string { return b.ID }
@@ -144,6 +150,7 @@ type Target struct {
 type Overlay struct {
     Type    OverlayType // "segmentation" | "term" | "entity" | "qa" | "alignment"
     Variant *VariantKey // nil = source side
+    Layer   string      // segmentation granularity; "" = primary sentence segmentation
     Spans   []Span
 }
 

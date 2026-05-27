@@ -35,8 +35,19 @@ import (
 // understand KLF look it up by this key to read structured Runs.
 const AnnotationType = "neokapi-klf-block"
 
-// FormatName is the registry ID this format registers under.
-const FormatName = "jsx"
+// FormatName is the canonical registry ID this format registers
+// under. It is the user-facing id surfaced by `kapi formats`, the
+// `--format klf` flag, and the generated reference page. The legacy
+// id "jsx" remains a back-compat alias (see FormatAlias and the
+// registration in core/formats/register.go).
+const FormatName = "klf"
+
+// FormatAlias is the legacy registry ID this format also resolves
+// under. `--format jsx` (and any older recipe / script referencing
+// "jsx") keeps working: the alias is a name-only lookup that resolves
+// to FormatName. It is NOT a detection signature, so auto-detection
+// always reports the canonical "klf" id.
+const FormatAlias = "jsx"
 
 // Extensions this reader responds to.
 var Extensions = []string{".klf"}
@@ -142,7 +153,7 @@ type Reader struct {
 	format.BaseFormatReader
 }
 
-// NewReader creates a new jsx (KLF) reader.
+// NewReader creates a new KLF reader.
 func NewReader() *Reader {
 	return &Reader{
 		BaseFormatReader: format.BaseFormatReader{
@@ -169,7 +180,7 @@ func (r *Reader) Signature() format.FormatSignature {
 // Open opens a RawDocument for reading.
 func (r *Reader) Open(ctx context.Context, doc *model.RawDocument) error {
 	if doc == nil || doc.Reader == nil {
-		return errors.New("jsx: nil document or reader")
+		return errors.New("klf: nil document or reader")
 	}
 	r.Doc = doc
 	return nil
@@ -195,7 +206,7 @@ func (r *Reader) Config() format.DataFormatConfig { return r.Cfg }
 func (r *Reader) stream(ctx context.Context, ch chan<- model.PartResult) {
 	body, err := io.ReadAll(r.Doc.Reader)
 	if err != nil {
-		ch <- model.PartResult{Error: fmt.Errorf("jsx: read body: %w", err)}
+		ch <- model.PartResult{Error: fmt.Errorf("klf: read body: %w", err)}
 		return
 	}
 
@@ -233,7 +244,7 @@ func (r *Reader) emit(ctx context.Context, ch chan<- model.PartResult, part *mod
 func (r *Reader) streamKLF(ctx context.Context, ch chan<- model.PartResult, data []byte) {
 	file, err := klf.Unmarshal(data)
 	if err != nil {
-		ch <- model.PartResult{Error: fmt.Errorf("jsx: parse klf: %w", err)}
+		ch <- model.PartResult{Error: fmt.Errorf("klf: parse klf: %w", err)}
 		return
 	}
 	for _, doc := range file.Documents {
@@ -328,7 +339,7 @@ type pendingDoc struct {
 	blocks []klf.Block
 }
 
-// NewWriter creates a new jsx (KLF/KLZ) writer.
+// NewWriter creates a new KLF writer.
 func NewWriter() *Writer {
 	return &Writer{
 		generator: klf.GeneratorInfo{ID: "neokapi", Version: "1.0"},

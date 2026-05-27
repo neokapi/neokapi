@@ -93,7 +93,7 @@ func NewApp() *App {
 	// Wire credential resolution: tools requiring "credentials" get their
 	// provider/apiKey/model injected from the shared credential store.
 	toolReg.SetConfigPreprocessor(func(toolName string, requires []string, config map[string]any) (map[string]any, error) {
-		return credentials.ResolveCredentials(credStore, requires, config)
+		return credentials.ResolveCredentials(credStore, toolName, requires, config)
 	})
 
 	return &App{

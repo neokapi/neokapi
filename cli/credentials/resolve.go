@@ -3,20 +3,90 @@ package credentials
 import (
 	"errors"
 	"fmt"
+	"os"
 	"slices"
 	"strings"
 )
+
+// providerEnvVars maps a provider id to the ordered list of environment
+// variables that may carry its API key. The first non-empty variable wins.
+// These follow the conventional names used by each provider's own SDKs and
+// CLIs (and reuse GEMINI_API_KEY, the name the harness tooling already reads).
+//
+// API keys must never be sourced from the committable .kapi/kapi.yaml recipe;
+// only provider/model defaults belong there. The standard per-provider env var
+// is the supported fallback when no inline --api-key and no --credential are
+// given, slotting in just above store auto-detect in the resolution order.
+//
+// Provider ids match the constants in providers/ai (anthropic, openai, gemini,
+// azureopenai, ollama, demo) and providers/mt (deepl, google, microsoft,
+// modernmt, mymemory). The map is the single source of truth for the fallback;
+// keep it self-contained here to avoid import cycles with the provider
+// packages.
+var providerEnvVars = map[string][]string{
+	// AI providers.
+	"anthropic":   {"ANTHROPIC_API_KEY"},
+	"openai":      {"OPENAI_API_KEY"},
+	"gemini":      {"GEMINI_API_KEY", "GOOGLE_API_KEY"},
+	"azureopenai": {"AZURE_OPENAI_API_KEY"},
+	// ollama and demo never require a key; they have no entry on purpose.
+
+	// MT providers.
+	"deepl":     {"DEEPL_API_KEY"},
+	"google":    {"GOOGLE_TRANSLATE_API_KEY", "GOOGLE_API_KEY"},
+	"microsoft": {"MICROSOFT_TRANSLATOR_KEY", "AZURE_TRANSLATOR_KEY"},
+	"modernmt":  {"MODERNMT_API_KEY"},
+	"mymemory":  {"MYMEMORY_API_KEY"},
+}
+
+// apiKeyFromEnv returns the API key for the given provider id from the
+// environment, trying each mapped variable in order and returning the first
+// non-empty value. It returns ("", false) when the provider has no mapped
+// variable or none of them are set.
+func apiKeyFromEnv(providerType string) (string, bool) {
+	for _, name := range providerEnvVars[strings.ToLower(providerType)] {
+		if v := os.Getenv(name); v != "" {
+			return v, true
+		}
+	}
+	return "", false
+}
+
+// inferProviderID determines the provider id to resolve credentials for.
+//
+// The config map's explicit "provider" wins when set. Otherwise the provider is
+// derived from the tool name: MT tools are registered as "<provider>-translate"
+// (e.g. "deepl-translate") and carry no provider field, so the id is the prefix.
+// AI tools (ai-translate, ai-qa, …) default to "anthropic" — the same default
+// their schema applies — so the common `kapi ai-translate` (no --provider) path
+// can still pick up ANTHROPIC_API_KEY from the environment.
+func inferProviderID(toolName string, config map[string]any) string {
+	if p, ok := config["provider"].(string); ok && p != "" {
+		return p
+	}
+	if toolName != "" && toolName != "ai-translate" && strings.HasSuffix(toolName, "-translate") {
+		return strings.TrimSuffix(toolName, "-translate")
+	}
+	// AI tools with no explicit provider default to anthropic (schema default).
+	return "anthropic"
+}
 
 // ResolveCredentials resolves credential references in a tool config map.
 // It looks for a "credential" key in the config, resolves it from the store,
 // and injects provider/apiKey/model into the config map.
 //
-// Resolution order:
+// toolName is the registered tool id (e.g. "ai-translate", "deepl-translate").
+// It lets the resolver infer the provider for the env-var fallback when the
+// config carries no explicit provider — MT tools encode the provider in their
+// name and AI tools default to anthropic.
+//
+// Resolution order (highest precedence first):
 //  1. If the tool doesn't require "credentials" → return config unchanged
 //  2. If config has "apiKey" already set → return unchanged (explicit inline key wins)
 //  3. If config has "credential" → resolve by name or ID from store
-//  4. If neither → auto-detect from store (single match required)
-func ResolveCredentials(store *Store, toolRequires []string, config map[string]any) (map[string]any, error) {
+//  4. If a standard per-provider env var is set → inject it as "apiKey"
+//  5. Otherwise → auto-detect from store (single match required)
+func ResolveCredentials(store *Store, toolName string, toolRequires []string, config map[string]any) (map[string]any, error) {
 	if !slices.Contains(toolRequires, "credentials") {
 		return config, nil
 	}
@@ -35,9 +105,22 @@ func ResolveCredentials(store *Store, toolRequires []string, config map[string]a
 		return mergeCredentials(config, resolved), nil
 	}
 
-	// Auto-detect: find matching credentials from store.
-	providerType, _ := config["provider"].(string)
-	resolved, err := autoDetect(store, providerType)
+	// Environment-variable fallback: when no inline key and no --credential,
+	// inject the standard per-provider env var for the resolved provider id.
+	// This keeps the existing provider (we only fill in the missing apiKey).
+	providerType := inferProviderID(toolName, config)
+	if key, ok := apiKeyFromEnv(providerType); ok {
+		return mergeCredentials(config, &ProviderConfigWithKey{
+			ProviderConfig: ProviderConfig{ProviderType: providerType},
+			APIKey:         key,
+		}), nil
+	}
+
+	// Auto-detect: find matching credentials from store. Use the config's
+	// explicit provider (not the inferred default) so behaviour around store
+	// matching is unchanged from before the env fallback was added.
+	storeProvider, _ := config["provider"].(string)
+	resolved, err := autoDetect(store, storeProvider)
 	if err != nil {
 		return nil, err
 	}

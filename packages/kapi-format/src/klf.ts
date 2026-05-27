@@ -105,7 +105,8 @@ function canonicalDocument(d: Document): unknown {
 }
 
 function canonicalSkeleton(s: Skeleton): unknown {
-  return omitUndefined({ ref: s.ref, digest: s.digest });
+  // Field order mirrors Go core/klf.Skeleton: ref then inline.
+  return omitUndefined({ ref: s.ref, inline: s.inline });
 }
 
 function canonicalBlock(b: Block): unknown {

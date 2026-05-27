@@ -1,0 +1,592 @@
+---
+sidebar_position: 3
+title: KLF format
+description: Reference for the Kapi Localization Format (.klf) — the JSON wire serialization of the neokapi Block/Run content model, its file envelope, the run discriminated union, per-locale targets, validation rules, and the companion .klfl annotation overlay.
+keywords: [KLF, kapi localization format, .klf, content model, runs, blocks, exchange format, localization, .klfl, annotations]
+---
+
+# Kapi Localization Format (KLF)
+
+The **Kapi Localization Format** is the JSON wire serialization of neokapi's [content model](/framework/content-model). Where the in-memory model carries the full runtime `Block` (skeleton, overlays, annotations, identity), KLF is the on-disk, language-neutral form of the same data: a set of `Document`s, each holding `Block`s whose translatable content is a flat sequence of `Run`s, with optional per-locale `targets`. It plays the role XLIFF plays in other toolchains — a structured exchange format that moves extracted content between an extractor, a translation step, and a merge step without losing inline markup, placeholders, or plural/select structure.
+
+KLF files use the `.klf` extension and the MIME type `application/vnd.neokapi.klf+json`. A file is auto-detected by that extension and by sniffing the document for the magic string `"kapi-localization-format"`. The format is implemented in Go at [`core/klf`](https://github.com/neokapi/neokapi/tree/main/core/klf) and mirrored in TypeScript as the [`@neokapi/kapi-format`](https://github.com/neokapi/neokapi/tree/main/packages/kapi-format) package; both sides are kept byte-for-byte equivalent by shared golden fixtures. The Go implementation is canonical — where the TypeScript mirror differs, the Go source governs.
+
+Use KLF when you need a faithful, diff-friendly, hashable representation of translatable content: feeding extracted blocks to an AI or MT translation step, exchanging content between tools, or persisting an extraction for later merge. The serializer is deterministic (2-space indent, no HTML escaping, trailing newline), so the byte output is stable for content hashing and for reviewing changes in git.
+
+## Versioning
+
+The current schema version is `1.0`, carried in the `schemaVersion` field of every file. Versions follow a `MAJOR.MINOR` contract:
+
+- **Major** — a breaking change. A consumer **must reject** a file whose major version it does not recognize.
+- **Minor** — a forward-compatible addition. A consumer **should accept** unknown minor versions within a major it understands, ignoring fields it does not recognize.
+
+A reader validates the envelope on load: it rejects any document whose `kind` is not `kapi-localization-format` and any `schemaVersion` whose major does not match the version the build speaks.
+
+## File envelope
+
+The top-level `File` object is the `.klf` document. Field order and shape are normative — deterministic serialization is what keeps the content hash stable across the Go and TypeScript implementations.
+
+| Field           | Type            | Required | Description                                                                 |
+| --------------- | --------------- | -------- | --------------------------------------------------------------------------- |
+| `schemaVersion` | string          | yes      | Wire format version, e.g. `"1.0"`. Subject to the versioning contract above. |
+| `kind`          | string          | yes      | Magic string; must be `"kapi-localization-format"`.                          |
+| `created`       | string          | no       | Creation timestamp (RFC 3339). Omitted when empty.                           |
+| `generator`     | GeneratorInfo   | yes      | The extractor that produced the file.                                       |
+| `project`       | ProjectInfo     | yes      | The project the file belongs to.                                            |
+| `vocabulary`    | Vocabulary      | no       | Vocabulary packs this file's runs depend on. Omitted when absent.           |
+| `documents`     | Document[]      | yes      | One entry per extracted source file.                                        |
+
+### GeneratorInfo
+
+Identifies the extractor that produced the file.
+
+| Field          | Type     | Required | Description                                                        |
+| -------------- | -------- | -------- | ------------------------------------------------------------------ |
+| `id`           | string   | yes      | Extractor identifier, e.g. `"@neokapi/kapi-format-examples"`.      |
+| `version`      | string   | yes      | Extractor version.                                                 |
+| `capabilities` | string[] | no       | Declared capabilities, e.g. `["extract", "preview"]`. Omitted when empty. |
+
+### ProjectInfo
+
+Identifies the project the file belongs to.
+
+| Field          | Type   | Required | Description                                |
+| -------------- | ------ | -------- | ------------------------------------------ |
+| `id`           | string | yes      | Project identifier.                        |
+| `sourceLocale` | string | yes      | BCP-47 locale of the `source` runs.        |
+
+### Vocabulary
+
+Lists the vocabulary packs whose span-type entries the file's runs expect a consumer to have loaded.
+
+| Field     | Type     | Required | Description                                                   |
+| --------- | -------- | -------- | ------------------------------------------------------------- |
+| `extends` | string[] | no       | Names of vocabulary packs, e.g. `["common-formatting", "rich-jsx"]`. |
+
+## Document
+
+A `Document` is one source file's worth of extracted content.
+
+| Field          | Type       | Required | Description                                                              |
+| -------------- | ---------- | -------- | ------------------------------------------------------------------------ |
+| `id`           | string     | yes      | Stable identifier for the document within the file.                      |
+| `documentType` | string     | yes      | Source format discriminator. The Go implementation defines `"jsx"`.      |
+| `path`         | string     | yes      | Path of the source file the content was extracted from.                  |
+| `sourceHash`   | string     | no       | Content hash of the original source file. Omitted when empty.            |
+| `skeleton`     | Skeleton   | no       | Reference to the opaque skeleton used to reconstruct the source on merge. |
+| `blocks`       | Block[]    | yes      | The translatable units extracted from this document.                     |
+
+### Skeleton
+
+A reference to the opaque skeleton payload a merge step consumes to reconstruct the original source file with translated content spliced back in. At least one of the fields is present.
+
+| Field    | Type   | Required | Description                                            |
+| -------- | ------ | -------- | ------------------------------------------------------ |
+| `ref`    | string | no       | Reference to an external skeleton payload. Omitted when empty. |
+| `inline` | string | no       | Inline skeleton payload. Omitted when empty.           |
+
+## Block
+
+A `Block` is the unit of translation tracking. Its `source` is a flat sequence of `Run`s in the project's source locale; committed translations live in the optional per-locale `targets` map (see [Targets](#targets)).
+
+| Field          | Type                     | Required | Description                                                                                  |
+| -------------- | ------------------------ | -------- | -------------------------------------------------------------------------------------------- |
+| `id`           | string                   | yes      | Stable identifier within the document.                                                       |
+| `hash`         | string                   | yes      | Content hash of the block, used for deduplication and change detection.                      |
+| `translatable` | bool                     | yes      | Whether the block should be offered for translation.                                         |
+| `type`         | string                   | yes      | Coarse block classification: `"jsx:element"`, `"jsx:attribute"`, or `"js:t"`.                |
+| `source`       | Run[]                    | yes      | Source-locale content as a run sequence.                                                     |
+| `targets`      | map&lt;locale, Run[]&gt; | no       | Committed translations, keyed by BCP-47 locale. Omitted when there are none.                 |
+| `placeholders` | Placeholder[]            | yes      | Metadata for every placeholder, paired code, and ICU pivot referenced by the runs.           |
+| `properties`   | BlockProperties          | yes      | Provenance metadata (source location, component, JSX path).                                  |
+| `preview`      | BlockPreviewHints        | no       | Optional hints for rendering a preview of the block. Omitted when absent.                    |
+
+### BlockProperties
+
+Provenance metadata describing where the block was extracted from.
+
+| Field       | Type   | Description                                                  |
+| ----------- | ------ | ----------------------------------------------------------- |
+| `file`      | string | Source file path.                                           |
+| `line`      | int    | Line number in the source file.                             |
+| `component` | string | Enclosing component name.                                   |
+| `jsxPath`   | string | Path to the element within the component tree.              |
+| `element`   | string | The element tag the content was extracted from.             |
+| `locNote`   | string | Localization note for translators. Omitted when empty.      |
+
+### BlockPreviewHints
+
+Hints used to render a representative preview of a block.
+
+| Field          | Type            | Description                                                       |
+| -------------- | --------------- | ----------------------------------------------------------------- |
+| `storyId`      | string          | Storybook story identifier. Omitted when empty.                   |
+| `snapshotPath` | string          | Path to a rendered snapshot. Omitted when empty.                  |
+| `sampleValues` | map&lt;string, any&gt; | Sample values for placeholders, keyed by placeholder name. Omitted when absent. |
+
+### Placeholder
+
+A `Placeholder` is metadata about a variable, element, node, or ICU pivot that the block's runs reference. Validators use this list to assert that targets preserve every required placeholder.
+
+| Field        | Type   | Required | Description                                                                                      |
+| ------------ | ------ | -------- | ------------------------------------------------------------------------------------------------ |
+| `name`       | string | yes      | Placeholder name. Matches the `equiv` of the corresponding run, or the `pivot` of a plural/select construct. |
+| `kind`       | string | yes      | One of `"variable"`, `"element"`, `"node"`, or `"icu-pivot"`.                                    |
+| `jsType`     | string | no       | The JavaScript/TypeScript type of the value, e.g. `"number"`, `"string"`, `"ReactNode"`. Omitted when empty. |
+| `sourceExpr` | string | yes      | The source expression the placeholder was extracted from.                                        |
+| `optional`   | bool   | no       | When `true`, the placeholder may be dropped in a target (e.g. a conditional JSX node). Omitted when `false`. |
+
+## The Run model
+
+A `Run` is one element in a block's flat inline content sequence. Runs are a discriminated union: each run is a JSON object with **exactly one** discriminator key. A run object with zero or more than one discriminator is rejected on decode. The seven kinds are `text`, `ph`, `pcOpen`, `pcClose`, `sub`, `plural`, and `select`.
+
+Text is the one kind serialized flat — `{"text": "..."}` — where the discriminator's value is the string itself. Every other kind nests its object under the discriminator key.
+
+### text — a plain text chunk
+
+```json
+{ "text": "Files " }
+```
+
+### ph — a self-closing placeholder
+
+A `ph` run is a self-contained inline token: a variable interpolation, a conditional JSX expression, a `<br/>`, an icon, a redaction, and so on.
+
+| Field         | Type            | Required | Description                                                       |
+| ------------- | --------------- | -------- | ----------------------------------------------------------------- |
+| `id`          | string          | yes      | Run identifier, unique within the block.                          |
+| `type`        | string          | yes      | Producer-specific run type, e.g. `"jsx:var"`, `"jsx:node"`.       |
+| `subType`     | string          | no       | Finer classification, e.g. `"number"`, `"string"`. Omitted when empty. |
+| `data`        | string          | yes      | The original token the reader captured, e.g. `"{count}"`.         |
+| `equiv`       | string          | yes      | Equivalence name; the placeholder this run stands for.            |
+| `disp`        | string          | no       | Short display label for chips. Falls back to `equiv`. Omitted when empty. |
+| `constraints` | RunConstraints  | no       | Per-run editing constraints (see [RunConstraints](#runconstraints)). Omitted when absent. |
+
+```json
+{
+  "ph": {
+    "id": "2",
+    "type": "jsx:var",
+    "subType": "number",
+    "data": "{count}",
+    "equiv": "count",
+    "disp": "count"
+  }
+}
+```
+
+### pcOpen / pcClose — paired codes
+
+A paired code is split into an opening run (`pcOpen`) and a closing run (`pcClose`) that share the same `id` within a runs scope. They wrap the content between them — the analogue of an opening and closing HTML/JSX tag.
+
+`pcOpen` carries the same fields as `ph` (`id`, `type`, `subType`, `data`, `equiv`, `disp`, `constraints`). `pcClose` carries `id`, `type`, `subType`, `data`, and an optional `equiv` (repeated for locality so a renderer can render the closing half on its own).
+
+```json
+{
+  "pcOpen": {
+    "id": "1",
+    "type": "jsx:element",
+    "subType": "span",
+    "data": "<span className=\"muted\">",
+    "equiv": "muted",
+    "disp": "span"
+  }
+}
+```
+
+```json
+{
+  "pcClose": {
+    "id": "1",
+    "type": "jsx:element",
+    "subType": "span",
+    "data": "</span>",
+    "equiv": "muted"
+  }
+}
+```
+
+### sub — a reference to a subblock
+
+A `sub` run references another `Block` by id. It is emitted when an outer format extracts a field whose value is itself a mini-document in another format: a subfilter produces a separate block, and the outer block points at it.
+
+| Field   | Type   | Required | Description                              |
+| ------- | ------ | -------- | ---------------------------------------- |
+| `id`    | string | yes      | Run identifier within the block.         |
+| `ref`   | string | yes      | The id of the referenced subblock.       |
+| `equiv` | string | yes      | Equivalence name for the subblock token. |
+
+```json
+{ "sub": { "id": "1", "ref": "subblock-7", "equiv": "body" } }
+```
+
+### plural — a structured plural construct
+
+A `plural` run carries an ICU plural construct as first-class structure: a `pivot` variable that drives selection, and a `forms` map keyed by plural form. Each form's value is itself a `Run[]`, so inline markup and placeholders inside a plural clause stay first-class.
+
+| Field   | Type                      | Required | Description                                                                  |
+| ------- | ------------------------- | -------- | ---------------------------------------------------------------------------- |
+| `pivot` | string                    | yes      | The variable driving plural selection. Declared in `placeholders` with kind `icu-pivot`. |
+| `forms` | map&lt;form, Run[]&gt;    | yes      | One run sequence per plural form.                                            |
+
+The form keys are the CLDR plural categories: `zero`, `one`, `two`, `few`, `many`, `other`.
+
+```json
+{
+  "plural": {
+    "pivot": "count",
+    "forms": {
+      "zero": [{ "text": "Your cart is empty" }],
+      "one": [{ "text": "1 item in your cart" }],
+      "other": [
+        {
+          "ph": {
+            "id": "1",
+            "type": "jsx:var",
+            "subType": "number",
+            "data": "{count}",
+            "equiv": "count",
+            "disp": "count"
+          }
+        },
+        { "text": " items in your cart" }
+      ]
+    }
+  }
+}
+```
+
+### select — a structured select construct
+
+A `select` run is symmetric to `plural`, but its `cases` map is keyed by arbitrary string values (such as `male` / `female` / `other`) rather than fixed plural categories.
+
+| Field   | Type                      | Required | Description                                              |
+| ------- | ------------------------- | -------- | -------------------------------------------------------- |
+| `pivot` | string                    | yes      | The variable driving selection. Declared in `placeholders`. |
+| `cases` | map&lt;string, Run[]&gt;  | yes      | One run sequence per select case.                        |
+
+```json
+{
+  "select": {
+    "pivot": "gender",
+    "cases": {
+      "male": [{ "text": "He liked your post" }],
+      "female": [{ "text": "She liked your post" }],
+      "other": [{ "text": "They liked your post" }]
+    }
+  }
+}
+```
+
+### RunConstraints
+
+Optional per-run editing constraints, present on `ph` and `pcOpen` runs when a run overrides its vocabulary defaults.
+
+| Field         | Type | Description                                     |
+| ------------- | ---- | ----------------------------------------------- |
+| `deletable`   | bool | Whether the run may be deleted in a target.     |
+| `cloneable`   | bool | Whether the run may be duplicated in a target.  |
+| `reorderable` | bool | Whether the run may be moved within a target.   |
+
+## Targets
+
+A block's committed translations live in `targets`, a map keyed by BCP-47 locale whose value is a `Run[]` — the translated content for that locale, using exactly the same run primitives as `source`. The field is omitted entirely when a block has no targets.
+
+```json
+{
+  "id": "files-heading",
+  "hash": "2xykvb",
+  "translatable": true,
+  "type": "jsx:element",
+  "source": [{ "text": "Files matched" }],
+  "targets": {
+    "fr-FR": [{ "text": "Fichiers trouvés" }],
+    "de-DE": [{ "text": "Gefundene Dateien" }]
+  },
+  "placeholders": [],
+  "properties": {
+    "file": "src/FilesHeading.tsx",
+    "line": 4,
+    "component": "FilesHeading",
+    "jsxPath": "FilesHeading > h2",
+    "element": "h2"
+  }
+}
+```
+
+A target may add content, restructure text, or re-wrap paired codes, but it must preserve every required placeholder from the source.
+
+## Validation
+
+The validator reports problems as typed errors, each carrying a machine-readable `kind`. Two checks are exposed: a structural well-formedness check over a block's runs (`ValidateBlock`), and a placeholder-preservation check of a target against its source (`ValidateTargetAgainstSource`). Validation walks into nested plural forms and select cases as their own scopes.
+
+| Kind                     | Meaning                                                                          |
+| ------------------------ | -------------------------------------------------------------------------------- |
+| `missing-placeholder`    | A target dropped a required (non-optional) source placeholder.                   |
+| `extra-placeholder`      | A target introduced a placeholder not present in the source.                     |
+| `malformed-runs`         | A run is not a well-formed discriminated union — it has zero or more than one discriminator key set. |
+| `unknown-placeholder`    | A source run references a placeholder (or plural/select pivot) not declared in the block's `placeholders` list. |
+| `unclosed-paired-code`   | A `pcOpen` has no matching `pcClose` in the same runs scope.                      |
+| `unmatched-close-code`   | A `pcClose` has no matching `pcOpen`.                                             |
+| `duplicate-paired-code`  | Two `pcOpen` runs share the same id within a single runs scope.                  |
+
+## Companion annotation file (`.klfl`)
+
+Stand-off annotations — review status, protected terms, MT confidence, glossary matches — live in a companion `.klfl` file rather than inside the `.klf` itself. A `.klfl` file is **JSON-Lines**: each line is one compact JSON record (no indentation, LF-terminated), which keeps it grep- and diff-friendly. The first non-empty line is a header record (`"type": "header"`); every subsequent non-empty line is an annotation record (`"type": "annotation"`).
+
+The header carries `annotationType`, `annotationVersion`, a `producer` (`id` + `version`), a `created` timestamp, and `targetArchive` — the archive state the annotations were produced against. Each annotation record carries a `type`, an `id`, an `anchor`, and a producer-specific `data` payload (the framework imposes no schema on `data`).
+
+An **anchor** binds an annotation to a location in a block. Its `kind` discriminates four shapes:
+
+| Anchor kind | Meaningful fields              | Targets                                                       |
+| ----------- | ------------------------------ | ------------------------------------------------------------- |
+| `block`     | `block`                        | Block-level metadata.                                         |
+| `run`       | `block`, `path`, `runId`       | A specific run, identified by path and matched against `runId`. |
+| `range`     | `block`, `path`, `offset`, `length` | A character range inside a text run (offsets in UTF-16 code units). |
+| `form`      | `block`, `path`, `key`         | A specific plural form or select case, selected by `key`.     |
+
+The `path` is a list of steps into a block's nested run structure: a bare number indexes into a `Run[]`, an object `{"plural": "<form>"}` descends into a plural form, and `{"select": "<value>"}` descends into a select case. An empty path refers to the block's top-level source runs.
+
+Resolving an anchor against a block either succeeds or returns one of six machine-readable failure reasons:
+
+| Reason                | Meaning                                                            |
+| --------------------- | ----------------------------------------------------------------- |
+| `block-not-found`     | The anchored block id does not match.                             |
+| `path-out-of-bounds`  | A path step indexes past the end of a run sequence.               |
+| `path-wrong-kind`     | The path lands on a run of the wrong kind for the anchor.         |
+| `run-id-mismatch`     | The resolved run's id differs from the recorded `runId` (a likely orphan). |
+| `range-out-of-bounds` | The character range exceeds the target text run.                  |
+| `form-not-found`      | The anchored plural form or select case does not exist on the block. |
+
+An example header and run-level annotation record:
+
+```json
+{"type":"header","annotationType":"@neokapi/example","annotationVersion":"1.0.0","producer":{"id":"@neokapi/kapi-format-examples","version":"0.0.1"},"created":"2026-04-15T12:00:00Z","targetArchive":"sha256:deadbeef"}
+{"type":"annotation","id":"term-1","anchor":{"kind":"run","block":"tag-chip","path":[2],"runId":"2"},"data":{"kind":"protected-term","term":"label","action":"preserve-placeholder","confidence":1.0}}
+```
+
+## Complete example
+
+A complete `.klf` document with one `Document` holding three blocks: an inline paired code wrapping a variable, a set of conditional JSX node placeholders, and a structured plural construct. This is the canonical example fixture shared between the Go and TypeScript implementations.
+
+```json
+{
+  "schemaVersion": "1.0",
+  "kind": "kapi-localization-format",
+  "created": "2026-04-15T10:00:00Z",
+  "generator": {
+    "id": "@neokapi/kapi-format-examples",
+    "version": "0.0.1",
+    "capabilities": ["extract", "preview"]
+  },
+  "project": {
+    "id": "neokapi-kapi-format-examples",
+    "sourceLocale": "en"
+  },
+  "vocabulary": {
+    "extends": ["common-formatting", "rich-html", "rich-jsx"]
+  },
+  "documents": [
+    {
+      "id": "examples",
+      "documentType": "jsx",
+      "path": "examples/all.tsx",
+      "blocks": [
+        {
+          "id": "files-heading",
+          "hash": "2xykvb",
+          "translatable": true,
+          "type": "jsx:element",
+          "source": [
+            { "text": "Files " },
+            {
+              "pcOpen": {
+                "id": "1",
+                "type": "jsx:element",
+                "subType": "span",
+                "data": "<span className=\"muted\">",
+                "equiv": "muted",
+                "disp": "span"
+              }
+            },
+            { "text": "(" },
+            {
+              "ph": {
+                "id": "2",
+                "type": "jsx:var",
+                "subType": "number",
+                "data": "{count}",
+                "equiv": "count",
+                "disp": "count"
+              }
+            },
+            { "text": " matched)" },
+            {
+              "pcClose": {
+                "id": "1",
+                "type": "jsx:element",
+                "subType": "span",
+                "data": "</span>",
+                "equiv": "muted"
+              }
+            }
+          ],
+          "placeholders": [
+            {
+              "name": "muted",
+              "kind": "element",
+              "jsType": "ReactNode",
+              "sourceExpr": "<span className=\"muted\">...</span>"
+            },
+            {
+              "name": "count",
+              "kind": "variable",
+              "jsType": "number",
+              "sourceExpr": "count"
+            }
+          ],
+          "properties": {
+            "file": "src/FilesHeading.tsx",
+            "line": 4,
+            "component": "FilesHeading",
+            "jsxPath": "FilesHeading > h2",
+            "element": "h2"
+          },
+          "preview": {
+            "sampleValues": { "count": 3 }
+          }
+        },
+        {
+          "id": "tag-chip",
+          "hash": "2GcSuQ",
+          "translatable": true,
+          "type": "jsx:element",
+          "source": [
+            {
+              "ph": {
+                "id": "1",
+                "type": "jsx:node",
+                "subType": "logical-and",
+                "data": "index !== undefined && <span className=\"badge\">{index}</span>",
+                "equiv": "badge",
+                "disp": "⟨badge⟩"
+              }
+            },
+            { "text": " " },
+            {
+              "ph": {
+                "id": "2",
+                "type": "jsx:var",
+                "subType": "string",
+                "data": "{label}",
+                "equiv": "label",
+                "disp": "label"
+              }
+            },
+            { "text": " " },
+            {
+              "ph": {
+                "id": "3",
+                "type": "jsx:node",
+                "subType": "logical-and",
+                "data": "!deletable && <span className=\"required\">*</span>",
+                "equiv": "required",
+                "disp": "⟨required⟩"
+              }
+            }
+          ],
+          "placeholders": [
+            {
+              "name": "badge",
+              "kind": "node",
+              "jsType": "ReactNode",
+              "sourceExpr": "index !== undefined && <span className=\"badge\">{index}</span>",
+              "optional": true
+            },
+            {
+              "name": "label",
+              "kind": "variable",
+              "jsType": "string",
+              "sourceExpr": "label"
+            },
+            {
+              "name": "required",
+              "kind": "node",
+              "jsType": "ReactNode",
+              "sourceExpr": "!deletable && <span className=\"required\">*</span>",
+              "optional": true
+            }
+          ],
+          "properties": {
+            "file": "src/TagChip.tsx",
+            "line": 3,
+            "component": "TagChip",
+            "jsxPath": "TagChip > span[data-tag-chip]",
+            "element": "span",
+            "locNote": "Tag chip shown in the sidebar list of filters."
+          },
+          "preview": {
+            "storyId": "components-tagchip--default",
+            "sampleValues": { "label": "react", "index": 3, "deletable": true }
+          }
+        },
+        {
+          "id": "shopping-cart-plural",
+          "hash": "9QpZ11",
+          "translatable": true,
+          "type": "jsx:element",
+          "source": [
+            {
+              "plural": {
+                "pivot": "count",
+                "forms": {
+                  "zero": [{ "text": "Your cart is empty" }],
+                  "one": [{ "text": "1 item in your cart" }],
+                  "other": [
+                    {
+                      "ph": {
+                        "id": "1",
+                        "type": "jsx:var",
+                        "subType": "number",
+                        "data": "{count}",
+                        "equiv": "count",
+                        "disp": "count"
+                      }
+                    },
+                    { "text": " items in your cart" }
+                  ]
+                }
+              }
+            }
+          ],
+          "placeholders": [
+            {
+              "name": "count",
+              "kind": "icu-pivot",
+              "jsType": "number",
+              "sourceExpr": "items"
+            }
+          ],
+          "properties": {
+            "file": "src/ShoppingCart.tsx",
+            "line": 4,
+            "component": "ShoppingCart",
+            "jsxPath": "ShoppingCart > p > Plural",
+            "element": "Plural"
+          },
+          "preview": {
+            "sampleValues": { "count": 3 }
+          }
+        }
+      ]
+    }
+  ]
+}
+```
+
+## See also
+
+- [Content model](/framework/content-model) — the in-memory `Block`/`Run` model KLF serializes.
+- [Project file](/reference/project-file) — the `.kapi` recipe that drives extraction and merge.
+- [Format Reference](/formats) — the full grid of format readers and writers, including the KLF reader/writer.
+- The reference implementations: [`core/klf`](https://github.com/neokapi/neokapi/tree/main/core/klf) (Go, canonical) and [`@neokapi/kapi-format`](https://github.com/neokapi/neokapi/tree/main/packages/kapi-format) (TypeScript mirror).

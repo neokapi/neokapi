@@ -223,7 +223,9 @@ type grepOptions struct {
 }
 
 func (a *App) runGrep(ctx context.Context, args []string, m *matcher, opts grepOptions) error {
+	hadError := false
 	files, err := expandInputs(args, opts.recursive, func(path string, err error) {
+		hadError = true
 		fmt.Fprintf(os.Stderr, "kgrep: %s: %v\n", path, err)
 	})
 	if err != nil {
@@ -270,6 +272,7 @@ func (a *App) runGrep(ctx context.Context, args []string, m *matcher, opts grepO
 			if errors.Is(ferr, context.Canceled) {
 				return ferr
 			}
+			hadError = true
 			fmt.Fprintf(os.Stderr, "kgrep: %s: %v\n", displayName(file), ferr)
 			continue
 		}
@@ -302,6 +305,13 @@ func (a *App) runGrep(ctx context.Context, args []string, m *matcher, opts grepO
 		}
 	}
 
+	if hadError {
+		// A read/access error occurred (the per-file warnings above were already
+		// printed). grep's convention is exit 2 (trouble), which takes precedence
+		// over the match/no-match status. WithExitCode(ExitUsage, ErrSilentExit)
+		// yields exit 2 with no extra summary line (ErrSilentExit suppresses it).
+		return WithExitCode(ExitUsage, ErrSilentExit)
+	}
 	if !anyMatch {
 		return ErrSilentExit // exit status 1, no message (grep convention)
 	}

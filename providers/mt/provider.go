@@ -3,6 +3,8 @@ package mtprovider
 
 import (
 	"context"
+	"fmt"
+	"sync"
 
 	"github.com/neokapi/neokapi/core/model"
 )
@@ -44,4 +46,96 @@ type TranslateRequest struct {
 // TranslateResponse contains the translation result.
 type TranslateResponse struct {
 	Translation string
+}
+
+// ---------------------------------------------------------------------------
+// Config-driven provider registry (mirrors providers/ai's NewProvider)
+// ---------------------------------------------------------------------------
+
+// MTConfig is the generic, credential-bearing configuration used to construct
+// any registered MT provider from a flow/CLI config map. It is the union of the
+// per-provider credential fields; each provider factory consumes the fields it
+// needs and ignores the rest. The CLI credential resolver populates APIKey from
+// the OS keychain (see cli/credentials/resolve.go); other fields come from the
+// recipe step config.
+type MTConfig struct {
+	// APIKey is the primary credential for deepl, google, and modernmt.
+	APIKey string `json:"apiKey,omitempty"`
+	// SubscriptionKey is the Azure credential for the microsoft provider. When
+	// empty, APIKey is used as a fallback so credential resolution (which injects
+	// "apiKey") works uniformly across providers.
+	SubscriptionKey string `json:"subscriptionKey,omitempty"`
+	// Region is the Azure region for the microsoft provider.
+	Region string `json:"region,omitempty"`
+	// Email is the optional MyMemory account email for higher rate limits.
+	Email string `json:"email,omitempty"`
+	// ProjectID is the optional Google Cloud project id.
+	ProjectID string `json:"projectId,omitempty"`
+	// BaseURL overrides the provider API endpoint (primarily for tests).
+	BaseURL string `json:"baseURL,omitempty"`
+}
+
+// ConfigFactory builds an MTProvider from a generic MTConfig. Real providers
+// (deepl, google, microsoft, modernmt, mymemory) register one so that the
+// <provider>-translate tools can be constructed from a flow/CLI config map.
+type ConfigFactory func(cfg MTConfig) MTProvider
+
+var (
+	configFactoryMu sync.RWMutex
+	configFactories = map[ProviderID]ConfigFactory{}
+)
+
+// RegisterConfigFactory registers a config-driven MT provider factory by id.
+// Plugins may call this to add providers that the <provider>-translate tools
+// can construct from recipe config.
+func RegisterConfigFactory(id ProviderID, factory ConfigFactory) {
+	configFactoryMu.Lock()
+	defer configFactoryMu.Unlock()
+	configFactories[id] = factory
+}
+
+// NewProviderWithConfig constructs a credential-bearing MT provider by id from
+// a generic MTConfig. Returns an error if the id has no registered config
+// factory.
+func NewProviderWithConfig(id ProviderID, cfg MTConfig) (MTProvider, error) {
+	configFactoryMu.RLock()
+	factory, ok := configFactories[id]
+	configFactoryMu.RUnlock()
+	if !ok {
+		return nil, fmt.Errorf("unknown MT provider: %s", id)
+	}
+	return factory(cfg), nil
+}
+
+// HasConfigFactory reports whether a config-driven factory is registered for id.
+func HasConfigFactory(id ProviderID) bool {
+	configFactoryMu.RLock()
+	defer configFactoryMu.RUnlock()
+	_, ok := configFactories[id]
+	return ok
+}
+
+func init() {
+	RegisterConfigFactory(DeepL, func(cfg MTConfig) MTProvider {
+		return NewDeepLProvider(DeepLConfig{APIKey: cfg.APIKey, BaseURL: cfg.BaseURL})
+	})
+	RegisterConfigFactory(Google, func(cfg MTConfig) MTProvider {
+		return NewGoogleProvider(GoogleConfig{APIKey: cfg.APIKey, ProjectID: cfg.ProjectID, BaseURL: cfg.BaseURL})
+	})
+	RegisterConfigFactory(MSFT, func(cfg MTConfig) MTProvider {
+		key := cfg.SubscriptionKey
+		if key == "" {
+			key = cfg.APIKey
+		}
+		return NewMicrosoftProvider(MicrosoftConfig{SubscriptionKey: key, Region: cfg.Region, BaseURL: cfg.BaseURL})
+	})
+	RegisterConfigFactory(ModernMT, func(cfg MTConfig) MTProvider {
+		return NewModernMTProvider(ModernMTConfig{APIKey: cfg.APIKey, BaseURL: cfg.BaseURL})
+	})
+	RegisterConfigFactory(MyMemory, func(cfg MTConfig) MTProvider {
+		return NewMyMemoryProvider(MyMemoryConfig{Email: cfg.Email, BaseURL: cfg.BaseURL})
+	})
+	// The demo provider is also config-constructible (ignores all credentials)
+	// so the config path can fall back to illustrative output without keys.
+	RegisterConfigFactory(Demo, func(_ MTConfig) MTProvider { return NewDemoProvider() })
 }

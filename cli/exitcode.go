@@ -32,6 +32,27 @@ var ErrQualityGate = errors.New("quality gate failed")
 // responsible for writing any output of its own before returning it.
 var ErrSilentExit = errors.New("")
 
+// exitCodeError wraps an error with an explicit process exit code. A command
+// returns one (via WithExitCode) when it needs a specific code — e.g. the
+// toolbox utilities' grep-style "2 on trouble" — while still printing the
+// underlying message. ExitCode honors it.
+type exitCodeError struct {
+	code int
+	err  error
+}
+
+func (e *exitCodeError) Error() string { return e.err.Error() }
+func (e *exitCodeError) Unwrap() error { return e.err }
+
+// WithExitCode tags err with an explicit process exit code for ExitCode to
+// return. It returns nil when err is nil.
+func WithExitCode(code int, err error) error {
+	if err == nil {
+		return nil
+	}
+	return &exitCodeError{code: code, err: err}
+}
+
 // SignalContext returns a context that is cancelled on SIGINT or SIGTERM,
 // along with a stop function that must be called to release resources.
 func SignalContext(parent context.Context) (context.Context, context.CancelFunc) {
@@ -39,8 +60,10 @@ func SignalContext(parent context.Context) (context.Context, context.CancelFunc)
 }
 
 // ExitCode determines the appropriate exit code for the given error.
-// It returns ExitSignal for context cancellation (Ctrl-C), ExitUsage for
-// usage/flag errors, and ExitError for all other errors.
+// It returns ExitSignal for context cancellation (Ctrl-C), ExitGate for a
+// failed quality/brand gate, an explicit code for errors tagged via
+// WithExitCode (e.g. the toolbox utilities mapping operational trouble to
+// ExitUsage), and ExitError for all other errors.
 func ExitCode(_ *cobra.Command, err error) int {
 	if err == nil {
 		return ExitOK
@@ -54,6 +77,13 @@ func ExitCode(_ *cobra.Command, err error) int {
 	// Quality/brand gate failure gets a distinct code.
 	if errors.Is(err, ErrQualityGate) {
 		return ExitGate
+	}
+
+	// An explicit exit code requested by the command (e.g. a toolbox utility
+	// mapping operational trouble to ExitUsage).
+	var coded *exitCodeError
+	if errors.As(err, &coded) {
+		return coded.code
 	}
 
 	return ExitError

@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	aitools "github.com/neokapi/neokapi/core/ai/tools"
+	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/schema"
 	libtools "github.com/neokapi/neokapi/core/tools"
@@ -174,4 +175,16 @@ func TestCollectorFactories_WordCount(t *testing.T) {
 	require.True(t, ok, "word-count should have a collector factory")
 	collector := cf()
 	assert.NotNil(t, collector)
+}
+
+// TestCollectorFactories_SegmentCount guards the #721 fix: segment-count must
+// have a collector factory, otherwise RunToolOnFiles aggregates nothing and
+// prints empty output for every format.
+func TestCollectorFactories_SegmentCount(t *testing.T) {
+	cf, ok := CollectorFactories["segment-count"]
+	require.True(t, ok, "segment-count should have a collector factory")
+	collector := cf()
+	require.NotNil(t, collector)
+	_, isStreaming := collector.(flow.StreamingCollector)
+	assert.True(t, isStreaming, "segment-count collector should be a streaming collector")
 }

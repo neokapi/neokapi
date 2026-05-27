@@ -224,9 +224,13 @@ via `ParseRunsPlaceholderText`, so inline markup survives the round trip.
 Prompt templates live in `core/ai/prompt/` as versioned Go files
 using `text/template`:
 
-- `translate.go` — translation prompts with glossary and context
+- `translate.go` — translation prompts with glossary and context (single
+  and batched)
 - `qa.go` — quality assurance check prompts
-- `review.go` — translation review with explanations
+
+Tool-specific prompts that have not been factored into the shared `prompt`
+package (e.g. the review prompt) are built inline in their tool, such as
+`core/ai/tools/review.go`.
 
 Templates are context-aware: they include surrounding Blocks for document
 context, glossary constraints from term lookup, TM matches from

@@ -67,9 +67,11 @@ picks it up when the output path's extension says `.mo`.
 
 ### 4. Localize at the API boundary, not per-call-site
 
-One pass at metadata egress — `i18n.LocalizeComponentSchema(s, t)` and
-`i18n.LocalizeCapability(c, t)` — centralizes translation instead of
-scattering `T(...)` calls through tool constructors. The surface is
+One pass at metadata egress — `i18n.LocalizeComponentSchema(s, t)` —
+centralizes translation instead of scattering `T(...)` calls through tool
+constructors. Because tool and format metadata both serialize as a
+`ComponentSchema`, a single localizer over that type covers both. The surface
+is
 finite and centralized (CLI `tools` / `formats` / `plugins` listings and
 the Wails metadata readers), so one localization pass at egress covers it.
 
@@ -82,7 +84,7 @@ core/i18n/
 ├── doc.go                    # //go:generate directive
 ├── catalog.go                # Scope, Translator, gotext-backed lookup
 ├── resolve.go                # --lang / KAPI_LANG / config / LC_ALL / LANG chain
-├── schema.go                 # LocalizeComponentSchema, LocalizeCapability
+├── schema.go                 # LocalizeComponentSchema
 ├── embed.go                  # //go:embed all:catalogs → builtin MO files
 ├── catalogs/                 # Compiled MO per locale (committed)
 ├── builtins/

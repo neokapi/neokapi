@@ -264,7 +264,7 @@ flows:
     steps:
       - tool: tm-leverage
         config:
-          fuzzy_threshold: 75
+          fuzzyThreshold: 75
       - tool: ai-translate
         config:
           provider: anthropic
@@ -274,5 +274,5 @@ flows:
     steps:
       - tool: pseudo-translate
         config:
-          expansion_rate: 1.3
+          expansionPercent: 30
 ```

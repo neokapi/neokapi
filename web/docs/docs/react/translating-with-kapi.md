@@ -56,25 +56,15 @@ kapi ai-translate i18n/ --target-lang ja
 
 Each call accumulates a target locale in place. To redirect output to a different file, pass `-o target-dir/` — the input stays untouched.
 
-Supported providers (configured in `kapi.yaml` or via flags):
+kapi supports Anthropic, OpenAI, Google Gemini, Azure OpenAI, and local Ollama models. Select the provider (and optionally the model) with flags — or in a flow's step config:
 
-- **Anthropic** — Claude models. Recommended for quality.
-- **OpenAI** — GPT models.
-- **Google Gemini** — streaming + live thinking progress.
-- **Azure OpenAI** — Azure-hosted GPT models.
-- **Ollama** — local models, no API key.
-
-Configuration example:
-
-```yaml title="kapi.yaml"
-tools:
-  ai-translation:
-    provider: anthropic
-    model: claude-sonnet-4-6
-    apiKey: ${ANTHROPIC_API_KEY}
+```bash
+kapi ai-translate i18n/ --target-lang fr --provider anthropic
 ```
 
-See [AI translation](/framework/ai-translation) for the full configuration surface.
+API keys are never written into the committed recipe. Supply one, in precedence order, with `--api-key`, a saved keychain credential (`kapi credentials add`, then `--credential <name>`), or the provider's standard environment variable (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY`, …). Local Ollama needs no key.
+
+See [AI translation](/framework/ai-translation) for the full provider and configuration surface.
 
 ### Context carries through
 
@@ -82,64 +72,61 @@ Every block in the KLF directory carries its `jsxPath` (e.g. `"div > button"`), 
 
 ### Translate a subset
 
-For incremental translations (only the strings that changed), extract and diff against the existing archive:
+For incremental translations (only the strings that changed), re-extract into the same archive and translate only the untranslated blocks. `kapi-react extract` is locale-additive, so re-running it adds new source blocks without disturbing existing targets; `ai-translate --skip-matched` then skips any block that already has a target for the locale:
 
 ```bash
-vp kapi-react extract --out i18n-new/
-kapi diff i18n-new/ i18n/ --only-new -o i18n-delta/
-kapi ai-translate i18n-delta/ --target-lang fr -o i18n-delta-fr/
-kapi merge i18n/ i18n-delta-fr/ -o i18n/
+vp kapi-react extract                          # refresh i18n/ with new/changed blocks
+kapi ai-translate i18n/ --target-lang fr --skip-matched
 ```
+
+Only the blocks added since the last pass are sent to the LLM; everything already translated is left as-is.
 
 ## Quality assurance
 
-`kapi qa` runs terminology, placeholder, and consistency checks against a translated `.klf`:
+`kapi qa-check` runs placeholder, inline-code, whitespace, and length checks against a translated archive; `kapi term-check` enforces a glossary:
 
 ```bash
-kapi qa i18n/ \
-  --termbase fr-termbase.csv \
-  --target-lang fr
+kapi qa-check i18n/ --target-lang fr                                # placeholder, code, length, consistency
+kapi term-check i18n/ --target-lang fr --termbase fr-termbase.csv   # terminology
 ```
 
-Checks:
+`qa-check` covers:
 
-- **Placeholder integrity** — every `{name}` in the source appears in the target.
-- **Terminology adherence** — if a termbase says `kapi` must stay `kapi`, flag targets that translated it.
-- **Tag consistency** — `{=m0}` in the source must appear in the target; `<strong>` ↔ `<strong>` preserved.
-- **Length bounds** — optional per-block character limits (useful for UI strings with fixed-width containers).
+- **Placeholder & inline-code integrity** — every `{name}` and inline-element token (`{=m0}`) in the source appears in the target.
+- **Length bounds** — flag targets that grow or shrink beyond configurable percentages of the source (useful for fixed-width UI containers).
+- **Consistency** — double spaces, doubled words, leading/trailing whitespace, target-identical-to-source, and more (each individually toggleable).
 
-QA results can fail your build — a common CI pattern is `extract → ai-translate → qa`, failing on any category you care about.
+`term-check` flags targets that violate the glossary — e.g. a brand term that must stay untranslated. (`kapi qa-check --check-terminology` folds the project termbase into the QA pass instead of running a separate command.)
+
+QA results can fail your build — a common CI pattern is `extract → ai-translate → qa-check`, exiting non-zero on any category you gate on.
 
 ## Translation memory leverage
 
 `kapi` has a built-in SQLite translation memory. Feed past translations in:
 
 ```bash
-kapi tm import historical-translations.xliff --source-lang en --target-lang fr
+kapi tm import historical-translations.xliff -s en -t fr
 ```
 
-Then when you translate a new `.klf`:
+Then pre-fill matches before the AI pass: `kapi tm-leverage` writes exact and high-scoring fuzzy matches into the target, and `ai-translate --skip-matched` translates only what's left:
 
 ```bash
-kapi ai-translate i18n/ --target-lang fr --tm-leverage
+kapi tm-leverage i18n/ --target-lang fr            # fill targets from the TM (defaults to the project TM)
+kapi ai-translate i18n/ --target-lang fr --skip-matched
 ```
 
-Segments that match (or fuzzy-match) past translations come through pre-populated — the AI only translates what's new.
+Pass `--tm <name-or-path>` to leverage a specific TM. See [Translation memory](/framework/translation-memory) for the match and fill thresholds.
 
-See [Translation memory](/framework/translation-memory) for more.
+## Terminology consistency
 
-## Terminology pre-translation
-
-For apps with a large product vocabulary, pre-translate terminology before the AI pass so terms are consistently rendered:
+For apps with a large product vocabulary, keep terms rendered consistently with a termbase. Import the glossary, then gate translations with `kapi term-check` so any target that diverges from an approved term is flagged:
 
 ```bash
-kapi tools terminology-pretranslation i18n/ \
-  --termbase product-terms.csv \
-  --target-lang fr \
-  -o i18n-pre/
+kapi termbase import product-terms.csv -s en -t fr
+kapi term-check i18n/ --target-lang fr --termbase product-terms.csv
 ```
 
-Then pass `i18n-pre/` to `kapi ai-translate`, which respects the pre-translated segments.
+To feed terminology into the translation step itself rather than only checking it afterward, compose a [flow](/framework/flows) that runs term lookup before `ai-translate` — the matched terms become glossary context in the prompt.
 
 See [Terminology](/framework/terminology).
 
@@ -160,19 +147,19 @@ A complete Makefile / package-scripts setup for a multi-locale app:
 
 ## Project-driven alternative
 
-If you have a [`.kapi` project file](/contribute/architecture/008-project-model) with the collection's `archive:` pointing at `i18n/`, the scripts collapse to one sync call:
+A [`.kapi` project file](/contribute/architecture/008-project-model) captures the content patterns, target languages, flows, and defaults once, so you drive everything through named flows instead of repeating flags. Define a `translate` flow in the recipe (for example `tm-leverage` → `ai-translate` → `qa-check`), then:
 
 ```json title="package.json"
 {
   "scripts": {
-    "i18n:extract": "kapi extract -p translation.kapi",
-    "i18n:sync": "kapi sync -p translation.kapi --tool ai-translate",
+    "i18n:extract": "vp kapi-react extract",
+    "i18n:translate": "kapi run translate",
     "i18n:compile": "vp kapi-react compile i18n/ --out public/translations"
   }
 }
 ```
 
-`kapi sync` iterates every (archive, missing-locale) pair from the project's declared target languages and runs the given tool. `kapi status -p translation.kapi` gives a quick coverage check without running anything.
+`kapi run` discovers the nearest `.kapi` recipe (or pass `-p translation.kapi`) and executes the flow with the project's declared source and target languages and defaults. See [Flows](/framework/flows) and the [project model](/contribute/architecture/008-project-model).
 
 ## Next
 

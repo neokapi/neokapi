@@ -111,7 +111,7 @@ const sidebars: SidebarsConfig = {
     },
   ],
 
-  referenceSidebar: ["reference/index", "reference/project-file", "reference/mcp"],
+  referenceSidebar: ["reference/index", "reference/project-file", "reference/klf-format", "reference/mcp"],
 
   toolboxSidebar: [
     "toolbox/overview",

@@ -80,7 +80,7 @@ A single `Part` struct carries a `PartType` enum and a `Resource`:
 ```go
 type Part struct {
     Type     PartType
-    Resource Resource  // Block, Layer, Data, or Media
+    Resource Resource  // Block, Layer, Group, Data, or Media
 }
 
 type Resource interface {
@@ -88,12 +88,18 @@ type Resource interface {
 }
 ```
 
-`PartType` values are `PartLayerStart`, `PartLayerEnd`, `PartBlock`,
-`PartData`, `PartMedia`, and `PartCustom`.
+`PartType` values are `PartTypeUnknown` (the zero value),
+`PartLayerStart`, `PartLayerEnd`, `PartGroupStart`, `PartGroupEnd`,
+`PartBlock`, `PartData`, `PartMedia`, `PartRawDocument`, and `PartCustom`.
+Constants carry explicit integer values for wire compatibility, so a few
+slots are reserved for retired batch types and are not renumbered.
 
 Resource types:
 
-- **Layer** — structural grouping (document, section, embedded content).
+- **Layer** — structural grouping (document, section, embedded content),
+  delimited by `PartLayerStart`/`PartLayerEnd`.
+- **Group** (`GroupStart`/`GroupEnd`) — a nested structural group within a
+  layer (e.g. a table), delimited by `PartGroupStart`/`PartGroupEnd`.
 - **Block** — translatable content: a source run sequence and per-locale
   target run sequences, plus optional stand-off overlays.
 - **Data** — non-translatable structure (skeleton, metadata).
@@ -172,19 +178,18 @@ persistence-layer concern, outside the content model.
 
 ```go
 type BlockIdentity struct {
-    ContentHash  string  // SHA-256 of normalized source text
-    ContextHash  string  // Hash of surrounding context (prev/next blocks)
-    SourcePath   string  // XPath, JSON path, or line number (display hint)
-    SequenceNum  int     // Order in document
+    ContentHash string // SHA-256 of normalized source text
+    ContextHash string // SHA-256 of contextual information (name, type, properties)
 }
 ```
 
 The `ContentHash` is computed from normalized source text
-(whitespace-normalized, inline codes stripped). Combined with `ContextHash`,
-this produces stable identity across extraction cycles: the same content
-always produces the same identity, so only blocks whose identity has changed
-need reprocessing. Identical blocks across documents share the same
-`ContentHash`, letting translation memory and AI tools avoid redundant work.
+(whitespace-normalized). Combined with `ContextHash` — a SHA-256 over the
+block's name, type, and sorted properties — this produces stable identity
+across extraction cycles: the same content always produces the same identity,
+so only blocks whose identity has changed need reprocessing. Identical blocks
+across documents share the same `ContentHash`, letting translation memory and
+AI tools avoid redundant work.
 
 Block identity also carries a separate project-unique internal ID tracked by
 the store layer — see [AD-003: Identity](003-identity.md) for the dual-ID
@@ -226,7 +231,7 @@ alignment — are **stand-off overlays** with run-anchored spans (see
 | Segmentation     | `segmentation`    | overlay (spans)  | segment annotator     | Sentence / chunk boundaries over runs  |
 | Terminology      | `term`            | overlay (spans)  | term-lookup           | Matched terminology with target terms  |
 | Term candidates  | `term-candidate`  | overlay (spans)  | ai-terminology        | Term extraction candidates from an LLM |
-| Entities         | `entity`          | overlay (spans)  | entity-annotate       | Named entities (people, places, dates) |
+| Entities         | `entity`          | overlay (spans)  | ai-entity-extract     | Named entities (people, places, dates) |
 | QA findings      | `qa-finding`      | overlay (spans)  | qa-check              | Quality findings with severity         |
 | Alignment        | `alignment`       | overlay (spans)  | aligner, readers      | Source-span ↔ target-span links        |
 | Alt-translations | `alt-translation` | block annotation | TM leverage, AI tools | Candidate translations with scores     |

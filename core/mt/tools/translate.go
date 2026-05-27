@@ -26,9 +26,37 @@ type MTTranslateTool struct {
 }
 
 // MTTranslateConfig holds configuration for the MT translate tool.
+//
+// Locale fields are supplied programmatically by the runner. The credential
+// fields carry schema/json tags so they surface as CLI flags and flow config;
+// they are populated by the shared credential resolver (see
+// cli/credentials/resolve.go) or inline in a recipe step. The provider itself
+// is fixed by the registered tool name (e.g. "deepl-translate" → deepl), so
+// there is no Provider field.
 type MTTranslateConfig struct {
-	SourceLocale model.LocaleID
-	TargetLocale model.LocaleID
+	SourceLocale model.LocaleID `json:"sourceLocale,omitempty"     schema:"-"`
+	TargetLocale model.LocaleID `json:"targetLocale,omitempty"     schema:"-"`
+
+	// APIKey is the primary credential (deepl, google, modernmt). Resolved from
+	// the keychain by the CLI credential preprocessor, or set inline.
+	APIKey string `json:"apiKey,omitempty"          schema:"title=API Key,description=API key for the MT provider,group=provider,widget=password"`
+	// SubscriptionKey is the Azure credential for the microsoft provider.
+	SubscriptionKey string `json:"subscriptionKey,omitempty" schema:"title=Subscription Key,description=Azure subscription key (microsoft),group=provider,widget=password"`
+	// Region is the Azure region for the microsoft provider.
+	Region string `json:"region,omitempty"          schema:"title=Region,description=Azure region (microsoft),group=provider"`
+	// Email is the optional MyMemory account email for higher rate limits.
+	Email string `json:"email,omitempty"           schema:"title=Email,description=Account email for higher rate limits (mymemory),group=provider"`
+	// ProjectID is the optional Google Cloud project id.
+	ProjectID string `json:"projectId,omitempty"       schema:"title=Project ID,description=Google Cloud project ID (google),group=provider"`
+	// BaseURL overrides the provider API endpoint (primarily for tests).
+	BaseURL string `json:"baseURL,omitempty"         schema:"-"`
+
+	// ToolName, when set, fixes the reported tool name (e.g. "deepl-translate")
+	// regardless of the backing provider. The registry sets this so a tool
+	// registered as "deepl-translate" but constructed with the offline demo
+	// provider as a default still reports its registered name. When empty, the
+	// name is derived from the provider id (<provider>-translate).
+	ToolName string `json:"-" schema:"-"`
 }
 
 // NewMTTranslateTool creates a new MT translation tool.
@@ -42,7 +70,11 @@ func NewMTTranslateTool(p mtprovider.MTProvider, cfg MTTranslateConfig) *MTTrans
 		targetLocale: cfg.TargetLocale,
 		vocab:        vocab,
 	}
-	t.ToolName = string(p.Name()) + "-translate"
+	name := cfg.ToolName
+	if name == "" {
+		name = string(p.Name()) + "-translate"
+	}
+	t.ToolName = name
 	t.ToolDescription = "Translates Blocks using " + string(p.Name())
 	// Translate: writes the target locale; source stays read-only.
 	t.Translate = t.translate

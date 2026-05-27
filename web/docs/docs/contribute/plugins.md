@@ -131,6 +131,8 @@ kapi plugin remove <name>              # uninstall
 kapi plugin info <name>                # show manifest details
 kapi plugin search <query>             # list registry candidates
 kapi plugin verify <name>              # re-check sha256 + signature
+kapi plugin update-index               # refresh the cached registry index
+kapi plugin rebuild-cache              # force a rebuild of the plugin dispatch cache
 ```
 
 `kapi plugin install` resolves the plugin from a registry — a JSON index served

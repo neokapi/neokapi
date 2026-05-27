@@ -100,18 +100,22 @@ and writer factory in `core/formats/register.go` via `init()`.
 
 ### FormatRegistry
 
-A single `FormatRegistry` exposes factory lookup:
+A single `*FormatRegistry` (a concrete struct in `core/registry`) exposes
+factory lookup. Names are the `FormatID` string type; registration takes a
+factory plus static metadata, so no reader instance is built at startup:
 
 ```go
-type FormatRegistry interface {
-    RegisterReader(name string, factory ReaderFactory, meta FormatMeta)
-    RegisterWriter(name string, factory WriterFactory, meta FormatMeta)
-    NewReader(name string) (DataFormatReader, error)
-    NewWriter(name string) (DataFormatWriter, error)
-    Detect(doc *RawDocument) (string, error)
-    List() []FormatMeta
-}
+func (r *FormatRegistry) RegisterReader(name FormatID, factory FormatReaderFactory, sig format.FormatSignature, displayName string)
+func (r *FormatRegistry) RegisterWriter(name FormatID, factory FormatWriterFactory)
+func (r *FormatRegistry) NewReader(name FormatID) (format.DataFormatReader, error)
+func (r *FormatRegistry) NewWriter(name FormatID) (format.DataFormatWriter, error)
+func (r *FormatRegistry) FormatInfos() []FormatInfo
 ```
+
+Detection is delegated to a `*format.Detector`, reachable via `r.Detector()`.
+The registry's `DetectByExtension(ext)` (and the source-scoped
+`DetectByExtensionForSources`) wrap it, falling back to the lazy plugin-load
+`onMiss` hook on a first miss.
 
 Tiered registration makes native, plugin, and bridge formats
 indistinguishable to callers:
@@ -132,8 +136,8 @@ resolves the reference to the appropriate factory.
 
 ### Format detection
 
-`Detect(doc *RawDocument)` returns the best-matching format name using a
-cascade:
+`Detector.Detect(path, reader, mimeType)` returns the best-matching format
+name using a cascade:
 
 1. **MIME type** — explicit declaration wins if present.
 2. **File extension** — `.html`, `.xliff`, `.json`, etc. resolve
@@ -191,7 +195,8 @@ To add a new format:
    providing the format-specific parse logic.
 3. Implement `DataFormatWriter` by embedding `BaseFormatWriter` and
    providing the format-specific serialize logic.
-4. Populate all six span layers for any inline markup
+4. Populate every field on each inline-code run for any inline markup —
+   `ID`, `Type`/`SubType`, `Data`, `Disp`, `Equiv`, `Constraints`
    ([AD-002: Content Model](002-content-model.md)).
 5. Pick a skeleton strategy appropriate to the format's structure.
 6. Register the reader and writer factories in
@@ -207,7 +212,7 @@ preferred skeleton strategy details.
 
 - Format readers emit the same streaming Part protocol regardless of
   source format, so tools never need format-specific code.
-- Format writers replay `Span.Data` verbatim
+- Format writers replay `Run.Data` verbatim via `RenderRunsWithData`
   ([AD-002: Content Model](002-content-model.md)), so roundtrip fidelity
   is inherited from the content model.
 - Native, plugin, and bridge formats coexist in one registry; the
@@ -223,7 +228,7 @@ preferred skeleton strategy details.
 
 ## Related
 
-- [AD-002: Content Model](002-content-model.md) — Parts that readers produce and writers consume; the Span model that drives roundtrip fidelity
+- [AD-002: Content Model](002-content-model.md) — Parts that readers produce and writers consume; the Run model that drives roundtrip fidelity
 - [AD-004: Processing Engine](004-processing-engine.md) — how readers and writers plug into the pipeline
 - [AD-006: Tool System](006-tool-system.md) — the tools that sit between reader and writer
 - [AD-007: Plugin System and Okapi Bridge](007-plugin-system.md) — how plugin and bridge formats register

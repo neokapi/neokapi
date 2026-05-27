@@ -68,7 +68,9 @@ type catOptions struct {
 }
 
 func (a *App) runCat(ctx context.Context, cmd *cobra.Command, args []string, opts catOptions) error {
+	hadError := false
 	files, err := expandInputs(args, false, func(path string, err error) {
+		hadError = true
 		fmt.Fprintf(os.Stderr, "kcat: %s: %v\n", path, err)
 	})
 	if err != nil {
@@ -101,7 +103,14 @@ func (a *App) runCat(ctx context.Context, cmd *cobra.Command, args []string, opt
 	if jsonOut {
 		enc := json.NewEncoder(os.Stdout)
 		enc.SetIndent("", "  ")
-		return enc.Encode(jsonBlocks)
+		if err := enc.Encode(jsonBlocks); err != nil {
+			return err
+		}
+	}
+	if hadError {
+		// A read error occurred (warning already printed); exit 2 (trouble),
+		// matching the grep-style toolbox exit-code contract and kgrep.
+		return WithExitCode(ExitUsage, ErrSilentExit)
 	}
 	return nil
 }

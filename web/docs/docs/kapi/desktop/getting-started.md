@@ -46,7 +46,7 @@ The `{lang}` placeholder is replaced with each target locale when generating out
 Go to **Credentials** and click **Add Provider**:
 
 1. Enter a name (e.g., "My Anthropic Key")
-2. Select the provider type (Anthropic, OpenAI, or Ollama)
+2. Select the provider type
 3. Paste your API key — it's stored securely in your OS keychain, never in the project file
 
 ## 5. Build a Flow

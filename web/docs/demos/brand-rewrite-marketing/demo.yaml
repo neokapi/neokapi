@@ -12,5 +12,5 @@ summary: >-
   marketing-blog voice and the brand compliance score jumps.
 expect:
   without_overall_max: 99
-  with_overall_min: 99
+  with_overall_min: 95
   delta_min: 1

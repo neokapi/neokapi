@@ -17,6 +17,7 @@ import (
 	"github.com/neokapi/neokapi/core/format/schema"
 	"github.com/neokapi/neokapi/core/formats"
 	"github.com/neokapi/neokapi/core/i18n"
+	mttools "github.com/neokapi/neokapi/core/mt/tools"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/tool"
@@ -155,6 +156,7 @@ func (a *App) InitRegistries() {
 	a.ToolReg = registry.NewToolRegistry()
 	libtools.RegisterAll(a.ToolReg)
 	aitools.RegisterAll(a.ToolReg)
+	mttools.RegisterAll(a.ToolReg)
 }
 
 // InitPluginHost discovers plugins (manifest.json sidecar model) from
@@ -246,7 +248,7 @@ func (a *App) Init() {
 	a.Credentials = credentials.NewStore(credentials.DefaultPath())
 	credStore := a.Credentials
 	a.ToolReg.SetConfigPreprocessor(func(toolName string, requires []string, config map[string]any) (map[string]any, error) {
-		return credentials.ResolveCredentials(credStore, requires, config)
+		return credentials.ResolveCredentials(credStore, toolName, requires, config)
 	})
 
 	if a.Config == nil {

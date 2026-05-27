@@ -21,6 +21,7 @@ import (
 	neokapiconfig "github.com/neokapi/neokapi/core/config"
 	fschema "github.com/neokapi/neokapi/core/format/schema"
 	"github.com/neokapi/neokapi/core/formats"
+	mttools "github.com/neokapi/neokapi/core/mt/tools"
 	"github.com/neokapi/neokapi/core/registry"
 	libtools "github.com/neokapi/neokapi/core/tools"
 )
@@ -80,6 +81,7 @@ func Generate(outDir string) error {
 	toolReg := registry.NewToolRegistry()
 	libtools.RegisterAll(toolReg)
 	aitools.RegisterAll(toolReg)
+	mttools.RegisterAll(toolReg)
 
 	formatReg := registry.NewFormatRegistry()
 	schemaReg := fschema.NewSchemaRegistry()

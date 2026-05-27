@@ -23,7 +23,7 @@ demos:
     reader: both
     signal: high
     status: done
-    note: both readers round-trip the asset (native 14 words; okapi okf_html 18 — okapi also localizes button/anchor text). Normalized native↔okapi parity is the cli/parity suite.
+    note: both readers round-trip the asset and localize all visible text (18 words each, including the button/anchor labels). Normalized native↔okapi parity is the cli/parity suite.
 
   # ── Planned cells (fan out one agent per row) ──────────────────────────────
   - { id: pptx-brandrewrite-marketing,  kind: brand,     asset_type: pptx,       loop_stage: brand-rewrite,        domain: marketing,      reader: native, signal: high, status: planned }

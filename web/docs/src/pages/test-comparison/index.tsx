@@ -5,7 +5,7 @@ import { normalizeFilter, normalizeSummary } from "./_types";
 import SummaryBar from "./_SummaryBar";
 import FilterCard, { FilterColumnHeadings } from "./_FilterCard";
 import styles from "./_index.module.css";
-import comparisonData from "@site/static/data/contract-audit.json";
+import comparisonData from "@site/static/data/test-comparison.json";
 
 type Side = "okapi" | "bridge" | "native";
 

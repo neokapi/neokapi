@@ -111,13 +111,14 @@ func NormalizeSedInPlaceArgs(args []string) []string {
 }
 
 func (a *App) runSed(ctx context.Context, args []string, t *tool.BaseTool, writeLocale model.LocaleID, inPlace bool, backupSuffix string) error {
+	hadError := false
 	files, err := expandInputs(args, false, func(path string, err error) {
+		hadError = true
 		fmt.Fprintf(os.Stderr, "ksed: %s: %v\n", path, err)
 	})
 	if err != nil {
 		return err
 	}
-	var firstErr error
 	for _, file := range files {
 		if err := a.editDocument(ctx, file, t, writeLocale, inPlace, backupSuffix, os.Stdout); err != nil {
 			// A cancelled context (Ctrl-C) is a global interrupt, not a per-file
@@ -125,14 +126,14 @@ func (a *App) runSed(ctx context.Context, args []string, t *tool.BaseTool, write
 			if errors.Is(err, context.Canceled) {
 				return err
 			}
+			hadError = true
 			fmt.Fprintf(os.Stderr, "ksed: %s: %v\n", displayName(file), err)
-			if firstErr == nil {
-				firstErr = err
-			}
 		}
 	}
-	if firstErr != nil {
-		return ErrSilentExit // message already printed per file
+	if hadError {
+		// A read/process error occurred (messages already printed per file);
+		// exit 2 (trouble), matching the grep-style toolbox contract and kgrep.
+		return WithExitCode(ExitUsage, ErrSilentExit)
 	}
 	return nil
 }
