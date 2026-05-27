@@ -239,6 +239,13 @@ endif
 test-platform test-bowrain-cli test-bowrain: ## Run individual bowrain module tests
 	$(MAKE) -C bowrain $@
 
+# Bowrain Desktop backend tests run on their own (the bowrain module's
+# `test-bowrain` excludes apps/bowrain under CI) because the Wails app backend
+# needs the GTK/WebKit toolchain on Linux — mirrors `kapi-desktop-test`. Driven
+# by the `bowrain-desktop` CI job.
+bowrain-desktop-test: ## Run Bowrain Desktop Go backend tests
+	cd bowrain/apps/bowrain && $(GOTEST_BASE) ./backend/... -count=1 -timeout 120s
+
 # ── CI-equivalent targets (for local reproduction) ──────────────────────────
 
 ci-test-framework: ## Run framework tests with full CI flags locally
@@ -262,8 +269,11 @@ ci-test-bowrain: ## Run bowrain tests with full CI flags locally
 ci-test-kapi-desktop: ## Run Kapi Desktop tests with full CI flags locally
 	$(MAKE) CI=true kapi-desktop-test
 
+ci-test-bowrain-desktop: ## Run Bowrain Desktop tests with full CI flags locally
+	$(MAKE) CI=true bowrain-desktop-test
+
 ci-test-all: ## Run all module tests with full CI flags locally
-	$(MAKE) CI=true test-framework test-cli test-kapi kapi-desktop-test
+	$(MAKE) CI=true test-framework test-cli test-kapi kapi-desktop-test bowrain-desktop-test
 	$(MAKE) -C bowrain CI=true test-platform test-bowrain-cli test-bowrain
 
 # ── Module Isolation ──────────────────────────────────────────────────────────
@@ -880,8 +890,9 @@ help: ## Show this help
         contract-audit contract-audit-all contract-audit-clean okapi-failsafe-reports \
         fmt vet lint check check-framework check-bowrain test-parallel \
         test-framework test-cli test-kapi test-platform test-bowrain-cli test-bowrain \
+        bowrain-desktop-test \
         ci-test-framework ci-test-cli ci-test-kapi ci-test-platform \
-        ci-test-bowrain-cli ci-test-bowrain ci-test-kapi-desktop ci-test-all \
+        ci-test-bowrain-cli ci-test-bowrain ci-test-kapi-desktop ci-test-bowrain-desktop ci-test-all \
         verify-isolation \
         build build-all build-server build-worker build-kapi-bowrain-plugin build-bowrain-plugin build-bowrain build-headless \
         plugin-bundle dev-skills \
