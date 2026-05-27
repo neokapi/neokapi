@@ -21,41 +21,79 @@ neokapi provides first-class LLM integration for translation, quality assurance,
 
 ## Setup
 
-Configure your AI provider in `kapi.yaml`:
+A provider and model are chosen per run; an API key is supplied separately. The
+provider and model carry safe defaults and may be set on the command line or in
+a flow step, while the key — a secret — is kept out of the committable recipe.
 
-```yaml
-tools:
-  ai-translation:
-    provider: anthropic
-    model: claude-sonnet-4-20250514
-    apiKey: ${ANTHROPIC_API_KEY}
-```
+### Choosing a provider and model
 
-Or use environment variables:
+Pass `--provider` and `--model` on the command line:
 
 ```bash
-export KAPI_TOOLS_AI_TRANSLATION_PROVIDER=anthropic
-export KAPI_TOOLS_AI_TRANSLATION_MODEL=claude-sonnet-4-20250514
-export ANTHROPIC_API_KEY=sk-...
+kapi ai-translate -i input.html --source-lang en --target-lang fr \
+  --provider anthropic --model claude-sonnet-4-20250514
 ```
+
+Or set them as step config in a flow definition (these are non-secret defaults,
+safe to commit):
+
+```yaml
+steps:
+  - tool: ai-translate
+    config:
+      provider: anthropic
+      model: claude-sonnet-4-20250514
+```
+
+When `--provider` is omitted, `ai-translate` defaults to Anthropic. Each
+provider ships a sensible default model.
+
+### Supplying the API key
+
+The API key is never read from the `.kapi`/`kapi.yaml` recipe — the recipe is
+meant to be safe to commit. Provide the key in one of three ways (if more than
+one is present, an inline `--api-key` wins, then a saved `--credential`, then
+the environment variable):
+
+1. **Saved credential** — store the key once in the OS keychain and reference it
+   by name. This is the recommended approach for day-to-day use:
+
+   ```bash
+   kapi credentials add my-anthropic --provider anthropic --api-key sk-…
+   kapi ai-translate -i input.html --target-lang fr --credential my-anthropic
+   ```
+
+2. **Inline flag** — pass the key directly with `--api-key` (useful for one-off
+   runs):
+
+   ```bash
+   kapi ai-translate -i input.html --target-lang fr \
+     --provider openai --api-key sk-…
+   ```
+
+3. **Per-provider environment variable** — when neither `--credential` nor
+   `--api-key` is given, the standard environment variable for the resolved
+   provider is used (see [Environment variables](#environment-variables)):
+
+   ```bash
+   export ANTHROPIC_API_KEY=sk-…
+   kapi ai-translate -i input.html --target-lang fr --provider anthropic
+   ```
+
+If no key is found by any of these means, the command reports a clear
+"no credentials" error.
 
 ### Google Gemini
 
-```yaml
-tools:
-  ai-translation:
-    provider: gemini
-    model: gemini-3-flash-preview
-    apiKey: ${GEMINI_API_KEY}
-```
+Gemini supports streaming with live thinking progress, showing intermediate
+reasoning as translation proceeds. Select it like any other provider:
 
 ```bash
-export KAPI_TOOLS_AI_TRANSLATION_PROVIDER=gemini
-export KAPI_TOOLS_AI_TRANSLATION_MODEL=gemini-3-flash-preview
-export GEMINI_API_KEY=...
+export GEMINI_API_KEY=…
+kapi ai-translate -i input.html --target-lang fr --provider gemini
 ```
 
-Or via CLI flags: `--provider gemini --api-key $GEMINI_API_KEY`. The default model is `gemini-3-flash-preview`. Gemini supports streaming with live thinking progress, showing intermediate reasoning as translation proceeds.
+The default model is `gemini-3-flash-preview`.
 
 ## AI Tools
 
@@ -90,26 +128,40 @@ kapi run ai-translate-qa -i input.html -o output.html --source-lang en --target-
 
 Prompt templates in `core/ai/prompt/` are context-aware: they include surrounding Blocks, glossary constraints, TM matches, and format metadata. Templates are centralized for easy tuning.
 
-## Environment Variables
+## Environment variables
 
-| Variable            | Provider           |
-| ------------------- | ------------------ |
-| `ANTHROPIC_API_KEY` | Anthropic (Claude) |
-| `OPENAI_API_KEY`    | OpenAI (GPT)       |
-| `GEMINI_API_KEY`    | Google Gemini      |
+When no `--credential` and no `--api-key` are supplied, the API key falls back
+to the standard per-provider environment variable for the resolved provider.
+The variables follow each provider's own conventions:
 
-## Local Models with Ollama
+| Variable                                | Provider          |
+| --------------------------------------- | ----------------- |
+| `ANTHROPIC_API_KEY`                     | Anthropic         |
+| `OPENAI_API_KEY`                        | OpenAI            |
+| `GEMINI_API_KEY` (then `GOOGLE_API_KEY`) | Google Gemini     |
+| `AZURE_OPENAI_API_KEY`                  | Azure OpenAI      |
 
-For development and testing without API costs:
+Ollama runs local models and requires no key. The
+[machine translation services](/framework/mt-services#environment-variables)
+page lists the equivalent variables for the MT providers. For the full set of
+provider parameters, see the generated [Tool Reference](/tools).
+
+## Local models with Ollama
+
+For development and testing without API costs, run a local model through Ollama.
+No API key is required:
 
 ```bash
 ollama pull llama3
+kapi ai-translate -i input.html --target-lang fr --provider ollama --model llama3
 ```
 
+The same selection works as flow-step config:
+
 ```yaml
-tools:
-  ai-translation:
-    provider: ollama
-    model: llama3
-    endpoint: http://localhost:11434
+steps:
+  - tool: ai-translate
+    config:
+      provider: ollama
+      model: llama3
 ```

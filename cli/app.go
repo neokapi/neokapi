@@ -248,7 +248,7 @@ func (a *App) Init() {
 	a.Credentials = credentials.NewStore(credentials.DefaultPath())
 	credStore := a.Credentials
 	a.ToolReg.SetConfigPreprocessor(func(toolName string, requires []string, config map[string]any) (map[string]any, error) {
-		return credentials.ResolveCredentials(credStore, requires, config)
+		return credentials.ResolveCredentials(credStore, toolName, requires, config)
 	})
 
 	if a.Config == nil {

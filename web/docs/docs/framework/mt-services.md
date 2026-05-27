@@ -21,20 +21,51 @@ neokapi integrates with external machine translation (MT) services as an alterna
 
 ## Configuration
 
-Configure MT providers in `kapi.yaml`:
+Each MT service is exposed as its own `<provider>-translate` tool, so the
+provider is fixed by the tool you run — `deepl-translate` uses DeepL,
+`google-translate` uses Google, and so on. Non-secret options (region, project,
+formality) are set as step config in a flow definition, which is safe to commit:
 
 ```yaml
-mt:
-  deepl:
-    apiKey: ${DEEPL_API_KEY}
-    formality: more # less, more, default
-  google:
-    apiKey: ${GOOGLE_TRANSLATE_API_KEY}
-    project: my-project
-  microsoft:
-    apiKey: ${AZURE_TRANSLATOR_KEY}
-    region: westus2
+steps:
+  - tool: microsoft-translate
+    config:
+      region: westus2
 ```
+
+The API key is never read from the `.kapi`/`kapi.yaml` recipe. Supply it the
+same way as for [AI translation](/framework/ai-translation#supplying-the-api-key)
+(if more than one is present, an inline `--api-key` wins, then a saved
+`--credential`, then the environment variable):
+
+1. **Saved credential** — store the key once and reference it by name:
+
+   ```bash
+   kapi credentials add my-deepl --provider deepl --api-key …
+   kapi deepl-translate -i input.html --target-lang fr --credential my-deepl
+   ```
+
+2. **Inline flag** — `--api-key …` for a one-off run.
+
+3. **Per-provider environment variable** — used when neither `--credential` nor
+   `--api-key` is given (see [Environment variables](#environment-variables)).
+
+### Environment variables
+
+When no `--credential` and no `--api-key` are supplied, the key falls back to
+the standard environment variable for the tool's provider. Where two are listed,
+the first non-empty one wins:
+
+| Variable                                              | Provider              |
+| ----------------------------------------------------- | --------------------- |
+| `DEEPL_API_KEY`                                       | DeepL                 |
+| `GOOGLE_TRANSLATE_API_KEY` (then `GOOGLE_API_KEY`)    | Google Translate      |
+| `MICROSOFT_TRANSLATOR_KEY` (then `AZURE_TRANSLATOR_KEY`) | Microsoft Translator |
+| `MODERNMT_API_KEY`                                    | ModernMT              |
+| `MYMEMORY_API_KEY`                                    | MyMemory (optional)   |
+
+MyMemory works without a key. For the full set of per-provider parameters, see
+the generated [Tool Reference](/tools).
 
 ## Usage
 

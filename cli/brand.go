@@ -707,7 +707,7 @@ func (a *App) buildBrandProvider(cmd *cobra.Command) (aiprovider.LLMProvider, er
 	if cred != "" {
 		config["credential"] = cred
 	}
-	resolved, err := credentials.ResolveCredentials(a.Credentials, []string{"credentials"}, config)
+	resolved, err := credentials.ResolveCredentials(a.Credentials, "", []string{"credentials"}, config)
 	if err != nil {
 		return nil, err
 	}
