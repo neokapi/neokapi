@@ -1,0 +1,11 @@
+# TLS-only Traefik dynamic config for the FULL-DOCKER stack (compose.tls.yaml).
+#
+# Unlike dynamic.yml (which routes to host-running services via
+# host.docker.internal for the local-server dev mode), the full-Docker stack
+# routes to the containers themselves via Docker labels. This file therefore
+# only registers the mkcert wildcard certificate so Traefik can terminate TLS
+# for *.bowrain.mymac — all routing lives on the service labels.
+tls:
+  certificates:
+    - certFile: /etc/certs/wildcard.pem
+      keyFile: /etc/certs/wildcard-key.pem

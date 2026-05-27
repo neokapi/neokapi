@@ -79,7 +79,7 @@ DOCKER_KEYCLOAK_IMAGE := ghcr.io/neokapi/bowrain-keycloak
         docker-server docker-web docker-keycloak docker-all \
         docker-push-server docker-push-web docker-push-keycloak docker-push \
         dev-deps dev-deps-down dev-server dev-worker dev-web dev-ctrl bowrain-dev certs \
-        stack-up stack-up-web stack-down stack-logs stack-ps stack-build \
+        stack-up stack-up-web stack-up-tls stack-down stack-logs stack-ps stack-build \
         screenshots recordings \
         test test-fast test-unit test-race test-verbose test-integration \
         test-platform test-bowrain-cli test-bowrain test-e2e-bowrain test-e2e-cloud test-e2e-dev \
@@ -327,6 +327,13 @@ stack-up: ## Build + start the full local stack (server+worker+deps) in Docker
 
 stack-up-web: ## Full local stack including the web UI (served at http://localhost:8080)
 	$(COMPOSE_FULL) --profile web up -d --build --wait
+
+stack-up-tls: ## Full local stack + web behind Traefik TLS at https://bowrain.mymac
+	docker compose -f compose.full.yaml -f compose.tls.yaml --profile web up -d --build --wait
+	@echo "Web app + API:  https://bowrain.mymac"
+	@echo "Keycloak:       https://auth.bowrain.mymac  (admin/admin)"
+	@echo "Mailpit:        https://mail.bowrain.mymac"
+	@echo "(needs the *.bowrain.mymac host setup: dnsmasq + mkcert + 'make certs')"
 
 stack-build: ## (Re)build the local-stack server + worker images
 	$(COMPOSE_FULL) build bowrain-server bowrain-worker
