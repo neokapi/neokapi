@@ -113,6 +113,25 @@ jobs:
           name: bowrain-cli-scenes
           path: bowrain/web/docs/static/video/bowrain-cli
 
+      # The framed walkthrough videos (bowrain-web/ + bowrain-desktop/) are
+      # rendered on a desktop against a real running stack — CI can't reproduce
+      # that — and published to the bowrain-docs-assets release via
+      # `make publish-bowrain-docs-assets`. Stage them here, mirroring kapi's
+      # docs-assets staging in docs-kapi.yml.
+      - name: Stage bowrain framed videos from bowrain-docs-assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p bowrain/web/docs/static/video
+          if gh release download bowrain-docs-assets -p bowrain-docs-assets.tar.gz -D /tmp/bda 2>/dev/null; then
+            tar xzf /tmp/bda/bowrain-docs-assets.tar.gz -C /tmp/bda
+            [ -d /tmp/bda/video ] && cp -R /tmp/bda/video/. bowrain/web/docs/static/video/
+            [ -d /tmp/bda/img ] && { mkdir -p bowrain/web/docs/static/img; cp -R /tmp/bda/img/. bowrain/web/docs/static/img/; }
+            echo "Staged bowrain framed videos: $(find bowrain/web/docs/static/video -name '*.webm' 2>/dev/null | wc -l) webm"
+          else
+            echo "::warning::bowrain-docs-assets release unavailable; framed videos will be missing"
+          fi
+
       # bowrain/website is a standalone Docusaurus app (not in the npm
       # workspace, by design — see PR #425). Install its deps locally and
       # invoke the build script via npm directly so vp doesn't try to

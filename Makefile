@@ -742,6 +742,21 @@ fetch-docs-assets: ## Download legacy docs assets (transitional, until walkthrou
 publish-docs-assets: ## Publish web/docs/static/{img,video} to the docs-assets release (merges, never drops)
 	@bash scripts/publish-docs-assets.sh
 
+# Bowrain's framed walkthrough videos (harness-rendered bowrain-web/ +
+# bowrain-desktop/) are recorded on the desktop against a real running stack and
+# live under bowrain/web/docs/static/video/ (gitignored). They ship via their own
+# bowrain-docs-assets release — symmetric with kapi's docs-assets — staged by
+# docs-bowrain.yml.
+fetch-bowrain-docs-assets: ## Download bowrain docs assets from the bowrain-docs-assets release
+	@gh release download bowrain-docs-assets --pattern 'bowrain-docs-assets.tar.gz' --dir /tmp --clobber
+	@mkdir -p bowrain/web/docs/static
+	@tar xzf /tmp/bowrain-docs-assets.tar.gz -C bowrain/web/docs/static
+	@rm -f /tmp/bowrain-docs-assets.tar.gz
+	@du -sh bowrain/web/docs/static/img bowrain/web/docs/static/video 2>/dev/null || true
+
+publish-bowrain-docs-assets: ## Publish bowrain/web/docs/static/{img,video} to the bowrain-docs-assets release (merges, never drops)
+	@bash scripts/publish-bowrain-docs-assets.sh
+
 # harness/ records kapi driven by Claude Code as narrated 1-min explainer videos
 # and publishes them theme-matched (light + dark) into the docs site. Built and
 # published from your desktop — no CI required. See harness/Makefile for details.
@@ -951,6 +966,7 @@ help: ## Show this help
         cover test-e2e test-e2e-kapi test-e2e-bowrain test-e2e-cloud test-e2e-dev \
         bench bench-build bench-generate bench-run bench-run-collection bench-run-all bench-versions \
         logo fetch-docs-assets publish-docs-assets harness-deps harness-videos \
+        fetch-bowrain-docs-assets publish-bowrain-docs-assets \
         generate-format-docs generate-reference-docs generate-reference-pages \
         docs-deps docs-dev docs-wasm docs-build docs-serve \
         tools setup-remote gha-lint clean \
