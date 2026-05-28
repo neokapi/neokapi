@@ -131,6 +131,11 @@ func RegisterAll(reg *registry.ToolRegistry) {
 	}, toolSchema(NewDNTCheckConfig(model.LocaleEnglish), toolMeta("dnt-check", "Do-Not-Translate Check", schema.CategoryQuality,
 		withInputs(B), withTags("quality"), withAliases("dnt"), withRequires("target-language"), withCardinality(schema.Bilingual), withProduces(schema.AnnotationFindings))))
 
+	reg.RegisterWithSchema("placeholder-check", func() tool.Tool {
+		return NewPlaceholderCheckTool(NewPlaceholderCheckConfig(model.LocaleEnglish))
+	}, toolSchema(NewPlaceholderCheckConfig(model.LocaleEnglish), toolMeta("placeholder-check", "Placeholder Check", schema.CategoryQuality,
+		withInputs(B), withTags("quality"), withRequires("target-language"), withCardinality(schema.Bilingual), withProduces(schema.AnnotationFindings))))
+
 	reg.RegisterWithSchema("term-check", func() tool.Tool {
 		return NewTermCheckTool(&TermCheckConfig{TargetLocale: model.LocaleEnglish})
 	}, toolSchema(&TermCheckConfig{}, toolMeta("term-check", "Terminology Check", schema.CategoryQuality,
