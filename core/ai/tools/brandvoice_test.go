@@ -63,7 +63,7 @@ func TestBrandVoiceCheckToolFindings(t *testing.T) {
 	err = json.Unmarshal([]byte(findingsStr), &findings)
 	require.NoError(t, err)
 	require.Len(t, findings, 1)
-	assert.Equal(t, brand.DimensionTone, findings[0].Dimension)
+	assert.Equal(t, string(brand.DimensionTone), findings[0].Category)
 	assert.Equal(t, brand.SeverityMajor, findings[0].Severity)
 
 	// Check score.

@@ -148,7 +148,7 @@ func checkVocab(text string, profile *corebrand.VoiceProfile) []corebrand.BrandV
 				sev = corebrand.Severity(term.Severity)
 			}
 			findings = append(findings, corebrand.BrandVoiceFinding{
-				Dimension:    corebrand.DimensionVocabulary,
+				Category:     string(corebrand.DimensionVocabulary),
 				Severity:     sev,
 				Message:      "Forbidden term: " + term.Term,
 				Suggestion:   term.Replacement,
@@ -164,7 +164,7 @@ func checkVocab(text string, profile *corebrand.VoiceProfile) []corebrand.BrandV
 				sev = corebrand.Severity(term.Severity)
 			}
 			findings = append(findings, corebrand.BrandVoiceFinding{
-				Dimension:    corebrand.DimensionVocabulary,
+				Category:     string(corebrand.DimensionVocabulary),
 				Severity:     sev,
 				Message:      "Competitor term: " + term.Term,
 				Suggestion:   term.Replacement,

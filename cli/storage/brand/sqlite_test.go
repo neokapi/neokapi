@@ -146,7 +146,7 @@ func TestScoreStorage(t *testing.T) {
 			{Dimension: corebrand.DimensionStyle, Score: 80, Penalty: 5, Issues: 1},
 		},
 		Findings: []corebrand.BrandVoiceFinding{
-			{Dimension: corebrand.DimensionTone, Severity: corebrand.SeverityMinor, Message: "too informal"},
+			{Category: string(corebrand.DimensionTone), Severity: corebrand.SeverityMinor, Message: "too informal"},
 		},
 		CheckedAt: time.Now(),
 	}

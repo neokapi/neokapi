@@ -1,8 +1,10 @@
 package brand
 
-import "github.com/neokapi/neokapi/core/model"
+import "github.com/neokapi/neokapi/core/check"
 
-// Dimension represents a brand voice evaluation category.
+// Dimension is brand voice's category vocabulary — the value a brand finding
+// sets on check.Finding.Category. Brand voice is one checkset over the
+// framework's generic verification core (core/check).
 type Dimension string
 
 const (
@@ -13,43 +15,26 @@ const (
 	DimensionBrand      Dimension = "brand_compliance"
 )
 
-// Severity represents the impact level of a brand voice finding.
-type Severity string
+// Severity re-exports the framework severity scale so brand findings share one
+// set of levels and penalty weights with every other checker.
+type Severity = check.Severity
 
 const (
-	SeverityNeutral  Severity = "neutral"
-	SeverityMinor    Severity = "minor"
-	SeverityMajor    Severity = "major"
-	SeverityCritical Severity = "critical"
+	SeverityNeutral  = check.SeverityNeutral
+	SeverityMinor    = check.SeverityMinor
+	SeverityMajor    = check.SeverityMajor
+	SeverityCritical = check.SeverityCritical
 )
 
-// SeverityWeight returns the MQM penalty weight for a severity level.
-func SeverityWeight(s Severity) int {
-	switch s {
-	case SeverityNeutral:
-		return 0
-	case SeverityMinor:
-		return 1
-	case SeverityMajor:
-		return 5
-	case SeverityCritical:
-		return 25
-	default:
-		return 0
-	}
-}
+// SeverityWeight returns the framework penalty weight for a severity level.
+func SeverityWeight(s Severity) int { return check.SeverityWeight(s) }
 
-// BrandVoiceFinding represents a single brand voice compliance issue.
-type BrandVoiceFinding struct {
-	Dimension    Dimension      `json:"dimension"`
-	Severity     Severity       `json:"severity"`
-	Message      string         `json:"message"`
-	Suggestion   string         `json:"suggestion,omitempty"`
-	Position     model.RunRange `json:"position"`
-	OriginalText string         `json:"original_text,omitempty"`
-}
+// BrandVoiceFinding is the framework's unified check.Finding. A brand finding
+// sets Category to a brand Dimension; the same struct flows through scoring,
+// annotation, and bowrain governance as every other checker's findings.
+type BrandVoiceFinding = check.Finding
 
-// DimensionScore holds the score breakdown for a single dimension.
+// DimensionScore holds the score breakdown for a single brand dimension.
 type DimensionScore struct {
 	Dimension Dimension `json:"dimension"`
 	Score     int       `json:"score"` // 0-100
@@ -57,7 +42,9 @@ type DimensionScore struct {
 	Issues    int       `json:"issues"`
 }
 
-// BrandComplianceScore holds the overall brand voice compliance result.
+// BrandComplianceScore is the brand-voice presentation of a check score: the
+// roll-up plus the five brand dimensions. Generic checksets use check.Score;
+// brand keeps this dimension-shaped view (and its ProfileID).
 type BrandComplianceScore struct {
 	Overall    int                 `json:"overall"` // 0-100
 	Dimensions []DimensionScore    `json:"dimensions"`
@@ -66,25 +53,24 @@ type BrandComplianceScore struct {
 	ProfileID  string              `json:"profile_id"`
 }
 
-// CalculateScore computes the Brand Compliance Score from findings.
-// Uses MQM-inspired penalty weighting: neutral=0, minor=1, major=5, critical=25.
-// The overall score starts at 100 and is reduced by total penalties, clamped to 0.
+// CalculateScore computes the Brand Compliance Score from findings, always
+// presenting the five brand dimensions. Penalty aggregation uses the framework's
+// severity weights (neutral=0, minor=1, major=5, critical=25); the roll-up is
+// 100 − Σpenalty, clamped to [0,100].
 func CalculateScore(findings []BrandVoiceFinding) BrandComplianceScore {
-	dimPenalties := make(map[Dimension]int)
-	dimCounts := make(map[Dimension]int)
-
+	penalties := make(map[Dimension]int)
+	counts := make(map[Dimension]int)
 	for _, f := range findings {
-		dimPenalties[f.Dimension] += SeverityWeight(f.Severity)
-		dimCounts[f.Dimension]++
+		penalties[Dimension(f.Category)] += check.SeverityWeight(f.Severity)
+		counts[Dimension(f.Category)]++
 	}
 
 	allDims := []Dimension{DimensionTone, DimensionStyle, DimensionVocabulary, DimensionClarity, DimensionBrand}
-	var dimensions []DimensionScore
-	totalPenalty := 0
-
+	dimensions := make([]DimensionScore, 0, len(allDims))
+	total := 0
 	for _, dim := range allDims {
-		penalty := dimPenalties[dim]
-		totalPenalty += penalty
+		penalty := penalties[dim]
+		total += penalty
 		score := 100 - penalty
 		if score < 0 {
 			score = 0
@@ -93,11 +79,11 @@ func CalculateScore(findings []BrandVoiceFinding) BrandComplianceScore {
 			Dimension: dim,
 			Score:     score,
 			Penalty:   penalty,
-			Issues:    dimCounts[dim],
+			Issues:    counts[dim],
 		})
 	}
 
-	overall := 100 - totalPenalty
+	overall := 100 - total
 	if overall < 0 {
 		overall = 0
 	}

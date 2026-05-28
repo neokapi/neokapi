@@ -55,7 +55,7 @@ func (o BrandCheckOutput) FormatText(w io.Writer) error {
 	}
 	fmt.Fprintf(w, "\n%d finding(s):\n", len(o.Findings))
 	for _, f := range o.Findings {
-		fmt.Fprintf(w, "  [%s/%s] %s", string(f.Severity), string(f.Dimension), f.Message)
+		fmt.Fprintf(w, "  [%s/%s] %s", string(f.Severity), f.Category, f.Message)
 		if f.Suggestion != "" {
 			fmt.Fprintf(w, " — %s", f.Suggestion)
 		}

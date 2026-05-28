@@ -56,7 +56,7 @@ func TestBrandVocabCheckForbiddenTerms(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, findings, 1)
 
-	assert.Equal(t, brand.DimensionVocabulary, findings[0].Dimension)
+	assert.Equal(t, string(brand.DimensionVocabulary), findings[0].Category)
 	assert.Equal(t, brand.SeverityMajor, findings[0].Severity)
 	assert.Contains(t, findings[0].Message, "cheap")
 	assert.Contains(t, findings[0].Suggestion, "affordable")

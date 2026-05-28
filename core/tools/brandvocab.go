@@ -95,7 +95,7 @@ func (t *BrandVocabCheckTool) annotateBlock(v tool.BlockView) error {
 				}
 				absPos := idx + pos
 				f := brand.BrandVoiceFinding{
-					Dimension:    brand.DimensionVocabulary,
+					Category:     string(brand.DimensionVocabulary),
 					Severity:     brand.SeverityMajor,
 					Message:      fmt.Sprintf("Forbidden term %q found", rule.Term),
 					Position:     model.RunRangeForBytes(sourceRuns, absPos, absPos+len(rule.Term)),
@@ -123,7 +123,7 @@ func (t *BrandVocabCheckTool) annotateBlock(v tool.BlockView) error {
 				}
 				absPos := idx + pos
 				f := brand.BrandVoiceFinding{
-					Dimension:    brand.DimensionVocabulary,
+					Category:     string(brand.DimensionVocabulary),
 					Severity:     brand.SeverityCritical,
 					Message:      fmt.Sprintf("Competitor term %q found", rule.Term),
 					Position:     model.RunRangeForBytes(sourceRuns, absPos, absPos+len(rule.Term)),
@@ -149,7 +149,7 @@ func (t *BrandVocabCheckTool) annotateBlock(v tool.BlockView) error {
 		for _, m := range matches {
 			if m.Term.CompetitorTerm {
 				findings = append(findings, brand.BrandVoiceFinding{
-					Dimension:    brand.DimensionVocabulary,
+					Category:     string(brand.DimensionVocabulary),
 					Severity:     brand.SeverityCritical,
 					Message:      fmt.Sprintf("Competitor term %q found in termbase", m.Term.Text),
 					Position:     model.RunRangeForBytes(sourceRuns, m.Position.Start, m.Position.End),
@@ -157,7 +157,7 @@ func (t *BrandVocabCheckTool) annotateBlock(v tool.BlockView) error {
 				})
 			} else if m.Term.Status == model.TermForbidden {
 				findings = append(findings, brand.BrandVoiceFinding{
-					Dimension:    brand.DimensionVocabulary,
+					Category:     string(brand.DimensionVocabulary),
 					Severity:     brand.SeverityMajor,
 					Message:      fmt.Sprintf("Forbidden term %q found in termbase", m.Term.Text),
 					Position:     model.RunRangeForBytes(sourceRuns, m.Position.Start, m.Position.End),

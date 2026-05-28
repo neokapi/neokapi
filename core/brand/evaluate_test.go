@@ -70,7 +70,7 @@ func TestBrandVoiceEvaluation_JSONRoundTrip(t *testing.T) {
 				SourceText:   "Welcome to our platform",
 				TargetText:   "Bienvenue sur notre plateforme",
 				Finding: BrandVoiceFinding{
-					Dimension:  DimensionTone,
+					Category:   string(DimensionTone),
 					Severity:   SeverityMajor,
 					Message:    "Too informal for formal brand voice",
 					Suggestion: "Use a more professional greeting",
@@ -102,7 +102,7 @@ func TestBrandVoiceEvaluation_JSONRoundTrip(t *testing.T) {
 	assert.InDelta(t, 5.0, decoded.DimensionComparison[0].Delta, 0.001)
 	require.Len(t, decoded.TopFindings, 1)
 	assert.True(t, decoded.TopFindings[0].IsNew)
-	assert.Equal(t, DimensionTone, decoded.TopFindings[0].Finding.Dimension)
+	assert.Equal(t, string(DimensionTone), decoded.TopFindings[0].Finding.Category)
 }
 
 func TestEvaluateRequest_JSONRoundTrip(t *testing.T) {

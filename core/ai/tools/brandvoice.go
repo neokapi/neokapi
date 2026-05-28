@@ -206,7 +206,7 @@ func (t *BrandVoiceCheckTool) annotate(v tool.BlockView) error {
 	var findings []brand.BrandVoiceFinding
 	for _, f := range result.Findings {
 		findings = append(findings, brand.BrandVoiceFinding{
-			Dimension:  brand.Dimension(f.Dimension),
+			Category:   f.Dimension,
 			Severity:   brand.Severity(f.Severity),
 			Message:    f.Message,
 			Suggestion: f.Suggestion,

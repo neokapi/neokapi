@@ -47,6 +47,10 @@ const (
 	AnnotationRepetition     AnnotationType = "analysis.repetition"
 	AnnotationTranslation    AnnotationType = "translation.output"
 	AnnotationBrandVoice     AnnotationType = "quality.brand-voice"
+	// AnnotationFindings is the unified, producer-agnostic check result every
+	// checker writes (core/check.FindingsAnnotation): terminology,
+	// do-not-translate, placeholder, register, and brand voice alike.
+	AnnotationFindings AnnotationType = "quality.findings"
 )
 
 // SideEffect identifies an external system interaction performed by a tool.
@@ -137,6 +141,7 @@ func (r *AnnotationRegistry) RegisterBuiltIns() {
 		{AnnotationRepetition, "Repetition", "Repeated segment analysis", sourceBuiltIn},
 		{AnnotationTranslation, "Translation", "Translated target content", sourceBuiltIn},
 		{AnnotationBrandVoice, "Brand Voice", "Brand voice compliance score and findings", sourceBuiltIn},
+		{AnnotationFindings, "Check Findings", "Unified content-check findings and score", sourceBuiltIn},
 	}
 	for _, info := range builtins {
 		r.Register(info)
