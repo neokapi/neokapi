@@ -7,6 +7,8 @@ publishAs: kapi-desktop-config
 terminal: desktop
 brand: desktop
 needsAi: false
+# One continuous narration read — uniform voice speed and tone across scenes.
+oneshot: true
 aspects:
   - Appearance
   - AI providers

@@ -1,10 +1,34 @@
 import fs from "node:fs";
 import path from "node:path";
+import { execFileSync } from "node:child_process";
 import { bundle } from "@remotion/bundler";
 import { renderMedia, selectComposition } from "@remotion/renderer";
 import { HARNESS_ROOT, OUT_DIR, PUBLIC_DIR, ensureDir, publicDemoDir } from "../lib/paths.ts";
 
 let cachedServeUrl: string | null = null;
+
+let cachedStamp: string | null = null;
+
+/** Provenance stamp burned into every frame: `<version> · <short-sha>[+] · <UTC>`,
+ *  so a published video can be traced back to the commit + render time. */
+function buildStamp(): string {
+  if (cachedStamp !== null) return cachedStamp;
+  const git = (...args: string[]): string => {
+    try {
+      return execFileSync("git", args, { cwd: HARNESS_ROOT, stdio: ["ignore", "pipe", "ignore"] })
+        .toString()
+        .trim();
+    } catch {
+      return "";
+    }
+  };
+  const version = git("describe", "--tags", "--abbrev=0") || "dev";
+  const sha = git("rev-parse", "--short", "HEAD") || "nogit";
+  const dirty = git("status", "--porcelain") ? "+" : "";
+  const utc = new Date().toISOString().slice(0, 16).replace("T", " ") + " UTC";
+  cachedStamp = `${version} · ${sha}${dirty} · ${utc}`;
+  return cachedStamp;
+}
 
 /** Bundle the Remotion entry once and reuse across demos. */
 async function getServeUrl(): Promise<string> {
@@ -47,7 +71,7 @@ export async function renderDemo(id: string, opts: RenderOptions = {}): Promise<
     return output;
   }
 
-  const inputProps = { id, themeMode };
+  const inputProps = { id, themeMode, stamp: buildStamp() };
   const serveUrl = await getServeUrl();
   const composition = await selectComposition({ serveUrl, id, inputProps });
   console.log(`  · rendering ${id} (${themeMode}): ${composition.durationInFrames} frames (${(composition.durationInFrames / composition.fps).toFixed(1)}s)`);

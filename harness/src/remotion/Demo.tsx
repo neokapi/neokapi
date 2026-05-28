@@ -20,11 +20,13 @@ export interface DemoProps {
   screencast?: Screencast | null;
   /** Which palette to render with (matches the docs page's light/dark mode). */
   themeMode?: ThemeMode;
+  /** Provenance stamp burned into a corner of every frame (version · sha · UTC). */
+  stamp?: string;
   // Remotion's Composition requires props to be assignable to Record<string, unknown>.
   [key: string]: unknown;
 }
 
-export const Demo: React.FC<DemoProps> = ({ id, capture, narration, artifacts, screencast, themeMode }) => {
+export const Demo: React.FC<DemoProps> = ({ id, capture, narration, artifacts, screencast, themeMode, stamp }) => {
   // Swap the active palette before any child reads `theme.*`. The mode is constant
   // for the whole render job, so this is stable across frames.
   setTheme(themeMode ?? "dark");
@@ -105,6 +107,27 @@ export const Demo: React.FC<DemoProps> = ({ id, capture, narration, artifacts, s
           </Sequence>
         );
       })}
+      {stamp ? (
+        <div
+          style={{
+            position: "absolute",
+            right: 18,
+            bottom: 14,
+            zIndex: 100,
+            fontFamily: theme.fontMono,
+            fontSize: 13,
+            lineHeight: 1,
+            letterSpacing: 0.2,
+            color: theme.text,
+            background: theme.bg,
+            opacity: 0.32,
+            padding: "3px 7px",
+            borderRadius: 5,
+          }}
+        >
+          {stamp}
+        </div>
+      ) : null}
     </AbsoluteFill>
   );
 };
