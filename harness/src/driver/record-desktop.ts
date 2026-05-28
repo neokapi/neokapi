@@ -496,6 +496,52 @@ async function beatEls_okapiCard(c: WalkCtx, id: string): Promise<void> {
   });
 }
 
+// ── Bowrain web walkthroughs ─────────────────────────────────────────────────
+// These record the real bowrain web app (target: "web"); nav is via data-testid
+// (the bowrain sidebar uses testids, not aria-labels).
+
+/** Bowrain web: shared translation memory + terminology governance. */
+async function bowrainGovernanceWalk(c: WalkCtx): Promise<void> {
+  const { page, beat, beatEls, cursorTo } = c;
+  const tap = (id: string) => humanClick(page, page.getByTestId(id));
+  await beat("intro", null, async () => {
+    await idle(page, 2200);
+  });
+  // Open the workspace translation memory.
+  await beat("open-memory", null, async () => {
+    await tap("nav-memory");
+    await page.waitForTimeout(1500);
+  });
+  await beat("tm-list", { x: 0.02, y: 0.1, w: 0.96, h: 0.82 }, async () => {
+    await moveTo(page, WIDTH * 0.5, HEIGHT * 0.42, 700);
+    await page.waitForTimeout(2400);
+  });
+  // Search the memory.
+  await beatEls("tm-search", ['[data-testid="tm-search-input"]'], async () => {
+    const s = page.getByTestId("tm-search-input");
+    if (await s.count()) await humanType(page, s, "mission", { submit: true });
+    await page.waitForTimeout(1600);
+  });
+  // Open the terminology base.
+  await beat("open-terms", null, async () => {
+    await tap("nav-termbase");
+    await page.waitForTimeout(1500);
+  });
+  await beat("term-list", { x: 0.02, y: 0.1, w: 0.96, h: 0.82 }, async () => {
+    await moveTo(page, WIDTH * 0.5, HEIGHT * 0.42, 700);
+    await page.waitForTimeout(2400);
+  });
+  // Spotlight a concept's multi-locale terms.
+  await beatEls("term-detail", ['[data-testid^="term-concept"]'], async () => {
+    const sel = '[data-testid^="term-concept"]';
+    if (await page.locator(sel).count()) {
+      await page.locator(sel).first().scrollIntoViewIfNeeded().catch(() => {});
+      await cursorTo(sel);
+    }
+    await page.waitForTimeout(2300);
+  });
+}
+
 const WALKTHROUGHS: Record<string, (c: WalkCtx) => Promise<void>> = {
   "kapi-desktop-explorer": explorerWalk,
   "kapi-desktop-projects": projectsWalk,
@@ -503,6 +549,7 @@ const WALKTHROUGHS: Record<string, (c: WalkCtx) => Promise<void>> = {
   "kapi-desktop-config": configWalk,
   "kapi-desktop-flows": flowsWalk,
   "kapi-desktop-okapi": okapiWalk,
+  "bowrain-web-governance": bowrainGovernanceWalk,
 };
 
 async function runWalkthrough(page: Page, t0: number, demoId: string): Promise<Beat[]> {

@@ -1,0 +1,84 @@
+id: bowrain-web-governance
+title: Shared terminology and memory
+subtitle: One governed source of voice, terms, and translations for a team.
+tagline: the server-side platform companion to kapi
+kind: use-case
+publishAs: bowrain-web-governance
+terminal: desktop
+target: web
+brand: desktop
+needsAi: false
+# One continuous narration read — uniform voice across scenes.
+oneshot: true
+aspects:
+  - Shared translation memory
+  - Terminology governance
+  - Multi-locale terms
+  - Stewarded across a team
+
+narration:
+  - id: title
+    kind: title
+    text: >-
+      Bowrain — where a team's terminology and translation memory live, shared
+      and governed.
+
+  - id: intro
+    kind: desktop
+    beat: intro
+    text: >-
+      With kapi, a glossary and a translation memory are local files one builder
+      owns. Bowrain holds them on the server, shared across everyone.
+
+  - id: open-memory
+    kind: desktop
+    beat: open-memory
+    caption: The workspace translation memory.
+    text: >-
+      The translation memory keeps every approved translation, available to every
+      project and every translator in the workspace.
+
+  - id: tm-list
+    kind: desktop
+    beat: tm-list
+    caption: One memory, reused across projects.
+    text: >-
+      Each entry pairs a source string with its translations, so the same wording
+      is reused instead of being retranslated.
+
+  - id: tm-search
+    kind: desktop
+    beat: tm-search
+    caption: Full-text search across the memory.
+    text: >-
+      It is searchable in an instant — here, every remembered string about the
+      company's mission.
+
+  - id: open-terms
+    kind: desktop
+    beat: open-terms
+    caption: The shared terminology base.
+    text: >-
+      The terminology base works the same way — the approved words, governed in
+      one place rather than scattered across checkouts.
+
+  - id: term-list
+    kind: desktop
+    beat: term-list
+    caption: Preferred and approved terms, by domain.
+    text: >-
+      Concepts are grouped by domain, each with its preferred and approved terms.
+
+  - id: term-detail
+    kind: desktop
+    beat: term-detail
+    caption: Each concept carries its terms in every language.
+    text: >-
+      A concept carries its terms across every language, with the status that
+      marks the wording the team has agreed on.
+
+  - id: outro
+    kind: outro
+    text: >-
+      Shared, versioned, governed — the terminology and memory a team stewards
+      over time, on top of the open kapi tools.
