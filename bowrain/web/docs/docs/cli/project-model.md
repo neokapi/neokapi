@@ -5,7 +5,7 @@ title: Project Model
 
 # Bowrain Project Model
 
-A bowrain project is a [`.kapi` project](/architecture-decisions/010-bowrain-cli-and-project-model) with a `server:` block on its recipe. There is one project model shared with the open-source `kapi` CLI: a single `<dir-name>.kapi` recipe file at the project root and a sibling `.kapi/` state directory.
+A bowrain project is a `.kapi` project with a `server:` block on its recipe. There is one project model shared with the `kapi` CLI: a single `<dir-name>.kapi` recipe file at the project root and a sibling `.kapi/` state directory.
 
 ## Directory Structure
 

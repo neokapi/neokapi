@@ -1,3 +1,35 @@
+/* Sidebar section headings
+   ─────────────────────────────────────────────────────────────────────────────
+   Categories tagged `sidebar-section-heading` (collapsible: false) read as
+   static section labels rather than interactive menu items: an "eyebrow"
+   style — small, uppercase, letter-spaced, muted — with clear spacing above
+   to group the items beneath. Collapsible categories keep their normal styling. */
+.menu__list-item.sidebar-section-heading {
+  margin-top: 1.5rem;
+}
+.menu__list-item.sidebar-section-heading:first-child {
+  margin-top: 0;
+}
+
+/* The label row: strip the menu-item affordances (hover fill, caret, pointer). */
+.sidebar-section-heading > .menu__list-item-collapsible:hover {
+  background: transparent;
+}
+.sidebar-section-heading > .menu__list-item-collapsible > .menu__link,
+.sidebar-section-heading > .menu__list-item-collapsible > .menu__link:hover {
+  cursor: default;
+  background: transparent;
+  color: var(--ifm-color-emphasis-600);
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  padding-block: 0.25rem;
+}
+.sidebar-section-heading > .menu__list-item-collapsible > .menu__link::after {
+  display: none; /* never show a collapse caret on a static heading */
+}
+
 :root {
   --ifm-color-primary: #2e8555;
   --ifm-color-primary-dark: #29784c;

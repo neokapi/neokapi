@@ -14,8 +14,7 @@ services:
 - **PostgreSQL** — the authoritative store (projects, blocks, workspaces, users,
   jobs). The server requires PostgreSQL; there is no SQLite/file backend.
 - **NATS** — the job queue and event bus shared by the server and worker. Push
-  processing is asynchronous ([AD-009](../architecture-decisions/009-sync-protocol.md)):
-  the server enqueues, the worker ingests and translates.
+  processing is asynchronous: the server enqueues, the worker ingests and translates.
 - **bowrain-web** — the static web UI, served as its own container.
 - An **OIDC identity provider** (e.g. Keycloak) and an **SMTP** sender.
 
@@ -51,8 +50,8 @@ through your OIDC provider.
 
 :::tip
 For a one-command local stack that also bundles Keycloak and Mailpit — with no
-OIDC setup and an offline translation provider by default — see
-[Local Development](../developer/local-development.md).
+OIDC setup and an offline translation provider by default — see the
+[Installation guide](/server/installation).
 :::
 
 ## Environment Variables

@@ -31,7 +31,7 @@ Add to your Claude Desktop config (`~/Library/Application Support/Claude/claude_
 {
   "mcpServers": {
     "bowrain": {
-      "command": "bowrain",
+      "command": "kapi",
       "args": ["mcp"]
     }
   }
@@ -50,7 +50,7 @@ Restart Claude Desktop. The bowrain plugin's tools will appear in the tool picke
       "args": ["mcp"]
     },
     "bowrain": {
-      "command": "bowrain",
+      "command": "kapi",
       "args": ["mcp"]
     }
   }
@@ -65,7 +65,7 @@ Add to your project's `.mcp.json` file (or create it at the repository root):
 {
   "mcpServers": {
     "bowrain": {
-      "command": "bowrain",
+      "command": "kapi",
       "args": ["mcp"]
     }
   }
@@ -82,7 +82,7 @@ Add to `.vscode/mcp.json` in your project:
 {
   "servers": {
     "bowrain": {
-      "command": "bowrain",
+      "command": "kapi",
       "args": ["mcp"]
     }
   }
@@ -112,7 +112,7 @@ Add to your Cursor MCP config (`~/.cursor/mcp.json`):
 {
   "mcpServers": {
     "bowrain": {
-      "command": "bowrain",
+      "command": "kapi",
       "args": ["mcp"]
     }
   }
@@ -127,7 +127,7 @@ Add to your Windsurf MCP config (`~/.windsurf/mcp.json`):
 {
   "mcpServers": {
     "bowrain": {
-      "command": "bowrain",
+      "command": "kapi",
       "args": ["mcp"]
     }
   }
@@ -249,9 +249,7 @@ No parameters.
 
 ## How It Works
 
-The bowrain plugin's MCP server uses the same infrastructure as the CLI commands — `project.FindProject()` for project discovery, `NewSourceConnector()` for server sync, and `NewLocalConnector()` for local file operations. The MCP server simply exposes these as typed, discoverable tools over the [Model Context Protocol](https://modelcontextprotocol.io/) stdio transport.
-
-No server process, ports, or authentication needed. Your AI tool launches `kapi mcp` as a child process, communicates over stdin/stdout, and shuts it down when the session ends.
+No server process, ports, or additional authentication is needed. Your AI tool starts `kapi mcp` as a subprocess, communicates over stdin/stdout, and shuts it down when the session ends. It discovers your project the same way the CLI does — by walking up the directory tree to find the nearest `*.kapi` recipe.
 
 ## Related
 

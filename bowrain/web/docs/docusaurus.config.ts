@@ -73,8 +73,33 @@ const config: Config = {
       items: [
         {
           type: "docSidebar",
-          sidebarId: "bowrainSidebar",
-          label: "Documentation",
+          sidebarId: "gettingStartedSidebar",
+          label: "Get Started",
+          position: "left",
+        },
+        {
+          type: "docSidebar",
+          sidebarId: "cliSidebar",
+          label: "Project Sync",
+          position: "left",
+        },
+        {
+          type: "docSidebar",
+          sidebarId: "webSidebar",
+          label: "Web App",
+          position: "left",
+        },
+        {
+          type: "docSidebar",
+          sidebarId: "desktopSidebar",
+          label: "Desktop",
+          position: "left",
+        },
+        {
+          type: "docSidebar",
+          sidebarId: "selfHostingSidebar",
+          label: "Self-Hosting",
+          position: "left",
         },
         {
           href: KAPI_WEB_SITE,
