@@ -1,0 +1,53 @@
+id: bowrain-web-collaboration
+title: Collaboration and streams
+subtitle: A team working in one governed workspace.
+tagline: the server-side platform companion to kapi
+kind: use-case
+publishAs: bowrain-web-collaboration
+terminal: desktop
+target: web
+brand: desktop
+needsAi: false
+# One continuous narration read — uniform voice across scenes.
+oneshot: true
+aspects:
+  - One shared workspace
+  - Invite teammates with roles
+  - Streams isolate work
+  - Governed end to end
+
+narration:
+  - id: title
+    kind: title
+    text: >-
+      Where a team works together — invitations, roles, and streams that keep
+      parallel work apart.
+
+  - id: intro
+    kind: desktop
+    beat: intro
+    text: >-
+      A workspace is shared by a whole team — its projects, memory, and
+      terminology live in one place, not on one laptop.
+
+  - id: invite
+    kind: desktop
+    beat: invite
+    caption: Invite a teammate, with a role.
+    text: >-
+      You invite teammates by email and give each one a role — member, admin, or
+      viewer — so everyone has exactly the access they should.
+
+  - id: stream
+    kind: desktop
+    beat: stream
+    caption: Streams keep parallel work apart.
+    text: >-
+      Streams work like branches for translation: a rebrand or a risky pass runs
+      on its own stream, isolated from the main line until it is ready.
+
+  - id: outro
+    kind: outro
+    text: >-
+      A team, working in parallel on shared, governed content — the stewardship
+      layer over the open kapi tools.

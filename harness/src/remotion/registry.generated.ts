@@ -2,40 +2,28 @@
 export interface RegistryEntry { id: string; title: string; }
 export const DEMOS: RegistryEntry[] = [
   {
-    "id": "01-localize-landing-page",
-    "title": "Translate a landing page to French"
+    "id": "bowrain-web-collaboration",
+    "title": "Collaboration and streams"
   },
   {
-    "id": "02-nextjs-zero-to-i18n",
-    "title": "Zero to Japanese — i18n a Next.js app with kapi"
+    "id": "bowrain-web-editor",
+    "title": "The shared translation editor"
   },
   {
-    "id": "03-translate-docx",
-    "title": "Translate a document, structure intact"
+    "id": "bowrain-web-governance",
+    "title": "Shared terminology and memory"
   },
   {
-    "id": "04-i18n-react-catalogs",
-    "title": "Add French and German to a React app"
-  },
-  {
-    "id": "06-multi-format-publishing",
-    "title": "Translate Markdown and a properties file"
-  },
-  {
-    "id": "07-global-launch-many-languages",
-    "title": "Translate app strings into four languages"
-  },
-  {
-    "id": "08-mcp-tools",
-    "title": "Reach kapi over MCP"
-  },
-  {
-    "id": "09-toolbox-find-replace",
-    "title": "grep, sed and cat — for any format"
+    "id": "bowrain-web-review",
+    "title": "Review and approve"
   },
   {
     "id": "kapi-desktop-config",
     "title": "Configure Kapi Desktop"
+  },
+  {
+    "id": "kapi-desktop-content",
+    "title": "Manage content in a project"
   },
   {
     "id": "kapi-desktop-explorer",
@@ -43,7 +31,11 @@ export const DEMOS: RegistryEntry[] = [
   },
   {
     "id": "kapi-desktop-flows",
-    "title": "Compose localisation flows"
+    "title": "Compose flows for a project"
+  },
+  {
+    "id": "kapi-desktop-okapi",
+    "title": "Using the Okapi plugin"
   },
   {
     "id": "kapi-desktop-projects",

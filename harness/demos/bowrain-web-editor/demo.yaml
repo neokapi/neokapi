@@ -1,0 +1,83 @@
+id: bowrain-web-editor
+title: The shared translation editor
+subtitle: Every locale, with the team's memory and terms inline.
+tagline: the server-side platform companion to kapi
+kind: use-case
+publishAs: bowrain-web-editor
+terminal: desktop
+target: web
+brand: desktop
+needsAi: false
+# One continuous narration read — uniform voice across scenes.
+oneshot: true
+aspects:
+  - Side-by-side source and target
+  - Live document preview
+  - Shared TM and terminology inline
+  - Every locale in one place
+
+narration:
+  - id: title
+    kind: title
+    text: >-
+      Bowrain's editor — every locale, with the team's memory and terms right
+      where the work happens.
+
+  - id: intro
+    kind: desktop
+    beat: intro
+    text: >-
+      The files a team syncs from kapi open right here, in the browser, against
+      the shared workspace.
+
+  - id: open-project
+    kind: desktop
+    beat: open-project
+    text: >-
+      A project gathers the content in scope and the locales it ships in.
+
+  - id: open-file
+    kind: desktop
+    beat: open-file
+    caption: Open a file to start translating.
+    text: >-
+      Open a file and it becomes a translation workbench.
+
+  - id: split
+    kind: desktop
+    beat: split
+    caption: Source and target, side by side.
+    text: >-
+      Source and target sit side by side, with progress across the file — and
+      the workspace memory already applied to the blocks it matched.
+
+  - id: context
+    kind: desktop
+    beat: context
+    caption: Shared memory and terminology, inline.
+    text: >-
+      As you translate, matches from the shared translation memory and the
+      approved terminology surface right beside the block — the same governed
+      sources, where the work happens.
+
+  - id: locale
+    kind: desktop
+    beat: locale
+    caption: One editor, every target locale.
+    text: >-
+      One editor serves every target locale — switch from French to German
+      without leaving the file.
+
+  - id: preview
+    kind: desktop
+    beat: preview
+    caption: A live preview of the translated page.
+    text: >-
+      And a live preview renders the page as the team works, so the translation
+      is seen in context, not just as a list of strings.
+
+  - id: outro
+    kind: outro
+    text: >-
+      The governed memory and terminology, now in the editor itself — shared
+      across the team, on top of the open kapi tools.

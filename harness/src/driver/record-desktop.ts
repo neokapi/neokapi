@@ -542,6 +542,162 @@ async function bowrainGovernanceWalk(c: WalkCtx): Promise<void> {
   });
 }
 
+/** Web translation editor: split source/target grid, live preview, the shared
+ *  TM/terminology context panel, and per-locale switching — on files a team
+ *  synced from kapi into the workspace. */
+async function bowrainEditorWalk(c: WalkCtx): Promise<void> {
+  const { page, beat, beatEls, cursorTo } = c;
+  await beat("intro", null, async () => {
+    await idle(page, 2000);
+  });
+  // Open the Company Website project (rich HTML content, fr/de/ja targets).
+  await beat("open-project", null, async () => {
+    const card = page.locator('[data-testid^="project-card"]', { hasText: "Company Website" }).first();
+    await humanClick(page, (await card.count()) ? card : page.locator('[data-testid^="project-card"]').first());
+    await page.waitForTimeout(1600);
+  });
+  // Open a file → the editor.
+  await beat("open-file", null, async () => {
+    await humanClick(page, page.locator('[data-testid^="open-file"]').first());
+    await page.waitForTimeout(2400);
+  });
+  // Switch to the side-by-side split layout: source ↔ target grid + live preview.
+  // Open the context panel at the tail so it's already present for the next beat.
+  await beat("split", { x: 0.03, y: 0.16, w: 0.74, h: 0.5 }, async () => {
+    const sh = page.getByTestId("layout-split-h");
+    if (await sh.count()) await humanClick(page, sh);
+    await page.waitForTimeout(1600);
+    await moveTo(page, WIDTH * 0.42, HEIGHT * 0.42, 700);
+    await page.waitForTimeout(1200);
+    const cp = page.getByTestId("context-panel-toggle");
+    if ((await cp.count()) && !(await page.getByTestId("context-panel").isVisible().catch(() => false)))
+      await humanClick(page, cp);
+    await page.waitForTimeout(700);
+  });
+  // Spotlight the shared TM + terminology context, surfaced inline as you edit:
+  // select a block that carries a workspace TM match (panel already open).
+  await beat("context", { x: 0.43, y: 0.16, w: 0.56, h: 0.62 }, async () => {
+    const block = page.locator('[data-testid^="block-row"]', { hasText: "Mission" }).first();
+    const target = (await block.count()) ? block : page.getByTestId("block-row-2");
+    if (await target.count()) await humanClick(page, target);
+    await page.waitForTimeout(900);
+    if (await page.getByTestId("context-panel").isVisible().catch(() => false))
+      await cursorTo('[data-testid="context-panel"]');
+    await page.waitForTimeout(1800);
+  });
+  // One editor, every target locale.
+  await beat("locale", { x: 0.03, y: 0.16, w: 0.8, h: 0.5 }, async () => {
+    const sel = page.getByTestId("locale-selector");
+    if (await sel.count()) {
+      await humanClick(page, sel);
+      await page.waitForTimeout(700);
+      const opt = page.getByRole("option", { name: /German/ }).first();
+      if (await opt.count()) await humanClick(page, opt);
+      else await page.keyboard.press("Escape").catch(() => {});
+    }
+    await page.waitForTimeout(1600);
+    await moveTo(page, WIDTH * 0.42, HEIGHT * 0.4, 600);
+    await page.waitForTimeout(1200);
+  });
+  // The live preview renders the translated page as the team works.
+  await beat("preview", { x: 0.03, y: 0.63, w: 0.8, h: 0.34 }, async () => {
+    const pv = page.locator('[data-testid="split-h-preview"], [data-testid="preview-iframe"]').first();
+    if (await pv.count()) await cursorTo('[data-testid="split-h-preview"], [data-testid="preview-iframe"]');
+    await page.waitForTimeout(2200);
+  });
+}
+
+/** Review & approve: focus mode steps through a file one block at a time,
+ *  approving translations against the workspace — the team workflow on content
+ *  synced from kapi. */
+async function bowrainReviewWalk(c: WalkCtx): Promise<void> {
+  const { page, beat, beatEls, cursorTo } = c;
+  await beat("intro", null, async () => {
+    await idle(page, 2000);
+  });
+  await beat("open-project", null, async () => {
+    const card = page.locator('[data-testid^="project-card"]', { hasText: "Company Website" }).first();
+    await humanClick(page, (await card.count()) ? card : page.locator('[data-testid^="project-card"]').first());
+    await page.waitForTimeout(1600);
+  });
+  await beat("open-file", null, async () => {
+    await humanClick(page, page.locator('[data-testid^="open-file"]').first());
+    await page.waitForTimeout(2400);
+  });
+  // Focus mode: one block at a time. Advance to a translated block so review is meaningful.
+  await beatEls("focus", ['[data-testid="focus-view"]'], async () => {
+    const f = page.getByTestId("layout-focus");
+    if (await f.count()) await humanClick(page, f);
+    await page.waitForTimeout(1400);
+    for (let i = 0; i < 5; i++) {
+      const badge = (await page.getByTestId("focus-status-badge").innerText().catch(() => "")).toLowerCase();
+      if (/translated|reviewed|draft/.test(badge) && !/not[- ]started/.test(badge)) break;
+      const nxt = page.getByTestId("focus-next");
+      if (!(await nxt.count())) break;
+      await humanClick(page, nxt);
+      await page.waitForTimeout(700);
+    }
+    await page.waitForTimeout(1200);
+  });
+  // Approve the block — the status badge advances to reviewed.
+  await beatEls("review", ['[data-testid="focus-view"]'], async () => {
+    const mark = page.getByTestId("focus-mark-reviewed");
+    if (await mark.count()) {
+      await cursorTo('[data-testid="focus-mark-reviewed"]');
+      await humanClick(page, mark);
+    }
+    await page.waitForTimeout(1600);
+  });
+  // Progress across the file: draft → translated → reviewed.
+  await beatEls("progress", ['[data-testid="progress-bar"]'], async () => {
+    await cursorTo('[data-testid="progress-bar"]');
+    await page.waitForTimeout(1800);
+  });
+}
+
+/** Collaboration & streams: a shared workspace where teammates are invited with
+ *  roles, and streams isolate parallel work like branches (compare/merge into main). */
+async function bowrainCollaborationWalk(c: WalkCtx): Promise<void> {
+  const { page, beat, beatEls } = c;
+  const startUrl = new URL(page.url());
+  const wsBase = `${startUrl.origin}${startUrl.pathname}`.replace(/\/+$/, "");
+  // Carry the recording theme through full-page navigations: a page.goto reloads
+  // the SPA, which re-reads its persisted (light) theme; `?theme=` makes the app
+  // apply the recording palette so a dark take stays dark.
+  const themeQ = startUrl.searchParams.get("theme") ? `?theme=${startUrl.searchParams.get("theme")}` : "";
+  await beat("intro", null, async () => {
+    await idle(page, 2000);
+  });
+  // Invite a teammate by email, with a role.
+  await beatEls("invite", ['[role="dialog"]', '[data-testid="invite-manager"]'], async () => {
+    await page.goto(`${wsBase}/settings/members${themeQ}`, { waitUntil: "domcontentloaded" });
+    await injectCursor(page); // goto wiped the page-injected cursor; re-add it
+    await page.waitForSelector('[data-testid="invite-open-dialog-btn"]', { timeout: 15_000 }).catch(() => {});
+    const open = page.getByTestId("invite-open-dialog-btn");
+    if (await open.count()) await humanClick(page, open);
+    await page.waitForTimeout(900);
+    const email = page.getByTestId("invite-email-input");
+    if (await email.count()) await humanType(page, email, "maria@acme.example");
+    await page.waitForTimeout(700);
+    const role = page.getByTestId("invite-role-select");
+    if (await role.count()) {
+      await humanClick(page, role);
+      await page.waitForTimeout(1000);
+    }
+    await page.waitForTimeout(900);
+  });
+  // Streams isolate parallel work — switch to a non-main stream to reveal
+  // compare/merge-into-main, the branch workflow.
+  await beatEls("stream", ['[role="menu"]'], async () => {
+    await page.goto(`${wsBase}/p/0MI14l62/s/rebrand${themeQ}`, { waitUntil: "domcontentloaded" });
+    await injectCursor(page); // re-add cursor after navigation
+    await page.waitForTimeout(2200);
+    const trig = page.getByRole("button", { name: /rebrand/ }).first();
+    if (await trig.count()) await humanClick(page, trig);
+    await page.waitForTimeout(1400);
+  });
+}
+
 const WALKTHROUGHS: Record<string, (c: WalkCtx) => Promise<void>> = {
   "kapi-desktop-explorer": explorerWalk,
   "kapi-desktop-projects": projectsWalk,
@@ -550,6 +706,9 @@ const WALKTHROUGHS: Record<string, (c: WalkCtx) => Promise<void>> = {
   "kapi-desktop-flows": flowsWalk,
   "kapi-desktop-okapi": okapiWalk,
   "bowrain-web-governance": bowrainGovernanceWalk,
+  "bowrain-web-editor": bowrainEditorWalk,
+  "bowrain-web-review": bowrainReviewWalk,
+  "bowrain-web-collaboration": bowrainCollaborationWalk,
 };
 
 async function runWalkthrough(page: Page, t0: number, demoId: string): Promise<Beat[]> {

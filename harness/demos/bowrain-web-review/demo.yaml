@@ -1,0 +1,73 @@
+id: bowrain-web-review
+title: Review and approve
+subtitle: The team workflow on content synced from kapi.
+tagline: the server-side platform companion to kapi
+kind: use-case
+publishAs: bowrain-web-review
+terminal: desktop
+target: web
+brand: desktop
+needsAi: false
+# One continuous narration read — uniform voice across scenes.
+oneshot: true
+aspects:
+  - Content synced from kapi
+  - A focused review surface
+  - Approve block by block
+  - Progress toward done
+
+narration:
+  - id: title
+    kind: title
+    text: >-
+      From kapi to a reviewed translation — the approval loop a team runs on
+      Bowrain.
+
+  - id: intro
+    kind: desktop
+    beat: intro
+    text: >-
+      A developer pushes content to Bowrain with kapi; in the workspace, it
+      becomes projects a team can review together.
+
+  - id: open-project
+    kind: desktop
+    beat: open-project
+    text: >-
+      Open a project to see its files and how far along each one is.
+
+  - id: open-file
+    kind: desktop
+    beat: open-file
+    text: >-
+      Open a file to start working through it.
+
+  - id: focus
+    kind: desktop
+    beat: focus
+    caption: A focused, one-block-at-a-time review.
+    text: >-
+      Focus mode takes it one block at a time — source, target, and the status
+      that tracks where each block stands.
+
+  - id: review
+    kind: desktop
+    beat: review
+    caption: Approve a block, move to the next.
+    text: >-
+      A reviewer approves a block and moves to the next — every change recorded
+      against the workspace, not a local file.
+
+  - id: progress
+    kind: desktop
+    beat: progress
+    caption: Progress toward done, across the file.
+    text: >-
+      The progress bar tracks the file from draft to translated to reviewed, so
+      the team always knows what is left.
+
+  - id: outro
+    kind: outro
+    text: >-
+      Reviewed on the server, then pulled back into the repository with kapi —
+      one round trip, governed end to end.
