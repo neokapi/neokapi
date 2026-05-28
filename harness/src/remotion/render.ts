@@ -9,7 +9,7 @@ let cachedServeUrl: string | null = null;
 
 let cachedStamp: string | null = null;
 
-/** Provenance stamp burned into every frame: `<version> · <short-sha>[+] · <UTC>`,
+/** Provenance stamp burned into every frame: `<version> · <short-sha> · <UTC>`,
  *  so a published video can be traced back to the commit + render time. */
 function buildStamp(): string {
   if (cachedStamp !== null) return cachedStamp;
@@ -24,9 +24,8 @@ function buildStamp(): string {
   };
   const version = git("describe", "--tags", "--abbrev=0") || "dev";
   const sha = git("rev-parse", "--short", "HEAD") || "nogit";
-  const dirty = git("status", "--porcelain") ? "+" : "";
   const utc = new Date().toISOString().slice(0, 16).replace("T", " ") + " UTC";
-  cachedStamp = `${version} · ${sha}${dirty} · ${utc}`;
+  cachedStamp = `${version} · ${sha} · ${utc}`;
   return cachedStamp;
 }
 
