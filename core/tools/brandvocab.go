@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/neokapi/neokapi/core/brand"
+	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/tool"
 	"github.com/neokapi/neokapi/termbase"
@@ -81,25 +82,18 @@ func (t *BrandVocabCheckTool) annotateBlock(v tool.BlockView) error {
 
 	sourceRuns := v.SourceRuns()
 	var findings []brand.BrandVoiceFinding
-	lowerText := strings.ToLower(sourceText)
 
-	// Check forbidden terms — major severity.
+	// Check forbidden terms — major severity. Whole-word, Unicode-aware matching
+	// (check.FindTerm) avoids substring false positives like "use" in "user".
 	if t.profile != nil {
 		for _, rule := range t.profile.Vocabulary.ForbiddenTerms {
-			lowerTerm := strings.ToLower(rule.Term)
-			idx := 0
-			for {
-				pos := strings.Index(lowerText[idx:], lowerTerm)
-				if pos < 0 {
-					break
-				}
-				absPos := idx + pos
+			for _, hit := range check.FindTerm(sourceText, rule.Term) {
 				f := brand.BrandVoiceFinding{
 					Category:     string(brand.DimensionVocabulary),
 					Severity:     brand.SeverityMajor,
 					Message:      fmt.Sprintf("Forbidden term %q found", rule.Term),
-					Position:     model.RunRangeForBytes(sourceRuns, absPos, absPos+len(rule.Term)),
-					OriginalText: sourceText[absPos : absPos+len(rule.Term)],
+					Position:     model.RunRangeForBytes(sourceRuns, hit[0], hit[1]),
+					OriginalText: sourceText[hit[0]:hit[1]],
 				}
 				if rule.Replacement != "" {
 					f.Suggestion = fmt.Sprintf("Use %q instead", rule.Replacement)
@@ -108,32 +102,23 @@ func (t *BrandVocabCheckTool) annotateBlock(v tool.BlockView) error {
 					f.Message = fmt.Sprintf("Forbidden term %q found: %s", rule.Term, rule.Note)
 				}
 				findings = append(findings, f)
-				idx = absPos + len(lowerTerm)
 			}
 		}
 
 		// Check competitor terms — critical severity.
 		for _, rule := range t.profile.Vocabulary.CompetitorTerms {
-			lowerTerm := strings.ToLower(rule.Term)
-			idx := 0
-			for {
-				pos := strings.Index(lowerText[idx:], lowerTerm)
-				if pos < 0 {
-					break
-				}
-				absPos := idx + pos
+			for _, hit := range check.FindTerm(sourceText, rule.Term) {
 				f := brand.BrandVoiceFinding{
 					Category:     string(brand.DimensionVocabulary),
 					Severity:     brand.SeverityCritical,
 					Message:      fmt.Sprintf("Competitor term %q found", rule.Term),
-					Position:     model.RunRangeForBytes(sourceRuns, absPos, absPos+len(rule.Term)),
-					OriginalText: sourceText[absPos : absPos+len(rule.Term)],
+					Position:     model.RunRangeForBytes(sourceRuns, hit[0], hit[1]),
+					OriginalText: sourceText[hit[0]:hit[1]],
 				}
 				if rule.Replacement != "" {
 					f.Suggestion = fmt.Sprintf("Use %q instead", rule.Replacement)
 				}
 				findings = append(findings, f)
-				idx = absPos + len(lowerTerm)
 			}
 		}
 

@@ -126,6 +126,11 @@ func RegisterAll(reg *registry.ToolRegistry) {
 	}, toolSchema(&PatternCheckConfig{}, toolMeta("pattern-check", "Pattern Check", schema.CategoryQuality,
 		withInputs(B), withTags("quality", "regex"), withRequires("target-language"), withCardinality(schema.Bilingual), withProduces(schema.AnnotationQAIssues))))
 
+	reg.RegisterWithSchema("dnt-check", func() tool.Tool {
+		return NewDNTCheckTool(NewDNTCheckConfig(model.LocaleEnglish))
+	}, toolSchema(NewDNTCheckConfig(model.LocaleEnglish), toolMeta("dnt-check", "Do-Not-Translate Check", schema.CategoryQuality,
+		withInputs(B), withTags("quality"), withAliases("dnt"), withRequires("target-language"), withCardinality(schema.Bilingual), withProduces(schema.AnnotationFindings))))
+
 	reg.RegisterWithSchema("term-check", func() tool.Tool {
 		return NewTermCheckTool(&TermCheckConfig{TargetLocale: model.LocaleEnglish})
 	}, toolSchema(&TermCheckConfig{}, toolMeta("term-check", "Terminology Check", schema.CategoryQuality,
