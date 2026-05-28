@@ -1,35 +1,35 @@
-import { BookOpen, Sparkles, Gauge, Wand2, Globe, ShieldCheck } from 'lucide-react'
+import { FileText, Languages, ShieldCheck, Wand2, Repeat, Workflow } from 'lucide-react'
 
 const STEPS = [
   {
     n: '01',
-    icon: BookOpen,
-    title: 'Know the brand',
-    cmd: 'kapi brand guide',
+    icon: FileText,
+    title: 'Extract',
+    cmd: 'kapi extract report.docx',
     description:
-      'Load a machine-readable voice profile — tone, style, preferred and forbidden vocabulary — into context. Start from one of five built-in packs or your own.',
+      'Pull translatable text out of any format — DOCX, JSON, XLIFF, Markdown and more — into a clean structured view. The original structure, styles, and placeholders are remembered for a faithful write-back.',
     accent: 'text-brand-400',
     bg: 'bg-brand-500/8',
     border: 'border-brand-500/15',
   },
   {
     n: '02',
-    icon: Sparkles,
-    title: 'Generate',
-    cmd: 'in Claude Code · Cursor · MCP',
+    icon: Languages,
+    title: 'Translate',
+    cmd: 'kapi ai-translate · or via MCP',
     description:
-      'Your AI coding assistant writes UI strings, docs, and copy with the brand profile injected — so output is on-voice and on-terminology at generation time, not bolted on after.',
+      'Translate with AI or MT, or let your assistant draft and edit content through MCP — placeholders, inline tags, and markup preserved as it goes.',
     accent: 'text-accent-cyan',
     bg: 'bg-accent-cyan/8',
     border: 'border-accent-cyan/15',
   },
   {
     n: '03',
-    icon: Gauge,
+    icon: ShieldCheck,
     title: 'Check',
-    cmd: 'kapi brand check --min-score 80',
+    cmd: 'kapi verify',
     description:
-      'Score any text against the profile — 0–100 across tone, style, vocabulary, clarity, and compliance. Use --min-score as a CI gate that fails the build below threshold.',
+      'Run the checks like tests: do-not-translate, placeholder and tag integrity, terminology, and brand voice. Findings are specific and actionable — the exact strings and rules that broke.',
     accent: 'text-accent-amber',
     bg: 'bg-accent-amber/8',
     border: 'border-accent-amber/15',
@@ -38,31 +38,31 @@ const STEPS = [
     n: '04',
     icon: Wand2,
     title: 'Fix',
-    cmd: 'kapi brand rewrite',
+    cmd: 'apply suggestions · re-run',
     description:
-      'Rewrite content to resolve forbidden terms, competitor mentions, and off-voice phrasing — keeping meaning intact while bringing the score up.',
+      'Resolve a dropped placeholder, a translated product name, or an off-voice phrase — keeping meaning intact — then re-run the checks until they pass.',
     accent: 'text-accent-rose',
     bg: 'bg-accent-rose/8',
     border: 'border-accent-rose/15',
   },
   {
     n: '05',
-    icon: Globe,
-    title: 'Publish',
-    cmd: 'kapi run ai-translate-qa …',
+    icon: Repeat,
+    title: 'Write back',
+    cmd: 'kapi merge',
     description:
-      'Translate into every locale — brand-voice-aware, terminology-enforced, with TM leverage — and write back into the same native formats (with more through the okapi-bridge).',
+      'Write the result into the original native format, unchanged except where you intended — a byte-faithful round-trip, in every locale (with more formats through the okapi-bridge).',
     accent: 'text-forest-400',
     bg: 'bg-forest-400/8',
     border: 'border-forest-400/15',
   },
   {
     n: '06',
-    icon: ShieldCheck,
+    icon: Workflow,
     title: 'Gate',
-    cmd: 'kapi brand check --min-score',
+    cmd: 'kapi verify  (in CI)',
     description:
-      'Gate brand compliance in CI and keep profiles as version-controlled YAML alongside your code — the same check on every commit, locally and in your pipeline.',
+      'Keep recipes, profiles, and termbases version-controlled and gate quality on every commit — the same checks locally and in your pipeline, exiting non-zero on failure.',
     accent: 'text-brand-400',
     bg: 'bg-brand-500/8',
     border: 'border-brand-500/15',
@@ -75,17 +75,18 @@ export function BrandLoop() {
       <div className="mx-auto max-w-6xl">
         <div className="mb-16 text-center">
           <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-brand-500/15 bg-brand-500/[0.06] px-3.5 py-1.5 text-xs font-medium text-brand-300">
-            The brand-consistency loop
+            The pipeline
           </div>
           <h2 className="font-display text-3xl font-bold tracking-tight text-white sm:text-4xl">
-            From a brand guide to{' '}
+            From any file to{' '}
             <span className="bg-gradient-to-r from-brand-400 to-brand-300 bg-clip-text text-transparent">
-              shipped, on-brand, multilingual
+              shipped, faithfully, in every language
             </span>
           </h2>
           <p className="mx-auto mt-4 max-w-2xl text-lg text-neutral-400">
-            One engine spans the whole loop. AI generates; kapi keeps it on-voice
-            and consistent, then publishes it everywhere.
+            One engine spans the whole pipeline: extract from any format,
+            translate and check the content like you test code, then write the
+            original back — faithfully.
           </p>
         </div>
 

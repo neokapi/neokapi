@@ -1,46 +1,42 @@
 import { useState, useEffect, useCallback } from 'react'
-import { ChevronRight, WifiOff, Sparkles, Globe } from 'lucide-react'
+import { ChevronRight, WifiOff, FileText, Languages } from 'lucide-react'
 
 const COMMANDS = [
   {
-    cmd: 'kapi brand check --profile-file acme.yaml --text "Leverage our solution to drive synergy."',
+    cmd: 'kapi extract quarterly-report.docx -o strings.json',
     lines: [
-      { text: 'Brand: Acme Corp  (profile-file: acme.yaml)', color: 'text-neutral-500' },
-      { text: 'Score: 71/100   tone 84 · style 70 · vocab 55 · clarity 78', color: 'text-accent-amber' },
-      { text: '  major   forbidden term "leverage"  →  "use"', color: 'text-accent-rose' },
-      { text: '  minor   tone too formal for friendly-dtc voice', color: 'text-neutral-400' },
-      { text: 'Run `kapi brand rewrite` to fix, or --min-score 80 to gate CI', color: 'text-brand-300' },
-      { text: 'exit code 3  (below --min-score threshold)', color: 'text-brand-400' },
+      { text: 'Reading quarterly-report.docx (DOCX detected)', color: 'text-neutral-500' },
+      { text: 'Extracted 184 translatable blocks', color: 'text-brand-400' },
+      { text: 'Structure, styles, fields and placeholders preserved', color: 'text-neutral-400' },
+      { text: 'Wrote strings.json', color: 'text-brand-300' },
+      { text: 'Round-trip safe — `kapi merge` writes the .docx back, faithfully', color: 'text-accent-amber' },
     ],
   },
   {
-    cmd: 'kapi run ai-translate-qa -i app.json -o app.de.json --target-lang de',
+    cmd: 'kapi ai-translate -i strings.json -o strings.de.json --target-lang de',
     lines: [
-      { text: 'Reading app.json (JSON detected) · brand voice: Acme Corp', color: 'text-neutral-500' },
-      { text: 'Flow: ai-translate-qa  (profile bound on the recipe)', color: 'text-neutral-500' },
-      { text: '  [1/2] ai-translate    provider: anthropic   142 segments', color: 'text-brand-400' },
-      { text: '  [2/2] brand-voice     94/100  · 0 forbidden terms', color: 'text-brand-400' },
-      { text: 'Written: app.de.json', color: 'text-brand-300' },
-      { text: 'On-brand, terminology-consistent, in 3.2s — locally', color: 'text-accent-amber' },
+      { text: 'Reading strings.json (JSON detected)', color: 'text-neutral-500' },
+      { text: '  ai-translate    provider: anthropic    184 blocks', color: 'text-brand-400' },
+      { text: 'Wrote strings.de.json', color: 'text-brand-300' },
+      { text: 'Placeholders, markup and inline tags kept intact', color: 'text-accent-amber' },
     ],
   },
   {
-    cmd: 'kapi pseudo-translate src/messages.json --target-lang qps -o src/messages_qps.json',
+    cmd: 'kapi verify --target-lang de',
     lines: [
-      { text: 'Reading src/messages.json (JSON format detected)', color: 'text-neutral-500' },
-      { text: '"Welcome back"  ->  "[Wëlçömë ƀäçk]"', color: 'text-brand-400' },
-      { text: '"Save changes"  ->  "[Šävë çhäñgëš]"', color: 'text-brand-400' },
-      { text: '"Loading..."    ->  "[Löäđïñg...]"', color: 'text-brand-400' },
-      { text: 'Written: src/messages_qps.json', color: 'text-brand-300' },
-      { text: '48 segments pseudo-translated in 12ms', color: 'text-accent-amber' },
+      { text: 'brand         PASS  (0 findings)', color: 'text-brand-400' },
+      { text: 'terminology   PASS  (0 findings)', color: 'text-brand-400' },
+      { text: 'qa            FAIL  (1 finding)', color: 'text-accent-rose' },
+      { text: '  ERROR de: placeholder {count} dropped in target', color: 'text-accent-rose' },
+      { text: 'FAIL — gate blocked; fix and re-run (exit 1)', color: 'text-brand-300' },
     ],
   },
 ]
 
 const AXES = [
+  { icon: FileText, label: 'Any format, faithfully' },
+  { icon: Languages, label: 'Translate · check · transform' },
   { icon: WifiOff, label: 'Offline by default' },
-  { icon: Sparkles, label: 'Brand + terminology + voice' },
-  { icon: Globe, label: 'Any format, any language' },
 ]
 
 export function Hero() {
@@ -112,20 +108,20 @@ export function Hero() {
             className="h-28 w-28 animate-float drop-shadow-[0_0_30px_rgba(37,194,160,0.2)]"
           />
           <h1 className="font-display text-4xl font-extrabold leading-[1.1] tracking-tight text-white sm:text-5xl md:text-6xl lg:text-[4.2rem]">
-            Keep your AI{' '}
+            Read, change, and ship content in{' '}
             <span className="bg-gradient-to-r from-brand-400 via-brand-300 to-forest-400 bg-clip-text text-transparent text-glow">
-              on-brand
+              any format
             </span>
-            .{' '}
-            <br className="hidden sm:block" />
-            Ship it in every language.
+            .
           </h1>
         </div>
 
         <p className="animate-fade-in-up-delay-2 mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-neutral-400 md:text-xl">
-          The open engine that keeps your AI coding assistant terminologically
-          consistent and on-voice — then ships the result in every language and
-          every format. <span className="text-neutral-300">Open source and offline by default — your content stays yours.</span>
+          An open engine that extracts what matters from any file, lets you
+          translate, check, and transform it, and writes it back faithfully —
+          structure, markup, and placeholders intact. AI translation, translation
+          memory, terminology and brand checks built in.{' '}
+          <span className="text-neutral-300">Offline by default — your content stays yours.</span>
         </p>
 
         {/* Three axes */}

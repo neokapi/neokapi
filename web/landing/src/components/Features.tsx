@@ -1,68 +1,68 @@
 import {
-  Sparkles, Gauge, Languages, BookMarked,
-  WifiOff, Plug, FileText, Workflow,
+  FileText, Repeat, Languages, BookMarked,
+  ShieldCheck, WifiOff, Plug, Workflow,
 } from 'lucide-react'
 
 const FEATURES = [
   {
-    icon: Gauge,
-    title: 'Brand voice, scored',
+    icon: FileText,
+    title: 'Every format, natively',
     description:
-      'Load a voice profile and score any text 0–100 across tone, style, vocabulary, clarity, and compliance. `--min-score` turns it into a CI gate (exit code 3 on failure). Five starter packs included.',
+      'Read and write localization, data, content, subtitle, and office formats in place — HTML, Markdown, JSON, YAML, XML, PO, .strings, XLIFF, TMX, DOCX, XLSX, PPTX, EPUB, PDF, IDML — with more through the okapi-bridge.',
     accent: 'text-brand-400',
     bg: 'bg-brand-500/8',
     border: 'border-brand-500/15',
   },
   {
-    icon: Sparkles,
-    title: 'On-brand at generation',
+    icon: Repeat,
+    title: 'Faithful round-trip',
     description:
-      'A bound profile is injected into the translation and rewrite prompts, so AI output is on-voice and terminology-correct when it is written — not just flagged afterward.',
+      'Extract translatable text, change it, and write the original file back — structure, markup, inline tags, and placeholders intact. `kapi extract` then `kapi merge`, unchanged except where you intended.',
     accent: 'text-accent-cyan',
     bg: 'bg-accent-cyan/8',
     border: 'border-accent-cyan/15',
   },
   {
-    icon: BookMarked,
-    title: 'Terminology + TM',
+    icon: Languages,
+    title: 'Translate with AI or MT',
     description:
-      'Import a termbase (CSV/JSON/TBX), enforce preferred and forbidden terms, and leverage a TMX translation memory with fuzzy matching — the same enforcement path as brand vocabulary.',
+      'AI translation with LLM and MT backends, terminology enforcement, and pseudo-translation — composable into flows with `kapi run`, placeholders and markup preserved throughout.',
     accent: 'text-accent-amber',
     bg: 'bg-accent-amber/8',
     border: 'border-accent-amber/15',
+  },
+  {
+    icon: BookMarked,
+    title: 'Reuse with translation memory',
+    description:
+      'Leverage a TMX translation memory with fuzzy matching and import a termbase (CSV/JSON/TBX) to keep preferred and forbidden terms consistent across everything you ship.',
+    accent: 'text-forest-400',
+    bg: 'bg-forest-400/8',
+    border: 'border-forest-400/15',
+  },
+  {
+    icon: ShieldCheck,
+    title: 'Checks that act like tests',
+    description:
+      'Verify AI output against your rules — do-not-translate, placeholder and tag integrity, terminology, and brand voice — and gate CI with `kapi verify`, which exits non-zero on failure so a regression never ships.',
+    accent: 'text-accent-rose',
+    bg: 'bg-accent-rose/8',
+    border: 'border-accent-rose/15',
   },
   {
     icon: WifiOff,
     title: 'Offline by default',
     description:
       'A single self-contained binary with SQLite-backed TM and termbase. Run local models with Ollama. Nothing leaves your machine unless you choose a cloud LLM.',
-    accent: 'text-forest-400',
-    bg: 'bg-forest-400/8',
-    border: 'border-forest-400/15',
-  },
-  {
-    icon: Plug,
-    title: 'Drops into your AI workflow',
-    description:
-      '`kapi mcp` exposes brand_guide, brand_check, brand_rewrite, term_lookup, and tm_search to any MCP client — Claude Code, Cursor, Windsurf, and more.',
-    accent: 'text-accent-rose',
-    bg: 'bg-accent-rose/8',
-    border: 'border-accent-rose/15',
-  },
-  {
-    icon: FileText,
-    title: 'Formats, natively',
-    description:
-      'Read and write localization, data, content, subtitle, and office formats in place — HTML, Markdown, JSON, YAML, XML, PO, .strings, XLIFF, TMX, DOCX, XLSX, PPTX, EPUB, PDF, IDML — with more available through the okapi-bridge.',
     accent: 'text-brand-400',
     bg: 'bg-brand-500/8',
     border: 'border-brand-500/15',
   },
   {
-    icon: Languages,
-    title: 'Translate, then QA',
+    icon: Plug,
+    title: 'Drops into your AI workflow',
     description:
-      'AI translation with LLM and MT backends, rule-based and AI QA checks, terminology enforcement, and pseudo-translation — composable into flows with `kapi run`.',
+      '`kapi mcp` exposes the engine — extract, translate, check, term and TM lookup — to any MCP client: Claude Code, Cursor, Windsurf, and more.',
     accent: 'text-accent-cyan',
     bg: 'bg-accent-cyan/8',
     border: 'border-accent-cyan/15',
@@ -71,7 +71,7 @@ const FEATURES = [
     icon: Workflow,
     title: 'Versioned and CI-gated',
     description:
-      'Gate brand compliance in CI with `kapi brand check --min-score`, and keep brand profiles and termbases as version-controlled files alongside your code. Open source, offline, no lock-in.',
+      'Keep recipes, brand profiles, and termbases as version-controlled files alongside your code, and gate quality in CI. Open source, offline, no lock-in.',
     accent: 'text-forest-400',
     bg: 'bg-forest-400/8',
     border: 'border-forest-400/15',
@@ -86,12 +86,12 @@ export function Features() {
           <h2 className="font-display text-3xl font-bold tracking-tight text-white sm:text-4xl">
             One engine for{' '}
             <span className="bg-gradient-to-r from-brand-400 to-brand-300 bg-clip-text text-transparent">
-              brand, terminology, and localization
+              every content format
             </span>
           </h2>
           <p className="mx-auto mt-4 max-w-2xl text-lg text-neutral-400">
-            Brand guardrails for your AI output and a format-aware localization
-            toolkit — built from the same composable pieces.
+            Extract, translate, check, and transform — then write the original
+            back, faithfully. Built from composable pieces.
           </p>
         </div>
 
