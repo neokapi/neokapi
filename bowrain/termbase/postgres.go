@@ -307,11 +307,14 @@ func (tb *PostgresTermBase) pgSearchTrgm(query string, sourceLocale, targetLocal
 		return nil, 0, err
 	}
 
-	q := fmt.Sprintf(`SELECT DISTINCT t.concept_id
+	// GROUP BY (not DISTINCT) so the ORDER BY similarity() expression is legal:
+	// Postgres rejects "SELECT DISTINCT … ORDER BY <expr not in select list>".
+	q := fmt.Sprintf(`SELECT t.concept_id
 		FROM tb_terms t
 		JOIN tb_concepts c ON t.workspace_id = c.workspace_id AND t.concept_id = c.id
 		WHERE %s
-		ORDER BY similarity(t.text_lower, $2) DESC
+		GROUP BY t.concept_id
+		ORDER BY MAX(similarity(t.text_lower, $2)) DESC
 		LIMIT $%d OFFSET $%d`, where, argN, argN+1)
 	args = append(args, limit, offset)
 
@@ -366,7 +369,9 @@ func (tb *PostgresTermBase) pgSearchLike(query string, sourceLocale, targetLocal
 	copy(countArgs, args)
 	_ = tb.db.QueryRow("SELECT COUNT(DISTINCT c.id) FROM tb_concepts c WHERE "+where, countArgs...).Scan(&total)
 
-	q := fmt.Sprintf(`SELECT DISTINCT c.id FROM tb_concepts c WHERE %s ORDER BY c.updated_at DESC LIMIT $%d OFFSET $%d`, where, argN, argN+1)
+	// No DISTINCT: c.id is the table PK (single-table query), so rows are already
+	// unique — and DISTINCT would make ORDER BY c.updated_at illegal in Postgres.
+	q := fmt.Sprintf(`SELECT c.id FROM tb_concepts c WHERE %s ORDER BY c.updated_at DESC LIMIT $%d OFFSET $%d`, where, argN, argN+1)
 	args = append(args, limit, offset)
 	rows, err := tb.db.Query(q, args...)
 	if err != nil {
@@ -459,7 +464,9 @@ func (tb *PostgresTermBase) pgSearchTrgmForStream(query string, sourceLocale, ta
 	}
 	caseExpr.WriteString(fmt.Sprintf(" ELSE %d END", len(streams)))
 
-	q := fmt.Sprintf(`SELECT DISTINCT c.id FROM tb_concepts c WHERE %s ORDER BY %s, c.updated_at DESC LIMIT $%d OFFSET $%d`, where, caseExpr.String(), argN, argN+1)
+	// No DISTINCT: single-table query (c.id is the PK), and DISTINCT would make the
+	// status/updated_at ORDER BY illegal in Postgres.
+	q := fmt.Sprintf(`SELECT c.id FROM tb_concepts c WHERE %s ORDER BY %s, c.updated_at DESC LIMIT $%d OFFSET $%d`, where, caseExpr.String(), argN, argN+1)
 	args = append(args, limit, offset)
 	rows, err := tb.db.Query(q, args...)
 	if err != nil {
@@ -539,7 +546,9 @@ func (tb *PostgresTermBase) pgSearchLikeForStream(query string, sourceLocale, ta
 	}
 	caseExpr.WriteString(fmt.Sprintf(" ELSE %d END", len(streams)))
 
-	q := fmt.Sprintf(`SELECT DISTINCT c.id FROM tb_concepts c WHERE %s ORDER BY %s, c.updated_at DESC LIMIT $%d OFFSET $%d`, where, caseExpr.String(), argN, argN+1)
+	// No DISTINCT: single-table query (c.id is the PK), and DISTINCT would make the
+	// status/updated_at ORDER BY illegal in Postgres.
+	q := fmt.Sprintf(`SELECT c.id FROM tb_concepts c WHERE %s ORDER BY %s, c.updated_at DESC LIMIT $%d OFFSET $%d`, where, caseExpr.String(), argN, argN+1)
 	args = append(args, limit, offset)
 	rows, err := tb.db.Query(q, args...)
 	if err != nil {
