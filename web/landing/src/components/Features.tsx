@@ -35,7 +35,7 @@ const FEATURES = [
     icon: WifiOff,
     title: 'Offline by default',
     description:
-      'A single self-contained binary with SQLite-backed TM and termbase. Run local models with Ollama. Nothing leaves your machine unless you choose a cloud LLM or attach a server.',
+      'A single self-contained binary with SQLite-backed TM and termbase. Run local models with Ollama. Nothing leaves your machine unless you choose a cloud LLM.',
     accent: 'text-forest-400',
     bg: 'bg-forest-400/8',
     border: 'border-forest-400/15',
@@ -69,9 +69,9 @@ const FEATURES = [
   },
   {
     icon: Workflow,
-    title: 'Governance you own',
+    title: 'Versioned and CI-gated',
     description:
-      'Gate brand compliance in CI with `kapi brand check --min-score`, share profiles and termbases as version-controlled files, and connect a server when a team needs shared trends and automation — self-hosted or a managed platform. Open core, no lock-in.',
+      'Gate brand compliance in CI with `kapi brand check --min-score`, and keep brand profiles and termbases as version-controlled files alongside your code. Open source, offline, no lock-in.',
     accent: 'text-forest-400',
     bg: 'bg-forest-400/8',
     border: 'border-forest-400/15',

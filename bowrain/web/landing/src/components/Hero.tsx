@@ -45,19 +45,22 @@ export function Hero() {
       <div className="relative z-10 mx-auto max-w-4xl text-center">
         <div className="animate-fade-in-up mb-6 inline-flex items-center gap-2 rounded-full border border-neutral-800 bg-neutral-900/50 px-4 py-1.5 text-sm text-neutral-400">
           <span className="h-1.5 w-1.5 rounded-full bg-suggestion" />
-          Localization infrastructure for the pace of AI
+          The team platform on top of the open kapi toolchain
         </div>
 
         <h1 className="animate-fade-in-up-delay-1 text-4xl font-bold leading-tight tracking-tight text-white sm:text-5xl md:text-6xl lg:text-7xl">
-          Low-friction multilingual{' '}
+          Govern and steward your content{' '}
           <span className="bg-gradient-to-r from-brand-400 to-brand-300 bg-clip-text text-transparent">
-            plumbing for builders.
+            across every language and tool.
           </span>
         </h1>
 
         <p className="animate-fade-in-up-delay-2 mx-auto mt-6 max-w-2xl text-lg text-neutral-400 md:text-xl">
-          An open-source engine that can read and write your files and content, translates with AI, and remembers past work.
-          A platform that connects to your systems and keeps your team in sync.
+          kapi is the open-source toolchain a solo builder or small team runs locally. Bowrain is the server-side
+          platform on top: it adds the shared, governed, durable layer a team needs — collaborative editing, version
+          history and audit, connectors to the systems your content already lives in, and automation, with one brand
+          voice, terminology base, and translation memory shared across everyone and every AI tool. It is to kapi what
+          GitHub is to git.
         </p>
 
         {/* Primary CTAs */}
@@ -89,8 +92,12 @@ export function Hero() {
           </a>
         </div>
 
-        {/* Sliding demo — seamless auto-rotation */}
-        <div className="animate-fade-in-up-delay-3 mt-16 overflow-hidden rounded-xl border border-neutral-800 bg-neutral-900/50 shadow-2xl shadow-brand-500/5">
+        {/* Sliding demo — seamless auto-rotation. These are kapi, the open
+            local tool Bowrain builds on — shown here so the foundation is clear. */}
+        <p className="animate-fade-in-up-delay-3 mt-16 text-xs uppercase tracking-wider text-neutral-600">
+          Running locally with kapi, the open toolchain Bowrain builds on
+        </p>
+        <div className="animate-fade-in-up-delay-3 mt-4 overflow-hidden rounded-xl border border-neutral-800 bg-neutral-900/50 shadow-2xl shadow-brand-500/5">
           {/* Window chrome */}
           <div className="flex items-center gap-2 border-b border-neutral-800 px-4 py-3">
             <div className="h-2.5 w-2.5 rounded-full bg-red-500/60" />

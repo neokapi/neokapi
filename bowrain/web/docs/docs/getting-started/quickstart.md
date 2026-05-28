@@ -6,7 +6,7 @@ slug: /quickstart
 
 # Quick Start
 
-Get started with the Bowrain CLI in 5 minutes.
+Connect a kapi project to Bowrain in 5 minutes. Commands run through kapi with the bowrain plugin installed.
 
 ## Initialize a Project
 
@@ -39,7 +39,7 @@ Run the built-in AI translation tool:
 kapi ai-translate
 ```
 
-Bowrain CLI automatically:
+kapi automatically:
 
 - Reads files matching your recipe's `content:` collections
 - Translates from source to target locales

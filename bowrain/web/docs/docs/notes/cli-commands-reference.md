@@ -7,7 +7,7 @@ title: "CLI Commands Reference"
 
 This note provides implementation details for [AD-010](/architecture-decisions/010-bowrain-cli-and-project-model) and [AD-011](/architecture-decisions/011-rest-api).
 
-## Bowrain CLI Command Tree
+## Bowrain plugin command tree
 
 ```
 bowrain
@@ -53,7 +53,7 @@ bowrain
 +-- mcp              # Start MCP server for AI agent integration
 ```
 
-## Kapi CLI Command Tree
+## kapi command tree
 
 ```
 kapi

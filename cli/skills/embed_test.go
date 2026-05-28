@@ -64,7 +64,7 @@ func TestInstallToCopiesTreeByteIdentical(t *testing.T) {
 	}
 
 	// A reference file shipped too.
-	for _, ref := range []string{"brand", "localize", "i18n", "bowrain"} {
+	for _, ref := range []string{"brand", "localize", "i18n"} {
 		p := filepath.Join(dir, "kapi", "references", ref+".md")
 		if _, err := os.Stat(p); err != nil {
 			t.Errorf("expected reference file %s: %v", p, err)

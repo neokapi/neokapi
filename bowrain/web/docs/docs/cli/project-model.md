@@ -239,7 +239,7 @@ For lightweight pre/post hooks that simply call existing flows, prefer the top-l
 
 ## Project Discovery
 
-Bowrain CLI searches for a `*.kapi` recipe by walking up the directory tree (like git):
+kapi searches for a `*.kapi` recipe by walking up the directory tree (like git):
 
 ```bash
 cd my-app/src/locales/fr/

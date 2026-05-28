@@ -16,7 +16,7 @@ scenes:
 
 ## Story
 
-A 30-second tour of the Bowrain CLI. Top-level commands, the
+A 30-second tour of kapi with the bowrain plugin. Top-level commands, the
 project-init help text, and the project-status help text — enough to
 orient someone before they pick which command to drill into.
 

@@ -8,7 +8,7 @@ const TIERS = [
     id: 'starter',
     name: 'Starter',
     icon: Zap,
-    description: 'For individuals and small teams shipping multilingual products.',
+    description: 'For an individual or small team moving local work onto the platform.',
     monthly: '$XX',
     annual: '$XX',
     annualNote: '/mo, billed annually',
@@ -16,8 +16,7 @@ const TIERS = [
     ctaStyle: 'border border-neutral-700 bg-neutral-900/50 text-neutral-200 hover:border-neutral-500 hover:text-white',
     features: [
       '1 workspace, 3 projects',
-      'All 41+ format readers',
-      'All 80+ pipeline tools',
+      'All formats and workflow tools',
       'AI translation (bring your own key)',
       'Translation memory',
       'Pseudo-localization',
@@ -78,8 +77,8 @@ export function Plans() {
           Plans
         </h2>
         <p className="mt-3 text-neutral-400">
-          The open-source <code className="rounded bg-neutral-800/50 px-1.5 py-0.5 text-xs text-neutral-300">kapi</code> CLI is always free.
-          Upgrade to Bowrain when you need a server, connectors, or team collaboration.
+          The open-source <code className="rounded bg-neutral-800/50 px-1.5 py-0.5 text-xs text-neutral-300">kapi</code> toolchain is free and runs anywhere.
+          Add Bowrain when a team needs shared governance, connectors, collaboration, and version history on the server.
         </p>
 
         <div className="mt-8 inline-flex items-center rounded-full border border-neutral-800 bg-neutral-900/50 p-1">
@@ -174,7 +173,7 @@ export function Plans() {
       </div>
 
       <p className="mt-8 text-center text-sm text-neutral-600">
-        The open-source <code className="rounded bg-neutral-800/50 px-1.5 py-0.5 text-xs text-neutral-400">kapi</code> CLI is always free — 41+ formats, 80+ tools, AI translation. No account required.
+        The open-source <code className="rounded bg-neutral-800/50 px-1.5 py-0.5 text-xs text-neutral-400">kapi</code> toolchain is free — formats, workflow tools, and AI translation, on your own machine. No account required.
       </p>
     </section>
   )

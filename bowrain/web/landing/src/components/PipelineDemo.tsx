@@ -37,7 +37,7 @@ const FLOW_COMMANDS: Record<FlowVariant, { cmd: string; steps: FlowStep[] }> = {
     ],
   },
   qa: {
-    cmd: 'bowrain flow run qa-check --target-lang de',
+    cmd: 'kapi run qa-check --target-lang de',
     steps: [
       { label: 'Reader', detail: 'de.json + en.json → 47 string pairs', status: 'pending' },
       { label: 'Terminology', detail: '15 terms verified · 2 inconsistent', status: 'pending', extra: '→ "Arbeitsbereich" vs "Workspace" in string 23' },
@@ -108,10 +108,10 @@ export function PipelineDemo() {
     <section id="pipeline-demo" className="mx-auto max-w-6xl px-6 py-24">
       <div className="mx-auto max-w-3xl text-center">
         <h2 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">
-          See it in action
+          See a flow run
         </h2>
         <p className="mt-3 text-neutral-400">
-          Pick a flow. Hit run. Watch each tool do its job.
+          Pick a flow and run it with kapi, the open toolchain Bowrain builds on. Each tool does its job in turn.
         </p>
       </div>
 

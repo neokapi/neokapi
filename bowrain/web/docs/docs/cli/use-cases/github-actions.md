@@ -3,13 +3,13 @@ title: GitHub Actions
 sidebar_label: GitHub Actions
 ---
 
-# Use Case: Bowrain CLI in GitHub Actions
+# Use Case: kapi in GitHub Actions
 
-This guide shows how to use the Bowrain CLI in GitHub Actions workflows for automated translation, quality checks, and server sync.
+This guide shows how to use kapi (with the bowrain plugin) in GitHub Actions workflows for automated translation, quality checks, and server sync.
 
 ## Overview
 
-The [`setup-bowrain`](https://github.com/neokapi/setup-bowrain) GitHub Action installs the Bowrain CLI on any runner. It handles platform detection, checksum verification, binary caching, and optional server authentication — so your workflow steps can focus on localization tasks.
+The [`setup-bowrain`](https://github.com/neokapi/setup-bowrain) GitHub Action installs kapi and the bowrain plugin on any runner. It handles platform detection, checksum verification, binary caching, and optional server authentication — so your workflow steps can focus on localization tasks.
 
 ## Setup
 
@@ -47,7 +47,7 @@ The action downloads the correct binary for the runner platform (Linux, macOS, o
 
 The simplest CI pattern uses two actions together:
 
-- [`neokapi/setup-bowrain`](https://github.com/neokapi/setup-bowrain) — installs the Bowrain CLI
+- [`neokapi/setup-bowrain`](https://github.com/neokapi/setup-bowrain) — installs kapi and the bowrain plugin
 - [`neokapi/bowrain-action`](https://github.com/neokapi/bowrain-action) — runs `kapi sync` and commits translations
 
 ```yaml
@@ -252,7 +252,7 @@ jobs:
 
 ## Authentication
 
-The Bowrain CLI supports two authentication methods in CI:
+kapi supports two authentication methods in CI:
 
 | Method                   | How                                    | Best For                                |
 | ------------------------ | -------------------------------------- | --------------------------------------- |
@@ -263,7 +263,7 @@ The `auth-token` input on the setup action is the simplest approach — it expor
 
 ### Generating a CI Token
 
-Create an API token using the Bowrain CLI:
+Create an API token using kapi:
 
 ```bash
 kapi auth login                               # authenticate with Bowrain Cloud
@@ -308,7 +308,7 @@ Use `latest` (the default) for workflows where you always want the newest releas
 
 ## Related
 
-- [Bowrain CLI Overview](/cli/overview)
+- [CLI Overview](/cli/overview)
 - [Flow Hooks](/cli/flows/hooks)
 - [kapi sync](/cli/commands/sync) — push + wait + pull in one command
 - [kapi push](/cli/commands/push) and [kapi pull](/cli/commands/pull)

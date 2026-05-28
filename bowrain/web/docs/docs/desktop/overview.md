@@ -3,9 +3,9 @@ sidebar_position: 1
 title: Overview
 ---
 
-# Bowrain
+# Bowrain Desktop
 
-Bowrain is a cross-platform desktop application for translating documents. It supports a wide range of file formats, AI-powered translation, translation memory, and live document preview.
+Bowrain Desktop is a cross-platform desktop editor for translating documents. It connects to a Bowrain server for collaborative, governed work, and supports a wide range of file formats, AI-assisted translation, translation memory, and live document preview.
 
 ## Screenshots
 

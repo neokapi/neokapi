@@ -18,7 +18,7 @@ kapi flows
 
 The `kapi run` command executes a named multi-step processing pipeline. Documents are read, streamed through each tool in the flow, and written to the output. Multiple input files can be processed in parallel.
 
-**Project-based flows**: If a `.kapi` project exists (a `*.kapi` recipe found by walking up the tree), flows are loaded from inline `flows:` on the recipe and from `.kapi/flows/*.yaml`. This is the primary mode for Bowrain CLI.
+**Project-based flows**: If a `.kapi` project exists (a `*.kapi` recipe found by walking up the tree), flows are loaded from inline `flows:` on the recipe and from `.kapi/flows/*.yaml`. This is the primary mode for the bowrain plugin.
 
 **Built-in composed flows**: Multi-tool pipelines like `ai-translate-qa` are available as built-in flows.
 

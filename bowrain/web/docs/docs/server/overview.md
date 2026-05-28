@@ -5,16 +5,17 @@ title: Overview
 
 # Bowrain Server
 
-Bowrain Server is the integration platform that connects translation tools, services, and team members into a unified workflow.
+Bowrain Server is the hub of the platform — the shared, governed, persistent home for the work a team does locally with kapi.
 
 ## What is Bowrain Server?
 
-Bowrain Server is to Kapi as **GitHub is to git** — a centralized collaboration platform that:
+The server is to kapi as **GitHub is to git** — the shared end of a local-first workflow that:
 
-- Hosts translation projects for team collaboration
+- Hosts projects, terminology, memory, and brand-voice profiles for a team
 - Connects to external systems (CMS, design tools, code repos)
 - Orchestrates automation workflows and quality gates
-- Provides REST API for Kapi CLI and Bowrain apps
+- Keeps versioned history of every block and translation
+- Provides the REST API for kapi (with the bowrain plugin) and the editor apps
 
 ## Architecture
 
@@ -32,7 +33,7 @@ Bowrain Server is to Kapi as **GitHub is to git** — a centralized collaboratio
 └─────────────────────────────────────────────────────┘
            │                  │                │
            ▼                  ▼                ▼
-      Kapi CLI          Bowrain Web      Bowrain Desktop
+   kapi + plugin        Web editor       Desktop app
 ```
 
 ## Key Features
@@ -62,7 +63,7 @@ Integrate with external systems:
 | **Design**     | Figma, Sketch              | UI text strings    |
 | **Code**       | GitHub, GitLab             | Localization files |
 | **Marketing**  | HubSpot, Marketo           | Campaign content   |
-| **File**       | Kapi CLI                   | Local file sync    |
+| **File**       | kapi (bowrain plugin)      | Local file sync    |
 
 ### Automation
 
@@ -95,7 +96,7 @@ Deploy Bowrain Server when you need:
 - **Centralized TM** — Share translation memory across projects
 - **Access control** — Role-based permissions (workspace admin, translator, reviewer)
 
-For solo work or local-only workflows, use **Kapi CLI** instead — no server required.
+For solo work or local-only workflows, use **kapi** on its own instead — no server required.
 
 ## Deployment Options
 

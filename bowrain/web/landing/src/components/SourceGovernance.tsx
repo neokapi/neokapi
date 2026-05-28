@@ -5,11 +5,12 @@ export function SourceGovernance() {
     <section className="mx-auto max-w-6xl px-6 py-24">
       <div className="mx-auto max-w-3xl text-center">
         <h2 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">
-          Source language governance.{' '}
-          <span className="text-neutral-500">The unexpected value.</span>
+          One brand voice and terminology base,{' '}
+          <span className="text-neutral-500">shared and stewarded.</span>
         </h2>
         <p className="mt-3 text-neutral-400">
-          Most builders come for the multilingual delivery. The source language governance is what makes them stay.
+          Bowrain holds the brand voice profile, terminology, and translation memory in one place, applied the same way
+          for every team member, every channel, and every AI tool — and kept current as people correct and refine it.
         </p>
       </div>
 
@@ -74,7 +75,7 @@ export function SourceGovernance() {
           </div>
           <h3 className="text-lg font-semibold text-white">The feedback loop</h3>
           <p className="mt-2 text-sm text-neutral-400">
-            Every human correction feeds back in. Terminology lists refine themselves. Style profiles get smarter. The system learns what your brand sounds like.
+            Human corrections feed back into the shared profile. Terminology and translation memory update once and apply to everyone, so the next suggestion reflects the team's prior decisions.
           </p>
           <div className="mt-4 space-y-2 text-xs">
             <div className="flex items-center gap-2 text-neutral-400">

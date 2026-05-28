@@ -149,7 +149,7 @@ kapi config --global server.url https://bowrain.example.com
 
 ## Project Discovery
 
-Once initialized, Bowrain CLI searches for a `*.kapi` recipe by walking up the directory tree
+Once initialized, kapi searches for a `*.kapi` recipe by walking up the directory tree
 (like git). You can run commands from any subdirectory:
 
 ```bash

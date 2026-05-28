@@ -54,7 +54,7 @@ kapi push --force
 
 ## Content Hashing
 
-Bowrain CLI uses content-addressed blocks for efficient sync:
+kapi uses content-addressed blocks for efficient sync:
 
 ```
 content_hash = sha256(normalized_source_text)

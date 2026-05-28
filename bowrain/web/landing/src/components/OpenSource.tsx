@@ -10,11 +10,12 @@ export function OpenSource() {
     <section id="open-source" className="mx-auto max-w-6xl px-6 py-24">
       <div className="mx-auto max-w-3xl text-center">
         <h2 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">
-          Built on an open-source foundation
+          Built on an open toolchain you can use on its own
         </h2>
         <p className="mt-3 text-neutral-400">
-          Bowrain is powered by neokapi — an Apache 2.0 localization framework with
-          41+ format readers, 80+ workflow tools, AI translation, translation memory, and glossary enforcement.
+          Bowrain builds on kapi, the Apache-2.0 open-source toolchain. kapi reads and writes localization, document,
+          and data formats, chains tools into workflows, translates with AI, and keeps a translation memory — and it
+          runs anywhere, with or without Bowrain. Bowrain hosts and governs that work for a team.
         </p>
       </div>
 
@@ -25,11 +26,11 @@ export function OpenSource() {
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-500/10">
               <FileCode className="h-5 w-5 text-brand-400" />
             </div>
-            <h3 className="text-lg font-semibold text-white">Format intelligence</h3>
+            <h3 className="text-lg font-semibold text-white">Format-aware reading and writing</h3>
           </div>
           <p className="text-sm leading-relaxed text-neutral-400">
-            41+ format readers that understand your content — what's translatable,
-            what's a variable, what's markup. Plus 40+ enterprise formats like DOCX, XLSX, IDML, and PDF.
+            Readers and writers that distinguish text from variables and markup, across localization, document,
+            data, subtitle, and office formats — from JSON and Markdown to DOCX, XLSX, IDML, and PDF.
           </p>
           <div className="mt-4 flex flex-wrap gap-1.5">
             {FORMATS_SAMPLE.map(f => (
@@ -38,7 +39,7 @@ export function OpenSource() {
               </span>
             ))}
             <span className="rounded-md bg-brand-500/10 px-2 py-0.5 text-xs text-brand-400">
-              +67 more
+              and more
             </span>
           </div>
         </div>
@@ -51,11 +52,11 @@ export function OpenSource() {
             <h3 className="text-lg font-semibold text-white">Chainable workflows</h3>
           </div>
           <p className="text-sm leading-relaxed text-neutral-400">
-            80+ tools that chain into workflows. Segment, reuse past translations, look up glossary terms,
-            translate with AI, check quality — all in one run.
+            Tools chain into a workflow. Segment, reuse past translations, look up glossary terms,
+            translate with AI, and check quality — all in one run.
           </p>
           <div className="mt-4 overflow-hidden rounded-lg border border-neutral-800 bg-neutral-950 p-4 font-mono text-xs text-neutral-400">
-            <div className="text-neutral-600"># .bowrain/flows/translate.yaml</div>
+            <div className="text-neutral-600"># .kapi/flows/translate.yaml</div>
             <div><span className="text-brand-400">steps</span>:</div>
             <div>  - <span className="text-brand-400">segmenter</span></div>
             <div>  - <span className="text-brand-400">tm-leverage</span>: <span className="text-neutral-300">min-score: 75</span></div>
@@ -71,12 +72,12 @@ export function OpenSource() {
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-500/10">
               <Sparkles className="h-5 w-5 text-brand-400" />
             </div>
-            <h3 className="text-lg font-semibold text-white">AI that knows your glossary</h3>
+            <h3 className="text-lg font-semibold text-white">AI translation with your glossary</h3>
           </div>
           <p className="text-sm leading-relaxed text-neutral-400">
             AI translation runs in the same workflow as your glossary and past translations.
-            Your preferred terms are sent to the model — so it uses your vocabulary, not its own guesses.
-            Works with Claude, OpenAI, Azure OpenAI, and Ollama.
+            Your preferred terms are sent to the model, so it uses your vocabulary rather than its own.
+            Works with a range of AI providers, including Claude, OpenAI, Azure OpenAI, and Ollama.
           </p>
           <div className="mt-4 overflow-hidden rounded-lg border border-neutral-800 bg-neutral-950 p-4 font-mono text-xs">
             <div className="text-neutral-600"># Your glossary, sent to the AI</div>
@@ -98,11 +99,11 @@ export function OpenSource() {
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-suggestion/10">
               <Database className="h-5 w-5 text-suggestion" />
             </div>
-            <h3 className="text-lg font-semibold text-white">Intelligent translation reuse</h3>
+            <h3 className="text-lg font-semibold text-white">Translation reuse</h3>
           </div>
           <p className="text-sm leading-relaxed text-neutral-400">
-            Names, companies, and dates are recognized and swapped out before matching.
-            So a sentence you translated once gets reused even when the names change.
+            Names, companies, and dates are recognized and set aside before matching,
+            so a sentence you translated once gets reused even when those values change.
           </p>
           <div className="mt-4 space-y-2 text-xs">
             <div className="rounded-lg border border-neutral-800 bg-neutral-950 p-3">
@@ -125,10 +126,10 @@ export function OpenSource() {
       <div className="mt-12 grid gap-6 md:grid-cols-3">
         <div className="rounded-xl border border-neutral-800 bg-neutral-900/30 p-6 text-center">
           <Shield className="mx-auto mb-3 h-8 w-8 text-suggestion" />
-          <h3 className="text-base font-semibold text-white">Apache 2.0 engine</h3>
+          <h3 className="text-base font-semibold text-white">Open toolchain, yours to keep</h3>
           <p className="mt-2 text-sm text-neutral-400">
-            The neokapi framework is fully open source. Inspect, fork, contribute.
-            Also available as <code className="rounded bg-neutral-800 px-1 text-xs text-neutral-300">kapi</code> — a standalone file-based CLI.
+            kapi and the neokapi framework it builds on are Apache-2.0. Inspect, fork, contribute, and run
+            <code className="rounded bg-neutral-800 px-1 text-xs text-neutral-300"> kapi</code> on its own — without Bowrain.
           </p>
         </div>
 
@@ -137,16 +138,16 @@ export function OpenSource() {
           <h3 className="text-base font-semibold text-white">Self-host the platform</h3>
           <p className="mt-2 text-sm text-neutral-400">
             The Bowrain platform is available under AGPL or a commercial license.
-            Run it on your own infrastructure with full control.
+            Run it on your own infrastructure with full control of your data.
           </p>
         </div>
 
         <div className="rounded-xl border border-neutral-800 bg-neutral-900/30 p-6 text-center">
           <Package className="mx-auto mb-3 h-8 w-8 text-neutral-300" />
-          <h3 className="text-base font-semibold text-white">One binary, no dependencies</h3>
+          <h3 className="text-base font-semibold text-white">No lock-in at any layer</h3>
           <p className="mt-2 text-sm text-neutral-400">
-            A single executable. No Java, no Node, nothing to configure.
-            Extend with plugins written in any language.
+            kapi is a single executable that needs no runtime to install. Your projects, terminology, and
+            translation memory stay in open formats you can take elsewhere.
           </p>
         </div>
       </div>

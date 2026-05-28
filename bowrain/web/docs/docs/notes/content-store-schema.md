@@ -138,7 +138,7 @@ GET    /api/v1/workspaces/:ws/projects/:id/sync/blocks
 GET    /api/v1/workspaces/:ws/projects/:id/sync/status
 ```
 
-Bowrain CLI interacts with the store via API, not directly. The `kapi pull/push` commands call the sync endpoints, which query the ContentStore, compute diffs, and return only changed blocks ([AD-009](/architecture-decisions/009-sync-protocol)).
+kapi interacts with the store via API, not directly. The `kapi pull/push` commands call the sync endpoints, which query the ContentStore, compute diffs, and return only changed blocks ([AD-009](/architecture-decisions/009-sync-protocol)).
 
 ## Migration Strategy
 

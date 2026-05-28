@@ -168,9 +168,9 @@ type ContentItem struct {
 Fetch/Pull, powering the sync indicators in the connector management UI
 and the `kapi status` command.
 
-### Bowrain CLI as the File Connector
+### The bowrain plugin as the file connector
 
-The bowrain CLI is the primary `SourceConnector` implementation —
+The bowrain plugin is the primary `SourceConnector` implementation —
 `BowrainSourceConnector`. It manages `.kapi` projects (a `<dir-name>.kapi`
 recipe and sibling `.kapi/` state directory) and syncs local files with
 Bowrain Server.

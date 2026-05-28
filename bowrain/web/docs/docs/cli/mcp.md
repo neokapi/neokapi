@@ -3,9 +3,9 @@ sidebar_position: 6
 title: MCP Server
 ---
 
-# Using Bowrain CLI with AI Assistants
+# Using the bowrain plugin with AI assistants
 
-Bowrain CLI exposes project management capabilities as an [MCP](https://modelcontextprotocol.io/) (Model Context Protocol) server. This lets AI tools like Claude, GitHub Copilot, Cursor, Windsurf, and other MCP-compatible agents check project status, list tracked files, push and pull translations, and manage flows — all through structured tool calls.
+kapi (with the bowrain plugin) exposes project management capabilities as an [MCP](https://modelcontextprotocol.io/) (Model Context Protocol) server. This lets AI tools like Claude, GitHub Copilot, Cursor, Windsurf, and other MCP-compatible agents check project status, list tracked files, push and pull translations, and manage flows — all through structured tool calls.
 
 ## Quick Start
 
@@ -38,7 +38,7 @@ Add to your Claude Desktop config (`~/Library/Application Support/Claude/claude_
 }
 ```
 
-Restart Claude Desktop. Bowrain CLI tools will appear in the tool picker.
+Restart Claude Desktop. The bowrain plugin's tools will appear in the tool picker.
 
 **Using both servers together:** You can register kapi and bowrain side by side. Use kapi for standalone file operations and bowrain for project workflows:
 
@@ -249,13 +249,13 @@ No parameters.
 
 ## How It Works
 
-Bowrain CLI MCP uses the same infrastructure as the CLI commands — `project.FindProject()` for project discovery, `NewSourceConnector()` for server sync, and `NewLocalConnector()` for local file operations. The MCP server simply exposes these as typed, discoverable tools over the [Model Context Protocol](https://modelcontextprotocol.io/) stdio transport.
+The bowrain plugin's MCP server uses the same infrastructure as the CLI commands — `project.FindProject()` for project discovery, `NewSourceConnector()` for server sync, and `NewLocalConnector()` for local file operations. The MCP server simply exposes these as typed, discoverable tools over the [Model Context Protocol](https://modelcontextprotocol.io/) stdio transport.
 
 No server process, ports, or authentication needed. Your AI tool launches `kapi mcp` as a child process, communicates over stdin/stdout, and shuts it down when the session ends.
 
 ## Related
 
-- [Bowrain CLI Overview](/cli/overview)
+- [CLI Overview](/cli/overview)
 - [Project Model](/cli/project-model)
 - [Commands Reference](/cli/commands/init)
-- [Kapi CLI MCP Server](https://neokapi.github.io/web/neokapi/docs/kapi-cli/mcp) — for standalone file processing
+- [kapi MCP Server](https://neokapi.github.io/web/neokapi/docs/kapi-cli/mcp) — for standalone file processing

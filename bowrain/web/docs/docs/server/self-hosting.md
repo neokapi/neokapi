@@ -225,7 +225,7 @@ Add a cron job for regular backups:
 
 ## CLI Connection
 
-Connect the Bowrain CLI to your self-hosted server:
+Connect kapi to your self-hosted server:
 
 ```bash
 kapi auth login --server https://bowrain.example.com

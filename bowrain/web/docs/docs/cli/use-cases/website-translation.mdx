@@ -5,7 +5,7 @@ sidebar_label: Website Translation
 
 # Use Case: Translating a Website
 
-This guide walks through a complete workflow for translating website content using the Bowrain CLI and Bowrain's visual editor.
+This guide walks through a complete workflow for translating website content using kapi (with the bowrain plugin) and the Bowrain web editor.
 
 ## Overview
 
@@ -77,7 +77,7 @@ kapi run translate-website
 
 ### Tools and Flows
 
-Bowrain CLI tools and flows are composable pipelines that run on your local files:
+kapi tools and flows are composable pipelines that run on your local files:
 
 - **`kapi ai-translate`**: Use LLMs (Anthropic, OpenAI, Ollama) for machine translation
 - **`kapi tm-leverage`**: Pre-fill translations from translation memory
@@ -132,14 +132,14 @@ kapi pull
 
 The push/pull workflow is similar to git:
 
-| Git          | Bowrain CLI      |
+| Git          | kapi             |
 | ------------ | ---------------- |
 | `git status` | `kapi status` |
 | `git diff`   | `kapi diff`   |
 | `git pull`   | `kapi pull`   |
 | `git push`   | `kapi push`   |
 
-Bowrain CLI uses content-addressed blocks for efficient incremental sync — only changed blocks transfer over the network.
+kapi uses content-addressed blocks for efficient incremental sync — only changed blocks transfer over the network.
 
 ## Tips
 

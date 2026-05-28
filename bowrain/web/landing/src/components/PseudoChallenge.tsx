@@ -96,13 +96,15 @@ export function PseudoChallenge() {
     <section id="pseudo-challenge" className="mx-auto max-w-6xl px-6 py-24">
       <div className="mx-auto max-w-3xl text-center">
         <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-neutral-800 px-3 py-1 text-xs text-neutral-400 font-mono">
-          LOCALIZATION ENTRY POINT
+          RUNS LOCALLY WITH KAPI
         </div>
         <h2 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">
           The <span className="text-brand-400">Ṗšëüđö</span> Challenge
         </h2>
         <p className="mt-3 text-neutral-400">
-          Go from zero to multilingual-ready pipeline without reading docs. Prove it works in 30 seconds.
+          This is kapi, the open toolchain Bowrain builds on, running on your own machine. Go from zero to a
+          multilingual-ready pipeline and see the result in seconds. Bowrain is what makes the glossary and voice rules
+          below shared across a team.
         </p>
       </div>
 
@@ -233,7 +235,7 @@ export function PseudoChallenge() {
 
       <div className="mt-6 text-center text-sm text-neutral-500">
         {level === 1 && 'Level 1: Basic pseudo-localization. Proves your pipeline handles non-ASCII.'}
-        {level === 2 && 'Level 2: Bowrain identifies brand terms from your glossary and protects them.'}
+        {level === 2 && 'Level 2: kapi reads brand terms from your glossary and protects them. On Bowrain, that glossary is shared across the team.'}
         {level === 3 && 'Level 3: Expansion testing reveals UI truncation and layout breaks.'}
         {level === 4 && 'Level 4: Same pipeline, real language. Glossary and voice rules carry through.'}
       </div>

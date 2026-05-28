@@ -4,80 +4,74 @@ title: Introduction
 slug: /
 ---
 
-# Bowrain Platform
+# Bowrain
 
-Bowrain is a full-stack localization platform that turns your source content into production-ready translations. It combines a CLI for developers, a visual editor for translators, and a server for automation — all powered by the neokapi framework's 41+ format readers and 46+ processing tools.
+Bowrain is the server-side platform companion to [kapi](https://neokapi.github.io/web/neokapi/). Kapi gives a solo builder or a small team everything they need locally — extracting content, enforcing brand voice and terminology, leveraging translation memory, and localizing into every language and format, all from files you own. Bowrain is where a team hosts, governs, and stewards that work over time: shared profiles and memory, collaborative editing, connectors to the systems content already lives in, automation, and version history.
 
-## One Command, Full Cycle
+It is to kapi what GitHub is to git. The toolchain stays open and runs anywhere; Bowrain adds the persistent, multi-user, governed layer an organization needs.
+
+## What Bowrain adds
+
+You keep using kapi. Installing the bowrain plugin (`kapi plugin install bowrain`) lets a kapi project sync with a Bowrain server, and the platform adds what a single checkout cannot:
+
+### Shared, versioned governance
+
+One brand-voice profile, terminology base, and translation memory, held on the server and shared across everyone — writers, translators, and AI tools — instead of living in each person's checkout. Changes are versioned and auditable: who approved a term, when a profile changed, what a translation used to say.
+
+### Collaboration
+
+A web editor and a desktop app connect to the same server. Translators work with split preview, translation memory, and terminology context; edits, presence, and memory updates propagate to every client in real time.
+
+### Connectors
+
+Sync against the systems content already lives in — code repositories, content management systems, design tools, and marketing platforms — not just local files. Files are one connector category, not the whole story.
+
+### Automation
+
+Server-side rules run flows when content arrives, a quality gate passes, or a connector syncs. Local rules in a `.kapi` recipe give a developer guardrails; server rules give a team shared, event-driven workflows.
+
+### Stewardship over time
+
+A persistent, versioned content store keeps the history of every block, branch, and translation, so the work compounds: terminology decisions, brand-voice corrections, and remembered translations stay with the project as people and tools come and go.
+
+## One command to sync
+
+With the plugin installed, a kapi project whose recipe declares a `server:` block can push and pull in a single step:
 
 ```bash
 kapi sync
 ```
 
-Push your source content, wait for AI translation and QA, pull back the results. One command, zero context switching. Under the hood, `kapi sync` runs three phases (push, wait-for-translation, pull) so you can go from code change to translated files in a single terminal invocation.
+[`kapi sync`](/cli/commands/sync) pushes changed content to the server, waits for the triggered flows (translation, QA, terminology) to finish, and pulls the results back — one invocation from code change to translated files. In CI it replaces a multi-job pipeline.
 
-## Five Pillars
-
-### 1. One Command, Full Cycle — `kapi sync`
-
-The [`kapi sync`](/cli/commands/sync) command pushes changed content to the server, waits for all triggered flows (translation, QA, terminology) to complete, and pulls back the results. In CI, this means a single step replaces a multi-job pipeline. Locally, it means you type one command and get translations back.
-
-### 2. Format Intelligence — 41+ Formats
-
-Bowrain understands your content structure. Whether it is JSON, XLIFF, Markdown, YAML, PO, HTML, OpenXML, InDesign IDML, SRT subtitles, or any of 41+ supported formats, the platform extracts translatable blocks while preserving structure, inline formatting, and metadata. No manual configuration of what to translate — the format reader handles it.
-
-### 3. Composable Automation
-
-Define automation rules at the top level of your `.kapi` recipe for CLI-driven workflows:
-
-```yaml
-automations:
-  - name: qa-before-push
-    trigger: pre-push
-    actions:
-      - type: run_flow
-        config:
-          flow: qa-check
-```
-
-Or use the visual rule editor on Bowrain Server for event-driven automation — trigger flows when content arrives, quality gates pass, or connectors sync. Local rules and server rules complement each other: local for developer guardrails, server for team-wide workflows.
-
-### 4. Source-First Quality
-
-Catch issues in source content before they multiply across target languages. QA checks, terminology enforcement, consistency validation, and pattern matching run on source strings at push time. A misspelled term fixed once in the source prevents the same error in every target locale.
-
-### 5. AI + Human-in-the-Loop
-
-LLM-powered translation (Anthropic, OpenAI, Ollama) and five MT services (DeepL, Google, Microsoft, ModernMT, MyMemory) produce initial translations. The visual editor gives translators split preview, translation memory, and terminology context to review and refine. AI handles volume; humans ensure quality.
-
-## How It Fits Together
+## How it fits together
 
 ```
-Developer (Bowrain CLI)          Translator (Web/Desktop)
-     |                              |
-     |  kapi sync                |  Open editor
-     |----------------------------->|----------------------------->
-     |               Bowrain Server |
-     |  push → translate → pull     |  Review, approve, save
-     |<-----------------------------|<-----------------------------
+You, with kapi + the bowrain plugin        Translators (web / desktop)
+        |                                          |
+        |  kapi sync                               |  open the editor
+        |----------------------------------------->|
+        |               Bowrain server             |
+        |  push -> translate / QA -> pull          |  review, approve, save
+        |<-----------------------------------------|
 ```
 
-The developer initializes a `.kapi` project, runs `kapi sync` to push source content and pull back translations. Translators work in the web app or desktop app with a visual editor, translation memory, and terminology support. Automation rules on the server orchestrate the processing between push and pull.
+A developer runs `kapi sync` to push source content and pull back translations. Translators work in the web or desktop editor with translation memory and terminology support. Server automation orchestrates the processing in between, and the content store keeps the history.
 
-## Components
+## Parts of the platform
 
-- **Bowrain CLI** — project companion CLI that syncs local files with Bowrain Server
-- **Bowrain Web** — browser-based translation editor with split preview, TM, and terminology
-- **Bowrain Desktop** — native cross-platform app with offline support
-- **Bowrain Server** — REST API server with workspaces, connectors, automation, and content store
+- **Project sync** — the bowrain plugin for kapi, run as `kapi <command>`, which syncs a local `.kapi` project with a server.
+- **Web editor** — a browser-based translation workbench with split preview, translation memory, and terminology.
+- **Desktop app** — a native cross-platform editor with offline support.
+- **Server** — workspaces, authentication, connectors, automation, and the versioned content store.
 
-## What's Next
+## What's next
 
-- [Installation](/installation) — install Bowrain CLI, Bowrain Desktop, or Bowrain Server
-- [Quick Start](/quickstart) — initialize a project and sync with Bowrain
-- [Walkthrough](/walkthroughs/bowrain-getting-started) — complete guide from init to automated CI/CD
-- [`kapi sync` command](/cli/commands/sync) — the flagship one-command workflow
+- [Installation](/installation) — install the bowrain plugin, the desktop app, or a server
+- [Quick start](/quickstart) — connect a project and sync
+- [Walkthrough](/walkthroughs/bowrain-getting-started) — from connect to automated CI/CD
+- [`kapi sync`](/cli/commands/sync) — the one-command workflow
 
-## Standalone File Processing
+## Just need the local tools?
 
-For standalone file processing without a server (format conversion, pseudo-translation, word counting, QA checks), use the [kapi CLI](https://neokapi.github.io/web/neokapi/docs/getting-started/introduction) instead. Kapi operates directly on files without requiring a project or server.
+kapi runs on its own — extraction, brand and terminology checks, translation, pseudo-translation, QA — directly on files, with no server or account. Reach for Bowrain when a team needs the shared, governed, and durable layer on top. See the [kapi documentation](https://neokapi.github.io/web/neokapi/).

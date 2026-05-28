@@ -3,17 +3,17 @@ sidebar_position: 1
 title: Overview
 ---
 
-# Bowrain CLI
+# Project sync
 
-Bowrain CLI is the project companion CLI for the Bowrain localization platform. It manages `.kapi` projects in your repository and syncs with Bowrain Server for team collaboration.
+The bowrain plugin adds project sync to [kapi](https://neokapi.github.io/web/neokapi/): it connects a `.kapi` project in your repository to a Bowrain server, so a team shares one source of brand voice, terminology, memory, and translations.
 
 :::note
-Bowrain's CLI ships as the **`kapi-bowrain` plugin** for the `kapi` CLI — there is no standalone `bowrain` binary. Every command below is invoked as `kapi <command>` (e.g. `kapi init`, `kapi push`). See [Installation](/installation) to set it up.
+Project sync ships as the **`kapi-bowrain` plugin** for the `kapi` CLI — there is no separate `bowrain` binary. Every command below is invoked as `kapi <command>` (e.g. `kapi init`, `kapi push`). See [Installation](/installation) to set it up.
 :::
 
-## What is Bowrain CLI?
+## How it works
 
-Bowrain CLI is to Bowrain Server as **git is to GitHub** — a local-first project management tool that:
+With the plugin installed, kapi is the local end of a **git-to-GitHub** relationship with the server — you work locally and push/pull to share. It:
 
 - Initializes and manages `.kapi` projects in your repository
 - Runs translation flows (AI, MT, TM, QA) on project files
@@ -72,21 +72,21 @@ kapi config name "My App"     # Set project name
 kapi config --global server.url https://bowrain.example.com  # Set global server URL
 ```
 
-## When to Use Bowrain CLI
+## When to use it
 
-Use Bowrain CLI when you:
+Use kapi with the bowrain plugin when you:
 
 - **Manage localization projects** with a `.kapi` recipe
-- **Sync with Bowrain Server** for team collaboration
+- **Sync with a Bowrain server** for team collaboration
 - **Run project-based flows** defined in `.kapi/flows/` or inline on the recipe
 - **Want automation** via CI/CD pipelines
 
-Use kapi CLI when you:
+Use kapi on its own (no plugin) when you:
 
 - **Process standalone files** without a project
 - **Need quick one-off operations** (word count, pseudo-translate)
 
-Use Bowrain Desktop/Web when you:
+Use the desktop or web editor when you:
 
 - **Need visual editing** with split preview, context panel
 - **Collaborate** with team members in real-time

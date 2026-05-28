@@ -15,7 +15,7 @@ Connectors integrate Bowrain Server with external systems (CMS, design tools, co
 | **Design**    | Figma, Sketch              | UI text strings from designs   |
 | **Code**      | GitHub, GitLab, Bitbucket  | Localization files in repos    |
 | **Marketing** | HubSpot, Marketo           | Campaign and email content     |
-| **File**      | Bowrain CLI                | Local file sync                |
+| **File**      | kapi (bowrain plugin)      | Local file sync                |
 
 ## How Connectors Work
 
@@ -27,9 +27,9 @@ Connectors integrate Bowrain Server with external systems (CMS, design tools, co
 External System ←→ Connector ←→ Bowrain Server ←→ Translators
 ```
 
-## File Connector (Bowrain CLI)
+## File Connector (kapi)
 
-Bowrain CLI acts as a file connector:
+kapi (with the bowrain plugin) acts as a file connector:
 
 ```bash
 # Initialize connection to server
@@ -42,7 +42,7 @@ kapi pull
 kapi push -m "Translate new features"
 ```
 
-See [Bowrain CLI documentation](/cli/overview) for details.
+See the [CLI documentation](/cli/overview) for details.
 
 ## Server-Side Connectors
 
@@ -97,7 +97,7 @@ action:
 
 Server-side connectors are under development. Currently supported:
 
-- **File connector** via Bowrain CLI (placeholder)
+- **File connector** via kapi (placeholder)
 - **GitHub connector** (in progress)
 - **Contentful connector** (planned)
 
@@ -105,6 +105,6 @@ Server-side connectors are under development. Currently supported:
 
 ## Next Steps
 
-- [Bowrain CLI](/cli/overview)
+- [CLI Overview](/cli/overview)
 - [Automation](/server/automation)
 - [Workspaces](/server/workspaces)

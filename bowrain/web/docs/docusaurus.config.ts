@@ -9,7 +9,7 @@ const KAPI_WEB_SITE = process.env.KAPI_WEB_SITE || "https://neokapi.github.io/we
 
 const config: Config = {
   title: "Bowrain",
-  tagline: "AI-native localization platform",
+  tagline: "Team governance and stewardship for brand voice, terminology, and translation",
   favicon: "img/favicon.png",
 
   url: "https://neokapi.github.io",
@@ -95,8 +95,8 @@ const config: Config = {
           title: "Bowrain",
           items: [
             { label: "Getting Started", to: "/" },
-            { label: "Bowrain CLI", to: "/cli/overview" },
-            { label: "Bowrain Web", to: "/server/web-overview" },
+            { label: "Project sync (CLI)", to: "/cli/overview" },
+            { label: "Web app", to: "/server/web-overview" },
           ],
         },
         {

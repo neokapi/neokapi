@@ -9,7 +9,7 @@ Bowrain provides two complementary automation systems: **local automation rules*
 
 ## Local Automation (CLI)
 
-Local automations run in the Bowrain CLI and are declared at the top level of your project's `.kapi` recipe. They hook into CLI commands and execute actions before or after operations like push, pull, and flow runs.
+Local automations run in kapi (with the bowrain plugin) and are declared at the top level of your project's `.kapi` recipe. They hook into CLI commands and execute actions before or after operations like push, pull, and flow runs.
 
 ### Configuration
 

@@ -8,11 +8,12 @@ export function Platform() {
           TEAM PLATFORM
         </div>
         <h2 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">
-          <span className="text-brand-400">Bowrain</span> — when your team needs more
+          <span className="text-brand-400">Bowrain</span> — the layer a team hosts and governs
         </h2>
         <p className="mt-3 text-neutral-400">
-          Project management, server sync, live integrations, automated workflows,
-          and a visual translation editor — all powered by the open-source neokapi engine.
+          Multi-user workspaces with authentication, server-side content storage and version history, connectors,
+          automation, and a collaborative editor — the durable layer on top of the kapi toolchain your team already
+          uses locally.
         </p>
         <div className="mt-4 inline-block overflow-hidden rounded-lg border border-neutral-800 bg-neutral-950 px-4 py-2 font-mono text-sm">
           <span className="text-suggestion">$</span>{' '}
@@ -108,8 +109,8 @@ export function Platform() {
             <h3 className="text-lg font-semibold text-white">Git-like workflow</h3>
           </div>
           <p className="text-sm leading-relaxed text-neutral-400">
-            The Bowrain CLI manages a <code className="rounded bg-neutral-800 px-1 text-xs text-neutral-300">.kapi/</code> project directory and syncs with the server.
-            Only changed content syncs — fast and efficient.
+            kapi manages a <code className="rounded bg-neutral-800 px-1 text-xs text-neutral-300">.kapi/</code> project directory and syncs it with Bowrain, the way git pushes to and pulls from a hosted repository.
+            Only changed content syncs.
           </p>
           <div className="mt-4 overflow-hidden rounded-lg border border-neutral-800 bg-neutral-950 p-4 font-mono text-xs">
             <div><span className="text-suggestion">$</span> <span className="text-neutral-400">kapi init</span></div>

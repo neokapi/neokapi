@@ -25,7 +25,7 @@ Flows automatically:
 
 ## Built-In Flows
 
-Bowrain CLI includes several built-in flows:
+kapi includes several built-in flows:
 
 | Flow               | Description                                                       |
 | ------------------ | ----------------------------------------------------------------- |
@@ -207,7 +207,7 @@ Flows can process files in any of the 41+ supported formats:
 
 ## How Flows Work
 
-1. **File Discovery**: Bowrain CLI reads files matching the recipe's `content:` collections
+1. **File Discovery**: kapi reads files matching the recipe's `content:` collections
 2. **Parsing**: Each file is parsed into blocks (translatable units)
 3. **Processing**: Blocks stream through tools in sequence
 4. **Writing**: Results are written back to local files

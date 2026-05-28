@@ -59,10 +59,10 @@ const STEPS = [
   {
     n: '06',
     icon: ShieldCheck,
-    title: 'Govern',
+    title: 'Gate',
     cmd: 'kapi brand check --min-score',
     description:
-      'Gate brand compliance in CI and share profiles as version-controlled YAML. When a team needs shared trends, connectors, and automation, connect a server — self-hosted or a managed platform.',
+      'Gate brand compliance in CI and keep profiles as version-controlled YAML alongside your code — the same check on every commit, locally and in your pipeline.',
     accent: 'text-brand-400',
     bg: 'bg-brand-500/8',
     border: 'border-brand-500/15',

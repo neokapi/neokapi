@@ -213,7 +213,7 @@ The append-only change log with sync cursors follows the industry-standard patte
 
 ## Server API Endpoints
 
-When `url` is configured, Bowrain CLI uses the Bowrain Server REST API ([AD-011](/architecture-decisions/011-rest-api)):
+When `url` is configured, kapi uses the Bowrain Server REST API ([AD-011](/architecture-decisions/011-rest-api)):
 
 **Sync API endpoints:**
 

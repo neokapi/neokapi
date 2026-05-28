@@ -38,7 +38,7 @@ scenes:
 
 ## Story
 
-The full Bowrain CLI workflow in four scenes: initialize a project,
+The full bowrain plugin workflow in four scenes: initialize a project,
 push source content to the server, pull translated content back, and
 finally use `kapi sync` to do all three in one command. This is the
 canonical "first 5 minutes" experience — by the end, you have a CI-ready

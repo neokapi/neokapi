@@ -5,7 +5,7 @@ const AXES = [
     icon: WifiOff,
     title: 'Local-first',
     description:
-      'A single binary with embedded TM and termbase. Run entirely offline with local models, or opt into a cloud LLM and a governance server — your call, not a default.',
+      'A single binary with embedded TM and termbase. Run entirely offline with local models, or opt into a cloud LLM — your call, not a default.',
     contrast: 'Cloud-locked MCPs require their backend for every check.',
     accent: 'text-brand-400',
     glow: 'from-brand-500/20',

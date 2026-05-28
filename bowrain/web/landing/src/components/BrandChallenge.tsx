@@ -111,14 +111,14 @@ export function BrandChallenge() {
     <section id="brand-challenge" className="mx-auto max-w-6xl px-6 py-24">
       <div className="mx-auto max-w-3xl text-center">
         <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-neutral-800 px-3 py-1 text-xs text-neutral-400 font-mono">
-          SOURCE LANGUAGE ENTRY POINT
+          RUNS LOCALLY WITH KAPI
         </div>
         <h2 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">
           The On-Brand Challenge
         </h2>
         <p className="mt-3 text-neutral-400">
-          Pick a style profile. Write or paste content. Watch Bowrain score it live.
-          Fix the violations. Hit 100.
+          Pick a style profile. Write or paste content. See it scored against the profile live, and fix the violations
+          to reach 100. The check runs in kapi; Bowrain is where the profile is shared and governed across the team.
         </p>
       </div>
 

@@ -28,7 +28,7 @@ export function LoginPage() {
               <LogIn className="h-6 w-6 text-primary" />
             </div>
             <CardTitle className="text-2xl font-bold">Welcome to Bowrain</CardTitle>
-            <CardDescription>Localization platform for modern teams</CardDescription>
+            <CardDescription>Govern and steward your team's content</CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-4">
             <Button
@@ -44,7 +44,7 @@ export function LoginPage() {
             </p>
           </CardContent>
         </Card>
-        <p className="mt-4 text-center text-xs text-muted-foreground">Powered by neokapi</p>
+        <p className="mt-4 text-center text-xs text-muted-foreground">Built on kapi</p>
       </div>
     </div>
   );

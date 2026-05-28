@@ -5,7 +5,7 @@ sidebar_position: 7
 
 # kapi sync
 
-Push local changes, wait for translations, and pull results — all in one command. This is the flagship workflow command for Bowrain CLI, combining `kapi push`, server-side processing, and `kapi pull` into a single invocation.
+Push local changes, wait for translations, and pull results — all in one command. This is the primary workflow command of the bowrain plugin, combining `kapi push`, server-side processing, and `kapi pull` into a single invocation.
 
 ## Usage
 

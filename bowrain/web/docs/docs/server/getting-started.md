@@ -127,7 +127,7 @@ invites, see usage counts, and revoke invites that are no longer needed.
 
 ## CLI Connection
 
-Connect the Bowrain CLI to your server for command-line workflows:
+Connect kapi to your server for command-line workflows:
 
 ```bash
 kapi auth login --server http://localhost:8080
