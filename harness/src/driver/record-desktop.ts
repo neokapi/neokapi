@@ -85,6 +85,40 @@ const ICU_PKGCONFIG = "/opt/homebrew/opt/icu4c/lib/pkgconfig";
 // requires ≥1.0.0), so stamp a real version or live plugin installs are rejected.
 const KAPI_VERSION = "1.0.9";
 
+// ── Bowrain web recording target ─────────────────────────────────────────────
+// Bowrain web demos record the real bowrain web app (a browser SPA talking to a
+// running bowrain-server) instead of the kapi-desktop wbridge. Auth is a
+// device-flow JWT (BOWRAIN_SESSION_TOKEN) planted as the `bowrain_session`
+// cookie — the SPA loads straight into the authenticated workspace, no Keycloak.
+const BOWRAIN_BASE = process.env.BOWRAIN_BACKEND_URL || "http://localhost:8080";
+const BOWRAIN_TOKEN = process.env.BOWRAIN_SESSION_TOKEN || "";
+
+/** Resolve the first workspace slug for the session token (seed must have run). */
+async function bowrainWorkspaceSlug(): Promise<string> {
+  const r = await fetch(`${BOWRAIN_BASE}/api/v1/workspaces`, {
+    headers: { Authorization: `Bearer ${BOWRAIN_TOKEN}` },
+  });
+  if (!r.ok) throw new Error(`bowrain: GET /workspaces ${r.status}`);
+  const data = (await r.json()) as unknown;
+  const ws = (Array.isArray(data) ? data : (data as { workspaces?: unknown[] }).workspaces ?? []) as Array<{ slug: string }>;
+  if (!ws.length) throw new Error("bowrain: no workspaces for BOWRAIN_SESSION_TOKEN — seed first");
+  return ws[0].slug;
+}
+
+/** Plant the bowrain session cookie so the SPA loads authenticated. */
+async function bowrainAuthCookie(): Promise<{ name: string; value: string; domain: string; path: string; httpOnly: boolean; sameSite: "Lax"; secure: boolean }> {
+  const u = new URL(BOWRAIN_BASE);
+  return {
+    name: "bowrain_session",
+    value: BOWRAIN_TOKEN,
+    domain: u.hostname,
+    path: "/api/",
+    httpOnly: true,
+    sameSite: "Lax",
+    secure: u.protocol === "https:",
+  };
+}
+
 /** Env for the Go builds/run: cgo + fts5 deps + isolated config/home roots. */
 function goEnv(extra: Record<string, string> = {}): NodeJS.ProcessEnv {
   const pkg = fs.existsSync(ICU_PKGCONFIG)
@@ -479,29 +513,55 @@ async function runWalkthrough(page: Page, t0: number, demoId: string): Promise<B
   return beats;
 }
 
-async function recordTheme(browser: Browser, url: string, theme: ThemeMode, outDir: string, demoId: string): Promise<{ webm: string; beats: Beat[] }> {
+async function recordTheme(
+  browser: Browser,
+  url: string,
+  theme: ThemeMode,
+  outDir: string,
+  demoId: string,
+  web?: { slug: string },
+): Promise<{ webm: string; beats: Beat[] }> {
   const videoDir = ensureDir(path.join(outDir, `_rec-${theme}`));
   const context = await browser.newContext({
     viewport: { width: WIDTH, height: HEIGHT },
     deviceScaleFactor: 2,
     colorScheme: theme,
     recordVideo: { dir: videoDir, size: { width: WIDTH, height: HEIGHT } },
+    // bowrain web may be served over a locally-trusted (mkcert) cert; Chromium
+    // doesn't trust it, so allow it for the recording target.
+    ignoreHTTPSErrors: true,
   });
-  // Pin the palette deterministically: set the `.dark` class at document-start on
-  // every load, so the theme can't drift if the SPA re-renders or reloads mid-run.
+  if (web) await context.addCookies([await bowrainAuthCookie()]);
+  // Pin the palette deterministically: set `.dark` at document-start AND re-assert
+  // it via a MutationObserver, so an app's own theme logic can't flip the
+  // recording mid-run (toggle is idempotent → no loop).
   await context.addInitScript((isDark) => {
-    const apply = () => document.documentElement.classList.toggle("dark", isDark);
-    apply();
-    document.addEventListener("DOMContentLoaded", apply);
+    const pin = () => document.documentElement.classList.toggle("dark", isDark);
+    pin();
+    document.addEventListener("DOMContentLoaded", pin);
+    try {
+      new MutationObserver(pin).observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
+    } catch {
+      /* observer unavailable — initial pin still applied */
+    }
   }, theme === "dark");
   const t0 = Date.now();
   const page = await context.newPage();
   await page.emulateMedia({ colorScheme: theme });
-  // "domcontentloaded", not "networkidle": real-main.tsx opens a long-lived SSE
-  // connection (/wevents) for streamed backend events, so the network never goes
-  // idle. The h1 wait below confirms the app actually rendered.
-  await page.goto(`${url}?theme=${theme}`, { waitUntil: "domcontentloaded" });
-  await page.waitForSelector("h1", { timeout: 15_000 });
+  if (web) {
+    // Land in the authenticated workspace; wait for the app shell, not an h1.
+    await page.goto(`${BOWRAIN_BASE}/${web.slug}?theme=${theme}`, { waitUntil: "domcontentloaded" });
+    await page.waitForSelector(
+      '[data-testid="nav-translate"], [data-testid="new-project-btn"], [data-testid="empty-projects"], [data-testid^="project-card"], nav',
+      { timeout: 30_000 },
+    );
+  } else {
+    // "domcontentloaded", not "networkidle": real-main.tsx opens a long-lived SSE
+    // connection (/wevents) for streamed backend events, so the network never goes
+    // idle. The h1 wait below confirms the app actually rendered.
+    await page.goto(`${url}?theme=${theme}`, { waitUntil: "domcontentloaded" });
+    await page.waitForSelector("h1", { timeout: 15_000 });
+  }
   await injectCursor(page);
   await page.waitForTimeout(400);
 
@@ -520,6 +580,9 @@ async function recordTheme(browser: Browser, url: string, theme: ThemeMode, outD
 
 export interface RecordOptions {
   force?: boolean;
+  /** Record the real bowrain WEB app (external running stack) instead of the
+   *  kapi-desktop wbridge: cookie auth + workspace-slug navigation. */
+  web?: boolean;
 }
 
 /** Record the desktop walkthrough for demo <id> → public/<id>/screencast.json + webms. */
@@ -529,6 +592,31 @@ export async function recordDesktop(id: string, opts: RecordOptions = {}): Promi
   if (!opts.force && fs.existsSync(jsonPath) && fs.existsSync(path.join(outDir, "screencast-light.webm"))) {
     console.log(`  · screencast exists for ${id} (use --force to re-record)`);
     return JSON.parse(fs.readFileSync(jsonPath, "utf8"));
+  }
+
+  // Web target: record the real bowrain web app at BOWRAIN_BACKEND_URL with the
+  // session cookie — no wbridge, no local stack to manage here.
+  if (opts.web) {
+    if (!BOWRAIN_TOKEN) throw new Error("bowrain web record: set BOWRAIN_SESSION_TOKEN (device-flow JWT)");
+    const slug = await bowrainWorkspaceSlug();
+    const browser = await chromium.launch();
+    try {
+      console.log(`  · recording bowrain web (light) @ ${BOWRAIN_BASE}/${slug}`);
+      const light = await recordTheme(browser, BOWRAIN_BASE, "light", outDir, id, { slug });
+      console.log("  · recording bowrain web (dark)");
+      const dark = await recordTheme(browser, BOWRAIN_BASE, "dark", outDir, id, { slug });
+      const screencast: Screencast = {
+        width: WIDTH,
+        height: HEIGHT,
+        video: { light: light.webm, dark: dark.webm },
+        beats: { light: light.beats, dark: dark.beats },
+      };
+      fs.writeFileSync(jsonPath, JSON.stringify(screencast, null, 2));
+      console.log(`  ✓ recorded ${id}: ${light.beats.length} beats, light+dark`);
+      return screencast;
+    } finally {
+      await browser.close();
+    }
   }
 
   // DEMO_URL points at an already-running stack (debugging); otherwise start the

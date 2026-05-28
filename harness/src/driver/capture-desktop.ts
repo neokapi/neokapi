@@ -21,7 +21,7 @@ export async function captureDesktopDemo(m: DemoManifest, opts: CaptureDesktopOp
   const pub = ensureDir(publicDemoDir(m.id));
 
   // 1. Record the screencast (light + dark webms + screencast.json).
-  await recordDesktop(m.id, { force: opts.force });
+  await recordDesktop(m.id, { force: opts.force, web: m.target === "web" });
 
   // 2. Minimal capture.json so the rest of the pipeline is unchanged.
   const capture: DemoCapture = {

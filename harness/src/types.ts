@@ -42,6 +42,13 @@ export interface DemoManifest {
   terminal?: "claude" | "shell" | "desktop";
   /** Card branding: "claude" (default) → kapi × Claude Code lockup; "kapi" → toolbox lockup; "desktop" → kapi · Desktop. */
   brand?: "claude" | "kapi" | "desktop";
+  /**
+   * Recording target for `terminal: "desktop"` demos:
+   *   "desktop" (default) — the kapi-desktop frontend via the wbridge.
+   *   "web"               — the real bowrain web app (external running stack),
+   *                         authed via the bowrain_session cookie (record-desktop.ts).
+   */
+  target?: "desktop" | "web";
   /** Displayed working-directory label in the terminal title bar (cosmetic; default ~/project). */
   cwd?: string;
   /** Ordered commands for a `terminal: "shell"` demo (run via `sh -c`, so globs expand). */
