@@ -161,7 +161,7 @@ func (w *ProjectWatcher) handleEvent(event *pb.ProjectEvent) {
 
 	switch e := event.Event.(type) {
 	case *pb.ProjectEvent_BlockChange:
-		w.app.app.Event.Emit("blocks-changed", BlockChangedEvent{
+		w.app.emit("blocks-changed", BlockChangedEvent{
 			BlockIDs:   []string{e.BlockChange.BlockId},
 			ItemName:   e.BlockChange.ItemName,
 			ChangeType: e.BlockChange.ChangeType,
@@ -179,7 +179,7 @@ func (w *ProjectWatcher) handleEvent(event *pb.ProjectEvent) {
 				BlockID:   e.PresenceChange.User.BlockId,
 			}
 		}
-		w.app.app.Event.Emit("presence-changed", PresenceChangedEvent{
+		w.app.emit("presence-changed", PresenceChangedEvent{
 			ChangeType: e.PresenceChange.ChangeType,
 			User:       user,
 		})

@@ -159,14 +159,12 @@ func (a *App) connectWithToken(serverURL, token string) error {
 	// app transitions out of the connect screen. Without this, the React
 	// useEffect that ran connection.refresh() before this auto-connect
 	// completed has already set mode="connecting".
-	if a.app != nil {
-		a.app.Event.Emit("connection-state-changed", ConnectionInfo{
-			State:     StateConnected,
-			ServerURL: serverURL,
-			UserName:  "CI",
-			UserEmail: "ci@bowrain.cloud",
-		})
-	}
+	a.emit("connection-state-changed", ConnectionInfo{
+		State:     StateConnected,
+		ServerURL: serverURL,
+		UserName:  "CI",
+		UserEmail: "ci@bowrain.cloud",
+	})
 	return nil
 }
 
@@ -442,13 +440,11 @@ func (a *App) HandleDeepLink(webURL string) {
 		return
 	}
 
-	if a.app != nil {
-		a.app.Event.Emit("deep-link-project", map[string]string{
-			"project_id": projectID,
-			"server_url": serverURL,
-			"workspace":  workspace,
-		})
-	}
+	a.emit("deep-link-project", map[string]string{
+		"project_id": projectID,
+		"server_url": serverURL,
+		"workspace":  workspace,
+	})
 }
 
 // CancelLogin cancels any active PKCE login flow.

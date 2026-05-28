@@ -57,6 +57,11 @@ type App struct {
 	tmPath string
 	// queuePath overrides the default offline queue database path (for testing).
 	queuePath string
+
+	// eventSink, when set, receives every backend event in addition to the
+	// Wails runtime. The recording wbridge (cmd/wbridge) uses it to stream
+	// events to a browser over SSE, since there is no Wails runtime there.
+	eventSink func(name string, data any)
 }
 
 // NewApp creates a new Bowrain backend with all formats and plugins registered.
@@ -193,6 +198,26 @@ func defaultPluginDir() string {
 // SetApplication stores the Wails v3 application reference for dialog and event access.
 func (a *App) SetApplication(app *application.App) {
 	a.app = app
+}
+
+// SetEventSink registers a function that receives every backend event in
+// addition to the Wails runtime. Used by the recording wbridge to forward
+// events to a browser over SSE (the Wails runtime is webview-only). Passing nil
+// clears it.
+func (a *App) SetEventSink(fn func(name string, data any)) {
+	a.eventSink = fn
+}
+
+// emit delivers a backend event to the Wails runtime (when running as the
+// desktop app) and to the event sink (when running under the wbridge). Either
+// may be absent; emit is safe to call in both modes.
+func (a *App) emit(name string, data any) {
+	if a.app != nil {
+		a.app.Event.Emit(name, data)
+	}
+	if a.eventSink != nil {
+		a.eventSink(name, data)
+	}
 }
 
 // VersionInfo describes the application version.

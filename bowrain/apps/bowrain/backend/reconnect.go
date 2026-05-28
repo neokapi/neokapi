@@ -205,13 +205,10 @@ func (a *App) replayChange(change PendingChange) error {
 	}
 }
 
-// emitConnectionState sends the current connection state to the frontend via Wails events.
+// emitConnectionState sends the current connection state to the frontend (Wails
+// runtime and/or the recording event sink).
 func (a *App) emitConnectionState() {
-	if a.app == nil {
-		return
-	}
-	info := a.GetConnectionState()
-	a.app.Event.Emit("connection-state-changed", info)
+	a.emit("connection-state-changed", a.GetConnectionState())
 }
 
 // Payload types for offline queue serialization.
