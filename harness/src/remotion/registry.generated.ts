@@ -2,6 +2,14 @@
 export interface RegistryEntry { id: string; title: string; }
 export const DEMOS: RegistryEntry[] = [
   {
+    "id": "bowrain-desktop-dashboard",
+    "title": "The desktop app, on your team's server"
+  },
+  {
+    "id": "bowrain-desktop-flows",
+    "title": "Build flows visually"
+  },
+  {
     "id": "bowrain-web-collaboration",
     "title": "Collaboration and streams"
   },

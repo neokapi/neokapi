@@ -50,6 +50,16 @@ export interface Screencast {
 
 const FRONTEND_DIR = path.join(REPO_ROOT, "apps", "kapi-desktop", "frontend");
 
+// Bowrain Desktop recording: the Wails app is a thick client to bowrain-server.
+// We host its real backend.App over the wbridge (bowrain/apps/bowrain/cmd/wbridge)
+// and serve the real frontend (real.html) in a browser, auto-connecting to a
+// running server via BOWRAIN_TOKEN. Distinct ports from kapi-desktop's wbridge.
+const BOWRAIN_DESKTOP_DIR = path.join(REPO_ROOT, "bowrain", "apps", "bowrain");
+const BOWRAIN_FRONTEND_DIR = path.join(BOWRAIN_DESKTOP_DIR, "frontend");
+const BW_ISO = path.join(os.tmpdir(), "bowrain-desktop-demo");
+const BW_WBRIDGE_PORT = 5275;
+const BW_VITE_PORT = 5274;
+
 function waitPort(port: number, timeoutMs: number): Promise<void> {
   const deadline = Date.now() + timeoutMs;
   return new Promise((resolve, reject) => {
@@ -177,6 +187,104 @@ async function startRealStack(): Promise<{ url: string; teardown: () => Promise<
 
   return {
     url: "http://localhost:5174/real.html",
+    teardown: async () => {
+      bridge.kill("SIGTERM");
+      vite.kill("SIGTERM");
+      await new Promise((r) => setTimeout(r, 600));
+    },
+  };
+}
+
+/**
+ * Start the REAL Bowrain Desktop stack for recording, isolated from user data
+ * and auto-connected to a running bowrain-server:
+ *   1. build + run the bowrain wbridge (hosts the real backend.App over HTTP),
+ *      with BOWRAIN_TOKEN so it auto-connects to BOWRAIN_BACKEND_URL on first call.
+ *   2. run the real frontend (real.html) via Vite.
+ * Returns the recording URL + teardown. Requires a device-flow JWT in
+ * BOWRAIN_SESSION_TOKEN (the same token the web target uses) and a reachable
+ * server at BOWRAIN_BACKEND_URL (default http://localhost:8080).
+ */
+async function startBowrainStack(): Promise<{ url: string; teardown: () => Promise<void> }> {
+  const token = process.env.BOWRAIN_SESSION_TOKEN || process.env.BOWRAIN_TOKEN || "";
+  if (!token) throw new Error("bowrain desktop record: set BOWRAIN_SESSION_TOKEN (device-flow JWT)");
+  const server = process.env.BOWRAIN_BACKEND_URL || "http://localhost:8080";
+
+  fs.rmSync(BW_ISO, { recursive: true, force: true });
+  fs.mkdirSync(BW_ISO, { recursive: true });
+
+  console.log("  · building + starting bowrain wbridge (real backend over HTTP)");
+  const bridgeBin = path.join(os.tmpdir(), "bowrain-wbridge-rec");
+  await runToCompletion("go", ["build", "-tags", "fts5", "-o", bridgeBin, "./cmd/wbridge"], {
+    cwd: BOWRAIN_DESKTOP_DIR,
+    env: goEnv(),
+  });
+  const bridge = spawn(bridgeBin, [], {
+    env: goEnv({
+      BOWRAIN_DESKTOP_CONFIG_DIR: BW_ISO,
+      BOWRAIN_SERVER_URL: server,
+      BOWRAIN_TOKEN: token,
+      WBRIDGE_PORT: String(BW_WBRIDGE_PORT),
+      KAPI_PLUGIN_DIR: path.join(BW_ISO, "plugins"),
+    }),
+    stdio: "ignore",
+  });
+  await waitPort(BW_WBRIDGE_PORT, 60_000);
+
+  // Prime the server connection: the first GetConnectionState triggers the
+  // BOWRAIN_TOKEN auto-connect (a cold gRPC dial). Do it here so the connection
+  // is already established when the frontend loads — otherwise the dashboard
+  // races the cold connect and can miss the ready selector.
+  const bridgeURL = `http://127.0.0.1:${BW_WBRIDGE_PORT}/wbridge`;
+  const callBridge = async (method: string, args: unknown[] = []): Promise<unknown> => {
+    const r = await fetch(bridgeURL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ method, args }),
+    });
+    return r.json();
+  };
+  const connectDeadline = Date.now() + 30_000;
+  for (;;) {
+    try {
+      const info = (await callBridge("GetConnectionState")) as { state?: string };
+      if (info.state === "connected") {
+        console.log("  · bowrain desktop connected to server");
+        break;
+      }
+    } catch {
+      /* wbridge not ready yet */
+    }
+    if (Date.now() > connectDeadline) {
+      console.warn("  ! bowrain desktop did not reach connected state; recording anyway");
+      break;
+    }
+    await new Promise((r) => setTimeout(r, 1000));
+  }
+  // Select the first workspace so the backend has an active workspace: the
+  // dashboard reads GetCurrentWorkspace/ListProjects, which need one set (the
+  // frontend doesn't auto-select on a cold backend).
+  try {
+    const wss = (await callBridge("ListWorkspaces")) as Array<{ slug?: string }>;
+    const slug = process.env.BOWRAIN_WORKSPACE_SLUG || wss?.[0]?.slug;
+    if (slug) {
+      await callBridge("SelectWorkspace", [slug]);
+      console.log(`  · selected workspace ${slug}`);
+    }
+  } catch {
+    /* best effort; the frontend can still drive selection */
+  }
+
+  console.log(`  · starting bowrain frontend dev server (:${BW_VITE_PORT})`);
+  const vite = spawn("vp", ["dev", "--port", String(BW_VITE_PORT)], {
+    cwd: BOWRAIN_FRONTEND_DIR,
+    env: { ...process.env, FORCE_COLOR: "0" },
+    stdio: "ignore",
+  });
+  await waitPort(BW_VITE_PORT, 120_000);
+
+  return {
+    url: `http://localhost:${BW_VITE_PORT}/real.html`,
     teardown: async () => {
       bridge.kill("SIGTERM");
       vite.kill("SIGTERM");
@@ -698,6 +806,62 @@ async function bowrainCollaborationWalk(c: WalkCtx): Promise<void> {
   });
 }
 
+/** Bowrain Desktop: the native app connected to a team's bowrain-server,
+ *  showing the same workspace — projects, languages, and file counts. */
+async function bowrainDesktopWalk(c: WalkCtx): Promise<void> {
+  const { page, beat, beatEls } = c;
+  await beat("intro", null, async () => {
+    await idle(page, 2200);
+  });
+  // The workspace totals (projects, words, languages, files).
+  await beat("stats", { x: 0.03, y: 0.12, w: 0.94, h: 0.22 }, async () => {
+    await moveTo(page, WIDTH * 0.5, HEIGHT * 0.2, 700);
+    await page.waitForTimeout(2000);
+  });
+  // The project cards — the same projects the team works on, pulled from the server.
+  await beat("projects", { x: 0.03, y: 0.27, w: 0.94, h: 0.38 }, async () => {
+    await moveTo(page, WIDTH * 0.4, HEIGHT * 0.42, 700);
+    await page.waitForTimeout(2200);
+  });
+  // Connectors — a desktop-only surface for wiring content sources. Open the
+  // add-connector dialog so the available connector types are on screen (the
+  // empty list alone reads as a blank page).
+  await beatEls("connectors", ['[data-testid="connector-form"]', '[role="dialog"]', '[data-testid="add-connector-btn"]'], async () => {
+    const n = page.getByTestId("nav-connectors");
+    if (await n.count()) await humanClick(page, n);
+    await page.waitForTimeout(1400);
+    const add = page.getByTestId("add-connector-btn");
+    if (await add.count()) await humanClick(page, add);
+    await page.waitForTimeout(1600);
+  });
+}
+
+/** Bowrain Desktop: build localization flows visually (the FlowBuilder is a
+ *  desktop-only surface — the web editor has no flow canvas). */
+async function bowrainDesktopFlowsWalk(c: WalkCtx): Promise<void> {
+  const { page, beat, beatEls } = c;
+  await beat("intro", null, async () => {
+    await idle(page, 1800);
+  });
+  // The flow library: built-in pipelines (AI translate, QA, pseudo, …).
+  await beat("flows", null, async () => {
+    const n = page.getByTestId("nav-flows");
+    if (await n.count()) await humanClick(page, n);
+    await page.waitForTimeout(2000);
+  });
+  // Open a multi-step flow to reveal its visual pipeline.
+  await beatEls("open", ['[data-testid="flow-builder"]'], async () => {
+    const f = page.getByTestId("flow-item-ai-translate-qa");
+    if (await f.count()) await humanClick(page, f);
+    await page.waitForTimeout(2400);
+  });
+  // The node graph: input → AI translate → QA → output.
+  await beatEls("pipeline", ['[data-testid="flow-builder"]'], async () => {
+    await moveTo(page, WIDTH * 0.55, HEIGHT * 0.5, 700);
+    await page.waitForTimeout(2400);
+  });
+}
+
 const WALKTHROUGHS: Record<string, (c: WalkCtx) => Promise<void>> = {
   "kapi-desktop-explorer": explorerWalk,
   "kapi-desktop-projects": projectsWalk,
@@ -709,6 +873,8 @@ const WALKTHROUGHS: Record<string, (c: WalkCtx) => Promise<void>> = {
   "bowrain-web-editor": bowrainEditorWalk,
   "bowrain-web-review": bowrainReviewWalk,
   "bowrain-web-collaboration": bowrainCollaborationWalk,
+  "bowrain-desktop-dashboard": bowrainDesktopWalk,
+  "bowrain-desktop-flows": bowrainDesktopFlowsWalk,
 };
 
 async function runWalkthrough(page: Page, t0: number, demoId: string): Promise<Beat[]> {
@@ -726,6 +892,7 @@ async function recordTheme(
   outDir: string,
   demoId: string,
   web?: { slug: string },
+  ready?: string,
 ): Promise<{ webm: string; beats: Beat[] }> {
   const videoDir = ensureDir(path.join(outDir, `_rec-${theme}`));
   const context = await browser.newContext({
@@ -766,7 +933,10 @@ async function recordTheme(
     // connection (/wevents) for streamed backend events, so the network never goes
     // idle. The h1 wait below confirms the app actually rendered.
     await page.goto(`${url}?theme=${theme}`, { waitUntil: "domcontentloaded" });
-    await page.waitForSelector("h1", { timeout: 15_000 });
+    // Default kapi-desktop renders an h1 immediately; bowrain-desktop renders its
+    // dashboard only after the backend auto-connects to the server (a few
+    // seconds), so callers pass a connected-state selector + we allow longer.
+    await page.waitForSelector(ready ?? "h1", { timeout: ready ? 30_000 : 15_000 });
   }
   await injectCursor(page);
   await page.waitForTimeout(400);
@@ -789,6 +959,9 @@ export interface RecordOptions {
   /** Record the real bowrain WEB app (external running stack) instead of the
    *  kapi-desktop wbridge: cookie auth + workspace-slug navigation. */
   web?: boolean;
+  /** Record the real Bowrain Desktop app via its own wbridge, auto-connected to
+   *  a running bowrain-server (BOWRAIN_BACKEND_URL + BOWRAIN_SESSION_TOKEN). */
+  bowrainDesktop?: boolean;
 }
 
 /** Record the desktop walkthrough for demo <id> → public/<id>/screencast.json + webms. */
@@ -822,6 +995,32 @@ export async function recordDesktop(id: string, opts: RecordOptions = {}): Promi
       return screencast;
     } finally {
       await browser.close();
+    }
+  }
+
+  // Bowrain Desktop target: host the real desktop backend over its wbridge,
+  // auto-connected to a running bowrain-server, and drive the real frontend.
+  if (opts.bowrainDesktop) {
+    const stack = await startBowrainStack();
+    const browser = await chromium.launch();
+    const ready = '[data-testid="nav-translate"], [data-testid="nav-flows"], [data-testid^="project-card"]';
+    try {
+      console.log(`  · recording bowrain desktop (light) @ ${stack.url}`);
+      const light = await recordTheme(browser, stack.url, "light", outDir, id, undefined, ready);
+      console.log("  · recording bowrain desktop (dark)");
+      const dark = await recordTheme(browser, stack.url, "dark", outDir, id, undefined, ready);
+      const screencast: Screencast = {
+        width: WIDTH,
+        height: HEIGHT,
+        video: { light: light.webm, dark: dark.webm },
+        beats: { light: light.beats, dark: dark.beats },
+      };
+      fs.writeFileSync(jsonPath, JSON.stringify(screencast, null, 2));
+      console.log(`  ✓ recorded ${id}: ${light.beats.length} beats, light+dark`);
+      return screencast;
+    } finally {
+      await browser.close();
+      await stack.teardown();
     }
   }
 

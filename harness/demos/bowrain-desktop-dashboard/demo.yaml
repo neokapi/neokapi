@@ -1,0 +1,59 @@
+id: bowrain-desktop-dashboard
+title: The desktop app, on your team's server
+subtitle: A native workbench connected to the shared workspace.
+tagline: the server-side platform companion to kapi
+kind: use-case
+publishAs: bowrain-desktop-dashboard
+terminal: desktop
+target: bowrain-desktop
+brand: desktop
+needsAi: false
+oneshot: true
+aspects:
+  - Native desktop app
+  - Connected to bowrain-server
+  - The same shared workspace
+  - Connectors for content sources
+
+narration:
+  - id: title
+    kind: title
+    text: >-
+      Bowrain Desktop — a native workbench, connected to your team's server.
+
+  - id: intro
+    kind: desktop
+    beat: intro
+    text: >-
+      Bowrain also ships as a native desktop app. It signs in to the same
+      bowrain-server, so it opens the very same workspace the web editor does.
+
+  - id: stats
+    kind: desktop
+    beat: stats
+    caption: The workspace at a glance.
+    text: >-
+      The dashboard sums up the workspace — projects, words, languages, and
+      files — pulled live from the server.
+
+  - id: projects
+    kind: desktop
+    beat: projects
+    caption: The team's projects, on the desktop.
+    text: >-
+      Every project the team works on is here, with its languages and file
+      counts, ready to open in the same editor the browser uses.
+
+  - id: connectors
+    kind: desktop
+    beat: connectors
+    caption: Connectors wire in content sources.
+    text: >-
+      And the desktop adds connectors — a place to wire in the content sources a
+      project pulls from, alongside the visual flow builder.
+
+  - id: outro
+    kind: outro
+    text: >-
+      The same governed workspace, in a native app — the desktop side of the
+      platform that stewards a team's work on top of the open kapi tools.

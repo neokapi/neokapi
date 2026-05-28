@@ -1,0 +1,59 @@
+id: bowrain-desktop-flows
+title: Build flows visually
+subtitle: The desktop flow builder — pipelines as a node graph.
+tagline: the server-side platform companion to kapi
+kind: use-case
+publishAs: bowrain-desktop-flows
+terminal: desktop
+target: bowrain-desktop
+brand: desktop
+needsAi: false
+oneshot: true
+aspects:
+  - Desktop-only flow builder
+  - Built-in pipelines
+  - A visual node graph
+  - The same flows kapi runs
+
+narration:
+  - id: title
+    kind: title
+    text: >-
+      Bowrain Desktop — compose localization pipelines as a visual flow.
+
+  - id: intro
+    kind: desktop
+    beat: intro
+    text: >-
+      The desktop app adds a flow builder — a surface the browser editor does
+      not have.
+
+  - id: flows
+    kind: desktop
+    beat: flows
+    caption: A library of built-in flows.
+    text: >-
+      It opens with a library of flows: a plain AI translation, a translation
+      followed by a quality check, a pseudo-translation, and more.
+
+  - id: open
+    kind: desktop
+    beat: open
+    caption: Open a flow to see its pipeline.
+    text: >-
+      Open one and its steps lay out as a graph.
+
+  - id: pipeline
+    kind: desktop
+    beat: pipeline
+    caption: Input, tools, output — wired together.
+    text: >-
+      Input flows into the tools — here AI translate, then a quality check — and
+      out the other side. The same flows kapi runs on the command line, composed
+      and edited visually.
+
+  - id: outro
+    kind: outro
+    text: >-
+      Visual pipelines on the desktop, the open kapi engine underneath — built
+      once, run anywhere the team needs them.

@@ -47,8 +47,10 @@ export interface DemoManifest {
    *   "desktop" (default) — the kapi-desktop frontend via the wbridge.
    *   "web"               — the real bowrain web app (external running stack),
    *                         authed via the bowrain_session cookie (record-desktop.ts).
+   *   "bowrain-desktop"   — the real Bowrain Desktop app via its own wbridge,
+   *                         auto-connected to a running bowrain-server.
    */
-  target?: "desktop" | "web";
+  target?: "desktop" | "web" | "bowrain-desktop";
   /** Displayed working-directory label in the terminal title bar (cosmetic; default ~/project). */
   cwd?: string;
   /** Ordered commands for a `terminal: "shell"` demo (run via `sh -c`, so globs expand). */
