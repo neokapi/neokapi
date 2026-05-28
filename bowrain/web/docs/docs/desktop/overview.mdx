@@ -3,9 +3,37 @@ sidebar_position: 1
 title: Overview
 ---
 
+import { ThemedVideo } from "@neokapi/docs-shared";
+
 # Bowrain Desktop
 
 Bowrain Desktop is a cross-platform desktop editor for translating documents. It connects to a Bowrain server for collaborative, governed work, and supports a wide range of file formats, AI-assisted translation, translation memory, and live document preview.
+
+## A quick tour
+
+The desktop app signs in to the same server as the web editor, so it opens the same workspace — and adds two surfaces the browser does not have: connectors and a visual flow builder. These short tours run against a live workspace.
+
+### Connected to your team's server
+
+The dashboard sums up the workspace — projects, words, languages, and files — pulled live from the server, the same projects the team works on in the browser. Connectors, a desktop-only surface, wire in the content sources a project pulls from.
+
+<ThemedVideo
+  sources={{
+    light: "/video/bowrain-desktop/bowrain-desktop-dashboard-light.webm",
+    dark: "/video/bowrain-desktop/bowrain-desktop-dashboard-dark.webm",
+  }}
+/>
+
+### Build flows visually
+
+The flow builder lays out a pipeline as a node graph — input flows through the tools (here AI translate, then a quality check) and out the other side. These are the same flows kapi runs on the command line, composed and edited visually.
+
+<ThemedVideo
+  sources={{
+    light: "/video/bowrain-desktop/bowrain-desktop-flows-light.webm",
+    dark: "/video/bowrain-desktop/bowrain-desktop-flows-dark.webm",
+  }}
+/>
 
 ## Screenshots
 
