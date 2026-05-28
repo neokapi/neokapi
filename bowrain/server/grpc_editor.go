@@ -108,9 +108,20 @@ func (g *EditorGRPCServer) ListEditorProjects(ctx context.Context, req *pb.ListE
 		return nil, status.Errorf(codes.Internal, "list projects: %v", err)
 	}
 
+	// Projects store the workspace UUID, but the request carries the slug; the
+	// REST list handler resolves this via workspace middleware. Resolve it here
+	// too, or every project is filtered out (UUID never equals a slug). Fall
+	// back to the raw value so a caller that already passes an ID still works.
+	wsID := req.WorkspaceSlug
+	if g.srv.AuthStore != nil {
+		if ws, werr := g.srv.AuthStore.GetWorkspaceBySlug(ctx, req.WorkspaceSlug); werr == nil && ws != nil {
+			wsID = ws.ID
+		}
+	}
+
 	resp := &pb.ListEditorProjectsResponse{}
 	for _, p := range projects {
-		if p.WorkspaceID != req.WorkspaceSlug {
+		if p.WorkspaceID != wsID {
 			continue
 		}
 		info, err := g.buildEditorProjectInfo(ctx, p, "main")
