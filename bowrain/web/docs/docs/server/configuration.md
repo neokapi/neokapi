@@ -75,27 +75,15 @@ bowrain-server \
 | `--grpc-port`          | gRPC port (0 to disable)          | `0`          |
 | `--web-ui-dir`         | Path to built web UI static files | _(embedded)_ |
 
-## Storage
+## Database
 
-Bowrain Server uses **SQLite** for all persistent data. Set the `--store` flag or `BOWRAIN_STORE` environment variable to a file path:
-
-```bash
-bowrain-server --store /var/lib/bowrain/bowrain.db
-```
-
-The database is created automatically on first start. Migrations run on startup.
-
-If `--store` is not set, the content APIs (projects, workspaces, connectors) are disabled — the server only serves the web UI and format conversion endpoints.
-
-## gRPC
-
-The gRPC API is disabled by default. Enable it by setting a port:
+Bowrain Server requires **PostgreSQL**. Set the `BOWRAIN_DATABASE_URL` environment variable to a PostgreSQL connection string:
 
 ```bash
-bowrain-server --grpc-port 9090
+BOWRAIN_DATABASE_URL=postgres://bowrain:password@localhost/bowrain
 ```
 
-When `--jwt-secret` is configured, gRPC requests require a valid JWT in the `authorization` metadata.
+The schema is created automatically on first start; migrations run on startup.
 
 ## Example: Docker Compose
 

@@ -83,28 +83,20 @@ The TM Explorer provides full access to the translation memory. Browse, search, 
 - **Progress tracking** with status-colored progress bars
 - **Sample projects** included for immediate testing and evaluation
 
-## Project Format
+## Project format
 
-Bowrain stores projects in a local SQLite database backed by the Content Store. Each project contains:
+Bowrain stores each project locally — source documents, translations, translation memory, and terminology are all bundled together. TM and terminology are saved automatically when you save the project and restored when you open it, so each project carries its own linguistic resources. No external database or server is required for local work.
 
-- **Source documents** in their original formats
-- **Translation blocks** with per-locale target segments
-- **Translation memory** entries
-- **Terminology** concepts
-- **Preview HTML** for live document preview
+Bowrain runs as a single native application on macOS, Windows, and Linux — no additional runtimes or dependencies are needed.
 
-TM and terminology are saved automatically when you save the project and restored when you open it. This means each project carries its own linguistic resources — no external database setup required.
-
-Bowrain runs as a single native application on macOS, Windows, and Linux — no additional runtimes or dependencies required.
-
-## Sample Projects
+## Sample projects
 
 Bowrain ships with sample projects for immediate testing:
 
-| Project             | Content                        | Status                         | Use Case                                            |
+| Project             | Content                        | Status                         | Use case                                            |
 | ------------------- | ------------------------------ | ------------------------------ | --------------------------------------------------- |
-| Website Translation | Corporate website (HTML)       | Half-translated (en→fr,de)     | TM leverage demo — auto-fill translations           |
-| Software UI         | Task manager UI strings (JSON) | New, with 27-entry TM          | Start with existing TM, translate remaining strings |
+| Website Translation | Corporate website (HTML)       | Half-translated (en→fr,de)     | TM leverage — auto-fill translations from memory    |
+| Software UI         | Task manager UI strings (JSON) | New, with 27-entry TM          | Start from an existing TM, translate remaining strings |
 | Marketing Content   | Marketing landing page (HTML)  | Fully translated (en→fr,de,es) | Review and export workflows                         |
 
-Sample files are located in `bowrain/apps/bowrain/samples/`. Each project includes its own TM entries and termbase concepts.
+Each sample project includes its own TM entries and terminology concepts so you can explore TM matching, context panels, and flow runs immediately after installation.

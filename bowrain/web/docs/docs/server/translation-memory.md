@@ -82,18 +82,12 @@ The TM is also used within the translation editor:
 
 See [Translation Editor](./translation-editor.md) for details on context panel TM matching.
 
-## Matching Algorithm
+## Match scores
 
-The TM system uses a three-tier matching approach:
-
-1. **Generalized matching** — normalizes text by removing inline tags, producing broader matches across different tag structures
-2. **Structural matching** — considers the tag structure but tolerates minor text variations, catching matches where formatting differs
-3. **Plain matching** — exact text comparison including all inline tags, for precise matches
-
-Each match receives a **score** (0-100%) based on Levenshtein distance similarity. Matches are color-coded:
+Each TM match receives a score from 0 to 100% representing how closely the source text matches the stored entry. Matches are color-coded:
 
 - **Green** (100%) — exact match
-- **Yellow** (70-99%) — fuzzy match
+- **Yellow** (70–99%) — fuzzy match
 - Lower scores appear with reduced emphasis
 
-For more on the TM algorithm, see [Translation Memory](https://neokapi.github.io/web/neokapi/docs/features/translation-memory) in the User Guide.
+Bowrain's matching accounts for inline formatting differences, so a source segment and a stored entry can match even if their tag structure differs slightly. For more on how translation memory works across projects, see the [Neokapi TM documentation](https://neokapi.github.io/web/neokapi/).

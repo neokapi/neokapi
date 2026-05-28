@@ -3,101 +3,47 @@ sidebar_position: 5
 title: Connectors
 ---
 
-# Server Connectors
+# Connectors
 
-Connectors integrate Bowrain Server with external systems (CMS, design tools, code repositories, marketing platforms).
+Connectors link Bowrain Server to the systems content already lives in — code repositories, content management platforms, design tools, and marketing platforms. Instead of manually exporting and importing files, a connector pulls content into Bowrain, lets your team translate it, and pushes the translations back.
 
-## Connector Types
+## Connector types
 
 | Type          | Examples                   | Purpose                        |
 | ------------- | -------------------------- | ------------------------------ |
+| **Code**      | GitHub, GitLab, Bitbucket  | Localization files in repositories |
 | **CMS**       | Contentful, Sanity, Strapi | Source content for translation |
-| **Design**    | Figma, Sketch              | UI text strings from designs   |
-| **Code**      | GitHub, GitLab, Bitbucket  | Localization files in repos    |
+| **Design**    | Figma, Sketch              | UI text strings from design files |
 | **Marketing** | HubSpot, Marketo           | Campaign and email content     |
-| **File**      | kapi (bowrain plugin)      | Local file sync                |
+| **File**      | kapi (bowrain plugin)      | Local file sync from a developer's machine |
 
-## How Connectors Work
+## How connectors work
 
-1. **Pull**: Fetch content from external system → Bowrain Server
-2. **Process**: Translate, review, QA within Bowrain
-3. **Push**: Send translations back to external system
+1. **Pull** — the connector fetches content from the external system and delivers it to Bowrain Server
+2. **Translate and review** — your team translates and reviews the content in the web or desktop editor
+3. **Push** — the connector sends the approved translations back to the external system
 
 ```
-External System ←→ Connector ←→ Bowrain Server ←→ Translators
+External system ←→ Connector ←→ Bowrain Server ←→ Translators
 ```
 
-## File Connector (kapi)
+## File connector (kapi)
 
-kapi (with the bowrain plugin) acts as a file connector:
+The most common connector is kapi itself (with the bowrain plugin installed). A developer runs `kapi push` to send local source files to the server, and `kapi pull` to receive translations back into the local project.
 
-```bash
-# Initialize connection to server
-kapi init --server https://bowrain.example.com --project abc123
+See [Project sync](/cli/overview) for the full workflow.
 
-# Pull translations from server
-kapi pull
+## Server-side connectors
 
-# Push local changes to server
-kapi push -m "Translate new features"
-```
+Server-side connectors are configured per workspace in the Bowrain web UI. Once set up, they run automatically and can trigger automation rules when content arrives or translations are ready.
 
-See the [CLI documentation](/cli/overview) for details.
+Connectors are configured in **Workspace Settings > Connectors**.
 
-## Server-Side Connectors
+:::warning Work in progress
 
-Server-side connectors run on Bowrain Server and integrate with external APIs.
+Server-side connectors are under active development. Currently supported:
 
-### Configuration
-
-Connectors are configured per workspace in the web UI or via API:
-
-```bash
-# Create a CMS connector
-POST /api/v1/workspaces/:ws/connectors
-
-{
-  "type": "contentful",
-  "name": "Production CMS",
-  "config": {
-    "space_id": "abc123",
-    "access_token": "...",
-    "environment": "master"
-  },
-  "mappings": [
-    {
-      "content_type": "blogPost",
-      "fields": ["title", "body", "excerpt"],
-      "locale_mapping": {
-        "en-US": "en",
-        "fr-FR": "fr"
-      }
-    }
-  ]
-}
-```
-
-### Automation
-
-Connectors can trigger automatic workflows:
-
-```yaml
-# On new content in Contentful
-event: connector.content_pushed
-source: contentful-prod
-action:
-  - translate_with_ai
-  - run_qa_checks
-  - notify_reviewers
-```
-
-## Implementation Status
-
-:::warning Work in Progress
-
-Server-side connectors are under development. Currently supported:
-
-- **File connector** via kapi (placeholder)
+- **File connector** via kapi
 - **GitHub connector** (in progress)
 - **Contentful connector** (planned)
 

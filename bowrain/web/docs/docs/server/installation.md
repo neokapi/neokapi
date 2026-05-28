@@ -5,7 +5,11 @@ title: Installation
 
 # Installing Bowrain Server
 
-Deploy Bowrain Server using Docker, Docker Compose, or as a native binary. Bowrain Server uses **SQLite** for storage and any **OIDC provider** (e.g. Keycloak) for authentication.
+Deploy Bowrain Server using Docker, Docker Compose, or as a native binary. Bowrain Server uses **PostgreSQL** for storage and any **OIDC provider** (e.g. Keycloak) for authentication.
+
+:::tip Production deployments
+For a production-ready stack with Traefik, PostgreSQL, NATS, and all required services, see [Self-Hosting](/server/self-hosting). The quick-start below is for development and evaluation.
+:::
 
 ## Docker (Recommended)
 
