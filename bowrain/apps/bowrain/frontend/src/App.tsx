@@ -11,7 +11,6 @@ import {
   CreateWorkspaceDialog,
   ProjectDashboard,
   ProjectView,
-  TranslationEditor,
   TMExplorer,
   TermExplorer,
   cn,
@@ -22,16 +21,19 @@ import {
 import { FlowBuilder } from "./components/FlowBuilder";
 import { ConnectorPanel } from "./components/ConnectorPanel";
 import { DocumentPreview } from "./components/DocumentPreview";
+import { DesktopTranslateView } from "./components/DesktopTranslateView";
+import { MembersPage } from "./components/MembersPage";
+import { BrandPage } from "./components/BrandPage";
 import { useConnection } from "./hooks/useApi";
 import { WailsApiAdapter } from "./api/WailsApiAdapter";
 import type { ProjectInfo, BlockInfo, Workspace, User } from "@neokapi/ui";
-import { Shuffle, Link, Loader2 } from "lucide-react";
+import { Shuffle, Link, Loader2, Users, ShieldCheck } from "lucide-react";
 import { Events } from "@wailsio/runtime";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore – generated .js bindings outside the TS project root
 import * as Backend from "../bindings/github.com/neokapi/neokapi/bowrain/apps/bowrain/backend/app.js";
 
-type AppView = View | "flows" | "connectors";
+type AppView = View | "flows" | "connectors" | "members" | "brand";
 type AppMode = "loading" | "connecting" | "ready";
 
 function toWorkspace(ws: {
@@ -44,9 +46,16 @@ function toWorkspace(ws: {
   return { ...ws, logo_url: "", type: "team" as const, role: ws.role as "owner" };
 }
 
-const desktopNavItems: NavItem[] = [
+const baseNavItems: NavItem[] = [
   { id: "flows", label: "Flows", icon: <Shuffle className="w-4 h-4" /> },
   { id: "connectors", label: "Connectors", icon: <Link className="w-4 h-4" /> },
+];
+
+// Governance nav entries (members, brand) require a connected server +
+// workspace, so they only appear in server mode.
+const governanceNavItems: NavItem[] = [
+  { id: "members", label: "Members", icon: <Users className="w-4 h-4" /> },
+  { id: "brand", label: "Brand", icon: <ShieldCheck className="w-4 h-4" /> },
 ];
 
 const wailsAdapter = new WailsApiAdapter();
@@ -428,6 +437,13 @@ function App() {
     ? (connection.info.state as "disconnected" | "connecting" | "connected" | "offline")
     : undefined;
 
+  // Show governance nav (members, brand) only in server mode — those screens
+  // proxy server REST endpoints and need a connected workspace.
+  const desktopNavItems = useMemo<NavItem[]>(
+    () => (isServerMode ? [...baseNavItems, ...governanceNavItems] : baseNavItems),
+    [isServerMode],
+  );
+
   // Build sidebar context so the sidebar transforms based on navigation depth.
   // Must be before early returns to maintain consistent hook call order.
   const sidebarContext = useMemo<SidebarContext | undefined>(() => {
@@ -515,9 +531,11 @@ function App() {
 
     if (activeView === "translate" && activeProject && activeFile) {
       return (
-        <TranslationEditor
+        <DesktopTranslateView
+          adapter={wailsAdapter}
           project={activeProject}
           fileName={activeFile}
+          workspaceSlug={isServerMode ? workspace.slug : ""}
           onBack={handleBackToProject}
           onExport={handleDesktopExport}
           renderPreview={renderDesktopPreview}
@@ -564,6 +582,10 @@ function App() {
         return <FlowBuilder />;
       case "connectors":
         return <ConnectorPanel />;
+      case "members":
+        return <MembersPage />;
+      case "brand":
+        return <BrandPage projects={projects} />;
     }
   };
 

@@ -204,6 +204,162 @@ export class BlockTermMatch {
 }
 
 /**
+ * CandidateRuleArgs is the body for promote/reject candidate-rule actions.
+ */
+export class CandidateRuleArgs {
+    /**
+     * Creates a new CandidateRuleArgs instance.
+     * @param {Partial<CandidateRuleArgs>} [$$source = {}] - The source object to create the CandidateRuleArgs.
+     */
+    constructor($$source = {}) {
+        if (!("term" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["term"] = "";
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["replacement"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {number | undefined}
+             */
+            this["correction_count"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new CandidateRuleArgs instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {CandidateRuleArgs}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new CandidateRuleArgs(/** @type {Partial<CandidateRuleArgs>} */($$parsedSource));
+    }
+}
+
+/**
+ * CollabSession carries everything the frontend needs to open the Yjs
+ * presence WebSocket directly from the webview, exactly like the web app.
+ * 
+ * The desktop frontend talks to the Go backend over Wails bindings (not REST),
+ * and the auth token lives in the OS keychain — never exposed to the frontend.
+ * Presence is the one case where the webview must talk to the server directly
+ * (the Yjs y-websocket provider runs in the browser), so we surface the token
+ * here. This is the same trust boundary as the web app: the webview *is* the
+ * app, the token already authenticated this process, and it travels only to the
+ * same server the user explicitly connected to.
+ */
+export class CollabSession {
+    /**
+     * Creates a new CollabSession instance.
+     * @param {Partial<CollabSession>} [$$source = {}] - The source object to create the CollabSession.
+     */
+    constructor($$source = {}) {
+        if (!("serverUrl" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["serverUrl"] = "";
+        }
+        if (!("authToken" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["authToken"] = "";
+        }
+        if (!("workspace" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["workspace"] = "";
+        }
+        if (!("user" in $$source)) {
+            /**
+             * @member
+             * @type {CollabUser}
+             */
+            this["user"] = (new CollabUser());
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new CollabSession instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {CollabSession}
+     */
+    static createFrom($$source = {}) {
+        const $$createField3_0 = $$createType7;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("user" in $$parsedSource) {
+            $$parsedSource["user"] = $$createField3_0($$parsedSource["user"]);
+        }
+        return new CollabSession(/** @type {Partial<CollabSession>} */($$parsedSource));
+    }
+}
+
+/**
+ * CollabUser identifies the current user for a collaboration session.
+ * The shape mirrors the @neokapi/ui useCollaboration `user` option.
+ */
+export class CollabUser {
+    /**
+     * Creates a new CollabUser instance.
+     * @param {Partial<CollabUser>} [$$source = {}] - The source object to create the CollabUser.
+     */
+    constructor($$source = {}) {
+        if (!("userId" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["userId"] = "";
+        }
+        if (!("name" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["name"] = "";
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["avatarUrl"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new CollabUser instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {CollabUser}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new CollabUser(/** @type {Partial<CollabUser>} */($$parsedSource));
+    }
+}
+
+/**
  * ConceptInfo is the frontend-facing representation of a concept.
  */
 export class ConceptInfo {
@@ -465,6 +621,58 @@ export class ContentItemInfo {
 }
 
 /**
+ * EvaluateRuleArgs is the body for the blast-radius evaluation.
+ */
+export class EvaluateRuleArgs {
+    /**
+     * Creates a new EvaluateRuleArgs instance.
+     * @param {Partial<EvaluateRuleArgs>} [$$source = {}] - The source object to create the EvaluateRuleArgs.
+     */
+    constructor($$source = {}) {
+        if (!("term" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["term"] = "";
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["replacement"] = undefined;
+        }
+        if (!("project_id" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["project_id"] = "";
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["stream"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new EvaluateRuleArgs instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {EvaluateRuleArgs}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new EvaluateRuleArgs(/** @type {Partial<EvaluateRuleArgs>} */($$parsedSource));
+    }
+}
+
+/**
  * FlowDefinitionInfo is the frontend-facing flow definition type.
  */
 export class FlowDefinitionInfo {
@@ -539,8 +747,8 @@ export class FlowDefinitionInfo {
      * @returns {FlowDefinitionInfo}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType8;
-        const $$createField4_0 = $$createType10;
+        const $$createField3_0 = $$createType9;
+        const $$createField4_0 = $$createType11;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("nodes" in $$parsedSource) {
             $$parsedSource["nodes"] = $$createField3_0($$parsedSource["nodes"]);
@@ -636,6 +844,15 @@ export class FlowNodeInfo {
         }
         if (/** @type {any} */(false)) {
             /**
+             * Stage is the pipeline stage for this node. Empty means the main stage;
+             * "source-transform" means the leading source-rewrite stage.
+             * @member
+             * @type {string | undefined}
+             */
+            this["stage"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
              * @member
              * @type {{ [_ in string]?: any } | undefined}
              */
@@ -658,14 +875,14 @@ export class FlowNodeInfo {
      * @returns {FlowNodeInfo}
      */
     static createFrom($$source = {}) {
-        const $$createField4_0 = $$createType11;
         const $$createField5_0 = $$createType12;
+        const $$createField6_0 = $$createType13;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("config" in $$parsedSource) {
-            $$parsedSource["config"] = $$createField4_0($$parsedSource["config"]);
+            $$parsedSource["config"] = $$createField5_0($$parsedSource["config"]);
         }
         if ("position" in $$parsedSource) {
-            $$parsedSource["position"] = $$createField5_0($$parsedSource["position"]);
+            $$parsedSource["position"] = $$createField6_0($$parsedSource["position"]);
         }
         return new FlowNodeInfo(/** @type {Partial<FlowNodeInfo>} */($$parsedSource));
     }
@@ -749,6 +966,138 @@ export class FormatInfo {
             $$parsedSource["extensions"] = $$createField3_0($$parsedSource["extensions"]);
         }
         return new FormatInfo(/** @type {Partial<FormatInfo>} */($$parsedSource));
+    }
+}
+
+/**
+ * InviteInfo mirrors the server's Invite JSON.
+ */
+export class InviteInfo {
+    /**
+     * Creates a new InviteInfo instance.
+     * @param {Partial<InviteInfo>} [$$source = {}] - The source object to create the InviteInfo.
+     */
+    constructor($$source = {}) {
+        if (!("id" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["id"] = "";
+        }
+        if (!("code" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["code"] = "";
+        }
+        if (!("email" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["email"] = "";
+        }
+        if (!("role" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["role"] = "";
+        }
+        if (!("max_uses" in $$source)) {
+            /**
+             * @member
+             * @type {number}
+             */
+            this["max_uses"] = 0;
+        }
+        if (!("use_count" in $$source)) {
+            /**
+             * @member
+             * @type {number}
+             */
+            this["use_count"] = 0;
+        }
+        if (!("expires_at" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["expires_at"] = "";
+        }
+        if (!("created_at" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["created_at"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new InviteInfo instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {InviteInfo}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new InviteInfo(/** @type {Partial<InviteInfo>} */($$parsedSource));
+    }
+}
+
+/**
+ * MemberInfo mirrors the server's workspace Membership JSON.
+ */
+export class MemberInfo {
+    /**
+     * Creates a new MemberInfo instance.
+     * @param {Partial<MemberInfo>} [$$source = {}] - The source object to create the MemberInfo.
+     */
+    constructor($$source = {}) {
+        if (!("user_id" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["user_id"] = "";
+        }
+        if (!("workspace_id" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["workspace_id"] = "";
+        }
+        if (!("role" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["role"] = "";
+        }
+        if (!("user" in $$source)) {
+            /**
+             * @member
+             * @type {{"id": string, "email": string, "name": string, "avatar_url": string}}
+             */
+            this["user"] = {"id": "", "email": "", "name": "", "avatar_url": ""};
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new MemberInfo instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {MemberInfo}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new MemberInfo(/** @type {Partial<MemberInfo>} */($$parsedSource));
     }
 }
 
@@ -879,7 +1228,7 @@ export class PcOpenRunInfo {
      * @returns {PcOpenRunInfo}
      */
     static createFrom($$source = {}) {
-        const $$createField6_0 = $$createType14;
+        const $$createField6_0 = $$createType15;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("constraints" in $$parsedSource) {
             $$parsedSource["constraints"] = $$createField6_0($$parsedSource["constraints"]);
@@ -956,7 +1305,7 @@ export class PlaceholderRunInfo {
      * @returns {PlaceholderRunInfo}
      */
     static createFrom($$source = {}) {
-        const $$createField6_0 = $$createType14;
+        const $$createField6_0 = $$createType15;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("constraints" in $$parsedSource) {
             $$parsedSource["constraints"] = $$createField6_0($$parsedSource["constraints"]);
@@ -1177,7 +1526,7 @@ export class ProjectInfo {
      */
     static createFrom($$source = {}) {
         const $$createField3_0 = $$createType6;
-        const $$createField5_0 = $$createType16;
+        const $$createField5_0 = $$createType17;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("target_languages" in $$parsedSource) {
             $$parsedSource["target_languages"] = $$createField3_0($$parsedSource["target_languages"]);
@@ -1436,13 +1785,13 @@ export class RunInfo {
      * @returns {RunInfo}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType18;
-        const $$createField1_0 = $$createType20;
-        const $$createField2_0 = $$createType22;
-        const $$createField3_0 = $$createType24;
-        const $$createField4_0 = $$createType26;
-        const $$createField5_0 = $$createType28;
-        const $$createField6_0 = $$createType30;
+        const $$createField0_0 = $$createType19;
+        const $$createField1_0 = $$createType21;
+        const $$createField2_0 = $$createType23;
+        const $$createField3_0 = $$createType25;
+        const $$createField4_0 = $$createType27;
+        const $$createField5_0 = $$createType29;
+        const $$createField6_0 = $$createType31;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("text" in $$parsedSource) {
             $$parsedSource["text"] = $$createField0_0($$parsedSource["text"]);
@@ -1827,7 +2176,7 @@ export class TMSearchResult {
      * @returns {TMSearchResult}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType32;
+        const $$createField0_0 = $$createType33;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("entries" in $$parsedSource) {
             $$parsedSource["entries"] = $$createField0_0($$parsedSource["entries"]);
@@ -2078,7 +2427,7 @@ export class TermLookupResult {
      * @returns {TermLookupResult}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType34;
+        const $$createField0_0 = $$createType35;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("matches" in $$parsedSource) {
             $$parsedSource["matches"] = $$createField0_0($$parsedSource["matches"]);
@@ -2204,7 +2553,7 @@ export class TermSearchResult {
      * @returns {TermSearchResult}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType36;
+        const $$createField0_0 = $$createType37;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("concepts" in $$parsedSource) {
             $$parsedSource["concepts"] = $$createField0_0($$parsedSource["concepts"]);
@@ -2273,6 +2622,15 @@ export class ToolInfo {
              * @type {string}
              */
             this["category"] = "";
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * IsSourceTransform reports whether this tool may be placed in the
+             * source-transform stage of a flow (i.e. it rewrites the source model).
+             * @member
+             * @type {boolean | undefined}
+             */
+            this["is_source_transform"] = undefined;
         }
 
         Object.assign(this, $$source);
@@ -2612,8 +2970,8 @@ export class WordCountResult {
      * @returns {WordCountResult}
      */
     static createFrom($$source = {}) {
-        const $$createField2_0 = $$createType37;
-        const $$createField3_0 = $$createType37;
+        const $$createField2_0 = $$createType38;
+        const $$createField3_0 = $$createType38;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("target_words" in $$parsedSource) {
             $$parsedSource["target_words"] = $$createField2_0($$parsedSource["target_words"]);
@@ -2699,34 +3057,35 @@ const $$createType3 = $Create.Array($$createType2);
 const $$createType4 = $Create.Map($Create.Any, $$createType3);
 const $$createType5 = $Create.Map($Create.Any, $Create.Any);
 const $$createType6 = $Create.Array($Create.Any);
-const $$createType7 = FlowNodeInfo.createFrom;
-const $$createType8 = $Create.Array($$createType7);
-const $$createType9 = FlowEdgeInfo.createFrom;
-const $$createType10 = $Create.Array($$createType9);
-const $$createType11 = $Create.Map($Create.Any, $Create.Any);
-const $$createType12 = PositionInfo.createFrom;
-const $$createType13 = RunConstraintsInfo.createFrom;
-const $$createType14 = $Create.Nullable($$createType13);
-const $$createType15 = ProjectItem.createFrom;
-const $$createType16 = $Create.Array($$createType15);
-const $$createType17 = TextRunInfo.createFrom;
-const $$createType18 = $Create.Nullable($$createType17);
-const $$createType19 = PlaceholderRunInfo.createFrom;
-const $$createType20 = $Create.Nullable($$createType19);
-const $$createType21 = PcOpenRunInfo.createFrom;
-const $$createType22 = $Create.Nullable($$createType21);
-const $$createType23 = PcCloseRunInfo.createFrom;
-const $$createType24 = $Create.Nullable($$createType23);
-const $$createType25 = SubRunInfo.createFrom;
-const $$createType26 = $Create.Nullable($$createType25);
-const $$createType27 = PluralRunInfo.createFrom;
-const $$createType28 = $Create.Nullable($$createType27);
-const $$createType29 = SelectRunInfo.createFrom;
-const $$createType30 = $Create.Nullable($$createType29);
-const $$createType31 = TMEntryInfo.createFrom;
-const $$createType32 = $Create.Array($$createType31);
-const $$createType33 = TermMatchInfo.createFrom;
-const $$createType34 = $Create.Array($$createType33);
-const $$createType35 = ConceptInfo.createFrom;
-const $$createType36 = $Create.Array($$createType35);
-const $$createType37 = $Create.Map($Create.Any, $Create.Any);
+const $$createType7 = CollabUser.createFrom;
+const $$createType8 = FlowNodeInfo.createFrom;
+const $$createType9 = $Create.Array($$createType8);
+const $$createType10 = FlowEdgeInfo.createFrom;
+const $$createType11 = $Create.Array($$createType10);
+const $$createType12 = $Create.Map($Create.Any, $Create.Any);
+const $$createType13 = PositionInfo.createFrom;
+const $$createType14 = RunConstraintsInfo.createFrom;
+const $$createType15 = $Create.Nullable($$createType14);
+const $$createType16 = ProjectItem.createFrom;
+const $$createType17 = $Create.Array($$createType16);
+const $$createType18 = TextRunInfo.createFrom;
+const $$createType19 = $Create.Nullable($$createType18);
+const $$createType20 = PlaceholderRunInfo.createFrom;
+const $$createType21 = $Create.Nullable($$createType20);
+const $$createType22 = PcOpenRunInfo.createFrom;
+const $$createType23 = $Create.Nullable($$createType22);
+const $$createType24 = PcCloseRunInfo.createFrom;
+const $$createType25 = $Create.Nullable($$createType24);
+const $$createType26 = SubRunInfo.createFrom;
+const $$createType27 = $Create.Nullable($$createType26);
+const $$createType28 = PluralRunInfo.createFrom;
+const $$createType29 = $Create.Nullable($$createType28);
+const $$createType30 = SelectRunInfo.createFrom;
+const $$createType31 = $Create.Nullable($$createType30);
+const $$createType32 = TMEntryInfo.createFrom;
+const $$createType33 = $Create.Array($$createType32);
+const $$createType34 = TermMatchInfo.createFrom;
+const $$createType35 = $Create.Array($$createType34);
+const $$createType36 = ConceptInfo.createFrom;
+const $$createType37 = $Create.Array($$createType36);
+const $$createType38 = $Create.Map($Create.Any, $Create.Any);

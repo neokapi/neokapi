@@ -51,6 +51,9 @@ import type {
   ScoreTrend,
   CreateVoiceProfileRequest,
   UpdateVoiceProfileRequest,
+  CandidateRule,
+  BlastRadius,
+  DriftResult,
   ModelUsageResponse,
   TranslationDashboardStats,
   ActivityInfo,
@@ -78,6 +81,18 @@ import type {
 } from "@neokapi/ui";
 
 import { codedToRuns } from "./codedToRuns";
+
+/**
+ * Presence-collaboration session info surfaced by the Go backend so the webview
+ * can open the Yjs awareness WebSocket directly (params.token). Mirrors the
+ * backend's CollabSession struct and the @neokapi/ui useCollaboration options.
+ */
+export interface CollabSessionInfo {
+  serverUrl: string;
+  authToken: string;
+  workspace: string;
+  user: { userId: string; name: string; avatarUrl?: string };
+}
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore – generated .js bindings outside the TS project root
@@ -164,29 +179,34 @@ export class WailsApiAdapter implements ApiAdapter {
     throw new Error("Workspaces not supported in desktop mode");
   }
 
-  // --- Members (not applicable) ---
-  async listMembers(): Promise<Membership[]> {
-    return [];
+  // --- Members (proxied to the server's REST governance endpoints) ---
+  async listMembers(workspaceSlug: string): Promise<Membership[]> {
+    return Backend.ListMembers(workspaceSlug) as Promise<Membership[]>;
   }
-  async addMember(): Promise<void> {
-    throw new Error("Not supported");
+  async addMember(workspaceSlug: string, userId: string, role: string): Promise<void> {
+    return Backend.AddMember(workspaceSlug, userId, role);
   }
-  async updateMemberRole(): Promise<void> {
-    throw new Error("Not supported");
+  async updateMemberRole(workspaceSlug: string, userId: string, role: string): Promise<void> {
+    return Backend.UpdateMemberRole(workspaceSlug, userId, role);
   }
-  async removeMember(): Promise<void> {
-    throw new Error("Not supported");
+  async removeMember(workspaceSlug: string, userId: string): Promise<void> {
+    return Backend.RemoveMember(workspaceSlug, userId);
   }
 
-  // --- Invites (not applicable in desktop) ---
-  async listInvites(): Promise<Invite[]> {
-    return [];
+  // --- Invites (proxied to the server's REST governance endpoints) ---
+  async listInvites(workspaceSlug: string): Promise<Invite[]> {
+    return Backend.ListInvites(workspaceSlug) as Promise<Invite[]>;
   }
-  async createInvite(): Promise<Invite> {
-    throw new Error("Not supported in desktop mode");
+  async createInvite(
+    workspaceSlug: string,
+    email: string,
+    role: string,
+    maxUses: number,
+  ): Promise<Invite> {
+    return Backend.CreateInvite(workspaceSlug, email, role, maxUses) as Promise<Invite>;
   }
-  async deleteInvite(): Promise<void> {
-    throw new Error("Not supported in desktop mode");
+  async deleteInvite(workspaceSlug: string, inviteId: string): Promise<void> {
+    return Backend.DeleteInvite(workspaceSlug, inviteId);
   }
   async acceptInvite(): Promise<AcceptInviteResponse> {
     throw new Error("Not supported in desktop mode");
@@ -798,37 +818,100 @@ export class WailsApiAdapter implements ApiAdapter {
     throw new Error("Entity annotations not yet supported in desktop mode");
   }
 
-  // --- Brand Voice (desktop: not yet backed by Wails bindings) ---
-  async listBrandProfiles(): Promise<VoiceProfile[]> {
-    return [];
+  // --- Brand Voice (proxied to the server's REST governance endpoints) ---
+  async listBrandProfiles(workspaceSlug: string): Promise<VoiceProfile[]> {
+    return Backend.ListBrandProfiles(workspaceSlug) as Promise<VoiceProfile[]>;
   }
-  async getBrandProfile(): Promise<VoiceProfile> {
-    throw new Error("Brand profiles not yet supported in desktop mode");
+  async getBrandProfile(workspaceSlug: string, profileId: string): Promise<VoiceProfile> {
+    return Backend.GetBrandProfile(workspaceSlug, profileId) as Promise<VoiceProfile>;
   }
   async createBrandProfile(_ws: string, _data: CreateVoiceProfileRequest): Promise<VoiceProfile> {
-    throw new Error("Brand profiles not yet supported in desktop mode");
+    // Authoring profiles is a web/MCP workflow; the desktop governance surface
+    // is review (promote/reject/evaluate), not profile creation.
+    throw new Error("Creating brand profiles is not available in the desktop app");
   }
   async updateBrandProfile(_ws: string, _data: UpdateVoiceProfileRequest): Promise<VoiceProfile> {
-    throw new Error("Brand profiles not yet supported in desktop mode");
+    throw new Error("Editing brand profiles is not available in the desktop app");
   }
   async deleteBrandProfile(_ws: string, _profileId: string): Promise<void> {
-    throw new Error("Brand profiles not yet supported in desktop mode");
+    throw new Error("Deleting brand profiles is not available in the desktop app");
   }
-  async getBrandScores(_ws: string, _projectId: string): Promise<StoredScore[]> {
-    return [];
+  async getBrandScores(workspaceSlug: string, projectId: string): Promise<StoredScore[]> {
+    return Backend.GetBrandScores(workspaceSlug, projectId) as Promise<StoredScore[]>;
   }
-  async getBrandTrends(_ws: string, _projectId: string): Promise<ScoreTrend[]> {
-    return [];
+  async getBrandTrends(workspaceSlug: string, projectId: string): Promise<ScoreTrend[]> {
+    return Backend.GetBrandTrends(workspaceSlug, projectId) as Promise<ScoreTrend[]>;
   }
   async listStarterPacks(): Promise<{ name: string; description: string }[]> {
-    return [];
+    return Backend.ListStarterPacks() as Promise<{ name: string; description: string }[]>;
   }
   async createProfileFromStarter(
     _ws: string,
     _pack: string,
     _name?: string,
   ): Promise<VoiceProfile> {
-    throw new Error("not implemented in desktop app");
+    throw new Error("Creating brand profiles is not available in the desktop app");
+  }
+
+  // --- Correction-learning loop (AD-019, proxied to the server's REST endpoints) ---
+  async listBrandCandidates(
+    workspaceSlug: string,
+    profileId: string,
+    opts?: { minCount?: number; all?: boolean },
+  ): Promise<CandidateRule[]> {
+    return Backend.GetSuggestedRules(
+      workspaceSlug,
+      profileId,
+      opts?.minCount ?? 0,
+      opts?.all ?? false,
+    ) as Promise<CandidateRule[]>;
+  }
+  async promoteBrandRule(
+    workspaceSlug: string,
+    profileId: string,
+    rule: { term: string; replacement?: string; correction_count?: number },
+  ): Promise<{ promoted: boolean }> {
+    return Backend.PromoteRule(workspaceSlug, profileId, {
+      term: rule.term,
+      replacement: rule.replacement ?? "",
+      correction_count: rule.correction_count ?? 0,
+    }) as Promise<{ promoted: boolean }>;
+  }
+  async rejectBrandRule(
+    workspaceSlug: string,
+    profileId: string,
+    rule: { term: string; replacement?: string },
+  ): Promise<void> {
+    return Backend.RejectRule(workspaceSlug, profileId, {
+      term: rule.term,
+      replacement: rule.replacement ?? "",
+      correction_count: 0,
+    });
+  }
+  async evaluateBrandRule(
+    workspaceSlug: string,
+    profileId: string,
+    req: { term: string; replacement?: string; project_id: string; stream?: string },
+  ): Promise<BlastRadius> {
+    return Backend.EvaluateRule(workspaceSlug, profileId, {
+      term: req.term,
+      replacement: req.replacement ?? "",
+      project_id: req.project_id,
+      stream: req.stream ?? "",
+    }) as Promise<BlastRadius>;
+  }
+  async getBrandDrift(
+    workspaceSlug: string,
+    projectId: string,
+    opts?: { recentDays?: number; minScore?: number; dropPoints?: number },
+  ): Promise<DriftResult> {
+    return Backend.GetBrandDrift(
+      workspaceSlug,
+      projectId,
+      opts?.recentDays ?? 0,
+      opts?.minScore ?? 0,
+      opts?.dropPoints ?? 0,
+    ) as Promise<DriftResult>;
   }
 
   // --- Activities (Bowrain AD-014, not yet supported in desktop) ---
@@ -1026,5 +1109,15 @@ export class WailsApiAdapter implements ApiAdapter {
   // --- Desktop-specific helpers (not in ApiAdapter) ---
   async openFileInOS(path: string): Promise<void> {
     return Backend.OpenFileInOS(path);
+  }
+
+  /**
+   * Returns the presence-collaboration session (server URL, keychain auth
+   * token, workspace, current user) so the frontend can open the Yjs awareness
+   * WebSocket exactly like the web translate view. Rejects when not connected
+   * to a server — presence is a server feature.
+   */
+  async getCollabSession(): Promise<CollabSessionInfo> {
+    return Backend.GetCollabSession() as Promise<CollabSessionInfo>;
   }
 }
