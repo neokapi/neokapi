@@ -18,6 +18,8 @@ import { UnifiedTargetEditor, type UnifiedSaveResult } from "../UnifiedTargetEdi
 import { HighlightedSource } from "./HighlightedSource";
 import { VisualEditorToolbar } from "./VisualEditorToolbar";
 import { TermCreationPopover } from "./TermCreationPopover";
+import { ContextPanel } from "./ContextPanel";
+import { getBlockStatus, statusConfig } from "./blockStatus";
 import { InlineCodeLegend } from "@neokapi/ui-primitives";
 import { FormatVocabularyBadge } from "./FormatVocabularyBadge";
 import {
@@ -68,39 +70,6 @@ export interface VisualEditorCardProps {
   // Navigation
   onPrev?: () => void;
   onNext?: () => void;
-}
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-type BlockStatus = "not-started" | "draft" | "translated" | "reviewed";
-
-function getBlockStatus(block: BlockInfo, locale: string): BlockStatus {
-  if (block.properties["translation-status"] === "reviewed") return "reviewed";
-  if (block.properties["translation-status"] === "draft") return "draft";
-  if (!block.targets[locale]) return "not-started";
-  if (
-    block.properties["translation-origin"] === "machine" ||
-    block.properties["translation-origin"] === "pseudo"
-  ) {
-    return "draft";
-  }
-  return "translated";
-}
-
-const statusConfig: Record<BlockStatus, { label: string; className: string }> = {
-  "not-started": { label: "Not Started", className: "bg-muted text-muted-foreground" },
-  draft: { label: "Draft", className: "bg-warning/15 text-warning dark:text-warning" },
-  translated: { label: "Translated", className: "bg-info/15 text-info dark:text-info" },
-  reviewed: { label: "Reviewed", className: "bg-success/15 text-success dark:text-success" },
-};
-
-function tmScoreClass(score: number): string {
-  if (score >= 1) return "text-success bg-success/15 dark:text-success";
-  if (score >= 0.85) return "text-info bg-info/15 dark:text-info";
-  if (score >= 0.7) return "text-warning bg-warning/15 dark:text-warning";
-  return "text-muted-foreground bg-muted";
 }
 
 // ---------------------------------------------------------------------------
@@ -557,38 +526,17 @@ export function VisualEditorCard({
             TM Matches
             <span className="font-normal text-[10px] ml-1">({tmMatches.length})</span>
           </button>
-          {tmExpanded &&
-            tmMatches.map((m, i) => (
-              <div
-                key={i}
-                className="p-2 bg-muted rounded-md mb-1.5 border border-border"
-                data-testid={`tm-match-${i}`}
-              >
-                <div className="flex justify-between mb-1">
-                  <span
-                    className={cn(
-                      "text-[11px] font-bold px-1.5 py-px rounded",
-                      tmScoreClass(m.score),
-                    )}
-                  >
-                    {Math.round(m.score * 100)}%
-                  </span>
-                  <span className="text-[10px] text-muted-foreground">
-                    {m.match_type.replace(/-/g, " ")}
-                  </span>
-                </div>
-                <div className="text-xs mb-1 text-muted-foreground">{m.source}</div>
-                <div className="text-xs font-medium">{m.target}</div>
-                <Button
-                  size="sm"
-                  className="mt-1.5 text-[11px] h-6 px-2"
-                  onClick={() => onApplyTM(i)}
-                  data-testid={`tm-apply-${i}`}
-                >
-                  Apply
-                </Button>
-              </div>
-            ))}
+          {tmExpanded && (
+            <ContextPanel
+              tmMatches={tmMatches}
+              termMatches={[]}
+              onApplyTM={onApplyTM}
+              currentProjectId={project.id}
+              sections={{ tm: true, terms: false, entities: false }}
+              hideSectionTitles
+              className="p-0"
+            />
+          )}
         </div>
       )}
 

@@ -10,6 +10,24 @@ function clickTestId(page: any, testId: string) {
 }
 
 /**
+ * Bulk TM leverage moved out of the per-block Translate toolbar onto the
+ * Pre-process surface. This navigates there and runs the leverage op.
+ */
+async function leverageTMViaPreProcess(page: any) {
+  await clickTestId(page, "surface-tab-pre-process");
+  await page.getByTestId("preprocess-run-tm").waitFor({ state: "visible", timeout: 5000 });
+  await clickTestId(page, "preprocess-run-tm");
+  await page.waitForTimeout(1000);
+  // Return to the Translate editor in Table view to inspect results.
+  await clickTestId(page, "surface-tab-translate");
+  await page.getByTestId("view-switcher").waitFor({ state: "visible", timeout: 5000 });
+  await page.evaluate(() => {
+    (document.querySelector('[data-testid="view-table"]') as HTMLElement)?.click();
+  });
+  await page.getByTestId("block-grid").waitFor({ state: "visible", timeout: 5000 });
+}
+
+/**
  * Sets up a project with TM entries covering all blocks, adds a file, and opens the editor.
  */
 async function openEditorWithTM(page: any) {
@@ -55,9 +73,9 @@ async function openEditorWithTM(page: any) {
   await page.evaluate(() => {
     (document.querySelector('[data-testid="open-file-page.html"]') as HTMLElement)?.click();
   });
-  await expect(page.getByTestId("layout-switcher")).toBeVisible({ timeout: 5000 });
+  await expect(page.getByTestId("view-switcher")).toBeVisible({ timeout: 5000 });
   await page.evaluate(() => {
-    (document.querySelector('[data-testid="layout-grid"]') as HTMLElement)?.click();
+    (document.querySelector('[data-testid="view-table"]') as HTMLElement)?.click();
   });
   await expect(page.getByTestId("block-grid")).toBeVisible({ timeout: 5000 });
 }
@@ -69,9 +87,8 @@ test.describe("TM Leverage", () => {
     // Verify blocks are untranslated initially (progress at 0%)
     await expect(page.getByTestId("progress-text")).toContainText("0%");
 
-    // Click TM Lookup button
-    await clickTestId(page, "tm-btn");
-    await page.waitForTimeout(1000);
+    // Run bulk TM leverage from the Pre-process surface.
+    await leverageTMViaPreProcess(page);
 
     // Progress should update (3/3 blocks matched from TM)
     await expect(page.getByTestId("progress-text")).toContainText("100%");
@@ -80,9 +97,8 @@ test.describe("TM Leverage", () => {
   test("should show TM-translated blocks with targets", async ({ page }) => {
     await openEditorWithTM(page);
 
-    // Click TM Lookup
-    await clickTestId(page, "tm-btn");
-    await page.waitForTimeout(1000);
+    // Run bulk TM leverage from the Pre-process surface.
+    await leverageTMViaPreProcess(page);
 
     // Reload blocks to see translated targets
     // Navigate back to project view and re-open file
@@ -94,9 +110,9 @@ test.describe("TM Leverage", () => {
     await page.evaluate(() => {
       (document.querySelector('[data-testid="open-file-page.html"]') as HTMLElement)?.click();
     });
-    await expect(page.getByTestId("layout-switcher")).toBeVisible({ timeout: 5000 });
+    await expect(page.getByTestId("view-switcher")).toBeVisible({ timeout: 5000 });
     await page.evaluate(() => {
-      (document.querySelector('[data-testid="layout-grid"]') as HTMLElement)?.click();
+      (document.querySelector('[data-testid="view-table"]') as HTMLElement)?.click();
     });
     await expect(page.getByTestId("block-grid")).toBeVisible({ timeout: 5000 });
 
@@ -130,9 +146,8 @@ test.describe("TM Leverage", () => {
     // Verify initial state
     await expect(page.getByTestId("progress-text")).toContainText("0%");
 
-    // Click TM Lookup
-    await clickTestId(page, "tm-btn");
-    await page.waitForTimeout(1000);
+    // Run bulk TM leverage from the Pre-process surface.
+    await leverageTMViaPreProcess(page);
 
     // Progress should reflect translated blocks
     const progressText = await page.getByTestId("progress-text").textContent();

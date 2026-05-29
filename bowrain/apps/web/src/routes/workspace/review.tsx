@@ -1,18 +1,17 @@
 import { useEffect } from "react";
 import { useNavigate, useParams, useRouteContext } from "@tanstack/react-router";
 import { useSuspenseQuery } from "@tanstack/react-query";
-import {
-  TranslationEditor,
-  PresenceAvatars,
-  useApi,
-  useCollaboration,
-  useStream,
-} from "@neokapi/ui";
+import { ReviewSurface, PresenceAvatars, useApi, useCollaboration, useStream } from "@neokapi/ui";
 import { projectQueryOptions } from "../../queries";
 import type { WorkspaceRouteContext } from "..";
 import { useEditorSurfaceNav } from "./useEditorSurfaceNav";
 
-export function TranslateRoute() {
+/**
+ * ReviewRoute is the block-level translation review surface — a sibling of the
+ * translate route, scoped to the same file. It lists blocks by status, runs QA,
+ * and supports bulk review actions. Brand-rule promotion stays in /brand/review.
+ */
+export function ReviewRoute() {
   const navigate = useNavigate();
   const { workspace, projectId, itemId } = useParams({ strict: false });
   const adapter = useApi();
@@ -24,18 +23,16 @@ export function TranslateRoute() {
     projectQueryOptions(adapter, ws, projectId!, activeStream),
   );
 
-  // Resolve item name from ID via project data.
   const item = project.items?.find((i) => i.id === itemId);
   const fileName = item?.name ?? itemId ?? "";
 
+  const surfaceTabs = useEditorSurfaceNav("review");
+
   useEffect(() => {
-    document.title = `${fileName} — ${project.name} — Bowrain`;
+    document.title = `Review · ${fileName} — ${project.name} — Bowrain`;
   }, [fileName, project.name]);
 
-  const surfaceTabs = useEditorSurfaceNav("translate");
-
-  // Set up collaborative editing via WebSocket + Yjs.
-  const { connectedUsers, connectionState } = useCollaboration({
+  const { connectedUsers } = useCollaboration({
     serverUrl: window.location.origin,
     workspace: ws,
     projectId: projectId ?? "",
@@ -50,28 +47,22 @@ export function TranslateRoute() {
   });
 
   return (
-    <TranslationEditor
+    <ReviewSurface
       project={project}
       fileName={fileName}
       surfaceTabs={surfaceTabs}
       onBack={() =>
         navigate({
-          to: "/$workspace/p/$projectId/s/$stream",
+          to: "/$workspace/p/$projectId/s/$stream/$itemId/translate",
           params: {
             workspace: workspace ?? ws,
             projectId: project.id,
             stream: activeStream,
+            itemId: itemId ?? "",
           },
         })
       }
-      presenceSlot={
-        <div className="flex items-center gap-2">
-          <PresenceAvatars users={connectedUsers} currentUserId={user.id} />
-          {connectionState === "connecting" && (
-            <span className="text-xs text-muted-foreground">Connecting...</span>
-          )}
-        </div>
-      }
+      presenceSlot={<PresenceAvatars users={connectedUsers} currentUserId={user.id} />}
     />
   );
 }

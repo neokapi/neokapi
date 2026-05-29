@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { TranslationEditor, PresenceAvatars, useCollaboration } from "@neokapi/ui";
-import type { ProjectInfo, BlockInfo } from "@neokapi/ui";
+import type { ProjectInfo } from "@neokapi/ui";
 import type { WailsApiAdapter, CollabSessionInfo } from "../api/WailsApiAdapter";
 
 interface DesktopTranslateViewProps {
@@ -11,14 +11,8 @@ interface DesktopTranslateViewProps {
   workspaceSlug: string;
   onBack: () => void;
   onExport: (blob: Blob, fileName: string) => void;
-  renderPreview: (props: {
-    projectId: string;
-    itemName: string;
-    targetLocale: string;
-    selectedBlockId?: string;
-    onBlockSelect: (blockId: string) => void;
-    blocks: BlockInfo[];
-  }) => React.ReactNode;
+  /** Cross-surface switcher slot (Pre-process/Translate/Review). */
+  surfaceTabs?: React.ReactNode;
 }
 
 /**
@@ -35,6 +29,10 @@ interface DesktopTranslateViewProps {
  * WailsApiAdapter.updateBlockTarget, exactly like web; presence is awareness
  * only. This supersedes the gRPC UpdatePresence path (no longer called from the
  * editor view) in favour of Yjs awareness.
+ *
+ * The Visual view renders the shared DocumentPreview (driven by the Wails
+ * adapter's renderDocumentPreview), so the editor no longer needs a custom
+ * renderPreview injection — both web and desktop share the same preview.
  */
 export function DesktopTranslateView({
   adapter,
@@ -43,7 +41,7 @@ export function DesktopTranslateView({
   workspaceSlug,
   onBack,
   onExport,
-  renderPreview,
+  surfaceTabs,
 }: DesktopTranslateViewProps) {
   const [session, setSession] = useState<CollabSessionInfo | null>(null);
 
@@ -87,7 +85,7 @@ export function DesktopTranslateView({
       fileName={fileName}
       onBack={onBack}
       onExport={onExport}
-      renderPreview={renderPreview}
+      surfaceTabs={surfaceTabs}
       onSelectedBlockChange={collabEnabled ? setSelectedBlock : undefined}
       presenceSlot={
         collabEnabled ? (

@@ -31,10 +31,6 @@ interface VisualEditorLayoutProps {
   selectedIndex: number;
   editingIndex: number | null;
   targetLocale: string;
-  editorMode: VisualEditorMode;
-  onEditorModeChange: (mode: VisualEditorMode) => void;
-  previewContentMode: PreviewContentMode;
-  onPreviewContentModeChange: (mode: PreviewContentMode) => void;
   onNavigate: (index: number) => void;
   onStartEditing: () => void;
   onSave: (result: UnifiedSaveResult) => void | Promise<void>;
@@ -97,10 +93,6 @@ export function VisualEditorLayout({
   selectedIndex,
   editingIndex,
   targetLocale,
-  editorMode,
-  onEditorModeChange,
-  previewContentMode,
-  onPreviewContentModeChange,
   onNavigate,
   onStartEditing,
   onSave,
@@ -123,6 +115,10 @@ export function VisualEditorLayout({
   onDeleteNote,
   onTermCreate,
 }: VisualEditorLayoutProps) {
+  // ── Visual-only view state (owned here, not lifted) ────────────────────
+  const [editorMode, setEditorMode] = useState<VisualEditorMode>("translate");
+  const [previewContentMode, setPreviewContentMode] = useState<PreviewContentMode>("source");
+
   // ── Reference locales (persisted per project) ──────────────────────────
   const [referenceLocales, setReferenceLocales] = useState<string[]>(() =>
     loadReferenceLocales(project.id),
@@ -320,7 +316,7 @@ export function VisualEditorLayout({
         {/* Preview content mode toggle */}
         <Tabs
           value={previewContentMode}
-          onValueChange={(v: string) => onPreviewContentModeChange(v as PreviewContentMode)}
+          onValueChange={(v: string) => setPreviewContentMode(v as PreviewContentMode)}
         >
           <TabsList className="h-7">
             <TabsTrigger value="source" className="text-[11px] px-2 h-6">
@@ -368,7 +364,7 @@ export function VisualEditorLayout({
             totalBlocks={blocks.length}
             targetLocale={targetLocale}
             editorMode={editorMode}
-            onEditorModeChange={onEditorModeChange}
+            onEditorModeChange={setEditorMode}
             isEditing={editingIndex !== null}
             onStartEditing={onStartEditing}
             onSave={onSave}

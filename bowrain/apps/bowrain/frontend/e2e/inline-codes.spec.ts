@@ -182,9 +182,9 @@ async function openEditorWithInlineBlocks(page: Page) {
     if (btn) btn.click();
   });
 
-  await expect(page.getByTestId("layout-switcher")).toBeVisible({ timeout: 5000 });
+  await expect(page.getByTestId("view-switcher")).toBeVisible({ timeout: 5000 });
   await page.evaluate(() => {
-    (document.querySelector('[data-testid="layout-grid"]') as HTMLElement)?.click();
+    (document.querySelector('[data-testid="view-table"]') as HTMLElement)?.click();
   });
   await expect(page.getByTestId("block-grid")).toBeVisible({ timeout: 5000 });
 }
