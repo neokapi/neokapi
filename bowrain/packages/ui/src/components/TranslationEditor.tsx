@@ -57,6 +57,13 @@ interface TranslationEditorProps {
   }) => React.ReactNode;
   /** Optional presence slot rendered in the editor toolbar. */
   presenceSlot?: React.ReactNode;
+  /**
+   * Optional callback fired when the focused/selected block changes. Used by
+   * presence collaboration (Yjs awareness) to broadcast the local user's
+   * cursor position — see useCollaboration().setSelectedBlock. Undefined is
+   * passed when no block is selected.
+   */
+  onSelectedBlockChange?: (blockId: string | undefined) => void;
 }
 
 type LayoutMode = "grid" | "focus" | "split-h" | "split-v" | "visual";
@@ -119,6 +126,7 @@ export function TranslationEditor({
   onExport,
   renderPreview,
   presenceSlot,
+  onSelectedBlockChange,
 }: TranslationEditorProps) {
   const [blocks, setBlocks] = useState<BlockInfo[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -230,6 +238,11 @@ export function TranslationEditor({
 
   // Selected block ID for preview synchronization
   const selectedBlockId = filteredBlocks[selectedIndex]?.id;
+
+  // Broadcast the focused block to presence collaboration (Yjs awareness).
+  useEffect(() => {
+    onSelectedBlockChange?.(selectedBlockId);
+  }, [selectedBlockId, onSelectedBlockChange]);
 
   // Handle block selection from preview iframe -- use ref to avoid re-renders
   const filteredBlocksRef = useRef(filteredBlocks);
