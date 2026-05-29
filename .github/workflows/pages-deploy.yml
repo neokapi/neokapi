@@ -33,7 +33,14 @@ permissions:
   actions: read # required by actions/download-artifact for cross-workflow runs
 
 concurrency:
-  group: pages-deploy
+  # Group per source workflow + branch. A single shared group is wrong here:
+  # GitHub keeps only one *pending* run per group and cancels older pending ones,
+  # so a queued bowrain-docs deploy gets silently dropped when a kapi-docs deploy
+  # queues behind a running one. Per-source groups mean different sources never
+  # cancel each other; same-source builds still serialize. cancel-in-progress is
+  # false so an in-flight publish always finishes. Cross-source deploys may run
+  # concurrently and race on the shared branch — the push step rebase-retries.
+  group: pages-deploy-${{ github.event.workflow_run.name || github.event_name }}-${{ github.event.workflow_run.head_branch || github.ref_name }}
   cancel-in-progress: false
 
 jobs:
@@ -55,7 +62,10 @@ jobs:
 
       - name: Clone neokapi.github.io
         run: |
-          git clone --depth 1 "git@${PAGES_REPO}" pages
+          # Depth 50 (not 1) so the push step can rebase onto a concurrent
+          # deploy's commit: a shallow depth-1 clone has no merge base, so the
+          # rebase-retry below would fail. 50 covers any realistic race window.
+          git clone --depth 50 "git@${PAGES_REPO}" pages
           cd pages
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -205,7 +215,29 @@ jobs:
           else
             git commit -m "deploy: production sites"
           fi
-          git push origin HEAD:main
+          # Cross-source deploys (kapi docs / bowrain docs / storybook / web) run
+          # in separate concurrency groups and can race on this shared branch.
+          # Each writes a disjoint subtree, so rebasing our single commit onto a
+          # deploy that landed first is conflict-free; retry a few times before
+          # giving up rather than failing the publish.
+          for attempt in 1 2 3 4 5; do
+            if git push origin HEAD:main; then
+              echo "pushed on attempt ${attempt}"
+              break
+            fi
+            if [ "${attempt}" = "5" ]; then
+              echo "::error::pages push failed after ${attempt} attempts"
+              exit 1
+            fi
+            echo "push rejected (attempt ${attempt}); rebasing onto latest main…"
+            git fetch origin main
+            if ! git rebase origin/main; then
+              git rebase --abort || true
+              echo "::error::pages rebase hit a conflict (overlapping subtree?)"
+              exit 1
+            fi
+            sleep $((attempt * 3))
+          done
 
       - name: Comment PR preview link
         if: ${{ steps.target.outputs.is_pr == 'true' }}
