@@ -5,11 +5,43 @@ sidebar_position: 11
 
 # Automation
 
-Bowrain provides two complementary layers of automation: **local rules** declared on the project recipe for CLI-driven workflows, and **server-side rules** configured in the web UI for event-driven processing across the whole workspace.
+Bowrain provides two complementary layers of automation: **server-side rules**, configured in the web app, that respond to events across the whole workspace — the primary automation surface — and **local rules** declared on a project recipe for kapi-driven (CLI/CI) workflows.
+
+## Server-side automation
+
+Server-side automations are event-driven rules configured in the Bowrain web
+app under **Project > Automations**. They respond to events on the server —
+content pushed, a connector syncing new source, translations completed, quality
+gates evaluated — and trigger actions like running flows or sending
+notifications. Because they react to events on the server, they apply to content
+from **any connector**, not just a local checkout.
+
+The Automations surface is a **superset flow + automation editor** with three
+tabs: **Runs** (run history), **Rules** (trigger + conditions + actions), and
+**Flows** (the flow canvas — see [Server-Side Flows](/server/flows)). The Flows
+tab embeds the same `@neokapi/flow-editor` component the desktop apps use, so a
+`run_flow` action and the flow it runs are authored in one place.
+
+### Creating rules
+
+1. Navigate to **Project > Automations > Rules**
+2. Click **New Rule**
+3. Select a trigger event (for example, "When content is pushed" or "When a connector syncs")
+4. Add optional conditions (filter by project, locale, or event data)
+5. Add one or more actions. A `run_flow` action picks a flow from the project's
+   flow registry (the built-in catalog plus any project flows authored on the
+   Flows tab) — connector-agnostic, so the same flow applies to content from
+   any connector
+6. Save and enable the rule
+
+Rules and the flow definitions they reference are persisted through the
+project-scoped REST API: `/api/v1/:ws/:id/automations` for rules and
+`/api/v1/:ws/:id/flows` for flow definitions. Rules can be reordered, disabled,
+and duplicated from the editor.
 
 ## Local automation (CLI)
 
-Local automations run in kapi (with the bowrain plugin) and are declared at the top level of your project's `.kapi` recipe. They hook into CLI commands and execute actions before or after operations like push, pull, and flow runs.
+Local automations run in kapi (with the bowrain plugin) and are declared at the top level of your project's `.kapi` recipe. They hook into CLI commands and execute actions before or after operations like push, pull, and flow runs — the developer-workflow and CI layer that complements the server rules above.
 
 ### Configuration
 
@@ -87,41 +119,11 @@ automations:
 
 This makes `kapi push` behave like `kapi sync`.
 
-## Server-side automation
-
-Server-side automations are event-driven rules configured in the Bowrain web
-app under **Project > Automations**. They respond to events on the server —
-content pushed, translations completed, quality gates evaluated — and trigger
-actions like running flows or sending notifications.
-
-The Automations surface is a **superset flow + automation editor** with three
-tabs: **Runs** (run history), **Rules** (trigger + conditions + actions), and
-**Flows** (the flow canvas — see [Server-Side Flows](/server/flows)). The Flows
-tab embeds the same `@neokapi/flow-editor` component the desktop apps use, so a
-`run_flow` action and the flow it runs are authored in one place.
-
-### Creating rules
-
-1. Navigate to **Project > Automations > Rules**
-2. Click **New Rule**
-3. Select a trigger event (for example, "When content is pushed")
-4. Add optional conditions (filter by project, locale, or event data)
-5. Add one or more actions. A `run_flow` action picks a flow from the project's
-   flow registry (the built-in catalog plus any project flows authored on the
-   Flows tab) — connector-agnostic, so the same flow applies to content from
-   any connector
-6. Save and enable the rule
-
-Rules and the flow definitions they reference are persisted through the
-project-scoped REST API: `/api/v1/:ws/:id/automations` for rules and
-`/api/v1/:ws/:id/flows` for flow definitions. Rules can be reordered, disabled,
-and duplicated from the editor.
-
 ## Quality gates
 
 Quality gates evaluate content against thresholds before allowing operations to proceed. A blocking gate aborts the operation if the check fails; an advisory gate logs a warning but continues.
 
-Gates integrate with both local and server-side automation, so you can enforce standards at the CLI level (pre-push) and at the server level (post-push).
+Gates integrate with both server-side and local automation, so you can enforce standards at the server level (on push or connector sync) and at the CLI level (pre-push).
 
 ## Webhooks
 
@@ -135,7 +137,7 @@ Automation chains are tracked through a causation chain. If a chain of rules exc
 
 ## Execution history
 
-Both local and server-side automations maintain execution history:
+Both server-side and local automations maintain execution history:
 
-- **Local**: `kapi status --automations` shows recent local automation runs
 - **Server**: **Project Settings > Automation > History** provides an execution log with status, duration, and error details
+- **Local**: `kapi status --automations` shows recent local automation runs

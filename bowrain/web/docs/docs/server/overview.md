@@ -5,11 +5,11 @@ title: Overview
 
 # Bowrain Server
 
-Bowrain Server is the shared, governed home for the work a team does locally with kapi. It is to kapi what GitHub is to git — the server holds the project history, shared terminology, translation memory, and team access; local kapi instances push and pull against it.
+Bowrain Server is the governed platform where a team's localized content lives. It ingests source from the systems content already lives in — a CMS, design tools, git repositories, and a developer's local files via kapi — translates and checks it, and serves that governed context (terminology, translation memory, brand voice) to people and AI tools alike, with full version history. For developers coming from kapi, it is to kapi what GitHub is to git: local kapi instances push and pull against it, one connector among several.
 
 ## What the server adds
 
-A team running kapi on its own has powerful local tools. Bowrain Server adds what a local checkout cannot:
+Bowrain Server adds what a single source system — or a single local checkout — cannot:
 
 - **Shared terminology and memory** — one authoritative glossary and translation memory for the whole workspace, versioned and auditable
 - **Multi-user editing** — translators work in the web or desktop editor; changes reach every connected client

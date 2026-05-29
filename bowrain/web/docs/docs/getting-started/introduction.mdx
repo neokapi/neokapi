@@ -14,7 +14,7 @@ It is to kapi what GitHub is to git. The toolchain stays open and runs anywhere;
 
 ## What Bowrain adds
 
-You keep using kapi. Installing the bowrain plugin (`kapi plugin install bowrain`) lets a kapi project sync with a Bowrain server, and the platform adds what a single checkout cannot:
+Connect your content — from a CMS, a design tool, a git repository, or a kapi project — and the platform adds what a single checkout or a single source system cannot:
 
 ### Shared, versioned governance
 
@@ -22,11 +22,15 @@ One brand-voice profile, terminology base, and translation memory, held on the s
 
 ### Collaboration
 
-A web editor and a desktop app connect to the same server. Translators work with split preview, translation memory, and terminology context; edits, presence, and memory updates propagate to every client in real time — see [Real-time collaboration](/server/collaboration).
+A web editor and a desktop app connect to the same server. Translators work in Visual and Table views with translation memory and terminology context; edits, presence, and live updates propagate to every client without a refresh — see [Real-time collaboration](/server/collaboration).
 
 ### Connectors
 
-Sync against the systems content already lives in — code repositories, content management systems, design tools, and marketing platforms — not just local files. Files are one connector category, not the whole story.
+Bowrain syncs against the systems content already lives in — a CMS (WordPress, HubSpot), a design tool (Figma), a code repository (GitHub), or a developer's local files via kapi. Most of these pull content in **server-side, with no local checkout**: source flows into the governed workspace, gets translated and checked, and publishes back to where it came from. kapi is the local-files/git connector — one category among several, not the whole story. See [Connectors](/server/connectors).
+
+### AI that stays on-brand
+
+The workspace's governed terminology, translation memory, and brand-voice checks are the context an AI assistant reads — over [MCP](/server/brand-voice) — so generated and translated copy is on-voice from the first draft, and corrections flow back into the shared, enforced checks.
 
 ### Automation
 
@@ -46,38 +50,41 @@ kapi sync
 
 [`kapi sync`](/cli/commands/sync) pushes changed content to the server, waits for the triggered flows (translation, QA, terminology) to finish, and pulls the results back — one invocation from code change to translated files. In CI it replaces a multi-job pipeline.
 
+Content does not have to start locally, though: a [connector](/server/connectors) to a CMS, a design tool, or a git repository pulls source into the workspace server-side, with no checkout at all. `kapi sync` is the path for a developer working from a local codebase — one of several ways content reaches the platform.
+
 ## How it fits together
 
 <SwimlaneDiagram
   actors={[
-    { label: "You", sub: "kapi + plugin", role: "io" },
-    { label: "Bowrain server", role: "translate" },
-    { label: "Translators", sub: "web / desktop", role: "qa" },
+    { label: "Content sources", sub: "CMS · Figma · git · kapi", role: "io" },
+    { label: "Bowrain server", sub: "govern · automate", role: "translate" },
+    { label: "Translators & AI", sub: "web / desktop / MCP", role: "qa" },
   ]}
   messages={[
-    { from: 0, to: 1, label: "kapi sync", detail: "push source content" },
-    { from: 1, to: 1, label: "translate / QA", detail: "server automation" },
-    { from: 2, to: 2, label: "open the editor", detail: "review, approve, save" },
-    { from: 1, to: 0, label: "pull translations" },
+    { from: 0, to: 1, label: "sync source", detail: "a connector, or kapi push" },
+    { from: 1, to: 1, label: "translate / QA / brand checks", detail: "server automation" },
+    { from: 2, to: 2, label: "review & approve", detail: "in the editor" },
+    { from: 1, to: 0, label: "publish back", detail: "to the source system" },
   ]}
-  caption="A developer pushes with kapi sync; the server processes; translators review in the editor."
+  caption="Content flows in from any connector — a CMS, a design tool, git, or a developer's local files via kapi. The server governs and automates, people and AI tools review, and results publish back."
 />
 
-A developer runs `kapi sync` to push source content and pull back translations. Translators work in the web or desktop editor with translation memory and terminology support. Server automation orchestrates the processing in between, and the content store keeps the history.
+Content enters the workspace from a connector — a CMS, a design tool, a git repository, or a developer's local files via `kapi sync`. Server automation orchestrates translation and checks; translators (and AI tools, over MCP) work in the web or desktop editor with translation memory and terminology support; and the content store keeps the history.
 
 ## Parts of the platform
 
-- **Project sync** — the bowrain plugin for kapi, run as `kapi <command>`, which syncs a local `.kapi` project with a server.
-- **Web editor** — a browser-based translation workbench with split preview, translation memory, and terminology.
+- **Server** — workspaces, authentication, the versioned content store, automation, and connectors to the systems content already lives in.
+- **Connectors** — sync content from a CMS, a design tool, a git repository, or local files. CMS and design connectors run server-side with no checkout; kapi is the local-files/git connector.
+- **Web editor** — a browser-based translation workbench with Visual and Table views, translation memory, and terminology.
 - **Desktop app** — a native cross-platform editor with offline support.
-- **Server** — workspaces, authentication, connectors, automation, and the versioned content store.
+- **Project sync (kapi)** — the bowrain plugin for kapi, run as `kapi <command>`, which syncs a local `.kapi` project with a server — one connector among several.
 
 ## What's next
 
-- [Installation](/installation) — install the bowrain plugin, the desktop app, or a server
-- [Quick start](/quickstart) — connect a project and sync
-- [Walkthrough](/walkthroughs/bowrain-getting-started) — from connect to automated CI/CD
-- [`kapi sync`](/cli/commands/sync) — the one-command workflow
+- [Installation](/installation) — install the server, the web/desktop editor, or the bowrain plugin for kapi
+- [Quick start](/quickstart) — get content into Bowrain from a connector or from kapi
+- [Connectors](/server/connectors) — sync from a CMS, a design tool, or a git repository
+- [Walkthrough](/walkthroughs/bowrain-getting-started) — the developer path, from connect to automated CI/CD
 
 ## Just need the local tools?
 

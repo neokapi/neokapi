@@ -6,9 +6,17 @@ slug: /quickstart
 
 # Quick Start
 
-Connect a kapi project to Bowrain in 5 minutes. Commands run through kapi with the bowrain plugin installed.
+Get content into Bowrain in 5 minutes. There are two ways in: **connect a source system** server-side (a CMS, design tool, or git host — no install, no checkout), or **sync a local codebase** with kapi. Pick the one that matches where your content lives.
 
-## Initialize a Project
+## Connect a source system (no checkout)
+
+If your content already lives in a CMS, a design tool, or a git host, connect it server-side. In the web app, open **Workspace Settings → Connectors**, add a connector (WordPress, Figma, HubSpot, git), and Bowrain pulls the source in; translated results publish back to where they came from. See [Connectors](/server/connectors) and the [server getting-started](/server/getting-started) — no CLI needed.
+
+## From a local codebase with kapi
+
+If your source files live in a repository you work in, sync them with kapi (with the bowrain plugin installed). The steps below walk that path.
+
+### Initialize a Project
 
 Create a `.kapi` project — a `<dir-name>.kapi` recipe at the project root with a sibling `.kapi/` state directory (like `.git` for localization):
 
@@ -31,7 +39,7 @@ kapi init --name "My Project" --source en-US --targets fr-FR,de-DE
 
 This writes `<dir-name>.kapi` (the recipe) and `.kapi/` (state, including `flows/`).
 
-## Translate Files
+### Translate Files
 
 Run the built-in AI translation tool:
 
@@ -45,7 +53,7 @@ kapi automatically:
 - Translates from source to target locales
 - Writes results back to local files
 
-## Sync with Bowrain Server
+### Sync with Bowrain Server
 
 Push translations to the server for team collaboration:
 
@@ -65,7 +73,7 @@ Check sync status:
 kapi status
 ```
 
-## Create a Custom Flow
+### Create a Custom Flow
 
 Define a workflow in `.kapi/flows/my-flow.yaml`:
 
@@ -84,7 +92,7 @@ Run it:
 kapi run my-flow
 ```
 
-## Key Commands
+### Key Commands
 
 | Command                    | Description                       |
 | -------------------------- | --------------------------------- |
@@ -102,7 +110,7 @@ kapi run my-flow
 
 ## Next Steps
 
-- **Full walkthrough**: See [Walkthrough](/walkthroughs/bowrain-getting-started)
-- **Connect to server**: Use interactive `kapi init` and choose "Sign in to Bowrain"
-- **Explore flows and tools**: `kapi flows` and `kapi tools`
+- **Connect a source system**: [Connectors](/server/connectors) — sync a CMS, design tool, or git host server-side
+- **Server getting-started**: [Getting started on the server](/server/getting-started)
+- **The kapi developer path**: [Walkthrough](/walkthroughs/bowrain-getting-started), then `kapi flows` and `kapi tools`
 - **CLI reference**: [Bowrain CLI](/cli/commands/init)
