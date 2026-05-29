@@ -8,9 +8,9 @@ import { invalidateForEvent, useWorkspaceEvents } from "./useWorkspaceEvents";
 describe("invalidateForEvent → query-key mapping", () => {
   function capture() {
     const keys: unknown[][] = [];
-    const qc = {
-      invalidateQueries: ({ queryKey }: { queryKey: unknown[] }) => {
-        keys.push(queryKey);
+    const qc: Pick<QueryClient, "invalidateQueries"> = {
+      invalidateQueries: (filters) => {
+        keys.push((filters?.queryKey ?? []) as unknown[]);
         return Promise.resolve();
       },
     };
