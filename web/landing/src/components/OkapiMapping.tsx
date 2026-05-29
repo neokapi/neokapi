@@ -1,16 +1,16 @@
-import { ArrowRight } from 'lucide-react'
+import { ArrowRight } from "lucide-react";
 
 const MAPPINGS = [
-  { okapi: 'Filter', neokapi: 'DataFormat', desc: 'Reader/Writer' },
-  { okapi: 'Event', neokapi: 'Part', desc: 'Processing unit' },
-  { okapi: 'Step', neokapi: 'Tool', desc: 'Task unit' },
-  { okapi: 'Pipeline', neokapi: 'Flow', desc: 'Tool orchestration' },
-  { okapi: 'TextUnit', neokapi: 'Block', desc: 'Translatable content' },
-  { okapi: 'TextFragment', neokapi: 'Fragment', desc: 'Text with spans' },
-  { okapi: 'Code', neokapi: 'Span', desc: 'Inline markup' },
-  { okapi: 'Tikal', neokapi: 'kapi', desc: 'CLI tool' },
-  { okapi: 'Rainbow', neokapi: 'Kapi (app)', desc: 'Desktop app' },
-]
+  { okapi: "Filter", neokapi: "DataFormat", desc: "Reader/Writer" },
+  { okapi: "Event", neokapi: "Part", desc: "Processing unit" },
+  { okapi: "Step", neokapi: "Tool", desc: "Task unit" },
+  { okapi: "Pipeline", neokapi: "Flow", desc: "Tool orchestration" },
+  { okapi: "TextUnit", neokapi: "Block", desc: "Translatable content" },
+  { okapi: "TextFragment", neokapi: "Fragment", desc: "Text with spans" },
+  { okapi: "Code", neokapi: "Span", desc: "Inline markup" },
+  { okapi: "Tikal", neokapi: "kapi", desc: "CLI tool" },
+  { okapi: "Rainbow", neokapi: "Kapi (app)", desc: "Desktop app" },
+];
 
 export function OkapiMapping() {
   return (
@@ -18,7 +18,7 @@ export function OkapiMapping() {
       <div className="mx-auto max-w-4xl">
         <div className="mb-12 text-center">
           <h2 className="font-display text-3xl font-bold tracking-tight text-white sm:text-4xl">
-            Built on{' '}
+            Built on{" "}
             <span className="bg-gradient-to-r from-accent-amber to-brand-400 bg-clip-text text-transparent">
               Okapi's foundations
             </span>
@@ -50,7 +50,7 @@ export function OkapiMapping() {
             <div
               key={m.okapi}
               className={`grid grid-cols-[1fr_auto_1fr_1fr] items-center gap-4 px-6 py-3 ${
-                i < MAPPINGS.length - 1 ? 'border-b border-surface-800/50' : ''
+                i < MAPPINGS.length - 1 ? "border-b border-surface-800/50" : ""
               }`}
             >
               <code className="font-mono text-sm text-neutral-400">{m.okapi}</code>
@@ -62,5 +62,5 @@ export function OkapiMapping() {
         </div>
       </div>
     </section>
-  )
+  );
 }

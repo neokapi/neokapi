@@ -1,22 +1,22 @@
-import { Nav } from './components/Nav'
-import { Hero } from './components/Hero'
-import { Differentiators } from './components/Differentiators'
-import { BrandLoop } from './components/BrandLoop'
-import { Features } from './components/Features'
-import { CliDemo } from './components/CliDemo'
-import { SeeItInAction } from './components/SeeItInAction'
-import { Formats } from './components/Formats'
-import { DesktopDemo } from './components/DesktopDemo'
-import { Pipeline } from './components/Pipeline'
-import { OkapiMapping } from './components/OkapiMapping'
-import { GetStarted } from './components/GetStarted'
-import { Footer } from './components/Footer'
+import { Nav } from "./components/Nav";
+import { Hero } from "./components/Hero";
+import { Differentiators } from "./components/Differentiators";
+import { BrandLoop } from "./components/BrandLoop";
+import { Features } from "./components/Features";
+import { CliDemo } from "./components/CliDemo";
+import { SeeItInAction } from "./components/SeeItInAction";
+import { Formats } from "./components/Formats";
+import { DesktopDemo } from "./components/DesktopDemo";
+import { Pipeline } from "./components/Pipeline";
+import { OkapiMapping } from "./components/OkapiMapping";
+import { GetStarted } from "./components/GetStarted";
+import { Footer } from "./components/Footer";
 
 const Divider = () => (
   <div className="mx-auto max-w-6xl px-6">
     <hr className="border-surface-700/40" />
   </div>
-)
+);
 
 function App() {
   return (
@@ -45,7 +45,7 @@ function App() {
       <GetStarted />
       <Footer />
     </div>
-  )
+  );
 }
 
-export default App
+export default App;

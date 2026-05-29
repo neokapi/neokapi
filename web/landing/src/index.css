@@ -1,9 +1,9 @@
 @import "tailwindcss";
 
 @theme {
-  --font-display: 'Outfit Variable', 'Outfit', ui-sans-serif, system-ui, sans-serif;
-  --font-body: 'DM Sans Variable', 'DM Sans', ui-sans-serif, system-ui, sans-serif;
-  --font-mono: 'Source Code Pro Variable', 'Source Code Pro', ui-monospace, monospace;
+  --font-display: "Outfit Variable", "Outfit", ui-sans-serif, system-ui, sans-serif;
+  --font-body: "DM Sans Variable", "DM Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Source Code Pro Variable", "Source Code Pro", ui-monospace, monospace;
 
   --color-brand-600: #1a8870;
   --color-brand-500: #25c2a0;
@@ -39,11 +39,18 @@ body {
   background: var(--color-surface-950);
 }
 
-h1, h2, h3, h4, h5, h6 {
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
   font-family: var(--font-display);
 }
 
-code, pre, .font-mono {
+code,
+pre,
+.font-mono {
   font-family: var(--font-mono);
 }
 
@@ -55,15 +62,21 @@ code, pre, .font-mono {
 
 /* Glow effects */
 .glow-teal {
-  box-shadow: 0 0 80px 20px rgba(37, 194, 160, 0.08), 0 0 200px 60px rgba(37, 194, 160, 0.04);
+  box-shadow:
+    0 0 80px 20px rgba(37, 194, 160, 0.08),
+    0 0 200px 60px rgba(37, 194, 160, 0.04);
 }
 
 .glow-teal-strong {
-  box-shadow: 0 0 60px 15px rgba(37, 194, 160, 0.15), 0 0 120px 40px rgba(37, 194, 160, 0.06);
+  box-shadow:
+    0 0 60px 15px rgba(37, 194, 160, 0.15),
+    0 0 120px 40px rgba(37, 194, 160, 0.06);
 }
 
 .text-glow {
-  text-shadow: 0 0 40px rgba(37, 194, 160, 0.3), 0 0 80px rgba(37, 194, 160, 0.1);
+  text-shadow:
+    0 0 40px rgba(37, 194, 160, 0.3),
+    0 0 80px rgba(37, 194, 160, 0.1);
 }
 
 /* Scrollbar */
@@ -94,8 +107,12 @@ code, pre, .font-mono {
 }
 
 @keyframes fade-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 @keyframes slide-in-right {
@@ -110,30 +127,60 @@ code, pre, .font-mono {
 }
 
 @keyframes pulse-glow {
-  0%, 100% { opacity: 0.4; }
-  50% { opacity: 1; }
+  0%,
+  100% {
+    opacity: 0.4;
+  }
+  50% {
+    opacity: 1;
+  }
 }
 
 @keyframes typing {
-  from { width: 0; }
-  to { width: 100%; }
+  from {
+    width: 0;
+  }
+  to {
+    width: 100%;
+  }
 }
 
 @keyframes blink {
-  0%, 50% { opacity: 1; }
-  51%, 100% { opacity: 0; }
+  0%,
+  50% {
+    opacity: 1;
+  }
+  51%,
+  100% {
+    opacity: 0;
+  }
 }
 
 @keyframes float {
-  0%, 100% { transform: translateY(0px); }
-  50% { transform: translateY(-8px); }
+  0%,
+  100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
 }
 
 @keyframes flow-dot {
-  0% { transform: translateX(0); opacity: 0; }
-  10% { opacity: 1; }
-  90% { opacity: 1; }
-  100% { transform: translateX(100%); opacity: 0; }
+  0% {
+    transform: translateX(0);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(100%);
+    opacity: 0;
+  }
 }
 
 .animate-fade-in-up {
@@ -183,14 +230,23 @@ code, pre, .font-mono {
   position: relative;
 }
 .gradient-border::before {
-  content: '';
+  content: "";
   position: absolute;
   inset: 0;
   border-radius: inherit;
   padding: 1px;
-  background: linear-gradient(135deg, rgba(37, 194, 160, 0.3), transparent 50%, rgba(37, 194, 160, 0.1));
-  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  background: linear-gradient(
+    135deg,
+    rgba(37, 194, 160, 0.3),
+    transparent 50%,
+    rgba(37, 194, 160, 0.1)
+  );
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
   -webkit-mask-composite: xor;
   mask-composite: exclude;
   pointer-events: none;

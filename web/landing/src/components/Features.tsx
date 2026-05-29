@@ -1,82 +1,88 @@
 import {
-  FileText, Repeat, Languages, BookMarked,
-  ShieldCheck, WifiOff, Plug, Workflow,
-} from 'lucide-react'
+  FileText,
+  Repeat,
+  Languages,
+  BookMarked,
+  ShieldCheck,
+  WifiOff,
+  Plug,
+  Workflow,
+} from "lucide-react";
 
 const FEATURES = [
   {
     icon: FileText,
-    title: 'Every format, natively',
+    title: "Every format, natively",
     description:
-      'Read and write localization, data, content, subtitle, and office formats in place — HTML, Markdown, JSON, YAML, XML, PO, .strings, XLIFF, TMX, DOCX, XLSX, PPTX, EPUB, PDF, IDML — with more through the okapi-bridge.',
-    accent: 'text-brand-400',
-    bg: 'bg-brand-500/8',
-    border: 'border-brand-500/15',
+      "Read and write localization, data, content, subtitle, and office formats in place — HTML, Markdown, JSON, YAML, XML, PO, .strings, XLIFF, TMX, DOCX, XLSX, PPTX, EPUB, PDF, IDML — with more through the okapi-bridge.",
+    accent: "text-brand-400",
+    bg: "bg-brand-500/8",
+    border: "border-brand-500/15",
   },
   {
     icon: Repeat,
-    title: 'Faithful round-trip',
+    title: "Faithful round-trip",
     description:
-      'Extract translatable text, change it, and write the original file back — structure, markup, inline tags, and placeholders intact. `kapi extract` then `kapi merge`, unchanged except where you intended.',
-    accent: 'text-accent-cyan',
-    bg: 'bg-accent-cyan/8',
-    border: 'border-accent-cyan/15',
+      "Extract translatable text, change it, and write the original file back — structure, markup, inline tags, and placeholders intact. `kapi extract` then `kapi merge`, unchanged except where you intended.",
+    accent: "text-accent-cyan",
+    bg: "bg-accent-cyan/8",
+    border: "border-accent-cyan/15",
   },
   {
     icon: Languages,
-    title: 'Translate with AI or MT',
+    title: "Translate with AI or MT",
     description:
-      'AI translation with LLM and MT backends, terminology enforcement, and pseudo-translation — composable into flows with `kapi run`, placeholders and markup preserved throughout.',
-    accent: 'text-accent-amber',
-    bg: 'bg-accent-amber/8',
-    border: 'border-accent-amber/15',
+      "AI translation with LLM and MT backends, terminology enforcement, and pseudo-translation — composable into flows with `kapi run`, placeholders and markup preserved throughout.",
+    accent: "text-accent-amber",
+    bg: "bg-accent-amber/8",
+    border: "border-accent-amber/15",
   },
   {
     icon: BookMarked,
-    title: 'Reuse with translation memory',
+    title: "Reuse with translation memory",
     description:
-      'Leverage a TMX translation memory with fuzzy matching and import a termbase (CSV/JSON/TBX) to keep preferred and forbidden terms consistent across everything you ship.',
-    accent: 'text-forest-400',
-    bg: 'bg-forest-400/8',
-    border: 'border-forest-400/15',
+      "Leverage a TMX translation memory with fuzzy matching and import a termbase (CSV/JSON/TBX) to keep preferred and forbidden terms consistent across everything you ship.",
+    accent: "text-forest-400",
+    bg: "bg-forest-400/8",
+    border: "border-forest-400/15",
   },
   {
     icon: ShieldCheck,
-    title: 'Checks that act like tests',
+    title: "Checks that act like tests",
     description:
-      'Verify AI output against your rules — do-not-translate, placeholder and tag integrity, terminology, and brand voice — and gate CI with `kapi verify`, which exits non-zero on failure so a regression never ships.',
-    accent: 'text-accent-rose',
-    bg: 'bg-accent-rose/8',
-    border: 'border-accent-rose/15',
+      "Verify AI output against your rules — do-not-translate, placeholder and tag integrity, terminology, and brand voice — and gate CI with `kapi verify`, which exits non-zero on failure so a regression never ships.",
+    accent: "text-accent-rose",
+    bg: "bg-accent-rose/8",
+    border: "border-accent-rose/15",
   },
   {
     icon: WifiOff,
-    title: 'Offline by default',
+    title: "Offline by default",
     description:
-      'A single self-contained binary with SQLite-backed TM and termbase. Run local models with Ollama. Nothing leaves your machine unless you choose a cloud LLM.',
-    accent: 'text-brand-400',
-    bg: 'bg-brand-500/8',
-    border: 'border-brand-500/15',
+      "A single self-contained binary with SQLite-backed TM and termbase. Run local models with Ollama. Nothing leaves your machine unless you choose a cloud LLM.",
+    accent: "text-brand-400",
+    bg: "bg-brand-500/8",
+    border: "border-brand-500/15",
   },
   {
     icon: Plug,
-    title: 'Drops into your AI workflow',
+    title: "Drops into your AI workflow",
     description:
-      '`kapi mcp` exposes the engine — extract, translate, check, term and TM lookup — to any MCP client: Claude Code, Cursor, Windsurf, and more.',
-    accent: 'text-accent-cyan',
-    bg: 'bg-accent-cyan/8',
-    border: 'border-accent-cyan/15',
+      "`kapi mcp` exposes the engine — extract, translate, check, term and TM lookup — to any MCP client: Claude Code, Cursor, Windsurf, and more.",
+    accent: "text-accent-cyan",
+    bg: "bg-accent-cyan/8",
+    border: "border-accent-cyan/15",
   },
   {
     icon: Workflow,
-    title: 'Versioned and CI-gated',
+    title: "Versioned and CI-gated",
     description:
-      'Keep recipes, brand profiles, and termbases as version-controlled files alongside your code, and gate quality in CI. Open source, offline, no lock-in.',
-    accent: 'text-forest-400',
-    bg: 'bg-forest-400/8',
-    border: 'border-forest-400/15',
+      "Keep recipes, brand profiles, and termbases as version-controlled files alongside your code, and gate quality in CI. Open source, offline, no lock-in.",
+    accent: "text-forest-400",
+    bg: "bg-forest-400/8",
+    border: "border-forest-400/15",
   },
-]
+];
 
 export function Features() {
   return (
@@ -84,14 +90,14 @@ export function Features() {
       <div className="mx-auto max-w-6xl">
         <div className="mb-16 text-center">
           <h2 className="font-display text-3xl font-bold tracking-tight text-white sm:text-4xl">
-            One engine for{' '}
+            One engine for{" "}
             <span className="bg-gradient-to-r from-brand-400 to-brand-300 bg-clip-text text-transparent">
               every content format
             </span>
           </h2>
           <p className="mx-auto mt-4 max-w-2xl text-lg text-neutral-400">
-            Extract, translate, check, and transform — then write the original
-            back, faithfully. Built from composable pieces.
+            Extract, translate, check, and transform — then write the original back, faithfully.
+            Built from composable pieces.
           </p>
         </div>
 
@@ -104,16 +110,12 @@ export function Features() {
               <div className={`mb-4 inline-flex rounded-xl ${f.bg} p-2.5`}>
                 <f.icon className={`h-5 w-5 ${f.accent}`} />
               </div>
-              <h3 className="font-display text-lg font-semibold text-white">
-                {f.title}
-              </h3>
-              <p className="mt-2 text-sm leading-relaxed text-neutral-400">
-                {f.description}
-              </p>
+              <h3 className="font-display text-lg font-semibold text-white">{f.title}</h3>
+              <p className="mt-2 text-sm leading-relaxed text-neutral-400">{f.description}</p>
             </div>
           ))}
         </div>
       </div>
     </section>
-  )
+  );
 }

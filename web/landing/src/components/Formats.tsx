@@ -1,22 +1,22 @@
 const FORMAT_GROUPS = [
   {
-    category: 'Data',
-    formats: ['JSON', 'YAML', 'CSV', 'TSV', 'XML'],
+    category: "Data",
+    formats: ["JSON", "YAML", "CSV", "TSV", "XML"],
   },
   {
-    category: 'Content',
-    formats: ['HTML', 'Markdown', 'Plaintext', 'SRT', 'VTT', 'DTD'],
+    category: "Content",
+    formats: ["HTML", "Markdown", "Plaintext", "SRT", "VTT", "DTD"],
   },
   {
-    category: 'Office & publishing',
-    formats: ['DOCX', 'XLSX', 'PPTX', 'ODF', 'EPUB', 'PDF', 'IDML', 'MIF'],
+    category: "Office & publishing",
+    formats: ["DOCX", "XLSX", "PPTX", "ODF", "EPUB", "PDF", "IDML", "MIF"],
   },
   {
     // Bilingual interchange — the translator handoff, not the main surface.
-    category: 'Interchange',
-    formats: ['XLIFF 1.2', 'XLIFF 2.0', 'PO/POT', 'TMX', 'Qt TS', 'Properties'],
+    category: "Interchange",
+    formats: ["XLIFF 1.2", "XLIFF 2.0", "PO/POT", "TMX", "Qt TS", "Properties"],
   },
-]
+];
 
 export function Formats() {
   return (
@@ -30,10 +30,9 @@ export function Formats() {
             The formats your content lives in
           </h2>
           <p className="mx-auto mt-4 max-w-2xl text-lg text-neutral-400">
-            Native readers and writers for localization, data, content, and
-            office formats, detected by extension, MIME type, or content — with
-            more available through the okapi-bridge. Round-trip, in place, not
-            string-and-key extraction.
+            Native readers and writers for localization, data, content, and office formats, detected
+            by extension, MIME type, or content — with more available through the okapi-bridge.
+            Round-trip, in place, not string-and-key extraction.
           </p>
         </div>
 
@@ -61,5 +60,5 @@ export function Formats() {
         </div>
       </div>
     </section>
-  )
+  );
 }

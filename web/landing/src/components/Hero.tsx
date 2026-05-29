@@ -1,85 +1,88 @@
-import { useState, useEffect, useCallback } from 'react'
-import { ChevronRight, WifiOff, FileText, Languages } from 'lucide-react'
+import { useState, useEffect, useCallback } from "react";
+import { ChevronRight, WifiOff, FileText, Languages } from "lucide-react";
 
 const COMMANDS = [
   {
-    cmd: 'kapi extract quarterly-report.docx -o strings.json',
+    cmd: "kapi extract quarterly-report.docx -o strings.json",
     lines: [
-      { text: 'Reading quarterly-report.docx (DOCX detected)', color: 'text-neutral-500' },
-      { text: 'Extracted 184 translatable blocks', color: 'text-brand-400' },
-      { text: 'Structure, styles, fields and placeholders preserved', color: 'text-neutral-400' },
-      { text: 'Wrote strings.json', color: 'text-brand-300' },
-      { text: 'Round-trip safe — `kapi merge` writes the .docx back, faithfully', color: 'text-accent-amber' },
+      { text: "Reading quarterly-report.docx (DOCX detected)", color: "text-neutral-500" },
+      { text: "Extracted 184 translatable blocks", color: "text-brand-400" },
+      { text: "Structure, styles, fields and placeholders preserved", color: "text-neutral-400" },
+      { text: "Wrote strings.json", color: "text-brand-300" },
+      {
+        text: "Round-trip safe — `kapi merge` writes the .docx back, faithfully",
+        color: "text-accent-amber",
+      },
     ],
   },
   {
-    cmd: 'kapi ai-translate -i strings.json -o strings.de.json --target-lang de',
+    cmd: "kapi ai-translate -i strings.json -o strings.de.json --target-lang de",
     lines: [
-      { text: 'Reading strings.json (JSON detected)', color: 'text-neutral-500' },
-      { text: '  ai-translate    provider: anthropic    184 blocks', color: 'text-brand-400' },
-      { text: 'Wrote strings.de.json', color: 'text-brand-300' },
-      { text: 'Placeholders, markup and inline tags kept intact', color: 'text-accent-amber' },
+      { text: "Reading strings.json (JSON detected)", color: "text-neutral-500" },
+      { text: "  ai-translate    provider: anthropic    184 blocks", color: "text-brand-400" },
+      { text: "Wrote strings.de.json", color: "text-brand-300" },
+      { text: "Placeholders, markup and inline tags kept intact", color: "text-accent-amber" },
     ],
   },
   {
-    cmd: 'kapi verify --target-lang de',
+    cmd: "kapi verify --target-lang de",
     lines: [
-      { text: 'brand         PASS  (0 findings)', color: 'text-brand-400' },
-      { text: 'terminology   PASS  (0 findings)', color: 'text-brand-400' },
-      { text: 'qa            FAIL  (1 finding)', color: 'text-accent-rose' },
-      { text: '  ERROR de: placeholder {count} dropped in target', color: 'text-accent-rose' },
-      { text: 'FAIL — gate blocked; fix and re-run (exit 1)', color: 'text-brand-300' },
+      { text: "brand         PASS  (0 findings)", color: "text-brand-400" },
+      { text: "terminology   PASS  (0 findings)", color: "text-brand-400" },
+      { text: "qa            FAIL  (1 finding)", color: "text-accent-rose" },
+      { text: "  ERROR de: placeholder {count} dropped in target", color: "text-accent-rose" },
+      { text: "FAIL — gate blocked; fix and re-run (exit 1)", color: "text-brand-300" },
     ],
   },
-]
+];
 
 const AXES = [
-  { icon: FileText, label: 'Any format, faithfully' },
-  { icon: Languages, label: 'Translate · check · transform' },
-  { icon: WifiOff, label: 'Offline by default' },
-]
+  { icon: FileText, label: "Any format, faithfully" },
+  { icon: Languages, label: "Translate · check · transform" },
+  { icon: WifiOff, label: "Offline by default" },
+];
 
 export function Hero() {
-  const [cmdIndex, setCmdIndex] = useState(0)
-  const [lineIndex, setLineIndex] = useState(0)
-  const [typing, setTyping] = useState(true)
-  const [charIndex, setCharIndex] = useState(0)
+  const [cmdIndex, setCmdIndex] = useState(0);
+  const [lineIndex, setLineIndex] = useState(0);
+  const [typing, setTyping] = useState(true);
+  const [charIndex, setCharIndex] = useState(0);
 
-  const current = COMMANDS[cmdIndex]
+  const current = COMMANDS[cmdIndex];
 
   const resetAndNext = useCallback(() => {
-    setCmdIndex(i => (i + 1) % COMMANDS.length)
-    setLineIndex(0)
-    setTyping(true)
-    setCharIndex(0)
-  }, [])
+    setCmdIndex((i) => (i + 1) % COMMANDS.length);
+    setLineIndex(0);
+    setTyping(true);
+    setCharIndex(0);
+  }, []);
 
   // Type out command character by character
   useEffect(() => {
-    if (!typing) return
+    if (!typing) return;
     if (charIndex < current.cmd.length) {
-      const timer = setTimeout(() => setCharIndex(c => c + 1), 18)
-      return () => clearTimeout(timer)
+      const timer = setTimeout(() => setCharIndex((c) => c + 1), 18);
+      return () => clearTimeout(timer);
     }
     // Done typing, start showing output
     const timer = setTimeout(() => {
-      setTyping(false)
-      setLineIndex(0)
-    }, 400)
-    return () => clearTimeout(timer)
-  }, [typing, charIndex, current.cmd.length])
+      setTyping(false);
+      setLineIndex(0);
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [typing, charIndex, current.cmd.length]);
 
   // Reveal output lines one by one
   useEffect(() => {
-    if (typing) return
+    if (typing) return;
     if (lineIndex < current.lines.length) {
-      const timer = setTimeout(() => setLineIndex(l => l + 1), 280)
-      return () => clearTimeout(timer)
+      const timer = setTimeout(() => setLineIndex((l) => l + 1), 280);
+      return () => clearTimeout(timer);
     }
     // All lines shown, wait then cycle
-    const timer = setTimeout(resetAndNext, 8000)
-    return () => clearTimeout(timer)
-  }, [typing, lineIndex, current.lines.length, resetAndNext])
+    const timer = setTimeout(resetAndNext, 8000);
+    return () => clearTimeout(timer);
+  }, [typing, lineIndex, current.lines.length, resetAndNext]);
 
   return (
     <section className="relative flex min-h-[92vh] flex-col items-center justify-center px-6 pt-24">
@@ -108,7 +111,7 @@ export function Hero() {
             className="h-28 w-28 animate-float drop-shadow-[0_0_30px_rgba(37,194,160,0.2)]"
           />
           <h1 className="font-display text-4xl font-extrabold leading-[1.1] tracking-tight text-white sm:text-5xl md:text-6xl lg:text-[4.2rem]">
-            Read, change, and ship content in{' '}
+            Read, change, and ship content in{" "}
             <span className="bg-gradient-to-r from-brand-400 via-brand-300 to-forest-400 bg-clip-text text-transparent text-glow">
               any format
             </span>
@@ -117,10 +120,9 @@ export function Hero() {
         </div>
 
         <p className="animate-fade-in-up-delay-2 mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-neutral-400 md:text-xl">
-          An open engine that extracts what matters from any file, lets you
-          translate, check, and transform it, and writes it back faithfully —
-          structure, markup, and placeholders intact. AI translation, translation
-          memory, terminology and brand checks built in.{' '}
+          An open engine that extracts what matters from any file, lets you translate, check, and
+          transform it, and writes it back faithfully — structure, markup, and placeholders intact.
+          AI translation, translation memory, terminology and brand checks built in.{" "}
           <span className="text-neutral-300">Offline by default — your content stays yours.</span>
         </p>
 
@@ -183,7 +185,7 @@ export function Hero() {
                   <div
                     key={`${cmdIndex}-${i}`}
                     className={`${line.color}`}
-                    style={{ animation: 'slide-in-right 0.3s ease-out forwards' }}
+                    style={{ animation: "slide-in-right 0.3s ease-out forwards" }}
                   >
                     {line.text}
                   </div>
@@ -198,7 +200,7 @@ export function Hero() {
               <div
                 key={i}
                 className={`h-1 rounded-full transition-all duration-500 ${
-                  i === cmdIndex ? 'w-6 bg-brand-400/50' : 'w-1.5 bg-surface-600'
+                  i === cmdIndex ? "w-6 bg-brand-400/50" : "w-1.5 bg-surface-600"
                 }`}
               />
             ))}
@@ -206,5 +208,5 @@ export function Hero() {
         </div>
       </div>
     </section>
-  )
+  );
 }
