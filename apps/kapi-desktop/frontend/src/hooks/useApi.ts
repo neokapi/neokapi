@@ -20,6 +20,9 @@ import type {
   StepDoc,
   BrowsePathRequest,
   CheckRunResult,
+  BowrainConnection,
+  ConnectBowrainResult,
+  PublishBowrainResult,
 } from "../types/api";
 
 type Backend = Record<string, (...args: unknown[]) => Promise<unknown>>;
@@ -92,6 +95,13 @@ export const api = {
       }>;
     }>("GetProjectStatus", tabID),
   runExtract: (tabID: string) => call<{ log: string }>("RunExtract", tabID),
+
+  // Bowrain (optional, one-way publish-to-platform). See backend/bowrain.go.
+  getBowrainConnection: (tabID: string) => call<BowrainConnection>("GetBowrainConnection", tabID),
+  connectBowrain: (tabID: string, serverURL: string) =>
+    call<ConnectBowrainResult>("ConnectBowrain", tabID, serverURL),
+  publishBowrain: (tabID: string) => call<PublishBowrainResult>("PublishBowrain", tabID),
+  disconnectBowrain: (tabID: string) => call<void>("DisconnectBowrain", tabID),
 
   // Flows (scoped to tab)
   listFlows: (tabID: string) => call<FlowInfo[]>("ListFlows", tabID),

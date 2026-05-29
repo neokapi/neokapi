@@ -1,10 +1,11 @@
-import { useState, useCallback } from "react";
-import { Globe, FileText, Workflow, Save, Loader2, Pencil } from "lucide-react";
+import { useState, useCallback, useEffect } from "react";
+import { Globe, FileText, Workflow, Save, Loader2, Pencil, CloudUpload } from "lucide-react";
 import { Button, Badge, Card, CardHeader, CardTitle, CardContent } from "@neokapi/ui-primitives";
 import { t } from "@neokapi/kapi-react/runtime";
-import type { KapiProject, TabInfo } from "../types/api";
+import type { KapiProject, TabInfo, BowrainConnection } from "../types/api";
 import { isBareEntry, effectiveItems } from "../types/api";
 import { api } from "../hooks/useApi";
+import { ConnectBowrainDialog } from "./ConnectBowrainDialog";
 
 interface ProjectPageProps {
   project: KapiProject;
@@ -33,9 +34,21 @@ export function ProjectPage({
   const [saving, setSaving] = useState(false);
   const [editingName, setEditingName] = useState(false);
   const [nameInput, setNameInput] = useState("");
+  const [showConnect, setShowConnect] = useState(false);
+  const [conn, setConn] = useState<BowrainConnection | null>(null);
 
   const defaults = project.defaults ?? {};
   const plugins = project.plugins ?? {};
+
+  // The server: block lives in recipe Extras (json-invisible), so we fetch the
+  // bowrain connection state via a dedicated backend method.
+  const refreshConn = useCallback(() => {
+    void api.getBowrainConnection(tabID).then(setConn);
+  }, [tabID]);
+
+  useEffect(() => {
+    refreshConn();
+  }, [refreshConn]);
 
   const handleSave = async () => {
     setSaving(true);
@@ -116,16 +129,27 @@ export function ProjectPage({
             <p className="mt-1 text-sm text-muted-foreground">Not yet saved to disk</p>
           )}
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleSave}
-          disabled={saving}
-          aria-label={projectPath ? "Save project" : "Save project as"}
-        >
-          {saving ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
-          {projectPath ? t("Save") : t("Save As...")}
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant={conn?.connected ? "secondary" : "outline"}
+            size="sm"
+            onClick={() => setShowConnect(true)}
+            aria-label="Connect to Bowrain"
+          >
+            <CloudUpload size={12} />
+            {conn?.connected ? t("Bowrain") : t("Connect to Bowrain")}
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleSave}
+            disabled={saving}
+            aria-label={projectPath ? "Save project" : "Save project as"}
+          >
+            {saving ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
+            {projectPath ? t("Save") : t("Save As...")}
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
@@ -239,6 +263,33 @@ export function ProjectPage({
             </div>
           )}
         </div>
+      )}
+
+      {/* Bowrain connection */}
+      {conn?.connected && (
+        <div className="mt-6 flex items-center gap-2 text-sm">
+          <CloudUpload size={14} className="text-primary" />
+          <span className="text-muted-foreground">{t("Bowrain server:")}</span>
+          <Badge variant="secondary" translate="no">
+            {conn.server_url}
+          </Badge>
+          {conn.authenticated && conn.user_email && (
+            <span className="text-xs text-muted-foreground" translate="no">
+              {conn.user_email}
+            </span>
+          )}
+        </div>
+      )}
+
+      {showConnect && (
+        <ConnectBowrainDialog
+          tabID={tabID}
+          saved={!!projectPath}
+          onClose={() => {
+            setShowConnect(false);
+            refreshConn();
+          }}
+        />
       )}
     </div>
   );

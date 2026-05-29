@@ -16,6 +16,29 @@ export interface PluginSpec {
   format_priority?: number;
 }
 
+/** Bowrain connection state for a project (see backend/bowrain.go). */
+export interface BowrainConnection {
+  connected: boolean;
+  server_url: string;
+  project_url: string;
+  project_id: string;
+  authenticated: boolean;
+  user_email: string;
+}
+
+export interface ConnectBowrainResult {
+  server_url: string;
+  user_email: string;
+}
+
+export interface PublishBowrainResult {
+  project_id: string;
+  project_url: string;
+  claim_token?: string;
+  delegated: boolean;
+  sync_hint: string;
+}
+
 export interface ProjectDefaults {
   source_language?: string;
   target_languages?: string[];
