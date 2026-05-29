@@ -414,7 +414,7 @@ func (s *SQLiteBrandStore) GetRuleDecision(ctx context.Context, profileID, term 
 		`SELECT profile_id, term, replacement, dimension, status, correction_count, promoted_version, auto, decided_by, decided_at
 		 FROM brand_rule_decisions WHERE profile_id = ? AND term = ? COLLATE NOCASE`, profileID, term)
 	d, err := scanRuleDecision(row)
-	if err == sql.ErrNoRows {
+	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
 	if err != nil {
