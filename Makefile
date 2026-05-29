@@ -537,6 +537,47 @@ package-sat-plugin: ## Package a kapi-sat distribution tarball for the host plat
 		--tokenizers-lib "$(SAT_TOKENIZERS_LIB)" \
 		--out-dir "$(BIN_DIR)/sat-dist"
 
+# ── kapi-check ML checker plugin ─────────────────────────────────────────────
+# Mirrors the kapi-sat plugin: a cgo, -tags onnx sidecar that links
+# daulet/tokenizers (static) at build time and loads the onnxruntime SHARED
+# library at runtime (point the binary at it via KAPI_CHECK_ORT_LIB, or let the
+# packaged tarball's lib/<name> satisfy it). The e5-small int8 model is NOT
+# built in — it is acquired explicitly with `kapi-check pull` (downloads from
+# HuggingFace into the XDG cache), matching common practice (vale sync / spacy
+# download / ollama pull). Set CHECK_TOKENIZERS_LIB to the dir with
+# libtokenizers.a. See plugins/check/README.md for full install instructions.
+build-check-plugin: ## Build the kapi-check plugin (no ONNX backend; pure Go)
+	@mkdir -p $(BIN_DIR)
+	cd plugins/check && GOWORK=off $(GO) build $(LDFLAGS) -o $(BIN_DIR)/kapi-check ./cmd/kapi-check
+
+build-check-plugin-onnx: ## Build kapi-check WITH the ONNX backend (requires onnxruntime + libtokenizers; CGO)
+	@mkdir -p $(BIN_DIR)
+	cd plugins/check && GOWORK=off CGO_ENABLED=1 \
+		CGO_LDFLAGS="-L$(CHECK_TOKENIZERS_LIB)" \
+		$(GO) build $(LDFLAGS) -tags onnx -o $(BIN_DIR)/kapi-check ./cmd/kapi-check
+
+test-check-plugin: ## Run kapi-check pure-Go tests (protocol + vec + model cache)
+	cd plugins/check && GOWORK=off $(GO) test ./...
+
+# Package a signed-ready kapi-check distribution tarball for the HOST platform:
+# builds kapi-check -tags onnx, bundles the onnxruntime shared lib at lib/<name>
+# beside the binary (so an installed plugin needs no KAPI_CHECK_ORT_LIB), and
+# emits kapi-check_<version>_<os>_<arch>.tar.gz under $(BIN_DIR)/check-dist.
+# Needs the same two native deps as build-check-plugin-onnx:
+#   CHECK_TOKENIZERS_LIB  dir containing libtokenizers.a (linked at build time)
+#   CHECK_ORT_DIR         extracted onnxruntime release dir (its shared lib is
+#                         bundled into the tarball; from microsoft/onnxruntime)
+# The release matrix (.github/workflows/release-check.yml) runs the underlying
+# script per platform; this target is the local equivalent.
+package-check-plugin: ## Package a kapi-check distribution tarball for the host platform (CGO; needs CHECK_TOKENIZERS_LIB + CHECK_ORT_DIR)
+	@test -n "$(CHECK_TOKENIZERS_LIB)" || { echo "set CHECK_TOKENIZERS_LIB to the dir containing libtokenizers.a"; exit 1; }
+	@test -n "$(CHECK_ORT_DIR)" || { echo "set CHECK_ORT_DIR to the extracted onnxruntime release dir"; exit 1; }
+	scripts/package-check-plugin.sh \
+		--version "$(VERSION)" \
+		--ort-dir "$(CHECK_ORT_DIR)" \
+		--tokenizers-lib "$(CHECK_TOKENIZERS_LIB)" \
+		--out-dir "$(BIN_DIR)/check-dist"
+
 # ── Kapi Desktop ────────────────────────────────────────────────────────────
 
 # Node 22 requires --experimental-strip-types to load vite.config.ts natively.

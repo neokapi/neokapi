@@ -1,0 +1,412 @@
+name: Release check plugin
+
+# The kapi-check ML checker plugin releases independently of the neokapi CLI, on
+# its own `check-v*` tag (e.g. `check-v0.1.0` -> kapi-check version 0.1.0). This
+# mirrors the kapi-sat release: the plugin changes far less often than kapi and
+# carries the heaviest/riskiest build legs (a 4-platform cgo matrix incl. a
+# Windows Rust build), so coupling it to every kapi release would rebuild and
+# republish it needlessly and block on its flakiest leg.
+on:
+  push:
+    tags:
+      - "check-v*"
+
+permissions:
+  contents: write
+  # cosign keyless requires a fresh GitHub Actions OIDC token to mint a
+  # short-lived Fulcio cert for signing the kapi-check plugin tarballs.
+  id-token: write
+
+jobs:
+  # ── kapi-check ML checker plugin ────────────────────────────────────────────
+  # Build + sign + publish the kapi-check plugin tarball per platform. kapi-check
+  # is a cgo binary (-tags onnx): it links daulet/tokenizers (static .a) at build
+  # time and loads the onnxruntime SHARED library at runtime. The tarball bundles
+  # the onnxruntime shared lib at lib/<unversioned-name> beside the binary, where
+  # plugins/check/internal/embed/ort_onnx.go:resolveORTLib() finds it with no env.
+  # The sentence-embedding MODEL is NOT bundled — it downloads on the explicit
+  # `kapi-check pull` step at first use (matching kapi-sat; keeps tarballs small).
+  #
+  # Version pins (must be kept in lockstep with plugins/check/go.mod):
+  #   * onnxruntime 1.25.0 — yalue/onnxruntime_go v1.30.1 targets the 1.25.0 C
+  #     API headers and its bundled test dylib links the 1.25.0 runtime. Other
+  #     1.2x releases may load via C-API back-compat, but 1.25.0 is the matched,
+  #     tested ABI — keep this pinned.
+  #   * daulet/tokenizers v1.27.0 — matches plugins/check/go.mod. darwin/linux use
+  #     the prebuilt libtokenizers.a from that tag; Windows has no prebuilt lib
+  #     and is built from Rust source (see the Windows leg).
+  build-check-plugin:
+    name: Build kapi-check plugin (${{ matrix.build.platform }})
+    strategy:
+      fail-fast: false
+      matrix:
+        build:
+          # Intel macOS (darwin/amd64) is intentionally omitted: like the cgo
+          # Wails desktop apps, this plugin is cgo and can't cross-compile, so it
+          # would need a scarce native macos-13 runner. arm64 is the supported
+          # Mac target.
+          - { platform: darwin/arm64, os: macos-latest, goos: darwin, goarch: arm64 }
+          - { platform: linux/amd64, os: ubuntu-latest, goos: linux, goarch: amd64 }
+          - { platform: linux/arm64, os: ubuntu-24.04-arm, goos: linux, goarch: arm64 }
+          - { platform: windows/amd64, os: windows-2025, goos: windows, goarch: amd64 }
+    runs-on: ${{ matrix.build.os }}
+    env:
+      ONNXRUNTIME_VERSION: "1.25.0"
+      TOKENIZERS_VERSION: "v1.27.0"
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version: "1.26.0"
+
+      - name: Install cosign (tarball signing)
+        uses: sigstore/cosign-installer@v3
+
+      - name: Extract version
+        id: version
+        shell: bash
+        run: echo "VERSION=${GITHUB_REF_NAME#check-v}" >> "$GITHUB_OUTPUT"
+
+      # ── onnxruntime shared library (runtime dep; bundled into the tarball) ────
+      - name: Download onnxruntime (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        env:
+          GOOS: ${{ matrix.build.goos }}
+          GOARCH: ${{ matrix.build.goarch }}
+        run: |
+          set -euo pipefail
+          case "${GOOS}/${GOARCH}" in
+            darwin/arm64) asset="onnxruntime-osx-arm64-${ONNXRUNTIME_VERSION}.tgz" ;;
+            darwin/amd64) asset="onnxruntime-osx-x86_64-${ONNXRUNTIME_VERSION}.tgz" ;;
+            linux/amd64)  asset="onnxruntime-linux-x64-${ONNXRUNTIME_VERSION}.tgz" ;;
+            linux/arm64)  asset="onnxruntime-linux-aarch64-${ONNXRUNTIME_VERSION}.tgz" ;;
+            *) echo "::error::no onnxruntime asset mapping for ${GOOS}/${GOARCH}"; exit 1 ;;
+          esac
+          url="https://github.com/microsoft/onnxruntime/releases/download/v${ONNXRUNTIME_VERSION}/${asset}"
+          echo "Downloading $url"
+          mkdir -p "$RUNNER_TEMP/ort"
+          curl -sSfL -o "$RUNNER_TEMP/${asset}" "$url"
+          tar -xzf "$RUNNER_TEMP/${asset}" -C "$RUNNER_TEMP/ort"
+          ort_root="$(find "$RUNNER_TEMP/ort" -maxdepth 1 -mindepth 1 -type d | head -n1)"
+          echo "ORT_DIR=${ort_root}" >> "$GITHUB_ENV"
+
+      - name: Download onnxruntime (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $asset = "onnxruntime-win-x64-$env:ONNXRUNTIME_VERSION.zip"
+          $url = "https://github.com/microsoft/onnxruntime/releases/download/v$env:ONNXRUNTIME_VERSION/$asset"
+          Write-Host "Downloading $url"
+          $dest = "$env:RUNNER_TEMP\$asset"
+          Invoke-WebRequest -Uri $url -OutFile $dest
+          $ortRoot = "$env:RUNNER_TEMP\ort"
+          Expand-Archive -Path $dest -DestinationPath $ortRoot -Force
+          $inner = (Get-ChildItem -Path $ortRoot -Directory | Select-Object -First 1).FullName
+          "ORT_DIR=$inner" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      # ── daulet/tokenizers static library (build-time dep) ─────────────────────
+      - name: Download libtokenizers (Unix prebuilt)
+        if: runner.os != 'Windows'
+        shell: bash
+        env:
+          GOOS: ${{ matrix.build.goos }}
+          GOARCH: ${{ matrix.build.goarch }}
+        run: |
+          set -euo pipefail
+          case "${GOOS}/${GOARCH}" in
+            darwin/arm64) asset="libtokenizers.darwin-arm64.tar.gz" ;;
+            darwin/amd64) asset="libtokenizers.darwin-x86_64.tar.gz" ;;
+            linux/amd64)  asset="libtokenizers.linux-amd64.tar.gz" ;;
+            linux/arm64)  asset="libtokenizers.linux-arm64.tar.gz" ;;
+            *) echo "::error::no libtokenizers asset mapping for ${GOOS}/${GOARCH}"; exit 1 ;;
+          esac
+          url="https://github.com/daulet/tokenizers/releases/download/${TOKENIZERS_VERSION}/${asset}"
+          echo "Downloading $url"
+          mkdir -p "$RUNNER_TEMP/tok"
+          curl -sSfL -o "$RUNNER_TEMP/${asset}" "$url"
+          tar -xzf "$RUNNER_TEMP/${asset}" -C "$RUNNER_TEMP/tok"
+          test -f "$RUNNER_TEMP/tok/libtokenizers.a" || { echo "::error::libtokenizers.a missing after extract"; ls -la "$RUNNER_TEMP/tok"; exit 1; }
+          echo "TOKENIZERS_LIB=$RUNNER_TEMP/tok" >> "$GITHUB_ENV"
+
+      # Windows: no prebuilt lib is published by daulet/tokenizers, so build the
+      # tokenizers-ffi crate from Rust source with the windows-GNU (MinGW) target
+      # (the plugin's cgo LDFLAGS are GNU-ld style), and rename the crate output
+      # (libtokenizers_ffi.a) to libtokenizers.a.
+      - name: Install Rust (Windows, GNU target)
+        if: runner.os == 'Windows'
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-gnu
+
+      - name: Build libtokenizers from source (Windows)
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          set -euo pipefail
+          git clone --branch "${TOKENIZERS_VERSION}" --depth 1 \
+            https://github.com/daulet/tokenizers "$RUNNER_TEMP/tokenizers-src"
+          cd "$RUNNER_TEMP/tokenizers-src"
+          cargo build --release -p tokenizers-ffi --target x86_64-pc-windows-gnu
+          mkdir -p "$RUNNER_TEMP/tok"
+          cp "target/x86_64-pc-windows-gnu/release/libtokenizers_ffi.a" "$RUNNER_TEMP/tok/libtokenizers.a"
+          echo "TOKENIZERS_LIB=$RUNNER_TEMP/tok" >> "$GITHUB_ENV"
+
+      # ── macOS Developer-ID signing setup (sign the staged binary pre-tar) ─────
+      - name: Import signing certificate
+        id: signing
+        if: runner.os == 'macOS'
+        env:
+          APPLE_DEVELOPER_ID_P12_BASE64: ${{ secrets.APPLE_DEVELOPER_ID_P12_BASE64 }}
+          APPLE_DEVELOPER_ID_P12_PASSWORD: ${{ secrets.APPLE_DEVELOPER_ID_P12_PASSWORD }}
+        run: |
+          if [ -z "$APPLE_DEVELOPER_ID_P12_BASE64" ]; then
+            echo "No Developer ID certificate configured — will use ad-hoc signing"
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          CERT_PATH="$RUNNER_TEMP/certificate.p12"
+          echo "$APPLE_DEVELOPER_ID_P12_BASE64" | base64 --decode > "$CERT_PATH"
+          KEYCHAIN_PATH="$RUNNER_TEMP/app-signing.keychain-db"
+          KEYCHAIN_PASSWORD=$(openssl rand -hex 32)
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security import "$CERT_PATH" -P "$APPLE_DEVELOPER_ID_P12_PASSWORD" \
+            -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
+          security set-key-partition-list -S apple-tool:,apple: -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security list-keychain -d user -s "$KEYCHAIN_PATH" login.keychain
+          security default-keychain -s "$KEYCHAIN_PATH"
+          rm -f "$CERT_PATH"
+          echo "KEYCHAIN_PATH=$KEYCHAIN_PATH" >> "$GITHUB_ENV"
+          echo "enabled=true" >> "$GITHUB_OUTPUT"
+
+      - name: Store notarization credentials (App Store Connect API key)
+        if: runner.os == 'macOS' && steps.signing.outputs.enabled == 'true'
+        env:
+          APPLE_API_KEY_P8_BASE64: ${{ secrets.APPLE_API_KEY_P8_BASE64 }}
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER_ID: ${{ secrets.APPLE_API_ISSUER_ID }}
+        run: |
+          KEY_PATH="$RUNNER_TEMP/AuthKey.p8"
+          echo "$APPLE_API_KEY_P8_BASE64" | base64 --decode > "$KEY_PATH"
+          xcrun notarytool store-credentials "neokapi-notary" \
+            --key "$KEY_PATH" \
+            --key-id "$APPLE_API_KEY_ID" \
+            --issuer "$APPLE_API_ISSUER_ID" \
+            --keychain "$KEYCHAIN_PATH"
+          rm -f "$KEY_PATH"
+
+      # ── build (only) into a staging dir so macOS can sign before tar ──────────
+      - name: Build kapi-check (macOS, pre-sign)
+        if: runner.os == 'macOS'
+        shell: bash
+        env:
+          VERSION: ${{ steps.version.outputs.VERSION }}
+          GH_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          LDFLAGS="-s -w -X github.com/neokapi/neokapi/core/version.Version=${VERSION} -X github.com/neokapi/neokapi/core/version.Commit=${GH_SHA::7} -X github.com/neokapi/neokapi/core/version.BuildDate=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          mkdir -p "$RUNNER_TEMP/prebuilt"
+          (cd plugins/check && GOWORK=off CGO_ENABLED=1 \
+            CGO_LDFLAGS="-L${TOKENIZERS_LIB}" \
+            go build -tags onnx -trimpath -ldflags "${LDFLAGS}" \
+            -o "$RUNNER_TEMP/prebuilt/kapi-check" ./cmd/kapi-check)
+          echo "CHECK_PREBUILT_BIN=$RUNNER_TEMP/prebuilt/kapi-check" >> "$GITHUB_ENV"
+
+      - name: Sign + notarize kapi-check binary (macOS)
+        if: runner.os == 'macOS'
+        env:
+          SIGNING_ENABLED: ${{ steps.signing.outputs.enabled }}
+          APPLE_SIGN_IDENTITY: ${{ secrets.APPLE_SIGN_IDENTITY }}
+        run: |
+          set -euo pipefail
+          BIN="$CHECK_PREBUILT_BIN"
+          if [ "$SIGNING_ENABLED" = "true" ]; then
+            echo "Signing + notarizing kapi-check with Developer ID"
+            # Hardened runtime is required for notarization; the plugin loads the
+            # onnxruntime dylib via dlopen, so allow unsigned/dynamic libs.
+            codesign --force --timestamp --options runtime \
+              --sign "$APPLE_SIGN_IDENTITY" "$BIN"
+            ZIP="$RUNNER_TEMP/kapi-check-notarize.zip"
+            /usr/bin/ditto -c -k "$BIN" "$ZIP"
+            xcrun notarytool submit "$ZIP" --keychain-profile neokapi-notary --wait
+          else
+            echo "No Developer ID — ad-hoc signing (not distributable)"
+            codesign --force --sign - "$BIN"
+          fi
+
+      - name: Clean up signing keychain
+        if: always() && runner.os == 'macOS'
+        env:
+          KEYCHAIN_PATH: ${{ env.KEYCHAIN_PATH }}
+        run: |
+          if [ -n "${KEYCHAIN_PATH:-}" ]; then
+            security delete-keychain "$KEYCHAIN_PATH" 2>/dev/null || true
+          fi
+
+      # ── package the tarball ───────────────────────────────────────────────────
+      - name: Package kapi-check tarball
+        id: package
+        shell: bash
+        env:
+          VERSION: ${{ steps.version.outputs.VERSION }}
+        run: |
+          scripts/package-check-plugin.sh \
+            --version "${VERSION}" \
+            --ort-dir "${ORT_DIR}" \
+            --tokenizers-lib "${TOKENIZERS_LIB}" \
+            --out-dir "$RUNNER_TEMP/check-out"
+
+      # ── cosign keyless sign + upload ──────────────────────────────────────────
+      - name: Cosign sign tarball (keyless)
+        shell: bash
+        env:
+          TARBALL: ${{ steps.package.outputs.tarball }}
+        run: |
+          set -euo pipefail
+          cosign sign-blob --yes --bundle "${TARBALL}.sigstore.json" "${TARBALL}"
+
+      # Upload the tarball + signature as a workflow ARTIFACT (not directly to the
+      # release): the matrix legs run concurrently, and several gh-release calls
+      # racing to update the same release can silently drop an asset. A single
+      # publish job (below) uploads them all in one writer.
+      - name: Upload tarball + signature artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: check-tarball-${{ matrix.build.goos }}-${{ matrix.build.goarch }}
+          path: |
+            ${{ runner.temp }}/check-out/*.tar.gz
+            ${{ runner.temp }}/check-out/*.tar.gz.sigstore.json
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Write checksum artifact
+        shell: bash
+        env:
+          CHECK_SHA256: ${{ steps.package.outputs.sha256 }}
+          CHECK_TARBALL_NAME: ${{ steps.package.outputs.tarball_name }}
+          LEG_GOOS: ${{ matrix.build.goos }}
+          LEG_GOARCH: ${{ matrix.build.goarch }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/check-checksums"
+          echo "${CHECK_SHA256}  ${CHECK_TARBALL_NAME}" \
+            > "$RUNNER_TEMP/check-checksums/${LEG_GOOS}_${LEG_GOARCH}.sha256"
+
+      - name: Upload checksum artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: check-checksum-${{ matrix.build.goos }}-${{ matrix.build.goarch }}
+          path: ${{ runner.temp }}/check-checksums/*.sha256
+          retention-days: 14
+
+  # Single-writer publish: download every leg's tarball + signature artifact and
+  # upload them to the GitHub release in ONE softprops call, avoiding the
+  # concurrent-release-write race that can drop an asset.
+  publish-check-release:
+    name: Publish kapi-check release
+    needs: build-check-plugin
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all tarball + signature artifacts
+        uses: actions/download-artifact@v8
+        with:
+          pattern: check-tarball-*
+          path: check-release
+          merge-multiple: true
+
+      - name: Upload all assets to the release
+        uses: softprops/action-gh-release@v3
+        with:
+          files: |
+            check-release/*.tar.gz
+            check-release/*.tar.gz.sigstore.json
+
+  # Register the new kapi-check plugin version into neokapi/registry so
+  # `kapi plugins install check` resolves to this build.
+  #
+  # PREREQUISITE: neokapi/registry's manifest-plugins.json must already contain a
+  # "check" stub plugin entry (registry-update refuses to create new top-level
+  # plugins — it errors "plugin not declared"). Add the stub once, mirroring the
+  # existing "sat"/"bowrain"/"okapi-bridge" entries.
+  register-check-plugin:
+    name: Register kapi-check in plugin registry
+    needs: publish-check-release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download check checksum artifacts
+        uses: actions/download-artifact@v8
+        with:
+          pattern: check-checksum-*
+          path: check-checksums
+          merge-multiple: true
+
+      - name: Update manifest plugin registry (check)
+        env:
+          REGISTRY_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
+          REF_NAME: ${{ github.ref_name }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          VERSION="${REF_NAME#check-v}"
+          if [ -z "${REGISTRY_TOKEN:-}" ]; then
+            echo "REGISTRY_TOKEN not set; skipping registry update"
+            exit 0
+          fi
+
+          GOBIN=/tmp go install github.com/neokapi/registry/tools/registry-update@main
+
+          declare -A SHAS
+          for f in check-checksums/*.sha256; do
+            [ -f "$f" ] || continue
+            sum=$(awk '{print $1}' "$f")
+            file=$(awk '{print $2}' "$f")
+            SHAS[$file]=$sum
+          done
+
+          REPO_URL="https://github.com/${REPO}/releases/download/${REF_NAME}"
+          CERT_ID="https://github.com/${REPO}/.github/workflows/release-check.yml@refs/tags/${REF_NAME}"
+          declare -a ARGS
+          for plat in darwin/arm64 linux/arm64 linux/amd64 windows/amd64; do
+            os=${plat%/*}
+            arch=${plat#*/}
+            file="kapi-check_${VERSION}_${os}_${arch}.tar.gz"
+            if [ -n "${SHAS[$file]:-}" ]; then
+              ARGS+=(
+                "--platform" "$plat"
+                "--url" "${REPO_URL}/${file}"
+                "--sha256" "${SHAS[$file]}"
+                "--signature" "${REPO_URL}/${file}.sigstore.json"
+              )
+            else
+              echo "::warning::no checksum for ${file}; skipping ${plat}"
+            fi
+          done
+
+          if [ ${#ARGS[@]} -eq 0 ]; then
+            echo "::error::no platform artifacts found for check ${VERSION}"
+            exit 1
+          fi
+
+          git clone "https://x-access-token:${REGISTRY_TOKEN}@github.com/neokapi/registry.git" /tmp/registry
+          /tmp/registry-update \
+            --registry /tmp/registry/manifest-plugins.json \
+            --plugin check \
+            --version "$VERSION" \
+            --channel stable \
+            --released "$(date -u +%Y-%m-%d)" \
+            --cert-identity "$CERT_ID" \
+            --cert-oidc-issuer https://token.actions.githubusercontent.com \
+            "${ARGS[@]}"
+          cd /tmp/registry
+          git config user.email "release-bot@neokapi.dev"
+          git config user.name "release-bot"
+          git add manifest-plugins.json
+          if ! git diff --staged --quiet; then
+            git commit -m "Register check ${VERSION}"
+            git push
+          fi
