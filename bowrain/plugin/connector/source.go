@@ -289,6 +289,179 @@ func (c *BowrainSourceConnector) Status(ctx context.Context) (*bowrainconn.SyncS
 	}, nil
 }
 
+// BlockDelta describes how a single block has changed locally relative to the
+// last-synced server state recorded in the sync cache.
+type BlockDelta struct {
+	// BlockID is the stable block identity within its file.
+	BlockID string
+	// Name is the keyed block name (JSON/YAML key, .strings key, …) or empty
+	// for nameless prose blocks.
+	Name string
+	// Preview is a short excerpt of the block source text, for display.
+	Preview string
+	// Change is one of "added", "changed", or "removed".
+	Change string
+}
+
+// FileDelta groups the local-vs-remote block changes for a single tracked file.
+type FileDelta struct {
+	Path    string       // path relative to project root
+	Format  string       // detected format name
+	Added   int          // blocks present locally but not in the sync cache
+	Changed int          // blocks whose content hash differs from the cache
+	Removed int          // blocks in the cache but no longer present locally
+	Blocks  []BlockDelta // per-block detail, sorted by block ID
+}
+
+// Diff describes the overall local-vs-remote delta for a project.
+type Diff struct {
+	Files       []FileDelta // per-file changes, sorted by path (only files with changes)
+	Added       int         // total blocks added locally
+	Changed     int         // total blocks changed locally
+	Removed     int         // total blocks removed locally
+	PendingPull int         // remote changes available to pull (-1 = unknown, more available)
+}
+
+// HasChanges reports whether the diff carries any local or remote changes.
+func (d *Diff) HasChanges() bool {
+	return d.Added > 0 || d.Changed > 0 || d.Removed > 0 || d.PendingPull != 0
+}
+
+// Diff computes the per-file/per-block delta between the local files and the
+// last-synced server state recorded in the sync cache. It reuses the same scan
+// + cache-comparison machinery as Status, but reports detail (which blocks
+// changed and how) rather than just counts.
+//
+// Local-vs-remote semantics, anchored on the sync cache:
+//   - "added"   — block present locally, absent from the cache.
+//   - "changed" — block present in both, content hash differs.
+//   - "removed" — block present in the cache, absent locally.
+//
+// It also queries the server for the count of pending remote changes, mirroring
+// Status, so the caller can surface "remote changes available to pull".
+func (c *BowrainSourceConnector) Diff(ctx context.Context, paths []string) (*Diff, error) {
+	hashMap, blockMap, err := c.scanLocalBlocks(ctx, paths)
+	if err != nil {
+		return nil, err
+	}
+
+	// Index blocks by item → blockID for name/preview lookups.
+	metaByItem := map[string]map[string]blockMeta{}
+	for itemName, blocks := range blockMap {
+		m := map[string]blockMeta{}
+		for _, b := range blocks {
+			m[b.ID] = blockMeta{name: b.Name, preview: previewText(b.SourceText())}
+		}
+		metaByItem[itemName] = m
+	}
+
+	// Union of items seen locally and items present in the cache, so we can
+	// detect removals (cache has the block, local scan does not).
+	itemNames := map[string]struct{}{}
+	for itemName := range hashMap {
+		itemNames[itemName] = struct{}{}
+	}
+	for itemName := range c.cache.Files {
+		itemNames[itemName] = struct{}{}
+	}
+
+	diff := &Diff{}
+	for itemName := range itemNames {
+		fileHashes := hashMap[itemName] // may be nil if the file is gone
+		var cachedBlocks map[string]string
+		if fc, ok := c.cache.Files[itemName]; ok {
+			cachedBlocks = fc.Blocks
+		}
+
+		fd := FileDelta{
+			Path:   itemName,
+			Format: c.detectFormat(filepath.Join(c.project.Root, itemName)),
+		}
+
+		// Added / changed: walk local blocks against the cache.
+		for blockID, hash := range fileHashes {
+			cachedHash, inCache := cachedBlocks[blockID]
+			if !inCache {
+				fd.Added++
+				fd.Blocks = append(fd.Blocks, blockDelta(metaByItem, itemName, blockID, "added"))
+			} else if cachedHash != hash {
+				fd.Changed++
+				fd.Blocks = append(fd.Blocks, blockDelta(metaByItem, itemName, blockID, "changed"))
+			}
+		}
+
+		// Removed: cached blocks no longer present locally.
+		for blockID := range cachedBlocks {
+			if _, ok := fileHashes[blockID]; !ok {
+				fd.Removed++
+				fd.Blocks = append(fd.Blocks, blockDelta(metaByItem, itemName, blockID, "removed"))
+			}
+		}
+
+		if fd.Added == 0 && fd.Changed == 0 && fd.Removed == 0 {
+			continue
+		}
+
+		slices.SortFunc(fd.Blocks, func(a, b BlockDelta) int {
+			return cmp.Compare(a.BlockID, b.BlockID)
+		})
+		diff.Files = append(diff.Files, fd)
+		diff.Added += fd.Added
+		diff.Changed += fd.Changed
+		diff.Removed += fd.Removed
+	}
+
+	slices.SortFunc(diff.Files, func(a, b FileDelta) int {
+		return cmp.Compare(a.Path, b.Path)
+	})
+
+	// Query the server for pending remote changes, mirroring Status.
+	if c.client != nil && c.cache.GetStreamCursor(c.stream) > 0 {
+		resp, err := c.client.Pull(ctx, c.cache.GetStreamCursor(c.stream), nil, 1)
+		if err == nil && len(resp.Blocks) > 0 {
+			diff.PendingPull = len(resp.Blocks)
+			if resp.HasMore {
+				diff.PendingPull = -1
+			}
+		}
+	}
+
+	return diff, nil
+}
+
+// blockMeta carries the display name and source preview for a scanned block.
+type blockMeta struct {
+	name    string
+	preview string
+}
+
+// blockDelta builds a BlockDelta for a block, pulling name/preview from the
+// scanned metadata when available (removed blocks have no local metadata).
+func blockDelta(metaByItem map[string]map[string]blockMeta, itemName, blockID, change string) BlockDelta {
+	d := BlockDelta{BlockID: blockID, Change: change}
+	if m, ok := metaByItem[itemName]; ok {
+		if bm, ok := m[blockID]; ok {
+			d.Name = bm.name
+			d.Preview = bm.preview
+		}
+	}
+	return d
+}
+
+// previewText trims and truncates block source text for compact display.
+func previewText(s string) string {
+	s = strings.TrimSpace(strings.ReplaceAll(s, "\n", " "))
+	const max = 60
+	if len(s) > max {
+		// Trim on a rune boundary.
+		r := []rune(s)
+		if len(r) > max {
+			return string(r[:max]) + "…"
+		}
+	}
+	return s
+}
+
 // Configure is a no-op for the Bowrain CLI source connector (configured via the kapi recipe).
 func (c *BowrainSourceConnector) Configure(config map[string]string) error {
 	return nil

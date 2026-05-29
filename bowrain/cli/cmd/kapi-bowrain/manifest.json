@@ -30,7 +30,10 @@
           {"name": "value", "optional": true}
         ]},
       {"name": "auth",   "short": "Manage authentication with the server",
-        "subcommands": ["login", "logout", "status", "claim", "token"]},
+        "subcommands": [
+          "login", "logout", "status", "claim",
+          {"name": "token", "subcommands": ["create", "list", "delete"]}
+        ]},
       {"name": "stream", "short": "Manage streams",
         "subcommands": ["list", "create", "diff", "merge", "archive", "status"]},
       {"name": "ui",     "short": "Launch the Bowrain desktop app"},

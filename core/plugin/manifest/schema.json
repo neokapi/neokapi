@@ -73,7 +73,7 @@
                   }
                 }
               },
-              "subcommands": { "type": "array", "items": { "type": "string" } }
+              "subcommands": { "type": "array", "items": { "$ref": "#/$defs/subcommand" } }
             }
           }
         },
@@ -198,6 +198,23 @@
           }
         }
       }
+    }
+  },
+  "$defs": {
+    "subcommand": {
+      "description": "A nested subcommand. Either a bare string (a leaf, e.g. \"login\") or an object with a name and its own nested subcommands (e.g. {\"name\": \"token\", \"subcommands\": [\"create\", \"list\", \"delete\"]}).",
+      "oneOf": [
+        { "type": "string" },
+        {
+          "type": "object",
+          "required": ["name"],
+          "additionalProperties": false,
+          "properties": {
+            "name": { "type": "string" },
+            "subcommands": { "type": "array", "items": { "$ref": "#/$defs/subcommand" } }
+          }
+        }
+      ]
     }
   }
 }

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"strings"
 
 	"github.com/neokapi/neokapi/core/plugin/manifest"
 	"github.com/spf13/cobra"
@@ -96,24 +97,38 @@ func buildCobraCommandWithDispatch(route *CommandRoute, pool *DaemonPool) *cobra
 		},
 	}
 
-	// Stitch declared subcommand names onto the cobra tree as
-	// pass-through children, so the right --help and shell completion
-	// shows up. Each child inherits DisableFlagParsing and execs the
-	// plugin with the full subcommand path.
+	// Stitch declared subcommands onto the cobra tree as pass-through
+	// children, so the right --help and shell completion shows up. Each
+	// child inherits DisableFlagParsing and execs the plugin with the full
+	// subcommand path. Subcommands may nest (e.g. "auth token create").
 	for _, sub := range c.Subcommands {
-		subName := sub
-		subCmd := &cobra.Command{
-			Use:                subName,
-			Short:              c.Name + " subcommand",
-			DisableFlagParsing: true,
-			Annotations:        map[string]string{"plugin": route.Plugin.Name()},
-			RunE: func(_ *cobra.Command, args []string) error {
-				return execPluginSubcommand(route, subName, args)
-			},
-		}
-		cmd.AddCommand(subCmd)
+		cmd.AddCommand(buildSubcommandTree(route, []string{c.Name}, sub))
 	}
 	return cmd
+}
+
+// buildSubcommandTree synthesizes a cobra subcommand (and, recursively, its
+// children) from a manifest Subcommand. parentPath is the chain of command
+// names from the top-level command down to (but not including) sub, so the
+// plugin is invoked with the full path: <binary> command <parentPath...> <sub> [args].
+func buildSubcommandTree(route *CommandRoute, parentPath []string, sub manifest.Subcommand) *cobra.Command {
+	// path is the full command chain including this subcommand.
+	path := append(append([]string{}, parentPath...), sub.Name)
+	pluginName := route.Plugin.Name()
+	subCmd := &cobra.Command{
+		Use:                sub.Name,
+		Short:              strings.Join(path, " ") + " subcommand",
+		DisableFlagParsing: true,
+		Annotations:        map[string]string{"plugin": pluginName},
+		RunE: func(_ *cobra.Command, args []string) error {
+			// path[0] is the top-level command; the rest is the subcommand chain.
+			return execPluginSubcommandPath(route, path[1:], args)
+		},
+	}
+	for _, child := range sub.Subcommands {
+		subCmd.AddCommand(buildSubcommandTree(route, path, child))
+	}
+	return subCmd
 }
 
 // execPluginCommand runs a top-level Mode-A command:
@@ -124,11 +139,16 @@ func execPluginCommand(route *CommandRoute, args []string) error {
 	return runSubprocess(route.Plugin, cmdArgs)
 }
 
-// execPluginSubcommand runs a Mode-A subcommand under a parent command:
+// execPluginSubcommandPath runs a Mode-A subcommand at an arbitrary depth
+// under a parent command:
 //
-//	<binary> command <parent> <subcommand> [args]
-func execPluginSubcommand(route *CommandRoute, subName string, args []string) error {
-	cmdArgs := append([]string{"command", route.Command.Name, subName}, args...)
+//	<binary> command <parent> <sub...> [args]
+//
+// subPath is the chain of subcommand names below the top-level command
+// (e.g. ["token", "create"] for `auth token create`).
+func execPluginSubcommandPath(route *CommandRoute, subPath []string, args []string) error {
+	cmdArgs := append([]string{"command", route.Command.Name}, subPath...)
+	cmdArgs = append(cmdArgs, args...)
 	return runSubprocess(route.Plugin, cmdArgs)
 }
 

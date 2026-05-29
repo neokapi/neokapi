@@ -178,9 +178,62 @@ type Command struct {
 	// usage string. The plugin subprocess parses flags itself.
 	Flags []FlagSpec `json:"flags,omitempty"`
 
-	// Subcommands lists nested subcommand names (e.g., for "auth": ["login",
-	// "logout", "status"]). Subcommands inherit the parent's transport.
-	Subcommands []string `json:"subcommands,omitempty"`
+	// Subcommands lists nested subcommands (e.g., for "auth": ["login",
+	// "logout", "status"]). Subcommands inherit the parent's transport and
+	// may themselves nest (e.g., "auth token create"). Each entry is either
+	// a bare string (a leaf subcommand) or an object carrying its own
+	// nested subcommands; see Subcommand.UnmarshalJSON.
+	Subcommands []Subcommand `json:"subcommands,omitempty"`
+}
+
+// Subcommand describes one nested subcommand under a Command (or under
+// another Subcommand). It supports two JSON forms for ergonomics:
+//
+//	"login"                                         // leaf, no children
+//	{"name": "token", "subcommands": ["create"]}    // parent with children
+//
+// The bare-string form keeps existing manifests (and the common case of
+// flat command groups like auth login/logout/status) terse, while the
+// object form expresses multi-level trees such as `auth token create`.
+type Subcommand struct {
+	// Name is the subcommand name as the user types it (e.g., "token").
+	Name string `json:"name"`
+
+	// Subcommands are the nested children of this subcommand, if any.
+	Subcommands []Subcommand `json:"subcommands,omitempty"`
+}
+
+// UnmarshalJSON decodes a Subcommand from either a bare string (leaf) or an
+// object with name + nested subcommands.
+func (s *Subcommand) UnmarshalJSON(data []byte) error {
+	trimmed := strings.TrimSpace(string(data))
+	if len(trimmed) > 0 && trimmed[0] == '"' {
+		var name string
+		if err := json.Unmarshal(data, &name); err != nil {
+			return err
+		}
+		s.Name = name
+		s.Subcommands = nil
+		return nil
+	}
+	// Object form. Use an alias to avoid recursing into this method.
+	type subcommandAlias Subcommand
+	var alias subcommandAlias
+	if err := json.Unmarshal(data, &alias); err != nil {
+		return err
+	}
+	*s = Subcommand(alias)
+	return nil
+}
+
+// SubcommandNames returns the immediate child subcommand names, preserving
+// the bare-string accessor the flat-group call sites relied on.
+func (c Command) SubcommandNames() []string {
+	names := make([]string, len(c.Subcommands))
+	for i, sub := range c.Subcommands {
+		names[i] = sub.Name
+	}
+	return names
 }
 
 // ArgSpec describes one positional argument.
@@ -360,6 +413,9 @@ func (m *Manifest) Validate() error {
 		if c.Name == "" {
 			return fmt.Errorf("capabilities.commands[%d]: name is required", i)
 		}
+		if err := validateSubcommands(c.Subcommands, fmt.Sprintf("capabilities.commands[%d]", i)); err != nil {
+			return err
+		}
 	}
 	for i, t := range m.Capabilities.MCPTools {
 		if t.Name == "" {
@@ -419,6 +475,20 @@ func (m *Manifest) Validate() error {
 			if !found {
 				return fmt.Errorf("capabilities.command_contributions[%d]: engage_when %q is not one of the declared flags", i, cc.EngageWhen)
 			}
+		}
+	}
+	return nil
+}
+
+// validateSubcommands recursively checks that every subcommand carries a
+// name. The path is used to build a precise error location.
+func validateSubcommands(subs []Subcommand, path string) error {
+	for i, sub := range subs {
+		if sub.Name == "" {
+			return fmt.Errorf("%s.subcommands[%d]: name is required", path, i)
+		}
+		if err := validateSubcommands(sub.Subcommands, fmt.Sprintf("%s.subcommands[%d]", path, i)); err != nil {
+			return err
 		}
 	}
 	return nil
