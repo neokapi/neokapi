@@ -21,80 +21,7 @@ env:
   KAPI_WEB_SITE: https://neokapi.github.io/web/neokapi/
 
 jobs:
-  record-cli-scenes:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-go@v6
-        with:
-          go-version: "1.26.0"
-          cache: true
-
-      - name: Build kapi + kapi-bowrain plugin
-        run: make build build-kapi-bowrain-plugin
-
-      # Bowrain commands run as `kapi <cmd>` via the kapi-bowrain plugin (the
-      # standalone `bowrain` binary is retired). kapi discovers plugins by a
-      # manifest.json sidecar under a plugins dir, so place the built binary +
-      # its manifest where kapi looks; otherwise the tapes' `kapi push`/`kapi
-      # status`/… would print "unknown command".
-      - name: Install kapi-bowrain plugin into kapi's discovery path
-        run: |
-          PLUGIN_DIR="$HOME/.local/share/kapi/plugins/bowrain"
-          mkdir -p "$PLUGIN_DIR"
-          cp bin/kapi-bowrain "$PLUGIN_DIR/kapi-bowrain"
-          cp bowrain/cli/cmd/kapi-bowrain/manifest.json "$PLUGIN_DIR/manifest.json"
-          bin/kapi plugin list || true
-
-      - name: Install VHS + Xvfb
-        run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq ffmpeg ttyd xvfb
-          curl -L "https://github.com/charmbracelet/vhs/releases/download/v0.9.0/vhs_0.9.0_amd64.deb" -o /tmp/vhs.deb
-          sudo dpkg -i /tmp/vhs.deb
-
-      - name: Record CLI terminal scenes
-        env:
-          DISPLAY: ":99"
-          BOWRAIN_BACKEND_URL: ${{ env.KAPI_WEB_SITE && '' || 'https://dev.bowrain.cloud' }}
-        run: |
-          export PATH="$PWD/bin:$PATH"
-          # The tapes `cd $WALKTHROUGH_DIR` before running `kapi init`/push/sync.
-          # Point it at a fresh dir OUTSIDE the repo checkout so those commands
-          # never walk up into — or act on — the repo-root dogfood .kapi project.
-          export WALKTHROUGH_DIR="${RUNNER_TEMP:-/tmp}/bowrain-walkthrough"
-          rm -rf "$WALKTHROUGH_DIR" && mkdir -p "$WALKTHROUGH_DIR"
-          Xvfb :99 -screen 0 1280x720x24 &
-          sleep 2
-          if [ -d bowrain/web/docs/scenes ]; then
-            for scene_dir in bowrain/web/docs/scenes/*/; do
-              for tape in "$scene_dir"*.tape; do
-                [ -f "$tape" ] || continue
-                echo "Recording $tape"
-                (cd "$scene_dir" && timeout 180 vhs "$(basename "$tape")") || echo "::warning::tape $tape failed"
-              done
-            done
-          fi
-
-      - name: Stage recorded assets under static/video/bowrain-cli/
-        run: |
-          mkdir -p bowrain/web/docs/static/video/bowrain-cli
-          if [ -d bowrain/web/docs/scenes ]; then
-            for webm in bowrain/web/docs/scenes/*/*.webm; do
-              [ -f "$webm" ] || continue
-              cp "$webm" "bowrain/web/docs/static/video/bowrain-cli/$(basename "$webm")"
-            done
-          fi
-
-      - name: Upload recorded scenes
-        uses: actions/upload-artifact@v7
-        with:
-          name: bowrain-cli-scenes
-          path: bowrain/web/docs/static/video/bowrain-cli
-          retention-days: 7
-
   build:
-    needs: record-cli-scenes
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -107,18 +34,13 @@ jobs:
       - name: Install workspace dependencies
         run: vp install
 
-      - name: Download recorded CLI scenes
-        uses: actions/download-artifact@v8
-        with:
-          name: bowrain-cli-scenes
-          path: bowrain/web/docs/static/video/bowrain-cli
-
-      # The framed walkthrough videos (bowrain-web/ + bowrain-desktop/) are
-      # rendered on a desktop against a real running stack — CI can't reproduce
-      # that — and published to the bowrain-docs-assets release via
-      # `make publish-bowrain-docs-assets`. Stage them here, mirroring kapi's
-      # docs-assets staging in docs-kapi.yml.
-      - name: Stage bowrain framed videos from bowrain-docs-assets
+      # All bowrain docs videos — the CLI scene tapes (bowrain-cli/) and the
+      # framed walkthrough videos (bowrain-web/ + bowrain-desktop/) — are recorded
+      # on a desktop against a real running stack, which CI cannot reproduce, and
+      # published to the bowrain-docs-assets release (make bowrain-kapi-scenes /
+      # the harness, then make publish-bowrain-docs-assets). CI no longer records
+      # anything; it stages the assets here, mirroring docs-kapi.yml.
+      - name: Stage bowrain videos + images from bowrain-docs-assets
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -127,9 +49,9 @@ jobs:
             tar xzf /tmp/bda/bowrain-docs-assets.tar.gz -C /tmp/bda
             [ -d /tmp/bda/video ] && cp -R /tmp/bda/video/. bowrain/web/docs/static/video/
             [ -d /tmp/bda/img ] && { mkdir -p bowrain/web/docs/static/img; cp -R /tmp/bda/img/. bowrain/web/docs/static/img/; }
-            echo "Staged bowrain framed videos: $(find bowrain/web/docs/static/video -name '*.webm' 2>/dev/null | wc -l) webm"
+            echo "Staged bowrain videos: $(find bowrain/web/docs/static/video -name '*.webm' 2>/dev/null | wc -l) webm"
           else
-            echo "::warning::bowrain-docs-assets release unavailable; framed videos will be missing"
+            echo "::warning::bowrain-docs-assets release unavailable; videos will be missing"
           fi
 
       # bowrain/website is a standalone Docusaurus app (not in the npm
