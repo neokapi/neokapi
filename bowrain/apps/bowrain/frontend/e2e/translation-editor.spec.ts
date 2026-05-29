@@ -271,7 +271,9 @@ test.describe("Translation Editor", () => {
     await page.getByRole("tab", { name: "Target" }).click();
     await page.waitForTimeout(300);
 
-    await expect(iframe.locator('[id="hello.txt-block-1"]')).toContainText("[Hello from hello.txt]");
+    await expect(iframe.locator('[id="hello.txt-block-1"]')).toContainText(
+      "[Hello from hello.txt]",
+    );
     await expect(iframe.locator('[id="hello.txt-block-2"]')).toContainText(
       "[Welcome to our application]",
     );
