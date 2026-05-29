@@ -155,7 +155,7 @@ export default function MLBenchmark(): ReactElement {
           <li>
             <strong>Quantization changes the verdict.</strong> The int8 export of the same model
             is a ~129 MB download and ~40 MB resident — and slightly faster. That is small
-            enough to lazy-download on first use and keep cached, which makes a single
+            enough to ship as an explicitly-installed plugin and cache, which makes a single
             small-model checker viable to run on your machine.
           </li>
           <li>
@@ -174,8 +174,8 @@ export default function MLBenchmark(): ReactElement {
         </p>
         <h3>Option A — small model local, heavy models server-side (recommended)</h3>
         <p>
-          Ship the int8 embedding model as an optional, lazy-downloaded local checker (~129 MB,
-          ~40 MB resident) for voice/style similarity and register; run the generalist NER and
+          Ship the int8 embedding model as an optional plugin the user explicitly installs
+          (~129 MB, ~40 MB resident) for voice/style similarity and register; run the generalist NER and
           any LLM-deep check server-side in bowrain, where the model is hosted once and amortized
           across the team and across large batches. Keeps the CLI lean and offline-capable for
           the common case, without asking every user to download a gigabyte.
@@ -197,6 +197,27 @@ export default function MLBenchmark(): ReactElement {
           to live in the CLI, while the heavy generalist model earns its keep server-side — which
           is also where batch volume (tens of thousands of strings across many languages) is most
           economical to process.
+        </p>
+
+        <h2>How the model is acquired</h2>
+        <p>
+          A checker that needs a model should acquire it <strong>explicitly</strong>, never by a
+          surprise download in the middle of a <code>kapi check</code>. Consumer ML tools
+          (Hugging Face <code>transformers</code>, Whisper) lazy-download on first use, which is
+          convenient but hangs the first run and fails in airgapped or CI environments. Developer
+          tools make it explicit and pinnable — <code>vale sync</code>, <code>spacy download</code>,
+          <code>ollama pull</code> — and kapi already follows that model for its native deps
+          (<code>kapi plugin install okapi-bridge</code>). The model-backed checker is the same: an
+          opt-in plugin you install (its model bundled in the release tarball, the way the
+          segmenter bundles the ONNX runtime, or pulled by an explicit step), so the download is a
+          deliberate, cacheable, offline-after-install action with a known version.
+        </p>
+        <p>
+          When the plugin or its model is absent, <code>kapi check</code> still runs every
+          deterministic check and reports the model-backed check as unavailable with the one
+          command that enables it — fail-closed with guidance, not a silent network call. In CI,
+          the install is a setup step (as connector and plugin installs already are), so runs stay
+          deterministic and offline once the cache is warm.
         </p>
       </main>
     </Layout>
