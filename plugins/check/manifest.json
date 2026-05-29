@@ -1,0 +1,43 @@
+{
+  "manifest_version": "1",
+  "plugin": "check",
+  "version": "0.1.0",
+  "description": "kapi-check ML checker — runs a small, open, multilingual sentence-embedding ONNX model in-process and speaks a line-delimited JSON protocol on stdin/stdout. Backs the voice/style-similarity and register checks; the deterministic checks need no model.",
+  "homepage": "https://github.com/neokapi/neokapi/tree/main/plugins/check",
+  "author": "Neokapi <hello@neokapi.dev>",
+  "license": "Apache-2.0",
+  "binary": "kapi-check",
+  "min_kapi_version": "0.0.1",
+  "group": "neokapi",
+  "capabilities": {
+    "commands": [
+      {
+        "name": "check-ml",
+        "short": "ML checker self-check",
+        "long": "List the embedding models the checker supports and whether they are installed. The model is acquired explicitly with `kapi-check pull`; the host check engine drives the plugin over the stdin/stdout protocol (kapi-check serve)."
+      }
+    ]
+  },
+  "metadata": {
+    "check": {
+      "protocol": "checkproto-line-json-v1",
+      "transport": "stdin-stdout",
+      "invocation": ["kapi-check", "serve"],
+      "acquire": ["kapi-check", "pull"],
+      "protocol_package": "github.com/neokapi/neokapi/plugins/check/checkproto",
+      "ops": ["embed", "similarity", "ping", "info"],
+      "models": [
+        {
+          "name": "e5-small-int8",
+          "default": true,
+          "source": "intfloat/multilingual-e5-small",
+          "onnx_file": "onnx/model_qint8_avx512_vnni.onnx",
+          "tokenizer": "intfloat/multilingual-e5-small",
+          "dim": 384,
+          "download_mb": 129,
+          "license": "MIT"
+        }
+      ]
+    }
+  }
+}
