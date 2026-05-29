@@ -114,6 +114,21 @@ func infoToFlowDef(info FlowDefinitionInfo) flow.FlowDefinition {
 	}
 }
 
+// flowStore returns the local user-flow store at ~/.bowrain/flows.
+//
+// BOUNDARY DEBT (TODO #766): this is a local-authoring path for project
+// configuration on the desktop, which contradicts the product boundary
+// ("kapi owns local files + project configuration; the desktop's local
+// footprint is a cache/working copy of the server, never a source of truth").
+// User flow definitions should instead come from the project's .kapi recipe
+// (flows: / .kapi/flows/, authored & versioned with kapi) or from a
+// server-provided flow-definitions API fetched over the ServerClient.
+//
+// Neither source exists on the desktop yet — the backend has no .kapi recipe
+// load path and ServerClient exposes no flow endpoints — so retiring this
+// store now would leave the FlowBuilder editor's New/Save/Delete UX dead.
+// It is therefore left working, treated as a local cache of in-progress flow
+// edits, until #766 relocates authoring to the recipe/server.
 func (a *App) flowStore() *flow.FlowStore {
 	dir := filepath.Join(defaultBowrainDir(), "flows")
 	return flow.NewFlowStore(dir)

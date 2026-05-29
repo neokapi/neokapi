@@ -95,8 +95,13 @@ func newAppWithStore(cs store.ContentStore) *App {
 	toolReg := registry.NewToolRegistry()
 	libtools.RegisterAll(toolReg)
 
+	// The desktop app only offers remote/CMS connectors. The local-filesystem
+	// connectors (file, git) are server-side only: under the product boundary
+	// kapi owns local files + project configuration, and the desktop's local
+	// footprint is a working copy / cache of the server, never a source of
+	// truth. (The Bowrain server registers every connector via RegisterAll.)
 	connReg := platconn.NewRegistry()
-	connector.RegisterAll(connReg, reg)
+	connector.RegisterRemote(connReg)
 
 	a := &App{
 		formatReg:    reg,

@@ -51,13 +51,21 @@ a matter of where you work, not what you can do:
 | Real-time presence & co-editing | Yes | Yes |
 | Brand, terminology & TM context | Yes | Yes |
 | Works offline | No (always online) | **Yes** — edit on a flight; changes queue and sync on reconnect |
-| Local cache | Browser session | **Persistent** local store for fast, offline-capable work |
+| Local footprint | Browser session | **Cache only** — a content cache, an offline edit queue, and TM/termbase mirrors |
 | Best for | Quick access, reviewers, occasional contributors | Daily translators, large files, unreliable connectivity |
 
 Both are real-time clients of the same server, so presence, edits, reviews,
 translation memory, and terminology are shared and consistent across them — a
 reviewer in the browser and a translator in the desktop app see each other and
 each other's work as it happens.
+
+The desktop app's local store is a **working copy of the server, never a source
+of truth**: it speeds up editing and lets you work offline, but the
+authoritative state lives on the server. Authoring local files and project
+configuration — the `.kapi` recipe with its content, flows, plugins, languages,
+and brand — is [kapi's job](/getting-started/kapi-vs-bowrain), not the desktop
+app's. Sourcing content from a filesystem or a git checkout happens server-side
+through [connectors](/server/connectors).
 
 ## Offline on the desktop
 

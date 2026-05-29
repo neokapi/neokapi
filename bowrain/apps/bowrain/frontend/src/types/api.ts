@@ -75,7 +75,7 @@ export interface FlowNodeInfo {
   name: string;
   label?: string;
   /** Pipeline stage: "" or undefined = main chain; "source-transform" = leading rewrite stage. */
-  stage?: string;
+  stage?: "" | "source-transform";
   config?: Record<string, unknown>;
   position: FlowNodePosition;
 }
@@ -94,7 +94,7 @@ export interface FlowDefinitionInfo {
   description?: string;
   nodes: FlowNodeInfo[];
   edges: FlowEdgeInfo[];
-  source: string;
+  source: "built-in" | "user" | "project";
   created_at?: string;
   modified_at?: string;
 }

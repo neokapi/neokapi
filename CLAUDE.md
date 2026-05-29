@@ -338,6 +338,9 @@ kapi run translate-and-qa -p myproject.kapi --target-lang de
 - **kapi-bowrain plugin** (manifest-driven, dispatched via `kapi`) = project sync companion CLI, focuses on DX and project simplicity for Bowrain
 - **Shared CLI base** (`cli/`) = common commands (run, flows, tools, formats, plugins, presets, termbase, version) and top-level tool commands used by both kapi and bowrain
 - **Bowrain Server** = integration platform (CMS connectors, automation, ContentStore)
+- **Bowrain desktop app** (`bowrain/apps/bowrain/`) = a real-time **working copy of the server**, not a local-file/project authoring tool. Its local footprint is cache and speed only — a content cache, an offline edit queue, and TM/termbase mirrors — and is never a source of truth. It offers only **remote/CMS connectors** (wordpress, figma, hubspot); the local-filesystem connectors (file, git) are registered **server-side only** (`bowrain/connector.RegisterAll` for the server/worker vs `RegisterRemote` for the desktop). Sourcing from a filesystem or git checkout is a server-side concern.
+
+**Product boundary (canonical):** kapi owns local files + project configuration — the `.kapi` recipe (content/flows/plugins/languages/brand + `server:` block) is authored and versioned locally with kapi, including configuring projects pushed to Bowrain via `kapi push` / `kapi sync`. Bowrain's local footprint is cache/speed/implementation only — never source of truth.
 
 ### Streaming Pipeline
 
