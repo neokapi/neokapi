@@ -623,6 +623,18 @@ message ProjectEvent {
   oneof event {
     BlockChangeEvent block_change = 1;
     PresenceChangeEvent presence_change = 2;
+    // Broadened freshness variants (tags 3+) so the desktop refreshes any open
+    // view on an external change. Wire-compatible: existing clients ignore
+    // unknown oneof tags. The generic ProjectChange carries the raw event type
+    // plus identifying fields for variants without a dedicated message.
+    ProjectChangeEvent project_change = 3;
+    ItemChangeEvent item_change = 4;
+    ConnectorSyncEvent connector_sync = 5;
+    FlowEventEvent flow_event = 6;
+    MembershipChangeEvent membership_change = 7;
+    BrandVoiceEvent brand_voice = 8;
+    TermBaseEvent termbase = 9;
+    StreamEvent stream = 10;
   }
 }
 
@@ -637,4 +649,47 @@ message BlockChangeEvent {
 message PresenceChangeEvent {
   string change_type = 1;  // "joined", "moved", "left"
   PresenceInfo user = 2;
+}
+
+// ProjectChangeEvent covers project lifecycle, collection, extraction,
+// quality-gate, version, and any other state change without a dedicated
+// variant. event_type carries the raw platform event type (e.g.
+// "project.updated", "collection.created", "extraction.completed").
+message ProjectChangeEvent {
+  string event_type = 1;
+  string change_type = 2;
+  string actor = 3;
+}
+
+message ItemChangeEvent {
+  string event_type = 1;  // "item.created", "item.deleted"
+  string item_name = 2;
+  string stream = 3;
+}
+
+message ConnectorSyncEvent {
+  string event_type = 1;  // "connector.pull.completed", ".push.", ".sync."
+  string actor = 2;
+}
+
+message FlowEventEvent {
+  string event_type = 1;  // "flow.started", "flow.completed", "flow.failed"
+}
+
+message MembershipChangeEvent {
+  string event_type = 1;  // membership/task change
+  string actor = 2;
+}
+
+message BrandVoiceEvent {
+  string event_type = 1;  // "brand.voice.*", "brand.profile.updated"
+}
+
+message TermBaseEvent {
+  string event_type = 1;  // term/concept change
+}
+
+message StreamEvent {
+  string event_type = 1;  // "stream.created", ".merged", ".locked", ...
+  string stream = 2;
 }

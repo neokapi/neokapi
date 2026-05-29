@@ -40,6 +40,18 @@ type PresenceUser struct {
 	BlockID   string `json:"block_id"`
 }
 
+// ChangeEvent is emitted to the frontend for non-block, non-presence external
+// changes (project/item/connector/flow/membership/brand/termbase/stream) so
+// any open view can refresh itself. EventType carries the raw platform event
+// type (e.g. "connector.sync.completed", "flow.completed").
+type ChangeEvent struct {
+	EventType  string `json:"event_type"`
+	ChangeType string `json:"change_type,omitempty"`
+	ItemName   string `json:"item_name,omitempty"`
+	Stream     string `json:"stream,omitempty"`
+	Actor      string `json:"actor,omitempty"`
+}
+
 // StartWatching opens a WatchProject stream for the given project.
 // Call StopWatching to close the stream when navigating away.
 func (a *App) StartWatching(projectID string) {
@@ -155,10 +167,9 @@ func (w *ProjectWatcher) watchOnce(ctx context.Context, wsSlug, projectID string
 }
 
 func (w *ProjectWatcher) handleEvent(event *pb.ProjectEvent) {
-	if w.app.app == nil {
-		return // no Wails app to emit to
-	}
-
+	// emit() is safe when both the Wails app and the event sink are absent, and
+	// the recording wbridge relies on the sink even without a Wails runtime, so
+	// don't bail early here — let emit fan out to whichever sinks exist.
 	switch e := event.Event.(type) {
 	case *pb.ProjectEvent_BlockChange:
 		w.app.emit("blocks-changed", BlockChangedEvent{
@@ -182,6 +193,55 @@ func (w *ProjectWatcher) handleEvent(event *pb.ProjectEvent) {
 		w.app.emit("presence-changed", PresenceChangedEvent{
 			ChangeType: e.PresenceChange.ChangeType,
 			User:       user,
+		})
+
+	case *pb.ProjectEvent_ProjectChange:
+		w.app.emit("project-changed", ChangeEvent{
+			EventType:  e.ProjectChange.EventType,
+			ChangeType: e.ProjectChange.ChangeType,
+			Actor:      e.ProjectChange.Actor,
+		})
+
+	case *pb.ProjectEvent_ItemChange:
+		// Items are part of project content; refreshing the project view
+		// (and any open file list) is the right response.
+		w.app.emit("project-changed", ChangeEvent{
+			EventType: e.ItemChange.EventType,
+			ItemName:  e.ItemChange.ItemName,
+			Stream:    e.ItemChange.Stream,
+		})
+
+	case *pb.ProjectEvent_ConnectorSync:
+		w.app.emit("connector-sync", ChangeEvent{
+			EventType: e.ConnectorSync.EventType,
+			Actor:     e.ConnectorSync.Actor,
+		})
+
+	case *pb.ProjectEvent_FlowEvent:
+		w.app.emit("flow-changed", ChangeEvent{
+			EventType: e.FlowEvent.EventType,
+		})
+
+	case *pb.ProjectEvent_MembershipChange:
+		w.app.emit("membership-changed", ChangeEvent{
+			EventType: e.MembershipChange.EventType,
+			Actor:     e.MembershipChange.Actor,
+		})
+
+	case *pb.ProjectEvent_BrandVoice:
+		w.app.emit("brand-voice-changed", ChangeEvent{
+			EventType: e.BrandVoice.EventType,
+		})
+
+	case *pb.ProjectEvent_Termbase:
+		w.app.emit("termbase-changed", ChangeEvent{
+			EventType: e.Termbase.EventType,
+		})
+
+	case *pb.ProjectEvent_Stream:
+		w.app.emit("stream-changed", ChangeEvent{
+			EventType: e.Stream.EventType,
+			Stream:    e.Stream.Stream,
 		})
 	}
 }

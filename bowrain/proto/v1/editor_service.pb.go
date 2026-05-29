@@ -5245,6 +5245,14 @@ type ProjectEvent struct {
 	//
 	//	*ProjectEvent_BlockChange
 	//	*ProjectEvent_PresenceChange
+	//	*ProjectEvent_ProjectChange
+	//	*ProjectEvent_ItemChange
+	//	*ProjectEvent_ConnectorSync
+	//	*ProjectEvent_FlowEvent
+	//	*ProjectEvent_MembershipChange
+	//	*ProjectEvent_BrandVoice
+	//	*ProjectEvent_Termbase
+	//	*ProjectEvent_Stream
 	Event         isProjectEvent_Event `protobuf_oneof:"event"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -5305,6 +5313,78 @@ func (x *ProjectEvent) GetPresenceChange() *PresenceChangeEvent {
 	return nil
 }
 
+func (x *ProjectEvent) GetProjectChange() *ProjectChangeEvent {
+	if x != nil {
+		if x, ok := x.Event.(*ProjectEvent_ProjectChange); ok {
+			return x.ProjectChange
+		}
+	}
+	return nil
+}
+
+func (x *ProjectEvent) GetItemChange() *ItemChangeEvent {
+	if x != nil {
+		if x, ok := x.Event.(*ProjectEvent_ItemChange); ok {
+			return x.ItemChange
+		}
+	}
+	return nil
+}
+
+func (x *ProjectEvent) GetConnectorSync() *ConnectorSyncEvent {
+	if x != nil {
+		if x, ok := x.Event.(*ProjectEvent_ConnectorSync); ok {
+			return x.ConnectorSync
+		}
+	}
+	return nil
+}
+
+func (x *ProjectEvent) GetFlowEvent() *FlowEventEvent {
+	if x != nil {
+		if x, ok := x.Event.(*ProjectEvent_FlowEvent); ok {
+			return x.FlowEvent
+		}
+	}
+	return nil
+}
+
+func (x *ProjectEvent) GetMembershipChange() *MembershipChangeEvent {
+	if x != nil {
+		if x, ok := x.Event.(*ProjectEvent_MembershipChange); ok {
+			return x.MembershipChange
+		}
+	}
+	return nil
+}
+
+func (x *ProjectEvent) GetBrandVoice() *BrandVoiceEvent {
+	if x != nil {
+		if x, ok := x.Event.(*ProjectEvent_BrandVoice); ok {
+			return x.BrandVoice
+		}
+	}
+	return nil
+}
+
+func (x *ProjectEvent) GetTermbase() *TermBaseEvent {
+	if x != nil {
+		if x, ok := x.Event.(*ProjectEvent_Termbase); ok {
+			return x.Termbase
+		}
+	}
+	return nil
+}
+
+func (x *ProjectEvent) GetStream() *StreamEvent {
+	if x != nil {
+		if x, ok := x.Event.(*ProjectEvent_Stream); ok {
+			return x.Stream
+		}
+	}
+	return nil
+}
+
 type isProjectEvent_Event interface {
 	isProjectEvent_Event()
 }
@@ -5317,9 +5397,61 @@ type ProjectEvent_PresenceChange struct {
 	PresenceChange *PresenceChangeEvent `protobuf:"bytes,2,opt,name=presence_change,json=presenceChange,proto3,oneof"`
 }
 
+type ProjectEvent_ProjectChange struct {
+	// Broadened freshness variants (tags 3+) so the desktop refreshes any open
+	// view on an external change. Wire-compatible: existing clients ignore
+	// unknown oneof tags. The generic ProjectChange carries the raw event type
+	// plus identifying fields for variants without a dedicated message.
+	ProjectChange *ProjectChangeEvent `protobuf:"bytes,3,opt,name=project_change,json=projectChange,proto3,oneof"`
+}
+
+type ProjectEvent_ItemChange struct {
+	ItemChange *ItemChangeEvent `protobuf:"bytes,4,opt,name=item_change,json=itemChange,proto3,oneof"`
+}
+
+type ProjectEvent_ConnectorSync struct {
+	ConnectorSync *ConnectorSyncEvent `protobuf:"bytes,5,opt,name=connector_sync,json=connectorSync,proto3,oneof"`
+}
+
+type ProjectEvent_FlowEvent struct {
+	FlowEvent *FlowEventEvent `protobuf:"bytes,6,opt,name=flow_event,json=flowEvent,proto3,oneof"`
+}
+
+type ProjectEvent_MembershipChange struct {
+	MembershipChange *MembershipChangeEvent `protobuf:"bytes,7,opt,name=membership_change,json=membershipChange,proto3,oneof"`
+}
+
+type ProjectEvent_BrandVoice struct {
+	BrandVoice *BrandVoiceEvent `protobuf:"bytes,8,opt,name=brand_voice,json=brandVoice,proto3,oneof"`
+}
+
+type ProjectEvent_Termbase struct {
+	Termbase *TermBaseEvent `protobuf:"bytes,9,opt,name=termbase,proto3,oneof"`
+}
+
+type ProjectEvent_Stream struct {
+	Stream *StreamEvent `protobuf:"bytes,10,opt,name=stream,proto3,oneof"`
+}
+
 func (*ProjectEvent_BlockChange) isProjectEvent_Event() {}
 
 func (*ProjectEvent_PresenceChange) isProjectEvent_Event() {}
+
+func (*ProjectEvent_ProjectChange) isProjectEvent_Event() {}
+
+func (*ProjectEvent_ItemChange) isProjectEvent_Event() {}
+
+func (*ProjectEvent_ConnectorSync) isProjectEvent_Event() {}
+
+func (*ProjectEvent_FlowEvent) isProjectEvent_Event() {}
+
+func (*ProjectEvent_MembershipChange) isProjectEvent_Event() {}
+
+func (*ProjectEvent_BrandVoice) isProjectEvent_Event() {}
+
+func (*ProjectEvent_Termbase) isProjectEvent_Event() {}
+
+func (*ProjectEvent_Stream) isProjectEvent_Event() {}
 
 type BlockChangeEvent struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -5447,6 +5579,418 @@ func (x *PresenceChangeEvent) GetUser() *PresenceInfo {
 		return x.User
 	}
 	return nil
+}
+
+// ProjectChangeEvent covers project lifecycle, collection, extraction,
+// quality-gate, version, and any other state change without a dedicated
+// variant. event_type carries the raw platform event type (e.g.
+// "project.updated", "collection.created", "extraction.completed").
+type ProjectChangeEvent struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	EventType     string                 `protobuf:"bytes,1,opt,name=event_type,json=eventType,proto3" json:"event_type,omitempty"`
+	ChangeType    string                 `protobuf:"bytes,2,opt,name=change_type,json=changeType,proto3" json:"change_type,omitempty"`
+	Actor         string                 `protobuf:"bytes,3,opt,name=actor,proto3" json:"actor,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ProjectChangeEvent) Reset() {
+	*x = ProjectChangeEvent{}
+	mi := &file_proto_v1_editor_service_proto_msgTypes[81]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ProjectChangeEvent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ProjectChangeEvent) ProtoMessage() {}
+
+func (x *ProjectChangeEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_v1_editor_service_proto_msgTypes[81]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ProjectChangeEvent.ProtoReflect.Descriptor instead.
+func (*ProjectChangeEvent) Descriptor() ([]byte, []int) {
+	return file_proto_v1_editor_service_proto_rawDescGZIP(), []int{81}
+}
+
+func (x *ProjectChangeEvent) GetEventType() string {
+	if x != nil {
+		return x.EventType
+	}
+	return ""
+}
+
+func (x *ProjectChangeEvent) GetChangeType() string {
+	if x != nil {
+		return x.ChangeType
+	}
+	return ""
+}
+
+func (x *ProjectChangeEvent) GetActor() string {
+	if x != nil {
+		return x.Actor
+	}
+	return ""
+}
+
+type ItemChangeEvent struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	EventType     string                 `protobuf:"bytes,1,opt,name=event_type,json=eventType,proto3" json:"event_type,omitempty"` // "item.created", "item.deleted"
+	ItemName      string                 `protobuf:"bytes,2,opt,name=item_name,json=itemName,proto3" json:"item_name,omitempty"`
+	Stream        string                 `protobuf:"bytes,3,opt,name=stream,proto3" json:"stream,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ItemChangeEvent) Reset() {
+	*x = ItemChangeEvent{}
+	mi := &file_proto_v1_editor_service_proto_msgTypes[82]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ItemChangeEvent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ItemChangeEvent) ProtoMessage() {}
+
+func (x *ItemChangeEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_v1_editor_service_proto_msgTypes[82]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ItemChangeEvent.ProtoReflect.Descriptor instead.
+func (*ItemChangeEvent) Descriptor() ([]byte, []int) {
+	return file_proto_v1_editor_service_proto_rawDescGZIP(), []int{82}
+}
+
+func (x *ItemChangeEvent) GetEventType() string {
+	if x != nil {
+		return x.EventType
+	}
+	return ""
+}
+
+func (x *ItemChangeEvent) GetItemName() string {
+	if x != nil {
+		return x.ItemName
+	}
+	return ""
+}
+
+func (x *ItemChangeEvent) GetStream() string {
+	if x != nil {
+		return x.Stream
+	}
+	return ""
+}
+
+type ConnectorSyncEvent struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	EventType     string                 `protobuf:"bytes,1,opt,name=event_type,json=eventType,proto3" json:"event_type,omitempty"` // "connector.pull.completed", ".push.", ".sync."
+	Actor         string                 `protobuf:"bytes,2,opt,name=actor,proto3" json:"actor,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ConnectorSyncEvent) Reset() {
+	*x = ConnectorSyncEvent{}
+	mi := &file_proto_v1_editor_service_proto_msgTypes[83]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ConnectorSyncEvent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ConnectorSyncEvent) ProtoMessage() {}
+
+func (x *ConnectorSyncEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_v1_editor_service_proto_msgTypes[83]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ConnectorSyncEvent.ProtoReflect.Descriptor instead.
+func (*ConnectorSyncEvent) Descriptor() ([]byte, []int) {
+	return file_proto_v1_editor_service_proto_rawDescGZIP(), []int{83}
+}
+
+func (x *ConnectorSyncEvent) GetEventType() string {
+	if x != nil {
+		return x.EventType
+	}
+	return ""
+}
+
+func (x *ConnectorSyncEvent) GetActor() string {
+	if x != nil {
+		return x.Actor
+	}
+	return ""
+}
+
+type FlowEventEvent struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	EventType     string                 `protobuf:"bytes,1,opt,name=event_type,json=eventType,proto3" json:"event_type,omitempty"` // "flow.started", "flow.completed", "flow.failed"
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *FlowEventEvent) Reset() {
+	*x = FlowEventEvent{}
+	mi := &file_proto_v1_editor_service_proto_msgTypes[84]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *FlowEventEvent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*FlowEventEvent) ProtoMessage() {}
+
+func (x *FlowEventEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_v1_editor_service_proto_msgTypes[84]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use FlowEventEvent.ProtoReflect.Descriptor instead.
+func (*FlowEventEvent) Descriptor() ([]byte, []int) {
+	return file_proto_v1_editor_service_proto_rawDescGZIP(), []int{84}
+}
+
+func (x *FlowEventEvent) GetEventType() string {
+	if x != nil {
+		return x.EventType
+	}
+	return ""
+}
+
+type MembershipChangeEvent struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	EventType     string                 `protobuf:"bytes,1,opt,name=event_type,json=eventType,proto3" json:"event_type,omitempty"` // membership/task change
+	Actor         string                 `protobuf:"bytes,2,opt,name=actor,proto3" json:"actor,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *MembershipChangeEvent) Reset() {
+	*x = MembershipChangeEvent{}
+	mi := &file_proto_v1_editor_service_proto_msgTypes[85]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MembershipChangeEvent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MembershipChangeEvent) ProtoMessage() {}
+
+func (x *MembershipChangeEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_v1_editor_service_proto_msgTypes[85]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MembershipChangeEvent.ProtoReflect.Descriptor instead.
+func (*MembershipChangeEvent) Descriptor() ([]byte, []int) {
+	return file_proto_v1_editor_service_proto_rawDescGZIP(), []int{85}
+}
+
+func (x *MembershipChangeEvent) GetEventType() string {
+	if x != nil {
+		return x.EventType
+	}
+	return ""
+}
+
+func (x *MembershipChangeEvent) GetActor() string {
+	if x != nil {
+		return x.Actor
+	}
+	return ""
+}
+
+type BrandVoiceEvent struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	EventType     string                 `protobuf:"bytes,1,opt,name=event_type,json=eventType,proto3" json:"event_type,omitempty"` // "brand.voice.*", "brand.profile.updated"
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *BrandVoiceEvent) Reset() {
+	*x = BrandVoiceEvent{}
+	mi := &file_proto_v1_editor_service_proto_msgTypes[86]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BrandVoiceEvent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BrandVoiceEvent) ProtoMessage() {}
+
+func (x *BrandVoiceEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_v1_editor_service_proto_msgTypes[86]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BrandVoiceEvent.ProtoReflect.Descriptor instead.
+func (*BrandVoiceEvent) Descriptor() ([]byte, []int) {
+	return file_proto_v1_editor_service_proto_rawDescGZIP(), []int{86}
+}
+
+func (x *BrandVoiceEvent) GetEventType() string {
+	if x != nil {
+		return x.EventType
+	}
+	return ""
+}
+
+type TermBaseEvent struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	EventType     string                 `protobuf:"bytes,1,opt,name=event_type,json=eventType,proto3" json:"event_type,omitempty"` // term/concept change
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TermBaseEvent) Reset() {
+	*x = TermBaseEvent{}
+	mi := &file_proto_v1_editor_service_proto_msgTypes[87]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TermBaseEvent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TermBaseEvent) ProtoMessage() {}
+
+func (x *TermBaseEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_v1_editor_service_proto_msgTypes[87]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TermBaseEvent.ProtoReflect.Descriptor instead.
+func (*TermBaseEvent) Descriptor() ([]byte, []int) {
+	return file_proto_v1_editor_service_proto_rawDescGZIP(), []int{87}
+}
+
+func (x *TermBaseEvent) GetEventType() string {
+	if x != nil {
+		return x.EventType
+	}
+	return ""
+}
+
+type StreamEvent struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	EventType     string                 `protobuf:"bytes,1,opt,name=event_type,json=eventType,proto3" json:"event_type,omitempty"` // "stream.created", ".merged", ".locked", ...
+	Stream        string                 `protobuf:"bytes,2,opt,name=stream,proto3" json:"stream,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *StreamEvent) Reset() {
+	*x = StreamEvent{}
+	mi := &file_proto_v1_editor_service_proto_msgTypes[88]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StreamEvent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StreamEvent) ProtoMessage() {}
+
+func (x *StreamEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_v1_editor_service_proto_msgTypes[88]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StreamEvent.ProtoReflect.Descriptor instead.
+func (*StreamEvent) Descriptor() ([]byte, []int) {
+	return file_proto_v1_editor_service_proto_rawDescGZIP(), []int{88}
+}
+
+func (x *StreamEvent) GetEventType() string {
+	if x != nil {
+		return x.EventType
+	}
+	return ""
+}
+
+func (x *StreamEvent) GetStream() string {
+	if x != nil {
+		return x.Stream
+	}
+	return ""
 }
 
 var File_proto_v1_editor_service_proto protoreflect.FileDescriptor
@@ -5902,10 +6446,22 @@ const file_proto_v1_editor_service_proto_rawDesc = "" +
 	"\x0eworkspace_slug\x18\x01 \x01(\tR\rworkspaceSlug\x12\x1d\n" +
 	"\n" +
 	"project_id\x18\x02 \x01(\tR\tprojectId\x12\x16\n" +
-	"\x06stream\x18\x03 \x01(\tR\x06stream\"\xb4\x01\n" +
+	"\x06stream\x18\x03 \x01(\tR\x06stream\"\xf9\x05\n" +
 	"\fProjectEvent\x12H\n" +
 	"\fblock_change\x18\x01 \x01(\v2#.neokapi.server.v1.BlockChangeEventH\x00R\vblockChange\x12Q\n" +
-	"\x0fpresence_change\x18\x02 \x01(\v2&.neokapi.server.v1.PresenceChangeEventH\x00R\x0epresenceChangeB\a\n" +
+	"\x0fpresence_change\x18\x02 \x01(\v2&.neokapi.server.v1.PresenceChangeEventH\x00R\x0epresenceChange\x12N\n" +
+	"\x0eproject_change\x18\x03 \x01(\v2%.neokapi.server.v1.ProjectChangeEventH\x00R\rprojectChange\x12E\n" +
+	"\vitem_change\x18\x04 \x01(\v2\".neokapi.server.v1.ItemChangeEventH\x00R\n" +
+	"itemChange\x12N\n" +
+	"\x0econnector_sync\x18\x05 \x01(\v2%.neokapi.server.v1.ConnectorSyncEventH\x00R\rconnectorSync\x12B\n" +
+	"\n" +
+	"flow_event\x18\x06 \x01(\v2!.neokapi.server.v1.FlowEventEventH\x00R\tflowEvent\x12W\n" +
+	"\x11membership_change\x18\a \x01(\v2(.neokapi.server.v1.MembershipChangeEventH\x00R\x10membershipChange\x12E\n" +
+	"\vbrand_voice\x18\b \x01(\v2\".neokapi.server.v1.BrandVoiceEventH\x00R\n" +
+	"brandVoice\x12>\n" +
+	"\btermbase\x18\t \x01(\v2 .neokapi.server.v1.TermBaseEventH\x00R\btermbase\x128\n" +
+	"\x06stream\x18\n" +
+	" \x01(\v2\x1e.neokapi.server.v1.StreamEventH\x00R\x06streamB\a\n" +
 	"\x05event\"\xa2\x01\n" +
 	"\x10BlockChangeEvent\x12\x19\n" +
 	"\bblock_id\x18\x01 \x01(\tR\ablockId\x12\x1b\n" +
@@ -5918,7 +6474,39 @@ const file_proto_v1_editor_service_proto_rawDesc = "" +
 	"\x13PresenceChangeEvent\x12\x1f\n" +
 	"\vchange_type\x18\x01 \x01(\tR\n" +
 	"changeType\x123\n" +
-	"\x04user\x18\x02 \x01(\v2\x1f.neokapi.server.v1.PresenceInfoR\x04user2\xe4\x18\n" +
+	"\x04user\x18\x02 \x01(\v2\x1f.neokapi.server.v1.PresenceInfoR\x04user\"j\n" +
+	"\x12ProjectChangeEvent\x12\x1d\n" +
+	"\n" +
+	"event_type\x18\x01 \x01(\tR\teventType\x12\x1f\n" +
+	"\vchange_type\x18\x02 \x01(\tR\n" +
+	"changeType\x12\x14\n" +
+	"\x05actor\x18\x03 \x01(\tR\x05actor\"e\n" +
+	"\x0fItemChangeEvent\x12\x1d\n" +
+	"\n" +
+	"event_type\x18\x01 \x01(\tR\teventType\x12\x1b\n" +
+	"\titem_name\x18\x02 \x01(\tR\bitemName\x12\x16\n" +
+	"\x06stream\x18\x03 \x01(\tR\x06stream\"I\n" +
+	"\x12ConnectorSyncEvent\x12\x1d\n" +
+	"\n" +
+	"event_type\x18\x01 \x01(\tR\teventType\x12\x14\n" +
+	"\x05actor\x18\x02 \x01(\tR\x05actor\"/\n" +
+	"\x0eFlowEventEvent\x12\x1d\n" +
+	"\n" +
+	"event_type\x18\x01 \x01(\tR\teventType\"L\n" +
+	"\x15MembershipChangeEvent\x12\x1d\n" +
+	"\n" +
+	"event_type\x18\x01 \x01(\tR\teventType\x12\x14\n" +
+	"\x05actor\x18\x02 \x01(\tR\x05actor\"0\n" +
+	"\x0fBrandVoiceEvent\x12\x1d\n" +
+	"\n" +
+	"event_type\x18\x01 \x01(\tR\teventType\".\n" +
+	"\rTermBaseEvent\x12\x1d\n" +
+	"\n" +
+	"event_type\x18\x01 \x01(\tR\teventType\"D\n" +
+	"\vStreamEvent\x12\x1d\n" +
+	"\n" +
+	"event_type\x18\x01 \x01(\tR\teventType\x12\x16\n" +
+	"\x06stream\x18\x02 \x01(\tR\x06stream2\xe4\x18\n" +
 	"\rEditorService\x12[\n" +
 	"\x0eGetCurrentUser\x12(.neokapi.server.v1.GetCurrentUserRequest\x1a\x1f.neokapi.server.v1.UserResponse\x12e\n" +
 	"\x0eListWorkspaces\x12(.neokapi.server.v1.ListWorkspacesRequest\x1a).neokapi.server.v1.ListWorkspacesResponse\x12q\n" +
@@ -5971,7 +6559,7 @@ func file_proto_v1_editor_service_proto_rawDescGZIP() []byte {
 	return file_proto_v1_editor_service_proto_rawDescData
 }
 
-var file_proto_v1_editor_service_proto_msgTypes = make([]protoimpl.MessageInfo, 86)
+var file_proto_v1_editor_service_proto_msgTypes = make([]protoimpl.MessageInfo, 94)
 var file_proto_v1_editor_service_proto_goTypes = []any{
 	(*GetCurrentUserRequest)(nil),       // 0: neokapi.server.v1.GetCurrentUserRequest
 	(*UserResponse)(nil),                // 1: neokapi.server.v1.UserResponse
@@ -6054,12 +6642,20 @@ var file_proto_v1_editor_service_proto_goTypes = []any{
 	(*ProjectEvent)(nil),                // 78: neokapi.server.v1.ProjectEvent
 	(*BlockChangeEvent)(nil),            // 79: neokapi.server.v1.BlockChangeEvent
 	(*PresenceChangeEvent)(nil),         // 80: neokapi.server.v1.PresenceChangeEvent
-	nil,                                 // 81: neokapi.server.v1.EditorPluralRun.FormsEntry
-	nil,                                 // 82: neokapi.server.v1.EditorSelectRun.CasesEntry
-	nil,                                 // 83: neokapi.server.v1.BlockInfo.TargetRunsEntry
-	nil,                                 // 84: neokapi.server.v1.BlockInfo.PropertiesEntry
-	nil,                                 // 85: neokapi.server.v1.ConceptInfo.PropertiesEntry
-	(*emptypb.Empty)(nil),               // 86: google.protobuf.Empty
+	(*ProjectChangeEvent)(nil),          // 81: neokapi.server.v1.ProjectChangeEvent
+	(*ItemChangeEvent)(nil),             // 82: neokapi.server.v1.ItemChangeEvent
+	(*ConnectorSyncEvent)(nil),          // 83: neokapi.server.v1.ConnectorSyncEvent
+	(*FlowEventEvent)(nil),              // 84: neokapi.server.v1.FlowEventEvent
+	(*MembershipChangeEvent)(nil),       // 85: neokapi.server.v1.MembershipChangeEvent
+	(*BrandVoiceEvent)(nil),             // 86: neokapi.server.v1.BrandVoiceEvent
+	(*TermBaseEvent)(nil),               // 87: neokapi.server.v1.TermBaseEvent
+	(*StreamEvent)(nil),                 // 88: neokapi.server.v1.StreamEvent
+	nil,                                 // 89: neokapi.server.v1.EditorPluralRun.FormsEntry
+	nil,                                 // 90: neokapi.server.v1.EditorSelectRun.CasesEntry
+	nil,                                 // 91: neokapi.server.v1.BlockInfo.TargetRunsEntry
+	nil,                                 // 92: neokapi.server.v1.BlockInfo.PropertiesEntry
+	nil,                                 // 93: neokapi.server.v1.ConceptInfo.PropertiesEntry
+	(*emptypb.Empty)(nil),               // 94: google.protobuf.Empty
 }
 var file_proto_v1_editor_service_proto_depIdxs = []int32{
 	3,  // 0: neokapi.server.v1.ListWorkspacesResponse.workspaces:type_name -> neokapi.server.v1.WorkspaceInfo
@@ -6072,8 +6668,8 @@ var file_proto_v1_editor_service_proto_depIdxs = []int32{
 	21, // 7: neokapi.server.v1.DiffStreamResponse.changes:type_name -> neokapi.server.v1.BlockChangeInfo
 	23, // 8: neokapi.server.v1.EditorPlaceholderRun.constraints:type_name -> neokapi.server.v1.EditorRunConstraints
 	23, // 9: neokapi.server.v1.EditorPcOpenRun.constraints:type_name -> neokapi.server.v1.EditorRunConstraints
-	81, // 10: neokapi.server.v1.EditorPluralRun.forms:type_name -> neokapi.server.v1.EditorPluralRun.FormsEntry
-	82, // 11: neokapi.server.v1.EditorSelectRun.cases:type_name -> neokapi.server.v1.EditorSelectRun.CasesEntry
+	89, // 10: neokapi.server.v1.EditorPluralRun.forms:type_name -> neokapi.server.v1.EditorPluralRun.FormsEntry
+	90, // 11: neokapi.server.v1.EditorSelectRun.cases:type_name -> neokapi.server.v1.EditorSelectRun.CasesEntry
 	32, // 12: neokapi.server.v1.EditorRunList.runs:type_name -> neokapi.server.v1.EditorRun
 	24, // 13: neokapi.server.v1.EditorRun.text:type_name -> neokapi.server.v1.EditorTextRun
 	25, // 14: neokapi.server.v1.EditorRun.ph:type_name -> neokapi.server.v1.EditorPlaceholderRun
@@ -6084,8 +6680,8 @@ var file_proto_v1_editor_service_proto_depIdxs = []int32{
 	30, // 19: neokapi.server.v1.EditorRun.select:type_name -> neokapi.server.v1.EditorSelectRun
 	32, // 20: neokapi.server.v1.EditorRuns.runs:type_name -> neokapi.server.v1.EditorRun
 	32, // 21: neokapi.server.v1.BlockInfo.source_runs:type_name -> neokapi.server.v1.EditorRun
-	83, // 22: neokapi.server.v1.BlockInfo.target_runs:type_name -> neokapi.server.v1.BlockInfo.TargetRunsEntry
-	84, // 23: neokapi.server.v1.BlockInfo.properties:type_name -> neokapi.server.v1.BlockInfo.PropertiesEntry
+	91, // 22: neokapi.server.v1.BlockInfo.target_runs:type_name -> neokapi.server.v1.BlockInfo.TargetRunsEntry
+	92, // 23: neokapi.server.v1.BlockInfo.properties:type_name -> neokapi.server.v1.BlockInfo.PropertiesEntry
 	34, // 24: neokapi.server.v1.GetBlocksResponse.blocks:type_name -> neokapi.server.v1.BlockInfo
 	32, // 25: neokapi.server.v1.UpdateBlockTargetRequest.runs:type_name -> neokapi.server.v1.EditorRun
 	40, // 26: neokapi.server.v1.TMLookupResponse.matches:type_name -> neokapi.server.v1.TMLookupMatch
@@ -6093,7 +6689,7 @@ var file_proto_v1_editor_service_proto_depIdxs = []int32{
 	46, // 28: neokapi.server.v1.TMEntriesResponse.entries:type_name -> neokapi.server.v1.TMEntryInfo
 	46, // 29: neokapi.server.v1.TMEntryResponse.entry:type_name -> neokapi.server.v1.TMEntryInfo
 	54, // 30: neokapi.server.v1.ConceptInfo.terms:type_name -> neokapi.server.v1.TermInfo
-	85, // 31: neokapi.server.v1.ConceptInfo.properties:type_name -> neokapi.server.v1.ConceptInfo.PropertiesEntry
+	93, // 31: neokapi.server.v1.ConceptInfo.properties:type_name -> neokapi.server.v1.ConceptInfo.PropertiesEntry
 	55, // 32: neokapi.server.v1.TermsResponse.concepts:type_name -> neokapi.server.v1.ConceptInfo
 	54, // 33: neokapi.server.v1.AddConceptRequest.terms:type_name -> neokapi.server.v1.TermInfo
 	55, // 34: neokapi.server.v1.ConceptResponse.concept:type_name -> neokapi.server.v1.ConceptInfo
@@ -6101,83 +6697,91 @@ var file_proto_v1_editor_service_proto_depIdxs = []int32{
 	69, // 36: neokapi.server.v1.ListProviderConfigsResponse.configs:type_name -> neokapi.server.v1.ProviderConfigInfo
 	79, // 37: neokapi.server.v1.ProjectEvent.block_change:type_name -> neokapi.server.v1.BlockChangeEvent
 	80, // 38: neokapi.server.v1.ProjectEvent.presence_change:type_name -> neokapi.server.v1.PresenceChangeEvent
-	76, // 39: neokapi.server.v1.PresenceChangeEvent.user:type_name -> neokapi.server.v1.PresenceInfo
-	31, // 40: neokapi.server.v1.EditorPluralRun.FormsEntry.value:type_name -> neokapi.server.v1.EditorRunList
-	31, // 41: neokapi.server.v1.EditorSelectRun.CasesEntry.value:type_name -> neokapi.server.v1.EditorRunList
-	33, // 42: neokapi.server.v1.BlockInfo.TargetRunsEntry.value:type_name -> neokapi.server.v1.EditorRuns
-	0,  // 43: neokapi.server.v1.EditorService.GetCurrentUser:input_type -> neokapi.server.v1.GetCurrentUserRequest
-	2,  // 44: neokapi.server.v1.EditorService.ListWorkspaces:input_type -> neokapi.server.v1.ListWorkspacesRequest
-	5,  // 45: neokapi.server.v1.EditorService.ListEditorProjects:input_type -> neokapi.server.v1.ListEditorProjectsRequest
-	9,  // 46: neokapi.server.v1.EditorService.GetEditorProject:input_type -> neokapi.server.v1.GetEditorProjectRequest
-	12, // 47: neokapi.server.v1.EditorService.ListStreams:input_type -> neokapi.server.v1.ListStreamsRequest
-	14, // 48: neokapi.server.v1.EditorService.CreateStream:input_type -> neokapi.server.v1.CreateStreamRequest
-	16, // 49: neokapi.server.v1.EditorService.GetStreamInfo:input_type -> neokapi.server.v1.GetStreamInfoRequest
-	17, // 50: neokapi.server.v1.EditorService.ArchiveStream:input_type -> neokapi.server.v1.ArchiveStreamRequest
-	18, // 51: neokapi.server.v1.EditorService.MergeStream:input_type -> neokapi.server.v1.MergeStreamRequest
-	20, // 52: neokapi.server.v1.EditorService.DiffStream:input_type -> neokapi.server.v1.DiffStreamRequest
-	35, // 53: neokapi.server.v1.EditorService.GetBlocks:input_type -> neokapi.server.v1.GetBlocksRequest
-	37, // 54: neokapi.server.v1.EditorService.UpdateBlockTarget:input_type -> neokapi.server.v1.UpdateBlockTargetRequest
-	38, // 55: neokapi.server.v1.EditorService.ReviewBlock:input_type -> neokapi.server.v1.ReviewBlockRequest
-	39, // 56: neokapi.server.v1.EditorService.LookupTMForBlock:input_type -> neokapi.server.v1.TMLookupRequest
-	42, // 57: neokapi.server.v1.EditorService.LookupTermsForBlock:input_type -> neokapi.server.v1.TermLookupRequest
-	45, // 58: neokapi.server.v1.EditorService.GetTMEntries:input_type -> neokapi.server.v1.TMEntriesRequest
-	48, // 59: neokapi.server.v1.EditorService.GetTMCount:input_type -> neokapi.server.v1.TMCountRequest
-	50, // 60: neokapi.server.v1.EditorService.AddTMEntry:input_type -> neokapi.server.v1.AddTMEntryRequest
-	52, // 61: neokapi.server.v1.EditorService.UpdateTMEntry:input_type -> neokapi.server.v1.UpdateTMEntryRequest
-	53, // 62: neokapi.server.v1.EditorService.DeleteTMEntry:input_type -> neokapi.server.v1.DeleteTMEntryRequest
-	56, // 63: neokapi.server.v1.EditorService.GetTerms:input_type -> neokapi.server.v1.TermsRequest
-	58, // 64: neokapi.server.v1.EditorService.GetTermCount:input_type -> neokapi.server.v1.TermCountRequest
-	60, // 65: neokapi.server.v1.EditorService.AddConcept:input_type -> neokapi.server.v1.AddConceptRequest
-	62, // 66: neokapi.server.v1.EditorService.UpdateConcept:input_type -> neokapi.server.v1.UpdateConceptRequest
-	63, // 67: neokapi.server.v1.EditorService.DeleteConcept:input_type -> neokapi.server.v1.DeleteConceptRequest
-	64, // 68: neokapi.server.v1.EditorService.ImportTermsCSV:input_type -> neokapi.server.v1.ImportTermsCSVRequest
-	65, // 69: neokapi.server.v1.EditorService.ImportTermsJSON:input_type -> neokapi.server.v1.ImportTermsJSONRequest
-	67, // 70: neokapi.server.v1.EditorService.ExportTermsJSON:input_type -> neokapi.server.v1.ExportTermsJSONRequest
-	70, // 71: neokapi.server.v1.EditorService.ListProviderConfigs:input_type -> neokapi.server.v1.ListProviderConfigsRequest
-	72, // 72: neokapi.server.v1.EditorService.SaveProviderConfig:input_type -> neokapi.server.v1.SaveProviderConfigRPC
-	73, // 73: neokapi.server.v1.EditorService.DeleteProviderConfig:input_type -> neokapi.server.v1.DeleteProviderConfigRequest
-	74, // 74: neokapi.server.v1.EditorService.TestProviderConfig:input_type -> neokapi.server.v1.TestProviderConfigRPC
-	75, // 75: neokapi.server.v1.EditorService.UpdatePresence:input_type -> neokapi.server.v1.UpdatePresenceRequest
-	77, // 76: neokapi.server.v1.EditorService.WatchProject:input_type -> neokapi.server.v1.WatchProjectRequest
-	1,  // 77: neokapi.server.v1.EditorService.GetCurrentUser:output_type -> neokapi.server.v1.UserResponse
-	4,  // 78: neokapi.server.v1.EditorService.ListWorkspaces:output_type -> neokapi.server.v1.ListWorkspacesResponse
-	8,  // 79: neokapi.server.v1.EditorService.ListEditorProjects:output_type -> neokapi.server.v1.ListEditorProjectsResponse
-	10, // 80: neokapi.server.v1.EditorService.GetEditorProject:output_type -> neokapi.server.v1.EditorProjectResponse
-	13, // 81: neokapi.server.v1.EditorService.ListStreams:output_type -> neokapi.server.v1.ListStreamsResponse
-	15, // 82: neokapi.server.v1.EditorService.CreateStream:output_type -> neokapi.server.v1.StreamInfoResponse
-	15, // 83: neokapi.server.v1.EditorService.GetStreamInfo:output_type -> neokapi.server.v1.StreamInfoResponse
-	86, // 84: neokapi.server.v1.EditorService.ArchiveStream:output_type -> google.protobuf.Empty
-	19, // 85: neokapi.server.v1.EditorService.MergeStream:output_type -> neokapi.server.v1.MergeStreamResponse
-	22, // 86: neokapi.server.v1.EditorService.DiffStream:output_type -> neokapi.server.v1.DiffStreamResponse
-	36, // 87: neokapi.server.v1.EditorService.GetBlocks:output_type -> neokapi.server.v1.GetBlocksResponse
-	86, // 88: neokapi.server.v1.EditorService.UpdateBlockTarget:output_type -> google.protobuf.Empty
-	86, // 89: neokapi.server.v1.EditorService.ReviewBlock:output_type -> google.protobuf.Empty
-	41, // 90: neokapi.server.v1.EditorService.LookupTMForBlock:output_type -> neokapi.server.v1.TMLookupResponse
-	44, // 91: neokapi.server.v1.EditorService.LookupTermsForBlock:output_type -> neokapi.server.v1.TermLookupResponse
-	47, // 92: neokapi.server.v1.EditorService.GetTMEntries:output_type -> neokapi.server.v1.TMEntriesResponse
-	49, // 93: neokapi.server.v1.EditorService.GetTMCount:output_type -> neokapi.server.v1.TMCountResponse
-	51, // 94: neokapi.server.v1.EditorService.AddTMEntry:output_type -> neokapi.server.v1.TMEntryResponse
-	86, // 95: neokapi.server.v1.EditorService.UpdateTMEntry:output_type -> google.protobuf.Empty
-	86, // 96: neokapi.server.v1.EditorService.DeleteTMEntry:output_type -> google.protobuf.Empty
-	57, // 97: neokapi.server.v1.EditorService.GetTerms:output_type -> neokapi.server.v1.TermsResponse
-	59, // 98: neokapi.server.v1.EditorService.GetTermCount:output_type -> neokapi.server.v1.TermCountResponse
-	61, // 99: neokapi.server.v1.EditorService.AddConcept:output_type -> neokapi.server.v1.ConceptResponse
-	86, // 100: neokapi.server.v1.EditorService.UpdateConcept:output_type -> google.protobuf.Empty
-	86, // 101: neokapi.server.v1.EditorService.DeleteConcept:output_type -> google.protobuf.Empty
-	66, // 102: neokapi.server.v1.EditorService.ImportTermsCSV:output_type -> neokapi.server.v1.ImportCountResponse
-	66, // 103: neokapi.server.v1.EditorService.ImportTermsJSON:output_type -> neokapi.server.v1.ImportCountResponse
-	68, // 104: neokapi.server.v1.EditorService.ExportTermsJSON:output_type -> neokapi.server.v1.ExportTermsJSONResponse
-	71, // 105: neokapi.server.v1.EditorService.ListProviderConfigs:output_type -> neokapi.server.v1.ListProviderConfigsResponse
-	69, // 106: neokapi.server.v1.EditorService.SaveProviderConfig:output_type -> neokapi.server.v1.ProviderConfigInfo
-	86, // 107: neokapi.server.v1.EditorService.DeleteProviderConfig:output_type -> google.protobuf.Empty
-	86, // 108: neokapi.server.v1.EditorService.TestProviderConfig:output_type -> google.protobuf.Empty
-	86, // 109: neokapi.server.v1.EditorService.UpdatePresence:output_type -> google.protobuf.Empty
-	78, // 110: neokapi.server.v1.EditorService.WatchProject:output_type -> neokapi.server.v1.ProjectEvent
-	77, // [77:111] is the sub-list for method output_type
-	43, // [43:77] is the sub-list for method input_type
-	43, // [43:43] is the sub-list for extension type_name
-	43, // [43:43] is the sub-list for extension extendee
-	0,  // [0:43] is the sub-list for field type_name
+	81, // 39: neokapi.server.v1.ProjectEvent.project_change:type_name -> neokapi.server.v1.ProjectChangeEvent
+	82, // 40: neokapi.server.v1.ProjectEvent.item_change:type_name -> neokapi.server.v1.ItemChangeEvent
+	83, // 41: neokapi.server.v1.ProjectEvent.connector_sync:type_name -> neokapi.server.v1.ConnectorSyncEvent
+	84, // 42: neokapi.server.v1.ProjectEvent.flow_event:type_name -> neokapi.server.v1.FlowEventEvent
+	85, // 43: neokapi.server.v1.ProjectEvent.membership_change:type_name -> neokapi.server.v1.MembershipChangeEvent
+	86, // 44: neokapi.server.v1.ProjectEvent.brand_voice:type_name -> neokapi.server.v1.BrandVoiceEvent
+	87, // 45: neokapi.server.v1.ProjectEvent.termbase:type_name -> neokapi.server.v1.TermBaseEvent
+	88, // 46: neokapi.server.v1.ProjectEvent.stream:type_name -> neokapi.server.v1.StreamEvent
+	76, // 47: neokapi.server.v1.PresenceChangeEvent.user:type_name -> neokapi.server.v1.PresenceInfo
+	31, // 48: neokapi.server.v1.EditorPluralRun.FormsEntry.value:type_name -> neokapi.server.v1.EditorRunList
+	31, // 49: neokapi.server.v1.EditorSelectRun.CasesEntry.value:type_name -> neokapi.server.v1.EditorRunList
+	33, // 50: neokapi.server.v1.BlockInfo.TargetRunsEntry.value:type_name -> neokapi.server.v1.EditorRuns
+	0,  // 51: neokapi.server.v1.EditorService.GetCurrentUser:input_type -> neokapi.server.v1.GetCurrentUserRequest
+	2,  // 52: neokapi.server.v1.EditorService.ListWorkspaces:input_type -> neokapi.server.v1.ListWorkspacesRequest
+	5,  // 53: neokapi.server.v1.EditorService.ListEditorProjects:input_type -> neokapi.server.v1.ListEditorProjectsRequest
+	9,  // 54: neokapi.server.v1.EditorService.GetEditorProject:input_type -> neokapi.server.v1.GetEditorProjectRequest
+	12, // 55: neokapi.server.v1.EditorService.ListStreams:input_type -> neokapi.server.v1.ListStreamsRequest
+	14, // 56: neokapi.server.v1.EditorService.CreateStream:input_type -> neokapi.server.v1.CreateStreamRequest
+	16, // 57: neokapi.server.v1.EditorService.GetStreamInfo:input_type -> neokapi.server.v1.GetStreamInfoRequest
+	17, // 58: neokapi.server.v1.EditorService.ArchiveStream:input_type -> neokapi.server.v1.ArchiveStreamRequest
+	18, // 59: neokapi.server.v1.EditorService.MergeStream:input_type -> neokapi.server.v1.MergeStreamRequest
+	20, // 60: neokapi.server.v1.EditorService.DiffStream:input_type -> neokapi.server.v1.DiffStreamRequest
+	35, // 61: neokapi.server.v1.EditorService.GetBlocks:input_type -> neokapi.server.v1.GetBlocksRequest
+	37, // 62: neokapi.server.v1.EditorService.UpdateBlockTarget:input_type -> neokapi.server.v1.UpdateBlockTargetRequest
+	38, // 63: neokapi.server.v1.EditorService.ReviewBlock:input_type -> neokapi.server.v1.ReviewBlockRequest
+	39, // 64: neokapi.server.v1.EditorService.LookupTMForBlock:input_type -> neokapi.server.v1.TMLookupRequest
+	42, // 65: neokapi.server.v1.EditorService.LookupTermsForBlock:input_type -> neokapi.server.v1.TermLookupRequest
+	45, // 66: neokapi.server.v1.EditorService.GetTMEntries:input_type -> neokapi.server.v1.TMEntriesRequest
+	48, // 67: neokapi.server.v1.EditorService.GetTMCount:input_type -> neokapi.server.v1.TMCountRequest
+	50, // 68: neokapi.server.v1.EditorService.AddTMEntry:input_type -> neokapi.server.v1.AddTMEntryRequest
+	52, // 69: neokapi.server.v1.EditorService.UpdateTMEntry:input_type -> neokapi.server.v1.UpdateTMEntryRequest
+	53, // 70: neokapi.server.v1.EditorService.DeleteTMEntry:input_type -> neokapi.server.v1.DeleteTMEntryRequest
+	56, // 71: neokapi.server.v1.EditorService.GetTerms:input_type -> neokapi.server.v1.TermsRequest
+	58, // 72: neokapi.server.v1.EditorService.GetTermCount:input_type -> neokapi.server.v1.TermCountRequest
+	60, // 73: neokapi.server.v1.EditorService.AddConcept:input_type -> neokapi.server.v1.AddConceptRequest
+	62, // 74: neokapi.server.v1.EditorService.UpdateConcept:input_type -> neokapi.server.v1.UpdateConceptRequest
+	63, // 75: neokapi.server.v1.EditorService.DeleteConcept:input_type -> neokapi.server.v1.DeleteConceptRequest
+	64, // 76: neokapi.server.v1.EditorService.ImportTermsCSV:input_type -> neokapi.server.v1.ImportTermsCSVRequest
+	65, // 77: neokapi.server.v1.EditorService.ImportTermsJSON:input_type -> neokapi.server.v1.ImportTermsJSONRequest
+	67, // 78: neokapi.server.v1.EditorService.ExportTermsJSON:input_type -> neokapi.server.v1.ExportTermsJSONRequest
+	70, // 79: neokapi.server.v1.EditorService.ListProviderConfigs:input_type -> neokapi.server.v1.ListProviderConfigsRequest
+	72, // 80: neokapi.server.v1.EditorService.SaveProviderConfig:input_type -> neokapi.server.v1.SaveProviderConfigRPC
+	73, // 81: neokapi.server.v1.EditorService.DeleteProviderConfig:input_type -> neokapi.server.v1.DeleteProviderConfigRequest
+	74, // 82: neokapi.server.v1.EditorService.TestProviderConfig:input_type -> neokapi.server.v1.TestProviderConfigRPC
+	75, // 83: neokapi.server.v1.EditorService.UpdatePresence:input_type -> neokapi.server.v1.UpdatePresenceRequest
+	77, // 84: neokapi.server.v1.EditorService.WatchProject:input_type -> neokapi.server.v1.WatchProjectRequest
+	1,  // 85: neokapi.server.v1.EditorService.GetCurrentUser:output_type -> neokapi.server.v1.UserResponse
+	4,  // 86: neokapi.server.v1.EditorService.ListWorkspaces:output_type -> neokapi.server.v1.ListWorkspacesResponse
+	8,  // 87: neokapi.server.v1.EditorService.ListEditorProjects:output_type -> neokapi.server.v1.ListEditorProjectsResponse
+	10, // 88: neokapi.server.v1.EditorService.GetEditorProject:output_type -> neokapi.server.v1.EditorProjectResponse
+	13, // 89: neokapi.server.v1.EditorService.ListStreams:output_type -> neokapi.server.v1.ListStreamsResponse
+	15, // 90: neokapi.server.v1.EditorService.CreateStream:output_type -> neokapi.server.v1.StreamInfoResponse
+	15, // 91: neokapi.server.v1.EditorService.GetStreamInfo:output_type -> neokapi.server.v1.StreamInfoResponse
+	94, // 92: neokapi.server.v1.EditorService.ArchiveStream:output_type -> google.protobuf.Empty
+	19, // 93: neokapi.server.v1.EditorService.MergeStream:output_type -> neokapi.server.v1.MergeStreamResponse
+	22, // 94: neokapi.server.v1.EditorService.DiffStream:output_type -> neokapi.server.v1.DiffStreamResponse
+	36, // 95: neokapi.server.v1.EditorService.GetBlocks:output_type -> neokapi.server.v1.GetBlocksResponse
+	94, // 96: neokapi.server.v1.EditorService.UpdateBlockTarget:output_type -> google.protobuf.Empty
+	94, // 97: neokapi.server.v1.EditorService.ReviewBlock:output_type -> google.protobuf.Empty
+	41, // 98: neokapi.server.v1.EditorService.LookupTMForBlock:output_type -> neokapi.server.v1.TMLookupResponse
+	44, // 99: neokapi.server.v1.EditorService.LookupTermsForBlock:output_type -> neokapi.server.v1.TermLookupResponse
+	47, // 100: neokapi.server.v1.EditorService.GetTMEntries:output_type -> neokapi.server.v1.TMEntriesResponse
+	49, // 101: neokapi.server.v1.EditorService.GetTMCount:output_type -> neokapi.server.v1.TMCountResponse
+	51, // 102: neokapi.server.v1.EditorService.AddTMEntry:output_type -> neokapi.server.v1.TMEntryResponse
+	94, // 103: neokapi.server.v1.EditorService.UpdateTMEntry:output_type -> google.protobuf.Empty
+	94, // 104: neokapi.server.v1.EditorService.DeleteTMEntry:output_type -> google.protobuf.Empty
+	57, // 105: neokapi.server.v1.EditorService.GetTerms:output_type -> neokapi.server.v1.TermsResponse
+	59, // 106: neokapi.server.v1.EditorService.GetTermCount:output_type -> neokapi.server.v1.TermCountResponse
+	61, // 107: neokapi.server.v1.EditorService.AddConcept:output_type -> neokapi.server.v1.ConceptResponse
+	94, // 108: neokapi.server.v1.EditorService.UpdateConcept:output_type -> google.protobuf.Empty
+	94, // 109: neokapi.server.v1.EditorService.DeleteConcept:output_type -> google.protobuf.Empty
+	66, // 110: neokapi.server.v1.EditorService.ImportTermsCSV:output_type -> neokapi.server.v1.ImportCountResponse
+	66, // 111: neokapi.server.v1.EditorService.ImportTermsJSON:output_type -> neokapi.server.v1.ImportCountResponse
+	68, // 112: neokapi.server.v1.EditorService.ExportTermsJSON:output_type -> neokapi.server.v1.ExportTermsJSONResponse
+	71, // 113: neokapi.server.v1.EditorService.ListProviderConfigs:output_type -> neokapi.server.v1.ListProviderConfigsResponse
+	69, // 114: neokapi.server.v1.EditorService.SaveProviderConfig:output_type -> neokapi.server.v1.ProviderConfigInfo
+	94, // 115: neokapi.server.v1.EditorService.DeleteProviderConfig:output_type -> google.protobuf.Empty
+	94, // 116: neokapi.server.v1.EditorService.TestProviderConfig:output_type -> google.protobuf.Empty
+	94, // 117: neokapi.server.v1.EditorService.UpdatePresence:output_type -> google.protobuf.Empty
+	78, // 118: neokapi.server.v1.EditorService.WatchProject:output_type -> neokapi.server.v1.ProjectEvent
+	85, // [85:119] is the sub-list for method output_type
+	51, // [51:85] is the sub-list for method input_type
+	51, // [51:51] is the sub-list for extension type_name
+	51, // [51:51] is the sub-list for extension extendee
+	0,  // [0:51] is the sub-list for field type_name
 }
 
 func init() { file_proto_v1_editor_service_proto_init() }
@@ -6197,6 +6801,14 @@ func file_proto_v1_editor_service_proto_init() {
 	file_proto_v1_editor_service_proto_msgTypes[78].OneofWrappers = []any{
 		(*ProjectEvent_BlockChange)(nil),
 		(*ProjectEvent_PresenceChange)(nil),
+		(*ProjectEvent_ProjectChange)(nil),
+		(*ProjectEvent_ItemChange)(nil),
+		(*ProjectEvent_ConnectorSync)(nil),
+		(*ProjectEvent_FlowEvent)(nil),
+		(*ProjectEvent_MembershipChange)(nil),
+		(*ProjectEvent_BrandVoice)(nil),
+		(*ProjectEvent_Termbase)(nil),
+		(*ProjectEvent_Stream)(nil),
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
@@ -6204,7 +6816,7 @@ func file_proto_v1_editor_service_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_v1_editor_service_proto_rawDesc), len(file_proto_v1_editor_service_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   86,
+			NumMessages:   94,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

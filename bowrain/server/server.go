@@ -183,6 +183,11 @@ type Server struct {
 	// runHub manages SSE connections for live automation run updates. Always initialized.
 	runHub *automationRunHub
 
+	// changeRelay fans out platform events to attached web (SSE) and desktop
+	// (gRPC WatchProject) clients so no view shows stale state on an external
+	// change. Always initialized.
+	changeRelay *event.ChangeRelay
+
 	// SyncCache is the optional Redis hash cache for sync diff engine (Bowrain AD-009).
 	SyncCache bowsync.HashCache
 
@@ -415,6 +420,18 @@ func NewServer(cfg Config) *Server {
 	// Wire up activity recorder (Bowrain AD-014).
 	if s.ActivityStore != nil {
 		s.ActivityRecorder = event.NewActivityRecorder(s.ActivityStore, s.EventBus)
+	}
+
+	// Wire up the unified change-event relay. It attaches to the bus per
+	// instance (SubscribeAll) and forwards events to locally-connected web
+	// (SSE) and desktop (gRPC WatchProject) clients. The resolver lets
+	// workspace-scoped SSE clients receive events for any of their projects.
+	if s.EventBus != nil {
+		var resolver event.ProjectWorkspaceResolver
+		if s.ContentStore != nil {
+			resolver = &contentStoreWorkspaceResolver{store: s.ContentStore}
+		}
+		s.changeRelay = event.NewChangeRelay(s.EventBus, resolver)
 	}
 
 	// Wire up notification dispatcher (Bowrain AD-014).
@@ -808,6 +825,11 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 		wsSpecific.POST("/members", s.HandleAddMember)
 		wsSpecific.PUT("/members/:uid/role", s.HandleUpdateMemberRole)
 		wsSpecific.DELETE("/members/:uid", s.HandleRemoveMember)
+
+		// Unified change-event stream (SSE) — keeps web views fresh on any
+		// external change (other users, kapi push, connector sync, automations).
+		// Optional ?project=<id> narrows the stream to one project.
+		wsSpecific.GET("/events", s.HandleWorkspaceEventsSSE)
 
 		// Invite routes (workspace-scoped, admin/owner only).
 		wsSpecific.POST("/invites", s.HandleCreateInvite)
@@ -1323,6 +1345,9 @@ func (s *Server) Shutdown(ctx context.Context) error {
 	}
 	if s.ActivityRecorder != nil {
 		s.ActivityRecorder.Close()
+	}
+	if s.changeRelay != nil {
+		s.changeRelay.Close()
 	}
 	if s.NotificationDispatcher != nil {
 		s.NotificationDispatcher.Close()

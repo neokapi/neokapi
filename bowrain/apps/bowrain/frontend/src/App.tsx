@@ -30,6 +30,7 @@ import { DesktopTranslateView } from "./components/DesktopTranslateView";
 import { MembersPage } from "./components/MembersPage";
 import { BrandPage } from "./components/BrandPage";
 import { useConnection } from "./hooks/useApi";
+import { BackendEventsProvider, useBackendEvents } from "./hooks/useBackendEvents";
 import { WailsApiAdapter } from "./api/WailsApiAdapter";
 import type { ProjectInfo, Workspace, User } from "@neokapi/ui";
 import { Shuffle, Link, Loader2, Users, ShieldCheck } from "lucide-react";
@@ -62,6 +63,45 @@ const governanceNavItems: NavItem[] = [
   { id: "members", label: "Members", icon: <Users className="w-4 h-4" /> },
   { id: "brand", label: "Brand", icon: <ShieldCheck className="w-4 h-4" /> },
 ];
+
+/**
+ * FreshnessBridge wires the backend freshness events to the App's refetch
+ * callbacks. Rendered inside BackendEventsProvider so its useBackendEvents
+ * subscriptions reach the shared Wails event fan-out. On reconnect, every
+ * registered listener re-runs (handled by the provider), so all open views
+ * pull fresh authoritative state after an offline gap.
+ */
+function FreshnessBridge({
+  reloadProjects,
+  reloadActiveProject,
+  reloadOpenEditor,
+}: {
+  reloadProjects: () => void;
+  reloadActiveProject: () => void;
+  reloadOpenEditor: () => void;
+}) {
+  // Block edits from other users / pushes / flows → reload the open editor and
+  // the project counts.
+  useBackendEvents(["blocks-changed", "flow-changed"], () => {
+    reloadOpenEditor();
+    reloadActiveProject();
+  });
+  // Item add/remove, project lifecycle, connector sync → reload project + list.
+  useBackendEvents(["project-changed", "connector-sync"], () => {
+    reloadActiveProject();
+    reloadProjects();
+  });
+  // Membership/brand/termbase/stream changes → refresh the active project view
+  // (members/brand/term panels read from it) and the list.
+  useBackendEvents(
+    ["membership-changed", "brand-voice-changed", "termbase-changed", "stream-changed"],
+    () => {
+      reloadActiveProject();
+      reloadProjects();
+    },
+  );
+  return null;
+}
 
 const wailsAdapter = new WailsApiAdapter();
 const localWorkspace = {
@@ -97,6 +137,10 @@ function App() {
   const [showTermExplorer, setShowTermExplorer] = useState(false);
   const [pendingChanges, setPendingChanges] = useState(0);
   const [showCreateWs, setShowCreateWs] = useState(false);
+
+  // Bumped by the backend-events freshness layer to force the open editor to
+  // reload blocks when an external change touches the active project.
+  const [blocksReloadSignal, setBlocksReloadSignal] = useState(0);
 
   // Listen for connection state changes from the backend (e.g. going offline).
   useEffect(() => {
@@ -388,6 +432,56 @@ function App() {
     setShowTermExplorer(false);
   }, []);
 
+  // --- Freshness: reload data on external changes ---
+
+  // Reload the active project (item list, counts) from the server. Used when an
+  // external change (another user, kapi push, connector sync, automation,
+  // item add/remove) touches the open project.
+  const reloadActiveProject = useCallback(() => {
+    setActiveProject((current) => {
+      if (!current) return current;
+      void wailsAdapter
+        .getProject(workspace.slug, current.id)
+        .then((fresh) => {
+          setActiveProject(fresh);
+          setProjects((prev) => prev.map((p) => (p.id === fresh.id ? fresh : p)));
+        })
+        .catch(() => {
+          /* keep current on failure */
+        });
+      return current;
+    });
+  }, [workspace.slug]);
+
+  // Reload the workspace project list (project create/delete/rename elsewhere).
+  const reloadProjects = useCallback(() => {
+    Backend.ListProjects()
+      .then((p: ProjectInfo[]) => setProjects(p?.length ? p : []))
+      .catch(() => {
+        /* keep current on failure */
+      });
+  }, []);
+
+  // Force the open editor to reload its blocks.
+  const reloadOpenEditor = useCallback(() => {
+    setBlocksReloadSignal((n) => n + 1);
+  }, []);
+
+  // Open/close the gRPC WatchProject stream as the active project changes (server
+  // mode only). This is what feeds the typed backend events the freshness layer
+  // listens to; without it no external change would ever reach the desktop UI.
+  useEffect(() => {
+    if (!isServerMode || !activeProject) {
+      void connection.stopWatching();
+      return;
+    }
+    void connection.startWatching(activeProject.id);
+    return () => {
+      void connection.stopWatching();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isServerMode, activeProject?.id]);
+
   const handleOpenTM = useCallback(() => {
     setShowTMExplorer(true);
     setShowTermExplorer(false);
@@ -548,6 +642,7 @@ function App() {
           onBack={handleBackToProject}
           onExport={handleDesktopExport}
           surfaceTabs={surfaceTabs}
+          reloadSignal={blocksReloadSignal}
         />
       );
     }
@@ -606,6 +701,13 @@ function App() {
       <TooltipProvider>
         <ApiProvider adapter={wailsAdapter}>
           <WorkspaceProvider initialWorkspace={workspace}>
+            <BackendEventsProvider>
+              <FreshnessBridge
+                reloadProjects={reloadProjects}
+                reloadActiveProject={reloadActiveProject}
+                reloadOpenEditor={reloadOpenEditor}
+              />
+            </BackendEventsProvider>
             <AppShell
               workspaces={allWorkspaces}
               activeWorkspace={workspace}

@@ -35,7 +35,8 @@ export function TranslateRoute() {
   const surfaceTabs = useEditorSurfaceNav("translate");
 
   // Set up collaborative editing via WebSocket + Yjs.
-  const { connectedUsers, connectionState } = useCollaboration({
+  const collabEnabled = !!fileName && !!ws;
+  const { connectedUsers, connectionState, setSelectedBlock } = useCollaboration({
     serverUrl: window.location.origin,
     workspace: ws,
     projectId: projectId ?? "",
@@ -46,7 +47,7 @@ export function TranslateRoute() {
       name: user.name,
       avatarUrl: user.avatar_url,
     },
-    enabled: !!fileName && !!ws,
+    enabled: collabEnabled,
   });
 
   return (
@@ -54,6 +55,7 @@ export function TranslateRoute() {
       project={project}
       fileName={fileName}
       surfaceTabs={surfaceTabs}
+      onSelectedBlockChange={collabEnabled ? setSelectedBlock : undefined}
       onBack={() =>
         navigate({
           to: "/$workspace/p/$projectId/s/$stream",

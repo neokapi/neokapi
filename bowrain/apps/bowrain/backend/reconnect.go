@@ -51,6 +51,11 @@ func (a *App) reconnectLoop(ctx context.Context) {
 		if a.tryReconnect() {
 			slog.Info("bowrain: reconnected to server")
 			a.replayPendingChanges()
+			// Signal the frontend to force a full refresh of every open view.
+			// While offline we may have missed any number of external changes
+			// (other users, kapi push, connector sync, automations); replaying
+			// our own queue is not enough — pull fresh authoritative state.
+			a.emit("reconnected", a.GetConnectionState())
 			return
 		}
 
