@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/neokapi/neokapi/bowrain/compression"
+	"github.com/neokapi/neokapi/core/storage/compression"
 )
 
 // StreamHeader is the HTTP header used to communicate the active stream (legacy).

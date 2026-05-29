@@ -294,6 +294,49 @@ verify-isolation: ## Verify all Go module isolation boundaries
 	@# kapi must not have heavy deps
 	@if cd kapi && GOWORK=off go list -m all 2>/dev/null | grep -iE 'wails|echo|oidc|keyring'; then echo "ERROR: kapi has heavy deps"; exit 1; fi
 
+# audit-modules asserts the module isolation contract and fails on drift. For
+# each isolated module it runs a GOWORK=off build (so the module resolves
+# against its own go.mod, not the workspace — a boundary violation that the
+# go.work overlay would otherwise hide), then a GOWORK=off `go mod tidy` and
+# fails if tidy was not a no-op (stale or missing requires, or a require that
+# pulls in a forbidden boundary-crossing module, all leave a diff). The
+# pre-tidy go.mod/go.sum are snapshotted and restored, so the check is robust
+# whether the changes are committed (CI) or still in the working tree (local
+# pre-push). Mirrors the per-module isolation commands in CLAUDE.md "Build
+# Conventions".
+#
+# Modules audited (path → expected boundary):
+#   .                  framework — no cli/bowrain deps
+#   cli                framework only — no bowrain dep
+#   bowrain/core       framework (+ plugin/schema) only — no cli dep
+#   kapi               framework + cli only — no bowrain dep
+#   apps/kapi-desktop  framework + cli (+ plugin/schema) only — no bowrain dep
+#
+# Build pattern per module: most build ./..., but apps/kapi-desktop's main
+# package embeds frontend/dist (//go:embed all:frontend/dist) which only exists
+# after a frontend build, so — like `make kapi-desktop-test` — we build only
+# ./backend/... for it. `go mod tidy` still resolves the whole module graph
+# (embeds don't affect dependency resolution), so the boundary contract holds.
+AUDIT_MODULES := . cli bowrain/core kapi apps/kapi-desktop
+
+audit-modules: ## Assert module isolation + go.mod/go.sum tidiness (fails on drift)
+	@set -e; rc=0; for dir in $(AUDIT_MODULES); do \
+	  echo ">> audit $$dir"; \
+	  pkgs="./..."; [ "$$dir" = "apps/kapi-desktop" ] && pkgs="./backend/..."; \
+	  ( cd "$$dir" && GOWORK=off $(GO) build $$pkgs ) || { echo "ERROR: $$dir failed isolated (GOWORK=off) build"; exit 1; }; \
+	  cp "$$dir/go.mod" "$$dir/go.mod.audit.bak"; \
+	  [ -f "$$dir/go.sum" ] && cp "$$dir/go.sum" "$$dir/go.sum.audit.bak" || true; \
+	  ( cd "$$dir" && GOWORK=off $(GO) mod tidy ) || { echo "ERROR: $$dir failed go mod tidy"; exit 1; }; \
+	  if ! diff -q "$$dir/go.mod.audit.bak" "$$dir/go.mod" >/dev/null 2>&1 || \
+	     { [ -f "$$dir/go.sum.audit.bak" ] && ! diff -q "$$dir/go.sum.audit.bak" "$$dir/go.sum" >/dev/null 2>&1; }; then \
+	    echo "ERROR: $$dir go.mod/go.sum not tidy — run 'cd $$dir && GOWORK=off go mod tidy' and commit"; rc=1; \
+	  fi; \
+	  mv "$$dir/go.mod.audit.bak" "$$dir/go.mod"; \
+	  [ -f "$$dir/go.sum.audit.bak" ] && mv "$$dir/go.sum.audit.bak" "$$dir/go.sum" || true; \
+	done; \
+	[ $$rc -eq 0 ] || exit 1
+	@echo "audit-modules: all module boundaries clean and go.mod/go.sum tidy"
+
 # ── Parity (head-to-head against okapi-bridge) ──────────────────────────────
 #
 # `make parity-test` is the load-bearing safety net for issue #448:
@@ -919,7 +962,7 @@ setup-remote: ## Install dependencies for cloud environments
 pre-push: ## Run checks relevant to your changes (mirrors CI)
 	@./scripts/pre-push-check.sh
 
-pre-push-all: ## Run all checks regardless of changes
+pre-push-all: audit-modules ## Run all checks regardless of changes
 	@./scripts/pre-push-check.sh --all
 
 gha-lint: ## Lint GitHub Actions workflow files
@@ -1002,7 +1045,7 @@ help: ## Show this help
         bowrain-desktop-test \
         ci-test-framework ci-test-cli ci-test-kapi ci-test-platform \
         ci-test-bowrain-cli ci-test-bowrain ci-test-kapi-desktop ci-test-bowrain-desktop ci-test-all \
-        verify-isolation \
+        verify-isolation audit-modules \
         build build-all build-server build-worker build-kapi-bowrain-plugin build-bowrain-plugin build-bowrain build-headless \
         plugin-bundle dev-skills \
         install install-kapi-bowrain-plugin \

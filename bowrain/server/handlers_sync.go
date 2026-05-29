@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	"github.com/labstack/echo/v4"
-	"github.com/neokapi/neokapi/bowrain/compression"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	apiclient "github.com/neokapi/neokapi/bowrain/core/client"
 	"github.com/neokapi/neokapi/bowrain/core/store"
@@ -17,6 +16,7 @@ import (
 	bowsync "github.com/neokapi/neokapi/bowrain/sync"
 	"github.com/neokapi/neokapi/core/id"
 	"github.com/neokapi/neokapi/core/storage"
+	"github.com/neokapi/neokapi/core/storage/compression"
 )
 
 // HandleSyncPushInit handles the first step of a push: Merkle tree diff negotiation.
