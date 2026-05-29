@@ -588,7 +588,7 @@ function App() {
       case "settings":
         return <SettingsPage />;
       case "flows":
-        return <FlowBuilder />;
+        return <FlowBuilder projectId={activeProject?.id} />;
       case "connectors":
         return <ConnectorPanel />;
       case "members":

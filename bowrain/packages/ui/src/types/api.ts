@@ -657,7 +657,11 @@ export interface FormatInfo {
 export interface ToolInfo {
   name: string;
   description: string;
-  category: "transform" | "validate" | "enrich" | "utility";
+  category: string;
+  display_name?: string;
+  source?: string;
+  /** Whether the tool may rewrite source (sit in a flow's source-transform stage). */
+  is_source_transform?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -875,6 +879,8 @@ export interface FlowNodeInfo {
   type: "tool" | "reader" | "writer";
   name: string;
   label?: string;
+  /** Pipeline stage: "" or omitted = main stage; "source-transform" runs ahead. */
+  stage?: "" | "source-transform";
   config?: Record<string, unknown>;
   position: FlowNodePosition;
 }

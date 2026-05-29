@@ -89,18 +89,33 @@ This makes `kapi push` behave like `kapi sync`.
 
 ## Server-side automation
 
-Server-side automations are event-driven rules configured in the Bowrain web UI under **Project Settings > Automation**. They respond to events on the server — content pushed, translations completed, quality gates evaluated — and trigger actions like running flows or sending notifications.
+Server-side automations are event-driven rules configured in the Bowrain web
+app under **Project > Automations**. They respond to events on the server —
+content pushed, translations completed, quality gates evaluated — and trigger
+actions like running flows or sending notifications.
+
+The Automations surface is a **superset flow + automation editor** with three
+tabs: **Runs** (run history), **Rules** (trigger + conditions + actions), and
+**Flows** (the flow canvas — see [Server-Side Flows](/server/flows)). The Flows
+tab embeds the same `@neokapi/flow-editor` component the desktop apps use, so a
+`run_flow` action and the flow it runs are authored in one place.
 
 ### Creating rules
 
-1. Navigate to **Project Settings > Automation**
+1. Navigate to **Project > Automations > Rules**
 2. Click **New Rule**
-3. Select a trigger event (for example, "content pushed")
+3. Select a trigger event (for example, "When content is pushed")
 4. Add optional conditions (filter by project, locale, or event data)
-5. Choose an action (run a flow, send a webhook, evaluate a quality gate)
+5. Add one or more actions. A `run_flow` action picks a flow from the project's
+   flow registry (the built-in catalog plus any project flows authored on the
+   Flows tab) — connector-agnostic, so the same flow applies to content from
+   any connector
 6. Save and enable the rule
 
-Rules can be reordered, disabled, duplicated, and tested from the editor.
+Rules and the flow definitions they reference are persisted through the
+project-scoped REST API: `/api/v1/:ws/:id/automations` for rules and
+`/api/v1/:ws/:id/flows` for flow definitions. Rules can be reordered, disabled,
+and duplicated from the editor.
 
 ## Quality gates
 

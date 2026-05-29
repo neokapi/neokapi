@@ -673,7 +673,9 @@ export class EvaluateRuleArgs {
 }
 
 /**
- * FlowDefinitionInfo is the frontend-facing flow definition type.
+ * FlowDefinitionInfo is the frontend-facing flow definition type. It mirrors
+ * the framework's flow.FlowDefinition JSON shape so the shared
+ * @neokapi/flow-editor defToSpec/specToDef adapter consumes it unchanged.
  */
 export class FlowDefinitionInfo {
     /**

@@ -35,11 +35,13 @@ function FlowList({
   activeId,
   onSelect,
   onNew,
+  canAuthor,
 }: {
   definitions: FlowDefinitionInfo[];
   activeId: string | null;
   onSelect: (def: FlowDefinitionInfo) => void;
   onNew: () => void;
+  canAuthor: boolean;
 }) {
   return (
     <div
@@ -48,7 +50,13 @@ function FlowList({
     >
       <div className="px-4 py-3 border-b border-border flex justify-between items-center">
         <span className="font-semibold text-sm text-foreground">Flows</span>
-        <Button data-testid="new-flow-btn" onClick={onNew} size="sm">
+        <Button
+          data-testid="new-flow-btn"
+          onClick={onNew}
+          size="sm"
+          disabled={!canAuthor}
+          title={canAuthor ? undefined : "Select a project to author flows"}
+        >
           + New
         </Button>
       </div>
@@ -83,13 +91,18 @@ function FlowList({
  *
  * The editing canvas is the shared `@neokapi/flow-editor` <FlowEditor>, the same
  * component kapi-desktop uses. This component owns the list / new / delete / save
- * UX and the Wails data calls (List/Get/Save/DeleteFlowDefinition); it bridges
- * the backend's node/edge FlowDefinitionInfo to the editor's steps-based FlowSpec
+ * UX; the underlying Wails data calls (List/Get/Save/DeleteFlowDefinition) are
+ * project-scoped and proxy to the Bowrain server's flow-definition REST API
+ * (#766) — the desktop no longer authors flows to a local store. It bridges the
+ * backend's node/edge FlowDefinitionInfo to the editor's steps-based FlowSpec
  * via the shared defToSpec / specToDef adapter.
+ *
+ * Flows are connector-agnostic, project-scoped server resources. A project must
+ * be selected to author flows; without one, only the built-in catalog shows.
  */
-export function FlowBuilder() {
-  const { definitions, refresh } = useFlowDefinitions();
-  const { saveFlowDefinition, deleteFlowDefinition } = useFlowDefinitionApi();
+export function FlowBuilder({ projectId }: { projectId?: string }) {
+  const { definitions, refresh } = useFlowDefinitions(projectId ?? "");
+  const { saveFlowDefinition, deleteFlowDefinition } = useFlowDefinitionApi(projectId ?? "");
   const { tools } = useTools();
 
   const [activeDef, setActiveDef] = useState<FlowDefinitionInfo | null>(null);
@@ -245,6 +258,7 @@ export function FlowBuilder() {
         activeId={activeDef?.id || null}
         onSelect={handleSelect}
         onNew={handleNewFlowDialogOpen}
+        canAuthor={!!projectId}
       />
       <Dialog open={showNewFlowDialog} onOpenChange={handleNewFlowDialogClose}>
         <DialogContent onInteractOutside={(e: Event) => e.preventDefault()}>

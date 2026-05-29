@@ -27,6 +27,7 @@ import type {
   LocaleInfo,
   FormatInfo,
   ToolInfo,
+  FlowDefinitionInfo,
   Invite,
   AcceptInviteResponse,
   ClaimProjectResponse,
@@ -1454,6 +1455,68 @@ export class RestApiAdapter implements ApiAdapter {
     await this.fetchJSON(`${this.automationsEp(workspaceSlug, projectId)}/runs/${runId}/cancel`, {
       method: "POST",
     });
+  }
+
+  // ── Flow definitions (Bowrain AD-013) ──────────────────────────────────
+
+  private flowsEp(ws: string, projectId: string) {
+    return `${this.projectEp(ws, projectId)}/flows`;
+  }
+
+  async listFlowDefinitions(
+    workspaceSlug: string,
+    projectId: string,
+  ): Promise<FlowDefinitionInfo[]> {
+    return this.fetchJSON(this.flowsEp(workspaceSlug, projectId));
+  }
+
+  async getFlowDefinition(
+    workspaceSlug: string,
+    projectId: string,
+    flowId: string,
+  ): Promise<FlowDefinitionInfo> {
+    return this.fetchJSON(
+      `${this.flowsEp(workspaceSlug, projectId)}/${encodeURIComponent(flowId)}`,
+    );
+  }
+
+  async createFlowDefinition(
+    workspaceSlug: string,
+    projectId: string,
+    def: FlowDefinitionInfo,
+  ): Promise<FlowDefinitionInfo> {
+    return this.fetchJSON(this.flowsEp(workspaceSlug, projectId), {
+      method: "POST",
+      body: JSON.stringify(def),
+    });
+  }
+
+  async updateFlowDefinition(
+    workspaceSlug: string,
+    projectId: string,
+    flowId: string,
+    def: FlowDefinitionInfo,
+  ): Promise<FlowDefinitionInfo> {
+    return this.fetchJSON(
+      `${this.flowsEp(workspaceSlug, projectId)}/${encodeURIComponent(flowId)}`,
+      {
+        method: "PUT",
+        body: JSON.stringify(def),
+      },
+    );
+  }
+
+  async deleteFlowDefinition(
+    workspaceSlug: string,
+    projectId: string,
+    flowId: string,
+  ): Promise<void> {
+    await this.fetchJSON(
+      `${this.flowsEp(workspaceSlug, projectId)}/${encodeURIComponent(flowId)}`,
+      {
+        method: "DELETE",
+      },
+    );
   }
 
   // ── Notifications ──────────────────────────────────────────────────────

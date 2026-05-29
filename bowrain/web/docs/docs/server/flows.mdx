@@ -78,12 +78,21 @@ curl -X POST https://bowrain.example.com/api/v1/projects/:id/flows/run \
 
 ### Via Web UI
 
-In the Bowrain web UI, navigate to **Project > Flows** to:
+The Bowrain web app exposes a **superset flow + automation editor** under
+**Project > Automations**, with three tabs:
 
-1. Browse available flows (built-in and custom)
-2. Start a flow execution with custom parameters
-3. View running and completed executions
-4. Inspect execution logs and results
+1. **Runs** — automation run history (see [Automation](/server/automation)).
+2. **Rules** — trigger, CEL conditions, and ordered actions. A `run_flow`
+   action selects a flow from the project's flow registry.
+3. **Flows** — the flow canvas. This is the same `@neokapi/flow-editor`
+   component the desktop apps render, wired to the flow-definition REST API.
+   It lists the built-in flows alongside the project's stored flows and edits
+   the latter on a reader → tool(s) → writer graph (with a source-transform
+   stage for redaction/normalization tools).
+
+Flows are **connector-agnostic**: a flow runs server-side on content from any
+connector. The graph never names a connector — Kapi is one content source
+among many.
 
 ## Monitoring Executions
 
@@ -157,23 +166,49 @@ A typical end-to-end flow involving CLI push, server-side translation, and CLI p
   ]}
 />
 
-## Custom Flows on the Server
+## Managing Flow Definitions
 
-Custom flow definitions (YAML files) can be uploaded to the server via the API or pushed as part of a project's `.kapi/flows/` directory. Once on the server, they appear in the web UI and can be triggered by automations.
+Project flow definitions are stored server-side and exposed through a
+project-scoped REST API. The flow editor in the web app (and the desktop apps)
+drives these endpoints; automations reference a flow by its `id`.
+
+| Method   | Path                            | Description                                  |
+| -------- | ------------------------------- | -------------------------------------------- |
+| `GET`    | `/api/v1/:ws/:id/flows`         | List flows (built-in catalog + project flows) |
+| `GET`    | `/api/v1/:ws/:id/flows/:flowId` | Get one flow (built-in or project)           |
+| `POST`   | `/api/v1/:ws/:id/flows`         | Create a project flow                        |
+| `PUT`    | `/api/v1/:ws/:id/flows/:flowId` | Replace a project flow                       |
+| `DELETE` | `/api/v1/:ws/:id/flows/:flowId` | Delete a project flow                        |
+
+Built-in flows are read-only — the server rejects writes to a flow whose `id`
+collides with a built-in. Mutations require the `manage_automation` permission.
+
+A flow definition is a node/edge graph (reader → tool(s) → writer) rather than
+a flat step list, so it round-trips losslessly through the visual editor:
 
 ```bash
-# Upload a flow definition
-curl -X POST https://bowrain.example.com/api/v1/projects/:id/flows \
+curl -X POST https://bowrain.example.com/api/v1/acme/proj-1/flows \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
     "name": "translate-with-qa",
-    "steps": [
-      {"tool": "ai-translate", "config": {"provider": "anthropic"}},
-      {"tool": "qa-check", "config": {"rules": ["whitespace", "placeholders"]}}
+    "description": "Translate then run quality checks",
+    "nodes": [
+      {"id": "reader", "type": "reader", "name": "auto", "position": {"x": 0, "y": 0}},
+      {"id": "ai-translate", "type": "tool", "name": "ai-translate", "position": {"x": 250, "y": 0}},
+      {"id": "qa-check", "type": "tool", "name": "qa-check", "position": {"x": 500, "y": 0}},
+      {"id": "writer", "type": "writer", "name": "auto", "position": {"x": 750, "y": 0}}
+    ],
+    "edges": [
+      {"id": "e1", "source": "reader", "target": "ai-translate"},
+      {"id": "e2", "source": "ai-translate", "target": "qa-check"},
+      {"id": "e3", "source": "qa-check", "target": "writer"}
     ]
   }'
 ```
+
+Project flow definitions can also be pushed as part of a project's
+`.kapi/flows/` directory and authored with the kapi CLI.
 
 ## Flow Chaining
 

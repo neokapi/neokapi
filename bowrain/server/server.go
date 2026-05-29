@@ -114,6 +114,9 @@ type Server struct {
 	// AutomationRuleStore persists automation rules. Nil when not configured.
 	AutomationRuleStore *event.RuleStore
 
+	// FlowDefStore persists project flow definitions (Bowrain AD-013). Nil when not configured.
+	FlowDefStore *bstore.FlowDefStore
+
 	// SessionStore holds ephemeral auth states (device codes, OIDC states).
 	// Backed by Redis when configured, otherwise in-memory.
 	SessionStore SessionStateStore
@@ -350,6 +353,7 @@ func NewServer(cfg Config) *Server {
 			pgSQL := pg.DB.DB // embedded *sql.DB
 			s.AuditLogger = event.NewAuditLogger(pgSQL, s.EventBus)
 			s.AutomationRuleStore = event.NewRuleStore(pgSQL)
+			s.FlowDefStore = bstore.NewFlowDefStore(pgSQL)
 			s.ReviewQueueStore = bstore.NewReviewQueueStore(pgSQL)
 			s.NotificationStore = bstore.NewNotificationStore(pgSQL)
 			s.ActivityStore = bstore.NewActivityStore(pgSQL)
@@ -1085,6 +1089,16 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group) {
 	g.PATCH("/:id/automations/:ruleId/toggle", s.HandleToggleAutomationRule)
 	g.GET("/:id/automations/events", s.HandleListAutomationEvents)
 	g.GET("/:id/automations/history", s.HandleListAutomationHistory)
+
+	// Flow definitions — Bowrain AD-013: /:ws/:id/flows
+	// Server-side, project-scoped pipeline graphs that automation run_flow
+	// actions reference. Built-in flows are merged into the listing; project
+	// flows are persisted in the FlowDefStore.
+	g.GET("/:id/flows", s.HandleListFlowDefinitions)
+	g.POST("/:id/flows", s.HandleCreateFlowDefinition)
+	g.GET("/:id/flows/:flowId", s.HandleGetFlowDefinition)
+	g.PUT("/:id/flows/:flowId", s.HandleUpdateFlowDefinition)
+	g.DELETE("/:id/flows/:flowId", s.HandleDeleteFlowDefinition)
 
 	// Automation runs — Bowrain AD-011: /:ws/:id/automations/runs (nested)
 	g.GET("/:id/automations/runs", s.HandleListAutomationRuns)

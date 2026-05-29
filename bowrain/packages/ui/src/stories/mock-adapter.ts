@@ -483,6 +483,40 @@ export function createMockAdapter(blocks?: BlockInfo[]): ApiAdapter {
     listStepLogs: async () => [],
     cancelAutomationRun: async () => {},
 
+    // --- Flow definitions -----------------------------------------------
+    listFlowDefinitions: async () => [
+      {
+        id: "ai-translate",
+        name: "AI Translate",
+        description: "Translate content using AI/LLM",
+        source: "built-in",
+        nodes: [
+          { id: "reader", type: "reader", name: "auto", position: { x: 0, y: 100 } },
+          {
+            id: "ai-translate",
+            type: "tool",
+            name: "ai-translate",
+            position: { x: 250, y: 100 },
+          },
+          { id: "writer", type: "writer", name: "auto", position: { x: 500, y: 100 } },
+        ],
+        edges: [
+          { id: "e1", source: "reader", target: "ai-translate" },
+          { id: "e2", source: "ai-translate", target: "writer" },
+        ],
+      },
+    ],
+    getFlowDefinition: async (_ws, _pid, flowId) => ({
+      id: flowId,
+      name: flowId,
+      source: "project",
+      nodes: [],
+      edges: [],
+    }),
+    createFlowDefinition: async (_ws, _pid, def) => def,
+    updateFlowDefinition: async (_ws, _pid, _flowId, def) => def,
+    deleteFlowDefinition: async () => {},
+
     // --- Providers ------------------------------------------------------
     listProviderConfigs: async () => [
       {
