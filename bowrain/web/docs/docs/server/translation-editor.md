@@ -7,6 +7,17 @@ title: Translation Editor
 
 The translation editor is the core workspace for translating documents. It displays source and target content side by side, with tools for AI translation, TM lookup, terminology enforcement, and manual editing.
 
+## Real-time collaboration
+
+A project is a shared, live workspace. When teammates open the same project you
+see their names and avatars on the blocks they are editing, their edits and
+reviews appear in your editor without a refresh, and the progress bar moves as
+the team works. Concurrent edits merge on the server, so two people in the same
+file converge on one consistent state instead of overwriting each other. The web
+and desktop apps are equal real-time clients of the same server, and the desktop
+app keeps working offline — edits queue locally and replay on reconnect. See
+[Real-time collaboration](/server/collaboration) for the full picture.
+
 ## Layout Modes
 
 The editor supports four layout modes, accessible from the toolbar:

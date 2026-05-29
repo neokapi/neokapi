@@ -24,6 +24,7 @@ const sidebars: SidebarsConfig = {
       className: "sidebar-section-heading",
       items: [
         "getting-started/introduction",
+        "getting-started/kapi-vs-bowrain",
         "getting-started/installation",
         "getting-started/quickstart",
       ],
@@ -128,6 +129,7 @@ const sidebars: SidebarsConfig = {
       className: "sidebar-section-heading",
       items: [
         "server/translation-editor",
+        "server/collaboration",
         "server/translation-memory",
         "server/terminology",
         "server/flows",
