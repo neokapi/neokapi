@@ -50,7 +50,11 @@ export function BrandReviewRoute() {
 
   const onPromote = useCallback(
     (c: CandidateRule) => {
-      promote.mutate({ term: c.term, replacement: c.replacement, correction_count: c.correction_count });
+      promote.mutate({
+        term: c.term,
+        replacement: c.replacement,
+        correction_count: c.correction_count,
+      });
     },
     [promote],
   );
