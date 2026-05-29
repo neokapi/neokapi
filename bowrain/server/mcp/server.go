@@ -148,6 +148,7 @@ func NewMCPServerWithStore(brandStore corebrand.BrandStore, contentStore store.C
 	ms.registerResources()
 	ms.registerPhase1Tools()
 	ms.registerPhase2Tools()
+	ms.registerLoopTools() // correction-learning loop: candidates, promote, blast-radius
 	ms.registerPrompts()
 
 	// Register expanded tools for @bravo agent (Bowrain AD-016).

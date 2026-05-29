@@ -3,6 +3,7 @@ package mcp
 import (
 	"context"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -15,7 +16,9 @@ import (
 
 // memBrandStore is a minimal in-memory BrandStore for testing.
 type memBrandStore struct {
-	profiles []*corebrand.VoiceProfile
+	profiles  []*corebrand.VoiceProfile
+	decisions map[string]*corebrand.RuleDecision
+	suggested []*corebrand.SuggestedRule
 }
 
 func (m *memBrandStore) CreateProfile(_ context.Context, p *corebrand.VoiceProfile) error {
@@ -54,7 +57,26 @@ func (m *memBrandStore) StoreCorrection(_ context.Context, _ *corebrand.Correcti
 	return nil
 }
 func (m *memBrandStore) GetSuggestedRules(_ context.Context, _ string, _ int) ([]*corebrand.SuggestedRule, error) {
-	return nil, nil
+	return m.suggested, nil
+}
+func (m *memBrandStore) RecordRuleDecision(_ context.Context, d *corebrand.RuleDecision) error {
+	if m.decisions == nil {
+		m.decisions = map[string]*corebrand.RuleDecision{}
+	}
+	m.decisions[d.ProfileID+"|"+strings.ToLower(d.Term)] = d
+	return nil
+}
+func (m *memBrandStore) GetRuleDecision(_ context.Context, profileID, term string) (*corebrand.RuleDecision, error) {
+	return m.decisions[profileID+"|"+strings.ToLower(term)], nil
+}
+func (m *memBrandStore) ListRuleDecisions(_ context.Context, profileID string) ([]*corebrand.RuleDecision, error) {
+	var out []*corebrand.RuleDecision
+	for _, d := range m.decisions {
+		if d.ProfileID == profileID {
+			out = append(out, d)
+		}
+	}
+	return out, nil
 }
 func (m *memBrandStore) ListProfileVersions(_ context.Context, _ string) ([]*corebrand.ProfileVersion, error) {
 	return nil, nil
