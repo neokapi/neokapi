@@ -28,10 +28,33 @@ interface CaseResult {
   score_ok: boolean;
   note: string;
 }
+interface CorrectionCase {
+  term: string;
+  replacement: string;
+  count: number;
+  promoted: boolean;
+  original_flagged: boolean;
+  corrected_flagged: boolean;
+  ok: boolean;
+  note: string;
+}
+interface CorrectionsReport {
+  min_count: number;
+  total: number;
+  promoted: number;
+  tp: number;
+  fn: number;
+  fp: number;
+  precision: number;
+  recall: number;
+  f1: number;
+  cases: CorrectionCase[];
+}
 interface Report {
   total: Metric;
   by_check: Metric[];
   cases: CaseResult[];
+  corrections?: CorrectionsReport;
 }
 
 const r = report as unknown as Report;
@@ -177,6 +200,76 @@ export default function CheckEval(): ReactElement {
           major 5 / critical 25) or to a checker&rsquo;s severity choice is caught as score drift,
           not just a finding change (issue #758).
         </p>
+
+        {r.corrections && (
+          <>
+            <h2>Corrections as ground truth</h2>
+            <p style={{ color: "var(--ifm-color-emphasis-700)" }}>
+              The loop&rsquo;s premise is that a correction made repeatedly should become a check
+              that catches the mistake. This measures exactly that: a simulated correction stream is
+              aggregated and promoted through the real promotion path, then the resulting brand
+              check is run on every correction&rsquo;s original (the off-brand phrasing the team kept
+              fixing) and its corrected form. A promoted rule must <strong>flag the original</strong>{" "}
+              and <strong>never flag the fix</strong>; a below-threshold correction must stay silent.
+              Swap the simulated stream for an export of a real workspace&rsquo;s corrections to track
+              the loop on live data.
+            </p>
+            <div style={{ display: "flex", gap: 16, margin: "1rem 0", flexWrap: "wrap" }}>
+              {[
+                { k: "Promoted", v: `${r.corrections.promoted}/${r.corrections.total}` },
+                { k: "Precision", v: pct(r.corrections.precision) },
+                { k: "Recall", v: pct(r.corrections.recall) },
+                { k: "Caught", v: String(r.corrections.tp) },
+                { k: "Over-flagged", v: String(r.corrections.fp), bad: r.corrections.fp > 0 },
+              ].map((s) => (
+                <div
+                  key={s.k}
+                  style={{
+                    border: "1px solid var(--ifm-color-emphasis-200)",
+                    borderRadius: 10,
+                    padding: "12px 18px",
+                    minWidth: 110,
+                  }}
+                >
+                  <div style={{ fontSize: "0.8rem", color: "var(--ifm-color-emphasis-600)" }}>
+                    {s.k}
+                  </div>
+                  <div
+                    style={{ fontSize: "1.4rem", fontWeight: 700, color: s.bad ? "#d65a5a" : undefined }}
+                  >
+                    {s.v}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.9rem" }}>
+              <thead>
+                <tr>
+                  <th style={left}>Correction</th>
+                  <th style={cell}>Seen</th>
+                  <th style={left}>Promoted</th>
+                  <th style={left}>Catches original</th>
+                  <th style={left}>Leaves fix alone</th>
+                </tr>
+              </thead>
+              <tbody>
+                {r.corrections.cases.map((c) => (
+                  <tr key={c.term}>
+                    <td style={left}>
+                      <code>{c.term}</code> &rarr; <code>{c.replacement}</code>
+                    </td>
+                    <td style={cell}>{c.count}&times;</td>
+                    <td style={left}>{c.promoted ? "yes" : "below threshold"}</td>
+                    <td style={left}>{c.promoted ? (c.original_flagged ? "✓" : "✗ missed") : "—"}</td>
+                    <td style={{ ...left, color: c.corrected_flagged ? "#d65a5a" : undefined }}>
+                      {c.corrected_flagged ? "✗ over-flagged" : "✓"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </>
+        )}
 
         <h2>How this grows</h2>
         <p>
