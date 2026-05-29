@@ -1,8 +1,8 @@
 ---
 sidebar_position: 14
 title: Brand Voice
-description: neokapi's brand voice governance scores content 0–100 against a machine-readable profile and enforces writing style through the same pipeline and Block annotation system used for terminology.
-keywords: [brand voice, brand guardrails, content scoring, writing style, MCP, AI assistant, on-brand]
+description: Brand voice is one checkset over neokapi's content-verification engine — a machine-readable profile of tone, style, and vocabulary whose findings annotate Blocks like every other check.
+keywords: [brand voice, content checks, writing style, terminology, MCP, AI assistant]
 ---
 
 import { PipelineDiagram } from "@site/src/components/diagram";
@@ -10,16 +10,21 @@ import { PipelineDiagram } from "@site/src/components/diagram";
 # Brand Voice
 
 Where [terminology](/framework/terminology) ensures you use the right words,
-brand voice governance ensures you say them the right way — the personality,
-formality, and writing patterns that make content recognizable. neokapi
-captures a brand voice as a machine-readable profile, scores content against it
-(0–100), and enforces it through the same pipeline and `Block` annotation system
-used for terminology. The Go library lives in `core/brand/`.
+brand voice describes how you say them — the personality, formality, and
+writing patterns that make content recognizable. neokapi captures a brand voice
+as a machine-readable profile and runs it as **one checkset over the same
+[content-verification engine](/framework/qa-checks)** that powers terminology,
+do-not-translate, and placeholder integrity: every checker emits the same
+findings into the same `Block` annotation, so brand voice is one check among
+many, not a separate system. The Go library lives in `core/brand/`.
 
-This is how neokapi keeps your AI coding assistant on-brand: load the profile
-into context (or expose it over [MCP](/reference/mcp)) so generated copy, docs,
-and UI strings are on-voice from the first draft — then score and rewrite
-anything that drifts, and carry the same voice through every translation.
+Used this way, brand voice keeps an AI assistant on-voice the way a test keeps
+code correct: load the profile into context (or expose it over
+[MCP](/reference/mcp)) so generated copy is on-voice from the first draft, then
+**check** anything that drifts and carry the same voice through every
+translation. The findings — the specific terms and rules that broke — are the
+substance; the 0–100 roll-up is a convenience, honest only when calibrated
+against a labeled set.
 
 ## Brand voice with the CLI
 
