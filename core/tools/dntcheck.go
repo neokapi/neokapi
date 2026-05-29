@@ -105,6 +105,13 @@ func NewDNTCheckTool(cfg *DNTCheckConfig) *tool.BaseTool {
 				Suggestion:   fmt.Sprintf("Keep %q verbatim in the target", term),
 				Position:     model.RunRangeForBytes(sourceRuns, hits[0][0], hits[0][1]),
 				OriginalText: source[hits[0][0]:hits[0][1]],
+				// Record the verbatim term so a host can show what must be
+				// preserved. We deliberately do NOT set Metadata["replacement"]:
+				// the finding fires because the term is *absent* from the target,
+				// so there is no corrupted span we can safely substitute — a
+				// do-not-translate miss needs a human (or re-translation), not a
+				// blind substring replace.
+				Metadata: map[string]string{"preserve": term},
 			})
 		}
 

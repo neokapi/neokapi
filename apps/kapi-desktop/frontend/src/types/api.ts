@@ -128,6 +128,38 @@ export interface FormatInfo {
   has_schema: boolean;
 }
 
+// --- Content checks (matches backend DesktopFinding / CheckFileResult / CheckRunResult) ---
+
+/** One content-check finding, flattened for the Checks panel. */
+export interface DesktopFinding {
+  category: string;
+  severity: string; // "neutral" | "minor" | "major" | "critical"
+  message: string;
+  suggestion?: string;
+  original_text?: string;
+  /** The format's stable block id, so a fix can re-find the block. */
+  block_id?: string;
+  /** Which side of the block the offending text lives on. */
+  field?: "source" | "target";
+  /** Structured fix text (e.g. a brand profile's preferred term). */
+  replacement?: string;
+  /** Whether the panel may show a one-click "Apply fix" button. */
+  fixable: boolean;
+}
+
+/** Findings grouped by content file. */
+export interface CheckFileResult {
+  path: string;
+  findings: DesktopFinding[];
+}
+
+/** Result of a RunChecks pass: pass/fail gate, roll-up score, per-file findings. */
+export interface CheckRunResult {
+  pass: boolean;
+  score: number;
+  files: CheckFileResult[];
+}
+
 export interface PluginCapability {
   type: string;
   name: string;
@@ -292,6 +324,7 @@ export type ProjectView =
   | "content"
   | "flows"
   | "tools"
+  | "checks"
   | "termbases"
   | "memories"
   | "settings";

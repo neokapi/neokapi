@@ -8,6 +8,7 @@ import {
   FileText,
   Settings,
   SlidersHorizontal,
+  ShieldCheck,
 } from "lucide-react";
 
 const SW = 1.5;
@@ -88,6 +89,13 @@ const projectItems: SidebarItem[] = [
     pluginGated: true,
   },
   { type: "item", view: "tools", icon: <Wrench size={20} strokeWidth={SW} />, label: "Tools" },
+  {
+    type: "item",
+    view: "checks",
+    icon: <ShieldCheck size={20} strokeWidth={SW} />,
+    label: "Checks",
+    pluginGated: true,
+  },
   {
     type: "item",
     view: "termbases",

@@ -8,6 +8,7 @@ import { FlowsPage } from "./FlowsPage";
 import { ToolRunnerPage } from "./ToolRunnerPage";
 import { TermbasesPage } from "./TermbasesPage";
 import { MemoriesPage } from "./MemoriesPage";
+import { ChecksPanel } from "./ChecksPanel";
 import { FormatsPage } from "./FormatsPage";
 import { SettingsPage } from "./SettingsPage";
 import { HomePage } from "./HomePage";
@@ -230,6 +231,9 @@ export function ViewSwitch({
 
     case "tools":
       return <ToolRunnerPage tabID={tabID} />;
+
+    case "checks":
+      return <ChecksPanel tabID={tabID} />;
 
     case "termbases":
       return <TermbasesPage tabID={tabID} />;

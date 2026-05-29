@@ -91,6 +91,30 @@ export function AnnotateEntities(handle, req) {
 }
 
 /**
+ * ApplyCheckFix applies a single finding's structured replacement to a block in
+ * a content file — the Checks panel's one-click fix. It reads the file through
+ * its format reader, finds the block by ID, replaces the first occurrence of
+ * original with replacement in the requested field (source or target), and
+ * writes the file back through the format writer.
+ * 
+ * Safety: the edit is only applied when the field's content is a single plain
+ * text run (no inline markup / multiple runs). A plain substring replace over
+ * runs that carry placeholders or paired codes could silently corrupt the
+ * markup, so in that case the fix is refused with a clear error and the file is
+ * left untouched.
+ * @param {string} tabID
+ * @param {string} filePath
+ * @param {string} blockID
+ * @param {string} field
+ * @param {string} original
+ * @param {string} replacement
+ * @returns {$CancellablePromise<void>}
+ */
+export function ApplyCheckFix(tabID, filePath, blockID, field, original, replacement) {
+    return $Call.ByID(3698120319, tabID, filePath, blockID, field, original, replacement);
+}
+
+/**
  * ApplyPreset applies a framework preset to a project tab,
  * setting content mappings, exclude patterns, and format presets.
  * @param {string} tabID
@@ -1222,7 +1246,8 @@ export function RecoverResource(path) {
 }
 
 /**
- * RemovePlugin uninstalls a plugin from the configured plugin directory.
+ * RemovePlugin uninstalls a plugin via the plugin host, which deletes it from
+ * the directory it was discovered in — the same one InstallPlugin installs into.
  * @param {string} name
  * @returns {$CancellablePromise<void>}
  */
@@ -1257,6 +1282,22 @@ export function ResolveEntityConcepts(tmHandle, tbHandle, entryIDs, force) {
 }
 
 /**
+ * RunChecks runs the project's content checks (placeholder + do-not-translate
+ * when a target exists, brand vocabulary on the source when a brand profile is
+ * bound) over every matched content file and returns structured findings plus a
+ * pass/fail and roll-up score. It mirrors the CLI `kapi check` semantics
+ * (cli/check.go): the gate fails on any critical finding.
+ * @param {string} tabID
+ * @param {string} targetLang
+ * @returns {$CancellablePromise<$models.CheckRunResult | null>}
+ */
+export function RunChecks(tabID, targetLang) {
+    return $Call.ByID(139733492, tabID, targetLang).then(/** @type {($result: any) => any} */(($result) => {
+        return $$createType82($result);
+    }));
+}
+
+/**
  * RunExtract is a placeholder for the desktop's "Re-extract" button.
  * Under the new project model extraction is driven by the per-tool
  * flow executor (`kapi run`) and by upstream extractors such as
@@ -1269,7 +1310,7 @@ export function ResolveEntityConcepts(tmHandle, tbHandle, entryIDs, force) {
  */
 export function RunExtract(tabID) {
     return $Call.ByID(4222482902, tabID).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType82($result);
+        return $$createType84($result);
     }));
 }
 
@@ -1297,7 +1338,7 @@ export function RunFlow(tabID, flowName, inputPaths, targetLangs) {
  */
 export function RunFormatReader(formatName, filePath, config) {
     return $Call.ByID(2298675461, formatName, filePath, config).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType84($result);
+        return $$createType86($result);
     }));
 }
 
@@ -1309,7 +1350,7 @@ export function RunFormatReader(formatName, filePath, config) {
  */
 export function RunFormatReaderDialog(formatName, config) {
     return $Call.ByID(3765990169, formatName, config).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType84($result);
+        return $$createType86($result);
     }));
 }
 
@@ -1384,7 +1425,7 @@ export function SaveProjectDialog(tabID) {
  */
 export function SaveProvider(req) {
     return $Call.ByID(990642140, req).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType85($result);
+        return $$createType87($result);
     }));
 }
 
@@ -1432,7 +1473,7 @@ export function SearchPlugins(query) {
  */
 export function SearchTMEntries(handle, query, anyLocale, requireLocale, offset, limit) {
     return $Call.ByID(2364570829, handle, query, anyLocale, requireLocale, offset, limit).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType87($result);
+        return $$createType89($result);
     }));
 }
 
@@ -1449,7 +1490,7 @@ export function SearchTMEntries(handle, query, anyLocale, requireLocale, offset,
  */
 export function SearchTMEntriesFiltered(handle, query, anyLocale, requireLocale, filter, offset, limit) {
     return $Call.ByID(1068746654, handle, query, anyLocale, requireLocale, filter, offset, limit).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType87($result);
+        return $$createType89($result);
     }));
 }
 
@@ -1465,7 +1506,7 @@ export function SearchTMEntriesFiltered(handle, query, anyLocale, requireLocale,
  */
 export function SearchTerms(handle, query, srcLocale, tgtLocale, offset, limit) {
     return $Call.ByID(556247463, handle, query, srcLocale, tgtLocale, offset, limit).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType89($result);
+        return $$createType91($result);
     }));
 }
 
@@ -1476,6 +1517,19 @@ export function SearchTerms(handle, query, srcLocale, tgtLocale, offset, limit) 
  */
 export function SetApplication(app) {
     return $Call.ByID(2429951734, app);
+}
+
+/**
+ * SetEventSink registers a listener that receives every emitted event, in
+ * addition to the Wails app. Used by the recording wbridge to stream events
+ * (plugin install progress, flow:event, …) to the browser over SSE. Passing nil
+ * clears the sink. The sink is invoked from arbitrary goroutines, so it must be
+ * safe for concurrent use.
+ * @param {any} sink
+ * @returns {$CancellablePromise<void>}
+ */
+export function SetEventSink(sink) {
+    return $Call.ByID(2845824259, sink);
 }
 
 /**
@@ -1593,7 +1647,7 @@ export function ValidateContentPath(path) {
  */
 export function ValidateProjectFlows(tabID) {
     return $Call.ByID(3090313048, tabID).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType91($result);
+        return $$createType93($result);
     }));
 }
 
@@ -1679,14 +1733,16 @@ const $$createType77 = $models.FileMatch.createFrom;
 const $$createType78 = $Create.Array($$createType77);
 const $$createType79 = $models.PreviewResult.createFrom;
 const $$createType80 = $Create.Nullable($$createType79);
-const $$createType81 = $models.ExtractResult.createFrom;
+const $$createType81 = $models.CheckRunResult.createFrom;
 const $$createType82 = $Create.Nullable($$createType81);
-const $$createType83 = $models.FormatPartInfo.createFrom;
-const $$createType84 = $Create.Array($$createType83);
-const $$createType85 = $Create.Nullable($$createType67);
-const $$createType86 = $models.TMSearchResult.createFrom;
-const $$createType87 = $Create.Nullable($$createType86);
-const $$createType88 = $models.TermSearchResult.createFrom;
+const $$createType83 = $models.ExtractResult.createFrom;
+const $$createType84 = $Create.Nullable($$createType83);
+const $$createType85 = $models.FormatPartInfo.createFrom;
+const $$createType86 = $Create.Array($$createType85);
+const $$createType87 = $Create.Nullable($$createType67);
+const $$createType88 = $models.TMSearchResult.createFrom;
 const $$createType89 = $Create.Nullable($$createType88);
-const $$createType90 = project$0.FlowValidationIssue.createFrom;
-const $$createType91 = $Create.Array($$createType90);
+const $$createType90 = $models.TermSearchResult.createFrom;
+const $$createType91 = $Create.Nullable($$createType90);
+const $$createType92 = project$0.FlowValidationIssue.createFrom;
+const $$createType93 = $Create.Array($$createType92);

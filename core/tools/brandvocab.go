@@ -107,6 +107,13 @@ func (t *BrandVocabCheckTool) annotateBlock(v tool.BlockView) error {
 		}
 		if hit.Replacement != "" {
 			f.Suggestion = fmt.Sprintf("Use %q instead", hit.Replacement)
+			// Carry the preferred term as a structured replacement so a
+			// host (the desktop Checks panel) can offer a one-click fix in
+			// addition to the human-readable suggestion above.
+			if f.Metadata == nil {
+				f.Metadata = make(map[string]string)
+			}
+			f.Metadata["replacement"] = hit.Replacement
 		}
 		findings = append(findings, f)
 	}

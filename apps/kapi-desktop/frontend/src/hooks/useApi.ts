@@ -19,6 +19,7 @@ import type {
   FilterDoc,
   StepDoc,
   BrowsePathRequest,
+  CheckRunResult,
 } from "../types/api";
 
 type Backend = Record<string, (...args: unknown[]) => Promise<unknown>>;
@@ -127,6 +128,19 @@ export const api = {
     ),
   saveFlowFileDialog: (name: string, steps: unknown[]) =>
     call<void>("SaveFlowFileDialog", name, steps),
+
+  // Checks (scoped to tab) — runs content checks over the project's files and
+  // applies one-click fixes. See backend/checks.go.
+  runChecks: (tabID: string, targetLang: string) =>
+    call<CheckRunResult>("RunChecks", tabID, targetLang),
+  applyCheckFix: (
+    tabID: string,
+    filePath: string,
+    blockID: string,
+    field: string,
+    original: string,
+    replacement: string,
+  ) => call<void>("ApplyCheckFix", tabID, filePath, blockID, field, original, replacement),
 
   // Runner (scoped to tab)
   runFlow: (tabID: string, name: string, inputPaths: string[], targetLangs: string[]) =>
