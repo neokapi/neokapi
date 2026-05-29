@@ -103,6 +103,29 @@ const KAPI_VERSION = "1.0.9";
 const BOWRAIN_BASE = process.env.BOWRAIN_BACKEND_URL || "http://localhost:8080";
 const BOWRAIN_TOKEN = process.env.BOWRAIN_SESSION_TOKEN || "";
 
+// ── Multi-session (two-user) collaboration ───────────────────────────────────
+// Collaboration is bowrain's headline differentiator, so we record it with TWO
+// genuine authenticated sessions. The RECORDED camera is "Alice"
+// (BOWRAIN_SESSION_TOKEN); a SECOND, off-camera context "Bob"
+// (BOWRAIN_PEER_TOKEN) is a distinct workspace member who opens the same file.
+// Because the bowrain collab WebSocket (server/ws_collab.go) relays Yjs
+// awareness between everyone in a room, Bob's PresenceAvatar genuinely appears
+// on Alice's recorded screen — and vice versa. Nothing is faked: two real users
+// join the same Yjs room. harness/scripts/seed-collaboration.mjs mints both
+// tokens (Alice owns the workspace, invites Bob, joins him) and prints the
+// project/item/locale the collaboration walk drives.
+//
+// NOTE (post-refocus model): connectors are remote-only on desktop, and the
+// editor surfaces are Translate (Visual + Table) / Review / Pre-process. The
+// collaboration walk reflects that — it lives in the Translate surface where
+// PresenceAvatars render, not the retired focus/context-panel modes.
+const BOWRAIN_PEER_TOKEN = process.env.BOWRAIN_PEER_TOKEN || "";
+const BOWRAIN_PEER_NAME = process.env.BOWRAIN_PEER_NAME || "Maria Schmidt";
+// The shared file the two users co-occupy (printed by seed-collaboration.mjs).
+const BOWRAIN_PROJECT_ID = process.env.BOWRAIN_PROJECT_ID || "";
+const BOWRAIN_ITEM_ID = process.env.BOWRAIN_ITEM_ID || "";
+const BOWRAIN_COLLAB_LOCALE = process.env.BOWRAIN_COLLAB_LOCALE || "fr";
+
 /** Resolve the workspace slug for the session token. An explicit
  *  BOWRAIN_WORKSPACE_SLUG wins (a seed run prints the exact one to use, which
  *  matters when several workspaces exist); otherwise fall back to the first. */
@@ -118,17 +141,83 @@ async function bowrainWorkspaceSlug(): Promise<string> {
   return ws[0].slug;
 }
 
-/** Plant the bowrain session cookie so the SPA loads authenticated. */
-async function bowrainAuthCookie(): Promise<{ name: string; value: string; domain: string; path: string; httpOnly: boolean; sameSite: "Lax"; secure: boolean }> {
+interface BowrainCookie {
+  name: string;
+  value: string;
+  domain: string;
+  path: string;
+  httpOnly: boolean;
+  sameSite: "Lax";
+  secure: boolean;
+}
+
+/** Plant the bowrain session cookie so an SPA context loads authenticated.
+ *  Defaults to the recorded user's token; pass a token to authenticate a peer
+ *  (off-camera) context as a different user. */
+async function bowrainAuthCookie(token: string = BOWRAIN_TOKEN): Promise<BowrainCookie> {
   const u = new URL(BOWRAIN_BASE);
   return {
     name: "bowrain_session",
-    value: BOWRAIN_TOKEN,
+    value: token,
     domain: u.hostname,
     path: "/api/",
     httpOnly: true,
     sameSite: "Lax",
     secure: u.protocol === "https:",
+  };
+}
+
+/**
+ * Launch the off-camera peer (Bob): a second browser context authenticated as a
+ * different user (BOWRAIN_PEER_TOKEN), in its own headless browser so it never
+ * lands in the recorded video. Returns a PeerSession the walk drives, plus a
+ * teardown. The peer is NOT recorded — it exists purely to produce the live
+ * presence/awareness the recorded user sees.
+ */
+async function launchPeer(slug: string): Promise<{ peer: PeerSession; teardown: () => Promise<void> }> {
+  const browser = await chromium.launch();
+  const context = await browser.newContext({
+    viewport: { width: WIDTH, height: HEIGHT },
+    deviceScaleFactor: 1,
+    ignoreHTTPSErrors: true,
+  });
+  await context.addCookies([await bowrainAuthCookie(BOWRAIN_PEER_TOKEN)]);
+  const page = await context.newPage();
+  // Land the peer in the authenticated workspace so its session is warm.
+  await page.goto(`${BOWRAIN_BASE}/${slug}`, { waitUntil: "domcontentloaded" }).catch(() => {});
+
+  const peer: PeerSession = {
+    page,
+    name: BOWRAIN_PEER_NAME,
+    act: async (fn) => {
+      await fn(page);
+    },
+    openTranslateFile: async (workspace, projectId, itemId, locale) => {
+      // The editor route reads the target locale from the project's first target
+      // language; `locale` is passed for parity with the collab room key and to
+      // document which target both users sit on.
+      void locale;
+      await page.goto(
+        `${BOWRAIN_BASE}/${workspace}/p/${projectId}/s/main/${itemId}/translate`,
+        { waitUntil: "domcontentloaded" },
+      );
+      // Wait for the editor to mount so the peer's useCollaboration() opens the
+      // WebSocket and publishes its awareness into the shared room.
+      await page
+        .waitForSelector('[data-testid="view-switcher"], [data-testid="block-grid"], [data-testid="visual-editor-layout"]', {
+          timeout: 30_000,
+        })
+        .catch(() => {});
+      await page.waitForTimeout(1500);
+    },
+  };
+
+  return {
+    peer,
+    teardown: async () => {
+      await context.close().catch(() => {});
+      await browser.close().catch(() => {});
+    },
   };
 }
 
@@ -311,9 +400,36 @@ interface WalkCtx {
   cursorTo: (selector: string, duration?: number) => Promise<void>;
   /** A sidebar nav button by its aria-label. */
   sidebar: (label: string) => Locator;
+  /**
+   * The off-camera second user, for two-user collaboration walks. Present only
+   * when a peer context was launched (record-desktop opts.peer). A walk acts as
+   * the peer with `peer.act(fn)` — fn drives the peer's own Playwright page,
+   * which is a genuinely separate authenticated session in the same workspace,
+   * so its actions (joining a file, selecting a block) reach the recorded user
+   * live over the real collab WebSocket. Returns undefined-safe no-ops when no
+   * peer is configured, so a walk can be written once and degrade gracefully.
+   */
+  peer?: PeerSession;
 }
 
-function makeCtx(page: Page, t0: number, beats: Beat[]): WalkCtx {
+/**
+ * A second, off-camera authenticated browser session driving a different
+ * bowrain user (the recorded video is the FIRST user). The collab server
+ * (server/ws_collab.go) relays the peer's Yjs awareness into the recorded
+ * user's room, so opening the same file makes the peer's PresenceAvatar appear
+ * on the recorded screen — real multi-user presence, captured from one camera.
+ */
+interface PeerSession {
+  page: Page;
+  /** The peer's display name (as it appears on their avatar). */
+  name: string;
+  /** Run an action as the peer (drives the peer's page). */
+  act: (fn: (page: Page) => Promise<void>) => Promise<void>;
+  /** Open the shared translate file as the peer (joins the same collab room). */
+  openTranslateFile: (workspace: string, projectId: string, itemId: string, locale: string) => Promise<void>;
+}
+
+function makeCtx(page: Page, t0: number, beats: Beat[], peer?: PeerSession): WalkCtx {
   const now = () => (Date.now() - t0) / 1000;
   const sidebar = (label: string) => page.locator(`button[aria-label="${label}"]`);
   const beat = async (id: string, zoom: ZoomRect | null, fn: () => Promise<void>) => {
@@ -352,7 +468,7 @@ function makeCtx(page: Page, t0: number, beats: Beat[]): WalkCtx {
     await fn();
     beats.push({ id, tStart, tEnd: now(), zoom: await unionZoom(selectors) });
   };
-  return { page, beat, beatEls, cursorTo, sidebar };
+  return { page, beat, beatEls, cursorTo, sidebar, peer };
 }
 
 /** Termbase + translation-memory explorer. */
@@ -766,46 +882,124 @@ async function bowrainReviewWalk(c: WalkCtx): Promise<void> {
   });
 }
 
-/** Collaboration & streams: a shared workspace where teammates are invited with
- *  roles, and streams isolate parallel work like branches (compare/merge into main). */
+/**
+ * Collaboration — bowrain's headline differentiator, recorded with TWO genuine
+ * authenticated users in one shared workspace. The recorded camera is the first
+ * user (Alice); a second, off-camera session (Bob, the peer) joins the SAME
+ * Translate file. Because the collab WebSocket relays Yjs awareness between
+ * everyone in a room, Bob's PresenceAvatar genuinely appears on Alice's
+ * recorded screen the moment he opens the file — real multi-user presence, not
+ * a mock. The walk then shows the governance frame (members + roles) so the
+ * story is "a team, in one governed workspace".
+ *
+ * Post-refocus surfaces: this lives in the Translate surface (Visual/Table),
+ * where PresenceAvatars render in the editor header. Connectors are remote-only
+ * on desktop and out of scope here.
+ *
+ * If no peer is configured (BOWRAIN_PEER_TOKEN unset), the walk still records
+ * the single-user editor + governance frames and skips the live-presence beats,
+ * so it never fabricates a second user that isn't really there.
+ */
 async function bowrainCollaborationWalk(c: WalkCtx): Promise<void> {
-  const { page, beat, beatEls } = c;
+  const { page, beat, beatEls, cursorTo, peer } = c;
   const startUrl = new URL(page.url());
   const wsBase = `${startUrl.origin}${startUrl.pathname}`.replace(/\/+$/, "");
+  const themeParam = startUrl.searchParams.get("theme");
   // Carry the recording theme through full-page navigations: a page.goto reloads
   // the SPA, which re-reads its persisted (light) theme; `?theme=` makes the app
   // apply the recording palette so a dark take stays dark.
-  const themeQ = startUrl.searchParams.get("theme") ? `?theme=${startUrl.searchParams.get("theme")}` : "";
+  const themeQ = themeParam ? `?theme=${themeParam}` : "";
+
+  // Seed values printed by harness/scripts/seed-collaboration.mjs. The workspace
+  // slug is the path the recorder landed on.
+  const slug = startUrl.pathname.replace(/^\/+|\/+$/g, "").split("/")[0] || "";
+  const projectId = BOWRAIN_PROJECT_ID;
+  const itemId = BOWRAIN_ITEM_ID;
+  const locale = BOWRAIN_COLLAB_LOCALE;
+  const canCollab = !!(peer && projectId && itemId);
+
   await beat("intro", null, async () => {
     await idle(page, 2000);
   });
-  // Invite a teammate by email, with a role.
-  await beatEls("invite", ['[role="dialog"]', '[data-testid="invite-manager"]'], async () => {
-    await page.goto(`${wsBase}/settings/members${themeQ}`, { waitUntil: "domcontentloaded" });
-    await injectCursor(page); // goto wiped the page-injected cursor; re-add it
-    await page.waitForSelector('[data-testid="invite-open-dialog-btn"]', { timeout: 15_000 }).catch(() => {});
-    const open = page.getByTestId("invite-open-dialog-btn");
-    if (await open.count()) await humanClick(page, open);
-    await page.waitForTimeout(900);
-    const email = page.getByTestId("invite-email-input");
-    if (await email.count()) await humanType(page, email, "maria@acme.example");
-    await page.waitForTimeout(700);
-    const role = page.getByTestId("invite-role-select");
-    if (await role.count()) {
-      await humanClick(page, role);
-      await page.waitForTimeout(1000);
+
+  // Alice opens the shared file in the Translate surface — alone, for now.
+  await beat("open-file", null, async () => {
+    if (projectId && itemId) {
+      await page.goto(
+        `${wsBase}/p/${projectId}/s/main/${itemId}/translate${themeQ}`,
+        { waitUntil: "domcontentloaded" },
+      );
+      await injectCursor(page); // goto wiped the page-injected cursor; re-add it
+      await page
+        .waitForSelector('[data-testid="view-switcher"], [data-testid="block-grid"]', { timeout: 30_000 })
+        .catch(() => {});
+    } else {
+      // No seed → land Alice on the first project's file via the dashboard.
+      const card = page.locator('[data-testid^="project-card"]').first();
+      if (await card.count()) await humanClick(page, card);
+      await page.waitForTimeout(1400);
+      const open = page.locator('[data-testid^="open-file"]').first();
+      if (await open.count()) await humanClick(page, open);
     }
-    await page.waitForTimeout(900);
+    await page.waitForTimeout(1800);
   });
-  // Streams isolate parallel work — switch to a non-main stream to reveal
-  // compare/merge-into-main, the branch workflow.
-  await beatEls("stream", ['[role="menu"]'], async () => {
-    await page.goto(`${wsBase}/p/0MI14l62/s/rebrand${themeQ}`, { waitUntil: "domcontentloaded" });
+
+  if (canCollab) {
+    // Bob (off-camera) joins the SAME file. His useCollaboration() opens the
+    // collab WebSocket and publishes awareness — Alice's editor header now shows
+    // his PresenceAvatar arrive. This is the genuine multi-user moment.
+    await beatEls("teammate-joins", ['[data-testid="presence-avatars"]'], async () => {
+      await peer!.openTranslateFile(slug, projectId, itemId, locale);
+      // Let the awareness round-trip reach Alice's recorded page, then settle the
+      // camera on the presence avatars as they appear.
+      await page
+        .waitForSelector('[data-testid="presence-avatars"]', { timeout: 20_000 })
+        .catch(() => {});
+      await page.waitForTimeout(1200);
+      if (await page.getByTestId("presence-avatars").count())
+        await cursorTo('[data-testid="presence-avatars"]');
+      await page.waitForTimeout(2200);
+    });
+
+    // Both users are now in the file. Pan the editor so the shared workspace —
+    // one document, two people present — reads clearly.
+    await beat("co-editing", { x: 0.02, y: 0.08, w: 0.96, h: 0.7 }, async () => {
+      // Bob moves through the file (his own navigation), keeping his session
+      // active so the presence stays live while Alice's camera tours the editor.
+      await peer!.act(async (bp) => {
+        const sw = bp.getByTestId("view-switcher");
+        if (await sw.count()) {
+          const tbl = bp.getByTestId("view-table");
+          if (await tbl.count()) await tbl.click().catch(() => {});
+        }
+        await bp.waitForTimeout(400);
+      });
+      await moveTo(page, WIDTH * 0.4, HEIGHT * 0.42, 700);
+      await page.waitForTimeout(2400);
+    });
+  }
+
+  // Governance frame: the workspace is shared and governed — members carry
+  // roles (member / admin / viewer), so everyone has exactly the access they
+  // should. Shown last so the closing read is "a team, in one governed place".
+  await beatEls("members", ['[data-testid="settings-heading"]', '[role="dialog"]', '[data-testid="invite-open-dialog-btn"]'], async () => {
+    await page.goto(`${wsBase}/settings/members${themeQ}`, { waitUntil: "domcontentloaded" });
     await injectCursor(page); // re-add cursor after navigation
-    await page.waitForTimeout(2200);
-    const trig = page.getByRole("button", { name: /rebrand/ }).first();
-    if (await trig.count()) await humanClick(page, trig);
+    await page.waitForSelector('[data-testid="settings-heading"], [data-testid="invite-open-dialog-btn"]', { timeout: 15_000 }).catch(() => {});
     await page.waitForTimeout(1400);
+    const open = page.getByTestId("invite-open-dialog-btn");
+    if (await open.count()) {
+      await cursorTo('[data-testid="invite-open-dialog-btn"]');
+      await humanClick(page, open);
+      await page.waitForTimeout(900);
+      const role = page.getByTestId("invite-role-select");
+      if (await role.count()) {
+        await humanClick(page, role);
+        await page.waitForTimeout(1000);
+        await page.keyboard.press("Escape").catch(() => {});
+      }
+    }
+    await page.waitForTimeout(1200);
   });
 }
 
@@ -939,11 +1133,11 @@ const WALKTHROUGHS: Record<string, (c: WalkCtx) => Promise<void>> = {
   "bowrain-desktop-flows": bowrainDesktopFlowsWalk,
 };
 
-async function runWalkthrough(page: Page, t0: number, demoId: string): Promise<Beat[]> {
+async function runWalkthrough(page: Page, t0: number, demoId: string, peer?: PeerSession): Promise<Beat[]> {
   const walk = WALKTHROUGHS[demoId];
   if (!walk) throw new Error(`no walkthrough registered for "${demoId}"`);
   const beats: Beat[] = [];
-  await walk(makeCtx(page, t0, beats));
+  await walk(makeCtx(page, t0, beats, peer));
   return beats;
 }
 
@@ -1003,7 +1197,29 @@ async function recordTheme(
   await injectCursor(page);
   await page.waitForTimeout(400);
 
-  const beats = await runWalkthrough(page, t0, demoId);
+  // Two-user collaboration: launch the off-camera peer (Bob) for this theme so a
+  // collaboration walk can show genuine live presence. The peer is its own
+  // browser, never recorded; it is configured only when BOWRAIN_PEER_TOKEN is
+  // set, so non-collaboration walks (and a misconfigured run) degrade to a
+  // single-user recording rather than fabricating a teammate.
+  let peer: PeerSession | undefined;
+  let peerTeardown: (() => Promise<void>) | undefined;
+  if (web && BOWRAIN_PEER_TOKEN) {
+    try {
+      const launched = await launchPeer(web.slug);
+      peer = launched.peer;
+      peerTeardown = launched.teardown;
+    } catch (e) {
+      console.warn(`  ! peer session failed to launch — recording single-user: ${(e as Error)?.message}`);
+    }
+  }
+
+  let beats: Beat[];
+  try {
+    beats = await runWalkthrough(page, t0, demoId, peer);
+  } finally {
+    if (peerTeardown) await peerTeardown();
+  }
   await page.waitForTimeout(500);
 
   const video = page.video();

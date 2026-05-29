@@ -123,3 +123,48 @@ Prerequisites: a logged-in `claude` CLI, Node ≥ 22, `ffmpeg`, Go + Homebrew `i
 
 `captures/`, `public/`, `out/`, `sandbox/` and `.env` are git-ignored. The authored
 `demos/` are the source of truth — re-run the harness to regenerate everything else.
+
+## Recording the real bowrain web app (`target: web`)
+
+Some demos (`bowrain-web-*`) record the real bowrain SPA against a running stack
+instead of the kapi-desktop wbridge. Bring the stack up from the current branch:
+
+```bash
+make -C bowrain stack-up-web        # serves SPA + API at http://localhost:8080
+```
+
+Auth is a device-flow JWT planted as the `bowrain_session` cookie. A seed script
+prints the token + the route params; pass them to the capture stage, e.g.:
+
+```bash
+BOWRAIN_BACKEND_URL=http://localhost:8080 \
+BOWRAIN_SESSION_TOKEN=<jwt> BOWRAIN_WORKSPACE_SLUG=<slug> \
+  npm run demo bowrain-web-governance -- --only=capture --force --theme=both
+```
+
+### Two-user collaboration (`bowrain-web-collaboration`)
+
+Collaboration is recorded with **two genuine authenticated users**. The recorded
+camera is the first user (Alice); a second, off-camera Playwright context (Bob,
+`BOWRAIN_PEER_TOKEN`) is a distinct workspace member who opens the **same**
+Translate file. The bowrain collab WebSocket (`server/ws_collab.go`) relays Yjs
+awareness between everyone in a room, so Bob's `PresenceAvatar` genuinely appears
+on Alice's recorded screen — real multi-user presence, never mocked.
+
+Seed both users (Alice owns the workspace, invites Bob, joins him) and capture:
+
+```bash
+node scripts/seed-collaboration.mjs > /tmp/collab.json   # prints both tokens + project/item/locale
+# read the JSON and export the env it printed:
+BOWRAIN_BACKEND_URL=http://localhost:8080 \
+BOWRAIN_SESSION_TOKEN=<alice.token> BOWRAIN_PEER_TOKEN=<bob.token> \
+BOWRAIN_PEER_NAME="<bob.name>" BOWRAIN_WORKSPACE_SLUG=<workspace> \
+BOWRAIN_PROJECT_ID=<project_id> BOWRAIN_ITEM_ID=<item_id> BOWRAIN_COLLAB_LOCALE=<locale> \
+  npm run demo bowrain-web-collaboration -- --only=capture --force --theme=both
+# then narrate + render + publish (no tokens needed):
+npm run demo bowrain-web-collaboration -- --only=narrate,render,publish
+```
+
+If `BOWRAIN_PEER_TOKEN` is unset the walk degrades to a single-user recording
+(editor + governance frames) and skips the live-presence beats — it never
+fabricates a teammate that isn't really connected.

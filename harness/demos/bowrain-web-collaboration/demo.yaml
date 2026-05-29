@@ -1,6 +1,6 @@
 id: bowrain-web-collaboration
-title: Collaboration and streams
-subtitle: A team working in one governed workspace.
+title: Real-time collaboration
+subtitle: Two people, one document, live.
 tagline: the server-side platform companion to kapi
 kind: use-case
 publishAs: bowrain-web-collaboration
@@ -12,16 +12,23 @@ needsAi: false
 oneshot: true
 aspects:
   - One shared workspace
-  - Invite teammates with roles
-  - Streams isolate work
-  - Governed end to end
+  - Live presence in the editor
+  - Two people, one file
+  - Governed by role
+
+# Recorded with TWO genuine authenticated users: the camera is the first user
+# (Alice); a second, off-camera session (Bob) joins the same Translate file, so
+# his presence avatar appears live over the real collab WebSocket. The beats
+# below match harness/src/driver/record-desktop.ts `bowrainCollaborationWalk`.
+# Seed with harness/scripts/seed-collaboration.mjs (prints both tokens + the
+# project/item/locale) and pass BOWRAIN_PEER_TOKEN to record the live presence.
 
 narration:
   - id: title
     kind: title
     text: >-
-      Where a team works together — invitations, roles, and streams that keep
-      parallel work apart.
+      A team working in one document at the same time — live presence in the
+      editor, all in a shared, governed workspace.
 
   - id: intro
     kind: desktop
@@ -30,24 +37,43 @@ narration:
       A workspace is shared by a whole team — its projects, memory, and
       terminology live in one place, not on one laptop.
 
-  - id: invite
+  - id: open-file
     kind: desktop
-    beat: invite
-    caption: Invite a teammate, with a role.
+    beat: open-file
+    caption: Open a file in the Translate surface.
     text: >-
-      You invite teammates by email and give each one a role — member, admin, or
-      viewer — so everyone has exactly the access they should.
+      One translator opens a file in the Translate surface — source and target
+      side by side, with the live preview of the page being localized.
 
-  - id: stream
+  - id: teammate-joins
     kind: desktop
-    beat: stream
-    caption: Streams keep parallel work apart.
+    beat: teammate-joins
+    caption: A teammate joins — their presence appears live.
     text: >-
-      Streams work like branches for translation: a rebrand or a risky pass runs
-      on its own stream, isolated from the main line until it is ready.
+      When a teammate opens the same file, their avatar appears in the editor
+      straight away. Each person can see who else is here, working in the very
+      same document.
+
+  - id: co-editing
+    kind: desktop
+    beat: co-editing
+    caption: Two people, one file, in real time.
+    text: >-
+      Both work in the same file together — no exported spreadsheets, no merge
+      step afterwards. The shared memory and terminology keep everyone
+      consistent as they go.
+
+  - id: members
+    kind: desktop
+    beat: members
+    caption: Shared, but governed by role.
+    text: >-
+      Access is governed: people are invited by email and given a role —
+      member, admin, or viewer — so the workspace stays open to the team but
+      controlled.
 
   - id: outro
     kind: outro
     text: >-
-      A team, working in parallel on shared, governed content — the stewardship
+      A team, editing shared content together in real time — the stewardship
       layer over the open kapi tools.
