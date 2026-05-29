@@ -5,7 +5,7 @@ description: An overview of the neokapi framework architecture — the streaming
 keywords: [neokapi, architecture, streaming pipeline, content model, localization framework, go modules]
 ---
 
-import { ArchitectureDiagram } from "@site/src/components/diagram";
+import { ArchitectureDiagram } from "@neokapi/docs-shared";
 
 # neokapi: Architecture
 

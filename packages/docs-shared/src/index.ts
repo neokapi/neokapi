@@ -1,2 +1,32 @@
 export { default as ThemedVideo } from "./ThemedVideo";
 export { KapiLink, BowrainLink } from "./CrossSiteLink";
+
+// Diagram kit — uniform, theme-aware SVG diagrams shared by both docs sites.
+// Each component imports its own `diagram.css`, so the styles ship with the
+// component (no separate CSS import needed at the consumer).
+export {
+  ArchitectureDiagram,
+  PipelineDiagram,
+  StreamDiagram,
+  RoundTripDiagram,
+  PhaseFlow,
+  LanesDiagram,
+  SwimlaneDiagram,
+} from "./diagram";
+export type {
+  ArchitectureDiagramProps,
+  PipelineDiagramProps,
+  PipelineStage,
+  StageRole,
+  StreamDiagramProps,
+  StreamItem,
+  StreamRole,
+  RoundTripDiagramProps,
+  PhaseFlowProps,
+  PhaseNode,
+  LanesDiagramProps,
+  LaneThread,
+  SwimlaneDiagramProps,
+  SwimlaneActor,
+  SwimlaneMessage,
+} from "./diagram";

@@ -72,15 +72,14 @@
 
 /* ── Text ─────────────────────────────────────────────────────────────── */
 .kdx text {
-  font-family:
-    var(
-      --ifm-font-family-base,
-      system-ui,
-      -apple-system,
-      "Segoe UI",
-      Roboto,
-      sans-serif
-    );
+  font-family: var(
+    --ifm-font-family-base,
+    system-ui,
+    -apple-system,
+    "Segoe UI",
+    Roboto,
+    sans-serif
+  );
 }
 .kdx-label {
   fill: var(--kdx-ink);

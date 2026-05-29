@@ -6,7 +6,7 @@ description: "Architecture decision: LLM capabilities plug in through an LLMProv
 keywords: [AI providers, LLMProvider, Anthropic, OpenAI, Gemini, Ollama, architecture decision, neokapi]
 ---
 
-import { PipelineDiagram } from "@site/src/components/diagram";
+import { PipelineDiagram } from "@neokapi/docs-shared";
 
 # AD-011: AI Providers
 

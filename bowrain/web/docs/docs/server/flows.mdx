@@ -3,6 +3,8 @@ title: Server-Side Flows
 sidebar_position: 12
 ---
 
+import { PhaseFlow, PipelineDiagram, SwimlaneDiagram } from "@neokapi/docs-shared";
+
 # Server-Side Flows
 
 Flows on Bowrain Server execute the same processing pipelines available in the CLI, but triggered by events, automations, or manual API calls. Server-side flows run in the background, process content from the ContentStore, and write results back — no local CLI needed.
@@ -11,15 +13,17 @@ Flows on Bowrain Server execute the same processing pipelines available in the C
 
 When a flow runs on the server, it follows this lifecycle:
 
-```
-Event (e.g., connector.push.completed)
-  → Automation Rule matches
-    → Flow Execution starts
-      → Read blocks from ContentStore
-      → Process through tool pipeline
-      → Write results back to ContentStore
-      → Emit flow.completed or flow.failed event
-```
+<PhaseFlow
+  nodes={[
+    { label: "Event", sub: "connector.push.completed" },
+    { label: "Automation rule matches", edge: "trigger" },
+    { label: "Flow execution starts", edge: "run_flow", role: "translate" },
+    { label: "Read blocks from ContentStore", edge: "read", role: "io" },
+    { label: "Process through tool pipeline", edge: "tools", role: "translate" },
+    { label: "Write results to ContentStore", edge: "write", role: "io" },
+    { label: "Emit flow.completed / flow.failed", edge: "emit", role: "qa" },
+  ]}
+/>
 
 Unlike CLI flows that read/write local files, server-side flows operate on the ContentStore — the server's persistent block storage. This means flows can run without any CLI connected.
 
@@ -135,33 +139,23 @@ curl "https://bowrain.example.com/api/v1/projects/:id/flows/executions?status=fa
 
 A typical end-to-end flow involving CLI push, server-side translation, and CLI pull:
 
-```
-Developer                    Bowrain Server                      Translator
-    |                              |                                 |
-    |  kapi push                |                                 |
-    |----------------------------->|                                 |
-    |                              | Event: connector.push.completed |
-    |                              |                                 |
-    |                              | Automation: run ai-translate    |
-    |                              |   → Read blocks from store      |
-    |                              |   → AI translation pipeline     |
-    |                              |   → Write translations to store |
-    |                              |                                 |
-    |                              | Event: flow.completed           |
-    |                              |                                 |
-    |                              | Automation: run qa-check        |
-    |                              |   → QA validation pipeline      |
-    |                              |   → Write QA annotations        |
-    |                              |                                 |
-    |                              | Event: flow.completed           |
-    |                              |   → quality.gate.pass           |
-    |                              |                                 |
-    |  kapi pull                |                                 |
-    |<-----------------------------|                                 |
-    |                              |                                 |
-    |                              |  Open editor, review, approve   |
-    |                              |<--------------------------------|
-```
+<SwimlaneDiagram
+  actors={[
+    { label: "Developer", sub: "kapi", role: "io" },
+    { label: "Bowrain Server", role: "translate" },
+    { label: "Translator", role: "qa" },
+  ]}
+  messages={[
+    { from: 0, to: 1, label: "kapi push" },
+    { from: 1, to: 1, label: "Event: connector.push.completed" },
+    { from: 1, to: 1, label: "Automation: run ai-translate", detail: "read → translate → write" },
+    { from: 1, to: 1, label: "Event: flow.completed" },
+    { from: 1, to: 1, label: "Automation: run qa-check", detail: "validate → write annotations" },
+    { from: 1, to: 1, label: "Event: flow.completed → quality.gate.pass" },
+    { from: 1, to: 0, label: "kapi pull" },
+    { from: 2, to: 1, label: "Open editor, review, approve" },
+  ]}
+/>
 
 ## Custom Flows on the Server
 
@@ -185,9 +179,17 @@ curl -X POST https://bowrain.example.com/api/v1/projects/:id/flows \
 
 Server-side flows can be chained through automation rules. When one flow completes, its `flow.completed` event can trigger another:
 
-```
-connector.push.completed → ai-translate → flow.completed → qa-check → flow.completed → quality.gate.pass
-```
+<PipelineDiagram
+  channelLabel=""
+  stages={[
+    { label: "connector", sub: "push.completed" },
+    { label: "ai-translate", role: "translate" },
+    { label: "flow.completed" },
+    { label: "qa-check", role: "qa" },
+    { label: "flow.completed" },
+    { label: "quality", sub: "gate.pass", role: "io" },
+  ]}
+/>
 
 This is managed automatically by the automation system. Loop prevention ensures chains cannot exceed 5 levels deep (see [Automation > Loop Prevention](/server/automation#loop-prevention)).
 

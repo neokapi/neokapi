@@ -78,7 +78,14 @@ export function LanesDiagram({ lanes, handoff, caption }: LanesDiagramProps): Re
             aria-label={`Concurrent lanes: ${lanes.map((l) => l.title).join(", ")}`}
           >
             <defs>
-              <marker id="kdx-arrow-dn" markerWidth="9" markerHeight="9" refX="3" refY="6" orient="auto">
+              <marker
+                id="kdx-arrow-dn"
+                markerWidth="9"
+                markerHeight="9"
+                refX="3"
+                refY="6"
+                orient="auto"
+              >
                 <path d="M0,0 L6,0 L3,6 Z" className="kdx-arrow" />
               </marker>
             </defs>
@@ -87,16 +94,35 @@ export function LanesDiagram({ lanes, handoff, caption }: LanesDiagramProps): Re
               const next = placed[i + 1];
               return (
                 <g key={`${l.title}-${i}`}>
-                  <rect x={x} y={cardY} width={cardW} height={h} rx={10} className={`kdx-box${roleBox(l.role)}`} />
+                  <rect
+                    x={x}
+                    y={cardY}
+                    width={cardW}
+                    height={h}
+                    rx={10}
+                    className={`kdx-box${roleBox(l.role)}`}
+                  />
                   <text x={x + 14} y={cardY + 17} fontSize={11.5} className="kdx-label">
                     {l.title}
                   </text>
                   {l.sub && (
-                    <text x={x + cardW - 12} y={cardY + 17} textAnchor="end" fontSize={9} className="kdx-chip-sub">
+                    <text
+                      x={x + cardW - 12}
+                      y={cardY + 17}
+                      textAnchor="end"
+                      fontSize={9}
+                      className="kdx-chip-sub"
+                    >
                       {l.sub}
                     </text>
                   )}
-                  <line x1={x + 10} y1={cardY + HEADER_H - 4} x2={x + cardW - 10} y2={cardY + HEADER_H - 4} className="kdx-divider" />
+                  <line
+                    x1={x + 10}
+                    y1={cardY + HEADER_H - 4}
+                    x2={x + cardW - 10}
+                    y2={cardY + HEADER_H - 4}
+                    className="kdx-divider"
+                  />
                   {l.steps.map((s, si) => (
                     <text
                       key={si}
@@ -130,7 +156,12 @@ export function LanesDiagram({ lanes, handoff, caption }: LanesDiagramProps): Re
                             rx={7}
                             className="kdx-pill"
                           />
-                          <text x={cx + 15} y={(cardY + h + next.y) / 2 + 2.5} fontSize={9} className="kdx-chan">
+                          <text
+                            x={cx + 15}
+                            y={(cardY + h + next.y) / 2 + 2.5}
+                            fontSize={9}
+                            className="kdx-chan"
+                          >
                             {handoff}
                           </text>
                         </g>

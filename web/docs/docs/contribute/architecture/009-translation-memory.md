@@ -6,7 +6,7 @@ description: "Architecture decision: Sievepen is neokapi's TM library — it sto
 keywords: [Sievepen, translation memory, runs, multilingual, matching tiers, SQLite, architecture decision, neokapi]
 ---
 
-import { PipelineDiagram } from "@site/src/components/diagram";
+import { PipelineDiagram } from "@neokapi/docs-shared";
 
 # AD-009: Translation Memory (Sievepen)
 

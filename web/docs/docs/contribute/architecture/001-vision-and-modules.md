@@ -6,7 +6,7 @@ description: "Architecture decision: neokapi is an open, AI-native Go localizati
 keywords: [neokapi, architecture decision, Go modules, go.work, multi-module, Apache-2.0]
 ---
 
-import { PipelineDiagram } from "@site/src/components/diagram";
+import { PipelineDiagram } from "@neokapi/docs-shared";
 
 # AD-001: Vision and Module Architecture
 

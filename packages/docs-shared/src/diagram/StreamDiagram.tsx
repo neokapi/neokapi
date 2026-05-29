@@ -132,7 +132,13 @@ export function StreamDiagram({
                     rx={6}
                     className={boxClass(it.role)}
                   />
-                  <text x={chipX + chipW / 2} y={y} textAnchor="middle" fontSize={10.5} className="kdx-label">
+                  <text
+                    x={chipX + chipW / 2}
+                    y={y}
+                    textAnchor="middle"
+                    fontSize={10.5}
+                    className="kdx-label"
+                  >
                     {it.kind}
                   </text>
                   {it.detail && (
