@@ -994,6 +994,7 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group) {
 	g.POST("/brand-profiles/:id/check", s.HandleCheckBrandVoice)
 	g.POST("/brand-profiles/from-starter", s.HandleCreateFromStarter)
 	g.GET("/brand-profiles/suggested-rules", s.HandleGetSuggestedRules)
+	g.POST("/brand-profiles/:id/promote-rule", s.HandlePromoteSuggestedRule)
 	g.GET("/brand-profiles/starter-packs", s.HandleListStarterPacks)
 
 	// Translation jobs — Bowrain AD-011: /:ws/jobs

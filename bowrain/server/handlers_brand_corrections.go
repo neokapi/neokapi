@@ -7,10 +7,16 @@ import (
 
 	"github.com/labstack/echo/v4"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
+	platev "github.com/neokapi/neokapi/bowrain/core/event"
 
 	corebrand "github.com/neokapi/neokapi/core/brand"
 	"github.com/neokapi/neokapi/core/id"
 )
+
+// EventBrandVoiceRulePromoted fires when a correction-derived rule is promoted
+// into a brand profile (it carries the "brand." prefix so brand automations and
+// notifications react to it). The closed loop becomes observable here.
+const EventBrandVoiceRulePromoted platev.EventType = "brand.voice.rule_promoted"
 
 // BrandCorrectionRequest is the request body for creating a brand voice correction.
 type BrandCorrectionRequest struct {
@@ -79,4 +85,68 @@ func (s *Server) HandleGetSuggestedRules(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
 	return c.JSON(http.StatusOK, rules)
+}
+
+// PromoteRuleRequest is the body for promoting a suggested rule into a profile.
+type PromoteRuleRequest struct {
+	Term            string              `json:"term"`
+	Replacement     string              `json:"replacement"`
+	Dimension       corebrand.Dimension `json:"dimension,omitempty"`
+	CorrectionCount int                 `json:"correction_count,omitempty"`
+}
+
+// HandlePromoteSuggestedRule promotes a reviewed, correction-derived rule into
+// the brand profile — appending it as an enforced forbidden term, bumping the
+// profile version (the prior version is archived for audit/rollback), and
+// emitting brand.voice.rule_promoted. This closes the correction-learning loop:
+// a correction a team made becomes a deterministic check on every future
+// generation.
+func (s *Server) HandlePromoteSuggestedRule(c echo.Context) error {
+	if err := s.requirePermission(c, platauth.PermManageBrand); err != nil {
+		return err
+	}
+	if s.BrandStore == nil {
+		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "brand voice not configured"})
+	}
+
+	var req PromoteRuleRequest
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+	}
+	if req.Term == "" {
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "term is required"})
+	}
+
+	profileID := c.Param("id")
+	rule := corebrand.SuggestedRule{
+		Term:            req.Term,
+		Replacement:     req.Replacement,
+		Dimension:       req.Dimension,
+		CorrectionCount: req.CorrectionCount,
+	}
+	profile, changed, err := corebrand.PromoteAndSave(c.Request().Context(), s.BrandStore, profileID, rule)
+	if err != nil {
+		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
+	}
+
+	if changed && s.EventBus != nil {
+		userID, _ := c.Get("user_id").(string)
+		wsID, _ := c.Get("workspace_id").(string)
+		s.EventBus.Publish(platev.Event{
+			ID:        id.New(),
+			Type:      EventBrandVoiceRulePromoted,
+			Source:    "brand",
+			ProjectID: wsID,
+			Actor:     userID,
+			Data: map[string]string{
+				"profile_id":  profileID,
+				"term":        req.Term,
+				"replacement": req.Replacement,
+				"version":     strconv.Itoa(profile.Version),
+			},
+			Timestamp: time.Now().UTC(),
+		})
+	}
+
+	return c.JSON(http.StatusOK, map[string]any{"profile": profile, "promoted": changed})
 }
