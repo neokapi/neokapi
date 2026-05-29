@@ -103,8 +103,11 @@ const KAPI_VERSION = "1.0.9";
 const BOWRAIN_BASE = process.env.BOWRAIN_BACKEND_URL || "http://localhost:8080";
 const BOWRAIN_TOKEN = process.env.BOWRAIN_SESSION_TOKEN || "";
 
-/** Resolve the first workspace slug for the session token (seed must have run). */
+/** Resolve the workspace slug for the session token. An explicit
+ *  BOWRAIN_WORKSPACE_SLUG wins (a seed run prints the exact one to use, which
+ *  matters when several workspaces exist); otherwise fall back to the first. */
 async function bowrainWorkspaceSlug(): Promise<string> {
+  if (process.env.BOWRAIN_WORKSPACE_SLUG) return process.env.BOWRAIN_WORKSPACE_SLUG;
   const r = await fetch(`${BOWRAIN_BASE}/api/v1/workspaces`, {
     headers: { Authorization: `Bearer ${BOWRAIN_TOKEN}` },
   });
@@ -877,6 +880,7 @@ async function bowrainCorrectionLoopWalk(c: WalkCtx): Promise<void> {
 
   await beat("intro", null, async () => {
     await page.goto(`${wsBase}/brand/review/${profileId}${themeQ}`, { waitUntil: "domcontentloaded" });
+    await injectCursor(page); // goto wiped the page-injected cursor; re-add it
     await page.waitForTimeout(2400);
   });
 

@@ -47,6 +47,17 @@ Content a developer pushes from kapi becomes projects a team reviews together. F
   }}
 />
 
+### Checks that learn from corrections
+
+Every correction a team makes is a signal. Bowrain aggregates the phrasings people keep fixing into candidate rules, shows the blast radius of each across real content before it lands, and — on approval — promotes it into a versioned, enforced check. A correction made once becomes a check that stops the mistake from recurring, shared across everyone and every AI tool. See [the correction-learning loop](/docs/architecture-decisions/019-correction-learning-loop).
+
+<ThemedVideo
+  sources={{
+    light: "/video/bowrain-web/bowrain-web-correction-loop-light.webm",
+    dark: "/video/bowrain-web/bowrain-web-correction-loop-dark.webm",
+  }}
+/>
+
 ### Collaboration and streams
 
 A workspace is shared by a whole team. You invite teammates by email and give each a role, and streams keep parallel work apart — like branches, a rebrand or a risky pass runs on its own stream, compared and merged back into the main line when it is ready.
