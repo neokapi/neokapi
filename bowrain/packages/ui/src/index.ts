@@ -305,7 +305,7 @@ export type {
 } from "./hooks/useCollaboration";
 
 // Hooks
-export { useProjectApi } from "./hooks/useProjectApi";
+export { useProjectApi, useProjects } from "./hooks/useProjectApi";
 export { useEditorApi } from "./hooks/useEditorApi";
 export { useTMApi } from "./hooks/useTMApi";
 export { useTermsApi } from "./hooks/useTermsApi";

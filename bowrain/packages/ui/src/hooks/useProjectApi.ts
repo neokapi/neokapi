@@ -1,7 +1,23 @@
 import { useCallback } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useApi } from "../context/ApiContext";
 import { useWorkspace } from "../context/WorkspaceContext";
 import type { ProjectInfo } from "../types/api";
+
+/** useProjects is a cached query of the active workspace's projects, for pickers
+ *  and dashboards that need the list reactively (the callback API below is for
+ *  imperative flows). */
+export function useProjects() {
+  const api = useApi();
+  const { activeWorkspace } = useWorkspace();
+  const ws = activeWorkspace?.slug ?? "";
+  return useQuery({
+    queryKey: ["projects", ws],
+    queryFn: () => api.listProjects(ws),
+    enabled: !!ws,
+    staleTime: 30_000,
+  });
+}
 
 export function useProjectApi() {
   const api = useApi();
