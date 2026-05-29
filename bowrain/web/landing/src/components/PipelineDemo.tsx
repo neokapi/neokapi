@@ -1,134 +1,168 @@
-import { useState, useEffect, useCallback } from 'react'
-import { Play, ChevronRight } from 'lucide-react'
+import { useState, useEffect, useCallback } from "react";
+import { Play, ChevronRight } from "lucide-react";
 
 interface FlowStep {
-  label: string
-  detail: string
-  status: 'pending' | 'running' | 'done'
-  extra?: string
+  label: string;
+  detail: string;
+  status: "pending" | "running" | "done";
+  extra?: string;
 }
 
 const INITIAL_STEPS: FlowStep[] = [
-  { label: 'Reader', detail: 'src/locales/en.json → 47 translatable strings', status: 'pending' },
-  { label: 'Segmenter', detail: '47 strings → 312 sentences', status: 'pending' },
-  { label: 'Reuse', detail: '12 reused · 8 adapted · 27 new', status: 'pending', extra: '→ 20 strings filled from past translations' },
-  { label: 'Terminology', detail: '15 glossary terms matched', status: 'pending', extra: '→ glossary sent to guide the AI' },
-  { label: 'AI Translate', detail: '27 new strings via Claude', status: 'pending', extra: '→ uses your glossary, not its own guesses' },
-  { label: 'Term Check', detail: '27 strings checked · 1 term corrected', status: 'pending' },
-  { label: 'QA Check', detail: '47 strings passed · 0 errors · 2 warnings', status: 'pending' },
-  { label: 'Writer', detail: 'src/locales/de.json written', status: 'pending' },
-]
+  { label: "Reader", detail: "src/locales/en.json → 47 translatable strings", status: "pending" },
+  { label: "Segmenter", detail: "47 strings → 312 sentences", status: "pending" },
+  {
+    label: "Reuse",
+    detail: "12 reused · 8 adapted · 27 new",
+    status: "pending",
+    extra: "→ 20 strings filled from past translations",
+  },
+  {
+    label: "Terminology",
+    detail: "15 glossary terms matched",
+    status: "pending",
+    extra: "→ glossary sent to guide the AI",
+  },
+  {
+    label: "AI Translate",
+    detail: "27 new strings via Claude",
+    status: "pending",
+    extra: "→ uses your glossary, not its own guesses",
+  },
+  { label: "Term Check", detail: "27 strings checked · 1 term corrected", status: "pending" },
+  { label: "QA Check", detail: "47 strings passed · 0 errors · 2 warnings", status: "pending" },
+  { label: "Writer", detail: "src/locales/de.json written", status: "pending" },
+];
 
-type FlowVariant = 'translate' | 'pseudo' | 'qa'
+type FlowVariant = "translate" | "pseudo" | "qa";
 
 const FLOW_COMMANDS: Record<FlowVariant, { cmd: string; steps: FlowStep[] }> = {
   translate: {
-    cmd: 'kapi run ai-translate-qa --target-lang de',
+    cmd: "kapi run ai-translate-qa --target-lang de",
     steps: INITIAL_STEPS,
   },
   pseudo: {
-    cmd: 'kapi run pseudo',
+    cmd: "kapi run pseudo",
     steps: [
-      { label: 'Reader', detail: 'src/**/*.json → 6 files, 183 blocks', status: 'pending' },
-      { label: 'Segmenter', detail: '183 strings → 891 sentences', status: 'pending' },
-      { label: 'Pseudo', detail: 'accents added + text expanded 30%', status: 'pending', extra: '→ "Settings" → "Šëťťïñğš [--- ----]"' },
-      { label: 'QA Check', detail: '183 strings · 4 might not fit the UI', status: 'pending' },
-      { label: 'Writer', detail: '6 files written to src/locales/qps/', status: 'pending' },
+      { label: "Reader", detail: "src/**/*.json → 6 files, 183 blocks", status: "pending" },
+      { label: "Segmenter", detail: "183 strings → 891 sentences", status: "pending" },
+      {
+        label: "Pseudo",
+        detail: "accents added + text expanded 30%",
+        status: "pending",
+        extra: '→ "Settings" → "Šëťťïñğš [--- ----]"',
+      },
+      { label: "QA Check", detail: "183 strings · 4 might not fit the UI", status: "pending" },
+      { label: "Writer", detail: "6 files written to src/locales/qps/", status: "pending" },
     ],
   },
   qa: {
-    cmd: 'kapi run qa-check --target-lang de',
+    cmd: "kapi run qa-check --target-lang de",
     steps: [
-      { label: 'Reader', detail: 'de.json + en.json → 47 string pairs', status: 'pending' },
-      { label: 'Terminology', detail: '15 terms verified · 2 inconsistent', status: 'pending', extra: '→ "Arbeitsbereich" vs "Workspace" in string 23' },
-      { label: 'Variables', detail: '47 strings · all variables preserved', status: 'pending' },
-      { label: 'Length', detail: '47 strings · 3 translations too long', status: 'pending' },
-      { label: 'Formatting', detail: '47 strings · 0 issues', status: 'pending' },
-      { label: 'Report', detail: '2 errors · 3 warnings · 42 passed', status: 'pending' },
+      { label: "Reader", detail: "de.json + en.json → 47 string pairs", status: "pending" },
+      {
+        label: "Terminology",
+        detail: "15 terms verified · 2 inconsistent",
+        status: "pending",
+        extra: '→ "Arbeitsbereich" vs "Workspace" in string 23',
+      },
+      { label: "Variables", detail: "47 strings · all variables preserved", status: "pending" },
+      { label: "Length", detail: "47 strings · 3 translations too long", status: "pending" },
+      { label: "Formatting", detail: "47 strings · 0 issues", status: "pending" },
+      { label: "Report", detail: "2 errors · 3 warnings · 42 passed", status: "pending" },
     ],
   },
-}
+};
 
 export function PipelineDemo() {
-  const [variant, setVariant] = useState<FlowVariant>('translate')
-  const [steps, setSteps] = useState<FlowStep[]>([])
-  const [currentStep, setCurrentStep] = useState(-1)
-  const [running, setRunning] = useState(false)
-  const [elapsed, setElapsed] = useState<number | null>(null)
+  const [variant, setVariant] = useState<FlowVariant>("translate");
+  const [steps, setSteps] = useState<FlowStep[]>([]);
+  const [currentStep, setCurrentStep] = useState(-1);
+  const [running, setRunning] = useState(false);
+  const [elapsed, setElapsed] = useState<number | null>(null);
 
   const run = useCallback(() => {
-    const flow = FLOW_COMMANDS[variant]
-    setSteps(flow.steps.map(s => ({ ...s, status: 'pending' })))
-    setCurrentStep(0)
-    setRunning(true)
-    setElapsed(null)
-  }, [variant])
+    const flow = FLOW_COMMANDS[variant];
+    setSteps(flow.steps.map((s) => ({ ...s, status: "pending" })));
+    setCurrentStep(0);
+    setRunning(true);
+    setElapsed(null);
+  }, [variant]);
 
   const reset = useCallback(() => {
-    setSteps([])
-    setCurrentStep(-1)
-    setRunning(false)
-    setElapsed(null)
-  }, [])
+    setSteps([]);
+    setCurrentStep(-1);
+    setRunning(false);
+    setElapsed(null);
+  }, []);
 
   useEffect(() => {
-    if (!running || currentStep < 0) return
-    const flow = FLOW_COMMANDS[variant]
+    if (!running || currentStep < 0) return;
+    const flow = FLOW_COMMANDS[variant];
 
     if (currentStep >= flow.steps.length) {
-      setRunning(false)
-      setElapsed(Math.round(800 + Math.random() * 3200))
-      return
+      setRunning(false);
+      setElapsed(Math.round(800 + Math.random() * 3200));
+      return;
     }
 
-    const timer = setTimeout(() => {
-      setSteps(prev => prev.map((s, i) => ({
-        ...s,
-        status: i < currentStep ? 'done' : i === currentStep ? 'done' : 'pending',
-      })))
-      setCurrentStep(c => c + 1)
-    }, 500 + Math.random() * 300)
+    const timer = setTimeout(
+      () => {
+        setSteps((prev) =>
+          prev.map((s, i) => ({
+            ...s,
+            status: i < currentStep ? "done" : i === currentStep ? "done" : "pending",
+          })),
+        );
+        setCurrentStep((c) => c + 1);
+      },
+      500 + Math.random() * 300,
+    );
 
-    return () => clearTimeout(timer)
-  }, [running, currentStep, variant])
+    return () => clearTimeout(timer);
+  }, [running, currentStep, variant]);
 
   // Mark current step as running
   useEffect(() => {
     if (running && currentStep >= 0) {
-      setSteps(prev => prev.map((s, i) => ({
-        ...s,
-        status: i < currentStep ? 'done' : i === currentStep ? 'running' : 'pending',
-      })))
+      setSteps((prev) =>
+        prev.map((s, i) => ({
+          ...s,
+          status: i < currentStep ? "done" : i === currentStep ? "running" : "pending",
+        })),
+      );
     }
-  }, [currentStep, running])
+  }, [currentStep, running]);
 
-  const flow = FLOW_COMMANDS[variant]
+  const flow = FLOW_COMMANDS[variant];
 
   return (
     <section id="pipeline-demo" className="mx-auto max-w-6xl px-6 py-24">
       <div className="mx-auto max-w-3xl text-center">
-        <h2 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">
-          See a flow run
-        </h2>
+        <h2 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">See a flow run</h2>
         <p className="mt-3 text-neutral-400">
-          Pick a flow and run it with kapi, the open toolchain Bowrain builds on. Each tool does its job in turn.
+          Pick a flow and run it with kapi, the open toolchain Bowrain builds on. Each tool does its
+          job in turn.
         </p>
       </div>
 
       {/* Flow selector */}
       <div className="mt-10 flex flex-wrap justify-center gap-2">
-        {([
-          { id: 'translate' as FlowVariant, label: 'AI Translate + QA' },
-          { id: 'pseudo' as FlowVariant, label: 'Pseudo-localize' },
-          { id: 'qa' as FlowVariant, label: 'QA Check' },
-        ]).map(f => (
+        {[
+          { id: "translate" as FlowVariant, label: "AI Translate + QA" },
+          { id: "pseudo" as FlowVariant, label: "Pseudo-localize" },
+          { id: "qa" as FlowVariant, label: "QA Check" },
+        ].map((f) => (
           <button
             key={f.id}
-            onClick={() => { setVariant(f.id); reset() }}
+            onClick={() => {
+              setVariant(f.id);
+              reset();
+            }}
             className={`rounded-lg border px-4 py-2 text-sm transition ${
               variant === f.id
-                ? 'border-brand-500 bg-brand-500/10 text-brand-400'
-                : 'border-neutral-800 text-neutral-500 hover:border-neutral-600 hover:text-neutral-300'
+                ? "border-brand-500 bg-brand-500/10 text-brand-400"
+                : "border-neutral-800 text-neutral-500 hover:border-neutral-600 hover:text-neutral-300"
             }`}
           >
             {f.label}
@@ -166,22 +200,40 @@ export function PipelineDemo() {
             <div className="mt-4 space-y-1.5">
               {steps.map((s, i) => (
                 <div key={i}>
-                  <div className={`flex items-center gap-3 ${
-                    s.status === 'done' ? '' : s.status === 'running' ? 'text-brand-400' : 'text-neutral-700'
-                  }`}>
+                  <div
+                    className={`flex items-center gap-3 ${
+                      s.status === "done"
+                        ? ""
+                        : s.status === "running"
+                          ? "text-brand-400"
+                          : "text-neutral-700"
+                    }`}
+                  >
                     <span className="w-4 text-center text-xs">
-                      {s.status === 'done' && <span className="text-suggestion">✓</span>}
-                      {s.status === 'running' && (
+                      {s.status === "done" && <span className="text-suggestion">✓</span>}
+                      {s.status === "running" && (
                         <span className="inline-block h-3 w-3 animate-spin rounded-full border border-brand-400/30 border-t-brand-400" />
                       )}
-                      {s.status === 'pending' && <span className="text-neutral-700">·</span>}
+                      {s.status === "pending" && <span className="text-neutral-700">·</span>}
                     </span>
-                    <span className={`w-28 shrink-0 ${s.status === 'done' ? 'text-neutral-500' : ''}`}>{s.label}</span>
-                    <span className={s.status === 'done' ? 'text-neutral-400' : s.status === 'running' ? 'text-neutral-500' : 'text-neutral-700'}>
-                      {s.status !== 'pending' ? s.detail : ''}
+                    <span
+                      className={`w-28 shrink-0 ${s.status === "done" ? "text-neutral-500" : ""}`}
+                    >
+                      {s.label}
+                    </span>
+                    <span
+                      className={
+                        s.status === "done"
+                          ? "text-neutral-400"
+                          : s.status === "running"
+                            ? "text-neutral-500"
+                            : "text-neutral-700"
+                      }
+                    >
+                      {s.status !== "pending" ? s.detail : ""}
                     </span>
                   </div>
-                  {s.status === 'done' && s.extra && (
+                  {s.status === "done" && s.extra && (
                     <div className="ml-7 flex items-center gap-1 text-xs text-neutral-600">
                       <ChevronRight className="h-3 w-3" />
                       {s.extra}
@@ -192,7 +244,9 @@ export function PipelineDemo() {
 
               {elapsed !== null && (
                 <div className="mt-3 flex flex-wrap items-center gap-4 border-t border-neutral-800 pt-3 animate-fade-in-up">
-                  <span className="text-xs text-suggestion">Done in {(elapsed / 1000).toFixed(1)}s</span>
+                  <span className="text-xs text-suggestion">
+                    Done in {(elapsed / 1000).toFixed(1)}s
+                  </span>
                   <span className="text-xs text-neutral-500">All steps ran in parallel</span>
                   <button
                     onClick={reset}
@@ -208,8 +262,9 @@ export function PipelineDemo() {
       </div>
 
       <p className="mt-6 text-center text-sm text-neutral-500">
-        Steps run in parallel — each one starts as soon as it has work, without waiting for others to finish.
+        Steps run in parallel — each one starts as soon as it has work, without waiting for others
+        to finish.
       </p>
     </section>
-  )
+  );
 }

@@ -7,6 +7,8 @@ brew "node"          # frontend workspaces (then run `vp install` at the repo ro
 brew "pkg-config"    # CGO builds locate native libraries
 brew "icu4c"         # ICU + FTS5 for the framework/desktop CGO builds
                      #   (keg-only — expose it on PKG_CONFIG_PATH; see CLAUDE.md)
+brew "onnxruntime"   # in-process ONNX for the ML plugins (kapi-sat segmenter,
+                     #   kapi-check small-model checkers) — `-tags onnx` CGO builds
 
 # ── Release & code signing ───────────────────────────────────────
 brew "gh"            # GitHub CLI — release download/upload/publish, secrets
@@ -30,3 +32,7 @@ cask "simplysign"    # SimplySign Desktop — Certum cloud code signing. Present
 #     go install github.com/wailsapp/wails/v3/cmd/wails3@latest
 # • quill (macOS notarization — used in CI, not usually needed locally):
 #     https://github.com/anchore/quill
+# • libtokenizers.a (the daulet/tokenizers native lib, for the `-tags onnx` ML
+#   plugin builds) — not a Homebrew formula. Download the platform archive from
+#   https://github.com/daulet/tokenizers/releases and set SAT_TOKENIZERS_LIB to
+#   the directory containing libtokenizers.a (see plugins/sat/README.md).

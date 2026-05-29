@@ -1,4 +1,4 @@
-import { Package, Pen, Layers } from 'lucide-react'
+import { Package, Pen, Layers } from "lucide-react";
 
 export function Problem() {
   return (
@@ -8,8 +8,9 @@ export function Problem() {
           Where the local toolchain ends
         </h2>
         <p className="mt-3 text-neutral-400">
-          kapi gives one person everything they need on their own machine. Bowrain begins where a team does — when the
-          same brand voice, terminology, and translation memory have to be shared, versioned, and stewarded over time.
+          kapi gives one person everything they need on their own machine. Bowrain begins where a
+          team does — when the same brand voice, terminology, and translation memory have to be
+          shared, versioned, and stewarded over time.
         </p>
       </div>
 
@@ -20,8 +21,8 @@ export function Problem() {
           </div>
           <h3 className="text-lg font-semibold text-white">Shared, not scattered</h3>
           <p className="mt-2 text-sm leading-relaxed text-neutral-400">
-            One brand voice, terminology base, and translation memory for everyone — not a copy on each laptop that
-            drifts out of sync.
+            One brand voice, terminology base, and translation memory for everyone — not a copy on
+            each laptop that drifts out of sync.
           </p>
         </div>
 
@@ -31,8 +32,8 @@ export function Problem() {
           </div>
           <h3 className="text-lg font-semibold text-white">Versioned and audited</h3>
           <p className="mt-2 text-sm leading-relaxed text-neutral-400">
-            Version history, audit, and review for content and translations, so a team can see what changed, who
-            changed it, and roll back when needed.
+            Version history, audit, and review for content and translations, so a team can see what
+            changed, who changed it, and roll back when needed.
           </p>
         </div>
 
@@ -42,11 +43,11 @@ export function Problem() {
           </div>
           <h3 className="text-lg font-semibold text-white">Connected to your systems</h3>
           <p className="mt-2 text-sm leading-relaxed text-neutral-400">
-            Connectors to the systems content already lives in, and automation that runs on the server — so the work
-            keeps moving without anyone running a command.
+            Connectors to the systems content already lives in, and automation that runs on the
+            server — so the work keeps moving without anyone running a command.
           </p>
         </div>
       </div>
     </section>
-  )
+  );
 }

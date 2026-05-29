@@ -1,19 +1,21 @@
-import { Nav } from './components/Nav'
-import { Hero } from './components/Hero'
-import { Problem } from './components/Problem'
-import { OpenSource } from './components/OpenSource'
-import { SourceGovernance } from './components/SourceGovernance'
-import { PseudoChallenge } from './components/PseudoChallenge'
-import { BrandChallenge } from './components/BrandChallenge'
-import { Platform } from './components/Platform'
-import { Desktop } from './components/Desktop'
-import { Plans } from './components/Plans'
-import { CTA } from './components/CTA'
-import { Footer } from './components/Footer'
+import { Nav } from "./components/Nav";
+import { Hero } from "./components/Hero";
+import { Problem } from "./components/Problem";
+import { OpenSource } from "./components/OpenSource";
+import { SourceGovernance } from "./components/SourceGovernance";
+import { PseudoChallenge } from "./components/PseudoChallenge";
+import { BrandChallenge } from "./components/BrandChallenge";
+import { Platform } from "./components/Platform";
+import { Desktop } from "./components/Desktop";
+import { Plans } from "./components/Plans";
+import { CTA } from "./components/CTA";
+import { Footer } from "./components/Footer";
 
 const Divider = () => (
-  <div className="mx-auto max-w-6xl px-6"><hr className="border-neutral-800/50" /></div>
-)
+  <div className="mx-auto max-w-6xl px-6">
+    <hr className="border-neutral-800/50" />
+  </div>
+);
 
 function App() {
   return (
@@ -40,7 +42,7 @@ function App() {
       <CTA />
       <Footer />
     </div>
-  )
+  );
 }
 
-export default App
+export default App;
