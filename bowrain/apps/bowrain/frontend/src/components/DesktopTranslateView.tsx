@@ -13,6 +13,8 @@ interface DesktopTranslateViewProps {
   onExport: (blob: Blob, fileName: string) => void;
   /** Cross-surface switcher slot (Pre-process/Translate/Review). */
   surfaceTabs?: React.ReactNode;
+  /** Bumped by the backend-events layer to force a block reload on external change. */
+  reloadSignal?: number;
 }
 
 /**
@@ -42,6 +44,7 @@ export function DesktopTranslateView({
   onBack,
   onExport,
   surfaceTabs,
+  reloadSignal,
 }: DesktopTranslateViewProps) {
   const [session, setSession] = useState<CollabSessionInfo | null>(null);
 
@@ -86,6 +89,7 @@ export function DesktopTranslateView({
       onBack={onBack}
       onExport={onExport}
       surfaceTabs={surfaceTabs}
+      reloadSignal={reloadSignal}
       onSelectedBlockChange={collabEnabled ? setSelectedBlock : undefined}
       presenceSlot={
         collabEnabled ? (

@@ -687,8 +687,11 @@ func (g *EditorGRPCServer) WatchProject(req *pb.WatchProjectRequest, stream grpc
 	// Subscribe to events for this project.
 	if g.srv.EventBus != nil {
 		handler := func(e platev.Event) {
-			// Filter events by project ID.
-			if e.ProjectID != projectID {
+			// Deliver events for this project, plus workspace-global events
+			// (no project ID — e.g. brand profile, termbase, membership) that
+			// still affect the open project's views. Cross-project events are
+			// dropped.
+			if e.ProjectID != "" && e.ProjectID != projectID {
 				return
 			}
 			evt := busEventToProjectEvent(e)
@@ -1068,8 +1071,10 @@ func busEventToProjectEvent(e platev.Event) *pb.ProjectEvent {
 		}
 	}
 
+	t := string(e.Type)
+
 	// Block change events.
-	if strings.HasPrefix(string(e.Type), "editor.block.") || strings.HasPrefix(string(e.Type), "block.") {
+	if strings.HasPrefix(t, "editor.block.") || strings.HasPrefix(t, "block.") {
 		return &pb.ProjectEvent{
 			Event: &pb.ProjectEvent_BlockChange{
 				BlockChange: &pb.BlockChangeEvent{
@@ -1077,12 +1082,82 @@ func busEventToProjectEvent(e platev.Event) *pb.ProjectEvent {
 					ItemName:   e.Data["item_name"],
 					ChangeType: e.Data["change_type"],
 					ChangedBy:  e.Data["changed_by"],
+					Stream:     e.Data["stream"],
 				},
 			},
 		}
 	}
 
-	return nil
+	// Item add/remove.
+	if strings.HasPrefix(t, "item.") {
+		return &pb.ProjectEvent{Event: &pb.ProjectEvent_ItemChange{
+			ItemChange: &pb.ItemChangeEvent{
+				EventType: t,
+				ItemName:  e.Data["item_name"],
+				Stream:    e.Data["stream"],
+			},
+		}}
+	}
+
+	// Connector pull/push/sync.
+	if strings.HasPrefix(t, "connector.") {
+		return &pb.ProjectEvent{Event: &pb.ProjectEvent_ConnectorSync{
+			ConnectorSync: &pb.ConnectorSyncEvent{EventType: t, Actor: e.Actor},
+		}}
+	}
+
+	// Flow lifecycle.
+	if strings.HasPrefix(t, "flow.") {
+		return &pb.ProjectEvent{Event: &pb.ProjectEvent_FlowEvent{
+			FlowEvent: &pb.FlowEventEvent{EventType: t},
+		}}
+	}
+
+	// Brand voice / profile.
+	if strings.HasPrefix(t, "brand.") {
+		return &pb.ProjectEvent{Event: &pb.ProjectEvent_BrandVoice{
+			BrandVoice: &pb.BrandVoiceEvent{EventType: t},
+		}}
+	}
+
+	// Stream lifecycle.
+	if strings.HasPrefix(t, "stream.") {
+		return &pb.ProjectEvent{Event: &pb.ProjectEvent_Stream{
+			Stream: &pb.StreamEvent{EventType: t, Stream: e.Data["stream"]},
+		}}
+	}
+
+	// Termbase changes (concepts/terms) — emitted with a "termbase" event_kind
+	// or a term.* / concept.* type.
+	if kind == "termbase" || strings.HasPrefix(t, "term.") || strings.HasPrefix(t, "concept.") {
+		return &pb.ProjectEvent{Event: &pb.ProjectEvent_Termbase{
+			Termbase: &pb.TermBaseEvent{EventType: t},
+		}}
+	}
+
+	// Membership / task changes.
+	if kind == "membership" || strings.HasPrefix(t, "member.") || strings.HasPrefix(t, "task.") {
+		return &pb.ProjectEvent{Event: &pb.ProjectEvent_MembershipChange{
+			MembershipChange: &pb.MembershipChangeEvent{EventType: t, Actor: e.Actor},
+		}}
+	}
+
+	// Project lifecycle, collections, extraction, quality gates, versions, and
+	// any other state-changing event → generic ProjectChange so the desktop
+	// refreshes the affected view. Presence and agent chatter are excluded.
+	if strings.HasPrefix(t, "agent.") {
+		return nil
+	}
+	if t == "" {
+		return nil
+	}
+	return &pb.ProjectEvent{Event: &pb.ProjectEvent_ProjectChange{
+		ProjectChange: &pb.ProjectChangeEvent{
+			EventType:  t,
+			ChangeType: e.Data["change_type"],
+			Actor:      e.Actor,
+		},
+	}}
 }
 
 // --- AI provider configuration ---

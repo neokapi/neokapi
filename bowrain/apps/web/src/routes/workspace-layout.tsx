@@ -39,6 +39,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useUIStore } from "../stores/ui-store";
 import { viewFromPath } from "./view-from-path";
 import { activitiesQueryOptions, myTasksQueryOptions } from "../queries";
+import { useWorkspaceEvents } from "../hooks/useWorkspaceEvents";
 import type { WorkspaceRouteContext } from ".";
 
 // ---------------------------------------------------------------------------
@@ -320,6 +321,18 @@ export function WorkspaceLayout() {
   // -----------------------------------------------------------------------
 
   const ws = activeWorkspace.slug;
+
+  // Subscribe to the workspace's unified change-event stream so every view
+  // stays fresh when content changes from outside it (another user's edit, a
+  // kapi push, a connector sync, an automation/flow completion, a
+  // stream/member/brand/term change). Scope to the active project when the URL
+  // is on a project route to reduce noise; otherwise stream the whole
+  // workspace. Yjs collab WS keeps handling per-cursor presence.
+  const activeProjectId = useMemo(
+    () => parseProjectParams(pathname, workspaceSlug ?? "")?.projectId,
+    [pathname, workspaceSlug],
+  );
+  useWorkspaceEvents(ws, activeProjectId);
 
   const sidebarContext = useMemo<SidebarContext | undefined>(() => {
     const projectParams = parseProjectParams(pathname, workspaceSlug ?? "");

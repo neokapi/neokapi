@@ -58,6 +58,14 @@ interface TranslationEditorProps {
   defaultView?: TranslateView;
   /** Optional slot for the cross-surface switcher (Pre-process/Translate/Review). */
   surfaceTabs?: React.ReactNode;
+  /**
+   * Monotonic counter that forces a reload of the editor's blocks + word count
+   * when it changes. Both the web (EventSource → invalidate) and desktop
+   * (gRPC WatchProject → events) freshness layers bump this when an external
+   * change touches this file's project, so the open editor never shows stale
+   * targets after another user's edit, a kapi push, or a flow/sync completion.
+   */
+  reloadSignal?: number;
 }
 
 export function TranslationEditor({
@@ -69,6 +77,7 @@ export function TranslationEditor({
   onSelectedBlockChange,
   defaultView = "visual",
   surfaceTabs,
+  reloadSignal,
 }: TranslationEditorProps) {
   const [blocks, setBlocks] = useState<BlockInfo[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -146,7 +155,10 @@ export function TranslationEditor({
   useEffect(() => {
     void loadBlocks();
     void loadWordCount();
-  }, [loadBlocks, loadWordCount]);
+    // reloadSignal is an external freshness trigger: bumping it re-runs this
+    // effect to pull authoritative state after an out-of-band change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loadBlocks, loadWordCount, reloadSignal]);
 
   // Filter blocks by search
   const filteredBlocks = searchQuery
