@@ -60,6 +60,7 @@ func init() {
 		rootCmd.AddCommand(c)
 	}
 	rootCmd.AddCommand(app.NewVerifyCmd())
+	rootCmd.AddCommand(app.NewCheckCmd())
 	rootCmd.AddCommand(app.NewHookCmd())
 	rootCmd.AddCommand(app.NewInitCmd())
 
