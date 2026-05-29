@@ -63,7 +63,18 @@ func (s *Server) HandleCreateBrandVoiceCorrection(c echo.Context) error {
 	if err := s.BrandStore.StoreCorrection(c.Request().Context(), correction); err != nil {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
-	return c.JSON(http.StatusCreated, correction)
+
+	// Progressive autonomy: if this correction pushes its term over the profile's
+	// auto-promote threshold, promote the rule now (no human review). Best-effort —
+	// a hiccup here never fails the correction that was already stored.
+	wsID, _ := c.Get("workspace_id").(string)
+	resp := map[string]any{"correction": correction}
+	if profile, err := s.BrandStore.GetProfile(c.Request().Context(), req.ProfileID); err == nil {
+		if term, promoted := s.maybeAutoPromote(c, profile, wsID, userID, correction); promoted {
+			resp["auto_promoted"] = term
+		}
+	}
+	return c.JSON(http.StatusCreated, resp)
 }
 
 // HandleGetSuggestedRules returns vocabulary rules suggested from repeated corrections.
@@ -129,23 +140,23 @@ func (s *Server) HandlePromoteSuggestedRule(c echo.Context) error {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
 	}
 
-	if changed && s.EventBus != nil {
-		userID, _ := c.Get("user_id").(string)
-		wsID, _ := c.Get("workspace_id").(string)
-		s.EventBus.Publish(platev.Event{
-			ID:        id.New(),
-			Type:      EventBrandVoiceRulePromoted,
-			Source:    "brand",
-			ProjectID: wsID,
-			Actor:     userID,
-			Data: map[string]string{
-				"profile_id":  profileID,
-				"term":        req.Term,
-				"replacement": req.Replacement,
-				"version":     strconv.Itoa(profile.Version),
-			},
-			Timestamp: time.Now().UTC(),
+	userID, _ := c.Get("user_id").(string)
+	wsID, _ := c.Get("workspace_id").(string)
+	if changed {
+		// Record the decision so the candidate leaves the review list and the
+		// promotion is traceable to the profile version it landed in.
+		_ = s.BrandStore.RecordRuleDecision(c.Request().Context(), &corebrand.RuleDecision{
+			ProfileID:       profileID,
+			Term:            req.Term,
+			Replacement:     req.Replacement,
+			Dimension:       req.Dimension,
+			Status:          corebrand.RuleDecisionPromoted,
+			CorrectionCount: req.CorrectionCount,
+			PromotedVersion: profile.Version,
+			DecidedBy:       userID,
+			DecidedAt:       time.Now().UTC(),
 		})
+		s.publishBrandRuleEvent(EventBrandVoiceRulePromoted, wsID, userID, profileID, req.Term, req.Replacement, profile.Version)
 	}
 
 	return c.JSON(http.StatusOK, map[string]any{"profile": profile, "promoted": changed})
