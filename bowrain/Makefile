@@ -44,6 +44,7 @@ KC_THEME_DIR := apps/keycloak-theme
 EMAILS_DIR   := emails
 CERT_DIR     := docker/traefik/certs
 SERVER_PROTO_DIR := proto/v1
+SYNC_PROTO_DIR   := core/proto/sync/v1
 
 # Tools
 GOLANGCI_LINT := $(shell which golangci-lint 2>/dev/null || { test -x "$$(go env GOPATH)/bin/golangci-lint" && echo "$$(go env GOPATH)/bin/golangci-lint"; })
@@ -445,7 +446,7 @@ check: fmt vet lint ## Run all code quality checks
 
 # ── Protobuf ─────────────────────────────────────────────────────────────────
 
-proto: ## Generate Go code from server protobuf definitions
+proto: ## Generate Go code from server + sync protobuf definitions
 ifndef PROTOC
 	$(error "protoc not found. Install Protocol Buffers compiler.")
 endif
@@ -455,6 +456,11 @@ endif
 	protoc --go_out=. --go_opt=paths=source_relative \
 		--go-grpc_out=. --go-grpc_opt=paths=source_relative \
 		$(SERVER_PROTO_DIR)/*.proto
+	# Sync protocol messages live in the framework-only bowrain/core module so the
+	# push client can use them without the editor/server gRPC service surface.
+	# They are messages only (no service), so no go-grpc plugin is needed.
+	protoc --go_out=. --go_opt=paths=source_relative \
+		$(SYNC_PROTO_DIR)/*.proto
 
 # ── Dependencies ─────────────────────────────────────────────────────────────
 

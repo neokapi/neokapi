@@ -57,6 +57,8 @@ KAPI_ISO_DIR := $(CURDIR)/.kapi-iso
 KAPI_ISO_ENV := KAPI_NO_PROJECT=1 KAPI_PLUGINS_DIR_ONLY=1 KAPI_CONFIG_DIR=$(KAPI_ISO_DIR)/config XDG_DATA_HOME=$(KAPI_ISO_DIR)/data XDG_CACHE_HOME=$(KAPI_ISO_DIR)/cache
 
 GOLANGCI_LINT := $(shell which golangci-lint 2>/dev/null || { test -x "$$(go env GOPATH)/bin/golangci-lint" && echo "$$(go env GOPATH)/bin/golangci-lint"; })
+PROTOC        := $(shell which protoc 2>/dev/null)
+PROTOC_GEN_GO := $(shell which protoc-gen-go 2>/dev/null)
 
 # ── CI auto-detection ────────────────────────────────────────────────────────
 # GitHub Actions sets CI=true. When active, test targets add race detection,
@@ -289,6 +291,8 @@ verify-isolation: ## Verify all Go module isolation boundaries
 	GOWORK=off bash -c "cd bowrain/cli && go build ./..."
 	@# kapi must not depend on bowrain
 	@if cd kapi && GOWORK=off go list -m all 2>/dev/null | grep -q 'neokapi/bowrain'; then echo "ERROR: kapi depends on bowrain"; exit 1; fi
+	@# bowrain/core must not depend on the main bowrain module (framework-only)
+	@if cd bowrain/core && GOWORK=off go list -m all 2>/dev/null | grep -qE 'neokapi/bowrain($$| )'; then echo "ERROR: bowrain/core depends on the main bowrain module"; exit 1; fi
 	@# bowrain must not depend on cli
 	@if cd bowrain && GOWORK=off go list -m all 2>/dev/null | grep -iE 'neokapi/cli'; then echo "ERROR: bowrain depends on cli"; exit 1; fi
 	@# kapi must not have heavy deps
@@ -305,10 +309,18 @@ verify-isolation: ## Verify all Go module isolation boundaries
 # pre-push). Mirrors the per-module isolation commands in CLAUDE.md "Build
 # Conventions".
 #
+# bowrain/core additionally gets an import-level assertion: its transitive
+# package imports (GOWORK=off go list -deps ./...) must contain NO package from
+# the main bowrain module — only bowrain/core/* and bowrain/plugin/schema are
+# allowed under the bowrain/ tree. This fails fast on a re-introduced
+# bowrain/sync or bowrain/proto/v1 import (which would otherwise re-add the
+# require + replace on the main bowrain module and re-couple the framework-only
+# core to redis/echo/the gRPC service surface).
+#
 # Modules audited (path → expected boundary):
 #   .                  framework — no cli/bowrain deps
 #   cli                framework only — no bowrain dep
-#   bowrain/core       framework (+ plugin/schema) only — no cli dep
+#   bowrain/core       framework (+ plugin/schema) only — no cli AND no main bowrain dep
 #   kapi               framework + cli only — no bowrain dep
 #   apps/kapi-desktop  framework + cli (+ plugin/schema) only — no bowrain dep
 #   bowrain/cli        framework + cli + bowrain/core (the kapi-bowrain plugin)
@@ -331,6 +343,17 @@ audit-modules: ## Assert module isolation + go.mod/go.sum tidiness (fails on dri
 	  echo ">> audit $$dir"; \
 	  pkgs="./..."; [ "$$dir" = "apps/kapi-desktop" ] && pkgs="./backend/..."; \
 	  ( cd "$$dir" && GOWORK=off $(GO) build $$pkgs ) || { echo "ERROR: $$dir failed isolated (GOWORK=off) build"; exit 1; }; \
+	  if [ "$$dir" = "bowrain/core" ]; then \
+	    bad=$$( cd "$$dir" && GOWORK=off $(GO) list -deps ./... 2>/dev/null \
+	              | grep -E '^github\.com/neokapi/neokapi/bowrain(/|$$)' \
+	              | grep -vE '^github\.com/neokapi/neokapi/bowrain/(core|plugin/schema)(/|$$)' || true ); \
+	    if [ -n "$$bad" ]; then \
+	      echo "ERROR: bowrain/core must be framework-only — it imports the main bowrain module:"; \
+	      echo "$$bad" | sed 's/^/    /'; \
+	      echo "  (move the shared code into a low package under bowrain/core, e.g. bowrain/core/sync or bowrain/core/proto/sync/v1)"; \
+	      rc=1; \
+	    fi; \
+	  fi; \
 	  cp "$$dir/go.mod" "$$dir/go.mod.audit.bak"; \
 	  [ -f "$$dir/go.sum" ] && cp "$$dir/go.sum" "$$dir/go.sum.audit.bak" || true; \
 	  ( cd "$$dir" && GOWORK=off $(GO) mod tidy ) || { echo "ERROR: $$dir failed go mod tidy"; exit 1; }; \

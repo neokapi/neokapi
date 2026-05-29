@@ -14,8 +14,8 @@ import (
 
 	"github.com/labstack/echo/v4"
 	"github.com/neokapi/neokapi/bowrain/auth"
+	pb "github.com/neokapi/neokapi/bowrain/core/proto/sync/v1"
 	"github.com/neokapi/neokapi/bowrain/jobs"
-	pb "github.com/neokapi/neokapi/bowrain/proto/v1"
 	"github.com/neokapi/neokapi/bowrain/service"
 	bloblocal "github.com/neokapi/neokapi/bowrain/storage/localblob"
 	bstore "github.com/neokapi/neokapi/bowrain/store"

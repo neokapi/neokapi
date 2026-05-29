@@ -12,8 +12,8 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
-	pb "github.com/neokapi/neokapi/bowrain/proto/v1"
-	bowsync "github.com/neokapi/neokapi/bowrain/sync"
+	pb "github.com/neokapi/neokapi/bowrain/core/proto/sync/v1"
+	bowsync "github.com/neokapi/neokapi/bowrain/core/sync"
 	"github.com/neokapi/neokapi/core/model"
 )
 
