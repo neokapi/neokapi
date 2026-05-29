@@ -32,7 +32,12 @@ type Case struct {
 	TargetLang string   `json:"target_lang"`
 	DNT        []string `json:"dnt"`
 	Expect     []string `json:"expect"`
-	Note       string   `json:"note"`
+	// ExpectScore, when set, pins the rolled-up compliance score (0-100) the
+	// case must produce — a score-calibration anchor (#758). A change to the
+	// severity weights or a checker's severity choice that moves the score off
+	// this value fails the gate.
+	ExpectScore *int   `json:"expect_score,omitempty"`
+	Note        string `json:"note"`
 }
 
 // Corpus is the labeled eval set.
@@ -42,14 +47,17 @@ type Corpus struct {
 
 // CaseResult records the per-case outcome for the dashboard.
 type CaseResult struct {
-	ID     string   `json:"id"`
-	Check  string   `json:"check"`
-	Expect []string `json:"expect"`
-	Got    []string `json:"got"`
-	TP     int      `json:"tp"`
-	FP     int      `json:"fp"`
-	FN     int      `json:"fn"`
-	Note   string   `json:"note"`
+	ID          string   `json:"id"`
+	Check       string   `json:"check"`
+	Expect      []string `json:"expect"`
+	Got         []string `json:"got"`
+	TP          int      `json:"tp"`
+	FP          int      `json:"fp"`
+	FN          int      `json:"fn"`
+	Score       int      `json:"score"`                  // rolled-up compliance score (0-100)
+	ExpectScore *int     `json:"expect_score,omitempty"` // pinned score, if calibrated
+	ScoreOK     bool     `json:"score_ok"`               // true when no ExpectScore or it matches
+	Note        string   `json:"note"`
 }
 
 // Metric is precision/recall/F1 over a set of cases.
@@ -72,8 +80,10 @@ type Report struct {
 	Cases         []CaseResult `json:"cases"`
 }
 
-// runCase runs the case's check and returns the set of finding categories.
-func runCase(c Case) ([]string, error) {
+// runCase runs the case's check and returns the set of finding categories and
+// the rolled-up compliance score over the findings (the score the gate pins for
+// calibrated cases).
+func runCase(c Case) (cats []string, score int, err error) {
 	loc := model.LocaleID(c.TargetLang)
 	b := &model.Block{ID: c.ID, Translatable: true, Source: []model.Run{{Text: &model.TextRun{Text: c.Source}}}}
 	if c.Target != "" {
@@ -88,18 +98,20 @@ func runCase(c Case) ([]string, error) {
 	case "placeholder":
 		tl = coretools.NewPlaceholderCheckTool(coretools.NewPlaceholderCheckConfig(loc))
 	default:
-		return nil, fmt.Errorf("checkeval: unknown check %q in case %q", c.Check, c.ID)
+		return nil, 0, fmt.Errorf("checkeval: unknown check %q in case %q", c.Check, c.ID)
 	}
 	if err := tl.Annotate(tool.NewBlockView(b)); err != nil {
-		return nil, fmt.Errorf("checkeval: run %q: %w", c.ID, err)
+		return nil, 0, fmt.Errorf("checkeval: run %q: %w", c.ID, err)
 	}
 	set := map[string]bool{}
+	var findings []check.Finding
 	if ann, ok := b.Annotations[check.AnnotationKey].(*check.FindingsAnnotation); ok {
-		for _, f := range ann.Findings {
+		findings = ann.Findings
+		for _, f := range findings {
 			set[f.Category] = true
 		}
 	}
-	return sortedKeys(set), nil
+	return sortedKeys(set), check.CalculateScore(findings).Overall, nil
 }
 
 // Evaluate runs every case and aggregates per-check and overall metrics.
@@ -107,7 +119,7 @@ func Evaluate(corpus Corpus) (Report, error) {
 	rep := Report{GeneratedNote: "Run `go run ./scripts/checkeval` to regenerate."}
 	perCheck := map[string]*Metric{}
 	for _, c := range corpus.Cases {
-		got, err := runCase(c)
+		got, score, err := runCase(c)
 		if err != nil {
 			return Report{}, err
 		}
@@ -126,7 +138,11 @@ func Evaluate(corpus Corpus) (Report, error) {
 				fn++
 			}
 		}
-		rep.Cases = append(rep.Cases, CaseResult{ID: c.ID, Check: c.Check, Expect: c.Expect, Got: got, TP: tp, FP: fp, FN: fn, Note: c.Note})
+		scoreOK := c.ExpectScore == nil || *c.ExpectScore == score
+		rep.Cases = append(rep.Cases, CaseResult{
+			ID: c.ID, Check: c.Check, Expect: c.Expect, Got: got, TP: tp, FP: fp, FN: fn,
+			Score: score, ExpectScore: c.ExpectScore, ScoreOK: scoreOK, Note: c.Note,
+		})
 
 		m := perCheck[c.Check]
 		if m == nil {
@@ -231,6 +247,16 @@ func main() {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
-	fmt.Printf("checkeval: %d cases · P %.2f R %.2f F1 %.2f · FP %d FN %d → %s\n",
-		rep.Total.Cases, rep.Total.Precision, rep.Total.Recall, rep.Total.F1, rep.Total.FP, rep.Total.FN, *out)
+	calibrated, scoreDrift := 0, 0
+	for _, c := range rep.Cases {
+		if c.ExpectScore != nil {
+			calibrated++
+			if !c.ScoreOK {
+				scoreDrift++
+			}
+		}
+	}
+	fmt.Printf("checkeval: %d cases · P %.2f R %.2f F1 %.2f · FP %d FN %d · calibrated %d/%d (drift %d) → %s\n",
+		rep.Total.Cases, rep.Total.Precision, rep.Total.Recall, rep.Total.F1, rep.Total.FP, rep.Total.FN,
+		calibrated-scoreDrift, calibrated, scoreDrift, *out)
 }

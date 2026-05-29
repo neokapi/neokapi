@@ -23,6 +23,9 @@ interface CaseResult {
   got: string[];
   fp: number;
   fn: number;
+  score: number;
+  expect_score?: number;
+  score_ok: boolean;
   note: string;
 }
 interface Report {
@@ -142,12 +145,14 @@ export default function CheckEval(): ReactElement {
               <th style={left}>Check</th>
               <th style={left}>Expected</th>
               <th style={left}>Got</th>
+              <th style={cell}>Score</th>
               <th style={left}>Result</th>
             </tr>
           </thead>
           <tbody>
             {r.cases.map((c) => {
               const v = verdict(c);
+              const scoreDrift = c.expect_score != null && !c.score_ok;
               return (
                 <tr key={c.id}>
                   <td style={left}>
@@ -156,12 +161,22 @@ export default function CheckEval(): ReactElement {
                   <td style={left}>{c.check}</td>
                   <td style={left}>{c.expect.length ? c.expect.join(", ") : "—"}</td>
                   <td style={left}>{c.got.length ? c.got.join(", ") : "—"}</td>
+                  <td style={{ ...cell, color: scoreDrift ? "#d65a5a" : undefined }}>
+                    {c.score}
+                    {c.expect_score != null && scoreDrift ? ` (≠${c.expect_score})` : ""}
+                  </td>
                   <td style={{ ...left, color: v.color, fontWeight: 600 }}>{v.label}</td>
                 </tr>
               );
             })}
           </tbody>
         </table>
+        <p style={{ fontSize: "0.85rem", color: "var(--ifm-color-emphasis-600)" }}>
+          The <strong>Score</strong> column is the rolled-up compliance score (0–100) for the case.
+          Calibrated cases pin this value, so a change to the severity weights (neutral 0 / minor 1 /
+          major 5 / critical 25) or to a checker&rsquo;s severity choice is caught as score drift,
+          not just a finding change (issue #758).
+        </p>
 
         <h2>How this grows</h2>
         <p>

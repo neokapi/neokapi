@@ -1,5 +1,5 @@
 {
-  "_about": "Labeled eval corpus for the content checks. Each case is an input (source, optional target) plus the finding categories a correct check SHOULD produce (expect). The check-eval harness (scripts/checkeval) runs the checks over these cases and reports precision/recall/F1; a regression test gates on it. Seed it from the checkers' unit + adversarial cases; grow it from the bowrain correction stream (each human correction is a labeled example) behind a privacy filter. See issue #759.",
+  "_about": "Labeled eval corpus for the content checks. Each case is an input (source, optional target) plus the finding categories a correct check SHOULD produce (expect) and, where calibrated, the rolled-up compliance score it must yield (expect_score, 0-100). The check-eval harness (scripts/checkeval) runs the checks over these cases and reports precision/recall/F1 AND score calibration; a regression test gates both. expect_score pins the severity weighting (neutral 0 / minor 1 / major 5 / critical 25): a DNT or dropped-placeholder violation is critical (100-25=75), a stray extra placeholder is major (100-5=95). Seed it from the checkers' unit + adversarial cases; grow it from a real correction stream behind a privacy filter. See issues #759 and #758.",
   "cases": [
     {
       "id": "dnt-translated",
@@ -9,7 +9,8 @@
       "target_lang": "de",
       "dnt": ["Acme Cloud"],
       "expect": ["do-not-translate"],
-      "note": "product name translated → flag"
+      "expect_score": 75,
+      "note": "product name translated → flag (critical)"
     },
     {
       "id": "dnt-preserved",
@@ -19,6 +20,7 @@
       "target_lang": "de",
       "dnt": ["Acme Cloud"],
       "expect": [],
+      "expect_score": 100,
       "note": "product name kept verbatim → no flag (true negative)"
     },
     {
@@ -29,6 +31,7 @@
       "target_lang": "de",
       "dnt": ["Go"],
       "expect": [],
+      "expect_score": 100,
       "note": "\"Go\" must not match inside \"going\" — false-positive guard"
     },
     {
@@ -39,7 +42,8 @@
       "target_lang": "de",
       "dnt": ["iPhone"],
       "expect": ["do-not-translate"],
-      "note": "case matters: iPhone → Iphone is a violation"
+      "expect_score": 75,
+      "note": "case matters: iPhone → Iphone is a violation (critical)"
     },
     {
       "id": "placeholder-dropped",
@@ -48,7 +52,8 @@
       "target": "Sie haben Artikel",
       "target_lang": "de",
       "expect": ["placeholder"],
-      "note": "{count} dropped → flag"
+      "expect_score": 75,
+      "note": "{count} dropped → flag (critical)"
     },
     {
       "id": "placeholder-preserved",
@@ -57,6 +62,7 @@
       "target": "Sie haben {count} Artikel",
       "target_lang": "de",
       "expect": [],
+      "expect_score": 100,
       "note": "{count} kept → no flag"
     },
     {
@@ -66,7 +72,8 @@
       "target": "Elemente geladen",
       "target_lang": "de",
       "expect": ["placeholder"],
-      "note": "%d and %s both dropped → flag"
+      "expect_score": 50,
+      "note": "%d and %s both dropped → two critical violations (100-25-25)"
     },
     {
       "id": "placeholder-extra",
@@ -75,7 +82,8 @@
       "target": "Hallo {name} {stray}",
       "target_lang": "de",
       "expect": ["placeholder"],
-      "note": "unexpected {stray} in target → flag"
+      "expect_score": 95,
+      "note": "unexpected {stray} in target → major (100-5)"
     },
     {
       "id": "placeholder-numbered-tag",
@@ -84,6 +92,7 @@
       "target": "Klicken Sie <0>hier</0>, um fortzufahren",
       "target_lang": "de",
       "expect": [],
+      "expect_score": 100,
       "note": "numbered tags preserved → no flag"
     },
     {
@@ -93,6 +102,7 @@
       "target": "Nur einfacher Text",
       "target_lang": "de",
       "expect": [],
+      "expect_score": 100,
       "note": "no placeholders → no flag"
     }
   ]

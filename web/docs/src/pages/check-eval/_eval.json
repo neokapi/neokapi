@@ -45,7 +45,10 @@
       "tp": 1,
       "fp": 0,
       "fn": 0,
-      "note": "product name translated → flag"
+      "score": 75,
+      "expect_score": 75,
+      "score_ok": true,
+      "note": "product name translated → flag (critical)"
     },
     {
       "id": "dnt-preserved",
@@ -55,6 +58,9 @@
       "tp": 0,
       "fp": 0,
       "fn": 0,
+      "score": 100,
+      "expect_score": 100,
+      "score_ok": true,
       "note": "product name kept verbatim → no flag (true negative)"
     },
     {
@@ -65,6 +71,9 @@
       "tp": 0,
       "fp": 0,
       "fn": 0,
+      "score": 100,
+      "expect_score": 100,
+      "score_ok": true,
       "note": "\"Go\" must not match inside \"going\" — false-positive guard"
     },
     {
@@ -79,7 +88,10 @@
       "tp": 1,
       "fp": 0,
       "fn": 0,
-      "note": "case matters: iPhone → Iphone is a violation"
+      "score": 75,
+      "expect_score": 75,
+      "score_ok": true,
+      "note": "case matters: iPhone → Iphone is a violation (critical)"
     },
     {
       "id": "placeholder-dropped",
@@ -93,7 +105,10 @@
       "tp": 1,
       "fp": 0,
       "fn": 0,
-      "note": "{count} dropped → flag"
+      "score": 75,
+      "expect_score": 75,
+      "score_ok": true,
+      "note": "{count} dropped → flag (critical)"
     },
     {
       "id": "placeholder-preserved",
@@ -103,6 +118,9 @@
       "tp": 0,
       "fp": 0,
       "fn": 0,
+      "score": 100,
+      "expect_score": 100,
+      "score_ok": true,
       "note": "{count} kept → no flag"
     },
     {
@@ -117,7 +135,10 @@
       "tp": 1,
       "fp": 0,
       "fn": 0,
-      "note": "%d and %s both dropped → flag"
+      "score": 50,
+      "expect_score": 50,
+      "score_ok": true,
+      "note": "%d and %s both dropped → two critical violations (100-25-25)"
     },
     {
       "id": "placeholder-extra",
@@ -131,7 +152,10 @@
       "tp": 1,
       "fp": 0,
       "fn": 0,
-      "note": "unexpected {stray} in target → flag"
+      "score": 95,
+      "expect_score": 95,
+      "score_ok": true,
+      "note": "unexpected {stray} in target → major (100-5)"
     },
     {
       "id": "placeholder-numbered-tag",
@@ -141,6 +165,9 @@
       "tp": 0,
       "fp": 0,
       "fn": 0,
+      "score": 100,
+      "expect_score": 100,
+      "score_ok": true,
       "note": "numbered tags preserved → no flag"
     },
     {
@@ -151,6 +178,9 @@
       "tp": 0,
       "fp": 0,
       "fn": 0,
+      "score": 100,
+      "expect_score": 100,
+      "score_ok": true,
       "note": "no placeholders → no flag"
     }
   ]

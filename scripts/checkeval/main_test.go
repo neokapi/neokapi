@@ -28,11 +28,19 @@ func TestCheckEval_NoRegressions(t *testing.T) {
 	rep, err := Evaluate(corpus)
 	require.NoError(t, err)
 
+	calibrated := 0
 	for _, c := range rep.Cases {
 		assert.Zerof(t, c.FP, "false positive in case %q (got %v, expected %v)", c.ID, c.Got, c.Expect)
 		assert.Zerof(t, c.FN, "false negative in case %q (got %v, expected %v)", c.ID, c.Got, c.Expect)
+		// Score calibration (#758): a calibrated case must yield its pinned score,
+		// so a change to the severity weights or a checker's severity choice is caught.
+		if c.ExpectScore != nil {
+			calibrated++
+			assert.Truef(t, c.ScoreOK, "score drift in case %q: got %d, expected %d", c.ID, c.Score, *c.ExpectScore)
+		}
 	}
 	assert.Equal(t, 0, rep.Total.FP, "total false positives")
 	assert.Equal(t, 0, rep.Total.FN, "total false negatives")
 	assert.InDelta(t, 1.0, rep.Total.F1, 1e-9, "perfect F1 on the gold seed")
+	assert.NotZero(t, calibrated, "expected at least one score-calibrated case")
 }
