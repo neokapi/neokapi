@@ -169,6 +169,7 @@ const config: Config = {
             { label: "MCP Server", to: "/reference/mcp" },
             { label: "Parity", to: "/parity" },
             { label: "Benchmarks", to: "/pseudobench" },
+            { label: "ML Benchmark", to: "/ml-benchmark" },
             { label: "Test Results", to: "/test-comparison" },
           ],
         },

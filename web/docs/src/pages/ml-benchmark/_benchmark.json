@@ -1,0 +1,113 @@
+{
+  "generated_note": "Run scripts/ml-benchmark.py to regenerate.",
+  "platform": "Darwin arm64",
+  "python": "3.11.6",
+  "onnxruntime": "1.26.0",
+  "runtime_note": "onnxruntime CPU; the Go plugin bundles libonnxruntime (~18 MB) per platform",
+  "samples": [
+    "You have {count} items in your Acme Cloud cart.",
+    "Willkommen bei Acme Cloud \u2014 bitte melden Sie sich an, um fortzufahren.",
+    "Veuillez confirmer votre adresse e-mail pour activer votre compte.",
+    "\u8bf7\u5728\u7ed3\u8d26\u524d\u786e\u8ba4\u60a8\u7684\u6536\u8d27\u5730\u5740\u548c\u4ed8\u6b3e\u65b9\u5f0f\u3002",
+    "Drag the file here, or click to browse your computer for a document."
+  ],
+  "models": [
+    {
+      "key": "e5-small",
+      "repo": "intfloat/multilingual-e5-small",
+      "role": "Voice / style similarity (sentence embeddings)",
+      "license": "MIT",
+      "task": "embed a sentence",
+      "download_bytes": 487351240,
+      "download_mb": 464.8,
+      "onnx_available": true,
+      "download_s": 0.3,
+      "load_ms": 248.1,
+      "infer_ms_mean": 4.7,
+      "infer_ms_p50": 4.75,
+      "infer_ms_p90": 5.03,
+      "session_rss_mb": 1181.6,
+      "peak_rss_mb": 1183.3,
+      "runs": 30,
+      "threads": 10
+    },
+    {
+      "key": "e5-small-O4",
+      "repo": "intfloat/multilingual-e5-small",
+      "role": "Voice / style similarity \u2014 fp16-optimized (O4) variant",
+      "license": "MIT",
+      "task": "embed a sentence",
+      "download_bytes": 252135261,
+      "download_mb": 240.5,
+      "onnx_available": true,
+      "download_s": 19.5,
+      "load_ms": 183.2,
+      "infer_ms_mean": 4.68,
+      "infer_ms_p50": 4.72,
+      "infer_ms_p90": 5.24,
+      "session_rss_mb": 519.8,
+      "peak_rss_mb": 520.0,
+      "runs": 30,
+      "threads": 10
+    },
+    {
+      "key": "e5-small-int8",
+      "repo": "intfloat/multilingual-e5-small",
+      "role": "Voice / style similarity \u2014 int8-quantized variant",
+      "license": "MIT",
+      "task": "embed a sentence",
+      "download_bytes": 135429554,
+      "download_mb": 129.2,
+      "onnx_available": true,
+      "download_s": 11.0,
+      "load_ms": 83.1,
+      "infer_ms_mean": 2.66,
+      "infer_ms_p50": 2.63,
+      "infer_ms_p90": 3.25,
+      "session_rss_mb": 39.4,
+      "peak_rss_mb": 39.5,
+      "runs": 30,
+      "threads": 10
+    },
+    {
+      "key": "gliner-multi",
+      "repo": "onnx-community/gliner_multi-v2.1",
+      "role": "Do-not-translate / entity spotting (zero-shot NER)",
+      "license": "Apache-2.0",
+      "task": "detect entities",
+      "download_bytes": 1173461662,
+      "download_mb": 1119.1,
+      "onnx_available": true
+    },
+    {
+      "key": "gliner-multi-int8",
+      "repo": "onnx-community/gliner_multi-v2.1",
+      "role": "GLiNER \u2014 int8-quantized variant (download/footprint mitigation)",
+      "license": "Apache-2.0",
+      "task": "detect entities",
+      "download_bytes": 365452872,
+      "download_mb": 348.5,
+      "onnx_available": true
+    },
+    {
+      "key": "formality",
+      "repo": "s-nlp/mdistilbert-base-formality-ranker",
+      "role": "Register / formality classification",
+      "license": "academic (s-nlp)",
+      "task": "classify formality",
+      "download_bytes": 2919362,
+      "download_mb": 2.8,
+      "onnx_available": false
+    },
+    {
+      "key": "sat-3l-sm",
+      "repo": "segment-any-text/sat-3l-sm",
+      "role": "Reference: the segmenter kapi already ships (kapi-sat)",
+      "license": "MIT",
+      "task": "segment text",
+      "download_bytes": 428360875,
+      "download_mb": 408.5,
+      "onnx_available": true
+    }
+  ]
+}
