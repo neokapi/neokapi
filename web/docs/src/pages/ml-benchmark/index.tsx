@@ -219,6 +219,15 @@ export default function MLBenchmark(): ReactElement {
           the install is a setup step (as connector and plugin installs already are), so runs stay
           deterministic and offline once the cache is warm.
         </p>
+        <p>
+          This is realized today as the <code>kapi-check</code> plugin
+          (<code>kapi plugins install check</code>, then <code>kapi-check pull</code> downloads the
+          int8 model) and <code>kapi check --voice</code>, which scores each block against a brand
+          profile's examples and reports an advisory finding below the <code>--voice-min</code>
+          cosine cutoff. Because multilingual embedding cosines cluster high, that cutoff is
+          calibrated per profile rather than shipped as a universal number — the honest stance for
+          a proxy.
+        </p>
       </main>
     </Layout>
   );
