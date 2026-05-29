@@ -26,6 +26,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certifi
 COPY package.json package-lock.json ./
 COPY packages/kapi-format/package.json packages/kapi-format/
 COPY packages/ui/package.json packages/ui/
+COPY packages/flow-editor/package.json packages/flow-editor/
 COPY bowrain/packages/ui/package.json bowrain/packages/ui/
 COPY bowrain/apps/web/package.json bowrain/apps/web/
 COPY bowrain/apps/bowrain/frontend/package.json bowrain/apps/bowrain/frontend/
@@ -33,9 +34,12 @@ RUN npm ci
 
 # Build shared UI package — needs source from kapi-format too since
 # @neokapi/ui-primitives type-imports from `@neokapi/kapi-format` and
-# tsc follows those into the package's TS source.
+# tsc follows those into the package's TS source. @neokapi/flow-editor is
+# consumed from source (its exports point at ./src), so the web app's tsc
+# follows into it the same way — copy the source, no separate build.
 COPY packages/kapi-format/ packages/kapi-format/
 COPY packages/ui/ packages/ui/
+COPY packages/flow-editor/ packages/flow-editor/
 COPY bowrain/packages/ui/ bowrain/packages/ui/
 RUN cd bowrain/packages/ui && npx tsc
 
