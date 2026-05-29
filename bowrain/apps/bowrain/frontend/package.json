@@ -18,6 +18,7 @@
   },
   "dependencies": {
     "@lexical/react": "^0.44.0",
+    "@neokapi/flow-editor": "*",
     "@neokapi/ui": "*",
     "@tailwindcss/vite": "^4.2.2",
     "@wailsio/runtime": "^3.0.0-alpha.79",
