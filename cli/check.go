@@ -105,6 +105,8 @@ operational errors. Pass --no-fail to always exit 0 (report mode) in a fix-loop.
 	cmd.Flags().Int("min-score", 0, "fail if the roll-up score is below this (0 = no score gate)")
 	cmd.Flags().Bool("json", false, "output the structured result as JSON")
 	cmd.Flags().Bool("no-fail", false, "report only: exit 0 even when the gate fails")
+	cmd.Flags().Bool("voice", false, "also run the voice/style-similarity check (needs the kapi-check plugin and a profile with examples)")
+	cmd.Flags().Float64("voice-min", DefaultVoiceSimilarity, "voice-similarity cutoff (cosine, 0-1) below which a block is flagged off-voice")
 	return cmd
 }
 
@@ -137,6 +139,7 @@ func (a *App) computeCheck(cmd *cobra.Command, args []string) (CheckOutput, erro
 	}
 
 	var findings []check.Finding
+	var blocks []*model.Block
 	sourcePath := args[0]
 
 	if len(args) == 2 {
@@ -145,23 +148,47 @@ func (a *App) computeCheck(cmd *cobra.Command, args []string) (CheckOutput, erro
 			targetLang = "und"
 		}
 		unit := verifyUnit{sourcePath: sourcePath, targetPath: args[1], locale: targetLang, displayPath: args[1]}
-		blocks, missing, berr := a.bilingualBlocks(ctx, unit)
+		bb, missing, berr := a.bilingualBlocks(ctx, unit)
 		if berr != nil {
 			return CheckOutput{}, berr
 		}
 		if missing {
 			return CheckOutput{}, fmt.Errorf("target file %q does not exist", args[1])
 		}
+		blocks = bb
 		loc := model.LocaleID(targetLang)
 		findings = append(findings, a.runBilingualChecks(ctx, blocks, loc, dntTerms)...)
 		findings = append(findings, a.runSourceChecks(ctx, blocks, profile)...)
 	} else {
 		// Monolingual: source-side checks only.
-		blocks, rerr := a.readBlocks(ctx, sourcePath, a.SourceLang)
+		bb, rerr := a.readBlocks(ctx, sourcePath, a.SourceLang)
 		if rerr != nil {
 			return CheckOutput{}, rerr
 		}
+		blocks = bb
 		findings = append(findings, a.runSourceChecks(ctx, blocks, profile)...)
+	}
+
+	// Voice/style similarity (opt-in, --voice): a proxy that drives the
+	// kapi-check plugin to score each block against the profile's on-voice
+	// examples. Fails closed with guidance when the plugin is absent; the
+	// deterministic checks above always ran.
+	if v, _ := cmd.Flags().GetBool("voice"); v {
+		refs := voiceExamples(profile)
+		if len(refs) == 0 {
+			return CheckOutput{}, fmt.Errorf("--voice needs a brand profile with examples (--profile/--pack/--profile-file)")
+		}
+		t, closeT, derr := dialVoicePlugin(ctx)
+		if derr != nil {
+			return CheckOutput{}, derr
+		}
+		defer closeT()
+		vmin, _ := cmd.Flags().GetFloat64("voice-min")
+		vf, verr := voiceSimilarityFindings(blocks, refs, t, vmin)
+		if verr != nil {
+			return CheckOutput{}, fmt.Errorf("voice check: %w", verr)
+		}
+		findings = append(findings, vf...)
 	}
 
 	return buildCheckOutput(cmd, sourcePath, findings), nil
