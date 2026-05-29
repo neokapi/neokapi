@@ -16,7 +16,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
 
-	pb "github.com/neokapi/neokapi/bowrain/proto/v1"
+	pb "github.com/neokapi/neokapi/bowrain/core/proto/sync/v1"
 	bowsync "github.com/neokapi/neokapi/bowrain/sync"
 	"github.com/neokapi/neokapi/core/model"
 )
