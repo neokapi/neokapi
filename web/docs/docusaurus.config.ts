@@ -11,7 +11,7 @@ const baseUrl = process.env.DOCS_BASE_URL ?? "/web/neokapi/docs/";
 
 const config: Config = {
   title: "neokapi",
-  tagline: "Format-aware localization and brand guardrails for people, elves, and agents",
+  tagline: "The faithful, format-aware content engine for people and AI agents",
   favicon: "img/favicon.png",
 
   url: "https://neokapi.github.io",
@@ -122,7 +122,7 @@ const config: Config = {
       {
         name: "description",
         content:
-          "neokapi is an open-source, format-aware localization framework in Go. It provides a concurrent streaming pipeline, content model, and composable tools for AI translation, TM leverage, terminology enforcement, and brand-voice governance.",
+          "neokapi is an open-source, format-aware content engine in Go. It parses localization, document, and data formats into a faithful content model, then translates, leverages translation memory, and runs verification checks for terminology, QA, and brand voice that act like tests for AI output.",
       },
     ],
     navbar: {

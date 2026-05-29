@@ -1,14 +1,15 @@
 ---
 sidebar_position: 0
 title: Kapi
-description: Kapi keeps content on-brand and terminologically consistent, then localizes it into every language and format. It runs the neokapi engine two ways — the kapi command-line tool and the Kapi Desktop app — sharing the same tools, flows, and .kapi projects.
-keywords: [Kapi, kapi CLI, Kapi Desktop, localization, brand guardrails, overview]
+description: Kapi reads, translates, and ships content in any format — faithfully — and verifies it with checks for terminology, QA, and brand voice that act like tests for AI output. It runs the neokapi engine two ways — the kapi command-line tool and the Kapi Desktop app — sharing the same tools, flows, and .kapi projects.
+keywords: [Kapi, kapi CLI, Kapi Desktop, format-aware localization, content engine, checks, overview]
 ---
 
 # Kapi
 
-**Kapi** keeps content **on-brand and terminologically consistent**, then
-**localizes it into every language and format**. It is built on the open-source
+**Kapi** reads, translates, and ships content in **any format** — faithfully —
+and verifies it with **checks** (terminology, QA, brand voice) that act like
+**tests for AI output**. It is built on the open-source
 [neokapi framework](/framework/architecture) and comes in two forms that share
 the same engine, tools, flows, and [`.kapi` projects](/reference/project-file):
 

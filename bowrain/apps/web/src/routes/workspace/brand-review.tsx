@@ -85,8 +85,9 @@ export function BrandReviewRoute() {
       <header className="space-y-1">
         <h1 className="text-xl font-semibold">Review suggested rules</h1>
         <p className="text-sm text-muted-foreground">
-          Repeated corrections become candidate rules. Promote a candidate to enforce it on every
-          future generation, or reject it to stop it re-surfacing.
+          Brand checks act like tests for AI output. Repeated corrections become candidate rules —
+          promote one to harden it into a check on every future generation, or reject it to stop it
+          re-surfacing.
         </p>
       </header>
 
