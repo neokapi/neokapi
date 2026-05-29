@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"github.com/neokapi/neokapi/core/brand"
-	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/tool"
 	"github.com/neokapi/neokapi/termbase"
@@ -83,47 +82,33 @@ func (t *BrandVocabCheckTool) annotateBlock(v tool.BlockView) error {
 	sourceRuns := v.SourceRuns()
 	var findings []brand.BrandVoiceFinding
 
-	// Check forbidden terms — major severity. Whole-word, Unicode-aware matching
-	// (check.FindTerm) avoids substring false positives like "use" in "user".
-	if t.profile != nil {
-		for _, rule := range t.profile.Vocabulary.ForbiddenTerms {
-			for _, hit := range check.FindTerm(sourceText, rule.Term) {
-				f := brand.BrandVoiceFinding{
-					Category:     string(brand.DimensionVocabulary),
-					Severity:     brand.SeverityMajor,
-					Message:      fmt.Sprintf("Forbidden term %q found", rule.Term),
-					Position:     model.RunRangeForBytes(sourceRuns, hit[0], hit[1]),
-					OriginalText: sourceText[hit[0]:hit[1]],
-				}
-				if rule.Replacement != "" {
-					f.Suggestion = fmt.Sprintf("Use %q instead", rule.Replacement)
-				}
-				if rule.Note != "" {
-					f.Message = fmt.Sprintf("Forbidden term %q found: %s", rule.Term, rule.Note)
-				}
-				findings = append(findings, f)
+	// Forbidden and competitor terms are matched by the shared vocabulary matcher
+	// (brand.MatchVocabulary) — whole-word, Unicode-aware (check.FindTerm), so
+	// "use" never matches inside "user". The same matcher backs the blast-radius
+	// evaluator, so the streaming check and the governance preview never diverge.
+	// Here we map each hit's byte range onto run-anchored positions and build the
+	// presentation message; preferred terms are surfaced via a forbidden rule's
+	// replacement suggestion.
+	for _, hit := range brand.MatchVocabulary(t.profile, sourceText) {
+		f := brand.BrandVoiceFinding{
+			Category:     string(hit.Category),
+			Severity:     hit.Severity,
+			Position:     model.RunRangeForBytes(sourceRuns, hit.Start, hit.End),
+			OriginalText: sourceText[hit.Start:hit.End],
+		}
+		switch hit.Kind {
+		case brand.VocabCompetitor:
+			f.Message = fmt.Sprintf("Competitor term %q found", hit.Term)
+		default:
+			f.Message = fmt.Sprintf("Forbidden term %q found", hit.Term)
+			if hit.Note != "" {
+				f.Message = fmt.Sprintf("Forbidden term %q found: %s", hit.Term, hit.Note)
 			}
 		}
-
-		// Check competitor terms — critical severity.
-		for _, rule := range t.profile.Vocabulary.CompetitorTerms {
-			for _, hit := range check.FindTerm(sourceText, rule.Term) {
-				f := brand.BrandVoiceFinding{
-					Category:     string(brand.DimensionVocabulary),
-					Severity:     brand.SeverityCritical,
-					Message:      fmt.Sprintf("Competitor term %q found", rule.Term),
-					Position:     model.RunRangeForBytes(sourceRuns, hit[0], hit[1]),
-					OriginalText: sourceText[hit[0]:hit[1]],
-				}
-				if rule.Replacement != "" {
-					f.Suggestion = fmt.Sprintf("Use %q instead", rule.Replacement)
-				}
-				findings = append(findings, f)
-			}
+		if hit.Replacement != "" {
+			f.Suggestion = fmt.Sprintf("Use %q instead", hit.Replacement)
 		}
-
-		// Check preferred terms — suggest when a forbidden term has a preferred replacement.
-		// This is handled above in the forbidden check via rule.Replacement.
+		findings = append(findings, f)
 	}
 
 	// If termBase is available, also look up brand vocabulary terms.

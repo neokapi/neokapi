@@ -42,6 +42,43 @@ type VoiceProfile struct {
 	CreatedBy   string                     `json:"created_by,omitempty" yaml:"created_by,omitempty"`
 }
 
+// Clone returns a deep copy of the profile across the collection-typed fields
+// the promotion and evaluation flow touch (tone, style patterns, vocabulary,
+// examples, locale/channel overrides), so a candidate profile can be built and
+// mutated without affecting the baseline. Returns nil for a nil receiver.
+func (p *VoiceProfile) Clone() *VoiceProfile {
+	if p == nil {
+		return nil
+	}
+	c := *p
+	c.Tone.Personality = append([]string(nil), p.Tone.Personality...)
+	c.Style.ProhibitedPatterns = append([]Pattern(nil), p.Style.ProhibitedPatterns...)
+	c.Style.RequiredPatterns = append([]Pattern(nil), p.Style.RequiredPatterns...)
+	c.Vocabulary.PreferredTerms = append([]TermRule(nil), p.Vocabulary.PreferredTerms...)
+	c.Vocabulary.ForbiddenTerms = append([]TermRule(nil), p.Vocabulary.ForbiddenTerms...)
+	c.Vocabulary.CompetitorTerms = append([]TermRule(nil), p.Vocabulary.CompetitorTerms...)
+	if p.Vocabulary.Abbreviations != nil {
+		c.Vocabulary.Abbreviations = make(map[string]string, len(p.Vocabulary.Abbreviations))
+		for k, v := range p.Vocabulary.Abbreviations {
+			c.Vocabulary.Abbreviations[k] = v
+		}
+	}
+	c.Examples = append([]VoiceExample(nil), p.Examples...)
+	if p.Locales != nil {
+		c.Locales = make(map[string]LocaleOverride, len(p.Locales))
+		for k, v := range p.Locales {
+			c.Locales[k] = v
+		}
+	}
+	if p.Channels != nil {
+		c.Channels = make(map[string]ChannelOverride, len(p.Channels))
+		for k, v := range p.Channels {
+			c.Channels[k] = v
+		}
+	}
+	return &c
+}
+
 // ProfileVersion is an immutable snapshot of a profile at a point in time.
 // Each UpdateProfile() call archives the previous state as a ProfileVersion.
 type ProfileVersion struct {
