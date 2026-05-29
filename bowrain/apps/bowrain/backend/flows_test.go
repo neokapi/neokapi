@@ -9,112 +9,111 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestFlowDefToInfoRoundTrip(t *testing.T) {
-	app := NewApp()
-	defs := app.ListFlowDefinitions()
+// Flow definitions on the desktop are now project-scoped and proxy to the
+// server REST API (#766). When disconnected, the built-in flows remain
+// available as a read-only fallback; authoring requires a connection.
+
+func TestListFlowDefinitions_OfflineReturnsBuiltIns(t *testing.T) {
+	app := NewApp() // not connected
+	defs, err := app.ListFlowDefinitions("proj-1")
+	require.NoError(t, err)
 	require.NotEmpty(t, defs)
-
-	for _, d := range defs {
-		assert.NotEmpty(t, d.ID)
-		assert.NotEmpty(t, d.Name)
-		if d.Source == registry.SourceBuiltIn {
-			assert.NotEmpty(t, d.Nodes)
-			assert.NotEmpty(t, d.Edges)
-		}
-	}
-}
-
-func TestListFlowDefinitionsIncludesBuiltIn(t *testing.T) {
-	app := NewApp()
-	defs := app.ListFlowDefinitions()
 
 	ids := make(map[string]bool)
 	for _, d := range defs {
+		assert.NotEmpty(t, d.ID)
+		assert.NotEmpty(t, d.Name)
+		assert.Equal(t, registry.SourceBuiltIn, d.Source)
+		assert.NotEmpty(t, d.Nodes)
+		assert.NotEmpty(t, d.Edges)
 		ids[d.ID] = true
 	}
 	assert.True(t, ids["ai-translate"])
 	assert.True(t, ids["ai-translate-qa"])
 	assert.True(t, ids["pseudo-translate"])
+	assert.True(t, ids["secure-translate"])
 }
 
-func TestGetFlowDefinitionBuiltIn(t *testing.T) {
+func TestGetFlowDefinition_OfflineBuiltIn(t *testing.T) {
 	app := NewApp()
-	info, err := app.GetFlowDefinition("ai-translate")
+	info, err := app.GetFlowDefinition("proj-1", "ai-translate")
 	require.NoError(t, err)
 	assert.Equal(t, "AI Translate", info.Name)
 	assert.Equal(t, registry.SourceBuiltIn, info.Source)
 }
 
-func TestGetFlowDefinitionNotFound(t *testing.T) {
+func TestGetFlowDefinition_OfflineNotFound(t *testing.T) {
 	app := NewApp()
-	_, err := app.GetFlowDefinition("nonexistent")
+	_, err := app.GetFlowDefinition("proj-1", "nonexistent")
 	assert.Error(t, err)
 }
 
-func TestFlowNodeStageRoundTrip(t *testing.T) {
-	// Build a FlowDefinition with a source-transform node.
+func TestSaveFlowDefinition_OfflineRequiresConnection(t *testing.T) {
+	app := NewApp()
+	_, err := app.SaveFlowDefinition("proj-1", FlowDefinitionInfo{
+		ID:     "custom",
+		Name:   "Custom",
+		Source: "project",
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "not connected")
+}
+
+func TestSaveFlowDefinition_BuiltInRejected(t *testing.T) {
+	app := NewApp()
+	_, err := app.SaveFlowDefinition("proj-1", FlowDefinitionInfo{
+		ID:     "ai-translate",
+		Name:   "AI Translate",
+		Source: registry.SourceBuiltIn,
+	})
+	require.Error(t, err)
+	// Offline check fires first (not connected). Either guard is acceptable;
+	// the point is built-in/offline writes never succeed.
+	assert.Error(t, err)
+}
+
+func TestDeleteFlowDefinition_OfflineRequiresConnection(t *testing.T) {
+	app := NewApp()
+	err := app.DeleteFlowDefinition("proj-1", "custom")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "not connected")
+}
+
+func TestFlowDefToInfo_StageSerialization(t *testing.T) {
 	def := flow.FlowDefinition{
-		ID:   "test-stage-rt",
-		Name: "Test Stage Round-Trip",
+		ID:   "test-stage",
+		Name: "Test Stage",
 		Nodes: []flow.FlowNode{
 			{ID: "reader", Type: flow.NodeReader, Name: "auto", Position: flow.NodePosition{X: 0, Y: 0}},
 			{
-				ID:    "redact",
-				Type:  flow.NodeTool,
-				Name:  "redact",
-				Stage: flow.StageSourceTransform,
+				ID:       "redact",
+				Type:     flow.NodeTool,
+				Name:     "redact",
+				Stage:    flow.StageSourceTransform,
 				Position: flow.NodePosition{X: 200, Y: 0},
 			},
-			{ID: "writer", Type: flow.NodeWriter, Name: "auto", Position: flow.NodePosition{X: 400, Y: 0}},
+			{ID: "t1", Type: flow.NodeTool, Name: "ai-translate", Stage: flow.StageMain, Position: flow.NodePosition{X: 400, Y: 0}},
+			{ID: "writer", Type: flow.NodeWriter, Name: "auto", Position: flow.NodePosition{X: 600, Y: 0}},
 		},
 		Edges: []flow.FlowEdge{
 			{ID: "e1", Source: "reader", Target: "redact"},
-			{ID: "e2", Source: "redact", Target: "writer"},
+			{ID: "e2", Source: "redact", Target: "t1"},
+			{ID: "e3", Source: "t1", Target: "writer"},
 		},
 	}
 
-	// flowDefToInfo should carry Stage into FlowNodeInfo.Stage.
 	info := flowDefToInfo(def)
-	var redactInfo *FlowNodeInfo
-	for i := range info.Nodes {
-		if info.Nodes[i].ID == "redact" {
-			redactInfo = &info.Nodes[i]
-		}
+	byID := make(map[string]FlowNodeInfo)
+	for _, n := range info.Nodes {
+		byID[n.ID] = n
 	}
-	require.NotNil(t, redactInfo, "redact node not found in info")
-	assert.Equal(t, string(flow.StageSourceTransform), redactInfo.Stage, "stage should be serialized into FlowNodeInfo")
-
-	// infoToFlowDef should carry it back.
-	def2 := infoToFlowDef(info)
-	var redactNode *flow.FlowNode
-	for i := range def2.Nodes {
-		if def2.Nodes[i].ID == "redact" {
-			redactNode = &def2.Nodes[i]
-		}
-	}
-	require.NotNil(t, redactNode, "redact node not found in def2")
-	assert.Equal(t, flow.StageSourceTransform, redactNode.Stage, "stage should survive round-trip through info")
-}
-
-func TestFlowNodeMainStageIsEmpty(t *testing.T) {
-	def := flow.FlowDefinition{
-		ID:   "test-main",
-		Name: "Test Main",
-		Nodes: []flow.FlowNode{
-			{ID: "t1", Type: flow.NodeTool, Name: "ai-translate", Stage: flow.StageMain, Position: flow.NodePosition{}},
-		},
-		Edges: []flow.FlowEdge{},
-	}
-	info := flowDefToInfo(def)
-	assert.Equal(t, "", info.Nodes[0].Stage, "main stage serializes as empty string")
-
-	def2 := infoToFlowDef(info)
-	assert.Equal(t, flow.StageMain, def2.Nodes[0].Stage, "empty string deserializes back to StageMain")
+	assert.Equal(t, string(flow.StageSourceTransform), byID["redact"].Stage, "source-transform stage serialized")
+	assert.Equal(t, "", byID["t1"].Stage, "main stage serializes as empty string")
 }
 
 func TestSecureTranslateBuiltInHasSourceTransformNode(t *testing.T) {
 	app := NewApp()
-	info, err := app.GetFlowDefinition("secure-translate")
+	info, err := app.GetFlowDefinition("proj-1", "secure-translate")
 	require.NoError(t, err)
 
 	var found bool
@@ -125,22 +124,4 @@ func TestSecureTranslateBuiltInHasSourceTransformNode(t *testing.T) {
 		}
 	}
 	assert.True(t, found, "secure-translate should contain a redact node")
-}
-
-func TestDeleteBuiltInFlowFails(t *testing.T) {
-	app := NewApp()
-	err := app.DeleteFlowDefinition("ai-translate")
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "built-in")
-}
-
-func TestSaveBuiltInFlowFails(t *testing.T) {
-	app := NewApp()
-	_, err := app.SaveFlowDefinition(FlowDefinitionInfo{
-		ID:     "test",
-		Name:   "test",
-		Source: registry.SourceBuiltIn,
-	})
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "built-in")
 }

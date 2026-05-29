@@ -467,6 +467,23 @@ var storeMigrations = []storage.Migration{
 			CREATE INDEX idx_audit_log_project ON audit_log(project_id, created_at DESC);
 			CREATE INDEX idx_audit_log_type ON audit_log(project_id, event_type, created_at DESC);
 
+			-- Project flow definitions (Bowrain AD-013). Server-side, editable
+			-- flow graphs (reader → tool(s) → writer) that automation run_flow
+			-- actions reference by id. graph holds the full FlowDefinition JSON
+			-- (nodes, edges, stages, positions). Built-in flows are not stored
+			-- here; they are merged in at the API layer.
+			CREATE TABLE flow_definitions (
+				id          TEXT NOT NULL,
+				project_id  TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+				name        TEXT NOT NULL,
+				description TEXT NOT NULL DEFAULT '',
+				graph       JSONB NOT NULL DEFAULT '{}',
+				created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+				updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+				PRIMARY KEY (project_id, id)
+			);
+			CREATE INDEX idx_flow_definitions_project ON flow_definitions(project_id, name);
+
 			-- Leader leases (distributed coordination)
 			CREATE TABLE leader_leases (
 				name       TEXT PRIMARY KEY,

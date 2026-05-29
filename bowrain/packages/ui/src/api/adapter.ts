@@ -26,6 +26,7 @@ import type {
   LocaleInfo,
   FormatInfo,
   ToolInfo,
+  FlowDefinitionInfo,
   Invite,
   AcceptInviteResponse,
   ClaimProjectResponse,
@@ -528,6 +529,28 @@ export interface ApiAdapter {
     limit?: number,
   ): Promise<AutomationLogEntry[]>;
   cancelAutomationRun(workspaceSlug: string, projectId: string, runId: string): Promise<void>;
+
+  // Flow definitions (Bowrain AD-013) — server-side, project-scoped pipeline
+  // graphs that automation run_flow actions reference. Built-in flows are
+  // merged into the listing; project flows are persisted server-side.
+  listFlowDefinitions(workspaceSlug: string, projectId: string): Promise<FlowDefinitionInfo[]>;
+  getFlowDefinition(
+    workspaceSlug: string,
+    projectId: string,
+    flowId: string,
+  ): Promise<FlowDefinitionInfo>;
+  createFlowDefinition(
+    workspaceSlug: string,
+    projectId: string,
+    def: FlowDefinitionInfo,
+  ): Promise<FlowDefinitionInfo>;
+  updateFlowDefinition(
+    workspaceSlug: string,
+    projectId: string,
+    flowId: string,
+    def: FlowDefinitionInfo,
+  ): Promise<FlowDefinitionInfo>;
+  deleteFlowDefinition(workspaceSlug: string, projectId: string, flowId: string): Promise<void>;
 
   // Notifications
   listNotifications(

@@ -27,6 +27,7 @@ import type {
   LocaleInfo,
   FormatInfo,
   ToolInfo,
+  FlowDefinitionInfo,
   Invite,
   AcceptInviteResponse,
   ClaimProjectResponse,
@@ -754,6 +755,42 @@ export class WailsApiAdapter implements ApiAdapter {
   }
   async cancelAutomationRun(_ws: string, _projectId: string, _runId: string): Promise<void> {
     throw new Error("not implemented in desktop app");
+  }
+
+  // --- Flow definitions (Bowrain AD-013, #766) ---
+  // The desktop's flow Wails methods are project-scoped and proxy to the
+  // server's flow-definition REST API. The workspace is implicit (the active
+  // workspace tracked by the Go backend), so the ws arg is unused here.
+  async listFlowDefinitions(_ws: string, projectId: string): Promise<FlowDefinitionInfo[]> {
+    return Backend.ListFlowDefinitions(projectId) as Promise<FlowDefinitionInfo[]>;
+  }
+  async getFlowDefinition(
+    _ws: string,
+    projectId: string,
+    flowId: string,
+  ): Promise<FlowDefinitionInfo> {
+    return Backend.GetFlowDefinition(projectId, flowId) as Promise<FlowDefinitionInfo>;
+  }
+  async createFlowDefinition(
+    _ws: string,
+    projectId: string,
+    def: FlowDefinitionInfo,
+  ): Promise<FlowDefinitionInfo> {
+    return Backend.SaveFlowDefinition(projectId, { ...def, id: "" }) as Promise<FlowDefinitionInfo>;
+  }
+  async updateFlowDefinition(
+    _ws: string,
+    projectId: string,
+    flowId: string,
+    def: FlowDefinitionInfo,
+  ): Promise<FlowDefinitionInfo> {
+    return Backend.SaveFlowDefinition(projectId, {
+      ...def,
+      id: flowId,
+    }) as Promise<FlowDefinitionInfo>;
+  }
+  async deleteFlowDefinition(_ws: string, projectId: string, flowId: string): Promise<void> {
+    return Backend.DeleteFlowDefinition(projectId, flowId);
   }
 
   // --- Notifications (desktop: not yet backed by Wails bindings) ---

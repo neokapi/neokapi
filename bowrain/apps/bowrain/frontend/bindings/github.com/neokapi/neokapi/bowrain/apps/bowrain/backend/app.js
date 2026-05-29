@@ -169,12 +169,13 @@ export function DeleteConcept(projectID, conceptID) {
 }
 
 /**
- * DeleteFlowDefinition removes a user flow definition.
+ * DeleteFlowDefinition removes a project flow definition on the server.
+ * @param {string} projectID
  * @param {string} id
  * @returns {$CancellablePromise<void>}
  */
-export function DeleteFlowDefinition(id) {
-    return $Call.ByID(1213282658, id);
+export function DeleteFlowDefinition(projectID, id) {
+    return $Call.ByID(1213282658, projectID, id);
 }
 
 /**
@@ -374,12 +375,13 @@ export function GetDefaultServerURL() {
 }
 
 /**
- * GetFlowDefinition returns a specific flow definition by ID.
+ * GetFlowDefinition returns a specific flow definition by id from the server.
+ * @param {string} projectID
  * @param {string} id
  * @returns {$CancellablePromise<$models.FlowDefinitionInfo | null>}
  */
-export function GetFlowDefinition(id) {
-    return $Call.ByID(1916918101, id).then(/** @type {($result: any) => any} */(($result) => {
+export function GetFlowDefinition(projectID, id) {
+    return $Call.ByID(1916918101, projectID, id).then(/** @type {($result: any) => any} */(($result) => {
         return $$createType19($result);
     }));
 }
@@ -629,11 +631,13 @@ export function ListContentItems(connectorID) {
 }
 
 /**
- * ListFlowDefinitions returns all flow definitions (built-in + user).
+ * ListFlowDefinitions returns the project's flows (built-in + project-stored)
+ * from the server. When offline, only the built-in flows are returned.
+ * @param {string} projectID
  * @returns {$CancellablePromise<$models.FlowDefinitionInfo[]>}
  */
-export function ListFlowDefinitions() {
-    return $Call.ByID(92689182).then(/** @type {($result: any) => any} */(($result) => {
+export function ListFlowDefinitions(projectID) {
+    return $Call.ByID(92689182, projectID).then(/** @type {($result: any) => any} */(($result) => {
         return $$createType34($result);
     }));
 }
@@ -958,12 +962,14 @@ export function ReviewBlock(projectID, itemName, blockID, targetLocale, reviewed
 }
 
 /**
- * SaveFlowDefinition saves a user flow definition.
+ * SaveFlowDefinition creates or updates a project flow definition on the server.
+ * Built-in flows are immutable; the server rejects writes to them.
+ * @param {string} projectID
  * @param {$models.FlowDefinitionInfo} info
  * @returns {$CancellablePromise<$models.FlowDefinitionInfo | null>}
  */
-export function SaveFlowDefinition(info) {
-    return $Call.ByID(1456548112, info).then(/** @type {($result: any) => any} */(($result) => {
+export function SaveFlowDefinition(projectID, info) {
+    return $Call.ByID(1456548112, projectID, info).then(/** @type {($result: any) => any} */(($result) => {
         return $$createType19($result);
     }));
 }

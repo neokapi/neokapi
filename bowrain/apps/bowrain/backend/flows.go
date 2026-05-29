@@ -1,16 +1,32 @@
 package backend
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
-	"os"
-	"path/filepath"
-	"time"
+	"io"
+	"net/http"
+	"net/url"
 
 	"github.com/neokapi/neokapi/core/flow"
-	"github.com/neokapi/neokapi/core/registry"
 )
 
-// FlowDefinitionInfo is the frontend-facing flow definition type.
+// Flow definitions on the desktop (Bowrain AD-013, #766).
+//
+// Flows are server-side, project-scoped pipeline graphs. The desktop is a
+// working copy of the server — it does NOT author flows to a local
+// ~/.bowrain/flows store any more. These Wails methods proxy to the Bowrain
+// server's flow-definition REST API (/api/v1/{ws}/{projectId}/flows) over the
+// authenticated HTTP base URL, so a flow created on the desktop is the same
+// row the web superset editor and the automation engine see.
+//
+// Built-in flows (flow.BuiltInFlows) are always available, even when offline;
+// they are merged in by the server's list endpoint, and surfaced locally as a
+// fallback when no connection is available.
+
+// FlowDefinitionInfo is the frontend-facing flow definition type. It mirrors
+// the framework's flow.FlowDefinition JSON shape so the shared
+// @neokapi/flow-editor defToSpec/specToDef adapter consumes it unchanged.
 type FlowDefinitionInfo struct {
 	ID          string         `json:"id"`
 	Name        string         `json:"name"`
@@ -24,10 +40,10 @@ type FlowDefinitionInfo struct {
 
 // FlowNodeInfo is the frontend-facing flow node type.
 type FlowNodeInfo struct {
-	ID       string         `json:"id"`
-	Type     string         `json:"type"`
-	Name     string         `json:"name"`
-	Label    string         `json:"label,omitempty"`
+	ID    string `json:"id"`
+	Type  string `json:"type"`
+	Name  string `json:"name"`
+	Label string `json:"label,omitempty"`
 	// Stage is the pipeline stage for this node. Empty means the main stage;
 	// "source-transform" means the leading source-rewrite stage.
 	Stage    string         `json:"stage,omitempty"`
@@ -81,136 +97,140 @@ func flowDefToInfo(def flow.FlowDefinition) FlowDefinitionInfo {
 	}
 }
 
-func infoToFlowDef(info FlowDefinitionInfo) flow.FlowDefinition {
-	nodes := make([]flow.FlowNode, len(info.Nodes))
-	for i, n := range info.Nodes {
-		nodes[i] = flow.FlowNode{
-			ID:       n.ID,
-			Type:     flow.NodeType(n.Type),
-			Name:     n.Name,
-			Label:    n.Label,
-			Stage:    flow.FlowStage(n.Stage),
-			Config:   n.Config,
-			Position: flow.NodePosition{X: n.Position.X, Y: n.Position.Y},
-		}
+// flowREST returns the authenticated HTTP base for the active project's flow
+// endpoints, e.g. "https://host/api/v1/{ws}/{projectId}/flows", plus the bearer
+// token. Returns ok=false when not connected or no workspace is selected.
+func (a *App) flowREST(projectID string) (base, token string, ok bool) {
+	if !a.isConnected() {
+		return "", "", false
 	}
-	edges := make([]flow.FlowEdge, len(info.Edges))
-	for i, e := range info.Edges {
-		edges[i] = flow.FlowEdge{
-			ID:     e.ID,
-			Source: e.Source,
-			Target: e.Target,
-		}
+	a.mu.RLock()
+	serverURL := a.serverURL
+	ws := a.activeWS
+	if a.authInfo != nil {
+		token = a.authInfo.AccessToken
 	}
-	return flow.FlowDefinition{
-		ID:          info.ID,
-		Name:        info.Name,
-		Description: info.Description,
-		Nodes:       nodes,
-		Edges:       edges,
-		Source:      info.Source,
-		CreatedAt:   info.CreatedAt,
-		ModifiedAt:  info.ModifiedAt,
+	a.mu.RUnlock()
+	if serverURL == "" || ws == "" || projectID == "" {
+		return "", "", false
 	}
+	base = fmt.Sprintf("%s/api/v1/%s/%s/flows", serverURL, url.PathEscape(ws), url.PathEscape(projectID))
+	return base, token, true
 }
 
-// flowStore returns the local user-flow store at ~/.bowrain/flows.
-//
-// BOUNDARY DEBT (TODO #766): this is a local-authoring path for project
-// configuration on the desktop, which contradicts the product boundary
-// ("kapi owns local files + project configuration; the desktop's local
-// footprint is a cache/working copy of the server, never a source of truth").
-// User flow definitions should instead come from the project's .kapi recipe
-// (flows: / .kapi/flows/, authored & versioned with kapi) or from a
-// server-provided flow-definitions API fetched over the ServerClient.
-//
-// Neither source exists on the desktop yet — the backend has no .kapi recipe
-// load path and ServerClient exposes no flow endpoints — so retiring this
-// store now would leave the FlowBuilder editor's New/Save/Delete UX dead.
-// It is therefore left working, treated as a local cache of in-progress flow
-// edits, until #766 relocates authoring to the recipe/server.
-func (a *App) flowStore() *flow.FlowStore {
-	dir := filepath.Join(defaultBowrainDir(), "flows")
-	return flow.NewFlowStore(dir)
-}
-
-func defaultBowrainDir() string {
-	if home, err := os.UserHomeDir(); err == nil {
-		return filepath.Join(home, ".bowrain")
-	}
-	return ".bowrain"
-}
-
-// ListFlowDefinitions returns all flow definitions (built-in + user).
-func (a *App) ListFlowDefinitions() []FlowDefinitionInfo {
-	var result []FlowDefinitionInfo
-
-	// Built-in flows.
-	for _, def := range flow.BuiltInFlows() {
-		result = append(result, flowDefToInfo(def))
-	}
-
-	// User flows.
-	store := a.flowStore()
-	userDefs, err := store.List()
-	if err == nil {
-		for _, def := range userDefs {
-			result = append(result, flowDefToInfo(def))
+func flowDo(method, urlStr, token string, body any, out any) error {
+	var reader io.Reader
+	if body != nil {
+		buf, err := json.Marshal(body)
+		if err != nil {
+			return err
 		}
+		reader = bytes.NewReader(buf)
 	}
-
-	return result
-}
-
-// GetFlowDefinition returns a specific flow definition by ID.
-func (a *App) GetFlowDefinition(id string) (*FlowDefinitionInfo, error) {
-	// Check built-in flows first.
-	for _, def := range flow.BuiltInFlows() {
-		if def.ID == id {
-			info := flowDefToInfo(def)
-			return &info, nil
-		}
-	}
-
-	// Check user flows.
-	store := a.flowStore()
-	def, err := store.Get(id)
+	req, err := http.NewRequest(method, urlStr, reader)
 	if err != nil {
-		return nil, fmt.Errorf("flow %q not found", id)
+		return err
 	}
-	info := flowDefToInfo(*def)
-	return &info, nil
+	if body != nil {
+		req.Header.Set("Content-Type", "application/json")
+	}
+	if token != "" {
+		req.Header.Set("Authorization", "Bearer "+token)
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		b, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("flow API %s %s: %d %s", method, urlStr, resp.StatusCode, b)
+	}
+	if out != nil && resp.StatusCode != http.StatusNoContent {
+		return json.NewDecoder(resp.Body).Decode(out)
+	}
+	return nil
 }
 
-// SaveFlowDefinition saves a user flow definition.
-func (a *App) SaveFlowDefinition(info FlowDefinitionInfo) (*FlowDefinitionInfo, error) {
-	if info.Source == registry.SourceBuiltIn {
-		return nil, fmt.Errorf("cannot modify built-in flows")
+// builtInFlowInfos returns the built-in flows as frontend infos. Used as the
+// offline fallback for ListFlowDefinitions.
+func builtInFlowInfos() []FlowDefinitionInfo {
+	defs := flow.BuiltInFlows()
+	infos := make([]FlowDefinitionInfo, len(defs))
+	for i, def := range defs {
+		infos[i] = flowDefToInfo(def)
 	}
+	return infos
+}
 
-	def := infoToFlowDef(info)
-	now := time.Now().UTC().Format(time.RFC3339)
-	if def.CreatedAt == "" {
-		def.CreatedAt = now
+// ListFlowDefinitions returns the project's flows (built-in + project-stored)
+// from the server. When offline, only the built-in flows are returned.
+func (a *App) ListFlowDefinitions(projectID string) ([]FlowDefinitionInfo, error) {
+	base, token, ok := a.flowREST(projectID)
+	if !ok {
+		return builtInFlowInfos(), nil
 	}
-	def.ModifiedAt = now
-	def.Source = "user"
+	var out []FlowDefinitionInfo
+	if err := flowDo(http.MethodGet, base, token, nil, &out); err != nil {
+		// Server unreachable — fall back to built-ins so the editor still works.
+		return builtInFlowInfos(), nil
+	}
+	if out == nil {
+		out = []FlowDefinitionInfo{}
+	}
+	return out, nil
+}
 
-	store := a.flowStore()
-	if err := store.Save(&def); err != nil {
+// GetFlowDefinition returns a specific flow definition by id from the server.
+func (a *App) GetFlowDefinition(projectID, id string) (*FlowDefinitionInfo, error) {
+	base, token, ok := a.flowREST(projectID)
+	if !ok {
+		for _, info := range builtInFlowInfos() {
+			if info.ID == id {
+				return &info, nil
+			}
+		}
+		return nil, fmt.Errorf("flow %q not found (offline)", id)
+	}
+	var out FlowDefinitionInfo
+	if err := flowDo(http.MethodGet, base+"/"+url.PathEscape(id), token, nil, &out); err != nil {
 		return nil, err
 	}
-	result := flowDefToInfo(def)
-	return &result, nil
+	return &out, nil
 }
 
-// DeleteFlowDefinition removes a user flow definition.
-func (a *App) DeleteFlowDefinition(id string) error {
-	// Prevent deleting built-in flows.
-	for _, def := range flow.BuiltInFlows() {
-		if def.ID == id {
-			return fmt.Errorf("cannot delete built-in flow %q", id)
-		}
+// SaveFlowDefinition creates or updates a project flow definition on the server.
+// Built-in flows are immutable; the server rejects writes to them.
+func (a *App) SaveFlowDefinition(projectID string, info FlowDefinitionInfo) (*FlowDefinitionInfo, error) {
+	base, token, ok := a.flowREST(projectID)
+	if !ok {
+		return nil, fmt.Errorf("not connected: connect to a server to save flows")
 	}
-	return a.flowStore().Delete(id)
+	if info.Source == "built-in" {
+		return nil, fmt.Errorf("cannot modify built-in flows")
+	}
+	info.Source = "project"
+
+	var out FlowDefinitionInfo
+	if info.ID == "" {
+		// Create.
+		if err := flowDo(http.MethodPost, base, token, info, &out); err != nil {
+			return nil, err
+		}
+		return &out, nil
+	}
+	// Update (create-or-replace by id).
+	if err := flowDo(http.MethodPut, base+"/"+url.PathEscape(info.ID), token, info, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+// DeleteFlowDefinition removes a project flow definition on the server.
+func (a *App) DeleteFlowDefinition(projectID, id string) error {
+	base, token, ok := a.flowREST(projectID)
+	if !ok {
+		return fmt.Errorf("not connected: connect to a server to delete flows")
+	}
+	return flowDo(http.MethodDelete, base+"/"+url.PathEscape(id), token, nil, nil)
 }

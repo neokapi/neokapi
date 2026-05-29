@@ -63,19 +63,19 @@ export function useTools() {
   return { tools, loading, error };
 }
 
-export function useFlows() {
+export function useFlows(projectId = "") {
   const [flows, setFlows] = useState<FlowInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    Backend.ListFlowDefinitions()
+    Backend.ListFlowDefinitions(projectId)
       .then((r: FlowDefinitionInfo[]) =>
         setFlows((r || []).map((d) => ({ name: d.name, description: d.description || "" }))),
       )
       .catch((e: Error) => setError(e.message))
       .finally(() => setLoading(false));
-  }, []);
+  }, [projectId]);
 
   return { flows, loading, error };
 }
@@ -682,18 +682,18 @@ export function useToolSchema(toolName: string | null) {
 
 // Flow definition hooks
 
-export function useFlowDefinitions() {
+export function useFlowDefinitions(projectId: string) {
   const [definitions, setDefinitions] = useState<FlowDefinitionInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const refresh = useCallback(() => {
     setLoading(true);
-    Backend.ListFlowDefinitions()
+    Backend.ListFlowDefinitions(projectId)
       .then((r: FlowDefinitionInfo[]) => setDefinitions(r || []))
       .catch((e: Error) => setError(e.message))
       .finally(() => setLoading(false));
-  }, []);
+  }, [projectId]);
 
   useEffect(() => {
     refresh();
@@ -702,21 +702,27 @@ export function useFlowDefinitions() {
   return { definitions, loading, error, refresh };
 }
 
-export function useFlowDefinitionApi() {
-  const getFlowDefinition = useCallback(async (id: string): Promise<FlowDefinitionInfo> => {
-    return Backend.GetFlowDefinition(id) as Promise<FlowDefinitionInfo>;
-  }, []);
+export function useFlowDefinitionApi(projectId: string) {
+  const getFlowDefinition = useCallback(
+    async (id: string): Promise<FlowDefinitionInfo> => {
+      return Backend.GetFlowDefinition(projectId, id) as Promise<FlowDefinitionInfo>;
+    },
+    [projectId],
+  );
 
   const saveFlowDefinition = useCallback(
     async (def: FlowDefinitionInfo): Promise<FlowDefinitionInfo> => {
-      return Backend.SaveFlowDefinition(def) as Promise<FlowDefinitionInfo>;
+      return Backend.SaveFlowDefinition(projectId, def) as Promise<FlowDefinitionInfo>;
     },
-    [],
+    [projectId],
   );
 
-  const deleteFlowDefinition = useCallback(async (id: string): Promise<void> => {
-    return Backend.DeleteFlowDefinition(id);
-  }, []);
+  const deleteFlowDefinition = useCallback(
+    async (id: string): Promise<void> => {
+      return Backend.DeleteFlowDefinition(projectId, id);
+    },
+    [projectId],
+  );
 
   return { getFlowDefinition, saveFlowDefinition, deleteFlowDefinition };
 }

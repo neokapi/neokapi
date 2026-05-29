@@ -17,7 +17,12 @@ import {
 import { useState, useEffect, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useApi } from "../context/ApiContext";
-import type { AutomationCondition, AutomationAction, AutomationRule } from "../types/api";
+import type {
+  AutomationCondition,
+  AutomationAction,
+  AutomationRule,
+  FlowDefinitionInfo,
+} from "../types/api";
 
 const OPERATORS = ["equals", "contains", "exists"] as const;
 const ACTION_TYPES = [
@@ -97,10 +102,12 @@ function ActionRow({
   action,
   onChange,
   onRemove,
+  flows,
 }: {
   action: AutomationAction;
   onChange: (a: AutomationAction) => void;
   onRemove: () => void;
+  flows: FlowDefinitionInfo[];
 }) {
   const configEntries = Object.entries(action.Config);
 
@@ -124,6 +131,8 @@ function ActionRow({
     },
     [action, onChange],
   );
+
+  const isRunFlow = action.Type === "run_flow";
 
   return (
     <div className="border rounded-md p-3 space-y-2">
@@ -151,19 +160,50 @@ function ActionRow({
           Remove
         </Button>
       </div>
-      {configEntries.map(([key, val]) => (
-        <div key={key} className="flex items-center gap-2 pl-2">
-          <span className="text-xs text-muted-foreground w-24 shrink-0 font-mono">{key}</span>
-          <Input
-            className="flex-1"
-            value={val}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateConfig(key, e.target.value)}
-          />
-          <Button variant="ghost" size="sm" onClick={() => removeConfigField(key)}>
-            x
-          </Button>
+      {isRunFlow && (
+        <div className="flex items-center gap-2 pl-2">
+          <span className="text-xs text-muted-foreground w-24 shrink-0 font-mono">flow</span>
+          <Select
+            value={action.Config.flow ?? ""}
+            onValueChange={(v: string) => updateConfig("flow", v)}
+          >
+            <SelectTrigger className="flex-1">
+              <SelectValue placeholder="Select a flow" />
+            </SelectTrigger>
+            <SelectContent>
+              {flows.length === 0 ? (
+                <SelectItem value="_none" disabled>
+                  No flows available
+                </SelectItem>
+              ) : (
+                flows.map((f) => (
+                  <SelectItem key={f.id} value={f.id}>
+                    {f.name}
+                    {f.source === "built-in" ? " (built-in)" : ""}
+                  </SelectItem>
+                ))
+              )}
+            </SelectContent>
+          </Select>
         </div>
-      ))}
+      )}
+      {configEntries
+        .filter(([key]) => !(isRunFlow && key === "flow"))
+        .map(([key, val]) => (
+          <div key={key} className="flex items-center gap-2 pl-2">
+            <span className="text-xs text-muted-foreground w-24 shrink-0 font-mono">{key}</span>
+            <Input
+              className="flex-1"
+              value={val}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                updateConfig(key, e.target.value)
+              }
+            />
+            <Button variant="ghost" size="sm" onClick={() => removeConfigField(key)}>
+              x
+            </Button>
+          </div>
+        ))}
       <Button variant="outline" size="sm" onClick={addConfigField} className="ml-2">
         + Add parameter
       </Button>
@@ -220,6 +260,16 @@ export function AutomationRuleEditor({
   const { data: events } = useQuery({
     queryKey: ["automations", "events", workspaceSlug, projectId],
     queryFn: () => api.listAutomationEvents(workspaceSlug, projectId),
+    staleTime: 60_000,
+    enabled: open,
+  });
+
+  // Flow registry for run_flow actions — built-in flows merged with the
+  // project's server-stored flows. Connector-agnostic: a flow runs server-side
+  // on content from any connector.
+  const { data: flows } = useQuery({
+    queryKey: ["flows", workspaceSlug, projectId],
+    queryFn: () => api.listFlowDefinitions(workspaceSlug, projectId),
     staleTime: 60_000,
     enabled: open,
   });
@@ -319,6 +369,7 @@ export function AutomationRuleEditor({
                 action={a}
                 onChange={(updated) => updateAction(i, updated)}
                 onRemove={() => removeAction(i)}
+                flows={flows ?? []}
               />
             ))}
             <Button variant="outline" size="sm" onClick={addAction}>

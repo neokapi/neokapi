@@ -28,7 +28,7 @@ type InfoResponse struct {
 	Commit         string              `json:"commit"`
 	BuildDate      string              `json:"build_date"`
 	Formats        []FormatInfo        `json:"formats"`
-	Tools          []ToolInfo          `json:"tools"`
+	Tools          []registry.ToolInfo `json:"tools"`
 	Locales        []locale.LocaleInfo `json:"locales"`
 	ConnectorTypes []ConnectorTypeInfo `json:"connector_types,omitempty"`
 }
@@ -44,11 +44,6 @@ type FormatInfo struct {
 	Name      string `json:"name"`
 	HasReader bool   `json:"has_reader"`
 	HasWriter bool   `json:"has_writer"`
-}
-
-// ToolInfo describes a registered tool.
-type ToolInfo struct {
-	Name string `json:"name"`
 }
 
 // ErrorResponse is a standard error response.
@@ -249,12 +244,18 @@ func (s *Server) HandleInfo(c echo.Context) error {
 		return cmp.Compare(a.Name, b.Name)
 	})
 
-	// Tools.
+	// Tools. Return the registry's rich ToolInfo (category, description,
+	// is_source_transform, …) so flow-editor palettes can classify tools and
+	// gate the source-transform stage.
 	toolNames := s.ToolRegistry.Names()
 	slices.Sort(toolNames)
-	tools := make([]ToolInfo, len(toolNames))
-	for i, name := range toolNames {
-		tools[i] = ToolInfo{Name: string(name)}
+	tools := make([]registry.ToolInfo, 0, len(toolNames))
+	for _, name := range toolNames {
+		if info := s.ToolRegistry.GetToolInfo(name); info != nil {
+			tools = append(tools, *info)
+		} else {
+			tools = append(tools, registry.ToolInfo{Name: name})
+		}
 	}
 
 	// Locales.
