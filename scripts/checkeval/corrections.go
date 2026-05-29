@@ -75,7 +75,9 @@ func LoadCorrectionsCorpus(path string) (CorrectionsCorpus, error) {
 // on text under the profile — the real checker the loop's promoted rules feed.
 func brandVocabFlags(profile *brand.VoiceProfile, text string) bool {
 	b := &model.Block{ID: "c", Translatable: true, Source: []model.Run{{Text: &model.TextRun{Text: text}}}}
-	coretools.NewBrandVocabCheckTool(profile, nil).Annotate(tool.NewBlockView(b))
+	if err := coretools.NewBrandVocabCheckTool(profile, nil).Annotate(tool.NewBlockView(b)); err != nil {
+		return false
+	}
 	if ann, ok := b.Annotations["brand-voice"].(*brand.BrandVoiceAnnotation); ok {
 		return len(ann.Findings) > 0
 	}

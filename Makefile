@@ -311,13 +311,20 @@ verify-isolation: ## Verify all Go module isolation boundaries
 #   bowrain/core       framework (+ plugin/schema) only — no cli dep
 #   kapi               framework + cli only — no bowrain dep
 #   apps/kapi-desktop  framework + cli (+ plugin/schema) only — no bowrain dep
+#   bowrain/cli        framework + cli + bowrain/core (the kapi-bowrain plugin)
+#   bowrain            framework + bowrain/core (the platform)
+#
+# bowrain and bowrain/cli are not isolation boundaries (they legitimately depend
+# on several modules), but they are audited for the same go.mod/go.sum tidiness —
+# e.g. a require that should be indirect after a package moves. CI's Tidy Check
+# covers all modules, so they belong here too.
 #
 # Build pattern per module: most build ./..., but apps/kapi-desktop's main
 # package embeds frontend/dist (//go:embed all:frontend/dist) which only exists
 # after a frontend build, so — like `make kapi-desktop-test` — we build only
 # ./backend/... for it. `go mod tidy` still resolves the whole module graph
 # (embeds don't affect dependency resolution), so the boundary contract holds.
-AUDIT_MODULES := . cli bowrain/core kapi apps/kapi-desktop
+AUDIT_MODULES := . cli bowrain/core kapi apps/kapi-desktop bowrain/cli bowrain
 
 audit-modules: ## Assert module isolation + go.mod/go.sum tidiness (fails on drift)
 	@set -e; rc=0; for dir in $(AUDIT_MODULES); do \
