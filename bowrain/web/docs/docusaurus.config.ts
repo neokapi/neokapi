@@ -79,12 +79,6 @@ const config: Config = {
         },
         {
           type: "docSidebar",
-          sidebarId: "cliSidebar",
-          label: "Project Sync",
-          position: "left",
-        },
-        {
-          type: "docSidebar",
           sidebarId: "webSidebar",
           label: "Web App",
           position: "left",
@@ -93,6 +87,12 @@ const config: Config = {
           type: "docSidebar",
           sidebarId: "desktopSidebar",
           label: "Desktop",
+          position: "left",
+        },
+        {
+          type: "docSidebar",
+          sidebarId: "cliSidebar",
+          label: "Connect (CLI)",
           position: "left",
         },
         {
@@ -120,8 +120,9 @@ const config: Config = {
           title: "Bowrain",
           items: [
             { label: "Getting Started", to: "/" },
-            { label: "Project sync (CLI)", to: "/cli/overview" },
             { label: "Web app", to: "/server/web-overview" },
+            { label: "Connectors", to: "/server/connectors" },
+            { label: "Connect (CLI)", to: "/cli/overview" },
           ],
         },
         {

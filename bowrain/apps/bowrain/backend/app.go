@@ -254,12 +254,12 @@ type FormatInfo struct {
 
 // ToolInfo describes an available tool.
 type ToolInfo struct {
-	Name              string `json:"name"`
-	Description       string `json:"description"`
-	Category          string `json:"category"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	Category    string `json:"category"`
 	// IsSourceTransform reports whether this tool may be placed in the
 	// source-transform stage of a flow (i.e. it rewrites the source model).
-	IsSourceTransform bool   `json:"is_source_transform,omitempty"`
+	IsSourceTransform bool `json:"is_source_transform,omitempty"`
 }
 
 // PluginInfo describes a loaded plugin.

@@ -69,10 +69,10 @@ test.describe("walkthrough: bowrain-web-context-panel", () => {
     await ensureFile(slug, projectId, token);
 
     await page.goto(`${BACKEND_URL}/${slug}/p/${projectId}/s/main/${FIXTURE_NAME}/translate`);
-    // Editor loads in visual layout by default — switch to grid so the
-    // context panel + its toggle are rendered.
-    await expect(page.getByTestId("layout-switcher")).toBeVisible({ timeout: 20000 });
-    await page.getByTestId("layout-grid").click();
+    // Editor loads in the Visual view by default — switch to the Table view
+    // so the context panel + its toggle are rendered.
+    await expect(page.getByTestId("view-switcher")).toBeVisible({ timeout: 20000 });
+    await page.getByTestId("view-table").click();
     await expect(page.getByTestId("block-grid")).toBeVisible({ timeout: 5000 });
     // Open the TM + Terminology side panel.
     await page.getByTestId("context-panel-toggle").click();

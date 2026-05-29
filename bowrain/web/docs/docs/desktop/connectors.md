@@ -5,7 +5,7 @@ sidebar_position: 5
 
 # Connectors in Bowrain
 
-Bowrain's Connector panel lets you connect to external content sources and sync translations bidirectionally.
+Bowrain's Connector panel lets you connect to **remote** content sources and sync translations bidirectionally. Sourcing from a local filesystem or a git checkout is a server-side concern — the file and git connectors are configured on the server, and a local codebase syncs in through kapi (`kapi push` / `kapi pull`).
 
 ## Accessing Connectors
 
@@ -41,8 +41,8 @@ The sync status indicator shows:
 
 | Type      | What it connects to                    |
 | --------- | -------------------------------------- |
-| File      | Local files (JSON, HTML, XLIFF, etc.)  |
-| Git       | Git repositories with resource files   |
 | WordPress | WordPress posts and pages via REST API |
 | Figma     | Text nodes in Figma designs            |
 | HubSpot   | HubSpot CMS pages                      |
+
+File and git sources are configured **server-side**; see [Connectors](/server/connectors).

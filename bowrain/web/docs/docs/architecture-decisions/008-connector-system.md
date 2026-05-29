@@ -302,9 +302,9 @@ Both server-side and client-side connectors use the framework's
 three-tier format system — see
 [AD-framework-005: Formats](https://neokapi.github.io/web/neokapi/docs/architecture/005-format-system):
 
-1. **Native formats** (Go): 15 built-in — HTML, XML, XLIFF, XLIFF 2,
-   JSON, YAML, PO, Properties, Plaintext, Markdown, CSV, SRT, VTT,
-   TMX, Plaintext variants.
+1. **Native formats** (Go): built-in implementations — HTML, XML,
+   XLIFF, XLIFF 2, JSON, YAML, PO, Properties, Markdown, CSV, SRT, VTT,
+   TMX, and more (see the format reference for the current set).
 2. **Plugin formats** (any language): external executables via gRPC.
 3. **Bridge formats** (Okapi): subprocess-hosted filters via the
    gRPC bridge protocol.

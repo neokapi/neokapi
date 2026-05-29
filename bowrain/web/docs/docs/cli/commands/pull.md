@@ -85,6 +85,6 @@ Pull from Bowrain Server to:
 - **Fetch translations** completed by team members
 - **Get AI/MT suggestions** generated on the server
 - **Sync terminology** updates from the termbase
-- **Update source content** modified in the CMS or design tool
+- **Update source content** that entered Bowrain through another connector
 
-Think of it as `git pull` for localization content.
+Source content can originate from a server-side connector — a CMS, a design tool, or a git host — not only from your local files. `kapi pull` brings those upstream changes down, so kapi is the local mirror of content that may have entered Bowrain elsewhere. Think of it as `git pull` for localization content.

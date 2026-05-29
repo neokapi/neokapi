@@ -20,14 +20,19 @@ who is on block 42 before you start typing there, and you watch a colleague work
 through a file in real time. Presence is broadcast by the server to every client
 watching the same project — whether they are in the browser or the desktop app.
 
-## Live co-editing
+## Live updates
 
 Edits propagate as they happen. When a teammate translates a block, reviews one,
-or updates a term, the change appears in your editor without a refresh, and the
-progress bar moves as the team works. Concurrent edits to a shared project are
-merged on the server, so two people working through the same file converge on one
-consistent state instead of overwriting each other — the editing model is the
-same in the browser and on the desktop.
+or updates a term, your views update without a manual refresh and the progress
+bar moves as the team works. The web app subscribes to a server event stream and
+the desktop app to a project event stream, so a change one person saves shows up
+for everyone watching the project — no one is looking at a stale view.
+
+Content itself is saved over the server's REST API, which is authoritative:
+editing is block-level, and if two people save the same block the last write
+wins — there is no character-by-character co-editing of a single block (live
+cursors and the roster are presence only). The model is the same in the browser
+and on the desktop.
 
 ## Review handoff
 
@@ -48,7 +53,7 @@ a matter of where you work, not what you can do:
 | | **Web** | **Desktop** |
 | --- | --- | --- |
 | Install | Nothing — open a URL | Native app (macOS / Linux / Windows) |
-| Real-time presence & co-editing | Yes | Yes |
+| Real-time presence & live updates | Yes | Yes |
 | Brand, terminology & TM context | Yes | Yes |
 | Works offline | No (always online) | **Yes** — edit on a flight; changes queue and sync on reconnect |
 | Local footprint | Browser session | **Cache only** — a content cache, an offline edit queue, and TM/termbase mirrors |
@@ -56,8 +61,9 @@ a matter of where you work, not what you can do:
 
 Both are real-time clients of the same server, so presence, edits, reviews,
 translation memory, and terminology are shared and consistent across them — a
-reviewer in the browser and a translator in the desktop app see each other and
-each other's work as it happens.
+reviewer in the browser and a translator in the desktop app see each other's
+presence, and each change one saves appears in the other's view without a
+refresh.
 
 The desktop app's local store is a **working copy of the server, never a source
 of truth**: it speeds up editing and lets you work offline, but the

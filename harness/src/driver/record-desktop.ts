@@ -788,10 +788,10 @@ async function bowrainEditorWalk(c: WalkCtx): Promise<void> {
     await humanClick(page, page.locator('[data-testid^="open-file"]').first());
     await page.waitForTimeout(2400);
   });
-  // Switch to the side-by-side split layout: source ↔ target grid + live preview.
+  // Switch to the Visual view: an inline editing card over a live document preview.
   // Open the context panel at the tail so it's already present for the next beat.
   await beat("split", { x: 0.03, y: 0.16, w: 0.74, h: 0.5 }, async () => {
-    const sh = page.getByTestId("layout-split-h");
+    const sh = page.getByTestId("view-visual");
     if (await sh.count()) await humanClick(page, sh);
     await page.waitForTimeout(1600);
     await moveTo(page, WIDTH * 0.42, HEIGHT * 0.42, 700);
@@ -828,15 +828,15 @@ async function bowrainEditorWalk(c: WalkCtx): Promise<void> {
   });
   // The live preview renders the translated page as the team works.
   await beat("preview", { x: 0.03, y: 0.63, w: 0.8, h: 0.34 }, async () => {
-    const pv = page.locator('[data-testid="split-h-preview"], [data-testid="preview-iframe"]').first();
-    if (await pv.count()) await cursorTo('[data-testid="split-h-preview"], [data-testid="preview-iframe"]');
+    const pv = page.getByTestId("preview-iframe");
+    if (await pv.count()) await cursorTo('[data-testid="preview-iframe"]');
     await page.waitForTimeout(2200);
   });
 }
 
-/** Review & approve: focus mode steps through a file one block at a time,
+/** Review & approve: the Review surface steps through a file one block at a time,
  *  approving translations against the workspace — the team workflow on content
- *  synced from kapi. */
+ *  pulled in by any connector. */
 async function bowrainReviewWalk(c: WalkCtx): Promise<void> {
   const { page, beat, beatEls, cursorTo } = c;
   await beat("intro", null, async () => {
@@ -851,26 +851,20 @@ async function bowrainReviewWalk(c: WalkCtx): Promise<void> {
     await humanClick(page, page.locator('[data-testid^="open-file"]').first());
     await page.waitForTimeout(2400);
   });
-  // Focus mode: one block at a time. Advance to a translated block so review is meaningful.
-  await beatEls("focus", ['[data-testid="focus-view"]'], async () => {
-    const f = page.getByTestId("layout-focus");
-    if (await f.count()) await humanClick(page, f);
+  // The Review surface: work through a file by status, one block at a time.
+  await beatEls("focus", ['[data-testid="review-surface"]'], async () => {
+    const rev = page.getByTestId("surface-tab-review");
+    if (await rev.count()) await humanClick(page, rev);
     await page.waitForTimeout(1400);
-    for (let i = 0; i < 5; i++) {
-      const badge = (await page.getByTestId("focus-status-badge").innerText().catch(() => "")).toLowerCase();
-      if (/translated|reviewed|draft/.test(badge) && !/not[- ]started/.test(badge)) break;
-      const nxt = page.getByTestId("focus-next");
-      if (!(await nxt.count())) break;
-      await humanClick(page, nxt);
-      await page.waitForTimeout(700);
-    }
+    const list = page.getByTestId("review-list");
+    if (await list.count()) await cursorTo('[data-testid="review-list"]');
     await page.waitForTimeout(1200);
   });
-  // Approve the block — the status badge advances to reviewed.
-  await beatEls("review", ['[data-testid="focus-view"]'], async () => {
-    const mark = page.getByTestId("focus-mark-reviewed");
+  // Approve — mark reviewed in the Review surface; progress advances to reviewed.
+  await beatEls("review", ['[data-testid="review-surface"]'], async () => {
+    const mark = page.getByTestId("bulk-mark-reviewed");
     if (await mark.count()) {
-      await cursorTo('[data-testid="focus-mark-reviewed"]');
+      await cursorTo('[data-testid="bulk-mark-reviewed"]');
       await humanClick(page, mark);
     }
     await page.waitForTimeout(1600);

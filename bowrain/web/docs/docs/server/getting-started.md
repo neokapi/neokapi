@@ -156,7 +156,7 @@ the server, preserving all files and translations.
 
 ## What's Next
 
-- [Translation Editor](./translation-editor.md) — layout modes, toolbar, keyboard shortcuts, context panel
+- [Translation Editor](./translation-editor.md) — Visual and Table views, toolbar, keyboard shortcuts, context panel
 - [Translation Memory](./translation-memory.md) — TM Explorer features
 - [Terminology](./terminology.md) — term management and enforcement
 - [Walkthroughs](./walkthroughs.md) — step-by-step workflows
