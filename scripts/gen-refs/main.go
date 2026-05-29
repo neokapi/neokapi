@@ -27,8 +27,17 @@ func main() {
 		metaPath   = flag.String("meta", "core/i18n/builtins/metadata.json", "i18n builtins metadata.json (native display names/descriptions)")
 		nativeDocs = flag.String("nativedocs", "scripts/gen-refs/nativedocs", "dir of authored native doc sidecars ({formats,tools}/<id>.yaml)")
 		outDir     = flag.String("out", "packages/reference-data/data", "output dir for formats.json, tools.json, reference-gaps.json")
+		check      = flag.Bool("check", false, "drift gate: regenerate in memory and fail if the committed built-in subset under -out is stale (does not write)")
 	)
 	flag.Parse()
+
+	if *check {
+		if err := checkDrift(*bridgeDir, *metaPath, *nativeDocs, *outDir); err != nil {
+			fmt.Fprintf(os.Stderr, "gen-refs -check: %v\n", err)
+			os.Exit(1)
+		}
+		return
+	}
 
 	if err := run(*bridgeDir, *metaPath, *nativeDocs, *outDir); err != nil {
 		fmt.Fprintf(os.Stderr, "gen-refs: %v\n", err)
@@ -36,9 +45,11 @@ func main() {
 	}
 }
 
-func run(bridgeDir, metaPath, nativeDocsDir, outDir string) error {
-	now := time.Now().UTC().Format(time.RFC3339)
-
+// buildEntries collects the native formats and tools, overlays the authored doc
+// sidecars, and appends the okapi-bridge entries when the plugin dir is present.
+// It is the shared core of `run` (which writes the dataset) and `checkDrift`
+// (which compares it against the committed files).
+func buildEntries(bridgeDir, metaPath, nativeDocsDir string) (formats, tools []Entry, bridgePresent bool, err error) {
 	meta, err := loadNativeMeta(metaPath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "warning: native metadata unavailable (%v); descriptions may be sparse\n", err)
@@ -51,10 +62,10 @@ func run(bridgeDir, metaPath, nativeDocsDir, outDir string) error {
 
 	// Overlay authored native doc sidecars.
 	if err := overlayNativeDocs(nativeDocsDir, KindFormat, formatEntries); err != nil {
-		return err
+		return nil, nil, false, err
 	}
 	if err := overlayNativeDocs(nativeDocsDir, KindTool, toolEntries); err != nil {
-		return err
+		return nil, nil, false, err
 	}
 
 	// Append bridge entries (non-fatal if the plugin dir is absent).
@@ -63,15 +74,26 @@ func run(bridgeDir, metaPath, nativeDocsDir, outDir string) error {
 	case berr == nil:
 		formatEntries = append(formatEntries, bf...)
 		toolEntries = append(toolEntries, bt...)
+		bridgePresent = true
 		fmt.Printf("bridge: %d formats, %d tools from %s\n", len(bf), len(bt), bridgeDir)
 	case errors.Is(berr, os.ErrNotExist):
 		fmt.Fprintf(os.Stderr, "warning: okapi-bridge plugin dir not found at %s; emitting built-in entries only\n", bridgeDir)
 	default:
-		return fmt.Errorf("read bridge: %w", berr)
+		return nil, nil, false, fmt.Errorf("read bridge: %w", berr)
 	}
 
 	sortEntries(formatEntries)
 	sortEntries(toolEntries)
+	return formatEntries, toolEntries, bridgePresent, nil
+}
+
+func run(bridgeDir, metaPath, nativeDocsDir, outDir string) error {
+	now := time.Now().UTC().Format(time.RFC3339)
+
+	formatEntries, toolEntries, _, err := buildEntries(bridgeDir, metaPath, nativeDocsDir)
+	if err != nil {
+		return err
+	}
 
 	if err := os.MkdirAll(outDir, 0o755); err != nil {
 		return err

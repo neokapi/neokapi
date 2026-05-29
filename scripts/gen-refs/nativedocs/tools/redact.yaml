@@ -1,0 +1,75 @@
+# Native reference doc for the built-in `redact` tool.
+# Schema source: core/tools/redact.go (RedactConfig).
+description: Replace sensitive spans with protected placeholders before processing.
+overview: |
+  The **Redact** tool replaces sensitive spans in the source with protected
+  placeholders before the content is processed (for example, before it is sent
+  to a translation provider), and stashes the originals locally so a later
+  `unredact` can restore them. It never emits the original value into the
+  rewritten content. It is a recoverable source-transform: it runs before any
+  stand-off overlay is attached, rewriting the source runs in place.
+
+  Two detection backends can run, alone or together: `rules` matches literal
+  terms and regular expressions from a rules file or inline rules, and
+  `entities` redacts entity annotations already on the block (as produced by
+  `ai-entity-extract`). When no detector is configured, `rules` is used. The
+  originals are stored on the block as an in-process secret annotation by
+  default, or written to a sidecar vault when a vault path is supplied (the
+  external mode used by `extract` → `merge`).
+parameters:
+  detectors:
+    description: "Detection backends to run: rules and/or entities."
+    help: |
+      `rules` matches literal terms and regular expressions from a rules file or
+      inline rules. `entities` redacts entity annotations already attached to the
+      block (e.g. by `ai-entity-extract`). Both may be listed; when none is set,
+      `rules` is used.
+    values: "list of `rules` / `entities` (default `[rules]`)"
+  rulesPath:
+    description: Path to a redaction rules YAML file.
+    help: |
+      Loads literal terms and regular expressions to redact. Only relevant when
+      the `rules` detector is enabled. A rules file may also define its own
+      placeholder template, which is used unless the tool's `placeholder` is set.
+    values: "file path"
+    dependsOn:
+      - property: detectors
+        condition: the `rules` detector must be enabled
+  placeholder:
+    description: Visible stand-in template for redacted spans.
+    help: |
+      The template used to render the visible placeholder that replaces each
+      redacted span. It supports `{category}` (the detected category) and `{n}`
+      (a per-category counter). When unset, the framework default template is
+      used.
+    values: "template string"
+  entityTypes:
+    description: Entity categories to redact when the `entities` detector is enabled.
+    help: |
+      Restricts entity redaction to the listed categories. When unset, the
+      default set is person, organization, product, and location — dates, times,
+      currencies, and measurements are intentionally excluded because they need
+      locale-specific formatting rather than hiding.
+    values: "list of entity categories (default `[person, organization, product, location]`)"
+    dependsOn:
+      - property: detectors
+        condition: the `entities` detector must be enabled
+limitations:
+  - The `entities` detector only acts on entity annotations already present on the block; it does not detect entities itself — pair it with `ai-entity-extract`.
+  - Inline rules and the sidecar vault path are supplied programmatically by callers (e.g. extract → merge) rather than through the schema fields documented here.
+  - Operates on translatable source spans; dates, times, currencies, and measurements are excluded from the default entity set.
+processingNotes:
+  - A recoverable source-transform — it rewrites the source runs and must run before any stand-off overlay is attached.
+  - Originals are recorded as an in-process secret annotation by default, or in a sidecar vault when a vault path is supplied (external mode).
+  - A later `unredact` reads the recovery record to restore the originals.
+examples:
+  - title: Redact by rules file
+    description: Replace spans matched by a rules file with the default placeholder.
+    config: |
+      detectors: [rules]
+      rulesPath: redaction-rules.yaml
+  - title: Redact extracted entities
+    description: Redact person and organization entities already annotated on the block.
+    config: |
+      detectors: [entities]
+      entityTypes: [person, organization]

@@ -1,0 +1,49 @@
+# Native reference doc for the built-in `modernmt-translate` tool.
+# Schema source: core/mt/tools/translate.go (MTTranslateConfig), provider providers/mt/modernmt.go.
+description: Translate block content using ModernMT.
+overview: |
+  The **ModernMT Translate** tool translates untranslated block content with the
+  ModernMT API. The provider is fixed by the tool name, so there is no provider
+  field — only the ModernMT credential applies. A target language is required and
+  a ModernMT API key must be supplied (resolved from the OS keychain by the CLI,
+  or set inline in a recipe step).
+
+  Blocks that carry inline codes are round-tripped through semantic HTML so the
+  API preserves the tags natively, then reconstructed from the response. With a
+  session cache, targets already translated in a previous run are reused, so
+  repeat runs skip blocks that are already done. When constructed without
+  credentials the tool falls back to an offline demo provider so it remains
+  listable and runnable for illustration.
+parameters:
+  apiKey:
+    description: ModernMT API key.
+    help: |
+      The ModernMT authentication key. Required to call the real ModernMT API;
+      without it the tool falls back to the offline demo provider. Resolved from
+      the OS keychain by the CLI credential preprocessor, or set inline.
+    values: "string"
+  subscriptionKey:
+    description: Not used by ModernMT.
+    help: Part of the shared MT credential schema; consumed only by the Microsoft Translator tool.
+  region:
+    description: Not used by ModernMT.
+    help: Part of the shared MT credential schema; consumed only by the Microsoft Translator tool.
+  email:
+    description: Not used by ModernMT.
+    help: Part of the shared MT credential schema; consumed only by the MyMemory tool.
+  projectId:
+    description: Not used by ModernMT.
+    help: Part of the shared MT credential schema; consumed only by the Google Translate tool.
+limitations:
+  - Requires a target language and a ModernMT API key; without a key the tool runs the offline demo provider, not ModernMT.
+  - ModernMT makes a network round-trip per block; cost and latency scale with content volume.
+  - The provider is fixed to ModernMT by the tool name and cannot be changed through configuration.
+processingNotes:
+  - Operates on translatable blocks with non-empty source; other parts pass through unchanged.
+  - Blocks with inline codes round-trip through semantic HTML so tags survive translation.
+  - With a session cache, already-translated targets are reused and fresh translations are cached.
+examples:
+  - title: Translate with ModernMT
+    description: Translate untranslated blocks using a ModernMT API key.
+    config: |
+      apiKey: your-modernmt-key

@@ -1,0 +1,37 @@
+# Native reference doc for the built-in `placeholder-check` tool.
+# Schema source: core/tools/placeholdercheck.go (PlaceholderCheckConfig).
+description: Verify interpolation placeholders and numbered tags are preserved in the target.
+overview: |
+  The **Placeholder Check** tool verifies that every interpolation placeholder
+  in the source survives, by count, into the target. A dropped `{count}` or an
+  unbalanced `<0>` is the kind of break that crashes a localized application at
+  runtime, so a placeholder present fewer times in the target than in the source
+  is flagged as critical. It is read-only: it annotates findings and never
+  rewrites content.
+
+  Placeholders are detected with a built-in pattern covering the common
+  interpolation styles — `{{name}}`, `${name}`, `%(name)s` (Python),
+  `%1$s` (positional), `%s` / `%d` / `%@` (printf / Objective-C),
+  `{name}` / `{0}` (ICU / .NET), and numbered tags such as `<0>…</0>`. A target
+  locale is required; blocks without a target for that locale are skipped.
+parameters:
+  flagExtra:
+    description: Report placeholders present in the target but absent from the source.
+    help: |
+      When enabled (the default), a placeholder that appears in the target but
+      not the source — usually a stray token — is reported as a major issue, in
+      addition to the always-critical report of placeholders dropped from the
+      target.
+    values: "`true` / `false` (default `true`)"
+limitations:
+  - Detection is pattern-based and covers the common interpolation styles listed above; placeholder syntaxes outside that set are not recognised.
+  - The check compares placeholder counts, not positions; a placeholder present the correct number of times but in the wrong order is not flagged.
+  - Requires a configured target locale; blocks without a target for that locale are skipped.
+processingNotes:
+  - Operates on translatable blocks that have a target for the configured locale; other parts pass through unchanged.
+  - Dropped placeholders are reported at critical severity; extra placeholders (when flagExtra is enabled) at major severity.
+examples:
+  - title: Only report dropped placeholders
+    description: Disable extra-placeholder reporting and flag only placeholders missing from the target.
+    config: |
+      flagExtra: false

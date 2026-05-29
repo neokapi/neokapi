@@ -1,0 +1,47 @@
+# Native reference doc for the built-in `mymemory-translate` tool.
+# Schema source: core/mt/tools/translate.go (MTTranslateConfig), provider providers/mt/mymemory.go.
+description: Translate block content using MyMemory.
+overview: |
+  The **MyMemory Translate** tool translates untranslated block content with the
+  MyMemory API. The provider is fixed by the tool name, so there is no provider
+  field. MyMemory can be used anonymously; supplying an account email raises the
+  request rate limit. A target language is required.
+
+  Blocks that carry inline codes are round-tripped through semantic HTML so the
+  API preserves the tags natively, then reconstructed from the response. With a
+  session cache, targets already translated in a previous run are reused, so
+  repeat runs skip blocks that are already done. When constructed without
+  configuration the tool falls back to an offline demo provider so it remains
+  listable and runnable for illustration.
+parameters:
+  email:
+    description: Account email for higher rate limits.
+    help: |
+      An optional MyMemory account email. When set, it is sent with each request
+      to raise the rate limit; MyMemory otherwise works anonymously.
+    values: "email address"
+  apiKey:
+    description: Not used by MyMemory.
+    help: Part of the shared MT credential schema; consumed by other MT tools (e.g. DeepL, ModernMT).
+  subscriptionKey:
+    description: Not used by MyMemory.
+    help: Part of the shared MT credential schema; consumed only by the Microsoft Translator tool.
+  region:
+    description: Not used by MyMemory.
+    help: Part of the shared MT credential schema; consumed only by the Microsoft Translator tool.
+  projectId:
+    description: Not used by MyMemory.
+    help: Part of the shared MT credential schema; consumed only by the Google Translate tool.
+limitations:
+  - Requires a target language; an account email is optional and only affects the rate limit.
+  - MyMemory makes a network round-trip per block; the anonymous tier is rate-limited.
+  - The provider is fixed to MyMemory by the tool name and cannot be changed through configuration.
+processingNotes:
+  - Operates on translatable blocks with non-empty source; other parts pass through unchanged.
+  - Blocks with inline codes round-trip through semantic HTML so tags survive translation.
+  - With a session cache, already-translated targets are reused and fresh translations are cached.
+examples:
+  - title: Translate with MyMemory
+    description: Translate untranslated blocks, supplying an account email for a higher rate limit.
+    config: |
+      email: you@example.com

@@ -1,0 +1,52 @@
+name: Reference Data — Drift Gate
+
+# CI gate: the committed reference dataset under packages/reference-data/data
+# must match what `make generate-reference-docs` produces from the current
+# source. A tool/format whose schema, description, or doc sidecar changed
+# without regenerating the dataset fails this job before it can ship stale
+# docs to the website /tools and /formats pages.
+#
+# The okapi-bridge plugin is not present in this repo's CI (it lives in a
+# separate repo), so the gate compares only the built-in subset of each
+# dataset — the part wholly controlled by this repo's Go source and the
+# authored sidecars under scripts/gen-refs/nativedocs. The okapi entries are
+# only validated when BRIDGE_PLUGIN points at a populated plugin dir.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "core/**/*.go"
+      - "providers/**/*.go"
+      - "sievepen/**/*.go"
+      - "termbase/**/*.go"
+      - "core/i18n/builtins/metadata.json"
+      - "scripts/gen-refs/**"
+      - "packages/reference-data/data/**"
+      - ".github/workflows/reference-data-drift.yml"
+  pull_request:
+    paths:
+      - "core/**/*.go"
+      - "providers/**/*.go"
+      - "sievepen/**/*.go"
+      - "termbase/**/*.go"
+      - "core/i18n/builtins/metadata.json"
+      - "scripts/gen-refs/**"
+      - "packages/reference-data/data/**"
+      - ".github/workflows/reference-data-drift.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  drift:
+    name: Reference dataset is fresh
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: ./.github/actions/setup-go-modules
+
+      - name: Check reference dataset for drift
+        run: make check-reference-docs

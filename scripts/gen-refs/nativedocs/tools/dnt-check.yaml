@@ -1,0 +1,37 @@
+# Native reference doc for the built-in `dnt-check` tool.
+# Schema source: core/tools/dntcheck.go (DNTCheckConfig — terms set programmatically).
+description: Verify that do-not-translate terms survive verbatim into the target.
+overview: |
+  The **Do-Not-Translate Check** tool guards terms that must reach the target
+  unchanged — product names, trademarks, code identifiers. For each configured
+  term that appears in the source as a whole word, it verifies the term is
+  present verbatim in the target; when it is missing, the block is flagged with a
+  critical finding (the "the AI translated your product name" case). It is
+  read-only: it annotates findings and never rewrites content.
+
+  The list of protected terms is supplied programmatically rather than as a
+  schema field — a project, recipe, or checkset provides them, and the termbase
+  can contribute more. A target locale is required; blocks without a target for
+  that locale are skipped. The only schema-level option controls whether a
+  case-folded match in the target is accepted.
+parameters:
+  caseInsensitive:
+    description: Accept a case-folded match in the target instead of requiring exact case.
+    help: |
+      Off by default, because do-not-translate is usually case-sensitive —
+      "iPhone" must not become "Iphone". When enabled, a case-insensitive match
+      in the target satisfies the check.
+    values: "`true` / `false` (default `false`)"
+limitations:
+  - The list of protected terms is configured programmatically; it is not exposed as a schema parameter.
+  - A term is only checked when it occurs in the source as a whole word; substrings of larger words are ignored.
+  - When a term is absent from the target the finding records the verbatim term to preserve but proposes no automatic replacement — a miss needs a human or a re-translation, not a blind substring substitution.
+  - Requires a configured target locale; blocks without a target for that locale are skipped.
+processingNotes:
+  - Operates on translatable blocks that have a target for the configured locale; other parts pass through unchanged.
+  - Findings are emitted in the "do-not-translate" category at critical severity.
+examples:
+  - title: Case-insensitive preservation
+    description: Accept a case-folded match for protected terms in the target.
+    config: |
+      caseInsensitive: true

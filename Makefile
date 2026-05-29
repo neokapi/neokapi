@@ -938,6 +938,9 @@ BRIDGE_PLUGIN ?= $(ROOT_DIR)/../okapi-bridge/dist/plugin
 generate-reference-docs: ## Generate the unified format + tool reference dataset (built-in + okapi-bridge) → packages/reference-data/data
 	$(GO) run ./scripts/gen-refs $(if $(wildcard $(BRIDGE_PLUGIN)),-bridge $(BRIDGE_PLUGIN),)
 
+check-reference-docs: ## Drift gate: fail if the committed reference dataset is stale vs. source (gates the built-in subset; absent okapi-bridge is fine)
+	$(GO) run ./scripts/gen-refs -check $(if $(wildcard $(BRIDGE_PLUGIN)),-bridge $(BRIDGE_PLUGIN),)
+
 # Superseded by generate-reference-docs; kept as an alias for existing callers.
 generate-format-docs: generate-reference-docs
 
@@ -1099,7 +1102,7 @@ help: ## Show this help
         bench bench-build bench-generate bench-run bench-run-collection bench-run-all bench-versions \
         logo fetch-docs-assets publish-docs-assets harness-deps harness-videos \
         fetch-bowrain-docs-assets publish-bowrain-docs-assets \
-        generate-format-docs generate-reference-docs generate-reference-pages \
+        generate-format-docs generate-reference-docs check-reference-docs generate-reference-pages \
         docs-deps docs-dev docs-wasm docs-build docs-serve \
         tools setup-remote gha-lint clean \
         _fw-fmt _fw-test _fw-test-fast _fw-test-unit _fw-test-race _fw-test-verbose _fw-test-integration \
