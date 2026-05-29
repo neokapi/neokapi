@@ -7,7 +7,7 @@ keywords: [content model, Part, Block, Run, Overlay, variant target, Layer, loca
 
 import { BlockPreview } from "@site/src/components/curated";
 import { AnatomyExplorer } from "@site/src/components/Lab";
-import { StreamDiagram } from "@site/src/components/diagram";
+import { StreamDiagram } from "@neokapi/docs-shared";
 
 # Content Model
 

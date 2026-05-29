@@ -5,7 +5,7 @@ description: Implementation note for AD-005 — details of the SkeletonStore tem
 keywords: [SkeletonStore, streaming HTML, skeleton, tokenizer, HTML reader, implementation note, neokapi]
 ---
 
-import { StreamDiagram } from "@site/src/components/diagram";
+import { StreamDiagram } from "@neokapi/docs-shared";
 
 # Skeleton Store and Streaming HTML
 

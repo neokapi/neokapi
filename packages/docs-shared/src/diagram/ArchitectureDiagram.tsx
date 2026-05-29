@@ -85,7 +85,13 @@ function Stage({
       <text x={cx} y={192} textAnchor="middle" fontSize={13.5} className="kdx-label">
         {title}
       </text>
-      <text x={cx} y={210} textAnchor="middle" fontSize={9.5} className={`kdx-sub kdx-sub--${role}`}>
+      <text
+        x={cx}
+        y={210}
+        textAnchor="middle"
+        fontSize={9.5}
+        className={`kdx-sub kdx-sub--${role}`}
+      >
         {sub}
       </text>
     </g>
@@ -128,8 +134,8 @@ export function ArchitectureDiagram({
               annotate, translate and QA tools in the middle with the translate stage fanning out
               across parallel goroutines, translation-memory and termbase resources feeding it from
               above, and a gRPC plugin band (Okapi bridge, kapi-sat segmenter, remote plugins)
-              feeding it from below. Each stage is a goroutine joined by Part channels, and the whole
-              pipeline runs over many documents in parallel.
+              feeding it from below. Each stage is a goroutine joined by Part channels, and the
+              whole pipeline runs over many documents in parallel.
             </desc>
 
             {/* ── document-parallelism: ghost lanes behind the live one ── */}
@@ -152,7 +158,14 @@ export function ArchitectureDiagram({
             {/* ── resources (top) ── */}
             <g>
               {/* termbase over annotate */}
-              <rect x={252} y={18} width={124} height={38} rx={8} className="kdx-chip kdx-chip--resource" />
+              <rect
+                x={252}
+                y={18}
+                width={124}
+                height={38}
+                rx={8}
+                className="kdx-chip kdx-chip--resource"
+              />
               <text x={314} y={35} textAnchor="middle" fontSize={11} className="kdx-chip-t">
                 Termbase
               </text>
@@ -162,7 +175,14 @@ export function ArchitectureDiagram({
               <path d="M314,56 L314,164" className="kdx-link kdx-link--resource" />
 
               {/* TM over translate */}
-              <rect x={454} y={18} width={124} height={38} rx={8} className="kdx-chip kdx-chip--resource" />
+              <rect
+                x={454}
+                y={18}
+                width={124}
+                height={38}
+                rx={8}
+                className="kdx-chip kdx-chip--resource"
+              />
               <text x={516} y={35} textAnchor="middle" fontSize={11} className="kdx-chip-t">
                 Translation Memory
               </text>
@@ -185,7 +205,13 @@ export function ArchitectureDiagram({
                     {f}
                   </text>
                   <path d={`M106,${y + 14} L116,${CY}`} className="kdx-thin" />
-                  <FlowDot path={`M106,${y + 14} L116,${CY}`} dur={2.2} begin={i * 0.4} cls="kdx-dot--io" r={2.4} />
+                  <FlowDot
+                    path={`M106,${y + 14} L116,${CY}`}
+                    dur={2.2}
+                    begin={i * 0.4}
+                    cls="kdx-dot--io"
+                    r={2.4}
+                  />
                 </g>
               );
             })}
@@ -220,7 +246,14 @@ export function ArchitectureDiagram({
                 <g key={i}>
                   <path d={inPath} className="kdx-thin kdx-thin--t" />
                   <path d={outPath} className="kdx-thin kdx-thin--t" />
-                  <rect x={WORKER_X} y={wy} width={WORKER_W} height={WORKER_H} rx={7} className="kdx-worker" />
+                  <rect
+                    x={WORKER_X}
+                    y={wy}
+                    width={WORKER_W}
+                    height={WORKER_H}
+                    rx={7}
+                    className="kdx-worker"
+                  />
                   <rect
                     x={WORKER_X}
                     y={wy}
@@ -292,7 +325,13 @@ export function ArchitectureDiagram({
                   <text x={940} y={y + 18} textAnchor="middle" fontSize={9} className="kdx-file-t">
                     {f}
                   </text>
-                  <FlowDot path={`M882,${CY} L894,${y + 14}`} dur={2.2} begin={i * 0.4 + 0.6} cls="kdx-dot--io" r={2.4} />
+                  <FlowDot
+                    path={`M882,${CY} L894,${y + 14}`}
+                    dur={2.2}
+                    begin={i * 0.4 + 0.6}
+                    cls="kdx-dot--io"
+                    r={2.4}
+                  />
                 </g>
               );
             })}

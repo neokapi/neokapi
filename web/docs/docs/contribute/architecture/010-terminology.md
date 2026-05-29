@@ -6,7 +6,7 @@ description: "Architecture decision: neokapi's terminology system is concept-ori
 keywords: [terminology, Concept, TBX, termbase, concept-oriented, architecture decision, neokapi]
 ---
 
-import { PipelineDiagram } from "@site/src/components/diagram";
+import { PipelineDiagram } from "@neokapi/docs-shared";
 
 # AD-010: Terminology
 

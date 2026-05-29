@@ -4,6 +4,8 @@ title: Introduction
 slug: /
 ---
 
+import { SwimlaneDiagram } from "@neokapi/docs-shared";
+
 # Bowrain
 
 Bowrain is the server-side platform companion to [kapi](https://neokapi.github.io/web/neokapi/). Kapi gives a solo builder or a small team everything they need locally — extracting content, enforcing brand voice and terminology, leveraging translation memory, and localizing into every language and format, all from files you own. Bowrain is where a team hosts, governs, and stewards that work over time: shared profiles and memory, collaborative editing, connectors to the systems content already lives in, automation, and version history.
@@ -16,7 +18,7 @@ You keep using kapi. Installing the bowrain plugin (`kapi plugin install bowrain
 
 ### Shared, versioned governance
 
-One brand-voice profile, terminology base, and translation memory, held on the server and shared across everyone — writers, translators, and AI tools — instead of living in each person's checkout. Changes are versioned and auditable: who approved a term, when a profile changed, what a translation used to say. And the profile *learns*: repeated corrections become versioned, enforced checks, so the rules a team discovers by correcting real output are captured instead of lost — see [Brand voice & corrections](/server/brand-voice).
+One brand-voice profile, terminology base, and translation memory, held on the server and shared across everyone — writers, translators, and AI tools — instead of living in each person's checkout. Changes are versioned and auditable: who approved a term, when a profile changed, what a translation used to say. And the profile _learns_: repeated corrections become versioned, enforced checks, so the rules a team discovers by correcting real output are captured instead of lost — see [Brand voice & corrections](/server/brand-voice).
 
 ### Collaboration
 
@@ -46,15 +48,20 @@ kapi sync
 
 ## How it fits together
 
-```
-You, with kapi + the bowrain plugin        Translators (web / desktop)
-        |                                          |
-        |  kapi sync                               |  open the editor
-        |----------------------------------------->|
-        |               Bowrain server             |
-        |  push -> translate / QA -> pull          |  review, approve, save
-        |<-----------------------------------------|
-```
+<SwimlaneDiagram
+  actors={[
+    { label: "You", sub: "kapi + plugin", role: "io" },
+    { label: "Bowrain server", role: "translate" },
+    { label: "Translators", sub: "web / desktop", role: "qa" },
+  ]}
+  messages={[
+    { from: 0, to: 1, label: "kapi sync", detail: "push source content" },
+    { from: 1, to: 1, label: "translate / QA", detail: "server automation" },
+    { from: 2, to: 2, label: "open the editor", detail: "review, approve, save" },
+    { from: 1, to: 0, label: "pull translations" },
+  ]}
+  caption="A developer pushes with kapi sync; the server processes; translators review in the editor."
+/>
 
 A developer runs `kapi sync` to push source content and pull back translations. Translators work in the web or desktop editor with translation memory and terminology support. Server automation orchestrates the processing in between, and the content store keeps the history.
 

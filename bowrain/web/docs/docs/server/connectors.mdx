@@ -3,18 +3,20 @@ sidebar_position: 5
 title: Connectors
 ---
 
+import { PipelineDiagram } from "@neokapi/docs-shared";
+
 # Connectors
 
 Connectors link Bowrain Server to the systems content already lives in — code repositories, content management platforms, design tools, and marketing platforms. Instead of manually exporting and importing files, a connector pulls content into Bowrain, lets your team translate it, and pushes the translations back.
 
 ## Connector types
 
-| Type          | Examples                   | Purpose                        |
-| ------------- | -------------------------- | ------------------------------ |
-| **Code**      | GitHub, GitLab, Bitbucket  | Localization files in repositories |
-| **CMS**       | Contentful, Sanity, Strapi | Source content for translation |
-| **Design**    | Figma, Sketch              | UI text strings from design files |
-| **Marketing** | HubSpot, Marketo           | Campaign and email content     |
+| Type          | Examples                   | Purpose                                    |
+| ------------- | -------------------------- | ------------------------------------------ |
+| **Code**      | GitHub, GitLab, Bitbucket  | Localization files in repositories         |
+| **CMS**       | Contentful, Sanity, Strapi | Source content for translation             |
+| **Design**    | Figma, Sketch              | UI text strings from design files          |
+| **Marketing** | HubSpot, Marketo           | Campaign and email content                 |
 | **File**      | kapi (bowrain plugin)      | Local file sync from a developer's machine |
 
 ## How connectors work
@@ -23,9 +25,16 @@ Connectors link Bowrain Server to the systems content already lives in — code 
 2. **Translate and review** — your team translates and reviews the content in the web or desktop editor
 3. **Push** — the connector sends the approved translations back to the external system
 
-```
-External system ←→ Connector ←→ Bowrain Server ←→ Translators
-```
+<PipelineDiagram
+  channelLabel=""
+  stages={[
+    { label: "External system", sub: "CMS · git · design" },
+    { label: "Connector", role: "io" },
+    { label: "Bowrain Server", sub: "ContentStore", role: "translate" },
+    { label: "Translators", sub: "web · desktop", role: "qa" },
+  ]}
+  caption="A connector pulls source content in and pushes approved translations back out."
+/>
 
 ## File connector (kapi)
 

@@ -134,7 +134,14 @@ export function PipelineDiagram({
               .join(" then ")}`}
           >
             <defs>
-              <marker id="kdx-arrow" markerWidth="7" markerHeight="7" refX="5.5" refY="3" orient="auto">
+              <marker
+                id="kdx-arrow"
+                markerWidth="7"
+                markerHeight="7"
+                refX="5.5"
+                refY="3"
+                orient="auto"
+              >
                 <path d="M0,0 L6,3 L0,6 Z" className="kdx-arrow" />
               </marker>
             </defs>
@@ -163,7 +170,11 @@ export function PipelineDiagram({
                     </text>
                   )}
                   {animated && (
-                    <FlowDot path={`M${s.x + s.w},${cy} L${next.x - 4},${cy}`} dur={1.6} begin={i * 0.3} />
+                    <FlowDot
+                      path={`M${s.x + s.w},${cy} L${next.x - 4},${cy}`}
+                      dur={1.6}
+                      begin={i * 0.3}
+                    />
                   )}
                 </>
               );
@@ -186,9 +197,23 @@ export function PipelineDiagram({
               const deltas = LINE_DELTAS[lines.length] ?? LINE_DELTAS[3];
               return (
                 <g key={`${s.label}-${i}`}>
-                  <rect x={s.x} y={boxTop} width={s.w} height={STAGE_H} rx={9} className={`kdx-box${roleBox(s.role)}`} />
+                  <rect
+                    x={s.x}
+                    y={boxTop}
+                    width={s.w}
+                    height={STAGE_H}
+                    rx={9}
+                    className={`kdx-box${roleBox(s.role)}`}
+                  />
                   {lines.map((ln, li) => (
-                    <text key={li} x={cx} y={cy + deltas[li]} textAnchor="middle" fontSize={ln.size} className={ln.cls}>
+                    <text
+                      key={li}
+                      x={cx}
+                      y={cy + deltas[li]}
+                      textAnchor="middle"
+                      fontSize={ln.size}
+                      className={ln.cls}
+                    >
                       {ln.t}
                     </text>
                   ))}
@@ -217,7 +242,13 @@ function LaneGroup({ stage, cy }: { stage: Placed; cy: number }): React.ReactEle
   return (
     <g>
       {stage.parallelLabel && (
-        <text x={stage.x + stage.w / 2} y={firstTop - 7} textAnchor="middle" fontSize={8.5} className="kdx-note">
+        <text
+          x={stage.x + stage.w / 2}
+          y={firstTop - 7}
+          textAnchor="middle"
+          fontSize={8.5}
+          className="kdx-note"
+        >
           {stage.parallelLabel}
         </text>
       )}
@@ -236,13 +267,35 @@ function LaneGroup({ stage, cy }: { stage: Placed; cy: number }): React.ReactEle
         return (
           <g key={`${ln.label}-${i}`}>
             <path d={`M${fanInX},${cy} L${laneX},${lcy}`} className="kdx-thin kdx-thin--t" />
-            <path d={`M${laneX + laneW},${lcy} L${fanOutX},${cy}`} className="kdx-thin kdx-thin--t" />
-            <rect x={laneX} y={ly} width={laneW} height={LANE_H} rx={7} className={`kdx-box${roleBox(role)}`} />
-            <text x={lcx} y={ln.sub ? lcy - 1 : lcy + 4} textAnchor="middle" fontSize={10.5} className="kdx-label">
+            <path
+              d={`M${laneX + laneW},${lcy} L${fanOutX},${cy}`}
+              className="kdx-thin kdx-thin--t"
+            />
+            <rect
+              x={laneX}
+              y={ly}
+              width={laneW}
+              height={LANE_H}
+              rx={7}
+              className={`kdx-box${roleBox(role)}`}
+            />
+            <text
+              x={lcx}
+              y={ln.sub ? lcy - 1 : lcy + 4}
+              textAnchor="middle"
+              fontSize={10.5}
+              className="kdx-label"
+            >
               {ln.label}
             </text>
             {ln.sub && (
-              <text x={lcx} y={lcy + 10} textAnchor="middle" fontSize={8} className={`kdx-sub${roleSub(role)}`}>
+              <text
+                x={lcx}
+                y={lcy + 10}
+                textAnchor="middle"
+                fontSize={8}
+                className={`kdx-sub${roleSub(role)}`}
+              >
                 {ln.sub}
               </text>
             )}
@@ -253,7 +306,15 @@ function LaneGroup({ stage, cy }: { stage: Placed; cy: number }): React.ReactEle
   );
 }
 
-function FlowDot({ path, dur, begin }: { path: string; dur: number; begin: number }): React.ReactElement {
+function FlowDot({
+  path,
+  dur,
+  begin,
+}: {
+  path: string;
+  dur: number;
+  begin: number;
+}): React.ReactElement {
   return (
     <circle r={2.8} className="kdx-dot kdx-dot--io">
       <animateMotion dur={`${dur}s`} begin={`${begin}s`} repeatCount="indefinite" path={path} />

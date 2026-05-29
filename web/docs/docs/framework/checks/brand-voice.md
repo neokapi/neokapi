@@ -5,7 +5,7 @@ description: Brand voice is one checkset over neokapi's content-verification eng
 keywords: [brand voice, content checks, writing style, terminology, MCP, AI assistant]
 ---
 
-import { PipelineDiagram } from "@site/src/components/diagram";
+import { PipelineDiagram } from "@neokapi/docs-shared";
 
 # Brand Voice
 

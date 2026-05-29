@@ -6,7 +6,7 @@ description: "Architecture decision: a Tool is a single composable pipeline stag
 keywords: [tool system, BaseTool, pipeline stage, composable, architecture decision, neokapi]
 ---
 
-import { PipelineDiagram } from "@site/src/components/diagram";
+import { PipelineDiagram } from "@neokapi/docs-shared";
 
 # AD-006: Tool System
 

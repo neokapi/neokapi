@@ -5,7 +5,7 @@ description: Implementation note for AD-007 — the gRPC bridge protocol between
 keywords: [bridge protocol, gRPC, BridgeService, Okapi bridge, Process RPC, Part model, Event model, implementation note]
 ---
 
-import { LanesDiagram } from "@site/src/components/diagram";
+import { LanesDiagram } from "@neokapi/docs-shared";
 
 # Bridge Protocol
 

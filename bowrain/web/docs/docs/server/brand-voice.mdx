@@ -5,6 +5,8 @@ description: Bowrain turns a team's corrections into versioned, enforced brand c
 keywords: [brand voice, corrections, candidate rules, governance, drift, blast radius, bowrain]
 ---
 
+import { PhaseFlow } from "@neokapi/docs-shared";
+
 # Brand voice & corrections
 
 A **brand voice profile** is a machine-readable description of how your content
@@ -42,6 +44,23 @@ loop:
 5. **Monitor.** After a rule lands, Bowrain watches aggregate compliance and
    raises a **drift** alert when it erodes, so a profile that was healthy does
    not quietly decay as content and models change.
+
+<PhaseFlow
+  nodes={[
+    { label: "Correct", sub: "person or AI (MCP)", role: "io" },
+    { label: "Surface", sub: "candidate rule", edge: "recurs", role: "annotate" },
+    { label: "Preview", sub: "blast radius", edge: "compute impact", role: "qa" },
+    { label: "Promote", sub: "into the profile", edge: "reviewer approves", role: "translate" },
+    {
+      label: "Monitor",
+      sub: "aggregate compliance",
+      edge: "enforce",
+      role: "io",
+      loop: ["drift alert when compliance erodes", "feeds the next correction"],
+    },
+  ]}
+  caption="Correct once; the rule that prevents the mistake is authored, versioned, and shared."
+/>
 
 Correct once, and the rule that prevents the mistake from recurring is authored,
 versioned, and shared — the way adding a regression test stops a fixed bug from

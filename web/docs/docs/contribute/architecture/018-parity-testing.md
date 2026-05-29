@@ -6,7 +6,7 @@ description: "Architecture decision: a parity harness runs every neokapi format 
 keywords: [parity testing, Okapi Framework, format parity, test harness, divergence, architecture decision, neokapi]
 ---
 
-import { PipelineDiagram } from "@site/src/components/diagram";
+import { PipelineDiagram } from "@neokapi/docs-shared";
 
 # AD-018: Parity testing against Okapi
 
