@@ -1,0 +1,5 @@
+{
+  "cart.items": "You have {count} items in your Acme Cloud cart",
+  "cart.checkout": "Checkout",
+  "welcome": "Welcome to Acme Cloud"
+}

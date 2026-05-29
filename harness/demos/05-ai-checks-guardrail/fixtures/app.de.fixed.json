@@ -1,0 +1,5 @@
+{
+  "cart.items": "Sie haben {count} Artikel in Ihrem Acme Cloud-Warenkorb",
+  "cart.checkout": "Zur Kasse",
+  "welcome": "Willkommen bei Acme Cloud"
+}

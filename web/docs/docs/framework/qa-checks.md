@@ -6,6 +6,7 @@ keywords: [QA checks, quality assurance, translation QA, rule-based, LLM review,
 ---
 
 import RunnableSnippet from "@site/src/components/KapiPlayground/RunnableSnippet";
+import { ThemedVideo } from "@neokapi/docs-shared";
 
 # Quality Assurance Checks
 
@@ -16,6 +17,21 @@ are attached to the block — recorded in its properties and surfaced to the CLI
 an editor, or a downstream tool — so a QA pass slots into any
 [flow](/framework/flows) as an ordinary stage. neokapi offers two complementary
 approaches: fast, deterministic rule-based checks, and LLM-assisted review.
+
+Run as a gate, these checks behave like tests for AI output: deterministic and
+repeatable, they read translated content against its source and report exactly
+what broke — a dropped placeholder, a translated do-not-translate term, an
+inconsistent glossary term. `kapi check` runs them over a file or a
+source/target pair and exits non-zero when the gate fails, so a regression is
+caught in CI, or in an assistant's fix-loop, the same way a failing test is.
+
+<ThemedVideo
+  sources={{
+    light: "/video/kapi/kapi-checks-guardrail-light.webm",
+    dark: "/video/kapi/kapi-checks-guardrail-dark.webm",
+  }}
+  maxWidth="820px"
+/>
 
 ## Rule-based checks
 
