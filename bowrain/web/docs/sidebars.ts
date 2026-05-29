@@ -166,7 +166,6 @@ const sidebars: SidebarsConfig = {
         "walkthroughs/bowrain-web-login-and-workspace",
         "walkthroughs/bowrain-web-claim-project",
         "walkthroughs/bowrain-web-translation-editor",
-        "walkthroughs/bowrain-web-focus-view",
         "walkthroughs/bowrain-web-context-panel",
         "walkthroughs/bowrain-web-tm-explorer",
         "walkthroughs/bowrain-web-term-explorer",

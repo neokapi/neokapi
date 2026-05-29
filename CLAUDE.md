@@ -174,7 +174,7 @@ neokapi/
 │   ├── locale/            # BCP-47 locale utilities
 │   ├── editor/            # Block index serialization and preview generation
 │   ├── version/           # Version info (set via ldflags)
-│   ├── formats/           # 15 built-in format implementations
+│   ├── formats/           # built-in format implementations
 │   ├── storage/           # Shared SQLite DB infrastructure (Open, Migrate)
 │   ├── project/           # .kapi project file format (Load, Save, Validate)
 │   ├── tools/             # Built-in utility tools

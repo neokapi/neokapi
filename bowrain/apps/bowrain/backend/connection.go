@@ -465,8 +465,8 @@ func (a *App) Logout() {
 	a.Disconnect()
 	_ = os.Remove(desktopAuthFilePath())
 	// Remove tokens from keyring (best-effort).
-	_ = keyring.Delete(keyringService(),keyringAccessTokenKey)
-	_ = keyring.Delete(keyringService(),keyringRefreshTokenKey)
+	_ = keyring.Delete(keyringService(), keyringAccessTokenKey)
+	_ = keyring.Delete(keyringService(), keyringRefreshTokenKey)
 }
 
 // Disconnect closes the server connection.
@@ -513,12 +513,12 @@ func desktopAuthFilePath() string {
 func saveDesktopAuth(a *storedDesktopAuth) error {
 	// Save tokens to OS keychain.
 	if a.AccessToken != "" {
-		if err := keyring.Set(keyringService(),keyringAccessTokenKey, a.AccessToken); err != nil {
+		if err := keyring.Set(keyringService(), keyringAccessTokenKey, a.AccessToken); err != nil {
 			return fmt.Errorf("save access token to keyring: %w", err)
 		}
 	}
 	if a.RefreshToken != "" {
-		if err := keyring.Set(keyringService(),keyringRefreshTokenKey, a.RefreshToken); err != nil {
+		if err := keyring.Set(keyringService(), keyringRefreshTokenKey, a.RefreshToken); err != nil {
 			return fmt.Errorf("save refresh token to keyring: %w", err)
 		}
 	}
@@ -546,8 +546,8 @@ func loadDesktopAuth() (*storedDesktopAuth, error) {
 	}
 
 	// Load tokens from keyring.
-	a.AccessToken, _ = keyring.Get(keyringService(),keyringAccessTokenKey)
-	a.RefreshToken, _ = keyring.Get(keyringService(),keyringRefreshTokenKey)
+	a.AccessToken, _ = keyring.Get(keyringService(), keyringAccessTokenKey)
+	a.RefreshToken, _ = keyring.Get(keyringService(), keyringRefreshTokenKey)
 
 	return &a, nil
 }

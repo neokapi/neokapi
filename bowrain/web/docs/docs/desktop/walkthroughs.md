@@ -151,8 +151,8 @@ Step-by-step guides for common Bowrain workflows, designed to be followed along 
 2. **Open the editor** — all blocks show as translated (blue progress bar)
 3. **Switch target locale** to review each language
 4. **Enable the Context panel** to cross-reference translations with TM and terminology
-5. **Use the split layout** (Split Horizontal or Split Vertical) to see the live document preview alongside the translation grid
-6. **Click on blocks** in the preview to jump to them in the grid
+5. **Switch to Visual view** to see the live document preview alongside the inline editing card
+6. **Click on blocks** in the preview to jump to them
 7. **Mark reviewed blocks** as you go through them
 
 ### What You Learned

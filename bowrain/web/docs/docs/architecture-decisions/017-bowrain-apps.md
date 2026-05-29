@@ -38,16 +38,15 @@ items → Pull → Translate → Push. Connectors
 renders the same UI regardless of whether content came from a CMS, a
 design tool, a git repository, or the local filesystem.
 
-**Four editor layout modes.**
+**Two editor views.**
 
-| Mode                | Layout                                                              |
-| ------------------- | ------------------------------------------------------------------- |
-| **Grid**            | Source + target columns, many blocks visible at once                |
-| **Focus**           | Single block in a large centered panel                              |
-| **Split Horizontal**| Editor on top, context/preview beneath                              |
-| **Split Vertical**  | Editor on left, context/preview on right                            |
+| View       | Layout                                                                |
+| ---------- | --------------------------------------------------------------------- |
+| **Visual** | An inline editing card over a formatted live document preview         |
+| **Table**  | Source + target columns, many blocks visible at once                  |
 
-The context panel shows TM matches, terminology highlights, display
+The three per-file surfaces — Translate, Review, and Pre-process — share these
+views. The context panel shows TM matches, terminology highlights, display
 hints, and ContentRef links alongside the current block.
 
 **Flow editor.** A drag-and-drop visual editor built on `@xyflow/react`
@@ -84,8 +83,8 @@ in context.
 ### 2. Collaborative Editor (gRPC `EditorService`)
 
 The desktop app talks to bowrain-server through a dedicated gRPC
-service organized into seven categories. 24 RPCs cover the full
-editing surface.
+service organized into seven categories that cover the full editing
+surface.
 
 | Category             | RPCs                                                                                                               |
 | -------------------- | ------------------------------------------------------------------------------------------------------------------ |
@@ -102,7 +101,13 @@ editing surface.
 - `WatchProject` is a server-streaming RPC that opens when the user
   navigates to a project. It delivers `BlockChangeEvent` (created /
   updated / deleted with the editor's name) and `PresenceChangeEvent`
-  (user joined / moved to block / left).
+  (user joined / moved to block / left), plus the broader change events
+  the server's [change relay](/server/collaboration) fans out —
+  `ProjectChangeEvent`, `ConnectorSyncEvent`, `FlowEventEvent`,
+  `MembershipChangeEvent`, and more — so no desktop view goes stale when
+  content changes from outside it. The frontend's `useBackendEvents` bus
+  translates these into targeted refetches, and re-runs every refreshable
+  listener after an offline gap on reconnect.
 - `UpdatePresence` is fire-and-forget unary — the client sends it when
   focus moves between blocks; the server broadcasts to all watchers of
   the same project.

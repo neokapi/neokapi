@@ -36,11 +36,11 @@ Connectors link Bowrain Server to the systems content already lives in — code 
   caption="A connector pulls source content in and pushes approved translations back out."
 />
 
-## File connector (kapi)
+## The kapi connector (local files & git)
 
-The most common connector is kapi itself (with the bowrain plugin installed). A developer runs `kapi push` to send local source files to the server, and `kapi pull` to receive translations back into the local project.
+kapi is the connector for a local codebase: with the bowrain plugin installed, a developer runs `kapi push` to send local source files to the server and `kapi pull` to receive translations back into the local project. It is one connector among several — the same workspace can just as well pull from a CMS, a design tool, or a git repository, with no local checkout involved.
 
-See [Project sync](/cli/overview) for the full workflow.
+See [Project sync](/cli/overview) for the kapi workflow.
 
 ## Server-side connectors
 

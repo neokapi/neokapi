@@ -184,7 +184,7 @@ func TestSaveDesktopAuthPermissions(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotContains(t, string(data), "secret-token")
 
-	kr, err := keyring.Get(keyringService(),keyringAccessTokenKey)
+	kr, err := keyring.Get(keyringService(), keyringAccessTokenKey)
 	require.NoError(t, err)
 	assert.Equal(t, "secret-token", kr)
 }
@@ -215,10 +215,10 @@ func TestDesktopAuthJSONFormat(t *testing.T) {
 	assert.Nil(t, parsed["refresh_token"]) // json:"-" means it won't be serialized
 
 	// Tokens should be in keyring.
-	at, err := keyring.Get(keyringService(),keyringAccessTokenKey)
+	at, err := keyring.Get(keyringService(), keyringAccessTokenKey)
 	require.NoError(t, err)
 	assert.Equal(t, "token", at)
-	rt, err := keyring.Get(keyringService(),keyringRefreshTokenKey)
+	rt, err := keyring.Get(keyringService(), keyringRefreshTokenKey)
 	require.NoError(t, err)
 	assert.Equal(t, "refresh", rt)
 }

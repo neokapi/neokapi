@@ -22,11 +22,12 @@ appears in the web app and the desktop app.
 A project is a shared, live workspace. When teammates open the same project you
 see their names and avatars on the blocks they are editing, their edits and
 reviews appear in your editor without a refresh, and the progress bar moves as
-the team works. Concurrent edits merge on the server, so two people in the same
-file converge on one consistent state instead of overwriting each other. The web
-and desktop apps are equal real-time clients of the same server, and the desktop
-app keeps working offline — edits queue locally and replay on reconnect. See
-[Real-time collaboration](/server/collaboration) for the full picture.
+the team works. Content is saved over the server's REST API, which is
+authoritative: editing is block-level and last-write-wins, not character-level
+co-editing. The web and desktop apps are equal real-time clients of the same
+server, and the desktop app keeps working offline — edits queue locally and
+replay on reconnect. See [Real-time collaboration](/server/collaboration) for
+the full picture.
 
 ## Two views
 

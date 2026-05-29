@@ -27,7 +27,7 @@ Open a file and it becomes a side-by-side workbench: source and target, a live p
 
 ### Shared terminology and memory
 
-A glossary and a translation memory are local files in kapi. Bowrain keeps them on the server, shared across every project and every translator in the workspace — one governed source of the team's approved wording, searchable and versioned.
+Terminology and a translation memory are often per-person files or spreadsheets. Bowrain keeps them on the server, shared across every project and every translator in the workspace — one governed source of the team's approved wording, searchable and versioned.
 
 <ThemedVideo
   sources={{
@@ -38,7 +38,7 @@ A glossary and a translation memory are local files in kapi. Bowrain keeps them 
 
 ### Review and approve
 
-Content a developer pushes from kapi becomes projects a team reviews together. Focus mode steps through a file one block at a time — source, target, and the status that tracks each block from draft to translated to reviewed — so the team always knows what is left, and approvals are recorded against the workspace rather than a local file.
+Projects in Bowrain — whether synced from kapi or pulled by a connector — are reviewed by the team together. The Review surface steps through a file one block at a time — source, target, and the status that tracks each block from draft to translated to reviewed — so the team always knows what is left, and approvals are recorded against the workspace rather than a local file.
 
 <ThemedVideo
   sources={{
@@ -119,42 +119,6 @@ The project view shows files in the selected project with format detection, word
   }}
 />
 
-### Translation Editor
-
-The editor shows source and target text side by side with a toolbar for translation actions. Four layout modes are available: Grid (table view), Focus (single-block editing), Split Horizontal, and Split Vertical. A color-coded progress bar shows translation status across not-started, draft, translated, and reviewed states.
-
-<ThemedImage
-  alt="Translation editor in grid layout"
-  sources={{
-    light: "/img/web-app/light/editor.png",
-    dark: "/img/web-app/dark/editor.png",
-  }}
-/>
-
-### Editor Focus View
-
-Focus mode provides a single-block deep editing experience with full-width source and target panels. Navigate between blocks with keyboard shortcuts or the previous/next buttons.
-
-<ThemedImage
-  alt="Focus view with single-block editing"
-  sources={{
-    light: "/img/web-app/light/editor-focus.png",
-    dark: "/img/web-app/dark/editor-focus.png",
-  }}
-/>
-
-### Context Panel
-
-The context panel provides instant per-block linguistic resources. TM matches show source, target, score percentage, and match type with one-click apply. Terminology matches show source terms, target suggestions, domain, and lifecycle status.
-
-<ThemedImage
-  alt="Context panel showing TM matches and terminology"
-  sources={{
-    light: "/img/web-app/light/context-panel.png",
-    dark: "/img/web-app/dark/context-panel.png",
-  }}
-/>
-
 ### Translation Memory Explorer
 
 The TM Explorer provides full access to the workspace translation memory. Browse, search, add, edit, and delete entries. Filter by source or target locale.
@@ -193,7 +157,7 @@ View workspace information including name, slug, description, and your role.
 
 ## Features
 
-- **Translation editor** with four layout modes (grid, focus, split-h, split-v), inline tag support, block status tracking, and keyboard navigation
+- **Translation editor** with Visual and Table views, inline tag support, block status tracking, and keyboard navigation
 - **Context panel** with per-block TM matches and terminology suggestions, one-click apply
 - **Terminology management** with concept-oriented termbases, multi-locale terms, lifecycle statuses, CSV/JSON import/export
 - **Translation Memory** with content-aware tiered matching (generalized, structural, plain), fuzzy matching, and TM explorer
@@ -214,18 +178,17 @@ The web application is served by `bowrain-server`. Users authenticate through yo
 
 The web application and [Bowrain desktop app](/desktop/overview) share the same core components (translation editor, TM explorer, terminology explorer) through the `@neokapi/ui` shared package. Key differences:
 
-| Feature                    | Web App            | Bowrain Desktop    |
-| -------------------------- | ------------------ | ------------------ |
-| Translation editor         | Yes                | Yes                |
-| TM explorer                | Yes                | Yes                |
-| Terminology explorer       | Yes                | Yes                |
-| Context panel (TM + terms) | Yes                | Yes                |
-| AI/MT translation          | Yes                | Yes                |
-| Flow editor                | No                 | Yes                |
-| Document preview           | No                 | Yes (live preview) |
-| File open from disk        | Upload via browser | Native file dialog |
-| Multi-user                 | Yes (server mode)  | No (single user)   |
-| OIDC authentication        | Yes (server mode)  | No                 |
-| Multiple workspaces        | Yes (server mode)  | No                 |
-| Local project storage      | No                 | Yes                |
-| Offline use                | No                 | Yes                |
+Both connect to the same server and the same workspaces — they are equal clients, so multi-user presence, SSO, terminology, and translation memory are shared across them. The differences are about where and how you run, not what you can do:
+
+| Feature                              | Web App         | Bowrain Desktop                      |
+| ------------------------------------ | --------------- | ------------------------------------ |
+| Translation editor (Visual + Table)  | Yes             | Yes                                  |
+| TM & terminology explorers           | Yes             | Yes                                  |
+| Context panel (TM + terms)           | Yes             | Yes                                  |
+| AI/MT translation                    | Yes             | Yes                                  |
+| Flows & automations                  | Yes             | Project flows                        |
+| Real-time presence & live updates    | Yes             | Yes                                  |
+| Multi-user, workspaces, SSO          | Yes             | Yes                                  |
+| Install                              | Open a URL      | Native app (macOS / Linux / Windows) |
+| Works offline                        | No              | Yes — edits queue, sync on reconnect |
+| Local footprint                      | Browser session | Cache + offline queue (working copy) |
