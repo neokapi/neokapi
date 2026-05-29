@@ -158,6 +158,9 @@ export { ProjectView } from "./components/ProjectView";
 export { FormattedFileName, formatIcon } from "./components/FormattedFileName";
 export { OpenInDesktop } from "./components/OpenInDesktop";
 export { TranslationEditor } from "./components/TranslationEditor";
+export type { TranslateView } from "./components/TranslationEditor";
+export { ReviewSurface } from "./components/ReviewSurface";
+export { PreProcessSurface } from "./components/PreProcessSurface";
 export { TranslationDashboard } from "./components/TranslationDashboard";
 export { UnifiedTargetEditor } from "./components/UnifiedTargetEditor";
 export type { UnifiedTargetEditorProps, UnifiedSaveResult } from "./components/UnifiedTargetEditor";
@@ -256,6 +259,22 @@ export { InlinePreview } from "@neokapi/ui-primitives";
 export { InlineCodeLegend } from "@neokapi/ui-primitives";
 export { DocumentPreview } from "./components/editor/DocumentPreview";
 export type { PreviewContentMode } from "./components/editor/visual-editor-types";
+export { ContextPanel } from "./components/editor/ContextPanel";
+export { EditorSurfaceTabs } from "./components/editor/EditorSurfaceTabs";
+export type { EditorSurface } from "./components/editor/EditorSurfaceTabs";
+export { TableView } from "./components/editor/TableView";
+export { CollapsedTargetCell, RowTagWarning } from "./components/editor/GridTargetRenderer";
+export {
+  getBlockStatus,
+  statusLabel,
+  statusDotClass,
+  statusBorderClass,
+  statusBadgeClass,
+  statusConfig,
+  tmScoreClass,
+  termStatusClass,
+} from "./components/editor/blockStatus";
+export type { BlockStatus } from "./components/editor/blockStatus";
 
 // Editor utilities — re-exported from shared @neokapi/ui-primitives
 export { parseCodedSegments, segmentsToCodedText, spanLabel } from "@neokapi/ui-primitives";

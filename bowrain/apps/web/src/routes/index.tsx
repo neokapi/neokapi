@@ -299,6 +299,30 @@ const translateRoute = createRoute({
   }),
 });
 
+const reviewRoute = createRoute({
+  getParentRoute: () => workspaceRoute,
+  path: "p/$projectId/s/$stream/$itemId/review",
+  component: lazyRouteComponent(() => import("./workspace/review"), "ReviewRoute"),
+  pendingComponent: EditorSkeleton,
+  loader: async ({ context: { queryClient, api, activeWorkspace }, params }) => {
+    await queryClient.ensureQueryData(
+      projectQueryOptions(api, activeWorkspace.slug, params.projectId, params.stream),
+    );
+  },
+});
+
+const preProcessRoute = createRoute({
+  getParentRoute: () => workspaceRoute,
+  path: "p/$projectId/s/$stream/$itemId/pre-process",
+  component: lazyRouteComponent(() => import("./workspace/pre-process"), "PreProcessRoute"),
+  pendingComponent: EditorSkeleton,
+  loader: async ({ context: { queryClient, api, activeWorkspace }, params }) => {
+    await queryClient.ensureQueryData(
+      projectQueryOptions(api, activeWorkspace.slug, params.projectId, params.stream),
+    );
+  },
+});
+
 const automationsRoute = createRoute({
   getParentRoute: () => workspaceRoute,
   path: "p/$projectId/s/$stream/automations",
@@ -533,6 +557,8 @@ const routeTree = rootRoute.addChildren([
     projectRoute,
     projectSettingsRoute,
     translateRoute,
+    reviewRoute,
+    preProcessRoute,
     automationsRoute,
     translationDashboardRoute,
     brandRoute.addChildren([

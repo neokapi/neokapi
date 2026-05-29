@@ -129,6 +129,8 @@ const sidebars: SidebarsConfig = {
       className: "sidebar-section-heading",
       items: [
         "server/translation-editor",
+        "server/review",
+        "server/pre-process",
         "server/collaboration",
         "server/translation-memory",
         "server/terminology",

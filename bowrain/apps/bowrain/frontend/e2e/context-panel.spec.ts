@@ -2,6 +2,13 @@ import { test, expect } from "@playwright/test";
 import { setupLocalApp } from "./mock-backend";
 import { selectMultiLocales } from "./locale-helper";
 
+/**
+ * Per-block context (TM matches + terminology) moved out of the old grid-mode
+ * toolbar side panel into the Translate editor's Visual view: TM matches render
+ * in the inline card's TM section, terminology in the right-hand TermSidebar.
+ * These tests exercise that surface in the Visual view (the default).
+ */
+
 /** Helper: click by test ID using native DOM click. */
 function clickTestId(page: any, testId: string) {
   return page.evaluate((tid: string) => {
@@ -9,27 +16,22 @@ function clickTestId(page: any, testId: string) {
   }, testId);
 }
 
-/**
- * Sets up a project with TM entries and terminology, adds a file, and opens the editor.
- */
-async function openEditorWithTMAndTerms(page: any) {
+/** Sets up a project with TM + terminology, adds a file, opens the Visual editor. */
+async function openVisualEditorWithTMAndTerms(page: any) {
   await setupLocalApp(page);
 
-  // Create project
   await page.getByText("Upload files").click();
   await page.getByTestId("project-name-input").fill("Context Test");
   await selectMultiLocales(page, "target-langs-input", ["fr"]);
   await page.getByTestId("create-project-submit").click();
   await expect(page.getByTestId("file-drop-zone")).toBeVisible();
 
-  // Seed TM entries and terminology via mock backend
   await page.evaluate(async () => {
     const backend = (window as any).__wailsMockByName;
     const projects = await backend.ListProjects();
     const pid = projects[0]?.id;
     if (!pid) return;
 
-    // Add TM entries matching block source texts
     backend.AddTMEntry(pid, "Hello from index.html", "Bonjour depuis index.html", "en", "fr");
     backend.AddTMEntry(
       pid,
@@ -40,7 +42,6 @@ async function openEditorWithTMAndTerms(page: any) {
     );
     backend.AddTMEntry(pid, "Click here to continue", "Cliquez ici pour continuer", "en", "fr");
 
-    // Add terminology concepts
     backend.AddConcept({
       project_id: pid,
       domain: "UI",
@@ -60,177 +61,72 @@ async function openEditorWithTMAndTerms(page: any) {
       ],
     });
 
-    // Add file
     await backend.AddItems(pid, ["/content/index.html"]);
   });
 
-  // Navigate back to projects list and re-enter to refresh
   await page.getByTestId("back-to-projects").click();
   await page.waitForTimeout(200);
   await page.getByText("Context Test").first().click();
   await expect(page.getByTestId("file-drop-zone")).toBeVisible({ timeout: 5000 });
 
-  // Open file in editor
   await expect(page.getByTestId("open-file-index.html")).toBeVisible({ timeout: 5000 });
   await page.evaluate(() => {
     (document.querySelector('[data-testid="open-file-index.html"]') as HTMLElement)?.click();
   });
-  // Default layout is "visual" — switch to grid for these tests
-  await expect(page.getByTestId("layout-switcher")).toBeVisible({ timeout: 5000 });
-  await page.evaluate(() => {
-    (document.querySelector('[data-testid="layout-grid"]') as HTMLElement)?.click();
-  });
-  await expect(page.getByTestId("block-grid")).toBeVisible({ timeout: 5000 });
+  // Visual view is the default — wait for the card to mount.
+  await expect(page.getByTestId("visual-editor-card")).toBeVisible({ timeout: 5000 });
 }
 
-test.describe("Context Panel", () => {
-  test("should toggle context panel open and closed", async ({ page }) => {
-    await openEditorWithTMAndTerms(page);
+test.describe("Context Panel (Visual view)", () => {
+  test("should show TM matches for the current block", async ({ page }) => {
+    await openVisualEditorWithTMAndTerms(page);
 
-    // Panel should not be visible initially
-    await expect(page.getByTestId("context-panel")).not.toBeVisible();
-
-    // Open context panel
-    await clickTestId(page, "context-panel-toggle");
-    await expect(page.getByTestId("context-panel")).toBeVisible({ timeout: 5000 });
-
-    // Close context panel
-    await clickTestId(page, "context-panel-toggle");
-    await expect(page.getByTestId("context-panel")).not.toBeVisible();
-  });
-
-  test("should show TM matches for current block", async ({ page }) => {
-    await openEditorWithTMAndTerms(page);
-
-    // Select first block
-    await clickTestId(page, "block-row-0");
-    await page.waitForTimeout(100);
-
-    // Open context panel
-    await clickTestId(page, "context-panel-toggle");
-    await expect(page.getByTestId("context-panel")).toBeVisible({ timeout: 5000 });
-
-    // Wait for matches to load
-    await page.waitForTimeout(500);
-
-    // Should show TM match for "Hello from index.html"
+    // The first block matches a TM entry; its match renders in the card.
     await expect(page.getByTestId("tm-match-0")).toBeVisible({ timeout: 5000 });
     await expect(page.getByTestId("context-panel")).toContainText("Bonjour depuis index.html");
   });
 
-  test("should show term matches for current block", async ({ page }) => {
-    await openEditorWithTMAndTerms(page);
+  test("should show term matches for a block in the term sidebar", async ({ page }) => {
+    await openVisualEditorWithTMAndTerms(page);
 
-    // Select the second block which contains "application"
-    await clickTestId(page, "block-row-1");
-    await page.waitForTimeout(100);
-
-    // Open context panel
-    await clickTestId(page, "context-panel-toggle");
-    await expect(page.getByTestId("context-panel")).toBeVisible({ timeout: 5000 });
-
-    // Wait for matches to load
+    // Navigate to the second block which contains "application".
+    await clickTestId(page, "next-block-btn");
     await page.waitForTimeout(500);
 
-    // Should show term match for "application"
+    await expect(page.getByTestId("term-sidebar")).toBeVisible({ timeout: 5000 });
     await expect(page.getByTestId("term-match-0")).toBeVisible({ timeout: 5000 });
-    await expect(page.getByTestId("context-panel")).toContainText("application");
+    await expect(page.getByTestId("term-sidebar")).toContainText("application");
   });
 
-  test("should apply TM match to target", async ({ page }) => {
-    await openEditorWithTMAndTerms(page);
+  test("should apply a TM match to the target", async ({ page }) => {
+    await openVisualEditorWithTMAndTerms(page);
 
-    // Select second block (untranslated)
-    await clickTestId(page, "block-row-1");
-    await page.waitForTimeout(100);
+    // Move to the second block (untranslated).
+    await clickTestId(page, "next-block-btn");
+    await page.waitForTimeout(500);
 
-    // Open context panel
-    await clickTestId(page, "context-panel-toggle");
-    await expect(page.getByTestId("context-panel")).toBeVisible({ timeout: 5000 });
-
-    // Wait for TM match to appear
     await expect(page.getByTestId("tm-apply-0")).toBeVisible({ timeout: 5000 });
-
-    // Apply the TM match - target should update
     await clickTestId(page, "tm-apply-0");
     await page.waitForTimeout(500);
 
-    // The target text for block 2 should now contain the TM translation
-    await expect(page.getByTestId("target-text-1")).toContainText(
+    await expect(page.getByTestId("target-display")).toContainText(
       "Bienvenue dans notre application",
       { timeout: 5000 },
     );
   });
 
   test("should update matches when navigating between blocks", async ({ page }) => {
-    await openEditorWithTMAndTerms(page);
+    await openVisualEditorWithTMAndTerms(page);
 
-    // Open context panel
-    await clickTestId(page, "context-panel-toggle");
-    await expect(page.getByTestId("context-panel")).toBeVisible({ timeout: 5000 });
-
-    // Select first block using native click
-    await clickTestId(page, "block-row-0");
-    await page.waitForTimeout(500);
-
-    // Should show TM matches for first block
     await expect(page.getByTestId("tm-match-0")).toBeVisible({ timeout: 5000 });
+    await expect(page.getByTestId("context-panel")).toContainText("Bonjour depuis index.html");
 
-    // Navigate to third block (contains "continue") using native click
-    await clickTestId(page, "block-row-2");
+    // Navigate to the third block (contains "continue").
+    await clickTestId(page, "next-block-btn");
+    await clickTestId(page, "next-block-btn");
     await page.waitForTimeout(500);
 
-    // Should show different matches - term match for "continue"
     await expect(page.getByTestId("term-match-0")).toBeVisible({ timeout: 5000 });
-    await expect(page.getByTestId("context-panel")).toContainText("continue");
-  });
-
-  test("should show empty state when no matches", async ({ page }) => {
-    await setupLocalApp(page);
-
-    // Create project WITHOUT TM or terms
-    await page.getByText("Upload files").click();
-    await page.getByTestId("project-name-input").fill("Empty Context");
-    await selectMultiLocales(page, "target-langs-input", ["fr"]);
-    await page.getByTestId("create-project-submit").click();
-    await expect(page.getByTestId("file-drop-zone")).toBeVisible();
-
-    // Add file
-    await page.evaluate(async () => {
-      const backend = (window as any).__wailsMockByName;
-      const projects = await backend.ListProjects();
-      if (projects[0]) await backend.AddItems(projects[0].id, ["/test.html"]);
-    });
-
-    // Navigate back to projects list and re-enter to refresh
-    await page.getByTestId("back-to-projects").click();
-    await page.waitForTimeout(200);
-    await page.getByText("Empty Context").first().click();
-    await expect(page.getByTestId("open-file-test.html")).toBeVisible({ timeout: 5000 });
-    await page.evaluate(() => {
-      (document.querySelector('[data-testid="open-file-test.html"]') as HTMLElement)?.click();
-    });
-    // Default layout is "visual" — switch to grid for this test
-    await expect(page.getByTestId("layout-switcher")).toBeVisible({ timeout: 5000 });
-    await page.evaluate(() => {
-      (document.querySelector('[data-testid="layout-grid"]') as HTMLElement)?.click();
-    });
-    await expect(page.getByTestId("block-grid")).toBeVisible({ timeout: 5000 });
-
-    // Select first block to stabilize selectedIndex before opening panel
-    await clickTestId(page, "block-row-0");
-    await page.waitForTimeout(200);
-
-    // Open context panel
-    await clickTestId(page, "context-panel-toggle");
-    await expect(page.getByTestId("context-panel")).toBeVisible({ timeout: 5000 });
-
-    // Wait for "no matches" messages directly (avoids race with loading state)
-    await expect(page.getByTestId("context-panel")).toContainText("No TM matches", {
-      timeout: 10000,
-    });
-    await expect(page.getByTestId("context-panel")).toContainText("No terms found", {
-      timeout: 10000,
-    });
+    await expect(page.getByTestId("term-sidebar")).toContainText("continue");
   });
 });

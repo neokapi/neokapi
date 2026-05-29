@@ -60,8 +60,8 @@ function parseProjectParams(pathname: string, workspaceSlug: string) {
   const stream = decodeURIComponent(parts[2]);
   let itemId: string | undefined;
 
-  // Check for /$itemId/translate
-  if (parts.length >= 5 && parts[4] === "translate") {
+  // Check for the per-file editor surfaces (/$itemId/{translate,review,pre-process}).
+  if (parts.length >= 5 && ["translate", "review", "pre-process"].includes(parts[4])) {
     itemId = decodeURIComponent(parts[3]);
   }
 

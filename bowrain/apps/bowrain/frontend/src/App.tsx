@@ -18,15 +18,20 @@ import {
   type NavItem,
   type SidebarContext,
 } from "@neokapi/ui";
+import {
+  ReviewSurface,
+  PreProcessSurface,
+  EditorSurfaceTabs,
+  type EditorSurface,
+} from "@neokapi/ui";
 import { FlowBuilder } from "./components/FlowBuilder";
 import { ConnectorPanel } from "./components/ConnectorPanel";
-import { DocumentPreview } from "./components/DocumentPreview";
 import { DesktopTranslateView } from "./components/DesktopTranslateView";
 import { MembersPage } from "./components/MembersPage";
 import { BrandPage } from "./components/BrandPage";
 import { useConnection } from "./hooks/useApi";
 import { WailsApiAdapter } from "./api/WailsApiAdapter";
-import type { ProjectInfo, BlockInfo, Workspace, User } from "@neokapi/ui";
+import type { ProjectInfo, Workspace, User } from "@neokapi/ui";
 import { Shuffle, Link, Loader2, Users, ShieldCheck } from "lucide-react";
 import { Events } from "@wailsio/runtime";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -86,6 +91,8 @@ function App() {
   const [projects, setProjects] = useState<ProjectInfo[]>([]);
   const [activeProject, setActiveProject] = useState<ProjectInfo | null>(null);
   const [activeFile, setActiveFile] = useState<string | null>(null);
+  // Which per-file editor surface is showing (translate / review / pre-process).
+  const [fileSurface, setFileSurface] = useState<EditorSurface>("translate");
   const [showTMExplorer, setShowTMExplorer] = useState(false);
   const [showTermExplorer, setShowTermExplorer] = useState(false);
   const [pendingChanges, setPendingChanges] = useState(0);
@@ -363,6 +370,7 @@ function App() {
       // Resolve item ID to filename from active project's items.
       const item = activeProject?.items?.find((i) => i.id === itemId);
       setActiveFile(item?.name ?? itemId);
+      setFileSurface("translate");
     },
     [activeProject],
   );
@@ -401,26 +409,6 @@ function App() {
 
   const handleDesktopExport = useCallback((_blob: Blob, _fileName: string) => {
     // No-op: WailsApiAdapter.exportTranslatedFile already exported to disk and opened in OS
-  }, []);
-
-  const renderDesktopPreview = useMemo(() => {
-    return (props: {
-      projectId: string;
-      itemName: string;
-      targetLocale: string;
-      selectedBlockId?: string;
-      onBlockSelect: (blockId: string) => void;
-      blocks: BlockInfo[];
-    }) => (
-      <DocumentPreview
-        projectId={props.projectId}
-        itemName={props.itemName}
-        targetLocale={props.targetLocale}
-        selectedBlockId={props.selectedBlockId}
-        onBlockSelect={props.onBlockSelect}
-        blocks={props.blocks}
-      />
-    );
   }, []);
 
   const sidebarUser: User | null =
@@ -530,6 +518,27 @@ function App() {
     }
 
     if (activeView === "translate" && activeProject && activeFile) {
+      const surfaceTabs = <EditorSurfaceTabs active={fileSurface} onSelect={setFileSurface} />;
+      if (fileSurface === "review") {
+        return (
+          <ReviewSurface
+            project={activeProject}
+            fileName={activeFile}
+            onBack={handleBackToProject}
+            surfaceTabs={surfaceTabs}
+          />
+        );
+      }
+      if (fileSurface === "pre-process") {
+        return (
+          <PreProcessSurface
+            project={activeProject}
+            fileName={activeFile}
+            onBack={handleBackToProject}
+            surfaceTabs={surfaceTabs}
+          />
+        );
+      }
       return (
         <DesktopTranslateView
           adapter={wailsAdapter}
@@ -538,7 +547,7 @@ function App() {
           workspaceSlug={isServerMode ? workspace.slug : ""}
           onBack={handleBackToProject}
           onExport={handleDesktopExport}
-          renderPreview={renderDesktopPreview}
+          surfaceTabs={surfaceTabs}
         />
       );
     }

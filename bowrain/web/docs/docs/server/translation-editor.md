@@ -5,7 +5,17 @@ title: Translation Editor
 
 # Translation Editor
 
-The translation editor is the core workspace for translating documents. It displays source and target content side by side, with tools for AI translation, TM lookup, terminology enforcement, and manual editing.
+The translation editor is the core editing surface for a file. It is one of
+three per-file surfaces, each with a single concern:
+
+- **Translate** — edit blocks with AI/TM assistance and terminology insertion.
+- **[Review](/server/review)** — work through blocks by status, run QA, and
+  approve or reject translations.
+- **[Pre-process](/server/pre-process)** — file-wide source-prep (pseudo-translate,
+  bulk TM leverage) before editing begins.
+
+A switcher at the top of each surface moves between the three. The same switcher
+appears in the web app and the desktop app.
 
 ## Real-time collaboration
 
@@ -18,156 +28,113 @@ and desktop apps are equal real-time clients of the same server, and the desktop
 app keeps working offline — edits queue locally and replay on reconnect. See
 [Real-time collaboration](/server/collaboration) for the full picture.
 
-## Layout Modes
+## Two views
 
-The editor supports four layout modes, accessible from the toolbar:
+The Translate editor has two views, toggled from the header:
 
-### Grid Mode
+### Visual
 
-The default view displays all blocks in a table with source and target columns. Each row shows:
+The default view places an inline editing card over a formatted document
+preview, so you edit each block in the context it appears in. The card shows the
+source with its natural formatting (bold is bold, links are underlined,
+placeholders render as chips), the target editor, optional reference locales,
+and per-block context — translation-memory matches and terminology. Navigate
+block to block with the card's arrows or `j`/`k`; the preview scrolls to keep
+the active block in view. The preview can render source, target, or pseudo
+content.
 
-- **Status indicator** — color-coded left border (gray = not started, blue = draft, green = translated, purple = reviewed)
-- **Source text** — read-only, with inline tags rendered as colored chips
-- **Target text** — editable inline; click or press Enter to edit
+The Visual view is best for careful, in-context editing — especially blocks with
+inline tags, where seeing the surrounding layout matters.
 
-Grid mode is best for scanning through a file and quickly editing multiple blocks.
+### Table
 
-### Focus Mode
+The Table view lists every block in a two-column grid (source and target) with a
+status accent on the left edge. Click or double-click a target cell to edit it
+inline with the same editor the Visual view uses; press **Enter** to save and
+advance, **Escape** to cancel. A search box filters blocks by source or target
+text.
 
-Focus mode shows a single block at a time with full-width source and target panels. The source panel displays the text with tag visualization, and the target panel provides a large text area for editing.
+The Table view is best for scanning a file and editing many blocks quickly.
 
-Use the **Previous** and **Next** buttons (or keyboard shortcuts) to navigate between blocks. Focus mode is ideal for detailed editing of individual blocks, especially those with complex inline tags.
+Both views share the same data, the same inline editor, and the same chip
+rendering — switching views never changes what you can edit, only how the file
+is laid out.
 
-### Split Horizontal
+## Inline tags
 
-The editor appears on top with a preview panel below. This layout is useful when a `renderPreview` handler is available (currently supported in the Bowrain desktop app).
-
-### Split Vertical
-
-The editor appears on the right with a preview panel on the left. Same preview support as split horizontal.
-
-## Toolbar
-
-The toolbar at the top of the editor provides these tools:
-
-### Translation Tools
-
-| Button                | Action                                                                |
-| --------------------- | --------------------------------------------------------------------- |
-| **Pseudo**            | Generate pseudo-translations for the entire file (for layout testing) |
-| **AI Translate**      | Translate the file using the configured AI provider                   |
-| **TM Lookup**         | Match source blocks against translation memory and apply matches      |
-| **Provider selector** | Choose between configured AI/MT providers                             |
-
-### Navigation
-
-| Button                  | Action                                                    |
-| ----------------------- | --------------------------------------------------------- |
-| **Untranslated** arrows | Jump to the previous or next untranslated block           |
-| **Copy Source**         | Copy the source text to the target for the selected block |
-| **Reviewed**            | Mark the selected block as reviewed                       |
-
-### View Controls
-
-| Button              | Action                                                 |
-| ------------------- | ------------------------------------------------------ |
-| **Layout switcher** | Toggle between grid, focus, split-h, and split-v modes |
-| **Context panel**   | Show/hide the TM and terminology sidebar               |
-| **Search**          | Filter blocks by source or target text                 |
-| **Export**          | Download the translated file in its original format    |
-
-### Target Locale Selector
-
-When a project has multiple target locales, a dropdown in the toolbar lets you switch between target languages. The editor reloads blocks for the selected locale.
-
-## Editing Blocks
-
-### Inline Editing (Grid Mode)
-
-1. Click a target cell or select a row and press **Enter**
-2. Type the translation in the text input
-3. Press **Enter** to save and advance to the next block
-4. Press **Escape** to cancel editing
-
-### Focus Mode Editing
-
-1. Switch to focus mode from the toolbar
-2. The target text area is immediately editable
-3. Use the tag palette (if available) to insert inline tags
-4. Press **Enter** or click **Save** to confirm
-
-### Inline Tags
-
-Many document formats contain inline markup (bold, links, placeholders, etc.) that the editor handles automatically. In the default **formatted view**, text appears with its natural formatting applied — bold looks bold, links are underlined, code is monospace. You can switch to the **code view** (click the `</>` button) to see abstract tag chips.
+Many document formats contain inline markup (bold, links, placeholders, etc.)
+that the editor handles automatically. In the default **formatted view**, text
+appears with its natural formatting applied. You can switch to the **code view**
+(click the `</>` button on the source) to see abstract tag chips.
 
 When editing translations with inline tags:
 
-- **Flexible tags** (bold, italic, links) can be freely removed, duplicated, or rearranged
-- **Required tags** (variables, placeholders, line breaks) must be kept in the translation — the editor prevents accidental deletion and shows them with dashed borders
-- The **tag palette** below the editor shows all source tags as clickable buttons grouped by category
-- The **validation bar** warns in real time about missing required tags or duplicated non-cloneable tags
-- Use **Ctrl+1** through **Ctrl+9** to insert tags from the tag palette
-- Click the **tag summary badge** in the header to expand the inline code legend, which lists all tag types with their constraints
+- **Flexible tags** (bold, italic, links) can be freely removed, duplicated, or
+  rearranged.
+- **Required tags** (variables, placeholders, line breaks) must be kept in the
+  translation — the editor prevents accidental deletion and shows them with
+  dashed borders.
+- The **tag palette** above the editor shows source tags as clickable buttons.
+- The **validation bar** warns in real time about missing required tags or
+  duplicated non-cloneable tags.
+- Use **Ctrl+1** through **Ctrl+9** to insert tags from the palette.
+- Click the **tag summary badge** in the card header to expand the inline code
+  legend, which lists every tag type with its constraints.
 
-The editor provides the same seamless experience regardless of file format — HTML, Markdown, XLIFF, and all other formats present tags identically because they share the same vocabulary system. See [Inline Formatting](https://neokapi.github.io/web/neokapi/docs/features/inline-formatting) for more details.
+The editor provides the same experience regardless of file format — HTML,
+Markdown, XLIFF, and all other formats present tags identically because they
+share the same vocabulary system. See
+[Inline Formatting](https://neokapi.github.io/web/neokapi/docs/features/inline-formatting)
+for more details.
 
-## Context Panel
+## Per-block context
 
-Toggle the context panel from the toolbar to see per-block linguistic resources. The panel updates automatically as you navigate between blocks.
+The Visual card surfaces the linguistic context for the selected block:
 
-### TM Matches
+### TM matches
 
-When a block is selected, the context panel shows translation memory matches:
-
-- **Score** — match percentage with color coding (green for 100% exact match, yellow for fuzzy)
-- **Match type** — generalized, structural, or plain match
-- **Source text** — the matched TM source
-- **Target text** — the stored translation
-- **Apply button** — one-click to copy the TM match into the target
-
-The TM system uses three-tier matching:
-
-1. **Generalized** — ignores inline tags for broader matching
-2. **Structural** — considers tag structure but tolerates text changes
-3. **Plain** — exact text matching including all tags
+Translation-memory matches for the block, each with a score (green for a 100%
+exact match, yellow for fuzzy), the match type, the stored source and target,
+and an **Apply** button that copies the match into the target.
 
 ### Terminology
 
-Below TM matches, the context panel shows terminology matches for the selected block:
+Terms found in the block appear in the term sidebar with their source term,
+suggested target term(s), lifecycle status (preferred, approved, admitted,
+deprecated), and domain. Clicking a target term inserts it into the active
+target.
 
-- **Source term** — the term found in the source text
-- **Target term** — suggested translation(s)
-- **Status badge** — lifecycle status (preferred, approved, admitted, deprecated, proposed, forbidden)
-- **Domain badge** — subject area classification
+## Entities
 
-## Progress Tracking
+Select text in the source and press **⌘E** (Cmd+E / Ctrl+E) to mark it as an
+entity — for example a product name to leave untranslated. Marked entities are
+highlighted in the source and listed in the block context.
 
-The progress bar at the top of the editor shows translation progress:
+## Progress tracking
 
-- **Gray** — not started
-- **Blue** — draft
-- **Green** — translated
-- **Purple** — reviewed
+The progress bar shows translation progress with colour-coded segments — gray
+(not started), yellow (draft), blue (translated), green (reviewed) — plus a
+percentage, an `X/Y translated` counter, and a per-status breakdown. It updates
+in real time as you translate.
 
-A percentage and "X/Y translated" counter provide numeric progress. The progress bar updates in real time as you translate blocks.
+## Status bar
 
-## Status Bar
+The bottom of the editor shows the current block position (Block N of M), source
+word and character counts, and target word counts.
 
-The bottom of the editor shows:
+## Keyboard shortcuts
 
-- Current block position (Block N of M)
-- Source word and character counts
-- Target word counts per locale
+| Key                           | Action                            |
+| ----------------------------- | --------------------------------- |
+| **Enter**                     | Start editing / save and advance  |
+| **Escape**                    | Cancel editing                    |
+| **Arrow Up/Down** or **j/k**  | Navigate between blocks           |
+| **⌘E**                        | Mark selected source text as an entity |
+| **Ctrl+1** through **Ctrl+9** | Insert tag from the palette       |
 
-## Keyboard Shortcuts
+## File export
 
-| Key                           | Action                               |
-| ----------------------------- | ------------------------------------ |
-| **Enter**                     | Start editing / save and advance     |
-| **Escape**                    | Cancel editing                       |
-| **Arrow Up/Down** or **j/k**  | Navigate between blocks (grid mode)  |
-| **Ctrl+1** through **Ctrl+9** | Insert tag from palette (focus mode) |
-
-## File Export
-
-Click **Export** in the toolbar to download the translated file. The file is generated in its original format (HTML, XML, JSON, etc.) with all translations applied. In the browser, this triggers a file download. In Bowrain, the file is saved to disk and opened in your system file manager.
+Click **Export** in the header to download the translated file in its original
+format (HTML, XML, JSON, etc.) with all translations applied. In the browser
+this triggers a file download; in the desktop app the file is saved to disk and
+opened in your system file manager.
