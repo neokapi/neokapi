@@ -22,10 +22,11 @@ Kapi does two jobs from one engine:
   AI translation, MT, TM leverage, and pseudo-translation, more through the
   okapi-bridge, and automatic format detection (see the
   [format reference](/formats)).
-- **Checks that act like tests for AI** — verify content with terminology, QA,
-  and brand-voice checks. Each reports findings against a shared model, so you
-  can gate a build on them in CI or serve them to your AI coding assistant over
-  [MCP](/reference/mcp) so generation stays consistent and on-voice.
+- **[Checks](/framework/checks) that act like tests for AI** — verify content
+  with terminology, QA, and brand-voice checks. Each reports findings against a
+  shared model, so you can gate a build on them in CI or serve them to your AI
+  coding assistant over [MCP](/reference/mcp) so generation stays consistent and
+  on-voice.
 
 It processes files directly (no project initialization needed) and extends via
 plugins, including the Okapi bridge to the Java filters.
@@ -128,7 +129,7 @@ See [Kapi Projects](/reference/project-file) for the full format reference.
 
 ## Next Steps
 
-- [Brand Voice](/framework/brand-voice) — profiles, scoring, and enforcement
+- [Brand Voice](/framework/checks/brand-voice) — profiles, scoring, and enforcement
 - [Using Kapi with AI Assistants](/reference/mcp) — wire kapi into Claude Code, Cursor, and more
 - [Formats](/commands?id=formats)
 - [Run Command](/commands?id=run)

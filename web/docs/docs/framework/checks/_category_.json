@@ -1,0 +1,7 @@
+{
+  "label": "Checks",
+  "position": 13,
+  "collapsible": true,
+  "collapsed": true,
+  "link": { "type": "doc", "id": "framework/checks/index" }
+}

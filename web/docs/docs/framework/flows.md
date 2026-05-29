@@ -82,6 +82,10 @@ the formats to read and write; when omitted they default to `auto`, which means
 detect from the file. Steps run sequentially: each tool's output channel feeds
 the next tool's input channel.
 
+A [check](/framework/checks) such as `qa-check` is just a read-only stage: it
+attaches findings to each block as annotations rather than rewriting content, so
+it typically sits last and a CI gate reads its result.
+
 A step can also fan out. A `parallel:` block runs several tools on the same
 stream concurrently, each on its own branch:
 

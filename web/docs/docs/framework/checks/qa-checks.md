@@ -1,5 +1,5 @@
 ---
-sidebar_position: 13
+sidebar_position: 2
 title: QA Checks
 description: Quality assurance in neokapi — deterministic rule-based checks and LLM-assisted review that annotate translated blocks with findings without modifying content, composable as pipeline stages.
 keywords: [QA checks, quality assurance, translation QA, rule-based, LLM review, pipeline, localization]
