@@ -862,6 +862,63 @@ async function bowrainDesktopFlowsWalk(c: WalkCtx): Promise<void> {
   });
 }
 
+/** Bowrain web: the correction-learning loop — candidate rules drawn from a
+ *  team's corrections, a blast-radius preview, and promotion into a versioned
+ *  check. Navigates the review route /:ws/brand/review/:profileId; the workspace
+ *  slug comes from BOWRAIN_WORKSPACE_SLUG and the profile id from
+ *  BOWRAIN_DEMO_PROFILE_ID (both printed by harness/scripts/seed-correction-loop.mjs). */
+async function bowrainCorrectionLoopWalk(c: WalkCtx): Promise<void> {
+  const { page, beat, beatEls, cursorTo } = c;
+  const startUrl = new URL(page.url());
+  const themeQ = startUrl.searchParams.get("theme") ? `?theme=${startUrl.searchParams.get("theme")}` : "";
+  // The page opened at origin/<slug>; that pathname is the workspace base.
+  const wsBase = `${startUrl.origin}${startUrl.pathname}`.replace(/\/$/, "");
+  const profileId = process.env.BOWRAIN_DEMO_PROFILE_ID || "";
+
+  await beat("intro", null, async () => {
+    await page.goto(`${wsBase}/brand/review/${profileId}${themeQ}`, { waitUntil: "domcontentloaded" });
+    await page.waitForTimeout(2400);
+  });
+
+  // The candidate rules — each a phrasing the team kept correcting.
+  await beatEls("candidates", ['text=Review suggested rules', "ul"], async () => {
+    await page.waitForTimeout(2200);
+  });
+
+  // Preview the blast radius: pick a project, open a candidate's impact dialog.
+  await beatEls("evaluate", ['[role="dialog"]'], async () => {
+    const sel = page.locator("select").first();
+    if (await sel.count()) {
+      await humanClick(page, sel);
+      await sel.selectOption({ index: 1 }).catch(() => {});
+      await page.waitForTimeout(700);
+    }
+    const preview = page.getByRole("button", { name: /Preview impact/i }).first();
+    if (await preview.count()) {
+      await cursorTo('button:has-text("Preview impact")');
+      await humanClick(page, preview);
+    }
+    await page.waitForTimeout(2400);
+    await page.keyboard.press("Escape").catch(() => {});
+    await page.waitForTimeout(500);
+  });
+
+  // Promote the candidate — it becomes an enforced, versioned check.
+  await beatEls("promote", ['button:has-text("Promote")'], async () => {
+    const promote = page.getByRole("button", { name: /^Promote$/ }).first();
+    if (await promote.count()) {
+      await cursorTo('button:has-text("Promote")');
+      await humanClick(page, promote);
+    }
+    await page.waitForTimeout(2000);
+  });
+
+  // The queue settles — one fewer mistake that can recur.
+  await beat("settled", null, async () => {
+    await page.waitForTimeout(2200);
+  });
+}
+
 const WALKTHROUGHS: Record<string, (c: WalkCtx) => Promise<void>> = {
   "kapi-desktop-explorer": explorerWalk,
   "kapi-desktop-projects": projectsWalk,
@@ -873,6 +930,7 @@ const WALKTHROUGHS: Record<string, (c: WalkCtx) => Promise<void>> = {
   "bowrain-web-editor": bowrainEditorWalk,
   "bowrain-web-review": bowrainReviewWalk,
   "bowrain-web-collaboration": bowrainCollaborationWalk,
+  "bowrain-web-correction-loop": bowrainCorrectionLoopWalk,
   "bowrain-desktop-dashboard": bowrainDesktopWalk,
   "bowrain-desktop-flows": bowrainDesktopFlowsWalk,
 };
