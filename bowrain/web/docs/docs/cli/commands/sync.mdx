@@ -3,6 +3,8 @@ title: sync
 sidebar_position: 7
 ---
 
+import { PipelineDiagram } from "@neokapi/docs-shared";
+
 # kapi sync
 
 Push local changes, wait for translations, and pull results — all in one command. This is the primary workflow command of the bowrain plugin, combining `kapi push`, server-side processing, and `kapi pull` into a single invocation.
@@ -88,12 +90,17 @@ Identical to [`kapi pull`](/cli/commands/pull). Fetches translated blocks from t
 
 Each push generates a unique PushID that the server uses to correlate triggered automations:
 
-```
-Push (PushID: abc123)
-  → Event: connector.push.completed
-    → Automation: run ai-translate (linked to abc123)
-    → Automation: run qa-check (linked to abc123)
-```
+<PipelineDiagram
+  channelLabel=""
+  stages={[
+    { label: "Push", sub: "PushID abc123", role: "io" },
+    { label: "Event", sub: "connector.push.completed" },
+    {
+      parallelLabel: "automations linked to abc123",
+      lanes: [{ label: "run ai-translate" }, { label: "run qa-check" }],
+    },
+  ]}
+/>
 
 The wait phase polls `GET /api/v1/projects/:id/sync/push/:pushId/status` until all linked flows complete or the timeout expires. This ensures that `kapi sync` only pulls translations that result from _this_ push, not from unrelated server activity.
 

@@ -6,7 +6,7 @@ keywords: [pipeline, goroutines, channels, concurrent, streaming, errgroup, exec
 ---
 
 import { PipelineExplorer } from "@site/src/components/Lab";
-import { PipelineDiagram } from "@site/src/components/diagram";
+import { PipelineDiagram } from "@neokapi/docs-shared";
 
 # Pipeline
 

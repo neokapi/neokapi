@@ -6,7 +6,7 @@ description: "Architecture decision: MT services plug in through an MTProvider i
 keywords: [MT providers, MTProvider, DeepL, Google Translate, Microsoft Translator, architecture decision, neokapi]
 ---
 
-import { PipelineDiagram } from "@site/src/components/diagram";
+import { PipelineDiagram } from "@neokapi/docs-shared";
 
 # AD-012: Machine Translation Providers
 

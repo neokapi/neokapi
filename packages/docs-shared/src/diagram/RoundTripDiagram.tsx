@@ -48,8 +48,10 @@ const layoutRow = (stages: PipelineStage[], startX: number): { placed: Placed[];
   return { placed, end: x - GAP };
 };
 
-const roleBox = (role?: PipelineStage["role"]) => (role && role !== "tool" ? ` kdx-box--${role}` : "");
-const roleSub = (role?: PipelineStage["role"]) => (role && role !== "tool" ? ` kdx-sub--${role}` : "");
+const roleBox = (role?: PipelineStage["role"]) =>
+  role && role !== "tool" ? ` kdx-box--${role}` : "";
+const roleSub = (role?: PipelineStage["role"]) =>
+  role && role !== "tool" ? ` kdx-sub--${role}` : "";
 
 export interface RoundTripDiagramProps {
   /** Top row, left→right (right-pointing arrows). */
@@ -92,12 +94,31 @@ function Row({ placed, arrow }: { placed: Placed[]; arrow: "right" | "left" }): 
         const next = placed[i + 1];
         return (
           <g key={`${s.label}-${i}`}>
-            <rect x={s.x} y={y} width={s.w} height={ROW_H} rx={9} className={`kdx-box${roleBox(s.role)}`} />
-            <text x={cx} y={s.sub ? cy - 1 : cy + 4} textAnchor="middle" fontSize={12} className="kdx-label">
+            <rect
+              x={s.x}
+              y={y}
+              width={s.w}
+              height={ROW_H}
+              rx={9}
+              className={`kdx-box${roleBox(s.role)}`}
+            />
+            <text
+              x={cx}
+              y={s.sub ? cy - 1 : cy + 4}
+              textAnchor="middle"
+              fontSize={12}
+              className="kdx-label"
+            >
               {s.label}
             </text>
             {s.sub && (
-              <text x={cx} y={cy + 13} textAnchor="middle" fontSize={9} className={`kdx-sub${roleSub(s.role)}`}>
+              <text
+                x={cx}
+                y={cy + 13}
+                textAnchor="middle"
+                fontSize={9}
+                className={`kdx-sub${roleSub(s.role)}`}
+              >
                 {s.sub}
               </text>
             )}
@@ -162,20 +183,44 @@ export function RoundTripDiagram({
             aria-label="Round-trip: extract forward, merge back, sharing a translation memory"
           >
             <defs>
-              <marker id="kdx-arr-r" markerWidth="7" markerHeight="7" refX="5.5" refY="3" orient="auto">
+              <marker
+                id="kdx-arr-r"
+                markerWidth="7"
+                markerHeight="7"
+                refX="5.5"
+                refY="3"
+                orient="auto"
+              >
                 <path d="M0,0 L6,3 L0,6 Z" className="kdx-arrow" />
               </marker>
-              <marker id="kdx-arr-l" markerWidth="7" markerHeight="7" refX="0.5" refY="3" orient="auto">
+              <marker
+                id="kdx-arr-l"
+                markerWidth="7"
+                markerHeight="7"
+                refX="0.5"
+                refY="3"
+                orient="auto"
+              >
                 <path d="M6,0 L0,3 L6,6 Z" className="kdx-arrow" />
               </marker>
             </defs>
 
             {/* hub links */}
-            <path d={`M${fCx},${FWD_Y + ROW_H} L${hubCx},${HUB_Y}`} className="kdx-link kdx-link--resource" />
+            <path
+              d={`M${fCx},${FWD_Y + ROW_H} L${hubCx},${HUB_Y}`}
+              className="kdx-link kdx-link--resource"
+            />
             {forwardLabel && (
-              <EdgeLabel x={(fCx + hubCx) / 2} y={(FWD_Y + ROW_H + HUB_Y) / 2} text={forwardLabel} />
+              <EdgeLabel
+                x={(fCx + hubCx) / 2}
+                y={(FWD_Y + ROW_H + HUB_Y) / 2}
+                text={forwardLabel}
+              />
             )}
-            <path d={`M${hubCx},${HUB_Y + HUB_H} L${bCx},${BACK_Y}`} className="kdx-link kdx-link--resource" />
+            <path
+              d={`M${hubCx},${HUB_Y + HUB_H} L${bCx},${BACK_Y}`}
+              className="kdx-link kdx-link--resource"
+            />
             {backLabel && (
               <EdgeLabel x={(bCx + hubCx) / 2} y={(HUB_Y + HUB_H + BACK_Y) / 2} text={backLabel} />
             )}
@@ -185,11 +230,24 @@ export function RoundTripDiagram({
 
             {/* hub */}
             <rect x={hubX} y={HUB_Y} width={HUB_W} height={HUB_H} rx={10} className="kdx-hub" />
-            <text x={hubCx} y={hub.sub ? HUB_Y + 24 : HUB_Y + 31} textAnchor="middle" fontSize={12.5} className="kdx-label">
+            <text
+              x={hubCx}
+              y={hub.sub ? HUB_Y + 24 : HUB_Y + 31}
+              textAnchor="middle"
+              fontSize={12.5}
+              className="kdx-label"
+            >
               {hub.label}
             </text>
             {hub.sub && (
-              <text x={hubCx} y={HUB_Y + 40} textAnchor="middle" fontSize={9} className="kdx-sub" style={{ fill: "var(--kdx-resource)" }}>
+              <text
+                x={hubCx}
+                y={HUB_Y + 40}
+                textAnchor="middle"
+                fontSize={9}
+                className="kdx-sub"
+                style={{ fill: "var(--kdx-resource)" }}
+              >
                 {hub.sub}
               </text>
             )}

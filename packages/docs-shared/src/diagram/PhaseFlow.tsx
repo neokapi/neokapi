@@ -70,10 +70,24 @@ export function PhaseFlow({ nodes, caption }: PhaseFlowProps): React.ReactElemen
             aria-label={`Phases: ${nodes.map((n) => n.label).join(" then ")}`}
           >
             <defs>
-              <marker id="kdx-arrow-d" markerWidth="8" markerHeight="8" refX="3" refY="5.5" orient="auto">
+              <marker
+                id="kdx-arrow-d"
+                markerWidth="8"
+                markerHeight="8"
+                refX="3"
+                refY="5.5"
+                orient="auto"
+              >
                 <path d="M0,0 L6,0 L3,6 Z" className="kdx-arrow" />
               </marker>
-              <marker id="kdx-arrow-v" markerWidth="8" markerHeight="8" refX="3" refY="5.5" orient="auto">
+              <marker
+                id="kdx-arrow-v"
+                markerWidth="8"
+                markerHeight="8"
+                refX="3"
+                refY="5.5"
+                orient="auto"
+              >
                 <path d="M0,0 L6,0 L3,6 Z" className="kdx-arrow" />
               </marker>
             </defs>
@@ -88,14 +102,34 @@ export function PhaseFlow({ nodes, caption }: PhaseFlowProps): React.ReactElemen
                   {/* edge from the node above */}
                   {i > 0 && (
                     <>
-                      <line x1={cx} y1={prevBottom} x2={cx} y2={top - 2} className="kdx-channel" markerEnd="url(#kdx-arrow-d)" />
+                      <line
+                        x1={cx}
+                        y1={prevBottom}
+                        x2={cx}
+                        y2={top - 2}
+                        className="kdx-channel"
+                        markerEnd="url(#kdx-arrow-d)"
+                      />
                       {n.edge && <EdgeLabel x={cx + 10} y={(prevBottom + top) / 2} text={n.edge} />}
                     </>
                   )}
 
                   {/* the node */}
-                  <rect x={NODE_X} y={top} width={nodeW} height={NODE_H} rx={9} className={`kdx-box${roleBox(n.role)}`} />
-                  <text x={cx} y={n.sub ? top + 20 : top + 27} textAnchor="middle" fontSize={12} className="kdx-label">
+                  <rect
+                    x={NODE_X}
+                    y={top}
+                    width={nodeW}
+                    height={NODE_H}
+                    rx={9}
+                    className={`kdx-box${roleBox(n.role)}`}
+                  />
+                  <text
+                    x={cx}
+                    y={n.sub ? top + 20 : top + 27}
+                    textAnchor="middle"
+                    fontSize={12}
+                    className="kdx-label"
+                  >
                     {n.label}
                   </text>
                   {n.sub && (
@@ -130,7 +164,14 @@ export function PhaseFlow({ nodes, caption }: PhaseFlowProps): React.ReactElemen
             })}
 
             <defs>
-              <marker id="kdx-arrow-back" markerWidth="8" markerHeight="8" refX="2" refY="3" orient="auto">
+              <marker
+                id="kdx-arrow-back"
+                markerWidth="8"
+                markerHeight="8"
+                refX="2"
+                refY="3"
+                orient="auto"
+              >
                 <path d="M6,0 L0,3 L6,6 Z" className="kdx-arrow" />
               </marker>
             </defs>

@@ -7,7 +7,7 @@ keywords: [tools, pipeline stage, processing, translation, QA, TM leverage, segm
 
 import { ToolLab } from "@site/src/components/Lab/ToolLab";
 import { ScriptLab } from "@site/src/components/Lab/ScriptLab";
-import { PipelineDiagram } from "@site/src/components/diagram";
+import { PipelineDiagram } from "@neokapi/docs-shared";
 
 # Tools
 

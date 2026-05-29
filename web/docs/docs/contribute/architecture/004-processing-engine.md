@@ -6,7 +6,7 @@ description: "Architecture decision: the processing engine is a channel-based st
 keywords: [processing engine, pipeline, goroutines, channels, errgroup, streaming, architecture decision]
 ---
 
-import { PipelineDiagram } from "@site/src/components/diagram";
+import { PipelineDiagram } from "@neokapi/docs-shared";
 
 # AD-004: Processing Engine
 

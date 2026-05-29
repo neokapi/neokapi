@@ -5,7 +5,7 @@ description: The three-phase kapi-react pipeline — extract JSX to a KLF archiv
 keywords: [extract, translate, compile, KLF, kapi-react pipeline, code splitting, localization pipeline]
 ---
 
-import { PhaseFlow } from "@site/src/components/diagram";
+import { PhaseFlow } from "@neokapi/docs-shared";
 
 # The extract → translate → compile pipeline
 
