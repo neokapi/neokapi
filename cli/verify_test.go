@@ -25,7 +25,7 @@ vocabulary:
   competitor_terms:
     - term: Globex
       replacement: our platform
-      severity: major
+      severity: critical
 `
 
 // writeVerifyProject creates a temp project that binds a brand profile and a

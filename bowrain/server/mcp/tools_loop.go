@@ -2,6 +2,7 @@ package mcp
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -77,7 +78,7 @@ type promoteRuleOutput struct {
 
 func (s *MCPServer) handlePromoteRule(ctx context.Context, _ *mcp.CallToolRequest, input promoteRuleInput) (*mcp.CallToolResult, promoteRuleOutput, error) {
 	if input.Term == "" {
-		return nil, promoteRuleOutput{}, fmt.Errorf("term is required")
+		return nil, promoteRuleOutput{}, errors.New("term is required")
 	}
 	rule := corebrand.SuggestedRule{Term: input.Term, Replacement: input.Replacement}
 	profile, changed, err := corebrand.PromoteAndSave(ctx, s.brandStore, input.ProfileID, rule)
@@ -111,7 +112,7 @@ type evaluateRuleInput struct {
 
 func (s *MCPServer) handleEvaluateRule(ctx context.Context, _ *mcp.CallToolRequest, input evaluateRuleInput) (*mcp.CallToolResult, corebrand.BlastRadius, error) {
 	if input.Term == "" || input.ProjectID == "" {
-		return nil, corebrand.BlastRadius{}, fmt.Errorf("term and project_id are required")
+		return nil, corebrand.BlastRadius{}, errors.New("term and project_id are required")
 	}
 	baseline, err := s.brandStore.GetProfile(ctx, input.ProfileID)
 	if err != nil {

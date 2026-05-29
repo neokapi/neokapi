@@ -95,17 +95,20 @@ func TestMatchVocabulary(t *testing.T) {
 }
 
 func TestSeverityForRule(t *testing.T) {
-	cases := map[string]Severity{
-		"":          SeverityMajor, // falls back to default
-		"minor":     SeverityMinor,
-		"MAJOR":     SeverityMajor,
-		" critical": SeverityCritical,
-		"neutral":   SeverityNeutral,
-		"bogus":     SeverityMajor, // unknown → default
+	cases := []struct {
+		in   string
+		want Severity
+	}{
+		{"", SeverityMajor}, // falls back to default
+		{"minor", SeverityMinor},
+		{"MAJOR", SeverityMajor},
+		{" critical ", SeverityCritical}, // surrounding whitespace is trimmed
+		{"neutral", SeverityNeutral},
+		{"bogus", SeverityMajor}, // unknown → default
 	}
-	for in, want := range cases {
-		if got := severityForRule(in, SeverityMajor); got != want {
-			t.Errorf("severityForRule(%q) = %v, want %v", in, got, want)
+	for _, c := range cases {
+		if got := severityForRule(c.in, SeverityMajor); got != c.want {
+			t.Errorf("severityForRule(%q) = %v, want %v", c.in, got, c.want)
 		}
 	}
 }
