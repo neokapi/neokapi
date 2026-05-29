@@ -43,14 +43,15 @@ Bowrain ships with ready-to-use sample projects in `bowrain/apps/bowrain/samples
 6. Go back to project view and click **"Terminology"** to browse the termbase
 7. Click **"Save"** — TM and terminology are persisted in the project database
 
-## Editor Layout Modes
+## Editing surfaces
 
-The translation editor supports four layout modes, accessible from the toolbar:
+The desktop opens three per-file surfaces — the same as the web app:
 
-- **Grid**: Default table view showing all blocks with source and target columns
-- **Focus**: Single-block editing with full-width source and target panels. Use toolbar navigation to move between untranslated blocks.
-- **Split Horizontal**: Block grid on top, live document preview on bottom
-- **Split Vertical**: Block grid on left, live document preview on right
+- **Translate**: edit blocks with AI/TM assistance, in a **Visual** view (an inline card over a formatted document preview) or a **Table** view (a source/target grid for scanning and editing many blocks).
+- **Review**: work through blocks by status, run QA, and approve or reject translations.
+- **Pre-process**: file-wide source prep (pseudo-translate, bulk TM leverage) before editing.
+
+See the [Translation editor](/server/translation-editor) for the full detail.
 
 ## Block Status
 
