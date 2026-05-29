@@ -72,7 +72,7 @@ func TestFlowDefStore_CRUD(t *testing.T) {
 	// Delete.
 	require.NoError(t, store.Delete(ctx, proj.ID, "flow-1"))
 	_, err = store.Get(ctx, proj.ID, "flow-1")
-	assert.ErrorIs(t, err, ErrFlowDefNotFound)
+	require.ErrorIs(t, err, ErrFlowDefNotFound)
 
 	// Delete missing → not found.
 	assert.ErrorIs(t, store.Delete(ctx, proj.ID, "nope"), ErrFlowDefNotFound)
