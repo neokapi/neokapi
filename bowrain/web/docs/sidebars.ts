@@ -135,6 +135,15 @@ const sidebars: SidebarsConfig = {
     },
     {
       type: "category",
+      label: "Brand Governance",
+      collapsible: false,
+      className: "sidebar-section-heading",
+      items: [
+        "server/brand-voice",
+      ],
+    },
+    {
+      type: "category",
       label: "Workspace & Automation",
       collapsible: false,
       className: "sidebar-section-heading",
