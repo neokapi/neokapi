@@ -174,12 +174,12 @@ neokapi/
 │   ├── locale/            # BCP-47 locale utilities
 │   ├── editor/            # Block index serialization and preview generation
 │   ├── version/           # Version info (set via ldflags)
-│   ├── formats/           # built-in format implementations
+│   ├── formats/           # Built-in format implementations (one package per format)
 │   ├── storage/           # Shared SQLite DB infrastructure (Open, Migrate)
 │   ├── project/           # .kapi project file format (Load, Save, Validate)
 │   ├── tools/             # Built-in utility tools
 │   ├── plugin/            # go-plugin + gRPC plugin system + Java bridge
-│   └── testutil/          # Shared test helpers
+│   └── internal/testutil/ # Shared test helpers (RawDocFromString, CollectBlocks, …)
 ├── sievepen/              # Translation memory (interface + in-memory + SQLite + matching)
 ├── termbase/              # Terminology (interface + in-memory + SQLite + import)
 ├── providers/

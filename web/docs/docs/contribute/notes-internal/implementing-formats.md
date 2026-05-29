@@ -11,6 +11,15 @@ Step-by-step guide for implementing new neokapi format readers/writers or
 migrating existing Okapi filters. Parent AD:
 [AD-005](/contribute/architecture/005-format-system).
 
+:::note Canonical tutorial
+For the end-to-end "add a format" walkthrough, follow
+[Implementing a Format](/contribute/formats). This note focuses on the
+skeleton-store, writer-fallback, and Okapi-porting internals that sit beneath
+that tutorial. Maintainers: the maturity bar a format must clear lives in
+`docs/internals/format-maturity.md`, and the consolidated engine reference in
+`docs/internals/format-engineering.md`.
+:::
+
 ## Terminology Mapping from Okapi
 
 | Okapi (Java)                      | neokapi (Go)               |
@@ -113,6 +122,36 @@ func NewReader() *Reader {
 
 func (r *Reader) SetSkeletonStore(store *format.SkeletonStore) {
     r.skeletonStore = store
+}
+```
+
+`BaseFormatReader` supplies `Name`/`DisplayName`/`Config`/`SetConfig`. You must
+still implement the three methods it does **not** provide — `Signature`, `Open`,
+and `Close`:
+
+```go
+func (r *Reader) Signature() format.FormatSignature {
+    return format.FormatSignature{
+        MIMETypes:  []string{"application/<name>"},
+        Extensions: []string{".<ext>"},
+    }
+}
+
+// Open validates and stashes the document; it does NOT parse. Parse errors are
+// surfaced on the channel in Read (as PartResult.Error), never returned here.
+func (r *Reader) Open(ctx context.Context, doc *model.RawDocument) error {
+    if doc == nil || doc.Reader == nil {
+        return errors.New("<name>: nil document or reader")
+    }
+    r.Doc = doc
+    return nil
+}
+
+func (r *Reader) Close() error {
+    if r.Doc != nil && r.Doc.Reader != nil {
+        return r.Doc.Reader.Close()
+    }
+    return nil
 }
 ```
 
