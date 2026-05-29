@@ -1,9 +1,9 @@
 package tools_test
 
 import (
-	"encoding/json"
 	"testing"
 
+	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/tools"
 	"github.com/stretchr/testify/assert"
@@ -28,16 +28,12 @@ func TestCharsCheckToolForbiddenChars(t *testing.T) {
 	result := processPart(t, tl, part)
 
 	resultBlock := result.Resource.(*model.Block)
-	assert.Equal(t, "false", resultBlock.Properties[tools.PropCharsCheckPassed])
-
-	var issues []tools.QAIssue
-	err := json.Unmarshal([]byte(resultBlock.Properties[tools.PropCharsCheckIssues]), &issues)
-	require.NoError(t, err)
+	findings := qaFindings(resultBlock)
 	// Should find both { and }
-	assert.Len(t, issues, 2)
-	for _, issue := range issues {
-		assert.Equal(t, "forbidden-char", issue.Type)
-		assert.Equal(t, tools.QASeverityError, issue.Severity)
+	require.Len(t, findings, 2)
+	for _, f := range findings {
+		assert.Equal(t, "forbidden-char", f.Category)
+		assert.Equal(t, check.SeverityMajor, f.Severity)
 	}
 }
 
@@ -56,15 +52,11 @@ func TestCharsCheckToolRequiredCharsMissing(t *testing.T) {
 	result := processPart(t, tl, part)
 
 	resultBlock := result.Resource.(*model.Block)
-	assert.Equal(t, "false", resultBlock.Properties[tools.PropCharsCheckPassed])
-
-	var issues []tools.QAIssue
-	err := json.Unmarshal([]byte(resultBlock.Properties[tools.PropCharsCheckIssues]), &issues)
-	require.NoError(t, err)
-	require.Len(t, issues, 1)
-	assert.Equal(t, "required-char-missing", issues[0].Type)
-	assert.Equal(t, tools.QASeverityWarning, issues[0].Severity)
-	assert.Contains(t, issues[0].Message, "!")
+	findings := qaFindings(resultBlock)
+	require.Len(t, findings, 1)
+	assert.Equal(t, "required-char-missing", findings[0].Category)
+	assert.Equal(t, check.SeverityMinor, findings[0].Severity)
+	assert.Contains(t, findings[0].Message, "!")
 }
 
 func TestCharsCheckToolMojibakeDetection(t *testing.T) {
@@ -79,20 +71,10 @@ func TestCharsCheckToolMojibakeDetection(t *testing.T) {
 	result := processPart(t, tl, part)
 
 	resultBlock := result.Resource.(*model.Block)
-	assert.Equal(t, "false", resultBlock.Properties[tools.PropCharsCheckPassed])
-
-	var issues []tools.QAIssue
-	err := json.Unmarshal([]byte(resultBlock.Properties[tools.PropCharsCheckIssues]), &issues)
-	require.NoError(t, err)
-	found := false
-	for _, issue := range issues {
-		if issue.Type == "mojibake" {
-			found = true
-			assert.Equal(t, tools.QASeverityError, issue.Severity)
-			assert.Contains(t, issue.Message, "mojibake")
-		}
-	}
-	assert.True(t, found, "Expected mojibake issue")
+	f, found := findFinding(qaFindings(resultBlock), "mojibake")
+	require.True(t, found, "Expected mojibake finding")
+	assert.Equal(t, check.SeverityMajor, f.Severity)
+	assert.Contains(t, f.Message, "mojibake")
 }
 
 func TestCharsCheckToolReplacementChar(t *testing.T) {
@@ -106,20 +88,10 @@ func TestCharsCheckToolReplacementChar(t *testing.T) {
 	result := processPart(t, tl, part)
 
 	resultBlock := result.Resource.(*model.Block)
-	assert.Equal(t, "false", resultBlock.Properties[tools.PropCharsCheckPassed])
-
-	var issues []tools.QAIssue
-	err := json.Unmarshal([]byte(resultBlock.Properties[tools.PropCharsCheckIssues]), &issues)
-	require.NoError(t, err)
-	found := false
-	for _, issue := range issues {
-		if issue.Type == "replacement-char" {
-			found = true
-			assert.Equal(t, tools.QASeverityError, issue.Severity)
-			assert.Contains(t, issue.Message, "U+FFFD")
-		}
-	}
-	assert.True(t, found, "Expected replacement-char issue")
+	f, found := findFinding(qaFindings(resultBlock), "replacement-char")
+	require.True(t, found, "Expected replacement-char finding")
+	assert.Equal(t, check.SeverityMajor, f.Severity)
+	assert.Contains(t, f.Message, "U+FFFD")
 }
 
 func TestCharsCheckToolControlChars(t *testing.T) {
@@ -133,20 +105,10 @@ func TestCharsCheckToolControlChars(t *testing.T) {
 	result := processPart(t, tl, part)
 
 	resultBlock := result.Resource.(*model.Block)
-	assert.Equal(t, "false", resultBlock.Properties[tools.PropCharsCheckPassed])
-
-	var issues []tools.QAIssue
-	err := json.Unmarshal([]byte(resultBlock.Properties[tools.PropCharsCheckIssues]), &issues)
-	require.NoError(t, err)
-	found := false
-	for _, issue := range issues {
-		if issue.Type == "control-char" {
-			found = true
-			assert.Equal(t, tools.QASeverityError, issue.Severity)
-			assert.Contains(t, issue.Message, "U+0001")
-		}
-	}
-	assert.True(t, found, "Expected control-char issue")
+	f, found := findFinding(qaFindings(resultBlock), "control-char")
+	require.True(t, found, "Expected control-char finding")
+	assert.Equal(t, check.SeverityMajor, f.Severity)
+	assert.Contains(t, f.Message, "U+0001")
 }
 
 func TestCharsCheckToolAllowedControlChars(t *testing.T) {
@@ -161,8 +123,7 @@ func TestCharsCheckToolAllowedControlChars(t *testing.T) {
 	result := processPart(t, tl, part)
 
 	resultBlock := result.Resource.(*model.Block)
-	assert.Equal(t, "true", resultBlock.Properties[tools.PropCharsCheckPassed])
-	assert.Equal(t, "[]", resultBlock.Properties[tools.PropCharsCheckIssues])
+	assert.Empty(t, qaFindings(resultBlock))
 }
 
 func TestCharsCheckToolCleanTextPasses(t *testing.T) {
@@ -181,8 +142,7 @@ func TestCharsCheckToolCleanTextPasses(t *testing.T) {
 	result := processPart(t, tl, part)
 
 	resultBlock := result.Resource.(*model.Block)
-	assert.Equal(t, "true", resultBlock.Properties[tools.PropCharsCheckPassed])
-	assert.Equal(t, "[]", resultBlock.Properties[tools.PropCharsCheckIssues])
+	assert.Empty(t, qaFindings(resultBlock))
 }
 
 func TestCharsCheckToolSkipsNonTranslatable(t *testing.T) {
@@ -197,8 +157,7 @@ func TestCharsCheckToolSkipsNonTranslatable(t *testing.T) {
 	result := processPart(t, tl, part)
 
 	resultBlock := result.Resource.(*model.Block)
-	_, hasPassed := resultBlock.Properties[tools.PropCharsCheckPassed]
-	assert.False(t, hasPassed)
+	assert.Empty(t, qaFindings(resultBlock))
 }
 
 func TestCharsCheckToolNoTarget(t *testing.T) {
@@ -211,8 +170,7 @@ func TestCharsCheckToolNoTarget(t *testing.T) {
 	result := processPart(t, tl, part)
 
 	resultBlock := result.Resource.(*model.Block)
-	_, hasPassed := resultBlock.Properties[tools.PropCharsCheckPassed]
-	assert.False(t, hasPassed)
+	assert.Empty(t, qaFindings(resultBlock))
 }
 
 func TestCharsCheckConfigValidation(t *testing.T) {

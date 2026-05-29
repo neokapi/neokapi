@@ -100,12 +100,12 @@ func RegisterAll(reg *registry.ToolRegistry) {
 	reg.RegisterWithSchema("qa-check", func() tool.Tool {
 		return NewQACheckTool(NewQACheckConfig(model.LocaleEnglish))
 	}, toolSchema(NewQACheckConfig(model.LocaleEnglish), toolMeta("qa-check", "QA Check", schema.CategoryQuality,
-		withInputs(B), withTags("quality"), withAliases("qa"), withWritesOutput(), withRequires("target-language"), withCardinality(schema.Bilingual), withProduces(schema.AnnotationQAIssues))))
+		withInputs(B), withTags("quality"), withAliases("qa"), withWritesOutput(), withRequires("target-language"), withCardinality(schema.Bilingual), withProduces(schema.AnnotationFindings))))
 
 	reg.RegisterWithSchema("inconsistency-check", func() tool.Tool {
 		return NewInconsistencyCheckTool(NewInconsistencyCheckConfig(model.LocaleEnglish))
 	}, toolSchema(NewInconsistencyCheckConfig(model.LocaleEnglish), toolMeta("inconsistency-check", "Inconsistency Check", schema.CategoryQuality,
-		withInputs(B), withTags("quality"), withRequires("target-language"), withCardinality(schema.Bilingual), withProduces(schema.AnnotationQAIssues))))
+		withInputs(B), withTags("quality"), withRequires("target-language"), withCardinality(schema.Bilingual), withProduces(schema.AnnotationFindings))))
 
 	reg.RegisterWithSchema("length-check", func() tool.Tool {
 		cfg := &LengthCheckConfig{TargetLocale: model.LocaleEnglish}
@@ -114,17 +114,17 @@ func RegisterAll(reg *registry.ToolRegistry) {
 		return NewLengthCheckTool(cfg)
 	}, toolSchema(&LengthCheckConfig{CheckMaxCharLength: true, MaxCharLengthBreak: 20, MaxCharLengthAbove: 200, MaxCharLengthBelow: 350, CheckMinCharLength: true, MinCharLengthBreak: 20, MinCharLengthAbove: 45, MinCharLengthBelow: 30},
 		toolMeta("length-check", "Length Check", schema.CategoryQuality,
-			withInputs(B), withTags("quality"), withRequires("target-language"), withCardinality(schema.Bilingual), withProduces(schema.AnnotationQAIssues))))
+			withInputs(B), withTags("quality"), withRequires("target-language"), withCardinality(schema.Bilingual), withProduces(schema.AnnotationFindings))))
 
 	reg.RegisterWithSchema("chars-check", func() tool.Tool {
 		return NewCharsCheckTool(NewCharsCheckConfig(model.LocaleEnglish))
 	}, toolSchema(NewCharsCheckConfig(model.LocaleEnglish), toolMeta("chars-check", "Characters Check", schema.CategoryQuality,
-		withInputs(B), withTags("quality"), withRequires("target-language"), withCardinality(schema.Bilingual), withProduces(schema.AnnotationQAIssues))))
+		withInputs(B), withTags("quality"), withRequires("target-language"), withCardinality(schema.Bilingual), withProduces(schema.AnnotationFindings))))
 
 	reg.RegisterWithSchema("pattern-check", func() tool.Tool {
 		return NewPatternCheckTool(&PatternCheckConfig{TargetLocale: model.LocaleEnglish})
 	}, toolSchema(&PatternCheckConfig{}, toolMeta("pattern-check", "Pattern Check", schema.CategoryQuality,
-		withInputs(B), withTags("quality", "regex"), withRequires("target-language"), withCardinality(schema.Bilingual), withProduces(schema.AnnotationQAIssues))))
+		withInputs(B), withTags("quality", "regex"), withRequires("target-language"), withCardinality(schema.Bilingual), withProduces(schema.AnnotationFindings))))
 
 	reg.RegisterWithSchema("dnt-check", func() tool.Tool {
 		return NewDNTCheckTool(NewDNTCheckConfig(model.LocaleEnglish))
@@ -144,7 +144,7 @@ func RegisterAll(reg *registry.ToolRegistry) {
 	reg.RegisterWithSchema("xml-validation", func() tool.Tool {
 		return NewXMLValidationTool(&XMLValidationConfig{CheckSource: true, WrapRoot: true})
 	}, toolSchema(&XMLValidationConfig{CheckSource: true, WrapRoot: true}, toolMeta("xml-validation", "XML Validation", schema.CategoryQuality,
-		withInputs(B), withTags("quality"), withCardinality(schema.Monolingual), withProduces(schema.AnnotationQAIssues))))
+		withInputs(B), withTags("quality"), withCardinality(schema.Monolingual), withProduces(schema.AnnotationFindings))))
 
 	reg.RegisterWithSchema("translation-comparison", func() tool.Tool {
 		cfg := &TranslationComparisonConfig{}
@@ -318,7 +318,7 @@ func RegisterAll(reg *registry.ToolRegistry) {
 	}, &schema.ComponentSchema{ToolMeta: &schema.ToolMeta{
 		ID: "brand-vocab-check", DisplayName: "Brand Vocabulary Check", Category: schema.CategoryQuality,
 		Cardinality: schema.Bilingual,
-		Produces:    []schema.AnnotationType{schema.AnnotationQAIssues},
+		Produces:    []schema.AnnotationType{schema.AnnotationBrandVoice},
 		Requires:    []string{"target-language"},
 	}})
 

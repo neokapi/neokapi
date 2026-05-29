@@ -234,7 +234,7 @@ registry:
 type AnnotationType string
 
 const (
-    AnnotationQAIssues       AnnotationType = "quality.qa-issues"
+    AnnotationFindings       AnnotationType = "quality.findings"
     AnnotationTMMatch        AnnotationType = "leverage.tm-match"
     AnnotationAltTranslation AnnotationType = "leverage.alt-translation"
     AnnotationTerms          AnnotationType = "terminology.annotations"
@@ -247,8 +247,14 @@ const (
 )
 ```
 
+Every checker — terminology, do-not-translate, placeholder, QA, brand
+voice — writes the same `AnnotationFindings` ("quality.findings"), a
+`core/check.FindingsAnnotation` carrying a `[]check.Finding` plus a
+rolled-up score, so one scoring, annotation, and governance path serves
+them all.
+
 The `AnnotationRegistry` validates tool registrations: a tool declaring
-`Produces: []AnnotationType{AnnotationQAIssues}` is rejected at
+`Produces: []AnnotationType{AnnotationFindings}` is rejected at
 registration if the annotation type is unknown. This catches typos and
 prevents silent production of unrecognized metadata at runtime.
 

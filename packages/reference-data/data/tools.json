@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-27T05:43:57Z",
+  "generatedAt": "2026-05-29T11:55:44Z",
   "kind": "tool",
   "entries": [
     {
@@ -314,7 +314,7 @@
           ],
           "cardinality": "bilingual",
           "produces": [
-            "quality.qa-issues"
+            "quality.findings"
           ],
           "sideEffects": [
             "api-call"
@@ -473,9 +473,6 @@
             "credentials"
           ],
           "cardinality": "bilingual",
-          "produces": [
-            "quality.qa-issues"
-          ],
           "sideEffects": [
             "api-call"
           ],
@@ -1522,7 +1519,7 @@
           ],
           "cardinality": "bilingual",
           "produces": [
-            "quality.qa-issues"
+            "quality.brand-voice"
           ]
         }
       },
@@ -1945,7 +1942,7 @@
           ],
           "cardinality": "bilingual",
           "produces": [
-            "quality.qa-issues"
+            "quality.findings"
           ]
         },
         "properties": {
@@ -3262,6 +3259,60 @@
           }
         ],
         "wikiUrl": "https://okapiframework.org/wiki/index.php/Diff_Leverage_Step"
+      }
+    },
+    {
+      "id": "dnt-check",
+      "source": "built-in",
+      "kind": "tool",
+      "displayName": "Do-Not-Translate Check",
+      "category": "quality",
+      "inputs": [
+        "block"
+      ],
+      "tags": [
+        "quality"
+      ],
+      "requires": [
+        "target-language"
+      ],
+      "cardinality": "bilingual",
+      "aliases": [
+        "dnt"
+      ],
+      "schema": {
+        "$id": "dnt-check",
+        "title": "Do-Not-Translate Check",
+        "type": "object",
+        "toolMeta": {
+          "id": "dnt-check",
+          "category": "quality",
+          "displayName": "Do-Not-Translate Check",
+          "inputs": [
+            "block"
+          ],
+          "tags": [
+            "quality"
+          ],
+          "requires": [
+            "target-language"
+          ],
+          "cardinality": "bilingual",
+          "produces": [
+            "quality.findings"
+          ],
+          "aliases": [
+            "dnt"
+          ]
+        },
+        "properties": {
+          "caseInsensitive": {
+            "type": "boolean",
+            "title": "Case-insensitive preservation",
+            "description": "Accept a case-folded match in the target instead of requiring exact case",
+            "default": false
+          }
+        }
       }
     },
     {
@@ -7828,7 +7879,7 @@
           ],
           "cardinality": "bilingual",
           "produces": [
-            "quality.qa-issues"
+            "quality.findings"
           ]
         },
         "properties": {
@@ -8683,7 +8734,7 @@
           ],
           "cardinality": "bilingual",
           "produces": [
-            "quality.qa-issues"
+            "quality.findings"
           ]
         },
         "properties": {
@@ -10552,7 +10603,7 @@
           ],
           "cardinality": "bilingual",
           "produces": [
-            "quality.qa-issues"
+            "quality.findings"
           ]
         }
       },
@@ -10684,6 +10735,54 @@
           "Results are stored as annotations on filter events and aggregated to the configured levels (text unit, group, document, sub-document, batch item, batch); the step produces no output document of its own.",
           "Belongs to the `OKAPI_WORD_COUNTS` category group. The `CategoryResolver` keeps only the highest-ranked matching category per segment — `PHRASE_ASSEMBLED` ranks below all fuzzy categories and above `MT` and `CONCORDANCE`."
         ]
+      }
+    },
+    {
+      "id": "placeholder-check",
+      "source": "built-in",
+      "kind": "tool",
+      "displayName": "Placeholder Check",
+      "category": "quality",
+      "inputs": [
+        "block"
+      ],
+      "tags": [
+        "quality"
+      ],
+      "requires": [
+        "target-language"
+      ],
+      "cardinality": "bilingual",
+      "schema": {
+        "$id": "placeholder-check",
+        "title": "Placeholder Check",
+        "type": "object",
+        "toolMeta": {
+          "id": "placeholder-check",
+          "category": "quality",
+          "displayName": "Placeholder Check",
+          "inputs": [
+            "block"
+          ],
+          "tags": [
+            "quality"
+          ],
+          "requires": [
+            "target-language"
+          ],
+          "cardinality": "bilingual",
+          "produces": [
+            "quality.findings"
+          ]
+        },
+        "properties": {
+          "flagExtra": {
+            "type": "boolean",
+            "title": "Flag extra placeholders",
+            "description": "Report placeholders present in the target but absent from the source",
+            "default": true
+          }
+        }
       }
     },
     {
@@ -11024,7 +11123,7 @@
           ],
           "cardinality": "bilingual",
           "produces": [
-            "quality.qa-issues"
+            "quality.findings"
           ],
           "writesOutput": true,
           "aliases": [
@@ -20145,7 +20244,7 @@
           ],
           "cardinality": "monolingual",
           "produces": [
-            "quality.qa-issues"
+            "quality.findings"
           ]
         },
         "properties": {

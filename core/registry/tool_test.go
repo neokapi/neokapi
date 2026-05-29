@@ -141,7 +141,7 @@ func TestGetToolInfo_ReturnsInfo(t *testing.T) {
 			Category:      "validate",
 			Cardinality:   schema.Bilingual,
 			DefaultLocale: "qps",
-			Produces:      []schema.AnnotationType{schema.AnnotationQAIssues},
+			Produces:      []schema.AnnotationType{schema.AnnotationFindings},
 			SideEffects:   []schema.SideEffect{schema.SideEffectTMRead},
 		},
 	})
@@ -151,7 +151,7 @@ func TestGetToolInfo_ReturnsInfo(t *testing.T) {
 	assert.Equal(t, ToolID("test"), info.Name)
 	assert.Equal(t, schema.Bilingual, info.Cardinality)
 	assert.Equal(t, model.LocaleID("qps"), info.DefaultLocale)
-	assert.Equal(t, []schema.AnnotationType{schema.AnnotationQAIssues}, info.Produces)
+	assert.Equal(t, []schema.AnnotationType{schema.AnnotationFindings}, info.Produces)
 	assert.Equal(t, []schema.SideEffect{schema.SideEffectTMRead}, info.SideEffects)
 }
 

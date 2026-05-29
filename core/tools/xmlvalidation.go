@@ -6,6 +6,7 @@ import (
 	"io"
 	"strings"
 
+	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/tool"
 )
@@ -83,6 +84,11 @@ func NewXMLValidationTool(cfg *XMLValidationConfig) *tool.BaseTool {
 		} else {
 			v.SetProperty(PropXMLValid, "false")
 			v.SetProperty(PropXMLValidError, errMsg)
+			check.Annotate(v, "xml-validation", []check.Finding{{
+				Category: "xml-well-formedness",
+				Severity: check.SeverityMajor,
+				Message:  "Text is not well-formed XML: " + errMsg,
+			}})
 		}
 
 		return nil

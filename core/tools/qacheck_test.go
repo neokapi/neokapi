@@ -1,14 +1,31 @@
 package tools_test
 
 import (
-	"encoding/json"
 	"testing"
 
+	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/tool"
 	"github.com/neokapi/neokapi/core/tools"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// qaFindings returns the unified check findings recorded on a block under the
+// quality.findings annotation (the model every checker now writes).
+func qaFindings(b *model.Block) []check.Finding {
+	return check.Findings(tool.NewBlockView(b))
+}
+
+// findFinding returns the first finding with the given category, or false.
+func findFinding(findings []check.Finding, category string) (check.Finding, bool) {
+	for _, f := range findings {
+		if f.Category == category {
+			return f, true
+		}
+	}
+	return check.Finding{}, false
+}
 
 func TestQACheckTool(t *testing.T) {
 	t.Parallel()
@@ -30,8 +47,7 @@ func TestQACheckToolPassingBlock(t *testing.T) {
 	result := processPart(t, tl, part)
 
 	resultBlock := result.Resource.(*model.Block)
-	assert.Equal(t, "true", resultBlock.Properties[tools.PropQAPassed])
-	assert.Equal(t, "[]", resultBlock.Properties[tools.PropQAIssues])
+	assert.Empty(t, qaFindings(resultBlock), "a clean block records no findings")
 }
 
 func TestQACheckToolEmptyTarget(t *testing.T) {
@@ -45,14 +61,10 @@ func TestQACheckToolEmptyTarget(t *testing.T) {
 	result := processPart(t, tl, part)
 
 	resultBlock := result.Resource.(*model.Block)
-	assert.Equal(t, "false", resultBlock.Properties[tools.PropQAPassed])
-
-	var issues []tools.QAIssue
-	err := json.Unmarshal([]byte(resultBlock.Properties[tools.PropQAIssues]), &issues)
-	require.NoError(t, err)
-	require.Len(t, issues, 1)
-	assert.Equal(t, "empty-target", issues[0].Type)
-	assert.Equal(t, tools.QASeverityError, issues[0].Severity)
+	findings := qaFindings(resultBlock)
+	require.Len(t, findings, 1)
+	assert.Equal(t, "empty-target", findings[0].Category)
+	assert.Equal(t, check.SeverityMajor, findings[0].Severity)
 }
 
 func TestQACheckToolLeadingWhitespace(t *testing.T) {
@@ -66,19 +78,9 @@ func TestQACheckToolLeadingWhitespace(t *testing.T) {
 	result := processPart(t, tl, part)
 
 	resultBlock := result.Resource.(*model.Block)
-	assert.Equal(t, "false", resultBlock.Properties[tools.PropQAPassed])
-
-	var issues []tools.QAIssue
-	err := json.Unmarshal([]byte(resultBlock.Properties[tools.PropQAIssues]), &issues)
-	require.NoError(t, err)
-	found := false
-	for _, issue := range issues {
-		if issue.Type == "leading-whitespace" {
-			found = true
-			assert.Equal(t, tools.QASeverityWarning, issue.Severity)
-		}
-	}
-	assert.True(t, found, "Expected leading-whitespace issue")
+	f, found := findFinding(qaFindings(resultBlock), "leading-whitespace")
+	require.True(t, found, "Expected leading-whitespace finding")
+	assert.Equal(t, check.SeverityMinor, f.Severity)
 }
 
 func TestQACheckToolTrailingWhitespace(t *testing.T) {
@@ -92,19 +94,9 @@ func TestQACheckToolTrailingWhitespace(t *testing.T) {
 	result := processPart(t, tl, part)
 
 	resultBlock := result.Resource.(*model.Block)
-	assert.Equal(t, "false", resultBlock.Properties[tools.PropQAPassed])
-
-	var issues []tools.QAIssue
-	err := json.Unmarshal([]byte(resultBlock.Properties[tools.PropQAIssues]), &issues)
-	require.NoError(t, err)
-	found := false
-	for _, issue := range issues {
-		if issue.Type == "trailing-whitespace" {
-			found = true
-			assert.Equal(t, tools.QASeverityWarning, issue.Severity)
-		}
-	}
-	assert.True(t, found, "Expected trailing-whitespace issue")
+	f, found := findFinding(qaFindings(resultBlock), "trailing-whitespace")
+	require.True(t, found, "Expected trailing-whitespace finding")
+	assert.Equal(t, check.SeverityMinor, f.Severity)
 }
 
 func TestQACheckToolDoubleSpaces(t *testing.T) {
@@ -118,19 +110,9 @@ func TestQACheckToolDoubleSpaces(t *testing.T) {
 	result := processPart(t, tl, part)
 
 	resultBlock := result.Resource.(*model.Block)
-	assert.Equal(t, "false", resultBlock.Properties[tools.PropQAPassed])
-
-	var issues []tools.QAIssue
-	err := json.Unmarshal([]byte(resultBlock.Properties[tools.PropQAIssues]), &issues)
-	require.NoError(t, err)
-	found := false
-	for _, issue := range issues {
-		if issue.Type == "double-spaces" {
-			found = true
-			assert.Equal(t, tools.QASeverityWarning, issue.Severity)
-		}
-	}
-	assert.True(t, found, "Expected double-spaces issue")
+	f, found := findFinding(qaFindings(resultBlock), "double-spaces")
+	require.True(t, found, "Expected double-spaces finding")
+	assert.Equal(t, check.SeverityMinor, f.Severity)
 }
 
 func TestQACheckToolTargetSameAsSource(t *testing.T) {
@@ -144,19 +126,9 @@ func TestQACheckToolTargetSameAsSource(t *testing.T) {
 	result := processPart(t, tl, part)
 
 	resultBlock := result.Resource.(*model.Block)
-	assert.Equal(t, "false", resultBlock.Properties[tools.PropQAPassed])
-
-	var issues []tools.QAIssue
-	err := json.Unmarshal([]byte(resultBlock.Properties[tools.PropQAIssues]), &issues)
-	require.NoError(t, err)
-	found := false
-	for _, issue := range issues {
-		if issue.Type == "target-same-as-source" {
-			found = true
-			assert.Equal(t, tools.QASeverityWarning, issue.Severity)
-		}
-	}
-	assert.True(t, found, "Expected target-same-as-source issue")
+	f, found := findFinding(qaFindings(resultBlock), "target-same-as-source")
+	require.True(t, found, "Expected target-same-as-source finding")
+	assert.Equal(t, check.SeverityMinor, f.Severity)
 }
 
 func TestQACheckToolMultipleIssues(t *testing.T) {
@@ -170,13 +142,9 @@ func TestQACheckToolMultipleIssues(t *testing.T) {
 	result := processPart(t, tl, part)
 
 	resultBlock := result.Resource.(*model.Block)
-	assert.Equal(t, "false", resultBlock.Properties[tools.PropQAPassed])
-
-	var issues []tools.QAIssue
-	err := json.Unmarshal([]byte(resultBlock.Properties[tools.PropQAIssues]), &issues)
-	require.NoError(t, err)
-	// Should have at least leading whitespace, double spaces, and trailing whitespace issues.
-	assert.True(t, len(issues) >= 2, "Expected multiple issues, got %d", len(issues))
+	findings := qaFindings(resultBlock)
+	// Should have at least leading whitespace, double spaces, and trailing whitespace findings.
+	assert.GreaterOrEqual(t, len(findings), 2, "Expected multiple findings, got %d", len(findings))
 }
 
 func TestQACheckToolSkipsNonTranslatable(t *testing.T) {
@@ -190,8 +158,7 @@ func TestQACheckToolSkipsNonTranslatable(t *testing.T) {
 	result := processPart(t, tl, part)
 
 	resultBlock := result.Resource.(*model.Block)
-	_, hasPassed := resultBlock.Properties[tools.PropQAPassed]
-	assert.False(t, hasPassed)
+	assert.Empty(t, qaFindings(resultBlock))
 }
 
 func TestQACheckToolDisabledChecks(t *testing.T) {
@@ -212,8 +179,7 @@ func TestQACheckToolDisabledChecks(t *testing.T) {
 	result := processPart(t, tl, part)
 
 	resultBlock := result.Resource.(*model.Block)
-	assert.Equal(t, "true", resultBlock.Properties[tools.PropQAPassed])
-	assert.Equal(t, "[]", resultBlock.Properties[tools.PropQAIssues])
+	assert.Empty(t, qaFindings(resultBlock))
 }
 
 func TestQACheckConfigValidation(t *testing.T) {
@@ -277,20 +243,10 @@ func TestQACheckToolNonDeletableSpanMissing(t *testing.T) {
 	result := processPart(t, tl, part)
 
 	resultBlock := result.Resource.(*model.Block)
-	assert.Equal(t, "false", resultBlock.Properties[tools.PropQAPassed])
-
-	var issues []tools.QAIssue
-	err := json.Unmarshal([]byte(resultBlock.Properties[tools.PropQAIssues]), &issues)
-	require.NoError(t, err)
-	found := false
-	for _, issue := range issues {
-		if issue.Type == "non-deletable-span-missing" {
-			found = true
-			assert.Equal(t, tools.QASeverityError, issue.Severity)
-			assert.Contains(t, issue.Message, "struct:break")
-		}
-	}
-	assert.True(t, found, "Expected non-deletable-span-missing issue")
+	f, found := findFinding(qaFindings(resultBlock), "non-deletable-span-missing")
+	require.True(t, found, "Expected non-deletable-span-missing finding")
+	assert.Equal(t, check.SeverityMajor, f.Severity)
+	assert.Contains(t, f.Message, "struct:break")
 }
 
 func TestQACheckToolNonCloneableSpanDuplicated(t *testing.T) {
@@ -331,20 +287,10 @@ func TestQACheckToolNonCloneableSpanDuplicated(t *testing.T) {
 	result := processPart(t, tl, part)
 
 	resultBlock := result.Resource.(*model.Block)
-	assert.Equal(t, "false", resultBlock.Properties[tools.PropQAPassed])
-
-	var issues []tools.QAIssue
-	err := json.Unmarshal([]byte(resultBlock.Properties[tools.PropQAIssues]), &issues)
-	require.NoError(t, err)
-	found := false
-	for _, issue := range issues {
-		if issue.Type == "non-cloneable-span-duplicated" {
-			found = true
-			assert.Equal(t, tools.QASeverityError, issue.Severity)
-			assert.Contains(t, issue.Message, "code:variable")
-		}
-	}
-	assert.True(t, found, "Expected non-cloneable-span-duplicated issue")
+	f, found := findFinding(qaFindings(resultBlock), "non-cloneable-span-duplicated")
+	require.True(t, found, "Expected non-cloneable-span-duplicated finding")
+	assert.Equal(t, check.SeverityMajor, f.Severity)
+	assert.Contains(t, f.Message, "code:variable")
 }
 
 func TestQACheckToolDeletableSpanMissingNoConstraintError(t *testing.T) {
@@ -372,12 +318,8 @@ func TestQACheckToolDeletableSpanMissingNoConstraintError(t *testing.T) {
 	result := processPart(t, tl, part)
 
 	resultBlock := result.Resource.(*model.Block)
-	var issues []tools.QAIssue
-	err := json.Unmarshal([]byte(resultBlock.Properties[tools.PropQAIssues]), &issues)
-	require.NoError(t, err)
-	for _, issue := range issues {
-		assert.NotEqual(t, "non-deletable-span-missing", issue.Type, "Should not flag deletable span as non-deletable")
-	}
+	_, found := findFinding(qaFindings(resultBlock), "non-deletable-span-missing")
+	assert.False(t, found, "Should not flag deletable span as non-deletable")
 }
 
 func TestQACheckToolSpanConstraintsDisabled(t *testing.T) {
@@ -408,12 +350,8 @@ func TestQACheckToolSpanConstraintsDisabled(t *testing.T) {
 	result := processPart(t, tl, part)
 
 	resultBlock := result.Resource.(*model.Block)
-	var issues []tools.QAIssue
-	err := json.Unmarshal([]byte(resultBlock.Properties[tools.PropQAIssues]), &issues)
-	require.NoError(t, err)
-	for _, issue := range issues {
-		assert.NotEqual(t, "non-deletable-span-missing", issue.Type, "Should not check span constraints when disabled")
-	}
+	_, found := findFinding(qaFindings(resultBlock), "non-deletable-span-missing")
+	assert.False(t, found, "Should not check span constraints when disabled")
 }
 
 func TestQACheckToolEmptyTargetText(t *testing.T) {
@@ -427,11 +365,7 @@ func TestQACheckToolEmptyTargetText(t *testing.T) {
 	result := processPart(t, tl, part)
 
 	resultBlock := result.Resource.(*model.Block)
-	assert.Equal(t, "false", resultBlock.Properties[tools.PropQAPassed])
-
-	var issues []tools.QAIssue
-	err := json.Unmarshal([]byte(resultBlock.Properties[tools.PropQAIssues]), &issues)
-	require.NoError(t, err)
-	require.Len(t, issues, 1)
-	assert.Equal(t, "empty-target", issues[0].Type)
+	findings := qaFindings(resultBlock)
+	require.Len(t, findings, 1)
+	assert.Equal(t, "empty-target", findings[0].Category)
 }

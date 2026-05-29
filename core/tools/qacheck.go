@@ -1,39 +1,18 @@
 package tools
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"regexp"
 	"strings"
 	"unicode"
 
+	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/schema"
 	"github.com/neokapi/neokapi/core/set"
 	"github.com/neokapi/neokapi/core/tool"
 )
-
-// QA check property keys stored on Block.Properties.
-const (
-	PropQAIssues = "qa-issues"
-	PropQAPassed = "qa-passed"
-)
-
-// QAIssueSeverity indicates the severity of a QA issue.
-type QAIssueSeverity string
-
-const (
-	QASeverityError   QAIssueSeverity = "error"
-	QASeverityWarning QAIssueSeverity = "warning"
-)
-
-// QAIssue represents a single QA check finding.
-type QAIssue struct {
-	Type     string          `json:"type"`
-	Severity QAIssueSeverity `json:"severity"`
-	Message  string          `json:"message"`
-}
 
 // QACheckConfig holds configuration for the QA check tool.
 type QACheckConfig struct {
@@ -177,23 +156,23 @@ type qaCheckHandler struct {
 }
 
 // checkTextIssues runs text-level checks: empty, whitespace, doubled words, same-as-source, corrupted chars.
-func (h *qaCheckHandler) checkTextIssues(conf *QACheckConfig, sourceText, targetText string) []QAIssue {
-	var issues []QAIssue
+func (h *qaCheckHandler) checkTextIssues(conf *QACheckConfig, sourceText, targetText string) []check.Finding {
+	var findings []check.Finding
 
 	// Check: empty target (target segments exist but text is empty).
 	if conf.CheckEmptyTarget && targetText == "" && sourceText != "" {
-		issues = append(issues, QAIssue{
-			Type:     "empty-target",
-			Severity: QASeverityError,
+		findings = append(findings, check.Finding{
+			Category: "empty-target",
+			Severity: check.SeverityMajor,
 			Message:  "Target is empty but source has content",
 		})
 	}
 
 	// Check: empty source (non-empty target but empty source).
 	if conf.CheckEmptySource && sourceText == "" && targetText != "" {
-		issues = append(issues, QAIssue{
-			Type:     "empty-source",
-			Severity: QASeverityWarning,
+		findings = append(findings, check.Finding{
+			Category: "empty-source",
+			Severity: check.SeverityMinor,
 			Message:  "Target is not empty but source is empty",
 		})
 	}
@@ -203,9 +182,9 @@ func (h *qaCheckHandler) checkTextIssues(conf *QACheckConfig, sourceText, target
 		srcLeading := leadingWhitespace(sourceText)
 		tgtLeading := leadingWhitespace(targetText)
 		if srcLeading != tgtLeading {
-			issues = append(issues, QAIssue{
-				Type:     "leading-whitespace",
-				Severity: QASeverityWarning,
+			findings = append(findings, check.Finding{
+				Category: "leading-whitespace",
+				Severity: check.SeverityMinor,
 				Message:  "Leading whitespace differs between source and target",
 			})
 		}
@@ -216,9 +195,9 @@ func (h *qaCheckHandler) checkTextIssues(conf *QACheckConfig, sourceText, target
 		srcTrailing := trailingWhitespace(sourceText)
 		tgtTrailing := trailingWhitespace(targetText)
 		if srcTrailing != tgtTrailing {
-			issues = append(issues, QAIssue{
-				Type:     "trailing-whitespace",
-				Severity: QASeverityWarning,
+			findings = append(findings, check.Finding{
+				Category: "trailing-whitespace",
+				Severity: check.SeverityMinor,
 				Message:  "Trailing whitespace differs between source and target",
 			})
 		}
@@ -226,9 +205,9 @@ func (h *qaCheckHandler) checkTextIssues(conf *QACheckConfig, sourceText, target
 
 	// Check: double spaces in target.
 	if conf.CheckDoubleSpaces && strings.Contains(targetText, "  ") {
-		issues = append(issues, QAIssue{
-			Type:     "double-spaces",
-			Severity: QASeverityWarning,
+		findings = append(findings, check.Finding{
+			Category: "double-spaces",
+			Severity: check.SeverityMinor,
 			Message:  "Target contains double spaces",
 		})
 	}
@@ -236,10 +215,11 @@ func (h *qaCheckHandler) checkTextIssues(conf *QACheckConfig, sourceText, target
 	// Check: doubled words in target.
 	if conf.CheckDoubledWord && targetText != "" {
 		if word := findDoubledWord(targetText, conf.DoubledWordExceptions); word != "" {
-			issues = append(issues, QAIssue{
-				Type:     "doubled-word",
-				Severity: QASeverityWarning,
-				Message:  fmt.Sprintf("Target contains doubled word: %q", word),
+			findings = append(findings, check.Finding{
+				Category:     "doubled-word",
+				Severity:     check.SeverityMinor,
+				Message:      fmt.Sprintf("Target contains doubled word: %q", word),
+				OriginalText: word,
 			})
 		}
 	}
@@ -248,9 +228,9 @@ func (h *qaCheckHandler) checkTextIssues(conf *QACheckConfig, sourceText, target
 	if conf.CheckTargetSameAsSource && targetText != "" && sourceText != "" && targetText == sourceText {
 		if containsWordChar(sourceText) {
 			if conf.TargetSameAsSourceWithNumbers || !isNumberOnly(sourceText) {
-				issues = append(issues, QAIssue{
-					Type:     "target-same-as-source",
-					Severity: QASeverityWarning,
+				findings = append(findings, check.Finding{
+					Category: "target-same-as-source",
+					Severity: check.SeverityMinor,
 					Message:  "Target is identical to source",
 				})
 			}
@@ -260,20 +240,20 @@ func (h *qaCheckHandler) checkTextIssues(conf *QACheckConfig, sourceText, target
 	// Check: corrupted characters.
 	if conf.CheckCorruptedCharacters && targetText != "" {
 		if hasCorruptedCharacters(targetText) {
-			issues = append(issues, QAIssue{
-				Type:     "corrupted-characters",
-				Severity: QASeverityWarning,
+			findings = append(findings, check.Finding{
+				Category: "corrupted-characters",
+				Severity: check.SeverityMinor,
 				Message:  "Target may contain corrupted characters (encoding issue)",
 			})
 		}
 	}
 
-	return issues
+	return findings
 }
 
 // checkLengthIssues runs length-related checks: max ratio, min ratio, absolute max.
-func (h *qaCheckHandler) checkLengthIssues(conf *QACheckConfig, sourceText, targetText string) []QAIssue {
-	var issues []QAIssue
+func (h *qaCheckHandler) checkLengthIssues(conf *QACheckConfig, sourceText, targetText string) []check.Finding {
+	var findings []check.Finding
 
 	// Check: maximum character length ratio.
 	if conf.CheckMaxCharLength && targetText != "" && sourceText != "" {
@@ -286,9 +266,9 @@ func (h *qaCheckHandler) checkLengthIssues(conf *QACheckConfig, sourceText, targ
 				maxPct = conf.MaxCharLengthAbove
 			}
 			if pct > maxPct {
-				issues = append(issues, QAIssue{
-					Type:     "max-length",
-					Severity: QASeverityWarning,
+				findings = append(findings, check.Finding{
+					Category: "max-length",
+					Severity: check.SeverityMinor,
 					Message:  fmt.Sprintf("Target is %d%% of source length (max allowed: %d%%)", pct, maxPct),
 				})
 			}
@@ -306,9 +286,9 @@ func (h *qaCheckHandler) checkLengthIssues(conf *QACheckConfig, sourceText, targ
 				minPct = conf.MinCharLengthAbove
 			}
 			if pct < minPct {
-				issues = append(issues, QAIssue{
-					Type:     "min-length",
-					Severity: QASeverityWarning,
+				findings = append(findings, check.Finding{
+					Category: "min-length",
+					Severity: check.SeverityMinor,
 					Message:  fmt.Sprintf("Target is %d%% of source length (min required: %d%%)", pct, minPct),
 				})
 			}
@@ -319,24 +299,24 @@ func (h *qaCheckHandler) checkLengthIssues(conf *QACheckConfig, sourceText, targ
 	if conf.CheckAbsoluteMaxCharLength && targetText != "" {
 		tgtLen := len([]rune(targetText))
 		if tgtLen > conf.AbsoluteMaxCharLength {
-			issues = append(issues, QAIssue{
-				Type:     "absolute-max-length",
-				Severity: QASeverityWarning,
+			findings = append(findings, check.Finding{
+				Category: "absolute-max-length",
+				Severity: check.SeverityMinor,
 				Message:  fmt.Sprintf("Target has %d characters (max allowed: %d)", tgtLen, conf.AbsoluteMaxCharLength),
 			})
 		}
 	}
 
-	return issues
+	return findings
 }
 
 // checkPatternAndCodeIssues runs pattern verification and inline code/span constraint checks.
-func (h *qaCheckHandler) checkPatternAndCodeIssues(conf *QACheckConfig, v tool.BlockView, sourceText, targetText string) []QAIssue {
-	var issues []QAIssue
+func (h *qaCheckHandler) checkPatternAndCodeIssues(conf *QACheckConfig, v tool.BlockView, sourceText, targetText string) []check.Finding {
+	var findings []check.Finding
 
 	// Check: pattern verification.
 	if conf.CheckPatterns && len(conf.Patterns) > 0 {
-		issues = append(issues, checkPatterns(sourceText, targetText, conf.Patterns)...)
+		findings = append(findings, checkPatterns(sourceText, targetText, conf.Patterns)...)
 	}
 
 	// Check: inline code differences.
@@ -344,7 +324,7 @@ func (h *qaCheckHandler) checkPatternAndCodeIssues(conf *QACheckConfig, v tool.B
 		sourceRuns := v.SourceRuns()
 		if runsHaveInline(sourceRuns) && v.HasTarget(conf.TargetLocale) {
 			targetRuns := v.TargetRuns(conf.TargetLocale)
-			issues = append(issues, checkCodeDifferencesRuns(sourceRuns, targetRuns, conf.StrictCodeOrder)...)
+			findings = append(findings, checkCodeDifferencesRuns(sourceRuns, targetRuns, conf.StrictCodeOrder)...)
 		}
 	}
 
@@ -353,16 +333,18 @@ func (h *qaCheckHandler) checkPatternAndCodeIssues(conf *QACheckConfig, v tool.B
 		sourceRuns := v.SourceRuns()
 		if runsHaveInline(sourceRuns) && v.HasTarget(conf.TargetLocale) {
 			targetRuns := v.TargetRuns(conf.TargetLocale)
-			issues = append(issues, checkRunConstraints(sourceRuns, targetRuns)...)
+			findings = append(findings, checkRunConstraints(sourceRuns, targetRuns)...)
 		}
 	}
 
-	return issues
+	return findings
 }
 
 // NewQACheckTool creates a rule-based QA check tool.
 // It examines source and target text for common translation quality issues
-// and stores findings in Block.Properties["qa-issues"] as a JSON array.
+// and records them as core/check.Finding under the unified quality.findings
+// annotation (check.Annotate), where they accumulate alongside any other
+// checker's findings on the same block.
 func NewQACheckTool(cfg *QACheckConfig) *tool.BaseTool {
 	t := &tool.BaseTool{
 		ToolName:        "qa-check",
@@ -383,9 +365,9 @@ func NewQACheckTool(cfg *QACheckConfig) *tool.BaseTool {
 		// If there is no target, check if empty target is an issue.
 		if !v.HasTarget(conf.TargetLocale) {
 			if conf.CheckEmptyTarget && sourceText != "" {
-				storeQAIssues(v, []QAIssue{{
-					Type:     "empty-target",
-					Severity: QASeverityError,
+				check.Annotate(v, "qa-check", []check.Finding{{
+					Category: "empty-target",
+					Severity: check.SeverityMajor,
 					Message:  "Target is empty but source has content",
 				}})
 			}
@@ -394,12 +376,12 @@ func NewQACheckTool(cfg *QACheckConfig) *tool.BaseTool {
 
 		targetText := v.TargetText(conf.TargetLocale)
 
-		var issues []QAIssue
-		issues = append(issues, h.checkTextIssues(conf, sourceText, targetText)...)
-		issues = append(issues, h.checkLengthIssues(conf, sourceText, targetText)...)
-		issues = append(issues, h.checkPatternAndCodeIssues(conf, v, sourceText, targetText)...)
+		var findings []check.Finding
+		findings = append(findings, h.checkTextIssues(conf, sourceText, targetText)...)
+		findings = append(findings, h.checkLengthIssues(conf, sourceText, targetText)...)
+		findings = append(findings, h.checkPatternAndCodeIssues(conf, v, sourceText, targetText)...)
 
-		storeQAIssues(v, issues)
+		check.Annotate(v, "qa-check", findings)
 
 		return nil
 	}
@@ -479,11 +461,11 @@ func findPcOpen(runs []model.Run, id string) *model.PcOpenRun {
 // by (type, kind) fingerprint and reports violations where a
 // non-deletable code is missing from the target or a non-cloneable
 // code is duplicated. Direct Run-native port of checkSpanConstraints.
-func checkRunConstraints(source, target []model.Run) []QAIssue {
+func checkRunConstraints(source, target []model.Run) []check.Finding {
 	sourceCounts, sourceRuns := inlineCodeFingerprints(source)
 	targetCounts, _ := inlineCodeFingerprints(target)
 
-	var issues []QAIssue
+	var findings []check.Finding
 
 	// Non-deletable missing from target.
 	for key, srcCount := range sourceCounts {
@@ -498,9 +480,9 @@ func checkRunConstraints(source, target []model.Run) []QAIssue {
 		}
 		kind, typ := splitFingerprint(key)
 		missing := srcCount - tgtCount
-		issues = append(issues, QAIssue{
-			Type:     "non-deletable-span-missing",
-			Severity: QASeverityError,
+		findings = append(findings, check.Finding{
+			Category: "non-deletable-span-missing",
+			Severity: check.SeverityMajor,
 			Message:  fmt.Sprintf("Non-deletable %s span %q is missing from target (%d missing)", kind, typ, missing),
 		})
 	}
@@ -521,14 +503,14 @@ func checkRunConstraints(source, target []model.Run) []QAIssue {
 		}
 		kind, typ := splitFingerprint(key)
 		extra := tgtCount - srcCount
-		issues = append(issues, QAIssue{
-			Type:     "non-cloneable-span-duplicated",
-			Severity: QASeverityError,
+		findings = append(findings, check.Finding{
+			Category: "non-cloneable-span-duplicated",
+			Severity: check.SeverityMajor,
 			Message:  fmt.Sprintf("Non-cloneable %s span %q was duplicated in target (%d extra)", kind, typ, extra),
 		})
 	}
 
-	return issues
+	return findings
 }
 
 // inlineCodeFingerprints counts inline-code runs by fingerprint and
@@ -589,23 +571,6 @@ func mapKindToSpanName(kind string) string {
 		return "Sub"
 	}
 	return kind
-}
-
-// storeQAIssues writes QA findings to block properties.
-func storeQAIssues(v tool.BlockView, issues []QAIssue) {
-	if len(issues) == 0 {
-		v.SetProperty(PropQAPassed, "true")
-		v.SetProperty(PropQAIssues, "[]")
-		return
-	}
-
-	v.SetProperty(PropQAPassed, "false")
-	data, err := json.Marshal(issues)
-	if err != nil {
-		v.SetProperty(PropQAIssues, "[]")
-		return
-	}
-	v.SetProperty(PropQAIssues, string(data))
 }
 
 // leadingWhitespace returns the leading whitespace characters of a string.
@@ -680,8 +645,8 @@ func hasCorruptedCharacters(s string) bool {
 }
 
 // checkPatterns verifies source/target pattern pairs.
-func checkPatterns(sourceText, targetText string, patterns []QAPattern) []QAIssue {
-	var issues []QAIssue
+func checkPatterns(sourceText, targetText string, patterns []QAPattern) []check.Finding {
+	var findings []check.Finding
 	for _, p := range patterns {
 		if !p.Enabled {
 			continue
@@ -709,10 +674,11 @@ func checkPatterns(sourceText, targetText string, patterns []QAPattern) []QAIssu
 					if desc == "" {
 						desc = fmt.Sprintf("Pattern %q found in source but not in target", m)
 					}
-					issues = append(issues, QAIssue{
-						Type:     "pattern-mismatch",
-						Severity: QASeverityWarning,
-						Message:  desc,
+					findings = append(findings, check.Finding{
+						Category:     "pattern-mismatch",
+						Severity:     check.SeverityMinor,
+						Message:      desc,
+						OriginalText: m,
 					})
 				}
 			}
@@ -727,34 +693,34 @@ func checkPatterns(sourceText, targetText string, patterns []QAPattern) []QAIssu
 				if desc == "" {
 					desc = fmt.Sprintf("Pattern count mismatch: %d in source, %d in target", len(matches), len(tgtMatches))
 				}
-				issues = append(issues, QAIssue{
-					Type:     "pattern-mismatch",
-					Severity: QASeverityWarning,
+				findings = append(findings, check.Finding{
+					Category: "pattern-mismatch",
+					Severity: check.SeverityMinor,
 					Message:  desc,
 				})
 			}
 		}
 	}
-	return issues
+	return findings
 }
 
 // checkCodeDifferencesRuns compares source and target inline codes
 // by type, walking Run sequences. Direct Run-native port of
 // checkCodeDifferences.
-func checkCodeDifferencesRuns(source, target []model.Run, strictOrder bool) []QAIssue {
+func checkCodeDifferencesRuns(source, target []model.Run, strictOrder bool) []check.Finding {
 	sourceTypes := inlineCodeTypes(source)
 	targetTypes := inlineCodeTypes(target)
 
-	var issues []QAIssue
+	var findings []check.Finding
 	sourceCounts := countStrings(sourceTypes)
 	targetCounts := countStrings(targetTypes)
 
 	for typ, srcCount := range sourceCounts {
 		tgtCount := targetCounts[typ]
 		if tgtCount < srcCount {
-			issues = append(issues, QAIssue{
-				Type:     "missing-code",
-				Severity: QASeverityWarning,
+			findings = append(findings, check.Finding{
+				Category: "missing-code",
+				Severity: check.SeverityMinor,
 				Message:  fmt.Sprintf("Inline code %q missing from target (%d in source, %d in target)", typ, srcCount, tgtCount),
 			})
 		}
@@ -762,24 +728,24 @@ func checkCodeDifferencesRuns(source, target []model.Run, strictOrder bool) []QA
 	for typ, tgtCount := range targetCounts {
 		srcCount := sourceCounts[typ]
 		if tgtCount > srcCount {
-			issues = append(issues, QAIssue{
-				Type:     "extra-code",
-				Severity: QASeverityWarning,
+			findings = append(findings, check.Finding{
+				Category: "extra-code",
+				Severity: check.SeverityMinor,
 				Message:  fmt.Sprintf("Extra inline code %q in target (%d in source, %d in target)", typ, srcCount, tgtCount),
 			})
 		}
 	}
 
-	if strictOrder && len(issues) == 0 {
+	if strictOrder && len(findings) == 0 {
 		minLen := len(sourceTypes)
 		if len(targetTypes) < minLen {
 			minLen = len(targetTypes)
 		}
 		for i := range minLen {
 			if sourceTypes[i] != targetTypes[i] {
-				issues = append(issues, QAIssue{
-					Type:     "code-order",
-					Severity: QASeverityWarning,
+				findings = append(findings, check.Finding{
+					Category: "code-order",
+					Severity: check.SeverityMinor,
 					Message:  "Inline code order differs between source and target",
 				})
 				break
@@ -787,7 +753,7 @@ func checkCodeDifferencesRuns(source, target []model.Run, strictOrder bool) []QA
 		}
 	}
 
-	return issues
+	return findings
 }
 
 // inlineCodeTypes returns an ordered list of inline-code Type strings

@@ -1,22 +1,16 @@
 package tools
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
 
 	"golang.org/x/text/encoding/ianaindex"
 
+	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/schema"
 	"github.com/neokapi/neokapi/core/tool"
-)
-
-// Chars check property keys stored on Block.Properties.
-const (
-	PropCharsCheckPassed = "chars-check-passed" // "true" or "false"
-	PropCharsCheckIssues = "chars-check-issues" // JSON array of issues
 )
 
 // CharsCheckConfig holds configuration for the character check tool.
@@ -122,16 +116,17 @@ func NewCharsCheckTool(cfg *CharsCheckConfig) *tool.BaseTool {
 		targetText := v.TargetText(conf.TargetLocale)
 		sourceText := v.SourceText()
 
-		var issues []QAIssue
+		var findings []check.Finding
 
 		// Check forbidden characters.
 		if conf.ForbiddenChars != "" {
 			for _, ch := range conf.ForbiddenChars {
 				if strings.ContainsRune(targetText, ch) {
-					issues = append(issues, QAIssue{
-						Type:     "forbidden-char",
-						Severity: QASeverityError,
-						Message:  fmt.Sprintf("Target contains forbidden character %q (U+%04X)", ch, ch),
+					findings = append(findings, check.Finding{
+						Category:     "forbidden-char",
+						Severity:     check.SeverityMajor,
+						Message:      fmt.Sprintf("Target contains forbidden character %q (U+%04X)", ch, ch),
+						OriginalText: string(ch),
 					})
 				}
 			}
@@ -141,10 +136,11 @@ func NewCharsCheckTool(cfg *CharsCheckConfig) *tool.BaseTool {
 		if conf.RequiredChars != "" {
 			for _, ch := range conf.RequiredChars {
 				if strings.ContainsRune(sourceText, ch) && !strings.ContainsRune(targetText, ch) {
-					issues = append(issues, QAIssue{
-						Type:     "required-char-missing",
-						Severity: QASeverityWarning,
-						Message:  fmt.Sprintf("Source contains %q (U+%04X) but target does not", ch, ch),
+					findings = append(findings, check.Finding{
+						Category:     "required-char-missing",
+						Severity:     check.SeverityMinor,
+						Message:      fmt.Sprintf("Source contains %q (U+%04X) but target does not", ch, ch),
+						OriginalText: string(ch),
 					})
 				}
 			}
@@ -152,15 +148,15 @@ func NewCharsCheckTool(cfg *CharsCheckConfig) *tool.BaseTool {
 
 		// Check characters against charset encoding.
 		if conf.CheckCharset && conf.Charset != "" {
-			issues = append(issues, checkCharset(targetText, conf.Charset)...)
+			findings = append(findings, checkCharset(targetText, conf.Charset)...)
 		}
 
 		// Check corruption patterns.
 		if conf.CheckCorrupted {
-			issues = append(issues, checkCorruption(targetText)...)
+			findings = append(findings, checkCorruption(targetText)...)
 		}
 
-		storeCharsCheckIssues(v, issues)
+		check.Annotate(v, "chars-check", findings)
 
 		return nil
 	}
@@ -168,12 +164,12 @@ func NewCharsCheckTool(cfg *CharsCheckConfig) *tool.BaseTool {
 }
 
 // checkCharset verifies that all characters in text can be encoded in the named charset.
-func checkCharset(text, charsetName string) []QAIssue {
+func checkCharset(text, charsetName string) []check.Finding {
 	enc, err := ianaindex.IANA.Encoding(charsetName)
 	if err != nil || enc == nil {
-		return []QAIssue{{
-			Type:     "charset-lookup-error",
-			Severity: QASeverityWarning,
+		return []check.Finding{{
+			Category: "charset-lookup-error",
+			Severity: check.SeverityMinor,
 			Message:  fmt.Sprintf("Unknown character set encoding %q", charsetName),
 		}}
 	}
@@ -181,10 +177,11 @@ func checkCharset(text, charsetName string) []QAIssue {
 	for _, r := range text {
 		_, err := encoder.Bytes([]byte(string(r)))
 		if err != nil {
-			return []QAIssue{{
-				Type:     "charset-violation",
-				Severity: QASeverityWarning,
-				Message:  fmt.Sprintf("Character %q (U+%04X) cannot be encoded in %s", r, r, charsetName),
+			return []check.Finding{{
+				Category:     "charset-violation",
+				Severity:     check.SeverityMinor,
+				Message:      fmt.Sprintf("Character %q (U+%04X) cannot be encoded in %s", r, r, charsetName),
+				OriginalText: string(r),
 			}}
 		}
 	}
@@ -192,16 +189,17 @@ func checkCharset(text, charsetName string) []QAIssue {
 }
 
 // checkCorruption detects common text corruption patterns.
-func checkCorruption(text string) []QAIssue {
-	var issues []QAIssue
+func checkCorruption(text string) []check.Finding {
+	var findings []check.Finding
 
 	// Check for mojibake patterns.
 	for _, pattern := range mojibakePatterns {
 		if strings.Contains(text, pattern) {
-			issues = append(issues, QAIssue{
-				Type:     "mojibake",
-				Severity: QASeverityError,
-				Message:  fmt.Sprintf("Possible mojibake detected: %q (UTF-8 decoded as Latin-1)", pattern),
+			findings = append(findings, check.Finding{
+				Category:     "mojibake",
+				Severity:     check.SeverityMajor,
+				Message:      fmt.Sprintf("Possible mojibake detected: %q (UTF-8 decoded as Latin-1)", pattern),
+				OriginalText: pattern,
 			})
 			break // Report mojibake once, not per pattern.
 		}
@@ -209,9 +207,9 @@ func checkCorruption(text string) []QAIssue {
 
 	// Check for Unicode replacement character U+FFFD.
 	if strings.ContainsRune(text, '\uFFFD') {
-		issues = append(issues, QAIssue{
-			Type:     "replacement-char",
-			Severity: QASeverityError,
+		findings = append(findings, check.Finding{
+			Category: "replacement-char",
+			Severity: check.SeverityMajor,
 			Message:  "Target contains Unicode replacement character U+FFFD",
 		})
 	}
@@ -219,31 +217,14 @@ func checkCorruption(text string) []QAIssue {
 	// Check for control characters (U+0000-U+001F except \t, \n, \r).
 	for _, r := range text {
 		if r <= 0x1F && r != '\t' && r != '\n' && r != '\r' {
-			issues = append(issues, QAIssue{
-				Type:     "control-char",
-				Severity: QASeverityError,
+			findings = append(findings, check.Finding{
+				Category: "control-char",
+				Severity: check.SeverityMajor,
 				Message:  fmt.Sprintf("Target contains control character U+%04X", r),
 			})
 			break // Report once.
 		}
 	}
 
-	return issues
-}
-
-// storeCharsCheckIssues writes character check findings to block properties.
-func storeCharsCheckIssues(v tool.BlockView, issues []QAIssue) {
-	if len(issues) == 0 {
-		v.SetProperty(PropCharsCheckPassed, "true")
-		v.SetProperty(PropCharsCheckIssues, "[]")
-		return
-	}
-
-	v.SetProperty(PropCharsCheckPassed, "false")
-	data, err := json.Marshal(issues)
-	if err != nil {
-		v.SetProperty(PropCharsCheckIssues, "[]")
-		return
-	}
-	v.SetProperty(PropCharsCheckIssues, string(data))
+	return findings
 }

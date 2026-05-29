@@ -1,9 +1,9 @@
 package tools_test
 
 import (
-	"encoding/json"
 	"testing"
 
+	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/tools"
 	"github.com/stretchr/testify/assert"
@@ -40,8 +40,7 @@ func TestPatternCheckPlaceholderPreserved(t *testing.T) {
 	result := processPart(t, tl, part)
 
 	resultBlock := result.Resource.(*model.Block)
-	assert.Equal(t, "true", resultBlock.Properties[tools.PropPatternCheckPassed])
-	assert.Equal(t, "[]", resultBlock.Properties[tools.PropPatternCheckIssues])
+	assert.Empty(t, qaFindings(resultBlock))
 }
 
 func TestPatternCheckPlaceholderMissing(t *testing.T) {
@@ -60,17 +59,13 @@ func TestPatternCheckPlaceholderMissing(t *testing.T) {
 	result := processPart(t, tl, part)
 
 	resultBlock := result.Resource.(*model.Block)
-	assert.Equal(t, "false", resultBlock.Properties[tools.PropPatternCheckPassed])
-
-	var issues []tools.QAIssue
-	err := json.Unmarshal([]byte(resultBlock.Properties[tools.PropPatternCheckIssues]), &issues)
-	require.NoError(t, err)
-	require.Len(t, issues, 1)
-	assert.Equal(t, "pattern-mismatch", issues[0].Type)
-	assert.Equal(t, tools.QASeverityError, issues[0].Severity)
-	assert.Contains(t, issues[0].Message, "printf-placeholder")
-	assert.Contains(t, issues[0].Message, "source has 2")
-	assert.Contains(t, issues[0].Message, "target has 0")
+	findings := qaFindings(resultBlock)
+	require.Len(t, findings, 1)
+	assert.Equal(t, "pattern-mismatch", findings[0].Category)
+	assert.Equal(t, check.SeverityMajor, findings[0].Severity)
+	assert.Contains(t, findings[0].Message, "printf-placeholder")
+	assert.Contains(t, findings[0].Message, "source has 2")
+	assert.Contains(t, findings[0].Message, "target has 0")
 }
 
 func TestPatternCheckForbiddenPattern(t *testing.T) {
@@ -89,15 +84,12 @@ func TestPatternCheckForbiddenPattern(t *testing.T) {
 	result := processPart(t, tl, part)
 
 	resultBlock := result.Resource.(*model.Block)
-	assert.Equal(t, "false", resultBlock.Properties[tools.PropPatternCheckPassed])
-
-	var issues []tools.QAIssue
-	err := json.Unmarshal([]byte(resultBlock.Properties[tools.PropPatternCheckIssues]), &issues)
-	require.NoError(t, err)
-	require.Len(t, issues, 1)
-	assert.Equal(t, "forbidden-pattern", issues[0].Type)
-	assert.Equal(t, tools.QASeverityError, issues[0].Severity)
-	assert.Contains(t, issues[0].Message, "html-entity")
+	findings := qaFindings(resultBlock)
+	require.Len(t, findings, 1)
+	assert.Equal(t, "forbidden-pattern", findings[0].Category)
+	assert.Equal(t, check.SeverityMajor, findings[0].Severity)
+	assert.Contains(t, findings[0].Message, "html-entity")
+	assert.Equal(t, "&amp;", findings[0].OriginalText)
 }
 
 func TestPatternCheckNoPatternsPass(t *testing.T) {
@@ -114,8 +106,7 @@ func TestPatternCheckNoPatternsPass(t *testing.T) {
 	result := processPart(t, tl, part)
 
 	resultBlock := result.Resource.(*model.Block)
-	assert.Equal(t, "true", resultBlock.Properties[tools.PropPatternCheckPassed])
-	assert.Equal(t, "[]", resultBlock.Properties[tools.PropPatternCheckIssues])
+	assert.Empty(t, qaFindings(resultBlock))
 }
 
 func TestPatternCheckNoTarget(t *testing.T) {
@@ -134,7 +125,7 @@ func TestPatternCheckNoTarget(t *testing.T) {
 	result := processPart(t, tl, part)
 
 	resultBlock := result.Resource.(*model.Block)
-	assert.Equal(t, "true", resultBlock.Properties[tools.PropPatternCheckPassed])
+	assert.Empty(t, qaFindings(resultBlock))
 }
 
 func TestPatternCheckSkipsNonTranslatable(t *testing.T) {
@@ -153,8 +144,7 @@ func TestPatternCheckSkipsNonTranslatable(t *testing.T) {
 	result := processPart(t, tl, part)
 
 	resultBlock := result.Resource.(*model.Block)
-	_, hasPassed := resultBlock.Properties[tools.PropPatternCheckPassed]
-	assert.False(t, hasPassed)
+	assert.Empty(t, qaFindings(resultBlock))
 }
 
 func TestPatternCheckConfigValidation(t *testing.T) {
@@ -241,5 +231,5 @@ func TestPatternCheckForbiddenPatternNotPresent(t *testing.T) {
 	result := processPart(t, tl, part)
 
 	resultBlock := result.Resource.(*model.Block)
-	assert.Equal(t, "true", resultBlock.Properties[tools.PropPatternCheckPassed])
+	assert.Empty(t, qaFindings(resultBlock))
 }

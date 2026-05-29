@@ -41,8 +41,9 @@ func AIReviewSchema() *schema.ComponentSchema {
 		DefaultParallelBlocks: 5,
 		Requires:              []string{schema.RequiresTargetLanguage, schema.RequiresCredentials},
 		Cardinality:           schema.Bilingual,
-		Produces:              []schema.AnnotationType{schema.AnnotationQAIssues},
-		SideEffects:           []schema.SideEffect{schema.SideEffectAPICall},
+		// ai-review writes a free-text "review" property, not a registered
+		// findings annotation, so it declares no Produces type.
+		SideEffects: []schema.SideEffect{schema.SideEffectAPICall},
 	})
 	injectProviderOptions(s)
 	return s

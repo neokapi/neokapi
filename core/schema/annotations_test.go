@@ -10,26 +10,26 @@ import (
 func TestAnnotationRegistry_RegisterAndValidate(t *testing.T) {
 	reg := NewAnnotationRegistry()
 	reg.Register(AnnotationTypeInfo{
-		Type:        AnnotationQAIssues,
-		DisplayName: "QA Issues",
+		Type:        AnnotationFindings,
+		DisplayName: "Check Findings",
 		Source:      sourceBuiltIn,
 	})
 
-	require.NoError(t, reg.Validate(AnnotationQAIssues))
+	require.NoError(t, reg.Validate(AnnotationFindings))
 	assert.Error(t, reg.Validate("unknown.type"))
 }
 
 func TestAnnotationRegistry_Has(t *testing.T) {
 	reg := NewAnnotationRegistry()
-	assert.False(t, reg.Has(AnnotationQAIssues))
+	assert.False(t, reg.Has(AnnotationFindings))
 
-	reg.Register(AnnotationTypeInfo{Type: AnnotationQAIssues, Source: sourceBuiltIn})
-	assert.True(t, reg.Has(AnnotationQAIssues))
+	reg.Register(AnnotationTypeInfo{Type: AnnotationFindings, Source: sourceBuiltIn})
+	assert.True(t, reg.Has(AnnotationFindings))
 }
 
 func TestAnnotationRegistry_List(t *testing.T) {
 	reg := NewAnnotationRegistry()
-	reg.Register(AnnotationTypeInfo{Type: AnnotationQAIssues, Source: sourceBuiltIn})
+	reg.Register(AnnotationTypeInfo{Type: AnnotationFindings, Source: sourceBuiltIn})
 	reg.Register(AnnotationTypeInfo{Type: AnnotationWordCount, Source: sourceBuiltIn})
 
 	list := reg.List()
@@ -42,11 +42,11 @@ func TestAnnotationRegistry_RegisterBuiltIns(t *testing.T) {
 
 	// Verify all built-in constants are registered.
 	builtins := []AnnotationType{
-		AnnotationQAIssues, AnnotationTMMatch, AnnotationAltTranslation,
+		AnnotationFindings, AnnotationTMMatch, AnnotationAltTranslation,
 		AnnotationTerms, AnnotationTermEnforce, AnnotationWordCount,
 		AnnotationCharCount, AnnotationSegCount, AnnotationEntityMapping,
 		AnnotationComparison, AnnotationScopingReport, AnnotationRepetition,
-		AnnotationTranslation,
+		AnnotationTranslation, AnnotationBrandVoice,
 	}
 	for _, at := range builtins {
 		require.True(t, reg.Has(at), "missing built-in: %s", at)

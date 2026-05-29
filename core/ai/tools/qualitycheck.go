@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/schema"
 	"github.com/neokapi/neokapi/core/tool"
@@ -45,7 +46,7 @@ func AIQASchema() *schema.ComponentSchema {
 		DefaultParallelBlocks: 5,
 		Requires:              []string{schema.RequiresTargetLanguage, schema.RequiresCredentials},
 		Cardinality:           schema.Bilingual,
-		Produces:              []schema.AnnotationType{schema.AnnotationQAIssues},
+		Produces:              []schema.AnnotationType{schema.AnnotationFindings},
 		SideEffects:           []schema.SideEffect{schema.SideEffectAPICall},
 	})
 	injectProviderOptions(s)
@@ -154,10 +155,35 @@ func (t *AIQACheckTool) annotate(v tool.BlockView) error {
 		}}
 	}
 
-	issuesJSON, _ := json.Marshal(result.Issues)
-	v.SetProperty("qa-issues", string(issuesJSON))
+	// Map the model's structured QA output onto the unified core/check model so
+	// the LLM judge feeds the same findings/score pipeline as the deterministic
+	// checkers. aiprovider.QAIssue stays the structured-output wire type; the
+	// findings are what every consumer reads.
+	findings := make([]check.Finding, 0, len(result.Issues))
+	for _, iss := range result.Issues {
+		findings = append(findings, check.Finding{
+			Category:   iss.Type,
+			Severity:   aiQASeverity(iss.Severity),
+			Message:    iss.Description,
+			Suggestion: iss.Suggestion,
+		})
+	}
+	check.Annotate(v, "ai-qa", findings)
 	v.SetProperty("qa-provider", string(t.provider.Name()))
 	v.SetProperty("qa-checks", strings.Join(t.checks, ","))
 
 	return nil
+}
+
+// aiQASeverity maps the LLM structured-output severity ("error"/"warning"/
+// "info") onto the unified core/check severity scale.
+func aiQASeverity(s string) check.Severity {
+	switch s {
+	case "error":
+		return check.SeverityMajor
+	case "warning":
+		return check.SeverityMinor
+	default: // "info" and any unrecognized value carry no penalty.
+		return check.SeverityNeutral
+	}
 }

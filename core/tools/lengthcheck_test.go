@@ -1,9 +1,9 @@
 package tools_test
 
 import (
-	"encoding/json"
 	"testing"
 
+	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/tools"
 	"github.com/stretchr/testify/assert"
@@ -27,16 +27,12 @@ func TestLengthCheckToolMaxChars(t *testing.T) {
 	result := processPart(t, tl, part)
 
 	resultBlock := result.Resource.(*model.Block)
-	assert.Equal(t, "false", resultBlock.Properties[tools.PropLengthCheckPassed])
-
-	var issues []tools.QAIssue
-	err := json.Unmarshal([]byte(resultBlock.Properties[tools.PropLengthCheckIssues]), &issues)
-	require.NoError(t, err)
-	require.Len(t, issues, 1)
-	assert.Equal(t, "max-chars-exceeded", issues[0].Type)
-	assert.Equal(t, tools.QASeverityError, issues[0].Severity)
-	assert.Contains(t, issues[0].Message, "23")
-	assert.Contains(t, issues[0].Message, "10")
+	findings := qaFindings(resultBlock)
+	require.Len(t, findings, 1)
+	assert.Equal(t, "max-chars-exceeded", findings[0].Category)
+	assert.Equal(t, check.SeverityMajor, findings[0].Severity)
+	assert.Contains(t, findings[0].Message, "23")
+	assert.Contains(t, findings[0].Message, "10")
 }
 
 func TestLengthCheckToolMaxWords(t *testing.T) {
@@ -53,14 +49,10 @@ func TestLengthCheckToolMaxWords(t *testing.T) {
 	result := processPart(t, tl, part)
 
 	resultBlock := result.Resource.(*model.Block)
-	assert.Equal(t, "false", resultBlock.Properties[tools.PropLengthCheckPassed])
-
-	var issues []tools.QAIssue
-	err := json.Unmarshal([]byte(resultBlock.Properties[tools.PropLengthCheckIssues]), &issues)
-	require.NoError(t, err)
-	require.Len(t, issues, 1)
-	assert.Equal(t, "max-words-exceeded", issues[0].Type)
-	assert.Equal(t, tools.QASeverityError, issues[0].Severity)
+	findings := qaFindings(resultBlock)
+	require.Len(t, findings, 1)
+	assert.Equal(t, "max-words-exceeded", findings[0].Category)
+	assert.Equal(t, check.SeverityMajor, findings[0].Severity)
 }
 
 func TestLengthCheckToolMaxPercentage(t *testing.T) {
@@ -77,14 +69,10 @@ func TestLengthCheckToolMaxPercentage(t *testing.T) {
 	result := processPart(t, tl, part)
 
 	resultBlock := result.Resource.(*model.Block)
-	assert.Equal(t, "false", resultBlock.Properties[tools.PropLengthCheckPassed])
-
-	var issues []tools.QAIssue
-	err := json.Unmarshal([]byte(resultBlock.Properties[tools.PropLengthCheckIssues]), &issues)
-	require.NoError(t, err)
-	require.Len(t, issues, 1)
-	assert.Equal(t, "max-percentage-exceeded", issues[0].Type)
-	assert.Equal(t, tools.QASeverityWarning, issues[0].Severity)
+	findings := qaFindings(resultBlock)
+	require.Len(t, findings, 1)
+	assert.Equal(t, "max-percentage-exceeded", findings[0].Category)
+	assert.Equal(t, check.SeverityMinor, findings[0].Severity)
 }
 
 func TestLengthCheckToolMinPercentage(t *testing.T) {
@@ -101,14 +89,10 @@ func TestLengthCheckToolMinPercentage(t *testing.T) {
 	result := processPart(t, tl, part)
 
 	resultBlock := result.Resource.(*model.Block)
-	assert.Equal(t, "false", resultBlock.Properties[tools.PropLengthCheckPassed])
-
-	var issues []tools.QAIssue
-	err := json.Unmarshal([]byte(resultBlock.Properties[tools.PropLengthCheckIssues]), &issues)
-	require.NoError(t, err)
-	require.Len(t, issues, 1)
-	assert.Equal(t, "min-percentage-exceeded", issues[0].Type)
-	assert.Equal(t, tools.QASeverityWarning, issues[0].Severity)
+	findings := qaFindings(resultBlock)
+	require.Len(t, findings, 1)
+	assert.Equal(t, "min-percentage-exceeded", findings[0].Category)
+	assert.Equal(t, check.SeverityMinor, findings[0].Severity)
 }
 
 func TestLengthCheckToolPass(t *testing.T) {
@@ -128,8 +112,7 @@ func TestLengthCheckToolPass(t *testing.T) {
 	result := processPart(t, tl, part)
 
 	resultBlock := result.Resource.(*model.Block)
-	assert.Equal(t, "true", resultBlock.Properties[tools.PropLengthCheckPassed])
-	assert.Equal(t, "[]", resultBlock.Properties[tools.PropLengthCheckIssues])
+	assert.Empty(t, qaFindings(resultBlock))
 }
 
 func TestLengthCheckToolMultipleViolations(t *testing.T) {
@@ -148,12 +131,8 @@ func TestLengthCheckToolMultipleViolations(t *testing.T) {
 	result := processPart(t, tl, part)
 
 	resultBlock := result.Resource.(*model.Block)
-	assert.Equal(t, "false", resultBlock.Properties[tools.PropLengthCheckPassed])
-
-	var issues []tools.QAIssue
-	err := json.Unmarshal([]byte(resultBlock.Properties[tools.PropLengthCheckIssues]), &issues)
-	require.NoError(t, err)
-	assert.Len(t, issues, 3, "Expected 3 issues: max-chars, max-words, max-percentage")
+	findings := qaFindings(resultBlock)
+	assert.Len(t, findings, 3, "Expected 3 findings: max-chars, max-words, max-percentage")
 }
 
 func TestLengthCheckToolSkipsNonTranslatable(t *testing.T) {
@@ -171,8 +150,7 @@ func TestLengthCheckToolSkipsNonTranslatable(t *testing.T) {
 	result := processPart(t, tl, part)
 
 	resultBlock := result.Resource.(*model.Block)
-	_, hasPassed := resultBlock.Properties[tools.PropLengthCheckPassed]
-	assert.False(t, hasPassed)
+	assert.Empty(t, qaFindings(resultBlock))
 }
 
 func TestLengthCheckToolNoTarget(t *testing.T) {
@@ -189,8 +167,7 @@ func TestLengthCheckToolNoTarget(t *testing.T) {
 	result := processPart(t, tl, part)
 
 	resultBlock := result.Resource.(*model.Block)
-	_, hasPassed := resultBlock.Properties[tools.PropLengthCheckPassed]
-	assert.False(t, hasPassed)
+	assert.Empty(t, qaFindings(resultBlock))
 }
 
 func TestLengthCheckConfigValidation(t *testing.T) {

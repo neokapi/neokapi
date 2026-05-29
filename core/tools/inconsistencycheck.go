@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/schema"
 	"github.com/neokapi/neokapi/core/tool"
@@ -154,6 +155,11 @@ func NewInconsistencyCheckTool(cfg *InconsistencyCheckConfig) *tool.BaseTool {
 			alternatives := alternativesExcluding(sourceToTargets[normSource], normTarget)
 			data, _ := json.Marshal(alternatives)
 			v.SetProperty(PropInconsistencyDetails, string(data))
+			check.Annotate(v, "inconsistency-check", []check.Finding{{
+				Category: "inconsistency",
+				Severity: check.SeverityMajor,
+				Message:  "Source has more than one translation; also seen as: " + strings.Join(alternatives, ", "),
+			}})
 			return nil
 		}
 
@@ -164,6 +170,11 @@ func NewInconsistencyCheckTool(cfg *InconsistencyCheckConfig) *tool.BaseTool {
 			alternatives := alternativesExcluding(targetToSources[normTarget], normSource)
 			data, _ := json.Marshal(alternatives)
 			v.SetProperty(PropInconsistencyDetails, string(data))
+			check.Annotate(v, "inconsistency-check", []check.Finding{{
+				Category: "inconsistency",
+				Severity: check.SeverityMajor,
+				Message:  "Different sources share this translation; also from: " + strings.Join(alternatives, ", "),
+			}})
 			return nil
 		}
 

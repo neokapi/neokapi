@@ -10,7 +10,9 @@ import (
 
 	"github.com/neokapi/neokapi/core/ai/tools"
 	"github.com/neokapi/neokapi/core/brand"
+	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/model"
+	coretool "github.com/neokapi/neokapi/core/tool"
 	"github.com/neokapi/neokapi/providers/ai"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -270,14 +272,14 @@ func TestAIQACheckToolAddsProperties(t *testing.T) {
 
 	result := <-out
 	resultBlock := result.Resource.(*model.Block)
-	issuesStr := resultBlock.Properties["qa-issues"]
-	assert.NotEmpty(t, issuesStr)
 
-	var issues []aiprovider.QAIssue
-	err = json.Unmarshal([]byte(issuesStr), &issues)
-	require.NoError(t, err)
-	assert.Len(t, issues, 1)
-	assert.Equal(t, "fluency", issues[0].Type)
+	// ai-qa maps the model's structured output onto the unified check findings.
+	findings := check.Findings(coretool.NewBlockView(resultBlock))
+	require.Len(t, findings, 1)
+	assert.Equal(t, "fluency", findings[0].Category)
+	assert.Equal(t, check.SeverityMinor, findings[0].Severity) // "warning" → minor
+	assert.Equal(t, "awkward phrasing", findings[0].Message)
+	assert.Equal(t, "rephrase", findings[0].Suggestion)
 	assert.Equal(t, "mock", resultBlock.Properties["qa-provider"])
 }
 

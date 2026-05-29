@@ -1,19 +1,13 @@
 package tools
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 
+	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/schema"
 	"github.com/neokapi/neokapi/core/tool"
-)
-
-// Length check property keys stored on Block.Properties.
-const (
-	PropLengthCheckPassed = "length-check-passed" // "true" or "false"
-	PropLengthCheckIssues = "length-check-issues" // JSON array of issues
 )
 
 // Default length-ratio thresholds shared between length-check and qa-check.
@@ -117,7 +111,8 @@ func NewLengthCheckFromConfig(config map[string]any, targetLang string) (tool.To
 
 // NewLengthCheckTool creates a tool that verifies translation length constraints.
 // It checks character count, word count, and source/target length ratios,
-// storing findings in Block.Properties as a JSON array of QAIssue.
+// recording violations as core/check.Finding under the unified quality.findings
+// annotation (check.Annotate), accumulating with any other checker's findings.
 func NewLengthCheckTool(cfg *LengthCheckConfig) *tool.BaseTool {
 	t := &tool.BaseTool{
 		ToolName:        "length-check",
@@ -138,15 +133,15 @@ func NewLengthCheckTool(cfg *LengthCheckConfig) *tool.BaseTool {
 		targetText := v.TargetText(conf.TargetLocale)
 		sourceText := v.SourceText()
 
-		var issues []QAIssue
+		var findings []check.Finding
 
 		// Check max character count.
 		if conf.MaxChars > 0 {
 			charCount := len([]rune(targetText))
 			if charCount > conf.MaxChars {
-				issues = append(issues, QAIssue{
-					Type:     "max-chars-exceeded",
-					Severity: QASeverityError,
+				findings = append(findings, check.Finding{
+					Category: "max-chars-exceeded",
+					Severity: check.SeverityMajor,
 					Message:  fmt.Sprintf("Target has %d characters, exceeds maximum of %d", charCount, conf.MaxChars),
 				})
 			}
@@ -156,9 +151,9 @@ func NewLengthCheckTool(cfg *LengthCheckConfig) *tool.BaseTool {
 		if conf.MaxWords > 0 {
 			wordCount := countWords(targetText)
 			if wordCount > conf.MaxWords {
-				issues = append(issues, QAIssue{
-					Type:     "max-words-exceeded",
-					Severity: QASeverityError,
+				findings = append(findings, check.Finding{
+					Category: "max-words-exceeded",
+					Severity: check.SeverityMajor,
 					Message:  fmt.Sprintf("Target has %d words, exceeds maximum of %d", wordCount, conf.MaxWords),
 				})
 			}
@@ -171,17 +166,17 @@ func NewLengthCheckTool(cfg *LengthCheckConfig) *tool.BaseTool {
 			ratio := float64(targetLen) / float64(sourceLen) * 100.0
 
 			if conf.MaxPercentage > 0 && ratio > conf.MaxPercentage {
-				issues = append(issues, QAIssue{
-					Type:     "max-percentage-exceeded",
-					Severity: QASeverityWarning,
+				findings = append(findings, check.Finding{
+					Category: "max-percentage-exceeded",
+					Severity: check.SeverityMinor,
 					Message:  fmt.Sprintf("Target is %.0f%% of source length, exceeds maximum of %.0f%%", ratio, conf.MaxPercentage),
 				})
 			}
 
 			if conf.MinPercentage > 0 && ratio < conf.MinPercentage {
-				issues = append(issues, QAIssue{
-					Type:     "min-percentage-exceeded",
-					Severity: QASeverityWarning,
+				findings = append(findings, check.Finding{
+					Category: "min-percentage-exceeded",
+					Severity: check.SeverityMinor,
 					Message:  fmt.Sprintf("Target is %.0f%% of source length, below minimum of %.0f%%", ratio, conf.MinPercentage),
 				})
 			}
@@ -196,9 +191,9 @@ func NewLengthCheckTool(cfg *LengthCheckConfig) *tool.BaseTool {
 					maxPct = conf.MaxCharLengthBelow
 				}
 				if maxPct > 0 && ratio > float64(maxPct) {
-					issues = append(issues, QAIssue{
-						Type:     "max-char-length-exceeded",
-						Severity: QASeverityWarning,
+					findings = append(findings, check.Finding{
+						Category: "max-char-length-exceeded",
+						Severity: check.SeverityMinor,
 						Message:  fmt.Sprintf("Target is %.0f%% of source length, exceeds %d%% threshold for %s text", ratio, maxPct, longOrShort(sourceLen, conf.MaxCharLengthBreak)),
 					})
 				}
@@ -212,16 +207,16 @@ func NewLengthCheckTool(cfg *LengthCheckConfig) *tool.BaseTool {
 					minPct = conf.MinCharLengthBelow
 				}
 				if minPct > 0 && ratio < float64(minPct) {
-					issues = append(issues, QAIssue{
-						Type:     "min-char-length-exceeded",
-						Severity: QASeverityWarning,
+					findings = append(findings, check.Finding{
+						Category: "min-char-length-exceeded",
+						Severity: check.SeverityMinor,
 						Message:  fmt.Sprintf("Target is %.0f%% of source length, below %d%% threshold for %s text", ratio, minPct, longOrShort(sourceLen, conf.MinCharLengthBreak)),
 					})
 				}
 			}
 		}
 
-		storeLengthCheckIssues(v, issues)
+		check.Annotate(v, "length-check", findings)
 
 		return nil
 	}
@@ -235,21 +230,4 @@ func longOrShort(length, breakpoint int) string {
 		return "long"
 	}
 	return "short"
-}
-
-// storeLengthCheckIssues writes length check findings to block properties.
-func storeLengthCheckIssues(v tool.BlockView, issues []QAIssue) {
-	if len(issues) == 0 {
-		v.SetProperty(PropLengthCheckPassed, "true")
-		v.SetProperty(PropLengthCheckIssues, "[]")
-		return
-	}
-
-	v.SetProperty(PropLengthCheckPassed, "false")
-	data, err := json.Marshal(issues)
-	if err != nil {
-		v.SetProperty(PropLengthCheckIssues, "[]")
-		return
-	}
-	v.SetProperty(PropLengthCheckIssues, string(data))
 }

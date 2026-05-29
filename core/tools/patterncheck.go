@@ -1,20 +1,14 @@
 package tools
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"regexp"
 
+	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/schema"
 	"github.com/neokapi/neokapi/core/tool"
-)
-
-// Pattern check property keys stored on Block.Properties.
-const (
-	PropPatternCheckPassed = "pattern-check-passed" // "true" or "false"
-	PropPatternCheckIssues = "pattern-check-issues" // JSON array of issues
 )
 
 // PatternRule defines a regex pattern to validate in translations.
@@ -114,14 +108,12 @@ func NewPatternCheckTool(cfg *PatternCheckConfig) *tool.BaseTool {
 
 		// If no target, nothing to check.
 		if !v.HasTarget(conf.TargetLocale) {
-			v.SetProperty(PropPatternCheckPassed, "true")
-			v.SetProperty(PropPatternCheckIssues, "[]")
 			return nil
 		}
 
 		targetText := v.TargetText(conf.TargetLocale)
 
-		var issues []QAIssue
+		var findings []check.Finding
 
 		for _, rule := range compiled {
 			if rule.re == nil {
@@ -133,9 +125,9 @@ func NewPatternCheckTool(cfg *PatternCheckConfig) *tool.BaseTool {
 				sourceMatches := rule.re.FindAllString(sourceText, -1)
 				targetMatches := rule.re.FindAllString(targetText, -1)
 				if len(sourceMatches) != len(targetMatches) {
-					issues = append(issues, QAIssue{
-						Type:     "pattern-mismatch",
-						Severity: QASeverityError,
+					findings = append(findings, check.Finding{
+						Category: "pattern-mismatch",
+						Severity: check.SeverityMajor,
 						Message: fmt.Sprintf("Pattern %q (%s): source has %d matches, target has %d",
 							rule.Name, rule.Pattern, len(sourceMatches), len(targetMatches)),
 					})
@@ -144,37 +136,21 @@ func NewPatternCheckTool(cfg *PatternCheckConfig) *tool.BaseTool {
 
 			if rule.MustNotMatch {
 				// Pattern must not appear in target.
-				if rule.re.MatchString(targetText) {
-					issues = append(issues, QAIssue{
-						Type:     "forbidden-pattern",
-						Severity: QASeverityError,
+				if loc := rule.re.FindString(targetText); loc != "" {
+					findings = append(findings, check.Finding{
+						Category: "forbidden-pattern",
+						Severity: check.SeverityMajor,
 						Message: fmt.Sprintf("Pattern %q (%s): forbidden pattern found in target",
 							rule.Name, rule.Pattern),
+						OriginalText: loc,
 					})
 				}
 			}
 		}
 
-		storePatternCheckIssues(v, issues)
+		check.Annotate(v, "pattern-check", findings)
 
 		return nil
 	}
 	return t
-}
-
-// storePatternCheckIssues writes pattern check findings to block properties.
-func storePatternCheckIssues(v tool.BlockView, issues []QAIssue) {
-	if len(issues) == 0 {
-		v.SetProperty(PropPatternCheckPassed, "true")
-		v.SetProperty(PropPatternCheckIssues, "[]")
-		return
-	}
-
-	v.SetProperty(PropPatternCheckPassed, "false")
-	data, err := json.Marshal(issues)
-	if err != nil {
-		v.SetProperty(PropPatternCheckIssues, "[]")
-		return
-	}
-	v.SetProperty(PropPatternCheckIssues, string(data))
 }

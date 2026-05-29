@@ -14,9 +14,11 @@ import (
 
 	"github.com/neokapi/neokapi/cli/output"
 	"github.com/neokapi/neokapi/core/brand"
+	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/registry"
+	"github.com/neokapi/neokapi/core/tool"
 	coretools "github.com/neokapi/neokapi/core/tools"
 	"github.com/spf13/cobra"
 )
@@ -701,25 +703,22 @@ func (a *App) verifyQA(ctx context.Context, units []verifyUnit) (VerifyGateResul
 		qa := coretools.NewQACheckTool(cfg)
 		for _, b := range blocks {
 			runCheckTool(ctx, qa, b)
-			if b.Properties[coretools.PropQAPassed] == "false" {
-				issues := parseQAIssues(b.Properties[coretools.PropQAIssues])
-				for _, iss := range issues {
-					failing := qaIssueFails(iss)
-					sev := string(iss.Severity)
-					if failing {
-						sev = "error"
-					}
-					gate.Findings = append(gate.Findings, VerifyFinding{
-						Gate:       gateQA,
-						File:       u.displayPath,
-						Locale:     u.locale,
-						Severity:   sev,
-						Message:    iss.Message,
-						Suggestion: qaIssueSuggestion(iss),
-					})
-					if failing {
-						gate.Pass = false
-					}
+			for _, f := range check.Findings(tool.NewBlockView(b)) {
+				failing := qaFindingFails(f)
+				sev := verifySeverity(f.Severity)
+				if failing {
+					sev = "error"
+				}
+				gate.Findings = append(gate.Findings, VerifyFinding{
+					Gate:       gateQA,
+					File:       u.displayPath,
+					Locale:     u.locale,
+					Severity:   sev,
+					Message:    f.Message,
+					Suggestion: qaFindingSuggestion(f),
+				})
+				if failing {
+					gate.Pass = false
 				}
 			}
 		}
@@ -727,23 +726,24 @@ func (a *App) verifyQA(ctx context.Context, units []verifyUnit) (VerifyGateResul
 	return gate, nil
 }
 
-func parseQAIssues(raw string) []coretools.QAIssue {
-	if raw == "" {
-		return nil
+// verifySeverity maps a check.Severity to the "error"/"warning" severity the
+// verify output uses: critical/major problems are errors, minor/neutral are
+// warnings.
+func verifySeverity(s check.Severity) string {
+	switch s {
+	case check.SeverityCritical, check.SeverityMajor:
+		return "error"
+	default:
+		return "warning"
 	}
-	var issues []coretools.QAIssue
-	if err := json.Unmarshal([]byte(raw), &issues); err != nil {
-		return nil
-	}
-	return issues
 }
 
-// qaFailingIssueTypes are the QA issue types verify treats as gate failures:
-// integrity problems that break the translation (dropped/extra placeholders or
-// tags, missing required codes, untranslated/empty targets). Cosmetic issues
-// (whitespace, doubled words, length ratios) are reported as warnings but do
-// not fail the gate.
-var qaFailingIssueTypes = map[string]bool{
+// qaFailingCategories are the QA finding categories verify treats as gate
+// failures: integrity problems that break the translation (dropped/extra
+// placeholders or tags, missing required codes, untranslated/empty targets).
+// Cosmetic issues (whitespace, doubled words, length ratios) are reported as
+// warnings but do not fail the gate.
+var qaFailingCategories = map[string]bool{
 	"empty-target":                  true,
 	"pattern-mismatch":              true,
 	"missing-code":                  true,
@@ -754,19 +754,19 @@ var qaFailingIssueTypes = map[string]bool{
 	"target-same-as-source":         true,
 }
 
-// qaIssueFails reports whether a QA issue should fail the verify QA gate.
-func qaIssueFails(iss coretools.QAIssue) bool {
-	if qaFailingIssueTypes[iss.Type] {
+// qaFindingFails reports whether a QA finding should fail the verify QA gate.
+func qaFindingFails(f check.Finding) bool {
+	if qaFailingCategories[f.Category] {
 		return true
 	}
-	// Any error-severity issue fails regardless of type.
-	return iss.Severity == coretools.QASeverityError
+	// Any major/critical finding fails regardless of category.
+	return f.Severity == check.SeverityMajor || f.Severity == check.SeverityCritical
 }
 
-// qaIssueSuggestion returns a short remediation hint for the assistant for the
-// integrity issue types verify cares about.
-func qaIssueSuggestion(iss coretools.QAIssue) string {
-	switch iss.Type {
+// qaFindingSuggestion returns a short remediation hint for the assistant for the
+// integrity finding categories verify cares about.
+func qaFindingSuggestion(f check.Finding) string {
+	switch f.Category {
 	case "empty-target":
 		return "translate the source content for this entry"
 	case "pattern-mismatch", "missing-code", "non-deletable-span-missing":

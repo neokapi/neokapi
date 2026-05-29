@@ -33,7 +33,6 @@ const (
 type AnnotationType string
 
 const (
-	AnnotationQAIssues       AnnotationType = "quality.qa-issues"
 	AnnotationTMMatch        AnnotationType = "leverage.tm-match"
 	AnnotationAltTranslation AnnotationType = "leverage.alt-translation"
 	AnnotationTerms          AnnotationType = "terminology.annotations"
@@ -127,7 +126,6 @@ func (r *AnnotationRegistry) Has(t AnnotationType) bool {
 // RegisterBuiltIns registers all framework-defined annotation types.
 func (r *AnnotationRegistry) RegisterBuiltIns() {
 	builtins := []AnnotationTypeInfo{
-		{AnnotationQAIssues, "QA Issues", "Quality check results", sourceBuiltIn},
 		{AnnotationTMMatch, "TM Match", "Translation memory match score and type", sourceBuiltIn},
 		{AnnotationAltTranslation, "Alt Translation", "Alternative translations from TM or AI", sourceBuiltIn},
 		{AnnotationTerms, "Term Annotations", "Terminology matches found in source", sourceBuiltIn},

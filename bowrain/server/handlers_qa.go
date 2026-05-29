@@ -1,17 +1,22 @@
 package server
 
 import (
-	"encoding/json"
 	"net/http"
 
 	"github.com/labstack/echo/v4"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	"github.com/neokapi/neokapi/bowrain/core/store"
+	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/tool"
 	"github.com/neokapi/neokapi/core/tools"
 )
 
-// QAIssueResponse is a single QA finding returned by the API.
+// QAIssueResponse is a single QA finding returned by the API. The wire shape is
+// stable for the editor's Problems panel: {type, severity ("error"|"warning"),
+// message}. Internally the QA tools emit core/check.Finding; this handler maps
+// each finding onto that response at the boundary so the frontend contract does
+// not change.
 type QAIssueResponse struct {
 	Type     string `json:"type"`
 	Severity string `json:"severity"`
@@ -104,24 +109,31 @@ func runQAOnBlock(block *model.Block, locale model.LocaleID) []QAIssueResponse {
 	// Process through the tool (ignoring error since the tool is deterministic).
 	_, _ = qaTool.Apply(part)
 
-	// Read issues from block properties.
-	issuesJSON, ok := block.Properties[tools.PropQAIssues]
-	if !ok || issuesJSON == "" || issuesJSON == "[]" {
+	// Read the unified findings the tool recorded and map them onto the stable
+	// wire shape ({type, severity, message}) the editor's Problems panel expects.
+	findings := check.Findings(tool.NewBlockView(block))
+	if len(findings) == 0 {
 		return []QAIssueResponse{}
 	}
 
-	var qaIssues []tools.QAIssue
-	if err := json.Unmarshal([]byte(issuesJSON), &qaIssues); err != nil {
-		return []QAIssueResponse{}
-	}
-
-	result := make([]QAIssueResponse, len(qaIssues))
-	for i, issue := range qaIssues {
+	result := make([]QAIssueResponse, len(findings))
+	for i, f := range findings {
 		result[i] = QAIssueResponse{
-			Type:     issue.Type,
-			Severity: string(issue.Severity),
-			Message:  issue.Message,
+			Type:     f.Category,
+			Severity: qaWireSeverity(f.Severity),
+			Message:  f.Message,
 		}
 	}
 	return result
+}
+
+// qaWireSeverity maps a core/check.Severity onto the two-valued severity the QA
+// API has always returned: critical/major are "error", minor/neutral "warning".
+func qaWireSeverity(s check.Severity) string {
+	switch s {
+	case check.SeverityCritical, check.SeverityMajor:
+		return "error"
+	default:
+		return "warning"
+	}
 }
