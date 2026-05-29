@@ -383,3 +383,63 @@ func TestCorrectionStorage(t *testing.T) {
 	require.NoError(t, err)
 	assert.Len(t, rules, 0)
 }
+
+func TestRuleDecisions(t *testing.T) {
+	ctx := t.Context()
+	store := newTestStore(t)
+	require.NoError(t, store.CreateProfile(ctx, testProfile()))
+
+	// No decision yet.
+	d, err := store.GetRuleDecision(ctx, "p1", "leverage")
+	require.NoError(t, err)
+	assert.Nil(t, d)
+
+	// Record a rejection.
+	now := time.Now().UTC().Truncate(time.Second)
+	require.NoError(t, store.RecordRuleDecision(ctx, &corebrand.RuleDecision{
+		ProfileID: "p1", Term: "leverage", Dimension: corebrand.DimensionVocabulary,
+		Status: corebrand.RuleDecisionRejected, CorrectionCount: 3, DecidedBy: "u1", DecidedAt: now,
+	}))
+
+	// Read back, case-insensitively.
+	d, err = store.GetRuleDecision(ctx, "p1", "LEVERAGE")
+	require.NoError(t, err)
+	require.NotNil(t, d)
+	assert.Equal(t, corebrand.RuleDecisionRejected, d.Status)
+	assert.Equal(t, 3, d.CorrectionCount)
+	assert.Equal(t, "u1", d.DecidedBy)
+	assert.False(t, d.Auto)
+
+	// Upsert: the same term promoted (auto) overwrites the rejection.
+	require.NoError(t, store.RecordRuleDecision(ctx, &corebrand.RuleDecision{
+		ProfileID: "p1", Term: "leverage", Dimension: corebrand.DimensionVocabulary,
+		Status: corebrand.RuleDecisionPromoted, CorrectionCount: 5, PromotedVersion: 2,
+		Auto: true, DecidedBy: "system", DecidedAt: now,
+	}))
+	d, err = store.GetRuleDecision(ctx, "p1", "leverage")
+	require.NoError(t, err)
+	require.NotNil(t, d)
+	assert.Equal(t, corebrand.RuleDecisionPromoted, d.Status)
+	assert.Equal(t, 2, d.PromotedVersion)
+	assert.True(t, d.Auto)
+
+	// A second decision for another term, then list (one row per term).
+	require.NoError(t, store.RecordRuleDecision(ctx, &corebrand.RuleDecision{
+		ProfileID: "p1", Term: "synergy", Status: corebrand.RuleDecisionApproved, DecidedAt: now,
+	}))
+	all, err := store.ListRuleDecisions(ctx, "p1")
+	require.NoError(t, err)
+	assert.Len(t, all, 2)
+}
+
+func TestProfileAutonomyRoundTrip(t *testing.T) {
+	ctx := t.Context()
+	store := newTestStore(t)
+	p := testProfile()
+	p.Autonomy = corebrand.AutonomyConfig{AutoPromoteAtCount: 5}
+	require.NoError(t, store.CreateProfile(ctx, p))
+
+	got, err := store.GetProfile(ctx, "p1")
+	require.NoError(t, err)
+	assert.Equal(t, 5, got.Autonomy.AutoPromoteAtCount)
+}

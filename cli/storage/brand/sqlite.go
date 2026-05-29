@@ -17,10 +17,13 @@ type SQLiteBrandStore struct {
 	db *storage.DB
 }
 
+// migrations is the brand voice store's single baseline schema. The platform is
+// pre-launch with no databases to preserve, so the schema is expressed as one
+// clean definition rather than an incremental migration history.
 var migrations = []storage.Migration{
 	{
 		Version:     1,
-		Description: "brand voice store schema",
+		Description: "brand voice store schema (baseline)",
 		SQL: `
 		CREATE TABLE IF NOT EXISTS brand_profiles (
 			id TEXT PRIMARY KEY,
@@ -33,6 +36,7 @@ var migrations = []storage.Migration{
 			examples TEXT NOT NULL DEFAULT '[]',
 			locales TEXT NOT NULL DEFAULT '{}',
 			channels TEXT NOT NULL DEFAULT '{}',
+			autonomy TEXT NOT NULL DEFAULT '{}',
 			version INTEGER NOT NULL DEFAULT 1,
 			created_at TEXT NOT NULL,
 			updated_at TEXT NOT NULL,
@@ -46,6 +50,7 @@ var migrations = []storage.Migration{
 			stream TEXT NOT NULL DEFAULT 'main',
 			block_id TEXT NOT NULL,
 			profile_id TEXT NOT NULL,
+			profile_version INTEGER NOT NULL DEFAULT 0,
 			locale TEXT NOT NULL,
 			score INTEGER NOT NULL,
 			dimensions TEXT NOT NULL,
@@ -64,12 +69,7 @@ var migrations = []storage.Migration{
 			corrected_by TEXT NOT NULL,
 			corrected_at TEXT NOT NULL
 		);
-		`,
-	},
-	{
-		Version:     2,
-		Description: "profile versioning, tags, and score profile_version",
-		SQL: `
+
 		CREATE TABLE IF NOT EXISTS brand_profile_versions (
 			profile_id TEXT NOT NULL,
 			version INTEGER NOT NULL,
@@ -89,7 +89,19 @@ var migrations = []storage.Migration{
 			PRIMARY KEY (profile_id, name)
 		);
 
-		ALTER TABLE brand_voice_scores ADD COLUMN profile_version INTEGER NOT NULL DEFAULT 0;
+		CREATE TABLE IF NOT EXISTS brand_rule_decisions (
+			profile_id TEXT NOT NULL,
+			term TEXT NOT NULL,
+			replacement TEXT NOT NULL DEFAULT '',
+			dimension TEXT NOT NULL DEFAULT '',
+			status TEXT NOT NULL,
+			correction_count INTEGER NOT NULL DEFAULT 0,
+			promoted_version INTEGER NOT NULL DEFAULT 0,
+			auto INTEGER NOT NULL DEFAULT 0,
+			decided_by TEXT NOT NULL DEFAULT '',
+			decided_at TEXT NOT NULL,
+			PRIMARY KEY (profile_id, term)
+		);
 		`,
 	},
 }
@@ -119,13 +131,14 @@ func (s *SQLiteBrandStore) CreateProfile(ctx context.Context, profile *corebrand
 	examples, _ := json.Marshal(profile.Examples)
 	locales, _ := json.Marshal(profile.Locales)
 	channels, _ := json.Marshal(profile.Channels)
+	autonomy, _ := json.Marshal(profile.Autonomy)
 
 	_, err := s.db.ExecContext(ctx,
-		`INSERT INTO brand_profiles (id, workspace_id, name, description, tone, style, vocabulary, examples, locales, channels, version, created_at, updated_at, created_by)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		`INSERT INTO brand_profiles (id, workspace_id, name, description, tone, style, vocabulary, examples, locales, channels, autonomy, version, created_at, updated_at, created_by)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		profile.ID, profile.WorkspaceID, profile.Name, profile.Description,
 		string(tone), string(style), string(vocab), string(examples),
-		string(locales), string(channels), profile.Version,
+		string(locales), string(channels), string(autonomy), profile.Version,
 		profile.CreatedAt.Format(time.RFC3339), profile.UpdatedAt.Format(time.RFC3339),
 		profile.CreatedBy)
 	if err != nil {
@@ -137,15 +150,15 @@ func (s *SQLiteBrandStore) CreateProfile(ctx context.Context, profile *corebrand
 func (s *SQLiteBrandStore) GetProfile(ctx context.Context, id string) (*corebrand.VoiceProfile, error) {
 	var p corebrand.VoiceProfile
 	var desc *string
-	var toneJSON, styleJSON, vocabJSON, examplesJSON, localesJSON, channelsJSON string
+	var toneJSON, styleJSON, vocabJSON, examplesJSON, localesJSON, channelsJSON, autonomyJSON string
 	var createdStr, updatedStr string
 
 	err := s.db.QueryRowContext(ctx,
-		`SELECT id, workspace_id, name, description, tone, style, vocabulary, examples, locales, channels, version, created_at, updated_at, created_by
+		`SELECT id, workspace_id, name, description, tone, style, vocabulary, examples, locales, channels, autonomy, version, created_at, updated_at, created_by
 		 FROM brand_profiles WHERE id = ?`, id).
 		Scan(&p.ID, &p.WorkspaceID, &p.Name, &desc,
 			&toneJSON, &styleJSON, &vocabJSON, &examplesJSON,
-			&localesJSON, &channelsJSON, &p.Version,
+			&localesJSON, &channelsJSON, &autonomyJSON, &p.Version,
 			&createdStr, &updatedStr, &p.CreatedBy)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, fmt.Errorf("profile not found: %s", id)
@@ -162,6 +175,7 @@ func (s *SQLiteBrandStore) GetProfile(ctx context.Context, id string) (*corebran
 	_ = json.Unmarshal([]byte(examplesJSON), &p.Examples)
 	_ = json.Unmarshal([]byte(localesJSON), &p.Locales)
 	_ = json.Unmarshal([]byte(channelsJSON), &p.Channels)
+	_ = json.Unmarshal([]byte(autonomyJSON), &p.Autonomy)
 	p.CreatedAt, _ = time.Parse(time.RFC3339, createdStr)
 	p.UpdatedAt, _ = time.Parse(time.RFC3339, updatedStr)
 	return &p, nil
@@ -190,13 +204,14 @@ func (s *SQLiteBrandStore) UpdateProfile(ctx context.Context, profile *corebrand
 	examples, _ := json.Marshal(profile.Examples)
 	locales, _ := json.Marshal(profile.Locales)
 	channels, _ := json.Marshal(profile.Channels)
+	autonomy, _ := json.Marshal(profile.Autonomy)
 
 	result, err := s.db.ExecContext(ctx,
-		`UPDATE brand_profiles SET name = ?, description = ?, tone = ?, style = ?, vocabulary = ?, examples = ?, locales = ?, channels = ?, version = ?, updated_at = ?
+		`UPDATE brand_profiles SET name = ?, description = ?, tone = ?, style = ?, vocabulary = ?, examples = ?, locales = ?, channels = ?, autonomy = ?, version = ?, updated_at = ?
 		 WHERE id = ?`,
 		profile.Name, profile.Description,
 		string(tone), string(style), string(vocab), string(examples),
-		string(locales), string(channels), profile.Version,
+		string(locales), string(channels), string(autonomy), profile.Version,
 		profile.UpdatedAt.Format(time.RFC3339), profile.ID)
 	if err != nil {
 		return fmt.Errorf("update profile: %w", err)
@@ -366,6 +381,90 @@ func (s *SQLiteBrandStore) GetSuggestedRules(ctx context.Context, workspaceID st
 		return nil, fmt.Errorf("iterate rules: %w", err)
 	}
 	return rules, nil
+}
+
+func (s *SQLiteBrandStore) RecordRuleDecision(ctx context.Context, d *corebrand.RuleDecision) error {
+	auto := 0
+	if d.Auto {
+		auto = 1
+	}
+	_, err := s.db.ExecContext(ctx,
+		`INSERT INTO brand_rule_decisions
+		   (profile_id, term, replacement, dimension, status, correction_count, promoted_version, auto, decided_by, decided_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		 ON CONFLICT(profile_id, term) DO UPDATE SET
+		   replacement = excluded.replacement,
+		   dimension = excluded.dimension,
+		   status = excluded.status,
+		   correction_count = excluded.correction_count,
+		   promoted_version = excluded.promoted_version,
+		   auto = excluded.auto,
+		   decided_by = excluded.decided_by,
+		   decided_at = excluded.decided_at`,
+		d.ProfileID, d.Term, d.Replacement, string(d.Dimension), string(d.Status),
+		d.CorrectionCount, d.PromotedVersion, auto, d.DecidedBy, d.DecidedAt.Format(time.RFC3339))
+	if err != nil {
+		return fmt.Errorf("record rule decision: %w", err)
+	}
+	return nil
+}
+
+func (s *SQLiteBrandStore) GetRuleDecision(ctx context.Context, profileID, term string) (*corebrand.RuleDecision, error) {
+	row := s.db.QueryRowContext(ctx,
+		`SELECT profile_id, term, replacement, dimension, status, correction_count, promoted_version, auto, decided_by, decided_at
+		 FROM brand_rule_decisions WHERE profile_id = ? AND term = ? COLLATE NOCASE`, profileID, term)
+	d, err := scanRuleDecision(row)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("get rule decision: %w", err)
+	}
+	return d, nil
+}
+
+func (s *SQLiteBrandStore) ListRuleDecisions(ctx context.Context, profileID string) ([]*corebrand.RuleDecision, error) {
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT profile_id, term, replacement, dimension, status, correction_count, promoted_version, auto, decided_by, decided_at
+		 FROM brand_rule_decisions WHERE profile_id = ? ORDER BY decided_at DESC`, profileID)
+	if err != nil {
+		return nil, fmt.Errorf("list rule decisions: %w", err)
+	}
+	defer rows.Close()
+	var out []*corebrand.RuleDecision
+	for rows.Next() {
+		d, err := scanRuleDecision(rows)
+		if err != nil {
+			continue
+		}
+		out = append(out, d)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate rule decisions: %w", err)
+	}
+	return out, nil
+}
+
+// scanner abstracts *sql.Row and *sql.Rows for the shared decision scan.
+type scanner interface {
+	Scan(dest ...any) error
+}
+
+func scanRuleDecision(sc scanner) (*corebrand.RuleDecision, error) {
+	var d corebrand.RuleDecision
+	var dim, status, decidedAt string
+	var auto int
+	if err := sc.Scan(&d.ProfileID, &d.Term, &d.Replacement, &dim, &status,
+		&d.CorrectionCount, &d.PromotedVersion, &auto, &d.DecidedBy, &decidedAt); err != nil {
+		return nil, err
+	}
+	d.Dimension = corebrand.Dimension(dim)
+	d.Status = corebrand.RuleDecisionStatus(status)
+	d.Auto = auto != 0
+	if t, err := time.Parse(time.RFC3339, decidedAt); err == nil {
+		d.DecidedAt = t
+	}
+	return &d, nil
 }
 
 func (s *SQLiteBrandStore) ListProfileVersions(ctx context.Context, profileID string) ([]*corebrand.ProfileVersion, error) {

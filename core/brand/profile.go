@@ -35,6 +35,7 @@ type VoiceProfile struct {
 	Locales     map[string]LocaleOverride  `json:"locales,omitempty" yaml:"locales,omitempty"`
 	Channels    map[string]ChannelOverride `json:"channels,omitempty" yaml:"channels,omitempty"`
 	WorkspaceID string                     `json:"workspace_id" yaml:"workspace_id,omitempty"`
+	Autonomy    AutonomyConfig             `json:"autonomy,omitempty" yaml:"autonomy,omitempty"`
 	Version     int                        `json:"version" yaml:"version,omitempty"`
 	VersionNote string                     `json:"version_note,omitempty" yaml:"version_note,omitempty"`
 	CreatedAt   time.Time                  `json:"created_at" yaml:"created_at,omitempty"`

@@ -51,7 +51,13 @@ func TestScanProfile_Roundtrip(t *testing.T) {
 }
 
 func TestBrandMigrations_NotEmpty(t *testing.T) {
+	// Single clean baseline (pre-launch — no migration history to preserve).
 	assert.Len(t, brandMigrations, 1)
 	assert.Equal(t, 1, brandMigrations[0].Version)
 	assert.NotEmpty(t, brandMigrations[0].SQL)
+	// The correction-learning loop's schema is part of the baseline.
+	sql := brandMigrations[0].SQL
+	for _, want := range []string{"brand_rule_decisions", "brand_voice_corrections", "brand_profile_versions", "autonomy"} {
+		assert.Contains(t, sql, want)
+	}
 }

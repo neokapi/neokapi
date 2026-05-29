@@ -52,7 +52,14 @@ func (m *mockBrandStore) GetScoreTrends(context.Context, string, int) ([]*ScoreT
 func (m *mockBrandStore) GetScoresByStream(context.Context, string, string) ([]*StoredScore, error) {
 	return nil, nil
 }
-func (m *mockBrandStore) StoreCorrection(context.Context, *Correction) error { return nil }
+func (m *mockBrandStore) StoreCorrection(context.Context, *Correction) error      { return nil }
+func (m *mockBrandStore) RecordRuleDecision(context.Context, *RuleDecision) error { return nil }
+func (m *mockBrandStore) GetRuleDecision(context.Context, string, string) (*RuleDecision, error) {
+	return nil, nil
+}
+func (m *mockBrandStore) ListRuleDecisions(context.Context, string) ([]*RuleDecision, error) {
+	return nil, nil
+}
 func (m *mockBrandStore) GetSuggestedRules(context.Context, string, int) ([]*SuggestedRule, error) {
 	return nil, nil
 }

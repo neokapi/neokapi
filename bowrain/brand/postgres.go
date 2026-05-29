@@ -68,13 +68,17 @@ func (s *PostgresBrandStore) CreateProfile(ctx context.Context, profile *corebra
 	if err != nil {
 		return fmt.Errorf("marshal channels: %w", err)
 	}
+	autonomy, err := json.Marshal(profile.Autonomy)
+	if err != nil {
+		return fmt.Errorf("marshal autonomy: %w", err)
+	}
 
 	_, err = s.db.ExecContext(ctx,
-		`INSERT INTO brand_profiles (id, workspace_id, name, description, tone, style, vocabulary, examples, locales, channels, version, created_at, updated_at, created_by)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
+		`INSERT INTO brand_profiles (id, workspace_id, name, description, tone, style, vocabulary, examples, locales, channels, autonomy, version, created_at, updated_at, created_by)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`,
 		profile.ID, profile.WorkspaceID, profile.Name, profile.Description,
 		string(tone), string(style), string(vocab), string(examples),
-		string(locales), string(channels),
+		string(locales), string(channels), string(autonomy),
 		profile.Version, now, now, profile.CreatedBy)
 	if err != nil {
 		return fmt.Errorf("insert brand profile: %w", err)
@@ -84,7 +88,7 @@ func (s *PostgresBrandStore) CreateProfile(ctx context.Context, profile *corebra
 
 func (s *PostgresBrandStore) GetProfile(ctx context.Context, profileID string) (*corebrand.VoiceProfile, error) {
 	row := s.db.QueryRowContext(ctx,
-		`SELECT id, workspace_id, name, description, tone, style, vocabulary, examples, locales, channels, version, created_at, updated_at, created_by
+		`SELECT id, workspace_id, name, description, tone, style, vocabulary, examples, locales, channels, autonomy, version, created_at, updated_at, created_by
 		 FROM brand_profiles WHERE id = $1`, profileID)
 	return scanProfile(row)
 }
@@ -132,15 +136,19 @@ func (s *PostgresBrandStore) UpdateProfile(ctx context.Context, profile *corebra
 	if err != nil {
 		return fmt.Errorf("marshal channels: %w", err)
 	}
+	autonomy, err := json.Marshal(profile.Autonomy)
+	if err != nil {
+		return fmt.Errorf("marshal autonomy: %w", err)
+	}
 
 	res, err := s.db.ExecContext(ctx,
 		`UPDATE brand_profiles
 		 SET name=$1, description=$2, tone=$3, style=$4, vocabulary=$5, examples=$6,
-		     locales=$7, channels=$8, version=$9, updated_at=$10
-		 WHERE id=$11`,
+		     locales=$7, channels=$8, autonomy=$9, version=$10, updated_at=$11
+		 WHERE id=$12`,
 		profile.Name, profile.Description,
 		string(tone), string(style), string(vocab), string(examples),
-		string(locales), string(channels),
+		string(locales), string(channels), string(autonomy),
 		profile.Version, now, profile.ID)
 	if err != nil {
 		return fmt.Errorf("update brand profile: %w", err)
@@ -166,7 +174,7 @@ func (s *PostgresBrandStore) DeleteProfile(ctx context.Context, profileID string
 
 func (s *PostgresBrandStore) ListProfiles(ctx context.Context, workspaceID string) ([]*corebrand.VoiceProfile, error) {
 	rows, err := s.db.QueryContext(ctx,
-		`SELECT id, workspace_id, name, description, tone, style, vocabulary, examples, locales, channels, version, created_at, updated_at, created_by
+		`SELECT id, workspace_id, name, description, tone, style, vocabulary, examples, locales, channels, autonomy, version, created_at, updated_at, created_by
 		 FROM brand_profiles WHERE workspace_id = $1 ORDER BY name`, workspaceID)
 	if err != nil {
 		return nil, fmt.Errorf("list brand profiles: %w", err)
@@ -313,6 +321,76 @@ func (s *PostgresBrandStore) GetSuggestedRules(ctx context.Context, workspaceID 
 		result = append(result, &r)
 	}
 	return result, rows.Err()
+}
+
+// ---------------------------------------------------------------------------
+// Rule decisions (review/approve/reject/promote of candidate rules)
+// ---------------------------------------------------------------------------
+
+func (s *PostgresBrandStore) RecordRuleDecision(ctx context.Context, d *corebrand.RuleDecision) error {
+	if d.DecidedAt.IsZero() {
+		d.DecidedAt = time.Now().UTC()
+	}
+	_, err := s.db.ExecContext(ctx,
+		`INSERT INTO brand_rule_decisions
+		   (profile_id, term, replacement, dimension, status, correction_count, promoted_version, auto, decided_by, decided_at)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+		 ON CONFLICT (profile_id, term) DO UPDATE SET
+		   replacement = EXCLUDED.replacement,
+		   dimension = EXCLUDED.dimension,
+		   status = EXCLUDED.status,
+		   correction_count = EXCLUDED.correction_count,
+		   promoted_version = EXCLUDED.promoted_version,
+		   auto = EXCLUDED.auto,
+		   decided_by = EXCLUDED.decided_by,
+		   decided_at = EXCLUDED.decided_at`,
+		d.ProfileID, d.Term, d.Replacement, string(d.Dimension), string(d.Status),
+		d.CorrectionCount, d.PromotedVersion, d.Auto, d.DecidedBy, d.DecidedAt)
+	if err != nil {
+		return fmt.Errorf("record rule decision: %w", err)
+	}
+	return nil
+}
+
+func (s *PostgresBrandStore) GetRuleDecision(ctx context.Context, profileID, term string) (*corebrand.RuleDecision, error) {
+	row := s.db.QueryRowContext(ctx,
+		`SELECT profile_id, term, replacement, dimension, status, correction_count, promoted_version, auto, decided_by, decided_at
+		 FROM brand_rule_decisions WHERE profile_id = $1 AND LOWER(term) = LOWER($2)`, profileID, term)
+	var d corebrand.RuleDecision
+	var dim, status string
+	if err := row.Scan(&d.ProfileID, &d.Term, &d.Replacement, &dim, &status,
+		&d.CorrectionCount, &d.PromotedVersion, &d.Auto, &d.DecidedBy, &d.DecidedAt); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("get rule decision: %w", err)
+	}
+	d.Dimension = corebrand.Dimension(dim)
+	d.Status = corebrand.RuleDecisionStatus(status)
+	return &d, nil
+}
+
+func (s *PostgresBrandStore) ListRuleDecisions(ctx context.Context, profileID string) ([]*corebrand.RuleDecision, error) {
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT profile_id, term, replacement, dimension, status, correction_count, promoted_version, auto, decided_by, decided_at
+		 FROM brand_rule_decisions WHERE profile_id = $1 ORDER BY decided_at DESC`, profileID)
+	if err != nil {
+		return nil, fmt.Errorf("list rule decisions: %w", err)
+	}
+	defer rows.Close()
+	var out []*corebrand.RuleDecision
+	for rows.Next() {
+		var d corebrand.RuleDecision
+		var dim, status string
+		if err := rows.Scan(&d.ProfileID, &d.Term, &d.Replacement, &dim, &status,
+			&d.CorrectionCount, &d.PromotedVersion, &d.Auto, &d.DecidedBy, &d.DecidedAt); err != nil {
+			return nil, fmt.Errorf("scan rule decision: %w", err)
+		}
+		d.Dimension = corebrand.Dimension(dim)
+		d.Status = corebrand.RuleDecisionStatus(status)
+		out = append(out, &d)
+	}
+	return out, rows.Err()
 }
 
 // ---------------------------------------------------------------------------
@@ -463,12 +541,12 @@ type scanner interface {
 
 func scanProfile(row scanner) (*corebrand.VoiceProfile, error) {
 	var p corebrand.VoiceProfile
-	var toneJSON, styleJSON, vocabJSON, examplesJSON, localesJSON, channelsJSON string
+	var toneJSON, styleJSON, vocabJSON, examplesJSON, localesJSON, channelsJSON, autonomyJSON string
 
 	err := row.Scan(
 		&p.ID, &p.WorkspaceID, &p.Name, &p.Description,
 		&toneJSON, &styleJSON, &vocabJSON, &examplesJSON,
-		&localesJSON, &channelsJSON,
+		&localesJSON, &channelsJSON, &autonomyJSON,
 		&p.Version, &p.CreatedAt, &p.UpdatedAt, &p.CreatedBy)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -494,6 +572,9 @@ func scanProfile(row scanner) (*corebrand.VoiceProfile, error) {
 	}
 	if err := json.Unmarshal([]byte(channelsJSON), &p.Channels); err != nil {
 		p.Channels = map[string]corebrand.ChannelOverride{}
+	}
+	if err := json.Unmarshal([]byte(autonomyJSON), &p.Autonomy); err != nil {
+		p.Autonomy = corebrand.AutonomyConfig{}
 	}
 
 	return &p, nil

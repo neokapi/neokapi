@@ -34,7 +34,64 @@ type BrandStore interface {
 	StoreCorrection(ctx context.Context, correction *Correction) error
 	GetSuggestedRules(ctx context.Context, workspaceID string, minCount int) ([]*SuggestedRule, error)
 
+	// Rule decisions (the review/approve/reject/promote governance over
+	// correction-derived candidate rules). Candidates are derived live from the
+	// correction stream; the decision is what persists.
+	RecordRuleDecision(ctx context.Context, d *RuleDecision) error
+	GetRuleDecision(ctx context.Context, profileID, term string) (*RuleDecision, error)
+	ListRuleDecisions(ctx context.Context, profileID string) ([]*RuleDecision, error)
+
 	Close() error
+}
+
+// RuleDecisionStatus is the governance state of a correction-derived candidate
+// rule for a given profile.
+type RuleDecisionStatus string
+
+const (
+	// RuleDecisionPending is the implicit state of a surfaced candidate with no
+	// recorded human decision yet. It is never stored — it is the absence of a row.
+	RuleDecisionPending RuleDecisionStatus = "pending"
+	// RuleDecisionApproved marks a candidate a reviewer accepted but has not yet
+	// promoted (e.g. queued behind a blast-radius review).
+	RuleDecisionApproved RuleDecisionStatus = "approved"
+	// RuleDecisionRejected marks a candidate a reviewer declined; it is suppressed
+	// from future suggestions so the same term stops re-surfacing.
+	RuleDecisionRejected RuleDecisionStatus = "rejected"
+	// RuleDecisionPromoted marks a candidate applied to the profile at
+	// PromotedVersion — the correction is now an enforced, versioned check.
+	RuleDecisionPromoted RuleDecisionStatus = "promoted"
+)
+
+// RuleDecision is the durable record of what a team decided about a
+// correction-derived candidate rule for a profile. Candidates themselves are
+// derived live from the correction stream (GetSuggestedRules); the decision is
+// what persists — so a rejected term stops re-surfacing and a promoted term is
+// traceable to the exact profile version it landed in, and to whether a human or
+// the autonomy threshold promoted it.
+type RuleDecision struct {
+	ProfileID       string             `json:"profile_id"`
+	Term            string             `json:"term"`
+	Replacement     string             `json:"replacement,omitempty"`
+	Dimension       Dimension          `json:"dimension,omitempty"`
+	Status          RuleDecisionStatus `json:"status"`
+	CorrectionCount int                `json:"correction_count"` // observed at decision time
+	PromotedVersion int                `json:"promoted_version,omitempty"`
+	Auto            bool               `json:"auto,omitempty"` // promoted by autonomy, not a human
+	DecidedBy       string             `json:"decided_by,omitempty"`
+	DecidedAt       time.Time          `json:"decided_at"`
+}
+
+// CandidateRule pairs a correction-derived suggestion with the team's decision
+// about it — the shape the review UI and MCP tools consume. Status is
+// RuleDecisionPending when no decision has been recorded.
+type CandidateRule struct {
+	SuggestedRule
+	Status          RuleDecisionStatus `json:"status"`
+	PromotedVersion int                `json:"promoted_version,omitempty"`
+	Auto            bool               `json:"auto,omitempty"`
+	DecidedBy       string             `json:"decided_by,omitempty"`
+	DecidedAt       *time.Time         `json:"decided_at,omitempty"`
 }
 
 // StoredScore represents a persisted brand compliance score for a block.
