@@ -134,3 +134,55 @@ export interface CreateVoiceProfileRequest {
 export interface UpdateVoiceProfileRequest extends CreateVoiceProfileRequest {
   id: string;
 }
+
+// ── Correction-learning loop (AD-019) ──────────────────────────────────────
+
+/** A vocabulary rule derived from repeated corrections. */
+export interface SuggestedRule {
+  term: string;
+  replacement: string;
+  correction_count: number;
+  dimension: Dimension;
+}
+
+export type RuleDecisionStatus = "pending" | "approved" | "rejected" | "promoted";
+
+/** A suggested rule paired with the team's decision about it. */
+export interface CandidateRule extends SuggestedRule {
+  status: RuleDecisionStatus;
+  promoted_version?: number;
+  auto?: boolean;
+  decided_by?: string;
+  decided_at?: string;
+}
+
+/** Per-collection slice of a blast radius. */
+export interface CollectionBlastRadius {
+  collection_id: string;
+  collection_name: string;
+  affected_blocks: number;
+  avg_score_delta: number;
+}
+
+/** Impact of promoting a candidate rule across existing content. */
+export interface BlastRadius {
+  total_blocks: number;
+  affected_blocks: number;
+  improved_blocks: number;
+  degraded_blocks: number;
+  new_violations: number;
+  resolved_violations: number;
+  critical_count: number;
+  collections: CollectionBlastRadius[];
+}
+
+/** Outcome of a brand-compliance drift analysis. */
+export interface DriftResult {
+  drifted: boolean;
+  recent_avg: number;
+  baseline_avg: number;
+  drop: number;
+  recent_days: number;
+  recent_count: number;
+  reason?: string;
+}

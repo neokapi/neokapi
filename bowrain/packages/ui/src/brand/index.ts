@@ -16,6 +16,9 @@ export { BrandVoicePreview } from "./BrandVoicePreview";
 export { PatternListEditor } from "./PatternListEditor";
 export { VocabularyEditor } from "./VocabularyEditor";
 export { ExamplesEditor } from "./ExamplesEditor";
+export { CandidateRulesList } from "./CandidateRulesList";
+export { BlastRadiusSummary } from "./BlastRadiusSummary";
+export { DriftAlert } from "./DriftAlert";
 export type {
   VoiceProfile,
   ToneProfile,
@@ -35,6 +38,12 @@ export type {
   ScoreTrend,
   CreateVoiceProfileRequest,
   UpdateVoiceProfileRequest,
+  SuggestedRule,
+  RuleDecisionStatus,
+  CandidateRule,
+  CollectionBlastRadius,
+  BlastRadius,
+  DriftResult,
 } from "./types";
 export type { StarterPackMeta } from "./data/starter-packs";
 export { starterPacks } from "./data/starter-packs";
