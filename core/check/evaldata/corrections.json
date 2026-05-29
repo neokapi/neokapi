@@ -1,0 +1,51 @@
+{
+  "_about": "Simulated correction stream for the corrections-as-ground-truth eval (#759). Each entry is a recurring human correction: the off-brand term, what the team corrected it to, how many times it was seen (count), and a representative sentence in both its original (off-brand) and corrected (on-brand) form. The eval aggregates the stream into candidate rules, promotes those at or above min_count through the real loop (core/brand.ApplySuggestedRule — exactly what the server's PromoteAndSave does), then runs the brand-vocab check and asserts the promoted rule FLAGS each original (the mistake the team kept correcting) and does NOT flag the corrected fix. This measures the loop's core claim: a correction made repeatedly becomes a check that catches the mistake. Replace this simulated stream with an export of a real workspace's brand_voice_corrections to track the loop on live data.",
+  "min_count": 3,
+  "corrections": [
+    {
+      "term": "utilize",
+      "replacement": "use",
+      "dimension": "vocabulary",
+      "count": 5,
+      "original": "Please utilize the dashboard to get started.",
+      "corrected": "Please use the dashboard to get started.",
+      "note": "above threshold → promoted; must catch the original"
+    },
+    {
+      "term": "leverage",
+      "replacement": "use",
+      "dimension": "vocabulary",
+      "count": 4,
+      "original": "Teams can leverage the new API today.",
+      "corrected": "Teams can use the new API today.",
+      "note": "above threshold → promoted"
+    },
+    {
+      "term": "synergy",
+      "replacement": "collaboration",
+      "dimension": "vocabulary",
+      "count": 3,
+      "original": "We value synergy across every team.",
+      "corrected": "We value collaboration across every team.",
+      "note": "exactly at threshold → promoted"
+    },
+    {
+      "term": "onboard",
+      "replacement": "set up",
+      "dimension": "vocabulary",
+      "count": 3,
+      "original": "We will onboard you in minutes.",
+      "corrected": "We will set up your account in minutes.",
+      "note": "at threshold → promoted; 'board' must not false-match (word boundary)"
+    },
+    {
+      "term": "kindly",
+      "replacement": "please",
+      "dimension": "vocabulary",
+      "count": 1,
+      "original": "Kindly review the attached document.",
+      "corrected": "Please review the attached document.",
+      "note": "below threshold → NOT promoted; the check must stay silent until more evidence"
+    }
+  ]
+}

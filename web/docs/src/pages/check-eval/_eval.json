@@ -183,5 +183,68 @@
       "score_ok": true,
       "note": "no placeholders → no flag"
     }
-  ]
+  ],
+  "corrections": {
+    "min_count": 3,
+    "total": 5,
+    "promoted": 4,
+    "tp": 4,
+    "fn": 0,
+    "fp": 0,
+    "precision": 1,
+    "recall": 1,
+    "f1": 1,
+    "cases": [
+      {
+        "term": "utilize",
+        "replacement": "use",
+        "count": 5,
+        "promoted": true,
+        "original_flagged": true,
+        "corrected_flagged": false,
+        "ok": true,
+        "note": "above threshold → promoted; must catch the original"
+      },
+      {
+        "term": "leverage",
+        "replacement": "use",
+        "count": 4,
+        "promoted": true,
+        "original_flagged": true,
+        "corrected_flagged": false,
+        "ok": true,
+        "note": "above threshold → promoted"
+      },
+      {
+        "term": "synergy",
+        "replacement": "collaboration",
+        "count": 3,
+        "promoted": true,
+        "original_flagged": true,
+        "corrected_flagged": false,
+        "ok": true,
+        "note": "exactly at threshold → promoted"
+      },
+      {
+        "term": "onboard",
+        "replacement": "set up",
+        "count": 3,
+        "promoted": true,
+        "original_flagged": true,
+        "corrected_flagged": false,
+        "ok": true,
+        "note": "at threshold → promoted; 'board' must not false-match (word boundary)"
+      },
+      {
+        "term": "kindly",
+        "replacement": "please",
+        "count": 1,
+        "promoted": false,
+        "original_flagged": false,
+        "corrected_flagged": false,
+        "ok": true,
+        "note": "below threshold → NOT promoted; the check must stay silent until more evidence"
+      }
+    ]
+  }
 }

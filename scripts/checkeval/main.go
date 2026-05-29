@@ -74,10 +74,11 @@ type Metric struct {
 
 // Report is the full eval result consumed by the /check-eval dashboard.
 type Report struct {
-	GeneratedNote string       `json:"generated_note"`
-	Total         Metric       `json:"total"`
-	ByCheck       []Metric     `json:"by_check"`
-	Cases         []CaseResult `json:"cases"`
+	GeneratedNote string             `json:"generated_note"`
+	Total         Metric             `json:"total"`
+	ByCheck       []Metric           `json:"by_check"`
+	Cases         []CaseResult       `json:"cases"`
+	Corrections   *CorrectionsReport `json:"corrections,omitempty"`
 }
 
 // runCase runs the case's check and returns the set of finding categories and
@@ -229,6 +230,7 @@ func LoadCorpus(path string) (Corpus, error) {
 
 func main() {
 	corpusPath := flag.String("corpus", "core/check/evaldata/corpus.json", "labeled corpus JSON")
+	correctionsPath := flag.String("corrections", "core/check/evaldata/corrections.json", "simulated correction-stream JSON")
 	out := flag.String("out", "web/docs/src/pages/check-eval/_eval.json", "dashboard report JSON")
 	flag.Parse()
 
@@ -241,6 +243,12 @@ func main() {
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
+	}
+	if cc, cerr := LoadCorrectionsCorpus(*correctionsPath); cerr == nil {
+		cr := EvaluateCorrections(cc)
+		rep.Corrections = &cr
+	} else {
+		fmt.Fprintln(os.Stderr, "checkeval: corrections stream:", cerr)
 	}
 	data, _ := json.MarshalIndent(rep, "", "  ")
 	if err := os.WriteFile(*out, data, 0o644); err != nil {
@@ -259,4 +267,9 @@ func main() {
 	fmt.Printf("checkeval: %d cases · P %.2f R %.2f F1 %.2f · FP %d FN %d · calibrated %d/%d (drift %d) → %s\n",
 		rep.Total.Cases, rep.Total.Precision, rep.Total.Recall, rep.Total.F1, rep.Total.FP, rep.Total.FN,
 		calibrated-scoreDrift, calibrated, scoreDrift, *out)
+	if rep.Corrections != nil {
+		c := rep.Corrections
+		fmt.Printf("checkeval: corrections-stream · %d promoted/%d · P %.2f R %.2f F1 %.2f · caught %d missed %d over-flagged %d\n",
+			c.Promoted, c.Total, c.Precision, c.Recall, c.F1, c.TP, c.FN, c.FP)
+	}
 }

@@ -1,0 +1,71 @@
+id: bowrain-web-correction-loop
+title: Checks that learn from corrections
+subtitle: Every correction becomes a versioned check.
+tagline: the correction-learning loop on bowrain
+kind: use-case
+publishAs: bowrain-web-correction-loop
+terminal: desktop
+target: web
+brand: desktop
+needsAi: false
+# One continuous narration read — uniform voice across scenes.
+oneshot: true
+aspects:
+  - Repeated corrections become candidates
+  - Review and promote to a versioned rule
+  - Blast radius before it lands
+  - Compliance, monitored for drift
+
+narration:
+  - id: title
+    kind: title
+    text: >-
+      Bowrain — where a team's checks grow themselves: every correction becomes a
+      versioned check.
+
+  - id: intro
+    kind: desktop
+    beat: intro
+    text: >-
+      With kapi, checks run like tests over content. Bowrain adds the loop — the
+      corrections a team keeps making become the checks, reviewed and shared.
+
+  - id: candidates
+    kind: desktop
+    beat: candidates
+    caption: Candidate rules, drawn from real corrections.
+    text: >-
+      Here are the candidates. Each one is a phrasing the team kept correcting —
+      the off-brand word, what they changed it to, and how many corrections back
+      it.
+
+  - id: evaluate
+    kind: desktop
+    beat: evaluate
+    caption: The blast radius, before the rule lands.
+    text: >-
+      Before promoting, preview the blast radius — how much existing content the
+      rule would newly flag across a project, so a change is never a surprise.
+
+  - id: promote
+    kind: desktop
+    beat: promote
+    caption: Promote — the correction becomes an enforced, versioned check.
+    text: >-
+      Promote it, and the correction becomes a deterministic check, versioned and
+      enforced on every future generation, for everyone and every AI tool.
+
+  - id: settled
+    kind: desktop
+    beat: settled
+    caption: One fewer mistake that can recur.
+    text: >-
+      The candidate is gone from the queue — now a rule. Compliance is monitored
+      for drift, so if it slips, the team knows.
+
+  - id: outro
+    kind: outro
+    text: >-
+      Correct once, and the rule that prevents it from recurring is authored,
+      versioned, and shared — the way a regression test stops a fixed bug from
+      coming back.

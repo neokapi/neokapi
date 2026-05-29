@@ -44,3 +44,31 @@ func TestCheckEval_NoRegressions(t *testing.T) {
 	assert.InDelta(t, 1.0, rep.Total.F1, 1e-9, "perfect F1 on the gold seed")
 	assert.NotZero(t, calibrated, "expected at least one score-calibrated case")
 }
+
+func correctionsPath(t *testing.T) string {
+	t.Helper()
+	_, file, _, ok := runtime.Caller(0)
+	require.True(t, ok)
+	return filepath.Join(filepath.Dir(file), "..", "..", "core", "check", "evaldata", "corrections.json")
+}
+
+// TestCorrectionsStream_LoopCatchesItsOwnCorrections is the corrections-as-
+// ground-truth gate (#759): promoting the simulated correction stream through
+// the real loop must produce checks that flag every original a team kept
+// correcting and never flag the corrected fix — and leave a below-threshold
+// correction un-enforced. This pins the loop's core claim.
+func TestCorrectionsStream_LoopCatchesItsOwnCorrections(t *testing.T) {
+	corpus, err := LoadCorrectionsCorpus(correctionsPath(t))
+	require.NoError(t, err)
+	require.NotEmpty(t, corpus.Corrections)
+
+	rep := EvaluateCorrections(corpus)
+	require.NotZero(t, rep.Promoted, "expected at least one promoted rule")
+	assert.Zero(t, rep.FN, "a promoted rule missed an original it should have caught")
+	assert.Zero(t, rep.FP, "a promoted rule flagged a corrected fix (over-flagging)")
+	assert.InDelta(t, 1.0, rep.Recall, 1e-9, "every promoted correction must catch its original")
+	for _, c := range rep.Cases {
+		assert.Truef(t, c.OK, "correction %q (count %d, promoted %v): orig_flagged=%v fix_flagged=%v",
+			c.Term, c.Count, c.Promoted, c.OriginalFlagged, c.CorrectedFlagged)
+	}
+}
