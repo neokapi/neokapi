@@ -1201,6 +1201,8 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group) {
 	g.GET("/:id/brand-voice/:ref/scores", s.HandleGetBrandVoiceScores)
 	g.GET("/:id/brand-voice/:ref/scores/:locale", s.HandleGetBrandVoiceScoresByLocale)
 	g.GET("/:id/brand-voice/:ref/trends", s.HandleGetBrandVoiceTrends)
+	g.GET("/:id/brand-voice/:ref/drift", s.HandleGetBrandVoiceDrift)
+	g.POST("/:id/brand-voice/:ref/drift-check", s.HandleRunBrandVoiceDriftCheck)
 	g.POST("/:id/brand-voice/:ref/corrections", s.HandleCreateBrandVoiceCorrection)
 
 	// Collab — Bowrain AD-011: /:ws/:id/collab/:ref

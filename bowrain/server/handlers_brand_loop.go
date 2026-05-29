@@ -175,6 +175,89 @@ func (s *Server) publishBrandRuleEvent(t platev.EventType, wsID, userID, profile
 	})
 }
 
+// driftConfigFromQuery reads drift-detection settings from query params, falling
+// back to the analyzer's defaults (7-day recent window, 10-point drop).
+func driftConfigFromQuery(c echo.Context) (corebrand.DriftConfig, int) {
+	cfg := corebrand.DriftConfig{}
+	days := 30
+	if v := c.QueryParam("days"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 {
+			days = n
+		}
+	}
+	if v := c.QueryParam("recent_days"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 {
+			cfg.RecentDays = n
+		}
+	}
+	if v := c.QueryParam("min_score"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil {
+			cfg.MinScore = n
+		}
+	}
+	if v := c.QueryParam("drop_points"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil {
+			cfg.DropPoints = n
+		}
+	}
+	return cfg, days
+}
+
+// HandleGetBrandVoiceDrift returns the current brand-compliance drift analysis
+// for a project — the recent vs. baseline average and whether compliance has
+// drifted. Safe/read-only: it never fires an alert (use drift-check for that).
+func (s *Server) HandleGetBrandVoiceDrift(c echo.Context) error {
+	if s.BrandStore == nil {
+		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "brand voice not configured"})
+	}
+	projectID := c.Param("id")
+	cfg, days := driftConfigFromQuery(c)
+	trends, err := s.BrandStore.GetScoreTrends(c.Request().Context(), projectID, days)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+	}
+	return c.JSON(http.StatusOK, corebrand.AnalyzeDrift(trends, cfg))
+}
+
+// HandleRunBrandVoiceDriftCheck runs the drift analysis and, when compliance has
+// drifted, publishes brand.voice.drift so automations and notifications react.
+// This is the action a scheduled job (or a dashboard "check now") invokes; the
+// GET variant is the safe read.
+func (s *Server) HandleRunBrandVoiceDriftCheck(c echo.Context) error {
+	if err := s.requirePermission(c, platauth.PermManageBrand); err != nil {
+		return err
+	}
+	if s.BrandStore == nil {
+		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "brand voice not configured"})
+	}
+	projectID := c.Param("id")
+	cfg, days := driftConfigFromQuery(c)
+	trends, err := s.BrandStore.GetScoreTrends(c.Request().Context(), projectID, days)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+	}
+	result := corebrand.AnalyzeDrift(trends, cfg)
+	if result.Drifted && s.EventBus != nil {
+		userID, _ := c.Get("user_id").(string)
+		s.EventBus.Publish(platev.Event{
+			ID:        id.New(),
+			Type:      platev.EventBrandVoiceDrift,
+			Source:    "brand",
+			ProjectID: projectID,
+			Actor:     userID,
+			Data: map[string]string{
+				"project_id":   projectID,
+				"recent_avg":   strconv.FormatFloat(result.RecentAvg, 'f', 1, 64),
+				"baseline_avg": strconv.FormatFloat(result.BaselineAvg, 'f', 1, 64),
+				"drop":         strconv.FormatFloat(result.Drop, 'f', 1, 64),
+				"reason":       result.Reason,
+			},
+			Timestamp: time.Now().UTC(),
+		})
+	}
+	return c.JSON(http.StatusOK, result)
+}
+
 // maybeAutoPromote applies progressive autonomy: after a correction is stored, if
 // the profile's autonomy threshold is met for that term and no decision has been
 // recorded yet, the rule is promoted automatically (recorded as an auto decision

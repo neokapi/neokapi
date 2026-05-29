@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/labstack/echo/v4"
 	brandpg "github.com/neokapi/neokapi/bowrain/brand"
@@ -195,4 +196,48 @@ func TestBrandLoop_EvaluateBlastRadius(t *testing.T) {
 	assert.Equal(t, 2, radius.NewViolations, "two blocks contain 'utilize'")
 	assert.Equal(t, 2, radius.AffectedBlocks)
 	assert.Equal(t, 0, radius.ResolvedViolations)
+}
+
+// TestBrandLoop_Drift proves the drift endpoint detects a compliance decline from
+// a project's stored score trend.
+func TestBrandLoop_Drift(t *testing.T) {
+	srv := setupBrandLoopServer(t)
+	e := srv.GetEcho()
+	ctx := context.Background()
+
+	const projectID = "proj-drift"
+	now := time.Now().UTC()
+	store := func(seq, day, score int) {
+		require.NoError(t, srv.BrandStore.StoreScore(ctx, &corebrand.StoredScore{
+			ID:        fmt.Sprintf("s-%d", seq),
+			ProjectID: projectID,
+			Stream:    "main",
+			BlockID:   fmt.Sprintf("b-%d", seq),
+			Locale:    "en",
+			Score:     score,
+			CheckedAt: now.AddDate(0, 0, -day),
+		}))
+	}
+	// Baseline ~5 days ago scored high; the most recent day scored low.
+	seq := 0
+	for i := range 3 {
+		store(seq, 5, 94+i%2) // 94/95/94 five days ago
+		seq++
+		store(seq, 0, 70+i) // 70/71/72 today
+		seq++
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/?recent_days=1&drop_points=10&days=30", nil)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+	c.SetParamNames("id", "ref")
+	c.SetParamValues(projectID, "main")
+	require.NoError(t, srv.HandleGetBrandVoiceDrift(c))
+	require.Equal(t, http.StatusOK, rec.Code)
+
+	var result corebrand.DriftResult
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &result))
+	assert.True(t, result.Drifted, "a ~24-point decline should register as drift: %+v", result)
+	assert.Greater(t, result.BaselineAvg, result.RecentAvg)
+	assert.Equal(t, "recent average dropped from baseline", result.Reason)
 }
