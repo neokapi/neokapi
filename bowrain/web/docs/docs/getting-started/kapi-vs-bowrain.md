@@ -23,16 +23,27 @@ multi-user, governed layer a team needs.
   team's corrections into enforced checks. You keep using kapi — the bowrain
   plugin lets a kapi project [sync](/cli/commands/sync) with a server.
 
+The boundary is sharp: **kapi owns the local files and the project
+configuration** — the `.kapi` recipe (content, flows, plugins, languages,
+brand, and the `server:` block) is authored and versioned locally with kapi,
+including the configuration of projects you push to Bowrain via `kapi push` /
+`kapi sync`. **Bowrain's local footprint is cache and speed only, never a
+source of truth.** The Bowrain desktop app is a working copy of the server: a
+content cache, an offline edit queue, and TM/termbase mirrors. It does not
+author local files or source projects from your filesystem — that is kapi's
+job. Sourcing content from a filesystem or a git checkout happens *server-side*
+through [connectors](/server/connectors), on the host the server runs on.
+
 ## At a glance
 
 | | **Kapi** | **Bowrain** |
 | --- | --- | --- |
 | Shape | A CLI + desktop app you install | A server + web and desktop clients |
 | Users | One person, one checkout | A team, one shared workspace |
-| State | Local files + local TM/termbase | Hosted, versioned content store |
+| State | Local files + local TM/termbase | Hosted, versioned content store (desktop holds a local **cache** only) |
 | Brand & terminology | A profile/glossary you carry in files | Shared, governed, and **learned from corrections** |
 | Collaboration | — | [Real-time presence & co-editing](/server/collaboration) |
-| Content sources | Local files | [Connectors](/server/connectors) — CMS, git, design tools, + files |
+| Content sources | Local files you own | Server-side [connectors](/server/connectors) — CMS, git, design tools, files |
 | Automation | Local recipe hooks | Server-side, event-driven |
 | Cost | Free, open source | Hosted plans / self-host |
 
@@ -50,8 +61,8 @@ multi-user, governed layer a team needs.
   and need to [see each other and edit together](/server/collaboration).
 - One brand voice, glossary, and translation memory should be **shared and
   governed** across everyone and every AI tool, with history and audit.
-- Content lives in systems beyond local files (a CMS, a git host, a design tool)
-  and should sync through [connectors](/server/connectors).
+- Content lives in systems beyond your local files (a CMS, a git host, a design
+  tool) and should sync through server-side [connectors](/server/connectors).
 - Corrections should compound: a fix made once becomes a
   [versioned, enforced check](/server/brand-voice).
 

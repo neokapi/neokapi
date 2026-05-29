@@ -41,17 +41,37 @@ interface SyncStatus {
   status: string;
 }
 
+// CONNECTOR_FIELDS describes the config inputs each remote connector type
+// needs. The desktop offers remote/CMS connectors only — local files are
+// managed by kapi, not the desktop — so no connector takes a filesystem path.
+const CONNECTOR_FIELDS: Record<
+  string,
+  { key: string; label: string; placeholder: string; secret?: boolean }[]
+> = {
+  wordpress: [
+    { key: "url", label: "Site URL", placeholder: "https://example.com" },
+    { key: "username", label: "Username", placeholder: "admin" },
+    { key: "password", label: "Application Password", placeholder: "", secret: true },
+  ],
+  figma: [
+    { key: "file_key", label: "File Key", placeholder: "abc123" },
+    { key: "token", label: "Access Token", placeholder: "", secret: true },
+  ],
+  hubspot: [{ key: "api_key", label: "API Key", placeholder: "", secret: true }],
+};
+
 export function ConnectorPanel() {
   const [connectorTypes, setConnectorTypes] = useState<string[]>([]);
   const [activeConnectors, setActiveConnectors] = useState<ConnectorInfo[]>([]);
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [selectedType, setSelectedType] = useState("");
-  const [configPath, setConfigPath] = useState("");
-  const [configFormat, setConfigFormat] = useState("");
+  const [configValues, setConfigValues] = useState<Record<string, string>>({});
   const [contentItems, setContentItems] = useState<ContentItem[]>([]);
   const [selectedConnector, setSelectedConnector] = useState<string | null>(null);
   const [syncStatus, setSyncStatus] = useState<SyncStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  const fields = selectedType ? (CONNECTOR_FIELDS[selectedType] ?? []) : [];
 
   const loadConnectorTypes = useCallback(async () => {
     try {
@@ -81,12 +101,12 @@ export function ConnectorPanel() {
     setError(null);
     try {
       const config: Record<string, string> = {};
-      if (configPath) config.path = configPath;
-      if (configFormat) config.format = configFormat;
+      for (const [k, v] of Object.entries(configValues)) {
+        if (v) config[k] = v;
+      }
       await Backend.ConfigureConnector(selectedType, config);
       setSelectedType("");
-      setConfigPath("");
-      setConfigFormat("");
+      setConfigValues({});
       setShowAddDialog(false);
       void loadActiveConnectors();
     } catch (e) {
@@ -97,8 +117,7 @@ export function ConnectorPanel() {
   const handleAddDialogClose = (open: boolean) => {
     if (!open) {
       setSelectedType("");
-      setConfigPath("");
-      setConfigFormat("");
+      setConfigValues({});
     }
     setShowAddDialog(open);
   };
@@ -158,6 +177,10 @@ export function ConnectorPanel() {
             <DialogTitle>Add Connector</DialogTitle>
           </DialogHeader>
           <div className="flex flex-col gap-4 py-2">
+            <p className="text-muted-foreground text-xs">
+              Connectors link your project to remote systems. Local files and project configuration
+              are managed by kapi, not Bowrain Desktop.
+            </p>
             <div className="flex flex-col gap-1">
               <Label className="text-muted-foreground">Type</Label>
               <Select value={selectedType} onValueChange={setSelectedType}>
@@ -173,26 +196,20 @@ export function ConnectorPanel() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="flex flex-col gap-1">
-              <Label className="text-muted-foreground">Path</Label>
-              <Input
-                type="text"
-                value={configPath}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setConfigPath(e.target.value)}
-                placeholder="/path/to/content"
-              />
-            </div>
-            <div className="flex flex-col gap-1">
-              <Label className="text-muted-foreground">Format</Label>
-              <Input
-                type="text"
-                value={configFormat}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                  setConfigFormat(e.target.value)
-                }
-                placeholder="json, html..."
-              />
-            </div>
+            {fields.map((f) => (
+              <div key={f.key} className="flex flex-col gap-1">
+                <Label className="text-muted-foreground">{f.label}</Label>
+                <Input
+                  type={f.secret ? "password" : "text"}
+                  value={configValues[f.key] ?? ""}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                    setConfigValues((prev) => ({ ...prev, [f.key]: e.target.value }))
+                  }
+                  placeholder={f.placeholder}
+                  data-testid={`connector-field-${f.key}`}
+                />
+              </div>
+            ))}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => handleAddDialogClose(false)}>

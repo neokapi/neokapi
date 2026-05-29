@@ -13,23 +13,25 @@ func TestListConnectorTypes(t *testing.T) {
 	types := app.ListConnectorTypes()
 	assert.True(t, len(types) > 0, "should have at least one connector type")
 
-	// Should contain the file connector.
-	found := false
-	for _, ct := range types {
-		if ct == "file" {
-			found = true
-		}
-	}
-	assert.True(t, found, "should contain 'file' connector type")
+	// The desktop offers remote/CMS connectors only.
+	assert.Contains(t, types, "wordpress", "should offer the wordpress connector")
+
+	// The desktop must NOT offer the local-filesystem connectors: kapi owns
+	// local files + project configuration, and the desktop's local footprint
+	// is a working copy / cache of the server, never a source of truth.
+	assert.NotContains(t, types, "file", "desktop must not offer the local 'file' connector")
+	assert.NotContains(t, types, "git", "desktop must not offer the local 'git' connector")
 }
 
 func TestConnectorLifecycle(t *testing.T) {
 	app := NewAppWithoutPlugins()
 
-	// Create a file connector.
-	info, err := app.ConfigureConnector("file", map[string]string{
-		"path":   t.TempDir(),
-		"format": "json",
+	// Create a remote connector. (Local file/git connectors are not offered by
+	// the desktop — see TestListConnectorTypes.)
+	info, err := app.ConfigureConnector("wordpress", map[string]string{
+		"url":      "https://example.com",
+		"username": "user",
+		"password": "pass",
 	})
 	require.NoError(t, err)
 	assert.NotEmpty(t, info.ID)
