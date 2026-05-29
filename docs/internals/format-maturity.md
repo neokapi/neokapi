@@ -86,7 +86,122 @@ L4 floor : + edge-case matrix + schema_test + zero native-bug xfails + fresh das
 ```
 
 <!-- BEGIN: gap-analysis report (generated) -->
-<!-- The per-format maturity report is appended here from the gap-analysis workflow. -->
+## Maturity report (snapshot: 2026-05-30)
+
+Point-in-time scoring of all 49 real formats against the rubric above, one
+analysis agent per format reading the package, its tests' assertions, its
+`spec.yaml`/parity wiring, and its Okapi counterpart. Regenerate it with the
+`refresh-format-maturity` skill (per format) or the `format-maturity-gap-analysis`
+workflow (all at once). `splicedlines` was hand-scored (its agent did not return
+structured output).
+
+**Distribution: L0: 1 · L1: 28 · L2: 7 · L3: 13 · L4: 0 (n=49).**
+
+### Headline
+
+- **No format is L4 (rock-solid).** The best formats are L3 — either
+  parity-verified against the Okapi bridge (html, openxml, xliff, regex, csv,
+  xml-stream) or harvest formats with the full self-contained ladder
+  (xcstrings, arb, resx, androidxml, applestrings, designtokens, i18next, mdx).
+  None clear the L4 bar (edge-case matrix + `schema_test` + zero `native-bug`
+  xfails + fresh dashboards).
+- **The two generations have complementary, non-overlapping strengths.** The
+  *harvest* cohort all reached L3 on robustness + corpus + invariants but has no
+  cross-implementation check. Much of the older *parity* cohort (json,
+  properties, yaml, ts, idml, mif, …) is stuck at **L1** despite the okapi-bridge
+  cross-check, because it lacks `malformed_test` and (often) `schema.go`. Raising
+  the floor means giving each generation what the other already has.
+- **The single highest-leverage gap is `malformed_test`.** 45/48 analyzed
+  formats were flagged for robustness gaps; it is the L1→L2 blocker for ~24
+  formats. (The `TestRobustnessCoverage` advisory in
+  `core/formats/maturity_test.go` tracks the live count — 46/49.)
+
+### Per-format levels
+
+| Format | Level | Type | Top gap to next level |
+|---|---|---|---|
+| `mo` | L0 | harvest | `Config.ApplyMap` does not reject unknown keys (no-op) + no fidelity/malformed test — genuinely thin |
+| `doxygen` | L1 | parity | add `malformed_test.go` |
+| `dtd` | L1 | parity | add `malformed_test.go` |
+| `epub` | L1 | parity | add `malformed_test.go` (corrupt ZIP / missing container.xml) |
+| `fixedwidth` | L1 | parity | add `malformed_test.go` |
+| `icml` | L1 | parity | add `malformed_test.go` |
+| `idml` | L1 | parity | add `schema.go` + `malformed_test.go` |
+| `json` | L1 | parity | add `malformed_test.go` |
+| `messageformat` | L1 | parity | add `malformed_test.go` |
+| `mif` | L1 | parity | add `malformed_test.go` |
+| `mosestext` | L1 | parity | add `malformed_test.go` |
+| `odf` | L1 | parity | add `schema.go` + `malformed_test.go` |
+| `paraplaintext` | L1 | parity | add `malformed_test.go` |
+| `phpcontent` | L1 | parity | add `malformed_test.go` |
+| `plaintext` | L1 | parity | add `malformed_test.go` |
+| `properties` | L1 | parity | add `malformed_test.go` |
+| `rtf` | L1 | parity | add `malformed_test.go` |
+| `splicedlines` | L1 | internal | add `schema.go` + `malformed_test.go` (has spec+parity) |
+| `tex` | L1 | parity | add `malformed_test.go` |
+| `transtable` | L1 | parity | add `malformed_test.go` |
+| `ts` | L1 | parity | add `malformed_test.go` |
+| `ttml` | L1 | parity | add `malformed_test.go` |
+| `ttx` | L1 | parity | add `malformed_test.go` (UTF-16/BOM cases) |
+| `txml` | L1 | parity | add `schema.go` + `malformed_test.go` |
+| `versifiedtext` | L1 | harvest | add `malformed_test.go` |
+| `vignette` | L1 | parity | add `schema.go` |
+| `vtt` | L1 | parity | make `spec.yaml` keys 1:1 with `ApplyMap`; add `malformed_test.go` |
+| `xliff2` | L1 | parity | **writer RED**: `TestRoundTrip_ByteEqualUntouched` fails on 22 upstream fixtures (#560) |
+| `yaml` | L1 | parity | add `malformed_test.go` |
+| `markdown` | L2 | parity | add `malformed_test.go`; parity for L3 |
+| `pdf` | L2 | read-only | add `malformed_test.go` (read-only: writer N/A) |
+| `po` | L2 | parity | add `malformed_test.go` |
+| `srt` | L2 | parity | add `malformed_test.go`; close the parity gap or mark N/A |
+| `tmx` | L2 | parity | convert non-asserting `TestInvalidXml` to assert; parity |
+| `wiki` | L2 | parity | add `malformed_test.go` |
+| `xml` | L2 | parity | add `malformed_test.go` |
+| `androidxml` | L3 | harvest | `schema_test` + encoding/CRLF/BOM edge-case matrix (L4) |
+| `applestrings` | L3 | harvest | `schema_test` + edge-case matrix (L4) |
+| `arb` | L3 | harvest | `schema_test` (L4) |
+| `csv` | L3 | parity | add `malformed_test.go` (L4 robustness) |
+| `designtokens` | L3 | harvest | encoding/CRLF/BOM edge-case matrix (L4) |
+| `html` | L3 | parity | dedicated `malformed_test.go` (L4) |
+| `i18next` | L3 | harvest | `schema_test` (L4) |
+| `mdx` | L3 | harvest | `schema_test` (L4) |
+| `openxml` | L3 | parity | `malformed_test.go` (corrupt ZIP); RunFonts xfail |
+| `regex` | L3 | parity | `malformed_test.go` (uncompilable pattern) |
+| `resx` | L3 | harvest | encoding edge-case matrix (L4) |
+| `xcstrings` | L3 | harvest | byte-fidelity edge-case matrix (L4) |
+| `xliff` | L3 | parity | `malformed_test.go` (L4) |
+
+### Systemic gaps (frequency across the 48 analyzed)
+
+| Theme | Formats flagged | Remediation |
+|---|---|---|
+| Malformed / robustness untested | 45/48 | a `malformed_test.go` asserting clean `Error` + `NotPanics` on truncated/garbage/nil input, run with `-race` |
+| Byte-faithful round-trip not fully proven | 43/48 | round-trip tests that assert byte/semantic **equality**, not "no error" |
+| Encoding / BOM / CRLF blind spot | 34/48 | an edge-case fixture matrix (non-UTF-8, BOM, CRLF, all-Unicode) |
+| Schema drift (no `schema_test`) | 34/48 | a `schema_test` asserting `Schema()` keys == `ApplyMap` keys (only html/json have it) |
+| Synthetic-only corpus | 25/48 | vendor/upstream real files (or `spec.yaml input_file: okapi:…`) |
+| Detection collision concerns | 24/48 | confirm `Sniff`/unique-ext; niche JSON must not advertise `application/json` |
+| xfail / default-diff hygiene | 23/48 | converge default-only diffs; attribute every `expected_fail` |
+
+### Prioritized remediation roadmap
+
+1. **Fix the two specific defects first.** `mo` (L0): make `ApplyMap` reject
+   unknown keys and add a fidelity test, or formally retire it as a stub.
+   `xliff2`: the writer's `TestRoundTrip_ByteEqualUntouched` is **RED** on 22
+   upstream fixtures (#560) — resolve or formally classify as a tracked
+   faithful-class divergence.
+2. **Robustness wave (biggest lever).** Add `malformed_test.go` across the L1/L2
+   formats. This alone lifts ~24 formats off the L1 floor and closes the largest
+   systemic gap. The `implement-format` skill now makes this mandatory for new
+   formats, and `core/formats/maturity_test.go` tracks the burn-down.
+3. **Schema wave.** Add `schema.go` where missing (idml, odf, txml, vignette,
+   splicedlines, …) and a reusable `schema_test` helper asserting
+   schema==`ApplyMap`; adopt it across the 34 schema-drift formats.
+4. **Fidelity & encoding wave.** Promote re-parse/"no-error" round-trip tests to
+   byte/semantic equality, and add the encoding/BOM/CRLF edge-case matrix —
+   the remaining L3→L4 work for the strong formats.
+5. **Corpus & xfail hygiene.** Replace synthetic-only corpora with real files;
+   sweep `parity-annotations.yaml` for stale/unattributed/default-diff xfails
+   (use the `refresh-format-maturity` skill per format).
 <!-- END: gap-analysis report -->
 
 ## Open questions
