@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"sort"
@@ -176,7 +177,7 @@ func (a *App) computeCheck(cmd *cobra.Command, args []string) (CheckOutput, erro
 	if v, _ := cmd.Flags().GetBool("voice"); v {
 		refs := voiceExamples(profile)
 		if len(refs) == 0 {
-			return CheckOutput{}, fmt.Errorf("--voice needs a brand profile with examples (--profile/--pack/--profile-file)")
+			return CheckOutput{}, errors.New("--voice needs a brand profile with examples (--profile/--pack/--profile-file)")
 		}
 		t, closeT, derr := dialVoicePlugin(ctx)
 		if derr != nil {

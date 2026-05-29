@@ -1,5 +1,5 @@
 ---
-sidebar_position: 14
+sidebar_position: 3
 title: Brand Voice
 description: Brand voice is one checkset over neokapi's content-verification engine — a machine-readable profile of tone, style, and vocabulary whose findings annotate Blocks like every other check.
 keywords: [brand voice, content checks, writing style, terminology, MCP, AI assistant]
@@ -13,7 +13,7 @@ Where [terminology](/framework/terminology) ensures you use the right words,
 brand voice describes how you say them — the personality, formality, and
 writing patterns that make content recognizable. neokapi captures a brand voice
 as a machine-readable profile and runs it as **one checkset over the same
-[content-verification engine](/framework/qa-checks)** that powers terminology,
+[content-verification engine](/framework/checks)** that powers terminology,
 do-not-translate, and placeholder integrity: every checker emits the same
 findings into the same `Block` annotation, so brand voice is one check among
 many, not a separate system. The Go library lives in `core/brand/`.

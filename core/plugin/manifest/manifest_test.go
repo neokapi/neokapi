@@ -30,7 +30,7 @@ func TestParseModeAManifest(t *testing.T) {
 						{"name": "dry-run", "type": "bool", "default": false}
 					]
 				},
-				{"name": "auth", "subcommands": ["login", "logout", "status"]}
+				{"name": "auth", "subcommands": ["login", "logout", "status", {"name": "token", "subcommands": ["create", "list", "delete"]}]}
 			],
 			"mcp_tools": [{"name": "project_status", "description": "Show sync status"}],
 			"schema_extensions": [{"name": "server", "scope": "project", "json_schema": "schemas/server.json"}],
@@ -55,7 +55,25 @@ func TestParseModeAManifest(t *testing.T) {
 	assert.Equal(t, "push", m.Capabilities.Commands[0].Name)
 	assert.True(t, m.Capabilities.Commands[0].Args[0].Variadic)
 	assert.Equal(t, "auth", m.Capabilities.Commands[1].Name)
-	assert.ElementsMatch(t, []string{"login", "logout", "status"}, m.Capabilities.Commands[1].Subcommands)
+	assert.ElementsMatch(t, []string{"login", "logout", "status", "token"}, m.Capabilities.Commands[1].SubcommandNames())
+	// The nested "token" subcommand carries its own children.
+	var tokenSub *manifest.Subcommand
+	for i := range m.Capabilities.Commands[1].Subcommands {
+		if m.Capabilities.Commands[1].Subcommands[i].Name == "token" {
+			tokenSub = &m.Capabilities.Commands[1].Subcommands[i]
+		}
+	}
+	require.NotNil(t, tokenSub)
+	assert.ElementsMatch(t, []string{"create", "list", "delete"}, subcommandNames(tokenSub.Subcommands))
+}
+
+// subcommandNames is a small test helper extracting subcommand names.
+func subcommandNames(subs []manifest.Subcommand) []string {
+	names := make([]string, len(subs))
+	for i, s := range subs {
+		names[i] = s.Name
+	}
+	return names
 }
 
 func TestParseOkapiBridgeManifest(t *testing.T) {

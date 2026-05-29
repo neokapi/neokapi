@@ -78,8 +78,8 @@ function HomepageHeader() {
           </Heading>
           <p className={styles.heroSubtitle}>
             An open-source engine in Go that parses localization, document, and data formats into a
-            faithful content model &mdash; then translates, enforces terminology, and keeps content
-            on-brand, whether a person or an agent wrote it.
+            faithful content model &mdash; then translates it, leverages memory, and runs checks for
+            terminology, QA, and brand voice, whether a person or an agent wrote it.
           </p>
           <div className={styles.buttons}>
             <Link
@@ -165,7 +165,7 @@ function HomepageFeatures() {
 export default function Home() {
   const { siteConfig } = useDocusaurusContext();
   return (
-    <Layout title={siteConfig.title} description="Open, AI-native localization platform in Go">
+    <Layout title={siteConfig.title} description="Open, AI-native, format-aware content engine in Go">
       <HomepageHeader />
       <main>
         <HomepageFeatures />

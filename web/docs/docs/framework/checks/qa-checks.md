@@ -1,5 +1,5 @@
 ---
-sidebar_position: 13
+sidebar_position: 2
 title: QA Checks
 description: Quality assurance in neokapi — deterministic rule-based checks and LLM-assisted review that annotate translated blocks with findings without modifying content, composable as pipeline stages.
 keywords: [QA checks, quality assurance, translation QA, rule-based, LLM review, pipeline, localization]
@@ -99,7 +99,7 @@ Both kinds of check use the [Block annotation system](/framework/content-model)
 rather than rewriting text. Rule-based findings are recorded in block properties;
 LLM findings are attached as an annotation. This is the same shared channel that
 [TM matches](/framework/translation-memory),
-[terminology](/framework/terminology), and [brand-voice](/framework/brand-voice)
+[terminology](/framework/terminology), and [brand-voice](/framework/checks/brand-voice)
 results use, so a single downstream consumer — a report, an editor view, a CI
 gate — can read every kind of finding from one place.
 

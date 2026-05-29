@@ -1,84 +1,38 @@
 import { describe, it, expect } from "vitest";
-import type { FlowDefinitionInfo, FlowNodeInfo, ToolInfo } from "../types/api";
+import { defToSpec, specToDef, type ToolInfo as EditorToolInfo } from "@neokapi/flow-editor";
+import type { FlowDefinitionInfo, ToolInfo } from "../types/api";
 
 // ---------------------------------------------------------------------------
-// Pure unit tests for the graph model helpers extracted from FlowBuilder.
-// These do NOT render the Wails-backed component (it needs live bindings).
+// FlowBuilder now renders the shared @neokapi/flow-editor <FlowEditor> and
+// bridges the backend's node/edge FlowDefinitionInfo to the editor's FlowSpec
+// via the shared defToSpec / specToDef adapter. These tests exercise that
+// adapter against bowrain's FlowDefinitionInfo type (the contract the Wails
+// FlowStore round-trips), plus the snake_case → camelCase ToolInfo mapping the
+// component performs before handing tools to the editor.
+//
+// The full component depends on live Wails bindings, so it is covered by the
+// Playwright e2e suite (e2e/flow-builder.spec.ts) rather than rendered here.
 // ---------------------------------------------------------------------------
-
-// --- defToReactFlow / reactFlowToDef (co-located logic, tested by re-implementing
-//     the same simple mapping here so the round-trip is verified independently of
-//     the React component tree) ---
 
 const STAGE_SOURCE_TRANSFORM = "source-transform";
 
-/** Mirrors FlowBuilder.defToReactFlow */
-function defToReactFlow(def: FlowDefinitionInfo): {
-  nodes: Array<{ id: string; data: Record<string, unknown>; position: { x: number; y: number } }>;
-  edges: Array<{ id: string; source: string; target: string }>;
-} {
-  return {
-    nodes: def.nodes.map((n) => ({
-      id: n.id,
-      type: n.type,
-      position: { x: n.position.x, y: n.position.y },
-      data: {
-        label: n.label || n.name,
-        toolName: n.name,
-        nodeId: n.id,
-        config: n.config || {},
-        stage: n.stage || "",
-      },
-    })),
-    edges: def.edges.map((e) => ({
-      id: e.id,
-      source: e.source,
-      target: e.target,
-    })),
-  };
-}
+const tools: EditorToolInfo[] = [
+  {
+    name: "redact",
+    description: "Redact sensitive content",
+    category: "transform",
+    isSourceTransform: true,
+  },
+  {
+    name: "ai-translate",
+    description: "Translate with AI",
+    category: "transform",
+    isSourceTransform: false,
+  },
+  { name: "ai-qa", description: "QA check", category: "validate" },
+];
 
-/** Mirrors FlowBuilder.reactFlowToDef */
-function reactFlowToDef(
-  id: string,
-  name: string,
-  description: string,
-  nodes: Array<{
-    id: string;
-    type?: string;
-    data: Record<string, unknown>;
-    position: { x: number; y: number };
-  }>,
-  edges: Array<{ id: string; source: string; target: string }>,
-  source: string,
-): FlowDefinitionInfo {
-  return {
-    id,
-    name,
-    description,
-    source,
-    nodes: nodes.map((n) => ({
-      id: n.id,
-      type: (n.type || "tool") as FlowNodeInfo["type"],
-      name: (n.data.toolName as string) || n.id,
-      label: (n.data.label as string) || "",
-      stage: (n.data.stage as string) || undefined,
-      config: (n.data.config as Record<string, unknown>) || undefined,
-      position: { x: n.position.x, y: n.position.y },
-    })),
-    edges: edges.map((e) => ({
-      id: e.id,
-      source: e.source,
-      target: e.target,
-    })),
-  };
-}
-
-// ---------------------------------------------------------------------------
-// Test suite
-// ---------------------------------------------------------------------------
-
-describe("FlowBuilder graph model — stage serialization round-trip", () => {
+describe("FlowBuilder adapter — stage serialization round-trip", () => {
   const secureDef: FlowDefinitionInfo = {
     id: "secure-translate",
     name: "Secure Translate",
@@ -116,71 +70,70 @@ describe("FlowBuilder graph model — stage serialization round-trip", () => {
     ],
   };
 
-  it("defToReactFlow carries stage into node data", () => {
-    const { nodes } = defToReactFlow(secureDef);
-    const redact = nodes.find((n) => n.id === "redact")!;
-    expect(redact.data.stage).toBe(STAGE_SOURCE_TRANSFORM);
+  it("defToSpec collects the redact node into sourceTransforms", () => {
+    const spec = defToSpec(secureDef);
+    expect(spec.sourceTransforms?.map((s) => s.tool)).toEqual(["redact"]);
+    expect(spec.steps.map((s) => s.tool)).toEqual(["ai-translate"]);
   });
 
-  it("defToReactFlow sets empty string for nodes without stage", () => {
-    const { nodes } = defToReactFlow(secureDef);
-    const translate = nodes.find((n) => n.id === "ai-translate")!;
-    expect(translate.data.stage).toBe("");
-  });
-
-  it("reactFlowToDef preserves source-transform stage in serialized def", () => {
-    const { nodes, edges } = defToReactFlow(secureDef);
-    const serialized = reactFlowToDef(
-      "secure-translate",
-      "Secure Translate",
-      "",
-      nodes,
-      edges,
-      "user",
+  it("specToDef preserves source-transform stage in the serialized def", () => {
+    const spec = defToSpec(secureDef);
+    const serialized = specToDef(
+      spec,
+      { id: "secure-translate", name: "Secure Translate", source: "user" },
+      tools,
     );
-    const redactNode = serialized.nodes.find((n) => n.id === "redact")!;
+    const redactNode = serialized.nodes.find((n) => n.name === "redact")!;
     expect(redactNode.stage).toBe(STAGE_SOURCE_TRANSFORM);
   });
 
-  it("reactFlowToDef omits stage for main-chain nodes", () => {
-    const { nodes, edges } = defToReactFlow(secureDef);
-    const serialized = reactFlowToDef(
-      "secure-translate",
-      "Secure Translate",
-      "",
-      nodes,
-      edges,
-      "user",
+  it("specToDef omits stage for main-chain nodes", () => {
+    const spec = defToSpec(secureDef);
+    const serialized = specToDef(
+      spec,
+      { id: "secure-translate", name: "Secure Translate", source: "user" },
+      tools,
     );
-    const translateNode = serialized.nodes.find((n) => n.id === "ai-translate")!;
-    // Empty string serialized as undefined (stage omitted)
-    expect(translateNode.stage === "" || translateNode.stage == null).toBe(true);
+    const translateNode = serialized.nodes.find((n) => n.name === "ai-translate")!;
+    expect(translateNode.stage == null).toBe(true);
   });
 
-  it("round-trip preserves stage value end-to-end", () => {
-    const { nodes, edges } = defToReactFlow(secureDef);
-    const serialized = reactFlowToDef(
-      "secure-translate",
-      "Secure Translate",
-      "",
-      nodes,
-      edges,
-      "user",
+  it("round-trips the stage value end-to-end (def → spec → def → spec)", () => {
+    const spec = defToSpec(secureDef);
+    const serialized = specToDef(
+      spec,
+      { id: "secure-translate", name: "Secure Translate", source: "user" },
+      tools,
     );
-    // Re-deserialize to React Flow
-    const { nodes: nodes2 } = defToReactFlow(serialized);
-    const redact2 = nodes2.find((n) => n.id === "redact")!;
-    expect(redact2.data.stage).toBe(STAGE_SOURCE_TRANSFORM);
+    const spec2 = defToSpec(serialized);
+    expect(spec2.sourceTransforms?.map((s) => s.tool)).toEqual(["redact"]);
+    expect(spec2.steps.map((s) => s.tool)).toEqual(["ai-translate"]);
+  });
+
+  it("reader and writer nodes serialize with the 'auto' name", () => {
+    const spec = defToSpec(secureDef);
+    const serialized = specToDef(
+      spec,
+      { id: "secure-translate", name: "Secure Translate", source: "user" },
+      tools,
+    );
+    expect(serialized.nodes.find((n) => n.type === "reader")!.name).toBe("auto");
+    expect(serialized.nodes.find((n) => n.type === "writer")!.name).toBe("auto");
   });
 });
 
-describe("FlowBuilder — source-transform toggle capability gating", () => {
-  /** Simulates the selectedToolCapable computation from FlowBuilder. */
-  function isCapable(toolName: string, toolInfoMap: Map<string, ToolInfo>): boolean {
-    return toolInfoMap.get(toolName)?.is_source_transform ?? false;
+describe("FlowBuilder — ToolInfo snake_case → camelCase mapping", () => {
+  /** Mirrors the editorTools mapping performed inside FlowBuilder. */
+  function toEditorTool(t: ToolInfo): EditorToolInfo {
+    return {
+      name: t.name,
+      description: t.description,
+      category: t.category,
+      isSourceTransform: t.is_source_transform,
+    };
   }
 
-  const tools: ToolInfo[] = [
+  const backendTools: ToolInfo[] = [
     {
       name: "redact",
       description: "Redact sensitive content",
@@ -196,58 +149,33 @@ describe("FlowBuilder — source-transform toggle capability gating", () => {
     { name: "pseudo-translate", description: "Pseudo translate", category: "transform" },
   ];
 
-  const toolInfoMap = new Map(tools.map((t) => [t.name, t]));
-
-  it("redact is source-transform capable", () => {
-    expect(isCapable("redact", toolInfoMap)).toBe(true);
+  it("maps is_source_transform=true to isSourceTransform=true", () => {
+    const mapped = backendTools.map(toEditorTool);
+    expect(mapped.find((t) => t.name === "redact")!.isSourceTransform).toBe(true);
   });
 
-  it("ai-translate is NOT source-transform capable", () => {
-    expect(isCapable("ai-translate", toolInfoMap)).toBe(false);
+  it("maps is_source_transform=false to isSourceTransform=false", () => {
+    const mapped = backendTools.map(toEditorTool);
+    expect(mapped.find((t) => t.name === "ai-translate")!.isSourceTransform).toBe(false);
   });
 
-  it("tool without is_source_transform field is not capable (defaults false)", () => {
-    expect(isCapable("pseudo-translate", toolInfoMap)).toBe(false);
-  });
-
-  it("unknown tool name is not capable", () => {
-    expect(isCapable("nonexistent-tool", toolInfoMap)).toBe(false);
+  it("leaves isSourceTransform undefined when the field is absent", () => {
+    const mapped = backendTools.map(toEditorTool);
+    expect(mapped.find((t) => t.name === "pseudo-translate")!.isSourceTransform).toBeUndefined();
   });
 });
 
-describe("FlowBuilder — stage serialization with empty/undefined stage values", () => {
-  it("node with stage=undefined gets empty string in data after defToReactFlow", () => {
+describe("FlowBuilder — empty / new flow", () => {
+  it("an empty flow definition produces an empty step list", () => {
     const def: FlowDefinitionInfo = {
-      id: "test",
-      name: "Test",
+      id: "new",
+      name: "New",
       source: "user",
-      nodes: [{ id: "t1", type: "tool", name: "ai-translate", position: { x: 0, y: 0 } }],
+      nodes: [],
       edges: [],
     };
-    const { nodes } = defToReactFlow(def);
-    expect(nodes[0].data.stage).toBe("");
-  });
-
-  it("changing stage from '' to source-transform round-trips correctly", () => {
-    const def: FlowDefinitionInfo = {
-      id: "test",
-      name: "Test",
-      source: "user",
-      nodes: [
-        {
-          id: "t1",
-          type: "tool",
-          name: "redact",
-          stage: STAGE_SOURCE_TRANSFORM,
-          position: { x: 0, y: 0 },
-        },
-      ],
-      edges: [],
-    };
-    const { nodes } = defToReactFlow(def);
-    // Simulate toggling stage via handleToolStageChange
-    nodes[0] = { ...nodes[0], data: { ...nodes[0].data, stage: STAGE_SOURCE_TRANSFORM } };
-    const serialized = reactFlowToDef("test", "Test", "", nodes, [], "user");
-    expect(serialized.nodes[0].stage).toBe(STAGE_SOURCE_TRANSFORM);
+    const spec = defToSpec(def);
+    expect(spec.steps).toEqual([]);
+    expect(spec.sourceTransforms).toBeUndefined();
   });
 });

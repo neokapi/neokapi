@@ -1,0 +1,76 @@
+---
+title: Brand voice & corrections
+sidebar_label: Brand voice & corrections
+description: Bowrain turns a team's corrections into versioned, enforced brand checks — correct content once and the rule that prevents the mistake from recurring is authored, versioned, and shared across people and AI tools.
+keywords: [brand voice, corrections, candidate rules, governance, drift, blast radius, bowrain]
+---
+
+# Brand voice & corrections
+
+A **brand voice profile** is a machine-readable description of how your content
+should read — the vocabulary it should use, the terms it should avoid, and the
+tone and style that make it recognizable. On its own, a profile is just a set of
+[checks](https://neokapi.github.io/web/neokapi/docs/framework/checks): kapi and
+Bowrain run it over content and report what drifts off-voice, the same way a
+test reports what broke.
+
+Bowrain adds the part a single checkout cannot: it **learns the profile from
+your team's corrections** and keeps the result versioned, shared, and enforced.
+
+## The loop
+
+The rules a team most needs are the ones it discovers by correcting real
+output — the phrasing it keeps changing, the competitor name that slips in, the
+term it has decided against. Bowrain captures those corrections and closes the
+loop:
+
+1. **Correct.** A person — or an AI assistant working through
+   [MCP](/cli/mcp) — fixes content the profile should have caught. Bowrain
+   records the correction with provenance: the original text, the fix, the brand
+   dimension, and who made it.
+2. **Surface.** When the same `(original → corrected)` correction recurs across
+   the project, it surfaces as a **candidate rule**. Candidates are recomputed
+   live from the correction stream, so they always reflect current evidence.
+3. **Preview.** Before a candidate is enforced, Bowrain computes its **blast
+   radius**: it runs the rule over your stored content and shows how many blocks
+   it would newly flag, how many it resolves, and which become critical — so you
+   see the impact before anything changes.
+4. **Promote.** A reviewer **promotes** the candidate into the profile. It
+   becomes a deterministic check, the profile version is bumped (the prior
+   version is archived for audit and rollback), and the rule is enforced on every
+   future generation, in every locale the profile covers.
+5. **Monitor.** After a rule lands, Bowrain watches aggregate compliance and
+   raises a **drift** alert when it erodes, so a profile that was healthy does
+   not quietly decay as content and models change.
+
+Correct once, and the rule that prevents the mistake from recurring is authored,
+versioned, and shared — the way adding a regression test stops a fixed bug from
+returning.
+
+## Progressive autonomy
+
+Every profile starts fully manual: each candidate waits for a human to promote
+it. As a team learns to trust the candidates a dimension produces, it can raise
+that dimension's **auto-promote threshold**, so a correction that pushes a term
+past the threshold promotes its rule automatically and announces it. Autonomy is
+opt-in and per-profile — a team widens it dimension by dimension as confidence
+grows, and never all at once.
+
+## Where it shows up
+
+The loop is drivable from three surfaces, all over the same brand engine:
+
+- **Web** — the [review page](/server/translation-editor) lists pending
+  candidates with the corrections behind them, shows a candidate's blast radius
+  on demand, and offers promote or reject. Promoted and rejected candidates move
+  to history; drift surfaces as an alert on the brand dashboard.
+- **MCP** — an AI assistant can read what its own corrections have surfaced,
+  preview a candidate's impact, and promote it, so the assistant participates in
+  governing the voice it writes in.
+- **CLI / CI** — once a rule is promoted it is an ordinary
+  [check](https://neokapi.github.io/web/neokapi/docs/framework/checks): `kapi`
+  enforces it locally and in CI, gated by exit code, with no server round-trip.
+
+The detection and scoring are the open framework's job (`core/brand`,
+`core/check`); Bowrain owns the durable governance layer — the decisions,
+versioning, provenance, autonomy, and drift — and the surfaces that drive it.

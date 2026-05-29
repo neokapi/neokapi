@@ -80,7 +80,6 @@ DOCKER_KEYCLOAK_IMAGE := ghcr.io/neokapi/bowrain-keycloak
         docker-push-server docker-push-web docker-push-keycloak docker-push \
         dev-deps dev-deps-down dev-server dev-worker dev-web dev-ctrl bowrain-dev certs \
         stack-up stack-up-web stack-up-shared stack-shared-down stack-down stack-logs stack-ps stack-build \
-        screenshots recordings \
         test test-fast test-unit test-race test-verbose test-integration \
         test-platform test-bowrain-cli test-bowrain test-e2e-bowrain test-e2e-cloud test-e2e-dev \
         cover fmt vet lint check proto deps deps-update clean
@@ -351,14 +350,6 @@ stack-logs: ## Tail logs for the full local stack
 
 stack-down: ## Stop the full local stack and remove its volumes
 	$(COMPOSE_FULL) down -v
-
-# ── Documentation Assets (Screenshots & Recordings) ─────────────────────────
-
-screenshots: frontend-deps ## Generate documentation screenshots
-	cd $(FRONTEND_DIR) && vp run screenshots
-
-recordings: frontend-deps ## Generate Bowrain (GUI) video recordings
-	cd $(FRONTEND_DIR) && vp run recordings:all
 
 test-e2e-bowrain: ## Run Bowrain server end-to-end tests (requires Docker)
 	bash e2e/server/run.sh

@@ -192,7 +192,7 @@ system](/framework/content-model) rather than rewriting text: a TM-leverage tool
 attaches candidate matches, a QA tool attaches findings, and downstream tools or
 an editor read those annotations. This shared annotation channel is how
 [translation memory](/framework/translation-memory),
-[terminology](/framework/terminology), and [brand voice](/framework/brand-voice)
+[terminology](/framework/terminology), and [brand voice](/framework/checks/brand-voice)
 results all reach the same consumer without colliding.
 
 ## Configuration and schemas

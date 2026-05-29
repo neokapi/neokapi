@@ -41,7 +41,7 @@ what a translator may do with a code:
 - **Reorderable** — may the code move relative to others? A variable can move to
   match target word order; a fixed structural code may not.
 
-Editors and [QA checks](/framework/qa-checks) read these constraints to prevent
+Editors and [QA checks](/framework/checks/qa-checks) read these constraints to prevent
 invalid changes — blocking deletion of a required tag, flagging a duplicated
 variable, or warning about a missing code — without knowing anything about the
 source file format.

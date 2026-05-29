@@ -1,0 +1,84 @@
+# Native reference doc for the built-in `ai-entity-extract` tool.
+# Schema source: core/ai/tools/entity_extract.go (AIEntityExtractConfig).
+description: Detect named entities and terminology candidates in source content using an LLM.
+overview: |
+  The **AI Entity Extract** tool analyses a block's source text with a large
+  language model and records two kinds of stand-off annotation: named entities
+  (people, organizations, products, locations, and also dates, times,
+  currencies, and measurements) and terminology candidates (domain-specific
+  terms that would benefit from a termbase entry). Each entity carries a
+  suggested do-not-translate flag; each term candidate carries a category and a
+  translatability classification (do-not-translate, consistent, or free). It is
+  read-only — it writes annotations only and never changes the source or target.
+
+  Extraction can optionally combine the LLM with a NER provider for fast entity
+  detection; the LLM classification is preferred where the two overlap. Blocks
+  can be analysed one at a time or grouped into batches sent in a single
+  structured call, and batches can run concurrently. Known terms already in the
+  termbase can be supplied so they are not re-proposed. A provider and, for
+  hosted providers, credentials are required.
+parameters:
+  provider:
+    description: The LLM provider to use.
+    help: |
+      Selects the backend. Hosted providers require an API key and a model;
+      Ollama runs locally. The available options are populated from the provider
+      registry.
+    values: "`anthropic` / `openai` / `gemini` / `azureopenai` / `ollama` (default `anthropic`)"
+  apiKey:
+    description: API key for the provider.
+    help: |
+      Credential for the chosen hosted provider. Required for hosted providers;
+      not needed for a local Ollama backend.
+    values: "string"
+  model:
+    description: The model name to request.
+    help: |
+      The provider-specific model identifier. When omitted, the provider's
+      default model is used.
+    values: "string"
+  locale:
+    description: Locale of the source content.
+    help: |
+      The locale of the text being analysed, passed to the LLM and any NER
+      provider so detection is language-aware.
+    values: "BCP-47 locale"
+  knownTerms:
+    description: Terms to exclude from extraction (already in the termbase).
+    help: |
+      Terms the LLM is told not to re-propose, so the candidate list focuses on
+      genuinely new terminology. Matching is case-insensitive.
+    values: "list of strings"
+  batchSize:
+    description: Number of blocks per LLM call.
+    help: |
+      Blocks are grouped into batches of this size and analysed in a single
+      structured call per batch. A value of 0 or 1 analyses one block per call.
+    values: "integer ≥ 1 (default `1`)"
+  batchConcurrency:
+    description: Number of batch calls to run in parallel.
+    help: |
+      How many batches are analysed concurrently. A value of 0 or 1 runs batches
+      sequentially.
+    values: "integer ≥ 1 (default `1`)"
+limitations:
+  - Requires a provider and, for hosted providers, valid credentials; hosted providers make billed, rate-limited network calls.
+  - The NER provider is optional and supplied programmatically; with no NER provider, extraction is LLM-only.
+  - Entity and term suggestions (including the do-not-translate flag and translatability) are model proposals and should be reviewed before acting on them.
+processingNotes:
+  - Operates on translatable blocks with non-empty source; other parts pass through unchanged.
+  - Read-only — writes entity and term-candidate annotations and never modifies source or target.
+  - When both an LLM and a NER provider produce an entity at the same span, the LLM classification is kept.
+  - Dates, times, currencies, and measurements are not defaulted to do-not-translate, since they need locale-specific formatting.
+examples:
+  - title: Extract entities and terms with Anthropic
+    description: Analyse source blocks one at a time with an Anthropic model.
+    config: |
+      provider: anthropic
+      locale: en-US
+  - title: Batched extraction
+    description: Analyse blocks in batches of 20, four batches at a time.
+    config: |
+      provider: openai
+      batchSize: 20
+      batchConcurrency: 4

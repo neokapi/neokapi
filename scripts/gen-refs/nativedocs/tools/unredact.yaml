@@ -1,0 +1,25 @@
+# Native reference doc for the built-in `unredact` tool.
+# Schema source: core/tools/unredact.go (UnredactConfig — vault path set programmatically).
+description: Restore original values into redacted content after processing.
+overview: |
+  The **Unredact** tool reverses `redact`: it restores the original values into
+  the redaction placeholders across a block's source and target runs, then
+  removes the in-process secret annotation so nothing sensitive reaches the
+  writer. It is the closing half of the redact → process → unredact cycle, run
+  after the protected content has been processed (for example, translated).
+
+  Restoration uses the recovery record left by `redact`. By default it reads the
+  in-process secret annotation on the block; in external mode it reads originals
+  from a sidecar vault (used by the `extract` → `merge` workflow). Both an
+  ID-based restore (for structure-preserving formats and inline codes) and a
+  text-based restore (for formats that flattened a placeholder to its visible
+  string on write) are applied, so placeholders are recovered in either case.
+  The vault path is supplied programmatically by the caller rather than as a
+  schema field, so this tool exposes no schema parameters.
+limitations:
+  - Exposes no schema parameters; the optional sidecar vault path is supplied programmatically by callers (e.g. extract → merge).
+  - Restores only placeholders recorded by a preceding `redact` run; there is nothing to restore without that recovery record.
+processingNotes:
+  - A source-transform that rewrites both source and target runs to restore originals.
+  - Reads the in-process secret annotation by default, or a sidecar vault in external mode.
+  - Removes the secret annotation after restoring, so sensitive originals never reach the writer.

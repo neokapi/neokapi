@@ -9,7 +9,7 @@ const KAPI_WEB_SITE = process.env.KAPI_WEB_SITE || "https://neokapi.github.io/we
 
 const config: Config = {
   title: "Bowrain",
-  tagline: "Team governance and stewardship for brand voice, terminology, and translation",
+  tagline: "Govern and steward brand voice, terminology, and translation — as a team",
   favicon: "img/favicon.png",
 
   url: "https://neokapi.github.io",

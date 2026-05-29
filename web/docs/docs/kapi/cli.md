@@ -1,28 +1,32 @@
 ---
 sidebar_position: 1
 title: Kapi CLI
-description: kapi is a standalone command-line tool for format-aware localization and brand guardrails — AI translation, TM leverage, terminology enforcement, QA, and pseudo-translation across native and Okapi bridge formats.
-keywords: [kapi, CLI, localization, brand guardrails, AI translation, pseudo-translate, word count, formats, tools]
+description: kapi is a standalone command-line tool for format-aware localization — AI translation, TM leverage, pseudo-translation, and faithful round-trip across native and Okapi bridge formats — plus checks for terminology, QA, and brand voice that act like tests for AI output.
+keywords: [kapi, CLI, format-aware localization, content engine, AI translation, checks, tests for AI, formats, tools]
 ---
 
 # Kapi CLI
 
-Kapi is a standalone command-line tool that keeps content **on-brand and
-terminologically consistent**, then **localizes it into every language and
-format**. It operates directly on files without requiring a project, server, or
+Kapi is a standalone command-line tool for **format-aware localization** — it
+reads, translates, and ships content in **any format**, faithfully — and runs
+**checks** (terminology, QA, brand voice) that act like **tests for AI output**.
+It operates directly on files without requiring a project, server, or
 configuration, and runs offline by default.
 
 ## What is Kapi?
 
 Kapi does two jobs from one engine:
 
-- **Brand guardrails for AI output** — load a brand voice profile, score text
-  0–100, and rewrite content that drifts off-voice. Wire it into your AI coding
-  assistant over [MCP](/reference/mcp) so generation stays on-brand.
-- **Format-aware localization** — AI translation, MT, TM leverage, terminology
-  enforcement, QA, and pseudo-translation across native localization, document,
-  data, subtitle, and office formats, with more through the okapi-bridge and
-  automatic format detection (see the [format reference](/formats)).
+- **Format-aware localization** — read, translate, and ship content faithfully
+  across native localization, document, data, subtitle, and office formats, with
+  AI translation, MT, TM leverage, and pseudo-translation, more through the
+  okapi-bridge, and automatic format detection (see the
+  [format reference](/formats)).
+- **[Checks](/framework/checks) that act like tests for AI** — verify content
+  with terminology, QA, and brand-voice checks. Each reports findings against a
+  shared model, so you can gate a build on them in CI or serve them to your AI
+  coding assistant over [MCP](/reference/mcp) so generation stays consistent and
+  on-voice.
 
 It processes files directly (no project initialization needed) and extends via
 plugins, including the Okapi bridge to the Java filters.
@@ -30,19 +34,6 @@ plugins, including the Okapi bridge to the Java filters.
 ## Key Commands
 
 ```bash
-# --- Brand voice ---
-# Print a brand voice guide to inject into your AI assistant
-kapi brand guide --pack friendly-dtc
-
-# Score text against a profile; --min-score gates CI (exit code 3)
-kapi brand check --profile-file brand.yaml --min-score 80 release-notes.md
-
-# Rewrite off-voice content
-kapi brand rewrite --profile-file brand.yaml --text "Leverage our solution"
-
-# Serve brand + terminology tools to your AI assistant over MCP
-kapi mcp
-
 # --- Localization ---
 # List supported formats
 kapi formats
@@ -62,6 +53,19 @@ kapi run ai-translate-qa -i input.html -o output.html --source-lang en --target-
 # List available tools and flows
 kapi tools
 kapi flows
+
+# --- Checks (tests for AI) ---
+# Score text against a brand profile; --min-score gates CI (exit code 3)
+kapi brand check --profile-file brand.yaml --min-score 80 release-notes.md
+
+# Print a brand voice guide to inject into your AI assistant
+kapi brand guide --pack friendly-dtc
+
+# Rewrite off-voice content
+kapi brand rewrite --profile-file brand.yaml --text "Leverage our solution"
+
+# Serve check + terminology tools to your AI assistant over MCP
+kapi mcp
 
 # Manage terminology
 kapi termbase import terms.csv --format csv -s en -t fr
@@ -97,10 +101,10 @@ Override the destination with `-o <path|template>` (placeholders: `{dir}`,
 
 Use Kapi CLI when you:
 
-- **Keep AI output on-brand** — score and fix content against a voice profile
-- **Localize content** — translate, pseudo-translate, count words, run QA
+- **Localize content** — read, translate, pseudo-translate, and count words across any format
+- **Check AI output** — run terminology, QA, and brand-voice checks like tests
 - **Need quick results** without project setup or configuration
-- **Run in CI/CD** — gate a build on a brand score or QA check
+- **Run in CI/CD** — gate a build on a check (QA, terminology, or brand score)
 - **Work offline** — a single binary with embedded TM and termbase
 
 For a visual interface, use [Kapi Desktop](/kapi/desktop/overview) — the GUI companion for building flows, managing plugins, and running tools with live progress.
@@ -125,7 +129,7 @@ See [Kapi Projects](/reference/project-file) for the full format reference.
 
 ## Next Steps
 
-- [Brand Voice](/framework/brand-voice) — profiles, scoring, and enforcement
+- [Brand Voice](/framework/checks/brand-voice) — profiles, scoring, and enforcement
 - [Using Kapi with AI Assistants](/reference/mcp) — wire kapi into Claude Code, Cursor, and more
 - [Formats](/commands?id=formats)
 - [Run Command](/commands?id=run)

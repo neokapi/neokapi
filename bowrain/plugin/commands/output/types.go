@@ -654,6 +654,254 @@ func (o StreamArchiveOutput) FormatText(w io.Writer) error {
 	return nil
 }
 
+// StreamStatusOutput represents the result of kapi stream status.
+type StreamStatusOutput struct {
+	Stream      string `json:"stream"`
+	Parent      string `json:"parent,omitempty"`
+	Visibility  string `json:"visibility,omitempty"`
+	Description string `json:"description,omitempty"`
+	Archived    bool   `json:"archived,omitempty"`
+	Active      bool   `json:"active"`
+	Exists      bool   `json:"exists"`
+	// Ahead counts blocks changed on this stream relative to its parent
+	// (i.e. the diff against parent). -1 when unknown.
+	Ahead int `json:"ahead"`
+	// Behind counts remote changes available to pull into the local checkout.
+	// -1 when unknown but more are available.
+	Behind int `json:"behind"`
+	// PendingPush counts blocks changed locally but not yet pushed.
+	PendingPush int `json:"pending_push"`
+	// AddedVsParent / ModifiedVsParent / RemovedVsParent break down Ahead.
+	AddedVsParent    int `json:"added_vs_parent"`
+	ModifiedVsParent int `json:"modified_vs_parent"`
+	RemovedVsParent  int `json:"removed_vs_parent"`
+}
+
+func (o StreamStatusOutput) FormatText(w io.Writer) error {
+	fmt.Fprintf(w, "Stream: %s", o.Stream)
+	if o.Active {
+		fmt.Fprint(w, " (active)")
+	}
+	fmt.Fprintln(w)
+
+	if !o.Exists {
+		if o.Stream == "main" {
+			fmt.Fprintln(w, "State:  main (base stream)")
+		} else {
+			fmt.Fprintln(w, "State:  not created on the server yet")
+			fmt.Fprintf(w, "  Create it with: kapi stream create %s\n", o.Stream)
+			return nil
+		}
+	} else {
+		if o.Parent != "" {
+			fmt.Fprintf(w, "Parent: %s\n", o.Parent)
+		}
+		state := "active"
+		if o.Archived {
+			state = "archived"
+		}
+		fmt.Fprintf(w, "State:  %s\n", state)
+		if o.Visibility != "" {
+			fmt.Fprintf(w, "Visibility: %s\n", o.Visibility)
+		}
+		if o.Description != "" {
+			fmt.Fprintf(w, "Description: %s\n", o.Description)
+		}
+	}
+
+	if o.Parent != "" {
+		switch {
+		case o.Ahead < 0:
+			fmt.Fprintf(w, "Ahead of %s: changes present\n", o.Parent)
+		case o.Ahead > 0:
+			fmt.Fprintf(w, "Ahead of %s: %d block(s)", o.Parent, o.Ahead)
+			parts := []string{}
+			if o.AddedVsParent > 0 {
+				parts = append(parts, fmt.Sprintf("%d added", o.AddedVsParent))
+			}
+			if o.ModifiedVsParent > 0 {
+				parts = append(parts, fmt.Sprintf("%d modified", o.ModifiedVsParent))
+			}
+			if o.RemovedVsParent > 0 {
+				parts = append(parts, fmt.Sprintf("%d removed", o.RemovedVsParent))
+			}
+			if len(parts) > 0 {
+				fmt.Fprintf(w, " (%s)", joinComma(parts))
+			}
+			fmt.Fprintln(w)
+		default:
+			fmt.Fprintf(w, "Ahead of %s: up to date\n", o.Parent)
+		}
+	}
+
+	if o.Behind < 0 {
+		fmt.Fprintln(w, "Behind: remote changes available")
+	} else if o.Behind > 0 {
+		fmt.Fprintf(w, "Behind: %d remote change(s) to pull\n", o.Behind)
+	}
+
+	if o.PendingPush > 0 {
+		fmt.Fprintf(w, "Pending push: %d block(s) changed locally\n", o.PendingPush)
+	}
+
+	return nil
+}
+
+// joinComma joins parts with ", ".
+func joinComma(parts []string) string {
+	out := ""
+	for i, p := range parts {
+		if i > 0 {
+			out += ", "
+		}
+		out += p
+	}
+	return out
+}
+
+// ---------------------------------------------------------------------------
+// Diff (local vs remote) types
+// ---------------------------------------------------------------------------
+
+// DiffBlockEntry is a single changed block in a diff.
+type DiffBlockEntry struct {
+	BlockID string `json:"block_id"`
+	Name    string `json:"name,omitempty"`
+	Preview string `json:"preview,omitempty"`
+	Change  string `json:"change"` // "added", "changed", "removed"
+}
+
+// DiffFileEntry groups changed blocks for a single file.
+type DiffFileEntry struct {
+	Path    string           `json:"path"`
+	Format  string           `json:"format,omitempty"`
+	Added   int              `json:"added"`
+	Changed int              `json:"changed"`
+	Removed int              `json:"removed"`
+	Blocks  []DiffBlockEntry `json:"blocks,omitempty"`
+}
+
+// DiffOutput represents the result of kapi diff.
+type DiffOutput struct {
+	Project     ProjectInfo     `json:"project"`
+	Stream      string          `json:"stream,omitempty"`
+	Files       []DiffFileEntry `json:"files"`
+	Added       int             `json:"added"`
+	Changed     int             `json:"changed"`
+	Removed     int             `json:"removed"`
+	PendingPull int             `json:"pending_pull"`
+	// Verbose controls whether per-block detail is printed in text output.
+	Verbose bool `json:"-"`
+	// Connected reports whether a server is configured. Diff still computes
+	// local-vs-cache deltas without a server, but reports that explicitly.
+	Connected bool `json:"connected"`
+}
+
+func (o DiffOutput) FormatText(w io.Writer) error {
+	if o.Stream != "" && o.Stream != "main" {
+		fmt.Fprintf(w, "Stream: %s\n", o.Stream)
+	}
+
+	if len(o.Files) == 0 {
+		if !o.Connected {
+			fmt.Fprintln(w, "No local changes since the last sync.")
+			fmt.Fprintln(w, "  (no server configured — comparing against the local sync cache)")
+		} else if o.PendingPull != 0 {
+			printPendingPull(w, o.PendingPull)
+		} else {
+			fmt.Fprintln(w, "No changes. Local and remote are in sync.")
+		}
+		return nil
+	}
+
+	// Per-file summary (git diff --stat style).
+	pathW := 4
+	for _, f := range o.Files {
+		if len(f.Path) > pathW {
+			pathW = len(f.Path)
+		}
+	}
+	pathW += 2
+
+	for _, f := range o.Files {
+		stat := diffStat(f.Added, f.Changed, f.Removed)
+		fmt.Fprintf(w, "  %-*s %s\n", pathW, f.Path, stat)
+		if o.Verbose {
+			for _, b := range f.Blocks {
+				sigil := changeSigil(b.Change)
+				label := b.Name
+				if label == "" {
+					label = b.BlockID
+				}
+				if b.Preview != "" {
+					fmt.Fprintf(w, "      %s %s — %s\n", sigil, label, b.Preview)
+				} else {
+					fmt.Fprintf(w, "      %s %s\n", sigil, label)
+				}
+			}
+		}
+	}
+
+	fmt.Fprintf(w, "\n%d file(s) changed: ", len(o.Files))
+	fmt.Fprintln(w, diffStat(o.Added, o.Changed, o.Removed))
+
+	if o.PendingPull != 0 {
+		printPendingPull(w, o.PendingPull)
+	}
+
+	if !o.Verbose {
+		fmt.Fprintln(w, "\nUse --verbose to see changed block ids/keys.")
+	}
+	return nil
+}
+
+func printPendingPull(w io.Writer, pending int) {
+	if pending < 0 {
+		fmt.Fprintln(w, "Remote: changes available to pull")
+	} else if pending > 0 {
+		fmt.Fprintf(w, "Remote: %d change(s) available to pull\n", pending)
+	}
+}
+
+// diffStat renders a compact "+a ~c -r" style change summary.
+func diffStat(added, changed, removed int) string {
+	parts := []string{}
+	if added > 0 {
+		parts = append(parts, fmt.Sprintf("+%d", added))
+	}
+	if changed > 0 {
+		parts = append(parts, fmt.Sprintf("~%d", changed))
+	}
+	if removed > 0 {
+		parts = append(parts, fmt.Sprintf("-%d", removed))
+	}
+	if len(parts) == 0 {
+		return "no changes"
+	}
+	out := ""
+	for i, p := range parts {
+		if i > 0 {
+			out += " "
+		}
+		out += p
+	}
+	return out
+}
+
+// changeSigil maps a change type to a one-character sigil.
+func changeSigil(change string) string {
+	switch change {
+	case "added":
+		return "+"
+	case "changed":
+		return "~"
+	case "removed":
+		return "-"
+	default:
+		return "?"
+	}
+}
+
 // WorkspaceItem is a single workspace in WorkspaceListOutput.
 type WorkspaceItem struct {
 	ID   string `json:"id,omitempty"`

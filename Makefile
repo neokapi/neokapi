@@ -294,6 +294,56 @@ verify-isolation: ## Verify all Go module isolation boundaries
 	@# kapi must not have heavy deps
 	@if cd kapi && GOWORK=off go list -m all 2>/dev/null | grep -iE 'wails|echo|oidc|keyring'; then echo "ERROR: kapi has heavy deps"; exit 1; fi
 
+# audit-modules asserts the module isolation contract and fails on drift. For
+# each isolated module it runs a GOWORK=off build (so the module resolves
+# against its own go.mod, not the workspace — a boundary violation that the
+# go.work overlay would otherwise hide), then a GOWORK=off `go mod tidy` and
+# fails if tidy was not a no-op (stale or missing requires, or a require that
+# pulls in a forbidden boundary-crossing module, all leave a diff). The
+# pre-tidy go.mod/go.sum are snapshotted and restored, so the check is robust
+# whether the changes are committed (CI) or still in the working tree (local
+# pre-push). Mirrors the per-module isolation commands in CLAUDE.md "Build
+# Conventions".
+#
+# Modules audited (path → expected boundary):
+#   .                  framework — no cli/bowrain deps
+#   cli                framework only — no bowrain dep
+#   bowrain/core       framework (+ plugin/schema) only — no cli dep
+#   kapi               framework + cli only — no bowrain dep
+#   apps/kapi-desktop  framework + cli (+ plugin/schema) only — no bowrain dep
+#   bowrain/cli        framework + cli + bowrain/core (the kapi-bowrain plugin)
+#   bowrain            framework + bowrain/core (the platform)
+#
+# bowrain and bowrain/cli are not isolation boundaries (they legitimately depend
+# on several modules), but they are audited for the same go.mod/go.sum tidiness —
+# e.g. a require that should be indirect after a package moves. CI's Tidy Check
+# covers all modules, so they belong here too.
+#
+# Build pattern per module: most build ./..., but apps/kapi-desktop's main
+# package embeds frontend/dist (//go:embed all:frontend/dist) which only exists
+# after a frontend build, so — like `make kapi-desktop-test` — we build only
+# ./backend/... for it. `go mod tidy` still resolves the whole module graph
+# (embeds don't affect dependency resolution), so the boundary contract holds.
+AUDIT_MODULES := . cli bowrain/core kapi apps/kapi-desktop bowrain/cli bowrain
+
+audit-modules: ## Assert module isolation + go.mod/go.sum tidiness (fails on drift)
+	@set -e; rc=0; for dir in $(AUDIT_MODULES); do \
+	  echo ">> audit $$dir"; \
+	  pkgs="./..."; [ "$$dir" = "apps/kapi-desktop" ] && pkgs="./backend/..."; \
+	  ( cd "$$dir" && GOWORK=off $(GO) build $$pkgs ) || { echo "ERROR: $$dir failed isolated (GOWORK=off) build"; exit 1; }; \
+	  cp "$$dir/go.mod" "$$dir/go.mod.audit.bak"; \
+	  [ -f "$$dir/go.sum" ] && cp "$$dir/go.sum" "$$dir/go.sum.audit.bak" || true; \
+	  ( cd "$$dir" && GOWORK=off $(GO) mod tidy ) || { echo "ERROR: $$dir failed go mod tidy"; exit 1; }; \
+	  if ! diff -q "$$dir/go.mod.audit.bak" "$$dir/go.mod" >/dev/null 2>&1 || \
+	     { [ -f "$$dir/go.sum.audit.bak" ] && ! diff -q "$$dir/go.sum.audit.bak" "$$dir/go.sum" >/dev/null 2>&1; }; then \
+	    echo "ERROR: $$dir go.mod/go.sum not tidy — run 'cd $$dir && GOWORK=off go mod tidy' and commit"; rc=1; \
+	  fi; \
+	  mv "$$dir/go.mod.audit.bak" "$$dir/go.mod"; \
+	  [ -f "$$dir/go.sum.audit.bak" ] && mv "$$dir/go.sum.audit.bak" "$$dir/go.sum" || true; \
+	done; \
+	[ $$rc -eq 0 ] || exit 1
+	@echo "audit-modules: all module boundaries clean and go.mod/go.sum tidy"
+
 # ── Parity (head-to-head against okapi-bridge) ──────────────────────────────
 #
 # `make parity-test` is the load-bearing safety net for issue #448:
@@ -847,6 +897,44 @@ kapi-scenes: ## Record kapi docs scene tapes (VHS, desktop) → web/docs/static/
 	done
 	@echo "Recorded $$(ls web/docs/static/video/kapi/01-*.webm 2>/dev/null | wc -l) scene(s) → web/docs/static/video/kapi/  (now: make publish-docs-assets)"
 
+# Record the bowrain CLI docs scene tapes (VHS) on your desktop and stage them
+# under bowrain/web/docs/static/video/bowrain-cli/, then
+# `make publish-bowrain-docs-assets`. Done locally so CI doesn't re-record on
+# every build (docs-bowrain.yml stages these from the bowrain-docs-assets
+# release). Needs `vhs`, a built kapi + kapi-bowrain plugin, and a reachable
+# server — set BOWRAIN_BACKEND_URL (and authenticate first). The tapes cd into
+# WALKTHROUGH_DIR, a temp dir OUTSIDE the checkout, so `kapi init`/push/sync
+# never walk up into the repo's own dogfood .kapi project. The plugin is
+# discovered only from an isolated dir (KAPI_PLUGINS_DIR_ONLY).
+bowrain-kapi-scenes: ## Record bowrain CLI scene tapes (VHS, desktop) → bowrain/web/docs/static/video/bowrain-cli/
+	@command -v vhs >/dev/null || { echo "vhs not found — run: brew install vhs"; exit 1; }
+	@test -x bin/kapi || $(MAKE) build
+	@test -x bin/kapi-bowrain || $(MAKE) build-kapi-bowrain-plugin
+	@mkdir -p bowrain/web/docs/static/video/bowrain-cli "$(KAPI_ISO_DIR)/plugins/bowrain"
+	@cp bin/kapi-bowrain "$(KAPI_ISO_DIR)/plugins/bowrain/kapi-bowrain"
+	@cp bowrain/cli/cmd/kapi-bowrain/manifest.json "$(KAPI_ISO_DIR)/plugins/bowrain/manifest.json"
+	@wt="$${WALKTHROUGH_DIR:-$${TMPDIR:-/tmp}/bowrain-walkthrough}"; \
+	  rm -rf "$$wt" && mkdir -p "$$wt"; \
+	  for scene_dir in bowrain/web/docs/scenes/*/; do \
+	    for tape in "$$scene_dir"*.tape; do \
+	      [ -f "$$tape" ] || continue; \
+	      echo "Recording $$tape"; \
+	      (cd "$$scene_dir" && env KAPI_NO_PROJECT=1 KAPI_PLUGINS_DIR_ONLY=1 \
+	        KAPI_PLUGINS_DIR="$(KAPI_ISO_DIR)/plugins" \
+	        KAPI_CONFIG_DIR=$(KAPI_ISO_DIR)/config XDG_DATA_HOME=$(KAPI_ISO_DIR)/data XDG_CACHE_HOME=$(KAPI_ISO_DIR)/cache \
+	        WALKTHROUGH_DIR="$$wt" PATH="$(CURDIR)/bin:$$PATH" \
+	        vhs "$$(basename "$$tape")") || echo "  ! $$tape failed"; \
+	    done; \
+	  done
+	@for webm in bowrain/web/docs/scenes/*/*.webm; do \
+	  [ -f "$$webm" ] || continue; \
+	  out="bowrain/web/docs/static/video/bowrain-cli/$$(basename "$$webm")"; \
+	  ffmpeg -y -i "$$webm" -an -c:v libvpx-vp9 -b:v 0 -crf 32 -row-mt 1 -pix_fmt yuv420p \
+	    -colorspace bt709 -color_primaries bt709 -color_trc bt709 -color_range tv -map_metadata -1 \
+	    "$$out" >/dev/null 2>&1 || cp "$$webm" "$$out"; \
+	done
+	@echo "Recorded bowrain CLI scene(s) → bowrain/web/docs/static/video/bowrain-cli/  (now: make publish-bowrain-docs-assets)"
+
 # ── Generate (scripts at root) ──────────────────────────────────────────────
 
 # okapi-bridge plugin dir feeding the reference dataset. Override with
@@ -856,6 +944,9 @@ BRIDGE_PLUGIN ?= $(ROOT_DIR)/../okapi-bridge/dist/plugin
 
 generate-reference-docs: ## Generate the unified format + tool reference dataset (built-in + okapi-bridge) → packages/reference-data/data
 	$(GO) run ./scripts/gen-refs $(if $(wildcard $(BRIDGE_PLUGIN)),-bridge $(BRIDGE_PLUGIN),)
+
+check-reference-docs: ## Drift gate: fail if the committed reference dataset is stale vs. source (gates the built-in subset; absent okapi-bridge is fine)
+	$(GO) run ./scripts/gen-refs -check $(if $(wildcard $(BRIDGE_PLUGIN)),-bridge $(BRIDGE_PLUGIN),)
 
 # Superseded by generate-reference-docs; kept as an alias for existing callers.
 generate-format-docs: generate-reference-docs
@@ -919,7 +1010,7 @@ setup-remote: ## Install dependencies for cloud environments
 pre-push: ## Run checks relevant to your changes (mirrors CI)
 	@./scripts/pre-push-check.sh
 
-pre-push-all: ## Run all checks regardless of changes
+pre-push-all: audit-modules ## Run all checks regardless of changes
 	@./scripts/pre-push-check.sh --all
 
 gha-lint: ## Lint GitHub Actions workflow files
@@ -1002,7 +1093,7 @@ help: ## Show this help
         bowrain-desktop-test \
         ci-test-framework ci-test-cli ci-test-kapi ci-test-platform \
         ci-test-bowrain-cli ci-test-bowrain ci-test-kapi-desktop ci-test-bowrain-desktop ci-test-all \
-        verify-isolation \
+        verify-isolation audit-modules \
         build build-all build-server build-worker build-kapi-bowrain-plugin build-bowrain-plugin build-bowrain build-headless \
         plugin-bundle dev-skills \
         install install-kapi-bowrain-plugin \
@@ -1018,7 +1109,7 @@ help: ## Show this help
         bench bench-build bench-generate bench-run bench-run-collection bench-run-all bench-versions \
         logo fetch-docs-assets publish-docs-assets harness-deps harness-videos \
         fetch-bowrain-docs-assets publish-bowrain-docs-assets \
-        generate-format-docs generate-reference-docs generate-reference-pages \
+        generate-format-docs generate-reference-docs check-reference-docs generate-reference-pages \
         docs-deps docs-dev docs-wasm docs-build docs-serve \
         tools setup-remote gha-lint clean \
         _fw-fmt _fw-test _fw-test-fast _fw-test-unit _fw-test-race _fw-test-verbose _fw-test-integration \

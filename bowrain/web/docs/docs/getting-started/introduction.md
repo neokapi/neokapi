@@ -16,11 +16,11 @@ You keep using kapi. Installing the bowrain plugin (`kapi plugin install bowrain
 
 ### Shared, versioned governance
 
-One brand-voice profile, terminology base, and translation memory, held on the server and shared across everyone — writers, translators, and AI tools — instead of living in each person's checkout. Changes are versioned and auditable: who approved a term, when a profile changed, what a translation used to say.
+One brand-voice profile, terminology base, and translation memory, held on the server and shared across everyone — writers, translators, and AI tools — instead of living in each person's checkout. Changes are versioned and auditable: who approved a term, when a profile changed, what a translation used to say. And the profile *learns*: repeated corrections become versioned, enforced checks, so the rules a team discovers by correcting real output are captured instead of lost — see [Brand voice & corrections](/server/brand-voice).
 
 ### Collaboration
 
-A web editor and a desktop app connect to the same server. Translators work with split preview, translation memory, and terminology context; edits, presence, and memory updates propagate to every client in real time.
+A web editor and a desktop app connect to the same server. Translators work with split preview, translation memory, and terminology context; edits, presence, and memory updates propagate to every client in real time — see [Real-time collaboration](/server/collaboration).
 
 ### Connectors
 
