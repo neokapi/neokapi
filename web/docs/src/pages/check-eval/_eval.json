@@ -1,0 +1,157 @@
+{
+  "generated_note": "Run `go run ./scripts/checkeval` to regenerate.",
+  "total": {
+    "check": "all",
+    "cases": 10,
+    "tp": 5,
+    "fp": 0,
+    "fn": 0,
+    "precision": 1,
+    "recall": 1,
+    "f1": 1
+  },
+  "by_check": [
+    {
+      "check": "dnt",
+      "cases": 4,
+      "tp": 2,
+      "fp": 0,
+      "fn": 0,
+      "precision": 1,
+      "recall": 1,
+      "f1": 1
+    },
+    {
+      "check": "placeholder",
+      "cases": 6,
+      "tp": 3,
+      "fp": 0,
+      "fn": 0,
+      "precision": 1,
+      "recall": 1,
+      "f1": 1
+    }
+  ],
+  "cases": [
+    {
+      "id": "dnt-translated",
+      "check": "dnt",
+      "expect": [
+        "do-not-translate"
+      ],
+      "got": [
+        "do-not-translate"
+      ],
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "note": "product name translated → flag"
+    },
+    {
+      "id": "dnt-preserved",
+      "check": "dnt",
+      "expect": [],
+      "got": [],
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "note": "product name kept verbatim → no flag (true negative)"
+    },
+    {
+      "id": "dnt-word-boundary",
+      "check": "dnt",
+      "expect": [],
+      "got": [],
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "note": "\"Go\" must not match inside \"going\" — false-positive guard"
+    },
+    {
+      "id": "dnt-case-sensitive",
+      "check": "dnt",
+      "expect": [
+        "do-not-translate"
+      ],
+      "got": [
+        "do-not-translate"
+      ],
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "note": "case matters: iPhone → Iphone is a violation"
+    },
+    {
+      "id": "placeholder-dropped",
+      "check": "placeholder",
+      "expect": [
+        "placeholder"
+      ],
+      "got": [
+        "placeholder"
+      ],
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "note": "{count} dropped → flag"
+    },
+    {
+      "id": "placeholder-preserved",
+      "check": "placeholder",
+      "expect": [],
+      "got": [],
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "note": "{count} kept → no flag"
+    },
+    {
+      "id": "placeholder-printf-dropped",
+      "check": "placeholder",
+      "expect": [
+        "placeholder"
+      ],
+      "got": [
+        "placeholder"
+      ],
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "note": "%d and %s both dropped → flag"
+    },
+    {
+      "id": "placeholder-extra",
+      "check": "placeholder",
+      "expect": [
+        "placeholder"
+      ],
+      "got": [
+        "placeholder"
+      ],
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "note": "unexpected {stray} in target → flag"
+    },
+    {
+      "id": "placeholder-numbered-tag",
+      "check": "placeholder",
+      "expect": [],
+      "got": [],
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "note": "numbered tags preserved → no flag"
+    },
+    {
+      "id": "placeholder-none",
+      "check": "placeholder",
+      "expect": [],
+      "got": [],
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "note": "no placeholders → no flag"
+    }
+  ]
+}

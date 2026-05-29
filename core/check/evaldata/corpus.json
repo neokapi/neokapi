@@ -1,0 +1,99 @@
+{
+  "_about": "Labeled eval corpus for the content checks. Each case is an input (source, optional target) plus the finding categories a correct check SHOULD produce (expect). The check-eval harness (scripts/checkeval) runs the checks over these cases and reports precision/recall/F1; a regression test gates on it. Seed it from the checkers' unit + adversarial cases; grow it from the bowrain correction stream (each human correction is a labeled example) behind a privacy filter. See issue #759.",
+  "cases": [
+    {
+      "id": "dnt-translated",
+      "check": "dnt",
+      "source": "Open the Acme Cloud dashboard",
+      "target": "Öffnen Sie das Akme-Wolke Dashboard",
+      "target_lang": "de",
+      "dnt": ["Acme Cloud"],
+      "expect": ["do-not-translate"],
+      "note": "product name translated → flag"
+    },
+    {
+      "id": "dnt-preserved",
+      "check": "dnt",
+      "source": "Open the Acme Cloud dashboard",
+      "target": "Öffnen Sie das Acme Cloud Dashboard",
+      "target_lang": "de",
+      "dnt": ["Acme Cloud"],
+      "expect": [],
+      "note": "product name kept verbatim → no flag (true negative)"
+    },
+    {
+      "id": "dnt-word-boundary",
+      "check": "dnt",
+      "source": "We are going home",
+      "target": "Wir gehen nach Hause",
+      "target_lang": "de",
+      "dnt": ["Go"],
+      "expect": [],
+      "note": "\"Go\" must not match inside \"going\" — false-positive guard"
+    },
+    {
+      "id": "dnt-case-sensitive",
+      "check": "dnt",
+      "source": "Use iPhone now",
+      "target": "Benutze Iphone jetzt",
+      "target_lang": "de",
+      "dnt": ["iPhone"],
+      "expect": ["do-not-translate"],
+      "note": "case matters: iPhone → Iphone is a violation"
+    },
+    {
+      "id": "placeholder-dropped",
+      "check": "placeholder",
+      "source": "You have {count} items",
+      "target": "Sie haben Artikel",
+      "target_lang": "de",
+      "expect": ["placeholder"],
+      "note": "{count} dropped → flag"
+    },
+    {
+      "id": "placeholder-preserved",
+      "check": "placeholder",
+      "source": "You have {count} items",
+      "target": "Sie haben {count} Artikel",
+      "target_lang": "de",
+      "expect": [],
+      "note": "{count} kept → no flag"
+    },
+    {
+      "id": "placeholder-printf-dropped",
+      "check": "placeholder",
+      "source": "Loaded %d items in %s",
+      "target": "Elemente geladen",
+      "target_lang": "de",
+      "expect": ["placeholder"],
+      "note": "%d and %s both dropped → flag"
+    },
+    {
+      "id": "placeholder-extra",
+      "check": "placeholder",
+      "source": "Hello {name}",
+      "target": "Hallo {name} {stray}",
+      "target_lang": "de",
+      "expect": ["placeholder"],
+      "note": "unexpected {stray} in target → flag"
+    },
+    {
+      "id": "placeholder-numbered-tag",
+      "check": "placeholder",
+      "source": "Click <0>here</0> to continue",
+      "target": "Klicken Sie <0>hier</0>, um fortzufahren",
+      "target_lang": "de",
+      "expect": [],
+      "note": "numbered tags preserved → no flag"
+    },
+    {
+      "id": "placeholder-none",
+      "check": "placeholder",
+      "source": "Just plain text",
+      "target": "Nur einfacher Text",
+      "target_lang": "de",
+      "expect": [],
+      "note": "no placeholders → no flag"
+    }
+  ]
+}

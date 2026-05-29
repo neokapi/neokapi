@@ -708,6 +708,16 @@ bench-stress: bench-run ## Stress-run full corpus and publish to docs (slow, ~30
 	cp $(PSEUDOBENCH_RESULTS)/pseudobench.json web/docs/static/data/pseudobench.json
 	@echo "Published $(PSEUDOBENCH_RESULTS)/pseudobench.json → web/docs/static/data/pseudobench.json"
 
+# ── Content-check quality eval ───────────────────────────────────────────────
+# Scores the content checks (do-not-translate, placeholder, …) against a
+# labeled corpus and regenerates the /check-eval dashboard data. The companion
+# test (go test ./scripts/checkeval) gates the build on any regression — a new
+# false positive or a missed finding — mirroring how `make parity` gates format
+# faithfulness. The corpus grows from real corrections (issue #759).
+check-eval: ## Run the content-check quality eval → web/docs/src/pages/check-eval/_eval.json
+	$(GO) run ./scripts/checkeval
+	@echo "Published check-eval report → web/docs/src/pages/check-eval/_eval.json"
+
 # ── Frontend Checks ──────────────────────────────────────────────────────────
 
 frontend-check-all: ## Run lint, format, and typecheck across all frontend projects
@@ -944,7 +954,7 @@ help: ## Show this help
 	@echo ""
 
 .PHONY: all help $(BOTH_TARGETS) test test-fast test-unit test-race test-verbose test-integration \
-        parity-sandbox parity-test parity-publish parity-clean \
+        parity-sandbox parity-test parity-publish parity-clean check-eval \
         contract-audit contract-audit-all contract-audit-clean okapi-failsafe-reports \
         fmt vet lint check check-framework check-bowrain test-parallel \
         test-framework test-cli test-kapi test-platform test-bowrain-cli test-bowrain \

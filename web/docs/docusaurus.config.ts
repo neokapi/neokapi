@@ -170,6 +170,7 @@ const config: Config = {
             { label: "Parity", to: "/parity" },
             { label: "Benchmarks", to: "/pseudobench" },
             { label: "ML Benchmark", to: "/ml-benchmark" },
+            { label: "Check Eval", to: "/check-eval" },
             { label: "Test Results", to: "/test-comparison" },
           ],
         },
