@@ -84,6 +84,9 @@ import type {
   ScoreTrend,
   CreateVoiceProfileRequest,
   UpdateVoiceProfileRequest,
+  CandidateRule,
+  BlastRadius,
+  DriftResult,
 } from "../brand/types";
 
 /**
@@ -582,6 +585,32 @@ export interface ApiAdapter {
   deleteBrandProfile(workspaceSlug: string, profileId: string): Promise<void>;
   getBrandScores(workspaceSlug: string, projectId: string): Promise<StoredScore[]>;
   getBrandTrends(workspaceSlug: string, projectId: string): Promise<ScoreTrend[]>;
+  // Correction-learning loop (AD-019)
+  listBrandCandidates(
+    workspaceSlug: string,
+    profileId: string,
+    opts?: { minCount?: number; all?: boolean },
+  ): Promise<CandidateRule[]>;
+  promoteBrandRule(
+    workspaceSlug: string,
+    profileId: string,
+    rule: { term: string; replacement?: string; correction_count?: number },
+  ): Promise<{ promoted: boolean }>;
+  rejectBrandRule(
+    workspaceSlug: string,
+    profileId: string,
+    rule: { term: string; replacement?: string },
+  ): Promise<void>;
+  evaluateBrandRule(
+    workspaceSlug: string,
+    profileId: string,
+    req: { term: string; replacement?: string; project_id: string; stream?: string },
+  ): Promise<BlastRadius>;
+  getBrandDrift(
+    workspaceSlug: string,
+    projectId: string,
+    opts?: { recentDays?: number; minScore?: number; dropPoints?: number },
+  ): Promise<DriftResult>;
   listStarterPacks(): Promise<{ name: string; description: string }[]>;
   createProfileFromStarter(
     workspaceSlug: string,

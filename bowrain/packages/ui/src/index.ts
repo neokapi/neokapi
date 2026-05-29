@@ -461,6 +461,9 @@ export {
   PatternListEditor,
   VocabularyEditor,
   ExamplesEditor,
+  CandidateRulesList,
+  BlastRadiusSummary,
+  DriftAlert,
   starterPacks,
 } from "./brand";
 export type {
@@ -482,6 +485,12 @@ export type {
   ScoreTrend,
   CreateVoiceProfileRequest,
   UpdateVoiceProfileRequest,
+  SuggestedRule,
+  RuleDecisionStatus,
+  CandidateRule,
+  CollectionBlastRadius,
+  BlastRadius,
+  DriftResult,
   StarterPackMeta,
 } from "./brand";
 
@@ -494,6 +503,11 @@ export {
   useDeleteBrandProfile,
   useBrandScores,
   useBrandTrends,
+  useBrandCandidates,
+  usePromoteBrandRule,
+  useRejectBrandRule,
+  useEvaluateBrandRule,
+  useBrandDrift,
   useStarterPacks,
   useCreateFromStarter,
 } from "./hooks/useBrandApi";

@@ -349,6 +349,13 @@ const brandEditorRoute = createRoute({
   component: lazyRouteComponent(() => import("./workspace/brand-editor"), "BrandEditorRoute"),
 });
 
+const brandReviewRoute = createRoute({
+  getParentRoute: () => brandRoute,
+  path: "review/$profileId",
+  pendingComponent: SettingsSkeleton,
+  component: lazyRouteComponent(() => import("./workspace/brand-review"), "BrandReviewRoute"),
+});
+
 const brandDashboardRoute = createRoute({
   getParentRoute: () => brandRoute,
   path: "dashboard",
@@ -525,6 +532,7 @@ const routeTree = rootRoute.addChildren([
       brandIndexRoute,
       brandDashboardRoute,
       brandMCPGuideRoute,
+      brandReviewRoute,
       brandEditorRoute,
     ]),
     termbaseRoute,

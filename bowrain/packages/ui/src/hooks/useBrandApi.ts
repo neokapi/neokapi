@@ -100,6 +100,83 @@ export function useBrandTrends(projectId: string) {
   });
 }
 
+// ── Correction-learning loop (AD-019) ──────────────────────────────────────
+
+export function useBrandCandidates(profileId: string, opts?: { minCount?: number; all?: boolean }) {
+  const api = useApi();
+  const { activeWorkspace } = useWorkspace();
+  const ws = activeWorkspace?.slug ?? "";
+
+  return useQuery({
+    queryKey: ["brand-candidates", ws, profileId, opts?.minCount ?? 3, opts?.all ?? false],
+    queryFn: () => api.listBrandCandidates(ws, profileId, opts),
+    enabled: !!ws && !!profileId,
+    staleTime: 15_000,
+  });
+}
+
+export function usePromoteBrandRule(profileId: string) {
+  const api = useApi();
+  const { activeWorkspace } = useWorkspace();
+  const ws = activeWorkspace?.slug ?? "";
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (rule: { term: string; replacement?: string; correction_count?: number }) =>
+      api.promoteBrandRule(ws, profileId, rule),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["brand-candidates", ws, profileId] });
+      void queryClient.invalidateQueries({ queryKey: ["brand-profile", ws, profileId] });
+    },
+  });
+}
+
+export function useRejectBrandRule(profileId: string) {
+  const api = useApi();
+  const { activeWorkspace } = useWorkspace();
+  const ws = activeWorkspace?.slug ?? "";
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (rule: { term: string; replacement?: string }) =>
+      api.rejectBrandRule(ws, profileId, rule),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["brand-candidates", ws, profileId] });
+    },
+  });
+}
+
+export function useEvaluateBrandRule(profileId: string) {
+  const api = useApi();
+  const { activeWorkspace } = useWorkspace();
+  const ws = activeWorkspace?.slug ?? "";
+
+  return useMutation({
+    mutationFn: (req: {
+      term: string;
+      replacement?: string;
+      project_id: string;
+      stream?: string;
+    }) => api.evaluateBrandRule(ws, profileId, req),
+  });
+}
+
+export function useBrandDrift(
+  projectId: string,
+  opts?: { recentDays?: number; minScore?: number; dropPoints?: number },
+) {
+  const api = useApi();
+  const { activeWorkspace } = useWorkspace();
+  const ws = activeWorkspace?.slug ?? "";
+
+  return useQuery({
+    queryKey: ["brand-drift", ws, projectId, opts ?? {}],
+    queryFn: () => api.getBrandDrift(ws, projectId, opts),
+    enabled: !!ws && !!projectId,
+    staleTime: 60_000,
+  });
+}
+
 export function useStarterPacks() {
   const api = useApi();
 

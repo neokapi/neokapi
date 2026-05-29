@@ -93,6 +93,9 @@ import type {
   ScoreTrend,
   CreateVoiceProfileRequest,
   UpdateVoiceProfileRequest,
+  CandidateRule,
+  BlastRadius,
+  DriftResult,
 } from "../brand/types";
 
 /**
@@ -1607,6 +1610,70 @@ export class RestApiAdapter implements ApiAdapter {
   async getBrandTrends(workspaceSlug: string, projectId: string): Promise<ScoreTrend[]> {
     return this.fetchJSON(
       `${this.projectEp(workspaceSlug, projectId)}/brand-voice/${this.ref()}/trends`,
+    );
+  }
+
+  // ── Correction-learning loop (AD-019) ──────────────────────────────────────
+
+  async listBrandCandidates(
+    workspaceSlug: string,
+    profileId: string,
+    opts?: { minCount?: number; all?: boolean },
+  ): Promise<CandidateRule[]> {
+    const q = new URLSearchParams();
+    if (opts?.minCount) q.set("min_count", String(opts.minCount));
+    if (opts?.all) q.set("all", "true");
+    const qs = q.toString();
+    return this.fetchJSON(
+      `${this.brandEp(workspaceSlug)}/${encodeURIComponent(profileId)}/candidates${qs ? `?${qs}` : ""}`,
+    );
+  }
+
+  async promoteBrandRule(
+    workspaceSlug: string,
+    profileId: string,
+    rule: { term: string; replacement?: string; correction_count?: number },
+  ): Promise<{ promoted: boolean }> {
+    return this.fetchJSON(
+      `${this.brandEp(workspaceSlug)}/${encodeURIComponent(profileId)}/promote-rule`,
+      { method: "POST", body: JSON.stringify(rule) },
+    );
+  }
+
+  async rejectBrandRule(
+    workspaceSlug: string,
+    profileId: string,
+    rule: { term: string; replacement?: string },
+  ): Promise<void> {
+    await this.fetchJSON(
+      `${this.brandEp(workspaceSlug)}/${encodeURIComponent(profileId)}/reject-rule`,
+      { method: "POST", body: JSON.stringify(rule) },
+    );
+  }
+
+  async evaluateBrandRule(
+    workspaceSlug: string,
+    profileId: string,
+    req: { term: string; replacement?: string; project_id: string; stream?: string },
+  ): Promise<BlastRadius> {
+    return this.fetchJSON(
+      `${this.brandEp(workspaceSlug)}/${encodeURIComponent(profileId)}/evaluate-rule`,
+      { method: "POST", body: JSON.stringify(req) },
+    );
+  }
+
+  async getBrandDrift(
+    workspaceSlug: string,
+    projectId: string,
+    opts?: { recentDays?: number; minScore?: number; dropPoints?: number },
+  ): Promise<DriftResult> {
+    const q = new URLSearchParams();
+    if (opts?.recentDays) q.set("recent_days", String(opts.recentDays));
+    if (opts?.minScore) q.set("min_score", String(opts.minScore));
+    if (opts?.dropPoints) q.set("drop_points", String(opts.dropPoints));
+    const qs = q.toString();
+    return this.fetchJSON(
+      `${this.projectEp(workspaceSlug, projectId)}/brand-voice/${this.ref()}/drift${qs ? `?${qs}` : ""}`,
     );
   }
 
