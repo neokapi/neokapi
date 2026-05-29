@@ -168,7 +168,7 @@ export default function CheckEval(): ReactElement {
           The seed corpus is small and gold-labeled, so the deterministic checks score a perfect
           F1 and any regression is caught immediately. The plan (issue #759) extends it with public
           datasets (XFORMAL for formality, MQM-annotated MT, a placeholder/DNT error set) and, most
-          importantly, with the bowrain <strong>correction stream</strong>: every human correction
+          importantly, with a real <strong>correction stream</strong>: every human correction
           is a labeled example — the check should have flagged the original and should not flag the
           fix — so the eval set, and the calibration of thresholds like <code>--voice-min</code>,
           improve precisely where real content exercises them. Calibration curves and the ML proxy

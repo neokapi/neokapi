@@ -176,15 +176,15 @@ export default function MLBenchmark(): ReactElement {
         <p>
           Ship the int8 embedding model as an optional plugin the user explicitly installs
           (~129 MB, ~40 MB resident) for voice/style similarity and register; run the generalist NER and
-          any LLM-deep check server-side in bowrain, where the model is hosted once and amortized
-          across the team and across large batches. Keeps the CLI lean and offline-capable for
+          any LLM-deep check server-side, where the model is hosted once and amortized
+          across a team and across large batches. Keeps the CLI lean and offline-capable for
           the common case, without asking every user to download a gigabyte.
         </p>
         <h3>Option B — all model-backed checks server-side</h3>
         <p>
-          kapi stays purely deterministic offline; every ML-backed check is a call to bowrain.
-          Simplest CLI and smallest install, at the cost of the offline subjective checks and a
-          network dependency for them.
+          kapi stays purely deterministic offline; every ML-backed check is a call to a
+          server you run. Simplest CLI and smallest install, at the cost of the offline subjective
+          checks and a network dependency for them.
         </p>
         <h3>Option C — all models local (quantized)</h3>
         <p>
