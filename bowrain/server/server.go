@@ -1205,6 +1205,7 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group) {
 	g.PUT("/:id/blocks/:ref/:bid", s.HandleUpdateBlockTarget)
 	g.PUT("/:id/blocks/:ref/:bid/runs", s.HandleUpdateBlockTargetRuns)
 	g.GET("/:id/blocks/:ref/:bid/history", s.HandleGetBlockHistory)
+	g.POST("/:id/blocks/:ref/:bid/rollback", s.HandleRollbackBlock)
 	g.GET("/:id/blocks/:ref/:bid/notes", s.HandleListBlockNotes)
 	g.POST("/:id/blocks/:ref/:bid/notes", s.HandleAddBlockNote)
 	g.DELETE("/:id/blocks/:ref/:bid/notes/:nid", s.HandleDeleteBlockNote)

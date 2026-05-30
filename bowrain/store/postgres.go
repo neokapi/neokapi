@@ -522,6 +522,7 @@ func (s *PostgresStore) storeBlocks(ctx context.Context, projectID, stream, item
 		locales     map[string]struct{}
 	}
 	existingBlocks := map[string]existingBlock{}
+	oldTargetText := map[string]map[string]string{} // blockID → variant → prior text, for block_history
 	{
 		var hashQuery string
 		var hashArgs []any
@@ -562,6 +563,16 @@ func (s *PostgresStore) storeBlocks(ctx context.Context, projectID, stream, item
 					existingBlocks[bid] = eb
 				}
 			}
+		}
+
+		// Capture prior target text for change-history before the upsert
+		// overwrites it.
+		if len(ids) > 0 {
+			ot, otErr := loadOldTargetText(ctx, tx, projectID, stream, ids)
+			if otErr != nil {
+				return fmt.Errorf("batch old-target load: %w", otErr)
+			}
+			oldTargetText = ot
 		}
 	}
 
@@ -607,6 +618,12 @@ func (s *PostgresStore) storeBlocks(ctx context.Context, projectID, stream, item
 
 		// Write targets + annotations into the kind-specific tables.
 		if err := SyncBlockOverlays(ctx, tx, "pg", projectID, stream, internalID, b.Targets, b.Annotations, now); err != nil {
+			return err
+		}
+
+		// Record content history for changed targets so prior content can be
+		// restored (per-edit rollback). Uses the pre-upsert text captured above.
+		if err := recordTargetHistoryPg(ctx, tx, projectID, stream, internalID, oldTargetText[internalID], b.Targets); err != nil {
 			return err
 		}
 
