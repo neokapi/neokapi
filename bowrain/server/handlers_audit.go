@@ -59,13 +59,15 @@ func (s *Server) HandleListWorkspaceAuditLog(c echo.Context) error {
 	}
 
 	q := bevent.AuditQuery{
-		WorkspaceID: wsID,
-		ProjectID:   c.QueryParam("project"),
-		EventType:   c.QueryParam("type"),
-		Actor:       c.QueryParam("actor"),
-		Search:      c.QueryParam("search"),
-		Limit:       limit,
-		Offset:      offset,
+		WorkspaceID:  wsID,
+		ProjectID:    c.QueryParam("project"),
+		EventType:    c.QueryParam("type"),
+		Actor:        c.QueryParam("actor"),
+		ResourceType: c.QueryParam("resource_type"),
+		Effect:       c.QueryParam("effect"),
+		Search:       c.QueryParam("search"),
+		Limit:        limit,
+		Offset:       offset,
 	}
 
 	entries, err := s.AuditLogger.QueryAuditLog(c.Request().Context(), q)
@@ -78,4 +80,22 @@ func (s *Server) HandleListWorkspaceAuditLog(c echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, entries)
+}
+
+// HandleVerifyWorkspaceAuditChain verifies the tamper-evidence of the
+// workspace's security audit chain and returns the result. Requires PermAuditRead.
+// GET /:ws/audit-log/verify
+func (s *Server) HandleVerifyWorkspaceAuditChain(c echo.Context) error {
+	if err := s.requirePermission(c, platauth.PermAuditRead); err != nil {
+		return err
+	}
+	if s.AuditLogger == nil {
+		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "audit log not configured"})
+	}
+	wsID, _ := c.Get("workspace_id").(string)
+	v, err := s.AuditLogger.VerifyChain(c.Request().Context(), wsID)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+	}
+	return c.JSON(http.StatusOK, v)
 }

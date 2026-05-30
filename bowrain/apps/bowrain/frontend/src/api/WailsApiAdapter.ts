@@ -46,6 +46,7 @@ import type {
   StreamMergeResult,
   CollectionInfo,
   AuditEntry,
+  AuditChainVerification,
   ArchivedProject,
   VoiceProfile,
   StoredScore,
@@ -108,7 +109,12 @@ export class WailsApiAdapter implements ApiAdapter {
   // --- Server config ---
   async getConfig(): Promise<ConfigResponse> {
     const v = await Backend.GetVersion();
-    return { mode: "standalone", version: v.version, commit: v.commit, build_date: v.build_date };
+    return {
+      mode: "standalone",
+      version: v.version,
+      commit: v.commit,
+      build_date: v.build_date,
+    };
   }
 
   // --- Auth (not applicable in desktop) ---
@@ -184,10 +190,18 @@ export class WailsApiAdapter implements ApiAdapter {
   async listMembers(workspaceSlug: string): Promise<Membership[]> {
     return Backend.ListMembers(workspaceSlug) as Promise<Membership[]>;
   }
-  async addMember(workspaceSlug: string, userId: string, role: string): Promise<void> {
+  async addMember(
+    workspaceSlug: string,
+    userId: string,
+    role: string,
+  ): Promise<void> {
     return Backend.AddMember(workspaceSlug, userId, role);
   }
-  async updateMemberRole(workspaceSlug: string, userId: string, role: string): Promise<void> {
+  async updateMemberRole(
+    workspaceSlug: string,
+    userId: string,
+    role: string,
+  ): Promise<void> {
     return Backend.UpdateMemberRole(workspaceSlug, userId, role);
   }
   async removeMember(workspaceSlug: string, userId: string): Promise<void> {
@@ -204,7 +218,12 @@ export class WailsApiAdapter implements ApiAdapter {
     role: string,
     maxUses: number,
   ): Promise<Invite> {
-    return Backend.CreateInvite(workspaceSlug, email, role, maxUses) as Promise<Invite>;
+    return Backend.CreateInvite(
+      workspaceSlug,
+      email,
+      role,
+      maxUses,
+    ) as Promise<Invite>;
   }
   async deleteInvite(workspaceSlug: string, inviteId: string): Promise<void> {
     return Backend.DeleteInvite(workspaceSlug, inviteId);
@@ -250,7 +269,10 @@ export class WailsApiAdapter implements ApiAdapter {
   }
 
   // --- Project Members (not applicable in desktop) ---
-  async listProjectMembers(_ws: string, _projectId: string): Promise<ProjectMembership[]> {
+  async listProjectMembers(
+    _ws: string,
+    _projectId: string,
+  ): Promise<ProjectMembership[]> {
     return [];
   }
   async addProjectMember(
@@ -275,7 +297,11 @@ export class WailsApiAdapter implements ApiAdapter {
   ): Promise<ProjectMembership> {
     throw new Error("not implemented in desktop app");
   }
-  async removeProjectMember(_ws: string, _projectId: string, _userId: string): Promise<void> {
+  async removeProjectMember(
+    _ws: string,
+    _projectId: string,
+    _userId: string,
+  ): Promise<void> {
     throw new Error("not implemented in desktop app");
   }
 
@@ -309,7 +335,11 @@ export class WailsApiAdapter implements ApiAdapter {
   }
 
   // --- Stream Tags (not yet supported in desktop) ---
-  async listStreamTags(_ws: string, _projectId: string, _streamName: string): Promise<StreamTag[]> {
+  async listStreamTags(
+    _ws: string,
+    _projectId: string,
+    _streamName: string,
+  ): Promise<StreamTag[]> {
     return [];
   }
   async createStreamTag(
@@ -365,7 +395,11 @@ export class WailsApiAdapter implements ApiAdapter {
     sourceLocale: string,
     targetLocales: string[],
   ): Promise<ProjectInfo> {
-    return Backend.CreateProject(name, sourceLocale, targetLocales) as Promise<ProjectInfo>;
+    return Backend.CreateProject(
+      name,
+      sourceLocale,
+      targetLocales,
+    ) as Promise<ProjectInfo>;
   }
   async getProject(_ws: string, projectId: string): Promise<ProjectInfo> {
     return Backend.GetProject(projectId) as Promise<ProjectInfo>;
@@ -376,12 +410,22 @@ export class WailsApiAdapter implements ApiAdapter {
   async deleteProject(_ws: string, projectId: string): Promise<void> {
     return Backend.CloseProject(projectId);
   }
-  async uploadFiles(_ws: string, projectId: string, files: File[]): Promise<ProjectInfo> {
+  async uploadFiles(
+    _ws: string,
+    projectId: string,
+    files: File[],
+  ): Promise<ProjectInfo> {
     // In Wails v3, File objects from DnD have a .path property
-    const paths = files.map((f) => (f as unknown as { path?: string }).path || f.name);
+    const paths = files.map(
+      (f) => (f as unknown as { path?: string }).path || f.name,
+    );
     return Backend.AddItems(projectId, paths) as Promise<ProjectInfo>;
   }
-  async removeFile(_ws: string, projectId: string, fileName: string): Promise<ProjectInfo> {
+  async removeFile(
+    _ws: string,
+    projectId: string,
+    fileName: string,
+  ): Promise<ProjectInfo> {
     return Backend.RemoveItem(projectId, fileName) as Promise<ProjectInfo>;
   }
 
@@ -396,6 +440,10 @@ export class WailsApiAdapter implements ApiAdapter {
   // --- Audit Log (not applicable in desktop) ---
   async listWorkspaceAuditLog(): Promise<AuditEntry[]> {
     return [];
+  }
+
+  async verifyWorkspaceAuditChain(): Promise<AuditChainVerification> {
+    return { chain_key: "", rows: 0, valid: true };
   }
 
   // --- Collections (not yet implemented in desktop) ---
@@ -419,13 +467,20 @@ export class WailsApiAdapter implements ApiAdapter {
   }
 
   // --- Editor ---
-  async getFileBlocks(_ws: string, projectId: string, fileName: string): Promise<BlockInfo[]> {
+  async getFileBlocks(
+    _ws: string,
+    projectId: string,
+    fileName: string,
+  ): Promise<BlockInfo[]> {
     return Backend.GetItemBlocks(projectId, fileName) as Promise<BlockInfo[]>;
   }
   async updateBlockTarget(_ws: string, req: UpdateBlockRequest): Promise<void> {
     return Backend.UpdateBlockTarget(req);
   }
-  async updateBlockTargetCoded(_ws: string, req: UpdateBlockTargetCodedRequest): Promise<void> {
+  async updateBlockTargetCoded(
+    _ws: string,
+    req: UpdateBlockTargetCodedRequest,
+  ): Promise<void> {
     // The @neokapi/ui editor still authors coded text + spans; the Wails
     // backend now consumes RFC 0001 runs, so convert at the boundary.
     return Backend.UpdateBlockTargetRuns({
@@ -448,7 +503,10 @@ export class WailsApiAdapter implements ApiAdapter {
       targetLocale,
     ) as Promise<TranslationStats>;
   }
-  async aiTranslateFile(_ws: string, _req: AITranslateFileRequest): Promise<TranslationStats> {
+  async aiTranslateFile(
+    _ws: string,
+    _req: AITranslateFileRequest,
+  ): Promise<TranslationStats> {
     throw new Error("AI translation is managed by the server pipeline");
   }
   async tmTranslateFile(
@@ -457,10 +515,21 @@ export class WailsApiAdapter implements ApiAdapter {
     fileName: string,
     targetLocale: string,
   ): Promise<TranslationStats> {
-    return Backend.TMTranslateItem(projectId, fileName, targetLocale) as Promise<TranslationStats>;
+    return Backend.TMTranslateItem(
+      projectId,
+      fileName,
+      targetLocale,
+    ) as Promise<TranslationStats>;
   }
-  async getWordCount(_ws: string, projectId: string, fileName: string): Promise<WordCountResult> {
-    return Backend.GetWordCount(projectId, fileName) as Promise<WordCountResult>;
+  async getWordCount(
+    _ws: string,
+    projectId: string,
+    fileName: string,
+  ): Promise<WordCountResult> {
+    return Backend.GetWordCount(
+      projectId,
+      fileName,
+    ) as Promise<WordCountResult>;
   }
   async exportTranslatedFile(
     _ws: string,
@@ -469,7 +538,11 @@ export class WailsApiAdapter implements ApiAdapter {
     targetLocale: string,
   ): Promise<Blob> {
     // Desktop: export to file system and open in OS
-    const path = await Backend.ExportTranslatedItem(projectId, fileName, targetLocale);
+    const path = await Backend.ExportTranslatedItem(
+      projectId,
+      fileName,
+      targetLocale,
+    );
     await Backend.OpenFileInOS(path);
     return new Blob(); // Dummy blob; actual file was saved to disk
   }
@@ -490,9 +563,12 @@ export class WailsApiAdapter implements ApiAdapter {
     blockId: string,
     targetLocale: string,
   ): Promise<TMMatchInfo[]> {
-    return Backend.LookupTMForBlock(projectId, itemName, blockId, targetLocale) as Promise<
-      TMMatchInfo[]
-    >;
+    return Backend.LookupTMForBlock(
+      projectId,
+      itemName,
+      blockId,
+      targetLocale,
+    ) as Promise<TMMatchInfo[]>;
   }
   async lookupTermsForBlock(
     _ws: string,
@@ -501,9 +577,12 @@ export class WailsApiAdapter implements ApiAdapter {
     blockId: string,
     targetLocale: string,
   ): Promise<BlockTermMatch[]> {
-    return Backend.LookupTermsForBlock(projectId, itemName, blockId, targetLocale) as Promise<
-      BlockTermMatch[]
-    >;
+    return Backend.LookupTermsForBlock(
+      projectId,
+      itemName,
+      blockId,
+      targetLocale,
+    ) as Promise<BlockTermMatch[]>;
   }
 
   // --- Translation Memory ---
@@ -608,13 +687,19 @@ export class WailsApiAdapter implements ApiAdapter {
   async listProviderConfigs(): Promise<ProviderConfig[]> {
     return Backend.ListProviderConfigs() as Promise<ProviderConfig[]>;
   }
-  async saveProviderConfig(_ws: string, cfg: ProviderConfigWithKey): Promise<ProviderConfig> {
+  async saveProviderConfig(
+    _ws: string,
+    cfg: ProviderConfigWithKey,
+  ): Promise<ProviderConfig> {
     return Backend.SaveProviderConfig(cfg) as Promise<ProviderConfig>;
   }
   async deleteProviderConfig(_ws: string, id: string): Promise<void> {
     return Backend.DeleteProviderConfig(id);
   }
-  async testProviderConfig(_ws: string, cfg: ProviderConfigWithKey): Promise<void> {
+  async testProviderConfig(
+    _ws: string,
+    cfg: ProviderConfigWithKey,
+  ): Promise<void> {
     return Backend.TestProviderConfig(cfg);
   }
 
@@ -649,10 +734,18 @@ export class WailsApiAdapter implements ApiAdapter {
   ): Promise<BlockNote> {
     throw new Error("Block notes not yet supported in desktop mode");
   }
-  async listBlockNotes(_ws: string, _projectId: string, _blockId: string): Promise<BlockNote[]> {
+  async listBlockNotes(
+    _ws: string,
+    _projectId: string,
+    _blockId: string,
+  ): Promise<BlockNote[]> {
     return [];
   }
-  async deleteBlockNote(_ws: string, _projectId: string, _noteId: string): Promise<void> {
+  async deleteBlockNote(
+    _ws: string,
+    _projectId: string,
+    _noteId: string,
+  ): Promise<void> {
     throw new Error("Block notes not yet supported in desktop mode");
   }
 
@@ -693,7 +786,10 @@ export class WailsApiAdapter implements ApiAdapter {
   }
 
   // --- Automations (desktop: not yet backed by Wails bindings) ---
-  async listAutomationRules(_ws: string, _projectId: string): Promise<AutomationRule[]> {
+  async listAutomationRules(
+    _ws: string,
+    _projectId: string,
+  ): Promise<AutomationRule[]> {
     return [];
   }
   async createAutomationRule(
@@ -711,7 +807,11 @@ export class WailsApiAdapter implements ApiAdapter {
   ): Promise<AutomationRule> {
     throw new Error("Automations not yet supported in desktop mode");
   }
-  async deleteAutomationRule(_ws: string, _projectId: string, _ruleId: string): Promise<void> {
+  async deleteAutomationRule(
+    _ws: string,
+    _projectId: string,
+    _ruleId: string,
+  ): Promise<void> {
     throw new Error("Automations not yet supported in desktop mode");
   }
   async toggleAutomationRule(
@@ -721,10 +821,16 @@ export class WailsApiAdapter implements ApiAdapter {
   ): Promise<AutomationRule> {
     throw new Error("Automations not yet supported in desktop mode");
   }
-  async listAutomationEvents(_ws: string, _projectId: string): Promise<AutomationEvent[]> {
+  async listAutomationEvents(
+    _ws: string,
+    _projectId: string,
+  ): Promise<AutomationEvent[]> {
     return [];
   }
-  async listAutomationHistory(_ws: string, _projectId: string): Promise<AutomationHistoryEntry[]> {
+  async listAutomationHistory(
+    _ws: string,
+    _projectId: string,
+  ): Promise<AutomationHistoryEntry[]> {
     return [];
   }
 
@@ -753,7 +859,11 @@ export class WailsApiAdapter implements ApiAdapter {
   ): Promise<AutomationLogEntry[]> {
     return [];
   }
-  async cancelAutomationRun(_ws: string, _projectId: string, _runId: string): Promise<void> {
+  async cancelAutomationRun(
+    _ws: string,
+    _projectId: string,
+    _runId: string,
+  ): Promise<void> {
     throw new Error("not implemented in desktop app");
   }
 
@@ -761,22 +871,33 @@ export class WailsApiAdapter implements ApiAdapter {
   // The desktop's flow Wails methods are project-scoped and proxy to the
   // server's flow-definition REST API. The workspace is implicit (the active
   // workspace tracked by the Go backend), so the ws arg is unused here.
-  async listFlowDefinitions(_ws: string, projectId: string): Promise<FlowDefinitionInfo[]> {
-    return Backend.ListFlowDefinitions(projectId) as Promise<FlowDefinitionInfo[]>;
+  async listFlowDefinitions(
+    _ws: string,
+    projectId: string,
+  ): Promise<FlowDefinitionInfo[]> {
+    return Backend.ListFlowDefinitions(projectId) as Promise<
+      FlowDefinitionInfo[]
+    >;
   }
   async getFlowDefinition(
     _ws: string,
     projectId: string,
     flowId: string,
   ): Promise<FlowDefinitionInfo> {
-    return Backend.GetFlowDefinition(projectId, flowId) as Promise<FlowDefinitionInfo>;
+    return Backend.GetFlowDefinition(
+      projectId,
+      flowId,
+    ) as Promise<FlowDefinitionInfo>;
   }
   async createFlowDefinition(
     _ws: string,
     projectId: string,
     def: FlowDefinitionInfo,
   ): Promise<FlowDefinitionInfo> {
-    return Backend.SaveFlowDefinition(projectId, { ...def, id: "" }) as Promise<FlowDefinitionInfo>;
+    return Backend.SaveFlowDefinition(projectId, {
+      ...def,
+      id: "",
+    }) as Promise<FlowDefinitionInfo>;
   }
   async updateFlowDefinition(
     _ws: string,
@@ -789,7 +910,11 @@ export class WailsApiAdapter implements ApiAdapter {
       id: flowId,
     }) as Promise<FlowDefinitionInfo>;
   }
-  async deleteFlowDefinition(_ws: string, projectId: string, flowId: string): Promise<void> {
+  async deleteFlowDefinition(
+    _ws: string,
+    projectId: string,
+    flowId: string,
+  ): Promise<void> {
     return Backend.DeleteFlowDefinition(projectId, flowId);
   }
 
@@ -859,35 +984,67 @@ export class WailsApiAdapter implements ApiAdapter {
   async listBrandProfiles(workspaceSlug: string): Promise<VoiceProfile[]> {
     return Backend.ListBrandProfiles(workspaceSlug) as Promise<VoiceProfile[]>;
   }
-  async getBrandProfile(workspaceSlug: string, profileId: string): Promise<VoiceProfile> {
-    return Backend.GetBrandProfile(workspaceSlug, profileId) as Promise<VoiceProfile>;
+  async getBrandProfile(
+    workspaceSlug: string,
+    profileId: string,
+  ): Promise<VoiceProfile> {
+    return Backend.GetBrandProfile(
+      workspaceSlug,
+      profileId,
+    ) as Promise<VoiceProfile>;
   }
-  async createBrandProfile(_ws: string, _data: CreateVoiceProfileRequest): Promise<VoiceProfile> {
+  async createBrandProfile(
+    _ws: string,
+    _data: CreateVoiceProfileRequest,
+  ): Promise<VoiceProfile> {
     // Authoring profiles is a web/MCP workflow; the desktop governance surface
     // is review (promote/reject/evaluate), not profile creation.
-    throw new Error("Creating brand profiles is not available in the desktop app");
+    throw new Error(
+      "Creating brand profiles is not available in the desktop app",
+    );
   }
-  async updateBrandProfile(_ws: string, _data: UpdateVoiceProfileRequest): Promise<VoiceProfile> {
-    throw new Error("Editing brand profiles is not available in the desktop app");
+  async updateBrandProfile(
+    _ws: string,
+    _data: UpdateVoiceProfileRequest,
+  ): Promise<VoiceProfile> {
+    throw new Error(
+      "Editing brand profiles is not available in the desktop app",
+    );
   }
   async deleteBrandProfile(_ws: string, _profileId: string): Promise<void> {
-    throw new Error("Deleting brand profiles is not available in the desktop app");
+    throw new Error(
+      "Deleting brand profiles is not available in the desktop app",
+    );
   }
-  async getBrandScores(workspaceSlug: string, projectId: string): Promise<StoredScore[]> {
-    return Backend.GetBrandScores(workspaceSlug, projectId) as Promise<StoredScore[]>;
+  async getBrandScores(
+    workspaceSlug: string,
+    projectId: string,
+  ): Promise<StoredScore[]> {
+    return Backend.GetBrandScores(workspaceSlug, projectId) as Promise<
+      StoredScore[]
+    >;
   }
-  async getBrandTrends(workspaceSlug: string, projectId: string): Promise<ScoreTrend[]> {
-    return Backend.GetBrandTrends(workspaceSlug, projectId) as Promise<ScoreTrend[]>;
+  async getBrandTrends(
+    workspaceSlug: string,
+    projectId: string,
+  ): Promise<ScoreTrend[]> {
+    return Backend.GetBrandTrends(workspaceSlug, projectId) as Promise<
+      ScoreTrend[]
+    >;
   }
   async listStarterPacks(): Promise<{ name: string; description: string }[]> {
-    return Backend.ListStarterPacks() as Promise<{ name: string; description: string }[]>;
+    return Backend.ListStarterPacks() as Promise<
+      { name: string; description: string }[]
+    >;
   }
   async createProfileFromStarter(
     _ws: string,
     _pack: string,
     _name?: string,
   ): Promise<VoiceProfile> {
-    throw new Error("Creating brand profiles is not available in the desktop app");
+    throw new Error(
+      "Creating brand profiles is not available in the desktop app",
+    );
   }
 
   // --- Correction-learning loop (AD-019, proxied to the server's REST endpoints) ---
@@ -928,7 +1085,12 @@ export class WailsApiAdapter implements ApiAdapter {
   async evaluateBrandRule(
     workspaceSlug: string,
     profileId: string,
-    req: { term: string; replacement?: string; project_id: string; stream?: string },
+    req: {
+      term: string;
+      replacement?: string;
+      project_id: string;
+      stream?: string;
+    },
   ): Promise<BlastRadius> {
     return Backend.EvaluateRule(workspaceSlug, profileId, {
       term: req.term,
@@ -962,7 +1124,11 @@ export class WailsApiAdapter implements ApiAdapter {
       cursor?: string;
       limit?: number;
     },
-  ): Promise<{ activities: ActivityInfo[]; next_cursor: string; new_count?: number }> {
+  ): Promise<{
+    activities: ActivityInfo[];
+    next_cursor: string;
+    new_count?: number;
+  }> {
     return { activities: [], next_cursor: "", new_count: 0 };
   }
 
@@ -999,7 +1165,11 @@ export class WailsApiAdapter implements ApiAdapter {
   async deleteTask(_ws: string, _taskId: string): Promise<void> {
     throw new Error("Tasks not yet supported in desktop mode");
   }
-  async assignTask(_ws: string, _taskId: string, _assigneeId: string): Promise<void> {
+  async assignTask(
+    _ws: string,
+    _taskId: string,
+    _assigneeId: string,
+  ): Promise<void> {
     throw new Error("Tasks not yet supported in desktop mode");
   }
   async completeTask(_ws: string, _taskId: string): Promise<void> {
@@ -1025,7 +1195,9 @@ export class WailsApiAdapter implements ApiAdapter {
     _ws: string,
     _preferences: NotificationPreference[],
   ): Promise<void> {
-    throw new Error("Notification preferences not yet supported in desktop mode");
+    throw new Error(
+      "Notification preferences not yet supported in desktop mode",
+    );
   }
 
   // --- @bravo Agent (not yet supported in desktop) ---
@@ -1049,7 +1221,10 @@ export class WailsApiAdapter implements ApiAdapter {
   ): Promise<{ conversation: BravoConversation; messages: BravoMessage[] }> {
     throw new Error("not implemented in desktop app");
   }
-  async bravoDeleteConversation(_ws: string, _conversationId: string): Promise<void> {
+  async bravoDeleteConversation(
+    _ws: string,
+    _conversationId: string,
+  ): Promise<void> {
     throw new Error("not implemented in desktop app");
   }
   async bravoSendMessage(
@@ -1081,19 +1256,29 @@ export class WailsApiAdapter implements ApiAdapter {
   ): Promise<void> {
     throw new Error("not implemented in desktop app");
   }
-  async bravoCancelConversation(_ws: string, _conversationId: string): Promise<void> {
+  async bravoCancelConversation(
+    _ws: string,
+    _conversationId: string,
+  ): Promise<void> {
     throw new Error("not implemented in desktop app");
   }
   async bravoGetConfig(_ws: string): Promise<BravoConfig> {
     throw new Error("not implemented in desktop app");
   }
-  async bravoUpdateConfig(_ws: string, _config: Partial<BravoConfig>): Promise<BravoConfig> {
+  async bravoUpdateConfig(
+    _ws: string,
+    _config: Partial<BravoConfig>,
+  ): Promise<BravoConfig> {
     throw new Error("not implemented in desktop app");
   }
   async bravoListTools(_ws: string): Promise<{ tools: BravoToolInfo[] }> {
     return { tools: [] };
   }
-  async bravoGetUsage(_ws: string, _from?: string, _to?: string): Promise<BravoUsageSummary> {
+  async bravoGetUsage(
+    _ws: string,
+    _from?: string,
+    _to?: string,
+  ): Promise<BravoUsageSummary> {
     throw new Error("not implemented in desktop app");
   }
   async bravoUpdateMode(
@@ -1136,10 +1321,17 @@ export class WailsApiAdapter implements ApiAdapter {
   ): Promise<{ url: string }> {
     throw new Error("not implemented in desktop app");
   }
-  async billingCreatePortal(_ws: string, _returnUrl: string): Promise<{ url: string }> {
+  async billingCreatePortal(
+    _ws: string,
+    _returnUrl: string,
+  ): Promise<{ url: string }> {
     throw new Error("not implemented in desktop app");
   }
-  async billingGetLedger(_ws: string, _from?: string, _to?: string): Promise<CreditLedgerEntry[]> {
+  async billingGetLedger(
+    _ws: string,
+    _from?: string,
+    _to?: string,
+  ): Promise<CreditLedgerEntry[]> {
     return [];
   }
 

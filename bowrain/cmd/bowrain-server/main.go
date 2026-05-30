@@ -211,6 +211,14 @@ func run() error {
 	if v := os.Getenv("BOWRAIN_ADMIN_OIDC_CLIENT_SECRET"); v != "" {
 		cfg.AdminOIDCClientSecret = v
 	}
+	if v := os.Getenv("BOWRAIN_AUDIT_RETENTION_DAYS"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 {
+			cfg.AuditRetentionDays = n
+		}
+	}
+	if v := os.Getenv("BOWRAIN_AUDIT_SIEM_WEBHOOK_URL"); v != "" {
+		cfg.AuditSIEMWebhookURL = v
+	}
 
 	// Validate that DatabaseURL is a PostgreSQL connection string.
 	if cfg.DatabaseURL != "" && !strings.HasPrefix(cfg.DatabaseURL, "postgres://") && !strings.HasPrefix(cfg.DatabaseURL, "postgresql://") {

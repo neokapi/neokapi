@@ -271,11 +271,24 @@ export interface ProjectItem {
 /** Audit log entry */
 export interface AuditEntry {
   id: number;
+  chain_key: string;
   project_id: string;
+  workspace_id: string;
   event_type: string;
   actor: string;
   source: string;
+  resource_type?: string;
+  resource_id?: string;
+  effect?: string; // "allow" | "deny" for authorization decisions
   data: string; // JSON string
+  before?: string; // JSON string (prior state)
+  after?: string; // JSON string (new state)
+  request_id?: string;
+  ip?: string;
+  user_agent?: string;
+  causation_id?: string;
+  prev_hash?: string;
+  hash?: string;
   created_at: string;
 }
 
@@ -284,9 +297,20 @@ export interface AuditQuery {
   project?: string;
   type?: string;
   actor?: string;
+  resource_type?: string;
+  effect?: string;
   search?: string;
   limit?: number;
   offset?: number;
+}
+
+/** Result of verifying the tamper-evidence of an audit chain */
+export interface AuditChainVerification {
+  chain_key: string;
+  rows: number;
+  valid: boolean;
+  broken_at?: number;
+  broken_msg?: string;
 }
 
 /** Server config response */
@@ -726,8 +750,18 @@ export interface AutomationHistoryEntry {
 // Automation Runs (Bowrain AD-013)
 // ---------------------------------------------------------------------------
 
-export type RunStatus = "pending" | "running" | "completed" | "failed" | "partial";
-export type StepStatus = "pending" | "running" | "completed" | "failed" | "skipped";
+export type RunStatus =
+  | "pending"
+  | "running"
+  | "completed"
+  | "failed"
+  | "partial";
+export type StepStatus =
+  | "pending"
+  | "running"
+  | "completed"
+  | "failed"
+  | "skipped";
 
 /** Automation run — groups all actions triggered by one event */
 export interface AutomationRun {
@@ -939,7 +973,13 @@ export interface BravoToolCall {
   tool_name: string;
   input: Record<string, unknown>;
   output?: Record<string, unknown>;
-  status: "pending" | "running" | "completed" | "failed" | "needs_approval" | "denied";
+  status:
+    | "pending"
+    | "running"
+    | "completed"
+    | "failed"
+    | "needs_approval"
+    | "denied";
   duration: number;
   error?: string;
 }

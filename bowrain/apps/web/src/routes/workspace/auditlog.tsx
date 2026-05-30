@@ -1,7 +1,12 @@
 import { useEffect, useState, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { AuditLogView, useWorkspace, useApi, Card } from "@neokapi/ui";
-import type { AuditEntry, AuditQuery, FilterToken } from "@neokapi/ui";
+import type {
+  AuditEntry,
+  AuditQuery,
+  AuditChainVerification,
+  FilterToken,
+} from "@neokapi/ui";
 import { projectsQueryOptions } from "../../queries";
 
 export function AuditLogRoute() {
@@ -70,6 +75,19 @@ export function AuditLogRoute() {
     setOffset((o) => o + LIMIT);
   }, []);
 
+  const [verification, setVerification] =
+    useState<AuditChainVerification | null>(null);
+  const [verifying, setVerifying] = useState(false);
+  const handleVerify = useCallback(async () => {
+    if (!ws) return;
+    setVerifying(true);
+    try {
+      setVerification(await adapter.verifyWorkspaceAuditChain(ws));
+    } finally {
+      setVerifying(false);
+    }
+  }, [adapter, ws]);
+
   if (!activeWorkspace) {
     return (
       <Card className="mt-8 max-w-md mx-auto p-8 text-center text-muted-foreground text-sm">
@@ -90,6 +108,9 @@ export function AuditLogRoute() {
         onSearchChange={handleSearchChange}
         activeFilters={filters}
         activeSearch={search}
+        verification={verification}
+        onVerify={handleVerify}
+        verifying={verifying}
       />
     </div>
   );

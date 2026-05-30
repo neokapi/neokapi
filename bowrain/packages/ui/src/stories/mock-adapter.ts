@@ -46,7 +46,10 @@ import {
 function sourceToDisplayHTML(b: BlockInfo): string {
   const spans = b.source_spans ?? [];
   if (!b.has_spans || !b.source_coded || spans.length === 0) {
-    return b.source.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    return b.source
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
   }
   let result = "";
   let spanIdx = 0;
@@ -297,6 +300,11 @@ export function createMockAdapter(blocks?: BlockInfo[]): ApiAdapter {
 
     // --- Audit Log -------------------------------------------------------
     listWorkspaceAuditLog: async () => [],
+    verifyWorkspaceAuditChain: async () => ({
+      chain_key: "",
+      rows: 0,
+      valid: true,
+    }),
 
     // --- Collections ----------------------------------------------------
     listCollections: async () => [],
@@ -324,7 +332,10 @@ export function createMockAdapter(blocks?: BlockInfo[]): ApiAdapter {
         blk.targets_coded = blk.targets_coded ?? {};
         blk.targets_coded[req.target_locale] = req.coded_text;
         // Also write plain text (strip Unicode markers)
-        blk.targets[req.target_locale] = req.coded_text.replace(/[\uE001\uE002\uE003]/g, "");
+        blk.targets[req.target_locale] = req.coded_text.replace(
+          /[\uE001\uE002\uE003]/g,
+          "",
+        );
       }
     },
 
@@ -383,7 +394,12 @@ export function createMockAdapter(blocks?: BlockInfo[]): ApiAdapter {
     ],
 
     // --- Block notes ----------------------------------------------------
-    addBlockNote: async (_ws, _projectId, blockId, text): Promise<BlockNote> => ({
+    addBlockNote: async (
+      _ws,
+      _projectId,
+      blockId,
+      text,
+    ): Promise<BlockNote> => ({
       id: `note-${Date.now()}`,
       blockId,
       author: "translator@example.com",
@@ -394,14 +410,16 @@ export function createMockAdapter(blocks?: BlockInfo[]): ApiAdapter {
     deleteBlockNote: async () => {},
 
     // --- Block history ---------------------------------------------------
-    getBlockHistory: async (): Promise<BlockHistoryEntry[]> => sampleBlockHistory,
+    getBlockHistory: async (): Promise<BlockHistoryEntry[]> =>
+      sampleBlockHistory,
 
     // --- QA --------------------------------------------------------------
     runQACheck: async (): Promise<QAIssue[]> => sampleQAIssues,
     runFileQACheck: async (): Promise<FileQAResult[]> => sampleFileQAResults,
 
     // --- Preview ---------------------------------------------------------
-    renderDocumentPreview: async (): Promise<string> => generatePreviewHTML(_blocks),
+    renderDocumentPreview: async (): Promise<string> =>
+      generatePreviewHTML(_blocks),
     renderBlockHTML: async (_ws, _projectId, _blockId): Promise<string> =>
       "<span>rendered block</span>",
 
@@ -423,7 +441,9 @@ export function createMockAdapter(blocks?: BlockInfo[]): ApiAdapter {
     exportTermsJSON: async () => "{}",
 
     // --- Automations -----------------------------------------------------
-    listAutomationRules: async (): Promise<AutomationRule[]> => [..._automationRules],
+    listAutomationRules: async (): Promise<AutomationRule[]> => [
+      ..._automationRules,
+    ],
     createAutomationRule: async (
       _ws: string,
       _pid: string,
@@ -457,7 +477,11 @@ export function createMockAdapter(blocks?: BlockInfo[]): ApiAdapter {
       }
       throw new Error("Rule not found");
     },
-    deleteAutomationRule: async (_ws: string, _pid: string, ruleId: string): Promise<void> => {
+    deleteAutomationRule: async (
+      _ws: string,
+      _pid: string,
+      ruleId: string,
+    ): Promise<void> => {
       const idx = _automationRules.findIndex((r) => r.id === ruleId);
       if (idx >= 0) _automationRules.splice(idx, 1);
     },
@@ -474,8 +498,10 @@ export function createMockAdapter(blocks?: BlockInfo[]): ApiAdapter {
       }
       throw new Error("Rule not found");
     },
-    listAutomationEvents: async (): Promise<AutomationEvent[]> => sampleAutomationEvents,
-    listAutomationHistory: async (): Promise<AutomationHistoryEntry[]> => sampleAutomationHistory,
+    listAutomationEvents: async (): Promise<AutomationEvent[]> =>
+      sampleAutomationEvents,
+    listAutomationHistory: async (): Promise<AutomationHistoryEntry[]> =>
+      sampleAutomationHistory,
 
     // --- Automation Runs ------------------------------------------------
     listAutomationRuns: async () => [],
@@ -491,14 +517,24 @@ export function createMockAdapter(blocks?: BlockInfo[]): ApiAdapter {
         description: "Translate content using AI/LLM",
         source: "built-in",
         nodes: [
-          { id: "reader", type: "reader", name: "auto", position: { x: 0, y: 100 } },
+          {
+            id: "reader",
+            type: "reader",
+            name: "auto",
+            position: { x: 0, y: 100 },
+          },
           {
             id: "ai-translate",
             type: "tool",
             name: "ai-translate",
             position: { x: 250, y: 100 },
           },
-          { id: "writer", type: "writer", name: "auto", position: { x: 500, y: 100 } },
+          {
+            id: "writer",
+            type: "writer",
+            name: "auto",
+            position: { x: 500, y: 100 },
+          },
         ],
         edges: [
           { id: "e1", source: "reader", target: "ai-translate" },
@@ -663,11 +699,20 @@ export function createMockAdapter(blocks?: BlockInfo[]): ApiAdapter {
       recent_count: 0,
     }),
     listStarterPacks: async () => [
-      { name: "professional-b2b", description: "Formal, authoritative voice for B2B" },
-      { name: "friendly-dtc", description: "Casual, warm voice for DTC brands" },
+      {
+        name: "professional-b2b",
+        description: "Formal, authoritative voice for B2B",
+      },
+      {
+        name: "friendly-dtc",
+        description: "Casual, warm voice for DTC brands",
+      },
       { name: "marketing-blog", description: "Conversational voice for blogs" },
       { name: "customer-support", description: "Empathetic voice for support" },
-      { name: "technical-docs", description: "Precise voice for documentation" },
+      {
+        name: "technical-docs",
+        description: "Precise voice for documentation",
+      },
     ],
     createProfileFromStarter: notImpl,
     getTranslationDashboard: async () => ({
@@ -680,7 +725,11 @@ export function createMockAdapter(blocks?: BlockInfo[]): ApiAdapter {
     }),
 
     // --- Activities (Bowrain AD-014) ------------------------------------------------
-    listActivities: async () => ({ activities: [], next_cursor: "", new_count: 0 }),
+    listActivities: async () => ({
+      activities: [],
+      next_cursor: "",
+      new_count: 0,
+    }),
     markActivitiesSeen: async () => {},
 
     // --- Tasks (Bowrain AD-014) -----------------------------------------------------
@@ -792,7 +841,9 @@ export function createMockAdapter(blocks?: BlockInfo[]): ApiAdapter {
         status: "active" as const,
         seatCount: 3,
         currentPeriodStart: new Date().toISOString(),
-        currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+        currentPeriodEnd: new Date(
+          Date.now() + 30 * 24 * 60 * 60 * 1000,
+        ).toISOString(),
       },
       credits: {
         creditsTotal: 500_000,

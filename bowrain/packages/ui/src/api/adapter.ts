@@ -54,6 +54,7 @@ import type {
   CreateCollectionRequest,
   AuditEntry,
   AuditQuery,
+  AuditChainVerification,
   ArchivedProject,
   TranslationDashboardStats,
   ActivityInfo,
@@ -122,7 +123,11 @@ export interface ApiAdapter {
   // Members
   listMembers(workspaceSlug: string): Promise<Membership[]>;
   addMember(workspaceSlug: string, userId: string, role: string): Promise<void>;
-  updateMemberRole(workspaceSlug: string, userId: string, role: string): Promise<void>;
+  updateMemberRole(
+    workspaceSlug: string,
+    userId: string,
+    role: string,
+  ): Promise<void>;
   removeMember(workspaceSlug: string, userId: string): Promise<void>;
 
   // Invites
@@ -162,7 +167,10 @@ export interface ApiAdapter {
   deleteRoleTemplate(workspaceSlug: string, roleId: string): Promise<void>;
 
   // Project Members
-  listProjectMembers(workspaceSlug: string, projectId: string): Promise<ProjectMembership[]>;
+  listProjectMembers(
+    workspaceSlug: string,
+    projectId: string,
+  ): Promise<ProjectMembership[]>;
   addProjectMember(
     workspaceSlug: string,
     projectId: string,
@@ -181,7 +189,11 @@ export interface ApiAdapter {
       languages?: string[];
     },
   ): Promise<ProjectMembership>;
-  removeProjectMember(workspaceSlug: string, projectId: string, userId: string): Promise<void>;
+  removeProjectMember(
+    workspaceSlug: string,
+    projectId: string,
+    userId: string,
+  ): Promise<void>;
 
   // API Tokens
   listApiTokens(workspaceSlug: string): Promise<ApiToken[]>;
@@ -203,14 +215,22 @@ export interface ApiAdapter {
     projectId: string,
     req: CreateStreamRequest,
   ): Promise<StreamInfo>;
-  getStream(workspaceSlug: string, projectId: string, streamName: string): Promise<StreamInfo>;
+  getStream(
+    workspaceSlug: string,
+    projectId: string,
+    streamName: string,
+  ): Promise<StreamInfo>;
   updateStream(
     workspaceSlug: string,
     projectId: string,
     streamName: string,
     data: { description?: string; visibility?: string },
   ): Promise<StreamInfo>;
-  deleteStream(workspaceSlug: string, projectId: string, streamName: string): Promise<void>;
+  deleteStream(
+    workspaceSlug: string,
+    projectId: string,
+    streamName: string,
+  ): Promise<void>;
   diffStream(
     workspaceSlug: string,
     projectId: string,
@@ -222,8 +242,16 @@ export interface ApiAdapter {
     streamName: string,
     dryRun?: boolean,
   ): Promise<StreamMergeResult>;
-  lockStream(workspaceSlug: string, projectId: string, streamName: string): Promise<StreamInfo>;
-  unlockStream(workspaceSlug: string, projectId: string, streamName: string): Promise<StreamInfo>;
+  lockStream(
+    workspaceSlug: string,
+    projectId: string,
+    streamName: string,
+  ): Promise<StreamInfo>;
+  unlockStream(
+    workspaceSlug: string,
+    projectId: string,
+    streamName: string,
+  ): Promise<StreamInfo>;
 
   // Stream tags
   listStreamTags(
@@ -263,7 +291,11 @@ export interface ApiAdapter {
     defaultSourceLanguage: string,
     targetLanguages: string[],
   ): Promise<ProjectInfo>;
-  getProject(workspaceSlug: string, projectId: string, stream?: string): Promise<ProjectInfo>;
+  getProject(
+    workspaceSlug: string,
+    projectId: string,
+    stream?: string,
+  ): Promise<ProjectInfo>;
   updateProject(
     workspaceSlug: string,
     projectId: string,
@@ -276,9 +308,16 @@ export interface ApiAdapter {
   ): Promise<ProjectInfo>;
   deleteProject(workspaceSlug: string, projectId: string): Promise<void>;
   restoreProject(workspaceSlug: string, projectId: string): Promise<void>;
-  permanentlyDeleteProject(workspaceSlug: string, projectId: string): Promise<void>;
+  permanentlyDeleteProject(
+    workspaceSlug: string,
+    projectId: string,
+  ): Promise<void>;
   listArchivedProjects(workspaceSlug: string): Promise<ArchivedProject[]>;
-  restoreStream(workspaceSlug: string, projectId: string, streamName: string): Promise<void>;
+  restoreStream(
+    workspaceSlug: string,
+    projectId: string,
+    streamName: string,
+  ): Promise<void>;
   uploadFiles(
     workspaceSlug: string,
     projectId: string,
@@ -314,7 +353,11 @@ export interface ApiAdapter {
     collectionId: string,
     req: Partial<CreateCollectionRequest>,
   ): Promise<CollectionInfo>;
-  deleteCollection(workspaceSlug: string, projectId: string, collectionId: string): Promise<void>;
+  deleteCollection(
+    workspaceSlug: string,
+    projectId: string,
+    collectionId: string,
+  ): Promise<void>;
   uploadToCollection(
     workspaceSlug: string,
     projectId: string,
@@ -330,8 +373,14 @@ export interface ApiAdapter {
     fileName: string,
     stream?: string,
   ): Promise<BlockInfo[]>;
-  updateBlockTarget(workspaceSlug: string, req: UpdateBlockRequest): Promise<void>;
-  updateBlockTargetCoded(workspaceSlug: string, req: UpdateBlockTargetCodedRequest): Promise<void>;
+  updateBlockTarget(
+    workspaceSlug: string,
+    req: UpdateBlockRequest,
+  ): Promise<void>;
+  updateBlockTargetCoded(
+    workspaceSlug: string,
+    req: UpdateBlockTargetCodedRequest,
+  ): Promise<void>;
   pseudoTranslateFile(
     workspaceSlug: string,
     projectId: string,
@@ -339,7 +388,10 @@ export interface ApiAdapter {
     targetLocale: string,
     stream?: string,
   ): Promise<TranslationStats>;
-  aiTranslateFile(workspaceSlug: string, req: AITranslateFileRequest): Promise<TranslationStats>;
+  aiTranslateFile(
+    workspaceSlug: string,
+    req: AITranslateFileRequest,
+  ): Promise<TranslationStats>;
   tmTranslateFile(
     workspaceSlug: string,
     projectId: string,
@@ -389,8 +441,16 @@ export interface ApiAdapter {
     blockId: string,
     text: string,
   ): Promise<BlockNote>;
-  listBlockNotes(workspaceSlug: string, projectId: string, blockId: string): Promise<BlockNote[]>;
-  deleteBlockNote(workspaceSlug: string, projectId: string, noteId: string): Promise<void>;
+  listBlockNotes(
+    workspaceSlug: string,
+    projectId: string,
+    blockId: string,
+  ): Promise<BlockNote[]>;
+  deleteBlockNote(
+    workspaceSlug: string,
+    projectId: string,
+    noteId: string,
+  ): Promise<void>;
 
   // Block history
   getBlockHistory(
@@ -464,8 +524,14 @@ export interface ApiAdapter {
     limit: number,
   ): Promise<TermSearchResult>;
   getTermCount(workspaceSlug: string): Promise<number>;
-  addConcept(workspaceSlug: string, req: AddConceptRequest): Promise<ConceptInfo>;
-  updateConcept(workspaceSlug: string, req: UpdateConceptRequest): Promise<void>;
+  addConcept(
+    workspaceSlug: string,
+    req: AddConceptRequest,
+  ): Promise<ConceptInfo>;
+  updateConcept(
+    workspaceSlug: string,
+    req: UpdateConceptRequest,
+  ): Promise<void>;
   deleteConcept(workspaceSlug: string, conceptId: string): Promise<void>;
   importTermsCSV(
     workspaceSlug: string,
@@ -480,12 +546,21 @@ export interface ApiAdapter {
 
   // Providers
   listProviderConfigs(workspaceSlug: string): Promise<ProviderConfig[]>;
-  saveProviderConfig(workspaceSlug: string, cfg: ProviderConfigWithKey): Promise<ProviderConfig>;
+  saveProviderConfig(
+    workspaceSlug: string,
+    cfg: ProviderConfigWithKey,
+  ): Promise<ProviderConfig>;
   deleteProviderConfig(workspaceSlug: string, id: string): Promise<void>;
-  testProviderConfig(workspaceSlug: string, cfg: ProviderConfigWithKey): Promise<void>;
+  testProviderConfig(
+    workspaceSlug: string,
+    cfg: ProviderConfigWithKey,
+  ): Promise<void>;
 
   // Automations
-  listAutomationRules(workspaceSlug: string, projectId: string): Promise<AutomationRule[]>;
+  listAutomationRules(
+    workspaceSlug: string,
+    projectId: string,
+  ): Promise<AutomationRule[]>;
   createAutomationRule(
     workspaceSlug: string,
     projectId: string,
@@ -497,13 +572,20 @@ export interface ApiAdapter {
     ruleId: string,
     data: SaveAutomationRuleRequest,
   ): Promise<AutomationRule>;
-  deleteAutomationRule(workspaceSlug: string, projectId: string, ruleId: string): Promise<void>;
+  deleteAutomationRule(
+    workspaceSlug: string,
+    projectId: string,
+    ruleId: string,
+  ): Promise<void>;
   toggleAutomationRule(
     workspaceSlug: string,
     projectId: string,
     ruleId: string,
   ): Promise<AutomationRule>;
-  listAutomationEvents(workspaceSlug: string, projectId: string): Promise<AutomationEvent[]>;
+  listAutomationEvents(
+    workspaceSlug: string,
+    projectId: string,
+  ): Promise<AutomationEvent[]>;
   listAutomationHistory(
     workspaceSlug: string,
     projectId: string,
@@ -528,12 +610,19 @@ export interface ApiAdapter {
     stepId: string,
     limit?: number,
   ): Promise<AutomationLogEntry[]>;
-  cancelAutomationRun(workspaceSlug: string, projectId: string, runId: string): Promise<void>;
+  cancelAutomationRun(
+    workspaceSlug: string,
+    projectId: string,
+    runId: string,
+  ): Promise<void>;
 
   // Flow definitions (Bowrain AD-013) — server-side, project-scoped pipeline
   // graphs that automation run_flow actions reference. Built-in flows are
   // merged into the listing; project flows are persisted server-side.
-  listFlowDefinitions(workspaceSlug: string, projectId: string): Promise<FlowDefinitionInfo[]>;
+  listFlowDefinitions(
+    workspaceSlug: string,
+    projectId: string,
+  ): Promise<FlowDefinitionInfo[]>;
   getFlowDefinition(
     workspaceSlug: string,
     projectId: string,
@@ -550,7 +639,11 @@ export interface ApiAdapter {
     flowId: string,
     def: FlowDefinitionInfo,
   ): Promise<FlowDefinitionInfo>;
-  deleteFlowDefinition(workspaceSlug: string, projectId: string, flowId: string): Promise<void>;
+  deleteFlowDefinition(
+    workspaceSlug: string,
+    projectId: string,
+    flowId: string,
+  ): Promise<void>;
 
   // Notifications
   listNotifications(
@@ -602,12 +695,27 @@ export interface ApiAdapter {
 
   // Brand Voice
   listBrandProfiles(workspaceSlug: string): Promise<VoiceProfile[]>;
-  getBrandProfile(workspaceSlug: string, profileId: string): Promise<VoiceProfile>;
-  createBrandProfile(workspaceSlug: string, data: CreateVoiceProfileRequest): Promise<VoiceProfile>;
-  updateBrandProfile(workspaceSlug: string, data: UpdateVoiceProfileRequest): Promise<VoiceProfile>;
+  getBrandProfile(
+    workspaceSlug: string,
+    profileId: string,
+  ): Promise<VoiceProfile>;
+  createBrandProfile(
+    workspaceSlug: string,
+    data: CreateVoiceProfileRequest,
+  ): Promise<VoiceProfile>;
+  updateBrandProfile(
+    workspaceSlug: string,
+    data: UpdateVoiceProfileRequest,
+  ): Promise<VoiceProfile>;
   deleteBrandProfile(workspaceSlug: string, profileId: string): Promise<void>;
-  getBrandScores(workspaceSlug: string, projectId: string): Promise<StoredScore[]>;
-  getBrandTrends(workspaceSlug: string, projectId: string): Promise<ScoreTrend[]>;
+  getBrandScores(
+    workspaceSlug: string,
+    projectId: string,
+  ): Promise<StoredScore[]>;
+  getBrandTrends(
+    workspaceSlug: string,
+    projectId: string,
+  ): Promise<ScoreTrend[]>;
   // Correction-learning loop (AD-019)
   listBrandCandidates(
     workspaceSlug: string,
@@ -627,7 +735,12 @@ export interface ApiAdapter {
   evaluateBrandRule(
     workspaceSlug: string,
     profileId: string,
-    req: { term: string; replacement?: string; project_id: string; stream?: string },
+    req: {
+      term: string;
+      replacement?: string;
+      project_id: string;
+      stream?: string;
+    },
   ): Promise<BlastRadius>;
   getBrandDrift(
     workspaceSlug: string,
@@ -642,7 +755,13 @@ export interface ApiAdapter {
   ): Promise<VoiceProfile>;
 
   // Audit log
-  listWorkspaceAuditLog(workspaceSlug: string, query?: AuditQuery): Promise<AuditEntry[]>;
+  listWorkspaceAuditLog(
+    workspaceSlug: string,
+    query?: AuditQuery,
+  ): Promise<AuditEntry[]>;
+  verifyWorkspaceAuditChain(
+    workspaceSlug: string,
+  ): Promise<AuditChainVerification>;
 
   // Activities (Bowrain AD-014)
   listActivities(
@@ -655,7 +774,11 @@ export interface ApiAdapter {
       cursor?: string;
       limit?: number;
     },
-  ): Promise<{ activities: ActivityInfo[]; next_cursor: string; new_count?: number }>;
+  ): Promise<{
+    activities: ActivityInfo[];
+    next_cursor: string;
+    new_count?: number;
+  }>;
 
   markActivitiesSeen(workspaceSlug: string): Promise<void>;
 
@@ -680,7 +803,11 @@ export interface ApiAdapter {
     updates: Partial<CreateTaskRequest>,
   ): Promise<TaskInfo>;
   deleteTask(workspaceSlug: string, taskId: string): Promise<void>;
-  assignTask(workspaceSlug: string, taskId: string, assigneeId: string): Promise<void>;
+  assignTask(
+    workspaceSlug: string,
+    taskId: string,
+    assigneeId: string,
+  ): Promise<void>;
   completeTask(workspaceSlug: string, taskId: string): Promise<void>;
   cancelTask(workspaceSlug: string, taskId: string): Promise<void>;
   listMyTasks(
@@ -712,7 +839,10 @@ export interface ApiAdapter {
     workspaceSlug: string,
     conversationId: string,
   ): Promise<{ conversation: BravoConversation; messages: BravoMessage[] }>;
-  bravoDeleteConversation(workspaceSlug: string, conversationId: string): Promise<void>;
+  bravoDeleteConversation(
+    workspaceSlug: string,
+    conversationId: string,
+  ): Promise<void>;
   bravoSendMessage(
     workspaceSlug: string,
     conversationId: string,
@@ -734,11 +864,21 @@ export interface ApiAdapter {
     conversationId: string,
     toolCallId: string,
   ): Promise<void>;
-  bravoCancelConversation(workspaceSlug: string, conversationId: string): Promise<void>;
+  bravoCancelConversation(
+    workspaceSlug: string,
+    conversationId: string,
+  ): Promise<void>;
   bravoGetConfig(workspaceSlug: string): Promise<BravoConfig>;
-  bravoUpdateConfig(workspaceSlug: string, config: Partial<BravoConfig>): Promise<BravoConfig>;
+  bravoUpdateConfig(
+    workspaceSlug: string,
+    config: Partial<BravoConfig>,
+  ): Promise<BravoConfig>;
   bravoListTools(workspaceSlug: string): Promise<{ tools: BravoToolInfo[] }>;
-  bravoGetUsage(workspaceSlug: string, from?: string, to?: string): Promise<BravoUsageSummary>;
+  bravoGetUsage(
+    workspaceSlug: string,
+    from?: string,
+    to?: string,
+  ): Promise<BravoUsageSummary>;
   bravoUpdateMode(
     workspaceSlug: string,
     conversationId: string,
@@ -768,8 +908,15 @@ export interface ApiAdapter {
     successUrl: string,
     cancelUrl: string,
   ): Promise<{ url: string }>;
-  billingCreatePortal(workspaceSlug: string, returnUrl: string): Promise<{ url: string }>;
-  billingGetLedger(workspaceSlug: string, from?: string, to?: string): Promise<CreditLedgerEntry[]>;
+  billingCreatePortal(
+    workspaceSlug: string,
+    returnUrl: string,
+  ): Promise<{ url: string }>;
+  billingGetLedger(
+    workspaceSlug: string,
+    from?: string,
+    to?: string,
+  ): Promise<CreditLedgerEntry[]>;
 
   // Utility
   getKnownLocales(): Promise<LocaleInfo[]>;

@@ -454,18 +454,58 @@ var storeMigrations = []storage.Migration{
 				PRIMARY KEY (user_id, workspace_id, frequency)
 			);
 
-			-- Audit log
+			-- Audit log: append-only, hash-chained system-of-record for every
+			-- auditable event (content mutations + security/governance actions).
+			-- Each row links to the previous row in its chain (chain_key) via a
+			-- SHA-256 hash chain so tampering is detectable. project_id is
+			-- nullable so workspace-scoped (non-project) events are recorded.
 			CREATE TABLE audit_log (
-				id         BIGSERIAL PRIMARY KEY,
-				project_id TEXT NOT NULL,
-				event_type TEXT NOT NULL,
-				actor      TEXT NOT NULL DEFAULT '',
-				source     TEXT NOT NULL DEFAULT '',
-				data       JSONB NOT NULL DEFAULT '{}',
-				created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+				id            BIGSERIAL PRIMARY KEY,
+				chain_key     TEXT NOT NULL DEFAULT 'system', -- chain partition (workspace/project/system)
+				project_id    TEXT,
+				workspace_id  TEXT NOT NULL DEFAULT '',
+				event_type    TEXT NOT NULL,
+				actor         TEXT NOT NULL DEFAULT '',
+				source        TEXT NOT NULL DEFAULT '',
+				resource_type TEXT NOT NULL DEFAULT '',
+				resource_id   TEXT NOT NULL DEFAULT '',
+				effect        TEXT NOT NULL DEFAULT '',
+				data          JSONB NOT NULL DEFAULT '{}',
+				before_state  JSONB,
+				after_state   JSONB,
+				request_id    TEXT NOT NULL DEFAULT '',
+				ip            TEXT NOT NULL DEFAULT '',
+				user_agent    TEXT NOT NULL DEFAULT '',
+				causation_id  TEXT NOT NULL DEFAULT '',
+				prev_hash     TEXT NOT NULL DEFAULT '',
+				hash          TEXT NOT NULL DEFAULT '',
+				created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
 			);
 			CREATE INDEX idx_audit_log_project ON audit_log(project_id, created_at DESC);
-			CREATE INDEX idx_audit_log_type ON audit_log(project_id, event_type, created_at DESC);
+			CREATE INDEX idx_audit_log_workspace ON audit_log(workspace_id, created_at DESC);
+			CREATE INDEX idx_audit_log_type ON audit_log(workspace_id, event_type, created_at DESC);
+			CREATE INDEX idx_audit_log_actor ON audit_log(actor, created_at DESC);
+			CREATE INDEX idx_audit_log_chain ON audit_log(chain_key, id);
+
+			-- Append-only enforcement: block UPDATE always, and block DELETE
+			-- unless a session explicitly opts in (used only by the retention
+			-- pruner via SET LOCAL bowrain.audit_allow_delete = 'on'). This makes
+			-- the trail tamper-evident at the database layer.
+			CREATE OR REPLACE FUNCTION audit_log_no_mutate() RETURNS TRIGGER AS $audit$
+			BEGIN
+				IF (TG_OP = 'DELETE') THEN
+					IF current_setting('bowrain.audit_allow_delete', true) = 'on' THEN
+						RETURN OLD;
+					END IF;
+					RAISE EXCEPTION 'audit_log is append-only: DELETE is not permitted';
+				END IF;
+				RAISE EXCEPTION 'audit_log is append-only: UPDATE is not permitted';
+			END;
+			$audit$ LANGUAGE plpgsql;
+
+			CREATE TRIGGER audit_log_append_only
+				BEFORE UPDATE OR DELETE ON audit_log
+				FOR EACH ROW EXECUTE FUNCTION audit_log_no_mutate();
 
 			-- Project flow definitions (Bowrain AD-013). Server-side, editable
 			-- flow graphs (reader → tool(s) → writer) that automation run_flow

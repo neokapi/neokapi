@@ -133,6 +133,12 @@ type Server struct {
 	// AuditLogger persists all events to the audit_log table. Nil when not configured.
 	AuditLogger *event.AuditLogger
 
+	// AuditRetention prunes audit rows past the retention window. Nil when disabled.
+	AuditRetention *event.AuditRetentionCleaner
+
+	// SIEMExporter forwards events to an external SIEM/log sink. Nil when disabled.
+	SIEMExporter *event.SIEMExporter
+
 	// mcpServer is the MCP protocol server for brand voice. Nil when brand store is not configured.
 	mcpServer *mcpserver.MCPServer
 
@@ -357,6 +363,13 @@ func NewServer(cfg Config) *Server {
 			s.wsStores.pgDB = pg.DB
 			pgSQL := pg.DB.DB // embedded *sql.DB
 			s.AuditLogger = event.NewAuditLogger(pgSQL, s.EventBus)
+			if cfg.AuditRetentionDays > 0 {
+				s.AuditRetention = event.NewAuditRetentionCleaner(
+					s.AuditLogger, time.Duration(cfg.AuditRetentionDays)*24*time.Hour, 24*time.Hour)
+			}
+			if cfg.AuditSIEMWebhookURL != "" {
+				s.SIEMExporter = event.NewSIEMExporter(s.EventBus, &event.HTTPSink{URL: cfg.AuditSIEMWebhookURL})
+			}
 			s.AutomationRuleStore = event.NewRuleStore(pgSQL)
 			s.FlowDefStore = bstore.NewFlowDefStore(pgSQL)
 			s.ReviewQueueStore = bstore.NewReviewQueueStore(pgSQL)
@@ -1070,6 +1083,7 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group) {
 
 	// Workspace audit log — Bowrain AD-011: /:ws/audit-log
 	g.GET("/audit-log", s.HandleListWorkspaceAuditLog)
+	g.GET("/audit-log/verify", s.HandleVerifyWorkspaceAuditChain)
 
 	// Archived projects — Bowrain AD-011: /:ws/archived-projects
 	g.GET("/archived-projects", s.HandleListArchivedProjects)
@@ -1362,6 +1376,12 @@ func (s *Server) Shutdown(ctx context.Context) error {
 	slog.Info("shutdown phase 3: closing event infrastructure")
 	if s.AutomationEngine != nil {
 		s.AutomationEngine.Close()
+	}
+	if s.AuditRetention != nil {
+		s.AuditRetention.Close()
+	}
+	if s.SIEMExporter != nil {
+		s.SIEMExporter.Close()
 	}
 	if s.AuditLogger != nil {
 		s.AuditLogger.Close()

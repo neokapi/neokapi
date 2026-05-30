@@ -132,6 +132,12 @@ type Config struct {
 	AdminOIDCIssuerURL    string
 	AdminOIDCClientID     string
 	AdminOIDCClientSecret string
+
+	// Audit (Phase 2). AuditRetentionDays prunes audit_log rows older than the
+	// given number of days (0 = keep forever). AuditSIEMWebhookURL forwards
+	// every event as NDJSON to an external SIEM/log sink (empty = disabled).
+	AuditRetentionDays  int
+	AuditSIEMWebhookURL string
 }
 
 // ServerConfig is a deprecated alias for [Config].
