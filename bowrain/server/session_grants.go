@@ -45,14 +45,17 @@ func DeleteSessionGrant(ctx context.Context, store SessionStateStore, sessionID 
 
 // CreateSessionGrantForMode creates a session grant for a @bravo conversation
 // with permissions restricted to the mode's ceiling intersected with the user's
-// base permissions.
-func CreateSessionGrantForMode(sessionID, userID string, mode platauth.AgentMode, userPermissions platauth.Permission, userLanguages []string) *platauth.SessionGrant {
+// base permissions. An optional projectIDs list scopes the grant to specific
+// projects; when non-empty, SessionGrantMiddleware denies requests targeting any
+// project outside the set.
+func CreateSessionGrantForMode(sessionID, userID string, mode platauth.AgentMode, userPermissions platauth.Permission, userLanguages []string, projectIDs ...string) *platauth.SessionGrant {
 	ceiling := platauth.ModePermissionCeiling(mode)
 	return &platauth.SessionGrant{
 		SessionID:   sessionID,
 		UserID:      userID,
 		Permissions: userPermissions & ceiling, // intersect
 		Languages:   userLanguages,
+		ProjectIDs:  projectIDs,
 		Mode:        mode,
 		ExpiresAt:   time.Now().Add(defaultGrantTTL),
 	}

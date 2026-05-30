@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/labstack/echo/v4"
+	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	corebrand "github.com/neokapi/neokapi/core/brand"
 	"github.com/neokapi/neokapi/core/brand/packs"
 	"github.com/neokapi/neokapi/core/id"
@@ -62,6 +63,9 @@ func (s *Server) HandleListBrandProfiles(c echo.Context) error {
 
 // HandleCreateBrandProfile creates a new brand voice profile.
 func (s *Server) HandleCreateBrandProfile(c echo.Context) error {
+	if err := s.requirePermission(c, platauth.PermManageBrand); err != nil {
+		return err
+	}
 	if s.BrandStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "brand voice not configured"})
 	}
@@ -116,6 +120,9 @@ func (s *Server) HandleGetBrandProfile(c echo.Context) error {
 
 // HandleUpdateBrandProfile updates an existing brand voice profile.
 func (s *Server) HandleUpdateBrandProfile(c echo.Context) error {
+	if err := s.requirePermission(c, platauth.PermManageBrand); err != nil {
+		return err
+	}
 	if s.BrandStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "brand voice not configured"})
 	}
@@ -150,6 +157,9 @@ func (s *Server) HandleUpdateBrandProfile(c echo.Context) error {
 
 // HandleDeleteBrandProfile deletes a brand voice profile.
 func (s *Server) HandleDeleteBrandProfile(c echo.Context) error {
+	if err := s.requirePermission(c, platauth.PermManageBrand); err != nil {
+		return err
+	}
 	if s.BrandStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "brand voice not configured"})
 	}
@@ -284,6 +294,9 @@ func (s *Server) HandleListStarterPacks(c echo.Context) error {
 
 // HandleCreateFromStarter creates a brand voice profile from a starter pack template.
 func (s *Server) HandleCreateFromStarter(c echo.Context) error {
+	if err := s.requirePermission(c, platauth.PermManageBrand); err != nil {
+		return err
+	}
 	if s.BrandStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "brand voice not configured"})
 	}

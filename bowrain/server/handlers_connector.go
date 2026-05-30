@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/labstack/echo/v4"
+	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	"github.com/neokapi/neokapi/bowrain/core/connector"
 )
 
@@ -49,6 +50,9 @@ func (s *Server) HandleListActiveConnectors(c echo.Context) error {
 }
 
 func (s *Server) HandleAddConnector(c echo.Context) error {
+	if err := s.requirePermission(c, platauth.PermManageConnectors); err != nil {
+		return err
+	}
 	if s.Services == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "store not configured"})
 	}
@@ -70,6 +74,9 @@ func (s *Server) HandleAddConnector(c echo.Context) error {
 }
 
 func (s *Server) HandleRemoveConnector(c echo.Context) error {
+	if err := s.requirePermission(c, platauth.PermManageConnectors); err != nil {
+		return err
+	}
 	if s.Services == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "store not configured"})
 	}
@@ -80,6 +87,9 @@ func (s *Server) HandleRemoveConnector(c echo.Context) error {
 }
 
 func (s *Server) HandleFetch(c echo.Context) error {
+	if err := s.requirePermission(c, platauth.PermManageConnectors); err != nil {
+		return err
+	}
 	if s.Services == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "store not configured"})
 	}
@@ -100,6 +110,9 @@ func (s *Server) HandleFetch(c echo.Context) error {
 }
 
 func (s *Server) HandlePublish(c echo.Context) error {
+	if err := s.requirePermission(c, platauth.PermManageConnectors); err != nil {
+		return err
+	}
 	if s.Services == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "store not configured"})
 	}

@@ -215,7 +215,8 @@ func TestProjectAccessMiddleware(t *testing.T) {
 	}
 	require.NoError(t, store.AddProjectMember(ctx, pm))
 
-	mw := ProjectAccessMiddleware(store)
+	srv := &Server{AuthStore: store}
+	mw := srv.ProjectAccessMiddleware()
 
 	t.Run("member with explicit project role", func(t *testing.T) {
 		e := echo.New()
@@ -288,23 +289,25 @@ func TestProjectAccessMiddleware(t *testing.T) {
 		assert.Equal(t, expected.Permissions, perms)
 	})
 
-	t.Run("no project ID skips middleware", func(t *testing.T) {
+	t.Run("workspace-level resource resolves from workspace role", func(t *testing.T) {
+		// No project ID in the path (e.g. /:ws/translation-memory): permissions
+		// resolve from the user's workspace role so requirePermission enforces.
 		e := echo.New()
 		req := httptest.NewRequest(http.MethodGet, "/other", nil)
 		rec := httptest.NewRecorder()
 		c := e.NewContext(req, rec)
 		c.Set("user_id", user.ID)
+		c.Set("workspace_role", platauth.RoleMember)
 
-		called := false
+		var perms platauth.Permission
 		handler := mw(func(c echo.Context) error {
-			called = true
-			// project_permissions should not be set.
-			assert.Nil(t, c.Get("project_permissions"))
+			perms = c.Get("project_permissions").(platauth.Permission)
 			return c.NoContent(http.StatusOK)
 		})
 		err := handler(c)
 		require.NoError(t, err)
-		assert.True(t, called)
+		expected := platauth.DefaultPermissionsForRole(platauth.RoleMember)
+		assert.Equal(t, expected.Permissions, perms)
 	})
 }
 
@@ -334,16 +337,17 @@ func TestRequirePermission(t *testing.T) {
 		assert.Equal(t, http.StatusForbidden, rec.Code)
 	})
 
-	t.Run("no permissions on context skips check", func(t *testing.T) {
+	t.Run("no permissions on context denies (fail-closed)", func(t *testing.T) {
 		e := echo.New()
 		req := httptest.NewRequest(http.MethodGet, "/", nil)
 		rec := httptest.NewRecorder()
 		c := e.NewContext(req, rec)
 
-		// When project_permissions is not set (legacy routes without
-		// ProjectAccessMiddleware), the check is skipped.
+		// Fail-closed: when no permission context was resolved on the request,
+		// deny rather than silently allow.
 		err := s.requirePermission(c, platauth.PermViewContent)
-		assert.NoError(t, err)
+		require.NoError(t, err) // echo writes to response, returns nil
+		assert.Equal(t, http.StatusForbidden, rec.Code)
 	})
 }
 

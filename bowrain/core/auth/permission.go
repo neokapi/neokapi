@@ -22,6 +22,8 @@ const (
 	PermManageProject                           // Edit project settings, archive
 	PermManageBrand                             // Edit brand voice profiles
 	PermManageAssets                            // Upload/delete media assets
+	PermAuditRead                               // Read the audit log
+	PermRollbackChanges                         // Roll back / restore content to a prior state
 
 	permCount = iota
 )
@@ -57,6 +59,8 @@ var permNames = [permCount]string{
 	"manage_project",
 	"manage_brand",
 	"manage_assets",
+	"audit_read",
+	"rollback_changes",
 }
 
 // permLookup maps permission string names to their bitmask values.

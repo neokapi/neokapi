@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/labstack/echo/v4"
+	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	"github.com/neokapi/neokapi/core/id"
 	"github.com/neokapi/neokapi/core/model"
 )
@@ -21,6 +22,9 @@ type BlockNoteResponse struct {
 
 // HandleAddBlockNote creates a new note on a block.
 func (s *Server) HandleAddBlockNote(c echo.Context) error {
+	if err := s.requirePermission(c, platauth.PermViewContent); err != nil {
+		return err
+	}
 	if s.ContentStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
 	}
@@ -98,6 +102,10 @@ func (s *Server) HandleListBlockNotes(c echo.Context) error {
 
 // HandleDeleteBlockNote deletes a note by ID.
 func (s *Server) HandleDeleteBlockNote(c echo.Context) error {
+	// TODO(phase5): restrict deletion to the note's author or PermManageProject.
+	if err := s.requirePermission(c, platauth.PermViewContent); err != nil {
+		return err
+	}
 	if s.ContentStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
 	}

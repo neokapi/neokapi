@@ -753,6 +753,9 @@ func (s *Server) HandleGetTMCount(c echo.Context) error {
 
 // HandleAddTMEntry adds a new TM entry.
 func (s *Server) HandleAddTMEntry(c echo.Context) error {
+	if err := s.requirePermission(c, platauth.PermManageTM); err != nil {
+		return err
+	}
 	if s.wsStores == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
 	}
@@ -797,6 +800,9 @@ func (s *Server) HandleAddTMEntry(c echo.Context) error {
 
 // HandleUpdateTMEntry updates an existing TM entry.
 func (s *Server) HandleUpdateTMEntry(c echo.Context) error {
+	if err := s.requirePermission(c, platauth.PermManageTM); err != nil {
+		return err
+	}
 	if s.wsStores == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
 	}
@@ -845,6 +851,9 @@ func (s *Server) HandleUpdateTMEntry(c echo.Context) error {
 
 // HandleDeleteTMEntry deletes a TM entry.
 func (s *Server) HandleDeleteTMEntry(c echo.Context) error {
+	if err := s.requirePermission(c, platauth.PermManageTM); err != nil {
+		return err
+	}
 	if s.wsStores == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
 	}
@@ -935,6 +944,9 @@ func (s *Server) HandleGetTermCount(c echo.Context) error {
 
 // HandleAddConcept adds a new terminology concept.
 func (s *Server) HandleAddConcept(c echo.Context) error {
+	if err := s.requirePermission(c, platauth.PermManageTerms); err != nil {
+		return err
+	}
 	if s.wsStores == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
 	}
@@ -974,6 +986,9 @@ func (s *Server) HandleAddConcept(c echo.Context) error {
 
 // HandleUpdateConcept updates a terminology concept.
 func (s *Server) HandleUpdateConcept(c echo.Context) error {
+	if err := s.requirePermission(c, platauth.PermManageTerms); err != nil {
+		return err
+	}
 	if s.wsStores == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
 	}
@@ -1010,6 +1025,9 @@ func (s *Server) HandleUpdateConcept(c echo.Context) error {
 
 // HandleDeleteConcept deletes a terminology concept.
 func (s *Server) HandleDeleteConcept(c echo.Context) error {
+	if err := s.requirePermission(c, platauth.PermManageTerms); err != nil {
+		return err
+	}
 	if s.wsStores == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
 	}
@@ -1030,6 +1048,9 @@ func (s *Server) HandleDeleteConcept(c echo.Context) error {
 
 // HandleImportTermsCSV imports terms from CSV.
 func (s *Server) HandleImportTermsCSV(c echo.Context) error {
+	if err := s.requirePermission(c, platauth.PermManageTerms); err != nil {
+		return err
+	}
 	if s.wsStores == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
 	}
@@ -1060,6 +1081,9 @@ func (s *Server) HandleImportTermsCSV(c echo.Context) error {
 
 // HandleImportTermsJSON imports terms from JSON.
 func (s *Server) HandleImportTermsJSON(c echo.Context) error {
+	if err := s.requirePermission(c, platauth.PermManageTerms); err != nil {
+		return err
+	}
 	if s.wsStores == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
 	}
@@ -1121,6 +1145,9 @@ func (s *Server) HandleListProviderConfigs(c echo.Context) error {
 
 // HandleSaveProviderConfig creates or updates a provider configuration.
 func (s *Server) HandleSaveProviderConfig(c echo.Context) error {
+	if err := s.requirePermission(c, platauth.PermManageConnectors); err != nil {
+		return err
+	}
 	if s.CredentialStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "credentials not configured"})
 	}
@@ -1144,6 +1171,9 @@ func (s *Server) HandleSaveProviderConfig(c echo.Context) error {
 
 // HandleDeleteProviderConfig removes a provider configuration.
 func (s *Server) HandleDeleteProviderConfig(c echo.Context) error {
+	if err := s.requirePermission(c, platauth.PermManageConnectors); err != nil {
+		return err
+	}
 	if s.CredentialStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "credentials not configured"})
 	}
@@ -1159,6 +1189,9 @@ func (s *Server) HandleDeleteProviderConfig(c echo.Context) error {
 
 // HandleTestProviderConfig tests a provider configuration.
 func (s *Server) HandleTestProviderConfig(c echo.Context) error {
+	if err := s.requirePermission(c, platauth.PermManageConnectors); err != nil {
+		return err
+	}
 	if s.CredentialStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "credentials not configured"})
 	}

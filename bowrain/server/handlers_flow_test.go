@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
 	"github.com/neokapi/neokapi/core/flow"
@@ -44,6 +45,9 @@ func flowReq(t *testing.T, srv *Server, method, target, body, projectID, flowID 
 	}
 	rec := httptest.NewRecorder()
 	c := e.NewContext(r, rec)
+	// These tests invoke handlers directly, bypassing ProjectAccessMiddleware;
+	// grant full permissions so the handlers' permission checks pass.
+	c.Set("project_permissions", platauth.PermAll)
 	if flowID != "" {
 		c.SetParamNames("ws", "id", "flowId")
 		c.SetParamValues("demo", projectID, flowID)

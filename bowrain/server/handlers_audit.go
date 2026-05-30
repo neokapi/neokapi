@@ -5,12 +5,16 @@ import (
 	"strconv"
 
 	"github.com/labstack/echo/v4"
+	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	bevent "github.com/neokapi/neokapi/bowrain/event"
 )
 
 // HandleListAuditLog returns audit log entries for a project.
 // GET /projects/:id/audit-log?type=&limit=&offset=
 func (s *Server) HandleListAuditLog(c echo.Context) error {
+	if err := s.requirePermission(c, platauth.PermAuditRead); err != nil {
+		return err
+	}
 	if s.AuditLogger == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "audit log not configured"})
 	}
@@ -39,6 +43,9 @@ func (s *Server) HandleListAuditLog(c echo.Context) error {
 // HandleListWorkspaceAuditLog returns audit log entries across all projects in a workspace.
 // GET /audit-log?type=&actor=&search=&project=&limit=&offset=
 func (s *Server) HandleListWorkspaceAuditLog(c echo.Context) error {
+	if err := s.requirePermission(c, platauth.PermAuditRead); err != nil {
+		return err
+	}
 	if s.AuditLogger == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "audit log not configured"})
 	}

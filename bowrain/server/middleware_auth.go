@@ -282,32 +282,60 @@ func (s *Server) requireRole(c echo.Context, allowed ...platauth.Role) error {
 	return c.JSON(http.StatusForbidden, ErrorResponse{Error: "insufficient permissions"})
 }
 
-// ProjectAccessMiddleware resolves project-level permissions for the authenticated user.
-// It checks the project_members table for an explicit membership and falls back to
-// default permissions based on the user's workspace role.
-func ProjectAccessMiddleware(authStore auth.AuthStore) echo.MiddlewareFunc {
+// ProjectAccessMiddleware resolves the caller's effective permissions for the
+// current request and sets them on the context as "project_permissions" (and
+// "project_languages"). It resolves, in priority order:
+//
+//  1. Claim-token sync (pre-membership bootstrap): the claim token authorizes
+//     full access to exactly the claimed project.
+//  2. Project membership: an explicit project_members role template.
+//  3. Workspace-role fallback: the user's workspace role default permissions —
+//     used both for workspace-level resources (no project in the path) and for
+//     project routes where the user has no explicit project membership.
+//
+// It always sets a permission context for an authenticated request, so the
+// fail-closed requirePermission helper can enforce uniformly. Routes that need
+// the workspace-role fallback but run outside WorkspaceAccessMiddleware (e.g.
+// the flat sync routes) are resolved via the project's workspace.
+func (s *Server) ProjectAccessMiddleware() echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
-			// Extract project ID from either :pid or :id parameter.
-			projectID := projectParam(c)
-			if projectID == "" {
-				projectID = c.Param("id")
+			// 1. Claim-token sync: full access to the single claimed project.
+			if claimPID, _ := c.Get("claim_project_id").(string); claimPID != "" {
+				c.Set("project_permissions", platauth.PermAll)
+				return next(c)
 			}
-			if projectID == "" {
-				return next(c) // no project context, skip
+
+			if s.AuthStore == nil {
+				return next(c)
 			}
 
 			userID, _ := c.Get("user_id").(string)
 			if userID == "" {
-				return next(c) // not authenticated, let auth middleware handle it
+				return next(c) // not authenticated; AuthMiddleware handles rejection
 			}
 
 			ctx := c.Request().Context()
-			resolved, err := authStore.ResolveProjectPermissions(ctx, projectID, userID)
+
+			projectID := projectParam(c)
+			if projectID == "" {
+				projectID = c.Param("id")
+			}
+
+			// Workspace-level resource (no project in path): resolve from the
+			// user's workspace role.
+			if projectID == "" {
+				resolved := s.workspaceRoleFallback(c, "", userID)
+				c.Set("project_permissions", resolved.Permissions)
+				c.Set("project_languages", resolved.Languages)
+				return next(c)
+			}
+
+			// 2. Explicit project membership.
+			resolved, err := s.AuthStore.ResolveProjectPermissions(ctx, projectID, userID)
 			if err != nil {
-				// No explicit project membership — fall back to workspace role defaults.
-				wsRole, _ := c.Get("workspace_role").(platauth.Role)
-				resolved = platauth.DefaultPermissionsForRole(wsRole)
+				// 3. Fall back to the user's workspace role for this project.
+				resolved = s.workspaceRoleFallback(c, projectID, userID)
 			}
 
 			c.Set("project_permissions", resolved.Permissions)
@@ -317,15 +345,44 @@ func ProjectAccessMiddleware(authStore auth.AuthStore) echo.MiddlewareFunc {
 	}
 }
 
+// workspaceRoleFallback resolves a user's permissions from their workspace role.
+// It prefers a workspace_role already on the context (set by
+// WorkspaceAccessMiddleware); otherwise — for routes that run outside the
+// workspace group, such as the flat sync routes — it looks up the project's
+// workspace and the user's membership there. Returns zero permissions when the
+// user has no resolvable workspace membership (deny).
+func (s *Server) workspaceRoleFallback(c echo.Context, projectID, userID string) *platauth.ResolvedPermission {
+	if wsRole, ok := c.Get("workspace_role").(platauth.Role); ok && wsRole != "" {
+		return platauth.DefaultPermissionsForRole(wsRole)
+	}
+
+	ctx := c.Request().Context()
+	if projectID != "" && s.ContentStore != nil {
+		if proj, err := s.ContentStore.GetProject(ctx, projectID); err == nil && proj != nil && proj.WorkspaceID != "" {
+			if m, err := s.AuthStore.GetMembership(ctx, proj.WorkspaceID, userID); err == nil && m != nil {
+				return platauth.DefaultPermissionsForRole(m.Role)
+			}
+		}
+	}
+
+	// No resolvable workspace membership — deny by default.
+	return &platauth.ResolvedPermission{}
+}
+
 // requirePermission verifies that the user has the required permission in the
-// current project context. Returns an echo error response on failure, nil on success.
+// current project (or workspace-resource) context. Returns an echo error
+// response on failure, nil on success.
+//
+// Fail-closed: if no permission context was resolved on the request, access is
+// denied. Every authenticated route that calls this passes through
+// ProjectAccessMiddleware, which always resolves a permission set (project
+// membership, workspace-role fallback, or claim-token grant). A missing context
+// therefore means the caller is unauthenticated or the route is misconfigured —
+// either way, deny rather than silently allow.
 func (s *Server) requirePermission(c echo.Context, perm platauth.Permission) error {
 	perms, ok := c.Get("project_permissions").(platauth.Permission)
 	if !ok {
-		// No project permissions on context — the request came through a route
-		// without ProjectAccessMiddleware (e.g., legacy sync routes with
-		// ClaimOrAuthMiddleware). Skip the check; those routes have their own auth.
-		return nil
+		return c.JSON(http.StatusForbidden, ErrorResponse{Error: "permission context not resolved"})
 	}
 	if !perms.Has(perm) {
 		return c.JSON(http.StatusForbidden, ErrorResponse{Error: "insufficient project permissions"})
@@ -406,6 +463,21 @@ func SessionGrantMiddleware(stateStore SessionStateStore) echo.MiddlewareFunc {
 				return next(c) // no grant found — no restriction
 			}
 
+			// Enforce the grant's project constraint: if the grant is scoped to
+			// specific projects and this request targets a project outside that
+			// set, drop all permissions so requirePermission denies.
+			if len(grant.ProjectIDs) > 0 {
+				reqProject := projectParam(c)
+				if reqProject == "" {
+					reqProject = c.Param("id")
+				}
+				if reqProject != "" && !containsString(grant.ProjectIDs, reqProject) {
+					c.Set("project_permissions", platauth.Permission(0))
+					c.Set("bravo_mode", string(grant.Mode))
+					return next(c)
+				}
+			}
+
 			// Intersect permissions with grant ceiling.
 			perms, ok := c.Get("project_permissions").(platauth.Permission)
 			if ok {
@@ -428,6 +500,16 @@ func SessionGrantMiddleware(stateStore SessionStateStore) echo.MiddlewareFunc {
 			return next(c)
 		}
 	}
+}
+
+// containsString reports whether s is present in the slice.
+func containsString(slice []string, s string) bool {
+	for _, v := range slice {
+		if v == s {
+			return true
+		}
+	}
+	return false
 }
 
 // intersectStrings returns elements present in both slices.

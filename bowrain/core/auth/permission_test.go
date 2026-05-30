@@ -44,7 +44,7 @@ func TestPermissionLanguageScoped(t *testing.T) {
 		PermViewContent, PermEditSource, PermManageTerms, PermManageTM,
 		PermRunFlows, PermManageFiles, PermManageStreams, PermManageConnectors,
 		PermManageAutomation, PermManageMembers, PermManageProject,
-		PermManageBrand, PermManageAssets,
+		PermManageBrand, PermManageAssets, PermAuditRead, PermRollbackChanges,
 	}
 	for _, p := range notScoped {
 		assert.False(t, p.LanguageScoped(), "%s should not be language-scoped", p)
@@ -65,6 +65,7 @@ func TestPermissionStrings(t *testing.T) {
 			"manage_terms", "manage_tm", "run_flows", "manage_files",
 			"manage_streams", "manage_connectors", "manage_automation",
 			"manage_members", "manage_project", "manage_brand", "manage_assets",
+			"audit_read", "rollback_changes",
 		}},
 	}
 	for _, tt := range tests {
@@ -133,8 +134,9 @@ func TestPermAll(t *testing.T) {
 		PermManageTerms, PermManageTM, PermRunFlows, PermManageFiles,
 		PermManageStreams, PermManageConnectors, PermManageAutomation,
 		PermManageMembers, PermManageProject, PermManageBrand, PermManageAssets,
+		PermAuditRead, PermRollbackChanges,
 	}
-	require.Len(t, all, 15, "expected 15 individual permissions")
+	require.Len(t, all, 17, "expected 17 individual permissions")
 	for _, p := range all {
 		assert.True(t, PermAll.Has(p), "PermAll should include %s", p)
 	}

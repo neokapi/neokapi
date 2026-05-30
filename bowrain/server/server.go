@@ -793,6 +793,10 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 			syncRateLimit := RateLimitSyncPush(10, 3)
 			flatSyncGroup := v1.Group("/projects/:id/sync/:ref")
 			flatSyncGroup.Use(ClaimOrAuthMiddleware(s.Config.JWTSecret, s.AuthStore))
+			// Resolve permissions (claim-token grant, project membership, or the
+			// project's workspace role) so the sync handlers' permission checks
+			// enforce rather than fail open.
+			flatSyncGroup.Use(s.ProjectAccessMiddleware())
 			flatSyncGroup.GET("/pull", s.HandleSyncPull)
 			flatSyncGroup.GET("/blocks", s.HandleSyncGetBlocks)
 			flatSyncGroup.GET("/status", s.HandleSyncPushStatus)
@@ -967,7 +971,7 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group) {
 	// Apply project-level permission resolution for routes with :pid or :id params.
 	// The middleware is a no-op when no project ID is present (workspace-scoped routes).
 	if s.AuthStore != nil {
-		g.Use(ProjectAccessMiddleware(s.AuthStore))
+		g.Use(s.ProjectAccessMiddleware())
 	}
 	// Narrow permissions based on API token scopes (Layer 2).
 	g.Use(ScopeRestrictionMiddleware())

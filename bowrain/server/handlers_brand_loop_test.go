@@ -12,6 +12,7 @@ import (
 
 	"github.com/labstack/echo/v4"
 	brandpg "github.com/neokapi/neokapi/bowrain/brand"
+	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/bowrain/testutil/pgtest"
 	corebrand "github.com/neokapi/neokapi/core/brand"
@@ -55,6 +56,7 @@ func TestBrandLoop_EndToEnd(t *testing.T) {
 		req.Header.Set("Content-Type", "application/json")
 		rec := httptest.NewRecorder()
 		c := e.NewContext(req, rec)
+		c.Set("project_permissions", platauth.PermAll)
 		c.Set("user_id", userID)
 		c.Set("workspace_id", wsID)
 		require.NoError(t, srv.HandleCreateBrandVoiceCorrection(c))
@@ -72,6 +74,7 @@ func TestBrandLoop_EndToEnd(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, url, nil)
 		rec := httptest.NewRecorder()
 		c := e.NewContext(req, rec)
+		c.Set("project_permissions", platauth.PermAll)
 		c.SetParamNames("id")
 		c.SetParamValues(profile.ID)
 		c.Set("workspace_id", wsID)
@@ -88,6 +91,7 @@ func TestBrandLoop_EndToEnd(t *testing.T) {
 		req.Header.Set("Content-Type", "application/json")
 		rec := httptest.NewRecorder()
 		c := e.NewContext(req, rec)
+		c.Set("project_permissions", platauth.PermAll)
 		c.SetParamNames("id")
 		c.SetParamValues(profile.ID)
 		c.Set("user_id", userID)
@@ -184,6 +188,7 @@ func TestBrandLoop_EvaluateBlastRadius(t *testing.T) {
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
+	c.Set("project_permissions", platauth.PermAll)
 	c.SetParamNames("id")
 	c.SetParamValues(profile.ID)
 	c.Set("workspace_id", wsID)
