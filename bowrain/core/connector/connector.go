@@ -20,12 +20,13 @@ import (
 type Category string
 
 const (
-	CategoryFile      Category = "file"
-	CategoryCode      Category = "code"
-	CategoryCMS       Category = "cms"
-	CategoryDesign    Category = "design"
-	CategoryMarketing Category = "marketing"
-	CategoryTMS       Category = "tms"
+	CategoryFile         Category = "file"
+	CategoryCode         Category = "code"
+	CategoryCMS          Category = "cms"
+	CategoryDesign       Category = "design"
+	CategoryMarketing    Category = "marketing"
+	CategoryTMS          Category = "tms"
+	CategoryProductivity Category = "productivity" // office/productivity suites (Google Workspace, Microsoft 365)
 )
 
 // ContentItem represents a piece of content discovered by a connector.

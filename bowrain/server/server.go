@@ -735,6 +735,10 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 		pulseProjectGroup.GET("/projects/:id/lang/:locale", s.HandlePulseLocaleDetail)
 	}
 
+	// Workspace add-in surface: Google Workspace add-on Card endpoints (public,
+	// called by Google) + the Office task pane REST API (authenticated inside).
+	s.registerAddinRoutes(v1)
+
 	// Authenticated mode: auth routes, protected endpoints, workspace management.
 	if s.Config.JWTSecret != "" {
 		// Anonymous project creation (no auth required).

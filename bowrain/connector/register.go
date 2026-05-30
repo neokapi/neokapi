@@ -51,4 +51,12 @@ func RegisterRemote(r *platconn.Registry) {
 	r.Register("hubspot", platconn.CategoryMarketing, func(config map[string]string) (platconn.IntegrationConnector, error) {
 		return NewHubSpotConnector(config)
 	})
+
+	r.Register("google-workspace", platconn.CategoryProductivity, func(config map[string]string) (platconn.IntegrationConnector, error) {
+		return NewGoogleWorkspaceConnector(config)
+	})
+
+	r.Register("microsoft365", platconn.CategoryProductivity, func(config map[string]string) (platconn.IntegrationConnector, error) {
+		return NewMicrosoft365Connector(config)
+	})
 }

@@ -1,0 +1,90 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/teams/vDevPreview/MicrosoftTeams.schema.json",
+  "manifestVersion": "devPreview",
+  "id": "00000000-0000-0000-0000-000000000000",
+  "version": "0.1.0",
+  "name": {
+    "short": "Bowrain",
+    "full": "Bowrain — brand voice, terminology & translation"
+  },
+  "description": {
+    "short": "Brand-voice checks, terminology lookup, and translation in your document.",
+    "full": "Surfaces Bowrain brand-voice checking, terminology lookup, and on-brand translation inside Word, Excel, and PowerPoint."
+  },
+  "developer": {
+    "name": "Bowrain",
+    "websiteUrl": "https://www.bowrain.cloud",
+    "privacyUrl": "https://www.bowrain.cloud/privacy",
+    "termsOfUseUrl": "https://www.bowrain.cloud/terms"
+  },
+  "icons": {
+    "outline": "assets/icon-32.png",
+    "color": "assets/icon-80.png"
+  },
+  "accentColor": "#1a56db",
+  "validDomains": ["addin.bowrain.cloud"],
+  "webApplicationInfo": {
+    "id": "00000000-0000-0000-0000-000000000000",
+    "resource": "api://addin.bowrain.cloud/00000000-0000-0000-0000-000000000000"
+  },
+  "authorization": {
+    "permissions": {
+      "resourceSpecific": [{ "name": "Document.ReadWrite.User", "type": "Delegated" }]
+    }
+  },
+  "extensions": [
+    {
+      "requirements": {
+        "scopes": ["document", "workbook", "presentation"],
+        "capabilities": [{ "name": "AddinCommands", "minVersion": "1.1" }]
+      },
+      "runtimes": [
+        {
+          "id": "taskPaneRuntime",
+          "type": "general",
+          "code": { "page": "https://addin.bowrain.cloud/index.html" },
+          "lifetime": "short",
+          "actions": [{ "id": "showTaskPane", "type": "openPage", "view": "dashboard" }]
+        }
+      ],
+      "ribbons": [
+        {
+          "contexts": ["default"],
+          "tabs": [
+            {
+              "builtInTabId": "TabHome",
+              "groups": [
+                {
+                  "id": "bowrainGroup",
+                  "label": "Bowrain",
+                  "icons": [
+                    { "size": 16, "url": "https://addin.bowrain.cloud/assets/icon-16.png" },
+                    { "size": 32, "url": "https://addin.bowrain.cloud/assets/icon-32.png" },
+                    { "size": 80, "url": "https://addin.bowrain.cloud/assets/icon-80.png" }
+                  ],
+                  "controls": [
+                    {
+                      "id": "openBowrain",
+                      "type": "button",
+                      "label": "Open Bowrain",
+                      "icons": [
+                        { "size": 16, "url": "https://addin.bowrain.cloud/assets/icon-16.png" },
+                        { "size": 32, "url": "https://addin.bowrain.cloud/assets/icon-32.png" },
+                        { "size": 80, "url": "https://addin.bowrain.cloud/assets/icon-80.png" }
+                      ],
+                      "supertip": {
+                        "title": "Open Bowrain",
+                        "description": "Check brand voice, look up terminology, and translate on-brand."
+                      },
+                      "actionId": "showTaskPane"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

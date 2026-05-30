@@ -1,0 +1,26 @@
+{
+  "//": "Apps Script manifest for the Bowrain Editor add-on (the no-server alternative to the HTTP card backend in ../deployment.json).",
+  "timeZone": "Etc/UTC",
+  "exceptionLogging": "STACKDRIVER",
+  "runtimeVersion": "V8",
+  "oauthScopes": [
+    "https://www.googleapis.com/auth/documents.currentonly",
+    "https://www.googleapis.com/auth/spreadsheets.currentonly",
+    "https://www.googleapis.com/auth/presentations.currentonly",
+    "https://www.googleapis.com/auth/script.external_request",
+    "https://www.googleapis.com/auth/userinfo.email"
+  ],
+  "addOns": {
+    "common": {
+      "name": "Bowrain",
+      "logoUrl": "https://addin.bowrain.cloud/assets/icon-80.png",
+      "useLocaleFromApp": true,
+      "homepageTrigger": {
+        "runFunction": "onHomepage"
+      }
+    },
+    "docs": { "homepageTrigger": { "runFunction": "onHomepage" } },
+    "sheets": { "homepageTrigger": { "runFunction": "onHomepage" } },
+    "slides": { "homepageTrigger": { "runFunction": "onHomepage" } }
+  }
+}
