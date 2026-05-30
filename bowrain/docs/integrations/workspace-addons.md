@@ -165,9 +165,12 @@ const result = await checkBrand(text, token);    // POST /api/v1/addin/check
   — it eases OAuth verification and builds user trust.
 - HTTP (alternate-runtime) add-ons read/write only via the **REST** APIs; the
   `*.currentonly` scopes are Apps-Script-only.
-- **Verify every request**: validate the inbound Google **system ID token**
-  (signature, `aud` = the deployment/endpoint URL, and the add-on
-  service-account email from `gcloud workspace-add-ons get-authorization`).
+- **Verify every request**: the card endpoints validate the inbound Google
+  **system ID token** (RS256 signature against Google's JWKS, issuer, audience,
+  and — optionally — the add-on service-account email). The endpoints are
+  **fail-closed**: they are only mounted when `BOWRAIN_GOOGLE_ADDON_AUDIENCE` is
+  set (see `bowrain/server/google_verify.go`), so an unconfigured server never
+  exposes them.
 - Apply translations and term fixes via a single `batchUpdate` so concurrent
   collaborators never see a partial state; sort index-based Docs edits
   **descending** (Google's "write backwards" rule) and never delete a paragraph's
@@ -247,7 +250,13 @@ the **real** ecosystems requires identities and secrets that only you can create
 | Env var | Purpose |
 |---|---|
 | `BOWRAIN_ADDIN_PUBLIC_URL` | Public base URL the Google add-on uses for button-callback URLs (defaults to `OIDC public URL`). |
+| `BOWRAIN_GOOGLE_ADDON_AUDIENCE` | Comma-separated accepted `aud` values in Google's system ID token (the add-on deployment URL and/or project number). **Required to enable** the Google card endpoints — they stay disabled (fail-closed) when unset. |
+| `BOWRAIN_GOOGLE_ADDON_SA_EMAIL` | Optional comma-separated add-on service-account email(s) to additionally require (`gcloud workspace-add-ons get-authorization`). |
 | `BOWRAIN_PLATFORM_PROVIDER` (+ `BOWRAIN_PLATFORM_API_KEY`, `BOWRAIN_PLATFORM_MODEL`) | The AI provider used for add-in translation; defaults to the keyless `demo` provider. |
+
+> The Office REST API (`/api/v1/addin/check|terms|translate`) is mounted only
+> when a JWT secret is configured, behind bearer-token auth — it is never exposed
+> unauthenticated.
 
 Until these are provided, the connectors and add-ins run end-to-end against the
 mock servers in the test suite and against the keyless demo translation provider,

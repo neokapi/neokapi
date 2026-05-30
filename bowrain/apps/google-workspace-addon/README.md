@@ -56,9 +56,12 @@ for the full checklist. In brief, for the HTTP add-on:
 3. A **public HTTPS host** for bowrain-server reachable by Google, and the
    server's `BOWRAIN_ADDIN_PUBLIC_URL` set to it (so button-callback URLs are
    absolute).
-4. **Request verification**: enable Google **system ID token** verification on
-   the card endpoints (validate `aud` + the add-on service-account email from
-   `gcloud workspace-add-ons get-authorization`).
+4. **Request verification** is built in and **fail-closed**: set
+   `BOWRAIN_GOOGLE_ADDON_AUDIENCE` (the add-on's deployment URL and/or project
+   number, comma-separated) to enable the card endpoints — they validate the
+   Google **system ID token** (signature + issuer + audience) and stay disabled
+   when unset. Optionally set `BOWRAIN_GOOGLE_ADDON_SA_EMAIL` to also require the
+   add-on service-account email from `gcloud workspace-add-ons get-authorization`.
 
 ## Design notes
 

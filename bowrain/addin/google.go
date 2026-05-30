@@ -2,6 +2,7 @@ package addin
 
 import (
 	"context"
+	"log/slog"
 	"net/http"
 	"strings"
 
@@ -119,7 +120,8 @@ func (s *Service) handleGoogleScan(c echo.Context) error {
 
 	items, err := s.fetchActiveFile(c.Request().Context(), ev, file.ID)
 	if err != nil {
-		return c.JSON(http.StatusOK, updateCard(homeCard(s.PublicURL, file.Title, nil, nil, defaultTargetItems("")), "Couldn't read the document: "+err.Error()))
+		slog.Warn("google addon: scan failed", "error", err, "file", file.ID)
+		return c.JSON(http.StatusOK, updateCard(homeCard(s.PublicURL, file.Title, nil, nil, defaultTargetItems("")), "Couldn't read the document."))
 	}
 	text := joinBlocks(items)
 
@@ -145,23 +147,31 @@ func (s *Service) handleGoogleTranslate(c echo.Context) error {
 		target = "fr"
 	}
 
+	// fail logs the real error server-side and returns a generic toast so we
+	// never leak upstream (Google / connector) error detail to the client.
+	fail := func(stage string, err error) error {
+		slog.Warn("google addon: translate failed", "stage", stage, "error", err, "file", file.ID)
+		return c.JSON(http.StatusOK, updateCard(
+			homeCard(s.PublicURL, file.Title, nil, nil, defaultTargetItems(target)),
+			"Translation failed. Please try again."))
+	}
+
 	ctx := c.Request().Context()
 	conn, err := s.googleConnector(ev, file.ID)
 	if err != nil {
-		return c.JSON(http.StatusOK, updateCard(homeCard(s.PublicURL, file.Title, nil, nil, defaultTargetItems(target)), "Translate failed: "+err.Error()))
+		return fail("connect", err)
 	}
 	defer conn.Close()
 
 	items, err := conn.Fetch(ctx, platconn.FetchOptions{Paths: []string{file.ID}})
 	if err != nil {
-		return c.JSON(http.StatusOK, updateCard(homeCard(s.PublicURL, file.Title, nil, nil, defaultTargetItems(target)), "Translate failed: "+err.Error()))
+		return fail("fetch", err)
 	}
-
 	if err := s.translateItems(ctx, items, model.LocaleID(target)); err != nil {
-		return c.JSON(http.StatusOK, updateCard(homeCard(s.PublicURL, file.Title, nil, nil, defaultTargetItems(target)), "Translate failed: "+err.Error()))
+		return fail("translate", err)
 	}
 	if err := conn.Publish(ctx, items, platconn.PublishOptions{Locales: []model.LocaleID{model.LocaleID(target)}}); err != nil {
-		return c.JSON(http.StatusOK, updateCard(homeCard(s.PublicURL, file.Title, nil, nil, defaultTargetItems(target)), "Write-back failed: "+err.Error()))
+		return fail("write-back", err)
 	}
 
 	card := homeCard(s.PublicURL, file.Title, nil, nil, defaultTargetItems(target))

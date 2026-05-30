@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"log/slog"
 	"os"
 	"strings"
 
@@ -12,15 +13,21 @@ import (
 	aiprovider "github.com/neokapi/neokapi/providers/ai"
 )
 
-// registerAddinRoutes mounts the workspace add-in surface under /api/v1/addin:
+// registerAddinRoutes mounts the workspace add-in surface under /api/v1/addin.
+// Both halves are fail-closed: an endpoint is only exposed once it can be
+// authenticated.
 //
-//   - The Google Workspace add-on Card-JSON endpoints (/addin/google/*) are
-//     PUBLIC — Google's add-on runtime POSTs to them, not the user's browser.
-//     In production they should verify the inbound Google system ID token; that
-//     verification hook is documented on the deployment manifest.
 //   - The REST API (/addin/check, /addin/terms, /addin/translate) is what the
-//     Microsoft 365 Office task pane (and any browser client) calls, so it sits
-//     behind the standard bearer-token auth middleware.
+//     Microsoft 365 Office task pane (and any browser client) calls. It is only
+//     mounted when a JWT secret is configured, behind the standard bearer-token
+//     auth middleware — never exposed unauthenticated.
+//   - The Google Workspace add-on Card-JSON endpoints (/addin/google/*) are
+//     called by Google's add-on runtime (not the user's browser), so they
+//     cannot use bearer auth. They are only mounted when
+//     BOWRAIN_GOOGLE_ADDON_AUDIENCE is configured, behind middleware that
+//     verifies the inbound Google system ID token (signature against Google's
+//     JWKS + issuer + audience + optional service-account email). Without that
+//     config the endpoints stay disabled rather than open.
 //
 // Both share one [addin.Service]; translation uses the configured platform AI
 // provider (BOWRAIN_PLATFORM_PROVIDER), falling back to the keyless demo
@@ -30,15 +37,34 @@ func (s *Server) registerAddinRoutes(v1 *echo.Group) {
 	svc.PublicURL = s.addinPublicURL()
 	svc.NewProvider = addinPlatformProvider
 
-	// Public: Google add-on runtime callbacks.
-	svc.RegisterGoogleRoutes(v1.Group("/addin"))
-
-	// Authenticated: Office task pane / browser REST API.
+	// Authenticated REST API for the Office task pane / browser clients.
 	if s.Config.JWTSecret != "" {
 		svc.RegisterRoutes(v1.Group("/addin", AuthMiddleware(s.Config.JWTSecret, s.AuthStore)))
 	} else {
-		svc.RegisterRoutes(v1.Group("/addin"))
+		slog.Warn("addin: JWT secret not configured — Office add-in REST API disabled")
 	}
+
+	// Google add-on runtime callbacks, gated on Google system-ID-token
+	// verification. Disabled (not open) when no audience is configured.
+	if audiences := splitEnvList("BOWRAIN_GOOGLE_ADDON_AUDIENCE"); len(audiences) > 0 {
+		saEmails := splitEnvList("BOWRAIN_GOOGLE_ADDON_SA_EMAIL")
+		svc.RegisterGoogleRoutes(v1.Group("/addin", verifyGoogleAddonRequest(audiences, saEmails)))
+	} else {
+		slog.Warn("addin: BOWRAIN_GOOGLE_ADDON_AUDIENCE not set — Google Workspace add-on endpoints disabled")
+	}
+}
+
+// splitEnvList reads a comma-separated environment variable into a trimmed,
+// non-empty slice.
+func splitEnvList(key string) []string {
+	raw := strings.Split(os.Getenv(key), ",")
+	out := make([]string, 0, len(raw))
+	for _, v := range raw {
+		if v = strings.TrimSpace(v); v != "" {
+			out = append(out, v)
+		}
+	}
+	return out
 }
 
 // addinPublicURL is the externally reachable base URL the Google add-on uses to
