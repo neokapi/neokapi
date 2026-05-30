@@ -5,6 +5,7 @@ import (
 
 	"github.com/labstack/echo/v4"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
+	platev "github.com/neokapi/neokapi/bowrain/core/event"
 )
 
 // ProjectMemberRequest is the request body for adding or updating a project member.
@@ -59,6 +60,13 @@ func (s *Server) HandleAddProjectMember(c echo.Context) error {
 	if err := s.AuthStore.AddProjectMember(c.Request().Context(), pm); err != nil {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
+	s.emitAudit(c, auditEvent{
+		Type:         platev.EventMemberAdded,
+		ProjectID:    projectID,
+		ResourceType: "project_member",
+		ResourceID:   req.UserID,
+		Data:         map[string]string{"role_id": req.RoleID, "scope": "project"},
+	})
 	return c.JSON(http.StatusCreated, pm)
 }
 
@@ -96,6 +104,13 @@ func (s *Server) HandleUpdateProjectMember(c echo.Context) error {
 	if err := s.AuthStore.UpdateProjectMember(c.Request().Context(), pm); err != nil {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
 	}
+	s.emitAudit(c, auditEvent{
+		Type:         platev.EventMemberRoleChanged,
+		ProjectID:    projectID,
+		ResourceType: "project_member",
+		ResourceID:   userID,
+		After:        map[string]string{"role_id": req.RoleID, "scope": "project"},
+	})
 	return c.JSON(http.StatusOK, pm)
 }
 
@@ -111,5 +126,12 @@ func (s *Server) HandleRemoveProjectMember(c echo.Context) error {
 	if err := s.AuthStore.RemoveProjectMember(c.Request().Context(), projectID, userID); err != nil {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
 	}
+	s.emitAudit(c, auditEvent{
+		Type:         platev.EventMemberRemoved,
+		ProjectID:    projectID,
+		ResourceType: "project_member",
+		ResourceID:   userID,
+		Data:         map[string]string{"scope": "project"},
+	})
 	return c.NoContent(http.StatusNoContent)
 }

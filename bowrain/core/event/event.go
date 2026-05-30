@@ -36,6 +36,30 @@ func ActorNameFromContext(ctx context.Context) string {
 	return ""
 }
 
+type reqMetaKeyType struct{}
+
+// RequestMeta carries audit-relevant request metadata for event attribution.
+type RequestMeta struct {
+	RequestID string
+	IP        string
+	UserAgent string
+}
+
+// WithRequestMeta returns a context carrying request metadata (IP, user-agent,
+// request ID) so emitted events can record where an action came from.
+func WithRequestMeta(ctx context.Context, m RequestMeta) context.Context {
+	return context.WithValue(ctx, reqMetaKeyType{}, m)
+}
+
+// RequestMetaFromContext extracts request metadata from the context, or the zero
+// value if not set.
+func RequestMetaFromContext(ctx context.Context) RequestMeta {
+	if v, ok := ctx.Value(reqMetaKeyType{}).(RequestMeta); ok {
+		return v
+	}
+	return RequestMeta{}
+}
+
 // EventType classifies events emitted by the system.
 type EventType string
 
@@ -107,6 +131,32 @@ const (
 	EventAgentToolApproved        EventType = "agent.tool.approved"
 	EventAgentToolDenied          EventType = "agent.tool.denied"
 	EventAgentCodeExecuted        EventType = "agent.code.executed"
+
+	// Membership & access-governance events (security audit)
+	EventMemberAdded         EventType = "member.added"
+	EventMemberRemoved       EventType = "member.removed"
+	EventMemberRoleChanged   EventType = "member.role_changed"
+	EventRoleTemplateCreated EventType = "role.template.created"
+	EventRoleTemplateUpdated EventType = "role.template.updated"
+	EventRoleTemplateDeleted EventType = "role.template.deleted"
+	EventInviteCreated       EventType = "invite.created"
+	EventInviteAccepted      EventType = "invite.accepted"
+	EventInviteRevoked       EventType = "invite.revoked"
+
+	// Identity & credential events (security audit)
+	EventTokenCreated        EventType = "token.created"
+	EventTokenRevoked        EventType = "token.revoked"
+	EventAuthLogin           EventType = "auth.login"
+	EventAuthLogout          EventType = "auth.logout"
+	EventAuthFailed          EventType = "auth.failed"
+	EventSessionGrantCreated EventType = "session.grant.created"
+
+	// Authorization-decision events (security audit). Emitted when a request is
+	// denied by the permission layer so that access failures are visible.
+	EventAuthzDenied EventType = "authz.denied"
+
+	// Change-governance events
+	EventRollbackPerformed EventType = "rollback.performed"
 )
 
 // Event is a typed message emitted by the system.
@@ -115,10 +165,22 @@ type Event struct {
 	Type        EventType         `json:"type"`
 	Source      string            `json:"source"` // Component that emitted the event
 	ProjectID   string            `json:"project_id"`
-	Actor       string            `json:"actor,omitempty"` // User or system that triggered the event
-	Data        map[string]string `json:"data"`            // Event-specific key-value data
-	CausationID string            `json:"causation_id"`    // For tracing automation chains
+	WorkspaceID string            `json:"workspace_id,omitempty"` // Set for workspace-scoped (non-project) events
+	Actor       string            `json:"actor,omitempty"`        // User or system that triggered the event
+	Data        map[string]string `json:"data"`                   // Event-specific key-value data
+	CausationID string            `json:"causation_id"`           // For tracing automation chains / grouping a batch
 	Timestamp   time.Time         `json:"timestamp"`
+
+	// Audit enrichment (who/what/where/outcome). All optional; populated for
+	// auditable mutations and security events.
+	ResourceType string            `json:"resource_type,omitempty"` // e.g. "member", "role_template", "tm_entry"
+	ResourceID   string            `json:"resource_id,omitempty"`   // ID of the affected resource
+	Effect       string            `json:"effect,omitempty"`        // "allow" | "deny" for authorization decisions
+	Before       map[string]string `json:"before,omitempty"`        // prior state (for change diffs)
+	After        map[string]string `json:"after,omitempty"`         // new state (for change diffs)
+	RequestID    string            `json:"request_id,omitempty"`    // correlates with request logs
+	IP           string            `json:"ip,omitempty"`            // client IP
+	UserAgent    string            `json:"user_agent,omitempty"`    // client user-agent
 }
 
 // EventHandler processes an event.

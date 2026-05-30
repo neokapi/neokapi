@@ -5,6 +5,7 @@ import (
 
 	"github.com/labstack/echo/v4"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
+	platev "github.com/neokapi/neokapi/bowrain/core/event"
 )
 
 // RoleTemplateRequest is the request body for creating or updating a role template.
@@ -68,6 +69,13 @@ func (s *Server) HandleCreateRoleTemplate(c echo.Context) error {
 	if err := s.AuthStore.CreateRoleTemplate(c.Request().Context(), rt); err != nil {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
+	s.emitAudit(c, auditEvent{
+		Type:         platev.EventRoleTemplateCreated,
+		ResourceType: "role_template",
+		ResourceID:   rt.ID,
+		Data:         map[string]string{"name": rt.Name},
+		After:        map[string]string{"permissions": rt.Permissions.String()},
+	})
 	return c.JSON(http.StatusCreated, rt)
 }
 
@@ -90,6 +98,7 @@ func (s *Server) HandleUpdateRoleTemplate(c echo.Context) error {
 	if err != nil {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: "role template not found"})
 	}
+	beforePerms := rt.Permissions.String()
 
 	if req.Name != "" {
 		rt.Name = req.Name
@@ -108,6 +117,14 @@ func (s *Server) HandleUpdateRoleTemplate(c echo.Context) error {
 	if err := s.AuthStore.UpdateRoleTemplate(ctx, rt); err != nil {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
+	s.emitAudit(c, auditEvent{
+		Type:         platev.EventRoleTemplateUpdated,
+		ResourceType: "role_template",
+		ResourceID:   rt.ID,
+		Data:         map[string]string{"name": rt.Name},
+		Before:       map[string]string{"permissions": beforePerms},
+		After:        map[string]string{"permissions": rt.Permissions.String()},
+	})
 	return c.JSON(http.StatusOK, rt)
 }
 
@@ -123,5 +140,10 @@ func (s *Server) HandleDeleteRoleTemplate(c echo.Context) error {
 	if err := s.AuthStore.DeleteRoleTemplate(c.Request().Context(), workspaceID, roleID); err != nil {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 	}
+	s.emitAudit(c, auditEvent{
+		Type:         platev.EventRoleTemplateDeleted,
+		ResourceType: "role_template",
+		ResourceID:   roleID,
+	})
 	return c.NoContent(http.StatusNoContent)
 }

@@ -37,10 +37,25 @@ func setClaimsOnContext(c echo.Context, claims *platauth.Claims) {
 	c.Set("user_id", claims.Subject)
 	c.Set("email", claims.Email)
 	c.Set("name", claims.Name)
-	// Propagate actor into the request context so the EventEmittingStore can
-	// attribute events to the authenticated user.
+	// Propagate actor + request metadata into the request context so the
+	// EventEmittingStore (and handler-emitted audit events) can attribute
+	// events to the authenticated user and record where they came from.
 	ctx := platev.WithActor(c.Request().Context(), claims.Subject, claims.Name)
+	ctx = platev.WithRequestMeta(ctx, requestMeta(c))
 	c.SetRequest(c.Request().WithContext(ctx))
+}
+
+// requestMeta extracts audit-relevant request metadata from the echo context.
+func requestMeta(c echo.Context) platev.RequestMeta {
+	reqID, _ := c.Get("request_id").(string)
+	if reqID == "" {
+		reqID = c.Response().Header().Get(echo.HeaderXRequestID)
+	}
+	return platev.RequestMeta{
+		RequestID: reqID,
+		IP:        c.RealIP(),
+		UserAgent: c.Request().UserAgent(),
+	}
 }
 
 // AuthMiddleware validates JWT tokens from the Authorization header (Bearer),
@@ -279,6 +294,13 @@ func (s *Server) requireRole(c echo.Context, allowed ...platauth.Role) error {
 			return nil
 		}
 	}
+	if actor, _ := c.Get("user_id").(string); actor != "" {
+		s.emitAudit(c, auditEvent{
+			Type:   platev.EventAuthzDenied,
+			Effect: "deny",
+			Data:   map[string]string{"reason": "insufficient_role", "role": string(role), "path": c.Path()},
+		})
+	}
 	return c.JSON(http.StatusForbidden, ErrorResponse{Error: "insufficient permissions"})
 }
 
@@ -382,12 +404,36 @@ func (s *Server) workspaceRoleFallback(c echo.Context, projectID, userID string)
 func (s *Server) requirePermission(c echo.Context, perm platauth.Permission) error {
 	perms, ok := c.Get("project_permissions").(platauth.Permission)
 	if !ok {
+		s.emitAuthzDenied(c, perm, "no_permission_context")
 		return c.JSON(http.StatusForbidden, ErrorResponse{Error: "permission context not resolved"})
 	}
 	if !perms.Has(perm) {
+		s.emitAuthzDenied(c, perm, "insufficient_permissions")
 		return c.JSON(http.StatusForbidden, ErrorResponse{Error: "insufficient project permissions"})
 	}
 	return nil
+}
+
+// emitAuthzDenied records an authorization denial for an authenticated caller.
+// Anonymous/unauthenticated probes are not recorded (no actor to attribute).
+func (s *Server) emitAuthzDenied(c echo.Context, perm platauth.Permission, reason string) {
+	if actor, _ := c.Get("user_id").(string); actor == "" {
+		return
+	}
+	projectID := projectParam(c)
+	if projectID == "" {
+		projectID = c.Param("id")
+	}
+	s.emitAudit(c, auditEvent{
+		Type:      platev.EventAuthzDenied,
+		ProjectID: projectID,
+		Effect:    "deny",
+		Data: map[string]string{
+			"required_permission": perm.String(),
+			"reason":              reason,
+			"path":                c.Path(),
+		},
+	})
 }
 
 // requireLanguagePermission verifies both the permission and language access.

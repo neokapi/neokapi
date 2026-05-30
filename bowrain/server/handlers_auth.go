@@ -18,6 +18,7 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/neokapi/neokapi/bowrain/auth"
 	platformAuth "github.com/neokapi/neokapi/bowrain/core/auth"
+	platev "github.com/neokapi/neokapi/bowrain/core/event"
 	"golang.org/x/oauth2"
 )
 
@@ -164,6 +165,7 @@ func (s *Server) HandleDeviceAuthPoll(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "create user: " + err.Error()})
 	}
 	s.trackUserLogin(user.ID, user.Email, user.CreatedAt)
+	s.emitAuthEvent(c, platev.EventAuthLogin, user.ID, user.Name, "oidc")
 
 	token, err := s.Services.Auth.GenerateToken(user, 15*time.Minute)
 	if err != nil {
@@ -481,6 +483,7 @@ func (s *Server) HandleDesktopCallback(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "create user: " + err.Error()})
 	}
 	s.trackUserLogin(user.ID, user.Email, user.CreatedAt)
+	s.emitAuthEvent(c, platev.EventAuthLogin, user.ID, user.Name, "oidc")
 
 	token, err := s.Services.Auth.GenerateToken(user, 15*time.Minute)
 	if err != nil {
@@ -853,6 +856,7 @@ func (s *Server) handleOIDCCodeExchange(c echo.Context, code, state string) erro
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "create user: " + err.Error()})
 	}
 	s.trackUserLogin(user.ID, user.Email, user.CreatedAt)
+	s.emitAuthEvent(c, platev.EventAuthLogin, user.ID, user.Name, "oidc")
 
 	token, err := s.Services.Auth.GenerateToken(user, 15*time.Minute)
 	if err != nil {
@@ -999,6 +1003,9 @@ func (s *Server) HandleAuthLogout(c echo.Context) error {
 			rawIDToken = string(data)
 		}
 		_ = s.SessionStore.Delete(ctx, prefixIDToken+userID)
+
+		name, _ := c.Get("name").(string)
+		s.emitAuthEvent(c, platev.EventAuthLogout, userID, name, "oidc")
 	}
 
 	clearSessionCookies(c)

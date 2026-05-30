@@ -11,6 +11,7 @@ import (
 	"github.com/neokapi/neokapi/bowrain/auth"
 	"github.com/neokapi/neokapi/bowrain/billing"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
+	platev "github.com/neokapi/neokapi/bowrain/core/event"
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/core/model"
 )
@@ -248,6 +249,9 @@ func (s *Server) HandleListMembers(c echo.Context) error {
 }
 
 func (s *Server) HandleAddMember(c echo.Context) error {
+	if err := s.requireRole(c, platauth.RoleAdmin, platauth.RoleOwner); err != nil {
+		return err
+	}
 	if s.AuthStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "auth not configured"})
 	}
@@ -282,10 +286,20 @@ func (s *Server) HandleAddMember(c echo.Context) error {
 	if err := s.AuthStore.AddMember(ctx, w.ID, req.UserID, role); err != nil {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 	}
+	s.emitAudit(c, auditEvent{
+		Type:         platev.EventMemberAdded,
+		WorkspaceID:  w.ID,
+		ResourceType: "workspace_member",
+		ResourceID:   req.UserID,
+		Data:         map[string]string{"role": string(role), "scope": "workspace"},
+	})
 	return c.JSON(http.StatusCreated, map[string]string{"status": "added"})
 }
 
 func (s *Server) HandleUpdateMemberRole(c echo.Context) error {
+	if err := s.requireRole(c, platauth.RoleAdmin, platauth.RoleOwner); err != nil {
+		return err
+	}
 	if s.AuthStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "auth not configured"})
 	}
@@ -304,10 +318,20 @@ func (s *Server) HandleUpdateMemberRole(c echo.Context) error {
 	if err := s.AuthStore.UpdateRole(c.Request().Context(), w.ID, c.Param("uid"), role); err != nil {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 	}
+	s.emitAudit(c, auditEvent{
+		Type:         platev.EventMemberRoleChanged,
+		WorkspaceID:  w.ID,
+		ResourceType: "workspace_member",
+		ResourceID:   c.Param("uid"),
+		After:        map[string]string{"role": string(role), "scope": "workspace"},
+	})
 	return c.JSON(http.StatusOK, map[string]string{"status": "updated"})
 }
 
 func (s *Server) HandleRemoveMember(c echo.Context) error {
+	if err := s.requireRole(c, platauth.RoleAdmin, platauth.RoleOwner); err != nil {
+		return err
+	}
 	if s.AuthStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "auth not configured"})
 	}
@@ -318,6 +342,13 @@ func (s *Server) HandleRemoveMember(c echo.Context) error {
 	if err := s.AuthStore.RemoveMember(c.Request().Context(), w.ID, c.Param("uid")); err != nil {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
 	}
+	s.emitAudit(c, auditEvent{
+		Type:         platev.EventMemberRemoved,
+		WorkspaceID:  w.ID,
+		ResourceType: "workspace_member",
+		ResourceID:   c.Param("uid"),
+		Data:         map[string]string{"scope": "workspace"},
+	})
 	return c.NoContent(http.StatusNoContent)
 }
 

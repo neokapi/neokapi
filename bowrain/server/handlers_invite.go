@@ -8,6 +8,7 @@ import (
 
 	"github.com/labstack/echo/v4"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
+	platev "github.com/neokapi/neokapi/bowrain/core/event"
 	"github.com/neokapi/neokapi/bowrain/mailer"
 )
 
@@ -59,6 +60,13 @@ func (s *Server) HandleCreateInvite(c echo.Context) error {
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
+	s.emitAudit(c, auditEvent{
+		Type:         platev.EventInviteCreated,
+		WorkspaceID:  workspaceID,
+		ResourceType: "invite",
+		ResourceID:   inv.ID,
+		Data:         map[string]string{"role": string(role), "email": req.Email},
+	})
 
 	// Send invite email asynchronously if email is provided and mailer is configured.
 	if inv.Email != "" && s.Mailer != nil {
@@ -102,10 +110,13 @@ func (s *Server) HandleListInvites(c echo.Context) error {
 	return c.JSON(http.StatusOK, invites)
 }
 
-// HandleDeleteInvite revokes an invitation.
+// HandleDeleteInvite revokes an invitation. Admin/owner only.
 func (s *Server) HandleDeleteInvite(c echo.Context) error {
 	if s.AuthStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "auth not configured"})
+	}
+	if err := s.requireRole(c, platauth.RoleAdmin, platauth.RoleOwner); err != nil {
+		return err
 	}
 
 	inviteID := c.Param("id")
@@ -114,6 +125,11 @@ func (s *Server) HandleDeleteInvite(c echo.Context) error {
 	if err := s.AuthStore.DeleteInvite(ctx, inviteID); err != nil {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
 	}
+	s.emitAudit(c, auditEvent{
+		Type:         platev.EventInviteRevoked,
+		ResourceType: "invite",
+		ResourceID:   inviteID,
+	})
 
 	return c.NoContent(http.StatusNoContent)
 }
@@ -135,6 +151,12 @@ func (s *Server) HandleAcceptInvite(c echo.Context) error {
 	if err := s.Services.Auth.AcceptInvite(ctx, code, userID); err != nil {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 	}
+	s.emitAudit(c, auditEvent{
+		Type:         platev.EventInviteAccepted,
+		ResourceType: "invite",
+		ResourceID:   code,
+		Data:         map[string]string{"user_id": userID},
+	})
 
 	return c.JSON(http.StatusOK, map[string]string{"status": "joined"})
 }

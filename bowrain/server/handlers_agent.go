@@ -9,6 +9,7 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/neokapi/neokapi/bowrain/billing"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
+	platev "github.com/neokapi/neokapi/bowrain/core/event"
 	"github.com/neokapi/neokapi/bowrain/service"
 )
 
@@ -185,6 +186,12 @@ func (s *Server) HandleSendBravoMessage(c echo.Context) error {
 			userLangs, _ := c.Get("project_languages").([]string)
 			grant := CreateSessionGrantForMode(convID, userID, platauth.AgentMode(req.Mode), userPerms, userLangs)
 			_ = SetSessionGrant(c.Request().Context(), s.SessionStore, grant)
+			s.emitAudit(c, auditEvent{
+				Type:         platev.EventSessionGrantCreated,
+				ResourceType: "session_grant",
+				ResourceID:   convID,
+				Data:         map[string]string{"mode": req.Mode, "permissions": grant.Permissions.String()},
+			})
 		}
 
 		if err := s.AgentService.SendMessageStream(
@@ -321,6 +328,12 @@ func (s *Server) HandleUpdateBravoMode(c echo.Context) error {
 	if err := SetSessionGrant(c.Request().Context(), s.SessionStore, grant); err != nil {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "failed to update session grant"})
 	}
+	s.emitAudit(c, auditEvent{
+		Type:         platev.EventSessionGrantCreated,
+		ResourceType: "session_grant",
+		ResourceID:   convID,
+		Data:         map[string]string{"mode": req.Mode, "permissions": grant.Permissions.String()},
+	})
 
 	return c.JSON(http.StatusOK, map[string]any{
 		"mode":        req.Mode,

@@ -7,6 +7,7 @@ import (
 
 	"github.com/labstack/echo/v4"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
+	platev "github.com/neokapi/neokapi/bowrain/core/event"
 )
 
 // CreateTokenRequest is the request body for creating an API token.
@@ -69,6 +70,13 @@ func (s *Server) HandleCreateToken(c echo.Context) error {
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
+	s.emitAudit(c, auditEvent{
+		Type:         platev.EventTokenCreated,
+		WorkspaceID:  workspaceID,
+		ResourceType: "api_token",
+		ResourceID:   token.ID,
+		Data:         map[string]string{"name": token.Name, "scopes": token.Scopes},
+	})
 
 	return c.JSON(http.StatusCreated, CreateTokenResponse{
 		ID:          token.ID,
@@ -110,6 +118,11 @@ func (s *Server) HandleDeleteToken(c echo.Context) error {
 	if err := s.AuthStore.DeleteAPIToken(ctx, tokenID); err != nil {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
 	}
+	s.emitAudit(c, auditEvent{
+		Type:         platev.EventTokenRevoked,
+		ResourceType: "api_token",
+		ResourceID:   tokenID,
+	})
 
 	return c.NoContent(http.StatusNoContent)
 }

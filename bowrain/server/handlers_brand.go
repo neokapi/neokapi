@@ -7,6 +7,7 @@ import (
 
 	"github.com/labstack/echo/v4"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
+	platev "github.com/neokapi/neokapi/bowrain/core/event"
 	corebrand "github.com/neokapi/neokapi/core/brand"
 	"github.com/neokapi/neokapi/core/brand/packs"
 	"github.com/neokapi/neokapi/core/id"
@@ -137,6 +138,7 @@ func (s *Server) HandleUpdateBrandProfile(c echo.Context) error {
 	if err != nil {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
 	}
+	beforeVersion := strconv.Itoa(profile.Version)
 
 	profile.Name = req.Name
 	profile.Description = req.Description
@@ -152,6 +154,14 @@ func (s *Server) HandleUpdateBrandProfile(c echo.Context) error {
 	if err := s.BrandStore.UpdateProfile(ctx, profile); err != nil {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
+	s.emitAudit(c, auditEvent{
+		Type:         platev.EventBrandProfileUpdated,
+		ResourceType: "brand_profile",
+		ResourceID:   profile.ID,
+		Data:         map[string]string{"name": profile.Name},
+		Before:       map[string]string{"version": beforeVersion},
+		After:        map[string]string{"version": strconv.Itoa(profile.Version)},
+	})
 	return c.JSON(http.StatusOK, profile)
 }
 

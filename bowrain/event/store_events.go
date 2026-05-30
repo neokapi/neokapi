@@ -33,6 +33,17 @@ func (s *EventEmittingStore) publish(ctx context.Context, ev platev.Event) {
 			}
 		}
 	}
+	if meta := platev.RequestMetaFromContext(ctx); meta != (platev.RequestMeta{}) {
+		if ev.RequestID == "" {
+			ev.RequestID = meta.RequestID
+		}
+		if ev.IP == "" {
+			ev.IP = meta.IP
+		}
+		if ev.UserAgent == "" {
+			ev.UserAgent = meta.UserAgent
+		}
+	}
 	s.bus.Publish(ev)
 }
 
