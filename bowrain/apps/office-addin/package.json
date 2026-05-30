@@ -1,0 +1,30 @@
+{
+  "name": "bowrain-office-addin",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Bowrain task-pane add-in for Word, Excel, and PowerPoint — brand voice, terminology, and translation.",
+  "type": "module",
+  "scripts": {
+    "dev": "vp dev --host --port 3300",
+    "build": "vpx tsc && vp build",
+    "preview": "vp preview",
+    "check": "vp check",
+    "lint": "vp lint",
+    "fmt": "vp fmt",
+    "test": "vp test",
+    "test:watch": "vp test watch"
+  },
+  "dependencies": {
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4"
+  },
+  "devDependencies": {
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@types/react": "^19.2.15",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.1",
+    "typescript": "^6.0.3",
+    "vite-plus": "^0.1.20"
+  }
+}

@@ -23,6 +23,7 @@
     "bowrain/apps/pulse",
     "bowrain/apps/keycloak-theme",
     "bowrain/apps/bowrain/frontend",
+    "bowrain/apps/office-addin",
     "bowrain/web/landing"
   ],
   "devDependencies": {

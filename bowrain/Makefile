@@ -41,6 +41,7 @@ WEB_DIR      := apps/web
 CTRL_DIR     := apps/ctrl
 PULSE_DIR    := apps/pulse
 KC_THEME_DIR := apps/keycloak-theme
+OFFICE_ADDIN_DIR := apps/office-addin
 EMAILS_DIR   := emails
 CERT_DIR     := docker/traefik/certs
 SERVER_PROTO_DIR := proto/v1
@@ -75,6 +76,7 @@ DOCKER_KEYCLOAK_IMAGE := ghcr.io/neokapi/bowrain-keycloak
         web-deps web-build web-check \
         ctrl-deps ctrl-dev ctrl-build ctrl-check \
         pulse-deps pulse-dev pulse-build pulse-check \
+        office-addin-deps office-addin-dev office-addin-build office-addin-check office-addin-test \
         email-deps email-build keycloak-theme keycloak-check \
         frontend-check-all \
         docker-server docker-web docker-keycloak docker-all \
@@ -204,6 +206,23 @@ pulse-build: ui-build pulse-deps ## Build Pulse dashboard for production
 pulse-check: pulse-deps ## Lint, format-check, and typecheck Pulse dashboard
 	cd $(PULSE_DIR) && vp check
 
+# ── Office Add-in (Word/Excel/PowerPoint task pane) ──────────────────────────
+
+office-addin-deps: ## Install Office add-in task pane dependencies
+	cd $(OFFICE_ADDIN_DIR) && vp install
+
+office-addin-dev: office-addin-deps ## Start Office add-in dev server (port 3300)
+	cd $(OFFICE_ADDIN_DIR) && vp run dev
+
+office-addin-build: office-addin-deps ## Build Office add-in task pane for production
+	cd $(OFFICE_ADDIN_DIR) && vp run build
+
+office-addin-check: office-addin-deps ## Lint, format-check, and typecheck Office add-in
+	cd $(OFFICE_ADDIN_DIR) && vp check
+
+office-addin-test: office-addin-deps ## Run Office add-in unit tests
+	cd $(OFFICE_ADDIN_DIR) && vp test
+
 # ── Email Templates (React Email -> HTML) ────────────────────────────────────
 
 email-deps: ## Install React Email template dependencies
@@ -222,7 +241,7 @@ keycloak-check: ## Lint, format-check, and typecheck Keycloak theme
 
 # ── Frontend Checks (all) ────────────────────────────────────────────────
 
-frontend-check-all: ui-check web-check ctrl-check pulse-check frontend-check keycloak-check ## Run checks across all frontend projects
+frontend-check-all: ui-check web-check ctrl-check pulse-check frontend-check keycloak-check office-addin-check ## Run checks across all frontend projects
 
 # ── Docker ──────────────────────────────────────────────────────────────────
 

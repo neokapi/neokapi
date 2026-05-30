@@ -65,12 +65,12 @@ jobs:
           fi
           check_paths bowrain_cli '^bowrain/cli/'
           # bowrain: anything under bowrain/ except frontend app dirs, packages/, bowrain/core/, bowrain/cli/, docker/, and deploy/
-          if echo "$CHANGED" | grep -E '^bowrain/' | grep -vE '^bowrain/(apps/(web|bowrain/frontend|keycloak-theme)|packages/|core/|cli/|docker/|deploy/)' | grep -q .; then
+          if echo "$CHANGED" | grep -E '^bowrain/' | grep -vE '^bowrain/(apps/(web|bowrain/frontend|keycloak-theme|office-addin)|packages/|core/|cli/|docker/|deploy/)' | grep -q .; then
             echo "bowrain=true" >> "$GITHUB_OUTPUT"
           else
             echo "bowrain=false" >> "$GITHUB_OUTPUT"
           fi
-          check_paths frontend  '^bowrain/apps/(web|bowrain/frontend)/' '^bowrain/packages/ui/'
+          check_paths frontend  '^bowrain/apps/(web|bowrain/frontend|office-addin)/' '^bowrain/packages/ui/'
           check_paths kapi_desktop '^apps/kapi-desktop/' '^packages/(ui|flow-editor)/'
           check_paths bowrain_desktop '^bowrain/apps/bowrain/' '^bowrain/packages/ui/'
           check_paths kapi_react '^packages/kapi-(format|react)/'
@@ -109,6 +109,18 @@ jobs:
       - name: Check Bowrain frontend (oxlint + oxfmt)
         working-directory: bowrain/apps/bowrain/frontend
         run: vp check
+
+      - name: Check Office add-in (oxlint + oxfmt)
+        working-directory: bowrain/apps/office-addin
+        run: vp check
+
+      - name: Run Office add-in unit tests
+        working-directory: bowrain/apps/office-addin
+        run: vp test
+
+      - name: Build Office add-in task pane
+        working-directory: bowrain/apps/office-addin
+        run: vp build
 
   # ── Kapi Desktop frontend ───────────────────────────────────────────────
   kapi-desktop:

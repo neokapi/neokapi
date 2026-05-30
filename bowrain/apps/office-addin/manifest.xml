@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Bowrain Office Add-in — add-in-only (XML) manifest.
+
+  This is the broadest-reach manifest: it works on Office on the web, Windows,
+  Mac, and iPad, including perpetual (non-subscription) Office, which the unified
+  JSON manifest does not yet support. Ship this as the baseline; manifest.json
+  (the unified Microsoft 365 manifest) is the Teams/Copilot-co-packaging variant.
+
+  BEFORE PUBLISHING, replace the placeholders:
+    - <Id>              a fresh GUID for the add-in
+    - addin.bowrain.cloud  the HTTPS host serving the built task pane (dist/)
+    - WebApplicationInfo <Id>/<Resource>  the Entra app registration (for SSO)
+-->
+<OfficeApp
+  xmlns="http://schemas.microsoft.com/office/appforoffice/1.1"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xmlns:bt="http://schemas.microsoft.com/office/officeappbasictypes/1.0"
+  xmlns:ov="http://schemas.microsoft.com/office/taskpaneappversionoverrides"
+  xsi:type="TaskPaneApp">
+
+  <Id>00000000-0000-0000-0000-000000000000</Id>
+  <Version>0.1.0.0</Version>
+  <ProviderName>Bowrain</ProviderName>
+  <DefaultLocale>en-US</DefaultLocale>
+  <DisplayName DefaultValue="Bowrain" />
+  <Description DefaultValue="Brand-voice checks, terminology lookup, and on-brand translation inside Word, Excel, and PowerPoint." />
+  <IconUrl DefaultValue="https://addin.bowrain.cloud/assets/icon-32.png" />
+  <HighResolutionIconUrl DefaultValue="https://addin.bowrain.cloud/assets/icon-80.png" />
+  <SupportUrl DefaultValue="https://www.bowrain.cloud/support" />
+
+  <AppDomains>
+    <AppDomain>https://addin.bowrain.cloud</AppDomain>
+  </AppDomains>
+
+  <Hosts>
+    <Host Name="Document" />
+    <Host Name="Workbook" />
+    <Host Name="Presentation" />
+  </Hosts>
+
+  <DefaultSettings>
+    <SourceLocation DefaultValue="https://addin.bowrain.cloud/index.html" />
+  </DefaultSettings>
+
+  <Permissions>ReadWriteDocument</Permissions>
+
+  <VersionOverrides xmlns="http://schemas.microsoft.com/office/taskpaneappversionoverrides" xsi:type="VersionOverridesV1_0">
+    <Hosts>
+      <Host xsi:type="Document">
+        <DesktopFormFactor>
+          <ExtensionPoint xsi:type="PrimaryCommandSurface">
+            <OfficeTab id="TabHome">
+              <Group id="bowrainGroup">
+                <Label resid="Bowrain.GroupLabel" />
+                <Control xsi:type="Button" id="bowrainOpen">
+                  <Label resid="Bowrain.OpenLabel" />
+                  <Supertip>
+                    <Title resid="Bowrain.OpenLabel" />
+                    <Description resid="Bowrain.OpenTip" />
+                  </Supertip>
+                  <Icon>
+                    <bt:Image size="16" resid="Bowrain.Icon16" />
+                    <bt:Image size="32" resid="Bowrain.Icon32" />
+                    <bt:Image size="80" resid="Bowrain.Icon80" />
+                  </Icon>
+                  <Action xsi:type="ShowTaskpane">
+                    <TaskpaneId>BowrainTaskpane</TaskpaneId>
+                    <SourceLocation resid="Bowrain.Taskpane.Url" />
+                  </Action>
+                </Control>
+              </Group>
+            </OfficeTab>
+          </ExtensionPoint>
+        </DesktopFormFactor>
+      </Host>
+    </Hosts>
+
+    <Resources>
+      <bt:Images>
+        <bt:Image id="Bowrain.Icon16" DefaultValue="https://addin.bowrain.cloud/assets/icon-16.png" />
+        <bt:Image id="Bowrain.Icon32" DefaultValue="https://addin.bowrain.cloud/assets/icon-32.png" />
+        <bt:Image id="Bowrain.Icon80" DefaultValue="https://addin.bowrain.cloud/assets/icon-80.png" />
+      </bt:Images>
+      <bt:Urls>
+        <bt:Url id="Bowrain.Taskpane.Url" DefaultValue="https://addin.bowrain.cloud/index.html" />
+      </bt:Urls>
+      <bt:ShortStrings>
+        <bt:String id="Bowrain.GroupLabel" DefaultValue="Bowrain" />
+        <bt:String id="Bowrain.OpenLabel" DefaultValue="Open Bowrain" />
+      </bt:ShortStrings>
+      <bt:LongStrings>
+        <bt:String id="Bowrain.OpenTip" DefaultValue="Check brand voice, look up terminology, and translate on-brand." />
+      </bt:LongStrings>
+    </Resources>
+
+    <WebApplicationInfo>
+      <Id>00000000-0000-0000-0000-000000000000</Id>
+      <Resource>api://addin.bowrain.cloud/00000000-0000-0000-0000-000000000000</Resource>
+      <Scopes>
+        <Scope>openid</Scope>
+        <Scope>profile</Scope>
+        <Scope>User.Read</Scope>
+      </Scopes>
+    </WebApplicationInfo>
+  </VersionOverrides>
+</OfficeApp>

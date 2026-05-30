@@ -1,0 +1,61 @@
+{
+  "//": "Google Workspace Add-on (HTTP / alternate-runtime) deployment descriptor.",
+  "//deploy": "Create + install with the gcloud Workspace Add-ons CLI (see README.md). Replace addin.bowrain.cloud with the host serving bowrain-server's /api/v1/addin/google/* endpoints.",
+  "oauthScopes": [
+    "https://www.googleapis.com/auth/drive.file",
+    "https://www.googleapis.com/auth/documents",
+    "https://www.googleapis.com/auth/spreadsheets",
+    "https://www.googleapis.com/auth/presentations",
+    "https://www.googleapis.com/auth/script.external_request",
+    "https://www.googleapis.com/auth/userinfo.email"
+  ],
+  "addOns": {
+    "common": {
+      "name": "Bowrain",
+      "logoUrl": "https://addin.bowrain.cloud/assets/icon-80.png",
+      "layoutProperties": {
+        "primaryColor": "#1a56db",
+        "secondaryColor": "#047857"
+      },
+      "useLocaleFromApp": true,
+      "homepageTrigger": {
+        "runFunction": "https://addin.bowrain.cloud/api/v1/addin/google/homepage",
+        "enabled": true
+      },
+      "universalActions": [
+        { "label": "Help", "openLink": "https://www.bowrain.cloud/support" }
+      ],
+      "openLinkUrlPrefixes": ["https://addin.bowrain.cloud/", "https://www.bowrain.cloud/"]
+    },
+    "docs": {
+      "homepageTrigger": {
+        "runFunction": "https://addin.bowrain.cloud/api/v1/addin/google/homepage",
+        "enabled": true
+      },
+      "onFileScopeGrantedTrigger": {
+        "runFunction": "https://addin.bowrain.cloud/api/v1/addin/google/homepage"
+      }
+    },
+    "sheets": {
+      "homepageTrigger": {
+        "runFunction": "https://addin.bowrain.cloud/api/v1/addin/google/homepage",
+        "enabled": true
+      },
+      "onFileScopeGrantedTrigger": {
+        "runFunction": "https://addin.bowrain.cloud/api/v1/addin/google/homepage"
+      }
+    },
+    "slides": {
+      "homepageTrigger": {
+        "runFunction": "https://addin.bowrain.cloud/api/v1/addin/google/homepage",
+        "enabled": true
+      },
+      "onFileScopeGrantedTrigger": {
+        "runFunction": "https://addin.bowrain.cloud/api/v1/addin/google/homepage"
+      }
+    },
+    "httpOptions": {
+      "granularOauthPermissionSupport": "OPT_IN"
+    }
+  }
+}
