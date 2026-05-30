@@ -29,14 +29,14 @@ as the API — no CORS), and `manifest.xml` points the task pane there.
 
 ## Files
 
-| File | Purpose |
-|---|---|
-| `manifest.xml` | Add-in-only (XML) manifest — **the baseline**, widest reach (incl. perpetual Office + mobile). |
-| `manifest.json` | Unified Microsoft 365 manifest — for Teams co-distribution / Copilot agent co-packaging. |
-| `src/api.ts` | Typed client for the Bowrain add-in REST API. |
-| `src/office.ts` | Office.js Common-API wrappers (read selection / replace / SSO token). |
-| `src/office.d.ts` | Minimal ambient Office.js types (no `@types/office-js` dependency). |
-| `src/App.tsx` | The task-pane UI. |
+| File              | Purpose                                                                                        |
+| ----------------- | ---------------------------------------------------------------------------------------------- |
+| `manifest.xml`    | Add-in-only (XML) manifest — **the baseline**, widest reach (incl. perpetual Office + mobile). |
+| `manifest.json`   | Unified Microsoft 365 manifest — for Teams co-distribution / Copilot agent co-packaging.       |
+| `src/api.ts`      | Typed client for the Bowrain add-in REST API.                                                  |
+| `src/office.ts`   | Office.js Common-API wrappers (read selection / replace / SSO token).                          |
+| `src/office.d.ts` | Minimal ambient Office.js types (no `@types/office-js` dependency).                            |
+| `src/App.tsx`     | The task-pane UI.                                                                              |
 
 ## What you must provide (production)
 
