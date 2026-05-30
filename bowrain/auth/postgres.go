@@ -2,6 +2,7 @@ package auth
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -783,21 +784,59 @@ func (s *PostgresAuthStore) RemoveProjectMember(ctx context.Context, projectID, 
 }
 
 func (s *PostgresAuthStore) ResolveProjectPermissions(ctx context.Context, projectID, userID string) (*platauth.ResolvedPermission, error) {
-	var perms int64
-	var langsStr string
-	err := s.db.QueryRowContext(ctx,
+	// Union direct project membership with any group-role bindings the user has
+	// on this project. A user with only a group binding still resolves here.
+	rows, err := s.db.QueryContext(ctx,
 		`SELECT rt.permissions, pm.languages
 		 FROM project_members pm
 		 JOIN role_templates rt ON rt.workspace_id = pm.workspace_id AND rt.id = pm.role_id
-		 WHERE pm.project_id = $1 AND pm.user_id = $2`, projectID, userID).
-		Scan(&perms, &langsStr)
+		 WHERE pm.project_id = $1 AND pm.user_id = $2
+		 UNION ALL
+		 SELECT rt.permissions, grb.languages
+		 FROM group_role_bindings grb
+		 JOIN group_members gm ON gm.group_id = grb.group_id
+		 JOIN role_templates rt ON rt.workspace_id = grb.workspace_id AND rt.id = grb.role_id
+		 WHERE grb.project_id = $1 AND gm.user_id = $2`, projectID, userID)
 	if err != nil {
 		return nil, fmt.Errorf("resolve project permissions: %w", err)
 	}
-	return &platauth.ResolvedPermission{
-		Permissions: platauth.Permission(perms),
-		Languages:   unmarshalLanguages(langsStr),
-	}, nil
+	defer rows.Close()
+
+	var perms platauth.Permission
+	var languages []string
+	seen := map[string]bool{}
+	allLanguages := false
+	any := false
+	for rows.Next() {
+		var p int64
+		var langsStr string
+		if err := rows.Scan(&p, &langsStr); err != nil {
+			return nil, fmt.Errorf("scan project permissions: %w", err)
+		}
+		any = true
+		perms |= platauth.Permission(p)
+		langs := unmarshalLanguages(langsStr)
+		if len(langs) == 0 {
+			allLanguages = true // an unconstrained source grants all languages
+			continue
+		}
+		for _, l := range langs {
+			if !seen[l] {
+				seen[l] = true
+				languages = append(languages, l)
+			}
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate project permissions: %w", err)
+	}
+	if !any {
+		return nil, fmt.Errorf("resolve project permissions: %w", sql.ErrNoRows)
+	}
+	if allLanguages {
+		languages = nil
+	}
+	return &platauth.ResolvedPermission{Permissions: perms, Languages: languages}, nil
 }
 
 // ---------------------------------------------------------------------------

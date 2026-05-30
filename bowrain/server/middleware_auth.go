@@ -344,51 +344,76 @@ func (s *Server) ProjectAccessMiddleware() echo.MiddlewareFunc {
 				projectID = c.Param("id")
 			}
 
-			// Workspace-level resource (no project in path): resolve from the
-			// user's workspace role.
+			var resolved *platauth.ResolvedPermission
 			if projectID == "" {
-				resolved := s.workspaceRoleFallback(c, "", userID)
-				c.Set("project_permissions", resolved.Permissions)
-				c.Set("project_languages", resolved.Languages)
-				return next(c)
+				// Workspace-level resource (no project in path): resolve from the
+				// user's workspace role.
+				resolved = s.workspaceRoleFallback(c, "", userID)
+			} else {
+				// 2. Explicit project membership (or group binding).
+				var err error
+				resolved, err = s.AuthStore.ResolveProjectPermissions(ctx, projectID, userID)
+				if err != nil {
+					// 3. Fall back to the user's workspace role for this project.
+					resolved = s.workspaceRoleFallback(c, projectID, userID)
+				}
 			}
 
-			// 2. Explicit project membership.
-			resolved, err := s.AuthStore.ResolveProjectPermissions(ctx, projectID, userID)
-			if err != nil {
-				// 3. Fall back to the user's workspace role for this project.
-				resolved = s.workspaceRoleFallback(c, projectID, userID)
+			perms := resolved.Permissions
+
+			// 4. Subtract deny rules (negative permissions always win). Applied
+			// when the workspace context is known (the workspace route group).
+			if wsID, _ := c.Get("workspace_id").(string); wsID != "" {
+				wsRole, _ := c.Get("workspace_role").(platauth.Role)
+				if denied, derr := s.AuthStore.ResolveDenies(ctx, wsID, projectID, userID, wsRole); derr == nil {
+					perms &^= denied
+				}
 			}
 
-			c.Set("project_permissions", resolved.Permissions)
+			c.Set("project_permissions", perms)
 			c.Set("project_languages", resolved.Languages)
 			return next(c)
 		}
 	}
 }
 
-// workspaceRoleFallback resolves a user's permissions from their workspace role.
-// It prefers a workspace_role already on the context (set by
-// WorkspaceAccessMiddleware); otherwise — for routes that run outside the
-// workspace group, such as the flat sync routes — it looks up the project's
-// workspace and the user's membership there. Returns zero permissions when the
-// user has no resolvable workspace membership (deny).
+// workspaceRoleFallback resolves a user's permissions from their workspace role,
+// honoring any per-workspace role override. It prefers a workspace_role already
+// on the context (set by WorkspaceAccessMiddleware); otherwise — for routes that
+// run outside the workspace group, such as the flat sync routes — it looks up
+// the project's workspace and the user's membership there. Returns zero
+// permissions when the user has no resolvable workspace membership (deny).
 func (s *Server) workspaceRoleFallback(c echo.Context, projectID, userID string) *platauth.ResolvedPermission {
-	if wsRole, ok := c.Get("workspace_role").(platauth.Role); ok && wsRole != "" {
-		return platauth.DefaultPermissionsForRole(wsRole)
-	}
-
 	ctx := c.Request().Context()
-	if projectID != "" && s.ContentStore != nil {
-		if proj, err := s.ContentStore.GetProject(ctx, projectID); err == nil && proj != nil && proj.WorkspaceID != "" {
-			if m, err := s.AuthStore.GetMembership(ctx, proj.WorkspaceID, userID); err == nil && m != nil {
-				return platauth.DefaultPermissionsForRole(m.Role)
+
+	wsRole, _ := c.Get("workspace_role").(platauth.Role)
+	wsID, _ := c.Get("workspace_id").(string)
+
+	if wsRole == "" {
+		// Resolve via the project's workspace (flat sync routes have no
+		// workspace context on the request).
+		if projectID != "" && s.ContentStore != nil {
+			if proj, err := s.ContentStore.GetProject(ctx, projectID); err == nil && proj != nil && proj.WorkspaceID != "" {
+				wsID = proj.WorkspaceID
+				if m, err := s.AuthStore.GetMembership(ctx, proj.WorkspaceID, userID); err == nil && m != nil {
+					wsRole = m.Role
+				}
 			}
 		}
 	}
 
-	// No resolvable workspace membership — deny by default.
-	return &platauth.ResolvedPermission{}
+	if wsRole == "" {
+		// No resolvable workspace membership — deny by default.
+		return &platauth.ResolvedPermission{}
+	}
+
+	// Honor a per-workspace override of the role's default permissions.
+	if wsID != "" {
+		if perms, ok, err := s.AuthStore.GetWorkspaceRoleOverride(ctx, wsID, wsRole); err == nil && ok {
+			return &platauth.ResolvedPermission{Permissions: perms}
+		}
+	}
+	return platauth.DefaultPermissionsForRole(wsRole)
 }
 
 // requirePermission verifies that the user has the required permission in the

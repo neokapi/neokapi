@@ -169,6 +169,63 @@ type ResolvedPermission struct {
 	Languages   []string   `json:"languages"` // empty = all languages
 }
 
+// Group is a named set of users within a workspace that can be bound to project
+// roles in bulk (teams).
+type Group struct {
+	ID          string    `json:"id"`
+	WorkspaceID string    `json:"workspace_id"`
+	Name        string    `json:"name"`
+	Description string    `json:"description"`
+	CreatedAt   time.Time `json:"created_at"`
+	MemberCount int       `json:"member_count,omitempty"`
+}
+
+// GroupRoleBinding binds a group to a role template on a project, optionally
+// scoped to specific languages.
+type GroupRoleBinding struct {
+	ID          string    `json:"id"`
+	GroupID     string    `json:"group_id"`
+	WorkspaceID string    `json:"workspace_id"`
+	ProjectID   string    `json:"project_id"`
+	RoleID      string    `json:"role_id"`
+	Languages   []string  `json:"languages"`
+	CreatedAt   time.Time `json:"created_at"`
+}
+
+// DenySubjectType identifies what a deny rule applies to.
+type DenySubjectType string
+
+const (
+	DenySubjectUser  DenySubjectType = "user"
+	DenySubjectRole  DenySubjectType = "role"  // workspace role (owner/admin/member/viewer)
+	DenySubjectGroup DenySubjectType = "group" // group ID
+)
+
+// DenyRule is a negative permission that always overrides grants. A rule with an
+// empty ProjectID applies workspace-wide.
+type DenyRule struct {
+	ID          string          `json:"id"`
+	WorkspaceID string          `json:"workspace_id"`
+	SubjectType DenySubjectType `json:"subject_type"`
+	SubjectID   string          `json:"subject_id"`
+	ProjectID   string          `json:"project_id"` // empty = workspace-wide
+	DeniedPerms Permission      `json:"denied_perms"`
+	Reason      string          `json:"reason"`
+	CreatedAt   time.Time       `json:"created_at"`
+}
+
+// SoDMode is the separation-of-duties enforcement level for a workspace.
+type SoDMode string
+
+const (
+	SoDOff   SoDMode = "off"   // no separation enforced
+	SoDWarn  SoDMode = "warn"  // record a warning but allow
+	SoDBlock SoDMode = "block" // reject the action
+)
+
+// ValidSoDModes is the set of valid SoDMode values.
+var ValidSoDModes = map[SoDMode]bool{SoDOff: true, SoDWarn: true, SoDBlock: true}
+
 // DefaultPermissionsForRole returns the fallback project permissions when no explicit
 // project membership exists, based on the user's workspace role.
 func DefaultPermissionsForRole(wsRole Role) *ResolvedPermission {

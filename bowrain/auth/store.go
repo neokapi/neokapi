@@ -77,6 +77,34 @@ type AuthStore interface {
 	RemoveProjectMember(ctx context.Context, projectID, userID string) error
 	ResolveProjectPermissions(ctx context.Context, projectID, userID string) (*platauth.ResolvedPermission, error)
 
+	// Groups (teams)
+	CreateGroup(ctx context.Context, g *platauth.Group) error
+	ListGroups(ctx context.Context, workspaceID string) ([]*platauth.Group, error)
+	DeleteGroup(ctx context.Context, workspaceID, groupID string) error
+	AddGroupMember(ctx context.Context, groupID, userID string) error
+	RemoveGroupMember(ctx context.Context, groupID, userID string) error
+	ListGroupMembers(ctx context.Context, groupID string) ([]string, error)
+	AddGroupRoleBinding(ctx context.Context, b *platauth.GroupRoleBinding) error
+	ListGroupRoleBindings(ctx context.Context, groupID string) ([]*platauth.GroupRoleBinding, error)
+	RemoveGroupRoleBinding(ctx context.Context, bindingID string) error
+
+	// Deny rules (negative permissions)
+	CreateDenyRule(ctx context.Context, r *platauth.DenyRule) error
+	ListDenyRules(ctx context.Context, workspaceID string) ([]*platauth.DenyRule, error)
+	DeleteDenyRule(ctx context.Context, workspaceID, ruleID string) error
+	// ResolveDenies returns the union of permissions denied to a user for a
+	// project, considering user-, role-, and group-subject rules.
+	ResolveDenies(ctx context.Context, workspaceID, projectID, userID string, wsRole platauth.Role) (platauth.Permission, error)
+
+	// Workspace role overrides (tune the workspace-role permission fallback)
+	GetWorkspaceRoleOverride(ctx context.Context, workspaceID string, role platauth.Role) (platauth.Permission, bool, error)
+	SetWorkspaceRoleOverride(ctx context.Context, workspaceID string, role platauth.Role, perms platauth.Permission) error
+	ListWorkspaceRoleOverrides(ctx context.Context, workspaceID string) (map[platauth.Role]platauth.Permission, error)
+
+	// Separation-of-duties policy
+	GetSoDMode(ctx context.Context, workspaceID string) (platauth.SoDMode, error)
+	SetSoDMode(ctx context.Context, workspaceID string, mode platauth.SoDMode) error
+
 	// Workspace slug reservations (rename grace period).
 	// ReserveSlug records that `slug` was previously held by `workspaceID` and
 	// must not be reused until `until`. IsSlugReserved returns the workspace

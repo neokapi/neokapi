@@ -182,4 +182,71 @@ var authMigrationsPg = []storage.Migration{
 				ON email_change_requests(expires_at);
 		`,
 	},
+	{
+		Version:     3,
+		Description: "groups, deny rules, workspace role overrides, separation-of-duties settings",
+		SQL: `
+			-- Groups (teams): bind a set of users to project roles in bulk.
+			CREATE TABLE IF NOT EXISTS groups (
+				id           TEXT PRIMARY KEY,
+				workspace_id TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+				name         TEXT NOT NULL,
+				description  TEXT NOT NULL DEFAULT '',
+				created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+				UNIQUE (workspace_id, name)
+			);
+			CREATE INDEX IF NOT EXISTS idx_groups_workspace ON groups(workspace_id);
+
+			CREATE TABLE IF NOT EXISTS group_members (
+				group_id TEXT NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
+				user_id  TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+				PRIMARY KEY (group_id, user_id)
+			);
+			CREATE INDEX IF NOT EXISTS idx_group_members_user ON group_members(user_id);
+
+			-- Group → project role bindings. Languages scope is JSON (empty = all).
+			CREATE TABLE IF NOT EXISTS group_role_bindings (
+				id           TEXT PRIMARY KEY,
+				group_id     TEXT NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
+				workspace_id TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+				project_id   TEXT NOT NULL,
+				role_id      TEXT NOT NULL,
+				languages    TEXT NOT NULL DEFAULT '[]',
+				created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
+			);
+			CREATE INDEX IF NOT EXISTS idx_group_bindings_project ON group_role_bindings(project_id);
+			CREATE INDEX IF NOT EXISTS idx_group_bindings_group ON group_role_bindings(group_id);
+
+			-- Deny rules: negative permissions that always win over grants.
+			-- subject_type is 'user' | 'role' | 'group'; project_id empty = workspace-wide.
+			CREATE TABLE IF NOT EXISTS deny_rules (
+				id           TEXT PRIMARY KEY,
+				workspace_id TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+				subject_type TEXT NOT NULL,
+				subject_id   TEXT NOT NULL,
+				project_id   TEXT NOT NULL DEFAULT '',
+				denied_perms BIGINT NOT NULL DEFAULT 0,
+				reason       TEXT NOT NULL DEFAULT '',
+				created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
+			);
+			CREATE INDEX IF NOT EXISTS idx_deny_rules_workspace ON deny_rules(workspace_id);
+
+			-- Per-workspace overrides for the default permissions of the four
+			-- built-in workspace roles (owner/admin/member/viewer), so the
+			-- workspace-role fallback is tunable without code changes.
+			CREATE TABLE IF NOT EXISTS workspace_role_overrides (
+				workspace_id TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+				role         TEXT NOT NULL,
+				permissions  BIGINT NOT NULL DEFAULT 0,
+				PRIMARY KEY (workspace_id, role)
+			);
+
+			-- Separation-of-duties policy per workspace. mode is 'off' | 'warn' | 'block'.
+			CREATE TABLE IF NOT EXISTS sod_settings (
+				workspace_id TEXT PRIMARY KEY REFERENCES workspaces(id) ON DELETE CASCADE,
+				mode         TEXT NOT NULL DEFAULT 'warn',
+				updated_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
+			);
+		`,
+	},
 }

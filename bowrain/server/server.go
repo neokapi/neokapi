@@ -859,6 +859,25 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 		wsSpecific.PUT("/roles/:rid", s.HandleUpdateRoleTemplate)
 		wsSpecific.DELETE("/roles/:rid", s.HandleDeleteRoleTemplate)
 
+		// Governance: groups, deny rules, role overrides, separation-of-duties
+		// (workspace-scoped; mutations admin/owner only).
+		wsSpecific.GET("/groups", s.HandleListGroups)
+		wsSpecific.POST("/groups", s.HandleCreateGroup)
+		wsSpecific.DELETE("/groups/:gid", s.HandleDeleteGroup)
+		wsSpecific.GET("/groups/:gid/members", s.HandleListGroupMembers)
+		wsSpecific.POST("/groups/:gid/members", s.HandleAddGroupMember)
+		wsSpecific.DELETE("/groups/:gid/members/:uid", s.HandleRemoveGroupMember)
+		wsSpecific.GET("/groups/:gid/bindings", s.HandleListGroupBindings)
+		wsSpecific.POST("/groups/:gid/bindings", s.HandleAddGroupBinding)
+		wsSpecific.DELETE("/groups/:gid/bindings/:bid", s.HandleRemoveGroupBinding)
+		wsSpecific.GET("/deny-rules", s.HandleListDenyRules)
+		wsSpecific.POST("/deny-rules", s.HandleCreateDenyRule)
+		wsSpecific.DELETE("/deny-rules/:rid", s.HandleDeleteDenyRule)
+		wsSpecific.GET("/role-overrides", s.HandleListRoleOverrides)
+		wsSpecific.PUT("/role-overrides/:role", s.HandleSetRoleOverride)
+		wsSpecific.GET("/sod", s.HandleGetSoD)
+		wsSpecific.PUT("/sod", s.HandleSetSoD)
+
 		// API token routes (workspace-scoped, requires Pro+ plan).
 		tokenGroup := wsSpecific.Group("/tokens")
 		tokenGroup.Use(billing.PlanGuard(billing.FeatureAPIAccess))
