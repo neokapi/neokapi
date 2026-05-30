@@ -333,7 +333,7 @@ func TestRequirePermission(t *testing.T) {
 		c.Set("project_permissions", platauth.PermViewContent)
 
 		err := s.requirePermission(c, platauth.PermManageProject)
-		require.NoError(t, err) // echo writes to response, returns nil
+		require.Error(t, err) // deny writes 403 and returns a non-nil error so the caller aborts
 		assert.Equal(t, http.StatusForbidden, rec.Code)
 	})
 
@@ -346,7 +346,7 @@ func TestRequirePermission(t *testing.T) {
 		// Fail-closed: when no permission context was resolved on the request,
 		// deny rather than silently allow.
 		err := s.requirePermission(c, platauth.PermViewContent)
-		require.NoError(t, err) // echo writes to response, returns nil
+		require.Error(t, err) // deny writes 403 and returns a non-nil error so the caller aborts
 		assert.Equal(t, http.StatusForbidden, rec.Code)
 	})
 }
@@ -375,7 +375,7 @@ func TestRequireLanguagePermission(t *testing.T) {
 		c.Set("project_languages", []string{"fr", "de"})
 
 		err := s.requireLanguagePermission(c, platauth.PermTranslate, "ja")
-		require.NoError(t, err)
+		require.Error(t, err) // deny writes 403 and returns a non-nil error
 		assert.Equal(t, http.StatusForbidden, rec.Code)
 	})
 

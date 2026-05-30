@@ -144,3 +144,21 @@ func TestPhase3_SoDPolicy(t *testing.T) {
 	assert.Equal(t, http.StatusForbidden,
 		do(t, s, http.MethodPut, "/api/v1/test/sod", memberToken, `{"mode":"off"}`))
 }
+
+// TestPhase3_GroupIDORBlocked proves a workspace admin cannot operate on a group
+// belonging to another workspace via their own workspace slug (cross-workspace
+// IDOR).
+func TestPhase3_GroupIDORBlocked(t *testing.T) {
+	s, ownerToken := newTestServer(t)
+	ctx := t.Context()
+
+	// A group in a DIFFERENT workspace.
+	require.NoError(t, s.AuthStore.CreateWorkspace(ctx, &platauth.Workspace{ID: "other-ws", Name: "Other", Slug: "other"}))
+	g := &platauth.Group{WorkspaceID: "other-ws", Name: "secret"}
+	require.NoError(t, s.AuthStore.CreateGroup(ctx, g))
+
+	// The test-ws owner (admin of test-ws only) cannot add a member to the
+	// other workspace's group, even by addressing it through their own slug.
+	code := do(t, s, http.MethodPost, "/api/v1/test/groups/"+g.ID+"/members", ownerToken, `{"user_id":"x"}`)
+	assert.Equal(t, http.StatusNotFound, code, "cross-workspace group access must be blocked")
+}

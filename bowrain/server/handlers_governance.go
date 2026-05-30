@@ -14,6 +14,18 @@ func (s *Server) govRequireAdmin(c echo.Context) error {
 	return s.requireRole(c, platauth.RoleAdmin, platauth.RoleOwner)
 }
 
+// groupInWorkspace verifies the :gid group belongs to the request's workspace,
+// preventing cross-workspace access via a known group ID (IDOR). It writes a
+// 404 and returns a non-nil error on mismatch so the caller aborts.
+func (s *Server) groupInWorkspace(c echo.Context) error {
+	wsID, _ := c.Get("workspace_id").(string)
+	if _, err := s.AuthStore.GetGroup(c.Request().Context(), wsID, c.Param("gid")); err != nil {
+		_ = c.JSON(http.StatusNotFound, ErrorResponse{Error: "group not found"})
+		return errAccessDenied
+	}
+	return nil
+}
+
 // enforceSoD applies the workspace separation-of-duties policy when an actor
 // would act on (e.g. approve) work they themselves authored. In "block" mode it
 // writes a 403 and returns a non-nil error; in "warn" mode it records a
@@ -38,7 +50,9 @@ func (s *Server) enforceSoD(c echo.Context, actorID, authorID, resource string) 
 		Data:   map[string]string{"actor": actorID, "resource": resource, "mode": string(mode)},
 	})
 	if mode == platauth.SoDBlock {
-		return c.JSON(http.StatusForbidden, ErrorResponse{Error: "separation of duties: you cannot review or approve your own work"})
+		// Use deny() so the caller's `if err != nil { return err }` actually
+		// aborts (c.JSON alone returns nil — a fail-open).
+		return deny(c, "separation of duties: you cannot review or approve your own work")
 	}
 	return nil // warn: recorded, but allowed
 }
@@ -99,6 +113,9 @@ func (s *Server) HandleDeleteGroup(c echo.Context) error {
 }
 
 func (s *Server) HandleListGroupMembers(c echo.Context) error {
+	if err := s.groupInWorkspace(c); err != nil {
+		return err
+	}
 	members, err := s.AuthStore.ListGroupMembers(c.Request().Context(), c.Param("gid"))
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
@@ -111,6 +128,9 @@ func (s *Server) HandleListGroupMembers(c echo.Context) error {
 
 func (s *Server) HandleAddGroupMember(c echo.Context) error {
 	if err := s.govRequireAdmin(c); err != nil {
+		return err
+	}
+	if err := s.groupInWorkspace(c); err != nil {
 		return err
 	}
 	var req struct {
@@ -131,6 +151,9 @@ func (s *Server) HandleRemoveGroupMember(c echo.Context) error {
 	if err := s.govRequireAdmin(c); err != nil {
 		return err
 	}
+	if err := s.groupInWorkspace(c); err != nil {
+		return err
+	}
 	gid := c.Param("gid")
 	uid := c.Param("uid")
 	if err := s.AuthStore.RemoveGroupMember(c.Request().Context(), gid, uid); err != nil {
@@ -147,6 +170,9 @@ type groupBindingRequest struct {
 }
 
 func (s *Server) HandleListGroupBindings(c echo.Context) error {
+	if err := s.groupInWorkspace(c); err != nil {
+		return err
+	}
 	bindings, err := s.AuthStore.ListGroupRoleBindings(c.Request().Context(), c.Param("gid"))
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
@@ -161,6 +187,9 @@ func (s *Server) HandleAddGroupBinding(c echo.Context) error {
 	if err := s.govRequireAdmin(c); err != nil {
 		return err
 	}
+	if err := s.groupInWorkspace(c); err != nil {
+		return err
+	}
 	var req groupBindingRequest
 	if err := c.Bind(&req); err != nil {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
@@ -169,6 +198,14 @@ func (s *Server) HandleAddGroupBinding(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "project_id and role_id are required"})
 	}
 	wsID, _ := c.Get("workspace_id").(string)
+	// Verify the target project belongs to this workspace (prevents binding a
+	// group to a project in another workspace).
+	if s.ContentStore != nil {
+		proj, err := s.ContentStore.GetProject(c.Request().Context(), req.ProjectID)
+		if err != nil || proj == nil || proj.WorkspaceID != wsID {
+			return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "project not in this workspace"})
+		}
+	}
 	if _, err := s.AuthStore.GetRoleTemplate(c.Request().Context(), wsID, req.RoleID); err != nil {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid role_id"})
 	}
@@ -190,9 +227,13 @@ func (s *Server) HandleRemoveGroupBinding(c echo.Context) error {
 	if err := s.govRequireAdmin(c); err != nil {
 		return err
 	}
+	if err := s.groupInWorkspace(c); err != nil {
+		return err
+	}
+	wsID, _ := c.Get("workspace_id").(string)
 	bid := c.Param("bid")
-	if err := s.AuthStore.RemoveGroupRoleBinding(c.Request().Context(), bid); err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+	if err := s.AuthStore.RemoveGroupRoleBinding(c.Request().Context(), wsID, bid); err != nil {
+		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
 	}
 	s.emitAudit(c, auditEvent{Type: platev.EventType("group.binding_removed"), ResourceType: "group_binding", ResourceID: bid})
 	return c.NoContent(http.StatusNoContent)

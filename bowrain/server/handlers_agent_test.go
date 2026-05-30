@@ -292,8 +292,8 @@ func TestHandleUpdateBravoConfig_RequiresAdmin(t *testing.T) {
 	c.Set("workspace_id", "ws-1")
 	c.Set("workspace_role", platauth.RoleMember)
 
-	err := srv.HandleUpdateBravoConfig(c)
-	require.NoError(t, err)
+	// Deny writes 403 and returns a non-nil error (so the handler aborts).
+	require.Error(t, srv.HandleUpdateBravoConfig(c))
 	assert.Equal(t, http.StatusForbidden, rec.Code)
 }
 

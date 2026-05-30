@@ -29,6 +29,20 @@ func (s *PostgresAuthStore) CreateGroup(ctx context.Context, g *platauth.Group) 
 	return err
 }
 
+// GetGroup returns a group only if it belongs to the given workspace. This is
+// the workspace-ownership guard for group sub-resource operations.
+func (s *PostgresAuthStore) GetGroup(ctx context.Context, workspaceID, groupID string) (*platauth.Group, error) {
+	var g platauth.Group
+	err := s.db.QueryRowContext(ctx,
+		`SELECT id, workspace_id, name, description, created_at
+		 FROM groups WHERE id = $1 AND workspace_id = $2`, groupID, workspaceID).
+		Scan(&g.ID, &g.WorkspaceID, &g.Name, &g.Description, &g.CreatedAt)
+	if err != nil {
+		return nil, fmt.Errorf("group %s not found in workspace: %w", groupID, err)
+	}
+	return &g, nil
+}
+
 // ListGroups returns all groups in a workspace with their member counts.
 func (s *PostgresAuthStore) ListGroups(ctx context.Context, workspaceID string) ([]*platauth.Group, error) {
 	rows, err := s.db.QueryContext(ctx,
@@ -136,10 +150,18 @@ func (s *PostgresAuthStore) ListGroupRoleBindings(ctx context.Context, groupID s
 	return out, rows.Err()
 }
 
-// RemoveGroupRoleBinding deletes a binding.
-func (s *PostgresAuthStore) RemoveGroupRoleBinding(ctx context.Context, bindingID string) error {
-	_, err := s.db.ExecContext(ctx, `DELETE FROM group_role_bindings WHERE id = $1`, bindingID)
-	return err
+// RemoveGroupRoleBinding deletes a binding, scoped to the workspace so a binding
+// in another workspace cannot be removed by ID.
+func (s *PostgresAuthStore) RemoveGroupRoleBinding(ctx context.Context, workspaceID, bindingID string) error {
+	res, err := s.db.ExecContext(ctx,
+		`DELETE FROM group_role_bindings WHERE id = $1 AND workspace_id = $2`, bindingID, workspaceID)
+	if err != nil {
+		return err
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return fmt.Errorf("binding %s not found", bindingID)
+	}
+	return nil
 }
 
 // ---------------------------------------------------------------------------

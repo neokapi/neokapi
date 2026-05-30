@@ -79,6 +79,7 @@ type AuthStore interface {
 
 	// Groups (teams)
 	CreateGroup(ctx context.Context, g *platauth.Group) error
+	GetGroup(ctx context.Context, workspaceID, groupID string) (*platauth.Group, error)
 	ListGroups(ctx context.Context, workspaceID string) ([]*platauth.Group, error)
 	DeleteGroup(ctx context.Context, workspaceID, groupID string) error
 	AddGroupMember(ctx context.Context, groupID, userID string) error
@@ -86,7 +87,7 @@ type AuthStore interface {
 	ListGroupMembers(ctx context.Context, groupID string) ([]string, error)
 	AddGroupRoleBinding(ctx context.Context, b *platauth.GroupRoleBinding) error
 	ListGroupRoleBindings(ctx context.Context, groupID string) ([]*platauth.GroupRoleBinding, error)
-	RemoveGroupRoleBinding(ctx context.Context, bindingID string) error
+	RemoveGroupRoleBinding(ctx context.Context, workspaceID, bindingID string) error
 
 	// Deny rules (negative permissions)
 	CreateDenyRule(ctx context.Context, r *platauth.DenyRule) error

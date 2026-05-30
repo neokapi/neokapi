@@ -252,7 +252,7 @@ func TestBravoEndToEnd_ConfigAndToolPolicy(t *testing.T) {
 	c.Set("workspace_id", wsID)
 	c.Set("workspace_role", platauth.RoleMember)
 
-	require.NoError(t, srv.HandleUpdateBravoConfig(c))
+	require.Error(t, srv.HandleUpdateBravoConfig(c)) // deny writes 403 + returns error
 	assert.Equal(t, http.StatusForbidden, rec.Code)
 }
 

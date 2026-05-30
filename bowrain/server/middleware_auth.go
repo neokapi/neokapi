@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"log/slog"
 	"net/http"
 	"strings"
@@ -17,6 +18,22 @@ import (
 )
 
 const sessionCookieName = "bowrain_session"
+
+// errAccessDenied is returned by the permission/role gate helpers AFTER they
+// write the 403 response. Returning a non-nil error is essential: echo's
+// c.JSON returns nil on success, so a helper that only did `return c.JSON(403)`
+// would let the caller's `if err != nil { return err }` fall through and the
+// handler would proceed with the mutation despite the 403 (a fail-open). The
+// caller returns this error to stop; echo's error handler no-ops because the
+// response is already committed.
+var errAccessDenied = errors.New("access denied")
+
+// deny writes a 403 with the given message and returns errAccessDenied so the
+// calling handler aborts.
+func deny(c echo.Context, msg string) error {
+	_ = c.JSON(http.StatusForbidden, ErrorResponse{Error: msg})
+	return errAccessDenied
+}
 
 // validateSessionCookie extracts and validates a JWT from the bowrain_session cookie.
 func validateSessionCookie(c echo.Context, jwtSecret string) *platauth.Claims {
@@ -287,7 +304,7 @@ func WeeklyAllocationMiddleware(store billing.BillingStore) echo.MiddlewareFunc 
 func (s *Server) requireRole(c echo.Context, allowed ...platauth.Role) error {
 	role, ok := c.Get("workspace_role").(platauth.Role)
 	if !ok {
-		return c.JSON(http.StatusForbidden, ErrorResponse{Error: "workspace role not available"})
+		return deny(c, "workspace role not available")
 	}
 	for _, r := range allowed {
 		if role == r {
@@ -301,7 +318,7 @@ func (s *Server) requireRole(c echo.Context, allowed ...platauth.Role) error {
 			Data:   map[string]string{"reason": "insufficient_role", "role": string(role), "path": c.Path()},
 		})
 	}
-	return c.JSON(http.StatusForbidden, ErrorResponse{Error: "insufficient permissions"})
+	return deny(c, "insufficient permissions")
 }
 
 // ProjectAccessMiddleware resolves the caller's effective permissions for the
@@ -430,11 +447,11 @@ func (s *Server) requirePermission(c echo.Context, perm platauth.Permission) err
 	perms, ok := c.Get("project_permissions").(platauth.Permission)
 	if !ok {
 		s.emitAuthzDenied(c, perm, "no_permission_context")
-		return c.JSON(http.StatusForbidden, ErrorResponse{Error: "permission context not resolved"})
+		return deny(c, "permission context not resolved")
 	}
 	if !perms.Has(perm) {
 		s.emitAuthzDenied(c, perm, "insufficient_permissions")
-		return c.JSON(http.StatusForbidden, ErrorResponse{Error: "insufficient project permissions"})
+		return deny(c, "insufficient project permissions")
 	}
 	return nil
 }
@@ -476,7 +493,7 @@ func (s *Server) requireLanguagePermission(c echo.Context, perm platauth.Permiss
 			return nil
 		}
 	}
-	return c.JSON(http.StatusForbidden, ErrorResponse{Error: "no access to language: " + locale})
+	return deny(c, "no access to language: "+locale)
 }
 
 // ScopeRestrictionMiddleware narrows project_permissions based on API token scopes.
