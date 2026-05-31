@@ -127,6 +127,8 @@ var storeMigrations = []storage.Migration{
 				context_hash TEXT NOT NULL DEFAULT '',
 				source_json  TEXT NOT NULL DEFAULT '[]',
 				properties   TEXT NOT NULL DEFAULT '{}',
+				owner_id     TEXT NOT NULL DEFAULT '',         -- ABAC: content owner
+				status       TEXT NOT NULL DEFAULT 'draft',    -- ABAC: draft | in_review | published
 				stored_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 				updated_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 				PRIMARY KEY (project_id, id)

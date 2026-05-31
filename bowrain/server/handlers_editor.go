@@ -439,6 +439,10 @@ func (s *Server) HandleUpdateBlockTarget(c echo.Context) error {
 	if err := s.requireLanguagePermission(c, platauth.PermTranslate, req.TargetLocale); err != nil {
 		return err
 	}
+	// ABAC: editing in-review/published content is gated by status + ownership.
+	if err := s.requireEditableStatus(c, pid, bid, req.TargetLocale); err != nil {
+		return err
+	}
 
 	if err := editorUpdateBlockTarget(c.Request().Context(), s.ContentStore, pid, streamParam(c), bid, req); err != nil {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
@@ -475,6 +479,9 @@ func (s *Server) HandleUpdateBlockTargetRuns(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 	}
 	if err := s.requireLanguagePermission(c, platauth.PermTranslate, req.TargetLocale); err != nil {
+		return err
+	}
+	if err := s.requireEditableStatus(c, pid, bid, req.TargetLocale); err != nil {
 		return err
 	}
 
