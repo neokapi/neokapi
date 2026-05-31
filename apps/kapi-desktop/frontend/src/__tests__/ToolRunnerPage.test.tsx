@@ -136,6 +136,35 @@ describe("ToolRunnerPage", () => {
     expect(screen.getByText("Target Language")).toBeInTheDocument();
   });
 
+  it("renders runner controls in a disabled coming-soon state", async () => {
+    renderPage({ tools: sampleTools });
+    await userEvent.click(screen.getByText("word-count"));
+
+    // The "coming soon" affordance is shown so the controls don't read as live.
+    expect(screen.getByText("Running tools here is coming soon")).toBeInTheDocument();
+
+    // The "Select files..." button is disabled (no live file picker yet).
+    const selectFiles = screen.getByText("Select files...").closest("button");
+    expect(selectFiles).toBeDisabled();
+
+    // The Run button is disabled and never invokes a backend call.
+    const runButton = screen.getByText("Run word-count").closest("button");
+    expect(runButton).toBeDisabled();
+  });
+
+  it("keeps the Run button disabled even when a target language is provided", async () => {
+    renderPage({ tools: sampleTools });
+    await userEvent.click(screen.getByText("ai-translate"));
+
+    // The target-language field is itself disabled, and the Run button stays
+    // disabled — there is no working execution path to enable.
+    const targetLang = screen.getByPlaceholderText("e.g. fr-FR");
+    expect(targetLang).toBeDisabled();
+
+    const runButton = screen.getByText(/Run ai-translate/).closest("button");
+    expect(runButton).toBeDisabled();
+  });
+
   it("shows no tools message when search has no results", async () => {
     renderPage({ tools: sampleTools });
     await userEvent.type(screen.getByPlaceholderText("Search tools..."), "zzzzz");

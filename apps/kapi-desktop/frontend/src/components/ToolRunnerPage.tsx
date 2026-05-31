@@ -1,8 +1,7 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   Play,
   FileInput,
-  Loader2,
   Search,
   BookOpen,
   ExternalLink,
@@ -16,6 +15,7 @@ import {
   Settings2,
   Tag,
   Lock,
+  Clock,
 } from "lucide-react";
 import type { ToolInfo, PluginDocs, PluginDocsSummary, StepDoc } from "../types/api";
 import type { ComponentSchema } from "@neokapi/ui-primitives";
@@ -319,8 +319,6 @@ function ToolDetail({ tool, docs }: { tool: ToolInfo; docs: PluginDocs | null })
   const [config, setConfig] = useState<Record<string, unknown>>({});
   const [loadingSchema, setLoadingSchema] = useState(false);
   const [targetLang, setTargetLang] = useState("");
-  const [running, setRunning] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   const { showError: _showError } = useError();
 
@@ -352,7 +350,6 @@ function ToolDetail({ tool, docs }: { tool: ToolInfo; docs: PluginDocs | null })
   useEffect(() => {
     setConfig({});
     setSchema(null);
-    setError(null);
     setLoadingSchema(true);
     api
       .getToolSchema(tool.name)
@@ -363,21 +360,11 @@ function ToolDetail({ tool, docs }: { tool: ToolInfo; docs: PluginDocs | null })
       .finally(() => setLoadingSchema(false));
   }, [tool.name]);
 
-  // TODO: RunFlow requires a project tab — ad-hoc tool execution needs a
-  // dedicated RunTool(toolName, inputPaths, targetLang, config) backend method.
-  // For now the Run button will error until that API exists.
-  const handleRun = useCallback(async () => {
-    if (!targetLang && tool.requires?.includes("target-language")) return;
-    setRunning(true);
-    setError(null);
-    try {
-      await api.runFlow("", tool.name, [], targetLang ? [targetLang] : []);
-    } catch (e) {
-      setError(String(e));
-    } finally {
-      setRunning(false);
-    }
-  }, [tool.name, tool.requires, targetLang]);
+  // Ad-hoc tool execution from the desktop runner is not wired up yet: it
+  // needs a dedicated RunTool(toolName, inputPaths, targetLang, config)
+  // backend method (RunFlow requires a project tab and isn't a fit). Until
+  // that API exists the runner controls render in a clearly disabled
+  // "coming soon" state rather than as live controls that always error.
 
   return (
     <div className="p-6">
@@ -456,54 +443,66 @@ function ToolDetail({ tool, docs }: { tool: ToolInfo; docs: PluginDocs | null })
           </Card>
         )}
 
-        {/* Runner controls */}
+        {/* Runner controls — execution is not yet available from the desktop
+            app (see note above), so every control here is rendered disabled
+            with an explanatory banner instead of as a live-but-broken control. */}
         <Card>
           <CardContent className="p-4 space-y-3">
-            <div>
-              <Label htmlFor="tool-files" className="mb-1 block">
-                Input Files
-              </Label>
-              <Button
-                id="tool-files"
-                variant="outline"
-                className="flex items-center gap-2 border-dashed text-muted-foreground hover:border-primary/40 hover:text-primary w-full"
-              >
-                <FileInput size={14} />
-                Select files...
-              </Button>
+            <div
+              className="flex items-start gap-2 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-amber-700 dark:text-amber-300"
+              role="status"
+            >
+              <Clock size={14} className="mt-0.5 shrink-0" />
+              <div className="text-xs">
+                <p className="font-medium">{t("Running tools here is coming soon")}</p>
+                <p className="mt-0.5 opacity-80">
+                  {t(
+                    "Run this tool from the kapi CLI for now. In-app execution is still being wired up.",
+                  )}
+                </p>
+              </div>
             </div>
 
-            {tool.requires?.includes("target-language") && (
+            <fieldset disabled className="space-y-3 opacity-60">
               <div>
-                <Label htmlFor="tool-target-lang" className="mb-1 block">
-                  Target Language
+                <Label htmlFor="tool-files" className="mb-1 block">
+                  Input Files
                 </Label>
-                <Input
-                  id="tool-target-lang"
-                  type="text"
-                  value={targetLang}
-                  onChange={(e) => setTargetLang(e.target.value)}
-                  placeholder="e.g. fr-FR"
-                  className="w-48"
-                />
+                <Button
+                  id="tool-files"
+                  type="button"
+                  variant="outline"
+                  disabled
+                  title={t("In-app execution is coming soon")}
+                  className="flex items-center gap-2 border-dashed text-muted-foreground w-full"
+                >
+                  <FileInput size={14} />
+                  Select files...
+                </Button>
               </div>
-            )}
 
-            {error && (
-              <p className="text-xs text-destructive" role="alert">
-                {error}
-              </p>
-            )}
+              {tool.requires?.includes("target-language") && (
+                <div>
+                  <Label htmlFor="tool-target-lang" className="mb-1 block">
+                    Target Language
+                  </Label>
+                  <Input
+                    id="tool-target-lang"
+                    type="text"
+                    value={targetLang}
+                    onChange={(e) => setTargetLang(e.target.value)}
+                    placeholder="e.g. fr-FR"
+                    disabled
+                    className="w-48"
+                  />
+                </div>
+              )}
 
-            <Button
-              onClick={handleRun}
-              disabled={running || (tool.requires?.includes("target-language") && !targetLang)}
-            >
-              {running ? <Loader2 size={14} className="animate-spin" /> : <Play size={14} />}
-              {running
-                ? t("Running...")
-                : t("Run {name}", { name: tool.display_name || tool.name })}
-            </Button>
+              <Button type="button" disabled title={t("In-app execution is coming soon")}>
+                <Play size={14} />
+                {t("Run {name}", { name: tool.display_name || tool.name })}
+              </Button>
+            </fieldset>
           </CardContent>
         </Card>
       </div>
