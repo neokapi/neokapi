@@ -740,6 +740,15 @@ func (c *BowrainSourceConnector) Pull(ctx context.Context, opts bowrainconn.Pull
 	// Group pulled blocks by item name.
 	filesWritten := 0
 
+	// Track per-file write failures. A failed write must NOT let the stream
+	// cursor advance past the unwritten change: the server's GetChanges is
+	// forward-only (seq > cursor), so a skipped translation would never be
+	// re-delivered and would be permanently lost locally. We therefore collect
+	// write errors and, if any occurred, abort without advancing/saving the
+	// cursor so the next pull re-delivers everything (the partial successes
+	// already written stay on disk and are simply overwritten next time).
+	var writeErrs []error
+
 	if len(allBlocks) > 0 && len(locales) > 0 {
 		blocksByItem := map[string][]apiclient.SyncBlock{}
 		for _, b := range allBlocks {
@@ -806,11 +815,22 @@ func (c *BowrainSourceConnector) Pull(ctx context.Context, opts bowrainconn.Pull
 				}
 
 				if err := c.writeTranslatedFile(ctx, absSource, absOut, formatName, loc, targetMap, mediaRepl...); err != nil {
+					writeErrs = append(writeErrs, fmt.Errorf("write %s (%s): %w", outPath, loc, err))
 					continue
 				}
 				filesWritten++
 			}
 		}
+	}
+
+	// If any target file failed to write, do NOT advance or save the cursor:
+	// leaving it where it was means the next pull re-delivers these changes
+	// (the server cursor is forward-only). Partial successes already written
+	// to disk are preserved. We surface the failures so the CLI reports the
+	// pull as failed rather than silently succeeding past lost translations.
+	if len(writeErrs) > 0 {
+		return nil, fmt.Errorf("pull: %d target file(s) failed to write; cursor not advanced so the next pull retries: %w",
+			len(writeErrs), errors.Join(writeErrs...))
 	}
 
 	// Update cursor.
