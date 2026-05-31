@@ -8,6 +8,7 @@
 # ── Stage 1: Build web UI ──────────────────────────────────────────────────
 FROM node:24-slim AS web-builder
 WORKDIR /src
+ENV CI=true
 
 # Install vite-plus (vp) which the package build scripts call into.
 # The install script only ships `vp`; `vpx` is a companion tool that
@@ -36,7 +37,10 @@ COPY packages/ui/package.json packages/ui/
 COPY packages/flow-editor/package.json packages/flow-editor/
 COPY bowrain/packages/ui/package.json bowrain/packages/ui/
 COPY bowrain/apps/web/package.json bowrain/apps/web/
-RUN corepack pnpm install --offline --filter neokapi-web...
+# Install every present workspace project's deps from the store (the web app
+# bundles its @neokapi/* workspace deps from source, so those packages need
+# their own third-party deps, e.g. @codemirror/*, materialized too).
+RUN corepack pnpm install --offline
 
 # Source for the web app + its workspace deps. @neokapi/* packages are consumed
 # from source (their exports point at ./src), so there is no separate build

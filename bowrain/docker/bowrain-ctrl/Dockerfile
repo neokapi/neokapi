@@ -1,5 +1,6 @@
 FROM node:24-slim AS build
 WORKDIR /src
+ENV CI=true
 
 # Install vite-plus (vp) which the package build scripts call into.
 # Shim `vpx` → `npx` since the install script only ships `vp`; both
@@ -24,7 +25,9 @@ COPY packages/kapi-format/package.json packages/kapi-format/
 COPY packages/ui/package.json packages/ui/
 COPY bowrain/packages/ui/package.json bowrain/packages/ui/
 COPY bowrain/apps/ctrl/package.json bowrain/apps/ctrl/
-RUN corepack pnpm install --offline --filter bowrain-ctrl...
+# Install every present workspace project's deps from the store (ctrl bundles
+# its @neokapi/* workspace deps from source, so those need their deps too).
+RUN corepack pnpm install --offline
 
 # Source for ctrl + its workspace deps (consumed from source via package exports).
 COPY packages/kapi-format/ packages/kapi-format/

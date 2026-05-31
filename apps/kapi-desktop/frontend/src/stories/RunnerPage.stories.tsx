@@ -163,7 +163,6 @@ function SimulatedRunner({
               setState("idle");
               setEvents([]);
               setProgress({ current: 0, total: fileCount });
-              setActiveStep(-1);
             }}
           >
             Reset

@@ -34,4 +34,17 @@ export default defineConfig({
       typeCheck: true,
     },
   },
+  fmt: {
+    // Markdown/MDX prose is not oxfmt-managed in this repo (it's authored for
+    // Docusaurus and would risk MDX/admonition changes); generated and build
+    // output is never formatted.
+    ignorePatterns: [
+      "**/*.md",
+      "**/*.mdx",
+      "**/dist/**",
+      "**/build/**",
+      "**/.docusaurus/**",
+      "**/bindings/**",
+    ],
+  },
 });

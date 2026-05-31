@@ -34,6 +34,14 @@ packages:
 # reason for the switch.)
 linkWorkspacePackages: true
 
+# Hoist all dependencies into the root node_modules (npm-like flat layout) while
+# keeping pnpm's content-addressed store (so per-worktree installs stay cheap via
+# hardlinks). This matches the repo's prior npm `install-strategy=hoisted` intent
+# — a single shared React/etc. and resolvable transitive deps — so workspace
+# packages consumed *from source* (e.g. @neokapi/ui-primitives importing
+# @codemirror/* transitively) resolve without declaring every phantom dependency.
+shamefullyHoist: true
+
 # npm always runs pre/post scripts; keep that under pnpm so hooks like
 # web/docs' prebuild → gen-reference still fire automatically.
 enablePrePostScripts: true
