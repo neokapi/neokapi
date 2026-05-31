@@ -41,10 +41,13 @@ func (s *Server) requireEditableStatus(c echo.Context, projectID, blockID, local
 	}
 }
 
-// BlockStatusRequest sets a block's workflow status and optional owner.
+// BlockStatusRequest sets a block's workflow status and optional owner. Reason
+// captures a structured rejection/send-back note when moving content back to a
+// lower status.
 type BlockStatusRequest struct {
 	Status  string `json:"status"`
 	OwnerID string `json:"owner_id,omitempty"`
+	Reason  string `json:"reason,omitempty"`
 }
 
 // HandleSetBlockStatus changes a block's workflow status. Moving content to/from
@@ -82,15 +85,30 @@ func (s *Server) HandleSetBlockStatus(c echo.Context) error {
 		}
 	}
 
+	// Separation of duties: approving (publishing) is a four-eyes step — the
+	// approver must not be the translator who authored the content.
+	if req.Status == bstore.BlockStatusPublished {
+		author, _ := pg.GetLastEditor(ctx, pid, bid)
+		actor, _ := c.Get("user_id").(string)
+		if err := s.enforceSoD(c, actor, author, "publish_block:"+bid); err != nil {
+			return err
+		}
+	}
+
 	if err := pg.SetBlockStatus(ctx, pid, bid, req.Status, req.OwnerID); err != nil {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
 	}
 
+	data := map[string]string{}
+	if req.Reason != "" {
+		data["reason"] = req.Reason
+	}
 	s.emitAudit(c, auditEvent{
 		Type:         platev.EventType("content.status_changed"),
 		ProjectID:    pid,
 		ResourceType: "block",
 		ResourceID:   bid,
+		Data:         data,
 		Before:       map[string]string{"status": cur},
 		After:        map[string]string{"status": req.Status},
 	})

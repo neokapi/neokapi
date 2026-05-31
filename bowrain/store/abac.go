@@ -38,6 +38,24 @@ func (s *PostgresStore) GetBlockStatus(ctx context.Context, projectID, blockID s
 	return status, ownerID, nil
 }
 
+// GetLastEditor returns the author of the most recent content change to a block
+// (the translator), used to enforce separation of duties at review/approval.
+// Returns "" if no attributed history exists.
+func (s *PostgresStore) GetLastEditor(ctx context.Context, projectID, blockID string) (string, error) {
+	var author string
+	err := s.db.QueryRowContext(ctx,
+		`SELECT author FROM block_history
+		 WHERE project_id = $1 AND block_id = $2 AND author <> ''
+		 ORDER BY id DESC LIMIT 1`, projectID, blockID).Scan(&author)
+	if err == sql.ErrNoRows {
+		return "", nil
+	}
+	if err != nil {
+		return "", fmt.Errorf("get last editor: %w", err)
+	}
+	return author, nil
+}
+
 // SetBlockStatus updates a block's workflow status and (when non-empty) its
 // owner. Returns an error if the block does not exist.
 func (s *PostgresStore) SetBlockStatus(ctx context.Context, projectID, blockID, status, ownerID string) error {

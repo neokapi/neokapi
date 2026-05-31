@@ -50,3 +50,28 @@ func TestPhase4_ABACStatusGating(t *testing.T) {
 	// A member cannot change workflow status (needs review).
 	assert.Equal(t, http.StatusForbidden, setStatus(memberToken, "draft"))
 }
+
+// TestPhase4_SoDBlocksSelfApproval proves separation of duties (block mode)
+// prevents the translator from approving (publishing) their own work, while a
+// different reviewer can.
+func TestPhase4_SoDBlocksSelfApproval(t *testing.T) {
+	s, ownerToken := newTestServer(t)
+	cs := s.ContentStore
+	ctx := t.Context()
+	require.NoError(t, s.AuthStore.SetSoDMode(ctx, "test-ws", platauth.SoDBlock))
+	require.NoError(t, cs.CreateProject(ctx, &platstore.Project{ID: "p-sod", Name: "SoD", DefaultSourceLanguage: "en", WorkspaceID: "test-ws"}))
+	blk := &model.Block{ID: "bs", Translatable: true, Source: []model.Run{{Text: &model.TextRun{Text: "hi"}}}}
+	require.NoError(t, cs.StoreBlocks(ctx, "p-sod", "main", []*model.Block{blk}))
+
+	// The owner translates the block (becomes its last editor).
+	require.Less(t, do(t, s, http.MethodPut, "/api/v1/test/p-sod/blocks/main/bs", ownerToken, `{"target_locale":"fr","text":"v1"}`), 300)
+
+	// The owner cannot approve (publish) their own translation under SoD block mode.
+	assert.Equal(t, http.StatusForbidden,
+		do(t, s, http.MethodPut, "/api/v1/test/p-sod/blocks/main/bs/status", ownerToken, `{"status":"published"}`))
+
+	// A different reviewer can publish it.
+	reviewerToken := addWorkspaceMember(t, s, "sod-rev", "sod-rev@example.com", platauth.RoleAdmin)
+	assert.Equal(t, http.StatusOK,
+		do(t, s, http.MethodPut, "/api/v1/test/p-sod/blocks/main/bs/status", reviewerToken, `{"status":"published"}`))
+}
