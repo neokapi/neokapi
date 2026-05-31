@@ -115,7 +115,7 @@ format-acceptance: ## Run native-format consumer-toolchain acceptance tests (plu
 	# ./core/formats/... would also pull in unrelated packages' fixture-dependent
 	# tests (e.g. xliff2's okapi byte-equal corpus). Add new formats here as they
 	# gain acceptance coverage.
-	# Clear NODE_OPTIONS so node/npx spawned by the JSON-schema + MDX checks do
+	# Clear NODE_OPTIONS so node tooling spawned by the JSON-schema + MDX checks do
 	# not inherit a flag the runner's node rejects (e.g. CI sets
 	# --experimental-strip-types, which Node 20 refuses). These checks need none.
 	NODE_OPTIONS= $(GO) test -tags acceptance -count=1 \

@@ -6,20 +6,21 @@
 # Build: docker build -t ghcr.io/neokapi/bravo-sandbox-node:latest -f bowrain/docker/bravo-sandbox-node/Dockerfile .
 
 FROM node:24-slim
+RUN corepack enable
 
-# Install localization-relevant libraries globally.
-RUN npm install -g --no-fund --no-audit \
-    i18next@24.2.2 \
-    @formatjs/icu-messageformat-parser@2.9.8 \
-    yaml@2.7.0 \
-    csv-parse@5.6.0 \
-    csv-stringify@6.5.2 \
-    && npm cache clean --force
+# Localization libraries the sandbox can require(). Installed with pnpm into a
+# flat (hoisted) node_modules exposed via NODE_PATH — equivalent to a global
+# install, without npm.
+WORKDIR /opt/sandbox-libs
+RUN printf 'node-linker=hoisted\n' > .npmrc \
+    && printf '%s\n' '{"name":"bravo-sandbox-libs","private":true,"dependencies":{"i18next":"24.2.2","@formatjs/icu-messageformat-parser":"2.9.8","yaml":"2.7.0","csv-parse":"5.6.0","csv-stringify":"6.5.2"}}' > package.json \
+    && corepack pnpm install --prod \
+    && corepack pnpm store prune
 
 # Non-root user for additional isolation.
 RUN adduser --disabled-password --gecos "" --home /workspace sandbox
 USER sandbox
 WORKDIR /workspace
 
-# Ensure globally installed modules are resolvable.
-ENV NODE_PATH=/usr/local/lib/node_modules
+# Ensure the installed modules are resolvable by require().
+ENV NODE_PATH=/opt/sandbox-libs/node_modules

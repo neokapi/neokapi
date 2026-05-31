@@ -71,8 +71,8 @@ A single root npm workspace coordinates the kapi side:
 
 ```bash
 vp install                    # at the repo root
-cd web/docs && npm run start  # Docusaurus dev server (kapi docs)
-cd web/landing && npm run dev # Vite dev server (neokapi.cloud landing)
+cd web/docs && vp run start  # Docusaurus dev server (kapi docs)
+cd web/landing && vp run dev # Vite dev server (neokapi.cloud landing)
 make kapi-storybook           # Storybook on :6007
 ```
 

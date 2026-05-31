@@ -20,17 +20,17 @@ func lookTool(name string) (string, bool) {
 }
 
 // ajvCommand returns the program and leading args for running ajv. When a real
-// `ajv` executable is on PATH (e.g. `npm install -g ajv-cli@5` in CI), it is
-// invoked directly; otherwise we fall back to provisioning ajv-cli@5 via npx.
+// `ajv` executable is on PATH (e.g. `corepack pnpm add -g ajv-cli@5` in CI), it is
+// invoked directly; otherwise we fall back to provisioning ajv-cli@5 via corepack pnpm dlx.
 // The returned slice is the prefix; callers append the subcommand and its args.
 func ajvCommand() (name string, prefix []string) {
 	if p, err := exec.LookPath("ajv"); err == nil {
 		return p, nil
 	}
-	return "npx", []string{"--yes", "ajv-cli@5"}
+	return "corepack", []string{"pnpm", "dlx", "ajv-cli@5"}
 }
 
-// isLikelyOffline heuristically detects npm/npx network failures so the schema
+// isLikelyOffline heuristically detects registry/network failures so the schema
 // validation can be skipped (rather than failed) when ajv-cli cannot be fetched.
 func isLikelyOffline(output []byte) bool {
 	s := strings.ToLower(string(bytes.TrimSpace(output)))
@@ -50,7 +50,7 @@ func isLikelyOffline(output []byte) bool {
 // ran and rejected kapi's output. The acceptance contract is to SKIP (not FAIL)
 // when the validator itself is broken/unavailable: a non-executable npx-cached
 // bin (exit 126 "Permission denied"), a missing binary (exit 127 "command not
-// found"/ENOENT), or an npm/npx provisioning/network failure. A tool that runs
+// found"/ENOENT), or a pnpm provisioning/network failure. A tool that runs
 // and reports a validation error (e.g. ajv exit 1) is NOT covered here, so the
 // suite still FAILs on genuine rejections.
 func toolCouldNotRun(err error, combinedOutput string) bool {

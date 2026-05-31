@@ -1,7 +1,7 @@
 /**
  * Audit captured sessions for kapi/tool errors.
  *
- *   npm run audit            # report; exits non-zero if any demo has errors
+ *   pnpm run audit            # report; exits non-zero if any demo has errors
  *
  * Reads public/<id>/capture.json. Uses the recorded meta.errors when present,
  * otherwise recomputes from the timeline (so older captures are covered too).

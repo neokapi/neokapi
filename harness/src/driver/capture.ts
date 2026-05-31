@@ -36,7 +36,7 @@ function sandboxClaudeMd(m: DemoManifest): string {
   return `# Environment
 
 This is a real project — work in this directory and briefly say what you're doing as
-you go. The command-line tooling is already installed and on your PATH; no \`npm install\`
+you go. The command-line tooling is already installed and on your PATH; no \`pnpm install\`
 is needed to run it.${ai}${note}
 `;
 }
@@ -93,7 +93,7 @@ export async function captureDemo(m: DemoManifest, opts: CaptureOptions = {}): P
   const fixtureClaudeMd = fs.existsSync(sandboxClaudeMdPath) ? fs.readFileSync(sandboxClaudeMdPath, "utf8").trim() + "\n\n" : "";
   fs.writeFileSync(sandboxClaudeMdPath, fixtureClaudeMd + sandboxClaudeMd(m));
 
-  // 2. Optional setup commands (seed a termbase, init a project, npm install, …).
+  // 2. Optional setup commands (seed a termbase, init a project, pnpm install, …).
   // Isolated kapi state (own plugins/home) so demos don't depend on the machine.
   const env = {
     ...process.env,
@@ -109,7 +109,7 @@ export async function captureDemo(m: DemoManifest, opts: CaptureOptions = {}): P
   }
 
   if (!fs.existsSync(KAPI_BIN)) {
-    throw new Error(`kapi binary not found at ${KAPI_BIN} — run \`npm run setup\` (or \`make build\`) first`);
+    throw new Error(`kapi binary not found at ${KAPI_BIN} — run \`pnpm run setup\` (or \`make build\`) first`);
   }
 
   // 3. Run the real headless claude session, streaming JSON to the transcript file.

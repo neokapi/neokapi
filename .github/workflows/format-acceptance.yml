@@ -56,11 +56,15 @@ jobs:
           node-version: "20"
 
       - name: Install ajv-cli
-        # A real `ajv` on PATH (npm global bins are reliably executable) — the
-        # schema checks prefer it over `npx`, whose cached bin can be
+        # A real `ajv` on PATH (the global bin is reliably executable) — the
+        # schema checks prefer it over `pnpm dlx`, whose cached bin can be
         # non-executable on the runner ("Permission denied"). Best-effort: if it
-        # fails the checks fall back to npx and self-skip when that can't run.
-        run: npm install -g ajv-cli@5 || true
+        # fails the checks fall back to `pnpm dlx` and self-skip when unavailable.
+        run: |
+          corepack enable
+          export PNPM_HOME="$HOME/.local/share/pnpm"; export PATH="$PNPM_HOME:$PATH"
+          echo "$PNPM_HOME" >> "$GITHUB_PATH"
+          corepack pnpm add -g ajv-cli@5 || true
 
       - name: Install consumer toolchains
         # mono provides `resgen` for the .NET RESX compile check. Best-effort.
@@ -68,7 +72,7 @@ jobs:
 
       - name: Report available validators
         run: |
-          for t in plutil resgen xmllint node npx ajv; do
+          for t in plutil resgen xmllint node corepack ajv; do
             printf '%-8s ' "$t"; command -v "$t" || echo '(missing — will self-skip)'
           done
 

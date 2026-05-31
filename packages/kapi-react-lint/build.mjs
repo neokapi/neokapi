@@ -50,7 +50,7 @@ await build({
   plugins: [rewriteTsExtensions],
 });
 
-execFileSync("npx", ["tsc", "-p", "tsconfig.build.json"], { stdio: "inherit" });
+execFileSync("vpx", ["tsc", "-p", "tsconfig.build.json"], { stdio: "inherit" });
 
 function walk(dir) {
   for (const entry of readdirSync(dir)) {

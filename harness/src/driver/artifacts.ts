@@ -177,7 +177,7 @@ async function captureOne(
       await shot(browser, "file://" + tmpHtml, outPng, w, h);
     } else if (spec.source === "url") {
       // Best-effort: start a server in the snapshot, screenshot, tear down. Spawn
-      // detached (own process group) so teardown can kill the WHOLE tree: `npm run
+      // detached (own process group) so teardown can kill the WHOLE tree: `pnpm run
       // dev` forks next-server + render workers, and killing only the port listener
       // leaves them alive — back-to-back url artifacts then stack multiple dev
       // servers and exhaust memory (OOM). process.kill(-pid) signals the group.

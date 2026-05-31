@@ -1,8 +1,8 @@
 /**
  * Harness orchestrator.
  *
- *   npm run demo <id|all> [--only=capture,artifacts,narrate,render] [--force] [--quality=draft|final]
- *   npm run demo --list
+ *   pnpm run demo <id|all> [--only=capture,artifacts,narrate,render] [--force] [--quality=draft|final]
+ *   pnpm run demo --list
  *
  * Stages run in order and each is idempotent (skips if its output exists unless --force).
  */
@@ -87,7 +87,7 @@ async function main() {
       const m = loadManifest(id);
       console.log(`  ${id.padEnd(34)} ${m.title}`);
     }
-    if (ids.length === 0 && !list) console.log(`\nUsage: npm run demo <id|all> [--only=...] [--force]`);
+    if (ids.length === 0 && !list) console.log(`\nUsage: pnpm run demo <id|all> [--only=...] [--force]`);
     return;
   }
 

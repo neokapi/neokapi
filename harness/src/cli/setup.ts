@@ -105,7 +105,7 @@ async function main() {
   await ensureCredential();
   await setupIsolatedKapi();
   await installChromium();
-  console.log("\nSetup complete. Run a demo with:  npm run demo <demo-id>   (or: npm run demo all)");
+  console.log("\nSetup complete. Run a demo with:  pnpm run demo <demo-id>   (or: pnpm run demo all)");
 }
 
 main().catch((e) => {

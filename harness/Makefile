@@ -12,20 +12,20 @@
 # also needs a built kapi (`make -C .. build`), the kapi-claude plugin bundle, and
 # Gemini/Anthropic credentials.
 
-NPX := npx
-RUN := $(NPX) tsx src/cli/run.ts
+VPX := vpx
+RUN := $(VPX) tsx src/cli/run.ts
 
 .PHONY: deps list studio videos render publish capture
 
 deps: ## Install node deps + Playwright chromium
-	npm install
-	$(NPX) playwright install chromium
+	corepack pnpm install
+	$(VPX) playwright install chromium
 
 list: ## List available demos
 	$(RUN) --list
 
 studio: ## Open Remotion Studio (live preview)
-	npm run studio
+	$(VPX) remotion studio src/remotion/index.ts
 
 videos: ## Render + publish the docs videos (light + dark)
 	$(RUN) published --only=render,publish --theme=both --force

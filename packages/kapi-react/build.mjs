@@ -71,7 +71,7 @@ await build({
   plugins: [rewriteTsExtensions],
 });
 
-execFileSync("npx", ["tsc", "-p", "tsconfig.build.json"], { stdio: "inherit" });
+execFileSync("vpx", ["tsc", "-p", "tsconfig.build.json"], { stdio: "inherit" });
 
 // tsc's rewriteRelativeImportExtensions rewrites .ts → .js in JS output
 // but not consistently in .d.ts output (type-only imports and dynamic

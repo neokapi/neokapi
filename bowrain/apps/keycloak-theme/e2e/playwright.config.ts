@@ -8,8 +8,8 @@ import { defineConfig, devices } from "@playwright/test";
  *
  * Usage:
  *   cd platform/apps/keycloak-theme
- *   npm run dev &                         # Start Vite dev server
- *   npx playwright test --config e2e/playwright.config.ts
+ *   vp run dev &                         # Start Vite dev server
+ *   vpx playwright test --config e2e/playwright.config.ts
  */
 export default defineConfig({
   testDir: ".",

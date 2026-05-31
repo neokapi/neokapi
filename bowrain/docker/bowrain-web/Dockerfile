@@ -10,16 +10,12 @@ FROM node:24-slim AS web-builder
 WORKDIR /src
 ENV CI=true
 
-# Install vite-plus (vp) which the package build scripts call into.
-# The install script only ships `vp`; `vpx` is a companion tool that
-# normally comes from `vp env use`, but for deterministic builds we
-# just shim `vpx` → `npx` (same effect: run a tool from node_modules).
+# Install vite-plus (vp) which the package build scripts call into, and enable
+# corepack so the pinned pnpm version is available.
 RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates \
     && curl -fsSL https://viteplus.dev/install.sh | bash \
     && cp /root/.vite-plus/bin/vp /usr/local/bin/vp \
     && chmod +x /usr/local/bin/vp \
-    && printf '#!/bin/sh\nexec npx "$@"\n' > /usr/local/bin/vpx \
-    && chmod +x /usr/local/bin/vpx \
     && corepack enable \
     && rm -rf /var/lib/apt/lists/*
 

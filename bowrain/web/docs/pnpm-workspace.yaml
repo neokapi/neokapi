@@ -1,0 +1,8 @@
+# bowrain/web/docs is a standalone Docusaurus app (not part of the main pnpm
+# workspace, by design — see PR #425). Its own workspace root so `pnpm` works
+# here independently of the repo workspace.
+packages: []
+
+# core-js' install script only prints a funding banner — not needed.
+allowBuilds:
+  core-js: false

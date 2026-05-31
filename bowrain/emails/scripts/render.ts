@@ -7,7 +7,7 @@
  * { and } are not HTML-special characters. At runtime the Go mailer calls
  * text/template.Execute() to fill in the real values.
  *
- * Run:  npm run build   (from platform/emails/)
+ * Run:  vp run build   (from bowrain/emails/)
  * Make: make email-build
  */
 

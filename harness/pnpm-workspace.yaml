@@ -1,0 +1,6 @@
+packages: []
+
+# esbuild ships a native binary built by its install script (tsx/remotion
+# depend on it).
+allowBuilds:
+  esbuild: true

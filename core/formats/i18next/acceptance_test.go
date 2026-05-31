@@ -15,9 +15,9 @@
 // so the vendored schema is a faithful de-facto structural schema: a recursive
 // object of string | nested-object | array-of-string. ajv runs via a real
 // `ajv` on PATH when present (CI installs ajv-cli@5 globally), else
-// `npx --yes ajv-cli@5`. Every external call is gated on exec.LookPath; the
+// `corepack pnpm dlx ajv-cli@5`. Every external call is gated on exec.LookPath; the
 // test t.Skips (not fails) when the tool is missing, offline, or otherwise
-// unable to execute (e.g. a non-executable npx-cached bin) — a tooling failure,
+// unable to execute (e.g. a non-executable cached bin) — a tooling failure,
 // not a kapi failure. A tool that RUNS and rejects the output FAILs the test.
 //
 // Run with: go test -tags acceptance ./core/formats/i18next/
@@ -62,17 +62,17 @@ func runCmd(t *testing.T, dir, name string, args ...string) ([]byte, error) {
 }
 
 // ajvCommand returns the program and leading args for running ajv. When a real
-// `ajv` executable is on PATH (e.g. `npm install -g ajv-cli@5` in CI), it is
-// invoked directly; otherwise we fall back to provisioning ajv-cli@5 via npx.
+// `ajv` executable is on PATH (e.g. `corepack pnpm add -g ajv-cli@5` in CI), it is
+// invoked directly; otherwise we fall back to provisioning ajv-cli@5 via corepack pnpm dlx.
 // The returned slice is the prefix; callers append the subcommand and its args.
 func ajvCommand() (name string, prefix []string) {
 	if p, err := exec.LookPath("ajv"); err == nil {
 		return p, nil
 	}
-	return "npx", []string{"--yes", "ajv-cli@5"}
+	return "corepack", []string{"pnpm", "dlx", "ajv-cli@5"}
 }
 
-// isLikelyOffline heuristically detects npm/npx network failures so the schema
+// isLikelyOffline heuristically detects registry/network failures so the schema
 // validation can be skipped (rather than failed) when ajv-cli cannot be fetched.
 func isLikelyOffline(output []byte) bool {
 	s := strings.ToLower(string(bytes.TrimSpace(output)))
@@ -92,7 +92,7 @@ func isLikelyOffline(output []byte) bool {
 // ran and rejected kapi's output. The acceptance contract is to SKIP (not FAIL)
 // when the validator itself is broken/unavailable: a non-executable npx-cached
 // bin (exit 126 "Permission denied"), a missing binary (exit 127 "command not
-// found"/ENOENT), or an npm/npx provisioning/network failure. A tool that runs
+// found"/ENOENT), or a pnpm provisioning/network failure. A tool that runs
 // and reports a validation error (e.g. ajv exit 1) is NOT covered here, so the
 // suite still FAILs on genuine rejections.
 func toolCouldNotRun(err error, combinedOutput string) bool {
@@ -208,10 +208,10 @@ func TestAcceptanceJQWellFormed(t *testing.T) {
 // node/npx (and network, since npx --yes provisions ajv-cli on first run).
 func TestAcceptanceSchemaValid(t *testing.T) {
 	// Prefer a real `ajv` on PATH; otherwise fall back to provisioning
-	// ajv-cli@5 via npx (which requires node).
+	// ajv-cli@5 via corepack pnpm dlx (which requires node).
 	if _, err := exec.LookPath("ajv"); err != nil {
 		lookPath(t, "node")
-		lookPath(t, "npx")
+		lookPath(t, "corepack")
 	}
 	ajvName, ajvPrefix := ajvCommand()
 
@@ -222,7 +222,7 @@ func TestAcceptanceSchemaValid(t *testing.T) {
 		t.Fatalf("vendored i18next schema missing: %v", err)
 	}
 
-	// Probe that ajv can run (and that npx can provision ajv-cli when used);
+	// Probe that ajv can run (and that corepack pnpm dlx can provision ajv-cli when used);
 	// skip rather than fail when it cannot execute.
 	probeArgs := append(append([]string{}, ajvPrefix...), "help")
 	if out, err := runCmd(t, ".", ajvName, probeArgs...); err != nil && toolCouldNotRun(err, string(out)) {

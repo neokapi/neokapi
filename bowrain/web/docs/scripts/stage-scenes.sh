@@ -9,7 +9,7 @@
 # This script flat-copies them as:
 #   bowrain/web/docs/static/video/bowrain/{walkthrough-id}/0N-{scene-id}.webm
 #
-# Run as part of the docs-bowrain CI workflow before `npm run build`. Idempotent.
+# Run as part of the docs-bowrain CI workflow before `vpx docusaurus build`. Idempotent.
 #
 # The .webm files are gitignored under static/. They live in scenes/ as
 # tracked artifacts so reviewers can see what shipped, but the staged

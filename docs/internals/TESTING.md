@@ -132,8 +132,8 @@ All shared UI components, contexts, hooks, and utilities live in `bowrain/packag
 
 ```bash
 cd bowrain/packages/ui
-npm test            # single run
-npm run test:watch  # watch mode
+vp test            # single run
+vp run test:watch  # watch mode
 ```
 
 **Configuration:** `bowrain/packages/ui/vitest.config.ts`
@@ -236,7 +236,7 @@ expect(localStorage.getItem("neokapi-theme")).toBe("dark");
 2. Import from `vitest` and `@testing-library/react`.
 3. Wrap components in the providers they need (ThemeProvider, ApiProvider, etc.).
 4. Use `data-testid` attributes for stable selectors.
-5. Run `npm test` to verify.
+5. Run `vp test` to verify.
 
 ### E2E Tests (Playwright)
 
@@ -265,8 +265,8 @@ bowrain/apps/bowrain/frontend/e2e/
 
 ```bash
 cd bowrain/apps/bowrain/frontend
-npx playwright test                    # all specs
-npx playwright test e2e/settings.spec.ts  # single spec
+vpx playwright test                    # all specs
+vpx playwright test e2e/settings.spec.ts  # single spec
 ```
 
 **Configuration:** `playwright.config.ts` — uses Vite dev server with mock API routes. Tests seed data via `page.route()` interception, requiring no backend.
@@ -285,8 +285,8 @@ bowrain/apps/web/e2e/
 
 ```bash
 cd bowrain/apps/web
-npm run e2e:screenshots   # requires Docker backend (bowrain-server)
-npm run e2e:recordings    # requires Docker backend
+vp run e2e:screenshots   # requires Docker backend (bowrain-server)
+vp run e2e:recordings    # requires Docker backend
 ```
 
 **Configuration:** `playwright.config.ts` — connects to the real backend (defaults to `http://localhost:8080`, overridable via `BOWRAIN_URL` env var). Tests authenticate via device auth flow, create workspaces/projects, seed TM entries and terminology, then capture screenshots in both `dark/` and `light/` subdirectories for the documentation site.
@@ -303,7 +303,7 @@ kapi/apps/kapi-web/e2e/
 
 ```bash
 cd kapi/apps/kapi-web
-npx playwright test
+vpx playwright test
 ```
 
 **Configuration:** `playwright.config.ts` — auto-starts the Vite dev server. Uses `mock-api.ts` to intercept all `/api/v1/*` routes with in-memory stores. No backend required.
@@ -329,16 +329,16 @@ The unit tests in `bowrain/packages/ui` are designed to be the **primary fast fe
 
 ```bash
 # Unit tests (fast, no infrastructure)
-cd packages/ui && npm test
+cd packages/ui && vp test
 
 # E2E — Bowrain (mock API, no backend)
-cd bowrain/apps/bowrain/frontend && npx playwright test
+cd bowrain/apps/bowrain/frontend && vpx playwright test
 
 # E2E — kapi-web (mock API, no backend)
-cd kapi/apps/kapi-web && npx playwright test
+cd kapi/apps/kapi-web && vpx playwright test
 
 # E2E — web (requires Docker backend)
-cd bowrain/apps/web && npm run e2e:screenshots
+cd bowrain/apps/web && vp run e2e:screenshots
 ```
 
 ---

@@ -8,8 +8,8 @@ import { test, expect } from "@playwright/test";
  * /?kcPageId=<pageId> which the dev server renders with a mock context.
  *
  * Prerequisites:
- *   cd platform/apps/keycloak-theme && npm run dev
- *   npx playwright test --config e2e/playwright.config.ts
+ *   cd platform/apps/keycloak-theme && vp run dev
+ *   vpx playwright test --config e2e/playwright.config.ts
  */
 
 const BASE = process.env.KC_THEME_URL || "http://localhost:3000";

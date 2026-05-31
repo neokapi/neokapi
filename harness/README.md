@@ -86,27 +86,27 @@ Set in `.env` (see `.env.example`). Default is **Gemini TTS** (uses the same
 | `openai`           | `OPENAI_API_KEY` | `gpt-4o-mini-tts` |
 | `say`              | macOS only | Offline fallback, voice `Daniel` (en_GB) |
 
-Switch with `NARRATION_BACKEND=elevenlabs npm run demo <id> -- --only=narrate --force`.
+Switch with `NARRATION_BACKEND=elevenlabs pnpm run demo <id> -- --only=narrate --force`.
 
 ## Usage
 
 ```bash
 # one-time: build kapi (with fts5+icu4c), regenerate the plugin bundle,
 # register the harness-gemini credential from .env, install Playwright Chromium
-npm install
-npm run setup
+pnpm install
+pnpm run setup
 
 # run the whole pipeline for one demo (or `all`)
-npm run demo 01-localize-landing-page
-npm run demo all
+pnpm run demo 01-localize-landing-page
+pnpm run demo all
 
 # run a single stage (each stage is idempotent; --force re-runs it)
-npm run demo all -- --only=capture          # just the live Claude sessions
-npm run demo all -- --only=artifacts,narrate,render
-npm run demo 02-brand-voice-guardrail -- --only=render --force
+pnpm run demo all -- --only=capture          # just the live Claude sessions
+pnpm run demo all -- --only=artifacts,narrate,render
+pnpm run demo 02-brand-voice-guardrail -- --only=render --force
 
-npm run list                                 # list demos
-npm run studio                               # open the Remotion studio to preview
+pnpm run list                                 # list demos
+pnpm run studio                               # open the Remotion studio to preview
 ```
 
 Prerequisites: a logged-in `claude` CLI, Node ≥ 22, `ffmpeg`, Go + Homebrew `icu4c`
@@ -119,7 +119,7 @@ Prerequisites: a logged-in `claude` CLI, Node ≥ 22, `ffmpeg`, Go + Homebrew `i
    `prompt` and point `artifacts[].path` at them. Keep prompts to the **reliable
    standalone** kapi surface: `ai-translate`, `pseudo-translate`, `brand`, `termbase`,
    `word-count`, `formats`, `extract-content`, or the MCP tools.
-3. `npm run demo <id>`.
+3. `pnpm run demo <id>`.
 
 `captures/`, `public/`, `out/`, `sandbox/` and `.env` are git-ignored. The authored
 `demos/` are the source of truth — re-run the harness to regenerate everything else.
@@ -139,7 +139,7 @@ prints the token + the route params; pass them to the capture stage, e.g.:
 ```bash
 BOWRAIN_BACKEND_URL=http://localhost:8080 \
 BOWRAIN_SESSION_TOKEN=<jwt> BOWRAIN_WORKSPACE_SLUG=<slug> \
-  npm run demo bowrain-web-governance -- --only=capture --force --theme=both
+  pnpm run demo bowrain-web-governance -- --only=capture --force --theme=both
 ```
 
 ### Two-user collaboration (`bowrain-web-collaboration`)
@@ -160,9 +160,9 @@ BOWRAIN_BACKEND_URL=http://localhost:8080 \
 BOWRAIN_SESSION_TOKEN=<alice.token> BOWRAIN_PEER_TOKEN=<bob.token> \
 BOWRAIN_PEER_NAME="<bob.name>" BOWRAIN_WORKSPACE_SLUG=<workspace> \
 BOWRAIN_PROJECT_ID=<project_id> BOWRAIN_ITEM_ID=<item_id> BOWRAIN_COLLAB_LOCALE=<locale> \
-  npm run demo bowrain-web-collaboration -- --only=capture --force --theme=both
+  pnpm run demo bowrain-web-collaboration -- --only=capture --force --theme=both
 # then narrate + render + publish (no tokens needed):
-npm run demo bowrain-web-collaboration -- --only=narrate,render,publish
+pnpm run demo bowrain-web-collaboration -- --only=narrate,render,publish
 ```
 
 If `BOWRAIN_PEER_TOKEN` is unset the walk degrades to a single-user recording

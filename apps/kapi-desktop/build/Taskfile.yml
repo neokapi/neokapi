@@ -12,7 +12,7 @@ tasks:
     dir: frontend
     sources:
       - package.json
-      - package-lock.json
+      - pnpm-lock.yaml
     generates:
       - node_modules
     cmds:
@@ -33,7 +33,7 @@ tasks:
           BUILD_FLAGS:
             ref: .BUILD_FLAGS
     cmds:
-      - npx vp build
+      - vp build
     env:
       PRODUCTION: '{{if eq .DEV "true"}}false{{else}}true{{end}}'
 
@@ -71,7 +71,7 @@ tasks:
     deps:
       - task: install:frontend:deps
     cmds:
-      - npx vp run dev -- --port {{.VITE_PORT}} --strictPort
+      - vp run dev -- --port {{.VITE_PORT}} --strictPort
 
   update:build-assets:
     summary: Updates the build assets

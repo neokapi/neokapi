@@ -15,7 +15,7 @@ import { beforeAll, describe, expect, it } from "vitest";
  *
  * We bundle src/oxlint.ts to a temp ESM file and point oxlint at it via
  * an absolute jsPlugins path, so the test exercises the real rule source
- * with no dependency on a prior `npm run build`.
+ * with no dependency on a prior `vp run build`.
  */
 
 const here = dirname(fileURLToPath(import.meta.url));

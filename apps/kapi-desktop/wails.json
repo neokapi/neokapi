@@ -3,9 +3,9 @@
   "outputfilename": "KapiDesktop",
   "frontend": {
     "dir": "frontend",
-    "install": "npm install",
-    "build": "npm run build",
-    "dev": "npm run dev",
+    "install": "vp install",
+    "build": "vp run build",
+    "dev": "vp run dev",
     "devServerUrl": "http://localhost:5174"
   },
   "author": {

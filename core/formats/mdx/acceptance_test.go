@@ -37,7 +37,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// isLikelyOffline heuristically detects npm/npx network failures so the MDX
+// isLikelyOffline heuristically detects registry/network failures so the MDX
 // compiler provisioning can be skipped (rather than failed) when @mdx-js/mdx
 // cannot be installed.
 func isLikelyOffline(output []byte) bool {

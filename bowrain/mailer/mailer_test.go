@@ -455,7 +455,7 @@ func TestSendNotification(t *testing.T) {
 	}
 
 	// SendNotification uses the notification.html template. If the template
-	// hasn't been built (npm run build), we expect a template error. Skip in that case.
+	// hasn't been built (vp run build), we expect a template error. Skip in that case.
 	err = m.SendNotification(t.Context(), "user@example.com", data)
 	if err != nil {
 		t.Skipf("notification template not built: %v", err)

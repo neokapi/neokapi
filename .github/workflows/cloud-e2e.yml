@@ -33,7 +33,7 @@ jobs:
 
       - name: Install dependencies
         working-directory: bowrain/e2e/cloud
-        run: npm install --frozen-lockfile
+        run: corepack pnpm install --ignore-workspace
 
       - name: Install Playwright Chromium
         working-directory: bowrain/e2e/cloud

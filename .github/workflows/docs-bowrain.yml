@@ -54,12 +54,10 @@ jobs:
             echo "::warning::bowrain-docs-assets release unavailable; videos will be missing"
           fi
 
-      # bowrain/website is a standalone Docusaurus app (not in the npm
-      # workspace, by design — see PR #425). Install its deps locally and
-      # invoke the build script via npm directly so vp doesn't try to
-      # resolve a non-existent `bowrain-docs#build` workspace task.
+      # bowrain/web/docs is a standalone Docusaurus app (not in the pnpm
+      # workspace, by design — see PR #425); install it on its own.
       - name: Install bowrain docs site dependencies
-        run: npm install --no-audit --no-fund
+        run: corepack pnpm install --ignore-workspace
         working-directory: bowrain/web/docs
 
       - name: Stage walkthrough scene .webm into static/video/bowrain/
@@ -78,7 +76,7 @@ jobs:
           fi
 
       - name: Build bowrain Docusaurus site
-        run: npm run build
+        run: vpx docusaurus build
         working-directory: bowrain/web/docs
         env:
           DOCS_BASE_URL: ${{ steps.base.outputs.docs_base }}

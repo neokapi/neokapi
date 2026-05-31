@@ -31,7 +31,7 @@ func TestAcceptanceTranslatedOutputValidatesAgainstSchema(t *testing.T) {
 	// Prefer a real `ajv` on PATH (CI installs ajv-cli@5 globally); otherwise
 	// provision it on demand via npx --yes ajv-cli@5.
 	_, haveAjv := lookTool("ajv")
-	_, haveNpx := lookTool("npx")
+	_, haveNpx := lookTool("corepack")
 	haveAjvRunner := haveAjv || haveNpx
 
 	if !haveJq && !haveAjvRunner {

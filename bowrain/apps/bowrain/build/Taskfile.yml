@@ -12,14 +12,14 @@ tasks:
     dir: frontend
     sources:
       - package.json
-      - package-lock.json
+      - pnpm-lock.yaml
     generates:
       - node_modules
     preconditions:
-      - sh: npm version
-        msg: "Looks like npm isn't installed. Npm is part of the Node installer: https://nodejs.org/en/download/"
+      - sh: vp --version
+        msg: "vite-plus (vp) is required — see https://viteplus.dev"
     cmds:
-      - npm install
+      - vp install
 
   build:frontend:
     label: "build:frontend (DEV={{.DEV}})"
@@ -36,7 +36,7 @@ tasks:
           BUILD_FLAGS:
             ref: .BUILD_FLAGS
     cmds:
-      - npm run {{.BUILD_COMMAND}} -q
+      - vp run {{.BUILD_COMMAND}}
     env:
       PRODUCTION: '{{if eq .DEV "true"}}false{{else}}true{{end}}'
     vars:
@@ -79,7 +79,7 @@ tasks:
     deps:
       - task: install:frontend:deps
     cmds:
-      - npm run dev -- --port {{.VITE_PORT}} --strictPort
+      - vp run dev -- --port {{.VITE_PORT}} --strictPort
 
   update:build-assets:
     summary: Updates the build assets

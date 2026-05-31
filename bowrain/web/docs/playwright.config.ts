@@ -8,10 +8,10 @@ import { defineConfig, devices } from "@playwright/test";
  * and records a .webm to bowrain/web/docs/scenes/{walkthrough}/.
  *
  * Run from this dir:
- *   BOWRAIN_TOKEN=$(...) BOWRAIN_BACKEND_URL=... npx playwright test
+ *   BOWRAIN_TOKEN=$(...) BOWRAIN_BACKEND_URL=... vpx playwright test
  *
  * Or scope to one scene:
- *   npx playwright test scenes/bowrain-web-claim-project/
+ *   vpx playwright test scenes/bowrain-web-claim-project/
  */
 
 const BACKEND_URL = process.env.BOWRAIN_BACKEND_URL || "https://dev.bowrain.cloud";
