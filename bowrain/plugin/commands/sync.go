@@ -66,7 +66,7 @@ func runSync(cmd *cobra.Command, args []string) error {
 		return syncPull(cmd, conn)
 	}
 
-	fmt.Fprintf(cmd.OutOrStdout(), "\nWaiting for translations (push_id: %s)...\n", pushResult.PushID[:8])
+	fmt.Fprintf(cmd.OutOrStdout(), "\nWaiting for translations (push_id: %s)...\n", shortPushID(pushResult.PushID))
 
 	deadline := time.Now().Add(syncTimeout)
 
@@ -134,6 +134,17 @@ func runSync(cmd *cobra.Command, args []string) error {
 	}
 
 	return nil
+}
+
+// shortPushID returns a display-friendly abbreviation of a push ID, truncated
+// to its first 8 characters. It is safe for push IDs shorter than 8 characters
+// (e.g. from a non-conforming server), returning the full ID in that case
+// rather than panicking on an out-of-range slice.
+func shortPushID(id string) string {
+	if len(id) > 8 {
+		return id[:8]
+	}
+	return id
 }
 
 func syncPull(cmd *cobra.Command, conn *bconn.BowrainSourceConnector) error {
