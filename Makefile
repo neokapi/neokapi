@@ -241,7 +241,7 @@ else
 	cd kapi && $(GOTEST_BASE) ./... -count=1
 endif
 
-test-platform test-bowrain-cli test-bowrain: ## Run individual bowrain module tests
+test-platform test-bowrain-cli test-bowrain-plugin test-bowrain: ## Run individual bowrain module tests
 	$(MAKE) -C bowrain $@
 
 # Bowrain Desktop backend tests run on their own (the bowrain module's
@@ -279,7 +279,7 @@ ci-test-bowrain-desktop: ## Run Bowrain Desktop tests with full CI flags locally
 
 ci-test-all: ## Run all module tests with full CI flags locally
 	$(MAKE) CI=true test-framework test-cli test-kapi kapi-desktop-test bowrain-desktop-test
-	$(MAKE) -C bowrain CI=true test-platform test-bowrain-cli test-bowrain
+	$(MAKE) -C bowrain CI=true test-platform test-bowrain-cli test-bowrain-plugin test-bowrain
 
 # ── Module Isolation ──────────────────────────────────────────────────────────
 
@@ -1112,7 +1112,7 @@ help: ## Show this help
         parity-sandbox parity-test parity-publish parity-clean check-eval \
         contract-audit contract-audit-all contract-audit-clean okapi-failsafe-reports \
         fmt vet lint check check-framework check-bowrain test-parallel \
-        test-framework test-cli test-kapi test-platform test-bowrain-cli test-bowrain \
+        test-framework test-cli test-kapi test-platform test-bowrain-cli test-bowrain-plugin test-bowrain \
         bowrain-desktop-test \
         ci-test-framework ci-test-cli ci-test-kapi ci-test-platform \
         ci-test-bowrain-cli ci-test-bowrain ci-test-kapi-desktop ci-test-bowrain-desktop ci-test-all \

@@ -82,7 +82,7 @@ DOCKER_KEYCLOAK_IMAGE := ghcr.io/neokapi/bowrain-keycloak
         dev-deps dev-deps-down dev-server dev-worker dev-web dev-ctrl bowrain-dev certs \
         stack-up stack-up-web stack-up-shared stack-shared-down stack-down stack-logs stack-ps stack-build \
         test test-fast test-unit test-race test-verbose test-integration \
-        test-platform test-bowrain-cli test-bowrain test-e2e-bowrain test-e2e-cloud test-e2e-dev \
+        test-platform test-bowrain-cli test-bowrain-plugin test-bowrain test-e2e-bowrain test-e2e-cloud test-e2e-dev \
         cover fmt vet lint check proto deps deps-update clean
 
 # ── General ──────────────────────────────────────────────────────────────────
@@ -405,6 +405,16 @@ ifdef CI
 	cd cli && $(GOTEST_BASE) -coverprofile=$(COVER_DIR)/bowrain-cli.out $(_COVMODE) -json ./... > ../test-results-bowrain-cli.json
 else
 	cd cli && $(GOTEST_BASE) ./... -count=1
+endif
+
+test-bowrain-plugin: ## Run bowrain plugin tests (bowrain/plugin + bowrain/plugin/schema, separate go.mod)
+	@mkdir -p $(COVER_DIR)
+ifdef CI
+	cd plugin && $(GOTEST_BASE) -coverprofile=$(COVER_DIR)/bowrain-plugin.out $(_COVMODE) -json ./... > ../test-results-bowrain-plugin.json
+	cd plugin/schema && $(GOTEST_BASE) -coverprofile=$(COVER_DIR)/bowrain-plugin-schema.out $(_COVMODE) -json ./... > ../../test-results-bowrain-plugin-schema.json
+else
+	cd plugin && $(GOTEST_BASE) ./... -count=1
+	cd plugin/schema && $(GOTEST_BASE) ./... -count=1
 endif
 
 test-bowrain: ## Run bowrain module tests only

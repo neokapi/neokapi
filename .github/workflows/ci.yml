@@ -22,13 +22,14 @@ jobs:
       platform: ${{ github.event_name == 'push' || steps.filter.outputs.platform }}
       kapi: ${{ github.event_name == 'push' || steps.filter.outputs.kapi }}
       bowrain_cli: ${{ github.event_name == 'push' || steps.filter.outputs.bowrain_cli }}
+      bowrain_plugin: ${{ github.event_name == 'push' || steps.filter.outputs.bowrain_plugin }}
       bowrain: ${{ github.event_name == 'push' || steps.filter.outputs.bowrain }}
       frontend: ${{ github.event_name == 'push' || steps.filter.outputs.frontend }}
       kapi_desktop: ${{ github.event_name == 'push' || steps.filter.outputs.kapi_desktop }}
       bowrain_desktop: ${{ github.event_name == 'push' || steps.filter.outputs.bowrain_desktop }}
       kapi_react: ${{ github.event_name == 'push' || steps.filter.outputs.kapi_react }}
       workflows: ${{ github.event_name == 'push' || steps.filter.outputs.workflows }}
-      any_go: ${{ github.event_name == 'push' || steps.filter.outputs.framework || steps.filter.outputs.cli || steps.filter.outputs.platform || steps.filter.outputs.kapi || steps.filter.outputs.bowrain_cli || steps.filter.outputs.bowrain }}
+      any_go: ${{ github.event_name == 'push' || steps.filter.outputs.framework || steps.filter.outputs.cli || steps.filter.outputs.platform || steps.filter.outputs.kapi || steps.filter.outputs.bowrain_cli || steps.filter.outputs.bowrain_plugin || steps.filter.outputs.bowrain }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -64,6 +65,7 @@ jobs:
             echo "kapi=false" >> "$GITHUB_OUTPUT"
           fi
           check_paths bowrain_cli '^bowrain/cli/'
+          check_paths bowrain_plugin '^bowrain/plugin/'
           # bowrain: anything under bowrain/ except frontend app dirs, packages/, bowrain/core/, bowrain/cli/, docker/, and deploy/
           if echo "$CHANGED" | grep -E '^bowrain/' | grep -vE '^bowrain/(apps/(web|bowrain/frontend|keycloak-theme)|packages/|core/|cli/|docker/|deploy/)' | grep -q .; then
             echo "bowrain=true" >> "$GITHUB_OUTPUT"
@@ -432,6 +434,61 @@ jobs:
           path: coverage/bowrain-cli.out
           retention-days: 1
 
+  test-bowrain-plugin:
+    name: Test (Bowrain Plugin)
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.framework == 'true' || needs.changes.outputs.cli == 'true' || needs.changes.outputs.platform == 'true' || needs.changes.outputs.bowrain_cli == 'true' || needs.changes.outputs.bowrain_plugin == 'true'
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/setup-go-modules
+
+      # The shared setup action does not cover the plugin modules (separate
+      # go.mod, not reachable from any other ./...); download them here.
+      - name: Download plugin modules
+        run: |
+          cd bowrain/plugin && go mod download && go mod verify
+          cd schema && go mod download && go mod verify
+
+      - name: Install go-junit-report
+        run: go install github.com/jstemmer/go-junit-report/v2@latest
+
+      - name: Run Bowrain Plugin tests
+        id: run-tests
+        run: make test-bowrain-plugin
+        continue-on-error: true
+
+      - name: Convert plugin tests to JUnit XML
+        if: always()
+        run: go-junit-report -in bowrain/test-results-bowrain-plugin.json -out junit-bowrain-plugin.xml
+
+      - name: Convert plugin schema tests to JUnit XML
+        if: always()
+        run: go-junit-report -in bowrain/test-results-bowrain-plugin-schema.json -out junit-bowrain-plugin-schema.xml
+
+      - name: Report test results
+        uses: dorny/test-reporter@v3
+        if: always()
+        continue-on-error: true
+        with:
+          name: Bowrain Plugin Tests
+          path: junit-bowrain-plugin.xml,junit-bowrain-plugin-schema.xml
+          reporter: java-junit
+
+      - name: Fail if tests failed
+        if: steps.run-tests.outcome == 'failure'
+        run: exit 1
+
+      - name: Upload coverage
+        uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: coverage-bowrain-plugin
+          path: |
+            coverage/bowrain-plugin.out
+            coverage/bowrain-plugin-schema.out
+          retention-days: 1
+
   test-bowrain:
     name: Test (bowrain)
     runs-on: ubuntu-latest
@@ -478,7 +535,7 @@ jobs:
   coverage:
     name: Coverage
     runs-on: ubuntu-latest
-    needs: [test-framework, test-cli, test-platform, test-kapi, test-bowrain-cli, test-bowrain]
+    needs: [test-framework, test-cli, test-platform, test-kapi, test-bowrain-cli, test-bowrain-plugin, test-bowrain]
     if: always() && !cancelled()
     steps:
       - uses: actions/checkout@v6
@@ -498,7 +555,7 @@ jobs:
             echo "mode: atomic" > coverage.out
           fi
           # Append remaining files (skip header line)
-          for f in cli.out platform.out kapi.out bowrain-cli.out bowrain.out; do
+          for f in cli.out platform.out kapi.out bowrain-cli.out bowrain-plugin.out bowrain-plugin-schema.out bowrain.out; do
             if [ -f "$f" ]; then
               tail -n +2 "$f" >> coverage.out
             fi
@@ -668,7 +725,7 @@ jobs:
 
       - name: Check go.mod tidiness
         run: |
-          for dir in . cli kapi apps/kapi-desktop bowrain/core bowrain/cli bowrain; do
+          for dir in . cli kapi apps/kapi-desktop bowrain/core bowrain/cli bowrain/plugin bowrain/plugin/schema bowrain; do
             echo "Checking $dir..."
             (cd "$dir" && go mod tidy)
           done
