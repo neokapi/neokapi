@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 
+	"golang.org/x/sync/errgroup"
+
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/tool"
 )
@@ -136,7 +138,12 @@ func (lp *LayerProcessor) pipelineFor(format string) []tool.Tool {
 	return tools
 }
 
-// runPipeline runs parts through a chain of tools sequentially.
+// runPipeline runs parts through a chain of tools sequentially. Each tool's
+// Process runs in its own goroutine while the output channel is drained
+// concurrently — mirroring core/flow's executor. Draining concurrently is what
+// lets a 1→N fan-out tool emit arbitrarily many parts without deadlocking on a
+// full output buffer (a synchronous drain-after-return would block forever once
+// the buffer fills).
 func (lp *LayerProcessor) runPipeline(ctx context.Context, tools []tool.Tool, parts []*model.Part) ([]*model.Part, error) {
 	current := parts
 	for _, t := range tools {
@@ -146,20 +153,44 @@ func (lp *LayerProcessor) runPipeline(ctx context.Context, tools []tool.Tool, pa
 		}
 		close(inCh)
 
-		outCh := make(chan *model.Part, len(current)+16)
-		if err := t.Process(ctx, inCh, outCh); err != nil {
-			return nil, fmt.Errorf("tool %s: %w", t.Name(), err)
-		}
-		close(outCh)
+		outCh := make(chan *model.Part, channelBuffer)
 
+		g, gctx := errgroup.WithContext(ctx)
+		g.Go(func() error {
+			defer close(outCh)
+			if err := t.Process(gctx, inCh, outCh); err != nil {
+				return fmt.Errorf("tool %s: %w", t.Name(), err)
+			}
+			return nil
+		})
+
+		// Drain the output channel concurrently with Process so a fan-out tool
+		// emitting more parts than the buffer can never block.
 		var result []*model.Part
-		for p := range outCh {
-			result = append(result, p)
+		done := make(chan struct{})
+		go func() {
+			defer close(done)
+			for p := range outCh {
+				result = append(result, p)
+			}
+		}()
+
+		err := g.Wait()
+		<-done // wait for the collector to finish draining
+
+		if err != nil {
+			return nil, err
 		}
 		current = result
 	}
 	return current, nil
 }
+
+// channelBuffer is the buffer size for the per-tool output channel in
+// runPipeline. The channel is drained concurrently, so this is a throughput
+// knob, not a correctness bound — Process never blocks regardless of how many
+// parts it emits.
+const channelBuffer = 64
 
 // emitParts sends the start marker, all parts, and the end marker to the output.
 func (lp *LayerProcessor) emitParts(ctx context.Context, out chan<- *model.Part, start *model.Part, parts []*model.Part, end *model.Part) error {
