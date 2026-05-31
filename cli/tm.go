@@ -143,6 +143,12 @@ without pre-conversion. For web-crawl TMX sets (bitextor output) the per-TUV
 				return err
 			}
 
+			// importTMXFile uses the bulk path, which skips per-row FTS5
+			// inserts. Rebuild the search/fuzzy side-tables so imported
+			// entries are visible to `kapi tm search` and fuzzy lookup —
+			// matching what import-dir does after its bulk load.
+			a.rebuildTMSearchIndexes(tm)
+
 			if a.Quiet {
 				return nil
 			}
@@ -234,27 +240,11 @@ Examples:
 				}
 			}
 
-			// Rebuild the FTS5 side-tables in a single set-based
-			// SELECT INTO. The bulk path deliberately skips per-row
-			// FTS5 inserts — they're the dominant cost on large
-			// corpora — and we restore text-search + fuzzy-match
-			// capability here once the bulk is done.
-			// RebuildSearchIndex/RebuildFuzzyIndex are SQLite-specific;
-			// in-memory backends skip this step (lookup stays live).
-			if sq, ok := tm.(*sievepen.SQLiteTM); ok {
-				if !a.Quiet {
-					fmt.Fprintln(os.Stderr, "Rebuilding search index...")
-				}
-				if err := sq.RebuildSearchIndex(); err != nil {
-					fmt.Fprintf(os.Stderr, "warning: rebuild search index: %v\n", err)
-				}
-				if !a.Quiet {
-					fmt.Fprintln(os.Stderr, "Rebuilding fuzzy index...")
-				}
-				if err := sq.RebuildFuzzyIndex(); err != nil {
-					fmt.Fprintf(os.Stderr, "warning: rebuild fuzzy index: %v\n", err)
-				}
-			}
+			// Rebuild the FTS5 side-tables once the bulk load is done.
+			// The bulk path deliberately skips per-row FTS5 inserts —
+			// they're the dominant cost on large corpora — and we restore
+			// text-search + fuzzy-match capability here.
+			a.rebuildTMSearchIndexes(tm)
 
 			if a.Quiet {
 				return nil
@@ -327,6 +317,33 @@ func importTMXFile(tm sievepen.TMStore, path, srcLocale, tgtLocale string, allPa
 	}
 	return sievepen.ImportTMXWithOptions(tm, reader,
 		model.LocaleID(srcLocale), model.LocaleID(tgtLocale), opts)
+}
+
+// rebuildTMSearchIndexes restores the FTS5 search + fuzzy side-tables after a
+// bulk TMX import. ImportTMXWithOptions / ImportTMXLocalePairs use the bulk
+// add path, which deliberately skips per-row FTS5 inserts (the dominant cost on
+// large corpora), leaving tm_variant_search / tm_variant_trigram empty until
+// they are rebuilt set-wise here. Without this, imported entries are invisible
+// to `kapi tm search` and fuzzy lookup even though exact lookup still works.
+// RebuildSearchIndex / RebuildFuzzyIndex are SQLite-specific; in-memory
+// backends keep their indexes live and skip this step.
+func (a *App) rebuildTMSearchIndexes(tm sievepen.TMStore) {
+	sq, ok := tm.(*sievepen.SQLiteTM)
+	if !ok {
+		return
+	}
+	if !a.Quiet {
+		fmt.Fprintln(os.Stderr, "Rebuilding search index...")
+	}
+	if err := sq.RebuildSearchIndex(); err != nil {
+		fmt.Fprintf(os.Stderr, "warning: rebuild search index: %v\n", err)
+	}
+	if !a.Quiet {
+		fmt.Fprintln(os.Stderr, "Rebuilding fuzzy index...")
+	}
+	if err := sq.RebuildFuzzyIndex(); err != nil {
+		fmt.Fprintf(os.Stderr, "warning: rebuild fuzzy index: %v\n", err)
+	}
 }
 
 // listTMXFiles returns all .tmx and .tmx.gz files in dir matching pattern.
