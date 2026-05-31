@@ -113,9 +113,7 @@ const indexRoute = createRoute({
 
     // Prefer the last-used workspace if it still exists.
     const lastSlug = useUIStore.getState().lastWorkspaceSlug;
-    const target =
-      (lastSlug && workspaces.find((w) => w.slug === lastSlug)) ||
-      workspaces[0];
+    const target = (lastSlug && workspaces.find((w) => w.slug === lastSlug)) || workspaces[0];
 
     throw redirect({
       to: "/$workspace",
@@ -222,10 +220,7 @@ const workspaceRoute = createRoute({
 
       // Bounce un-onboarded users to /welcome before they can access any
       // workspace URL. This handles direct navigation/bookmarks.
-      if (
-        !fetchedUser.onboarded_at &&
-        (!fetchedWorkspaces || fetchedWorkspaces.length === 0)
-      ) {
+      if (!fetchedUser.onboarded_at && (!fetchedWorkspaces || fetchedWorkspaces.length === 0)) {
         throw redirect({ to: "/welcome", replace: true });
       }
 
@@ -259,9 +254,7 @@ const dashboardRoute = createRoute({
   getParentRoute: () => workspaceRoute,
   path: "/",
   loader: async ({ context: { queryClient, api, activeWorkspace } }) => {
-    await queryClient.ensureQueryData(
-      projectsQueryOptions(api, activeWorkspace.slug),
-    );
+    await queryClient.ensureQueryData(projectsQueryOptions(api, activeWorkspace.slug));
   },
   pendingComponent: DashboardSkeleton,
   component: ProjectDashboardRoute,
@@ -271,17 +264,9 @@ const dashboardRoute = createRoute({
 const projectRoute = createRoute({
   getParentRoute: () => workspaceRoute,
   path: "p/$projectId/s/$stream",
-  loader: async ({
-    context: { queryClient, api, activeWorkspace },
-    params,
-  }) => {
+  loader: async ({ context: { queryClient, api, activeWorkspace }, params }) => {
     await queryClient.ensureQueryData(
-      projectQueryOptions(
-        api,
-        activeWorkspace.slug,
-        params.projectId,
-        params.stream,
-      ),
+      projectQueryOptions(api, activeWorkspace.slug, params.projectId, params.stream),
     );
   },
   pendingComponent: ProjectDetailSkeleton,
@@ -291,17 +276,9 @@ const projectRoute = createRoute({
 const projectSettingsRoute = createRoute({
   getParentRoute: () => workspaceRoute,
   path: "p/$projectId/s/$stream/settings",
-  loader: async ({
-    context: { queryClient, api, activeWorkspace },
-    params,
-  }) => {
+  loader: async ({ context: { queryClient, api, activeWorkspace }, params }) => {
     await queryClient.ensureQueryData(
-      projectQueryOptions(
-        api,
-        activeWorkspace.slug,
-        params.projectId,
-        params.stream,
-      ),
+      projectQueryOptions(api, activeWorkspace.slug, params.projectId, params.stream),
     );
   },
   pendingComponent: SettingsSkeleton,
@@ -311,22 +288,11 @@ const projectSettingsRoute = createRoute({
 const translateRoute = createRoute({
   getParentRoute: () => workspaceRoute,
   path: "p/$projectId/s/$stream/$itemId/translate",
-  component: lazyRouteComponent(
-    () => import("./workspace/translate"),
-    "TranslateRoute",
-  ),
+  component: lazyRouteComponent(() => import("./workspace/translate"), "TranslateRoute"),
   pendingComponent: EditorSkeleton,
-  loader: async ({
-    context: { queryClient, api, activeWorkspace },
-    params,
-  }) => {
+  loader: async ({ context: { queryClient, api, activeWorkspace }, params }) => {
     await queryClient.ensureQueryData(
-      projectQueryOptions(
-        api,
-        activeWorkspace.slug,
-        params.projectId,
-        params.stream,
-      ),
+      projectQueryOptions(api, activeWorkspace.slug, params.projectId, params.stream),
     );
   },
   validateSearch: (
@@ -341,22 +307,11 @@ const translateRoute = createRoute({
 const reviewRoute = createRoute({
   getParentRoute: () => workspaceRoute,
   path: "p/$projectId/s/$stream/$itemId/review",
-  component: lazyRouteComponent(
-    () => import("./workspace/review"),
-    "ReviewRoute",
-  ),
+  component: lazyRouteComponent(() => import("./workspace/review"), "ReviewRoute"),
   pendingComponent: EditorSkeleton,
-  loader: async ({
-    context: { queryClient, api, activeWorkspace },
-    params,
-  }) => {
+  loader: async ({ context: { queryClient, api, activeWorkspace }, params }) => {
     await queryClient.ensureQueryData(
-      projectQueryOptions(
-        api,
-        activeWorkspace.slug,
-        params.projectId,
-        params.stream,
-      ),
+      projectQueryOptions(api, activeWorkspace.slug, params.projectId, params.stream),
     );
   },
 });
@@ -364,22 +319,11 @@ const reviewRoute = createRoute({
 const preProcessRoute = createRoute({
   getParentRoute: () => workspaceRoute,
   path: "p/$projectId/s/$stream/$itemId/pre-process",
-  component: lazyRouteComponent(
-    () => import("./workspace/pre-process"),
-    "PreProcessRoute",
-  ),
+  component: lazyRouteComponent(() => import("./workspace/pre-process"), "PreProcessRoute"),
   pendingComponent: EditorSkeleton,
-  loader: async ({
-    context: { queryClient, api, activeWorkspace },
-    params,
-  }) => {
+  loader: async ({ context: { queryClient, api, activeWorkspace }, params }) => {
     await queryClient.ensureQueryData(
-      projectQueryOptions(
-        api,
-        activeWorkspace.slug,
-        params.projectId,
-        params.stream,
-      ),
+      projectQueryOptions(api, activeWorkspace.slug, params.projectId, params.stream),
     );
   },
 });
@@ -387,22 +331,11 @@ const preProcessRoute = createRoute({
 const automationsRoute = createRoute({
   getParentRoute: () => workspaceRoute,
   path: "p/$projectId/s/$stream/automations",
-  component: lazyRouteComponent(
-    () => import("./workspace/automations"),
-    "AutomationsRoute",
-  ),
+  component: lazyRouteComponent(() => import("./workspace/automations"), "AutomationsRoute"),
   pendingComponent: TablePageSkeleton,
-  loader: async ({
-    context: { queryClient, api, activeWorkspace },
-    params,
-  }) => {
+  loader: async ({ context: { queryClient, api, activeWorkspace }, params }) => {
     await queryClient.ensureQueryData(
-      projectQueryOptions(
-        api,
-        activeWorkspace.slug,
-        params.projectId,
-        params.stream,
-      ),
+      projectQueryOptions(api, activeWorkspace.slug, params.projectId, params.stream),
     );
   },
 });
@@ -415,18 +348,10 @@ const translationDashboardRoute = createRoute({
     () => import("./workspace/translation-dashboard"),
     "TranslationDashboardRoute",
   ),
-  loader: async ({
-    context: { queryClient, api, activeWorkspace },
-    params,
-  }) => {
+  loader: async ({ context: { queryClient, api, activeWorkspace }, params }) => {
     await Promise.all([
       queryClient.ensureQueryData(
-        projectQueryOptions(
-          api,
-          activeWorkspace.slug,
-          params.projectId,
-          params.stream,
-        ),
+        projectQueryOptions(api, activeWorkspace.slug, params.projectId, params.stream),
       ),
       queryClient.ensureQueryData(
         translationDashboardQueryOptions(
@@ -450,70 +375,49 @@ const brandIndexRoute = createRoute({
   getParentRoute: () => brandRoute,
   path: "/",
   pendingComponent: BrandProfilesSkeleton,
-  component: lazyRouteComponent(
-    () => import("./workspace/brand-profiles"),
-    "BrandProfilesRoute",
-  ),
+  component: lazyRouteComponent(() => import("./workspace/brand-profiles"), "BrandProfilesRoute"),
 });
 
 const brandEditorRoute = createRoute({
   getParentRoute: () => brandRoute,
   path: "$profileId",
   pendingComponent: SettingsSkeleton,
-  component: lazyRouteComponent(
-    () => import("./workspace/brand-editor"),
-    "BrandEditorRoute",
-  ),
+  component: lazyRouteComponent(() => import("./workspace/brand-editor"), "BrandEditorRoute"),
 });
 
 const brandReviewRoute = createRoute({
   getParentRoute: () => brandRoute,
   path: "review/$profileId",
   pendingComponent: SettingsSkeleton,
-  component: lazyRouteComponent(
-    () => import("./workspace/brand-review"),
-    "BrandReviewRoute",
-  ),
+  component: lazyRouteComponent(() => import("./workspace/brand-review"), "BrandReviewRoute"),
 });
 
 const brandDashboardRoute = createRoute({
   getParentRoute: () => brandRoute,
   path: "dashboard",
   pendingComponent: DashboardSkeleton,
-  component: lazyRouteComponent(
-    () => import("./workspace/brand-dashboard"),
-    "BrandDashboardRoute",
-  ),
+  component: lazyRouteComponent(() => import("./workspace/brand-dashboard"), "BrandDashboardRoute"),
 });
 
 const brandMCPGuideRoute = createRoute({
   getParentRoute: () => brandRoute,
   path: "mcp-guide",
   pendingComponent: SettingsSkeleton,
-  component: lazyRouteComponent(
-    () => import("./workspace/brand-mcp-guide"),
-    "BrandMCPGuideRoute",
-  ),
+  component: lazyRouteComponent(() => import("./workspace/brand-mcp-guide"), "BrandMCPGuideRoute"),
 });
 
 const termbaseRoute = createRoute({
   getParentRoute: () => workspaceRoute,
   path: "termbase",
   pendingComponent: ExplorerSkeleton,
-  component: lazyRouteComponent(
-    () => import("./workspace/termbase"),
-    "TermbaseRoute",
-  ),
+  component: lazyRouteComponent(() => import("./workspace/termbase"), "TermbaseRoute"),
 });
 
 const memoryRoute = createRoute({
   getParentRoute: () => workspaceRoute,
   path: "memory",
   pendingComponent: ExplorerSkeleton,
-  component: lazyRouteComponent(
-    () => import("./workspace/memory"),
-    "MemoryRoute",
-  ),
+  component: lazyRouteComponent(() => import("./workspace/memory"), "MemoryRoute"),
 });
 
 const binRoute = createRoute({
@@ -527,40 +431,28 @@ const auditlogRoute = createRoute({
   getParentRoute: () => workspaceRoute,
   path: "auditlog",
   pendingComponent: TablePageSkeleton,
-  component: lazyRouteComponent(
-    () => import("./workspace/auditlog"),
-    "AuditLogRoute",
-  ),
+  component: lazyRouteComponent(() => import("./workspace/auditlog"), "AuditLogRoute"),
 });
 
 const activitiesRoute = createRoute({
   getParentRoute: () => workspaceRoute,
   path: "activities",
   pendingComponent: ActivityFeedSkeleton,
-  component: lazyRouteComponent(
-    () => import("./workspace/activities"),
-    "ActivitiesRoute",
-  ),
+  component: lazyRouteComponent(() => import("./workspace/activities"), "ActivitiesRoute"),
 });
 
 const tasksRoute = createRoute({
   getParentRoute: () => workspaceRoute,
   path: "tasks",
   pendingComponent: TaskBoardSkeleton,
-  component: lazyRouteComponent(
-    () => import("./workspace/tasks"),
-    "TasksRoute",
-  ),
+  component: lazyRouteComponent(() => import("./workspace/tasks"), "TasksRoute"),
 });
 
 const userSettingsRoute = createRoute({
   getParentRoute: () => workspaceRoute,
   path: "user-settings",
   pendingComponent: SettingsSkeleton,
-  component: lazyRouteComponent(
-    () => import("./workspace/user-settings"),
-    "UserSettingsRoute",
-  ),
+  component: lazyRouteComponent(() => import("./workspace/user-settings"), "UserSettingsRoute"),
 });
 
 const settingsRoute = createRoute({
@@ -573,10 +465,7 @@ const settingsIndexRoute = createRoute({
   getParentRoute: () => settingsRoute,
   path: "/",
   pendingComponent: SettingsSkeleton,
-  component: lazyRouteComponent(
-    () => import("./workspace/settings"),
-    "SettingsIndexRoute",
-  ),
+  component: lazyRouteComponent(() => import("./workspace/settings"), "SettingsIndexRoute"),
 });
 
 const settingsLanguagesRoute = createRoute({
@@ -603,10 +492,7 @@ const settingsRolesRoute = createRoute({
   getParentRoute: () => settingsRoute,
   path: "roles",
   pendingComponent: SettingsSkeleton,
-  component: lazyRouteComponent(
-    () => import("./workspace/settings-roles"),
-    "SettingsRolesRoute",
-  ),
+  component: lazyRouteComponent(() => import("./workspace/settings-roles"), "SettingsRolesRoute"),
 });
 
 const settingsGovernanceRoute = createRoute({
@@ -633,30 +519,21 @@ const settingsTokensRoute = createRoute({
   getParentRoute: () => settingsRoute,
   path: "tokens",
   pendingComponent: SettingsSkeleton,
-  component: lazyRouteComponent(
-    () => import("./workspace/settings-tokens"),
-    "SettingsTokensRoute",
-  ),
+  component: lazyRouteComponent(() => import("./workspace/settings-tokens"), "SettingsTokensRoute"),
 });
 
 const settingsSystemRoute = createRoute({
   getParentRoute: () => settingsRoute,
   path: "system",
   pendingComponent: SettingsSkeleton,
-  component: lazyRouteComponent(
-    () => import("./workspace/settings-system"),
-    "SettingsSystemRoute",
-  ),
+  component: lazyRouteComponent(() => import("./workspace/settings-system"), "SettingsSystemRoute"),
 });
 
 const settingsBravoRoute = createRoute({
   getParentRoute: () => settingsRoute,
   path: "bravo",
   pendingComponent: SettingsSkeleton,
-  component: lazyRouteComponent(
-    () => import("./workspace/settings-bravo"),
-    "SettingsBravoRoute",
-  ),
+  component: lazyRouteComponent(() => import("./workspace/settings-bravo"), "SettingsBravoRoute"),
 });
 
 const settingsBillingRoute = createRoute({

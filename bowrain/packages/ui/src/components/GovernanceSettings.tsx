@@ -78,8 +78,7 @@ export function GovernanceSettings() {
   }, [reload]);
 
   useEffect(() => {
-    if (activeWorkspace)
-      document.title = `Governance — ${activeWorkspace.name} — Bowrain`;
+    if (activeWorkspace) document.title = `Governance — ${activeWorkspace.name} — Bowrain`;
   }, [activeWorkspace]);
 
   const changeSod = async (mode: SoDMode) => {
@@ -143,8 +142,8 @@ export function GovernanceSettings() {
       <div>
         <h2 className="text-xl font-semibold">Governance</h2>
         <p className="text-[13px] text-muted-foreground">
-          Access controls for collaborative work — teams, deny rules, role
-          tuning, and separation of duties.
+          Access controls for collaborative work — teams, deny rules, role tuning, and separation of
+          duties.
         </p>
       </div>
 
@@ -175,9 +174,7 @@ export function GovernanceSettings() {
               <SelectItem value="block">Block</SelectItem>
             </SelectContent>
           </Select>
-          <span className="text-[12px] text-muted-foreground">
-            {SOD_DESCRIPTIONS[sod]}
-          </span>
+          <span className="text-[12px] text-muted-foreground">{SOD_DESCRIPTIONS[sod]}</span>
         </div>
       </Card>
 
@@ -195,11 +192,7 @@ export function GovernanceSettings() {
             onKeyDown={(e) => e.key === "Enter" && void createGroup()}
             className="max-w-xs"
           />
-          <Button
-            size="sm"
-            onClick={() => void createGroup()}
-            disabled={!newGroup.trim()}
-          >
+          <Button size="sm" onClick={() => void createGroup()} disabled={!newGroup.trim()}>
             Add team
           </Button>
         </div>
@@ -211,10 +204,7 @@ export function GovernanceSettings() {
               <li key={g.id} className="flex items-center justify-between py-2">
                 <span className="text-sm">
                   {g.name}
-                  <Badge
-                    variant="secondary"
-                    className="ml-2 px-1.5 py-0 text-[10px]"
-                  >
+                  <Badge variant="secondary" className="ml-2 px-1.5 py-0 text-[10px]">
                     {g.member_count ?? 0} members
                   </Badge>
                 </span>
@@ -236,17 +226,15 @@ export function GovernanceSettings() {
       <Card className="p-5">
         <h3 className="text-sm font-semibold">Deny rules</h3>
         <p className="mb-3 text-[12px] text-muted-foreground">
-          Negative permissions that always override grants (subject can be a
-          user, workspace role, or group).
+          Negative permissions that always override grants (subject can be a user, workspace role,
+          or group).
         </p>
         <div className="mb-3 flex flex-wrap items-end gap-2">
           <div>
             <Label className="text-[11px]">Subject</Label>
             <Select
               value={denyForm.subject_type}
-              onValueChange={(v) =>
-                setDenyForm((f) => ({ ...f, subject_type: v }))
-              }
+              onValueChange={(v) => setDenyForm((f) => ({ ...f, subject_type: v }))}
             >
               <SelectTrigger className="w-28">
                 <SelectValue />
@@ -261,17 +249,13 @@ export function GovernanceSettings() {
           <Input
             placeholder="subject id (user/role/group)"
             value={denyForm.subject_id}
-            onChange={(e) =>
-              setDenyForm((f) => ({ ...f, subject_id: e.target.value }))
-            }
+            onChange={(e) => setDenyForm((f) => ({ ...f, subject_id: e.target.value }))}
             className="max-w-[180px]"
           />
           <Input
             placeholder="permissions e.g. manage_tm,review"
             value={denyForm.permissions}
-            onChange={(e) =>
-              setDenyForm((f) => ({ ...f, permissions: e.target.value }))
-            }
+            onChange={(e) => setDenyForm((f) => ({ ...f, permissions: e.target.value }))}
             className="max-w-[240px]"
           />
           <Button size="sm" onClick={() => void createDeny()}>
@@ -283,24 +267,15 @@ export function GovernanceSettings() {
         ) : (
           <ul className="divide-y divide-border/30">
             {denyRules.map((r) => (
-              <li
-                key={r.id}
-                className="flex items-center justify-between py-2 text-sm"
-              >
+              <li key={r.id} className="flex items-center justify-between py-2 text-sm">
                 <span>
                   <Badge variant="outline" className="px-1.5 py-0 text-[10px]">
                     {r.subject_type}
                   </Badge>{" "}
                   <span className="font-mono">{r.subject_id}</span>
-                  <span className="text-muted-foreground">
-                    {" "}
-                    denied perms {r.denied_perms}
-                  </span>
+                  <span className="text-muted-foreground"> denied perms {r.denied_perms}</span>
                   {r.project_id && (
-                    <span className="text-muted-foreground/70">
-                      {" "}
-                      · project {r.project_id}
-                    </span>
+                    <span className="text-muted-foreground/70"> · project {r.project_id}</span>
                   )}
                 </span>
                 <Button
@@ -321,28 +296,20 @@ export function GovernanceSettings() {
       <Card className="p-5">
         <h3 className="text-sm font-semibold">Workspace role overrides</h3>
         <p className="mb-3 text-[12px] text-muted-foreground">
-          Tune the default permissions of a workspace role (leave blank to use
-          the built-in default).
+          Tune the default permissions of a workspace role (leave blank to use the built-in
+          default).
         </p>
         <ul className="flex flex-col gap-2">
           {WORKSPACE_ROLES.map((role) => (
             <li key={role} className="flex flex-wrap items-center gap-2">
               <span className="w-20 text-sm capitalize">{role}</span>
               <Input
-                placeholder={
-                  overrides[role]?.join(",") || "default permissions"
-                }
+                placeholder={overrides[role]?.join(",") || "default permissions"}
                 value={overrideEdit[role] ?? overrides[role]?.join(",") ?? ""}
-                onChange={(e) =>
-                  setOverrideEdit((o) => ({ ...o, [role]: e.target.value }))
-                }
+                onChange={(e) => setOverrideEdit((o) => ({ ...o, [role]: e.target.value }))}
                 className="max-w-md flex-1 font-mono text-[12px]"
               />
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => void saveOverride(role)}
-              >
+              <Button variant="outline" size="sm" onClick={() => void saveOverride(role)}>
                 Save
               </Button>
             </li>

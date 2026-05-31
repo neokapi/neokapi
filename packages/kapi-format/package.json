@@ -37,9 +37,9 @@
   "scripts": {
     "build": "node build.mjs",
     "prepack": "node build.mjs",
-    "typecheck": "vpx tsc --noEmit",
+    "typecheck": "vp check --no-fmt --no-lint",
     "validate": "node --experimental-strip-types examples/validate.ts",
-    "test": "vitest run"
+    "test": "vp test"
   },
   "devDependencies": {
     "esbuild": "^0.28.0",

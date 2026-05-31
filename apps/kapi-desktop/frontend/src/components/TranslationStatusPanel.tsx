@@ -62,7 +62,7 @@ export function TranslationStatusPanel({ tabID, status: propStatus }: Translatio
     setError(null);
     try {
       const result = await api.runExtract(tabID);
-      setExtractLog(result.log);
+      if (result) setExtractLog(result.log);
       refreshStatus();
     } catch (e) {
       setError(String(e));

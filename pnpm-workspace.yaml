@@ -1,0 +1,61 @@
+# pnpm workspace + settings — migrated from the root package.json "workspaces"
+# field and npm "overrides"/.npmrc on the move to pnpm. pnpm 11 reads overrides
+# and most settings from THIS file (the package.json "pnpm" field and several
+# .npmrc keys are no longer honored) — see https://pnpm.io/settings.
+#
+# Glob patterns (not explicit paths) on purpose: pnpm includes a globbed
+# directory only when it actually contains a package.json, so a *partial*
+# checkout still resolves. The bowrain-web / bowrain-ctrl Docker builds copy
+# only a subtree of the monorepo; with globs those builds see a valid (smaller)
+# workspace instead of erroring on missing member directories.
+#
+# These ten globs match exactly the 23 frontend members and nothing else
+# (packages/kapi-claude-plugin, bowrain/apps/bowrain and the standalone
+# e2e/harness trees have no package.json under these globs; bowrain/web/landing
+# is listed explicitly so the non-member bowrain/web/docs is not pulled in).
+packages:
+  - packages/*
+  - storybook
+  - web/*
+  - apps/kapi-desktop/frontend
+  - bowrain/packages/*
+  - bowrain/storybook
+  - bowrain/emails
+  - bowrain/apps/*
+  - bowrain/apps/bowrain/frontend
+  - bowrain/web/landing
+
+# Link a local workspace package in place of a registry version whenever the
+# local version satisfies the range — every internal @neokapi/* dependency is
+# declared "*", so this reproduces the implicit linking we relied on under npm
+# workspaces. (We dropped npm's install-strategy=hoisted: pnpm's isolated store
+# shares a single React/etc. across the workspace by content hash and makes each
+# git worktree's node_modules cheap hardlinks from the global store — the whole
+# reason for the switch.)
+linkWorkspacePackages: true
+
+# Hoist all dependencies into the root node_modules (npm-like flat layout) while
+# keeping pnpm's content-addressed store (so per-worktree installs stay cheap via
+# hardlinks). This matches the repo's prior npm `install-strategy=hoisted` intent
+# — a single shared React/etc. and resolvable transitive deps — so workspace
+# packages consumed *from source* (e.g. @neokapi/ui-primitives importing
+# @codemirror/* transitively) resolve without declaring every phantom dependency.
+shamefullyHoist: true
+
+# npm always runs pre/post scripts; keep that under pnpm so hooks like
+# web/docs' prebuild → gen-reference still fire automatically.
+enablePrePostScripts: true
+
+# Cross-workspace version pins (was the root package.json npm "overrides").
+overrides:
+  "@tailwindcss/vite>vite": "^6.0.0 || ^7.0.0 || ^8.0.0"
+  "@tanstack/react-query": "5.94.5"
+  "vite": "^8.0.0"
+  "webpackbar": "^7.0.0"
+
+allowBuilds:
+  '@swc/core': true
+  core-js: true
+  esbuild: true
+  msw: true
+  protobufjs: true

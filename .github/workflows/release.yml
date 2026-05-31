@@ -76,9 +76,9 @@ jobs:
 
       - uses: ./.github/actions/setup-node-ui
 
-      - name: Build shared UI package
+      - name: Type-check shared UI package
         working-directory: bowrain/packages/ui
-        run: npx tsc
+        run: vp check --no-fmt --no-lint
 
       - name: Run UI unit tests
         working-directory: bowrain/packages/ui
@@ -389,9 +389,9 @@ jobs:
       - name: Install wails3 CLI
         run: go install github.com/wailsapp/wails/v3/cmd/wails3@latest
 
-      - name: Build shared UI package
+      - name: Type-check shared UI package
         working-directory: bowrain/packages/ui
-        run: npx tsc
+        run: vp check --no-fmt --no-lint
 
       # Build frontend and assets manually to avoid Wails Taskfile running
       # `npm install` which conflicts with the workspace npm ci above.

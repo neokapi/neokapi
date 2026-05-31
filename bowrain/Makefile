@@ -145,8 +145,8 @@ build-ui: build-server frontend-build ## Build server + frontend
 ui-deps: ## Install shared UI package dependencies
 	cd packages/ui && vp install
 
-ui-build: ui-deps ## Build shared UI declarations
-	cd packages/ui && vpx tsc
+ui-build: ui-deps ## Type-check shared UI (consumed from source; no emit)
+	cd packages/ui && vp check --no-fmt --no-lint
 
 ui-check: ui-deps ## Lint, format-check, and typecheck shared UI
 	cd packages/ui && vp check

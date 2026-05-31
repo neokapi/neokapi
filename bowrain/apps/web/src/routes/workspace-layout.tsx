@@ -62,10 +62,7 @@ function parseProjectParams(pathname: string, workspaceSlug: string) {
   let itemId: string | undefined;
 
   // Check for the per-file editor surfaces (/$itemId/{translate,review,pre-process}).
-  if (
-    parts.length >= 5 &&
-    ["translate", "review", "pre-process"].includes(parts[4])
-  ) {
+  if (parts.length >= 5 && ["translate", "review", "pre-process"].includes(parts[4])) {
     itemId = decodeURIComponent(parts[3]);
   }
 
@@ -105,12 +102,8 @@ function ConnectedTopBar({
   const api = useApi();
   const queryClient = useQueryClient();
 
-  const { data: activitiesData } = useQuery(
-    activitiesQueryOptions(api, workspaceSlug),
-  );
-  const { data: myTasksData } = useQuery(
-    myTasksQueryOptions(api, workspaceSlug),
-  );
+  const { data: activitiesData } = useQuery(activitiesQueryOptions(api, workspaceSlug));
+  const { data: myTasksData } = useQuery(myTasksQueryOptions(api, workspaceSlug));
 
   const markSeen = useCallback(() => {
     void api.markActivitiesSeen(workspaceSlug).then(() => {
@@ -142,9 +135,7 @@ function ConnectedTopBar({
 /** @bravo trigger button for the top bar. */
 function ConnectedBravoTrigger() {
   const { state, actions } = useBravo();
-  return (
-    <BravoPanelTrigger onClick={actions.togglePanel} active={state.panelOpen} />
-  );
+  return <BravoPanelTrigger onClick={actions.togglePanel} active={state.panelOpen} />;
 }
 
 /** @bravo chat panel — renders as an assistant-ui powered sidebar. */
@@ -152,9 +143,7 @@ function ConnectedBravoPanel() {
   const { state, actions } = useBravo();
   const runtime = useBravoAssistantRuntime();
 
-  const [view, setView] = useState<"list" | "chat">(
-    state.activeConversation ? "chat" : "list",
-  );
+  const [view, setView] = useState<"list" | "chat">(state.activeConversation ? "chat" : "list");
 
   // Switch to chat view when a conversation becomes active.
   useEffect(() => {
@@ -164,9 +153,7 @@ function ConnectedBravoPanel() {
   return (
     <BravoSidebar
       open={state.panelOpen}
-      onOpenChange={(open) =>
-        open ? actions.openPanel() : actions.closePanel()
-      }
+      onOpenChange={(open) => (open ? actions.openPanel() : actions.closePanel())}
       runtime={runtime}
       view={view}
       onBack={() => setView("list")}
@@ -209,11 +196,7 @@ function TopBarStreamSelector({
   return (
     <StreamSelector
       streams={streams}
-      activeStream={
-        streams.find(
-          (s: StreamInfo) => s.name === sidebarContext.activeStream,
-        ) ?? null
-      }
+      activeStream={streams.find((s: StreamInfo) => s.name === sidebarContext.activeStream) ?? null}
       defaultStream={sidebarContext.project.default_stream}
       onStreamChange={(s: StreamInfo) => onStreamChange(s.name)}
       onCreateStream={actions.onCreateStream}
@@ -256,13 +239,8 @@ export function WorkspaceLayout() {
       const path = pathname;
       const streamPattern = /\/s\/[^/]+/;
       if (streamPattern.test(path)) {
-        const newPath = path.replace(
-          streamPattern,
-          `/s/${encodeURIComponent(newStream)}`,
-        );
-        void navigate({ to: newPath as string, replace: true } as Parameters<
-          typeof navigate
-        >[0]);
+        const newPath = path.replace(streamPattern, `/s/${encodeURIComponent(newStream)}`);
+        void navigate({ to: newPath as string, replace: true } as Parameters<typeof navigate>[0]);
       }
     },
     [navigate, workspaceSlug],
@@ -279,9 +257,7 @@ export function WorkspaceLayout() {
 
   // Map auditlog and recycle bin to settings for sidebar highlighting (they're now sub-items of settings).
   const effectiveView =
-    activeView === "auditlog" || activeView === "bin"
-      ? ("settings" as const)
-      : activeView;
+    activeView === "auditlog" || activeView === "bin" ? ("settings" as const) : activeView;
 
   // Derive settings sub-nav from URL.
   const settingsSubNav = useMemo(() => {
@@ -485,16 +461,7 @@ export function WorkspaceLayout() {
         });
       },
     };
-  }, [
-    pathname,
-    workspaceSlug,
-    stream,
-    activeView,
-    ws,
-    queryClient,
-    navigate,
-    handleStreamChange,
-  ]);
+  }, [pathname, workspaceSlug, stream, activeView, ws, queryClient, navigate, handleStreamChange]);
 
   // -----------------------------------------------------------------------
   // Handlers
@@ -616,9 +583,7 @@ export function WorkspaceLayout() {
           <div className="relative z-10 flex items-center justify-center h-screen flex-col gap-6 text-foreground">
             <Card className="min-w-[360px]">
               <CardHeader className="items-center text-center">
-                <CardTitle className="text-xl font-semibold">
-                  Signed out
-                </CardTitle>
+                <CardTitle className="text-xl font-semibold">Signed out</CardTitle>
                 <p className="text-sm text-muted-foreground">
                   You have been signed out successfully.
                 </p>
@@ -659,11 +624,7 @@ export function WorkspaceLayout() {
               workspaces={workspaces}
               activeWorkspace={activeWorkspace}
               onSelectWorkspace={handleSelectWorkspace}
-              onCreateWorkspace={
-                serverMode === "server"
-                  ? () => setShowCreateWs(true)
-                  : undefined
-              }
+              onCreateWorkspace={serverMode === "server" ? () => setShowCreateWs(true) : undefined}
               activeView={effectiveView}
               onViewChange={handleViewChange}
               user={user}
@@ -677,9 +638,7 @@ export function WorkspaceLayout() {
               headerSlot={
                 <ConnectedTopBar
                   user={user}
-                  onSignOut={
-                    serverMode === "server" ? handleSignOut : undefined
-                  }
+                  onSignOut={serverMode === "server" ? handleSignOut : undefined}
                   onSettings={
                     serverMode === "server"
                       ? () =>
@@ -740,10 +699,7 @@ export function WorkspaceLayout() {
               rightPanelSlot={<ConnectedBravoPanel />}
               contentClassName={isEditor ? "overflow-hidden" : "overflow-auto"}
             >
-              <StreamProvider
-                initialStream={currentStream}
-                onStreamChange={handleStreamChange}
-              >
+              <StreamProvider initialStream={currentStream} onStreamChange={handleStreamChange}>
                 <Outlet />
               </StreamProvider>
             </AppShell>

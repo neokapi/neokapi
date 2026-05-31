@@ -93,7 +93,9 @@ export const EmailChangeVerifyEmail = ({
         <Section style={footer}>
           <Text style={footerText}>{"© Bowrain. All rights reserved."}</Text>
           <Text style={footerText}>
-            {"If you didn't request this change, you can safely ignore this email — your account stays as-is."}
+            {
+              "If you didn't request this change, you can safely ignore this email — your account stays as-is."
+            }
           </Text>
         </Section>
       </Container>

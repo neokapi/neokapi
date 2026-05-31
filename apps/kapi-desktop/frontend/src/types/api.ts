@@ -47,6 +47,10 @@ export interface ContentCollection {
   path?: string;
   format?: FormatSpec;
   target?: string;
+
+  // Optional archived-state marker; gates the Translation-state section in
+  // ContentPage (absent on most collections).
+  archive?: boolean;
 }
 
 export interface ContentItem {

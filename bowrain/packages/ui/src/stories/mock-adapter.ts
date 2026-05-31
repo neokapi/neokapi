@@ -46,10 +46,7 @@ import {
 function sourceToDisplayHTML(b: BlockInfo): string {
   const spans = b.source_spans ?? [];
   if (!b.has_spans || !b.source_coded || spans.length === 0) {
-    return b.source
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;");
+    return b.source.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   }
   let result = "";
   let spanIdx = 0;
@@ -332,10 +329,7 @@ export function createMockAdapter(blocks?: BlockInfo[]): ApiAdapter {
         blk.targets_coded = blk.targets_coded ?? {};
         blk.targets_coded[req.target_locale] = req.coded_text;
         // Also write plain text (strip Unicode markers)
-        blk.targets[req.target_locale] = req.coded_text.replace(
-          /[\uE001\uE002\uE003]/g,
-          "",
-        );
+        blk.targets[req.target_locale] = req.coded_text.replace(/[\uE001\uE002\uE003]/g, "");
       }
     },
 
@@ -394,12 +388,7 @@ export function createMockAdapter(blocks?: BlockInfo[]): ApiAdapter {
     ],
 
     // --- Block notes ----------------------------------------------------
-    addBlockNote: async (
-      _ws,
-      _projectId,
-      blockId,
-      text,
-    ): Promise<BlockNote> => ({
+    addBlockNote: async (_ws, _projectId, blockId, text): Promise<BlockNote> => ({
       id: `note-${Date.now()}`,
       blockId,
       author: "translator@example.com",
@@ -410,8 +399,7 @@ export function createMockAdapter(blocks?: BlockInfo[]): ApiAdapter {
     deleteBlockNote: async () => {},
 
     // --- Block history ---------------------------------------------------
-    getBlockHistory: async (): Promise<BlockHistoryEntry[]> =>
-      sampleBlockHistory,
+    getBlockHistory: async (): Promise<BlockHistoryEntry[]> => sampleBlockHistory,
 
     // --- Rollback / restore (#778) ---------------------------------------
     rollbackBlock: async () => {},
@@ -433,12 +421,7 @@ export function createMockAdapter(blocks?: BlockInfo[]): ApiAdapter {
     addGroupMember: async () => {},
     removeGroupMember: async () => {},
     listGroupBindings: async () => [],
-    addGroupBinding: async (
-      _ws: string,
-      groupId: string,
-      projectId: string,
-      roleId: string,
-    ) => ({
+    addGroupBinding: async (_ws: string, groupId: string, projectId: string, roleId: string) => ({
       id: "b1",
       group_id: groupId,
       workspace_id: "ws",
@@ -471,8 +454,7 @@ export function createMockAdapter(blocks?: BlockInfo[]): ApiAdapter {
     runFileQACheck: async (): Promise<FileQAResult[]> => sampleFileQAResults,
 
     // --- Preview ---------------------------------------------------------
-    renderDocumentPreview: async (): Promise<string> =>
-      generatePreviewHTML(_blocks),
+    renderDocumentPreview: async (): Promise<string> => generatePreviewHTML(_blocks),
     renderBlockHTML: async (_ws, _projectId, _blockId): Promise<string> =>
       "<span>rendered block</span>",
 
@@ -494,9 +476,7 @@ export function createMockAdapter(blocks?: BlockInfo[]): ApiAdapter {
     exportTermsJSON: async () => "{}",
 
     // --- Automations -----------------------------------------------------
-    listAutomationRules: async (): Promise<AutomationRule[]> => [
-      ..._automationRules,
-    ],
+    listAutomationRules: async (): Promise<AutomationRule[]> => [..._automationRules],
     createAutomationRule: async (
       _ws: string,
       _pid: string,
@@ -530,11 +510,7 @@ export function createMockAdapter(blocks?: BlockInfo[]): ApiAdapter {
       }
       throw new Error("Rule not found");
     },
-    deleteAutomationRule: async (
-      _ws: string,
-      _pid: string,
-      ruleId: string,
-    ): Promise<void> => {
+    deleteAutomationRule: async (_ws: string, _pid: string, ruleId: string): Promise<void> => {
       const idx = _automationRules.findIndex((r) => r.id === ruleId);
       if (idx >= 0) _automationRules.splice(idx, 1);
     },
@@ -551,10 +527,8 @@ export function createMockAdapter(blocks?: BlockInfo[]): ApiAdapter {
       }
       throw new Error("Rule not found");
     },
-    listAutomationEvents: async (): Promise<AutomationEvent[]> =>
-      sampleAutomationEvents,
-    listAutomationHistory: async (): Promise<AutomationHistoryEntry[]> =>
-      sampleAutomationHistory,
+    listAutomationEvents: async (): Promise<AutomationEvent[]> => sampleAutomationEvents,
+    listAutomationHistory: async (): Promise<AutomationHistoryEntry[]> => sampleAutomationHistory,
 
     // --- Automation Runs ------------------------------------------------
     listAutomationRuns: async () => [],
@@ -894,9 +868,7 @@ export function createMockAdapter(blocks?: BlockInfo[]): ApiAdapter {
         status: "active" as const,
         seatCount: 3,
         currentPeriodStart: new Date().toISOString(),
-        currentPeriodEnd: new Date(
-          Date.now() + 30 * 24 * 60 * 60 * 1000,
-        ).toISOString(),
+        currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
       },
       credits: {
         creditsTotal: 500_000,

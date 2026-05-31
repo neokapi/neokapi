@@ -67,12 +67,12 @@ jobs:
           check_paths bowrain_cli '^bowrain/cli/'
           check_paths bowrain_plugin '^bowrain/plugin/'
           # bowrain: anything under bowrain/ except frontend app dirs, packages/, bowrain/core/, bowrain/cli/, docker/, and deploy/
-          if echo "$CHANGED" | grep -E '^bowrain/' | grep -vE '^bowrain/(apps/(web|bowrain/frontend|keycloak-theme)|packages/|core/|cli/|docker/|deploy/)' | grep -q .; then
+          if echo "$CHANGED" | grep -E '^bowrain/' | grep -vE '^bowrain/(apps/(web|bowrain/frontend|keycloak-theme|ctrl|pulse)|packages/|emails/|core/|cli/|docker/|deploy/)' | grep -q .; then
             echo "bowrain=true" >> "$GITHUB_OUTPUT"
           else
             echo "bowrain=false" >> "$GITHUB_OUTPUT"
           fi
-          check_paths frontend  '^bowrain/apps/(web|bowrain/frontend)/' '^bowrain/packages/ui/'
+          check_paths frontend  '^bowrain/apps/(web|bowrain/frontend|ctrl|pulse|keycloak-theme)/' '^bowrain/packages/ui/' '^bowrain/emails/'
           check_paths kapi_desktop '^apps/kapi-desktop/' '^packages/(ui|flow-editor)/'
           check_paths bowrain_desktop '^bowrain/apps/bowrain/' '^bowrain/packages/ui/'
           check_paths kapi_react '^packages/kapi-(format|react)/'
@@ -112,6 +112,22 @@ jobs:
         working-directory: bowrain/apps/bowrain/frontend
         run: vp check
 
+      - name: Check control panel (ctrl)
+        working-directory: bowrain/apps/ctrl
+        run: vp check
+
+      - name: Check pulse dashboard
+        working-directory: bowrain/apps/pulse
+        run: vp check
+
+      - name: Check Keycloak theme
+        working-directory: bowrain/apps/keycloak-theme
+        run: vp check
+
+      - name: Check email templates
+        working-directory: bowrain/emails
+        run: vp check
+
   # ── Kapi Desktop frontend ───────────────────────────────────────────────
   kapi-desktop:
     name: Kapi Desktop
@@ -124,7 +140,19 @@ jobs:
 
       - name: Build kapi-react (vite.config imports from dist)
         working-directory: packages/kapi-react
-        run: npm run build
+        run: vp run build
+
+      - name: Check shared UI primitives
+        working-directory: packages/ui
+        run: vp check
+
+      - name: Check flow-editor
+        working-directory: packages/flow-editor
+        run: vp check
+
+      - name: Check Kapi Desktop frontend
+        working-directory: apps/kapi-desktop/frontend
+        run: vp check
 
       - name: Run flow-editor tests
         working-directory: packages/flow-editor
@@ -208,7 +236,7 @@ jobs:
 
       - name: Build kapi-react
         working-directory: packages/kapi-react
-        run: npm run build
+        run: vp run build
 
   # ── Go tests (parallel per module) ────────────────────────────────────────
   test-framework:

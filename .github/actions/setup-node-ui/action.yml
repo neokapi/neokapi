@@ -12,10 +12,10 @@ runs:
   steps:
     - uses: voidzero-dev/setup-vp@v1
       with:
-        version: "0.1.15"
+        version: "0.1.23"
         node-version: ${{ inputs.node-version }}
         cache: true
-        cache-dependency-path: package-lock.json
+        cache-dependency-path: pnpm-lock.yaml
         run-install: false
 
     - name: Install workspace dependencies

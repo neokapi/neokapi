@@ -1,10 +1,9 @@
 {
   "extends": "@docusaurus/tsconfig",
   "compilerOptions": {
-    // baseUrl must be set here (not only in the extended config) so the
-    // inherited "@site/*" path mapping resolves against the project root
-    // rather than the base config's node_modules directory.
-    "baseUrl": ".",
+    // "@site/*" maps to the project root. Paths resolve relative to this
+    // tsconfig — no baseUrl, since tsgolint (which powers `vp check` type
+    // checking) does not support compilerOptions.baseUrl.
     "paths": {
       "@site/*": ["./*"]
     },

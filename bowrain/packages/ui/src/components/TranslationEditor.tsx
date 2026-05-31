@@ -82,9 +82,7 @@ export function TranslationEditor({
   const [blocks, setBlocks] = useState<BlockInfo[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
-  const [targetLocale, setTargetLocale] = useState(
-    project.target_languages[0] || "",
-  );
+  const [targetLocale, setTargetLocale] = useState(project.target_languages[0] || "");
   const [wordCount, setWordCount] = useState<WordCountResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -99,9 +97,7 @@ export function TranslationEditor({
   // Visual-card extended state (QA, history, notes) — loaded for the selected
   // block; only surfaced in the Visual view's card.
   const [blockQAIssues, setBlockQAIssues] = useState<QAIssue[]>([]);
-  const [fileQAResults, setFileQAResults] = useState<
-    FileQAResult[] | undefined
-  >(undefined);
+  const [fileQAResults, setFileQAResults] = useState<FileQAResult[] | undefined>(undefined);
   const [qaLoading, setQaLoading] = useState(false);
   const [blockHistory, setBlockHistory] = useState<BlockHistoryEntry[]>([]);
   const [blockNotes, setBlockNotes] = useState<BlockNote[]>([]);
@@ -169,16 +165,12 @@ export function TranslationEditor({
     ? blocks.filter(
         (b) =>
           b.source.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          (b.targets[targetLocale] || "")
-            .toLowerCase()
-            .includes(searchQuery.toLowerCase()),
+          (b.targets[targetLocale] || "").toLowerCase().includes(searchQuery.toLowerCase()),
       )
     : blocks;
 
   const translatableBlocks = filteredBlocks.filter((b) => b.translatable);
-  const translatedCount = translatableBlocks.filter(
-    (b) => b.targets[targetLocale],
-  ).length;
+  const translatedCount = translatableBlocks.filter((b) => b.targets[targetLocale]).length;
   const progress =
     translatableBlocks.length > 0
       ? Math.round((translatedCount / translatableBlocks.length) * 100)
@@ -306,43 +298,25 @@ export function TranslationEditor({
       const block = filteredBlocks[selectedIndex];
       if (!block) return;
       try {
-        const created = await fullApi.createEntity(
-          wsSlug,
-          project.id,
-          fileName,
-          block.id,
-          {
-            text: entityMarkState.text,
-            type,
-            start: entityMarkState.start,
-            end: entityMarkState.end,
-            dnt,
-            source: "manual",
-          },
-        );
+        const created = await fullApi.createEntity(wsSlug, project.id, fileName, block.id, {
+          text: entityMarkState.text,
+          type,
+          start: entityMarkState.start,
+          end: entityMarkState.end,
+          dnt,
+          source: "manual",
+        });
         setBlocks((prev) =>
           prev.map((b) =>
-            b.id === block.id
-              ? { ...b, entities: [...(b.entities ?? []), created] }
-              : b,
+            b.id === block.id ? { ...b, entities: [...(b.entities ?? []), created] } : b,
           ),
         );
       } catch (err) {
-        setError(
-          err instanceof Error ? err.message : "Failed to create entity",
-        );
+        setError(err instanceof Error ? err.message : "Failed to create entity");
       }
       setEntityMarkState(null);
     },
-    [
-      entityMarkState,
-      selectedIndex,
-      filteredBlocks,
-      fullApi,
-      wsSlug,
-      project.id,
-      fileName,
-    ],
+    [entityMarkState, selectedIndex, filteredBlocks, fullApi, wsSlug, project.id, fileName],
   );
 
   // Single dispatcher for the UnifiedTargetEditor — flat results go through
@@ -419,11 +393,7 @@ export function TranslationEditor({
     setLoading(true);
     setError(null);
     try {
-      const blob = await api.exportTranslatedFile(
-        project.id,
-        fileName,
-        targetLocale,
-      );
+      const blob = await api.exportTranslatedFile(project.id, fileName, targetLocale);
       if (onExport) {
         onExport(blob, fileName);
       } else {
@@ -470,8 +440,7 @@ export function TranslationEditor({
 
   const handleVisualApprove = useCallback(() => {
     handleMarkReviewed();
-    if (selectedIndex < filteredBlocks.length - 1)
-      setSelectedIndex(selectedIndex + 1);
+    if (selectedIndex < filteredBlocks.length - 1) setSelectedIndex(selectedIndex + 1);
   }, [handleMarkReviewed, selectedIndex, filteredBlocks.length]);
 
   const handleVisualReject = useCallback(() => {
@@ -516,15 +485,7 @@ export function TranslationEditor({
           );
         });
     },
-    [
-      tmMatches,
-      filteredBlocks,
-      selectedIndex,
-      api,
-      project.id,
-      fileName,
-      targetLocale,
-    ],
+    [tmMatches, filteredBlocks, selectedIndex, api, project.id, fileName, targetLocale],
   );
 
   // Insert a target term: append it to the selected block's target and persist.
@@ -547,15 +508,11 @@ export function TranslationEditor({
         .then(() => {
           setBlocks((prev) =>
             prev.map((b) =>
-              b.id === block.id
-                ? { ...b, targets: { ...b.targets, [targetLocale]: next } }
-                : b,
+              b.id === block.id ? { ...b, targets: { ...b.targets, [targetLocale]: next } } : b,
             ),
           );
         })
-        .catch((e) =>
-          setError(e instanceof Error ? e.message : "Failed to insert term"),
-        );
+        .catch((e) => setError(e instanceof Error ? e.message : "Failed to insert term"));
     },
     [filteredBlocks, selectedIndex, api, project.id, fileName, targetLocale],
   );
@@ -589,9 +546,7 @@ export function TranslationEditor({
             ),
           );
         })
-        .catch((e) =>
-          setError(e instanceof Error ? e.message : "Failed to revert"),
-        );
+        .catch((e) => setError(e instanceof Error ? e.message : "Failed to revert"));
     },
     [filteredBlocks, selectedIndex, api, project.id, targetLocale],
   );
@@ -603,9 +558,7 @@ export function TranslationEditor({
       api
         .addBlockNote(project.id, block.id, text)
         .then((note) => setBlockNotes((prev) => [...prev, note]))
-        .catch((e) =>
-          setError(e instanceof Error ? e.message : "Failed to add note"),
-        );
+        .catch((e) => setError(e instanceof Error ? e.message : "Failed to add note"));
     },
     [filteredBlocks, selectedIndex, api, project.id],
   );
@@ -614,12 +567,8 @@ export function TranslationEditor({
     (noteId: string) => {
       api
         .deleteBlockNote(project.id, noteId)
-        .then(() =>
-          setBlockNotes((prev) => prev.filter((n) => n.id !== noteId)),
-        )
-        .catch((e) =>
-          setError(e instanceof Error ? e.message : "Failed to delete note"),
-        );
+        .then(() => setBlockNotes((prev) => prev.filter((n) => n.id !== noteId)))
+        .catch((e) => setError(e instanceof Error ? e.message : "Failed to delete note"));
     },
     [api, project.id],
   );
@@ -674,12 +623,9 @@ export function TranslationEditor({
   );
 
   const progressBreakdown: string[] = [];
-  if (statusCounts.reviewed > 0)
-    progressBreakdown.push(`${statusCounts.reviewed} reviewed`);
-  if (statusCounts.translated > 0)
-    progressBreakdown.push(`${statusCounts.translated} translated`);
-  if (statusCounts.draft > 0)
-    progressBreakdown.push(`${statusCounts.draft} draft`);
+  if (statusCounts.reviewed > 0) progressBreakdown.push(`${statusCounts.reviewed} reviewed`);
+  if (statusCounts.translated > 0) progressBreakdown.push(`${statusCounts.translated} translated`);
+  if (statusCounts.draft > 0) progressBreakdown.push(`${statusCounts.draft} draft`);
   if (statusCounts["not-started"] > 0)
     progressBreakdown.push(`${statusCounts["not-started"]} pending`);
 
@@ -688,28 +634,15 @@ export function TranslationEditor({
       {/* Header */}
       <div className="flex items-center gap-3 mb-3">
         {surfaceTabs}
-        <span className="text-base font-semibold flex-1 truncate">
-          {fileName}
-        </span>
+        <span className="text-base font-semibold flex-1 truncate">{fileName}</span>
         {presenceSlot}
         {/* View toggle: Visual ↔ Table */}
-        <Tabs
-          value={view}
-          onValueChange={(v: string) => setView(v as TranslateView)}
-        >
+        <Tabs value={view} onValueChange={(v: string) => setView(v as TranslateView)}>
           <TabsList className="h-8" data-testid="view-switcher">
-            <TabsTrigger
-              value="visual"
-              className="text-[11px] px-3 h-7"
-              data-testid="view-visual"
-            >
+            <TabsTrigger value="visual" className="text-[11px] px-3 h-7" data-testid="view-visual">
               Visual
             </TabsTrigger>
-            <TabsTrigger
-              value="table"
-              className="text-[11px] px-3 h-7"
-              data-testid="view-table"
-            >
+            <TabsTrigger value="table" className="text-[11px] px-3 h-7" data-testid="view-table">
               Table
             </TabsTrigger>
           </TabsList>
@@ -726,12 +659,7 @@ export function TranslationEditor({
             ))}
           </SelectContent>
         </Select>
-        <Button
-          size="sm"
-          onClick={handleExport}
-          disabled={loading}
-          data-testid="export-btn"
-        >
+        <Button size="sm" onClick={handleExport} disabled={loading} data-testid="export-btn">
           Export
         </Button>
       </div>
@@ -841,16 +769,14 @@ export function TranslationEditor({
         </span>
         {wordCount && (
           <span>
-            Source: {wordCount.source_words} words, {wordCount.source_chars}{" "}
-            chars
+            Source: {wordCount.source_words} words, {wordCount.source_chars} chars
             {wordCount.target_words[targetLocale] !== undefined && (
               <> | Target: {wordCount.target_words[targetLocale]} words</>
             )}
           </span>
         )}
         <span className="text-muted-foreground inline-flex items-center gap-0.5">
-          Enter: edit | Esc: cancel |{" "}
-          <ArrowUp className="w-3 h-3 inline-block" />
+          Enter: edit | Esc: cancel | <ArrowUp className="w-3 h-3 inline-block" />
           <ArrowDown className="w-3 h-3 inline-block" />: navigate
           {editingIndex !== null && filteredBlocks[editingIndex]?.has_spans && (
             <> | Ctrl+1..9: insert tag</>

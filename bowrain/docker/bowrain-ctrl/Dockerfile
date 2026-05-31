@@ -1,5 +1,6 @@
 FROM node:24-slim AS build
 WORKDIR /src
+ENV CI=true
 
 # Install vite-plus (vp) which the package build scripts call into.
 # Shim `vpx` → `npx` since the install script only ships `vp`; both
@@ -10,19 +11,32 @@ RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certifi
     && chmod +x /usr/local/bin/vp \
     && printf '#!/bin/sh\nexec npx "$@"\n' > /usr/local/bin/vpx \
     && chmod +x /usr/local/bin/vpx \
+    && corepack enable \
     && rm -rf /var/lib/apt/lists/*
-COPY package.json package-lock.json ./
+
+# Populate the pnpm store from the lockfile alone (cached until pnpm-lock.yaml
+# changes). The packageManager field in package.json pins the pnpm version.
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+RUN corepack pnpm fetch
+
+# Workspace manifests for ctrl's dependency closure; glob workspace members
+# resolve only from the dirs present here.
 COPY packages/kapi-format/package.json packages/kapi-format/
 COPY packages/ui/package.json packages/ui/
 COPY bowrain/packages/ui/package.json bowrain/packages/ui/
 COPY bowrain/apps/ctrl/package.json bowrain/apps/ctrl/
-RUN npm ci
+# Install every present workspace project's deps from the store (ctrl bundles
+# its @neokapi/* workspace deps from source, so those need their deps too).
+RUN corepack pnpm install --offline
+
+# Source for ctrl + its workspace deps (consumed from source via package exports).
 COPY packages/kapi-format/ packages/kapi-format/
 COPY packages/ui/ packages/ui/
 COPY bowrain/packages/ui/ bowrain/packages/ui/
-RUN cd bowrain/packages/ui && npx tsc
 COPY bowrain/apps/ctrl/ bowrain/apps/ctrl/
-RUN cd bowrain/apps/ctrl && npm run build
+
+# Build. Type safety is enforced by `vp check` in CI, not the build.
+RUN corepack pnpm --filter bowrain-ctrl run build
 
 FROM nginx:1-alpine
 RUN rm /etc/nginx/conf.d/default.conf

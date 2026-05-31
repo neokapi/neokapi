@@ -5,12 +5,12 @@
   "type": "module",
   "scripts": {
     "dev": "vp dev",
-    "build": "vpx tsc && vp build",
-    "build-keycloak-theme": "vp run build && keycloakify build",
+    "build": "vp build",
+    "build-keycloak-theme": "vp run build && vpx keycloakify build",
     "check": "vp check",
     "lint": "vp lint",
     "fmt": "vp fmt",
-    "update-kc-gen": "keycloakify update-kc-gen",
+    "update-kc-gen": "vpx keycloakify update-kc-gen",
     "e2e": "vpx playwright test --config e2e/playwright.config.ts"
   },
   "dependencies": {

@@ -809,18 +809,8 @@ export interface AutomationHistoryEntry {
 // Automation Runs (Bowrain AD-013)
 // ---------------------------------------------------------------------------
 
-export type RunStatus =
-  | "pending"
-  | "running"
-  | "completed"
-  | "failed"
-  | "partial";
-export type StepStatus =
-  | "pending"
-  | "running"
-  | "completed"
-  | "failed"
-  | "skipped";
+export type RunStatus = "pending" | "running" | "completed" | "failed" | "partial";
+export type StepStatus = "pending" | "running" | "completed" | "failed" | "skipped";
 
 /** Automation run — groups all actions triggered by one event */
 export interface AutomationRun {
@@ -1032,13 +1022,7 @@ export interface BravoToolCall {
   tool_name: string;
   input: Record<string, unknown>;
   output?: Record<string, unknown>;
-  status:
-    | "pending"
-    | "running"
-    | "completed"
-    | "failed"
-    | "needs_approval"
-    | "denied";
+  status: "pending" | "running" | "completed" | "failed" | "needs_approval" | "denied";
   duration: number;
   error?: string;
 }
