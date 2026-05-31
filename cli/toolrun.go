@@ -464,17 +464,32 @@ func (a *App) processOneFile(ctx context.Context, cfg ToolRunConfig, filePath st
 	}
 
 	executor := flow.NewExecutor()
+
+	// Derive a cancellable context for the feeder so a tool error (which
+	// cancels the executor's own internal context and stops the tools) can
+	// also unblock the feeder if it's parked on an inCh send. Without this
+	// the feeder goroutine would leak once more than a channel's worth of
+	// parts (default 64) remain unsent. feedDone lets us join it.
+	feedCtx, feedCancel := context.WithCancel(ctx)
+	defer feedCancel()
+
 	inCh, outCh, wait := executor.ExecuteWithChannels(ctx, f)
 
+	feedDone := make(chan struct{})
 	go func() {
+		defer close(feedDone)
+		defer close(inCh)
 		for _, p := range parts {
 			if recorder != nil && p.Resource != nil {
 				recorder.SnapshotPart(p, "reader", "initial")
 				recorder.Record("exit", "reader", p.Resource.ResourceID(), nil)
 			}
-			inCh <- p
+			select {
+			case inCh <- p:
+			case <-feedCtx.Done():
+				return
+			}
 		}
-		close(inCh)
 	}()
 
 	var outputParts []*model.Part
@@ -487,11 +502,18 @@ func (a *App) processOneFile(ctx context.Context, cfg ToolRunConfig, filePath st
 		outputParts = append(outputParts, p)
 	}
 
-	if err := wait(); err != nil {
+	waitErr := wait()
+	// The executor has finished draining; cancel and join the feeder so it
+	// never leaks — on a tool error the tools stop early and the feeder may
+	// still be parked on an inCh send for the parts past the channel buffer.
+	feedCancel()
+	<-feedDone
+
+	if waitErr != nil {
 		if cfg.AfterTool != nil {
 			cfg.AfterTool()
 		}
-		return fmt.Errorf("tool execution on %s: %w", filePath, err)
+		return fmt.Errorf("tool execution on %s: %w", filePath, waitErr)
 	}
 
 	if cfg.AfterTool != nil {
