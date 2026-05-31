@@ -5,7 +5,11 @@
     "moduleResolution": "bundler",
     "paths": {
       "@neokapi/ui-primitives": ["../../../packages/ui/src/index.ts"],
-      "@neokapi/ui-primitives/*": ["../../../packages/ui/src/*"]
+      "@neokapi/ui-primitives/*": ["../../../packages/ui/src/*"],
+      "@neokapi/ui": ["../../packages/ui/src/index.ts"],
+      "@neokapi/ui/*": ["../../packages/ui/src/*"],
+      "@neokapi/flow-editor": ["../../../packages/flow-editor/src/index.ts"],
+      "@neokapi/flow-editor/*": ["../../../packages/flow-editor/src/*"]
     },
     "jsx": "react-jsx",
     "strict": true,

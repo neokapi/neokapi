@@ -62,7 +62,10 @@ function parseProjectParams(pathname: string, workspaceSlug: string) {
   let itemId: string | undefined;
 
   // Check for the per-file editor surfaces (/$itemId/{translate,review,pre-process}).
-  if (parts.length >= 5 && ["translate", "review", "pre-process"].includes(parts[4])) {
+  if (
+    parts.length >= 5 &&
+    ["translate", "review", "pre-process"].includes(parts[4])
+  ) {
     itemId = decodeURIComponent(parts[3]);
   }
 
@@ -102,12 +105,18 @@ function ConnectedTopBar({
   const api = useApi();
   const queryClient = useQueryClient();
 
-  const { data: activitiesData } = useQuery(activitiesQueryOptions(api, workspaceSlug));
-  const { data: myTasksData } = useQuery(myTasksQueryOptions(api, workspaceSlug));
+  const { data: activitiesData } = useQuery(
+    activitiesQueryOptions(api, workspaceSlug),
+  );
+  const { data: myTasksData } = useQuery(
+    myTasksQueryOptions(api, workspaceSlug),
+  );
 
   const markSeen = useCallback(() => {
     void api.markActivitiesSeen(workspaceSlug).then(() => {
-      void queryClient.invalidateQueries({ queryKey: ["activities", workspaceSlug] });
+      void queryClient.invalidateQueries({
+        queryKey: ["activities", workspaceSlug],
+      });
     });
   }, [api, workspaceSlug, queryClient]);
 
@@ -133,7 +142,9 @@ function ConnectedTopBar({
 /** @bravo trigger button for the top bar. */
 function ConnectedBravoTrigger() {
   const { state, actions } = useBravo();
-  return <BravoPanelTrigger onClick={actions.togglePanel} active={state.panelOpen} />;
+  return (
+    <BravoPanelTrigger onClick={actions.togglePanel} active={state.panelOpen} />
+  );
 }
 
 /** @bravo chat panel — renders as an assistant-ui powered sidebar. */
@@ -141,7 +152,9 @@ function ConnectedBravoPanel() {
   const { state, actions } = useBravo();
   const runtime = useBravoAssistantRuntime();
 
-  const [view, setView] = useState<"list" | "chat">(state.activeConversation ? "chat" : "list");
+  const [view, setView] = useState<"list" | "chat">(
+    state.activeConversation ? "chat" : "list",
+  );
 
   // Switch to chat view when a conversation becomes active.
   useEffect(() => {
@@ -151,7 +164,9 @@ function ConnectedBravoPanel() {
   return (
     <BravoSidebar
       open={state.panelOpen}
-      onOpenChange={(open) => (open ? actions.openPanel() : actions.closePanel())}
+      onOpenChange={(open) =>
+        open ? actions.openPanel() : actions.closePanel()
+      }
       runtime={runtime}
       view={view}
       onBack={() => setView("list")}
@@ -194,7 +209,11 @@ function TopBarStreamSelector({
   return (
     <StreamSelector
       streams={streams}
-      activeStream={streams.find((s: StreamInfo) => s.name === sidebarContext.activeStream) ?? null}
+      activeStream={
+        streams.find(
+          (s: StreamInfo) => s.name === sidebarContext.activeStream,
+        ) ?? null
+      }
       defaultStream={sidebarContext.project.default_stream}
       onStreamChange={(s: StreamInfo) => onStreamChange(s.name)}
       onCreateStream={actions.onCreateStream}
@@ -237,8 +256,13 @@ export function WorkspaceLayout() {
       const path = pathname;
       const streamPattern = /\/s\/[^/]+/;
       if (streamPattern.test(path)) {
-        const newPath = path.replace(streamPattern, `/s/${encodeURIComponent(newStream)}`);
-        void navigate({ to: newPath as string, replace: true } as Parameters<typeof navigate>[0]);
+        const newPath = path.replace(
+          streamPattern,
+          `/s/${encodeURIComponent(newStream)}`,
+        );
+        void navigate({ to: newPath as string, replace: true } as Parameters<
+          typeof navigate
+        >[0]);
       }
     },
     [navigate, workspaceSlug],
@@ -255,7 +279,9 @@ export function WorkspaceLayout() {
 
   // Map auditlog and recycle bin to settings for sidebar highlighting (they're now sub-items of settings).
   const effectiveView =
-    activeView === "auditlog" || activeView === "bin" ? ("settings" as const) : activeView;
+    activeView === "auditlog" || activeView === "bin"
+      ? ("settings" as const)
+      : activeView;
 
   // Derive settings sub-nav from URL.
   const settingsSubNav = useMemo(() => {
@@ -266,6 +292,8 @@ export function WorkspaceLayout() {
     const rest = pathname.slice(settingsPath.length).replace(/^\//, "");
     if (rest === "languages") return "languages";
     if (rest === "members") return "members";
+    if (rest === "roles") return "roles";
+    if (rest === "governance") return "governance";
     if (rest === "providers") return "providers";
     if (rest === "tokens") return "tokens";
     if (rest === "system") return "system";
@@ -279,37 +307,76 @@ export function WorkspaceLayout() {
       const wsSlug = workspaceSlug ?? "";
       switch (id) {
         case "general":
-          void navigate({ to: "/$workspace/settings", params: { workspace: wsSlug } });
+          void navigate({
+            to: "/$workspace/settings",
+            params: { workspace: wsSlug },
+          });
           break;
         case "languages":
-          void navigate({ to: "/$workspace/settings/languages", params: { workspace: wsSlug } });
+          void navigate({
+            to: "/$workspace/settings/languages",
+            params: { workspace: wsSlug },
+          });
           break;
         case "members":
-          void navigate({ to: "/$workspace/settings/members", params: { workspace: wsSlug } });
+          void navigate({
+            to: "/$workspace/settings/members",
+            params: { workspace: wsSlug },
+          });
           break;
         case "roles":
-          void navigate({ to: "/$workspace/settings/roles", params: { workspace: wsSlug } });
+          void navigate({
+            to: "/$workspace/settings/roles",
+            params: { workspace: wsSlug },
+          });
+          break;
+        case "governance":
+          void navigate({
+            to: "/$workspace/settings/governance",
+            params: { workspace: wsSlug },
+          });
           break;
         case "providers":
-          void navigate({ to: "/$workspace/settings/providers", params: { workspace: wsSlug } });
+          void navigate({
+            to: "/$workspace/settings/providers",
+            params: { workspace: wsSlug },
+          });
           break;
         case "tokens":
-          void navigate({ to: "/$workspace/settings/tokens", params: { workspace: wsSlug } });
+          void navigate({
+            to: "/$workspace/settings/tokens",
+            params: { workspace: wsSlug },
+          });
           break;
         case "auditlog":
-          void navigate({ to: "/$workspace/auditlog", params: { workspace: wsSlug } });
+          void navigate({
+            to: "/$workspace/auditlog",
+            params: { workspace: wsSlug },
+          });
           break;
         case "bin":
-          void navigate({ to: "/$workspace/bin", params: { workspace: wsSlug } });
+          void navigate({
+            to: "/$workspace/bin",
+            params: { workspace: wsSlug },
+          });
           break;
         case "system":
-          void navigate({ to: "/$workspace/settings/system", params: { workspace: wsSlug } });
+          void navigate({
+            to: "/$workspace/settings/system",
+            params: { workspace: wsSlug },
+          });
           break;
         case "bravo":
-          void navigate({ to: "/$workspace/settings/bravo", params: { workspace: wsSlug } });
+          void navigate({
+            to: "/$workspace/settings/bravo",
+            params: { workspace: wsSlug },
+          });
           break;
         case "billing":
-          void navigate({ to: "/$workspace/settings/billing", params: { workspace: wsSlug } });
+          void navigate({
+            to: "/$workspace/settings/billing",
+            params: { workspace: wsSlug },
+          });
           break;
       }
     },
@@ -380,7 +447,10 @@ export function WorkspaceLayout() {
             }
           : () => {
               // Project detail → workspace dashboard (up one level)
-              void navigate({ to: "/$workspace", params: { workspace: workspaceSlug ?? ws } });
+              void navigate({
+                to: "/$workspace",
+                params: { workspace: workspaceSlug ?? ws },
+              });
             },
       onOpenDashboard: () => {
         void navigate({
@@ -415,7 +485,16 @@ export function WorkspaceLayout() {
         });
       },
     };
-  }, [pathname, workspaceSlug, stream, activeView, ws, queryClient, navigate, handleStreamChange]);
+  }, [
+    pathname,
+    workspaceSlug,
+    stream,
+    activeView,
+    ws,
+    queryClient,
+    navigate,
+    handleStreamChange,
+  ]);
 
   // -----------------------------------------------------------------------
   // Handlers
@@ -461,22 +540,40 @@ export function WorkspaceLayout() {
           void navigate({ to: "/$workspace", params: { workspace: wsSlug } });
           break;
         case "brand":
-          void navigate({ to: "/$workspace/brand", params: { workspace: wsSlug } });
+          void navigate({
+            to: "/$workspace/brand",
+            params: { workspace: wsSlug },
+          });
           break;
         case "termbase":
-          void navigate({ to: "/$workspace/termbase", params: { workspace: wsSlug } });
+          void navigate({
+            to: "/$workspace/termbase",
+            params: { workspace: wsSlug },
+          });
           break;
         case "memory":
-          void navigate({ to: "/$workspace/memory", params: { workspace: wsSlug } });
+          void navigate({
+            to: "/$workspace/memory",
+            params: { workspace: wsSlug },
+          });
           break;
         case "auditlog":
-          void navigate({ to: "/$workspace/auditlog", params: { workspace: wsSlug } });
+          void navigate({
+            to: "/$workspace/auditlog",
+            params: { workspace: wsSlug },
+          });
           break;
         case "bin":
-          void navigate({ to: "/$workspace/bin", params: { workspace: wsSlug } });
+          void navigate({
+            to: "/$workspace/bin",
+            params: { workspace: wsSlug },
+          });
           break;
         case "settings":
-          void navigate({ to: "/$workspace/settings", params: { workspace: wsSlug } });
+          void navigate({
+            to: "/$workspace/settings",
+            params: { workspace: wsSlug },
+          });
           break;
       }
     },
@@ -486,7 +583,10 @@ export function WorkspaceLayout() {
   const handleSelectWorkspace = useCallback(
     (selectedWs: Workspace) => {
       setLastWorkspaceSlug(selectedWs.slug);
-      void navigate({ to: "/$workspace", params: { workspace: selectedWs.slug } });
+      void navigate({
+        to: "/$workspace",
+        params: { workspace: selectedWs.slug },
+      });
     },
     [navigate, setLastWorkspaceSlug],
   );
@@ -496,7 +596,10 @@ export function WorkspaceLayout() {
       setLastWorkspaceSlug(createdWs.slug);
       setShowCreateWs(false);
       await queryClient.refetchQueries({ queryKey: ["workspaces"] });
-      void navigate({ to: "/$workspace", params: { workspace: createdWs.slug } });
+      void navigate({
+        to: "/$workspace",
+        params: { workspace: createdWs.slug },
+      });
     },
     [setLastWorkspaceSlug, navigate, queryClient],
   );
@@ -513,7 +616,9 @@ export function WorkspaceLayout() {
           <div className="relative z-10 flex items-center justify-center h-screen flex-col gap-6 text-foreground">
             <Card className="min-w-[360px]">
               <CardHeader className="items-center text-center">
-                <CardTitle className="text-xl font-semibold">Signed out</CardTitle>
+                <CardTitle className="text-xl font-semibold">
+                  Signed out
+                </CardTitle>
                 <p className="text-sm text-muted-foreground">
                   You have been signed out successfully.
                 </p>
@@ -554,7 +659,11 @@ export function WorkspaceLayout() {
               workspaces={workspaces}
               activeWorkspace={activeWorkspace}
               onSelectWorkspace={handleSelectWorkspace}
-              onCreateWorkspace={serverMode === "server" ? () => setShowCreateWs(true) : undefined}
+              onCreateWorkspace={
+                serverMode === "server"
+                  ? () => setShowCreateWs(true)
+                  : undefined
+              }
               activeView={effectiveView}
               onViewChange={handleViewChange}
               user={user}
@@ -568,7 +677,9 @@ export function WorkspaceLayout() {
               headerSlot={
                 <ConnectedTopBar
                   user={user}
-                  onSignOut={serverMode === "server" ? handleSignOut : undefined}
+                  onSignOut={
+                    serverMode === "server" ? handleSignOut : undefined
+                  }
                   onSettings={
                     serverMode === "server"
                       ? () =>
@@ -580,10 +691,16 @@ export function WorkspaceLayout() {
                   }
                   workspaceSlug={ws}
                   onViewAllActivities={() =>
-                    void navigate({ to: "/$workspace/activities", params: { workspace: ws } })
+                    void navigate({
+                      to: "/$workspace/activities",
+                      params: { workspace: ws },
+                    })
                   }
                   onViewAllTasks={() =>
-                    void navigate({ to: "/$workspace/tasks", params: { workspace: ws } })
+                    void navigate({
+                      to: "/$workspace/tasks",
+                      params: { workspace: ws },
+                    })
                   }
                   onTaskClick={(task) => {
                     if (task.project_id) {
@@ -600,8 +717,12 @@ export function WorkspaceLayout() {
                   }}
                   onCompleteTask={async (taskId) => {
                     await adapter.completeTask(ws, taskId);
-                    void queryClient.invalidateQueries({ queryKey: ["myTasks", ws] });
-                    void queryClient.invalidateQueries({ queryKey: ["tasks", ws] });
+                    void queryClient.invalidateQueries({
+                      queryKey: ["myTasks", ws],
+                    });
+                    void queryClient.invalidateQueries({
+                      queryKey: ["tasks", ws],
+                    });
                   }}
                   leftSlot={
                     sidebarContext?.level === "project" &&
@@ -619,7 +740,10 @@ export function WorkspaceLayout() {
               rightPanelSlot={<ConnectedBravoPanel />}
               contentClassName={isEditor ? "overflow-hidden" : "overflow-auto"}
             >
-              <StreamProvider initialStream={currentStream} onStreamChange={handleStreamChange}>
+              <StreamProvider
+                initialStream={currentStream}
+                onStreamChange={handleStreamChange}
+              >
                 <Outlet />
               </StreamProvider>
             </AppShell>

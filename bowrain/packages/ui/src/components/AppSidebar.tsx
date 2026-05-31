@@ -30,6 +30,7 @@ import {
   Info,
   CreditCard,
   Shield,
+  Lock,
 } from "./icons";
 import { WorkspaceSwitcher } from "./WorkspaceSwitcher";
 import { MobileWorkspaceSwitcher } from "./MobileWorkspaceSwitcher";
@@ -38,7 +39,14 @@ import { MobileWorkspaceSwitcher } from "./MobileWorkspaceSwitcher";
 // Types
 // ---------------------------------------------------------------------------
 
-export type View = "translate" | "brand" | "termbase" | "memory" | "auditlog" | "bin" | "settings";
+export type View =
+  | "translate"
+  | "brand"
+  | "termbase"
+  | "memory"
+  | "auditlog"
+  | "bin"
+  | "settings";
 
 export interface NavItem {
   id: string;
@@ -107,7 +115,9 @@ const workspaceNavItems: NavItem[] = [
   { id: "memory", label: "Memory", icon: <Brain /> },
 ];
 
-const workspaceBottomItems: NavItem[] = [{ id: "settings", label: "Settings", icon: <Settings /> }];
+const workspaceBottomItems: NavItem[] = [
+  { id: "settings", label: "Settings", icon: <Settings /> },
+];
 
 /** Sub-navigation items for views that have secondary menus. Exported for AppShell. */
 export const subNavConfig: Record<string, SubNavItem[]> = {
@@ -116,6 +126,7 @@ export const subNavConfig: Record<string, SubNavItem[]> = {
     { id: "languages", label: "Languages", icon: <Globe /> },
     { id: "members", label: "Members", icon: <Users /> },
     { id: "roles", label: "Roles", icon: <Shield /> },
+    { id: "governance", label: "Governance", icon: <Lock /> },
     { id: "providers", label: "Providers", icon: <KeyRound /> },
     { id: "tokens", label: "API Tokens", icon: <KeyRound /> },
     { id: "auditlog", label: "Audit Log", icon: <Clock /> },
@@ -152,7 +163,11 @@ function IconNav<V extends string>({
           <SidebarGroupContent>
             <SidebarMenu>
               <SidebarMenuItem>
-                <SidebarMenuButton tooltip="Back" onClick={ctx.onBack} data-testid="sidebar-home">
+                <SidebarMenuButton
+                  tooltip="Back"
+                  onClick={ctx.onBack}
+                  data-testid="sidebar-home"
+                >
                   <ArrowLeft />
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -381,7 +396,8 @@ function MobileNav<V extends string>({
           <SidebarSeparator />
           <SidebarGroup>
             <SidebarGroupLabel>
-              {activeView.charAt(0).toUpperCase() + (activeView as string).slice(1)}
+              {activeView.charAt(0).toUpperCase() +
+                (activeView as string).slice(1)}
             </SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
@@ -430,9 +446,11 @@ export function AppSidebar<V extends string = string>({
   pendingChanges: _pendingChanges,
   showThemeToggle: _showThemeToggle,
   ...props
-}: AppSidebarProps<V> & Omit<React.ComponentProps<typeof Sidebar>, keyof AppSidebarProps>) {
+}: AppSidebarProps<V> &
+  Omit<React.ComponentProps<typeof Sidebar>, keyof AppSidebarProps>) {
   const effectiveContext = useMemo<SidebarContext>(
-    () => sidebarContext ?? { level: "workspace", activeView: activeView as View },
+    () =>
+      sidebarContext ?? { level: "workspace", activeView: activeView as View },
     [sidebarContext, activeView],
   );
 
@@ -466,7 +484,11 @@ export function AppSidebar<V extends string = string>({
 
   // Desktop: icon-only rail
   return (
-    <Sidebar collapsible="none" className="!w-(--sidebar-width-icon)" {...props}>
+    <Sidebar
+      collapsible="none"
+      className="!w-(--sidebar-width-icon)"
+      {...props}
+    >
       <SidebarHeader>
         <WorkspaceSwitcher
           workspaces={workspaces}
