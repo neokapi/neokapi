@@ -93,7 +93,7 @@ func buildCobraCommandWithDispatch(route *CommandRoute, pool *DaemonPool) *cobra
 				route.Plugin.Manifest.Daemon != nil {
 				return DispatchViaDaemon(cmd.Context(), pool, route.Plugin, c.Name, args)
 			}
-			return execPluginCommand(route, args)
+			return execPluginCommand(cmd.Context(), route, args)
 		},
 	}
 
@@ -120,9 +120,9 @@ func buildSubcommandTree(route *CommandRoute, parentPath []string, sub manifest.
 		Short:              strings.Join(path, " ") + " subcommand",
 		DisableFlagParsing: true,
 		Annotations:        map[string]string{"plugin": pluginName},
-		RunE: func(_ *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, args []string) error {
 			// path[0] is the top-level command; the rest is the subcommand chain.
-			return execPluginSubcommandPath(route, path[1:], args)
+			return execPluginSubcommandPath(cmd.Context(), route, path[1:], args)
 		},
 	}
 	for _, child := range sub.Subcommands {
@@ -134,9 +134,12 @@ func buildSubcommandTree(route *CommandRoute, parentPath []string, sub manifest.
 // execPluginCommand runs a top-level Mode-A command:
 //
 //	<binary> command <name> [args]
-func execPluginCommand(route *CommandRoute, args []string) error {
+//
+// ctx is the cobra command's context (carrying signal/cancellation
+// wiring); cancelling it kills the plugin subprocess.
+func execPluginCommand(ctx context.Context, route *CommandRoute, args []string) error {
 	cmdArgs := append([]string{"command", route.Command.Name}, args...)
-	return runSubprocess(route.Plugin, cmdArgs)
+	return runSubprocess(ctx, route.Plugin, cmdArgs)
 }
 
 // execPluginSubcommandPath runs a Mode-A subcommand at an arbitrary depth
@@ -146,14 +149,25 @@ func execPluginCommand(route *CommandRoute, args []string) error {
 //
 // subPath is the chain of subcommand names below the top-level command
 // (e.g. ["token", "create"] for `auth token create`).
-func execPluginSubcommandPath(route *CommandRoute, subPath []string, args []string) error {
+//
+// ctx is the cobra command's context (carrying signal/cancellation
+// wiring); cancelling it kills the plugin subprocess.
+func execPluginSubcommandPath(ctx context.Context, route *CommandRoute, subPath []string, args []string) error {
 	cmdArgs := append([]string{"command", route.Command.Name}, subPath...)
 	cmdArgs = append(cmdArgs, args...)
-	return runSubprocess(route.Plugin, cmdArgs)
+	return runSubprocess(ctx, route.Plugin, cmdArgs)
 }
 
-func runSubprocess(p *Plugin, args []string) error {
-	cmd := exec.CommandContext(context.Background(), p.BinaryPath, args...)
+// runSubprocess execs the plugin binary with args, inheriting the
+// process's stdio. ctx is propagated to exec.CommandContext so that a
+// SIGTERM/SIGINT to the kapi process (which cobra translates into a
+// cancelled command context) terminates the plugin child instead of
+// leaving it running until it finishes on its own.
+func runSubprocess(ctx context.Context, p *Plugin, args []string) error {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	cmd := exec.CommandContext(ctx, p.BinaryPath, args...)
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -167,6 +181,13 @@ func runSubprocess(p *Plugin, args []string) error {
 	cmd.Env = env
 
 	if err := cmd.Run(); err != nil {
+		// If the parent context was cancelled (e.g. SIGTERM/SIGINT to
+		// kapi), exec.CommandContext has already killed the child. Don't
+		// mistake the resulting non-zero exit for a real plugin exit code:
+		// surface the context error so the caller stops cleanly.
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return fmt.Errorf("plugin %q: %w", p.Name(), ctxErr)
+		}
 		// Propagate exit codes cleanly: cobra surfaces *exec.ExitError
 		// with the right exit code through SilenceErrors+SilenceUsage.
 		var exitErr *exec.ExitError
