@@ -9,7 +9,6 @@ import (
 	"io"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
@@ -112,6 +111,14 @@ type DaemonClient struct {
 
 	// stopCh is closed when the watcher goroutine should exit.
 	stopCh chan struct{}
+
+	// drainDone is closed by the stdout-drain goroutine when it stops
+	// reading (EOF or error). close() waits on it before cmd.Wait() so the
+	// drain never reads from the stdout pipe concurrently with Wait — a
+	// pattern os/exec documents as unsafe (Wait may close the pipe out from
+	// under the reader). Nil when there is no drain goroutine (external
+	// attach mode, where cmd is nil).
+	drainDone chan struct{}
 }
 
 // touch refreshes the client's lastUsed timestamp. Callers (the pool's
@@ -173,6 +180,16 @@ func (c *DaemonClient) close(grace time.Duration) {
 		_ = c.cmd.Process.Signal(syscall.SIGTERM)
 		done := make(chan struct{})
 		go func() {
+			// Join the stdout-drain goroutine before Wait: os/exec
+			// warns it is unsafe for another goroutine to read the
+			// StdoutPipe while Wait runs (Wait closes the pipe). After
+			// SIGTERM the daemon's stdout closes, so the drain hits EOF
+			// and signals drainDone promptly. If the daemon ignores
+			// SIGTERM the grace timer below escalates to Kill, which
+			// also closes stdout and unblocks the drain.
+			if c.drainDone != nil {
+				<-c.drainDone
+			}
 			_ = c.cmd.Wait()
 			close(done)
 		}()
@@ -419,17 +436,34 @@ func (p *DaemonPool) watchIdle(client *DaemonClient, idle time.Duration) {
 		case <-client.stopCh:
 			return
 		case now := <-tick.C:
-			last := client.LastUsed()
-			if now.Sub(last) >= idle {
-				p.opts.Logger("daemon pool: %q idle for %s — terminating", client.Plugin.Name(), now.Sub(last))
-				p.mu.Lock()
-				if existing, ok := p.clients[client.Plugin.Name()]; ok && existing == client {
-					delete(p.clients, client.Plugin.Name())
-				}
+			if now.Sub(client.LastUsed()) < idle {
+				continue
+			}
+			// Re-check LastUsed under p.mu before tearing the daemon
+			// down. Acquire touches a reused client while holding p.mu
+			// (see the fast/slow-path touch()es), so a check outside the
+			// lock is a TOCTOU window: a concurrent Acquire could hand
+			// this client out between our LastUsed read and close(),
+			// leaving the caller with a torn-down daemon. Holding p.mu
+			// across the final LastUsed read serialises us against that
+			// touch, so a recently-used daemon is never closed.
+			p.mu.Lock()
+			existing, ok := p.clients[client.Plugin.Name()]
+			if !ok || existing != client {
+				// Already evicted/replaced — nothing to do.
 				p.mu.Unlock()
-				client.close(p.opts.ShutdownGrace)
 				return
 			}
+			if time.Since(client.LastUsed()) < idle {
+				// A concurrent Acquire touched it; keep watching.
+				p.mu.Unlock()
+				continue
+			}
+			delete(p.clients, client.Plugin.Name())
+			p.opts.Logger("daemon pool: %q idle for %s — terminating", client.Plugin.Name(), time.Since(client.LastUsed()))
+			p.mu.Unlock()
+			client.close(p.opts.ShutdownGrace)
+			return
 		}
 	}
 }
@@ -587,7 +621,11 @@ func (p *DaemonPool) spawn(ctx context.Context, plugin *Plugin) (*DaemonClient, 
 	}
 
 	// After handshake, drain remaining stdout to stderr (treat as logs).
+	// drainDone is closed when the goroutine stops reading; close() joins
+	// on it before cmd.Wait() so the drain never races Wait on the pipe.
+	drainDone := make(chan struct{})
 	go func() {
+		defer close(drainDone)
 		// Use the bufio.Reader started by the goroutine above so we
 		// don't lose buffered bytes.
 		if br == nil {
@@ -626,6 +664,7 @@ func (p *DaemonPool) spawn(ctx context.Context, plugin *Plugin) (*DaemonClient, 
 		cmd:       cmd,
 		startedAt: time.Now(),
 		stopCh:    make(chan struct{}),
+		drainDone: drainDone,
 	}
 	client.touch()
 
@@ -667,14 +706,4 @@ func waitReady(ctx context.Context, conn *grpc.ClientConn) error {
 			return ctx.Err()
 		}
 	}
-}
-
-// DefaultSocketPath returns a candidate path of the form
-// "<dir>/<prefix>-<pid>.sock". Daemons can use this; the pool uses
-// SocketDir for diagnostic messages only.
-func DefaultSocketPath(dir, prefix string, pid int) string {
-	if dir == "" {
-		dir = os.TempDir()
-	}
-	return filepath.Join(dir, fmt.Sprintf("%s-%d.sock", prefix, pid))
 }

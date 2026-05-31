@@ -144,18 +144,3 @@ func kapiHomeDir() (string, error) {
 	}
 	return filepath.Join(configDir, "kapi"), nil
 }
-
-// ResourceDisplayName returns a human-friendly label for the resolved path.
-// If the path is within KAPI_HOME, it shows --name <n>; otherwise the path.
-func ResourceDisplayName(path, kind string) string {
-	kapiHome, err := kapiHomeDir()
-	if err != nil {
-		return path
-	}
-	dir := filepath.Join(kapiHome, kind)
-	if strings.HasPrefix(path, dir) {
-		name := strings.TrimSuffix(filepath.Base(path), ".db")
-		return name + " (" + path + ")"
-	}
-	return path
-}

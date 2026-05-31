@@ -375,6 +375,73 @@ func TestDaemonPool_ConcurrentAcquireSpawnsOneDaemon(t *testing.T) {
 	assert.Equal(t, 1, spawnLines, "expected exactly one daemon to be spawned across %d concurrent Acquires (spawn log: %q)", concurrency, string(logBytes))
 }
 
+// TestDaemonPool_IdleWatcherKeepsRecentlyUsedDaemon validates the #37
+// fix: the idle watcher must not tear down a daemon that a concurrent
+// Acquire just handed out. With a short idle timeout, we keep re-acquiring
+// (each Acquire touches the client) faster than the timeout across several
+// watcher ticks. The under-lock LastUsed re-check must observe each fresh
+// touch and never close the live daemon, so every Acquire returns the same
+// healthy client and the pool keeps exactly one entry.
+func TestDaemonPool_IdleWatcherKeepsRecentlyUsedDaemon(t *testing.T) {
+	bin := buildFakeDaemon(t)
+	plugin := makePlugin(t, "fake", bin, &manifest.DaemonConfig{StartupTimeoutSeconds: 5})
+
+	// Short idle timeout → watcher ticks every 50ms. We re-acquire every
+	// ~20ms, comfortably inside the window, for long enough to span many
+	// ticks (so a missing re-check would tear the daemon down).
+	pool := NewDaemonPool(DaemonPoolOptions{
+		MaxDaemons:  4,
+		IdleTimeout: 100 * time.Millisecond,
+	})
+	t.Cleanup(pool.Shutdown)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	first, err := pool.Acquire(ctx, plugin)
+	require.NoError(t, err)
+	firstPID := first.PID()
+	require.NotZero(t, firstPID)
+
+	deadline := time.Now().Add(600 * time.Millisecond)
+	for time.Now().Before(deadline) {
+		time.Sleep(20 * time.Millisecond)
+		c, err := pool.Acquire(ctx, plugin)
+		require.NoError(t, err)
+		require.False(t, c.IsClosed(), "idle watcher tore down a just-acquired daemon (TOCTOU)")
+		assert.Same(t, first, c, "Acquire should keep reusing the same live daemon")
+		assert.Equal(t, firstPID, c.PID(), "daemon process must not be respawned while in active use")
+	}
+
+	assert.Len(t, pool.Active(), 1, "pool should still hold the one live daemon")
+	assert.False(t, first.IsClosed())
+}
+
+// TestDaemonPool_IdleWatcherClosesStaleDaemon is the companion to the
+// keep-alive test: once a daemon goes untouched past its idle timeout, the
+// watcher must tear it down and drop it from the pool.
+func TestDaemonPool_IdleWatcherClosesStaleDaemon(t *testing.T) {
+	bin := buildFakeDaemon(t)
+	plugin := makePlugin(t, "fake", bin, &manifest.DaemonConfig{StartupTimeoutSeconds: 5})
+
+	pool := NewDaemonPool(DaemonPoolOptions{
+		MaxDaemons:  4,
+		IdleTimeout: 100 * time.Millisecond,
+	})
+	t.Cleanup(pool.Shutdown)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	client, err := pool.Acquire(ctx, plugin)
+	require.NoError(t, err)
+
+	// Stop touching it; the watcher should evict it after the idle window.
+	require.Eventually(t, func() bool {
+		return client.IsClosed() && len(pool.Active()) == 0
+	}, 5*time.Second, 25*time.Millisecond, "idle daemon should be torn down once untouched past the timeout")
+}
+
 // processAlive reports whether a process with the given pid is alive on
 // the host. It uses kill(pid, 0) which returns nil for a live process
 // and an error for a reaped one.

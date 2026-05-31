@@ -71,18 +71,7 @@ type ImportTMXOptions struct {
 	ImportedBy string
 }
 
-// ImportTMX reads a TMX file and imports TUs into the TM. All TUVs in each
-// TU become peer variants in a single multilingual entry.
-func ImportTMX(tm TranslationMemory, reader io.Reader, _ model.LocaleID, _ model.LocaleID) (int, error) {
-	store, ok := tm.(TMStore)
-	if !ok {
-		return 0, errors.New("TM does not support import sessions")
-	}
-	_, imported, err := ImportTMXSession(store, reader, ImportTMXOptions{})
-	return imported, err
-}
-
-// ImportTMXWithOptions is like ImportTMX but supports recording an Origin
+// ImportTMXWithOptions imports a TMX file into the TM, supports recording an Origin
 // and filtering to a specific (src, tgt) bilingual pair when both locales
 // are set. Other TUVs are dropped.
 func ImportTMXWithOptions(tm TranslationMemory, reader io.Reader, sourceLocale, targetLocale model.LocaleID, opts ImportTMXOptions) (int, error) {
