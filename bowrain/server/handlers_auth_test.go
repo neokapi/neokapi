@@ -1,7 +1,9 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -10,10 +12,22 @@ import (
 	"time"
 
 	"github.com/labstack/echo/v4"
+	"github.com/neokapi/neokapi/bowrain/auth"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// storeRefreshFailingAuthStore wraps a real auth.AuthStore but forces
+// StoreRefreshToken to fail. It is used to verify that auth handlers never
+// hand a client a refresh token that could not be persisted.
+type storeRefreshFailingAuthStore struct {
+	auth.AuthStore
+}
+
+func (s *storeRefreshFailingAuthStore) StoreRefreshToken(context.Context, string, string, time.Time) (string, error) {
+	return "", errors.New("simulated store failure")
+}
 
 func TestDeviceAuthStartRespectsForwardedHeaders(t *testing.T) {
 	cfg := DefaultConfig()
@@ -85,6 +99,59 @@ func TestHandleDeviceVerificationFormValues(t *testing.T) {
 		assert.Equal(t, "test@example.com", entry.UserEmail)
 		assert.Equal(t, "Test User", entry.UserName)
 	}
+}
+
+func TestHandleDeviceAuthPollStoreRefreshTokenError(t *testing.T) {
+	// When persisting the refresh token fails, the poll handler must return a
+	// 500 rather than hand the client an unredeemable refresh token.
+	cfg := DefaultConfig()
+
+	cfg.JWTSecret = "test-secret"
+	srv := NewServer(cfg)
+	initTestStores(t, srv)
+	// Wrap the wired AuthStore so StoreRefreshToken always fails.
+	srv.AuthStore = &storeRefreshFailingAuthStore{AuthStore: srv.AuthStore}
+	e := srv.GetEcho()
+
+	// Step 1: Start device auth to get a device_code + user_code.
+	startForm := url.Values{"client_id": {"test-client"}}
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/device/start",
+		strings.NewReader(startForm.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+	require.Equal(t, http.StatusOK, rec.Code)
+
+	var startResp platauth.DeviceAuthResponse
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &startResp))
+	require.NotEmpty(t, startResp.UserCode)
+	require.NotEmpty(t, startResp.DeviceCode)
+
+	// Step 2: Authorize the device directly (no OIDC) with explicit email.
+	verifyForm := url.Values{
+		"user_code": {startResp.UserCode},
+		"email":     {"test@example.com"},
+		"name":      {"Test User"},
+	}
+	req2 := httptest.NewRequest(http.MethodPost, "/api/v1/auth/device/verify",
+		strings.NewReader(verifyForm.Encode()))
+	req2.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rec2 := httptest.NewRecorder()
+	e.ServeHTTP(rec2, req2)
+	require.Equal(t, http.StatusFound, rec2.Code)
+
+	// Step 3: Poll — the device is authorized, so the handler reaches
+	// StoreRefreshToken, which fails. Expect a 500 and no refresh token.
+	pollForm := url.Values{"device_code": {startResp.DeviceCode}}
+	req3 := httptest.NewRequest(http.MethodPost, "/api/v1/auth/device/poll",
+		strings.NewReader(pollForm.Encode()))
+	req3.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rec3 := httptest.NewRecorder()
+	e.ServeHTTP(rec3, req3)
+
+	assert.Equal(t, http.StatusInternalServerError, rec3.Code)
+	assert.Contains(t, rec3.Body.String(), "failed to store refresh token")
+	assert.NotContains(t, rec3.Body.String(), "refresh_token")
 }
 
 func TestHandleDeviceVerificationDefaultValues(t *testing.T) {

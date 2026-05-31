@@ -178,7 +178,11 @@ func (s *Server) HandleDeviceAuthPoll(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "generate refresh token: " + err.Error()})
 	}
 	rtHash := sha256.Sum256([]byte(refreshToken))
-	_, _ = s.AuthStore.StoreRefreshToken(ctx, user.ID, hex.EncodeToString(rtHash[:]), time.Now().Add(30*24*time.Hour))
+	if _, err := s.AuthStore.StoreRefreshToken(ctx, user.ID, hex.EncodeToString(rtHash[:]), time.Now().Add(30*24*time.Hour)); err != nil {
+		// Never hand the client a refresh token that was not persisted —
+		// it would be unredeemable (silent forced re-login).
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "failed to store refresh token"})
+	}
 
 	// Clean up the device code and its user code index.
 	_ = sessionDelete(ctx, s.SessionStore, prefixDeviceCode, deviceCode)
@@ -492,9 +496,14 @@ func (s *Server) HandleDesktopCallback(c echo.Context) error {
 
 	// Generate and store a refresh token.
 	refreshToken, rtErr := platformAuth.GenerateRefreshToken()
-	if rtErr == nil {
-		rtHash := sha256.Sum256([]byte(refreshToken))
-		_, _ = s.AuthStore.StoreRefreshToken(ctx, user.ID, hex.EncodeToString(rtHash[:]), time.Now().Add(30*24*time.Hour))
+	if rtErr != nil {
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "generate refresh token: " + rtErr.Error()})
+	}
+	rtHash := sha256.Sum256([]byte(refreshToken))
+	if _, err := s.AuthStore.StoreRefreshToken(ctx, user.ID, hex.EncodeToString(rtHash[:]), time.Now().Add(30*24*time.Hour)); err != nil {
+		// Never hand the client a refresh token that was not persisted —
+		// it would be unredeemable (silent forced re-login).
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "failed to store refresh token"})
 	}
 
 	// Redirect to the desktop app's localhost callback with tokens.
@@ -865,9 +874,14 @@ func (s *Server) handleOIDCCodeExchange(c echo.Context, code, state string) erro
 
 	// Generate and store a refresh token.
 	refreshToken, rtErr := platformAuth.GenerateRefreshToken()
-	if rtErr == nil {
-		rtHash := sha256.Sum256([]byte(refreshToken))
-		_, _ = s.AuthStore.StoreRefreshToken(ctx, user.ID, hex.EncodeToString(rtHash[:]), time.Now().Add(30*24*time.Hour))
+	if rtErr != nil {
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "generate refresh token: " + rtErr.Error()})
+	}
+	rtHash := sha256.Sum256([]byte(refreshToken))
+	if _, err := s.AuthStore.StoreRefreshToken(ctx, user.ID, hex.EncodeToString(rtHash[:]), time.Now().Add(30*24*time.Hour)); err != nil {
+		// Never hand the client a refresh token that was not persisted —
+		// it would be unredeemable (silent forced re-login).
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "failed to store refresh token"})
 	}
 
 	// Set HttpOnly cookies and redirect to frontend (no tokens in URL).
