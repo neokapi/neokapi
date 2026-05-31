@@ -185,11 +185,62 @@ func TestServeMalformedLineContinues(t *testing.T) {
 	assert.Equal(t, "test", second.Version)
 }
 
+func TestServeOversizedLineRejectedAndSurvives(t *testing.T) {
+	// A line exceeding MaxLineBytes must be drained and rejected with an error
+	// Response, NOT kill the loop — the next well-formed request still works.
+	huge := strings.Repeat("x", MaxLineBytes+10)
+	in := strings.NewReader(huge + "\n" + `{"op":"ping"}` + "\n")
+	var out bytes.Buffer
+	require.NoError(t, Serve(in, &out, echoHandler), "oversized line must not abort Serve")
+
+	dec := json.NewDecoder(&out)
+	var first Response
+	require.NoError(t, dec.Decode(&first))
+	assert.Contains(t, first.Error, "exceeds maximum size")
+
+	var second Response
+	require.NoError(t, dec.Decode(&second))
+	assert.True(t, second.OK, "the request after an oversized line must still be served")
+	assert.Equal(t, "test", second.Version)
+}
+
 func TestServeEOFCleanShutdown(t *testing.T) {
 	in := strings.NewReader("") // immediate EOF
 	var out bytes.Buffer
 	require.NoError(t, Serve(in, &out, echoHandler))
 	assert.Empty(t, out.String())
+}
+
+func TestClientRejectsMismatchedResponseID(t *testing.T) {
+	// A plugin that replies with the wrong id must desynchronize the client:
+	// roundTrip must error and poison the client rather than mis-pair.
+	serverIn, clientW := io.Pipe()
+	clientR, serverOut := io.Pipe()
+
+	go func() {
+		sc := newScanner(serverIn)
+		for sc.Scan() {
+			var req Request
+			if json.Unmarshal(sc.Bytes(), &req) != nil {
+				continue
+			}
+			// Reply with a deliberately wrong id.
+			_ = WriteMessage(serverOut, Response{ID: req.ID + 999, OK: true, Version: "test"})
+		}
+		_ = serverOut.Close()
+	}()
+
+	client := NewClient(clientW, clientR)
+	_, err := client.Ping()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "does not match request id")
+
+	// Client is poisoned: subsequent calls fail fast with the same error.
+	_, err2 := client.Ping()
+	require.Error(t, err2)
+	assert.Equal(t, err.Error(), err2.Error())
+
+	require.NoError(t, clientW.Close())
 }
 
 func TestClientPoisonedAfterPluginClose(t *testing.T) {

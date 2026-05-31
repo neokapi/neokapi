@@ -1,7 +1,10 @@
 package checkproto
 
 import (
+	"bytes"
+	"encoding/json"
 	"io"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -75,4 +78,63 @@ func TestSimilarityNoRefs(t *testing.T) {
 	scores, err := c.Similarity("text", nil, "")
 	require.NoError(t, err)
 	assert.Empty(t, scores)
+}
+
+func TestServeMalformedLineContinues(t *testing.T) {
+	in := strings.NewReader("not json\n" + `{"op":"ping"}` + "\n")
+	var out bytes.Buffer
+	require.NoError(t, Serve(in, &out, fakeHandler))
+
+	dec := json.NewDecoder(&out)
+	var first Response
+	require.NoError(t, dec.Decode(&first))
+	assert.Contains(t, first.Error, "malformed request")
+
+	var second Response
+	require.NoError(t, dec.Decode(&second))
+	assert.True(t, second.OK)
+}
+
+func TestServeOversizedLineRejectedAndSurvives(t *testing.T) {
+	huge := strings.Repeat("x", MaxLineBytes+10)
+	in := strings.NewReader(huge + "\n" + `{"op":"ping"}` + "\n")
+	var out bytes.Buffer
+	require.NoError(t, Serve(in, &out, fakeHandler), "oversized line must not abort Serve")
+
+	dec := json.NewDecoder(&out)
+	var first Response
+	require.NoError(t, dec.Decode(&first))
+	assert.Contains(t, first.Error, "exceeds maximum size")
+
+	var second Response
+	require.NoError(t, dec.Decode(&second))
+	assert.True(t, second.OK, "the request after an oversized line must still be served")
+}
+
+func TestClientRejectsMismatchedResponseID(t *testing.T) {
+	serverIn, clientW := io.Pipe()
+	clientR, serverOut := io.Pipe()
+
+	go func() {
+		sc := newScanner(serverIn)
+		for sc.Scan() {
+			var req Request
+			if json.Unmarshal(sc.Bytes(), &req) != nil {
+				continue
+			}
+			_ = WriteMessage(serverOut, Response{ID: req.ID + 999, OK: true, Version: "test"})
+		}
+		_ = serverOut.Close()
+	}()
+
+	client := NewClient(clientW, clientR)
+	_, err := client.Ping()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "does not match request id")
+
+	_, err2 := client.Ping()
+	require.Error(t, err2)
+	assert.Equal(t, err.Error(), err2.Error())
+
+	require.NoError(t, clientW.Close())
 }

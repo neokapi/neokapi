@@ -99,6 +99,41 @@ func TestBuildByteToRuneMultibyte(t *testing.T) {
 	assert.Equal(t, 5, f(6)) // end
 }
 
+func TestBuildByteToRuneInvalidUTF8(t *testing.T) {
+	// Invalid UTF-8 must not panic. A lone continuation byte (0x80) is invalid:
+	// `for range` yields U+FFFD and advances exactly ONE byte, so the byte
+	// width must follow the decoder, not the replacement rune's nominal 3-byte
+	// width (the old buildByteToRune overran its index here).
+	tests := []struct {
+		name string
+		text string
+	}{
+		{"lone continuation byte", "a\x80b"},
+		{"truncated multibyte", "a\xc3"},
+		{"invalid lead byte", "\xffz"},
+		{"all invalid", "\x80\x80\x80"},
+		{"valid then invalid", "héllo\x80"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var f func(int) int
+			require.NotPanics(t, func() { f = buildByteToRune(tt.text) })
+			// f must be total over [0, len(text)] and agree with the rune count
+			// at the boundaries.
+			assert.Equal(t, 0, f(0))
+			assert.Equal(t, len([]rune(tt.text)), f(len(tt.text)), "end maps to total rune count")
+			// Every in-range byte offset must be queryable without panic and
+			// produce a monotonically non-decreasing rune index.
+			prev := 0
+			for b := 0; b <= len(tt.text); b++ {
+				ri := f(b)
+				assert.GreaterOrEqual(t, ri, prev, "rune index must be non-decreasing")
+				prev = ri
+			}
+		})
+	}
+}
+
 func TestBoundaryRuneOffsets(t *testing.T) {
 	// "Hello world. How are you?"
 	//  0123456789012345678901234

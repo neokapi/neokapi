@@ -149,6 +149,52 @@ func newScanner(r io.Reader) *bufio.Scanner {
 	return sc
 }
 
+// errLineTooLong reports that a single protocol line exceeded MaxLineBytes. The
+// offending line has been drained so the reader is positioned at the start of
+// the next line.
+var errLineTooLong = errors.New("satproto: request line exceeds maximum size")
+
+// readLine reads one '\n'-terminated line from br, enforcing the MaxLineBytes
+// cap. It returns the line bytes (without the trailing newline). If the line
+// exceeds MaxLineBytes it drains the remainder of the line (up to the next
+// '\n') and returns errLineTooLong, leaving br positioned at the following
+// line — so an oversized line is rejected rather than aborting the loop.
+func readLine(br *bufio.Reader) ([]byte, error) {
+	var buf []byte
+	tooLong := false
+	for {
+		b, err := br.ReadByte()
+		if err != nil {
+			if len(buf) == 0 || tooLong {
+				// Pure EOF, or EOF while draining an oversized line: surface
+				// the I/O error (errLineTooLong has higher priority so the
+				// caller can still reject the partial line).
+				if tooLong {
+					return nil, errLineTooLong
+				}
+				return nil, err
+			}
+			// Final line without a trailing newline: return what we have.
+			return buf, nil
+		}
+		if b == '\n' {
+			if tooLong {
+				return nil, errLineTooLong
+			}
+			return buf, nil
+		}
+		if tooLong {
+			// Keep draining until end-of-line; do not grow buf.
+			continue
+		}
+		if len(buf) >= MaxLineBytes {
+			tooLong = true
+			continue
+		}
+		buf = append(buf, b)
+	}
+}
+
 // WriteMessage encodes v as a single JSON line (no embedded newlines, since
 // encoding/json escapes them) followed by '\n', and writes it to w.
 func WriteMessage(w io.Writer, v any) error {
@@ -178,11 +224,28 @@ type Handler func(Request) Response
 // error only on an I/O failure it cannot recover from.
 //
 // A malformed request line does not terminate the loop: Serve emits an error
-// Response (with id 0, since the id could not be parsed) and continues.
+// Response (with id 0, since the id could not be parsed) and continues. An
+// oversized request line (exceeding MaxLineBytes) is treated the same way — it
+// is drained and rejected with an error Response, never killing the long-lived
+// process. The loop uses a bufio.Reader (not a bufio.Scanner, whose
+// ErrTooLong would abort the whole loop) so a single huge line cannot take the
+// plugin down.
 func Serve(r io.Reader, w io.Writer, h Handler) error {
-	sc := newScanner(r)
-	for sc.Scan() {
-		line := sc.Bytes()
+	br := bufio.NewReaderSize(r, 64*1024)
+	for {
+		line, err := readLine(br)
+		if errors.Is(err, errLineTooLong) {
+			if werr := WriteMessage(w, Response{Error: "malformed request: line exceeds maximum size"}); werr != nil {
+				return werr
+			}
+			continue
+		}
+		if err != nil {
+			if errors.Is(err, io.EOF) {
+				return nil
+			}
+			return fmt.Errorf("satproto: read: %w", err)
+		}
 		if len(line) == 0 {
 			continue
 		}
@@ -199,10 +262,6 @@ func Serve(r io.Reader, w io.Writer, h Handler) error {
 			return err
 		}
 	}
-	if err := sc.Err(); err != nil {
-		return fmt.Errorf("satproto: scan: %w", err)
-	}
-	return nil
 }
 
 // ----------------------------------------------------------------------------
@@ -254,6 +313,16 @@ func (c *Client) roundTrip(req Request) (Response, error) {
 	var resp Response
 	if err := json.Unmarshal(c.sc.Bytes(), &resp); err != nil {
 		c.err = fmt.Errorf("satproto: decode response: %w", err)
+		return Response{}, c.err
+	}
+	// The protocol advertises correlation by id (responses may arrive out of
+	// order). Verify the response id matches the request id we just sent; a
+	// mismatch means the stream has desynchronized, so poison the client. A
+	// zero id is only valid for an id-less request (Ping/Info, which send
+	// req.ID==0 here since we always assign a non-zero id — so a zero response
+	// id against our non-zero request id is itself a mismatch).
+	if resp.ID != req.ID {
+		c.err = fmt.Errorf("satproto: response id %d does not match request id %d", resp.ID, req.ID)
 		return Response{}, c.err
 	}
 	return resp, nil

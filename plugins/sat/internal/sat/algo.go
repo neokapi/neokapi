@@ -12,7 +12,10 @@
 // live behind the `onnx` build tag in engine_onnx.go.
 package sat
 
-import "math"
+import (
+	"math"
+	"unicode/utf8"
+)
 
 // Default inference parameters, mirroring wtpsplit-lite for the *-sm models.
 const (
@@ -170,8 +173,14 @@ func buildByteToRune(text string) func(int) int {
 	runeIndexAt := make([]int, len(text)+1)
 	ri := 0
 	bi := 0
-	for _, r := range text {
-		size := runeByteLen(r)
+	// Drive the byte advance from utf8.DecodeRuneInString rather than from the
+	// decoded rune's value. On invalid UTF-8, `for range` yields U+FFFD and
+	// advances exactly one byte, but the replacement rune's nominal UTF-8 width
+	// is 3 — using that width would overrun the index. DecodeRuneInString
+	// reports the real number of bytes consumed (1 for an invalid byte), which
+	// matches the range loop exactly.
+	for bi < len(text) {
+		_, size := utf8.DecodeRuneInString(text[bi:])
 		for k := range size {
 			runeIndexAt[bi+k] = ri
 		}
@@ -187,19 +196,5 @@ func buildByteToRune(text string) func(int) int {
 			return ri
 		}
 		return runeIndexAt[b]
-	}
-}
-
-// runeByteLen returns the UTF-8 byte length of r.
-func runeByteLen(r rune) int {
-	switch {
-	case r < 0x80:
-		return 1
-	case r < 0x800:
-		return 2
-	case r < 0x10000:
-		return 3
-	default:
-		return 4
 	}
 }

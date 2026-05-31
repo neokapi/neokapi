@@ -1,10 +1,14 @@
 package model
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -65,7 +69,7 @@ func TestDownloadAtomicAndChecksum(t *testing.T) {
 	dir := t.TempDir()
 	dst := filepath.Join(dir, "model.onnx")
 	d := &Downloader{HTTPClient: srv.Client()}
-	require.NoError(t, d.download(srv.URL, dst))
+	require.NoError(t, d.download(srv.URL, dst, expected{}))
 
 	got, err := os.ReadFile(dst)
 	require.NoError(t, err)
@@ -84,9 +88,82 @@ func TestDownloadRejectsNon200(t *testing.T) {
 	defer srv.Close()
 
 	d := &Downloader{HTTPClient: srv.Client()}
-	err := d.download(srv.URL, filepath.Join(t.TempDir(), "x"))
+	err := d.download(srv.URL, filepath.Join(t.TempDir(), "x"), expected{})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "unexpected status")
+}
+
+func TestDownloadVerifiesPinnedSHA256(t *testing.T) {
+	body := []byte("ONNX-MODEL-BYTES")
+	sum := sha256.Sum256(body)
+	good := hex.EncodeToString(sum[:])
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write(body)
+	}))
+	defer srv.Close()
+
+	t.Run("matching digest installs", func(t *testing.T) {
+		dir := t.TempDir()
+		dst := filepath.Join(dir, "model.onnx")
+		d := &Downloader{HTTPClient: srv.Client()}
+		require.NoError(t, d.download(srv.URL, dst, expected{sha256: good, size: int64(len(body))}))
+		got, err := os.ReadFile(dst)
+		require.NoError(t, err)
+		assert.Equal(t, body, got)
+	})
+
+	t.Run("uppercase digest also matches", func(t *testing.T) {
+		dir := t.TempDir()
+		dst := filepath.Join(dir, "model.onnx")
+		d := &Downloader{HTTPClient: srv.Client()}
+		require.NoError(t, d.download(srv.URL, dst, expected{sha256: strings.ToUpper(good)}))
+	})
+
+	t.Run("mismatching digest fails closed and leaves no file", func(t *testing.T) {
+		dir := t.TempDir()
+		dst := filepath.Join(dir, "model.onnx")
+		d := &Downloader{HTTPClient: srv.Client()}
+		err := d.download(srv.URL, dst, expected{sha256: "deadbeef"})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "integrity check failed")
+		_, statErr := os.Stat(dst)
+		assert.True(t, os.IsNotExist(statErr), "tampered file must not be committed")
+		// No leftover temp files either.
+		entries, err := os.ReadDir(dir)
+		require.NoError(t, err)
+		assert.Empty(t, entries)
+	})
+
+	t.Run("mismatching size fails closed", func(t *testing.T) {
+		dir := t.TempDir()
+		dst := filepath.Join(dir, "model.onnx")
+		d := &Downloader{HTTPClient: srv.Client()}
+		err := d.download(srv.URL, dst, expected{size: 999999})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "integrity check failed")
+		_, statErr := os.Stat(dst)
+		assert.True(t, os.IsNotExist(statErr))
+	})
+
+	t.Run("unpinned installs with warning", func(t *testing.T) {
+		dir := t.TempDir()
+		dst := filepath.Join(dir, "model.onnx")
+		var logs []string
+		d := &Downloader{
+			HTTPClient: srv.Client(),
+			Logf:       func(f string, a ...any) { logs = append(logs, fmt.Sprintf(f, a...)) },
+		}
+		require.NoError(t, d.download(srv.URL, dst, expected{}))
+		require.FileExists(t, dst)
+		var warned bool
+		for _, l := range logs {
+			if strings.Contains(l, "UNVERIFIED") {
+				warned = true
+			}
+		}
+		assert.True(t, warned, "an unpinned download must log a clear unverified warning")
+	})
 }
 
 func TestEnsureFileSkipsWhenPresent(t *testing.T) {
@@ -101,7 +178,7 @@ func TestEnsureFileSkipsWhenPresent(t *testing.T) {
 	defer srv.Close()
 
 	d := &Downloader{HTTPClient: srv.Client()}
-	require.NoError(t, d.ensureFile(dst, srv.URL))
+	require.NoError(t, d.ensureFile(dst, srv.URL, expected{}))
 
 	got, err := os.ReadFile(dst)
 	require.NoError(t, err)
@@ -128,7 +205,7 @@ func TestEnsureFileConcurrentSingleDownload(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			d := &Downloader{HTTPClient: srv.Client()}
-			assert.NoError(t, d.ensureFile(dst, srv.URL))
+			assert.NoError(t, d.ensureFile(dst, srv.URL, expected{}))
 		}()
 	}
 	wg.Wait()
