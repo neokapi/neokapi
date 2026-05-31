@@ -1,15 +1,61 @@
 package cli
 
 import (
-	"errors"
 	"fmt"
 	"io"
+	"sort"
+	"strings"
 	"text/tabwriter"
 
 	"github.com/neokapi/neokapi/cli/credentials"
 	"github.com/neokapi/neokapi/cli/output"
+	aiprovider "github.com/neokapi/neokapi/providers/ai"
+	mtprovider "github.com/neokapi/neokapi/providers/mt"
 	"github.com/spf13/cobra"
 )
+
+// knownProviderTypes returns the canonical set of credential provider types
+// accepted by `credentials add`, derived from the registered AI providers
+// (aiprovider.Providers) and the known MT provider kinds (mtprovider). Plugins
+// that register additional AI providers are reflected automatically. The result
+// is a deduplicated, sorted slice suitable for both membership checks and the
+// help text shown on rejection.
+func knownProviderTypes() []string {
+	set := map[string]struct{}{}
+	for _, p := range aiprovider.Providers() {
+		set[strings.ToLower(p.Name.String())] = struct{}{}
+	}
+	for _, id := range []mtprovider.ProviderID{
+		mtprovider.DeepL,
+		mtprovider.Google,
+		mtprovider.MSFT,
+		mtprovider.ModernMT,
+		mtprovider.MyMemory,
+	} {
+		set[strings.ToLower(id.String())] = struct{}{}
+	}
+	out := make([]string, 0, len(set))
+	for name := range set {
+		out = append(out, name)
+	}
+	sort.Strings(out)
+	return out
+}
+
+// validateProviderType reports whether providerType is a known credential
+// provider type (case-insensitive). It returns a descriptive error listing the
+// valid values when the provider is unknown, so a typo is rejected before it is
+// persisted to the store.
+func validateProviderType(providerType string) error {
+	known := knownProviderTypes()
+	want := strings.ToLower(strings.TrimSpace(providerType))
+	for _, name := range known {
+		if name == want {
+			return nil
+		}
+	}
+	return fmt.Errorf("unknown provider %q; valid providers are: %s", providerType, strings.Join(known, ", "))
+}
 
 // NewCredentialsCmd creates the "credentials" command group for managing
 // saved AI provider credentials.
@@ -48,9 +94,12 @@ If only one credential is saved, tools will auto-detect it without --credential.
 			baseURL, _ := cmd.Flags().GetString("base-url")
 
 			if providerType == "" {
-				return errors.New("--provider is required (anthropic, openai, gemini, ollama)")
+				return fmt.Errorf("--provider is required (one of: %s)", strings.Join(knownProviderTypes(), ", "))
 			}
-			if apiKey == "" && providerType != "ollama" {
+			if err := validateProviderType(providerType); err != nil {
+				return err
+			}
+			if apiKey == "" && !strings.EqualFold(providerType, "ollama") {
 				return fmt.Errorf("--api-key is required for %s provider", providerType)
 			}
 
