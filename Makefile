@@ -544,11 +544,11 @@ PLUGIN_DIR := packages/kapi-claude-plugin
 plugin-bundle: build ## Generate the Claude Code plugin skills/ from the embedded source (gitignored; built for release)
 	@rm -rf $(PLUGIN_DIR)/skills
 	@mkdir -p $(PLUGIN_DIR)/skills
-	$(BIN_DIR)/kapi skills export --dir $(PLUGIN_DIR)/skills >/dev/null
+	$(KAPI_ISO_ENV) $(BIN_DIR)/kapi skills export --dir $(PLUGIN_DIR)/skills >/dev/null
 	@echo "Generated $(PLUGIN_DIR)/skills from the embedded skills (cli/skills/data)"
 
 dev-skills: build ## Install kapi/bowrain skills into ./.claude/skills for in-repo dogfooding (gitignored)
-	$(BIN_DIR)/kapi skills install --target project >/dev/null
+	$(KAPI_ISO_ENV) $(BIN_DIR)/kapi skills install --target project >/dev/null
 	@echo "Installed kapi/bowrain skills into .claude/skills (gitignored; canonical source is cli/skills/data)"
 
 build-all: ## Build all Go binaries
@@ -902,7 +902,7 @@ kapi-scenes: ## Record kapi docs scene tapes (VHS, desktop) → web/docs/static/
 	  for tape in "$$scene_dir"*.tape; do \
 	    [ -f "$$tape" ] || continue; \
 	    echo "Recording $$tape"; \
-	    scene_env="KAPI_CONFIG_DIR=$(KAPI_ISO_DIR)/config XDG_DATA_HOME=$(KAPI_ISO_DIR)/data XDG_CACHE_HOME=$(KAPI_ISO_DIR)/cache"; \
+	    scene_env="KAPI_PLUGINS_DIR_ONLY=1 KAPI_CONFIG_DIR=$(KAPI_ISO_DIR)/config XDG_DATA_HOME=$(KAPI_ISO_DIR)/data XDG_CACHE_HOME=$(KAPI_ISO_DIR)/cache"; \
 	    if find "$$scene_dir" -name '*.kapi' | grep -q .; then \
 	      : "scene owns a recipe — keep discovery on (nearest-wins shields it from the root dogfood recipe)"; \
 	    else \
