@@ -55,6 +55,7 @@ func sqlListTranslationTextByBlocks(dialect string, nblocks int) string {
 // the substrate for per-edit rollback. author is left empty here; the audit_log
 // captures the acting user for the corresponding block.updated event.
 func recordTargetHistoryPg(ctx context.Context, tx *sql.Tx, projectID, stream, blockID string, oldText map[string]string, newTargets map[model.VariantKey]*model.Target) error {
+	cc := ChangeContextFromContext(ctx)
 	for key, nt := range newTargets {
 		if nt == nil {
 			continue
@@ -76,9 +77,11 @@ func recordTargetHistoryPg(ctx context.Context, tx *sql.Tx, projectID, stream, b
 			}
 		}
 		if _, err := tx.ExecContext(ctx,
-			`INSERT INTO block_history (project_id, stream, block_id, locale, change_type, text, coded_text, origin, author, created_at)
-			 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())`,
-			projectID, stream, blockID, variant, changeType, newText, coded, originText(nt.Origin), ""); err != nil {
+			`INSERT INTO block_history
+				(project_id, stream, block_id, locale, change_type, text, coded_text, origin, author, actor_role, edit_reason, correlation_id, created_at)
+			 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW())`,
+			projectID, stream, blockID, variant, changeType, newText, coded, originText(nt.Origin),
+			cc.Actor, cc.ActorRole, cc.Reason, cc.CorrelationID); err != nil {
 			return fmt.Errorf("record block history for %s/%s: %w", blockID, variant, err)
 		}
 	}
@@ -93,7 +96,7 @@ func (s *PostgresStore) GetBlockHistory(ctx context.Context, projectID, stream, 
 	}
 
 	rows, err := s.db.QueryContext(ctx,
-		`SELECT id, change_type, text, coded_text, origin, author, created_at
+		`SELECT id, change_type, text, coded_text, origin, author, actor_role, edit_reason, correlation_id, created_at
 		 FROM block_history
 		 WHERE project_id = $1 AND stream = $2 AND block_id = $3 AND locale = $4
 		 ORDER BY id DESC
@@ -107,7 +110,8 @@ func (s *PostgresStore) GetBlockHistory(ctx context.Context, projectID, stream, 
 	var entries []platstore.BlockHistoryEntry
 	for rows.Next() {
 		var e platstore.BlockHistoryEntry
-		if err := rows.Scan(&e.Seq, &e.ChangeType, &e.Text, &e.Coded, &e.Origin, &e.Author, &e.Timestamp); err != nil {
+		if err := rows.Scan(&e.Seq, &e.ChangeType, &e.Text, &e.Coded, &e.Origin, &e.Author,
+			&e.ActorRole, &e.EditReason, &e.CorrelationID, &e.Timestamp); err != nil {
 			return nil, fmt.Errorf("scan block history entry: %w", err)
 		}
 		entries = append(entries, e)

@@ -1106,9 +1106,9 @@ func logChange(ctx context.Context, tx *sql.Tx, projectID, stream, blockID, chan
 		hashVal = contentHash
 	}
 	_, err := tx.ExecContext(ctx,
-		`INSERT INTO change_log (project_id, stream, block_id, change_type, locale, content_hash, logged_at)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-		projectID, stream, blockID, changeType, localeVal, hashVal, now)
+		`INSERT INTO change_log (project_id, stream, block_id, change_type, locale, content_hash, correlation_id, logged_at)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+		projectID, stream, blockID, changeType, localeVal, hashVal, ChangeContextFromContext(ctx).CorrelationID, now)
 	return err
 }
 

@@ -15,6 +15,7 @@ import (
 	"github.com/neokapi/neokapi/bowrain/billing"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
+	bstore "github.com/neokapi/neokapi/bowrain/store"
 )
 
 const sessionCookieName = "bowrain_session"
@@ -57,8 +58,12 @@ func setClaimsOnContext(c echo.Context, claims *platauth.Claims) {
 	// Propagate actor + request metadata into the request context so the
 	// EventEmittingStore (and handler-emitted audit events) can attribute
 	// events to the authenticated user and record where they came from.
+	meta := requestMeta(c)
 	ctx := platev.WithActor(c.Request().Context(), claims.Subject, claims.Name)
-	ctx = platev.WithRequestMeta(ctx, requestMeta(c))
+	ctx = platev.WithRequestMeta(ctx, meta)
+	// Attribution for content writes (block_history / change_log). The
+	// request id is the default correlation id; push/merge handlers override it.
+	ctx = bstore.WithChangeContext(ctx, bstore.ChangeContext{Actor: claims.Subject, CorrelationID: meta.RequestID})
 	c.SetRequest(c.Request().WithContext(ctx))
 }
 
@@ -160,6 +165,8 @@ func handleAPIToken(c echo.Context, next echo.HandlerFunc, token string, authSto
 	c.Set("api_token_scopes", apiToken.Scopes)
 	// Propagate actor into the request context for event attribution.
 	ctx = platev.WithActor(ctx, user.ID, user.Name)
+	ctx = platev.WithRequestMeta(ctx, requestMeta(c))
+	ctx = bstore.WithChangeContext(ctx, bstore.ChangeContext{Actor: user.ID, CorrelationID: requestMeta(c).RequestID})
 	c.SetRequest(c.Request().WithContext(ctx))
 
 	// Fire-and-forget last-used update.
@@ -389,6 +396,13 @@ func (s *Server) ProjectAccessMiddleware() echo.MiddlewareFunc {
 
 			c.Set("project_permissions", perms)
 			c.Set("project_languages", resolved.Languages)
+
+			// Enrich the change context with the actor's workspace role so
+			// block_history records who-with-what-role made each edit.
+			if wsRole, _ := c.Get("workspace_role").(platauth.Role); wsRole != "" {
+				cctx := bstore.WithChangeContext(c.Request().Context(), bstore.ChangeContext{ActorRole: string(wsRole)})
+				c.SetRequest(c.Request().WithContext(cctx))
+			}
 			return next(c)
 		}
 	}

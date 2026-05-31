@@ -66,6 +66,27 @@ func TestPhase4_RollbackBlock(t *testing.T) {
 	assert.Greater(t, len(hist2), len(hist), "rollback should append a new history entry")
 }
 
+// TestPhase4T1_HistoryAttribution proves block_history records who edited (actor
+// + role) and the correlation id, populated end-to-end via the HTTP edit path.
+func TestPhase4T1_HistoryAttribution(t *testing.T) {
+	s, ownerToken := newTestServer(t)
+	cs := s.ContentStore
+	ctx := t.Context()
+	require.NoError(t, cs.CreateProject(ctx, &platstore.Project{ID: "p-attr", Name: "Attr", DefaultSourceLanguage: "en", WorkspaceID: "test-ws"}))
+	blk := &model.Block{ID: "b-attr", Translatable: true, Source: []model.Run{{Text: &model.TextRun{Text: "hello"}}}}
+	require.NoError(t, cs.StoreBlocks(ctx, "p-attr", "main", []*model.Block{blk}))
+
+	code := do(t, s, http.MethodPut, "/api/v1/test/p-attr/blocks/main/b-attr", ownerToken, `{"target_locale":"fr","text":"bonjour"}`)
+	require.Less(t, code, 300, "target update should succeed")
+
+	hist, err := cs.GetBlockHistory(ctx, "p-attr", "main", "b-attr", "fr", 10)
+	require.NoError(t, err)
+	require.NotEmpty(t, hist)
+	assert.Equal(t, "test-user", hist[0].Author, "history should attribute the editing user")
+	assert.Equal(t, "owner", hist[0].ActorRole, "history should record the actor's workspace role")
+	assert.NotEmpty(t, hist[0].CorrelationID, "history should record a correlation id")
+}
+
 // TestPhase4_RollbackRequiresPermission proves the rollback endpoint is gated by
 // PermRollbackChanges (which only project-admins have by default).
 func TestPhase4_RollbackRequiresPermission(t *testing.T) {

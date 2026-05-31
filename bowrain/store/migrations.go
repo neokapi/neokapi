@@ -146,28 +146,36 @@ var storeMigrations = []storage.Migration{
 				locale      TEXT,
 				content_hash TEXT,
 				stream      TEXT NOT NULL DEFAULT 'main',
+				correlation_id TEXT NOT NULL DEFAULT '', -- groups changes from one push/merge/request
 				logged_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
 			);
 			CREATE INDEX idx_changelog_project_seq ON change_log(project_id, seq);
 			CREATE INDEX idx_changelog_project_locale ON change_log(project_id, locale, seq);
 			CREATE INDEX idx_changelog_stream ON change_log(project_id, stream, seq);
+			CREATE INDEX idx_changelog_correlation ON change_log(project_id, correlation_id);
 
-			-- Block history
+			-- Block history: append-only prior content per (block, locale). The
+			-- attribution columns (actor_role/edit_reason/correlation_id) make it
+			-- audit-grade and let a whole push/merge be reverted as a unit.
 			CREATE TABLE block_history (
-				id          BIGSERIAL PRIMARY KEY,
-				project_id  TEXT NOT NULL,
-				block_id    TEXT NOT NULL,
-				locale      TEXT NOT NULL,
-				change_type TEXT NOT NULL,
-				text        TEXT NOT NULL DEFAULT '',
-				coded_text  TEXT NOT NULL DEFAULT '',
-				origin      TEXT NOT NULL DEFAULT '',
-				author      TEXT NOT NULL DEFAULT '',
-				stream      TEXT NOT NULL DEFAULT 'main',
-				created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+				id             BIGSERIAL PRIMARY KEY,
+				project_id     TEXT NOT NULL,
+				block_id       TEXT NOT NULL,
+				locale         TEXT NOT NULL,
+				change_type    TEXT NOT NULL,
+				text           TEXT NOT NULL DEFAULT '',
+				coded_text     TEXT NOT NULL DEFAULT '',
+				origin         TEXT NOT NULL DEFAULT '',
+				author         TEXT NOT NULL DEFAULT '',
+				actor_role     TEXT NOT NULL DEFAULT '',
+				edit_reason    TEXT NOT NULL DEFAULT '',
+				correlation_id TEXT NOT NULL DEFAULT '',
+				stream         TEXT NOT NULL DEFAULT 'main',
+				created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
 			);
 			CREATE INDEX idx_block_history_lookup ON block_history(project_id, block_id, locale);
 			CREATE INDEX idx_block_history_stream ON block_history(project_id, stream, block_id, locale);
+			CREATE INDEX idx_block_history_correlation ON block_history(project_id, correlation_id);
 
 			-- Block notes
 			CREATE TABLE block_notes (
