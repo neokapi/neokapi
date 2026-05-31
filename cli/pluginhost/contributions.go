@@ -127,7 +127,7 @@ func dispatchContribution(cmd *cobra.Command, p *Plugin, cc manifest.CommandCont
 	}
 
 	dir := contributionDir(cmd)
-	return runContributionSubprocess(p, args, dir)
+	return runContributionSubprocess(cmd.Context(), p, args, dir)
 }
 
 // forwardFlag renders one engaged flag as argv for the handler.
@@ -167,8 +167,17 @@ func contributionDir(cmd *cobra.Command) string {
 	return dir
 }
 
-func runContributionSubprocess(p *Plugin, args []string, dir string) error {
-	cmd := exec.CommandContext(context.Background(), p.BinaryPath, args...)
+// runContributionSubprocess execs the plugin's contribution handler with the
+// engaged flags. ctx is the cobra command's context (carrying signal/
+// cancellation wiring); it is propagated to exec.CommandContext so that a
+// SIGTERM/SIGINT to the kapi process (which cobra translates into a cancelled
+// command context) terminates the plugin child instead of leaving it running
+// until it finishes on its own.
+func runContributionSubprocess(ctx context.Context, p *Plugin, args []string, dir string) error {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	cmd := exec.CommandContext(ctx, p.BinaryPath, args...)
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -182,6 +191,13 @@ func runContributionSubprocess(p *Plugin, args []string, dir string) error {
 	cmd.Env = env
 
 	if err := cmd.Run(); err != nil {
+		// If the parent context was cancelled (e.g. SIGTERM/SIGINT to kapi),
+		// exec.CommandContext has already killed the child. Don't mistake the
+		// resulting non-zero exit for a real plugin exit code: surface the
+		// context error so the caller stops cleanly.
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return fmt.Errorf("plugin %q contribution %q: %w", p.Name(), args[1], ctxErr)
+		}
 		var exitErr *exec.ExitError
 		if errors.As(err, &exitErr) {
 			os.Exit(exitErr.ExitCode())
