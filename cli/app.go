@@ -254,6 +254,13 @@ func (a *App) Init() {
 	if a.Config == nil {
 		a.Config = config.NewAppConfig()
 	}
+	// Honor an explicit --config / -c file path: point the loader at that
+	// exact file instead of the fixed search paths. Without this the flag
+	// is bound but silently ignored. An explicit file always wins over the
+	// search-path locations.
+	if a.CfgFile != "" {
+		a.Config.Viper().SetConfigFile(a.CfgFile)
+	}
 	_ = a.Config.Load()
 
 	// Apply format priority overrides from configuration.
