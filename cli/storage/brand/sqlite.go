@@ -169,13 +169,30 @@ func (s *SQLiteBrandStore) GetProfile(ctx context.Context, id string) (*corebran
 	if desc != nil {
 		p.Description = *desc
 	}
-	_ = json.Unmarshal([]byte(toneJSON), &p.Tone)
-	_ = json.Unmarshal([]byte(styleJSON), &p.Style)
-	_ = json.Unmarshal([]byte(vocabJSON), &p.Vocabulary)
-	_ = json.Unmarshal([]byte(examplesJSON), &p.Examples)
-	_ = json.Unmarshal([]byte(localesJSON), &p.Locales)
-	_ = json.Unmarshal([]byte(channelsJSON), &p.Channels)
-	_ = json.Unmarshal([]byte(autonomyJSON), &p.Autonomy)
+	// Mirror the Postgres sibling (bowrain/brand.scanProfile): treat malformed
+	// JSON in the core descriptor fields as a hard error, but tolerate the
+	// optional override maps by falling back to their zero values.
+	if err := json.Unmarshal([]byte(toneJSON), &p.Tone); err != nil {
+		return nil, fmt.Errorf("unmarshal tone: %w", err)
+	}
+	if err := json.Unmarshal([]byte(styleJSON), &p.Style); err != nil {
+		return nil, fmt.Errorf("unmarshal style: %w", err)
+	}
+	if err := json.Unmarshal([]byte(vocabJSON), &p.Vocabulary); err != nil {
+		return nil, fmt.Errorf("unmarshal vocabulary: %w", err)
+	}
+	if err := json.Unmarshal([]byte(examplesJSON), &p.Examples); err != nil {
+		return nil, fmt.Errorf("unmarshal examples: %w", err)
+	}
+	if err := json.Unmarshal([]byte(localesJSON), &p.Locales); err != nil {
+		p.Locales = map[string]corebrand.LocaleOverride{}
+	}
+	if err := json.Unmarshal([]byte(channelsJSON), &p.Channels); err != nil {
+		p.Channels = map[string]corebrand.ChannelOverride{}
+	}
+	if err := json.Unmarshal([]byte(autonomyJSON), &p.Autonomy); err != nil {
+		p.Autonomy = corebrand.AutonomyConfig{}
+	}
 	p.CreatedAt, _ = time.Parse(time.RFC3339, createdStr)
 	p.UpdatedAt, _ = time.Parse(time.RFC3339, updatedStr)
 	return &p, nil

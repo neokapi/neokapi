@@ -432,6 +432,25 @@ func TestRuleDecisions(t *testing.T) {
 	assert.Len(t, all, 2)
 }
 
+func TestGetProfileMalformedJSON(t *testing.T) {
+	ctx := t.Context()
+	store := newTestStore(t)
+
+	require.NoError(t, store.CreateProfile(ctx, testProfile()))
+
+	// Corrupt a core descriptor column directly (bypassing the in-code writers,
+	// which always emit valid JSON). The reader must surface the unmarshal
+	// failure rather than silently returning a half-populated profile, matching
+	// the Postgres sibling.
+	_, err := store.db.ExecContext(ctx,
+		`UPDATE brand_profiles SET tone = ? WHERE id = ?`, "{not json", "p1")
+	require.NoError(t, err)
+
+	_, err = store.GetProfile(ctx, "p1")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "unmarshal tone")
+}
+
 func TestProfileAutonomyRoundTrip(t *testing.T) {
 	ctx := t.Context()
 	store := newTestStore(t)
