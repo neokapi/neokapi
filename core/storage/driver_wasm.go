@@ -28,5 +28,13 @@ func sqliteDSN(dbPath string) string {
 	if strings.Contains(dbPath, "?") {
 		sep = "&"
 	}
-	return dbPath + sep + "_pragma=busy_timeout(5000)"
+	params := strings.Join([]string{
+		"_pragma=foreign_keys(1)",
+		"_pragma=busy_timeout(5000)",
+		"_pragma=synchronous(NORMAL)",
+		"_pragma=cache_size(-131072)",
+		"_pragma=wal_autocheckpoint(10000)",
+		"_pragma=temp_store(MEMORY)",
+	}, "&")
+	return dbPath + sep + params
 }

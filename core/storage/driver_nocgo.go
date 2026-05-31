@@ -26,8 +26,14 @@ const FTSWordTokenizer = "unicode61"
 
 // sqliteDSN builds the modernc.org/sqlite DSN. modernc takes pragmas as
 // _pragma=NAME(VALUE) query parameters (e.g. _pragma=busy_timeout(5000),
-// _pragma=journal_mode(WAL)); setting busy_timeout in the DSN makes every
-// pooled connection wait for locks from the moment it is established.
+// _pragma=journal_mode(WAL)), applied to every connection in the pool as it is
+// established — this is the only way to guarantee a per-connection pragma
+// reaches all up-to-25 pooled connections (a single startup Exec only
+// configures the one connection it happens to run on). foreign_keys in
+// particular MUST be set here: it is per-connection in SQLite, and TM Delete /
+// termbase DeleteConcept rely on ON DELETE CASCADE, which silently no-ops on any
+// connection where foreign_keys is OFF.
+//
 // In-memory DSNs are left untouched.
 func sqliteDSN(dbPath string) string {
 	if isMemoryDSN(dbPath) {
@@ -37,5 +43,17 @@ func sqliteDSN(dbPath string) string {
 	if strings.Contains(dbPath, "?") {
 		sep = "&"
 	}
-	return dbPath + sep + "_pragma=busy_timeout(5000)"
+	// journal_mode is intentionally omitted: WAL is a database-level,
+	// file-persistent setting that applyPragmas establishes once on first open;
+	// re-asserting it on every pooled connection only invites WAL-switch lock
+	// contention. The remaining pragmas are per-connection and must ride the DSN.
+	params := strings.Join([]string{
+		"_pragma=foreign_keys(1)",
+		"_pragma=busy_timeout(5000)",
+		"_pragma=synchronous(NORMAL)",
+		"_pragma=cache_size(-131072)",
+		"_pragma=wal_autocheckpoint(10000)",
+		"_pragma=temp_store(MEMORY)",
+	}, "&")
+	return dbPath + sep + params
 }

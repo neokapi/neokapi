@@ -84,9 +84,19 @@ func isMemoryDSN(dbPath string) bool {
 	return dbPath == ":memory:" || strings.Contains(dbPath, ":memory:") || strings.Contains(dbPath, "mode=memory")
 }
 
-// applyPragmas runs the shared connection pragmas. Both the mattn (cgo) and
-// modernc (no-cgo) drivers honour these PRAGMA statements via Exec, so the set
-// is kept here rather than in the build-tagged files.
+// applyPragmas runs the shared connection pragmas as belt-and-suspenders on the
+// single connection it happens to execute on.
+//
+// IMPORTANT: a PRAGMA run here via db.Exec configures only ONE of the up-to-25
+// pooled connections. Connection-level pragmas — foreign_keys above all, since
+// ON DELETE CASCADE silently no-ops where foreign_keys is OFF — are therefore
+// set in the DSN (sqliteDSN, per build-tagged driver file), which applies them
+// to every connection as it is established. The journal_mode=WAL and
+// wal_autocheckpoint pragmas are database-level (persisted in the DB header /
+// shared across connections), so running them once is sufficient; they are
+// repeated here mainly to switch the journal mode on first open under the cgo
+// driver. Both the mattn (cgo) and modernc (no-cgo) drivers honour these PRAGMA
+// statements via Exec.
 func applyPragmas(db *sql.DB) error {
 	pragmas := []string{
 		// busy_timeout first: subsequent statements (notably the journal_mode=WAL
