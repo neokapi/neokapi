@@ -532,6 +532,9 @@ func (s *SQLiteStore) storeBlocks(ctx context.Context, projectID, stream, itemNa
 			ids = append(ids, bid)
 		}
 		hashRows.Close()
+		if err := hashRows.Err(); err != nil {
+			return fmt.Errorf("hash lookup rows: %w", err)
+		}
 
 		if len(ids) > 0 {
 			localeMap, err := bstore.LoadBlockTargetLocales(ctx, tx, "sqlite", projectID, stream, ids)
