@@ -36,9 +36,10 @@ func (s *Server) HandleSyncPushInit(c echo.Context) error {
 	if err := c.Bind(&req); err != nil {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 	}
-	if req.ProjectID == "" {
-		req.ProjectID = c.Param("id")
-	}
+	// Always authorize and operate on the path-scoped project. The permission
+	// middleware resolved access against c.Param("id"); a client-supplied
+	// project_id is ignored to prevent cross-project access (IDOR).
+	req.ProjectID = c.Param("id")
 	if req.Stream == "" {
 		req.Stream = c.Param("stream")
 	}
@@ -151,20 +152,29 @@ func (s *Server) HandleSyncPushCommit(c echo.Context) error {
 	if err := c.Bind(&manifest); err != nil {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 	}
-	if manifest.ProjectID == "" {
-		manifest.ProjectID = c.Param("id")
-	}
+	// Force the project and actor to the authorized path/identity. The
+	// permission middleware resolved access against c.Param("id") and the
+	// authenticated user; a client-supplied project_id / actor_id / workspace
+	// is not trusted (prevents writing into another tenant's project, IDOR).
+	manifest.ProjectID = c.Param("id")
 	if manifest.Stream == "" {
 		manifest.Stream = c.Param("stream")
 	}
 	if manifest.Stream == "" {
 		manifest.Stream = "main"
 	}
-	if manifest.ActorID == "" {
-		manifest.ActorID, _ = c.Get("user_id").(string)
-	}
-	if manifest.WorkspaceSlug == "" {
-		manifest.WorkspaceSlug, _ = c.Get("workspace_slug").(string)
+	manifest.ActorID, _ = c.Get("user_id").(string)
+	// Resolve the workspace slug from the path-scoped project rather than
+	// trusting the client. Best-effort: the worker tolerates an empty slug.
+	manifest.WorkspaceSlug = ""
+	if s.ContentStore != nil {
+		if proj, err := s.ContentStore.GetProject(c.Request().Context(), manifest.ProjectID); err == nil && proj != nil && proj.WorkspaceID != "" {
+			if s.AuthStore != nil {
+				if ws, err := s.AuthStore.GetWorkspace(c.Request().Context(), proj.WorkspaceID); err == nil && ws != nil {
+					manifest.WorkspaceSlug = ws.Slug
+				}
+			}
+		}
 	}
 
 	// Validate chunks exist. For ChunkedBlobStore (proxy uploads), chunks are
@@ -285,6 +295,9 @@ func readBody(c echo.Context, maxBytes int64) ([]byte, error) {
 // SyncBlock records instead of raw change log entries. When the client sends
 // Accept-Encoding: zstd, the response is zstd-compressed.
 func (s *Server) HandleSyncPull(c echo.Context) error {
+	if err := s.requirePermission(c, platauth.PermViewContent); err != nil {
+		return err
+	}
 	if s.Services == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "store not configured"})
 	}
@@ -398,6 +411,9 @@ func writePullResponse(c echo.Context, resp apiclient.RichPullResponse) error {
 // HandleSyncGetBlocks returns blocks with full structured content for a specific item.
 // Returns []SyncBlock with segments, spans, annotations, and metadata.
 func (s *Server) HandleSyncGetBlocks(c echo.Context) error {
+	if err := s.requirePermission(c, platauth.PermViewContent); err != nil {
+		return err
+	}
 	if s.Services == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "store not configured"})
 	}
@@ -450,6 +466,9 @@ func (s *Server) HandleSyncGetBlocks(c echo.Context) error {
 // HandleSyncPushStatus returns the aggregated status of jobs triggered by a push.
 // GET /api/v1/projects/:id/sync/status?push_id=xxx
 func (s *Server) HandleSyncPushStatus(c echo.Context) error {
+	if err := s.requirePermission(c, platauth.PermViewContent); err != nil {
+		return err
+	}
 	if s.JobStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "job system not configured"})
 	}
