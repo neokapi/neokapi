@@ -14,7 +14,17 @@ type BlockIdentity struct {
 }
 
 // ComputeContentHash computes a SHA-256 hash of the normalized source text.
-// Normalization trims whitespace and lowercases the text to ensure stable hashing.
+//
+// Normalization is leading/trailing whitespace trimming ONLY (strings.TrimSpace).
+// It deliberately does NOT change case, collapse interior whitespace, or apply
+// any other transform — case and interior spacing are content-significant.
+//
+// WARNING: this normalization is part of the on-the-wire content-hash contract
+// used by the sync diff engine. Changing it (e.g. adding lowercasing or
+// Unicode normalization) alters every emitted hash and would force a full
+// re-sync of all existing projects. Do NOT change the normalization without a
+// coordinated hash-version migration. The golden-hash test in identity_test.go
+// pins the exact output for a known input to catch accidental changes.
 func ComputeContentHash(sourceText string) string {
 	normalized := strings.TrimSpace(sourceText)
 	h := sha256.Sum256([]byte(normalized))

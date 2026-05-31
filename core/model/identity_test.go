@@ -31,6 +31,33 @@ func TestComputeContentHash(t *testing.T) {
 		assert.NotEmpty(t, h)
 		assert.Len(t, h, 64) // SHA-256 hex = 64 chars
 	})
+
+	t.Run("does not lowercase", func(t *testing.T) {
+		// Case is content-significant: the normalization must NOT fold case.
+		// If this fails, the on-the-wire hash contract has changed and a
+		// hash-version migration is required (see ComputeContentHash doc).
+		h1 := ComputeContentHash("Hello world")
+		h2 := ComputeContentHash("hello world")
+		assert.NotEqual(t, h1, h2, "content hash must be case-sensitive")
+	})
+
+	t.Run("does not collapse interior whitespace", func(t *testing.T) {
+		h1 := ComputeContentHash("Hello world")
+		h2 := ComputeContentHash("Hello  world")
+		assert.NotEqual(t, h1, h2, "interior whitespace is content-significant")
+	})
+
+	t.Run("golden hash pins the wire contract", func(t *testing.T) {
+		// This is the exact SHA-256 of "Hello world" (TrimSpace-only
+		// normalization). It is part of the on-the-wire content-hash contract
+		// consumed by the sync diff engine. If this changes, every existing
+		// project's hashes change too — do NOT update this value without a
+		// coordinated hash-version migration.
+		const golden = "64ec88ca00b268e5ba1a35678a1b5316d212f4f366b2477232534a8aeca37f3c"
+		assert.Equal(t, golden, ComputeContentHash("Hello world"))
+		// Trimming must yield the same golden hash.
+		assert.Equal(t, golden, ComputeContentHash("  Hello world\n"))
+	})
 }
 
 func TestComputeContextHash(t *testing.T) {
