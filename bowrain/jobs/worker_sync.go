@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log/slog"
 	"strings"
 
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
@@ -151,14 +150,18 @@ func processSyncPushJob(ctx context.Context, deps *WorkerDeps, job *TranslationJ
 			totalStored += stored
 			allItemNames = append(allItemNames, itemNames...)
 
-		case "terms":
-			slog.Info("sync: term processing not yet implemented", "chunk", chunkRef.Index)
+		case "terms", "tm", "media":
+			// These content types are not yet implemented. Rather than silently
+			// dropping the payload and marking the job Completed (which would lose
+			// data for any client that emits them), fail the job explicitly.
+			err := fmt.Errorf("sync: content type %q (chunk %d) is not yet supported", chunk.ContentType, chunkRef.Index)
+			_ = deps.JobStore.UpdateJobStatus(ctx, job.ID, StatusFailed, err.Error())
+			return err
 
-		case "tm":
-			slog.Info("sync: TM processing not yet implemented", "chunk", chunkRef.Index)
-
-		case "media":
-			slog.Info("sync: media processing not yet implemented", "chunk", chunkRef.Index)
+		default:
+			err := fmt.Errorf("sync: unknown content type %q (chunk %d)", chunk.ContentType, chunkRef.Index)
+			_ = deps.JobStore.UpdateJobStatus(ctx, job.ID, StatusFailed, err.Error())
+			return err
 		}
 	}
 

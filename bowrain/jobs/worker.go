@@ -374,6 +374,10 @@ func partsToBlocks(parts []*model.Part) []*model.Block {
 }
 
 // runToolOnParts executes a tool on parts using channels (same as editor.go).
+//
+// Process runs in its own goroutine while the caller drains the output channel
+// concurrently, so a fan-out tool that emits more parts than it consumes cannot
+// deadlock on a bounded buffer.
 func runToolOnParts(ctx context.Context, t tool.Tool, parts []*model.Part) ([]*model.Part, error) {
 	in := make(chan *model.Part, len(parts))
 	out := make(chan *model.Part, len(parts))
@@ -382,14 +386,19 @@ func runToolOnParts(ctx context.Context, t tool.Tool, parts []*model.Part) ([]*m
 	}
 	close(in)
 
-	if err := t.Process(ctx, in, out); err != nil {
-		return nil, err
-	}
-	close(out)
+	errCh := make(chan error, 1)
+	go func() {
+		err := t.Process(ctx, in, out)
+		close(out)
+		errCh <- err
+	}()
 
 	var result []*model.Part
 	for pt := range out {
 		result = append(result, pt)
+	}
+	if err := <-errCh; err != nil {
+		return nil, err
 	}
 	return result, nil
 }
