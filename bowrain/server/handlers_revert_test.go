@@ -1,10 +1,12 @@
 package server
 
 import (
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
@@ -91,4 +93,44 @@ func TestPhase4_RevertBatchClearsAdded(t *testing.T) {
 
 	sb, _ := cs.GetBlock(ctx, "p-rev2", "main", "bx")
 	assert.Equal(t, "", sb.TargetText(fr), "a batch-added target should be blanked on revert")
+}
+
+// TestPhase4_RestoreToVersion proves point-in-time restore: a stream is rolled
+// back to the state captured at a named version.
+func TestPhase4_RestoreToVersion(t *testing.T) {
+	s, _ := newTestServer(t)
+	cs := s.ContentStore
+	fr := model.LocaleID("fr")
+	ctx := t.Context()
+	require.NoError(t, cs.CreateProject(ctx, &platstore.Project{ID: "p-pit", Name: "PIT", DefaultSourceLanguage: "en"}))
+
+	blk := &model.Block{ID: "bp", Translatable: true, Source: []model.Run{{Text: &model.TextRun{Text: "hi"}}}}
+	blk.SetTargetText(fr, "v1")
+	require.NoError(t, cs.StoreBlocks(ctx, "p-pit", "main", []*model.Block{blk}))
+
+	time.Sleep(5 * time.Millisecond)
+	ver, err := cs.CreateVersion(ctx, "p-pit", "main", "snap", "")
+	require.NoError(t, err)
+	time.Sleep(5 * time.Millisecond)
+
+	// Change after the version.
+	blk.SetTargetText(fr, "v2")
+	require.NoError(t, cs.StoreBlocks(ctx, "p-pit", "main", []*model.Block{blk}))
+	sb, _ := cs.GetBlock(ctx, "p-pit", "main", "bp")
+	require.Equal(t, "v2", sb.TargetText(fr))
+
+	// Restore to the version.
+	e := s.GetEcho()
+	req := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(fmt.Sprintf(`{"to_version":%q}`, ver.ID)))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+	c.Set("project_permissions", platauth.PermAll)
+	c.SetParamNames("id")
+	c.SetParamValues("p-pit")
+	require.NoError(t, s.HandleRestoreToPoint(c))
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+
+	sb, _ = cs.GetBlock(ctx, "p-pit", "main", "bp")
+	assert.Equal(t, "v1", sb.TargetText(fr), "restore-to-version should roll the target back to the version's state")
 }
