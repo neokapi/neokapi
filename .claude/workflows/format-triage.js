@@ -11,7 +11,18 @@ export const meta = {
 }
 
 // ── config (all optional; defaults make a bare trigger do score+triage+publish) ──
-const cfg = (args && typeof args === 'object' && !Array.isArray(args)) ? args : {}
+// args may arrive as a parsed object OR as a JSON string — accept both.
+function parseArgs(a) {
+  if (a && typeof a === 'object' && !Array.isArray(a)) return a
+  if (typeof a === 'string' && a.trim()) {
+    try {
+      const p = JSON.parse(a)
+      if (p && typeof p === 'object' && !Array.isArray(p)) return p
+    } catch (e) { /* fall through to defaults */ }
+  }
+  return {}
+}
+const cfg = parseArgs(args)
 const TARGET = cfg.target || 'L4'
 const MODE = cfg.mode || 'triage' // 'triage' | 'remediate'
 const PUBLISH = cfg.publish !== false
